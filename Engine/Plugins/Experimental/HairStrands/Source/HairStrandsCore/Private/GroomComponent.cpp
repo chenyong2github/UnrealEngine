@@ -472,13 +472,12 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	RegisteredSkeletalMeshComponent = nullptr;
 	SkeletalPreviousPositionOffset = FVector::ZeroVector;
 	bBindGroomToSkeletalMesh = false;
-	bCreateNiagaraComponent = false;
 	InitializedResources = nullptr;
 	Mobility = EComponentMobility::Movable;
 	bIsGroomAssetCallbackRegistered = false;
 	bIsGroomBindingAssetCallbackRegistered = false;
 	SourceSkeletalMesh = nullptr; 
-	NiagaraComponent = nullptr;
+	NiagaraComponents.Empty();
 
 	SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 }
@@ -523,47 +522,93 @@ void UGroomComponent::UpdateHairGroupsDesc()
 			Desc.HairShadowDensity = GroupData.HairRenderData.HairDensity;
 		}
 	}
-	UpdateNiagaraComponent();
 }
 
-void UGroomComponent::UpdateNiagaraComponent()
+void UGroomComponent::ReleaseHairSimulation()
 {
-	static UNiagaraSystem* CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/GroomAssetSystem.GroomAssetSystem"));
-	static UNiagaraSystem* AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/GroomAssetSystem.GroomAssetSystem"));
+	for (int32 i = 0; i < NiagaraComponents.Num(); ++i)
+	{
+		if (NiagaraComponents[i] && !NiagaraComponents[i]->IsBeingDestroyed())
+		{
+			if (GetWorld())
+			{
+				NiagaraComponents[i]->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+				NiagaraComponents[i]->UnregisterComponent();
+			}
+			NiagaraComponents[i]->DestroyComponent();
+			NiagaraComponents[i] = nullptr;
+		}
+	}
+	NiagaraComponents.Empty();
+}
 
-	if (GroomAsset && GroomAsset->EnableSimulation && bCreateNiagaraComponent)
+void UGroomComponent::UpdateHairSimulation()
+{
+	static UNiagaraSystem* CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/GroomRodsSystem.GroomRodsSystem"));
+	static UNiagaraSystem* AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/GroomSpringsSystem.GroomSpringsSystem"));
+
+	const int32 NumGroups = GroomAsset ? GroomAsset->HairGroupsPhysics.Num() : 0;
+	const int32 NumComponents = FMath::Max(NumGroups, NiagaraComponents.Num());
+
+	TArray<bool> ValidComponents;
+	ValidComponents.Init(false, NumComponents);
+
+	if (GroomAsset)
 	{
-		if (!NiagaraComponent)
+		for (int32 i = 0; i < NumGroups; ++i)
 		{
-			NiagaraComponent = NewObject<UNiagaraComponent>(this);
-			NiagaraComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-			NiagaraComponent->RegisterComponent();
-			NiagaraComponent->SetVisibleFlag(false);
-			NiagaraComponent->Activate(true);
+			ValidComponents[i] = GroomAsset->HairGroupsPhysics[i].SolverSettings.EnableSimulation;
 		}
-		if (GroomAsset->NiagaraSolver == EGroomNiagaraSolvers::AngularSprings)
-		{
-			NiagaraComponent->SetAsset(AngularSpringsSystem);
-		}
-		else if (GroomAsset->NiagaraSolver == EGroomNiagaraSolvers::CosseratRods)
-		{
-			NiagaraComponent->SetAsset(CosseratRodsSystem);
-		}
-		if (NiagaraComponent->GetSystemInstance())
-		{
-			NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ReInit);
-			NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-		}
-		EnableSimulatedGroups();
 	}
-	else if (NiagaraComponent)
+	NiagaraComponents.SetNumZeroed(NumComponents);
+	for (int32 i = 0; i < NumComponents; ++i)
 	{
-		NiagaraComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-		NiagaraComponent->UnregisterComponent();
-		NiagaraComponent->DestroyComponent();
-		NiagaraComponent = nullptr;
-		DisableSimulatedGroups();
+		UNiagaraComponent*& NiagaraComponent = NiagaraComponents[i];
+		if (ValidComponents[i])
+		{
+			if (!NiagaraComponent)
+			{
+				NiagaraComponent = NewObject<UNiagaraComponent>(this, NAME_None, RF_Transient);
+				if (GetWorld())
+				{
+					NiagaraComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
+					NiagaraComponent->RegisterComponent();
+				}
+				else
+				{
+					NiagaraComponent->SetupAttachment(this);
+				}
+				NiagaraComponent->SetVisibleFlag(false);
+			}
+			if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings)
+			{
+				NiagaraComponent->SetAsset(AngularSpringsSystem);
+				NiagaraComponent->Activate(true);
+			}
+			else if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods)
+			{
+				NiagaraComponent->SetAsset(CosseratRodsSystem);
+				NiagaraComponent->Activate(true);
+			}
+			if (NiagaraComponent->GetSystemInstance())
+			{
+				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ReInit);
+				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
+			}
+		}
+		else if (NiagaraComponent && !NiagaraComponent->IsBeingDestroyed())
+		{
+			if (GetWorld())
+			{
+				NiagaraComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+				NiagaraComponent->UnregisterComponent();
+			}
+			NiagaraComponent->DestroyComponent();
+			NiagaraComponent = nullptr;
+		}
 	}
+	NiagaraComponents.SetNum(NumGroups);
+	UpdateSimulatedGroups();
 }
 
 void UGroomComponent::SetGroomAsset(UGroomAsset* Asset)
@@ -584,12 +629,12 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset)
 	}
 
 	UpdateHairGroupsDesc();
+	UpdateHairSimulation();
 	if (!GroomAsset)
 		return;
 	InitResources();
 }
 
-static void ResetSimulation(const USceneComponent* Component);
 void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding)
 {
 	ReleaseResources();
@@ -613,10 +658,10 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBi
 	}
 
 	UpdateHairGroupsDesc();
+	UpdateHairSimulation();
 	if (!GroomAsset)
 		return;
 	InitResources();
-	ResetSimulation(this);
 }
 
 void UGroomComponent::SetStableRasterization(bool bEnable)
@@ -848,52 +893,13 @@ template<typename T> void SafeRelease(T*& Data)
 	}
 }
 
-static bool IsSimulationEnabled(const USceneComponent* Component)
-{
-	check(Component);
-
-	// If the groom component has an Niagara component attached, we assume it has simulation capabilities
-	bool bHasNiagaraSimulationComponent = false;
-	for (int32 ChildIt = 0, ChildCount = Component->GetNumChildrenComponents(); ChildIt < ChildCount; ++ChildIt)
-	{
-		const USceneComponent* ChildComponent = Component->GetChildComponent(ChildIt);
-		const UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ChildComponent);
-		if (NiagaraComponent != nullptr)
-		{
-			bHasNiagaraSimulationComponent = true;
-			break;
-		}
-	}
-
-	return bHasNiagaraSimulationComponent;
-}
-
-static void ResetSimulation(const USceneComponent* Component)
-{
-	check(Component);
-
-	for (int32 ChildIt = 0, ChildCount = Component->GetNumChildrenComponents(); ChildIt < ChildCount; ++ChildIt)
-	{
-		const USceneComponent* ChildComponent = Component->GetChildComponent(ChildIt);
-		const UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ChildComponent);
-		if (NiagaraComponent != nullptr)
-		{
-			if (NiagaraComponent->GetSystemInstance())
-			{
-				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ReInit);
-				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-			}
-		}
-	}
-}
-
 EWorldType::Type UGroomComponent::GetWorldType() const
 {
 	EWorldType::Type WorldType = GetWorld() ? EWorldType::Type(GetWorld()->WorldType) : EWorldType::None;
 	return WorldType == EWorldType::Inactive ? EWorldType::Editor : WorldType;
 }
 
-void UGroomComponent::EnableSimulatedGroups()
+void UGroomComponent::UpdateSimulatedGroups()
 {
 	if (InterpolationInput)
 	{
@@ -908,7 +914,8 @@ void UGroomComponent::EnableSimulatedGroups()
 			int32 GroupIt = 0;
 			for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
 			{
-				const bool bIsSimulationEnable = LocalGroomAsset->EnableSimulation && (LocalGroomAsset->SimulatedGroup == GroupIt);
+				const bool bIsSimulationEnable = (LocalGroomAsset && GroupIt < LocalGroomAsset->HairGroupsPhysics.Num()) ? 
+					LocalGroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation : false;
 				HairGroup.bIsSimulationEnable = bIsSimulationEnable;
 				UpdateHairStrandsDebugInfo(Id, WorldType, GroupIt, bIsSimulationEnable);
 				++GroupIt;
@@ -917,44 +924,12 @@ void UGroomComponent::EnableSimulatedGroups()
 	}
 }
 
-void UGroomComponent::DisableSimulatedGroups()
-{
-	if (InterpolationInput)
-	{
-		const uint32 Id = ComponentId.PrimIDValue;
-		const EWorldType::Type WorldType = GetWorldType();
-
-		FHairStrandsInterpolationInput* LocalInterpolationInput = InterpolationInput;
-		UGroomAsset* LocalGroomAsset = GroomAsset;
-		ENQUEUE_RENDER_COMMAND(FHairStrandsTick_DisableSimulatedGroups)(
-			[LocalInterpolationInput, LocalGroomAsset, Id, WorldType](FRHICommandListImmediate& RHICmdList)
-		{
-			int32 GroupIt = 0;
-			for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
-			{
-				HairGroup.bIsSimulationEnable = false;
-				UpdateHairStrandsDebugInfo(Id, WorldType, GroupIt, false);
-				++GroupIt;
-			}
-		});
-	}
-}
-
 void UGroomComponent::OnChildDetached(USceneComponent* ChildComponent)
-{
-	if (Cast<UNiagaraComponent>(ChildComponent) && InterpolationInput)
-	{
-		DisableSimulatedGroups();
-	}
-}
-
+{}
 
 void UGroomComponent::OnChildAttached(USceneComponent* ChildComponent)
 {
-	if (Cast<UNiagaraComponent>(ChildComponent) && InterpolationInput)
-	{
-		EnableSimulatedGroups();
-	}
+
 }
 
 void UGroomComponent::InitResources(bool bIsBindingReloading)
@@ -989,7 +964,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		UGroomBindingAsset::IsCompatible(SkeletalMeshComponent ? SkeletalMeshComponent->SkeletalMesh : nullptr, BindingAsset) &&
 		UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset) && 
 		UGroomBindingAsset::IsBindingAssetValid(BindingAsset, bIsBindingReloading);
-	const bool bIsSimulationEnable = IsSimulationEnabled(this);
 
 	FTransform HairLocalToWorld = GetComponentTransform();
 	FTransform SkinLocalToWorld = bBindGroomToSkeletalMesh && SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform::Identity;
@@ -1087,11 +1061,14 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		InterpolationInputGroup.InRenderHairPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.InSimHairPositionOffset = SimRestHairPositionOffset;
 
+		const bool bIsSimulationEnable = (GroomAsset && GroupIt < GroomAsset->HairGroupsPhysics.Num()) ?
+			GroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation : false;
+
 		// For skinned groom, these value will be updated during TickComponent() call
 		// Deformed sim & render are expressed within the referential (unlike rest pose)
 		InterpolationInputGroup.OutHairPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.OutHairPreviousPositionOffset = RenderRestHairPositionOffset;
-		InterpolationInputGroup.bIsSimulationEnable = bIsSimulationEnable && GroomAsset->EnableSimulation && (GroomAsset->SimulatedGroup == GroupIt);
+		InterpolationInputGroup.bIsSimulationEnable = bIsSimulationEnable;
 		DebugHairGroup.bHasSimulation = InterpolationInputGroup.bIsSimulationEnable;
 
 		GroupIt++;
@@ -1362,7 +1339,7 @@ void UGroomComponent::PostLoad()
 #if WITH_EDITOR
 void UGroomComponent::Invalidate()
 {
-	UpdateNiagaraComponent();
+	UpdateHairSimulation();
 	MarkRenderStateDirty();
 	ValidateMaterials(false);
 }
@@ -1376,6 +1353,7 @@ void UGroomComponent::InvalidateAndRecreate()
 
 void UGroomComponent::OnRegister()
 {
+	UpdateHairSimulation();
 	Super::OnRegister();
 
 	if (!InitializedResources)
@@ -1399,6 +1377,7 @@ void UGroomComponent::OnRegister()
 void UGroomComponent::OnUnregister()
 {
 	Super::OnUnregister();
+	ReleaseHairSimulation();
 }
 
 void UGroomComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
@@ -1601,7 +1580,6 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	const bool bSourceSkeletalMeshChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, SourceSkeletalMesh);
 	const bool bBindingAssetChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, BindingAsset);
 	const bool bBindToSkeletalChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, bBindGroomToSkeletalMesh);
-	const bool bDefaultNiagaraChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, bCreateNiagaraComponent);
 	const bool bIsBindingCompatible = UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset);
 	if (!bIsBindingCompatible || !UGroomBindingAsset::IsBindingAssetValid(BindingAsset))
 	{
@@ -1617,7 +1595,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		GroomAsset = nullptr;
 	}
 
-	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || PropertyThatChanged == nullptr || bBindToSkeletalChanged || bDefaultNiagaraChanged || bSourceSkeletalMeshChanged;
+	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || PropertyThatChanged == nullptr || bBindToSkeletalChanged || bSourceSkeletalMeshChanged;
 	if (bRecreateResources)
 	{
 		// Release the resources before Super::PostEditChangeProperty so that they get
@@ -1638,7 +1616,6 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		if (GroomAsset)
 		{
-			ResetSimulation(this);
 			// Set the callback on the new GroomAsset being assigned
 			GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
 			bIsGroomAssetCallbackRegistered = true;
@@ -1649,7 +1626,6 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		if (BindingAsset)
 		{
-			ResetSimulation(this);
 			// Set the callback on the new GroomAsset being assigned
 			BindingAsset->GetOnGroomBindingAssetChanged().AddUObject(this, &UGroomComponent::InvalidateAndRecreate);
 			bIsGroomBindingAssetCallbackRegistered = true;

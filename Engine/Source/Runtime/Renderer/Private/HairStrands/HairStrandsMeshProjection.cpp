@@ -888,7 +888,7 @@ static void AddHairStrandUpdateMeshSamplesPass(
 		Parameters->SampleDeformedPositionsBuffer = LODData.DeformedSamplePositionsBuffer->SRV;
 		Parameters->OutSampleDeformationsBuffer = LODData.MeshSampleWeightsBuffer->UAV;
 
-		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(LODData.SampleCount, 128);
+		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(LODData.SampleCount+4, 128);
 		check(DispatchGroupCount.X < 65536);
 		TShaderMapRef<FHairUpdateMeshSamplesCS> ComputeShader(ShaderMap);
 		FComputeShaderUtils::AddPass(
