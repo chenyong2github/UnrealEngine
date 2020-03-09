@@ -37,6 +37,7 @@ namespace AutomationTool.Benchmark
 	[Help("pie", "Launch the editor (only valid when -project is specified")]
 	[Help("pie-cold", "Launch the editor with a cold ddc")]
 	[Help("pie-hot", "Launch the editor with a hot ddc")]
+	[Help("pie-hot", "Launch the editor with a hot ddc")]
 	[Help("iterations=<n>", "How many times to perform each test)")]
 	[Help("wait=<n>", "How many seconds to wait between each test)")]
 	[Help("filename", "Name/path of file to write CSV results to. If empty the local machine name will be used")]
@@ -73,6 +74,7 @@ namespace AutomationTool.Benchmark
 			public bool DoPIETests = false;
 			public bool DoHotPIETests = false;
 			public bool DoColdPIETests = false;
+			public bool DoNoDDCPIETests = false;
 
 			// list of maps for each project
 			public IEnumerable<string> StartupMapList = Enumerable.Empty<string>();
@@ -83,8 +85,6 @@ namespace AutomationTool.Benchmark
 			public int TimeBetweenTasks = 0;
 			public string ExtraCookArgs = "";
 			public string FileName = string.Format("{0}_Results.csv", Environment.MachineName);
-
-			public bool DoHintTests = false;
 
 			public void ParseParams(string[] InParams)
 			{
@@ -115,6 +115,7 @@ namespace AutomationTool.Benchmark
 				DoPIETests = AllThings | ParseParam("pie");
 				DoColdPIETests = AllThings | ParseParam("pie-cold");
 				DoHotPIETests = AllThings | ParseParam("pie-hot");
+				DoNoDDCPIETests = AllThings | ParseParam("pie-noddc");
 
 				// sanity
 				DoAcceleratedCompileTests = DoAcceleratedCompileTests && BenchmarkBuildTask.SupportsAcceleration;
@@ -124,8 +125,6 @@ namespace AutomationTool.Benchmark
 				TimeBetweenTasks = ParseParamInt("Wait", TimeBetweenTasks);
 
 				FileName = ParseParamValue("filename", FileName);
-
-				DoHintTests = ParseParam("hints");
 
 				ExtraCookArgs = ParseParamValue("ExtraCookArgs", "");
 
@@ -442,31 +441,20 @@ namespace AutomationTool.Benchmark
 
 			List<BenchmarkTaskBase> NewTasks = new List<BenchmarkTaskBase>();
 
-			bool HaveUE4Project = InOptions.ProjectsToTest.Where(P => P.ToLower() == "ue4").Any();
-			int ProjectIndex = InOptions.ProjectsToTest.ToList().FindIndex(P => P == InProjectName);
-
-			int MapIndex = HaveUE4Project ? ProjectIndex - 1 : ProjectIndex;
-			string ProjectMap = MapIndex < InOptions.StartupMapList.Count() ? InOptions.StartupMapList.ElementAt(ProjectIndex) : "";
-
-			if (ProjectMap.Equals("none", StringComparison.OrdinalIgnoreCase))
-			{
-				ProjectMap = "";
-			}
-
 			if (InOptions.DoPIETests)
 			{
 				EditorTaskOptions Options = InOptions.DoHotPIETests ? EditorTaskOptions.HotDDC : EditorTaskOptions.None;
-				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, Options, "-recordhints"));
+				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, Options));
 			}
 
 			if (InOptions.DoColdPIETests)
 			{
 				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, EditorTaskOptions.None | EditorTaskOptions.ColdDDC));
+			}
 
-				if (InOptions.DoHintTests)
-				{
-					NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, EditorTaskOptions.None | EditorTaskOptions.ColdDDC, "-usehints"));
-				}
+			if (InOptions.DoNoDDCPIETests)
+			{
+				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, EditorTaskOptions.None | EditorTaskOptions.NoDDC));
 			}
 
 			return NewTasks;
