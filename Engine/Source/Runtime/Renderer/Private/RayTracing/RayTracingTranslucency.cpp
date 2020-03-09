@@ -161,28 +161,30 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 	FSceneTextureParameters SceneTextures;
 	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
-	RDG_EVENT_SCOPE(GraphBuilder, "RayTracingTranslucency");
-	RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingTranslucency)
-
-	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 	{
-		FViewInfo& View = Views[ViewIndex];
+		RDG_EVENT_SCOPE(GraphBuilder, "RayTracingTranslucency");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingTranslucency)
 
-		const FScreenPassTexture SceneColor(SceneColorTexture, View.ViewRect);
-		const FScreenPassRenderTarget Output(SceneColorTexture, View.ViewRect, ERenderTargetLoadAction::ELoad);
+		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
+		{
+			FViewInfo& View = Views[ViewIndex];
 
-		//#dxr_todo: UE-72581 do not use reflections denoiser structs but separated ones
-		IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
-		float ResolutionFraction = 1.0f;
-		int32 TranslucencySPP = GRayTracingTranslucencySamplesPerPixel > -1 ? GRayTracingTranslucencySamplesPerPixel : View.FinalPostProcessSettings.RayTracingTranslucencySamplesPerPixel;
+			const FScreenPassRenderTarget Output(SceneColorTexture, View.ViewRect, ERenderTargetLoadAction::ELoad);
+
+			//#dxr_todo: UE-72581 do not use reflections denoiser structs but separated ones
+			IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
+			float ResolutionFraction = 1.0f;
+			int32 TranslucencySPP = GRayTracingTranslucencySamplesPerPixel > -1 ? GRayTracingTranslucencySamplesPerPixel : View.FinalPostProcessSettings.RayTracingTranslucencySamplesPerPixel;
 		
-		RenderRayTracingPrimaryRaysView(
-			GraphBuilder,
-			View, &DenoiserInputs.Color, &DenoiserInputs.RayHitDistance,
-			TranslucencySPP, GRayTracingTranslucencyHeightFog, ResolutionFraction, 
-			ERayTracingPrimaryRaysFlag::AllowSkipSkySample | ERayTracingPrimaryRaysFlag::UseGBufferForMaxDistance);
+			RenderRayTracingPrimaryRaysView(
+				GraphBuilder,
+				View, &DenoiserInputs.Color, &DenoiserInputs.RayHitDistance,
+				TranslucencySPP, GRayTracingTranslucencyHeightFog, ResolutionFraction, 
+				ERayTracingPrimaryRaysFlag::AllowSkipSkySample | ERayTracingPrimaryRaysFlag::UseGBufferForMaxDistance);
 
-		AddDrawTexturePass(GraphBuilder, View, SceneColor, Output);
+			const FScreenPassTexture SceneColor(DenoiserInputs.Color, View.ViewRect);
+			AddDrawTexturePass(GraphBuilder, View, SceneColor, Output);
+		}
 	}
 
 	GraphBuilder.Execute();
