@@ -1342,26 +1342,61 @@ struct FWeightsBuilder
 FWeightsBuilder::FWeightsBuilder(const uint32 NumRows, const uint32 NumColumns,
 	const FVector* SourcePositions, const FVector* TargetPositions)
 {
-	MatrixEntries.SetNum(NumRows * NumColumns);  
-	InverseEntries.SetNum(NumRows * NumColumns);
+	const uint32 PolyRows = NumRows + 4;
+	const uint32 PolyColumns = NumColumns + 4;
+
+	MatrixEntries.Init(0.0, PolyRows * PolyColumns);
+	InverseEntries.Init(0.0, PolyRows * PolyColumns);
 	TArray<float>& LocalEntries = MatrixEntries;
 	ParallelFor(NumRows,
 		[
 			NumRows,
 			NumColumns,
+			PolyRows,
+			PolyColumns,
 			SourcePositions,
 			TargetPositions,
 			&LocalEntries
 		] (uint32 RowIndex)
 	{
-		int32 EntryIndex = RowIndex * NumColumns;
+		int32 EntryIndex = RowIndex * PolyColumns;
 		for (uint32 j = 0; j < NumColumns; ++j)
 		{
 			const float FunctionScale = (SourcePositions[RowIndex] - TargetPositions[j]).Size();
 			LocalEntries[EntryIndex++] = FMath::Sqrt(FunctionScale*FunctionScale + 1.0);
 		}
+		LocalEntries[EntryIndex++] = 1.0;
+		LocalEntries[EntryIndex++] = SourcePositions[RowIndex].X;
+		LocalEntries[EntryIndex++] = SourcePositions[RowIndex].Y;
+		LocalEntries[EntryIndex++] = SourcePositions[RowIndex].Z;
+
+		EntryIndex = NumRows* PolyColumns + RowIndex;
+		LocalEntries[EntryIndex] = 1.0;
+
+		EntryIndex += PolyColumns;
+		LocalEntries[EntryIndex] = SourcePositions[RowIndex].X;
+
+		EntryIndex += PolyColumns;
+		LocalEntries[EntryIndex] = SourcePositions[RowIndex].Y;
+
+		EntryIndex += PolyColumns;
+		LocalEntries[EntryIndex] = SourcePositions[RowIndex].Z;
+
+		const float REGUL_VALUE = 1e-4;
+		EntryIndex = NumRows * PolyColumns + NumColumns;
+		LocalEntries[EntryIndex] = REGUL_VALUE;
+
+		EntryIndex += PolyColumns+1;
+		LocalEntries[EntryIndex] = REGUL_VALUE;
+
+		EntryIndex += PolyColumns+1;
+		LocalEntries[EntryIndex] = REGUL_VALUE;
+
+		EntryIndex += PolyColumns+1;
+		LocalEntries[EntryIndex] = REGUL_VALUE;
+
 	});
-	ComputeWeights(NumRows, NumColumns);
+	ComputeWeights(PolyRows, PolyColumns);
 }
 
 void FWeightsBuilder::ComputeWeights(const uint32 NumRows, const uint32 NumColumns)
