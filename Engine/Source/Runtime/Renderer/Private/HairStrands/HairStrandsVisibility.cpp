@@ -2205,6 +2205,11 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 	FRDGTextureRef& OutColorTexture,
 	FRDGTextureRef& OutDepthTexture)
 {
+	if (!OutGBufferBTexture || !OutColorTexture || !OutDepthTexture)
+	{
+		return;
+	}
+
 	FHairVisibilityDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityDepthPS::FParameters>();
 	Parameters->CategorisationTexture = CategorisationTexture;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutGBufferBTexture, ERenderTargetLoadAction::ELoad);
@@ -2490,7 +2495,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 
 			FRDGBuilder GraphBuilder(RHICmdList);
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-			FRDGTextureRef SceneGBufferBTexture = GraphBuilder.RegisterExternalTexture(InSceneGBufferBTexture, TEXT("SceneGBufferBTexture"));
+			FRDGTextureRef SceneGBufferBTexture = GraphBuilder.TryRegisterExternalTexture(InSceneGBufferBTexture, TEXT("SceneGBufferBTexture"));
 			FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(InSceneColorTexture, TEXT("SceneColorTexture"));
 			FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(InSceneDepthTexture, TEXT("SceneDepthTexture"));
 			FRDGTextureRef SceneVelocityTexture = InSceneVelocityTexture ? GraphBuilder.RegisterExternalTexture(InSceneVelocityTexture, TEXT("SceneVelocityTexture")) : nullptr;
