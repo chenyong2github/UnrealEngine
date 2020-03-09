@@ -34,10 +34,9 @@ namespace AutomationTool.Benchmark
 	[Help("cook-cold", "When cooking clear the local ddc before each run")]
 	[Help("cook-noshaderddc", "Do a cook test with no ddc for shaders")]
 	[Help("cook-noddc", "Do a cook test with nodcc (likely to take 10+ hours with cookfortnite)")]
-	[Help("editorstartup", "Launch the editor (only valid when -project is specified")]
-	[Help("editorstartup-cold", "Launch the editor with a cold ddc")]
-	[Help("editorstartup-hot", "Launch the editor with a hot ddc")]
-	[Help("startupmap=", "Maps to use with launcheditor. Should be one per project or specify 'none'")]
+	[Help("pie", "Launch the editor (only valid when -project is specified")]
+	[Help("pie-cold", "Launch the editor with a cold ddc")]
+	[Help("pie-hot", "Launch the editor with a hot ddc")]
 	[Help("iterations=<n>", "How many times to perform each test)")]
 	[Help("wait=<n>", "How many seconds to wait between each test)")]
 	[Help("filename", "Name/path of file to write CSV results to. If empty the local machine name will be used")]
@@ -71,9 +70,9 @@ namespace AutomationTool.Benchmark
 			public bool DoNoDDCCookTests = false;
 
 			// editor startup tests
-			public bool DoEditorStartupTests = false;
-			public bool DoEditorColdStartupTests = false;
-			public bool DoEditorColdStartupHot = false;
+			public bool DoPIETests = false;
+			public bool DoHotPIETests = false;
+			public bool DoColdPIETests = false;
 
 			// list of maps for each project
 			public IEnumerable<string> StartupMapList = Enumerable.Empty<string>();
@@ -84,6 +83,8 @@ namespace AutomationTool.Benchmark
 			public int TimeBetweenTasks = 0;
 			public string ExtraCookArgs = "";
 			public string FileName = string.Format("{0}_Results.csv", Environment.MachineName);
+
+			public bool DoHintTests = false;
 
 			public void ParseParams(string[] InParams)
 			{
@@ -111,9 +112,9 @@ namespace AutomationTool.Benchmark
 				DoNoDDCCookTests = ParseParam("cook-noddc");
 
 				// editor startup tests
-				DoEditorStartupTests = AllThings | ParseParam("editorstartup");
-				DoEditorColdStartupTests = AllThings | ParseParam("editorstartup-cold");
-				DoEditorColdStartupHot = AllThings | ParseParam("editorhotstartup-hot");
+				DoPIETests = AllThings | ParseParam("pie");
+				DoColdPIETests = AllThings | ParseParam("pie-cold");
+				DoHotPIETests = AllThings | ParseParam("pie-hot");
 
 				// sanity
 				DoAcceleratedCompileTests = DoAcceleratedCompileTests && BenchmarkBuildTask.SupportsAcceleration;
@@ -123,6 +124,8 @@ namespace AutomationTool.Benchmark
 				TimeBetweenTasks = ParseParamInt("Wait", TimeBetweenTasks);
 
 				FileName = ParseParamValue("filename", FileName);
+
+				DoHintTests = ParseParam("hints");
 
 				ExtraCookArgs = ParseParamValue("ExtraCookArgs", "");
 
@@ -450,16 +453,20 @@ namespace AutomationTool.Benchmark
 				ProjectMap = "";
 			}
 
-			if (InOptions.DoEditorStartupTests)
+			if (InOptions.DoPIETests)
 			{
-				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, ProjectMap, EditorTaskOptions.None, "-recordhints"));
+				EditorTaskOptions Options = InOptions.DoHotPIETests ? EditorTaskOptions.HotDDC : EditorTaskOptions.None;
+				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, Options, "-recordhints"));
 			}
 
-			if (InOptions.DoEditorColdStartupTests)
+			if (InOptions.DoColdPIETests)
 			{
-				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, ProjectMap, EditorTaskOptions.None | EditorTaskOptions.ColdDDC));
+				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, EditorTaskOptions.None | EditorTaskOptions.ColdDDC));
 
-				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, ProjectMap, EditorTaskOptions.None | EditorTaskOptions.ColdDDC, "-usehints"));
+				if (InOptions.DoHintTests)
+				{
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, EditorTaskOptions.None | EditorTaskOptions.ColdDDC, "-usehints"));
+				}
 			}
 
 			return NewTasks;
