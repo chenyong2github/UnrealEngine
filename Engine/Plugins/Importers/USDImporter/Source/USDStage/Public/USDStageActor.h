@@ -162,7 +162,12 @@ public:
 	void UpdatePrim( const pxr::SdfPath& UsdPrimPath, bool bResync, FUsdSchemaTranslationContext& TranslationContext );
 
 protected:
+	/** Loads the asset for a single prim */
+	void LoadAsset( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& Prim );
+
+	/** Loads the assets for all prims from StartPrim and its children */
 	void LoadAssets( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& StartPrim );
+
 	void AnimatePrims();
 
 private:
