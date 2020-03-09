@@ -312,11 +312,11 @@ public:
 	*/
 	void MakeDirty() { bDirty = true; }
 	void MakeClean() { bDirty = false; }
-	bool IsDirty() { return bDirty; }
+	bool IsDirty() const { return bDirty; }
 
 	/**
 	* Serialize
-	*/
+		*/
 	virtual void Serialize(Chaos::FChaosArchive& Ar);
 
 	/**
