@@ -283,6 +283,8 @@ struct FHairStrandsDebugInfo
 {
 	uint32 ComponentId = 0;
 	EWorldType::Type WorldType = EWorldType::None;
+	FString GroomAssetName;
+	FString SkeletalComponentName;
 
 	struct HairGroup
 	{
@@ -319,6 +321,9 @@ struct FHairStrandsProjectionDebugInfo
 	FHairStrandsProjectionMeshData SourceMeshData;
 	FHairStrandsProjectionMeshData TargetMeshData;
 	TArray<FRWBuffer> TransferredPositions;
+	FString GroomAssetName;
+	FString SkeletalComponentName;
+
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

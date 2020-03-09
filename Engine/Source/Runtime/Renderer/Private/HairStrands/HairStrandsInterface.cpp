@@ -518,6 +518,8 @@ FHairStrandsDebugInfos GetHairStandsDebugInfos()
 		Info = E.DebugInfo;
 		Info.ComponentId = E.ComponentId;
 		Info.WorldType = E.WorldType;
+		Info.GroomAssetName = E.DebugProjectionInfo.GroomAssetName;
+		Info.SkeletalComponentName = E.DebugProjectionInfo.SkeletalComponentName;
 
 		const uint32 GroupCount = Info.HairGroups.Num();
 		for (uint32 GroupIt=0; GroupIt < GroupCount; ++GroupIt)
