@@ -240,12 +240,6 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 	const uint32 DstNumIndexes = SrcVertexDataMesh.Indices.Num();
 	const uint32 SrcNumTriangles = DstNumIndexes / 3;
 	
-	if (VertexInstanceUVs.GetNumIndices() < 2)
-	{
-		//We set the lightmap channel so 2
-		VertexInstanceUVs.SetNumIndices(2);
-	}
-
 	FPolygonGroupID PolygonGroupID = FPolygonGroupID::Invalid;
 	if (OutRawMesh.PolygonGroups().Num() == 0)
 	{
@@ -318,21 +312,17 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 			}
 			else
 			{
-				//There is 
 				VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4(FLinearColor(SrcVertexDataMesh.FaceColors[TriangleIndex]));
 			}
 
-			//UVs, copy two time the same value, one for UV_Channel 0 and another for lightmap channel 1
-			for (int32 channel = 0; channel < 2; ++channel)
+			//UVs
+			if (SrcVertexDataMesh.UVs.Num() == 0)
 			{
-				if (SrcVertexDataMesh.UVs.Num() == 0)
-				{
-					VertexInstanceUVs.Set(VertexInstanceIDs[Corner], channel, FVector2D(0.0f, 0.0f));
-				}
-				else
-				{
-					VertexInstanceUVs.Set(VertexInstanceIDs[Corner], channel, SrcVertexDataMesh.UVs[SrcIndex]);
-				}
+				VertexInstanceUVs.Set(VertexInstanceIDs[Corner], FVector2D(0.0f, 0.0f));
+			}
+			else
+			{
+				VertexInstanceUVs.Set(VertexInstanceIDs[Corner], SrcVertexDataMesh.UVs[SrcIndex]);
 			}
 		}
 

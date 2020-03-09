@@ -853,9 +853,18 @@ void FStaticMeshOperations::AppendMeshDescription(const FMeshDescription& Source
 	TargetMesh.ReserveNewEdges(SourceMesh.Edges().Num());
 	TargetMesh.ReserveNewPolygons(SourceMesh.Polygons().Num());
 
-	if (SourceVertexInstanceUVs.GetNumIndices() > TargetVertexInstanceUVs.GetNumIndices())
+	int32 NumSourceUVChannels = 0;
+	for (int32 ChannelIdx = 0; ChannelIdx < SourceVertexInstanceUVs.GetNumIndices(); ++ChannelIdx)
 	{
-		TargetVertexInstanceUVs.SetNumIndices(SourceVertexInstanceUVs.GetNumIndices());
+		if (AppendSettings.bMergeUVChannels[ChannelIdx])
+		{
+			NumSourceUVChannels = ChannelIdx + 1;
+		}
+	}
+
+	if (NumSourceUVChannels > TargetVertexInstanceUVs.GetNumIndices())
+	{
+		TargetVertexInstanceUVs.SetNumIndices(NumSourceUVChannels);
 	}
 
 	//PolygonGroups
@@ -938,7 +947,7 @@ void FStaticMeshOperations::AppendMeshDescription(const FMeshDescription& Source
 			TargetVertexInstanceColors[TargetVertexInstanceID] = SourceVertexInstanceColors[SourceVertexInstanceID];
 		}
 
-		for (int32 UVChannelIndex = 0; UVChannelIndex < SourceVertexInstanceUVs.GetNumIndices(); ++UVChannelIndex)
+		for (int32 UVChannelIndex = 0; UVChannelIndex < NumSourceUVChannels; ++UVChannelIndex)
 		{
 			TargetVertexInstanceUVs.Set(TargetVertexInstanceID, UVChannelIndex, SourceVertexInstanceUVs.Get(SourceVertexInstanceID, UVChannelIndex));
 		}
