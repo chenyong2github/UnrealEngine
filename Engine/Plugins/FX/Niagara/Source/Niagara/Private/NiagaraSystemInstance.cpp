@@ -2224,30 +2224,6 @@ FNiagaraEmitterInstance* FNiagaraSystemInstance::GetEmitterByID(FGuid InID)
 	return nullptr;
 }
 
-FNiagaraDataSet* FNiagaraSystemInstance::GetDataSet(FNiagaraDataSetID SetID, FName EmitterName)
-{
-	if (EmitterName == NAME_None)
-	{
-		if (FNiagaraDataSet* ExternalSet = ExternalEvents.Find(SetID))
-		{
-			return ExternalSet;
-		}
-	}
-	for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Emitter : Emitters)
-	{
-		check(Emitter.IsValid());
-		if (!Emitter->IsComplete())
-		{
-			if (Emitter->GetCachedIDName() == EmitterName)
-			{
-				return Emitter->GetDataSet(SetID);
-			}
-		}
-	}
-
-	return NULL;
-}
-
 FNiagaraSystemInstance::FOnInitialized& FNiagaraSystemInstance::OnInitialized()
 {
 	return OnInitializedDelegate;
