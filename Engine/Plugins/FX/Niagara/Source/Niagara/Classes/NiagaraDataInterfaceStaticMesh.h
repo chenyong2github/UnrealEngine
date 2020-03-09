@@ -232,6 +232,7 @@ public:
 	static const FString InstanceWorldVelocityName;
 	static const FString AreaWeightedSamplingName;
 	static const FString NumTexCoordName;
+	static const FString UseColorBufferName;
 
 public:
 	void GetNumTriangles(FVectorVMContext& Context);
