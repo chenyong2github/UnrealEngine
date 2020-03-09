@@ -143,6 +143,7 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 
 		void* SaveFrozenContent = MemoryImageResult.Bytes.GetData();
 		uint32 SaveFrozenContentSize = MemoryImageResult.Bytes.Num();
+		check(SaveFrozenContentSize > 0u);
 		Ar << SaveFrozenContentSize;
 		Ar.Serialize(SaveFrozenContent, SaveFrozenContentSize);
 		MemoryImageResult.SaveToArchive(Ar);
@@ -190,6 +191,9 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		PointerTable = CreatePointerTable();
 
 		Ar << FrozenContentSize;
+		// ensure frozen content is at least as big as our FShaderMapContent-derived class
+		checkf(FrozenContentSize >= ContentTypeLayout.Size, TEXT("Invalid FrozenContentSize for %s, got %d, expected at least %d"), ContentTypeLayout.Name, FrozenContentSize, ContentTypeLayout.Size);
+
 		void* ContentMemory = FMemory::Malloc(FrozenContentSize);
 		Ar.Serialize(ContentMemory, FrozenContentSize);
 		Content = static_cast<FShaderMapContent*>(ContentMemory);
