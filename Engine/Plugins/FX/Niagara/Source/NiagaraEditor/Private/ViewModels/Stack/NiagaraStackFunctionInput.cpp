@@ -44,6 +44,9 @@
 #include "EdGraph/EdGraphPin.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "NiagaraConvertInPlaceUtilityBase.h"
 
 #include "NiagaraScriptVariable.h"
 
@@ -1636,6 +1639,15 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		const FString OldName = InputValues.DynamicNode->GetFunctionName();
 
 		InputValues.DynamicNode->Modify();
+
+		UNiagaraClipboardContent* OldClipboardContent = nullptr;
+		UNiagaraScript* OldScript = InputValues.DynamicNode->FunctionScript;
+		if (DynamicInputScript->ConversionUtility != nullptr)
+		{
+			OldClipboardContent = UNiagaraClipboardContent::Create();
+			Copy(OldClipboardContent);
+		}
+
 		InputValues.DynamicNode->FunctionScript = DynamicInputScript;
 
 		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
@@ -1649,8 +1661,31 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *InputValues.DynamicNode.Get(), OldName, NewName);
 
 		InputValues.DynamicNode->RefreshFromExternalChanges();
+
 		InputValues.DynamicNode->MarkNodeRequiresSynchronization(TEXT("Dynamic input script reassigned."), true);
 		RefreshChildren();
+		
+		if (DynamicInputScript->ConversionUtility != nullptr && OldClipboardContent != nullptr)
+		{
+			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), DynamicInputScript->ConversionUtility);
+
+			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
+			Copy(NewClipboardContent);
+			TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
+			GetUnfilteredChildrenOfType(DynamicInputCollections);
+
+			FText ConvertMessage;
+			if (ConversionUtility && DynamicInputCollections.Num() == 0 && !ConversionUtility->Convert(OldScript, OldClipboardContent, DynamicInputScript, DynamicInputCollections[0], NewClipboardContent, InputValues.DynamicNode.Get(), ConvertMessage) || !ConvertMessage.IsEmptyOrWhitespace())
+			{
+				// Notify the end-user about the convert message, but continue the process as they could always undo.
+				FNotificationInfo Msg(FText::Format(LOCTEXT("FixConvertInPlace", "Conversion Note: {0}"), ConvertMessage));
+				Msg.ExpireDuration = 5.0f;
+				Msg.bFireAndForget = true;
+				Msg.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Info"));
+				FSlateNotificationManager::Get().AddNotification(Msg);
+			}
+		}
+
 	}
 }
 
