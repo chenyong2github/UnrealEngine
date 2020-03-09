@@ -378,6 +378,11 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.UseOldShaderStages"));
 		}
+
+		// in order to generate deterministic cooks we need to differentiate between two emitters that might
+		// generate the same hash but slightly different shaders.  In particular the full path of the emitter
+		// is used to generate the stat scopes that won't directly change the shader but will alter the name map
+		Id.AdditionalDefines.Add(Emitter->GetFullName());
 	}
 
 	if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Obj))
