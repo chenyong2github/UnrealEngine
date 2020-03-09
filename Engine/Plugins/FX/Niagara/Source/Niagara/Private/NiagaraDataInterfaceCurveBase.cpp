@@ -8,6 +8,9 @@
 #include "ShaderParameterUtils.h"
 #include "NiagaraShader.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraEmitter.h"
+#include "Internationalization/Internationalization.h"
+#define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCurveBase"
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Curve);
 
@@ -337,3 +340,37 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 		RHIUnlockVertexBuffer(RT_Proxy->CurveLUT.Buffer);
 	});
 }
+
+
+#if WITH_EDITOR	
+/** Refreshes and returns the errors detected with the corresponding data, if any.*/
+TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceCurveBase::GetErrors()
+{
+	// Trace down the root emitter (if there is one)
+	TArray<FNiagaraDataInterfaceError> Errors;
+	UObject* Obj = GetOuter();
+	UNiagaraEmitter* Emitter = nullptr;
+	while (Obj && !Obj->IsA(UPackage::StaticClass()))
+	{
+		Emitter = Cast<UNiagaraEmitter>(Obj);
+		if (!Emitter)
+			Obj = Obj->GetOuter();
+		else
+			break;
+	}
+
+	// If there is a root emitter, assume that we are in its particle stack and point out that we need bUseLUT true for GPU sims.
+	if (Emitter && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && !bUseLUT)
+	{
+		FNiagaraDataInterfaceError LUTsNeededForGPUSimsError(LOCTEXT("LUTsNeededForGPUSims", "This Data Interface must have bUseLUT set to true for GPU sims."),
+			LOCTEXT("LUTsNeededForGPUSimsSummary", "bUseLUT Required"),
+			FNiagaraDataInterfaceFix());
+
+		Errors.Add(LUTsNeededForGPUSimsError);
+	}
+	return Errors;
+}
+#endif
+
+
+#undef LOCTEXT_NAMESPACE
