@@ -193,6 +193,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category=Material, meta = (ImportType = "GeoOnly", EditCondition="!bImportMaterials"))
 	uint32 bImportTextures:1;
 
+	/** If true, the imported material sections will automatically be reset to the imported data in case of a reimport conflict. */
+	UPROPERTY(BlueprintReadWrite, Transient, Category = Material)
+	uint32 bResetToFbxOnMaterialConflict:1;
+
 	/** Import data used when importing static meshes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Transient, Instanced, Category = Mesh, meta=(ImportType = "StaticMesh"))
 	class UFbxStaticMeshImportData* StaticMeshImportData;
