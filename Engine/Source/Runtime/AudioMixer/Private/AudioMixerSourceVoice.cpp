@@ -267,6 +267,11 @@ namespace Audio
 		return SourceManager->GetEncodedOutput(SourceId, InKey);
 	}
 
+	const FQuat FMixerSourceVoice::GetListenerRotationForVoice() const
+	{
+		return SourceManager->GetListenerRotation(SourceId);
+	}
+
 	void FMixerSourceVoice::SetSubmixSendInfo(FMixerSubmixWeakPtr Submix, const float SendLevel)
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);

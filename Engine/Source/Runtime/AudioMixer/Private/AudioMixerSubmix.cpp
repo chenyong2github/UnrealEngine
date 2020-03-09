@@ -518,6 +518,11 @@ namespace Audio
 		SoundfieldStreams.Mixer->MixTogether(InputData, PacketToSumTo);
 	}
 
+	void FMixerSubmix::UpdateListenerRotation(const FQuat& InRotation)
+	{
+		SoundfieldStreams.CachedPositionalData.Rotation = InRotation;
+	}
+
 	void FMixerSubmix::MixInChildSubmix(FChildSubmixInfo& Child, ISoundfieldAudioPacket& PacketToSumTo)
 	{
 		check(IsSoundfieldSubmix());
@@ -581,6 +586,10 @@ namespace Audio
 				// No conversion necessary.
 				ChildSubmixSharedPtr->ProcessAudio(PacketToSumTo);
 			}
+
+			//Propogate listener rotation down to this submix.
+			// This is required if this submix doesn't have any sources sending to it, but does have at least one child submix.
+			UpdateListenerRotation(ChildSubmixSharedPtr->SoundfieldStreams.CachedPositionalData.Rotation);
 		}
 	}
 
@@ -756,8 +765,8 @@ namespace Audio
 		const int32 NumOutputFrames = OutAudioBuffer.Num() / NumChannels;
 		NumSamples = NumChannels * NumOutputFrames;
 
-		InputBuffer.Reset(NumSamples);
-		InputBuffer.AddZeroed(NumSamples);
+ 		InputBuffer.Reset(NumSamples);
+ 		InputBuffer.AddZeroed(NumSamples);
 
 		float* BufferPtr = InputBuffer.GetData();
 
@@ -1055,6 +1064,8 @@ namespace Audio
 
 				// if this voice has a valid encoded packet, mix it in.
 				const ISoundfieldAudioPacket* Packet = MixerSourceVoice->GetEncodedOutput(GetKeyForSubmixEncoding());
+				UpdateListenerRotation(MixerSourceVoice->GetListenerRotationForVoice());
+
 				if (Packet)
 				{
 					FSoundfieldMixerInputData InputData =
