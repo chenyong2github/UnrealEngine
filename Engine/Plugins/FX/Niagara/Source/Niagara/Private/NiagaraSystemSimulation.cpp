@@ -14,6 +14,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraCrashReporterHandler.h"
 
 // Niagara simulations async will block the tick task from completion until all async work is finished
 // If simulations are allowed to tick async we will create a FNiagaraSystemSimulationTickTask task to run on any thread
@@ -636,6 +637,8 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	check(IsInGameThread());
 	check(bInSpawnPhase == false);
 
+	FNiagaraCrashReporterScope CRScope(this);
+
 	WaitForSystemTickComplete(true);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
@@ -929,6 +932,8 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds)
 	UNiagaraSystem* System = WeakSystem.Get();
 	FScopeCycleCounterUObject AdditionalScope(System, GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
+	FNiagaraCrashReporterScope CRScope(this);
+
 	WaitForSystemTickComplete(true);
 
 	bInSpawnPhase = true;
@@ -1059,6 +1064,8 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 
 	FNiagaraScopedRuntimeCycleCounter RuntimeScope(Context.System, true, true);
 	FNiagaraSystemInstance* SoloSystemInstance = bIsSolo && Context.Instances.Num() == 1 ? Context.Instances[0] : nullptr;
+
+	FNiagaraCrashReporterScope CRScope(this);
 
 	if (bCanExecute && Context.Instances.Num())
 	{
