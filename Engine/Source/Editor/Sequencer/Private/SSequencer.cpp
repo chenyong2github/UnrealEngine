@@ -2269,7 +2269,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Auto; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -2281,7 +2281,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::User; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -2293,7 +2293,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Break; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -2305,7 +2305,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Linear; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -2317,7 +2317,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Constant; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 	MenuBuilder.EndSection(); // SequencerInterpolation
