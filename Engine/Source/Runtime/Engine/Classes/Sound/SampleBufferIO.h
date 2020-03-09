@@ -32,7 +32,7 @@ namespace Audio
 		void LoadSoundWave(USoundWave* InSoundWave, TFunction<void(const USoundWave* SoundWave, const Audio::FSampleBuffer& OutSampleBuffer)> OnLoaded, bool bSynchrounous = false);
 
 
-		// Update the loading state. 
+		// Update the loading state, should be called on the game thread. 
 		void Update();
 
 		//~ GCObject Interface
