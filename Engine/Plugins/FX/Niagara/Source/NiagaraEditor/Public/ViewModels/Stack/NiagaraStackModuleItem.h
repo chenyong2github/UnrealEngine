@@ -14,6 +14,7 @@ class UNiagaraScript;
 class INiagaraStackItemGroupAddUtilities;
 struct FAssetData;
 class UNiagaraClipboardFunctionInput;
+class INiagaraMessage;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackModuleItem : public UNiagaraStackItem
@@ -104,6 +105,7 @@ public:
 protected:
 	FOnRequestDeprecationRecommended DeprecationDelegate;
 
+	virtual void FinalizeInternal() override;
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 	virtual void SetIsEnabledInternal(bool bInIsEnabled) override;
 
@@ -116,8 +118,8 @@ private:
 	bool FilterLinkedInputCollection(const UNiagaraStackEntry& Child) const;
 	bool FilterLinkedInputCollectionChild(const UNiagaraStackEntry& Child) const;
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
-	void OnEditorDataChanged();
 	void RefreshIsEnabled();
+	void OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages);
 
 private:
 	UNiagaraNodeOutput* OutputNode;

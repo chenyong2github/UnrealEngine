@@ -330,6 +330,9 @@ private:
 
 	FNiagaraVariable CreateRapidIterationVariable(const FName& InName);
 
+	/** Handles the message manager refreshing messages. */
+	void OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages);
+
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
 		call, it may be an input to a dynamic input function call which is owned by the module. */
@@ -435,4 +438,7 @@ private:
 
 	/** Whether or not the dynamic input for this input has a function script reassignment pending due to a request to fix a missing script. */
 	bool bIsDynamicInputScriptReassignmentPending;
+
+	/** A handled to the refresh delegate on the message manager if it's bound. */
+	FDelegateHandle MessageManagerRefreshHandle;
 };
