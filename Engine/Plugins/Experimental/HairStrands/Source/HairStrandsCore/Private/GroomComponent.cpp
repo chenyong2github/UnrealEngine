@@ -1095,6 +1095,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	Interpolation.Function = ComputeHairStrandsInterpolation;
 	Interpolation.ResetFunction = ResetHairStrandsInterpolation;
 
+	UGroomAsset* LocalGroomAsset = GroomAsset;
 	USkeletalMesh* InSourceSkeletalMesh = SourceSkeletalMesh;
 	const bool bRunMeshProjection = bHasValidSketalMesh && (!BindingAsset || !bIsBindingCompatible);
 	FHairGroupResources* LocalResources = HairGroupResources;
@@ -1110,7 +1111,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			DebugGroupInfo,
 			bRunMeshProjection,
 			SkeletalMeshComponent,
-			InSourceSkeletalMesh
+			InSourceSkeletalMesh,
+			LocalGroomAsset
 		]
 		(FRHICommandListImmediate& RHICmdList)
 	{
@@ -1176,6 +1178,14 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		}
 
 		FHairStrandsProjectionDebugInfo HairProjectionDebugInfo;
+		#if WITH_EDITOR
+		HairProjectionDebugInfo.GroomAssetName = LocalGroomAsset->GetName();
+		if (SkeletalMeshComponent)
+		{
+			HairProjectionDebugInfo.SkeletalComponentName = SkeletalMeshComponent->GetPathName();
+		}
+		#endif
+
 		if (bRunMeshProjection)
 		{				
 			FSkeletalMeshRenderData* TargetRenderData = SkeletalMeshComponent->GetSkeletalMeshRenderData();
