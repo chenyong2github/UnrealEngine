@@ -153,6 +153,8 @@ bool FSteamVRHMD::BridgeBaseImpl::Present(int& SyncInterval)
 	SwapChain->IncrementSwapChainIndex_RHIThread();
 	DepthSwapChain->IncrementSwapChainIndex_RHIThread();
 
+	SyncInterval = 0;
+
 	return true;
 }
 
