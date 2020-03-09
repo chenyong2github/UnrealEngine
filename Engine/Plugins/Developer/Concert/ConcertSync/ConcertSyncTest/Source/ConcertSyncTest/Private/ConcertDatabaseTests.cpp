@@ -84,6 +84,19 @@ bool FConcertSessionDatabaseTest::RunTest(const FString& Parameters)
 				AddError(FString::Printf(TEXT("Failed to add package activity to server database: %s"), *SessionDatabase_Server.GetLastError()));
 			}
 		}
+
+		// Close and re-open the client database to verify that it isn't corrupted
+		if (SessionDatabase_Client.IsValid())
+		{
+			if (!SessionDatabase_Client.Close())
+			{
+				AddError(TEXT("Failed to close client database"));
+			}
+			if (!SessionDatabase_Client.Open(TestSessionPath_Client))
+			{
+				AddError(TEXT("Failed to open client database"));
+			}
+		}
 	}
 
 	// Populate the client database from the server data
