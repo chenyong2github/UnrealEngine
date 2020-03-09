@@ -91,7 +91,7 @@ namespace Chaos
 		/**
 		 * Put particles in inactive islands to sleep.
 		 */
-		bool SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes);
+		bool SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials);
 
 		/**
 		 * Wake all particles in an Island.
