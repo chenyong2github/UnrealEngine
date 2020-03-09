@@ -111,7 +111,7 @@ public:
 	typedef TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData> Base;
 	typedef FCollisionStructureManager::FSimplicial FSimplicial;
 	typedef Chaos::TPBDRigidParticleHandle<float, 3> FParticleHandle;
-	typedef Chaos::TPBDRigidParticleHandle<float, 3> FClusterHandle;
+	typedef Chaos::TPBDRigidClusteredParticleHandle<float, 3> FClusterHandle;
 
 	/** Proxy publics */
 	using FInitFunc = TFunction<void(FSimulationParameters&)>;
@@ -285,7 +285,7 @@ private:
 	int32 BaseParticleIndex;
 	TArray<FParticleHandle*> SolverClusterID;
 	TArray<FClusterHandle*> SolverClusterHandles; // make a TArray of the base clase with type
-	TArray<FClusterHandle*> SolverParticleHandles;// make a TArray of base class and join with above. 
+	TArray<FClusterHandle*> SolverParticleHandles;// make a TArray of base class and join with above
 	TMap<FParticleHandle*, int32> HandleToTransformGroupIndex;
 
 

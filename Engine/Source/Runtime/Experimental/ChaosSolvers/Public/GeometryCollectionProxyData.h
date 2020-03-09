@@ -59,6 +59,7 @@ public:
 	FGeometryDynamicCollection& operator=(FGeometryDynamicCollection&&) = delete;
 
 	typedef FTransformDynamicCollection Super;
+	typedef TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> FSharedImplicit;
 
 	static const FName ActiveAttribute;
 	static const FName CollisionGroupAttribute;
@@ -70,6 +71,7 @@ public:
 	static const FName SharedGeometryAttribute;
 	static const FName SharedImplicitsAttribute;
 	static const FName SimplicialsAttribute;
+	static const FName SimulatableParticlesAttribute;
 
 	// Transform Group
 	TManagedArray<bool> Active;
@@ -83,7 +85,7 @@ public:
 	TManagedArray<FTransform> MassToLocal;
 	//TManagedArray<TArray<FCollisionFilterData>> ShapeQueryData;
 	//TManagedArray<TArray<FCollisionFilterData>> ShapeSimData;
-	TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> SharedGeometry;
+	TManagedArray<FSharedImplicit> SharedGeometry;
 	//TManagedArray<TUniquePtr<FCollisionStructureManager::FSimplicial>> Simplicials;
 	TManagedArray<bool> SimulatableParticles;
 
