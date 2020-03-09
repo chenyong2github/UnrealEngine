@@ -870,7 +870,9 @@ private:
 
 public:
 	static void Init();
+#if WITH_EDITOR
 	static void RecreateUserDefinedTypeRegistry();
+#endif
 	static const FNiagaraTypeDefinition& GetFloatDef() { return FloatDef; }
 	static const FNiagaraTypeDefinition& GetBoolDef() { return BoolDef; }
 	static const FNiagaraTypeDefinition& GetIntDef() { return IntDef; }
