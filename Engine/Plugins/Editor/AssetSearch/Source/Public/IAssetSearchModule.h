@@ -39,6 +39,8 @@ struct FSearchStats
 	int32 Scanning = 0;
 	int32 Downloading = 0;
 	int32 PendingDatabaseUpdates = 0;
+
+	int64 TotalRecords = 0;
 };
 
 class IAssetIndexer
