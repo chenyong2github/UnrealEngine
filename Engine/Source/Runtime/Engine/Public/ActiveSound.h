@@ -141,6 +141,9 @@ struct FSoundParseParameters
 	float ManualReverbSendLevel;
 	FRuntimeFloatCurve CustomReverbSendCurve;
 
+	// Submix send params to use for this sound
+	TArray<FAttenuationSubmixSendSettings> SubmixSendSettings;
+
 	// The distance between left and right channels when spatializing stereo assets
 	float StereoSpread;
 
