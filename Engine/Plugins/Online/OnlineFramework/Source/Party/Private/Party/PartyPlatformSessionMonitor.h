@@ -112,6 +112,9 @@ private:
 
 	FSessionId TargetSessionId;
 
+	/** Last session id we attempted to find to prevent repeated failures to find the same session */
+	TOptional<FSessionId> LastAttemptedFindSessionId;
+
 	bool bIsSessionMissing = false;
 
 	/** Do we have a console session update queued? */
