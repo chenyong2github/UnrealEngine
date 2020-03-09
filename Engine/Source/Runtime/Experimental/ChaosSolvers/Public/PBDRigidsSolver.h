@@ -300,6 +300,11 @@ namespace Chaos
 			return FieldSystemPhysicsProxies;
 		}
 
+		TArray<FGeometryCollectionPhysicsProxy*>& GetGeometryCollectionPhysicsProxies()
+		{
+			return GeometryCollectionPhysicsProxies;
+		}
+
 		/** Events hooked up to the Chaos material manager */
 		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
 		void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
