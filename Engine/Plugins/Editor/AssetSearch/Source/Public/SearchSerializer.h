@@ -31,6 +31,7 @@ public:
 
 	//---------------------------------------------------------------
 
+	ASSETSEARCH_API void IndexProperty(const FString& InName, const FName& InValue);
 	ASSETSEARCH_API void IndexProperty(const FString& InName, const FText& InValue);
 	ASSETSEARCH_API void IndexProperty(const FString& InName, const FString& InValue);
 	ASSETSEARCH_API void IndexProperty(const UClass* InPropertyClass, const FString& InName, const FString& InValue);
