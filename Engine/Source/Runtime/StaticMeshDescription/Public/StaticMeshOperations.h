@@ -43,12 +43,12 @@ public:
 
 		enum
 		{
-			MAX_MESH_TEXTURE_COORDS = 8,
+			MAX_NUM_UV_CHANNELS = 8,
 		};
 
 		FAppendPolygonGroupsDelegate PolygonGroupsDelegate;
 		bool bMergeVertexColor;
-		bool bMergeUVChannels[MAX_MESH_TEXTURE_COORDS];
+		bool bMergeUVChannels[MAX_NUM_UV_CHANNELS];
 		FVector MergedAssetPivot;
 		TOptional<FTransform> MeshTransform; // Apply a transformation on source mesh (see MeshTransform)
 	};

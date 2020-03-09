@@ -2928,7 +2928,7 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 					});
 					AppendSettings.bMergeVertexColor = InSettings.bBakeVertexDataToMesh;
 					AppendSettings.MergedAssetPivot = InMergedAssetPivot;
-					for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_MESH_TEXTURE_COORDS; ++ChannelIdx)
+					for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_NUM_UV_CHANNELS; ++ChannelIdx)
 					{
 						AppendSettings.bMergeUVChannels[ChannelIdx] = InDataTracker.DoesUVChannelContainData(ChannelIdx, LODIndex) && InSettings.OutputUVs[ChannelIdx] == EUVOutput::OutputChannel;
 					}
@@ -3037,7 +3037,7 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 				});
 				AppendSettings.bMergeVertexColor = InSettings.bBakeVertexDataToMesh;
 				AppendSettings.MergedAssetPivot = InMergedAssetPivot;
-				for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_MESH_TEXTURE_COORDS; ++ChannelIdx)
+				for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_NUM_UV_CHANNELS; ++ChannelIdx)
 				{
 					AppendSettings.bMergeUVChannels[ChannelIdx] = InDataTracker.DoesUVChannelContainData(ChannelIdx, LODIndex) && InSettings.OutputUVs[ChannelIdx] == EUVOutput::OutputChannel;
 				}
