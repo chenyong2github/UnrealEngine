@@ -654,7 +654,8 @@ namespace ChaosTest
 		Particle->GTGeometryParticle() = TGeometryParticle<FReal, 3>::CreateParticle().Release();
 		Particle->X() = TVector<FReal, 3>(0, 0, 0);
 
-		FPBDRigidsEvolutionGBF Evolution(Particles);
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 
 		// Flush spatial acceleration structures to put particle into structure.
 		Evolution.FlushSpatialAcceleration();
