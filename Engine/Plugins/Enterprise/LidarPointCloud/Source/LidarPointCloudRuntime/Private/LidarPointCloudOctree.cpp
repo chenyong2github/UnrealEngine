@@ -1125,6 +1125,54 @@ void FLidarPointCloudOctree::SetVisibilityOfPointsInBox(const bool& bNewVisibili
 	}, NODE_IN_BOX);
 }
 
+void FLidarPointCloudOctree::SetVisibilityOfFirstPointByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius)
+{
+	bool bPointProcessed = false;
+	const float RadiusSq = Radius * Radius;
+	ITERATE_NODES({
+		// Skip node if it already has all points set to the required visibility state
+		bool bSkipNode = (CurrentNode->NumVisiblePoints == CurrentNode->GetNumPoints() && bNewVisibility) || (CurrentNode->NumVisiblePoints == 0 && !bNewVisibility);
+		if (!bSkipNode && Ray.Intersects(CurrentNode->GetBounds(this)))
+		{
+			CurrentNode->NumVisiblePoints = 0;
+
+			FOR(Point, CurrentNode)
+			{
+				if (Point->bVisible != bNewVisibility && POINT_BY_RAY)
+				{
+					Point->bVisible = bNewVisibility;
+					bPointProcessed = true;
+				}
+
+				if (Point->bVisible)
+				{
+					++CurrentNode->NumVisiblePoints;
+				}
+
+				if (bPointProcessed)
+				{
+					break;
+				}
+			}
+
+			CurrentNode->bVisibilityDirty = false;
+
+			// Sort points to speed up rendering
+			CurrentNode->SortVisiblePoints();
+
+			if (bPointProcessed)
+			{
+				return;
+			}
+
+			for (FLidarPointCloudOctreeNode*& Child : CurrentNode->Children)
+			{
+				Nodes.Enqueue(Child);
+			}
+		}
+	}, false);
+}
+
 void FLidarPointCloudOctree::SetVisibilityOfPointsByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius)
 {
 	const float RadiusSq = Radius * Radius;
@@ -1208,6 +1256,14 @@ void FLidarPointCloudOctree::ExecuteActionOnPointsInBox(TFunction<void(FLidarPoi
 	PROCESS_IN_BOX({ Action(Point); });
 }
 
+void FLidarPointCloudOctree::ExecuteActionOnFirstPointByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly)
+{
+	if (FLidarPointCloudPoint* Point = RaycastSingle(Ray, Radius, bVisibleOnly))
+	{
+		Action(Point);
+	}
+}
+
 void FLidarPointCloudOctree::ExecuteActionOnPointsByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly)
 {
 	PROCESS_BY_RAY({ Action(Point); });
@@ -1226,6 +1282,14 @@ void FLidarPointCloudOctree::ApplyColorToPointsInSphere(const FColor& NewColor, 
 void FLidarPointCloudOctree::ApplyColorToPointsInBox(const FColor& NewColor, const FBox& Box, const bool& bVisibleOnly)
 {
 	PROCESS_IN_BOX({ Point->Color = NewColor; });
+}
+
+void FLidarPointCloudOctree::ApplyColorToFirstPointByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly)
+{
+	if (FLidarPointCloudPoint* Point = RaycastSingle(Ray, Radius, bVisibleOnly))
+	{
+		Point->Color = NewColor;
+	}
 }
 
 void FLidarPointCloudOctree::ApplyColorToPointsByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly)
