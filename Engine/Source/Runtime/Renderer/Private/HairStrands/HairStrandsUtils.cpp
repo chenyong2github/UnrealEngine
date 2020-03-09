@@ -72,6 +72,17 @@ uint32 ToBitfield(const FHairComponent& C)
 		(C.LocalScattering  ? 1u : 0u) << 3 |
 		(C.GlobalScattering ? 1u : 0u) << 4 ;
 }
+
+float GetPrimiartyRasterizationScale()
+{
+	return FMath::Max(0.f, GStrandHairRasterizationScale);
+}
+
+float GetDeepShadowRasterizationScale()
+{
+	return FMath::Max(0.f, GStrandHairShadowRasterizationScale ? GStrandHairShadowRasterizationScale : GStrandHairRasterizationScale);
+}
+
 FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(
 	const FIntPoint& Resolution,
 	const float FOV,
@@ -114,7 +125,7 @@ void ComputeWorldToLightClip(
 	const float MinZ = FMath::Max(0.1f, FVector::Distance(LightPosition, SphereBound.Center)) - SphereBound.W;
 	const float MaxZ = FMath::Max(0.2f, FVector::Distance(LightPosition, SphereBound.Center)) + SphereBound.W;
 
-	const float StrandHairRasterizationScale = GStrandHairShadowRasterizationScale ? GStrandHairShadowRasterizationScale : GStrandHairRasterizationScale;
+	const float StrandHairRasterizationScale = GetDeepShadowRasterizationScale();
 	const float StrandHairStableRasterizationScale = FMath::Max(GStrandHairStableRasterizationScale, 1.0f);
 	MinStrandRadiusAtDepth1 = FMinHairRadiusAtDepth1();
 	WorldToClipTransform = FMatrix::Identity;
