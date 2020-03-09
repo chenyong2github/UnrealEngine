@@ -219,7 +219,7 @@ private:
 
 public:
 
-	void RefreshOnRowChange(const FAssetData& AssetData, SMaterialLayersFunctionsInstanceTree* InTree);
+	void RefreshOnRowChange(const FAssetData& AssetData, SMaterialLayersFunctionsMaterialTree* InTree);
 	FText GetLayerName(SMaterialLayersFunctionsMaterialTree* InTree, int32 Counter) const;
 
 	/**
@@ -250,7 +250,7 @@ public:
 	SLATE_ARGUMENT(UMaterialEditorPreviewParameters*, InMaterialEditorInstance)
 	SLATE_ARGUMENT(TSharedPtr<class IPropertyRowGenerator>, InGenerator)
 	SLATE_END_ARGS()
-	void Refresh();
+	void Refresh(const bool bRegenerateArray = false);
 	void Construct(const FArguments& InArgs);
 	void SetEditorInstance(UMaterialEditorPreviewParameters* InMaterialEditorInstance);
 	TSharedPtr<class IPropertyRowGenerator> GetGenerator();
@@ -294,7 +294,7 @@ public:
 		UMaterialEditorPreviewParameters* MaterialEditorInstance;
 
 		/** Builds the custom parameter groups category */
-		void CreateGroupsWidget();
+		void CreateGroupsWidget(const bool bRegenerateArray);
 
 		SMaterialLayersFunctionsMaterialWrapper* GetWrapper() { return Wrapper; }
 

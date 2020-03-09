@@ -733,12 +733,6 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 		Objects.Add(MaterialEditorInstance);
 		Generator->SetObjects(Objects);
 	}
-	// Update the parameter list now that the material has been fully initialized
-	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
-	if (MaterialLayersFunctionsInstance.IsValid())
-	{
-		MaterialLayersFunctionsInstance->SetEditorInstance(MaterialEditorInstance);
-	}
 
 	if (OriginalMaterial->bUsedAsSpecialEngineMaterial)
 	{
@@ -1064,7 +1058,6 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 	{
 		RefreshExpressionPreviews(true);
 		RefreshPreviewViewport();
-		UpdatePreviewMaterial();
 		TArray<TWeakObjectPtr<UObject>> SelectedObjects = MaterialDetailsView->GetSelectedObjects();
 		MaterialDetailsView->SetObjects(SelectedObjects, true);
 		Material->MarkPackageDirty();
@@ -1074,10 +1067,10 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 
 void FMaterialEditor::GeneratorRowsRefreshed()
 {
-	MaterialParametersOverviewWidget->Refresh();
+	MaterialParametersOverviewWidget->Refresh(false);
 	if (MaterialLayersFunctionsInstance)
 	{
-		MaterialLayersFunctionsInstance->Refresh();
+		MaterialLayersFunctionsInstance->Refresh(false);
 	}
 }
 
