@@ -201,7 +201,6 @@ struct FSimulationParameters
 	FSimulationParameters()
 		: Name("")
 		, RestCollection(nullptr)
-		, DynamicCollection(nullptr)
 		, RecordedTrack(nullptr)
 		, bOwnsTrack(false)
 		, Simulating(false)
@@ -228,7 +227,6 @@ struct FSimulationParameters
 
 	FSimulationParameters(const FSimulationParameters& Other)
 		: RestCollection(Other.RestCollection)
-		, DynamicCollection(Other.DynamicCollection)
 		, InitializationCommands(Other.InitializationCommands)
 		, RecordedTrack(Other.RecordedTrack)
 		, bOwnsTrack(false)
@@ -270,7 +268,6 @@ struct FSimulationParameters
 
 	FString Name;
 	const FGeometryCollection* RestCollection;
-	FGeometryDynamicCollection* DynamicCollection;
 	TArray<FFieldSystemCommand> InitializationCommands;
 	const FRecordedTransformTrack* RecordedTrack;
 	bool bOwnsTrack;
