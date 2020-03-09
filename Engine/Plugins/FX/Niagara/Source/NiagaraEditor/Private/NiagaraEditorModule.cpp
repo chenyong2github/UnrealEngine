@@ -130,6 +130,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Containers/Ticker.h"
+#include "NiagaraConstants.h"
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
@@ -139,6 +140,7 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 const FName FNiagaraEditorModule::NiagaraEditorAppIdentifier( TEXT( "NiagaraEditorApp" ) );
 const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0.2f, 0.5f);
+TArray<TPair<FName, FNiagaraParameterScopeInfo>> FNiagaraEditorModule::RegisteredParameterScopeInfos;
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
 
@@ -149,6 +151,16 @@ static FAutoConsoleVariableRef CVarShowFastPathOptions(
 	TEXT("If > 0 the experimental fast path options will be shown in the system and emitter properties in the niagara system editor.\n"),
 	ECVF_Default
 );
+
+const FNiagaraParameterScopeInfo* FNiagaraEditorModule::FindParameterScopeInfo(const FName& ParameterScopeInfoName)
+{
+	auto FindPredicate = [ParameterScopeInfoName](const TPair<FName, FNiagaraParameterScopeInfo>& ScopeInfoPair) {return ScopeInfoPair.Key == ParameterScopeInfoName; };
+	if (const TPair<FName, FNiagaraParameterScopeInfo>* ScopeInfoPair = RegisteredParameterScopeInfos.FindByPredicate(FindPredicate))
+	{
+		return &ScopeInfoPair->Value;
+	}
+	return nullptr;
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1009,6 +1021,20 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("Dumps data relevant to generating the compile id for an asset."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&DumpCompileIdDataForAsset));
 
+	RegisterParameterScopeInfo(FNiagaraConstants::UserNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::User, PARAM_MAP_USER_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EngineNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Engine, PARAM_MAP_ENGINE_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EngineOwnerScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Owner, PARAM_MAP_ENGINE_OWNER_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EngineSystemScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Engine, PARAM_MAP_ENGINE_SYSTEM_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EngineEmitterScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Engine, PARAM_MAP_ENGINE_EMITTER_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::SystemNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::System, PARAM_MAP_SYSTEM_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::EmitterNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Emitter, PARAM_MAP_EMITTER_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::ParticleAttributeNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Particles, PARAM_MAP_ATTRIBUTE_STR));
+	
+	RegisterParameterScopeInfo(FNiagaraConstants::InputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Input, PARAM_MAP_MODULE_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::LocalNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Local, PARAM_MAP_LOCAL_MODULE_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::ScriptPersistentScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::ScriptPersistent, PARAM_MAP_SCRIPT_PERSISTENT_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::ScriptTransientScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::ScriptTransient, PARAM_MAP_SCRIPT_TRANSIENT_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::CustomScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Custom, FString()));
 }
 
 
@@ -1325,6 +1351,11 @@ void FNiagaraEditorModule::GetScriptAssetsMatchingHighlight(const FNiagaraScript
 FNiagaraClipboard& FNiagaraEditorModule::GetClipboard() const
 {
 	return Clipboard.Get();
+}
+
+void FNiagaraEditorModule::RegisterParameterScopeInfo(const FName& ParameterScopeInfoName, const FNiagaraParameterScopeInfo& ParameterScopeInfo)
+{
+	RegisteredParameterScopeInfos.AddUnique(TPair<FName, FNiagaraParameterScopeInfo>(ParameterScopeInfoName, ParameterScopeInfo));
 }
 
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

@@ -2065,4 +2065,276 @@ FName FNiagaraEditorUtilities::GetUniqueObjectName(UObject* Outer, UClass* Objec
 	}
 }
 
+bool FNiagaraEditorUtilities::GetVariableMetaDataScope(const FNiagaraVariableMetaData& MetaData, ENiagaraParameterScope& OutScope)
+{
+	if (MetaData.GetIsUsingLegacyNameString())
+	{
+		OutScope = ENiagaraParameterScope::Custom;
+		return false;
+	}
+
+	const FName& MetaDataScopeName = MetaData.GetScopeName();
+	const FNiagaraParameterScopeInfo* ScopeInfo = FNiagaraEditorModule::FindParameterScopeInfo(MetaDataScopeName);
+	if (ensureMsgf(ScopeInfo != nullptr, TEXT("Failed to find registered parameter scope info for scope name %s!"), *MetaDataScopeName.ToString()))
+	{
+		OutScope = ScopeInfo->GetScope();
+		return true;
+	}
+	OutScope = ENiagaraParameterScope::Custom;
+	return false;
+}
+
+bool FNiagaraEditorUtilities::GetVariableMetaDataNamespaceString(const FNiagaraVariableMetaData& MetaData, FString& OutNamespaceString)
+{
+	if (MetaData.GetIsUsingLegacyNameString())
+	{
+		return false;
+	}
+
+	if (MetaData.IsInputOrLocalUsage())
+	{
+		const FName& MetaDataScopeName = MetaData.GetScopeName();
+		const FNiagaraParameterScopeInfo* ScopeInfo = FNiagaraEditorModule::FindParameterScopeInfo(MetaDataScopeName);
+		if (ScopeInfo == nullptr)
+		{
+			ensureMsgf(false, TEXT("Failed to find registered parameter scope info for scope name %s!"), *MetaDataScopeName.ToString());
+			return false;
+		}
+
+		FString NamespaceString = ScopeInfo->GetNamespaceString();
+		if (MetaData.GetUsage() == ENiagaraScriptParameterUsage::InitialValueInput)
+		{
+			NamespaceString.Append(PARAM_MAP_INITIAL_STR);
+		}
+		OutNamespaceString = NamespaceString;
+		return true;
+	}
+	OutNamespaceString = PARAM_MAP_OUTPUT_STR;
+	return true;
+}
+
+bool FNiagaraEditorUtilities::GetVariableMetaDataNamespaceStringForNewScope(const FNiagaraVariableMetaData& MetaData, const FName& NewScopeName, FString& OutNamespaceString)
+{
+	if (MetaData.GetIsUsingLegacyNameString())
+	{
+		return false;
+	}
+
+	const FNiagaraParameterScopeInfo* ScopeInfo = FNiagaraEditorModule::FindParameterScopeInfo(NewScopeName);
+	if (ScopeInfo == nullptr)
+	{
+		ensureMsgf(false, TEXT("Failed to find registered parameter scope info for scope name %s!"), *NewScopeName.ToString());
+		return false;
+	}
+
+	FString NamespaceString = ScopeInfo->GetNamespaceString();
+	if (MetaData.GetUsage() == ENiagaraScriptParameterUsage::InitialValueInput)
+	{
+		NamespaceString.Append(PARAM_MAP_INITIAL_STR);
+	}
+	OutNamespaceString = NamespaceString;
+
+	return true;
+}
+
+FName FNiagaraEditorUtilities::GetScopeNameForParameterScope(ENiagaraParameterScope InScope)
+{
+	switch (InScope) {
+	case ENiagaraParameterScope::User:
+		return FNiagaraConstants::UserNamespace;
+	case ENiagaraParameterScope::Engine:
+		return FNiagaraConstants::EngineNamespace;
+	case ENiagaraParameterScope::Owner:
+		return FNiagaraConstants::EngineOwnerScopeName;
+	case ENiagaraParameterScope::System:
+		return FNiagaraConstants::SystemNamespace;
+	case ENiagaraParameterScope::Emitter:
+		return FNiagaraConstants::EmitterNamespace;
+	case ENiagaraParameterScope::Particles:
+		return FNiagaraConstants::ParticleAttributeNamespace;
+	case ENiagaraParameterScope::Local:
+		return FNiagaraConstants::LocalNamespace;
+	case ENiagaraParameterScope::Input:
+		return FNiagaraConstants::InputScopeName;
+	case ENiagaraParameterScope::Custom:
+		return FNiagaraConstants::CustomScopeName;
+	case ENiagaraParameterScope::ScriptPersistent:
+		return FNiagaraConstants::ScriptPersistentScopeName;
+	case ENiagaraParameterScope::ScriptTransient:
+		return FNiagaraConstants::ScriptTransientScopeName;
+	default:
+		ensureMsgf(false, TEXT("Tried to get scope name for unknown parameter scope!"));
+	}
+	return FNiagaraConstants::ParticleAttributeNamespace;
+}
+
+
+TArray<FName> FNiagaraEditorUtilities::DecomposeVariableNamespace(const FName& InVarNameToken, FName& OutName)
+{
+	int32 DotIndex;
+	TArray<FName> OutNamespaces;
+	FString VarNameString = InVarNameToken.ToString();
+	while (VarNameString.FindChar(TEXT('.'), DotIndex))
+	{
+		OutNamespaces.Add(FName(*VarNameString.Left(DotIndex)));
+		VarNameString = *VarNameString.RightChop(DotIndex + 1);
+	}
+	OutName = FName(*VarNameString);
+	return OutNamespaces;
+}
+
+void FNiagaraEditorUtilities::GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData)
+{
+	auto MarkAsLegacyCustomName = [&OutMetaData]() {
+		OutMetaData.SetScopeName(FNiagaraConstants::CustomScopeName);
+		OutMetaData.SetIsUsingLegacyNameString(true);
+	};
+
+	auto GetMetaDataForFirstNamespace = [MarkAsLegacyCustomName](const FName& Namespace, FNiagaraVariableMetaData& OutMetaData)-> bool /*bNextNamespaceCanBeValid*/ {
+		if (Namespace == FNiagaraConstants::LocalNamespace)
+		{
+			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Local);
+			return true;
+		}
+		else if (Namespace == FNiagaraConstants::ModuleNamespace)
+		{
+			OutMetaData.SetScopeName(FNiagaraConstants::InputScopeName);
+			return false;
+		}
+		else if (Namespace == FNiagaraConstants::UserNamespace)
+		{
+			OutMetaData.SetScopeName(Namespace);
+			return false;
+		}
+		else if (Namespace == FNiagaraConstants::EngineNamespace)
+		{
+			OutMetaData.SetScopeName(Namespace);
+			return true;
+		}
+		else if (Namespace == FNiagaraConstants::SystemNamespace)
+		{
+			OutMetaData.SetScopeName(Namespace);
+			return true;
+		}
+		else if (Namespace == FNiagaraConstants::EmitterNamespace)
+		{
+			OutMetaData.SetScopeName(Namespace);
+			return true;
+		}
+		else if (Namespace == FNiagaraConstants::ParticleAttributeNamespace)
+		{
+			OutMetaData.SetScopeName(Namespace);
+			return true;
+		}
+
+		MarkAsLegacyCustomName();
+		return false;
+	};
+
+	auto GetMetaDataForInitialNamespace = [](const FName& Namespace, FNiagaraVariableMetaData& OutMetaData)-> bool /*bFoundInitialNamespace*/ {
+		if (Namespace == FNiagaraConstants::InitialNamespace)
+		{
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::InitialValueInput);
+			return true;
+		}
+		return false;
+	};
+
+	auto GetScopeCanHaveInitialNamespaceSuffix = [](ENiagaraParameterScope InScope)-> bool /*bCanHaveInitialNamespaceSuffix*/ {
+		switch (InScope) {
+		case ENiagaraParameterScope::System:
+		case ENiagaraParameterScope::Emitter:
+		case ENiagaraParameterScope::Particles:
+			return true;
+		default:
+			return false;
+		};
+		return false;
+	};
+
+	auto GetMetaDataForEngineSubNamespace = [](const FName& Namespace, FNiagaraVariableMetaData& OutMetaData)-> bool /*bFoundValidEngineSubNamespace*/ {
+		if (Namespace == FNiagaraConstants::OwnerNamespace)
+		{
+			OutMetaData.SetScopeName(FNiagaraConstants::EngineOwnerScopeName);
+			return true;
+		}
+		else if (Namespace == FNiagaraConstants::SystemNamespace)
+		{
+			OutMetaData.SetScopeName(FNiagaraConstants::EngineSystemScopeName);
+			return true;
+		}
+		else if (Namespace == FNiagaraConstants::EmitterNamespace)
+		{
+			OutMetaData.SetScopeName(FNiagaraConstants::EngineEmitterScopeName);
+			return true;
+		}
+		return false;
+	};
+
+	FName NamespacelessName;
+	TArray<FName> DecomposedNamespaces = FNiagaraEditorUtilities::DecomposeVariableNamespace(InVarNameToken, NamespacelessName);
+	OutMetaData.SetCachedNamespacelessVariableName(NamespacelessName);
+	if (DecomposedNamespaces.Num() == 0)
+	{
+		UE_LOG(LogNiagaraEditor, Display, TEXT("Unexpected parameter encountered without a namespace: %s"), *InVarNameToken.ToString());
+		MarkAsLegacyCustomName();
+		return;
+	}
+	else if (DecomposedNamespaces.Num() == 1)
+	{
+		GetMetaDataForFirstNamespace(DecomposedNamespaces[0], OutMetaData);
+		return;
+	}
+	else if (DecomposedNamespaces.Num() == 2)
+	{
+		bool bNextNamespaceCanBeValid = GetMetaDataForFirstNamespace(DecomposedNamespaces[0], OutMetaData);
+		if (bNextNamespaceCanBeValid)
+		{
+			ENiagaraParameterScope FirstNamespaceScope;
+			FNiagaraEditorUtilities::GetVariableMetaDataScope(OutMetaData, FirstNamespaceScope);
+			if (FirstNamespaceScope == ENiagaraParameterScope::Local)
+			{
+				// "local.module." namespaces may be handled as local scopes and do not need to be marked as legacy namespaces.
+				if (DecomposedNamespaces[1] == FNiagaraConstants::ModuleNamespace)
+				{
+					return;
+				}
+			}
+			else if (FirstNamespaceScope == ENiagaraParameterScope::Engine)
+			{
+				bool bFoundEngineSubNamespace = GetMetaDataForEngineSubNamespace(DecomposedNamespaces[1], OutMetaData);
+				if (bFoundEngineSubNamespace)
+				{
+					return;
+				}
+			}
+			else if (GetScopeCanHaveInitialNamespaceSuffix(FirstNamespaceScope))
+			{
+				bool bFoundInitialNamespace = GetMetaDataForInitialNamespace(DecomposedNamespaces[1], OutMetaData);
+				if (bFoundInitialNamespace)
+				{
+					return;
+				}
+			}
+		}
+		MarkAsLegacyCustomName();
+		return;
+	}
+
+	MarkAsLegacyCustomName();
+}
+
+FString FNiagaraEditorUtilities::GetNamespacelessVariableNameString(const FName& InVarName)
+{
+	int32 DotIndex;
+	FString VarNameString = InVarName.ToString();
+	if (VarNameString.FindLastChar(TEXT('.'), DotIndex))
+	{
+		return VarNameString.RightChop(DotIndex + 1);
+	}
+	// No dot index, must be a namespaceless variable name (e.g. static switch name) just return the name to string.
+	return VarNameString;
+}
+
 #undef LOCTEXT_NAMESPACE

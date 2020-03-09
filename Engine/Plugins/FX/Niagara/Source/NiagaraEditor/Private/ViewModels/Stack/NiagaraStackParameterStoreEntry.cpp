@@ -23,6 +23,7 @@
 #include "AssetRegistryModule.h"
 #include "ARFilter.h"
 #include "EdGraph/EdGraphPin.h"
+#include "NiagaraConstants.h"
 
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackParameterStoreEntry"
@@ -218,14 +219,14 @@ TArray<UEdGraphPin*> UNiagaraStackParameterStoreEntry::GetOwningPins()
 void UNiagaraStackParameterStoreEntry::OnRenamed(FText NewName)
 {
 	FString ActualNameString = NewName.ToString();
-	FString NamespacePrefix = FNiagaraParameterHandle::UserNamespace.ToString() + ".";
+	FString NamespacePrefix = FNiagaraConstants::UserNamespace.ToString() + ".";
 	if (ActualNameString.Contains(NamespacePrefix))
 	{
 		ActualNameString = ActualNameString.Replace(*NamespacePrefix, TEXT(""));
 	}
 	FName ActualName = FName(*ActualNameString);
 	// what if it's not user namespace? dehardcode.
-	FNiagaraParameterHandle ParameterHandle(FNiagaraParameterHandle::UserNamespace, ActualName); 
+	FNiagaraParameterHandle ParameterHandle(FNiagaraConstants::UserNamespace, ActualName); 
 	FName VariableName = ParameterHandle.GetParameterHandleString();
 	if (VariableName != ParameterName)
 	{
@@ -387,7 +388,7 @@ UObject* UNiagaraStackParameterStoreEntry::GetCurrentValueObject()
 
 bool UNiagaraStackParameterStoreEntry::IsUniqueName(FString NewName)
 {
-	FString NamespacePrefix = FNiagaraParameterHandle::UserNamespace.ToString() + "."; // correcting name of variable for comparison, all user variables start with "User."
+	FString NamespacePrefix = FNiagaraConstants::UserNamespace.ToString() + "."; // correcting name of variable for comparison, all user variables start with "User."
 	if (!NewName.Contains(NamespacePrefix))
 	{
 		NewName = NamespacePrefix + NewName;

@@ -46,6 +46,9 @@ FText NiagaraParameterPanelSectionID::OnGetSectionTitle(const NiagaraParameterPa
 	case NiagaraParameterPanelSectionID::EMITTER:
 		SectionTitle = LOCTEXT("EmitterParamSection", "Emitter");
 		break;
+	case NiagaraParameterPanelSectionID::OWNER:
+		SectionTitle = LOCTEXT("OwnerParamSection", "Owner");
+		break;
 	case NiagaraParameterPanelSectionID::PARTICLES:
 		SectionTitle = LOCTEXT("ParticlesParamSection", "Particles");
 		break;
@@ -99,6 +102,7 @@ const NiagaraParameterPanelSectionID::Type NiagaraParameterPanelSectionID::GetSe
 	case ENiagaraParameterScope::ScriptPersistent:
 	case ENiagaraParameterScope::ScriptTransient:
 		// This is a potential situation if a script alias param has not had its scope cached by compiling.
+		ensureMsgf(false, TEXT("Tried to get section ID for script transient or persistent scope parameter!"));
 		return NiagaraParameterPanelSectionID::NONE;
 	default:
 		ensureMsgf(false, TEXT("Failed to find matching section ID for script parameter scope!"));
@@ -108,8 +112,13 @@ const NiagaraParameterPanelSectionID::Type NiagaraParameterPanelSectionID::GetSe
 
 const NiagaraParameterPanelSectionID::Type NiagaraParameterPanelSectionID::GetSectionForParameterMetaData(const FNiagaraVariableMetaData& MetaData)
 {
+	if (MetaData.GetIsStaticSwitch())
+	{
+		return NiagaraParameterPanelSectionID::INPUTS;
+	}
+
 	ENiagaraParameterScope MetaDataScope;
-	MetaData.GetScope(MetaDataScope);
+	FNiagaraEditorUtilities::GetVariableMetaDataScope(MetaData, MetaDataScope);
 	ENiagaraScriptParameterUsage MetaDataUsage = MetaData.GetUsage();
 
 	if (MetaDataUsage == ENiagaraScriptParameterUsage::Local)
@@ -130,10 +139,6 @@ const NiagaraParameterPanelSectionID::Type NiagaraParameterPanelSectionID::GetSe
 		{
 			return NiagaraParameterPanelSectionID::REFERENCES;
 		}
-	}
-	else if (MetaData.GetIsStaticSwitch())
-	{
-		return NiagaraParameterPanelSectionID::INPUTS;
 	}
 	else if (MetaDataUsage == ENiagaraScriptParameterUsage::Output)
 	{
@@ -170,9 +175,10 @@ ENiagaraParameterScope NiagaraParameterPanelSectionID::GetScopeForNewParametersI
 		return ENiagaraParameterScope::Local;
 	case NiagaraParameterPanelSectionID::INITIALVALUES:
 		return ENiagaraParameterScope::Particles;
+	case NiagaraParameterPanelSectionID::INPUTS:
+		return ENiagaraParameterScope::Input;
 
 	// Default to Particles scope if coming from section IDs that are not directly associated with scope.
-	case NiagaraParameterPanelSectionID::INPUTS:
 	case NiagaraParameterPanelSectionID::REFERENCES:
 	case NiagaraParameterPanelSectionID::OUTPUTS:
 		return ENiagaraParameterScope::Particles;
@@ -269,6 +275,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::CollectStaticSections(TArray<
 	// Generic Emitter/System view, categorize by scope
 	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::USER);
 	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::ENGINE);
+	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::OWNER);
 	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::SYSTEM);
 	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::EMITTER);
 	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::PARTICLES);
@@ -279,7 +286,7 @@ NiagaraParameterPanelSectionID::Type FNiagaraSystemToolkitParameterPanelViewMode
 	// Generic Emitter/System view, categorize by scope
 
 	ENiagaraParameterScope ParameterScope = ENiagaraParameterScope::None;
-	VarAndViewInfo.MetaData.GetScope(ParameterScope);
+	FNiagaraEditorUtilities::GetVariableMetaDataScope(VarAndViewInfo.MetaData, ParameterScope);
 	if (VarAndViewInfo.MetaData.GetUsage() == ENiagaraScriptParameterUsage::Input && ParameterScope != ENiagaraParameterScope::Input)
 	{
 		return NiagaraParameterPanelSectionID::GetSectionForScope(ParameterScope);
@@ -288,9 +295,9 @@ NiagaraParameterPanelSectionID::Type FNiagaraSystemToolkitParameterPanelViewMode
 	{
 		//return NiagaraParameterPanelSectionID::GetSectionForScope(VarAndViewInfo.ScriptVariableMetaData.LastPrecompileScope); //@todo(ng) cache the known scope in the niagarasystem
 		FNiagaraVariableMetaData OutMetaData;
-		FNiagaraStackGraphUtilities::GetParameterMetaDataFromName(VarAndViewInfo.ScriptVariable.GetName(), OutMetaData);
+		FNiagaraEditorUtilities::GetParameterMetaDataFromName(VarAndViewInfo.ScriptVariable.GetName(), OutMetaData);
 		ENiagaraParameterScope OutMetaDataScope;
-		OutMetaData.GetScope(OutMetaDataScope);
+		FNiagaraEditorUtilities::GetVariableMetaDataScope(OutMetaData, OutMetaDataScope);
 		return NiagaraParameterPanelSectionID::GetSectionForScope(OutMetaDataScope);
 	}
 }
@@ -300,15 +307,14 @@ void FNiagaraSystemToolkitParameterPanelViewModel::AddParameter(const FNiagaraVa
 	FScopedTransaction AddParameter(LOCTEXT("AddParameter", "Add Parameter"));
 	bool bSystemIsSelected = OverviewSelectionViewModel->GetSystemIsSelected();
 
-	ENiagaraParameterScope NewScope = ENiagaraParameterScope::None;
-	InVariableMetaDataToAssign.GetScope(NewScope);
-
 	UNiagaraGraph::FAddParameterOptions AddParameterOptions = UNiagaraGraph::FAddParameterOptions();
-	AddParameterOptions.NewParameterScope = NewScope;
+	AddParameterOptions.NewParameterScopeName = InVariableMetaDataToAssign.GetScopeName();
 	AddParameterOptions.NewParameterUsage = InVariableMetaDataToAssign.GetUsage();
 	AddParameterOptions.bAddedFromSystemEditor = true;
 	FNiagaraVariable DuplicateVar = InVariableToAdd; //@todo(ng) rewrite
 
+	ENiagaraParameterScope NewScope;
+	FNiagaraEditorUtilities::GetVariableMetaDataScope(InVariableMetaDataToAssign, NewScope);
 	if (NewScope == ENiagaraParameterScope::User)
 	{
 		SystemViewModel->GetSystem().Modify();
@@ -345,7 +351,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::RemoveParameter(const FNiagar
 	FScopedTransaction RemoveParameter(LOCTEXT("RemoveParameter", "Remove Parameter"));
 
 	ENiagaraParameterScope TargetVariableScope = ENiagaraParameterScope::None;
-	TargetVariableMetaData.GetScope(TargetVariableScope);
+	FNiagaraEditorUtilities::GetVariableMetaDataScope(TargetVariableMetaData, TargetVariableScope);
 
 	if (TargetVariableMetaData.IsInputUsage() && TargetVariableScope == ENiagaraParameterScope::User) //@todo(ng) verify
 	{
@@ -376,12 +382,11 @@ void FNiagaraSystemToolkitParameterPanelViewModel::RenameParameter(const FNiagar
 	FScopedTransaction RenameParameter(LOCTEXT("RenameParameter", "Rename Parameter"));
 
 	FName NewVariableName;
-	ENiagaraParameterScope TargetVariableScope;
-	FString ExistingVariableScopeString;
-	if (TargetVariableMetaData.GetScope(TargetVariableScope))
+	FString TargetVariableNamespaceString;
+	
+	if (FNiagaraEditorUtilities::GetVariableMetaDataNamespaceString(TargetVariableMetaData, TargetVariableNamespaceString))
 	{
-		ExistingVariableScopeString = FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(TargetVariableScope);
-		NewVariableName = FName(*(ExistingVariableScopeString + NewVariableNameText.ToString()));
+		NewVariableName = FName(*(TargetVariableNamespaceString + NewVariableNameText.ToString()));
 	}
 	else
 	{
@@ -393,7 +398,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::RenameParameter(const FNiagar
 		if (ensureMsgf(Graph.IsValid(), TEXT("Editable Emitter Script Graph was stale when renaming parameter!")))
 		{
 			Graph->Modify();
-			Graph->RenameParameter(TargetVariableToRename, NewVariableName, TargetVariableMetaData.GetIsStaticSwitch(), TargetVariableScope); //@todo(ng) handle renaming system params
+			Graph->RenameParameter(TargetVariableToRename, NewVariableName, TargetVariableMetaData.GetIsStaticSwitch(), TargetVariableMetaData.GetScopeName()); //@todo(ng) handle renaming system params
 		}
 	}
 	Refresh();
@@ -460,7 +465,7 @@ const TArray<FNiagaraScriptVariableAndViewInfo> FNiagaraSystemToolkitParameterPa
 			{
 				const FNiagaraVariableMetaData& MetaData = Iter.Value()->Metadata;
 				ENiagaraParameterScope MetaDataScope;
-				MetaData.GetScope(MetaDataScope);
+				FNiagaraEditorUtilities::GetVariableMetaDataScope(MetaData, MetaDataScope);
 
 				if (MetaDataScope == ENiagaraParameterScope::None || MetaData.GetUsage() == ENiagaraScriptParameterUsage::None)
 				{
@@ -580,17 +585,14 @@ void FNiagaraScriptToolkitParameterPanelViewModel::AddParameter(const FNiagaraVa
 	FScopedTransaction AddParameter(LOCTEXT("AddParameterFromParameterPanel", "Add Parameter"));
 	UNiagaraGraph::FAddParameterOptions AddParameterOptions = UNiagaraGraph::FAddParameterOptions();
 
-	ENiagaraParameterScope InVariableScope;
-	InVariableMetaDataToAssign.GetScope(InVariableScope);
-	ENiagaraScriptParameterUsage InVariableUsage = InVariableMetaDataToAssign.GetUsage();
-
-	AddParameterOptions.NewParameterScope = InVariableScope;
+	AddParameterOptions.NewParameterScopeName = InVariableMetaDataToAssign.GetScopeName();
 	AddParameterOptions.NewParameterUsage = InVariableMetaDataToAssign.GetUsage();
 	FNiagaraVariable DuplicateVar = InVariableToAdd; //@todo(ng) rewrite
 
 	UNiagaraGraph* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph();
 	Graph->Modify();
 	const FVector2D NewNodePos = Graph->GetGoodPlaceForNewNode();
+	ENiagaraScriptParameterUsage InVariableUsage = InVariableMetaDataToAssign.GetUsage();
 	if (InVariableUsage == ENiagaraScriptParameterUsage::Input)
 	{
 		UNiagaraNodeParameterMapGet* NewMapGet = FNiagaraSchemaAction_NewNode::SpawnNodeFromTemplate<UNiagaraNodeParameterMapGet>(Graph, NewObject<UNiagaraNodeParameterMapGet>(), NewNodePos);
@@ -637,17 +639,16 @@ void FNiagaraScriptToolkitParameterPanelViewModel::RenameParameter(const FNiagar
 	}
 	else
 	{
-		const FString ExistingVariableScopeString = TargetVariableMetaData.GetNamespaceString();
-		NewVariableName = FName(*(ExistingVariableScopeString + NewVariableNameText.ToString()));
+		FString TargetVariableNamespaceString;
+		checkf(FNiagaraEditorUtilities::GetVariableMetaDataNamespaceString(TargetVariableMetaData, TargetVariableNamespaceString), TEXT("Tried to get namespace string for parameter using legacy name string edit mode!"));
+		NewVariableName = FName(*(TargetVariableNamespaceString + NewVariableNameText.ToString()));
 	}
 
 	
 	UNiagaraGraph* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph();
 	Graph->Modify();
 
-	ENiagaraParameterScope TargetVariableScope = ENiagaraParameterScope::None;
-	TargetVariableMetaData.GetScope(TargetVariableScope);
-	Graph->RenameParameter(TargetVariableToRename, NewVariableName, TargetVariableMetaData.GetIsStaticSwitch(), TargetVariableScope);
+	Graph->RenameParameter(TargetVariableToRename, NewVariableName, TargetVariableMetaData.GetIsStaticSwitch(), TargetVariableMetaData.GetScopeName());
 }
 
 void FNiagaraScriptToolkitParameterPanelViewModel::ChangeParameterScope(const FNiagaraVariable& TargetVariableToModify, const FNiagaraVariableMetaData& TargetVariableMetaData, const ENiagaraParameterScope NewVariableScope) const
@@ -656,11 +657,18 @@ void FNiagaraScriptToolkitParameterPanelViewModel::ChangeParameterScope(const FN
 	{
 		FScopedTransaction ChangeParameterScopeAndReferencedPins(LOCTEXT("ChangeParameterScopeAndReferencedPins", "Change parameter scope, Rename parameter and referenced pins"));
 
-		bool bIsInitialValue = TargetVariableMetaData.GetUsage() == ENiagaraScriptParameterUsage::InitialValueInput;
-		const FName NewVariableName = FNiagaraStackGraphUtilities::GetVariableNameForScope(TargetVariableToModify.GetName(), NewVariableScope, bIsInitialValue);
-		UNiagaraGraph* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph();
-		Graph->Modify();
-		Graph->RenameParameter(TargetVariableToModify, NewVariableName, TargetVariableMetaData.GetIsStaticSwitch(), NewVariableScope);
+		const FName TargetScopeName = FNiagaraEditorUtilities::GetScopeNameForParameterScope(NewVariableScope);
+		FString NewNamespaceString;
+		if (ensureMsgf(FNiagaraEditorUtilities::GetVariableMetaDataNamespaceStringForNewScope(TargetVariableMetaData, TargetScopeName, NewNamespaceString), TEXT("Tried to change scope of parameter with override name mode enabled!")))
+		{
+			FString NewNameString = NewNamespaceString;
+			NewNamespaceString.Append(FNiagaraEditorUtilities::GetNamespacelessVariableNameString(TargetVariableToModify.GetName()));
+			const FName NewVariableHLSLTokenName = FName(*NewNamespaceString);
+
+			UNiagaraGraph* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph();
+			Graph->Modify();
+			Graph->RenameParameter(TargetVariableToModify, NewVariableHLSLTokenName, TargetVariableMetaData.GetIsStaticSwitch(), TargetScopeName);
+		}
 	}
 }
 
@@ -766,7 +774,7 @@ TStaticArray<FScopeIsEnabledAndTooltip, (int32)ENiagaraParameterScope::Num> FNia
 				if (InName == CachedParameterName)
 				{
 					ENiagaraParameterScope ViewedParameterScope;
-					ViewedParameter.MetaData.GetScope(ViewedParameterScope);
+					FNiagaraEditorUtilities::GetVariableMetaDataScope(ViewedParameter.MetaData, ViewedParameterScope);
 
 					PerScopeInfo[(int32)ViewedParameterScope].bEnabled = false;
 					PerScopeInfo[(int32)ViewedParameterScope].Tooltip = LOCTEXT("NiagaraInvalidScopeSelectionNameAlias", "Cannot select scope {0}: Parameter with same name already has this scope."); //@todo(ng) get scope
@@ -815,15 +823,18 @@ const TArray<FNiagaraScriptVariableAndViewInfo> FNiagaraScriptToolkitParameterPa
 
 			const FNiagaraVariableMetaData& MetaData = Iter.Value()->Metadata;
 			ENiagaraParameterScope MetaDataScope = ENiagaraParameterScope::None;
-			MetaData.GetScope(MetaDataScope);
-
-			if (MetaData.GetIsStaticSwitch() == false && (MetaDataScope == ENiagaraParameterScope::None || MetaData.GetUsage() == ENiagaraScriptParameterUsage::None) )
+			if (MetaData.GetIsStaticSwitch() == false)
 			{
-				// Parameters that are not static switches must have a scope and usage set.
-				ensureMsgf(false, TEXT("Invalid MetaData found for graph variable: %s"), *Iter.Value()->Variable.GetName().ToString());
-				continue;
+				FNiagaraEditorUtilities::GetVariableMetaDataScope(MetaData, MetaDataScope);
+				if (MetaDataScope == ENiagaraParameterScope::None || MetaData.GetUsage() == ENiagaraScriptParameterUsage::None)
+				{
+					// Parameters that are not static switches must have a scope and usage set.
+					ensureMsgf(false, TEXT("Invalid MetaData found for graph variable: %s"), *Iter.Value()->Variable.GetName().ToString());
+					continue;
+				}
 			}
-			else if (MetaData.GetUsage() == ENiagaraScriptParameterUsage::InputOutput)
+
+			if (MetaData.GetUsage() == ENiagaraScriptParameterUsage::InputOutput)
 			{
 				// Need two stack entries to represent this script parameter as both an input and output.
 				FNiagaraVariableMetaData InputVariableMetaData = MetaData;

@@ -223,19 +223,34 @@ public:
 	bool ShouldIgnoreVariableDefault(const FNiagaraVariable& Var)const;
 };
 
+// view of FNiagaraVariableMetaData that caches configurable types to avoid verification checks on getters.
+struct FNiagaraStaticVariableMetaData
+{
+	FNiagaraStaticVariableMetaData(const FNiagaraVariableMetaData& ViewMetaData);
+
+	ENiagaraParameterScope GetScope() const { return Scope; };
+	const FString& GetNamespaceString() const { return NamespaceString; };
+
+private:
+	ENiagaraParameterScope Scope;
+	FString NamespaceString;
+};
+
 // helper struct for handling tracked variable metadata and aliases from histories.
 struct FNiagaraHistoryVariable
 {
-	FNiagaraHistoryVariable(FNiagaraVariable* InVar, const FNiagaraVariable* InVarWithOriginalAlias, const FNiagaraVariableMetaData* InVarMetaData)
+	FNiagaraHistoryVariable(FNiagaraVariable* InVar, const FNiagaraVariable* InVarWithOriginalAlias, const FNiagaraVariableMetaData& InVarMetaData)
 		: Var(InVar)
 		, VarWithOriginalAlias(InVarWithOriginalAlias)
-		, VarMetaData(InVarMetaData)
+		, VarMetaData(&InVarMetaData)
+		, StaticVarMetaData(InVarMetaData)
 		, bDoNotDemote(false)
 	{};
 
 	FNiagaraVariable* Var;
 	const FNiagaraVariable* VarWithOriginalAlias;
 	const FNiagaraVariableMetaData* VarMetaData;
+	const FNiagaraStaticVariableMetaData StaticVarMetaData;
 
 	// Used to track whether this history variable should not be demoted during pre-compilation.
 	bool bDoNotDemote;
