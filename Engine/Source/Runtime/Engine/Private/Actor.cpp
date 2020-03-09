@@ -4364,10 +4364,13 @@ void AActor::PostUnregisterAllComponents()
 
 void AActor::RegisterAllComponents()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_AActor_RegisterAllComponents);
+
 	PreRegisterAllComponents();
 
 	// 0 - means register all components
-	verify(IncrementalRegisterComponents(0));
+	bool bAllRegistered = IncrementalRegisterComponents(0);
+	check(bAllRegistered);
 
 	// Clear this flag as it's no longer deferred
 	bHasDeferredComponentRegistration = false;
