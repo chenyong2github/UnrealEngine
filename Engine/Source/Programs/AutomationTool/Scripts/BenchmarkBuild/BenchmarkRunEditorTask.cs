@@ -13,35 +13,25 @@ namespace AutomationTool.Benchmark
 {
 	class BenchmarkRunEditorTask : BenchmarkEditorTaskBase
 	{
-		FileReference ProjectFile = null;
-
-		string Project = "";
 		string EditorArgs = "";
 
-		EditorTaskOptions Options;
-
-		public BenchmarkRunEditorTask(string InProject, EditorTaskOptions InOptions = EditorTaskOptions.None, string InEditorArgs="")
+		public BenchmarkRunEditorTask(string InProject, EditorTaskOptions InOptions, string InEditorArgs="")
+			: base(InProject, InOptions)
 		{
-			Options = InOptions;
 			EditorArgs = InEditorArgs;
 
-			if (!InProject.Equals("UE4", StringComparison.OrdinalIgnoreCase))
-			{
-				Project = InProject;
-				ProjectFile = ProjectUtils.FindProjectFileFromName(InProject);
-			}
 
-			if (Options.HasFlag(EditorTaskOptions.NoDDC))
+			if (TaskOptions.HasFlag(EditorTaskOptions.NoDDC))
 			{
 				TaskModifiers.Add("noddc");
 			}
 
-			if (Options.HasFlag(EditorTaskOptions.NoShaderDDC))
+			if (TaskOptions.HasFlag(EditorTaskOptions.NoShaderDDC))
 			{
 				TaskModifiers.Add("noshaderddc");
 			}
 
-			if (Options.HasFlag(EditorTaskOptions.ColdDDC))
+			if (TaskOptions.HasFlag(EditorTaskOptions.ColdDDC))
 			{
 				TaskModifiers.Add("coldddc");
 			}
@@ -76,31 +66,35 @@ namespace AutomationTool.Benchmark
 		{
 			// build editor
 			BuildTarget Command = new BuildTarget();
-			Command.ProjectName = Project;
+			Command.ProjectName = ProjectFile != null ? ProjectFile.GetFileNameWithoutAnyExtensions() : null;
 			Command.Platforms = BuildHostPlatform.Current.Platform.ToString();
 			Command.Targets = "Editor";
-			Command.NoTools = true;
+			Command.NoTools = false;
 
 			if (Command.Execute() != ExitCode.Success)
 			{
 				return false;
 
 			}
-			if (Options.HasFlag(EditorTaskOptions.ColdDDC))
+
+			if (TaskOptions.HasFlag(EditorTaskOptions.ColdDDC))
 			{
-				DeleteLocalDDC(ProjectFile);
+				//DeleteLocalDDC(ProjectFile);
 			}
 
 			// if they want a hot DDC then do the test one time with no timing
-			if (Options.HasFlag(EditorTaskOptions.HotDDC))
+			if (TaskOptions.HasFlag(EditorTaskOptions.HotDDC))
 			{
 				RunEditorAndWaitForMapLoad();
 			}
+
+			base.PerformPrequisites();
 
 			return true;
 		}
 
 		static IProcessResult CurrentProcess = null;
+		static DateTime LastStdOutTime = DateTime.Now;
 		//static bool TestCompleted = false;
 
 		/// <summary>
@@ -112,10 +106,15 @@ namespace AutomationTool.Benchmark
 		{
 			if (CurrentProcess != null)
 			{
-				if (Message.Contains("TEST COMPLETE"))
+				lock (CurrentProcess)
 				{
-					Log.TraceInformation("Automation test reported as complete.");
-					//TestCompleted = true;
+					if (Message.Contains("TEST COMPLETE"))
+					{
+						Log.TraceInformation("Automation test reported as complete.");
+						//TestCompleted = true;
+					}
+
+					LastStdOutTime = DateTime.Now;
 				}
 			}
 			return Message;
@@ -127,11 +126,17 @@ namespace AutomationTool.Benchmark
 			string EditorPath = HostPlatform.Current.GetUE4ExePath("UE4Editor.exe");
 			string Arguments = string.Format("{0} {1} -execcmds=\"automation runtest System.Maps.PIE;Quit\" -stdout -AllowStdOutLogVerbosity -unattended", ProjectArg, EditorArgs);
 
+			if (TaskOptions.HasFlag(EditorTaskOptions.NoDDC))
+			{
+				Arguments += (" -ddc=noshared");
+			}
+
 			var RunOptions = CommandUtils.ERunOptions.AllowSpew | CommandUtils.ERunOptions.NoWaitForExit;
 
 			var SpewDelegate = new ProcessResult.SpewFilterCallbackType(EndOnMapCheckFilter);
 
 			//TestCompleted = false;
+			LastStdOutTime = DateTime.Now;
 			CurrentProcess = CommandUtils.Run(EditorPath, Arguments, Options: RunOptions, SpewFilterCallback: SpewDelegate);
 
 			DateTime StartTime = DateTime.Now;
@@ -142,10 +147,13 @@ namespace AutomationTool.Benchmark
 			{
 				Thread.Sleep(5 * 1000);
 
-				if ((DateTime.Now - StartTime).TotalMinutes >= MaxWaitMins)
+				lock (CurrentProcess)
 				{
-					Log.TraceError("Gave up waiting for task after {0} minutes", MaxWaitMins);
-					CurrentProcess.ProcessObject.Kill();
+					if ((LastStdOutTime - StartTime).TotalMinutes >= MaxWaitMins)
+					{
+						Log.TraceError("Gave up waiting for task after {0} minutes of no output", MaxWaitMins);
+						CurrentProcess.ProcessObject.Kill();
+					}
 				}
 			}
 
