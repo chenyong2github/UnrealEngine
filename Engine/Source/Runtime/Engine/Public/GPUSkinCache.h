@@ -331,7 +331,7 @@ public:
 		const FVertexBufferAndSRV* BoneBuffers[NUM_BUFFERS];
 	};
 
-	ENGINE_API void TransitionAllToReadable(FRHICommandList& RHICmdList);
+	ENGINE_API void TransitionAllToReadable(FRHICommandList& RHICmdList, EResourceTransitionPipeline Pipeline = EResourceTransitionPipeline::EComputeToGfx);
 
 #if RHI_RAYTRACING
 	void AddRayTracingGeometryToUpdate(FRayTracingGeometry* RayTracingGeometry)
