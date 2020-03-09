@@ -4,6 +4,7 @@
 #include "Engine/Blueprint.h"
 #include "WidgetBlueprint.h"
 #include "Components/Widget.h"
+#include "Utility/IndexerUtilities.h"
 
 #define LOCTEXT_NAMESPACE "FWidgetBlueprintIndexer"
 
