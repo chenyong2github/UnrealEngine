@@ -378,6 +378,7 @@ public:
 
 	virtual void AddExternalInputDevice(TSharedPtr<class IInputDevice> InputDevice);
 
+	virtual void FinishedInputThisFrame() override;
 public:
 
 	// IInputInterface overrides
@@ -525,6 +526,11 @@ private:
 	/** Maps touch indexes to windows touch IDs. */
 	TArray<TOptional<int32>> TouchIDs;
 #endif
+
+	bool bSimulatingHighPrecisionMouseInputForRDP = false;
+
+	FIntPoint CachedPreHighPrecisionMousePosForRDP = FIntPoint::ZeroValue;
+
 };
 
 
