@@ -271,7 +271,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 		{
 			return false;
 		}
-		
+
 		MeshDescription.Empty();
 
 		TVertexAttributesRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
@@ -411,9 +411,9 @@ namespace DatasmithOpenNurbsTranslatorUtils
 			const int32 VertexInstanceCount = 3 * TriangleCount;
 
 			int32 VertexIndexBase = MeshDescription.Vertices().Num();
-			
+
 			MeshDescription.ReserveNewVertices(VertexCount);
-			
+
 			// Do not reserve vertex instances -  UUVGenerationFlattenMapping::GetOverlappingCornersRemapping is crashing because it assumes that vertex instances has no gaps
 			// but they appear when we skip triangles(degenerates) between meshes(if there are few meshes combine mesh description)
 			// MeshDescription.ReserveNewVertexInstances(VertexInstanceCount);
@@ -510,7 +510,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 
 		return true;
 	}
-	
+
 	bool TranslateMesh(const ON_Mesh* Mesh, FMeshDescription& MeshDescription, bool& bHasNormal, double ScalingFactor, const ON_3dVector& Offset)
 	{
 		return TranslateMesh(&Mesh, 1, MeshDescription, bHasNormal, ScalingFactor, Offset, false, nullptr);
@@ -690,12 +690,12 @@ private:
 	FString GetLayerName(const TSharedPtr<IDatasmithActorElement>& LayerElement);
 	void SetLayers(const TSharedPtr<IDatasmithActorElement>& ActorElement, const FOpenNurbsObjectWrapper& Object);
 	void SetTags(const TSharedPtr<IDatasmithActorElement>& ActorElement, const FOpenNurbsObjectWrapper& Object);
-	
+
 	void SetMaterialToMeshElement(TSharedPtr<IDatasmithMeshElement> MeshElement, TSharedPtr<IDatasmithBaseMaterialElement> MaterialElement, int32 SlotId);
 
 	bool TranslateBRep(ON_Brep* brep, const ON_3dmObjectAttributes& Attributes, FMeshDescription& OutMesh, const TSharedRef< IDatasmithMeshElement >& MeshElement, const FString& Name, bool& bHasNormal);
 
-	
+
 	bool ComputeObjectGeometryCenter(const FOpenNurbsObjectWrapper& Object, ON_3dVector& OutGeometryCenter);
 	bool ComputeGeometryCenter(ON_Geometry* Geometry, ON_3dVector& OutCenter);
 
@@ -1002,7 +1002,7 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 				// Note - Texture->m_mapping_channel_id may used to get TextureMapping in order to generate texture coordinates from it.
 				// Specifically, from object's attributes get MappingRef - attributes.m_rendering_attributes.m_mappings
 				// Next, find channel within MappingRef's m_mapping_channels which m_mapping_channel_id is equal to Texture's
-				// Then m_mapping_id of that channel will be UUID in the UUIDToTextureMapping 
+				// Then m_mapping_id of that channel will be UUID in the UUIDToTextureMapping
 
 				// Extract the UV tiling, offset and rotation angle from the UV transform matrix
 				FMatrix Matrix;
@@ -1023,7 +1023,7 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 				{
 					UVParameters.UVOffset.X = Translation.X / Tiling.X;
 
-					// Recomputing offset from Rhino to Unreal, taking into account how tiling Pivot is set in SetupUVEdit: 
+					// Recomputing offset from Rhino to Unreal, taking into account how tiling Pivot is set in SetupUVEdit:
 					// P = pivot, C - input uv, T - tiling, O - offset
 					// Texture coordinate transformed like this: UV = T*(C+O-P)+P (ignoring mirror/rotation)
 					// P is 0.5 (for V), so  UV = T*(C+O - 0.5) + 0.5 = T*C + T*O - T*0.5 + 0.5
@@ -2117,7 +2117,7 @@ ON_Material* FOpenNurbsTranslatorImpl::GetOpenNurbsMaterial(int MaterialIndex)
 	{
 		return nullptr;
 	}
-	
+
 	return MaterialTable.At(*MaterialTableIndexPtr);
 }
 
@@ -3155,13 +3155,13 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 		{
 			ON_Mesh Mesh;
 			Mesh.Append(RenderMeshes.Count(), RenderMeshes);
-			
+
 			if (!DatasmithOpenNurbsTranslatorUtils::TranslateMesh(&Mesh, OutMesh, bHasNormal, ScalingFactor, Offset))
 			{
 				return false;
 			}
 		}
-		
+
 
 		return true;
 	}
@@ -3219,7 +3219,7 @@ bool FOpenNurbsTranslatorImpl::ComputeObjectGeometryCenter(const FOpenNurbsObjec
 	}
 	else if (Object.ObjectPtr->IsKindOf(&ON_PlaneSurface::m_ON_PlaneSurface_class_rtti))
 	{
-		// 
+		//
 	}
 	else if (Object.ObjectPtr->IsKindOf(&ON_LineCurve::m_ON_LineCurve_class_rtti))
 	{
@@ -3416,15 +3416,15 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 	return OutMeshPayload.LodMeshes.Num() > 0;
 }
 
-void FDatasmithOpenNurbsTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithOpenNurbsTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	for (TStrongObjectPtr<UObject>& Option : Options)
+	for (const TStrongObjectPtr<UDatasmithOptionsBase>& Option : Options)
 	{
 		if (UDatasmithImportOptions* DatasmithOptions = Cast<UDatasmithImportOptions>(Option.Get()))
 		{
 			BaseOptions = DatasmithOptions->BaseOptions;
 		}
-		if (UDatasmithOpenNurbsImportOptions* OpenNurbsOptionsObj = Cast<UDatasmithOpenNurbsImportOptions>(Option.Get()))
+		else if (UDatasmithOpenNurbsImportOptions* OpenNurbsOptionsObj = Cast<UDatasmithOpenNurbsImportOptions>(Option.Get()))
 		{
 			OpenNurbsOptions = OpenNurbsOptionsObj->Options;
 		}
@@ -3437,7 +3437,7 @@ void FDatasmithOpenNurbsTranslator::SetSceneImportOptions(TArray<TStrongObjectPt
 	}
 }
 
-void FDatasmithOpenNurbsTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithOpenNurbsTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	Options.Add(Datasmith::MakeOptions<UDatasmithOpenNurbsImportOptions>());
 }

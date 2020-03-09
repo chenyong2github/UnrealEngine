@@ -151,12 +151,18 @@ namespace DatasmithImportFactoryImpl
 			SceneAsset = NewObject< UDatasmithScene >( Package, FName(*AssetName), RF_Public | RF_Standalone );
 		}
 
-		UDatasmithSceneImportData* ReImportSceneData = NewObject< UDatasmithSceneImportData >( SceneAsset, UDatasmithTranslatedSceneImportData::StaticClass() );
+		UDatasmithTranslatedSceneImportData* ReImportSceneData = NewObject< UDatasmithTranslatedSceneImportData >( SceneAsset );
 		SceneAsset->AssetImportData = ReImportSceneData;
 
 		// Copy over the changes the user may have done on the options
 		ReImportSceneData->BaseOptions = InContext.Options->BaseOptions;
 
+		for (const TStrongObjectPtr<UDatasmithOptionsBase>& Option : InContext.AdditionalImportOptions)
+		{
+			UDatasmithOptionsBase* OptionObj = Option.Get();
+			OptionObj->Rename(nullptr, ReImportSceneData);
+			ReImportSceneData->AdditionalOptions.Add(OptionObj);
+		}
 		ReImportSceneData->Update( InContext.Options->FilePath, InContext.FileHash.IsValid() ? &InContext.FileHash : nullptr );
 
 		FAssetRegistryModule::AssetCreated(ReImportSceneData);
@@ -467,8 +473,6 @@ UObject* UDatasmithImportFactory::FactoryCreateFile(UClass* InClass, UObject* In
 	FDatasmithTranslatableSceneSource TranslatableSource(Source);
 	if (!TranslatableSource.IsTranslatable())
 	{
-		bOperationCanceled = true;
-		bOutOperationCanceled = true;
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: no suitable translator found for this source. Abort import."));
 		return nullptr;
 	}
@@ -498,16 +502,14 @@ UObject* UDatasmithImportFactory::FactoryCreateFile(UClass* InClass, UObject* In
 
 	if (!TranslatableSource.Translate(Scene))
 	{
-		bOperationCanceled = true;
-		bOutOperationCanceled = true;
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: Scene translation failure. Abort import."));
 		return nullptr;
 	}
 
-	bOutOperationCanceled = !Import( ImportContext );
-	if (bOutOperationCanceled)
+	if (!Import( ImportContext ))
 	{
 		bOperationCanceled = true;
+		bOutOperationCanceled = true;
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error. Abort import."));
 		return nullptr;
 	}
@@ -745,7 +747,6 @@ EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* M
 EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* SceneAsset)
 {
 	// #ueent_todo: unify with import, BP, python, DP.
-	// Missing a Pipeline object ?
 	if (!SceneAsset || !SceneAsset->AssetImportData)
 	{
 		return EReimportResult::Failed;
@@ -769,6 +770,13 @@ EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* Sc
 	FDatasmithImportContext ImportContext(Source.GetSourceFile(), bLoadConfig, GetLoggerName(), GetDisplayName(), TranslatableSource.GetTranslator());
 	ImportContext.SceneAsset = SceneAsset;
 	ImportContext.Options->BaseOptions = ReimportData.BaseOptions; // Restore options as used in original import
+	if (UDatasmithTranslatedSceneImportData* TranslatedSceneReimportData = Cast<UDatasmithTranslatedSceneImportData>(SceneAsset->AssetImportData))
+	{
+		for (UDatasmithOptionsBase* Option : TranslatedSceneReimportData->AdditionalOptions)
+		{
+			ImportContext.UpdateImportOption(Option);
+		}
+	}
 	ImportContext.bIsAReimport = true;
 
 	FString ImportPath = ImportContext.Options->BaseOptions.AssetOptions.PackagePath.ToString();
