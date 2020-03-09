@@ -20,7 +20,7 @@ FDataprepPreviewAssetColumn::FDataprepPreviewAssetColumn(const TSharedRef<FDatap
 SHeaderRow::FColumn::FArguments FDataprepPreviewAssetColumn::ConstructHeaderRowColumn(const TSharedRef<AssetPreviewWidget::SAssetsPreviewWidget>& PreviewWidget)
 {
 	PreviewWidgetWeakPtr = PreviewWidget;
-	PreviewSystem->GetOnPreviewIsDoneProcessing().AddSP( this, &FDataprepPreviewAssetColumn::OnPreviewSytemIsDoneProcessing );
+	PreviewSystem->GetOnPreviewIsDoneProcessing().AddSP( this, &FDataprepPreviewAssetColumn::OnPreviewSystemIsDoneProcessing );
 
 	return SHeaderRow::Column( GetColumnID() )
 		.DefaultLabel( LOCTEXT("Preview_HeaderText", "Preview") )
@@ -70,14 +70,14 @@ void FDataprepPreviewAssetColumn::SortItems(TArray<AssetPreviewWidget::IAssetTre
 		{
 			if ( FirstPreviewData->Status == SecondPreviewData->Status && FirstPreviewData->CurrentProcessingIndex == SecondPreviewData->CurrentProcessingIndex )
 			{
-				EDataprepPreviewResultComparaison Comparaison = FirstPreviewData->CompareFetchedDataTo( *SecondPreviewData );
-				if ( Comparaison != EDataprepPreviewResultComparaison::Equal )
+				EDataprepPreviewResultComparison Comparaison = FirstPreviewData->CompareFetchedDataTo( *SecondPreviewData );
+				if ( Comparaison != EDataprepPreviewResultComparison::Equal )
 				{
 					if ( SortMode == EColumnSortMode::Descending )
 					{
-						return Comparaison == EDataprepPreviewResultComparaison::BiggerThan;
+						return Comparaison == EDataprepPreviewResultComparison::BiggerThan;
 					}
-					return Comparaison == EDataprepPreviewResultComparaison::SmallerThan;
+					return Comparaison == EDataprepPreviewResultComparison::SmallerThan;
 				}
 			}
 			else if ( FirstPreviewData->Status == EDataprepPreviewStatus::Pass )
@@ -105,7 +105,7 @@ void FDataprepPreviewAssetColumn::SortItems(TArray<AssetPreviewWidget::IAssetTre
 }
 
 
-void FDataprepPreviewAssetColumn::OnPreviewSytemIsDoneProcessing()
+void FDataprepPreviewAssetColumn::OnPreviewSystemIsDoneProcessing()
 {
 	if (TSharedPtr<AssetPreviewWidget::SAssetsPreviewWidget> PreviewWidget = PreviewWidgetWeakPtr.Pin())
 	{
