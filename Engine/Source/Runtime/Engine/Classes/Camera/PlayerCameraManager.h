@@ -792,13 +792,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
 	virtual void StopAllInstancesOfCameraShake(TSubclassOf<class UCameraShake> Shake, bool bImmediately = true);
 
-	/** Stops playing all shakes originating from the given source. */
-	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopAllInstancesOfCameraShakeFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
-
 	/** Stops all active camera shakes on this camera. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
 	virtual void StopAllCameraShakes(bool bImmediately = true);
+
+	/** Stops playing all shakes of the given class originating from the given source. */
+	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
+	virtual void StopAllInstancesOfCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
+
+	/** Stops playing all shakes originating from the given source. */
+	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
+	virtual void StopAllCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	//
 	//  CameraAnim fades.

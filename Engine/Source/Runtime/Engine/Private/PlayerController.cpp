@@ -4351,7 +4351,7 @@ void APlayerController::ClientStopCameraShakesFromSource(class UCameraShakeSourc
 {
 	if (PlayerCameraManager != NULL)
 	{
-		PlayerCameraManager->StopAllInstancesOfCameraShakeFromSource(SourceComponent, bImmediately);
+		PlayerCameraManager->StopAllCameraShakesFromSource(SourceComponent, bImmediately);
 	}
 }
 
