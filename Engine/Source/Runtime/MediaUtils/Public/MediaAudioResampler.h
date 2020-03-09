@@ -7,6 +7,7 @@
 #include "Delegates/Delegate.h"
 #include "MediaSampleSource.h"
 #include "Templates/SharedPointer.h"
+#include "IMediaTimeSource.h"
 
 class IMediaAudioSample;
 
@@ -38,7 +39,7 @@ public:
 	 * @param JumpFrame Frame that a jump in time occured on.
 	 * @return The actual number of frames returned.
 	 */
-	uint32 Generate(float* Output, FTimespan& OutTime, const uint32 FramesRequested, float Rate, FTimespan Time, FMediaAudioSampleSource& SampleSource, uint32& JumpFrame);
+	uint32 Generate(float* Output, FMediaTimeStamp& OutTime, const uint32 FramesRequested, float Rate, FTimespan Time, FMediaAudioSampleSource& SampleSource, uint32& JumpFrame);
 
 	/**
 	 * Initialize the resampler.
@@ -105,7 +106,7 @@ private:
 	uint32 InputSampleRate;
 
 	/** Start time of the input buffer. */
-	FTimespan InputTime;
+	FMediaTimeStamp InputTime;
 
 	/** Number of channels in the output. */
 	uint32 OutputChannels;

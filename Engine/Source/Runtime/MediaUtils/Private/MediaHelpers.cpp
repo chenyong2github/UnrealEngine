@@ -24,6 +24,8 @@ namespace MediaUtils
 		case EMediaEvent::SeekCompleted: return TEXT("SeekCompleted");
 		case EMediaEvent::TracksChanged: return TEXT("TracksChanged");
 
+		case EMediaEvent::Internal_PurgeVideoSamplesHint: return TEXT("Internal: PurgeVideoSamplesHint");
+
 		// no default case; all cases must be implemented!
 		}
 

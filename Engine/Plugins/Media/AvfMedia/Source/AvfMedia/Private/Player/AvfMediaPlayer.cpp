@@ -261,7 +261,7 @@ public:
 		
 		if(FTimespan::MinValue() == AudioSyncSampleTime && bResult && OutSample.IsValid())
 		{
-			AudioSyncSampleTime = OutSample->GetTime() + OutSample->GetDuration();
+			AudioSyncSampleTime = OutSample->GetTime().Time + OutSample->GetDuration();
 		}
 
 		return bResult;
@@ -273,7 +273,7 @@ public:
 		
 		if(FTimespan::MinValue() == VideoSyncSampleTime && bResult && OutSample.IsValid())
 		{
-			VideoSyncSampleTime = OutSample->GetTime() + OutSample->GetDuration();
+			VideoSyncSampleTime = OutSample->GetTime().Time + OutSample->GetDuration();
 		}
 
 		return bResult;

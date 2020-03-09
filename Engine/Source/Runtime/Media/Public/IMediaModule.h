@@ -119,6 +119,11 @@ public:
 	virtual IMediaTicker& GetTicker() = 0;
 
 	/**
+	 * Get frame's processing approximate real time start time in seconds
+	 */
+	virtual double GetFrameStartTime() const = 0;
+
+	/**
 	 * Get a Delegate that is trigger once all MediaClockSink are TickInput
 	 *
 	 * @return the OnTickPreEngineCompleted

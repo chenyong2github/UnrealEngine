@@ -7,7 +7,7 @@
 #include "Misc/Optional.h"
 #include "Misc/Timecode.h"
 #include "Misc/Timespan.h"
-
+#include "IMediaTimeSource.h"
 
 /**
  * Type of text overlay samples.
@@ -62,7 +62,7 @@ public:
 	 *
 	 * @return Sample time.
 	 */
-	virtual FTimespan GetTime() const = 0;
+	virtual FMediaTimeStamp GetTime() const = 0;
 
 	/**
 	 * Get the sample timecode if available.

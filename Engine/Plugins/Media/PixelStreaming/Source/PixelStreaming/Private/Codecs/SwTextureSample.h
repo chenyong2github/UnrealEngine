@@ -125,9 +125,9 @@ public:
 	}
 #endif //WITH_ENGINE
 
-	FTimespan GetTime() const override
+	FMediaTimeStamp GetTime() const override
 	{
-		return Time;
+		return FMediaTimeStamp(Time);
 	}
 
 	bool IsCacheable() const override

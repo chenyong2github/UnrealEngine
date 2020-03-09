@@ -15,6 +15,7 @@
 #include "Misc/Guid.h"
 #include "Engine/LatentActionManager.h"
 #include "MediaPlayerOptions.h"
+#include "IMediaTimeSource.h"
 
 #include "MediaPlayer.generated.h"
 
@@ -64,6 +65,23 @@ enum class EMediaPlayerTrack : uint8
 
 	/** Video track. */
 	Video
+};
+
+
+UCLASS(BlueprintType, hidecategories = (Object))
+class MEDIAASSETS_API UMediaTimeStampInfo
+	: public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UMediaTimeStampInfo() : Time(FTimespan::Zero()), SequenceIndex(0) {}
+
+	UPROPERTY(BlueprintReadOnly, Category = "Media|Time")
+	FTimespan Time;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Media|Time")
+	int64 SequenceIndex;
 };
 
 
@@ -287,20 +305,13 @@ public:
 	FTimespan GetTime() const;
 
 	/**
-	 * Get time of last audio sample decoded
+	 * Get the media's current playback timestamp.
 	 *
-	 * @return Time of last audio sample decoded.
+	 * @return Playback timestamp.
+	 * @see GetDuration, Seek
 	 */
-	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FTimespan GetLastAudioSampleProcessedTime() const;
-
-	/**
-	 * Get time of last video sample decoded
-	 *
-	 * @return Time of last video sample decoded.
-	 */
-	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FTimespan GetLastVideoSampleProcessedTime() const;
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
+	UMediaTimeStampInfo* GetTimeStamp() const;
 
 	/**
 	 * Get the human readable name of the specified track.

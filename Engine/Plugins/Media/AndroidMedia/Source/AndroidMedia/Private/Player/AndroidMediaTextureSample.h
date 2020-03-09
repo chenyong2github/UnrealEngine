@@ -66,7 +66,7 @@ public:
 	 * @param InDuration The duration for which the sample is valid.
 	 * @return true on success, false otherwise.
 	 */
-	bool Initialize(const FIntPoint& InDim, FTimespan InDuration)
+	bool Initialize(const FIntPoint& InDim, FTimespan InDuration, FTimespan InTime = FTimespan::Zero())
 	{
 		if (InDim.GetMin() <= 0)
 		{
@@ -75,6 +75,7 @@ public:
 
 		Dim = InDim;
 		Duration = InDuration;
+		Time = InTime;
 
 		return true;
 	}
@@ -218,9 +219,9 @@ public:
 
 #endif //WITH_ENGINE
 
-	virtual FTimespan GetTime() const override
+	virtual FMediaTimeStamp GetTime() const override
 	{
-		return Time;
+		return FMediaTimeStamp(Time);
 	}
 
 	void UpdateTimeDuration(FTimespan InTime, FTimespan InDuration)

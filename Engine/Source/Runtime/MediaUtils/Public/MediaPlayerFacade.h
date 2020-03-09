@@ -9,6 +9,7 @@
 #include "IMediaClockSink.h"
 #include "IMediaEventSink.h"
 #include "IMediaTickable.h"
+#include "IMediaTimeSource.h"
 #include "MediaPlayerOptions.h"
 #include "Math/Quat.h"
 #include "Math/Range.h"
@@ -24,6 +25,7 @@ class FMediaSampleCache;
 class IMediaOptions;
 class IMediaPlayer;
 class IMediaSamples;
+class IMediaModule;
 
 enum class EMediaEvent;
 enum class EMediaCacheState;
@@ -308,6 +310,14 @@ public:
 	 * @see GetDuration, Seek
 	 */
 	FTimespan GetTime() const;
+
+	/**
+	 * Get the media's current playback time stamp.
+	 *
+	 * @return Playback time stamp.
+	 * @see GetDuration, Seek
+	 */
+	FMediaTimeStamp GetTimeStamp() const;
 
 	/**
 	 * Get the human readable name of the specified track.
@@ -662,20 +672,6 @@ public:
 	 */
 	FTimespan GetLastAudioRenderedSampleTime() const;
 
-	/**
-	 * Get time of last audio sample decoded
-	 *
-	 * @return Time of last audio sample decoded.
-	 */
-	FTimespan GetLastAudioSampleProcessedTime() const;
-
-	/**
-	 * Get time of last video sample decoded
-	 *
-	 * @return Time of last video sample decoded.
-	 */
-	FTimespan GetLastVideoSampleProcessedTime() const;
-
 public:
 
 	/** Get an event delegate that is invoked when a media event occurred. */
@@ -753,6 +749,8 @@ protected:
 	void SelectDefaultTracks();
 
 protected:
+	bool HaveAudioPlayback() const;
+	bool HaveVideoPlayback() const;
 
 	/** Fetch audio samples from the player and forward them to the registered sinks. */
 	void ProcessAudioSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
@@ -777,20 +775,27 @@ protected:
 
 private:
 
+	void ProcessVideoSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp> & TimeRange);
+	void ProcessCaptionSamples(IMediaSamples& Samples, TRange<FMediaTimeStamp> TimeRange);
+	void ProcessSubtitleSamples(IMediaSamples& Samples, TRange<FMediaTimeStamp> TimeRange);
+
+	bool GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp> & TimeRange, float Rate, FTimespan DeltaTime, bool bDoNotUseFrameStartReference) const;
+
 	/** Audio sample sinks. */
-	TMediaSampleSinks<IMediaAudioSample> AudioSampleSinks;
+	TWeakPtr<FMediaAudioSampleSink, ESPMode::ThreadSafe> PrimaryAudioSink;
+	FMediaAudioSampleSinks AudioSampleSinks;
 
 	/** Caption sample sinks. */
-	TMediaSampleSinks<IMediaOverlaySample> CaptionSampleSinks;
+	FMediaOverlaySampleSinks CaptionSampleSinks;
 
 	/** Metadata sample sinks. */
-	TMediaSampleSinks<IMediaBinarySample> MetadataSampleSinks;
+	FMediaBinarySampleSinks MetadataSampleSinks;
 
 	/** Subtitle sample sinks. */
-	TMediaSampleSinks<IMediaOverlaySample> SubtitleSampleSinks;
+	FMediaOverlaySampleSinks SubtitleSampleSinks;
 
 	/** Video sample sinks. */
-	TMediaSampleSinks<IMediaTextureSample> VideoSampleSinks;
+	FMediaVideoSampleSinks VideoSampleSinks;
 
 private:
 
@@ -809,6 +814,9 @@ private:
 	/** The last used non-zero play rate (zero if playback never started). */
 	float LastRate;
 
+	/** Flag indicating that we have an active audio setup */
+	bool bHaveActiveAudio;
+
 	/** An event delegate that is invoked when a media event occurred. */
 	FOnMediaEvent MediaEvent;
 
@@ -824,12 +832,24 @@ private:
 	/** Media player event queue. */
 	TQueue<EMediaEvent, EQueueMode::Mpsc> QueuedEvents;
 
+	/** CS to make last time values below thread safe */
+	mutable FCriticalSection LastTimeValuesCS;
+
 	/** Time of last audio sample played. */
-	TAtomic<FTimespan> LastAudioRenderedSampleTime;
+	FMediaTimeStampSample LastAudioRenderedSampleTime;
 
 	/** Time of last audio sample decoded. */
-	TAtomic<FTimespan> LastAudioSampleProcessedTime;
+	FMediaTimeStampSample LastAudioSampleProcessedTime;
 
 	/** Time of last video sample decoded. */
-	TAtomic<FTimespan> LastVideoSampleProcessedTime;
+	FMediaTimeStampSample LastVideoSampleProcessedTime;
+
+	/** Timestamp for audio considered "current" for this frame (use ONLY for return to outside code) */
+	FMediaTimeStamp CurrentFrameAudioTimeStamp;
+
+	/** Estimation for next frame's video timestamp (used when no audio present or active in stream) */
+	FMediaTimeStamp NextEstVideoTimeAtFrameStart;
+
+	/** Mediamodule we are working in */
+	IMediaModule* MediaModule;
 };
