@@ -102,6 +102,9 @@ namespace Audio
 		// Object which handles bulk of decoding operations
 		TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
 
+		// Scratch buffer used for upmixing and downmixing the audio
+		AlignedFloatBuffer ScratchBuffer;
+
 		// Sample rate of the source
 		int32 SampleRate;
 
