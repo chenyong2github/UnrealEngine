@@ -985,6 +985,7 @@ UFbxImportUI::UFbxImportUI(const FObjectInitializer& ObjectInitializer)
 	ReimportMesh = nullptr;
 	bAllowContentTypeImport = false;
 	bAutomatedImportShouldDetectType = true;
+	bResetToFbxOnMaterialConflict = false;
 	//Make sure we are transactional to allow undo redo
 	this->SetFlags(RF_Transactional);
 	
