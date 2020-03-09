@@ -597,7 +597,7 @@ protected:
 		
 		ESubpassHint SubpassHint = ESubpassHint::None;
 		uint8 SubpassIndex = 0;
-
+		bool HasFragmentDensityAttachment = false;
 	} PSOContext;
 
 	FBoundShaderStateInput BoundShaderInput;
@@ -628,7 +628,8 @@ protected:
 	void CacheActiveRenderTargets(
 		uint32 NewNumSimultaneousRenderTargets,
 		const FRHIRenderTargetView* NewRenderTargetsRHI,
-		const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI
+		const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI,
+		const bool HasFragmentDensityAttachment
 		)
 	{
 		PSOContext.CachedNumSimultanousRenderTargets = NewNumSimultaneousRenderTargets;
@@ -639,13 +640,14 @@ protected:
 		}
 
 		PSOContext.CachedDepthStencilTarget = (NewDepthStencilTargetRHI) ? *NewDepthStencilTargetRHI : FRHIDepthRenderTargetView();
+		PSOContext.HasFragmentDensityAttachment = HasFragmentDensityAttachment;
 	}
 
 	void CacheActiveRenderTargets(const FRHIRenderPassInfo& Info)
 	{
 		FRHISetRenderTargetsInfo RTInfo;
 		Info.ConvertToRenderTargetsInfo(RTInfo);
-		CacheActiveRenderTargets(RTInfo.NumColorRenderTargets, RTInfo.ColorRenderTarget, &RTInfo.DepthStencilRenderTarget);
+		CacheActiveRenderTargets(RTInfo.NumColorRenderTargets, RTInfo.ColorRenderTarget, &RTInfo.DepthStencilRenderTarget, RTInfo.FoveationTexture != nullptr);
 	}
 
 	void IncrementSubpass()
@@ -3129,6 +3131,7 @@ public:
 
 		GraphicsPSOInit.SubpassHint = PSOContext.SubpassHint;
 		GraphicsPSOInit.SubpassIndex = PSOContext.SubpassIndex;
+		GraphicsPSOInit.bHasFragmentDensityAttachment = PSOContext.HasFragmentDensityAttachment;
 	}
 
 	UE_DEPRECATED(4.22, "SetRenderTargets API is deprecated; please use RHIBegin/EndRenderPass instead.")
@@ -3141,7 +3144,8 @@ public:
 		CacheActiveRenderTargets(
 			NewNumSimultaneousRenderTargets, 
 			NewRenderTargetsRHI, 
-			NewDepthStencilTargetRHI
+			NewDepthStencilTargetRHI,
+			false
 			);
 
 		if (Bypass())
