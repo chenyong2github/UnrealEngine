@@ -27,6 +27,7 @@ UE_TRACE_EVENT_BEGIN(Trace, ChannelToggle, Important)
 UE_TRACE_EVENT_END()
 
 ///////////////////////////////////////////////////////////////////////////////
+static bool					GChannelInitDisabled;	// = false;
 static FChannel* volatile	GHeadChannel;			// = nullptr;
 static FChannel* volatile	GNewChannelList;		// = nullptr;
 
@@ -121,6 +122,7 @@ void FChannel::Initialize(const ANSICHAR* InChannelName)
 {
 	using namespace Private;
 
+	bDisabled = GChannelInitDisabled;
 	Name.Ptr = InChannelName;
 	Name.Len = GetChannelNameLength(Name.Ptr);
 	Name.Hash = GetChannelHash(Name.Ptr, Name.Len);
@@ -168,6 +170,8 @@ void FChannel::ToggleAll(bool bEnabled)
 			Channel->Toggle(bEnabled);
 		}
 	}
+
+	GChannelInitDisabled = true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
