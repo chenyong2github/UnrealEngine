@@ -56,7 +56,7 @@ public:
 			FMemory::Free(WriterData);
 			WriterData = nullptr;
 		}
-		return !ArIsError;
+		return !IsError();
 	}
 	void Serialize(void* Data, int64 Num)
 	{

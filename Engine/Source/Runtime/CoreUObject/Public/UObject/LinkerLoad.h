@@ -838,8 +838,7 @@ private:
 		{
 			Name = FName();
 			BadNameIndexError(NameIndex);
-			ArIsError = true;
-			ArIsCriticalError = true;
+			SetCriticalError();
 		}
 
 		return *this;

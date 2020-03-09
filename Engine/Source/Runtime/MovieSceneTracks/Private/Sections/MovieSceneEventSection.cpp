@@ -61,9 +61,9 @@ public:
 	}
 
 	// Unsupported serialization
-	virtual FArchive& operator<<(UObject*& Res) override 					{ ArIsError = true; return *this; }
-	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override 	{ ArIsError = true; return *this; }
-	virtual FArchive& operator<<(FWeakObjectPtr& Value) override 			{ ArIsError = true; return *this; }
+	virtual FArchive& operator<<(UObject*& Res) override 					{ SetError(); return *this; }
+	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override 	{ SetError(); return *this; }
+	virtual FArchive& operator<<(FWeakObjectPtr& Value) override 			{ SetError(); return *this; }
 };
 
 /** Custom archive used for writing event parameter struct payloads */
@@ -203,7 +203,7 @@ public:
 
 	virtual void Serialize(void* Data, int64 Num) override
 	{
-		if (Num && !ArIsError)
+		if (Num && !IsError())
 		{
 			// Only serialize if we have the requested amount of data
 			if (Offset + Num <= Bytes.Num())
@@ -213,7 +213,7 @@ public:
 			}
 			else
 			{
-				ArIsError = true;
+				SetError();
 			}
 		}
 	}

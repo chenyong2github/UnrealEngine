@@ -2484,8 +2484,7 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 			// If StringLen cannot be negated due to integer overflow, Ar is corrupted.
 			if (StringLen == MIN_int32)
 			{
-				Ar.ArIsError = 1;
-				Ar.ArIsCriticalError = 1;
+				Ar.SetCriticalError();
 				UE_LOG(LogUnrealNames, Error, TEXT("Archive is corrupted"));
 				return Ar;
 			}
@@ -2496,8 +2495,7 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 			// Protect against network packets allocating too much memory
 			if ((MaxSerializeSize > 0) && (StringLen > MaxSerializeSize))
 			{
-				Ar.ArIsError = 1;
-				Ar.ArIsCriticalError = 1;
+				Ar.SetCriticalError();
 				UE_LOG(LogUnrealNames, Error, TEXT("String is too large"));
 				return Ar;
 			}
@@ -2524,8 +2522,7 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 			// Protect against network packets allocating too much memory
 			if ((MaxSerializeSize > 0) && (StringLen > MaxSerializeSize))
 			{
-				Ar.ArIsError = 1;
-				Ar.ArIsCriticalError = 1;
+				Ar.SetCriticalError();
 				UE_LOG(LogUnrealNames, Error, TEXT("String is too large"));
 				return Ar;
 			}

@@ -223,8 +223,7 @@ bool LoadKeyString(FArchive& Ar, FInlineStringBuffer& OutStrBuffer)
 	// If SaveNum is still less than 0, they must have passed in MIN_INT. Archive is corrupted.
 	if (SaveNum < 0)
 	{
-		Ar.ArIsError = 1;
-		Ar.ArIsCriticalError = 1;
+		Ar.SetCriticalError();
 		return false;
 	}
 
@@ -232,8 +231,7 @@ bool LoadKeyString(FArchive& Ar, FInlineStringBuffer& OutStrBuffer)
 	const int64 MaxSerializeSize = Ar.GetMaxSerializeSize();
 	if ((MaxSerializeSize > 0) && (SaveNum > MaxSerializeSize))
 	{
-		Ar.ArIsError = 1;
-		Ar.ArIsCriticalError = 1;
+		Ar.SetCriticalError();
 		return false;
 	}
 

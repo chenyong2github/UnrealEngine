@@ -477,7 +477,7 @@ public:
 		}
 		
 		// note that we don't allow the base class CLose to happen, as the FAsyncSHAVerify will free the buffer if needed
-		return !ArIsError;
+		return !IsError();
 	}
 	/**
   	 * Returns the name of the Archive.  Useful for getting the name of the package a struct or object
