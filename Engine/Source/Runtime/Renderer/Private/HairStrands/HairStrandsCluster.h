@@ -60,6 +60,8 @@ struct FHairStrandsMacroGroupData
 	FBoxSphereBounds Bounds;
 	FIntRect ScreenRect;
 	uint32 MacroGroupId;
+
+	bool bNeedScatterSceneLighting = false;
 };
 
 /// Store all hair strands macro group infos for a given view
