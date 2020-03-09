@@ -2183,6 +2183,36 @@ TArray<FName> FNiagaraEditorUtilities::DecomposeVariableNamespace(const FName& I
 	return OutNamespaces;
 }
 
+void  FNiagaraEditorUtilities::RecomposeVariableNamespace(const FName& InVarNameToken, const TArray<FName>& InParentNamespaces, FName& OutName)
+{
+	FString VarNameString;
+	for (FName Name : InParentNamespaces)
+	{
+		VarNameString += Name.ToString() + TEXT(".");
+	}
+	VarNameString += InVarNameToken.ToString();
+	OutName = FName(*VarNameString);
+}
+
+bool FNiagaraEditorUtilities::IsScopeEditable(const FName& InScopeName)
+{
+	if (InScopeName == FNiagaraConstants::EngineNamespace || InScopeName == FNiagaraConstants::EngineOwnerScopeName || InScopeName == FNiagaraConstants::EngineSystemScopeName || InScopeName == FNiagaraConstants::EngineEmitterScopeName)
+	{
+		return false;
+	}
+	return true;
+}
+
+bool FNiagaraEditorUtilities::IsScopeUserAssignable(const FName& InScopeName)
+{
+	if (InScopeName == FNiagaraConstants::EngineNamespace || InScopeName == FNiagaraConstants::EngineOwnerScopeName || InScopeName == FNiagaraConstants::EngineSystemScopeName || InScopeName == FNiagaraConstants::EngineEmitterScopeName)
+	{
+		return false;
+	}
+	return true;
+}
+
+
 void FNiagaraEditorUtilities::GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData)
 {
 	auto MarkAsLegacyCustomName = [&OutMetaData]() {
@@ -2200,31 +2230,37 @@ void FNiagaraEditorUtilities::GetParameterMetaDataFromName(const FName& InVarNam
 		else if (Namespace == FNiagaraConstants::ModuleNamespace)
 		{
 			OutMetaData.SetScopeName(FNiagaraConstants::InputScopeName);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return false;
 		}
 		else if (Namespace == FNiagaraConstants::UserNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return false;
 		}
 		else if (Namespace == FNiagaraConstants::EngineNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return true;
 		}
 		else if (Namespace == FNiagaraConstants::SystemNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return true;
 		}
 		else if (Namespace == FNiagaraConstants::EmitterNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return true;
 		}
 		else if (Namespace == FNiagaraConstants::ParticleAttributeNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return true;
 		}
 
