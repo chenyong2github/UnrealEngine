@@ -36,6 +36,17 @@ public:
 	}
 
 	/**
+	 * Converts a time delta to a pixel delta
+	 *
+	 * @param TimeDelta  The time delta to convert
+	 * @return           The pixel equivalent of the delta time
+	 */
+	float SecondsDeltaToPixel( double TimeDelta ) const
+	{
+		return TimeDelta * PixelsPerSecond;
+	}
+
+	/**
 	 * Converts a pixel value to time 
 	 *
 	 * @param PixelX The x value of a pixel coordinate relative to the geometry that was passed into the constructor.
@@ -55,6 +66,17 @@ public:
 	float FrameToPixel( const FFrameTime& Time ) const
 	{
 		return (Time / TickResolution - ViewRangeStartSeconds) * PixelsPerSecond;
+	}
+
+	/**
+	 * Converts a frame delta value to pixel delta
+	 *
+	 * @param TimeDelta   The time delta to convert
+	 * @return            The pixel equivalent of the delta time
+	 */
+	float FrameDeltaToPixel( const FFrameTime& TimeDelta) const
+	{
+		return (TimeDelta / TickResolution) * PixelsPerSecond;
 	}
 
 	/**
