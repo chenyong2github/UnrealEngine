@@ -382,7 +382,7 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 	//  2) Populate the buffer with the necessary data.
 	//  3) Deep copy the data to the other buffers. 
 	//
-	FGeometryDynamicCollection& DynamicCollection = *GameToPhysInterchange.AccessProducerBuffer();
+	FGeometryDynamicCollection& DynamicCollection = GameThreadCollection;
 
 
 	InitializeDynamicCollection(DynamicCollection, *Parameters.RestCollection, Parameters);
@@ -485,9 +485,7 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 		//Results.Get(1).WorldBounds = FBoxSphereBounds(BoundingBox);
 	}
 	*/
-	GameToPhysInterchange.FlipProducer();
-	FGeometryDynamicCollection& ProducerCollection = *GameToPhysInterchange.AccessProducerBuffer();
-	ProducerCollection.CopyMatchingAttributesFrom(DynamicCollection);
+	PhysicsThreadCollection.CopyMatchingAttributesFrom(DynamicCollection);
 }
 
 void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params)
@@ -625,7 +623,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 	Chaos::FPBDRigidsSolver::FParticlesType& Particles)
 {
 	const FGeometryCollection* RestCollection = Parameters.RestCollection;
-	const FGeometryDynamicCollection& DynamicCollection = *GameToPhysInterchange.GetConsumerBuffer();
+	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 
 	if (Parameters.Simulating)
 	{
@@ -947,7 +945,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	check(ChildHandles.Num() != 0);
 
 	check(Parameters.DynamicCollection);
-	FGeometryDynamicCollection& DynamicCollection = *GameToPhysInterchange.AccessProducerBuffer();
+	FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 	TManagedArray<int32>& DynamicState = DynamicCollection.DynamicState;
 	TManagedArray<int32>& ParentIndex = DynamicCollection.Parent;
 	TManagedArray<TSet<int32>>& Children = DynamicCollection.Children;
@@ -1177,7 +1175,7 @@ void FGeometryCollectionPhysicsProxy::InitializeRemoveOnFracture(FParticlesType&
 
 void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver *RBDSolver)
 {
-	const FGeometryDynamicCollection& DynamicCollection = *GameToPhysInterchange.GetConsumerBuffer();
+	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 
 	for (const FClusterHandle* Handle : SolverClusterHandles)
 	{
@@ -1428,7 +1426,7 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
 	SCOPE_CYCLE_COUNTER(STAT_CacheResultGeomCollection);
 
 	//FGeometryCollectionResults& TargetResults = Results.GetPhysicsDataForWrite();
-	const FGeometryDynamicCollection& PTDynamicCollection = *GameToPhysInterchange.GetConsumerBuffer();
+	const FGeometryDynamicCollection& PTDynamicCollection = PhysicsThreadCollection;
 	FGeometryCollectionResults& TargetResults = *PhysToGameInterchange.AccessProducerBuffer();
 
 	if (TargetResults.NumTransformGroup() != PTDynamicCollection.NumElements(FGeometryCollection::TransformGroup))
@@ -1688,7 +1686,7 @@ void FGeometryCollectionPhysicsProxy::PullFromPhysicsState()
 	 * Note: A read lock will have been acquired for this - so the physics thread won't force a buffer flip while this
 	 * sync is ongoing
 	 */
-	FGeometryDynamicCollection& DynamicCollection = *GameToPhysInterchange.AccessProducerBuffer();
+	FGeometryDynamicCollection& DynamicCollection = GameThreadCollection;
 
 	const FGeometryCollectionResults* TargetResultPtr = PhysToGameInterchange.GetConsumerBuffer();
 	if (!TargetResultPtr)
