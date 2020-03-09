@@ -519,7 +519,7 @@ public:
 	USkeletalMesh* DefaultMesh;
 #endif
 
-	/** The source actor from which to sample. Takes precedence over the direct mesh. */
+	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	AActor* Source;
 
