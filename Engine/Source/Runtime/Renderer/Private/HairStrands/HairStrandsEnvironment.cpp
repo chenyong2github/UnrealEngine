@@ -375,7 +375,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	ParametersPS->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(VisibilityData.SampleLightingBuffer), ERenderTargetLoadAction::ELoad);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairEnvLightingPS"),
+		bUseSceneColor ? RDG_EVENT_NAME("HairEnvSceneScatterPS") : RDG_EVENT_NAME("HairEnvLightingPS"),
 		ParametersPS,
 		ERDGPassFlags::Raster,
 		[ParametersPS, VertexShader, PixelShader, ViewportResolution, CapturedView](FRHICommandList& RHICmdList)
@@ -428,15 +428,31 @@ void RenderHairStrandsSceneColorScattering(
 
 		const FViewInfo& View = Views[ViewIndex];
 		const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
-		FRDGBuilder GraphBuilder(RHICmdList);
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+		bool bNeedScatterSceneLighting = false;
 		for (const FHairStrandsMacroGroupData& MacroGroupData : HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas)
 		{
-			AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, SceneColorTexture);
+			if (MacroGroupData.bNeedScatterSceneLighting)
+			{
+				bNeedScatterSceneLighting = true;
+				break;
+			}
 		}
-		GraphBuilder.Execute();
+
+		if (bNeedScatterSceneLighting)
+		{
+			FRDGBuilder GraphBuilder(RHICmdList);
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+			for (const FHairStrandsMacroGroupData& MacroGroupData : HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas)
+			{
+				if (MacroGroupData.bNeedScatterSceneLighting)
+				{
+					AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, SceneColorTexture);
+				}
+			}
+			GraphBuilder.Execute();
+		}
 	}
 }
 

@@ -965,6 +965,7 @@ void ComputeHairStrandsInterpolation(
 			Output.HairGroupPublicData->VFInput.HairRadius = Output.VFInput.HairRadius;
 			Output.HairGroupPublicData->VFInput.HairLength = Output.VFInput.HairLength;
 			Output.HairGroupPublicData->VFInput.bUseStableRasterization = Output.VFInput.bUseStableRasterization;
+			Output.HairGroupPublicData->VFInput.bScatterSceneLighting = Output.VFInput.bScatterSceneLighting;
 			Output.HairGroupPublicData->VFInput.HairDensity = Output.VFInput.HairDensity;
 			Output.HairGroupPublicData->VFInput.LocalToWorldTransform = LocalToWorld;
 
