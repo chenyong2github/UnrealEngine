@@ -157,6 +157,15 @@ private:
 	void HandleHLODVolumes(ULevel* InLevel);
 
 	/**
+	* Determine whether or not this level should have HLODs built for it in the specified world
+	*
+	* @param World - The world the level is part of
+	* @param Level - The level to test
+	* @return bool
+	*/
+	bool ShouldBuildHLODForLevel(const UWorld* World, const ULevel* Level) const;
+
+	/**
 	* Determine whether or not this actor is eligble for HLOD creation
 	*
 	* @param Actor - Actor to test
