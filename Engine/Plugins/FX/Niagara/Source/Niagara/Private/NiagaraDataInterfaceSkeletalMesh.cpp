@@ -85,16 +85,34 @@ FSkeletalMeshSkinningDataHandle::~FSkeletalMeshSkinningDataHandle()
 	}
 }
 
+FSkeletalMeshSkinningDataHandle::FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other)
+{
+	Usage = Other.Usage;
+	SkinningData = Other.SkinningData;
+	Other.SkinningData = nullptr;
+}
+
+FSkeletalMeshSkinningDataHandle& FSkeletalMeshSkinningDataHandle::operator=(FSkeletalMeshSkinningDataHandle&& Other)
+{
+	if (this != &Other)
+	{
+		Usage = Other.Usage;
+		SkinningData = Other.SkinningData;
+		Other.SkinningData = nullptr;
+	}
+	return *this;
+}
+
 //////////////////////////////////////////////////////////////////////////
 void FSkeletalMeshSkinningData::ForceDataRefresh()
 {
-	FScopeLock Lock(&CriticalSection);
+	FRWScopeLock Lock(RWGuard, SLT_Write);
 	bForceDataRefresh = true;
 }
 
 void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usage)
 {
-	FScopeLock Lock(&CriticalSection);
+	FRWScopeLock Lock(RWGuard, SLT_Write);
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
 
 	int32 LODIndex = Usage.GetLODIndex();
@@ -150,7 +168,7 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 
 void FSkeletalMeshSkinningData::UnregisterUser(FSkeletalMeshSkinningDataUsage Usage)
 {
-	FScopeLock Lock(&CriticalSection);
+	FRWScopeLock Lock(RWGuard, SLT_Write);
 	check(LODData.IsValidIndex(Usage.GetLODIndex()));
 
 	if (Usage.NeedBoneMatrices())
@@ -165,7 +183,7 @@ void FSkeletalMeshSkinningData::UnregisterUser(FSkeletalMeshSkinningDataUsage Us
 	}
 }
 
-bool FSkeletalMeshSkinningData::IsUsed()const
+bool FSkeletalMeshSkinningData::IsUsed() const
 {
 	if (BoneMatrixUsers > 0)
 	{
@@ -256,6 +274,8 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 
 bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 {
+	FRWScopeLock Lock(RWGuard, SLT_Write);
+
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
 	check(SkelComp);
 	DeltaSeconds = InDeltaSeconds;
@@ -314,6 +334,11 @@ FSkeletalMeshSkinningDataHandle FNDI_SkeletalMesh_GeneratedData::GetCachedSkinni
 		if ( CachedSkinningDataAndUsage* Existing = CachedSkinningData.Find(Component) )
 		{
 			check(Existing->SkinningData.IsValid());
+			ensure(Existing->Usage.NeedBoneMatrices() == Usage.NeedBoneMatrices());
+			ensure(Existing->Usage.NeedPreSkinnedVerts() == Usage.NeedPreSkinnedVerts());
+			ensure(Existing->Usage.NeedsDataImmediately() == Usage.NeedsDataImmediately());
+			ensure(Existing->Usage.GetLODIndex() == Usage.GetLODIndex());
+
 			return FSkeletalMeshSkinningDataHandle(Existing->Usage, Existing->SkinningData);
 		}
 	}
@@ -2351,6 +2376,11 @@ void FSkeletalMeshAccessorHelper::Init<
 	const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->Mesh->GetSamplingInfo();
 	SamplingRegion = &SamplingInfo.GetRegion(InstData->SamplingRegionIndices[0]);
 	SamplingRegionBuiltData = &SamplingInfo.GetRegionBuiltData(InstData->SamplingRegionIndices[0]);
+
+	if (SkinningData != nullptr)
+	{
+		SkinningData->EnterRead();
+	}
 }
 
 template<>
@@ -2369,6 +2399,11 @@ void FSkeletalMeshAccessorHelper::Init<
 	const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->Mesh->GetSamplingInfo();
 	SamplingRegion = &SamplingInfo.GetRegion(InstData->SamplingRegionIndices[0]);
 	SamplingRegionBuiltData = &SamplingInfo.GetRegionBuiltData(InstData->SamplingRegionIndices[0]);
+
+	if (SkinningData != nullptr)
+	{
+		SkinningData->EnterRead();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
