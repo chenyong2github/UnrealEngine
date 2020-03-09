@@ -178,6 +178,16 @@ public:
 	virtual bool DeviceIsAnAdditionalView(const FSceneView& View);
 
 	/**
+	 * Static helper. Passes request to the current stereo device
+	 */
+	static uint32 GetLODViewIndex();
+
+	/**
+	 * Return the index of the view that is used for selecting LODs
+	 */
+	virtual uint32 DeviceGetLODViewIndex() const;
+
+	/**
 	 * Adjusts the viewport rectangle for stereo, based on which eye pass is being rendered.
 	 */
 	virtual void AdjustViewRect(enum EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const = 0;

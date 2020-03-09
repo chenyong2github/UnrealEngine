@@ -3458,8 +3458,7 @@ void FSceneRenderer::InitProjectedShadowVisibility(FRHICommandListImmediate& RHI
 					// The view dependent projected shadow is valid for this view if it's the
 					// right eye and the projected shadow is being rendered for the left eye.
 					const bool bIsValidForView = IStereoRendering::IsASecondaryView(View)
-						&& Views.IsValidIndex(ViewIndex - 1)
-						&& IStereoRendering::IsAPrimaryView(Views[ViewIndex - 1])
+						&& IStereoRendering::IsAPrimaryView(*ProjectedShadowInfo.DependentView)
 						&& ProjectedShadowInfo.FadeAlphas.IsValidIndex(ViewIndex)
 						&& ProjectedShadowInfo.FadeAlphas[ViewIndex] == 1.0f;
 
@@ -4125,11 +4124,20 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 		FadeAlphas.Init(0.0f, Views.Num());
 		FadeAlphas[ViewIndex] = LightShadowAmount;
 
-		if (IStereoRendering::IsAPrimaryView(View)
-			&& Views.IsValidIndex(ViewIndex + 1)
-			&& IStereoRendering::IsASecondaryView(Views[ViewIndex + 1]))
+		if (IStereoRendering::IsAPrimaryView(View))
 		{
-			FadeAlphas[ViewIndex + 1] = LightShadowAmount;
+			for (int FadeAlphaIndex = ViewIndex + 1; FadeAlphaIndex < Views.Num(); FadeAlphaIndex++)
+			{
+				if (Views.IsValidIndex(FadeAlphaIndex)
+					&& IStereoRendering::IsASecondaryView(Views[FadeAlphaIndex]))
+				{
+					FadeAlphas[FadeAlphaIndex] = LightShadowAmount;
+				}
+				else if (IStereoRendering::IsAPrimaryView(Views[FadeAlphaIndex]))
+				{
+					break;
+				}
+			}
 		}		
 		
 		// If rendering in stereo mode we render shadow depths only for the left eye, but project for both eyes!
