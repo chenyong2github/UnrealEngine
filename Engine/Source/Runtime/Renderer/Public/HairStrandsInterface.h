@@ -421,3 +421,7 @@ RENDERER_API void EnqueueFollicleMaskUpdateQuery(const TArray<FFollicleInfo>& In
 
 void RunHairStrandsProcess(FRHICommandListImmediate& RHICmdList, class FGlobalShaderMap* ShaderMap); 
 bool HasHairStrandsProcess(EShaderPlatform Platform);
+
+
+typedef TArray<FRHIUnorderedAccessView*> FBufferTransitionQueue;
+RENDERER_API void TransitBufferToReadable(FRHICommandListImmediate& RHICmdList, FBufferTransitionQueue& BuffersToTransit);
