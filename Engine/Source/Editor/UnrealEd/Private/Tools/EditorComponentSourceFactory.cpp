@@ -11,12 +11,17 @@
 
 FMeshDescription* FStaticMeshComponentTarget::GetMesh() 
 {
-	return Cast<UStaticMeshComponent>(Component)->GetStaticMesh()->GetMeshDescription(LODIndex);
+	return IsValid() ? Cast<UStaticMeshComponent>(Component)->GetStaticMesh()->GetMeshDescription(LODIndex) : nullptr;
 }
 
 
 void FStaticMeshComponentTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bAssetMaterials) const
 {
+	if (IsValid() == false)
+	{
+		return;
+	}
+
 	if (bAssetMaterials)
 	{
 		UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
@@ -38,7 +43,8 @@ void FStaticMeshComponentTarget::CommitMaterialSetUpdate(const FComponentMateria
 {
 	// we only support this right now...
 	check(bApplyToAsset == true);
-
+	check(IsValid());
+	
 	UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
 
 	// make sure transactional flag is on
@@ -67,13 +73,22 @@ void FStaticMeshComponentTarget::CommitMaterialSetUpdate(const FComponentMateria
 
 bool FStaticMeshComponentTarget::HasSameSourceData(const FPrimitiveComponentTarget& OtherTarget) const
 {
-	const UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
-	const UStaticMesh* OtherStaticMesh = Cast<UStaticMeshComponent>(OtherTarget.Component)->GetStaticMesh();
-	return StaticMesh && StaticMesh == OtherStaticMesh;
+	if (IsValid())
+	{
+		const UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
+		const UStaticMesh* OtherStaticMesh = Cast<UStaticMeshComponent>(OtherTarget.Component)->GetStaticMesh();
+		return StaticMesh && StaticMesh == OtherStaticMesh;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 void FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 {
+	check(IsValid());
+
 	//bool bSaved = Component->Modify();
 	//check(bSaved);
 	UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
