@@ -240,6 +240,11 @@ namespace AutomationTool.Benchmark
 			{
 				PrivateDDCPath = DirectoryReference.Combine(CommandUtils.EngineDirectory, "BenchmarkDerivedDataCache");
 
+				if (DirectoryReference.Exists(PrivateDDCPath))
+				{
+					DirectoryReference.Delete(PrivateDDCPath, true);
+				}
+
 				string Key = GetLocalDDCPathEnvironmentKey();
 
 				OldLocalDCCPath = Environment.GetEnvironmentVariable(Key);
