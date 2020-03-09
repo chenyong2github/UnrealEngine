@@ -419,6 +419,11 @@ void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate
 	bForceAutoCompileOnce = true;
 }
 
+FGuid FNiagaraSystemViewModel::GetMessageLogGuid() const
+{
+	return SystemMessageLogGuidKey.IsSet() ? SystemMessageLogGuidKey.GetValue() : FGuid();
+}
+
 void FNiagaraSystemViewModel::DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete)
 {
 	if (EmitterHandleIdsToDelete.Num() > 0)
