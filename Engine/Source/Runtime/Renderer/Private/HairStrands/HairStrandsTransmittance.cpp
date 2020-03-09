@@ -45,8 +45,8 @@ static FAutoConsoleVariableRef CVarHairStrandsTransmittanceSuperSampling(TEXT("r
 static int32 GHairStrandsTransmittanceMaskUseMipTraversal = 1;
 static FAutoConsoleVariableRef CVarHairStrandsTransmittanceMaskUseMipTraversal(TEXT("r.HairStrands.DeepShadow.MipTraversal"), GHairStrandsTransmittanceMaskUseMipTraversal, TEXT("Evaluate transmittance using mip-map traversal (faster)."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
-float GetDeepShadowDensityScale() { return FMath::Max(0.0f, GDeepShadowDensityScale); }
-float GetDeepShadowDepthBiasScale() { return FMath::Max(0.0f, GDeepShadowDepthBiasScale); }
+static float GetDeepShadowDensityScale() { return FMath::Max(0.0f, GDeepShadowDensityScale); }
+static float GetDeepShadowDepthBiasScale() { return FMath::Max(0.0f, GDeepShadowDepthBiasScale); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 static bool HasDeepShadowData(const FLightSceneInfo* LightSceneInfo, const FHairStrandsMacroGroupDatas& InDatas)
@@ -69,7 +69,6 @@ static bool HasDeepShadowData(const FLightSceneInfo* LightSceneInfo, const FHair
 enum FHairTransmittanceType
 {
 	FHairTransmittanceType_DeepShadow,
-	FHairTransmittanceType_Voxel,
 	FHairTransmittanceType_VirtualVoxel,
 	FHairTransmittanceTypeCount
 };
@@ -106,18 +105,6 @@ class FDeepTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER(FMatrix, DeepShadow_ShadowToWorld)
 		SHADER_PARAMETER(uint32, DeepShadow_bIsGPUDriven)
 
-		SHADER_PARAMETER_ARRAY(FVector4, Voxel_MinAABBs, [FHairStrandsDeepShadowData::MaxMacroGroupCount])
-		SHADER_PARAMETER_ARRAY(FVector4, Voxel_MaxAABBs, [FHairStrandsDeepShadowData::MaxMacroGroupCount])
-		SHADER_PARAMETER(uint32, Voxel_Resolution)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture0)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture1)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture2)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture3)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture4)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture5)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture6)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture7)
-
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayMarchMaskTexture)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DeepShadow_FrontDepthTexture)
@@ -147,10 +134,6 @@ public:
 			return false;
 		}
 
-		if (PermutationVector.Get<FTransmittanceType>() == FHairTransmittanceType_Voxel && PermutationVector.Get<FTraversal>() == 1)
-		{
-			return false;
-		}
 		return IsHairStrandsSupported(Parameters.Platform);
 	}
 
@@ -159,10 +142,6 @@ public:
 		if (PermutationVector.Get<FTransmittanceType>() == FHairTransmittanceType_DeepShadow)
 		{
 			PermutationVector.Set<FSuperSampling>(0);
-			PermutationVector.Set<FTraversal>(0);
-		}
-		else if (PermutationVector.Get<FTransmittanceType>() == FHairTransmittanceType_Voxel)
-		{
 			PermutationVector.Set<FTraversal>(0);
 		}
 		return PermutationVector;
@@ -191,11 +170,6 @@ struct FDeepShadowTransmittanceParams
 
 	FRDGBufferRef HairVisibilityNodeData = nullptr;
 	FRDGBufferRef HairVisibilityNodeCoord = nullptr;
-
-	FRDGTextureRef Voxel_DensityTextures[FHairStrandsDeepShadowData::MaxMacroGroupCount];
-	FVector4 Voxel_MinAABBs[FHairStrandsDeepShadowData::MaxMacroGroupCount];
-	FVector4 Voxel_MaxAABBs[FHairStrandsDeepShadowData::MaxMacroGroupCount];
-	uint32   Voxel_Resolution;
 
 	const FVirtualVoxelResources* VirtualVoxelResources = nullptr;
 };
@@ -250,18 +224,6 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	memcpy(&(Parameters->DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[0]), Params.DeepShadow_AtlasSlotOffsets_AtlasSlotIndex, sizeof(FIntVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
 	memcpy(&(Parameters->DeepShadow_CPUWorldToLightTransforms[0]), Params.DeepShadow_CPUWorldToLightTransforms, sizeof(FMatrix) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
 
-	memcpy(&(Parameters->Voxel_MinAABBs[0]), Params.Voxel_MinAABBs, sizeof(FVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
-	memcpy(&(Parameters->Voxel_MaxAABBs[0]), Params.Voxel_MaxAABBs, sizeof(FVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
-	Parameters->Voxel_Resolution = Params.Voxel_Resolution;
-	Parameters->Voxel_DensityTexture0 = Params.Voxel_DensityTextures[0];
-	Parameters->Voxel_DensityTexture1 = Params.Voxel_DensityTextures[1];
-	Parameters->Voxel_DensityTexture2 = Params.Voxel_DensityTextures[2];
-	Parameters->Voxel_DensityTexture3 = Params.Voxel_DensityTextures[3];
-	Parameters->Voxel_DensityTexture4 = Params.Voxel_DensityTextures[4];
-	Parameters->Voxel_DensityTexture5 = Params.Voxel_DensityTextures[5];
-	Parameters->Voxel_DensityTexture6 = Params.Voxel_DensityTextures[6];
-	Parameters->Voxel_DensityTexture7 = Params.Voxel_DensityTextures[7];
-
 	Parameters->RayMarchMaskTexture = GraphBuilder.RegisterExternalTexture(ScreenShadowMaskSubPixelTexture.IsValid() ? ScreenShadowMaskSubPixelTexture : GSystemTextures.WhiteDummy);
 
 	bool bIsSuperSampled = false;
@@ -302,7 +264,6 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 enum FHairOpaqueMaskType
 {
 	FHairOpaqueMaskType_DeepShadow,
-	FHairOpaqueMaskType_Voxel,
 	FHairOpaqueMaskType_VirtualVoxel,
 	FHairOpaqueMaskTypeCount
 };
@@ -332,16 +293,11 @@ class FDeepShadowMaskPS : public FGlobalShader
 
 		SHADER_PARAMETER(FVector4, Voxel_LightPosition)
 		SHADER_PARAMETER(FVector, Voxel_LightDirection)
-		SHADER_PARAMETER(float, Voxel_DensityScale)
-		SHADER_PARAMETER(FVector, Voxel_MinAABB)
-		SHADER_PARAMETER(uint32, Voxel_Resolution)
-		SHADER_PARAMETER(FVector, Voxel_MaxAABB)
 		SHADER_PARAMETER(uint32, Voxel_MacroGroupId)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayMarchMaskTexture)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeepShadow_WorldToLightTransformBuffer)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DeepShadow_FrontDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DeepShadow_DomTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
@@ -377,13 +333,7 @@ struct FDeepShadowOpaqueParams
 
 	FVector			Voxel_LightDirection = FVector::ZeroVector;
 	FVector4		Voxel_LightPosition = FVector4(0, 0, 0, 0);
-	float			Voxel_DensityScale = 0;
-	FRDGTextureRef	Voxel_DensityTexture = nullptr;
-	FVector			Voxel_MinAABB;
-	FVector			Voxel_MaxAABB;
-	uint32			Voxel_Resolution;
 	uint32			Voxel_MacroGroupId;
-
 	const FVirtualVoxelResources* Voxel_VirtualVoxel = nullptr;
 };
 
@@ -424,7 +374,7 @@ static void AddDeepShadowOpaqueMaskPass(
 	}
 
 	FRDGTextureRef RayMarchMask = nullptr;
-	if (HairOpaqueMaskType == FHairOpaqueMaskType_VirtualVoxel || HairOpaqueMaskType == FHairOpaqueMaskType_Voxel)
+	if (HairOpaqueMaskType == FHairOpaqueMaskType_VirtualVoxel)
 	{
 		FRDGTextureDesc Desc = OutShadowMask->Desc;
 		Desc.TargetableFlags |= TexCreate_ShaderResource;
@@ -435,18 +385,12 @@ static void AddDeepShadowOpaqueMaskPass(
 	}
 	Parameters->RayMarchMaskTexture = RayMarchMask;
 
-	Parameters->Voxel_LightPosition = Params.Voxel_LightPosition;
-	Parameters->Voxel_LightDirection = Params.Voxel_LightDirection;
-	Parameters->Voxel_DensityScale = Params.Voxel_DensityScale;
-	Parameters->Voxel_MinAABB = Params.Voxel_MinAABB;
-	Parameters->Voxel_Resolution = Params.Voxel_Resolution;
-	Parameters->Voxel_MaxAABB = Params.Voxel_MaxAABB;
-	Parameters->Voxel_MacroGroupId = Params.Voxel_MacroGroupId;
-	Parameters->Voxel_DensityTexture = Params.Voxel_DensityTexture;
-
 	if (HairOpaqueMaskType == FHairOpaqueMaskType_VirtualVoxel)
-	{		
+	{
 		check(Params.Voxel_VirtualVoxel);
+		Parameters->Voxel_LightPosition = Params.Voxel_LightPosition;
+		Parameters->Voxel_LightDirection = Params.Voxel_LightDirection;
+		Parameters->Voxel_MacroGroupId = Params.Voxel_MacroGroupId;
 		Parameters->VirtualVoxel = Params.Voxel_VirtualVoxel->UniformBuffer;
 	}
 
@@ -596,21 +540,8 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 		}
 	}
 
-	if (!bHasFoundLight && IsHairStrandsVoxelizationEnable())
+	if (!bHasFoundLight && MacroGroupDatas.VirtualVoxelResources.IsValid())
 	{
-		Params.Voxel_Resolution = 0;
-		memset(Params.Voxel_MinAABBs, 0, sizeof(FVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
-		memset(Params.Voxel_MaxAABBs, 0, sizeof(FVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
-
-		TRefCountPtr<IPooledRenderTarget> DummyVoxelResources;
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateVolumeDesc(1, 1, 1, PF_R32_UINT, FClearValueBinding::Black, TexCreate_None, TexCreate_UAV | TexCreate_ShaderResource, false, 1));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DummyVoxelResources, TEXT("DummyDensityTexture"));
-		FRDGTextureRef DefaultDensityTexture = GraphBuilder.RegisterExternalTexture(DummyVoxelResources, TEXT("Voxel_DefaultDensityTexture"));
-		for (uint32 TexIt = 0; TexIt < FHairStrandsDeepShadowData::MaxMacroGroupCount; ++TexIt)
-		{
-			Params.Voxel_DensityTextures[TexIt] = DefaultDensityTexture;
-		}
-
 		FLightShaderParameters LightParameters;
 		LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 
@@ -622,22 +553,11 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 		Params.LightRadius = FMath::Max(LightParameters.SourceLength, LightParameters.SourceRadius);
 		Params.VirtualVoxelResources = &MacroGroupDatas.VirtualVoxelResources;
 
-		const bool bUseVirtualVoxel = MacroGroupDatas.VirtualVoxelResources.IsValid();
-		const FHairTransmittanceType HairTransmittanceType = bUseVirtualVoxel ? FHairTransmittanceType_VirtualVoxel : FHairTransmittanceType_Voxel;
-		for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
-		{
-			Params.Voxel_Resolution = MacroGroupData.GetResolution();
-			Params.Voxel_MinAABBs[MacroGroupData.MacroGroupId] = MacroGroupData.GetMinBound();
-			Params.Voxel_MaxAABBs[MacroGroupData.MacroGroupId] = MacroGroupData.GetMaxBound();
-			if (MacroGroupData.VoxelResources.DensityTexture)
-				Params.Voxel_DensityTextures[MacroGroupData.MacroGroupId] = GraphBuilder.RegisterExternalTexture(MacroGroupData.VoxelResources.DensityTexture);
-		}
-
 		OutShadowMask = AddDeepShadowTransmittanceMaskPass(
 			GraphBuilder,
 			SceneTextures,
 			View,
-			HairTransmittanceType,
+			FHairTransmittanceType_VirtualVoxel,
 			Params,
 			VisibilityData.NodeGroupSize,
 			HairLUTTexture,
@@ -764,7 +684,7 @@ static void RenderHairStrandsShadowMask(
 
 	// Code is disabled for now until we have the full DOM/voxel fallback logic
 	// If there is no deep shadow for this light, fallback on the voxel representation
-	if (!bHasDeepShadow && IsHairStrandsVoxelizationEnable())
+	if (!bHasDeepShadow && InMacroGroupDatas.VirtualVoxelResources.IsValid())
 	{
 		// TODO: Change this to be a single pass with virtual voxel?
 		for (const FHairStrandsMacroGroupData& MacroGroupData : InMacroGroupDatas.Datas)
@@ -773,23 +693,16 @@ static void RenderHairStrandsShadowMask(
 
 			FDeepShadowOpaqueParams Params;
 			Params.CategorizationTexture = Categorization;
-			Params.Voxel_Resolution = MacroGroupData.GetResolution();
-			Params.Voxel_MinAABB = MacroGroupData.GetMinBound();
-			Params.Voxel_MaxAABB = MacroGroupData.GetMaxBound();
-			Params.Voxel_DensityTexture = GraphBuilder.RegisterExternalTexture(MacroGroupData.VoxelResources.DensityTexture ? MacroGroupData.VoxelResources.DensityTexture : GSystemTextures.WhiteDummy, TEXT("Voxel_DensityTexture"));
-			Params.Voxel_DensityScale = GetDeepShadowDensityScale();
 			Params.Voxel_LightDirection = LightSceneInfo->Proxy->GetDirection();
 			Params.Voxel_LightPosition = FVector4(LightSceneInfo->Proxy->GetPosition(), LightSceneInfo->Proxy->GetLightType() == ELightComponentType::LightType_Directional ? 0 : 1);
 			Params.Voxel_MacroGroupId = MacroGroupData.MacroGroupId;
 
-			const bool bUseVirtualVoxel = InMacroGroupDatas.VirtualVoxelResources.IsValid();
-			const FHairOpaqueMaskType HairOpaqueMaskType = bUseVirtualVoxel ? FHairOpaqueMaskType_VirtualVoxel : FHairOpaqueMaskType_Voxel;
-			Params.Voxel_VirtualVoxel = bUseVirtualVoxel ? &InMacroGroupDatas.VirtualVoxelResources : nullptr;
+			Params.Voxel_VirtualVoxel = &InMacroGroupDatas.VirtualVoxelResources;
 			AddDeepShadowOpaqueMaskPass(
 				GraphBuilder,
 				SceneTextures,
 				View,
-				HairOpaqueMaskType,
+				FHairOpaqueMaskType_VirtualVoxel,
 				Params,
 				OutShadowMask);
 		}
