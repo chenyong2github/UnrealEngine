@@ -682,7 +682,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 			// that manipulates the RWInstanceCounts UAV. The generated code will copy the source count
 			// at the end of the shader.
 			BRANCH
-			if (SimulationStageIndex > 0 && !bStageKillsParticles)
+			if (!bStageKillsParticles)
 			{
 				return GDispatchThreadId.x;
 			}
