@@ -51,7 +51,7 @@ namespace Audio
 		, GameOrAudioThreadId(INDEX_NONE)
 		, AudioPlatformThreadId(INDEX_NONE)
 		, bDebugOutputEnabled(false)
-		, bSubmixRegistrationDisabled(false)
+		, bSubmixRegistrationDisabled(true)
 	{
 		// This audio device is the audio mixer
 		bAudioMixerModuleLoaded = true;
@@ -1156,7 +1156,13 @@ namespace Audio
 
 	void FMixerDevice::RegisterSoundSubmix(const USoundSubmixBase* InSoundSubmix, bool bInit)
 	{
-		if (!InSoundSubmix || bSubmixRegistrationDisabled)
+		if (InSoundSubmix && bSubmixRegistrationDisabled)
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Attempted register Submix %s before the submix graph was initialized."), *InSoundSubmix->GetFullName());
+			return;
+		}
+
+		if (!InSoundSubmix)
 		{
 			return;
 		}
@@ -1174,6 +1180,8 @@ namespace Audio
 			return;
 		}
 
+		UE_LOG(LogAudioMixer, Display, TEXT("Registering submix %s."), *InSoundSubmix->GetFullName());
+
 		const bool bIsMasterSubmix = IsMasterSubmixType(InSoundSubmix);
 
 		if (!bIsMasterSubmix)
@@ -1190,6 +1198,10 @@ namespace Audio
 			}
 
 			LoadSoundSubmix(*InSoundSubmix);
+		}
+		else
+		{
+			UE_LOG(LogAudioMixer, Display, TEXT("Submix %s was already registered as one of the master submixes."), *InSoundSubmix->GetFullName());
 		}
 
 		FMixerSubmixPtr SubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
