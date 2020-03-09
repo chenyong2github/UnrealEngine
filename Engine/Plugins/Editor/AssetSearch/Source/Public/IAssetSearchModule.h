@@ -71,7 +71,7 @@ public:
 
 	virtual FSearchStats GetStats() const = 0;
 
-	virtual bool Search(const FSearchQuery& Query, TFunctionRef<bool(FSearchRecord&&)> InCallback) = 0;
+	virtual void Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback) = 0;
 
 	virtual void RegisterIndexer(FName AssetClassName, IAssetIndexer* Indexer) = 0;
 	virtual void UnregisterIndexer(IAssetIndexer* Indexer) = 0;

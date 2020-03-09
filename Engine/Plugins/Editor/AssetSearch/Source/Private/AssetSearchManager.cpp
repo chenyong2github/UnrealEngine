@@ -393,10 +393,24 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 	return true;
 }
 
-bool FAssetSearchManager::Search(const FSearchQuery& Query, TFunctionRef<bool(FSearchRecord&&)> InCallback)
+void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback)
 {
 	check(IsInGameThread());
 
-	FScopeLock ScopedLock(&SearchDatabaseCS);
-	return SearchDatabase.EnumerateSearchResults(Query, InCallback);
+	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, Query, InCallback]() {
+
+		TArray<FSearchRecord> Results;
+
+		{
+			FScopeLock ScopedLock(&SearchDatabaseCS);
+			SearchDatabase.EnumerateSearchResults(Query, [&Results](FSearchRecord&& InResult) {
+				Results.Add(MoveTemp(InResult));
+				return true;
+			});
+		}
+
+		AsyncTask(ENamedThreads::GameThread, [ResultsFwd = MoveTemp(Results), InCallback]() mutable {
+			InCallback(MoveTemp(ResultsFwd));
+		});
+	});
 }
