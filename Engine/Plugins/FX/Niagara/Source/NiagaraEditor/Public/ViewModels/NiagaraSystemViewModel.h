@@ -314,6 +314,10 @@ private:
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
 	void SendLastCompileMessageJobs() const;
 
+	void InvalidateCachedCompileStatus();
+
+	void TickCompileStatus();
+
 	/** Sets up the preview component and System instance. */
 	void SetupPreviewComponentAndInstance();
 
@@ -569,4 +573,9 @@ private:
 	UNiagaraSystemSelectionViewModel* SelectionViewModel;
 
 	UNiagaraScratchPadViewModel* ScriptScratchPadViewModel;
+
+	TArray<UNiagaraScript*> ScriptsToCheckForStatus;
+	TArray<ENiagaraScriptCompileStatus> ScriptCompileStatuses;
+
+	TOptional<ENiagaraScriptCompileStatus> LatestCompileStatusCache;
 };
