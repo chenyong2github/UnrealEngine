@@ -26,15 +26,16 @@ public:
 	virtual ~FCameraShakeSourceShakeTrackEditor() {}
 
 	// ISequencerTrackEditor interface
-	virtual void AddKey(const FGuid& ObjectGuid) override;
+	virtual UMovieSceneTrack* AddTrack(UMovieScene* FocusedMovieScene, const FGuid& ObjectHandle, TSubclassOf<class UMovieSceneTrack> TrackClass, FName UniqueTypeName) override;
 	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> Type) const override;
 	virtual TSharedPtr<SWidget> BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params) override;
 
 private:
-	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects);
-	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShake> CameraShake);
+	// Shake section members
+	FKeyPropertyResult AddCameraShakeSectionKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, bool bSelect);
+	FKeyPropertyResult AddCameraShakeSectionKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShake> CameraShake, bool bSelect);
 
 	void AddCameraShakeSection(TArray<FGuid> ObjectHandles);
 
@@ -45,7 +46,15 @@ private:
 	void OnCameraShakeAssetEnterPressed(const TArray<FAssetData>& AssetData, TArray<FGuid> ObjectBindings);
 	void OnAutoCameraShakeSelected(TArray<FGuid> ObjectBindings);
 	bool OnShouldFilterCameraShake(const FAssetData& AssetData);
+
+	// Shake trigger members
+	FKeyPropertyResult AddCameraShakeTriggerTrackInternal(FFrameNumber Time, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShake> CameraShake);
+
+	void AddCameraShakeTriggerTrack(const TArray<FGuid> ObjectBindings);
 	
+	// Utility
 	UCameraShakeSourceComponent* AcquireCameraShakeSourceComponentFromGuid(const FGuid& Guid);
+	void AddCameraShakeTracksMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings);
+	TSharedRef<SWidget> BuildCameraShakeTracksMenu(FGuid ObjectBinding);
 };
 
