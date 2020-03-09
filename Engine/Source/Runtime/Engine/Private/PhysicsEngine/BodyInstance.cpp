@@ -43,7 +43,7 @@
 #include "Chaos/ParticleHandle.h"
 #endif // WITH_CHAOS
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	#include "PhysXPublic.h"
 	#include "Physics/PhysicsFiltering.h"
 	#include "PhysicsEngine/PhysXSupport.h"
@@ -453,7 +453,7 @@ void FBodyInstance::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
 	ensure(false);
 #else
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (BodySetup.IsValid())
 	{
 		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
@@ -2006,7 +2006,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 		}
 	}
 
-#elif WITH_PHYSX
+#elif PHYSICS_INTERFACE_PHYSX
 	//Get all shapes
 	EScaleMode::Type ScaleMode = EScaleMode::Free;
 
@@ -2940,7 +2940,7 @@ Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* Owni
 	}
 
 	Chaos::TMassProperties<float, 3> MassProps;
-	FPhysicsInterface::CalculateTMassPropertiesFromShapeCollection(MassProps, Shapes, DensityKGPerCubicUU);
+	FPhysicsInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, DensityKGPerCubicUU);
 
 	float OldMass = MassProps.Mass;
 	float NewMass = 0.f;
@@ -2968,7 +2968,7 @@ Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* Owni
 
 	MassProps.CenterOfMass += MassModifierTransform.TransformVector(OwningBodyInstance->COMNudge);
 
-	// Scale the inertia tensor by the owning body instance's InertiaTensorScale
+	// Scale the inertia tensor by the owning body instance's InertiaTensorScale (see PxMassProperties::scaleInertia)
 	FVector diagonal(MassProps.InertiaTensor.M[0][0] , MassProps.InertiaTensor.M[1][1], MassProps.InertiaTensor.M[2][2]);
 
 	FVector xyz2 = FVector(FVector::DotProduct(diagonal, FVector(0.5f))) - diagonal; // original x^2, y^2, z^2
@@ -2988,7 +2988,7 @@ Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* Owni
 
 	return MassProps;
 }
-#elif WITH_PHYSX
+#elif PHYSICS_INTERFACE_PHYSX
 /** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
 PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform)
 {
@@ -3037,6 +3037,7 @@ void FBodyInstance::UpdateMassProperties()
 {
 	UPhysicalMaterial* PhysMat = GetSimplePhysicalMaterial();
 
+#if WITH_PHYSX
 	if (FPhysicsInterface::IsValid(ActorHandle) && FPhysicsInterface::IsRigidBody(ActorHandle))
 	{
 		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](FPhysicsActorHandle& Actor)
@@ -3066,7 +3067,7 @@ void FBodyInstance::UpdateMassProperties()
 
 #if WITH_CHAOS
 				Chaos::TMassProperties<float, 3> TotalMassProperties;
-#elif WITH_PHYSX
+#elif PHYSICS_INTERFACE_PHYSX
 				PxMassProperties TotalMassProperties;
 #endif
 				if (ShapeToBodiesMap.IsValid() && ShapeToBodiesMap->Num() > 0)
@@ -3121,7 +3122,7 @@ void FBodyInstance::UpdateMassProperties()
 					}
 
 					TotalMassProperties = Chaos::Combine(SubMassProperties);
-#elif WITH_PHYSX
+#elif PHYSICS_INTERFACE_PHYSX
 					TArray<PxMassProperties> SubMassProperties;
 					TArray<PxTransform> MassTMs;
 					for (auto BodyShapesItr : BodyToShapes)
@@ -3180,6 +3181,7 @@ void FBodyInstance::UpdateMassProperties()
 	{
 		BodyInstanceDelegates->OnRecalculatedMassProperties.Broadcast(this);
 	}
+#endif
 }
 
 void FBodyInstance::UpdateDebugRendering()

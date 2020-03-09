@@ -33,8 +33,7 @@
 #define LOCTEXT_NAMESPACE "UWheeledVehicleMovementComponent"
 
 
-#if WITH_PHYSX
-
+#if PHYSICS_INTERFACE_PHYSX
 /**
  * PhysX shader for tire friction forces
  * tireFriction - friction value of the tire contact.
@@ -141,7 +140,7 @@ UWheeledVehicleMovementComponent::UWheeledVehicleMovementComponent(const FObject
 	
 	bReverseAsBrake = true;	//Treats reverse button as break for a more arcade feel (also automatically goes into reverse)
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	// tire load filtering
 	PxVehicleTireLoadFilterData PTireLoadFilterDef;
 	MinNormalizedTireLoad = PTireLoadFilterDef.mMinNormalisedLoad;
@@ -587,7 +586,7 @@ void UWheeledVehicleMovementComponent::SetupWheels(PxVehicleWheelsSimData* PWhee
 #define ONE_TWENTYSEVENTH 0.037037f
 #define ONE_THIRD 0.33333f
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 PX_FORCE_INLINE PxF32 smoothingFunction1(const PxF32 K)
 {
 	//Equation 20 in CarSimEd manual Appendix F.

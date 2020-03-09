@@ -4,11 +4,14 @@
 
 #include "PhysTestSerializer.h"
 
-#if WITH_PHYSX
+
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXIncludes.h"
 #include "PhysXSupportCore.h"
+#include "PhysXToChaosUtil.h"
 #endif
 
+#include "PhysicsCore.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Box.h"
@@ -16,10 +19,6 @@
 #include "Chaos/Capsule.h"
 
 using namespace Chaos;
-
-#if WITH_PHYSX
-#include "PhysXToChaosUtil.h"
-#endif
 
 #include "PhysicsPublicCore.h"
 #include "PhysicsCore.h"
@@ -93,8 +92,14 @@ void FPhysTestSerializer::Serialize(Chaos::FChaosArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
+#if PHYSICS_INTERFACE_PHYSX
 		CreatePhysXData();
+#endif
+
+#if 0
 		CreateChaosData();
+#endif
+
 		Ar.SetContext(MoveTemp(ChaosContext));	//make sure any context we created during load is used for sqcapture
 	}
 
@@ -114,9 +119,22 @@ void FPhysTestSerializer::Serialize(Chaos::FChaosArchive& Ar)
 	ChaosContext = Ar.StealContext();
 }
 
+void FPhysTestSerializer::SetPhysicsData(Chaos::FPBDRigidsEvolutionGBF& Evolution)
+{
+	bDiskDataIsChaos = true;
+	Data.Empty();
+	FMemoryWriter Ar(Data);
+	FChaosArchive ChaosAr(Ar);
+	Evolution.Serialize(ChaosAr);
+	ChaosContext = ChaosAr.StealContext();
+	ArchiveVersion = Ar.GetCustomVersions();
+}
+
+
+
+#if PHYSICS_INTERFACE_PHYSX
 void FPhysTestSerializer::SetPhysicsData(physx::PxScene& Scene)
 {
-#if WITH_PHYSX
 	check(AlignedDataHelper == nullptr || &Scene != AlignedDataHelper->PhysXScene);
 
 	PxSerializationRegistry* Registry = PxSerialization::createSerializationRegistry(*GPhysXSDK);
@@ -141,21 +159,42 @@ void FPhysTestSerializer::SetPhysicsData(physx::PxScene& Scene)
 	Registry->release();
 
 	bDiskDataIsChaos = false;
-#endif
 }
 
-void FPhysTestSerializer::SetPhysicsData(Chaos::FPBDRigidsEvolutionGBF& Evolution)
+void FPhysTestSerializer::CreatePhysXData()
 {
-	bDiskDataIsChaos = true;
-	Data.Empty();
-	FMemoryWriter Ar(Data);
-	FChaosArchive ChaosAr(Ar);
-	Evolution.Serialize(ChaosAr);
-	ChaosContext = ChaosAr.StealContext();
-	ArchiveVersion = Ar.GetCustomVersions();
+	if (bDiskDataIsChaos == false)	//For the moment we don't support chaos to physx direction
+	{
+		{
+			check(Data.Num());	//no data, was the physx scene set?
+			AlignedDataHelper = MakeUnique<FPhysXSerializerData>(Data.Num());
+			FMemory::Memcpy(AlignedDataHelper->Data, Data.GetData(), Data.Num());
+		}
+
+		PxSceneDesc Desc = CreateDummyPhysXSceneDescriptor();	//question: does it matter that this is default and not the one set by user settings?
+		AlignedDataHelper->PhysXScene = GPhysXSDK->createScene(Desc);
+
+		AlignedDataHelper->Registry = PxSerialization::createSerializationRegistry(*GPhysXSDK);
+		AlignedDataHelper->Collection = PxSerialization::createCollectionFromBinary(AlignedDataHelper->Data, *AlignedDataHelper->Registry);
+		AlignedDataHelper->PhysXScene->addCollection(*AlignedDataHelper->Collection);
+	}
 }
 
-#if WITH_PHYSX
+physx::PxBase* FPhysTestSerializer::FindObject(uint64 Id)
+{
+	if (!AlignedDataHelper)
+	{
+		CreatePhysXData();
+	}
+
+	physx::PxBase* Ret = AlignedDataHelper->Collection->find(Id);
+	ensure(Ret);
+#if 0
+		CreateChaosData();
+#endif
+	return Ret;
+}
+
 FPhysTestSerializer::FPhysXSerializerData::~FPhysXSerializerData()
 {
 	if (PhysXScene)
@@ -179,46 +218,14 @@ FPhysTestSerializer::FPhysXSerializerData::~FPhysXSerializerData()
 	}
 	FMemory::Free(Data);
 }
+
+
 #endif
 
-void FPhysTestSerializer::CreatePhysXData()
-{
-#if WITH_PHYSX
-	if (bDiskDataIsChaos == false)	//For the moment we don't support chaos to physx direction
-	{
-		{
-			check(Data.Num());	//no data, was the physx scene set?
-			AlignedDataHelper = MakeUnique<FPhysXSerializerData>(Data.Num());
-			FMemory::Memcpy(AlignedDataHelper->Data, Data.GetData(), Data.Num());
-		}
-
-		PxSceneDesc Desc = CreateDummyPhysXSceneDescriptor();	//question: does it matter that this is default and not the one set by user settings?
-		AlignedDataHelper->PhysXScene = GPhysXSDK->createScene(Desc);
-
-		AlignedDataHelper->Registry = PxSerialization::createSerializationRegistry(*GPhysXSDK);
-		AlignedDataHelper->Collection = PxSerialization::createCollectionFromBinary(AlignedDataHelper->Data, *AlignedDataHelper->Registry);
-		AlignedDataHelper->PhysXScene->addCollection(*AlignedDataHelper->Collection);
-	}
-#endif
-}
-
-#if WITH_PHYSX
-physx::PxBase* FPhysTestSerializer::FindObject(uint64 Id)
-{
-	if (!AlignedDataHelper)
-	{
-		CreatePhysXData();
-	}
-
-	physx::PxBase* Ret = AlignedDataHelper->Collection->find(Id);
-	ensure(Ret);
-	return Ret;
-}
-#endif
+#if 0
 
 void FPhysTestSerializer::CreateChaosData()
 {
-#if WITH_PHYSX
 	if (bDiskDataIsChaos == false)
 	{
 		if (bChaosDataReady)
@@ -347,5 +354,5 @@ void FPhysTestSerializer::CreateChaosData()
 		ChaosContext = ChaosAr.StealContext();
 	}
 	bChaosDataReady = true;
-#endif
 }
+#endif

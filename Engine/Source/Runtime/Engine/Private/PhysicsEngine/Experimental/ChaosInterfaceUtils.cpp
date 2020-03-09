@@ -23,7 +23,7 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXIncludes.h"
 #endif
 
@@ -37,7 +37,7 @@ namespace ChaosInterface
 		check(false);
 	}
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 
 	template<>
 	TArray<Chaos::TVector<int32, 3>> GetMeshElements(const physx::PxConvexMesh* PhysXMesh)

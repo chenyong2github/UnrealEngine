@@ -44,9 +44,8 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/PhysicsInterfaceUtils.h"
-#include "Containers/StringConv.h"
 
-#if WITH_EDITOR && WITH_PHYSX
+#if WITH_EDITOR && PHYSICS_INTERFACE_PHYSX
 	#include "IPhysXCooking.h"
 #endif
 
@@ -401,11 +400,6 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				Params.InitialTM.SetScale3D(FVector(0));
 				Params.bQueryOnly = true;
 				Params.Scene = GetWorld()->GetPhysicsScene();
-#if USE_BODYINSTANCE_DEBUG_NAMES
-				const FString DebugName = FString::Printf(TEXT("LandscapeCollision: '%s' "), *GetPathName());
-				BodyInstance.CharDebugName = MakeShareable(new TArray<ANSICHAR>(StringToArray<ANSICHAR>(*DebugName, DebugName.Len() + 1)));
-				Params.DebugName = BodyInstance.CharDebugName->GetData();
-#endif
 				FPhysicsActorHandle PhysHandle;
 				FPhysicsInterface::CreateActor(Params, PhysHandle);
 
@@ -736,7 +730,7 @@ void ULandscapeHeightfieldCollisionComponent::SpeculativelyLoadAsyncDDCCollsionD
 #endif
 }
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 TArray<PxHeightFieldSample> ConvertHeightfieldDataForPhysx(const ULandscapeHeightfieldCollisionComponent* const Component, const int32 CollisionSizeVerts, const bool bIsMirrored, const uint16* Heights, const bool bUseDefMaterial, const uint8* DominantLayers, UPhysicalMaterial* const DefMaterial, TArray<UPhysicalMaterial*> &InOutMaterials)
 {
 	const int32 NumSamples = FMath::Square(CollisionSizeVerts);
@@ -1022,7 +1016,7 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 		return true;
 	}
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	COOK_STAT(auto Timer = LandscapeCollisionCookStats::MeshUsageStats.TimeSyncWork());
 	// we have 2 versions of collision objects
 	const int32 CookedDataIndex = bUseDefMaterial ? 0 : 1;
@@ -1219,14 +1213,16 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 
 	return Result;
 
-#endif // WITH_PHYSX
+#elif WITH_CHAOS
+CHAOS_ENSURE(false);
+#endif
 	return false;
 }
 #endif //WITH_EDITOR
 
 void ULandscapeMeshCollisionComponent::CreateCollisionObject()
 {
-#if WITH_PHYSX	
+#if PHYSICS_INTERFACE_PHYSX
 	// If we have not created a heightfield yet - do it now.
 	if (!IsValidRef(MeshRef))
 	{
@@ -1311,7 +1307,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 
 	if (!BodyInstance.IsValidBodyInstance())
 	{
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 		// This will do nothing, because we create trimesh at component PostLoad event, unless we destroyed it explicitly
 		CreateCollisionObject();
 
@@ -2047,7 +2043,7 @@ void ULandscapeHeightfieldCollisionComponent::PrepareGeometryExportSync()
 bool ULandscapeMeshCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
 	check(IsInGameThread());
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (IsValidRef(MeshRef) && MeshRef->RBTriangleMesh != nullptr)
 	{
 		FTransform MeshToW = GetComponentTransform();
@@ -2062,7 +2058,9 @@ bool ULandscapeMeshCollisionComponent::DoCustomNavigableGeometryExport(FNavigabl
 			GeomExport.ExportPxTriMesh32Bit(MeshRef->RBTriangleMesh, MeshToW);
 		}
 	}
-#endif// WITH_PHYSX
+#elif WITH_CHAOS
+	CHAOS_ENSURE(false);
+#endif
 	return false;
 }
 

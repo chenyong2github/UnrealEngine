@@ -7,7 +7,7 @@
 #include "HAL/ThreadSafeBool.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "PhysicsEngine/BodyInstance.h"
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysicsEngine/PhysXSupport.h"
 #endif
 
@@ -16,7 +16,7 @@ struct FSimulationScratchBuffer;
 void FinishSceneStat();
 
 //This is only here for now while we transition into substepping
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 class PhysXCompletionTask : public PxLightCpuTask
 {
 	FGraphEventRef EventToFire;
@@ -149,7 +149,7 @@ struct FPhysTarget
 	
 };
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #if WITH_APEX
 typedef apex::Scene PxApexScene;	//helper typedef so we don't have to use as many ifdefs
 #else
@@ -161,7 +161,7 @@ typedef PxScene PxApexScene;
 class FPhysSubstepTask
 {
 public:
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	FPhysSubstepTask(PxApexScene * GivenScene, FPhysScene* InPhysScene);
 #endif
 
@@ -184,7 +184,7 @@ public:
 
 	void SubstepSimulationStart();
 	void SubstepSimulationEnd(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	void StepSimulation(PhysXCompletionTask * Task);
 #endif
 		
@@ -216,7 +216,7 @@ private:
 
 	FPhysScene* PhysScene;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	PxApexScene * PAScene;
 #endif
 

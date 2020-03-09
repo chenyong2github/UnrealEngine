@@ -1124,6 +1124,10 @@ namespace UnrealBuildTool
             if (Target.bCompilePhysX == true)
 			{
 				PrivateDependencyModuleNames.Add("PhysX");
+			}
+
+			if(Target.bCompileChaos || Target.bUseChaos || Target.bCompilePhysX)
+			{
 				PublicDefinitions.Add("WITH_PHYSX=1");
 			}
 			else

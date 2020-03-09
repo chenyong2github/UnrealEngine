@@ -26,7 +26,7 @@
 
 #include "PhysXCookHelper.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	#include "PhysXPublic.h"
 	#include "PhysicsEngine/PhysXSupport.h"
 #endif // WITH_PHYSX
@@ -128,12 +128,15 @@ DEFINE_STAT(STAT_PhysXCooking);
 
 bool IsRuntimeCookingEnabled()
 {
+#if PHYSICS_INTERFACE_PHYSX
 	return FModuleManager::LoadModulePtr<IPhysXCookingModule>("RuntimePhysXCooking") != nullptr;
+#else
+	return false;
+#endif
 }
 #endif //WITH_PHYSX
 
-
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	// Quaternion that converts Sphyls from UE space to PhysX space (negate Y, swap X & Z)
 	// This is equivalent to a 180 degree rotation around the normalized (1, 0, 1) axis
 	const physx::PxQuat U2PSphylBasis( PI, PxVec3( 1.0f / FMath::Sqrt( 2.0f ), 0.0f, 1.0f / FMath::Sqrt( 2.0f ) ) );
@@ -188,7 +191,7 @@ UBodySetup::UBodySetup(const FObjectInitializer& ObjectInitializer)
 	SetFlags(RF_Transactional);
 	bSharedCookedData = false;
 	CookedFormatDataOverride = nullptr;
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	CurrentCookHelper = nullptr;
 #endif
 }
@@ -201,9 +204,10 @@ void UBodySetup::CopyBodyPropertiesFrom(const UBodySetup* FromSetup)
 	for (int32 i = 0; i < AggGeom.ConvexElems.Num(); i++)
 	{
 		FKConvexElem& ConvexElem = AggGeom.ConvexElems[i];
+#if PHYSICS_INTERFACE_PHYSX
 		ConvexElem.SetConvexMesh(nullptr);
 		ConvexElem.SetMirroredConvexMesh(nullptr);
-#if WITH_CHAOS
+#elif WITH_CHAOS
 		ConvexElem.ResetChaosConvexMesh();
 #endif
 	}
@@ -230,9 +234,10 @@ void UBodySetup::AddCollisionFrom(const FKAggregateGeom& FromAggGeom)
 	for (int32 i = FirstNewConvexIdx; i < AggGeom.ConvexElems.Num(); i++)
 	{
 		FKConvexElem& ConvexElem = AggGeom.ConvexElems[i];
+#if PHYSICS_INTERFACE_PHYSX
 		ConvexElem.SetConvexMesh(nullptr);
 		ConvexElem.SetMirroredConvexMesh(nullptr);
-#if WITH_CHAOS
+#elif WITH_CHAOS
 		ConvexElem.ResetChaosConvexMesh();
 #endif
 	}
@@ -636,7 +641,7 @@ void UBodySetup::CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished OnAsyncPhy
 
 void UBodySetup::AbortPhysicsMeshAsyncCreation()
 {
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (CurrentCookHelper)
 	{
 		CurrentCookHelper->Abort();
@@ -855,7 +860,7 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	AddParams.LocalTransform = RelativeTM;
 	AddParams.WorldTransform = OwningInstance->GetUnrealWorldTransform();
 	AddParams.Geometry = &AggGeom;
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	AddParams.TriMeshes = TArrayView<PxTriangleMesh*>(TriMeshes);
 #endif
 
@@ -1152,7 +1157,7 @@ void UBodySetup::PostLoad()
 void UBodySetup::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateTriMeshVertices);
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (TriMeshes.Num())
 	{
 		check(TriMeshes[0] != nullptr);
@@ -1504,7 +1509,7 @@ void UBodySetup::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	Super::GetResourceSizeEx(CumulativeResourceSize);
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	// Count PhysX trimesh mem usage
 	for(PxTriangleMesh* TriMesh : TriMeshes)
 	{
@@ -1632,13 +1637,17 @@ FKConvexElem::FKConvexElem()
 	: FKShapeElem(EAggCollisionShape::Convex)
 	, ElemBox(ForceInit)
 	, Transform(FTransform::Identity)
+#if PHYSICS_INTERFACE_PHYSX
 	, ConvexMesh(NULL)
 	, ConvexMeshNegX(NULL)
+#endif
 {}
 
 FKConvexElem::FKConvexElem(const FKConvexElem& Other)
+#if PHYSICS_INTERFACE_PHYSX
 	: ConvexMesh(nullptr)
 	, ConvexMeshNegX(nullptr)
+#endif
 {
 	CloneElem(Other);
 }
@@ -1650,11 +1659,12 @@ FKConvexElem::~FKConvexElem()
 
 const FKConvexElem& FKConvexElem::operator=(const FKConvexElem& Other)
 {
+#if PHYSICS_INTERFACE_PHYSX
 	ensureMsgf(ConvexMesh == nullptr, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
 	ensureMsgf(ConvexMeshNegX == nullptr, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
 	ConvexMesh = nullptr;
 	ConvexMeshNegX = nullptr;
-#if WITH_CHAOS
+#elif WITH_CHAOS
 	ensureMsgf(!ChaosConvex, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
 	ResetChaosConvexMesh();
 #endif
@@ -1686,7 +1696,7 @@ float SignedVolumeOfTriangle(const FVector& p1, const FVector& p2, const FVector
 {
 	return FVector::DotProduct(p1, FVector::CrossProduct(p2, p3)) / 6.0f;
 }
-
+#if PHYSICS_INTERFACE_PHYSX
 physx::PxConvexMesh* FKConvexElem::GetConvexMesh() const
 {
 	return ConvexMesh;
@@ -1706,12 +1716,13 @@ void FKConvexElem::SetMirroredConvexMesh(physx::PxConvexMesh* InMesh)
 {
 	ConvexMeshNegX = InMesh;
 }
+#endif
 
 float FKConvexElem::GetVolume(const FVector& Scale) const
 {
 	float Volume = 0.0f;
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	if (ConvexMesh != NULL)
 	{
 		// Preparation for convex mesh scaling implemented in another changelist
@@ -1742,7 +1753,10 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 			}
 		}
 	}
-#endif // WITH_PHYSX
+#elif WITH_CHAOS
+	//TODO Support ChaosConvex.
+	CHAOS_ENSURE(false);
+#endif
 
 	return Volume;
 }

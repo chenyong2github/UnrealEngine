@@ -1001,9 +1001,10 @@ void FMeshMergeHelpers::ExtractPhysicsGeometry(UBodySetup* InBodySetup, const FT
 	OutAggGeom.RenderInfo = nullptr;
 	for (FKConvexElem& Elem : OutAggGeom.ConvexElems)
 	{
+#if PHYSICS_INTERFACE_PHYSX
 		Elem.SetConvexMesh(nullptr);
 		Elem.SetMirroredConvexMesh(nullptr);
-#if WITH_CHAOS
+#elif WITH_CHAOS
 		Elem.ResetChaosConvexMesh();
 #endif
 	}

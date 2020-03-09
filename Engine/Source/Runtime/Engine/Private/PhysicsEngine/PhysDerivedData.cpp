@@ -9,7 +9,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 
-#if WITH_PHYSX && WITH_EDITOR
+#if PHYSICS_INTERFACE_PHYSX && WITH_EDITOR
 
 #include "IPhysXCookingModule.h"
 

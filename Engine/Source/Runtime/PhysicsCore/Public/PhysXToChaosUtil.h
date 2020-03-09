@@ -2,6 +2,7 @@
 
 #pragma once 
 
+#if 0
 #include "CoreMinimal.h"
 
 #if WITH_PHYSX
@@ -195,5 +196,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 
 	return MakeUnique<TImplicitObjectTransformed<float, 3>>(MoveTemp(InnerObj), P2UTransform(ShapeTM));
 }
+
+#endif
 
 #endif
