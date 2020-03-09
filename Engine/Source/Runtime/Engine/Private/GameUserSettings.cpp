@@ -16,6 +16,7 @@
 #include "Sound/SoundCue.h"
 #include "AudioDevice.h"
 #include "DynamicResolutionState.h"
+#include "HAL/PlatformFramePacer.h"
 
 extern EWindowMode::Type GetWindowModeType(EWindowMode::Type WindowMode);
 
@@ -639,6 +640,11 @@ int32 UGameUserSettings::GetSyncInterval()
 	{
 		return 0;
 	}
+}
+
+int32 UGameUserSettings::GetFramePace()
+{
+	return FPlatformRHIFramePacer::GetFramePace();
 }
 
 void UGameUserSettings::ResetToCurrentSettings()
