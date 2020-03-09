@@ -15,13 +15,19 @@ namespace Chaos
 	{
 	public:
 		TTriangleMesh();
-		TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1);
+		TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
 		TTriangleMesh(const TTriangleMesh& Other) = delete;
 		TTriangleMesh(TTriangleMesh&& Other);
 		~TTriangleMesh();
 
-		void Init(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1);
-		void Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1);
+		/**
+		 * Initialize the \c TTriangleMesh.
+		 *
+		 *	\p CullDegenerateElements removes faces with degenerate indices, and 
+		 *	will change the order of \c MElements.
+		 */
+		void Init(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
+		void Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
 
 		/**
 		 * Returns the closed interval of the smallest vertex index used by 
@@ -233,7 +239,7 @@ namespace Chaos
 		}
 
 	private:
-		void InitHelper(const int32 StartIdx, const int32 EndIdx);
+		void InitHelper(const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements=true);
 
 		int32 GlobalToLocal(int32 GlobalIdx) const
 		{
