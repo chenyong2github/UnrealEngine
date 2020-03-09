@@ -1019,6 +1019,11 @@ ALandscapeProxy* FWorldTileModel::ImportLandscapeTile(const FLandscapeImportSett
 	LandscapeProxy->Import(	Settings.LandscapeGuid, 0, 0, Settings.SizeX - 1, Settings.SizeY - 1, Settings.SectionsPerComponent, Settings.QuadsPerSection, HeightmapDataPerLayers, *Settings.HeightmapFilename,	
 							MaterialLayerDataPerLayer,	Settings.ImportLayerType);
 
+	for (const FLandscapeImportLayerInfo& ImportLayerInfo : Settings.ImportLayers)
+	{
+		LandscapeProxy->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(ImportLayerInfo.LayerInfo, ImportLayerInfo.SourceFilePath));
+	}
+
 	return LandscapeProxy;
 }
 
