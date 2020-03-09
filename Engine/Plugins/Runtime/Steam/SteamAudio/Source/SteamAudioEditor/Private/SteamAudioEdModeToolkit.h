@@ -46,7 +46,9 @@ namespace SteamAudio
 		bool IsExportSceneEnabled() const;
 
 		FText GetNumSceneTrianglesText() const;
+		FText GetNumDynSceneTrianglesText() const;
 		FText GetSceneDataSizeText() const;
+		FText GetDynSceneDataSizeText() const;
 
 	private:
 		TSharedPtr<SWidget> ToolkitWidget;

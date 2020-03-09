@@ -42,7 +42,7 @@ namespace SteamAudio
 	{
 	}
 
-	bool FEnvironment::Initialize(UWorld* World, FAudioDevice* InAudioDevice)
+	bool FEnvironment::Initialize(UWorld* World, FAudioDevice* InAudioDevice, FString* CurrentLevelName)
 	{
 		if (World == nullptr)
 		{
@@ -116,7 +116,7 @@ namespace SteamAudio
 		EnvironmentalOutputAudioFormat.ambisonicsNormalization = IPL_AMBISONICSNORMALIZATION_N3D;
 		EnvironmentalOutputAudioFormat.ambisonicsOrdering = IPL_AMBISONICSORDERING_ACN;
 
-		if (!LoadSceneFromDisk(World, ComputeDevice, SimulationSettings, &PhononScene, PhononSceneInfo))
+		if (!LoadSceneFromDisk(World, ComputeDevice, SimulationSettings, &PhononScene, PhononSceneInfo, CurrentLevelName))
 		{
 			UE_LOG(LogSteamAudio, Warning, TEXT("Unable to create Phonon environment: failed to load scene from disk. Be sure to export the scene."));
 			return false;
