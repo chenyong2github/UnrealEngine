@@ -462,7 +462,7 @@ void UNiagaraGraph::ValidateDefaultPins()
 		}
 
 		if (!IsCustom && !IsConsistent) {
-			UE_LOG(LogNiagaraEditor, Warning, TEXT("Niagara graph %s: The default value declaration for the variable '%s' is not consistent between the graph and the metadata.\n  Either change the default mode to 'custom' or check the input pins in the parameter map get node in the graph."),
+			UE_LOG(LogNiagaraEditor, Log, TEXT("Niagara graph %s: The default value declaration for the variable '%s' is not consistent between the graph and the metadata.\n  Either change the default mode to 'custom' or check the input pins in the parameter map get node in the graph."),
 				*GetFullName(), *Variable.GetName().ToString());
 			continue;
 		}
