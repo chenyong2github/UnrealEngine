@@ -121,7 +121,6 @@ void USimplifyMeshTool::Setup()
 		EnterProgressFrame(1);
 		OriginalMesh = MakeShared<FDynamicMesh3>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.bPrintDebugMessages = true;
 		Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
 		EnterProgressFrame(2);
 		OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3>(OriginalMesh.Get(), true);
