@@ -2416,6 +2416,7 @@ public:
 	}
 
 	void Initialize();
+	void Clear();
 
 	/** Compares the provided view against the cached view and updates the view uniform buffer
 	 *  if the views differ. Returns whether uniform buffer was updated.
@@ -2872,6 +2873,8 @@ public:
 	{
 		return this;
 	}
+	virtual void OnWorldCleanup() override;
+
 
 	virtual void UpdateSceneSettings(AWorldSettings* WorldSettings) override;
 
