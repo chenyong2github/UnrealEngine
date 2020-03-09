@@ -223,7 +223,6 @@ AActor* UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportContext, cons
 				{
 					SpawnedActor = ImportContext.World->SpawnActor( AActor::StaticClass() );
 					USceneComponent* SceneComponent = NewObject< USceneComponent >( SpawnedActor, SpawnData.ActorName );
-					SceneComponent->ComponentTags.Add(IUsdPrim::GetPurposeName(IUsdPrim::GetPurpose(SpawnData.ActorPrim.Get())));
 					SpawnedActor->AddInstanceComponent( SceneComponent );
 					SpawnedActor->SetRootComponent( SceneComponent );
 				}
@@ -263,7 +262,6 @@ AActor* UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportContext, cons
 
 					UStaticMeshComponent* StaticMeshComponent = NewObject< UStaticMeshComponent >( SpawnedActor, ComponentName );
 					StaticMeshComponent->SetStaticMesh( ImportedStaticMesh );
-					StaticMeshComponent->ComponentTags.Add(IUsdPrim::GetPurposeName(IUsdPrim::GetPurpose(UsdAssetPrimToImport.Prim.Get())));
 
 					// Don't add the prim transform if its the same prim used for the actor as it's already accounted for in the ActorTransform
 					if ( UsdAssetPrimToImport.Prim.Get() != SpawnData.ActorPrim.Get() )
