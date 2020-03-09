@@ -71,7 +71,7 @@ const TCHAR* GetDepthDrawingModeString(EDepthDrawingMode Mode)
 	return TEXT("");
 }
 
-DECLARE_GPU_STAT(Prepass);
+DECLARE_GPU_DRAWCALL_STAT(Prepass);
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TDepthOnlyVS<true>,TEXT("/Engine/Private/PositionOnlyDepthVertexShader.usf"),TEXT("Main"),SF_Vertex);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TDepthOnlyVS<false>,TEXT("/Engine/Private/DepthOnlyVertexShader.usf"),TEXT("Main"),SF_Vertex);
