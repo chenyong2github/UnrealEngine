@@ -11,6 +11,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
 #include "Widgets/Views/STableViewBase.h"
+#include "AssetThumbnail.h"
 
 #define LOCTEXT_NAMESPACE "SObjectBrowserTableRow"
 

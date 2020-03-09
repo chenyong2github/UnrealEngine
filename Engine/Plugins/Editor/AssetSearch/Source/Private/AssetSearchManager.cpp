@@ -20,13 +20,26 @@ FAutoConsoleVariableRef CVarIndexUnindexAssetsOnLoad(
 	TEXT("Index Unindex Assets On Load")
 );
 
-static int32 PendingDownloadsMax = 25;
+static int32 PendingDownloadsMax = 100;
 FAutoConsoleVariableRef CVarPendingDownloadsMax(
 	TEXT("Search.PendingDownloadsMax"),
 	PendingDownloadsMax,
 	TEXT("")
 );
 
+static int32 GameThread_DownloadProcessLimit = 30;
+FAutoConsoleVariableRef CVarGameThread_DownloadProcessLimit(
+	TEXT("Search.GameThread_DownloadProcessLimit"),
+	GameThread_DownloadProcessLimit,
+	TEXT("")
+);
+
+static int32 GameThread_AssetScanLimit = 1000;
+FAutoConsoleVariableRef CVarGameThread_AssetScanLimit(
+	TEXT("Search.GameThread_AssetScanLimit"),
+	GameThread_AssetScanLimit,
+	TEXT("")
+);
 
 FAssetSearchManager::FAssetSearchManager()
 {
@@ -209,7 +222,7 @@ bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAsset)
 				DDCRequest.AssetData = InAsset;
 				DDCRequest.DDCKey_IndexDataHash = AssetJsonDDCKey;
 				DDCRequest.DDCHandle = GetDerivedDataCacheRef().GetAsynchronous(*AssetJsonDDCKey, InAsset.ObjectPath.ToString());
-				ProcessDDCQueue.Add(DDCRequest);
+				ProcessDDCQueue.Enqueue(DDCRequest);
 			}
 		});
 
@@ -323,36 +336,34 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 {
 	check(IsInGameThread());
 
-	int32 ScanLimit = 1000;
+	int32 ScanLimit = GameThread_AssetScanLimit;
 	while (ProcessAssetQueue.Num() > 0 && ScanLimit > 0 && PendingDownloads < PendingDownloadsMax)
 	{
 		FAssetData Asset = ProcessAssetQueue.Pop(false);
 		if (TryLoadIndexForAsset(Asset))
 		{
-			break;
+			ScanLimit -= 10;
 		}
 
 		ScanLimit--;
 	}
 
-	int32 DownloadProcessLimit = 10;
-	while (ProcessDDCQueue.Num() > 0 && DownloadProcessLimit > 0)
+	int32 DownloadProcessLimit = GameThread_DownloadProcessLimit;
+	while (!ProcessDDCQueue.IsEmpty() && DownloadProcessLimit > 0)
 	{
-		FScopeLock ScopedLock(&SearchDatabaseCS);
-
-		const FAssetDDCRequest& PendingRequest = ProcessDDCQueue[0];
-		if (GetDerivedDataCacheRef().PollAsynchronousCompletion(PendingRequest.DDCHandle))
+		const FAssetDDCRequest* PendingRequest = ProcessDDCQueue.Peek();
+		if (GetDerivedDataCacheRef().PollAsynchronousCompletion(PendingRequest->DDCHandle))
 		{
 			bool bDataWasBuilt;
 
 			TArray<uint8> OutContent;
-			bool bGetSuccessful = GetDerivedDataCacheRef().GetAsynchronousResults(PendingRequest.DDCHandle, OutContent, &bDataWasBuilt);
+			bool bGetSuccessful = GetDerivedDataCacheRef().GetAsynchronousResults(PendingRequest->DDCHandle, OutContent, &bDataWasBuilt);
 			if (bGetSuccessful)
 			{
-				LoadDDCContentIntoDatabase(PendingRequest.AssetData, OutContent, PendingRequest.DDCKey_IndexDataHash);
+				LoadDDCContentIntoDatabase(PendingRequest->AssetData, OutContent, PendingRequest->DDCKey_IndexDataHash);
 			}
 
-			ProcessDDCQueue.RemoveAt(0, 1, false);
+			ProcessDDCQueue.Pop();
 			PendingDownloads--;
 			DownloadProcessLimit--;
 			continue;
