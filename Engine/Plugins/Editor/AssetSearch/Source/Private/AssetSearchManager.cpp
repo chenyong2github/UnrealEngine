@@ -226,6 +226,10 @@ bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAsset)
 				DDCRequest.DDCHandle = GetDerivedDataCacheRef().GetAsynchronous(*AssetJsonDDCKey, InAsset.ObjectPath.ToString());
 				ProcessDDCQueue.Enqueue(DDCRequest);
 			}
+			else
+			{
+				PendingDownloads--;
+			}
 		});
 
 		return true;
