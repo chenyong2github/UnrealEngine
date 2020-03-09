@@ -50,7 +50,7 @@ namespace ShaderDrawDebug
 
 	static bool IsShaderDrawDebugEnabled(const EShaderPlatform Platform)
 	{
-		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsPCPlatform(Platform);
+		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsPCPlatform(Platform) && !IsOpenGLPlatform(Platform);
 	}
 
 	bool IsShaderDrawDebugEnabled(const FViewInfo& View)
