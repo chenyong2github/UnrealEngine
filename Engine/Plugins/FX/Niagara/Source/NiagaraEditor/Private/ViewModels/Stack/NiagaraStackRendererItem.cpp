@@ -244,7 +244,6 @@ void UNiagaraStackRendererItem::Delete()
 	Emitter->RemoveRenderer(RendererProperties.Get());
 
 	OnDataObjectModified().Broadcast(RendererProperties.Get());
-	Finalize();
 }
 
 bool UNiagaraStackRendererItem::HasBaseRenderer() const
