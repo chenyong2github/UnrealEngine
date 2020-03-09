@@ -41,6 +41,7 @@ TSharedRef<SWidget>	SGraphPinKey::GetDefaultValueWidget()
 	return SNew(SKeySelector)
 		.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
 		.CurrentKey(this, &SGraphPinKey::GetCurrentKey)
+		.IsEnabled(this, &SGraphPin::GetDefaultValueIsEditable)
 		.OnKeyChanged(this, &SGraphPinKey::OnKeyChanged);
 }
 
