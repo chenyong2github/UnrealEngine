@@ -36,9 +36,9 @@ class UCanvas;
 class FDebugDisplayInfo;
 
 /** Data for a single component */
-struct FComponentData
+struct FAnimBudgetAllocatorComponentData
 {
-	FComponentData()
+	FAnimBudgetAllocatorComponentData()
 		: Component(nullptr)
 		, RootPrerequisite(nullptr)
 		, Significance(0.0f)
@@ -61,9 +61,9 @@ struct FComponentData
 		, bNeverThrottle(true)
 	{}
 
-	FComponentData(USkeletalMeshComponentBudgeted* InComponent, float InGameThreadLastTickTimeMs, int32 InStateChangeThrottle);
+	FAnimBudgetAllocatorComponentData(USkeletalMeshComponentBudgeted* InComponent, float InGameThreadLastTickTimeMs, int32 InStateChangeThrottle);
 
-	bool operator==(const FComponentData& InOther) const
+	bool operator==(const FAnimBudgetAllocatorComponentData& InOther) const
 	{
 		return Component == InOther.Component;
 	}
@@ -192,7 +192,7 @@ protected:
 	UWorld* World;
 
 	// All component data
-	TArray<FComponentData> AllComponentData;
+	TArray<FAnimBudgetAllocatorComponentData> AllComponentData;
 
 	/** 
 	 * All currently tickable component indices sorted by significance, updated each tick.
@@ -202,7 +202,7 @@ protected:
 	TArray<int32> AllSortedComponentData;
 
 #if WITH_TICK_DEBUG
-	TArray<FComponentData*> AllSortedComponentDataDebug;
+	TArray<FAnimBudgetAllocatorComponentData*> AllSortedComponentDataDebug;
 #endif
 
 	/** All components that have reduced work that might want to tick (and hence might not want to do reduced work) */
