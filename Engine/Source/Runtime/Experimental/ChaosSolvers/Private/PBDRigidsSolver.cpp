@@ -74,15 +74,21 @@ namespace Chaos
 				TMap<int32, int32> PositionTargetedParticles;
 				//TArray<FKinematicProxy> AnimatedPositions;
 				Chaos::TArrayCollectionArray<float> Strains;
-				for (FFieldSystemPhysicsProxy* Obj : MSolver->GetFieldSystemPhysicsProxies())
+				for (FFieldSystemPhysicsProxy* FieldObj : MSolver->GetFieldSystemPhysicsProxies())
 				{
 					auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
-					Obj->FieldParameterUpdateCallback(MSolver, GeomCollectionParticles, Strains, 
+					FieldObj->FieldParameterUpdateCallback(MSolver, GeomCollectionParticles, Strains,
 						PositionTarget, PositionTargetedParticles, /*AnimatedPositions,*/ MSolver->GetSolverTime());
 					auto& ClusteredParticles = MSolver->GetEvolution()->GetParticles().GetClusteredParticles();
-					Obj->FieldParameterUpdateCallback(MSolver, ClusteredParticles, Strains,
+					FieldObj->FieldParameterUpdateCallback(MSolver, ClusteredParticles, Strains,
 						PositionTarget, PositionTargetedParticles, /*AnimatedPositions,*/ MSolver->GetSolverTime());
 				}
+
+				for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies())
+				{
+					Obj->ParameterUpdateCallback(MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles(), MSolver->GetSolverTime());
+				}
+
 			}
 
 			{
@@ -119,6 +125,12 @@ namespace Chaos
 						auto& ClusteredParticles = MSolver->GetEvolution()->GetParticles().GetClusteredParticles();
 						Obj->FieldForcesUpdateCallback(MSolver, ClusteredParticles, Forces, Torques, MSolver->GetSolverTime());
 					}
+
+					for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies())
+					{
+						Obj->ParameterUpdateCallback(MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles(), MSolver->GetSolverTime());
+					}
+
 					MSolver->GetEvolution()->AdvanceOneTimeStep(DeltaTime);
 				}
 
