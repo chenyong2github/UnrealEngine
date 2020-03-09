@@ -498,11 +498,11 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device,
 	uint32 BackbufferSizeX,
 	uint32 BackbufferSizeY,
 	bool bPresent,
-	bool bLockToVsync,
-	int32 SyncInterval)
+	bool bLockToVsync)
 {
 	FScopeLock ScopeLock(Device->ContextUsageGuard);
 	{
+		int32 SyncInterval = RHIGetSyncInterval();
 		FPlatformOpenGLContext* const Context = Viewport.GetGLContext();
 		check(Context && Context->OpenGLContext);
 		FScopeContext ScopeContext(Context);
