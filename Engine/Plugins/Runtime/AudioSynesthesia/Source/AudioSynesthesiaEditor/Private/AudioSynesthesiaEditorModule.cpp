@@ -40,6 +40,9 @@ private:
 		// Register the audio editor asset type actions
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
+		// Register base abstract class for asset filtering
+		AssetTools.RegisterAssetTypeActions(MakeShared<SynesthesiaAssetActionsType>(nullptr));
+
 		// Look for any sound effect presets to register
 		for (TObjectIterator<UClass> It; It; ++It)
 		{
@@ -54,10 +57,12 @@ private:
 			if (ParentClass->IsChildOf(SynesthesiaAssetType::StaticClass()))
 			{
 				SynesthesiaAssetType* Synesthesia = ChildClass->GetDefaultObject<SynesthesiaAssetType>();
+				check(Synesthesia);
+
 				if (!RegisteredActions.Contains(Synesthesia) && Synesthesia->HasAssetActions())
 				{
 					RegisteredActions.Add(Synesthesia);
-					AssetTools.RegisterAssetTypeActions(MakeShareable(new SynesthesiaAssetActionsType(Synesthesia)));
+					AssetTools.RegisterAssetTypeActions(MakeShared<SynesthesiaAssetActionsType>(Synesthesia));
 				}
 			}
 		}
