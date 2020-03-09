@@ -5318,6 +5318,7 @@ bool FPakFile::LoadLegacyIndex(FArchive* Reader)
 	auto ReadNextEntry = [&PakEntryPair, &IndexReader, this]() -> FPakEntryPair&
 	{
 		IndexReader << PakEntryPair.Filename;
+		PakEntryPair.Info.Reset();
 		PakEntryPair.Info.Serialize(IndexReader, this->Info.Version);
 		return PakEntryPair;
 	};

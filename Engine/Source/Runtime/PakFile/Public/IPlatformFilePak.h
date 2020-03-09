@@ -352,15 +352,8 @@ struct FPakEntry
 	 * Constructor.
 	 */
 	FPakEntry()
-		: Offset(-1)
-		, Size(0)
-		, UncompressedSize(0)
-		, CompressionBlockSize(0)
-		, CompressionMethodIndex(0)
-		, Flags(Flag_None)
-		, Verified(false)
 	{
-		FMemory::Memset(Hash, 0, sizeof(Hash));
+		Reset();
 	}
 
 	/**
@@ -425,6 +418,19 @@ struct FPakEntry
 			Flags == B.Flags &&
 			CompressionBlockSize == B.CompressionBlockSize &&
 			CompressionBlocks == B.CompressionBlocks;
+	}
+
+	void Reset()
+	{
+		Offset = -1;
+		Size = 0;
+		UncompressedSize = 0;
+		FMemory::Memset(Hash, 0, sizeof(Hash));
+		CompressionBlocks.Reset();
+		CompressionBlockSize = 0;
+		CompressionMethodIndex = 0;
+		Flags = Flag_None;
+		Verified = false;
 	}
 
 	/**
