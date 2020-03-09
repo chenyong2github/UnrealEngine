@@ -65,6 +65,18 @@ public:
 	/** Will generate a mask texture, used for texture dilation, and store it in the passed in render target */
 	static bool GenerateSeamMask(UMeshComponent* MeshComponent, int32 UVSet, UTextureRenderTarget2D* SeamRenderTexture, UTexture2D* Texture, UTextureRenderTarget2D* RenderTargetTexture );
 
+	/** Returns the maximum bytes per pixel that are supported for source textures when painting. This limitation is set by CreateTempUncompressedTexture. */
+	static constexpr int32 GetMaxSupportedBytesPerPixelForPainting()
+	{
+		return GPixelFormats[GetTempUncompressedTexturePixelFormat()].BlockBytes;
+	}
+
+	/** Returns the pixel format that CreateTempUncompressedTexture uses to create render target data for painting. */
+	static constexpr EPixelFormat GetTempUncompressedTexturePixelFormat()
+	{
+		return EPixelFormat::PF_B8G8R8A8;
+	}
+
 	/** Static: Creates a temporary texture used to transfer data to a render target in memory */
 	static UTexture2D* CreateTempUncompressedTexture(UTexture2D* SourceTexture);
 
