@@ -961,7 +961,7 @@ public:
 	//----------------------------------------------------------------------//
 	void CycleNavigationDataDrawn();
 
-	FNavRegenTimeSliceManager& GetNavRegenTimeSliceManager() { return NavRegenTimeSliceManager; }
+	FNavRegenTimeSliceManager& GetMutableNavRegenTimeSliceManager() { return NavRegenTimeSliceManager; }
 
 protected:
 
