@@ -245,6 +245,9 @@ bool FOpenGLES::bRequiresTexture2DPrecisionHack = false;
 /* This is a hack to add a round() function when not available to a shader compiler */
 bool FOpenGLES::bRequiresRoundFunctionHack = true;
 
+/* Some Mali devices do not work correctly with early_fragment_test enabled */
+bool FOpenGLES::bRequiresDisabledEarlyFragmentTests = false;
+
 /* This is to avoid a bug in Adreno drivers that define GL_ARM_shader_framebuffer_fetch_depth_stencil even when device does not support this extension  */
 bool FOpenGLES::bRequiresARMShaderFramebufferFetchDepthStencilUndef = false;
 

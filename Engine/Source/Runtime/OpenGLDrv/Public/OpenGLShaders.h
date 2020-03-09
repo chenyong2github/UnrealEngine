@@ -34,6 +34,7 @@ struct FOpenGLShaderDeviceCapabilities
 	GLint MaxVaryingVectors;
 	bool bRequiresTexture2DPrecisionHack;
 	bool bRequiresRoundFunctionHack;
+	bool bRequiresDisabledEarlyFragmentTests;
 };
 
 /**
