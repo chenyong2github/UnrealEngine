@@ -145,7 +145,7 @@ static bool CalcMeshNegScaleCompensation(const FVector& InScale3D, FTransform& O
 
 
 //TODO: Reimplement types in chaos
-#if !PHYSICS_INTERFACE_PHYSX
+#if !PHYSICS_INTERFACE_PHYSX && WITH_CHAOS
 
 const uint32 AggregateMaxSize = 128;
 
