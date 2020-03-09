@@ -367,17 +367,20 @@ void RenderHairComposition(
 				if (bPatchBufferData)
 				{
 					FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);				
-					const FRDGTextureRef GBufferATexture = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA , TEXT("GBufferA"));
-					const FRDGTextureRef GBufferBTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferB, TEXT("GBufferB"));
-					AddPatchGbufferDataPass(
-						GraphBuilder,
-						View,
-						RDGCategorisationTexture,
-						GBufferATexture,
-						GBufferBTexture);
+					const FRDGTextureRef GBufferATexture = GraphBuilder.TryRegisterExternalTexture(SceneContext.GBufferA , TEXT("GBufferA"));
+					const FRDGTextureRef GBufferBTexture = GraphBuilder.TryRegisterExternalTexture(SceneContext.GBufferB, TEXT("GBufferB"));
+					if (GBufferATexture && GBufferBTexture)
+					{
+						AddPatchGbufferDataPass(
+							GraphBuilder,
+							View,
+							RDGCategorisationTexture,
+							GBufferATexture,
+							GBufferBTexture);
 
-					GraphBuilder.QueueTextureExtraction(GBufferATexture, &SceneContext.GBufferA, true);
-					GraphBuilder.QueueTextureExtraction(GBufferBTexture, &SceneContext.GBufferB, true);
+						GraphBuilder.QueueTextureExtraction(GBufferATexture, &SceneContext.GBufferA, true);
+						GraphBuilder.QueueTextureExtraction(GBufferBTexture, &SceneContext.GBufferB, true);
+					}
 				}
 			}
 		}
