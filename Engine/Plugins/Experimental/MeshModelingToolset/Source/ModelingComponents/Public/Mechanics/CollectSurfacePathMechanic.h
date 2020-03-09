@@ -14,6 +14,7 @@ enum class ECollectSurfacePathDoneMode
 {
 	SnapCloseLoop,
 	SnapDoubleClick,
+	SnapDoubleClickOrCloseLoop,
 	ExternalLambda,
 	FixedNumPoints
 };
@@ -65,6 +66,8 @@ public:
 	virtual void SetFixedNumPointsMode(int32 NumPoints);
 	virtual void SetDrawClosedLoopMode();
 	virtual void SetCloseWithLambdaMode();
+	virtual void SetDoubleClickOrCloseLoopMode();
+
 
 	virtual bool IsHitByRay(const FRay3d& Ray, FFrame3d& HitPoint);
 	virtual bool UpdatePreviewPoint(const FRay3d& Ray);
@@ -74,6 +77,11 @@ public:
 
 	virtual bool IsDone() const;
 
+	/** Whether the path was finished by the user clicking on the first point */
+	bool LoopWasClosed() const
+	{
+		return bLoopWasClosed;
+	}
 
 protected:
 	FDynamicMesh3 TargetSurface;
@@ -89,4 +97,6 @@ protected:
 	bool bCurrentPreviewWillComplete = false;
 	bool bGeometricCloseOcurred = false;
 	bool CheckGeometricClosure(const FFrame3d& Point);
+
+	bool bLoopWasClosed = false;
 };
