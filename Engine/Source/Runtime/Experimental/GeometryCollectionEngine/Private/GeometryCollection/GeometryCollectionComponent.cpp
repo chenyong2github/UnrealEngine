@@ -20,6 +20,7 @@
 #include "ChaosStats.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsSolver.h"
+#include "Physics/PhysicsFiltering.h"
 
 #if WITH_EDITOR
 #include "AssetToolsModule.h"
@@ -1010,8 +1011,7 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 	//if (bRenderStateDirty && DynamicCollection)	//todo: always send for now
 	if(RestCollection)
 	{
-		//if (RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
-		if(RestCollection->HasVisibleGeometry())
+		if(RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
 		{
 			MarkRenderTransformDirty();
 			MarkRenderDynamicDataDirty();
@@ -1128,6 +1128,8 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				ChaosMaterial->SleepingAngularThreshold = PhysicalMaterial->SleepingAngularVelocityThreshold;
 			}
 
+			FPhysxUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
+
 			FSimulationParameters SimulationParameters;
 			{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1173,6 +1175,8 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				SimulationParameters.TrailingData.TrailingMinSpeedThreshold = CacheParameters.TrailingMinSpeedThreshold;
 				SimulationParameters.TrailingData.TrailingMinVolumeThreshold = CacheParameters.TrailingMinVolumeThreshold;
 				SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
+				SimulationParameters.WorldTransform = GetComponentToWorld();
+				SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
 			}
 
 
@@ -1287,7 +1291,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 					if (CacheParameters.TargetCache)
 					{
 						// Queue this up to be dirtied after PIE ends
-						FPhysScene_Chaos* Scene = GetPhysicsScene();
+						FPhysScene_Chaos* Scene = GetInnerChaosScene();
 
 						CacheParameters.TargetCache->PreEditChange(nullptr);
 						CacheParameters.TargetCache->Modify();
@@ -1348,8 +1352,17 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			}
 			// end temporary 
 
- 			PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitFunc, CacheSyncFunc, FinalSyncFunc);
-			FPhysScene_Chaos* Scene = GetPhysicsScene();
+			// Set up initial filter data for our particles
+			FCollisionResponseContainer Response;
+			AActor* ComponentOwner = GetOwner();
+			CreateShapeFilterData(ECC_WorldDynamic, FMaskFilter(0), ComponentOwner ? ComponentOwner->GetUniqueID() : 0, Response, GetUniqueID(), 0, InitialQueryFilter, InitialSimFilter, false, false, false, false);
+
+			// Enable for complex and simple (no dual representation currently like other meshes)
+			InitialQueryFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
+			InitialSimFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
+
+ 			PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialQueryFilter, InitialSimFilter, InitFunc, CacheSyncFunc, FinalSyncFunc);
+			FPhysScene_Chaos* Scene = GetInnerChaosScene();
 			Scene->AddObject(this, PhysicsProxy);
 
 			RegisterForEvents();
@@ -1381,7 +1394,7 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 
 	if(PhysicsProxy)
 	{
-		FPhysScene_Chaos* Scene = GetPhysicsScene();
+		FPhysScene_Chaos* Scene = GetInnerChaosScene();
 		Scene->RemoveObject(PhysicsProxy);
 		InitializationState = ESimulationInitializationState::Unintialized;
 
@@ -1940,8 +1953,7 @@ void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystem
 	}
 }
 
-
-FPhysScene_Chaos* UGeometryCollectionComponent::GetPhysicsScene() const
+FPhysScene_Chaos* UGeometryCollectionComponent::GetInnerChaosScene() const
 {
 	if (ChaosSolverActor)
 	{
@@ -1971,7 +1983,7 @@ AChaosSolverActor* UGeometryCollectionComponent::GetPhysicsSolverActor() const
 	}
 	else
 	{
-		FPhysScene_Chaos const* const Scene = GetPhysicsScene();
+		FPhysScene_Chaos const* const Scene = GetInnerChaosScene();
 		return Scene ? Cast<AChaosSolverActor>(Scene->GetSolverActor()) : nullptr;
 	}
 

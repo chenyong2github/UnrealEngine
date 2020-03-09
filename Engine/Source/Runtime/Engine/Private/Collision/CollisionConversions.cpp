@@ -171,7 +171,21 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 #endif
 	else
 	{
-		ensureMsgf(false, TEXT("SetHitResultFromShapeAndFaceIndex hit shape with invalid userData"));
+		// Currently geom collections are registered with a primitive component user data, but maybe custom should be adapted
+		// to be more general so we can support leaf identification #BGTODO
+		void* UserData = Actor.UserData();
+		UPrimitiveComponent* PossibleOwner = FPhysxUserData::Get<UPrimitiveComponent>(UserData);
+
+		if(PossibleOwner)
+		{
+			OwningComponent = PossibleOwner;
+			OutResult.Item = INDEX_NONE;
+			OutResult.BoneName = NAME_None;
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("SetHitResultFromShapeAndFaceIndex hit shape with invalid userData"));
+		}
 	}
 
 	OutResult.PhysMaterial = nullptr;
