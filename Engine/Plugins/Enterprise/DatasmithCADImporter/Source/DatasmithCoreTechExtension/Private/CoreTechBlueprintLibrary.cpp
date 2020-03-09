@@ -10,6 +10,7 @@
 #include "AssetData.h"
 #include "Engine/StaticMesh.h"
 #include "IStaticMeshEditor.h"
+#include "StaticMeshAttributes.h"
 #include "Toolkits/ToolkitManager.h"
 
 
@@ -46,8 +47,15 @@ bool UCoreTechBlueprintLibrary::RetessellateStaticMeshWithNotification(UStaticMe
 				StaticMesh->PreEditChange( nullptr );
 			}
 
+			const int32 OldNumberOfUVChannels = DestinationMeshDescription->VertexInstanceAttributes().GetAttributeIndexCount<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 			if (FCoreTechRetessellate_Impl::ApplyOnOneAsset( *StaticMesh, *CoreTechData, TessellationSettings ))
 			{
+				const int32 NumberOfUVChannels = DestinationMeshDescription->VertexInstanceAttributes().GetAttributeIndexCount<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+				if (NumberOfUVChannels < OldNumberOfUVChannels)
+				{
+					FailureReason = FText::Format(NSLOCTEXT("BlueprintRetessellation", "UVChannelsDestroyed", "Tessellation operation on Static Mesh {0} is destroying all UV channels above channel #{1}"), FText::FromString(StaticMesh->GetName()), NumberOfUVChannels - 1);
+				}
+
 				// Post static mesh has changed
 				if (bApplyChanges)
 				{
