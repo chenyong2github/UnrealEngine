@@ -1052,18 +1052,6 @@ bool FBulkDataBase::CanLoadFromDisk() const
 		return true;
 	}
 
-	// If the IoDispatcher is enabled then technically inlined data cannot load
-	// from disk, but it should act as thought it can up until the point that it
-	// actually tries to load. At which point it will give a log error.
-	//
-	// This is a temp hack while we work out if we want to allow additional inline
-	// loading at runtime (and pay the memory increase in the ToC) or prevent it entirely.
-	// TODO: Resolve this!
-	if (IsInlined() && IsIoDispatcherEnabled())
-	{
-		return true;
-	}
-
 	// If this BulkData has a fallback token then it can find it's filepath and load from disk
 	if (Data.Fallback.Token != InvalidToken)
 	{
