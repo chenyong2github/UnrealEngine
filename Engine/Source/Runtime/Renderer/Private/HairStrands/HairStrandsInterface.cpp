@@ -323,9 +323,9 @@ void RunHairStrandsInterpolation(
 {
 	check(IsInRenderingThread());
 
-	DECLARE_GPU_STAT(HairStrandsInterpolation);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsInterpolation);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsInterpolation);
+	DECLARE_GPU_STAT(HairStrandsInterpolationGrouped);
+	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsInterpolationGrouped);
+	SCOPED_GPU_STAT(RHICmdList, HairStrandsInterpolationGrouped);
 
 	// Update dynamic mesh triangles
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
