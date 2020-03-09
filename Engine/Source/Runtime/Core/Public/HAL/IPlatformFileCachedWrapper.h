@@ -23,8 +23,8 @@ class CORE_API FCachedFileHandle : public IFileHandle
 public:
 	FCachedFileHandle(IFileHandle* InFileHandle, bool bInReadable, bool bInWritable)
 		: FileHandle(InFileHandle)
-		, FilePos(0)
-		, TellPos(0)
+		, FilePos(InFileHandle->Tell())
+		, TellPos(FilePos)
 		, FileSize(InFileHandle->Size())
 		, bWritable(bInWritable)
 		, bReadable(bInReadable)
@@ -177,7 +177,13 @@ public:
 	{
 		if (bWritable)
 		{
-			return FileHandle->Truncate(NewSize);
+			if (FileHandle->Truncate(NewSize))
+			{
+				FlushCache();
+				FilePos = TellPos = FileHandle->Tell();
+				FileSize = FileHandle->Size();
+				return true;
+			}
 		}
 		return false;
 	}
