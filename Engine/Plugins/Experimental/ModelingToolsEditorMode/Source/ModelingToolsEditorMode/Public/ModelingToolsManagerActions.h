@@ -32,6 +32,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginEditPivotTool;
 	TSharedPtr<FUICommandInfo> BeginBakeTransformTool;
 	TSharedPtr<FUICommandInfo> BeginCombineMeshesTool;
+	TSharedPtr<FUICommandInfo> BeginDuplicateMeshesTool;
 	TSharedPtr<FUICommandInfo> BeginAlignObjectsTool;
 
 	TSharedPtr<FUICommandInfo> BeginRemeshSculptMeshTool;

@@ -503,6 +503,12 @@ void FModelingToolsEditorMode::Enter()
 	CombineMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginCombineMeshesTool, TEXT("CombineMeshesTool"), CombineMeshesToolBuilder);
 
+	UCombineMeshesToolBuilder* DuplicateMeshesToolBuilder = NewObject<UCombineMeshesToolBuilder>();
+	DuplicateMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	DuplicateMeshesToolBuilder->bIsDuplicateTool = true;
+	RegisterToolFunc(ToolManagerCommands.BeginDuplicateMeshesTool, TEXT("DuplicateMeshesTool"), DuplicateMeshesToolBuilder);
+
+
 	// edit tools
 
 

@@ -30,6 +30,7 @@ class MESHMODELINGTOOLS_API UCombineMeshesToolBuilder : public UInteractiveToolB
 
 public:
 	IToolsContextAssetAPI* AssetAPI = nullptr;
+	bool bIsDuplicateTool = false;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
@@ -67,6 +68,8 @@ class MESHMODELINGTOOLS_API UCombineMeshesTool : public UMultiSelectionTool
 public:
 	UCombineMeshesTool();
 
+	virtual void SetDuplicateMode(bool bDuplicateMode);
+
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -88,6 +91,8 @@ protected:
 protected:
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
+
+	bool bDuplicateMode;
 
 	void UpdateAssets();
 };
