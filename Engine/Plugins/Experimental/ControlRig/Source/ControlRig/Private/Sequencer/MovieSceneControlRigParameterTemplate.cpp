@@ -375,7 +375,7 @@ namespace FControlRigBindingHelper
 					AnimInstance->RecalcRequiredBones();
 					AnimInstance->AddControlRigTrack(ControlRig->GetUniqueID(), ControlRig);
 					ControlRig->CreateRigControlsForCurveContainer();
-					ControlRig->Execute(EControlRigState::Init);
+					ControlRig->Initialize();
 				}
 			}
 		}
@@ -601,7 +601,7 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 				if (!ControlRig->GetObjectBinding()->GetBoundObject())
 				{
 					ControlRig->GetObjectBinding()->BindToObject(BoundSkelMeshes[0].Get());
-					ControlRig->Execute(EControlRigState::Init);
+					ControlRig->Initialize();
 				}
 				FControlRigBindingHelper::BindToSequencerInstance(ControlRig);
 				//MZ TODO HANDLE BOOLS AND OTHER NON BLENDABLES
