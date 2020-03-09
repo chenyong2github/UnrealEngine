@@ -3680,8 +3680,7 @@ FReply SDesignerView::HandleSwapAspectRatioClicked()
 
 	if (!PreviewOverrideName.IsEmpty())
 	{
-		ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
-		DesignerSafeZoneOverride = PlaySettings->CalculateCustomUnsafeZones(CustomSafeZoneStarts, CustomSafeZoneDimensions, PreviewOverrideName, FVector2D(PreviewWidth, PreviewHeight));
+		DesignerSafeZoneOverride = PlayInSettings->CalculateCustomUnsafeZones(CustomSafeZoneStarts, CustomSafeZoneDimensions, PreviewOverrideName, FVector2D(PreviewWidth, PreviewHeight));
 	}
 	else
 	{
