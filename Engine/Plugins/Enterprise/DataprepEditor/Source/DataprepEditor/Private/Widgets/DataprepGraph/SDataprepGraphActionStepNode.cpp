@@ -287,8 +287,11 @@ FReply SDataprepGraphActionStepNode::OnDragDetected(const FGeometry & MyGeometry
 	{
 		if (UDataprepActionStep* ActionStep = ActionStepNode->GetDataprepActionStep())
 		{
-			ParentNodePtr.Pin()->SetDraggedIndex(StepIndex);
-			return FReply::Handled().BeginDragDrop(FDataprepDragDropOp::New( GetOwnerPanel().ToSharedRef(), SharedThis(this)));
+			if(SDataprepGraphActionNode* ActionNode = ParentNodePtr.Pin().Get())
+			{
+				ActionNode->SetDraggedIndex(StepIndex);
+				return FReply::Handled().BeginDragDrop(FDataprepDragDropOp::New( SharedThis(ActionNode->GetParentTrackNode().Get()), SharedThis(this)));
+			}
 		}
 	}
 
