@@ -21,7 +21,6 @@
 #define LOCTEXT_NAMESPACE "SourceFilterTrace"
 
 UE_TRACE_CHANNEL_DEFINE(TraceSourceFiltersChannel)
-UE_TRACE_CHANNEL_EXTERN(ImportantChannel)
 
 UE_TRACE_EVENT_BEGIN(SourceFilters, FilterClass)
 	UE_TRACE_EVENT_FIELD(uint64, ClassId)
