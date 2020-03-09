@@ -66,9 +66,7 @@ static FAutoConsoleVariableRef CVarShaderComplexityBaselineDeferredUnlitPS(
 	ECVF_Default
 );
 
-IMPLEMENT_SHADER_TYPE(template<>,TComplexityAccumulatePS<false>,TEXT("/Engine/Private/ShaderComplexityAccumulatePixelShader.usf"),TEXT("Main"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<>,TComplexityAccumulatePS<true>,TEXT("/Engine/Private/QuadComplexityAccumulatePixelShader.usf"),TEXT("Main"),SF_Pixel);
-
+IMPLEMENT_SHADER_TYPE(,FComplexityAccumulatePS,TEXT("/Engine/Private/ShaderComplexityAccumulatePixelShader.usf"),TEXT("Main"),SF_Pixel);
 
 void FComplexityAccumulateInterface::GetDebugViewModeShaderBindings(
 	const FDebugViewModePS& BaseShader,
@@ -86,17 +84,17 @@ void FComplexityAccumulateInterface::GetDebugViewModeShaderBindings(
 	FMeshDrawSingleShaderBindings& ShaderBindings
 ) const
 {
+	const FComplexityAccumulatePS& Shader = static_cast<const FComplexityAccumulatePS&>(BaseShader);
+
 	// normalize the complexity so we can fit it in a low precision scene color which is necessary on some platforms
 	// late value is for overdraw which can be problematic with a low precision float format, at some point the precision isn't there any more and it doesn't accumulate
 	if (DebugViewMode == DVSM_QuadComplexity)
 	{
-		const TComplexityAccumulatePS<true>& Shader = static_cast<const TComplexityAccumulatePS<true>&>(BaseShader);
 		ShaderBindings.Add(Shader.NormalizedComplexity, FVector4(NormalizedQuadComplexityValue));
 		ShaderBindings.Add(Shader.ShowQuadOverdraw, 0);
 	}
 	else
 	{
-		const TComplexityAccumulatePS<false>& Shader = static_cast<const TComplexityAccumulatePS<false>&>(BaseShader);
 		const float NormalizeMul = 1.0f / GetMaxShaderComplexityCount(Material.GetFeatureLevel());
 		ShaderBindings.Add(Shader.NormalizedComplexity, FVector4(NumPSInstructions * NormalizeMul, NumVSInstructions * NormalizeMul, 1 / 32.0f));
 		ShaderBindings.Add(Shader.ShowQuadOverdraw, DebugViewMode != DVSM_ShaderComplexity ? 1 : 0);
@@ -105,16 +103,11 @@ void FComplexityAccumulateInterface::GetDebugViewModeShaderBindings(
 
 TShaderRef<FDebugViewModePS> FComplexityAccumulateInterface::GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const
 {
-	if (bShowQuadComplexity)
-	{
-		return InMaterial->GetShader<TComplexityAccumulatePS<true>>(VertexFactoryType);
-	}
-	else
-	{
-		return InMaterial->GetShader<TComplexityAccumulatePS<false>>(VertexFactoryType);
-	}
-
+	FComplexityAccumulatePS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FComplexityAccumulatePS::FQuadOverdraw>(bShowQuadComplexity ? FComplexityAccumulatePS::EQuadOverdraw::Enable : FComplexityAccumulatePS::EQuadOverdraw::Disable);
+	return InMaterial->GetShader<FComplexityAccumulatePS>(VertexFactoryType, PermutationVector);
 }
+
 void FComplexityAccumulateInterface::SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const
 {
 	if (BlendMode == BLEND_Opaque)
@@ -138,9 +131,5 @@ void FComplexityAccumulateInterface::SetDrawRenderState(EBlendMode BlendMode, FR
 	}
 	DrawRenderState.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_One>::GetRHI();
 }
-
-// Instantiate the template 
-template class TComplexityAccumulatePS<false>;
-template class TComplexityAccumulatePS<true>;
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
