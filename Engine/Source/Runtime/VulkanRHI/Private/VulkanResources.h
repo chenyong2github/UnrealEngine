@@ -521,8 +521,7 @@ struct FVulkanTextureBase : public FVulkanBaseShaderResource
 	template<typename T>
 	void DumpMemory(T Callback)
 	{
-		uint32 BytesPerPixel = (Surface.StorageFormat != VK_FORMAT_UNDEFINED ? GetNumBitsPerPixel(Surface.StorageFormat) : 1) / 8;
-		Callback(TEXT("FVulkanTextureBase"), GetResourceFName(), this, GetRHIResource(), Surface.Width, Surface.Height, Surface.Depth, BytesPerPixel);
+		Callback(TEXT("FVulkanTextureBase"), GetResourceFName(), this, GetRHIResource(), Surface.Width, Surface.Height, Surface.Depth, Surface.StorageFormat);
 	}
 
 private:
@@ -1169,7 +1168,7 @@ public:
 	template<typename T>
 	void DumpMemory(T Callback)
 	{
-		Callback(TEXT("FVulkanResourceMultiBuffer"), FName(), this, 0, GetCurrentSize() * GetNumBuffers(), 1, 1, 1);
+		Callback(TEXT("FVulkanResourceMultiBuffer"), FName(), this, 0, GetCurrentSize() * GetNumBuffers(), 1, 1, VK_FORMAT_UNDEFINED);
 	}
 
 
