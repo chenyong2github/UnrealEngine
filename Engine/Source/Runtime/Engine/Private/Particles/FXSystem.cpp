@@ -51,6 +51,15 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 		return new FFXSystem(InFeatureLevel, InShaderPlatform, GPUSortManager);
 	}
 }
+void FFXSystemInterface::QueueDestroyGPUSimulation(FFXSystemInterface* FXSystem)
+{
+	check(FXSystem);
+	ENQUEUE_RENDER_COMMAND(FDestroyGPUSimulationCommand)(
+		[FXSystem](FRHICommandList& RHICmdList)
+	{
+		FXSystem->DestroyGPUSimulation();
+	});
+}
 
 void FFXSystemInterface::Destroy( FFXSystemInterface* FXSystem )
 {
