@@ -5992,6 +5992,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		context.startActivity(intent);
 
 		// kill the current application instance. Undefined behaviour after this!
+//$${gameActivityOnRestartApplicationAdditions}$$
 		Runtime.getRuntime().exit(0); 
 	}
 	

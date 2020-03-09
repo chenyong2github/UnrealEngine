@@ -40,7 +40,7 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 	virtual void AddPlatformSpecificProperties() const override;
 
 	void CaptureCrashInfo();
-	void StoreCrashInfo() const;
+	void StoreCrashInfo(bool bWriteLog) const;
 
 	static const int32 CrashReportMaxPathSize = 512;
 
