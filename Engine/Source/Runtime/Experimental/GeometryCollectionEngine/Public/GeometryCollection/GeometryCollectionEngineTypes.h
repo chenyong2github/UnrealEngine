@@ -4,7 +4,7 @@
 
 
 #include "UObject/ObjectMacros.h"
-#include "GeometryCollection/GeometryDynamicCollection.h"
+#include "GeometryCollectionProxyData.h"
 #include "GeometryCollection/GeometryCollection.h"
 
 UENUM()
