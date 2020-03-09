@@ -4,28 +4,25 @@
 
 #include "DatasmithImportOptions.h"
 
-void FDatasmithCoreTechTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithCoreTechTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	Options.Add(GetCommonTessellationOptionsPtr());
 }
 
-void FDatasmithCoreTechTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithCoreTechTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	for (const TStrongObjectPtr<UObject>& OptionPtr : Options)
+	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
-		if (UObject* Option = OptionPtr.Get())
+		if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(OptionPtr.Get()))
 		{
-			if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(Option))
-			{
-				GetCommonTessellationOptionsPtr().Reset(TessellationOptionsObject);
-			}
+			CommonTessellationOptionsPtr.Reset(TessellationOptionsObject);
 		}
 	}
 }
 
 TStrongObjectPtr<UDatasmithCommonTessellationOptions>& FDatasmithCoreTechTranslator::GetCommonTessellationOptionsPtr()
 {
-	if(!CommonTessellationOptionsPtr.IsValid())
+	if (!CommonTessellationOptionsPtr.IsValid())
 	{
 		CommonTessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
 		check(CommonTessellationOptionsPtr.IsValid());

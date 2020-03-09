@@ -200,3 +200,9 @@ int32 FDatasmithStaticMeshImportOptions::ConvertLightmapEnumToValue( EDatasmithI
 
 	return MaxLightmapSize;
 	}
+
+void UDatasmithOptionsBase::Serialize(FStructuredArchive::FRecord Record)
+{
+	FGuardValue_Bitfield(Record.GetUnderlyingArchive().ArNoDelta, true);
+	Super::Serialize(Record);
+}

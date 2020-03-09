@@ -41,13 +41,13 @@ struct FDatasmithOpenNurbsOptions : public FDatasmithTessellationOptions
 
 	uint32 GetHash() const
 	{
-		return HashCombine(FDatasmithTessellationOptions::GetHash(), GetTypeHash(Geometry));;
+		return HashCombine(FDatasmithTessellationOptions::GetHash(), GetTypeHash(Geometry));
 	}
 };
 
 
 UCLASS(BlueprintType, config = EditorPerProjectUserSettings)
-class UDatasmithOpenNurbsImportOptions: public UObject
+class UDatasmithOpenNurbsImportOptions: public UDatasmithOptionsBase
 {
 	GENERATED_BODY()
 
