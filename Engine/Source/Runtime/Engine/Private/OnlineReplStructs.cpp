@@ -522,7 +522,8 @@ void TestUniqueIdRepl(UWorld* InWorld)
 	FUniqueNetIdRepl UpperCaseStringIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("abcDEF")));
 
 #if 1
-#define WAYTOOLONG TEXT("deadbeefba5eba11deadbeefba5eba11 \
+#define WAYTOOLONG TEXT(\
+		"deadbeefba5eba11deadbeefba5eba11 \
 		deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11 \
 		deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11 \
 		deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11deadbeefba5eba11 \
