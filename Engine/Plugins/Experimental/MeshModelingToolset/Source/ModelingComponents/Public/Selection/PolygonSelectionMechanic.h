@@ -160,6 +160,7 @@ protected:
 	TUniquePtr<FPolygonSelectionMechanicSelectionChange> ActiveChange;
 
 	FViewCameraState CameraState;
+public:
 	FToolDataVisualizer PolyEdgesRenderer;
 	FToolDataVisualizer HilightRenderer;
 	FToolDataVisualizer SelectionRenderer;
