@@ -2613,6 +2613,7 @@ void FOpenGLDynamicRHI::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBuffe
 		UpdateRasterizerStateInOpenGLContext(ContextState);
 		UpdateDepthStencilStateInOpenGLContext(ContextState);
 		BindPendingShaderState(ContextState);
+		CommitGraphicsResourceTables();
 		SetupTexturesForDraw(ContextState);
 		SetupUAVsForDraw(ContextState);
 		CommitNonComputeShaderConstants();
@@ -2670,6 +2671,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, 
 		UpdateRasterizerStateInOpenGLContext(ContextState);
 		UpdateDepthStencilStateInOpenGLContext(ContextState);
 		BindPendingShaderState(ContextState);
+		CommitGraphicsResourceTables();
 		SetupTexturesForDraw(ContextState);
 		SetupUAVsForDraw(ContextState);
 		CommitNonComputeShaderConstants();
@@ -2832,6 +2834,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBu
 		UpdateRasterizerStateInOpenGLContext(ContextState);
 		UpdateDepthStencilStateInOpenGLContext(ContextState);
 		BindPendingShaderState(ContextState);
+		CommitGraphicsResourceTables();
 		SetupTexturesForDraw(ContextState);
 		SetupUAVsForDraw(ContextState);
 		CommitNonComputeShaderConstants();
