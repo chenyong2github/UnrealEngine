@@ -69,6 +69,7 @@ FEvaluateOutput Evaluate(
 	float3 Velocity_World_P;
 	float3 Velocity_World_P_Prev;
 	float U = 0;
+	float WorldStrandRadius = 0;
 	FVertexFactoryInterpolantsVSToPS Interpolants;
 	{
 		const uint HairPrimitiveId0 = SamplePrimitiveId;
@@ -95,9 +96,9 @@ FEvaluateOutput Evaluate(
 		{
 			const float3 W = cross(A, B);
 			const bool bIsRight = dot(W, View.ViewForward) < 0;
-			const float WorldRadius	= lerp(Vertex0.Radius, Vertex1.Radius, SegmentU);
 			const float WorldV	= length(A - B * SegmentU);
-			SegmentV = WorldV / WorldRadius;
+			WorldStrandRadius	= lerp(Vertex0.Radius, Vertex1.Radius, SegmentU);
+			SegmentV = WorldV / WorldStrandRadius;
 			SegmentV = bIsRight ? SegmentV * 0.5f + 0.5f : (1 - SegmentV) * 0.5f;
 		}
 
@@ -131,6 +132,24 @@ FEvaluateOutput Evaluate(
 	// VS
 	const float4 SvPosition = float4(SamplePixelCoord, SampleDepth, 1);
 
+	// Coverage computation
+	// We don't use the coverage information
+	float Coverage = 1;
+	if (MaterialPassParameters.bUpdateSampleCoverage)
+	{
+		const bool bUseStableRasterization = UseStableRasterization();
+
+		FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo, ResolvedView.HairRenderInfoBits, bUseStableRasterization);
+		const float SceneDepth = ConvertFromDeviceZ(SvPosition.z); // Linear depth in world unit
+		const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : SceneDepth * HairRenderInfo.RadiusAtDepth1Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
+		const float StrandRealRadius = WorldStrandRadius;
+		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
+
+		SampleCoverage8bit = min(uint(Coverage * 0xFF), 0xFF);
+	}
+
+	// expressed the coverage relatively to the current pixel coverage?
+
 	// PS
 	FHairSample OutSample		= (FHairSample)0;
 	OutSample.Depth				= SampleDepth;
@@ -139,24 +158,6 @@ FEvaluateOutput Evaluate(
 	OutSample.MacroGroupId		= MaterialPass_MacroGroupId;
 	OutSample.LightChannelMask	= MaterialPass_LightChannelMask;
 	OutSample.bScatterSceneLighting = UseScatterSceneLighting();
-
-	// Coverage computation
-	// We don't use the coverage information
-	#if 0
-	float Coverage = 1;
-	{
-		const bool bUseStableRasterization = UseStableRasterization();
-
-		float WorldStrandRadius = VFIntermediates.HairDimensions.y; // Coming from the vertex factory evaluation
-
-		FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo, ResolvedView.HairRenderInfoBits, bUseStableRasterization);
-		const float SceneDepth = ConvertFromDeviceZ(SvPosition.z); // Linear depth in world unit
-		const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : SceneDepth * HairRenderInfo.RadiusAtDepth1Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
-		const float StrandRealRadius = WorldStrandRadius;
-		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
-	}
-	float Transmittance = saturate(1.0f - Coverage);
-	#endif
 
 	// Material computation
 	{
