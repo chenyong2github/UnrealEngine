@@ -33,6 +33,9 @@ private:
 
 private:
 	void OnAssetAdded(const FAssetData& InAssetData);
+	void OnAssetRemoved(const FAssetData& InAssetData);
+	void OnAssetScanFinished();
+
 	void OnObjectSaved(UObject* InObject);
 	void OnAssetLoaded(UObject* InObject);
 	void OnGetAssetTags(const UObject* Object, TArray<UObject::FAssetRegistryTag>& OutTags);
@@ -72,7 +75,13 @@ private:
 
 	TArray<TWeakObjectPtr<UObject>> RequestIndexQueue;
 
-	TArray<FAssetData> ProcessAssetQueue;
+	struct FAssetOperation
+	{
+		FAssetData Asset;
+		bool bRemoval = false;
+	};
+
+	TArray<FAssetOperation> ProcessAssetQueue;
 
 	struct FAssetDDCRequest
 	{
