@@ -18,10 +18,10 @@ namespace AutomationTool.Benchmark
 
 		FileReference SourceFile;
 
-		public BenchmarkSingleCompileTask(string InProject, string InTarget, UnrealTargetPlatform InPlatform, FileReference InSourceFile, BuildOptions InOptions)
-			: base(InProject, InTarget, InPlatform, InOptions)
+		public BenchmarkSingleCompileTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, FileReference InSourceFile, BuildOptions InOptions)
+			: base(InProjectFile, InTarget, InPlatform, InOptions)
 		{
-			PreTask = new BenchmarkBuildTask(InProject, InTarget, InPlatform, InOptions);
+			PreTask = new BenchmarkBuildTask(InProjectFile, InTarget, InPlatform, InOptions);
 			SourceFile = InSourceFile;
 			TaskModifiers.Add("singlecompile");
 		}
