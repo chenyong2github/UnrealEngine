@@ -44,8 +44,9 @@ class GEOMETRYCOLLECTIONCORE_API FManagedArrayCollection
 public:
 
 	FManagedArrayCollection();
-	FManagedArrayCollection(const FManagedArrayCollection&) = delete;
 	virtual ~FManagedArrayCollection() {}
+
+	FManagedArrayCollection(const FManagedArrayCollection&) = delete;
 	FManagedArrayCollection& operator=(const FManagedArrayCollection&) = delete;
 	FManagedArrayCollection(FManagedArrayCollection&&) = default;
 	FManagedArrayCollection& operator=(FManagedArrayCollection&&) = default;
@@ -264,20 +265,13 @@ public:
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	*/
-	void CopyAttribute(const FManagedArrayCollection& MasterCollection, FName Name, FName Group);
+	void CopyAttribute(const FManagedArrayCollection& InCollection, FName Name, FName Group);
 
 	/**
-	* Size and order a group so that it matches the group found in the master collection.
-	* @param MasterCollection - The collection we are ordering our group against. The GUID attribute allows us to keep data that has been previously synced. Otherwise data is lost
-	* @param Group - The group that manages the attribute
+	* Copy attributes that match the input collection. This is a utility to easily sync collections
+	* @param InCollection - All groups from this collection found in the input will be sized accordingly
 	*/
-	void SyncGroupSizeAndOrder(const FManagedArrayCollection& MasterCollection, FName Group);
-
-	/**
-	* Sync all master groups with this collection. This is a utility to easily sync rest and dynamic collections
-	* @param MasterCollection - All groups from this collection found in the master will be sized and ordered accordingly
-	*/
-	void SyncAllGroups(const FManagedArrayCollection& MasterCollection);
+	void CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection);
 
 	/**
 	* Number of elements in a group
@@ -417,6 +411,14 @@ private:
 	bool HasCycle(FName Group, FName DependencyGroup);
 
 protected:
+
+	/**
+	* Size and order a group so that it matches the group found in the input collection.
+	* @param InCollection - The collection we are ordering our group against. 
+	* @param Group - The group that manages the attribute
+	*/
+	void SyncGroupSizeFrom(const FManagedArrayCollection& InCollection, FName Group);
+
 
 	/**
 	*   operator<<(FGroupInfo)
