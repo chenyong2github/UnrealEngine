@@ -496,7 +496,10 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 						{
 							if (TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle())
 							{
-								NumRigidsInIsland++;
+								if (PBDRigid->ObjectState() != EObjectStateType::Kinematic)
+								{
+									NumRigidsInIsland++;
+								}
 							}
 						}
 					}
