@@ -880,14 +880,14 @@ public class IOSPlatform : Platform
 
 					// copy the icons/launch screens from the engine
 					{
-						DirectoryReference DataPath = DirectoryReference.Combine(SC.EngineRoot, "Build", "IOS", "Resources", "Graphics");
-						StageImageAndIconFiles(DataPath, bSupportsPortrait, bSupportsLandscape, SC, bSkipIcons);
+						DirectoryReference GraphicsDataPath = DirectoryReference.Combine(SC.EngineRoot, "Build", "IOS", "Resources", "Graphics");
+						StageImageAndIconFiles(Params, GraphicsDataPath, bSupportsPortrait, bSupportsLandscape, SC, bSkipIcons);
 					}
 
 					// copy the icons/launch screens from the game (may stomp the engine copies)
 					{
-						DirectoryReference DataPath = DirectoryReference.Combine(SC.ProjectRoot, "Build", "IOS", "Resources", "Graphics");
-						StageImageAndIconFiles(DataPath, bSupportsPortrait, bSupportsLandscape, SC, bSkipIcons);
+						DirectoryReference GraphicsDataPath = DirectoryReference.Combine(SC.ProjectRoot, "Build", "IOS", "Resources", "Graphics");
+						StageImageAndIconFiles(Params, GraphicsDataPath, bSupportsPortrait, bSupportsLandscape, SC, bSkipIcons);
 					}
 				}
 
@@ -947,9 +947,18 @@ public class IOSPlatform : Platform
 		}
 	}
 
-	private void StageImageAndIconFiles(DirectoryReference DataPath, bool bSupportsPortrait, bool bSupportsLandscape, DeploymentContext SC, bool bSkipIcons)
+	private void StageImageAndIconFiles(ProjectParams Params, DirectoryReference GraphicsDataPath, bool bSupportsPortrait, bool bSupportsLandscape, DeploymentContext SC, bool bSkipIcons)
 	{
-		if (DirectoryReference.Exists(DataPath))
+
+		bool bLaunchscreenStoryboard = false;
+		ConfigHierarchy PlatformGameConfig;
+		bool bXCArchive = false;
+		if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformGameConfig))
+		{
+			PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bLaunchscreenStoryboard", out bLaunchscreenStoryboard);
+		}
+
+		if (DirectoryReference.Exists(GraphicsDataPath) && !bLaunchscreenStoryboard)
 		{
 			List<string> ImageFileNames = new List<string>();
 			if (bSupportsPortrait)
@@ -981,7 +990,7 @@ public class IOSPlatform : Platform
 
 			foreach (string ImageFileName in ImageFileNames)
 			{
-				FileReference ImageFile = FileReference.Combine(DataPath, ImageFileName);
+				FileReference ImageFile = FileReference.Combine(GraphicsDataPath, ImageFileName);
 				if (FileReference.Exists(ImageFile))
 				{
 					SC.StageFile(StagedFileType.SystemNonUFS, ImageFile, new StagedFileReference(ImageFileName));
@@ -990,7 +999,7 @@ public class IOSPlatform : Platform
 
 			if (!bSkipIcons)
 			{
-				SC.StageFiles(StagedFileType.SystemNonUFS, DataPath, "Icon*.png", StageFilesSearch.TopDirectoryOnly, StagedDirectoryReference.Root);
+				SC.StageFiles(StagedFileType.SystemNonUFS, GraphicsDataPath, "Icon*.png", StageFilesSearch.TopDirectoryOnly, StagedDirectoryReference.Root);
 			}
 		}
 	}
