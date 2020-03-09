@@ -1150,7 +1150,7 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
 
 	// (CameraShutterAngle/360) gives us the fraction-of-the-output-frame the accumulation frames should cover.
-	Output.ShutterAnglePercentage = CameraSettings->CameraShutterAngle / 360.0;
+	Output.ShutterAnglePercentage = FMath::Max(CameraSettings->CameraShutterAngle / 360.0, 1 / 360.0);
 
 	{
 		/*
