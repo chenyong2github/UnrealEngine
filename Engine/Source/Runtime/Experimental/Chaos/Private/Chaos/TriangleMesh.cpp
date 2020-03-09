@@ -265,7 +265,7 @@ void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArr
 			if (Size2 < SMALL_NUMBER)
 			{
 				//particles should not be coincident by the time they get here. Return empty to signal problem to caller
-				check(false);
+				ensure(false);
 				Normals.Empty();
 				return;
 			}
