@@ -74,7 +74,7 @@ namespace Chaos
 	{
 	public:
 		TCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
-			: bDisabled(true), Normal(0), Location(0), Phi(FLT_MAX), Friction(0), AngularFriction(0), Restitution(0), ShapesType(EContactShapesType::Unknown)
+		    : bDisabled(true), Normal(0), Location(0), Phi(FLT_MAX), Friction(0), AngularFriction(0), Restitution(0), InvInertiaScale0(1.f), InvInertiaScale1(1.f), ShapesType(EContactShapesType::Unknown)
 		{
 			Implicit[0] = InImplicit0;
 			Implicit[1] = InImplicit1;
@@ -88,7 +88,8 @@ namespace Chaos
 		T Friction;
 		T AngularFriction;
 		T Restitution;
-
+		T InvInertiaScale0;
+		T InvInertiaScale1;
 		EContactShapesType ShapesType;
 
 
@@ -171,6 +172,12 @@ namespace Chaos
 
 		void SetLocation(const TVector<T, d> & InLocation) { Manifold.Location = InLocation; }
 		TVector<T, d> GetLocation() const { return Manifold.Location; }
+
+		void SetInvInertiaScale0(const T InInvInertiaScale) { Manifold.InvInertiaScale0 = InInvInertiaScale; }
+		T GetInvInertiaScale0() const { return Manifold.InvInertiaScale0; }
+
+		void SetInvInertiaScale1(const T InInvInertiaScale) { Manifold.InvInertiaScale1 = InInvInertiaScale; }
+		T GetInvInertiaScale1() const { return Manifold.InvInertiaScale1; }
 
 
 		FString ToString() const
