@@ -633,6 +633,8 @@ enum EUnrealEngineObjectUE4Version
 	VER_UE4_FIX_WIDE_STRING_CRC,
 	// Added package owner to allow private references
 	VER_UE4_ADDED_PACKAGE_OWNER,
+	// Changed the data layout for skin weight profile data
+	VER_UE4_SKINWEIGHT_PROFILE_DATA_LAYOUT_CHANGES,
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)

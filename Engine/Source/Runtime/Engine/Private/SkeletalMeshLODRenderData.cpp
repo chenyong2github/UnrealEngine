@@ -192,10 +192,6 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 	BeginInitResource(&StaticVertexBuffers.PositionVertexBuffer);
 	BeginInitResource(&StaticVertexBuffers.StaticMeshVertexBuffer);
 
-	if (GSkinWeightProfilesLoadByDefaultMode == 3)
-	{
-		SkinWeightProfilesData.SetDynamicDefaultSkinWeightProfile(Owner, LODIndex);
-	}
 	SkinWeightVertexBuffer.BeginInitResources();
 
 	if (bNeedsVertexColors)
@@ -891,12 +887,20 @@ void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkeletalMe
 	Ar << SkinWeightProfilesData;
 	SkinWeightProfilesData.Init(&SkinWeightVertexBuffer);
 
-	if (Ar.IsLoading() && GSkinWeightProfilesLoadByDefaultMode == 1)
+	if (Ar.IsLoading())
 	{
 #if !WITH_EDITOR
-		// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
-		SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(Owner, LODIdx);
+		if (GSkinWeightProfilesLoadByDefaultMode == 1)
+		{
+			// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
+			SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(Owner, LODIdx);
+		} else
+	
 #endif
+		if (GSkinWeightProfilesLoadByDefaultMode == 3)
+		{
+			SkinWeightProfilesData.SetDynamicDefaultSkinWeightProfile(Owner, LODIdx, true);
+		}
 	}
 }
 
@@ -921,14 +925,6 @@ void FSkeletalMeshLODRenderData::SerializeAvailabilityInfo(FArchive& Ar, USkelet
 	}
 	SkinWeightProfilesData.SerializeMetaData(Ar);
 	SkinWeightProfilesData.Init(&SkinWeightVertexBuffer);
-
-	if (Ar.IsLoading() && GSkinWeightProfilesLoadByDefaultMode == 1)
-	{
-#if !WITH_EDITOR
-		// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
-		SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(Owner, LODIdx);
-#endif
-	}
 }
 
 void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)

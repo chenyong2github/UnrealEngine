@@ -424,8 +424,11 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 		FD3D12Resource* pDestResource = StagingBuffer->StagedRead;
 		D3D12_RESOURCE_DESC const& DestBufferDesc = pDestResource->GetDesc();
 
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, pSourceResource, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
-		CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+		if (pSourceResource->RequiresResourceStateTracking())
+		{
+			FD3D12DynamicRHI::TransitionResource(CommandListHandle, pSourceResource, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
+			CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+		}
 
 		numCopies++;
 
