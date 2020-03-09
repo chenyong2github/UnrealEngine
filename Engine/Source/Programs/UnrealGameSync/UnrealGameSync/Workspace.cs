@@ -1234,24 +1234,22 @@ namespace UnrealGameSync
 		static ConfigFile ReadProjectConfigFile(string LocalRootPath, string SelectedLocalFileName, TextWriter Log)
 		{
 			// Find the valid config file paths
-			List<string> ProjectConfigFileNames = Utility.GetConfigFileLocations(LocalRootPath, SelectedLocalFileName, Path.DirectorySeparatorChar);
+			DirectoryInfo EngineDir = new DirectoryInfo(Path.Combine(LocalRootPath, "Engine"));
+			List<FileInfo> LocalConfigFiles = Utility.GetLocalConfigPaths(EngineDir, new FileInfo(SelectedLocalFileName));
 
 			// Read them in
 			ConfigFile ProjectConfig = new ConfigFile();
-			foreach(string ProjectConfigFileName in ProjectConfigFileNames)
+			foreach(FileInfo LocalConfigFile in LocalConfigFiles)
 			{
-				if(File.Exists(ProjectConfigFileName))
+				try
 				{
-					try
-					{
-						string[] Lines = File.ReadAllLines(ProjectConfigFileName);
-						ProjectConfig.Parse(Lines);
-						Log.WriteLine("Read config file from {0}", ProjectConfigFileName);
-					}
-					catch(Exception Ex)
-					{
-						Log.WriteLine("Failed to read config file from {0}: {1}", ProjectConfigFileName, Ex.ToString());
-					}
+					string[] Lines = File.ReadAllLines(LocalConfigFile.FullName);
+					ProjectConfig.Parse(Lines);
+					Log.WriteLine("Read config file from {0}", LocalConfigFile.FullName);
+				}
+				catch(Exception Ex)
+				{
+					Log.WriteLine("Failed to read config file from {0}: {1}", LocalConfigFile.FullName, Ex.ToString());
 				}
 			}
 			return ProjectConfig;
