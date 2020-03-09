@@ -218,6 +218,46 @@ uint32 FIOSPlatformRHIFramePacer::GetMaxRefreshRate()
 	return bEnableDynamicMaxFPS ? [UIScreen mainScreen].maximumFramesPerSecond : IOSDisplayConstants::MaxRefreshRate;
 }
 
+bool FIOSPlatformRHIFramePacer::SupportsFramePace(int32 QueryFramePace)
+{
+	// Support frame rates that are an integer multiple of max refresh rate, or 0 for no pacing
+	return QueryFramePace == 0 || (GetMaxRefreshRate() % QueryFramePace) == 0;
+}
+
+int32 FIOSPlatformRHIFramePacer::SetFramePace(int32 InFramePace)
+{
+	int32 NewPace = 0;
+
+	static IConsoleVariable* SyncIntervalCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("rhi.SyncInterval"));
+	if (ensure(SyncIntervalCVar != nullptr))
+	{
+		int32 MaxRefreshRate = GetMaxRefreshRate();
+		int32 NewSyncInterval = InFramePace > 0 ? MaxRefreshRate / InFramePace : 0;
+		SyncIntervalCVar->Set(NewSyncInterval, ECVF_SetByCode);
+
+		if (NewSyncInterval > 0)
+		{
+			NewPace = MaxRefreshRate / NewSyncInterval;
+		}
+	}
+	return NewPace;
+}
+
+int32 FIOSPlatformRHIFramePacer::GetFramePace()
+{
+	int32 CurrentPace = 0;
+	static IConsoleVariable* SyncIntervalCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("rhi.SyncInterval"));
+	if (ensure(SyncIntervalCVar != nullptr))
+	{
+		int SyncInterval = SyncIntervalCVar->GetInt();
+		if (SyncInterval > 0)
+		{
+			CurrentPace = GetMaxRefreshRate() / SyncInterval;
+		}
+	}
+	return CurrentPace;
+}
+
 void FIOSPlatformRHIFramePacer::InitWithEvent(FEvent* TriggeredEvent)
 {
     // Create display link thread

@@ -12,6 +12,8 @@
 #include "Android/AndroidWindow.h"
 #include "AndroidOpenGLPrivate.h"
 #include "Android/AndroidPlatformMisc.h"
+#include "Android/AndroidPlatformFramePacer.h"
+
 
 PFNeglPresentationTimeANDROID eglPresentationTimeANDROID_p = NULL;
 PFNeglGetNextFrameIdANDROID eglGetNextFrameIdANDROID_p = NULL;
@@ -56,6 +58,8 @@ struct FPlatformOpenGLDevice
 
 FPlatformOpenGLDevice::~FPlatformOpenGLDevice()
 {
+	FPlatformRHIFramePacer::Destroy();
+
 	FAndroidAppEntry::ReleaseEGL();
 }
 
@@ -73,6 +77,9 @@ static bool bRunningUnderRenderDoc = false;
 
 void FPlatformOpenGLDevice::Init()
 {
+	// Initialize frame pacer
+	FPlatformRHIFramePacer::Init(new FAndroidOpenGLFramePacer());
+
 	extern void InitDebugContext();
 
 	bRunningUnderRenderDoc = glIsEnabled(GL_DEBUG_TOOL_EXT) != GL_FALSE;
@@ -117,16 +124,17 @@ void* PlatformGetWindow(FPlatformOpenGLContext* Context, void** AddParam)
 	return (void*)&Context->eglContext;
 }
 
-bool PlatformBlitToViewport( FPlatformOpenGLDevice* Device, const FOpenGLViewport& Viewport, uint32 BackbufferSizeX, uint32 BackbufferSizeY, bool bPresent,bool bLockToVsync, int32 SyncInterval )
+bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport& Viewport, uint32 BackbufferSizeX, uint32 BackbufferSizeY, bool bPresent,bool bLockToVsync )
 {
 	if (bPresent && Viewport.GetCustomPresent())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FAndroidOpenGL_PlatformBlitToViewport_CustomPresent);
+		int32 SyncInterval = FAndroidPlatformRHIFramePacer::GetLegacySyncInterval();
 		bPresent = Viewport.GetCustomPresent()->Present(SyncInterval);
 	}
 	if (bPresent)
 	{
-		AndroidEGL::GetInstance()->SwapBuffers(bLockToVsync ? SyncInterval : 0);
+		FAndroidPlatformRHIFramePacer::SwapBuffers(bLockToVsync);
 	}
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.UseFrameTimeStampsForPacing"));
 	const bool bForceGPUFence = CVar ? CVar->GetInt() != 0 : false;

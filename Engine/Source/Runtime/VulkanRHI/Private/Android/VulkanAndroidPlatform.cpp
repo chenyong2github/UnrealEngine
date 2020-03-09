@@ -14,6 +14,7 @@
 #include "../VulkanRHIPrivate.h"
 #include <dlfcn.h>
 #include "Android/AndroidWindow.h"
+#include "Android/AndroidPlatformFramePacer.h"
 
 // Vulkan function pointers
 #define DEFINE_VK_ENTRYPOINTS(Type,Func) Type VulkanDynamicAPI::Func = NULL;
@@ -61,6 +62,9 @@ bool FVulkanAndroidPlatform::LoadVulkanLibrary()
 #endif
 
 #undef GET_VK_ENTRYPOINTS
+
+	// Init frame pacer
+	FPlatformRHIFramePacer::Init(new FAndroidVulkanFramePacer());
 
 	return true;
 }
