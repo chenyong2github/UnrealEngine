@@ -930,11 +930,6 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 
 				SerializeOodlePacketSize(Packet, DecompressedLength);
 
-#if !UE_BUILD_SHIPPING
-				// Never allow DecompressedLength values bigger than this, due to performance/security considerations
-				check(MAX_OODLE_PACKET_BYTES <= 16384);
-#endif
-
 				if (DecompressedLength < MAX_OODLE_PACKET_BYTES)
 				{
 					static uint8 CompressedData[MAX_OODLE_BUFFER];
