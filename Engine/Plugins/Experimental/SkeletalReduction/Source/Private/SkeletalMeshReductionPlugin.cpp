@@ -74,12 +74,12 @@ public:
 		{
 			case SkeletalMeshTerminationCriterion::SMTC_NumOfTriangles:
 			{
-				return ReductionSettings.NumOfTrianglesPercentage < Threshold_One;
+				return ReductionSettings.NumOfTrianglesPercentage < Threshold_One || ReductionSettings.MaxNumOfTrianglesPercentage < NumTriangles;
 			}
 			break;
 			case SkeletalMeshTerminationCriterion::SMTC_NumOfVerts:
 			{
-				return ReductionSettings.NumOfVertPercentage < Threshold_One;
+				return ReductionSettings.NumOfVertPercentage < Threshold_One || ReductionSettings.MaxNumOfVertsPercentage < NumVertices;
 			}
 			break;
 			case SkeletalMeshTerminationCriterion::SMTC_TriangleOrVert:
@@ -930,14 +930,23 @@ float FQuadricSkeletalMeshReduction::SimplifyMesh( const FSkeletalMeshOptimizati
 	const float MaxDist = FLT_MAX; // (Settings.ReductionMethod != SkeletalMeshOptimizationType::SMOT_NumOfTriangles) ? Settings.MaxDeviationPercentage * Bounds.SphereRadius : FLT_MAX;
 	const int32 SrcTriNum = Mesh.NumIndices() / 3;
 	const float TriangleRetainRatio = FMath::Clamp(Settings.NumOfTrianglesPercentage, 0.f, 1.f);
-	const int32 TargetTriNum = (bUseTrianglePercentCriterion) ? FMath::CeilToInt(TriangleRetainRatio * SrcTriNum) : Settings.MaxNumOfTriangles;
+	int32 TargetTriNum = (bUseTrianglePercentCriterion) ? FMath::CeilToInt(TriangleRetainRatio * SrcTriNum) : Settings.MaxNumOfTriangles;
+	if (Settings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_NumOfTriangles)
+	{
+		TargetTriNum = FMath::Min(TargetTriNum, int32(Settings.MaxNumOfTrianglesPercentage));
+	}
 
 	const int32 MinTriNumToRetain = (bUseTrianglePercentCriterion || bUseMaxTrisNumCriterion) ? FMath::Max(4, TargetTriNum) : 4;
 	const float MaxCollapseCost = FLT_MAX;
 
 	const int32 SrcVertNum = Mesh.NumVertices();
 	const float VertRetainRatio = FMath::Clamp(Settings.NumOfVertPercentage, 0.f, 1.f);
-	const int32 TargetVertNum = (bUseVertexPercentCriterion) ? FMath::CeilToInt(VertRetainRatio * SrcVertNum) : Settings.MaxNumOfVerts + 1;
+	int32 TargetVertNum = (bUseVertexPercentCriterion) ? FMath::CeilToInt(VertRetainRatio * SrcVertNum) : Settings.MaxNumOfVerts + 1;
+	if (Settings.TerminationCriterion == SkeletalMeshTerminationCriterion::SMTC_NumOfVerts)
+	{
+		TargetVertNum = FMath::Min(TargetVertNum, int32(Settings.MaxNumOfVertsPercentage + 1));
+	}
+
 	const int32 MinVerNumToRetain = (bUseVertexPercentCriterion || bUseMaxVertNumCriterion) ? FMath::Max(6, TargetVertNum) : 6;
 
 	const float VolumeImportance      = FMath::Clamp(Settings.VolumeImportance, 0.f, 2.f);
@@ -1661,7 +1670,7 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 
 	int32 IterationNum = 0;
 	//We keep the original MaxNumVerts because if we iterate we want to still compare with the original request.
-	uint32 OriginalMaxNumVertsSetting = Settings.MaxNumOfVerts;
+	uint32 OriginalMaxNumVertsSetting = bUseVertexPercentCriterion ? Settings.MaxNumOfVertsPercentage : Settings.MaxNumOfVerts;
 	do 
 	{
 		if (bOptimizeMesh)
@@ -1713,7 +1722,14 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 			{
 				// Some verts were created by chunking - we need simplify more.
 				int32 ExcessVerts = (int32)(OutSkeletalMeshLODModel.NumVertices - OriginalMaxNumVertsSetting);
-				Settings.MaxNumOfVerts = FMath::Max((int32)Settings.MaxNumOfVerts - ExcessVerts, 6);
+				if (bUseVertexPercentCriterion)
+				{
+					Settings.MaxNumOfVertsPercentage = FMath::Max((int32)Settings.MaxNumOfVertsPercentage - ExcessVerts, 6);
+				}
+				else
+				{
+					Settings.MaxNumOfVerts = FMath::Max((int32)Settings.MaxNumOfVerts - ExcessVerts, 6);
+				}
 
 				UE_LOG(LogSkeletalMeshReduction, Log, TEXT("Chunking to limit unique bones per section generated additional vertices - continuing simplification of LOD %d "), LODIndex);
 				ConvertToFSkinnedSkeletalMesh(SrcModel, BoneMatrices, LODIndex, SkinnedSkeletalMesh);

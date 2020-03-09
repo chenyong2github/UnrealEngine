@@ -106,6 +106,9 @@ public:
 	DECLARE_DELEGATE_RetVal(int32, FGetIntegerDelegate);
 	DECLARE_DELEGATE_OneParam(FSetIntegerDelegate, int32);
 
+	DECLARE_DELEGATE_RetVal(uint32, FGetUnsignedIntegerDelegate);
+	DECLARE_DELEGATE_OneParam(FSetUnsignedIntegerDelegate, uint32);
+
 	DECLARE_DELEGATE_RetVal(ECheckBoxState, FGetCheckBoxStateDelegate);
 	DECLARE_DELEGATE_OneParam(FSetCheckBoxStateDelegate, ECheckBoxState);
 private:
@@ -124,6 +127,7 @@ private:
 	FDetailWidgetRow& AddFloatRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const float MinSliderValue, const float MaxSliderValue, FGetFloatDelegate GetterDelegate, FSetFloatDelegate SetterDelegate);
 	FDetailWidgetRow& AddBoolRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentToolitipText, FGetCheckBoxStateDelegate GetterDelegate, FSetCheckBoxStateDelegate SetterDelegate);
 	FDetailWidgetRow& AddIntegerRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const int32 MinSliderValue, const int32 MaxSliderValue, FGetIntegerDelegate GetterDelegate, FSetIntegerDelegate SetterDelegate);
+	FDetailWidgetRow& AddUnsignedIntegerRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const uint32 MinSliderValue, const uint32 MaxSliderValue, FGetUnsignedIntegerDelegate GetterDelegate, FSetUnsignedIntegerDelegate SetterDelegate);
 	void AddBaseLODRow(IDetailChildrenBuilder& ChildrenBuilder);
 
 	void SetPercentAndAbsoluteVisibility(FDetailWidgetRow& Row, SkeletalMeshTerminationCriterion FirstCriterion, SkeletalMeshTerminationCriterion SecondCriterion);
@@ -156,6 +160,12 @@ private:
 
 	int32 GetNumMaxVerticesCount() const;
 	void SetNumMaxVerticesCount(int32 Value);
+
+	uint32 GetNumMaxTrianglesPercentageCount() const;
+	void SetNumMaxTrianglesPercentageCount(uint32 Value);
+
+	uint32 GetNumMaxVerticesPercentageCount() const;
+	void SetNumMaxVerticesPercentageCount(uint32 Value);
 
 	float GetAccuracyPercentage() const;
 	void SetAccuracyPercentage(float Value);
@@ -220,6 +230,7 @@ private:
 	{
 		float MovementValueFloat = 0.0f;
 		int32 MovementValueInt = 0;
+		uint32 MovementValueUnsignedInt = 0;
 		bool bSliderActiveMode = false;
 	};
 	TArray<FSliderStateData> SliderStateDataArray;
