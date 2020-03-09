@@ -163,14 +163,13 @@ void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore, const FNiag
 {
 	check(DestStore);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreBind);
-	if (!Bindings.Contains(DestStore))
+
+	if (!Algo::FindBy(Bindings, DestStore, &BindingPair::Key))
 	{
-		// Bind the parameter stores only if they have variables in common.
 		FNiagaraParameterStoreBinding HeapBinding;
-		if  (HeapBinding.Initialize(DestStore, this, BoundParameters))
+		if (HeapBinding.Initialize(DestStore, this, BoundParameters))
 		{
-			FNiagaraParameterStoreBinding& Binding = Bindings.FindOrAdd(DestStore);
-			FMemory::Memswap(&Binding, &HeapBinding, sizeof(FNiagaraParameterStoreBinding));
+			Bindings.Emplace(DestStore, HeapBinding);
 		}
 	}
 }
@@ -302,11 +301,15 @@ bool FNiagaraParameterStoreBinding::BindParameters(FNiagaraParameterStore* DestS
 
 void FNiagaraParameterStore::Unbind(FNiagaraParameterStore* DestStore)
 {
-	FNiagaraParameterStoreBinding* Binding = Bindings.Find(DestStore);
-	if (Binding)
+	const int32 BindingIndex = Bindings.IndexOfByPredicate([DestStore](const BindingPair& Binding)
 	{
-		Binding->Empty(DestStore, this);
-		Bindings.Remove(DestStore);
+		return Binding.Key == DestStore;
+	});
+
+	if (BindingIndex != INDEX_NONE)
+	{
+		Bindings[BindingIndex].Value.Empty(DestStore, this);
+		Bindings.RemoveAtSwap(BindingIndex);
 	}
 }
 
@@ -332,10 +335,10 @@ void FNiagaraParameterStore::TransferBindings(FNiagaraParameterStore& OtherStore
 bool FNiagaraParameterStore::VerifyBinding(const FNiagaraParameterStore* DestStore)const
 {
 #if WITH_EDITORONLY_DATA
-	const FNiagaraParameterStoreBinding* Binding = Bindings.Find(DestStore);
+	const BindingPair* Binding = Algo::FindBy(Bindings, DestStore, &BindingPair::Key);
 	if (Binding)
 	{
-		return Binding->VerifyBinding(DestStore, this);
+		return Binding->Value.VerifyBinding(DestStore, this);
 	}
 	else
 	{
