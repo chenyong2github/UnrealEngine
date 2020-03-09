@@ -53,6 +53,8 @@ public:
 	virtual void IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) = 0;
 };
 
+class UClass;
+
 /**
  *
  */
@@ -77,8 +79,7 @@ public:
 
 	virtual void ForceIndexOnAssetsMissingIndex() = 0;
 
-	virtual void RegisterIndexer(FName AssetClassName, IAssetIndexer* Indexer) = 0;
-	virtual void UnregisterIndexer(IAssetIndexer* Indexer) = 0;
+	virtual void RegisterAssetIndexer(const UClass* AssetClass, TUniquePtr<IAssetIndexer>&& Indexer) = 0;
 
 public:
 
