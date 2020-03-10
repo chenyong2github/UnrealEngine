@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/SubTrackEditorBase.h"
+#include "Tracks/MovieSceneCinematicShotTrack.h"
+#include "Tracks/MovieSceneSubTrack.h"
 
 #define LOCTEXT_NAMESPACE "FSubTrackEditorBase"
 
@@ -342,6 +344,39 @@ FFrameNumber FSubSectionEditorUtil::SlipSection(FFrameNumber SlipTime)
     }
 
     return SlipTime;
+}
+
+bool FSubTrackEditorUtil::CanAddSubSequence(const UMovieSceneSequence* CurrentSequence, const UMovieSceneSequence& SubSequence)
+{
+	// Prevent adding ourselves and ensure we have a valid movie scene.
+	if ((CurrentSequence == nullptr) || (CurrentSequence == &SubSequence) || (CurrentSequence->GetMovieScene() == nullptr))
+	{
+		return false;
+	}
+
+	// ensure that the other sequence has a valid movie scene
+	UMovieScene* SequenceMovieScene = SubSequence.GetMovieScene();
+
+	if (SequenceMovieScene == nullptr)
+	{
+		return false;
+	}
+
+	// make sure we are not contained in the other sequence (circular dependency)
+	// @todo sequencer: this check is not sufficient (does not prevent circular dependencies of 2+ levels)
+	UMovieSceneSubTrack* SequenceSubTrack = SequenceMovieScene->FindMasterTrack<UMovieSceneSubTrack>();
+	if (SequenceSubTrack && SequenceSubTrack->ContainsSequence(*CurrentSequence, true))
+	{
+		return false;
+	}
+
+	UMovieSceneCinematicShotTrack* SequenceCinematicTrack = SequenceMovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();
+	if (SequenceCinematicTrack && SequenceCinematicTrack->ContainsSequence(*CurrentSequence, true))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE
