@@ -75,11 +75,13 @@ bool FConcertSessionDatabaseTest::RunTest(const FString& Parameters)
 				AddError(FString::Printf(TEXT("Failed to add transaction activity to server database: %s"), *SessionDatabase_Server.GetLastError()));
 			}
 
-			FConcertSyncPackageActivity PackageActivity;
-			PackageActivity.EndpointId = EndpointId;
-			PackageActivity.EventData.Package.Info.PackageName = TEXT("/Game/TestAsset");
-			SessionDatabase_Server.GetTransactionMaxEventId(PackageActivity.EventData.Package.Info.TransactionEventIdAtSave);
-			if (!SessionDatabase_Server.AddPackageActivity(PackageActivity, ActivityId, EventId))
+			FConcertSyncActivity PackageActivityBasePart;
+			FConcertPackageInfo PackageInfo;
+			FConcertPackageDataStream PackageDataStream;
+			PackageActivityBasePart.EndpointId = EndpointId;
+			PackageInfo.PackageName = TEXT("/Game/TestAsset");
+			SessionDatabase_Server.GetTransactionMaxEventId(PackageInfo.TransactionEventIdAtSave);
+			if (!SessionDatabase_Server.AddPackageActivity(PackageActivityBasePart, PackageInfo, PackageDataStream, ActivityId, EventId))
 			{
 				AddError(FString::Printf(TEXT("Failed to add package activity to server database: %s"), *SessionDatabase_Server.GetLastError()));
 			}
@@ -169,13 +171,18 @@ bool FConcertSessionDatabaseTest::RunTest(const FString& Parameters)
 
 			case EConcertSyncActivityEventType::Package:
 			{
-				FConcertSyncPackageActivity PackageActivity;
-				if (!SessionDatabase_Server.GetPackageActivity(InActivityId, PackageActivity))
+				bool bSetPackageActivitySucceeded = true;
+				bool bGetPackageActivitySucceeded = SessionDatabase_Server.GetPackageActivity(InActivityId, [&](FConcertSyncActivity&& ActivityBasePart, FConcertSyncPackageEventData& ActivityEventPart)
+				{
+					bSetPackageActivitySucceeded = SessionDatabase_Client.SetPackageActivity(ActivityBasePart, ActivityEventPart);
+				});
+
+				if (!bGetPackageActivitySucceeded)
 				{
 					AddError(FString::Printf(TEXT("Failed to get package activity '%s' from server database: %s"), *LexToString(InActivityId), *SessionDatabase_Server.GetLastError()));
 					return false;
 				}
-				if (!SessionDatabase_Client.SetPackageActivity(PackageActivity))
+				if (!bSetPackageActivitySucceeded)
 				{
 					AddError(FString::Printf(TEXT("Failed to set package activity '%s' on client database: %s"), *LexToString(InActivityId), *SessionDatabase_Client.GetLastError()));
 					return false;

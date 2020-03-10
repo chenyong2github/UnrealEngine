@@ -167,20 +167,43 @@ bool MigrateSessionData(const FConcertSyncSessionDatabase& InSourceDatabase, con
 
 			case EConcertSyncActivityEventType::Package:
 			{
-				FConcertSyncPackageActivity PackageActivity;
-				if (!InSourceDatabase.GetActivity(InActivityId, PackageActivity))
+				FConcertSyncActivity PackageActivityBasePart;
+				if (!InSourceDatabase.GetActivity(InActivityId, PackageActivityBasePart)) // This only fill up the part that is common to all activities.
 				{
 					MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get package activity '%s' from database at '%s': %s", *LexToString(InActivityId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
 				}
-				if ((InDestSessionFilter.bIncludeIgnoredActivities || !PackageActivity.bIgnored) && ConcertSyncSessionDatabaseFilterUtil::PackageEventPassesFilter(PackageActivity.EventId, InDestSessionFilter, InSourceDatabase))
+				if ((InDestSessionFilter.bIncludeIgnoredActivities || !PackageActivityBasePart.bIgnored) && ConcertSyncSessionDatabaseFilterUtil::PackageEventPassesFilter(PackageActivityBasePart.EventId, InDestSessionFilter, InSourceDatabase))
 				{
-					if (!InSourceDatabase.GetPackageEvent(PackageActivity.EventId, PackageActivity.EventData, InDestSessionFilter.bMetaDataOnly))
+					if (InDestSessionFilter.bMetaDataOnly)
 					{
-						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get package event '%s' from database at '%s': %s", *LexToString(PackageActivity.EventId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
+						FConcertSyncPackageEventData PackageActivityEventPart;
+						if (!InSourceDatabase.GetPackageEventMetaData(PackageActivityBasePart.EventId, PackageActivityEventPart.MetaData.PackageRevision, PackageActivityEventPart.MetaData.PackageInfo))
+						{
+							check(PackageActivityEventPart.PackageDataStream.DataAr == nullptr);
+							MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get package event '%s' from database at '%s': %s", *LexToString(PackageActivityBasePart.EventId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
+						}
+						// Merge the base part with the event part to reconstruct the package activity.
+						if (!DestDatabase.SetPackageActivity(PackageActivityBasePart, PackageActivityEventPart, InDestSessionFilter.bMetaDataOnly))
+						{
+							MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set package activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+						}
 					}
-					if (!DestDatabase.SetPackageActivity(PackageActivity, InDestSessionFilter.bMetaDataOnly))
+					else
 					{
-						MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to set package activity '%s' on database at '%s': %s", *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+						// Pull the package event required to fill the package specific part of the activity.
+						bool bSuccess = InSourceDatabase.GetPackageEvent(PackageActivityBasePart.EventId, [&DestDatabase, &PackageActivityBasePart, &InDestSessionFilter, InActivityId](FConcertSyncPackageEventData& PackageActivityEventPart)
+						{
+							// Merge the common activity part with the package event to reconstruct and migrate a package activity.
+							if (!DestDatabase.SetPackageActivity(PackageActivityBasePart, PackageActivityEventPart, InDestSessionFilter.bMetaDataOnly))
+							{
+								UE_LOG(LogConcert, Error, TEXT("Failed to set package activity '%s' on database at '%s': %s"), *LexToString(InActivityId), *DestDatabase.GetFilename(), *DestDatabase.GetLastError());
+							}
+						});
+
+						if (!bSuccess)
+						{
+							MIGRATE_SET_ERROR_RESULT_AND_RETURN("Failed to get package event '%s' from database at '%s': %s", *LexToString(PackageActivityBasePart.EventId), *InSourceDatabase.GetFilename(), *InSourceDatabase.GetLastError());
+						}
 					}
 				}
 			}
@@ -230,6 +253,11 @@ void FConcertSyncServer::Shutdown()
 IConcertServerRef FConcertSyncServer::GetConcertServer() const
 {
 	return ConcertServer;
+}
+
+void FConcertSyncServer::SetFileSharingService(TSharedPtr<IConcertFileSharingService> InFileSharingService)
+{
+	FileSharingService = MoveTemp(InFileSharingService);
 }
 
 void FConcertSyncServer::GetSessionsFromPath(const IConcertServer& InServer, const FString& InPath, TArray<FConcertSessionInfo>& OutSessionInfos, TArray<FDateTime>* OutSessionCreationTimes)
@@ -403,7 +431,8 @@ bool FConcertSyncServer::GetSessionActivities(const FConcertSyncSessionDatabase&
 				// If the details are requested, get the package event meta-data, which contain extra info about the package name/version, etc.
 				if (bIncludeDetails)
 				{
-					Database.GetPackageEvent(SyncActivity.EventId, SyncActivity.EventData, true/*bMetaDataOnly*/); // Just get the package event meta-data, the package data is not required to display details.
+					// Don't pull the package data, it can be huge (few GB) and is not useful in the context of this function design. (It is used to display extra info in UI and parsing the large package data is not practical)
+					Database.GetPackageEventMetaData(SyncActivity.EventId, SyncActivity.EventData.PackageRevision, SyncActivity.EventData.Package.Info);
 				}
 
 				SerializedSyncActivityPayload.SetTypedPayload(SyncActivity);
@@ -441,7 +470,7 @@ void FConcertSyncServer::CreateWorkspace(const TSharedRef<FConcertSyncServerLive
 {
 	check(InLiveSession->IsValidSession());
 	DestroyWorkspace(InLiveSession);
-	LiveSessionWorkspaces.Add(InLiveSession->GetSession().GetId(), MakeShared<FConcertServerWorkspace>(InLiveSession));
+	LiveSessionWorkspaces.Add(InLiveSession->GetSession().GetId(), MakeShared<FConcertServerWorkspace>(InLiveSession, FileSharingService));
 }
 
 void FConcertSyncServer::DestroyWorkspace(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession)

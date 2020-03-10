@@ -23,3 +23,29 @@ bool ConcertUtil::DeleteDirectoryTree(const TCHAR* InDirectoryToDelete, const TC
 
 	return true;
 }
+
+bool ConcertUtil::Copy(FArchive& DstAr, FArchive& SrcAr, int64 Size)
+{
+	check(DstAr.IsSaving() && SrcAr.IsLoading());
+
+	constexpr int64 DataChunkSize = 4 * 1024; // 4K is a typical low level block size.
+	TArray<uint8> DataChunk;
+	DataChunk.AddUninitialized(static_cast<int32>(DataChunkSize));
+
+	// Copy full 4K block from the source to dest.
+	int64 ChunkCount = Size / DataChunkSize;
+	while (ChunkCount > 0)
+	{
+		SrcAr.Serialize(DataChunk.GetData(), DataChunkSize); // Read.
+		DstAr.Serialize(DataChunk.GetData(), DataChunkSize); // Write.
+		--ChunkCount;
+	}
+
+	// Copy the last few bytes remaining.
+	int64 Remaining = Size % DataChunkSize;
+	SrcAr.Serialize(DataChunk.GetData(), Remaining); // Read.
+	DstAr.Serialize(DataChunk.GetData(), Remaining); // Write.
+
+	return !SrcAr.IsError() && !DstAr.IsError();
+}
+

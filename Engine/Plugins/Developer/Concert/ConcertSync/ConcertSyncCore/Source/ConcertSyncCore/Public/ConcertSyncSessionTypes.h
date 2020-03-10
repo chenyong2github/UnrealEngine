@@ -122,6 +122,44 @@ struct FConcertSyncPackageEvent
 	FConcertPackage Package;
 };
 
+/** Meta data for a package event in a Concert Sync Session. */
+USTRUCT()
+struct FConcertSyncPackageEventMetaData
+{
+	GENERATED_BODY()
+
+	/** The revision of this package within the session. */
+	UPROPERTY()
+	int64 PackageRevision = 0;
+
+	/** Contains information about the package event such as the package name, the event type, if this was triggered by an auto-save, etc. */
+	UPROPERTY()
+	FConcertPackageInfo PackageInfo;
+};
+
+/** Used to stream the package data. */
+struct FConcertPackageDataStream
+{
+	/** The package data, positioned to read the first byte of package data, not necessarily at zero, some unrelated data can be store before. Can be null. */
+	FArchive* DataAr = nullptr;
+
+	/** The size of the package data. Can 0 up to several GB large. Does't necessarily extend to the end of the archive, some unrelated data can be stored after.*/
+	int64 DataSize = 0;
+
+	/** An array of bytes containing the package data if the data was already available in memory, null otherwise. Can optimize few cases when available. */
+	const TArray<uint8>* DataBlob = nullptr;
+};
+
+/** Contains a package event where the package data is represented by a stream because it can be very large (several GB) */
+struct FConcertSyncPackageEventData
+{
+	/** The package event meta data.*/
+	FConcertSyncPackageEventMetaData MetaData;
+
+	/** The package data. */
+	FConcertPackageDataStream PackageDataStream;
+};
+
 /** Data for an activity entry in a Concert Sync Session */
 USTRUCT()
 struct FConcertSyncActivity
@@ -354,8 +392,12 @@ struct CONCERTSYNCCORE_API FConcertSyncPackageActivitySummary : public FConcertS
 	UPROPERTY()
 	bool bAutoSave = false;
 
+	/** Are we summarizing a pre-save update? */
+	UPROPERTY()
+	bool bPreSave = false;
+
 	/** Create this summary from a package event */
-	static FConcertSyncPackageActivitySummary CreateSummaryForEvent(const FConcertSyncPackageEvent& InEvent);
+	static FConcertSyncPackageActivitySummary CreateSummaryForEvent(const FConcertPackageInfo& InEvent);
 
 protected:
 	//~ FConcertSyncActivitySummary interface
