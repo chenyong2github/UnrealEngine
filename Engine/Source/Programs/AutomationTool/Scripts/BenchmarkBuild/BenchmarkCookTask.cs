@@ -20,10 +20,13 @@ namespace AutomationTool.Benchmark
 
 		string			CookArgs;
 
-		public BenchmarkCookTask(string InProject, UnrealTargetPlatform InPlatform, EditorTaskOptions InOptions, string InCookArgs)
-			: base(InProject, InOptions)
+		bool			CookAsClient;
+
+		public BenchmarkCookTask(FileReference InProjectFile, UnrealTargetPlatform InPlatform, bool bCookAsClient, DDCTaskOptions InOptions, string InCookArgs)
+			: base(InProjectFile, InOptions, InCookArgs)
 		{
 			CookArgs = InCookArgs;
+			CookAsClient = bCookAsClient;
 
 			var PlatformToCookPlatform = new Dictionary<UnrealTargetPlatform, string> {
 				{ UnrealTargetPlatform.Win64, "WindowsClient" },
@@ -39,27 +42,7 @@ namespace AutomationTool.Benchmark
 				CookPlatformName = PlatformToCookPlatform[InPlatform];
 			}
 
-			TaskName = string.Format("Cook {0} {1}", InProject, CookPlatformName);
-
-			if (TaskOptions.HasFlag(EditorTaskOptions.NoDDC))
-			{
-				TaskModifiers.Add("noddc");
-			}
-
-			if (TaskOptions.HasFlag(EditorTaskOptions.NoShaderDDC))
-			{
-				TaskModifiers.Add("noshaderddc");
-			}
-
-			if (TaskOptions.HasFlag(EditorTaskOptions.ColdDDC))
-			{
-				TaskModifiers.Add("coldddc");
-			}
-
-			if (!string.IsNullOrEmpty(CookArgs))
-			{
-				TaskModifiers.Add(CookArgs);
-			}
+			TaskName = string.Format("Cook {0} {1}", ProjectName, CookPlatformName);			
 		}
 
 		protected override bool PerformPrequisites()
@@ -76,19 +59,13 @@ namespace AutomationTool.Benchmark
 			}
 
 			// Do a cook to make sure the remote ddc is warm?
-			if (TaskOptions.HasFlag(EditorTaskOptions.HotDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
 			{
 				// will throw an exception if it fails
 				CommandUtils.RunCommandlet(ProjectFile, "UE4Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} ", CookPlatformName));
 			}
 
-			if (TaskOptions.HasFlag(EditorTaskOptions.ColdDDC))
-			{
-				//DeleteLocalDDC(ProjectFile);
-			}
-
 			base.PerformPrequisites();
-
 			return true;
 		}
 
@@ -96,18 +73,18 @@ namespace AutomationTool.Benchmark
 		{
 			List<string> ExtraArgsList = new List<string>();
 			
-			if (TaskOptions.HasFlag(EditorTaskOptions.CookClient))
+			if (CookAsClient)
 			{
 				ExtraArgsList.Add("client");
 			}
 
-			if (TaskOptions.HasFlag(EditorTaskOptions.NoShaderDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
 			{
 				ExtraArgsList.Add("noshaderddc");
 				//ExtraArgs.Add("noxgeshadercompile");
 			}
 
-			if (TaskOptions.HasFlag(EditorTaskOptions.NoDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoDDC))
 			{
 				ExtraArgsList.Add("ddc=noshared");
 			}
