@@ -110,7 +110,10 @@ FNiagaraScriptViewModel::~FNiagaraScriptViewModel()
 		}
 	}
 
-	GEditor->UnregisterForUndo(this);
+	if (GEditor != nullptr)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
 
 	for (TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>::Handle RegisteredHandle : RegisteredHandles)
 	{
