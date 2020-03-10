@@ -237,6 +237,15 @@ void BloomPS_ES2(
 	)
 {
 	half3 AverageColor = 0.0f;
+
+#if USE_PREEXPOSURE
+	const float OneOverPreExposure = View.OneOverPreExposure;
+	const float PreExposure = View.PreExposure;
+#else
+	const float OneOverPreExposure = 1.0f;
+	const float PreExposure = View.PreExposure;
+#endif
+
 #if ES2_USE_BLOOM || ES2_USE_SUN || ES2_USE_EYEADAPTATION
 	half4 C0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0]);
 	half4 C1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]);
@@ -257,7 +266,7 @@ void BloomPS_ES2(
 	#endif
 
 	// Try to kill negatives and NaNs here
-	AverageColor.rgb = max(AverageColor.rgb, 0);
+	AverageColor.rgb = max(AverageColor.rgb, 0) * OneOverPreExposure;
 
 	
 	#if ES2_USE_BLOOM || ES2_USE_SUN
@@ -272,7 +281,7 @@ void BloomPS_ES2(
 		OutColor.rgb *= Amount;
 		OutColor.a = 0;
 
-		OutColor = OutColor;
+		OutColor = OutColor * PreExposure;
 	#endif
 #endif
 
@@ -319,10 +328,6 @@ void BloomPS_ES2(
 #endif
 
 #if ES2_USE_EYEADAPTATION
-
-	#if USE_PREEXPOSURE
-		AverageColor.xyz *= View.OneOverPreExposure;
-	#endif
 
 	const half Intensity = max(dot(AverageColor, half3(1.0f, 1.0f, 1.0f) / 3.0f), EyeAdaptation_LuminanceMin);
 	const float LogIntensity = clamp(log2(Intensity), -10.0f, 20.0f);
