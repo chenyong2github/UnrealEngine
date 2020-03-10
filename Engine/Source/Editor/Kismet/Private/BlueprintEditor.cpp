@@ -8169,8 +8169,13 @@ bool FBlueprintEditor::CanAddNewLocalVariable() const
 {
 	if (InEditingMode())
 	{
-		UEdGraph* TargetGraph = FBlueprintEditorUtils::GetTopLevelGraph(FocusedGraphEdPtr.Pin()->GetCurrentGraph());
+		TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+		if (!FocusedGraphEd.IsValid())
+		{
+			return false;
+		}
 
+		UEdGraph* TargetGraph = FBlueprintEditorUtils::GetTopLevelGraph(FocusedGraphEd->GetCurrentGraph());
 		return TargetGraph->GetSchema()->GetGraphType(TargetGraph) == GT_Function;
 	}
 	return false;
