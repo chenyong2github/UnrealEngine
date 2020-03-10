@@ -10,18 +10,6 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
-struct FHairStrandsVoxelResources
-{
-	TRefCountPtr<IPooledRenderTarget> DensityTexture;
-	TRefCountPtr<IPooledRenderTarget> TangentXTexture;
-	TRefCountPtr<IPooledRenderTarget> TangentYTexture;
-	TRefCountPtr<IPooledRenderTarget> TangentZTexture;
-	TRefCountPtr<IPooledRenderTarget> MaterialTexture;
-	FMatrix WorldToClip;
-	FVector MinAABB;
-	FVector MaxAABB;
-};
-
 struct FVirtualVoxelNodeDesc
 {
 	FVector WorldMinAABB = FVector::ZeroVector;
@@ -93,8 +81,6 @@ struct FVirtualVoxelResources
 /// Global enable/disable for hair voxelization
 bool IsHairStrandsVoxelizationEnable();
 bool IsHairStrandsForVoxelTransmittanceAndShadowEnable();
-float GetHairStrandsVoxelizationDensityScale();
-float GetHairStrandsVoxelizationDepthBiasScale();
 
 void VoxelizeHairStrands(
 	FRHICommandListImmediate& RHICmdList,
