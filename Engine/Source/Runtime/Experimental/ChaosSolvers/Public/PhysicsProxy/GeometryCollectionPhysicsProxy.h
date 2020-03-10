@@ -130,6 +130,8 @@ public:
 		UObject* InOwner, 
 		FGeometryDynamicCollection& GameThreadCollection,
 		const FSimulationParameters& SimulationParameters,
+		FCollisionFilterData InSimFilter,
+		FCollisionFilterData InQueryFilter,
 		FInitFunc InInitFunc, 
 		FCacheSyncFunc InCacheSyncFunc, 
 		FFinalSyncFunc InFinalSyncFunc  ,
@@ -229,6 +231,8 @@ public:
 	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs) {}
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) {}
 
+	bool IsGTCollectionDirty() const { return GameThreadCollection.IsDirty(); }
+
 protected:
 	/**
 	 * Build a physics thread cluster parent particle.
@@ -295,6 +299,11 @@ private:
 	//
 	bool IsObjectDynamic; // Records current dynamic state
 	bool IsObjectLoading; // Indicate when loaded
+
+	TManagedArray<TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>> GTParticles;
+	FCollisionFilterData SimFilter;
+	FCollisionFilterData QueryFilter;
+
 	TArray<int32> EndFrameUnparentingBuffer;
 	// This is a subset of the geometry group that are used in the transform hierarchy to represent geometry
 	TArray<FBox> ValidGeometryBoundingBoxes;

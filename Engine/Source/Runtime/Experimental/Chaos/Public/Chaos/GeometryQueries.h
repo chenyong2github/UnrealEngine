@@ -213,7 +213,7 @@ namespace Chaos
 				}
 				else
 				{
-					check(false);	//unsupported query type
+					ensureMsgf(false, TEXT("Unsupported query type: %u"), (uint8)AType);
 				}
 
 			}
