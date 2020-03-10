@@ -647,7 +647,6 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection.Transform, DynamicCollection.Parent, Transform);
-		check(DynamicCollection.Transform.Num() == Transform.Num());
 
 		const int NumRigids = 0; // ryan - Since we're doing SOA, we start at zero?
 		BaseParticleIndex = NumRigids;
@@ -1655,6 +1654,7 @@ void FGeometryCollectionPhysicsProxy::PullFromPhysicsState()
 				DynamicCollection.Transform[TmIndex] = LocalTransform;
 				GTParticles[TmIndex]->SetX(ParticleToWorld.GetTranslation());
 				GTParticles[TmIndex]->SetR(ParticleToWorld.GetRotation());
+				DynamicCollection.Parent[TmIndex] = FGeometryCollection::Invalid;
 			}
 
 			DynamicCollection.DynamicState[TmIndex] = TR.DynamicState[TmIndex];
