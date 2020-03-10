@@ -563,10 +563,10 @@ public:
 
 	struct FResourceParameter
 	{
-		DECLARE_INLINE_TYPE_LAYOUT(FResourceParameter, NonVirtual);
-
-		LAYOUT_FIELD(uint16, BaseIndex);
+		DECLARE_INLINE_TYPE_LAYOUT(FResourceParameter, NonVirtual);		
 		LAYOUT_FIELD(uint16, ByteOffset);
+		LAYOUT_FIELD(uint8, BaseIndex);
+		LAYOUT_FIELD(EUniformBufferBaseType, BaseType);
 
 	};
 
@@ -587,13 +587,7 @@ public:
 	void BindForRootShaderParameters(const FShader* Shader, const FShaderParameterMap& ParameterMaps);
 
 	LAYOUT_FIELD(TMemoryImageArray<FParameter>, Parameters);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, Textures);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, SRVs);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, UAVs);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, Samplers);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphTextures);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphSRVs);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphUAVs);
+	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, ResourceParameters);
 	LAYOUT_FIELD(TMemoryImageArray<FParameterStructReference>, ParameterReferences);
 
 	// Hash of the shader parameter structure when doing the binding.
