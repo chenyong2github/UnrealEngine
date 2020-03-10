@@ -53,12 +53,7 @@ struct FHairStrandsMacroGroupData
 	typedef TArray<PrimitiveGroup, SceneRenderingAllocator> TPrimitiveGroups;
 
 
-	FVector GetMinBound() const { return VoxelResources.MinAABB; }
-	FVector GetMaxBound() const { return VoxelResources.MaxAABB; }
-	uint32  GetResolution() const { return VoxelResources.DensityTexture ? VoxelResources.DensityTexture->GetDesc().Extent.X : 0; }
-
 	FVirtualVoxelNodeDesc VirtualVoxelNodeDesc;
-	FHairStrandsVoxelResources VoxelResources;
 	FHairStrandsDeepShadowDatas DeepShadowDatas;
 	TPrimitiveInfos PrimitivesInfos;
 	TPrimitiveGroups PrimitivesGroups;
