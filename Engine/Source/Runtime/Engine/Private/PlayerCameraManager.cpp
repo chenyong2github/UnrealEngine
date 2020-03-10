@@ -591,7 +591,11 @@ void APlayerCameraManager::UpdateCameraLensEffects(const FTViewTarget& OutVT)
 
 void APlayerCameraManager::ApplyAudioFade()
 {
-	if (GEngine)
+	if (OnAudioFadeChangeEvent.IsBound())
+	{
+		OnAudioFadeChangeEvent.Broadcast(true, 1.f - FadeAmount);
+	}
+	else if (GEngine)
 	{
 		UWorld* World = GetWorld();
 		if (World)
@@ -606,7 +610,11 @@ void APlayerCameraManager::ApplyAudioFade()
 
 void APlayerCameraManager::StopAudioFade()
 {
-	if (GEngine)
+	if (OnAudioFadeChangeEvent.IsBound())
+	{
+		OnAudioFadeChangeEvent.Broadcast(false, 1.f);
+	}
+	else if (GEngine)
 	{
 		UWorld* World = GetWorld();
 		if (World)
