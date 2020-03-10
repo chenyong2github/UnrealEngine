@@ -838,6 +838,18 @@ FDatasmithImporterImpl::FScopedFinalizeActorChanges::~FScopedFinalizeActorChange
 
 bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& PackageName, FDatasmithImportContext& ImportContext, const FString& Extension)
 {
+	FText OutReason;
+	if(!CheckAssetPersistenceValidity(PackageName, ImportContext, Extension, OutReason))
+	{
+		ImportContext.LogWarning(OutReason);
+		return false;
+	}
+
+	return true;
+}
+
+bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& PackageName, FDatasmithImportContext& ImportContext, const FString& Extension, FText& OutReason)
+{
 	// Check that package can be saved
 	const FString BasePackageFileName = FPackageName::LongPackageNameToFilename( PackageName );
 	const FString AbsolutePathToAsset = FPaths::ConvertRelativePathToFull( BasePackageFileName );
@@ -845,13 +857,12 @@ bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& Packag
 	// Create fake filename of same length of final asset file name to test ability to write
 	const FString FakeAbsolutePathToAsset = AbsolutePathToAsset + Extension;
 
-	bool bValidPersistence = true;
+	OutReason = FText::GetEmpty();
 
 	// Verify asset file name does not exceed OS' maximum path length
 	if( FPlatformMisc::GetMaxPathLength() < FakeAbsolutePathToAsset.Len() )
 	{
-		ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithImportInvalidLength", "Saving may partially fail because path for asset {0} is too long. Rename before saving."), FText::FromString( PackageName )));
-		bValidPersistence = false;
+		OutReason = FText::Format(LOCTEXT("DatasmithImportInvalidLength", "Saving may partially fail because path for asset {0} is too long. Rename before saving."), FText::FromString( PackageName ));
 	}
 	// Verify user can overwrite existing file
 	else if( IFileManager::Get().FileExists( *FakeAbsolutePathToAsset ) )
@@ -860,7 +871,7 @@ bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& Packag
 		if ( FileStatData.bIsReadOnly )
 		{
 			// Check to see if the file is not under source control
-			bool bWarnUser = true;
+			bool bCanCheckedOut = false;
 
 			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 			if (SourceControlProvider.IsAvailable() && SourceControlProvider.IsEnabled())
@@ -870,14 +881,13 @@ bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& Packag
 				if( SourceControlState.IsValid() && SourceControlState->CanCheckout() )
 				{
 					// User will be prompted to check out this file when he/she saves the asset. No need to warn.
-					bWarnUser = false;
+					bCanCheckedOut = true;
 				}
 			}
 
-			if(bWarnUser)
+			if(!bCanCheckedOut)
 			{
-				ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithImportInvalidSaving", "Saving may partially fail because file asset {0} cannot be overwritten. Check your privileges."), FText::FromString( PackageName )));
-				bValidPersistence = false;
+				OutReason = FText::Format(LOCTEXT("DatasmithImportInvalidSaving", "Saving may partially fail because file asset {0} cannot be overwritten. Check your privileges."), FText::FromString( PackageName ));
 			}
 		}
 	}
@@ -904,8 +914,7 @@ bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& Packag
 
 		if(WarningState != EWriteDisallowedWarningState::WDWS_WarningUnnecessary)
 		{
-			ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithImportInvalidFolder", "Cannot write in folder {0} to store asset {1}. Check access to folder."), FText::FromString( FPaths::GetPath( FakeAbsolutePathToAsset ) ), FText::FromString( PackageName )));
-			bValidPersistence = false;
+			OutReason = FText::Format(LOCTEXT("DatasmithImportInvalidFolder", "Cannot write in folder {0} to store asset {1}. Check access to folder."), FText::FromString( FPaths::GetPath( FakeAbsolutePathToAsset ) ), FText::FromString( PackageName ));
 		}
 	}
 
@@ -938,11 +947,10 @@ bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& Packag
 
 	if (AbsoluteCookPathToAsset.Len() > MaxCookPath)
 	{
-		ImportContext.LogWarning(FText::Format(LOCTEXT("DatasmithImportInvalidCooking", "Cooking may fail because path for asset {0} is too long. Rename before cooking."), FText::FromString(PackageName)));
-		bValidPersistence = false;
+		OutReason = FText::Format(LOCTEXT("DatasmithImportInvalidCooking", "Cooking may fail because path for asset {0} is too long. Rename before cooking."), FText::FromString(PackageName));
 	}
 
-	return bValidPersistence;
+	return OutReason.IsEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE
