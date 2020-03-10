@@ -3687,7 +3687,10 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 				UpdatedSceneInfos.Add(Primitive);
 			}
 		}
-		FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, UpdatedSceneInfos);
+		if (UpdatedSceneInfos.Num() > 0)
+		{
+			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, UpdatedSceneInfos);
+		}
 		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Reset();
 	}
 
@@ -3917,7 +3920,11 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 				int32 PrimitiveIndex = BitIt.GetIndex();
 				AddedSceneInfos.Add(Scene->Primitives[PrimitiveIndex]);
 			}
-			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, AddedSceneInfos);
+
+			if (AddedSceneInfos.Num() > 0)
+			{
+				FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, AddedSceneInfos);
+			}
 		}
 
 		// ISR views can't compute relevance until all views are frustum culled
