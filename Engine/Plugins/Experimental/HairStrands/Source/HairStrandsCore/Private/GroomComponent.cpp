@@ -573,6 +573,10 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset)
 	{
 		GroomAsset = Asset;
 	}
+	else
+	{
+		GroomAsset = nullptr;
+	}
 
 	if (!UGroomBindingAsset::IsBindingAssetValid(BindingAsset) || !UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset))
 	{
@@ -580,7 +584,7 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset)
 	}
 
 	UpdateHairGroupsDesc();
-	if (!Asset)
+	if (!GroomAsset)
 		return;
 	InitResources();
 }
@@ -592,6 +596,10 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBi
 	if (Asset && Asset->IsValid())
 	{
 		GroomAsset = Asset;
+	}
+	else
+	{
+		GroomAsset = nullptr;
 	}
 	BindingAsset = InBinding;
 	if (!UGroomBindingAsset::IsBindingAssetValid(BindingAsset) || !UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset))
@@ -605,7 +613,7 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBi
 	}
 
 	UpdateHairGroupsDesc();
-	if (!Asset)
+	if (!GroomAsset)
 		return;
 	InitResources();
 	ResetSimulation(this);
