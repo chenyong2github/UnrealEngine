@@ -21,11 +21,12 @@ public:
 	USoundEffectPreset(const FObjectInitializer& ObjectInitializer);
 	virtual ~USoundEffectPreset();
 
+	virtual bool CanFilter() const { return true; }
 	virtual FText GetAssetActionName() const PURE_VIRTUAL(USoundEffectPreset::GetAssetActionName, return FText(););
 	virtual UClass* GetSupportedClass() const PURE_VIRTUAL(USoundEffectPreset::GetSupportedClass, return nullptr;);
 	virtual USoundEffectPreset* CreateNewPreset(UObject* InParent, FName Name, EObjectFlags Flags) const PURE_VIRTUAL(USoundEffectPreset::CreateNewPreset, return nullptr;);
 	virtual FSoundEffectBase* CreateNewEffect() const PURE_VIRTUAL(USoundEffectPreset::CreateNewEffect, return nullptr;);
-	virtual bool HasAssetActions() const { return true; }
+	virtual bool HasAssetActions() const { return false; }
 	virtual void Init() PURE_VIRTUAL(USoundEffectPreset::Init, );
 	virtual void OnInit() {};
 	virtual FColor GetPresetColor() const { return FColor(200.0f, 100.0f, 100.0f); }
@@ -35,8 +36,7 @@ public:
 	void AddEffectInstance(FSoundEffectBase* InSource);
 	void RemoveEffectInstance(FSoundEffectBase* InSource);
 
-	void AddReferencedEffects(FReferenceCollector& Collector);
-
+	void AddReferencedEffects(FReferenceCollector& InCollector);
 
 	virtual void BeginDestroy() override;
 
@@ -49,4 +49,16 @@ protected:
 	// Array of instances which are using this preset
 	TArray<FSoundEffectBase*> Instances;
 	bool bInitialized;
+
+	template <typename T>
+	void IterateEffects(TFunction<void(T&)> InForEachEffect)
+	{
+		for (FSoundEffectBase* Instance : Instances)
+		{
+			if (Instance)
+			{
+				InForEachEffect(*static_cast<T*>(Instance));
+			}
+		}
+	}
 };
