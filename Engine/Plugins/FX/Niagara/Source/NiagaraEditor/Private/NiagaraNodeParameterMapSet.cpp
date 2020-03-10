@@ -12,6 +12,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraph/EdGraphNode.h"
+#include "NiagaraScriptVariable.h"
 
 #include "ScopedTransaction.h"
 
@@ -84,6 +85,16 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 	{
 		TArray<UEdGraphPin*> InputPins;
 		GetInputPins(InputPins);
+		
+		// Determine if this is already namespaced or not. We need to do things differently below if not...
+		FName NewPinName = NewPin->GetFName();
+		bool bCreatedNamespace = false;
+		FName PinNameWithoutNamespace;
+		if (FNiagaraEditorUtilities::DecomposeVariableNamespace(NewPinName, PinNameWithoutNamespace).Num() == 0)
+		{
+			NewPinName = *(PARAM_MAP_LOCAL_MODULE_STR +  NewPinName.ToString());
+			bCreatedNamespace = true;
+		}
 
 		TSet<FName> Names;
 		for (const UEdGraphPin* Pin : InputPins)
@@ -93,9 +104,29 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 				Names.Add(Pin->GetFName());
 			}
 		}
-		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(*NewPin->GetName(), Names);
+		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewPinName, Names);
+
+		//GetDefault<UEdGraphSchema_Niagara>()->PinToNiagaraVariable()
 		NewPin->PinName = NewUniqueName;
 		NewPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
+		
+		// If dragging from a function or other non-namespaced parent node, we should 
+		// make a local variable to contain the value by default.
+		if (bCreatedNamespace && GetNiagaraGraph())
+		{
+			const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+			FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(NewPin, false);
+			UNiagaraGraph::FAddParameterOptions AddParameterOptions = UNiagaraGraph::FAddParameterOptions();
+
+			//FNiagaraEditorUtilities::GetParameterMetaDataFromName(NewUniqueName, MetaDataGuess);
+			//AddParameterOptions.NewParameterScopeName = FNiagaraConstants::LocalNamespace;
+			//AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Local;
+			AddParameterOptions.bMakeParameterNameUnique = true;
+			AddParameterOptions.bRefreshMetaDataScopeAndUsage = true;
+
+			UNiagaraScriptVariable* Var = GetNiagaraGraph()->AddParameter(PinVariable, AddParameterOptions);
+			NewPin->PinName = Var->Variable.GetName();
+		}
 		UpdateAddedPinMetaData(NewPin);
 	}
 
