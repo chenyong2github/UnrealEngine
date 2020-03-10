@@ -249,7 +249,7 @@ private:
 	/**
 	 * Destroys any resources allocated for GPU simulation for this system.
 	 */
-	void DestroyGPUSimulation();
+	virtual void DestroyGPUSimulation();
 
 	/**
 	 * Initializes GPU resources.
