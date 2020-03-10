@@ -6,6 +6,9 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
+#include "Misc/Paths.h"
+#include "HAL/PlatformProcess.h"
+
 
 FConcertLocalFileSharingService::FConcertLocalFileSharingService(const FString& Role)
 	: SharedRootPathname(FPaths::EngineIntermediateDir() / Role / TEXT("TempFileShare")) // The EngineIntermediateDir is expected to be know of both the client and the server.
