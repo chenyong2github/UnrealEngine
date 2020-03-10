@@ -174,6 +174,19 @@ TLevelSet<T, d>::~TLevelSet()
 }
 
 template<typename T, int d>
+TUniquePtr<FImplicitObject> TLevelSet<T, d>::DeepCopy() const
+{
+	TLevelSet<T, d>* Copy = new TLevelSet<T, d>();
+	Copy->MGrid = MGrid;
+	Copy->MPhi.Copy(MPhi);
+	Copy->MNormals.Copy(MNormals);
+	Copy->MLocalBoundingBox = MLocalBoundingBox;
+	Copy->MOriginalLocalBoundingBox = MOriginalLocalBoundingBox;
+	Copy->MBandWidth = MBandWidth;
+	return TUniquePtr<FImplicitObject>(Copy);
+}
+
+template<typename T, int d>
 bool TLevelSet<T, d>::ComputeMassProperties(T& OutVolume, TVector<T, d>& OutCOM, PMatrix<T, d, d>& OutInertia, TRotation<T, d>& OutRotationOfMass) const
 {
 	TVector<T, d> COM(0);
