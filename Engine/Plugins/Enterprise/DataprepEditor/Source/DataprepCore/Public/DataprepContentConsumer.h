@@ -70,6 +70,12 @@ struct FDataprepConsumerContext
 		return *this;
 	}
 
+	FDataprepConsumerContext& SetSilentMode( bool InSilentMode )
+	{
+		bSilentMode = InSilentMode;
+		return *this;
+	}
+
 	/** Hold onto the world the consumer will process */
 	TWeakObjectPtr< UWorld > WorldPtr;
 
