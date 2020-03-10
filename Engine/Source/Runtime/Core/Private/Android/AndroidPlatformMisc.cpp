@@ -142,6 +142,18 @@ void FAndroidMisc::RequestExit( bool Force )
 	}
 }
 
+extern void AndroidThunkCpp_RestartApplication(const FString& IntentString);
+
+bool FAndroidMisc::RestartApplication()
+{
+#if USE_ANDROID_JNI
+	AndroidThunkCpp_RestartApplication(TEXT(""));
+	return true;
+#else
+	return FGenericPlatformMisc::RestartApplication();
+#endif
+}
+
 void FAndroidMisc::LocalPrint(const TCHAR *Message)
 {
 	// Builds for distribution should not have logging in them:
