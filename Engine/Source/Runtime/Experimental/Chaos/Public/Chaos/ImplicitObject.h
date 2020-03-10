@@ -165,6 +165,7 @@ public:
 	virtual bool IsValidGeometry() const;
 
 	virtual TUniquePtr<FImplicitObject> Copy() const;
+	virtual TUniquePtr<FImplicitObject> DeepCopy() const { return Copy(); }
 
 	//This is strictly used for optimization purposes
 	bool IsUnderlyingUnion() const;
