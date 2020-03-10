@@ -170,6 +170,11 @@ public:
 		new (&TaskContext.MinimalPipelineStatePassSet) FGraphicsMinimalPipelineStateSet();
 	}
 
+	void FreeCreateSnapshot()
+	{
+		TaskContext.MinimalPipelineStatePassSet.~FGraphicsMinimalPipelineStateSet();
+	}
+
 private:
 	FRHIVertexBuffer* PrimitiveIdVertexBufferRHI;
 	FMeshDrawCommandPassSetupTaskContext TaskContext;
