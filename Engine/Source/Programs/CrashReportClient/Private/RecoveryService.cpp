@@ -16,6 +16,7 @@
 #include "IConcertSyncServerModule.h"
 #include "ConcertMessageData.h"
 #include "Runtime/Launch/Resources/Version.h"
+#include "ConcertLocalFileSharingService.h"
 
 static const TCHAR RecoveryServiceName[] = TEXT("Disaster Recovery Service");
 
@@ -94,6 +95,7 @@ bool FRecoveryService::Startup()
 
 	// Start disaster recovery server.
 	Server = IConcertSyncServerModule::Get().CreateServer(TEXT("DisasterRecovery"), AutoArchiveSessionFilter);
+	Server->SetFileSharingService(MakeShared<FConcertLocalFileSharingService>(Server->GetConcertServer()->GetRole()));
 	Server->Startup(ServerConfig, EConcertSyncSessionFlags::Default_DisasterRecoverySession);
 
 	UE_LOG(CrashReportClientLog, Display, TEXT("%s Initialized (Name: %s, Version: %d.%d, Role: %s)"), RecoveryServiceName, *Server->GetConcertServer()->GetServerInfo().ServerName, ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, *Server->GetConcertServer()->GetRole());

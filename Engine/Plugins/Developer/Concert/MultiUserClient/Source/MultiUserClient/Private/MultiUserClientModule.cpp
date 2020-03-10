@@ -10,7 +10,9 @@
 #include "ConcertLogGlobal.h"
 #include "ConcertFrontendStyle.h"
 #include "ConcertSyncSettings.h"
+#include "ConcertWorkspaceData.h"
 #include "ConcertWorkspaceUI.h"
+#include "ConcertUtil.h"
 #include "MultiUserClientUtils.h"
 
 #include "Misc/App.h"
@@ -594,6 +596,10 @@ public:
 			ClientConfig->bAutoConnect = false; // Prevent user from auto-connecting if there is no compatible plugin loaded to find and communicate with the server.
 		}
 
+		// Handle notification when a session is staring or ending.
+		MultiUserClient->OnWorkspaceStartup().AddRaw(this, &FMultiUserClientModule::OnWorkspaceStartup);
+		MultiUserClient->OnWorkspaceShutdown().AddRaw(this, &FMultiUserClientModule::OnWorkspaceShutdown);
+
 		// Boot the client instance
 		MultiUserClient->Startup(ClientConfig, EConcertSyncSessionFlags::Default_MultiUserSession);
 
@@ -733,6 +739,36 @@ public:
 	}
 
 private:
+	void OnWorkspaceStartup(const TSharedPtr<IConcertClientWorkspace>& InWorkspace)
+	{
+		//InWorkspace.OnPackageTooLargeError().AddRaw(this, &FMultiUserClientModule::HandlePackageTooLargeError);
+	}
+
+	void OnWorkspaceShutdown(const TSharedPtr<IConcertClientWorkspace>& InWorkspace)
+	{
+		//InWorkspace.OnPackageTooLargeError().RemoveAll(this);
+	}
+
+	void HandlePackageTooLargeError(const FConcertPackageInfo& PackageInfo, int64 PackageSize, int64 MaxPackageSizeSupported)
+	{
+		if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Added)
+		{
+			UE_LOG(LogConcert, Warning, TEXT("The newly added package '%s' was too large (%s) to be synchronized on other Multi-User clients. It is recommended to save the package, leave and persist the session, submit the file to the source control, sync all clients to this submit and create a new session."), *PackageInfo.PackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
+		}
+		else if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Saved)
+		{
+			UE_LOG(LogConcert, Warning, TEXT("The saved package '%s' was too large (%s) to be synchronized on other Multi-User clients. It is recommended to leave and persist the session, submit the file to the source control, sync all clients to this submit and create a new session."), *PackageInfo.PackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
+		}
+		else if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Renamed)
+		{
+			UE_LOG(LogConcert, Warning, TEXT("The renamed package '%s' was too large (%s) to be synchronized on other Multi-User clients. It is recommended to leave and persist the session, submit the file to the source control, sync all clients to this submit and create a new session."), *PackageInfo.NewPackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
+		}
+		else // Other events are not expected to trigger a 'too large' error, but log it if something unexpected slips in.
+		{
+			UE_LOG(LogConcert, Error, TEXT("A package event on package '%s' was unexpectedly ignored because the package was too large (%s)."), *PackageInfo.PackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
+		}
+	}
+
 	void RegisterUI()
 	{
 		bHasRegisteredTabSpawners = false;
@@ -836,6 +872,9 @@ private:
 
 		if (MultiUserClient)
 		{
+			MultiUserClient->OnWorkspaceStartup().RemoveAll(this);
+			MultiUserClient->OnWorkspaceShutdown().RemoveAll(this);
+
 			MultiUserClient->GetConcertClient()->OnGetPreConnectionTasks().RemoveAll(this);
 			MultiUserClient->Shutdown();
 			MultiUserClient.Reset();

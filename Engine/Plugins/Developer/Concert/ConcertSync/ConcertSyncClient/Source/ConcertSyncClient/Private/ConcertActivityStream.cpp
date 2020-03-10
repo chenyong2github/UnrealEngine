@@ -101,6 +101,7 @@ void FConcertActivityStream::Fetch(int64 RequestFetchCount)
 						SyncActivity = SyncPackageActivity;
 						EventPayload = MakeUnique<FConcertSessionSerializedPayload>();
 						EventPayload->SetTypedPayload(SyncPackageActivity->EventData);
+						checkf(!SyncPackageActivity->EventData.Package.HasPackageData(), TEXT("The concert activity stream should only stream the package meta data. The package data itself should not be required where ConcertActivityStream is used. (The package data can be very large)"));
 					}
 					else // bIncludeActivityDetails was false/Other type of activities (lock/connection) don't have interesting data to inspect other than the one already provided by the generic activity.
 					{

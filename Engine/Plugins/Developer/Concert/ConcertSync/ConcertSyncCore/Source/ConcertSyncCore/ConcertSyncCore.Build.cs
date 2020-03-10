@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Concert",
 					"ConcertTransport",
+					"Json",
 					"SQLiteCore",
 				}
 			);

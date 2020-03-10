@@ -7,6 +7,7 @@
 #include "ConcertWorkspaceMessages.h"
 
 class IConcertServerSession;
+class IConcertFileSharingService;
 class FConcertSyncServerLiveSession;
 class FConcertServerSyncCommandQueue;
 class FConcertServerDataStore;
@@ -25,7 +26,7 @@ ENUM_CLASS_FLAGS(EConcertLockFlags);
 class FConcertServerWorkspace
 {
 public:
-	explicit FConcertServerWorkspace(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession);
+	explicit FConcertServerWorkspace(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession, TSharedPtr<IConcertFileSharingService> InFileSharingService);
 	~FConcertServerWorkspace();
 
 private:
@@ -202,7 +203,7 @@ private:
 	 *
 	 * @param InPackageActivity			The package activity to add (the ActivityId, EventTime, EventType, EventId, and PackageRevision members are ignored).
 	 */
-	void AddPackageActivity(const FConcertSyncPackageActivity& InPackageActivity);
+	void AddPackageActivity(const FConcertSyncActivity& InPackageActivityBasePart, const FConcertPackageInfo& PackageInfo, FConcertPackageDataStream& InPackageDataStream);
 
 	/**
 	 * Send a sync event for a package activity in the session database.
@@ -227,6 +228,23 @@ private:
 	 * @return True if the activity should be flagged as 'ignored on restore'.
 	 */
 	bool ShouldIgnoreClientActivityOnRestore(const FGuid ClientEndpoint) const { return IgnoredActivityClients.Contains(ClientEndpoint); }
+
+	/**
+	 * Returns true if the package data is small enough to be exchanged using a single TArray<> data structure. If the package data is
+	 * too big according to a configuration (or a hard limit) the package data will be exchanged through other means like file stream
+	 * or file sharing.
+	 */
+	bool CanExchangePackageDataAsByteArray(int64 PackageDataSize) const;
+
+	/**
+	 * Write all package event fields from the event and decide if the package data should be directly embedded in the event or linked to a shared file.
+	 */
+	EConcertSessionResponseCode FillPackageEvent(FConcertSyncPackageEventData& InPackageEventSrc, FConcertSyncPackageEvent& OutPackageEvent) const;
+
+	/**
+	 * Open a stream on the package data, depending if the package data was directly embedded in the object (in memory) or linked as a shared file.
+	 */
+	TSharedPtr<FArchive> GetPackageDataStream(const FConcertPackage& Package);
 
 	/** Live session tracked by this workspace */
 	TSharedPtr<FConcertSyncServerLiveSession> LiveSession;
@@ -266,4 +284,7 @@ private:
 
 	/** Contains the list of clients for which activities should be marked as 'ignore on restore'. @see FConcertIgnoreActivityStateChangedEvent. */
 	TSet<FGuid> IgnoredActivityClients;
+
+	/** Optional side channel to exchange large blobs (package data) with the client in a scalable way (ex. the request/response transport layer is not designed and doesn't support exchanging 3GB packages). */
+	TSharedPtr<IConcertFileSharingService> FileSharingService;
 };

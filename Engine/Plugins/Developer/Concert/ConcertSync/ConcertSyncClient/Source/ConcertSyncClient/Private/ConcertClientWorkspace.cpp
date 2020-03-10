@@ -8,6 +8,7 @@
 #include "IConcertClient.h"
 #include "IConcertModule.h"
 #include "IConcertSession.h"
+#include "IConcertFileSharingService.h"
 #include "ConcertSyncClientLiveSession.h"
 #include "ConcertSyncSessionDatabase.h"
 #include "ConcertSyncSettings.h"
@@ -111,7 +112,8 @@ private:
 };
 
 
-FConcertClientWorkspace::FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge)
+FConcertClientWorkspace::FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge, TSharedPtr<IConcertFileSharingService> InFileSharingService)
+	: FileSharingService(MoveTemp(InFileSharingService))
 {
 	BindSession(InLiveSession, InPackageBridge, InTransactionBridge);
 }
@@ -280,60 +282,9 @@ TFuture<TOptional<FConcertSyncTransactionEvent>> FConcertClientWorkspace::FindOr
 	return MakeFulfilledPromise<TOptional<FConcertSyncTransactionEvent>>().GetFuture(); // Not found.
 }
 
-bool FConcertClientWorkspace::FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEvent& OutPackageEvent, const bool bMetaDataOnly) const
+bool FConcertClientWorkspace::FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEventMetaData& OutPackageEvent) const
 {
-	bool bFound = LiveSession->GetSessionDatabase().GetPackageEvent(PackageEventId, OutPackageEvent, bMetaDataOnly);
-	return bFound && (bMetaDataOnly || !IsPackageEventPartiallySynced(OutPackageEvent)); // Avoid succeeding if the event is partially sync but full event data was requested.
-}
-
-TFuture<TOptional<FConcertSyncPackageEvent>> FConcertClientWorkspace::FindOrRequestPackageEvent(const int64 PackageEventId, const bool bMetaDataOnly)
-{
-	// Check if the event exist in the database.
-	FConcertSyncPackageEvent PackageEvent;
-	if (LiveSession->GetSessionDatabase().GetPackageEvent(PackageEventId, PackageEvent, bMetaDataOnly))
-	{
-		// If the package data is required and the event has only the meta data (partially synced, the event was superseded by another).
-		if (!bMetaDataOnly && IsPackageEventPartiallySynced(PackageEvent))
-		{
-			FConcertSyncEventRequest SyncEventRequest{EConcertSyncActivityEventType::Package, PackageEventId };
-			TWeakPtr<FConcertSyncClientLiveSession> WeakLiveSession = LiveSession;
-			return LiveSession->GetSession().SendCustomRequest<FConcertSyncEventRequest, FConcertSyncEventResponse>(SyncEventRequest, LiveSession->GetSession().GetSessionServerEndpointId()).Next([WeakLiveSession, PackageEventId](const FConcertSyncEventResponse& Response)
-			{
-				if (Response.Event.UncompressedPayloadSize > 0) // Some data was sent back?
-				{
-					// Extract the payload as FConcertSyncPackageEvent.
-					FStructOnScope EventPayload;
-					Response.Event.GetPayload(EventPayload);
-					check(EventPayload.IsValid() && EventPayload.GetStruct()->IsChildOf(FConcertSyncPackageEvent::StaticStruct()));
-					FConcertSyncPackageEvent* PackageEvent = (FConcertSyncPackageEvent*)EventPayload.GetStructMemory();
-
-					// Update the database, caching the event to avoid syncing again.
-					if (TSharedPtr<FConcertSyncClientLiveSession> LiveSessionPin = WeakLiveSession.Pin())
-					{
-						LiveSessionPin->GetSessionDatabase().UpdatePackageEvent(PackageEventId, *PackageEvent);
-						// NOTE: PostActivityUpdated() could be called, but the activity did not change, more info was simply cached locally. Unless a use case requires it, don't call it.
-					}
-
-					return TOptional<FConcertSyncPackageEvent>(MoveTemp(*PackageEvent));
-				}
-				else
-				{
-					return TOptional<FConcertSyncPackageEvent>(); // The server did not return any data.
-				}
-			});
-		}
-		else
-		{
-			return MakeFulfilledPromise<TOptional<FConcertSyncPackageEvent>>(MoveTemp(PackageEvent)).GetFuture(); // All required data was already available locally.
-		}
-	}
-
-	return MakeFulfilledPromise<TOptional<FConcertSyncPackageEvent>>().GetFuture(); // Not found.
-}
-
-bool FConcertClientWorkspace::IsPackageEventPartiallySynced(const FConcertSyncPackageEvent& PackageEvent) const
-{
-	return PackageEvent.Package.PackageData.Num() == 0;
+	return LiveSession->GetSessionDatabase().GetPackageEventMetaData(PackageEventId, OutPackageEvent.PackageRevision, OutPackageEvent.PackageInfo);
 }
 
 bool FConcertClientWorkspace::IsTransactionEventPartiallySynced(const FConcertSyncTransactionEvent& TransactionEvent) const
@@ -415,7 +366,7 @@ void FConcertClientWorkspace::BindSession(TSharedPtr<FConcertSyncClientLiveSessi
 	// Create Package Manager
 	if (EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnablePackages))
 	{
-		PackageManager = MakeUnique<FConcertClientPackageManager>(LiveSession.ToSharedRef(), InPackageBridge);
+		PackageManager = MakeUnique<FConcertClientPackageManager>(LiveSession.ToSharedRef(), InPackageBridge, FileSharingService);
 	}
 
 	// Create Lock Manager
@@ -930,28 +881,53 @@ void FConcertClientWorkspace::SetTransactionActivity(const FConcertSyncTransacti
 
 void FConcertClientWorkspace::SetPackageActivity(const FConcertSyncPackageActivity& InPackageActivity)
 {
-	// Update this activity
-	if (LiveSession->GetSessionDatabase().SetPackageActivity(InPackageActivity))
+	const FConcertSyncActivity& PackageActivityBasePart = InPackageActivity; // The base activity part correspond the the base class.
+	FConcertSyncPackageEventData PackageActivityEventPart; // The event part is going to be streamed in the database (because it can be huge)
+	PackageActivityEventPart.MetaData.PackageRevision = InPackageActivity.EventData.PackageRevision;
+	PackageActivityEventPart.MetaData.PackageInfo = InPackageActivity.EventData.Package.Info;
+
+	auto SetPackageActivityFn = [&](const FConcertSyncActivity& BaseActivityPart, FConcertSyncPackageEventData& EventDataPart)
 	{
-		PostActivityUpdated(InPackageActivity);
-		if (PackageManager)
+		// Update this activity
+		if (LiveSession->GetSessionDatabase().SetPackageActivity(BaseActivityPart, EventDataPart, /*bMetaDataOnly*/false))
 		{
-			PackageManager->HandleRemotePackage(InPackageActivity.EndpointId, InPackageActivity.EventId, bHasSyncedWorkspace);
+			PostActivityUpdated(BaseActivityPart);
+			if (PackageManager)
+			{
+				PackageManager->HandleRemotePackage(InPackageActivity.EndpointId, InPackageActivity.EventId, bHasSyncedWorkspace);
+			}
+			if (LiveTransactionAuthors)
+			{
+				LiveTransactionAuthors->ResolveLiveTransactionAuthorsForPackage(InPackageActivity.EventData.Package.Info.PackageName);
+			}
 		}
-		if (LiveTransactionAuthors)
+		else
 		{
-			LiveTransactionAuthors->ResolveLiveTransactionAuthorsForPackage(InPackageActivity.EventData.Package.Info.PackageName);
+			UE_LOG(LogConcert, Error, TEXT("Failed to set package activity '%s' on live session '%s': %s"), *LexToString(InPackageActivity.ActivityId), *LiveSession->GetSession().GetName(), *LiveSession->GetSessionDatabase().GetLastError());
 		}
+	};
+
+	// Decide how the package data (part of the package event) is going to be streamed in the database.
+	if (!InPackageActivity.EventData.Package.FileId.IsEmpty())
+	{
+		TSharedPtr<FArchive> PackageDataAr = FileSharingService->CreateReader(InPackageActivity.EventData.Package.FileId); // Package data is available as a shared file.
+		PackageActivityEventPart.PackageDataStream.DataAr = PackageDataAr.Get();
+		PackageActivityEventPart.PackageDataStream.DataSize = PackageDataAr ? PackageDataAr->TotalSize() : 0;
+		SetPackageActivityFn(PackageActivityBasePart, PackageActivityEventPart);
 	}
 	else
 	{
-		UE_LOG(LogConcert, Error, TEXT("Failed to set package activity '%s' on live session '%s': %s"), *LexToString(InPackageActivity.ActivityId), *LiveSession->GetSession().GetName(), *LiveSession->GetSessionDatabase().GetLastError());
+		FMemoryReader Ar(InPackageActivity.EventData.Package.PackageData); // Package data is embedded in the activity itself.
+		PackageActivityEventPart.PackageDataStream.DataAr = &Ar;
+		PackageActivityEventPart.PackageDataStream.DataSize = Ar.TotalSize();
+		PackageActivityEventPart.PackageDataStream.DataBlob = &InPackageActivity.EventData.Package.PackageData;
+		SetPackageActivityFn(PackageActivityBasePart, PackageActivityEventPart);
 	}
 }
 
 void FConcertClientWorkspace::PostActivityUpdated(const FConcertSyncActivity& InActivity)
 {
-	FConcertSyncPackageActivity Activity;
+	FConcertSyncActivity Activity;
 	if (LiveSession->GetSessionDatabase().GetActivity(InActivity.ActivityId, Activity))
 	{
 		FConcertSyncEndpointData EndpointData;

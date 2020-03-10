@@ -166,25 +166,10 @@ public:
 	/**
 	 * Lookup the specified package event.
 	 * @param[in] PackageEventId ID of the package to look for.
-	 * @param[out] OutPackageEvent Information about the package.
-	 * @param[in] bMetaDataOnly True to extract the event meta-data only (title, ids, etc), false if the package data is also required.
-	 * @return Whether the package event was found and requested data available. If bMetaDataOnly is false and the event was partially
-	 *         synced (because it was superseded by another one), the function returns false.
-	 * @see FindOrRequestPackageEvent() if the package data (not only the activity summary) is required.
-	 * @note This function is more efficient to use if only the meta data is required.
+	 * @param[out] OutPackageEvent Information about the package except the package data itself.
+	 * @return Whether the package event meta data was found.
 	 */
-	virtual bool FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEvent& OutPackageEvent, const bool bMetaDataOnly) const = 0;
-
-	/**
-	 * Lookup the specified package events. By default, some package activities are partially synced (only the summary) when the system detects that
-	 * the package data was superseded by another version.
-	 * @param[in] PackageEventId ID of the package to look for.
-	 * @param[in] bMetaDataOnly True to extract the event meta-data only (title, ids, etc), false if the package data is also required.
-	 * @return A future containing the event, if found. If bMetaDataOnly is false and the event was partially synced (because it was superseded
-	 *         by another one) the function will perform an asynchronous server request to get the package data.
-	 * @note If only the meta data is required, consider using FindPackageEvent() as it is more efficient.
-	 */
-	virtual TFuture<TOptional<FConcertSyncPackageEvent>> FindOrRequestPackageEvent(const int64 PackageEventId, const bool bMetaDataOnly) = 0;
+	virtual bool FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEventMetaData& OutPackageEvent) const = 0;
 
 	/**
 	 * @return the delegate called every time the workspace is synced.

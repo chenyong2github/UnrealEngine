@@ -64,13 +64,22 @@ FText GetOperationName(const FConcertClientSessionActivity& Activity)
 
 	if (const FConcertSyncPackageActivitySummary* PackageSummary = Activity.ActivitySummary.Cast<FConcertSyncPackageActivitySummary>())
 	{
+		auto GetSavedOperationNameFn = [](const FConcertSyncPackageActivitySummary* PackageSummary)
+		{
+			if (PackageSummary->bAutoSave)
+			{
+				return LOCTEXT("AutoSavePackageOperation", "Auto-Save Package");
+			}
+			return PackageSummary->bPreSave ? LOCTEXT("PreSavePackageOperation", "Pre-Save Package") : LOCTEXT("SavePackageOperation", "Save Package");
+		};
+
 		switch (PackageSummary->PackageUpdateType)
 		{
 		case EConcertPackageUpdateType::Added   : return LOCTEXT("NewPackageOperation",    "New Package");
 		case EConcertPackageUpdateType::Deleted : return LOCTEXT("DeletePackageOperation", "Delete Package");
 		case EConcertPackageUpdateType::Renamed : return LOCTEXT("RenamePackageOperation", "Rename Package");
-		case EConcertPackageUpdateType::Saved   : return LOCTEXT("SavePackageOperation",   "Save Package");
-		case EConcertPackageUpdateType::Dummy: // Fall-Through
+		case EConcertPackageUpdateType::Saved   : return GetSavedOperationNameFn(PackageSummary);
+		case EConcertPackageUpdateType::Dummy   : return LOCTEXT("DiscardPackageOperation", "Discard Changes");
 		default: break;
 		}
 	}
@@ -613,7 +622,8 @@ void SConcertSessionActivities::UpdateDetailArea(TSharedPtr<FConcertClientSessio
 		{
 			FConcertSyncPackageEvent PackageEvent;
 			InSelectedActivity->EventPayload->GetTypedPayload(PackageEvent);
-			DisplayPackageDetails(*InSelectedActivity, PackageEvent);
+			checkf(!PackageEvent.Package.HasPackageData(), TEXT("UI should only request the package meta data because the package data is not useful and can be very large"));
+			DisplayPackageDetails(*InSelectedActivity, PackageEvent.PackageRevision, PackageEvent.Package.Info);
 		}
 		else // Other activity types (lock/connection) don't have details panel.
 		{
@@ -647,26 +657,15 @@ void SConcertSessionActivities::UpdateDetailArea(TSharedPtr<FConcertClientSessio
 	else if (InSelectedActivity->Activity.EventType == EConcertSyncActivityEventType::Package && GetPackageEventFn) // A function is bound to get the package event?
 	{
 		SetDetailsPanelVisibility(LoadingDetailsPanel.Get());
-		TWeakPtr<SConcertSessionActivities> WeakSelf = SharedThis(this);
-		GetPackageEventFn(*InSelectedActivity).Next([WeakSelf, InSelectedActivity](const TOptional<FConcertSyncPackageEvent>& PackageEvent)
+		FConcertSyncPackageEventMetaData PackageEventMetaData;
+		if (GetPackageEventFn(*InSelectedActivity, PackageEventMetaData))
 		{
-			if (TSharedPtr<SConcertSessionActivities> Self = WeakSelf.Pin()) // If 'this' object hasn't been deleted.
-			{
-				if (Self->GetSelectedActivity() == InSelectedActivity) // Ensure the activity is still selected.
-				{
-					if (PackageEvent.IsSet())
-					{
-						Self->DisplayPackageDetails(*InSelectedActivity, PackageEvent.GetValue());
-					}
-					else
-					{
-						Self->SetDetailsPanelVisibility(Self->NoDetailsPanel.Get());
-					}
-				}
-				// else -> The details panel is presenting information for another activity (or no activity).
-			}
-			// else -> The widget was deleted.
-		});
+			DisplayPackageDetails(*InSelectedActivity, PackageEventMetaData.PackageRevision, PackageEventMetaData.PackageInfo);
+		}
+		else
+		{
+			SetDetailsPanelVisibility(NoDetailsPanel.Get());
+		}
 	}
 	else
 	{
@@ -952,7 +951,7 @@ void SConcertSessionActivities::DisplayTransactionDetails(const FConcertClientSe
 	SetDetailsPanelVisibility(TransactionDetailsPanel.Get());
 }
 
-void SConcertSessionActivities::DisplayPackageDetails(const FConcertClientSessionActivity& Activity, const FConcertSyncPackageEvent& PackageEvent)
+void SConcertSessionActivities::DisplayPackageDetails(const FConcertClientSessionActivity& Activity, int64 PackageRevision, const FConcertPackageInfo& PackageInfo)
 {
 	const FConcertClientInfo* ClientInfo = nullptr;
 	if (GetActivityUserFn)
@@ -960,7 +959,7 @@ void SConcertSessionActivities::DisplayPackageDetails(const FConcertClientSessio
 		ClientInfo = GetActivityUserFn(Activity.Activity.EndpointId);
 	}
 
-	PackageDetailsPanel->SetPackageInfo(PackageEvent.Package.Info, PackageEvent.PackageRevision, ClientInfo ? ClientInfo->DisplayName : FString());
+	PackageDetailsPanel->SetPackageInfo(PackageInfo, PackageRevision, ClientInfo ? ClientInfo->DisplayName : FString());
 	SetDetailsPanelVisibility(PackageDetailsPanel.Get());
 }
 
