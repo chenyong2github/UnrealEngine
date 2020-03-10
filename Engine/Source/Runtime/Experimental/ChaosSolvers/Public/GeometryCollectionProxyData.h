@@ -59,7 +59,7 @@ public:
 	FGeometryDynamicCollection& operator=(FGeometryDynamicCollection&&) = delete;
 
 	typedef FTransformDynamicCollection Super;
-	typedef TSharedPtr<Chaos::FImplicitObject> FSharedImplicit;
+	typedef TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> FSharedImplicit;
 
 	static const FName ActiveAttribute;
 	static const FName CollisionGroupAttribute;
@@ -77,7 +77,7 @@ public:
 	TManagedArray<int32> CollisionMask;
 	TManagedArray<int32> CollisionStructureID;
 	TManagedArray<int32> DynamicState;
-	TManagedArray<TSharedPtr<Chaos::FImplicitObject>> Implicits;
+	TManagedArray<FSharedImplicit> Implicits;
 	TManagedArray<FVector> InitialAngularVelocity;
 	TManagedArray<FVector> InitialLinearVelocity;
 	TManagedArray<FTransform> MassToLocal;
