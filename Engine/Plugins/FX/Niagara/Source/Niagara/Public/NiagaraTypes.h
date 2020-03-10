@@ -449,10 +449,10 @@ enum class ENiagaraParameterScope : uint32
 	User,
 
 	/** Parameter provided by the engine. These are explicitly defined by the engine codebase.*/
-	Engine,
+	Engine UMETA(Hidden),
 
 	/** Parameter provided by the engine focused on the owning component. These are explicitly defined by the engine codebase.*/
-	Owner,
+	Owner UMETA(Hidden),
 
 	/** Parameter is an attribute of the owning system payload. It is persistent across frames.*/
 	System,

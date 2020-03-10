@@ -14,6 +14,7 @@
 #include "Modules/ModuleManager.h"
 #include "EdGraph/EdGraphPin.h"
 #include "NiagaraEditorCommon.h"
+#include "NiagaraConstants.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Parameter Panel Entry Parameter Name ViewModel							///
@@ -32,19 +33,13 @@ TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateSco
 	}
 
 	bool bEnableScopeSlotWidget = true;
-	if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch() == false)
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch())
 	{
-		if (CachedScriptVarAndViewInfo.MetaData.GetUsage() != ENiagaraScriptParameterUsage::Input)
-		{
-			bEnableScopeSlotWidget = false;
-		}
-
-		ENiagaraParameterScope CachedScope;
-		FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope);
-		if (CachedScope == ENiagaraParameterScope::Local)
-		{
-			bEnableScopeSlotWidget = false;
-		}
+		bEnableScopeSlotWidget = false;
+	}
+	else if (!FNiagaraEditorUtilities::IsScopeEditable(CachedScriptVarAndViewInfo.MetaData.GetScopeName()))
+	{
+		bEnableScopeSlotWidget = false;
 	}
 
 	UEnum* ParameterScopeEnum = FNiagaraTypeDefinition::GetParameterScopeEnum();
@@ -158,7 +153,7 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateScopeSlotWidge
 	TSharedPtr< SWidget > ScopeComboBoxWidget;
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 
-	bool bEnableScopeSlotWidget = OwningPin->Direction == EEdGraphPinDirection::EGPD_Output;
+	bool bEnableScopeSlotWidget = false;// OwningPin->Direction == EEdGraphPinDirection::EGPD_Output;
 
 	SAssignNew(ScopeComboBoxWidget, SBox)
 		.MinDesiredWidth(80.0f) //@todo(ng) tune and make const static
