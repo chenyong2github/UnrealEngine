@@ -1281,7 +1281,7 @@ public:
 
 		Desc.MissShaderTable.StartAddress = ShaderTableAddress + MissShaderTableOffset;
 		Desc.MissShaderTable.StrideInBytes = LocalRecordStride;
-		Desc.MissShaderTable.SizeInBytes = LocalRecordStride * NumMissShaders;
+		Desc.MissShaderTable.SizeInBytes = LocalRecordStride * NumMissRecords;
 
 
 		if (NumCallableRecords)
