@@ -484,13 +484,13 @@ namespace AutomationTool.Benchmark
 				}
 
 				// no shaders in the ddc
-				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
 				{
 					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoShaderDDC, DefaultExtraArgs));
 				}
 
 				// no ddc!
-				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoDDC))
 				{
 					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoDDC, DefaultExtraArgs));
 				}
