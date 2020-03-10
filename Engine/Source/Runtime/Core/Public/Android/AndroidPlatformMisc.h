@@ -32,6 +32,7 @@ class TFunction;
 struct CORE_API FAndroidMisc : public FGenericPlatformMisc
 {
 	static void RequestExit( bool Force );
+	static bool RestartApplication();
 	static void LocalPrint(const TCHAR *Message);
 	static bool IsLocalPrintThreadSafe() { return true; }
 	static void PlatformPreInit();
