@@ -264,15 +264,14 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 
  	const TCHAR* InBuffer = Buffer;
 
-	TStringBuilder<256> Builder;
-	FStringView Temp;
-	Buffer = FPropertyHelpers::ReadToken(Buffer, /* out */ Temp, Builder, true);
+	TStringBuilder<256> Temp;
+	Buffer = FPropertyHelpers::ReadToken(Buffer, /* out */ Temp, true);
 	if ( Buffer == nullptr )
 	{
 		return false;
 	}
 
-	if ( Temp == TEXT("None") )
+	if ( Temp == TEXT("None"_SV) )
 	{
 		out_ResolvedValue = nullptr;
 	}
@@ -286,9 +285,8 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 
 		if( *Buffer == TCHAR('\'') )
 		{
-			TStringBuilder<256> Builder2;
-			FStringView ObjectText;
-			Buffer = FPropertyHelpers::ReadToken( ++Buffer, /* out */ ObjectText, Builder2, true);
+			Temp.Reset();
+			Buffer = FPropertyHelpers::ReadToken( ++Buffer, /* out */ Temp, true);
 			if( Buffer == nullptr )
 			{
 				return false;
@@ -301,12 +299,12 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 
 			// ignore the object class, it isn't fully qualified, and searching ANY_PACKAGE might get the wrong one!
 			// Try the find the object.
-			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, ObjectText.GetData(), PortFlags, InSerializeContext, bAllowAnyPackage);
+			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Temp.ToString(), PortFlags, InSerializeContext, bAllowAnyPackage);
 		}
 		else
 		{
 			// Try the find the object.
-			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Temp.GetData(), PortFlags, InSerializeContext, bAllowAnyPackage);
+			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Temp.ToString(), PortFlags, InSerializeContext, bAllowAnyPackage);
 		}
 
 		if ( out_ResolvedValue != nullptr && !out_ResolvedValue->GetClass()->IsChildOf(RequiredMetaClass) )

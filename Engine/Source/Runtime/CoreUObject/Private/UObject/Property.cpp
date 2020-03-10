@@ -429,14 +429,12 @@ const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FString& String, 
 	return Buffer;
 }
 
-
-const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FStringView& Out, FStringBuilderBase& Temp, bool bDottedNames)
+const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FStringBuilderBase& Out, bool bDottedNames)
 {
 	if( *Buffer == TCHAR('"') )
 	{
-		Temp.Reset();
 		int32 NumCharsRead = 0;
-		if (!FParse::QuotedString(Buffer, Temp, &NumCharsRead))
+		if (!FParse::QuotedString(Buffer, Out, &NumCharsRead))
 		{
 			UE_LOG(LogProperty, Warning, TEXT("ReadToken: Bad quoted string: %s"), Buffer );
 			return nullptr;
@@ -444,17 +442,20 @@ const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FStringView& Out,
 		Buffer += NumCharsRead;
 
 		// TODO special handling of null-terminator here?
-		Out = Temp;
 	}
 	else if (IsValidTokenStart(*Buffer, bDottedNames))
 	{
-		Out = ParsePropertyToken(Buffer, bDottedNames);
-		Buffer += Out.Len();
+		FStringView Token = ParsePropertyToken(Buffer, bDottedNames);
+		Out << Token;
+		Buffer += Token.Len();
 	}
 	else
 	{
 		// Get just one.
-		Out = *Buffer ? FStringView(Buffer, 1) : FStringView(TEXT(""));
+		if (*Buffer)
+		{
+			Out << *Buffer;
+		}
 	}
 	return Buffer;
 }

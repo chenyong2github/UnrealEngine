@@ -865,9 +865,8 @@ class COREUOBJECT_API FPropertyHelpers
 public:
 	static const TCHAR* ReadToken( const TCHAR* Buffer, FString& Out, bool DottedNames = false);
 
-	// @param Temp A temporary string that may be used if modifications like unescaping is needed
-	// @param Out a string view into either Buffer or Temp
-	static const TCHAR* ReadToken( const TCHAR* Buffer, FStringView& Out, FStringBuilderBase& Temp, bool DottedNames = false);
+	// @param Out Appended to
+	static const TCHAR* ReadToken( const TCHAR* Buffer, FStringBuilderBase& Out, bool DottedNames = false);
 };
 
 

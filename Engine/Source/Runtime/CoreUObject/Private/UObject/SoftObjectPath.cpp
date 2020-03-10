@@ -289,15 +289,14 @@ bool FSoftObjectPath::ExportTextItem(FString& ValueStr, FSoftObjectPath const& D
 
 bool FSoftObjectPath::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive)
 {
-	TStringBuilder<256> Temp;
-	FStringView ImportedPath;
-	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, /* out */ ImportedPath, Temp, /* dotted names */ true);
+	TStringBuilder<256> ImportedPath;
+	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, /* out */ ImportedPath, /* dotted names */ true);
 	if (!NewBuffer)
 	{
 		return false;
 	}
 	Buffer = NewBuffer;
-	if (ImportedPath == TEXT("None"))
+	if (ImportedPath == TEXT("None"_SV))
 	{
 		Reset();
 	}
@@ -308,8 +307,8 @@ bool FSoftObjectPath::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObj
 			// A ' token likely means we're looking at a path string in the form "Texture2d'/Game/UI/HUD/Actions/Barrel'" and we need to read and append the path part
 			// We have to skip over the first ' as FPropertyHelpers::ReadToken doesn't read single-quoted strings correctly, but does read a path correctly
 			Buffer++; // Skip the leading '
-			Temp.Reset();
-			NewBuffer = FPropertyHelpers::ReadToken(Buffer, /* out */ ImportedPath, Temp, /* dotted names */ true);
+			ImportedPath.Reset();
+			NewBuffer = FPropertyHelpers::ReadToken(Buffer, /* out */ ImportedPath, /* dotted names */ true);
 			if (!NewBuffer)
 			{
 				return false;

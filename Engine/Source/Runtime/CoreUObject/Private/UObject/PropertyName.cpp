@@ -43,9 +43,8 @@ const TCHAR* FNameProperty::ImportText_Internal( const TCHAR* Buffer, void* Data
 	}
 	else
 	{
-		TStringBuilder<256> Builder;
-		FStringView Token;
-		Buffer = FPropertyHelpers::ReadToken(Buffer, /* out */ Token, Builder, true);
+		TStringBuilder<256> Token;
+		Buffer = FPropertyHelpers::ReadToken(Buffer, /* out */ Token, true);
 		if (!Buffer)
 			return NULL;
 
