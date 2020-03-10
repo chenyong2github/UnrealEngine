@@ -137,6 +137,11 @@ private:
 	friend class TUniformBuffer;
 };
 
+enum class ERenderTargetMsaaPlane : uint8
+{
+	Unresolved,
+	Resolved
+};
 
 /** Render graph information about how to bind a render target. */
 struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBinding
@@ -150,9 +155,10 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBinding
 	 *
 	 * Notes: Load and store action are on purpose without default values, to force the user to not forget one of these.
 	 */
-	FRenderTargetBinding(FRDGTexture* InTexture, ERenderTargetLoadAction InLoadAction, uint8 InMipIndex = 0, int32 InArraySlice = -1)
+	FRenderTargetBinding(FRDGTexture* InTexture, ERenderTargetLoadAction InLoadAction, uint8 InMipIndex = 0, int32 InArraySlice = -1, ERenderTargetMsaaPlane InMsaaPlane = ERenderTargetMsaaPlane::Unresolved)
 		: Texture(InTexture)
 		, LoadAction(InLoadAction)
+		, MsaaPlane(InMsaaPlane)
 		, MipIndex(InMipIndex)
 		, ArraySlice(InArraySlice)
 	{
@@ -175,6 +181,10 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBinding
 	{
 		return ArraySlice;
 	}
+	FORCEINLINE ERenderTargetMsaaPlane GetMsaaPlane() const
+	{
+		return MsaaPlane;
+	}
 
 private:
 	/** All parameters required to bind a render target deferred. This are purposefully private to
@@ -182,6 +192,7 @@ private:
 	 */
 	TAlignedShaderParameterPtr<FRDGTexture*> Texture;
 	ERenderTargetLoadAction		LoadAction		= ERenderTargetLoadAction::ENoAction;
+	ERenderTargetMsaaPlane		MsaaPlane		= ERenderTargetMsaaPlane::Unresolved;
 	uint8						MipIndex		= 0;
 	int32						ArraySlice		= -1;
 
@@ -204,10 +215,12 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 		FRDGTexture* InTexture,
 		ERenderTargetLoadAction InDepthLoadAction,
 		ERenderTargetLoadAction InStencilLoadAction,
-		FExclusiveDepthStencil InDepthStencilAccess)
+		FExclusiveDepthStencil InDepthStencilAccess,
+		ERenderTargetMsaaPlane InMsaaPlane = ERenderTargetMsaaPlane::Unresolved)
 		: Texture(InTexture)
 		, DepthLoadAction(InDepthLoadAction)
 		, StencilLoadAction(InStencilLoadAction)
+		, MsaaPlane(InMsaaPlane)
 		, DepthStencilAccess(InDepthStencilAccess)
 	{
 		check(Validate());
@@ -216,9 +229,11 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 	FORCEINLINE FDepthStencilBinding(
 		FRDGTexture* InTexture,
 		ERenderTargetLoadAction InDepthLoadAction,
-		FExclusiveDepthStencil InDepthStencilAccess)
+		FExclusiveDepthStencil InDepthStencilAccess,
+		ERenderTargetMsaaPlane InMsaaPlane = ERenderTargetMsaaPlane::Unresolved)
 		: Texture(InTexture)
 		, DepthLoadAction(InDepthLoadAction)
+		, MsaaPlane(InMsaaPlane)
 		, DepthStencilAccess(InDepthStencilAccess)
 	{
 		check(Validate());
@@ -240,6 +255,10 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 	{
 		return DepthStencilAccess;
 	}
+	FORCEINLINE ERenderTargetMsaaPlane GetMsaaPlane() const
+	{
+		return MsaaPlane;
+	}
 
 private:
 	/** 
@@ -249,6 +268,7 @@ private:
 	TAlignedShaderParameterPtr<FRDGTexture*> Texture = nullptr;
 	ERenderTargetLoadAction		DepthLoadAction		= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetLoadAction		StencilLoadAction	= ERenderTargetLoadAction::ENoAction;
+	ERenderTargetMsaaPlane		MsaaPlane			= ERenderTargetMsaaPlane::Unresolved;
 	FExclusiveDepthStencil		DepthStencilAccess	= FExclusiveDepthStencil::DepthNop_StencilNop;
 
 	RENDERCORE_API bool Validate() const;
