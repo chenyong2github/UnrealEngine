@@ -2,17 +2,17 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
+#include "Logging/TokenizedMessage.h"
+#include "MaterialShared.h"
+#include "Misc/SecureHash.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
 
-#include "Containers/Map.h"
-#include "Logging/TokenizedMessage.h"
-#include "Misc/SecureHash.h"
-#include "MaterialShared.h"
-
 #include "DatasmithUtils.h"
+#include "DatasmithImportOptions.h"
 
 class AActor;
 class ADatasmithSceneActor;
@@ -222,7 +222,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	TStrongObjectPtr<UDatasmithImportOptions> Options;
 
 	/** Per-Translator settings related to the import of a Datasmith scene */
-	TArray<TStrongObjectPtr<UObject>> AdditionalImportOptions;
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> AdditionalImportOptions;
 
 	/** Root blueprint which will be used if user requires every components of the scene under one blueprint */
 	UBlueprint* RootBlueprint;
@@ -299,12 +299,9 @@ public:
 	bool Init(const FString& FileName, TSharedRef< IDatasmithScene > Scene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent);
 
 	/**
-	 * Add option to the list of options used by the import process
-	 *
-	 * @param Option		The option to be added to the array
-	 * @param bLoadConfig	Overwrite properties of input option with those saved by the user
+	 * Replace or add options based on it's UClass.
 	 */
-	void AddOption(UObject* InOption, bool bLoadConfig);
+	void UpdateImportOption(UDatasmithOptionsBase* Option);
 
 	/** Push messages for display to the end-user */
 	TSharedRef<FTokenizedMessage> LogError(const FText& InErrorMessage);
@@ -340,9 +337,6 @@ private:
 
 	/** Map of SceneComponent objects added to the World at import */
 	TMap<FString, USceneComponent*> ImportedSceneComponentMap;
-
-	/** Array of options used by the calling factory */
-	TArray<UObject*> ImportOptions;
 
 	int32 CurrentSceneActorIndex;
 

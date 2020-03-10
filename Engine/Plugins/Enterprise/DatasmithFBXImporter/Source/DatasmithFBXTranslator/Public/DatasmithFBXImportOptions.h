@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "DatasmithImportOptions.h"
+
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "UObject/Object.h"
@@ -10,9 +12,9 @@
 #include "DatasmithFBXImportOptions.generated.h"
 
 UCLASS(config = EditorPerProjectUserSettings, HideCategories=(DebugProperty))
-class DATASMITHFBXTRANSLATOR_API UDatasmithFBXImportOptions : public UObject
+class DATASMITHFBXTRANSLATOR_API UDatasmithFBXImportOptions : public UDatasmithOptionsBase
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AssetImporting, meta=(DisplayName="Texture folders", ToolTip="Where to look for textures"))
