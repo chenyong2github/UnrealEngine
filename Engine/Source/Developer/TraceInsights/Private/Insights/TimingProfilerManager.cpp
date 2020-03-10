@@ -14,8 +14,8 @@
 #include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
 #include "Insights/Widgets/STimerTreeView.h"
-#include "Insights/Widgets/STimingView.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
+#include "Insights/Widgets/STimingView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -29,6 +29,13 @@ DEFINE_STAT(STAT_TT_OnPaint);
 DEFINE_STAT(STAT_TPM_Tick);
 
 TSharedPtr<FTimingProfilerManager> FTimingProfilerManager::Instance = nullptr;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FTimingProfilerManager> FTimingProfilerManager::Get()
+{
+	return FTimingProfilerManager::Instance;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -63,19 +70,6 @@ void FTimingProfilerManager::PostConstructor()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingProfilerManager::BindCommands()
-{
-	ActionManager.Map_ToggleFramesTrackVisibility_Global();
-	ActionManager.Map_ToggleTimingViewVisibility_Global();
-	ActionManager.Map_ToggleTimersViewVisibility_Global();
-	ActionManager.Map_ToggleCallersTreeViewVisibility_Global();
-	ActionManager.Map_ToggleCalleesTreeViewVisibility_Global();
-	ActionManager.Map_ToggleStatsCountersViewVisibility_Global();
-	ActionManager.Map_ToggleLogViewVisibility_Global();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 FTimingProfilerManager::~FTimingProfilerManager()
 {
 	FTimingProfilerCommands::Unregister();
@@ -86,9 +80,15 @@ FTimingProfilerManager::~FTimingProfilerManager()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FTimingProfilerManager> FTimingProfilerManager::Get()
+void FTimingProfilerManager::BindCommands()
 {
-	return FTimingProfilerManager::Instance;
+	ActionManager.Map_ToggleFramesTrackVisibility_Global();
+	ActionManager.Map_ToggleTimingViewVisibility_Global();
+	ActionManager.Map_ToggleTimersViewVisibility_Global();
+	ActionManager.Map_ToggleCallersTreeViewVisibility_Global();
+	ActionManager.Map_ToggleCalleesTreeViewVisibility_Global();
+	ActionManager.Map_ToggleStatsCountersViewVisibility_Global();
+	ActionManager.Map_ToggleLogViewVisibility_Global();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,6 +119,21 @@ bool FTimingProfilerManager::Tick(float DeltaTime)
 	SCOPE_CYCLE_COUNTER(STAT_TPM_Tick);
 
 	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::OnSessionChanged()
+{
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->Reset();
+	}
+
+	SelectionStartTime = 0.0;
+	SelectionEndTime = 0.0;
+	SelectedTimerId = InvalidTimerId;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -230,21 +245,6 @@ void FTimingProfilerManager::ShowHideLogView(const bool bIsVisible)
 	{
 		Wnd->ShowHideTab(FTimingProfilerTabs::LogViewID, bIsLogViewVisible);
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FTimingProfilerManager::OnSessionChanged()
-{
-	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
-	if (Wnd.IsValid())
-	{
-		Wnd->Reset();
-	}
-
-	SelectionStartTime = 0.0;
-	SelectionEndTime = 0.0;
-	SelectedTimerId = InvalidTimerId;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

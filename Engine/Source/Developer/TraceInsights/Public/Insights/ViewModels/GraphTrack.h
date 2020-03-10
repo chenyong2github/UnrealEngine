@@ -92,6 +92,9 @@ protected:
 
 	void DrawSeries(const FGraphSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 
+	virtual void DrawVerticalAxisGrid(const ITimingTrackDrawContext& Context) const;
+	virtual void DrawHeader(const ITimingTrackDrawContext& Context) const;
+
 	// Get the Y value that is used to provide a clipping border between adjacent graph tracks.
 	virtual float GetBorderY() const { return 0.0f; }
 
@@ -140,7 +143,10 @@ protected:
 	bool bDrawPolygon;
 	bool bUseEventDuration;
 	bool bDrawBoxes;
+
 	bool bDrawBaseline;
+	bool bDrawVerticalAxisGrid;
+	bool bDrawHeader;
 
 	// Flags controlling whether menu items are available
 	EGraphOptions VisibleOptions;

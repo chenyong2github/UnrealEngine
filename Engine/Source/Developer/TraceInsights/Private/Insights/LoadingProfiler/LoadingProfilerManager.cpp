@@ -4,25 +4,28 @@
 
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/LoadTimeProfiler.h"
 
 // Insights
-#include "Insights/Table/Widgets/STableTreeView.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
+#include "Insights/Table/Widgets/STableTreeView.h"
 #include "Insights/Widgets/STimingView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "LoadingProfilerManager"
 
-//DEFINE_LOG_CATEGORY(LoadingProfiler);
-//
-//DEFINE_STAT(STAT_FT_OnPaint);
-//DEFINE_STAT(STAT_GT_OnPaint);
-//DEFINE_STAT(STAT_TT_OnPaint);
-//DEFINE_STAT(STAT_IOPM_Tick);
+DEFINE_LOG_CATEGORY(LoadingProfiler);
 
 TSharedPtr<FLoadingProfilerManager> FLoadingProfilerManager::Instance = nullptr;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FLoadingProfilerManager> FLoadingProfilerManager::Get()
+{
+	return FLoadingProfilerManager::Instance;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -52,17 +55,6 @@ void FLoadingProfilerManager::PostConstructor()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingProfilerManager::BindCommands()
-{
-	ActionManager.Map_ToggleTimingViewVisibility_Global();
-	ActionManager.Map_ToggleEventAggregationTreeViewVisibility_Global();
-	ActionManager.Map_ToggleObjectTypeAggregationTreeViewVisibility_Global();
-	ActionManager.Map_TogglePackageDetailsTreeViewVisibility_Global();
-	ActionManager.Map_ToggleExportDetailsTreeViewVisibility_Global();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 FLoadingProfilerManager::~FLoadingProfilerManager()
 {
 	FLoadingProfilerCommands::Unregister();
@@ -73,9 +65,13 @@ FLoadingProfilerManager::~FLoadingProfilerManager()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FLoadingProfilerManager> FLoadingProfilerManager::Get()
+void FLoadingProfilerManager::BindCommands()
 {
-	return FLoadingProfilerManager::Instance;
+	ActionManager.Map_ToggleTimingViewVisibility_Global();
+	ActionManager.Map_ToggleEventAggregationTreeViewVisibility_Global();
+	ActionManager.Map_ToggleObjectTypeAggregationTreeViewVisibility_Global();
+	ActionManager.Map_TogglePackageDetailsTreeViewVisibility_Global();
+	ActionManager.Map_ToggleExportDetailsTreeViewVisibility_Global();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

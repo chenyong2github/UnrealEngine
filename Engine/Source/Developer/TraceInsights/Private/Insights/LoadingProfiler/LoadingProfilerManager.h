@@ -5,6 +5,7 @@
 #include "Containers/Ticker.h"
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Logging/LogMacros.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
@@ -12,11 +13,7 @@
 
 class SLoadingProfilerWindow;
 
-namespace Trace
-{
-	class IAnalysisService;
-	class IAnalysisSession;
-}
+DECLARE_LOG_CATEGORY_EXTERN(LoadingProfiler, Log, All);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
@@ -53,14 +50,6 @@ public:
 		FLoadingProfilerManager::Instance.Reset();
 	}
 
-protected:
-	/** Finishes initialization of the profiler manager. */
-	void PostConstructor();
-
-	/** Binds our UI commands to delegates. */
-	void BindCommands();
-
-public:
 	/**
 	 * @return the global instance of the Loading Profiler (Asset Loading Insights) manager.
 	 * This is an internal singleton and cannot be used outside ProfilerModule.
@@ -125,11 +114,17 @@ public:
 
 	void OnSessionChanged();
 
-protected:
+private:
+	/** Finishes initialization of the profiler manager. */
+	void PostConstructor();
+
+	/** Binds our UI commands to delegates. */
+	void BindCommands();
+
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
 
-protected:
+private:
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
 
@@ -160,6 +155,6 @@ protected:
 	/** If the Export Details tree view is visible or hidden. */
 	bool bIsExportDetailsTreeViewVisible;
 
-	/** A shared pointer to the global instance of the profiler manager. */
+	/** A shared pointer to the global instance of the Loading Profiler manager. */
 	static TSharedPtr<FLoadingProfilerManager> Instance;
 };

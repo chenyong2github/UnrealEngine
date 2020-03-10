@@ -52,15 +52,15 @@ struct TAggregatedStatsEx
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** The filter collection - used for updating the list of stats nodes. */
+/** The filter collection - used for updating the list of counter nodes. */
 typedef TFilterCollection<const FStatsNodePtr&> FStatsNodeFilterCollection;
 
-/** The text based filter - used for updating the list of stats nodes. */
+/** The text based filter - used for updating the list of counter nodes. */
 typedef TTextFilter<const FStatsNodePtr&> FStatsNodeTextFilter;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * A custom widget used to display the list of stats.
+ * A custom widget used to display the list of counters.
  */
 class SStatsView : public SCompoundWidget
 {
@@ -84,9 +84,11 @@ public:
 
 	/**
 	 * Rebuilds the tree (if necessary).
-	 * @param bResync - If true, it forces a resync with list of stats counters from Analysis, even if the list did not changed since last sync.
+	 * @param bResync - If true, it forces a resync with list of counters from Analysis, even if the list did not changed since last sync.
 	 */
 	void RebuildTree(bool bResync);
+
+	void ResetStats();
 	void UpdateStats(double StartTime, double EndTime);
 
 	void SelectStatsNode(uint64 Id);
@@ -95,9 +97,12 @@ public:
 	//const TMap<uint64, FStatsNodePtr> GetStatsNodesIdMap() const { return StatsNodesIdMap; }
 	const FStatsNodePtr* GetStatsNode(uint64 Id) const { return StatsNodesIdMap.Find(Id); }
 
-protected:
+private:
+	void UpdateNode(FStatsNodePtr NodePtr);
 
 	void UpdateTree();
+
+	void UpdateStatsInternal();
 
 	/** Called when the analysis session has changed. */
 	void InsightsManager_OnSessionChanged();
@@ -122,8 +127,9 @@ protected:
 	// Tree View - Columns' Header
 
 	void InitializeAndShowHeaderColumns();
+
 	void TreeViewHeaderRow_CreateColumnArgs(const int32 ColumnIndex);
-	void TreeViewHeaderRow_ShowColumn(const FName ColumnId);
+
 	TSharedRef<SWidget> TreeViewHeaderRow_GenerateColumnMenu(const FStatsViewColumn& Column);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -150,7 +156,6 @@ protected:
 	/** Called by STreeView to generate a table row for the specified item. */
 	TSharedRef<ITableRow> TreeView_OnGenerateRow(FStatsNodePtr TreeNode, const TSharedRef<STableViewBase>& OwnerTable);
 
-	bool TableRow_IsColumnVisible(const FName ColumnId) const;
 	void TableRow_SetHoveredTableCell(const FName ColumnId, const FStatsNodePtr StatsNodePtr);
 	EHorizontalAlignment TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const;
 
@@ -176,7 +181,7 @@ protected:
 	void SearchBox_OnTextChanged(const FText& InFilterText);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// GroupBy
+	// Grouping
 
 	void CreateGroups();
 	void CreateGroupByOptionsSources();
@@ -192,16 +197,17 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
 
-	static const EColumnSortMode::Type GetDefaultColumnSortMode();
 	static const FName GetDefaultColumnBeingSorted();
+	static const EColumnSortMode::Type GetDefaultColumnSortMode();
 
+	void CreateSortings();
+
+	void UpdateCurrentSortingByColumn();
 	void SortStats();
 
 	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
 	void SetSortModeForColumn(const FName& ColumnId, EColumnSortMode::Type SortMode);
 	void OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type SortMode);
-
-	//void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting actions
@@ -224,14 +230,18 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Column visibility actions
 
-	// HideColumn (HeaderMenu)
-	bool HeaderMenu_HideColumn_CanExecute(const FName ColumnId) const;
-	void HeaderMenu_HideColumn_Execute(const FName ColumnId);
+	// ShowColumn
+	bool CanShowColumn(const FName ColumnId) const;
+	void ShowColumn(const FName ColumnId);
 
-	// ToggleColumn (ContextMenu)
-	bool ContextMenu_ToggleColumn_IsChecked(const FName ColumnId);
-	bool ContextMenu_ToggleColumn_CanExecute(const FName ColumnId) const;
-	void ContextMenu_ToggleColumn_Execute(const FName ColumnId);
+	// HideColumn
+	bool CanHideColumn(const FName ColumnId) const;
+	void HideColumn(const FName ColumnId);
+
+	// ToggleColumnVisibility
+	bool IsColumnVisible(const FName ColumnId) const;
+	bool CanToggleColumnVisibility(const FName ColumnId) const;
+	void ToggleColumnVisibility(const FName ColumnId);
 
 	// ShowAllColumns (ContextMenu)
 	bool ContextMenu_ShowAllColumns_CanExecute() const;
@@ -247,8 +257,6 @@ protected:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void UpdateStatsNode(FStatsNodePtr StatsNode);
-
 	/**
 	 * Ticks this widget.  Override in derived classes, but always call the parent implementation.
 	 *
@@ -258,14 +266,14 @@ protected:
 	 */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-protected:
+private:
 	/** A weak pointer to the profiler session used to populate this widget. */
 	TSharedPtr<const Trace::IAnalysisSession>/*Weak*/ Session;
 
 	//////////////////////////////////////////////////
 	// Tree View, Columns
 
-	/** The tree widget which holds the list of groups and stats corresponding with each group. */
+	/** The tree widget which holds the list of groups and counter corresponding with each group. */
 	TSharedPtr<STreeView<FStatsNodePtr>> TreeView;
 
 	/** Column metadata used to initialize column arguments, stored as PropertyName -> FEventGraphColumn. */
@@ -281,33 +289,30 @@ protected:
 	TSharedPtr<SScrollBar> ExternalScrollbar;
 
 	//////////////////////////////////////////////////
-	// Hovered Column, Hovered Stats Node
+	// Hovered Column, Hovered Counter Node
 
 	/** Name of the column currently being hovered by the mouse. */
 	FName HoveredColumnId;
 
-	/** A shared pointer to the stats node currently being hovered by the mouse. */
+	/** A shared pointer to the counter node currently being hovered by the mouse. */
 	FStatsNodePtr HoveredStatsNodePtr;
 
-	/** Name of the stats that should be drawn as highlighted. */
+	/** Name of the counter that should be drawn as highlighted. */
 	FName HighlightedNodeName;
 
 	//////////////////////////////////////////////////
 	// Stats Nodes
 
-	/** An array of group and stats nodes generated from the metadata. */
+	/** An array of group and counter nodes generated from the metadata. */
 	TArray<FStatsNodePtr> GroupNodes;
 
-	/** A filtered array of group and stats nodes to be displayed in the tree widget. */
+	/** A filtered array of group and counter nodes to be displayed in the tree widget. */
 	TArray<FStatsNodePtr> FilteredGroupNodes;
 
-	/** All stats nodes. */
+	/** All counter nodes. */
 	TSet<FStatsNodePtr> StatsNodes;
 
-	/** All stats nodes, stored as StatsName -> FStatsNodePtr. */
-	//TMap<FName, FStatsNodePtr> StatsNodesMap;
-
-	/** All stats nodes, stored as StatsId -> FStatsNodePtr. */
+	/** All counter nodes, stored as StatsId -> FStatsNodePtr. */
 	TMap<uint64, FStatsNodePtr> StatsNodesIdMap;
 
 	/** Currently expanded group nodes. */
@@ -319,7 +324,7 @@ protected:
 	//////////////////////////////////////////////////
 	// Search box and filters
 
-	/** The search box widget used to filter items displayed in the stats and groups tree. */
+	/** The search box widget used to filter items displayed in the tree. */
 	TSharedPtr<SSearchBox> SearchBox;
 
 	/** The text based filter. */
@@ -328,10 +333,10 @@ protected:
 	/** The filter collection. */
 	TSharedPtr<FStatsNodeFilterCollection> Filters;
 
-	/** Holds the visibility of each stats type. */
+	/** Holds the visibility of each counter type. */
 	bool bStatsNodeIsVisible[static_cast<int>(EStatsNodeType::InvalidOrMax)];
 
-	/** Filter out the stats counters having zero total instance count (aggregated stats). */
+	/** Filter out the counters having zero total instance count (aggregated stats). */
 	bool bFilterOutZeroCountStats;
 
 	//////////////////////////////////////////////////
@@ -341,17 +346,17 @@ protected:
 
 	TSharedPtr<SComboBox<TSharedPtr<EStatsGroupingMode>>> GroupByComboBox;
 
-	/** How we group the stats? */
+	/** How we group the counters? */
 	EStatsGroupingMode GroupingMode;
 
 	//////////////////////////////////////////////////
 	// Sorting
 
-	/** How we sort the stats? */
-	EColumnSortMode::Type ColumnSortMode;
-
 	/** Name of the column currently being sorted, NAME_None if sorting is disabled. */
 	FName ColumnBeingSorted;
+
+	/** How we sort the nodes? Ascending or Descending. */
+	EColumnSortMode::Type ColumnSortMode;
 
 	//////////////////////////////////////////////////
 

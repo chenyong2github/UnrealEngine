@@ -31,26 +31,12 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const EColumnSortMode::Type SStatsView::GetDefaultColumnSortMode()
-{
-	return EColumnSortMode::Ascending;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const FName SStatsView::GetDefaultColumnBeingSorted()
-{
-	return FStatsViewColumns::NameColumnID;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 SStatsView::SStatsView()
 	: bExpansionSaved(false)
 	, bFilterOutZeroCountStats(false)
 	, GroupingMode(EStatsGroupingMode::Flat)
-	, ColumnSortMode(GetDefaultColumnSortMode())
 	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
+	, ColumnSortMode(GetDefaultColumnSortMode())
 {
 	FMemory::Memset(bStatsNodeIsVisible, 1);
 }
@@ -248,6 +234,7 @@ void SStatsView::Construct(const FArguments& InArgs)
 	Filters->Add(TextFilter);
 
 	CreateGroupByOptionsSources();
+	CreateSortings();
 
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &SStatsView::InsightsManager_OnSessionChanged);
@@ -406,13 +393,13 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 	{
 		const FStatsViewColumn& Column = It.Value();
 
-		if (Column.bIsVisible && Column.bCanBeSorted())
+		if (Column.IsVisible() && Column.CanBeSorted())
 		{
 			FUIAction Action_SortByColumn
 			(
-				FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_SortByColumn_Execute, Column.Id),
-				FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_SortByColumn_CanExecute, Column.Id),
-				FIsActionChecked::CreateSP(this, &SStatsView::ContextMenu_SortByColumn_IsChecked, Column.Id)
+				FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_SortByColumn_Execute, Column.GetId()),
+				FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_SortByColumn_CanExecute, Column.GetId()),
+				FIsActionChecked::CreateSP(this, &SStatsView::ContextMenu_SortByColumn_IsChecked, Column.GetId())
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -470,14 +457,14 @@ void SStatsView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 
 		FUIAction Action_ToggleColumn
 		(
-			FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ToggleColumn_Execute, Column.Id),
-			FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ToggleColumn_CanExecute, Column.Id),
-			FIsActionChecked::CreateSP(this, &SStatsView::ContextMenu_ToggleColumn_IsChecked, Column.Id)
+			FExecuteAction::CreateSP(this, &SStatsView::ToggleColumnVisibility, Column.GetId()),
+			FCanExecuteAction::CreateSP(this, &SStatsView::CanToggleColumnVisibility, Column.GetId()),
+			FIsActionChecked::CreateSP(this, &SStatsView::IsColumnVisible, Column.GetId())
 		);
 		MenuBuilder.AddMenuEntry
 		(
-			Column.TitleName,
-			Column.Description,
+			Column.GetTitleName() ,
+			Column.GetDescription(),
 			FSlateIcon(), Action_ToggleColumn, NAME_None, EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -499,71 +486,11 @@ void SStatsView::InitializeAndShowHeaderColumns()
 	{
 		const FStatsViewColumn& Column = It.Value();
 
-		if (Column.bIsVisible)
+		if (Column.ShouldBeVisible())
 		{
-			TreeViewHeaderRow_ShowColumn(Column.Id);
+			ShowColumn(Column.GetId());
 		}
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SStatsView::TreeViewHeaderRow_CreateColumnArgs(const int32 ColumnIndex)
-{
-	const FStatsViewColumn& Column = *FStatsViewColumnFactory::Get().Collection[ColumnIndex];
-	SHeaderRow::FColumn::FArguments ColumnArgs;
-
-	ColumnArgs
-		.ColumnId(Column.Id)
-		.DefaultLabel(Column.ShortName)
-		.HAlignHeader(HAlign_Fill)
-		.VAlignHeader(VAlign_Fill)
-		.HeaderContentPadding(FMargin(2.0f))
-		.HAlignCell(HAlign_Fill)
-		.VAlignCell(VAlign_Fill)
-		.SortMode(this, &SStatsView::GetSortModeForColumn, Column.Id)
-		.OnSort(this, &SStatsView::OnSortModeChanged)
-		.ManualWidth(Column.InitialColumnWidth)
-		.FixedWidth(Column.bIsFixedColumnWidth() ? Column.InitialColumnWidth : TOptional<float>())
-		.HeaderContent()
-		[
-			SNew(SBox)
-			.ToolTip(SStatsViewTooltip::GetColumnTooltip(Column))
-			.HAlign(Column.HorizontalAlignment)
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(Column.ShortName)
-			]
-		]
-		.MenuContent()
-		[
-			TreeViewHeaderRow_GenerateColumnMenu(Column)
-		];
-
-	TreeViewHeaderColumnArgs.Add(Column.Id, ColumnArgs);
-	TreeViewHeaderColumns.Add(Column.Id, Column);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SStatsView::TreeViewHeaderRow_ShowColumn(const FName ColumnId)
-{
-	FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	Column.bIsVisible = true;
-	SHeaderRow::FColumn::FArguments& ColumnArgs = TreeViewHeaderColumnArgs.FindChecked(ColumnId);
-
-	const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
-	int32 ColumnIndex = 0;
-	for (; ColumnIndex < NumColumns; ColumnIndex++)
-	{
-		const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
-		const FStatsViewColumn& CurrentStatsViewColumn = TreeViewHeaderColumns.FindChecked(CurrentColumn.ColumnId);
-		if (Column.Order < CurrentStatsViewColumn.Order)
-			break;
-	}
-
-	TreeViewHeaderRow->InsertColumn(ColumnArgs, ColumnIndex);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -575,14 +502,14 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const FStat
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
 	{
-		if (Column.bCanBeHidden())
+		if (Column.CanBeHidden())
 		{
 			MenuBuilder.BeginSection("Column", LOCTEXT("TreeViewHeaderRow_Header_Column", "Column"));
 
 			FUIAction Action_HideColumn
 			(
-				FExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_HideColumn_Execute, Column.Id),
-				FCanExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_HideColumn_CanExecute, Column.Id)
+				FExecuteAction::CreateSP(this, &SStatsView::HideColumn, Column.GetId()),
+				FCanExecuteAction::CreateSP(this, &SStatsView::CanHideColumn, Column.GetId())
 			);
 
 			MenuBuilder.AddMenuEntry
@@ -596,15 +523,15 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const FStat
 			MenuBuilder.EndSection();
 		}
 
-		if (Column.bCanBeSorted())
+		if (Column.CanBeSorted())
 		{
 			MenuBuilder.BeginSection("SortMode", LOCTEXT("ContextMenu_Header_Misc_Sort_SortMode", "Sort Mode"));
 
 			FUIAction Action_SortAscending
 			(
-				FExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_SortMode_Execute, Column.Id, EColumnSortMode::Ascending),
-				FCanExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_SortMode_CanExecute, Column.Id, EColumnSortMode::Ascending),
-				FIsActionChecked::CreateSP(this, &SStatsView::HeaderMenu_SortMode_IsChecked, Column.Id, EColumnSortMode::Ascending)
+				FExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Ascending),
+				FCanExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_SortMode_CanExecute, Column.GetId(), EColumnSortMode::Ascending),
+				FIsActionChecked::CreateSP(this, &SStatsView::HeaderMenu_SortMode_IsChecked, Column.GetId(), EColumnSortMode::Ascending)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -615,9 +542,9 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const FStat
 
 			FUIAction Action_SortDescending
 			(
-				FExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_SortMode_Execute, Column.Id, EColumnSortMode::Descending),
-				FCanExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_SortMode_CanExecute, Column.Id, EColumnSortMode::Descending),
-				FIsActionChecked::CreateSP(this, &SStatsView::HeaderMenu_SortMode_IsChecked, Column.Id, EColumnSortMode::Descending)
+				FExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Descending),
+				FCanExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_SortMode_CanExecute, Column.GetId(), EColumnSortMode::Descending),
+				FIsActionChecked::CreateSP(this, &SStatsView::HeaderMenu_SortMode_IsChecked, Column.GetId(), EColumnSortMode::Descending)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -630,7 +557,7 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const FStat
 			MenuBuilder.EndSection();
 		}
 
-		if (Column.bCanBeFiltered())
+		if (Column.CanBeFiltered())
 		{
 			MenuBuilder.BeginSection("FilterMode", LOCTEXT("ContextMenu_Header_Misc_Filter_FilterMode", "Filter Mode"));
 			bIsMenuVisible = true;
@@ -690,7 +617,7 @@ void SStatsView::UpdateTree()
 	const double TotalTime = Stopwatch.GetAccumulatedTime();
 	if (TotalTime > 0.1)
 	{
-		UE_LOG(TimingProfiler, Log, TEXT("Counter tree view updated in %.3fs (%d counters) --> G:%.3fs + S:%.3fs + F:%.3fs"),
+		UE_LOG(TimingProfiler, Log, TEXT("[Counters] Tree view updated in %.3fs (%d counters) --> G:%.3fs + S:%.3fs + F:%.3fs"),
 			TotalTime, StatsNodes.Num(), Time1, Time2 - Time1, TotalTime - Time2);
 	}
 }
@@ -887,11 +814,9 @@ void SStatsView::TreeView_OnGetChildren(FStatsNodePtr InParent, TArray<FStatsNod
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStatsView::UpdateStatsNode(FStatsNodePtr StatsNode)
+void SStatsView::TreeView_OnMouseButtonDoubleClick(FStatsNodePtr NodePtr)
 {
-	bool bAddedToGraphFlag = false;
-
-	if (!StatsNode->IsGroup())
+	if (!NodePtr->IsGroup())
 	{
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Wnd.IsValid())
@@ -902,67 +827,41 @@ void SStatsView::UpdateStatsNode(FStatsNodePtr StatsNode)
 				TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
 				if (GraphTrack.IsValid())
 				{
-					uint32 StatsCounterId = static_cast<uint32>(StatsNode->GetId());
-					TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetStatsCounterSeries(StatsCounterId);
-					bAddedToGraphFlag = Series.IsValid();
-				}
-			}
-		}
-	}
-
-	StatsNode->SetAddedToGraphFlag(bAddedToGraphFlag);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SStatsView::TreeView_OnMouseButtonDoubleClick(FStatsNodePtr StatsNode)
-{
-	if (!StatsNode->IsGroup())
-	{
-		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Wnd.IsValid())
-		{
-			TSharedPtr<STimingView> TimingView = Wnd->GetTimingView();
-			if (TimingView.IsValid())
-			{
-				TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
-				if (GraphTrack.IsValid())
-				{
-					uint32 StatsCounterId = static_cast<uint32>(StatsNode->GetId());
+					const uint32 StatsCounterId = static_cast<uint32>(NodePtr->GetId());
 					TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetStatsCounterSeries(StatsCounterId);
 					if (Series.IsValid())
 					{
 						GraphTrack->RemoveStatsCounterSeries(StatsCounterId);
 						GraphTrack->SetDirtyFlag();
-						StatsNode->SetAddedToGraphFlag(false);
+						NodePtr->SetAddedToGraphFlag(false);
 					}
 					else
 					{
 						GraphTrack->Show();
-						GraphTrack->AddStatsCounterSeries(StatsCounterId, StatsNode->GetColor());
+						GraphTrack->AddStatsCounterSeries(StatsCounterId, NodePtr->GetColor());
 						GraphTrack->SetDirtyFlag();
-						StatsNode->SetAddedToGraphFlag(true);
+						NodePtr->SetAddedToGraphFlag(true);
 					}
 				}
 			}
 		}
 
-		//im:TODO: const bool bIsTracked = FTimingProfilerManager::Get()->IsStatsCounterTracked(StatsNode->GetId());
+		//im:TODO: const bool bIsTracked = FTimingProfilerManager::Get()->IsStatsCounterTracked(NodePtr->GetId());
 	//	if (!bIsTracked)
 	//	{
 	//		// Add a new graph series.
-	//		FTimingProfilerManager::Get()->TrackStatsCounter(StatsNode->GetId());
+	//		FTimingProfilerManager::Get()->TrackStatsCounter(NodePtr->GetId());
 	//	}
 	//	else
 	//	{
 	//		// Remove the corresponding graph series.
-	//		FTimingProfilerManager::Get()->UntrackStatsCounter(StatsNode->GetId());
+	//		FTimingProfilerManager::Get()->UntrackStatsCounter(NodePtr->GetId());
 	//	}
 	}
 	else
 	{
-		const bool bIsGroupExpanded = TreeView->IsItemExpanded(StatsNode);
-		TreeView->SetItemExpansion(StatsNode, !bIsGroupExpanded);
+		const bool bIsGroupExpanded = TreeView->IsItemExpanded(NodePtr);
+		TreeView->SetItemExpansion(NodePtr, !bIsGroupExpanded);
 	}
 }
 
@@ -970,43 +869,39 @@ void SStatsView::TreeView_OnMouseButtonDoubleClick(FStatsNodePtr StatsNode)
 // Tree View's Table Row
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<ITableRow> SStatsView::TreeView_OnGenerateRow(FStatsNodePtr StatsNodePtr, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SStatsView::TreeView_OnGenerateRow(FStatsNodePtr NodePtr, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	TSharedRef<ITableRow> TableRow =
 		SNew(SStatsTableRow, OwnerTable)
 		.OnShouldBeEnabled(this, &SStatsView::TableRow_ShouldBeEnabled)
-		.OnIsColumnVisible(this, &SStatsView::TableRow_IsColumnVisible)
+		.OnIsColumnVisible(this, &SStatsView::IsColumnVisible)
 		.OnSetHoveredTableCell(this, &SStatsView::TableRow_SetHoveredTableCell)
 		.OnGetColumnOutlineHAlignmentDelegate(this, &SStatsView::TableRow_GetColumnOutlineHAlignment)
 		.HighlightText(this, &SStatsView::TableRow_GetHighlightText)
 		.HighlightedNodeName(this, &SStatsView::TableRow_GetHighlightedNodeName)
-		.StatsNodePtr(StatsNodePtr);
+		.StatsNodePtr(NodePtr);
 
 	return TableRow;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SStatsView::TableRow_IsColumnVisible(const FName ColumnId) const
+bool SStatsView::TableRow_ShouldBeEnabled(const uint32 StatsId) const
 {
-	bool bResult = false;
-	const FStatsViewColumn& ColumnPtr = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return ColumnPtr.bIsVisible;
+	return true;//im:TODO: Session->GetAggregatedStat(StatsId) != nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStatsView::TableRow_SetHoveredTableCell(const FName ColumnId, const FStatsNodePtr StatsNodePtr)
+void SStatsView::TableRow_SetHoveredTableCell(const FName ColumnId, const FStatsNodePtr NodePtr)
 {
 	HoveredColumnId = ColumnId;
 
 	const bool bIsAnyMenusVisible = FSlateApplication::Get().AnyMenusVisible();
 	if (!HasMouseCapture() && !bIsAnyMenusVisible)
 	{
-		HoveredStatsNodePtr = StatsNodePtr;
+		HoveredStatsNodePtr = NodePtr;
 	}
-
-	//UE_LOG(TimingProfiler, Log, TEXT("%s -> %s"), *HoveredColumnId.GetPlainNameString(), StatsNodePtr.IsValid() ? *StatsNodePtr->GetName().GetPlainNameString() : TEXT("nullptr"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1047,13 +942,6 @@ FName SStatsView::TableRow_GetHighlightedNodeName() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SStatsView::TableRow_ShouldBeEnabled(const uint32 StatsId) const
-{
-	return true;//im:TODO: Session->GetAggregatedStat(StatsId) != nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 // SearchBox
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1072,7 +960,7 @@ bool SStatsView::SearchBox_IsEnabled() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// GroupBy
+// Grouping
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SStatsView::CreateGroups()
@@ -1088,9 +976,9 @@ void SStatsView::CreateGroups()
 			GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FStatsNode>(GroupName));
 		}
 
-		for (const FStatsNodePtr& StatsNodePtr : StatsNodes)
+		for (const FStatsNodePtr& NodePtr : StatsNodes)
 		{
-			(*GroupPtr)->AddChildAndSetGroupPtr(StatsNodePtr);
+			(*GroupPtr)->AddChildAndSetGroupPtr(NodePtr);
 		}
 
 		TreeView->SetItemExpansion(*GroupPtr, true);
@@ -1098,9 +986,9 @@ void SStatsView::CreateGroups()
 	// Creates groups based on stat metadata groups.
 	else if (GroupingMode == EStatsGroupingMode::ByMetaGroupName)
 	{
-		for (const FStatsNodePtr& StatsNodePtr : StatsNodes)
+		for (const FStatsNodePtr& NodePtr : StatsNodes)
 		{
-			const FName GroupName = StatsNodePtr->GetMetaGroupName();
+			const FName GroupName = NodePtr->GetMetaGroupName();
 
 			FStatsNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
@@ -1108,16 +996,16 @@ void SStatsView::CreateGroups()
 				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FStatsNode>(GroupName));
 			}
 
-			(*GroupPtr)->AddChildAndSetGroupPtr(StatsNodePtr);
+			(*GroupPtr)->AddChildAndSetGroupPtr(NodePtr);
 			TreeView->SetItemExpansion(*GroupPtr, true);
 		}
 	}
 	// Creates one group for each stat type.
 	else if (GroupingMode == EStatsGroupingMode::ByType)
 	{
-		for (const FStatsNodePtr& StatsNodePtr : StatsNodes)
+		for (const FStatsNodePtr& NodePtr : StatsNodes)
 		{
-			const FName GroupName = *StatsNodeTypeHelper::ToName(StatsNodePtr->GetType()).ToString();
+			const FName GroupName = *StatsNodeTypeHelper::ToName(NodePtr->GetType()).ToString();
 
 			FStatsNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
@@ -1125,16 +1013,16 @@ void SStatsView::CreateGroups()
 				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FStatsNode>(GroupName));
 			}
 
-			(*GroupPtr)->AddChildAndSetGroupPtr(StatsNodePtr);
+			(*GroupPtr)->AddChildAndSetGroupPtr(NodePtr);
 			TreeView->SetItemExpansion(*GroupPtr, true);
 		}
 	}
 	// Creates one group for one letter.
 	else if (GroupingMode == EStatsGroupingMode::ByName)
 	{
-		for (const FStatsNodePtr& StatsNodePtr : StatsNodes)
+		for (const FStatsNodePtr& NodePtr : StatsNodes)
 		{
-			const FName GroupName = *StatsNodePtr->GetName().GetPlainNameString().Left(1).ToUpper();
+			const FName GroupName = *NodePtr->GetName().GetPlainNameString().Left(1).ToUpper();
 
 			FStatsNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
@@ -1142,7 +1030,7 @@ void SStatsView::CreateGroups()
 				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FStatsNode>(GroupName));
 			}
 
-			(*GroupPtr)->AddChildAndSetGroupPtr(StatsNodePtr);
+			(*GroupPtr)->AddChildAndSetGroupPtr(NodePtr);
 		}
 	}
 
@@ -1211,7 +1099,36 @@ FText SStatsView::GroupBy_GetSelectedTooltipText() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// SortBy
+// Sorting
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FName SStatsView::GetDefaultColumnBeingSorted()
+{
+	return FStatsViewColumns::NameColumnID;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const EColumnSortMode::Type SStatsView::GetDefaultColumnSortMode()
+{
+	return EColumnSortMode::Ascending;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::CreateSortings()
+{
+	//TOOD
+	UpdateCurrentSortingByColumn();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::UpdateCurrentSortingByColumn()
+{
+	//TOOD
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SStatsView::SortStats()
@@ -1270,8 +1187,8 @@ void SStatsView::SetSortModeForColumn(const FName& ColumnId, const EColumnSortMo
 {
 	ColumnBeingSorted = ColumnId;
 	ColumnSortMode = SortMode;
+	UpdateCurrentSortingByColumn();
 
-	// Sort stats and apply filtering.
 	SortStats();
 	ApplyFiltering();
 }
@@ -1298,7 +1215,7 @@ bool SStatsView::HeaderMenu_SortMode_IsChecked(const FName ColumnId, const EColu
 bool SStatsView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const EColumnSortMode::Type InSortMode) const
 {
 	const FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return Column.bCanBeSorted();
+	return Column.CanBeSorted();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1358,54 +1275,126 @@ void SStatsView::ContextMenu_SortByColumn_Execute(const FName ColumnId)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// HideColumn action (HeaderMenu)
+// ShowColumn action
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SStatsView::HeaderMenu_HideColumn_CanExecute(const FName ColumnId) const
+bool SStatsView::CanShowColumn(const FName ColumnId) const
 {
-	const FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return Column.bCanBeHidden();
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStatsView::HeaderMenu_HideColumn_Execute(const FName ColumnId)
+void SStatsView::TreeViewHeaderRow_CreateColumnArgs(const int32 ColumnIndex)
+{
+	const FStatsViewColumn& Column = *FStatsViewColumnFactory::Get().Collection[ColumnIndex];
+	SHeaderRow::FColumn::FArguments ColumnArgs;
+	ColumnArgs
+		.ColumnId(Column.GetId())
+		.DefaultLabel(Column.GetShortName())
+		.HAlignHeader(HAlign_Fill)
+		.VAlignHeader(VAlign_Fill)
+		.HeaderContentPadding(FMargin(2.0f))
+		.HAlignCell(HAlign_Fill)
+		.VAlignCell(VAlign_Fill)
+		.SortMode(this, &SStatsView::GetSortModeForColumn, Column.GetId())
+		.OnSort(this, &SStatsView::OnSortModeChanged)
+		.ManualWidth(Column.GetInitialWidth())
+		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
+		.HeaderContent()
+		[
+			SNew(SBox)
+			.ToolTip(SStatsViewTooltip::GetColumnTooltip(Column))
+			.HAlign(Column.GetHorizontalAlignment())
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(Column.GetShortName())
+			]
+		]
+		.MenuContent()
+		[
+			TreeViewHeaderRow_GenerateColumnMenu(Column)
+		];
+
+	TreeViewHeaderColumnArgs.Add(Column.GetId(), ColumnArgs);
+	TreeViewHeaderColumns.Add(Column.GetId(), Column);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::ShowColumn(const FName ColumnId)
 {
 	FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	Column.bIsVisible = false;
+	Column.Show();
+
+	SHeaderRow::FColumn::FArguments& ColumnArgs = TreeViewHeaderColumnArgs.FindChecked(ColumnId);
+
+	int32 ColumnIndex = 0;
+	const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
+	for (; ColumnIndex < NumColumns; ColumnIndex++)
+	{
+		const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
+		const FStatsViewColumn& CurrentStatsViewColumn = TreeViewHeaderColumns.FindChecked(CurrentColumn.ColumnId);
+		if (Column.Order < CurrentStatsViewColumn.Order)
+		{
+			break;
+		}
+	}
+
+	TreeViewHeaderRow->InsertColumn(ColumnArgs, ColumnIndex);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// HideColumn action
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SStatsView::CanHideColumn(const FName ColumnId) const
+{
+	const FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
+	return Column.CanBeHidden();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::HideColumn(const FName ColumnId)
+{
+	FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
+	Column.Hide();
+
 	TreeViewHeaderRow->RemoveColumn(ColumnId);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// ToggleColumn action (ContextMenu)
+// ToggleColumn action
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SStatsView::ContextMenu_ToggleColumn_IsChecked(const FName ColumnId)
+bool SStatsView::IsColumnVisible(const FName ColumnId) const
 {
 	const FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return Column.bIsVisible;
+	return Column.IsVisible();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SStatsView::ContextMenu_ToggleColumn_CanExecute(const FName ColumnId) const
+bool SStatsView::CanToggleColumnVisibility(const FName ColumnId) const
 {
 	const FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	return Column.bCanBeHidden();
+	return !Column.IsVisible() || Column.CanBeHidden();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStatsView::ContextMenu_ToggleColumn_Execute(const FName ColumnId)
+void SStatsView::ToggleColumnVisibility(const FName ColumnId)
 {
 	FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	if (Column.bIsVisible)
+	if (Column.IsVisible())
 	{
-		HeaderMenu_HideColumn_Execute(ColumnId);
+		HideColumn(ColumnId);
 	}
 	else
 	{
-		TreeViewHeaderRow_ShowColumn(ColumnId);
+		ShowColumn(ColumnId);
 	}
 }
 
@@ -1422,18 +1411,19 @@ bool SStatsView::ContextMenu_ShowAllColumns_CanExecute() const
 
 void SStatsView::ContextMenu_ShowAllColumns_Execute()
 {
-	ColumnSortMode = GetDefaultColumnSortMode();
 	ColumnBeingSorted = GetDefaultColumnBeingSorted();
+	ColumnSortMode = GetDefaultColumnSortMode();
+	UpdateCurrentSortingByColumn();
 
 	const int32 NumColumns = FStatsViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
 	{
 		const FStatsViewColumn& DefaultColumn = *FStatsViewColumnFactory::Get().Collection[ColumnIndex];
-		const FStatsViewColumn& CurrentColumn = TreeViewHeaderColumns.FindChecked(DefaultColumn.Id);
+		const FStatsViewColumn& CurrentColumn = TreeViewHeaderColumns.FindChecked(DefaultColumn.GetId());
 
-		if (!CurrentColumn.bIsVisible)
+		if (!CurrentColumn.IsVisible())
 		{
-			TreeViewHeaderRow_ShowColumn(DefaultColumn.Id);
+			ShowColumn(DefaultColumn.GetId());
 		}
 	}
 }
@@ -1466,23 +1456,25 @@ void SStatsView::ContextMenu_ShowMinMaxMedColumns_Execute()
 		FStatsViewColumns::MinColumnID,
 	};
 
-	ColumnSortMode = EColumnSortMode::Descending;
 	ColumnBeingSorted = FStatsViewColumns::CountColumnID;
+	ColumnSortMode = EColumnSortMode::Descending;
+	UpdateCurrentSortingByColumn();
 
 	const int32 NumColumns = FStatsViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
 	{
 		const FStatsViewColumn& DefaultColumn = *FStatsViewColumnFactory::Get().Collection[ColumnIndex];
-		const FStatsViewColumn& CurrentColumn = TreeViewHeaderColumns.FindChecked(DefaultColumn.Id);
+		const FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(DefaultColumn.GetId());
 
-		bool bIsVisible = Preset.Contains(DefaultColumn.Id);
-		if (bIsVisible && !CurrentColumn.bIsVisible)
+		bool bShouldBeVisible = Preset.Contains(Column.GetId());
+
+		if (bShouldBeVisible && !Column.IsVisible())
 		{
-			TreeViewHeaderRow_ShowColumn(DefaultColumn.Id);
+			ShowColumn(Column.GetId());
 		}
-		else if (!bIsVisible && CurrentColumn.bIsVisible)
+		else if (!bShouldBeVisible && Column.IsVisible())
 		{
-			HeaderMenu_HideColumn_Execute(DefaultColumn.Id);
+			HideColumn(Column.GetId());
 		}
 	}
 }
@@ -1500,22 +1492,23 @@ bool SStatsView::ContextMenu_ResetColumns_CanExecute() const
 
 void SStatsView::ContextMenu_ResetColumns_Execute()
 {
-	ColumnSortMode = GetDefaultColumnSortMode();
 	ColumnBeingSorted = GetDefaultColumnBeingSorted();
+	ColumnSortMode = GetDefaultColumnSortMode();
+	UpdateCurrentSortingByColumn();
 
 	const int32 NumColumns = FStatsViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
 	{
 		const FStatsViewColumn& DefaultColumn = *FStatsViewColumnFactory::Get().Collection[ColumnIndex];
-		const FStatsViewColumn& CurrentColumn = TreeViewHeaderColumns.FindChecked(DefaultColumn.Id);
+		const FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(DefaultColumn.GetId());
 
-		if (DefaultColumn.bIsVisible && !CurrentColumn.bIsVisible)
+		if (Column.ShouldBeVisible() && !Column.IsVisible())
 		{
-			TreeViewHeaderRow_ShowColumn(DefaultColumn.Id);
+			ShowColumn(Column.GetId());
 		}
-		else if (!DefaultColumn.bIsVisible && CurrentColumn.bIsVisible)
+		else if (!Column.ShouldBeVisible() && Column.IsVisible())
 		{
-			HeaderMenu_HideColumn_Execute(DefaultColumn.Id);
+			HideColumn(Column.GetId());
 		}
 	}
 }
@@ -1534,10 +1527,9 @@ void SStatsView::Reset()
 
 void SStatsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	// We need to check if the list of counters has changed.
-	// But, ensure we do not check too often.
+	// Check if we need to update the lists of counters, but not too often.
 	static uint64 NextTimestamp = 0;
-	uint64 Time = FPlatformTime::Cycles64();
+	const uint64 Time = FPlatformTime::Cycles64();
 	if (Time > NextTimestamp)
 	{
 		// 1000 counters --> check each 150ms
@@ -1565,7 +1557,6 @@ void SStatsView::RebuildTree(bool bResync)
 	{
 		const int32 PreviousNodeCount = StatsNodes.Num();
 		StatsNodes.Empty(PreviousNodeCount);
-		//StatsNodesMap.Empty(PreviousNodeCount);
 		StatsNodesIdMap.Empty(PreviousNodeCount);
 		bListHasChanged = true;
 	}
@@ -1588,7 +1579,6 @@ void SStatsView::RebuildTree(bool bResync)
 
 			const int32 PreviousNodeCount = StatsNodes.Num();
 			StatsNodes.Empty(PreviousNodeCount);
-			//StatsNodesMap.Empty(PreviousNodeCount);
 			StatsNodesIdMap.Empty(PreviousNodeCount);
 			bListHasChanged = true;
 
@@ -1598,11 +1588,10 @@ void SStatsView::RebuildTree(bool bResync)
 				FName Group(Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory ? TEXT("Memory") :
 							Counter.IsFloatingPoint() ? TEXT("float") : TEXT("int64"));
 				EStatsNodeType Type = Counter.IsFloatingPoint() ? EStatsNodeType::Float : EStatsNodeType::Int64;
-				FStatsNodePtr StatsNodePtr = MakeShared<FStatsNode>(CounterId, Name, Group, Type);
-				UpdateStatsNode(StatsNodePtr);
-				StatsNodes.Add(StatsNodePtr);
-				//StatsNodesMap.Add(Name, StatsNodePtr);
-				StatsNodesIdMap.Add(CounterId, StatsNodePtr);
+				FStatsNodePtr NodePtr = MakeShared<FStatsNode>(CounterId, Name, Group, Type);
+				UpdateNode(NodePtr);
+				StatsNodes.Add(NodePtr);
+				StatsNodesIdMap.Add(CounterId, NodePtr);
 			});
 		}
 	}
@@ -1614,10 +1603,11 @@ void SStatsView::RebuildTree(bool bResync)
 		{
 			ColumnBeingSorted = NAME_None;
 			ColumnSortMode = GetDefaultColumnSortMode();
+			UpdateCurrentSortingByColumn();
 		}
 
 		UpdateTree();
-		UpdateStats(StatsStartTime, StatsEndTime);
+		UpdateStatsInternal();
 
 		TreeView->RebuildList();
 
@@ -1626,9 +1616,9 @@ void SStatsView::RebuildTree(bool bResync)
 		{
 			TreeView->ClearSelection();
 			TArray<FStatsNodePtr> NewSelectedItems;
-			for (const FStatsNodePtr& StatsNode : SelectedItems)
+			for (const FStatsNodePtr& NodePtr : SelectedItems)
 			{
-				FStatsNodePtr* StatsNodePtrPtr = StatsNodesIdMap.Find(StatsNode->GetId());
+				FStatsNodePtr* StatsNodePtrPtr = StatsNodesIdMap.Find(NodePtr->GetId());
 				if (StatsNodePtrPtr != nullptr)
 				{
 					NewSelectedItems.Add(*StatsNodePtrPtr);
@@ -1646,8 +1636,36 @@ void SStatsView::RebuildTree(bool bResync)
 	const double TotalTime = Stopwatch.GetAccumulatedTime();
 	if (TotalTime > 0.1)
 	{
-		UE_LOG(TimingProfiler, Log, TEXT("Counter tree view rebuilt in %.3fs (%d counters)."), TotalTime, StatsNodes.Num());
+		UE_LOG(TimingProfiler, Log, TEXT("[Counters] Tree view rebuilt in %.3fs (%d counters)"), TotalTime, StatsNodes.Num());
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::UpdateNode(FStatsNodePtr NodePtr)
+{
+	bool bAddedToGraphFlag = false;
+
+	if (!NodePtr->IsGroup())
+	{
+		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Wnd.IsValid())
+		{
+			TSharedPtr<STimingView> TimingView = Wnd->GetTimingView();
+			if (TimingView.IsValid())
+			{
+				TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
+				if (GraphTrack.IsValid())
+				{
+					const uint32 StatsCounterId = static_cast<uint32>(NodePtr->GetId());
+					TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetStatsCounterSeries(StatsCounterId);
+					bAddedToGraphFlag = Series.IsValid();
+				}
+			}
+		}
+	}
+
+	NodePtr->SetAddedToGraphFlag(bAddedToGraphFlag);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1920,32 +1938,49 @@ void TTimeCalculationHelper<int64>::PostProcess(TMap<uint64, FStatsNodePtr>& Sta
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SStatsView::ResetStats()
+{
+	StatsStartTime = 0.0;
+	StatsEndTime = 0.0;
+
+	UpdateStatsInternal();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SStatsView::UpdateStats(double StartTime, double EndTime)
 {
-	FStopwatch AggregationStopwatch;
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
 	StatsStartTime = StartTime;
 	StatsEndTime = EndTime;
 
-	if (StartTime >= EndTime)
+	UpdateStatsInternal();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::UpdateStatsInternal()
+{
+	if (StatsStartTime >= StatsEndTime)
 	{
 		// keep previous aggregated stats
 		return;
 	}
 
-	for (const FStatsNodePtr& StatsNodePtr : StatsNodes)
+	FStopwatch AggregationStopwatch;
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	for (const FStatsNodePtr& NodePtr : StatsNodes)
 	{
-		StatsNodePtr->ResetAggregatedStats();
+		NodePtr->ResetAggregatedStats();
 	}
 
 	if (Session.IsValid())
 	{
 		const bool bComputeMedian = true;
 
-		TTimeCalculationHelper<double> CalculationHelperDbl(StartTime, EndTime);
-		TTimeCalculationHelper<int64>  CalculationHelperInt(StartTime, EndTime);
+		TTimeCalculationHelper<double> CalculationHelperDbl(StatsStartTime, StatsEndTime);
+		TTimeCalculationHelper<int64>  CalculationHelperInt(StatsStartTime, StatsEndTime);
 
 		AggregationStopwatch.Start();
 		{
@@ -2009,8 +2044,14 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 
 	UpdateTree();
 
+	const TArray<FStatsNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	if (SelectedNodes.Num() > 0)
+	{
+		TreeView->RequestScrollIntoView(SelectedNodes[0]);
+	}
+
 	Stopwatch.Stop();
-	UE_LOG(TimingProfiler, Log, TEXT("Counters updated in %.3fs (%.3fs)"), Stopwatch.GetAccumulatedTime(), AggregationStopwatch.GetAccumulatedTime());
+	UE_LOG(TimingProfiler, Log, TEXT("[Counters] Aggregated stats updated in %.3fs (%.3fs)"), Stopwatch.GetAccumulatedTime(), AggregationStopwatch.GetAccumulatedTime());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

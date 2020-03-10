@@ -270,23 +270,6 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SNetStatsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	//SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
-	// Check if we need to update the lists of net events, but not too often.
-	const uint64 Time = FPlatformTime::Cycles64();
-	if (Time > NextTimestamp)
-	{
-		const uint64 WaitTime = static_cast<uint64>(0.5 / FPlatformTime::GetSecondsPerCycle64()); // 500ms
-		NextTimestamp = Time + WaitTime;
-
-		RebuildTree(false);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 TSharedPtr<SWidget> SNetStatsView::TreeView_GetMenuContent()
 {
 	const TArray<FNetEventNodePtr> SelectedNodes = TreeView->GetSelectedItems();
@@ -644,9 +627,28 @@ void SNetStatsView::InsightsManager_OnSessionChanged()
 
 void SNetStatsView::UpdateTree()
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	CreateGroups();
+
+	Stopwatch.Update();
+	const double Time1 = Stopwatch.GetAccumulatedTime();
+
 	SortTreeNodes();
+
+	Stopwatch.Update();
+	const double Time2 = Stopwatch.GetAccumulatedTime();
+
 	ApplyFiltering();
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(NetworkingProfiler, Log, TEXT("[NetStats] Tree view updated in %.3fs (%d events) --> G:%.3fs + S:%.3fs + F:%.3fs"),
+			TotalTime, NetEventNodes.Num(), Time1, Time2 - Time1, TotalTime - Time2);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -769,9 +771,9 @@ TSharedRef<SWidget> SNetStatsView::GetToggleButtonForNetEventType(const ENetEven
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SNetStatsView::FilterOutZeroCountEvents_OnCheckStateChanged(ECheckBoxState NewRadioState)
+void SNetStatsView::FilterOutZeroCountEvents_OnCheckStateChanged(ECheckBoxState NewState)
 {
-	bFilterOutZeroCountEvents = (NewRadioState == ECheckBoxState::Checked);
+	bFilterOutZeroCountEvents = (NewState == ECheckBoxState::Checked);
 	ApplyFiltering();
 }
 
@@ -784,9 +786,9 @@ ECheckBoxState SNetStatsView::FilterOutZeroCountEvents_IsChecked() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SNetStatsView::FilterByNetEventType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ENetEventNodeType InStatType)
+void SNetStatsView::FilterByNetEventType_OnCheckStateChanged(ECheckBoxState NewState, const ENetEventNodeType InStatType)
 {
-	bNetEventTypeIsVisible[static_cast<int>(InStatType)] = (NewRadioState == ECheckBoxState::Checked);
+	bNetEventTypeIsVisible[static_cast<int>(InStatType)] = (NewState == ECheckBoxState::Checked);
 	ApplyFiltering();
 }
 
@@ -984,22 +986,6 @@ void SNetStatsView::CreateGroups()
 
 		TreeView->SetItemExpansion(*GroupPtr, true);
 	}
-	// Creates one group for one letter.
-	else if (GroupingMode == ENetEventGroupingMode::ByName)
-	{
-		for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
-		{
-			const FName GroupName = *NetEventNodePtr->GetName().GetPlainNameString().Left(1).ToUpper();
-
-			FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
-			if (!GroupPtr)
-			{
-				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FNetEventNode>(GroupName));
-			}
-
-			(*GroupPtr)->AddChildAndSetGroupPtr(NetEventNodePtr);
-		}
-	}
 	// Creates one group for each stat type.
 	else if (GroupingMode == ENetEventGroupingMode::ByType)
 	{
@@ -1017,7 +1003,23 @@ void SNetStatsView::CreateGroups()
 			TreeView->SetItemExpansion(*GroupPtr, true);
 		}
 	}
-	// Creates one group for each stat type.
+	// Creates one group for one letter.
+	else if (GroupingMode == ENetEventGroupingMode::ByName)
+	{
+		for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
+		{
+			const FName GroupName = *NetEventNodePtr->GetName().GetPlainNameString().Left(1).ToUpper();
+
+			FNetEventNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
+			if (!GroupPtr)
+			{
+				GroupPtr = &GroupNodeSet.Add(GroupName, MakeShared<FNetEventNode>(GroupName));
+			}
+
+			(*GroupPtr)->AddChildAndSetGroupPtr(NetEventNodePtr);
+		}
+	}
+	// Creates one group for each level.
 	else if (GroupingMode == ENetEventGroupingMode::ByLevel)
 	{
 		for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
@@ -1119,7 +1121,7 @@ void SNetStatsView::CreateSortings()
 	AvailableSorters.Reset();
 	CurrentSorter = nullptr;
 
-	for (const TSharedRef<Insights::FTableColumn> ColumnRef : Table->GetColumns())
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
 		if (ColumnRef->CanBeSorted())
 		{
@@ -1431,8 +1433,9 @@ bool SNetStatsView::ContextMenu_ShowAllColumns_CanExecute() const
 
 void SNetStatsView::ContextMenu_ShowAllColumns_Execute()
 {
-	ColumnSortMode = GetDefaultColumnSortMode();
 	ColumnBeingSorted = GetDefaultColumnBeingSorted();
+	ColumnSortMode = GetDefaultColumnSortMode();
+	UpdateCurrentSortingByColumn();
 
 	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
@@ -1545,8 +1548,26 @@ void SNetStatsView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SNetStatsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	// Check if we need to update the lists of net events, but not too often.
+	const uint64 Time = FPlatformTime::Cycles64();
+	if (Time > NextTimestamp)
+	{
+		const uint64 WaitTime = static_cast<uint64>(0.5 / FPlatformTime::GetSecondsPerCycle64()); // 500ms
+		NextTimestamp = Time + WaitTime;
+
+		RebuildTree(false);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SNetStatsView::RebuildTree(bool bResync)
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	TArray<FNetEventNodePtr> SelectedItems;
 	bool bListHasChanged = false;
 
@@ -1629,6 +1650,13 @@ void SNetStatsView::RebuildTree(bool bResync)
 			}
 		}
 	}
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(NetworkingProfiler, Log, TEXT("[NetStats] Tree view rebuilt in %.3fs (%d events)"), TotalTime, NetEventNodes.Num());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1674,6 +1702,10 @@ void SNetStatsView::UpdateStatsInternal()
 		return;
 	}
 
+	FStopwatch AggregationStopwatch;
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	for (const FNetEventNodePtr& NetEventNodePtr : NetEventNodes)
 	{
 		NetEventNodePtr->ResetAggregatedStats();
@@ -1683,11 +1715,13 @@ void SNetStatsView::UpdateStatsInternal()
 	{
 		TUniquePtr<Trace::ITable<Trace::FNetProfilerAggregatedStats>> AggregationResultTable;
 
+		AggregationStopwatch.Start();
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
 			AggregationResultTable.Reset(NetProfilerProvider.CreateAggregation(ConnectionIndex, ConnectionMode, StatsPacketStartIndex, StatsPacketEndIndex - 1, StatsStartPosition, StatsEndPosition));
 		}
+		AggregationStopwatch.Stop();
 
 		if (AggregationResultTable.IsValid())
 		{
@@ -1714,6 +1748,15 @@ void SNetStatsView::UpdateStatsInternal()
 	}
 
 	UpdateTree();
+
+	const TArray<FNetEventNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	if (SelectedNodes.Num() > 0)
+	{
+		TreeView->RequestScrollIntoView(SelectedNodes[0]);
+	}
+
+	Stopwatch.Stop();
+	UE_LOG(NetworkingProfiler, Log, TEXT("[NetStats] Aggregated stats updated in %.3fs (%.3fs)"), Stopwatch.GetAccumulatedTime(), AggregationStopwatch.GetAccumulatedTime());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

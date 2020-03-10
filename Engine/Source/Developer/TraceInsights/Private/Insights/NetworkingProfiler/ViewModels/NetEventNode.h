@@ -43,7 +43,7 @@ typedef TWeakPtr<class FNetEventNode> FNetEventNodeWeak;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Class used to store information about a timer node (used in the STimersView).
+ * Class used to store information about a timer node (used in the SNetStatsView).
  */
 class FNetEventNode : public Insights::FBaseTreeNode
 {

@@ -31,17 +31,34 @@ public:
 	typedef TFunction<FText(const FStatsViewColumn& Column, const FStatsNode& StatsNode)> FGetFormattedValueFn;
 
 public:
+	int32 GetOrder() const { return Order; }
+	const FName GetId() const { return Id; }
+	const FText& GetShortName() const { return ShortName; }
+	const FText& GetTitleName() const { return TitleName; }
+	const FText& GetDescription() const { return Description; }
+
+	bool ShouldBeVisible() const { return bIsVisible; }
+	bool IsVisible() const { return bIsVisible; }
+	void Show() { bIsVisible = true; }
+	void Hide() { bIsVisible = false; }
+
 	/** Whether this column can be hidden. */
-	bool bCanBeHidden() const { return EnumHasAnyFlags(Flags, EStatsViewColumnFlags::CanBeHidden); }
+	bool CanBeHidden() const { return EnumHasAnyFlags(Flags, EStatsViewColumnFlags::CanBeHidden); }
 
 	/** Whether this column cab be used for sorting. */
-	bool bCanBeSorted() const { return EnumHasAnyFlags(Flags, EStatsViewColumnFlags::CanBeSorted); }
+	bool CanBeSorted() const { return EnumHasAnyFlags(Flags, EStatsViewColumnFlags::CanBeSorted); }
 
 	/** Where this column can be used to filtering displayed results. */
-	bool bCanBeFiltered() const { return EnumHasAnyFlags(Flags, EStatsViewColumnFlags::CanBeFiltered); }
+	bool CanBeFiltered() const { return EnumHasAnyFlags(Flags, EStatsViewColumnFlags::CanBeFiltered); }
+
+	const EHorizontalAlignment GetHorizontalAlignment() const { return HorizontalAlignment; }
+
+	const float GetInitialWidth() const { return InitialColumnWidth; }
+	const float GetMinColumnWidth() const { return MinColumnWidth; }
+	const float GetMaxColumnWidth() const { return MaxColumnWidth; }
 
 	/** If MinColumnWidth == MaxColumnWidth, this column has fixed width and cannot be resized. */
-	bool bIsFixedColumnWidth() const { return MinColumnWidth == MaxColumnWidth; }
+	bool IsFixedWidth() const { return MinColumnWidth == MaxColumnWidth; }
 
 	FText GetFormattedValue(const FStatsNode& StatsNode) const
 	{

@@ -39,16 +39,21 @@ public:
 		return TrackPtrPtr ? *TrackPtrPtr : nullptr;
 	}
 
-	void ShowHideAllLoadingTracks() { ShowHideAllLoadingTracks_Execute(); }
+	void ShowAllLoadingTracks() { AllLoadingTracks_Show(); }
+	void HideAllLoadingTracks() { AllLoadingTracks_Hide(); }
+	void ShowHideAllLoadingTracks() { AllLoadingTracks_ToggleVisibility(); }
 
 private:
+	bool AllLoadingTracks_IsChecked() const;
+	void AllLoadingTracks_Show();
+	void AllLoadingTracks_Hide();
+	void AllLoadingTracks_ToggleVisibility();
+	void AllLoadingTracks_OnCheckStateChanged();
+
 	const TCHAR* GetEventNameByEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
 	const TCHAR* GetEventNameByPackageName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
 	const TCHAR* GetEventNameByExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
 	const TCHAR* GetEventNameByPackageAndExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-
-	bool ShowHideAllLoadingTracks_IsChecked() const;
-	void ShowHideAllLoadingTracks_Execute();
 
 private:
 	STimingView* TimingView;

@@ -110,6 +110,9 @@ public:
 
 	bool IsAutoZoomEnabled() const { return bAutoZoom; }
 	void EnableAutoZoom() { bAutoZoom = true; }
+	void DisableAutoZoom() { bAutoZoom = false; }
+
+	bool IsAutoZoomDirty() const { return bIsAutoZoomDirty; }
 
 	bool IsUsingSharedViewport() const { return bUseSharedViewport; }
 	void EnableSharedViewport() { bUseSharedViewport = true; }
@@ -171,8 +174,11 @@ public:
 	 */
 	const FGraphSeriesEvent* GetEvent(const float PosX, const float PosY, const FTimingTrackViewport& Viewport, bool bCheckLine, bool bCheckBox) const;
 
-	/** Update the track's auto-zoom. Does nothing if IsAutoZoomEnabled() is false. */
+	/** Updates the track's auto-zoom. Does nothing if IsAutoZoomEnabled() is false. */
 	void UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue, const bool bIsAutoZoomAnimated = true);
+
+	/** Updates the track's auto-zoom. Returns true if viewport was changed. Sets bIsAutoZoomDirty=true if needs another update. */
+	bool UpdateAutoZoomEx(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue, const bool bIsAutoZoomAnimated);
 
 	virtual FString FormatValue(double Value) const;
 
@@ -184,8 +190,9 @@ private:
 	bool bIsDirty;
 
 	bool bAutoZoom;
-	bool bUseSharedViewport;
+	bool bIsAutoZoomDirty;
 
+	bool bUseSharedViewport;
 	FGraphValueViewport ValueViewport;
 
 	FLinearColor Color;

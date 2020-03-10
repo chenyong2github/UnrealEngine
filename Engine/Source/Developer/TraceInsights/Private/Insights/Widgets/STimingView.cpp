@@ -1366,6 +1366,20 @@ void STimingView::AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimingView::RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
+{
+	if (TopDockedTracks.Remove(Track) > 0)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("Removed Top Docked Track (%d) : %s (\"%s\")"),
+			TopDockedTracks.Num(),
+			*Track->GetTypeName().ToString(),
+			*Track->GetName());
+		AllTracks.Remove(Track->GetId());
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimingView::AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
@@ -1381,6 +1395,20 @@ void STimingView::AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimingView::RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
+{
+	if (BottomDockedTracks.Remove(Track) > 0)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("Removed Bottom Docked Track (%d) : %s (\"%s\")"),
+			BottomDockedTracks.Num(),
+			*Track->GetTypeName().ToString(),
+			*Track->GetName());
+		AllTracks.Remove(Track->GetId());
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimingView::AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
@@ -1392,6 +1420,21 @@ void STimingView::AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 	AllTracks.Add(Track->GetId(), Track);
 	ScrollableTracks.Add(Track);
 	InvalidateScrollableTracksOrder();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
+{
+	if (ScrollableTracks.Remove(Track) > 0)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("Removed Scrollable Track (%d) : %s (\"%s\")"),
+			ScrollableTracks.Num(),
+			*Track->GetTypeName().ToString(),
+			*Track->GetName());
+		AllTracks.Remove(Track->GetId());
+		InvalidateScrollableTracksOrder();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1425,6 +1468,20 @@ void STimingView::AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
 	AllTracks.Add(Track->GetId(), Track);
 	ForegroundTracks.Add(Track);
 	Algo::SortBy(ForegroundTracks, &FBaseTimingTrack::GetOrder);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
+{
+	if (ForegroundTracks.Remove(Track) > 0)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("Removed Foreground Track (%d) : %s (\"%s\")"),
+			ForegroundTracks.Num(),
+			*Track->GetTypeName().ToString(),
+			*Track->GetName());
+		AllTracks.Remove(Track->GetId());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -5,6 +5,7 @@
 #include "Containers/Ticker.h"
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Logging/LogMacros.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
@@ -17,6 +18,8 @@ namespace Trace
 	class IAnalysisService;
 	class IAnalysisSession;
 }
+
+DECLARE_LOG_CATEGORY_EXTERN(NetworkingProfiler, Log, All);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
@@ -53,14 +56,6 @@ public:
 		FNetworkingProfilerManager::Instance.Reset();
 	}
 
-protected:
-	/** Finishes initialization of the profiler manager. */
-	void PostConstructor();
-
-	/** Binds our UI commands to delegates. */
-	void BindCommands();
-
-public:
 	/**
 	 * @return the global instance of the Networking Profiler (Networking Insights) manager.
 	 * This is an internal singleton and cannot be used outside ProfilerModule.
@@ -98,15 +93,19 @@ public:
 		return ProfilerWindows[Index].Pin();
 	}
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-
 	void OnSessionChanged();
 
-protected:
+private:
+	/** Finishes initialization of the profiler manager. */
+	void PostConstructor();
+
+	/** Binds our UI commands to delegates. */
+	void BindCommands();
+
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
 
-protected:
+private:
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
 
@@ -122,6 +121,6 @@ protected:
 	/** A list of weak pointers to the Networking Profiler windows. */
 	TArray<TWeakPtr<class SNetworkingProfilerWindow>> ProfilerWindows;
 
-	/** A shared pointer to the global instance of the profiler manager. */
+	/** A shared pointer to the global instance of the NetworkingProfiler manager. */
 	static TSharedPtr<FNetworkingProfilerManager> Instance;
 };

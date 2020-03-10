@@ -221,7 +221,7 @@ void FThreadTimingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 			FUIAction(FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllGpuTracks_Execute),
 					  FCanExecuteAction(),
 					  FIsActionChecked::CreateSP(this, &FThreadTimingSharedState::ShowHideAllGpuTracks_IsChecked)),
-			NAME_None,
+			NAME_None, //"QuickFilterSeparator",
 			EUserInterfaceActionType::ToggleButton
 		);
 
@@ -233,7 +233,7 @@ void FThreadTimingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 			FUIAction(FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllCpuTracks_Execute),
 					  FCanExecuteAction(),
 					  FIsActionChecked::CreateSP(this, &FThreadTimingSharedState::ShowHideAllCpuTracks_IsChecked)),
-			NAME_None,
+			NAME_None, //"QuickFilterSeparator",
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -376,6 +376,8 @@ INSIGHTS_IMPLEMENT_RTTI(FThreadTimingTrack)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define INSIGHTS_ENSURE_TIMER_NAME 0
+
 void FThreadTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
 {
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
@@ -387,31 +389,41 @@ void FThreadTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 
 		const FTimingTrackViewport& Viewport = Context.GetViewport();
 
-		TimingProfilerProvider.ReadTimers([this, &Builder, &Viewport, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+		TimingProfilerProvider.ReadTimers([this, &Builder, &Viewport, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimerCount)
 		{
-			TimingProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, &Viewport, Timers](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+			TimingProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, &Viewport, Timers, TimerCount](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 			{
 				if (FTimingEventsTrack::bUseDownSampling)
 				{
 					const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
 					Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel,
-						[this, &Builder, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+						[this, &Builder, Timers, TimerCount](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
 							//ensure(Timers[Event.TimerIndex].Id == Event.TimerIndex);
 							const uint64 Type = Event.TimerIndex;
 							const uint32 Color = 0;
-							Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
+#if INSIGHTS_ENSURE_TIMER_NAME
+							const TCHAR* Name = ensure(Event.TimerIndex < TimerCount) ? Timers[Event.TimerIndex].Name : TEXT("");
+#else
+							const TCHAR* Name = Timers[Event.TimerIndex].Name;
+#endif
+							Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
 						});
 				}
 				else
 				{
 					Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(),
-						[this, &Builder, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+						[this, &Builder, Timers, TimerCount](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
 							//ensure(Timers[Event.TimerIndex].Id == Event.TimerIndex);
 							const uint64 Type = Event.TimerIndex;
 							const uint32 Color = 0;
-							Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
+#if INSIGHTS_ENSURE_TIMER_NAME
+							const TCHAR* Name = ensure(Event.TimerIndex < TimerCount) ? Timers[Event.TimerIndex].Name : TEXT("");
+#else
+							const TCHAR* Name = Timers[Event.TimerIndex].Name;
+#endif
+							Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
 						});
 				}
 			});
@@ -446,22 +458,27 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 
 			if (bFilterOnlyByEventType)
 			{
-				TimingProfilerProvider.ReadTimers([this, &Builder, &Viewport, &TimingProfilerProvider, FilterEventType](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+				TimingProfilerProvider.ReadTimers([this, &Builder, &Viewport, &TimingProfilerProvider, FilterEventType](const Trace::FTimingProfilerTimer* Timers, uint64 TimerCount)
 				{
-					TimingProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, &Viewport, Timers, FilterEventType](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+					TimingProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, &Viewport, Timers, TimerCount, FilterEventType](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 					{
 						// Note: Enumerating events for filtering should not use downsampling.
 						//const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
 						//Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel,
 						Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(),
-							[this, &Builder, Timers, FilterEventType](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+							[this, &Builder, Timers, TimerCount, FilterEventType](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
 							//ensure(Timers[Event.TimerIndex].Id == Event.TimerIndex);
 							const uint64 Type = Event.TimerIndex;
 							if (Type == FilterEventType)
 							{
 								constexpr uint32 Color = 0;
-								Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
+#if INSIGHTS_ENSURE_TIMER_NAME
+								const TCHAR* Name = ensure(Event.TimerIndex < TimerCount) ? Timers[Event.TimerIndex].Name : TEXT("");
+#else
+								const TCHAR* Name = Timers[Event.TimerIndex].Name;
+#endif
+								Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
 							}
 						});
 					});
@@ -469,15 +486,15 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 			}
 			else // generic filter
 			{
-				TimingProfilerProvider.ReadTimers([this, &Builder, &Viewport, &TimingProfilerProvider, &EventFilterPtr](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+				TimingProfilerProvider.ReadTimers([this, &Builder, &Viewport, &TimingProfilerProvider, &EventFilterPtr](const Trace::FTimingProfilerTimer* Timers, uint64 TimerCount)
 				{
-					TimingProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, &Viewport, Timers, &EventFilterPtr](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+					TimingProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, &Viewport, Timers, TimerCount, &EventFilterPtr](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 					{
 						// Note: Enumerating events for filtering should not use downsampling.
 						//const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
 						//Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel,
 						Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(),
-							[this, &Builder, Timers, &EventFilterPtr](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+							[this, &Builder, Timers, TimerCount, &EventFilterPtr](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
 							//ensure(Timers[Event.TimerIndex].Id == Event.TimerIndex);
 							const uint64 Type = Event.TimerIndex;
@@ -487,7 +504,12 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 							if (EventFilterPtr->FilterEvent(TimingEvent))
 							{
 								constexpr uint32 Color = 0;
-								Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
+#if INSIGHTS_ENSURE_TIMER_NAME
+								const TCHAR* Name = ensure(Event.TimerIndex < TimerCount) ? Timers[Event.TimerIndex].Name : TEXT("");
+#else
+								const TCHAR* Name = Timers[Event.TimerIndex].Name;
+#endif
+								Builder.AddEvent(StartTime, EndTime, Depth, Name, Type, Color);
 							}
 						});
 					});

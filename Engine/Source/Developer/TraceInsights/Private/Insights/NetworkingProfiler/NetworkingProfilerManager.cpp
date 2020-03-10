@@ -13,14 +13,16 @@
 
 #define LOCTEXT_NAMESPACE "NetworkingProfilerManager"
 
-//DEFINE_LOG_CATEGORY(NetworkingProfiler);
-//
-//DEFINE_STAT(STAT_FT_OnPaint);
-//DEFINE_STAT(STAT_GT_OnPaint);
-//DEFINE_STAT(STAT_TT_OnPaint);
-//DEFINE_STAT(STAT_IOPM_Tick);
+DEFINE_LOG_CATEGORY(NetworkingProfiler);
 
 TSharedPtr<FNetworkingProfilerManager> FNetworkingProfilerManager::Instance = nullptr;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FNetworkingProfilerManager> FNetworkingProfilerManager::Get()
+{
+	return FNetworkingProfilerManager::Instance;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -45,12 +47,6 @@ void FNetworkingProfilerManager::PostConstructor()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FNetworkingProfilerManager::BindCommands()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 FNetworkingProfilerManager::~FNetworkingProfilerManager()
 {
 	FNetworkingProfilerCommands::Unregister();
@@ -61,9 +57,8 @@ FNetworkingProfilerManager::~FNetworkingProfilerManager()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FNetworkingProfilerManager> FNetworkingProfilerManager::Get()
+void FNetworkingProfilerManager::BindCommands()
 {
-	return FNetworkingProfilerManager::Instance;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,8 +86,6 @@ FNetworkingProfilerActionManager& FNetworkingProfilerManager::GetActionManager()
 
 bool FNetworkingProfilerManager::Tick(float DeltaTime)
 {
-	//SCOPE_CYCLE_COUNTER(STAT_IOPM_Tick);
-
 	return true;
 }
 

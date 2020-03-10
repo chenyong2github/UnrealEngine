@@ -183,7 +183,7 @@ public:
 
 	void DrawMarkers(const FTimingEventsTrackDrawState& DrawState, float LineY, float LineH, float Opacity) const;
 
-	void DrawTrackHeader(const FTimingEventsTrack& Track) const;
+	void DrawTrackHeader(const FBaseTimingTrack& Track) const;
 
 	void EndDrawTracks() const;
 

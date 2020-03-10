@@ -211,16 +211,20 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// ITimingViewSession interface
 
-	virtual TSharedPtr<FBaseTimingTrack> FindTrack(uint64 InTrackId) override;
-
 	virtual void AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+	virtual void RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 
-	virtual void PreventThrottling() override;
+	virtual void AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+	virtual void RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+
+	virtual void AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+	virtual void RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 	virtual void InvalidateScrollableTracksOrder() override;
-	//TODO: virtual void InvalidateScrollableTracksVisibility() override;
+
+	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+	virtual void RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+
+	virtual TSharedPtr<FBaseTimingTrack> FindTrack(uint64 InTrackId) override;
 
 	virtual double GetTimeMarker() const override { return TimeMarker; }
 	virtual void SetTimeMarker(double InTimeMarker) override;
@@ -233,6 +237,7 @@ public:
 	virtual Insights::FSelectedTrackChangedDelegate& OnSelectedTrackChanged() override { return OnSelectedTrackChangedDelegate; }
 	virtual Insights::FSelectedEventChangedDelegate& OnSelectedEventChanged() override { return OnSelectedEventChangedDelegate; }
 
+	virtual void PreventThrottling() override;
 	virtual void AddOverlayWidget(const TSharedRef<SWidget>& InWidget) override;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////

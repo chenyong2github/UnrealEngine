@@ -113,10 +113,10 @@ void FLoadingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSessi
 			LOCTEXT("ShowAllLoadingTracks", "Asset Loading Tracks - L"),
 			LOCTEXT("ShowAllLoadingTracks_Tooltip", "Show/hide the Asset Loading tracks"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FLoadingSharedState::ShowHideAllLoadingTracks_Execute),
+			FUIAction(FExecuteAction::CreateSP(this, &FLoadingSharedState::AllLoadingTracks_ToggleVisibility),
 					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FLoadingSharedState::ShowHideAllLoadingTracks_IsChecked)),
-			"QuickFilterSeparator",
+					  FIsActionChecked::CreateSP(this, &FLoadingSharedState::AllLoadingTracks_IsChecked)),
+			NAME_None, //"QuickFilterSeparator",
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -125,17 +125,39 @@ void FLoadingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSessi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FLoadingSharedState::ShowHideAllLoadingTracks_IsChecked() const
+bool FLoadingSharedState::AllLoadingTracks_IsChecked() const
 {
 	return bShowHideAllLoadingTracks;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingSharedState::ShowHideAllLoadingTracks_Execute()
+void FLoadingSharedState::AllLoadingTracks_ToggleVisibility()
 {
 	bShowHideAllLoadingTracks = !bShowHideAllLoadingTracks;
+	AllLoadingTracks_OnCheckStateChanged();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLoadingSharedState::AllLoadingTracks_Show()
+{
+	bShowHideAllLoadingTracks = true;
+	AllLoadingTracks_OnCheckStateChanged();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLoadingSharedState::AllLoadingTracks_Hide()
+{
+	bShowHideAllLoadingTracks = false;
+	AllLoadingTracks_OnCheckStateChanged();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLoadingSharedState::AllLoadingTracks_OnCheckStateChanged()
+{
 	for (const auto& KV : LoadingTracks)
 	{
 		FLoadingTimingTrack& Track = *KV.Value;

@@ -95,7 +95,7 @@ public:
 
 public:
 	/** Initialization constructor for the stats node. */
-	FStatsNode(uint64 InId, const FName InName, const FName InMetaGroupName, EStatsNodeType InType)
+	FStatsNode(uint32 InId, const FName InName, const FName InMetaGroupName, EStatsNodeType InType)
 		: FBaseTreeNode(InId, InName, InType == EStatsNodeType::Group)
 		, MetaGroupName(InMetaGroupName)
 		, Type(InType)
@@ -146,6 +146,16 @@ public:
 		return Color;
 	}
 
+	bool IsAddedToGraph() const
+	{
+		return bIsAddedToGraph;
+	}
+
+	void SetAddedToGraphFlag(bool bOnOff)
+	{
+		bIsAddedToGraph = bOnOff;
+	}
+
 	/**
 	 * @return the aggregated stats of this stats counter (if counter is a "float number" type).
 	 */
@@ -192,16 +202,6 @@ public:
 			return StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(Node);
 		};
 		Algo::SortBy(GetChildrenMutable(), Projection, Instance);
-	}
-
-	bool IsAddedToGraph() const
-	{
-		return bIsAddedToGraph;
-	}
-
-	void SetAddedToGraphFlag(bool bOnOff)
-	{
-		bIsAddedToGraph = bOnOff;
 	}
 
 private:

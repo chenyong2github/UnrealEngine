@@ -18,6 +18,7 @@
 #include "Insights/ViewModels/GraphTrackEvent.h"
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
+#include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "Insights/Widgets/SGraphSeriesList.h"
 
@@ -46,6 +47,8 @@ FGraphTrack::FGraphTrack()
 	, bUseEventDuration(true)
 	, bDrawBoxes(true)
 	, bDrawBaseline(true)
+	, bDrawVerticalAxisGrid(false)
+	, bDrawHeader(false)
 	, VisibleOptions(EGraphOptions::All)
 	, EditableOptions(EGraphOptions::All)
 	, SharedValueViewport()
@@ -73,6 +76,8 @@ FGraphTrack::FGraphTrack(const FString& InName)
 	, bUseEventDuration(true)
 	, bDrawBoxes(true)
 	, bDrawBaseline(true)
+	, bDrawVerticalAxisGrid(false)
+	, bDrawHeader(false)
 	, VisibleOptions(EGraphOptions::All)
 	, EditableOptions(EGraphOptions::All)
 	, SharedValueViewport()
@@ -191,6 +196,16 @@ void FGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 			DrawSeries(*Series, DrawContext, Viewport);
 		}
+	}
+
+	if (bDrawVerticalAxisGrid)
+	{
+		DrawVerticalAxisGrid(Context);
+	}
+
+	if (bDrawHeader)
+	{
+		DrawHeader(Context);
 	}
 
 	// Restore clipping.
@@ -576,6 +591,20 @@ void FGraphTrack::DrawEvent(const ITimingTrackDrawContext& Context, const ITimin
 	DrawContext.LayerId++;
 	DrawContext.DrawBox(EventX1 - PointVisualSize / 2.0f + 0.5f, EventY1 - PointVisualSize / 2.0f + 0.5f, PointVisualSize, PointVisualSize, PointBrush, Series->Color);
 	DrawContext.LayerId++;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Context) const
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphTrack::DrawHeader(const ITimingTrackDrawContext& Context) const
+{
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
+	Helper.DrawTrackHeader(*this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

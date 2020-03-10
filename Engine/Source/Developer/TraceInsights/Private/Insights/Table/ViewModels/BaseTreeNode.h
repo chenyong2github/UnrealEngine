@@ -34,7 +34,7 @@ public:
 
 public:
 	/** Initialization constructor for the node. */
-	FBaseTreeNode(uint64 InId, const FName InName, bool bInIsGroup)
+	FBaseTreeNode(uint32 InId, const FName InName, bool bInIsGroup)
 		: Id(InId)
 		, Name(InName)
 		, bIsGroup(bInIsGroup)

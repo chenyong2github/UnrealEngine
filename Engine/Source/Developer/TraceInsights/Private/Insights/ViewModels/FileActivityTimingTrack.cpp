@@ -461,7 +461,7 @@ void FFileActivitySharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideAllIoTracks_Execute),
 					  FCanExecuteAction(),
 					  FIsActionChecked::CreateSP(this, &FFileActivitySharedState::ShowHideAllIoTracks_IsChecked)),
-			"QuickFilterSeparator",
+			NAME_None, //"QuickFilterSeparator",
 			EUserInterfaceActionType::ToggleButton
 		);
 	}

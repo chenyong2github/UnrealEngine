@@ -131,7 +131,7 @@ void FFrameSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession
 			FUIAction(FExecuteAction::CreateSP(this, &FFrameSharedState::ShowHideAllFrameTracks_Execute),
 					  FCanExecuteAction(),
 					  FIsActionChecked::CreateSP(this, &FFrameSharedState::ShowHideAllFrameTracks_IsChecked)),
-			NAME_None,
+			NAME_None, //"QuickFilterSeparator",
 			EUserInterfaceActionType::ToggleButton
 		);
 	}

@@ -13,12 +13,6 @@
 
 class STimingProfilerWindow;
 
-namespace Trace
-{
-	class IAnalysisService;
-	class IAnalysisSession;
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * This class manages the Timing Profiler state and settings.
@@ -54,20 +48,12 @@ public:
 		FTimingProfilerManager::Instance.Reset();
 	}
 
-protected:
-	/** Finishes initialization of the profiler manager. */
-	void PostConstructor();
-
-	/** Binds our UI commands to delegates. */
-	void BindCommands();
-
-public:
 	/**
-	 * @return the global instance of the Timing Profiler (Timing Insights) manager.
-	 * This is an internal singleton and cannot be used outside ProfilerModule.
+	 * @return the global instance of the Timing Profiler manager.
+	 * This is an internal singleton and cannot be used outside TraceInsights.
 	 * For external use:
-	 *     IProfilerModule& ProfilerModule = FModuleManager::Get().LoadModuleChecked<IProfilerModule>("Profiler");
-	 *     ProfilerModule.GetProfilerManager();
+	 *     IUnrealInsightsModule& Module = FModuleManager::Get().LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+	 *     Module.GetTimingProfiler();
 	 */
 	static TSharedPtr<FTimingProfilerManager> Get();
 
@@ -149,11 +135,17 @@ public:
 	void UpdateAggregatedTimerStats();
 	void UpdateAggregatedCounterStats();
 
-protected:
+private:
+	/** Finishes initialization of the profiler manager. */
+	void PostConstructor();
+
+	/** Binds our UI commands to delegates. */
+	void BindCommands();
+
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
 
-protected:
+private:
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
 
@@ -190,9 +182,6 @@ protected:
 	/** If the Log View is visible or hidden. */
 	bool bIsLogViewVisible;
 
-	/** A shared pointer to the global instance of the profiler manager. */
-	static TSharedPtr<FTimingProfilerManager> Instance;
-
 	//////////////////////////////////////////////////
 
 	double SelectionStartTime;
@@ -200,4 +189,7 @@ protected:
 
 	static const uint64 InvalidTimerId = uint64(-1);
 	uint64 SelectedTimerId;
+
+	/** A shared pointer to the global instance of the Timing Profiler manager. */
+	static TSharedPtr<FTimingProfilerManager> Instance;
 };

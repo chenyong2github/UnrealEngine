@@ -6,11 +6,11 @@
 
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/TimingProfiler.h"
+#include "TraceServices/Model/Counters.h"
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
-#include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/GraphTrackBuilder.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
@@ -69,7 +69,6 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 			const int64 Int64Value = static_cast<int64>(Value);
 			return FText::AsNumber(Int64Value).ToString();
 		}
-		break;
 	}
 
 	return FGraphSeries::FormatValue(Value);

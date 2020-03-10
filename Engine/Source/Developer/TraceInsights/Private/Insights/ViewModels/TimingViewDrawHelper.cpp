@@ -518,7 +518,7 @@ void FTimingViewDrawHelper::DrawMarkers(const FTimingEventsTrackDrawState& DrawS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingViewDrawHelper::DrawTrackHeader(const FTimingEventsTrack& Track) const
+void FTimingViewDrawHelper::DrawTrackHeader(const FBaseTimingTrack& Track) const
 {
 	const float TrackY = Track.GetPosY();
 	const float TrackH = Track.GetHeight();
