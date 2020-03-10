@@ -53,11 +53,13 @@ enum ESimulationInitializationState { Unintialized = 0, Activated, Created, Init
 */
 struct FSharedSimulationParameters
 {
-	static constexpr float MaximumMassClamp = 1000;	//todo: this is way too low, need to handle this in a better way when combining with large inertia
 	FSharedSimulationParameters()
 	: bMassAsDensity(false)
 	, Mass(1.0)
-	, MinimumMassClamp(0.1)
+	, MinimumMassClamp(0.1f)
+	, MaximumMassClamp(1000.0f)
+	, MinimumInertiaTensorDiagonalClamp(SMALL_NUMBER) // todo : Expose to users with better initial values
+	, MaximumInertiaTensorDiagonalClamp(1.0e6f) // todo : Expose to users with better initial values
 	, MaximumCollisionParticleCount(60)
 	{
 		SizeSpecificData.AddDefaulted();
@@ -71,12 +73,18 @@ struct FSharedSimulationParameters
 		,int32 InMaxClusterLevelSetResolution
 		,bool InMassAsDensity
 		,float InMass
-		,float InMinimumMassClamp
+		, float InMinimumMassClamp
+		, float InMaximumMassClamp
+		, float InMinimumInertiaTensorDiagonalClamp
+		, float InMaximumInertiaTensorDiagonalClamp
 		,float InCollisionParticlesFraction
 		,int32 InMaximumCollisionParticleCount)
 	: bMassAsDensity(InMassAsDensity)
 	, Mass(InMass)
 	, MinimumMassClamp(InMinimumMassClamp)
+	, MaximumMassClamp(InMinimumMassClamp)
+	, MinimumInertiaTensorDiagonalClamp(InMinimumInertiaTensorDiagonalClamp)
+	, MaximumInertiaTensorDiagonalClamp(InMaximumInertiaTensorDiagonalClamp)
 	, MaximumCollisionParticleCount(InMaximumCollisionParticleCount)
 	{
 		SizeSpecificData.AddDefaulted();
@@ -93,6 +101,10 @@ struct FSharedSimulationParameters
 	bool bMassAsDensity;
 	float Mass;
 	float MinimumMassClamp;
+	float MaximumMassClamp;
+	float MinimumInertiaTensorDiagonalClamp;
+	float MaximumInertiaTensorDiagonalClamp;
+
 	TArray<FSharedSimulationSizeSpecificData> SizeSpecificData;
 	TArray<int32> RemoveOnFractureIndices;
 	int32 MaximumCollisionParticleCount;
@@ -235,6 +247,7 @@ struct FSimulationParameters
 		, bOwnsTrack(false)
 		, Simulating(Other.Simulating)
 		, WorldTransform(Other.WorldTransform)
+		, EnableClustering(Other.EnableClustering)
 		, ClusterGroupIndex(Other.ClusterGroupIndex)
 		, MaxClusterLevel(Other.MaxClusterLevel)
 		, DamageThreshold(Other.DamageThreshold)

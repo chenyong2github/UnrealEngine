@@ -457,7 +457,6 @@ namespace Chaos
 				TEXT("FPBDRigidsSolver::RegisterObject(FGeometryCollectionPhysicsProxy*)"));
 			check(InParticles);
 			InProxy->InitializeBodiesPT(Solver, *InParticles);
-			InProxy->PushToPhysicsState(nullptr); // Uses buffer on proxy for transport, not ProxyData.
 		});
 	}
 
