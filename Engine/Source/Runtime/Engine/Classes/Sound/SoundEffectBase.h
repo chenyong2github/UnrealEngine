@@ -57,11 +57,6 @@
 		FCriticalSection SettingsCritSect; \
 		F##EFFECT_NAME##Settings SettingsCopy; \
 
-
-#define EFFECT_PRESET_METHODS_NO_ASSET_ACTIONS(EFFECT_NAME) \
-		virtual bool HasAssetActions() const override { return false; } \
-		EFFECT_PRESET_METHODS(EFFECT_NAME)
-
 class USoundEffectPreset;
 
 class ENGINE_API FSoundEffectBase
