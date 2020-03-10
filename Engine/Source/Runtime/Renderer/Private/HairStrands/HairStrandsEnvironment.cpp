@@ -31,9 +31,6 @@ static FAutoConsoleVariableRef CVarHairSkylightingEnable(TEXT("r.HairStrands.Sky
 static int32 GHairSkyAOEnable = 1;
 static FAutoConsoleVariableRef CVarHairSkyAOEnable(TEXT("r.HairStrands.SkyAO"), GHairSkyAOEnable, TEXT("Enable (sky) AO on hair."));
 
-static int32 GHairSkyAOVirtualVoxel = 4;
-static FAutoConsoleVariableRef CVarHairSkyAOVirtualVoxel(TEXT("r.HairStrands.SkyAO.VirtualVoxel"), GHairSkyAOVirtualVoxel, TEXT("Use virtual voxel for visibility/hair tracing/counting if available."));
-
 static float GHairSkylightingConeAngle = 3;
 static FAutoConsoleVariableRef CVarHairSkylightingConeAngle(TEXT("r.HairStrands.SkyLighting.ConeAngle"), GHairSkylightingConeAngle, TEXT("Cone angle for tracing sky lighting on hair."));
 
@@ -74,8 +71,7 @@ class FHairEnvironmentAO : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairEnvironmentAO, FGlobalShader)
 
 	class FSampleSet : SHADER_PERMUTATION_INT("PERMUTATION_SAMPLESET", 2);
-	class FVirtualVoxel : SHADER_PERMUTATION_INT("VOXEL_TRAVERSAL_TYPE", 5);
-	using FPermutationDomain = TShaderPermutationDomain<FSampleSet, FVirtualVoxel>;
+	using FPermutationDomain = TShaderPermutationDomain<FSampleSet>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -84,12 +80,7 @@ class FHairEnvironmentAO : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 
-		SHADER_PARAMETER(FVector, Voxel_MinAABB)
 		SHADER_PARAMETER(uint32, Voxel_MacroGroupId)
-		SHADER_PARAMETER(FVector, Voxel_MaxAABB)
-		SHADER_PARAMETER(uint32, Voxel_Resolution)
-		SHADER_PARAMETER(float, Voxel_DensityScale)
-		SHADER_PARAMETER(float, Voxel_DepthBiasScale)
 		SHADER_PARAMETER(float, Voxel_TanConeAngle)
 		SHADER_PARAMETER(float, AO_Power)
 		SHADER_PARAMETER(float, AO_Intensity)
@@ -99,8 +90,6 @@ class FHairEnvironmentAO : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCategorizationTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, Voxel_DensityTexture)
-
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 		SHADER_PARAMETER_STRUCT_REF(FVirtualVoxelParameters, VirtualVoxel)
@@ -122,23 +111,12 @@ static void AddHairStrandsEnvironmentAOPass(
 	FRDGTextureRef Output)
 {
 	check(Output);
-	const bool bUseVirtualVoxel = MacroGroupDatas.VirtualVoxelResources.IsValid() && GHairSkyAOVirtualVoxel > 0;
-	const int32 VoxelTraversalType = FMath::Clamp(GHairSkyAOVirtualVoxel, 0, 4);
 
 	FSceneTextureParameters SceneTextures;
 	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 	FHairEnvironmentAO::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairEnvironmentAO::FParameters>();
 	PassParameters->Voxel_MacroGroupId = MacroGroupData.MacroGroupId;
-	if (!bUseVirtualVoxel)
-	{
-		PassParameters->Voxel_MinAABB = MacroGroupData.GetMinBound();
-		PassParameters->Voxel_MaxAABB = MacroGroupData.GetMaxBound();
-		PassParameters->Voxel_Resolution = MacroGroupData.GetResolution();
-		PassParameters->Voxel_DensityTexture = GraphBuilder.RegisterExternalTexture(MacroGroupData.VoxelResources.DensityTexture);
-	}
-	PassParameters->Voxel_DensityScale = GetHairStrandsVoxelizationDensityScale();
-	PassParameters->Voxel_DepthBiasScale = GetHairStrandsVoxelizationDepthBiasScale();
 	PassParameters->Voxel_TanConeAngle = FMath::Tan(FMath::DegreesToRadians(GetHairStrandsSkyLightingConeAngle()));
 	PassParameters->SceneTextures = SceneTextures;
 	PassParameters->VirtualVoxel = MacroGroupDatas.VirtualVoxelResources.UniformBuffer;
@@ -160,7 +138,6 @@ static void AddHairStrandsEnvironmentAOPass(
 
 	FHairEnvironmentAO::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairEnvironmentAO::FSampleSet>(PassParameters->AO_SampleCount <= 16 ? 0 : 1);
-	PermutationVector.Set<FHairEnvironmentAO::FVirtualVoxel>(bUseVirtualVoxel ? VoxelTraversalType : 0);
 
 	TShaderMapRef<FHairEnvironmentAO> PixelShader(View.ShaderMap, PermutationVector);
 	ClearUnusedGraphResources(PixelShader, PassParameters);
