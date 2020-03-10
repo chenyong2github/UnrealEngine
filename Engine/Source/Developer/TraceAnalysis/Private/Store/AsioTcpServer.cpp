@@ -3,11 +3,6 @@
 #include "AsioTcpServer.h"
 #include "Templates/UnrealTemplate.h"
 
-#if PLATFORM_WINDOWS
-#	include <winsock2.h>
-#	pragma comment(lib, "ws2_32.lib")
-#endif
-
 namespace Trace
 {
 
