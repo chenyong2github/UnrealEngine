@@ -222,6 +222,9 @@ struct FSimulationParameters
 		, ReverseCacheBeginTime(0.0f)
 		, bClearCache(false)
 		, RemoveOnFractureEnabled(false)
+		, SimulationFilterData()
+		, QueryFilterData()
+		, UserData(nullptr)
 	{}
 
 
@@ -253,6 +256,9 @@ struct FSimulationParameters
 		, TrailingData(Other.TrailingData)
 		, Shared(Other.Shared)
 		, RemoveOnFractureEnabled(false)
+		, SimulationFilterData(Other.SimulationFilterData)
+		, QueryFilterData(Other.QueryFilterData)
+		, UserData(Other.UserData)
 	{}
 
 	~FSimulationParameters()
@@ -308,4 +314,8 @@ struct FSimulationParameters
 	FSharedSimulationParameters Shared;
 
 	bool RemoveOnFractureEnabled;
+
+	FCollisionFilterData SimulationFilterData;
+	FCollisionFilterData QueryFilterData;
+	void* UserData;
 };

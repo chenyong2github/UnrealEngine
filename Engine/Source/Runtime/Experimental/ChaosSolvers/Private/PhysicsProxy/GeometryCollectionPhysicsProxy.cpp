@@ -365,6 +365,8 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	UObject* InOwner,
 	FGeometryDynamicCollection& GameThreadCollectionIn,
 	const FSimulationParameters& SimulationParameters,
+	FCollisionFilterData InSimFilter,
+	FCollisionFilterData InQueryFilter,
 	FInitFunc InInitFunc,
 	FCacheSyncFunc InCacheSyncFunc,
 	FFinalSyncFunc InFinalSyncFunc,
@@ -375,7 +377,8 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	, BaseParticleIndex(INDEX_NONE)
 	, IsObjectDynamic(false)
 	, IsObjectLoading(true)
-
+	, SimFilter(InSimFilter)
+	, QueryFilter(InQueryFilter)
 #if TODO_REIMPLEMENT_RIGID_CACHING
 	, ProxySimDuration(0.0f)
 	, LastSyncCountGT(MAX_uint32)
@@ -410,7 +413,6 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 	//  3) Deep copy the data to the other buffers. 
 	//
 	FGeometryDynamicCollection& DynamicCollection = GameThreadCollection;
-
 
 	InitializeDynamicCollection(DynamicCollection, *Parameters.RestCollection, Parameters);
 
@@ -509,6 +511,38 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 		//Results.Get(1).WorldBounds = FBoxSphereBounds(BoundingBox);
 	}
 	*/
+
+	// Initialise GT/External particles
+	const int32 NumTransforms = GameThreadCollection.Transform.Num();
+
+	// Attach the external particles to the gamethread collection
+	GameThreadCollection.AddExternalAttribute<TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>>(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup, GTParticles);
+
+	if(ensure(NumTransforms == GameThreadCollection.Implicits.Num() && NumTransforms == GTParticles.Num())) // Implicits are in the transform group so this invariant should always hold
+	{
+		for(int32 Index = 0; Index < NumTransforms; ++Index)
+		{
+			GTParticles[Index] = Chaos::TGeometryParticle<Chaos::FReal, 3>::CreateParticle();
+			Chaos::TGeometryParticle<Chaos::FReal, 3>* P = GTParticles[Index].Get();
+
+			const FTransform& T = Parameters.WorldTransform * GameThreadCollection.Transform[Index];
+			P->SetX(T.GetTranslation(), false);
+			P->SetR(T.GetRotation(), false);
+			P->SetUserData(Parameters.UserData);
+			P->Proxy = this;
+			P->SetGeometry(GameThreadCollection.Implicits[Index]);
+
+			const Chaos::TShapesArray<Chaos::FReal, 3>& Shapes = P->ShapesArray();
+			const int32 NumShapes = Shapes.Num();
+			for(int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
+			{
+				Chaos::TPerShapeData<Chaos::FReal, 3>* Shape = Shapes[ShapeIndex].Get();
+				Shape->SimData = SimFilter;
+				Shape->QueryData = QueryFilter;
+			}
+		}
+	}
+
 	PhysicsThreadCollection.CopyMatchingAttributesFrom(DynamicCollection);
 }
 
@@ -519,8 +553,9 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 	//
 
 	DynamicCollection.CopyMatchingAttributesFrom(RestCollection);
-	check(DynamicCollection.HasAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup) &&
-		  RestCollection.HasAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup));
+
+	check(DynamicCollection.HasAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup));
+	check(RestCollection.HasAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup));
 
 	//
 	// User defined initial velocities need to be populated. 
@@ -657,6 +692,9 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 
 				SolverParticleHandles[Idx] = Handle;
 				HandleToTransformGroupIndex.Add(Handle, Idx);
+
+				// We're on the physics thread here but we've already set up the GT particles and we're just linking here
+				Handle->GTGeometryParticle() = GTParticles[Idx].Get();
 
 				check(SolverParticleHandles[Idx]->GetParticleType() == Handle->GetParticleType());
 				RigidsSolver->GetEvolution()->CreateParticle(Handle);
@@ -1370,6 +1408,7 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 			}
 		} // if rigid handle
 	} // for all SolverParticleHandles
+	*/
 
 	if (DisableGeometryCollectionGravity) // cvar
 	{
@@ -1388,7 +1427,6 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 			}
 		}
 	}
-	*/
 }
 
 void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
@@ -1679,9 +1717,13 @@ void FGeometryCollectionPhysicsProxy::PullFromPhysicsState()
 		{
 			if(!TR.DisabledStates[TmIndex])
 			{
-				DynamicCollection.Transform[TmIndex] = TR.Transforms[TmIndex];
+				const FTransform& LocalTransform = TR.Transforms[TmIndex];
+				const FTransform& ParticleToWorld = TR.ParticleToWorldTransforms[TmIndex];
+
+				DynamicCollection.Transform[TmIndex] = LocalTransform;
+				GTParticles[TmIndex]->SetX(ParticleToWorld.GetTranslation());
+				GTParticles[TmIndex]->SetR(ParticleToWorld.GetRotation());
 			}
-			DynamicCollection.DynamicState[TmIndex] = TR.DynamicState[TmIndex];
 		}
 
 		//question: why do we need this? Sleeping objects will always have to update GPU
@@ -1798,6 +1840,10 @@ int32 FindSizeSpecificIdx(const TArray<FSharedSimulationSizeSpecificData>& SizeS
 	return UseIdx;
 }
 
+/** 
+	NOTE - Making any changes to data stored on the rest collection below MUST be accompanied
+	by a rotation of the DDC key in FDerivedDataGeometryCollectionCooker::GetVersionString
+*/
 void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	Chaos::FErrorReporter& ErrorReporter, 
 	FGeometryCollection& RestCollection, 
