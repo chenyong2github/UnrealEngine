@@ -31,6 +31,7 @@ class UTexture2D;
 struct FLevelCollection;
 class ULevelActorContainer;
 class FLevelPartitionOperationScope;
+class FRegisterComponentContext;
 
 UINTERFACE()
 class ULevelPartitionInterface : public UInterface
@@ -766,7 +767,7 @@ public:
 	 * creates the BSP model components.
 	 * @param bRerunConstructionScripts	If we want to rerun construction scripts on actors in level
 	 */
-	ENGINE_API void UpdateLevelComponents(bool bRerunConstructionScripts, struct FRegisterComponentContext* Context = nullptr);
+	ENGINE_API void UpdateLevelComponents(bool bRerunConstructionScripts, FRegisterComponentContext* Context = nullptr);
 
 	/**
 	 * Incrementally updates all components of actors associated with this level.
@@ -774,7 +775,7 @@ public:
 	 * @param NumComponentsToUpdate		Number of components to update in this run, 0 for all
 	 * @param bRerunConstructionScripts	If we want to rerun construction scripts on actors in level
 	 */
-	void IncrementalUpdateComponents( int32 NumComponentsToUpdate, bool bRerunConstructionScripts, struct FRegisterComponentContext* Context = nullptr);
+	void IncrementalUpdateComponents( int32 NumComponentsToUpdate, bool bRerunConstructionScripts, FRegisterComponentContext* Context = nullptr);
 
 	/**
 	* Incrementally unregisters all components of actors associated with this level.

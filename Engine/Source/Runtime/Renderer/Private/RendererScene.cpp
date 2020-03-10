@@ -1284,6 +1284,8 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 		Primitive->LastSubmitTime = WorldTime;
 	}
 
+	checkf(!Primitive->SceneProxy, TEXT("Primitive has already been added to the scene!"));
+
 	// Create the primitive's scene proxy.
 	FPrimitiveSceneProxy* PrimitiveSceneProxy = Primitive->CreateSceneProxy();
 	Primitive->SceneProxy = PrimitiveSceneProxy;
@@ -1618,6 +1620,15 @@ void FScene::RemovePrimitive( UPrimitiveComponent* Primitive )
 
 	FPrimitiveSceneProxy* PrimitiveSceneProxy = Primitive->SceneProxy;
 
+	// Send a command to the rendering thread to release the scene.
+	FScene* Scene = this;
+	ENQUEUE_RENDER_COMMAND(FReleaseCommand)(
+		[Scene](FRHICommandListImmediate& RHICmdList)
+	{
+		// Flush any remaining batched primitive update commands before deleting the scene.
+		Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+	});
+
 	if(PrimitiveSceneProxy)
 	{
 		FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
@@ -1626,7 +1637,7 @@ void FScene::RemovePrimitive( UPrimitiveComponent* Primitive )
 		Primitive->SceneProxy = NULL;
 
 		// Send a command to the rendering thread to remove the primitive from the scene.
-		FScene* Scene = this;
+		//FScene* Scene = this;
 		FThreadSafeCounter* AttachmentCounter = &Primitive->AttachmentCounter;
 		ENQUEUE_RENDER_COMMAND(FRemovePrimitiveCommand)(
 			[Scene, PrimitiveSceneInfo, AttachmentCounter](FRHICommandList&)
