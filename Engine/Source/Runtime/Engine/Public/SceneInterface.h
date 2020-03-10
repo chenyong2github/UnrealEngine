@@ -349,6 +349,9 @@ public:
 		return NULL;
 	}
 
+	virtual void OnWorldCleanup()
+	{
+	}
 	virtual void UpdateSceneSettings(AWorldSettings* WorldSettings) {}
 
 	/**
