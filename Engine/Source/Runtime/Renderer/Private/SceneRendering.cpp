@@ -4227,11 +4227,12 @@ void RunGPUSkinCacheTransition(FRHICommandList& RHICmdList, FScene* Scene, EGPUS
 	const bool bRun = 
 		(bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup == Type) || 
 		(!bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup != Type);
+	const EResourceTransitionPipeline TargetPipeline = bHairStrandsEnabled ? EResourceTransitionPipeline::EComputeToCompute : EResourceTransitionPipeline::EComputeToGfx;
 	if (bRun)
 	{
 		if (FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache())
 		{
-			GPUSkinCache->TransitionAllToReadable(RHICmdList);
+			GPUSkinCache->TransitionAllToReadable(RHICmdList, TargetPipeline);
 		}
 	}
 }
