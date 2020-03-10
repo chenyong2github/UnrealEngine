@@ -67,7 +67,6 @@
 		TP_VehicleAdvBP
 		TP_VehicleBP
 		TP_VirtualRealityBP
-		TP_CollaborativeBP
 	</Property>
 
 	<!-- List of projects to build DDC for -->
@@ -84,12 +83,15 @@
 		Templates/TP_PuzzleBP/TP_PuzzleBP.uproject
 		Templates/TP_2DSideScrollerBP/TP_2DSideScrollerBP.uproject
 		Templates/TP_VehicleAdvBP/TP_VehicleAdvBP.uproject
-		Templates/TP_CollaborativeBP/TP_CollaborativeBP.uproject
 		Templates/TP_AEC_BlankBP/TP_AEC_BlankBP.uproject
 		Templates/TP_AEC_ArchvisBP/TP_AEC_ArchvisBP.uproject
 		Templates/TP_PhotoStudioBP/TP_PhotoStudioBP.uproject
 		Samples/StarterContent/StarterContent.uproject
 		Samples/MobileStarterContent/MobileStarterContent.uproject
+	</Property>
+	<!-- Win64 specific DDC -->
+	<Property Name="ProjectsToBuildDDCWin64" Value="$(ProjectsToBuildDDC)">
+		Templates/TP_CollaborativeBP/TP_CollaborativeBP.uproject
 	</Property>
 	
 	<!-- Define Editor Filters -->
@@ -148,7 +150,6 @@
 		<!-- Enterprise Templates -->
 		Templates/TP_AEC_BlankBP/...
 		Templates/TP_AEC_ArchvisBP/...
-		Templates/TP_CollaborativeBP/...
 		Templates/TP_PhotoStudioBP/...
 
 		Templates/TP_ME_BlankBP/...
@@ -277,8 +278,11 @@
 		Engine/Extras/UnrealVS/...
 		Engine/Extras/Redist/en-us/*
 			
-		<!-- nDisplay Template -->
+		<!-- Virtual Production Templates -->
 		Templates/TP_nDisplayBP/...
+
+		<!-- Enterprise Templates -->
+		Templates/TP_CollaborativeBP/...
 	</Property>
 
 	<Property Name="CopyEditorExceptionsWin64" Value="$(CopyEditorExceptions)">
