@@ -16,7 +16,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Cached list of actions that need to be executed to build a target, along with the information needed to determine whether they are valid.
 	/// </summary>
-	class TargetMakefile
+	class TargetMakefile : IActionGraphBuilder
 	{
 		/// <summary>
 		/// The version number to write
@@ -636,6 +636,65 @@ namespace UnrealBuildTool
 		{
 			DirectoryReference BaseDirectory = DirectoryReference.FromFile(ProjectFile) ?? UnrealBuildTool.EngineDirectory;
 			return FileReference.Combine(BaseDirectory, "Intermediate", "Build", Platform.ToString(), TargetName, Configuration.ToString(), "Makefile.bin");
+		}
+
+		/// <inheritdoc/>
+		public Action CreateAction(ActionType Type)
+		{
+			Action Action = new Action(Type);
+			Actions.Add(Action);
+			return Action;
+		}
+
+		/// <inheritdoc/>
+		public FileItem CreateIntermediateTextFile(FileReference Location, string Contents)
+		{
+			// Write the file
+			Utils.WriteFileIfChanged(Location, Contents, StringComparison.InvariantCultureIgnoreCase);
+
+			// Reset the file info, in case it already knows about the old file
+			FileItem Item = FileItem.GetItemByFileReference(Location);
+			Item.ResetCachedInfo();
+			return Item;
+		}
+
+		/// <inheritdoc/>
+		public void AddSourceDir(DirectoryItem SourceDir)
+		{
+			SourceDirectories.Add(SourceDir);
+		}
+
+		/// <inheritdoc/>
+		public void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles)
+		{
+			DirectoryToSourceFiles[SourceDir] = SourceFiles;
+		}
+
+		/// <inheritdoc/>
+		public void AddDiagnostic(string Message)
+		{
+			if(!Diagnostics.Contains(Message))
+			{
+				Diagnostics.Add(Message);
+			}
+		}
+
+		/// <inheritdoc/>
+		public void AddFileToWorkingSet(FileItem File)
+		{
+			WorkingSet.Add(File);
+		}
+
+		/// <inheritdoc/>
+		public void AddCandidateForWorkingSet(FileItem File)
+		{
+			CandidatesForWorkingSet.Add(File);
+		}
+
+		/// <inheritdoc/>
+		public void SetOutputItemsForModule(string ModuleName, FileItem[] OutputItems)
+		{
+			ModuleNameToOutputItems[ModuleName] = OutputItems;
 		}
 	}
 }
