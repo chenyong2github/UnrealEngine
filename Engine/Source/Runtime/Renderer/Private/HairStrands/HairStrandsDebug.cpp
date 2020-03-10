@@ -1319,8 +1319,9 @@ void RenderHairStrandsDebugInfo(
 
 		float X = 20;
 		float Y = ClusterY;
-		FLinearColor InactiveColor(0.5, 0.5, 0.5);
-		FLinearColor DebugColor(1, 1, 0);
+		const FLinearColor InactiveColor(0.5, 0.5, 0.5);
+		const FLinearColor DebugColor(1, 1, 0);
+		const FLinearColor DebugGroupColor(0.5f, 0, 0);
 		FString Line;
 
 		const FHairStrandsDebugInfos DebugInfos = GetHairStandsDebugInfos();
@@ -1336,7 +1337,7 @@ void RenderHairStrandsDebugInfo(
 			check(ViewFamily.Scene && ViewFamily.Scene->GetWorld());
 			const bool bIsActive = DebugInfo.WorldType == ViewFamily.Scene->GetWorld()->WorldType;
 
-			Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group count : %d"), DebugInfo.ComponentId, ToString(DebugInfo.WorldType), DebugInfo.HairGroups.Num());
+			Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group count : %d | Asset : %s | Skeletal : %s "), DebugInfo.ComponentId, ToString(DebugInfo.WorldType), DebugInfo.HairGroups.Num(), *DebugInfo.GroomAssetName, *DebugInfo.SkeletalComponentName);
 			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
 
 			for (const FHairStrandsDebugInfo::HairGroup& DebugHairGroup : DebugInfo.HairGroups)
@@ -1350,7 +1351,7 @@ void RenderHairStrandsDebugInfo(
 					DebugHairGroup.bHasBinding ? TEXT("True") : TEXT("False"),
 					DebugHairGroup.bHasSimulation ? TEXT("True") : TEXT("False"),
 					DebugHairGroup.LODCount);
-				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
+				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);
 			}
 		}
 
