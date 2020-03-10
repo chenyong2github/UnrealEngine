@@ -73,6 +73,7 @@ public:
 	/** Hair BSDF LUT texture */
 	TRefCountPtr<IPooledRenderTarget> HairLUT0;
 	TRefCountPtr<IPooledRenderTarget> HairLUT1;
+	TRefCountPtr<IPooledRenderTarget> HairLUT2;
 	/** Linearly Transformed Cosines LUTs */
 	TRefCountPtr<IPooledRenderTarget> LTCMat;
 	TRefCountPtr<IPooledRenderTarget> LTCAmp;
