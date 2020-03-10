@@ -112,6 +112,12 @@ void FAsioTcpServer::AsyncAccept()
 		const asio::error_code& ErrorCode,
 		tcp::socket&& Socket)
 	{
+#if PLATFORM_WINDOWS
+		// This is a best effort and likely not to work because WFP filters (e.g.
+		// antimalware or firewalls) can redirect socket handles.
+		SetHandleInformation(HANDLE(SOCKET(Socket.native_handle())), HANDLE_FLAG_INHERIT, 0);
+#endif
+
 		if (!ErrorCode && OnAccept(Socket))
 		{
 			AsyncAccept();
