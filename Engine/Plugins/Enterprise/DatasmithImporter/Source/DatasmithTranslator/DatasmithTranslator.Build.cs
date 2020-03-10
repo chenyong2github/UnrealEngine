@@ -2,28 +2,29 @@
 
 namespace UnrealBuildTool.Rules
 {
-    public class DatasmithTranslator : ModuleRules
-    {
-        public DatasmithTranslator(ReadOnlyTargetRules Target) : base(Target)
-        {
-            PublicDependencyModuleNames.AddRange(
-                new string[]
-                {
-                    "Core",
-                    "CoreUObject",
-                    "DatasmithCore",
-                }
-            );
+	public class DatasmithTranslator : ModuleRules
+	{
+		public DatasmithTranslator(ReadOnlyTargetRules Target) : base(Target)
+		{
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Core",
+					"CoreUObject",
+					"DatasmithCore",
+					"DatasmithContent",
+				}
+			);
 
-            PrivateDependencyModuleNames.AddRange(
-                new string[]
-                {
-                    "Engine",
-                    "MeshDescription",
-                    "RawMesh",
-                    "StaticMeshDescription",
-                }
-            );
-        }
-    }
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Engine",
+					"MeshDescription",
+					"RawMesh",
+					"StaticMeshDescription",
+				}
+			);
+		}
+	}
 }

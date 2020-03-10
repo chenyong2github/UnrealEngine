@@ -10,19 +10,43 @@
 #include "UI/DatasmithImportOptionsWindow.h"
 #include "Utility/DatasmithImporterUtils.h"
 
-#include "Misc/FeedbackContext.h"
-#include "PackageTools.h"
-#include "Misc/Paths.h"
-#include "Interfaces/IMainFrameModule.h"
 #include "Dom/JsonObject.h"
+#include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
 #include "FileHelpers.h"
-#include "Engine/StaticMesh.h"
+#include "Interfaces/IMainFrameModule.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/Paths.h"
+#include "PackageTools.h"
 
 
 #define LOCTEXT_NAMESPACE "DatasmithImportPlugin"
 
-const TCHAR* UserOptionPath = TEXT("Unreal Engine/Enterprise/Datasmith/Config/UserOptions.ini");
+namespace DatasmithImportContextImpl
+{
+	const TCHAR* GetUserOptionPath()
+	{
+		static FString UserDatasmithOptionsFile = FPaths::Combine(FPlatformProcess::UserSettingsDir(), "Unreal Engine/Enterprise/Datasmith/Config/UserOptions.ini");
+		return *UserDatasmithOptionsFile;
+	}
+
+	void LoadOptionConfig(UObject* InOption)
+	{
+		if (InOption)
+		{
+			InOption->LoadConfig(nullptr, GetUserOptionPath());
+		}
+	}
+
+	void SaveOptionConfig(UObject* InOption)
+	{
+		if (InOption)
+		{
+			InOption->SaveConfig(CPF_Config, GetUserOptionPath());
+		}
+	}
+}
+
 
 class FDatasmithImportOptionHelper
 {
@@ -143,24 +167,25 @@ FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool b
 	, CurrentSceneActorIndex(0)
 	, ReferenceCollector(this)
 {
-	AddOption(Options.Get(), bLoadConfig);
-	SetFileName(FileName);
+	if (SceneTranslator)
+	{
+		SceneTranslator->GetSceneImportOptions(AdditionalImportOptions);
+	}
+
+	if (bLoadConfig)
+	{
+		DatasmithImportContextImpl::LoadOptionConfig(Options.Get());
+		for (const TStrongObjectPtr<UObject>& AdditionalImportOption : AdditionalImportOptions)
+		{
+			DatasmithImportContextImpl::LoadOptionConfig(AdditionalImportOption.Get());
+		}
+	}
 
 	// Force the SceneHandling to be on current level by default.
 	// Note: This is done because this option was previously persisted and can get overwritten
 	Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
 
-	if (SceneTranslator)
-	{
-		SceneTranslator->GetSceneImportOptions(AdditionalImportOptions);
-		for (const TStrongObjectPtr<UObject>& AdditionalImportOption : AdditionalImportOptions)
-		{
-			AddOption(AdditionalImportOption.Get(), bLoadConfig);
-		}
-
-		// Temporarily give Rhino translator access to BaseOptions (JIRA UE-81278)
-		AdditionalImportOptions.Add(Options);
-	}
+	SetFileName(FileName);
 }
 
 void FDatasmithImportContext::SetFileName(const FString& FileName)
@@ -171,15 +196,19 @@ void FDatasmithImportContext::SetFileName(const FString& FileName)
 	FileHash = FMD5Hash::HashFile(*Options->FilePath);
 }
 
-void FDatasmithImportContext::AddOption(UObject* InOption, bool bLoadConfig)
+void FDatasmithImportContext::UpdateImportOption(UDatasmithOptionsBase* NewOption)
 {
-	if (InOption != nullptr)
+	if (NewOption)
 	{
-		ImportOptions.Add(InOption);
-		if (bLoadConfig)
+		auto SameClass = [=](const TStrongObjectPtr<UDatasmithOptionsBase>& Option) { return Option->GetClass() == NewOption->GetClass(); };
+
+		if (TStrongObjectPtr<UDatasmithOptionsBase>* PreviousOptionPtr = AdditionalImportOptions.FindByPredicate(SameClass))
 		{
-			FString UserDatasmithOptionsFile = FPaths::Combine(FPlatformProcess::UserSettingsDir(), UserOptionPath);
-			InOption->LoadConfig(nullptr, *UserDatasmithOptionsFile);
+			PreviousOptionPtr->Reset(NewOption);
+		}
+		else
+		{
+			AdditionalImportOptions.Emplace(NewOption);
 		}
 	}
 }
@@ -209,6 +238,15 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 {
 	check(Options->FileName.Len() > 0);
 	check(Options->FilePath.Len() > 0);
+
+	TArray<UObject*> ImportOptions;
+	ImportOptions.Reserve(1 + AdditionalImportOptions.Num());
+
+	ImportOptions.Add(Options.Get());
+	for (const TStrongObjectPtr<UDatasmithOptionsBase>& AdditionalOption : AdditionalImportOptions)
+	{
+		ImportOptions.Add(AdditionalOption.Get());
+	}
 
 	if (!FModuleManager::Get().IsModuleLoaded("AssetTools"))
 	{
@@ -242,16 +280,17 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 		}
 
 		// Update config file with new values
-		FString UserDatasmithOptionsFile = FPaths::Combine(FPlatformProcess::UserSettingsDir(), UserOptionPath);
 		for (UObject* Option : ImportOptions)
 		{
-			Option->SaveConfig(CPF_Config, *UserDatasmithOptionsFile);
+			DatasmithImportContextImpl::SaveOptionConfig(Option);
 		}
 	}
 
 	if (SceneTranslator)
 	{
+ 		AdditionalImportOptions.Push(Options);
 		SceneTranslator->SetSceneImportOptions(AdditionalImportOptions);
+ 		AdditionalImportOptions.Pop();
 	}
 
 	Options->UpdateNotDisplayedConfig( bIsAReimport );
