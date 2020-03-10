@@ -68,6 +68,7 @@ static void LoadStableSCL(TArray<FStableShaderKeyAndValue>& StableArray, const F
 	TArray<FStringView> SourceFileLines;
 	if (FFileHelper::LoadFileToString(SourceFileContents, *FString(FileName)))
 	{
+		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loaded %.*s, length = %d..."), FileName.Len(), FileName.GetData(), SourceFileContents.Len());
 		UE::String::ParseLines(SourceFileContents, [&SourceFileLines](FStringView Line) { if (!Line.IsEmpty()) { SourceFileLines.Add(Line); } });
 	}
 
