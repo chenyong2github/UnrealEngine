@@ -178,7 +178,7 @@ namespace UnrealBuildTool
 			if(ApplicationSettings != null && !String.IsNullOrEmpty(ApplicationSettings.UserName) && !String.IsNullOrEmpty(ApplicationSettings.SerialNumber))
 			{
 				LicenseFile = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "PVS", "PVS-Studio.lic");
-				FileItem.CreateIntermediateTextFile(LicenseFile, new string[]{ ApplicationSettings.UserName, ApplicationSettings.SerialNumber });
+				Utils.WriteFileIfChanged(LicenseFile, String.Format("{0}\n{1}\n", ApplicationSettings.UserName, ApplicationSettings.SerialNumber), StringComparison.Ordinal);
 			}
 			else
 			{
@@ -195,7 +195,25 @@ namespace UnrealBuildTool
 			return Path.GetFullPath(Utils.ExpandVariables(IncludePath));
 		}
 
-		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, List<Action> Actions)
+		class ActionGraphCapture : ForwardingActionGraphBuilder
+		{
+			List<Action> Actions;
+
+			public ActionGraphCapture(IActionGraphBuilder Inner, List<Action> Actions)
+				: base(Inner)
+			{
+				this.Actions = Actions;
+			}
+
+			public override Action CreateAction(ActionType Type)
+			{
+				Action Action = base.CreateAction(Type);
+				Actions.Add(Action);
+				return Action;
+			}
+		}
+
+		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			// Preprocess the source files with the regular toolchain
 			CppCompileEnvironment PreprocessCompileEnvironment = new CppCompileEnvironment(CompileEnvironment);
@@ -204,8 +222,7 @@ namespace UnrealBuildTool
 			PreprocessCompileEnvironment.Definitions.Add("PVS_STUDIO");
 
 			List<Action> PreprocessActions = new List<Action>();
-			CPPOutput Result = InnerToolChain.CompileCPPFiles(PreprocessCompileEnvironment, InputFiles, OutputDir, ModuleName, PreprocessActions);
-			Actions.AddRange(PreprocessActions);
+			CPPOutput Result = InnerToolChain.CompileCPPFiles(PreprocessCompileEnvironment, InputFiles, OutputDir, ModuleName, new ActionGraphCapture(Graph, PreprocessActions));
 
 			// Run the source files through PVS-Studio
 			foreach(Action PreprocessAction in PreprocessActions)
@@ -276,13 +293,13 @@ namespace UnrealBuildTool
 				string BaseFileName = PreprocessedFileItem.Location.GetFileNameWithoutExtension();
 
 				FileReference ConfigFileLocation = FileReference.Combine(OutputDir, BaseFileName + ".cfg");
-				FileItem ConfigFileItem = FileItem.CreateIntermediateTextFile(ConfigFileLocation, ConfigFileContents.ToString());
+				FileItem ConfigFileItem = Graph.CreateIntermediateTextFile(ConfigFileLocation, ConfigFileContents.ToString());
 
 				// Run the analzyer on the preprocessed source file
 				FileReference OutputFileLocation = FileReference.Combine(OutputDir, BaseFileName + ".pvslog");
 				FileItem OutputFileItem = FileItem.GetItemByFileReference(OutputFileLocation);
 
-				Action AnalyzeAction = new Action(ActionType.Compile);
+				Action AnalyzeAction = Graph.CreateAction(ActionType.Compile);
 				AnalyzeAction.CommandDescription = "Analyzing";
 				AnalyzeAction.StatusDescription = BaseFileName;
 				AnalyzeAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
@@ -298,14 +315,13 @@ namespace UnrealBuildTool
 				AnalyzeAction.PrerequisiteItems.AddRange(InputFiles); // Add the InputFiles as PrerequisiteItems so that in SingleFileCompile mode the PVSAnalyze step is not filtered out
 				AnalyzeAction.ProducedItems.Add(OutputFileItem);
 				AnalyzeAction.DeleteItems.Add(OutputFileItem); // PVS Studio will append by default, so need to delete produced items
-				Actions.Add(AnalyzeAction);
 
 				Result.ObjectFiles.AddRange(AnalyzeAction.ProducedItems);
 			}
 			return Result;
 		}
 
-		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
+		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			throw new BuildException("Unable to link with PVS toolchain.");
 		}
@@ -327,9 +343,9 @@ namespace UnrealBuildTool
 			// Collect the prerequisite items off of the Compile action added in CompileCPPFiles so that in SingleFileCompile mode the PVSGather step is also not filtered out
 			List<FileItem> AnalyzeActionPrerequisiteItems = Makefile.Actions.Where(x => x.ActionType == ActionType.Compile).SelectMany(x => x.PrerequisiteItems).ToList();
 
-			FileItem InputFileListItem = FileItem.CreateIntermediateTextFile(OutputFile.ChangeExtension(".input"), InputFiles.Select(x => x.FullName));
+			FileItem InputFileListItem = Makefile.CreateIntermediateTextFile(OutputFile.ChangeExtension(".input"), InputFiles.Select(x => x.FullName));
 
-			Action AnalyzeAction = new Action(ActionType.Compile);
+			Action AnalyzeAction = Makefile.CreateAction(ActionType.Compile);
 			AnalyzeAction.CommandPath = UnrealBuildTool.GetUBTPath();
 			AnalyzeAction.CommandArguments = String.Format("-Mode=PVSGather -Input=\"{0}\" -Output=\"{1}\"", InputFileListItem.Location, OutputFile);
 			AnalyzeAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
