@@ -48,10 +48,14 @@ struct FSearchStats
 class IAssetIndexer
 {
 public:
+
+	virtual ~IAssetIndexer() = 0;
 	virtual FString GetName() const = 0;
 	virtual int32 GetVersion() const = 0;
 	virtual void IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) = 0;
 };
+
+inline IAssetIndexer::~IAssetIndexer() = default;
 
 class UClass;
 
