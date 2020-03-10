@@ -95,6 +95,10 @@ void UCollectSurfacePathMechanic::SetDrawClosedLoopMode()
 	DoneMode = ECollectSurfacePathDoneMode::SnapCloseLoop;
 }
 
+void UCollectSurfacePathMechanic::SetDoubleClickOrCloseLoopMode()
+{
+	DoneMode = ECollectSurfacePathDoneMode::SnapDoubleClickOrCloseLoop;
+}
 
 
 bool UCollectSurfacePathMechanic::IsHitByRay(const FRay3d& Ray, FFrame3d& HitPoint)
@@ -237,7 +241,7 @@ bool UCollectSurfacePathMechanic::IsDone() const
 	{
 		return IsDoneFunc();
 	}
-	else if (DoneMode == ECollectSurfacePathDoneMode::SnapCloseLoop || DoneMode == ECollectSurfacePathDoneMode::SnapDoubleClick)
+	else if (DoneMode == ECollectSurfacePathDoneMode::SnapCloseLoop || DoneMode == ECollectSurfacePathDoneMode::SnapDoubleClick || DoneMode == ECollectSurfacePathDoneMode::SnapDoubleClickOrCloseLoop)
 	{
 		return bGeometricCloseOcurred;
 	}
@@ -253,20 +257,28 @@ bool UCollectSurfacePathMechanic::CheckGeometricClosure(const FFrame3d& Point)
 		return false;
 	}
 
-	if (DoneMode == ECollectSurfacePathDoneMode::SnapCloseLoop)
+	if (DoneMode == ECollectSurfacePathDoneMode::SnapCloseLoop || DoneMode == ECollectSurfacePathDoneMode::SnapDoubleClickOrCloseLoop)
 	{
 		if (HitPath.Num() > 2)
 		{
 			const FFrame3d& FirstPoint = HitPath[0];
-			return SpatialSnapPointsFunc(Point.Origin, FirstPoint.Origin);
+			if (SpatialSnapPointsFunc(Point.Origin, FirstPoint.Origin))
+			{
+				bLoopWasClosed = true;		// We finished by clicking on the first point
+				return true;
+			}
 		}
 	}
-	else if (DoneMode == ECollectSurfacePathDoneMode::SnapDoubleClick)
+
+	if (DoneMode == ECollectSurfacePathDoneMode::SnapDoubleClick || DoneMode == ECollectSurfacePathDoneMode::SnapDoubleClickOrCloseLoop)
 	{
 		if (HitPath.Num() > 1)
 		{
 			const FFrame3d& LastPoint = HitPath[HitPath.Num() - 1];
-			return SpatialSnapPointsFunc(Point.Origin, LastPoint.Origin);
+			if (SpatialSnapPointsFunc(Point.Origin, LastPoint.Origin))
+			{
+				return true;
+			}
 		}
 	}
 

@@ -195,6 +195,7 @@ protected:
 	double CurPathLength;
 	double CurOffsetDistance;
 	double CurHeight;
+	bool bPathIsClosed = false;		// If true, CurPathPoints are assumed to define a closed path
 
 	UPROPERTY()
 	UPolyEditPreviewMesh* EditPreview;
