@@ -618,6 +618,9 @@ protected:
 	FName GetCurrentBufferVisualizationMode() const { return CurrentBufferVisualizationMode; }
 	bool HasAudioFocus() const { return bHasAudioFocus; }
 
+	/** Updates CSVProfiler camera stats */
+	void UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap);
+
 protected:
 	/** FCommonViewportClient interface */
 	virtual float UpdateViewportClientWindowDPIScale() const override;
@@ -949,10 +952,6 @@ private:
 	 * @param WindowMode What window mode do we want to st the display to.
 	 */
 	bool SetDisplayConfiguration( const FIntPoint* Dimensions, EWindowMode::Type WindowMode);
-
-	/** Updates CSVProfiler camera stats */
-	void UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap);
-
 
 #if WITH_EDITOR
 	/** Delegate called when game viewport client received input key */

@@ -4,7 +4,10 @@
 
 #include "Components/SceneComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
+
+#include "HAL/IConsoleManager.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "Config/DisplayClusterConfigTypes.h"
@@ -111,6 +114,21 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 						FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, FString("Exit on ESC requested"));
 					}
 				}
+			}
+		}
+	}
+
+	// Show 'not supported' warning if instanced stereo is used
+	if (OperationMode != EDisplayClusterOperationMode::Disabled)
+	{
+		static const TConsoleVariableData<int32>* const InstancedStereoCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
+		if (InstancedStereoCVar)
+		{
+			const bool bIsInstancedStereoRequested = (InstancedStereoCVar->GetValueOnGameThread() != 0);
+			if (bIsInstancedStereoRequested)
+			{
+				UE_LOG(LogDisplayClusterGame, Error, TEXT("Instanced stereo was requested. nDisplay doesn't support instanced stereo so far."));
+				GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("nDisplay doesn't support instanced stereo"));
 			}
 		}
 	}
