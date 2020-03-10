@@ -246,7 +246,9 @@ public:
 			return false;
 		}
 #endif
-		return ftruncate(FileHandle, NewSize) == 0;
+		int Result = 0;
+		do { Result = ftruncate(FileHandle, NewSize); } while (Result < 0 && errno == EINTR);
+		return Result == 0;
 	}
 
 	virtual int64 Size( ) override
