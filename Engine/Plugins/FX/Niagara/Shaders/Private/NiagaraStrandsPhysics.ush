@@ -510,7 +510,7 @@ void SolveBendTwistMaterial(const float InMaterialCompliance, const float InMate
 	if (!IsMobile)
 	{
 		const float BendingLimit = 2*InBending*InRestLength;
-		for (int i = GGroupThreadId.x+1, end = GGroupThreadId.x+InBlockSize; i < end; ++i)
+		for (uint i = GGroupThreadId.x+1, end = GGroupThreadId.x+InBlockSize; i < end; ++i)
 		{
 			if (i > GGroupThreadId.x+1)
 			{
