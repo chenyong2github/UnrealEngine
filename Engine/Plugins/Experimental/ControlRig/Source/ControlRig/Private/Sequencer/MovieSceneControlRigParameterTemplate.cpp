@@ -932,16 +932,13 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 		static TMovieSceneAnimTypeIDContainer<FString> Vector2DAnimTypeIDsByName;
 		static TMovieSceneAnimTypeIDContainer<FString> TransformAnimTypeIDsByName;
 
-
-		float Weight = 1.f;
-
-		//float Weight = EvaluateEasing(Context.GetTime());
-	//if (EnumHasAllFlags(TemplateData.Mask.GetChannels(), EMovieSceneTransformChannel::Weight))
-	//{
-	//	float ManualWeight = 1.f;
-	//	TemplateData.ManualWeight.Evaluate(Context.GetTime(), ManualWeight);
-	//	Weight *= ManualWeight;
-	//}
+		float Weight = EvaluateEasing(Context.GetTime());
+		if (EnumHasAllFlags(Section->TransformMask.GetChannels(), EMovieSceneTransformChannel::Weight))
+		{
+			float ManualWeight = 1.f;
+			Section->Weight.Evaluate(Context.GetTime(), ManualWeight);
+			Weight *= ManualWeight;
+		}
 
 		//Do Bool straight up no blending
 		bool bWasDoNotKey = false;

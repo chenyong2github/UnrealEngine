@@ -1029,6 +1029,21 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 					{
 						if (RigControl.Name == Vector.ParameterName)
 						{
+							if (RigControl.ControlType == ERigControlType::Scale)
+							{
+								if (BlendType == EMovieSceneBlendType::Additive)
+								{
+									Vector.XCurve.SetDefault(0.0f);
+									Vector.YCurve.SetDefault(0.0f);
+									Vector.ZCurve.SetDefault(0.0f);
+								}
+								else
+								{
+									Vector.XCurve.SetDefault(1.0f);
+									Vector.YCurve.SetDefault(1.0f);
+									Vector.ZCurve.SetDefault(1.0f);
+								}
+							}
 							ControlChannelMap.Add(Vector.ParameterName, FChannelMapInfo(Index, ChannelIndex));
 							bool bEnabled = ControlsMask[Index++];
 							FString ParameterString = Vector.ParameterName.ToString();
@@ -1106,6 +1121,18 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 
 							if (RigControl.ControlType == ERigControlType::Transform)
 							{
+								if (BlendType == EMovieSceneBlendType::Additive)
+								{
+									Transform.Scale[0].SetDefault(0.0f);
+									Transform.Scale[1].SetDefault(0.0f);
+									Transform.Scale[2].SetDefault(0.0f);
+								}
+								else
+								{
+									Transform.Scale[0].SetDefault(1.0f);
+									Transform.Scale[1].SetDefault(1.0f);
+									Transform.Scale[2].SetDefault(1.0f);
+								}
 								Channels.Add(Transform.Scale[0], EditorData.MetaData[6], EditorData.ExternalValues[6]);
 								Channels.Add(Transform.Scale[1], EditorData.MetaData[7], EditorData.ExternalValues[7]);
 								Channels.Add(Transform.Scale[2], EditorData.MetaData[8], EditorData.ExternalValues[8]);
@@ -1237,7 +1264,22 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 				}
 #endif
 			}
+		
+#if WITH_EDITOR
+			FMovieSceneChannelMetaData      MetaData;
+			MetaData.SetIdentifiers("Weight", NSLOCTEXT("MovieSceneTransformSection", "Weight", "Weight"));
+			MetaData.bEnabled = EnumHasAllFlags(TransformMask.GetChannels(), EMovieSceneTransformChannel::Weight);
+			MetaData.SortOrder = ChannelIndex++;
+			MetaData.bCanCollapseToTrack = false;
+			TMovieSceneExternalValue<float> ExVal;
+			Channels.Add(Weight, MetaData, ExVal);
+#else
+			Channels.Add(Weight);
+
+#endif
 		}
+
+
 		ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
 	}
 }
@@ -1270,6 +1312,18 @@ FMovieSceneInterrogationKey UMovieSceneControlRigParameterSection::GetTransformI
 {
 	static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
 	return TypeID;
+}
+
+float UMovieSceneControlRigParameterSection::GetTotalWeightValue(FFrameTime InTime) const
+{
+	float WeightVal = EvaluateEasing(InTime);
+	if (EnumHasAllFlags(TransformMask.GetChannels(), EMovieSceneTransformChannel::Weight))
+	{
+		float ManualWeightVal = 1.f;
+		Weight.Evaluate(InTime, ManualWeightVal);
+		WeightVal *= ManualWeightVal;
+	}
+	return WeightVal;
 }
 
 #undef LOCTEXT_NAMESPACE 
