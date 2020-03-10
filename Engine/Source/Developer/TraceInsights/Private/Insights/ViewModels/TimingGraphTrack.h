@@ -13,18 +13,6 @@
 class FTimingGraphSeries : public FGraphSeries
 {
 public:
-	struct FSimpleTimingEvent
-	{
-		double StartTime;
-		double Duration;
-	};
-
-	static bool CompareEventsByStartTime(const FSimpleTimingEvent& EventA, const FSimpleTimingEvent& EventB)
-	{
-		return EventA.StartTime < EventB.StartTime;
-	}
-
-public:
 	enum class ESeriesType
 	{
 		Frame,
@@ -32,17 +20,33 @@ public:
 		StatsCounter
 	};
 
+	struct FSimpleTimingEvent
+	{
+		double StartTime;
+		double Duration;
+	};
+
+public:
+	explicit FTimingGraphSeries(FTimingGraphSeries::ESeriesType Type);
+	virtual ~FTimingGraphSeries();
+
 	virtual FString FormatValue(double Value) const override;
+
+	static bool CompareEventsByStartTime(const FSimpleTimingEvent& EventA, const FSimpleTimingEvent& EventB)
+	{
+		return EventA.StartTime < EventB.StartTime;
+	}
 
 public:
 	ESeriesType Type;
 	uint32 Id; // frame type, timer id or stats counter id
 
 	double CachedSessionDuration;
-	TArray<FSimpleTimingEvent> CachedEvents;
+	TArray<FSimpleTimingEvent> CachedEvents; // used by Timer series
 
+	bool bIsTime; // the uint for values is [second]
+	bool bIsMemory; // the unit for value is [byte]
 	bool bIsFloatingPoint; // for stats counters
-	bool bIsMemory; // for stats counters
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

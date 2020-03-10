@@ -239,7 +239,10 @@ void STimingView::Reset()
 
 	GraphTrack->Reset();
 	GraphTrack->SetOrder(0);
-	GraphTrack->SetHeight(200.0f);
+	constexpr double GraphTrackHeight = 200.0;
+	GraphTrack->SetHeight(static_cast<float>(GraphTrackHeight));
+	GraphTrack->GetSharedValueViewport().SetBaselineY(GraphTrackHeight - 1.0);
+	GraphTrack->GetSharedValueViewport().SetScaleY(GraphTrackHeight / 0.1); // 100ms
 	GraphTrack->AddDefaultFrameSeries();
 	GraphTrack->SetVisibilityFlag(false);
 	AddTopDockedTrack(GraphTrack);
@@ -1954,24 +1957,24 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 			MousePosition.Y >= GraphTrack->GetPosY() &&
 			MousePosition.Y < GraphTrack->GetPosY() + GraphTrack->GetHeight())
 		{
+			// Zoom in/out vertically.
+			const double Delta = MouseEvent.GetWheelDelta();
+			constexpr double ZoomStep = 0.25; // as percent
+			double ScaleY = GraphTrack->GetSharedValueViewport().GetScaleY();
+			if (Delta > 0)
+			{
+				ScaleY *= FMath::Pow(1.0 + ZoomStep, Delta);
+			}
+			else
+			{
+				ScaleY *= FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
+			}
+			GraphTrack->GetSharedValueViewport().SetScaleY(ScaleY);
+
 			for (const TSharedPtr<FGraphSeries>& Series : GraphTrack->GetSeries())
 			{
-				if (Series->IsVisible() && !Series->IsAutoZoomEnabled())
+				if (Series->IsUsingSharedViewport())
 				{
-					// Zoom in/out vertically.
-					const double Delta = MouseEvent.GetWheelDelta();
-					constexpr double ZoomStep = 0.25; // as percent
-					double ScaleY;
-
-					if (Delta > 0)
-					{
-						ScaleY = Series->GetScaleY() * FMath::Pow(1.0 + ZoomStep, Delta);
-					}
-					else
-					{
-						ScaleY = Series->GetScaleY() * FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
-					}
-
 					Series->SetScaleY(ScaleY);
 					Series->SetDirtyFlag();
 				}

@@ -7,11 +7,11 @@
 
 // Insights
 #include "Insights/ViewModels/BaseTimingTrack.h"
+#include "Insights/ViewModels/GraphSeries.h"
 
 class FMenuBuilder;
 struct FSlateBrush;
 
-class FGraphSeries;
 class FTimingTrackViewport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -75,6 +75,9 @@ public:
 	//////////////////////////////////////////////////
 
 	TArray<TSharedPtr<FGraphSeries>>& GetSeries() { return AllSeries; }
+
+	FGraphValueViewport& GetSharedValueViewport() { return SharedValueViewport; }
+	const FGraphValueViewport& GetSharedValueViewport() const { return SharedValueViewport; }
 
 	//TODO: virtual int GetDebugStringLineCount() const override;
 	//TODO: virtual void BuildDebugString(FString& OutStr) const override;
@@ -142,6 +145,8 @@ protected:
 	// Flags controlling whether menu items are available
 	EGraphOptions VisibleOptions;
 	EGraphOptions EditableOptions;
+
+	FGraphValueViewport SharedValueViewport;
 
 	// Stats
 	int32 NumAddedEvents; // total event count

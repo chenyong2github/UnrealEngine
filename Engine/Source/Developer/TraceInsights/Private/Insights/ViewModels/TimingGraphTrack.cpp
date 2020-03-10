@@ -20,6 +20,26 @@
 // FTimingGraphSeries
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FTimingGraphSeries::FTimingGraphSeries(FTimingGraphSeries::ESeriesType InType)
+	: FGraphSeries()
+	, Type(InType)
+	, Id(0)
+	, CachedSessionDuration(0.0)
+	, CachedEvents()
+	, bIsTime(InType == FTimingGraphSeries::ESeriesType::Frame || InType == FTimingGraphSeries::ESeriesType::Timer)
+	, bIsMemory(false)
+	, bIsFloatingPoint(false)
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTimingGraphSeries::~FTimingGraphSeries()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FString FTimingGraphSeries::FormatValue(double Value) const
 {
 	switch (Type)
@@ -31,7 +51,11 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 		return TimeUtils::FormatTimeAuto(Value);
 
 	case FTimingGraphSeries::ESeriesType::StatsCounter:
-		if (bIsMemory)
+		if (bIsTime)
+		{
+			return TimeUtils::FormatTimeAuto(Value);
+		}
+		else if (bIsMemory)
 		{
 			const int64 MemValue = static_cast<int64>(Value);
 			return FString::Printf(TEXT("%s (%s bytes)"), *FText::AsMemory(MemValue).ToString(), *FText::AsNumber(MemValue).ToString());
@@ -61,6 +85,7 @@ INSIGHTS_IMPLEMENT_RTTI(FTimingGraphTrack)
 
 FTimingGraphTrack::FTimingGraphTrack()
 	: FGraphTrack()
+	//, SharedValueViewport()
 {
 	bDrawPoints = true;
 	bDrawPointsWithBorder = true;
@@ -141,27 +166,24 @@ void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 
 void FTimingGraphTrack::AddDefaultFrameSeries()
 {
-	const float BaselineY = GetHeight() - 1.0f;
-	const double ScaleY = GetHeight() / 0.1; // 100ms
-
-	TSharedRef<FTimingGraphSeries> GameFramesSeries = MakeShared<FTimingGraphSeries>();
+	TSharedRef<FTimingGraphSeries> GameFramesSeries = MakeShared<FTimingGraphSeries>(FTimingGraphSeries::ESeriesType::Frame);
 	GameFramesSeries->SetName(TEXT("Game Frames"));
 	GameFramesSeries->SetDescription(TEXT("Duration of Game frames"));
 	GameFramesSeries->SetColor(FLinearColor(0.3f, 0.3f, 1.0f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
-	GameFramesSeries->Type = FTimingGraphSeries::ESeriesType::Frame;
 	GameFramesSeries->Id = static_cast<uint32>(TraceFrameType_Game);
-	GameFramesSeries->SetBaselineY(BaselineY);
-	GameFramesSeries->SetScaleY(ScaleY);
+	GameFramesSeries->SetBaselineY(SharedValueViewport.GetBaselineY());
+	GameFramesSeries->SetScaleY(SharedValueViewport.GetScaleY());
+	GameFramesSeries->EnableSharedViewport();
 	AllSeries.Add(GameFramesSeries);
 
-	TSharedRef<FTimingGraphSeries> RenderingFramesSeries = MakeShared<FTimingGraphSeries>();
+	TSharedRef<FTimingGraphSeries> RenderingFramesSeries = MakeShared<FTimingGraphSeries>(FTimingGraphSeries::ESeriesType::Frame);
 	RenderingFramesSeries->SetName(TEXT("Rendering Frames"));
 	RenderingFramesSeries->SetDescription(TEXT("Duration of Rendering frames"));
 	RenderingFramesSeries->SetColor(FLinearColor(1.0f, 0.3f, 0.3f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
-	RenderingFramesSeries->Type = FTimingGraphSeries::ESeriesType::Frame;
 	RenderingFramesSeries->Id = static_cast<uint32>(TraceFrameType_Rendering);
-	RenderingFramesSeries->SetBaselineY(BaselineY);
-	RenderingFramesSeries->SetScaleY(ScaleY);
+	RenderingFramesSeries->SetBaselineY(SharedValueViewport.GetBaselineY());
+	RenderingFramesSeries->SetScaleY(SharedValueViewport.GetScaleY());
+	RenderingFramesSeries->EnableSharedViewport();
 	AllSeries.Add(RenderingFramesSeries);
 }
 
@@ -204,34 +226,22 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetTimerSeries(uint32 TimerId)
 
 TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddTimerSeries(uint32 TimerId, FLinearColor Color)
 {
-	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>();
+	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>(FTimingGraphSeries::ESeriesType::Timer);
 
 	Series->SetName(TEXT("<Timer>"));
 	Series->SetDescription(TEXT("Timer series"));
 
-	FLinearColor BorderColor(Color.R + 0.4f, Color.G + 0.4f, Color.B + 0.4f, 1.0f);
+	const FLinearColor BorderColor(Color.R + 0.4f, Color.G + 0.4f, Color.B + 0.4f, 1.0f);
 	Series->SetColor(Color, BorderColor);
 
-	Series->Type = FTimingGraphSeries::ESeriesType::Timer;
 	Series->Id = TimerId;
 	//Series->CpuOrGpu = ;
 	//Series->TimelineIndex = ;
 
-	// Use same vertical viewport as the Frame series.
-	float BaselineY = GetHeight() - 1.0f;
-	double ScaleY = GetHeight() / 0.1; // 100ms
-	TSharedPtr<FGraphSeries>* FrameSeriesPtrPtr = AllSeries.FindByPredicate([](const TSharedPtr<FGraphSeries>& Series)
-	{
-		const TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
-		return TimingSeries->Type == FTimingGraphSeries::ESeriesType::Frame;
-	});
-	if (FrameSeriesPtrPtr != nullptr)
-	{
-		BaselineY = (*FrameSeriesPtrPtr)->GetBaselineY();
-		ScaleY = (*FrameSeriesPtrPtr)->GetScaleY();
-	}
-	Series->SetBaselineY(BaselineY);
-	Series->SetScaleY(ScaleY);
+	// Use shared viewport.
+	Series->SetBaselineY(SharedValueViewport.GetBaselineY());
+	Series->SetScaleY(SharedValueViewport.GetScaleY());
+	Series->EnableSharedViewport();
 
 	Series->CachedSessionDuration = 0.0;
 
@@ -324,11 +334,12 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetStatsCounterSeries(uint32 C
 
 TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 CounterId, FLinearColor Color)
 {
-	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>();
+	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>(FTimingGraphSeries::ESeriesType::StatsCounter);
 
 	const TCHAR* CounterName = nullptr;
-	bool bIsFloatingPoint = false;
+	bool bIsTime = false;
 	bool bIsMemory = false;
+	bool bIsFloatingPoint = false;
 
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
@@ -340,8 +351,9 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 C
 			CountersProvider.ReadCounter(CounterId, [&](const Trace::ICounter& Counter)
 			{
 				CounterName = Counter.GetName();
-				bIsFloatingPoint = Counter.IsFloatingPoint();
+				//bIsTime = (Counter.GetDisplayHint() == Trace::CounterDisplayHint_Time);
 				bIsMemory = (Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory);
+				bIsFloatingPoint = Counter.IsFloatingPoint();
 			});
 		}
 	}
@@ -352,14 +364,14 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 C
 	FLinearColor BorderColor(Color.R + 0.4f, Color.G + 0.4f, Color.B + 0.4f, 1.0f);
 	Series->SetColor(Color, BorderColor);
 
-	Series->Type = FTimingGraphSeries::ESeriesType::StatsCounter;
 	Series->Id = CounterId;
-	Series->bIsFloatingPoint = bIsFloatingPoint;
+
+	Series->bIsTime = bIsTime;
 	Series->bIsMemory = bIsMemory;
+	Series->bIsFloatingPoint = bIsFloatingPoint;
 
 	Series->SetBaselineY(GetHeight() - 1.0f);
 	Series->SetScaleY(1.0);
-
 	Series->EnableAutoZoom();
 
 	AllSeries.Add(Series);
