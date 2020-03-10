@@ -256,17 +256,16 @@ protected:
 		FGeometryDynamicCollection* TargetCollection=nullptr);
 
 	/**
-	 * Generates a mapping between the Position array and the results array. 
-	 * When EFieldResolutionType is set to Maximum the complete particle mapping 
-	 * is provided from the Particles.X to Particles.Attribute, when Minimum is 
-	 * set only the ActiveIndices and the direct children of the active clusters 
-	 * are set in the IndicesArray.
 	 */
-	void ContiguousIndices(
-		TArray<ContextIndex>& IndicesArray, 
+	void GetRelevantHandles(
+		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
+		TArray<FVector>& Samples,
+		TArray<ContextIndex>& SampleIndices,
 		const Chaos::FPhysicsSolver* RigidSolver, 
 		EFieldResolutionType ResolutionType, 
 		bool bForce);
+
+	void PushKinematicStateToSolver(FParticlesType& Particles);
 
 	/** 
 	 * Traverses the parents of \p TransformIndex in \p GeometryCollection, counting
