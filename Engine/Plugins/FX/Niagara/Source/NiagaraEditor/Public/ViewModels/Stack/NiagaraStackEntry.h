@@ -158,11 +158,18 @@ public:
 	};
 
 	// stack issue stuff
-	struct FStackIssueFix
+
+	enum class EStackIssueFixStyle
+	{
+		Fix,
+		Link
+	};
+
+	struct NIAGARAEDITOR_API FStackIssueFix
 	{
 		FStackIssueFix();
 
-		FStackIssueFix(FText InDescription, FStackIssueFixDelegate InFixDelegate);
+		FStackIssueFix(FText InDescription, FStackIssueFixDelegate InFixDelegate, EStackIssueFixStyle FixStyle = EStackIssueFixStyle::Fix);
 
 		bool IsValid() const;
 
@@ -172,11 +179,14 @@ public:
 
 		const FStackIssueFixDelegate& GetFixDelegate() const;
 
+		EStackIssueFixStyle GetStyle() const;
+
 		const FString& GetUniqueIdentifier() const;
 
 	private:
 		FText Description;
 		FStackIssueFixDelegate FixDelegate;
+		EStackIssueFixStyle Style;
 		FString UniqueIdentifier;
 	};
 

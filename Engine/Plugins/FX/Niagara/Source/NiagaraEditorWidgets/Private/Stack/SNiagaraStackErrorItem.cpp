@@ -10,6 +10,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SHyperlink.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackErrorItem"
 
@@ -42,6 +43,7 @@ void SNiagaraStackErrorItem::Construct(const FArguments& InArgs, UNiagaraStackEr
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Left)
 		.AutoWidth()
+		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 		[
 			SNew(SImage)
 			.Image(IconBrush)
@@ -64,9 +66,11 @@ void SNiagaraStackErrorItemFix::Construct(const FArguments& InArgs, UNiagaraStac
 	ErrorItem = InErrorItem;
 	StackViewModel = InStackViewModel;
 
-	ChildSlot
-	[
-		SNew(SHorizontalBox)
+	TSharedPtr<SWidget> FixWidget;
+
+	if (ErrorItem->GetStackIssueFix().GetStyle() == UNiagaraStackEntry::EStackIssueFixStyle::Fix)
+	{
+		FixWidget = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.Padding(0, 4, 0, 0)
 		.VAlign(VAlign_Center)
@@ -87,8 +91,32 @@ void SNiagaraStackErrorItemFix::Construct(const FArguments& InArgs, UNiagaraStac
 			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 			.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::GetFixButtonText)
 			.OnClicked_UObject(ErrorItem, &UNiagaraStackErrorItemFix::OnTryFixError)
-		]
+		];
+	}
+	else if(ErrorItem->GetStackIssueFix().GetStyle() == UNiagaraStackEntry::EStackIssueFixStyle::Link)
+	{
+		FixWidget = SNew(SBox)
+		.HAlign(HAlign_Left)
+		[
+			SNew(SHyperlink)
+			.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::GetDisplayName)
+			.OnNavigate(this, &SNiagaraStackErrorItemFix::LinkNavigate)
+		];
+	}
+	else
+	{
+		FixWidget = SNullWidget::NullWidget;
+	}
+
+	ChildSlot
+	[
+		FixWidget.ToSharedRef()
 	];
+}
+
+void SNiagaraStackErrorItemFix::LinkNavigate()
+{
+	ErrorItem->OnTryFixError();
 }
 
 #undef LOCTEXT_NAMESPACE //"SNiagaraStackErrorItem"
