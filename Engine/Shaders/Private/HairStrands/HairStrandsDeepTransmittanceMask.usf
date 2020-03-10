@@ -19,13 +19,10 @@
 #include "../ShaderPrintCommon.ush"
 
 #define PERMUTATION_TRANSMITTANCE_DEEP_SHADOW 0
-#define PERMUTATION_TRANSMITTANCE_VOXEL 1
-#define PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL 2
+#define PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL 1
 
 
 #if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_DEEP_SHADOW
-	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LEGACY
-#elif PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VOXEL
 	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LEGACY
 #elif PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
 	#if PERMUTATION_TRAVERSAL == 1
@@ -68,18 +65,6 @@ uint				DeepShadow_DebugMode;
 int4				DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[MAX_HAIR_MACROGROUP_COUNT];
 Texture2D<float>	DeepShadow_FrontDepthTexture;
 Texture2D<float4>	DeepShadow_DomTexture;
-
-float4				Voxel_MinAABBs[MAX_HAIR_MACROGROUP_COUNT];
-float4				Voxel_MaxAABBs[MAX_HAIR_MACROGROUP_COUNT];
-uint				Voxel_Resolution;
-Texture3D<uint> 	Voxel_DensityTexture0;
-Texture3D<uint> 	Voxel_DensityTexture1;
-Texture3D<uint> 	Voxel_DensityTexture2;
-Texture3D<uint> 	Voxel_DensityTexture3;
-Texture3D<uint> 	Voxel_DensityTexture4;
-Texture3D<uint> 	Voxel_DensityTexture5;
-Texture3D<uint> 	Voxel_DensityTexture6;
-Texture3D<uint> 	Voxel_DensityTexture7;
 
 Texture2D<float4> 	RayMarchMaskTexture;
 
@@ -168,7 +153,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 }
 #endif
 
-#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VOXEL || PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
+#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
 
 #if VOXEL_TRAVERSAL_DEBUG
 void PrintInfo(uint Index, uint2 PixelCoord, FHairTransmittanceMask TransmittanceMask)
@@ -235,15 +220,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 
 	// Depth bias
 	// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
-	float MaxVoxelSize;
-	{
-	#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VOXEL
-		const float3 VoxelSize = (Voxel_MaxAABBs[MacroGroupId].xyz - Voxel_MinAABBs[MacroGroupId].xyz) / Voxel_Resolution;
-		MaxVoxelSize = max(VoxelSize.x, max(VoxelSize.y, VoxelSize.z));
-	#elif PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
-		MaxVoxelSize = VirtualVoxel.VoxelWorldSize;
-	#endif
-	}
+	const float MaxVoxelSize = VirtualVoxel.VoxelWorldSize;
 
 	// Compute the number of hair count between light & shading point
 	const float DistanceThreshold = 100000;
@@ -265,19 +242,6 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		const float3 DepthBias = MaxVoxelSize * (Settings.DeepShadowDepthBiasScale*LightDirection + SampleRandom);
 		const float3 SampleWorldPosition = WorldPosition + DepthBias;
 
-		#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VOXEL
-		FHairTraversalResult Result = InitHairTraversalResult();
-		if (MacroGroupId == 0) Result = ComputeHairCountVoxel(SampleWorldPosition, LightPosition, Voxel_MinAABBs[0].xyz, Voxel_MaxAABBs[0].xyz, Voxel_Resolution, Voxel_DensityTexture0, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
-		if (MacroGroupId == 1) Result = ComputeHairCountVoxel(SampleWorldPosition, LightPosition, Voxel_MinAABBs[1].xyz, Voxel_MaxAABBs[1].xyz, Voxel_Resolution, Voxel_DensityTexture1, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
-		if (MacroGroupId == 2) Result = ComputeHairCountVoxel(SampleWorldPosition, LightPosition, Voxel_MinAABBs[2].xyz, Voxel_MaxAABBs[2].xyz, Voxel_Resolution, Voxel_DensityTexture2, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
-		if (MacroGroupId == 3) Result = ComputeHairCountVoxel(SampleWorldPosition, LightPosition, Voxel_MinAABBs[3].xyz, Voxel_MaxAABBs[3].xyz, Voxel_Resolution, Voxel_DensityTexture3, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
-		if (MacroGroupId == 4) Result = ComputeHairCountVoxel(SampleWorldPosition, LightPosition, Voxel_MinAABBs[4].xyz, Voxel_MaxAABBs[4].xyz, Voxel_Resolution, Voxel_DensityTexture4, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
-		if (MacroGroupId == 5) Result = ComputeHairCountVoxel(SampleWorldPosition, LightPosition, Voxel_MinAABBs[5].xyz, Voxel_MaxAABBs[5].xyz, Voxel_Resolution, Voxel_DensityTexture5, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
-		if (MacroGroupId == 6) Result = ComputeHairCountVoxel(SampleWorldPosition, LightPosition, Voxel_MinAABBs[6].xyz, Voxel_MaxAABBs[6].xyz, Voxel_Resolution, Voxel_DensityTexture6, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
-		if (MacroGroupId == 7) Result = ComputeHairCountVoxel(SampleWorldPosition, LightPosition, Voxel_MinAABBs[7].xyz, Voxel_MaxAABBs[7].xyz, Voxel_Resolution, Voxel_DensityTexture7, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
-		#endif
-
-		#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
 		FVirtualVoxelCommonDesc CommonDesc;
 		CommonDesc.PageCountResolution	= VirtualVoxel.PageCountResolution;
 		CommonDesc.VoxelWorldSize		= VirtualVoxel.VoxelWorldSize;
@@ -305,7 +269,6 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 			VirtualVoxel.PageTexture,
 			TraversalSettings);
 		InitHairTraversalResult();
-		#endif
 
 		AvgHairCount += Result.HairCount;
 		AvgHairVisility += Result.Visibility;
