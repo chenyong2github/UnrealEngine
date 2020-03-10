@@ -75,9 +75,9 @@ void FSkeletalMeshVertexClothBuffer::ClearMetaData()
 template <bool bRenderThread>
 FVertexBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_Internal()
 {
-	if (NumVertices)
+	if (NumVertices && VertexData)
 	{
-		FResourceArrayInterface* ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
+		FResourceArrayInterface* ResourceArray = VertexData->GetResourceArray();
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
 		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
@@ -114,9 +114,9 @@ void FSkeletalMeshVertexClothBuffer::InitRHI()
 
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 
-	if (VertexBufferRHI)
+	if (VertexData && VertexBufferRHI)
 	{
-		VertexBufferSRV = RHICreateShaderResourceView(VertexData ? VertexBufferRHI : nullptr, sizeof(FVector4), PF_A32B32G32R32F);
+		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector4), PF_A32B32G32R32F);
 	}
 }
 

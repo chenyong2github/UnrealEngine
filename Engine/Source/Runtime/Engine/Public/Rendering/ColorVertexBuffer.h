@@ -145,6 +145,12 @@ public:
 	template <uint32 MaxNumUpdates>
 	void InitRHIForStreaming(FRHIVertexBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
+		if (!ColorComponentsSRV || !VertexBufferRHI)
+		{
+			ReleaseRHI();
+			InitRHI();
+		}
+
 		if (VertexBufferRHI && IntermediateBuffer)
 		{
 			Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
