@@ -120,6 +120,9 @@ public:
 	/** Builds the filter for this class*/
 	virtual void BuildBackendFilter(struct FARFilter& InFilter) = 0;
 
+	/** Optionally gets a class display name for this asset (otherwise, returns empty text (e.g. `FText::GetEmpty()`) */
+	virtual FText GetDisplayNameFromAssetData(const FAssetData& AssetData) const = 0;
+
 	/** Sets whether or not this asset type is a supported type for this editor session. */
 	virtual void SetSupported(bool bInSupported) = 0;
 
