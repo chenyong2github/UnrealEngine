@@ -1282,6 +1282,10 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 
 	for (int i = 0; i < FilteredScriptAssets.Num(); ++i)
 	{
+		// Get the custom version the asset was saved with so it can be used below.
+		int32 NiagaraVersion = INDEX_NONE;
+		FilteredScriptAssets[i].GetTagValue(UNiagaraScript::NiagaraCustomVersionTagName, NiagaraVersion);
+
 		// Check if the script is deprecated
 		if (InFilter.bIncludeDeprecatedScripts == false)
 		{
@@ -1307,11 +1311,26 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 		// Check if usage bitmask matches
 		if (InFilter.TargetUsageToMatch.IsSet())
 		{
-			FString BitfieldTagValue;
-			int32 BitfieldValue, TargetBit;
-			BitfieldTagValue = FilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
-			BitfieldValue = FCString::Atoi(*BitfieldTagValue);
-			TargetBit = (BitfieldValue >> (int32)InFilter.TargetUsageToMatch.GetValue()) & 1;
+			int32 BitfieldValue = 0;
+			if (NiagaraVersion == INDEX_NONE || NiagaraVersion < FNiagaraCustomVersion::AddSimulationStageUsageEnum)
+			{
+				// If there is no custom version, or it's less than the simulation stage enum fix up, we need to load the 
+				// asset to get the correct bitmask since the shader stage enum broke the old ones.
+				UNiagaraScript* AssetScript = Cast<UNiagaraScript>(FilteredScriptAssets[i].GetAsset());
+				if (AssetScript != nullptr)
+				{
+					BitfieldValue = AssetScript->ModuleUsageBitmask;
+				}
+			}
+			else
+			{
+				// Otherwise the asset is new enough to have a valid bitmask.
+				FString BitfieldTagValue;
+				BitfieldTagValue = FilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
+				BitfieldValue = FCString::Atoi(*BitfieldTagValue);
+			}
+
+			int32 TargetBit = (BitfieldValue >> (int32)InFilter.TargetUsageToMatch.GetValue()) & 1;
 			if (TargetBit != 1)
 			{
 				continue;

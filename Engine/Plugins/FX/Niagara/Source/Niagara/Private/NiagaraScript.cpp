@@ -246,6 +246,8 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 
 #endif
 
+const FName UNiagaraScript::NiagaraCustomVersionTagName("NiagaraCustomVersion");
+
 UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Usage(ENiagaraScriptUsage::Function)
@@ -1588,6 +1590,11 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 
 		OutTags.Add(FAssetRegistryTag(HighlightsName, *HighlightsTags, UObject::FAssetRegistryTag::TT_Hidden));
 	}
+
+	// Add the current custom version to the tags so that tags can be fixed up in the future without having to load
+	// the whole asset.
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	OutTags.Add(FAssetRegistryTag(NiagaraCustomVersionTagName, FString::FromInt(NiagaraVer), UObject::FAssetRegistryTag::TT_Hidden));
 #endif
 }
 
