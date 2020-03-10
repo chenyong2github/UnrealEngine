@@ -609,6 +609,11 @@ SIZE_T FScene::GetSizeBytes() const
 		+ PrimitiveOctree.GetSizeBytes();
 }
 
+void FScene::OnWorldCleanup()
+{
+	UniformBuffers.Clear();
+}
+
 void FScene::CheckPrimitiveArrays(int MaxTypeOffsetIndex)
 {
 	check(Primitives.Num() == PrimitiveTransforms.Num());
@@ -885,6 +890,45 @@ FORCEINLINE static void VerifyProperPIEScene(UPrimitiveComponent* Component, UWo
 #endif
 }
 
+void FPersistentUniformBuffers::Clear()
+{
+	ViewUniformBuffer.SafeRelease();
+	InstancedViewUniformBuffer.SafeRelease();
+	DepthPassUniformBuffer.SafeRelease();
+	OpaqueBasePassUniformBuffer.SafeRelease();
+	TranslucentBasePassUniformBuffer.SafeRelease();
+	ReflectionCaptureUniformBuffer.SafeRelease();
+	CSMShadowDepthViewUniformBuffer.SafeRelease();
+	CSMShadowDepthPassUniformBuffer.SafeRelease();
+	DistortionPassUniformBuffer.SafeRelease();
+	VelocityPassUniformBuffer.SafeRelease();
+	HitProxyPassUniformBuffer.SafeRelease();
+	MeshDecalPassUniformBuffer.SafeRelease();
+	LightmapDensityPassUniformBuffer.SafeRelease();
+	DebugViewModePassUniformBuffer.SafeRelease();
+	VoxelizeVolumePassUniformBuffer.SafeRelease();
+	VoxelizeVolumeViewUniformBuffer.SafeRelease();
+	ConvertToUniformMeshPassUniformBuffer.SafeRelease();
+	CustomDepthPassUniformBuffer.SafeRelease();
+	MobileCustomDepthPassUniformBuffer.SafeRelease();
+	CustomDepthViewUniformBuffer.SafeRelease();
+	InstancedCustomDepthViewUniformBuffer.SafeRelease();
+	VirtualTextureViewUniformBuffer.SafeRelease();
+	MobileOpaqueBasePassUniformBuffer.SafeRelease();
+	MobileTranslucentBasePassUniformBuffer.SafeRelease();
+	MobileCSMShadowDepthPassUniformBuffer.SafeRelease();
+	MobileDistortionPassUniformBuffer.SafeRelease();
+
+
+	for (auto& UniformBuffer : MobileDirectionalLightUniformBuffers)
+	{
+		UniformBuffer.SafeRelease();
+	}
+	MobileSkyReflectionUniformBuffer.SafeRelease();
+#if WITH_EDITOR
+	EditorSelectionPassUniformBuffer.SafeRelease();
+#endif
+}
 void FPersistentUniformBuffers::Initialize()
 {
 	FViewUniformShaderParameters ViewUniformBufferParameters;

@@ -73,14 +73,16 @@ void FRendererModule::ReallocateSceneRenderTargets()
 
 void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
 {
-	if (bFlushRenderTargetsOnWorldCleanup > 0)
+	FSceneInterface* Scene = World->Scene;
+	ENQUEUE_RENDER_COMMAND(OnWorldCleanup)(
+	[Scene](FRHICommandListImmediate& RHICmdList)
 	{
-		ENQUEUE_RENDER_COMMAND(OnWorldCleanup)(
-			[](FRHICommandListImmediate& RHICmdList)
+		if(bFlushRenderTargetsOnWorldCleanup > 0)
 		{
 			GRenderTargetPool.FreeUnusedResources();
-		});
-	}
+		}
+		Scene->OnWorldCleanup();
+	});
 }
 
 void FRendererModule::SceneRenderTargetsSetBufferSize(uint32 SizeX, uint32 SizeY)
