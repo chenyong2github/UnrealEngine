@@ -328,11 +328,16 @@ UUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const pxr::SdfPath& UsdPrimPa
 			{
 				this->OnUsdPrimTwinDestroyed( UsdPrimTwin );
 			} );
+	}
 
-		if ( UsdUtils::IsAnimated( Prim ) )
-		{
-			PrimsToAnimate.Add( PrimPath );
-		}
+	// Update the prim animated status
+	if ( UsdUtils::IsAnimated( Prim ) )
+	{
+		PrimsToAnimate.Add( PrimPath );
+	}
+	else
+	{
+		PrimsToAnimate.Remove( PrimPath );
 	}
 
 	return UsdPrimTwin;

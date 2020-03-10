@@ -31,6 +31,7 @@
 #include "pxr/usd/usd/modelAPI.h"
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/references.h"
+#include "pxr/usd/usd/schemaRegistry.h"
 #include "pxr/usd/usdGeom/xform.h"
 
 #include "USDIncludesEnd.h"
@@ -778,7 +779,7 @@ void SUsdStageTreeView::OnRemovePrim()
 
 void SUsdStageTreeView::OnAddReference()
 {
-	if ( !UsdStageActor.IsValid() )
+	if ( !UsdStageActor.IsValid() || !UsdStageActor->GetUsdStage() || !UsdStageActor->GetUsdStage()->GetEditTarget().IsValid() )
 	{
 		return;
 	}
@@ -794,14 +795,33 @@ void SUsdStageTreeView::OnAddReference()
 
 	for ( FUsdStageTreeItemRef SelectedItem : MySelectedItems )
 	{
-		FScopedUsdAllocs UsdAllocs;
-
-		pxr::UsdReferences References = SelectedItem->UsdPrim.Get().GetReferences();
-
 		FString AbsoluteFilePath = FPaths::ConvertRelativePathToFull( PickedFile.GetValue() );
 
-		FPaths::MakePathRelativeTo( AbsoluteFilePath, *UsdStageActor->RootLayer.FilePath );
-		References.AddReference( UnrealToUsd::ConvertString( *AbsoluteFilePath ).Get() );
+		FScopedUsdAllocs UsdAllocs;
+
+		const std::string UsdAbsoluteFilePath = UnrealToUsd::ConvertString( *AbsoluteFilePath ).Get();
+		pxr::UsdReferences References = SelectedItem->UsdPrim.Get().GetReferences();
+
+		pxr::SdfLayerRefPtr ReferenceLayer = pxr::SdfLayer::FindOrOpen( UsdAbsoluteFilePath );
+
+		if ( ReferenceLayer )
+		{
+			pxr::SdfPrimSpecHandle DefaultPrimSpec = ReferenceLayer->GetPrimAtPath( pxr::SdfPath( ReferenceLayer->GetDefaultPrim() ) );
+
+			if ( DefaultPrimSpec )
+			{
+				if ( !SelectedItem->UsdPrim.Get().IsA( pxr::UsdSchemaRegistry::GetTypeFromName( DefaultPrimSpec->GetTypeName() ) ) )
+				{
+					SelectedItem->UsdPrim.Get().SetTypeName( DefaultPrimSpec->GetTypeName() ); // Set the same prim type as its reference so that they are compatible
+				}
+			}
+		}
+
+		FString RelativePath = AbsoluteFilePath;
+		FString LayerAbsolutePath = UsdToUnreal::ConvertString( UsdStageActor->GetUsdStage()->GetEditTarget().GetLayer()->GetRepositoryPath() );
+		FPaths::MakePathRelativeTo( RelativePath, *LayerAbsolutePath );
+
+		References.AddReference( UnrealToUsd::ConvertString( *RelativePath ).Get() );
 	}
 }
 
@@ -849,7 +869,7 @@ bool SUsdStageTreeView::CanExecutePrimAction() const
 
 	TUsdStore< pxr::UsdStageRefPtr > UsdStage =  UsdStageActor->GetUsdStage();
 
-	if ( !UsdStage.Get() )
+	if ( !UsdStage.Get() || !UsdStage.Get()->GetEditTarget().IsValid() )
 	{
 		return false;
 	}
@@ -860,7 +880,7 @@ bool SUsdStageTreeView::CanExecutePrimAction() const
 
 	for ( FUsdStageTreeItemRef SelectedItem : MySelectedItems )
 	{
-		pxr::SdfPrimSpecHandle PrimSpec = UsdStage.Get()->GetRootLayer()->GetPrimAtPath( SelectedItem->UsdPrim.Get().GetPrimPath() );
+		pxr::SdfPrimSpecHandle PrimSpec = UsdStage.Get()->GetEditTarget().GetLayer()->GetPrimAtPath( SelectedItem->UsdPrim.Get().GetPrimPath() );
 		bHasPrimSpec = bHasPrimSpec || (bool)PrimSpec;
 
 		if ( bHasPrimSpec )
