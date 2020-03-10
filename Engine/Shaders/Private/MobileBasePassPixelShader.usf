@@ -786,9 +786,9 @@ void Main(
 		#endif
 	#endif
 
-	#if !MATERIALBLENDING_MODULATE
+	#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
 		// MobileHDR applies PreExposure in tonemapper
-		OutColor.rgb *= USE_PREEXPOSURE ? ResolvedView.PreExposure : 1;
+		OutColor.rgb *= ResolvedView.PreExposure;
 	#endif
 
 	#if MATERIAL_IS_SKY
