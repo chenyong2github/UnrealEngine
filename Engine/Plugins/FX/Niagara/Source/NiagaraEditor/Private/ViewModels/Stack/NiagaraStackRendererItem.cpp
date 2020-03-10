@@ -433,8 +433,13 @@ void UNiagaraStackRendererItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 
 void UNiagaraStackRendererItem::RendererChanged()
 {
-	bCanResetToBaseCache.Reset();
-	RefreshChildren();
+	if (IsFinalized() == false)
+	{
+		// Undo/redo can cause objects to disappear and reappear which can prevent safe removal of delegates
+		// so guard against receiving an event when finalized here.
+		bCanResetToBaseCache.Reset();
+		RefreshChildren();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
