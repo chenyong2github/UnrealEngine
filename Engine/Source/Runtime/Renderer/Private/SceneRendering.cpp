@@ -2358,7 +2358,7 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 			TEXT("ISceneViewFamilyScreenPercentage::GetPrimaryResolutionFractionUpperBound() should not lie to the renderer."));
 		
 		check(FSceneViewScreenPercentageConfig::IsValidResolutionFraction(PrimaryResolutionFraction));
-
+		
 		// Compute final resolution fraction.
 		float ResolutionFraction = PrimaryResolutionFraction * ViewFamily.SecondaryViewFraction;
 
@@ -2497,7 +2497,7 @@ void FSceneRenderer::ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask)
 				{
 					ViewInfo.GPUMask = FRHIGPUMask::FromIndex(*GPUIterator);
 					ViewFamily.bMultiGPUForkAndJoin |= (ViewInfo.GPUMask != RenderTargetGPUMask);
-					
+
 					// Increment and wrap around if we reach the last index.
 					++GPUIterator;
 					if (!GPUIterator)
@@ -2733,7 +2733,7 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 				bMobileShowVertexFogWarning = true;
 			}
 		}
-		
+
 		const bool bSingleLayerWaterWarning = ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(Views);
 		
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowGlobalClipPlaneWarning || bShowAtmosphericFogWarning || bShowSkylightWarning || bShowPointLightWarning 
@@ -3209,7 +3209,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 						Scene->UniformBuffers.InstancedCustomDepthViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*View.CachedViewUniformShaderParameters));
 					}
 				}
-	
+
 				extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 				
 				for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
@@ -3621,10 +3621,6 @@ void FRendererModule::CreateAndInitSingleView(FRHICommandListImmediate& RHICmdLi
 	// Create and add the new view
 	FViewInfo* NewView = new FViewInfo(*ViewInitOptions);
 	ViewFamily->Views.Add(NewView);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FRHIRenderTargetView RTV(ViewFamily->RenderTarget->GetRenderTargetTexture(), ERenderTargetLoadAction::EClear);
-	RHICmdList.SetRenderTargets(1, &RTV, nullptr);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FViewInfo* View = (FViewInfo*)ViewFamily->Views[0];
 	View->ViewRect = View->UnscaledViewRect;
 	View->InitRHIResources();

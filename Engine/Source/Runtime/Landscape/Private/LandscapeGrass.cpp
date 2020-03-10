@@ -490,7 +490,7 @@ public:
 
 	void RenderLandscapeComponentToTexture_RenderThread(FRHICommandListImmediate& RHICmdList)
 	{
-		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(RenderTargetResource, NULL, FEngineShowFlags(ESFIM_Game)).SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime));
+		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game)).SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime));
 
 		ViewFamily.LandscapeLODOverride = 0; // Force LOD render
 
@@ -504,30 +504,36 @@ public:
 		GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &ViewInitOptions);
 		
 		const FSceneView* View = ViewFamily.Views[0];
-		RHICmdList.SetViewport(View->UnscaledViewRect.Min.X, View->UnscaledViewRect.Min.Y, 0.0f, View->UnscaledViewRect.Max.X, View->UnscaledViewRect.Max.Y, 1.0f);
 
+		FRHIRenderPassInfo RPInfo(RenderTargetResource->GetTextureRHI(), ERenderTargetActions::Clear_Store);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("LandscapeGrass"));
+		RHICmdList.SetViewport(View->UnscaledViewRect.Min.X, View->UnscaledViewRect.Min.Y, 0.0f, View->UnscaledViewRect.Max.X, View->UnscaledViewRect.Max.Y, 1.0f);
 		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 
-		FMemMark Mark(FMemStack::Get());
-
-		DrawDynamicMeshPass(*View, RHICmdList,
-			[View, PassOffsetX = PassOffsetX, &ComponentInfos = ComponentInfos, NumPasses = NumPasses, FirstHeightMipsPassIndex = FirstHeightMipsPassIndex, HeightMips = HeightMips](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 		{
-			FLandscapeGrassWeightMeshProcessor PassMeshProcessor(
-				nullptr,
-				View,
-				DynamicMeshPassContext);
+			FMemMark Mark(FMemStack::Get());
 
-			const uint64 DefaultBatchElementMask = ~0ul;
-
-			for (auto& ComponentInfo : ComponentInfos)
+			DrawDynamicMeshPass(*View, RHICmdList,
+				[View, PassOffsetX = PassOffsetX, &ComponentInfos = ComponentInfos, NumPasses = NumPasses, FirstHeightMipsPassIndex = FirstHeightMipsPassIndex, HeightMips = HeightMips](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
-				const FMeshBatch& Mesh = ComponentInfo.SceneProxy->GetGrassMeshBatch();
-				Mesh.MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
+				FLandscapeGrassWeightMeshProcessor PassMeshProcessor(
+					nullptr,
+					View,
+					DynamicMeshPassContext);
 
-				PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, NumPasses, ComponentInfo.ViewOffset, PassOffsetX, FirstHeightMipsPassIndex, HeightMips, ComponentInfo.SceneProxy);
-			}
-		});
+				const uint64 DefaultBatchElementMask = ~0ul;
+
+				for (auto& ComponentInfo : ComponentInfos)
+				{
+					const FMeshBatch& Mesh = ComponentInfo.SceneProxy->GetGrassMeshBatch();
+					Mesh.MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
+
+					PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, NumPasses, ComponentInfo.ViewOffset, PassOffsetX, FirstHeightMipsPassIndex, HeightMips, ComponentInfo.SceneProxy);
+				}
+			});
+		}
+
+		RHICmdList.EndRenderPass();
 	}
 };
 
