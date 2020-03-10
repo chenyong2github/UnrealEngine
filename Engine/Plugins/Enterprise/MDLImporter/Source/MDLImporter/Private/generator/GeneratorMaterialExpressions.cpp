@@ -741,7 +741,7 @@ namespace Generator
 					UMaterialExpressionDesaturation* Desaturate = Cast<UMaterialExpressionDesaturation>(Input.ExpressionData.Expression);
 					return ComponentCount(Desaturate->Input.Expression);
 				}
-				check(false);
+				ensure(false);
 				return 0;
 			case Boolean:
 			case Float:
@@ -1336,11 +1336,14 @@ namespace Generator
 	{
 		uint32 ACount = ComponentCount(A);
 		uint32 BCount = ComponentCount(B);
-		check((ACount == 1) || (BCount == 1) || (ACount == BCount));
-
 		UMaterialExpressionMultiply* Expression = NewMaterialExpression<UMaterialExpressionMultiply>(Parent);
-		CheckedConnect(Parent, A, Expression->A, Expression->ConstA);
-		CheckedConnect(Parent, B, Expression->B, Expression->ConstB);
+		
+		if (ensure((ACount == 1) || (BCount == 1) || (ACount == BCount)))
+		{
+			CheckedConnect(Parent, A, Expression->A, Expression->ConstA);
+			CheckedConnect(Parent, B, Expression->B, Expression->ConstB);
+		}
+
 		return Expression;
 	}
 

@@ -170,15 +170,6 @@ bool FMDLImporter::OpenFile(const FString& InFileName, const UMDLImporterOptions
 		return false;
 	}
 
-	// set export path for textures
-	{
-		const FString  ExporthPath  = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() + FPaths::GetBaseFilename(InFileName));
-		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-		PlatformFile.CreateDirectory(*ExporthPath);
-
-		MdlContext->GetDistiller()->SetExportPath(ExporthPath);
-	}
-
 	bool bSuccess = false;
 	// load mdl module
 	{
