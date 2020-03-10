@@ -7,7 +7,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(FManagedArrayCollectionLogging, NoLogging, All);
 
-int8 FManagedArrayCollection::Invalid = -1;
+int8 FManagedArrayCollection::Invalid = INDEX_NONE;
 
 
 FManagedArrayCollection::FManagedArrayCollection()
