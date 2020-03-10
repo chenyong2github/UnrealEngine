@@ -897,7 +897,7 @@ void FBodyInstance::UpdatePhysicsFilterData()
 
 #if WITH_CHAOS
 				// If this shape shouldn't collide in the sim we disable it here until we have more support.
-				Actor->SetShapeCollisionDisable(ShapeIndex, !CollisionEnabledHasPhysics(GetCollisionEnabled()));
+				Shape.Shape->SetDisable(!CollisionEnabledHasPhysics(GetCollisionEnabled()));
 #endif
 
 				// Apply new collision settings to this shape
@@ -1279,7 +1279,7 @@ void FInitBodiesHelperBase::InitBodies()
 					if (FPhysicsInterface::IsValid(ActorHandle))
 					{
 
-						PhysScene->AddToComponentMaps(BI->OwnerComponent.Get(), ActorHandle->Proxy);
+						PhysScene->AddToComponentMaps(BI->OwnerComponent.Get(), ActorHandle->GetProxy());
 					}
 					if (BI->bNotifyRigidBodyCollision)
 					{
@@ -1433,7 +1433,7 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 		{
 			if (FPhysicsInterface::IsValid(ActorHandle))
 			{
-				PhysScene->RemoveFromComponentMaps(ActorHandle->Proxy);
+				PhysScene->RemoveFromComponentMaps(ActorHandle->GetProxy());
 			}
 			if (bNotifyRigidBodyCollision)
 			{

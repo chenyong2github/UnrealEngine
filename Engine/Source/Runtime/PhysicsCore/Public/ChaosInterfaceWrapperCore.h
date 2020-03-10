@@ -96,8 +96,8 @@ struct FQueryDebugParams
 };
 #endif
 
-extern PHYSICSCORE_API FCollisionFilterData GetQueryFilterData(const Chaos::TPerShapeData<float, 3>& Shape);
-extern PHYSICSCORE_API FCollisionFilterData GetSimulationFilterData(const Chaos::TPerShapeData<float, 3>& Shape);
+extern PHYSICSCORE_API FCollisionFilterData GetQueryFilterData(const Chaos::FPerShapeData& Shape);
+extern PHYSICSCORE_API FCollisionFilterData GetSimulationFilterData(const Chaos::FPerShapeData& Shape);
 
 
 PHYSICSCORE_API ECollisionShapeType GetImplicitType(const Chaos::FImplicitObject& InGeometry);
@@ -117,7 +117,7 @@ inline bool HadInitialOverlap(const FLocationHit& Hit)
 	return Hit.Distance <= 0.f;
 }
 
-inline const Chaos::TPerShapeData<float, 3>* GetShape(const FActorShape& Hit)
+inline const Chaos::FPerShapeData* GetShape(const FActorShape& Hit)
 {
 	return Hit.Shape;
 }

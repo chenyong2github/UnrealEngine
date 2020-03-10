@@ -668,11 +668,11 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 				}
 				else if (PBDRigid->ShapesArray().Num())
 				{
-					if (TPerShapeData<FReal, 3>* PerShapeData = PBDRigid->ShapesArray()[0].Get())
+					if (FPerShapeData* PerShapeData = PBDRigid->ShapesArray()[0].Get())
 					{
-						if (PerShapeData->Materials.Num())
+						if (PerShapeData->GetMaterials().Num())
 						{
-							if (FChaosPhysicsMaterial* Material = SolverPhysicsMaterials.Get(PBDRigid->ShapesArray()[0].Get()->Materials[0].InnerHandle))
+							if (FChaosPhysicsMaterial* Material = SolverPhysicsMaterials.Get(PBDRigid->ShapesArray()[0].Get()->GetMaterials()[0].InnerHandle))
 							{
 								LinearSleepingThreshold = FMath::Min(LinearSleepingThreshold, Material->SleepingLinearThreshold);
 								AngularSleepingThreshold = FMath::Min(AngularSleepingThreshold, Material->SleepingAngularThreshold);

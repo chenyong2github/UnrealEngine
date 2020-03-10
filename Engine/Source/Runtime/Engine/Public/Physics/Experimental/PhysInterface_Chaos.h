@@ -67,11 +67,9 @@ namespace Chaos
 	template <typename T, int>
 	class TSphere;
 
-	template <typename T, int>
-	class TPerShapeData;
+	class FPerShapeData;
 
-	template <typename T, int d>
-	using TShapesArray = TArray<TUniquePtr<TPerShapeData<T, d>>, TInlineAllocator<1>>;
+	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
 }
 
 class FPhysicsConstraintReference_Chaos
@@ -92,7 +90,7 @@ public:
 	
 	FPhysicsShapeReference_Chaos()
 		: Shape(nullptr), bSimulation(false), bQuery(false), ActorRef() {}
-	FPhysicsShapeReference_Chaos(Chaos::TPerShapeData<float, 3>* ShapeIn, bool bSimulationIn, bool bQueryIn, FPhysicsActorHandle ActorRefIn)
+	FPhysicsShapeReference_Chaos(Chaos::FPerShapeData* ShapeIn, bool bSimulationIn, bool bQueryIn, FPhysicsActorHandle ActorRefIn)
 		: Shape(ShapeIn),bSimulation(bSimulationIn),bQuery(bQueryIn),ActorRef(ActorRefIn){}
 	FPhysicsShapeReference_Chaos(const FPhysicsShapeReference_Chaos& Other)
 		: Shape(Other.Shape)
@@ -108,7 +106,7 @@ public:
 	const Chaos::FImplicitObject& GetGeometry() const;
 
 
-	Chaos::TPerShapeData<float, 3>* Shape;
+	Chaos::FPerShapeData* Shape;
 	bool bSimulation;
 	bool bQuery;
     FPhysicsActorHandle ActorRef;
@@ -193,7 +191,7 @@ public:
 	static bool IsValid(const FPhysicsActorHandle& Handle) { return Handle != nullptr; }
 	static void AddActorToSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver, Chaos::IDispatcher* Dispatcher);
 	static void RemoveActorFromSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver, Chaos::IDispatcher* Dispatcher);
-	static const FBodyInstance* ShapeToOriginalBodyInstance(const FBodyInstance* InCurrentInstance, const Chaos::TPerShapeData<float, 3>* InShape);
+	static const FBodyInstance* ShapeToOriginalBodyInstance(const FBodyInstance* InCurrentInstance, const Chaos::FPerShapeData* InShape);
 
 	static FPhysicsAggregateReference_Chaos CreateAggregate(int32 MaxBodies);
 	static void ReleaseAggregate(FPhysicsAggregateReference_Chaos& InAggregate);
@@ -379,7 +377,7 @@ public:
 	// Shape interface functions
 	static FPhysicsShapeHandle CreateShape(physx::PxGeometry* InGeom, bool bSimulation = true, bool bQuery = true, UPhysicalMaterial* InSimpleMaterial = nullptr, TArray<UPhysicalMaterial*>* InComplexMaterials = nullptr);
 	
-	static void CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::FImplicitObject>>& OutGeoms, Chaos::TShapesArray<float, 3>& OutShapes, TArray<FPhysicsShapeHandle>* OutOptShapes);
+	static void CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::FImplicitObject>>& OutGeoms, Chaos::FShapesArray& OutShapes, TArray<FPhysicsShapeHandle>* OutOptShapes);
 	static void AddGeometry(FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes = nullptr);
 	static FPhysicsShapeHandle CloneShape(const FPhysicsShapeHandle& InShape);
 	static FPhysicsGeometryCollection_Chaos GetGeometryCollection(const FPhysicsShapeHandle& InShape);
@@ -431,7 +429,7 @@ FORCEINLINE ECollisionShapeType GetType(const Chaos::FImplicitObject& Geom)
 	return ECollisionShapeType::None;
 }
 */
-ECollisionShapeType GetGeometryType(const Chaos::TPerShapeData<float, 3>& Shape);
+ECollisionShapeType GetGeometryType(const Chaos::FPerShapeData& Shape);
 
 /*
 FORCEINLINE float GetRadius(const Chaos::TCapsule<float>& Capsule)

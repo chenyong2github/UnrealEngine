@@ -199,7 +199,7 @@ private:
 		//todo: add a check to ensure hitbuffer matches SQ type
 		using namespace Chaos;
 		TGeometryParticle<float, 3>* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
-		const TShapesArray<float,3>& Shapes = GeometryParticle->ShapesArray();
+		const FShapesArray& Shapes = GeometryParticle->ShapesArray();
 
 		const bool bTestShapeBounds =  Shapes.Num() > 1;
 		bool bContinue = true;
@@ -213,21 +213,21 @@ private:
 
 		for (const auto& Shape : Shapes)
 		{
-			const FImplicitObject* Geom = Shape->Geometry.Get();
+			const FImplicitObject* Geom = Shape->GetGeometry().Get();
 
 			if (bTestShapeBounds)
 			{
 				TAABB<FReal, 3> InflatedWorldBounds;
 				if (SQ == ESQType::Raycast)
 				{
-					InflatedWorldBounds = Shape->WorldSpaceInflatedShapeBounds;
+					InflatedWorldBounds = Shape->GetWorldSpaceInflatedShapeBounds();
 				}
 				else
 				{
 					// Transform to world bounds and get the proper half extent.
 					const FVec3 WorldHalfExtent = QueryGeom ? QueryGeom->BoundingBox().TransformedAABB(StartTM).Extents() * 0.5f : HalfExtents;
 
-					InflatedWorldBounds = TAABB<FReal, 3>(Shape->WorldSpaceInflatedShapeBounds.Min() - WorldHalfExtent, Shape->WorldSpaceInflatedShapeBounds.Max() + WorldHalfExtent);
+					InflatedWorldBounds = TAABB<FReal, 3>(Shape->GetWorldSpaceInflatedShapeBounds().Min() - WorldHalfExtent, Shape->GetWorldSpaceInflatedShapeBounds().Max() + WorldHalfExtent);
 				}
 				if (SQ != ESQType::Overlap)
 				{

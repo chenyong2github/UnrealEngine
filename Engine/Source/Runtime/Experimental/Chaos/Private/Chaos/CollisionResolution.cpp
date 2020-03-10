@@ -2297,25 +2297,24 @@ namespace Chaos
 			return (uint32)ChannelMask;
 		}
 
-		template<class T, int d>
-		inline bool DoCollide(EImplicitObjectType Implicit0Type, const TPerShapeData<T, d>* Shape0, EImplicitObjectType Implicit1Type, const TPerShapeData<T, d>* Shape1)
+		inline bool DoCollide(EImplicitObjectType Implicit0Type, const FPerShapeData* Shape0, EImplicitObjectType Implicit1Type, const FPerShapeData* Shape1)
 		{
 			//
 			// Disabled shapes do not collide
 			//
-			if (Shape0 && (Shape0->bDisable || !IsValid(Shape0->SimData) ) ) return false;
-			if (Shape1 && (Shape1->bDisable || !IsValid(Shape1->SimData) ) ) return false;
+			if (Shape0 && (Shape0->GetDisable() || !IsValid(Shape0->GetSimData()) ) ) return false;
+			if (Shape1 && (Shape1->GetDisable ()|| !IsValid(Shape1->GetSimData()) ) ) return false;
 
 			//
 			// Triangle Mesh geometry is only used if the shape specifies UseComplexAsSimple
 			//
 			if (Shape0)
 			{
-				if (Implicit0Type == ImplicitObjectType::TriangleMesh && Shape0->CollisionTraceType != Chaos_CTF_UseComplexAsSimple)
+				if (Implicit0Type == ImplicitObjectType::TriangleMesh && Shape0->GetCollisionTraceType() != Chaos_CTF_UseComplexAsSimple)
 				{
 					return false;
 				}
-				else if (Shape0->CollisionTraceType == Chaos_CTF_UseComplexAsSimple && Implicit0Type != ImplicitObjectType::TriangleMesh)
+				else if (Shape0->GetCollisionTraceType() == Chaos_CTF_UseComplexAsSimple && Implicit0Type != ImplicitObjectType::TriangleMesh)
 				{
 					return false;
 				}
@@ -2327,11 +2326,11 @@ namespace Chaos
 
 			if (Shape1)
 			{
-				if (Implicit1Type == ImplicitObjectType::TriangleMesh && Shape1->CollisionTraceType != Chaos_CTF_UseComplexAsSimple)
+				if (Implicit1Type == ImplicitObjectType::TriangleMesh && Shape1->GetCollisionTraceType() != Chaos_CTF_UseComplexAsSimple)
 				{
 					return false;
 				}
-				else if (Shape1->CollisionTraceType == Chaos_CTF_UseComplexAsSimple && Implicit1Type != ImplicitObjectType::TriangleMesh)
+				else if (Shape1->GetCollisionTraceType() == Chaos_CTF_UseComplexAsSimple && Implicit1Type != ImplicitObjectType::TriangleMesh)
 				{
 					return false;
 				}
@@ -2347,11 +2346,11 @@ namespace Chaos
 			if (Shape0 && Shape1)
 			{
 
-				if (IsValid(Shape0->SimData) && IsValid(Shape1->SimData))
+				if (IsValid(Shape0->GetSimData()) && IsValid(Shape1->GetSimData()))
 				{
 					FMaskFilter Filter0Mask, Filter1Mask;
-					const uint32 Filter0Channel = GetChaosCollisionChannelAndExtraFilter(Shape0->SimData.Word3, Filter0Mask);
-					const uint32 Filter1Channel = GetChaosCollisionChannelAndExtraFilter(Shape1->SimData.Word3, Filter1Mask);
+					const uint32 Filter0Channel = GetChaosCollisionChannelAndExtraFilter(Shape0->GetSimData().Word3, Filter0Mask);
+					const uint32 Filter1Channel = GetChaosCollisionChannelAndExtraFilter(Shape1->GetSimData().Word3, Filter1Mask);
 
 					if ((Filter0Mask & Filter1Mask) != 0)
 					{
@@ -2360,7 +2359,7 @@ namespace Chaos
 
 					const uint32 Filter1Bit = 1 << (Filter1Channel); // SIMDATA_TO_BITFIELD
 					uint32 const Filter0Bit = 1 << (Filter0Channel); // SIMDATA_TO_BITFIELD
-					return (Filter0Bit & Shape1->SimData.Word1) && (Filter1Bit & Shape0->SimData.Word1);
+					return (Filter0Bit & Shape1->GetSimData().Word1) && (Filter1Bit & Shape0->GetSimData().Word1);
 				}
 			}
 

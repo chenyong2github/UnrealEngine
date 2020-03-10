@@ -201,4 +201,28 @@ namespace Chaos
 		return InParticles.GetTypeHash();
 	}
 	
+	enum class EObjectStateType: int8
+	{
+		Uninitialized = 0,
+		Sleeping = 1,
+		Kinematic = 2,
+		Static = 3,
+		Dynamic = 4,
+
+		Count
+	};
+
+	enum EChaosCollisionTraceFlag
+	{
+		/** Use project physics settings (DefaultShapeComplexity) */
+		Chaos_CTF_UseDefault,
+		/** Create both simple and complex shapes. Simple shapes are used for regular scene queries and collision tests. Complex shape (per poly) is used for complex scene queries.*/
+		Chaos_CTF_UseSimpleAndComplex,
+		/** Create only simple shapes. Use simple shapes for all scene queries and collision tests.*/
+		Chaos_CTF_UseSimpleAsComplex,
+		/** Create only complex shapes (per poly). Use complex shapes for all scene queries and collision tests. Can be used in simulation for static shapes only (i.e can be collided against but not moved through forces or velocity.) */
+		Chaos_CTF_UseComplexAsSimple,
+		/** */
+		Chaos_CTF_MAX,
+	};
 } // namespace Chaos

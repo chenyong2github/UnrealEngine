@@ -402,6 +402,7 @@ namespace Chaos
 		template<ELockType>
 		friend struct TSolverQueryMaterialScope;
 
+		TUniquePtr<IBufferResource<FDirtyPropertiesManager>> DirtyPropertiesManager;
 	public:
 
 		template<typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>

@@ -1507,7 +1507,6 @@ void FPhysScene_ChaosInterface::ClearForces_AssumesLocked(FBodyInstance* BodyIns
 		if (ensure(Rigid))
 		{
 			Rigid->SetF(Chaos::TVector<float, 3>(0.f,0.f,0.f));
-			Rigid->MarkClean(Chaos::EParticleFlags::F);
 		}
 	}
 }
@@ -1549,7 +1548,6 @@ void FPhysScene_ChaosInterface::ClearTorques_AssumesLocked(FBodyInstance* BodyIn
 		if (ensure(Rigid))
 		{
 			Rigid->SetTorque(Chaos::TVector<float, 3>(0.f, 0.f, 0.f));
-			Rigid->MarkClean(Chaos::EParticleFlags::Torque);
 		}
 	}
 }
@@ -2136,7 +2134,7 @@ void FPhysScene_ChaosInterface::SyncBodies(Chaos::FPhysicsSolver* Solver)
 		const Chaos::FPBDRigidActiveParticlesBufferOut* ActiveParticleBuffer = Accessor.GetSolverOutData();
 		for (Chaos::TGeometryParticle<float, 3>* ActiveParticle : ActiveParticleBuffer->ActiveGameThreadParticles)
 		{
-			if (IPhysicsProxyBase * ProxyBase = ActiveParticle->Proxy)
+		if (IPhysicsProxyBase* ProxyBase = ActiveParticle->GetProxy())
 			{
 				if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
 				{

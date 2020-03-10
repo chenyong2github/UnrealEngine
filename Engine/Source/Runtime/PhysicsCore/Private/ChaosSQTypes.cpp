@@ -10,7 +10,7 @@ namespace ChaosInterface
 	void FActorShape::Serialize(Chaos::FChaosArchive& Ar)
 	{
 		Ar << Chaos::AsAlwaysSerializable(Actor);
-		auto NonConstShape = const_cast<Chaos::TPerShapeData<float, 3>*>(Shape);
+		auto NonConstShape = const_cast<Chaos::FPerShapeData*>(Shape);
 		Ar << Chaos::AsAlwaysSerializable(NonConstShape);
 		Shape = NonConstShape;
 	}

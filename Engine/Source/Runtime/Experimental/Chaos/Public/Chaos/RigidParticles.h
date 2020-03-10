@@ -14,16 +14,6 @@
 
 namespace Chaos
 {
-enum class EObjectStateType : int8
-{
-	Uninitialized = 0,
-	Sleeping = 1,
-	Kinematic = 2,
-	Static = 3,
-	Dynamic = 4,
-
-	Count
-};
 
 template<class T, int d>
 struct TSleepData

@@ -120,7 +120,7 @@ public:
 	physx::PxBase* FindObject(uint64 Id);
 
 	Chaos::TGeometryParticle<float,3>* PhysXActorToChaosHandle(physx::PxActor* Actor) const { return PxActorToChaosHandle.FindChecked(Actor)->GTGeometryParticle(); }
-	Chaos::TPerShapeData<float,3>* PhysXShapeToChaosImplicit(physx::PxShape* Shape) const { return PxShapeToChaosShapes.FindRef(Shape); }
+	Chaos::FPerShapeData* PhysXShapeToChaosImplicit(physx::PxShape* Shape) const { return PxShapeToChaosShapes.FindRef(Shape); }
 #endif
 
 private:
@@ -167,7 +167,7 @@ private:
 	TUniquePtr<FPhysXSerializerData> AlignedDataHelper;
 
 	TMap<physx::PxActor*, Chaos::TGeometryParticleHandle<float, 3>*> PxActorToChaosHandle;
-	TMap<physx::PxShape*, Chaos::TPerShapeData<float, 3>*> PxShapeToChaosShapes;
+	TMap<physx::PxShape*, Chaos::FPerShapeData*> PxShapeToChaosShapes;
 #endif
 };
 

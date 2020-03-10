@@ -15,8 +15,7 @@ struct FCollisionQueryParams;
 
 namespace Chaos
 {
-	template <class T, int d>
-	class TPerShapeData;
+	class FPerShapeData;
 }
 
 namespace ChaosInterface

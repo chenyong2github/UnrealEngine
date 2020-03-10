@@ -100,7 +100,7 @@ public:
 	void FlipBuffer();
 	void PullFromPhysicsState();
 	bool IsDirty() { return false; }
-	Chaos::FParticleData* NewData() { return nullptr; }
+	FStubSkeletalMeshData* NewData() { return nullptr; }
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::StaticMeshType; }
 	/** ----------------------- */
 

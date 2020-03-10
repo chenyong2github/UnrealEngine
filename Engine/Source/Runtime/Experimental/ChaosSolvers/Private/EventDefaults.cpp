@@ -330,7 +330,7 @@ namespace Chaos
 				{
 					// Since Clustered GCs can be unioned the particleIndex representing the union 
 					// is not associated with a PhysicsProxy
-					if(AllBreakingsArray[Idx].Particle->Proxy != nullptr)
+					if(AllBreakingsArray[Idx].Particle->GetProxy() != nullptr)
 					{
 						if(ensure(!AllBreakingsArray[Idx].Location.ContainsNaN() &&
 							!Particles.V(AllBreakingsArray[Idx].ParticleIndex).ContainsNaN() &&
@@ -365,7 +365,7 @@ namespace Chaos
 								}
 
 								// Add to AllBreakingsIndicesByPhysicsProxy
-								IPhysicsProxyBase* PhysicsProxy = AllBreakingsArray[Idx].Particle->Proxy;
+								IPhysicsProxyBase* PhysicsProxy = AllBreakingsArray[Idx].Particle->GetProxy();
 								AllBreakingIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(NewIdx);
 							}
 						}
