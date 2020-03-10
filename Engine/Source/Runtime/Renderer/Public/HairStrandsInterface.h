@@ -94,6 +94,7 @@ public:
 		float HairLength = 0;
 		float HairDensity = 0;
 		bool bUseStableRasterization = false;
+		bool bScatterSceneLighting = false;
 		FTransform LocalToWorldTransform;
 	};
 	VertexFactoryInput VFInput;
