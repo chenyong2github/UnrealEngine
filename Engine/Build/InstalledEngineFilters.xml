@@ -257,9 +257,6 @@
 	<!-- Win64 editor specific dependencies -->
 	
 	<Property Name="CopyEditorFilterWin64" Value="$(CopyEditorFilter)">
-		<!-- Leap SDK -->
-		Engine/Plugins/Runtime/LeapMotion/ThirdParty/LeapSDK/...
-
 		<!-- Build batch files -->
 		Engine/Build/BatchFiles/Build.bat
 		Engine/Build/BatchFiles/Clean.bat
