@@ -26,9 +26,10 @@ UNiagaraStackEntry::FStackIssueFix::FStackIssueFix()
 {
 }
 
-UNiagaraStackEntry::FStackIssueFix::FStackIssueFix(FText InDescription, FStackIssueFixDelegate InFixDelegate)
+UNiagaraStackEntry::FStackIssueFix::FStackIssueFix(FText InDescription, FStackIssueFixDelegate InFixDelegate, EStackIssueFixStyle InFixStyle)
 	: Description(InDescription)
 	, FixDelegate(InFixDelegate)
+	, Style(InFixStyle)
 	, UniqueIdentifier(FMD5::HashAnsiString(*FString::Printf(TEXT("%s"), *InDescription.ToString())))
 {
 	checkf(Description.IsEmptyOrWhitespace() == false, TEXT("Description can not be empty."));
@@ -58,6 +59,11 @@ const FString& UNiagaraStackEntry::FStackIssueFix::GetUniqueIdentifier() const
 const UNiagaraStackEntry::FStackIssueFixDelegate& UNiagaraStackEntry::FStackIssueFix::GetFixDelegate() const
 {
 	return FixDelegate;
+}
+
+UNiagaraStackEntry::EStackIssueFixStyle UNiagaraStackEntry::FStackIssueFix::GetStyle() const
+{
+	return Style;
 }
 
 UNiagaraStackEntry::FStackIssue::FStackIssue()
