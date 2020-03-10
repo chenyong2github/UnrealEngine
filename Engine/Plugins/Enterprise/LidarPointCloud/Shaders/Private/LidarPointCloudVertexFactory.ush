@@ -257,6 +257,9 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	Result.TexCoords[0] = PrecomputedUV_Quad[Input.VertexId % 4];
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+		Result.TexCoords[1] = Intermediates.Scale;
+	#endif
 #endif
 
     return Result;
