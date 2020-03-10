@@ -31,6 +31,8 @@ class CHAOS_API TLevelSet final : public FImplicitObject
 	TLevelSet(TLevelSet<T, d>&& Other);
 	virtual ~TLevelSet();
 
+	virtual TUniquePtr<FImplicitObject> DeepCopy() const;
+
 	void Write(std::ostream& Stream) const;
 	virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const override;
 	T SignedDistance(const TVector<T, d>& x) const;
