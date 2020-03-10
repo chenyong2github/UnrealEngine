@@ -33,6 +33,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraClipboard.h"
 #include "Toolkits/NiagaraSystemToolkit.h"
+#include "NiagaraMessageManager.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
@@ -181,6 +182,12 @@ void UNiagaraStackFunctionInput::FinalizeInternal()
 	{
 		SourceScript->RapidIterationParameters.RemoveOnChangedHandler(RapidIterationParametersChangedHandle);
 		SourceScript->GetSource()->OnChanged().RemoveAll(this);
+	}
+
+	if (MessageManagerRefreshHandle.IsValid())
+	{
+		FNiagaraMessageManager::Get()->GetOnRequestRefresh().Remove(MessageManagerRefreshHandle);
+		MessageManagerRefreshHandle.Reset();
 	}
 
 	Super::FinalizeInternal();
@@ -389,6 +396,22 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 	RefreshFromMetaData();
 	RefreshValues();
 
+	if (InputValues.DynamicNode.IsValid())
+	{
+		if (MessageManagerRefreshHandle.IsValid() == false)
+		{
+			MessageManagerRefreshHandle = FNiagaraMessageManager::Get()->GetOnRequestRefresh().AddUObject(this, &UNiagaraStackFunctionInput::OnMessageManagerRefresh);
+		}
+	}
+	else
+	{
+		if (MessageManagerRefreshHandle.IsValid())
+		{
+			FNiagaraMessageManager::Get()->GetOnRequestRefresh().Remove(MessageManagerRefreshHandle);
+			MessageManagerRefreshHandle.Reset();
+		}
+	}
+
 	if (InputValues.Mode == EValueMode::Dynamic && InputValues.DynamicNode.IsValid())
 	{
 		if (InputValues.DynamicNode->FunctionScript != nullptr)
@@ -541,6 +564,16 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 			}
 			DisplayNameOverride = FText::FromString(DisplayNameStr);
 		}	
+	}
+
+	if (InputValues.DynamicNode.IsValid())
+	{
+		TArray<TSharedRef<const INiagaraMessage>> Messages = FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(
+			GetSystemViewModel()->GetMessageLogGuid(), FObjectKey(InputValues.DynamicNode.Get()));
+		for (TSharedRef<const INiagaraMessage> Message : Messages)
+		{
+			NewIssues.Add(FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey()));
+		}
 	}
 }
 
@@ -1469,6 +1502,17 @@ FNiagaraVariable UNiagaraStackFunctionInput::CreateRapidIterationVariable(const 
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode.Get());
 	FString UniqueEmitterName = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName() : FString();
 	return FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, OutputNode->GetUsage(), InName, InputType);
+}
+
+void UNiagaraStackFunctionInput::OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages)
+{
+	if (InputValues.DynamicNode.IsValid() && GetSystemViewModel()->GetMessageLogGuid() == MessageJobBatchAssetKey)
+	{
+		if (FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(MessageJobBatchAssetKey, FObjectKey(InputValues.DynamicNode.Get())).Num() > 0)
+		{
+			RefreshChildren();
+		}
+	}
 }
 
 bool UNiagaraStackFunctionInput::SupportsRename() const

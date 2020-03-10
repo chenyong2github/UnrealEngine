@@ -34,6 +34,7 @@
 #include "NiagaraClipboard.h"
 #include "NiagaraConvertInPlaceUtilityBase.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "NiagaraMessageManager.h"
 
 #include "ScopedTransaction.h"
 #include "NiagaraScriptVariable.h"
@@ -138,6 +139,8 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterOutputCollection));
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterLinkedInputCollection));
 	}
+
+	FNiagaraMessageManager::Get()->GetOnRequestRefresh().AddUObject(this, &UNiagaraStackModuleItem::OnMessageManagerRefresh);
 }
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
@@ -165,6 +168,12 @@ FText UNiagaraStackModuleItem::GetTooltipText() const
 INiagaraStackItemGroupAddUtilities* UNiagaraStackModuleItem::GetGroupAddUtilities()
 {
 	return GroupAddUtilities;
+}
+
+void UNiagaraStackModuleItem::FinalizeInternal()
+{
+	FNiagaraMessageManager::Get()->GetOnRequestRefresh().RemoveAll(this);
+	Super::FinalizeInternal();
 }
 
 void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
@@ -390,6 +399,13 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					GetStackEditorDataKey(),
 					true));
 			}
+		}
+
+		TArray<TSharedRef<const INiagaraMessage>> Messages = FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(
+			GetSystemViewModel()->GetMessageLogGuid(), FObjectKey(FunctionCallNode));
+		for (TSharedRef<const INiagaraMessage> Message : Messages)
+		{
+			NewIssues.Add(FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey()));
 		}
 
 		if (FunctionCallNode->FunctionScript == nullptr && FunctionCallNode->GetClass() == UNiagaraNodeFunctionCall::StaticClass())
@@ -828,6 +844,17 @@ void UNiagaraStackModuleItem::RefreshIsEnabled()
 	if (IsEnabled.IsSet())
 	{
 		bIsEnabled = IsEnabled.GetValue();
+	}
+}
+
+void UNiagaraStackModuleItem::OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages)
+{
+	if (GetSystemViewModel()->GetMessageLogGuid() == MessageJobBatchAssetKey)
+	{
+		if (FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(MessageJobBatchAssetKey, FObjectKey(FunctionCallNode)).Num() > 0)
+		{
+			RefreshChildren();
+		}
 	}
 }
 
