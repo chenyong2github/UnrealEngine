@@ -10,6 +10,7 @@
 #define PARAM_MAP_ENGINE_SYSTEM_STR TEXT("Engine.System.")
 #define PARAM_MAP_ENGINE_EMITTER_STR TEXT("Engine.Emitter.")
 #define PARAM_MAP_LOCAL_MODULE_STR TEXT("Local.Module.")
+#define PARAM_MAP_OUTPUT_MODULE_STR TEXT("Output.Module.")
 #define PARAM_MAP_USER_STR TEXT("User.")
 #define PARAM_MAP_SYSTEM_STR TEXT("System.")
 #define PARAM_MAP_EMITTER_STR TEXT("Emitter.")

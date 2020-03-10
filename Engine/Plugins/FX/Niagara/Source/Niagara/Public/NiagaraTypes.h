@@ -443,37 +443,42 @@ UENUM()
 enum class ENiagaraParameterScope : uint32
 {
 	/** Parameter that is an input argument into this graph.*/
-	Input,
+	Input UMETA(DisplayName = "Input"),
 
-	/** Parameter that is exposed to the owning component for editing.*/
-	User,
+	/** Parameter that is exposed to the owning component for editing and are read-only when used in the graph*/
+	User UMETA(DisplayName = "User"),
 
-	/** Parameter provided by the engine. These are explicitly defined by the engine codebase.*/
-	Engine UMETA(Hidden),
+	/** Parameter provided by the engine. These are explicitly defined by the engine codebase and read-only. */
+	Engine UMETA(DisplayName = "Engine (Generic)", Hidden),
 
-	/** Parameter provided by the engine focused on the owning component. These are explicitly defined by the engine codebase.*/
-	Owner UMETA(Hidden),
+	/** Parameter provided by the engine focused on the owning component. These are explicitly defined by the engine codebase and read-only.*/
+	Owner UMETA(DisplayName = "Engine (Owner)", Hidden),
 
-	/** Parameter is an attribute of the owning system payload. It is persistent across frames.*/
-	System,
+	/** Parameter is an attribute of the owning system payload. It is persistent across frames and initialized in the System Spawn stage of the stack.*/
+	System  UMETA(DisplayName = "System"),
 
-	/** Parameter is an attribute of the owning emitter payload. It is persistent across frames.*/
-	Emitter,
+	/** Parameter is an attribute of the owning emitter payload. It is persistent across frames and initialized in the Emitter Spawn stage of the stack.*/
+	Emitter   UMETA(DisplayName = "Emitter"),
 
-	/** Parameter is an attribute of the owning particle payload. It is persistent across frames.*/
-	Particles,
+	/** Parameter is an attribute of the owning particle payload. It is persistent across frames and initialized in the Particle Spawn stage of the stack.*/
+	Particles  UMETA(DisplayName = "Particles"),
 
-	/** Parameter is initialized in the appropriate spawn section for the stack. It is persistent from frame to frame. For example, if used consistently in an Emitter stack, this parameter will turn into an emitter attribute. Similarly, if used in a Particle stack, it will turn into a particle attribute.*/
-	ScriptPersistent UMETA(Hidden), //@todo(ng) hiding until autotest verification is made.
+	/** Parameter is initialized in the appropriate spawn stage for the stack. It is persistent from frame to frame. For example, if used consistently in an Emitter stage, this parameter will turn into an emitter attribute. Similarly, if used in a Particle stage, it will turn into a particle attribute.*/
+	ScriptPersistent UMETA(DisplayName = "Stage (Persistent)", Hidden), //@todo(ng) hiding until autotest verification is made.
 
-	/** Parameter is initialized at the start of this script phase and can be shared amongst other modules, but is not persistent across script frames or from stack section to stack section.*/
-	ScriptTransient,
-
-	Local UMETA(Hidden), //Convenience markup for ScopeToString functions, only use in conjunction with ENiagaraScriptParameterUsage::Local.
+	/** Parameter is initialized at the start of this stage and can be shared amongst other modules within this stack stage, but is not persistent across runs or from stack stage to stack stage.*/
+	ScriptTransient UMETA(DisplayName = "Stage (Transient)"),
+	
+	/** Parameter is initialized at the start of this script and is only used within the context of this script. It is invisible to the parent stage stack.*/
+	Local UMETA(DisplayName = "Local"), //Convenience markup for ScopeToString functions, only use in conjunction with ENiagaraScriptParameterUsage::Local.
 
 	Custom UMETA(Hidden), //Convenience markup for expressing parameters using legacy editor mode to freetype namespace and name.
 
 	DISPLAY_ONLY_StaticSwitch UMETA(DisplayName="Static Switch", Hidden), //Only use for display string in SEnumComboBoxes; does not have implementation for classes that interact with ENiagaraParameterScope.
+	
+	/** Parameter is output to the owning stack stage from this script, but is only meaningful if bound elsewhere in the stage.*/
+	Output UMETA(DisplayName = "Output"),
+
 	// insert new scopes before
 	None UMETA(Hidden),
 
