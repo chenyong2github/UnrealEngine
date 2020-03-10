@@ -14,6 +14,7 @@ public:
 	FAssetTypeActions_AudioSynesthesiaNRTSettings(UAudioSynesthesiaNRTSettings* InSynesthesiaSettings);
 
 	//~ Begin FAssetTypeActions_Base
+	virtual bool CanFilter() override;
 	virtual FText GetName() const override;
 	virtual FColor GetTypeColor() const override;
 	virtual UClass* GetSupportedClass() const override;
