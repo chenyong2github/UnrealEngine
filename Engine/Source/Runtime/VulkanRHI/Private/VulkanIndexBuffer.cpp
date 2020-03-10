@@ -67,6 +67,8 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 	, NumBuffers(0)
 	, DynamicBufferIndex(0)
 {
+	VULKAN_TRACK_OBJECT_CREATE(FVulkanResourceMultiBuffer, this);
+
 	if (InSize > 0)
 	{
 		const bool bStatic = (InUEUsage & BUF_Static) != 0;
@@ -143,6 +145,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 
 FVulkanResourceMultiBuffer::~FVulkanResourceMultiBuffer()
 {
+	VULKAN_TRACK_OBJECT_DELETE(FVulkanResourceMultiBuffer, this);
 	//#todo-rco: Free VkBuffers
 
 	uint64_t Size = 0;
