@@ -354,24 +354,40 @@ FKeyPropertyResult FTemplateSequenceTrackEditor::AddKeyInternal(FFrameNumber Key
 {
 	FKeyPropertyResult KeyPropertyResult;
 
-	bool bHandleCreated = false;
-	bool bTrackCreated = false;
-	bool bTrackModified = false;
+	if (TemplateSequence->GetMovieScene()->GetPlaybackRange().IsEmpty())
+	{
+		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequenceDuration", "Invalid template sequence {0}. The template sequence has no duration."), TemplateSequence->GetDisplayName()));
+		Info.bUseLargeFont = false;
+		FSlateNotificationManager::Get().AddNotification(Info);
+		return KeyPropertyResult;
+	}
 
+	if (!CanAddSubSequence(*TemplateSequence))
+	{
+		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequenceCycle", "Invalid template sequence {0}. There could be a circular dependency."), TemplateSequence->GetDisplayName()));
+		Info.bUseLargeFont = false;
+		FSlateNotificationManager::Get().AddNotification(Info);
+		return KeyPropertyResult;
+	}
+
+	TArray<UMovieSceneSection*> NewSections;
 	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 	if (SequencerPtr.IsValid())
 	{
+		const FFrameRate OuterTickResolution = SequencerPtr->GetFocusedTickResolution();
+		const FFrameRate SubTickResolution = TemplateSequence->GetMovieScene()->GetTickResolution();
+		if (SubTickResolution != OuterTickResolution)
+		{
+			FNotificationInfo Info(FText::Format(LOCTEXT("TickResolutionMismatch", "The parent sequence has a different tick resolution {0} than the newly added sequence {1}"), OuterTickResolution.ToPrettyText(), SubTickResolution.ToPrettyText()));
+			Info.bUseLargeFont = false;
+			FSlateNotificationManager::Get().AddNotification(Info);
+		}
+
 		for (const FGuid& ObjectBindingGuid : ObjectBindings)
 		{
-			UObject* Object = SequencerPtr->FindSpawnedObjectOrTemplate(ObjectBindingGuid);
-
-			FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToObject(Object);
-			FGuid ObjectHandle = HandleResult.Handle;
-			KeyPropertyResult.bHandleCreated |= HandleResult.bWasCreated;
-
-			if (ObjectHandle.IsValid())
+			if (ObjectBindingGuid.IsValid())
 			{
-				FFindOrCreateTrackResult TrackResult = FindOrCreateTrackForObject(ObjectHandle, UTemplateSequenceTrack::StaticClass());
+				FFindOrCreateTrackResult TrackResult = FindOrCreateTrackForObject(ObjectBindingGuid, UTemplateSequenceTrack::StaticClass());
 				UMovieSceneTrack* Track = TrackResult.Track;
 				KeyPropertyResult.bTrackCreated |= TrackResult.bWasCreated;
 
@@ -379,13 +395,20 @@ FKeyPropertyResult FTemplateSequenceTrackEditor::AddKeyInternal(FFrameNumber Key
 				{
 					UMovieSceneSection* NewSection = Cast<UTemplateSequenceTrack>(Track)->AddNewTemplateSequenceSection(KeyTime, TemplateSequence);
 					KeyPropertyResult.bTrackModified = true;
-					
-					GetSequencer()->EmptySelection();
-					GetSequencer()->SelectSection(NewSection);
-					GetSequencer()->ThrobSectionSelection();
+					NewSections.Add(NewSection);
 				}
 			}
 		}
+	}
+
+	if (NewSections.Num() > 0)
+	{
+		GetSequencer()->EmptySelection();
+		for (UMovieSceneSection* NewSection : NewSections)
+		{
+			GetSequencer()->SelectSection(NewSection);
+		}
+		GetSequencer()->ThrobSectionSelection();
 	}
 
 	return KeyPropertyResult;
@@ -394,6 +417,12 @@ FKeyPropertyResult FTemplateSequenceTrackEditor::AddKeyInternal(FFrameNumber Key
 FKeyPropertyResult FTemplateSequenceTrackEditor::AddLegacyCameraAnimKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, UCameraAnim* CameraAnim)
 {
 	return FCameraAnimTrackEditorHelper::AddCameraAnimKey(*this, KeyTime, Objects, CameraAnim);
+}
+
+bool FTemplateSequenceTrackEditor::CanAddSubSequence(const UMovieSceneSequence& Sequence) const
+{
+	UMovieSceneSequence* FocusedSequence = GetSequencer()->GetFocusedMovieSceneSequence();
+	return FSubTrackEditorUtil::CanAddSubSequence(FocusedSequence, Sequence);
 }
 
 const UClass* FTemplateSequenceTrackEditor::AcquireObjectClassFromObjectGuid(const FGuid& Guid)

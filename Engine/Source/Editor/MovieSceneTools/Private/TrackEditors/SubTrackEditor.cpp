@@ -480,35 +480,7 @@ bool FSubTrackEditor::CanAddSubSequence(const UMovieSceneSequence& Sequence) con
 {
 	// prevent adding ourselves and ensure we have a valid movie scene
 	UMovieSceneSequence* FocusedSequence = GetSequencer()->GetFocusedMovieSceneSequence();
-
-	if ((FocusedSequence == nullptr) || (FocusedSequence == &Sequence) || (FocusedSequence->GetMovieScene() == nullptr))
-	{
-		return false;
-	}
-
-	// ensure that the other sequence has a valid movie scene
-	UMovieScene* SequenceMovieScene = Sequence.GetMovieScene();
-
-	if (SequenceMovieScene == nullptr)
-	{
-		return false;
-	}
-
-	// make sure we are not contained in the other sequence (circular dependency)
-	// @todo sequencer: this check is not sufficient (does not prevent circular dependencies of 2+ levels)
-	UMovieSceneSubTrack* SequenceSubTrack = SequenceMovieScene->FindMasterTrack<UMovieSceneSubTrack>();
-	if (SequenceSubTrack && SequenceSubTrack->ContainsSequence(*FocusedSequence, true))
-	{
-		return false;
-	}
-
-	UMovieSceneCinematicShotTrack* SequenceCinematicTrack = SequenceMovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();
-	if (SequenceCinematicTrack && SequenceCinematicTrack->ContainsSequence(*FocusedSequence, true))
-	{
-		return false;
-	}
-
-	return true;
+	return FSubTrackEditorUtil::CanAddSubSequence(FocusedSequence, Sequence);
 }
 
 
