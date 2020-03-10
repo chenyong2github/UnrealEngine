@@ -179,6 +179,8 @@ class MESHMODELINGTOOLS_API UBrushRemeshProperties : public URemeshProperties
 	GENERATED_BODY()
 
 public:
+	void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
+
 	/** Target Relative Triangle Sizefor Dynamic Meshing */
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.5", UIMax = "2.0", ClampMin = "0.1", ClampMax = "100.0"))
 	float RelativeSize = 1.0f;
