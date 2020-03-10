@@ -24,7 +24,7 @@
 
 bool UAlignObjectsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= 1;
+	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= 2;
 }
 
 UInteractiveTool* UAlignObjectsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -104,6 +104,10 @@ void UAlignObjectsTool::Setup()
 	AddToolPropertySource(AlignProps);
 
 	Precompute();
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartTool", "This Tool aligns the Pivots or Bounding Boxes of the input Objects."),
+		EToolMessageLevel::UserNotification);
 }
 
 
