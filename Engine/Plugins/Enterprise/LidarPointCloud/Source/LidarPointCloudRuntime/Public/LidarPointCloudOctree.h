@@ -516,4 +516,5 @@ struct FLidarPointCloudTraversalOctree
 	void GetVisibleNodes(TArray<FLidarPointCloudLODManager::FNodeSizeData>& NodeSizeData, const FLidarPointCloudViewData& ViewData, const int32& ProxyIndex, const FLidarPointCloudNodeSelectionParams& SelectionParams, const float& CurrentTime);
 
 	FVector GetCenter() const { return Root.Center; }
+	FVector GetExtent() const { return Extents[0]; }
 };
