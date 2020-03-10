@@ -27,6 +27,7 @@ public:
 
 	void Tick(float DeltaTime);
 	void CaptureFrame();
+	void CapturePIE(const TArray<FString>& Args);
 	void StartRenderDoc(FString FrameCaptureBaseDirectory);
 	FString GetNewestCapture(FString BaseDirectory);
 
@@ -64,5 +65,6 @@ private:
 
 #if WITH_EDITOR
 	FRenderDocPluginEditorExtension* EditorExtensions;
+	int StartPIEDelayFrames = -1;
 #endif
 };
