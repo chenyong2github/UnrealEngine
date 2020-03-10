@@ -695,6 +695,7 @@ struct FOpenGLES : public FOpenGLBase
 	static FORCEINLINE bool HasBinaryProgramRetrievalFailed() { return bBinaryProgramRetrievalFailed; }
 	static FORCEINLINE bool RequiresTexture2DPrecisionHack() { return bRequiresTexture2DPrecisionHack; }
 	static FORCEINLINE bool RequiresRoundFunctionHack() { return bRequiresRoundFunctionHack; }
+	static FORCEINLINE bool RequiresDisabledEarlyFragmentTests() { return bRequiresDisabledEarlyFragmentTests; }
 	static FORCEINLINE bool RequiresARMShaderFramebufferFetchDepthStencilUndef() { return bRequiresARMShaderFramebufferFetchDepthStencilUndef; }
 	static FORCEINLINE bool IsCheckingShaderCompilerHacks() { return bIsCheckingShaderCompilerHacks; }
 	static FORCEINLINE bool IsLimitingShaderCompileCount() { return bIsLimitingShaderCompileCount; }
@@ -1356,6 +1357,9 @@ public:
 	/* This is a hack to add a round() function when not available to a shader compiler */
 	static bool bRequiresRoundFunctionHack;
 
+	/* Some Mali devices do not work correctly with early_fragment_test enabled */
+	static bool bRequiresDisabledEarlyFragmentTests;
+		
 	/* This is to avoid a bug in Adreno drivers that define GL_ARM_shader_framebuffer_fetch_depth_stencil even when device does not support this extension  */
 	static bool bRequiresARMShaderFramebufferFetchDepthStencilUndef;
 
