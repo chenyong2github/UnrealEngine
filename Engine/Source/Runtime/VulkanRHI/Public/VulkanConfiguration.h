@@ -224,6 +224,13 @@
 	#endif
 #endif
 
+
+#ifndef VULKAN_OBJECT_TRACKING 
+#define VULKAN_OBJECT_TRACKING 0 //Track objects created and memory used. use r.vulkan.dumpmemory to dump to console
+#endif
+
+
+
 DECLARE_LOG_CATEGORY_EXTERN(LogVulkanRHI, Log, All);
 
 #if VULKAN_CUSTOM_MEMORY_MANAGER_ENABLED
