@@ -246,7 +246,9 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 
 #endif
 
+#if WITH_EDITORONLY_DATA
 const FName UNiagaraScript::NiagaraCustomVersionTagName("NiagaraCustomVersion");
+#endif
 
 UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
