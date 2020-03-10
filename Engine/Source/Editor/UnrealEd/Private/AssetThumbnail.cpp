@@ -585,11 +585,7 @@ private:
 			{
 				if (AssetData != nullptr)
 				{
-					FAssetTypeActions_Base* BaseAssetTypeAction = static_cast<FAssetTypeActions_Base*>(AssetTypeActions.Pin().Get());
-					if (BaseAssetTypeAction != nullptr)
-					{
-						ClassDisplayName = BaseAssetTypeAction->GetDisplayNameFromAssetData(*AssetData);
-					}
+					ClassDisplayName = AssetTypeActions.Pin()->GetDisplayNameFromAssetData(*AssetData);
 				}
 
 				if (ClassDisplayName.IsEmpty())
