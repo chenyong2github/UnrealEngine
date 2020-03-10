@@ -2,6 +2,7 @@
 
 #include "ConcertClientPackageManager.h"
 #include "IConcertSession.h"
+#include "IConcertFileSharingService.h"
 #include "ConcertSyncClientLiveSession.h"
 #include "ConcertSyncSessionDatabase.h"
 #include "ConcertLogGlobal.h"
@@ -9,6 +10,7 @@
 #include "ConcertWorkspaceMessages.h"
 #include "ConcertSandboxPlatformFile.h"
 #include "ConcertSyncClientUtil.h"
+#include "ConcertUtil.h"
 
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -27,10 +29,11 @@
 
 #define LOCTEXT_NAMESPACE "ConcertClientPackageManager"
 
-FConcertClientPackageManager::FConcertClientPackageManager(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge)
-	: LiveSession(InLiveSession)
+FConcertClientPackageManager::FConcertClientPackageManager(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, TSharedPtr<IConcertFileSharingService> InFileSharingService)
+	: LiveSession(MoveTemp(InLiveSession))
 	, PackageBridge(InPackageBridge)
 	, bIgnorePackageDirtyEvent(false)
+	, FileSharingService(MoveTemp(InFileSharingService))
 {
 	check(LiveSession->IsValidSession());
 	check(EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnablePackages));
@@ -133,7 +136,7 @@ void FConcertClientPackageManager::SynchronizePersistedFiles(const TMap<FString,
 		auto GetPackageFilenameForRevision = [this](const FString& PackageName, const int64 PackageRevision, FString& OutPackageFilename) -> bool
 		{
 			FConcertPackageInfo PackageInfo;
-			if (LiveSession->GetSessionDatabase().GetPackageDataForRevision(*PackageName, PackageInfo, nullptr, &PackageRevision))
+			if (LiveSession->GetSessionDatabase().GetPackageInfoForRevision(*PackageName, PackageInfo, &PackageRevision))
 			{
 				if (FPackageName::TryConvertLongPackageNameToFilename(PackageName, OutPackageFilename, PackageInfo.PackageFileExtension))
 				{
@@ -222,18 +225,17 @@ void FConcertClientPackageManager::HandleRemotePackage(const FGuid& InSourceEndp
 		return;
 	}
 
-	FConcertSyncPackageEvent PackageEvent;
-	if (LiveSession->GetSessionDatabase().GetPackageEvent(InPackageEventId, PackageEvent))
+	LiveSession->GetSessionDatabase().GetPackageEvent(InPackageEventId, [this](FConcertSyncPackageEventData& PackageEvent)
 	{
-		ApplyPackageUpdate(PackageEvent.Package);
-	}
+		ApplyPackageUpdate(PackageEvent.MetaData.PackageInfo, PackageEvent.PackageDataStream);
+	});
 }
 
 void FConcertClientPackageManager::ApplyAllHeadPackageData()
 {
-	LiveSession->GetSessionDatabase().EnumerateHeadRevisionPackageData([this](FConcertPackage&& InPackage)
+	LiveSession->GetSessionDatabase().EnumerateHeadRevisionPackageData([this](const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream)
 	{
-		ApplyPackageUpdate(InPackage);
+		ApplyPackageUpdate(InPackageInfo, InPackageDataStream);
 		return true;
 	});
 }
@@ -270,23 +272,23 @@ bool FConcertClientPackageManager::PersistSessionChanges(TArrayView<const FName>
 	return false;
 }
 
-void FConcertClientPackageManager::ApplyPackageUpdate(const FConcertPackage& InPackage)
+void FConcertClientPackageManager::ApplyPackageUpdate(const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream)
 {
-	switch (InPackage.Info.PackageUpdateType)
+	switch (InPackageInfo.PackageUpdateType)
 	{
 	case EConcertPackageUpdateType::Dummy:
 	case EConcertPackageUpdateType::Added:
 	case EConcertPackageUpdateType::Saved:
-		SavePackageFile(InPackage);
+		SavePackageFile(InPackageInfo, InPackageDataStream);
 		break;
 
 	case EConcertPackageUpdateType::Renamed:
-		DeletePackageFile(InPackage);
-		SavePackageFile(InPackage);
+		DeletePackageFile(InPackageInfo);
+		SavePackageFile(InPackageInfo, InPackageDataStream);
 		break;
 
 	case EConcertPackageUpdateType::Deleted:
-		DeletePackageFile(InPackage);
+		DeletePackageFile(InPackageInfo);
 		break;
 
 	default:
@@ -297,11 +299,10 @@ void FConcertClientPackageManager::ApplyPackageUpdate(const FConcertPackage& InP
 void FConcertClientPackageManager::HandlePackageRejectedEvent(const FConcertSessionContext& InEventContext, const FConcertPackageRejectedEvent& InEvent)
 {
 	// Package update was rejected, restore the head-revision of the package
-	FConcertPackage Package;
-	if (LiveSession->GetSessionDatabase().GetPackageDataForRevision(InEvent.PackageName, Package))
+	LiveSession->GetSessionDatabase().GetPackageDataForRevision(InEvent.PackageName, [this](const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream)
 	{
-		ApplyPackageUpdate(Package);
-	}
+		ApplyPackageUpdate(InPackageInfo, InPackageDataStream);
+	});
 }
 
 void FConcertClientPackageManager::HandlePackageDirtyStateChanged(UPackage* InPackage)
@@ -317,89 +318,129 @@ void FConcertClientPackageManager::HandlePackageDirtyStateChanged(UPackage* InPa
 	}
 }
 
-void FConcertClientPackageManager::HandleLocalPackageEvent(const FConcertPackage& Package)
+void FConcertClientPackageManager::HandleLocalPackageEvent(const FConcertPackageInfo& PackageInfo, const FString& PackagePathname)
 {
 	// Ignore unwanted saves
-	if (Package.Info.PackageUpdateType == EConcertPackageUpdateType::Saved)
+	if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Saved)
 	{
-		if (Package.Info.bPreSave)
+		if (!FPackageName::IsValidLongPackageName(PackageInfo.PackageName.ToString())) // Auto-Save might save the template in /Temp/... which is an invalid long package name.
+		{
+			return;
+		}
+		else if (PackageInfo.bAutoSave && !EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldSendPackageAutoSaves))
+		{
+			return;
+		}
+		else if (PackageInfo.bPreSave)
 		{
 			// Pre-save events are used to send the pristine package state of a package (if enabled), so make sure we don't already have a history for this package
 			FConcertPackageInfo ExistingPackageInfo;
-			if (!EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldSendPackagePristineState) || LiveSession->GetSessionDatabase().GetPackageDataForRevision(Package.Info.PackageName, ExistingPackageInfo, nullptr))
+			if (!EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldSendPackagePristineState) || LiveSession->GetSessionDatabase().GetPackageInfoForRevision(PackageInfo.PackageName, ExistingPackageInfo))
 			{
+				return;
+			}
+			// Without live sync feature, the local database is not maintainted after the original 'sync on join'. Package that were not in the original sync don't have a revision from the client point of view.
+			else if (!EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableLiveSync) && EmittedPristinePackages.Contains(PackageInfo.PackageName))
+			{
+				return; // Prevent capturing the original package state at every pre-save.
+			}
+		}
+	}
+
+	if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Added && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldUsePackageSandbox))
+	{
+		// If this package was locally added and we're using a sandbox, also write it to the correct location on disk (which will be placed into the sandbox directory)
+		FString DstPackagePathname;
+		if (FPackageName::TryConvertLongPackageNameToFilename(PackageInfo.PackageName.ToString(), DstPackagePathname, PackageInfo.PackageFileExtension))
+		{
+			if (IFileManager::Get().Copy(*DstPackagePathname, *PackagePathname) != ECopyResult::COPY_OK)
+			{
+				UE_LOG(LogConcert, Error, TEXT("Failed to copy package file '%s' to the sandbox"), *PackagePathname);
+			}
+		}
+	}
+
+	FConcertPackageUpdateEvent Event;
+
+	// Copy or link the packge data to the Concert event.
+	int64 PackageFileSize = PackagePathname.IsEmpty() ? -1 : IFileManager::Get().FileSize(*PackagePathname); // EConcertPackageUpdateType::Delete is emitted with an empty pathname.
+	if (PackageFileSize > 0)
+	{
+		if (CanExchangePackageDataAsByteArray(static_cast<uint64>(PackageFileSize)))
+		{
+			// Embed the package data directly in the event.
+			if (!FFileHelper::LoadFileToArray(Event.Package.PackageData, *PackagePathname))
+			{
+				UE_LOG(LogConcert, Error, TEXT("Failed to load file data '%s' in memory"), *PackagePathname);
+				return;
+			}
+		}
+		else if (FileSharingService && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableFileSharing))
+		{
+			// Publish a copy of the package data in the sharing service and set the corresponding file ID in the event.
+			if (!FileSharingService->Publish(PackagePathname, Event.Package.FileId))
+			{
+				UE_LOG(LogConcert, Error, TEXT("Failed to share a copy of package file '%s'"), *PackagePathname);
 				return;
 			}
 		}
 		else
 		{
-			// Save events may optionally exclude auto-saves
-			if (Package.Info.bAutoSave && !EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldSendPackageAutoSaves))
-			{
-				return;
-			}
-		}
-
-		if (!FPackageName::IsValidLongPackageName(Package.Info.PackageName.ToString())) // Auto-Save might save the template in /Temp/... which is an invalid long package name.
-		{
+			// Notify the client about the file being too large to be emitted.
+			UE_LOG(LogConcert, Error, TEXT("Failed to handle local package file '%s'. The file is too big to be sent over the network."), *PackagePathname);
+			OnConcertClientPackageTooLargeError().Broadcast(Event.Package.Info, PackageFileSize, FConcertPackage::GetMaxPackageDataSizeEmbeddableAsByteArray());
 			return;
 		}
 	}
 
-	if (Package.Info.PackageUpdateType == EConcertPackageUpdateType::Added && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldUsePackageSandbox))
-	{
-		// If this package was locally added and we're using a sandbox, also write it to the correct location on disk (which will be placed into the sandbox directory)
-		FString PackageFilename;
-		if (FPackageName::TryConvertLongPackageNameToFilename(Package.Info.PackageName.ToString(), PackageFilename, Package.Info.PackageFileExtension))
-		{
-			FFileHelper::SaveArrayToFile(Package.PackageData, *PackageFilename);
-		}
-	}
-
-	FConcertPackageUpdateEvent Event;
-	Event.Package = Package;
+	Event.Package.Info = PackageInfo;
 	LiveSession->GetSessionDatabase().GetTransactionMaxEventId(Event.Package.Info.TransactionEventIdAtSave);
 	LiveSession->GetSession().SendCustomEvent(Event, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
+
+	if (PackageInfo.bPreSave && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldSendPackagePristineState) && !EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableLiveSync))
+	{
+		EmittedPristinePackages.Add(PackageInfo.PackageName); // Prevent sending the original package state at every pre-save.
+	}
 }
 
-void FConcertClientPackageManager::SavePackageFile(const FConcertPackage& Package)
+void FConcertClientPackageManager::SavePackageFile(const FConcertPackageInfo& PackageInfo, FConcertPackageDataStream& InPackageDataStream)
 {
 	// This path should only be taken for non-cooked targets for now
 	check(!FPlatformProperties::RequiresCookedData());
 
-	if (Package.PackageData.Num() == 0)
+	if (!InPackageDataStream.DataAr || InPackageDataStream.DataSize == 0)
 	{
-		// If we have no package data set, then this was from a meta-data 
+		// If we have no package data set, then this was from a meta-data
 		// only package sync, so we have no new contents to write to disk
 		return;
 	}
 
-	FString PackageName = Package.Info.PackageName.ToString();
+	FString PackageName = PackageInfo.PackageName.ToString();
 	ConcertSyncClientUtil::FlushPackageLoading(PackageName);
 
 	// Convert long package name to filename
 	FString PackageFilename;
-	bool bSuccess = FPackageName::TryConvertLongPackageNameToFilename(PackageName, PackageFilename, Package.Info.PackageFileExtension);
+	bool bSuccess = FPackageName::TryConvertLongPackageNameToFilename(PackageName, PackageFilename, PackageInfo.PackageFileExtension);
 	if (bSuccess)
 	{
 		// Overwrite the file on disk
-		FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*PackageFilename, false);
-		bSuccess = FFileHelper::SaveArrayToFile(Package.PackageData, *PackageFilename);
+		TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*PackageFilename, FILEWRITE_EvenIfReadOnly));
+		bSuccess = DstAr && ConcertUtil::Copy(*DstAr, *InPackageDataStream.DataAr, InPackageDataStream.DataSize);
 	}
 
 	if (bSuccess)
 	{
-		PackagesPendingHotReload.Add(Package.Info.PackageName);
-		PackagesPendingPurge.Remove(Package.Info.PackageName);
+		PackagesPendingHotReload.Add(PackageInfo.PackageName);
+		PackagesPendingPurge.Remove(PackageInfo.PackageName);
 	}
 }
 
-void FConcertClientPackageManager::DeletePackageFile(const FConcertPackage& Package)
+void FConcertClientPackageManager::DeletePackageFile(const FConcertPackageInfo& PackageInfo)
 {
 	// This path should only be taken for non-cooked targets for now
 	check(!FPlatformProperties::RequiresCookedData());
 
-	FString PackageName = Package.Info.PackageName.ToString();
+	FString PackageName = PackageInfo.PackageName.ToString();
 	ConcertSyncClientUtil::FlushPackageLoading(PackageName);
 
 	// Convert long package name to filename
@@ -420,8 +461,8 @@ void FConcertClientPackageManager::DeletePackageFile(const FConcertPackage& Pack
 
 	if (bSuccess)
 	{
-		PackagesPendingPurge.Add(Package.Info.PackageName);
-		PackagesPendingHotReload.Remove(Package.Info.PackageName);
+		PackagesPendingPurge.Add(PackageInfo.PackageName);
+		PackagesPendingHotReload.Remove(PackageInfo.PackageName);
 	}
 }
 
@@ -446,6 +487,16 @@ void FConcertClientPackageManager::PurgePendingPackages()
 		ConcertSyncClientUtil::PurgePackages(PackagesPendingPurge);
 		PackagesPendingPurge.Reset();
 	}
+}
+
+bool FConcertClientPackageManager::CanExchangePackageDataAsByteArray(int64 PackageDataSize) const
+{
+	if (FileSharingService && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableFileSharing))
+	{
+		return FConcertPackage::ShouldEmbedPackageDataAsByteArray(PackageDataSize); // Test the package data size against a preferred limit.
+	}
+
+	return FConcertPackage::CanEmbedPackageDataAsByteArray(PackageDataSize); // The the package data size against the maximum permitted.
 }
 
 #undef LOCTEXT_NAMESPACE

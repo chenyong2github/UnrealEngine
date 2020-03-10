@@ -27,6 +27,7 @@ public:
 	virtual void Startup(const UConcertServerConfig* InServerConfig, const EConcertSyncSessionFlags InSessionFlags) override;
 	virtual void Shutdown() override;
 	virtual IConcertServerRef GetConcertServer() const override;
+	virtual void SetFileSharingService(TSharedPtr<IConcertFileSharingService> InFileSharingService) override;
 
 	//~ IConcertServerEventSink interface
 	virtual void GetSessionsFromPath(const IConcertServer& InServer, const FString& InPath, TArray<FConcertSessionInfo>& OutSessionInfos, TArray<FDateTime>* OutSessionCreationTimes = nullptr) override;
@@ -75,4 +76,7 @@ private:
 
 	/** Map of archived session IDs to their associated session data */
 	TMap<FGuid, TSharedPtr<FConcertSyncServerArchivedSession>> ArchivedSessions;
+
+	/** Optional side channel to exchange large blobs (package data) with the server in a scalable way (ex. the request/response transport layer is not designed and doesn't support exchanging 3GB packages). */
+	TSharedPtr<IConcertFileSharingService> FileSharingService;
 };

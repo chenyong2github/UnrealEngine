@@ -53,8 +53,8 @@ public:
 	/** Returns the transaction event corresponding the specified activity.*/
 	using FGetTransactionEvent = TFunction<TFuture<TOptional<FConcertSyncTransactionEvent>>(const FConcertClientSessionActivity& /*Activity*/)>;
 
-	/** Returns the package vent corresponding to the package activity. */
-	using FGetPackageEvent = TFunction<TFuture<TOptional<FConcertSyncPackageEvent>>(const FConcertClientSessionActivity& /*Activity*/)>;
+	/** Returns the package event corresponding to the package activity. */
+	using FGetPackageEvent = TFunction<bool(const FConcertClientSessionActivity& /*Activity*/, FConcertSyncPackageEventMetaData& /*OutEvent*/)>;
 
 	/** Used to overlay a widget over a column widget to add custom functionalities to a row. */
 	using FMakeColumnOverlayWidgetFunc = TFunction<TSharedPtr<SWidget>(TWeakPtr<FConcertClientSessionActivity> /*ThisRowActivity*/, const FName& /*ColumnId*/)>;
@@ -212,7 +212,7 @@ private:
 	void DisplayTransactionDetails(const FConcertClientSessionActivity& Activity, const FConcertTransactionEventBase& InTransaction);
 
 	/** Displays what changed in a package in the details area when a package activity is selected in the list. */
-	void DisplayPackageDetails(const FConcertClientSessionActivity& Activity, const FConcertSyncPackageEvent& PackageEvent);
+	void DisplayPackageDetails(const FConcertClientSessionActivity& Activity, int64 PackageRevision, const FConcertPackageInfo& PackageInfo);
 
 	/** Update the detail area to display the proper panel and details. */
 	void UpdateDetailArea(TSharedPtr<FConcertClientSessionActivity> InSelectedActivity);
