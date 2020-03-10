@@ -562,7 +562,7 @@ void FWorldTileCollectionModel::FillReimportTiledLandscapeSubMenu(FMenuBuilder& 
 
 void FWorldTileCollectionModel::FillWeightmapsSubMenu(FMenuBuilder& InMenuBuilder) const
 {
-	// Add "All Weighmaps" menu entry
+	// Add "All Weightmaps" menu entry
 	InMenuBuilder.AddMenuEntry(
 			LOCTEXT("Menu_AllWeightmapsTitle", "All Weightmaps"), 
 			FText(), FSlateIcon(),
@@ -577,7 +577,7 @@ void FWorldTileCollectionModel::FillWeightmapsSubMenu(FMenuBuilder& InMenuBuilde
 	for (const auto& LevelModel : SelectedLevelsList)
 	{
 		auto TileModel = StaticCastSharedPtr<FWorldTileModel>(LevelModel);
-		if (TileModel->IsTiledLandscapeBased())
+		if (TileModel->IsLandscapeBased())
 		{
 			TArray<FName> Layers = ALandscapeProxy::GetLayersFromMaterial(TileModel->GetLandscape()->LandscapeMaterial);
 			for (FName LayerName : Layers)
@@ -1433,7 +1433,7 @@ bool FWorldTileCollectionModel::CanReimportTiledlandscape() const
 {
 	for (const auto& LevelModel : SelectedLevelsList)
 	{
-		if (LevelModel->IsEditable() && StaticCastSharedPtr<FWorldTileModel>(LevelModel)->IsTiledLandscapeBased())
+		if (LevelModel->IsEditable() && StaticCastSharedPtr<FWorldTileModel>(LevelModel)->CanReimportHeightmap())
 		{
 			return true;
 		}
@@ -1727,7 +1727,7 @@ void FWorldTileCollectionModel::ReimportTiledLandscape_Executed(FName TargetLaye
 	for (auto LevelModel : SelectedLevelsList)
 	{
 		TSharedPtr<FWorldTileModel> TileModel = StaticCastSharedPtr<FWorldTileModel>(LevelModel);
-		if (TileModel->IsEditable() && TileModel->IsTiledLandscapeBased())
+		if (TileModel->IsEditable() && TileModel->CanReimportHeightmap())
 		{
 			TargetLandscapeTiles.Add(TileModel);
 		}
@@ -1750,7 +1750,7 @@ void FWorldTileCollectionModel::ReimportTiledLandscape_Executed(FName TargetLaye
 	}
 
 	// Disable world origin tracking, so we can show, hide levels without offseting them
-	GetWorld()->WorldComposition->bTemporallyDisableOriginTracking = true;
+	GetWorld()->WorldComposition->bTemporarilyDisableOriginTracking = true;
 
 	// Reimport data for each selected landscape tile
 	for (auto TileModel : TargetLandscapeTiles)
@@ -1799,7 +1799,7 @@ void FWorldTileCollectionModel::ReimportTiledLandscape_Executed(FName TargetLaye
 	}
 
 	// Restore world origin tracking
-	GetWorld()->WorldComposition->bTemporallyDisableOriginTracking = false;
+	GetWorld()->WorldComposition->bTemporarilyDisableOriginTracking = false;
 
 	// Restore levels visibility
 	for (int32 LevelIdx = 0; LevelIdx < AllLevelsList.Num(); ++LevelIdx)
@@ -1974,7 +1974,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 		const bool bVisibleLevel = TileModel->IsVisible();
 		if (!bVisibleLevel)
 		{
-			GetWorld()->WorldComposition->bTemporallyDisableOriginTracking = true;
+			GetWorld()->WorldComposition->bTemporarilyDisableOriginTracking = true;
 			TileModel->SetVisible(true);
 		}
 
@@ -1997,7 +1997,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 
 		// This is current actors offset from their original position
 		FVector ActorsOffset = FVector(TileModel->GetAbsoluteLevelPosition() - GetWorld()->OriginLocation);
-		if (GetWorld()->WorldComposition->bTemporallyDisableOriginTracking)
+		if (GetWorld()->WorldComposition->bTemporarilyDisableOriginTracking)
 		{
 			ActorsOffset = FVector::ZeroVector;
 		}
@@ -2184,7 +2184,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 		if (!bVisibleLevel)
 		{
 			TileModel->SetVisible(false);
-			GetWorld()->WorldComposition->bTemporallyDisableOriginTracking = false;
+			GetWorld()->WorldComposition->bTemporarilyDisableOriginTracking = false;
 		}
 	
 		if (AssetsToSpawn.Num())
