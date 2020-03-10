@@ -661,7 +661,12 @@ public:
 	{
 		// SetEndOfFile isn't an overlapped operation, so we need to call UpdatedNonOverlappedPos after seeking to ensure that the file pointer is in the correct place
 		check(IsValid());
-		return Seek(NewSize) && UpdatedNonOverlappedPos() && SetEndOfFile(FileHandle) != 0;
+		if (Seek(NewSize) && UpdatedNonOverlappedPos() && SetEndOfFile(FileHandle) != 0)
+		{
+			UpdateFileSize();
+			return true;
+		}
+		return false;
 	}
 };
 
