@@ -4969,6 +4969,8 @@ public:
 		{
 			FName(TEXT("FLandscapeGrassWeightVS")),
 			FName(TEXT("FLandscapeGrassWeightPS")),
+			FName(TEXT("FLandscapePhysicalMaterialVS")),
+			FName(TEXT("FLandscapePhysicalMaterialPS")),
 		};
 		return ShaderTypes;
 	}
