@@ -123,7 +123,8 @@ static void AddMeshTransferPass(
 	const FHairStrandsProjectionMeshData::Section& SourceSectionData,
 	const FHairStrandsProjectionMeshData::Section& TargetSectionData,
 	FRDGBufferRef VertexSectionId, 
-	FRWBuffer& OutTargetRestPosition)
+	FRWBuffer& OutTargetRestPosition,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
 	if (!SourceSectionData.IndexBuffer ||
 		!SourceSectionData.PositionBuffer ||
@@ -190,6 +191,8 @@ static void AddMeshTransferPass(
 			Parameters,
 			DispatchGroupCount);
 		bClear = false;
+
+		OutTransitionQueue.Add(OutTargetRestPosition.UAV);
 	}
 }
 
@@ -240,7 +243,8 @@ static void AddHairStrandMeshProjectionPass(
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::Section& MeshSectionData,
 	const FHairStrandsProjectionHairData::HairGroup& RootData,
-	FRDGBufferRef RootDistanceBuffer)
+	FRDGBufferRef RootDistanceBuffer,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
 	if (!RootData.RootPositionBuffer ||
 		!RootData.RootNormalBuffer ||
@@ -308,6 +312,9 @@ static void AddHairStrandMeshProjectionPass(
 			ComputeShader,
 			Parameters,
 			DispatchGroupCount);
+
+		OutTransitionQueue.Add(RootData.LODDatas[LODIndex].RootTriangleIndexBuffer->UAV);
+		OutTransitionQueue.Add(RootData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->UAV);
 	}
 }
 
@@ -316,7 +323,8 @@ void ProjectHairStrandsOntoMesh(
 	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData, 
+	FBufferTransitionQueue& TransitionQueue)
 {
 	if (LODIndex < 0 || LODIndex >= ProjectionHairData.LODDatas.Num())
 		return;
@@ -327,7 +335,7 @@ void ProjectHairStrandsOntoMesh(
 	for (const FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.LODs[LODIndex].Sections)
 	{
 		check(ProjectionHairData.LODDatas[LODIndex].LODIndex == LODIndex);
-		AddHairStrandMeshProjectionPass(GraphBuilder, ShaderMap, ClearDistance, LODIndex, MeshSection, ProjectionHairData, RootDistanceBuffer);
+		AddHairStrandMeshProjectionPass(GraphBuilder, ShaderMap, ClearDistance, LODIndex, MeshSection, ProjectionHairData, RootDistanceBuffer, TransitionQueue);
 		ProjectionHairData.LODDatas[LODIndex].bIsValid = true;
 		ClearDistance = false;
 	}
@@ -339,7 +347,8 @@ void TransferMesh(
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData& SourceMeshData,
 	const FHairStrandsProjectionMeshData& TargetMeshData,
-	FRWBuffer& OutPositionBuffer)
+	FRWBuffer& OutPositionBuffer,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
 	if (LODIndex < 0)
 		return;
@@ -359,7 +368,7 @@ void TransferMesh(
 	FRDGBufferRef VertexSectionId = AddMeshSectionId(GraphBuilder, ShaderMap, TargetMeshData.LODs[TargetLODIndex]);
 	const FHairStrandsProjectionMeshData::Section& SourceMeshSection = SourceMeshData.LODs[SourceLODIndex].Sections[SourceSectionIndex];
 	const FHairStrandsProjectionMeshData::Section& TargetMeshSection = TargetMeshData.LODs[TargetLODIndex].Sections[TargetSectionIndex];
-	AddMeshTransferPass(GraphBuilder, ShaderMap, true, SourceMeshSection, TargetMeshSection, VertexSectionId, OutPositionBuffer);
+	AddMeshTransferPass(GraphBuilder, ShaderMap, true, SourceMeshSection, TargetMeshSection, VertexSectionId, OutPositionBuffer, OutTransitionQueue);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -437,7 +446,8 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
-	FHairStrandsProjectionHairData::HairGroup& RootData)
+	FHairStrandsProjectionHairData::HairGroup& RootData, 
+	FBufferTransitionQueue& OutTransitionQueue)
 {
 	if (RootData.RootCount == 0 || LODIndex < 0 || LODIndex >= RootData.LODDatas.Num())
 	{
@@ -577,6 +587,10 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 		Parameters->OutRootTrianglePosition0 = LODData.RestRootTrianglePosition0Buffer->UAV;
 		Parameters->OutRootTrianglePosition1 = LODData.RestRootTrianglePosition1Buffer->UAV;
 		Parameters->OutRootTrianglePosition2 = LODData.RestRootTrianglePosition2Buffer->UAV;
+
+		OutTransitionQueue.Add(LODData.RestRootTrianglePosition0Buffer->UAV);
+		OutTransitionQueue.Add(LODData.RestRootTrianglePosition1Buffer->UAV);
+		OutTransitionQueue.Add(LODData.RestRootTrianglePosition2Buffer->UAV);
 	}
 	else if (Type == HairStrandsTriangleType::DeformedPose)
 	{
@@ -584,6 +598,10 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 		Parameters->OutRootTrianglePosition1 = LODData.DeformedRootTrianglePosition1Buffer->UAV;
 		Parameters->OutRootTrianglePosition2 = LODData.DeformedRootTrianglePosition2Buffer->UAV;
 		if (LODData.Status) (*LODData.Status) = FHairStrandsProjectionHairData::LODData::EStatus::Completed;
+
+		OutTransitionQueue.Add(LODData.DeformedRootTrianglePosition0Buffer->UAV);
+		OutTransitionQueue.Add(LODData.DeformedRootTrianglePosition1Buffer->UAV);
+		OutTransitionQueue.Add(LODData.DeformedRootTrianglePosition2Buffer->UAV);
 	}
 	else
 	{
@@ -611,9 +629,10 @@ void UpdateHairStrandsMeshTriangles(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
-	AddHairStrandUpdateMeshTrianglesPass(GraphBuilder, ShaderMap, LODIndex, Type, ProjectionMeshData, ProjectionHairData);
+	AddHairStrandUpdateMeshTrianglesPass(GraphBuilder, ShaderMap, LODIndex, Type, ProjectionMeshData, ProjectionHairData,OutTransitionQueue);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -652,12 +671,22 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FHairInterpolateMeshTriangleCS, "/Engine/Private/HairStrands/HairStrandsMeshInterpolate.usf", "MainCS", SF_Compute);
 
+void TransitBufferToReadable(FRHICommandList& RHICmdList, FBufferTransitionQueue& BuffersToTransit)
+{
+	if (BuffersToTransit.Num())
+	{
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, BuffersToTransit.GetData(), BuffersToTransit.Num());
+		BuffersToTransit.SetNum(0, false);
+	}
+}
+
 static void AddHairStrandInterpolateMeshTrianglesPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
-	FHairStrandsProjectionHairData::HairGroup& RootData)
+	FHairStrandsProjectionHairData::HairGroup& RootData,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
 	if (RootData.RootCount == 0 || LODIndex < 0 || LODIndex >= RootData.LODDatas.Num())
 	{
@@ -690,6 +719,10 @@ static void AddHairStrandInterpolateMeshTrianglesPass(
 		ComputeShader,
 		Parameters,
 		DispatchGroupCount);
+
+	OutTransitionQueue.Add(LODData.DeformedRootTrianglePosition0Buffer->UAV);
+	OutTransitionQueue.Add(LODData.DeformedRootTrianglePosition1Buffer->UAV);
+	OutTransitionQueue.Add(LODData.DeformedRootTrianglePosition2Buffer->UAV);
 }
 
 void InterpolateHairStrandsMeshTriangles(
@@ -697,9 +730,10 @@ void InterpolateHairStrandsMeshTriangles(
 	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
-	AddHairStrandInterpolateMeshTrianglesPass(GraphBuilder, ShaderMap, LODIndex, ProjectionMeshData, ProjectionHairData);
+	AddHairStrandInterpolateMeshTrianglesPass(GraphBuilder, ShaderMap, LODIndex, ProjectionMeshData, ProjectionHairData, OutTransitionQueue);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -738,7 +772,8 @@ static void AddHairStrandInitMeshSamplesPass(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
-	FHairStrandsProjectionHairData::HairGroup& RootData)
+	FHairStrandsProjectionHairData::HairGroup& RootData,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
 	if (LODIndex < 0 || LODIndex >= RootData.LODDatas.Num())
 	{
@@ -760,10 +795,12 @@ static void AddHairStrandInitMeshSamplesPass(
 		if (Type == HairStrandsTriangleType::RestPose)
 		{
 			Parameters->OutSamplePositionsBuffer = LODData.RestSamplePositionsBuffer->UAV;
+			OutTransitionQueue.Add(LODData.RestSamplePositionsBuffer->UAV);
 		}
 		else if (Type == HairStrandsTriangleType::DeformedPose)
 		{
 			Parameters->OutSamplePositionsBuffer = LODData.DeformedSamplePositionsBuffer->UAV;
+			OutTransitionQueue.Add(LODData.DeformedSamplePositionsBuffer->UAV);
 		}
 		else
 		{
@@ -788,9 +825,10 @@ void InitHairStrandsMeshSamples(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
-	AddHairStrandInitMeshSamplesPass(GraphBuilder, ShaderMap, LODIndex, Type, ProjectionMeshData, ProjectionHairData);
+	AddHairStrandInitMeshSamplesPass(GraphBuilder, ShaderMap, LODIndex, Type, ProjectionMeshData, ProjectionHairData, OutTransitionQueue);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -828,7 +866,8 @@ static void AddHairStrandUpdateMeshSamplesPass(
 	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
-	FHairStrandsProjectionHairData::HairGroup& RootData)
+	FHairStrandsProjectionHairData::HairGroup& RootData,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
 	if (LODIndex < 0 || LODIndex >= RootData.LODDatas.Num())
 	{
@@ -858,6 +897,8 @@ static void AddHairStrandUpdateMeshSamplesPass(
 			ComputeShader,
 			Parameters,
 			DispatchGroupCount);
+
+		OutTransitionQueue.Add(LODData.MeshSampleWeightsBuffer->UAV);
 	}
 }
 
@@ -866,9 +907,10 @@ void UpdateHairStrandsMeshSamples(
 	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData,
+	FBufferTransitionQueue& OutTransitionQueue)
 {
-	AddHairStrandUpdateMeshSamplesPass(GraphBuilder, ShaderMap, LODIndex, ProjectionMeshData, ProjectionHairData);
+	AddHairStrandUpdateMeshSamplesPass(GraphBuilder, ShaderMap, LODIndex, ProjectionMeshData, ProjectionHairData, OutTransitionQueue);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

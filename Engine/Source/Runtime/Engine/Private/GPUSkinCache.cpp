@@ -667,11 +667,11 @@ void FGPUSkinCache::Cleanup()
 	ensure(Allocations.Num() == 0);
 }
 
-void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList)
+void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList, EResourceTransitionPipeline Pipeline)
 {
 	if (BuffersToTransition.Num() > 0)
 	{
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, BuffersToTransition.GetData(), BuffersToTransition.Num());
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, Pipeline, BuffersToTransition.GetData(), BuffersToTransition.Num());
 		BuffersToTransition.SetNum(0, false);
 	}
 }
