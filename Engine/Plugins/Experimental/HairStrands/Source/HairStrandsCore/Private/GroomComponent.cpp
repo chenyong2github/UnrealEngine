@@ -409,7 +409,6 @@ public:
 		if (DebugMode != EHairStrandsDebugMode::None)
 		{
 			FPrimitiveViewRelevance Result;
-			Result.bDrawRelevance = IsShown(View);
 			Result.bShadowRelevance = IsShadowCast(View);
 			Result.bDynamicRelevance = true;
 			MaterialRelevance.SetPrimitiveViewRelevance(Result);
@@ -428,7 +427,7 @@ public:
 		// Selection only
 		#if WITH_EDITOR
 		{
-			const bool bIsSelected = (IsSelected() || IsHovered()) && bIsViewModeValid;
+			const bool bIsSelected = (IsSelected() || IsHovered());
 			Result.bEditorStaticSelectionRelevance = bIsSelected;
 			Result.bDrawRelevance = bIsSelected;
 		}
