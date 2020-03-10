@@ -559,7 +559,7 @@ private:
 	TMap<FGuid, TArray<FNiagaraStackModuleData>> GuidToCachedStackModuleData;
 	
 	/** A handle to the on graph changed delegate for the system script. */
-	FDelegateHandle SystemScriptGraphChangedHandler;
+	FDelegateHandle SystemScriptGraphChangedHandle;
 
 	/** An array of emitter handle ids which need their sequencer tracks refreshed next frame. */
 	TArray<FGuid> EmitterIdsRequiringSequencerTrackUpdate;
