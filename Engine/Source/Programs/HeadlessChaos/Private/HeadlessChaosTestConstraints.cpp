@@ -30,7 +30,8 @@ namespace ChaosTest {
 	{
 		{
 			TPBDRigidsSOAs<FReal, 3> Particles;
-			TEvolution Evolution(Particles);
+			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+			TEvolution Evolution(Particles, PhysicalMaterials);
 			TArray<TPBDRigidParticleHandle<FReal, 3>*> Dynamics = Evolution.CreateDynamicParticles(1);
 			TArray<FVec3> Positions = { FVec3(0) };
 			TPBDPositionConstraints<FReal, 3> PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 1.f);
@@ -43,7 +44,8 @@ namespace ChaosTest {
 		}
 		{
 			TPBDRigidsSOAs<FReal, 3> Particles;
-			FPBDRigidsEvolutionGBF Evolution(Particles);
+			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+			FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 			TArray<TPBDRigidParticleHandle<FReal, 3>*> Dynamics = Evolution.CreateDynamicParticles(1);
 			Evolution.GetGravityForces().SetEnabled(*Dynamics[0], false);
 
@@ -78,7 +80,8 @@ namespace ChaosTest {
 	{
 		const int32 Iterations = 10;
 		TPBDRigidsSOAs<FReal, 3> Particles;
-		TEvolution Evolution(Particles, Iterations);
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		TEvolution Evolution(Particles, PhysicalMaterials, Iterations);
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> Dynamics = Evolution.CreateDynamicParticles(2);
 		TArray<FVec3> PositionConstraintPositions = { FVec3(0, 0, 0) };
 

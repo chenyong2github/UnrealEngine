@@ -17,7 +17,8 @@ namespace ChaosTest {
 	void Gravity()
 	{
 		TPBDRigidsSOAs<T, 3> Particles;
-		TEvolution Evolution(Particles);
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		
 		TArray<TPBDRigidParticleHandle<T,3>*> Dynamics = Evolution.CreateDynamicParticles(1);
 		Evolution.AdvanceOneTimeStep(0.1);
