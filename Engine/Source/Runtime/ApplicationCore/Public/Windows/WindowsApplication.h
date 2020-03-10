@@ -531,6 +531,8 @@ private:
 
 	FIntPoint CachedPreHighPrecisionMousePosForRDP;
 	FIntPoint LastCursorPoint;
+	FIntPoint LastCursorPointPreWrap;
+	int32 NumPreWrapMsgsToRespect;
 	RECT ClipCursorRect;
 };
 
