@@ -1774,7 +1774,7 @@ namespace WindowsMixedReality
 		// Do not wait for a frame if we are running on the emulator or HL1 Remoting.
 		if (!m_isHL1Remoting)
 		{
-			if (!IsActiveAndValid() || currentFrame != nullptr)
+			if (!IsActiveAndValid())
 			{
 				return;
 			}
