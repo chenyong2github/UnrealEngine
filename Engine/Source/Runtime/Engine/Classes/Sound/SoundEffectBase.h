@@ -27,6 +27,8 @@
 		F##EFFECT_NAME##Settings Settings = _Preset->GetSettings(); \
 
 #define EFFECT_PRESET_METHODS(EFFECT_NAME) \
+		virtual bool CanFilter() const override { return false; } \
+		virtual bool HasAssetActions() const { return true; } \
 		virtual FText GetAssetActionName() const override { return FText::FromString(#EFFECT_NAME); } \
 		virtual UClass* GetSupportedClass() const override { return EFFECT_PRESET_NAME(EFFECT_NAME)::StaticClass(); } \
 		virtual FSoundEffectBase* CreateNewEffect() const override { return new F##EFFECT_NAME; } \
