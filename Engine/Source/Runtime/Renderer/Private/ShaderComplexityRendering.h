@@ -29,16 +29,28 @@ extern int32 GShaderComplexityBaselineDeferredVS;
 extern int32 GShaderComplexityBaselineDeferredPS;
 extern int32 GShaderComplexityBaselineDeferredUnlitPS;
 
-
-template <bool bQuadComplexity>
-class TComplexityAccumulatePS : public FDebugViewModePS
+class FComplexityAccumulatePS : public FDebugViewModePS
 {
-	DECLARE_SHADER_TYPE(TComplexityAccumulatePS,MeshMaterial);
 public:
+	DECLARE_SHADER_TYPE(FComplexityAccumulatePS, MeshMaterial);
+
+	enum class EQuadOverdraw
+	{
+		Disable,
+		Enable,
+		MAX
+	};
+
+	class FQuadOverdraw : SHADER_PERMUTATION_ENUM_CLASS("OUTPUT_QUAD_OVERDRAW", EQuadOverdraw);
+	using FPermutationDomain = TShaderPermutationDomain<FQuadOverdraw>;
+
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+		const bool bQuadOverdraw = PermutationVector.Get<FComplexityAccumulatePS::FQuadOverdraw>() == FComplexityAccumulatePS::EQuadOverdraw::Enable;
+
 		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		if (AllowDebugViewShaderMode(bQuadComplexity ? DVSM_QuadComplexity : DVSM_ShaderComplexity, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel))
+		if (AllowDebugViewShaderMode(bQuadOverdraw ? DVSM_QuadComplexity : DVSM_ShaderComplexity, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel))
 		{
 			// If it comes from FDebugViewModeMaterialProxy, compile it.
 			if (Parameters.MaterialParameters.bMaterialIsComplexityAccumulate)
@@ -56,7 +68,7 @@ public:
 		return false;
 	}
 
-	TComplexityAccumulatePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
+	FComplexityAccumulatePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 		FDebugViewModePS(Initializer)
 	{
 		NormalizedComplexity.Bind(Initializer.ParameterMap,TEXT("NormalizedComplexity"));
@@ -64,11 +76,10 @@ public:
 		QuadBufferUAV.Bind(Initializer.ParameterMap,TEXT("RWQuadBuffer"));
 	}
 
-	TComplexityAccumulatePS() {}
+	FComplexityAccumulatePS() {}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		OutEnvironment.SetDefine(TEXT("OUTPUT_QUAD_OVERDRAW"), AllowDebugViewShaderMode(DVSM_QuadComplexity, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel));
 		TCHAR BufferRegister[] = { 'u', '0', 0 };
 		BufferRegister[1] += FSceneRenderTargets::GetQuadOverdrawUAVIndex(Parameters.Platform, Parameters.MaterialParameters.FeatureLevel);
 		OutEnvironment.SetDefine(TEXT("QUAD_BUFFER_REGISTER"), BufferRegister);
