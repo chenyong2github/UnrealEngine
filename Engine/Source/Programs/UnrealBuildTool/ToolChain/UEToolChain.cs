@@ -23,34 +23,34 @@ namespace UnrealBuildTool
 		{
 		}
 
-		public abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, List<Action> Actions);
+		public abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph);
 
-		public virtual CPPOutput CompileRCFiles(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		public virtual CPPOutput CompileRCFiles(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result = new CPPOutput();
 			return Result;
 		}
 
-		public virtual CPPOutput CompileISPCFiles(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir,List<Action> Actions)
+		public virtual CPPOutput CompileISPCFiles(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result = new CPPOutput();
 			return Result;
 		}
-		public virtual CPPOutput GenerateISPCHeaders(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		public virtual CPPOutput GenerateISPCHeaders(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result = new CPPOutput();
 			return Result;
 		}
 
-		public virtual void GenerateTypeLibraryHeader(CppCompileEnvironment CompileEnvironment, ModuleRules.TypeLibrary TypeLibrary, FileReference OutputFile, List<Action> Actions)
+		public virtual void GenerateTypeLibraryHeader(CppCompileEnvironment CompileEnvironment, ModuleRules.TypeLibrary TypeLibrary, FileReference OutputFile, IActionGraphBuilder Graph)
 		{
 			throw new NotSupportedException("This platform does not support type libraries.");
 		}
 
-		public abstract FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions);
-		public virtual FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
+		public abstract FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph);
+		public virtual FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
-			return new FileItem[] { LinkFiles(LinkEnvironment, bBuildImportLibraryOnly, Actions) };
+			return new FileItem[] { LinkFiles(LinkEnvironment, bBuildImportLibraryOnly, Graph) };
 		}
 
 
@@ -66,7 +66,7 @@ namespace UnrealBuildTool
 			return FileReference.Combine(LinkEnvironment.IntermediateDirectory, OutputFile.Location.GetFileName() + ".response");
 		}
 
-		public virtual ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment ExecutableLinkEnvironment, List<Action> Actions)
+		public virtual ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment ExecutableLinkEnvironment, IActionGraphBuilder Graph)
 		{
 			return new List<FileItem>();
 		}
@@ -294,7 +294,7 @@ namespace UnrealBuildTool
 			return Suffix;
 		}
 
-		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result = new CPPOutput();
 
@@ -307,7 +307,7 @@ namespace UnrealBuildTool
 
 			foreach (FileItem ISPCFile in InputFiles)
 			{
-				Action CompileAction = new Action(ActionType.Compile);
+				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.CommandDescription = "Compile";
 				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
@@ -384,14 +384,12 @@ namespace UnrealBuildTool
 				CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
 
 				FileReference ResponseFileName = new FileReference(ISPCIncludeHeaderFile.AbsolutePath + ".response");
-				FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
+				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
 				CompileAction.CommandArguments += String.Format("@\"{0}\"", ResponseFileName);
 				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
 
 				// Add the source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(ISPCFile);
-
-				Actions.Add(CompileAction);
 
 				FileItem ISPCFinalHeaderFile = FileItem.GetItemByFileReference(
 					FileReference.Combine(
@@ -407,7 +405,7 @@ namespace UnrealBuildTool
 				FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
 				FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
 
-				Action CopyAction = new Action(ActionType.BuildProject);
+				Action CopyAction = Graph.CreateAction(ActionType.BuildProject);
 				CopyAction.CommandDescription = "Copy";
 				CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
 				if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
@@ -424,7 +422,6 @@ namespace UnrealBuildTool
 				CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
 				CopyAction.bCanExecuteRemotely = false;
 				CopyAction.bShouldOutputStatusDescription = false;
-				Actions.Add(CopyAction);
 
 				Result.GeneratedHeaderFiles.Add(TargetFileItem);
 
@@ -434,7 +431,7 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result = new CPPOutput();
 
@@ -447,7 +444,7 @@ namespace UnrealBuildTool
 
 			foreach (FileItem ISPCFile in InputFiles)
 			{
-				Action CompileAction = new Action(ActionType.Compile);
+				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.CommandDescription = "Compile";
 				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
@@ -574,14 +571,12 @@ namespace UnrealBuildTool
 				Result.ObjectFiles.AddRange(CompiledISPCObjFiles);
 
 				FileReference ResponseFileName = new FileReference(CompiledISPCObjFileNoISA.AbsolutePath + ".response");
-				FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
+				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
 				CompileAction.CommandArguments = " @\"" + ResponseFileName + "\"";
 				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
 
 				// Add the source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(ISPCFile);
-
-				Actions.Add(CompileAction);
 
 				Log.TraceVerbose("   ISPC Compiling " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
 			}

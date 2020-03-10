@@ -257,7 +257,8 @@ namespace UnrealBuildTool
 									Writer.WriteLine("#endif");
 								}
 
-								FileItem DummyPCHIncludeFileDependency = FileItem.CreateIntermediateTextFile(new FileReference(DummyPCHIncludeFile + ".dummy.h"), WrapperContents.ToString());
+								FileReference DummyPCHIncludeFileDependency = new FileReference(DummyPCHIncludeFile + ".dummy.h");
+								Utils.WriteFileIfChanged(DummyPCHIncludeFileDependency, WrapperContents.ToString(), StringComparison.OrdinalIgnoreCase);
 								AdditionalStubIncludes = string.Format("/FI\"{0}\"", DummyPCHIncludeFileDependency);
 							}
 
