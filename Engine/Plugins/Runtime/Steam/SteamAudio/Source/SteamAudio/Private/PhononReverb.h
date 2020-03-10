@@ -126,7 +126,7 @@ class USubmixEffectReverbPluginPreset : public USoundEffectSubmixPreset
 	GENERATED_BODY()
 
 public:
-	EFFECT_PRESET_METHODS_NO_ASSET_ACTIONS(SubmixEffectReverbPlugin)
+	EFFECT_PRESET_METHODS(SubmixEffectReverbPlugin)
 
 	UPROPERTY(EditAnywhere, Category = SubmixEffectPreset)
 	FSubmixEffectReverbPluginSettings Settings;
