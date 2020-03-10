@@ -20,7 +20,7 @@ namespace ChaosTest
 	public:
 
 		FConstraintsTest(const int32 NumIterations, const FReal Gravity)
-			: Evolution(SOAs, NumIterations)
+			: Evolution(SOAs, PhysicalMaterials, NumIterations)
 		{
 			PhysicalMaterial = MakeUnique<FChaosPhysicsMaterial>();
 			PhysicalMaterial->Friction = 0;
@@ -63,6 +63,7 @@ namespace ChaosTest
 		TPBDRigidsSOAs<FReal, 3> SOAs;
 		FPBDRigidsEvolutionGBF Evolution;
 		TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial;
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 
 		TGeometryParticleHandle<FReal, 3>* GetParticle(const int32 Idx)
 		{
