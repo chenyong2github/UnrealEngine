@@ -27,7 +27,7 @@ static FAutoConsoleVariableRef CVarHairVoxelizationMaterialEnable(TEXT("r.HairSt
 static float GHairVoxelizationAABBScale = 1.0f;
 static FAutoConsoleVariableRef CVarHairVoxelizationAABBScale(TEXT("r.HairStrands.Voxelization.AABBScale"), GHairVoxelizationAABBScale, TEXT("Scale the hair macro group bounding box"));
 
-static float GHairVoxelizationDensityScale = 1.0f;
+static float GHairVoxelizationDensityScale = 2.0f;
 static float GHairVoxelizationDepthBiasScale = 3.0f;
 static FAutoConsoleVariableRef CVarHairVoxelizationDensityScale(TEXT("r.HairStrands.Voxelization.DensityScale"), GHairVoxelizationDensityScale, TEXT("Scale the hair density when computing voxel transmittance. Default value is 2 (arbitraty)"));
 static FAutoConsoleVariableRef CVarHairVoxelizationDepthBiasScale(TEXT("r.HairStrands.Voxelization.DepthBiasScale"), GHairVoxelizationDepthBiasScale, TEXT("Set depth bias for voxel ray marching. Offset the origin position towards the light"));
