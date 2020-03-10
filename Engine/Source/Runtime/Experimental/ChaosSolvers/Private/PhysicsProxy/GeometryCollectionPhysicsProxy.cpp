@@ -226,7 +226,7 @@ void PopulateSimulatedParticle(
 	Chaos::TPBDRigidParticleHandle<float,3>* Handle,
 	const FSharedSimulationParameters& SharedParams,
 	const FCollisionStructureManager::FSimplicial* Simplicial,
-	TSharedPtr<Chaos::FImplicitObject> Implicit,
+	FGeometryDynamicCollection::FSharedImplicit Implicit,
 	const float MassIn,
 	const FVector& InertiaTensorVec,
 	const FTransform& WorldTransform, 
@@ -928,7 +928,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	TManagedArray<FTransform>& Transform = DynamicCollection.Transform;
 	TManagedArray<FTransform>& MassToLocal = DynamicCollection.MassToLocal;
 	//TManagedArray<TSharedPtr<FCollisionStructureManager::FSimplicial> >& Simplicials = DynamicCollection.Simplicials;
-	TManagedArray<TSharedPtr<Chaos::FImplicitObject>>& Implicits = DynamicCollection.Implicits;
+	TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& Implicits = DynamicCollection.Implicits;
 
 	//If we are a root particle use the world transform, otherwise set the relative transform
 	const FTransform CollectionSpaceTransform = GeometryCollectionAlgo::GlobalMatrix(Transform, ParentIndex, CollectionClusterIndex);
@@ -1837,8 +1837,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TManagedArray<TUniquePtr<FSimplicial>>& CollectionSimplicials = 
 		RestCollection.AddAttribute<TUniquePtr<FSimplicial>>(
 			FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
-	TManagedArray<TSharedPtr<Chaos::FImplicitObject>>& CollectionImplicits = 
-		RestCollection.AddAttribute<TSharedPtr<Chaos::FImplicitObject>>(
+	TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& CollectionImplicits = 
+		RestCollection.AddAttribute<FGeometryDynamicCollection::FSharedImplicit>(
 			FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 
 	FTransform IdentityXf(FQuat::Identity, FVector(0));
@@ -2065,7 +2065,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
 			{
 				ErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
-				CollectionImplicits[TransformGroupIndex] = TSharedPtr<Chaos::FImplicitObject>(
+				CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
 					FCollisionStructureManager::NewImplicitLevelset(
 						ErrorReporter,
 						MassSpaceParticles,
@@ -2078,7 +2078,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			}
 			else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
 			{
-				CollectionImplicits[TransformGroupIndex] = TSharedPtr<Chaos::FImplicitObject>(
+				CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
 					FCollisionStructureManager::NewImplicitBox(
 						InstanceBoundingBox,
 						SizeSpecificData.CollisionObjectReductionPercentage,
@@ -2086,7 +2086,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			}
 			else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 			{
-				CollectionImplicits[TransformGroupIndex] = TSharedPtr<Chaos::FImplicitObject>(
+				CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
 					FCollisionStructureManager::NewImplicitSphere(
 						InnerRadius[GeometryIndex],
 						SizeSpecificData.CollisionObjectReductionPercentage,
@@ -2266,7 +2266,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 					//don't support non level-set serialization
 					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
-					CollectionImplicits[ClusterTransformIdx] = TSharedPtr<Chaos::FImplicitObject>(
+					CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
 						FCollisionStructureManager::NewImplicitLevelset(
 							ErrorReporter,
 							MassSpaceParticles,
@@ -2283,7 +2283,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				}
 				else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
 				{
-					CollectionImplicits[ClusterTransformIdx] = TSharedPtr<Chaos::FImplicitObject>(
+					CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
 						FCollisionStructureManager::NewImplicitBox(
 							InstanceBoundingBox,
 							SizeSpecificData.CollisionObjectReductionPercentage,
@@ -2295,7 +2295,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				}
 				else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 				{
- 					CollectionImplicits[ClusterTransformIdx] = TSharedPtr<Chaos::FImplicitObject>(
+ 					CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
 						FCollisionStructureManager::NewImplicitSphere(
 							InstanceBoundingBox.GetExtent().GetAbsMin() / 2,
 							SizeSpecificData.CollisionObjectReductionPercentage,
