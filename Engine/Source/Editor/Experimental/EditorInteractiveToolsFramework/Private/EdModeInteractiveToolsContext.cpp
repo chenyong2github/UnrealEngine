@@ -983,7 +983,8 @@ void UEdModeInteractiveToolsContext::SaveEditorStateAndSetForTool()
 				{
 					Flags.SetTemporalAA(false);
 					Flags.SetMotionBlur(false);
-					Flags.SetEyeAdaptation(false);
+					// disable this as depending on fixed exposure settings the entire scene may turn black
+					//Flags.SetEyeAdaptation(false);
 				});
 			}
 		}
