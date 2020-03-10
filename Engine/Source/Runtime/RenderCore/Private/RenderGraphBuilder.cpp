@@ -971,6 +971,11 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 					FRHITexture* TargetableTexture = Texture->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
 					FRHITexture* ShaderResourceTexture = Texture->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
 
+					if (RenderTarget.GetMsaaPlane() == ERenderTargetMsaaPlane::Resolved)
+					{
+						TargetableTexture = ShaderResourceTexture;
+					}
+
 					// TODO(RDG): The load store action could actually be optimised by render graph for tile hardware when there is multiple
 					// consecutive rasterizer passes that have RDG resource as render target, a bit like resource transitions.
 					ERenderTargetStoreAction StoreAction = ERenderTargetStoreAction::EStore;
@@ -1010,7 +1015,9 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				ERenderTargetStoreAction DepthStoreAction = ExclusiveDepthStencil.IsDepthWrite() ? ERenderTargetStoreAction::EStore : ERenderTargetStoreAction::ENoAction;
 				ERenderTargetStoreAction StencilStoreAction = ExclusiveDepthStencil.IsStencilWrite() ? ERenderTargetStoreAction::EStore : ERenderTargetStoreAction::ENoAction;
 
-				OutDepthStencil.DepthStencilTarget = Texture->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
+				const FSceneRenderTargetItem& RenderTargetItem = Texture->PooledRenderTarget->GetRenderTargetItem();
+
+				OutDepthStencil.DepthStencilTarget = DepthStencil.GetMsaaPlane() == ERenderTargetMsaaPlane::Unresolved ? RenderTargetItem.TargetableTexture : RenderTargetItem.ShaderResourceTexture;
 				OutDepthStencil.ResolveTarget = nullptr;
 				OutDepthStencil.Action = MakeDepthStencilTargetActions(
 					MakeRenderTargetActions(DepthStencil.GetDepthLoadAction(), DepthStoreAction),
