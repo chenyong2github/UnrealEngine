@@ -4330,7 +4330,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 	SubsystemCollection.Deinitialize();
 
-	if (FXSystem)
+	if(FXSystem && NewWorld == nullptr)
 	{
 		FFXSystemInterface::QueueDestroyGPUSimulation(FXSystem);
 	}
