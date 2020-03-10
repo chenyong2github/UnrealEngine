@@ -460,8 +460,9 @@ namespace VulkanRHI
 		{
 
 			TSortedMap<uint32, FVulkanMemoryBucket> AllocationBuckets;
-			auto Collector = [&](const TCHAR* Name, FName ResourceName, void* Address, void* RHIRes, uint32 Width, uint32 Height, uint32 Depth, uint32 BytesPerPixel)
+			auto Collector = [&](const TCHAR* Name, FName ResourceName, void* Address, void* RHIRes, uint32 Width, uint32 Height, uint32 Depth, uint32 Format)
 			{
+				uint32 BytesPerPixel = (Format != VK_FORMAT_UNDEFINED ? GetNumBitsPerPixel((VkFormat)Format) : 8) / 8;
 				uint32 Size = FPlatformMath::Max(Width,1u) * FPlatformMath::Max(Height,1u) * FPlatformMath::Max(Depth, 1u) * BytesPerPixel;
 				uint32 Bucket = Size;
 				if(Bucket >= (1<<20))
@@ -483,7 +484,7 @@ namespace VulkanRHI
 
 			TVulkanTrackBase<FVulkanTextureBase>::CollectAll(Collector);
 			TVulkanTrackBase<FVulkanResourceMultiBuffer>::CollectAll(Collector);
-			for(auto& Itr : AllcationBuckets)
+			for(auto& Itr : AllocationBuckets)
 			{
 				VULKAN_LOGMEMORY(TEXT("***** BUCKET < %d kb *****"), Itr.Key/1024);
 				FVulkanMemoryBucket& B = Itr.Value;
