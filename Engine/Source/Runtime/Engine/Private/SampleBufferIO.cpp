@@ -15,7 +15,7 @@ namespace Audio
 	{
 	}
 
-	void FSoundWavePCMLoader::LoadSoundWave(USoundWave* InSoundWave, TFunction<void(const USoundWave* SoundWave, const Audio::FSampleBuffer& OutSampleBuffer)> OnLoaded)
+	void FSoundWavePCMLoader::LoadSoundWave(USoundWave* InSoundWave, TFunction<void(const USoundWave* SoundWave, const Audio::FSampleBuffer& OutSampleBuffer)> OnLoaded, bool bSynchronous /** = false */)
 	{
 		FAudioDeviceHandle AudioDevice = FAudioDevice::GetMainAudioDevice();
 
@@ -34,17 +34,31 @@ namespace Audio
 			LoadingSoundWaveInfo.Status = FLoadingSoundWaveInfo::LoadStatus::Loading;
 
 			// Kick off a decompression/precache of the sound wave
-			AudioDevice->Precache(InSoundWave, false, true, true);
+			AudioDevice->Precache(InSoundWave, bSynchronous, true, true);
 		}
 		else
 		{
 			LoadingSoundWaveInfo.Status = FLoadingSoundWaveInfo::LoadStatus::Loaded;
 		}
 
-		LoadingSoundWaveInfo.SoundWave  = InSoundWave;
-		LoadingSoundWaveInfo.OnLoaded   = MoveTemp(OnLoaded);
+		if (bSynchronous)
+		{
+			check(InSoundWave->GetPrecacheState() == ESoundWavePrecacheState::Done);
 
-		LoadingSoundWaves.Add(LoadingSoundWaveInfo);
+			const Audio::DefaultUSoundWaveSampleType* RawPCMData = reinterpret_cast<const Audio::DefaultUSoundWaveSampleType*>(InSoundWave->RawPCMData);
+			const int32 NumSamples = InSoundWave->RawPCMDataSize / sizeof(Audio::DefaultUSoundWaveSampleType);
+
+			TSampleBuffer<> SampleBuffer(RawPCMData, NumSamples, InSoundWave->NumChannels, InSoundWave->GetSampleRateForCurrentPlatform());
+			OnLoaded(InSoundWave, SampleBuffer);
+
+		}
+		else
+		{
+			LoadingSoundWaveInfo.SoundWave = InSoundWave;
+			LoadingSoundWaveInfo.OnLoaded = MoveTemp(OnLoaded);
+
+			LoadingSoundWaves.Add(LoadingSoundWaveInfo);
+		}
 	}
 
 	void FSoundWavePCMLoader::Update()
