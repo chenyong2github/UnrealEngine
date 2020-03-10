@@ -43,22 +43,6 @@ bool FXmppPrivateChatStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza
 		return false;
 	}
 
-	// Potentially filter out non-friends/non-admins
-	if (ConnectionManager.GetServer().bPrivateChatFriendsOnly && ConnectionManager.Presence().IsValid())
-	{
-		FXmppUserJid FromJid = IncomingStanza.GetFrom();
-		if (FromJid.Id != TEXT("xmpp-admin"))
-		{
-			TArray<FXmppUserJid> RosterMembers;
-			ConnectionManager.Presence()->GetRosterMembers(RosterMembers);
-			if (!RosterMembers.Contains(FromJid))
-			{
-				// This was meant for us, but we don't want to see it
-				return true;
-			}
-		}
-	}
-
 	TOptional<FString> BodyText = IncomingStanza.GetBodyText();
 	if (!BodyText.IsSet())
 	{
@@ -134,6 +118,21 @@ bool FXmppPrivateChatStrophe::Tick(float DeltaTime)
 void FXmppPrivateChatStrophe::OnChatReceived(TUniquePtr<FXmppChatMessage>&& Chat)
 {
 	TSharedRef<FXmppChatMessage> ChatRef = MakeShareable(Chat.Release());
+
+	// Potentially filter out non-friends/non-admins
+	if (ConnectionManager.GetServer().bPrivateChatFriendsOnly && ConnectionManager.Presence().IsValid())
+	{
+		if (ChatRef->FromJid.Id != TEXT("xmpp-admin"))
+		{
+			TArray<FXmppUserJid> RosterMembers;
+			ConnectionManager.Presence()->GetRosterMembers(RosterMembers);
+			if (!RosterMembers.Contains(ChatRef->FromJid))
+			{
+				return;
+			}
+		}
+	}
+
 	OnChatReceivedDelegate.Broadcast(ConnectionManager.AsShared(), ChatRef->FromJid, ChatRef);
 }
 
