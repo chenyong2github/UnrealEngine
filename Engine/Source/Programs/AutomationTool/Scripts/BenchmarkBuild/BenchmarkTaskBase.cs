@@ -148,40 +148,74 @@ namespace AutomationTool.Benchmark
 
 			return Name;
 		}
+
+		public override string ToString()
+		{
+			return GetFullTaskName();
+		}
 	}
 
 	[Flags]
-	public enum EditorTaskOptions
+	public enum DDCTaskOptions
 	{
 		None = 0,
-		ColdDDC = 1 << 0,
-		NoDDC = 1 << 1,
-		NoShaderDDC = 1 << 2,
-		CookClient = 1 << 3,
+		WarmDDC = 1 << 0,
+		ColdDDC = 1 << 1,
+		NoDDC = 1 << 2,
+		NoShaderDDC = 1 << 3,
 		HotDDC = 1 << 4,
 	}
 
 	abstract class BenchmarkEditorTaskBase : BenchmarkTaskBase
 	{
-		protected EditorTaskOptions TaskOptions;
+		protected DDCTaskOptions TaskOptions;
 
 		protected FileReference ProjectFile = null;
+
+		protected string EditorArgs = "";
 
 		protected string ProjectName
 		{
 			get
 			{
-				return ProjectFile == null ? null : ProjectFile.GetFileNameWithoutAnyExtensions();
+				return ProjectFile == null ? "UE4" : ProjectFile.GetFileNameWithoutAnyExtensions();
 			}
 		}
 
-		protected BenchmarkEditorTaskBase(string InProject, EditorTaskOptions InTaskOptions)
+		protected BenchmarkEditorTaskBase(FileReference InProjectFile, DDCTaskOptions InTaskOptions, string InEditorArgs)
 		{
 			TaskOptions = InTaskOptions;
+			EditorArgs = InEditorArgs.Trim().Replace("  ", " ");
+			ProjectFile = InProjectFile;
 
-			if (!InProject.Equals("UE4", StringComparison.OrdinalIgnoreCase))
+			if (TaskOptions == DDCTaskOptions.None || TaskOptions.HasFlag(DDCTaskOptions.WarmDDC))
 			{
-				ProjectFile = ProjectUtils.FindProjectFileFromName(InProject);
+				TaskModifiers.Add("warmddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.ColdDDC))
+			{
+				TaskModifiers.Add("coldddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
+			{
+				TaskModifiers.Add("hotddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoDDC))
+			{
+				TaskModifiers.Add("noddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
+			{
+				TaskModifiers.Add("noshaderddc");
+			}
+
+			if (!string.IsNullOrEmpty(EditorArgs))
+			{
+				TaskModifiers.Add(EditorArgs);
 			}
 		}
 
@@ -236,7 +270,7 @@ namespace AutomationTool.Benchmark
 
 		protected override bool PerformPrequisites()
 		{
-			if (TaskOptions.HasFlag(EditorTaskOptions.ColdDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.ColdDDC))
 			{
 				PrivateDDCPath = DirectoryReference.Combine(CommandUtils.EngineDirectory, "BenchmarkDerivedDataCache");
 

@@ -13,53 +13,10 @@ namespace AutomationTool.Benchmark
 {
 	class BenchmarkRunEditorTask : BenchmarkEditorTaskBase
 	{
-		string EditorArgs = "";
-
-		public BenchmarkRunEditorTask(string InProject, EditorTaskOptions InOptions, string InEditorArgs="")
-			: base(InProject, InOptions)
+		public BenchmarkRunEditorTask(FileReference InProjectFile, DDCTaskOptions InOptions, string InEditorArgs="")
+			: base(InProjectFile, InOptions, InEditorArgs)
 		{
-			EditorArgs = InEditorArgs;
-
-
-			if (TaskOptions.HasFlag(EditorTaskOptions.NoDDC))
-			{
-				TaskModifiers.Add("noddc");
-			}
-
-			if (TaskOptions.HasFlag(EditorTaskOptions.NoShaderDDC))
-			{
-				TaskModifiers.Add("noshaderddc");
-			}
-
-			if (TaskOptions.HasFlag(EditorTaskOptions.ColdDDC))
-			{
-				TaskModifiers.Add("coldddc");
-			}
-
-			if (!string.IsNullOrEmpty(EditorArgs))
-			{
-				TaskModifiers.Add(EditorArgs);
-			}
-			/*
-			DirectoryReference ProjectDir = ProjectUtils.FindProjectFileFromName(InProject).Directory;
-			FileReference EngineIni = FileReference.Combine(ProjectDir, "Config", "DefaultEngine.ini");
-
-			if (!FileReference.Exists(EngineIni))
-			{
-				throw new AutomationException("Could not find DefaultEngine.ini for {0}", InProject);
-			}
-
-			ConfigFile Config = new ConfigFile(EngineIni);
-			ConfigFileSection Section;
-			if (Config.TryGetSection("/Script/Engine.AutomationTestSettings", out Section))
-			{
-				ConfigLine ConfigLine;
-			if (!Section.TryGetLine("PIETestMapList", out ConfigLine))
-			{
-				throw new AutomationException("Unable to read \"Content->Label\" value from ini file:{0}", InputBuildInfoIniFile);
-			}*/
-
-			TaskName = string.Format("{0} PIE", InProject, BuildHostPlatform.Current.Platform);
+			TaskName = string.Format("{0} PIE", ProjectName, BuildHostPlatform.Current.Platform);
 		}
 
 		protected override bool PerformPrequisites()
@@ -77,13 +34,8 @@ namespace AutomationTool.Benchmark
 
 			}
 
-			if (TaskOptions.HasFlag(EditorTaskOptions.ColdDDC))
-			{
-				//DeleteLocalDDC(ProjectFile);
-			}
-
 			// if they want a hot DDC then do the test one time with no timing
-			if (TaskOptions.HasFlag(EditorTaskOptions.HotDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
 			{
 				RunEditorAndWaitForMapLoad();
 			}
@@ -126,7 +78,7 @@ namespace AutomationTool.Benchmark
 			string EditorPath = HostPlatform.Current.GetUE4ExePath("UE4Editor.exe");
 			string Arguments = string.Format("{0} {1} -execcmds=\"automation runtest System.Maps.PIE;Quit\" -stdout -AllowStdOutLogVerbosity -unattended", ProjectArg, EditorArgs);
 
-			if (TaskOptions.HasFlag(EditorTaskOptions.NoDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoDDC))
 			{
 				Arguments += (" -ddc=noshared");
 			}
@@ -141,7 +93,7 @@ namespace AutomationTool.Benchmark
 
 			DateTime StartTime = DateTime.Now;
 
-			int MaxWaitMins = 30;
+			int MaxWaitMins = 90;
 
 			while (!CurrentProcess.HasExited)
 			{
@@ -159,17 +111,6 @@ namespace AutomationTool.Benchmark
 
 			int ExitCode = CurrentProcess.ExitCode;
 			CurrentProcess = null;
-
-			/*if (!TestCompleted)
-			{
-				// spew filter can lag slightly...
-				Thread.Sleep(1000);
-
-				if (!TestCompleted)
-				{
-					Log.TraceError("Editor exited without test completing");
-				}
-			}*/
 
 			return ExitCode == 0;
 		}
