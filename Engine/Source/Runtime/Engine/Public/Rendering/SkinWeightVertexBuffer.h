@@ -135,6 +135,12 @@ public:
 	template <uint32 MaxNumUpdates>
 	void InitRHIForStreaming(FRHIVertexBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
+		if (!SRVValue || VertexBufferRHI)
+		{
+			ReleaseRHI();
+			InitRHI();
+		}
+
 		if (VertexBufferRHI && IntermediateBuffer)
 		{
 			check(SRVValue);
@@ -300,6 +306,12 @@ public:
 	template <uint32 MaxNumUpdates>
 	void InitRHIForStreaming(FRHIVertexBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
+		if (!SRVValue || !VertexBufferRHI)
+		{
+			ReleaseRHI();
+			InitRHI();
+		}
+		
 		if (VertexBufferRHI && IntermediateBuffer)
 		{
 			check(SRVValue);
