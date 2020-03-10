@@ -15,6 +15,7 @@
 #include "SNiagaraParameterPanel.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeCustomHlsl.h"
+#include "NiagaraConstants.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraGraphPinAdd"
 
@@ -75,6 +76,9 @@ TSharedRef<SWidget> SNiagaraGraphPinAdd::OnGetAddButtonMenuContent()
 
 			// Creating a new parameter from a graph pin always defaults to Particles scope.
 			TSharedRef<SNiagaraAddParameterMenu2> MenuWidget = SNew(SNiagaraAddParameterMenu2, Graphs)
+				.NewParameterScope(ENiagaraParameterScope::Local)
+				.NewParameterNamespace(PARAM_MAP_LOCAL_MODULE_STR)
+				.ShowKnownConstantParametersFilter(NiagaraParameterPanelSectionID::Type::REFERENCES)
 				.OnAddParameter_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::AddParameter, (const UEdGraphPin*)GetPinObj())
 				.OnCollectCustomActions_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::CollectAddPinActions, GetPinObj())
 				.OnAllowMakeType_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::AllowNiagaraTypeForAddPin)
@@ -83,7 +87,7 @@ TSharedRef<SWidget> SNiagaraGraphPinAdd::OnGetAddButtonMenuContent()
 			AddButton->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox());
 			return MenuWidget;
 		}
-		else if (OwningNode->IsA<UNiagaraNodeCustomHlsl>())
+		else 
 		{
 			// Skip binding the add parameter delegate for custom HLSL as it does not interact with graph's UNiagaraScriptVariables.
 
@@ -98,11 +102,6 @@ TSharedRef<SWidget> SNiagaraGraphPinAdd::OnGetAddButtonMenuContent()
 
 			AddButton->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox());
 			return MenuWidget;
-		}
-		else
-		{
-			ensureMsgf(false, TEXT("Tried to create a graph pin add menu for unhandled node class!"));
-			return SNullWidget::NullWidget;
 		}
 	}
 	else

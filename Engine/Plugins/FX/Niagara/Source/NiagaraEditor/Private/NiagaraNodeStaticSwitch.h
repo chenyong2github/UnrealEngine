@@ -70,6 +70,7 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual bool IsCompilerRelevant() const override { return false; }
+	virtual void PostLoad() override;
 	//~ End EdGraphNode Interface
 
 	//~ Begin UNiagaraNode Interface

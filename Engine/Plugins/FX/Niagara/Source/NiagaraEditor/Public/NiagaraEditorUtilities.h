@@ -277,7 +277,12 @@ namespace FNiagaraEditorUtilities
 
 	FName GetScopeNameForParameterScope(ENiagaraParameterScope InScope);
 
+	bool IsScopeEditable(const FName& InScopeName);
+	bool IsScopeUserAssignable(const FName& InScopeName);
+
 	TArray<FName> DecomposeVariableNamespace(const FName& InVarNameToken, FName& OutName);
+
+	void  RecomposeVariableNamespace(const FName& InVarNameToken, const TArray<FName>& InParentNamespaces, FName& OutName);
 
 	void GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData);
 
