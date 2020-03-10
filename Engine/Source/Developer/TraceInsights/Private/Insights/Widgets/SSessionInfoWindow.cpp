@@ -283,15 +283,16 @@ FText SSessionInfoWindow::GetFileSizeText() const
 FText SSessionInfoWindow::GetStatusText() const
 {
 	//TODO: add also info from a SessionInfo provider
-	FText Status;
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
-	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		Status = FText::Format(LOCTEXT("StatusFmt", "{0} Session Duration: {1}"),
-			Session->IsAnalysisComplete() ? FText::FromString(FString(TEXT("ANALYSIS COMPLETED."))) : FText::FromString(FString(TEXT("ANALYZING..."))),
-			FText::FromString(TimeUtils::FormatTimeAuto(Session->GetDurationSeconds(), 2)));
-	}
+
+	TSharedPtr<FInsightsManager> InsightsManager = FInsightsManager::Get();
+	InsightsManager->UpdateSessionDuration();
+
+	FText Status = FText::Format(LOCTEXT("StatusFmt", "{0}\nSession Duration: {1}\nAnalyzed in {2} at {3}X speed."),
+		InsightsManager->IsAnalysisComplete() ? FText::FromString(FString(TEXT("ANALYSIS COMPLETED."))) : FText::FromString(FString(TEXT("ANALYZING..."))),
+		FText::FromString(TimeUtils::FormatTimeAuto(InsightsManager->GetSessionDuration(), 2)),
+		FText::FromString(TimeUtils::FormatTimeAuto(InsightsManager->GetAnalysisDuration(), 2)),
+		FMath::RoundToInt(static_cast<float>(InsightsManager->GetAnalysisSpeedFactor())));
+
 	return Status;
 }
 

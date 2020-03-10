@@ -31,6 +31,13 @@ TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedPtr<FInsightsManager> FInsightsManager::Get()
+{
+	return FInsightsManager::Instance;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAnalysisService,
 								   TSharedRef<Trace::IModuleService> InTraceModuleService)
 	: AnalysisService(InTraceAnalysisService)
@@ -47,6 +54,11 @@ FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAn
 #else
 	, bShouldOpenAnalysisInSeparateProcess(true)
 #endif
+	, AnalysisStopwatch()
+	, bIsAnalysisComplete(false)
+	, SessionDuration(0.0)
+	, AnalysisDuration(0.0)
+	, AnalysisSpeedFactor(0.0)
 {
 }
 
@@ -61,16 +73,6 @@ void FInsightsManager::PostConstructor()
 	FInsightsCommands::Register();
 	BindCommands();
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FInsightsManager::BindCommands()
-{
-	ActionManager.Map_InsightsManager_Load();
-	ActionManager.Map_ToggleDebugInfo_Global();
-	ActionManager.Map_OpenSettings_Global();
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FInsightsManager::~FInsightsManager()
@@ -85,9 +87,21 @@ FInsightsManager::~FInsightsManager()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FInsightsManager> FInsightsManager::Get()
+void FInsightsManager::BindCommands()
 {
-	return FInsightsManager::Instance;
+	ActionManager.Map_InsightsManager_Load();
+	ActionManager.Map_ToggleDebugInfo_Global();
+	ActionManager.Map_OpenSettings_Global();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
+{
+	using namespace Trace;
+	FStoreClient* Client = FStoreClient::Connect(Host, Port);
+	StoreClient = TUniquePtr<FStoreClient>(Client);
+	return StoreClient.IsValid();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,18 +141,10 @@ FInsightsSettings& FInsightsManager::GetSettings()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
-{
-	using namespace Trace;
-	FStoreClient* Client = FStoreClient::Connect(Host, Port);
-	StoreClient = TUniquePtr<FStoreClient>(Client);
-	return StoreClient.IsValid();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 bool FInsightsManager::Tick(float DeltaTime)
 {
+	UpdateSessionDuration();
+
 	if (!bIsNetworkingProfilerAvailable)
 	{
 		uint32 NetTraceVersion = 0;
@@ -169,6 +175,29 @@ bool FInsightsManager::Tick(float DeltaTime)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FInsightsManager::UpdateSessionDuration()
+{
+	if (Session.IsValid())
+	{
+		double LocalSessionDuration = 0.0;
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			bIsAnalysisComplete = Session->IsAnalysisComplete();
+			LocalSessionDuration = Session->GetDurationSeconds();
+		}
+
+		if (LocalSessionDuration != SessionDuration)
+		{
+			SessionDuration = LocalSessionDuration;
+			AnalysisStopwatch.Update();
+			AnalysisDuration = AnalysisStopwatch.GetAccumulatedTime();
+			AnalysisSpeedFactor = SessionDuration / AnalysisDuration;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FInsightsManager::ResetSession(bool bNotify)
 {
 	if (Session.IsValid())
@@ -185,6 +214,12 @@ void FInsightsManager::ResetSession(bool bNotify)
 			OnSessionChanged();
 		}
 	}
+
+	bIsAnalysisComplete = false;
+	SessionDuration = 0.0;
+	AnalysisStopwatch.Restart();
+	AnalysisDuration = 0.0;
+	AnalysisSpeedFactor = 0.0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

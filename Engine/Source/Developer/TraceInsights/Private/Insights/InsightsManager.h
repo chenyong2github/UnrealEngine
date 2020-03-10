@@ -9,6 +9,7 @@
 #include "TraceServices/ModuleService.h"
 
 // Insights
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsCommands.h"
 #include "Insights/InsightsSettings.h"
 
@@ -146,6 +147,13 @@ public:
 	/** Opens the Settings dialog. */
 	void OpenSettings();
 
+	void UpdateSessionDuration();
+
+	bool IsAnalysisComplete() const { return bIsAnalysisComplete; }
+	double GetSessionDuration() const { return SessionDuration; }
+	double GetAnalysisDuration() const { return AnalysisDuration; }
+	double GetAnalysisSpeedFactor() const { return AnalysisSpeedFactor; }
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// SessionChangedEvent
 
@@ -218,10 +226,16 @@ private:
 	/** If enabled, UI can display additional info for debugging purposes. */
 	bool bIsDebugInfoEnabled;
 
+	bool bIsNetworkingProfilerAvailable;
+	bool bShouldOpenAnalysisInSeparateProcess;
+
+	FStopwatch AnalysisStopwatch;
+	bool bIsAnalysisComplete;
+	double SessionDuration;
+	double AnalysisDuration;
+	double AnalysisSpeedFactor;
+
+private:
 	/** A shared pointer to the global instance of the main manager. */
 	static TSharedPtr<FInsightsManager> Instance;
-
-	bool bIsNetworkingProfilerAvailable;
-
-	bool bShouldOpenAnalysisInSeparateProcess;
 };
