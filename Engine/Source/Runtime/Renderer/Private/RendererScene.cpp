@@ -4115,12 +4115,18 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 		}
 
 		// Re-add the primitive to the scene with the new transform.
-		FPrimitiveSceneInfo::AddToScene(RHICmdList, this, UpdatedSceneInfosWithStaticDrawListUpdate, true, true, bAsyncCreateLPIs);
-		FPrimitiveSceneInfo::AddToScene(RHICmdList, this, UpdatedSceneInfosWithoutStaticDrawListUpdate, false, true, bAsyncCreateLPIs);
-
-		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : UpdatedSceneInfosWithoutStaticDrawListUpdate)
+		if (UpdatedSceneInfosWithStaticDrawListUpdate.Num() > 0)
 		{
-			PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
+			FPrimitiveSceneInfo::AddToScene(RHICmdList, this, UpdatedSceneInfosWithStaticDrawListUpdate, true, true, bAsyncCreateLPIs);
+		}
+
+		if (UpdatedSceneInfosWithoutStaticDrawListUpdate.Num() > 0)
+		{
+			FPrimitiveSceneInfo::AddToScene(RHICmdList, this, UpdatedSceneInfosWithoutStaticDrawListUpdate, false, true, bAsyncCreateLPIs);
+			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : UpdatedSceneInfosWithoutStaticDrawListUpdate)
+			{
+				PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
+			}
 		}
 
 		if (AsyncCreateLightPrimitiveInteractionsTask && AsyncCreateLightPrimitiveInteractionsTask->GetTask().HasPendingPrimitives())
