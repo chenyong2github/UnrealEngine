@@ -447,8 +447,8 @@ struct FNDISkeletalMesh_InstanceData
 
 	/** True if the mesh we're using is to be rendered in unlimited bone influences mode. */
 	uint32 bUnlimitedBoneInfluences : 1;
-	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
-	FRHIShaderResourceView* MeshSkinWeightLookupBufferSrv;
+	const FSkinWeightDataVertexBuffer* MeshSkinWeightBuffer;
+	const FSkinWeightLookupVertexBuffer* MeshSkinWeightLookupBuffer;
 	uint32 MeshWeightStrideByte;
 	uint32 MeshSkinWeightIndexSizeByte;
 
@@ -778,8 +778,8 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 {
 	FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers;
 	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer;
-	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
-	FRHIShaderResourceView* MeshSkinWeightLookupBufferSrv;
+	const FSkinWeightDataVertexBuffer* MeshSkinWeightBuffer;
+	const FSkinWeightLookupVertexBuffer* MeshSkinWeightLookupBuffer;
 
 	bool bIsGpuUniformlyDistributedSampling;
 
