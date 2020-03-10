@@ -4,6 +4,9 @@
 
 #if USE_USD_SDK
 
+#include "Containers/ContainersFwd.h"
+#include "Containers/Map.h"
+
 #include "USDIncludesStart.h"
 
 #include "pxr/base/tf/weakBase.h"
@@ -32,8 +35,9 @@ public:
 	DECLARE_EVENT( FUsdListener, FOnStageEditTargetChanged );
 	FOnStageEditTargetChanged OnStageEditTargetChanged;
 
-	DECLARE_EVENT_TwoParams( FUsdListener, FOnPrimChanged, const FString&, bool );
-	FOnPrimChanged OnPrimChanged;
+	using FPrimsChangedList = TMap< FString, bool >;
+	DECLARE_EVENT_OneParam( FUsdListener, FOnPrimsChanged, const FPrimsChangedList& );
+	FOnPrimsChanged OnPrimsChanged;
 
 	DECLARE_EVENT_OneParam( FUsdListener, FOnLayersChanged, const pxr::SdfLayerChangeListVec& );
 	FOnLayersChanged OnLayersChanged;

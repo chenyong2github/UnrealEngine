@@ -125,16 +125,26 @@ AUsdStageActor::AUsdStageActor()
 #if USE_USD_SDK
 	RootUsdTwin->PrimPath = TEXT("/");
 
-	UsdListener.OnPrimChanged.AddLambda(
-		[ this ]( const FString& OriginalPrimPath, bool bResync )
+	UsdListener.OnPrimsChanged.AddLambda(
+		[ this ]( const TMap< FString, bool >& PrimsChangedList )
+		{
+			FScopedSlowTask RefreshStageTask( PrimsChangedList.Num(), LOCTEXT( "RefreshingUSDStage", "Refreshing USD Stage" ) );
+			RefreshStageTask.MakeDialog();
+
+			TSet< FString > RefreshedAssets;
+			TSet< FString > RefreshedComponents;
+
+			for ( const TPair< FString, bool >& PrimChangedInfo : PrimsChangedList )
 			{
-				auto UnwindToNonCollapsedPrim = [ &OriginalPrimPath, this ]( FUsdSchemaTranslator::ECollapsingType CollapsingType ) -> TUsdStore< pxr::SdfPath >
+				RefreshStageTask.EnterProgressFrame();
+
+				auto UnwindToNonCollapsedPrim = [ &PrimChangedInfo, this ]( FUsdSchemaTranslator::ECollapsingType CollapsingType ) -> TUsdStore< pxr::SdfPath >
 				{
 					IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
-					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, OriginalPrimPath );
+					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, PrimChangedInfo.Key );
 
-					TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *OriginalPrimPath );
+					TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *PrimChangedInfo.Key );
 					TUsdStore< pxr::UsdPrim > UsdPrim = this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() );
 
 					if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) ) )
@@ -161,25 +171,45 @@ AUsdStageActor::AUsdStageActor()
 				{
 					TUsdStore< pxr::SdfPath > AssetsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Assets );
 
-					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( AssetsPrimPath.Get() ) );
-					this->LoadAssets( *TranslationContext, this->GetUsdStage()->GetPrimAtPath( AssetsPrimPath.Get() ) );
+					if ( !RefreshedAssets.Contains( UsdToUnreal::ConvertPath( AssetsPrimPath.Get() ) ) )
+					{
+						TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( AssetsPrimPath.Get() ) );
+						
+						const bool bIsResync = PrimChangedInfo.Value;
+						if ( bIsResync )
+						{
+							this->LoadAssets( *TranslationContext, this->GetUsdStage()->GetPrimAtPath( AssetsPrimPath.Get() ) );
+						}
+						else
+						{
+							this->LoadAsset( *TranslationContext, this->GetUsdStage()->GetPrimAtPath( AssetsPrimPath.Get() ) );
+						}
+
+						RefreshedAssets.Add( UsdToUnreal::ConvertPath( AssetsPrimPath.Get() ) );
+					}
 				}
 
 				// Update components
 				{
 					TUsdStore< pxr::SdfPath > ComponentsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Components );
 
-					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( ComponentsPrimPath.Get() ) );
-					this->UpdatePrim( ComponentsPrimPath.Get(), bResync, *TranslationContext );
-					TranslationContext->CompleteTasks();
+					if ( !RefreshedComponents.Contains( UsdToUnreal::ConvertPath( ComponentsPrimPath.Get() ) ) )
+					{
+						TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( ComponentsPrimPath.Get() ) );
+						this->UpdatePrim( ComponentsPrimPath.Get(), PrimChangedInfo.Value, *TranslationContext );
+						TranslationContext->CompleteTasks();
+
+						RefreshedComponents.Add( UsdToUnreal::ConvertPath( ComponentsPrimPath.Get() ) );
+					}
 				}
 
 				if ( this->HasAutorithyOverStage() )
 				{
-					this->OnPrimChanged.Broadcast( OriginalPrimPath, bResync );
+					this->OnPrimChanged.Broadcast( PrimChangedInfo.Key, PrimChangedInfo.Value );
 				}
 			}
-		);
+			
+		} );
 
 	UsdListener.OnLayersChanged.AddLambda(
 		[&](const pxr::SdfLayerChangeListVec& ChangeVec)
@@ -471,6 +501,8 @@ void AUsdStageActor::OpenUsdStage()
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::OpenUsdStage );
+
 	FString FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead( *RootLayer.FilePath );
 	FilePath = FPaths::GetPath(FilePath) + TEXT("/");
 	FString CleanFilename = FPaths::GetCleanFilename( RootLayer.FilePath );
@@ -522,6 +554,8 @@ void AUsdStageActor::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 void AUsdStageActor::LoadUsdStage()
 {
 #if USE_USD_SDK
+	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadUsdStage );
+
 	double StartTime = FPlatformTime::Cycles64();
 
 	FScopedSlowTask SlowTask( 1.f, LOCTEXT( "LoadingUDStage", "Loading USD Stage") );
@@ -578,6 +612,8 @@ void AUsdStageActor::Refresh() const
 void AUsdStageActor::ReloadAnimations()
 {
 #if USE_USD_SDK
+	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::ReloadAnimations );
+
 	const pxr::UsdStageRefPtr& UsdStage = GetUsdStage();
 	if ( !UsdStage )
 	{
@@ -732,6 +768,23 @@ bool AUsdStageActor::HasAutorithyOverStage() const
 }
 
 #if USE_USD_SDK
+void AUsdStageActor::LoadAsset( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& Prim )
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadAsset );
+
+	const FString PrimPath = UsdToUnreal::ConvertPath( Prim.GetPrimPath() );
+	PrimPathsToAssets.Remove( PrimPath );
+
+	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+	if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext.AsShared(), pxr::UsdTyped( Prim ) ) )
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::CreateAssetsForPrim );
+		SchemaTranslator->CreateAssets();
+	}
+
+	TranslationContext.CompleteTasks(); // Finish the asset tasks before moving on
+}
+
 void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& StartPrim )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadAssets );
