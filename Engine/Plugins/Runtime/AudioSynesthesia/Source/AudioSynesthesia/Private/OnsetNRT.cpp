@@ -116,6 +116,15 @@ TUniquePtr<Audio::IAnalyzerNRTSettings> UOnsetNRTSettings::GetSettings(const flo
 
 }
 
+FText UOnsetNRTSettings::GetAssetActionName() const
+{
+	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundSynesthesiaOnsetNRTSettings", "Synesthesia NRT Settings (Onset)");
+}
+
+UClass* UOnsetNRTSettings::GetSupportedClass() const
+{
+	return UOnsetNRTSettings::StaticClass();
+}
 
 /*************************************************************************************/
 /********************************* UOnsetNRT *****************************************/
@@ -195,6 +204,16 @@ TUniquePtr<Audio::IAnalyzerNRTSettings> UOnsetNRT::GetSettings(const float InSam
 	}
 
 	return AnalyzerSettings;
+}
+
+FText UOnsetNRT::GetAssetActionName() const
+{
+	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundSynesthesiaOnset", "Synesthesia NRT (Onset)");
+}
+
+UClass* UOnsetNRT::GetSupportedClass() const
+{
+	return UOnsetNRT::StaticClass();
 }
 
 FName UOnsetNRT::GetAnalyzerNRTFactoryName() const
