@@ -32,6 +32,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "Async/ParallelFor.h"
 
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
@@ -77,6 +78,22 @@ FUObjectAnnotationSparseBool GSelectedComponentAnnotation;
 
 /** Static var indicating activity of reregister context */
 int32 FGlobalComponentReregisterContext::ActiveGlobalReregisterContextCount = 0;
+
+void FRegisterComponentContext::Process()
+{
+	FSceneInterface* Scene = World->Scene;
+	ParallelFor(AddPrimitiveBatches.Num(),
+		[&](int32 Index)
+		{
+			if (!AddPrimitiveBatches[Index]->IsPendingKill())
+			{
+				Scene->AddPrimitive(AddPrimitiveBatches[Index]);
+			}
+		},
+		!FApp::ShouldUseThreadingForPerformance()
+	);
+	AddPrimitiveBatches.Empty();
+}
 
 void UpdateAllPrimitiveSceneInfosForSingleComponent(UActorComponent* InComponent, TSet<FSceneInterface*>* InScenesToUpdateAllPrimitiveSceneInfosForBatching /* = nullptr*/)
 {

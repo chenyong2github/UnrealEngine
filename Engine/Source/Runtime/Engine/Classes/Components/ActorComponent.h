@@ -22,10 +22,27 @@ class AActor;
 class UActorComponent;
 class UAssetUserData;
 class ULevel;
+class UWorld;
+class UPrimitiveComponent;
 
-struct FRegisterComponentContext
+class FRegisterComponentContext
 {
-	TArray<class UPrimitiveComponent*> AddPrimitiveBatches;
+public:
+	FRegisterComponentContext(UWorld* InWorld)
+		: World(InWorld)
+	{}
+
+	void AddPrimitive(UPrimitiveComponent* PrimitiveComponent)
+	{
+		checkSlow(!AddPrimitiveBatches.Contains(PrimitiveComponent));
+		AddPrimitiveBatches.Add(PrimitiveComponent);
+	}
+
+	void Process();
+
+private:
+	UWorld* World;
+	TArray<UPrimitiveComponent*> AddPrimitiveBatches;
 };
 
 #if WITH_EDITOR
