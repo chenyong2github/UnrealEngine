@@ -21,6 +21,9 @@ public:
 	/** If true (default), UVs are scaled so that there is no stretching. If false, UVs are scaled to fill unit square */
 	bool bScaleUVByAspectRatio = true;
 
+	/** If true, each quad of box gets a separate polygroup */
+	bool bPolygroupPerQuad = false;
+
 public:
 
 	/** Generate the mesh */
@@ -162,6 +165,7 @@ public:
 		// create the face triangles and UVs+normals
 		int CurrentTriIdx = 0;
 		int CurrentUVIdx = 0;
+		int CurrentQuadIdx = 0;
 		for (int Dim = 0; Dim < 3; Dim++)
 		{
 			int FaceIdxBase = FaceDimOrder[Dim]*2;
@@ -233,7 +237,7 @@ public:
 							FaceUVStartInd + D1+Side + (D0+SideOpp) * N[D[1][Dim]],
 							FaceUVStartInd + D1+1 + (D0+1) * N[D[1][Dim]]
 						);
-						SetTrianglePolygon(CurrentTriIdx, MajorFaceInd);
+						SetTrianglePolygon(CurrentTriIdx, (bPolygroupPerQuad) ? CurrentQuadIdx : MajorFaceInd);
 						CurrentTriIdx++;
 
 						SetTriangle(CurrentTriIdx,
@@ -251,8 +255,9 @@ public:
 							FaceUVStartInd + D1+1 + (D0+1) * N[D[1][Dim]],
 							FaceUVStartInd + D1+SideOpp + (D0+Side) * N[D[1][Dim]]
 						);
-						SetTrianglePolygon(CurrentTriIdx, MajorFaceInd);
+						SetTrianglePolygon(CurrentTriIdx, (bPolygroupPerQuad) ? CurrentQuadIdx : MajorFaceInd);
 						CurrentTriIdx++;
+						CurrentQuadIdx++;
 					}
 				}
 			}
