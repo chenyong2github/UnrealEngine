@@ -227,6 +227,8 @@ protected:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditImport() override;
 	virtual void PostLoad() override;
+	virtual float GetTotalWeightValue(FFrameTime InTime) const override;
+
 
 	// When true we do not set a key on the section, since it will be set because we changed the value
 	// We need this because control rig notifications are set on every change even when just changing sequencer time
