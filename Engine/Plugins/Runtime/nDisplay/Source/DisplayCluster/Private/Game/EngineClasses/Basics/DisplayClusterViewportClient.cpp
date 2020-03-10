@@ -368,9 +368,6 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 					View->SetupRayTracedRendering();
 #endif
 
-#if CSV_PROFILER
-					UpdateCsvCameraStats(View);
-#endif
 				}
 
 				// Add view information for resource streaming. Allow up to 5X boost for small FOV.
@@ -379,6 +376,10 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				MyWorld->ViewLocationsRenderedLastFrame.Add(View->ViewMatrices.GetViewOrigin());
 			}
 		}
+
+#if CSV_PROFILER
+		UpdateCsvCameraStats(PlayerViewMap);
+#endif
 
 		FinalizeViews(&ViewFamily, PlayerViewMap);
 
