@@ -985,6 +985,13 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 #endif
 		if (bRerunConstructionScripts && !IsTemplate() && !GIsUCCMakeStandaloneHeaderGenerator)
 		{
+			// We need to process pending adds prior to rerunning the construction scripts, which may internally
+			// perform removals / adds themselves.
+			if (Context)
+			{
+				Context->Process();
+			}
+
 			// Don't rerun construction scripts until after all actors' components have been registered.  This
 			// is necessary because child attachment lists are populated during registration, and running construction
 			// scripts requires that the attachments are correctly initialized.
