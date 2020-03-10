@@ -1948,35 +1948,25 @@ namespace UnrealBuildTool
 			}
 
 			// Add all the input files to the predicate store
-			Makefile.AdditionalDependencies.Add(FileItem.GetItemByFileReference(TargetRulesFile));
+			Makefile.ExternalDependencies.Add(FileItem.GetItemByFileReference(TargetRulesFile));
 			foreach(UEBuildModule Module in Modules.Values)
 			{
-				Makefile.AdditionalDependencies.Add(FileItem.GetItemByFileReference(Module.RulesFile));
+				Makefile.ExternalDependencies.Add(FileItem.GetItemByFileReference(Module.RulesFile));
 				foreach(string ExternalDependency in Module.Rules.ExternalDependencies)
 				{
 					FileReference Location = FileReference.Combine(Module.RulesFile.Directory, ExternalDependency);
-					Makefile.AdditionalDependencies.Add(FileItem.GetItemByFileReference(Location));
+					Makefile.ExternalDependencies.Add(FileItem.GetItemByFileReference(Location));
 				}
 				if (Module.Rules.SubclassRules != null)
 				{
 					foreach (string SubclassRule in Module.Rules.SubclassRules)
 					{
 						FileItem SubclassRuleFileItem = FileItem.GetItemByFileReference(new FileReference(SubclassRule));
-						Makefile.AdditionalDependencies.Add(SubclassRuleFileItem);
+						Makefile.ExternalDependencies.Add(SubclassRuleFileItem);
 					}
 				}
 			}
-			Makefile.AdditionalDependencies.UnionWith(Makefile.PluginFiles);
-
-			// Add any leaf dependencies (eg. response files) to the dependencies list
-			IEnumerable<FileItem> LeafPrerequisiteItems = Makefile.Actions.SelectMany(x => x.PrerequisiteItems).Except(Makefile.Actions.SelectMany(x => x.ProducedItems));
-			foreach (FileItem LeafPrerequisiteItem in LeafPrerequisiteItems)
-			{
-				if (LeafPrerequisiteItem.Exists)
-				{
-					Makefile.AdditionalDependencies.Add(LeafPrerequisiteItem);
-				}
-			}
+			Makefile.ExternalDependencies.UnionWith(Makefile.PluginFiles);
 
 			// Write a header containing public definitions for this target
 			if (Rules.ExportPublicHeader != null)
