@@ -254,6 +254,8 @@ void UDrawPolygonTool::PopLastVertexAction()
 		return;
 	}
 
+	bHaveSelfIntersection = false;
+
 	if (bInFixedPolygonMode == false)
 	{
 		int NumVertices = PolygonVertices.Num();
@@ -497,6 +499,7 @@ void UDrawPolygonTool::ResetPolygon()
 	SnapEngine.Reset();
 	bHaveSurfaceHit = false;
 	bInFixedPolygonMode = false;
+	bHaveSelfIntersection = false;
 	CurrentCurveTimestamp++;
 }
 
@@ -664,10 +667,10 @@ void UDrawPolygonTool::OnNextSequencePreview(const FInputDeviceRay& ClickPos)
 	}
 
 	UpdatePreviewVertex(HitPos);
+	UpdateSelfIntersection();
 	if (PolygonVertices.Num() > 2)
 	{
 		bPreviewUpdatePending = true;
-		UpdateSelfIntersection();
 	}
 }
 
@@ -730,7 +733,7 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 	
 	if (bDonePolygon)
 	{
-		SnapEngine.Reset();
+		//SnapEngine.Reset();
 		bHaveSurfaceHit = false;
 		if (PolygonProperties->OutputMode == EDrawPolygonOutputMode::ExtrudedInteractive)
 		{
@@ -808,6 +811,10 @@ bool UDrawPolygonTool::UpdateSelfIntersection()
 	}
 
 	int NumVertices = PolygonVertices.Num();
+	if (NumVertices < 3)
+	{
+		return false;
+	}
 
 	FFrame3f DrawFrame(DrawPlaneOrigin, DrawPlaneOrientation);
 	FSegment2f PreviewSegment(DrawFrame.ToPlaneUV(PolygonVertices[NumVertices - 1],2), DrawFrame.ToPlaneUV(PreviewVertex,2));
@@ -1272,7 +1279,7 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, const
 void UDrawPolygonTool::ShowStartupMessage()
 {
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartDraw", "Left-click to place points on the Drawing Plane. Hold Shift to ignore Snapping. Ctrl-click on the scene to reposition the Plane (Shift+Ctrl-click to only Translate). Backspace to discard last vertex. A key toggles Gizmo."),
+		LOCTEXT("OnStartDraw", "Use this Tool to draw a polygon on the Drawing Plane, and Extrude it. Left-click to place points. Ctrl-click on the scene to reposition the Plane (Shift+Ctrl-click to ignore Normal). [A] toggles Gizmo. Hold Shift to ignore Snapping."),
 		EToolMessageLevel::UserNotification);
 }
 

@@ -107,6 +107,10 @@ void UVoxelCSGMeshesTool::Setup()
 	);
 	
 	Preview->InvalidateResult();    // start compute
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartTool", "This Tool computes a CSG Boolean of the input meshes using voxelization techniques. UVs, sharp edges, and small/thin features will be lost. Increase Voxel Count to enhance accuracy."),
+		EToolMessageLevel::UserNotification);
 }
 
 

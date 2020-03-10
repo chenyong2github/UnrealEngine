@@ -239,9 +239,7 @@ void UDrawPolyPathTool::Setup()
 	// begin path draw
 	InitializeNewSurfacePath();
 
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartDrawPolyPathTool", "Click to begin drawing path. Doubleclick to finish path."),
-		EToolMessageLevel::UserNotification);
+	ShowStartupMessage();
 }
 
 
@@ -447,6 +445,8 @@ void UDrawPolyPathTool::InitializeNewSurfacePath()
 	};
 	SurfacePathMechanic->SetDoubleClickOrCloseLoopMode();
 	UpdateSurfacePathPlane();
+
+	ShowStartupMessage();
 }
 
 
@@ -537,6 +537,8 @@ void UDrawPolyPathTool::BeginInteractiveOffsetDistance()
 	CurveDistMechanic->InitializePolyCurve(CurPolyLine, FTransform3d::Identity());
 
 	InitializePreviewMesh();
+
+	ShowOffsetMessage();
 }
 
 
@@ -684,6 +686,8 @@ void UDrawPolyPathTool::BeginInteractiveExtrudeHeight()
 	FFrame3d UseFrame = DrawPlaneWorld; 
 	UseFrame.Origin = CurPathPoints.Last().Origin;
 	ExtrudeHeightMechanic->Initialize(MoveTemp(TmpMesh), UseFrame, true);
+
+	ShowExtrudeMessage();
 }
 
 
@@ -802,6 +806,29 @@ void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathOutputMode OutputMode)
 	}
 
 	GetToolManager()->EndUndoTransaction();
+}
+
+
+
+void UDrawPolyPathTool::ShowStartupMessage()
+{
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartDraw", "Use this Tool to draw a path on the Drawing Plane, and then Extrude. Left-click to place points, Double-click (or close) to complete path. Ctrl-click on the scene to reposition the Plane (Shift+Ctrl-click to ignore Normal). [A] toggles Gizmo. Hold Shift to ignore Snapping."),
+		EToolMessageLevel::UserNotification);
+}
+
+void UDrawPolyPathTool::ShowOffsetMessage()
+{
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartOffset", "Set the Width of the Extrusion by clicking on the Drawing Plane."),
+		EToolMessageLevel::UserNotification);
+}
+
+void UDrawPolyPathTool::ShowExtrudeMessage()
+{
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartExtrude", "Set the Height of the Extrusion by positioning the mouse over the extrusion volume, or over the scene to snap to relative heights."),
+		EToolMessageLevel::UserNotification);
 }
 
 
