@@ -39,6 +39,12 @@ static TAutoConsoleVariable<int32> CVarEnableAdrenoTilingHint(
 	TEXT("  1 = hinting enabled for Adreno devices running Andorid 8 or earlier [default]\n")
 	TEXT("  2 = hinting always enabled for Adreno devices\n"));
 
+static TAutoConsoleVariable<int32> CVarDisableEarlyFragmentTests(
+	TEXT("r.Android.DisableEarlyFragmentTests"),
+	0,
+	TEXT("Whether to disable early_fragment_tests if any \n"),
+	ECVF_ReadOnly);
+
 struct FPlatformOpenGLDevice
 {
 
@@ -999,6 +1005,12 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		{
 			UE_LOG(LogRHI, Log, TEXT("Using QCOM_shader_framebuffer_fetch_noncoherent"));
 		}
+	}
+
+	if (CVarDisableEarlyFragmentTests.GetValueOnAnyThread() != 0)
+	{
+		bRequiresDisabledEarlyFragmentTests = true;
+		UE_LOG(LogRHI, Log, TEXT("Disabling early_fragment_tests"));
 	}
 }
 
