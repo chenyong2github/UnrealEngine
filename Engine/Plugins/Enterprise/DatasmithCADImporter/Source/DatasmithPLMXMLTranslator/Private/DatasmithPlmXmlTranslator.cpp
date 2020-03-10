@@ -51,7 +51,7 @@ bool FDatasmithPlmXmlTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 	return false;
 }
 
-void FDatasmithPlmXmlTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithPlmXmlTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	if (!CommonTessellationOptionsPtr.IsValid())
 	{
@@ -60,9 +60,9 @@ void FDatasmithPlmXmlTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<U
 	Options.Add(CommonTessellationOptionsPtr);
 }
 
-void FDatasmithPlmXmlTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithPlmXmlTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	for (const TStrongObjectPtr<UObject>& OptionPtr : Options)
+	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
 		if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(OptionPtr.Get()))
 		{
