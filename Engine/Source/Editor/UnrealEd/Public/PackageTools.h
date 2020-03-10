@@ -178,6 +178,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Package Tools")
 	static FString SanitizePackageName(const FString& InPackageName);
 
+	/**
+	 * Find or create a package at the desired path
+	 * If a package already exist but was made for another type of asset,
+	 * this function will create another one with a modified unique name
+	 * @param LongPackageName The package path in unreal asset path
+	 * @param AssetClass The class of asset the package should be for.
+	 */
+	static UPackage* FindOrCreatePackageForAssetType(const FName LongPackageName, UClass* AssetClass);
+
 private:
 	static void RestoreStandaloneOnReachableObjects();
 
@@ -190,4 +199,3 @@ private:
 
 UE_DEPRECATED(4.21, "PackageTools namespace has been deprecated. Please use UPackageTools instead.") 
 typedef UPackageTools PackageTools;
-
