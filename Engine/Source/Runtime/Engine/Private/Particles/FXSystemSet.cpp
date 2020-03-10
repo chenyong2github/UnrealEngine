@@ -190,6 +190,16 @@ void FFXSystemSet::OnDestroy()
 	FFXSystemInterface::OnDestroy();
 }
 
+
+void FFXSystemSet::DestroyGPUSimulation()
+{
+	for (FFXSystemInterface*& FXSystem : FXSystems)
+	{
+		check(FXSystem);
+		FXSystem->DestroyGPUSimulation();
+	}
+}
+
 FFXSystemSet::~FFXSystemSet()
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)

@@ -4383,8 +4383,10 @@ void FFXSystem::ReleaseGPUResources()
 {
 	if (RHISupportsGPUParticles())
 	{
-		check(ParticleSimulationResources);
-		ParticleSimulationResources->Release();
+		if(ParticleSimulationResources)
+		{
+			ParticleSimulationResources->Release();
+		}
 	}
 }
 
