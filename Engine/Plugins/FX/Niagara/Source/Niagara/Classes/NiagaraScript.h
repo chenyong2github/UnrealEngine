@@ -463,6 +463,8 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Script, DisplayName = "Script Metadata", meta = (ToolTip = "Script Metadata"))
 	TMap<FName, FString> ScriptMetaData;
+
+	NIAGARA_API static const FName NiagaraCustomVersionTagName;
 #endif
 
 	NIAGARA_API void ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) const;
