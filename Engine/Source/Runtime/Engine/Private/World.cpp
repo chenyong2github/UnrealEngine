@@ -4335,6 +4335,12 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 	FWorldDelegates::OnPostWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
 
 	SubsystemCollection.Deinitialize();
+
+	if (FXSystem)
+	{
+		FFXSystemInterface::QueueDestroyGPUSimulation(FXSystem);
+	}
+
 }
 
 UGameViewportClient* UWorld::GetGameViewport() const
