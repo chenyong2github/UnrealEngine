@@ -173,7 +173,7 @@ void FCollisionStructureManager::UpdateImplicitFlags(
 	FImplicit* Implicit, 
 	const ECollisionTypeEnum CollisionType)
 {
-	if (Implicit && (CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric))
+	if (Implicit && (CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric) && Implicit->GetType() == Chaos::ImplicitObjectType::LevelSet)
 	{
 		Implicit->SetDoCollide(false);
 		Implicit->SetConvex(false);
