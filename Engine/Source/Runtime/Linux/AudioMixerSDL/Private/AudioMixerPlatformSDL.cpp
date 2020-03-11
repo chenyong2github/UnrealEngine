@@ -146,7 +146,9 @@ namespace Audio
 		OutInfo.SampleRate = ActualSpec.freq;
 		
 		OutInfo.Format = GetAudioStreamFormat();
-		OutInfo.NumChannels = ActualSpec.channels;
+
+		ensure(ActualSpec.channels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+		OutInfo.NumChannels = FMath::Min(ActualSpec.channels, AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 
 		// Assume default channel map order, SDL doesn't support us querying it directly
 		OutInfo.OutputChannelArray.Reset();
