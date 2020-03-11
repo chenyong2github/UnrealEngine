@@ -26,9 +26,9 @@ private:
 
 	void OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType);
 
-	void OnLibraryToggleChanged(ECheckBoxState CheckState);
+	bool GetLibraryOnly() const;
 
-	ECheckBoxState LibraryToggleIsChecked() const;
+	void SetLibraryOnly(bool bInLibraryOnly);
 
 private:
 	INiagaraStackItemGroupAddUtilities* AddUtilities;
@@ -39,5 +39,5 @@ private:
 
 	bool bSetFocusOnNextTick;
 	
-	static bool bIncludeNonLibraryScripts;
+	static bool bLibraryOnly;
 };

@@ -28,8 +28,11 @@
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
+#include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackModuleItem"
+
+bool SNiagaraStackModuleItem::bLibraryOnly = true;
 
 void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackModuleItem& InModuleItem, UNiagaraStackViewModel* InStackViewModel)
 {
@@ -233,12 +236,13 @@ void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedAc
 	}
 }
 
-void CollectModuleActions(FGraphActionListBuilderBase& ModuleActions, UNiagaraStackModuleItem* ModuleItem)
+void SNiagaraStackModuleItem::CollectModuleActions(FGraphActionListBuilderBase& ModuleActions)
 {
 	TArray<FAssetData> ModuleAssets;
 	FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions ModuleScriptFilterOptions;
 	ModuleScriptFilterOptions.ScriptUsageToInclude = ENiagaraScriptUsage::Module;
 	ModuleScriptFilterOptions.TargetUsageToMatch = ModuleItem->GetOutputNode()->GetUsage();
+	ModuleScriptFilterOptions.bIncludeNonLibraryScripts = bLibraryOnly == false;
 	FNiagaraEditorUtilities::GetFilteredScriptAssets(ModuleScriptFilterOptions, ModuleAssets);
 	for (const FAssetData& ModuleAsset : ModuleAssets)
 	{
@@ -268,6 +272,9 @@ void CollectModuleActions(FGraphActionListBuilderBase& ModuleActions, UNiagaraSt
 
 void SNiagaraStackModuleItem::ShowReassignModuleScriptMenu()
 {
+	TSharedPtr<SNiagaraLibraryOnlyToggleHeader> LibraryOnlyToggle;
+	TSharedPtr<SGraphActionMenu> GraphActionMenu;
+
 	TSharedRef<SBorder> MenuWidget = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 		.Padding(5)
@@ -276,17 +283,42 @@ void SNiagaraStackModuleItem::ShowReassignModuleScriptMenu()
 			.WidthOverride(300)
 			.HeightOverride(400)
 			[
-				SNew(SGraphActionMenu)
-				.OnActionSelected_Static(OnActionSelected)
-				.OnCollectAllActions_Static(CollectModuleActions, ModuleItem)
-				.ShowFilterTextBox(true)
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.Padding(1.0f)
+				[
+					SAssignNew(LibraryOnlyToggle, SNiagaraLibraryOnlyToggleHeader)
+					.HeaderLabelText(LOCTEXT("ReassignModuleLabel", "Select a new module"))
+					.LibraryOnly(this, &SNiagaraStackModuleItem::GetLibraryOnly)
+					.LibraryOnlyChanged(this, &SNiagaraStackModuleItem::SetLibraryOnly)
+				]
+				+SVerticalBox::Slot()
+				.FillHeight(15)
+				[
+					SAssignNew(GraphActionMenu, SGraphActionMenu)
+					.OnActionSelected_Static(OnActionSelected)
+					.OnCollectAllActions(this, &SNiagaraStackModuleItem::CollectModuleActions)
+					.ShowFilterTextBox(true)
+				]
 			]
 		];
+
+	LibraryOnlyToggle->SetActionMenu(GraphActionMenu.ToSharedRef());
 
 	FGeometry ThisGeometry = GetCachedGeometry();
 	bool bAutoAdjustForDpiScale = false; // Don't adjust for dpi scale because the push menu command is expecting an unscaled position.
 	FVector2D MenuPosition = FSlateApplication::Get().CalculatePopupWindowPosition(ThisGeometry.GetLayoutBoundingRect(), MenuWidget->GetDesiredSize(), bAutoAdjustForDpiScale);
 	FSlateApplication::Get().PushMenu(AsShared(), FWidgetPath(), MenuWidget, MenuPosition, FPopupTransitionEffect::ContextMenu);
+}
+
+bool SNiagaraStackModuleItem::GetLibraryOnly() const
+{
+	return bLibraryOnly;
+}
+
+void SNiagaraStackModuleItem::SetLibraryOnly(bool bInLibraryOnly)
+{
+	bLibraryOnly = bInLibraryOnly;
 }
 
 #undef LOCTEXT_NAMESPACE
