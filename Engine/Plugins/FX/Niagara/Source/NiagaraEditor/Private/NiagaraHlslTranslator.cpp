@@ -2399,7 +2399,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	const uint InstanceID = UpdateStartInstance + DispatchThreadId.x; \n"
 			"	if (ReadInstanceCountOffset == 0xFFFFFFFF)\n"
 			"	{\n"
-			"			GSpawnStartInstance = 0; \n"
+			"		GSpawnStartInstance = 0; \n"
 			"	}\n"
 			"	else\n"
 			"	{\n"
@@ -2467,7 +2467,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		HlslOutput += TEXT(
 			"	// If a stage doesn't kill particles, StoreUpdateVariables() never calls AcquireIndex(), so the\n"
 			"   // count isn't updated. In that case we must manually copy the original count here.\n"
-			"	if (!GStageUsesAlive && GDispatchThreadId.x == 0) \n"
+			"	if (!GStageUsesAlive && WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
 			"	{ \n"
 			"		RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + SpawnedInstances; \n"
 			"	} \n"
