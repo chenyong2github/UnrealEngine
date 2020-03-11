@@ -43,10 +43,10 @@ FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrim
 	FVertexFactoryIntermediates	Intermediates = GetVertexFactoryIntermediates(Input);
 	FVertexFactoryInterpolantsVSToPS Interpolants = VertexFactoryGetInterpolantsVSToPS(Input, Intermediates, Empty);
 
-	OutHairVertex.World_P = VertexFactoryGetWorldPositionRaw(Input, Intermediates).xyz;
-	OutHairVertex.World_P_Prev = VertexFactoryGetPreviousWorldPosition(Input, Intermediates).xyz;
+	OutHairVertex.World_P = VertexFactoryGetWorldPositionRaw(Input, Intermediates, false).xyz;
+	OutHairVertex.World_P_Prev = VertexFactoryGetPreviousWorldPosition(Input, Intermediates, false).xyz;
 
-	const FHairControlPoint ControlPoint = GetVertexPosition(Input);
+	const FHairControlPoint ControlPoint = GetVertexPosition(Input, false);
 	OutHairVertex.Radius = ControlPoint.WorldRadius;
 	OutHairVertex.bIsValid = ControlPoint.Type != HAIR_CONTROLPOINT_END;
 
@@ -89,7 +89,7 @@ FEvaluateOutput Evaluate(
 		const float3 B = (Vertex1.World_P - Vertex0.World_P);
 		const float CosA = dot(A, B);
 		const float LengthB2 = dot(B, B);
-		const float SegmentU = Vertex1.bIsValid && LengthB2 > 0 ? saturate(CosA / LengthB2) : 0;
+		const float SegmentU = LengthB2 > 0 ? saturate(CosA / LengthB2) : 0;
 
 		// Compute V
 		float SegmentV = 0.5f;
