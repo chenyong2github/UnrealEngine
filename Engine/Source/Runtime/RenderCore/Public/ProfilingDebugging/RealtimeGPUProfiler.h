@@ -278,14 +278,10 @@ class FScopedGPUStatEvent
 	/** Cmdlist to push onto. */
 	FRHICommandListImmediate* RHICmdList;
 
-	/** The stat event used to record timings */
-	FRealtimeGPUProfilerEvent* RealtimeGPUProfilerEvent;
-
 public:
 	/** Default constructor, initializing all member variables. */
 	FORCEINLINE FScopedGPUStatEvent()
 		: RHICmdList(nullptr)
-		, RealtimeGPUProfilerEvent(nullptr)
 	{}
 
 	/**
