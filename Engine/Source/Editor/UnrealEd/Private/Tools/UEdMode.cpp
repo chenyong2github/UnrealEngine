@@ -289,7 +289,7 @@ public:
 		{
 			ToolsContext->PostToolNotificationMessage(Message);
 		}
-		if (Level == EToolMessageLevel::UserWarning)
+		else if (Level == EToolMessageLevel::UserWarning)
 		{
 			ToolsContext->PostToolWarningMessage(Message);
 		}
