@@ -28,9 +28,14 @@ inline FLogScope FLogScope::Enter(uint32 Uid, uint32 Size)
 {
 	FLogScope Ret;
 	bool bMaybeHasAux = (Flags & FEventInfo::Flag_MaybeHasAux) != 0;
-	(Flags & FEventInfo::Flag_NoSync)
-		?  Ret.EnterNoSync(Uid, Size, bMaybeHasAux)
-		:  Ret.Enter(Uid, Size, bMaybeHasAux);
+	if ((Flags & FEventInfo::Flag_NoSync) != 0)
+	{
+		Ret.EnterNoSync(Uid, Size, bMaybeHasAux);
+	}
+	else
+	{
+		Ret.Enter(Uid, Size, bMaybeHasAux);
+	}
 	return Ret;
 }
 
