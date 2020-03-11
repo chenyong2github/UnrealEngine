@@ -3858,10 +3858,10 @@ private:
 		{
 			FXSystem->RemoveGPUSimulation( Simulation );
 
+			FParticleSimulationResources* ParticleSimulationResources = FXSystem->GetParticleSimulationResources();
 			// The check for IsEngineExitRequested() is done because at shut down UWorld can be destroyed before particle emitters(?)
-			if (!IsEngineExitRequested())
+			if (!IsEngineExitRequested() && ParticleSimulationResources)
 			{
-				FParticleSimulationResources* ParticleSimulationResources = FXSystem->GetParticleSimulationResources();
 				const int32 TileCount = AllocatedTiles.Num();
 				for ( int32 ActiveTileIndex = 0; ActiveTileIndex < TileCount; ++ActiveTileIndex )
 				{
