@@ -2559,25 +2559,28 @@ void UCharacterMovementComponent::SaveBaseLocation()
 	}
 
 	const UPrimitiveComponent* MovementBase = CharacterOwner->GetMovementBase();
-	if (MovementBaseUtility::UseRelativeLocation(MovementBase) && !CharacterOwner->IsMatineeControlled())
+	if (MovementBase)
 	{
-		// Read transforms into OldBaseLocation, OldBaseQuat
+		// Read transforms into OldBaseLocation, OldBaseQuat. Do this regardless of whether the object is movable, since mobility can change.
 		MovementBaseUtility::GetMovementBaseTransform(MovementBase, CharacterOwner->GetBasedMovement().BoneName, OldBaseLocation, OldBaseQuat);
 
-		// Location
-		const FVector RelativeLocation = UpdatedComponent->GetComponentLocation() - OldBaseLocation;
+		if (MovementBaseUtility::UseRelativeLocation(MovementBase) && !CharacterOwner->IsMatineeControlled())
+		{
+			// Relative Location
+			const FVector RelativeLocation = UpdatedComponent->GetComponentLocation() - OldBaseLocation;
 
-		// Rotation
-		if (bIgnoreBaseRotation)
-		{
-			// Absolute rotation
-			CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, UpdatedComponent->GetComponentRotation(), false);
-		}
-		else
-		{
-			// Relative rotation
-			const FRotator RelativeRotation = (FQuatRotationMatrix(UpdatedComponent->GetComponentQuat()) * FQuatRotationMatrix(OldBaseQuat).GetTransposed()).Rotator();
-			CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, RelativeRotation, true);
+			// Rotation
+			if (bIgnoreBaseRotation)
+			{
+				// Absolute rotation
+				CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, UpdatedComponent->GetComponentRotation(), false);
+			}
+			else
+			{
+				// Relative rotation
+				const FRotator RelativeRotation = (FQuatRotationMatrix(UpdatedComponent->GetComponentQuat()) * FQuatRotationMatrix(OldBaseQuat).GetTransposed()).Rotator();
+				CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, RelativeRotation, true);
+			}
 		}
 	}
 }
@@ -2657,7 +2660,7 @@ void UCharacterMovementComponent::Crouch(bool bClientSimulation)
 		if (bCrouchMaintainsBaseLocation)
 		{
 			// Intentionally not using MoveUpdatedComponent, where a horizontal plane constraint would prevent the base of the capsule from staying at the same spot.
-			UpdatedComponent->MoveComponent(FVector(0.f, 0.f, -ScaledHalfHeightAdjust), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+			UpdatedComponent->MoveComponent(FVector(0.f, 0.f, -ScaledHalfHeightAdjust), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::None);
 		}
 
 		CharacterOwner->bIsCrouched = true;
@@ -2765,7 +2768,7 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 						if (!bEncroached)
 						{
 							// Intentionally not using MoveUpdatedComponent, where a horizontal plane constraint would prevent the base of the capsule from staying at the same spot.
-							UpdatedComponent->MoveComponent(NewLoc - PawnLocation, UpdatedComponent->GetComponentQuat(), false, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+							UpdatedComponent->MoveComponent(NewLoc - PawnLocation, UpdatedComponent->GetComponentQuat(), false, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::None);
 						}
 					}
 				}
@@ -2794,7 +2797,7 @@ void UCharacterMovementComponent::UnCrouch(bool bClientSimulation)
 			if (!bEncroached)
 			{
 				// Commit the change in location.
-				UpdatedComponent->MoveComponent(StandingLocation - PawnLocation, UpdatedComponent->GetComponentQuat(), false, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+				UpdatedComponent->MoveComponent(StandingLocation - PawnLocation, UpdatedComponent->GetComponentQuat(), false, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::None);
 				bForceNextFloorCheck = true;
 			}
 		}
