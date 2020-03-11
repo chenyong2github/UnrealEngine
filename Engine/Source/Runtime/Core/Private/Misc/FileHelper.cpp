@@ -221,25 +221,34 @@ bool FFileHelper::LoadFileToString(FString& Result, IPlatformFile* PlatformFile,
 	return LoadFileToString(Result, *Reader.Get(), VerifyFlags);
 }
 
-bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* Filename, EHashOptions VerifyFlags )
+bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* Filename )
 {
 	Result.Empty();
 
-	FString Buffer;
-	if(!LoadFileToString(Buffer, Filename, VerifyFlags))
+	TArray64<uint8> RawBuffer;
+	if(!LoadFileToArray(RawBuffer, Filename))
 	{
 		return false;
 	}
 
-	for(const TCHAR* Pos = *Buffer; *Pos != 0; )
+	for(const uint8* Pos = (uint8*)RawBuffer.GetData(); *Pos != 0; )
 	{
-		const TCHAR* LineStart = Pos;
+		const uint8* LineStart = Pos;
 		while(*Pos != 0 && *Pos != '\r' && *Pos != '\n')
 		{
 			Pos++;
 		}
 
-		Result.Emplace((int32)(Pos - LineStart), LineStart);
+		if (Pos - LineStart > MAX_int32)
+		{
+			UE_LOG(LogStreaming, Warning, TEXT("Single line too long found in LoadFileToStringArrayWithPredicate, File: %s"), Filename);
+			return false;
+		}
+
+		FString Line;
+		BufferToString(Line, LineStart, UE_PTRDIFF_TO_INT32(Pos - LineStart));
+
+		Result.Add(MoveTemp(Line));
 
 		if(*Pos == '\r')
 		{
@@ -254,25 +263,39 @@ bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* F
 	return true;
 }
 
-bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, const TCHAR* Filename, TFunctionRef<bool(const FString&)> Predicate, EHashOptions VerifyFlags)
+// DEPRECATED
+bool FFileHelper::LoadFileToStringArray(TArray<FString>& Result, const TCHAR* Filename, EHashOptions VerifyFlags)
+{
+	return LoadFileToStringArray(Result, Filename);
+}
+
+bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, const TCHAR* Filename, TFunctionRef<bool(const FString&)> Predicate)
 {
 	Result.Empty();
 
-	FString Buffer;
-	if (!LoadFileToString(Buffer, Filename, VerifyFlags))
+	TArray64<uint8> RawBuffer;
+	if (!LoadFileToArray(RawBuffer, Filename))
 	{
 		return false;
 	}
 
-	for (const TCHAR* Pos = *Buffer; *Pos != 0; )
+	for (const uint8* Pos = (uint8*)RawBuffer.GetData(); *Pos != 0; )
 	{
-		const TCHAR* LineStart = Pos;
+		const uint8* LineStart = Pos;
 		while (*Pos != 0 && *Pos != '\r' && *Pos != '\n')
 		{
 			Pos++;
 		}
 
-		FString Line(UE_PTRDIFF_TO_INT32(Pos - LineStart), LineStart);
+		if (Pos - LineStart > MAX_int32)
+		{
+			UE_LOG(LogStreaming, Warning, TEXT("Single line too long found in LoadFileToStringArrayWithPredicate, File: %s"), Filename);
+			return false;
+		}
+
+		FString Line;
+		BufferToString(Line, LineStart, UE_PTRDIFF_TO_INT32(Pos - LineStart));
+		
 		if (Invoke(Predicate, Line))
 		{
 			Result.Add(MoveTemp(Line));
@@ -289,6 +312,12 @@ bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, co
 	}
 
 	return true;
+}
+
+// DEPRECATED
+bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, const TCHAR* Filename, TFunctionRef<bool(const FString&)> Predicate, EHashOptions VerifyFlags)
+{
+	return LoadFileToStringArrayWithPredicate(Result, Filename, Predicate);
 }
 
 /**
