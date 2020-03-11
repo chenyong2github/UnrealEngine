@@ -257,7 +257,7 @@ FString FLandscapeMeshMobileStreamIn_IO::GetIOFilename(const FContext& Context)
 
 void FLandscapeMeshMobileStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 {
-	AsyncFileCallback = [this, Context](bool bWasCancelled, IAsyncReadRequest* Req)
+	AsyncFileCallback = [this, Context](bool bWasCancelled, IBulkDataIORequest* Req)
 	{
 		TaskSynchronization.Decrement();
 
