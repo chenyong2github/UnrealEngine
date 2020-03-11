@@ -3992,7 +3992,13 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 						{
 							//Log.debug("VK: Hide newVirtualKeyboardInput");
 
-							newVirtualKeyboardInput.clearFocus();
+							if (newVirtualKeyboardInput.hasFocus()) {
+								try {
+									newVirtualKeyboardInput.clearFocus();
+								} catch (Exception e) {
+									Log.warn("Unable to clear focus from virtualKeyboardInput");
+								}
+							}
 							//set offscreen
 							newVirtualKeyboardInput.setY(-1000);
 
