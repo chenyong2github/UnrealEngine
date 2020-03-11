@@ -10,9 +10,6 @@
 
 #include "DataprepAsset.generated.h"
 
-#ifndef NO_BLUEPRINT
-class UBlueprint;
-#endif
 class UDataprepActionAsset;
 class UDataprepActionStep;
 class UDataprepParameterizableObject;
@@ -35,13 +32,18 @@ class DATAPREPCORE_API UDataprepAsset : public UDataprepAssetInterface
 	GENERATED_BODY()
 
 public:
-	UDataprepAsset();
+	UDataprepAsset()
+		: ActionCountBeforeUndoRedo(INDEX_NONE)
+	{
+	}
+
 
 	virtual ~UDataprepAsset() = default;
 
 	// UObject interface
 	virtual void PostLoad() override;
 	virtual bool Rename(const TCHAR* NewName/* =nullptr */, UObject* NewOuter/* =nullptr */, ERenameFlags Flags/* =REN_None */) override;
+	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	// End of UObject interface
@@ -137,6 +139,13 @@ public:
 	bool MoveAction(int32 SourceIndex, int32 DestinationIndex);
 
 	/**
+	 * Swap the actions of a Dataprep asset
+	 * @param FirstActionIndex The index of the first action
+	 * @param SecondActionIndex The index of the second action
+	 */
+	bool SwapActions(int32 FirstActionIndex, int32 SecondActionIndex);
+
+	/**
 	 * Remove an action from the Dataprep asset
 	 * @param Index The index of the action to remove
 	 * @return True if the action was removed
@@ -172,36 +181,11 @@ public:
 
 	bool CreateParameterization();
 
-#ifndef NO_BLUEPRINT
-	// Temp code for the nodes development
-	bool CreateBlueprint();
-
-	/** @return pointer on the recipe */
-	const UBlueprint* GetRecipeBP() const
-	{ 
-		return DataprepRecipeBP;
-	}
-
-	UBlueprint* GetRecipeBP()
-	{ 
-		return DataprepRecipeBP;
-	}
-
-	//Todo Change the signature of this function when the new graph is ready (Hack to avoid a refactoring)
-	UDataprepActionAsset* AddActionUsingBP(class UEdGraphNode* NewActionNode);
-
-	void SwapActionsUsingBP(int32 FirstActionIndex, int32 SecondActionIndex);
-
-	void RemoveActionUsingBP(int32 Index);
-
-	// end of temp code for nodes development
-#endif
-
 public:
 	// Functions specific to the parametrization of the Dataprep asset
 
 	/**
-	 * Event to notify the ui that a dataprep parametrization was modified
+	 * Event to notify the ui that a Dataprep parametrization was modified
 	 * This necessary as the ui for the parameterization is only updated by manual event (the ui don't pull new values each frame)
 	 * Note on the objects param: The parameterized objects that should refresh their ui. If nullptr all widgets that can display some info on the parameterization should be refreshed
 	 */
@@ -226,32 +210,24 @@ public:
 
 protected:
 #if WITH_EDITORONLY_DATA
-	// Temp code for the nodes development
-	/** Temporary: Pointer to data preparation pipeline blueprint used to process input data */
-	UPROPERTY()
-	UBlueprint* DataprepRecipeBP;
+	/** DEPRECATED: Pointer to data preparation pipeline blueprint previously used to process input data */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Using directly ActionAssets property instead of Blueprint to manage actions."))
+	UBlueprint* DataprepRecipeBP_DEPRECATED;
 	// end of temp code for nodes development
 
 	/** DEPRECATED: List of producers referenced by the asset */
-	UPROPERTY()
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Property moved to UDataprepAssetInterface as Inputs."))
 	TArray< FDataprepAssetProducer > Producers_DEPRECATED;
 
 	/** DEPRECATED: COnsumer referenced by the asset */
-	UPROPERTY()
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Property moved to UDataprepAssetInterface as Output."))
 	UDataprepContentConsumer* Consumer_DEPRECATED;
 #endif
 
-	// Temp code for the nodes development
-	void OnDataprepBlueprintChanged( class UBlueprint* InBlueprint );
-	// end of temp code for nodes development
-
-	// Temp code for the nodes development
 private:
-	void UpdateActions(bool bNotify = true);
-
-private:
-	UPROPERTY()
-	UEdGraphNode* StartNode;
+	/** DEPRECATED: Pointer to the entry node of the pipeline blueprint previously used to process input data */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Using directly ActionAssets property instead of Blueprint to manage actions."))
+	UEdGraphNode* StartNode_DEPRECATED;
 
 	UPROPERTY()
 	UDataprepParameterization* Parameterization;
@@ -263,5 +239,6 @@ private:
 
 	FOnStepObjectsAboutToBeRemoved OnStepObjectsAboutToBeRemoved;
 
-	int32 CachedActionCount;
+	/** Used to identify addition/removal of actions on undo/redo */
+	int32 ActionCountBeforeUndoRedo;
 };

@@ -2,7 +2,6 @@
 
 #include "DataprepEditorModule.h"
 
-#include "AssetTypeActions_Dataprep.h"
 #include "AssetTypeActions_DataprepAsset.h"
 #include "AssetTypeActions_DataprepAssetInterface.h"
 #include "DataprepAssetProducers.h"
@@ -56,10 +55,6 @@ public:
 		TSharedPtr<FAssetTypeActions_DataprepAssetInterface> DataprepAssetInterfaceTypeAction = MakeShared<FAssetTypeActions_DataprepAssetInterface>();
 		AssetTools.RegisterAssetTypeActions(DataprepAssetInterfaceTypeAction.ToSharedRef());
 		AssetTypeActionsArray.Add(DataprepAssetInterfaceTypeAction);
-
-		TSharedPtr<FAssetTypeActions_Dataprep> DataprepRecipeTypeAction = MakeShareable(new FAssetTypeActions_Dataprep);
-		AssetTools.RegisterAssetTypeActions(DataprepRecipeTypeAction.ToSharedRef());
-		AssetTypeActionsArray.Add(DataprepRecipeTypeAction);
 
 		TSharedPtr<FAssetTypeActions_DataprepAsset> DataprepAssetTypeAction = MakeShareable(new FAssetTypeActions_DataprepAsset);
 		AssetTools.RegisterAssetTypeActions(DataprepAssetTypeAction.ToSharedRef());
@@ -115,8 +110,7 @@ public:
 
 	virtual TSharedRef<SWidget> CreateDataprepProducersWidget(UDataprepAssetProducers* AssetProducers) override
 	{
-		TSharedPtr<FUICommandList> CommandList = MakeShareable( new FUICommandList );
-		return AssetProducers ? SNew(SDataprepProducersWidget, AssetProducers, CommandList) : SNullWidget::NullWidget;
+		return AssetProducers ? SNew(SDataprepProducersWidget, AssetProducers) : SNullWidget::NullWidget;
 	}
 
 	virtual TSharedRef<SWidget> CreateDataprepDetailsView(UObject* ObjectToDetail) override

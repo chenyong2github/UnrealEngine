@@ -8,7 +8,6 @@
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
-#include "DataprepRecipe.h"
 
 #include "AssetRegistryModule.h"
 #ifdef WITH_EDITOR

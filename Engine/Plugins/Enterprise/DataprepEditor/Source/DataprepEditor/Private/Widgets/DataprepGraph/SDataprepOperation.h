@@ -14,14 +14,7 @@ struct FDataprepSchemaActionContext;
 
 class SDataprepOperation : public SDataprepActionBlock, public FGCObject
 {
-#ifndef NO_BLUEPRINT
-	SLATE_BEGIN_ARGS(SDataprepOperation)
-	: _IsSimplified(false)
-	{}
-		SLATE_ARGUMENT( bool, IsSimplified )
-#else
 	SLATE_BEGIN_ARGS(SDataprepOperation) {}
-#endif
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepOperation* InOperation, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext);
