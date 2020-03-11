@@ -12,33 +12,21 @@ using UnrealBuildTool;
 
 namespace AutomationTool.Benchmark
 {
-	[Flags]
-	public enum CookOptions
+
+
+	class BenchmarkCookTask : BenchmarkEditorTaskBase
 	{
-		None = 0,
-		ColdDDC			= 1 << 0,
-		NoDDC			= 1 << 1,
-		NoShaderDDC		= 1 << 2,
-		Client			= 1 << 3,
-		HotDDC			= 1 << 4,
-	}
+		string			CookPlatformName;
 
-	class BenchmarkCookTask : BenchmarkTaskBase
-	{
-		string ProjectName;
+		string			CookArgs;
 
-		FileReference ProjectFile;
+		bool			CookAsClient;
 
-		string CookPlatformName;
-
-		CookOptions Options;
-
-		public BenchmarkCookTask(string InProject, UnrealTargetPlatform InPlatform, CookOptions InOptions)
+		public BenchmarkCookTask(FileReference InProjectFile, UnrealTargetPlatform InPlatform, bool bCookAsClient, DDCTaskOptions InOptions, string InCookArgs)
+			: base(InProjectFile, InOptions, InCookArgs)
 		{
-			ProjectName = InProject;
-			Options = InOptions;
-
-			ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
+			CookArgs = InCookArgs;
+			CookAsClient = bCookAsClient;
 
 			var PlatformToCookPlatform = new Dictionary<UnrealTargetPlatform, string> {
 				{ UnrealTargetPlatform.Win64, "WindowsClient" },
@@ -54,22 +42,7 @@ namespace AutomationTool.Benchmark
 				CookPlatformName = PlatformToCookPlatform[InPlatform];
 			}
 
-			TaskName = string.Format("Cook {0} {1}", InProject, CookPlatformName);
-
-			if (Options.HasFlag(CookOptions.NoDDC))
-			{
-				TaskModifiers.Add("noddc");
-			}
-
-			if (Options.HasFlag(CookOptions.NoShaderDDC))
-			{
-				TaskModifiers.Add("noshaderddc");
-			}
-
-			if (Options.HasFlag(CookOptions.ColdDDC))
-			{
-				TaskModifiers.Add("coldddc");
-			}
+			TaskName = string.Format("Cook {0} {1}", ProjectName, CookPlatformName);			
 		}
 
 		protected override bool PerformPrequisites()
@@ -86,73 +59,50 @@ namespace AutomationTool.Benchmark
 			}
 
 			// Do a cook to make sure the remote ddc is warm?
-			if (Options.HasFlag(CookOptions.HotDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
 			{
 				// will throw an exception if it fails
 				CommandUtils.RunCommandlet(ProjectFile, "UE4Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} ", CookPlatformName));
 			}
 
-			if (Options.HasFlag(CookOptions.ColdDDC) || Options.HasFlag(CookOptions.NoDDC))
-			{
-				FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
-
-				List<DirectoryReference> DirsToClear = new List<DirectoryReference>();
-
-				DirectoryReference ProjectDir = ProjectFile.Directory;
-				
-				DirsToClear.Add(DirectoryReference.Combine(ProjectDir, "Saved"));
-				DirsToClear.Add(DirectoryReference.Combine(CommandUtils.EngineDirectory, "DerivedDataCache"));
-				DirsToClear.Add(DirectoryReference.Combine(ProjectDir, "DerivedDataCache"));
-
-				string LocalDDC = Environment.GetEnvironmentVariable("UE-LocalDataCachePath");
-
-				if (!string.IsNullOrEmpty(LocalDDC) && Directory.Exists(LocalDDC))
-				{
-					DirsToClear.Add(new DirectoryReference(LocalDDC));
-				}
-
-				foreach (var Dir in DirsToClear)
-				{
-					try
-					{
-						if (DirectoryReference.Exists(Dir))
-						{
-							Log.TraceInformation("Removing {0}", Dir);
-							DirectoryReference.Delete(Dir, true);
-						}
-					}
-					catch (Exception Ex)
-					{
-						Log.TraceWarning("Failed to remove path {0}. {1}", Dir.FullName, Ex.Message);
-					}
-				}
-			}
-
+			base.PerformPrequisites();
 			return true;
 		}
 
 		protected override bool PerformTask()
 		{
-			List<string> ExtraArgs = new List<string>();
+			List<string> ExtraArgsList = new List<string>();
 			
-			if (Options.HasFlag(CookOptions.Client))
+			if (CookAsClient)
 			{
-				ExtraArgs.Add("client");
+				ExtraArgsList.Add("client");
 			}
 
-			if (Options.HasFlag(CookOptions.NoShaderDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
 			{
-				ExtraArgs.Add("noshaderddc");
+				ExtraArgsList.Add("noshaderddc");
 				//ExtraArgs.Add("noxgeshadercompile");
 			}
 
-			if (Options.HasFlag(CookOptions.NoDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
 			{
-				ExtraArgs.Add("ddc=noshared");
-			}			
+				ExtraArgsList.Add("ddc=noshared");
+			}
+
+			string ExtraArgs = "";
+
+			if (ExtraArgsList.Any())
+			{
+				ExtraArgs = "-" + string.Join(" -", ExtraArgsList);
+			}
+
+			if (CookArgs.Length > 0)
+			{
+				ExtraArgs += " " + CookArgs;
+			}
 
 			// will throw an exception if it fails
-			CommandUtils.RunCommandlet(ProjectFile, "UE4Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} -{1}", CookPlatformName, string.Join(" -", ExtraArgs)));
+			CommandUtils.RunCommandlet(ProjectFile, "UE4Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} {1}", CookPlatformName, ExtraArgs));
 
 			return true;
 		}
