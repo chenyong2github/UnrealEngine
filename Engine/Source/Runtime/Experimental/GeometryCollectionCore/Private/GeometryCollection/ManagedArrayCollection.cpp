@@ -288,7 +288,14 @@ void FManagedArrayCollection::CopyMatchingAttributesFrom(const FManagedArrayColl
 	{
 		if (InCollection.HasAttribute(Entry.Key.Get<0>(), Entry.Key.Get<1>()))
 		{
-			CopyAttribute(InCollection, Entry.Key.Get<0>(), Entry.Key.Get<1>());
+			const FValueType& OriginalValue = InCollection.Map[Entry.Key];
+			const FValueType& DestValue = Map[Entry.Key];
+
+			// If we don't have a type match don't attempt the copy.
+			if(OriginalValue.ArrayType == DestValue.ArrayType)
+			{
+				CopyAttribute(InCollection, Entry.Key.Get<0>(), Entry.Key.Get<1>());
+			}
 		}
 	}
 

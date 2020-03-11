@@ -68,6 +68,7 @@ public:
 	static const FName ImplicitsAttribute;
 	static const FName ShapesQueryDataAttribute;
 	static const FName ShapesSimDataAttribute;
+	static const FName SharedImplicitsAttribute;
 	static const FName SimplicialsAttribute;
 	static const FName SimulatableParticlesAttribute;
 
