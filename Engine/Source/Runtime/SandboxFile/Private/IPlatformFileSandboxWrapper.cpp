@@ -162,18 +162,24 @@ FString FSandboxPlatformFile::ConvertToSandboxPath( const TCHAR* Filename ) cons
 		// See whether Filename is relative to root directory.
 		// if it's not inside the root, then just use it
 		FString FullSandboxPath = FPaths::ConvertRelativePathToFull(SandboxPath);
-		FString FullGameDir;
+		FString FullGameDir, FullSandboxedGameDir;
 #if IS_PROGRAM
 		if (FPaths::IsProjectFilePathSet())
 		{
 			FullGameDir = FPaths::ConvertRelativePathToFull(FPaths::GetPath(FPaths::GetProjectFilePath()) + TEXT("/"));
+			FullSandboxedGameDir = FPaths::Combine(*SandboxDirectory, *FPaths::GetBaseFilename(FPaths::GetProjectFilePath()));
 		}
 		else
 #endif
 		{
 			FullGameDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+			FullSandboxedGameDir = FPaths::Combine(*SandboxDirectory, FApp::GetProjectName());
 		}
-		if(FullSandboxPath.StartsWith(FullGameDir))
+		if(FullSandboxPath.StartsWith(FullSandboxedGameDir))
+		{
+			return SandboxPath;
+		}
+		else if (FullSandboxPath.StartsWith(FullGameDir))
 		{
 #if IS_PROGRAM
 			SandboxPath = FPaths::Combine(*SandboxDirectory, *FPaths::GetBaseFilename(FPaths::GetProjectFilePath()), *FullSandboxPath + FullGameDir.Len());
