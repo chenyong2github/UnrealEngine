@@ -120,17 +120,9 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 
 	DataprepAssetPtr->GetOnActionChanged().AddSP(this, &SDataprepGraphEditor::OnDataprepAssetActionChanged);
 
-	// #ueent_toremove: Temp code for the nodes development
-	if(UBlueprint* RecipeBP = InDataprepAsset->GetRecipeBP())
-	{
-		RecipeBP->OnChanged().AddSP(this, &SDataprepGraphEditor::OnPipelineChanged);
-	}
-	// end of temp code for nodes development
-
 	SetCanTick(true);
 
 	bIsComplete = false;
-	bMustRearrange = false;
 
 	LastLocalSize = FVector2D::ZeroVector;
 	LastZoomAmount = BIG_NUMBER;
@@ -152,15 +144,6 @@ void SDataprepGraphEditor::NotifyGraphChanged()
 	LastZoomAmount = BIG_NUMBER;
 
 	SGraphEditor::NotifyGraphChanged();
-}
-
-// #ueent_toremove: Temp code for the nodes development
-void SDataprepGraphEditor::OnPipelineChanged(UBlueprint* InBlueprint)
-{
-	if (InBlueprint)
-	{
-		NotifyGraphChanged();
-	}
 }
 
 void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FDataprepAssetChangeType ChangeType)
@@ -226,7 +209,6 @@ void SDataprepGraphEditor::CacheDesiredSize(float InLayoutScaleMultiplier)
 		if(TrackGraphNodePtr.IsValid())
 		{
 			bIsComplete = TrackGraphNodePtr.Pin()->RefreshLayout();
-			bMustRearrange = true;
 		}
 	}
 }
@@ -262,17 +244,10 @@ void SDataprepGraphEditor::UpdateLayout( const FVector2D& LocalSize, const FVect
 {
 	if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
 	{
-		if(LastZoomAmount != ZoomAmount)
-		{
-			WorkingArea = TrackGraphNode->Update();
-		}
+		WorkingArea = TrackGraphNode->Update();
 
 		if( !LocalSize.Equals(LastLocalSize) )
 		{
-			bMustRearrange = true;
-
-			WorkingArea = TrackGraphNode->Update();
-
 			LastLocalSize = LocalSize;
 
 			// Force a re-compute of the view location
