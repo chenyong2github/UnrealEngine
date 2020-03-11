@@ -2109,6 +2109,13 @@ void UAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(const double
 			}
 		}
 	}
+	else
+	{
+		// Do nothing will these packages. For projects which could run entirely from cooked data, this
+		// process will involve opening every single package synchronously on the game thread which will
+		// kill performance. We need a better way.
+		CookedPackageNamesWithoutAssetDataResults.Empty();
+	}
 
 	// Trim the results array
 	CookedPackageNamesWithoutAssetDataResults.Trim();
