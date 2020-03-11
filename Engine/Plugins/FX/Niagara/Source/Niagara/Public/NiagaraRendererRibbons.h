@@ -35,8 +35,18 @@ public:
 
 	FORCEINLINE void AddDynamicParam(TArray<FNiagaraRibbonVertexDynamicParameter>& ParamData, const FVector4& DynamicParam);
 protected:
+
 	template <typename TValue>
-	static void GenerateIndexBuffer(FGlobalDynamicIndexBuffer::FAllocationEx& InOutIndexAllocation, const TArray<int32>& SegmentData, int32 InterpCount, bool bInvertOrder);
+	static TValue* AppendToIndexBuffer(TValue* OutIndices, uint32& OutMaxUsedIndex, const TArrayView<int32>& SegmentData, int32 InterpCount, bool bInvertOrder);
+
+	/** Generate the raw index buffer preserving multi ribbon ordering. */
+	template <typename TValue>
+	void GenerateIndexBuffer(
+		FGlobalDynamicIndexBuffer::FAllocationEx& InOutIndexAllocation, 
+		int32 InterpCount, 
+		const FVector& ViewDirection, 
+		const FVector& ViewOriginForDistanceCulling, 
+		struct FNiagaraDynamicDataRibbon* DynamicData) const;
 
 private:
 	struct FCPUSimParticleDataAllocation
