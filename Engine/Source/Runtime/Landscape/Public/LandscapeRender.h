@@ -547,6 +547,7 @@ struct FLandscapeRenderSystem
 	TResourceArray<float> SectionTessellationFalloffK;
 	TArray<FVector4> SectionOriginAndRadius;
 	TArray<FLandscapeComponentSceneProxy*> SceneProxies;
+	TArray<uint8> SectionCurrentFirstLODIndices;
 
 	FVertexBufferRHIRef SectionLODBuffer;
 	FShaderResourceViewRHIRef SectionLODSRV;

@@ -491,6 +491,13 @@ static bool SupportsSoftwareOcclusion()
 	return CVarMobileAllowSoftwareOcclusion->GetValueOnAnyThread() != 0;
 }
 
+static bool SupportsLandscapeMeshLODStreaming()
+{
+	bool bStreamLandscapeMeshLODs = false;
+	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bStreamLandscapeMeshLODs"), bStreamLandscapeMeshLODs, GEngineIni);
+	return bStreamLandscapeMeshLODs;
+}
+
 bool FIOSTargetPlatform::CanSupportXGEShaderCompile() const
 {
 	// for 4.22 we are disabling support for XGE Shader compile on IOS
@@ -520,6 +527,9 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 
 		case ETargetPlatformFeatures::VirtualTextureStreaming:
 			return UsesVirtualTextures();
+
+		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
+			return SupportsLandscapeMeshLODStreaming() && SupportsMetal();
 
 		default:
 			break;

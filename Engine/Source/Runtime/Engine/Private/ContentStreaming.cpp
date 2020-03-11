@@ -8,6 +8,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
+#include "LandscapeComponent.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/UObjectHash.h"
@@ -1280,6 +1281,13 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 						It->LinkStreaming();
 					}
 				}
+				for (TObjectIterator<ULandscapeLODStreamingProxy> It; It; ++It)
+				{
+					if (It->bIsStreamable)
+					{
+						It->LinkStreaming();
+					}
+				}
 			}
 		}
 	}
@@ -1310,6 +1318,13 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 				}
 			}
 			for (TObjectIterator<USkeletalMesh> It; It; ++It)
+			{
+				if (It->bIsStreamable)
+				{
+					It->LinkStreaming();
+				}
+			}
+			for (TObjectIterator<ULandscapeLODStreamingProxy> It; It; ++It)
 			{
 				if (It->bIsStreamable)
 				{

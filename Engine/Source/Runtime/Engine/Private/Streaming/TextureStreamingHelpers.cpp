@@ -110,6 +110,12 @@ TAutoConsoleVariable<int32> CVarStreamingPoolSize(
 	TEXT("-1: Default texture pool size, otherwise the size in MB"),
 	ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarStreamingPoolSizeForMeshes(
+	TEXT("r.Streaming.PoolSizeForMeshes"),
+	-1,
+	TEXT("< 0: Mesh and texture share the same pool, otherwise the size of pool dedicated to meshes."),
+	ECVF_Scalability);
+
 TAutoConsoleVariable<int32> CVarStreamingMaxTempMemoryAllowed(
 	TEXT("r.Streaming.MaxTempMemoryAllowed"),
 	50,
@@ -291,6 +297,7 @@ void FRenderAssetStreamingSettings::Update()
 	HLODStrategy = CVarStreamingHLODStrategy.GetValueOnAnyThread();
 	GlobalMipBias = !GIsEditor ? FMath::FloorToInt(FMath::Max<float>(0.f, CVarStreamingMipBias.GetValueOnAnyThread())) : 0;
 	PoolSize = CVarStreamingPoolSize.GetValueOnAnyThread();
+	MeshPoolSize = CVarStreamingPoolSizeForMeshes.GetValueOnAnyThread();
 	bUsePerTextureBias = CVarStreamingUsePerTextureBias.GetValueOnAnyThread() != 0;
 	bUseNewMetrics = CVarStreamingUseNewMetrics.GetValueOnAnyThread() != 0;
 	bLimitPoolSizeToVRAM = !GIsEditor && CVarStreamingLimitPoolSizeToVRAM.GetValueOnAnyThread() != 0;

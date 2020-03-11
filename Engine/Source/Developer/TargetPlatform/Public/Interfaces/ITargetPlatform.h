@@ -54,6 +54,9 @@ enum class ETargetPlatformFeatures
 	/** Mesh LOD streaming. */
 	MeshLODStreaming,
 
+	/** Landscape visual mesh LOD streaming. */
+	LandscapeMeshLODStreaming,
+
 	/** User credentials are required to use the device. */
 	UserCredentials,
 

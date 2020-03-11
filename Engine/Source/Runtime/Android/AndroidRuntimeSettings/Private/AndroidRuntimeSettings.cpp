@@ -34,6 +34,7 @@ UAndroidRuntimeSettings::UAndroidRuntimeSettings(const FObjectInitializer& Objec
 	, TextureFormatPriority_ETC2(0.2f)
 	, TextureFormatPriority_DXT(0.6f)
 	, TextureFormatPriority_ASTC(0.9f)
+	, bStreamLandscapeMeshLODs(false)
 {
 	bBuildForES31 = bBuildForES31 || !bSupportsVulkan;
 }
