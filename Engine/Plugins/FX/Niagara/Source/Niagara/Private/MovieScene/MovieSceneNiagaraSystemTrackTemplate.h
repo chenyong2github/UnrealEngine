@@ -47,8 +47,12 @@ private:
 	FFrameNumber SpawnSectionStartFrame;
 	UPROPERTY()
 	FFrameNumber SpawnSectionEndFrame;
+	UPROPERTY()
 	ENiagaraSystemSpawnSectionStartBehavior SpawnSectionStartBehavior;
+	UPROPERTY()
 	ENiagaraSystemSpawnSectionEvaluateBehavior SpawnSectionEvaluateBehavior;
+	UPROPERTY()
 	ENiagaraSystemSpawnSectionEndBehavior SpawnSectionEndBehavior;
+	UPROPERTY()
 	ENiagaraAgeUpdateMode AgeUpdateMode;
 };
