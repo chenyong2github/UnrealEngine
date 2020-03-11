@@ -137,6 +137,11 @@ struct NIAGARA_API FNiagaraParameterStore
 
 	GENERATED_USTRUCT_BODY()
 
+	/** The View of the set of variables represented by this ParameterStore.  By default it will be the variables defined by the
+	SortedParameterOffsets, but child classes can override it so that we can share the list of Variables across different
+	instances as it's generally read only data in game */
+	TArrayView<FNiagaraVariableWithOffset> ParameterVariables;
+
 private:
 	/** Owner of this store. Used to provide an outer to data interfaces in this store. */
 	UPROPERTY(Transient)
@@ -148,6 +153,8 @@ private:
 	TMap<FNiagaraVariable, int32> ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
 
+	/** Storage for the set of variables that are represented by this ParameterStore.  Can be empty, and changes to it should
+	also trigger InternalStorageChanged() so that the public ParameterVariables view can be updated. */
 	UPROPERTY()
 	TArray<FNiagaraVariableWithOffset> SortedParameterOffsets;
 
@@ -248,21 +255,21 @@ public:
 #endif
 
 	/** Removes the passed parameter if it exists in the store. */
-	virtual bool RemoveParameter(const FNiagaraVariable& Param);
+	virtual bool RemoveParameter(const FNiagaraVariableBase& Param);
 
 	/** Renames the passed parameter. */
-	void RenameParameter(const FNiagaraVariable& Param, FName NewName);
+	virtual void RenameParameter(const FNiagaraVariableBase& Param, FName NewName);
 
 	/** Removes all parameters from this store and releases any data. */
 	virtual void Empty(bool bClearBindings = true);
 
-	/** Removes all parameters from this store but does't change memory allocations. */
+	/** Removes all parameters from this store but doesn't change memory allocations. */
 	virtual void Reset(bool bClearBindings = true);
 
-	FORCEINLINE void GetParameters(TArray<FNiagaraVariable>& OutParameters) const 
-	{ 
-		OutParameters.Reserve(SortedParameterOffsets.Num());
-		for (const FNiagaraVariableWithOffset& ParamWithOffset : SortedParameterOffsets)
+	FORCEINLINE void GetParameters(TArray<FNiagaraVariable>& OutParameters) const
+	{
+		OutParameters.Reserve(ParameterVariables.Num());
+		for (const FNiagaraVariableWithOffset& ParamWithOffset : ParameterVariables)
 		{
 			OutParameters.Add(ParamWithOffset);
 		}
@@ -270,15 +277,9 @@ public:
 
 	FORCEINLINE TArray<FNiagaraParameterStore*>& GetSourceParameterStores() { return SourceStores; }
 
-	FORCEINLINE const TArray<FNiagaraVariableWithOffset>& GetSortedParameterOffsets() const { return SortedParameterOffsets; }
-
-	FORCEINLINE int32 GetNumParameters() const { return SortedParameterOffsets.Num(); }
-
 	FORCEINLINE const TArray<UObject*>& GetUObjects()const { return UObjects; }
 	FORCEINLINE const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return DataInterfaces; }
 	FORCEINLINE const TArray<uint8>& GetParameterDataArray()const { return ParameterData; }
-
-	FORCEINLINE void SetParameterDataArray(const TArray<uint8>& InParameterDataArray);
 
 	void SanityCheckData(bool bInitInterfaces = true);
 
@@ -355,7 +356,7 @@ public:
 	/** Returns the associated FNiagaraVariable for the passed data interface if it exists in the store. Null if not.*/
 	const FNiagaraVariableBase* FindVariable(UNiagaraDataInterface* Interface)const;
 
-	virtual const int32* FindParameterOffset(const FNiagaraVariable& Parameter, bool IgnoreType = false) const;
+	virtual const int32* FindParameterOffset(const FNiagaraVariableBase& Parameter, bool IgnoreType = false) const;
 
 	void PostLoad();
 	void SortParameters();
@@ -398,7 +399,7 @@ public:
 			}
 			else
 			{
-				DestStore.SetParameterData(GetParameterData_Internal(SrcIndex), DestIndex, Parameter.GetSizeInBytes());
+				DestStore.SetParameterData(GetParameterData(SrcIndex), DestIndex, Parameter.GetSizeInBytes());
 			}
 		}
 	}
@@ -415,7 +416,7 @@ public:
 	};
 
 	/** Copies all parameters from this parameter store into another.*/
-	void CopyParametersTo(FNiagaraParameterStore& DestStore, bool bOnlyAdd, EDataInterfaceCopyMethod DataInterfaceCopyMethod);
+	void CopyParametersTo(FNiagaraParameterStore& DestStore, bool bOnlyAdd, EDataInterfaceCopyMethod DataInterfaceCopyMethod = EDataInterfaceCopyMethod::None) const;
 
 	/** Remove all parameters from this parameter store from another.*/
 	void RemoveParameters(FNiagaraParameterStore& DestStore);
@@ -512,26 +513,6 @@ public:
 		return false;
 	}
 
-	/**
-	* Sets the parameter using the internally stored data in the passed FNiagaraVariable.
-	* TODO: Remove this. IMO FNiagaraVariable should be just for data definition and all storage should be done via this class.
-	*/
-	FORCEINLINE_DEBUGGABLE void SetParameter(const FNiagaraVariable& Param)
-	{
-		checkSlow(Param.IsDataAllocated());
-		int32 Offset = IndexOf(Param);
-		if (Offset != INDEX_NONE)
-		{
-			uint8* Dest = GetParameterData_Internal(Offset);
-			const uint8* Src = Param.GetData();
-			if (Dest != Src)
-			{
-				FMemory::Memcpy(Dest, Src, Param.GetSizeInBytes());
-			}
-			OnParameterChange();
-		}
-	}
-
 	FORCEINLINE_DEBUGGABLE void SetDataInterface(UNiagaraDataInterface* InInterface, int32 Offset)
 	{
 		DataInterfaces[Offset] = InInterface;
@@ -599,18 +580,13 @@ public:
 protected:
 	void TickBindings();
 	void OnLayoutChange();
+	void CopySortedParameterOffsets(TArrayView<FNiagaraVariableWithOffset> Src);
 
 	/** Returns the parameter data at the passed offset. */
-	FORCEINLINE const uint8* GetParameterData_Internal(int32 Offset) const
-	{
-		return ParameterData.GetData() + Offset;
-	}
-
 	FORCEINLINE uint8* GetParameterData_Internal(int32 Offset) 
 	{
 		return ParameterData.GetData() + Offset;
 	}
-
 
 	template<typename ParamType>
 	void SetParameterByOffset(uint32 ParamOffset, const ParamType& Param)
@@ -619,6 +595,12 @@ protected:
 		*ParamPtr = Param;
 		//SetParameterData((const uint8*)&Param, ParamOffset, sizeof(ParamType)); // TODO why aren't we using this path instead of SetParametersByOffset?
 	}
+
+	void SetParameterDataArray(const TArray<uint8>& InParameterDataArray, bool bNotifyAsDirty = true);
+	void SetDataInterfaces(const TArray<UNiagaraDataInterface*>& InDataInterfaces, bool bNotifyAsDirty = true);
+	void SetUObjects(const TArray<UObject*>& InUObjects, bool bNotifyAsDirty = true);
+
+	virtual void InternalStorageChanged();
 
 	friend struct FNiagaraParameterStoreToDataSetBinding;    // this should be the only class calling SetParameterByOffset
 };
@@ -672,7 +654,7 @@ FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::VerifyBinding(const F
 	bool bBindingValid = true;
 #if WITH_EDITORONLY_DATA
 	TArray<FName, TInlineAllocator<32>> MissingParameterNames;
-	for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->GetSortedParameterOffsets())
+	for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->ParameterVariables)
 	{
 		const FNiagaraVariable& Parameter = ParamWithOffset;
 		int32 DestOffset = ParamWithOffset.Offset;
@@ -761,7 +743,7 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Dump(const FNiagaraPa
 		ensure(Binding.DestOffset != -1);
 		FNiagaraVariable Param;
 		bool bFound = false;
-		for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->GetSortedParameterOffsets())
+		for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->ParameterVariables)
 		{
 			if (ParamWithOffset.Offset == Binding.DestOffset && !ParamWithOffset.IsDataInterface())
 			{
@@ -793,7 +775,7 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Dump(const FNiagaraPa
 		ensure(Binding.DestOffset != -1);
 		FNiagaraVariable Param;
 		bool bFound = false;
-		for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->GetSortedParameterOffsets())
+		for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->ParameterVariables)
 		{
 			if (ParamWithOffset.Offset == Binding.DestOffset && ParamWithOffset.IsDataInterface())
 			{
@@ -825,7 +807,7 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Dump(const FNiagaraPa
 		ensure(Binding.DestOffset != -1);
 		FNiagaraVariable Param;
 		bool bFound = false;
-		for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->GetSortedParameterOffsets())
+		for (const FNiagaraVariableWithOffset& ParamWithOffset : DestStore->ParameterVariables)
 		{
 			if (ParamWithOffset.Offset == Binding.DestOffset && ParamWithOffset.IsUObject())
 			{

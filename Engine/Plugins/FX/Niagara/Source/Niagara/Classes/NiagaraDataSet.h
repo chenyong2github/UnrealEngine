@@ -308,7 +308,7 @@ public:
 
 	FORCEINLINE void Init(const FNiagaraDataSetCompiledData* InDataSetCompiledData)
 	{
-		CompiledData = InDataSetCompiledData != nullptr ? InDataSetCompiledData : &FNiagaraDataSetCompiledData::DummyCompiledData;
+		CompiledData.Init(InDataSetCompiledData != nullptr ? InDataSetCompiledData : &FNiagaraDataSetCompiledData::DummyCompiledData);
 		bInitialized = true;
 		Reset();
 	}
@@ -404,7 +404,7 @@ private:
 #endif
 	}
 
-	const FNiagaraDataSetCompiledData* CompiledData;
+	FNiagaraCompiledDataReference<FNiagaraDataSetCompiledData> CompiledData;
 
 	/** Table of free IDs available to allocate next tick. */
 	TArray<int32> FreeIDsTable;
@@ -489,7 +489,7 @@ protected:
 
 	FNiagaraDataSet* DataSet;
 	const FNiagaraVariableLayoutInfo* VarLayout;
-	FNiagaraVariable Var;
+	FNiagaraVariableBase Var;
 };
 
 template<typename T>

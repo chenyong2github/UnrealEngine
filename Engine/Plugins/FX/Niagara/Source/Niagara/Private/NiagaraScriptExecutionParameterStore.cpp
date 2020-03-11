@@ -7,10 +7,11 @@
 #include "NiagaraSystemInstance.h"
 
 FNiagaraScriptExecutionParameterStore::FNiagaraScriptExecutionParameterStore()
-	: FNiagaraParameterStore(), ParameterSize(0), PaddedParameterSize(0), bInitialized(false)
-{
-
-}
+	: FNiagaraParameterStore()
+	, ParameterSize(0)
+	, PaddedParameterSize(0)
+	, bInitialized(false)
+{}
 
 FNiagaraScriptExecutionParameterStore::FNiagaraScriptExecutionParameterStore(const FNiagaraParameterStore& Other)
 {
@@ -23,6 +24,7 @@ FNiagaraScriptExecutionParameterStore& FNiagaraScriptExecutionParameterStore::op
 	return *this;
 }
 
+#if WITH_EDITORONLY_DATA
 uint32 OffsetAlign(uint32 SrcOffset, uint32 Size)
 {
 	uint32 OffsetRemaining = SHADER_PARAMETER_STRUCT_ALIGNMENT - (SrcOffset % SHADER_PARAMETER_STRUCT_ALIGNMENT);
@@ -215,38 +217,6 @@ void FNiagaraScriptExecutionParameterStore::InitFromOwningScript(UNiagaraScript*
 	bInitialized = true;
 }
 
-void FNiagaraScriptExecutionParameterStore::InitFromOwningContext(UNiagaraScript* Script, ENiagaraSimTarget SimTarget, bool bNotifyAsDirty)
-{
-	Empty();
-	PaddingInfo.Empty();
-
-#if WITH_EDITORONLY_DATA
-	if (Script != nullptr)
-	{
-		DebugName = FString::Printf(TEXT("ScriptExecParamStore %s %p"), *Script->GetFullName(), this);
-	}
-#endif
-
-	const FNiagaraScriptExecutionParameterStore* SrcStore = Script->GetExecutionReadyParameterStore(SimTarget);
-	if (SrcStore)
-	{
-		InitFromSource(SrcStore, false);
-		ParameterSize = SrcStore->ParameterSize;
-		PaddedParameterSize = SrcStore->PaddedParameterSize;
-		PaddingInfo = SrcStore->PaddingInfo;
-
-		if (bNotifyAsDirty)
-		{
-			MarkParametersDirty();
-			MarkInterfacesDirty();
-			OnLayoutChange();
-		}
-	}
-
-
-	bInitialized = true;
-}
-
 void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Script, ENiagaraSimTarget SimTarget, bool bTriggerRebind)
 {
 	if (Script == nullptr)
@@ -262,10 +232,8 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 		bAdded |= AddParameter(Param, false, false);
 	}
 
-#if WITH_EDITORONLY_DATA
 	DebugName = FString::Printf(TEXT("ScriptExecParamStore %s %p"), *Script->GetFullName(), this);
-#endif
-	
+
 	ParameterSize = GetParameterDataArray().Num();
 
 	//Add previous frame values if we're interpolated spawn.
@@ -280,12 +248,6 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 			FNiagaraVariable PrevParam(Param.GetType(), FName(*(INTERPOLATED_PARAMETER_PREFIX + Param.GetName().ToString())));
 			bAdded |= AddParameter(PrevParam, false, false);
 		}
-	}
-	
-	if (bIsInterpolatedSpawn)
-	{
-		CopyCurrToPrev();
-		bAdded = true;
 	}
 
 	//Internal constants - only needed for non-GPU sim
@@ -323,26 +285,105 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 		OnLayoutChange();
 	}
 }
+#endif
 
-void FNiagaraScriptExecutionParameterStore::CopyCurrToPrev()
+//////////////////////////////////////////////////////////////////////////
+/// FNiagaraScriptInstanceParameterStore
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraScriptInstanceParameterStore::FNiagaraScriptInstanceParameterStore()
+	: FNiagaraParameterStore()
+	, bInitialized(false)
+{}
+
+void FNiagaraScriptInstanceParameterStore::InitFromOwningContext(UNiagaraScript* Script, ENiagaraSimTarget SimTarget, bool bNotifyAsDirty)
 {
-	int32 ParamStart = ParameterSize;
-	checkSlow(FMath::Frac((float)ParameterSize) == 0.0f);
+	const FNiagaraScriptExecutionParameterStore* SrcStore = Script ? Script->GetExecutionReadyParameterStore(SimTarget) : nullptr;
 
-	FMemory::Memcpy(GetParameterData_Internal(ParamStart), GetParameterData(0), ParamStart);
+#if WITH_EDITORONLY_DATA
+	DebugName = Script ? FString::Printf(TEXT("ScriptExecParamStore %s %p"), *Script->GetFullName(), this) : TEXT("");
+#endif
+
+	if (SrcStore)
+	{
+		Empty(false);
+
+		SetParameterDataArray(SrcStore->GetParameterDataArray(), false);
+		SetDataInterfaces(SrcStore->GetDataInterfaces(), false);
+		SetUObjects(SrcStore->GetUObjects(), false);
+
+		if (bNotifyAsDirty)
+		{
+			MarkParametersDirty();
+			MarkInterfacesDirty();
+			MarkUObjectsDirty();
+			OnLayoutChange();
+		}
+
+		ScriptParameterStore.Init(SrcStore);
+		InternalStorageChanged();
+	}
+	else
+	{
+		Empty();
+	}
+
+	bInitialized = true;
 }
 
-
-void FNiagaraScriptExecutionParameterStore::CopyParameterDataToPaddedBuffer(uint8* InTargetBuffer, uint32 InTargetBufferSizeInBytes)
+void FNiagaraScriptInstanceParameterStore::CopyCurrToPrev()
 {
-	check((uint32)ParameterSize <= PaddedParameterSize);
-	check(InTargetBufferSizeInBytes >= PaddedParameterSize);
-	FMemory::Memzero(InTargetBuffer, InTargetBufferSizeInBytes);
-	const uint8* SrcData = GetParameterDataArray().GetData();
-	for (int32 i = 0; i < PaddingInfo.Num(); i++)
+	if (const auto* ScriptStore = ScriptParameterStore.Get())
 	{
-		check(uint32(PaddingInfo[i].DestOffset + PaddingInfo[i].DestSize) <= InTargetBufferSizeInBytes);
-		check(uint32(PaddingInfo[i].SrcOffset + PaddingInfo[i].SrcSize) <= (uint32)GetParameterDataArray().Num());
-		FMemory::Memcpy(InTargetBuffer + PaddingInfo[i].DestOffset, SrcData + PaddingInfo[i].SrcOffset, PaddingInfo[i].SrcSize);
+		const int32 ParamStart = ScriptStore->ParameterSize;
+		FMemory::Memcpy(GetParameterData_Internal(ParamStart), GetParameterData(0), ParamStart);
+	}
+}
+
+uint32 FNiagaraScriptInstanceParameterStore::GetExternalParameterSize() const
+{
+	if (const auto* ScriptStore = ScriptParameterStore.Get())
+	{
+		return ScriptStore->ParameterSize;
+	}
+	return 0;
+}
+
+uint32 FNiagaraScriptInstanceParameterStore::GetPaddedParameterSizeInBytes() const
+{
+	if (const auto* ScriptStore = ScriptParameterStore.Get())
+	{
+		return ScriptStore->PaddedParameterSize;
+	}
+	return 0;
+}
+
+void FNiagaraScriptInstanceParameterStore::CopyParameterDataToPaddedBuffer(uint8* InTargetBuffer, uint32 InTargetBufferSizeInBytes) const
+{
+	if (const auto* ScriptStore = ScriptParameterStore.Get())
+	{
+		check((uint32)ScriptStore->ParameterSize <= ScriptStore->PaddedParameterSize);
+		check(InTargetBufferSizeInBytes >= ScriptStore->PaddedParameterSize);
+		FMemory::Memzero(InTargetBuffer, InTargetBufferSizeInBytes);
+		const auto& ParameterDataArray = GetParameterDataArray();
+		const uint8* SrcData = ParameterDataArray.GetData();
+		for (const auto& Padding : ScriptStore->PaddingInfo)
+		{
+			check(uint32(Padding.DestOffset + Padding.DestSize) <= InTargetBufferSizeInBytes);
+			check(uint32(Padding.SrcOffset + Padding.SrcSize) <= (uint32)ParameterDataArray.Num());
+			FMemory::Memcpy(InTargetBuffer + Padding.DestOffset, SrcData + Padding.SrcOffset, Padding.SrcSize);
+		}
+	}
+}
+
+void FNiagaraScriptInstanceParameterStore::InternalStorageChanged()
+{
+	if (const auto* ScriptStore = ScriptParameterStore.Get())
+	{
+		ParameterVariables = ScriptStore->ParameterVariables;
+	}
+	else
+	{
+		ParameterVariables = TArrayView<FNiagaraVariableWithOffset>();
 	}
 }

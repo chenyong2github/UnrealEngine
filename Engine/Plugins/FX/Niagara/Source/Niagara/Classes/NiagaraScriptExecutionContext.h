@@ -156,7 +156,7 @@ struct FNiagaraScriptExecutionContext
 	TArray<void*> DataInterfaceInstDataTable;
 
 	/** Parameter store. Contains all data interfaces and a parameter buffer that can be used directly by the VM or GPU. */
-	FNiagaraScriptExecutionParameterStore Parameters;
+	FNiagaraScriptInstanceParameterStore Parameters;
 
 	TArray<FDataSetMeta, TInlineAllocator<4>> DataSetMetaTable;
 
@@ -255,7 +255,7 @@ public:
 
 	//Dynamic state updated either from GT via RT commands or from the RT side sim code itself.
 	//TArray<uint8, TAlignedHeapAllocator<16>> ParamData_RT;		// RT side copy of the parameter data
-	FNiagaraScriptExecutionParameterStore CombinedParamStore;
+	FNiagaraScriptInstanceParameterStore CombinedParamStore;
 #if DO_CHECK
 	TArray< FString >  DIClassNames;
 #endif

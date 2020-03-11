@@ -830,3 +830,60 @@ enum class ENiagaraLegacyTrailWidthMode : uint32
 	FromFirst,
 	FromSecond,
 };
+
+
+//////////////////////////////////////////////////////////////////////////
+/// FNiagaraCompiledDataReference
+//////////////////////////////////////////////////////////////////////////
+
+// Simple struct intended to hide the details of passing a reference to compiled data.  In
+// particular for editor builds it will actually make a copy of the data to help try to avoid the many
+// edge cases of recompiling/editing, while regular builds can reap the wins of just referencing the data
+// and saving memory.
+template<typename T>
+struct FNiagaraCompiledDataReference
+{
+public:
+	void Init(const T* SourceValue)
+	{
+#if WITH_EDITOR
+		OptionalStructValue = *SourceValue;
+#else
+		StructPtr = SourceValue;
+#endif
+	}
+
+	const T* operator->() const
+	{
+		return Get();
+	}
+
+	const T* Get() const
+	{
+#if WITH_EDITOR
+		if (OptionalStructValue.IsSet())
+		{
+			return &OptionalStructValue.GetValue();
+		}
+		return nullptr;
+#else
+		return StructPtr;
+#endif
+	}
+
+	void Reset()
+	{
+#if WITH_EDITOR
+		OptionalStructValue.Reset();
+#else
+		StructPtr = nullptr;
+#endif
+	}
+
+private:
+#if WITH_EDITOR
+	TOptional<T> OptionalStructValue;
+#else
+	const T* StructPtr = nullptr;
+#endif
+};
