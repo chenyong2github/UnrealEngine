@@ -10,6 +10,13 @@ enum class ESQLiteDatabaseOpenMode : uint8;
 class FAssetSearchDatabaseStatements;
 struct FAssetData;
 
+struct FAssetFileInfo
+{
+	FName PackageName;
+	FDateTime LastModified;
+	FMD5Hash Hash;
+};
+
 class FAssetSearchDatabase
 {
 public:
@@ -63,6 +70,16 @@ public:
 	 * Get the last error reported by this database.
 	 */
 	FString GetLastError() const;
+
+	/**
+	 * Update the file hash table.
+	 */
+	bool AddOrUpdateFileInfo(const FAssetData& InAssetData, FAssetFileInfo& OutFileInfo);
+	void AddOrUpdateFileInfos(const TArray<FAssetData>& InAssets);
+
+	void UpdateFileHash(const FAssetData& InAssetData, FAssetFileInfo& OutFileInfo);
+
+	TMap<FName, FAssetFileInfo> GetAllFileInfos();
 
 	/**
 	 * Is the asset cache up to date for this asset?
