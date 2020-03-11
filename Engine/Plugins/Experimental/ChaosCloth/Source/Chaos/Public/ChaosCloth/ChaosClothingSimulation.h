@@ -129,6 +129,7 @@ namespace Chaos
 		// These simulation parameters can be changed through blueprints
 		// They will only be updated when the simulation is not running (so are safe to use on any cloth thread)
 		TArray<float> AnimDriveSpringStiffness; // One for every Asset
+		TArray<float> MaxDistancesMultipliers;
 
 		// Collision Data
 		FClothCollisionData ExternalCollisions;  // External collisions

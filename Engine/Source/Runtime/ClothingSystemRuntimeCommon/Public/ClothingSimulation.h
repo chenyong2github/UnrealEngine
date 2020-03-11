@@ -27,6 +27,7 @@ protected:
 	virtual void FillWindVelocity(const USkeletalMeshComponent* InComponent);
 	virtual void FillDeltaSeconds(float InDeltaSeconds, float InMaxPhysicsDelta);
 	virtual void FillTeleportMode(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta);
+	virtual void FillMaxDistanceScale(const USkeletalMeshComponent* Component);
 
 	// Set the wind velocity and return the wind adaptation if required
 	float SetWindFromComponent(const USkeletalMeshComponent* Component);
@@ -52,6 +53,9 @@ public:
 
 	// Whether and how we should teleport the simulation this tick
 	EClothingTeleportMode TeleportMode;
+
+	// Scale for the max distance constraints of the simulation mesh
+	float MaxDistanceScale;
 };
 
 // Base simulation to fill in common data for the base context
