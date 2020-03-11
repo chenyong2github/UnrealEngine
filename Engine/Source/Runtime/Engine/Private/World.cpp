@@ -4195,7 +4195,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 	{
 		return;
 	}
-	bool bWorldChanged = NewWorld != this;
+	bool bWorldChanged = NewWorld != this && NewWorld != nullptr;
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("XYXYXY XYXYXY Clearnupworld %p -> %p\n"), this, NewWorld);
 	CleanupWorldTag = CleanupWorldGlobalTag;
 
