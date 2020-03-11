@@ -13,6 +13,7 @@
 #include "SEditorViewport.h"
 #include "EditorViewportCommands.h"
 #include "SEditorViewportToolBarMenu.h"
+#include "SEditorViewportToolBarButton.h"
 #include "SEditorViewportViewMenu.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "Scalability.h"
@@ -97,6 +98,30 @@ void SCommonEditorViewportToolbarBase::Construct(const FArguments& InArgs, TShar
 			.ParentToolBar(SharedThis(this))
 			.OnGetMenuContent(this, &SCommonEditorViewportToolbarBase::GenerateShowMenu)
 		];
+
+	// Realtime button
+	if (InArgs._AddRealtimeButton)
+	{
+		MainBoxPtr->AddSlot()
+			.AutoWidth()
+			.Padding(ToolbarSlotPadding)
+			[
+				SNew(SEditorViewportToolBarButton)
+				.Cursor(EMouseCursor::Default)
+				.ButtonType(EUserInterfaceActionType::Button)
+				.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.MenuButtonWarning"))
+				.OnClicked(this, &SCommonEditorViewportToolbarBase::OnRealtimeWarningClicked)
+				.Visibility(this, &SCommonEditorViewportToolbarBase::GetRealtimeWarningVisibility)
+				.ToolTipText(LOCTEXT("RealtimeOff_ToolTip", "This viewport is not updating in realtime.  Click to turn on realtime mode."))
+				.Content()
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::GetFontStyle("EditorViewportToolBar.Font"))
+					.Text(LOCTEXT("RealtimeOff", "Realtime: Off"))
+					.ColorAndOpacity(FLinearColor::Black)
+				]
+			];
+	}
 
 	MainBoxPtr->AddSlot()
 		.AutoWidth()
@@ -442,6 +467,21 @@ float SCommonEditorViewportToolbarBase::OnGetFarViewPlaneValue() const
 void SCommonEditorViewportToolbarBase::OnFarViewPlaneValueChanged(float NewValue)
 {
 	GetViewportClient().OverrideFarClipPlane(NewValue);
+}
+
+FReply SCommonEditorViewportToolbarBase::OnRealtimeWarningClicked()
+{
+	FEditorViewportClient& ViewportClient = GetViewportClient();
+	ViewportClient.SetRealtime(true);
+
+	return FReply::Handled();
+}
+
+EVisibility SCommonEditorViewportToolbarBase::GetRealtimeWarningVisibility() const
+{
+	FEditorViewportClient& ViewportClient = GetViewportClient();
+	// If the viewport is not realtime and there is no override then realtime is off
+	return !ViewportClient.IsRealtime() && !ViewportClient.IsRealtimeOverrideSet() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 TSharedPtr<FExtender> SCommonEditorViewportToolbarBase::GetCombinedExtenderList(TSharedRef<FExtender> MenuExtender) const
