@@ -1844,7 +1844,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 	// GeometryGroup
 	const TManagedArray<FBox>& BoundingBox = RestCollection.BoundingBox;
-	const TManagedArray<float>& InnerRadius = RestCollection.InnerRadius;
+	TManagedArray<float>& InnerRadius = RestCollection.InnerRadius;
+	TManagedArray<float>& OuterRadius = RestCollection.OuterRadius;
 	const TManagedArray<int32>& VertexCount = RestCollection.VertexCount;
 	const TManagedArray<int32>& VertexStart = RestCollection.VertexStart;
 	const TManagedArray<int32>& FaceCount = RestCollection.FaceCount;
@@ -1962,6 +1963,32 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			}
 #endif
 
+			if (InnerRadius[GeometryIndex] == 0.0f || OuterRadius[GeometryIndex] == 0.0f)
+			{
+				//const FVector Center = MassProperties.CenterOfMass;
+				const FVector Center = BoundingBox[GeometryIndex].GetCenter();
+				const int32 VStart = VertexStart[GeometryIndex];
+				const int32 VCount = VertexCount[GeometryIndex];
+				InnerRadius[GeometryIndex] = VCount ? TNumericLimits<float>::Max() : 0.0f;
+				OuterRadius[GeometryIndex] = 0.0f;
+				for (int32 VIdx = 0; VIdx < VCount; ++VIdx)
+				{
+					const int32 PtIdx = VStart + VIdx;
+					const FVector& Pt = Vertex[PtIdx];
+					const float DistSq = FVector::DistSquared(Pt, Center);
+					if (InnerRadius[GeometryIndex] > DistSq)
+					{
+						InnerRadius[GeometryIndex] = DistSq;
+					}
+					if (OuterRadius[GeometryIndex] < DistSq)
+					{
+						OuterRadius[GeometryIndex] = DistSq;
+					}
+				}
+				InnerRadius[GeometryIndex] = FMath::Sqrt(InnerRadius[GeometryIndex]);
+				OuterRadius[GeometryIndex] = FMath::Sqrt(OuterRadius[GeometryIndex]);
+			}
+
 			TotalVolume += MassProperties.Volume;
 			TriangleMeshesArray[TransformGroupIndex] = MoveTemp(TriMesh);
 		}
@@ -1977,7 +2004,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	const float DesiredDensity = ClampedTotalMass / TotalVolume;
 	TVector<float, 3> MaxChildBounds(1);
 
-	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometries; GeometryIndex++)
+	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
+	//for (int32 GeometryIndex = 0; GeometryIndex < NumGeometries; GeometryIndex++)
 	{
 		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
 		if (CollectionSimulatableParticles[TransformGroupIndex])
@@ -2069,6 +2097,15 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 						SizeSpecificData.MaxLevelSetResolution,
 						SizeSpecificData.CollisionObjectReductionPercentage,
 						SizeSpecificData.CollisionType));
+				// Fall back on sphere if level set rasterization failed.
+				if (!CollectionImplicits[TransformGroupIndex])
+				{
+					CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+						FCollisionStructureManager::NewImplicitSphere(
+							InnerRadius[GeometryIndex],
+							SizeSpecificData.CollisionObjectReductionPercentage,
+							SizeSpecificData.CollisionType));
+				}
 			}
 			else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
 			{
@@ -2095,14 +2132,14 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				ensure(false); // unsupported implicit type!
 			}
 
-			if (CollectionImplicits[TransformGroupIndex])
+			if (CollectionImplicits[TransformGroupIndex] && CollectionImplicits[TransformGroupIndex]->HasBoundingBox())
 			{
-				const TVector<float, 3> Extents = 
-					CollectionImplicits[TransformGroupIndex]->BoundingBox().Extents(); // Chaos::TAABB::Extents() is Max - Min
+				const auto BBox = CollectionImplicits[TransformGroupIndex]->BoundingBox();
+				const TVector<float, 3> Extents = BBox.Extents(); // Chaos::TAABB::Extents() is Max - Min
 				MaxChildBounds = MaxChildBounds.ComponentwiseMax(Extents);
 			}
 		}
-	}
+	});
 
 	// question: at the moment we always build cluster data in the asset. This 
 	// allows for per instance toggling. Is this needed? It increases memory 
