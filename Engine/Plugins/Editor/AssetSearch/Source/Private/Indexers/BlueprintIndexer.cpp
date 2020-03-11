@@ -8,6 +8,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Utility/IndexerUtilities.h"
 #include "K2Node_BaseMCDelegate.h"
+#include "Internationalization/Text.h"
 
 #define LOCTEXT_NAMESPACE "FBlueprintIndexer"
 
@@ -15,8 +16,9 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 enum class EBlueprintIndexerVersion
 {
-	Empty = 0,
-	Initial = 1,
+	Empty,
+	Initial,
+	FixingPinsToSaveValues,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
@@ -79,13 +81,20 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 			{
 				for (UEdGraphPin* Pin : Node->GetAllPins())
 				{
-					FText PinText = Pin->GetDisplayName();
+					const FText PinText = Pin->GetDisplayName();
 					if (PinText.IsEmpty())
 					{
 						continue;
 					}
 
-					Serializer.IndexProperty(TEXT("Pin"), PinText);
+					const FString PinValue = Pin->DefaultValue;
+					if (PinValue.IsEmpty())
+					{
+						continue;
+					}
+
+					const FString PinLabel = TEXT("[Pin] ") + *FTextInspector::GetSourceString(PinText);
+					Serializer.IndexProperty(PinLabel, PinValue);
 				}
 			}
 
