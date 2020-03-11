@@ -1031,6 +1031,10 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	{
 		CollisionComp->RegisterComponent();
 	}
+
+	// Kick off asynchronous rendering task for physical materials
+	// This task will be updated in UpdatePhysicalMaterialTasks()
+	PhysicalMaterialTask.Init(this);
 }
 
 void ULandscapeComponent::DestroyCollisionData()
@@ -1434,6 +1438,10 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 			CollisionComp->DominantLayerData.Unlock();
 		}
 
+		// Kick off asynchronous rendering task for physical materials
+		// This task will be updated in UpdatePhysicalMaterialTasks()
+		PhysicalMaterialTask.Init(this);
+
 		// We do not force an update of the physics data here. We don't need the layer information in the editor and it
 		// causes problems if we update it multiple times in a single frame.
 	}
@@ -1473,8 +1481,67 @@ void ULandscapeComponent::UpdateCollisionLayerData()
 	UpdateCollisionLayerData(WeightmapTextureMipDataParam.GetData(), SimpleCollisionWeightmapMipDataParam.GetData());
 }
 
+void ULandscapeComponent::UpdatePhysicalMaterialTasks()
+{
+	if (PhysicalMaterialTask.IsValid())
+	{
+		if (PhysicalMaterialTask.IsComplete())
+		{
+			UpdateCollisionPhysicalMaterialData(PhysicalMaterialTask.GetResultMaterials(), PhysicalMaterialTask.GetResultIds());
 
+			PhysicalMaterialTask.Release();
 
+			// We do not force an update of the physics data here. We don't need the information in the editor.
+		}
+		else
+		{
+			PhysicalMaterialTask.Tick();
+		}
+	}
+}
+
+void ULandscapeComponent::UpdateCollisionPhysicalMaterialData(TArray<UPhysicalMaterial*> const& InPhysicalMaterials, TArray<uint8> const& InMaterialIds)
+{
+	// Copy the physical material array
+	CollisionComponent->PhysicalMaterialRenderObjects = InPhysicalMaterials;
+
+	// Copy the physical material IDs for both the full and (optional) simple collision.
+	const int32 SizeVerts = SubsectionSizeQuads * NumSubsections + 1;
+	check(InMaterialIds.Num() == SizeVerts * SizeVerts);
+	const int32 FullCollisionSizeVerts = CollisionComponent->CollisionSizeQuads + 1;
+	const int32 SimpleCollisionSizeVerts = CollisionComponent->SimpleCollisionSizeQuads > 0 ? CollisionComponent->SimpleCollisionSizeQuads + 1 : 0;
+	const int32 BulkDataSize = FullCollisionSizeVerts * FullCollisionSizeVerts + SimpleCollisionSizeVerts * SimpleCollisionSizeVerts;
+
+	void* Data = CollisionComponent->PhysicalMaterialRenderData.Lock(LOCK_READ_WRITE);
+	Data = CollisionComponent->PhysicalMaterialRenderData.Realloc(BulkDataSize);
+	uint8* WritePtr = (uint8*)Data;
+
+	const int32 CollisionSizes[2] = { FullCollisionSizeVerts, SimpleCollisionSizeVerts };
+	for (int32 i = 0; i < 2; ++i)
+	{
+		const int32 CollisionSizeVerts = CollisionSizes[i];
+		if (CollisionSizeVerts == SizeVerts)
+		{
+			FMemory::Memcpy(WritePtr, InMaterialIds.GetData(), SizeVerts * SizeVerts);
+			WritePtr += SizeVerts * SizeVerts;
+		}
+		else if (CollisionSizeVerts > 0)
+		{
+			const int32 StepSize = SizeVerts / CollisionSizeVerts;
+			check(CollisionSizeVerts * StepSize == SizeVerts);
+			for (int32 y = 0; y < SizeVerts; y += StepSize)
+			{
+				for (int32 x = 0; x < SizeVerts; x += StepSize)
+				{
+					*WritePtr++ = InMaterialIds[y * SizeVerts + x];
+				}
+			}
+		}
+	}
+
+	check(WritePtr - (uint8*)Data == BulkDataSize);
+	CollisionComponent->PhysicalMaterialRenderData.Unlock();
+}
 
 void ULandscapeComponent::GenerateHeightmapMips(TArray<FColor*>& HeightmapTextureMipData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, FLandscapeTextureDataInfo* TextureDataInfo/*=nullptr*/)
 {
