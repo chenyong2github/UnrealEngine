@@ -2155,7 +2155,13 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 							if (FNiagaraParameterMapHistory::IsAttribute(Var))
 							{
 								FString RegisterName = VarName;
-								RegisterName.ReplaceInline(PARAM_MAP_ATTRIBUTE_STR, PARAM_MAP_INDICES_STR);
+								const FString AttribStr = PARAM_MAP_ATTRIBUTE_STR;
+								int32 ParticlesIdx = RegisterName.Find(AttribStr);
+								if (ParticlesIdx != -1 && (ParticlesIdx == 0 || (ParticlesIdx > 0 && RegisterName[ParticlesIdx - 1] == '.')))
+								{
+									RegisterName.RemoveAt(ParticlesIdx, AttribStr.Len());
+									RegisterName.InsertAt(ParticlesIdx, PARAM_MAP_INDICES_STR);
+								}
 								const int32 RegisterValue = Var.GetType().IsFloatPrimitive() ? FloatCounter : IntCounter;
 								HlslOutput += RegisterName + FString::Printf(TEXT(" = %d;\n"), RegisterValue);
 							}
