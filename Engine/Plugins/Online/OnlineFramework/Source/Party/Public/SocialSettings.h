@@ -25,6 +25,7 @@ public:
 	static bool ShouldPreferPlatformInvites();
 	static bool MustSendPrimaryInvites();
 	static bool ShouldLeavePartyOnDisconnect();
+	static bool ShouldSetDesiredPrivacyOnLocalPlayerBecomesLeader();
 	static float GetUserListAutoUpdateRate();
 	static int32 GetMinNicknameLength();
 	static int32 GetMaxNicknameLength();
@@ -52,6 +53,9 @@ private:
 	/** Should we leave a party when it enters the disconnected state? */
 	UPROPERTY(config)
 	bool bLeavePartyOnDisconnect = true;
+
+	UPROPERTY(config)
+	bool bSetDesiredPrivacyOnLocalPlayerBecomesLeader = true;
 
 	UPROPERTY(config)
 	float UserListAutoUpdateRate = 0.5f;

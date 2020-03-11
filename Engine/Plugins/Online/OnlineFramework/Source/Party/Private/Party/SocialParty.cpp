@@ -520,14 +520,60 @@ FPartyPrivacySettings USocialParty::GetDesiredPrivacySettings() const
 	return FPartyPrivacySettings();
 }
 
+FPartyPrivacySettings USocialParty::GetPrivacySettingsForConfig(const FPartyConfiguration& PartyConfig)
+{
+	FPartyPrivacySettings PrivacySettings;
+
+	// Logic here is a mirror of HandlePrivacySettingsChanged, must update the 2 in tandem
+
+	switch (PartyConfig.PresencePermissions)
+	{
+	case PartySystemPermissions::EPermissionType::Noone:
+		PrivacySettings.PartyType = EPartyType::Private;
+		break;
+	case PartySystemPermissions::EPermissionType::Leader:
+	case PartySystemPermissions::EPermissionType::Friends:
+		PrivacySettings.bOnlyLeaderFriendsCanJoin = true;
+		PrivacySettings.PartyType = EPartyType::Public;
+		break;
+	case PartySystemPermissions::EPermissionType::Anyone:
+		PrivacySettings.bOnlyLeaderFriendsCanJoin = false;
+		PrivacySettings.PartyType = EPartyType::Public;
+		break;
+	}
+
+	switch (PartyConfig.InvitePermissions)
+	{
+	case PartySystemPermissions::EPermissionType::Anyone:
+		PrivacySettings.PartyInviteRestriction = EPartyInviteRestriction::AnyMember;
+		break;
+	case PartySystemPermissions::EPermissionType::Leader:
+	case PartySystemPermissions::EPermissionType::Friends:
+		PrivacySettings.PartyInviteRestriction = EPartyInviteRestriction::LeaderOnly;
+		break;
+	case PartySystemPermissions::EPermissionType::Noone:
+		PrivacySettings.PartyInviteRestriction = EPartyInviteRestriction::NoInvites;
+		break;
+	}
+
+	return PrivacySettings;
+}
+
 void USocialParty::OnLocalPlayerIsLeaderChanged(bool bIsLeader)
 {
 	if (bIsLeader)
 	{
 		GetRepData().OnPrivacySettingsChanged().AddUObject(this, &USocialParty::HandlePrivacySettingsChanged);
 
-		// Establish the privacy of the party to match the local player's preference
-		GetMutableRepData().SetPrivacySettings(GetDesiredPrivacySettings());
+		if (USocialSettings::ShouldSetDesiredPrivacyOnLocalPlayerBecomesLeader())
+		{
+			// Establish the privacy of the party to match the local player's preference
+			GetMutableRepData().SetPrivacySettings(GetDesiredPrivacySettings());
+		}
+		else
+		{
+			GetMutableRepData().SetPrivacySettings(GetPrivacySettingsForConfig(GetCurrentConfiguration()));
+		}
 
 		// It's possible that membership changes resulting in this promotion also require updates to the session info
 		//	If we found out about the changes in membership before learning we're the leader, we were unable to update the rep data accordingly
@@ -949,6 +995,8 @@ void USocialParty::HandleRemoveLocalPlayerComplete(const FUniqueNetId& LocalUser
 void USocialParty::HandlePrivacySettingsChanged(const FPartyPrivacySettings& NewPrivacySettings)
 {
 	check(IsLocalPlayerPartyLeader());
+
+	// Logic here is a mirror of GetPrivacySettingsForConfig, must update the 2 in tandem
 
 	const bool bIsPrivate = NewPrivacySettings.PartyType == EPartyType::Private;
 
