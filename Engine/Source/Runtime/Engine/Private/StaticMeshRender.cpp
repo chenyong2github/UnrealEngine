@@ -42,12 +42,17 @@
 
 #include "UnrealEngine.h"
 #include "RayTracingInstance.h"
+#include "PrimitiveSceneInfo.h"
 
 /** If true, optimized depth-only index buffers are used for shadow rendering. */
 static bool GUseShadowIndexBuffer = true;
 
 /** If true, reversed index buffer are used for mesh with negative transform determinants. */
 static bool GUseReversedIndexBuffer = true;
+
+DECLARE_STATS_GROUP(TEXT("D3D12RHI: Ray Tracing"), STATGROUP_D3D12RayTracing, STATCAT_Advanced);
+DECLARE_MEMORY_STAT(TEXT("Total Used Video Memory"), STAT_D3D12RayTracingUsedVideoMemory, STATGROUP_D3D12RayTracing);
+DECLARE_MEMORY_STAT(TEXT("Dynamic Vertex Buffer Memory"), STAT_D3D12RayTracingDynamicVertexBufferMemory, STATGROUP_D3D12RayTracing);
 
 static void ToggleShadowIndexBuffers()
 {
@@ -198,6 +203,12 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	bDynamicRayTracingGeometry = InComponent->bEvaluateWorldPositionOffset && MaterialRelevance.bUsesWorldPositionOffset;
 	if (IsRayTracingEnabled())
 	{
+		RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+		{
+			RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
+		}
+
 		if(bDynamicRayTracingGeometry)
 		{
 			DynamicRayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
@@ -211,14 +222,6 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 				}
 				Initializer.bAllowUpdate = true;
 				Initializer.bFastBuild = true;
-			}
-		} 
-		else
-		{
-			RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
-			for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
-			{
-				RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
 			}
 		}
 	}
@@ -304,11 +307,85 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	AddSpeedTreeWind();
 }
 
+void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue)
+{
+#if RHI_RAYTRACING
+	NewValue &= MaterialRelevance.bUsesWorldPositionOffset;
+	if (NewValue && !bDynamicRayTracingGeometry)
+	{
+		bDynamicRayTracingGeometry = true;
+		if (IsRayTracingEnabled())
+		{
+			DynamicRayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+
+			for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+			{
+				auto& Initializer = DynamicRayTracingGeometries[LODIndex].Initializer;
+				Initializer = RenderData->LODResources[LODIndex].RayTracingGeometry.Initializer;
+				for (FRayTracingGeometrySegment& Segment : Initializer.Segments)
+				{
+					Segment.VertexBuffer = nullptr;
+				}
+				Initializer.bAllowUpdate = true;
+				Initializer.bFastBuild = true;
+			}
+
+			DynamicRayTracingGeometryVertexBuffers.AddDefaulted(DynamicRayTracingGeometries.Num());
+
+			for (int32 i = 0; i < DynamicRayTracingGeometries.Num(); i++)
+			{
+				auto& Geometry = DynamicRayTracingGeometries[i];
+				DynamicRayTracingGeometryVertexBuffers[i].Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
+
+				INC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, DynamicRayTracingGeometryVertexBuffers[i].NumBytes);
+				INC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, DynamicRayTracingGeometryVertexBuffers[i].NumBytes);
+
+				Geometry.InitResource();
+			}
+
+			if (GetPrimitiveSceneInfo())
+			{
+				GetPrimitiveSceneInfo()->bIsRayTracingStaticRelevant = IsRayTracingStaticRelevant();
+			}
+		}
+	}
+	else if (!NewValue && bDynamicRayTracingGeometry)
+	{
+		bDynamicRayTracingGeometry = false;
+		if (IsRayTracingEnabled())
+		{
+			for (auto& Geometry : DynamicRayTracingGeometries)
+			{
+				Geometry.ReleaseResource();
+			}
+
+			DynamicRayTracingGeometries.Empty();
+
+			for (auto& Buffer : DynamicRayTracingGeometryVertexBuffers)
+			{
+				DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, Buffer.NumBytes);
+				DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, Buffer.NumBytes);
+				Buffer.Release();
+			}
+
+			DynamicRayTracingGeometryVertexBuffers.Empty();
+
+			if (GetPrimitiveSceneInfo())
+			{
+				GetPrimitiveSceneInfo()->bIsRayTracingStaticRelevant = IsRayTracingStaticRelevant();
+			}
+		}
+	}
+#endif
+}
+
 FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 {
 #if RHI_RAYTRACING
 	for (auto& Buffer: DynamicRayTracingGeometryVertexBuffers)
 	{
+		DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, Buffer.NumBytes);
+		DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, Buffer.NumBytes);
 		Buffer.Release();
 	}
 
@@ -565,6 +642,8 @@ void FStaticMeshSceneProxy::CreateRenderThreadResources()
 			auto& Geometry = DynamicRayTracingGeometries[i];
 			DynamicRayTracingGeometryVertexBuffers[i]
 				.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FStaticMeshSceneProxy::RayTracingDynamicVertexBuffer"));
+			INC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, DynamicRayTracingGeometryVertexBuffers[i].NumBytes);
+			INC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, DynamicRayTracingGeometryVertexBuffers[i].NumBytes);
 			Geometry.InitResource();
 		}
 	}

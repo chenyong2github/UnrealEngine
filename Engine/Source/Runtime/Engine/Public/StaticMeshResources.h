@@ -824,6 +824,8 @@ public:
 		const FMaterialRenderProxy* RenderProxy,
 		FMeshBatch& OutMeshBatch) const;
 
+	virtual void SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue);
+
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const final override
 	{
 		return GetCurrentFirstLODIdx_Internal();
