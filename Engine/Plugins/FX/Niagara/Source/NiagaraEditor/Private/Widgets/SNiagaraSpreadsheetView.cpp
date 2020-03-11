@@ -95,23 +95,48 @@ TSharedRef< SWidget > SNiagaraSpreadsheetRow::GenerateWidgetForColumn(const FNam
 		
 		if (FieldInfo->bFloat)
 		{
-			float* Src = nullptr;
-			if (UseGlobalOffsets && ParameterStore->GetParameterDataArray().GetData() != nullptr)
-			{
-				const uint32 CompBufferOffset = FieldInfo->GlobalStartOffset;
-				const uint8* SrcU8 = ParameterStore->GetParameterDataArray().GetData();
-				Src = SrcU8 ? (float*)(SrcU8 + CompBufferOffset) : nullptr;
-			}
-			else if (DataSet != nullptr && DataSet->GetCurrentDataChecked().GetNumInstances() > 0)
-			{
-				uint32 CompBufferOffset = FieldInfo->FloatStartOffset;
-				Src = DataSet->GetCurrentData()->GetInstancePtrFloat(CompBufferOffset, RealRowIdx);
-			}
-
+			
 			float Value = 0.0f;
-			if (Src != nullptr)
+
+			if (FieldInfo->bHalf)
 			{
-				Value = Src[0];
+				FFloat16* Src = nullptr;
+				if (UseGlobalOffsets && ParameterStore->GetParameterDataArray().GetData() != nullptr)
+				{
+					const uint32 CompBufferOffset = FieldInfo->GlobalStartOffset;
+					const uint8* SrcU8 = ParameterStore->GetParameterDataArray().GetData();
+					Src = SrcU8 ? (FFloat16*)(SrcU8 + CompBufferOffset) : nullptr;
+				}
+				else if (DataSet != nullptr && DataSet->GetCurrentDataChecked().GetNumInstances() > 0)
+				{
+					uint32 CompBufferOffset = FieldInfo->FloatStartOffset;
+					Src = DataSet->GetCurrentData()->GetInstancePtrHalf(CompBufferOffset, RealRowIdx);
+				}
+
+				if (Src != nullptr)
+				{
+					Value = Src[0];
+				}
+			}
+			else
+			{
+				float* Src = nullptr;
+				if (UseGlobalOffsets && ParameterStore->GetParameterDataArray().GetData() != nullptr)
+				{
+					const uint32 CompBufferOffset = FieldInfo->GlobalStartOffset;
+					const uint8* SrcU8 = ParameterStore->GetParameterDataArray().GetData();
+					Src = SrcU8 ? (float*)(SrcU8 + CompBufferOffset) : nullptr;
+				}
+				else if (DataSet != nullptr && DataSet->GetCurrentDataChecked().GetNumInstances() > 0)
+				{
+					uint32 CompBufferOffset = FieldInfo->FloatStartOffset;
+					Src = DataSet->GetCurrentData()->GetInstancePtrFloat(CompBufferOffset, RealRowIdx);
+				}
+	
+				if (Src != nullptr)
+				{
+					Value = Src[0];
+				}
 			}
 
 			EntryWidget = SNew(STextBlock)
@@ -964,9 +989,18 @@ FReply SNiagaraSpreadsheetView::OnCSVOutputPressed()
 				{
 					if (FieldInfo->bFloat)
 					{
-						uint32 CompBufferOffset = FieldInfo->FloatStartOffset;
-						float* Src = CaptureData[(int32)TabState].DataSet.GetCurrentDataChecked().GetInstancePtrFloat(CompBufferOffset, RowIndex);
-						CSVOutput += FString::Printf(TEXT("%3.9f"), Src[0]);
+						if (FieldInfo->bHalf)
+						{
+							uint32 CompBufferOffset = FieldInfo->FloatStartOffset;
+							FFloat16* Src = CaptureData[(int32)TabState].DataSet.GetCurrentDataChecked().GetInstancePtrHalf(CompBufferOffset, RowIndex);
+							CSVOutput += FString::Printf(TEXT("%3.9f"), float(Src[0]));
+						}
+						else
+						{
+							uint32 CompBufferOffset = FieldInfo->FloatStartOffset;
+							float* Src = CaptureData[(int32)TabState].DataSet.GetCurrentDataChecked().GetInstancePtrFloat(CompBufferOffset, RowIndex);
+							CSVOutput += FString::Printf(TEXT("%3.9f"), Src[0]);
+						}
 					}
 					else
 					{
@@ -1143,13 +1177,15 @@ void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout,
 		{
 			SNiagaraSpreadsheetView::FieldInfo Info;
 			Info.bFloat = true;
+			Info.bHalf = false;
+			Info.bBoolean = false;
 			Info.FloatStartOffset = Layout.FloatComponentRegisterOffsets.Num();
 			Info.IntStartOffset = UINT_MAX;
 			Info.GlobalStartOffset = sizeof(float) * Layout.FloatComponentRegisterOffsets.Num() + sizeof(int32) * Layout.Int32ComponentByteOffsets.Num();
 			Info.Enum = nullptr;
 			FieldInfo.Add(Info);
 				
-			Layout.FloatComponentRegisterOffsets.Add(Layout.GetNumComponents());
+			Layout.FloatComponentRegisterOffsets.Add(Layout.FloatComponentByteOffsets.Num());
 			Layout.FloatComponentByteOffsets.Add(Property->GetOffset_ForInternal());
 			PropertyNames.Add(PropertyName);
 		}
@@ -1157,6 +1193,7 @@ void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout,
 		{
 			SNiagaraSpreadsheetView::FieldInfo Info;
 			Info.bFloat = false;
+			Info.bHalf = false;
 			Info.bBoolean = Property->IsA(FBoolProperty::StaticClass());
 			Info.FloatStartOffset = UINT_MAX;
 			Info.IntStartOffset = Layout.Int32ComponentRegisterOffsets.Num();
@@ -1164,8 +1201,24 @@ void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout,
 			Info.Enum = Enum;
 			FieldInfo.Add(Info);
 
-			Layout.Int32ComponentRegisterOffsets.Add(Layout.GetNumComponents());
+			Layout.Int32ComponentRegisterOffsets.Add(Layout.Int32ComponentByteOffsets.Num());
 			Layout.Int32ComponentByteOffsets.Add(Property->GetOffset_ForInternal());
+			PropertyNames.Add(PropertyName);
+		}
+		else if (Property->IsA(FUInt16Property::StaticClass()))
+		{
+			SNiagaraSpreadsheetView::FieldInfo Info;
+			Info.bHalf = true;
+			Info.bFloat = true;
+			Info.bBoolean = false;
+			Info.FloatStartOffset = Layout.HalfComponentRegisterOffsets.Num();
+			Info.IntStartOffset = UINT_MAX;
+			Info.GlobalStartOffset = sizeof(float) * Layout.FloatComponentRegisterOffsets.Num() + sizeof(int32) * Layout.Int32ComponentRegisterOffsets.Num() + sizeof(FFloat16) * Layout.HalfComponentByteOffsets.Num();
+			Info.Enum = Enum;
+			FieldInfo.Add(Info);
+
+			Layout.HalfComponentRegisterOffsets.Add(Layout.HalfComponentByteOffsets.Num());
+			Layout.HalfComponentByteOffsets.Add(Property->GetOffset_ForInternal());
 			PropertyNames.Add(PropertyName);
 		}
 		else if (Property->IsA(FEnumProperty::StaticClass()))
@@ -1202,6 +1255,7 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 			CaptureData[(int32)i].OutputFieldInfoMap = MakeShared<TMap<FName, FieldInfo> >();
 			uint32 TotalFloatComponents = 0;
 			uint32 TotalInt32Components = 0;
+			uint32 TotalHalfComponents = 0;
 
 			TArray<FNiagaraVariable> Variables = CaptureData[(int32)i].DataSet.GetVariables();
 
@@ -1231,6 +1285,7 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 
 				uint32 TotalFloatComponentsBeforeStruct = TotalFloatComponents;
 				uint32 TotalInt32ComponentsBeforeStruct = TotalInt32Components;
+				uint32 TotalHalfComponentsBeforeStruct = TotalHalfComponents;
 
 				GenerateLayoutInfo(Layout, Struct, Enum, Var.GetName(), PropertyNames, FieldInfos);
 
@@ -1239,8 +1294,16 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 					const FName PropertyName = PropertyNames[VarIdx];
 					if (FieldInfos[VarIdx].bFloat)
 					{
-						FieldInfos[VarIdx].FloatStartOffset += TotalFloatComponentsBeforeStruct;
-						TotalFloatComponents++;
+						if (FieldInfos[VarIdx].bHalf)
+						{
+							FieldInfos[VarIdx].FloatStartOffset += TotalFloatComponentsBeforeStruct;
+							TotalFloatComponents++;
+						}
+						else
+						{
+							FieldInfos[VarIdx].FloatStartOffset += TotalHalfComponentsBeforeStruct;
+							TotalHalfComponents++;
+						}
 					}
 					else
 					{

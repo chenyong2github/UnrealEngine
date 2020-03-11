@@ -41,8 +41,8 @@ struct FNiagaraGPUSortInfo
 	FShaderResourceViewRHIRef GPUParticleCountSRV;
 	uint32 GPUParticleCountOffset = INDEX_NONE;
 	// View data.
-	FVector ViewOrigin;
-	FVector ViewDirection;
+	FVector ViewOrigin = FVector(0, 0, 0);
+	FVector ViewDirection = FVector(0, 0, 1);
 
 	// The GPUSortManager bindings for this sort task.
 	FGPUSortManager::FAllocationInfo AllocationInfo;

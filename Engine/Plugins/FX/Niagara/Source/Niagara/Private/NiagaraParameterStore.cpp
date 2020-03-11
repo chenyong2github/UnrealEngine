@@ -26,6 +26,8 @@ static FAutoConsoleVariableRef CVarNiagaraDumpParticleParameterStores(
 
 struct FNiagaraVariableSearch
 {
+	typedef int32(*VariableCompareFunction)(const FNiagaraVariableBase&, const FNiagaraVariableBase&);
+
 	static FORCEINLINE int32 Compare(const FNiagaraVariableBase& A, const FNiagaraVariableBase& B)
 	{
 #if NIAGARA_VARIABLE_LEXICAL_SORTING
@@ -47,7 +49,18 @@ struct FNiagaraVariableSearch
 		}
 	}
 
-	static bool Find(const FNiagaraVariableWithOffset* Variables, const FNiagaraVariableBase& Ref, int32 Start, int32 Num, int32& CheckIndex)
+	static FORCEINLINE int32 CompareIgnoreType(const FNiagaraVariableBase& A, const FNiagaraVariableBase& B)
+	{
+#if NIAGARA_VARIABLE_LEXICAL_SORTING
+		int32 ComparisonDiff = A.GetName().Compare(B.GetName());
+#else
+		int32 ComparisonDiff = A.GetName().CompareIndexes(B.GetName());
+#endif
+
+		return ComparisonDiff;
+	}
+
+	static bool FindInternal(VariableCompareFunction CompareFn, const FNiagaraVariableWithOffset* Variables, const FNiagaraVariableBase& Ref, int32 Start, int32 Num, int32& CheckIndex)
 	{
 		while (Num)
 		{
@@ -57,7 +70,7 @@ struct FNiagaraVariableSearch
 			CheckIndex = Start + Num;
 			const int32 StartIfLess = CheckIndex + LeftoverSize;
 
-			const int32 ComparisonDiff = Compare(Variables[CheckIndex], Ref);
+			const int32 ComparisonDiff = CompareFn(Variables[CheckIndex], Ref);
 			if (ComparisonDiff < 0)
 			{
 				Start = CheckIndex + 1;
@@ -70,6 +83,15 @@ struct FNiagaraVariableSearch
 		}
 		CheckIndex = Start;
 		return false;
+	}
+
+	static FORCEINLINE bool Find(const FNiagaraVariableWithOffset* Variables, const FNiagaraVariableBase& Ref, int32 Start, int32 Num, bool IgnoreType, int32& CheckIndex)
+	{
+		if (IgnoreType)
+		{
+			return FindInternal(CompareIgnoreType, Variables, Ref, Start, Num, CheckIndex);
+		}
+		return FindInternal(Compare, Variables, Ref, Start, Num, CheckIndex);
 	}
 };
 
@@ -475,7 +497,7 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 	int32 InsertPos = 0;
 	if (SortedParameterOffsets.Num())
 	{
-		const bool bAlreadyIn = FNiagaraVariableSearch::Find(SortedParameterOffsets.GetData(), ParamNoData, 0, SortedParameterOffsets.Num(), InsertPos);
+		const bool bAlreadyIn = FNiagaraVariableSearch::Find(SortedParameterOffsets.GetData(), ParamNoData, 0, SortedParameterOffsets.Num(), false /* IgnoreType */, InsertPos);
 		if (bAlreadyIn)
 		{
 			if (OutOffset)
@@ -926,7 +948,7 @@ const FNiagaraVariableBase* FNiagaraParameterStore::FindVariable(UNiagaraDataInt
 	return nullptr;
 }
 
-const int32* FNiagaraParameterStore::FindParameterOffset(const FNiagaraVariable& Parameter) const
+const int32* FNiagaraParameterStore::FindParameterOffset(const FNiagaraVariable& Parameter, bool IgnoreType) const
 {
 #if WITH_EDITORONLY_DATA
 	check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
@@ -935,7 +957,7 @@ const int32* FNiagaraParameterStore::FindParameterOffset(const FNiagaraVariable&
 	if (SortedParameterOffsets.Num())
 	{
 		int32 MatchingIndex = 0;
-		if (FNiagaraVariableSearch::Find(SortedParameterOffsets.GetData(), Parameter, 0, SortedParameterOffsets.Num(), MatchingIndex))
+		if (FNiagaraVariableSearch::Find(SortedParameterOffsets.GetData(), Parameter, 0, SortedParameterOffsets.Num(), IgnoreType, MatchingIndex))
 		{
 			return &SortedParameterOffsets[MatchingIndex].Offset;
 		}

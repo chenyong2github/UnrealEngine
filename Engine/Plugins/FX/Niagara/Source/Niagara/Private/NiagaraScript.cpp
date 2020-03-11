@@ -322,6 +322,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		{
 			Id.bUsesRapidIterationParams = false;
 		}
+		if (EmitterOwner && EmitterOwner->bCompressAttributes)
+		{
+			Id.AdditionalDefines.Add(TEXT("CompressAttributes"));
+		}
 
 		if ((Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript) || 
 			(Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleSpawnScript) ||
@@ -394,6 +398,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		if (System->bBakeOutRapidIteration)
 		{
 			Id.bUsesRapidIterationParams = false;
+		}
+		if (System->bCompressAttributes)
+		{
+			Id.AdditionalDefines.Add(TEXT("CompressAttributes"));
 		}
 
 		for (const FNiagaraEmitterHandle& EmitterHandle: System->GetEmitterHandles())

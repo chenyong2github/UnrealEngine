@@ -51,6 +51,7 @@ enum class ENiagaraTickBehavior : uint8
 
 enum ENiagaraBaseTypes
 {
+	NBT_Half,
 	NBT_Float,
 	NBT_Int32,
 	NBT_Bool,

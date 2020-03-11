@@ -362,17 +362,53 @@ EVectorVMOp get_special_vm_opcode(ir_function_signature* signature)
 	{
 		return EVectorVMOp::noise;
 	}
-	else if (strncmp(signature->function_name(), "InputDataNoadvance", strlen("InputDataNoadvance")) == 0)
+	else if (strncmp(signature->function_name(), "InputDataNoadvanceFloat", strlen("InputDataNoadvanceFloat")) == 0)
 	{
-		return EVectorVMOp::inputdata_noadvance_32bit;
+		return EVectorVMOp::inputdata_noadvance_float;
 	}
-	else if (strncmp(signature->function_name(), "InputData", strlen("InputData")) == 0)
+	else if (strncmp(signature->function_name(), "InputDataNoadvanceInt", strlen("InputDataNoadvanceInt")) == 0)
 	{
-		return EVectorVMOp::inputdata_32bit;
+		return EVectorVMOp::inputdata_noadvance_int32;
 	}
-	else if (strncmp(signature->function_name(), "OutputData", strlen("OutputData")) == 0)
+	else if (strncmp(signature->function_name(), "InputDataNoadvanceBool", strlen("InputDataNoadvanceBool")) == 0)
 	{
-		return EVectorVMOp::outputdata_32bit;
+		return EVectorVMOp::inputdata_noadvance_int32;
+	}
+	else if (strncmp(signature->function_name(), "InputDataNoadvanceHalf", strlen("InputDataNoadvanceHalf")) == 0)
+	{
+		return EVectorVMOp::inputdata_noadvance_half;
+	}
+	else if (strncmp(signature->function_name(), "InputDataHalf", strlen("InputDataHalf")) == 0)
+	{
+		return EVectorVMOp::inputdata_half;
+	}
+	else if (strncmp(signature->function_name(), "OutputDataHalf", strlen("OutputDataHalf")) == 0)
+	{
+		return EVectorVMOp::outputdata_half;
+	}
+	else if (strncmp(signature->function_name(), "InputDataInt", strlen("InputDataInt")) == 0)
+	{
+		return EVectorVMOp::inputdata_int32;
+	}
+	else if (strncmp(signature->function_name(), "OutputDataInt", strlen("OutputDataInt")) == 0)
+	{
+		return EVectorVMOp::outputdata_int32;
+	}
+	else if (strncmp(signature->function_name(), "InputDataBool", strlen("InputDataBool")) == 0)
+	{
+		return EVectorVMOp::inputdata_int32;
+	}
+	else if (strncmp(signature->function_name(), "OutputDataBool", strlen("OutputDataBool")) == 0)
+	{
+		return EVectorVMOp::outputdata_int32;
+	}
+	else if (strncmp(signature->function_name(), "InputDataFloat", strlen("InputDataFloat")) == 0)
+	{
+		return EVectorVMOp::inputdata_float;
+	}
+	else if (strncmp(signature->function_name(), "OutputDataFloat", strlen("OutputDataFloat")) == 0)
+	{
+		return EVectorVMOp::outputdata_float;
 	}
 	else if (strcmp(signature->function_name(), "AcquireIndex") == 0)
 	{
@@ -862,6 +898,72 @@ struct op_input : public op_base
 	}
 };
 
+struct op_input_half : public op_input
+{
+	op_input_half(): op_input(){}
+
+	virtual FString to_string()
+	{
+		if (instance_idx_component)
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataHalf(%d, %d, [%s][%d]);\n"),
+				dest_component->offset,
+				dataset_idx,
+				register_idx,
+				get_location_string(instance_idx_component->owner->location),
+				instance_idx_component->offset);
+		}
+		else
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataHalf(%d, %d);\n"), dest_component->offset, dataset_idx, register_idx);
+		}
+	}
+};
+
+
+struct op_input_float : public op_input
+{
+	op_input_float() : op_input() {}
+
+	virtual FString to_string()
+	{
+		if (instance_idx_component)
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataFloat(%d, %d, [%s][%d]);\n"),
+				dest_component->offset,
+				dataset_idx,
+				register_idx,
+				get_location_string(instance_idx_component->owner->location),
+				instance_idx_component->offset);
+		}
+		else
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataFloat(%d, %d);\n"), dest_component->offset, dataset_idx, register_idx);
+		}
+	}
+};
+
+struct op_input_int : public op_input
+{
+	op_input_int() : op_input() {}
+
+	virtual FString to_string()
+	{
+		if (instance_idx_component)
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataInt(%d, %d, [%s][%d]);\n"),
+				dest_component->offset,
+				dataset_idx,
+				register_idx,
+				get_location_string(instance_idx_component->owner->location),
+				instance_idx_component->offset);
+		}
+		else
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataInt(%d, %d);\n"), dest_component->offset, dataset_idx, register_idx);
+		}
+	}
+};
 
 // TODO: make this a proper explicitly indexing op
 struct op_input_noadvance : public op_input
@@ -910,6 +1012,68 @@ struct op_input_noadvance : public op_input
 	}
 };
 
+struct op_input_noadvance_int : public op_input_noadvance
+{
+	op_input_noadvance_int() : op_input_noadvance() {}
+	virtual FString to_string()
+	{
+		if (instance_idx_component)
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataNoadvanceInt(%d, %d, [%s][%d]);\n"),
+				dest_component->offset,
+				dataset_idx,
+				register_idx,
+				get_location_string(instance_idx_component->owner->location),
+				instance_idx_component->offset);
+		}
+		else
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataNoadvanceInt(%d, %d);\n"), dest_component->offset, dataset_idx, register_idx);
+		}
+	}
+};
+
+struct op_input_noadvance_float : public op_input_noadvance
+{
+	op_input_noadvance_float() : op_input_noadvance() {}
+	virtual FString to_string()
+	{
+		if (instance_idx_component)
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataNoadvanceFloat(%d, %d, [%s][%d]);\n"),
+				dest_component->offset,
+				dataset_idx,
+				register_idx,
+				get_location_string(instance_idx_component->owner->location),
+				instance_idx_component->offset);
+		}
+		else
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataNoadvanceFloat(%d, %d);\n"), dest_component->offset, dataset_idx, register_idx);
+		}
+	}
+};
+
+struct op_input_noadvance_half : public op_input_noadvance
+{
+	op_input_noadvance_half() : op_input_noadvance() {}
+	virtual FString to_string()
+	{
+		if (instance_idx_component)
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataNoadvanceHalf(%d, %d, [%s][%d]);\n"),
+				dest_component->offset,
+				dataset_idx,
+				register_idx,
+				get_location_string(instance_idx_component->owner->location),
+				instance_idx_component->offset);
+		}
+		else
+		{
+			return FString::Printf(TEXT("[R][%d] = InputDataNoadvanceHalf(%d, %d);\n"), dest_component->offset, dataset_idx, register_idx);
+		}
+	}
+};
 
 struct op_output : public op_base
 {
@@ -954,6 +1118,63 @@ struct op_output : public op_base
 	virtual void validate(_mesa_glsl_parse_state* parse_state, unsigned op_idx)override
 	{
 		validate_component_offset(parse_state, value_component, op_idx);
+	}
+};
+
+struct op_output_half : public op_output
+{
+	op_output_half(): op_output(){}
+
+	virtual FString to_string()
+	{
+		check(instance_idx_component);
+		check(value_component);
+
+		return FString::Printf(TEXT("OutputDataHalf(%d, %d, [%s][%d], [%s][%d]);\n"),
+			dataset_index,
+			register_idx,
+			get_location_string(instance_idx_component->owner->location),
+			instance_idx_component->offset,
+			get_location_string(value_component->owner->location),
+			value_component->offset);
+	}
+};
+
+struct op_output_float : public op_output
+{
+	op_output_float() : op_output() {}
+
+	virtual FString to_string()
+	{
+		check(instance_idx_component);
+		check(value_component);
+
+		return FString::Printf(TEXT("OutputDataFloat(%d, %d, [%s][%d], [%s][%d]);\n"),
+			dataset_index,
+			register_idx,
+			get_location_string(instance_idx_component->owner->location),
+			instance_idx_component->offset,
+			get_location_string(value_component->owner->location),
+			value_component->offset);
+	}
+};
+
+struct op_output_int : public op_output
+{
+	op_output_int() : op_output() {}
+
+	virtual FString to_string()
+	{
+		check(instance_idx_component);
+		check(value_component);
+
+		return FString::Printf(TEXT("OutputDataInt(%d, %d, [%s][%d], [%s][%d]);\n"),
+			dataset_index,
+			register_idx,
+			get_location_string(instance_idx_component->owner->location),
+			instance_idx_component->offset,
+			get_location_string(value_component->owner->location),
+			value_component->offset);
 	}
 };
 
@@ -1758,9 +1979,15 @@ class ir_gen_vvm_visitor : public ir_hierarchical_visitor
 
 		switch (VVMOpCode)
 		{
-		case EVectorVMOp::inputdata_32bit: allocate<op_input>(); break;
-		case EVectorVMOp::inputdata_noadvance_32bit: allocate<op_input_noadvance>(); break;
-		case EVectorVMOp::outputdata_32bit: allocate<op_output>(); break;
+		case EVectorVMOp::inputdata_half: allocate<op_input_half>(); break;
+		case EVectorVMOp::inputdata_int32: allocate<op_input_int>(); break;
+		case EVectorVMOp::inputdata_float: allocate<op_input_float>(); break;
+		case EVectorVMOp::inputdata_noadvance_float: allocate<op_input_noadvance_float>(); break;
+		case EVectorVMOp::inputdata_noadvance_int32: allocate<op_input_noadvance_int>(); break;
+		case EVectorVMOp::inputdata_noadvance_half: allocate<op_input_noadvance_half>(); break;
+		case EVectorVMOp::outputdata_half: allocate<op_output_half>(); break;
+		case EVectorVMOp::outputdata_int32: allocate<op_output_int>(); break;
+		case EVectorVMOp::outputdata_float: allocate<op_output_float>(); break;
 		case EVectorVMOp::acquireindex: allocate<op_index_acquire>(); break;
 		case EVectorVMOp::acquire_id: allocate<op_id_acquire>(); break;
 		case EVectorVMOp::update_id: allocate<op_id_update>(); break;

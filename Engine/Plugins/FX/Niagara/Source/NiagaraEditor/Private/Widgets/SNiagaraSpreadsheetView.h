@@ -40,6 +40,7 @@ public:
 		uint32 IntStartOffset;
 		uint32 GlobalStartOffset;
 		bool bFloat;
+		bool bHalf;
 		bool bBoolean;
 		TWeakObjectPtr<const UEnum> Enum;
 	};

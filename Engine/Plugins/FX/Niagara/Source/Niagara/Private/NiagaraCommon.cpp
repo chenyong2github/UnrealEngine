@@ -67,6 +67,11 @@ FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* Stru
 				{
 					Ret += FString::Printf(TEXT("%s: %g "), *Property->GetNameCPP(), *(float*)PropPtr);
 				}
+				else if (Property->IsA(FUInt16Property::StaticClass()))
+				{
+					FFloat16 Val = *(FFloat16*)PropPtr;
+					Ret += FString::Printf(TEXT("%s: %f "), *Property->GetNameCPP(), Val.GetFloat());
+				}
 				else if (Property->IsA(FIntProperty::StaticClass()))
 				{
 					Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *(int32*)PropPtr);

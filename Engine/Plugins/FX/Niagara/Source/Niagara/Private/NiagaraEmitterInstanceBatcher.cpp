@@ -299,6 +299,10 @@ void NiagaraEmitterInstanceBatcher::TransitionBuffers(FRHICommandList& RHICmdLis
 		{
 			ReadBuffers.Add(SimStageData.Source->GetGPUBufferFloat().UAV);
 		}
+		if (ComputeShader->HalfInputBufferParam.IsBound())
+		{
+			ReadBuffers.Add(SimStageData.Source->GetGPUBufferHalf().UAV);
+		}
 		if (ComputeShader->IntInputBufferParam.IsBound())
 		{
 			ReadBuffers.Add(SimStageData.Source->GetGPUBufferInt().UAV);
@@ -309,6 +313,10 @@ void NiagaraEmitterInstanceBatcher::TransitionBuffers(FRHICommandList& RHICmdLis
 	if (ComputeShader->FloatOutputBufferParam.IsBound())
 	{
 		WriteBuffers.Add(SimStageData.Destination->GetGPUBufferFloat().UAV);
+	}
+	if (ComputeShader->HalfOutputBufferParam.IsBound())
+	{
+		WriteBuffers.Add(SimStageData.Destination->GetGPUBufferHalf().UAV);
 	}
 	if (ComputeShader->IntOutputBufferParam.IsBound())
 	{
@@ -532,6 +540,7 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 
 				Context->SetDataToRender(CurrentData);
 				OutputGraphicsBuffers.Add(CurrentData->GetGPUBufferFloat().UAV);
+				OutputGraphicsBuffers.Add(CurrentData->GetGPUBufferHalf().UAV);
 				OutputGraphicsBuffers.Add(CurrentData->GetGPUBufferInt().UAV);
 			}
 		}
@@ -1091,13 +1100,14 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList
 	if (Context && Context->DebugInfo.IsValid())
 	{
 		// Fire off the readback if not already doing so
-		if (!Context->GPUDebugDataReadbackFloat && !Context->GPUDebugDataReadbackInt && !Context->GPUDebugDataReadbackCounts)
+		if (!Context->GPUDebugDataReadbackFloat && !Context->GPUDebugDataReadbackInt && !Context->GPUDebugDataReadbackHalf && !Context->GPUDebugDataReadbackCounts)
 		{
 			// Do nothing.., handled in Run
 		}
 		// We may not have floats or ints, but we should have at least one of the two
 		else if ((Context->GPUDebugDataReadbackFloat == nullptr || Context->GPUDebugDataReadbackFloat->IsReady()) 
 				&& (Context->GPUDebugDataReadbackInt == nullptr || Context->GPUDebugDataReadbackInt->IsReady())
+				&& (Context->GPUDebugDataReadbackHalf == nullptr || Context->GPUDebugDataReadbackHalf->IsReady())
 				&& Context->GPUDebugDataReadbackCounts->IsReady()
 			)
 		{
@@ -1115,8 +1125,13 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList
 				{
 					IntDataBuffer = static_cast<int*>(Context->GPUDebugDataReadbackInt->Lock(Context->GPUDebugDataIntSize));
 				}
+				FFloat16* HalfDataBuffer = nullptr;
+				if (Context->GPUDebugDataReadbackHalf)
+				{
+					HalfDataBuffer = static_cast<FFloat16*>(Context->GPUDebugDataReadbackHalf->Lock(Context->GPUDebugDataHalfSize));
+				}
 
-				Context->DebugInfo->Frame.CopyFromGPUReadback(FloatDataBuffer, IntDataBuffer, 0, NewExistingDataCount, Context->GPUDebugDataFloatStride, Context->GPUDebugDataIntStride);
+				Context->DebugInfo->Frame.CopyFromGPUReadback(FloatDataBuffer, IntDataBuffer, HalfDataBuffer, NewExistingDataCount, Context->GPUDebugDataFloatStride, Context->GPUDebugDataIntStride, Context->GPUDebugDataHalfStride);
 
 				Context->DebugInfo->bWritten = true;
 
@@ -1127,6 +1142,10 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList
 				if (Context->GPUDebugDataReadbackInt)
 				{
 					Context->GPUDebugDataReadbackInt->Unlock();
+				}
+				if (Context->GPUDebugDataReadbackHalf)
+				{
+					Context->GPUDebugDataReadbackHalf->Unlock();
 				}
 				Context->GPUDebugDataReadbackCounts->Unlock();
 			}
@@ -1143,12 +1162,18 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList
 					delete Context->GPUDebugDataReadbackInt;
 					Context->GPUDebugDataReadbackInt = nullptr;
 				}
+				if (Context->GPUDebugDataReadbackInt)
+				{
+					delete Context->GPUDebugDataReadbackHalf;
+					Context->GPUDebugDataReadbackHalf = nullptr;
+				}
 				delete Context->GPUDebugDataReadbackCounts;
 				Context->GPUDebugDataReadbackCounts = nullptr;	
 				Context->GPUDebugDataFloatSize = 0;
 				Context->GPUDebugDataIntSize = 0;
 				Context->GPUDebugDataFloatStride = 0;
 				Context->GPUDebugDataIntStride = 0;
+				Context->GPUDebugDataHalfStride = 0;
 				Context->GPUDebugDataCountOffset = INDEX_NONE;
 			}
 
@@ -1406,7 +1431,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	{
 		//UE_LOG(LogNiagara, Warning, TEXT("Queued up!"));
 
-		if (!Context->GPUDebugDataReadbackFloat && !Context->GPUDebugDataReadbackInt && !Context->GPUDebugDataReadbackCounts && DestinationData.GetGPUInstanceCountBufferOffset() != INDEX_NONE && SimulationStageIndex == Context->MaxUpdateIterations - 1)
+		if (!Context->GPUDebugDataReadbackFloat && !Context->GPUDebugDataReadbackInt && !Context->GPUDebugDataReadbackHalf && !Context->GPUDebugDataReadbackCounts && DestinationData.GetGPUInstanceCountBufferOffset() != INDEX_NONE && SimulationStageIndex == Context->MaxUpdateIterations - 1)
 		{
 			Context->GPUDebugDataFloatSize = 0;
 			Context->GPUDebugDataIntSize = 0;
@@ -1429,6 +1454,15 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 				Context->GPUDebugDataReadbackInt->EnqueueCopy(RHICmdList, DestinationData.GetGPUBufferInt().Buffer);
 				Context->GPUDebugDataIntSize = DestinationData.GetGPUBufferInt().NumBytes;
 				Context->GPUDebugDataIntStride = DestinationData.GetInt32Stride();
+			}
+
+			if (DestinationData.GetGPUBufferHalf().NumBytes > 0)
+			{
+				static const FName ReadbackHalfName(TEXT("Niagara GPU Debug Info Half Emitter Readback"));
+				Context->GPUDebugDataReadbackHalf = new FRHIGPUBufferReadback(ReadbackHalfName);
+				Context->GPUDebugDataReadbackHalf->EnqueueCopy(RHICmdList, DestinationData.GetGPUBufferHalf().Buffer);
+				Context->GPUDebugDataHalfSize = DestinationData.GetGPUBufferHalf().NumBytes;
+				Context->GPUDebugDataHalfStride = DestinationData.GetHalfStride();
 			}
 
 			static const FName ReadbackCountsName(TEXT("Niagara GPU Emitter Readback"));

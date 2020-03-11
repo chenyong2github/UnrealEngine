@@ -23,8 +23,13 @@ struct FNiagaraVariableLayoutInfo
 	UPROPERTY()
 	uint32 Int32ComponentStart;
 
+	/** Start index for the half components in the main buffer. */
+	UPROPERTY()
+	uint32 HalfComponentStart;
+
 	uint32 GetNumFloatComponents()const { return LayoutInfo.FloatComponentByteOffsets.Num(); }
 	uint32 GetNumInt32Components()const { return LayoutInfo.Int32ComponentByteOffsets.Num(); }
+	uint32 GetNumHalfComponents()const { return LayoutInfo.HalfComponentByteOffsets.Num(); }
 
 	/** This variable's type layout info. */
 	UPROPERTY()
@@ -107,28 +112,40 @@ public:
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
 	void KillInstance(uint32 InstanceIdx);
 	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
-	void GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride);
+	void GPUCopyFrom(const float* GPUReadBackFloat, const int* GPUReadBackInt, const FFloat16* GPUReadBackHalf, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride, uint32 InSrcHalfStride);
 	void Dump(int32 StartIndex, int32 NumInstances, const FString& Label)const;
 
-	FORCEINLINE TArray<uint8*>& GetRegisterTable() { return RegisterTable; }
+	FORCEINLINE TArrayView<uint8 const* RESTRICT const> GetRegisterTable() const { return TArrayView<uint8 const* RESTRICT const>(RegisterTable); }
+	
+	typedef uint32 RegisterTypeOffsetType[3];
+	FORCEINLINE const RegisterTypeOffsetType& GetRegisterTypeOffsets() { return RegisterTypeOffsets; }
 
-	FORCEINLINE const TArray<uint8>& GetFloatBuffer()const { return FloatData; }
-	FORCEINLINE const TArray<uint8>& GetInt32Buffer()const { return Int32Data; }
+	FORCEINLINE const TArray<uint8>& GetFloatBuffer() const { return FloatData; }
+	FORCEINLINE const TArray<uint8>& GetInt32Buffer() const { return Int32Data; }
+	FORCEINLINE const TArray<uint8>& GetHalfBuffer() const { return HalfData; }
 
-	FORCEINLINE const uint8* GetComponentPtrFloat(uint32 ComponentIdx)const	{ return FloatData.GetData() + FloatStride * ComponentIdx; }
-	FORCEINLINE const uint8* GetComponentPtrInt32(uint32 ComponentIdx)const	{ return Int32Data.GetData() + Int32Stride * ComponentIdx; }
-	FORCEINLINE uint8* GetComponentPtrFloat(uint32 ComponentIdx) { return FloatData.GetData() + FloatStride * ComponentIdx;	}
+	FORCEINLINE const uint8* GetComponentPtrFloat(uint32 ComponentIdx) const { return FloatData.GetData() + FloatStride * ComponentIdx; }
+	FORCEINLINE const uint8* GetComponentPtrInt32(uint32 ComponentIdx) const { return Int32Data.GetData() + Int32Stride * ComponentIdx; }
+	FORCEINLINE const uint8* GetComponentPtrHalf(uint32 ComponentIdx) const { return HalfData.GetData() + HalfStride * ComponentIdx; }
+	FORCEINLINE uint8* GetComponentPtrFloat(uint32 ComponentIdx) { return FloatData.GetData() + FloatStride * ComponentIdx; }
 	FORCEINLINE uint8* GetComponentPtrInt32(uint32 ComponentIdx) { return Int32Data.GetData() + Int32Stride * ComponentIdx;	}
+	FORCEINLINE uint8* GetComponentPtrHalf(uint32 ComponentIdx) { return HalfData.GetData() + HalfStride * ComponentIdx; }
 
-	FORCEINLINE float* GetInstancePtrFloat(uint32 ComponentIdx, uint32 InstanceIdx)	{ return (float*)GetComponentPtrFloat(ComponentIdx) + InstanceIdx; }
-	FORCEINLINE int32* GetInstancePtrInt32(uint32 ComponentIdx, uint32 InstanceIdx)	{ return (int32*)GetComponentPtrInt32(ComponentIdx) + InstanceIdx; }
-	FORCEINLINE float* GetInstancePtrFloat(uint32 ComponentIdx, uint32 InstanceIdx)const { return (float*)GetComponentPtrFloat(ComponentIdx) + InstanceIdx; }
-	FORCEINLINE int32* GetInstancePtrInt32(uint32 ComponentIdx, uint32 InstanceIdx)const { return (int32*)GetComponentPtrInt32(ComponentIdx) + InstanceIdx;	}
+	FORCEINLINE float* GetInstancePtrFloat(uint32 ComponentIdx, uint32 InstanceIdx)	{ return (float*)(GetComponentPtrFloat(ComponentIdx)) + InstanceIdx; }
+	FORCEINLINE int32* GetInstancePtrInt32(uint32 ComponentIdx, uint32 InstanceIdx)	{ return (int32*)(GetComponentPtrInt32(ComponentIdx)) + InstanceIdx; }
+	FORCEINLINE FFloat16* GetInstancePtrHalf(uint32 ComponentIdx, uint32 InstanceIdx) { return (FFloat16*)(GetComponentPtrHalf(ComponentIdx)) + InstanceIdx; }
+
+	FORCEINLINE const float* GetInstancePtrFloat(uint32 ComponentIdx, uint32 InstanceIdx) const { return (float*)(GetComponentPtrFloat(ComponentIdx)) + InstanceIdx; }
+	FORCEINLINE const int32* GetInstancePtrInt32(uint32 ComponentIdx, uint32 InstanceIdx) const { return (int32*)(GetComponentPtrInt32(ComponentIdx)) + InstanceIdx; }
+	FORCEINLINE const FFloat16* GetInstancePtrHalf(uint32 ComponentIdx, uint32 InstanceIdx) const { return (FFloat16*)(GetComponentPtrHalf(ComponentIdx)) + InstanceIdx; }
 
 	FORCEINLINE uint8* GetComponentPtrFloat(float* BasePtr, uint32 ComponentIdx) const { return (uint8*)BasePtr + FloatStride * ComponentIdx; }
 	FORCEINLINE uint8* GetComponentPtrInt32(int* BasePtr, uint32 ComponentIdx) const { return (uint8*)BasePtr + Int32Stride * ComponentIdx; }
+	FORCEINLINE uint8* GetComponentPtrHalf(FFloat16* BasePtr, uint32 ComponentIdx) const { return (uint8*)(BasePtr) + HalfStride * ComponentIdx; }
+
 	FORCEINLINE float* GetInstancePtrFloat(float* BasePtr, uint32 ComponentIdx, uint32 InstanceIdx)const { return (float*)GetComponentPtrFloat(BasePtr, ComponentIdx) + InstanceIdx; }
 	FORCEINLINE int32* GetInstancePtrInt32(int* BasePtr, uint32 ComponentIdx, uint32 InstanceIdx)const { return (int32*)GetComponentPtrInt32(BasePtr, ComponentIdx) + InstanceIdx; }
+	FORCEINLINE FFloat16* GetInstancePtrHalf(FFloat16 *BasePtr, uint32 ComponentIdx, uint32 InstanceIdx)const { return (FFloat16*)GetComponentPtrHalf(BasePtr, ComponentIdx) + InstanceIdx; }
 
 	FORCEINLINE uint32 GetNumInstances()const { return NumInstances; }
 	FORCEINLINE uint32 GetNumInstancesAllocated()const { return NumInstancesAllocated; }
@@ -138,7 +155,8 @@ public:
 	FORCEINLINE void SetNumSpawnedInstances(uint32 InNumSpawnedInstances) { NumSpawnedInstances = InNumSpawnedInstances; }
 	FORCEINLINE uint32 GetSizeBytes()const { return FloatData.Num() + Int32Data.Num(); }
 	FORCEINLINE FRWBuffer& GetGPUBufferFloat() { return GPUBufferFloat; }
-	FORCEINLINE FRWBuffer& GetGPUBufferInt() { return GPUBufferInt;	}
+	FORCEINLINE FRWBuffer& GetGPUBufferInt() { return GPUBufferInt; }
+	FORCEINLINE FRWBuffer& GetGPUBufferHalf() { return GPUBufferHalf; }
 	FORCEINLINE uint32 GetGPUInstanceCountBufferOffset() const { return GPUInstanceCountBufferOffset; }
 	FORCEINLINE void ClearGPUInstanceCountBufferOffset() { GPUInstanceCountBufferOffset = INDEX_NONE; }
 	FORCEINLINE FRWBuffer& GetGPUIDToIndexTable() { return GPUIDToIndexTable; }
@@ -146,6 +164,7 @@ public:
 	FORCEINLINE int32 GetSafeComponentBufferSize() const { return GetSafeComponentBufferSize(GetNumInstancesAllocated()); }
 	FORCEINLINE uint32 GetFloatStride() const { return FloatStride; }
 	FORCEINLINE uint32 GetInt32Stride() const { return Int32Stride; }
+	FORCEINLINE uint32 GetHalfStride() const { return HalfStride; }
 
 	FORCEINLINE uint32 GetIDAcquireTag() const { return IDAcquireTag; }
 	FORCEINLINE void SetIDAcquireTag(uint32 InTag) { IDAcquireTag = InTag; }
@@ -163,8 +182,6 @@ public:
 	void UnsetShaderParams(class FNiagaraShader *Shader, FRHICommandList &CommandList);
 
 	void ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
-
-	FORCEINLINE const TArray<uint8*>& GetRegisterTable()const { return RegisterTable; }
 
 	void BuildRegisterTable();
 private:
@@ -187,6 +204,8 @@ private:
 	TArray<uint8> FloatData;
 	/** Int32 components of simulation data. */
 	TArray<uint8> Int32Data;
+	/** Half components of simulation data. */
+	TArray<uint8> HalfData;
 
 	/** Table of IDs to real buffer indices. */
 	TArray<int32> IDToIndexTable;
@@ -200,10 +219,12 @@ private:
 	uint32 NumChunksAllocatedForGPU;
 	/** GPU Buffer containing floating point values for GPU simulations. */
 	FRWBuffer GPUBufferFloat;
-	/** GPU Buffer containing floating point values for GPU simulations. */
+	/** GPU Buffer containing integer values for GPU simulations. */
 	FRWBuffer GPUBufferInt;
 	/** GPU table which maps particle ID to index. */
 	FRWBuffer GPUIDToIndexTable;
+	/** GPU Buffer containing half values for GPU simulations. */
+	FRWBuffer GPUBufferHalf;
 	//////////////////////////////////////////////////////////////////////////
 
 	/** Number of instances in data. */
@@ -214,6 +235,8 @@ private:
 	uint32 FloatStride;
 	/** Stride between components in the int32 buffer. */
 	uint32 Int32Stride;
+	/** Stride between components in the half buffer. */
+	uint32 HalfStride;
 	/** Number of instances spawned in the last tick. */
 	uint32 NumSpawnedInstances;
 	/** ID acquire tag used in the last tick. */
@@ -221,6 +244,7 @@ private:
 
 	/** Table containing current base locations for all registers in this dataset. */
 	TArray<uint8*> RegisterTable;//TODO: Should make inline? Feels like a useful size to keep local would be too big.
+	RegisterTypeOffsetType RegisterTypeOffsets;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -248,6 +272,9 @@ struct NIAGARA_API FNiagaraDataSetCompiledData
 
 	UPROPERTY()
 	uint32 TotalInt32Components;
+
+	UPROPERTY()
+	uint32 TotalHalfComponents;
 
 	/** Whether or not this dataset require persistent IDs. */
 	UPROPERTY()
@@ -315,19 +342,21 @@ public:
 	FORCEINLINE FRWBuffer& GetGPUFreeIDs() { return GPUFreeIDs; }
 	FORCEINLINE uint32 GetGPUNumAllocatedIDs() const { return GPUNumAllocatedIDs; }
 
-	FORCEINLINE const TArray<FNiagaraVariable>& GetVariables() const { return CompiledData->Variables; }
-	FORCEINLINE uint32 GetNumVariables() const { return CompiledData->Variables.Num(); }
-	FORCEINLINE bool HasVariable(const FNiagaraVariable& Var) const { return CompiledData->Variables.Contains(Var); }
-	FORCEINLINE uint32 GetNumFloatComponents() const { return CompiledData->TotalFloatComponents; }
-	FORCEINLINE uint32 GetNumInt32Components() const { return CompiledData->TotalInt32Components; }
+	FORCEINLINE const TArray<FNiagaraVariable>& GetVariables()const { return CompiledData->Variables; }
+	FORCEINLINE uint32 GetNumVariables()const { return CompiledData->Variables.Num(); }
+	FORCEINLINE bool HasVariable(const FNiagaraVariable& Var)const { return CompiledData->Variables.Contains(Var); }
+	FORCEINLINE bool HasVariable(const FName& Name)const { return CompiledData->Variables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == Name; }) != nullptr; }
+	FORCEINLINE uint32 GetNumFloatComponents()const { return CompiledData->TotalFloatComponents; }
+	FORCEINLINE uint32 GetNumInt32Components()const { return CompiledData->TotalInt32Components; }
+	FORCEINLINE uint32 GetNumHalfComponents()const { return CompiledData->TotalHalfComponents; }
 
 	const TArray<FNiagaraVariableLayoutInfo>& GetVariableLayouts() const { return CompiledData->VariableLayouts; }
 	const FNiagaraVariableLayoutInfo* GetVariableLayout(const FNiagaraVariable& Var) const;
-	bool GetVariableComponentOffsets(const FNiagaraVariable& Var, int32 &FloatStart, int32 &IntStart) const;
+	bool GetVariableComponentOffsets(const FNiagaraVariable& Var, int32 &FloatStart, int32 &IntStart, int32& HalfStart) const;
 
 	void CopyTo(FNiagaraDataSet& Other, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, bool bResetOther=true)const;
 
-	void CopyFromGPUReadback(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, uint32 FloatStride = 0, uint32 IntStride = 0);
+	void CopyFromGPUReadback(const float* GPUReadBackFloat, const int* GPUReadBackInt, const FFloat16* GPUReadBackHalf, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, uint32 FloatStride = 0, uint32 IntStride = 0, uint32 HalfStride = 0);
 
 	void CheckForNaNs() const;
 
@@ -429,6 +458,7 @@ struct FNiagaraDataSetAccessorBase
 	FNiagaraDataSetAccessorBase(FNiagaraDataSet* InDataSet, FNiagaraVariable InVar)
 		: DataSet(InDataSet)
 	{
+		checkSlow(DataSet->HasVariable(InVar));
 		Var = InVar;
 		VarLayout = DataSet->GetVariableLayout(InVar);
 	}
@@ -463,78 +493,7 @@ protected:
 };
 
 template<typename T>
-struct FNiagaraDataSetAccessor : public FNiagaraDataSetAccessorBase
-{
-	FNiagaraDataSetAccessor<T>() {}
-	FNiagaraDataSetAccessor(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
-		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
-	{
-		check(sizeof(T) == InVar.GetType().GetSize());
-		checkf(false, TEXT("You must provide a fast runtime specialization for this type."));// Allow this slow generic version?
-	}
-
-	FORCEINLINE T operator[](int32 Index)const
-	{
-		return Get(Index);
-	}
-
-	FORCEINLINE T Get(int32 Index)const
-	{
-		T Ret;
-		Get(Index, Ret);
-		return Ret;
-	}
-
-	FORCEINLINE void Get(int32 Index, T& OutValue)const
-	{
-		checkSlow(DataSet);
-		uint8* ValuePtr = (uint8*)&OutValue;
-
-		FNiagaraDataBuffer* DataBuffer = DataSet->GetCurrentData();
-		checkSlow(DataBuffer);
-
-		for (uint32 CompIdx = 0; CompIdx < VarLayout->GetNumFloatComponents(); ++CompIdx)
-		{
-			uint32 CompBufferOffset = VarLayout->FloatComponentStart + CompIdx;
-			float* Src = DataBuffer->GetInstancePtrFloat(CompBufferOffset, Index);
-			float* Dst = (float*)(ValuePtr + VarLayout->LayoutInfo.FloatComponentByteOffsets[CompIdx]);
-			*Dst = *Src;
-		}
-
-		for (uint32 CompIdx = 0; CompIdx < VarLayout->GetNumInt32Components(); ++CompIdx)
-		{
-			uint32 CompBufferOffset = VarLayout->Int32ComponentStart + CompIdx;
-			int32* Src = DataBuffer->GetInstancePtrInt32(CompBufferOffset, Index);
-			int32* Dst = (int32*)(ValuePtr + VarLayout->LayoutInfo.Int32ComponentByteOffsets[CompIdx]);
-			*Dst = *Src;
-		}
-	}
-
-	FORCEINLINE void Set(int32 Index, const T& InValue)
-	{
-		checkSlow(DataSet);
-		uint8* ValuePtr = (uint8*)&InValue;
-
-		FNiagaraDataBuffer* DataBuffer = DataSet->GetDestinationData();
-		checkSlow(DataBuffer);
-
-		for (uint32 CompIdx = 0; CompIdx < VarLayout->GetNumFloatComponents(); ++CompIdx)
-		{
-			uint32 CompBufferOffset = VarLayout->FloatComponentStart + CompIdx;
-			float* Dst = DataBuffer->GetInstancePtrFloat(CompBufferOffset, Index);
-			float* Src = (float*)(ValuePtr + VarLayout->LayoutInfo.FloatComponentByteOffsets[CompIdx]);
-			*Dst = *Src;
-		}
-
-		for (uint32 CompIdx = 0; CompIdx < VarLayout->GetNumInt32Components(); ++CompIdx)
-		{
-			uint32 CompBufferOffset = VarLayout->Int32ComponentStart + CompIdx;
-			int32* Dst = DataBuffer->GetInstancePtrInt32(CompBufferOffset, Index);
-			int32* Src = (int32*)(ValuePtr + VarLayout->LayoutInfo.Int32ComponentByteOffsets[CompIdx]);
-			*Dst = *Src;
-		}
-	}
-};
+struct FNiagaraDataSetAccessor;
 
 template<>
 struct FNiagaraDataSetAccessor<FNiagaraBool> : public FNiagaraDataSetAccessorBase
@@ -604,8 +563,8 @@ struct FNiagaraDataSetAccessor<FNiagaraBool> : public FNiagaraDataSetAccessorBas
 
 private:
 
-	int32* SrcBase;
-	int32* DestBase;
+	int32* SrcBase = nullptr;
+	int32* DestBase = nullptr;
 };
 
 template<>
@@ -679,7 +638,7 @@ struct FNiagaraDataSetAccessor<int32> : public FNiagaraDataSetAccessorBase
 		OutValue = SrcBase[Index];
 	}
 
-	FORCEINLINE void Set(int32 Index, const int32& InValue)
+	FORCEINLINE void Set(int32 Index, int32 InValue)
 	{
 		checkSlow(IsValidForWrite());
 		DestBase[Index] = InValue;
@@ -687,8 +646,14 @@ struct FNiagaraDataSetAccessor<int32> : public FNiagaraDataSetAccessorBase
 
 private:
 
-	int32* SrcBase;
-	int32* DestBase;
+	int32* SrcBase = nullptr;
+	int32* DestBase = nullptr;
+};
+
+struct FNiagaraMinMaxStruct
+{
+	float Min;
+	float Max;
 };
 
 template<>
@@ -759,17 +724,41 @@ struct FNiagaraDataSetAccessor<float> : public FNiagaraDataSetAccessorBase
 		OutValue = SrcBase[Index];
 	}
 
-	FORCEINLINE void Set(int32 Index, const float& InValue)
+	FORCEINLINE void Set(int32 Index, float InValue)
 	{
 		checkSlow(IsValidForWrite());
 		DestBase[Index] = InValue;
 	}
 
-	FORCEINLINE const float* const GetX() const { return SrcBase; }
+	FORCEINLINE float GetMaxElement(uint32 ElementIndex) const 
+	{ 
+		checkSlow(ElementIndex == 0);
+		float MaxValue = FLT_MIN;
+		const int NumInstances = DataSet->GetCurrentData()->GetNumInstances();
+		for (int Index = 0; Index < NumInstances; Index++)
+		{
+			MaxValue = FMath::Max(MaxValue, SrcBase[Index]);
+		}
+		return MaxValue;
+	}
+
+	FORCEINLINE FNiagaraMinMaxStruct GetMinMaxElement(uint32 ElementIndex) const
+	{
+		checkSlow(ElementIndex == 0);
+		float MinValue = FLT_MAX;
+		float MaxValue = FLT_MIN;
+		const int NumInstances = DataSet->GetCurrentData()->GetNumInstances();
+		for (int Index = 0; Index < NumInstances; Index++)
+		{
+			MaxValue = FMath::Max(MaxValue, SrcBase[Index]);
+			MinValue = FMath::Min(MinValue, SrcBase[Index]);
+		}
+		return FNiagaraMinMaxStruct{ MinValue , MaxValue };
+	}
 
 private:
-	float* SrcBase;
-	float* DestBase;
+	float* SrcBase = nullptr;
+	float* DestBase = nullptr;
 };
 
 template<>
@@ -852,15 +841,40 @@ struct FNiagaraDataSetAccessor<FVector2D> : public FNiagaraDataSetAccessorBase
 		DestYBase[Index] = InValue.Y;
 	}
 
-	FORCEINLINE const float* const GetX() const { return SrcXBase; }
-	FORCEINLINE const float* const GetY() const { return SrcYBase; }
+	FORCEINLINE float GetMaxElement(uint32 ElementIndex) const
+	{
+		checkSlow(ElementIndex == 0 || ElementIndex == 1);
+		float* SrcBase = ElementIndex == 0 ? SrcXBase : SrcYBase;
+		float MaxValue = FLT_MIN;
+		const int NumInstances = DataSet->GetCurrentData()->GetNumInstances();
+		for (int Index = 0; Index < NumInstances; Index++)
+		{
+			MaxValue = FMath::Max(MaxValue, SrcBase[Index]);
+		}
+		return MaxValue;
+	}
+
+	FORCEINLINE FNiagaraMinMaxStruct GetMinMaxElement(uint32 ElementIndex) const
+	{
+		checkSlow(ElementIndex == 0 || ElementIndex == 1);
+		float* SrcBase = ElementIndex == 0 ? SrcXBase : SrcYBase;
+		float MinValue = FLT_MAX;
+		float MaxValue = FLT_MIN;
+		const int NumInstances = DataSet->GetCurrentData()->GetNumInstances();
+		for (int Index = 0; Index < NumInstances; Index++)
+		{
+			MaxValue = FMath::Max(MaxValue, SrcBase[Index]);
+			MinValue = FMath::Min(MinValue, SrcBase[Index]);
+		}
+		return FNiagaraMinMaxStruct{ MinValue , MaxValue };
+	}
 
 private:
 
-	float* SrcXBase;
-	float* SrcYBase;
-	float* DestXBase;
-	float* DestYBase;
+	float* SrcXBase = nullptr;
+	float* SrcYBase = nullptr;
+	float* DestXBase = nullptr;
+	float* DestYBase = nullptr;
 };
 
 template<>
@@ -949,18 +963,42 @@ struct FNiagaraDataSetAccessor<FVector> : public FNiagaraDataSetAccessorBase
 		DestZBase[Index] = InValue.Z;
 	}
 
-	FORCEINLINE const float* const GetX() const { return SrcXBase; }
-	FORCEINLINE const float* const GetY() const { return SrcYBase; }
-	FORCEINLINE const float* const GetZ() const { return SrcZBase; }
+	FORCEINLINE float GetMaxElement(uint32 ElementIndex) const
+	{
+		checkSlow(ElementIndex == 0 || ElementIndex == 1 || ElementIndex == 2);
+		float* SrcBase = ElementIndex == 0 ? SrcXBase : (ElementIndex == 1 ? SrcYBase : SrcZBase);
+		float MaxValue = FLT_MIN;
+		const int NumInstances = DataSet->GetCurrentData()->GetNumInstances();
+		for (int Index = 0; Index < NumInstances; Index++)
+		{
+			MaxValue = FMath::Max(MaxValue, SrcBase[Index]);
+		}
+		return MaxValue;
+	}
+
+	FORCEINLINE FNiagaraMinMaxStruct GetMinMaxElement(uint32 ElementIndex) const
+	{
+		checkSlow(ElementIndex == 0 || ElementIndex == 1 || ElementIndex == 2);
+		float* SrcBase = ElementIndex == 0 ? SrcXBase : (ElementIndex == 1 ? SrcYBase : SrcZBase);
+		float MinValue = FLT_MAX;
+		float MaxValue = FLT_MIN;
+		const int NumInstances = DataSet->GetCurrentData()->GetNumInstances();
+		for (int Index = 0; Index < NumInstances; Index++)
+		{
+			MaxValue = FMath::Max(MaxValue, SrcBase[Index]);
+			MinValue = FMath::Min(MinValue, SrcBase[Index]);
+		}
+		return FNiagaraMinMaxStruct{ MinValue , MaxValue };
+	}
 
 private:
 
-	float* SrcXBase;
-	float* SrcYBase;
-	float* SrcZBase;
-	float* DestXBase;
-	float* DestYBase;
-	float* DestZBase;
+	float* SrcXBase = nullptr;
+	float* SrcYBase = nullptr;
+	float* SrcZBase = nullptr;
+	float* DestXBase = nullptr;
+	float* DestYBase = nullptr;
+	float* DestZBase = nullptr;
 };
 
 template<>
@@ -1057,14 +1095,14 @@ struct FNiagaraDataSetAccessor<FVector4> : public FNiagaraDataSetAccessorBase
 
 private:
 
-	float* SrcXBase;
-	float* SrcYBase;
-	float* SrcZBase;
-	float* SrcWBase;
-	float* DestXBase;
-	float* DestYBase;
-	float* DestZBase;
-	float* DestWBase;
+	float* SrcXBase = nullptr;
+	float* SrcYBase = nullptr;
+	float* SrcZBase = nullptr;
+	float* SrcWBase = nullptr;
+	float* DestXBase = nullptr;
+	float* DestYBase = nullptr;
+	float* DestZBase = nullptr;
+	float* DestWBase = nullptr;
 };
 
 
@@ -1162,14 +1200,14 @@ struct FNiagaraDataSetAccessor<FQuat> : public FNiagaraDataSetAccessorBase
 
 private:
 
-	float* SrcXBase;
-	float* SrcYBase;
-	float* SrcZBase;
-	float* SrcWBase;
-	float* DestXBase;
-	float* DestYBase;
-	float* DestZBase;
-	float* DestWBase;
+	float* SrcXBase = nullptr;
+	float* SrcYBase = nullptr;
+	float* SrcZBase = nullptr;
+	float* SrcWBase = nullptr;
+	float* DestXBase = nullptr;
+	float* DestYBase = nullptr;
+	float* DestZBase = nullptr;
+	float* DestWBase = nullptr;
 };
 
 template<>
@@ -1266,14 +1304,14 @@ struct FNiagaraDataSetAccessor<FLinearColor> : public FNiagaraDataSetAccessorBas
 
 private:
 
-	float* SrcRBase;
-	float* SrcGBase;
-	float* SrcBBase;
-	float* SrcABase;
-	float* DestRBase;
-	float* DestGBase;
-	float* DestBBase;
-	float* DestABase;
+	float* SrcRBase = nullptr;
+	float* SrcGBase = nullptr;
+	float* SrcBBase = nullptr;
+	float* SrcABase = nullptr;
+	float* DestRBase = nullptr;
+	float* DestGBase = nullptr;
+	float* DestBBase = nullptr;
+	float* DestABase = nullptr;
 };
 
 template<>
@@ -1380,15 +1418,15 @@ struct FNiagaraDataSetAccessor<FNiagaraSpawnInfo> : public FNiagaraDataSetAccess
 
 private:
 
-	int32* SrcCountBase;
-	float* SrcInterpStartDtBase;
-	float* SrcIntervalDtBase;
-	int32* SrcGroupBase;
+	int32* SrcCountBase = nullptr;
+	float* SrcInterpStartDtBase = nullptr;
+	float* SrcIntervalDtBase = nullptr;
+	int32* SrcGroupBase = nullptr;
 
-	int32* DestCountBase;
-	float* DestInterpStartDtBase;
-	float* DestIntervalDtBase;
-	int32* DestGroupBase;
+	int32* DestCountBase = nullptr;
+	float* DestInterpStartDtBase = nullptr;
+	float* DestIntervalDtBase = nullptr;
+	int32* DestGroupBase = nullptr;
 };
 
 template<>
@@ -1472,11 +1510,557 @@ struct FNiagaraDataSetAccessor<FNiagaraID> : public FNiagaraDataSetAccessorBase
 
 private:
 
-	int32* SrcIndexBase;
-	int32* SrcTagBase;
-	int32* DestIndexBase;
-	int32* DestTagBase;
+	int32* SrcIndexBase = nullptr;
+	int32* SrcTagBase = nullptr;
+	int32* DestIndexBase = nullptr;
+	int32* DestTagBase = nullptr;
 };
+
+template<int ElementCount>
+struct FNiagaraHalfDataSetAccessor : public FNiagaraDataSetAccessorBase
+{
+	using DataType = TStaticArray<FFloat16, ElementCount>;
+
+	FNiagaraHalfDataSetAccessor() {}
+	FNiagaraHalfDataSetAccessor(FNiagaraDataSet& InDataSet, FNiagaraVariable InVar)
+		: FNiagaraDataSetAccessorBase(&InDataSet, InVar)
+	{
+		check(sizeof(DataType) == InVar.GetType().GetSize());
+		InitForAccess();
+	}
+
+	void InitForAccess()
+	{
+		for (int32 ElementIt = 0; ElementIt < ElementCount; ++ElementIt)
+		{
+			SrcBase[ElementIt] = nullptr;
+			DestBase[ElementIt] = nullptr;
+		}
+		const FNiagaraDataBuffer* SrcBuffer = DataSet->GetCurrentData();
+		if (IsValid() && SrcBuffer)
+		{
+			for (int32 ElementIt = 0; ElementIt < ElementCount; ++ElementIt)
+			{
+				SrcBase[ElementIt] = reinterpret_cast<const FFloat16*>(SrcBuffer->GetComponentPtrHalf(VarLayout->HalfComponentStart + ElementIt));
+
+				//Writes are only valid if we're during a simulation pass.
+				FNiagaraDataBuffer* DestBuffer = DataSet->GetDestinationData();
+				if (DestBuffer)
+				{
+					DestBase[ElementIt] = reinterpret_cast<FFloat16*>(DestBuffer->GetComponentPtrHalf(VarLayout->HalfComponentStart + ElementIt));
+				}
+			}
+		}
+	}
+
+	FORCEINLINE bool IsValidForRead() const
+	{
+		for (int32 ElementIt = 0; ElementIt < ElementCount; ++ElementIt)
+		{
+			if (!SrcBase[ElementIt])
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	FORCEINLINE bool IsValidForWrite() const
+	{
+		for (int32 ElementIt = 0; ElementIt < ElementCount; ++ElementIt)
+		{
+			if (!DestBase[ElementIt])
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	FORCEINLINE DataType operator[](int32 Index)const
+	{
+		return Get(Index);
+	}
+
+	FORCEINLINE DataType GetSafe(int32 Index, DataType Default = DataType(0.0f))const
+	{
+		if (IsValidForRead())
+		{
+			FNiagaraDataBuffer* DataBuffer = DataSet->GetCurrentData();
+			if (DataBuffer && Index >= 0 && (uint32)Index < DataBuffer->GetNumInstances())
+			{
+				return Get(Index);
+			}
+			else
+			{
+				ensure(DataBuffer && Index >= 0 && (uint32)Index < DataBuffer->GetNumInstances()); // just to capture the badness in the logs or debugger if attached.
+			}
+		}
+
+		return Default;
+	}
+
+	FORCEINLINE DataType Get(int32 Index)const
+	{
+		DataType Ret;
+		Get(Index, Ret);
+		return Ret;
+	}
+
+	FORCEINLINE void Get(int32 Index, DataType& OutValue)const
+	{
+		checkSlow(IsValidForRead());
+		for (int32 ElementIt = 0; ElementIt < ElementCount; ++ElementIt)
+		{
+			OutValue[ElementIt] = SrcBase[ElementIt][Index];
+		}
+	}
+
+	FORCEINLINE void Set(int32 Index, DataType InValue)
+	{
+		checkSlow(IsValidForWrite());
+		for (int32 ElementIt = 0; ElementIt < ElementCount; ++ElementIt)
+		{
+			DestBase[ElementIt][Index] = InValue;
+		}
+	}
+
+	FORCEINLINE float GetMaxElement(uint32 ElementIndex) const
+	{
+		checkSlow(ElementIndex < ElementCount);
+		int16 MaxValue = static_cast<int16>(0xfc00u);
+		const int NumInstances = DataSet->GetCurrentData()->GetNumInstances();
+		for (int Index = 0; Index < NumInstances; Index++)
+		{
+			MaxValue = FMath::Max(MaxValue, ((int16*)SrcBase[ElementIndex])[Index]);
+		}
+		float FloatMaxValue = FPlatformMath::LoadHalf((uint16*)&MaxValue);
+		return FloatMaxValue;
+	}
+
+	FORCEINLINE FNiagaraMinMaxStruct GetMinMaxElement(uint32 ElementIndex) const
+	{
+		checkSlow(ElementIndex < ElementCount);
+		int16 MinValue = static_cast<int16>(0x7c00u);
+		int16 MaxValue = static_cast<int16>(0xfc00u);
+		const int NumInstances = DataSet->GetCurrentData()->GetNumInstances();
+		for (int Index = 0; Index < NumInstances; Index++)
+		{
+			MaxValue = FMath::Max(MaxValue, ((int16*)SrcBase[ElementIndex])[Index]);
+			MinValue = FMath::Min(MinValue, ((int16*)SrcBase[ElementIndex])[Index]);
+		}
+		float FloatMinValue = FPlatformMath::LoadHalf((uint16*)&MinValue);
+		float FloatMaxValue = FPlatformMath::LoadHalf((uint16*)&MaxValue);
+		return FNiagaraMinMaxStruct{ FloatMinValue , FloatMaxValue };
+	}
+private:
+	const FFloat16* SrcBase[ElementCount] = {};
+	FFloat16* DestBase[ElementCount] = {};
+};
+
+template<>
+struct FNiagaraDataSetAccessor<TStaticArray<FFloat16, 1>> : public FNiagaraHalfDataSetAccessor<1>
+{
+	using FNiagaraHalfDataSetAccessor::FNiagaraHalfDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<TStaticArray<FFloat16, 2>> : public FNiagaraHalfDataSetAccessor<2>
+{
+	using FNiagaraHalfDataSetAccessor::FNiagaraHalfDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<TStaticArray<FFloat16, 3>> : public FNiagaraHalfDataSetAccessor<3>
+{
+	using FNiagaraHalfDataSetAccessor::FNiagaraHalfDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<TStaticArray<FFloat16, 4>> : public FNiagaraHalfDataSetAccessor<4>
+{
+	using FNiagaraHalfDataSetAccessor::FNiagaraHalfDataSetAccessor;
+};
+
+template<typename TagType>
+struct FNiagaraEitherDataSetAccessor
+{
+	typedef typename TagType::EitherA EitherA;
+	typedef typename TagType::EitherB EitherB;
+
+	FNiagaraEitherDataSetAccessor() {}
+	FNiagaraEitherDataSetAccessor(FNiagaraDataSet& InDataSet, const FName& InName)
+	{
+		if (InDataSet.HasVariable(FNiagaraVariable(TagType::GetTypeA(), InName)))
+		{
+			FloatDataSet = FNiagaraDataSetAccessor<EitherA>(InDataSet, FNiagaraVariable(TagType::GetTypeA(), InName));
+		}
+		else
+		{
+			HalfDataSet = FNiagaraDataSetAccessor<EitherB>(InDataSet, FNiagaraVariable(TagType::GetTypeB(), InName));
+		}
+		InitForAccess();
+	}
+
+	void InitForAccess()
+	{
+		if (FloatDataSet.IsValid())
+		{
+			FloatDataSet.InitForAccess();
+		}
+		else if (HalfDataSet.IsValid())
+		{
+			HalfDataSet.InitForAccess();
+		}
+	}
+
+	bool IsValid()const
+	{
+		return FloatDataSet.IsValid() || HalfDataSet.IsValid();
+	}
+
+	FORCEINLINE bool IsValidForRead()const
+	{
+		return  (FloatDataSet.IsValid() && FloatDataSet.IsValidForRead()) || (HalfDataSet.IsValid() && HalfDataSet.IsValidForRead());
+	}
+	FORCEINLINE bool IsValidForWrite()const
+	{
+		return  (FloatDataSet.IsValid() && FloatDataSet.IsValidForWrite()) || (HalfDataSet.IsValid() && HalfDataSet.IsValidForWrite());
+	}
+
+	FORCEINLINE EitherA operator[](int32 Index)const
+	{
+		if (FloatDataSet.IsValid())
+		{
+			return FloatDataSet[Index];
+		}
+		else
+		{
+			return TagType::ConvertB(HalfDataSet[Index]);
+		}
+	}
+
+	FORCEINLINE EitherA GetSafe(int32 Index, EitherA Default = EitherA())const
+	{
+		if (FloatDataSet.IsValid())
+		{
+			return FloatDataSet.GetSafe(Index, Default);
+		}
+		else
+		{
+			EitherB Val = TagType::ConvertA(Default);
+			return TagType::ConvertB(HalfDataSet.GetSafe(Index, Val));
+		}
+	}
+
+	FORCEINLINE EitherA Get(int32 Index)const
+	{
+		if (FloatDataSet.IsValid())
+		{
+			return FloatDataSet.Get(Index);
+		}
+		else
+		{
+			return TagType::ConvertB(HalfDataSet.Get(Index));
+		}
+	}
+
+	FORCEINLINE void Get(int32 Index, EitherA& OutValue)const
+	{
+		if (FloatDataSet.IsValid())
+		{
+			FloatDataSet.Get(Index, OutValue);
+		}
+		else
+		{
+			EitherB Val;
+			HalfDataSet.Get(Index, Val);
+			OutValue = TagType::ConvertB(Val);
+		}
+	}
+
+	FORCEINLINE void Set(int32 Index, EitherA InValue)
+	{
+		if (FloatDataSet.IsValid())
+		{
+			FloatDataSet.Set(Index, InValue);
+		}
+		else
+		{
+			HalfDataSet.Set(Index, TagType::ConvertA(InValue));
+		}
+	}
+
+	FORCEINLINE float GetMaxElement(uint32 ElementIndex) const
+	{
+		if (FloatDataSet.IsValid())
+		{
+			return FloatDataSet.GetMaxElement(ElementIndex);
+		}
+		else
+		{
+			return HalfDataSet.GetMaxElement(ElementIndex);
+		}
+	}
+
+	FORCEINLINE FNiagaraMinMaxStruct GetMinMaxElement(uint32 ElementIndex) const
+	{
+		if (FloatDataSet.IsValid())
+		{
+			return FloatDataSet.GetMinMaxElement(ElementIndex);
+		}
+		else
+		{
+			return HalfDataSet.GetMinMaxElement(ElementIndex);
+		}
+	}
+
+private:
+	FNiagaraDataSetAccessor<EitherA> FloatDataSet;
+	FNiagaraDataSetAccessor<EitherB> HalfDataSet;
+};
+
+struct FNiagaraDataConversions
+{
+	struct FHalfOrFloat
+	{
+		using EitherA = float;
+		using EitherB = TStaticArray<FFloat16, 1>;
+
+		static TStaticArray<FFloat16, 1> ConvertA(float In)
+		{
+			TStaticArray<FFloat16, 1> Ret;
+			FPlatformMath::StoreHalf((uint16*)&Ret[0], In);
+			return Ret;
+		}
+		static float ConvertB(TStaticArray<FFloat16, 1> In)
+		{
+			return FPlatformMath::LoadHalf((uint16*)&In[0]);
+		}
+
+		static FNiagaraTypeDefinition GetTypeA()
+		{
+			return FNiagaraTypeDefinition::GetFloatDef();
+		}
+
+		static FNiagaraTypeDefinition GetTypeB()
+		{
+			return FNiagaraTypeDefinition::GetHalfDef();
+		}
+	};
+
+	struct FHalf2OrFloat2
+	{
+		using EitherA = FVector2D;
+		using EitherB = TStaticArray<FFloat16, 2>;
+
+		static TStaticArray<FFloat16, 2> ConvertA(FVector2D In)
+		{
+			TStaticArray<FFloat16, 2> Ret;
+			FPlatformMath::StoreHalf((uint16*)&Ret[0], In.X);
+			FPlatformMath::StoreHalf((uint16*)&Ret[1], In.Y);
+			return Ret;
+		}
+		static FVector2D ConvertB(TStaticArray<FFloat16, 2> In)
+		{
+			return FVector2D
+			(
+				FPlatformMath::LoadHalf((uint16*)&In[0]),
+				FPlatformMath::LoadHalf((uint16*)&In[1])
+			);
+		}
+
+		static FNiagaraTypeDefinition GetTypeA()
+		{
+			return FNiagaraTypeDefinition::GetVec2Def();
+		}
+
+		static FNiagaraTypeDefinition GetTypeB()
+		{
+			return FNiagaraTypeDefinition::GetHalfVec2Def();
+		}
+	};
+
+	struct FHalf3OrFloat3
+	{
+		using EitherA = FVector;
+		using EitherB = TStaticArray<FFloat16, 3>;
+
+		static TStaticArray<FFloat16, 3> ConvertA(FVector In)
+		{
+			TStaticArray<FFloat16, 3> Ret;
+			FPlatformMath::StoreHalf((uint16*)&Ret[0], In.X);
+			FPlatformMath::StoreHalf((uint16*)&Ret[1], In.Y);
+			FPlatformMath::StoreHalf((uint16*)&Ret[2], In.Z);
+			return Ret;
+		}
+		static FVector ConvertB(TStaticArray<FFloat16, 3> In)
+		{
+			return FVector
+			(
+				FPlatformMath::LoadHalf((uint16*)&In[0]), 
+				FPlatformMath::LoadHalf((uint16*)&In[1]), 
+				FPlatformMath::LoadHalf((uint16*)&In[2])
+			);
+		}
+
+		static FNiagaraTypeDefinition GetTypeA()
+		{
+			return FNiagaraTypeDefinition::GetVec3Def();
+		}
+
+		static FNiagaraTypeDefinition GetTypeB()
+		{
+			return FNiagaraTypeDefinition::GetHalfVec3Def();
+		}
+	};
+
+	struct FHalf4OrFloat4
+	{
+		using EitherA = FVector4;
+		using EitherB = TStaticArray<FFloat16, 4>;
+
+		static TStaticArray<FFloat16, 4> ConvertA(FVector4 In)
+		{
+			TStaticArray<FFloat16, 4> Ret;
+			FPlatformMath::VectorStoreHalf((uint16*)&Ret[0], (float*)&In);
+			return Ret;
+		}
+		static FVector4 ConvertB(TStaticArray<FFloat16, 4> In)
+		{
+			FVector4 Ret;
+			FPlatformMath::VectorLoadHalf((float*)&Ret, (uint16*)&In[0]);
+			return Ret;
+		}
+
+		static FNiagaraTypeDefinition GetTypeA()
+		{
+			return FNiagaraTypeDefinition::GetVec4Def();
+		}
+
+		static FNiagaraTypeDefinition GetTypeB()
+		{
+			return FNiagaraTypeDefinition::GetHalfVec4Def();
+		}
+	};
+
+	struct FHalf4OrColor4
+	{
+		using EitherA = FLinearColor;
+		using EitherB = TStaticArray<FFloat16, 4>;
+
+		static TStaticArray<FFloat16, 4> ConvertA(FLinearColor In)
+		{
+			TStaticArray<FFloat16, 4> Ret;
+			FPlatformMath::VectorStoreHalf((uint16*)&Ret[0], (float*)&In);
+			return Ret;
+		}
+		static FLinearColor ConvertB(TStaticArray<FFloat16, 4> In)
+		{
+			FLinearColor Ret;
+			FPlatformMath::VectorLoadHalf((float*)&Ret, (uint16*)&In[0]);
+			return Ret;
+		}
+
+		static FNiagaraTypeDefinition GetTypeA()
+		{
+			return FNiagaraTypeDefinition::GetColorDef();
+		}
+
+		static FNiagaraTypeDefinition GetTypeB()
+		{
+			return FNiagaraTypeDefinition::GetHalfVec4Def();
+		}
+	};
+
+	struct FHalf4OrQuat4
+	{
+		using EitherA = FQuat;
+		using EitherB = TStaticArray<FFloat16, 4>;
+
+		static TStaticArray<FFloat16, 4> ConvertA(FQuat In)
+		{
+			TStaticArray<FFloat16, 4> Ret;
+			FPlatformMath::VectorStoreHalf((uint16*)&Ret[0], (float*)&In);
+			return Ret;
+		}
+		static FQuat ConvertB(TStaticArray<FFloat16, 4> In)
+		{
+			FQuat Ret;
+			FPlatformMath::VectorLoadHalf((float*)&Ret, (uint16*)&In[0]);
+			return Ret;
+		}
+
+		static FNiagaraTypeDefinition GetTypeA()
+		{
+			return FNiagaraTypeDefinition::GetQuatDef();
+		}
+
+		static FNiagaraTypeDefinition GetTypeB()
+		{
+			return FNiagaraTypeDefinition::GetHalfVec4Def();
+		}
+	};
+
+	struct FNiagaraInt {};
+
+	struct FNiagaraBool {};
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>::FNiagaraEitherDataSetAccessor;
+};
+
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2>::FNiagaraEitherDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>::FNiagaraEitherDataSetAccessor;
+};
+
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>::FNiagaraEitherDataSetAccessor;
+};
+
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrColor4> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrColor4>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrColor4>::FNiagaraEitherDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrQuat4> : public FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrQuat4>
+{
+	using FNiagaraEitherDataSetAccessor<FNiagaraDataConversions::FHalf4OrQuat4>::FNiagaraEitherDataSetAccessor;
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraInt> : public FNiagaraDataSetAccessor<int>
+{
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraInt>(FNiagaraDataSet& InDataSet, const FName& InName) : FNiagaraDataSetAccessor<int>(InDataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), InName))
+	{
+	}
+};
+
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraBool> : public FNiagaraDataSetAccessor<FNiagaraBool>
+{
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraBool>(FNiagaraDataSet& InDataSet, const FName& InName) : FNiagaraDataSetAccessor<FNiagaraBool>(InDataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), InName))
+	{
+	}
+};
+
 
 /**
 Iterator that will pull or push data between a NiagaraDataBuffer and some FNiagaraVariables it contains.
@@ -1504,7 +2088,7 @@ struct FNiagaraDataVariableIterator
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumFloatComponents(); ++CompIdx)
 			{
 				uint32 CompBufferOffset = Layout.FloatComponentStart + CompIdx;
-				float* Src = Data->GetInstancePtrFloat(CompBufferOffset, CurrIdx);
+				const float* Src = Data->GetInstancePtrFloat(CompBufferOffset, CurrIdx);
 				float* Dst = (float*)(ValuePtr + Layout.LayoutInfo.FloatComponentByteOffsets[CompIdx]);
 				*Dst = *Src;
 			}
@@ -1512,8 +2096,16 @@ struct FNiagaraDataVariableIterator
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumInt32Components(); ++CompIdx)
 			{
 				uint32 CompBufferOffset = Layout.Int32ComponentStart + CompIdx;
-				int32* Src = Data->GetInstancePtrInt32(CompBufferOffset, CurrIdx);
+				const int32* Src = Data->GetInstancePtrInt32(CompBufferOffset, CurrIdx);
 				int32* Dst = (int32*)(ValuePtr + Layout.LayoutInfo.Int32ComponentByteOffsets[CompIdx]);
+				*Dst = *Src;
+			}
+
+			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumHalfComponents(); ++CompIdx)
+			{
+				uint32 CompBufferOffset = Layout.HalfComponentStart + CompIdx;
+				const FFloat16* Src = Data->GetInstancePtrHalf(CompBufferOffset, CurrIdx);
+				FFloat16* Dst = (FFloat16*)(ValuePtr + Layout.LayoutInfo.HalfComponentByteOffsets[CompIdx]);
 				*Dst = *Src;
 			}
 		}

@@ -155,18 +155,47 @@ FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer2D()
 	return DummyTextureReadBuffer2D.SRV;
 }
 
+FRHIShaderResourceView* FNiagaraRenderer::GetDummyHalfBuffer()
+{
+	check(IsInRenderingThread());
+	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyHalfBuffer(PF_R16F, TEXT("NiagaraRenderer::DummyHalf"));
+	return DummyHalfBuffer.SRV;
+}
+
+
 bool FNiagaraRenderer::SetVertexFactoryVariable(const FNiagaraDataSet& DataSet, const FNiagaraVariable& Var, int32 VFVarOffset)
 {
+	// use the DataSetVariable to figure out the information about the data that we'll be sending to the renderer
+	const auto& DataSetVariables = DataSet.GetVariables();
+	int32 VariableMatch = FNiagaraVariable::SearchArrayForPartialNameMatch(DataSetVariables, Var.GetName());
+	if (VariableMatch == INDEX_NONE)
+	{
+		VFVariables[VFVarOffset] = FNiagaraRendererVariableInfo(INDEX_NONE, INDEX_NONE, 0, false, false);
+		return false;
+	}
+	const auto& DataSetVariable = DataSetVariables[VariableMatch];
+	const FNiagaraTypeDefinition& VarType = DataSetVariable.GetType();
+
+	const bool HalfVariable = VarType == FNiagaraTypeDefinition::GetHalfDef()
+		|| VarType == FNiagaraTypeDefinition::GetHalfVec2Def()
+		|| VarType == FNiagaraTypeDefinition::GetHalfVec3Def()
+		|| VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
+
+
 	int32 FloatOffset;
+	int32 HalfOffset;
 	int32 IntOffset;//TODO: No VF uses ints atm but it should be trivial to copy the float path if some vf should need to.
-	DataSet.GetVariableComponentOffsets(Var, FloatOffset, IntOffset);
-	int32 NumComponents = Var.GetSizeInBytes() / sizeof(float);
+	DataSet.GetVariableComponentOffsets(DataSetVariable, FloatOffset, IntOffset, HalfOffset);
+	int32 VarSize = HalfVariable ? sizeof(FFloat16) : sizeof(float);
+	int32 NumComponents = DataSetVariable.GetSizeInBytes() / VarSize;
+	int32 Offset = HalfVariable ? HalfOffset : FloatOffset;
+	int32& TotalVFComponents = HalfVariable ? TotalVFHalfComponents : TotalVFFloatComponents;
 
 	int32 GPULocation = INDEX_NONE;
 	bool bUpload = true;
-	if (FloatOffset != INDEX_NONE)
+	if (Offset != INDEX_NONE)
 	{
-		if (FNiagaraRendererVariableInfo* ExistingVarInfo = VFVariables.FindByPredicate([&](const FNiagaraRendererVariableInfo& VarInfo) { return VarInfo.DatasetOffset == FloatOffset; }))
+		if (FNiagaraRendererVariableInfo* ExistingVarInfo = VFVariables.FindByPredicate([&](const FNiagaraRendererVariableInfo& VarInfo) { return VarInfo.DatasetOffset == Offset && VarInfo.bHalfType == HalfVariable; }))
 		{
 			//Don't need to upload this var again if it's already been uploaded for another var info. Just point to that.
 			//E.g. when custom sorting uses age.
@@ -176,35 +205,54 @@ bool FNiagaraRenderer::SetVertexFactoryVariable(const FNiagaraDataSet& DataSet, 
 		else
 		{
 			//For CPU Sims we pack just the required data tightly in a GPU buffer we upload. For GPU sims the data is there already so we just provide the real data location.
-			GPULocation = SimTarget == ENiagaraSimTarget::CPUSim ? TotalVFComponents : FloatOffset;
+			GPULocation = SimTarget == ENiagaraSimTarget::CPUSim ? TotalVFComponents : Offset;
 			TotalVFComponents += NumComponents;
 		}
 	}
 
-	VFVariables[VFVarOffset] = FNiagaraRendererVariableInfo(FloatOffset, GPULocation, NumComponents, bUpload);
+	VFVariables[VFVarOffset] = FNiagaraRendererVariableInfo(Offset, GPULocation, NumComponents, bUpload, HalfVariable);
 
-	return FloatOffset != INDEX_NONE;
+	return Offset != INDEX_NONE;
 }
 
-FGlobalDynamicReadBuffer::FAllocation FNiagaraRenderer::TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, FNiagaraDataBuffer* SrcData)const
+FParticleRenderData FNiagaraRenderer::TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, FNiagaraDataBuffer* SrcData)const
 {
-	int32 TotalFloatSize = TotalVFComponents * SrcData->GetNumInstances();
-	int32 ComponentStrideDest = SrcData->GetNumInstances() * sizeof(float);
-	FGlobalDynamicReadBuffer::FAllocation Allocation = DynamicReadBuffer.AllocateFloat(TotalFloatSize);
+	int32 TotalFloatSize = TotalVFFloatComponents * SrcData->GetNumInstances();
+	int32 TotalHalfSize = TotalVFHalfComponents * SrcData->GetNumInstances();
+
+	int32 ComponentHalfStrideDest = SrcData->GetNumInstances() * sizeof(FFloat16);
+	int32 ComponentFloatStrideDest = SrcData->GetNumInstances() * sizeof(float);
+
+	FGlobalDynamicReadBuffer::FAllocation FloatAllocation = TotalFloatSize ? DynamicReadBuffer.AllocateFloat(TotalFloatSize) : FGlobalDynamicReadBuffer::FAllocation();
+	FGlobalDynamicReadBuffer::FAllocation HalfAllocation = TotalHalfSize ? DynamicReadBuffer.AllocateHalf(TotalHalfSize) : FGlobalDynamicReadBuffer::FAllocation();
+
 	for (const FNiagaraRendererVariableInfo& VarInfo : VFVariables)
 	{
 		int32 GpuOffset = VarInfo.GetGPUOffset();
 		if (GpuOffset != INDEX_NONE && VarInfo.bUpload)
 		{
-			for (int32 CompIdx = 0; CompIdx < VarInfo.NumComponents; ++CompIdx)
+			if (VarInfo.bHalfType)
 			{
-				float* SrcComponent = (float*)SrcData->GetComponentPtrFloat(VarInfo.DatasetOffset + CompIdx);
-				void* Dest = Allocation.Buffer + ComponentStrideDest * (GpuOffset + CompIdx);
-				FMemory::Memcpy(Dest, SrcComponent, ComponentStrideDest);
+				GpuOffset &= ~(1 << 31);
+				for (int32 CompIdx = 0; CompIdx < VarInfo.NumComponents; ++CompIdx)
+				{
+					FFloat16* SrcComponent = (FFloat16*)SrcData->GetComponentPtrHalf(VarInfo.DatasetOffset + CompIdx);
+					void* Dest = HalfAllocation.Buffer + ComponentHalfStrideDest * (GpuOffset + CompIdx);
+					FMemory::Memcpy(Dest, SrcComponent, ComponentHalfStrideDest);
+				}
+			}
+			else
+			{
+				for (int32 CompIdx = 0; CompIdx < VarInfo.NumComponents; ++CompIdx)
+				{
+					float* SrcComponent = (float*)SrcData->GetComponentPtrFloat(VarInfo.DatasetOffset + CompIdx);
+					void* Dest = FloatAllocation.Buffer + ComponentFloatStrideDest * (GpuOffset + CompIdx);
+					FMemory::Memcpy(Dest, SrcComponent, ComponentFloatStrideDest);
+				}
 			}
 		}
 	}
-	return Allocation;
+	return FParticleRenderData{ FloatAllocation, HalfAllocation };
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -271,7 +319,8 @@ FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const 
 	, SimTarget(Emitter->GetCachedEmitter()->SimTarget)
 	, NumIndicesPerInstance(InProps ? InProps->GetNumIndicesPerInstance() : 0)
 	, FeatureLevel(InFeatureLevel)
-	, TotalVFComponents(0)
+	, TotalVFHalfComponents(0)
+	, TotalVFFloatComponents(0)
 {
 #if STATS
 	EmitterStatID = Emitter->GetCachedEmitter()->GetStatID(false, false);
@@ -363,6 +412,17 @@ struct FParticleOrderAsUint
 
 		Index = InIndex;
 	}
+
+	template <bool bStrictlyPositive, bool bAscending>
+	FORCEINLINE_DEBUGGABLE void SetAsUint(int32 InIndex, FFloat16 InOrder) 
+	{
+		const uint32 SortKeySignBit = 0x8000;
+		uint32 InOrderAsUint = InOrder.Encoded;
+		InOrderAsUint = (bStrictlyPositive || InOrder.Components.Sign != 0) ? (InOrderAsUint | SortKeySignBit) : ~InOrderAsUint;
+		OrderAsUint = bAscending ? InOrderAsUint : ~InOrderAsUint;
+		OrderAsUint &= 0xFFFF;
+		Index = InIndex;
+	}
 		
 	FORCEINLINE operator uint32() const { return OrderAsUint; }
 };
@@ -378,6 +438,7 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, int32 So
 	check(SortInfo.SortAttributeOffset != INDEX_NONE);
 
 	const bool bUseRadixSort = GNiagaraRadixSortThreshold != -1 && (int32)NumInstances  > GNiagaraRadixSortThreshold;
+	const bool bSortVarIsHalf = VFVariables[SortVarIdx].bHalfType;
 
 	int32* RESTRICT IndexBuffer = (int32*)(OutIndices.Buffer);
 
@@ -386,46 +447,95 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, int32 So
 
 	if (SortInfo.SortMode == ENiagaraSortMode::ViewDepth || SortInfo.SortMode == ENiagaraSortMode::ViewDistance)
 	{
-		int32 BaseCompOffset = VFVariables[SortVarIdx].DatasetOffset;
-		float* RESTRICT PositionX = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset);
-		float* RESTRICT PositionY = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset + 1);
-		float* RESTRICT PositionZ = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset + 2);
-		auto GetPos = [&PositionX, &PositionY, &PositionZ](int32 Idx)
+		if (bSortVarIsHalf)
 		{
-			return FVector(PositionX[Idx], PositionY[Idx], PositionZ[Idx]);
-		};
-
-		if (SortInfo.SortMode == ENiagaraSortMode::ViewDepth)
-		{
-			for (uint32 i = 0; i < NumInstances; ++i)
+			const int32 BaseCompOffset = VFVariables[SortVarIdx].DatasetOffset;
+			FFloat16* RESTRICT PositionX = (FFloat16*)Buffer.GetComponentPtrHalf(BaseCompOffset);
+			FFloat16* RESTRICT PositionY = (FFloat16*)Buffer.GetComponentPtrHalf(BaseCompOffset + 1);
+			FFloat16* RESTRICT PositionZ = (FFloat16*)Buffer.GetComponentPtrHalf(BaseCompOffset + 2);
+			auto GetPos = [&PositionX, &PositionY, &PositionZ](int32 Idx)
 			{
-				ParticleOrder[i].SetAsUint<true, false>(i, FVector::DotProduct(GetPos(i) - SortInfo.ViewOrigin, SortInfo.ViewDirection));
+				return FVector(PositionX[Idx], PositionY[Idx], PositionZ[Idx]);
+			};
+
+			if (SortInfo.SortMode == ENiagaraSortMode::ViewDepth)
+			{
+				for (uint32 i = 0; i < NumInstances; ++i)
+				{
+					ParticleOrder[i].SetAsUint<true, false>(i, FVector::DotProduct(GetPos(i) - SortInfo.ViewOrigin, SortInfo.ViewDirection));
+				}
+			}
+			else
+			{
+				for (uint32 i = 0; i < NumInstances; ++i)
+				{
+					ParticleOrder[i].SetAsUint<true, false>(i, (GetPos(i) - SortInfo.ViewOrigin).SizeSquared());
+				}
 			}
 		}
 		else
 		{
-			for (uint32 i = 0; i < NumInstances; ++i)
+			const int32 BaseCompOffset = VFVariables[SortVarIdx].DatasetOffset;
+			float* RESTRICT PositionX = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset);
+			float* RESTRICT PositionY = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset + 1);
+			float* RESTRICT PositionZ = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset + 2);
+			auto GetPos = [&PositionX, &PositionY, &PositionZ](int32 Idx)
 			{
-				ParticleOrder[i].SetAsUint<true, false>(i, (GetPos(i) - SortInfo.ViewOrigin).SizeSquared());
+				return FVector(PositionX[Idx], PositionY[Idx], PositionZ[Idx]);
+			};
+
+			if (SortInfo.SortMode == ENiagaraSortMode::ViewDepth)
+			{
+				for (uint32 i = 0; i < NumInstances; ++i)
+				{
+					ParticleOrder[i].SetAsUint<true, false>(i, FVector::DotProduct(GetPos(i) - SortInfo.ViewOrigin, SortInfo.ViewDirection));
+				}
+			}
+			else
+			{
+				for (uint32 i = 0; i < NumInstances; ++i)
+				{
+					ParticleOrder[i].SetAsUint<true, false>(i, (GetPos(i) - SortInfo.ViewOrigin).SizeSquared());
+				}
 			}
 		}
 	}
 	else
 	{
-		float* RESTRICT CustomSorting = (float*)Buffer.GetComponentPtrFloat(VFVariables[SortVarIdx].DatasetOffset);
-
-		if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending)
+		if (bSortVarIsHalf)
 		{
-			for (uint32 i = 0; i < NumInstances; ++i)
+			FFloat16* RESTRICT CustomSorting = (FFloat16*)Buffer.GetComponentPtrHalf(VFVariables[SortVarIdx].DatasetOffset);
+			if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending)
 			{
-				ParticleOrder[i].SetAsUint<false, true>(i, CustomSorting[i]);
+				for (uint32 i = 0; i < NumInstances; ++i)
+				{
+					ParticleOrder[i].SetAsUint<false, true>(i, CustomSorting[i]);
+				}
+			}
+			else // ENiagaraSortMode::CustomDecending
+			{
+				for (uint32 i = 0; i < NumInstances; ++i)
+				{
+					ParticleOrder[i].SetAsUint<false, false>(i, CustomSorting[i]);
+				}
 			}
 		}
-		else // ENiagaraSortMode::CustomDecending
+		else
 		{
-			for (uint32 i = 0; i < NumInstances; ++i)
+			float* RESTRICT CustomSorting = (float*)Buffer.GetComponentPtrFloat(VFVariables[SortVarIdx].DatasetOffset);
+			if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending)
 			{
-				ParticleOrder[i].SetAsUint<false, false>(i, CustomSorting[i]);
+				for (uint32 i = 0; i < NumInstances; ++i)
+				{
+					ParticleOrder[i].SetAsUint<false, true>(i, CustomSorting[i]);
+				}
+			}
+			else // ENiagaraSortMode::CustomDecending
+			{
+				for (uint32 i = 0; i < NumInstances; ++i)
+				{
+					ParticleOrder[i].SetAsUint<false, false>(i, CustomSorting[i]);
+				}
 			}
 		}
 	}

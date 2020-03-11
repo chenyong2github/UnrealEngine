@@ -30,8 +30,6 @@ class FNiagaraRibbonVertexFactoryShaderParametersVS : public FNiagaraRibbonVerte
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
-		NiagaraParticleDataFloat.Bind(ParameterMap, TEXT("NiagaraParticleDataFloat"));
-		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 	}
 
 	void GetElementShaderBindings(
@@ -48,15 +46,10 @@ public:
 		FNiagaraRibbonVertexFactory* RibbonVF = (FNiagaraRibbonVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraRibbonUniformParameters>(), RibbonVF->GetRibbonUniformBuffer());
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraRibbonVFLooseParameters>(), RibbonVF->LooseParameterUniformBuffer);
-		ShaderBindings.Add(NiagaraParticleDataFloat, RibbonVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(FloatDataStride, RibbonVF->GetFloatDataStride());
 	}
 
 private:
-	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFloat);
-	LAYOUT_FIELD(FShaderParameter, FloatDataStride);
 };
-
 
 
 /**

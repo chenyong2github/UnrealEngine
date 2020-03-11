@@ -42,7 +42,7 @@ private:
 	struct FCPUSimParticleDataAllocation
 	{
 		FGlobalDynamicReadBuffer& DynamicReadBuffer;
-		FGlobalDynamicReadBuffer::FAllocation ParticleData;
+		FParticleRenderData ParticleData;
 	};
 
 	void SetupMeshBatchAndCollectorResourceForView(

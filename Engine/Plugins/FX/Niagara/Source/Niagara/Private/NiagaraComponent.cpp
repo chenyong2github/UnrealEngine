@@ -1688,7 +1688,7 @@ TArray<float> UNiagaraComponent::GetNiagaraParticleValues_DebugOnly(const FStrin
 				FNiagaraDataBuffer& ParticleData = Sim->GetData().GetCurrentDataChecked();
 				int32 NumParticles = ParticleData.GetNumInstances();
 				Values.SetNum(NumParticles);
-				FNiagaraDataSetAccessor<float> ValueData(Sim->GetData(), FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *InValueName));
+				FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> ValueData(Sim->GetData(), *InValueName);
 				for (int32 i = 0; i < NumParticles; ++i)
 				{
 					float Value;
