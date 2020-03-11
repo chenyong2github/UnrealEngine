@@ -1849,7 +1849,7 @@ bool UNavigationSystemV1::IsNavigationBuilt(const AWorldSettings* Settings) cons
 #if WITH_EDITOR
 				|| GEditor != NULL
 #endif // WITH_EDITOR
-				) && (Generator == NULL || Generator->IsBuildInProgress(/*bCheckDirtyToo=*/true) == true))
+				) && (Generator == NULL || Generator->IsBuildInProgressCheckDirty() == true))
 			{
 				bIsBuilt = false;
 				break;
@@ -3576,7 +3576,7 @@ void UNavigationSystemV1::RebuildDirtyAreas(float DeltaSeconds)
 	DefaultDirtyAreasController.Tick(DeltaSeconds, NavDataSet, bForceRebuilding);
 }
 
-bool UNavigationSystemV1::IsNavigationBuildInProgress(bool bCheckDirtyToo)
+bool UNavigationSystemV1::IsNavigationBuildInProgress()
 {
 	bool bRet = false;
 
@@ -3590,8 +3590,8 @@ bool UNavigationSystemV1::IsNavigationBuildInProgress(bool bCheckDirtyToo)
 	for (int32 NavDataIndex = 0; NavDataIndex < NavDataSet.Num(); ++NavDataIndex)
 	{
 		ANavigationData* NavData = NavDataSet[NavDataIndex];
-		if (NavData != NULL && NavData->GetGenerator() != NULL 
-			&& NavData->GetGenerator()->IsBuildInProgress(bCheckDirtyToo) == true)
+		if (NavData != NULL && NavData->GetGenerator() != NULL
+			&& NavData->GetGenerator()->IsBuildInProgressCheckDirty() == true)
 		{
 			bRet = true;
 			break;
@@ -3599,6 +3599,12 @@ bool UNavigationSystemV1::IsNavigationBuildInProgress(bool bCheckDirtyToo)
 	}
 
 	return bRet;
+}
+
+//deprecated
+bool UNavigationSystemV1::IsNavigationBuildInProgress(bool bCheckDirtyToo)
+{
+	return IsNavigationBuildInProgress();
 }
 
 void UNavigationSystemV1::OnNavigationGenerationFinished(ANavigationData& NavData)

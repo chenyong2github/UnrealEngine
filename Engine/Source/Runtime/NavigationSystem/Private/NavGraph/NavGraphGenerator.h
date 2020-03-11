@@ -22,12 +22,6 @@ private:
 	FNavGraphGenerator(FNavGraphGenerator const& NoCopy) { check(0); };
 	FNavGraphGenerator& operator=(FNavGraphGenerator const& NoCopy) { check(0); return *this; }
 
-public:
-	//----------------------------------------------------------------------//
-	// FNavDataGenerator overrides
-	//----------------------------------------------------------------------//
-	virtual bool IsBuildInProgress(bool bCheckDirtyToo = false) const override;
-
 private:
 	// Performs initial setup of member variables so that generator is ready to do its thing from this point on
 	void Init();

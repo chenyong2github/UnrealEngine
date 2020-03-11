@@ -606,7 +606,14 @@ public:
 
 	/** Asks generator to update navigation affected by DirtyAreas */
 	virtual void RebuildDirtyAreas(const TArray<FNavigationDirtyArea>& DirtyAreas) override;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(4.26, "This function is deprecated. Please use IsBuildInProgressCheckDirty")
 	virtual bool IsBuildInProgress(bool bCheckDirtyToo = false) const override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/** determines whether this generator is performing navigation building actions at the moment, dirty areas are also checked */
+	virtual bool IsBuildInProgressCheckDirty() const override;
 
 #if !RECAST_ASYNC_REBUILDING
 	/** returns true if we are time slicing and the data is valid to use false otherwise*/
