@@ -201,7 +201,7 @@ namespace AutomationTool.Benchmark
 
 				FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(Project);
 
-				if (ProjectFile == null)
+				if (ProjectFile == null && !Project.Equals("UE4", StringComparison.OrdinalIgnoreCase))
 				{
 					throw new AutomationException("Could not find project file for {0}", Project);
 				}
