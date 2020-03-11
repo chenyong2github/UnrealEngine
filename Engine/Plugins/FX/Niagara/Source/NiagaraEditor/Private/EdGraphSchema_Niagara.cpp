@@ -426,25 +426,6 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		{
 			AddScriptFunctionAction(LOCTEXT("Function Menu Title", "Functions"), FunctionScriptAsset);
 		}
-
-		// Insert custom opcodes here...
-		const TArray<FNiagaraFunctionSignature>& VMFastPathOps = UNiagaraFunctionLibrary::GetVectorVMFastPathOps();
-		for (const FNiagaraFunctionSignature& Sig : VMFastPathOps)
-		{
-			UNiagaraNodeFunctionCall* FunctionCallNode = NewObject<UNiagaraNodeFunctionCall>(OwnerOfTemporaries);
-			
-			FunctionCallNode->Signature = Sig;
-			FText AssetDesc;
-			FText Keywords;
-			
-			FString DisplayNameString = FName::NameToDisplayString(Sig.Name.ToString(), false);
-
-			const FText MenuDesc = FText::FromString(DisplayNameString);
-			const FText TooltipDesc = MenuDesc;
-
-			TSharedPtr<FNiagaraSchemaAction_NewNode> FunctionCallAction = AddNewNodeAction(NewActions, LOCTEXT("Function Menu Title", "Functions"), MenuDesc, *DisplayNameString, TooltipDesc, Keywords);
-			FunctionCallAction->NodeTemplate = FunctionCallNode;
-		}
 	}
 
 	//Add modules
