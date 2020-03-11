@@ -72,13 +72,22 @@ namespace AutomationTool.Benchmark
 			return Message;
 		}
 
+		private static string MakeValidFileName(string name)
+		{
+			string invalidChars = System.Text.RegularExpressions.Regex.Escape(new string(System.IO.Path.GetInvalidFileNameChars()));
+			string invalidRegStr = string.Format(@"([{0}]*\.+$)|([{0}]+)", invalidChars);
+
+			return System.Text.RegularExpressions.Regex.Replace(name, invalidRegStr, "_");
+		}
+
 		protected bool RunEditorAndWaitForMapLoad()
 		{
 			string ProjectArg = ProjectFile != null ? ProjectFile.ToString() : "";
 			string EditorPath = HostPlatform.Current.GetUE4ExePath("UE4Editor.exe");
-			string Arguments = string.Format("{0} {1} -execcmds=\"automation runtest System.Maps.PIE;Quit\" -stdout -AllowStdOutLogVerbosity -unattended", ProjectArg, EditorArgs);
+			string LogArg = string.Format("-log={0}.log", MakeValidFileName(GetFullTaskName()).Replace(" ", "_"));
+			string Arguments = string.Format("{0} {1} -execcmds=\"automation runtest System.Maps.PIE;Quit\" -stdout -AllowStdOutLogVerbosity -unattended {2}", ProjectArg, EditorArgs, LogArg);
 
-			if (TaskOptions.HasFlag(DDCTaskOptions.NoDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
 			{
 				Arguments += (" -ddc=noshared");
 			}
