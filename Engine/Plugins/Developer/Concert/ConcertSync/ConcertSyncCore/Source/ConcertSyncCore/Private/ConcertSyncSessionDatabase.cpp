@@ -322,7 +322,7 @@ bool WritePackageBlob(FConcertPackageDataStream& PackageDataStream, EPackageData
 		DstAr << PackageDataStream.DataSize;
 
 		// Copy the package data in the destination.
-		if (PackageDataStream.DataSize > 0)
+		if (PackageDataStream.DataSize > 0 && PackageDataStream.DataAr != nullptr)
 		{
 			ConcertUtil::Copy(DstAr, *PackageDataStream.DataAr, PackageDataStream.DataSize);
 		}
