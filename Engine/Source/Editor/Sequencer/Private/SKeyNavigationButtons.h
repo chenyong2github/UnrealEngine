@@ -179,6 +179,13 @@ public:
 			}
 		}
 
+		if (!PreviousTime.IsSet() && AllTimes.Num() > 0)
+		{
+			AllTimes.Sort();
+
+			PreviousTime = AllTimes.Last();
+		}
+
 		if (PreviousTime.IsSet())
 		{
 			Sequencer.SetLocalTime(PreviousTime.GetValue());
@@ -228,6 +235,13 @@ public:
 				NextTime = Time;
 				ClosestNextKeyDistance = Time - CurrentTime;
 			}
+		}
+
+		if (!NextTime.IsSet() && AllTimes.Num() > 0)
+		{
+			AllTimes.Sort();
+
+			NextTime = AllTimes[0];
 		}
 
 		if (NextTime.IsSet())
