@@ -71,17 +71,17 @@ void FRendererModule::ReallocateSceneRenderTargets()
 	FSceneRenderTargets::GetGlobalUnsafe().UpdateRHI();
 }
 
-void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
+void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources, bool bWorldChanged)
 {
 	FSceneInterface* Scene = World->Scene;
 	ENQUEUE_RENDER_COMMAND(OnWorldCleanup)(
-	[Scene](FRHICommandListImmediate& RHICmdList)
+	[Scene, bWorldChanged](FRHICommandListImmediate& RHICmdList)
 	{
 		if(bFlushRenderTargetsOnWorldCleanup > 0)
 		{
 			GRenderTargetPool.FreeUnusedResources();
 		}
-		if(Scene)
+		if(bWorldChanged && Scene)
 		{
 			Scene->OnWorldCleanup();
 		}
