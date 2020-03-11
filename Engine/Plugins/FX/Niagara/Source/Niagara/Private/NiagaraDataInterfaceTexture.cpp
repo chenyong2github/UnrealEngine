@@ -384,8 +384,7 @@ public:
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyTexture* TextureDI = static_cast<FNiagaraDataInterfaceProxyTexture*>(Context.DataInterface);
 
-		FRHITexture* TextureRHI = (TextureDI && TextureDI->TextureReferenceRHI) ? TextureDI->TextureReferenceRHI->GetReferencedTexture() : nullptr;
-		if (TextureRHI)
+		if (TextureDI && TextureDI->TextureRHI)
 		{
 			FRHISamplerState* SamplerStateRHI = TextureDI->SamplerStateRHI;
 			if (!SamplerStateRHI)
@@ -400,7 +399,7 @@ public:
 				TextureParam,
 				SamplerParam,
 				SamplerStateRHI,
-				TextureRHI
+				TextureDI->TextureRHI
 			);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, TextureDI->TexDims);
 		}
@@ -414,7 +413,7 @@ public:
 				GBlackTexture->SamplerStateRHI,
 				GBlackTexture->TextureRHI
 			);
-			float TexDims[] = { 0.0f, 0.0f };
+			FVector2D TexDims(EForceInit::ForceInitToZero);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, TexDims);
 		}
 	}
@@ -433,32 +432,21 @@ void UNiagaraDataInterfaceTexture::PushToRenderThread()
 {
 	FNiagaraDataInterfaceProxyTexture* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyTexture>();
 
-	float DimX = 0.0f;
-	float DimY = 0.0f;
-	FTextureReferenceRHIRef  RT_TextureReference;
-	FSamplerStateRHIRef RT_SamplerState;
+	FVector2D RT_TexDims(EForceInit::ForceInitToZero);
 
-	if (Texture && Texture->TextureReference.TextureReferenceRHI.IsValid())
+	if (Texture)
 	{
-		if (Texture->TextureReference.TextureReferenceRHI)
-		{
-			RT_TextureReference = Texture->TextureReference.TextureReferenceRHI;
-		}
-		if (Texture->Resource)
-		{
-			RT_SamplerState = Texture->Resource->SamplerStateRHI;
-		}
-		DimX = Texture->GetSurfaceWidth();
-		DimY = Texture->GetSurfaceHeight();
+		RT_TexDims.X = Texture->GetSurfaceWidth();
+		RT_TexDims.Y = Texture->GetSurfaceHeight();
 	}
 
-	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT) (
-		[RT_Proxy, RT_TextureReference, RT_SamplerState, DimX, DimY](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT)
+	(
+		[RT_Proxy, RT_Resource=Texture ? Texture->Resource : nullptr, RT_TexDims](FRHICommandListImmediate& RHICmdList)
 		{
-			RT_Proxy->TextureReferenceRHI = RT_TextureReference;
-			RT_Proxy->SamplerStateRHI = RT_SamplerState;
-			RT_Proxy->TexDims[0] = DimX;
-			RT_Proxy->TexDims[1] = DimY;
+			RT_Proxy->TextureRHI = RT_Resource ? RT_Resource->TextureRHI : nullptr;
+			RT_Proxy->SamplerStateRHI = RT_Resource ? RT_Resource->SamplerStateRHI : nullptr;
+			RT_Proxy->TexDims = RT_TexDims;
 		}
 	);
 }

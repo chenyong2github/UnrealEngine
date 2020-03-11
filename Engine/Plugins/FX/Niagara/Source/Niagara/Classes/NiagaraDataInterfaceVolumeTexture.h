@@ -63,7 +63,7 @@ protected:
 struct FNiagaraDataInterfaceProxyVolumeTexture : public FNiagaraDataInterfaceProxy
 {
 	FSamplerStateRHIRef SamplerStateRHI;
-	FTextureReferenceRHIRef TextureReferenceRHI;
+	FTextureRHIRef TextureRHI;
 	FVector TexDims;
 
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
