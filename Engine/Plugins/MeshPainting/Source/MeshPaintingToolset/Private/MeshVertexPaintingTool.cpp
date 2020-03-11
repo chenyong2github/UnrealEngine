@@ -73,7 +73,6 @@ void UMeshVertexPaintingToolProperties::SaveProperties(UInteractiveTool* SaveFro
 
 void UMeshVertexPaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
 {
-	UBrushBaseProperties::RestoreProperties(RestoreToTool);
 	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
 	this->PaintColor = PropertyCache->PaintColor;
 	this->EraseColor = PropertyCache->EraseColor;
@@ -193,9 +192,39 @@ void UMeshVertexPaintingTool::Tick(float DeltaTime)
 
 void UMeshVertexPaintingTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
+	Super::OnPropertyModified(PropertySet, Property);
 	bResultValid = false;
 }
 
+
+double UMeshVertexPaintingTool::EstimateMaximumTargetDimension()
+{
+	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
+	bool bFoundComponentToUse = false;
+	FBoxSphereBounds Bounds = FBoxSphereBounds(0.0);
+	if (MeshToolManager)
+	{
+		// Preferentially use paintable components
+		for(UMeshComponent* PaintableComponent : MeshToolManager->GetPaintableMeshComponents())
+		{
+			bFoundComponentToUse = true;
+			Bounds = Bounds+PaintableComponent->Bounds;
+		}
+		// Otherwise use selected components
+		if (!bFoundComponentToUse)
+		{
+			for (UMeshComponent* SelectedComponent : MeshToolManager->GetSelectedMeshComponents())
+			{
+				bFoundComponentToUse = true;
+				Bounds = Bounds + SelectedComponent->Bounds;
+			}
+		}
+		
+	}
+
+	return bFoundComponentToUse ? Bounds.GetBox().GetExtent().GetAbsMax() : Super::EstimateMaximumTargetDimension();
+	
+}
 
 double UMeshVertexPaintingTool::CalculateTargetEdgeLength(int TargetTriCount)
 {
