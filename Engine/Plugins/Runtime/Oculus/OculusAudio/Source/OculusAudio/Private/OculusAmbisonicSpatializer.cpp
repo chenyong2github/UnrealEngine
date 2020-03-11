@@ -349,7 +349,7 @@ TUniquePtr<ISoundfieldEncoderStream> FOculusAmbisonicsFactory::CreateEncoderStre
 		check(Context);
 	}
 
-	return TUniquePtr<ISoundfieldEncoderStream>(new FOculusEncoder(Context, InitInfo.NumOutputChannels, InitInfo.NumSources));
+	return TUniquePtr<ISoundfieldEncoderStream>(new FOculusEncoder(Context, InitInfo.NumOutputChannels, InitInfo.AudioDevicePtr->GetMaxChannels()));
 }
 
 TUniquePtr<ISoundfieldDecoderStream> FOculusAmbisonicsFactory::CreateDecoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings)
