@@ -2252,3 +2252,19 @@ FNiagaraSystemInstance::FOnDestroyed& FNiagaraSystemInstance::OnDestroyed()
 	return OnDestroyedDelegate;
 }
 #endif
+
+const FString& FNiagaraSystemInstance::GetCrashReporterTag()const
+{
+	if(CrashReporterTag.IsEmpty())
+	{
+		UNiagaraSystem* Sys = Component ? Component->GetAsset() : nullptr;
+		USceneComponent* AttachParent = Component ? Component->GetAttachParent() : nullptr;
+
+		const FString& CompName = Component ? Component->GetFullName() : TEXT("nullptr");
+		const FString& AssetName = Sys ? Sys->GetFullName() : TEXT("nullptr");
+		const FString& AttachName = AttachParent ? AttachParent->GetFullName() : TEXT("nullptr");
+
+		CrashReporterTag = FString::Printf(TEXT("SystemInstance | System: %s | bSolo: %s | Component: %s | AttachedTo: %s |"), *AssetName, IsSolo() ? TEXT("true") : TEXT("false"), *CompName, *AttachName);
+	}
+	return CrashReporterTag;
+}
