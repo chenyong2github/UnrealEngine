@@ -66,6 +66,13 @@ static FAutoConsoleVariableRef GMallocBinned3AllocExtraCVar(
 	TEXT("When we do acquire the lock, how many blocks cached in TLS caches. In no case will we grab more than a page.")
 	);
 
+double GMallocBinned3FlushThreadCacheMaxWaitTime = 0.02f;
+static FAutoConsoleVariableRef GMallocBinned3FlushThreadCacheMaxWaitTimeCVar(
+	TEXT("MallocBinned3.FlushThreadCacheMaxWaitTime"),
+	GMallocBinned3FlushThreadCacheMaxWaitTime,
+	TEXT("The threshold of time before warning about FlushCurrentThreadCache taking too long (seconds).")
+);
+
 #endif
 
 #if BINNED3_ALLOCATOR_STATS
@@ -1308,11 +1315,16 @@ void FMallocBinned3::FlushCurrentThreadCache()
 	}
 
 	// These logs must happen outside the above mutex to avoid deadlocks
-	if (WaitForMutexTime > 0.02f)
+#if BINNED3_ALLOW_RUNTIME_TWEAKING
+	double MaxWaitTimeThreshold = GMallocBinned3FlushThreadCacheMaxWaitTime;
+#else
+	double MaxWaitTimeThreshold = 0.02f;
+#endif
+	if (WaitForMutexTime > MaxWaitTimeThreshold)
 	{
 		UE_LOG(LogMemory, Warning, TEXT("FMallocBinned3 took %6.2fms to wait for mutex for trim."), WaitForMutexTime * 1000.0f);
 	}
-	if (WaitForMutexAndTrimTime > 0.02f)
+	if (WaitForMutexAndTrimTime > MaxWaitTimeThreshold)
 	{
 		UE_LOG(LogMemory, Warning, TEXT("FMallocBinned3 took %6.2fms to wait for mutex AND trim."), WaitForMutexAndTrimTime * 1000.0f);
 	}
