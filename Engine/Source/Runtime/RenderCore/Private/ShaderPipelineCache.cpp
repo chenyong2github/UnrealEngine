@@ -121,7 +121,7 @@ static TAutoConsoleVariable<int32> CVarPSOFileCachePreCompileMask(
 static TAutoConsoleVariable<int32> CVarPSOFileCacheAutoSaveTimeBoundPSO(
 	TEXT("r.ShaderPipelineCache.AutoSaveTimeBoundPSO"),
 	10,
-	TEXT("Set the time where any logged PSO's will be saved when -logpso is on th ecommand line."),
+	TEXT("Set the time where any logged PSO's will be saved when -logpso is on the command line."),
 	ECVF_Default | ECVF_RenderThreadSafe
 );
 
