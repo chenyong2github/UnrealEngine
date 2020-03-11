@@ -6,10 +6,6 @@
 
 #if RHI_RAYTRACING
 
-DECLARE_STATS_GROUP(TEXT("D3D12RHI: Ray Tracing"), STATGROUP_D3D12RayTracing, STATCAT_Advanced);
-DECLARE_MEMORY_STAT(TEXT("Total Used Video Memory"), STAT_D3D12RayTracingUsedVideoMemory, STATGROUP_D3D12RayTracing);
-DECLARE_MEMORY_STAT(TEXT("Dynamic Vertex Buffer Memory"), STAT_D3D12RayTracingDynamicVertexBufferMemory, STATGROUP_D3D12RayTracing);
-
 static bool IsSupportedDynamicVertexFactoryType(const FVertexFactoryType* VertexFactoryType)
 {
 	return VertexFactoryType == FindVertexFactoryType(FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find))
@@ -160,12 +156,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	uint32 DesiredVertexBufferSize = UpdateParams.VertexBufferSize;
 	if (Buffer.NumBytes != DesiredVertexBufferSize)
 	{
-		int32 OriginalSize = Buffer.NumBytes;
-		DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, Buffer.NumBytes);
-		DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, Buffer.NumBytes);
 		Buffer.Initialize(sizeof(float), DesiredVertexBufferSize / sizeof(float), PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FRayTracingDynamicGeometryCollection::RayTracingDynamicVertexBuffer"));
-		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, Buffer.NumBytes);
-		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, Buffer.NumBytes);
 		bRefit = false;
 	}
 
