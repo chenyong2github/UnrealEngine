@@ -29,6 +29,8 @@
 #include "Indexers/SoundCueIndexer.h"
 #include "Sound/SoundCue.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/StringBuilder.h"
+#include "Engine/World.h"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
