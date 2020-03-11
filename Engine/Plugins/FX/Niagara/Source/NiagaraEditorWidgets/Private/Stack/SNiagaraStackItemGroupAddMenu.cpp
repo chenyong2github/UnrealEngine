@@ -9,13 +9,16 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Styling/SlateTypes.h"
+#include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackItemGroupAddMenu"
 
-bool SNiagaraStackItemGroupAddMenu::bIncludeNonLibraryScripts = false;
+bool SNiagaraStackItemGroupAddMenu::bLibraryOnly = true;
 
 void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex)
 {
+	TSharedPtr<SNiagaraLibraryOnlyToggleHeader> LibraryOnlyToggle;
+
 	AddUtilities = InAddUtilities;
 	InsertIndex = InInsertIndex;
 	bSetFocusOnNextTick = true;
@@ -33,30 +36,10 @@ void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, INiagara
 				+SVerticalBox::Slot()
 				.Padding(1.0f)
 				[
-					SNew(SHorizontalBox)
-
-					// Search context description
-					+SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text(FText::Format(LOCTEXT("AddToGroupFormatTitle", "Add new {0}"), AddUtilities->GetAddItemName()))
-					]
-
-					// Library Only Toggle
-					+SHorizontalBox::Slot()
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SCheckBox)
-						.OnCheckStateChanged(this, &SNiagaraStackItemGroupAddMenu::OnLibraryToggleChanged)
-						.IsChecked(this, &SNiagaraStackItemGroupAddMenu::LibraryToggleIsChecked)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("LibraryOnly", "Library Only"))
-						]
-					]
+					SAssignNew(LibraryOnlyToggle, SNiagaraLibraryOnlyToggleHeader)
+					.HeaderLabelText(FText::Format(LOCTEXT("AddToGroupFormatTitle", "Add new {0}"), AddUtilities->GetAddItemName()))
+					.LibraryOnly(this, &SNiagaraStackItemGroupAddMenu::GetLibraryOnly)
+					.LibraryOnlyChanged(this, &SNiagaraStackItemGroupAddMenu::SetLibraryOnly)
 				]
 				+SVerticalBox::Slot()
 				.FillHeight(15)
@@ -70,6 +53,8 @@ void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, INiagara
 			]
 		]
 	];
+
+	LibraryOnlyToggle->SetActionMenu(AddMenu.ToSharedRef());
 }
 
 void SNiagaraStackItemGroupAddMenu::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -95,7 +80,7 @@ void SNiagaraStackItemGroupAddMenu::CollectAllAddActions(FGraphActionListBuilder
 
 	FNiagaraStackItemGroupAddOptions AddOptions;
 	AddOptions.bIncludeDeprecated = false;
-	AddOptions.bIncludeNonLibrary = bIncludeNonLibraryScripts;
+	AddOptions.bIncludeNonLibrary = bLibraryOnly == false;
 
 	TArray<TSharedRef<INiagaraStackItemGroupAddAction>> AddActions;
 	AddUtilities->GenerateAddActions(AddActions, AddOptions);
@@ -126,15 +111,14 @@ void SNiagaraStackItemGroupAddMenu::OnActionSelected(const TArray< TSharedPtr<FE
 	}
 }
 
-void SNiagaraStackItemGroupAddMenu::OnLibraryToggleChanged(ECheckBoxState CheckState)
+bool SNiagaraStackItemGroupAddMenu::GetLibraryOnly() const
 {
-	SNiagaraStackItemGroupAddMenu::bIncludeNonLibraryScripts = CheckState == ECheckBoxState::Unchecked;
-	AddMenu->RefreshAllActions(true, false);
+	return bLibraryOnly;
 }
 
-ECheckBoxState SNiagaraStackItemGroupAddMenu::LibraryToggleIsChecked() const
+void SNiagaraStackItemGroupAddMenu::SetLibraryOnly(bool bInLibraryOnly)
 {
-	return SNiagaraStackItemGroupAddMenu::bIncludeNonLibraryScripts ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
+	bLibraryOnly = bInLibraryOnly;
 }
 
 #undef LOCTEXT_NAMESPACE
