@@ -441,7 +441,7 @@ namespace Audio
 
 		// Envelope following data
 		float EnvelopeValues[AUDIO_MIXER_MAX_OUTPUT_CHANNELS];
-		Audio::FEnvelopeFollower EnvelopeFollowers[AUDIO_MIXER_MAX_OUTPUT_CHANNELS];
+		TArray<Audio::FEnvelopeFollower> EnvelopeFollowers;
 		int32 EnvelopeNumChannels;
 		FCriticalSection EnvelopeCriticalSection;
 
