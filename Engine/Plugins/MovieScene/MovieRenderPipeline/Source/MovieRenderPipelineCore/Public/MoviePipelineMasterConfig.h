@@ -87,7 +87,7 @@ public:
 	TMap<FString, UMoviePipelineShotConfig*> PerShotConfigMapping;
 
 private:
-	UPROPERTY(Transient, Instanced)
+	UPROPERTY(Instanced)
 	UMoviePipelineOutputSetting* OutputSetting;
 
 	/** An array of settings that are available in the engine and have not been edited by the user. */
