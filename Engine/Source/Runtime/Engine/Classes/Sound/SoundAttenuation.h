@@ -359,7 +359,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 
 	/** Set of submix send settings to use to send audio to submixes as a function of distance. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSubmixSend)
-	TArray<FAttenuationSubmixSendSettings> SubmixSendSettings;
+	FAttenuationSubmixSendSettings SubmixSendSettings;
 
 	/** The priority attenuation to use when the sound is at the minimum priority attenuation distance. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Min Priority Attenuation"))
