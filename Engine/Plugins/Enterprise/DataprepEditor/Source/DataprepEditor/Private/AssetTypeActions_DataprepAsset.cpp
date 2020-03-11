@@ -28,7 +28,7 @@ void FAssetTypeActions_DataprepAsset::OpenAssetEditor(const TArray<UObject*>& In
 		if (UDataprepAsset* DataprepAsset = Cast<UDataprepAsset>(Object))
 		{
 			TSharedRef<FDataprepEditor> NewDataprepEditor(new FDataprepEditor());
-			NewDataprepEditor->InitDataprepEditor( EToolkitMode::Standalone, EditWithinLevelEditor, DataprepAsset, DataprepAsset->GetRecipeBP() );
+			NewDataprepEditor->InitDataprepEditor( EToolkitMode::Standalone, EditWithinLevelEditor, DataprepAsset );
 		}
 	}
 }

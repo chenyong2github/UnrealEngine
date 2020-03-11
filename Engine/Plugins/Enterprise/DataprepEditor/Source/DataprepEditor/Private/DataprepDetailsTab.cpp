@@ -8,7 +8,6 @@
 #include "DataprepEditorActions.h"
 #include "DataprepEditorModule.h"
 #include "DataprepEditorStyle.h"
-#include "DataprepRecipe.h"
 #include "Widgets/SAssetsPreviewWidget.h"
 
 #include "AssetRegistryModule.h"
