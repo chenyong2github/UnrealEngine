@@ -73,7 +73,7 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 		.Orientation(Orient_Horizontal)
     
 		+ SSplitter::Slot()
-		.Value(.40f)
+		.Value(.33f)
 		[
 			SNew(SBorder)
 			.Padding(4)
@@ -84,7 +84,7 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 		]
     
 		+ SSplitter::Slot()
-		.Value(.60f)
+		.Value(.67f)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -94,15 +94,24 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 			]
 
 			+ SVerticalBox::Slot()
+			.Padding(FMargin(0, 4, 0, 0))
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Visibility(this, &SMoviePipelineConfigEditor::IsSettingFooterVisible)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
-					SNew(STextBlock)
-					.AutoWrapText(true)
-					.Text(this, &SMoviePipelineConfigEditor::GetSettingsFooterText)
+					SNew(SBox)
+					.MaxDesiredHeight(96)
+					[
+						SNew(SScrollBox)
+						+ SScrollBox::Slot()
+						[
+							SNew(STextBlock)
+							.AutoWrapText(true)
+							.Text(this, &SMoviePipelineConfigEditor::GetSettingsFooterText)
+						]
+					]	
 				]
 			]
 
@@ -306,7 +315,8 @@ void SMoviePipelineConfigEditor::UpdateDetails()
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs(false, false, false, FDetailsViewArgs::HideNameArea, true);
 	DetailsViewArgs.bShowScrollBar = false;
-	 
+	DetailsViewArgs.ColumnWidth = 0.5f;
+
 	TArray<UMoviePipelineSetting*> SelectedSources;
 	SettingsWidget->GetSelectedSettings(SelectedSources);
 
@@ -389,7 +399,11 @@ FText SMoviePipelineConfigEditor::GetSettingsFooterText() const
 	{
 		for (const UMoviePipelineSetting* Setting : SelectedSettings)
 		{
-			TextBuilder.AppendLine(Setting->GetFooterText(CachedOwningJob.Get()));
+			const FText FooterText = Setting->GetFooterText(CachedOwningJob.Get());
+			if (!FooterText.IsEmpty())
+			{
+				TextBuilder.AppendLine(FooterText);
+			}
 		}
 	}
 
@@ -410,7 +424,7 @@ EVisibility SMoviePipelineConfigEditor::IsValidationWarningVisible() const
 		}
 	}
 
-	return (ValidationResult != EMoviePipelineValidationState::Valid) ? EVisibility::Visible : EVisibility::Hidden;
+	return (ValidationResult != EMoviePipelineValidationState::Valid) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FText SMoviePipelineConfigEditor::GetValidationWarningText() const
