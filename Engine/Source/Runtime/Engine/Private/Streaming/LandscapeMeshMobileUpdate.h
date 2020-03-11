@@ -7,6 +7,7 @@ LandscapeMeshMobileUpdate.h: Helpers to stream in and out mobile landscape verte
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RHIResources.h"
 #include "RenderAssetUpdate.h"
 #include "Async/AsyncFileHandle.h"
 
