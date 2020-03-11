@@ -48,6 +48,13 @@ FInputCaptureUpdate UMultiClickSequenceInputBehavior::UpdateCapture(const FInput
 {
 	check(bInActiveSequence == true);   // should always be the case!
 
+	// This is a hack to avoid terminating multi-click sequences if the user does alt+mouse camera navigation.
+	// This entire class should be deprecated and removed, in which case this hack won't be relevant...
+	if (input.bAltKeyDown)
+	{
+		return FInputCaptureUpdate::Continue();
+	}
+
 	Modifiers.UpdateModifiers(input, Target);
 
 	// allow target to abort click sequence
