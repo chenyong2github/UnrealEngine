@@ -41,6 +41,14 @@ public:
 };
 typedef TDefaultReferenceCollector<FAllReferencesProcessor> FAllReferencesCollector;
 
+// Until all native UObject classes have been registered it's unsafe to run FReferencerFinder on multiple threads
+static bool GUObjectRegistrationComplete = false;
+
+void FReferencerFinder::NotifyRegistrationComplete()
+{
+	GUObjectRegistrationComplete = true;
+}
+
 TArray<UObject*> FReferencerFinder::GetAllReferencers(const TArray<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore )
 {
 	return GetAllReferencers(TSet<UObject*>(Referencees), ObjectsToIgnore);
@@ -104,7 +112,7 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 				FScopeLock ResultLock(&ResultCritical);
 				Ret.Append(ThreadResult.Array());
 			}
-		}, GIsInitialLoad ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
+		}, GUObjectRegistrationComplete ? EParallelForFlags::None :  EParallelForFlags::ForceSingleThread );
 
 		UnlockUObjectHashTables();
 	}
