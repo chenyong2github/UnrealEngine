@@ -986,11 +986,6 @@ void FNiagaraSystemInstance::ReInitInternal()
 
 	bAlreadyBound = false;
 
-	FastPathIntUserParameterInputBindings.Empty();
-	FastPathFloatUserParameterInputBindings.Empty();
-	FastPathIntUpdateRangedInputBindings.Empty();
-	FastPathFloatUpdateRangedInputBindings.Empty();
-
 	UNiagaraSystem* System = GetSystem();
 	if (System == nullptr || Component == nullptr)
 	{
@@ -1694,37 +1689,6 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 
 	InstanceParameters.Tick();
 	InstanceParameters.MarkParametersDirty();
-}
-
-void FNiagaraSystemInstance::TickFastPathBindings()
-{
-	for (TNiagaraFastPathUserParameterInputBinding<int32>& IntUserParameterInputBinding : FastPathIntUserParameterInputBindings)
-	{
-		IntUserParameterInputBinding.Tick();
-	}
-
-	for (TNiagaraFastPathUserParameterInputBinding<float>& FloatUserParameterInputBinding : FastPathFloatUserParameterInputBindings)
-	{
-		FloatUserParameterInputBinding.Tick();
-	}
-
-	for (TNiagaraFastPathRangedInputBinding<int32>& IntUpdateRangedInputBinding : FastPathIntUpdateRangedInputBindings)
-	{
-		IntUpdateRangedInputBinding.Tick();
-	}
-
-	for (TNiagaraFastPathRangedInputBinding<float>& FloatUpdateRangedInputBinding : FastPathFloatUpdateRangedInputBindings)
-	{
-		FloatUpdateRangedInputBinding.Tick();
-	}
-}
-
-void FNiagaraSystemInstance::ResetFastPathBindings()
-{
-	FastPathIntUserParameterInputBindings.Empty();
-	FastPathFloatUserParameterInputBindings.Empty();
-	FastPathIntUpdateRangedInputBindings.Empty();
-	FastPathFloatUpdateRangedInputBindings.Empty();
 }
 
 void

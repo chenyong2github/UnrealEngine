@@ -31,7 +31,6 @@ DECLARE_CYCLE_STAT(TEXT("System Sim Update [CNC]"), STAT_NiagaraSystemSim_Update
 DECLARE_CYCLE_STAT(TEXT("System Sim Spawn [CNC]"), STAT_NiagaraSystemSim_SpawnCNC, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Sim Transfer Results [CNC]"), STAT_NiagaraSystemSim_TransferResultsCNC, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Sim Init [GT]"), STAT_NiagaraSystemSim_Init, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("System Sim FastPath [CNC]"), STAT_NiagaraSystemSim_FastPathCNC, STATGROUP_Niagara);
 
 DECLARE_CYCLE_STAT(TEXT("System Sim Init (DataSets) [GT]"), STAT_NiagaraSystemSim_Init_DataSets, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Sim Init (ExecContexts) [GT]"), STAT_NiagaraSystemSim_Init_ExecContexts, STATGROUP_Niagara);
@@ -1050,24 +1049,16 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 			SystemInstance->TickInstanceParameters_Concurrent();
 		}
 
-		if (Context.Owner->GetSystem()->FastPathMode != ENiagaraFastPathMode::ScriptVMOnly)
+		PrepareForSystemSimulate(Context);
+
+		if (Context.SpawnNum > 0)
 		{
-			TickFastPath(Context);
+			SpawnSystemInstances(Context);
 		}
 
-		if(Context.Owner->GetSystem()->FastPathMode != ENiagaraFastPathMode::FastPathOnly)
-		{
-			PrepareForSystemSimulate(Context);
+		UpdateSystemInstances(Context);
 
-			if (Context.SpawnNum > 0)
-			{
-				SpawnSystemInstances(Context);
-			}
-
-			UpdateSystemInstances(Context);
-
-			TransferSystemSimResults(Context);
-		}
+		TransferSystemSimResults(Context);
 
 		for (FNiagaraSystemInstance* Instance : Context.Instances)
 		{
@@ -1107,227 +1098,6 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 	}
 }
 
-void FNiagaraSystemSimulation::TickFastPath(FNiagaraSystemSimulationTickContext& Context)
-{
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_FastPathCNC);
-
-	// PrepareForSystemSimulate
-	for (FNiagaraSystemInstance* SystemInstance : Context.Instances)
-	{
-		const auto& SystemParameters = SystemInstance->GetSystemParameters();
-
-		FNiagaraSystemFastPath::FParamMap0& SystemMap = SystemInstance->GetFastPathMap();
-		SystemMap.Engine.Owner.ExecutionState = SystemInstance->GetRequestedExecutionState();
-		SystemMap.Engine.Owner.TimeSinceRendered = SystemInstance->GetSystemParameters().EngineTimeSinceRendered;
-
-		TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>>& EmitterInstances = SystemInstance->GetEmitters();
-		for (int32 EmitterIndex = 0; EmitterIndex < EmitterInstances.Num(); ++EmitterIndex)
-		{
-			TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance = EmitterInstances[EmitterIndex];
-			if (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Disabled)
-			{
-				continue;
-			}
-			FNiagaraEmitterFastPath::FParamMap0& EmitterMap = EmitterInstance->GetFastPathMap();
-			EmitterMap.Engine.Owner.LODDistance = SystemParameters.EngineLodDistance;
-			EmitterMap.Engine.Owner.MaxLODDistance = SystemParameters.EngineLodDistance / SystemParameters.EngineLodDistanceFraction;
-			EmitterMap.Engine.DeltaTime = Context.DeltaSeconds;
-			EmitterMap.Engine.Emitter.NumParticles = SystemInstance->GetEmitterParameters(EmitterIndex).EmitterNumParticles;
-			EmitterMap.Engine.Owner.Velocity = SystemInstance->GetOwnerParameters().EngineVelocity;
-			EmitterMap.Emitter.ExecutionState = EmitterInstance->GetExecutionState();
-			EmitterMap.Engine.GlobalSpawnCountScale = INiagaraModule::GetGlobalSpawnCountScale();
-
-			if (UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter())
-			{
-				const FNiagaraEmitterScalabilitySettings& ScalabilitySettings = CachedEmitter->GetScalabilitySettings();
-				EmitterMap.Emitter.SpawnCountScale = ScalabilitySettings.SpawnCountScale;
-			}
-		}
-	}
-
-	// SpawnSystemInstances
-	int32 CurrentNumInstances = Context.Instances.Num() - Context.SpawnNum;
-	if (Context.SpawnNum > 0)
-	{
-		// There is no simulation work to do here, but the number of instances in the data set needs to be correct for other codepaths.
-		FNiagaraDataSet& SimulationDataSet = Context.DataSet;
-		SimulationDataSet.BeginSimulate();
-		SimulationDataSet.Allocate(Context.Instances.Num());
-		SimulationDataSet.GetDestinationDataChecked().SetNumInstances(Context.Instances.Num());
-		SimulationDataSet.EndSimulate();
-
-		for(int32 SpawnIndex = CurrentNumInstances; SpawnIndex < Context.Instances.Num(); ++SpawnIndex)
-		{
-			FNiagaraSystemInstance* SystemInstance = Context.Instances[SpawnIndex];
-			SystemInstance->ResetFastPathBindings();
-
-			FNiagaraSystemFastPath::SetSpawnMapDefaults(SystemInstance->FastPathMap);
-			TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>>& EmitterInstances = SystemInstance->GetEmitters();
-			for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : EmitterInstances)
-			{
-				const UNiagaraEmitter* Emitter = EmitterInstance->GetCachedEmitter();
-				if (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Disabled)
-				{
-					continue;
-				}
-
-				FNiagaraEmitterFastPath::FParamMap0& EmitterMap = EmitterInstance->GetFastPathMap();
-				FNiagaraEmitterFastPath::SetSpawnMapDefaults(*Emitter, EmitterMap);
-				EmitterInstance->InitFastPathAttributeBindings();
-
-				EmitterMap.SpawnRate.SetNumUninitialized(Emitter->SpawnRate.Num());
-				for (int32 SpawnRateIndex = 0; SpawnRateIndex < Emitter->SpawnRate.Num(); ++SpawnRateIndex)
-				{
-					EmitterMap.SpawnRate[SpawnRateIndex].Init(
-						Emitter, SpawnRateIndex, SystemInstance->GetInstanceParameters(),
-						SystemInstance->FastPathIntUserParameterInputBindings, SystemInstance->FastPathFloatUserParameterInputBindings,
-						SystemInstance->FastPathIntUpdateRangedInputBindings, SystemInstance->FastPathFloatUpdateRangedInputBindings);
-				}
-
-				EmitterMap.SpawnPerUnit.SetNumUninitialized(Emitter->SpawnPerUnit.Num());
-				for (int32 SpawnPerUnitIndex = 0; SpawnPerUnitIndex < Emitter->SpawnPerUnit.Num(); ++SpawnPerUnitIndex)
-				{
-					EmitterMap.SpawnPerUnit[SpawnPerUnitIndex].Init(
-						Emitter, SpawnPerUnitIndex, SystemInstance->GetInstanceParameters(),
-						SystemInstance->FastPathIntUserParameterInputBindings, SystemInstance->FastPathFloatUserParameterInputBindings,
-						SystemInstance->FastPathIntUpdateRangedInputBindings, SystemInstance->FastPathFloatUpdateRangedInputBindings);
-				}
-
-				EmitterMap.SpawnBurst_Instantaneous.SetNumUninitialized(Emitter->SpawnBurstInstantaneous.Num());
-				for (int32 SpawnBurstInstantaneousIndex = 0; SpawnBurstInstantaneousIndex < Emitter->SpawnBurstInstantaneous.Num(); ++SpawnBurstInstantaneousIndex)
-				{
-					EmitterMap.SpawnBurst_Instantaneous[SpawnBurstInstantaneousIndex].Init(
-						Emitter, SpawnBurstInstantaneousIndex, SystemInstance->GetInstanceParameters(),
-						SystemInstance->FastPathIntUserParameterInputBindings, SystemInstance->FastPathFloatUserParameterInputBindings,
-						SystemInstance->FastPathIntUpdateRangedInputBindings, SystemInstance->FastPathFloatUpdateRangedInputBindings);
-				}
-			}
-		}
-	}
-
-	// UpdateSystemInstances
-	const UNiagaraSystem* System = GetSystem();
-	auto UpdateSystemInstance = [System](FNiagaraSystemInstance* SystemInstance)
-	{
-		FNiagaraSystemFastPath::FParamMap0& SystemMap = SystemInstance->FastPathMap;
-		FNiagaraSystemFastPath::SetUpdateMapDefaults(SystemMap);
-		SystemInstance->TickFastPathBindings();
-
-		if (System->SystemScalability.bUseSystemScalability)
-		{
-			FNiagaraSystemFastPath::Module_SystemScalability(System->SystemScalability, SystemMap);
-		}
-
-		FNiagaraSystemFastPath::Module_SystemLifeCycle(System->SystemLifeCycle, SystemMap);
-
-		TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>>& EmitterInstances = SystemInstance->GetEmitters();
-		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : EmitterInstances)
-		{
-			if (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Disabled)
-			{
-				continue;
-			}
-
-			FNiagaraEmitterFastPath::FParamMap0& EmitterMap = EmitterInstance->GetFastPathMap();
-			FNiagaraEmitterFastPath::SetUpdateMapDefaults(EmitterMap);
-			EmitterMap.System = &SystemMap.System;
-
-			const UNiagaraEmitter* Emitter = EmitterInstance->GetCachedEmitter();
-			if (Emitter->EmitterScalability.bUseEmitterScalability)
-			{
-				FNiagaraEmitterFastPath::Module_EmitterScalability(Emitter->EmitterScalability, EmitterMap);
-			}
-
-			FNiagaraEmitterFastPath::Module_EmitterLifeCycle(Emitter->EmitterLifeCycle, EmitterMap);
-
-			if (Emitter->SpawnRate.Num() > 0)
-			{
-				FNiagaraEmitterFastPath::Module_SpawnRate(EmitterMap);
-			}
-
-			if (Emitter->SpawnPerUnit.Num() > 0)
-			{
-				FNiagaraEmitterFastPath::Module_SpawnPerUnit(EmitterMap);
-			}
-
-			if (Emitter->SpawnBurstInstantaneous.Num() > 0)
-			{
-				FNiagaraEmitterFastPath::Module_SpawnBurstInstantaneous(EmitterMap);
-			}
-		}
-	};
-
-	// Run update on current instances.
-	for (int32 CurrentIndex = 0; CurrentIndex < CurrentNumInstances; ++CurrentIndex)
-	{
-		FNiagaraSystemInstance* CurrentInstance = Context.Instances[CurrentIndex];
-		UpdateSystemInstance(CurrentInstance);
-	}
-
-	// Run updated on spawned instances with a small delta time.
-	for (int32 SpawnIndex = CurrentNumInstances; SpawnIndex < Context.Instances.Num(); ++SpawnIndex)
-	{
-		FNiagaraSystemInstance* SpawnedInstance = Context.Instances[SpawnIndex];
-		TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>>& EmitterInstances = SpawnedInstance->GetEmitters();
-		for (int32 EmitterIndex = 0; EmitterIndex < EmitterInstances.Num(); ++EmitterIndex)
-		{
-			TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance = EmitterInstances[EmitterIndex];
-			if (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Disabled)
-			{
-				continue;
-			}
-
-			EmitterInstance->GetFastPathMap().Engine.DeltaTime = 0.0001f;
-		}
-		UpdateSystemInstance(SpawnedInstance);
-	}
-
-	// TransferSystemSimResults
-	for (FNiagaraSystemInstance* SystemInstance : Context.Instances)
-	{
-		SystemInstance->SetActualExecutionState(SystemInstance->FastPathMap.System.ExecutionState);
-		if (SystemInstance->IsDisabled() == false)
-		{
-			TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>>& EmitterInstances = SystemInstance->GetEmitters();
-			for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : EmitterInstances)
-			{
-				if (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Disabled)
-				{
-					continue;
-				}
-
-				FNiagaraEmitterFastPath::FParamMap0& EmitterMap = EmitterInstance->GetFastPathMap();
-
-				EmitterInstance->SetExecutionState(EmitterMap.Emitter.ExecutionState);
-
-				TArray<FNiagaraSpawnInfo>& EmitterInstSpawnInfos = EmitterInstance->GetSpawnInfo();
-
-				int32 SpawnInfoIndex = 0;
-
-				for (const FNiagaraEmitterFastPath::FParamMap0_Emitter_SpawnRate& SpawnRateOutput : EmitterMap.Emitter.SpawnRate)
-				{
-					EmitterInstSpawnInfos[SpawnInfoIndex] = SpawnRateOutput.SpawnOutputInfo;
-					SpawnInfoIndex++;
-				}
-
-				for (const FNiagaraEmitterFastPath::FParamMap0_Emitter_SpawnPerUnit& SpawnPerUnitOutput : EmitterMap.Emitter.SpawnPerUnit)
-				{
-					EmitterInstSpawnInfos[SpawnInfoIndex] = SpawnPerUnitOutput.SpawnOutputInfo;
-					SpawnInfoIndex++;
-				}
-
-				for (const FNiagaraEmitterFastPath::FParamMap0_Emitter_SpawnBurst_Instantaneous& SpawnBurstInstantaneousOutput : EmitterMap.Emitter.SpawnBurst_Instantaneous)
-				{
-					EmitterInstSpawnInfos[SpawnInfoIndex] = SpawnBurstInstantaneousOutput.SpawnBurst;
-					SpawnInfoIndex++;
-				}
-
-				EmitterInstance->TickFastPathAttributeBindings();
-			}
-		}
-	}
-}
-
 void FNiagaraSystemSimulation::SetupParameters_GameThread(float DeltaSeconds)
 {
 	check(IsInGameThread());
@@ -1357,13 +1127,9 @@ void FNiagaraSystemSimulation::PrepareForSystemSimulate(FNiagaraSystemSimulation
 	SpawnInstanceParameterDataSet.Allocate(NumInstances);
 	UpdateInstanceParameterDataSet.Allocate(NumInstances);
 
-	bool bUsingFastPath = GetSystem()->FastPathMode != ENiagaraFastPathMode::ScriptVMOnly;
-	if (bUsingFastPath == false)
+	for (int32 EmitterIdx = 0; EmitterIdx < Context.System->GetNumEmitters(); ++EmitterIdx)
 	{
-		for (int32 EmitterIdx = 0; EmitterIdx < Context.System->GetNumEmitters(); ++EmitterIdx)
-		{
-			EmitterExecutionStateAccessors[EmitterIdx].InitForAccess();
-		}
+		EmitterExecutionStateAccessors[EmitterIdx].InitForAccess();
 	}
 
 	//Tick instance parameters and transfer any needed into the system simulation dataset.
@@ -1383,16 +1149,13 @@ void FNiagaraSystemSimulation::PrepareForSystemSimulate(FNiagaraSystemSimulation
 		//TODO: Find good way to check that we're not using any instance parameter data interfaces in the system scripts here.
 		//In that case we need to solo and will never get here.
 
-		if (bUsingFastPath == false)
+		TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>>& Emitters = Inst->GetEmitters();
+		for (int32 EmitterIdx = 0; EmitterIdx < Emitters.Num(); ++EmitterIdx)
 		{
-			TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>>& Emitters = Inst->GetEmitters();
-			for (int32 EmitterIdx = 0; EmitterIdx < Emitters.Num(); ++EmitterIdx)
+			FNiagaraEmitterInstance& EmitterInst = Emitters[EmitterIdx].Get();
+			if (EmitterExecutionStateAccessors.Num() > EmitterIdx&& EmitterExecutionStateAccessors[EmitterIdx].IsValidForWrite())
 			{
-				FNiagaraEmitterInstance& EmitterInst = Emitters[EmitterIdx].Get();
-				if (EmitterExecutionStateAccessors.Num() > EmitterIdx && EmitterExecutionStateAccessors[EmitterIdx].IsValidForWrite())
-				{
-					EmitterExecutionStateAccessors[EmitterIdx].Set(SystemIndex, (int32)EmitterInst.GetExecutionState());
-				}
+				EmitterExecutionStateAccessors[EmitterIdx].Set(SystemIndex, (int32)EmitterInst.GetExecutionState());
 			}
 		}
 	};
@@ -1571,20 +1334,16 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 		return;
 	}
 
-	bool bIsUsingFastPath = GetSystem()->FastPathMode != ENiagaraFastPathMode::ScriptVMOnly;
-	if (bIsUsingFastPath == false)
+	SystemExecutionStateAccessor.SetDataSet(Context.DataSet);
+	SystemExecutionStateAccessor.InitForAccess();
+	for (int32 EmitterIdx = 0; EmitterIdx < Context.System->GetNumEmitters(); ++EmitterIdx)
 	{
-		SystemExecutionStateAccessor.SetDataSet(Context.DataSet);
-		SystemExecutionStateAccessor.InitForAccess();
-		for (int32 EmitterIdx = 0; EmitterIdx < Context.System->GetNumEmitters(); ++EmitterIdx)
+		EmitterExecutionStateAccessors[EmitterIdx].SetDataSet(Context.DataSet);
+		EmitterExecutionStateAccessors[EmitterIdx].InitForAccess();
+		for (int32 SpawnInfoIdx = 0; SpawnInfoIdx < EmitterSpawnInfoAccessors[EmitterIdx].Num(); ++SpawnInfoIdx)
 		{
-			EmitterExecutionStateAccessors[EmitterIdx].SetDataSet(Context.DataSet);
-			EmitterExecutionStateAccessors[EmitterIdx].InitForAccess();
-			for (int32 SpawnInfoIdx = 0; SpawnInfoIdx < EmitterSpawnInfoAccessors[EmitterIdx].Num(); ++SpawnInfoIdx)
-			{
-				EmitterSpawnInfoAccessors[EmitterIdx][SpawnInfoIdx].SetDataSet(Context.DataSet);
-				EmitterSpawnInfoAccessors[EmitterIdx][SpawnInfoIdx].InitForAccess();
-			}
+			EmitterSpawnInfoAccessors[EmitterIdx][SpawnInfoIdx].SetDataSet(Context.DataSet);
+			EmitterSpawnInfoAccessors[EmitterIdx][SpawnInfoIdx].InitForAccess();
 		}
 	}
 
@@ -1592,12 +1351,9 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 	{
 		FNiagaraSystemInstance* SystemInst = Context.Instances[SystemIndex];
 
-		if (bIsUsingFastPath == false)
-		{
-			//Apply the systems requested execution state to it's actual execution state.
-			ENiagaraExecutionState ExecutionState = (ENiagaraExecutionState)SystemExecutionStateAccessor.GetSafe(SystemIndex, (int32)ENiagaraExecutionState::Disabled);
-			SystemInst->SetActualExecutionState(ExecutionState);
-		}
+		//Apply the systems requested execution state to it's actual execution state.
+		ENiagaraExecutionState ExecutionState = (ENiagaraExecutionState)SystemExecutionStateAccessor.GetSafe(SystemIndex, (int32)ENiagaraExecutionState::Disabled);
+		SystemInst->SetActualExecutionState(ExecutionState);
 
 		if (!SystemInst->IsDisabled())
 		{
@@ -1615,22 +1371,19 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 
 				check(Emitters.Num() > EmitterIdx);
 
-				if (bIsUsingFastPath == false)
-				{
-					ENiagaraExecutionState State = (ENiagaraExecutionState)EmitterExecutionStateAccessors[EmitterIdx].GetSafe(SystemIndex, (int32)ENiagaraExecutionState::Disabled);
-					EmitterInst.SetExecutionState(State);
+				ENiagaraExecutionState State = (ENiagaraExecutionState)EmitterExecutionStateAccessors[EmitterIdx].GetSafe(SystemIndex, (int32)ENiagaraExecutionState::Disabled);
+				EmitterInst.SetExecutionState(State);
 
-					TArray<FNiagaraSpawnInfo>& EmitterInstSpawnInfos = EmitterInst.GetSpawnInfo();
-					for (int32 SpawnInfoIdx = 0; SpawnInfoIdx < EmitterSpawnInfoAccessors[EmitterIdx].Num(); ++SpawnInfoIdx)
+				TArray<FNiagaraSpawnInfo>& EmitterInstSpawnInfos = EmitterInst.GetSpawnInfo();
+				for (int32 SpawnInfoIdx = 0; SpawnInfoIdx < EmitterSpawnInfoAccessors[EmitterIdx].Num(); ++SpawnInfoIdx)
+				{
+					if (SpawnInfoIdx < EmitterInstSpawnInfos.Num())
 					{
-						if (SpawnInfoIdx < EmitterInstSpawnInfos.Num())
-						{
-							EmitterInstSpawnInfos[SpawnInfoIdx] = EmitterSpawnInfoAccessors[EmitterIdx][SpawnInfoIdx].Get(SystemIndex);
-						}
-						else
-						{
-							ensure(SpawnInfoIdx < EmitterInstSpawnInfos.Num());
-						}
+						EmitterInstSpawnInfos[SpawnInfoIdx] = EmitterSpawnInfoAccessors[EmitterIdx][SpawnInfoIdx].Get(SystemIndex);
+					}
+					else
+					{
+						ensure(SpawnInfoIdx < EmitterInstSpawnInfos.Num());
 					}
 				}
 

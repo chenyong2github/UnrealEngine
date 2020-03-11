@@ -13,7 +13,6 @@
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraUserRedirectionParameterStore.h"
-#include "NiagaraSystemFastPath.h"
 #include "NiagaraEffectType.h"
 
 #include "NiagaraSystem.generated.h"
@@ -383,15 +382,6 @@ public:
 	uint32 bFixedBounds : 1;
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	ENiagaraFastPathMode FastPathMode;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	FNiagaraFastPath_Module_SystemScalability SystemScalability;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	FNiagaraFastPath_Module_SystemLifeCycle SystemLifeCycle;
 
 private:
 #if WITH_EDITORONLY_DATA
