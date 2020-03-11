@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Tools.DotNETCommon;
 using UnrealBuildTool;
 
 namespace AutomationTool.Benchmark
@@ -53,22 +54,22 @@ namespace AutomationTool.Benchmark
 			}
 		}
 
-		public BenchmarkBuildTask(string InProject, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions, int CoreCount=0)
+		public BenchmarkBuildTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions, string InUBTArgs="", int CoreCount=0)
 		{
-			bool IsVanillaUE4 = InProject == null || string.Equals(InProject, "UE4", StringComparison.OrdinalIgnoreCase);
+			bool IsVanillaUE4 = InProjectFile == null;
 
-			string ModuleName = IsVanillaUE4 ? "UE4" : InProject;
+			string ModuleName = IsVanillaUE4 ? "UE4" : InProjectFile.GetFileNameWithoutAnyExtensions();
 
 			TaskName = string.Format("{0} {1} {2}", ModuleName, InTarget, InPlatform);
 
 			Command = new BuildTarget();
-			Command.ProjectName = IsVanillaUE4 ? null : InProject;
+			Command.ProjectName = IsVanillaUE4 ? null : ModuleName;
 			Command.Platforms = InPlatform.ToString();
 			Command.Targets = InTarget;
 			Command.NoTools = true;
 			Command.Clean = InOptions.HasFlag(BuildOptions.Clean);
 
-			Command.UBTArgs = "";
+			Command.UBTArgs = InUBTArgs;
 
 			bool WithAccel = !InOptions.HasFlag(BuildOptions.NoAcceleration);
 
@@ -90,7 +91,12 @@ namespace AutomationTool.Benchmark
 			else
 			{
 				TaskModifiers.Add(AccelerationName);
-			}			
+			}		
+			
+			if (!string.IsNullOrEmpty(InUBTArgs))
+			{
+				TaskModifiers.Add(InUBTArgs);
+			}
 		}
 
 		protected override bool PerformTask()
