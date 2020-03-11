@@ -87,13 +87,6 @@ namespace PlayerControllerCVars
 		TEXT("Whether to reset server prediction data for the possessed Pawn when the pawn ack handshake completes.\n")
 		TEXT("0: Disable, 1: Enable"),
 		ECVF_Default);
-
-	static bool LevelVisibilityDontSerializeFileName = false;
-	FAutoConsoleVariableRef CVarLevelVisibilityDontSerializeFileName(
-		TEXT("PlayerController.LevelVisibilityDontSerializeFileName"),
-		LevelVisibilityDontSerializeFileName,
-		TEXT("When true, we'll always skip serializing FileName with FUpdateLevelVisibilityLevelInfo's. This will save bandwidth when games don't need both.")
-	);
 }
 
 const float RetryClientRestartThrottleTime = 0.5f;
@@ -103,41 +96,6 @@ const float RetryServerCheckSpectatorThrottleTime = 0.25f;
 // Note: This value should be sufficiently small such that it is considered to be in the past before RetryClientRestartThrottleTime and RetryServerAcknowledgeThrottleTime.
 const float ForceRetryClientRestartTime = -100.0f;
 
-FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible)
-	: bIsVisible(bInIsVisible)
-	, bSkipCloseOnError(false)
-{
-	const UPackage* const LevelPackage = Level->GetOutermost();
-	PackageName = LevelPackage->GetFName();
-
-	// When packages are duplicated for PIE, they may not have a FileName.
-	// For now, just revert to the old behavior.
-	FileName = (LevelPackage->FileName == NAME_None) ? PackageName : LevelPackage->FileName;
-}
-
-bool FUpdateLevelVisibilityLevelInfo::NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess)
-{
-	bool bArePackageAndFileTheSame = !!((PlayerControllerCVars::LevelVisibilityDontSerializeFileName) || (FileName == PackageName) || (FileName == NAME_None));
-	bool bLocalIsVisible = !!bIsVisible;
-
-	Ar.SerializeBits(&bArePackageAndFileTheSame, 1);
-	Ar.SerializeBits(&bLocalIsVisible, 1);
-	Ar << PackageName;
-
-	if (!bArePackageAndFileTheSame)
-	{
-		Ar << FileName;
-	}
-	else if (Ar.IsLoading())
-	{
-		FileName = PackageName;
-	}
-
-	bIsVisible = bLocalIsVisible;
-
-	bOutSuccess = !Ar.IsError();
-	return true;
-}
 
 //////////////////////////////////////////////////////////////////////////
 // APlayerController

@@ -12,6 +12,7 @@
 #include "Serialization/BitWriter.h"
 #include "Misc/NetworkGuid.h"
 #include "GameFramework/OnlineReplStructs.h"
+#include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
 #include "Engine/NetDriver.h"
 #include "Net/DataBunch.h"
 #include "Net/NetPacketNotify.h"
