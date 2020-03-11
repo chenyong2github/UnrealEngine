@@ -26,6 +26,20 @@ UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");
 }
 
+void UMoviePipelineOutputSetting::PostLoad()
+{
+	Super::PostLoad();
+
+	// In order to ship presets that work with any project, we can't use a relative path because it is
+	// relative to the executable and thus has the project name embedded in. To solve this we will save
+	// an empty string into the Output Directory and convert it to their relative directory in Post Load.
+	// This isn't done in the CDO so that resetting to default value works as expected.
+	if (OutputDirectory.Path.Len() == 0)
+	{
+		OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");
+	}
+}
+
 FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJob) const 
 {
 	FTextBuilder TextBuilder;
