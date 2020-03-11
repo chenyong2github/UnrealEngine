@@ -327,6 +327,8 @@ void SNodePanel::Construct()
 	TotalGestureMagnify = 0.0f;
 
 	ScopedTransactionPtr.Reset();
+
+	bVisualUpdatePending = false;
 }
 
 FVector2D SNodePanel::ComputeEdgePanAmount(const FGeometry& MyGeometry, const FVector2D& TargetPosition)
@@ -474,7 +476,7 @@ void SNodePanel::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 	}
 
 	// Zoom to node extents
-	if( bDeferredZoomToNodeExtents )
+	if( bDeferredZoomToNodeExtents && bVisualUpdatePending == false )
 	{
 		bDeferredZoomToNodeExtents = false;
 		ZoomPadding = NodePanelDefs::DefaultZoomPadding;
