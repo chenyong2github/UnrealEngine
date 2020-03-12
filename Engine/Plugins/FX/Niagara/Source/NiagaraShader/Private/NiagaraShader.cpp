@@ -400,9 +400,8 @@ TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> FNiagaraShaderType::Beg
 	SetupCompileEnvironment(Platform, Script, ShaderEnvironment);
 
 	TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> ShaderJob(NewJob);
-	FString DebugGroupName = Script->SourceName;
 	::GlobalBeginCompileShader(
-		DebugGroupName,
+		Script->GetFriendlyName(),
 		nullptr,
 		this,
 		nullptr,//ShaderPipeline,
