@@ -66,6 +66,13 @@ public:
 	static UDatasmithSceneElement* GetExistingDatasmithScene(const FString& AssetPath);
 
 	/**
+	 * Trigger the translation phase, which populates the DatasmithScene.
+	 * note that options should have been set before that.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Datasmith")
+	bool TranslateScene();
+
+	/**
 	 * Import a Datasmith Scene created with ConstructDatasmithSceneFromFile.
 	 * @param	DestinationFolder	Destination of where you want the asset to be imported. ie: /Game/MyFolder1
 	 * @return	A structure that contains the created actor or the blueprint actor depending of the options specified at the import.
@@ -89,7 +96,7 @@ public:
 	UObject* GetOptions(UClass* OptionType=nullptr);
 
 	/**
-	 * List all the options stuctures applicable on this scene
+	 * List all the options structures applicable on this scene
 	 * @return A map of options type to option object
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Scene")
@@ -109,6 +116,7 @@ public:
 private:
 	TUniquePtr<FDatasmithTranslatableSceneSource> SourcePtr; // #ueent_todo move to context
 	TUniquePtr<FDatasmithImportContext> ImportContextPtr;
+	bool bTranslated = false;
 };
 
 
