@@ -412,7 +412,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	DrawHelper.bDrawPivot = false;
 	DrawHelper.bDrawWorldBox = false;
 	DrawHelper.bDrawKillZ = false;
-	DrawHelper.bDrawGrid = true;
+	DrawHelper.bDrawGrid = false; // disable this since we rely on the show flags
 	DrawHelper.GridColorAxis = FColor(160, 160, 160);
 	DrawHelper.GridColorMajor = FColor(144, 144, 144);
 	DrawHelper.GridColorMinor = FColor(128, 128, 128);
@@ -5128,17 +5128,17 @@ bool FEditorViewportClient::IsCameraLocked() const
 
 void FEditorViewportClient::SetShowGrid()
 {
-	DrawHelper.bDrawGrid = !DrawHelper.bDrawGrid;
+	EngineShowFlags.SetGrid(!EngineShowFlags.Grid) ;
 	if (FEngineAnalytics::IsAvailable())
 	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawGrid"), DrawHelper.bDrawGrid ? TEXT("True") : TEXT("False"));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("EngineShowFlags.Grid"), EngineShowFlags.Grid ? TEXT("True") : TEXT("False"));
 	}
 	Invalidate();
 }
 
 bool FEditorViewportClient::IsSetShowGridChecked() const
 {
-	return DrawHelper.bDrawGrid;
+	return EngineShowFlags.Grid;
 }
 
 void FEditorViewportClient::SetShowBounds(bool bShow)
