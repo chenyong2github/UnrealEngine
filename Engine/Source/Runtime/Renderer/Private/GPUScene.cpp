@@ -219,7 +219,7 @@ void UpdateUniformResource<FRWBufferStructured>(FViewInfo& View, FScene& Scene, 
 
 static int32 GetMaxPrimitivesUpdate(uint32 NumUploads, uint32 InStrideInFloat4s)
 {
-	return GMaxTextureBufferSize == 0 ? NumUploads : FMath::Min((uint32)(GMaxTextureBufferSize / InStrideInFloat4s), NumUploads);
+	return FMath::Min((uint32)(GetMaxBufferDimension() / InStrideInFloat4s), NumUploads);
 }
 
 template<typename ResourceType>
