@@ -295,8 +295,31 @@ public:
 	 * @param InParent	The package in which we are
 	 * @param bSilent	Doesn't display the options dialog and skips other user input requests
 	 */
-	bool Init(TSharedRef< IDatasmithScene > Scene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent);
-	bool Init(const FString& FileName, TSharedRef< IDatasmithScene > Scene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent);
+	bool Init(TSharedRef< IDatasmithScene > InScene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent);
+
+	/**
+	 * First part of the Init process, replaces Init, and requires a call to SetupDestination after that.
+	 * Displays the options to the end-user (blocking call), and updates translator accordingly.
+	 * When silent, Json options are parsed instead.
+	 *
+	 * @param InScene              Scene that the context will use for the translation and import
+	 * @param ImportSettingsJson   When bSilent, options as json
+	 * @param bSilent              Flag that prevents options to be displayed and edited
+	 * @return false if the user canceled -> import should not occurs in that case.
+	 */
+	bool InitOptions(TSharedRef< IDatasmithScene > InScene, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent);
+
+	/**
+	 * Second part of the Init process, replaces Init, and requires a call to InitOptions before that.
+	 * Setup destination packages
+	 *
+	 * @param InImportPath   Destination package's name
+	 * @param InFlags        Flags applyed to all generated objects durring the following import
+	 * @param InWarn         Feedback context for the following import
+	 * @param bSilent        When false, prompt the user to save dirty packages
+	 * @return false if the user canceled -> import should not occurs in that case.
+	 */
+	bool SetupDestination(const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, bool bSilent);
 
 	/**
 	 * Replace or add options based on it's UClass.
@@ -322,8 +345,6 @@ public:
 	void DisplayMessages();
 
 private:
-	void SetFileName(const FString& FileName);
-
 	void SetupBaseOptionsVisibility();
 	void ResetBaseOptionsVisibility();
 
