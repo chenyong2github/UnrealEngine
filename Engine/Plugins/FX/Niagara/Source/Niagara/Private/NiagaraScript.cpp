@@ -537,6 +537,9 @@ const FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyPa
 		if (!ScriptExecutionParamStoreCPU.bInitialized)
 		{
 			ScriptExecutionParamStoreCPU.InitFromOwningScript(this, SimTarget, false);
+
+			// generate the function bindings for those external functions where there's no user (per-instance) data required
+			GenerateDefaultFunctionBindings();
 		}
 		return &ScriptExecutionParamStoreCPU;
 	}
@@ -665,6 +668,40 @@ void UNiagaraScript::AsyncOptimizeByteCode()
 				);
 			}
 		);
+	}
+}
+
+void UNiagaraScript::GenerateDefaultFunctionBindings()
+{
+	// generate the function bindings for those external functions where there's no user (per-instance) data required
+	auto SimTarget = GetSimTarget();
+	const int32 ExternalFunctionCount = CachedScriptVM.CalledVMExternalFunctions.Num();
+
+	if (SimTarget.IsSet() && ExternalFunctionCount)
+	{
+		CachedScriptVM.CalledVMExternalFunctionBindings.Empty(ExternalFunctionCount);
+
+		const FNiagaraScriptExecutionParameterStore* ScriptParameterStore = GetExecutionReadyParameterStore(*SimTarget);
+		const auto& ScriptDataInterfaces = ScriptParameterStore->GetDataInterfaces();
+
+		const int32 DataInterfaceCount = FMath::Min(CachedScriptVM.DataInterfaceInfo.Num(), ScriptDataInterfaces.Num());
+		check(DataInterfaceCount == CachedScriptVM.DataInterfaceInfo.Num());
+		check(DataInterfaceCount == ScriptDataInterfaces.Num());
+
+		for (const FVMExternalFunctionBindingInfo& BindingInfo : CachedScriptVM.CalledVMExternalFunctions)
+		{
+			FVMExternalFunction& FuncBind = CachedScriptVM.CalledVMExternalFunctionBindings.AddDefaulted_GetRef();
+
+			for (int32 DataInterfaceIt = 0; DataInterfaceIt < DataInterfaceCount; ++DataInterfaceIt)
+			{
+				const FNiagaraScriptDataInterfaceCompileInfo& ScriptInfo = CachedScriptVM.DataInterfaceInfo[DataInterfaceIt];
+
+				if (ScriptInfo.UserPtrIdx == INDEX_NONE && ScriptInfo.Name == BindingInfo.OwnerName)
+				{
+					ScriptDataInterfaces[DataInterfaceIt]->GetVMExternalFunction(BindingInfo, nullptr, FuncBind);
+				}
+			}
+		}
 	}
 }
 
@@ -898,6 +935,10 @@ void UNiagaraScript::PostLoad()
 		RapidIterationParameters.Bind(&ScriptExecutionParamStore, &ScriptExecutionBoundParameters);
 		ScriptExecutionParamStore.bInitialized = true;
 		ScriptExecutionBoundParameters.Empty();
+
+		// generate the function bindings for those external functions where there's no user (per-instance) data required
+		GenerateDefaultFunctionBindings();
+
 	}
 
 	bool bNeedsRecompile = false;
@@ -995,8 +1036,6 @@ void UNiagaraScript::PostLoad()
 
 	// Optimize the VM script for runtime usage
 	AsyncOptimizeByteCode();
-
-	//FNiagaraUtilities::DumpHLSLText(RapidIterationParameters.ToString(), *GetPathName());
 }
 
 bool UNiagaraScript::IsReadyToRun(ENiagaraSimTarget SimTarget) const
