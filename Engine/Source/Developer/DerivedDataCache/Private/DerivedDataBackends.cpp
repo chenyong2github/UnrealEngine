@@ -603,12 +603,12 @@ public:
 		return DataCache;
 	}
 
-
 	/**
 	 * Creates an S3 data cache interface.
 	 */
 	FDerivedDataBackendInterface* ParseS3Cache(const TCHAR* NodeName, const TCHAR* Entry)
 	{
+#if WITH_S3_DDC_BACKEND
 		FString ManifestPath;
 		if (!FParse::Value(Entry, TEXT("Manifest="), ManifestPath))
 		{
@@ -658,6 +658,10 @@ public:
 		// Insert the backend corruption wrapper. Since the filesystem already uses this, and we're recycling the data with the trailer intact, we need to use it for the S3 cache too.
 		UE_LOG(LogDerivedDataCache, Display, TEXT("Using %s S3 backend at %s"), *Region, *BaseUrl);
 		return new FDerivedDataBackendCorruptionWrapper(Backend);
+#else
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("S3 backend is not supported in the current build configuration."));
+		return nullptr;
+#endif
 	}
 
 	/**
