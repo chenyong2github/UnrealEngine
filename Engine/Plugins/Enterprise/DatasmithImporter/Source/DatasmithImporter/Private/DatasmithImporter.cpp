@@ -662,7 +662,7 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 		if (ImportContext.Options->HierarchyHandling == EDatasmithImportHierarchy::UseOneBlueprint && ImportContext.RootBlueprint != nullptr)
 		{
 			// Reparent all scene components attached to root actor toward blueprint root
-			FKismetEditorUtilities::AddComponentsToBlueprint(ImportContext.RootBlueprint, ImportSceneActor->GetInstanceComponents(), false, (USCS_Node*)nullptr, true);
+			FKismetEditorUtilities::AddComponentsToBlueprint(ImportContext.RootBlueprint, ImportSceneActor->GetInstanceComponents(), FKismetEditorUtilities::EAddComponentToBPHarvestMode::None, (USCS_Node*)nullptr, true);
 		}
 
 		// After all actors were imported, perform a post import step so that any dependencies can be resolved
