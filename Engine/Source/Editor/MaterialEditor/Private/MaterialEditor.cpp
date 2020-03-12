@@ -727,6 +727,7 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	RegenerateCodeView(true);
 
 	ForceRefreshExpressionPreviews();
+
 	if (Generator.IsValid())
 	{
 		TArray<UObject*> Objects;
@@ -1849,7 +1850,6 @@ void FMaterialEditor::UpdatePreviewMaterial( bool bForce )
 		// Null out the expression preview material so they can be GC'ed
 		ExpressionPreviewMaterial = NULL;
 	}
-
 	MaterialStatsManager->SetMaterial(bStatsFromPreviewMaterial ? Material : OriginalMaterial);
 	MaterialStatsManager->SignalMaterialChanged();
 
