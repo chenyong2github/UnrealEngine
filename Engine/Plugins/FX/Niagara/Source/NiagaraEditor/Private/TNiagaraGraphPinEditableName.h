@@ -119,13 +119,8 @@ protected:
 					}
 					return CreateLabelTextBlock();
 				}
-				else if (ParentNode->IsA<UNiagaraNodeCustomHlsl>())
+				else 
 				{
-					return CreateRenamableLabelTextBlock();
-				}
-				else
-				{
-					ensureMsgf(false, TEXT("Tried to create a pin widget for unhandled node class!"));
 					return CreateRenamableLabelTextBlock();
 				}
 			}
@@ -136,6 +131,7 @@ protected:
 		}
 		else
 		{
+			
 			return BaseClass::GetLabelWidget(InLabelStyle);
 		}
 	}

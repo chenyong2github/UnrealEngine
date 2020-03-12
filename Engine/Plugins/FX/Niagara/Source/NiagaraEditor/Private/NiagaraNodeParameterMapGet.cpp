@@ -526,28 +526,6 @@ void UNiagaraNodeParameterMapGet::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 {
 	Super::GetNodeContextMenuActions(Menu, Context);
 
-	UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context->Pin);
-	if (Pin && Pin->Direction == EEdGraphPinDirection::EGPD_Output)
-	{
-		
-		FNiagaraVariable Var = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToNiagaraVariable(Pin);
-		const UNiagaraGraph* Graph = GetNiagaraGraph();
-
-		if (!FNiagaraConstants::IsNiagaraConstant(Var))
-		{
-			FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraMetaDataActions", LOCTEXT("EditPinMenuHeader", "Meta-Data"));
-			TSharedRef<SWidget> RenameWidget =
-				SNew(SBox)
-				.WidthOverride(100)
-				.Padding(FMargin(5, 0, 0, 0))
-				[
-					SNew(SEditableTextBox)
-					.Text_UObject(this, &UNiagaraNodeParameterMapBase::GetPinDescriptionText, Pin)
-					.OnTextCommitted_UObject(const_cast<UNiagaraNodeParameterMapGet*>(this), &UNiagaraNodeParameterMapBase::PinDescriptionTextCommitted, Pin)
-				];
-			Section.AddEntry(FToolMenuEntry::InitWidget("RenameWidget", RenameWidget, LOCTEXT("DescMenuItem", "Description")));
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE
