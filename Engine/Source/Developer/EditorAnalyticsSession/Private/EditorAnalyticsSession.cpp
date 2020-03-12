@@ -190,7 +190,7 @@ namespace EditorAnalyticsUtils
 
 		{
 			FString TotalPhysicalRAMString;
-			FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::GRHIAdapterUserDriverVersionStoreKey, TotalPhysicalRAMString);
+			FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TotalPhysicalRAMStoreKey, TotalPhysicalRAMString);
 			Session.TotalPhysicalRAM = FCString::Atoi64(*TotalPhysicalRAMString);
 		}
 
