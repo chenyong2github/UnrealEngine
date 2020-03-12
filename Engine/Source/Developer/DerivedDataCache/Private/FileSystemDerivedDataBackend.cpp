@@ -29,8 +29,18 @@
 #endif // PLATFORM_LINUX
 #define MAX_CACHE_EXTENTION_LEN (4)
 
-
-
+FString BuildPathForCacheKey(const TCHAR* CacheKey)
+{
+	FString Key = FString(CacheKey).ToUpper();
+	for (int32 i = 0; i < Key.Len(); i++)
+	{
+		check(FChar::IsAlnum(Key[i]) || FChar::IsUnderscore(Key[i]) || Key[i] == L'$');
+	}
+	uint32 Hash = FCrc::StrCrc_DEPRECATED(*Key);
+	// this creates a tree of 1000 directories
+	FString HashPath = FString::Printf(TEXT("%1d/%1d/%1d/"), (Hash / 100) % 10, (Hash / 10) % 10, Hash % 10);
+	return HashPath / Key + TEXT(".udd");
+}
 
 /** 
  * Cache server that uses the OS filesystem
@@ -367,15 +377,7 @@ private:
 	 */
 	FString BuildFilename(const TCHAR* CacheKey)
 	{
-		FString Key = FString(CacheKey).ToUpper();
-		for (int32 i = 0; i < Key.Len(); i++)
-		{
-			check(FChar::IsAlnum(Key[i]) || FChar::IsUnderscore(Key[i]) || Key[i] == L'$');
-		}
-		uint32 Hash = FCrc::StrCrc_DEPRECATED(*Key);
-		// this creates a tree of 1000 directories
-		FString HashPath = FString::Printf(TEXT("%1d/%1d/%1d/"),(Hash/100)%10,(Hash/10)%10,Hash%10);
-		return CachePath / HashPath / Key + TEXT(".udd");
+		return CachePath / BuildPathForCacheKey(CacheKey);
 	}
 
 	/** Base path we are storing the cache files in. **/
