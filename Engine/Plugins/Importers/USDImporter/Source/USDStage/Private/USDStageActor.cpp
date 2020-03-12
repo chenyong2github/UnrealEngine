@@ -62,7 +62,7 @@
 
 #define LOCTEXT_NAMESPACE "USDStageActor"
 
-static const EObjectFlags DefaultObjFlag = EObjectFlags::RF_Transactional | EObjectFlags::RF_Transient;
+static const EObjectFlags DefaultObjFlag = EObjectFlags::RF_Transactional | EObjectFlags::RF_NonPIEDuplicateTransient;
 
 AUsdStageActor::FOnActorLoaded AUsdStageActor::OnActorLoaded;
 
@@ -113,7 +113,7 @@ AUsdStageActor::AUsdStageActor()
 
 	RootComponent = SceneComponent;
 
-	RootUsdTwin = NewObject<UUsdPrimTwin>(this, TEXT("RootUsdTwin"), RF_Transient | RF_Transactional);
+	RootUsdTwin = NewObject<UUsdPrimTwin>(this, TEXT("RootUsdTwin"), DefaultObjFlag);
 
 #if WITH_EDITOR
 	// We can't use PostLoad to trigger LoadUsdStage when first loading a saved level because LoadUsdStage may trigger
@@ -123,11 +123,24 @@ AUsdStageActor::AUsdStageActor()
 #endif // WITH_EDITOR
 
 #if USE_USD_SDK
+	OnTimeChanged.AddUObject( this, &AUsdStageActor::AnimatePrims );
+
 	RootUsdTwin->PrimPath = TEXT("/");
 
 	UsdListener.OnPrimsChanged.AddLambda(
 		[ this ]( const TMap< FString, bool >& PrimsChangedList )
 		{
+			// During PIE, the PIE and the editor world will respond to notices. We have to prevent any PIE
+			// objects from being added to the transaction however, or else it will be discarded when finalized.
+			// We need to keep the transaction, or else we may end up with actors outside of the transaction
+			// system that want to use assets that will be destroyed by it on an undo.
+			// Note that we can't just make the spawned components/assets nontransactional because the PIE world will transact too
+			TUniquePtr<TGuardValue<ITransaction*>> SuppressTransaction = nullptr;
+			if ( this->GetOutermost()->HasAnyPackageFlags( PKG_PlayInEditor ) )
+			{
+				SuppressTransaction = MakeUnique<TGuardValue<ITransaction*>>(GUndo, nullptr);
+			}
+
 			FScopedSlowTask RefreshStageTask( PrimsChangedList.Num(), LOCTEXT( "RefreshingUSDStage", "Refreshing USD Stage" ) );
 			RefreshStageTask.MakeDialog();
 
@@ -174,7 +187,7 @@ AUsdStageActor::AUsdStageActor()
 					if ( !RefreshedAssets.Contains( UsdToUnreal::ConvertPath( AssetsPrimPath.Get() ) ) )
 					{
 						TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( AssetsPrimPath.Get() ) );
-						
+
 						const bool bIsResync = PrimChangedInfo.Value;
 						if ( bIsResync )
 						{
@@ -208,12 +221,17 @@ AUsdStageActor::AUsdStageActor()
 					this->OnPrimChanged.Broadcast( PrimChangedInfo.Key, PrimChangedInfo.Value );
 				}
 			}
-			
 		} );
 
 	UsdListener.OnLayersChanged.AddLambda(
 		[&](const pxr::SdfLayerChangeListVec& ChangeVec)
 		{
+			TUniquePtr<TGuardValue<ITransaction*>> SuppressTransaction = nullptr;
+			if ( this->GetOutermost()->HasAnyPackageFlags( PKG_PlayInEditor ) )
+			{
+				SuppressTransaction = MakeUnique<TGuardValue<ITransaction*>>( GUndo, nullptr );
+			}
+
 			// Check to see if any layer reloaded. If so, rebuild all of our animations as a single layer changing
 			// might propagate timecodes through all level sequences
 			for (const std::pair<pxr::SdfLayerHandle, pxr::SdfChangeList>& ChangeVecItem : ChangeVec)
@@ -254,13 +272,6 @@ AUsdStageActor::AUsdStageActor()
 
 AUsdStageActor::~AUsdStageActor()
 {
-#if USE_USD_SDK
-	if ( HasAutorithyOverStage() )
-	{
-		UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
-	}
-#endif // #if USE_USD_SDK
-
 #if WITH_EDITOR
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.OnMapChanged().RemoveAll(this);
@@ -551,6 +562,7 @@ void AUsdStageActor::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 			// This is in charge of clearing the SUSDStage window when switching away from our level
 			// SUSDStage window needs to update
 			OnActorDestroyed.Broadcast();
+			Reset();
 		}
 	}
 }
@@ -594,8 +606,6 @@ void AUsdStageActor::LoadUsdStage()
 
 	GEditor->BroadcastLevelActorListChanged();
 
-	OnTimeChanged.AddUObject( this, &AUsdStageActor::AnimatePrims );
-
 	// Log time spent to load the stage
 	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
 
@@ -608,10 +618,7 @@ void AUsdStageActor::LoadUsdStage()
 
 void AUsdStageActor::Refresh() const
 {
-	if ( HasAutorithyOverStage() )
-	{
-		OnTimeChanged.Broadcast();
-	}
+	OnTimeChanged.Broadcast();
 }
 
 void AUsdStageActor::ReloadAnimations()
@@ -649,6 +656,7 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		if (this->IsPendingKill())
 		{
 			OnActorDestroyed.Broadcast();
+			Reset();
 		}
 		// This fires when being spawned in an existing level, undo delete, redo spawn
 		else
@@ -679,6 +687,15 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		}
 #endif // #if USE_USD_SDK
 	}
+}
+
+void AUsdStageActor::PostDuplicate( bool bDuplicateForPIE )
+{
+	Super::PostDuplicate( bDuplicateForPIE );
+
+#if USE_USD_SDK
+	AnimatePrims();
+#endif // #if USE_USD_SDK
 }
 
 void AUsdStageActor::OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin )
@@ -753,6 +770,7 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 				// To accomplish that while blocking notices we must always propagate component visibility changes
 				if ( PropertyChangedEvent.GetPropertyName() == TEXT( "bVisible" ) )
 				{
+					PrimSceneComponent->Modify();
 					PrimSceneComponent->SetVisibility( PrimSceneComponent->GetVisibleFlag(), true );
 				}
 
@@ -844,6 +862,13 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 
 void AUsdStageActor::AnimatePrims()
 {
+	// Don't try to animate if we don't have a stage opened
+	const pxr::UsdStageRefPtr& UsdStage = GetUsdStage();
+	if (!UsdStage)
+	{
+		return;
+	}
+
 	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootUsdTwin->PrimPath );
 
 	for ( const FString& PrimToAnimate : PrimsToAnimate )
@@ -865,6 +890,7 @@ void AUsdStageActor::AnimatePrims()
 	GEditor->BroadcastLevelActorListChanged();
 	GEditor->RedrawLevelEditingViewports();
 }
+
 #endif // #if USE_USD_SDK
 
 #undef LOCTEXT_NAMESPACE

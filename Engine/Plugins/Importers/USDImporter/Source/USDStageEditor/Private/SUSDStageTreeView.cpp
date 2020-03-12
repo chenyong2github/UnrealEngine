@@ -13,6 +13,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
+#include "ScopedTransaction.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -361,6 +362,11 @@ public:
 	{
 		if ( pxr::UsdGeomImageable UsdGeomImageable = GetUsdGeomImageable( TreeItem ).Get() )
 		{
+			FScopedTransaction Transaction( FText::Format(
+				LOCTEXT( "VisibilityTransaction", "Toggle visibility of prim '{0}'" ),
+				FText::FromString( UsdToUnreal::ConvertString( TreeItem->UsdPrim.Get().GetName() ) )
+			) );
+
 			if ( TreeItem->RowData->IsVisible() )
 			{
 				UsdGeomImageable.MakeInvisible();

@@ -10,6 +10,7 @@
 
 #include "Engine/World.h"
 #include "Modules/ModuleManager.h"
+#include "ScopedTransaction.h"
 #include "Widgets/Input/STextComboBox.h"
 
 #if USE_USD_SDK
@@ -38,7 +39,7 @@ void SUsdVariantRow::Construct( const FArguments& InArgs, TSharedPtr< FUsdVarian
 }
 
 TSharedRef< SWidget > SUsdVariantRow::GenerateWidgetForColumn( const FName& ColumnName )
-{	
+{
 	TSharedRef< SWidget > ColumnWidget = SNullWidget::NullWidget;
 
 	bool bIsLeftRow = true;
@@ -199,6 +200,12 @@ void SVariantsList::OnVariantSelectionChanged( const TSharedRef< FUsdVariantSet 
 	{
 		return;
 	}
+
+	FScopedTransaction Transaction( FText::Format(
+		NSLOCTEXT( "USDVariantSetsList", "SwitchVariantSetTransaction", "Switch USD Variant Set '{0}' to option '{1}'" ),
+		FText::FromString( VariantSet->SetName ),
+		FText::FromString( *VariantSet->VariantSelection )
+	) );
 
 	std::string UsdVariantSelection;
 
