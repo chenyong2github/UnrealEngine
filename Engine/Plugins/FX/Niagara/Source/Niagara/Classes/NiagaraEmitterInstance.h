@@ -121,6 +121,9 @@ public:
 
 	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const;
 
+
+	bool HasTicked() const { return TickCount > 0;  }
+
 private:
 	void CheckForErrors();
 
