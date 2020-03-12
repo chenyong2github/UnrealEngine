@@ -28,6 +28,8 @@ public:
 	void ForceIndexOnAssetsMissingIndex();
 
 private:
+	void TryConnectToDatabase();
+
 	bool Tick_GameThread(float DeltaTime);
 	virtual uint32 Run() override;
 	void Tick_DatabaseOperationThread();
@@ -91,6 +93,9 @@ private:
 	TQueue<TFunction<void()>> GT_Tasks;
 
 private:
+	bool bDatabaseOpen = false;
+	double LastConnectionAttempt = 0;
+
 	TAtomic<bool> RunThread;
 	FRunnableThread* DatabaseThread = nullptr;
 

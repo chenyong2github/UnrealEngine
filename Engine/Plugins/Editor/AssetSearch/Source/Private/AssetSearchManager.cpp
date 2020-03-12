@@ -102,10 +102,6 @@ void FAssetSearchManager::Start()
 	RegisterAssetIndexer(UWorld::StaticClass(), MakeUnique<FLevelIndexer>());
 	RegisterAssetIndexer(USoundCue::StaticClass(), MakeUnique<FSoundCueIndexer>());
 
-
-	const FString SessionPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Search")));
-	SearchDatabase.Open(SessionPath);
-
 	FCoreUObjectDelegates::OnObjectSaved.AddRaw(this, &FAssetSearchManager::OnObjectSaved);
 	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FAssetSearchManager::OnAssetLoaded);
 
@@ -126,6 +122,23 @@ void FAssetSearchManager::Start()
 
 	RunThread = true;
 	DatabaseThread = FRunnableThread::Create(this, TEXT("UniversalSearch"), 0, TPri_BelowNormal);
+}
+
+void FAssetSearchManager::TryConnectToDatabase()
+{
+	if (!bDatabaseOpen)
+	{
+		if ((FPlatformTime::Seconds() - LastConnectionAttempt) > 30)
+		{
+			LastConnectionAttempt = FPlatformTime::Seconds();
+
+			const FString SessionPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Search")));
+			if (SearchDatabase.Open(SessionPath))
+			{
+				bDatabaseOpen = true;
+			}
+		}
+	}
 }
 
 FSearchStats FAssetSearchManager::GetStats() const
@@ -449,6 +462,8 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 {
 	check(IsInGameThread());
 
+	TryConnectToDatabase();
+
 	//if (0)
 	//{
 	//	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
@@ -539,6 +554,12 @@ void FAssetSearchManager::Tick_DatabaseOperationThread()
 {
 	while (RunThread)
 	{
+		if (!bDatabaseOpen)
+		{
+			FPlatformProcess::Sleep(1);
+			continue;
+		}
+
 		TFunction<void()> Operation;
 		if (ImmediateOperations.Dequeue(Operation) || FeedOperations.Dequeue(Operation) || UpdateOperations.Dequeue(Operation))
 		{

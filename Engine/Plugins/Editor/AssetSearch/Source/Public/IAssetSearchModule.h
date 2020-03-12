@@ -14,6 +14,8 @@ class UClass;
 struct FSearchQuery
 {
 	FString Query;
+
+	FString ConvertToDatabaseQuery() const;
 };
 
 struct FSearchRecord
