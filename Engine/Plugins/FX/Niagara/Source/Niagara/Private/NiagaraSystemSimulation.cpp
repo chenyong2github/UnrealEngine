@@ -1224,7 +1224,7 @@ void FNiagaraSystemSimulation::SpawnSystemInstances(FNiagaraSystemSimulationTick
 	Context.DataSet.GetDestinationDataChecked().SetNumInstances(NumInstances);
 
 	// Run Spawn
-	if (SpawnExecContext.Tick(SoloSystemInstance) == false)
+	if (SpawnExecContext.Tick(SoloSystemInstance, ENiagaraSimTarget::CPUSim) == false)
 	{
 		for (FNiagaraSystemInstance* SystemInst : Context.Instances)
 		{
@@ -1284,7 +1284,7 @@ void FNiagaraSystemSimulation::UpdateSystemInstances(FNiagaraSystemSimulationTic
 		DestinationData.SetNumInstances(NumInstances);
 
 		// Tick UpdateExecContext, this can fail to bind VM functions if this happens we become invalid so mark all instances as disabled
-		if (UpdateExecContext.Tick(Context.Instances[0]) == false)
+		if (UpdateExecContext.Tick(Context.Instances[0], ENiagaraSimTarget::CPUSim) == false)
 		{
 			for (FNiagaraSystemInstance* SystemInst : Context.Instances)
 			{
