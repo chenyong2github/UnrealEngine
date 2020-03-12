@@ -32,7 +32,7 @@ public:
 	virtual void RebuildDirtyAreas(const TArray<FNavigationDirtyArea>& DirtyAreas) {}
 
 	/** determines whether this generator is performing navigation building actions at the moment*/
-	UE_DEPRECATED(4.26, "This function is deprecated. Please use IsBuildInProgressCheckDirty")
+	//UE_DEPRECATED(4.26, "This function is deprecated. Please use IsBuildInProgressCheckDirty")
 	virtual bool IsBuildInProgress(bool bCheckDirtyToo = false) const { return false; }
 
 	/** determines whether this generator is performing navigation building actions at the moment, dirty areas are also checked */
