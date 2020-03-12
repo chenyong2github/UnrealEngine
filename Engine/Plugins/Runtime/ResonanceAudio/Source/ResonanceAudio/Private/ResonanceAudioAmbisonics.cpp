@@ -5,14 +5,31 @@
 #include "ResonanceAudioAmbisonicsSettings.h"
 #include "ResonanceAudioPluginListener.h"
 #include "SoundFieldRendering.h"
+#include "AudioPluginUtilities.h"
 
-static int32 UseReverbPluginForResonanceOutputCVar = 1;
-FAutoConsoleVariableRef CVarUseReverbPluginForResonanceOutput(
-	TEXT("au.resonance.UseReverbPluginForOutput"),
-	UseReverbPluginForResonanceOutputCVar,
-	TEXT("If set to 0, will allow for Resonance to render it's output directly from a submix even if it is not set as the spatialization or reverb plugin.\n")
-	TEXT("0: Disable, >0: Enable"),
-	ECVF_Default);
+namespace ResonanceAudioUtils
+{
+	bool IsResonanceAudioTheCurrentSpatializationPlugin()
+	{
+#if WITH_EDITOR
+		static FString ResonanceDisplayName = FString(TEXT("Resonance Audio"));
+		return AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB).Equals(ResonanceDisplayName);
+#else
+		// For non editor situations, we can cache whether this is the current plugin or not the first time we check.
+		static FString ResonanceDisplayName = FString(TEXT("Resonance Audio"));
+		static bool bCheckedSpatializationPlugin = false;
+		static bool bIsResonanceCurrentSpatiatizationPlugin = false;
+		
+		if (!bCheckedSpatializationPlugin)
+		{
+			bIsResonanceCurrentSpatiatizationPlugin = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB).Equals(ResonanceDisplayName);
+			bCheckedSpatializationPlugin = true;
+		}
+
+		return bIsResonanceCurrentSpatiatizationPlugin;
+#endif
+	}
+}
 
 namespace ResonanceAudio
 {
@@ -141,7 +158,17 @@ namespace ResonanceAudio
 
 	class FDecoder : public ISoundfieldDecoderStream
 	{
+	private:
+		const bool bShouldOutputAudio;
+
 	public:
+
+		FDecoder(bool bInShouldOutputAudio)
+			: bShouldOutputAudio(bInShouldOutputAudio)
+		{}
+
+		FDecoder() = delete;
+
 		virtual void Decode(const FSoundfieldDecoderInputData& InputData, FSoundfieldDecoderOutputData& OutputData) override
 		{
 			DecodeAndMixIn(InputData, OutputData);
@@ -151,8 +178,7 @@ namespace ResonanceAudio
 		virtual void DecodeAndMixIn(const FSoundfieldDecoderInputData& InputData, FSoundfieldDecoderOutputData& OutputData) override
 		{
 			// If the reverb plugin is enabled, FillInterleavedOutputBuffer will be called there.
-			// TODO: detect whether the reverb plugin is enabled on this audio device to toggle this behavior automatically.
-			if (!UseReverbPluginForResonanceOutputCVar)
+			if (bShouldOutputAudio)
 			{
 				const int32 NumChannels = InputData.PositionalData.NumChannels;
 				const FResonancePacket& Packet = DowncastSoundfieldRef<const FResonancePacket>(InputData.SoundfieldBuffer);
@@ -292,7 +318,9 @@ namespace ResonanceAudio
 
 	TUniquePtr<ISoundfieldDecoderStream> FAmbisonicsFactory::CreateDecoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings)
 	{
-		return TUniquePtr<ISoundfieldDecoderStream>(new FDecoder());
+		const bool bShouldOutputResonanceAudioThroughSubmix = !ResonanceAudioUtils::IsResonanceAudioTheCurrentSpatializationPlugin();
+		UE_CLOG(!bShouldOutputResonanceAudioThroughSubmix, LogAudio, Display, TEXT("Since Resonance Audio is the currently selected spatialization plugin. The output of this plugin will be sent through the Reverb Plugin submix."));
+		return TUniquePtr<ISoundfieldDecoderStream>(new FDecoder(bShouldOutputResonanceAudioThroughSubmix));
 	}
 
 	TUniquePtr<ISoundfieldTranscodeStream> FAmbisonicsFactory::CreateTranscoderStream(const FName SourceFormat, const ISoundfieldEncodingSettingsProxy& InitialSourceSettings, const FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& InitialDestinationSettings, const FAudioPluginInitializationParams& InitInfo)
