@@ -4356,6 +4356,8 @@ UActorComponent* SSCSEditor::PerformComboAddClass(TSubclassOf<UActorComponent> C
 			// As the SCS splits up the scene and actor components, can now add directly
 			NewComponent = AddNewComponent(NewClass, AssetOverride);
 		}
+
+		UpdateTree();
 	}
 
 	return NewComponent;
