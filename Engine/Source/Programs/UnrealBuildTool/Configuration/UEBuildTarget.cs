@@ -1977,7 +1977,7 @@ namespace UnrealBuildTool
 			{
 				if (LeafPrerequisiteItem.Exists)
 				{
-					Makefile.AdditionalDependencies.Add(LeafPrerequisiteItem);
+					Makefile.InternalDependencies.Add(LeafPrerequisiteItem);
 				}
 			}
 
