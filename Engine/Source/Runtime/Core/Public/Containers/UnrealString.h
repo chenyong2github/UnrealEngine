@@ -11,6 +11,7 @@
 #include "Misc/AssertionMacros.h"
 #include "HAL/UnrealMemory.h"
 #include "Templates/IsArithmetic.h"
+#include "Templates/IsArray.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/UnrealTemplate.h"
 #include "Math/NumericLimits.h"
@@ -359,67 +360,49 @@ public:
 	}
 #endif
 
-	/**
-	 * Appends an array of characters to the string.  
+	/** 
+	 * Appends a character range without null-terminators in it
 	 *
-	 * @param Array A pointer to the start of an array of characters to append.  This array need not be null-terminated, and null characters are not treated specially.
-	 * @param Count The number of characters to copy from Array.
+	 * @param Str can be null if Count is 0. Can be unterminated, Str[Count] isn't read.
 	 */
-	FORCEINLINE void AppendChars(const TCHAR* Array, int32 Count)
+	void AppendChars(const ANSICHAR* Str, int32 Count);
+	void AppendChars(const WIDECHAR* Str, int32 Count);
+	void AppendChars(const UCS2CHAR* Str, int32 Count);
+
+	/** Append a string and return a reference to this */
+	template<class CharType>
+	FORCEINLINE FString& Append(const CharType* Str, int32 Count)
 	{
-		check(Count >= 0);
-
-		if (!Count)
-			return;
-
-		checkSlow(Array);
-
-		int32 Index = Data.Num();
-
-		// Reserve enough space - including an extra gap for a null terminator if we don't already have a string allocated
-		Data.AddUninitialized(Count + (Index ? 0 : 1));
-
-		TCHAR* EndPtr = Data.GetData() + Index - (Index ? 1 : 0);
-
-		// Copy characters to end of string, overwriting null terminator if we already have one
-		CopyAssignItems(EndPtr, Array, Count);
-
-		// (Re-)establish the null terminator
-		*(EndPtr + Count) = 0;
+		AppendChars(Str, Count);
+		return *this;
 	}
-
+	
 	/**
-	 * Concatenate this with the given string
+	 * Append a valid null-terminated string and return a reference to this
 	 *
-	 * @param Str string view to be concatenated onto the end of this
-	 * @return reference to this
+	 * CharType is not const to use this overload for mutable char arrays and call
+	 * Strlen() instead of getting the static length N from GetNum((&T)[N]).
+	 * Oddly MSVC ranks a const T* overload over T&& for T[N] while clang picks T&&.
 	 */
-	FString& operator+=(const FStringView& Str);
-
-	/**
-	 * Concatenate this with given string
-	 * 
-	 * @param Str array of TCHAR to be concatenated onto the end of this
-	 * @return reference to this
-	 */
-	FORCEINLINE FString& operator+=( const TCHAR* Str )
+	template<class CharType>
+	FORCEINLINE FString& Append(/* no const! */ CharType* Str)
 	{
 		checkSlow(Str);
-		CheckInvariants();
-
-		AppendChars(Str, FCString::Strlen(Str));
-
+		AppendChars(Str, TCString<typename TRemoveConst<CharType>::Type>::Strlen(Str));
+		return *this;
+	}
+	
+	/** Append a string and return a reference to this */
+	template <typename StrType, typename = decltype(GetData(DeclVal<StrType>()))>
+	FORCEINLINE FString& Append(StrType&& Str)
+	{
+		static_assert(!TIsArray<StrType>::Value, "Char arrays shouldn't use this overload");
+		AppendChars(GetData(Str), GetNum(Str));
 		return *this;
 	}
 
-	/**
-	 * Concatenate this with given char
-	 * 
-	 * @param inChar other Char to be concatenated onto the end of this string
-	 * @return reference to this
-	 */
-	template <typename CharType>
-	FORCEINLINE typename TEnableIf<TIsCharType<CharType>::Value, FString&>::Type operator+=(CharType InChar)
+	/** Append a single character and return a reference to this */
+	FORCEINLINE FString& AppendChar(TCHAR InChar)
 	{
 		CheckInvariants();
 
@@ -440,49 +423,14 @@ public:
 		return *this;
 	}
 
-	/**
-	 * Concatenate this with given char
-	 * 
-	 * @param InChar other Char to be concatenated onto the end of this string
-	 * @return reference to this
-	 */
-	FORCEINLINE FString& AppendChar(const TCHAR InChar)
-	{
-		*this += InChar;
-		return *this;
-	}
+	/** Append a string and return a reference to this */
+	template <typename StrType>
+	FORCEINLINE FString& operator+=(StrType&& Str)	{ return Append(Forward<StrType>(Str)); }
 
-	FORCEINLINE FString& Append(const FString& Text)
-	{
-		*this += Text;
-		return *this;
-	}
-
-	FString& Append(const TCHAR* Text, int32 Count)
-	{
-		CheckInvariants();
-
-		if (Count != 0)
-		{
-			// position to insert the character.  
-			// At the end of the string if we have existing characters, otherwise at the 0 position
-			int32 InsertIndex = (Data.Num() > 0) ? Data.Num() - 1 : 0;
-
-			// number of characters to add.  If we don't have any existing characters, 
-			// we'll need to append the terminating zero as well.
-			int32 FinalCount = (Data.Num() > 0) ? Count : Count + 1;
-
-			Data.AddUninitialized(FinalCount);
-
-			for (int32 Index = 0; Index < Count; Index++)
-			{
-				Data[InsertIndex + Index] = Text[Index];
-			}
-
-			Data[Data.Num() - 1] = 0;
-		}
-		return *this;
-	}
+	/** Append a single character and return a reference to this */
+	FORCEINLINE FString& operator+=(ANSICHAR Char)	{ return AppendChar(Char); }
+	FORCEINLINE FString& operator+=(WIDECHAR Char)	{ return AppendChar(Char); }
+	FORCEINLINE FString& operator+=(UCS2CHAR Char)	{ return AppendChar(Char); }
 
 	/**
 	 * Removes characters within the string.
@@ -564,22 +512,6 @@ public:
 	 * @param StrLength Exact number of characters from Str to append.
 	 */
 	void PathAppend(const TCHAR* Str, int32 StrLength);
-
-	/**
-	 * Concatenate this with given string
-	 * 
-	 * @param Str other string to be concatenated onto the end of this
-	 * @return reference to this
-	 */
-	FORCEINLINE FString& operator+=( const FString& Str )
-	{
-		CheckInvariants();
-		Str.CheckInvariants();
-
-		AppendChars(Str.Data.GetData(), Str.Len());
-
-		return *this;
-	}
 
 	/**
 	 * Concatenates an FString with a TCHAR.

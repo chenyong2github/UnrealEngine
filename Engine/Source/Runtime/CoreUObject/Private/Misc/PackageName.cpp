@@ -50,16 +50,31 @@ namespace PackageNameConstants
 	const int32 MinPackageNameLength = 4;
 }
 
-bool FPackageName::IsShortPackageName(const FString& PossiblyLongName)
+bool FPackageName::IsShortPackageName(FStringView PossiblyLongName)
 {
 	// Long names usually have / as first character so check from the front
-	int32 SlashIndex = INDEX_NONE;
-	return !PossiblyLongName.FindChar('/', SlashIndex);
+	for (TCHAR Char : PossiblyLongName)
+	{
+		if (Char == '/')
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
-bool FPackageName::IsShortPackageName(const FName PossiblyLongName)
+bool FPackageName::IsShortPackageName(const FString& PossiblyLongName)
 {
-	return IsShortPackageName(PossiblyLongName.ToString());
+	return IsShortPackageName(FStringView(PossiblyLongName));
+}
+
+bool FPackageName::IsShortPackageName(FName PossiblyLongName)
+{
+	// Only get "plain" part of the name. The number suffix, e.g. "_123", can't contain slashes.
+	TCHAR Buffer[NAME_SIZE];
+	uint32 Len = PossiblyLongName.GetPlainNameString(Buffer);
+	return IsShortPackageName(FStringView(Buffer, static_cast<int32>(Len)));
 }
 
 FString FPackageName::GetShortName(const FString& LongName)
@@ -339,7 +354,7 @@ private:
 	}
 };
 
-void FPackageName::InternalFilenameToLongPackageName(const FStringView& InFilename, FStringBuilderBase& OutPackageName)
+void FPackageName::InternalFilenameToLongPackageName(FStringView InFilename, FStringBuilderBase& OutPackageName)
 {
 	const FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
 	FString Filename(InFilename);
@@ -873,7 +888,7 @@ bool FPackageName::FindPackageFileWithoutExtension(const FString& InPackageFilen
 	return false;
 }
 
-bool FPackageName::FixPackageNameCase(FString& LongPackageName, const FStringView& Extension)
+bool FPackageName::FixPackageNameCase(FString& LongPackageName, FStringView Extension)
 {
 	// Find the matching long package root
 	const FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
@@ -1439,6 +1454,45 @@ bool FPackageName::ParseExportTextPath(const FString& InExportTextPath, FString*
 	return false;
 }
 
+bool FPackageName::ParseExportTextPath(FStringView InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath)
+{
+	int32 Index;
+	if (InExportTextPath.FindChar('\'', Index))
+	{
+		if (OutClassName)
+		{
+			*OutClassName = InExportTextPath.Left(Index);
+		}
+
+		if (OutObjectPath)
+		{
+			*OutObjectPath = InExportTextPath.Right(Index + 1);
+			OutObjectPath->RemoveSuffix(InExportTextPath.EndsWith('\''));
+		}
+
+		return true;
+	}
+	
+	return false;
+}
+
+bool FPackageName::ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath)
+{
+	return ParseExportTextPath(FStringView(InExportTextPath), OutClassName, OutObjectPath);
+}
+
+FStringView FPackageName::ExportTextPathToObjectPath(FStringView InExportTextPath)
+{
+	FStringView ObjectPath;
+	if (FPackageName::ParseExportTextPath(InExportTextPath, nullptr, &ObjectPath))
+	{
+		return ObjectPath;
+	}
+	
+	// Could not parse the export text path. Could already be an object path, just return it back.
+	return InExportTextPath;
+}
+
 FString FPackageName::ExportTextPathToObjectPath(const FString& InExportTextPath)
 {
 	FString ObjectPath;
@@ -1449,6 +1503,11 @@ FString FPackageName::ExportTextPathToObjectPath(const FString& InExportTextPath
 	
 	// Could not parse the export text path. Could already be an object path, just return it back.
 	return InExportTextPath;
+}
+
+const TCHAR* FPackageName::ExportTextPathToObjectPath(const TCHAR* InExportTextPath)
+{
+	return ExportTextPathToObjectPath(FStringView(InExportTextPath)).GetData();
 }
 
 FString FPackageName::ObjectPathToPackageName(const FString& InObjectPath)
@@ -1464,7 +1523,8 @@ FString FPackageName::ObjectPathToPackageName(const FString& InObjectPath)
 	return InObjectPath;
 }
 
-FString FPackageName::ObjectPathToObjectName(const FString& InObjectPath)
+template<class T>
+T ObjectPathToObjectNameImpl(const T& InObjectPath)
 {
 	// Check for a subobject
 	int32 SubObjectDelimiterIdx;
@@ -1482,6 +1542,16 @@ FString FPackageName::ObjectPathToObjectName(const FString& InObjectPath)
 
 	// No object or subobject delimiters. The path must refer to the object name directly (i.e. a package).
 	return InObjectPath;
+}
+
+FString FPackageName::ObjectPathToObjectName(const FString& InObjectPath)
+{
+	return ObjectPathToObjectNameImpl(InObjectPath);
+}
+
+FStringView FPackageName::ObjectPathToObjectName(FStringView InObjectPath)
+{
+	return ObjectPathToObjectNameImpl(InObjectPath);
 }
 
 bool FPackageName::IsScriptPackage(const FString& InPackageName)
