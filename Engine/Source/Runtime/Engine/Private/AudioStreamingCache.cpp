@@ -632,9 +632,9 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 		}
 		if (bBlockForLoadCompletion)
 		{
-#if DEBUG_STREAM_CACHE
 			FStreamedAudioChunk& Chunk = InKey.SoundWave->RunningPlatformData->Chunks[InKey.ChunkIndex];
 			int32 ChunkAudioDataSize = Chunk.AudioDataSize;
+#if DEBUG_STREAM_CACHE
 			FoundElement->DebugInfo.NumTotalChunks = InKey.SoundWave->GetNumChunks() - 1;
 			FoundElement->DebugInfo.TimeLoadStarted = FPlatformTime::Cycles64();
 #endif
