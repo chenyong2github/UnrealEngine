@@ -563,12 +563,13 @@ public:
 	/**
 	 * Minimal initialization constructor.
 	 */
-	FNiagaraShaderScript() :
-		GameThreadShaderMap(NULL),
-		RenderingThreadShaderMap(NULL),
-		FeatureLevel(GMaxRHIFeatureLevel),
-		bLoadedCookedShaderMapId(false),
-		bLoadedFromCookedMaterial(false)
+	FNiagaraShaderScript()
+		: BaseVMScript(nullptr)
+		, GameThreadShaderMap(nullptr)
+		, RenderingThreadShaderMap(nullptr)
+		, FeatureLevel(GMaxRHIFeatureLevel)
+		, bLoadedCookedShaderMapId(false)
+		, bLoadedFromCookedMaterial(false)
 	{}
 
 	/**
