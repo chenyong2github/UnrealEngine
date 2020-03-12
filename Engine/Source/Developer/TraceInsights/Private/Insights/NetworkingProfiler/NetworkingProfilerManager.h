@@ -87,9 +87,6 @@ private:
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
 
-	void RegisterMajorTab(IUnrealInsightsModule& InsightsModule);
-	void UnregisterMajorTab();
-
 	/** Called to spawn the Networking Profiler major tab. */
 	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
