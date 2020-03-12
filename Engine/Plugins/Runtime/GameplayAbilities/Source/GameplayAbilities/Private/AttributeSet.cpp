@@ -721,6 +721,10 @@ void FAttributeSetInitterDiscreteLevels::InitAttributeSetDefaults(UAbilitySystem
 	const FAttributeSetDefaults& SetDefaults = Collection->LevelData[Level - 1];
 	for (const UAttributeSet* Set : AbilitySystemComponent->SpawnedAttributes)
 	{
+		if (!Set)
+		{
+			continue;
+		}
 		const FAttributeDefaultValueList* DefaultDataList = SetDefaults.DataMap.Find(Set->GetClass());
 		if (DefaultDataList)
 		{
@@ -768,6 +772,11 @@ void FAttributeSetInitterDiscreteLevels::ApplyAttributeDefault(UAbilitySystemCom
 	const FAttributeSetDefaults& SetDefaults = Collection->LevelData[Level - 1];
 	for (const UAttributeSet* Set : AbilitySystemComponent->SpawnedAttributes)
 	{
+		if (!Set)
+		{
+			continue;
+		}
+
 		const FAttributeDefaultValueList* DefaultDataList = SetDefaults.DataMap.Find(Set->GetClass());
 		if (DefaultDataList)
 		{

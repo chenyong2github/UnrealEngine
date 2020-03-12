@@ -129,11 +129,16 @@ void UAbilitySystemComponent::GetAllAttributes(OUT TArray<FGameplayAttribute>& A
 {
 	for (UAttributeSet* Set : SpawnedAttributes)
 	{
-		for ( TFieldIterator<FProperty> It(Set->GetClass()); It; ++It)
+		if (!Set)
+		{
+			continue;
+		}
+
+		for (TFieldIterator<FProperty> It(Set->GetClass()); It; ++It)
 		{
 			if (FFloatProperty* FloatProperty = CastField<FFloatProperty>(*It))
 			{
-				Attributes.Push( FGameplayAttribute(FloatProperty) );
+				Attributes.Push(FGameplayAttribute(FloatProperty));
 			}
 			else if (FGameplayAttribute::IsGameplayAttributeDataProperty(*It))
 			{
@@ -2458,6 +2463,11 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 		}
 		for (UAttributeSet* Set : SpawnedAttributes)
 		{
+			if (!Set)
+			{
+				continue;
+			}
+
 			for (TFieldIterator<FProperty> It(Set->GetClass()); It; ++It)
 			{
 				FGameplayAttribute	Attribute(*It);
