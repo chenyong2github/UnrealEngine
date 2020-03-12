@@ -99,12 +99,12 @@ struct FHairStrandsRootData
 };
 
 /* Render buffers for root deformation for dynamic meshes */
-struct FHairStrandsRootResource : public FRenderResource
+struct FHairStrandsRestRootResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsRootResource();
-	FHairStrandsRootResource(const FHairStrandsRootData& RootData);
-	FHairStrandsRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
+	FHairStrandsRestRootResource();
+	FHairStrandsRestRootResource(const FHairStrandsRootData& RootData);
+	FHairStrandsRestRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -113,7 +113,7 @@ struct FHairStrandsRootResource : public FRenderResource
 	virtual void ReleaseRHI() override;
 
 	/* Get the resource name */
-	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRootResource"); }
+	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRestRootResource"); }
 
 	/* Populate GPU LOD data from RootData (this function doesn't initialize resources) */
 	void PopulateFromRootData();
@@ -124,7 +124,8 @@ struct FHairStrandsRootResource : public FRenderResource
 
 	struct FMeshProjectionLOD
 	{
-		FHairStrandsProjectionHairData::LODData::EStatus Status = FHairStrandsProjectionHairData::LODData::EStatus::Invalid;
+		const bool IsValid() const { return Status == FHairStrandsProjectionHairData::EStatus::Completed; }
+		FHairStrandsProjectionHairData::EStatus Status = FHairStrandsProjectionHairData::EStatus::Invalid;
 		int32 LODIndex = -1;
 
 		/* Triangle on which a root is attached */
@@ -138,18 +139,11 @@ struct FHairStrandsRootResource : public FRenderResource
 		FRWBuffer RestRootTrianglePosition1Buffer;
 		FRWBuffer RestRootTrianglePosition2Buffer;
 
-		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
-		FRWBuffer DeformedRootTrianglePosition0Buffer;
-		FRWBuffer DeformedRootTrianglePosition1Buffer;
-		FRWBuffer DeformedRootTrianglePosition2Buffer;
-
 		/* Strand hair mesh interpolation matrix and sample indices */
 		uint32 SampleCount = 0;
 		FRWBuffer MeshInterpolationWeightsBuffer;
 		FRWBuffer MeshSampleIndicesBuffer;
 		FRWBuffer RestSamplePositionsBuffer;
-		FRWBuffer DeformedSamplePositionsBuffer;
-		FRWBuffer MeshSampleWeightsBuffer;
 	};
 
 	/* Store the hair projection information for each mesh LOD */
@@ -157,6 +151,45 @@ struct FHairStrandsRootResource : public FRenderResource
 
 	/* Store CPU data for root info & root binding */
 	FHairStrandsRootData RootData;
+};
+
+
+/* Render buffers for root deformation for dynamic meshes */
+struct FHairStrandsDeformedRootResource : public FRenderResource
+{
+	/** Build the hair strands resource */
+	FHairStrandsDeformedRootResource();
+	FHairStrandsDeformedRootResource(const FHairStrandsRestRootResource* InRestResources);
+
+	/* Init the buffer */
+	virtual void InitRHI() override;
+
+	/* Release the buffer */
+	virtual void ReleaseRHI() override;
+
+	/* Get the resource name */
+	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsDeformedRootResource"); }
+
+	struct FMeshProjectionLOD
+	{
+		const bool IsValid() const { return Status == FHairStrandsProjectionHairData::EStatus::Completed; }
+		FHairStrandsProjectionHairData::EStatus Status = FHairStrandsProjectionHairData::EStatus::Invalid;
+		int32 LODIndex = -1;
+
+		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
+		FRWBuffer DeformedRootTrianglePosition0Buffer;
+		FRWBuffer DeformedRootTrianglePosition1Buffer;
+		FRWBuffer DeformedRootTrianglePosition2Buffer;
+
+		/* Strand hair mesh interpolation matrix and sample indices */
+		uint32 SampleCount = 0;
+		FRWBuffer DeformedSamplePositionsBuffer;
+		FRWBuffer MeshSampleWeightsBuffer;
+	};
+
+	/* Store the hair projection information for each mesh LOD */
+	uint32 RootCount = 0;
+	TArray<FMeshProjectionLOD> MeshProjectionLODs;
 };
 
 /* Render buffers that will be used for rendering */
@@ -736,8 +769,8 @@ public:
 	/** GPU and CPU binding data for both simulation and rendering. */
 	struct FHairGroupResource
 	{
-		FHairStrandsRootResource* SimRootResources = nullptr;
-		FHairStrandsRootResource* RenRootResources = nullptr;
+		FHairStrandsRestRootResource* SimRootResources = nullptr;
+		FHairStrandsRestRootResource* RenRootResources = nullptr;
 	};
 	typedef TArray<FHairGroupResource> FHairGroupResources;
 	FHairGroupResources HairGroupResources;
