@@ -51,7 +51,7 @@ else
 	UATCompileArg=-compile
 fi
 
-if [ -f Build\InstalledBuild.txt ]; then
+if [ -f Build/InstalledBuild.txt ]; then
 	UATCompileArg=
 fi
 
