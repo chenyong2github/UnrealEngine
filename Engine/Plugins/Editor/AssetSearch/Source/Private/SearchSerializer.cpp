@@ -13,8 +13,8 @@
 
 enum class ESearchIndexVersion
 {
-	Empty = 0,
-	Initial = 1,
+	Empty,
+	Initial,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
