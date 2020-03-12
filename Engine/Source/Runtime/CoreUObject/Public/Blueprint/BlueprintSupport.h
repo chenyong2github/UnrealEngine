@@ -61,6 +61,7 @@ struct FBlueprintWarningDeclaration
 };
 
 typedef void (*FFlushReinstancingQueueFPtr)();
+typedef void (*FClassReparentingFPtr)(const TMap<UClass*, UClass*>&);
 
 /** 
  * This set of functions contains blueprint related UObject functionality.
@@ -88,7 +89,10 @@ struct FBlueprintSupport
 
 	/** Checks for any old instances and reinstances them: */
 	static void FlushReinstancingQueue();
-	COREUOBJECT_API static void SetFlushReinstancingQueueFPtr(FFlushReinstancingQueueFPtr Ptr);
+	COREUOBJECT_API static void SetFlushReinstancingQueueFPtr(FFlushReinstancingQueueFPtr Ptr);	
+
+	COREUOBJECT_API static void ReparentHierarchies(const TMap<UClass*, UClass*>& OldClassToNewClass);
+	COREUOBJECT_API static void SetClassReparentingFPtr(FClassReparentingFPtr Ptr);
 
 	/** Tells if the specified object is one of the many flavors of FLinkerPlaceholderBase that we have. */
 	COREUOBJECT_API static bool IsDeferredDependencyPlaceholder(UObject* LoadedObj);

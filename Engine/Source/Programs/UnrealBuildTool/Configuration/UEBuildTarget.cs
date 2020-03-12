@@ -1619,6 +1619,9 @@ namespace UnrealBuildTool
 			TargetToolChain.GetVersionInfo(Makefile.Diagnostics);
 			Rules.GetBuildSettingsInfo(Makefile.Diagnostics);
 
+			// Get any pre-build targets.
+			Makefile.PreBuildTargets = Rules.PreBuildTargets.ToArray();
+
 			// Setup the hot reload module list
 			Makefile.HotReloadModuleNames = GetHotReloadModuleNames();
 
@@ -1967,6 +1970,16 @@ namespace UnrealBuildTool
 				}
 			}
 			Makefile.ExternalDependencies.UnionWith(Makefile.PluginFiles);
+
+			// Add any leaf dependencies (eg. response files) to the dependencies list
+			IEnumerable<FileItem> LeafPrerequisiteItems = Makefile.Actions.SelectMany(x => x.PrerequisiteItems).Except(Makefile.Actions.SelectMany(x => x.ProducedItems));
+			foreach (FileItem LeafPrerequisiteItem in LeafPrerequisiteItems)
+			{
+				if (LeafPrerequisiteItem.Exists)
+				{
+					Makefile.AdditionalDependencies.Add(LeafPrerequisiteItem);
+				}
+			}
 
 			// Write a header containing public definitions for this target
 			if (Rules.ExportPublicHeader != null)
