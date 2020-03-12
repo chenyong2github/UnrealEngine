@@ -10,6 +10,7 @@ LandscapeMeshMobileUpdate.h: Helpers to stream in and out mobile landscape verte
 #include "RHI.h"
 #include "RenderAssetUpdate.h"
 #include "Async/AsyncFileHandle.h"
+#include "Serialization/BulkData.h"
 
 class UStreamableRenderAsset;
 class ULandscapeLODStreamingProxy;
