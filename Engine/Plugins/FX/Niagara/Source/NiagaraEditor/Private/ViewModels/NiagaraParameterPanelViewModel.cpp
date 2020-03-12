@@ -565,6 +565,9 @@ FNiagaraScriptToolkitParameterPanelViewModel::~FNiagaraScriptToolkitParameterPan
 	UNiagaraGraph* NiagaraGraph = static_cast<UNiagaraGraph*>(ScriptViewModel->GetGraphViewModel()->GetGraph());
 	NiagaraGraph->RemoveOnGraphChangedHandler(OnGraphChangedHandle);
 	NiagaraGraph->RemoveOnGraphNeedsRecompileHandler(OnGraphNeedsRecompileHandle);
+	NiagaraGraph->RegisterPinVisualWidgetProvider(nullptr);
+	NiagaraGraph->OnSubObjectSelectionChanged().Remove(OnSubObjectSelectionHandle);
+
 }
 
 void FNiagaraScriptToolkitParameterPanelViewModel::InitBindings()
@@ -574,12 +577,18 @@ void FNiagaraScriptToolkitParameterPanelViewModel::InitBindings()
 		FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptToolkitParameterPanelViewModel::HandleOnGraphChanged));
 	OnGraphNeedsRecompileHandle = NiagaraGraph->AddOnGraphNeedsRecompileHandler(
 		FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptToolkitParameterPanelViewModel::HandleOnGraphChanged));
-	ScriptViewModel->GetGraphViewModel()->GetGraph()->RegisterPinVisualWidgetProvider(UNiagaraGraph::FOnGetPinVisualWidget::CreateSP(this, &FNiagaraScriptToolkitParameterPanelViewModel::GetScriptParameterVisualWidget));
+	ScriptVisualPinHandle = NiagaraGraph->RegisterPinVisualWidgetProvider(UNiagaraGraph::FOnGetPinVisualWidget::CreateSP(this, &FNiagaraScriptToolkitParameterPanelViewModel::GetScriptParameterVisualWidget));
+	OnSubObjectSelectionHandle = NiagaraGraph->OnSubObjectSelectionChanged().AddSP(this, &FNiagaraScriptToolkitParameterPanelViewModel::HandleGraphSubObjectSelectionChanged);
 }
 
 void FNiagaraScriptToolkitParameterPanelViewModel::Refresh() const
 {
 	OnParameterPanelViewModelRefreshed.ExecuteIfBound();
+}
+
+void FNiagaraScriptToolkitParameterPanelViewModel::HandleGraphSubObjectSelectionChanged(const UObject* Obj)
+{
+	OnParameterPanelViewModelExternalSelectionChanged.Broadcast(Obj);
 }
 
 void FNiagaraScriptToolkitParameterPanelViewModel::CollectStaticSections(TArray<int32>& StaticSectionIDs) const

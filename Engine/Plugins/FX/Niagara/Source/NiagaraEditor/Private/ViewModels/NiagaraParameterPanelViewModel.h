@@ -26,6 +26,7 @@ class INiagaraParameterPanelViewModel : public TSharedFromThis<INiagaraParameter
 public:
 	/** Delegate to signal the view model's state has changed. */
 	DECLARE_DELEGATE(FOnParameterPanelViewModelRefreshed);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnParameterPanelViewModelExternalSelectionChanged, const UObject*);
 
 	virtual ~INiagaraParameterPanelViewModel() { }
 
@@ -77,9 +78,10 @@ public:
 
 	FOnParameterPanelViewModelRefreshed& GetOnRefreshed() { return OnParameterPanelViewModelRefreshed; };
 
+	FOnParameterPanelViewModelExternalSelectionChanged& GetExternalSelectionChanged() { return OnParameterPanelViewModelExternalSelectionChanged; }
 protected:
 	FOnParameterPanelViewModelRefreshed OnParameterPanelViewModelRefreshed;
-
+	FOnParameterPanelViewModelExternalSelectionChanged OnParameterPanelViewModelExternalSelectionChanged;
 	/** Cached list of parameters sent to SNiagarParameterPanel, updated whenever GetViewedParameters is called. */
 	TArray<FNiagaraScriptVariableAndViewInfo> CachedViewedParameters;
 
@@ -174,6 +176,8 @@ public:
 	virtual bool CanRenameParameter(const FNiagaraVariable& TargetVariableToRename, const FNiagaraVariableMetaData& TargetVariableMetaData, const FText& NewVariableNameText) const override;
 
 	virtual void HandleActionSelected(const TSharedPtr<FEdGraphSchemaAction>& InAction, ESelectInfo::Type InSelectionType) override;
+	
+	void HandleGraphSubObjectSelectionChanged(const UObject* Obj);
 
 	virtual FReply HandleActionDragged(const TSharedPtr<FEdGraphSchemaAction>& InAction, const FPointerEvent& MouseEvent) const override;
 
@@ -190,6 +194,8 @@ private:
 
 	FDelegateHandle OnGraphChangedHandle;
 	FDelegateHandle OnGraphNeedsRecompileHandle;
+	FDelegateHandle ScriptVisualPinHandle;
+	FDelegateHandle OnSubObjectSelectionHandle;
 
 	void HandleOnGraphChanged(const struct FEdGraphEditAction& InAction);
 
