@@ -4,10 +4,12 @@
 
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
-#include "Insights/IUnrealInsightsModule.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/Widgets/SFrameTrack.h"
 #include "Insights/Widgets/SLogView.h"
@@ -23,11 +25,6 @@
 
 DEFINE_LOG_CATEGORY(TimingProfiler);
 
-DEFINE_STAT(STAT_FT_OnPaint);
-DEFINE_STAT(STAT_GT_OnPaint);
-DEFINE_STAT(STAT_TT_OnPaint);
-DEFINE_STAT(STAT_TPM_Tick);
-
 TSharedPtr<FTimingProfilerManager> FTimingProfilerManager::Instance = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -39,8 +36,27 @@ TSharedPtr<FTimingProfilerManager> FTimingProfilerManager::Get()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedPtr<FTimingProfilerManager> FTimingProfilerManager::CreateInstance()
+{
+	ensure(!FTimingProfilerManager::Instance.IsValid());
+	if (FTimingProfilerManager::Instance.IsValid())
+	{
+		FTimingProfilerManager::Instance.Reset();
+	}
+
+	FTimingProfilerManager::Instance = MakeShared<FTimingProfilerManager>(FInsightsManager::Get()->GetCommandList());
+
+	return FTimingProfilerManager::Instance;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FTimingProfilerManager::FTimingProfilerManager(TSharedRef<FUICommandList> InCommandList)
-	: CommandList(InCommandList)
+	: bIsInitialized(false)
+	, bIsAvailable(false)
+	, AvailabilityCheckNextTimestamp(0)
+	, AvailabilityCheckWaitTimeSec(1.0)
+	, CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
 	, bIsFramesTrackVisible(false)
@@ -58,11 +74,18 @@ FTimingProfilerManager::FTimingProfilerManager(TSharedRef<FUICommandList> InComm
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingProfilerManager::PostConstructor()
+void FTimingProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule)
 {
+	ensure(!bIsInitialized);
+	if (bIsInitialized)
+	{
+		return;
+	}
+	bIsInitialized = true;
+
 	// Register tick functions.
-	//OnTick = FTickerDelegate::CreateSP(this, &FTimingProfilerManager::Tick);
-	//OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
+	OnTick = FTickerDelegate::CreateSP(this, &FTimingProfilerManager::Tick);
+	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
 
 	FTimingProfilerCommands::Register();
 	BindCommands();
@@ -70,12 +93,27 @@ void FTimingProfilerManager::PostConstructor()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingProfilerManager::~FTimingProfilerManager()
+void FTimingProfilerManager::Shutdown()
 {
+	if (!bIsInitialized)
+	{
+		return;
+	}
+	bIsInitialized = false;
+
 	FTimingProfilerCommands::Unregister();
 
 	// Unregister tick function.
-	//FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+
+	FTimingProfilerManager::Instance.Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTimingProfilerManager::~FTimingProfilerManager()
+{
+	ensure(!bIsInitialized);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +127,61 @@ void FTimingProfilerManager::BindCommands()
 	ActionManager.Map_ToggleCalleesTreeViewVisibility_Global();
 	ActionManager.Map_ToggleStatsCountersViewVisibility_Global();
 	ActionManager.Map_ToggleLogViewVisibility_Global();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsModule)
+{
+	const FInsightsMajorTabConfig& Config = InsightsModule.FindMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId);
+	if (Config.bIsAvailable)
+	{
+		// Register tab spawner for the Timing Insights.
+		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId,
+			FOnSpawnTab::CreateRaw(this, &FTimingProfilerManager::SpawnTab))
+			.SetDisplayName(Config.TabLabel.IsSet() ? Config.TabLabel.GetValue() : LOCTEXT("TimingProfilerTabTitle", "Timing Insights"))
+			.SetTooltipText(Config.TabTooltip.IsSet() ? Config.TabTooltip.GetValue() : LOCTEXT("TimingProfilerTooltipText", "Open the Timing Insights tab."))
+			.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingProfiler.Icon.Small"));
+
+		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetToolsCategory();
+		TabSpawnerEntry.SetGroup(Group);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::UnregisterMajorTabs()
+{
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> FTimingProfilerManager::SpawnTab(const FSpawnTabArgs& Args)
+{
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab);
+
+	// Register OnTabClosed to handle Timing profiler manager shutdown.
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FTimingProfilerManager::OnTabClosed));
+
+	// Create the STimingProfilerWindow widget.
+	TSharedRef<STimingProfilerWindow> Window = SNew(STimingProfilerWindow, DockTab, Args.GetOwnerWindow());
+	DockTab->SetContent(Window);
+
+	AssignProfilerWindow(Window);
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::OnTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	RemoveProfilerWindow();
+
+	// Disable TabClosed delegate.
+	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -116,7 +209,29 @@ FTimingProfilerActionManager& FTimingProfilerManager::GetActionManager()
 
 bool FTimingProfilerManager::Tick(float DeltaTime)
 {
-	SCOPE_CYCLE_COUNTER(STAT_TPM_Tick);
+	if (!bIsAvailable)
+	{
+		// Check if session has Load Time events (to spawn the tab), but not too often.
+		const uint64 Time = FPlatformTime::Cycles64();
+		if (Time > AvailabilityCheckNextTimestamp)
+		{
+			AvailabilityCheckWaitTimeSec += 1.0; // increase wait time with 1s
+			const uint64 WaitTime = static_cast<uint64>(AvailabilityCheckWaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
+			AvailabilityCheckNextTimestamp = Time + WaitTime;
+
+			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+			if (Session.IsValid())
+			{
+				bIsAvailable = true;
+
+				const FName& TabId = FInsightsManagerTabs::TimingProfilerTabId;
+				if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
+				{
+					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
+				}
+			}
+		}
+	}
 
 	return true;
 }
@@ -125,6 +240,10 @@ bool FTimingProfilerManager::Tick(float DeltaTime)
 
 void FTimingProfilerManager::OnSessionChanged()
 {
+	bIsAvailable = false;
+	AvailabilityCheckNextTimestamp = 0;
+	AvailabilityCheckWaitTimeSec = 1.0;
+
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
 	{

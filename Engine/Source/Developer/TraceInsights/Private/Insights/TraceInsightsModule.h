@@ -45,13 +45,15 @@ public:
 
 	virtual void ShutdownUserInterface() override;
 
+	virtual void RegisterComponent(TSharedPtr<IInsightsComponent> Component) override;
+	virtual void UnregisterComponent(TSharedPtr<IInsightsComponent> Component) override;
+
 	virtual void RegisterMajorTabConfig(const FName& InMajorTabId, const FInsightsMajorTabConfig& InConfig) override;
 	virtual void UnregisterMajorTabConfig(const FName& InMajorTabId) override;
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() override { return OnInsightsMajorTabCreatedDelegate; }
 	virtual FOnRegisterMajorTabExtensions& OnRegisterMajorTabExtension(const FName& InMajorTabId) override;
 
-	/** Find a major tab config for the specified id. */
-	const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const;
+	virtual const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const override;
 
 	const FOnRegisterMajorTabExtensions* FindMajorTabLayoutExtension(const FName& InMajorTabId) const;
 
@@ -73,29 +75,11 @@ protected:
 	/** Callback called when a major tab is closed. */
 	void OnTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
 
-	/** Callback called when the Timing Profiler major tab is closed. */
-	void OnTimingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	/** Callback called when the Loading Profiler major tab is closed. */
-	void OnLoadingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	/** Callback called when the Networking Profiler major tab is closed. */
-	void OnNetworkingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
 	/** Start Page */
 	TSharedRef<SDockTab> SpawnStartPageTab(const FSpawnTabArgs& Args);
 
 	/** Session Info */
 	TSharedRef<SDockTab> SpawnSessionInfoTab(const FSpawnTabArgs& Args);
-
-	/** Timing Profiler */
-	TSharedRef<SDockTab> SpawnTimingProfilerTab(const FSpawnTabArgs& Args);
-
-	/** Loading Profiler */
-	TSharedRef<SDockTab> SpawnLoadingProfilerTab(const FSpawnTabArgs& Args);
-
-	/** Networking Profiler */
-	TSharedRef<SDockTab> SpawnNetworkingProfilerTab(const FSpawnTabArgs& Args);
 
 protected:
 	TUniquePtr<Trace::FStoreService> StoreService;
@@ -110,4 +94,6 @@ protected:
 
 	TSharedPtr<FTabManager::FLayout> PersistentLayout;
 	static FString UnrealInsightsLayoutIni;
+
+	TArray<TSharedRef<IInsightsComponent>> Components;
 };

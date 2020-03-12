@@ -8,6 +8,7 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/IUnrealInsightsModule.h"
 #include "Insights/TimingProfilerCommands.h"
 #include "Insights/ViewModels/TimerNode.h"
 
@@ -15,9 +16,9 @@ class STimingProfilerWindow;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * This class manages the Timing Profiler state and settings.
+ * This class manages the Timing Profiler (Timing Insights) state and settings.
  */
-class FTimingProfilerManager : public TSharedFromThis<FTimingProfilerManager>
+class FTimingProfilerManager : public TSharedFromThis<FTimingProfilerManager>, public IInsightsComponent
 {
 	friend class FTimingProfilerActionManager;
 
@@ -28,25 +29,8 @@ public:
 	/** Virtual destructor. */
 	virtual ~FTimingProfilerManager();
 
-	/** Creates an instance of the profiler manager. */
-	static TSharedPtr<FTimingProfilerManager> Initialize()
-	{
-		if (FTimingProfilerManager::Instance.IsValid())
-		{
-			FTimingProfilerManager::Instance.Reset();
-		}
-
-		FTimingProfilerManager::Instance = MakeShareable(new FTimingProfilerManager(FInsightsManager::Get()->GetCommandList()));
-		FTimingProfilerManager::Instance->PostConstructor();
-
-		return FTimingProfilerManager::Instance;
-	}
-
-	/** Shutdowns the Timing Profiler manager. */
-	void Shutdown()
-	{
-		FTimingProfilerManager::Instance.Reset();
-	}
+	/** Creates an instance of the Timing Profiler manager. */
+	static TSharedPtr<FTimingProfilerManager> CreateInstance();
 
 	/**
 	 * @return the global instance of the Timing Profiler manager.
@@ -56,6 +40,16 @@ public:
 	 *     Module.GetTimingProfiler();
 	 */
 	static TSharedPtr<FTimingProfilerManager> Get();
+
+	//////////////////////////////////////////////////
+	// IInsightsComponent
+
+	virtual void Initialize(IUnrealInsightsModule& InsightsModule) override;
+	virtual void Shutdown() override;
+	virtual void RegisterMajorTabs(IUnrealInsightsModule& InsightsModule) override;
+	virtual void UnregisterMajorTabs() override;
+
+	//////////////////////////////////////////////////
 
 	/** @returns UI command list for the Timing Profiler manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
@@ -71,6 +65,11 @@ public:
 		ProfilerWindow = InProfilerWindow;
 	}
 
+	void RemoveProfilerWindow()
+	{
+		ProfilerWindow.Reset();
+	}
+
 	/**
 	 * Converts profiler window weak pointer to a shared pointer and returns it.
 	 * Make sure the returned pointer is valid before trying to dereference it.
@@ -83,37 +82,37 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Getters and setters used by Toggle Commands.
 
-	/** @return true, if Frames Track is visible */
+	/** @return true, if the Frames track/view is visible */
 	const bool IsFramesTrackVisible() const { return bIsFramesTrackVisible; }
 	void SetFramesTrackVisible(const bool bIsVisible) { bIsFramesTrackVisible = bIsVisible; }
 	void ShowHideFramesTrack(const bool bIsVisible);
 
-	/** @return true, if Timing View is visible */
+	/** @return true, if the Timing view is visible */
 	const bool IsTimingViewVisible() const { return bIsTimingViewVisible; }
 	void SetTimingViewVisible(const bool bIsVisible) { bIsTimingViewVisible = bIsVisible; }
 	void ShowHideTimingView(const bool bIsVisible);
 
-	/** @return true, if Timers View is visible */
+	/** @return true, if the Timers view is visible */
 	const bool IsTimersViewVisible() const { return bIsTimersViewVisible; }
 	void SetTimersViewVisible(const bool bIsVisible) { bIsTimersViewVisible = bIsVisible; }
 	void ShowHideTimersView(const bool bIsVisible);
 
-	/** @return true, if Callers Tree View is visible */
+	/** @return true, if the Callers tree view is visible */
 	const bool IsCallersTreeViewVisible() const { return bIsCallersTreeViewVisible; }
 	void SetCallersTreeViewVisible(const bool bIsVisible) { bIsCallersTreeViewVisible = bIsVisible; }
 	void ShowHideCallersTreeView(const bool bIsVisible);
 
-	/** @return true, if Callees Tree View is visible */
+	/** @return true, if the Callees tree view is visible */
 	const bool IsCalleesTreeViewVisible() const { return bIsCalleesTreeViewVisible; }
 	void SetCalleesTreeViewVisible(const bool bIsVisible) { bIsCalleesTreeViewVisible = bIsVisible; }
 	void ShowHideCalleesTreeView(const bool bIsVisible);
 
-	/** @return true, if Stats Counters View is visible */
+	/** @return true, if the Counters view is visible */
 	const bool IsStatsCountersViewVisible() const { return bIsStatsCountersViewVisible; }
 	void SetStatsCountersViewVisible(const bool bIsVisible) { bIsStatsCountersViewVisible = bIsVisible; }
 	void ShowHideStatsCountersView(const bool bIsVisible);
 
-	/** @return true, if Log View is visible */
+	/** @return true, if the Log view is visible */
 	const bool IsLogViewVisible() const { return bIsLogViewVisible; }
 	void SetLogViewVisible(const bool bIsVisible) { bIsLogViewVisible = bIsVisible; }
 	void ShowHideLogView(const bool bIsVisible);
@@ -136,16 +135,24 @@ public:
 	void UpdateAggregatedCounterStats();
 
 private:
-	/** Finishes initialization of the profiler manager. */
-	void PostConstructor();
-
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
+
+	/** Called to spawn the Timing Profiler major tab. */
+	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
+
+	/** Callback called when the Timing Profiler major tab is closed. */
+	void OnTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
 
 private:
+	bool bIsInitialized;
+	bool bIsAvailable;
+	uint64 AvailabilityCheckNextTimestamp;
+	double AvailabilityCheckWaitTimeSec;
+
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
 
