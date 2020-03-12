@@ -406,13 +406,19 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIHairStrandsBuffer* Hair
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIHairStrandsBuffer::Initialize(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource* HairStrandsRestResource, 
-	const FHairStrandsDeformedResource*  HairStrandsDeformedResource, const FHairStrandsRootResource* HairStrandsRootResource, const FNDIHairStrandsData* NDIStrandsDatas)
+void FNDIHairStrandsBuffer::Initialize(
+	const FHairStrandsDatas*  HairStrandsDatas, 
+	const FHairStrandsRestResource* HairStrandsRestResource, 
+	const FHairStrandsDeformedResource*  HairStrandsDeformedResource, 
+	const FHairStrandsRestRootResource* HairStrandsRestRootResource,
+	const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource,
+	const FNDIHairStrandsData* NDIStrandsDatas)
 {
 	SourceDatas = HairStrandsDatas;
 	SourceRestResources = HairStrandsRestResource;
 	SourceDeformedResources = HairStrandsDeformedResource;
-	SourceRootResources = HairStrandsRootResource;
+	SourceRestRootResources = HairStrandsRestRootResource;
+	SourceDeformedRootResources = HairStrandsDeformedRootResource;
 	NDIDatas = NDIStrandsDatas;
 }
 
@@ -571,16 +577,17 @@ bool FNDIHairStrandsData::Init(UNiagaraDataInterfaceHairStrands* Interface, FNia
 		FHairStrandsDatas* StrandsDatas = nullptr;
 		FHairStrandsRestResource* StrandsRestResource = nullptr;
 		FHairStrandsDeformedResource* StrandsDeformedResource = nullptr;
-		FHairStrandsRootResource* StrandsRootResource = nullptr;
+		FHairStrandsRestRootResource* StrandsRestRootResource = nullptr;
+		FHairStrandsDeformedRootResource* StrandsDeformedRootResource = nullptr;
 		UGroomAsset* GroomAsset = nullptr;
 		int32 GroupIndex = 0;
 
 		{
-			Interface->ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource, GroomAsset, GroupIndex);
+			Interface->ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, GroomAsset, GroupIndex);
 			Update(Interface, SystemInstance, StrandsDatas, GroomAsset, GroupIndex);
 
 			HairStrandsBuffer = new FNDIHairStrandsBuffer();
-			HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource, this);
+			HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, this);
 
 			BeginInitResource(HairStrandsBuffer);
 		
@@ -706,7 +713,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
 
 		const bool IsHairValid = ProxyData != nullptr && ProxyData->HairStrandsBuffer != nullptr && ProxyData->HairStrandsBuffer->IsInitialized();
-		const bool IsRootValid = IsHairValid && ProxyData->HairStrandsBuffer->SourceRootResources != nullptr;//&& ProxyData->HairStrandsBuffer->SourceRootResources->IsInitialized();
+		const bool IsRootValid = IsHairValid && ProxyData->HairStrandsBuffer->SourceDeformedRootResources != nullptr;//&& ProxyData->HairStrandsBuffer->SourceRootResources->IsInitialized();
 		const bool IsRestValid = IsHairValid && ProxyData->HairStrandsBuffer->SourceRestResources != nullptr;//&& ProxyData->HairStrandsBuffer->SourceRestResources->IsInitialized();
 		const bool IsDeformedValid = IsHairValid && ProxyData->HairStrandsBuffer->SourceDeformedResources != nullptr && ProxyData->HairStrandsBuffer->SourceDeformedResources->IsInitialized();
 
@@ -717,33 +724,35 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			FUnorderedAccessViewRHIRef PointPositionsUAV = IsDeformedValid ?
 				HairStrandsBuffer->SourceDeformedResources->DeformedPositionBuffer[HairStrandsBuffer->SourceDeformedResources->CurrentIndex].UAV : HairStrandsBuffer->DeformedPositionBuffer.UAV;
 
-			int32 InterpolationModeValue = (IsRootValid && HairStrandsBuffer->SourceRootResources->MeshProjectionLODs.Num() > 0 && 
-				HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].Status == FHairStrandsProjectionHairData::LODData::EStatus::Completed);
+			int32 InterpolationModeValue = IsRootValid && HairStrandsBuffer->SourceDeformedRootResources->MeshProjectionLODs.Num() > 0 && 
+				HairStrandsBuffer->SourceDeformedRootResources->MeshProjectionLODs[0].IsValid();
 
-			const FHairStrandsRootResource::FMeshProjectionLOD* MeshProjection = (InterpolationModeValue == 1) ? &(HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0]) : nullptr;
+			const FHairStrandsRestRootResource::FMeshProjectionLOD* RestMeshProjection = (InterpolationModeValue == 1) ? &(HairStrandsBuffer->SourceRestRootResources->MeshProjectionLODs[0]) : nullptr;
+			const FHairStrandsDeformedRootResource::FMeshProjectionLOD* DeformedMeshProjection = (InterpolationModeValue == 1) ? &(HairStrandsBuffer->SourceDeformedRootResources->MeshProjectionLODs[0]) : nullptr;
 
-			FRHIShaderResourceView* RestTrianglePositionASRV = (InterpolationModeValue == 1 && MeshProjection != nullptr) ?
-				MeshProjection->RestRootTrianglePosition0Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-			FRHIShaderResourceView* RestTrianglePositionBSRV = (InterpolationModeValue == 1 && MeshProjection != nullptr) ?
-				MeshProjection->RestRootTrianglePosition1Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-			FRHIShaderResourceView* RestTrianglePositionCSRV = (InterpolationModeValue == 1 && MeshProjection != nullptr) ?
-				MeshProjection->RestRootTrianglePosition2Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* RestTrianglePositionASRV = (InterpolationModeValue == 1 && RestMeshProjection != nullptr) ?
+				RestMeshProjection->RestRootTrianglePosition0Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* RestTrianglePositionBSRV = (InterpolationModeValue == 1 && RestMeshProjection != nullptr) ?
+				RestMeshProjection->RestRootTrianglePosition1Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* RestTrianglePositionCSRV = (InterpolationModeValue == 1 && RestMeshProjection != nullptr) ?
+				RestMeshProjection->RestRootTrianglePosition2Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
-			FRHIShaderResourceView* DeformedTrianglePositionASRV = (InterpolationModeValue == 1 && MeshProjection != nullptr) ?
-				MeshProjection->DeformedRootTrianglePosition0Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-			FRHIShaderResourceView* DeformedTrianglePositionBSRV = (InterpolationModeValue == 1 && MeshProjection != nullptr) ?
-				MeshProjection->DeformedRootTrianglePosition1Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-			FRHIShaderResourceView* DeformedTrianglePositionCSRV = (InterpolationModeValue == 1 && MeshProjection != nullptr) ?
-				MeshProjection->DeformedRootTrianglePosition2Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* DeformedTrianglePositionASRV = (InterpolationModeValue == 1 && DeformedMeshProjection != nullptr) ?
+				DeformedMeshProjection->DeformedRootTrianglePosition0Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* DeformedTrianglePositionBSRV = (InterpolationModeValue == 1 && DeformedMeshProjection != nullptr) ?
+				DeformedMeshProjection->DeformedRootTrianglePosition1Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* DeformedTrianglePositionCSRV = (InterpolationModeValue == 1 && DeformedMeshProjection != nullptr) ?
+				DeformedMeshProjection->DeformedRootTrianglePosition2Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
-			const int32 SampleCountValue = (MeshProjection != nullptr) ? MeshProjection->SampleCount : 0;
-			FShaderResourceViewRHIRef RestSamplePositionsBufferSRV = (MeshProjection != nullptr && MeshProjection->SampleCount > 0) ?
-				MeshProjection->RestSamplePositionsBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-			FShaderResourceViewRHIRef MeshSampleWeightsBufferSRV = (MeshProjection != nullptr && MeshProjection->SampleCount > 0) ?
-				MeshProjection->MeshSampleWeightsBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			const bool bHasSamples = (RestMeshProjection != nullptr && RestMeshProjection->SampleCount > 0);
+			const int32 SampleCountValue = bHasSamples ? RestMeshProjection->SampleCount : 0;
+			FShaderResourceViewRHIRef RestSamplePositionsBufferSRV = bHasSamples ?
+				RestMeshProjection->RestSamplePositionsBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FShaderResourceViewRHIRef MeshSampleWeightsBufferSRV = bHasSamples ?
+				DeformedMeshProjection->MeshSampleWeightsBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
-			FRHIShaderResourceView* RootBarycentricCoordinatesSRV = (InterpolationModeValue == 1 && MeshProjection != nullptr) ?
-				MeshProjection->RootTriangleBarycentricBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+			FRHIShaderResourceView* RootBarycentricCoordinatesSRV = (InterpolationModeValue == 1 && RestMeshProjection != nullptr) ?
+				RestMeshProjection->RootTriangleBarycentricBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
 			int32 bNeedSimReset = (ProxyData->TickCount <= MaxDelay ? 1 : 0);
 
@@ -756,8 +765,8 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			}
 
 			FUnorderedAccessViewRHIRef DummyFloatUAV(Context.Batcher->GetEmptyRWBufferFromPool(RHICmdList, PF_R32_FLOAT), false);
-			FUnorderedAccessViewRHIRef MeshSampleWeightsBufferUAV = (MeshProjection != nullptr && MeshProjection->SampleCount > 0) ?
-				MeshProjection->MeshSampleWeightsBuffer.UAV : DummyFloatUAV;
+			FUnorderedAccessViewRHIRef MeshSampleWeightsBufferUAV = (RestMeshProjection != nullptr && RestMeshProjection->SampleCount > 0) ?
+				DeformedMeshProjection->MeshSampleWeightsBuffer.UAV : DummyFloatUAV;
 
 			//UE_LOG(LogHairStrands, Log, TEXT("Shader Reset : %d %d %d"), bNeedSimReset, IsRootValid, InterpolationModeValue);
 			FVector RestRootOffsetValue = FVector::ZeroVector;
@@ -995,16 +1004,23 @@ void UNiagaraDataInterfaceHairStrands::ExtractSourceComponent(FNiagaraSystemInst
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(FNiagaraSystemInstance* SystemInstance,FHairStrandsDatas*& OutStrandsDatas, 
-	FHairStrandsRestResource*& OutStrandsRestResource, FHairStrandsDeformedResource*& OutStrandsDeformedResource, 
-	FHairStrandsRootResource*& OutStrandsRootResource, UGroomAsset*& OutGroomAsset, int32& OutGroupIndex)
+void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(
+	FNiagaraSystemInstance* SystemInstance,
+	FHairStrandsDatas*& OutStrandsDatas, 
+	FHairStrandsRestResource*& OutStrandsRestResource, 
+	FHairStrandsDeformedResource*& OutStrandsDeformedResource, 
+	FHairStrandsRestRootResource*& OutStrandsRestRootResource, 
+	FHairStrandsDeformedRootResource*& OutStrandsDeformedRootResource,
+	UGroomAsset*& OutGroomAsset,
+	int32& OutGroupIndex)
 {
 	ExtractSourceComponent(SystemInstance);
 
 	OutStrandsDatas = nullptr;
 	OutStrandsRestResource = nullptr;
 	OutStrandsDeformedResource = nullptr;
-	OutStrandsRootResource = nullptr;
+	OutStrandsRestRootResource = nullptr;
+	OutStrandsDeformedRootResource = nullptr;
 	OutGroupIndex = -1;
 
 	if (IsComponentValid())
@@ -1022,7 +1038,8 @@ void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(FNiagaraSystemIn
 			OutStrandsDatas = SourceComponent->GetGuideStrandsDatas(OutGroupIndex);
 			OutStrandsRestResource = SourceComponent->GetGuideStrandsRestResource(OutGroupIndex);
 			OutStrandsDeformedResource = SourceComponent->GetGuideStrandsDeformedResource(OutGroupIndex);
-			OutStrandsRootResource = SourceComponent->GetGuideStrandsRootResource(OutGroupIndex);
+			OutStrandsRestRootResource = SourceComponent->GetGuideStrandsRestRootResource(OutGroupIndex);
+			OutStrandsDeformedRootResource = SourceComponent->GetGuideStrandsDeformedRootResource(OutGroupIndex);
 			OutGroomAsset = SourceComponent->GroomAsset;
 		}
 	}
@@ -1069,14 +1086,15 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 	FHairStrandsDatas* StrandsDatas = nullptr;
 	FHairStrandsRestResource* StrandsRestResource = nullptr;
 	FHairStrandsDeformedResource* StrandsDeformedResource = nullptr;
-	FHairStrandsRootResource* StrandsRootResource = nullptr;
+	FHairStrandsRestRootResource* StrandsRestRootResource = nullptr;
+	FHairStrandsDeformedRootResource* StrandsDeformedRootResource = nullptr;
 	UGroomAsset* GroomAsset = nullptr;
 	int32 GroupIndex = 0;
 
 	InstanceData->TickCount = FMath::Min(MaxDelay+1,InstanceData->TickCount+1);
 
-	ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource, GroomAsset, GroupIndex);
-	InstanceData->HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource, InstanceData);
+	ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, GroomAsset, GroupIndex);
+	InstanceData->HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, InstanceData);
 
 	if (SourceComponent != nullptr)
 	{

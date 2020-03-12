@@ -301,7 +301,7 @@ void RunProjection(
 		FRDGBuilder GraphBuilder(RHICmdList);
 		for (FHairStrandsProjectionHairData::HairGroup& HairGroup : ProjectionHairData.HairGroups)
 		{
-			for (FHairStrandsProjectionHairData::LODData& LODData : HairGroup.LODDatas)
+			for (FHairStrandsProjectionHairData::RestLODData& LODData : HairGroup.RestLODDatas)
 			{
 				const uint32 LODIndex = LODData.LODIndex;
 				HairGroup.LocalToWorld = LocalToWorld;
@@ -362,29 +362,38 @@ void RunHairStrandsInterpolation(
 
 		FRDGBuilder GraphBuilder(RHICmdList);
 
-		for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
+		if (0 <= E.FrameLODIndex)
 		{
-			if (EHairStrandsInterpolationType::RenderStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
+			if (EHairStrandsInterpolationType::RenderStrands == Type)
 			{
-				UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData, TransitionQueue);
+				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
+				{
+					if (E.FrameLODIndex < ProjectionHairData.DeformedLODDatas.Num() && ProjectionHairData.DeformedLODDatas[E.FrameLODIndex].IsValid())
+					{
+						UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData, TransitionQueue);
+					}
+				}
 			}
-		}
 
-		for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
-		{
-			if (EHairStrandsInterpolationType::SimulationStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
+			if (EHairStrandsInterpolationType::SimulationStrands == Type)
 			{
-				UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData, TransitionQueue);
-			}
-		}
+				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
+				{
+					if (E.FrameLODIndex < ProjectionHairData.DeformedLODDatas.Num() && ProjectionHairData.DeformedLODDatas[E.FrameLODIndex].IsValid())
+					{
+						UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData, TransitionQueue);
+					}
+				}
 
-		for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
-		{
-			if (EHairStrandsInterpolationType::SimulationStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
-			{
-				InitHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData, TransitionQueue);
-				UpdateHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData, TransitionQueue);
-				//InterpolateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData);
+				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
+				{
+					if (E.FrameLODIndex < ProjectionHairData.DeformedLODDatas.Num() && ProjectionHairData.DeformedLODDatas[E.FrameLODIndex].IsValid())
+					{
+						InitHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData, TransitionQueue);
+						UpdateHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData, TransitionQueue);
+						//InterpolateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData);
+					}
+				}
 			}
 		}
 
@@ -537,8 +546,8 @@ FHairStrandsDebugInfos GetHairStandsDebugInfos()
 			if (GroupIt < uint32(E.RenProjectionHairDatas.HairGroups.Num()))
 			{
 				FHairStrandsProjectionHairData::HairGroup& ProjectionHair = E.RenProjectionHairDatas.HairGroups[GroupIt];
-				GroupInfo.LODCount = ProjectionHair.LODDatas.Num();
-				GroupInfo.bHasSkinInterpolation = ProjectionHair.LODDatas.Num() > 0;
+				GroupInfo.LODCount = ProjectionHair.DeformedLODDatas.Num();
+				GroupInfo.bHasSkinInterpolation = ProjectionHair.DeformedLODDatas.Num() > 0;
 			}
 			else
 			{
