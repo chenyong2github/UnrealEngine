@@ -72,7 +72,7 @@ void UMovementComponent::SetUpdatedComponent(USceneComponent* NewUpdatedComponen
 	UpdatedPrimitive = Cast<UPrimitiveComponent>(UpdatedComponent);
 
 	// Assign delegates
-	if (UpdatedComponent && !UpdatedComponent->IsPendingKill())
+	if (UpdatedComponent)
 	{
 		// Listen to events regardless of whether enabled, in case physics volume updates are later enabled.
 		UpdatedComponent->PhysicsVolumeChangedDelegate.AddUniqueDynamic(this, &UMovementComponent::PhysicsVolumeChanged);
