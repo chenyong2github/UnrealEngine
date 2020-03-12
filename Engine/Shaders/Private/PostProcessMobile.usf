@@ -1387,8 +1387,19 @@ void Histogram_MainCS(
 				}
 
 				// Accumulate the weight to the nearby history buckets.
+#if IOS // The IOS A8 and lower devices seems don't support using a float4 array as a two dimension array, separate the operations to two steps.
+				float4 Histogram0 = float4(0.0f, 0.0f, 0.0f, 0.0f);
+				float4 Histogram1 = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+				Histogram0[Bucket0 % 4] = Weight0 * ScreenWeight;
+				Histogram1[Bucket1 % 4] = Weight1 * ScreenWeight;
+
+				SharedHistogram[(Bucket0 / 4) * ThreadGroupSize + GroupIndex] += Histogram0;
+				SharedHistogram[(Bucket1 / 4) * ThreadGroupSize + GroupIndex] += Histogram1;
+#else
 				SharedHistogram[(Bucket0 / 4) * ThreadGroupSize + GroupIndex][Bucket0 % 4] += Weight0 * ScreenWeight;
 				SharedHistogram[(Bucket1 / 4) * ThreadGroupSize + GroupIndex][Bucket1 % 4] += Weight1 * ScreenWeight;
+#endif
 			}
 		}
 	}
