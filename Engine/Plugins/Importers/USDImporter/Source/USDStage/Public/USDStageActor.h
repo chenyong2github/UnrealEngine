@@ -85,10 +85,10 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "USD")
 	float TimeCodesPerSecond;
 
-	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
+	UPROPERTY(VisibleAnywhere, Category = "USD", NonPIEDuplicateTransient)
 	ULevelSequence* LevelSequence;
 
-	UPROPERTY(Transient)
+	UPROPERTY(NonPIEDuplicateTransient)
 	TMap<FString, ULevelSequence*> SubLayerLevelSequencesByIdentifier;
 
 public:
@@ -116,6 +116,7 @@ public:
 public:
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	virtual void PostDuplicate( bool bDuplicateForPIE ) override;
 
 private:
 	void Clear();
@@ -132,13 +133,13 @@ private:
 	bool HasAutorithyOverStage() const;
 
 private:
-	UPROPERTY(Transient)
+	UPROPERTY( NonPIEDuplicateTransient )
 	UUsdPrimTwin* RootUsdTwin;
 
-	UPROPERTY(Transient)
+	UPROPERTY( NonPIEDuplicateTransient )
 	TSet< FString > PrimsToAnimate;
 
-	UPROPERTY(Transient)
+	UPROPERTY( Transient )
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
