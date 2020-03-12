@@ -99,8 +99,9 @@ void AAbilitySystemDebugHUD::DrawDebugAbilitySystemComponent(UAbilitySystemCompo
 	for (const UAttributeSet* Set : Component->SpawnedAttributes)
 	{
 		if (!Set)
+		{
 			continue;
-		check(Set);
+		}
 
 		// Draw Attribute Set
 		DrawWithBackground(Font, FString::Printf(TEXT("%s (%d)"), *Set->GetName(), Set->IsDefaultSubobject()), Color, EAlignHorizontal::Left, X, EAlignVertical::Top, Y);
