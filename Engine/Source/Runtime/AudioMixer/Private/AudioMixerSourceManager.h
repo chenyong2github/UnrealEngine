@@ -303,6 +303,9 @@ namespace Audio
 			}
 		};
 
+		// Critical section to ensure mutating effect chains is thread-safe
+		FCriticalSection EffectChainMutationCriticalSection;
+
 		FMixerDevice* MixerDevice;
 
 		// Cached ptr to an optional spatialization plugin
@@ -476,7 +479,7 @@ namespace Audio
 
 			// Source effect instances
 			uint32 SourceEffectChainId;
-			TArray<FSoundEffectSource*> SourceEffects;
+			TArray<TSoundEffectSourcePtr> SourceEffects;
 			TArray<USoundEffectSourcePreset*> SourceEffectPresets;
 			bool bEffectTailsDone;
 			FSoundEffectSourceInputData SourceEffectInputData;

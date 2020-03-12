@@ -4,15 +4,23 @@
 
 #include "IAudioExtensionPlugin.h"
 #include "Sound/SoundEffectSubmix.h"
+#include "ObjectMacros.h"
 #include "OVR_Audio.h"
 #include "Templates/UniquePtr.h"
+#include "Sound/SoundEffectBase.h"
 
+
+UCLASS()
+class USubmixEffectOculusReverbPreset : public USoundEffectSubmixPreset
+{
+	GENERATED_BODY()
+
+public:
+	EFFECT_PRESET_METHODS(SubmixEffectOculusReverbPreset)
+};
 
 class FSubmixEffectOculusReverbPlugin : public FSoundEffectSubmix
 {
-public:
-	FSubmixEffectOculusReverbPlugin();
-
 	void ClearContext();
 
 	virtual void Init(const FSoundEffectSubmixInitData& InInitData) override;
@@ -26,6 +34,10 @@ public:
 	{
 		return; // PAS
 	}
+
+protected:
+	FSubmixEffectOculusReverbPlugin();
+
 private:
 	ovrAudioContext Context;
 	FCriticalSection ContextLock;
@@ -41,6 +53,7 @@ class OculusAudioReverb : public IAudioReverb
 public:
 	OculusAudioReverb()
 		: Context(nullptr)
+		, ReverbPreset(nullptr)
 	{
 		// empty
 	}
@@ -67,5 +80,6 @@ public:
 	}
 private:
 	ovrAudioContext* Context;
-	FSoundEffectSubmixPtr SubmixEffect;
+	TSoundEffectSubmixPtr SubmixEffect;
+	USubmixEffectOculusReverbPreset* ReverbPreset;
 };

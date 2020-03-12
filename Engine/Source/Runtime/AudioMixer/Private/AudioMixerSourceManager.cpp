@@ -85,7 +85,6 @@ FAutoConsoleVariableRef CVarCommandBufferFlushWaitTimeMs(
 	ECVF_Default);
 
 
-#define ONEOVERSHORTMAX (3.0517578125e-5f) // 1/32768
 #define ENVELOPE_TAIL_THRESHOLD (1.58489e-5f) // -96 dB
 
 #define VALIDATE_SOURCE_MIXER_STATE 1
@@ -555,6 +554,7 @@ namespace Audio
 	void FMixerSourceManager::BuildSourceEffectChain(const int32 SourceId, FSoundEffectSourceInitData& InitData, const TArray<FSourceEffectChainEntry>& InSourceEffectChain)
 	{
 		// Create new source effects. The memory will be owned by the source manager.
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 		for (const FSourceEffectChainEntry& ChainEntry : InSourceEffectChain)
 		{
 			// Presets can have null entries
@@ -563,14 +563,11 @@ namespace Audio
 				continue;
 			}
 
-			FSoundEffectSource* NewEffect = static_cast<FSoundEffectSource*>(ChainEntry.Preset->CreateNewEffect());
-
 			// Get this source effect presets unique id so instances can identify their originating preset object
 			const uint32 PresetUniqueId = ChainEntry.Preset->GetUniqueID();
 			InitData.ParentPresetUniqueId = PresetUniqueId;
 
-			NewEffect->Init(InitData);
-			NewEffect->SetPreset(ChainEntry.Preset);
+			TSoundEffectSourcePtr NewEffect = USoundEffectPreset::CreateInstance<FSoundEffectSourceInitData, FSoundEffectSource>(InitData, *ChainEntry.Preset);
 			NewEffect->SetEnabled(!ChainEntry.bBypass);
 
 			// Add the effect instance
@@ -584,21 +581,22 @@ namespace Audio
 
 	void FMixerSourceManager::ResetSourceEffectChain(const int32 SourceId)
 	{
-		FSourceInfo& SourceInfo = SourceInfos[SourceId];
-
-		for (int32 i = 0; i < SourceInfo.SourceEffects.Num(); ++i)
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 		{
-			SourceInfo.SourceEffects[i]->ClearPreset();
-			delete SourceInfo.SourceEffects[i];
-			SourceInfo.SourceEffects[i] = nullptr;
-		}
-		SourceInfo.SourceEffects.Reset();
+			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
-		for (int32 i = 0; i < SourceInfo.SourceEffectPresets.Num(); ++i)
-		{
-			SourceInfo.SourceEffectPresets[i] = nullptr;
+			for (int32 i = 0; i < SourceInfo.SourceEffects.Num(); ++i)
+			{
+				USoundEffectPreset::UnregisterInstance(SourceInfo.SourceEffects[i]);
+			}
+			SourceInfo.SourceEffects.Reset();
+
+			for (int32 i = 0; i < SourceInfo.SourceEffectPresets.Num(); ++i)
+			{
+				SourceInfo.SourceEffectPresets[i] = nullptr;
+			}
+			SourceInfo.SourceEffectPresets.Reset();
 		}
-		SourceInfo.SourceEffectPresets.Reset();
 	}
 
 	bool FMixerSourceManager::GetFreeSourceId(int32& OutSourceId)
@@ -2239,27 +2237,30 @@ namespace Audio
 				SourceInfo.SourceEffectInputData.NumSamples = NumSamples;
 
 				// Loop through the effect chain passing in buffers
-				for (FSoundEffectSource* SoundEffectSource : SourceInfo.SourceEffects)
+				FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 				{
-					bool bPresetUpdated = false;
-					if (SoundEffectSource->IsActive())
+					for (TSoundEffectSourcePtr& SoundEffectSource : SourceInfo.SourceEffects)
 					{
-						bPresetUpdated = SoundEffectSource->Update();
-					}
+						bool bPresetUpdated = false;
+						if (SoundEffectSource->IsActive())
+						{
+							bPresetUpdated = SoundEffectSource->Update();
+						}
 
-					// Modulation must be updated regardless of whether or not the source is
-					// active to allow for initial conditions to be set if source is reactivated.
-					if (bPresetUpdated || SourceInfo.bIsModulationUpdated)
-					{
-						SoundEffectSource->ProcessControls(SourceInfo.ModulationControls);
-					}
+						// Modulation must be updated regardless of whether or not the source is
+						// active to allow for initial conditions to be set if source is reactivated.
+						if (bPresetUpdated || SourceInfo.bIsModulationUpdated)
+						{
+							SoundEffectSource->ProcessControls(SourceInfo.ModulationControls);
+						}
 
-					if (SoundEffectSource->IsActive())
-					{
-						SoundEffectSource->ProcessAudio(SourceInfo.SourceEffectInputData, OutputSourceEffectBufferPtr);
+						if (SoundEffectSource->IsActive())
+						{
+							SoundEffectSource->ProcessAudio(SourceInfo.SourceEffectInputData, OutputSourceEffectBufferPtr);
 
-						// Copy output to input
-						FMemory::Memcpy(SourceInfo.SourceEffectInputData.InputSourceEffectBufferPtr, OutputSourceEffectBufferPtr, sizeof(float)*NumSamples);
+							// Copy output to input
+							FMemory::Memcpy(SourceInfo.SourceEffectInputData.InputSourceEffectBufferPtr, OutputSourceEffectBufferPtr, sizeof(float) * NumSamples);
+						}
 					}
 				}
 
@@ -2553,40 +2554,43 @@ namespace Audio
 					SourceInfo.bEffectTailsDone = !bPlayEffectChainTails;
 
 					// Check to see if the chain didn't actually change
-					TArray<FSoundEffectSource *>& ThisSourceEffectChain = SourceInfo.SourceEffects;
-					bool bReset = false;
-					if (InSourceEffectChain.Num() == ThisSourceEffectChain.Num())
+					FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 					{
-						for (int32 SourceEffectId = 0; SourceEffectId < ThisSourceEffectChain.Num(); ++SourceEffectId)
+						TArray<TSoundEffectSourcePtr>& ThisSourceEffectChain = SourceInfo.SourceEffects;
+						bool bReset = false;
+						if (InSourceEffectChain.Num() == ThisSourceEffectChain.Num())
 						{
-							const FSourceEffectChainEntry& ChainEntry = InSourceEffectChain[SourceEffectId];
-
-							FSoundEffectSource* SourceEffectInstance = ThisSourceEffectChain[SourceEffectId];
-							if (!SourceEffectInstance->IsPreset(ChainEntry.Preset))
+							for (int32 SourceEffectId = 0; SourceEffectId < ThisSourceEffectChain.Num(); ++SourceEffectId)
 							{
-								// As soon as one of the effects change or is not the same, then we need to rebuild the effect graph
-								bReset = true;
-								break;
+								const FSourceEffectChainEntry& ChainEntry = InSourceEffectChain[SourceEffectId];
+
+								TSoundEffectSourcePtr SourceEffectInstance = ThisSourceEffectChain[SourceEffectId];
+								if (!SourceEffectInstance->IsPreset(ChainEntry.Preset))
+								{
+									// As soon as one of the effects change or is not the same, then we need to rebuild the effect graph
+									bReset = true;
+									break;
+								}
+
+								// Otherwise just update if it's just to bypass
+								SourceEffectInstance->SetEnabled(!ChainEntry.bBypass);
 							}
-
-							// Otherwise just update if it's just to bypass
-							SourceEffectInstance->SetEnabled(!ChainEntry.bBypass);
 						}
-					}
-					else
-					{
-						bReset = true;
-					}
+						else
+						{
+							bReset = true;
+						}
 
-					if (bReset)
-					{
-						InitData.NumSourceChannels = SourceInfo.NumInputChannels;
+						if (bReset)
+						{
+							InitData.NumSourceChannels = SourceInfo.NumInputChannels;
 
-						// First reset the source effect chain
-						ResetSourceEffectChain(SourceId);
+							// First reset the source effect chain
+							ResetSourceEffectChain(SourceId);
 
-						// Rebuild it
-						BuildSourceEffectChain(SourceId, InitData, InSourceEffectChain);
+							// Rebuild it
+							BuildSourceEffectChain(SourceId, InitData, InSourceEffectChain);
+						}
 					}
 				}
 			}

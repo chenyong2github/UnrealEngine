@@ -68,7 +68,14 @@ FSoundEffectSubmixPtr OculusAudioReverb::GetEffectSubmix()
 {
 	if (!SubmixEffect.IsValid())
 	{
-		SubmixEffect = MakeShareable(static_cast<FSoundEffectSubmix*>(new FSubmixEffectOculusReverbPlugin()));
+		if (!ReverbPreset)
+		{
+			ReverbPreset = NewObject<USubmixEffectOculusReverbPreset>();
+			ReverbPreset->AddToRoot();
+		}
+
+		FSoundEffectSubmixInitData InitData;
+		SubmixEffect = FSoundEffectSubmix::Create(InitData, *ReverbPreset);
 		SubmixEffect->SetEnabled(true);
 	}
 
