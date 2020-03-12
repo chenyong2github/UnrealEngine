@@ -434,7 +434,7 @@ struct FNDISkeletalMesh_InstanceData
 	//TArray<FName> SpecificSockets;
 	struct FCachedSocketInfo
 	{
-		FCachedSocketInfo(): Transform(ForceInit), BoneIdx(INDEX_NONE){}
+		FCachedSocketInfo() : BoneIdx(INDEX_NONE){}
 		FTransform Transform;
 		int32 BoneIdx;
 	};
