@@ -1464,7 +1464,7 @@ bool FSceneRenderTargets::BeginRenderingCustomDepth(FRHICommandListImmediate& RH
 
 		FRHIRenderPassInfo RPInfo;
 
-		const bool bWritesCustomStencilValues = IsCustomDepthPassWritingStencil();
+		const bool bWritesCustomStencilValues = IsCustomDepthPassWritingStencil(CurrentFeatureLevel);
 		const bool bRequiresStencilColorTarget = (CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1);
 
 		int32 NumColorTargets = 0;
@@ -3036,7 +3036,7 @@ const FUnorderedAccessViewRHIRef& FSceneRenderTargets::GetSceneColorTextureUAV()
 IPooledRenderTarget* FSceneRenderTargets::RequestCustomDepth(FRHICommandListImmediate& RHICmdList, bool bPrimitives)
 {
 	int Value = CVarCustomDepth.GetValueOnRenderThread();
-	const bool bCustomDepthPassWritingStencil = IsCustomDepthPassWritingStencil();
+	const bool bCustomDepthPassWritingStencil = IsCustomDepthPassWritingStencil(CurrentFeatureLevel);
 	const bool bMobilePath = (CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1);
 	int32 DownsampleFactor = bMobilePath && CVarMobileCustomDepthDownSample.GetValueOnRenderThread() > 0 ? 2 : 1;
 
@@ -3102,9 +3102,15 @@ IPooledRenderTarget* FSceneRenderTargets::RequestCustomDepth(FRHICommandListImme
 	return 0;
 }
 
-bool FSceneRenderTargets::IsCustomDepthPassWritingStencil()
+bool FSceneRenderTargets::IsCustomDepthPassWritingStencil(ERHIFeatureLevel::Type InFeatureLevel)
 {
-	return (CVarCustomDepth.GetValueOnRenderThread() == 3);
+	int32 CustomDepthValue = CVarCustomDepth.GetValueOnRenderThread();
+	// Mobile uses "On Demand" for both Depth and Stencil textures
+	if (CustomDepthValue == 3 || (CustomDepthValue == 1 && InFeatureLevel <= ERHIFeatureLevel::ES3_1))
+	{
+		return true;
+	}
+	return false;
 }
 
 /** Returns an index in the range [0, NumCubeShadowDepthSurfaces) given an input resolution. */
@@ -3421,7 +3427,8 @@ void SetupMobileSceneTextureUniformParameters(
 
 	FRHITexture* MobileCustomStencil = BlackDefault2D;
 
-	if (bCustomDepthIsValid && SceneContext.MobileCustomStencil.IsValid())
+	if (bCustomDepthIsValid && SceneContext.MobileCustomStencil.IsValid() 
+		&& (SceneContext.MobileCustomStencil->GetDesc().TargetableFlags & TexCreate_Memoryless) == 0)
 	{
 		MobileCustomStencil = SceneContext.MobileCustomStencil->GetRenderTargetItem().ShaderResourceTexture;
 	}

@@ -69,7 +69,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 
 
-		const bool bWriteCustomStencilValues = FSceneRenderTargets::IsCustomDepthPassWritingStencil();
+		const bool bWriteCustomStencilValues = FSceneRenderTargets::IsCustomDepthPassWritingStencil(FeatureLevel);
 		float MobileColorValue = 0.0f;
 
 		if (bWriteCustomStencilValues)
