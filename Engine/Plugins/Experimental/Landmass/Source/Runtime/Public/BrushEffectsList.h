@@ -163,8 +163,6 @@ struct FLandmassBrushEffectsList
 {
 	GENERATED_BODY()
 
-	FLandmassBrushEffectsList();
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BrushEffects)
 	FBrushEffectBlurring Blurring;
 
