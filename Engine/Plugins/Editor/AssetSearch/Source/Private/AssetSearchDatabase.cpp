@@ -15,6 +15,7 @@
 #include "Misc/SecureHash.h"
 #include "Engine/World.h"
 #include "HAL/PlatformFilemanager.h"
+#include "Misc/StringBuilder.h"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
