@@ -7,6 +7,8 @@
 #include "Rendering/DrawElements.h"
 #include "Widgets/SBoxPanel.h"
 #include "SGraphPin.h"
+#include "EdGraphSchema_Niagara.h"
+#include "NiagaraScriptVariable.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraGraphParameterMapGetNode"
 
@@ -139,6 +141,7 @@ void SNiagaraGraphParameterMapGetNode::CreatePinWidgets()
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Padding(FMargin(0, 3))
+			.OnMouseButtonDown(this, &SNiagaraGraphParameterMapGetNode::OnBorderMouseButtonDown, i)
 			[
 				Widget.ToSharedRef()
 			];
@@ -153,4 +156,33 @@ const FSlateBrush* SNiagaraGraphParameterMapGetNode::GetBackgroundBrush(TSharedP
 {
 	return Border->IsHovered() ? BackgroundHoveredBrush	: BackgroundBrush;
 }
+
+
+FReply SNiagaraGraphParameterMapGetNode::OnBorderMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 InWhichPin)
+{
+	if (InWhichPin >= 0 && InWhichPin < OutputPins.Num() + 1)
+	{
+		UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(GraphNode);
+		if (GetNode)
+		{
+			UNiagaraGraph* Graph = GetNode->GetNiagaraGraph();
+			if (Graph && InWhichPin > 0)
+			{
+				const UEdGraphSchema_Niagara* Schema = Graph->GetNiagaraSchema();
+				if (Schema)
+				{
+					FNiagaraVariable Var = Schema->PinToNiagaraVariable(OutputPins[InWhichPin-1]->GetPinObj());
+					UNiagaraScriptVariable** PinAssociatedScriptVariable = Graph->GetAllMetaData().Find(Var);
+					if (PinAssociatedScriptVariable != nullptr)
+					{
+						Graph->OnSubObjectSelectionChanged().Broadcast(*PinAssociatedScriptVariable);
+					}
+				}
+			}
+		}
+
+	}
+	return FReply::Handled();
+}
+
 #undef LOCTEXT_NAMESPACE

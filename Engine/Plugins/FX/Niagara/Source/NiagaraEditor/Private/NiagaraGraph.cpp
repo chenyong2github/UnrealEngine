@@ -1779,6 +1779,12 @@ FDelegateHandle UNiagaraGraph::RegisterPinVisualWidgetProvider(FOnGetPinVisualWi
 	return OnGetPinVisualWidgetDelegate.GetHandle();
 }
 
+void UNiagaraGraph::UnregisterPinVisualWidgetProvider(const FDelegateHandle& InHandle)
+{
+	ensure(OnGetPinVisualWidgetDelegate.GetHandle() == InHandle);
+	OnGetPinVisualWidgetDelegate.Unbind();
+}
+
 const class UEdGraphSchema_Niagara* UNiagaraGraph::GetNiagaraSchema() const
 {
 	return Cast<UEdGraphSchema_Niagara>(GetSchema());
@@ -2014,6 +2020,11 @@ void UNiagaraGraph::SetPerScriptMetaData(const FNiagaraVariable& InVar, const FN
 UNiagaraGraph::FOnDataInterfaceChanged& UNiagaraGraph::OnDataInterfaceChanged()
 {
 	return OnDataInterfaceChangedDelegate;
+}
+
+UNiagaraGraph::FOnSubObjectSelectionChanged& UNiagaraGraph::OnSubObjectSelectionChanged()
+{
+	return OnSelectedSubObjectChanged;
 }
 
 void UNiagaraGraph::RefreshParameterReferences() const 
