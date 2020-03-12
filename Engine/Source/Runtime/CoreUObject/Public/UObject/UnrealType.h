@@ -863,9 +863,10 @@ public:
 class COREUOBJECT_API FPropertyHelpers
 {
 public:
+	static const TCHAR* ReadToken( const TCHAR* Buffer, FString& Out, bool DottedNames = false);
 
-	static const TCHAR* ReadToken( const TCHAR* Buffer, FString& String, bool DottedNames = 0 );
-
+	// @param Out Appended to
+	static const TCHAR* ReadToken( const TCHAR* Buffer, FStringBuilderBase& Out, bool DottedNames = false);
 };
 
 

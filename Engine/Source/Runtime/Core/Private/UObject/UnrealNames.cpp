@@ -2199,6 +2199,12 @@ bool FName::IsValidXName(const FString& InName, const FString& InInvalidChars, F
 	return true;
 }
 
+FStringBuilderBase& operator<<(FStringBuilderBase& Builder, FNameEntryId Id)
+{
+	FName::GetEntry(Id)->AppendNameToString(Builder);
+	return Builder;
+}
+
 template <typename CharType, int N>
 void CheckLazyName(const CharType(&Literal)[N])
 {
