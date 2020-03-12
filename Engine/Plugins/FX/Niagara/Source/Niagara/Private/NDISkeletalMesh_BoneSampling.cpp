@@ -461,7 +461,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 	Accessor.Init<TIntegralConstant<int32, 0>, TIntegralConstant<int32, 0>>(InstData);
 
 	const int32 BoneCount = SkinningHandler.GetBoneCount(Accessor, bInterpolated::Value);
-	const int32 BoneAndSocketCount = BoneCount + InstData->SpecificSockets.Num();
+	const int32 BoneAndSocketCount = BoneCount + InstData->SpecificSocketInfo.Num();
 	float InvDt = 1.0f / InstData->DeltaSeconds;
 
 	const TArray<FTransform>& SpecificSocketCurrTransforms = InstData->GetSpecificSocketsCurrBuffer();
@@ -589,7 +589,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSpecificSocketCount(FVectorVMContext&
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutCount(Context);
 
-	const int32 Num = InstData->SpecificSockets.Num();
+	const int32 Num = InstData->SpecificSocketInfo.Num();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		*OutCount.GetDestAndAdvance() = Num;
@@ -697,7 +697,6 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomSpecificSocketBone(FVectorVMContex
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSocketBone(Context);
-	const TArray<FName>& SpecificSocketsArray = InstData->SpecificSockets;
 	const int32 SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
 
 	int32 Max = SpecificSockets.Num() - 1;

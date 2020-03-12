@@ -431,7 +431,15 @@ struct FNDISkeletalMesh_InstanceData
 	TArray<int32> SpecificBones;
 
 	/** Name of all the sockets we use. */
-	TArray<FName> SpecificSockets;
+	//TArray<FName> SpecificSockets;
+	struct FCachedSocketInfo
+	{
+		FCachedSocketInfo(): Transform(ForceInit), BoneIdx(INDEX_NONE){}
+		FTransform Transform;
+		int32 BoneIdx;
+	};
+	TArray<FCachedSocketInfo> SpecificSocketInfo;
+
 	/** Bone index of the first socket, sockets are appended to the end of the bone array */
 	int32 SpecificSocketBoneOffset = 0;
 
