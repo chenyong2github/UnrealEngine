@@ -46,7 +46,7 @@ struct FSectionEvaluationDataTree
 	/** Only called for serialization. Returns false to always serialize. */
 	bool Identical(const FSectionEvaluationDataTree* Other, uint32 PortFlags) const
 	{
-		return false;
+		return Tree == Other->Tree;
 	}
 
 	TMovieSceneEvaluationTree<FSectionEvaluationData> Tree;
