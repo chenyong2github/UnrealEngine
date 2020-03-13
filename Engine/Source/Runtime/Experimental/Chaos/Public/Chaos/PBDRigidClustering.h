@@ -442,6 +442,18 @@ CleanCollisionParticles(
 	if (Fraction <= 0.0)
 		return CollisionVertices;
 
+	// If the tri mesh has any open boundaries, see if we can merge any coincident
+	// vertices on the boundary.  This makes the importance ordering work much better
+	// as we need the curvature at each edge of the tri mesh, and we can't calculate
+	// curvature on discontiguous triangles.
+	TSet<int32> BoundaryPoints = TriMesh.GetBoundaryPoints();
+	if (BoundaryPoints.Num())
+	{
+		TMap<int32, int32> Remapping =
+			TriMesh.FindCoincidentVertexRemappings(BoundaryPoints.Array(), Vertices);
+		TriMesh.RemapVertices(Remapping);
+	}
+
 	// Get the importance vertex ordering, from most to least.  Reorder the 
 	// particles accordingly.
 	TArray<int32> CoincidentVertices;

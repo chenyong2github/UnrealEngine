@@ -552,7 +552,35 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 		}
 	}
 
-	PhysicsThreadCollection.CopyMatchingAttributesFrom(DynamicCollection);
+	// Skip simplicials, as they're owned by unique pointers.
+	TMap<FName, TSet<FName>> SkipList;
+	TSet<FName>& TransformGroupSkipList = SkipList.Emplace(FTransformCollection::TransformGroup);
+	TransformGroupSkipList.Add(DynamicCollection.SimplicialsAttribute);
+
+	PhysicsThreadCollection.CopyMatchingAttributesFrom(DynamicCollection, &SkipList);
+
+	// Copy simplicials.
+	// TODO: Ryan - Should we just transfer ownership of the SimplicialsAttribute from the DynamicCollection to
+	// the PhysicsThreadCollection?
+	{
+		if (DynamicCollection.HasAttribute(DynamicCollection.SimplicialsAttribute, FTransformCollection::TransformGroup))
+		{
+			const auto& SourceSimplicials = DynamicCollection.GetAttribute<TUniquePtr<FSimplicial>>(
+				DynamicCollection.SimplicialsAttribute, FTransformCollection::TransformGroup);
+			for (int32 Index = PhysicsThreadCollection.NumElements(FTransformCollection::TransformGroup) - 1; 0 <= Index; Index--)
+			{
+				PhysicsThreadCollection.Simplicials[Index].Reset(
+					SourceSimplicials[Index] ? SourceSimplicials[Index]->NewCopy() : nullptr);
+			}
+		}
+		else
+		{
+			for (int32 Index = PhysicsThreadCollection.NumElements(FTransformCollection::TransformGroup) - 1; 0 <= Index; Index--)
+			{
+				PhysicsThreadCollection.Simplicials[Index].Reset();
+			}
+		}
+	}
 }
 
 void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params)
@@ -561,10 +589,13 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 	// This function will use the rest collection to populate the dynamic collection. 
 	//
 
-	DynamicCollection.CopyMatchingAttributesFrom(RestCollection);
+	TMap<FName, TSet<FName>> SkipList;
+	TSet<FName>& TransformGroupSkipList = SkipList.Emplace(FTransformCollection::TransformGroup);
+	TransformGroupSkipList.Add(DynamicCollection.SimplicialsAttribute);
+	DynamicCollection.CopyMatchingAttributesFrom(RestCollection, &SkipList);
 
 	check(DynamicCollection.HasAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup));
-	check(RestCollection.HasAttribute(FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup));
+	check(RestCollection.HasAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup));
 
 	//
 	// User defined initial velocities need to be populated. 
@@ -577,48 +608,26 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 		}
 	}
 
-	/** 
-		Copy over our implicits from the rest collection to the dynamic collection. This doesn't automatically happen
-		in the copy above due to the rest collection storing implicits in a different attribute that the dynamic collection
-		doesn't contain
-	*/
-	{
-		const TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>* SharedRestImplicits = RestCollection.FindAttribute<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>(FGeometryDynamicCollection::FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
-
-		const int32 NumRestElems = RestCollection.NumElements(FTransformCollection::TransformGroup);
-		const int32 NumDynamicElems = DynamicCollection.NumElements(FTransformCollection::TransformGroup);
-
-		if(ensure(SharedRestImplicits && (NumRestElems == NumDynamicElems)))
-		{
-			for(int32 Index = 0; Index < NumDynamicElems; ++Index)
-			{
-				DynamicCollection.Implicits[Index] = (*SharedRestImplicits)[Index];
-			}
-		}
-	}
-
 	// process simplicials
 	{
-		/*
 		if (RestCollection.HasAttribute(DynamicCollection.SimplicialsAttribute, FTransformCollection::TransformGroup))
 		{
 			const auto& RestSimplicials = RestCollection.GetAttribute<TUniquePtr<FSimplicial>>(
 				DynamicCollection.SimplicialsAttribute, FTransformCollection::TransformGroup);
 			for (int32 Index = DynamicCollection.NumElements(FTransformCollection::TransformGroup) - 1; 0 <= Index; Index--)
 			{
-				DynamicCollection.Simplicials[Index] = TSharedPtr<FSimplicial>(RestSimplicials[Index] ? RestSimplicials[Index]->NewCopy() : nullptr);
+				DynamicCollection.Simplicials[Index].Reset(
+					RestSimplicials[Index] ? RestSimplicials[Index]->NewCopy() : nullptr);
 			}
 		}
 		else
 		{
 			for (int32 Index = DynamicCollection.NumElements(FTransformCollection::TransformGroup) - 1; 0 <= Index; Index--)
 			{
-				DynamicCollection.Simplicials[Index] = TSharedPtr<FSimplicial>(nullptr);
+				DynamicCollection.Simplicials[Index].Reset();
 			}
 		}
-		*/
 	}
-
 
 	// Process Activity
 	{
@@ -673,6 +682,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 		const TManagedArray<FVector>& InitialAngularVelocity = DynamicCollection.InitialAngularVelocity;
 		const TManagedArray<FVector>& InitialLinearVelocity = DynamicCollection.InitialLinearVelocity;
 		const TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& Implicits = DynamicCollection.Implicits;
+		const TManagedArray<TUniquePtr<FCollisionStructureManager::FSimplicial>>& Simplicials = DynamicCollection.Simplicials;
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection.Transform, DynamicCollection.Parent, Transform);
@@ -745,7 +755,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 					Handle,
 					//Particles, 
 					Parameters.Shared,
-					nullptr,///Simplicials[TransformGroupIndex].Get(),
+					Simplicials[TransformGroupIndex].Get(),
 					Implicits[TransformGroupIndex],
 					SimFilter,
 					QueryFilter,
@@ -1851,9 +1861,11 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TManagedArray<TUniquePtr<FSimplicial>>& CollectionSimplicials = 
 		RestCollection.AddAttribute<TUniquePtr<FSimplicial>>(
 			FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
+
+	RestCollection.RemoveAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 	TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& CollectionImplicits = 
 		RestCollection.AddAttribute<FGeometryDynamicCollection::FSharedImplicit>(
-			FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
+			FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 
 	FTransform IdentityXf(FQuat::Identity, FVector(0));
 	IdentityXf.NormalizeRotation();
@@ -2154,7 +2166,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 			if (CollectionImplicits[TransformGroupIndex] && CollectionImplicits[TransformGroupIndex]->HasBoundingBox())
 			{
-				const auto BBox = CollectionImplicits[TransformGroupIndex]->BoundingBox();
+				const auto Implicit = CollectionImplicits[TransformGroupIndex];
+				const auto BBox = Implicit->BoundingBox();
 				const TVector<float, 3> Extents = BBox.Extents(); // Chaos::TAABB::Extents() is Max - Min
 				MaxChildBounds = MaxChildBounds.ComponentwiseMax(Extents);
 			}
