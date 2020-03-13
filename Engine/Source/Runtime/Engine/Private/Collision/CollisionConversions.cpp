@@ -559,7 +559,23 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
 #endif
 	else
 	{
-		ensureMsgf(false, TEXT("ConvertQueryOverlap called with bad payload type"));
+#if WITH_CHAOS
+		// Currently geom collections are registered with a primitive component user data, but maybe custom should be adapted
+		// to be more general so we can support leaf identification #BGTODO
+		void* UserData = Actor.UserData();
+		UPrimitiveComponent* PossibleOwner = FPhysxUserData::Get<UPrimitiveComponent>(UserData);
+
+		if(PossibleOwner)
+		{
+			OutOverlap.Component = PossibleOwner;
+			OutOverlap.Actor = OutOverlap.Component->GetOwner();
+			OutOverlap.ItemIndex = INDEX_NONE;
+		}
+		else
+#endif
+		{
+			ensureMsgf(false, TEXT("ConvertQueryOverlap called with bad payload type"));
+		}
 	}
 
 	// Other info
