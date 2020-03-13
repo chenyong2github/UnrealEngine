@@ -77,6 +77,7 @@
 #include "DistanceFieldAtlas.h"
 #include "Cooker/AsyncIODelete.h"
 #include "Serialization/BulkDataManifest.h"
+#include "Misc/PathViews.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetRegistryState.h"
@@ -6805,8 +6806,34 @@ bool UCookOnTheFlyServer::HandleNetworkFileServerNewConnection(const FString& Ve
 	return true;
 }
 
-void UCookOnTheFlyServer::GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, TArray<FString>& UnsolicitedFiles, const FString& Filename)
+static void AppendExistingPackageSidecarFiles(const FString& PackageSandboxFilename, const FString& PackageStandardFilename, TArray<FString>& OutPackageSidecarFiles)
 {
+	const TCHAR* const PackageSidecarExtensions[] =
+	{
+		TEXT(".uexp"),
+		// TODO: re-enable this once the client-side of the NetworkPlatformFile isn't prone to becoming overwhelmed by slow writing of unsolicited files
+		//TEXT(".ubulk"),
+		//TEXT(".uptnl"),
+		//TEXT(".m.ubulk")
+	};
+
+	for (const TCHAR* PackageSidecarExtension : PackageSidecarExtensions)
+	{
+		const FString SidecarSandboxFilename = FPathViews::ChangeExtension(PackageSandboxFilename, PackageSidecarExtension);
+		if (IFileManager::Get().FileExists(*SidecarSandboxFilename))
+		{
+			OutPackageSidecarFiles.Add(FPathViews::ChangeExtension(PackageStandardFilename, PackageSidecarExtension));
+		}
+	}
+}
+
+void UCookOnTheFlyServer::GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, TArray<FString>& UnsolicitedFiles, const FString& Filename, bool bIsCookable)
+{
+	UPackage::WaitForAsyncFileWrites();
+
+	if (bIsCookable)
+		AppendExistingPackageSidecarFiles(ConvertToFullSandboxPath(*Filename, true, TargetPlatform->PlatformName()), Filename, UnsolicitedFiles);
+
 	TArray<FName> UnsolicitedFilenames;
 	PackageTracker->UnsolicitedCookedPackages.GetPackagesForPlatformAndRemove(TargetPlatform, UnsolicitedFilenames);
 
@@ -6818,19 +6845,18 @@ void UCookOnTheFlyServer::GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform*
 		// check that the sandboxed file exists... if it doesn't then don't send it back
 		// this can happen if the package was saved but the async writer thread hasn't finished writing it to disk yet
 
-		FString SandboxFilename = ConvertToFullSandboxPath(*Filename, true);
-		SandboxFilename.ReplaceInline(TEXT("[Platform]"), *TargetPlatform->PlatformName());
+		FString SandboxFilename = ConvertToFullSandboxPath(*StandardFilename, true, TargetPlatform->PlatformName());
 		if (IFileManager::Get().FileExists(*SandboxFilename))
 		{
 			UnsolicitedFiles.Add(StandardFilename);
+			if (FPackageName::IsPackageExtension(*FPaths::GetExtension(StandardFilename, true)))
+				AppendExistingPackageSidecarFiles(SandboxFilename, StandardFilename, UnsolicitedFiles);
 		}
 		else
 		{
-			UE_LOG(LogCook, Warning, TEXT("Unsolicited file doesn't exist in sandbox, ignoring %s"), *Filename);
+			UE_LOG(LogCook, Warning, TEXT("Unsolicited file doesn't exist in sandbox, ignoring %s"), *StandardFilename);
 		}
 	}
-
-	UPackage::WaitForAsyncFileWrites();
 }
 
 void UCookOnTheFlyServer::HandleNetworkFileServerFileRequest(const FString& Filename, const FString& PlatformName, TArray<FString>& UnsolicitedFiles)
@@ -6852,7 +6878,7 @@ void UCookOnTheFlyServer::HandleNetworkFileServerFileRequest(const FString& File
 		{
 			FPlatformProcess::Sleep(0.001f);
 		}
-		GetCookOnTheFlyUnsolicitedFiles(TargetPlatform, UnsolicitedFiles, Filename);
+		GetCookOnTheFlyUnsolicitedFiles(TargetPlatform, UnsolicitedFiles, Filename, bIsCookable);
 		return;
 	}
 
@@ -6930,7 +6956,7 @@ void UCookOnTheFlyServer::HandleNetworkFileServerFileRequest(const FString& File
 #endif
 	UE_LOG( LogCook, Display, TEXT("Cook complete %s"), *FileRequest.GetFilename().ToString())
 
-	GetCookOnTheFlyUnsolicitedFiles(TargetPlatform, UnsolicitedFiles, Filename);
+	GetCookOnTheFlyUnsolicitedFiles(TargetPlatform, UnsolicitedFiles, Filename, bIsCookable);
 
 #if PROFILE_NETWORK
 	WaitForAsyncFilesWrites += FPlatformTime::Seconds() - StartTime;

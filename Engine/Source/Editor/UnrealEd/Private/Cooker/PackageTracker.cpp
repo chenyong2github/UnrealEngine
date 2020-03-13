@@ -29,6 +29,7 @@ namespace Cook
 			{
 				// remove the platform
 				Request.RemovePlatform(Platform);
+				PackageNames.Emplace(Request.GetFilename());
 
 				if (Request.GetPlatforms().Num() == 0)
 				{

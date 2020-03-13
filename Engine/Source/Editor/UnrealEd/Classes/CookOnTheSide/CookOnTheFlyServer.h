@@ -684,7 +684,7 @@ private:
 	 */
 	bool HandleNetworkFileServerNewConnection( const FString& VersionInfo, const FString& PlatformName );
 
-	void GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, TArray<FString>& UnsolicitedFiles, const FString& Filename);
+	void GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, TArray<FString>& UnsolicitedFiles, const FString& Filename, bool bIsCookable);
 
 	/**
 	* Cook requests for a package from network

@@ -34,6 +34,16 @@ void GetSandboxRootDirectories(FSandboxPlatformFile* Sandbox, FString& SandboxEn
 	SandboxProjectPlatformExtensions = Sandbox->ConvertToSandboxPath(*(LocalProjectPlatformExtensionsDir + TEXT("a.txt"))).Replace(TEXT("a.txt"), TEXT(""));
 }
 
+static FString MakeAbsoluteNormalizedDir(const FString& InPath)
+{
+	FString Out = FPaths::ConvertRelativePathToFull(InPath);
+	if (Out.EndsWith(TEXT("/")))
+	{
+		Out.RemoveAt(Out.Len() - 1, 1, false);
+	}
+	return Out;
+}
+
 
 /* FNetworkFileServerClientConnection structors
  *****************************************************************************/
@@ -69,6 +79,11 @@ FNetworkFileServerClientConnection::FNetworkFileServerClientConnection( const FN
 	{
 		LocalProjectDir = FPaths::GetPath(FPaths::GetProjectFilePath()) + TEXT("/");
 	}
+
+	LocalEngineDirAbs = MakeAbsoluteNormalizedDir(LocalEngineDir);
+	LocalProjectDirAbs = MakeAbsoluteNormalizedDir(LocalProjectDir);
+	LocalEnginePlatformExtensionsDirAbs = MakeAbsoluteNormalizedDir(LocalEnginePlatformExtensionsDir);
+	LocalProjectPlatformExtensionsDirAbs = MakeAbsoluteNormalizedDir(LocalEnginePlatformExtensionsDir);
 }
 
 
@@ -119,6 +134,48 @@ void FNetworkFileServerClientConnection::ConvertClientFilenameToServerFilename(F
 	else if (FilenameToConvert.StartsWith(ConnectedProjectPlatformExtensionsDir))
 	{
 		FilenameToConvert = FilenameToConvert.Replace(*ConnectedProjectPlatformExtensionsDir, *(FPaths::ProjectPlatformExtensionsDir()));
+	}
+}
+
+static bool TrySubstituteDirectory(FString& FilenameToConvert, const FString& Directory, const FString& DirectoryAbs)
+{
+	if (FilenameToConvert.StartsWith(DirectoryAbs))
+	{
+		if ((FilenameToConvert.Len() > DirectoryAbs.Len()) && (FilenameToConvert[DirectoryAbs.Len()] == '/'))
+		{
+			FilenameToConvert = Directory / FilenameToConvert.RightChop(DirectoryAbs.Len() + 1);
+		}
+		else
+		{
+			FilenameToConvert = Directory;
+		}
+		return true;
+	}
+	return false;
+}
+
+void FNetworkFileServerClientConnection::ConvertLocalFilenameToServerFilename(FString& FilenameToConvert)
+{
+	FString FilenameToConvertAbs = FPaths::ConvertRelativePathToFull(FilenameToConvert);
+	if (TrySubstituteDirectory(FilenameToConvertAbs, LocalEngineDir, LocalEngineDirAbs))
+	{
+		FilenameToConvert = FilenameToConvertAbs;
+		return;
+	}
+	if (TrySubstituteDirectory(FilenameToConvertAbs, LocalProjectDir, LocalProjectDirAbs))
+	{
+		FilenameToConvert = FilenameToConvertAbs;
+		return;
+	}
+	if (TrySubstituteDirectory(FilenameToConvertAbs, LocalEnginePlatformExtensionsDir, LocalEnginePlatformExtensionsDirAbs))
+	{
+		FilenameToConvert = FilenameToConvertAbs;
+		return;
+	}
+	if (TrySubstituteDirectory(FilenameToConvertAbs, LocalProjectPlatformExtensionsDir, LocalProjectPlatformExtensionsDirAbs))
+	{
+		FilenameToConvert = FilenameToConvertAbs;
+		return;
 	}
 }
 
@@ -295,8 +352,8 @@ bool FNetworkFileServerClientConnection::ProcessPayload(FArchive& Ar)
 			break;
 
 		case NFS_Messages::SyncFile:
-			ProcessSyncFile(Ar, Out);
-			bSendUnsolicitedFiles = true;
+			 ProcessSyncFile(Ar, Out);
+			 bSendUnsolicitedFiles = true;
 			break;
 
 		case NFS_Messages::RecompileShaders:
@@ -352,6 +409,8 @@ bool FNetworkFileServerClientConnection::ProcessPayload(FArchive& Ar)
 			for (int32 Index = 0; Index < NumUnsolictedFiles; Index++)
 			{
 				FBufferArchive OutUnsolicitedFile;
+
+				ConvertLocalFilenameToServerFilename(UnsolictedFiles[Index]);
 				PackageFile(UnsolictedFiles[Index], OutUnsolicitedFile);
 
 				UE_LOG(LogFileServer, Display, TEXT("Returning unsolicited file %s with %d bytes"), *UnsolictedFiles[Index], OutUnsolicitedFile.Num());
@@ -1094,7 +1153,7 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FArchiv
 	TArray<uint8> Contents;
 	// open file
 	IFileHandle* File = Sandbox->OpenRead(*Filename);
-
+	bool bRetVal = true;
 
 	if (!File)
 	{
@@ -1102,6 +1161,7 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FArchiv
 
 		UE_LOG(LogFileServer, Warning, TEXT("Opening file %s failed"), *Filename);
 		ServerTimeStamp = FDateTime::MinValue(); // if this was a directory, this will make sure it is not confused with a zero byte file
+		bRetVal = false;
 	}
 	else
 	{
@@ -1130,7 +1190,7 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FArchiv
 	uint64 FileSize = Contents.Num();
 	Out << FileSize;
 	Out.Serialize(Contents.GetData(), FileSize);
-	return true;
+	return bRetVal;
 }
 
 
@@ -1156,7 +1216,7 @@ void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, 
 }
 
 
-void FNetworkFileServerClientConnection::ProcessSyncFile( FArchive& In, FArchive& Out )
+bool FNetworkFileServerClientConnection::ProcessSyncFile( FArchive& In, FArchive& Out )
 {
 
 	double StartTime;
@@ -1189,9 +1249,11 @@ void FNetworkFileServerClientConnection::ProcessSyncFile( FArchive& In, FArchive
 		}
 	}
 
-	PackageFile(Filename, Out);
+	bool bRetVal = PackageFile(Filename, Out);
 
 	PackageFileTime += 1000.0f * float(FPlatformTime::Seconds() - StartTime);
+
+	return bRetVal;
 }
 
 FString FNetworkFileServerClientConnection::GetDescription() const 
