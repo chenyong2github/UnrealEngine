@@ -22,7 +22,7 @@ FMontageTrack::FMontageTrack(const FAnimationSharedData& InSharedData, uint64 In
 	: FGameplayGraphTrack(InSharedData.GetGameplaySharedData(), InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Montage - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
 {
-	bDrawLabels = true;
+	EnableOptions(ShowLabelsOption);
 	Layout = EGameplayGraphLayout::Stack;
 }
 

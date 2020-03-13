@@ -28,8 +28,15 @@ enum class EGraphOptions
 	ShowPolygon				= (1 << 4),
 	UseEventDuration		= (1 << 5),
 	ShowBars				= (1 << 6),
+	ShowBaseline			= (1 << 7),
+	ShowVerticalAxisGrid	= (1 << 8),
+	ShowHeader				= (1 << 9),
 
-	All = ShowPoints | ShowPointsWithBorder | ShowLines | ShowPolygon | UseEventDuration | ShowBars,
+	FirstCustomOption		= (1 << 10),
+
+	DefaultEnabledOptions	= None,
+	DefaultVisibleOptions	= ShowPoints | ShowPointsWithBorder | ShowLines | ShowPolygon | UseEventDuration | ShowBars,
+	DefaultEditableOptions	= ShowPoints | ShowPointsWithBorder | ShowLines | ShowPolygon | UseEventDuration | ShowBars,
 };
 
 ENUM_CLASS_FLAGS(EGraphOptions);
@@ -54,6 +61,24 @@ public:
 	explicit FGraphTrack();
 	explicit FGraphTrack(const FString& InName);
 	virtual ~FGraphTrack();
+
+	//////////////////////////////////////////////////
+	// Options
+
+	EGraphOptions GetEnabledOptions() const { return EnabledOptions; }
+	void SetEnabledOptions(EGraphOptions Options) { EnabledOptions = Options; }
+
+	bool AreAllOptionsEnabled(EGraphOptions Options) const { return EnumHasAllFlags(EnabledOptions, Options); }
+	bool IsAnyOptionEnabled(EGraphOptions Options) const { return EnumHasAnyFlags(EnabledOptions, Options); }
+	void EnableOptions(EGraphOptions Options) { EnabledOptions |= Options; }
+	void DisableOptions(EGraphOptions Options) { EnabledOptions &= ~Options; }
+	void ToggleOptions(EGraphOptions Options) { EnabledOptions ^= Options; }
+
+	EGraphOptions GetVisibleOptions() const { return VisibleOptions; }
+	void SetVisibleOptions(EGraphOptions Options) { VisibleOptions = Options; }
+
+	EGraphOptions GetEditableOptions() const { return EditableOptions; }
+	void SetEditableOptions(EGraphOptions Options) { EditableOptions = Options; }
 
 	//////////////////////////////////////////////////
 	// FBaseTimingTrack
@@ -99,33 +124,11 @@ protected:
 	virtual float GetBorderY() const { return 0.0f; }
 
 private:
-	bool ContextMenu_ShowDebugInfo_CanExecute();
-	void ContextMenu_ShowDebugInfo_Execute();
-	bool ContextMenu_ShowDebugInfo_IsChecked();
-
-	bool ContextMenu_ShowPoints_CanExecute();
-	void ContextMenu_ShowPoints_Execute();
-	bool ContextMenu_ShowPoints_IsChecked();
-
+	bool ContextMenu_ToggleOption_CanExecute(EGraphOptions Option);
+	void ContextMenu_ToggleOption_Execute(EGraphOptions Option);
+	bool ContextMenu_ToggleOption_IsChecked(EGraphOptions Option);
 	bool ContextMenu_ShowPointsWithBorder_CanExecute();
-	void ContextMenu_ShowPointsWithBorder_Execute();
-	bool ContextMenu_ShowPointsWithBorder_IsChecked();
-
-	bool ContextMenu_ShowLines_CanExecute();
-	void ContextMenu_ShowLines_Execute();
-	bool ContextMenu_ShowLines_IsChecked();
-
-	bool ContextMenu_ShowPolygon_CanExecute();
-	void ContextMenu_ShowPolygon_Execute();
-	bool ContextMenu_ShowPolygon_IsChecked();
-
 	bool ContextMenu_UseEventDuration_CanExecute();
-	void ContextMenu_UseEventDuration_Execute();
-	bool ContextMenu_UseEventDuration_IsChecked();
-
-	bool ContextMenu_ShowBars_CanExecute();
-	void ContextMenu_ShowBars_Execute();
-	bool ContextMenu_ShowBars_IsChecked();
 
 protected:
 	TArray<TSharedPtr<FGraphSeries>> AllSeries;
@@ -136,21 +139,10 @@ protected:
 	const FSlateBrush* BorderBrush;
 	const FSlateFontInfo Font;
 
-	bool bDrawDebugInfo;
-	bool bDrawPoints;
-	bool bDrawPointsWithBorder;
-	bool bDrawLines;
-	bool bDrawPolygon;
-	bool bUseEventDuration;
-	bool bDrawBoxes;
-
-	bool bDrawBaseline;
-	bool bDrawVerticalAxisGrid;
-	bool bDrawHeader;
-
-	// Flags controlling whether menu items are available
-	EGraphOptions VisibleOptions;
-	EGraphOptions EditableOptions;
+	// Flags controlling various Graph options
+	EGraphOptions EnabledOptions; // currently enabled options
+	EGraphOptions VisibleOptions; // if the option is visible in the context menu
+	EGraphOptions EditableOptions; // if the option is editable from the context menu (if false, the option can be readonly)
 
 	FGraphValueViewport SharedValueViewport;
 

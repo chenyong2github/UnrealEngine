@@ -86,12 +86,17 @@ FTimingGraphTrack::FTimingGraphTrack()
 	: FGraphTrack()
 	//, SharedValueViewport()
 {
-	bDrawPoints = true;
-	bDrawPointsWithBorder = true;
-	bDrawLines = true;
-	bDrawPolygon = true;
-	bUseEventDuration = true;
-	bDrawBoxes = false;
+	EnabledOptions = //EGraphOptions::ShowDebugInfo |
+					 //EGraphOptions::ShowPoints |
+					 EGraphOptions::ShowPointsWithBorder |
+					 EGraphOptions::ShowLines |
+					 EGraphOptions::ShowPolygon |
+					 EGraphOptions::UseEventDuration |
+					 //EGraphOptions::ShowBars |
+					 EGraphOptions::ShowBaseline |
+					 EGraphOptions::ShowVerticalAxisGrid |
+					 EGraphOptions::ShowHeader |
+					 EGraphOptions::None;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

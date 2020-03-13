@@ -243,6 +243,11 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void UpdateScrollableTracksOrder();
+	int32 GetFirstScrollableTrackOrder() const;
+	int32 GetLastScrollableTrackOrder() const;
+
+	void HideAllScrollableTracks();
+
 	void OnTrackVisibilityChanged();
 
 	bool IsGpuTrackVisible() const;

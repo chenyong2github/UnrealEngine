@@ -1439,6 +1439,17 @@ void STimingView::RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimingView::HideAllScrollableTracks()
+{
+	for (TSharedPtr<FBaseTimingTrack>& Track : ScrollableTracks)
+	{
+		Track->Hide();
+	}
+	OnTrackVisibilityChanged();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimingView::InvalidateScrollableTracksOrder()
 {
 	bScrollableTracksOrderIsDirty = true;
@@ -1453,6 +1464,20 @@ void STimingView::UpdateScrollableTracksOrder()
 		Algo::SortBy(ScrollableTracks, &FBaseTimingTrack::GetOrder);
 		bScrollableTracksOrderIsDirty = false;
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 STimingView::GetFirstScrollableTrackOrder() const
+{
+	return (ScrollableTracks.Num() > 0) ? ScrollableTracks[0]->GetOrder() : 1;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 STimingView::GetLastScrollableTrackOrder() const
+{
+	return (ScrollableTracks.Num() > 0) ? ScrollableTracks.Last()->GetOrder() : -1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

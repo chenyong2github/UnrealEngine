@@ -63,7 +63,7 @@ FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedDat
 	: FGameplayGraphTrack(InSharedData.GetGameplaySharedData(), InObjectID, FText::Format(LOCTEXT("AnimationTickRecordsTrackName", "Blend Weights - {0}"), FText::FromString(InName)))
 	, SharedData(InSharedData)
 {
-	bDrawLabels = true;
+	EnableOptions(ShowLabelsOption);
 	Layout = EGameplayGraphLayout::Stack;
 
 #if WITH_EDITOR

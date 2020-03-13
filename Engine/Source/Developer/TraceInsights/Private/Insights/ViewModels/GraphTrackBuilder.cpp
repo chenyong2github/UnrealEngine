@@ -40,22 +40,22 @@ void FGraphTrackBuilder::AddEvent(double Time, double Duration, double Value, bo
 
 	bool bKeepEvent = (Viewport.GetViewportDXForDuration(Duration) > 1.0f); // always keep the events wider than 1px
 
-	//if (Track.bDrawPoints)
+	//if (Track.IsAnyOptionEnabled(EGraphOptions::ShowPoints))
 	{
 		bKeepEvent |= AddPoint(Time, Value);
 	}
 
-	if (Track.bDrawLines || Track.bDrawPolygon)
+	if (Track.IsAnyOptionEnabled(EGraphOptions::ShowLines | EGraphOptions::ShowPolygon))
 	{
 		AddConnectedLine(Time, Value, !bConnected);
 
-		if (Track.bUseEventDuration && Duration != 0.0)
+		if (Track.IsAnyOptionEnabled(EGraphOptions::UseEventDuration) && Duration != 0.0)
 		{
 			AddConnectedLine(Time + Duration, Value, false);
 		}
 	}
 
-	if (Track.bDrawBoxes)
+	if (Track.IsAnyOptionEnabled(EGraphOptions::ShowBars))
 	{
 		AddBox(Time, Duration, Value);
 	}
