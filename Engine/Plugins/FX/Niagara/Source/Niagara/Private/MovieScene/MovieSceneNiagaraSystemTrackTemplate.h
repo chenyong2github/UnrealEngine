@@ -26,8 +26,7 @@ struct FMovieSceneNiagaraSystemTrackImplementation : public FMovieSceneTrackImpl
 	GENERATED_BODY()
 
 public:
-	FMovieSceneNiagaraSystemTrackImplementation() { }
-	FMovieSceneNiagaraSystemTrackImplementation(FFrameNumber InSpawnSectionStartFrame, FFrameNumber InSpawnSectionEndFrame);
+	FMovieSceneNiagaraSystemTrackImplementation();
 	FMovieSceneNiagaraSystemTrackImplementation(
 		FFrameNumber InSpawnSectionStartFrame, FFrameNumber InSpawnSectionEndFrame,
 		ENiagaraSystemSpawnSectionStartBehavior InSectionStartBehavior, ENiagaraSystemSpawnSectionEvaluateBehavior InSectionEvaluateBehavior,

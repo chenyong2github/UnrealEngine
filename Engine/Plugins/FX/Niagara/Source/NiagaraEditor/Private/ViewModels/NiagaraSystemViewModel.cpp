@@ -1981,7 +1981,10 @@ void FNiagaraSystemViewModel::AddSystemEventHandlers()
 			FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP<FNiagaraSystemViewModel, const FNiagaraParameterStore&, const UNiagaraScript*>(
 				this->AsShared(), &FNiagaraSystemViewModel::SystemParameterStoreChanged, System->GetExposedParameters(), nullptr));
 
-		SystemScriptGraphChangedHandle = SystemScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphChangedHandler(FOnGraphChanged::FDelegate::CreateSP(this->AsShared(), &FNiagaraSystemViewModel::SystemScriptGraphChanged));
+		SystemScriptGraphChangedHandle = SystemScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphChangedHandler(
+			FOnGraphChanged::FDelegate::CreateSP(this->AsShared(), &FNiagaraSystemViewModel::SystemScriptGraphChanged));
+		SystemScriptGraphNeedsRecompileHandle = SystemScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
+			FOnGraphChanged::FDelegate::CreateSP(this->AsShared(), &FNiagaraSystemViewModel::SystemScriptGraphChanged));
 	}
 }
 
@@ -2009,12 +2012,14 @@ void FNiagaraSystemViewModel::RemoveSystemEventHandlers()
 		if (SystemScriptViewModel.IsValid())
 		{
 			SystemScriptViewModel->GetGraphViewModel()->GetGraph()->RemoveOnGraphChangedHandler(SystemScriptGraphChangedHandle);
+			SystemScriptViewModel->GetGraphViewModel()->GetGraph()->RemoveOnGraphNeedsRecompileHandler(SystemScriptGraphNeedsRecompileHandle);
 		}
 	}
 
 	ScriptToOnParameterStoreChangedHandleMap.Empty();
 	UserParameterStoreChangedHandle.Reset();
 	SystemScriptGraphChangedHandle.Reset();
+	SystemScriptGraphNeedsRecompileHandle.Reset();
 }
 
 void FNiagaraSystemViewModel::NotifyPinnedCurvesChanged()
