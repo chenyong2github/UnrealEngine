@@ -9,6 +9,9 @@
 #include "SGraphPin.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraScriptVariable.h"
+#include "SDropTarget.h"
+#include "NiagaraEditorStyle.h"
+
 
 #define LOCTEXT_NAMESPACE "SNiagaraGraphParameterMapGetNode"
 
@@ -55,13 +58,23 @@ void SNiagaraGraphParameterMapGetNode::AddPin(const TSharedRef<SGraphPin>& PinTo
 TSharedRef<SWidget> SNiagaraGraphParameterMapGetNode::CreateNodeContentArea()
 {
 	// NODE CONTENT AREA
-	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		.Padding(FMargin(0, 3))
+	return 	SNew(SDropTarget)
+		.OnDrop(this, &SNiagaraGraphParameterMapGetNode::OnDroppedOnTarget)
+		.OnAllowDrop(this, &SNiagaraGraphParameterMapGetNode::OnAllowDrop)
+		.HorizontalImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.DropTarget.BorderHorizontal"))
+		.VerticalImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.DropTarget.BorderVertical"))
+		.BackgroundColor(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.DropTarget.BackgroundColor"))
+		.BackgroundColorHover(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.DropTarget.BackgroundColorHover"))
+		.Content()
 		[
-			SAssignNew(PinContainerRoot, SVerticalBox)
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.Padding(FMargin(0, 3))
+			[
+				SAssignNew(PinContainerRoot, SVerticalBox)
+			]
 		];
 }
 
@@ -185,4 +198,20 @@ FReply SNiagaraGraphParameterMapGetNode::OnBorderMouseButtonDown(const FGeometry
 	return FReply::Handled();
 }
 
+FReply SNiagaraGraphParameterMapGetNode::OnDroppedOnTarget(TSharedPtr<FDragDropOperation> DropOperation)
+{
+	return FReply::Unhandled();
+}
+
+bool SNiagaraGraphParameterMapGetNode::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+{
+	UNiagaraNodeParameterMapBase* MapNode = Cast<UNiagaraNodeParameterMapBase>(GraphNode);
+	if (MapNode
+		&& DragDropOperation->IsOfType<FNiagaraParameterGraphDragOperation>()
+		&& StaticCastSharedPtr<FNiagaraParameterGraphDragOperation>(DragDropOperation)->IsCurrentlyHoveringNode(GraphNode))
+	{
+		return MapNode->OnAllowDrop(DragDropOperation);
+	}
+	return false;
+}
 #undef LOCTEXT_NAMESPACE

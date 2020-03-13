@@ -15,6 +15,7 @@
 #include "NiagaraScriptVariable.h"
 
 #include "ScopedTransaction.h"
+#include "SNiagaraGraphParameterMapSetNode.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeParameterMapSet"
 
@@ -30,6 +31,11 @@ void UNiagaraNodeParameterMapSet::AllocateDefaultPins()
 	CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), *UNiagaraNodeParameterMapBase::SourcePinName.ToString());
 	CreatePin(EGPD_Output, Schema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), *UNiagaraNodeParameterMapBase::DestPinName.ToString());
 	CreateAddPin(EGPD_Input);
+}
+
+TSharedPtr<SGraphNode> UNiagaraNodeParameterMapSet::CreateVisualWidget()
+{
+	return SNew(SNiagaraGraphParameterMapSetNode, this);
 }
 
 bool UNiagaraNodeParameterMapSet::IsPinNameEditable(const UEdGraphPin* GraphPinObj) const
