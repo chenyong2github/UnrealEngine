@@ -1483,13 +1483,16 @@ void UActorComponent::ExecuteUnregisterEvents()
 
 void UActorComponent::ReregisterComponent()
 {
-	if(!IsRegistered())
+	if (AllowReregistration())
 	{
-		UE_LOG(LogActorComponent, Log, TEXT("ReregisterComponent: (%s) Not currently registered. Aborting."), *GetPathName());
-		return;
-	}
+		if (!IsRegistered())
+		{
+			UE_LOG(LogActorComponent, Log, TEXT("ReregisterComponent: (%s) Not currently registered. Aborting."), *GetPathName());
+			return;
+		}
 
-	FComponentReregisterContext(this);
+		FComponentReregisterContext(this);
+	}
 }
 
 void UActorComponent::RecreateRenderState_Concurrent()
