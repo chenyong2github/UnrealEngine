@@ -101,6 +101,18 @@ struct FImagePixelData
 	}
 
 	/**
+	 * Get the size in bytes, regardless of if it is well formed.
+	 */
+	int64 GetRawDataSizeInBytes() const
+	{
+		const void* RawPtr    = nullptr;
+		int64       SizeBytes = 0;
+
+		RetrieveData(RawPtr, SizeBytes);
+		return SizeBytes;
+	}
+
+	/**
 	 * Copy this whole image buffer. This can be very costly for large images.
 	 */
 	TUniquePtr<FImagePixelData> CopyImageData() const
