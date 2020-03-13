@@ -84,10 +84,8 @@ public:
 	TManagedArray<FTransform> MassToLocal;
 	//TManagedArray<TArray<FCollisionFilterData>> ShapeQueryData;
 	//TManagedArray<TArray<FCollisionFilterData>> ShapeSimData;
-	//TManagedArray<TUniquePtr<FCollisionStructureManager::FSimplicial>> Simplicials;
+	TManagedArray<TUniquePtr<FCollisionStructureManager::FSimplicial>> Simplicials;
 	TManagedArray<bool> SimulatableParticles;
-
-
 };
 
 
