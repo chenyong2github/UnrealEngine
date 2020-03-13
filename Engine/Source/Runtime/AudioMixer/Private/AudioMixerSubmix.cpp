@@ -116,6 +116,7 @@ namespace Audio
 
 			NumSubmixEffects = 0;
 
+			FScopeLock ScopeLock(&EffectChainMutationCriticalSection);			
 			for (USoundEffectSubmixPreset* EffectPreset : SoundSubmix->SubmixEffectChain)
 			{
 				if (EffectPreset)
@@ -348,6 +349,7 @@ namespace Audio
 
 	void FMixerSubmix::AddSoundEffectSubmix(uint32 SubmixPresetId, FSoundEffectSubmixPtr InSoundEffectSubmix)
 	{
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		// Look to see if the submix preset ID is already present
@@ -372,6 +374,7 @@ namespace Audio
 
 	void FMixerSubmix::RemoveSoundEffectSubmix(uint32 SubmixPresetId)
 	{
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		for (FSubmixEffectInfo& Effect : EffectSubmixChain)
@@ -406,6 +409,8 @@ namespace Audio
 
 	void FMixerSubmix::ClearSoundEffectSubmixes()
 	{
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
+
 		for (FSubmixEffectInfo& Info : EffectSubmixChain)
 		{
 			if (Info.EffectInstance.IsValid())
@@ -847,6 +852,7 @@ namespace Audio
 			}
 		}
 
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 		if (EffectSubmixChain.Num() > 0)
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixEffectProcessing);
