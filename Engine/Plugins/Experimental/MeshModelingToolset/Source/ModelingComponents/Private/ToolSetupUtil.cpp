@@ -42,7 +42,7 @@ UMaterialInterface* ToolSetupUtil::GetDefaultBrushVolumeMaterial(UInteractiveToo
 
 
 
-UMaterialInterface* ToolSetupUtil::GetSculptMaterial1(UInteractiveToolManager* ToolManager)
+UMaterialInterface* ToolSetupUtil::GetDefaultSculptMaterial(UInteractiveToolManager* ToolManager)
 {
 	UMaterialInterface* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/SculptMaterial"));
 	if (Material == nullptr && ToolManager != nullptr)
@@ -51,6 +51,51 @@ UMaterialInterface* ToolSetupUtil::GetSculptMaterial1(UInteractiveToolManager* T
 	}
 	return Material;
 }
+
+
+
+
+UMaterialInterface* ToolSetupUtil::GetImageBasedSculptMaterial(UInteractiveToolManager* ToolManager, ImageMaterialType Type)
+{
+	UMaterialInterface* Material = nullptr;
+	if (Type == ImageMaterialType::DefaultBasic)
+	{
+		Material = LoadObject<UMaterialInstance>(nullptr, TEXT("/MeshModelingToolset/Materials/SculptMaterial_Basic"));
+	}
+	else if (Type == ImageMaterialType::DefaultSoft)
+	{
+		Material = LoadObject<UMaterialInstance>(nullptr, TEXT("/MeshModelingToolset/Materials/SculptMaterial_Soft"));
+	}
+	else if (Type == ImageMaterialType::TangentNormalFromView)
+	{
+		Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/SculptMaterial_TangentNormalFromView"));
+	}
+
+	if (Material == nullptr && ToolManager != nullptr)
+	{
+		Material = GetDefaultSculptMaterial(ToolManager);
+	}
+
+	return Material;
+}
+
+
+
+UMaterialInstanceDynamic* ToolSetupUtil::GetCustomImageBasedSculptMaterial(UInteractiveToolManager* ToolManager, UTexture* SetImage)
+{
+	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/ImageBasedMaterial_Master"));
+	if (Material != nullptr)
+	{
+		UMaterialInstanceDynamic* MatInstance = UMaterialInstanceDynamic::Create(Material, ToolManager);
+		if (SetImage != nullptr)
+		{
+			MatInstance->SetTextureParameterValue(TEXT("ImageTexture"), SetImage);
+		}
+		return MatInstance;
+	}
+	return nullptr;
+}
+
 
 
 UMaterialInterface* ToolSetupUtil::GetSelectionMaterial(UInteractiveToolManager* ToolManager)

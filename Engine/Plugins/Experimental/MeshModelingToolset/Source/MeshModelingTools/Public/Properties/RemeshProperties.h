@@ -69,19 +69,19 @@ class MESHMODELINGTOOLS_API URemeshProperties : public UMeshConstraintProperties
 	GENERATED_BODY()
 
 public:
-	/** Smoothing speed for dynamic meshing */
-	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	/** Amount of Vertex Smoothing applied within Remeshing */
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (DisplayName = "Smoothing Rate", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float SmoothingStrength = 0.1f;
 
-	/** Enable edge flips */
+	/** Enable edge flips in Remeshing (tends to lose edges/detail) */
 	UPROPERTY(EditAnywhere, Category = "Remeshing|Edge Constraints", meta = (DisplayName = "Allow Flips"))
 	bool bFlips = false;
 
-	/** Enable edge splits */
+	/** Enable edge splits in Remeshing */
 	UPROPERTY(EditAnywhere, Category = "Remeshing|Edge Constraints", meta = (DisplayName = "Allow Splits"))
 	bool bSplits = true;
 
-	/** Enable edge collapses */
+	/** Enable edge collapses in Remeshing */
 	UPROPERTY(EditAnywhere, Category = "Remeshing|Edge Constraints", meta = (DisplayName = "Allow Collapses"))
 	bool bCollapses = true;
 
