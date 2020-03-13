@@ -29,9 +29,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Architecture of Target.
 		/// </summary>
-		[CommandLine("-x64", Value = "x64")]
-		[CommandLine("-arm64", Value = "ARM64")]
-		public WindowsArchitecture Architecture = WindowsArchitecture.x64;
+		public WindowsArchitecture Architecture
+		{
+			get;
+		}
 
 		/// <summary>
 		/// Enable PIX debugging (automatically disabled in Shipping and Test configs)
@@ -58,6 +59,18 @@ namespace UnrealBuildTool
         /// </summary>
         [ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bAutoIncrementVersion")]
         public bool bAutoIncrementVersion = false;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Info">Target information</param>
+		public HoloLensTargetRules(TargetInfo Info)
+		{
+			if (Info.Platform == UnrealTargetPlatform.HoloLens)
+			{
+				Architecture = (WindowsArchitecture)Enum.Parse(typeof(WindowsArchitecture), Info.Architecture, true);
+			}
+		}
     }
 
 	/// <summary>
@@ -176,22 +189,9 @@ namespace UnrealBuildTool
 				}
 			}
 
-			Target.HoloLensPlatform.Architecture = WindowsArchitecture.ARM64;
-			if (Target.Architecture.ToLower() == "arm64")
+			if(!Target.bGenerateProjectFiles)
 			{
-				Target.HoloLensPlatform.Architecture = WindowsArchitecture.ARM64;
-				if(!Target.bGenerateProjectFiles)
-				{
-					Log.TraceInformationOnce("Using ARM64 architecture for deploying to HoloLens device");
-				}
-			}
-			else
-			{
-				Target.HoloLensPlatform.Architecture = WindowsArchitecture.x64;
-				if (!Target.bGenerateProjectFiles)
-				{
-					Log.TraceInformationOnce("Using x64 architecture for deploying to HoloLens emulator");
-				}
+				Log.TraceInformationOnce("Using {0} architecture for deploying to HoloLens device", Target.HoloLensPlatform.Architecture);
 			}
 
 			Target.WindowsPlatform.Compiler = Target.HoloLensPlatform.Compiler;
@@ -250,6 +250,16 @@ namespace UnrealBuildTool
 			}
 
 			HoloLensExports.InitWindowsSdkToolPath(Target.HoloLensPlatform.Win10SDKVersion.ToString());
+		}
+
+		/// <summary>
+		/// Gets the default HoloLens architecture
+		/// </summary>
+		/// <param name="ProjectFile">The project being built</param>
+		/// <returns>The default architecture</returns>
+		public override string GetDefaultArchitecture(FileReference ProjectFile)
+		{
+			return WindowsArchitecture.x64.ToString();
 		}
 
 		/// <summary>
