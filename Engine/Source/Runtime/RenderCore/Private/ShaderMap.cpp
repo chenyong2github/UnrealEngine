@@ -117,11 +117,12 @@ void FShaderMapBase::UnfreezeContent()
 	}
 }
 
-#define CHECK_SHADERMAP_DEPENDENCIES !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define CHECK_SHADERMAP_DEPENDENCIES (WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
-void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
+bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
 {
 	LLM_SCOPE(ELLMTag::Shaders);
+	bool bContentValid = true;
 	if (Ar.IsSaving())
 	{
 		check(Content);
@@ -197,7 +198,6 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		void* ContentMemory = FMemory::Malloc(FrozenContentSize);
 		Ar.Serialize(ContentMemory, FrozenContentSize);
 		Content = static_cast<FShaderMapContent*>(ContentMemory);
-		NumFrozenShaders = Content->GetNumShaders();
 		FMemoryImageResult::ApplyPatchesFromArchive(Content, Ar);
 		PointerTable->LoadFromArchive(Ar, Content, bInlineShaderResources, bLoadedByCookedMaterial);
 
@@ -226,8 +226,16 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 				{
 					FSHAHash CheckLayoutHash;
 					const uint32 CheckLayoutSize = Freeze::HashLayout(*DependencyType, LayoutParams, CheckLayoutHash);
-					checkf(CheckLayoutSize == SavedLayoutSize, TEXT("Mismatch size for type %s, compiled size is %d, loaded size is %d"), DependencyType->Name, CheckLayoutSize, SavedLayoutSize);
-					checkf(CheckLayoutHash == SavedLayoutHash, TEXT("Mismatch hash for type %s"), DependencyType->Name);
+					if (CheckLayoutSize != SavedLayoutSize)
+					{
+						UE_LOG(LogShaders, Error, TEXT("Mismatch size for type %s, compiled size is %d, loaded size is %d"), DependencyType->Name, CheckLayoutSize, SavedLayoutSize);
+						bContentValid = false;
+					}
+					else if (CheckLayoutHash != SavedLayoutHash)
+					{
+						UE_LOG(LogShaders, Error, TEXT("Mismatch hash for type %s"), DependencyType->Name);
+						bContentValid = false;
+					}
 				}
 #endif // CHECK_SHADERMAP_DEPENDENCIES
 			}
@@ -240,9 +248,10 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 			FSHAHash ResourceHash;
 			Ar << ResourceHash;
 			Resource = FShaderCodeLibrary::LoadResource(ResourceHash, &Ar);
-			if (UNLIKELY(Resource == nullptr && GMaxRHIShaderPlatform == GetShaderPlatform()))
+			if (!Resource)
 			{
-				UE_LOG(LogShaders, Fatal, TEXT("Missing shader resource for hash '%s' in the shader library"), *ResourceHash.ToString());
+				UE_LOG(LogShaders, Error, TEXT("Missing shader resource for hash '%s' in the shader library"), *ResourceHash.ToString());
+				bContentValid = false;
 			}
 		}
 		else
@@ -252,15 +261,28 @@ void FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 			Resource = new FShaderMapResource_InlineCode(GetShaderPlatform(), Code);
 		}
 
-		if (LIKELY(Resource))
+		if (bContentValid)
 		{
+			check(Resource);
+			NumFrozenShaders = Content->GetNumShaders();
+
 			BeginInitResource(Resource);
 
 			INC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, Resource->GetSizeBytes());
 			INC_DWORD_STAT_BY(STAT_Shaders_ShaderMemory, FrozenContentSize);
 			INC_DWORD_STAT_BY(STAT_Shaders_NumShadersLoaded, NumFrozenShaders);
 		}
+		else
+		{
+			Resource.SafeRelease();
+
+			// Don't call destructors here, this is basically unknown/invalid memory at this point
+			FMemory::Free(Content);
+			Content = nullptr;
+		}
 	}
+
+	return bContentValid;
 }
 
 void FShaderMapBase::DestroyContent()
