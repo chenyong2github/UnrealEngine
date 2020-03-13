@@ -764,4 +764,9 @@ void FWindowsPlatformSplash::SetSplashText( const SplashTextType::Type InType, c
 	}
 }
 
+APPLICATIONCORE_API HWND GetSplashScreenWindowHandle()
+{
+	return GSplashScreenWnd;
+}
+
 #include "Windows/HideWindowsPlatformTypes.h"
