@@ -616,11 +616,6 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 	}
 }
 
-bool UNiagaraNodeFunctionCall::IsValidPinToCompile(UEdGraphPin* Pin) const
-{
-	return !IsAddPin(Pin);
-}
-
 UObject*  UNiagaraNodeFunctionCall::GetReferencedAsset() const
 {
 	if (FunctionScript && FunctionScript->GetOutermost() != GetOutermost())
