@@ -266,8 +266,19 @@ namespace Chaos
 		TArray<TVector<T, d>> ComputeLocalSamplePoints(const int NumPoints) const
 		{
 			TArray<TVector<T, d>> Points;
-			TSphere<T, d> LocalSphere(TVector<T, d>(0.0), Radius);
-			TSphereSpecializeSamplingHelper<T, d>::ComputeSamplePoints(Points, LocalSphere, NumPoints);
+			
+			if(Radius <= KINDA_SMALL_NUMBER)
+			{
+				// If we're too small (and will create NaNs) then just take the centre
+				Points.Add(TVector<T, d>(0.0));
+			}
+			else
+			{
+				Points.Reserve(NumPoints);
+				TSphere<T, d> LocalSphere(TVector<T, d>(0.0), Radius);
+				TSphereSpecializeSamplingHelper<T, d>::ComputeSamplePoints(Points, LocalSphere, NumPoints);
+			}
+
 			return Points;
 		}
 
