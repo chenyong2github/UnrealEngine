@@ -57,6 +57,9 @@ static FAutoConsoleVariableRef CVarHairStrandsSkyLightingDistanceThreshold(TEXT(
 static int32 GHairStrandsSkyLighting_IntegrationType = 0;
 static FAutoConsoleVariableRef CVarHairStrandsSkyLighting_IntegrationType(TEXT("r.HairStrands.SkyLighting.IntegrationType"), GHairStrandsSkyLighting_IntegrationType, TEXT("Hair env. lighting integration type (0:Adhoc, 1:Uniform."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static int32 GHairStrandsSkyLighting_DebugSample = 0;
+static FAutoConsoleVariableRef CVarHairStrandsSkyLighting_DebugSample(TEXT("r.HairStrands.SkyLighting.DebugSample"), GHairStrandsSkyLighting_DebugSample, TEXT("Enable debug view for visualizing sample used for the sky integration"), ECVF_Scalability | ECVF_RenderThreadSafe);
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 enum class EHairLightingIntegrationType : uint8
@@ -173,10 +176,10 @@ static void AddHairStrandsEnvironmentAOPass(
 class FHairEnvironmentLighting
 {
 public:
-	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
-	class FSampleSet : SHADER_PERMUTATION_INT("PERMUTATION_SAMPLESET", 2);
-	class FIntegrationType : SHADER_PERMUTATION_INT("PERMUTATION_INTEGRATION_TYPE", 3);
-	using FPermutationDomain = TShaderPermutationDomain<FSampleSet, FIntegrationType>;
+	class FSampleSet		: SHADER_PERMUTATION_INT("PERMUTATION_SAMPLESET", 2);
+	class FIntegrationType	: SHADER_PERMUTATION_INT("PERMUTATION_INTEGRATION_TYPE", 3);
+	class FDebug			: SHADER_PERMUTATION_INT("PERMUTATION_DEBUG", 2); 
+	using FPermutationDomain = TShaderPermutationDomain<FSampleSet, FIntegrationType, FDebug>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -250,9 +253,6 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
 
 		SHADER_PARAMETER_STRUCT_REF(FVirtualVoxelParameters, VirtualVoxel)
-
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
-
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -260,7 +260,7 @@ class FHairEnvironmentLightingVS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairEnvironmentLightingVS);
 	SHADER_USE_PARAMETER_STRUCT(FHairEnvironmentLightingVS, FGlobalShader)
-	using FPermutationDomain = FHairEnvironmentLighting::FPermutationDomain;
+	//using FPermutationDomain = FHairEnvironmentLighting::FPermutationDomain;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairEnvironmentLighting::FParameters, Common)
@@ -286,6 +286,8 @@ class FHairEnvironmentLightingPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairEnvironmentLighting::FParameters, Common)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsDebugData::FWriteParameters, DebugData)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -310,7 +312,8 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	const FHairStrandsVisibilityData& VisibilityData,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FHairStrandsMacroGroupData& MacroGroupData,
-	const FRDGTextureRef SceneColorTexture)
+	const FRDGTextureRef SceneColorTexture,
+	FHairStrandsDebugData::Data* DebugData)
 {
 	FSceneTextureParameters SceneTextures;
 	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
@@ -375,7 +378,12 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
+		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, ParametersPS->ShaderDrawParameters);
+	}
+
+	if (DebugData)
+	{
+		FHairStrandsDebugData::SetParameters(GraphBuilder, *DebugData, ParametersPS->DebugData);
 	}
 
 	// Bind hair data
@@ -387,11 +395,12 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	FHairEnvironmentLightingPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairEnvironmentLighting::FSampleSet>(PassParameters->MultipleScatterSampleCount <= 16 ? 0 : 1);
 	PermutationVector.Set<FHairEnvironmentLighting::FIntegrationType>(uint32(IntegrationType));
+	PermutationVector.Set<FHairEnvironmentLighting::FDebug>(DebugData ? 1 : 0);
 	PermutationVector = FHairEnvironmentLighting::RemapPermutation(PermutationVector);
 
 	FIntPoint ViewportResolution = VisibilityData.SampleLightingViewportResolution;
 	const FViewInfo* CapturedView = &View;
-	TShaderMapRef<FHairEnvironmentLightingVS> VertexShader(View.ShaderMap, PermutationVector);
+	TShaderMapRef<FHairEnvironmentLightingVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FHairEnvironmentLightingPS> PixelShader(View.ShaderMap, PermutationVector);
 
 	check(VisibilityData.SampleLightingBuffer);
@@ -431,7 +440,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 void RenderHairStrandsSceneColorScattering(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
-	const struct FHairStrandsDatas* HairDatas)
+	FHairStrandsDatas* HairDatas)
 {
 	if (Views.Num() == 0 || !HairDatas || GHairScatterSceneLighting <= 0)
 		return;
@@ -471,7 +480,7 @@ void RenderHairStrandsSceneColorScattering(
 			{
 				if (MacroGroupData.bNeedScatterSceneLighting)
 				{
-					AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, SceneColorTexture);
+					AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, SceneColorTexture, nullptr);
 				}
 			}
 			GraphBuilder.Execute();
@@ -483,10 +492,22 @@ void RenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,
 	const uint32 ViewIndex,
 	const TArray<FViewInfo>& Views, 
-	const FHairStrandsDatas* HairDatas)
+	FHairStrandsDatas* HairDatas)
 {
 	if (!GetHairStrandsSkyLightingEnable() || !HairDatas)
 		return;
+
+	struct FHairEnvDebugData
+	{
+		FRDGBufferRef ShadingPointBuffer = nullptr;
+		FRDGBufferRef SampleBuffer = nullptr;
+		FRDGBufferRef ShadingPointCounter = nullptr;
+
+		FRDGBufferUAVRef ShadingPointBufferUAV = nullptr;
+		FRDGBufferUAVRef SampleBufferUAV = nullptr;
+		FRDGBufferUAVRef ShadingPointCounterUAV = nullptr;
+	};
+
 
 	check(ViewIndex < uint32(Views.Num()));
 	check(ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()));	
@@ -497,11 +518,23 @@ void RenderHairStrandsEnvironmentLighting(
 		return;
 	}
 
+	const bool bDebugSamplingEnable = GHairStrandsSkyLighting_DebugSample > 0;
+	FHairStrandsDebugData::Data DebugData;
+	if (bDebugSamplingEnable)
+	{
+		DebugData = FHairStrandsDebugData::CreateData(GraphBuilder);
+	}
+
 	const FViewInfo& View = Views[ViewIndex];
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
 	for (const FHairStrandsMacroGroupData& MacroGroupData : HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas)
 	{
-		AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, nullptr);
+		AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, nullptr, bDebugSamplingEnable ? &DebugData : nullptr);
+	}
+
+	if (bDebugSamplingEnable)
+	{
+		FHairStrandsDebugData::ExtractData(GraphBuilder, DebugData, HairDatas->DebugData);
 	}
 }
 
