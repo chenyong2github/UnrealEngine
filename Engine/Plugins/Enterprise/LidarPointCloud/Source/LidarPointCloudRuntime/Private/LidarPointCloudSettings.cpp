@@ -23,6 +23,5 @@ ULidarPointCloudSettings::ULidarPointCloudSettings()
 	, MaxNumberOfPointsToScanASCII(100000)
 	, ExportScale(0.01f)
 	, bUseIOCaching(false)
-	, bLogBufferExpansion(false)
 {
 }

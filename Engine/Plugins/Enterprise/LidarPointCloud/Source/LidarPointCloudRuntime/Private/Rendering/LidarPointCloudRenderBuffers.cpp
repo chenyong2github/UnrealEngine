@@ -23,39 +23,20 @@ TGlobalResource<FLidarPointCloudRenderBuffer> GLidarPointCloudRenderBuffer;
 TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
 TGlobalResource<FLidarPointCloudVertexFactory> GLidarPointCloudVertexFactory;
 
-void FLidarPointCloudBuffer::Resize(const uint32& RequestedCapacity)
+//////////////////////////////////////////////////////////// Index Buffer
+
+void FLidarPointCloudIndexBuffer::Resize(const uint32 & RequestedCapacity)
 {
 	// This must be called from Rendering thread
 	check(IsInRenderingThread());
 
 	if (Capacity != RequestedCapacity)
 	{
-		if (GetDefault<ULidarPointCloudSettings>()->bLogBufferExpansion)
-		{
-			PC_LOG("Resizing %s: %u => %u", *GetFriendlyName(), Capacity, RequestedCapacity);
-		}
-
-		Release();
+		ReleaseResource();
 		Capacity = RequestedCapacity;
-		Initialize();
+		InitResource();
 	}
 }
-
-FLidarPointCloudBuffer::~FLidarPointCloudBuffer()
-{
-	FRenderCommandFence Fence;
-
-	ENQUEUE_RENDER_COMMAND(ReleaseLidarPointCloudRenderBuffer)(
-		[this](FRHICommandListImmediate& RHICmdList)
-		{
-			Release();
-		});
-
-	Fence.BeginFence();
-	Fence.Wait();
-}
-
-//////////////////////////////////////////////////////////// Index Buffer
 
 void FLidarPointCloudIndexBuffer::InitRHI()
 {
@@ -92,14 +73,27 @@ void FLidarPointCloudIndexBuffer::InitRHI()
 
 //////////////////////////////////////////////////////////// Structured Buffer
 
+void FLidarPointCloudRenderBuffer::Resize(const uint32& RequestedCapacity)
+{
+	// This must be called from Rendering thread
+	check(IsInRenderingThread());
+
+	if (Capacity != RequestedCapacity)
+	{
+		ReleaseResource();
+		Capacity = RequestedCapacity;
+		InitResource();
+	}
+}
+
 void FLidarPointCloudRenderBuffer::InitRHI()
 {
 	// This must be called from Rendering thread
 	check(IsInRenderingThread());
 
 	FRHIResourceCreateInfo CreateInfo;
-	Buffer = RHICreateVertexBuffer(ElementSize * Capacity, BUF_ShaderResource | BUF_Dynamic, CreateInfo);
-	SRV = RHICreateShaderResourceView(Buffer, ElementSize, PF_R32_FLOAT);
+	Buffer = RHICreateVertexBuffer(sizeof(uint32) * Capacity, BUF_ShaderResource | BUF_Dynamic, CreateInfo);
+	SRV = RHICreateShaderResourceView(Buffer, sizeof(uint32), PF_R32_FLOAT);
 }
 
 void FLidarPointCloudRenderBuffer::ReleaseRHI()
