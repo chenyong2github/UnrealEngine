@@ -114,7 +114,7 @@ namespace MoviePipeline
 			.SetRealtimeUpdate(true));
 
 		ViewFamily.SceneCaptureSource = InSampleState.SceneCaptureSource;
-		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
+		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, InSampleState.GlobalScreenPercentageFraction, true));
 		ViewFamily.bWorldIsPaused = InSampleState.bWorldIsPaused;
 
 		// View is added as a child of the ViewFamily

@@ -21,6 +21,7 @@
 #include "Modules/ModuleManager.h"
 #include "MoviePipelineCameraSetting.h"
 #include "Engine/GameViewportClient.h"
+#include "LegacyScreenPercentageDriver.h"
 
 // For flushing async systems
 #include "RendererInterface.h"
@@ -395,6 +396,7 @@ void UMoviePipeline::RenderFrame()
 				SampleState.bWriteSampleToDisk = HighResSettings->bWriteAllSamples;
 				SampleState.ExposureCompensation = CameraSettings->bManualExposure ? CameraSettings->ExposureCompensation : TOptional<float>();
 				SampleState.TextureSharpnessBias = HighResSettings->TextureSharpnessBias;
+				SampleState.GlobalScreenPercentageFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction();
 				{
 					SampleState.OverlappedPad = FIntPoint(FMath::CeilToInt(TileResolution.X * HighResSettings->OverlapRatio), 
 														   FMath::CeilToInt(TileResolution.Y * HighResSettings->OverlapRatio));
