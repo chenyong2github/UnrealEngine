@@ -486,12 +486,12 @@ float FSoundSource::GetDebugVolume(const float InVolume)
 		}
 	}
 
-	// SoundCues mutes/solos											
+	// SoundCues mutes/solos (not strictly just cues but any SoundBase)
 	if (OutVolume != 0.0f && WaveInstance->ActiveSound)
 	{						
-		if (USoundCue* SoundCue = Cast<USoundCue>(WaveInstance->ActiveSound->GetSound()))
+		if (USoundBase* ActiveSound= WaveInstance->ActiveSound->GetSound())
 		{
-			Debugger.QuerySoloMuteSoundCue(SoundCue->GetName(), Info.bIsSoloed, Info.bIsMuted, Info.MuteSoloReason);
+			Debugger.QuerySoloMuteSoundCue(ActiveSound->GetName(), Info.bIsSoloed, Info.bIsMuted, Info.MuteSoloReason);
 			if (Info.bIsMuted)
 			{
 				OutVolume = 0.0f;
