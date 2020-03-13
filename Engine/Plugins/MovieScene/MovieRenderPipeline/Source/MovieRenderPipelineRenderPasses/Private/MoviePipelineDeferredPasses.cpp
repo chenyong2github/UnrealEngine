@@ -553,7 +553,27 @@ namespace MoviePipeline
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AccumulateSample_RenderThread);
 
-		check(InPixelData->IsDataWellFormed());
+		bool isWellFormed = InPixelData->IsDataWellFormed();
+
+		if (!isWellFormed)
+		{
+			// figure out why it is not well formed, and print a warning.
+			int64 RawSize = InPixelData->GetRawDataSizeInBytes();
+
+			int64 SizeX = InPixelData->GetSize().X;
+			int64 SizeY = InPixelData->GetSize().Y;
+			int64 ByteDepth = int64(InPixelData->GetBitDepth() / 8);
+			int64 NumChannels = int64(InPixelData->GetNumChannels());
+			int64 ExpectedTotalSize = SizeX * SizeY * ByteDepth * NumChannels;
+			int64 ActualTotalSize = InPixelData->GetRawDataSizeInBytes();
+
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("AccumulateSample_RenderThread: Data is not well formed."));
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Image dimension: %lldx%lld, %lld, %lld"), SizeX, SizeY, ByteDepth, NumChannels);
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Expected size: %lld"), ExpectedTotalSize);
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Actual size:   %lld"), ActualTotalSize);
+		}
+
+		check(isWellFormed);
 
 		// Writing tiles can be useful for debug reasons. These get passed onto the output every frame.
 		if (InParams.SampleState.bWriteSampleToDisk)
