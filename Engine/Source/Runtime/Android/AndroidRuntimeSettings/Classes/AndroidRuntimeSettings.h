@@ -237,7 +237,7 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Disable verify OBB on first start/update."))
 	bool bDisableVerifyOBBOnStartUp;
 
-	// If checked, OBB is limited to 500 MiB.
+	// If checked, OBB is limited to 1 GiB.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Force small OBB files."))
 	bool bForceSmallOBBFiles;
 
