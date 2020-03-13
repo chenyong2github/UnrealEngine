@@ -6,7 +6,6 @@
 #include "Misc/ScopedEvent.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/ScopeLock.h"
-#include "Stats/StallLogger.h"
 #include "Stats/StatsMisc.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
@@ -964,12 +963,6 @@ public:
 				{
 					UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Could not open file for writing '%s'."), *TempFilename);
 				}
-
-				auto _ = MakeStallLogger([&](double ElapsedMs)
-					{
-						double BytesPerSec = 1000.0 * FileSize / ElapsedMs;
-						printf("Write: %f ms, MB: %.2f, MB/s: %.2f\n", ElapsedMs, double(FileSize) / (1<<20), BytesPerSec / (1 << 20));
-					}, 500.0);
 
 				// now write the file from bytes pulled from the archive
 				// read/write a chunk at a time
