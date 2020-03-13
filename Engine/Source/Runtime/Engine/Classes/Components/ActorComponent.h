@@ -898,7 +898,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components", meta=(Keywords = "Delete", HidePin="Object", DefaultToSelf="Object", DisplayName = "DestroyComponent", ScriptName = "DestroyComponent"))
 	void K2_DestroyComponent(UObject* Object);
 
-	/** Unregisters and immediately re-registers component.  Handles bWillReregister properly. */
+	/** Unregisters and immediately re-registers component. */
 	void ReregisterComponent();
 
 	/** Changes the ticking group for this component */
