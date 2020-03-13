@@ -40,6 +40,7 @@
 #include "Curves/CurveLinearColorAtlas.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "EditorFontGlyphs.h"
 
 
 #define LOCTEXT_NAMESPACE "MaterialLayerCustomization"
@@ -334,19 +335,6 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					.Font(FEditorStyle::GetFontStyle(TEXT("MaterialEditor.Layers.EditableFontImportant")))
 					.ForegroundColor(FLinearColor::White)
 				];
-			HeaderRowWidget->AddSlot()
-				.FillWidth(1.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNullWidget::NullWidget
-				];
-			HeaderRowWidget->AddSlot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(0.0f, 0.0f, 5.0f, 0.0f)
-				[
-					PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(InArgs._InTree, &SMaterialLayersFunctionsInstanceTree::RemoveLayer, StackParameterData->ParameterInfo.Index))
-				];
 		}
 		else
 		{
@@ -358,6 +346,44 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					SNew(STextBlock)
 					.Text(NameOverride)
 					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+				];
+		}
+
+		// Can only unlink/remove layers that aren't the base layer.
+		if (StackParameterData->ParameterInfo.Index != 0)
+		{
+			// Unlink UI
+			HeaderRowWidget->AddSlot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNullWidget::NullWidget
+				];
+			HeaderRowWidget->AddSlot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.OnClicked(Tree, &SMaterialLayersFunctionsInstanceTree::UnlinkLayer, StackParameterData->ParameterInfo.Index)
+					.Visibility(Tree, &SMaterialLayersFunctionsInstanceTree::GetUnlinkLayerVisibility, StackParameterData->ParameterInfo.Index)
+					.ToolTipText(LOCTEXT("UnlinkLayer", "Whether or not to unlink this layer/blend combination from the parent."))
+					.Content()
+					[
+						SNew(STextBlock)
+						.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Text(FEditorFontGlyphs::Chain_Broken) /*fa-filter*/
+					]
+				];
+
+			HeaderRowWidget->AddSlot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+				[
+					PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(InArgs._InTree, &SMaterialLayersFunctionsInstanceTree::RemoveLayer, StackParameterData->ParameterInfo.Index))
 				];
 		}
 		LeftSideWidget = HeaderRowWidget;
@@ -1190,6 +1216,45 @@ void SMaterialLayersFunctionsInstanceTree::RemoveLayer(int32 Index)
 	RequestTreeRefresh();
 }
 
+FReply SMaterialLayersFunctionsInstanceTree::UnlinkLayer(int32 Index)
+{
+	const FScopedTransaction Transaction(LOCTEXT("UnlinkLayer", "Unlink a layer from the parent"));
+	FunctionInstanceHandle->NotifyPreChange();
+	FunctionInstance->UnlinkLayerFromParent(Index);
+	FunctionInstanceHandle->NotifyPostChange();
+	CreateGroupsWidget();
+	return FReply::Handled();
+}
+
+FReply SMaterialLayersFunctionsInstanceTree::RelinkLayersToParent()
+{
+	const FScopedTransaction Transaction(LOCTEXT("RelinkLayersToParent", "Relink layers to parent"));
+	FunctionInstanceHandle->NotifyPreChange();
+	FunctionInstance->RelinkLayersToParent();
+	FunctionInstanceHandle->NotifyPostChange();
+	MaterialEditorInstance->RegenerateArrays();
+	CreateGroupsWidget();
+	return FReply::Handled();
+}
+
+EVisibility SMaterialLayersFunctionsInstanceTree::GetUnlinkLayerVisibility(int32 Index) const
+{
+	if (FunctionInstance->IsLayerLinkedToParent(Index))
+	{
+		return EVisibility::Visible;
+	}
+	return EVisibility::Collapsed;
+}
+
+EVisibility SMaterialLayersFunctionsInstanceTree::GetRelinkLayersToParentVisibility() const
+{
+	if (FunctionInstance->HasAnyUnlinkedLayers())
+	{
+		return EVisibility::Visible;
+	}
+	return EVisibility::Collapsed;
+}
+
 FReply SMaterialLayersFunctionsInstanceTree::ToggleLayerVisibility(int32 Index)
 {
 	if (!FSlateApplication::Get().GetModifierKeys().AreModifersDown(EModifierKey::Alt))
@@ -1617,6 +1682,8 @@ void SMaterialLayersFunctionsInstanceWrapper::Refresh()
 
 	if (LayerParameter != nullptr)
 	{
+		FOnClicked OnRelinkToParent = FOnClicked::CreateSP(NestedTree.ToSharedRef(), &SMaterialLayersFunctionsInstanceTree::RelinkLayersToParent);
+
 		this->ChildSlot
 			[
 				SNew(SBorder)
@@ -1660,6 +1727,36 @@ void SMaterialLayersFunctionsInstanceWrapper::Refresh()
 			.FillWidth(1.0f)
 			[
 				SNullWidget::NullWidget
+			];
+		HeaderBox->AddSlot()
+			.AutoWidth()
+			.Padding(2.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.DarkGrey")
+				.HAlign(HAlign_Center)
+				.OnClicked(OnRelinkToParent)
+				.ToolTipText(LOCTEXT("RelinkToParentLayers", "Relink to Parent Layers and Blends"))
+				.Visibility(NestedTree.Get(), &SMaterialLayersFunctionsInstanceTree::GetRelinkLayersToParentVisibility)
+				.Content()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.Text(FEditorFontGlyphs::Link)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.Text(FText::FromString(FString(TEXT(" Relink"))) /*fa-filter*/)
+					]
+				]
 			];
 		HeaderBox->AddSlot()
 				.AutoWidth()

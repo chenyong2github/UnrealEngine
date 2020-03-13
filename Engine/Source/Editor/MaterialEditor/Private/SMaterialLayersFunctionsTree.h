@@ -146,6 +146,10 @@ public:
 	void ResetAssetToDefault(TSharedPtr<IPropertyHandle> InHandle, TSharedPtr<FSortedParamData> InData);
 	void AddLayer();
 	void RemoveLayer(int32 Index);
+	FReply UnlinkLayer(int32 Index);
+	FReply RelinkLayersToParent();
+	EVisibility GetUnlinkLayerVisibility(int32 Index) const;
+	EVisibility GetRelinkLayersToParentVisibility() const;
 	FReply ToggleLayerVisibility(int32 Index);
 	TSharedPtr<class FAssetThumbnailPool> GetTreeThumbnailPool();
 
