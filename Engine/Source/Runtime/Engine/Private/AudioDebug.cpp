@@ -440,7 +440,12 @@ void FAudioDebugger::ToggleNameArray(FName InName, TArray<FName>& InNameArray, b
 			{
 				InNameArray.Empty();
 			}
-			InNameArray.Add(InName);
+
+			// Allow for NAME_None to act as a clear
+			if (InName != NAME_None)
+			{
+				InNameArray.Add(InName);
+			}						
 		}
 	});
 }
