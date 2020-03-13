@@ -96,7 +96,58 @@ StructuredBuffer<FPackedHairSample> HairVisibilityNodeData;
 
 Texture3D<float4>			HairScatteringLUTTexture;
 Texture3D<float4>			HairEnergyLUTTexture;
-SamplerState 				HairLUTSampler;
+SamplerState 				HairLUTSampler; 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Debug info
+
+#if PERMUTATION_DEBUG
+#include "HairStrandsDebugCommonStruct.ush"
+
+RWStructuredBuffer<FDebugShadingInfo>	Debug_ShadingPointBuffer;
+RWBuffer<uint>							Debug_ShadingPointCounter;
+RWStructuredBuffer<FDebugSample>		Debug_SampleBuffer;
+RWBuffer<uint>							Debug_SampleCounter;
+uint									Debug_MaxShadingPointCount;
+uint									Debug_MaxSampleCount;
+
+uint AllocateSample(uint SampleCount)
+{
+}
+
+uint AddShadingPoint(const FGBufferData GB, const float3 V, uint SampleCount)
+{
+	uint SampleOffset = 0;
+	InterlockedAdd(Debug_SampleCounter[0], SampleCount, SampleOffset);
+
+	uint PointOffset = 0;
+	InterlockedAdd(Debug_ShadingPointCounter[0], 1, PointOffset);
+	if (PointOffset < Debug_MaxShadingPointCount)
+	{
+		FDebugShadingInfo Out;
+		Out.BaseColor = GB.BaseColor;
+		Out.Roughness = GB.Roughness;
+		Out.V = V;
+		Out.T = GB.WorldNormal;
+		Out.SampleCount = SampleCount;
+		Out.SampleOffset = SampleOffset;
+		Debug_ShadingPointBuffer[PointOffset] = Out;
+	}
+
+	return SampleOffset;
+}
+
+void AddSample(uint SampleOffset, uint SampleIt, const float3 D, const float3 W)
+{
+	FDebugSample Out = (FDebugSample)0;
+	Out.Direction = D;
+	Out.Weight = W;
+	Out.Pdf = 1;
+	Debug_SampleBuffer[SampleOffset + SampleIt] = Out;
+}
+#endif //PERMUTATION_DEBUG
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 float HairDistanceThreshold;
 uint bHairUseViewHairCount;
@@ -165,9 +216,9 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	const uint2  PixelPosition	= SvPosition - ResolvedView.ViewRectMin.xy;
 	const float  PixelSceneDepth= GBuffer.Depth;
 
+	const float VoxelMaxSize = VirtualVoxel.VoxelWorldSize;
 	const uint PrimitiveIdMod8 = (PrimitiveId % 8);
-	const float  VoxelMaxSize = VirtualVoxel.VoxelWorldSize;
-	const float3 VoxelOffset = VoxelMaxSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + PrimitiveIdMod8);
+	const float3 VoxelOffset =  GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + PrimitiveIdMod8);
 
 	const float3 V = -CameraToPixel;
 	const float3 T = GBuffer.WorldNormal;
@@ -496,8 +547,14 @@ float3 ReflectionEnvironmentUniformSampling(
 	const uint2  PixelPosition = SvPosition - ResolvedView.ViewRectMin.xy;
 	const float  PixelSceneDepth = GBuffer.Depth;
 
+#if VOXEL_TRAVERSAL_TYPE != VOXEL_TRAVERSAL_LEGACY
+	const float3 VoxelSize = VirtualVoxel.VoxelWorldSize; // Use the correct voxel size when we use virtual voxel volume.
+#else
+	const float3 VoxelSize = (Voxel_MaxAABB - Voxel_MinAABB) / Voxel_Resolution;
+#endif
+
 	const uint PrimitiveIdMod8 = (PrimitiveId % 8);
-	const float  VoxelMaxSize = VirtualVoxel.VoxelWorldSize;
+	const float VoxelMaxSize = VirtualVoxel.VoxelWorldSize;
 	const float3 VoxelOffset = VoxelMaxSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + PrimitiveIdMod8);
 
 	const float3 V = -CameraToPixel;
@@ -539,6 +596,14 @@ float3 ReflectionEnvironmentUniformSampling(
 			InterleavedGradientNoise(SvPosition, PrimitiveIdMod8 * 7));
 	}
 
+	#if PERMUTATION_DEBUG
+	uint SampleOffset = 0;
+	if (bDebugEnabled)
+	{
+		SampleOffset = AddShadingPoint(GBuffer, V, SampleCount);
+	}
+	#endif
+
 	float3 AccLighting = 0;
 	for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 	{
@@ -554,6 +619,13 @@ float3 ReflectionEnvironmentUniformSampling(
 
 		const float3 SampleL = UniformSampleSphere(frac(Rand2)).xyz;
 		const float3 SampleLightPosition = WorldPosition + SampleL * MaxSearchDistance;
+
+		#if PERMUTATION_DEBUG
+		if (bDebugEnabled)
+		{
+			AddSample(SampleOffset, SampleIt, SampleL, 1);
+		}
+		#endif
 
 		const float SinLightAngle = dot(SampleL, T);
 		const FHairTraversalResult Result = InternalComputeHairCountVoxel(
@@ -588,6 +660,13 @@ float3 ReflectionEnvironmentUniformSampling(
 			Result.Visibility * 
 			PreExposure * 
 			GatherRadiance(SampleL, 0.1f, PixelPosition, PixelSceneDepth, WorldPosition);
+
+		#if PERMUTATION_DEBUG
+		if (bDebugEnabled)
+		{
+			AddLine(SampleWorldPosition, SampleLightPosition, float4(1, 0, 1, 1), float4(1, 0, 1, 1));
+		}
+		#endif
 	}
 	const float SphereInt = 4 * PI;
 	const float3 Color = SphereInt * AccLighting / SampleCount;
@@ -707,6 +786,12 @@ void MainPS(
 	GBuffer.CustomData = float4(HairDualScatteringRoughnessOverride, 0, Sample.Backlit, 0);
 	GBuffer.IndirectIrradiance = 1000000;
 
+#if PERMUTATION_DEBUG
+	const bool bDebugEnabled = all(int2(PixelCoord) == GetCursorPos());
+#else
+	const bool bDebugEnabled = false;
+#endif
+
 	const bool bIsMacroGroupCompatible = Sample.MacroGroupId == Voxel_MacroGroupId;
 #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SCENECOLOR
 	const bool bEnabled = Sample.bScatterSceneLighting;
@@ -722,7 +807,7 @@ void MainPS(
 		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_ADHOC
 			ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId);
 		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_UNIFORM
-			ReflectionEnvironmentUniformSampling(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, false);
+			ReflectionEnvironmentUniformSampling(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, bDebugEnabled);
 		#endif
 
 		const float SampleCoverage = saturate(From8bitCoverage(Sample.Coverage8bit));
