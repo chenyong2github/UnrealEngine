@@ -84,6 +84,11 @@ public:
 		return Handle;
 	}
 
+	const FParticleHandle* GetHandle() const
+	{
+		return Handle;
+	}
+
 	virtual void* GetHandleUnsafe() const override
 	{
 		return Handle;
@@ -142,6 +147,11 @@ public:
 	void ClearEvents();
 
 	PARTICLE_TYPE* GetParticle()
+	{
+		return Particle;
+	}
+
+	const PARTICLE_TYPE* GetParticle() const
 	{
 		return Particle;
 	}

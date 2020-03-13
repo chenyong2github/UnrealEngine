@@ -41,6 +41,113 @@ namespace Chaos
 			}
 		}
 	};
+
+	class FDirtySet
+	{
+	public:
+		void Add(IPhysicsProxyBase* Base)
+		{
+			if(Base->GetDirtyIdx() == INDEX_NONE)
+			{
+				const int32 Idx = ProxiesData.Num();
+				Base->SetDirtyIdx(Idx);
+				ProxiesData.Add(Base);
+			}
+		}
+
+		void Remove(IPhysicsProxyBase* Base)
+		{
+			const int32 Idx = Base->GetDirtyIdx();
+			if(Idx != INDEX_NONE)
+			{
+				if(Idx == ProxiesData.Num() - 1)
+				{
+					//last element so just pop
+					ProxiesData.Pop(/*bAllowShrinking=*/false);
+				} else
+				{
+					//update other proxy's idx
+					ProxiesData.RemoveAtSwap(Idx);
+					ProxiesData[Idx].SetDirtyIdx(Idx);
+				}
+
+				Base->ResetDirtyIdx();
+			}
+		}
+
+		void Reset()
+		{
+			ProxiesData.Reset();
+			ShapesData.Reset();
+		}
+
+		int32 NumDirtyProxies() const { return ProxiesData.Num(); }
+		int32 NumDirtyShapes() const { return ShapesData.Num(); }
+
+		FShapeDirtyData* GetShapesDirtyData(){ return ShapesData.GetData(); }
+
+		template <typename Lambda>
+		void ParallelForEachProxy(const Lambda& Func)
+		{
+			::ParallelFor(ProxiesData.Num(),[this,&Func](int32 Idx)
+			{
+				Func(Idx,ProxiesData[Idx]);
+			});
+		}
+
+		template <typename Lambda>
+		void ParallelForEachProxy(const Lambda& Func) const
+		{
+			::ParallelFor(ProxiesData.Num(),[this,&Func](int32 Idx)
+			{
+				Func(Idx,ProxiesData[Idx]);
+			});
+		}
+
+		template <typename Lambda>
+		void ForEachProxy(const Lambda& Func)
+		{
+			int32 Idx = 0;
+			for(FDirtyProxy& Dirty : ProxiesData)
+			{
+				Func(Idx++,Dirty);
+			}
+		}
+
+		void AddShape(IPhysicsProxyBase* Proxy,int32 ShapeIdx)
+		{
+			Add(Proxy);
+			FDirtyProxy& Dirty = ProxiesData[Proxy->GetDirtyIdx()];
+			for(int32 NewShapeIdx = Dirty.ShapeDataIndices.Num(); NewShapeIdx <= ShapeIdx; ++NewShapeIdx)
+			{
+				const int32 ShapeDataIdx = ShapesData.Add(FShapeDirtyData(NewShapeIdx));
+				Dirty.AddShape(ShapeDataIdx);
+			}
+		}
+
+		void SetNumDirtyShapes(IPhysicsProxyBase* Proxy,int32 NumShapes)
+		{
+			Add(Proxy);
+			FDirtyProxy& Dirty = ProxiesData[Proxy->GetDirtyIdx()];
+
+			if(NumShapes < Dirty.ShapeDataIndices.Num())
+			{
+				Dirty.ShapeDataIndices.SetNum(NumShapes);
+			} else
+			{
+				for(int32 NewShapeIdx = Dirty.ShapeDataIndices.Num(); NewShapeIdx < NumShapes; ++NewShapeIdx)
+				{
+					const int32 ShapeDataIdx = ShapesData.Add(FShapeDirtyData(NewShapeIdx));
+					Dirty.AddShape(ShapeDataIdx);
+				}
+			}
+		}
+
+	private:
+		TArray<FDirtyProxy> ProxiesData;
+		TArray<FShapeDirtyData> ShapesData;
+	};
+
 	class CHAOS_API FPhysicsSolverBase
 	{
 	public:
@@ -92,105 +199,6 @@ namespace Chaos
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
 		EMultiBufferMode BufferMode;
-
-		class FDirtySet
-		{
-		public:
-			void Add(IPhysicsProxyBase* Base)
-			{
-				if(Base->GetDirtyIdx() == INDEX_NONE)
-				{
-					const int32 Idx = ProxiesData.Num();
-					Base->SetDirtyIdx(Idx);
-					ProxiesData.Add(Base);
-				}
-			}
-
-			void Remove(IPhysicsProxyBase* Base)
-			{
-				const int32 Idx = Base->GetDirtyIdx();
-				if(Idx != INDEX_NONE)
-				{
-					if(Idx == ProxiesData.Num() - 1)
-					{
-						//last element so just pop
-						ProxiesData.Pop(/*bAllowShrinking=*/false);
-					}
-					else
-					{
-						//update other proxy's idx
-						ProxiesData.RemoveAtSwap(Idx);
-						ProxiesData[Idx].SetDirtyIdx(Idx);
-					}
-
-					Base->ResetDirtyIdx();
-				}
-			}
-
-			void Reset()
-			{
-				ProxiesData.Reset();
-				ShapesData.Reset();
-			}
-
-			int32 NumDirtyProxies() const { return ProxiesData.Num(); }
-			int32 NumDirtyShapes() const { return ShapesData.Num(); }
-
-			FShapeDirtyData* GetShapesDirtyData(){ return ShapesData.GetData(); }
-
-			template <typename Lambda>
-			void ParallelForEachProxy(const Lambda& Func)
-			{
-				::ParallelFor(ProxiesData.Num(),[this,&Func](int32 Idx)
-				{
-					Func(Idx,ProxiesData[Idx]);
-				});
-			}
-
-			template <typename Lambda>
-			void ForEachProxy(const Lambda& Func)
-			{
-				int32 Idx = 0;
-				for(FDirtyProxy& Dirty : ProxiesData)
-				{
-					Func(Idx++, Dirty);
-				}
-			}
-
-			void AddShape(IPhysicsProxyBase* Proxy, int32 ShapeIdx)
-			{
-				Add(Proxy);
-				FDirtyProxy& Dirty = ProxiesData[Proxy->GetDirtyIdx()];
-				for(int32 NewShapeIdx = Dirty.ShapeDataIndices.Num(); NewShapeIdx <= ShapeIdx; ++NewShapeIdx)
-				{
-					const int32 ShapeDataIdx = ShapesData.Add(FShapeDirtyData(NewShapeIdx));
-					Dirty.AddShape(ShapeDataIdx);
-				}
-			}
-
-			void SetNumDirtyShapes(IPhysicsProxyBase* Proxy,int32 NumShapes)
-			{
-				Add(Proxy);
-				FDirtyProxy& Dirty = ProxiesData[Proxy->GetDirtyIdx()];
-				
-				if(NumShapes < Dirty.ShapeDataIndices.Num())
-				{
-					Dirty.ShapeDataIndices.SetNum(NumShapes);
-				}
-				else
-				{
-					for(int32 NewShapeIdx = Dirty.ShapeDataIndices.Num(); NewShapeIdx < NumShapes; ++NewShapeIdx)
-					{
-						const int32 ShapeDataIdx = ShapesData.Add(FShapeDirtyData(NewShapeIdx));
-						Dirty.AddShape(ShapeDataIdx);
-					}
-				}
-			}
-
-		private:
-			TArray<FDirtyProxy> ProxiesData;
-			TArray<FShapeDirtyData> ShapesData;
-		};
 
 		/** Protected construction so callers still have to go through the module to create new instances */
 		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn, UObject* InOwner)
