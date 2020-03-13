@@ -20,6 +20,7 @@ public:
 
 	virtual void AllocateDefaultPins() override;
 
+	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 	virtual bool IsPinNameEditable(const UEdGraphPin* GraphPinObj) const override;
 	virtual bool IsPinNameEditableUponCreation(const UEdGraphPin* GraphPinObj) const override;
 	virtual void RemoveDynamicPin(UEdGraphPin* Pin) override;
