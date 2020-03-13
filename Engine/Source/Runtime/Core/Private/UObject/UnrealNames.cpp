@@ -2165,7 +2165,24 @@ FString FName::SafeString(FNameEntryId InDisplayIndex, int32 InstanceNumber)
 	return FName(InDisplayIndex, InDisplayIndex, InstanceNumber).ToString();
 }
 
+bool FName::IsValidXName(const FName InName, const FString& InInvalidChars, FText* OutReason, const FText* InErrorCtx)
+{
+	TStringBuilder<FName::StringBufferSize> NameStr;
+	InName.ToString(NameStr);
+	return IsValidXName(FStringView(NameStr), InInvalidChars, OutReason, InErrorCtx);
+}
+
+bool FName::IsValidXName(const TCHAR* InName, const FString& InInvalidChars, FText* OutReason, const FText* InErrorCtx)
+{
+	return IsValidXName(FStringView(InName), InInvalidChars, OutReason, InErrorCtx);
+}
+
 bool FName::IsValidXName(const FString& InName, const FString& InInvalidChars, FText* OutReason, const FText* InErrorCtx)
+{
+	return IsValidXName(FStringView(InName), InInvalidChars, OutReason, InErrorCtx);
+}
+
+bool FName::IsValidXName(const FStringView& InName, const FString& InInvalidChars, FText* OutReason, const FText* InErrorCtx)
 {
 	if (InName.IsEmpty() || InInvalidChars.IsEmpty())
 	{
@@ -2177,7 +2194,8 @@ bool FName::IsValidXName(const FString& InName, const FString& InInvalidChars, F
 	TSet<TCHAR> AlreadyMatchedInvalidChars;
 	for (const TCHAR InvalidChar : InInvalidChars)
 	{
-		if (!AlreadyMatchedInvalidChars.Contains(InvalidChar) && InName.GetCharArray().Contains(InvalidChar))
+		int32 InvalidCharIndex = INDEX_NONE;
+		if (!AlreadyMatchedInvalidChars.Contains(InvalidChar) && InName.FindChar(InvalidChar, InvalidCharIndex))
 		{
 			MatchedInvalidChars.AppendChar(InvalidChar);
 			AlreadyMatchedInvalidChars.Add(InvalidChar);

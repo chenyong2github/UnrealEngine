@@ -596,7 +596,10 @@ public:
 	 *
 	 * @return	true if the name is valid
 	 */
+	static bool IsValidXName( const FName InName, const FString& InInvalidChars, FText* OutReason = nullptr, const FText* InErrorCtx = nullptr );
+	static bool IsValidXName( const TCHAR* InName, const FString& InInvalidChars, FText* OutReason = nullptr, const FText* InErrorCtx = nullptr );
 	static bool IsValidXName( const FString& InName, const FString& InInvalidChars, FText* OutReason = nullptr, const FText* InErrorCtx = nullptr );
+	static bool IsValidXName( const FStringView& InName, const FString& InInvalidChars, FText* OutReason = nullptr, const FText* InErrorCtx = nullptr );
 
 	/**
 	 * Checks to see that a FName follows the rules that Unreal requires.
@@ -609,7 +612,7 @@ public:
 	 */
 	bool IsValidXName( const FString& InInvalidChars = INVALID_NAME_CHARACTERS, FText* OutReason = nullptr, const FText* InErrorCtx = nullptr ) const
 	{
-		return IsValidXName(ToString(), InInvalidChars, OutReason, InErrorCtx);
+		return IsValidXName(*this, InInvalidChars, OutReason, InErrorCtx);
 	}
 
 	/**
@@ -622,7 +625,7 @@ public:
 	 */
 	bool IsValidXName( FText& OutReason, const FString& InInvalidChars = INVALID_NAME_CHARACTERS ) const
 	{
-		return IsValidXName(ToString(), InInvalidChars, &OutReason);
+		return IsValidXName(*this, InInvalidChars, &OutReason);
 	}
 
 	/**
@@ -634,7 +637,7 @@ public:
 	 */
 	bool IsValidObjectName( FText& OutReason ) const
 	{
-		return IsValidXName(ToString(), INVALID_OBJECTNAME_CHARACTERS, &OutReason);
+		return IsValidXName(*this, INVALID_OBJECTNAME_CHARACTERS, &OutReason);
 	}
 
 	/**
@@ -647,7 +650,7 @@ public:
 	 */
 	bool IsValidGroupName( FText& OutReason, bool bIsGroupName=false ) const
 	{
-		return IsValidXName(ToString(), INVALID_LONGPACKAGE_CHARACTERS, &OutReason);
+		return IsValidXName(*this, INVALID_LONGPACKAGE_CHARACTERS, &OutReason);
 	}
 
 	/**
