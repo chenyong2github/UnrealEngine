@@ -87,8 +87,8 @@ namespace Chaos
 	}
 
 	
-	// This function will be faster if bNegativePenetrationSupport is false, so don't use the feature if not required
-	template <bool bNegativePenetrationSupport = false, typename T, typename TGeometryA, typename TGeometryB>
+	// This function will be faster if bNegativePenetrationAllowed is false, so don't use the feature if not required
+	template <bool bNegativePenetrationAllowed = false, typename T, typename TGeometryA, typename TGeometryB>
 	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, int32* OutNumIterations = nullptr)
 	{
 		auto SupportAFunc = [&A](const TVec3<T>& V)
@@ -139,7 +139,7 @@ namespace Chaos
 			const TVector<T, 3> SupportB = SupportBFunc(V);
 			const TVector<T, 3> W = SupportA - SupportB;
 
-			if (!bNegativePenetrationSupport && TVector<T, 3>::DotProduct(V, W) > Inflation)
+			if (!bNegativePenetrationAllowed && TVector<T, 3>::DotProduct(V, W) > Inflation)
 			{
 				return false;
 			}
@@ -189,7 +189,7 @@ namespace Chaos
 			const T PreDist = FMath::Sqrt(PrevDist2);
 			OutNormal = (ClosestBInA - ClosestA).GetUnsafeNormal();	//Note1: should we just use PreDist2? //Note2: we can just use -V.GetUnsafeNormal() here instead if it improves accuracy
 			T Penetration = ThicknessA + ThicknessB - PreDist;
-			if (!bNegativePenetrationSupport)
+			if (!bNegativePenetrationAllowed)
 			{
 				if (Penetration < 0.0f) return false;
 			}
