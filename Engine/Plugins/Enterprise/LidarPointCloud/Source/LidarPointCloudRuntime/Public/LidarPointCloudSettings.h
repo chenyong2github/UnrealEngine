@@ -122,10 +122,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Debug)
 	bool bUseIOCaching;
 
-	/** Enabling this will cause Structure and Index buffers to write to the log file anytime they are resized. */
-	UPROPERTY(config, EditAnywhere, Category=Debug)
-	bool bLogBufferExpansion;
-
 public:
 	ULidarPointCloudSettings();
 };
