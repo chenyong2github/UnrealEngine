@@ -276,6 +276,8 @@ public:
 
 	/** Temp data used in NiagaraEmitterInstanceBatcher::ExecuteAll() to avoid creating a map per FNiagaraComputeExecutionContext */
 	mutable int32 ScratchIndex = INDEX_NONE;
+	mutable uint32 ScratchNumInstances = 0;
+	mutable uint32 ScratchMaxInstances = 0;
 
 	TArray < FSimulationStageMetaData> SimStageInfo;
 
