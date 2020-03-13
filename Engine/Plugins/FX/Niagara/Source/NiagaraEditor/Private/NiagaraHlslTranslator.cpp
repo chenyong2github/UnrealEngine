@@ -3757,7 +3757,15 @@ void FHlslNiagaraTranslator::Output(UNiagaraNodeOutput* OutputNode, const TArray
 
 	// Build up the attribute list. We don't auto-expand parameter maps here.
 	TArray<FNiagaraVariable> Outputs = OutputNode->GetOutputs();
-	check(ComputedInputs.Num() == Outputs.Num());
+	int32 NumberOfValidComputedInputs = 0;
+	for (int32 ComputedInput : ComputedInputs)
+	{
+		if (ComputedInput != INDEX_NONE)
+		{
+			NumberOfValidComputedInputs++;
+		}
+	}
+	check(NumberOfValidComputedInputs == Outputs.Num());
 	for (int32 PinIdx = 0; PinIdx < Outputs.Num(); PinIdx++)
 	{
 		Attributes.Add(Outputs[PinIdx]);

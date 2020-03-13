@@ -136,7 +136,6 @@ public:
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 protected:
 
-	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const;
 	virtual bool GetValidateDataInterfaces() const { return true; };
 
 	virtual bool AllowDynamicPins() const override { return false; }

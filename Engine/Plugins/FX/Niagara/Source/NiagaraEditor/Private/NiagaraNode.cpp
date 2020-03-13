@@ -271,6 +271,11 @@ int32 UNiagaraNode::CompileInputPin(FHlslNiagaraTranslator *Translator, UEdGraph
 	return Translator->CompilePin(Pin);
 }
 
+bool UNiagaraNode::IsValidPinToCompile(UEdGraphPin* Pin) const 
+{ 
+	return Pin->bOrphanedPin == false;
+}
+
 bool UNiagaraNode::CompileInputPins(FHlslNiagaraTranslator *Translator, TArray<int32>& OutCompiledInputs)
 {
 	bool bError = false;
