@@ -36,6 +36,8 @@ private:
 	void Tick_DatabaseOperationThread();
 
 private:
+	void InternalStart();
+
 	void OnAssetAdded(const FAssetData& InAssetData);
 	void OnAssetRemoved(const FAssetData& InAssetData);
 	void OnAssetScanFinished();
@@ -56,6 +58,9 @@ private:
 
 	void AsyncMainThreadTask(TFunction<void()> Task);
 	void ProcessGameThreadTasks();
+
+private:
+	bool bStarted = false;
 
 private:
 	FFileInfoDatabase FileInfoDatabase;

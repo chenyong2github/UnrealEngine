@@ -41,6 +41,7 @@ public:
 private:
 
 	FText GetStatusText() const;
+	FText GetAdvancedStatus() const;
 	FText GetUnindexedAssetsText() const;
 
 	void HandleForceIndexOfAssetsMissingIndex();

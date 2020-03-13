@@ -15,5 +15,8 @@ public:
 	virtual void IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const override;
 
 private:
+	void IndexClassDefaultObject(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const;
+	void IndexComponents(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const;
+	void IndexGraphs(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const;
 	void IndexMemberReference(FSearchSerializer& Serializer, const FMemberReference& MemberReference, const FString& MemberType) const;
 };
