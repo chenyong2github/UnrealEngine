@@ -37,7 +37,7 @@ FString FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(const E
 		return PARAM_MAP_OUTPUT_MODULE_STR;
 		break;
 	case ENiagaraParameterScope::Local:
-		return PARAM_MAP_LOCAL_STR;
+		return PARAM_MAP_LOCAL_MODULE_STR;
 		break;
 	default:
 		checkf(false, TEXT("Unhandled parameter scope encountered!"));

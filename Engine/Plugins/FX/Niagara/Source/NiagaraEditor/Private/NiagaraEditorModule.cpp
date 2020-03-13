@@ -1030,7 +1030,8 @@ void FNiagaraEditorModule::StartupModule()
 	RegisterParameterScopeInfo(FNiagaraConstants::LocalNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Local, PARAM_MAP_LOCAL_MODULE_STR));
 	RegisterParameterScopeInfo(FNiagaraConstants::ScriptPersistentScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::ScriptPersistent, PARAM_MAP_SCRIPT_PERSISTENT_STR));
 	RegisterParameterScopeInfo(FNiagaraConstants::ScriptTransientScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::ScriptTransient, PARAM_MAP_SCRIPT_TRANSIENT_STR));
-	RegisterParameterScopeInfo(FNiagaraConstants::OutputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Output, PARAM_MAP_OUTPUT_MODULE_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::OutputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Output, PARAM_MAP_OUTPUT_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::UniqueOutputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Output, PARAM_MAP_OUTPUT_MODULE_STR));
 	RegisterParameterScopeInfo(FNiagaraConstants::CustomScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Custom, FString()));
 }
 
