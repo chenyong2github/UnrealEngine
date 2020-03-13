@@ -1927,6 +1927,7 @@ void FShaderCodeLibrary::InitForRuntime(EShaderPlatform ShaderPlatform)
 		}
 		else
 		{
+			Shutdown();
 #if !WITH_EDITOR
 			if (FPlatformProperties::SupportsWindowedMode())
 			{
@@ -1941,9 +1942,8 @@ void FShaderCodeLibrary::InitForRuntime(EShaderPlatform ShaderPlatform)
 			{
 				UE_LOG(LogShaderLibrary, Fatal, TEXT("Failed to initialize ShaderCodeLibrary required by the project because part of the Global shader library is missing from %s."), *FPaths::ProjectContentDir());
 			}
-#endif
-			Shutdown();
 			FPlatformMisc::RequestExit(true);
+#endif // !WITH_EDITOR	
 		}
 	}
 }
