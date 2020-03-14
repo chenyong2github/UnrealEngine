@@ -61,21 +61,36 @@ extern int32 GbEnableMinimalGPUBuffers;
 struct FNiagaraRendererVariableInfo
 {
 	FNiagaraRendererVariableInfo()
-		: DatasetOffset(INDEX_NONE), GPUBufferOffset(INDEX_NONE), NumComponents(0), bUpload(true)
+		: DatasetOffset(INDEX_NONE), GPUBufferOffset(INDEX_NONE), NumComponents(0), bUpload(true), bHalfType(false)
 	{
 	}
 	
-	FNiagaraRendererVariableInfo(int32 InDatasetOffset, int32 InGPUBufferOffset, int32 InNumComponents, bool InbUpload)
-		: DatasetOffset(InDatasetOffset), GPUBufferOffset(InGPUBufferOffset), NumComponents(InNumComponents), bUpload(InbUpload)
+	FNiagaraRendererVariableInfo(int32 InDatasetOffset, int32 InGPUBufferOffset, int32 InNumComponents, bool InbUpload, bool bInHalfType)
+		: DatasetOffset(InDatasetOffset), GPUBufferOffset(InGPUBufferOffset), NumComponents(InNumComponents), bUpload(InbUpload), bHalfType(bInHalfType)
 	{
 	}
 
-	FORCEINLINE int32 GetGPUOffset()const { return GbEnableMinimalGPUBuffers ? GPUBufferOffset : DatasetOffset; }
+	FORCEINLINE int32 GetGPUOffset()const 
+	{ 
+		int32 Offset = GbEnableMinimalGPUBuffers ? GPUBufferOffset : DatasetOffset;
+		if (bHalfType)
+		{
+			Offset |= 1 << 31;
+		}
+		return Offset;
+	}
 
 	int32 DatasetOffset;
 	int32 GPUBufferOffset;
 	int32 NumComponents;
 	bool bUpload;
+	bool bHalfType;
+};
+
+struct FParticleRenderData
+{
+	FGlobalDynamicReadBuffer::FAllocation FloatData;
+	FGlobalDynamicReadBuffer::FAllocation HalfData;
 };
 
 /**
@@ -123,6 +138,7 @@ public:
 	NIAGARA_API static FRHIShaderResourceView* GetDummyUIntBuffer();
 	NIAGARA_API static FRHIShaderResourceView* GetDummyUInt4Buffer();
 	NIAGARA_API static FRHIShaderResourceView* GetDummyTextureReadBuffer2D();
+	NIAGARA_API static FRHIShaderResourceView* GetDummyHalfBuffer();
 
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 
@@ -150,10 +166,11 @@ protected:
 	virtual int32 GetMaxIndirectArgs() const { return 1; }
 
 	bool SetVertexFactoryVariable(const FNiagaraDataSet& DataSet, const FNiagaraVariable& Var, int32 VFVarOffset);
-	FGlobalDynamicReadBuffer::FAllocation TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, FNiagaraDataBuffer* SrcData)const;
+	FParticleRenderData TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, FNiagaraDataBuffer* SrcData)const;
 	
 	mutable TArray<FNiagaraRendererVariableInfo, TInlineAllocator<16>> VFVariables;
-	int32 TotalVFComponents;
+	int32 TotalVFHalfComponents;
+	int32 TotalVFFloatComponents;
 
 	/** Cached array of materials used from the properties data. Validated with usage flags etc. */
 	TArray<UMaterialInterface*> BaseMaterials_GT;
