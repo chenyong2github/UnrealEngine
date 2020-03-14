@@ -14,34 +14,23 @@ USoundEffectPreset::USoundEffectPreset(const FObjectInitializer& ObjectInitializ
 
 }
 
-USoundEffectPreset::~USoundEffectPreset()
-{
-}
-
-void USoundEffectPreset::EffectCommand(TFunction<void()> Command)
-{
-	IterateEffects<FSoundEffectBase>([Command](FSoundEffectBase& Instance)
-	{
-		Instance.EffectCommand(Command);
-	});
-}
-
 void USoundEffectPreset::Update()
 {
 	for (int32 i = Instances.Num() - 1; i >= 0; --i)
 	{
-		if (!Instances[i] || Instances[i]->GetPreset() == nullptr)
+		TSoundEffectPtr EffectSharedPtr = Instances[i].Pin();
+		if (!EffectSharedPtr.IsValid() || EffectSharedPtr->GetPreset() == nullptr)
 		{
-			Instances.RemoveAtSwap(i, 1, false /* bAllowShrinking */);
+			Instances.RemoveAtSwap(i, 1);
 		}
 		else
 		{
-			Instances[i]->SetPreset(this);
+			RegisterInstance(*this, EffectSharedPtr);
 		}
 	}
 }
 
-void USoundEffectPreset::AddEffectInstance(FSoundEffectBase* InSource)
+void USoundEffectPreset::AddEffectInstance(TSoundEffectPtr& InEffectPtr)
 {
 	if (!bInitialized)
 	{
@@ -52,7 +41,7 @@ void USoundEffectPreset::AddEffectInstance(FSoundEffectBase* InSource)
 		OnInit();
 	}
 
-	Instances.AddUnique(InSource);
+	Instances.AddUnique(TSoundEffectWeakPtr(InEffectPtr));
 }
 
 void USoundEffectPreset::AddReferencedEffects(FReferenceCollector& InCollector)
@@ -60,28 +49,27 @@ void USoundEffectPreset::AddReferencedEffects(FReferenceCollector& InCollector)
 	FReferenceCollector* Collector = &InCollector;
 	IterateEffects<FSoundEffectBase>([Collector](FSoundEffectBase& Instance)
 	{
-		const USoundEffectPreset* EffectPreset = Instance.GetPreset();
-		Collector->AddReferencedObject(EffectPreset);
+		if (const USoundEffectPreset* EffectPreset = Instance.GetPreset())
+		{
+			Collector->AddReferencedObject(EffectPreset);
+		}
 	});
 }
 
 void USoundEffectPreset::BeginDestroy()
 {
-	if (!GExitPurge)
+	IterateEffects<FSoundEffectBase>([](FSoundEffectBase& Instance)
 	{
-		IterateEffects<FSoundEffectBase>([](FSoundEffectBase& Instance)
-		{
-			Instance.ClearPreset(false /* bRemoveFromPreset */);
-		});
-	}
+		Instance.ClearPreset();
+	});
 	Instances.Reset();
 
 	Super::BeginDestroy();
 }
 
-void USoundEffectPreset::RemoveEffectInstance(FSoundEffectBase* InSource)
+void USoundEffectPreset::RemoveEffectInstance(TSoundEffectPtr& InEffectPtr)
 {
-	Instances.RemoveSwap(InSource);
+	Instances.RemoveSwap(TSoundEffectWeakPtr(InEffectPtr));
 }
 
 #if WITH_EDITORONLY_DATA

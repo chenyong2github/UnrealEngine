@@ -110,7 +110,8 @@ class SYNTHESIS_API FSubmixEffectTapDelay : public FSoundEffectSubmix
 {
 public:
 	FSubmixEffectTapDelay();
-	~FSubmixEffectTapDelay();
+
+	virtual ~FSubmixEffectTapDelay() = default;
 
 	//~ Begin FSoundEffectSubmix
 	virtual void Init(const FSoundEffectSubmixInitData& InData) override;

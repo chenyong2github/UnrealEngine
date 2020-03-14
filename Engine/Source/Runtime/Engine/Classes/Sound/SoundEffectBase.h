@@ -6,9 +6,12 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "HAL/ThreadSafeBool.h"
-#include "Sound/SoundEffectPreset.h"
 #include "Containers/Queue.h"
 #include "Misc/ScopeLock.h"
+
+
+// Forward Declarations
+class USoundEffectPreset;
 
 
 // The following macro code creates boiler-plate code for a sound effect preset and hides unnecessary details from user-created effects.
@@ -57,14 +60,10 @@
 		FCriticalSection SettingsCritSect; \
 		F##EFFECT_NAME##Settings SettingsCopy; \
 
-class USoundEffectPreset;
-
 class ENGINE_API FSoundEffectBase
 {
 public:
-	FSoundEffectBase();
-
-	virtual ~FSoundEffectBase();
+	virtual ~FSoundEffectBase() = default;
 
 	/** Called when the sound effect's preset changed. */
 	virtual void OnPresetChanged() {};
@@ -78,12 +77,7 @@ public:
 	/** Updates preset on audio render thread. Returns true if update processed a preset update, false if not. */
 	bool Update();
 
-	void SetPreset(USoundEffectPreset* Inpreset);
-
 	USoundEffectPreset* GetPreset();
-
-	/** Removes the instance from the preset. */
-	void ClearPreset(bool bRemoveFromPreset = true);
 
 	/** Queries if the given preset object is the uobject preset for this preset instance, i.e. the preset which spawned this effect instance. */
 	bool IsPreset(USoundEffectPreset* InPreset) const;
@@ -92,7 +86,12 @@ public:
 	void EffectCommand(TFunction<void()> Command);
 
 protected:
+	FSoundEffectBase();
 
+	/** Removes the instance from the preset. */
+	void ClearPreset();
+
+	/** Pumps messages awaiting execution on the audio render thread */
 	void PumpPendingMessages();
 
 	FCriticalSection SettingsCritSect;
@@ -104,11 +103,11 @@ protected:
 	FThreadSafeBool bIsRunning;
 	FThreadSafeBool bIsActive;
 
-	// Effect commmand queue
+	// Effect command queue
 	TQueue<TFunction<void()>> CommandQueue;
 
-	// Allow FAudioMixerSubmix to call ProcessAudio
-	friend class FMixerSubmix;
-
+	// Allow preset to re-register when editor update is requested
+	// and create effects using the templated Create call
+	friend class USoundEffectPreset;
 };
 
