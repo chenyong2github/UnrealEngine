@@ -5,6 +5,7 @@
 #include "Sound/SoundEffectSource.h"
 #include "Engine/Engine.h"
 #include "AudioDeviceManager.h"
+#include "CoreGlobals.h"
 
 USoundEffectPreset::USoundEffectPreset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -66,10 +67,13 @@ void USoundEffectPreset::AddReferencedEffects(FReferenceCollector& InCollector)
 
 void USoundEffectPreset::BeginDestroy()
 {
-	IterateEffects<FSoundEffectBase>([](FSoundEffectBase& Instance)
+	if (!GExitPurge)
 	{
-		Instance.ClearPreset(false /* bRemoveFromPreset */);
-	});
+		IterateEffects<FSoundEffectBase>([](FSoundEffectBase& Instance)
+		{
+			Instance.ClearPreset(false /* bRemoveFromPreset */);
+		});
+	}
 	Instances.Reset();
 
 	Super::BeginDestroy();
