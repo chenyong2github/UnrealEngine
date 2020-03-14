@@ -943,7 +943,8 @@ void FVulkanDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFen
 		VulkanRHI::vkGetImageSubresourceLayout(Device->GetInstanceHandle(), Texture2D->Surface.Image, &ImageSubResource, &SubResourceLayout);
 
 		int32 BitsPerPixel = (int32)GetNumBitsPerPixel(Texture2D->Surface.StorageFormat);
-		Pitch = SubResourceLayout.rowPitch / BitsPerPixel / 8;
+		int32 RowPitchBits = SubResourceLayout.rowPitch * 8;
+		Pitch = RowPitchBits / BitsPerPixel;
 	}
 
 	OutWidth = Pitch;
