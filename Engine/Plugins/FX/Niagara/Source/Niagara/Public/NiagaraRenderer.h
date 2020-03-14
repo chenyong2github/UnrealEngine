@@ -178,4 +178,3 @@ protected:
 
 	TRefCountPtr<FNiagaraGPURendererCount> NumRegisteredGPURenderers;
 };
-
