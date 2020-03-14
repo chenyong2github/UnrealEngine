@@ -668,8 +668,9 @@ public:
 		false if not.*/
 	NIAGARA_API bool SynchronizeExecutablesWithMaster(const UNiagaraScript* Script, const TMap<FString, FString>& RenameMap);
 
-	NIAGARA_API void SyncAliases(const TMap<FString, FString>& RenameMap);
+	NIAGARA_API FString GetFriendlyName() const;
 
+	NIAGARA_API void SyncAliases(const TMap<FString, FString>& RenameMap);
 #endif
 	
 	UFUNCTION()

@@ -1783,7 +1783,7 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 
 			NewResource->SetScript(this, (ERHIFeatureLevel::Type)TargetFeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, GetFullName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 			ResourceToCache = NewResource;
 
 			check(ResourceToCache);
@@ -1850,7 +1850,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 			ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
 			ScriptResource.SetScript(this, FeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, GetFullName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 
 			//if (ScriptResourcesByFeatureLevel[FeatureLevel])
 			{
@@ -1868,6 +1868,21 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 			ScriptResource.Invalidate();
 		}
 	}
+}
+
+FString UNiagaraScript::GetFriendlyName() const
+{
+	UEnum* ENiagaraScriptUsageEnum = StaticEnum<ENiagaraScriptUsage>();
+
+	UNiagaraEmitter* EmitterObject = GetTypedOuter<UNiagaraEmitter>();
+	UObject* SystemObject = EmitterObject != nullptr ? EmitterObject->GetOuter() : nullptr;
+	FString FriendlyName = FString::Printf(TEXT("%s/%s/%s"),
+		SystemObject ? *FPaths::MakeValidFileName(SystemObject->GetName()) : TEXT("UnknownSystem"),
+		EmitterObject ? *FPaths::MakeValidFileName(EmitterObject->GetUniqueEmitterName()) : TEXT("UnknownEmitter"),
+		ENiagaraScriptUsageEnum ? *FPaths::MakeValidFileName(ENiagaraScriptUsageEnum->GetNameStringByValue((int64)Usage)) : TEXT("UnknownEnum")
+	);
+
+	return FriendlyName;
 }
 
 void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
