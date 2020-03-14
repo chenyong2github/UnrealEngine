@@ -212,6 +212,13 @@ bool FSkeletalMeshMerge::FinalizeMesh()
 			Result = false;
 		}
 
+		// If in game, streaming must be disabled as there are no files to stream from.
+		// In editor, the engine can stream from the DDC and create the required files on cook.
+		if (!GIsEditor)
+		{
+			MergeMesh->NeverStream = true;
+		}
+
 		// Reinitialize the mesh's render resources.
 		MergeMesh->InitResources();
 	}

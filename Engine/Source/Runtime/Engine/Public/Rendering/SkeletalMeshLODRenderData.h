@@ -161,7 +161,7 @@ public:
 	/** Constructor (default) */
 	FSkeletalMeshLODRenderData()
 		: BuffersSize(0)
-		, bStreamedDataInlined(false)
+		, bStreamedDataInlined(true)
 		, bIsLODOptional(false)
 	{
 	}
