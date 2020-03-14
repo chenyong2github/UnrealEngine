@@ -12,6 +12,7 @@
 #include "Features/IModularFeature.h"
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
+#include "Async/TaskGraphInterfaces.h"
 
 class AZURESPATIALANCHORS_API IAzureSpatialAnchors : public IModularFeature
 {
