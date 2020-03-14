@@ -29,6 +29,8 @@ namespace Chaos
 		void Init(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
 		void Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx = 0, const int32 EndIdx = -1, const bool CullDegenerateElements=true);
 
+		void ResetAuxiliaryStructures();
+
 		/**
 		 * Returns the closed interval of the smallest vertex index used by 
 		 * this class, to the largest.
@@ -187,6 +189,21 @@ namespace Chaos
 		TArray<T> GetCurvatureOnPoints(const TArrayView<const TVector<T, 3>>& points);
 
 		/**
+		 * Get the set of point indices that live on the boundary (an edge with only 1 
+		 * coincident face).
+		 */
+		TSet<int32> GetBoundaryPoints();
+
+		/**
+		 * Find vertices that are coincident within the subset @param TestIndices 
+		 * of given coordinates @param Points, and return a correspondence mapping
+		 * from redundant vertex index to consolidated vertex index.
+		 */
+		TMap<int32, int32> FindCoincidentVertexRemappings(
+			const TArray<int32>& TestIndices,
+			const TArrayView<const TVector<T, 3>>& Points);
+
+		/**
 		 * @ret An array of vertex indices ordered from most important to least.
 		 * @param Points - point positions.
 		 * @param PointCurvatures - a per-point measure of curvature.
@@ -206,6 +223,10 @@ namespace Chaos
 
 		/** @brief Reorder vertices according to @param Order. */
 		void RemapVertices(const TArray<int32>& Order);
+		void RemapVertices(const TMap<int32, int32>& Remapping);
+
+		void RemoveDuplicateElements();
+		void RemoveDegenerateElements();
 
 		static void InitEquilateralTriangleXY(TTriangleMesh<T>& TriMesh, TParticles<T, 3>& Particles)
 		{

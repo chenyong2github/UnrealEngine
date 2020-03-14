@@ -308,8 +308,9 @@ public:
 	/**
 	* Copy attributes that match the input collection. This is a utility to easily sync collections
 	* @param InCollection - All groups from this collection found in the input will be sized accordingly
+	* @param SkipList - Group/Attrs to skip. Keys are group names, values are attributes in those groups.
 	*/
-	void CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection);
+	void CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection, const TMap<FName, TSet<FName>>* SkipList=nullptr);
 
 	/**
 	* Number of elements in a group
