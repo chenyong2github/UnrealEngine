@@ -78,22 +78,27 @@ FAssetSearchManager::FAssetSearchManager()
 FAssetSearchManager::~FAssetSearchManager()
 {
 	RunThread = false;
-	DatabaseThread->WaitForCompletion();
 
+	if (DatabaseThread)
 	{
-		FScopeLock ScopedLock(&SearchDatabaseCS);
-		FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
-		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
-		UObject::FAssetRegistryTag::OnGetExtraObjectTags.RemoveAll(this);
-
-		//FModuleManager::GetModule<FAssetRegistryModule>("AssetRegistry");
-
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		DatabaseThread->WaitForCompletion();
 	}
+
+	FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
+	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+	UObject::FAssetRegistryTag::OnGetExtraObjectTags.RemoveAll(this);
+
+	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 }
 
 void FAssetSearchManager::Start()
 {
+	// Don't start the search manager on unattended builds.
+	//if (FApp::IsUnattended())
+	//{
+	//	return;
+	//}
+
 	RegisterAssetIndexer(UDataAsset::StaticClass(), MakeUnique<FDataAssetIndexer>());
 	RegisterAssetIndexer(UDataTable::StaticClass(), MakeUnique<FDataTableIndexer>());
 	RegisterAssetIndexer(UBlueprint::StaticClass(), MakeUnique<FBlueprintIndexer>());
@@ -133,10 +138,19 @@ void FAssetSearchManager::TryConnectToDatabase()
 			LastConnectionAttempt = FPlatformTime::Seconds();
 
 			const FString SessionPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Search")));
-			if (SearchDatabase.Open(SessionPath))
+			
+			if (!FileInfoDatabase.Open(SessionPath))
 			{
-				bDatabaseOpen = true;
+				return;
 			}
+
+			if (!SearchDatabase.Open(SessionPath))
+			{
+				FileInfoDatabase.Close();
+				return;
+			}
+
+			bDatabaseOpen = true;
 		}
 	}
 }
@@ -327,10 +341,12 @@ bool FAssetSearchManager::AsyncGetDerivedDataKey(const FAssetData& InAssetData, 
 	}
 
 	UpdateOperations.Enqueue([this, InAssetData, IndexersNamesAndVersions, DDCKeyCallback]() {
-		FScopeLock ScopedLock(&SearchDatabaseCS);
-
 		FAssetFileInfo FileInfo;
-		SearchDatabase.AddOrUpdateFileInfo(InAssetData, FileInfo);
+
+		{
+			FScopeLock ScopedLock(&FileInfoDatabaseCS);
+			FileInfoDatabase.AddOrUpdateFileInfo(InAssetData, FileInfo);
+		}
 
 		if (FileInfo.Hash.IsValid())
 		{

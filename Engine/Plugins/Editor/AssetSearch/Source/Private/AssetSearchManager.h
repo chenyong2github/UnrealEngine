@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IAssetSearchModule.h"
 #include "AssetSearchDatabase.h"
+#include "FileInfoDatabase.h"
 #include "Containers/Queue.h"
 #include "HAL/Runnable.h"
 
@@ -57,6 +58,8 @@ private:
 	void ProcessGameThreadTasks();
 
 private:
+	FFileInfoDatabase FileInfoDatabase;
+	FCriticalSection FileInfoDatabaseCS;
 	FAssetSearchDatabase SearchDatabase;
 	FCriticalSection SearchDatabaseCS;
 	TAtomic<int32> PendingDatabaseUpdates;

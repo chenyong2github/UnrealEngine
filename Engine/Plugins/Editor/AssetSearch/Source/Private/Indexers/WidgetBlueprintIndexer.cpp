@@ -10,9 +10,9 @@
 
 enum class EWidgetBlueprintIndexerVersion
 {
-	Empty = 0,
-	Initial = 1,
-	FixLabels = 2,
+	Empty,
+	Initial,
+	FixLabels,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
