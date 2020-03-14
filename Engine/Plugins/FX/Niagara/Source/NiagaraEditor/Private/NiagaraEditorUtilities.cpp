@@ -2180,7 +2180,9 @@ FName FNiagaraEditorUtilities::GetScopeNameForParameterScope(ENiagaraParameterSc
 	case ENiagaraParameterScope::ScriptPersistent:
 		return FNiagaraConstants::ScriptPersistentScopeName;
 	case ENiagaraParameterScope::ScriptTransient:
-		return FNiagaraConstants::ScriptTransientScopeName;
+		return FNiagaraConstants::ScriptTransientScopeName; 
+	case ENiagaraParameterScope::Output:
+		return FNiagaraConstants::OutputScopeName;
 	default:
 		ensureMsgf(false, TEXT("Tried to get scope name for unknown parameter scope!"));
 	}
