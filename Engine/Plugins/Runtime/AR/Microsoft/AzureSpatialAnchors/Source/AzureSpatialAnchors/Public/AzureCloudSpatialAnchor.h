@@ -49,13 +49,13 @@ public:
 
 
 	/**
-	 * The Expiration time of the cloud anchor.
+	 * The Expiration time of the cloud anchor as seconds into the future.
 	 */
 	UFUNCTION(BlueprintPure, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	FDateTime GetExpiration() const;
+	float GetExpiration() const;
 	/**
-	 * Set the Expiration time of the cloud anchor.  You must call SaveCloudAnchor or UpdateCloudAnchorProperties before this will be persisted on azure.
+	 * Set the Expiration time of the cloud anchor as seconds into the future.  You must call SaveCloudAnchor or UpdateCloudAnchorProperties before this will be persisted on azure.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	void SetExpiration(const FDateTime InExpiration);
+	void SetExpiration(const float Lifetime);
 };

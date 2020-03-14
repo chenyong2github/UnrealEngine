@@ -85,13 +85,13 @@ public:
 	// * This will start a Latent Action to save the ARPin to the Azure Spatial Anchors cloud service.
 	// *
 	// * @param ARPin      The ARPin to save.
-	// * @param InMinutesFromNow      The expiration time of the cloud pin.  <= 0 means no expiration.
+	// * @param Lifetime      The lifetime time of the cloud pin in the cloud in seconds.  <= 0 means no expiration.  I would not expect expiration to be accurate to the second.
 	// * @param OutAzureCloudSpatialAnchor  The Cloud anchor handle.
 	// * @param OutResult	Result of the Save attempt.
 	// * @param OutErrorString	Additional information about the OutResult (often empty).
 	// */
 	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	static void SavePinToCloud(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, FDateTime ExpirationTime, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+	static void SavePinToCloud(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, float Lifetime, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
 
 	///**
 	// * Delete the cloud anchor in the cloud.
@@ -176,21 +176,20 @@ public:
 	//// * @param OutErrorString	Additional information about the OutResult (often empty).
 	//// */
 	//UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	//DISABLED IMPLEMENTATION NOT COMPLETE
 	//static void GetCloudAnchorProperties(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, FString CloudIdentifier, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
 
 
 	///**
-	// * Start a 'Watcher' searching for azure cloud spatial anchors as specified in the locate criteria.  Results will be returned by TODO
+	// * Create and start a 'Watcher' searching for azure cloud spatial anchors as specified in the locate criteria.  Use an AzureSpatialAnchorsEventComponent's events to get
+	// * notifications of found anchors and watcher completion.
 	// *
 	// * @param InLocateCriteria      Structure describing the watcher we wish to start.
-	// * @param OutWatcherIdentifier   The ID of the created watcher.
+	// * @param OutWatcherIdentifier   The ID of the created watcher (can be used to stop the watcher).
 	// * @param OutResult	The Result enumeration.
 	// * @param OutErrorString	Additional information about the OutResult (often empty).
 	// */
-	//UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	//DISABLED IMPLEMENTATION NOT COMPLETE
-	static void CreateWatcher(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, int32& OutWatcherIdentifier, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static void CreateWatcher(UObject* WorldContextObject, const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, int32& OutWatcherIdentifier, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
 
 
 	///**
@@ -200,8 +199,7 @@ public:
 	// *
 	// * @return (Boolean)  True if the watcher existed.  False if it did not.
 	// */
-	//UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	//DISABLED IMPLEMENTATION NOT COMPLETE
+	UFUNCTION(BlueprintCallable, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
 	static bool StopWatcher(int32 InWatcherIdentifier);
 
 	///**

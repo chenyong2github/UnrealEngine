@@ -59,6 +59,27 @@ enum class EAzureSpatialAnchorsLocateStrategy : uint8
 	Relationship = 2		// Indicates that anchors will be located primarily by relationship to other anchors.
 };
 
+// Note: this must match winrt::Microsoft::Azure::SpatialAnchors::LocateAnchorStatus
+UENUM(BlueprintType, Category = "AzureSpatialAnchors")
+enum class EAzureSpatialAnchorsLocateAnchorStatus : uint8
+{
+	AnylreadyTracked = 0,				// The anchor was already being tracked.
+	Located = 1,						// The anchor was found.
+	NotLocated = 2,						// The anchor was not found.
+	NotLocatedAnchorDoesNotExist = 3	// The anchor cannot be found - it was deleted or the identifier queried for was incorrect.
+};
+
+// Note: this must match winrt::Microsoft::Azure::SpatialAnchors::SessionUserFeedback
+UENUM(BlueprintType, Category = "AzureSpatialAnchors")
+enum class EAzureSpatialAnchorsSessionUserFeedback : uint8
+{
+	None = 0,					// No specific feedback is available.
+	NotEnoughMotion = 1,		// Device is not moving enough to create a neighborhood of key-frames.
+	MotionTooQuick = 2,			// Device is moving too quickly for stable tracking.
+	// Note: skipped 3  - presumably these values are used as bit flags somewhere?
+	NotEnoughFeatures = 4		// The environment doesn't have enough feature points for stable tracking.
+};
+
 USTRUCT(BlueprintType, Category = "AzureSpatialAnchors")
 struct FCoarseLocalizationSettings
 {

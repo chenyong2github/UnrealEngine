@@ -26,8 +26,8 @@ public:
 	virtual FString GetCloudSpatialAnchorIdentifier(UAzureCloudSpatialAnchor::AzureCloudAnchorID CloudAnchorID) override;
 	virtual bool CreateCloudAnchor(class UARPin*& InARPin, class UAzureCloudSpatialAnchor*& OutCloudAnchor) override;
 
-	virtual bool SetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const & InCloudAnchor, FDateTime InExpirationTime) override;
-	virtual FDateTime GetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const& InCloudAnchor) override;
+	virtual bool SetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const & InCloudAnchor, float Lifetime) override;
+	virtual float GetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const& InCloudAnchor) override;
 
 	virtual bool SetCloudAnchorAppProperties(const class UAzureCloudSpatialAnchor* const& InCloudAnchor, const TMap<FString, FString>& InAppProperties) override;
 	virtual TMap<FString, FString> GetCloudAnchorAppProperties(const class UAzureCloudSpatialAnchor* const& InCloudAnchor) override;
@@ -56,13 +56,17 @@ public:
 	virtual bool GetCloudAnchorPropertiesAsync_Update(class FPendingLatentAction* LatentAction, FString CloudIdentifier, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
 	virtual void GetCloudAnchorPropertiesAsync_Orphan(class FPendingLatentAction* LatentAction) override;
 
-	virtual bool CreateWatcherAsync_Start(class FPendingLatentAction* LatentAction, const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, float InWorldToMetersScale, int32& OutWatcherIdentifier, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
-	virtual bool CreateWatcherAsync_Update(class FPendingLatentAction* LatentAction, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
-	virtual void CreateWatcherAsync_Orphan(class FPendingLatentAction* LatentAction) override;
+	virtual bool CreateWatcher(const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, float InWorldToMetersScale, int32& OutWatcherIdentifier, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) override;
 
 	virtual bool StopWatcher(int32 InWatcherIdentifier) override;
 
 	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(const FString& PinId, UAzureCloudSpatialAnchor*& InAzureCloudSpatialAnchor, UARPin*& OutARPin) override;
+
+	UAzureCloudSpatialAnchor* GetOrCreateCloudAnchor(AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID);
+
+	void AnchorLocatedCallback(int32 WatcherIdentifier, int32 LocateAnchorStatus, AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID);
+	void LocateAnchorsCompletedCallback(int32 WatcherIdentifier, bool WasCanceled);
+	void SessionUpdatedCallback(float ReadyForCreateProgress, float RecommendedForCreateProgress, int SessionCreateHash, int SessionLocateHash, int32 SessionUserFeedback);
 
 protected:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
@@ -79,6 +83,8 @@ protected:
 	}
 
 private:
+	UAzureCloudSpatialAnchor* GetCloudAnchor(AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID) const;
+
 	TArray<UAzureCloudSpatialAnchor*> CloudAnchors;
 
 	// Maps of the data structs for in-progress async operations.
@@ -88,5 +94,4 @@ private:
 	TMap<class FPendingLatentAction*, AzureSpatialAnchorsInterop::UpdateCloudAnchorPropertiesAsyncDataPtr> UpdateCloudAnchorPropertiesAsyncDataMap;
 	TMap<class FPendingLatentAction*, AzureSpatialAnchorsInterop::RefreshCloudAnchorPropertiesAsyncDataPtr> RefreshCloudAnchorPropertiesAsyncDataMap;
 	TMap<class FPendingLatentAction*, AzureSpatialAnchorsInterop::GetCloudAnchorPropertiesAsyncDataPtr> GetCloudAnchorPropertiesAsyncDataMap;
-	TMap<class FPendingLatentAction*, AzureSpatialAnchorsInterop::CreateWatcherAsyncDataPtr> CreateWatcherAsyncDataMap;
 };
