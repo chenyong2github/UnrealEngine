@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Chaos/Declares.h"
-#include "Chaos/Framework/PhysicsSolverBase.h"
 #include "UObject/GCObject.h"
 
 enum class EPhysicsProxyType
@@ -18,11 +17,17 @@ enum class EPhysicsProxyType
 	SingleRigidParticleType = 7
 };
 
-class IPhysicsProxyBase
+namespace Chaos
+{
+	class FPhysicsSolverBase;
+}
+
+class CHAOS_API IPhysicsProxyBase
 {
 public:
 	IPhysicsProxyBase(EPhysicsProxyType InType)
 		: Solver(nullptr)
+		, DirtyIdx(INDEX_NONE)
 		, Type(InType)
 	{}
 
@@ -40,21 +45,21 @@ public:
 	//todo: remove this
 	virtual void* GetHandleUnsafe() const { check(false); return nullptr; }
 
+	int32 GetDirtyIdx() const { return DirtyIdx; }
+	void SetDirtyIdx(const int32 Idx) { DirtyIdx = Idx; }
+	void ResetDirtyIdx() { DirtyIdx = INDEX_NONE; }
+
 protected:
 	// Ensures that derived classes can successfully call this destructor
 	// but no one can delete using a IPhysicsProxyBase*
-	virtual ~IPhysicsProxyBase()
-	{
-		if (GetSolver<Chaos::FPhysicsSolverBase>())
-		{
-			GetSolver<Chaos::FPhysicsSolverBase>()->RemoveDirtyProxy(this);
-		}
-	}
-
+	virtual ~IPhysicsProxyBase();
 	
 	/** The solver that owns the solver object */
 	Chaos::FPhysicsSolverBase* Solver;
 
+private:
+	int32 DirtyIdx;
+protected:
 	/** Proxy type */
 	EPhysicsProxyType Type;
 };

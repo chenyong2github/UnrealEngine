@@ -324,21 +324,21 @@ void PopulateSimulatedParticle(
 		FCollisionFilterData FilterData;
 		FilterData.Word1 = 0xFFFF; // this body channel
 		FilterData.Word3 = 0xFFFF; // collision candidate channels
-		for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : Handle->ShapesArray())
+		for (const TUniquePtr<Chaos::FPerShapeData>& Shape : Handle->ShapesArray())
 		{
-			Shape->bDisable = false;
-			Shape->CollisionTraceType = Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseDefault;
+			Shape->SetDisable(false);
+			Shape->SetCollisionTraceType(Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseDefault);
 			//Shape->CollisionTraceType = Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseSimpleAndComplex;
-			Shape->SimData = FilterData;
-			Shape->QueryData = FCollisionFilterData();
+			Shape->SetSimData(FilterData);
+			Shape->SetQueryData(FCollisionFilterData());
 		}
 	}
 	else
 	{
-		for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : Handle->ShapesArray())
+		for (const TUniquePtr<Chaos::FPerShapeData>& Shape : Handle->ShapesArray())
 		{
-			Shape->SimData = SimFilterIn;
-			Shape->QueryData = QueryFilterIn;
+			Shape->SetSimData(SimFilterIn);
+			Shape->SetQueryData(QueryFilterIn);
 		}
 	}
 
@@ -538,16 +538,16 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 			P->SetX(T.GetTranslation(), false);
 			P->SetR(T.GetRotation(), false);
 			P->SetUserData(Parameters.UserData);
-			P->Proxy = this;
+			P->SetProxy(this);
 			P->SetGeometry(GameThreadCollection.Implicits[Index]);
 
-			const Chaos::TShapesArray<Chaos::FReal, 3>& Shapes = P->ShapesArray();
+			const Chaos::FShapesArray& Shapes = P->ShapesArray();
 			const int32 NumShapes = Shapes.Num();
 			for(int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 			{
-				Chaos::TPerShapeData<Chaos::FReal, 3>* Shape = Shapes[ShapeIndex].Get();
-				Shape->SimData = SimFilter;
-				Shape->QueryData = QueryFilter;
+				Chaos::FPerShapeData* Shape = Shapes[ShapeIndex].Get();
+				Shape->SetSimData(SimFilter);
+				Shape->SetQueryData(QueryFilter);
 			}
 		}
 	}

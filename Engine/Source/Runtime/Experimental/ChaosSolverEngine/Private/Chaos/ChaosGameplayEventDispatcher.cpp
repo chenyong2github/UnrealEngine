@@ -388,9 +388,9 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 		{
 			for (Chaos::TBreakingData<float, 3> const& BreakingDataItem : BreakingData)
 			{	
-				if (BreakingDataItem.Particle && (BreakingDataItem.Particle->Proxy))
+				if (BreakingDataItem.Particle && (BreakingDataItem.Particle->GetProxy()))
 				{
-					UPrimitiveComponent* const PrimComp = Cast<UPrimitiveComponent>(BreakingDataItem.Particle->Proxy->GetOwner());
+					UPrimitiveComponent* const PrimComp = Cast<UPrimitiveComponent>(BreakingDataItem.Particle->GetProxy()->GetOwner());
 					if (PrimComp && BreakEventRegistrations.Contains(PrimComp))
 					{
 						// queue them up so we can release the physics data before trigging BP events
@@ -417,7 +417,7 @@ void UChaosGameplayEventDispatcher::HandleSleepingEvents(const Chaos::FSleepingE
 
 	for (const Chaos::TSleepingData<float, 3>& SleepData : SleepingArray)
 	{
-		if (SleepData.Particle->Proxy != nullptr)
+		if (SleepData.Particle->GetProxy()!= nullptr)
 		{
 			if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(SleepData.Particle->UserData()))
 			{

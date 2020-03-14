@@ -26,10 +26,10 @@ namespace ChaosTest
 		FDirtyPropertiesManager Manager;
 
 		{
-			FParticlePropertiesData RemoteData;
-			RemoteData.Manager = &Manager;
+			FParticlePropertiesData RemoteData(&Manager);
+			FShapeRemoteDataContainer ContainerData(&Manager);
 
-			Particle->SetRemoteData(&RemoteData);
+			Particle->SetRemoteData(RemoteData, ContainerData);
 
 			//then on PushToPhysics we'd do a pointer swap and use RemoteData internally
 
@@ -48,7 +48,7 @@ namespace ChaosTest
 			EXPECT_TRUE(RemoteData.HasGeometry());
 			EXPECT_EQ(RemoteData.GetGeometry().Get(),RawPtr);
 
-			Particle->SetRemoteData(nullptr);	//disconnect remote data so we can pretend we are freeing things on GT without affecting PT
+			Particle->DetachRemoteData();	//disconnect remote data so we can pretend we are freeing things on GT without affecting PT
 
 			Particle->SetGeometry(Ptr);	//free geometry on GT side
 
