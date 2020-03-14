@@ -290,6 +290,7 @@ public:
 
 	void AddTickGroupPromotion(FNiagaraSystemInstance* Instance);
 
+	const FString& GetCrashReporterTag()const;
 protected:
 	/** Sets constant parameter values */
 	void SetupParameters_GameThread(float DeltaSeconds);
@@ -408,4 +409,6 @@ protected:
 
 	/** Current task that is executing */
 	FGraphEventRef SystemTickGraphEvent;
+
+	mutable FString CrashReporterTag;
 };

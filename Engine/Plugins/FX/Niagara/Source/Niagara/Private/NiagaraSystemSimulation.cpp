@@ -1999,6 +1999,18 @@ void FNiagaraSystemSimulation::InitParameterDataSetBindings(FNiagaraSystemInstan
 	}
 }
 
+const FString& FNiagaraSystemSimulation::GetCrashReporterTag()const
+{
+	if (CrashReporterTag.IsEmpty())
+	{
+		UNiagaraSystem* Sys = GetSystem();
+		const FString& AssetName = Sys ? Sys->GetFullName() : TEXT("nullptr");
+
+		CrashReporterTag = FString::Printf(TEXT("SystemSimulation | System: %s | bSolo: %s |"), *AssetName, bIsSolo ? TEXT("true") : TEXT("false"));
+	}
+	return CrashReporterTag;
+}
+
 void FNiagaraConstantBufferToDataSetBinding::Init(const FNiagaraSystemCompiledData& CompiledData)
 {
 	// for now we'll copy the data to our local structure so that we don't have to worry about the lifetime of the compiled data
