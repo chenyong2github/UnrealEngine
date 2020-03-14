@@ -191,6 +191,11 @@ void UNiagaraNodeParameterMapBase::SetPinName(UEdGraphPin* InPin, const FName& I
 	OnPinRenamed(InPin, OldName.ToString());
 }
 
+bool UNiagaraNodeParameterMapBase::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+{
+	return true;
+}
+
 void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName)
 {
 	RenamedPin->PinFriendlyName = FText::FromName(RenamedPin->PinName);

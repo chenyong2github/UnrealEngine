@@ -94,6 +94,9 @@ public:
 	/** Set if operation is modified by the ctrl key */
 	void SetCtrlDrag(bool InIsCtrlDrag) { bControlDrag = InIsCtrlDrag; }
 
+	/** Returns true if the drag operation is currently hovering over the supplied node */
+	bool IsCurrentlyHoveringNode(const UEdGraphNode* TestNode) const;
+
 protected:
 	/** Constructor */
 	FNiagaraParameterGraphDragOperation();

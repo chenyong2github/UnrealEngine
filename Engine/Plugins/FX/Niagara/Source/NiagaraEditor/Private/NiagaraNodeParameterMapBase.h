@@ -40,6 +40,7 @@ public:
 
 	void SetPinName(UEdGraphPin* InPin, const FName& InName);
 
+	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
 protected:
 	virtual void SelectParameterFromPin(UEdGraphPin* InPin);
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
