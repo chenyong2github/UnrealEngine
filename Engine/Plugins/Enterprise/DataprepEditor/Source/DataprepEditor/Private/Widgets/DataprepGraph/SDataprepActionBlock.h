@@ -14,15 +14,7 @@ struct FTextBlockStyle;
  */
 class SDataprepActionBlock : public SCompoundWidget
 {
-#ifndef NO_BLUEPRINT
-	SLATE_BEGIN_ARGS(SDataprepActionBlock)
-	: _IsSimplified(false)
-	{}
-
-		SLATE_ARGUMENT( bool, IsSimplified )
-#else
 	SLATE_BEGIN_ARGS(SDataprepActionBlock) {}
-#endif
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<FDataprepSchemaActionContext>& DataprepActionContext);
@@ -33,8 +25,6 @@ class SDataprepActionBlock : public SCompoundWidget
 		const FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
 		return FVector2D( FMath::Max(280.f, ChildSize.X) , ChildSize.Y );
 	}
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	// End of SWidget Interface
 
 	/**
@@ -52,15 +42,7 @@ public:
 	 */
 	virtual TSharedRef<SWidget> GetTitleWidget();
 
-#ifndef NO_BLUEPRINT
-	// Temporary boolean to indicate if the widget has been instantiated in a regular BP graph or the simplified one
-	bool bIsSimplifiedGraph;
-#endif
-
 protected:
-
-	void ConstructForSimplified();
-
 	/**
 	 * Return the block title.
 	 * This is used in the implementation of SDataprepActionBlock::GetTitleWidget

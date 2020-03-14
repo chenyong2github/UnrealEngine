@@ -6,7 +6,6 @@
 #include "DataprepAsset.h"
 #include "DataprepActionAsset.h"
 #include "DataprepEditorUtils.h"
-#include "Widgets/DataprepGraph/SGraphNodeK2DataprepAction.h"
 
 // Engine includes
 #include "BlueprintActionDatabaseRegistrar.h"
@@ -26,16 +25,16 @@
 
 const FText DataprepActionCategory( LOCTEXT( "DataprepActionK2NodeCategory", "Dataprep Action" ) );
 
-const FName UK2Node_DataprepAction::ThenPinName( TEXT("") );
-const FName UK2Node_DataprepAction::InObjectsPinName( TEXT("Objects") );
+const FName UDEPRECATED_K2Node_DataprepAction::ThenPinName( TEXT("") );
+const FName UDEPRECATED_K2Node_DataprepAction::InObjectsPinName( TEXT("Objects") );
 
-UK2Node_DataprepAction::UK2Node_DataprepAction()
+UDEPRECATED_K2Node_DataprepAction::UDEPRECATED_K2Node_DataprepAction()
 {
 	bCanRenameNode = true;
 	ActionTitle = LOCTEXT("DefaultNodeTitle", "New Action").ToString();
 }
 
-void UK2Node_DataprepAction::PostReconstructNode()
+void UDEPRECATED_K2Node_DataprepAction::PostReconstructNode()
 {
 	Super::PostReconstructNode();
 
@@ -53,7 +52,7 @@ void UK2Node_DataprepAction::PostReconstructNode()
 }
 
 
-void UK2Node_DataprepAction::AllocateDefaultPins()
+void UDEPRECATED_K2Node_DataprepAction::AllocateDefaultPins()
 {
 	// Inputs
 	CreatePin( EGPD_Input, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Execute );
@@ -89,22 +88,22 @@ void UK2Node_DataprepAction::AllocateDefaultPins()
 	Super::AllocateDefaultPins();
 }
 
-FText UK2Node_DataprepAction::GetMenuCategory() const
+FText UDEPRECATED_K2Node_DataprepAction::GetMenuCategory() const
 {
 	return DataprepActionCategory;
 }
 
-FLinearColor UK2Node_DataprepAction::GetNodeTitleColor() const
+FLinearColor UDEPRECATED_K2Node_DataprepAction::GetNodeTitleColor() const
 {
 	return FLinearColor(0.0036765f, 0.3864294f, 0.2501584);
 }
 
-FText UK2Node_DataprepAction::GetNodeTitle(ENodeTitleType::Type TitleType) const
+FText UDEPRECATED_K2Node_DataprepAction::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	return FText::FromString( ActionTitle );
 }
 
-void UK2Node_DataprepAction::OnRenameNode(const FString& NewName)
+void UDEPRECATED_K2Node_DataprepAction::OnRenameNode(const FString& NewName)
 {
 	ActionTitle = NewName;
 	if ( DataprepActionAsset )
@@ -113,7 +112,7 @@ void UK2Node_DataprepAction::OnRenameNode(const FString& NewName)
 	}
 }
 
-void UK2Node_DataprepAction::DestroyNode()
+void UDEPRECATED_K2Node_DataprepAction::DestroyNode()
 {
 	if ( DataprepActionAsset )
 	{
@@ -128,23 +127,13 @@ void UK2Node_DataprepAction::DestroyNode()
 	Super::DestroyNode();
 }
 
-void UK2Node_DataprepAction::NodeConnectionListChanged()
-{
-	FDataprepEditorUtils::NotifySystemOfChangeInPipeline( GetDataprepAction() );
-}
-
-TSharedPtr<SGraphNode> UK2Node_DataprepAction::CreateVisualWidget()
-{
-	return SNew( SGraphNodeK2DataprepAction, this );
-}
-
-TSharedPtr<class INameValidatorInterface> UK2Node_DataprepAction::MakeNameValidator() const
+TSharedPtr<class INameValidatorInterface> UDEPRECATED_K2Node_DataprepAction::MakeNameValidator() const
 {
 	// The name doesn't matter
 	return MakeShareable(new FDummyNameValidator(EValidatorResult::Ok));
 }
 
-void UK2Node_DataprepAction::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar)const
+void UDEPRECATED_K2Node_DataprepAction::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar)const
 {
 	// actions get registered under specific object-keys; the idea is that 
 	// actions might have to be updated (or deleted) if their object-key is  
@@ -162,7 +151,7 @@ void UK2Node_DataprepAction::GetMenuActions(FBlueprintActionDatabaseRegistrar& A
  
 		auto CustomizeNodeLambda = [](UEdGraphNode* NewNode, bool bIsTemplateNode)
 		{
-			UK2Node_DataprepAction* DataprepActionNode  = CastChecked<UK2Node_DataprepAction>(NewNode);
+			UDEPRECATED_K2Node_DataprepAction* DataprepActionNode  = CastChecked<UDEPRECATED_K2Node_DataprepAction>(NewNode);
  
 			UBlueprint* Blueprint = DataprepActionNode->GetBlueprint();
 			if (Blueprint && Blueprint->GeneratedClass && !bIsTemplateNode )
@@ -177,7 +166,7 @@ void UK2Node_DataprepAction::GetMenuActions(FBlueprintActionDatabaseRegistrar& A
 	}
 }
 
-void UK2Node_DataprepAction::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
+void UDEPRECATED_K2Node_DataprepAction::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
 	UK2Node_CallFunction* CallOperation = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
 	CallOperation->FunctionReference.SetExternalMember( GET_FUNCTION_NAME_CHECKED(UDataprepActionAsset, Execute), UDataprepActionAsset::StaticClass() );
@@ -196,12 +185,12 @@ void UK2Node_DataprepAction::ExpandNode(FKismetCompilerContext& CompilerContext,
 	CompilerContext.MovePinLinksToIntermediate( *CallOperation->GetThenPin(), GetOutExecutionPin() );
 }
 
-UEdGraphPin& UK2Node_DataprepAction::GetOutExecutionPin() const
+UEdGraphPin& UDEPRECATED_K2Node_DataprepAction::GetOutExecutionPin() const
 {
 	return *FindPinChecked(UEdGraphSchema_K2::PN_Then, EGPD_Output);
 }
 
-UEdGraphPin& UK2Node_DataprepAction::GetInObjectsPin() const
+UEdGraphPin& UDEPRECATED_K2Node_DataprepAction::GetInObjectsPin() const
 {
 	return *FindPinChecked( InObjectsPinName, EGPD_Input);
 }

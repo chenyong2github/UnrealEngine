@@ -194,7 +194,7 @@ void UEditorDataprepAssetLibrary::RemoveAction(UDataprepAsset* DataprepAsset, in
 {
 	if ( DataprepAsset )
 	{
-		DataprepAsset->RemoveActionUsingBP( Index );
+		DataprepAsset->RemoveAction( Index );
 	}
 	else
 	{
@@ -244,7 +244,7 @@ void UEditorDataprepAssetLibrary::SwapActions(UDataprepAsset* DataprepAsset, int
 {
 	if ( DataprepAsset )
 	{
-		DataprepAsset->SwapActionsUsingBP( FirstActionIndex, SecondActionIndex );
+		DataprepAsset->SwapActions( FirstActionIndex, SecondActionIndex );
 	}
 	else
 	{

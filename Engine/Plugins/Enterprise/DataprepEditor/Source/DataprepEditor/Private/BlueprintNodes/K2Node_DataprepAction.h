@@ -15,13 +15,13 @@ class FBlueprintActionDatabaseRegistrar;
 class UDataprepActionAsset;
 class UEdGraphPin;
 
-UCLASS(MinimalAPI)
-class UK2Node_DataprepAction : public UK2Node_DataprepActionCore
+UCLASS(MinimalAPI, Deprecated, meta = (DeprecationMessage = "No use of Blueprint with Dataprep."))
+class UDEPRECATED_K2Node_DataprepAction : public UK2Node_DataprepActionCore
 {
 	GENERATED_BODY()
 
 public:
-	UK2Node_DataprepAction();
+	UDEPRECATED_K2Node_DataprepAction();
 
 	// Begin EdGraphNode interface
 	virtual void AllocateDefaultPins() override;
@@ -30,8 +30,6 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void OnRenameNode(const FString& NewName) override;
 	virtual void DestroyNode() override;
-	virtual void NodeConnectionListChanged() override;
-	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 	TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
 	// End EdGraphNode interface
 

@@ -34,7 +34,7 @@ void SDataprepFilter::Construct(const FArguments& InArgs, UDataprepFilter& InFil
 
 	bIsPreviewed = InArgs._IsPreviewed;
 
-	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments().IsSimplified(InArgs._IsSimplified), InDataprepActionContext );
+	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments(), InDataprepActionContext );
 }
 
 void SDataprepFilter::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)

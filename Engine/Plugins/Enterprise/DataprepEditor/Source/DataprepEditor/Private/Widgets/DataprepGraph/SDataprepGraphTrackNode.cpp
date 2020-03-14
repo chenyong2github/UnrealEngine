@@ -533,34 +533,37 @@ FSlateRect SDataprepGraphTrackNode::Update()
 
 	if(SDataprepGraphTrackWidget* TrackWidget = TrackWidgetPtr.Get())
 	{
-		RefreshLayout();
-
-		SGraphPanel& GraphPanel = *OwnerGraphPanelPtr.Pin();
-
 		const FVector2D& WorkingSize = TrackWidget->WorkingSize;
-
-		// Determine canvas offset attribute in track widget's coordinates
-		const FVector2D PanelSize = GraphPanel.GetTickSpaceGeometry().GetLocalSize() / GraphPanel.GetZoomAmount();
-
 		const FVector2D TrackPosition = GetPosition().GetAbs();
-		const FVector2D TargetSize = FVector2D(FMath::Max(WorkingSize.X, PanelSize.X), FMath::Max(WorkingSize.Y, PanelSize.Y)) + TrackPosition + 20.f;
 
-		FMargin& CanvasOffset = TrackWidgetPtr->CanvasOffset;
-
-		CanvasOffset.Left = -TrackPosition.X - 10.f;
-		CanvasOffset.Top = -TrackPosition.Y - 10.f;
-
-		if(TargetSize.X > CanvasOffset.Right)
+		if(TrackWidget->DragIndicatorIndex == INDEX_NONE && !bNodeDragging)
 		{
-			CanvasOffset.Right = TargetSize.X;
-		}
+			RefreshLayout();
 
-		if(TargetSize.Y > CanvasOffset.Bottom)
-		{
-			CanvasOffset.Bottom = TargetSize.Y;
-		}
+			SGraphPanel& GraphPanel = *OwnerGraphPanelPtr.Pin();
 
-		TrackWidgetPtr->CanvasSlot->OffsetAttr.Set(CanvasOffset);
+			// Determine canvas offset attribute in track widget's coordinates
+			const FVector2D PanelSize = GraphPanel.GetTickSpaceGeometry().GetLocalSize() / GraphPanel.GetZoomAmount();
+
+			const FVector2D TargetSize = FVector2D(FMath::Max(WorkingSize.X, PanelSize.X), FMath::Max(WorkingSize.Y, PanelSize.Y)) + TrackPosition + 20.f;
+
+			FMargin& CanvasOffset = TrackWidgetPtr->CanvasOffset;
+
+			CanvasOffset.Left = -TrackPosition.X - 10.f;
+			CanvasOffset.Top = -TrackPosition.Y - 10.f;
+
+			if(TargetSize.X > CanvasOffset.Right)
+			{
+				CanvasOffset.Right = TargetSize.X;
+			}
+
+			if(TargetSize.Y > CanvasOffset.Bottom)
+			{
+				CanvasOffset.Bottom = TargetSize.Y;
+			}
+
+			TrackWidgetPtr->CanvasSlot->OffsetAttr.Set(CanvasOffset);
+		}
 
 		WorkingArea = FSlateRect(FVector2D::ZeroVector, WorkingSize + TrackPosition);
 	}
