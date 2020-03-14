@@ -488,7 +488,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 			else
 			{
 				int32 NumRigidsInIsland = 0, NumRigidsInNewIsland = 0;
-				if (OtherIsland != INDEX_NONE)
+				if (NewIslandParticles.IsValidIndex(OtherIsland))
 				{
 					for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 					{
