@@ -2,7 +2,3 @@
 
 #include "BrushEffectsList.h"
 
-FLandmassBrushEffectsList::FLandmassBrushEffectsList()
-{
-
-}
