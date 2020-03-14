@@ -92,7 +92,10 @@ void SUsdReferencesList::UpdateReferences( const TUsdStore< pxr::UsdStageRefPtr 
 
 	FScopedUsdAllocs UsdAllocs;
 	
-	pxr::SdfPrimSpecHandle PrimSpec = UsdStage.Get()->GetRootLayer()->GetPrimAtPath( UnrealToUsd::ConvertPath( PrimPath ).Get() );
+	pxr::UsdPrim Prim = UsdStage.Get()->GetPrimAtPath( UnrealToUsd::ConvertPath( PrimPath ).Get() );
+
+	// Retrieve the strongest opinion prim spec, hopefully it's enough to get all references
+	pxr::SdfPrimSpecHandle PrimSpec = Prim.GetPrimStack().size() > 0 ? Prim.GetPrimStack()[0] : pxr::SdfPrimSpecHandle();
 
 	if ( PrimSpec )
 	{
