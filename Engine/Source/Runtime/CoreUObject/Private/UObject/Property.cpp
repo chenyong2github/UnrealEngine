@@ -369,10 +369,41 @@ IMPLEMENT_STRUCT(FallbackStruct);
 	Helpers.
 -----------------------------------------------------------------------------*/
 
+constexpr FAsciiSet AlphaNumericChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+FORCEINLINE constexpr bool IsValidTokenStart(TCHAR FirstChar, bool bDottedNames)
+{
+	return AlphaNumericChars.Test(FirstChar) || (bDottedNames && FirstChar == '/') || FirstChar > 255;
+}
+
+FORCEINLINE constexpr FStringView ParsePropertyToken(const TCHAR* Str, bool DottedNames)
+{
+	constexpr FAsciiSet RegularTokenChars = AlphaNumericChars  + '_' + '-' + '"';
+	constexpr FAsciiSet DottedTokenChars = RegularTokenChars + '.' + '/' + SUBOBJECT_DELIMITER_CHAR;
+	FAsciiSet CurrentTokenChars = DottedNames ? DottedTokenChars : RegularTokenChars;
+
+	const TCHAR* It = Str;
+	while (true)
+	{
+		// Include allowed ASCII characters
+		It = FAsciiSet::Skip(It, CurrentTokenChars);
+
+		if (*It <= 255)
+		{
+			return FStringView(Str, It - Str);
+		}
+		else
+		{
+			// Include wide characters
+			for (++It; *It > 255; ++It);
+		}
+	} 
+}
+
 //
 // Parse a token.
 //
-const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FString& String, bool DottedNames )
+const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FString& String, bool bDottedNames)
 {
 	if( *Buffer == TCHAR('"') )
 	{
@@ -384,20 +415,11 @@ const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FString& String, 
 		}
 		Buffer += NumCharsRead;
 	}
-	else if( FChar::IsAlnum( *Buffer ) || (DottedNames && (*Buffer==TCHAR('/'))) || (*Buffer > 255) )
+	else if (IsValidTokenStart(*Buffer, bDottedNames))
 	{
-		const TCHAR* StartIdentifier = Buffer;
-		// Get identifier.
-		while ((FChar::IsAlnum(*Buffer) || (*Buffer > 255) || *Buffer == TCHAR('_') || *Buffer == TCHAR('-') || *Buffer == TCHAR('+') || (DottedNames && (*Buffer == TCHAR('.') || *Buffer == TCHAR('/') || *Buffer == SUBOBJECT_DELIMITER_CHAR))))
-		{
-			Buffer++;
-		}
-
-		if (StartIdentifier != Buffer)
-		{
-			// Efficiently copy/allocate
-			String.AppendChars(StartIdentifier, Buffer - StartIdentifier);
-		}
+		FStringView Token = ParsePropertyToken(Buffer, bDottedNames);
+		String += Token;
+		Buffer += Token.Len();
 	}
 	else
 	{
@@ -407,6 +429,36 @@ const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FString& String, 
 	return Buffer;
 }
 
+const TCHAR* FPropertyHelpers::ReadToken( const TCHAR* Buffer, FStringBuilderBase& Out, bool bDottedNames)
+{
+	if( *Buffer == TCHAR('"') )
+	{
+		int32 NumCharsRead = 0;
+		if (!FParse::QuotedString(Buffer, Out, &NumCharsRead))
+		{
+			UE_LOG(LogProperty, Warning, TEXT("ReadToken: Bad quoted string: %s"), Buffer );
+			return nullptr;
+		}
+		Buffer += NumCharsRead;
+
+		// TODO special handling of null-terminator here?
+	}
+	else if (IsValidTokenStart(*Buffer, bDottedNames))
+	{
+		FStringView Token = ParsePropertyToken(Buffer, bDottedNames);
+		Out << Token;
+		Buffer += Token.Len();
+	}
+	else
+	{
+		// Get just one.
+		if (*Buffer)
+		{
+			Out << *Buffer;
+		}
+	}
+	return Buffer;
+}
 
 /*-----------------------------------------------------------------------------
 	FProperty implementation.

@@ -152,11 +152,49 @@ FString& FString::operator=(const FStringView& Other)
 	return *this;
 }
 
-FString& FString::operator+=(const FStringView& Str)
+
+template<typename CharType>
+void AppendCharacters(TArray<TCHAR>& Out, const CharType* Str, int32 Count)
+{
+	check(Count >= 0);
+
+	if (!Count)
+	{
+		return;
+	}
+
+	checkSlow(Str);
+
+	const int32 OldNum = Out.Num();
+
+	// Reserve enough space - including an extra gap for a null terminator if we don't already have a string allocated
+	Out.AddUninitialized(Count + (OldNum ? 0 : 1));
+
+	TCHAR* Dest = Out.GetData() + OldNum - (OldNum ? 1 : 0);
+
+	// Copy characters to end of string, overwriting null terminator if we already have one
+	FPlatformString::Convert(Dest, Count, Str, Count);
+
+	// (Re-)establish the null terminator
+	Dest[Count] = '\0';
+}
+
+void FString::AppendChars(const ANSICHAR* Str, int32 Count)
 {
 	CheckInvariants();
-	AppendChars(Str.GetData(), Str.Len());
-	return *this;
+	AppendCharacters(Data, Str, Count);
+}
+
+void FString::AppendChars(const WIDECHAR* Str, int32 Count)
+{
+	CheckInvariants();
+	AppendCharacters(Data, Str, Count);
+}
+
+void FString::AppendChars(const UCS2CHAR* Str, int32 Count)
+{
+	CheckInvariants();
+	AppendCharacters(Data, Str, Count);
 }
 
 FString::operator FStringView() const
