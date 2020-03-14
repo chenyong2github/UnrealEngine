@@ -16,6 +16,7 @@ public:
 	virtual void CreatePinWidgets() override;
 
 protected:
+	FReply OnBorderMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 InWhichPin);
 	const FSlateBrush* GetBackgroundBrush(TSharedPtr<SWidget> Border) const;
 	TSharedPtr<SVerticalBox> PinContainerRoot;
 
