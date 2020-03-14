@@ -1357,6 +1357,12 @@ public class IOSPlatform : Platform
 		{
 			// push over the changed files
 			RunAndLog(CmdEnv, DeployServer, "Deploy -manifest \"" + SC.GetUFSDeploymentDeltaPath(Params.Devices.Count == 0 ? null : Params.DeviceNames[0]) + "\"" + (Params.Devices.Count == 0 ? "" : " -device " + Params.DeviceNames[0]) + AdditionalCommandline + " -bundle " + BundleIdentifier);
+
+			// IPA for launch-on doesn't include these files - they are a delta and still need uploading
+			if(bNeedsIPA)
+			{
+				RunAndLog(CmdEnv, DeployServer, "Deploy -manifest \"" + SC.GetNonUFSDeploymentDeltaPath(Params.Devices.Count == 0 ? null : Params.DeviceNames[0]) + "\"" + (Params.Devices.Count == 0 ? "" : " -device " + Params.DeviceNames[0]) + AdditionalCommandline + " -bundle " + BundleIdentifier);
+			}
 		}
 		Directory.SetCurrentDirectory(CurrentDir);
 		PrintRunTime();
