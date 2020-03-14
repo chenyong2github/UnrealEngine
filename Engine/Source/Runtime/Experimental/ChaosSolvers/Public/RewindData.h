@@ -18,7 +18,7 @@ public:
 	{
 	}
 
-	TParticleStateProperty(const FDirtyPropertiesManager* InManager,int32 InIdx)
+	TParticleStateProperty(FDirtyPropertiesManager* InManager,int32 InIdx)
 		: Manager(InManager)
 		,Idx(InIdx)
 	{
@@ -137,12 +137,13 @@ public:
 				const auto GTParticleUnsafe = Proxy->GetParticle();
 				const auto PTParticle = Proxy->GetHandle();
 				TArray<FFrameInfo>& Frames = ParticleToFrameInfo.FindOrAdd(PTParticle->UniqueIdx());
-				Frames.Add({FGeometryParticleState(GTParticleUnsafe),CurFrame-1});
+				Frames.Add(FFrameInfo{FGeometryParticleState(GTParticleUnsafe),CurFrame-1});
 				Frames.Last().State.SyncRemoteData(Manager,DataIdx,Dirty);
 			}
 		};
 
-		DirtyData.ParallelForEachProxy([&ProcessProxy](int32 DataIdx,const FDirtyProxy& Dirty)
+		//can't be parallel because ParticletoFrameInfo is modified
+		DirtyData.ForEachProxy([&ProcessProxy](int32 DataIdx,const FDirtyProxy& Dirty)
 		{
 			switch(Dirty.Proxy->GetType())
 			{
