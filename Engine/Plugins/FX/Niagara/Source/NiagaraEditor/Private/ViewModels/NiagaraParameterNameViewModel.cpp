@@ -73,11 +73,11 @@ TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateTex
 		.Font(NameFont)
 		.HighlightText(CreateData->HighlightText)
 		.OnTextCommitted(this, &FNiagaraParameterPanelEntryParameterNameViewModel::OnParameterRenamed)
-		//.OnVerifyTextChanged(InArgs._OnVerifyParameterNameChanged) //@todo(ng) impl
+		.OnVerifyTextChanged(this, &FNiagaraParameterPanelEntryParameterNameViewModel::VerifyParameterNameChanged)
 		.IsSelected(CreateData->IsRowSelectedDelegate)
 		.IsReadOnly(bIsReadOnly);
 
-	//CreateData->OnRenameRequest->BindSP(static_cast<SInlineEditableTextBlock*>(DisplayWidget.Get()), &SInlineEditableTextBlock::EnterEditingMode); //@Todo(ng) figure out a way to make this work
+	CreateData->OnRenameRequest->BindSP(static_cast<SInlineEditableTextBlock*>(DisplayWidget.Get()), &SInlineEditableTextBlock::EnterEditingMode);
 
 	return DisplayWidget.ToSharedRef();
 }
@@ -88,6 +88,11 @@ int32 FNiagaraParameterPanelEntryParameterNameViewModel::GetScopeValue() const
 	{
 		return int32(ENiagaraParameterScope::DISPLAY_ONLY_StaticSwitch);
 	}
+	else if (CachedScriptVarAndViewInfo.MetaData.GetUsage() == ENiagaraScriptParameterUsage::Output)
+	{
+		return int32(ENiagaraParameterScope::Output);
+	}
+
 	ENiagaraParameterScope CachedScope;
 	if (ensureMsgf(FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
 	{
@@ -120,6 +125,16 @@ FText FNiagaraParameterPanelEntryParameterNameViewModel::GetParameterNameText() 
 	FName ParameterName;
 	CachedScriptVarAndViewInfo.MetaData.GetParameterName(ParameterName);
 	return FText::FromName(ParameterName);
+}
+
+bool FNiagaraParameterPanelEntryParameterNameViewModel::VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const
+{
+	if (OnVerifyParameterRenamedDelegate.IsBound())
+	{
+		return OnVerifyParameterRenamedDelegate.Execute(CachedScriptVarAndViewInfo.ScriptVariable, CachedScriptVarAndViewInfo.MetaData, NewNameText, OutErrorText);
+	}
+	ensureMsgf(false, TEXT("Verify parameter renamed delegate was not bound!"));
+	return true;
 }
 
 void FNiagaraParameterPanelEntryParameterNameViewModel::OnParameterRenamed(const FText& NewNameText, ETextCommit::Type TextCommitType) const
@@ -181,7 +196,7 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget
 		.Text(this, &FNiagaraGraphPinParameterNameViewModel::GetParameterNameText)
 		.Font(NameFont)
 		.OnTextCommitted(this, &FNiagaraGraphPinParameterNameViewModel::OnParameterRenamed)
-		//.OnVerifyTextChanged(InArgs._OnVerifyParameterNameChanged) //@todo(ng) impl
+		.OnVerifyTextChanged(this, &FNiagaraGraphPinParameterNameViewModel::VerifyParameterNameChanged)
 		.IsReadOnly(bIsReadOnly);
 
 	return DisplayWidget.ToSharedRef();
@@ -189,6 +204,15 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget
 
 int32 FNiagaraGraphPinParameterNameViewModel::GetScopeValue() const
 {
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch())
+	{
+		return int32(ENiagaraParameterScope::DISPLAY_ONLY_StaticSwitch);
+	}
+	else if (CachedScriptVarAndViewInfo.MetaData.GetUsage() == ENiagaraScriptParameterUsage::Output)
+	{
+		return int32(ENiagaraParameterScope::Output);
+	}
+
 	ENiagaraParameterScope CachedScope;
 	if (ensureMsgf(FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
 	{
@@ -221,6 +245,11 @@ FText FNiagaraGraphPinParameterNameViewModel::GetParameterNameText() const
 	FName ParameterName;
 	CachedScriptVarAndViewInfo.MetaData.GetParameterName(ParameterName);
 	return FText::FromName(ParameterName);
+}
+
+bool FNiagaraGraphPinParameterNameViewModel::VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const
+{
+	return ParameterPanelViewModel->GetCanRenameParameterAndToolTip(CachedScriptVarAndViewInfo.ScriptVariable, CachedScriptVarAndViewInfo.MetaData, NewNameText, OutErrorText);
 }
 
 void FNiagaraGraphPinParameterNameViewModel::OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const

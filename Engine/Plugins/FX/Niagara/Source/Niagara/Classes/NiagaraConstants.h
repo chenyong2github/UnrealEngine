@@ -168,6 +168,7 @@ struct NIAGARA_API FNiagaraConstants
 	static const FName ScriptPersistentScopeName;
 	static const FName InputScopeName;
 	static const FName OutputScopeName;
+	static const FName UniqueOutputScopeName;
 	static const FName CustomScopeName;
 
 private:
