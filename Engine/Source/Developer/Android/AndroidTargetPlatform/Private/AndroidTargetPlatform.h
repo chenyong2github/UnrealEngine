@@ -271,6 +271,7 @@ protected:
 	bool SupportsAEP() const;
 	bool SupportsVulkan() const;
 	bool SupportsSoftwareOcclusion() const;
+	bool SupportsLandscapeMeshLODStreaming() const;
 	bool SupportsVulkanSM5() const;
 
 #if WITH_ENGINE

@@ -819,6 +819,14 @@ public:
 		}
 		// Don't reset CachedBufferSize if !CachedBuffer since it could be the locked buffer allocation size.
 	}
+
+	void Swap(TOpenGLBuffer& Other)
+	{
+		BaseType::Swap(Other);
+		::Swap(Resource, Other.Resource);
+		::Swap(RealSize, Other.RealSize);
+	}
+
 private:
 
 	uint32 bIsLocked : 1;
@@ -903,6 +911,12 @@ public:
 	{
 		check( ZeroStrideVertexBuffer );
 		return ZeroStrideVertexBuffer;
+	}
+
+	void Swap(FOpenGLBaseVertexBuffer& Other)
+	{
+		FRHIVertexBuffer::Swap(Other);
+		::Swap(ZeroStrideVertexBuffer, Other.ZeroStrideVertexBuffer);
 	}
 
 	static bool OnDelete(GLuint Resource,uint32 Size,bool bStreamDraw,uint32 Offset)

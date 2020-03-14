@@ -263,6 +263,15 @@ bool FAndroidTargetPlatform::SupportsSoftwareOcclusion() const
 	return CVarMobileAllowSoftwareOcclusion->GetValueOnAnyThread() != 0;
 }
 
+bool FAndroidTargetPlatform::SupportsLandscapeMeshLODStreaming() const
+{
+	bool bStreamLandscapeMeshLODs = false;
+#if WITH_ENGINE
+	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bStreamLandscapeMeshLODs"), bStreamLandscapeMeshLODs, GEngineIni);
+#endif
+	return bStreamLandscapeMeshLODs;
+}
+
 /* ITargetPlatform overrides
  *****************************************************************************/
 
@@ -364,6 +373,9 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 
 		case ETargetPlatformFeatures::VirtualTextureStreaming:
 			return UsesVirtualTextures();
+
+		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
+			return SupportsLandscapeMeshLODStreaming() && !SupportsES2();
 
 		default:
 			break;

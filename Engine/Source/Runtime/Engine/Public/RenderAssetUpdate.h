@@ -57,7 +57,7 @@ public:
 	* @param InAsset - the texture/mesh being updated, this must be the same texture/mesh as the texture/mesh used to create this object.
 	* @param InCurrentThread - the thread from which the tick is being called. Using TT_None ensures that no work will be immediately performed.
 	*/
-	void Tick(EThreadType InCurrentThread);
+	ENGINE_API void Tick(EThreadType InCurrentThread);
 
 	/** Returns whether the task has finished executing and there is no other thread possibly accessing it. */
 	bool IsCompleted() const
@@ -112,7 +112,7 @@ public:
 		return (uint32)NumRefs.Increment(); 
 	}
 
-	uint32 Release() const final override;
+	ENGINE_API uint32 Release() const final override;
 
 	uint32 GetRefCount() const final override
 	{

@@ -84,6 +84,7 @@ struct FRenderAssetStreamingSettings
 	float MaxHiddenPrimitiveViewBoost;
 	int32 GlobalMipBias;
 	int32 PoolSize;
+	int32 MeshPoolSize;
 	bool bLimitPoolSizeToVRAM;
 	bool bUseNewMetrics;
 	bool bFullyLoadUsedTextures;

@@ -6728,10 +6728,21 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	TArray<FLandscapeVertexRef> VertexOrder;
 	VertexOrder.Empty(NumVertices);
 
+	const bool bStreamLandscapeMeshLODs = TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming);
+	const int32 MaxLODClamp = FMath::Min((uint32)GetLandscapeProxy()->MaxLODLevel, (uint32)MAX_MESH_LOD_COUNT - 1u);
+	const int32 NumStreamingLODs = bStreamLandscapeMeshLODs ? FMath::Min(MaxLOD, MaxLODClamp) : 0;
+	TArray<int32> StreamingLODVertStartOffsets;
+	StreamingLODVertStartOffsets.AddUninitialized(NumStreamingLODs);
+
 	for (int32 Mip = MaxLOD; Mip >= 0; Mip--)
 	{
 		int32 LodSubsectionSizeQuads = (SubsectionSizeVerts >> Mip) - 1;
 		float MipRatio = (float)SubsectionSizeQuads / (float)LodSubsectionSizeQuads; // Morph current MIP to base MIP
+
+		if (Mip < NumStreamingLODs)
+		{
+			StreamingLODVertStartOffsets[Mip] = VertexOrder.Num();
+		}
 
 		for (int32 SubY = 0; SubY < NumSubsections; SubY++)
 		{
@@ -6791,13 +6802,33 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 
 	// Fill in the vertices in the specified order.
 	const int32 SizeVerts = SubsectionSizeVerts * NumSubsections;
-	int32 NumMobileVertices = FMath::Square(SizeVerts);
-	TArray<FLandscapeMobileVertex> MobileVertices;
-	MobileVertices.AddZeroed(NumMobileVertices);
-	FLandscapeMobileVertex* DstVert = MobileVertices.GetData();
+	int32 NumInlineMobileVertices = NumStreamingLODs > 0 ? StreamingLODVertStartOffsets.Last() : FMath::Square(SizeVerts);
+	TArray<FLandscapeMobileVertex> InlineMobileVertices;
+	InlineMobileVertices.AddZeroed(NumInlineMobileVertices);
+	FLandscapeMobileVertex* DstVert = InlineMobileVertices.GetData();
+
+	int32 StreamingLODIdx = NumStreamingLODs - 1;
+	TArray<TArray<uint8>> StreamingLODData;
+	StreamingLODData.Empty(NumStreamingLODs);
+	StreamingLODData.AddDefaulted(NumStreamingLODs);
 
 	for (int32 Idx = 0; Idx < NumVertices; Idx++)
 	{
+		if (StreamingLODIdx >= 0
+			&& (StreamingLODIdx >= NumHoleLods - 1)
+			&& Idx >= StreamingLODVertStartOffsets[StreamingLODIdx])
+		{
+			const int32 EndIdx = StreamingLODIdx - 1 < 0 || StreamingLODIdx == NumHoleLods - 1 ?
+				FMath::Square(SizeVerts) :
+				StreamingLODVertStartOffsets[StreamingLODIdx - 1];
+			const int32 NumVerts = EndIdx - StreamingLODVertStartOffsets[StreamingLODIdx];
+			TArray<uint8>& StreamingLOD = StreamingLODData[StreamingLODIdx];
+			StreamingLOD.Empty(NumVerts * sizeof(FLandscapeMobileVertex));
+			StreamingLOD.AddZeroed(NumVerts * sizeof(FLandscapeMobileVertex));
+			DstVert = (FLandscapeMobileVertex*)StreamingLOD.GetData();
+			--StreamingLODIdx;
+		}
+
 		// Store XY position info
 		const int32 X = VertexOrder[Idx].X;
 		const int32 Y = VertexOrder[Idx].Y;
@@ -6862,8 +6893,8 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	}
 
 	// Serialize vertex buffer
-	PlatformAr << NumMobileVertices;
-	PlatformAr.Serialize(MobileVertices.GetData(), NumMobileVertices*sizeof(FLandscapeMobileVertex));
+	PlatformAr << NumInlineMobileVertices;
+	PlatformAr.Serialize(InlineMobileVertices.GetData(), NumInlineMobileVertices*sizeof(FLandscapeMobileVertex));
 
 	// Generate occlusion mesh
 	TArray<FVector> OccluderVertices;
@@ -6908,7 +6939,7 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	PlatformAr.Serialize(OccluderVertices.GetData(), NumOccluderVerices*sizeof(FVector));
 	
 	// Copy to PlatformData as Compressed
-	PlatformData.InitializeFromUncompressedData(NewPlatformData);
+	PlatformData.InitializeFromUncompressedData(NewPlatformData, StreamingLODData);
 }
 
 UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter, bool bCompress) const
