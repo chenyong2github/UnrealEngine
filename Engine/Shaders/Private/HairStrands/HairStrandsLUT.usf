@@ -6,6 +6,8 @@
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsCommon.ush"
 
+#if SHADER_HAIRLUT
+
 #include "../ShadingModels.ush"
 
 #ifdef HAIR_CUSTOM_BSDF
@@ -30,9 +32,10 @@ RWTexture3D<float4>	OutputColor;
 	return float(bits) * 2.3283064365386963e-10; // / 0x100000000
  }
 
- float2 hammersley2d(uint i, uint N) {
-     return float2(float(i)/float(N), radicalInverse_VdC(i));
- }
+float2 hammersley2d(uint i, uint N) 
+{
+	return float2(float(i)/float(N), radicalInverse_VdC(i));
+}
 
 #define TILE_PIXEL_SIZE 8
 #define JITTER_VIEW 0
@@ -266,3 +269,28 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 }
 
 #endif
+
+#endif // SHADER_HAIRLUT
+
+
+#if SHADER_HAIRCOVERAGE
+
+int2 OutputResolution;
+StructuredBuffer<float> InputBuffer;
+RWTexture2D<float> OutputTexture;
+
+#define TILE_PIXEL_SIZE 8
+
+[numthreads(TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const int2 PixelCoord = DispatchThreadId.xy;
+	if (any(PixelCoord > OutputResolution))
+	{
+		return;
+	}
+
+	const uint Index = PixelCoord.x + PixelCoord.y * OutputResolution.x;
+	OutputTexture[PixelCoord] = InputBuffer[Index];
+}
+#endif // SHADER_HAIRCOVERAGE

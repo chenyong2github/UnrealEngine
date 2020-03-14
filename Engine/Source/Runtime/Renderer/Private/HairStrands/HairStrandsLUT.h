@@ -13,6 +13,7 @@ enum FHairLUTType
 {
 	HairLUTType_DualScattering,
 	HairLUTType_MeanEnergy,
+	HairLUTType_Coverage,
 	HairLUTTypeCount
 };
 
