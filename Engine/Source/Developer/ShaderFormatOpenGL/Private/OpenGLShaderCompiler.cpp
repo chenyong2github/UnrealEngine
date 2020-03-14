@@ -1198,6 +1198,11 @@ uint32 FOpenGLFrontend::CalculateCrossCompilerFlags(GLSLVersion Version, const T
 {
 	uint32  CCFlags = HLSLCC_NoPreprocess | HLSLCC_PackUniforms | HLSLCC_DX11ClipSpace | HLSLCC_RetainSizes;
 
+	if (CompilerFlags.Contains(CFLAG_UseFullPrecisionInPS))
+	{
+		CCFlags |= HLSLCC_UseFullPrecisionInPS;
+	}
+
 	if (CompilerFlags.Contains(CFLAG_FeatureLevelES31) ||
 		CompilerFlags.Contains(CFLAG_UseEmulatedUB))
 	{
@@ -1225,9 +1230,9 @@ FGlslCodeBackend* FOpenGLFrontend::CreateBackend(GLSLVersion Version, uint32 CCF
 	return new FGlslCodeBackend(CCFlags, HlslCompilerTarget);
 }
 
-FGlslLanguageSpec* FOpenGLFrontend::CreateLanguageSpec(GLSLVersion Version)
-{	
-	return new FGlslLanguageSpec();
+FGlslLanguageSpec* FOpenGLFrontend::CreateLanguageSpec(GLSLVersion Version, bool bDefaultPrecisionIsHalf)
+{
+	return new FGlslLanguageSpec(bDefaultPrecisionIsHalf);
 }
 
 #if USE_DXC
@@ -2475,7 +2480,9 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input,FShaderCom
 		}
 
 		FGlslCodeBackend* BackEnd = CreateBackend(Version, CCFlags, HlslCompilerTarget);
-		FGlslLanguageSpec* LanguageSpec = CreateLanguageSpec(Version);
+
+		bool bDefaultPrecisionIsHalf = (CCFlags & HLSLCC_UseFullPrecisionInPS) == 0;
+		FGlslLanguageSpec* LanguageSpec = CreateLanguageSpec(Version, bDefaultPrecisionIsHalf);
 
 		FHlslCrossCompilerContext CrossCompilerContext(CCFlags, Frequency, HlslCompilerTarget);
 		if (CrossCompilerContext.Init(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath), LanguageSpec))

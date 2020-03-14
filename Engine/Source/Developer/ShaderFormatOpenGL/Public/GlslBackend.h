@@ -8,8 +8,12 @@
 
 class SHADERFORMATOPENGL_API FGlslLanguageSpec : public ILanguageSpec
 {
+protected:
+	bool bDefaultPrecisionIsHalf;
+
 public:
-	FGlslLanguageSpec() 
+	FGlslLanguageSpec(bool bInDefaultPrecisionIsHalf)
+		: bDefaultPrecisionIsHalf(bInDefaultPrecisionIsHalf)
 	{}
 
 	virtual bool SupportsDeterminantIntrinsic() const override
