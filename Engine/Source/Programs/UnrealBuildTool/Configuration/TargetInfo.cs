@@ -71,5 +71,41 @@ namespace UnrealBuildTool
 			this.ProjectFile = ProjectFile;
 			this.Arguments = Arguments;
 		}
+
+		/// <summary>
+		/// Construct a TargetInfo from an archive on disk
+		/// </summary>
+		/// <param name="Reader">Archive to read from</param>
+		public TargetInfo(BinaryArchiveReader Reader)
+		{
+			this.Name = Reader.ReadString();
+			this.Platform = UnrealTargetPlatform.Parse(Reader.ReadString());
+			string ConfigurationStr = Reader.ReadString();
+			this.Architecture = Reader.ReadString();
+			this.ProjectFile = Reader.ReadFileReference();
+			string[] ArgumentStrs = Reader.ReadArray(() => Reader.ReadString());
+
+			if (!UnrealTargetConfiguration.TryParse(ConfigurationStr, out Configuration))
+			{
+				throw new BuildException(string.Format("The configration name {0} is not a valid configration name. Valid names are ({1})", Name,
+					string.Join(",", Enum.GetValues(typeof(UnrealTargetConfiguration)).Cast<UnrealTargetConfiguration>().Select(x => x.ToString()))));
+			}
+
+			Arguments = new CommandLineArguments(ArgumentStrs);
+		}
+
+		/// <summary>
+		/// Write a TargetInfo to an archive on disk
+		/// </summary>
+		/// <param name="Writer">Archive to write to</param>
+		public void Write(BinaryArchiveWriter Writer)
+		{
+			Writer.WriteString(Name);
+			Writer.WriteString(Platform.ToString());
+			Writer.WriteString(Configuration.ToString());
+			Writer.WriteString(Architecture);
+			Writer.WriteFileReference(ProjectFile);
+			Writer.WriteArray(Arguments.GetRawArray(), Item => Writer.WriteString(Item));
+		}
 	}
 }

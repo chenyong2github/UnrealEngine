@@ -460,6 +460,11 @@ public:
 	static FString ObjectPathToObjectName(const FString& InObjectPath);
 
 	/**
+	 * Checks the root of the package's path to see if it's an extra package
+	 */
+	static bool IsExtraPackage(const FString& InPackageName);
+
+	/**
 	 * Checks the root of the package's path to see if it is a script package
 	 * @return true if the root of the path matches the script path
 	 */

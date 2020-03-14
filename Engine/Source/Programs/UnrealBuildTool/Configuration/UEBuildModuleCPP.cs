@@ -43,9 +43,9 @@ namespace UnrealBuildTool
 		public bool bAddGeneratedCodeIncludePath;
 
 		/// <summary>
-		/// Wildcard matching the *.gen.cpp files for this module.  If this is null then this module doesn't have any UHT-produced code.
+		/// Paths containing *.gen.cpp files for this module.  If this is null then this module doesn't have any generated code.
 		/// </summary>
-		public string GeneratedCodeWildcard;
+		public List<string> GeneratedCppDirectories;
 
 		/// <summary>
 		/// List of invalid include directives. These are buffered up and output before we start compiling.
@@ -259,6 +259,17 @@ namespace UnrealBuildTool
 			if(bAddGeneratedCodeIncludePath || (ProjectFileGenerator.bGenerateProjectFiles && GeneratedCodeDirectory != null))
 			{
 				IncludePaths.Add(GeneratedCodeDirectory);
+
+				if (Rules.AdditionalCodeGenDirectories != null)
+				{
+					foreach (string CodeGenDir in Rules.AdditionalCodeGenDirectories)
+					{
+						if (Directory.Exists(CodeGenDir))
+						{
+							IncludePaths.Add(new DirectoryReference(CodeGenDir));
+						}
+					}
+				}
 			}
 
 			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bLegacyPublicIncludePaths);
@@ -421,10 +432,15 @@ namespace UnrealBuildTool
 			}
 
 			// Compile all the generated CPP files
-			if (GeneratedCodeWildcard != null && !CompileEnvironment.bHackHeaderGenerator)
+			if (GeneratedCppDirectories != null && !CompileEnvironment.bHackHeaderGenerator && SingleFileToCompile == null)
 			{
-				string[] GeneratedFiles = Directory.GetFiles(Path.GetDirectoryName(GeneratedCodeWildcard), Path.GetFileName(GeneratedCodeWildcard));
-				if(GeneratedFiles.Length > 0)
+				List<string> GeneratedFiles = new List<string>();
+				foreach (string GeneratedDir in GeneratedCppDirectories)
+				{
+					GeneratedFiles.AddRange(Directory.GetFiles(GeneratedDir, "*.gen.cpp"));
+				}
+
+				if(GeneratedFiles.Count > 0)
 				{
 					// Create a compile environment for the generated files. We can disable creating debug info here to improve link times.
 					CppCompileEnvironment GeneratedCPPCompileEnvironment = CompileEnvironment;

@@ -69,6 +69,7 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 										.OnSelectionChanged(this, &SMessageLogListing::OnLineSelectionChanged)
 										.ExternalScrollbar(ScrollBar)
 										.ItemHeight(24.0f)
+										.ConsumeMouseWheel(EConsumeMouseWheel::Always)
 									]
 								]
 								+SHorizontalBox::Slot()

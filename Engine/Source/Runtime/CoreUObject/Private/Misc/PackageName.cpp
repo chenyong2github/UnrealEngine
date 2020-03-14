@@ -161,6 +161,7 @@ struct FLongPackagePathsSingleton
 	FString EngineRootPath;
 	FString GameRootPath;
 	FString ScriptRootPath;
+	FString ExtraRootPath;
 	FString MemoryRootPath;
 	FString TempRootPath;
 	TArray<FString> MountPointRootPaths;
@@ -172,10 +173,12 @@ struct FLongPackagePathsSingleton
 	FString GameContentPath;
 	FString GameConfigPath;
 	FString GameScriptPath;
+	FString GameExtraPath;
 	FString GameSavedPath;
 	FString GameContentPathRebased;
 	FString GameConfigPathRebased;
 	FString GameScriptPathRebased;
+	FString GameExtraPathRebased;
 	FString GameSavedPathRebased;
 
 	//@TODO: Can probably consolidate these into a single array, if it weren't for EngineContentPathShort
@@ -203,6 +206,7 @@ struct FLongPackagePathsSingleton
 		{
 			OutRoots.Add(ConfigRootPath);
 			OutRoots.Add(ScriptRootPath);
+			OutRoots.Add(ExtraRootPath);
 			OutRoots.Add(MemoryRootPath);
 			OutRoots.Add(TempRootPath);
 		}
@@ -295,6 +299,7 @@ private:
 		EngineRootPath = TEXT("/Engine/");
 		GameRootPath   = TEXT("/Game/");
 		ScriptRootPath = TEXT("/Script/");
+		ExtraRootPath  = TEXT("/Extra/");
 		MemoryRootPath = TEXT("/Memory/");
 		TempRootPath   = TEXT("/Temp/");
 
@@ -305,6 +310,7 @@ private:
 		GameContentPath        = FPaths::ProjectContentDir();
 		GameConfigPath         = FPaths::ProjectConfigDir();
 		GameScriptPath         = FPaths::ProjectDir() / TEXT("Script/");
+		GameExtraPath          = FPaths::ProjectDir() / TEXT("Extra/");
 		GameSavedPath          = FPaths::ProjectSavedDir();
 
 		FString RebasedGameDir = FString::Printf(TEXT("../../../%s/"), FApp::GetProjectName());
@@ -312,11 +318,12 @@ private:
 		GameContentPathRebased = RebasedGameDir / TEXT("Content/");
 		GameConfigPathRebased  = RebasedGameDir / TEXT("Config/");
 		GameScriptPathRebased  = RebasedGameDir / TEXT("Script/");
+		GameExtraPathRebased   = RebasedGameDir / TEXT("Extra/");
 		GameSavedPathRebased   = RebasedGameDir / TEXT("Saved/");
 		
 		FScopeLock ScopeLock(&ContentMountPointCriticalSection);
 
-		ContentPathToRoot.Empty(11);
+		ContentPathToRoot.Empty(12);
 		ContentPathToRoot.Emplace(EngineRootPath, EngineContentPath);
 		if (FPaths::IsSamePath(GameContentPath, ContentPathShort))
 		{
@@ -330,14 +337,14 @@ private:
 		ContentPathToRoot.Emplace(EngineRootPath, EngineShadersPathShort);
 		ContentPathToRoot.Emplace(GameRootPath,   GameContentPath);
 		ContentPathToRoot.Emplace(ScriptRootPath, GameScriptPath);
-		ContentPathToRoot.Emplace(ScriptRootPath, GameScriptPath);
 		ContentPathToRoot.Emplace(TempRootPath,   GameSavedPath);
 		ContentPathToRoot.Emplace(GameRootPath,   GameContentPathRebased);
 		ContentPathToRoot.Emplace(ScriptRootPath, GameScriptPathRebased);
 		ContentPathToRoot.Emplace(TempRootPath,   GameSavedPathRebased);
 		ContentPathToRoot.Emplace(ConfigRootPath, GameConfigPath);
+		ContentPathToRoot.Emplace(ExtraRootPath,  GameExtraPath);
 
-		ContentRootToPath.Empty(9);
+		ContentRootToPath.Empty(10);
 		ContentRootToPath.Emplace(EngineRootPath, EngineContentPath);
 		ContentRootToPath.Emplace(EngineRootPath, EngineShadersPath);
 		ContentRootToPath.Emplace(GameRootPath,   GameContentPath);
@@ -345,6 +352,7 @@ private:
 		ContentRootToPath.Emplace(TempRootPath,   GameSavedPath);
 		ContentRootToPath.Emplace(GameRootPath,   GameContentPathRebased);
 		ContentRootToPath.Emplace(ScriptRootPath, GameScriptPathRebased);
+		ContentRootToPath.Emplace(ExtraRootPath,  GameExtraPathRebased);
 		ContentRootToPath.Emplace(TempRootPath,   GameSavedPathRebased);
 		ContentRootToPath.Emplace(ConfigRootPath, GameConfigPathRebased);
 
@@ -979,7 +987,10 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 	// Convert to filename (no extension yet).
 	FString Filename = LongPackageNameToFilename(PackageName, TEXT(""));
 	// Find the filename (with extension).
-	bFoundFile = FindPackageFileWithoutExtension(Filename, Filename, InAllowTextFormats);
+	if (!WITH_EDITORONLY_DATA || !IsExtraPackage(PackageName))
+	{
+		bFoundFile = FindPackageFileWithoutExtension(Filename, Filename, InAllowTextFormats);
+	}
 
 	// On consoles, we don't support package downloading, so no need to waste any extra cycles/disk io dealing with it
 	if (!FPlatformProperties::RequiresCookedData() && bFoundFile && Guid != NULL)
@@ -1004,7 +1015,7 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 		delete PackageReader;
 	}
 
-	if (bFoundFile && OutFilename)
+	if (OutFilename && (bFoundFile || (WITH_EDITORONLY_DATA && IsExtraPackage(PackageName))))
 	{
 		*OutFilename = Filename;
 	}
@@ -1552,6 +1563,11 @@ FString FPackageName::ObjectPathToObjectName(const FString& InObjectPath)
 FStringView FPackageName::ObjectPathToObjectName(FStringView InObjectPath)
 {
 	return ObjectPathToObjectNameImpl(InObjectPath);
+}
+
+bool FPackageName::IsExtraPackage(const FString& InPackageName)
+{
+	return InPackageName.StartsWith(FLongPackagePathsSingleton::Get().ExtraRootPath);
 }
 
 bool FPackageName::IsScriptPackage(const FString& InPackageName)

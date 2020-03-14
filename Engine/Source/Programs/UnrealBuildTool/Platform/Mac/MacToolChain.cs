@@ -1346,7 +1346,9 @@ namespace UnrealBuildTool
 
 			FixDylibOutputFile = FixDylibDependencies(BinaryLinkEnvironment, Executable, Graph);
 			OutputFiles.Add(FixDylibOutputFile);
-			if (!BinaryLinkEnvironment.bIsBuildingConsoleApplication)
+
+			bool bIsBuildingAppBundle = !BinaryLinkEnvironment.bIsBuildingDLL && !BinaryLinkEnvironment.bIsBuildingLibrary && !BinaryLinkEnvironment.bIsBuildingConsoleApplication;
+			if (bIsBuildingAppBundle)
 			{
 				OutputFiles.Add(FinalizeAppBundle(BinaryLinkEnvironment, Executable, FixDylibOutputFile, Graph));
 			}

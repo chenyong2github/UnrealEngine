@@ -1791,7 +1791,7 @@ namespace UnrealBuildTool
 				{
 					bHasEditorConfiguration = true;
 				}
-				else if (Config.ProjectTarget.TargetRules.bIsBuildingConsoleApplication)
+				else if (Config.ProjectTarget.TargetRules.bIsBuildingConsoleApplication || Config.ProjectTarget.TargetRules.bShouldCompileAsDLL)
 				{
 					bIsAppBundle = false;
 				}

@@ -69,6 +69,14 @@ struct UNREALED_API FBatchReplaceInstancesOfClassParameters
 	const TSet<UObject*>* InstancesThatShouldUseOldClass = nullptr;
 
 	bool bArchetypesAreUpToDate = false; 
+	
+	/** 
+	 * Blueprints reuses its UClass* from compile to compile, but it's more 
+	 * intuitive to just replace a UClass* with a new instance (e.g. from a 
+	 * package reload). This flag tells the reinstancer to replace references
+	 * to old classes with references to new classes.
+	 */
+	bool bReplaceReferencesToOldClasses = false;
 };
 
 class UNREALED_API FBlueprintCompileReinstancer : public TSharedFromThis<FBlueprintCompileReinstancer>, public FGCObject
@@ -223,5 +231,5 @@ protected:
 
 private:
 	/** Handles the work of ReplaceInstancesOfClass, handling both normal replacement of instances and batch */
-	static void ReplaceInstancesOfClass_Inner(TMap<UClass*, UClass*>& InOldToNewClassMap, UObject* InOriginalCDO, TSet<UObject*>* ObjectsThatShouldUseOldStuff = NULL, bool bClassObjectReplaced = false, bool bPreserveRootComponent = true, bool bArchetypesAreUpToDate = false, const TSet<UObject*>* InstancesThatShouldUseOldClass = nullptr);
+	static void ReplaceInstancesOfClass_Inner(TMap<UClass*, UClass*>& InOldToNewClassMap, UObject* InOriginalCDO, TSet<UObject*>* ObjectsThatShouldUseOldStuff = NULL, bool bClassObjectReplaced = false, bool bPreserveRootComponent = true, bool bArchetypesAreUpToDate = false, const TSet<UObject*>* InstancesThatShouldUseOldClass = nullptr, bool bReplaceReferencesToOldClasses = false);
 };
