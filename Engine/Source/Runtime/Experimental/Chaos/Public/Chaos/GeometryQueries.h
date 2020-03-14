@@ -80,30 +80,37 @@ namespace Chaos
 		{
 			switch (AType)
 			{
-			case ImplicitObjectType::HeightField:
-			{
-				const THeightField<FReal>& AHeightField = static_cast<const THeightField<FReal>&>(A);
-				return AHeightField.OverlapGeom(B, BToATM, Thickness, OutMTD);
-			}
-			case ImplicitObjectType::TriangleMesh:
-			{
-				const FTriangleMeshImplicitObject& ATriangleMesh = static_cast<const FTriangleMeshImplicitObject&>(A);
-				return ATriangleMesh.OverlapGeom(B, BToATM, Thickness, OutMTD);
-			}
-			default:
-				if (IsScaled(AType))
+				case ImplicitObjectType::HeightField:
 				{
-					const auto& AScaled = TImplicitObjectScaled<FTriangleMeshImplicitObject>::AsScaledChecked(A);
-					return AScaled.LowLevelOverlapGeom(B, BToATM, Thickness, OutMTD);
+					const THeightField<FReal>& AHeightField = static_cast<const THeightField<FReal>&>(A);
+					return AHeightField.OverlapGeom(B, BToATM, Thickness, OutMTD);
 				}
-				else if(IsInstanced(AType))
+				case ImplicitObjectType::TriangleMesh:
 				{
-					const auto& AInstanced = TImplicitObjectInstanced<FTriangleMeshImplicitObject>::AsInstancedChecked(A);
-					return AInstanced.LowLevelOverlapGeom(B,BToATM,Thickness, OutMTD);
+					const FTriangleMeshImplicitObject& ATriangleMesh = static_cast<const FTriangleMeshImplicitObject&>(A);
+					return ATriangleMesh.OverlapGeom(B, BToATM, Thickness, OutMTD);
 				}
-				else
+				case ImplicitObjectType::LevelSet:
 				{
-					check(false);	//unsupported query type
+					const TLevelSet<FReal, 3>& ALevelSet = static_cast<const TLevelSet<FReal, 3>&>(A);
+					return ALevelSet.OverlapGeom(B, BToATM, Thickness, OutMTD);
+				}
+				default:
+				{
+					if(IsScaled(AType))
+					{
+						const auto& AScaled = TImplicitObjectScaled<FTriangleMeshImplicitObject>::AsScaledChecked(A);
+						return AScaled.LowLevelOverlapGeom(B, BToATM, Thickness, OutMTD);
+					}
+					else if(IsInstanced(AType))
+					{
+						const auto& AInstanced = TImplicitObjectInstanced<FTriangleMeshImplicitObject>::AsInstancedChecked(A);
+						return AInstanced.LowLevelOverlapGeom(B, BToATM, Thickness, OutMTD);
+					}
+					else
+					{
+						check(false);	//unsupported query type
+					}
 				}
 			}
 		}
