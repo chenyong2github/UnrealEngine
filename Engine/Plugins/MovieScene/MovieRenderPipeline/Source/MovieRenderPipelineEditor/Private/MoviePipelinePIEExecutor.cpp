@@ -159,7 +159,6 @@ void UMoviePipelinePIEExecutor::OnTick()
 void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline)
 {
 	// Unsubscribe to the EndPIE event so we don't think the user canceled it.
-	FEditorDelegates::EndPIE.RemoveAll(this);
 	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 
 	if (ActiveMoviePipeline)
@@ -170,27 +169,27 @@ void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMov
 
 	// The End Play will happen on the next frame.
 	GEditor->RequestEndPlayMap();
-
-	// Delay for one frame so that PIE can finish shut down. It's not a huge fan of us starting up on the same frame.
-	FTimerHandle Handle;
-	GEditor->GetTimerManager()->SetTimer(Handle, FTimerDelegate::CreateUObject(this, &UMoviePipelinePIEExecutor::DelayedFinishNotification), 1.f, false);
 }
 
 void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 {
-	FCoreDelegates::OnBeginFrame.RemoveAll(this);
+	FEditorDelegates::EndPIE.RemoveAll(this);
 
-	// If the movie pipeline finishes naturally we unsubscribe from the EndPIE event.
-	// This means that if this gets called, the user has hit escape and wants to cancel.
-	if (ActiveMoviePipeline)
+	// Only call Shutdown if the pipeline hasn't been finished.
+	if (ActiveMoviePipeline && ActiveMoviePipeline->GetPipelineState() != EMovieRenderPipelineState::Finished)
 	{
-		// This will flush any outstanding work on the movie pipeline (file writes) immediately
-		ActiveMoviePipeline->Shutdown();
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("PIE Ended while Movie Pipeline was still active. Stalling to do full shutdown."));
 
-		// Broadcast that we finished.
-		// ToDo: bAnyJobHadFatalError
-		DelayedFinishNotification();
+		// This will flush any outstanding work on the movie pipeline (file writes) immediately
+		ActiveMoviePipeline->RequestShutdown(); // Set the Shutdown Requested flag.
+		ActiveMoviePipeline->Shutdown(); // Flush the shutdown.
+		
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelinePIEExecutor: Stalling finished, pipeline has shut down."));
 	}
+	// ToDo: bAnyJobHadFatalError
+
+	// Delay for one frame so that PIE can finish shut down. It's not a huge fan of us starting up on the same frame.
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UMoviePipelinePIEExecutor::DelayedFinishNotification));
 }
 
 void UMoviePipelinePIEExecutor::DelayedFinishNotification()
@@ -208,5 +207,4 @@ void UMoviePipelinePIEExecutor::DelayedFinishNotification()
 	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
 	OnIndividualPipelineFinished(MoviePipeline);
 }
-
 #undef LOCTEXT_NAMESPACE // "MoviePipelinePIEExecutor"
