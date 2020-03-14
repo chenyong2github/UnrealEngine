@@ -25,26 +25,32 @@ public:
 	FD3D11RenderBridge(XrInstance InInstance, XrSystemId InSystem)
 		: Binding()
 	{
+		PFN_xrGetD3D11GraphicsRequirementsKHR GetD3D11GraphicsRequirementsKHR;
+		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetD3D11GraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetD3D11GraphicsRequirementsKHR));
+
 		XrGraphicsRequirementsD3D11KHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR;
 		Requirements.next = nullptr;
-		if (XR_ENSURE(xrGetD3D11GraphicsRequirementsKHR(InInstance, InSystem, &Requirements)))
+		if (XR_ENSURE(GetD3D11GraphicsRequirementsKHR(InInstance, InSystem, &Requirements)))
 		{
 			AdapterLuid = reinterpret_cast<uint64&>(Requirements.adapterLuid);
 		}
 	}
 
-	virtual void* GetGraphicsBinding_RenderThread() override
+	virtual void* GetGraphicsBinding() override
 	{
+		FD3D11DynamicRHI* DynamicRHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
+		FD3D11Device* Device = DynamicRHI->GetDevice();
+
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR;
 		Binding.next = nullptr;
-		Binding.device = (ID3D11Device*)RHIGetNativeDevice();
+		Binding.device = Device;
 		return &Binding;
 	}
 
-	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
+	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
 	{
-		return CreateSwapchain_D3D11(InSession, Format, SizeX, SizeY, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		return CreateSwapchain_D3D11(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags);
 	}
 
 private:
@@ -70,17 +76,22 @@ public:
 		}
 	}
 
-	virtual void* GetGraphicsBinding_RenderThread() override
+	virtual void* GetGraphicsBinding() override
 	{
+		FD3D12DynamicRHI* DynamicRHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+		ID3D12Device* Device = DynamicRHI->GetAdapter().GetD3DDevice();
+		ID3D12CommandQueue* Queue = DynamicRHI->RHIGetD3DCommandQueue();
+
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_D3D12_KHR;
 		Binding.next = nullptr;
-		Binding.device = (ID3D12Device*)RHIGetNativeDevice();
+		Binding.device = Device;
+		Binding.queue = Queue;
 		return &Binding;
 	}
 
-	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
+	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
 	{
-		return CreateSwapchain_D3D12(InSession, Format, SizeX, SizeY, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		return CreateSwapchain_D3D12(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags);
 	}
 
 private:
@@ -116,7 +127,7 @@ public:
 		}
 	}
 
-	virtual void* GetGraphicsBinding_RenderThread() override
+	virtual void* GetGraphicsBinding() override
 	{
 #if PLATFORM_WINDOWS
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR;
@@ -128,9 +139,9 @@ public:
 		return nullptr;
 	}
 
-	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
+	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
 	{
-		return CreateSwapchain_OpenGL(InSession, Format, SizeX, SizeY, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		return CreateSwapchain_OpenGL(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags);
 	}
 
 private:
@@ -175,7 +186,7 @@ public:
 		}
 	}
 
-	virtual void* GetGraphicsBinding_RenderThread() override
+	virtual void* GetGraphicsBinding() override
 	{
 		FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
 		FVulkanDevice* Device = DynamicRHI->GetDevice();
@@ -205,9 +216,9 @@ public:
 		return AdapterLuid;
 	}
 
-	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
+	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags) override final
 	{
-		return CreateSwapchain_Vulkan(InSession, Format, SizeX, SizeY, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		return CreateSwapchain_Vulkan(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags);
 	}
 
 private:

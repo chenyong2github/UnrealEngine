@@ -2,14 +2,16 @@
 
 #pragma once
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #define XR_USE_PLATFORM_WIN32		1
 #define XR_USE_GRAPHICS_API_D3D11	1
-#define XR_USE_GRAPHICS_API_D3D12	1
 #endif
 
+#if PLATFORM_WINDOWS
+#define XR_USE_GRAPHICS_API_D3D12	1
 #define XR_USE_GRAPHICS_API_OPENGL	1
 #define XR_USE_GRAPHICS_API_VULKAN	1
+#endif
 
 #include <openxr/openxr.h>
 #include <openxr/openxr_reflection.h>

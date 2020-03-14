@@ -13,6 +13,14 @@
 
 #include <openxr/openxr.h>
 
+#define LOCTEXT_NAMESPACE "OpenXRInputPlugin"
+
+// Microsoft Hand Interaction
+const FKey MicrosoftHandInteraction_Left_Select("MicrosoftHandInteraction_Left_Select_Axis");
+const FKey MicrosoftHandInteraction_Left_Squeeze("MicrosoftHandInteraction_Left_Squeeze_Axis");
+const FKey MicrosoftHandInteraction_Right_Select("MicrosoftHandInteraction_Right_Select_Axis");
+const FKey MicrosoftHandInteraction_Right_Squeeze("MicrosoftHandInteraction_Right_Squeeze_Axis");
+
 FORCEINLINE XrPath GetPath(XrInstance Instance, const char* PathString)
 {
 	XrPath Path = XR_NULL_PATH;
@@ -50,10 +58,20 @@ IMPLEMENT_MODULE(FOpenXRInputPlugin, OpenXRInput)
 FOpenXRInputPlugin::FOpenXRInputPlugin()
 	: InputDevice()
 {
+	RegisterKeys();
 }
 
 FOpenXRInputPlugin::~FOpenXRInputPlugin()
 {
+}
+
+void FOpenXRInputPlugin::RegisterKeys()
+{
+	EKeys::AddMenuCategoryDisplayInfo("MicrosoftHandInteraction", LOCTEXT("MicrosoftHandInteractionSubCategory", "Microsoft Hand Interaction"), TEXT("GraphEditor.PadEvent_16x"));
+	EKeys::AddKey(FKeyDetails(MicrosoftHandInteraction_Left_Select, LOCTEXT("MicrosoftHandInteraction_Left_Select_Axis", "Microsoft Hand (L) Select"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MicrosoftHandInteraction"));
+	EKeys::AddKey(FKeyDetails(MicrosoftHandInteraction_Left_Squeeze, LOCTEXT("MicrosoftHandInteraction_Left_Squeeze_Axis", "Microsoft Hand (L) Squeeze"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MicrosoftHandInteraction"));
+	EKeys::AddKey(FKeyDetails(MicrosoftHandInteraction_Right_Select, LOCTEXT("MicrosoftHandInteraction_Right_Select_Axis", "Microsoft Hand (R) Select"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MicrosoftHandInteraction"));
+	EKeys::AddKey(FKeyDetails(MicrosoftHandInteraction_Right_Squeeze, LOCTEXT("MicrosoftHandInteraction_Right_Squeeze_Axis", "Microsoft Hand (R) Squeeze"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MicrosoftHandInteraction"));
 }
 
 FOpenXRHMD* FOpenXRInputPlugin::GetOpenXRHMD() const
@@ -128,8 +146,9 @@ FOpenXRInputPlugin::FOpenXRController::FOpenXRController(FOpenXRHMD* HMD, XrActi
 	}
 }
 
-FOpenXRInputPlugin::FInteractionProfile::FInteractionProfile(XrPath InProfile)
-	: Path(InProfile)
+FOpenXRInputPlugin::FInteractionProfile::FInteractionProfile(XrPath InProfile, bool InHasHaptics)
+	: HasHaptics(InHasHaptics)
+	, Path(InProfile)
 	, Bindings()
 {
 }
@@ -179,12 +198,17 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 
 	// Generate a map of all supported interaction profiles
 	TMap<FString, FInteractionProfile> Profiles;
-	Profiles.Add("Daydream", FInteractionProfile(GetPath(Instance, "/interaction_profiles/google/daydream_controller")));
-	Profiles.Add("Vive", FInteractionProfile(GetPath(Instance, "/interaction_profiles/htc/vive_controller")));
-	Profiles.Add("MixedReality", FInteractionProfile(GetPath(Instance, "/interaction_profiles/microsoft/motion_controller")));
-	Profiles.Add("OculusGo", FInteractionProfile(GetPath(Instance, "/interaction_profiles/oculus/go_controller")));
-	Profiles.Add("OculusTouch", FInteractionProfile(GetPath(Instance, "/interaction_profiles/oculus/touch_controller")));
-	Profiles.Add("ValveIndex", FInteractionProfile(GetPath(Instance, "/interaction_profiles/valve/index_controller")));
+	Profiles.Add("Daydream", FInteractionProfile(GetPath(Instance, "/interaction_profiles/google/daydream_controller"), false));
+	Profiles.Add("Vive", FInteractionProfile(GetPath(Instance, "/interaction_profiles/htc/vive_controller"), true));
+	Profiles.Add("MixedReality", FInteractionProfile(GetPath(Instance, "/interaction_profiles/microsoft/motion_controller"), true));
+	Profiles.Add("OculusGo", FInteractionProfile(GetPath(Instance, "/interaction_profiles/oculus/go_controller"), false));
+	Profiles.Add("OculusTouch", FInteractionProfile(GetPath(Instance, "/interaction_profiles/oculus/touch_controller"), true));
+	Profiles.Add("ValveIndex", FInteractionProfile(GetPath(Instance, "/interaction_profiles/valve/index_controller"), true));
+
+	if (OpenXRHMD->IsExtensionEnabled("XR_MSFT_hand_interaction_preview"))
+	{
+		Profiles.Add("MicrosoftHandInteraction", FInteractionProfile(GetPath(Instance, "/interaction_profiles/microsoft/hand_interaction_preview"), false));
+	}
 
 	// Generate a list of the sub-action paths so we can query the left/right hand individually
 	SubactionPaths.Add(GetPath(Instance, "/user/hand/left"));
@@ -248,12 +272,16 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 			Profile.Bindings.Add(XrActionSuggestedBinding {
 				Controllers[EControllerHand::Right].Action, GetPath(Instance, "/user/hand/right/input/grip/pose")
 			});
-			Profile.Bindings.Add(XrActionSuggestedBinding {
-				Controllers[EControllerHand::Left].VibrationAction, GetPath(Instance, "/user/hand/left/output/haptic")
-			});
-			Profile.Bindings.Add(XrActionSuggestedBinding {
-				Controllers[EControllerHand::Right].VibrationAction, GetPath(Instance, "/user/hand/right/output/haptic")
-			});
+
+			if (Profile.HasHaptics)
+			{
+				Profile.Bindings.Add(XrActionSuggestedBinding{
+					Controllers[EControllerHand::Left].VibrationAction, GetPath(Instance, "/user/hand/left/output/haptic")
+					});
+				Profile.Bindings.Add(XrActionSuggestedBinding{
+					Controllers[EControllerHand::Right].VibrationAction, GetPath(Instance, "/user/hand/right/output/haptic")
+					});
+			}
 
 			XrInteractionProfileSuggestedBinding InteractionProfile;
 			InteractionProfile.type = XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING;
@@ -267,12 +295,12 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 
 	// Add an active set for each sub-action path so we can use the subaction paths later
 	// TODO: Runtimes already allow us to do the same by simply specifying "subactionPath"
-	// as XR_NULL_HANDLE, we're just being verbose for safety.
-	for (XrPath Subaction : SubactionPaths)
+	// as XR_NULL_PATH, we're just being verbose for safety.
+	//for (XrPath Subaction : SubactionPaths)
 	{
 		XrActiveActionSet ActiveSet;
 		ActiveSet.actionSet = ActionSet;
-		ActiveSet.subactionPath = Subaction;
+		ActiveSet.subactionPath = XR_NULL_PATH;
 		ActionSets.Add(ActiveSet);
 	}
 }
@@ -601,3 +629,5 @@ float FOpenXRInputPlugin::FOpenXRInput::GetHapticAmplitudeScale() const
 {
 	return 1.0f;
 }
+
+#undef LOCTEXT_NAMESPACE // "OpenXRInputPlugin"
