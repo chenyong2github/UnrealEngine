@@ -110,6 +110,7 @@ void ULandscapeSubsystem::ExecuteTick(float DeltaTime, ELevelTick TickType, ENam
 			if (!World->IsPlayInEditor())
 			{
 				Proxy->UpdateBakedTextures();
+				Proxy->UpdatePhysicalMaterialTasks();
 			}
 		}
 #endif
@@ -118,6 +119,13 @@ void ULandscapeSubsystem::ExecuteTick(float DeltaTime, ELevelTick TickType, ENam
 			Proxy->TickGrass(*Cameras, InOutNumComponentsCreated);
 		}
 	}
+
+#if WITH_EDITOR
+	if (GIsEditor && !World->IsPlayInEditor())
+	{
+		LandscapePhysicalMaterial::GarbageCollectTasks();
+	}
+#endif
 }
 
 FString ULandscapeSubsystem::DiagnosticMessage()
