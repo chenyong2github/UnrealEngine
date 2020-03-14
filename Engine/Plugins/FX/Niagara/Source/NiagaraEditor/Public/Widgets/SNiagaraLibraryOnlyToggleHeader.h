@@ -4,6 +4,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Styling/SlateTypes.h"
 
 class SGraphActionMenu;
 
