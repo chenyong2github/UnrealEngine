@@ -602,11 +602,13 @@ void ScalabilityCVarsSinkCallback()
 
 		if (bRecreateRenderstate || bCacheResourceShaders)
 		{
+			// Make the render state rebuild object before updating the cached values, because its constructor calls UpdateAllPrimitiveSceneInfos(), which
+			// may end up using the material shader maps for the quality level stored in GCachedScalabilityCVars.MaterialQualityLevel. If that value already
+			// points to the new quality level, the shader maps won't exist, and we'll crash.
+			FGlobalComponentRecreateRenderStateContext Recreate;
+
 			// after FlushRenderingCommands() to not have render thread pick up the data partially
 			GCachedScalabilityCVars = LocalScalabilityCVars;
-
-			// Note: constructor and destructor has side effect
-			FGlobalComponentRecreateRenderStateContext Recreate;
 
 			if (bCacheResourceShaders)
 			{
