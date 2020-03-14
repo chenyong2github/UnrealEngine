@@ -937,8 +937,8 @@ void FNiagaraEmitterInstance::PreTick()
 
 
 	bool bOk = true;
-	bOk &= SpawnExecContext.Tick(ParentSystemInstance);
-	bOk &= UpdateExecContext.Tick(ParentSystemInstance);
+	bOk &= SpawnExecContext.Tick(ParentSystemInstance, CachedEmitter->SimTarget);
+	bOk &= UpdateExecContext.Tick(ParentSystemInstance, CachedEmitter->SimTarget);
 
 	// @todo THREADSAFETY We should not tick GPU contexts on the game thread!
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
@@ -947,7 +947,7 @@ void FNiagaraEmitterInstance::PreTick()
 	}
 	for (FNiagaraScriptExecutionContext& EventContext : EventExecContexts)
 	{
-		bOk &= EventContext.Tick(ParentSystemInstance);
+		bOk &= EventContext.Tick(ParentSystemInstance, CachedEmitter->SimTarget);
 	}
 
 	if (!bOk)

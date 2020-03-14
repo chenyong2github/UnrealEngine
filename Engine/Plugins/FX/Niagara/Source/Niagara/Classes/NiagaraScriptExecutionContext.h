@@ -176,7 +176,7 @@ public:
 
 	bool Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget);
 	
-	bool Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget = ENiagaraSimTarget::CPUSim);
+	bool Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget);
 	void PostTick();
 
 	void BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts);
