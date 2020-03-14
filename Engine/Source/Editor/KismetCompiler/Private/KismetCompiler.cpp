@@ -571,10 +571,11 @@ void FKismetCompilerContext::ValidateVariableNames()
 			}
 			else if (ParentClass->IsNative()) // the above case handles when the parent is a blueprint
 			{
-				if (UField* ExisingField = FindField<UField>(ParentClass, *VarNameStr))
+				FFieldVariant ExisingField = FindUFieldOrFProperty(ParentClass, *VarNameStr);
+				if (ExisingField.IsValid())
 				{
 					UE_LOG(LogK2Compiler, Warning, TEXT("ValidateVariableNames name %s (used in %s) is already taken by %s")
-						, *VarNameStr, *Blueprint->GetPathName(), *ExisingField->GetPathName());
+						, *VarNameStr, *Blueprint->GetPathName(), *ExisingField.GetPathName());
 					NewVarName = FBlueprintEditorUtils::FindUniqueKismetName(Blueprint, VarNameStr);
 				}
 			}

@@ -5566,6 +5566,26 @@ template <class T> T* FindField( const UStruct* Owner, const TCHAR* FieldName )
 	return FindField<T>(Owner, Name);
 }
 
+/** Finds FProperties or UFunctions and UEnums */
+inline FFieldVariant FindUFieldOrFProperty(const UStruct* Owner, FName FieldName)
+{
+	// Look for properties first as they're most often the runtime thing higher level code wants to find
+	FFieldVariant Result = FindField<FProperty>(Owner, FieldName);
+	if (!Result.IsValid())
+	{
+		Result = FindField<UField>(Owner, FieldName);
+	}
+	return Result;
+}
+
+/** Finds FProperties or UFunctions and UEnums */
+inline FFieldVariant FindUFieldOrFProperty(const UStruct* Owner, const TCHAR* FieldName)
+{
+	// lookup the string name in the Name hash
+	FName Name(FieldName, FNAME_Find);
+	return FindUFieldOrFProperty(Owner, Name);
+}
+
 /**
  * Search for the named field within the specified scope, including any Outer classes; assert on failure.
  *
