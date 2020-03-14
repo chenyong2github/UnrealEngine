@@ -195,8 +195,6 @@ namespace Chaos
 						continue;
 					}
 
-					const bool bBody2Bounded = HasBoundingBox(Particle2);
-
 					if (Particle1.Handle() == Particle2.Handle())
 					{
 						continue;
@@ -212,6 +210,7 @@ namespace Chaos
 						continue;
 					}
 
+					const bool bBody2Bounded = HasBoundingBox(Particle2);
 					const bool bIsParticle2Dynamic = Particle2.CastToRigidParticle() && Particle2.ObjectState() == EObjectStateType::Dynamic;
 					if (bBody1Bounded == bBody2Bounded && bIsParticle2Dynamic)
 					{
