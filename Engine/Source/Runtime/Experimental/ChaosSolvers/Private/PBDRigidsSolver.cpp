@@ -18,6 +18,7 @@
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "EventDefaults.h"
 #include "EventsData.h"
+#include "Chaos/RewindData.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolver, Log, All);
@@ -755,7 +756,8 @@ namespace Chaos
 
 		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(this,[bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData](FPBDRigidsSolver* Solver)
 		{
-			auto ProcessProxyPT = [bIsSingleThreaded, Solver,Manager,DirtyProxiesData,ShapeDirtyData](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
+			FRewindData* RewindData = Solver->GetRewindData();
+			auto ProcessProxyPT = [bIsSingleThreaded, Solver,Manager,DirtyProxiesData,ShapeDirtyData, RewindData](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 			{
 				const bool bIsNew = !Proxy->IsInitialized();
 				//single threaded version already created particle, but didn't initialize it
@@ -779,6 +781,11 @@ namespace Chaos
 
 				Dirty.Clear(*Manager, DataIdx, ShapeDirtyData);
 			};
+
+			if(RewindData)
+			{
+				RewindData->SavePrevFrameState(*DirtyProxiesData);
+			}
 
 			//need to create new particle handles
 			DirtyProxiesData->ForEachProxy([Solver, &ProcessProxyPT](int32 DataIdx,FDirtyProxy& Dirty)
@@ -986,6 +993,11 @@ namespace Chaos
 		TSolverQueryMaterialScope<ELockType::Write> Scope(this);
 		QueryMaterials = SimMaterials;
 		QueryMaterialMasks = SimMaterialMasks;
+	}
+
+	void FPBDRigidsSolver::EnableRewindCapture(int32 NumFrames)
+	{
+		MRewindData = MakeUnique<FRewindData>(NumFrames);
 	}
 
 }; // namespace Chaos
