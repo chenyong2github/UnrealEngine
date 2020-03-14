@@ -427,7 +427,7 @@ void FVectorVMContext::PrepareForExec(
 	int32 InConstantTableCount,
 	const uint8* const* InConstantTable,
 	const int32* InConstantTableSizes,
-	FVMExternalFunction* InExternalFunctionTable,
+	const FVMExternalFunction* const* InExternalFunctionTable,
 	void** InUserPtrTable,
 	TArrayView<FDataSetMeta> InDataSetMetaTable,
 	int32 MaxNumInstances,
@@ -1951,7 +1951,13 @@ struct FKernelExternalFunctionCall
 	static void Exec(FVectorVMContext& Context)
 	{
 		const uint32 ExternalFuncIdx = Context.DecodeU8();
-		Context.ExternalFunctionTable[ExternalFuncIdx].Execute(Context);
+		const FVMExternalFunction* ExternalFunction = Context.ExternalFunctionTable[ExternalFuncIdx];
+		check(ExternalFunction);
+
+		if (ExternalFunction)
+		{
+			ExternalFunction->Execute(Context);
+		}
 	}
 };
 
@@ -2403,7 +2409,7 @@ void VectorVM::Exec(
 	const uint8* const* ConstantTable,
 	const int32* ConstantTableSizes,
 	TArrayView<FDataSetMeta> DataSetMetaTable,
-	FVMExternalFunction* ExternalFunctionTable,
+	const FVMExternalFunction* const* ExternalFunctionTable,
 	void** UserPtrTable,
 	int32 NumInstances
 #if STATS

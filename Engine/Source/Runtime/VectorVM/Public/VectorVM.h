@@ -286,7 +286,7 @@ public:
 	int32 NumTempRegisters;
 
 	/** Pointer to the shared data table. */
-	FVMExternalFunction* RESTRICT ExternalFunctionTable;
+	const FVMExternalFunction* const* RESTRICT ExternalFunctionTable;
 	/** Table of user pointers.*/
 	void** UserPtrTable;
 
@@ -330,7 +330,7 @@ public:
 		int32 ConstantTableCount,
 		const uint8* const* InConstantTables,
 		const int32* InConstantTableSizes,
-		FVMExternalFunction* InExternalFunctionTable,
+		const FVMExternalFunction* const* InExternalFunctionTable,
 		void** InUserPtrTable,
 		TArrayView<FDataSetMeta> InDataSetMetaTable,
 		int32 MaxNumInstances,
@@ -456,7 +456,7 @@ namespace VectorVM
 		const uint8* const* ConstantTable,
 		const int32* ConstantTableSizes,
 		TArrayView<FDataSetMeta> DataSetMetaTable,
-		FVMExternalFunction* ExternalFunctionTable,
+		const FVMExternalFunction* const* ExternalFunctionTable,
 		void** UserPtrTable,
 		int32 NumInstances
 #if STATS

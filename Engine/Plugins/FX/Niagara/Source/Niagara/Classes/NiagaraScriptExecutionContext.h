@@ -149,9 +149,14 @@ struct FNiagaraScriptExecutionContext
 {
 	UNiagaraScript* Script;
 
-	/** Table of external function delegates called from the VM. */
-	TArray<FVMExternalFunction> FunctionTable;
+	/** Table of external function delegate handles called from the VM. */
+	TArray<const FVMExternalFunction*> FunctionTable;
 
+private:
+	/** Table of external function delegates unique to the instance */
+	TArray<FVMExternalFunction> LocalFunctionTable;
+
+public:
 	/** Table of instance data for data interfaces that require it. */
 	TArray<void*> DataInterfaceInstDataTable;
 
