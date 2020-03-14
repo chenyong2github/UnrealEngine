@@ -66,9 +66,11 @@ static FAutoConsoleVariableRef CVarHairStrandsVisibilityComputeRasterSampleCount
 static float GHairStrandsFullCoverageThreshold = 0.98f;
 static FAutoConsoleVariableRef CVarHairStrandsFullCoverageThreshold(TEXT("r.HairStrands.Visibility.FullCoverageThreshold"), GHairStrandsFullCoverageThreshold, TEXT("Define the coverage threshold at which a pixel is considered fully covered."));
 
-
 static int32 GHairStrandsSortHairSampleByDepth = 0;
 static FAutoConsoleVariableRef CVarHairStrandsSortHairSampleByDepth(TEXT("r.HairStrands.Visibility.SortByDepth"), GHairStrandsSortHairSampleByDepth, TEXT("Sort hair fragment by depth and update their coverage based on ordered transmittance."));
+
+static int32 GHairStrandsHairCountToTransmittance = 0;
+static FAutoConsoleVariableRef CVarHairStrandsHairCountToTransmittance(TEXT("r.HairStrands.Visibility.UseCoverageMappping"), GHairStrandsHairCountToTransmittance, TEXT("Use hair count to coverage transfer function."));
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1799,7 +1801,7 @@ static void AddHairVisibilityCommonPass(
 			{
 				DrawRenderState.SetBlendState(TStaticBlendState<
 					CW_RED, BO_Add, BF_DestColor, BF_Zero, BO_Add, BF_Zero, BF_Zero,
-					CW_RED, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_Zero>::GetRHI());
+					CW_RG, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_Zero>::GetRHI());
 				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 			}
 			else if (RenderMode == HairVisibilityRenderMode_PPLL)
@@ -2072,6 +2074,7 @@ static FHairPrimaryTransmittance AddHairViewTransmittancePass(
 
 	if (RenderMode == HairVisibilityRenderMode_TransmittanceAndHairCount)
 	{
+		Desc.Format = PF_G32R32F;
 		Desc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
 		Out.HairCountTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairViewHairCountTexture"));
 		PassParameters->RenderTargets[1] = FRenderTargetBinding(Out.HairCountTexture, ERenderTargetLoadAction::EClear, 0);
@@ -2265,6 +2268,68 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 				EDRF_UseTriangleOptimization);
 		});
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FHairCountToCoverageCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairCountToCoverageCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairCountToCoverageCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, OutputResolution)
+		SHADER_PARAMETER(float, LUT_HairCount)
+		SHADER_PARAMETER(float, LUT_HairRadiusCount)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCoverageLUT)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCountTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairCountToCoverageCS, "/Engine/Private/HairStrands/HairStrandsCoverage.usf", "MainCS", SF_Compute);
+
+static FRDGTextureRef AddHairHairCountToTransmittancePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& ViewInfo,
+	const FHairLUT& HairLUT,
+	const FRDGTextureRef HairCountTexture)
+{
+	const FIntPoint OutputResolution = HairCountTexture->Desc.Extent;
+
+	FRDGTextureDesc Desc;
+	Desc.Extent = OutputResolution;
+	Desc.Depth = 0;
+	Desc.Format = PF_R32_FLOAT;
+	Desc.NumMips = 1;
+	Desc.NumSamples = 1;
+	Desc.Flags = TexCreate_None;
+	Desc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable;
+	Desc.bForceSharedTargetAndShaderResource = true;
+	Desc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairVisibilityTexture"));
+	FRDGTextureRef HairCoverageLUT = GraphBuilder.RegisterExternalTexture(HairLUT.Textures[HairLUTType_Coverage], TEXT("HairCoverageLUT"));
+
+	FHairCountToCoverageCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairCountToCoverageCS::FParameters>();
+	PassParameters->LUT_HairCount = HairCoverageLUT->Desc.Extent.X;
+	PassParameters->LUT_HairRadiusCount = HairCoverageLUT->Desc.Extent.Y;
+	PassParameters->OutputResolution = OutputResolution;
+	PassParameters->HairCoverageLUT = HairCoverageLUT;
+	PassParameters->HairCountTexture = HairCountTexture;
+	PassParameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
+
+	TShaderMapRef<FHairCountToCoverageCS> ComputeShader(ViewInfo.ShaderMap);
+	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVisibilityComputeRaster"), ComputeShader, PassParameters, FComputeShaderUtils::GetGroupCount(OutputResolution, FIntPoint(8,8)));
+
+	return OutputTexture;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2480,6 +2545,8 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 		const FViewInfo& View = Views[ViewIndex];
 		if (View.Family)
 		{
+			FHairLUT HairLUT = GetHairLUT(RHICmdList, View);
+
 			FHairStrandsVisibilityData& VisibilityData = Output.HairDatas.AddDefaulted_GetRef();
 			VisibilityData.NodeGroupSize = GetVendorOptimalGroupSize1D();
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = MacroGroupViews.Views[ViewIndex];
@@ -2517,6 +2584,16 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					Resolution,
 					bOutputHairCount,
 					SceneDepthTexture);
+
+				const bool bHairCountToTransmittance = GHairStrandsHairCountToTransmittance > 0;
+				if (bHairCountToTransmittance)
+				{
+					ViewTransmittance.TransmittanceTexture = AddHairHairCountToTransmittancePass(
+						GraphBuilder,
+						View,
+						HairLUT,
+						ViewTransmittance.HairCountTexture);
+				}
 
 				const bool bUseRasterCompute = GHairStrandsVisibilityComputeRaster > 0 && DoesSupportRasterCompute();
 				if (bUseRasterCompute)

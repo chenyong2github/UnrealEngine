@@ -60,7 +60,7 @@ void MainVisibility(
 	, out float OutColor0 : SV_Target0
 #elif HAIR_RENDER_MODE == RENDER_MODE_TRANSMITTANCE_AND_HAIRCOUNT
 	, out float OutColor0 : SV_Target0
-	, out float OutColor1 : SV_Target1
+	, out float2 OutColor1 : SV_Target1
 #elif HAIR_RENDER_MODE == RENDER_MODE_MSAA
 	, out uint2 OutColor0	: SV_Target0
   #if SUPPORT_MATERIAL_PROPERTY
@@ -104,7 +104,7 @@ void MainVisibility(
 	OutColor0 = saturate(1.0f - Coverage);
 #elif HAIR_RENDER_MODE == RENDER_MODE_TRANSMITTANCE_AND_HAIRCOUNT
 	OutColor0 = saturate(1.0f - Coverage);
-	OutColor1 = Coverage;
+	OutColor1 = float2(Coverage, 1);
 #endif
 
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
