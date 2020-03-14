@@ -106,13 +106,15 @@ void FFloatChannelCurveModel::AddKeys(TArrayView<const FKeyPosition> InKeyPositi
 
 			FMovieSceneFloatValue Value(Position.OutputValue);
 
-			int32 KeyIndex = ChannelData.AddKey(Time, Value);
-			FKeyHandle NewHandle = ChannelData.GetHandle(KeyIndex);
-			NewKeyHandles[Index] = NewHandle;
-
-			if (OutKeyHandles)
+			FKeyHandle NewHandle = ChannelData.UpdateOrAddKey(Time, Value);
+			if (NewHandle != FKeyHandle::Invalid())
 			{
-				(*OutKeyHandles)[Index] = NewHandle;
+				NewKeyHandles[Index] = NewHandle;
+
+				if (OutKeyHandles)
+				{
+					(*OutKeyHandles)[Index] = NewHandle;
+				}
 			}
 		}
 

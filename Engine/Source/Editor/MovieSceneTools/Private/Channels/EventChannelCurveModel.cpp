@@ -64,10 +64,13 @@ void FEventChannelCurveModel::AddKeys(TArrayView<const FKeyPosition> InKeyPositi
 			Section->ExpandToFrame(Time);
 
 			FMovieSceneEvent Value;
-			int32 KeyIndex = ChannelData.AddKey(Time, Value);
-			if (OutKeyHandles)
+			FKeyHandle NewHandle = ChannelData.UpdateOrAddKey(Time, Value);
+			if (NewHandle != FKeyHandle::Invalid())
 			{
-				(*OutKeyHandles)[Index] = ChannelData.GetHandle(KeyIndex);
+				if (OutKeyHandles)
+				{
+					(*OutKeyHandles)[Index] = NewHandle;
+				}
 			}
 		}
 	}

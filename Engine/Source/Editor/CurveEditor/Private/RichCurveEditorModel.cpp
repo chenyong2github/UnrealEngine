@@ -146,12 +146,14 @@ void FRichCurveEditorModel::AddKeys(TArrayView<const FKeyPosition> InKeyPosition
 				FKeyAttributes Attributes = InKeyAttributes[Index];
 
 				const TRange<double> InputRange = ClampInputRange.Get();
-				FKeyHandle     NewHandle = RichCurve.AddKey(FMath::Clamp(Position.InputValue, InputRange.GetLowerBoundValue(), InputRange.GetUpperBoundValue()), Position.OutputValue);
-
-				NewKeyHandles[Index] = NewHandle;
-				if (OutKeyHandles)
+				FKeyHandle     NewHandle = RichCurve.UpdateOrAddKey(FMath::Clamp(Position.InputValue, InputRange.GetLowerBoundValue(), InputRange.GetUpperBoundValue()), Position.OutputValue);
+				if (NewHandle != FKeyHandle::Invalid())
 				{
-					(*OutKeyHandles)[Index] = NewHandle;
+					NewKeyHandles[Index] = NewHandle;
+					if (OutKeyHandles)
+					{
+						(*OutKeyHandles)[Index] = NewHandle;
+					}
 				}
 			}
 
