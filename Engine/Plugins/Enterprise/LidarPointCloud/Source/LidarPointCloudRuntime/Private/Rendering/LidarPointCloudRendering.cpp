@@ -202,7 +202,7 @@ public:
 					FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
 					BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 					BatchElement.IndexBuffer = &GLidarPointCloudIndexBuffer;
-					BatchElement.FirstIndex = bUsesSprites ? 0 : GLidarPointCloudIndexBuffer.GetPointOffset();
+					BatchElement.FirstIndex = bUsesSprites ? 0 : GLidarPointCloudIndexBuffer.PointOffset;
 					BatchElement.MinVertexIndex = 0;
 					BatchElement.NumPrimitives = RenderData.NumElements * (bUsesSprites ? 2 : 1);
 					BatchElement.UserData = &UserData[UserData.Add(BuildUserDataElement(View))];
