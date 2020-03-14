@@ -621,31 +621,49 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 	{
 		// If we missed it, kick off a new load with it.
 		FoundElement = InsertChunk(InKey);
-
 		if (!FoundElement)
 		{
 			return TArrayView<uint8>();
 		}
-
-		KickOffAsyncLoad(FoundElement, InKey, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bNeededForPlayback);
-
 		if (bBlockForLoadCompletion)
 		{
-			// If bBlockForLoadCompletion was true and we don't have an element present, we have to load the element into the cache:
-			FoundElement->WaitForAsyncLoadCompletion(false);
+#if DEBUG_STREAM_CACHE
+			FStreamedAudioChunk& Chunk = InKey.SoundWave->RunningPlatformData->Chunks[InKey.ChunkIndex];
+			int32 ChunkAudioDataSize = Chunk.AudioDataSize;
+			FoundElement->DebugInfo.NumTotalChunks = InKey.SoundWave->GetNumChunks() - 1;
+			FoundElement->DebugInfo.TimeLoadStarted = FPlatformTime::Cycles64();
+#endif
+			MemoryCounterBytes -= FoundElement->ChunkData.Num();
 
-			FoundElement->NumConsumers.Increment();
-			return TArrayView<uint8>(FoundElement->ChunkData.GetData(), FoundElement->ChunkDataSize);
+			// Reallocate our chunk data This allows us to shrink if possible.
+			// Unfortunately, GetCopy will write out the full zero-padded length of the bulk data,
+			// rather than just the audio data. So we set the array to Chunk.DataSize, then shrink to Chunk.AudioDataSize.
+			FoundElement->ChunkData.SetNumUninitialized(Chunk.DataSize, true);
+			void* DataDestPtr = FoundElement->ChunkData.GetData();
+			Chunk.BulkData.GetCopy(&DataDestPtr, true);
+
+			FoundElement->ChunkData.SetNumUninitialized(ChunkAudioDataSize);
+			MemoryCounterBytes += FoundElement->ChunkData.Num();
+
+			// Populate key and DataSize. The async read request was set up to write directly into CacheElement->ChunkData.
+			FoundElement->Key = InKey;
+			FoundElement->ChunkDataSize = ChunkAudioDataSize;
+			FoundElement->bIsLoaded = true;
+#if DEBUG_STREAM_CACHE
+			FoundElement->DebugInfo.TimeToLoad = (FPlatformTime::Seconds() - FoundElement->DebugInfo.TimeLoadStarted) * 1000.0f;
+#endif
 		}
-		else if (bNeededForPlayback && (bLogCacheMisses || AlwaysLogCacheMissesCVar))
+		else
 		{
-			// We missed 
+			KickOffAsyncLoad(FoundElement, InKey, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bNeededForPlayback);
+		}
+		if (bLogCacheMisses && !bBlockForLoadCompletion)
+		{
+			// Chunks missing. Log this as a miss.
 			const uint32 TotalNumChunksInWave = InKey.SoundWave->GetNumChunks();
-
 			FCacheMissInfo CacheMissInfo = { InKey.SoundWaveName, InKey.ChunkIndex, TotalNumChunksInWave, false };
 			CacheMissQueue.Enqueue(MoveTemp(CacheMissInfo));
 		}
-
 		// We missed, return an empty array view.
 		return TArrayView<uint8>();
 	}
