@@ -135,17 +135,17 @@ public:
 	bool bStarted;
 
 	UARPin* ARPin;
-	FDateTime ExpirationTime;
+	float Lifetime;
 	UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor;
 
-	FAzureSpatialAnchorsSavePinToCloudAction(const FLatentActionInfo& InLatentInfo, UARPin*& InARPin, FDateTime InExpirationTime, UAzureCloudSpatialAnchor*& InOutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& InOutResult, FString& InOutErrorString)
+	FAzureSpatialAnchorsSavePinToCloudAction(const FLatentActionInfo& InLatentInfo, UARPin*& InARPin, float InLifetime, UAzureCloudSpatialAnchor*& InOutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& InOutResult, FString& InOutErrorString)
 		: FAzureSpatialAnchorsAsyncAction(TEXT("SavePinToCloud."), InOutResult, InOutErrorString)
 		, ExecutionFunction(InLatentInfo.ExecutionFunction)
 		, OutputLink(InLatentInfo.Linkage)
 		, CallbackTarget(InLatentInfo.CallbackTarget)
 		, bStarted(false)
 		, ARPin(InARPin)
-		, ExpirationTime(InExpirationTime)
+		, Lifetime(InLifetime)
 		, OutAzureCloudSpatialAnchor(InOutAzureCloudSpatialAnchor)
 	{}
 
@@ -171,9 +171,9 @@ public:
 				return;
 			}
 
-			if (ExpirationTime.GetTicks() != 0)
+			if (Lifetime > 0)
 			{
-				if (!MSA->SetCloudAnchorExpiration(OutAzureCloudSpatialAnchor, ExpirationTime))
+				if (!MSA->SetCloudAnchorExpiration(OutAzureCloudSpatialAnchor, Lifetime))
 				{
 					OutResult = EAzureSpatialAnchorsResult::FailSeeErrorString;
 					OutErrorString = TEXT("SetCloudAnchorExpiration Failed.");
@@ -213,7 +213,7 @@ public:
 	}
 };
 
-void UAzureSpatialAnchorsLibrary::SavePinToCloud(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, FDateTime ExpirationTime, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
+void UAzureSpatialAnchorsLibrary::SavePinToCloud(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, float Lifetime, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
@@ -225,7 +225,7 @@ void UAzureSpatialAnchorsLibrary::SavePinToCloud(UObject* WorldContextObject, st
 		if (ExistAction == nullptr || ExistAction->ARPin != ARPin)
 		{
 			// does this handle multiple in progress operations?
-			FAzureSpatialAnchorsSavePinToCloudAction* NewAction = new FAzureSpatialAnchorsSavePinToCloudAction(LatentInfo, ARPin, ExpirationTime, OutAzureCloudSpatialAnchor, OutResult, OutErrorString);
+			FAzureSpatialAnchorsSavePinToCloudAction* NewAction = new FAzureSpatialAnchorsSavePinToCloudAction(LatentInfo, ARPin, Lifetime, OutAzureCloudSpatialAnchor, OutResult, OutErrorString);
 			LatentManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, NewAction);
 		}
 		else
@@ -786,97 +786,27 @@ void UAzureSpatialAnchorsLibrary::RefreshCloudAnchorProperties(UObject* WorldCon
 //	}
 //}
 
-struct FAzureSpatialAnchorsCreateWatcherAction : public FAzureSpatialAnchorsAsyncAction
+void UAzureSpatialAnchorsLibrary::CreateWatcher(UObject* WorldContextObject, const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, int32& OutWatcherIdentifier, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
 {
-public:
-	FName ExecutionFunction;
-	int32 OutputLink;
-	FWeakObjectPtr CallbackTarget;
-	bool bStarted;
-
-	const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria;
-	const float WorldToMetersScale;
-	int32& OutWatcherIdentifier;
-	TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors;
-
-	FAzureSpatialAnchorsCreateWatcherAction(const FLatentActionInfo& InLatentInfo, const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, float InWorldToMetersScale, int32& OutWatcherIdentifier, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& InOutResult, FString& InOutErrorString)
-		: FAzureSpatialAnchorsAsyncAction(TEXT("CreateWatcher."), InOutResult, InOutErrorString)
-		, ExecutionFunction(InLatentInfo.ExecutionFunction)
-		, OutputLink(InLatentInfo.Linkage)
-		, CallbackTarget(InLatentInfo.CallbackTarget)
-		, bStarted(false)
-		, InLocateCriteria(InLocateCriteria)
-		, WorldToMetersScale(InWorldToMetersScale)
-		, OutWatcherIdentifier(OutWatcherIdentifier)
-		, OutAzureCloudSpatialAnchors(OutAzureCloudSpatialAnchors)
-	{}
-
-	virtual void UpdateOperation(FLatentResponse& Response) override
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
+		UE_LOG(LogAzureSpatialAnchors, Verbose, TEXT("CreateWatcher"));
+
 		IAzureSpatialAnchors* MSA = IAzureSpatialAnchors::Get();
 		if (MSA == nullptr)
 		{
 			OutResult = EAzureSpatialAnchorsResult::FailSeeErrorString;
 			OutErrorString = TEXT("Failed to get IAzureSpatialAnchors.");
-			Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
 			return;
 		}
 
-		if (!bStarted)
-		{
-			// Start the operation	
-			if (!MSA->CreateWatcherAsync_Start(this, InLocateCriteria, WorldToMetersScale, OutWatcherIdentifier, OutAzureCloudSpatialAnchors, OutResult, OutErrorString))
-			{
-				Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
-				return;
-			}
-			else
-			{
-				bStarted = true;
-			}
-		}
-		else
-		{
-			// See if the operation is done.
-			if (MSA->CreateWatcherAsync_Update(this, OutAzureCloudSpatialAnchors, OutResult, OutErrorString))
-			{
-				Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
-				return;
-			}
-		}
+		const float WorldToMetersScale = WorldContextObject->GetWorld()->GetWorldSettings()->WorldToMeters;
+		MSA->CreateWatcher(InLocateCriteria, WorldToMetersScale, OutWatcherIdentifier, OutResult, OutErrorString);
 	}
-
-	virtual void Orphan() override
+	else
 	{
-		IAzureSpatialAnchors* MSA = IAzureSpatialAnchors::Get();
-		if (MSA)
-		{
-			MSA->CreateWatcherAsync_Orphan(this);
-		}
-	}
-};
-
-void UAzureSpatialAnchorsLibrary::CreateWatcher(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, int32& OutWatcherIdentifier, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
-{
-	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
-	{
-		UE_LOG(LogAzureSpatialAnchors, Verbose, TEXT("CreateWatcher Action. UUID: %d"), LatentInfo.UUID);
-		FLatentActionManager& LatentManager = World->GetLatentActionManager();
-
-		// I don't think it makes sense to try to avoid redundant actions here...
-		//FAzureSpatialAnchorsCreateWatcherAction* ExistAction = reinterpret_cast<FAzureSpatialAnchorsCreateWatcherAction*>(
-		//	LatentManager.FindExistingAction<FAzureSpatialAnchorsCreateWatcherAction>(LatentInfo.CallbackTarget, LatentInfo.UUID));
-		//if (ExistAction == nullptr || ExistAction->InLocateCriteria != InLocateCriteria)
-		//{
-			// does this handle multiple in progress operations?
-			const float WorldToMetersScale = WorldContextObject->GetWorld()->GetWorldSettings()->WorldToMeters;
-			FAzureSpatialAnchorsCreateWatcherAction* NewAction = new FAzureSpatialAnchorsCreateWatcherAction(LatentInfo, InLocateCriteria, WorldToMetersScale, OutWatcherIdentifier, OutAzureCloudSpatialAnchors, OutResult, OutErrorString);
-			LatentManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, NewAction);
-		//}
-		//else
-		//{
-		//	UE_LOG(LogAzureSpatialAnchors, Verbose, TEXT("Skipping CreateWatcher latent action."), LatentInfo.UUID);
-		//}
+		OutResult = EAzureSpatialAnchorsResult::FailSeeErrorString;
+		OutErrorString = TEXT("Failed to get World from WorldContextObject.");
 	}
 }
 
