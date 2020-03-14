@@ -847,22 +847,11 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			CompilerData.Compiler->ValidateVariableNames();
 		}
 
-		// STAGE VI: Purge null graphs, misc. data fixup
+		// STAGE VI: Purge null graphs, could be done only on load
 		for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
 		{
 			UBlueprint* BP = CompilerData.BP;
-			if(BP->bIsRegeneratingOnLoad)
-			{
-				FBlueprintEditorUtils::PurgeNullGraphs(BP);
-				BP->ConformNativeComponents();
-				if (FLinkerLoad* Linker = BP->GetLinker())
-				{
-					if (Linker->UE4Ver() < VER_UE4_EDITORONLY_BLUEPRINTS)
-					{
-						BP->ChangeOwnerOfTemplates();
-					}
-				}
-			}
+			FBlueprintEditorUtils::PurgeNullGraphs(BP);
 		}
 
 		// STAGE VII: safely throw away old skeleton CDOs:
