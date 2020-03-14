@@ -149,7 +149,7 @@ UDatasmithSceneElement* UDatasmithSceneElement::ConstructDatasmithSceneFromFile(
 	TSharedRef< IDatasmithScene > Scene = FDatasmithSceneFactory::CreateScene(*Source.GetSceneName());
 	DatasmithSceneElement->SetDatasmithSceneElement(Scene);
 
-	bool bLoadConfig = false; //!IsAutomatedImport();
+	const bool bLoadConfig = false; // don't load values from ini files
 	DatasmithSceneElement->ImportContextPtr.Reset(new FDatasmithImportContext(Source.GetSourceFile(), bLoadConfig, GetLoggerName(), GetDisplayName(), TranslatableSource.GetTranslator()));
 
 	return DatasmithSceneElement;
@@ -187,7 +187,7 @@ UDatasmithSceneElement* UDatasmithSceneElement::GetExistingDatasmithScene(const 
 		DatasmithSceneElement->SetDatasmithSceneElement(Scene);
 
 		// Setup pipe for reimport
-		bool bLoadConfig = false;
+		const bool bLoadConfig = false;
 		DatasmithSceneElement->ImportContextPtr.Reset(new FDatasmithImportContext(Source.GetSourceFile(), bLoadConfig, GetLoggerName(), GetDisplayName(), TranslatableSource.GetTranslator()));
 		FDatasmithImportContext& ImportContext = *DatasmithSceneElement->ImportContextPtr;
 		ImportContext.SceneAsset = SceneAsset;
@@ -196,18 +196,41 @@ UDatasmithSceneElement* UDatasmithSceneElement::GetExistingDatasmithScene(const 
 
 		FString ImportPath = ImportContext.Options->BaseOptions.AssetOptions.PackagePath.ToString();
 
-		bool bIsSilent = false;
 		return DatasmithSceneElement;
 	}
 
 	return nullptr;
 }
 
+bool UDatasmithSceneElement::TranslateScene()
+{
+	if (!SourcePtr.IsValid() || !ImportContextPtr.IsValid() || !GetSceneElement().IsValid())
+	{
+		UE_LOG(LogDatasmithImport, Error, TEXT("Invalid State. Ensure ConstructDatasmithSceneFromFile has been called."));
+		return false;
+	}
+
+	FDatasmithTranslatableSceneSource& TranslatableSource = *SourcePtr;
+
+	TSharedRef<IDatasmithScene> Scene = GetSceneElement().ToSharedRef();
+	const bool bSilent = true; // don't pop options window
+	ImportContextPtr->InitOptions(Scene, nullptr, bSilent);
+
+	bTranslated = true;
+	if (!TranslatableSource.Translate(Scene))
+	{
+		UE_LOG(LogDatasmithImport, Error, TEXT("Datasmith import error: Scene translation failure. Abort import."));
+		return false;
+	}
+
+	return true;
+}
+
 FDatasmithImportFactoryCreateFileResult UDatasmithSceneElement::ImportScene(const FString& DestinationFolder)
 {
 	FDatasmithImportFactoryCreateFileResult Result;
 
-	if (this == nullptr || !ImportContextPtr.IsValid() || !SourcePtr.IsValid() || SourcePtr->GetTranslator() == nullptr || !GetSceneElement().IsValid())
+	if (this == nullptr || !ImportContextPtr.IsValid() || !GetSceneElement().IsValid())
 	{
 		UE_LOG(LogDatasmithImport, Error, TEXT("Invalid State. Ensure ConstructDatasmithSceneFromFile has been called."));
 		return Result;
@@ -221,23 +244,21 @@ FDatasmithImportFactoryCreateFileResult UDatasmithSceneElement::ImportScene(cons
 		return Result;
 	}
 
+	if (!bTranslated)
+	{
+		if (!TranslateScene())
+		{
+			return Result;
+		}
+	}
+
 	FDatasmithImportContext& ImportContext = *ImportContextPtr;
-	TSharedRef< IDatasmithScene > Scene = GetSceneElement().ToSharedRef();
-	EObjectFlags NewObjectFlags = RF_Public | RF_Standalone | RF_Transactional;
-	TSharedPtr<FJsonObject> ImportSettingsJson;
-	bool bIsSilent = true;
-	if ( !ImportContext.Init( Scene, DestinationPackage->GetName(), NewObjectFlags, GWarn, ImportSettingsJson, bIsSilent ) )
+	const EObjectFlags NewObjectFlags = RF_Public | RF_Standalone | RF_Transactional;
+	const bool bIsSilent = true;
+	if (!ImportContext.SetupDestination(DestinationPackage->GetName(), NewObjectFlags, GWarn, bIsSilent))
 	{
 		return Result;
 	}
-
-	FDatasmithTranslatableSceneSource& TranslatableSource = *SourcePtr;
-	if (!TranslatableSource.Translate(Scene))
-	{
-		UE_LOG(LogDatasmithImport, Error, TEXT("Datasmith import error: Scene translation failure. Abort import."));
-		return Result;
-	}
-
 	bool bUserCancelled = false;
 	Result.bImportSucceed = DatasmithImportFactoryImpl::ImportDatasmithScene(ImportContext, bUserCancelled);
 	Result.bImportSucceed &= !bUserCancelled;
@@ -276,7 +297,7 @@ FDatasmithImportFactoryCreateFileResult UDatasmithSceneElement::ReimportScene()
 	TSharedRef< IDatasmithScene > Scene = GetSceneElement().ToSharedRef();
 	EObjectFlags NewObjectFlags = RF_Public | RF_Standalone | RF_Transactional;
 	TSharedPtr<FJsonObject> ImportSettingsJson;
-	bool bIsSilent = true;
+	const bool bIsSilent = true;
 	if ( !ImportContext.Init( Scene, DestinationPackage->GetName(), NewObjectFlags, GWarn, ImportSettingsJson, bIsSilent ) )
 	{
 		return Result;
