@@ -5,6 +5,7 @@
 #include "AudioResampler.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Containers/Queue.h"
 #include "Misc/ScopeLock.h"
