@@ -6,6 +6,15 @@
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheUsageStats.h"
 
+// Macro for whether to enable the S3 backend. libcurl is not currently available on Mac.
+#if PLATFORM_WINDOWS
+	#define WITH_S3_DDC_BACKEND 1
+#else
+	#define WITH_S3_DDC_BACKEND 0
+#endif
+
+#if WITH_S3_DDC_BACKEND
+
 /**
  * Backend for a read-only AWS S3 based caching service.
  **/
@@ -61,3 +70,4 @@ private:
 	bool FindBundleEntry(const TCHAR* CacheKey, const FBundle*& OutBundle, const FBundleEntry*& OutBundleEntry) const;
 };
 
+#endif
