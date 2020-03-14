@@ -13,6 +13,7 @@
 	"CanContainContent": true,
 	"IsBetaVersion": true,
 	"Installed": false,
+	"Hidden": true,
 	"Modules": [
 		{
 			"Name": "ModelingComponents",
@@ -43,7 +44,7 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [ "Win64" ]
-		},
+		}
 	],
 	"Plugins": [
 		{
@@ -52,7 +53,7 @@
 		},
 		{
 			"Name": "ProxyLODPlugin",
-			"Enabled" : true
+			"Enabled": true
 		}
 	]
 }
