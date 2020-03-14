@@ -384,6 +384,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetDistanceFieldSelfShadowBias(float NewValue);
 
+	UFUNCTION(BlueprintCallable, Category=RayTracing)
+	void SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue);
+
 	/** 
 	 * Get Local bounds
 	 */

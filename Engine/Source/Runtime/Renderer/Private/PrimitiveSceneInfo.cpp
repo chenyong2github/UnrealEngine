@@ -401,7 +401,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
-			if (SceneInfo->Proxy->IsRayTracingStaticRelevant() && SceneInfo->StaticMeshes.Num() > 0)
+			if (SceneInfo->RayTracingGeometries.Num() > 0 && SceneInfo->StaticMeshes.Num() > 0)
 			{
 				int32 MaxLOD = -1;
 				for (int32 MeshIndex = 0; MeshIndex < SceneInfo->StaticMeshes.Num(); MeshIndex++)
