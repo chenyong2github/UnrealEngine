@@ -33,7 +33,13 @@ using namespace winrt::Microsoft::Azure::SpatialAnchors;
 class AzureSpatialAnchorsInteropImpl : public AzureSpatialAnchorsInterop
 {
 public:
-	static void Create(WindowsMixedReality::MixedRealityInterop& interop, void(*LogFunctionPointer)(const wchar_t* LogMsg));
+	static void Create(
+		WindowsMixedReality::MixedRealityInterop& interop, 
+		LogFunctionPtr LogFunctionPointer,
+		AnchorLocatedCallbackPtr AnchorLocatedCallback,
+		LocateAnchorsCompletedCallbackPtr LocateAnchorsCompletedCallback,
+		SessionUpdatedCallbackPtr SessionUpdatedCallback
+	);
 	static AzureSpatialAnchorsInteropImpl& Get();
 	static void Release();
 
@@ -46,8 +52,8 @@ public:
 	virtual bool HasEnoughDataForSaving() override;
 	const wchar_t* GetCloudSpatialAnchorIdentifier(CloudAnchorID cloudAnchorID) override;
 	virtual bool CreateCloudAnchor(LocalAnchorID localAnchorId, CloudAnchorID& outCloudAnchorID) override;
-	virtual bool SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME expirationTime) override;
-	virtual bool GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME& expirationTime) override;
+	virtual bool SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float lifetime) override;
+	virtual bool GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float& lifetime) override;
 	virtual bool SetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, const std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) override;
 	virtual bool GetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) override;
 	virtual bool SaveCloudAnchor(SaveAsyncDataPtr Data) override;
@@ -56,13 +62,19 @@ public:
 	virtual bool UpdateCloudAnchorProperties(UpdateCloudAnchorPropertiesAsyncDataPtr Data) override;
 	virtual bool RefreshCloudAnchorProperties(RefreshCloudAnchorPropertiesAsyncDataPtr Data) override;
 	virtual bool GetCloudAnchorProperties(GetCloudAnchorPropertiesAsyncDataPtr Data) override;
-	virtual bool CreateWatcher(CreateWatcherAsyncDataPtr Data) override;
+	virtual bool CreateWatcher(CreateWatcherData& Data) override;
 	virtual bool StopWatcher(int32 WatcherIdentifier) override;
 	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(LocalAnchorID localAnchorId, CloudAnchorID cloudAnchorID) override;
 
 
 protected:
-	AzureSpatialAnchorsInteropImpl(WindowsMixedReality::MixedRealityInterop& interop, void(*FunctionPointer)(const wchar_t* LogMsgFunc));
+	AzureSpatialAnchorsInteropImpl(
+		WindowsMixedReality::MixedRealityInterop& interop,
+		LogFunctionPtr LogFunctionPointer,
+		AnchorLocatedCallbackPtr InAnchorLocatedCallback,
+		LocateAnchorsCompletedCallbackPtr InLocateAnchorsCompletedCallback,
+		SessionUpdatedCallbackPtr InSessionUpdatedCallback
+	);
 	virtual ~AzureSpatialAnchorsInteropImpl();
 	AzureSpatialAnchorsInteropImpl(const AzureSpatialAnchorsInteropImpl&) = delete;
 	AzureSpatialAnchorsInteropImpl& operator=(const AzureSpatialAnchorsInteropImpl&) = delete;
@@ -89,7 +101,11 @@ private:
 	WindowsMixedReality::MixedRealityInterop& m_mixedRealityInterop;
 
 	/** Function pointer for logging */
-	void(*OnLog)(const wchar_t*);
+	LogFunctionPtr OnLog;
+	AnchorLocatedCallbackPtr AnchorLocatedCallback;
+	LocateAnchorsCompletedCallbackPtr LocateAnchorsCompletedCallback;
+	SessionUpdatedCallbackPtr SessionUpdatedCallback;
+
 
 	static AzureSpatialAnchorsInteropImpl* Instance;
 
@@ -109,28 +125,40 @@ private:
 
 	// map of cloud anchors ids to cloud anchors
 	std::map<CloudAnchorID, winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor> m_cloudAnchors;
-	std::mutex m_cloudAnchorsMutex;
+	mutable std::mutex m_cloudAnchorsMutex;
 
 	std::map<WatcherID, winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchorWatcher> m_watcherMap;
 	std::map<WatcherID, LoadByIDAsyncDataPtr> m_loadByIDAsyncDataMap;
 	std::mutex m_loadByIDAsyncDataMapMutex;
-	std::map<WatcherID, CreateWatcherAsyncDataPtr> m_createWatcherAsyncDataMap;
-	std::mutex m_createWatcherAsyncDataMapMutex;
 
 	winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor* GetCloudAnchor(CloudAnchorID cloudAnchorID);
+	CloudAnchorID CloudAnchorIdentifierToID(const CloudAnchorIdentifier& CloudAnchorIdentifier) const;
+	CloudAnchorID CloudAnchorIdentifierToID(const winrt::hstring& CloudAnchorIdentifier) const;
 };
 
 AzureSpatialAnchorsInteropImpl* AzureSpatialAnchorsInteropImpl::Instance = nullptr;
 
-void AzureSpatialAnchorsInterop::Create(WindowsMixedReality::MixedRealityInterop& interop, void(*LogFunctionPointer)(const wchar_t* LogMsg))
+void AzureSpatialAnchorsInterop::Create(
+	WindowsMixedReality::MixedRealityInterop& interop,
+	LogFunctionPtr LogFunctionPointer,
+	AnchorLocatedCallbackPtr AnchorLocatedCallback,
+	LocateAnchorsCompletedCallbackPtr LocateAnchorsCompletedCallback,
+	SessionUpdatedCallbackPtr SessionUpdatedCallback
+	)
 {
-	AzureSpatialAnchorsInteropImpl::Create(interop, LogFunctionPointer);
+	AzureSpatialAnchorsInteropImpl::Create(interop, LogFunctionPointer, AnchorLocatedCallback, LocateAnchorsCompletedCallback, SessionUpdatedCallback);
 }
 
-void AzureSpatialAnchorsInteropImpl::Create(WindowsMixedReality::MixedRealityInterop& interop, void(*LogFunctionPointer)(const wchar_t* LogMsg))
+void AzureSpatialAnchorsInteropImpl::Create(
+	WindowsMixedReality::MixedRealityInterop& interop,
+	LogFunctionPtr LogFunctionPointer,
+	AnchorLocatedCallbackPtr AnchorLocatedCallback,
+	LocateAnchorsCompletedCallbackPtr LocateAnchorsCompletedCallback,
+	SessionUpdatedCallbackPtr SessionUpdatedCallback
+	)
 {
 	assert(AzureSpatialAnchorsInteropImpl::Instance == nullptr);
-	AzureSpatialAnchorsInteropImpl::Instance = new AzureSpatialAnchorsInteropImpl(interop, LogFunctionPointer);
+	AzureSpatialAnchorsInteropImpl::Instance = new AzureSpatialAnchorsInteropImpl(interop, LogFunctionPointer, AnchorLocatedCallback, LocateAnchorsCompletedCallback, SessionUpdatedCallback);
 	assert(AzureSpatialAnchorsInteropImpl::Instance);
 }
 
@@ -175,10 +203,20 @@ void AzureSpatialAnchorsInteropImpl::Log(std::wstringstream& stream) const
 	Log(stream.str().c_str());
 }
 
-AzureSpatialAnchorsInteropImpl::AzureSpatialAnchorsInteropImpl(WindowsMixedReality::MixedRealityInterop& interop, void(*LogFunctionPointer)(const wchar_t* LogMsg))
+AzureSpatialAnchorsInteropImpl::AzureSpatialAnchorsInteropImpl(
+	WindowsMixedReality::MixedRealityInterop& interop, 
+	LogFunctionPtr LogFunctionPointer,
+	AnchorLocatedCallbackPtr InAnchorLocatedCallback,
+	LocateAnchorsCompletedCallbackPtr InLocateAnchorsCompletedCallback,
+	SessionUpdatedCallbackPtr InSessionUpdatedCallback
+)
 	: AzureSpatialAnchorsInterop(),
 	m_mixedRealityInterop(interop),
-	OnLog(LogFunctionPointer)
+	OnLog(LogFunctionPointer),
+	AnchorLocatedCallback(InAnchorLocatedCallback),
+	LocateAnchorsCompletedCallback(InLocateAnchorsCompletedCallback),
+	SessionUpdatedCallback(InSessionUpdatedCallback)
+
 {
 }
 
@@ -401,15 +439,18 @@ bool AzureSpatialAnchorsInteropImpl::CreateCloudAnchor(LocalAnchorID localAnchor
 	}
 }
 
-bool AzureSpatialAnchorsInteropImpl::SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME expirationTime)
+bool AzureSpatialAnchorsInteropImpl::SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float lifetime)
 {
 	{ std::wstringstream string; string << L"SetCloudAnchorExpiration for anchor " << cloudAnchorID; Log(string); }
 
-	winrt::Windows::Foundation::DateTime expirationDateTime = winrt::clock::from_file_time(expirationTime);
-	if (expirationDateTime <= winrt::clock::now())
+	if (lifetime <= 0.0f)
 	{
-		{ std::wstringstream string; string << L"Warning: SetCloudAnchorExpiration setting an expirationTime in the past!"; Log(string); }
+		{ std::wstringstream string; string << L"Warning: SetCloudAnchorExpiration setting with lifetime " << lifetime << " which is invalid!  Expiration not set."; Log(string); }
+		return false;
 	}
+	int64 lifetimeInt = static_cast<int64>(std::ceil(lifetime));
+	const winrt::Windows::Foundation::TimeSpan future{ std::chrono::seconds{ lifetimeInt } };
+	const winrt::Windows::Foundation::DateTime expiration = winrt::clock::now() + future;
 
 	winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor* cloudAnchor = GetCloudAnchor(cloudAnchorID);
 	if (!cloudAnchor)
@@ -419,12 +460,12 @@ bool AzureSpatialAnchorsInteropImpl::SetCloudAnchorExpiration(CloudAnchorID clou
 	}
 	else
 	{
-		cloudAnchor->Expiration(expirationDateTime);
+		cloudAnchor->Expiration(expiration);
 		return true;
 	}
 }
 
-bool AzureSpatialAnchorsInteropImpl::GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME& expirationTime)
+bool AzureSpatialAnchorsInteropImpl::GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float& outLifetime)
 {
 	{ std::wstringstream string; string << L"GetCloudAnchorExpiration for anchor " << cloudAnchorID; Log(string); }
 
@@ -436,7 +477,10 @@ bool AzureSpatialAnchorsInteropImpl::GetCloudAnchorExpiration(CloudAnchorID clou
 	}
 	else
 	{
-		expirationTime = winrt::clock::to_file_time(cloudAnchor->Expiration());
+		const winrt::Windows::Foundation::TimeSpan lifetimeSpan = cloudAnchor->Expiration() - winrt::clock::now();
+		typedef std::chrono::duration<float> floatseconds; // +- about 30 years is representable
+		floatseconds seconds = std::chrono::duration_cast<floatseconds>(lifetimeSpan);
+		outLifetime = seconds.count();
 		return true;
 	}
 }
@@ -859,158 +903,80 @@ bool AzureSpatialAnchorsInteropImpl::GetCloudAnchorProperties(GetCloudAnchorProp
 	return false;
 }
 
-bool AzureSpatialAnchorsInteropImpl::CreateWatcher(CreateWatcherAsyncDataPtr Data)
+bool AzureSpatialAnchorsInteropImpl::CreateWatcher(CreateWatcherData& Data)
 {
 	Log(L"CreateWatcher");
 
 	if (!CheckForSession(L"CreateWatcher"))
 	{
 		{ std::wstringstream string; string << L"CreateWatcher failed because there is no session.  You must start the AzureSpatialAnchors session first."; Log(string); }
+		Data.Result = AsyncResult::FailNoSession;
 		return false;
 	}
 
 	AnchorLocateCriteria criteria = AnchorLocateCriteria();
 
-	criteria.BypassCache(Data->bBypassCache);
+	criteria.BypassCache(Data.bBypassCache);
 
-	if (Data->NearCloudAnchorID != CloudAnchorID_Invalid)
+	if (Data.NearCloudAnchorID != CloudAnchorID_Invalid)
 	{
-		winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor* sourceAnchor = GetCloudAnchor(Data->NearCloudAnchorID);
+		winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor* sourceAnchor = GetCloudAnchor(Data.NearCloudAnchorID);
 		if (!sourceAnchor)
 		{
-			{ std::wstringstream string; string << L"CreateWatcher failed because cloud anchor with NearCloudAnchorID " << Data->NearCloudAnchorID << L" does not exist!"; Log(string); }
+			{ std::wstringstream string; string << L"CreateWatcher failed because cloud anchor with NearCloudAnchorID " << Data.NearCloudAnchorID << L" does not exist!"; Log(string); }
+			Data.Result = AsyncResult::FailBadAnchorIdentifier;
+			Data.OutError = L"CreateWatcher failed because cloud anchor with specified NearCloudAnchorID does not exist!";
 			return false;
 		}
 		NearAnchorCriteria nearAnchorCriteria;
-		nearAnchorCriteria.DistanceInMeters(Data->NearCloudAnchorDistance);
-		nearAnchorCriteria.MaxResultCount(Data->NearCloudAnchorMaxResultCount);
+		nearAnchorCriteria.DistanceInMeters(Data.NearCloudAnchorDistance);
+		nearAnchorCriteria.MaxResultCount(Data.NearCloudAnchorMaxResultCount);
 		nearAnchorCriteria.SourceAnchor(*sourceAnchor);
 		criteria.NearAnchor(nearAnchorCriteria);
 	}
 	
-	if(Data->SearchNearDevice)
+	if(Data.SearchNearDevice)
 	{
 		NearDeviceCriteria nearDeviceCriteria = NearDeviceCriteria();
-		nearDeviceCriteria.DistanceInMeters(Data->NearDeviceDistance);
-		nearDeviceCriteria.MaxResultCount(Data->NearDeviceMaxResultCount);
+		nearDeviceCriteria.DistanceInMeters(Data.NearDeviceDistance);
+		nearDeviceCriteria.MaxResultCount(Data.NearDeviceMaxResultCount);
 		criteria.NearDevice(nearDeviceCriteria);
 	}
 
-	std::vector<winrt::hstring> Identifiers;
-	Identifiers.reserve(Data->Identifiers.size());
-	for (const auto& itr : Data->Identifiers)
+	if (Data.Identifiers.size() > 0)
 	{
-		Identifiers.push_back(itr.c_str());
+		std::vector<winrt::hstring> Identifiers;
+		Identifiers.reserve(Data.Identifiers.size());
+		for (const auto& itr : Data.Identifiers)
+		{
+			Identifiers.push_back(itr.c_str());
+		}
+		criteria.Identifiers(Identifiers);
 	}
-	criteria.Identifiers(Identifiers);
 
-	assert(static_cast<AnchorDataCategory>(Data->AzureSpatialAnchorDataCategory) >= AnchorDataCategory::None && static_cast<AnchorDataCategory>(Data->AzureSpatialAnchorDataCategory) <= AnchorDataCategory::Spatial);
-	criteria.RequestedCategories(static_cast<AnchorDataCategory>(Data->AzureSpatialAnchorDataCategory));
-	assert(static_cast<LocateStrategy>(Data->AzureSptialAnchorsLocateStrategy) >= LocateStrategy::AnyStrategy && static_cast<LocateStrategy>(Data->AzureSptialAnchorsLocateStrategy) <= LocateStrategy::VisualInformation);
-	criteria.Strategy(static_cast<LocateStrategy>(Data->AzureSptialAnchorsLocateStrategy));
+	assert(static_cast<AnchorDataCategory>(Data.AzureSpatialAnchorDataCategory) >= AnchorDataCategory::None && static_cast<AnchorDataCategory>(Data.AzureSpatialAnchorDataCategory) <= AnchorDataCategory::Spatial);
+	criteria.RequestedCategories(static_cast<AnchorDataCategory>(Data.AzureSpatialAnchorDataCategory));
+	assert(static_cast<LocateStrategy>(Data.AzureSptialAnchorsLocateStrategy) >= LocateStrategy::AnyStrategy && static_cast<LocateStrategy>(Data.AzureSptialAnchorsLocateStrategy) <= LocateStrategy::VisualInformation);
+	criteria.Strategy(static_cast<LocateStrategy>(Data.AzureSptialAnchorsLocateStrategy));
 
 	{
-		auto lock = std::unique_lock<std::mutex>(m_createWatcherAsyncDataMapMutex);
-
 		try
 		{
 			auto& watcher = m_cloudSession.CreateWatcher(criteria);
-			m_createWatcherAsyncDataMap.insert(std::make_pair(watcher.Identifier(), Data));
-			Data->OutWatcherIdentifier = watcher.Identifier();
+			m_watcherMap.insert({ static_cast<WatcherID>(watcher.Identifier()), watcher });
+			Data.OutWatcherIdentifier = watcher.Identifier();
+			Data.Result = AsyncResult::Started;
 			{ std::wstringstream string; string << L"CreateWatcher created watcher " << watcher.Identifier(); Log(string); }
 			return true;
 		}
 		catch (winrt::hresult_error e)
 		{
-			Data->Result = AsyncResult::FailSeeErrorString;
-			Data->OutError = e.message().c_str();
-			Data->Complete();
+			Data.Result = AsyncResult::FailSeeErrorString;
+			Data.OutError = e.message().c_str();
 			{ std::wstringstream string; string << L"CreateWatcher failed to create watcher.  message: " << e.message().c_str(); Log(string); }
 			return false;
 		}
 	}
-}
-
-bool AzureSpatialAnchorsInteropImpl::CreateWatcher_Located(const winrt::Microsoft::Azure::SpatialAnchors::AnchorLocatedEventArgs& args)
-{
-	auto lock = std::unique_lock<std::mutex>(m_createWatcherAsyncDataMapMutex);
-	auto itr = m_createWatcherAsyncDataMap.find(args.Watcher().Identifier());
-	if (itr == m_createWatcherAsyncDataMap.end())
-	{
-		return false;
-	}
-
-	CreateWatcherAsyncDataPtr& Data = itr->second;
-
-	switch (args.Status())
-	{
-	case LocateAnchorStatus::Located:
-	{
-		{ std::wstringstream string; string << L"CreateWatcher_Located status Located Id: " << args.Anchor().Identifier().c_str(); Log(string); }
-
-		winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor loadedCloudAnchor = args.Anchor();
-		winrt::Windows::Perception::Spatial::SpatialAnchor localAnchor = loadedCloudAnchor.LocalAnchor();
-
-		CreateWatcherAsyncDataPtr& Data = itr->second;
-
-		const CloudAnchorID newID = GetNextCloudAnchorID();
-		Data->OutCloudAnchorIDs.push_back(newID); //TODO get an event to fire in UE4 when this happens.
-		{
-			auto lock = std::unique_lock<std::mutex>(m_cloudAnchorsMutex);
-			m_cloudAnchors.insert(std::make_pair(newID, loadedCloudAnchor));
-		}
-
-		Data->Result = AsyncResult::Success;
-	}
-	break;
-	case LocateAnchorStatus::AlreadyTracked:
-	{
-		{ std::wstringstream string; string << L"CreateWatcher_Located status AlreadyTracked"; Log(string); }
-
-		Data->Result = AsyncResult::FailAnchorAlreadyTracked;
-	}
-	break;
-	case LocateAnchorStatus::NotLocated:
-	{
-		{ std::wstringstream string; string << L"CreateWatcher_Located status NotLocated"; Log(string); }
-
-		// This gets called repeatedly for a while until something else happens.
-		Data->Result = AsyncResult::NotLocated;
-	}
-	break;
-	case LocateAnchorStatus::NotLocatedAnchorDoesNotExist:
-	{
-		{ std::wstringstream string; string << L"CreateWatcher_Located status NotLocatedAnchorDoesNotExist"; Log(string); }
-
-		Data->Result = AsyncResult::FailAnchorDoesNotExist;
-	}
-	break;
-	default:
-		assert(false);
-	}
-
-	return true;
-}
-
-bool AzureSpatialAnchorsInteropImpl::CreateWatcher_Completed(const winrt::Microsoft::Azure::SpatialAnchors::LocateAnchorsCompletedEventArgs& args)
-{
-	auto lock = std::unique_lock<std::mutex>(m_createWatcherAsyncDataMapMutex);
-	auto itr = m_createWatcherAsyncDataMap.find(args.Watcher().Identifier());
-	if (itr == m_createWatcherAsyncDataMap.end())
-	{
-		return false;
-	}
-
-	{ std::wstringstream string; string << L"CreateWatcher_Completed watcher " << args.Watcher().Identifier() << " has completed."; Log(string); }
-
-	CreateWatcherAsyncDataPtr& Data = itr->second;
-	if (args.Cancelled())
-	{
-		Data->Result = AsyncResult::Canceled;
-	}
-	Data->Complete(); //TODO get an event to fire in UE4 when this happens.
-	m_createWatcherAsyncDataMap.erase(itr);
-	return true;
 }
 
 bool AzureSpatialAnchorsInteropImpl::StopWatcher(int32 WatcherIdentifier)
@@ -1066,26 +1032,88 @@ void AzureSpatialAnchorsInteropImpl::AddEventListeners()
 	m_anchorLocatedToken = m_cloudSession.AnchorLocated(winrt::auto_revoke, [this](auto&&, auto&& args)
 	{
 		{ std::wstringstream string; string << L"AnchorLocated watcher " << args.Watcher().Identifier() << " has Located."; Log(string); }
-		bool Handled =  
-			LoadCloudAnchorByID_Located(args)
-			|| CreateWatcher_Located(args);
+
+		LoadCloudAnchorByID_Located(args);
+
+		LocateAnchorStatus Status = args.Status();
+		AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+
+		switch (Status)
+		{
+		case LocateAnchorStatus::Located:
+		{
+			winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor loadedCloudAnchor = args.Anchor();
+			CloudAnchorID = CloudAnchorIdentifierToID(loadedCloudAnchor.Identifier());
+			if (CloudAnchorID == CloudAnchorID_Invalid)
+			{
+				CloudAnchorID = GetNextCloudAnchorID();
+				{
+					auto lock = std::unique_lock<std::mutex>(m_cloudAnchorsMutex);
+					m_cloudAnchors.insert(std::make_pair(CloudAnchorID, loadedCloudAnchor));
+				}
+
+				{ std::wstringstream string; string << L"LocateAnchorStatus::Located Id: " << args.Anchor().Identifier().c_str() << L" Created CloudAnchor " << CloudAnchorID; Log(string); }
+			}
+			else
+			{
+				{ std::wstringstream string; string << L"LocateAnchorStatus::Located Id: " << args.Anchor().Identifier().c_str() << L" Cloud Anchor already existed."; Log(string); }
+			}
+		}
+		break;
+		case LocateAnchorStatus::AlreadyTracked:
+		{
+			winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor loadedCloudAnchor = args.Anchor();
+			CloudAnchorID = CloudAnchorIdentifierToID(loadedCloudAnchor.Identifier());
+			{ std::wstringstream string; string << L"LocateAnchorStatus::AlreadyTracked CloudAnchorID " << CloudAnchorID; Log(string); }
+			assert(CloudAnchorID != CloudAnchorID_Invalid);
+		}
+		break;
+		case LocateAnchorStatus::NotLocated:
+		{
+			// This gets called repeatedly for a while until something else happens.
+			{ std::wstringstream string; string << L" LocateAnchorStatus::NotLocated"; Log(string); }
+			winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor loadedCloudAnchor = args.Anchor();
+			CloudAnchorID = CloudAnchorIdentifierToID(loadedCloudAnchor.Identifier());
+			if (CloudAnchorID == CloudAnchorID_Invalid)
+			{
+				CloudAnchorID = GetNextCloudAnchorID();
+				{
+					auto lock = std::unique_lock<std::mutex>(m_cloudAnchorsMutex);
+					m_cloudAnchors.insert(std::make_pair(CloudAnchorID, loadedCloudAnchor));
+				}
+
+				{ std::wstringstream string; string << L"LocateAnchorStatus::NotLocated Id: " << args.Anchor().Identifier().c_str() << L" Created CloudAnchor " << CloudAnchorID; Log(string); }
+			}
+			else
+			{
+				{ std::wstringstream string; string << L"LocateAnchorStatus::NotLocated Id: " << args.Anchor().Identifier().c_str() << L" Cloud Anchor already existed."; Log(string); }
+			}
+		}
+		break;
+		case LocateAnchorStatus::NotLocatedAnchorDoesNotExist:
+		{
+			{ std::wstringstream string; string << L"LocateAnchorStatus::NotLocatedAnchorDoesNotExist"; Log(string); }
+		}
+		break;
+		default:
+			assert(false);
+		}
+
+		AnchorLocatedCallback(args.Watcher().Identifier(), static_cast<int32>(Status), CloudAnchorID);
 	});
 
 	m_locateAnchorsCompletedToken = m_cloudSession.LocateAnchorsCompleted(winrt::auto_revoke, [this](auto&&, auto&& args)
 	{
 		{ std::wstringstream string; string << L"LocateAnchorsCompleted watcher " << args.Watcher().Identifier() << " has completed."; Log(string); }
-
-		if (LoadCloudAnchorByID_Completed(args))
-		{
-			return;
-		}
+		LoadCloudAnchorByID_Completed(args);
+		LocateAnchorsCompletedCallback(args.Watcher().Identifier(), args.Cancelled());
 	});
 
 	m_sessionUpdatedToken = m_cloudSession.SessionUpdated(winrt::auto_revoke, [this](auto&&, auto&& args)
 	{
-		auto status = args.Status();
+		winrt::Microsoft::Azure::SpatialAnchors::SessionStatus status = args.Status();
 		m_enoughDataForSaving = status.RecommendedForCreateProgress() >= 1.0f;
-		//m_statusText = StatusToString(status);
+		SessionUpdatedCallback(status.ReadyForCreateProgress(), status.RecommendedForCreateProgress(), status.SessionCreateHash(), status.SessionLocateHash(), static_cast<int32>(status.UserFeedback()));
 	});
 
 	m_errorToken = m_cloudSession.Error(winrt::auto_revoke, [this](auto&&, auto&& args)
@@ -1130,4 +1158,34 @@ winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor* AzureSpatialAnchors
 		return nullptr;
 	}
 	return &(iterator->second);
+}
+
+AzureSpatialAnchorsInterop::CloudAnchorID AzureSpatialAnchorsInteropImpl::CloudAnchorIdentifierToID(const CloudAnchorIdentifier& CloudAnchorIdentifier) const
+{
+	auto lock = std::unique_lock<std::mutex>(m_cloudAnchorsMutex);
+	for (auto& itr : m_cloudAnchors)
+	{
+		if (itr.second.Identifier() == CloudAnchorIdentifier)
+		{
+			return itr.first;
+		}
+	}
+	return CloudAnchorID_Invalid;
+}
+
+AzureSpatialAnchorsInterop::CloudAnchorID AzureSpatialAnchorsInteropImpl::CloudAnchorIdentifierToID(const winrt::hstring& CloudAnchorIdentifier) const
+{
+	auto lock = std::unique_lock<std::mutex>(m_cloudAnchorsMutex);
+	for (auto& itr : m_cloudAnchors)
+	{
+		{ std::wstringstream string; string << L"CloudAnchorIdentifierToID " << CloudAnchorIdentifier.c_str() << L" " << itr.second.Identifier().c_str(); Log(string); }
+
+		if (itr.second.Identifier() == CloudAnchorIdentifier)
+		{
+			return itr.first;
+			{ std::wstringstream string; string << L"CloudAnchorIdentifierToID returning " << itr.first; Log(string); }
+		}
+	}
+	{ std::wstringstream string; string << L"CloudAnchorIdentifierToID returning invalid"; Log(string); }
+	return CloudAnchorID_Invalid;
 }

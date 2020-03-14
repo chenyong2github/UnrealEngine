@@ -170,6 +170,7 @@
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.targets" Condition="Exists('..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.targets')" />
     <Import Project="..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.targets" Condition="Exists('..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.targets')" />
+    <Import Project="..\packages\Microsoft.VCRTForwarders.140.1.0.5\build\native\Microsoft.VCRTForwarders.140.targets" Condition="Exists('..\packages\Microsoft.VCRTForwarders.140.1.0.5\build\native\Microsoft.VCRTForwarders.140.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -179,5 +180,6 @@
     <Error Condition="!Exists('..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Windows.CppWinRT.2.0.190605.7\build\native\Microsoft.Windows.CppWinRT.targets'))" />
     <Error Condition="!Exists('..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.props'))" />
     <Error Condition="!Exists('..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Azure.SpatialAnchors.WinRT.2.1.1\build\native\Microsoft.Azure.SpatialAnchors.WinRT.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.VCRTForwarders.140.1.0.5\build\native\Microsoft.VCRTForwarders.140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.VCRTForwarders.140.1.0.5\build\native\Microsoft.VCRTForwarders.140.targets'))" />
   </Target>
 </Project>

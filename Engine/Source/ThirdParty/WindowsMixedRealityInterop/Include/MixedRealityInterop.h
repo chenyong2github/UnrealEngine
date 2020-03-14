@@ -620,7 +620,24 @@ private:
 class MIXEDREALITYINTEROP_API AzureSpatialAnchorsInterop
 {
 public:
-	static void Create(WindowsMixedReality::MixedRealityInterop& interop, void(*LogFunctionPointer)(const wchar_t* LogMsg));
+	typedef int CloudAnchorID;
+	static const CloudAnchorID CloudAnchorID_Invalid = -1;
+	typedef int32_t WatcherID;
+	typedef std::wstring LocalAnchorID;
+	typedef std::wstring CloudAnchorIdentifier;
+
+	typedef void(*LogFunctionPtr)(const wchar_t* LogMsg);
+	typedef std::function<void(int32 WatcherIdentifier, int32 LocateAnchorStatus, AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID)> AnchorLocatedCallbackPtr;
+	typedef std::function<void(int32 InWatcherIdentifier, bool InWasCanceled)> LocateAnchorsCompletedCallbackPtr;
+	typedef std::function<void(float InReadyForCreateProgress, float InRecommendedForCreateProgress, int InSessionCreateHash, int InSessionLocateHash, int32 InSessionUserFeedback)> SessionUpdatedCallbackPtr;
+
+	static void Create(
+		WindowsMixedReality::MixedRealityInterop& interop, 
+		LogFunctionPtr LogFunctionPointer,
+		AnchorLocatedCallbackPtr AnchorLocatedCallback,
+		LocateAnchorsCompletedCallbackPtr LocateAnchorsCompletedCallback,
+		SessionUpdatedCallbackPtr SessionUpdatedCallback
+	);
 	static AzureSpatialAnchorsInterop& Get();
 	static void Release();
 
@@ -665,12 +682,6 @@ public:
 		Canceled,
 		Success
 	};
-
-	typedef int CloudAnchorID;
-	static const CloudAnchorID CloudAnchorID_Invalid = -1;
-	typedef int32_t WatcherID;
-	typedef std::wstring LocalAnchorID;
-	typedef std::wstring CloudAnchorIdentifier;
 
 	struct AsyncData
 	{
@@ -720,7 +731,7 @@ public:
 	};
 	typedef std::shared_ptr<GetCloudAnchorPropertiesAsyncData> GetCloudAnchorPropertiesAsyncDataPtr;
 
-	struct CreateWatcherAsyncData : public AsyncData
+	struct CreateWatcherData
 	{
 		bool bBypassCache = false;
 		std::vector<std::wstring> Identifiers;
@@ -735,8 +746,9 @@ public:
 
 		int32 OutWatcherIdentifier = -1;
 		std::vector<CloudAnchorID> OutCloudAnchorIDs;
+		AsyncResult Result = AsyncResult::NotStarted;
+		std::wstring OutError;
 	};
-	typedef std::shared_ptr<CreateWatcherAsyncData> CreateWatcherAsyncDataPtr;
 
 
 	// Things you can do while your session is running.
@@ -744,8 +756,8 @@ public:
 	virtual bool HasEnoughDataForSaving() = 0;
 	virtual const wchar_t* GetCloudSpatialAnchorIdentifier(CloudAnchorID cloudAnchorID) = 0;
 	virtual bool CreateCloudAnchor(LocalAnchorID localAnchorId, CloudAnchorID& outCloudAnchorID) = 0;
-	virtual bool SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME expirationTime) = 0;
-	virtual bool GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, FILETIME& expirationTime) = 0;
+	virtual bool SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float lifetime) = 0; // lifetime is seconds into the future
+	virtual bool GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float& outLifetime) = 0;
 	virtual bool SetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, const std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) = 0;
 	virtual bool GetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) = 0;
 	virtual bool SaveCloudAnchor(SaveAsyncDataPtr Data) = 0;
@@ -754,7 +766,7 @@ public:
 	virtual bool UpdateCloudAnchorProperties(UpdateCloudAnchorPropertiesAsyncDataPtr Data) = 0;
 	virtual bool RefreshCloudAnchorProperties(RefreshCloudAnchorPropertiesAsyncDataPtr Data) = 0;
 	virtual bool GetCloudAnchorProperties(GetCloudAnchorPropertiesAsyncDataPtr Data) = 0;
-	virtual bool CreateWatcher(const CreateWatcherAsyncDataPtr Data) = 0;
+	virtual bool CreateWatcher(CreateWatcherData& Data) = 0;
 	virtual bool StopWatcher(WatcherID WatcherIdentifier) = 0;
 	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(LocalAnchorID localAnchorId, CloudAnchorID cloudAnchorID) = 0;
 
