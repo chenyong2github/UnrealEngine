@@ -9,6 +9,10 @@
 #include "Utility/IndexerUtilities.h"
 #include "K2Node_BaseMCDelegate.h"
 #include "Internationalization/Text.h"
+#include "K2Node_Knot.h"
+#include "EdGraphNode_Comment.h"
+#include "Engine/SimpleConstructionScript.h"
+#include "Engine/SCS_Node.h"
 
 #define LOCTEXT_NAMESPACE "FBlueprintIndexer"
 
@@ -20,6 +24,7 @@ enum class EBlueprintIndexerVersion
 	Initial,
 	FixingPinsToSaveValues,
 	IndexingPublicEditableFieldsOnNodes,
+	DontIndexPinsUnlessItsInputWithNoConnections,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
@@ -36,7 +41,20 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 	const UBlueprint* BP = Cast<UBlueprint>(InAssetObject);
 	check(BP);
 
-	if (UClass* GeneratedClass = BP->GeneratedClass)
+	Serializer.BeginIndexingObject(BP, TEXT("$self"));
+	FIndexerUtilities::IterateIndexableProperties(BP, [&Serializer](const FProperty* Property, const FString& Value) {
+		Serializer.IndexProperty(Property, Value);
+	});
+	Serializer.EndIndexingObject();
+
+	IndexClassDefaultObject(BP, Serializer);
+	IndexComponents(BP, Serializer);
+	IndexGraphs(BP, Serializer);
+}
+
+void FBlueprintIndexer::IndexClassDefaultObject(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const
+{
+	if (UClass* GeneratedClass = InBlueprint->GeneratedClass)
 	{
 		if (UObject* CDO = GeneratedClass->GetDefaultObject())
 		{
@@ -47,14 +65,48 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 			Serializer.EndIndexingObject();
 		}
 	}
+}
 
+void FBlueprintIndexer::IndexComponents(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const
+{
+	if (InBlueprint->SimpleConstructionScript)
+	{
+		const TArray<USCS_Node*>& BPNodes = InBlueprint->SimpleConstructionScript->GetAllNodes();
+		for (USCS_Node* BPNode : BPNodes)
+		{
+			Serializer.BeginIndexingObject(BPNode->ComponentTemplate, BPNode->GetVariableName().ToString());
+			FIndexerUtilities::IterateIndexableProperties(BPNode->ComponentTemplate, [&Serializer](const FProperty* Property, const FString& Value) {
+				Serializer.IndexProperty(Property, Value);
+			});
+			Serializer.EndIndexingObject();
+		}
+	}
+}
+
+void FBlueprintIndexer::IndexGraphs(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const
+{
 	TArray<UEdGraph*> AllGraphs;
-	BP->GetAllGraphs(AllGraphs);
+	InBlueprint->GetAllGraphs(AllGraphs);
 
 	for (UEdGraph* Graph : AllGraphs)
-	{	
+	{
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
+			// Ignore Knots.
+			if (Cast<UK2Node_Knot>(Node))
+			{
+				continue;
+			}
+
+			// Special rules for comment nodes
+			if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
+			{
+				Serializer.BeginIndexingObject(Node, Node->NodeComment);
+				Serializer.IndexProperty(TEXT("Comment"), Node->NodeComment);
+				Serializer.EndIndexingObject();
+				continue;
+			}
+
 			const FText NodeText = Node->GetNodeTitle(ENodeTitleType::MenuTitle);
 			Serializer.BeginIndexingObject(Node, NodeText);
 			Serializer.IndexProperty(TEXT("Name"), NodeText);
@@ -63,7 +115,7 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 			{
 				Serializer.IndexProperty(TEXT("Comment"), Node->NodeComment);
 			}
-			
+
 			if (UK2Node_CallFunction* FunctionNode = Cast<UK2Node_CallFunction>(Node))
 			{
 				IndexMemberReference(Serializer, FunctionNode->FunctionReference, TEXT("Function"));
@@ -75,12 +127,11 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 			else if (UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node))
 			{
 				IndexMemberReference(Serializer, VariableNode->VariableReference, TEXT("Variable"));
-				//Serializer.WriteValue(TEXT("bSelfContext"), VariableReference.IsSelfContext());
 			}
 
-			if (Node->GetAllPins().Num())
+			for (UEdGraphPin* Pin : Node->GetAllPins())
 			{
-				for (UEdGraphPin* Pin : Node->GetAllPins())
+				if (Pin->Direction == EGPD_Input && Pin->LinkedTo.Num() == 0)
 				{
 					const FText PinText = Pin->GetDisplayName();
 					if (PinText.IsEmpty())
@@ -88,7 +139,7 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 						continue;
 					}
 
-					const FString PinValue = Pin->DefaultValue;
+					const FText PinValue = Pin->GetDefaultAsText();
 					if (PinValue.IsEmpty())
 					{
 						continue;
