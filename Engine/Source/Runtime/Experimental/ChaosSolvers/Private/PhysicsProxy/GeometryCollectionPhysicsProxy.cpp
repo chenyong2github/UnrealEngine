@@ -284,6 +284,7 @@ void PopulateSimulatedParticle(
 	{
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> SharedImplicitTS(Implicit->DeepCopy().Release());
 		Handle->SetSharedGeometry(SharedImplicitTS);
+		Handle->SetHasBounds(true);
 	}
 
 	Handle->CollisionParticlesInitIfNeeded();
