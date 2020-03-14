@@ -342,7 +342,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		const bool bCustomSorting = SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending;
 		const int32 SortVarIdx = bCustomSorting ? ENiagaraSpriteVFLayout::CustomSorting : ENiagaraSpriteVFLayout::Position;
 		const bool bSortVarIsHalf = bShouldSort && VFVariables[SortVarIdx].bHalfType;
-		if (bShouldSort)
+		if (bShouldSort && VFVariables[SortVarIdx].GetGPUOffset() != INDEX_NONE)
 		{
 			SortInfo.ParticleCount = NumInstances;
 			SortInfo.SortMode = SortMode;
