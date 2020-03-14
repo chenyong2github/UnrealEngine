@@ -23,8 +23,12 @@ struct FNDIHairStrandsData;
 struct FNDIHairStrandsBuffer : public FRenderResource
 {
 	/** Set the asset that will be used to affect the buffer */
-	void Initialize(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource*  HairStrandsRestResource, 
-		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, const FHairStrandsRootResource* HairStrandsRootResource, const FNDIHairStrandsData* NDIStrandsDatas);
+	void Initialize(const FHairStrandsDatas*  HairStrandsDatas, 
+		const FHairStrandsRestResource*  HairStrandsRestResource, 
+		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, 
+		const FHairStrandsRestRootResource* HairStrandsRestRootResource, 
+		const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource,
+		const FNDIHairStrandsData* NDIStrandsDatas);
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -60,7 +64,10 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	const FHairStrandsDeformedResource* SourceDeformedResources;
 
 	/** The strand root resource to write into */
-	const FHairStrandsRootResource* SourceRootResources;
+	const FHairStrandsRestRootResource* SourceRestRootResources;
+	
+	/** The strand root resource to write into */
+	const FHairStrandsDeformedRootResource* SourceDeformedRootResources;
 
 	/** Niagara datas interface datas */
 	const FNDIHairStrandsData* NDIDatas;
@@ -324,9 +331,15 @@ public:
 	bool IsComponentValid() const;
 
 	/** Extract datas and resources */
-	void ExtractDatasAndResources(FNiagaraSystemInstance* SystemInstance, FHairStrandsDatas*& OutStrandsDatas,
-		FHairStrandsRestResource*& OutStrandsRestResource, FHairStrandsDeformedResource*& OutStrandsDeformedResource, 
-		FHairStrandsRootResource*& OutStrandsRootResource, UGroomAsset*& OutGroomAsset, int32& OutGroupIndex);
+	void ExtractDatasAndResources(
+		FNiagaraSystemInstance* SystemInstance, 
+		FHairStrandsDatas*& OutStrandsDatas,
+		FHairStrandsRestResource*& OutStrandsRestResource, 
+		FHairStrandsDeformedResource*& OutStrandsDeformedResource, 
+		FHairStrandsRestRootResource*& OutStrandsRestRootResource, 
+		FHairStrandsDeformedRootResource*& OutStrandsDeformedRootResource,
+		UGroomAsset*& OutGroomAsset,
+		int32& OutGroupIndex);
 
 	/** Get the number of strands */
 	void GetNumStrands(FVectorVMContext& Context);

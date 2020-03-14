@@ -98,7 +98,8 @@ public:
 	FHairStrandsDeformedResource* GetGuideStrandsDeformedResource(uint32 GroupIndex);
 
 	/** Return the guide hairs root resources*/
-	FHairStrandsRootResource* GetGuideStrandsRootResource(uint32 GroupIndex);
+	FHairStrandsRestRootResource* GetGuideStrandsRestRootResource(uint32 GroupIndex);
+	FHairStrandsDeformedRootResource* GetGuideStrandsDeformedRootResource(uint32 GroupIndex);
 
 #if WITH_EDITOR
 	virtual void CheckForErrors() override;
@@ -133,8 +134,12 @@ private:
 
 		// Projection resources
 		bool bOwnRootResourceAllocation = true;
-		struct FHairStrandsRootResource* RenRootResources = nullptr;
-		struct FHairStrandsRootResource* SimRootResources = nullptr;
+		struct FHairStrandsRestRootResource* RenRestRootResources = nullptr;
+		struct FHairStrandsRestRootResource* SimRestRootResources = nullptr;
+
+		struct FHairStrandsDeformedRootResource* RenDeformedRootResources = nullptr;
+		struct FHairStrandsDeformedRootResource* SimDeformedRootResources = nullptr;
+
 	#if RHI_RAYTRACING
 		FHairStrandsRaytracingResource* RaytracingResources = nullptr;
 	#endif
