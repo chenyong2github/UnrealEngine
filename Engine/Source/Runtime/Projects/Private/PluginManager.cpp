@@ -1303,6 +1303,11 @@ void FPluginManager::SetRegisterMountPointDelegate( const FRegisterMountPointDel
 	RegisterMountPointDelegate = Delegate;
 }
 
+void FPluginManager::SetUpdatePackageLocalizationCacheDelegate( const FUpdatePackageLocalizationCacheDelegate& Delegate )
+{
+	UpdatePackageLocalizationCacheDelegate = Delegate;
+}
+
 bool FPluginManager::AreRequiredPluginsAvailable()
 {
 	return ConfigureEnabledPlugins();
@@ -1484,6 +1489,9 @@ void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Pl
 				CoreSystemSection->AddUnique("Paths", MoveTemp(ContentDir));
 			}
 		}
+
+		// Update the localization cache for the newly added content directory
+		UpdatePackageLocalizationCacheDelegate.ExecuteIfBound();
 	}
 
 	// If it's a code module, also load the modules for it
