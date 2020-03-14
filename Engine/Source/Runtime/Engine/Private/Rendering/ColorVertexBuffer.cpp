@@ -389,9 +389,9 @@ uint32 FColorVertexBuffer::GetAllocatedSize() const
 template <bool bRenderThread>
 FVertexBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Internal()
 {
-	if (NumVertices && VertexData)
+	if (NumVertices)
 	{
-		FResourceArrayInterface* RESTRICT ResourceArray = VertexData->GetResourceArray();
+		FResourceArrayInterface* RESTRICT ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
 		CreateInfo.bWithoutNativeResource = !VertexData;
@@ -423,9 +423,9 @@ void FColorVertexBuffer::InitRHI()
 
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 
-	if (VertexData && VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	if (VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
-		ColorComponentsSRV = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R8G8B8A8);
+		ColorComponentsSRV = RHICreateShaderResourceView(VertexData ? VertexBufferRHI : nullptr, 4, PF_R8G8B8A8);
 	}
 }
 
