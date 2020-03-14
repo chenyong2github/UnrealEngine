@@ -151,6 +151,8 @@ public:
 	void SetCollisionParticlesPerObjectFraction(float CollisionParticlesPerObjectFractionIn) 
 	{CollisionParticlesPerObjectFraction = CollisionParticlesPerObjectFractionIn;}
 
+	TArray<FClusterHandle*>& GetSolverClusterHandles() { return SolverClusterHandles; }
+
 	TArray<FClusterHandle*>& GetSolverParticleHandles() { return SolverParticleHandles; }
 
 	const FGeometryCollectionResults* GetConsumerResultsGT() const 
