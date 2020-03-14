@@ -7,7 +7,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Particles.h"
 #include "Chaos/PhysicalMaterials.h"
-#include "Chaos/GeometryParticlesFwd.h"
+#include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/CollisionFilterData.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
