@@ -28,9 +28,9 @@ namespace UnrealBuildTool
 		private Assembly CompiledAssembly;
 
 		/// <summary>
-		/// The base directory for this assembly
+		/// The base directories for this assembly
 		/// </summary>
-		private DirectoryReference BaseDir;
+		private List<DirectoryReference> BaseDirs;
 
 		/// <summary>
 		/// All the plugins included in this assembly
@@ -82,7 +82,7 @@ namespace UnrealBuildTool
 		/// Constructor. Compiles a rules assembly from the given source files.
 		/// </summary>
 		/// <param name="Scope">The scope of items created by this assembly</param>
-		/// <param name="BaseDir">The base directory for this assembly</param>
+		/// <param name="BaseDirs">The base directories for this assembly</param>
 		/// <param name="Plugins">All the plugins included in this assembly</param>
 		/// <param name="ModuleFileToContext">List of module files to compile</param>
 		/// <param name="TargetFiles">List of target files to compile</param>
@@ -92,10 +92,10 @@ namespace UnrealBuildTool
 		/// <param name="bReadOnly">Whether the modules and targets in this assembly are installed, and should be created with the bUsePrecompiled flag set</param> 
 		/// <param name="bSkipCompile">Whether to skip compiling this assembly</param>
 		/// <param name="Parent">The parent rules assembly</param>
-		internal RulesAssembly(RulesScope Scope, DirectoryReference BaseDir, IReadOnlyList<PluginInfo> Plugins, Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext, List<FileReference> TargetFiles, FileReference AssemblyFileName, bool bContainsEngineModules, BuildSettingsVersion? DefaultBuildSettings, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
+		internal RulesAssembly(RulesScope Scope, List<DirectoryReference> BaseDirs, IReadOnlyList<PluginInfo> Plugins, Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext, List<FileReference> TargetFiles, FileReference AssemblyFileName, bool bContainsEngineModules, BuildSettingsVersion? DefaultBuildSettings, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
 		{
 			this.Scope = Scope;
-			this.BaseDir = BaseDir;
+			this.BaseDirs = BaseDirs;
 			this.Plugins = Plugins;
 			this.ModuleFileToContext = ModuleFileToContext;
 			this.bContainsEngineModules = bContainsEngineModules;
@@ -178,11 +178,11 @@ namespace UnrealBuildTool
 		/// <returns>True if the path is read-only, false otherwise</returns>
 		public bool IsReadOnly(FileSystemReference Location)
 		{
-			if(Location.IsUnderDirectory(BaseDir))
+			if (BaseDirs.Any(x => Location.IsUnderDirectory(x)))
 			{
 				return bReadOnly;
 			}
-			else if(Parent != null)
+			else if (Parent != null)
 			{
 				return Parent.IsReadOnly(Location);
 			}
