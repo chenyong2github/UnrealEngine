@@ -25,7 +25,7 @@ public:
 		return bUnhandledErrors;
 	}
 
-	void ReportError(const TCHAR* ErrorMsg)
+	void ReportWarning(const TCHAR* ErrorMsg)
 	{
 		if (Prefix != "")
 		{
@@ -35,6 +35,11 @@ public:
 		{
 			UE_LOG(LogChaos, Warning, TEXT("ErrorReporter: %s"), *Prefix, ErrorMsg);
 		}
+	}
+
+	void ReportError(const TCHAR* ErrorMsg)
+	{
+		ReportWarning(ErrorMsg);
 		bEncountedErrors = true;
 		bUnhandledErrors = true;
 	}
