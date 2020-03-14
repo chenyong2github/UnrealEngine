@@ -115,6 +115,10 @@ void UEditPivotTool::Setup()
 	}
 
 	GetToolManager()->DisplayMessage(AllTheWarnings, EToolMessageLevel::UserWarning);
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartTool", "This Tool edits the Pivot (Origin) of the input objects. Use the Gizmo or enable Snap Dragging and click-drag on the surface to reposition."),
+		EToolMessageLevel::UserNotification);
 }
 
 
