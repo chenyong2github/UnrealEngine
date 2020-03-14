@@ -1278,6 +1278,13 @@ public:
 	/** Sends the NMT_Challenge message based on encryption response */
 	void SendChallengeControlMessage(const FEncryptionKeyResponse& Response);
 
+	bool GetPendingCloseDueToReplicationFailure() const
+	{
+		return bConnectionPendingCloseDueToReplicationFailure;
+	}
+
+	ENGINE_API void SetPendingCloseDueToReplicationFailure();
+
 protected:
 
 	bool GetPendingCloseDueToSocketSendFailure() const
@@ -1407,6 +1414,9 @@ private:
 
 	/** True if we are pending close due to a socket failure during send */
 	bool bConnectionPendingCloseDueToSocketSendFailure;
+
+	/** True if we are pending close due to unrecoverable replication errors. */
+	bool bConnectionPendingCloseDueToReplicationFailure;
 
 	FNetworkGUID GetActorGUIDFromOpenBunch(FInBunch& Bunch);
 
