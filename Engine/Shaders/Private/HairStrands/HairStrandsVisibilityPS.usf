@@ -43,7 +43,7 @@ EARLYDEPTHSTENCIL	// Required for UAV operations to not happen.
 #endif
 void MainVisibility(
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
-	uint HairPrimitiveId : HAIR_PRIMITIVE_ID
+	nointerpolation uint HairPrimitiveId : HAIR_PRIMITIVE_ID 
 #else
 	centroid FVertexFactoryInterpolantsVSToPS Interpolants
 #endif
