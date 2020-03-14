@@ -48,7 +48,6 @@ static FAutoConsoleVariableRef CVarNiagaraForceSystemsToCookOutRapidIterationOnL
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , bFixedBounds(false)
-, FastPathMode(ENiagaraFastPathMode::ScriptVMOnly)
 #if WITH_EDITORONLY_DATA
 , bIsolateEnabled(false)
 #endif

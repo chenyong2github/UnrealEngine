@@ -15,7 +15,6 @@ NiagaraEmitterInstance.h: Niagara emitter simulation class
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraBoundsCalculator.h"
-#include "NiagaraSystemFastPath.h"
 
 class FNiagaraSystemInstance;
 struct FNiagaraEmitterHandle;
@@ -120,35 +119,16 @@ public:
 
 	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const;
 
-	void InitFastPathAttributeBindings();
-
-	void TickFastPathAttributeBindings();
-
-	FNiagaraEmitterFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
 private:
 	void CheckForErrors();
 
-	void InitFastPathParameterBindingsInternal(const FNiagaraFastPathAttributeNames& SourceParameterNames, FNiagaraParameterStore& TargetParameterStore);
 	void BuildConstantBufferTable(
 		const FNiagaraScriptExecutionContext& ExecContext,
 		FScriptExecutionConstantBufferTable& ConstantBufferTable) const;
 
 	/** Generate emitter bounds */
 	FBox InternalCalculateDynamicBounds(int32 ParticleCount) const;
-
-	template<typename TBindingType, typename TVariableType>
-	static void AddBinding(FName ParameterName, TVariableType ParameterType, TBindingType* SourceValuePtr, FNiagaraParameterStore& TargetParameterStore, TArray<TNiagaraFastPathAttributeBinding<TBindingType>>& TargetBindings)
-	{
-		TNiagaraFastPathAttributeBinding<TBindingType> Binding;
-		FNiagaraVariable ParameterVariable = FNiagaraVariable(ParameterType, ParameterName);
-		Binding.ParameterBinding.Init(TargetParameterStore, ParameterVariable);
-		if (Binding.ParameterBinding.ValuePtr != nullptr)
-		{
-			Binding.ParameterValue = SourceValuePtr;
-			TargetBindings.Add(Binding);
-		}
-	}
-
+	
 	/** The index of our emitter in our parent system instance. */
 	int32 EmitterIdx;
 
@@ -223,11 +203,6 @@ private:
 
 	/** Optional list of bounds calculators. */
 	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;
-
-	FNiagaraEmitterFastPath::FParamMap0 FastPathMap;
-
-	TArray<TNiagaraFastPathAttributeBinding<int32>> FastPathIntAttributeBindings;
-	TArray<TNiagaraFastPathAttributeBinding<float>> FastPathFloatAttributeBindings;
 
 	TSharedPtr<const FNiagaraEmitterCompiledData> CachedEmitterCompiledData;
 };
