@@ -2015,18 +2015,16 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		// Menu entry for the start position
 		auto OnStartChanged = [=](double NewValue){
 
-			// We clamp the new value when the value is set. We can't clamp in the UI because we need an unset Min/Max for linear scaling to work.
-			double Min = -FLT_MAX;
-			double Max = SequencerPtr.Pin()->GetPlaybackRange().GetUpperBoundValue().Value;
-
-			NewValue = FMath::Clamp(NewValue, Min, Max);
 			FFrameNumber ValueAsFrame = FFrameTime::FromDecimal(NewValue).GetFrame();
+			FFrameNumber PlayStart = ValueAsFrame;
+			FFrameNumber PlayEnd = MovieScene::DiscreteExclusiveUpper(SequencerPtr.Pin()->GetPlaybackRange());
+			if (PlayStart >= PlayEnd)
+			{
+				FFrameNumber Duration = PlayEnd - MovieScene::DiscreteInclusiveLower(SequencerPtr.Pin()->GetPlaybackRange());
+				PlayEnd = PlayStart + Duration;
+			}
 
-			FFrameNumber Upper = MovieScene::DiscreteExclusiveUpper(SequencerPtr.Pin()->GetPlaybackRange());
-
-			TRange<FFrameNumber> NewRange = TRange<FFrameNumber>(FMath::Min(ValueAsFrame, Upper - 1), Upper);
-
-			SequencerPtr.Pin()->SetPlaybackRange(NewRange);
+			SequencerPtr.Pin()->SetPlaybackRange(TRange<FFrameNumber>(PlayStart, PlayEnd));
 
 			TRange<double> PlayRangeSeconds = SequencerPtr.Pin()->GetPlaybackRange() / SequencerPtr.Pin()->GetFocusedTickResolution();
 			const double AdditionalRange = (PlayRangeSeconds.GetUpperBoundValue() - PlayRangeSeconds.GetLowerBoundValue()) * 0.1;
@@ -2078,15 +2076,16 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		// Menu entry for the end position
 		auto OnEndChanged = [=](double NewValue) {
 
-			// We clamp the new value when the value is set. We can't clamp in the UI because we need an unset Min/Max for linear scaling to work.
-			double Min = SequencerPtr.Pin()->GetPlaybackRange().GetLowerBoundValue().Value;
-			double Max = FLT_MAX;
-
-			NewValue = FMath::Clamp(NewValue, Min, Max);
 			FFrameNumber ValueAsFrame = FFrameTime::FromDecimal(NewValue).GetFrame();
+			FFrameNumber PlayStart = MovieScene::DiscreteInclusiveLower(SequencerPtr.Pin()->GetPlaybackRange());
+			FFrameNumber PlayEnd = ValueAsFrame;
+			if (PlayEnd <= PlayStart)
+			{
+				FFrameNumber Duration = MovieScene::DiscreteExclusiveUpper(SequencerPtr.Pin()->GetPlaybackRange()) - PlayStart;
+				PlayStart = PlayEnd - Duration;
+			}
 
-			FFrameNumber Lower = MovieScene::DiscreteInclusiveLower(SequencerPtr.Pin()->GetPlaybackRange());
-			SequencerPtr.Pin()->SetPlaybackRange(TRange<FFrameNumber>(Lower, FMath::Max(ValueAsFrame, Lower)));
+			SequencerPtr.Pin()->SetPlaybackRange(TRange<FFrameNumber>(PlayStart, PlayEnd));
 
 			TRange<double> PlayRangeSeconds = SequencerPtr.Pin()->GetPlaybackRange() / SequencerPtr.Pin()->GetFocusedTickResolution();
 			const double AdditionalRange = (PlayRangeSeconds.GetUpperBoundValue() - PlayRangeSeconds.GetLowerBoundValue()) * 0.1;
