@@ -1477,7 +1477,7 @@ bool FPackageName::ParseExportTextPath(FStringView InExportTextPath, FStringView
 
 		if (OutObjectPath)
 		{
-			*OutObjectPath = InExportTextPath.Right(Index + 1);
+			*OutObjectPath = InExportTextPath.Mid(Index + 1);
 			OutObjectPath->RemoveSuffix(InExportTextPath.EndsWith('\''));
 		}
 
