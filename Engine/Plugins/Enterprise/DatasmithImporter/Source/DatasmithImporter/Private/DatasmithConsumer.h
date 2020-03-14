@@ -83,7 +83,7 @@ private:
 	 * @return True if no issue or user has accepted to continue with execution of consumer
 	 * If in command mode, the default behavior is to continue.
 	 */
-	bool CheckOutputDirectives();
+	bool ValidateAssets();
 
 	/** Create the world which will be used to execute the consumer */
 	bool CreateWorld();

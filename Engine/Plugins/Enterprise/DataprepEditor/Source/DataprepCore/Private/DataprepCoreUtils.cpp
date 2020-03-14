@@ -320,6 +320,7 @@ bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetI
 			Context.SetWorld( TransientWorld.Get() )
 				.SetAssets( Assets )
 				.SetTransientContentFolder( TransientContentFolder )
+				.SetSilentMode(true)
 				.SetLogger( Logger )
 				.SetProgressReporter( Reporter );
 
