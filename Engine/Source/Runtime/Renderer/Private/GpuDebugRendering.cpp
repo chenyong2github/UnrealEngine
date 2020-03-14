@@ -274,7 +274,7 @@ namespace ShaderDrawDebug
 
 			ShaderDrawVSPSParameters* PassParameters = GraphBuilder.AllocParameters<ShaderDrawVSPSParameters>();
 			PassParameters->ShaderDrawPSParameters.RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
-			PassParameters->ShaderDrawPSParameters.RenderTargets.DepthStencil = FDepthStencilBinding(DepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
+			PassParameters->ShaderDrawPSParameters.RenderTargets.DepthStencil = FDepthStencilBinding(DepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop, ERenderTargetMsaaPlane::Resolved);
 			PassParameters->ShaderDrawPSParameters.ColorScale = bIsBehindDepth ? 0.4f : 1.0f;	// When debug primitive are behind the depth buffer, make them look darker.
 			PassParameters->ShaderDrawVSParameters.View = View.ViewUniformBuffer;
 			if (bUseRdgInput)
