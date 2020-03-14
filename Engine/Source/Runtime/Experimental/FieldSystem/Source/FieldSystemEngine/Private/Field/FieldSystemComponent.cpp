@@ -152,8 +152,7 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 			}
 		}
 
-		TArray<Chaos::FPhysicsSolver*> WorldSolverList;
-		WorldSolverList = ChaosModule->GetSolversMutable(GetWorld());
+		TArray<Chaos::FPhysicsSolver*> WorldSolverList = ChaosModule->GetAllSolvers();
 
 		// #BGTODO Currently all commands will end up actually executing a frame late. That's because this command has to be logged as a global command
 		// so we don't end up with multiple solver threads writing to the proxy. We need a better way to buffer up multi-solver commands so they can be

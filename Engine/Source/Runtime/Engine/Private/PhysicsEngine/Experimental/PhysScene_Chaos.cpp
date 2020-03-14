@@ -599,7 +599,7 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FFieldSystemPhy
 
 	if (Chaos::IDispatcher* Dispatcher = GetDispatcher())
 	{
-		TArray<Chaos::FPhysicsSolver*> WorldSolverList = ChaosModule->GetSolversMutable(Component->GetWorld());
+		TArray<Chaos::FPhysicsSolver*> WorldSolverList = ChaosModule->GetAllSolvers();
 
 		for(Chaos::FPhysicsSolver* Solver : WorldSolverList)
 		{
@@ -807,13 +807,13 @@ void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
 
 		if(Chaos::IDispatcher* Dispatcher = GetDispatcher())
 		{
-			TArray<Chaos::FPhysicsSolver*> SolverList = ChaosModule->GetSolversMutable(CurrSceneSolver->GetOwner());
+			TArray<Chaos::FPhysicsSolver*> SolverList = ChaosModule->GetAllSolvers();
 
 			for(Chaos::FPhysicsSolver* Solver : SolverList)
 			{
 				if(true || Solver->HasActiveParticles())
 				{
-					Solver->RegisterObject(InObject);
+					Solver->UnregisterObject(InObject);
 
 					if(/*bDedicatedThread && */Dispatcher)
 					{
