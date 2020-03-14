@@ -290,6 +290,11 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 				if (InOutputType.IsValid())
 				{
 					UNiagaraNodeOutput* DynamicInputOutputNode = OutputNodes[0];
+					
+					// Break pin lins before changing outputs to prevent old linked inputs from being retained as orphaned.
+					DynamicInputOutputNode->BreakAllNodeLinks();
+
+					// Add the new output and then refresh by notifying that the outputs property changed.
 					DynamicInputOutputNode->Outputs.Empty();
 					DynamicInputOutputNode->Outputs.Add(FNiagaraVariable(InOutputType, "Output"));
 					FPropertyChangedEvent OutputsChangedEvent(FindFieldChecked<FProperty>(UNiagaraNodeOutput::StaticClass(), GET_MEMBER_NAME_CHECKED(UNiagaraNodeOutput, Outputs)));
