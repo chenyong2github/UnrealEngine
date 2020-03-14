@@ -16,71 +16,6 @@ static_assert((uint8)EAzureSpatialAnchorsResult::Started == (uint8)AzureSpatialA
 static_assert((uint8)EAzureSpatialAnchorsResult::Canceled == (uint8)AzureSpatialAnchorsInterop::AsyncResult::Canceled, "EAzureSpatialAnchorsResult interop enum match failed!");
 static_assert((uint8)EAzureSpatialAnchorsResult::Success == (uint8)AzureSpatialAnchorsInterop::AsyncResult::Success, "EAzureSpatialAnchorsResult interop enum match failed!");
 
-namespace ASAForWMR_Time
-{
-	// make an FTimeSpan object that represents the "epoch" for time_t (from a _stat struct)
-	const FDateTime HoloLensEpoch(1970, 1, 1);
-
-	FORCEINLINE int32 UEDayOfWeekToWindowsSystemTimeDayOfWeek(const EDayOfWeek InDayOfWeek)
-	{
-		switch (InDayOfWeek)
-		{
-		case EDayOfWeek::Monday:
-			return 1;
-		case EDayOfWeek::Tuesday:
-			return 2;
-		case EDayOfWeek::Wednesday:
-			return 3;
-		case EDayOfWeek::Thursday:
-			return 4;
-		case EDayOfWeek::Friday:
-			return 5;
-		case EDayOfWeek::Saturday:
-			return 6;
-		case EDayOfWeek::Sunday:
-			return 0;
-		default:
-			break;
-		}
-
-		return 0;
-	}
-
-	FORCEINLINE FDateTime WindowsFileTimeToUEDateTime(const FILETIME& InFileTime)
-	{
-		// This roundabout conversion clamps the precision of the returned time value to match that of time_t (1 second precision)
-		// This avoids issues when sending files over the network via cook-on-the-fly
-		SYSTEMTIME SysTime;
-		if (FileTimeToSystemTime(&InFileTime, &SysTime))
-		{
-			return FDateTime(SysTime.wYear, SysTime.wMonth, SysTime.wDay, SysTime.wHour, SysTime.wMinute, SysTime.wSecond);
-		}
-
-		// Failed to convert
-		return FDateTime::MinValue();
-	}
-
-	FORCEINLINE FILETIME UEDateTimeToWindowsFileTime(const FDateTime& InDateTime)
-	{
-		// This roundabout conversion clamps the precision of the returned time value to match that of time_t (1 second precision)
-		// This avoids issues when sending files over the network via cook-on-the-fly
-		SYSTEMTIME SysTime;
-		SysTime.wYear = InDateTime.GetYear();
-		SysTime.wMonth = InDateTime.GetMonth();
-		SysTime.wDay = InDateTime.GetDay();
-		SysTime.wDayOfWeek = UEDayOfWeekToWindowsSystemTimeDayOfWeek(InDateTime.GetDayOfWeek());
-		SysTime.wHour = InDateTime.GetHour();
-		SysTime.wMinute = InDateTime.GetMinute();
-		SysTime.wSecond = InDateTime.GetSecond();
-		SysTime.wMilliseconds = 0;
-
-		FILETIME FileTime;
-		SystemTimeToFileTime(&SysTime, &FileTime);
-
-		return FileTime;
-	}
-}
-
 void FAzureSpatialAnchorsForWMR::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(IAzureSpatialAnchors::GetModularFeatureName(), this);
@@ -92,9 +27,17 @@ void FAzureSpatialAnchorsForWMR::StartupModule()
 		FString EngineDir = FPaths::EngineDir();
 		FString HoloLensLibraryDir = EngineDir / "Binaries/ThirdParty/Windows/x64";
 		FPlatformProcess::PushDllDirectory(*HoloLensLibraryDir);
-		FPlatformProcess::GetDllHandle(_TEXT("MSVCP140_APP.dll"));
-		FPlatformProcess::GetDllHandle(_TEXT("VCRUNTIME140_1_APP.dll"));
-		FPlatformProcess::GetDllHandle(_TEXT("VCRUNTIME140_APP.dll"));
+
+		FPlatformProcess::GetDllHandle(_TEXT("concrt140_app.dll"));
+		FPlatformProcess::GetDllHandle(_TEXT("msvcp140_1_app.dll"));
+		FPlatformProcess::GetDllHandle(_TEXT("msvcp140_2_app.dll"));
+		FPlatformProcess::GetDllHandle(_TEXT("msvcp140_app.dll"));
+		FPlatformProcess::GetDllHandle(_TEXT("vcamp140_app.dll"));
+		FPlatformProcess::GetDllHandle(_TEXT("vccorlib140_app.dll"));
+		FPlatformProcess::GetDllHandle(_TEXT("vcomp140_app.dll"));
+		FPlatformProcess::GetDllHandle(_TEXT("vcruntime140_1_app.dll"));
+		FPlatformProcess::GetDllHandle(_TEXT("vcruntime140_app.dll"));
+
 		FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Azure.SpatialAnchors.dll"));
 		FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
 	}
@@ -112,7 +55,18 @@ void FAzureSpatialAnchorsForWMR::StartupModule()
 
 	WindowsMixedReality::MixedRealityInterop* MixedRealityInterop = IWindowsMixedRealityHMDPlugin::Get().GetMixedRealityInterop();
 	check(MixedRealityInterop);
-	AzureSpatialAnchorsInterop::Create(*MixedRealityInterop, &OnLog);
+
+	auto AnchorLocatedLambda = std::bind(&FAzureSpatialAnchorsForWMR::AnchorLocatedCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	auto LocateAnchorsCompletedLambda = std::bind(&FAzureSpatialAnchorsForWMR::LocateAnchorsCompletedCallback, this, std::placeholders::_1, std::placeholders::_2);
+	auto SessionUpdatedLambda = std::bind(&FAzureSpatialAnchorsForWMR::SessionUpdatedCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
+
+	AzureSpatialAnchorsInterop::Create(
+		*MixedRealityInterop,
+		&OnLog,
+		AnchorLocatedLambda,
+		LocateAnchorsCompletedLambda,
+		SessionUpdatedLambda);
+
 	AzureSpatialAnchorsInterop& Interop = AzureSpatialAnchorsInterop::Get();
 }
 
@@ -246,7 +200,7 @@ bool FAzureSpatialAnchorsForWMR::CreateCloudAnchor(UARPin*& InARPin, UAzureCloud
 	return bSuccess;
 }
 
-bool FAzureSpatialAnchorsForWMR::SetCloudAnchorExpiration(const UAzureCloudSpatialAnchor* const & InCloudAnchor, FDateTime InExpirationTime)
+bool FAzureSpatialAnchorsForWMR::SetCloudAnchorExpiration(const UAzureCloudSpatialAnchor* const & InCloudAnchor, float Lifetime)
 {
 	if (InCloudAnchor == nullptr)
 	{
@@ -254,32 +208,30 @@ bool FAzureSpatialAnchorsForWMR::SetCloudAnchorExpiration(const UAzureCloudSpati
 		return false;
 	}
  
-	const FILETIME ExpirationTime = ASAForWMR_Time::UEDateTimeToWindowsFileTime(InExpirationTime);
-
 	AzureSpatialAnchorsInterop& Interop = AzureSpatialAnchorsInterop::Get();
-	return Interop.SetCloudAnchorExpiration(InCloudAnchor->CloudAnchorID, ExpirationTime);
+	return Interop.SetCloudAnchorExpiration(InCloudAnchor->CloudAnchorID, Lifetime);
 }
 
-FDateTime FAzureSpatialAnchorsForWMR::GetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const& InCloudAnchor)
+float FAzureSpatialAnchorsForWMR::GetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const& InCloudAnchor)
 {
 	if (InCloudAnchor == nullptr)
 	{
-		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("GetCloudAnchorExpiration called with null CloudAnchor.  Returing an empty FDateTime."));
-		return FDateTime();
+		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("GetCloudAnchorExpiration called with null CloudAnchor.  Returing 0.0f."));
+		return 0.0f;
 	}
 
 	AzureSpatialAnchorsInterop& Interop = AzureSpatialAnchorsInterop::Get();
-	FILETIME ExpirationTime;
-	bool bSuccess = Interop.GetCloudAnchorExpiration(InCloudAnchor->CloudAnchorID, ExpirationTime);
+	float Lifetime = 0.0f;
+	bool bSuccess = Interop.GetCloudAnchorExpiration(InCloudAnchor->CloudAnchorID, Lifetime);
 
 	if (bSuccess)
 	{
-		return ASAForWMR_Time::WindowsFileTimeToUEDateTime(ExpirationTime);
+		return Lifetime;
 	}
 	else
 	{
-		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("SetCloudAnchorExpiration could not get the Expiration time for CloudAnchorID %i, perhaps the anchorid is invalid?  Returing an empty FDateTime."), InCloudAnchor->CloudAnchorID);
-		return FDateTime();
+		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("SetCloudAnchorExpiration could not get the Expiration time for CloudAnchorID %i, perhaps the anchorid is invalid?  Returing 0.0f."), InCloudAnchor->CloudAnchorID);
+		return 0.0f;
 	}
 }
 
@@ -584,75 +536,42 @@ void FAzureSpatialAnchorsForWMR::GetCloudAnchorPropertiesAsync_Orphan(FPendingLa
 }
 
 
-bool FAzureSpatialAnchorsForWMR::CreateWatcherAsync_Start(FPendingLatentAction* LatentAction, const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, float InWorldToMetersScale, int32& OutWatcherIdentifier, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
+bool FAzureSpatialAnchorsForWMR::CreateWatcher(const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, float InWorldToMetersScale, int32& OutWatcherIdentifier, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
 {
-	AzureSpatialAnchorsInterop::CreateWatcherAsyncDataPtr Data = std::make_shared<AzureSpatialAnchorsInterop::CreateWatcherAsyncData>();
-	Data->bBypassCache = InLocateCriteria.bBypassCache;
-	Data->Identifiers.reserve(InLocateCriteria.Identifiers.Num());
+	AzureSpatialAnchorsInterop::CreateWatcherData Data;
+	Data.bBypassCache = InLocateCriteria.bBypassCache;
+	Data.Identifiers.reserve(InLocateCriteria.Identifiers.Num());
 	for (auto& itr : InLocateCriteria.Identifiers)
 	{
 		// skip empty identifiers, which the microsoft api throws exceptions about.
 		if (!itr.IsEmpty())
 		{
-			Data->Identifiers.push_back(*itr);
+			Data.Identifiers.push_back(*itr);
 		}
 		else
 		{
 			UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("CreateWatcherAsync called with an empty identifier in its LocateCritera.  Ignoring the empty identifier."));
 		}
 	}
-	Data->NearCloudAnchorID = InLocateCriteria.NearAnchor ? InLocateCriteria.NearAnchor->CloudAnchorID : UAzureCloudSpatialAnchor::AzureCloudAnchorID_Invalid;
-	Data->NearCloudAnchorDistance = InLocateCriteria.NearAnchorDistance / InWorldToMetersScale;
-	Data->NearCloudAnchorMaxResultCount = InLocateCriteria.NearAnchorMaxResultCount;
+	Data.NearCloudAnchorID = InLocateCriteria.NearAnchor ? InLocateCriteria.NearAnchor->CloudAnchorID : UAzureCloudSpatialAnchor::AzureCloudAnchorID_Invalid;
+	Data.NearCloudAnchorDistance = InLocateCriteria.NearAnchorDistance / InWorldToMetersScale;
+	Data.NearCloudAnchorMaxResultCount = InLocateCriteria.NearAnchorMaxResultCount;
 
-	Data->SearchNearDevice = InLocateCriteria.bSearchNearDevice;
-	Data->NearDeviceDistance = InLocateCriteria.NearDeviceDistance / InWorldToMetersScale;
-	Data->NearDeviceMaxResultCount = InLocateCriteria.NearDeviceMaxResultCount;
+	Data.SearchNearDevice = InLocateCriteria.bSearchNearDevice;
+	Data.NearDeviceDistance = InLocateCriteria.NearDeviceDistance / InWorldToMetersScale;
+	Data.NearDeviceMaxResultCount = InLocateCriteria.NearDeviceMaxResultCount;
 
-	Data->AzureSpatialAnchorDataCategory = static_cast<int>(InLocateCriteria.RequestedCategories);
-	Data->AzureSptialAnchorsLocateStrategy = static_cast<int>(InLocateCriteria.Strategy);
-
-	CreateWatcherAsyncDataMap.Add(LatentAction, Data);
+	Data.AzureSpatialAnchorDataCategory = static_cast<int>(InLocateCriteria.RequestedCategories);
+	Data.AzureSptialAnchorsLocateStrategy = static_cast<int>(InLocateCriteria.Strategy);
 
 	AzureSpatialAnchorsInterop& Interop = AzureSpatialAnchorsInterop::Get();
 	bool bStarted = Interop.CreateWatcher(Data);
 
-	OutAzureCloudSpatialAnchors.Empty();
-	OutResult = (EAzureSpatialAnchorsResult)Data->Result;
-	OutErrorString = Data->OutError.c_str();
+	OutResult = (EAzureSpatialAnchorsResult)Data.Result;
+	OutErrorString = Data.OutError.c_str();
 
 	return bStarted;
 }
-bool FAzureSpatialAnchorsForWMR::CreateWatcherAsync_Update(FPendingLatentAction* LatentAction, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
-{
-	AzureSpatialAnchorsInterop::CreateWatcherAsyncDataPtr& Data = CreateWatcherAsyncDataMap.FindChecked(LatentAction);
-	if (Data->Completed)
-	{
-		OutResult = (EAzureSpatialAnchorsResult)Data->Result;
-		OutErrorString = Data->OutError.c_str();
-		for (auto newCloudAnchorID : Data->OutCloudAnchorIDs)
-		{
-			check(newCloudAnchorID != UAzureCloudSpatialAnchor::AzureCloudAnchorID_Invalid);
-			UAzureCloudSpatialAnchor* NewCloudAnchor = NewObject<UAzureCloudSpatialAnchor>();
-			NewCloudAnchor->CloudAnchorID = newCloudAnchorID;
-
-			CloudAnchors.Add(NewCloudAnchor);
-			OutAzureCloudSpatialAnchors.Add(NewCloudAnchor);
-		}
-		CreateWatcherAsyncDataMap.Remove(LatentAction);
-
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-void FAzureSpatialAnchorsForWMR::CreateWatcherAsync_Orphan(FPendingLatentAction* LatentAction)
-{
-	CreateWatcherAsyncDataMap.Remove(LatentAction);
-}
-
 
 bool FAzureSpatialAnchorsForWMR::StopWatcher(const int32 InWatcherIdentifier)
 {
@@ -691,6 +610,92 @@ bool FAzureSpatialAnchorsForWMR::CreateARPinAroundAzureCloudSpatialAnchor(const 
 	}
 }
 
+UAzureCloudSpatialAnchor* FAzureSpatialAnchorsForWMR::GetOrCreateCloudAnchor(AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID)
+{
+	check(IsInGameThread());
+	UAzureCloudSpatialAnchor* CloudAnchor = nullptr;
+	if (CloudAnchorID != UAzureCloudSpatialAnchor::AzureCloudAnchorID_Invalid)
+	{
+		CloudAnchor = GetCloudAnchor(CloudAnchorID);
+		if (CloudAnchor == nullptr)
+		{
+			CloudAnchor = NewObject<UAzureCloudSpatialAnchor>();
+			CloudAnchor->CloudAnchorID = CloudAnchorID;
+			CloudAnchors.Add(CloudAnchor);
+		}
+	}
+	return CloudAnchor;
+}
+
+class FASAAnchorLocatedTaskForWMR
+{
+public:
+	FASAAnchorLocatedTaskForWMR(int32 InWatcherIdentifier, EAzureSpatialAnchorsLocateAnchorStatus InStatus, AzureSpatialAnchorsInterop::CloudAnchorID InCloudAnchorID, FAzureSpatialAnchorsForWMR& InAzureSpatialAnchorsForWMR)
+		: WatcherIdentifier(InWatcherIdentifier), Status(InStatus), CloudAnchorID(InCloudAnchorID), AzureSpatialAnchorsForWMR(InAzureSpatialAnchorsForWMR)
+	{
+	}
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		UAzureCloudSpatialAnchor* CloudSpatialAnchor = AzureSpatialAnchorsForWMR.GetOrCreateCloudAnchor(CloudAnchorID);
+		IAzureSpatialAnchors::ASAAnchorLocatedDelegate.Broadcast(WatcherIdentifier, Status, CloudSpatialAnchor);
+	}
+
+	static FORCEINLINE TStatId GetStatId()
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(ASAAnchorLocatedTask, STATGROUP_TaskGraphTasks);
+	}
+
+	static FORCEINLINE ENamedThreads::Type GetDesiredThread()
+	{
+		return ENamedThreads::GameThread;
+	}
+
+	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
+	{
+		return ESubsequentsMode::FireAndForget;
+	}
+
+private:
+	const int32 WatcherIdentifier;
+	const EAzureSpatialAnchorsLocateAnchorStatus Status;
+	const AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID;
+	FAzureSpatialAnchorsForWMR& AzureSpatialAnchorsForWMR;
+};
+
+
+// Called from an ASA worker thread.
+void FAzureSpatialAnchorsForWMR::AnchorLocatedCallback(int32 WatcherIdentifier, int32 LocateAnchorStatus, AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID)
+{
+	const EAzureSpatialAnchorsLocateAnchorStatus Status = static_cast<EAzureSpatialAnchorsLocateAnchorStatus>(LocateAnchorStatus);
+	TGraphTask< FASAAnchorLocatedTaskForWMR >::CreateTask().ConstructAndDispatchWhenReady(WatcherIdentifier, Status, CloudAnchorID, *this);
+}
+
+// Called from an ASA worker thread.
+void FAzureSpatialAnchorsForWMR::LocateAnchorsCompletedCallback(int32 InWatcherIdentifier, bool InWasCanceled)
+{
+	TGraphTask< IAzureSpatialAnchors::FASALocateAnchorsCompletedTask >::CreateTask().ConstructAndDispatchWhenReady(InWatcherIdentifier, InWasCanceled);
+}
+
+// Called from an ASA worker thread.
+void FAzureSpatialAnchorsForWMR::SessionUpdatedCallback(float InReadyForCreateProgress, float InRecommendedForCreateProgress, int InSessionCreateHash, int InSessionLocateHash, int32 InSessionUserFeedback)
+{
+	const EAzureSpatialAnchorsSessionUserFeedback SessionUserFeedback = static_cast<EAzureSpatialAnchorsSessionUserFeedback>(InSessionUserFeedback);
+	TGraphTask< IAzureSpatialAnchors::FASASessionUpdatedTask >::CreateTask().ConstructAndDispatchWhenReady(InReadyForCreateProgress, InRecommendedForCreateProgress, InSessionCreateHash, InSessionLocateHash, SessionUserFeedback);
+}
+
+UAzureCloudSpatialAnchor* FAzureSpatialAnchorsForWMR::GetCloudAnchor(AzureSpatialAnchorsInterop::CloudAnchorID CloudAnchorID) const
+{
+	for (auto& Itr : CloudAnchors)
+	{
+		if (Itr->CloudAnchorID == CloudAnchorID)
+		{
+			return Itr;
+		}
+	}
+
+	return nullptr;
+}
 
 
 IMPLEMENT_MODULE(FAzureSpatialAnchorsForWMR, AzureSpatialAnchorsForWMR)

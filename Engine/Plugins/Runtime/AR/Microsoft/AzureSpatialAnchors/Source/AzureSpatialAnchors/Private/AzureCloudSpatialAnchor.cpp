@@ -16,7 +16,7 @@ FString UAzureCloudSpatialAnchor::GetAzureCloudIdentifier() const
 	return MSA->GetCloudSpatialAnchorIdentifier(CloudAnchorID);
 }
 
-void UAzureCloudSpatialAnchor::SetExpiration(const FDateTime InExpiration)
+void UAzureCloudSpatialAnchor::SetExpiration(float Lifetime)
 {
 	IAzureSpatialAnchors* MSA = IAzureSpatialAnchors::Get();
 	if (MSA == nullptr)
@@ -24,15 +24,15 @@ void UAzureCloudSpatialAnchor::SetExpiration(const FDateTime InExpiration)
 		return;
 	}
 
-	MSA->SetCloudAnchorExpiration(this, InExpiration);
+	MSA->SetCloudAnchorExpiration(this, Lifetime);
 }
 
-FDateTime UAzureCloudSpatialAnchor::GetExpiration() const
+float UAzureCloudSpatialAnchor::GetExpiration() const
 {
 	IAzureSpatialAnchors* MSA = IAzureSpatialAnchors::Get();
 	if (MSA == nullptr)
 	{
-		return FDateTime();
+		return 0.0f;
 	}
 
 	return MSA->GetCloudAnchorExpiration(this);

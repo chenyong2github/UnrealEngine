@@ -4,12 +4,14 @@
 
 #include "CoreMinimal.h"
 
-#include "Features/IModularFeatures.h"
-#include "Features/IModularFeature.h"
-
 #include "AzureSpatialAnchorsTypes.h"
 #include "AzureSpatialAnchors.h"
 #include "AzureCloudSpatialAnchor.h"
+
+#include "Features/IModularFeatures.h"
+#include "Features/IModularFeature.h"
+#include "Delegates/Delegate.h"
+#include "Delegates/DelegateCombinations.h"
 
 class AZURESPATIALANCHORS_API IAzureSpatialAnchors : public IModularFeature
 {
@@ -66,8 +68,8 @@ public:
 	virtual FString GetCloudSpatialAnchorIdentifier(UAzureCloudSpatialAnchor::AzureCloudAnchorID CloudAnchorID) = 0;
 	virtual bool CreateCloudAnchor(class UARPin*& InARPin, class UAzureCloudSpatialAnchor*& OutCloudAnchor) = 0;
 
-	virtual bool SetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const & InCloudAnchor, FDateTime InExpirationTime) = 0;
-	virtual FDateTime GetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const& InCloudAnchor) = 0;
+	virtual bool SetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const & InCloudAnchor, float Lifetime) = 0;
+	virtual float GetCloudAnchorExpiration(const class UAzureCloudSpatialAnchor* const& InCloudAnchor) = 0;
 
 	virtual bool SetCloudAnchorAppProperties(const class UAzureCloudSpatialAnchor* const& InCloudAnchor, const TMap<FString, FString>& InAppProperties) = 0;
 	virtual TMap<FString, FString> GetCloudAnchorAppProperties(const class UAzureCloudSpatialAnchor* const& InCloudAnchor) = 0;
@@ -96,11 +98,100 @@ public:
 	virtual bool GetCloudAnchorPropertiesAsync_Update(class FPendingLatentAction* LatentAction, FString CloudIdentifier, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) = 0;
 	virtual void GetCloudAnchorPropertiesAsync_Orphan(class FPendingLatentAction* LatentAction) = 0;
 
-	virtual bool CreateWatcherAsync_Start(class FPendingLatentAction* LatentAction, const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, float InWorldToMetersScale, int32& OutWatcherIdentifier, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) = 0;
-	virtual bool CreateWatcherAsync_Update(class FPendingLatentAction* LatentAction, TArray<UAzureCloudSpatialAnchor*>& OutAzureCloudSpatialAnchors, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) = 0;
-	virtual void CreateWatcherAsync_Orphan(class FPendingLatentAction* LatentAction) = 0;
+	virtual bool CreateWatcher(const FAzureSpatialAnchorsLocateCriteria& InLocateCriteria, float InWorldToMetersScale, int32& OutWatcherIdentifier, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) = 0;
 
 	virtual bool StopWatcher(int32 InWatcherIdentifier) = 0;
 
 	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(const FString& PinId, UAzureCloudSpatialAnchor*& InAzureCloudSpatialAnchor, UARPin*& OutARPin) = 0;
+
+
+	/** Delegates that will be cast by the ASA platform implementations. */
+	// WatcherIdentifier, status, anchor
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FASAAnchorLocatedDelegate, int32, EAzureSpatialAnchorsLocateAnchorStatus, UAzureCloudSpatialAnchor*);
+	static FASAAnchorLocatedDelegate ASAAnchorLocatedDelegate;
+	// WatcherIdentifier, canceled
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FASALocateAnchorsCompletedDelegate, int32, bool);
+	static FASALocateAnchorsCompletedDelegate ASALocateAnchorsCompletedDelegate;
+	// ReadyForCreateProgress, RecommendedForCreateProgress, SessionCreateHash, SessionLocateHash, feedback
+	DECLARE_MULTICAST_DELEGATE_FiveParams(FASASessionUpdatedDelegate, float, float, int, int, EAzureSpatialAnchorsSessionUserFeedback);
+	static FASASessionUpdatedDelegate ASASessionUpdatedDelegate;
+	 
+	// If an implementation generates events from a thread other than the game thread it should launch these tasks that will fire the delegates on the game
+	// thread
+
+	// Note: the anchor located event needs a task as well, but a platform specific implementation is necessary to create the CloudSpatialAnchor so one is not provided here.
+
+	class FASALocateAnchorsCompletedTask
+	{
+	public:
+		FASALocateAnchorsCompletedTask(int32 InWatcherIdentifier, bool InWasCanceled)
+			: WatcherIdentifier(InWatcherIdentifier), WasCanceled(InWasCanceled)
+		{
+		}
+
+		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+		{
+			IAzureSpatialAnchors::ASALocateAnchorsCompletedDelegate.Broadcast(WatcherIdentifier, WasCanceled);
+		}
+
+		static FORCEINLINE TStatId GetStatId()
+		{
+			RETURN_QUICK_DECLARE_CYCLE_STAT(ASALocateAnchorsCompletedTask, STATGROUP_TaskGraphTasks);
+		}
+
+		static FORCEINLINE ENamedThreads::Type GetDesiredThread()
+		{
+			return ENamedThreads::GameThread;
+		}
+
+		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
+		{
+			return ESubsequentsMode::FireAndForget;
+		}
+
+	private:
+		const int32 WatcherIdentifier;
+		const bool WasCanceled;
+	};
+
+	class FASASessionUpdatedTask
+	{
+	public:
+		FASASessionUpdatedTask(float InReadyForCreateProgress, float InRecommendedForCreateProgress, int InSessionCreateHash, int InSessionLocateHash, EAzureSpatialAnchorsSessionUserFeedback InFeedback)
+			: ReadyForCreateProgress(InReadyForCreateProgress), RecommendedForCreateProgress(InRecommendedForCreateProgress), SessionCreateHash(InSessionCreateHash), SessionLocateHash(InSessionLocateHash), Feedback(InFeedback)
+		{
+			UE_LOG(LogAzureSpatialAnchors, Log, TEXT("FASASessionUpdatedTask created"));
+		}
+
+		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+		{
+			UE_LOG(LogAzureSpatialAnchors, Log, TEXT("FASASessionUpdatedTask DoTask"));
+			checkf(CurrentThread == ENamedThreads::GameThread, TEXT("This task can only safely be run on the game thread"));
+			IAzureSpatialAnchors::ASASessionUpdatedDelegate.Broadcast(ReadyForCreateProgress, RecommendedForCreateProgress, SessionCreateHash, SessionLocateHash, Feedback);
+		}
+
+		static FORCEINLINE TStatId GetStatId()
+		{
+			UE_LOG(LogAzureSpatialAnchors, Log, TEXT("FASASessionUpdatedTask GetStatId"));
+			RETURN_QUICK_DECLARE_CYCLE_STAT(ASASessionUpdatedTask, STATGROUP_TaskGraphTasks);
+		}
+
+		static FORCEINLINE ENamedThreads::Type GetDesiredThread()
+		{
+			UE_LOG(LogAzureSpatialAnchors, Log, TEXT("FASASessionUpdatedTask GetDesiredThread"));
+			return ENamedThreads::GameThread;
+		}
+
+		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
+		{
+			return ESubsequentsMode::FireAndForget;
+		}
+
+	private:
+		const float ReadyForCreateProgress;
+		const float RecommendedForCreateProgress;
+		const int SessionCreateHash;
+		const int SessionLocateHash;
+		const EAzureSpatialAnchorsSessionUserFeedback Feedback;
+	};
 };
