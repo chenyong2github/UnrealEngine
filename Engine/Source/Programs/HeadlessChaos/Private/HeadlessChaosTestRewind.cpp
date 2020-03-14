@@ -11,7 +11,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "Framework/PhysicsTickTask.h"
-#include "Chaos/RewindData.h"
+#include "RewindData.h"
 
 
 namespace ChaosTest {
