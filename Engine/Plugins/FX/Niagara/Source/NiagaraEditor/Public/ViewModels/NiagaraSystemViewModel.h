@@ -561,6 +561,9 @@ private:
 	/** A handle to the on graph changed delegate for the system script. */
 	FDelegateHandle SystemScriptGraphChangedHandle;
 
+	/** A handle to the on graph needs recompile delegate for the system script. */
+	FDelegateHandle SystemScriptGraphNeedsRecompileHandle;
+
 	/** An array of emitter handle ids which need their sequencer tracks refreshed next frame. */
 	TArray<FGuid> EmitterIdsRequiringSequencerTrackUpdate;
 
