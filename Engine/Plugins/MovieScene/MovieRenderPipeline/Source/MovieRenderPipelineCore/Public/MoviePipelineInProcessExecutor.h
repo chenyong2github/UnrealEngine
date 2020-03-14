@@ -28,6 +28,7 @@ protected:
 private:
 	void OnMapLoadFinished(UWorld* NewWorld);
 	void OnMoviePipelineFinished(UMoviePipeline* InMoviePipeline);
+	void OnApplicationQuit();
 	void OnTick();
 
 private:

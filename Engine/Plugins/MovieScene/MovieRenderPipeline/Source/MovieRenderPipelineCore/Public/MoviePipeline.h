@@ -64,6 +64,11 @@ public:
 	*/
 	void Shutdown();
 
+	/**
+	* Has RequestShutdown() been called?
+	*/
+	bool IsShutdownRequested() const { return bShutdownRequested; }
+
 	/** 
 	* Called when we have completely finished this pipeline. This means that all frames have been rendered,
 	* all files written to disk, and any post-finalize exports have finished. This Pipeline will call

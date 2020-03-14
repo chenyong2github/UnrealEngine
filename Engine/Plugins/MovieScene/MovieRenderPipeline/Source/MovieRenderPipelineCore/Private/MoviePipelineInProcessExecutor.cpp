@@ -5,6 +5,7 @@
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineInProcessExecutorSettings.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "MovieRenderPipelineCoreModule.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineInProcessExecutor"
 void UMoviePipelineInProcessExecutor::Start(const UMoviePipelineExecutorJob* InJob)
@@ -46,6 +47,7 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	
 	// Listen for when the pipeline thinks it has finished.
 	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelineInProcessExecutor::OnMoviePipelineFinished);
+	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UMoviePipelineInProcessExecutor::OnApplicationQuit);
 
 	// Wait until we actually recieved the right map and created the pipeline before saying that we're actively rendering
 	bIsRendering = true;
@@ -75,6 +77,21 @@ void UMoviePipelineInProcessExecutor::OnTick()
 
 	FText WindowTitle = GetWindowTitle();
 	UKismetSystemLibrary::SetWindowTitle(WindowTitle);
+}
+
+void UMoviePipelineInProcessExecutor::OnApplicationQuit()
+{
+	// Only call Shutdown if the pipeline hasn't been finished.
+	if (ActiveMoviePipeline && ActiveMoviePipeline->GetPipelineState() != EMovieRenderPipelineState::Finished)
+	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineInProcessExecutor: Application quit while Movie Pipeline was still active. Stalling to do full shutdown."));
+
+		// This will flush any outstanding work on the movie pipeline (file writes) immediately
+		ActiveMoviePipeline->RequestShutdown(); // Set the Shutdown Requested flag.
+		ActiveMoviePipeline->Shutdown(); // Flush the shutdown.
+
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineInProcessExecutor: Stalling finished, pipeline has shut down."));
+	}
 }
 
 void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(UMoviePipeline* InMoviePipeline)
