@@ -255,7 +255,12 @@ UNiagaraGraph* UNiagaraNodeEmitter::GetCalledGraph() const
 bool UNiagaraNodeEmitter::RefreshFromExternalChanges()
 {
 	DisplayName = GetNameFromEmitter();
+	ENodeEnabledState OldEnabledState = GetDesiredEnabledState();
 	SyncEnabledState();
+	if (OldEnabledState != GetDesiredEnabledState())
+	{
+		MarkNodeRequiresSynchronization(TEXT("Emitter Node Enabled Changed"), true);
+	}
 	return true;
 }
 
