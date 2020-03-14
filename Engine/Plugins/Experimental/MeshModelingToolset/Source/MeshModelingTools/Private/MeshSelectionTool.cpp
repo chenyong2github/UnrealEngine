@@ -92,7 +92,7 @@ void UMeshSelectionTool::Setup()
 	UDynamicMeshBrushTool::Setup();
 
 	// hide strength and falloff
-	BrushProperties->bShowFullSettings = false;
+	BrushProperties->bShowStrength = BrushProperties->bShowFalloff = false;
 	BrushProperties->RestoreProperties(this);
 
 	SelectionProps = NewObject<UMeshSelectionToolProperties>(this);

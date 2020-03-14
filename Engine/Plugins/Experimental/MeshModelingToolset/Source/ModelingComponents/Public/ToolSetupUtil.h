@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 
 class UMaterialInterface;
+class UMaterialInstanceDynamic;
+class UTexture;
 class UInteractiveToolManager;
 
 /**
@@ -33,7 +35,26 @@ namespace ToolSetupUtil
 	/**
 	 * @return Sculpt Material 1
 	 */
-	MODELINGCOMPONENTS_API UMaterialInterface* GetSculptMaterial1(UInteractiveToolManager* ToolManager);
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultSculptMaterial(UInteractiveToolManager* ToolManager);
+
+
+	/** Types of image-based material that we can create */
+	enum class ImageMaterialType
+	{
+		DefaultBasic,
+		DefaultSoft,
+		TangentNormalFromView
+	};
+
+	/**
+	 * @return Image-based sculpt material instance, based ImageMaterialType
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetImageBasedSculptMaterial(UInteractiveToolManager* ToolManager, ImageMaterialType Type);
+
+	/**
+	 * @return Image-based sculpt material that supports changing the image
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetCustomImageBasedSculptMaterial(UInteractiveToolManager* ToolManager, UTexture* SetImage);
 
 
 	/**
