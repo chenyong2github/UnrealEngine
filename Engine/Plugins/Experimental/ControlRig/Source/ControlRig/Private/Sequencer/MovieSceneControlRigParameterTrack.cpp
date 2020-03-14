@@ -163,8 +163,8 @@ void UMovieSceneControlRigParameterTrack::AddSection(UMovieSceneSection& Section
 		if (CRSection->ControlRig != ControlRig)
 		{
 			CRSection->ControlRig = ControlRig;
-			CRSection->ReconstructChannelProxy(true);
 		}
+		CRSection->ReconstructChannelProxy(true);
 	}
 }
 
