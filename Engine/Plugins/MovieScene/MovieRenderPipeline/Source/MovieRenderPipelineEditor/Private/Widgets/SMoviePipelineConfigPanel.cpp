@@ -57,12 +57,15 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 	{
 		TransientPreset->CopyFrom(InArgs._BasePreset);
 		PresetUsedIfNotModified = InArgs._BasePreset;
-		FCoreUObjectDelegates::OnObjectModified.AddSP(this, &SMoviePipelineConfigPanel::OnAnyObjectModified);
 	}
 	else if (InArgs._BaseConfig)
 	{
 		TransientPreset->CopyFrom(InArgs._BaseConfig);
 	}
+
+	// Listen for modificatiosn to our edited configuration so we can determine if they've modified the preset
+	// which only changes the display (the actual preset asset is not modified)
+	FCoreUObjectDelegates::OnObjectModified.AddSP(this, &SMoviePipelineConfigPanel::OnAnyObjectModified);
 	
 	WeakJob = InArgs._Job;
 	OnConfigurationModified = InArgs._OnConfigurationModified;
@@ -138,6 +141,7 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 			SNew(STextBlock)
 			.TextStyle(FMovieRenderPipelineStyle::Get(), "MovieRenderPipeline.Config.TypeLabel")
 			.Text(this, &SMoviePipelineConfigPanel::GetConfigTypeLabel)
+			.Visibility(EVisibility::Collapsed)
 		]
 
 		// Main Editor 
@@ -473,11 +477,6 @@ void SMoviePipelineConfigPanel::OnSaveAsPreset()
 			// the dialog.
 			PresetUsedIfNotModified = NewPreset;
 
-			// Instead, we track if our transient object has Modify() called on it after this
-			// point, since all changes should call Modify for undo/redo to work. When we close
-			// the dialog we can see if it has been modified since the last preset change. 
-			FCoreUObjectDelegates::OnObjectModified.AddSP(this, &SMoviePipelineConfigPanel::OnAnyObjectModified);
-
 			// We also want to rename our transient preset. The name is used to indicate what preset
 			// it originally came from, and now the closest preset to it is not the original but the
 			// newly exported preset.
@@ -514,7 +513,6 @@ void SMoviePipelineConfigPanel::OnImportPreset(const FAssetData& InPresetAsset)
 		TransientPreset->CopyFrom(Preset);
 
 		PresetUsedIfNotModified = Preset;
-		FCoreUObjectDelegates::OnObjectModified.AddSP(this, &SMoviePipelineConfigPanel::OnAnyObjectModified);
 		// CockpitWidget->GetMetaData()->SetPresetOrigin(Take);
 	}
 }
