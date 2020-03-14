@@ -820,9 +820,14 @@ public:
 	TOptional<float> ExposureCompensation;
 
 	/**
-	* Any additional texture mip map bias that should be added when rendering. Can be used to force extra sharpness.
+	* Any additional texture mip map bias that should be added when rendering. Can be used to force extra sharpness. A more negative number means more likely to use a higher quality mip map.
 	*/
 	float TextureSharpnessBias;
+
+	/**
+	* What screen percentage should each view be rendered at? 1.0 = standard size. Can gain more detail (at the cost of longer renders, more device timeouts), consider trying to use TextureSharpnessBias if possible instead.
+	*/
+	float GlobalScreenPercentageFraction;
 
 
 	FMoviePipelineFrameOutputState OutputState;
