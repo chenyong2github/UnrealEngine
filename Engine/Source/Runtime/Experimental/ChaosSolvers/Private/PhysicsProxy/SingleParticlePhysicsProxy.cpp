@@ -100,6 +100,8 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 				}
 				Handle->SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 			}
+
+			Solver->GetEvolution()->DirtyParticle(*Handle);
 		}
 
 		if(auto NewData = ParticleData.FindMisc(Manager, DataIdx))
