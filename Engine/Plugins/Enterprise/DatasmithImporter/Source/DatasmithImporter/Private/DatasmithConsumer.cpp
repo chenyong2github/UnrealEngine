@@ -310,7 +310,7 @@ bool UDatasmithConsumer::Initialize()
 
 	ProgressTaskPtr->ReportNextStep( LOCTEXT( "DatasmithImportFactory_Initialize", "Preparing world ...") );
 
-	if(!CheckOutputDirectives())
+	if(!ValidateAssets())
 	{
 		return false;
 	}
@@ -775,7 +775,8 @@ bool UDatasmithConsumer::CanCreateLevel(const FString& RequestedFolder, const FS
 
 	if(FDatasmithImporterUtils::CanCreateAsset(AssetPathName, UWorld::StaticClass()) == FDatasmithImporterUtils::EAssetCreationStatus::CS_CanCreate)
 	{
-		if(FDatasmithImporterImpl::CheckAssetPersistenceValidity(ObjectPath.GetLongPackageName(), *ImportContextPtr, FPackageName::GetMapPackageExtension()))
+		FText OutReason;
+		if(FDatasmithImporterImpl::CheckAssetPersistenceValidity(ObjectPath.GetLongPackageName(), *ImportContextPtr, FPackageName::GetMapPackageExtension(), OutReason))
 		{
 			FString PackageFilename;
 			FPackageName::TryConvertLongPackageNameToFilename( ObjectPath.GetLongPackageName(), PackageFilename, FPackageName::GetMapPackageExtension() );
@@ -992,81 +993,207 @@ ULevel* UDatasmithConsumer::FindOrAddLevel(const FString& InLevelName)
 	return nullptr;
 }
 
-bool UDatasmithConsumer::CheckOutputDirectives()
+bool UDatasmithConsumer::ValidateAssets()
 {
-	auto CanCreateAsset = [ImportContext = ImportContextPtr.Get()](const FString& AssetPathName,const UClass* AssetClass)
+	auto CanCreateAsset = [&](const FString& AssetPathName,const UClass* AssetClass)
 	{
-		if(FDatasmithImporterUtils::CanCreateAsset(AssetPathName, AssetClass) == FDatasmithImporterUtils::EAssetCreationStatus::CS_CanCreate)
+		FText OutReason;
+		if(!FDatasmithImporterUtils::CanCreateAsset(AssetPathName, AssetClass, OutReason))
 		{
-			return FDatasmithImporterImpl::CheckAssetPersistenceValidity(FPaths::GetPath(AssetPathName), *ImportContext, FPackageName::GetAssetPackageExtension());
+			const FTextFormat TextFormat(LOCTEXT( "DatasmithConsumer_CannotCreateAsset", "Cannot create asset {0}. {1}" ));
+			const FText Message = FText::Format( TextFormat, FText::FromString(AssetPathName), OutReason );
+			LogError(Message);
+
+			return false;
 		}
 
-		return false;
+		return true;
 	};
-
-	const bool bShowDialog = !Context.bSilentMode && !IsRunningCommandlet();
-
+	
 	// Collect garbage to clear out the destroyed level
 	CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 
-	bool bCannotCreateAsset = false;
+	TArray< TWeakObjectPtr< UObject > > Assets = MoveTemp(Context.Assets);
+	Context.Assets.Reserve(Assets.Num());
 
-	TSet<FString> AssetPaths;
-	AssetPaths.Reserve(Context.Assets.Num());
+	// Map holding requested package path and actual package path
+	TMap<UObject*, TPair<FString, FString> > AssetPackageInfoMap;
+	AssetPackageInfoMap.Reserve(Assets.Num());
 
-	for(const TWeakObjectPtr< UObject >& AssetPtr : Context.Assets)
+	TSet< FString > AssetsToCreate;
+	AssetsToCreate.Reserve(Assets.Num());
+
+	TSet< UObject* > AssetsWithIssues;
+	AssetsWithIssues.Reserve(Assets.Num());
+
+	for(const TWeakObjectPtr< UObject >& AssetPtr : Assets)
 	{
 		if(UObject* Asset = AssetPtr.Get())
 		{
+			TPair<FString, FString>& AssetPackageInfo = AssetPackageInfoMap.Add(Asset);
+
+			bool bAssetWithMarker = false;
+
 			const FString& OutputFolder = DatasmithConsumerUtils::GetMarker(Asset, UDataprepContentConsumer::RelativeOutput);
-			if(OutputFolder.Len() > 0)
+			if(!OutputFolder.IsEmpty())
 			{
-				FString AssetName = Asset->GetName();
-				FSoftObjectPath AssetSoftObjectPath(FPaths::Combine(TargetContentFolder, OutputFolder, AssetName) + "." + AssetName);
+				const FString AssetName = Asset->GetName();
+				const FSoftObjectPath AssetSoftObjectPath(FPaths::Combine(TargetContentFolder, OutputFolder, AssetName) + "." + AssetName);
 
-				if(Asset->GetPathName() != AssetSoftObjectPath.GetLongPackageName())
+				AssetPackageInfo.Key = AssetSoftObjectPath.GetLongPackageName();
+
+				// If asset can be created in memory, do nothing
+				if(!CanCreateAsset(AssetSoftObjectPath.GetAssetPathString(), Asset->GetClass()))
 				{
-					if(!CanCreateAsset(AssetSoftObjectPath.GetAssetPathString(), Asset->GetClass()))
-					{
-						const FTextFormat TextFormat(LOCTEXT( "DatasmithConsumer_CannotCreateAsset", "Cannot create asset {0}. Commit will be aborted." ));
-						const FText Message = FText::Format( TextFormat, FText::FromString(AssetSoftObjectPath.GetAssetPathString()) );
-						LogError(Message);
+				}
+				// Verify there is no collision with other assets to be moved
+				else if(AssetsToCreate.Contains(AssetPackageInfo.Key))
+				{
+					const FTextFormat TextFormat(LOCTEXT( "DatasmithConsumer_DuplicateAsset", "Cannot create asset {0}. Another asset with the same name will be created in the same folder {1}." ));
+					const FText Message = FText::Format( TextFormat, FText::FromString(AssetSoftObjectPath.GetAssetPathString()), FText::FromString(FPaths::Combine(TargetContentFolder, OutputFolder)) );
+					LogError(Message);
+				}
+				else
+				{
+					// Asset could be created in memory using output folder directive
+					AssetsToCreate.Add(AssetPackageInfo.Key);
+					AssetPackageInfo.Value = AssetPackageInfo.Key;
+					bAssetWithMarker = true;
+				}
+			}
 
-						bCannotCreateAsset = true;
+			// Check if asset can be created in memory using policy based on target content folder
+			if(AssetPackageInfo.Value.IsEmpty())
+			{
+				const FSoftObjectPath AssetSoftObjectPath(Asset);
+				const FString AssetPath = AssetSoftObjectPath.GetAssetPathString().Replace(*Context.TransientContentFolder, *TargetContentFolder);
+				const FString LongPackageName = AssetSoftObjectPath.GetLongPackageName().Replace(*Context.TransientContentFolder, *TargetContentFolder);
+
+				if(!CanCreateAsset(AssetPath, Asset->GetClass()))
+				{
+					// Asset without output folder directive cannot be saved
+					if(AssetPackageInfo.Key.IsEmpty())
+					{
+						AssetPackageInfo.Key = LongPackageName;
 					}
-					else if(AssetPaths.Contains(AssetSoftObjectPath.GetLongPackageName()))
-					{
-						const FTextFormat TextFormat(LOCTEXT( "DatasmithConsumer_DuplicateAsset", "Cannot create asset {0}. Another asset with the same name will be created in the same folder {1}. Commit will be aborted." ));
-						const FText Message = FText::Format( TextFormat, FText::FromString(AssetSoftObjectPath.GetAssetPathString()), FText::FromString(FPaths::Combine(TargetContentFolder, OutputFolder)) );
-						LogError(Message);
 
-						bCannotCreateAsset = true;
+					AssetsWithIssues.Add(Asset);
+				}
+				// Asset with output folder directive could be saved using regular policy
+				else if(!AssetPackageInfo.Key.IsEmpty())
+				{
+					DatasmithConsumerUtils::SetMarker(Asset, UDataprepContentConsumer::RelativeOutput, TEXT(""));
+					AssetPackageInfo.Value = LongPackageName;
+					AssetsWithIssues.Add(Asset);
+				}
+				else
+				{
+					AssetPackageInfo.Key = LongPackageName;
+					AssetPackageInfo.Value = AssetPackageInfo.Key;
+				}
+			}
+
+			// Verify asset can be saved to disk
+			if(!AssetPackageInfo.Value.IsEmpty())
+			{
+				FText OutReason = FText::GetEmpty();
+
+				// If asset cannot be saved to disk using output folder, check if it can do so using regular folder policy
+				if(!FDatasmithImporterImpl::CheckAssetPersistenceValidity(AssetPackageInfo.Value, *ImportContextPtr, FPackageName::GetAssetPackageExtension(), OutReason) && bAssetWithMarker)
+				{
+					LogWarning(OutReason);
+
+					// Overwrite output folder directive
+					DatasmithConsumerUtils::SetMarker(Asset, UDataprepContentConsumer::RelativeOutput, TEXT(""));
+
+					FSoftObjectPath AssetSoftObjectPath(Asset);
+					const FString AssetPath = AssetSoftObjectPath.GetAssetPathString().Replace(*Context.TransientContentFolder, *TargetContentFolder);
+
+					const FTextFormat Format(LOCTEXT("DatasmithConsumer_OutputFolderFailed", "Cannot save {0} in output folder, trying to save as {1}."));
+					OutReason = FText::Format( Format, FText::FromString(Asset->GetName()), FText::FromString(FPaths::GetBaseFilename(AssetPath, false)));
+					LogWarning(OutReason);
+
+					if(CanCreateAsset(AssetPath, Asset->GetClass()))
+					{
+						const FString LongPackageName = AssetSoftObjectPath.GetLongPackageName().Replace(*Context.TransientContentFolder, *TargetContentFolder);
+						OutReason = FText::GetEmpty();
+
+						if(FDatasmithImporterImpl::CheckAssetPersistenceValidity(LongPackageName, *ImportContextPtr, FPackageName::GetAssetPackageExtension(), OutReason))
+						{
+							AssetPackageInfo.Value = LongPackageName;
+							Context.Assets.Emplace(Asset);
+
+							AssetsWithIssues.Add(Asset);
+						}
+						else
+						{
+							LogWarning(OutReason);
+
+							AssetPackageInfo.Value = FString();
+							AssetsWithIssues.Add(Asset);
+						}
 					}
 					else
 					{
-						AssetPaths.Add(AssetSoftObjectPath.GetLongPackageName());
+						AssetPackageInfo.Value = FString();
+						AssetsWithIssues.Add(Asset);
 					}
+				}
+				else
+				{
+					Context.Assets.Emplace(Asset);
 				}
 			}
 		}
 	}
 
-	if(bCannotCreateAsset)
+	if(AssetsWithIssues.Num() > 0)
 	{
+		const bool bShowDialog = !Context.bSilentMode && !IsRunningCommandlet();
 
-		const FText Message = LOCTEXT( "DatasmithConsumer_CreateAbortCommit", "Cannot proceed with commit because some assets and/or levels cannot be created.\nCheck your log for details, fix all issues and commit again" );
 		
 		if(bShowDialog)
 		{
-			const FText Title( LOCTEXT( "DatasmithConsumer_CreateAbortCommitTitle", "Cannot create some assets" ) );
-			FMessageDialog::Open( EAppMsgType::Ok, Message, &Title );
+			FString AssetsToBeSkippedString;
+			FString AssetsNotMovedString;
+			for(UObject* Asset : AssetsWithIssues)
+			{
+				const TPair<FString, FString>& AssetPackageInfo = AssetPackageInfoMap[Asset];
+				if(AssetPackageInfo.Value.IsEmpty())
+				{
+					AssetsToBeSkippedString.Append(FString::Printf(TEXT("\t%s\n"), *AssetPackageInfo.Key));
+				}
+				else
+				{
+					AssetsNotMovedString.Append(FString::Printf(TEXT("\t%s will be created as %s\n"), *AssetPackageInfo.Key, *AssetPackageInfo.Value));
+				}
+			}
+
+			FText AssetsToBeSkippedText;
+			if(!AssetsToBeSkippedString.IsEmpty())
+			{
+				AssetsToBeSkippedText = FText::Format( LOCTEXT( "DatasmithConsumer_AssetsToBeSkipped", "The follwing assets will not be saved:\n{0}\n"), FText::FromString(AssetsToBeSkippedString) );
+			}
+
+			FText AssetsNotMovedText;
+			if(!AssetsNotMovedString.IsEmpty())
+			{
+				AssetsNotMovedText = FText::Format( LOCTEXT( "DatasmithConsumer_AssetsNotMoved", "The follwing assets will not be saved in their output folder:\n{0}\n"), FText::FromString(AssetsNotMovedString) );
+			}
+
+			const FText Title( LOCTEXT( "DatasmithConsumer_SavingIssues", "Some assets may not be saved properly..." ) );
+			const FText Message = FText::Format( LOCTEXT( "DatasmithConsumer_AssetsWithIssues", "All assets cannot be created in their destination folder.\nBelow is the list of assets with issues. See output log for details.\nClick \'Yes\' to continue with the commit.\n\n{0}{1}\n" ), AssetsToBeSkippedText, AssetsNotMovedText);
+
+			if(FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title) != EAppReturnType::Yes)
+			{
+				return false;
+			}
 		}
 		else
 		{
-			LogError(Message);
+			const FText Message = LOCTEXT( "DatasmithConsumer_CommitWithErrors", "All assets could not be saved in their destination folder. Committing anyway. Check your log for details." );
+			LogWarning(Message);
 		}
-
-		return false;
 	}
 
 	return true;
