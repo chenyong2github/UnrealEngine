@@ -78,6 +78,8 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	// Visibility
 	const bool bIsHidden = ( Xformable.ComputeVisibility( EvalTime ) == pxr::UsdGeomTokens->invisible );
+
+	SceneComponent.Modify();
 	SceneComponent.SetVisibility( !bIsHidden );
 
 	return true;
