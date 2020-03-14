@@ -116,24 +116,26 @@ void FenceTransactions(FConcertSyncClientLiveSession& InLiveSession, FConcertCli
 {
 	InLiveSession.GetSessionDatabase().SetEndpoint(InSourceClient.EndpointId, InSourceClient.EndpointData);
 
-	FConcertSyncPackageActivity PackageActivity;
-	PackageActivity.EndpointId = InSourceClient.EndpointId;
-	PackageActivity.EventData.Package.Info.PackageName = InPackageName;
-	PackageActivity.EventData.Package.Info.PackageUpdateType = EConcertPackageUpdateType::Dummy;
+	FConcertSyncActivity PackageActivityBasePart;
+	FConcertPackageInfo PackageInfo;
+	FConcertPackageDataStream PackageDataStream;
+	PackageActivityBasePart.EndpointId = InSourceClient.EndpointId;
+	PackageInfo.PackageName = InPackageName;
+	PackageInfo.PackageUpdateType = EConcertPackageUpdateType::Dummy;
 	if (InTransactionIdOverride)
 	{
-		PackageActivity.EventData.Package.Info.TransactionEventIdAtSave = *InTransactionIdOverride;
+		PackageInfo.TransactionEventIdAtSave = *InTransactionIdOverride;
 	}
 	else
 	{
-		InLiveSession.GetSessionDatabase().GetTransactionMaxEventId(PackageActivity.EventData.Package.Info.TransactionEventIdAtSave);
+		InLiveSession.GetSessionDatabase().GetTransactionMaxEventId(PackageInfo.TransactionEventIdAtSave);
 	}
 
 	int64 ActivityId = 0;
 	int64 EventId = 0;
-	InLiveSession.GetSessionDatabase().AddPackageActivity(PackageActivity, ActivityId, EventId);
+	InLiveSession.GetSessionDatabase().AddPackageActivity(PackageActivityBasePart, PackageInfo, PackageDataStream, ActivityId, EventId);
 
-	InLiveTransactionAuthors.ResolveLiveTransactionAuthorsForPackage(PackageActivity.EventData.Package.Info.PackageName);
+	InLiveTransactionAuthors.ResolveLiveTransactionAuthorsForPackage(PackageInfo.PackageName);
 }
 
 /** Ensures the live transaction authors works correctly when there is no other clients connected. */

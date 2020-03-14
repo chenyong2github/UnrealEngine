@@ -734,13 +734,14 @@ FText FConcertSyncTransactionActivitySummary::CreateDisplayTextForUser(const FTe
 }
 
 
-FConcertSyncPackageActivitySummary FConcertSyncPackageActivitySummary::CreateSummaryForEvent(const FConcertSyncPackageEvent& InEvent)
+FConcertSyncPackageActivitySummary FConcertSyncPackageActivitySummary::CreateSummaryForEvent(const FConcertPackageInfo& PackageInfo)
 {
 	FConcertSyncPackageActivitySummary ActivitySummary;
-	ActivitySummary.PackageName = InEvent.Package.Info.PackageName;
-	ActivitySummary.NewPackageName = InEvent.Package.Info.NewPackageName;
-	ActivitySummary.PackageUpdateType = InEvent.Package.Info.PackageUpdateType;
-	ActivitySummary.bAutoSave = InEvent.Package.Info.bAutoSave;
+	ActivitySummary.PackageName = PackageInfo.PackageName;
+	ActivitySummary.NewPackageName = PackageInfo.NewPackageName;
+	ActivitySummary.PackageUpdateType = PackageInfo.PackageUpdateType;
+	ActivitySummary.bAutoSave = PackageInfo.bAutoSave;
+	ActivitySummary.bPreSave = PackageInfo.bPreSave;
 	return ActivitySummary;
 }
 
@@ -756,9 +757,18 @@ FText FConcertSyncPackageActivitySummary::CreateDisplayText(const bool InUseRich
 		FormatPattern = LOCTEXT("CreateDisplayText_Package_Added", "Added package {PackageName}.");
 		break;
 	case EConcertPackageUpdateType::Saved:
-		FormatPattern = bAutoSave 
-			? LOCTEXT("CreateDisplayText_Package_AutoSaved", "Auto-saved package {PackageName}.") 
-			: LOCTEXT("CreateDisplayText_Package_Saved", "Saved package {PackageName}.");
+		if (bPreSave)
+		{
+			FormatPattern = bAutoSave
+				? LOCTEXT("CreateDisplayText_Package_PreAutoSaved", "Captured package {PackageName} original state.")
+				: LOCTEXT("CreateDisplayText_Package_PreSaved", "Captured package {PackageName} original state.");
+		}
+		else
+		{
+			FormatPattern = bAutoSave
+				? LOCTEXT("CreateDisplayText_Package_AutoSaved", "Auto-saved package {PackageName}.") 
+				: LOCTEXT("CreateDisplayText_Package_Saved", "Saved package {PackageName}.");
+		}
 		break;
 	case EConcertPackageUpdateType::Renamed:
 		FormatPattern = LOCTEXT("CreateDisplayText_Package_Renamed", "Renamed package {PackageName} to {NewPackageName}.");
