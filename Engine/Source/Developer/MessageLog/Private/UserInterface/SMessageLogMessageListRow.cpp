@@ -86,7 +86,6 @@ TSharedRef<SWidget> SMessageLogMessageListRow::GenerateWidget()
 	}
 
 	return SNew(SHorizontalBox)
-		.ToolTipText(Message->ToText())
 
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -307,6 +306,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 			[
 				SNew(STextBlock)
 				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.TextStyle(FEditorStyle::Get(), "Log.Normal")
 				.Text(FText::FromString(MessageString))
 			];
 		}
