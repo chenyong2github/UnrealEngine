@@ -18,20 +18,20 @@ enum class EBlueprintIndexerVersion
 	Empty = 0,
 	Initial = 1,
 
-	Current = Initial,
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
 int32 FBlueprintIndexer::GetVersion() const
 {
-	return (int32)EBlueprintIndexerVersion::Current;
+	return (int32)EBlueprintIndexerVersion::LatestVersion;
 }
 
-void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer)
+void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
 	const UBlueprint* BP = Cast<UBlueprint>(InAssetObject);
 	check(BP);
-
-	//UGameplayAbilityBlueprint
 
 	if (UClass* GeneratedClass = BP->GeneratedClass)
 	{
@@ -52,10 +52,14 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 	{	
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
-			FText NodeType = LOCTEXT("Node", "Node");
-			FText NodeText = Node->GetNodeTitle(ENodeTitleType::MenuTitle);
+			const FText NodeText = Node->GetNodeTitle(ENodeTitleType::MenuTitle);
 			Serializer.BeginIndexingObject(Node, NodeText);
 			Serializer.IndexProperty(TEXT("Name"), NodeText);
+
+			if (!Node->NodeComment.IsEmpty())
+			{
+				Serializer.IndexProperty(TEXT("Comment"), Node->NodeComment);
+			}
 			
 			if (UK2Node_CallFunction* FunctionNode = Cast<UK2Node_CallFunction>(Node))
 			{
@@ -90,7 +94,7 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 	}
 }
 
-void FBlueprintIndexer::IndexMemberReference(FSearchSerializer& Serializer, const FMemberReference& MemberReference, const FString& MemberType)
+void FBlueprintIndexer::IndexMemberReference(FSearchSerializer& Serializer, const FMemberReference& MemberReference, const FString& MemberType) const
 {
 	Serializer.IndexProperty(MemberType + TEXT("Name"), MemberReference.GetMemberName());
 

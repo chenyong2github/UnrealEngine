@@ -24,6 +24,13 @@
 #include "Engine/DataAsset.h"
 #include "Indexers/DialogueWaveIndexer.h"
 #include "Sound/DialogueWave.h"
+#include "Indexers/LevelIndexer.h"
+#include "Settings/AssetSearchDeveloperSettings.h"
+#include "Indexers/SoundCueIndexer.h"
+#include "Sound/SoundCue.h"
+#include "Misc/ScopedSlowTask.h"
+
+PRAGMA_DISABLE_OPTIMIZATION
 
 #define LOCTEXT_NAMESPACE "FAssetSearchManager"
 
@@ -89,13 +96,15 @@ void FAssetSearchManager::Start()
 	RegisterAssetIndexer(UBlueprint::StaticClass(), MakeUnique<FBlueprintIndexer>());
 	RegisterAssetIndexer(UWidgetBlueprint::StaticClass(), MakeUnique<FWidgetBlueprintIndexer>());
 	RegisterAssetIndexer(UDialogueWave::StaticClass(), MakeUnique<FDialogueWaveIndexer>());
+	RegisterAssetIndexer(UWorld::StaticClass(), MakeUnique<FLevelIndexer>());
+	RegisterAssetIndexer(USoundCue::StaticClass(), MakeUnique<FSoundCueIndexer>());
+
 
 	const FString SessionPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Search")));
 	SearchDatabase.Open(SessionPath);
 
 	FCoreUObjectDelegates::OnObjectSaved.AddRaw(this, &FAssetSearchManager::OnObjectSaved);
 	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FAssetSearchManager::OnAssetLoaded);
-	UObject::FAssetRegistryTag::OnGetExtraObjectTags.AddRaw(this, &FAssetSearchManager::OnGetAssetTags);
 
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	AssetRegistry.OnAssetAdded().AddRaw(this, &FAssetSearchManager::OnAssetAdded);
@@ -151,6 +160,22 @@ void FAssetSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 		}
 	}
 
+	// 
+	const UAssetSearchDeveloperSettings* Settings = GetDefault<UAssetSearchDeveloperSettings>();
+	for (const FDirectoryPath& IgnoredPath : Settings->IgnoredPaths)
+	{
+		if (PackageName.StartsWith(IgnoredPath.Path))
+		{
+			return;
+		}
+	}
+
+	// Don't index redirectors, just act like they don't exist.
+	if (InAssetData.IsRedirector())
+	{
+		return;
+	}
+
 	FAssetOperation Operation;
 	Operation.Asset = InAssetData;
 	ProcessAssetQueue.Add(Operation);
@@ -173,10 +198,12 @@ void FAssetSearchManager::OnAssetScanFinished()
 	TArray<FAssetData> AllAssets;
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	AssetRegistry.GetAllAssets(AllAssets, false);
-
+	
+	PendingDatabaseUpdates++;
 	UpdateOperations.Enqueue([this, AssetsAvailable = MoveTemp(AllAssets)]() mutable {
 		FScopeLock ScopedLock(&SearchDatabaseCS);
 		SearchDatabase.RemoveAssetsNotInThisSet(AssetsAvailable);
+		PendingDatabaseUpdates--;
 	});
 }
 
@@ -186,7 +213,7 @@ void FAssetSearchManager::OnObjectSaved(UObject* InObject)
 
 	if (!GIsCookerLoadingPackage)
 	{
-		StoreIndexForAsset(InObject, false);
+		RequestIndexAsset(InObject);
 	}
 }
 
@@ -200,46 +227,34 @@ void FAssetSearchManager::OnAssetLoaded(UObject* InObject)
 	}
 }
 
-void FAssetSearchManager::OnGetAssetTags(const UObject* Object, TArray<UObject::FAssetRegistryTag>& OutTags)
+bool FAssetSearchManager::RequestIndexAsset(UObject* InAsset)
 {
 	check(IsInGameThread());
 
-	const FString ObjectPath = Object->GetPathName();
-	const FContentHashEntry* ContentEntry = ContentHashCache.Find(ObjectPath);
-
-	if (ContentEntry)
+	if (GEditor->IsAutosaving())
 	{
-		static FName SearchIndexContentTag(TEXT("SearchIndexContent"));
-		static FName SearchIndexContentKeyTag(TEXT("SearchIndexContentKey"));
-		OutTags.Add(UObject::FAssetRegistryTag(SearchIndexContentKeyTag, *ContentEntry->ContentHash, UObject::FAssetRegistryTag::TT_Hidden));
-		OutTags.Add(UObject::FAssetRegistryTag(SearchIndexContentTag, *ContentEntry->Content, UObject::FAssetRegistryTag::TT_Hidden));
+		return false;
 	}
-}
 
-void FAssetSearchManager::AddToContentTagCache(const FAssetData& InAsset, const FString& InContent, const FString& InContentHash)
-{
-	FContentHashEntry Entry;
-	Entry.Content = InContent;
-	Entry.ContentHash = InContentHash;
-	ContentHashCache.Add(InAsset.ObjectPath.ToString(), Entry);
-}
+	if (IsAssetIndexable(InAsset))
+	{
+		TWeakObjectPtr<UObject> AssetWeakPtr = InAsset;
+		FAssetData AssetData(InAsset);
 
-void FAssetSearchManager::RequestIndexAsset(UObject* InAsset)
-{
-	TWeakObjectPtr<UObject> AssetWeakPtr = InAsset;
-
-	FAssetData AssetData(InAsset);
-	FString AssetJsonDDCKey = TryGetDDCKeyForAsset(InAsset);
-
-	UpdateOperations.Enqueue([this, AssetData, AssetWeakPtr, AssetJsonDDCKey]() {
-		FScopeLock ScopedLock(&SearchDatabaseCS);
-		if (!SearchDatabase.IsAssetUpToDate(AssetData, AssetJsonDDCKey))
-		{
-			AsyncTask(ENamedThreads::GameThread, [this, AssetWeakPtr]() {
-				StoreIndexForAsset(AssetWeakPtr.Get(), true);
+		return AsyncGetDerivedDataKey(AssetData, [this, AssetData, AssetWeakPtr](FString InDDCKey) {
+			UpdateOperations.Enqueue([this, AssetData, AssetWeakPtr, InDDCKey]() {
+				FScopeLock ScopedLock(&SearchDatabaseCS);
+				if (!SearchDatabase.IsAssetUpToDate(AssetData, InDDCKey))
+				{
+					AsyncTask(ENamedThreads::GameThread, [this, AssetWeakPtr]() {
+						StoreIndexForAsset(AssetWeakPtr.Get());
+					});
+				}
 			});
-		}
-	});
+		});
+	}
+
+	return false;
 }
 
 bool FAssetSearchManager::IsAssetIndexable(UObject* InAsset)
@@ -248,7 +263,7 @@ bool FAssetSearchManager::IsAssetIndexable(UObject* InAsset)
 	{
 		// If it's not a permanent package, and one we just loaded for diffing, don't index it.
 		UPackage* Package = InAsset->GetOutermost();
-		if (Package->HasAnyPackageFlags(LOAD_ForDiff | LOAD_PackageForPIE | LOAD_ForFileDiff))
+		if (Package->HasAnyPackageFlags(/*LOAD_ForDiff | */LOAD_PackageForPIE | LOAD_ForFileDiff))
 		{
 			return false;
 		}
@@ -264,78 +279,76 @@ bool FAssetSearchManager::IsAssetIndexable(UObject* InAsset)
 	return false;
 }
 
-FString FAssetSearchManager::TryGetDDCKeyForAsset(const FAssetData& InAsset)
+bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAssetData)
 {
-	FString AssetJsonDDCKey;
-
-	{
-		FString ContentDDCKey;
-		static FName SearchIndexContentKeyTag(TEXT("SearchIndexContentKey"));
-		if (InAsset.GetTagValue(SearchIndexContentKeyTag, ContentDDCKey))
-		{
-			AssetJsonDDCKey = ContentDDCKey;
-		}
-		else
-		{
-			UClass* AssetClass = InAsset.GetClass();
-			if (HasIndexerForClass(AssetClass))
-			{
-				const FString UnindexedAssetKey = GetDerivedDataKey(InAsset);
-				AssetJsonDDCKey = UnindexedAssetKey;
-			}
-		}
-	}
-
-	return AssetJsonDDCKey;
-}
-
-bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAsset)
-{
-	check(IsInGameThread());
-	FString AssetJsonDDCKey = TryGetDDCKeyForAsset(InAsset);
-
-	if (!AssetJsonDDCKey.IsEmpty())
-	{
-		FeedOperations.Enqueue([this, InAsset, AssetJsonDDCKey]() {
+	return AsyncGetDerivedDataKey(InAssetData, [this, InAssetData](FString InDDCKey) {
+		FeedOperations.Enqueue([this, InAssetData, InDDCKey]() {
 			FScopeLock ScopedLock(&SearchDatabaseCS);
-			if (!SearchDatabase.IsAssetUpToDate(InAsset, AssetJsonDDCKey))
+			if (!SearchDatabase.IsAssetUpToDate(InAssetData, InDDCKey))
 			{
 				PendingDownloads++;
 
 				FAssetDDCRequest DDCRequest;
-				DDCRequest.AssetData = InAsset;
-				DDCRequest.DDCKey_IndexDataHash = AssetJsonDDCKey;
-				DDCRequest.DDCHandle = GetDerivedDataCacheRef().GetAsynchronous(*AssetJsonDDCKey, InAsset.ObjectPath.ToString());
+				DDCRequest.AssetData = InAssetData;
+				DDCRequest.DDCKey_IndexDataHash = InDDCKey;
+				DDCRequest.DDCHandle = GetDerivedDataCacheRef().GetAsynchronous(*InDDCKey, InAssetData.ObjectPath.ToString());
 				ProcessDDCQueue.Enqueue(DDCRequest);
 			}
 		});
+	});
+}
 
-		return true;
+bool FAssetSearchManager::AsyncGetDerivedDataKey(const FAssetData& InAssetData, TFunction<void(FString)> DDCKeyCallback)
+{
+	check(IsInGameThread());
+
+	FString IndexersNamesAndVersions = GetIndexerVersion(InAssetData.GetClass());
+
+	// If the indexer names and versions is empty, then we know it's not possible to index this type of thing.
+	if (IndexersNamesAndVersions.IsEmpty())
+	{
+		return false;
 	}
 
-	return false;
+	UpdateOperations.Enqueue([this, InAssetData, IndexersNamesAndVersions, DDCKeyCallback]() {
+		FScopeLock ScopedLock(&SearchDatabaseCS);
+
+		FAssetFileInfo FileInfo;
+		SearchDatabase.AddOrUpdateFileInfo(InAssetData, FileInfo);
+
+		if (FileInfo.Hash.IsValid())
+		{
+			// The universal key for content is:
+			// AssetSearch_V{SerializerVersion}_{IndexersNamesAndVersions}_{ObjectPathHash}_{FileOnDiskHash}
+
+			const FString ObjectPathString = InAssetData.ObjectPath.ToString();
+
+			FSHAHash ObjectPathHash;
+			FSHA1::HashBuffer(*ObjectPathString, ObjectPathString.Len() * sizeof(FString::ElementType), ObjectPathHash.Hash);
+
+			TStringBuilder<512> DDCKey;
+			DDCKey.Append(TEXT("AssetSearch_V"));
+			DDCKey.Append(LexToString(FSearchSerializer::GetVersion()));
+			DDCKey.Append(TEXT("_"));
+			DDCKey.Append(IndexersNamesAndVersions);
+			DDCKey.Append(TEXT("_"));
+			DDCKey.Append(ObjectPathHash.ToString());
+			DDCKey.Append(TEXT("_"));
+			DDCKey.Append(LexToString(FileInfo.Hash));
+
+			const FString DDCKeyString = DDCKey.ToString();
+			AsyncTask(ENamedThreads::GameThread, [this, DDCKeyString, DDCKeyCallback]() {
+				DDCKeyCallback(DDCKeyString);
+			});
+		}
+	});
+
+	return true;
 }
 
-FString FAssetSearchManager::GetDerivedDataKey(const FSHAHash& IndexedContentHash)
+bool FAssetSearchManager::HasIndexerForClass(const UClass* InAssetClass) const
 {
-	const FString DDCKey = TEXT("AssetSearch_B") + LexToString(FSearchSerializer::GetVersion()) + TEXT("_") + IndexedContentHash.ToString();
-	return DDCKey;
-}
-
-FString FAssetSearchManager::GetDerivedDataKey(const FAssetData& UnindexedAsset)
-{
-	FString ContentPath = UnindexedAsset.ObjectPath.ToString();
-
-	FSHAHash UnindexedAssetHash;
-	FSHA1::HashBuffer(*ContentPath, ContentPath.Len() * sizeof(FString::ElementType), UnindexedAssetHash.Hash);
-
-	const FString DDCKey = TEXT("AssetSearch_Legacy_B") + LexToString(FSearchSerializer::GetVersion()) + TEXT("_") + UnindexedAssetHash.ToString();
-	return DDCKey;
-}
-
-bool FAssetSearchManager::HasIndexerForClass(const UClass* AssetClass)
-{
-	const UClass* IndexableClass = AssetClass;
+	const UClass* IndexableClass = InAssetClass;
 	while (IndexableClass)
 	{
 		if (Indexers.Contains(IndexableClass->GetFName()))
@@ -349,51 +362,62 @@ bool FAssetSearchManager::HasIndexerForClass(const UClass* AssetClass)
 	return false;
 }
 
-void FAssetSearchManager::StoreIndexForAsset(UObject* InAsset, bool bLegacyIndexing)
+FString FAssetSearchManager::GetIndexerVersion(const UClass* InAssetClass) const
+{
+	TStringBuilder<256> VersionString;
+
+	TArray<UClass*> NestedIndexedTypes;
+
+	const UClass* IndexableClass = InAssetClass;
+	while (IndexableClass)
+	{
+		if (const TUniquePtr<IAssetIndexer>* IndexerPtr = Indexers.Find(IndexableClass->GetFName()))
+		{
+			IAssetIndexer* Indexer = IndexerPtr->Get();
+			VersionString.Append(Indexer->GetName());
+			VersionString.Append(TEXT("_"));
+			VersionString.Append(LexToString(Indexer->GetVersion()));
+
+			Indexer->GetNestedAssetTypes(NestedIndexedTypes);
+		}
+
+		IndexableClass = IndexableClass->GetSuperClass();
+	}
+
+	for (UClass* NestedIndexedType : NestedIndexedTypes)
+	{
+		VersionString.Append(GetIndexerVersion(NestedIndexedType));
+	}
+
+	return VersionString.ToString();
+}
+
+void FAssetSearchManager::StoreIndexForAsset(UObject* InAsset)
 {
 	check(IsInGameThread());
 
-	if (IsAssetIndexable(InAsset))
+	if (IsAssetIndexable(InAsset) && HasIndexerForClass(InAsset->GetClass()))
 	{
 		FAssetData InAssetData(InAsset);
 
-		bool bWasIndexed = false;
 		FString IndexedJson;
+		bool bWasIndexed = false;
 		{
 			FSearchSerializer Serializer(InAssetData, &IndexedJson);
-
-			UClass* IndexableClass = InAsset->GetClass();
-			while (IndexableClass)
-			{
-				if (TUniquePtr<IAssetIndexer>* IndexerPtr = Indexers.Find(IndexableClass->GetFName()))
-				{
-					IAssetIndexer* Indexer = IndexerPtr->Get();
-
-					bWasIndexed = true;
-					Serializer.BeginIndexer(Indexer);
-					Indexer->IndexAsset(InAsset, Serializer);
-					Serializer.EndIndexer();
-				}
-
-				IndexableClass = IndexableClass->GetSuperClass();
-			}
+			bWasIndexed = Serializer.IndexAsset(InAsset, Indexers);
 		}
 
-		if (bWasIndexed)
+		if (bWasIndexed && !IndexedJson.IsEmpty())
 		{
-			// Hash the content so that we can store it in the DDC.
-			FSHAHash IndexedJsonHash;
-			FSHA1::HashBuffer(*IndexedJson, IndexedJson.Len() * sizeof(FString::ElementType), IndexedJsonHash.Hash);
+			AsyncGetDerivedDataKey(InAssetData, [this, InAssetData, IndexedJson](FString InDDCKey) {
+				check(IsInGameThread());
 
-			const FString DerivedDataKey = bLegacyIndexing ? GetDerivedDataKey(InAssetData) : GetDerivedDataKey(IndexedJsonHash);
+				FTCHARToUTF8 IndexedJsonUTF8(*IndexedJson);
+				TArrayView<const uint8> IndexedJsonUTF8View((const uint8*)IndexedJsonUTF8.Get(), IndexedJsonUTF8.Length() * sizeof(UTF8CHAR));
+				GetDerivedDataCacheRef().Put(*InDDCKey, IndexedJsonUTF8View, InAssetData.ObjectPath.ToString(), false);
 
-			FTCHARToUTF8 IndexedJsonUTF8(*IndexedJson);
-			TArrayView<const uint8> IndexedJsonUTF8View((const uint8*)IndexedJsonUTF8.Get(), IndexedJsonUTF8.Length() * sizeof(UTF8CHAR));
-			GetDerivedDataCacheRef().Put(*DerivedDataKey, IndexedJsonUTF8View, InAssetData.ObjectPath.ToString(), bLegacyIndexing);
-
-			AddToContentTagCache(InAssetData, IndexedJson, DerivedDataKey);
-
-			AddOrUpdateAsset(InAssetData, IndexedJson, DerivedDataKey);
+				AddOrUpdateAsset(InAssetData, IndexedJson, InDDCKey);
+			});
 		}
 	}
 }
@@ -422,6 +446,18 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 {
 	check(IsInGameThread());
 
+	//if (0)
+	//{
+	//	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+	//	TArray<FAssetData> TempAssetData;
+	//	AssetRegistry.GetAllAssets(TempAssetData, true);
+
+	//	for (const FAssetData& Data : TempAssetData)
+	//	{
+	//		OnAssetAdded(Data);
+	//	}
+	//}
+
 	int32 ScanLimit = GameThread_AssetScanLimit;
 	while (ProcessAssetQueue.Num() > 0 && ScanLimit > 0 && PendingDownloads < PendingDownloadsMax)
 	{
@@ -430,9 +466,11 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 
 		if (Operation.bRemoval)
 		{
+			PendingDatabaseUpdates++;
 			UpdateOperations.Enqueue([this, Asset]() {
 				FScopeLock ScopedLock(&SearchDatabaseCS);
 				SearchDatabase.RemoveAsset(Asset);
+				PendingDatabaseUpdates--;
 			});
 		}
 		else
@@ -512,28 +550,27 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 {
 	check(IsInGameThread());
 
-	GWarn->BeginSlowTask(LOCTEXT("ForceIndexOnAssetsMissingIndex", "Indexing Assets"), true, true);
+	FScopedSlowTask IndexingTask(FailedDDCRequests.Num(), LOCTEXT("ForceIndexOnAssetsMissingIndex", "Indexing Assets"));
+	IndexingTask.MakeDialog(true);
 
-	int32 RequestCount = 0;
+	int32 RemovedCount = 0;
 	for (const FAssetDDCRequest& Request : FailedDDCRequests)
 	{
-		if (GWarn->ReceivedUserCancel())
+		if (IndexingTask.ShouldCancel())
 		{
 			break;
 		}
 
+		IndexingTask.EnterProgressFrame(1, FText::Format(LOCTEXT("ForceIndexOnAssetsMissingIndexFormat", "Indexing Asset ({0} of {1})"), RemovedCount + 1, FailedDDCRequests.Num()));
 		if (UObject* AssetToIndex = Request.AssetData.GetAsset())
 		{
-			StoreIndexForAsset(AssetToIndex, Request.DDCKey_IndexDataHash.StartsWith(TEXT("AssetSearch_Legacy")));
+			StoreIndexForAsset(AssetToIndex);
 		}
 
-		RequestCount++;
-		GWarn->StatusForceUpdate(RequestCount, FailedDDCRequests.Num(), FText::FromString(Request.AssetData.PackageName.ToString()));
+		RemovedCount++;
 	}
 
-	GWarn->EndSlowTask();
-
-	FailedDDCRequests.Reset();
+	FailedDDCRequests.RemoveAtSwap(0, RemovedCount);
 }
 
 void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArray<FSearchRecord>&&)> InCallback)
@@ -563,3 +600,5 @@ void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArra
 }
 
 #undef LOCTEXT_NAMESPACE
+
+PRAGMA_ENABLE_OPTIMIZATION

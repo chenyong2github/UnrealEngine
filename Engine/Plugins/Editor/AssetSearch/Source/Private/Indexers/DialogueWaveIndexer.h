@@ -9,5 +9,5 @@ class FDialogueWaveIndexer : public IAssetIndexer
 {
 	virtual FString GetName() const override { return TEXT("DialogueWave"); }
 	virtual int32 GetVersion() const override;
-	virtual void IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) override;
+	virtual void IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const override;
 };

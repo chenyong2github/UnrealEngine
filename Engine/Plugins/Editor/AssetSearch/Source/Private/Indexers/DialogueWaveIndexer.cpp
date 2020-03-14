@@ -10,15 +10,17 @@ enum class EDialogueWaveIndexerVersion
 	Empty = 0,
 	Initial = 1,
 
-	Current = Initial,
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
 int32 FDialogueWaveIndexer::GetVersion() const
 {
-	return (int32)EDialogueWaveIndexerVersion::Current;
+	return (int32)EDialogueWaveIndexerVersion::LatestVersion;
 }
 
-void FDialogueWaveIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer)
+void FDialogueWaveIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
 	const UDialogueWave* DialogueWave = Cast<UDialogueWave>(InAssetObject);
 	check(DialogueWave);
