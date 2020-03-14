@@ -1155,14 +1155,14 @@ static const float INV_FLOAT_PRECISION = 1e-5;
 uint NumEntries;
 
 uint ClearValue;
-RWTexture2D<uint> UAV;
+RWBuffer<uint> UAV;
 
 [numthreads(64, 1, 1)]
 void ClearUAVUIntCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId.x < NumEntries)
 	{
-		UAV[DispatchThreadId.xy] = ClearValue;
+		UAV[DispatchThreadId.x] = ClearValue;
 	}
 }
 #endif
@@ -1309,7 +1309,7 @@ const static  float InvHistogramSizeMinusOne = 1.0f / (float)(HISTOGRAM_SIZE - 1
 
 
 #if HISTOGRAM_COMPUTE_SHADER
-// Output histogram texture (UAV)
+// Output histogram buffer (UAV)
 RWBuffer<uint> RWHistogramBuffer;
 
 const static uint QUARTER_HISTOGRAM_SIZE = HISTOGRAM_SIZE / 4;
@@ -1439,11 +1439,11 @@ void Histogram_MainCS(
 #endif
 
 #if HISTOGRAM_EYEADAPTATION_COMPUTE_SHADER
-groupshared float SharedHistogram[HISTOGRAM_SIZE];
+Buffer<uint> HistogramBuffer;
 
 float GetHistogramBucket_Mobile(uint BucketIndex)
 {
-	return SharedHistogram[BucketIndex];
+	return HistogramBuffer[BucketIndex];
 }
 
 float ComputeHistogramSum_Mobile()
@@ -1498,18 +1498,11 @@ float ComputeEyeAdaptationExposure_Mobile()
 	return LumAve;
 }
 
-Buffer<uint> HistogramBuffer;
-
 RWBuffer<float4> OutputBuffer;
 
 [numthreads(1, 1, 1)]
 void HistogramEyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	UNROLL for (uint i = 0; i < HISTOGRAM_SIZE; ++i)
-	{
-		SharedHistogram[i] = HistogramBuffer[i];
-	}
-
 	float4 OutColor = 0;
 
 	const float AverageSceneLuminance = ComputeEyeAdaptationExposure_Mobile();
