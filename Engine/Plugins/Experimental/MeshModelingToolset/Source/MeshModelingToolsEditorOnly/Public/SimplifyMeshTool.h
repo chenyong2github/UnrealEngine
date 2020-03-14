@@ -46,6 +46,8 @@ class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshToolProperties : public UMesh
 public:
 	USimplifyMeshToolProperties();
 
+	void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
+
 	/** Simplification Target Type  */
 	UPROPERTY(EditAnywhere, Category = Options)
 	ESimplifyTargetType TargetMode;
