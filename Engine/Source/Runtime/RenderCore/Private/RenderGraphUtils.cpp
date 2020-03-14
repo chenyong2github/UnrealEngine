@@ -22,57 +22,47 @@ void ClearUnusedGraphResourcesImpl(
 	void* InoutParameters,
 	std::initializer_list<FRDGResourceRef> ExcludeList)
 {
-	int32 GraphTextureId = 0;
-	int32 GraphSRVId = 0;
-	int32 GraphUAVId = 0;
-
+	int32 UsedResourceIdx = 0;
 	uint8* Base = reinterpret_cast<uint8*>(InoutParameters);
 
 	for (int32 ResourceIndex = 0, Num = ParametersMetadata->GetLayout().Resources.Num(); ResourceIndex < Num; ResourceIndex++)
 	{
 		EUniformBufferBaseType Type = ParametersMetadata->GetLayout().Resources[ResourceIndex].MemberType;
 		uint16 ByteOffset = ParametersMetadata->GetLayout().Resources[ResourceIndex].MemberOffset;
+		bool bRDGResource = Type == UBMT_RDG_TEXTURE ||
+							Type == UBMT_RDG_TEXTURE_SRV || 
+							Type == UBMT_RDG_BUFFER_SRV ||
+							Type == UBMT_RDG_TEXTURE_UAV || 
+							Type == UBMT_RDG_BUFFER_UAV;
 
-		if (Type == UBMT_RDG_TEXTURE)
+		if (UsedResourceIdx < ShaderBindings.ResourceParameters.Num())
 		{
-			if (GraphTextureId < ShaderBindings.GraphTextures.Num() && ByteOffset == ShaderBindings.GraphTextures[GraphTextureId].ByteOffset)
+			const FShaderParameterBindings::FResourceParameter& ResourceParameter = ShaderBindings.ResourceParameters[UsedResourceIdx];
+			if (ByteOffset == ResourceParameter.ByteOffset)
 			{
-				GraphTextureId++;
+				// check next one
+				UsedResourceIdx++;
 				continue;
 			}
-		}
-		else if (Type == UBMT_RDG_TEXTURE_SRV || Type == UBMT_RDG_BUFFER_SRV)
-		{
-			if (GraphSRVId < ShaderBindings.GraphSRVs.Num() && ByteOffset == ShaderBindings.GraphSRVs[GraphSRVId].ByteOffset)
-			{
-				GraphSRVId++;
-				continue;
-			}
-		}
-		else if (Type == UBMT_RDG_TEXTURE_UAV || Type == UBMT_RDG_BUFFER_UAV)
-		{
-			if (GraphUAVId < ShaderBindings.GraphUAVs.Num() && ByteOffset == ShaderBindings.GraphUAVs[GraphUAVId].ByteOffset)
-			{
-				GraphUAVId++;
-				continue;
-			}
-		}
-		else
-		{
-			continue;
+
+			// make sure we dont jump over used resources
+			check(ByteOffset <= ResourceParameter.ByteOffset);
 		}
 
-		for (FRDGResourceRef ExcludeResource : ExcludeList)
+		if (bRDGResource)
 		{
-			auto Resource = *reinterpret_cast<const FRDGResource* const*>(Base + ByteOffset);
-			if (Resource == ExcludeResource)
+			for( FRDGResourceRef ExcludeResource : ExcludeList )
 			{
-				continue;
+				auto Resource = *reinterpret_cast<const FRDGResource* const*>(Base + ByteOffset);
+				if( Resource == ExcludeResource )
+				{
+					continue;
+				}
 			}
-		}
 
-		void** ResourcePointerAddress = reinterpret_cast<void**>(Base + ByteOffset);
-		*ResourcePointerAddress = nullptr;
+			void** ResourcePointerAddress = reinterpret_cast<void**>(Base + ByteOffset);
+			*ResourcePointerAddress = nullptr;
+		}
 	}
 }
 
@@ -82,12 +72,8 @@ void ClearUnusedGraphResourcesImpl(
 	void* InoutParameters,
 	std::initializer_list<FRDGResourceRef> ExcludeList)
 {
-	TArray<int32, TInlineAllocator<SF_NumFrequencies>> GraphTextureIds;
-	TArray<int32, TInlineAllocator<SF_NumFrequencies>> GraphSRVIds;
-	TArray<int32, TInlineAllocator<SF_NumFrequencies>> GraphUAVIds;
-	GraphTextureIds.SetNumZeroed(ShaderBindingsList.Num());
-	GraphSRVIds.SetNumZeroed(ShaderBindingsList.Num());
-	GraphUAVIds.SetNumZeroed(ShaderBindingsList.Num());
+	TArray<int32, TInlineAllocator<SF_NumFrequencies>> GraphResourceIds;
+	GraphResourceIds.SetNumZeroed(ShaderBindingsList.Num());
 
 	uint8* Base = reinterpret_cast<uint8*>(InoutParameters);
 
@@ -95,75 +81,37 @@ void ClearUnusedGraphResourcesImpl(
 	{
 		EUniformBufferBaseType Type = ParametersMetadata->GetLayout().Resources[ResourceIndex].MemberType;
 		uint16 ByteOffset = ParametersMetadata->GetLayout().Resources[ResourceIndex].MemberOffset;
+		bool bRDGResource = Type == UBMT_RDG_TEXTURE ||
+							Type == UBMT_RDG_TEXTURE_SRV || 
+							Type == UBMT_RDG_BUFFER_SRV ||
+							Type == UBMT_RDG_TEXTURE_UAV || 
+							Type == UBMT_RDG_BUFFER_UAV;
+
 		bool bResourceIsUsed = false;
-
-		if (Type == UBMT_RDG_TEXTURE)
+		for (int32 Index = 0; Index < ShaderBindingsList.Num(); ++Index)
 		{
-			for (int32 Index = 0; Index < ShaderBindingsList.Num(); ++Index)
+			const FShaderParameterBindings& ShaderBindings = *ShaderBindingsList[Index];
+			int32& GraphResourceId = GraphResourceIds[Index];
+			for (; GraphResourceId < ShaderBindings.ResourceParameters.Num() && ByteOffset < ShaderBindings.ResourceParameters[GraphResourceId].ByteOffset; ++GraphResourceId)
 			{
-				const FShaderParameterBindings& ShaderBindings = *ShaderBindingsList[Index];
-				int32& GraphTextureId = GraphTextureIds[Index];
-
-				if (GraphTextureId < ShaderBindings.GraphTextures.Num() && ByteOffset == ShaderBindings.GraphTextures[GraphTextureId].ByteOffset)
+			}
+			bResourceIsUsed|= GraphResourceId < ShaderBindings.ResourceParameters.Num() && ByteOffset == ShaderBindings.ResourceParameters[GraphResourceId].ByteOffset; // check the resouce type as well?
+		}
+		
+		if (bRDGResource && !bResourceIsUsed)
+		{
+			for (FRDGResourceRef ExcludeResource : ExcludeList)
+			{
+				auto Resource = *reinterpret_cast<const FRDGResource* const*>(Base + ByteOffset);
+				if (Resource == ExcludeResource)
 				{
-					GraphTextureId++;
-					bResourceIsUsed = true;
-					break;
+					continue;
 				}
 			}
-		}
-		else if (Type == UBMT_RDG_TEXTURE_SRV || Type == UBMT_RDG_BUFFER_SRV)
-		{
-			for (int32 Index = 0; Index < ShaderBindingsList.Num(); ++Index)
-			{
-				const FShaderParameterBindings& ShaderBindings = *ShaderBindingsList[Index];
-				int32& GraphSRVId = GraphSRVIds[Index];
 
-				if (GraphSRVId < ShaderBindings.GraphSRVs.Num() && ByteOffset == ShaderBindings.GraphSRVs[GraphSRVId].ByteOffset)
-				{
-					GraphSRVId++;
-					bResourceIsUsed = true;
-					break;
-				}
-			}
+			void** ResourcePointerAddress = reinterpret_cast<void**>(Base + ByteOffset);
+			*ResourcePointerAddress = nullptr;
 		}
-		else if (Type == UBMT_RDG_TEXTURE_UAV || Type == UBMT_RDG_BUFFER_UAV)
-		{
-			for (int32 Index = 0; Index < ShaderBindingsList.Num(); ++Index)
-			{
-				const FShaderParameterBindings& ShaderBindings = *ShaderBindingsList[Index];
-				int32& GraphUAVId = GraphUAVIds[Index];
-
-				if (GraphUAVId < ShaderBindings.GraphUAVs.Num() && ByteOffset == ShaderBindings.GraphUAVs[GraphUAVId].ByteOffset)
-				{
-					GraphUAVId++;
-					bResourceIsUsed = true;
-					break;
-				}
-			}
-		}
-		else
-		{
-			// Not a resource we care about.
-			continue;
-		}
-
-		if (bResourceIsUsed)
-		{
-			continue;
-		}
-
-		for (FRDGResourceRef ExcludeResource : ExcludeList)
-		{
-			auto Resource = *reinterpret_cast<const FRDGResource* const*>(Base + ByteOffset);
-			if (Resource == ExcludeResource)
-			{
-				continue;
-			}
-		}
-
-		void** ResourcePointerAddress = reinterpret_cast<void**>(Base + ByteOffset);
-		*ResourcePointerAddress = nullptr;
 	}
 }
 
