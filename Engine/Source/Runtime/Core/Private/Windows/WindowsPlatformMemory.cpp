@@ -224,6 +224,7 @@ FPlatformMemoryStats FWindowsPlatformMemory::GetStats()
 	FPlatformMemory::Memzero( &ProcessMemoryCounters, sizeof( ProcessMemoryCounters ) );
 	::GetProcessMemoryInfo( ::GetCurrentProcess(), &ProcessMemoryCounters, sizeof(ProcessMemoryCounters) );
 
+	MemoryStats.TotalPhysical = MemoryStatusEx.ullTotalPhys;
 	MemoryStats.AvailablePhysical = MemoryStatusEx.ullAvailPhys;
 	MemoryStats.AvailableVirtual = MemoryStatusEx.ullAvailVirtual;
 	
