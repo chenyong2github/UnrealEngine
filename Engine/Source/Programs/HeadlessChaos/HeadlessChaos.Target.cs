@@ -22,6 +22,8 @@ public class HeadlessChaosTarget : TargetRules
 
         bHasExports = false;
 
+        bUseLoggingInShipping = true;
+
         // UnrealHeaderTool is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
         bIsBuildingConsoleApplication = true;
 

@@ -23,4 +23,7 @@ namespace ChaosTest {
 	void BroadphaseCollectionTest();
 
 	void TestPendingSpatialDataHandlePointerConflict();
+
+	template<typename T>
+	void SpatialAccelerationDirtyAndGlobalQueryStrestTest();
 }
