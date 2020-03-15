@@ -640,7 +640,6 @@ bool LaunchSetGameName(const TCHAR *InCmdLine, FString& OutGameProjectFilePathUn
 	return true;
 }
 
-
 void LaunchFixGameNameCase()
 {
 #if PLATFORM_DESKTOP && !IS_PROGRAM
