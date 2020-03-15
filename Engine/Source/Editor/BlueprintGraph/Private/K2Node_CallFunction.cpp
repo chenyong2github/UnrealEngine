@@ -812,7 +812,7 @@ void UK2Node_CallFunction::CreateExecPinsForFunctionCall(const UFunction* Functi
 					Prop = EnumProp;
 					Enum = EnumProp->GetEnum();
 				}
-				else if (FBoolProperty* BoolProp = FindField<FBoolProperty>(Function, EnumParamName))
+				else if (FBoolProperty* BoolProp = FindFProperty<FBoolProperty>(Function, EnumParamName))
 				{
 					Prop = BoolProp;
 				}
@@ -941,7 +941,7 @@ void UK2Node_CallFunction::DetermineWantsEnumToExecExpansion(const UFunction* Fu
 			}
 			else
 			{
-				FBoolProperty* BoolProp = FindField<FBoolProperty>(Function, EnumParamName);
+				FBoolProperty* BoolProp = FindFProperty<FBoolProperty>(Function, EnumParamName);
 				if (BoolProp)
 				{
 					bWantsEnumToExecExpansion = true;
