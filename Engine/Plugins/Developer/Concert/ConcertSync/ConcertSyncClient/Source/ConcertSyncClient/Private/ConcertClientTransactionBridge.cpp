@@ -259,7 +259,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		// For snapshot events this also triggers PreEditChange directly since we can skip the call to PreEditUndo
 		for (const FConcertSerializedPropertyData& PropertyData : ObjectUpdate.PropertyDatas)
 		{
-			FProperty* TransactionProp = FindField<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
+			FProperty* TransactionProp = FindFProperty<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
 			if (TransactionProp)
 			{
 				if (bIsSnapshot)
@@ -302,7 +302,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		{
 			for (const FConcertSerializedPropertyData& PropertyData : ObjectUpdate.PropertyDatas)
 			{
-				FProperty* TransactionProp = FindField<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
+				FProperty* TransactionProp = FindFProperty<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
 				if (TransactionProp)
 				{
 					FConcertSyncObjectReader ObjectReader(InLocalIdentifierTablePtr, FConcertSyncWorldRemapper(), InVersionInfo, TransactionObject, PropertyData.SerializedData);
@@ -338,7 +338,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		// For snapshot events this also triggers PostEditChange directly since we can skip the call to PostEditUndo
 		for (const FConcertSerializedPropertyData& PropertyData : ObjectUpdate.PropertyDatas)
 		{
-			FProperty* TransactionProp = FindField<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
+			FProperty* TransactionProp = FindFProperty<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
 			if (TransactionProp)
 			{
 				if (bIsSnapshot)

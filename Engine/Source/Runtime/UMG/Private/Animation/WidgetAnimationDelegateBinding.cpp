@@ -19,7 +19,7 @@ void UWidgetAnimationDelegateBinding::BindDynamicDelegates(UObject* InInstance) 
 		{
 			const FBlueprintWidgetAnimationDelegateBinding& Binding = WidgetAnimationDelegateBindings[BindIndex];
 
-			FObjectProperty* AnimationProp = FindField<FObjectProperty>(InUserWidget->GetClass(), Binding.AnimationToBind);
+			FObjectProperty* AnimationProp = FindFProperty<FObjectProperty>(InUserWidget->GetClass(), Binding.AnimationToBind);
 			if (AnimationProp)
 			{
 				UWidgetAnimation* AnimationPropData = Cast<UWidgetAnimation>(AnimationProp->GetObjectPropertyValue_InContainer(InUserWidget));

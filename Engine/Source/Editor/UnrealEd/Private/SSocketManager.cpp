@@ -140,7 +140,7 @@ private:
 			{
 				FScopedTransaction Transaction( LOCTEXT("SetSocketName", "Set Socket Name") );
 				
-				FProperty* ChangedProperty = FindField<FProperty>( UStaticMeshSocket::StaticClass(), "SocketName" );
+				FProperty* ChangedProperty = FindFProperty<FProperty>( UStaticMeshSocket::StaticClass(), "SocketName" );
 				
 				// Pre edit, calls modify on the object
 				SelectedSocket->PreEditChange(ChangedProperty);

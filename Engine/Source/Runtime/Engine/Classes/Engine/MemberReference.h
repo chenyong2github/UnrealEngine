@@ -311,7 +311,7 @@ public:
 	/** Get the scope of this member */
 	UStruct* GetMemberScope(UClass* InMemberParentClass) const
 	{
-		return FindField<UStruct>(InMemberParentClass, *MemberScope);
+		return FindUField<UStruct>(InMemberParentClass, *MemberScope);
 	}
 
 	/** Get the name of the scope of this member */
@@ -369,10 +369,10 @@ public:
 		// Check if the member reference is function scoped
 		if(IsLocalScope())
 		{
-			UStruct* MemberScopeStruct = FindField<UStruct>(SelfScope, *MemberScope);
+			UStruct* MemberScopeStruct = FindUField<UStruct>(SelfScope, *MemberScope);
 
 			// Find in target scope
-			ReturnField = FindField<TFieldType>(MemberScopeStruct, MemberName);
+			ReturnField = FindUFieldOrFProperty(MemberScopeStruct, MemberName).Get<TFieldType>();
 
 #if WITH_EDITOR
 			if(ReturnField == nullptr)
@@ -381,7 +381,7 @@ public:
 				const FName RenamedMemberName = RefreshLocalVariableName(SelfScope);
 				if (RenamedMemberName != NAME_None)
 				{
-					ReturnField = FindField<TFieldType>(MemberScopeStruct, MemberName);
+					ReturnField = FindUFieldOrFProperty(MemberScopeStruct, MemberName).Get<TFieldType>();
 				}
 			}
 #endif
@@ -429,11 +429,11 @@ public:
 				UScriptStruct* SparseClassDataStruct = TargetScope->GetSparseClassDataStruct();
 				if (SparseClassDataStruct)
 				{
-					ReturnField = FindField<TFieldType>(SparseClassDataStruct, MemberName);
+					ReturnField = FindUFieldOrFProperty(SparseClassDataStruct, MemberName).Get<TFieldType>();
 				}
 				if (ReturnField == nullptr)
 				{
-					ReturnField = FindField<TFieldType>(TargetScope, MemberName);
+					ReturnField = FindUFieldOrFProperty(TargetScope, MemberName).Get<TFieldType>();
 				}
 
 #if WITH_EDITOR
@@ -451,7 +451,7 @@ public:
 					if (RenamedMemberName != NAME_None)
 					{
 						MemberName = RenamedMemberName;
-						ReturnField = FindField<TFieldType>(TargetScope, MemberName);
+						ReturnField = FindUFieldOrFProperty(TargetScope, MemberName).Get<TFieldType>();
 					}
 				}
 #endif
@@ -466,7 +466,7 @@ public:
 			// FindObject<>; however this was not reliable (hence the addition 
 			// of GetMemberParentPackage(), etc.)
 			else if (MemberName.ToString().EndsWith(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX))
-					{
+			{
 				ReturnField = ResolveUFunction<TFieldType>();
 				if (ReturnField != nullptr)
 				{

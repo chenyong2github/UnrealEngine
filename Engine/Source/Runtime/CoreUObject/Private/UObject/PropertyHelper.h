@@ -255,7 +255,7 @@ namespace DelegatePropertyTools
 				}
 			}
 		}
-		UFunction *Func = FindField<UFunction>( Cls, FuncName );
+		UFunction *Func = FindUField<UFunction>( Cls, FuncName );
 		// Check function params.
 		if(Func != nullptr)
 		{

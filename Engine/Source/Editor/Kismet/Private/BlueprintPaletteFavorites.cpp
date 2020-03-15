@@ -401,7 +401,7 @@ void UBlueprintPaletteFavorites::RemoveFavorites(TArray< TSharedPtr<FEdGraphSche
 //------------------------------------------------------------------------------
 void UBlueprintPaletteFavorites::LoadProfile(FString const& ProfileName)
 {
-	PreEditChange(FindField<FProperty>(GetClass(), TEXT("CurrentProfile")));
+	PreEditChange(FindFProperty<FProperty>(GetClass(), TEXT("CurrentProfile")));
 	{
 		CurrentProfile = ProfileName;
 		LoadSetProfile();
@@ -490,7 +490,7 @@ void UBlueprintPaletteFavorites::LoadCustomFavorites()
 //------------------------------------------------------------------------------
 void UBlueprintPaletteFavorites::SetProfile(FString const& ProfileName)
 {
-	PreEditChange(FindField<FProperty>(GetClass(), TEXT("CurrentProfile")));
+	PreEditChange(FindFProperty<FProperty>(GetClass(), TEXT("CurrentProfile")));
 	{
 		CurrentProfile = ProfileName;
 	}

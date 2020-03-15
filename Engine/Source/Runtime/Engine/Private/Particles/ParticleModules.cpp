@@ -3472,7 +3472,7 @@ void UParticleModuleTypeDataMesh::OnMeshChanged()
 		OuterObj = Emitter->GetOuter();
 	}
 
-	FProperty* MeshProperty = FindField<FProperty>(UParticleModuleTypeDataMesh::StaticClass(), FName(TEXT("Mesh")));
+	FProperty* MeshProperty = FindFProperty<FProperty>(UParticleModuleTypeDataMesh::StaticClass(), FName(TEXT("Mesh")));
 	FPropertyChangedEvent PropertyChangedEvent(MeshProperty);
 
 	UParticleSystem* PartSys = CastChecked<UParticleSystem>(OuterObj);

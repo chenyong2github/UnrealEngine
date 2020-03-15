@@ -231,7 +231,7 @@ TArray<FName> GetRootProperties(const TArray<FName>& InChangedProperties)
 
 FProperty* GetExportedProperty(const UStruct* InStruct, const FName InPropertyName, const bool InIncludeEditorOnlyData)
 {
-	FProperty* Property = FindField<FProperty>(InStruct, InPropertyName);
+	FProperty* Property = FindFProperty<FProperty>(InStruct, InPropertyName);
 
 	// Filter the property
 	if (Property 

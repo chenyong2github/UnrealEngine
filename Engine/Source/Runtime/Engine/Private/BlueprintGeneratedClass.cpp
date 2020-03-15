@@ -1063,7 +1063,7 @@ void UBlueprintGeneratedClass::CreateTimelineComponent(AActor* Actor, const UTim
 
 	// Find property with the same name as the template and assign the new Timeline to it
 	UClass* ActorClass = Actor->GetClass();
-	FObjectPropertyBase* Prop = FindField<FObjectPropertyBase>(ActorClass, TimelineTemplate->GetVariableName());
+	FObjectPropertyBase* Prop = FindFProperty<FObjectPropertyBase>(ActorClass, TimelineTemplate->GetVariableName());
 	if (Prop)
 	{
 		Prop->SetObjectPropertyValue_InContainer(Actor, NewTimeline);
@@ -1740,7 +1740,7 @@ void FBlueprintCookedComponentInstancingData::BuildCachedPropertyList(FCustomPro
 		const UStruct* PropertyScope = CurrentScope;
 		while (!Property && PropertyScope)
 		{
-			Property = FindField<FProperty>(PropertyScope, ChangedPropertyInfo.PropertyName);
+			Property = FindFProperty<FProperty>(PropertyScope, ChangedPropertyInfo.PropertyName);
 			PropertyScope = PropertyScope->GetSuperStruct();
 		}
 

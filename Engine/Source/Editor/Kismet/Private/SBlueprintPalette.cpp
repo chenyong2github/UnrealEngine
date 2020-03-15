@@ -86,7 +86,7 @@ static FString GetVarType(UStruct* VarScope, FName VarName, bool bUseObjToolTip,
 
 	if (VarScope)
 	{
-		if (FProperty* Property = FindField<FProperty>(VarScope, VarName))
+		if (FProperty* Property = FindFProperty<FProperty>(VarScope, VarName))
 		{
 			// If it is an object property, see if we can get a nice class description instead of just the name
 			FObjectProperty* ObjProp = CastField<FObjectProperty>(Property);
@@ -127,7 +127,7 @@ static FString GetVarTooltip(UBlueprint* InBlueprint, UClass* VarClass, FName Va
 	if (VarClass)
 	{
 	
-		if (FProperty* Property = FindField<FProperty>(VarClass, VarName))
+		if (FProperty* Property = FindFProperty<FProperty>(VarClass, VarName))
 		{
 			// discover if the variable property is a non blueprint user variable
 			UClass* SourceClass = Property->GetOwnerClass();
@@ -221,7 +221,7 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 			{
 				// Need to see if this is a function overriding something in the parent, or 
 				;
-				if (UFunction* OverrideFunc = FindField<UFunction>(BlueprintIn->ParentClass, ActionIn->FuncName))
+				if (UFunction* OverrideFunc = FindUField<UFunction>(BlueprintIn->ParentClass, ActionIn->FuncName))
 				{
 					ToolTipOut = LOCTEXT("Override_Tooltip", "Override");
 				}
@@ -239,7 +239,7 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("InterfaceName"), FText::FromName(ActionIn->FuncName));
 			ToolTipOut = FText::Format(LOCTEXT("FunctionFromInterface_Tooltip", "Function (from Interface '{InterfaceName}')"), Args);
-			if (UFunction* OverrideFunc = FindField<UFunction>(BlueprintIn->SkeletonGeneratedClass, ActionIn->FuncName))
+			if (UFunction* OverrideFunc = FindUField<UFunction>(BlueprintIn->SkeletonGeneratedClass, ActionIn->FuncName))
 			{
 				if (UEdGraphSchema_K2::FunctionCanBePlacedAsEvent(OverrideFunc))
 				{
@@ -262,7 +262,7 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 				{
 					IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.Animation_16x"));
 				}
-				else if (UFunction* OverrideFunc = FindField<UFunction>(BlueprintIn->ParentClass, ActionIn->FuncName))
+				else if (UFunction* OverrideFunc = FindUField<UFunction>(BlueprintIn->ParentClass, ActionIn->FuncName))
 				{
 					const bool bIsPureFunction = OverrideFunc && OverrideFunc->HasAnyFunctionFlags(FUNC_BlueprintPure);
 					IconOut = FEditorStyle::GetBrush(bIsPureFunction ? TEXT("GraphEditor.OverridePureFunction_16x") : TEXT("GraphEditor.OverrideFunction_16x"));
@@ -270,7 +270,7 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 				}
 				else
 				{
-					UFunction* Function = FindField<UFunction>(BlueprintIn->SkeletonGeneratedClass, ActionIn->FuncName);
+					UFunction* Function = FindUField<UFunction>(BlueprintIn->SkeletonGeneratedClass, ActionIn->FuncName);
 					const bool bIsPureFunction = Function && Function->HasAnyFunctionFlags(FUNC_BlueprintPure);
 
 					IconOut = FEditorStyle::GetBrush(bIsPureFunction ? TEXT("GraphEditor.PureFunction_16x") : TEXT("GraphEditor.Function_16x"));
@@ -1096,7 +1096,7 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 
 		if (FEdGraphSchemaAction_K2Graph* FuncGraphAction = (FEdGraphSchemaAction_K2Graph*)(GraphAction.Get()))
 		{
-			FunctionToCheck = FindField<UFunction>(Blueprint->SkeletonGeneratedClass, FuncGraphAction->FuncName);
+			FunctionToCheck = FindUField<UFunction>(Blueprint->SkeletonGeneratedClass, FuncGraphAction->FuncName);
 
 			// Handle override/interface functions
 			if(!FunctionToCheck)

@@ -876,7 +876,7 @@ void AActor::SetActorLabelInternal(const FString& NewActorLabelDirty, bool bMake
 		}
 	}
 
-	FPropertyChangedEvent PropertyEvent( FindField<FProperty>( AActor::StaticClass(), "ActorLabel" ) );
+	FPropertyChangedEvent PropertyEvent( FindFProperty<FProperty>( AActor::StaticClass(), "ActorLabel" ) );
 	PostEditChangeProperty(PropertyEvent);
 
 	FCoreDelegates::OnActorLabelChanged.Broadcast(this);

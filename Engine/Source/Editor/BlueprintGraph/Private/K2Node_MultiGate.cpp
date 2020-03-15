@@ -105,42 +105,42 @@ public:
 		FName MarkBitFunctionName = "";
 		UClass* MarkBitFunctionClass = NULL;
 		GateNode->GetMarkBitFunction(MarkBitFunctionName, &MarkBitFunctionClass);
-		UFunction* MarkBitFunction = FindField<UFunction>(MarkBitFunctionClass, MarkBitFunctionName);
+		UFunction* MarkBitFunction = FindUField<UFunction>(MarkBitFunctionClass, MarkBitFunctionName);
 
 		FName HasUnmarkedBitFunctionName = "";
 		UClass* HasUnmarkedBitFunctionClass = NULL;
 		GateNode->GetHasUnmarkedBitFunction(HasUnmarkedBitFunctionName, &HasUnmarkedBitFunctionClass);
-		UFunction* HasUnmarkedBitFunction = FindField<UFunction>(HasUnmarkedBitFunctionClass, HasUnmarkedBitFunctionName);
+		UFunction* HasUnmarkedBitFunction = FindUField<UFunction>(HasUnmarkedBitFunctionClass, HasUnmarkedBitFunctionName);
 
 		FName GetUnmarkedBitFunctionName = "";
 		UClass* GetUnmarkedBitFunctionClass = NULL;
 		GateNode->GetUnmarkedBitFunction(GetUnmarkedBitFunctionName, &GetUnmarkedBitFunctionClass);
-		UFunction* GetUnmarkedBitFunction = FindField<UFunction>(GetUnmarkedBitFunctionClass, GetUnmarkedBitFunctionName);
+		UFunction* GetUnmarkedBitFunction = FindUField<UFunction>(GetUnmarkedBitFunctionClass, GetUnmarkedBitFunctionName);
 
 		FName ConditionalFunctionName = "";
 		UClass* ConditionalFunctionClass = NULL;
 		GateNode->GetConditionalFunction(ConditionalFunctionName, &ConditionalFunctionClass);
-		UFunction* ConditionFunction = FindField<UFunction>(ConditionalFunctionClass, ConditionalFunctionName);
+		UFunction* ConditionFunction = FindUField<UFunction>(ConditionalFunctionClass, ConditionalFunctionName);
 
 		FName EqualityFunctionName = "";
 		UClass* EqualityFunctionClass = NULL;
 		GateNode->GetEqualityFunction(EqualityFunctionName, &EqualityFunctionClass);
-		UFunction* EqualityFunction = FindField<UFunction>(EqualityFunctionClass, EqualityFunctionName);
+		UFunction* EqualityFunction = FindUField<UFunction>(EqualityFunctionClass, EqualityFunctionName);
 
 		FName BoolNotEqualFunctionName = "";
 		UClass* BoolNotEqualFunctionClass = NULL;
 		GateNode->GetBoolNotEqualFunction(BoolNotEqualFunctionName, &BoolNotEqualFunctionClass);
-		UFunction* BoolNotEqualFunction = FindField<UFunction>(BoolNotEqualFunctionClass, BoolNotEqualFunctionName);
+		UFunction* BoolNotEqualFunction = FindUField<UFunction>(BoolNotEqualFunctionClass, BoolNotEqualFunctionName);
 
 		FName PrintStringFunctionName = "";
 		UClass* PrintStringFunctionClass = NULL;
 		GateNode->GetPrintStringFunction(PrintStringFunctionName, &PrintStringFunctionClass);
-		UFunction* PrintFunction = FindField<UFunction>(PrintStringFunctionClass, PrintStringFunctionName);
+		UFunction* PrintFunction = FindUField<UFunction>(PrintStringFunctionClass, PrintStringFunctionName);
 
 		FName ClearBitsFunctionName = "";
 		UClass* ClearBitsFunctionClass = NULL;
 		GateNode->GetClearAllBitsFunction(ClearBitsFunctionName, &ClearBitsFunctionClass);
-		UFunction* ClearBitsFunction = FindField<UFunction>(ClearBitsFunctionClass, ClearBitsFunctionName);
+		UFunction* ClearBitsFunction = FindUField<UFunction>(ClearBitsFunctionClass, ClearBitsFunctionName);
 
 		// Find the data terms if there is already a data node from expansion phase
 		FBPTerminal* DataTerm = NULL;

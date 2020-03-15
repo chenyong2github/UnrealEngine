@@ -3089,7 +3089,7 @@ static void PerformSetCommand( const TCHAR* Str, FOutputDevice& Ar, bool bNotify
 		UClass* Class = FindObject<UClass>(ANY_PACKAGE, ObjectName);
 		if (Class != NULL)
 		{
-			FProperty* Property = FindField<FProperty>(Class, PropertyName);
+			FProperty* Property = FindFProperty<FProperty>(Class, PropertyName);
 			if (Property != NULL)
 			{
 				while (*Str == ' ')
@@ -3108,7 +3108,7 @@ static void PerformSetCommand( const TCHAR* Str, FOutputDevice& Ar, bool bNotify
 			UObject* Object = FindObject<UObject>(ANY_PACKAGE, ObjectName);
 			if (Object != NULL)
 			{
-				FProperty* Property = FindField<FProperty>(Object->GetClass(), PropertyName);
+				FProperty* Property = FindFProperty<FProperty>(Object->GetClass(), PropertyName);
 				if (Property != NULL)
 				{
 					while (*Str == ' ')
@@ -3298,7 +3298,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		{
 			if
 			(	FParse::Token( Str, PropertyName, UE_ARRAY_COUNT(PropertyName), 1 )
-			&&	(Property=FindField<FProperty>( Class, PropertyName))!=NULL )
+			&&	(Property=FindFProperty<FProperty>( Class, PropertyName))!=NULL )
 			{
 				FString	Temp;
 				if( Class->GetDefaultsCount() )
@@ -3459,7 +3459,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		{
 			FParse::Token(Str,PropertyName,UE_ARRAY_COUNT(PropertyName),1);
 			{
-				Property=FindField<FProperty>(Class,PropertyName);
+				Property=FindFProperty<FProperty>(Class,PropertyName);
 				{
 					int32 cnt = 0;
 					UObject* LimitOuter = NULL;
@@ -3600,7 +3600,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 
 		if (FParse::Token(Str, ClassName, UE_ARRAY_COUNT(ClassName), true))
 		{
-			//if ( (Property=FindField<FProperty>(Class,PropertyName)) != NULL )
+			//if ( (Property=FindFProperty<FProperty>(Class,PropertyName)) != NULL )
 			UClass* Class = FindObject<UClass>(ANY_PACKAGE, ClassName);
 
 			if (Class != NULL)
@@ -3631,7 +3631,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 
 			if (Class != NULL)
 			{
-				UFunction* Function = FindField<UFunction>(Class, FunctionName);
+				UFunction* Function = FindUField<UFunction>(Class, FunctionName);
 
 				if (Function != NULL)
 				{

@@ -1682,7 +1682,7 @@ void USplineComponent::ApplyComponentInstanceData(FSplineInstanceData* SplineIns
 			// If we are restoring the saved state, unmark the SplineCurves property as 'modified'.
 			// We don't want to consider that these changes have been made through the UCS.
 			TArray<FProperty*> Properties;
-			Properties.Emplace(FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves)));
+			Properties.Emplace(FindFProperty<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves)));
 			RemoveUCSModifiedProperties(Properties);
 		}
 	}

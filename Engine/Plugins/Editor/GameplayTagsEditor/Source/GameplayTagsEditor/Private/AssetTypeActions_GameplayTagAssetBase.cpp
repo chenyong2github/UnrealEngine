@@ -29,7 +29,7 @@ void FAssetTypeActions_GameplayTagAssetBase::GetActions(const TArray<UObject*>& 
 		UObject* CurObj = InObjects[ObjIdx];
 		if (CurObj)
 		{
-			FStructProperty* StructProp = FindField<FStructProperty>(CurObj->GetClass(), OwnedGameplayTagPropertyName);
+			FStructProperty* StructProp = FindFProperty<FStructProperty>(CurObj->GetClass(), OwnedGameplayTagPropertyName);
 			if(StructProp != NULL)
 			{
 				ContainerObjectOwners.Add(CurObj);

@@ -120,7 +120,7 @@ void FWidgetBlueprintCompilerContext::CreateFunctionList()
 		{
 			const FName PropertyName = EditorBinding.SourceProperty;
 
-			FProperty* Property = FindField<FProperty>(Blueprint->SkeletonGeneratedClass, PropertyName);
+			FProperty* Property = FindFProperty<FProperty>(Blueprint->SkeletonGeneratedClass, PropertyName);
 			if ( Property )
 			{
 				// Create the function graph.

@@ -219,6 +219,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "StudioAnalytics.h"
 #include "Engine/LevelScriptActor.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_CHAOS
 #include "ChaosSolversModule.h"
@@ -3465,7 +3466,7 @@ struct FConvertStaticMeshActorInfo
 
 	bool PropsDiffer(const TCHAR* PropertyPath, UObject* Obj)
 	{
-		const FProperty* PartsProp = FindField<FProperty>( PropertyPath );
+		const FProperty* PartsProp = FindFProperty<FProperty>( PropertyPath );
 		check(PartsProp);
 
 		uint8* ClassDefaults = (uint8*)Obj->GetClass()->GetDefaultObject();

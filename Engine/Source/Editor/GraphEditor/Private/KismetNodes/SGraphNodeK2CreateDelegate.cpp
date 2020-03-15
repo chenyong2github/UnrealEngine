@@ -129,7 +129,7 @@ FText SGraphNodeK2CreateDelegate::GetCurrentFunctionDescription() const
 		return FText::GetEmpty();
 	}
 
-	if (const UFunction* Func = FindField<UFunction>(ScopeClass, Node->GetFunctionName()))
+	if (const UFunction* Func = FindUField<UFunction>(ScopeClass, Node->GetFunctionName()))
 	{
 		return FunctionDescription(Func);
 	}

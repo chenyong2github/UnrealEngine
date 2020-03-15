@@ -222,7 +222,7 @@ void UAnimGraphNode_Base::GetPinAssociatedProperty(const UScriptStruct* NodeType
 	{
 		const FString ArrayName = PinNameStr.Left(UnderscoreIndex);
 
-		if (FArrayProperty* ArrayProperty = FindField<FArrayProperty>(NodeType, *ArrayName))
+		if (FArrayProperty* ArrayProperty = FindFProperty<FArrayProperty>(NodeType, *ArrayName))
 		{
 			const int32 ArrayIndex = FCString::Atoi(*(PinNameStr.Mid(UnderscoreIndex + 1)));
 
@@ -234,7 +234,7 @@ void UAnimGraphNode_Base::GetPinAssociatedProperty(const UScriptStruct* NodeType
 	// If the array check failed or we have no underscores
 	if(OutProperty == nullptr)
 	{
-		if (FProperty* Property = FindField<FProperty>(NodeType, InputPin->PinName))
+		if (FProperty* Property = FindFProperty<FProperty>(NodeType, InputPin->PinName))
 		{
 			OutProperty = Property;
 			OutIndex = INDEX_NONE;
@@ -255,7 +255,7 @@ FPoseLinkMappingRecord UAnimGraphNode_Base::GetLinkIDLocation(const UScriptStruc
 			{
 				const FString ArrayName = SourcePinName.Left(UnderscoreIndex);
 
-				if (FArrayProperty* ArrayProperty = FindField<FArrayProperty>(NodeType, *ArrayName))
+				if (FArrayProperty* ArrayProperty = FindFProperty<FArrayProperty>(NodeType, *ArrayName))
 				{
 					if (FStructProperty* Property = CastField<FStructProperty>(ArrayProperty->Inner))
 					{
@@ -269,7 +269,7 @@ FPoseLinkMappingRecord UAnimGraphNode_Base::GetLinkIDLocation(const UScriptStruc
 			}
 			else
 			{
-				if (FStructProperty* Property = FindField<FStructProperty>(NodeType, SourcePin->PinName))
+				if (FStructProperty* Property = FindFProperty<FStructProperty>(NodeType, SourcePin->PinName))
 				{
 					if (Property->Struct->IsChildOf(FPoseLinkBase::StaticStruct()))
 					{

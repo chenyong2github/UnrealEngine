@@ -268,7 +268,7 @@ void UAnimationGraphSchema::CreateFunctionGraphTerminators(UEdGraph& Graph, UCla
 		RootNodeCreator.Finalize();
 		SetNodeMetaData(RootNode, FNodeMetadata::DefaultGraphNode);
 
-		UFunction* InterfaceToImplement = FindField<UFunction>(Class, GraphName);
+		UFunction* InterfaceToImplement = FindUField<UFunction>(Class, GraphName);
 		if (InterfaceToImplement)
 		{
 			// Propagate group from metadata

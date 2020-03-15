@@ -769,7 +769,7 @@ void FAnimBlueprintCompilerContext::ProcessUseCachedPose(UAnimGraphNode_UseCache
 	{
 		if (UAnimGraphNode_SaveCachedPose* AssociatedSaveNode = SaveCachedPoseNodes.FindRef(UseCachedPose->SaveCachedPoseNode->CacheName))
 		{
-			FStructProperty* LinkProperty = FindField<FStructProperty>(FAnimNode_UseCachedPose::StaticStruct(), TEXT("LinkToCachingNode"));
+			FStructProperty* LinkProperty = FindFProperty<FStructProperty>(FAnimNode_UseCachedPose::StaticStruct(), TEXT("LinkToCachingNode"));
 			check(LinkProperty);
 
 			FPoseLinkMappingRecord LinkRecord = FPoseLinkMappingRecord::MakeFromMember(UseCachedPose, AssociatedSaveNode, LinkProperty);
@@ -828,7 +828,7 @@ void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_Cus
 				if (!bGenerateLinkedAnimGraphVariables)
 				{
 					UClass* InstClass = CustomPropNode->GetTargetSkeletonClass();
-					if (FProperty* FoundProperty = FindField<FProperty>(InstClass, Pin->PinName))
+					if (FProperty* FoundProperty = FindFProperty<FProperty>(InstClass, Pin->PinName))
 					{
 						CustomPropNode->AddSourceTargetProperties(NewProperty->GetFName(), FoundProperty->GetFName());
 					}
@@ -1793,7 +1793,7 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 			{
 				if (RootStructProp->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 				{
-					FStructProperty* ChildStructProp = FindField<FStructProperty>(NewAnimBlueprintClass, *RootStructProp->GetName());
+					FStructProperty* ChildStructProp = FindFProperty<FStructProperty>(NewAnimBlueprintClass, *RootStructProp->GetName());
 					check(ChildStructProp);
 					uint8* SourcePtr = RootStructProp->ContainerPtrToValuePtr<uint8>(RootDefaultObject);
 					uint8* DestPtr = ChildStructProp->ContainerPtrToValuePtr<uint8>(DefaultAnimInstance);
