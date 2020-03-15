@@ -1439,7 +1439,7 @@ bool UPropertyValue::ResolvePropertiesRecursive(UStruct* ContainerClass, void* C
 		ParentContainerAddress = ContainerAddress;
 	}
 
-	FProperty* Property = FindField<FProperty>(ContainerClass, *Seg.PropertyName);
+	FProperty* Property = FindFProperty<FProperty>(ContainerClass, *Seg.PropertyName);
 	if (Property)
 	{
 		// Not the last link in the chain --> Dig down deeper updating our class/address if we jump an UObjectProp/UStructProp

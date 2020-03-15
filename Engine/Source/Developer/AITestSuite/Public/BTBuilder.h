@@ -174,7 +174,7 @@ struct FBTBuilder
 	{
 		UBTTask_RunBehavior* TaskNode = NewObject<UBTTask_RunBehavior>(ParentNode.GetTreeAsset());
 
-		FObjectProperty* SubtreeProp = FindField<FObjectProperty>(UBTTask_RunBehavior::StaticClass(), TEXT("BehaviorAsset"));
+		FObjectProperty* SubtreeProp = FindFProperty<FObjectProperty>(UBTTask_RunBehavior::StaticClass(), TEXT("BehaviorAsset"));
 		uint8* SubtreePropData = SubtreeProp->ContainerPtrToValuePtr<uint8>(TaskNode);
 		SubtreeProp->SetObjectPropertyValue(SubtreePropData, TreeAsset);
 
@@ -213,15 +213,15 @@ struct FBTBuilder
 	{
 		UBTDecorator_Blackboard& BBDecorator = WithDecorator<UBTDecorator_Blackboard>(ParentNode);
 
-		FByteProperty* ConditionProp = FindField<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("OperationType"));
+		FByteProperty* ConditionProp = FindFProperty<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("OperationType"));
 		uint8* ConditionPropData = ConditionProp->ContainerPtrToValuePtr<uint8>(&BBDecorator);
 		ConditionProp->SetIntPropertyValue(ConditionPropData, (uint64)Condition);
 
-		FByteProperty* ObserverProp = FindField<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("FlowAbortMode"));
+		FByteProperty* ObserverProp = FindFProperty<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("FlowAbortMode"));
 		uint8* ObserverPropData = ObserverProp->ContainerPtrToValuePtr<uint8>(&BBDecorator);
 		ObserverProp->SetIntPropertyValue(ObserverPropData, (uint64)Observer);
 
-		FStructProperty* KeyProp = FindField<FStructProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("BlackboardKey"));
+		FStructProperty* KeyProp = FindFProperty<FStructProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("BlackboardKey"));
 		FBlackboardKeySelector* KeyPropData = KeyProp->ContainerPtrToValuePtr<FBlackboardKeySelector>(&BBDecorator);
 		KeyPropData->SelectedKeyName = BoolKeyName;
 	}
@@ -230,23 +230,23 @@ struct FBTBuilder
 	{
 		UBTDecorator_Blackboard& BBDecorator = WithDecorator<UBTDecorator_Blackboard>(ParentNode);
 
-		FByteProperty* ConditionProp = FindField<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("OperationType"));
+		FByteProperty* ConditionProp = FindFProperty<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("OperationType"));
 		uint8* ConditionPropData = ConditionProp->ContainerPtrToValuePtr<uint8>(&BBDecorator);
 		ConditionProp->SetIntPropertyValue(ConditionPropData, (uint64)Condition);
 
-		FByteProperty* ObserverProp = FindField<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("FlowAbortMode"));
+		FByteProperty* ObserverProp = FindFProperty<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("FlowAbortMode"));
 		uint8* ObserverPropData = ObserverProp->ContainerPtrToValuePtr<uint8>(&BBDecorator);
 		ObserverProp->SetIntPropertyValue(ObserverPropData, (uint64)Observer);
 
-		FByteProperty* NotifyModeProp = FindField<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("NotifyObserver"));
+		FByteProperty* NotifyModeProp = FindFProperty<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("NotifyObserver"));
 		uint8* NotifyModePropData = NotifyModeProp->ContainerPtrToValuePtr<uint8>(&BBDecorator);
 		NotifyModeProp->SetIntPropertyValue(NotifyModePropData, (uint64)NotifyMode);
 
-		FIntProperty* ConditionValueProp = FindField<FIntProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("IntValue"));
+		FIntProperty* ConditionValueProp = FindFProperty<FIntProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("IntValue"));
 		uint8* ConditionValuePropData = ConditionValueProp->ContainerPtrToValuePtr<uint8>(&BBDecorator);
 		ConditionValueProp->SetIntPropertyValue(ConditionValuePropData, (uint64)Value);
 
-		FStructProperty* KeyProp = FindField<FStructProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("BlackboardKey"));
+		FStructProperty* KeyProp = FindFProperty<FStructProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("BlackboardKey"));
 		FBlackboardKeySelector* KeyPropData = KeyProp->ContainerPtrToValuePtr<FBlackboardKeySelector>(&BBDecorator);
 		KeyPropData->SelectedKeyName = IntKeyName;
 	}

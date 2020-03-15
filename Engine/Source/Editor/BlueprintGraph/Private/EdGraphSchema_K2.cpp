@@ -3317,7 +3317,7 @@ void UEdGraphSchema_K2::CreateFunctionGraphTerminators(UEdGraph& Graph, UClass* 
 	SetNodeMetaData(EntryNode, FNodeMetadata::DefaultGraphNode);
 
 	// See if we need to implement a return node
-	UFunction* InterfaceToImplement = FindField<UFunction>(Class, GraphName);
+	UFunction* InterfaceToImplement = FindUField<UFunction>(Class, GraphName);
 	if (InterfaceToImplement)
 	{
 		// Add modifier flags from the declaration
@@ -6555,7 +6555,7 @@ UEdGraph* UEdGraphSchema_K2::DuplicateGraph(UEdGraph* GraphToDuplicate) const
 			{
 				bIsOverrideGraph = true;
 			}
-			else if (FindField<UFunction>(Blueprint->ParentClass, GraphToDuplicate->GetFName()))
+			else if (FindUField<UFunction>(Blueprint->ParentClass, GraphToDuplicate->GetFName()))
 			{
 				bIsOverrideGraph = true;
 			}

@@ -1223,7 +1223,7 @@ private:
 			UMaterial* BaseMaterial = MaterialInterface->GetBaseMaterial();
 			if ( BaseMaterial && !BaseMaterial->IsUIMaterial() )
 			{
-				FProperty* MaterialDomainProp = FindField<FProperty>(UMaterial::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterial,MaterialDomain) );
+				FProperty* MaterialDomainProp = FindFProperty<FProperty>(UMaterial::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterial,MaterialDomain) );
 
 				FScopedTransaction Transaction( FText::Format( NSLOCTEXT("FSlateBrushStructCustomization", "ChangeMaterialDomainTransaction", "Changed {0} to use the UI material domain"), FText::FromString( BaseMaterial->GetName() ) ) );
 				FMaterialUpdateContext MaterialUpdateContext;

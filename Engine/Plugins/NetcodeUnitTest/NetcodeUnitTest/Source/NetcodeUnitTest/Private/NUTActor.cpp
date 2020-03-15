@@ -210,7 +210,7 @@ bool ANUTActor::NotifyControlMessage(UNetConnection* Connection, uint8 MessageTy
 						{
 							// Assign LocalPlayerOwner property, to the PC owning this NUTActor, using reflection (to avoid dependency)
 							FObjectProperty* LocalPlayerOwnerProp =
-								FindField<FObjectProperty>(NewActor->GetClass(), TEXT("LocalPlayerOwner"));
+								FindFProperty<FObjectProperty>(NewActor->GetClass(), TEXT("LocalPlayerOwner"));
 
 							if (LocalPlayerOwnerProp != NULL)
 							{
@@ -694,7 +694,7 @@ void ANUTActor::ExecuteOnServer(UObject* InTargetObj, FString InTargetFunc)
 					// and then send it to the server
 					TempDelegate.BindUFunction(TargetObjCDO, TargetFuncName);
 
-					FDelegateProperty* DelProp = FindField<FDelegateProperty>(GetClass(), TEXT("TempDelegate"));
+					FDelegateProperty* DelProp = FindFProperty<FDelegateProperty>(GetClass(), TEXT("TempDelegate"));
 
 					FString DelString;
 					DelProp->ExportTextItem(DelString, DelProp->ContainerPtrToValuePtr<uint8>(this), nullptr, this, 0, nullptr);
@@ -730,7 +730,7 @@ bool ANUTActor::ServerExecute_Validate(const FString& InDelegate)
 void ANUTActor::ServerExecute_Implementation(const FString& InDelegate)
 {
 	// Convert the string back into a delegate, and execute
-	FDelegateProperty* DelProp = FindField<FDelegateProperty>(GetClass(), TEXT("TempDelegate"));
+	FDelegateProperty* DelProp = FindFProperty<FDelegateProperty>(GetClass(), TEXT("TempDelegate"));
 
 	const TCHAR* InDelText = *InDelegate;
 

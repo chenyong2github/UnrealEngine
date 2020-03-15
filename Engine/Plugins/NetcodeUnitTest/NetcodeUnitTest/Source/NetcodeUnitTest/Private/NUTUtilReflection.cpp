@@ -135,7 +135,7 @@ FVMReflection& FVMReflection::operator ->*(FString PropertyName)
 		if (FieldInstance.IsA(UClass::StaticClass()))
 		{
 			const UClass* ClassInstance = Cast<UClass>(FieldInstance.ToUObject());
-			FProperty* FoundProperty = FindField<FProperty>(ClassInstance, *PropertyName);
+			FProperty* FoundProperty = FindFProperty<FProperty>(ClassInstance, *PropertyName);
 
 			if (FoundProperty != nullptr)
 			{
@@ -156,7 +156,7 @@ FVMReflection& FVMReflection::operator ->*(FString PropertyName)
 			if (!IsPropertyArray() || (bVerifiedFieldType && bSetArrayElement))
 			{
 				const UStruct* InnerStruct = Cast<UStruct>(FieldInstance.ToUObject());
-				FProperty* FoundProperty = (InnerStruct != nullptr ? FindField<FProperty>(InnerStruct, *PropertyName) : nullptr);
+				FProperty* FoundProperty = (InnerStruct != nullptr ? FindFProperty<FProperty>(InnerStruct, *PropertyName) : nullptr);
 
 				if (FoundProperty != nullptr)
 				{

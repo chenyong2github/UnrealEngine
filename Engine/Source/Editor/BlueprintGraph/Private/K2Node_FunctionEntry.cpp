@@ -51,7 +51,7 @@ public:
 		//@TODO: Still doesn't handle/allow users to declare new pass by reference, this only helps inherited functions
 		if( Function )
 		{
-			if (FProperty* ParentProperty = FindField<FProperty>(Function, Net->PinName))
+			if (FProperty* ParentProperty = FindFProperty<FProperty>(Function, Net->PinName))
 			{
 				if (ParentProperty->HasAnyPropertyFlags(CPF_ReferenceParm))
 				{
@@ -755,7 +755,7 @@ void UK2Node_FunctionEntry::ExpandNode(class FKismetCompilerContext& CompilerCon
 		check(OriginalNode->GetOuter());
 
 		// Find the associated UFunction
-		UFunction* Function = FindField<UFunction>(CompilerContext.Blueprint->SkeletonGeneratedClass, *OriginalNode->GetOuter()->GetName());
+		UFunction* Function = FindUField<UFunction>(CompilerContext.Blueprint->SkeletonGeneratedClass, *OriginalNode->GetOuter()->GetName());
 
 		// When regenerating on load, we may need to import text on certain properties to force load the assets
 		TSharedPtr<FStructOnScope> LocalVarData;

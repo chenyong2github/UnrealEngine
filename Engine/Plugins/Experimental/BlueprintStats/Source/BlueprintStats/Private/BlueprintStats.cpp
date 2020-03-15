@@ -34,7 +34,7 @@ void FBlueprintStatRecord::ReadStatsFromBlueprint()
 	NumUserMacros += SourceBlueprint->MacroGraphs.Num();
 	for (const UEdGraph* FunctionGraph : SourceBlueprint->FunctionGraphs)
 	{
-		if (UFunction* Function = FindField<UFunction>(SourceBlueprint->GeneratedClass, FunctionGraph->GetFName()))
+		if (UFunction* Function = FindUField<UFunction>(SourceBlueprint->GeneratedClass, FunctionGraph->GetFName()))
 		{
 			// Make sure we've got the native decl if it was an override
 			Function = GetSupererestFunction(Function);

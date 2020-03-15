@@ -1306,7 +1306,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 
 							if (EditorComponent)
 							{
-								EditorComponent->PreEditChange(FindField<FProperty>(EditorComponent->GetClass(), GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, CacheParameters)));
+								EditorComponent->PreEditChange(FindFProperty<FProperty>(EditorComponent->GetClass(), GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, CacheParameters)));
 								EditorComponent->Modify();
 
 								EditorComponent->CacheParameters.TargetCache = CacheParameters.TargetCache;

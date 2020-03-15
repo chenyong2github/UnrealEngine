@@ -14,7 +14,7 @@ void UNetPushModelHelpers::MarkPropertyDirty(UObject* Object, FName PropertyName
 			// If this is too slow to be practical, we might be able build a lookup from ClassName+PropertyName -> RepIndex.
 			// It would be safest to invalidate the lookup on a hot reload / recompile (if possible), blueprint recompile,
 			// and map change.
-			FProperty* Property = FindField<FProperty>(Class, PropertyName);
+			FProperty* Property = FindFProperty<FProperty>(Class, PropertyName);
 			if (Property == nullptr)
 			{
 				UE_LOG(LogNet, Warning, TEXT("UNetPushModelHelpers::MarkPropertyDirty: Unable to find Property %s in Class %s"), *PropertyName.ToString(), *Class->GetPathName());

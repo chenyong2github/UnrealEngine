@@ -444,7 +444,7 @@ bool FStructureEditorUtils::ChangeVariableDefaultValue(UUserDefinedStruct* Struc
 		bool bAdvancedValidation = true;
 		if (!NewDefaultValue.IsEmpty())
 		{
-			const FProperty* Property = FindField<FProperty>(Struct, VarDesc->VarName);
+			const FProperty* Property = FindFProperty<FProperty>(Struct, VarDesc->VarName);
 			FStructOnScope StructDefaultMem(Struct);
 			bAdvancedValidation = StructDefaultMem.IsValid() && Property &&
 				FBlueprintEditorUtils::PropertyValueFromString(Property, NewDefaultValue, StructDefaultMem.GetStructMemory(), Struct);
@@ -513,7 +513,7 @@ FProperty* FStructureEditorUtils::GetPropertyByFriendlyName(const UUserDefinedSt
 		{
 			if (VarDesc.FriendlyName == DisplayName)
 			{
-				return FindField<FProperty>(Struct, VarDesc.VarName);
+				return FindFProperty<FProperty>(Struct, VarDesc.VarName);
 			}
 		}
 	}
@@ -709,7 +709,7 @@ bool FStructureEditorUtils::ChangeVariableTooltip(UUserDefinedStruct* Struct, FG
 		ModifyStructData(Struct);
 		VarDesc->ToolTip = InTooltip;
 
-		FProperty* Property = FindField<FProperty>(Struct, VarDesc->VarName);
+		FProperty* Property = FindFProperty<FProperty>(Struct, VarDesc->VarName);
 		if (Property)
 		{
 			Property->SetMetaData(FBlueprintMetadata::MD_Tooltip, *VarDesc->ToolTip);
@@ -792,7 +792,7 @@ bool FStructureEditorUtils::CanEnableMultiLineText(const UUserDefinedStruct* Str
 	const FStructVariableDescription* VarDesc = GetVarDescByGuid(Struct, VarGuid);
 	if (VarDesc)
 	{
-		FProperty* Property = FindField<FProperty>(Struct, VarDesc->VarName);
+		FProperty* Property = FindFProperty<FProperty>(Struct, VarDesc->VarName);
 
 		// If this is an array, we need to test its inner property as that's the real type
 		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
@@ -819,7 +819,7 @@ bool FStructureEditorUtils::ChangeMultiLineTextEnabled(UUserDefinedStruct* Struc
 		ModifyStructData(Struct);
 
 		VarDesc->bEnableMultiLineText = bIsEnabled;
-		FProperty* Property = FindField<FProperty>(Struct, VarDesc->VarName);
+		FProperty* Property = FindFProperty<FProperty>(Struct, VarDesc->VarName);
 		if (Property)
 		{
 			if (VarDesc->bEnableMultiLineText)
@@ -869,7 +869,7 @@ bool FStructureEditorUtils::Change3dWidgetEnabled(UUserDefinedStruct* Struct, FG
 		ModifyStructData(Struct);
 
 		VarDesc->bEnable3dWidget = bIsEnabled;
-		FProperty* Property = FindField<FProperty>(Struct, VarDesc->VarName);
+		FProperty* Property = FindFProperty<FProperty>(Struct, VarDesc->VarName);
 		if (Property)
 		{
 			if (VarDesc->bEnable3dWidget)
@@ -903,7 +903,7 @@ FGuid FStructureEditorUtils::GetGuidForProperty(const FProperty* Property)
 FProperty* FStructureEditorUtils::GetPropertyByGuid(const UUserDefinedStruct* Struct, const FGuid VarGuid)
 {
 	const FStructVariableDescription* VarDesc = GetVarDescByGuid(Struct, VarGuid);
-	return VarDesc ? FindField<FProperty>(Struct, VarDesc->VarName) : nullptr;
+	return VarDesc ? FindFProperty<FProperty>(Struct, VarDesc->VarName) : nullptr;
 }
 
 FGuid FStructureEditorUtils::GetGuidFromPropertyName(const FName Name)

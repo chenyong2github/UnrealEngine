@@ -1617,7 +1617,7 @@ ETimelineSigType UBlueprint::GetTimelineSignatureForFunctionByName(const FName& 
 	// If an object property was specified, find the class of that property instead
 	if(ObjectPropertyName != NAME_None)
 	{
-		FObjectPropertyBase* ObjProperty = FindField<FObjectPropertyBase>(SkeletonGeneratedClass, ObjectPropertyName);
+		FObjectPropertyBase* ObjProperty = FindFProperty<FObjectPropertyBase>(SkeletonGeneratedClass, ObjectPropertyName);
 		if(ObjProperty == NULL)
 		{
 			UE_LOG(LogBlueprint, Log, TEXT("GetTimelineSignatureForFunction: Object Property '%s' not found."), *ObjectPropertyName.ToString());
@@ -1627,7 +1627,7 @@ ETimelineSigType UBlueprint::GetTimelineSignatureForFunctionByName(const FName& 
 		UseClass = ObjProperty->PropertyClass;
 	}
 
-	UFunction* Function = FindField<UFunction>(UseClass, FunctionName);
+	UFunction* Function = FindUField<UFunction>(UseClass, FunctionName);
 	if(Function == NULL)
 	{
 		UE_LOG(LogBlueprint, Log, TEXT("GetTimelineSignatureForFunction: Function '%s' not found in class '%s'."), *FunctionName.ToString(), *UseClass->GetName());

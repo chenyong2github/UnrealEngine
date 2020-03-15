@@ -192,7 +192,7 @@ UEdGraphPin* UK2Node_DelegateSet::GetDelegateOwner() const
 
 UFunction* UK2Node_DelegateSet::GetDelegateSignature()
 {
-	FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
+	FMulticastDelegateProperty* DelegateProperty = FindFProperty<FMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
 
 	if( !DelegateProperty )
 	{
@@ -212,7 +212,7 @@ UFunction* UK2Node_DelegateSet::GetDelegateSignature()
 
 UFunction* UK2Node_DelegateSet::GetDelegateSignature() const
 {
-	FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
+	FMulticastDelegateProperty* DelegateProperty = FindFProperty<FMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
 
 	if( !DelegateProperty )
 	{

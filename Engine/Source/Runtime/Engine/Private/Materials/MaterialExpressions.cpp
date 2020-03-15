@@ -849,7 +849,7 @@ bool UMaterialExpression::CanEditChange(const FProperty* InProperty) const
 		{
 			const FString& OverridingPropertyName = InProperty->GetMetaData(OverridingInputPropertyMetaData);
 
-			FStructProperty* StructProp = FindField<FStructProperty>(GetClass(), *OverridingPropertyName);
+			FStructProperty* StructProp = FindFProperty<FStructProperty>(GetClass(), *OverridingPropertyName);
 			if (ensure(StructProp != nullptr))
 			{
 				static FName RequiredInputMetaData(TEXT("RequiredInput"));
@@ -2503,7 +2503,7 @@ void UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetValueToMatching
 	if (Material->GetRuntimeVirtualTextureParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), Value))
 	{
 		VirtualTexture = Value;
-		FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionRuntimeVirtualTextureSampleParameter, VirtualTexture));
+		FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionRuntimeVirtualTextureSampleParameter, VirtualTexture));
 		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 		PostEditChangeProperty(PropertyChangedEvent);
 	}
@@ -2725,7 +2725,7 @@ void UMaterialExpressionTextureSampleParameter::SetValueToMatchingExpression(UMa
 	UTexture* ExistingValue;
 	Material->GetTextureParameterValue(OtherExpression->GetParameterName(), ExistingValue);
 	Texture = ExistingValue;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionTextureSampleParameter, Texture));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionTextureSampleParameter, Texture));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -4427,16 +4427,16 @@ void UMaterialExpressionStaticComponentMaskParameter::SetValueToMatchingExpressi
 	DefaultG = G;
 	DefaultB = B;
 	DefaultA = A;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultR));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultR));
 	FPropertyChangedEvent RChangedEvent(ParamProperty);
 	PostEditChangeProperty(RChangedEvent);
-	ParamProperty = FindField<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultG));
+	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultG));
 	FPropertyChangedEvent GChangedEvent(ParamProperty);
 	PostEditChangeProperty(GChangedEvent);
-	ParamProperty = FindField<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultB));
+	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultB));
 	FPropertyChangedEvent BChangedEvent(ParamProperty);
 	PostEditChangeProperty(BChangedEvent);
-	ParamProperty = FindField<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultA));
+	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultA));
 	FPropertyChangedEvent AChangedEvent(ParamProperty);
 	PostEditChangeProperty(AChangedEvent);
 }
@@ -7373,7 +7373,7 @@ void UMaterialExpressionVectorParameter::SetValueToMatchingExpression(UMaterialE
 	FLinearColor ExistingValue = FLinearColor::Transparent;
 	Material->GetVectorParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), ExistingValue);
 	DefaultValue = ExistingValue;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionVectorParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionVectorParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -7674,7 +7674,7 @@ void UMaterialExpressionScalarParameter::SetValueToMatchingExpression(UMaterialE
 	float ExistingValue = 0.0f;
 	Material->GetScalarParameterDefaultValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), ExistingValue);
 	DefaultValue = ExistingValue;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionScalarParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, DefaultValue));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionScalarParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, DefaultValue));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -7793,7 +7793,7 @@ void UMaterialExpressionStaticBoolParameter::SetValueToMatchingExpression(UMater
 	FGuid Guid;
 	Material->GetStaticSwitchParameterValue(OtherExpression->GetParameterName(), ExistingValue, Guid);
 	DefaultValue = ExistingValue;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionStaticBoolParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticBoolParameter, DefaultValue));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticBoolParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticBoolParameter, DefaultValue));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -9261,7 +9261,7 @@ FName UMaterialExpressionSceneDepth::GetInputName(int32 InputIndex) const
 	if(InputIndex == 0)
 	{
 		// Display the current InputMode enum's display name.
-		FByteProperty* InputModeProperty = FindField<FByteProperty>( UMaterialExpressionSceneDepth::StaticClass(), "InputMode" );
+		FByteProperty* InputModeProperty = FindFProperty<FByteProperty>( UMaterialExpressionSceneDepth::StaticClass(), "InputMode" );
 		// Can't use GetNameByValue as GetNameStringByValue does name mangling that GetNameByValue does not
 		return *InputModeProperty->Enum->GetNameStringByValue((int64)InputMode.GetValue());
 	}
@@ -9558,7 +9558,7 @@ FName UMaterialExpressionSceneColor::GetInputName(int32 InputIndex) const
 	if(InputIndex == 0)
 	{
 		// Display the current InputMode enum's display name.
-		FByteProperty* InputModeProperty = FindField<FByteProperty>( UMaterialExpressionSceneColor::StaticClass(), "InputMode" );
+		FByteProperty* InputModeProperty = FindFProperty<FByteProperty>( UMaterialExpressionSceneColor::StaticClass(), "InputMode" );
 		// Can't use GetNameByValue as GetNameStringByValue does name mangling that GetNameByValue does not
 		return *InputModeProperty->Enum->GetNameStringByValue((int64)InputMode.GetValue());
 	}
@@ -10284,10 +10284,10 @@ void UMaterialExpressionFontSampleParameter::SetValueToMatchingExpression(UMater
 	Material->GetFontParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), FontValue, FontPage);
 	Font = FontValue;
 	FontTexturePage = FontPage;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, Font));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, Font));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
-	ParamProperty = FindField<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, FontTexturePage));
+	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, FontTexturePage));
 	FPropertyChangedEvent PageChangedEvent(ParamProperty);
 	PostEditChangeProperty(PageChangedEvent);
 }

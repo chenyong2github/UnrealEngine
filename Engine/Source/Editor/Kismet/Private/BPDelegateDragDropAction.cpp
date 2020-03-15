@@ -146,7 +146,7 @@ bool FKismetDelegateDragDropAction::IsValid() const
 {
 	return VariableSource.IsValid() &&
 		(VariableName != NAME_None) &&
-		(NULL != FindField<FMulticastDelegateProperty>(VariableSource.Get(), VariableName));
+		(NULL != FindFProperty<FMulticastDelegateProperty>(VariableSource.Get(), VariableName));
 }
 
 bool FKismetDelegateDragDropAction::IsSupportedBySchema(const class UEdGraphSchema* Schema) const

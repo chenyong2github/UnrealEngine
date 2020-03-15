@@ -5538,7 +5538,9 @@ struct TFieldRange
 //
 // Find a typed field in a struct.
 //
-template <class T> T* FindField( const UStruct* Owner, FName FieldName )
+template <class T>
+UE_DEPRECATED(4.25, "FindField will no longer return properties. Use FindProperty instead or FindUField if you want to find functions or enums.")
+ T* FindField( const UStruct* Owner, FName FieldName )
 {
 	// We know that a "none" field won't exist in this Struct
 	if( FieldName.IsNone() )
@@ -5559,11 +5561,101 @@ template <class T> T* FindField( const UStruct* Owner, FName FieldName )
 	return nullptr;
 }
 
-template <class T> T* FindField( const UStruct* Owner, const TCHAR* FieldName )
+template <class T>
+UE_DEPRECATED(4.25, "FindField will no longer return properties. Use FindFProperty instead or FindUField if you want to find UFunctions or UEnums.")
+T* FindField( const UStruct* Owner, const TCHAR* FieldName )
 {
 	// lookup the string name in the Name hash
 	FName Name(FieldName, FNAME_Find);
 	return FindField<T>(Owner, Name);
+}
+
+template <class T> 
+typename TEnableIf<TIsDerivedFrom<T, UField>::IsDerived, T*>::Type FindUField(const UStruct* Owner, FName FieldName)
+{
+	static_assert(sizeof(T) > 0, "T must not be an incomplete type");
+
+	// We know that a "none" field won't exist in this Struct
+	if (FieldName.IsNone())
+	{
+		return nullptr;
+	}
+
+	// Search by comparing FNames (INTs), not strings
+	for (TFieldIterator<T>It(Owner); It; ++It)
+	{
+		if (It->GetFName() == FieldName)
+		{
+			return *It;
+		}
+	}
+
+	// If we didn't find it, return no field
+	return nullptr;
+}
+
+template <class T> 
+typename TEnableIf<TIsDerivedFrom<T, UField>::IsDerived, T*>::Type FindUField(const UStruct* Owner, const TCHAR* FieldName)
+{
+	static_assert(sizeof(T) > 0, "T must not be an incomplete type");
+
+	// lookup the string name in the Name hash
+	FName Name(FieldName, FNAME_Find);
+	return FindUField<T>(Owner, Name);
+}
+
+template <class T>
+typename TEnableIf<TIsDerivedFrom<T, FField>::IsDerived, T*>::Type FindFProperty(const UStruct* Owner, FName FieldName)
+{
+	static_assert(sizeof(T) > 0, "T must not be an incomplete type");
+
+	// We know that a "none" field won't exist in this Struct
+	if (FieldName.IsNone())
+	{
+		return nullptr;
+	}
+
+	// Search by comparing FNames (INTs), not strings
+	for (TFieldIterator<T>It(Owner); It; ++It)
+	{
+		if (It->GetFName() == FieldName)
+		{
+			return *It;
+		}
+	}
+
+	// If we didn't find it, return no field
+	return nullptr;
+}
+
+template <class T>
+typename TEnableIf<TIsDerivedFrom<T, FField>::IsDerived, T*>::Type FindFProperty(const UStruct* Owner, const TCHAR* FieldName)
+{
+	static_assert(sizeof(T) > 0, "T must not be an incomplete type");
+
+	// lookup the string name in the Name hash
+	FName Name(FieldName, FNAME_Find);
+	return FindFProperty<T>(Owner, Name);
+}
+
+/** Finds FProperties or UFunctions and UEnums */
+inline FFieldVariant FindUFieldOrFProperty(const UStruct* Owner, FName FieldName)
+{
+	// Look for properties first as they're most often the runtime thing higher level code wants to find
+	FFieldVariant Result = FindFProperty<FProperty>(Owner, FieldName);
+	if (!Result)
+	{
+		Result = FindUField<UField>(Owner, FieldName);
+	}
+	return Result;
+}
+
+/** Finds FProperties or UFunctions and UEnums */
+inline FFieldVariant FindUFieldOrFProperty(const UStruct* Owner, const TCHAR* FieldName)
+{
+	// lookup the string name in the Name hash
+	FName Name(FieldName, FNAME_Find);
+	return FindUFieldOrFProperty(Owner, Name);
 }
 
 /**

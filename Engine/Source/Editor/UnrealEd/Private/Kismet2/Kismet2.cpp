@@ -2029,7 +2029,7 @@ void FKismetEditorUtilities::CreateNewBoundEventForActor(AActor* Actor, FName Ev
 	if ((Actor != nullptr) && (EventName != NAME_None))
 	{
 		// First, find the property we want to bind to
-		if (FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(Actor->GetClass(), EventName))
+		if (FMulticastDelegateProperty* DelegateProperty = FindFProperty<FMulticastDelegateProperty>(Actor->GetClass(), EventName))
 		{
 			// Get the correct level script blueprint
 			if (ULevelScriptBlueprint* LSB = Actor->GetLevel()->GetLevelScriptBlueprint())
@@ -2073,7 +2073,7 @@ void FKismetEditorUtilities::CreateNewBoundEventForClass(UClass* Class, FName Ev
 	if ( ( Class != nullptr ) && ( EventName != NAME_None ) && ( Blueprint != nullptr ) && ( ComponentProperty != nullptr ) )
 	{
 		// First, find the property we want to bind to
-		FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(Class, EventName);
+		FMulticastDelegateProperty* DelegateProperty = FindFProperty<FMulticastDelegateProperty>(Class, EventName);
 		if ( DelegateProperty != nullptr )
 		{
 			UEdGraph* TargetGraph = Blueprint->GetLastEditedUberGraph();

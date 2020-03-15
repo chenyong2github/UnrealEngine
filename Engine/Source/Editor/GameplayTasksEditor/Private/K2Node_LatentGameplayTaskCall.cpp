@@ -420,7 +420,7 @@ bool UK2Node_LatentGameplayTaskCall::ConnectSpawnProperties(UClass* ClassToSpawn
 		{
 			if (SpawnVarPin->LinkedTo.Num() == 0)
 			{
-				FProperty* Property = FindField<FProperty>(ClassToSpawn, SpawnVarPin->PinName);
+				FProperty* Property = FindFProperty<FProperty>(ClassToSpawn, SpawnVarPin->PinName);
 				// NULL property indicates that this pin was part of the original node, not the 
 				// class we're assigning to:
 				if (!Property)

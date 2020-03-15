@@ -218,7 +218,7 @@ void FGameplayAttribute::PostSerialize(const FArchive& Ar)
 		}
 		else if (!AttributeName.IsEmpty() && AttributeOwner != nullptr)
 		{
-			Attribute = FindField<FProperty>(AttributeOwner, *AttributeName);
+			Attribute = FindFProperty<FProperty>(AttributeOwner, *AttributeName);
 
 			if (!Attribute.Get())
 			{
@@ -623,7 +623,7 @@ void FAttributeSetInitterDiscreteLevels::PreloadAttributeSetData(const TArray<UC
 			}
 
 			// Find the FProperty
-			FProperty* Property = FindField<FProperty>(*Set, *AttributeName);
+			FProperty* Property = FindFProperty<FProperty>(*Set, *AttributeName);
 			if (!IsSupportedProperty(Property))
 			{
 				ABILITY_LOG(Verbose, TEXT("FAttributeSetInitterDiscreteLevels::PreloadAttributeSetData Unable to match Attribute from %s (row: %s)"), *AttributeName, *RowName);

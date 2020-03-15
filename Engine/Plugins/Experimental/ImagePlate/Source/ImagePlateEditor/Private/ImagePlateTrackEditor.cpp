@@ -288,7 +288,7 @@ void FImagePlateTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuild
 		check(ImagePlateComponent);
 
 		FStructProperty* ImagePlateProperty = ImagePlateComponent->GetImagePlateProperty();
-		FProperty* RenderTargetProperty = FindField<FProperty>(FImagePlateParameters::StaticStruct(), GET_MEMBER_NAME_CHECKED(FImagePlateParameters, RenderTexture));
+		FProperty* RenderTargetProperty = FindFProperty<FProperty>(FImagePlateParameters::StaticStruct(), GET_MEMBER_NAME_CHECKED(FImagePlateParameters, RenderTexture));
 
 		check(ImagePlateProperty);
 		check(RenderTargetProperty);

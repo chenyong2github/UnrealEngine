@@ -571,10 +571,11 @@ void FKismetCompilerContext::ValidateVariableNames()
 			}
 			else if (ParentClass->IsNative()) // the above case handles when the parent is a blueprint
 			{
-				if (UField* ExisingField = FindField<UField>(ParentClass, *VarNameStr))
+				FFieldVariant ExisingField = FindUFieldOrFProperty(ParentClass, *VarNameStr);
+				if (ExisingField)
 				{
 					UE_LOG(LogK2Compiler, Warning, TEXT("ValidateVariableNames name %s (used in %s) is already taken by %s")
-						, *VarNameStr, *Blueprint->GetPathName(), *ExisingField->GetPathName());
+						, *VarNameStr, *Blueprint->GetPathName(), *ExisingField.GetPathName());
 					NewVarName = FBlueprintEditorUtils::FindUniqueKismetName(Blueprint, VarNameStr);
 				}
 			}
@@ -693,7 +694,7 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 			{
 				if(FMulticastDelegateProperty* AsDelegate = CastField<FMulticastDelegateProperty>(NewProperty))
 				{
-					AsDelegate->SignatureFunction = FindField<UFunction>(NewClass, *(Variable.VarName.ToString() + HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX));
+					AsDelegate->SignatureFunction = FindUField<UFunction>(NewClass, *(Variable.VarName.ToString() + HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX));
 					// Skeleton compilation phase may run when the delegate has been created but the function has not:
 					ensureAlways(AsDelegate->SignatureFunction || !bIsFullCompile);
 				}
@@ -1673,7 +1674,7 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 			);
 			return;
 		}
-		else if (NULL != FindField<FProperty>(NewClass, NewFunctionName))
+		else if (NULL != FindFProperty<FProperty>(NewClass, NewFunctionName))
 		{
 			MessageLog.Error(
 				*FText::Format(
@@ -1963,7 +1964,7 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 		{
 			Context.Function->FunctionFlags |= FUNC_Delegate;
 
-			if (FMulticastDelegateProperty* Property = FindField<FMulticastDelegateProperty>(NewClass, Context.DelegateSignatureName))
+			if (FMulticastDelegateProperty* Property = FindFProperty<FMulticastDelegateProperty>(NewClass, Context.DelegateSignatureName))
 			{
 				Property->SignatureFunction = Context.Function;
 			}

@@ -1103,7 +1103,7 @@ void SMyBlueprint::GetLocalVariables(FGraphActionSort& SortList) const
 					Category = FText::GetEmpty();
 				}
 
-				UFunction* Func = FindField<UFunction>(GetBlueprintObj()->SkeletonGeneratedClass, TopLevelGraph->GetFName());
+				UFunction* Func = FindUField<UFunction>(GetBlueprintObj()->SkeletonGeneratedClass, TopLevelGraph->GetFName());
 				if (Func)
 				{
 					TSharedPtr<FEdGraphSchemaAction_K2LocalVar> NewVarAction = MakeShareable(new FEdGraphSchemaAction_K2LocalVar(Category, FText::FromName(Variable.VarName), FText::GetEmpty(), 0, NodeSectionID::LOCAL_VARIABLE));
@@ -2747,7 +2747,7 @@ struct FDeleteEntryHelper
 	{
 		check(NULL != Blueprint);
 
-		const FProperty* VariableProperty = FindField<FProperty>(Blueprint->SkeletonGeneratedClass, VarName);
+		const FProperty* VariableProperty = FindFProperty<FProperty>(Blueprint->SkeletonGeneratedClass, VarName);
 		const UClass* VarSourceClass = VariableProperty->GetOwnerChecked<const UClass>();
 		const bool bIsBlueprintVariable = (VarSourceClass == Blueprint->SkeletonGeneratedClass);
 		const int32 VarInfoIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VariableProperty->GetFName());

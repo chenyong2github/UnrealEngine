@@ -3789,7 +3789,7 @@ void FPersonaMeshDetails::OnMaterialArrayChanged(UMaterialInterface* NewMaterial
 		// Whether or not we made a transaction and need to end it
 		bool bMadeTransaction = false;
 
-		FProperty* MaterialProperty = FindField<FProperty>(USkeletalMesh::StaticClass(), "Materials");
+		FProperty* MaterialProperty = FindFProperty<FProperty>(USkeletalMesh::StaticClass(), "Materials");
 		check(MaterialProperty);
 		Mesh->PreEditChange(MaterialProperty);
 		check(Mesh->Materials.Num() > SlotIndex)
@@ -3967,7 +3967,7 @@ void FPersonaMeshDetails::OnMaterialNameCommitted(const FText& InValue, ETextCom
 	{
 		FScopedTransaction ScopeTransaction(LOCTEXT("PersonaMaterialSlotNameChanged", "Persona editor: Material slot name change"));
 
-		FProperty* ChangedProperty = FindField<FProperty>(USkeletalMesh::StaticClass(), "Materials");
+		FProperty* ChangedProperty = FindFProperty<FProperty>(USkeletalMesh::StaticClass(), "Materials");
 		check(ChangedProperty);
 		SkeletalMeshPtr->PreEditChange(ChangedProperty);
 

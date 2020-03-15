@@ -203,7 +203,7 @@ FSplinePointDetails::FSplinePointDetails(USplineComponent* InOwningSplineCompone
 	SplineVisualizer = (FSplineComponentVisualizer*)Visualizer.Get();
 	check(SplineVisualizer);
 
-	SplineCurvesProperty = FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
+	SplineCurvesProperty = FindFProperty<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
 
 	UEnum* SplinePointTypeEnum = StaticEnum<ESplinePointType::Type>();
 	check(SplinePointTypeEnum);

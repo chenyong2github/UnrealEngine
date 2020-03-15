@@ -23,7 +23,7 @@ void UGameplayTagsK2Node_SwitchGameplayTag::CreateFunctionPin()
 	FunctionPin->bNotConnectable = true;
 	FunctionPin->bHidden = true;
 
-	UFunction* Function = FindField<UFunction>(FunctionClass, FunctionName);
+	UFunction* Function = FindUField<UFunction>(FunctionClass, FunctionName);
 	const bool bIsStaticFunc = Function->HasAllFunctionFlags(FUNC_Static);
 	if (bIsStaticFunc)
 	{

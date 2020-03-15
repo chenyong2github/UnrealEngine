@@ -282,7 +282,7 @@ UFunction const* FKismetFunctionDragDropAction::GetFunctionProperty() const
 	check(OwningClass != nullptr);
 	check(FunctionName != NAME_None);
 
-	UFunction* Function = FindField<UFunction>(OwningClass, FunctionName);
+	UFunction* Function = FindUField<UFunction>(OwningClass, FunctionName);
 	return Function;
 }
 

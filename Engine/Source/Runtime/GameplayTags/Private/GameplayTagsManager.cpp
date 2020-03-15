@@ -1358,7 +1358,7 @@ FString UGameplayTagsManager::GetCategoriesMetaFromFunction(const UFunction* Thi
 		// If a param name was specified, check it first for UPARAM metadata
 		if (!ParamName.IsNone())
 		{
-			FProperty* ParamProp = FindField<FProperty>(ThisFunction, ParamName);
+			FProperty* ParamProp = FindFProperty<FProperty>(ThisFunction, ParamName);
 			if (ParamProp)
 			{
 				FilterString = UGameplayTagsManager::Get().GetCategoriesMetaFromField(ParamProp);

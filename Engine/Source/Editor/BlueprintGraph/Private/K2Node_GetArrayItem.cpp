@@ -205,7 +205,7 @@ void UK2Node_GetArrayItem::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNode
 FSlateIcon UK2Node_GetArrayItem::GetIconAndTint(FLinearColor& OutColor) const
 {
 	// emulate the icon/color that we used when this was a UK2Node_CallArrayFunction node
-	if (UFunction* WrappedFunction = FindField<UFunction>(UKismetArrayLibrary::StaticClass(), GET_FUNCTION_NAME_CHECKED(UKismetArrayLibrary, Array_Get)))
+	if (UFunction* WrappedFunction = FindUField<UFunction>(UKismetArrayLibrary::StaticClass(), GET_FUNCTION_NAME_CHECKED(UKismetArrayLibrary, Array_Get)))
 	{
 		return UK2Node_CallFunction::GetPaletteIconForFunction(WrappedFunction, OutColor);
 	}

@@ -567,11 +567,7 @@ FFieldVariant FPropertyPathSegment::Resolve(UStruct* InStruct) const
 		if ( InStruct != Struct )
 		{
 			Struct = InStruct;
-			Field = FindField<FProperty>(InStruct, Name);
-			if (!Field.IsValid())
-			{
-				Field = FindField<UField>(InStruct, Name);
-			}
+			Field = FindUFieldOrFProperty(InStruct, Name);
 		}
 
 		return Field;

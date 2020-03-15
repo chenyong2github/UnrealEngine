@@ -110,7 +110,7 @@ void FNavigationLinkBase::DescribeCustomFlags(const TArray<FString>& EditableFla
 						FString PropName(TEXT("bCustomFlag"));
 						PropName += TTypeToString<int32>::ToString(Idx);
 
-						FProperty* FlagProp = FindField<FProperty>(StructIt, *PropName);
+						FProperty* FlagProp = FindFProperty<FProperty>(StructIt, *PropName);
 						if (FlagProp)
 						{
 							if (Idx < MaxFlags)

@@ -395,7 +395,7 @@ void FBlueprintCompileReinstancer::GenerateFieldMappings(TMap<FFieldVariant, FFi
 
 	for (TPair<FName, FProperty*>& Prop : PropertyMap)
 	{
-		FieldMapping.Add(Prop.Value, FindField<FProperty>(ClassToReinstance, *Prop.Key.ToString()));
+		FieldMapping.Add(Prop.Value, FindFProperty<FProperty>(ClassToReinstance, *Prop.Key.ToString()));
 	}
 
 	for (TPair<FName, UFunction*>& Func : FunctionMap)
