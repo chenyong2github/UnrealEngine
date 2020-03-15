@@ -447,7 +447,7 @@ void UImagePlateComponent::PostEditUndo()
 
 FStructProperty* UImagePlateComponent::GetImagePlateProperty()
 {
-	return FindField<FStructProperty>(StaticClass(), GET_MEMBER_NAME_CHECKED(UImagePlateComponent, Plate));
+	return FindFProperty<FStructProperty>(StaticClass(), GET_MEMBER_NAME_CHECKED(UImagePlateComponent, Plate));
 }
 
 #endif

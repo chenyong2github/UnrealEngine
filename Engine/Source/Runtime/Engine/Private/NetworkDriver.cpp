@@ -2798,7 +2798,7 @@ bool UNetDriver::HandleNetDumpServerRPCCommand( const TCHAR* Cmd, FOutputDevice&
 
 bool UNetDriver::HandleNetDumpDormancy(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	FProperty* Property = FindField<FProperty>(AActor::StaticClass(), TEXT("NetDormancy"));
+	FProperty* Property = FindFProperty<FProperty>(AActor::StaticClass(), TEXT("NetDormancy"));
 	check(Property != nullptr);
 	Ar.Logf(TEXT(""));
 	TArray<AActor*> Actors;

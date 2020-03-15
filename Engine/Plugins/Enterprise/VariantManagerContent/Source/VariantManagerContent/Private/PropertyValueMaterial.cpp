@@ -102,7 +102,7 @@ bool UPropertyValueMaterial::ContainsProperty(const FProperty* Prop) const
 {
 	if (OverrideMaterialsProperty == nullptr)
 	{
-		if (FArrayProperty* ArrayProp = FindField<FArrayProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials)))
+		if (FArrayProperty* ArrayProp = FindFProperty<FArrayProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials)))
 		{
 			OverrideMaterialsProperty = ArrayProp->Inner;
 		}

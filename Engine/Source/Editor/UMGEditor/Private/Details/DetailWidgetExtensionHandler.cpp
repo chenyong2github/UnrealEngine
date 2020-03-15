@@ -31,7 +31,7 @@ bool FDetailWidgetExtensionHandler::IsPropertyExtendable(const UClass* InObjectC
 
 		if ( UClass* ContainerClass = Property->GetOwner<UClass>() )
 		{
-			FDelegateProperty* DelegateProperty = FindField<FDelegateProperty>(ContainerClass, FName(*DelegateName));
+			FDelegateProperty* DelegateProperty = FindFProperty<FDelegateProperty>(ContainerClass, FName(*DelegateName));
 			if ( DelegateProperty )
 			{
 				return true;

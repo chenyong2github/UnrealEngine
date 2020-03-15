@@ -19,7 +19,7 @@ namespace PropertyHelpers
 			if (PropertyName.FindLastChar('[', OpenIndex))
 			{
 				FString TruncatedPropertyName(OpenIndex, *PropertyName);
-				PropertyAndIndex.Property = FindField<FProperty>(InStruct, *TruncatedPropertyName);
+				PropertyAndIndex.Property = FindFProperty<FProperty>(InStruct, *TruncatedPropertyName);
 				if (PropertyAndIndex.Property)
 				{
 					const int32 NumberLength = PropertyName.Len() - OpenIndex - 2;
@@ -35,7 +35,7 @@ namespace PropertyHelpers
 			}
 		}
 
-		PropertyAndIndex.Property = FindField<FProperty>(InStruct, *PropertyName);
+		PropertyAndIndex.Property = FindFProperty<FProperty>(InStruct, *PropertyName);
 		return PropertyAndIndex;
 	}
 

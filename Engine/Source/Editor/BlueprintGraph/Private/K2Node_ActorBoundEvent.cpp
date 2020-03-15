@@ -231,17 +231,17 @@ void UK2Node_ActorBoundEvent::InitializeActorBoundEventParams(AActor* InEventOwn
 
 FMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegateProperty() const
 {
-	return FindField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
+	return FindFProperty<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
 }
 
 FMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegatePropertyFromSkel() const
 {
-	return FindField<FMulticastDelegateProperty>(FBlueprintEditorUtils::GetMostUpToDateClass(DelegateOwnerClass), DelegatePropertyName);
+	return FindFProperty<FMulticastDelegateProperty>(FBlueprintEditorUtils::GetMostUpToDateClass(DelegateOwnerClass), DelegatePropertyName);
 }
 
 bool UK2Node_ActorBoundEvent::IsUsedByAuthorityOnlyDelegate() const
 {
-	const FMulticastDelegateProperty* TargetDelegateProp = FindField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
+	const FMulticastDelegateProperty* TargetDelegateProp = FindFProperty<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
 	return (TargetDelegateProp && TargetDelegateProp->HasAnyPropertyFlags(CPF_BlueprintAuthorityOnly));
 }
 

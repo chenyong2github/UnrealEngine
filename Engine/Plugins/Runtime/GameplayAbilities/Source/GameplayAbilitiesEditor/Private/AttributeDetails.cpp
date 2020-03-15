@@ -125,7 +125,7 @@ void FAttributePropertyDetails::OnChangeProperty(TSharedPtr<FString> ItemSelecte
 		UClass *FoundClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
 		if (FoundClass)
 		{
-			FProperty *Property = FindField<FProperty>(FoundClass, *PropertyName);
+			FProperty *Property = FindFProperty<FProperty>(FoundClass, *PropertyName);
 			if (Property)
 			{
 				MyProperty->SetValue(Property);

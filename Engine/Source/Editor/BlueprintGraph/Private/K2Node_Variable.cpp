@@ -388,7 +388,7 @@ FProperty* UK2Node_Variable::GetPropertyForVariable_Internal(UClass* OwningClass
 	UScriptStruct* SparseClassDataStruct = Scope ? Scope->GetSparseClassDataStruct() : nullptr;
 	if (SparseClassDataStruct)
 	{
-		VariableProperty = FindField<FProperty>(SparseClassDataStruct, VarName);
+		VariableProperty = FindFProperty<FProperty>(SparseClassDataStruct, VarName);
 	}
 	if (!VariableProperty)
 	{
@@ -638,7 +638,7 @@ FSlateIcon UK2Node_Variable::GetVariableIconAndColor(const UStruct* VarScope, FN
 {
 	if(VarScope != NULL)
 	{
-		FProperty* Property = FindField<FProperty>(VarScope, VarName);
+		FProperty* Property = FindFProperty<FProperty>(VarScope, VarName);
 		if(Property != NULL)
 		{
 			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();

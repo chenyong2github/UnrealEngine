@@ -1116,7 +1116,7 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 		}
 
 		const FName PropertyName(Len, Start);
-		FProperty* Property = FindField<FProperty>(ObjectStruct, PropertyName);
+		FProperty* Property = FindFProperty<FProperty>(ObjectStruct, PropertyName);
 
 		if (Property == nullptr)
 		{
@@ -1125,7 +1125,7 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 
 			if (NewPropertyName != NAME_None)
 			{
-				Property = FindField<FProperty>(ObjectStruct, NewPropertyName);
+				Property = FindFProperty<FProperty>(ObjectStruct, NewPropertyName);
 			}
 
 			if (!Property)

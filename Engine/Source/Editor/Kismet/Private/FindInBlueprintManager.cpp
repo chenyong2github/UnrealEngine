@@ -758,7 +758,7 @@ namespace BlueprintSearchMetaDataHelpers
 		SavePinTypeToJson(InWriter, VariableType);
 
 		// Find the FProperty and convert it into a Json value.
-		FProperty* VariableProperty = FindField<FProperty>(InBlueprint->GeneratedClass, InVariableDescription.VarName);
+		FProperty* VariableProperty = FindFProperty<FProperty>(InBlueprint->GeneratedClass, InVariableDescription.VarName);
 		if(VariableProperty)
 		{
 			const uint8* PropData = VariableProperty->ContainerPtrToValuePtr<uint8>(InBlueprint->GeneratedClass->GetDefaultObject());

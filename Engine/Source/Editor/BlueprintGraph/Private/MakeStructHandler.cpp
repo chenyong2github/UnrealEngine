@@ -111,7 +111,7 @@ void FKCHandler_MakeStruct::Compile(FKismetFunctionContext& Context, UEdGraphNod
 	{
 		if (Pin && !Pin->bOrphanedPin && (Pin != StructPin) && (Pin->Direction == EGPD_Input) && !CompilerContext.GetSchema()->IsMetaPin(*Pin))
 		{
-			FProperty* BoundProperty = FindField<FProperty>(Node->StructType, Pin->PinName);
+			FProperty* BoundProperty = FindFProperty<FProperty>(Node->StructType, Pin->PinName);
 			check(BoundProperty);
 
 			// If the pin is not connectible, do not forward the net

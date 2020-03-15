@@ -2192,7 +2192,8 @@ bool FBlueprintEditorUtils::IsGraphNameUnique(UBlueprint* Blueprint, const FName
 	if( !FindObject<UObject>(Blueprint, *InName.ToString()) )
 	{
 		// Next, check for functions with that name in the blueprint's class scope
-		if( !FindField<UField>(Blueprint->SkeletonGeneratedClass, InName) )
+		FFieldVariant ExistingField = FindUFieldOrFProperty(Blueprint->SkeletonGeneratedClass, InName);
+		if( !ExistingField )
 		{
 			// Finally, check function entry points
 			TArray<UK2Node_Event*> AllEvents;
@@ -2332,7 +2333,7 @@ UClass* const FBlueprintEditorUtils::GetOverrideFunctionClass(UBlueprint* Bluepr
 
 	if (OverrideFunc == nullptr)
 	{
-		OverrideFunc = FindField<UFunction>(Blueprint->SkeletonGeneratedClass, FuncName);
+		OverrideFunc = FindUField<UFunction>(Blueprint->SkeletonGeneratedClass, FuncName);
 		// search up the class hierarchy, we want to find the original declaration of the function to match FBlueprintEventNodeSpawner.
 		// Doing so ensures that we can find the existing node if there is one:
 		const UClass* Iter = Blueprint->SkeletonGeneratedClass->GetSuperClass();
@@ -3768,12 +3769,12 @@ void FBlueprintEditorUtils::SetBlueprintVariableMetaData(UBlueprint* Blueprint, 
 		else
 		{
 			Blueprint->NewVariables[VarIndex].SetMetaData(MetaDataKey, MetaDataValue);
-			FProperty* Property = FindField<FProperty>(Blueprint->SkeletonGeneratedClass, VarName);
+			FProperty* Property = FindFProperty<FProperty>(Blueprint->SkeletonGeneratedClass, VarName);
 			if (Property)
 			{
 				Property->SetMetaData(MetaDataKey, *MetaDataValue);
 			}
-			Property = FindField<FProperty>(Blueprint->GeneratedClass, VarName);
+			Property = FindFProperty<FProperty>(Blueprint->GeneratedClass, VarName);
 			if (Property)
 			{
 				Property->SetMetaData(MetaDataKey, *MetaDataValue);
@@ -3892,12 +3893,12 @@ void FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(UBlueprint* Blueprin
 		else
 		{
 			Blueprint->NewVariables[VarIndex].RemoveMetaData(MetaDataKey);
-			FProperty* Property = FindField<FProperty>(Blueprint->SkeletonGeneratedClass, VarName);
+			FProperty* Property = FindFProperty<FProperty>(Blueprint->SkeletonGeneratedClass, VarName);
 			if (Property)
 			{
 				Property->RemoveMetaData(MetaDataKey);
 			}
-			Property = FindField<FProperty>(Blueprint->GeneratedClass, VarName);
+			Property = FindFProperty<FProperty>(Blueprint->GeneratedClass, VarName);
 			if (Property)
 			{
 				Property->RemoveMetaData(MetaDataKey);
@@ -3934,7 +3935,7 @@ void FBlueprintEditorUtils::SetBlueprintVariableCategory(UBlueprint* Blueprint, 
 	Blueprint->Modify();
 
 	UClass* SkeletonGeneratedClass = Blueprint->SkeletonGeneratedClass;
-	if (FProperty* TargetProperty = FindField<FProperty>(SkeletonGeneratedClass, VarName))
+	if (FProperty* TargetProperty = FindFProperty<FProperty>(SkeletonGeneratedClass, VarName))
 	{
 		UClass* OuterClass = TargetProperty->GetOwnerChecked<UClass>();
 		const bool bIsNativeVar = (OuterClass->ClassGeneratedBy == nullptr);
@@ -4150,7 +4151,7 @@ FText FBlueprintEditorUtils::GetBlueprintVariableCategory(UBlueprint* Blueprint,
 {
 	FText CategoryName;
 	UClass* SkeletonGeneratedClass = Blueprint->SkeletonGeneratedClass;
-	FProperty* TargetProperty = FindField<FProperty>(SkeletonGeneratedClass, VarName);
+	FProperty* TargetProperty = FindFProperty<FProperty>(SkeletonGeneratedClass, VarName);
 	if(TargetProperty != nullptr)
 	{
 		CategoryName = FObjectEditorUtils::GetCategoryText(TargetProperty);
@@ -4690,7 +4691,7 @@ void FBlueprintEditorUtils::RenameMemberVariable(UBlueprint* Blueprint, const FN
 				UObject* GeneratedCDO = GeneratedClass ? GeneratedClass->GetDefaultObject(false) : nullptr;
 				if (GeneratedCDO)
 				{
-					FProperty* TargetProperty = FindField<FProperty>(GeneratedCDO->GetClass(), OldName); // GeneratedCDO->GetClass() is used instead of GeneratedClass, because CDO could use REINST class.
+					FProperty* TargetProperty = FindFProperty<FProperty>(GeneratedCDO->GetClass(), OldName); // GeneratedCDO->GetClass() is used instead of GeneratedClass, because CDO could use REINST class.
 					// Grab the address of where the property is actually stored (UObject* base, plus the offset defined in the property)
 					void* OldPropertyAddr = TargetProperty ? TargetProperty->ContainerPtrToValuePtr<void>(GeneratedCDO) : nullptr;
 					if (OldPropertyAddr)
@@ -5009,7 +5010,7 @@ FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const US
 			//Grab property of blueprint's current CDO
 			UClass* GeneratedClass = InBlueprint->GeneratedClass;
 			UObject* GeneratedCDO = GeneratedClass->GetDefaultObject();
-			FProperty* TargetProperty = FindField<FProperty>(GeneratedClass, Variable.VarName);
+			FProperty* TargetProperty = FindFProperty<FProperty>(GeneratedClass, Variable.VarName);
 
 			if( TargetProperty )
 			{
@@ -5235,8 +5236,8 @@ void FBlueprintEditorUtils::RenameLocalVariable(UBlueprint* InBlueprint, const U
 	{
 		UK2Node_FunctionEntry* FunctionEntry = nullptr;
 		FBPVariableDescription* LocalVariable = FindLocalVariable(InBlueprint, InScope, InOldName, &FunctionEntry);
-		const FProperty* OldProperty = FindField<const FProperty>(InScope, InOldName);
-		const FProperty* ExistingProperty = FindField<const FProperty>(InScope, InNewName);
+		const FProperty* OldProperty = FindFProperty<const FProperty>(InScope, InOldName);
+		const FProperty* ExistingProperty = FindFProperty<const FProperty>(InScope, InNewName);
 		const bool bHasExistingProperty = ExistingProperty && ExistingProperty != OldProperty;
 		if (bHasExistingProperty)
 		{
@@ -6025,7 +6026,7 @@ UFunction* FBlueprintEditorUtils::GetInterfaceFunction(UBlueprint* Blueprint, co
 	{
 		if (I.Interface)
 		{
-			Function = FindField<UFunction>(I.Interface, FuncName);
+			Function = FindUField<UFunction>(I.Interface, FuncName);
 			if (Function)
 			{
 				// found it, done
@@ -6039,7 +6040,7 @@ UFunction* FBlueprintEditorUtils::GetInterfaceFunction(UBlueprint* Blueprint, co
 	{
 		for (const FImplementedInterface& I : TempClass->Interfaces)
 		{
-			Function = FindField<UFunction>(I.Class, FuncName);
+			Function = FindUField<UFunction>(I.Class, FuncName);
 			if (Function)
 			{
 				// found it, done
@@ -6820,7 +6821,7 @@ static void ConformInterfaceByName(UBlueprint* Blueprint, FBPInterfaceDescriptio
 					}
 					// We perform the check here to avoid creating a graph if it isnt implemented in the full interface (note not the skeleton interface that we are iterating over)
 					// this is to avoid creating it then removing the graph below if it isnt present in the full class, which will cause a name conflict second time around
-					else if(FindField<UFunction>(CurrentInterfaceDesc.Interface, FunctionName))
+					else if(FindUField<UFunction>(CurrentInterfaceDesc.Interface, FunctionName))
 					{
 						UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(Blueprint, FunctionName, UAnimationGraph::StaticClass(), UAnimationGraphSchema::StaticClass());
 						NewGraph->bAllowDeletion = false;
@@ -6850,7 +6851,7 @@ static void ConformInterfaceByName(UBlueprint* Blueprint, FBPInterfaceDescriptio
 			// If we can't find the function associated with the graph, delete it
 			const UEdGraph* CurrentGraph = CurrentInterfaceDesc.Graphs[GraphIndex];
 
-			if (!CurrentGraph || !FindField<UFunction>(CurrentInterfaceDesc.Interface, CurrentGraph->GetFName()))
+			if (!CurrentGraph || !FindUField<UFunction>(CurrentInterfaceDesc.Interface, CurrentGraph->GetFName()))
 			{
 				CurrentInterfaceDesc.Graphs.RemoveAt(GraphIndex, 1);
 				GraphIndex--;
@@ -8737,7 +8738,7 @@ bool FBlueprintEditorUtils::IsPaletteActionReadOnly(TSharedPtr<FEdGraphSchemaAct
 					if(GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function)
 					{
 						// Check if the function is an override
-						UFunction* OverrideFunc = FindField<UFunction>(BlueprintObj->ParentClass, GraphAction->FuncName);
+						UFunction* OverrideFunc = FindUField<UFunction>(BlueprintObj->ParentClass, GraphAction->FuncName);
 						if ( OverrideFunc != nullptr )
 						{
 							bIsReadOnly = true;

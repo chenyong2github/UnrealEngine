@@ -39,7 +39,7 @@ const FBoolProperty* FEditConditionContext::GetSingleBoolProperty(const TSharedP
 				return nullptr;
 			}
 
-			const FProperty* Field = FindField<FProperty>(Property->GetOwnerStruct(), *PropertyToken->PropertyName);
+			const FProperty* Field = FindFProperty<FProperty>(Property->GetOwnerStruct(), *PropertyToken->PropertyName);
 			BoolProperty = CastField<FBoolProperty>(Field);
 			
 			// not a bool
@@ -63,7 +63,7 @@ T* FindTypedField(const TWeakPtr<FPropertyNode>& PropertyNode, const FString& Pr
 		TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
 		const FProperty* Property = PinnedNode->GetProperty();
 
-		FProperty* Field = FindField<FProperty>(Property->GetOwnerStruct(), *PropertyName);
+		FProperty* Field = FindFProperty<FProperty>(Property->GetOwnerStruct(), *PropertyName);
 		if (Field == nullptr)
 		{
 			if (!AlreadyLogged.Find(Field))

@@ -308,7 +308,7 @@ void FAdvancedPreviewScene::SetFloorVisibility(const bool bVisible, const bool b
 	{
 		FName PropertyName("bShowFloor");
 
-		FProperty* FloorProperty = FindField<FProperty>(FPreviewSceneProfile::StaticStruct(), PropertyName);
+		FProperty* FloorProperty = FindFProperty<FProperty>(FPreviewSceneProfile::StaticStruct(), PropertyName);
 		DefaultSettings->Profiles[CurrentProfileIndex].bShowFloor = bVisible;
 
 		FPropertyChangedEvent PropertyEvent(FloorProperty);
@@ -326,7 +326,7 @@ void FAdvancedPreviewScene::SetEnvironmentVisibility(const bool bVisible, const 
 	// If not direct set visibility in profile and refresh the scene
 	if (!bDirect)
 	{
-		FProperty* EnvironmentProperty = FindField<FProperty>(FPreviewSceneProfile::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, bShowEnvironment));
+		FProperty* EnvironmentProperty = FindFProperty<FProperty>(FPreviewSceneProfile::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, bShowEnvironment));
 		DefaultSettings->Profiles[CurrentProfileIndex].bShowEnvironment = bVisible;
 
 		FPropertyChangedEvent PropertyEvent(EnvironmentProperty);
@@ -408,7 +408,7 @@ void FAdvancedPreviewScene::HandleTogglePostProcessing()
 	bPostProcessing = Profile.bPostProcessingEnabled;
 	
 	FName PropertyName("bPostProcessingEnabled");
-	FProperty* PostProcessingProperty = FindField<FProperty>(FPreviewSceneProfile::StaticStruct(), PropertyName);
+	FProperty* PostProcessingProperty = FindFProperty<FProperty>(FPreviewSceneProfile::StaticStruct(), PropertyName);
 	FPropertyChangedEvent PropertyEvent(PostProcessingProperty);
 	DefaultSettings->PostEditChangeProperty(PropertyEvent);	
 }
