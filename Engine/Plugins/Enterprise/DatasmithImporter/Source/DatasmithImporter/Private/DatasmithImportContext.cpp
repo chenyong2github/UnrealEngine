@@ -367,7 +367,7 @@ void FDatasmithImportContext::DisplayMessages()
 
 void FDatasmithImportContext::SetupBaseOptionsVisibility()
 {
-	if ( FProperty* ReimportOptionsProperty = FindField< FProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) ) )
+	if ( FProperty* ReimportOptionsProperty = FindFProperty< FProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) ) )
 	{
 		if ( bIsAReimport )
 		{
@@ -384,7 +384,7 @@ void FDatasmithImportContext::SetupBaseOptionsVisibility()
 
 void FDatasmithImportContext::ResetBaseOptionsVisibility()
 {
-	FProperty* ReimportOptionsProperty = FindField< FProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) );
+	FProperty* ReimportOptionsProperty = FindFProperty< FProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) );
 
 	if ( ReimportOptionsProperty )
 	{
