@@ -16,13 +16,13 @@ void UComponentDelegateBinding::BindDynamicDelegates(UObject* InInstance) const
 		const FBlueprintComponentDelegateBinding& Binding = ComponentDelegateBindings[BindIdx];
 
 	// Get the property that points to the component
-		if (const FObjectProperty* ObjProp = FindField<FObjectProperty>(InInstance->GetClass(), Binding.ComponentPropertyName))
+		if (const FObjectProperty* ObjProp = FindFProperty<FObjectProperty>(InInstance->GetClass(), Binding.ComponentPropertyName))
 		{
 			// ..see if there is actually a component assigned
 			if (UObject* Component = ObjProp->GetObjectPropertyValue_InContainer(InInstance))
 			{
 			// If there is, find and return the delegate property on it
-				if (FMulticastDelegateProperty* MulticastDelegateProp = FindField<FMulticastDelegateProperty>(Component->GetClass(), Binding.DelegatePropertyName))
+				if (FMulticastDelegateProperty* MulticastDelegateProp = FindFProperty<FMulticastDelegateProperty>(Component->GetClass(), Binding.DelegatePropertyName))
 				{
 					// Get the function we want to bind
 					if (UFunction* FunctionToBind = InInstance->GetClass()->FindFunctionByName(Binding.FunctionNameToBind))
@@ -45,13 +45,13 @@ void UComponentDelegateBinding::UnbindDynamicDelegates(UObject* InInstance) cons
 		const FBlueprintComponentDelegateBinding& Binding = ComponentDelegateBindings[BindIdx];
 
 		// Get the property that points to the component
-		if (const FObjectProperty* ObjProp = FindField<FObjectProperty>(InInstance->GetClass(), Binding.ComponentPropertyName))
+		if (const FObjectProperty* ObjProp = FindFProperty<FObjectProperty>(InInstance->GetClass(), Binding.ComponentPropertyName))
 		{
 			// ..see if there is actually a component assigned
 			if (UObject* Component = ObjProp->GetObjectPropertyValue_InContainer(InInstance))
 			{
 				// If there is, find and return the delegate property on it
-				if (FMulticastDelegateProperty* MulticastDelegateProp = FindField<FMulticastDelegateProperty>(Component->GetClass(), Binding.DelegatePropertyName))
+				if (FMulticastDelegateProperty* MulticastDelegateProp = FindFProperty<FMulticastDelegateProperty>(Component->GetClass(), Binding.DelegatePropertyName))
 		{
 					// Unbind function on the instance to this delegate
 					FScriptDelegate Delegate;
@@ -70,14 +70,14 @@ void UComponentDelegateBinding::UnbindDynamicDelegatesForProperty(UObject* InIns
 		const FBlueprintComponentDelegateBinding& Binding = ComponentDelegateBindings[BindIdx];
 		if (InObjectProperty->GetFName() == Binding.ComponentPropertyName)
 		{
-			const FObjectProperty* ObjProp = FindField<FObjectProperty>(InInstance->GetClass(), Binding.ComponentPropertyName);
+			const FObjectProperty* ObjProp = FindFProperty<FObjectProperty>(InInstance->GetClass(), Binding.ComponentPropertyName);
 			if (ObjProp == InObjectProperty)
 			{
 				// ..see if there is actually a component assigned
 				if (UObject* Component = ObjProp->GetObjectPropertyValue_InContainer(InInstance))
 				{
 					// If there is, find and return the delegate property on it
-					if (FMulticastDelegateProperty* MulticastDelegateProp = FindField<FMulticastDelegateProperty>(Component->GetClass(), Binding.DelegatePropertyName))
+					if (FMulticastDelegateProperty* MulticastDelegateProp = FindFProperty<FMulticastDelegateProperty>(Component->GetClass(), Binding.DelegatePropertyName))
 					{
 						// Unbind function on the instance from this delegate
 						FScriptDelegate Delegate;

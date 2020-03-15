@@ -147,7 +147,7 @@ void UK2Node_LoadAsset::ExpandNode(class FKismetCompilerContext& CompilerContext
 	OnLoadEventNode->AllocateDefaultPins();
 	{
 		UFunction* LoadAssetFunction = CallLoadAssetNode->GetTargetFunction();
-		FDelegateProperty* OnLoadDelegateProperty = LoadAssetFunction ? FindField<FDelegateProperty>(LoadAssetFunction, DelegateOnLoadedParamName) : nullptr;
+		FDelegateProperty* OnLoadDelegateProperty = LoadAssetFunction ? FindFProperty<FDelegateProperty>(LoadAssetFunction, DelegateOnLoadedParamName) : nullptr;
 		UFunction* OnLoadedSignature = OnLoadDelegateProperty ? OnLoadDelegateProperty->SignatureFunction : nullptr;
 		ensure(OnLoadedSignature);
 		for (TFieldIterator<FProperty> PropIt(OnLoadedSignature); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)

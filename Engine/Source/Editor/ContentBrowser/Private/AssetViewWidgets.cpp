@@ -1259,7 +1259,7 @@ void SAssetViewItem::CacheDisplayTags()
 			continue;
 		}
 
-		FProperty* TagField = FindField<FProperty>(AssetClass, TagAndValuePair.Key);
+		FProperty* TagField = FindFProperty<FProperty>(AssetClass, TagAndValuePair.Key);
 
 		// Build the display name for this tag
 		FText DisplayName;

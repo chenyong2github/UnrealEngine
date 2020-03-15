@@ -195,7 +195,7 @@ template<> void FLiveLinkStructPropertyBindings::SetCurrentValueAt<bool>(int32 I
 FLiveLinkStructPropertyBindings::FPropertyWrapper FLiveLinkStructPropertyBindings::FindPropertyRecursive(const UScriptStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index, void* ContainerAddress, int32 PreviousDelta)
 {
 	FPropertyWrapper FoundProperty;
-	FoundProperty.Property = FindField<FProperty>(InStruct, *InPropertyNames[Index]);
+	FoundProperty.Property = FindFProperty<FProperty>(InStruct, *InPropertyNames[Index]);
 	FoundProperty.DeltaAddress = PreviousDelta;
 
 	if (FStructProperty* StructProp = CastField<FStructProperty>(FoundProperty.Property.Get()))

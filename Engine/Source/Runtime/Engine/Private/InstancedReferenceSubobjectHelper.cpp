@@ -10,7 +10,7 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 	auto GetProperty = [&CurrentContainerType, &PropChainRef](int32 ChainIndex)->FProperty*
 	{
 		const FProperty* SrcProperty = PropChainRef[ChainIndex].PropertyPtr;
-		return FindField<FProperty>(CurrentContainerType, SrcProperty->GetFName());
+		return FindFProperty<FProperty>(CurrentContainerType, SrcProperty->GetFName());
 	};
 
 	const FProperty* CurrentProp = GetProperty(0);

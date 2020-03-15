@@ -31,16 +31,16 @@ void FActorViewportTransformable::ApplyTransform( const FTransform& NewTransform
 				ExistingTransform.GetScale3D() == NewTransform.GetScale3D();
 			GEditor->BroadcastBeginObjectMovement(*Actor);
 			
-			FProperty* TransformProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
+			FProperty* TransformProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			if (!bOnlyTranslationChanged)
 			{
 				if (ExistingTransform.GetRotation() != NewTransform.GetRotation())
 				{
-					TransformProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName());
+					TransformProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName());
 				}
 				else if (ExistingTransform.GetScale3D() != NewTransform.GetScale3D())
 				{
-					TransformProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName());
+					TransformProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName());
 				}
 			}
 			

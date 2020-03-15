@@ -179,7 +179,7 @@ bool FStaticMeshEditorViewportClient::InputWidgetDelta( FViewport* InViewport, E
 				const FWidget::EWidgetMode MoveMode = GetWidgetMode();
 				if(MoveMode == FWidget::WM_Rotate)
 				{
-					ChangedProperty = FindField<FProperty>( UStaticMeshSocket::StaticClass(), "RelativeRotation" );
+					ChangedProperty = FindFProperty<FProperty>( UStaticMeshSocket::StaticClass(), "RelativeRotation" );
 					SelectedSocket->PreEditChange(ChangedProperty);
 
 					FRotator CurrentRot = SelectedSocket->RelativeRotation;
@@ -198,7 +198,7 @@ bool FStaticMeshEditorViewportClient::InputWidgetDelta( FViewport* InViewport, E
 				}
 				else if(MoveMode == FWidget::WM_Translate)
 				{
-					ChangedProperty = FindField<FProperty>( UStaticMeshSocket::StaticClass(), "RelativeLocation" );
+					ChangedProperty = FindFProperty<FProperty>( UStaticMeshSocket::StaticClass(), "RelativeLocation" );
 					SelectedSocket->PreEditChange(ChangedProperty);
 
 					//FRotationMatrix SocketRotTM( SelectedSocket->RelativeRotation );

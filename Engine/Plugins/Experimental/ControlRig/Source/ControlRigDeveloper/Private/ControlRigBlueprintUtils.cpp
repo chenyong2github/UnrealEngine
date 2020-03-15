@@ -42,7 +42,8 @@ FName FControlRigBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FSt
 
 	if (UClass* ParentClass = InBlueprint->ParentClass)
 	{
-		if (UField* ExisingField = FindField<UField>(ParentClass, *Name))
+		FFieldVariant ExistingField = FindUFieldOrFProperty(ParentClass, *Name);
+		if (ExistingField)
 		{
 			Name = FString::Printf(TEXT("%s_%d"), *Name, 0);
 		}

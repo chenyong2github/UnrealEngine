@@ -122,7 +122,7 @@ bool FMemberReference::IsSparseClassData(const UClass* OwningClass) const
 	UScriptStruct* SparseClassDataStruct = OwningClass ? OwningClass->GetSparseClassDataStruct() : nullptr;
 	if (SparseClassDataStruct)
 	{
-		FProperty* VariableProperty = FindField<FProperty>(SparseClassDataStruct, GetMemberName());
+		FProperty* VariableProperty = FindFProperty<FProperty>(SparseClassDataStruct, GetMemberName());
 		bIsSparseClassData = VariableProperty != nullptr;
 	}
 
@@ -282,7 +282,8 @@ TFieldType* FindRemappedFieldImpl(FName FieldClassOutermostName, FName FieldClas
 	FMemberReference::InitFieldRedirectMap();
 
 	// In the case of a bifurcation of a variable (e.g. moved from a parent into certain children), verify that we don't also define the variable in the current scope first
-	if (FindField<TFieldType>(InitialScope, InitialName) != nullptr)
+	FFieldVariant ExistingField = FindUFieldOrFProperty(InitialScope, InitialName);
+	if (ExistingField.Get<TFieldType>())
 	{
 		return nullptr;
 	}
@@ -326,7 +327,7 @@ TFieldType* FindRemappedFieldImpl(FName FieldClassOutermostName, FName FieldClas
 		if (NewFieldName != NAME_None)
 		{
 			// Find the actual field specified by the redirector, so we can return it and update the node that uses it
-			TFieldType* NewField = FindField<TFieldType>(SearchClass, NewFieldName);
+			TFieldType* NewField = FindUFieldOrFProperty(SearchClass, NewFieldName).Get<TFieldType>();
 			if (NewField != nullptr)
 			{
 				if (bInitialScopeMustBeOwnerOfField && !InitialScope->IsChildOf(SearchClass))

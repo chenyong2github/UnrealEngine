@@ -390,7 +390,7 @@ void UKismetArrayLibrary::GenericArray_SetArrayPropertyByName(UObject* OwnerObje
 {
 	if (OwnerObject != NULL)
 	{
-		FArrayProperty* ArrayProp = FindField<FArrayProperty>(OwnerObject->GetClass(), ArrayPropertyName);
+		FArrayProperty* ArrayProp = FindFProperty<FArrayProperty>(OwnerObject->GetClass(), ArrayPropertyName);
 		if (ArrayProp != NULL)
 		{
 			void* Dest = ArrayProp->ContainerPtrToValuePtr<void>(OwnerObject);

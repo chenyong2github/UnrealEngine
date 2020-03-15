@@ -848,7 +848,7 @@ void UKismetSystemLibrary::SetIntPropertyByName(UObject* Object, FName PropertyN
 {
 	if(Object != NULL)
 	{
-		FIntProperty* IntProp = FindField<FIntProperty>(Object->GetClass(), PropertyName);
+		FIntProperty* IntProp = FindFProperty<FIntProperty>(Object->GetClass(), PropertyName);
 		if(IntProp != NULL)
 		{
 			IntProp->SetPropertyValue_InContainer(Object, Value);
@@ -860,7 +860,7 @@ void UKismetSystemLibrary::SetInt64PropertyByName(UObject* Object, FName Propert
 {
 	if (Object != NULL)
 	{
-		FInt64Property* IntProp = FindField<FInt64Property>(Object->GetClass(), PropertyName);
+		FInt64Property* IntProp = FindFProperty<FInt64Property>(Object->GetClass(), PropertyName);
 		if (IntProp != NULL)
 		{
 			IntProp->SetPropertyValue_InContainer(Object, Value);
@@ -872,11 +872,11 @@ void UKismetSystemLibrary::SetBytePropertyByName(UObject* Object, FName Property
 {
 	if(Object != NULL)
 	{
-		if(FByteProperty* ByteProp = FindField<FByteProperty>(Object->GetClass(), PropertyName))
+		if(FByteProperty* ByteProp = FindFProperty<FByteProperty>(Object->GetClass(), PropertyName))
 		{
 			ByteProp->SetPropertyValue_InContainer(Object, Value);
 		}
-		else if(FEnumProperty* EnumProp = FindField<FEnumProperty>(Object->GetClass(), PropertyName))
+		else if(FEnumProperty* EnumProp = FindFProperty<FEnumProperty>(Object->GetClass(), PropertyName))
 		{
 			void* PropAddr = EnumProp->ContainerPtrToValuePtr<void>(Object);
 			FNumericProperty* UnderlyingProp = EnumProp->GetUnderlyingProperty();
@@ -889,7 +889,7 @@ void UKismetSystemLibrary::SetFloatPropertyByName(UObject* Object, FName Propert
 {
 	if(Object != NULL)
 	{
-		FFloatProperty* FloatProp = FindField<FFloatProperty>(Object->GetClass(), PropertyName);
+		FFloatProperty* FloatProp = FindFProperty<FFloatProperty>(Object->GetClass(), PropertyName);
 		if(FloatProp != NULL)
 		{
 			FloatProp->SetPropertyValue_InContainer(Object, Value);
@@ -901,7 +901,7 @@ void UKismetSystemLibrary::SetBoolPropertyByName(UObject* Object, FName Property
 {
 	if(Object != NULL)
 	{
-		FBoolProperty* BoolProp = FindField<FBoolProperty>(Object->GetClass(), PropertyName);
+		FBoolProperty* BoolProp = FindFProperty<FBoolProperty>(Object->GetClass(), PropertyName);
 		if(BoolProp != NULL)
 		{
 			BoolProp->SetPropertyValue_InContainer(Object, Value );
@@ -913,7 +913,7 @@ void UKismetSystemLibrary::SetObjectPropertyByName(UObject* Object, FName Proper
 {
 	if(Object != NULL && Value != NULL)
 	{
-		FObjectPropertyBase* ObjectProp = FindField<FObjectPropertyBase>(Object->GetClass(), PropertyName);
+		FObjectPropertyBase* ObjectProp = FindFProperty<FObjectPropertyBase>(Object->GetClass(), PropertyName);
 		if(ObjectProp != NULL && Value->IsA(ObjectProp->PropertyClass)) // check it's the right type
 		{
 			ObjectProp->SetObjectPropertyValue_InContainer(Object, Value);
@@ -925,7 +925,7 @@ void UKismetSystemLibrary::SetClassPropertyByName(UObject* Object, FName Propert
 {
 	if (Object && *Value)
 	{
-		FClassProperty* ClassProp = FindField<FClassProperty>(Object->GetClass(), PropertyName);
+		FClassProperty* ClassProp = FindFProperty<FClassProperty>(Object->GetClass(), PropertyName);
 		if (ClassProp != NULL && Value->IsChildOf(ClassProp->MetaClass)) // check it's the right type
 		{
 			ClassProp->SetObjectPropertyValue_InContainer(Object, *Value);
@@ -937,7 +937,7 @@ void UKismetSystemLibrary::SetInterfacePropertyByName(UObject* Object, FName Pro
 {
 	if (Object)
 	{
-		FInterfaceProperty* InterfaceProp = FindField<FInterfaceProperty>(Object->GetClass(), PropertyName);
+		FInterfaceProperty* InterfaceProp = FindFProperty<FInterfaceProperty>(Object->GetClass(), PropertyName);
 		if (InterfaceProp != NULL && Value.GetObject()->GetClass()->ImplementsInterface(InterfaceProp->InterfaceClass)) // check it's the right type
 		{
 			InterfaceProp->SetPropertyValue_InContainer(Object, Value);
@@ -949,7 +949,7 @@ void UKismetSystemLibrary::SetStringPropertyByName(UObject* Object, FName Proper
 {
 	if(Object != NULL)
 	{
-		FStrProperty* StringProp = FindField<FStrProperty>(Object->GetClass(), PropertyName);
+		FStrProperty* StringProp = FindFProperty<FStrProperty>(Object->GetClass(), PropertyName);
 		if(StringProp != NULL)
 		{
 			StringProp->SetPropertyValue_InContainer(Object, Value);
@@ -961,7 +961,7 @@ void UKismetSystemLibrary::SetNamePropertyByName(UObject* Object, FName Property
 {
 	if(Object != NULL)
 	{
-		FNameProperty* NameProp = FindField<FNameProperty>(Object->GetClass(), PropertyName);
+		FNameProperty* NameProp = FindFProperty<FNameProperty>(Object->GetClass(), PropertyName);
 		if(NameProp != NULL)
 		{
 			NameProp->SetPropertyValue_InContainer(Object, Value);
@@ -973,7 +973,7 @@ void UKismetSystemLibrary::SetSoftObjectPropertyByName(UObject* Object, FName Pr
 {
 	if (Object != NULL)
 	{
-		FSoftObjectProperty* ObjectProp = FindField<FSoftObjectProperty>(Object->GetClass(), PropertyName);
+		FSoftObjectProperty* ObjectProp = FindFProperty<FSoftObjectProperty>(Object->GetClass(), PropertyName);
 		const FSoftObjectPtr* SoftObjectPtr = (const FSoftObjectPtr*)(&Value);
 		ObjectProp->SetPropertyValue_InContainer(Object, *SoftObjectPtr);
 	}
@@ -983,7 +983,7 @@ void UKismetSystemLibrary::SetFieldPathPropertyByName(UObject* Object, FName Pro
 {
 	if (Object != NULL)
 	{
-		FFieldPathProperty* FieldProp = FindField<FFieldPathProperty>(Object->GetClass(), PropertyName);
+		FFieldPathProperty* FieldProp = FindFProperty<FFieldPathProperty>(Object->GetClass(), PropertyName);
 		const FFieldPath* FieldPathPtr = (const FFieldPath*)(&Value);
 		FieldProp->SetPropertyValue_InContainer(Object, *FieldPathPtr);
 	}
@@ -993,7 +993,7 @@ void UKismetSystemLibrary::SetSoftClassPropertyByName(UObject* Object, FName Pro
 {
 	if (Object != NULL)
 	{
-		FSoftClassProperty* ObjectProp = FindField<FSoftClassProperty>(Object->GetClass(), PropertyName);
+		FSoftClassProperty* ObjectProp = FindFProperty<FSoftClassProperty>(Object->GetClass(), PropertyName);
 		const FSoftObjectPtr* SoftObjectPtr = (const FSoftObjectPtr*)(&Value);
 		ObjectProp->SetPropertyValue_InContainer(Object, *SoftObjectPtr);
 	}
@@ -1119,7 +1119,7 @@ void UKismetSystemLibrary::SetTextPropertyByName(UObject* Object, FName Property
 {
 	if(Object != NULL)
 	{
-		FTextProperty* TextProp = FindField<FTextProperty>(Object->GetClass(), PropertyName);
+		FTextProperty* TextProp = FindFProperty<FTextProperty>(Object->GetClass(), PropertyName);
 		if(TextProp != NULL)
 		{
 			TextProp->SetPropertyValue_InContainer(Object, Value);
@@ -1132,7 +1132,7 @@ void UKismetSystemLibrary::SetVectorPropertyByName(UObject* Object, FName Proper
 	if(Object != NULL)
 	{
 		UScriptStruct* VectorStruct = TBaseStructure<FVector>::Get();
-		FStructProperty* VectorProp = FindField<FStructProperty>(Object->GetClass(), PropertyName);
+		FStructProperty* VectorProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
 		if(VectorProp != NULL && VectorProp->Struct == VectorStruct)
 		{
 			*VectorProp->ContainerPtrToValuePtr<FVector>(Object) = Value;
@@ -1145,7 +1145,7 @@ void UKismetSystemLibrary::SetRotatorPropertyByName(UObject* Object, FName Prope
 	if(Object != NULL)
 	{
 		UScriptStruct* RotatorStruct = TBaseStructure<FRotator>::Get();
-		FStructProperty* RotatorProp = FindField<FStructProperty>(Object->GetClass(), PropertyName);
+		FStructProperty* RotatorProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
 		if(RotatorProp != NULL && RotatorProp->Struct == RotatorStruct)
 		{
 			*RotatorProp->ContainerPtrToValuePtr<FRotator>(Object) = Value;
@@ -1158,7 +1158,7 @@ void UKismetSystemLibrary::SetLinearColorPropertyByName(UObject* Object, FName P
 	if(Object != NULL)
 	{
 		UScriptStruct* ColorStruct = TBaseStructure<FLinearColor>::Get();
-		FStructProperty* ColorProp = FindField<FStructProperty>(Object->GetClass(), PropertyName);
+		FStructProperty* ColorProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
 		if(ColorProp != NULL && ColorProp->Struct == ColorStruct)
 		{
 			*ColorProp->ContainerPtrToValuePtr<FLinearColor>(Object) = Value;
@@ -1171,7 +1171,7 @@ void UKismetSystemLibrary::SetTransformPropertyByName(UObject* Object, FName Pro
 	if(Object != NULL)
 	{
 		UScriptStruct* TransformStruct = TBaseStructure<FTransform>::Get();
-		FStructProperty* TransformProp = FindField<FStructProperty>(Object->GetClass(), PropertyName);
+		FStructProperty* TransformProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
 		if(TransformProp != NULL && TransformProp->Struct == TransformStruct)
 		{
 			*TransformProp->ContainerPtrToValuePtr<FTransform>(Object) = Value;
@@ -1189,7 +1189,7 @@ void UKismetSystemLibrary::Generic_SetStructurePropertyByName(UObject* OwnerObje
 {
 	if (OwnerObject != NULL)
 	{
-		FStructProperty* StructProp = FindField<FStructProperty>(OwnerObject->GetClass(), StructPropertyName);
+		FStructProperty* StructProp = FindFProperty<FStructProperty>(OwnerObject->GetClass(), StructPropertyName);
 		if (StructProp != NULL)
 		{
 			void* Dest = StructProp->ContainerPtrToValuePtr<void>(OwnerObject);

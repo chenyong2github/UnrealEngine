@@ -233,7 +233,7 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 			{
 				if (VecEntry.VectorProperty == NULL)
 				{
-					VecEntry.VectorProperty = FindField<FStructProperty>(PropSetObject->GetClass(), VecEntry.VectorPropertyName);
+					VecEntry.VectorProperty = FindFProperty<FStructProperty>(PropSetObject->GetClass(), VecEntry.VectorPropertyName);
 					if(VecEntry.VectorProperty == NULL)
 					{
 						UE_LOG(LogTimeline, Log, TEXT("SetPlaybackPosition: No vector property '%s' in '%s'"), *VecEntry.VectorPropertyName.ToString(), *PropSetObject->GetName());
@@ -267,7 +267,7 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 			{
 				if (FloatEntry.FloatProperty == NULL)
 				{
-					FloatEntry.FloatProperty = FindField<FFloatProperty>(PropSetObject->GetClass(), FloatEntry.FloatPropertyName);
+					FloatEntry.FloatProperty = FindFProperty<FFloatProperty>(PropSetObject->GetClass(), FloatEntry.FloatPropertyName);
 					if(FloatEntry.FloatProperty == NULL)
 					{
 						UE_LOG(LogTimeline, Log, TEXT("SetPlaybackPosition: No float property '%s' in '%s'"), *FloatEntry.FloatPropertyName.ToString(), *PropSetObject->GetName());
@@ -301,7 +301,7 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 			{
 				if (ColorEntry.LinearColorProperty == NULL)
 				{
-					ColorEntry.LinearColorProperty = FindField<FStructProperty>(PropSetObject->GetClass(), ColorEntry.LinearColorPropertyName);
+					ColorEntry.LinearColorProperty = FindFProperty<FStructProperty>(PropSetObject->GetClass(), ColorEntry.LinearColorPropertyName);
 					if(ColorEntry.LinearColorProperty == NULL)
 					{
 						UE_LOG(LogTimeline, Log, TEXT("SetPlaybackPosition: No linear color property '%s' in '%s'"), *ColorEntry.LinearColorPropertyName.ToString(), *PropSetObject->GetName());
@@ -324,10 +324,10 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 		{
 			if (DirectionProperty == nullptr)
 			{
-				DirectionProperty = FindField<FByteProperty>(PropSetObject->GetClass(), DirectionPropertyName);
+				DirectionProperty = FindFProperty<FByteProperty>(PropSetObject->GetClass(), DirectionPropertyName);
 				if (DirectionProperty == nullptr)
 				{
-					DirectionProperty = FindField<FEnumProperty>(PropSetObject->GetClass(), DirectionPropertyName);
+					DirectionProperty = FindFProperty<FEnumProperty>(PropSetObject->GetClass(), DirectionPropertyName);
 				}
 
 				if (DirectionProperty == nullptr)

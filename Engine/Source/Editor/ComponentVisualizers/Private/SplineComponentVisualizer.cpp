@@ -163,7 +163,7 @@ FSplineComponentVisualizer::FSplineComponentVisualizer()
 
 	SplineComponentVisualizerActions = MakeShareable(new FUICommandList);
 
-	SplineCurvesProperty = FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
+	SplineCurvesProperty = FindFProperty<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
 }
 
 void FSplineComponentVisualizer::OnRegister()
@@ -2361,7 +2361,7 @@ void FSplineComponentVisualizer::OnSetVisualizeRollAndScale()
 
 	SplineComp->bShouldVisualizeScale = !SplineComp->bShouldVisualizeScale;
 
-	NotifyPropertyModified(SplineComp, FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, bShouldVisualizeScale)));
+	NotifyPropertyModified(SplineComp, FindFProperty<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, bShouldVisualizeScale)));
 
 	GEditor->RedrawLevelEditingViewports(true);
 }
@@ -2399,7 +2399,7 @@ void FSplineComponentVisualizer::OnSetDiscontinuousSpline()
 
 	TArray<FProperty*> Properties;
 	Properties.Add(SplineCurvesProperty);
-	Properties.Add(FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, bAllowDiscontinuousSpline)));
+	Properties.Add(FindFProperty<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, bAllowDiscontinuousSpline)));
 	NotifyPropertiesModified(SplineComp, Properties);
 
 	GEditor->RedrawLevelEditingViewports(true);
