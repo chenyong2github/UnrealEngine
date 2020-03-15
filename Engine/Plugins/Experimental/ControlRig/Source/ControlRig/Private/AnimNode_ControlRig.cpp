@@ -303,7 +303,7 @@ void FAnimNode_ControlRig::InitializeProperties(const UObject* InSourceInstance,
 		FName& SourceName = SourcePropertyNames[Idx];
 		UClass* SourceClass = InSourceInstance->GetClass();
 
-		FProperty* SourceProperty = FindField<FProperty>(SourceClass, SourceName);
+		FProperty* SourceProperty = FindFProperty<FProperty>(SourceClass, SourceName);
 		SourceProperties.Add(SourceProperty);
 		DestProperties.Add(nullptr);
 	}
