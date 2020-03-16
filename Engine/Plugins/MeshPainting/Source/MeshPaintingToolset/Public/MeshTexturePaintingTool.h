@@ -118,6 +118,7 @@ public:
 	virtual void OnEndDrag(const FRay& Ray) override;
 	virtual	bool HitTest(const FRay& Ray, FHitResult& OutHit) override;
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	virtual double EstimateMaximumTargetDimension() override;
 	virtual bool IsPainting() const
 	{
 		return bArePainting;

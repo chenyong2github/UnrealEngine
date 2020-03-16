@@ -195,12 +195,13 @@ public:
 	{
 		return bArePainting;
 	}
-
+	virtual double EstimateMaximumTargetDimension() override;
 
 	FSimpleDelegate OnPaintingFinished()
 	{
 		return OnPaintingFinishedDelegate;
 	}
+
 
 protected:
 	virtual void SetAdditionalPaintParameters(FMeshPaintParameters& InPaintParameters) {};
