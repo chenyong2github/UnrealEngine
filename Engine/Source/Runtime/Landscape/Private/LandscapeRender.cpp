@@ -807,6 +807,16 @@ void FLandscapeRenderSystem::ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewSize
 
 void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 {
+	const int32 NumSceneProxies = SceneProxies.Num();
+	SectionCurrentFirstLODIndices.Empty(NumSceneProxies);
+	SectionCurrentFirstLODIndices.AddUninitialized(NumSceneProxies);
+
+	for (int32 Idx = 0; Idx < NumSceneProxies; ++Idx)
+	{
+		const FLandscapeComponentSceneProxy* Proxy = SceneProxies[Idx];
+		SectionCurrentFirstLODIndices[Idx] = Proxy ? Proxy->GetCurrentFirstLODIdx_RenderThread() : 0;
+	}
+	
 	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
 		&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
 
@@ -884,8 +894,9 @@ void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
 		float FractionalLOD;
 		GetLODFromScreenSize(SectionLODSettings[EntityIndex], MeshScreenSizeSquared, LODScale * LODScale, FractionalLOD);
 
+		const float CurFirstLODIdx = (float)SectionCurrentFirstLODIndices[EntityIndex];
 		int32 ForcedLODLevel = FMath::Min<int32>(ViewLODOverride, SectionLODSettings[EntityIndex].LastLODIndex);
-		NewSectionLODValues[EntityIndex] = ForcedLODLevel >= 0 ? ForcedLODLevel : FractionalLOD;
+		NewSectionLODValues[EntityIndex] = FMath::Max(ForcedLODLevel >= 0 ? ForcedLODLevel : FractionalLOD, CurFirstLODIdx);
 
 		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
 		{
@@ -1768,7 +1779,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 #if WITH_EDITOR
 		(IsSelected() && !GLandscapeEditModeActive) ||
 		(GLandscapeViewMode != ELandscapeViewMode::Normal) ||
-		(CVarLandscapeShowDirty.GetValueOnRenderThread() && GLandscapeDirtyMaterial) ||
+		(CVarLandscapeShowDirty.GetValueOnAnyThread() && GLandscapeDirtyMaterial) ||
 		(View->Family->LandscapeLODOverride >= 0) ||
 #else
 		IsSelected() ||
@@ -3254,7 +3265,9 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 
 			const float LODScale = View->LODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
 			const float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *View);
-			const int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
+			int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
+
+			LODToRender = FMath::Max<int32>(LODToRender, GetCurrentFirstLODIdx_RenderThread());
 
 			FMeshBatch& Mesh = Collector.AllocateMesh();
 			GetStaticMeshElement(LODToRender, false, ForcedLODLevel >= 0, Mesh, ParameterArray.ElementParams);
@@ -5153,6 +5166,14 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 		}
 	}
 #endif
+
+	if (IsStreamingRenderAsset(LODStreamingProxy))
+	{
+		const float MeshTexelFactor = ForcedLOD >= 0 ?
+			-FMath::Max(LODStreamingProxy->GetNumMipsForStreaming() - ForcedLOD, 1) :
+			(IsRegistered() ? Bounds.SphereRadius * 2.f : 0.f);
+		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(LODStreamingProxy, Bounds, MeshTexelFactor, PackedRelativeBox_Identity, true);
+	}
 }
 
 void ALandscapeProxy::ChangeTessellationComponentScreenSize(float InTessellationComponentScreenSize)

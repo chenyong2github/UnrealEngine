@@ -98,8 +98,14 @@ struct FCompareRenderAssetByRetentionPriority // Bigger retention priority first
 	{
 		const int32 PrioA = StreamingRenderAssets[IndexA].RetentionPriority;
 		const int32 PrioB = StreamingRenderAssets[IndexB].RetentionPriority;
-		if ( PrioA > PrioB )  return true;
-		if ( PrioA == PrioB ) return IndexA > IndexB;  // Sorting by index so that it gets deterministic.
+		if (PrioA > PrioB)  return true;
+		if (PrioA == PrioB)
+		{
+			const float SSA = StreamingRenderAssets[IndexA].NormalizedScreenSize;
+			const float SSB = StreamingRenderAssets[IndexB].NormalizedScreenSize;
+			if (SSA > SSB) return true;
+			if (SSA == SSB) return IndexA > IndexB;  // Sorting by index so that it gets deterministic.
+		}
 		return false;
 	}
 };
@@ -131,6 +137,7 @@ public:
 	{
 		Reset(0, 0, 0, 0, 0);
 		MemoryBudget = 0;
+		MeshMemoryBudget = 0;
 		PerfectWantedMipsBudgetResetThresold = 0;
 	}
 
@@ -178,6 +185,12 @@ private:
 
 	friend class FAsyncTask<FRenderAssetStreamingMipCalcTask>;
 
+	void TryDropMaxResolutions(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget);
+
+	void TryDropMips(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget);
+
+	void TryKeepMips(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget);
+
 	void UpdateBudgetedMips_Async(int64& OutMemoryUsed, int64& OutTempMemoryUsed);
 
 	void UpdateLoadAndCancelationRequests_Async(int64 MemoryUsed, int64 TempMemoryUsed);
@@ -223,6 +236,9 @@ private:
 
 	/** How much memory is available for textures/meshes. */
 	int64 MemoryBudget;
+
+	/** How much memory is available for meshes if a separate pool is used. */
+	int64 MeshMemoryBudget;
 
 	/**
 	 * The value of all required mips (without memory constraint) used to trigger a budget reset. 

@@ -39,6 +39,7 @@ struct FStreamingRenderAsset
 		AT_Texture,
 		AT_StaticMesh,
 		AT_SkeletalMesh,
+		AT_LandscapeMeshMobile,
 		AT_Num
 	};
 
@@ -94,7 +95,7 @@ struct FStreamingRenderAsset
 
 	static float GetExtraBoost(TextureGroup	LODGroup, const FRenderAssetStreamingSettings& Settings);
 
-	int32 GetWantedMipsFromSize(float Size, float MaxScreenSizeOverAllViews) const;
+	int32 GetWantedMipsFromSize(float Size, float InvMaxScreenSizeOverAllViews) const;
 
 	/** Set the wanted mips from the async task data */
 	void SetPerfectWantedMips_Async(
@@ -264,6 +265,8 @@ struct FStreamingRenderAsset
 	int32			HiddenWantedMips;
 	/** (4) Retention priority used to sacrifice mips when out of budget. */
 	int32			RetentionPriority;
+	/** (4) Normalized screen size. Only used by meshes. */
+	float			NormalizedScreenSize;
 	/** (4) The max allowed mips (based on Visible and Hidden wanted mips) in order to fit in budget. */
 	int32			BudgetedMips;
 	/** (4) The load request priority. */
