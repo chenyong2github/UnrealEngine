@@ -807,6 +807,7 @@ void FLandscapeRenderSystem::ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewSize
 
 void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 {
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
 	const int32 NumSceneProxies = SceneProxies.Num();
 	SectionCurrentFirstLODIndices.Empty(NumSceneProxies);
 	SectionCurrentFirstLODIndices.AddUninitialized(NumSceneProxies);
@@ -816,6 +817,7 @@ void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 		const FLandscapeComponentSceneProxy* Proxy = SceneProxies[Idx];
 		SectionCurrentFirstLODIndices[Idx] = Proxy ? Proxy->GetCurrentFirstLODIdx_RenderThread() : 0;
 	}
+#endif
 	
 	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
 		&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
@@ -894,7 +896,11 @@ void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
 		float FractionalLOD;
 		GetLODFromScreenSize(SectionLODSettings[EntityIndex], MeshScreenSizeSquared, LODScale * LODScale, FractionalLOD);
 
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
 		const float CurFirstLODIdx = (float)SectionCurrentFirstLODIndices[EntityIndex];
+#else
+		constexpr float CurFirstLODIdx = 0.f;
+#endif
 		int32 ForcedLODLevel = FMath::Min<int32>(ViewLODOverride, SectionLODSettings[EntityIndex].LastLODIndex);
 		NewSectionLODValues[EntityIndex] = FMath::Max(ForcedLODLevel >= 0 ? ForcedLODLevel : FractionalLOD, CurFirstLODIdx);
 
@@ -3267,8 +3273,9 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			const float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *View);
 			int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
 
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
 			LODToRender = FMath::Max<int32>(LODToRender, GetCurrentFirstLODIdx_RenderThread());
-
+#endif
 			FMeshBatch& Mesh = Collector.AllocateMesh();
 			GetStaticMeshElement(LODToRender, false, ForcedLODLevel >= 0, Mesh, ParameterArray.ElementParams);
 

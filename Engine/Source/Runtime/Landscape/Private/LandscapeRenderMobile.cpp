@@ -550,8 +550,10 @@ void FLandscapeComponentSceneProxyMobile::ApplyMeshElementModifier(FMeshBatchEle
 	}
 }
 
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
 uint8 FLandscapeComponentSceneProxyMobile::GetCurrentFirstLODIdx_RenderThread() const
 {
 	check(MobileRenderData.IsValid());
 	return MobileRenderData->CurrentFirstLODIdx;
 }
+#endif

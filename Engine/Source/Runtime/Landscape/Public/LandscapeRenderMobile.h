@@ -145,7 +145,9 @@ public:
 
 	virtual void ApplyMeshElementModifier(FMeshBatchElement& InOutMeshElement, int32 InLodIndex) const override;
 
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const override;
+#endif
 };
 
 
