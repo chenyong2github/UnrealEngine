@@ -1243,7 +1243,6 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 				Initializer.Segments = GeometrySections;
 
 				RayTracingGeometry.SetInitializer(Initializer);
-				RayTracingGeometry.InitResource();
 			}
 		);
 	}
@@ -1553,6 +1552,25 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 			INC_DWORD_STAT_BY(STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes());
 		}
 	}
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		ENQUEUE_RENDER_COMMAND(InitRayTracingGeometryForInlinedLODs)(
+			[this](FRHICommandListImmediate&)
+			{
+				for (int32 LODIndex = CurrentFirstLODIdx; LODIndex < LODResources.Num(); ++LODIndex)
+				{
+					// Skip LODs that have their render data stripped
+					if (LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
+					{
+						LODResources[LODIndex].RayTracingGeometry.InitResource();
+					}
+				}
+			}
+		);
+	}
+#endif
 
 	ENQUEUE_RENDER_COMMAND(CmdSetStaticMeshReadyForStreaming)(
 		[this, Owner](FRHICommandListImmediate&)
