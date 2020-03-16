@@ -1427,6 +1427,19 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		return -1;
 	}
 
+	// Avoiding potential exploits by not exposing command line overrides in the shipping games.
+#if !UE_BUILD_SHIPPING && WITH_EDITORONLY_DATA
+	// Retrieve additional command line arguments from environment variable.
+	FString Env = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-CmdLineArgs")).TrimStart();
+	if (Env.Len())
+	{
+		// Append the command line environment after inserting a space as we can't set it in the
+		// environment.
+		FCommandLine::Append(TEXT(" -EnvAfterHere "));
+		FCommandLine::Append(*Env);
+	}
+#endif
+
 	// Initialize trace
 	{
 		SCOPED_BOOT_TIMING("InitTrace")
@@ -5287,19 +5300,7 @@ bool FEngineLoop::AppInit( )
 		BeginInitTextLocalization();
 	}
 
-	// Avoiding potential exploits by not exposing command line overrides in the shipping games.
-#if !UE_BUILD_SHIPPING && WITH_EDITORONLY_DATA
-	// Retrieve additional command line arguments from environment variable.
-	FString Env = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-CmdLineArgs")).TrimStart();
-	if (Env.Len())
-	{
-		// Append the command line environment after inserting a space as we can't set it in the
-		// environment. Note that any code accessing GCmdLine before appInit obviously won't
-		// respect the command line environment additions.
-		FCommandLine::Append(TEXT(" -EnvAfterHere "));
-		FCommandLine::Append(*Env);
-	}
-#endif
+
 
 	// Error history.
 	FCString::Strcpy(GErrorHist, TEXT("Fatal error!" LINE_TERMINATOR LINE_TERMINATOR));
