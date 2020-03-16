@@ -184,12 +184,6 @@ FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool b
 	// Force the SceneHandling to be on current level by default.
 	// Note: This is done because this option was previously persisted and can get overwritten
 	Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
-
-	SetFileName(FileName);
-}
-
-void FDatasmithImportContext::SetFileName(const FString& FileName)
-{
 	Options->FileName = FPaths::GetCleanFilename(FileName);
 	Options->FilePath = FPaths::ConvertRelativePathToFull(FileName);
 
@@ -228,14 +222,21 @@ TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogInfo(const FText& InIn
 	return Logger.Push(EMessageSeverity::Info, InInfoMessage);
 }
 
-bool FDatasmithImportContext::Init(const FString& InFileName, TSharedRef< IDatasmithScene > InScene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
-{
-	SetFileName(InFileName);
-	return Init(InScene, InImportPath, InFlags, InWarn, ImportSettingsJson, bSilent);
-}
-
 bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
 {
+	return InitOptions(InScene, ImportSettingsJson, bSilent)
+		&& SetupDestination(InImportPath, InFlags, InWarn, bSilent);
+}
+
+bool FDatasmithImportContext::InitOptions(TSharedRef< IDatasmithScene > InScene, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
+{
+	if (!FModuleManager::Get().IsModuleLoaded("AssetTools"))
+	{
+		UE_LOG(LogDatasmithImport, Warning, TEXT("Import failed. The AssetTools module can't be loaded."));
+		return false;
+	}
+	Scene = InScene;
+
 	check(Options->FileName.Len() > 0);
 	check(Options->FilePath.Len() > 0);
 
@@ -247,14 +248,6 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 	{
 		ImportOptions.Add(AdditionalOption.Get());
 	}
-
-	if (!FModuleManager::Get().IsModuleLoaded("AssetTools"))
-	{
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Import failed. The AssetTools module can't be loaded."));
-		return false;
-	}
-
-	Options->BaseOptions.AssetOptions.PackagePath = FName( *InImportPath );
 
 	if (bSilent)
 	{
@@ -268,11 +261,11 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 	{
 		SetupBaseOptionsVisibility();
 
-		bool bShouldImport = FDatasmithImportOptionHelper::DisplayOptionsDialog(ImportOptions, InScene);
+		bool bShouldImport = FDatasmithImportOptionHelper::DisplayOptionsDialog(ImportOptions, Scene.ToSharedRef());
 
 		ResetBaseOptionsVisibility();
 
-		if ( !bShouldImport )
+		if (!bShouldImport)
 		{
 			FDatasmithImportOptionHelper::CleanUpOptions(ImportOptions);
 			UE_LOG(LogDatasmithImport, Display, TEXT("Import canceled."));
@@ -288,16 +281,27 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 
 	if (SceneTranslator)
 	{
- 		AdditionalImportOptions.Push(Options);
+		AdditionalImportOptions.Push(Options);
 		SceneTranslator->SetSceneImportOptions(AdditionalImportOptions);
- 		AdditionalImportOptions.Pop();
+		AdditionalImportOptions.Pop();
 	}
 
-	Options->UpdateNotDisplayedConfig( bIsAReimport );
+	Options->UpdateNotDisplayedConfig(bIsAReimport);
 
 	FDatasmithImportOptionHelper::CleanUpOptions(ImportOptions);
+	return true;
+}
 
-	if ( !ActorsContext.ImportWorld )
+bool FDatasmithImportContext::SetupDestination(const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, bool bSilent)
+{
+	if (!Scene.IsValid())
+	{
+		return false;
+	}
+
+	Options->BaseOptions.AssetOptions.PackagePath = FName(*InImportPath);
+
+	if (!ActorsContext.ImportWorld)
 	{
 		// User is asking to import model in a new level
 		// Check to see if there is nothing to save and act according to user's selection
@@ -337,7 +341,6 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 	}
 
 	FeedbackContext = InWarn;
-	Scene = InScene;
 
 	// Initialize the filtered scene as a copy of the original scene. We will use it to then filter out items to import.
 	FilteredScene = FDatasmithSceneFactory::DuplicateScene(Scene.ToSharedRef());
@@ -349,7 +352,7 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 
 	bool bResult = AssetsContext.Init();
 
-	if ( ShouldImportActors() )
+	if (ShouldImportActors())
 	{
 		bResult = bResult && ActorsContext.Init();
 	}
