@@ -331,6 +331,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 
 	Payload.BlendingMode = MaterialBlendingMode;
 
+	Payload.HitT = RayTCurrent();
 	if (HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)
 	{
 		Payload.SetFrontFace();
