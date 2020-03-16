@@ -120,6 +120,7 @@ TEST(SerializationTests, Serialization) {
 TEST(BroadphaseTests, Broadphase) {
 	ChaosTest::BPPerfTest<float>();
 	ChaosTest::TestPendingSpatialDataHandlePointerConflict();
+	//ChaosTest::SpatialAccelerationDirtyAndGlobalQueryStrestTest<float>();
 	SUCCEED();
 }
 
