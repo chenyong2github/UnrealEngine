@@ -234,7 +234,7 @@ bool UNiagaraNodeCustomHlsl::VerifyEditablePinName(const FText& InName, FText& O
 	return true;
 }
 
-bool UNiagaraNodeCustomHlsl::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj)
+bool UNiagaraNodeCustomHlsl::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents)
 {
 	if (Pins.Contains(InGraphPinObj))
 	{
@@ -244,7 +244,8 @@ bool UNiagaraNodeCustomHlsl::CommitEditablePinName(const FText& InName, UEdGraph
 
 		FString OldPinName = InGraphPinObj->PinName.ToString();
 		InGraphPinObj->PinName = *InName.ToString();
-		OnPinRenamed(InGraphPinObj, OldPinName);
+		if (bSuppressEvents == false)
+			OnPinRenamed(InGraphPinObj, OldPinName);
 
 		return true;
 	}

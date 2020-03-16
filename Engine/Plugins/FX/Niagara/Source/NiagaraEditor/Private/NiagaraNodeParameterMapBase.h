@@ -41,6 +41,9 @@ public:
 	void SetPinName(UEdGraphPin* InPin, const FName& InName);
 
 	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
+
+	virtual bool CanRenamePinFromContextMenu(const UEdGraphPin* Pin) const { return false; }
+
 protected:
 	virtual void SelectParameterFromPin(UEdGraphPin* InPin);
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;

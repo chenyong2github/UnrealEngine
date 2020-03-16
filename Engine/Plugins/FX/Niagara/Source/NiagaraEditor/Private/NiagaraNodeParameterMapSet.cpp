@@ -13,6 +13,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraph/EdGraphNode.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraConstants.h"
 
 #include "ScopedTransaction.h"
 #include "SNiagaraGraphParameterMapSetNode.h"
@@ -56,6 +57,7 @@ bool UNiagaraNodeParameterMapSet::IsPinNameEditableUponCreation(const UEdGraphPi
 {
 	if (GraphPinObj == PinPendingRename)
 	{
+
 		return true;
 	}
 	else
@@ -141,7 +143,13 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 		NewPin->PersistentGuid = FGuid::NewGuid();
 	}
 
-	PinPendingRename = NewPin;
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	FNiagaraVariable Var = Schema->PinToNiagaraVariable(NewPin);
+	if (!FNiagaraConstants::IsNiagaraConstant(Var))
+		PinPendingRename = NewPin;
+	else
+		PinPendingRename = nullptr;
+	
 }
 
 void UNiagaraNodeParameterMapSet::OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName)
@@ -159,17 +167,27 @@ bool UNiagaraNodeParameterMapSet::CancelEditablePinName(const FText& InName, UEd
 	return true;
 }
 
-bool UNiagaraNodeParameterMapSet::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) 
+bool UNiagaraNodeParameterMapSet::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents)
 {
 	if (Pins.Contains(InGraphPinObj))
 	{
+		
+		FString OldPinName = InGraphPinObj->PinName.ToString();
+		FString NewPinName = InName.ToString();
+
+		// Early out if the same!
+		if (OldPinName == NewPinName)
+		{
+			return true;
+		}
+
 		FScopedTransaction AddNewPinTransaction(LOCTEXT("Rename Pin", "Renamed pin"));
 		Modify();
 		InGraphPinObj->Modify();
-		
-		FString OldPinName = InGraphPinObj->PinName.ToString();
-		InGraphPinObj->PinName = *InName.ToString();
-		OnPinRenamed(InGraphPinObj, OldPinName);
+
+		InGraphPinObj->PinName = *NewPinName;
+		if (bSuppressEvents == false)	
+			OnPinRenamed(InGraphPinObj, OldPinName);
 
 		return true;
 	}

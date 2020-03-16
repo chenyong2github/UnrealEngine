@@ -51,7 +51,7 @@ protected:
 	virtual bool VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const override;
 	virtual bool IsPinNameEditableUponCreation(const UEdGraphPin* Pin) const override;
 	virtual bool IsPinNameEditable(const UEdGraphPin* Pin) const override;
-	virtual bool CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) override;
+	virtual bool CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents = false) override;
 	virtual bool CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) override;
 	
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override { return UNiagaraNodeWithDynamicPins::CanRenamePin(Pin); }
