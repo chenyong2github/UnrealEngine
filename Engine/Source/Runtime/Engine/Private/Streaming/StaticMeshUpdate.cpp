@@ -226,6 +226,22 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 				IntermediateBuffersArray[LODIdx].TransferBuffers(LODResource, Batcher);
 			}
 		}
+
+#if RHI_RAYTRACING
+		// Must happen after the batched updates have been flushed
+		if (IsRayTracingEnabled())
+		{
+			for (int32 LODIndex = PendingFirstMip; LODIndex < CurrentFirstLODIdx; ++LODIndex)
+			{
+				// Skip LODs that have their render data stripped
+				if (RenderData->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
+				{
+					RenderData->LODResources[LODIndex].RayTracingGeometry.InitResource();
+				}
+			}
+		}
+#endif
+
 		check(Mesh->GetCachedNumResidentLODs() == RenderData->LODResources.Num() - RenderData->CurrentFirstLODIdx);
 		RenderData->CurrentFirstLODIdx = PendingFirstMip;
 		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - PendingFirstMip));
@@ -289,6 +305,13 @@ void FStaticMeshStreamOut::DoReleaseBuffers(const FContext& Context)
 				LODResource.AdditionalIndexBuffers->WireframeIndexBuffer.ReleaseRHIForStreaming(Batcher);
 				LODResource.AdditionalIndexBuffers->AdjacencyIndexBuffer.ReleaseRHIForStreaming(Batcher);
 			}
+
+#if RHI_RAYTRACING
+			if (IsRayTracingEnabled())
+			{
+				LODResource.RayTracingGeometry.ReleaseResource();
+			}
+#endif
 		}
 	}
 }
