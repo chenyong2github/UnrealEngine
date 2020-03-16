@@ -4,15 +4,15 @@
 
 #include "Engine/DeveloperSettings.h"
 #include "Engine/EngineTypes.h"
-#include "AssetSearchDeveloperSettings.generated.h"
+#include "SearchProjectSettings.generated.h"
 
-UCLASS(config = Editor, defaultconfig, meta=(DisplayName="Asset Search"))
-class UAssetSearchDeveloperSettings : public UDeveloperSettings
+UCLASS(config = Editor, defaultconfig, meta=(DisplayName="Search"))
+class USearchProjectSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
-	UAssetSearchDeveloperSettings();
+	USearchProjectSettings();
 
 	UPROPERTY(config, EditAnywhere, Category=General)
 	TArray<FDirectoryPath> IgnoredPaths;
