@@ -30,6 +30,7 @@ struct FPreloadFileRegistry
 FPreLoadFile::FPreLoadFile(const TCHAR* InPath)
 	: FDelayedAutoRegisterHelper(STATS ? EDelayedRegisterRunPhase::StatSystemReady : EDelayedRegisterRunPhase::FileSystemReady, [this] { bSystemNoLongerTakingRequests = false; KickOffRead(); })
 	, bIsComplete(false)
+	, bFailedToOpenInKickOff(false)
 	, Data(nullptr)
 	, FileSize(0)
 	, Path(InPath)
@@ -58,7 +59,7 @@ void FPreLoadFile::KickOffRead()
 	FAsyncFileCallBack SizeCallbackFunction = [this](bool bWasCancelled, IAsyncReadRequest* SizeRequest)
 	{
 		FileSize = (int32)SizeRequest->GetSizeResults();
-//		printf("Preloading %s, size = %d\n", TCHAR_TO_ANSI(*Path), FileSize);
+
 		if (FileSize > 0)
 		{
 			FAsyncFileCallBack ReadCallbackFunction = [this](bool bWasCancelledInner, IAsyncReadRequest* ReadRequest)
@@ -90,6 +91,12 @@ void FPreLoadFile::KickOffRead()
 		Reader->Serialize(Data, FileSize);
 		delete Reader;
 	}
+	else
+	{
+		// it's possible pak files with the file weren't mounted yet, so note that we didn't find it, and try again in TakeOwnership time
+		bFailedToOpenInKickOff = true;
+
+	}
 	CompletionEvent->Trigger();
 #endif
 }	
@@ -97,17 +104,15 @@ void FPreLoadFile::KickOffRead()
 
 void* FPreLoadFile::TakeOwnershipOfLoadedData(int64* OutFileSize)
 {
-	if (!CompletionEvent)
+	// may need to attempt to read again, if (re-)requesting data after the initial boot sequence
+	if (!CompletionEvent || bFailedToOpenInKickOff)
 	{
-		// may need to read again, if (re-)requesting data after the initial boot sequence
 		KickOffRead();
 	}
 
 	check(CompletionEvent);
 	if (CompletionEvent->Wait(0) == false)
 	{
-		printf("PreLoadFile %s wasn't ready...\n", TCHAR_TO_ANSI(*Path));
-
 		// wait until we are done
 		CompletionEvent->Wait();
 	}
@@ -119,6 +124,8 @@ void* FPreLoadFile::TakeOwnershipOfLoadedData(int64* OutFileSize)
 	{
 		*OutFileSize = FileSize;
 	}
+
+	checkf(Data != nullptr, TEXT("Failed to find/open/read PreLoaded file %s"), *Path);
 
 	void* ReturnData = Data;
 	Data = nullptr;
