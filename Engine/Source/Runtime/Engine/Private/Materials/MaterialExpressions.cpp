@@ -12658,21 +12658,53 @@ void FMaterialLayersFunctions::MoveBlendedLayer(int32 SrcLayerIndex, int32 DstLa
 		RestrictToBlendRelatives.Swap(SrcLayerIndex - 1, DstLayerIndex - 1);
 		LayerGuids.Swap(SrcLayerIndex, DstLayerIndex);
 		// Disconnect layers from parent when they're moved at the instance level
-		if (ParentLayerGuids[SrcLayerIndex] != NoParentGuid)
-		{
-			check(ParentLayerGuids[SrcLayerIndex] != UninitializedParentGuid);
-			DeletedParentLayerGuids.Add(ParentLayerGuids[SrcLayerIndex]);
-			ParentLayerGuids[SrcLayerIndex] = NoParentGuid;
-		}
-		if (ParentLayerGuids[DstLayerIndex] != NoParentGuid)
-		{
-			check(ParentLayerGuids[DstLayerIndex] != UninitializedParentGuid);
-			DeletedParentLayerGuids.Add(ParentLayerGuids[DstLayerIndex]);
-			ParentLayerGuids[DstLayerIndex] = NoParentGuid;
-		}
+		UnlinkLayerFromParent(SrcLayerIndex);
+		UnlinkLayerFromParent(DstLayerIndex);
 #endif //WITH_EDITOR
 	}
 }
+
+#if WITH_EDITOR
+void FMaterialLayersFunctions::UnlinkLayerFromParent(int32 Index)
+{
+	check(Index > 0);
+	if (ParentLayerGuids[Index] != NoParentGuid)
+	{
+		check(ParentLayerGuids[Index] != UninitializedParentGuid);
+		DeletedParentLayerGuids.Add(ParentLayerGuids[Index]);
+		ParentLayerGuids[Index] = NoParentGuid;
+	}
+}
+
+bool FMaterialLayersFunctions::IsLayerLinkedToParent(int32 Index) const
+{
+	if (Index > 0 && Index < ParentLayerGuids.Num())
+	{
+		const FGuid ParentGuid = ParentLayerGuids[Index];
+		check(ParentGuid != BackgroundGuid);
+		return ParentGuid != UninitializedParentGuid && ParentGuid != NoParentGuid;
+	}
+	return false;
+}
+
+void FMaterialLayersFunctions::RelinkLayersToParent()
+{
+	for (const FGuid& ParentGuid : DeletedParentLayerGuids)
+	{
+		const int32 LayerIndex = LayerGuids.Find(ParentGuid);
+		if (LayerIndex != INDEX_NONE && ParentLayerGuids[LayerIndex] == NoParentGuid)
+		{
+			ParentLayerGuids[LayerIndex] = ParentGuid;
+		}
+	}
+	DeletedParentLayerGuids.Empty();
+}
+
+bool FMaterialLayersFunctions::HasAnyUnlinkedLayers() const
+{
+	return DeletedParentLayerGuids.Num() > 0;
+}
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 void FMaterialLayersFunctions::CopyGuidsToParent()
