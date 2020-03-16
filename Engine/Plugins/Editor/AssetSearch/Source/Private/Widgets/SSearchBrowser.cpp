@@ -34,6 +34,7 @@
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Images/SThrobber.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Settings/SearchUserSettings.h"
 
 #define LOCTEXT_NAMESPACE "SObjectBrowser"
 
@@ -45,8 +46,16 @@ namespace AssetSearchConstants
 	const int32 ThumbnailPoolSize = 64;
 }
 
+//TODO Expose TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const via IContentBrowserSingleton.
+
 void SSearchBrowser::Construct( const FArguments& InArgs )
 {
+	if (!GetDefault<USearchUserSettings>()->bEnableSearch)
+	{
+		GetMutableDefault<USearchUserSettings>()->bEnableSearch = true;
+		GetMutableDefault<USearchUserSettings>()->SaveConfig();
+	}
+
 	SortByColumn = SSearchTreeRow::NAME_ColumnName;
 	SortMode = EColumnSortMode::Ascending;
 
@@ -140,13 +149,29 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 				.VAlign(VAlign_Center)
 				.Padding(8, 0)
 				[
-					SNew(STextBlock)
-					.Text(this, &SSearchBrowser::GetStatusText)
+					SNew(SVerticalBox)
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(STextBlock)
+						.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowAdvancedData ? EVisibility::Visible : EVisibility::Collapsed; })
+						.Text(this, &SSearchBrowser::GetStatusText)
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(STextBlock)
+						.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowAdvancedData ? EVisibility::Visible : EVisibility::Collapsed; })
+						.Text(this, &SSearchBrowser::GetAdvancedStatus)
+					]
 				]
 
 				// Index unindexed items
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.VAlign(VAlign_Top)
 				[
 					SNew(SHyperlink)
 					.Text(this, &SSearchBrowser::GetUnindexedAssetsText)
@@ -163,7 +188,23 @@ FText SSearchBrowser::GetStatusText() const
 {
 	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
 	FSearchStats SearchStats = SearchModule.GetStats();
-	return FText::Format(LOCTEXT("SearchStatusTextFmt", "Scanning {0}   Downloading {1}   Updating {2}            Total Records {3}"), SearchStats.Scanning, SearchStats.Downloading, SearchStats.PendingDatabaseUpdates, SearchStats.TotalRecords);
+	int32 UpdatingCount = SearchStats.Scanning + SearchStats.Downloading + SearchStats.PendingDatabaseUpdates;
+
+	if (UpdatingCount > 0)
+	{
+		return LOCTEXT("Updating", "Updating...  (You can search any time)");
+	}
+	else
+	{
+		return LOCTEXT("Ready", "Ready");
+	}
+}
+
+FText SSearchBrowser::GetAdvancedStatus() const
+{
+	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
+	FSearchStats SearchStats = SearchModule.GetStats();
+	return FText::Format(LOCTEXT("AdvancedSearchStatusTextFmt", "Scanning {0}   Downloading {1}   Updating {2}            Total Records {3}"), SearchStats.Scanning, SearchStats.Downloading, SearchStats.PendingDatabaseUpdates, SearchStats.TotalRecords);
 }
 
 FText SSearchBrowser::GetUnindexedAssetsText() const
@@ -270,7 +311,7 @@ void SSearchBrowser::OnSearchTextChanged(const FText& InText)
 {
 	const int32 Length = InText.ToString().Len();
 
-	if (Length > 4)
+	if (Length > 3)
 	{
 		TryRefreshingSearch(InText);
 	}

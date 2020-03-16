@@ -25,17 +25,27 @@
 #include "Indexers/DialogueWaveIndexer.h"
 #include "Sound/DialogueWave.h"
 #include "Indexers/LevelIndexer.h"
-#include "Settings/AssetSearchDeveloperSettings.h"
+#include "Settings/SearchProjectSettings.h"
+#include "Settings/SearchUserSettings.h"
 #include "Indexers/SoundCueIndexer.h"
 #include "Sound/SoundCue.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/StringBuilder.h"
 #include "Engine/World.h"
 #include "Editor.h"
+#include "PackageTools.h"
+#include "UObject/ObjectMacros.h"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
 #define LOCTEXT_NAMESPACE "FAssetSearchManager"
+
+static bool bDisableUniversalSearch = false;
+FAutoConsoleVariableRef CVarDisableUniversalSearch(
+	TEXT("Search.Disable"),
+	bDisableUniversalSearch,
+	TEXT("Disable Universal Search (only works on startup)")
+);
 
 static bool bIndexUnindexAssetsOnLoad = false;
 FAutoConsoleVariableRef CVarIndexUnindexAssetsOnLoad(
@@ -65,6 +75,97 @@ FAutoConsoleVariableRef CVarGameThread_AssetScanLimit(
 	TEXT("")
 );
 
+class FUnloadPackageScope
+{
+public:
+	FUnloadPackageScope()
+	{
+		FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FUnloadPackageScope::OnAssetLoaded);
+	}
+
+	~FUnloadPackageScope()
+	{
+		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+		TryUnload(true);
+	}
+
+	int32 TryUnload(bool bResetTrackedObjects)
+	{
+		TArray<TWeakObjectPtr<UObject>> PackageObjectPtrs;
+
+		for (const FObjectKey& LoadedObjectKey : ObjectsLoaded)
+		{
+			if (UObject* LoadedObject = LoadedObjectKey.ResolveObjectPtr())
+			{
+				UPackage* Package = LoadedObject->GetOutermost();
+
+				TArray<UObject*> PackageObjects;
+				GetObjectsWithOuter(Package, PackageObjects, false);
+
+				for (UObject* PackageObject : PackageObjects)
+				{
+					PackageObject->ClearFlags(RF_Standalone);
+					PackageObjectPtrs.Add(PackageObject);
+				}
+			}
+		}
+
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+		
+		int32 NumRemoved = 0;
+		for (int32 LoadedAssetIndex = 0; LoadedAssetIndex < PackageObjectPtrs.Num(); LoadedAssetIndex++)
+		{
+			TWeakObjectPtr<UObject> PackageObjectPtr = PackageObjectPtrs[LoadedAssetIndex];
+
+			if (UObject* LoadedObject = PackageObjectPtr.Get())
+			{
+				//FReferencerInformationList ReferencesIncludingUndo;
+				//bool bReferencedInMemoryOrUndoStack = IsReferenced(LoadedObject, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, &ReferencesIncludingUndo);
+
+				LoadedObject->SetFlags(RF_Standalone);
+			}
+			else
+			{
+				NumRemoved++;
+			}
+		}
+
+		if (bResetTrackedObjects)
+		{
+			ObjectsLoaded.Reset();
+		}
+		else
+		{
+			for (int32 ObjectIndex = 0; ObjectIndex < ObjectsLoaded.Num(); ObjectIndex++)
+			{
+				if (!ObjectsLoaded[ObjectIndex].ResolveObjectPtr())
+				{
+					ObjectsLoaded.RemoveAt(ObjectIndex);
+					ObjectIndex--;
+				}
+			}
+		}
+
+		return NumRemoved;
+	}
+
+	int32 GetObjectsLoaded() const
+	{
+		return ObjectsLoaded.Num();
+	}
+
+private:
+	void OnAssetLoaded(UObject* InObject)
+	{
+		ObjectsLoaded.Add(FObjectKey(InObject));
+	}
+
+private:
+	TArray<FObjectKey> ObjectsLoaded;
+	TArray<UClass*> ClassFilters;
+};
+
+
 FAssetSearchManager::FAssetSearchManager()
 {
 	PendingDatabaseUpdates = 0;
@@ -93,11 +194,12 @@ FAssetSearchManager::~FAssetSearchManager()
 
 void FAssetSearchManager::Start()
 {
-	// Don't start the search manager on unattended builds.
-	//if (FApp::IsUnattended())
-	//{
-	//	return;
-	//}
+	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAssetSearchManager::Tick_GameThread), 0);
+}
+
+void FAssetSearchManager::InternalStart()
+{
+	bStarted = true;
 
 	RegisterAssetIndexer(UDataAsset::StaticClass(), MakeUnique<FDataAssetIndexer>());
 	RegisterAssetIndexer(UDataTable::StaticClass(), MakeUnique<FDataTableIndexer>());
@@ -122,8 +224,6 @@ void FAssetSearchManager::Start()
 	{
 		OnAssetAdded(Data);
 	}
-
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAssetSearchManager::Tick_GameThread), 0);
 
 	RunThread = true;
 	DatabaseThread = FRunnableThread::Create(this, TEXT("UniversalSearch"), 0, TPri_BelowNormal);
@@ -191,8 +291,18 @@ void FAssetSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 	}
 
 	// 
-	const UAssetSearchDeveloperSettings* Settings = GetDefault<UAssetSearchDeveloperSettings>();
-	for (const FDirectoryPath& IgnoredPath : Settings->IgnoredPaths)
+	const USearchProjectSettings* ProjectSettings = GetDefault<USearchProjectSettings>();
+	for (const FDirectoryPath& IgnoredPath : ProjectSettings->IgnoredPaths)
+	{
+		if (PackageName.StartsWith(IgnoredPath.Path))
+		{
+			return;
+		}
+	}
+
+	// 
+	const USearchUserSettings* UserSettings = GetDefault<USearchUserSettings>();
+	for (const FDirectoryPath& IgnoredPath : UserSettings->IgnoredPaths)
 	{
 		if (PackageName.StartsWith(IgnoredPath.Path))
 		{
@@ -478,6 +588,16 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 {
 	check(IsInGameThread());
 
+	if (bDisableUniversalSearch || !GetDefault<USearchUserSettings>()->bEnableSearch)
+	{
+		return true;
+	}
+
+	if (!bStarted)
+	{
+		InternalStart();
+	}
+
 	TryConnectToDatabase();
 
 	//if (0)
@@ -493,6 +613,8 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 	//}
 
 	ProcessGameThreadTasks();
+
+	const USearchUserSettings* UserSettings = GetDefault<USearchUserSettings>();
 
 	int32 ScanLimit = GameThread_AssetScanLimit;
 	while (ProcessAssetQueue.Num() > 0 && ScanLimit > 0 && PendingDownloads < PendingDownloadsMax)
@@ -596,6 +718,8 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 	IndexingTask.MakeDialog(true);
 
 	int32 RemovedCount = 0;
+
+	FUnloadPackageScope UnloadScope;
 	for (const FAssetDDCRequest& Request : FailedDDCRequests)
 	{
 		if (IndexingTask.ShouldCancel())
@@ -607,6 +731,11 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 		if (UObject* AssetToIndex = Request.AssetData.GetAsset())
 		{
 			StoreIndexForAsset(AssetToIndex);
+		}
+
+		if (UnloadScope.GetObjectsLoaded() > 2000)
+		{
+			UnloadScope.TryUnload(true);
 		}
 
 		RemovedCount++;
