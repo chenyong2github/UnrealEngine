@@ -619,7 +619,7 @@ public:
 	 * @return bool			Whether the CachedNamespacelessParameterName can be returned. Is false if bUseLegacyNameString is set.
 	 */
 	bool GetParameterName(FName& OutName) const;
-	void SetCachedNamespacelessVariableName(const FName& InVariableName) { CachedNamespacelessVariableName = InVariableName; };
+	void SetCachedNamespacelessVariableName(const FName& InVariableName);;
 
 	bool GetWasCreatedInSystemEditor() const { return bCreatedInSystemEditor; };
 	void SetWasCreatedInSystemEditor(bool bWasCreatedInSystemEditor) { bCreatedInSystemEditor = bWasCreatedInSystemEditor; };
@@ -667,7 +667,7 @@ private:
 	bool bOutputIsPersistent;
 
 	/** Namespace-less name for associated FNiagaraVariable. Edited directly by user and then used to generate full Name of associated FNiagaraVariable. */
-	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	UPROPERTY(VisibleAnywhere, Category = "Variable", DisplayName = "Property Name", meta = (SkipForCompileHash = "true"))
 	FName CachedNamespacelessVariableName;
 
 	/** Track if the associated parameter was created in the Emitter/System editor. Used to determine whether the associated parameter can be deleted from the Emitter/System editor. */

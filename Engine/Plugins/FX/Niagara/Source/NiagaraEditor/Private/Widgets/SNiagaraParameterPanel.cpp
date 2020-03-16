@@ -134,7 +134,8 @@ void SNiagaraParameterPanel::AddParameter(FNiagaraVariable NewVariable, const Ni
 		GraphActionMenu->SelectItemByName(NewScriptVar->Variable.GetName());
 
 		// Delay calling the rename delegate one tick as the widget to which it is bound is not yet constructed.
-		bGraphActionPendingRename = true;
+		if (FNiagaraConstants::IsNiagaraConstant(NewVariable) == false)
+			bGraphActionPendingRename = true;
 	}
 }
 
@@ -622,12 +623,13 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 		NiagaraParameterPanelSectionID::Type Type = ShowKnownConstantParametersFilter.Get();
 		if (Type != NiagaraParameterPanelSectionID::Type::NONE)
 		{
-			// Handle engine parameters...
-			if (Type == NiagaraParameterPanelSectionID::Type::ENGINE ||
+			// Handle engine parameters, but only in read-only contexts.
+			if ((!IsParameterRead.IsSet() || (IsParameterRead.IsSet() && IsParameterRead.Get())) &&
+				(Type == NiagaraParameterPanelSectionID::Type::ENGINE ||
 				Type == NiagaraParameterPanelSectionID::Type::OWNER ||
 				Type == NiagaraParameterPanelSectionID::Type::REFERENCES ||
 				Type == NiagaraParameterPanelSectionID::Type::SYSTEM ||
-				Type == NiagaraParameterPanelSectionID::Type::EMITTER)
+				Type == NiagaraParameterPanelSectionID::Type::EMITTER))
 			{
 				const TArray<FNiagaraVariable>& EngineConstants = FNiagaraConstants::GetEngineConstants();
 				for (const FNiagaraVariable& Var : EngineConstants)

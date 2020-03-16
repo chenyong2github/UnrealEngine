@@ -81,7 +81,7 @@ void SNiagaraStackParameterStoreEntryName::OnNameTextCommitted(const FText& InTe
 		FNotificationInfo Info(FText::Format(LOCTEXT("NiagaraRenamedUserParameter", "System exposed parameter was renamed.\n{0}\n(All links to inner variables were updated in the process.)"), StackEntry->GetDisplayName()));
 		Info.ExpireDuration = 5.0f;
 		Info.bFireAndForget = true;
-		Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Info"));
+		Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
 		FSlateNotificationManager::Get().AddNotification(Info);
 	}
 }

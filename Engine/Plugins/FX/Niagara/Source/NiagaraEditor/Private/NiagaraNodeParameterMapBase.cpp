@@ -177,8 +177,16 @@ void UNiagaraNodeParameterMapBase::GetPinHoverText(const UEdGraphPin& Pin, FStri
 
 			FNiagaraVariable Var = FNiagaraVariable(TypeDef, Pin.PinName);
 			TOptional<FNiagaraVariableMetaData> Metadata = NiagaraGraph->GetMetaData(Var);
+
 			FText Description = Metadata.IsSet() ? Metadata->Description : FText::GetEmpty();
-			FText ToolTipText = FNiagaraEditorUtilities::FormatVariableDescription(Description, FText::FromName(Pin.PinName), TypeDef.GetNameText());
+			const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nDescription: {2}\nScope: {3}\nUser Editable: {4}\nUsage: {5}");
+			const FText Name = FText::FromName(Var.GetName());
+			FName CachedParamName;
+			Metadata->GetParameterName(CachedParamName);
+			const FText ScopeText = FText::FromName(Metadata->GetScopeName());
+			const FText UserEditableText = FText::FromName(CachedParamName);
+			const FText UsageText = StaticEnum<ENiagaraScriptParameterUsage>()->GetDisplayNameTextByValue((int64)Metadata->GetUsage());
+			const FText ToolTipText = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), Description, ScopeText, UserEditableText, UsageText);
 			HoverTextOut = ToolTipText.ToString();
 		}
 	}
@@ -224,7 +232,7 @@ void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const F
 	FNiagaraVariable Var(VarType, *OldName);
 
 	UNiagaraGraph* Graph = GetNiagaraGraph();
-	Graph->RenameParameter(Var, NewUniqueName);
+	Graph->RenameParameterFromPin(Var, NewUniqueName, RenamedPin);
 
 	if (RenamedPin == PinPendingRename)
 	{

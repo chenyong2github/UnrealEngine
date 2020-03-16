@@ -62,9 +62,9 @@ TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateSco
 	return ScopeComboBoxWidget.ToSharedRef();
 }
 
-TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateTextSlotWidget() const
+TSharedRef<SInlineEditableTextBlock> FNiagaraParameterPanelEntryParameterNameViewModel::CreateTextSlotWidget() const
 {
-	TSharedPtr< SWidget > DisplayWidget;
+	TSharedPtr< SInlineEditableTextBlock > DisplayWidget;
 	const FName FontType = FName("Italic");
 	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle(FontType, 10); //@todo(ng) get correct font
 
@@ -147,7 +147,7 @@ void FNiagaraParameterPanelEntryParameterNameViewModel::OnParameterRenamed(const
 ///////////////////////////////////////////////////////////////////////////////
 
 FNiagaraGraphPinParameterNameViewModel::FNiagaraGraphPinParameterNameViewModel(
-	const UEdGraphPin* InOwningPin
+	UEdGraphPin* InOwningPin
 	, const FNiagaraScriptVariableAndViewInfo& InScriptVarAndViewInfo
 	, const FNiagaraScriptToolkitParameterPanelViewModel* InParameterPanelViewModel
 )
@@ -186,9 +186,9 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateScopeSlotWidge
 	return ScopeComboBoxWidget.ToSharedRef();
 }
 
-TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget() const
+TSharedRef<SInlineEditableTextBlock> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget() const
 {
-	TSharedPtr< SWidget > DisplayWidget;
+	TSharedPtr< SInlineEditableTextBlock > DisplayWidget;
 	const FName FontType = FName("Italic");
 	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle(FontType, 10); //@todo(ng) get correct style
 
@@ -254,5 +254,28 @@ bool FNiagaraGraphPinParameterNameViewModel::VerifyParameterNameChanged(const FT
 
 void FNiagaraGraphPinParameterNameViewModel::OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const
 {
-	ParameterPanelViewModel->RenamePin(OwningPin, NewNameText);
+	UNiagaraNode* Node = Cast<UNiagaraNode>(OwningPin->GetOwningNode());
+	if (Node)
+	{
+		if (CachedScriptVarAndViewInfo.MetaData.GetIsUsingLegacyNameString())
+		{
+			Node->CommitEditablePinName(NewNameText, OwningPin);
+		}
+		else
+		{
+			FName OldFullName = CachedScriptVarAndViewInfo.ScriptVariable.GetName();
+			FName OldParameterName;
+			CachedScriptVarAndViewInfo.MetaData.GetParameterName(OldParameterName);
+
+			FString OldParamNameStr = OldParameterName.ToString();
+			FString NewFullNameStr = OldFullName.ToString();
+			NewFullNameStr.RemoveFromEnd(OldParamNameStr);
+			NewFullNameStr += NewNameText.ToString();
+
+			FText NewFullNameText = FText::FromString(NewFullNameStr);
+
+			Node->CommitEditablePinName(NewFullNameText, OwningPin);
+		}
+	}
+	//ParameterPanelViewModel->RenamePin(OwningPin, NewNameText);
 }
