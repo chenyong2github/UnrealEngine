@@ -853,14 +853,24 @@ FHairStrandsDeformedResource* UGroomComponent::GetGuideStrandsDeformedResource(u
 	return HairGroupResources->HairGroups[GroupIndex].SimDeformedResources;
 }
 
-FHairStrandsRootResource* UGroomComponent::GetGuideStrandsRootResource(uint32 GroupIndex)
+FHairStrandsRestRootResource* UGroomComponent::GetGuideStrandsRestRootResource(uint32 GroupIndex)
 {
 	if (!HairGroupResources || GroupIndex >= uint32(HairGroupResources->HairGroups.Num()))
 	{
 		return nullptr;
 	}
 
-	return HairGroupResources->HairGroups[GroupIndex].SimRootResources;
+	return HairGroupResources->HairGroups[GroupIndex].SimRestRootResources;
+}
+
+FHairStrandsDeformedRootResource* UGroomComponent::GetGuideStrandsDeformedRootResource(uint32 GroupIndex)
+{
+	if (!HairGroupResources || GroupIndex >= uint32(HairGroupResources->HairGroups.Num()))
+	{
+		return nullptr;
+	}
+
+	return HairGroupResources->HairGroups[GroupIndex].SimDeformedRootResources;
 }
 
 template<typename T> void SafeDelete(T*& Data) 
@@ -1005,9 +1015,11 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				check(GroupIt < BindingAsset->HairGroupResources.Num());
 				check(SkeletalMeshComponent->GetNumLODs() == BindingAsset->HairGroupResources[GroupIt].RenRootResources->RootData.MeshProjectionLODs.Num());
 				check(SkeletalMeshComponent->GetNumLODs() == BindingAsset->HairGroupResources[GroupIt].SimRootResources->RootData.MeshProjectionLODs.Num());
+
 				Res.bOwnRootResourceAllocation = false;
-				Res.RenRootResources = BindingAsset->HairGroupResources[GroupIt].RenRootResources;
-				Res.SimRootResources = BindingAsset->HairGroupResources[GroupIt].SimRootResources;
+				Res.RenRestRootResources = BindingAsset->HairGroupResources[GroupIt].RenRootResources;
+				Res.SimRestRootResources = BindingAsset->HairGroupResources[GroupIt].SimRootResources;
+
 				DebugHairGroup.bHasBinding = true;
 			}
 			else
@@ -1017,12 +1029,18 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				{
 					Res.bOwnRootResourceAllocation = true;
 					TArray<uint32> NumSamples; NumSamples.Init(0, LODCount);
-					Res.RenRootResources = new FHairStrandsRootResource(&GroupData.HairRenderData, LODCount, NumSamples);
-					Res.SimRootResources = new FHairStrandsRootResource(&GroupData.HairSimulationData, LODCount, NumSamples);
-					BeginInitResource(Res.RenRootResources);
-					BeginInitResource(Res.SimRootResources);
+					Res.RenRestRootResources = new FHairStrandsRestRootResource(&GroupData.HairRenderData, LODCount, NumSamples);
+					Res.SimRestRootResources = new FHairStrandsRestRootResource(&GroupData.HairSimulationData, LODCount, NumSamples);
+					BeginInitResource(Res.RenRestRootResources);
+					BeginInitResource(Res.SimRestRootResources);
 				}
 			}
+
+			Res.RenDeformedRootResources = new FHairStrandsDeformedRootResource(Res.RenRestRootResources);
+			Res.SimDeformedRootResources = new FHairStrandsDeformedRootResource(Res.SimRestRootResources);
+
+			BeginInitResource(Res.RenDeformedRootResources);
+			BeginInitResource(Res.SimDeformedRootResources);
 		}
 		
 		Res.RenderRestResources = GroupData.HairStrandsRestResource;
@@ -1152,8 +1170,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			OutputGroup.RenderGroupAABBBuffer			= &Res.HairGroupPublicDatas->GetGroupAABBBuffer();
 			OutputGroup.ClusterInfoBuffer				= &Res.ClusterCullingResources->ClusterInfoBuffer;
 
-			RenProjectionDatas.HairGroups.Add(ToProjectionHairData(Res.RenRootResources));
-			SimProjectionDatas.HairGroups.Add(ToProjectionHairData(Res.SimRootResources));
+			RenProjectionDatas.HairGroups.Add(ToProjectionHairData(Res.RenRestRootResources, Res.RenDeformedRootResources));
+			SimProjectionDatas.HairGroups.Add(ToProjectionHairData(Res.SimRestRootResources, Res.SimDeformedRootResources));
 
 			FHairStrandsPrimitiveResources::FHairGroup& Group = PrimitiveResources.Groups.AddDefaulted_GetRef();
 			Group.ClusterAABBBuffer = &Res.HairGroupPublicDatas->GetClusterAABBBuffer();
@@ -1242,9 +1260,11 @@ void UGroomComponent::DeleteHairGroupResources(FHairGroupResources*& InHairGroup
 			// Release the root resources only if they have been created internally (vs. being created by external asset)
 			if (Res.bOwnRootResourceAllocation)
 			{
-				SafeRelease(Res.RenRootResources);
-				SafeRelease(Res.SimRootResources);
+				SafeRelease(Res.RenRestRootResources);
+				SafeRelease(Res.SimRestRootResources);
 			}
+			SafeRelease(Res.RenDeformedRootResources);
+			SafeRelease(Res.SimDeformedRootResources);
 
 			SafeRelease(Res.RenderDeformedResources);
 			SafeRelease(Res.HairGroupPublicDatas);

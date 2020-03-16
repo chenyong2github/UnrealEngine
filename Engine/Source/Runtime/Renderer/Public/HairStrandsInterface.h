@@ -212,12 +212,13 @@ struct FHairStrandsProjectionMeshData
 
 struct FHairStrandsProjectionHairData
 {
-	struct LODData
+	enum class EStatus { Invalid, Initialized, Completed };
+
+	struct RestLODData
 	{
-		enum class EStatus { Invalid, Initialized, Completed };
-		bool bIsValid = false;
 		int32 LODIndex = -1;
 		EStatus* Status = nullptr;
+		inline bool IsValid() const { return Status && (*Status == EStatus::Initialized || *Status == EStatus::Completed); }
 
 		// The index buffers stores the mesh section & the triangle index into a single uint32 
 		// (3 highest bits store the section (up to 8 sections)
@@ -231,17 +232,25 @@ struct FHairStrandsProjectionHairData
 		FRWBuffer* RestRootTrianglePosition1Buffer = nullptr;
 		FRWBuffer* RestRootTrianglePosition2Buffer = nullptr;
 
+		// Samples to be used for RBF mesh interpolation
+		uint32 SampleCount = 0;
+		FRWBuffer* MeshInterpolationWeightsBuffer = nullptr;
+		FRWBuffer* MeshSampleIndicesBuffer = nullptr;
+		FRWBuffer* RestSamplePositionsBuffer = nullptr;
+	};
+
+	struct DeformedLODData
+	{
+		int32 LODIndex = -1;
+		EStatus* Status = nullptr;
+		inline bool IsValid() const { return Status && (*Status == EStatus::Initialized || *Status == EStatus::Completed); }
+
 		// Deformed root triangles' positions are relative to root center (for preserving precision)
 		FRWBuffer* DeformedRootTrianglePosition0Buffer = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition1Buffer = nullptr;
 		FRWBuffer* DeformedRootTrianglePosition2Buffer = nullptr;
 
-		// Samples to be used for rbf mesh interpolatrion
-		uint32 SampleCount = 0;
-		FRWBuffer* MeshInterpolationWeightsBuffer = nullptr;
-		FRWBuffer* MeshSampleIndicesBuffer = nullptr;
-
-		FRWBuffer* RestSamplePositionsBuffer = nullptr;
+		// Samples to be used for RBF mesh interpolation
 		FRWBuffer* DeformedSamplePositionsBuffer = nullptr;
 		FRWBuffer* MeshSampleWeightsBuffer = nullptr;
 	};
@@ -252,7 +261,8 @@ struct FHairStrandsProjectionHairData
 		FRHIShaderResourceView* RootNormalBuffer = nullptr;
 		FRWBuffer* VertexToCurveIndexBuffer = nullptr;
 
-		TArray<LODData> LODDatas;
+		TArray<RestLODData> RestLODDatas;
+		TArray<DeformedLODData> DeformedLODDatas;
 
 		uint32 RootCount = 0;
 		FTransform LocalToWorld = FTransform::Identity;
@@ -402,7 +412,7 @@ RENDERER_API void RunProjection(
 	FHairStrandsProjectionHairData& SimProjectionHairData);
 
 RENDERER_API FHairStrandsProjectionMeshData ExtractMeshData(class FSkeletalMeshRenderData* RenderData);
-FHairStrandsProjectionHairData::HairGroup ToProjectionHairData(struct FHairStrandsRootResource* In);
+FHairStrandsProjectionHairData::HairGroup ToProjectionHairData(struct FHairStrandsRestRootResource* InRest, struct FHairStrandsDeformedRootResource* InDeformed);
 
 typedef void (*TBindingProcess)(FRHICommandListImmediate& RHICmdList, void* Asset);
 RENDERER_API void EnqueueGroomBindingQuery(void* Asset, TBindingProcess BindingProcess);
