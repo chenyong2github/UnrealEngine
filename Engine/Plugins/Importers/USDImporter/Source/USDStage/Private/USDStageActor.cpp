@@ -62,7 +62,7 @@
 
 #define LOCTEXT_NAMESPACE "USDStageActor"
 
-static const EObjectFlags DefaultObjFlag = EObjectFlags::RF_Transactional | EObjectFlags::RF_NonPIEDuplicateTransient;
+static const EObjectFlags DefaultObjFlag = EObjectFlags::RF_Transactional | EObjectFlags::RF_Transient;
 
 AUsdStageActor::FOnActorLoaded AUsdStageActor::OnActorLoaded;
 
@@ -120,6 +120,8 @@ AUsdStageActor::AUsdStageActor()
 	// Rename() calls, and that is not allowed.
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.OnMapChanged().AddUObject(this, &AUsdStageActor::OnMapChanged);
+	FEditorDelegates::BeginPIE.AddUObject(this, &AUsdStageActor::OnBeginPIE);
+	FEditorDelegates::PostPIEStarted.AddUObject(this, &AUsdStageActor::OnPostPIEStarted);
 #endif // WITH_EDITOR
 
 #if USE_USD_SDK
@@ -275,6 +277,8 @@ AUsdStageActor::~AUsdStageActor()
 #if WITH_EDITOR
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.OnMapChanged().RemoveAll(this);
+	FEditorDelegates::BeginPIE.RemoveAll(this);
+	FEditorDelegates::PostPIEStarted.RemoveAll(this);
 #endif // WITH_EDITOR
 }
 
@@ -566,6 +570,21 @@ void AUsdStageActor::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 		}
 	}
 }
+
+void AUsdStageActor::OnBeginPIE(bool bIsSimulating)
+{
+	// Remove transient flag from our spawned actors and components so they can be duplicated for PIE
+	const bool bTransient = false;
+	UpdateSpawnedObjectsTransientFlag(bTransient);
+}
+
+void AUsdStageActor::OnPostPIEStarted(bool bIsSimulating)
+{
+	// Restore transient flags to our spawned actors and components so they aren't saved otherwise
+	const bool bTransient = true;
+	UpdateSpawnedObjectsTransientFlag(bTransient);
+}
+
 #endif // WITH_EDITOR
 
 void AUsdStageActor::LoadUsdStage()
@@ -694,8 +713,73 @@ void AUsdStageActor::PostDuplicate( bool bDuplicateForPIE )
 	Super::PostDuplicate( bDuplicateForPIE );
 
 #if USE_USD_SDK
-	AnimatePrims();
+	// Setup for the very first frame when we duplicate into PIE, or else we will just show a T-pose
+	if ( bDuplicateForPIE )
+	{
+		AnimatePrims();
+	}
 #endif // #if USE_USD_SDK
+}
+
+void AUsdStageActor::PostLoad()
+{
+	Super::PostLoad();
+
+	// This may be reset to nullptr when loading a level or serializing, because the property is Transient
+	if (RootUsdTwin == nullptr)
+	{
+		RootUsdTwin = NewObject<UUsdPrimTwin>(this, TEXT("RootUsdTwin"), DefaultObjFlag);
+	}
+}
+
+void AUsdStageActor::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
+	{
+		// We want to duplicate these properties for PIE only, as they are required to animate and listen to notices
+		Ar << LevelSequence;
+		Ar << SubLayerLevelSequencesByIdentifier;
+		Ar << RootUsdTwin;
+		Ar << PrimsToAnimate;
+		Ar << ObjectsToWatch;
+		Ar << AssetsCache;
+		Ar << PrimPathsToAssets;
+	}
+}
+
+void AUsdStageActor::UpdateSpawnedObjectsTransientFlag(bool bTransient)
+{
+	if (!RootUsdTwin)
+	{
+		return;
+	}
+
+	EObjectFlags Flag = bTransient ? EObjectFlags::RF_Transient : EObjectFlags::RF_NoFlags;
+	TFunction<void(UUsdPrimTwin&)> UpdateTransient = [=](UUsdPrimTwin& PrimTwin)
+	{
+		if (AActor* SpawnedActor = PrimTwin.SpawnedActor.Get())
+		{
+			SpawnedActor->ClearFlags(EObjectFlags::RF_Transient);
+			SpawnedActor->SetFlags(Flag);
+		}
+
+		if (USceneComponent* Component = PrimTwin.SceneComponent.Get())
+		{
+			Component->ClearFlags(EObjectFlags::RF_Transient);
+			Component->SetFlags(Flag);
+
+			if (AActor* ComponentOwner = Component->GetOwner())
+			{
+				ComponentOwner->ClearFlags(EObjectFlags::RF_Transient);
+				ComponentOwner->SetFlags(Flag);
+			}
+		}
+	};
+
+	const bool bRecursive = true;
+	RootUsdTwin->Iterate(UpdateTransient, bRecursive);
 }
 
 void AUsdStageActor::OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin )
