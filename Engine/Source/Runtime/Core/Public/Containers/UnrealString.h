@@ -26,8 +26,10 @@
 #include "Templates/TypeHash.h"
 #include "Templates/IsFloatingPoint.h"
 
+class FAnsiStringView;
 class FString;
 class FStringView;
+using FWideStringView = FStringView;
 struct FStringFormatArg;
 template<typename KeyType,typename ValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
 
@@ -135,7 +137,6 @@ public:
 			}
 		}
 	}
-
 	/**
 	 * Constructor to create FString with specified number of characters from another string with additional character zero
 	 *
@@ -168,7 +169,9 @@ public:
 	 *
 	 * @param Other The string view to create a new copy from
 	 */
-	explicit FString(const FStringView& Other);
+	
+	explicit FString(FAnsiStringView Other);
+	explicit FString(FWideStringView Other);
 
 	/**
 	 * Create an FString from a FStringView with extra space for characters at the end of the string
