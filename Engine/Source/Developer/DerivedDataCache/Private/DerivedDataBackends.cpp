@@ -14,6 +14,7 @@
 #include "MemoryDerivedDataBackend.h"
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "PakFileDerivedDataBackend.h"
+#include "S3DerivedDataBackend.h"
 #include "HierarchicalDerivedDataBackend.h"
 #include "DerivedDataLimitKeyLengthWrapper.h"
 #include "DerivedDataBackendCorruptionWrapper.h"
@@ -202,6 +203,10 @@ public:
 				else if( NodeType == TEXT("WritePak") )
 				{
 					ParsedNode = ParsePak( NodeName, *Entry, true );
+				}
+				else if (NodeType == TEXT("S3"))
+				{
+					ParsedNode = ParseS3Cache(NodeName, *Entry);
 				}
 			}
 		}
@@ -596,6 +601,63 @@ public:
 		}
 
 		return DataCache;
+	}
+
+
+	/**
+	 * Creates an S3 data cache interface.
+	 */
+	FDerivedDataBackendInterface* ParseS3Cache(const TCHAR* NodeName, const TCHAR* Entry)
+	{
+		FString ManifestPath;
+		if (!FParse::Value(Entry, TEXT("Manifest="), ManifestPath))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Manifest'."), NodeName);
+			return nullptr;
+		}
+
+		FString BaseUrl;
+		if (!FParse::Value(Entry, TEXT("BaseUrl="), BaseUrl))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'BaseUrl'."), NodeName);
+			return nullptr;
+		}
+
+		FString CanaryObjectKey;
+		FParse::Value(Entry, TEXT("Canary="), CanaryObjectKey);
+
+		FString Region;
+		if (!FParse::Value(Entry, TEXT("Region="), Region))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Region'."), NodeName);
+			return nullptr;
+		}
+
+		FString AccessKey;
+		if (!FParse::Value(Entry, TEXT("AccessKey="), AccessKey))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'AccessKey'."), NodeName);
+			return nullptr;
+		}
+
+		FString SecretKey;
+		if (!FParse::Value(Entry, TEXT("SecretKey="), SecretKey))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'SecretKey'."), NodeName);
+			return nullptr;
+		}
+
+		FS3DerivedDataBackend* Backend = new FS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *AccessKey, *SecretKey);
+		if (!Backend->IsUsable())
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *BaseUrl);
+			delete Backend;
+			return nullptr;
+		}
+
+		// Insert the backend corruption wrapper. Since the filesystem already uses this, and we're recycling the data with the trailer intact, we need to use it for the S3 cache too.
+		UE_LOG(LogDerivedDataCache, Display, TEXT("Using %s S3 backend at %s"), *Region, *BaseUrl);
+		return new FDerivedDataBackendCorruptionWrapper(Backend);
 	}
 
 	/**
