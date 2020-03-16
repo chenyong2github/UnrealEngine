@@ -38,7 +38,7 @@ namespace UnrealBuildTool
 		{
 			bool bSuccess = false;
 			string ProjectNameRaw = ProjectFilePath.GetFileNameWithoutExtension();
-			string ProjectPath = ProjectFilePath.FullName;
+			//string ProjectPath = ProjectFilePath.FullName;
 			string ProjectExtension = ProjectFilePath.GetExtension();
 			string ProjectPlatformName = BuildHostPlatform.Current.Platform.ToString();
 

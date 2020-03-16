@@ -31,7 +31,7 @@ namespace UnrealBuildTool
 
 		// Manifest configuration values/paths
 		private List<WinMDRegistrationInfo> WinMDReferences;
-		private UnrealTargetPlatform Platform;
+		//private UnrealTargetPlatform Platform;
 		private WindowsArchitecture Architecture;
 		private string TargetSettings;
 		private string BuildResourceProjectRelativePath;
@@ -653,7 +653,7 @@ namespace UnrealBuildTool
             bool iniUpdated = false;
 
             List<string> projectIniFilePaths = new List<string>();
-            List<ConfigFile> Files = new List<ConfigFile>();
+            //List<ConfigFile> Files = new List<ConfigFile>();
             foreach (FileReference IniFileName in ConfigHierarchy.EnumerateConfigFileLocations(ConfigHierarchyType.Game, IniDirRef, TargetPlatform))
             {
                 // If ini file does not exist, or is not in the project directory, move on to the next one.
@@ -761,7 +761,7 @@ namespace UnrealBuildTool
 			ManifestRelatedFilePaths = new List<string>();
 
 			WinMDReferences = ((InWinMDReferences == null) ? new List<WinMDRegistrationInfo>() : new List<WinMDRegistrationInfo>(InWinMDReferences));
-			Platform = TargetPlatform;
+			//Platform = TargetPlatform;
 			Architecture = TargetArchitecture;
 			TargetSettings = "/Script/HoloLensPlatformEditor.HoloLensTargetSettings";
 			BuildResourceProjectRelativePath = "Build\\HoloLens";
@@ -1132,7 +1132,7 @@ namespace UnrealBuildTool
 			ManifestRelatedFilePaths = new List<string>();
 
 			WinMDReferences = new List<WinMDRegistrationInfo>();
-			Platform = TargetPlatform;
+			//Platform = TargetPlatform;
 			TargetSettings = "/Script/HoloLensPlatformEditor.HoloLensTargetSettings";
 			BuildResourceProjectRelativePath = "Build\\HoloLens";
 			BuildResourceSubPath = "AssetsResources";
@@ -1682,7 +1682,7 @@ namespace UnrealBuildTool
 			{
 				for (int i = 0; i < CulturesToStage.Count; ++i)
 				{
-					string ValueToWrite = string.Empty;
+					//string ValueToWrite = string.Empty;
 					if (!IniLocalizedValues.ContainsKey(CulturesToStage[i]))
 					{
 						PerCultureResourceWriters[i].AddResource(ResourceEntryName, NeutralValue);

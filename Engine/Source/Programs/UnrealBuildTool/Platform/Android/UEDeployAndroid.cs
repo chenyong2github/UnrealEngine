@@ -837,7 +837,7 @@ namespace UnrealBuildTool
 				if (bUseChangeListAsStoreVersion && IsBuildMachine)
 				{
 					// make sure changelist is cached
-					string EngineVersion = ReadEngineVersion();
+					//string EngineVersion = ReadEngineVersion();
 					
 					int Changelist = 0;
 					if (int.TryParse(EngineChangelist, out Changelist))
@@ -3140,6 +3140,7 @@ namespace UnrealBuildTool
 			{
 				if (!bSkipGradleBuild)
 				{
+					/*
 					IEnumerable<Tuple<string, string>> TargetList = null;
 
 					TargetList = from Arch in Arches
@@ -3149,7 +3150,6 @@ namespace UnrealBuildTool
 					string DestApkDirectory = Path.Combine(ProjectDirectory, "Binaries/Android");
 					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UE4Game", ProjectName);
 
-					/*
 					foreach (Tuple<string, string> target in TargetList)
 					{
 						string Arch = target.Item1;
@@ -3181,7 +3181,7 @@ namespace UnrealBuildTool
 			}
 
 			// make sure it is cached
-			string EngineVersion = ReadEngineVersion();
+			//string EngineVersion = ReadEngineVersion();
 
 			SetMinimumSDKLevelForGradle();
 
@@ -3204,8 +3204,8 @@ namespace UnrealBuildTool
 			string BuildToolsVersion = GetBuildToolsVersion();
 
 			// cache some tools paths
-			string NDKBuildPath = Environment.ExpandEnvironmentVariables("%NDKROOT%/ndk-build" + (Utils.IsRunningOnMono ? "" : ".cmd"));
-			bool HasNDKPath = File.Exists(NDKBuildPath);
+			//string NDKBuildPath = Environment.ExpandEnvironmentVariables("%NDKROOT%/ndk-build" + (Utils.IsRunningOnMono ? "" : ".cmd"));
+			//bool HasNDKPath = File.Exists(NDKBuildPath);
 
 			// set up some directory info
 			string IntermediateAndroidPath = Path.Combine(ProjectDirectory, "Intermediate", "Android");
@@ -3676,7 +3676,7 @@ namespace UnrealBuildTool
 					string[] CompileSDKLines = CompileSDKMin.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
 					foreach (string CompileLine in CompileSDKLines)
 					{
-						string VersionString = CompileLine.Replace("android-", "");
+						//string VersionString = CompileLine.Replace("android-", "");
 						int VersionInt;
 						if (int.TryParse(CompileLine, out VersionInt))
 						{
