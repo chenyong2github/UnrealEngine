@@ -71,6 +71,20 @@ enum class EMakeMeshPivotLocation : uint8
 	Top
 };
 
+
+/** Polygroup mode for primitive */
+UENUM()
+enum class EMakeMeshPolygroupMode : uint8
+{
+	/** One polygroup for entire output mesh */
+	Single,
+	/** One polygroup per geometric face of primitive */
+	PerFace,
+	/** One polygroup per mesh quad/triangle */
+	PerQuad
+};
+
+
 UCLASS()
 class MESHMODELINGTOOLS_API UProceduralShapeToolProperties : public UInteractiveToolPropertySet
 {
@@ -85,8 +99,12 @@ public:
 #endif // WITH_EDITOR	
 	// End of UObject interface
 
+	/** If the shape settings haven't changed, create instances of the last created asset rather than creating a whole new asset.  If false, all created actors will have separate underlying mesh assets. */
+	UPROPERTY(EditAnywhere, Category = AssetSettings)
+	bool bInstanceIfPossible = true;
+
 	/** Type of shape to generate */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings)
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Primitive Type"))
 	EMakeMeshShapeType Shape;
 
 	/** Width of Shape */
@@ -98,28 +116,36 @@ public:
 	float Height;
 
 	/** Radius of additional circular features of the shape (not implicitly defined by the width of the shape) */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Feature Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0"))
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0"))
 	float FeatureRadius;
 
-	/** Rotation around up axis */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Rotation", UIMin = "0.0", UIMax = "360.0"))
-	float Rotation;
+	/** Number of Slices */
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Slices", UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "999"))
+	int Slices;
 
-	/** Type of shape to generate */
+	/** Number of Subdivisions */
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Subdivisions", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "4000"))
+	int Subdivisions;
+
+	/** How should Polygroups be assigned to triangles of Primitive */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings)
+	EMakeMeshPolygroupMode PolygroupMode;
+
+	/** How to place Primitive in the Scene */
+	UPROPERTY(EditAnywhere, Category = Positioning, meta = (DisplayName = "Target Surface"))
 	EMakeMeshPlacementType PlaceMode;
 
-	/** Center shape at click point */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings)
+	/** Location of Pivot within Primitive */
+	UPROPERTY(EditAnywhere, Category = Positioning)
     EMakeMeshPivotLocation PivotLocation;
 
-	/** Align shape to placement surface */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (EditCondition = "PlaceMode == EMakeMeshPlacementType::OnScene"))
-	bool bAlignShapeToPlacementSurface = true;
+	/** Rotation of Primitive around up axis */
+	UPROPERTY(EditAnywhere, Category = Positioning, meta = (DisplayName = "Rotation", UIMin = "0.0", UIMax = "360.0"))
+	float Rotation;
 
-	/** If the shape settings haven't changed, create instances of the last created asset rather than creating a whole new asset.  If false, all created actors will have separate underlying mesh assets. */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings)
-	bool bInstanceLastCreatedAssetIfPossible = true;
+	/** Align shape to Placement Surface */
+	UPROPERTY(EditAnywhere, Category = Positioning, meta = (DisplayName = "Align to Normal", EditCondition = "PlaceMode == EMakeMeshPlacementType::OnScene"))
+	bool bAlignShapeToPlacementSurface = true;
 
 	///** Start Angle of Shape */
 	//UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Start Angle", UIMin = "0.0", UIMax = "360.0", ClampMin = "-10000", ClampMax = "10000.0"))
@@ -130,13 +156,6 @@ public:
 	//float EndAngle;
 
 
-	/** Number of Slices */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Slices", UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "999"))
-	int Slices;
-
-	/** Subdivisions */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Subdivisions", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "4000"))
-	int Subdivisions;
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
@@ -231,6 +250,7 @@ protected:
 			LastGenerated->ShapeSettings->Height == ShapeSettings->Height &&
 			LastGenerated->ShapeSettings->Width == ShapeSettings->Width &&
 			LastGenerated->ShapeSettings->Shape == ShapeSettings->Shape &&
+			LastGenerated->ShapeSettings->PolygroupMode == ShapeSettings->PolygroupMode &&
 			LastGenerated->MaterialProperties->UVScale == MaterialProperties->UVScale &&
 			LastGenerated->MaterialProperties->bWorldSpaceUVScale == MaterialProperties->bWorldSpaceUVScale
 			;
