@@ -40,6 +40,7 @@
 #include "pxr/usd/usdGeom/modelAPI.h"
 #include "pxr/usd/usdGeom/tokens.h"
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
+#include "pxr/usd/usdLux/light.h"
 #include "pxr/usd/usdShade/materialBindingAPI.h"
 #include "pxr/usd/usdUtils/stageCache.h"
 
@@ -254,6 +255,17 @@ template<typename T>
 bool IsHolding(const VtValue& Value)
 {
 	return Value.IsHolding<T>() || Value.IsHolding<VtArray<T>>();
+}
+
+// Only used to make sure we link against UsdLux so that it's available to Python on Linux
+float GetLightIntensity(const pxr::UsdPrim& Prim)
+{
+	pxr::UsdLuxLight UsdLuxLight( Prim );
+
+	float Value;
+	UsdLuxLight.GetIntensityAttr().Get( &Value );
+
+	return Value;
 }
 
 bool FUsdAttribute::AsInt(int64_t& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
