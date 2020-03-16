@@ -495,7 +495,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 			}
 		}
 
-		NumSpecificSockets = InstData->SpecificSockets.Num();
+		NumSpecificSockets = InstData->SpecificSocketInfo.Num();
 		SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
 	}
 }
@@ -1511,7 +1511,34 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	// Gather specific socket information
 	{
-		SpecificSockets = Interface->SpecificSockets;
+		TArray<FName>& SpecificSockets = Interface->SpecificSockets;
+		SpecificSocketInfo.SetNum(SpecificSockets.Num());
+
+		//-TODO: We may need to handle skinning mode changes here
+		if (NewSkelComp != nullptr)
+		{
+			for (int32 i = 0; i < SpecificSocketInfo.Num(); ++i)
+			{
+				NewSkelComp->GetSocketInfoByName(SpecificSockets[i], SpecificSocketInfo[i].Transform, SpecificSocketInfo[i].BoneIdx);
+			}
+		}
+		else if (Mesh != nullptr)
+		{
+			for (int32 i = 0; i < SpecificSocketInfo.Num(); ++i)
+			{
+				SpecificSocketInfo[i].Transform = FTransform(Mesh->GetComposedRefPoseMatrix(SpecificSockets[i]));
+				SpecificSocketInfo[i].BoneIdx = INDEX_NONE;
+			}
+		}
+		else
+		{
+			for (int32 i = 0; i < SpecificSocketInfo.Num(); ++i)
+			{
+				SpecificSocketInfo[i].Transform = FTransform::Identity;
+				SpecificSocketInfo[i].BoneIdx = INDEX_NONE;
+			}
+		}
+
 		SpecificSocketBoneOffset = Mesh->RefSkeleton.GetNum();
 
 		SpecificSocketTransformsIndex = 0;
@@ -1571,7 +1598,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		BeginInitResource(MeshGpuSpawnStaticBuffers);
 
 		MeshGpuSpawnDynamicBuffers = new FSkeletalMeshGpuDynamicBufferProxy();
-		MeshGpuSpawnDynamicBuffers->Initialise(RefSkel, LODData, SpecificSockets.Num());
+		MeshGpuSpawnDynamicBuffers->Initialise(RefSkel, LODData, SpecificSocketInfo.Num());
 		BeginInitResource(MeshGpuSpawnDynamicBuffers);
 	}
 
@@ -1688,30 +1715,11 @@ void FNDISkeletalMesh_InstanceData::UpdateSpecificSocketTransforms()
 	USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get());
 	TArray<FTransform>& WriteBuffer = GetSpecificSocketsWriteBuffer();
 
-	//-TODO: We may need to handle skinning mode changes here
-	if (SkelComp != nullptr)
+	for (int32 i = 0; i < SpecificSocketInfo.Num(); ++i)
 	{
-		for (int32 i = 0; i < SpecificSockets.Num(); ++i)
-		{
-			FTransform SocketTransform;
-			int32 BoneIdx;
-			SkelComp->GetSocketInfoByName(SpecificSockets[i], SocketTransform, BoneIdx);
-			WriteBuffer[i] = SocketTransform * SkelComp->GetBoneTransform(BoneIdx, FTransform::Identity);
-		}
-	}
-	else if ( Mesh != nullptr )
-	{
-		for (int32 i = 0; i < SpecificSockets.Num(); ++i)
-		{
-			WriteBuffer[i] = FTransform(Mesh->GetComposedRefPoseMatrix(SpecificSockets[i]));
-		}
-	}
-	else
-	{
-		for (int32 i = 0; i < SpecificSockets.Num(); ++i)
-		{
-			WriteBuffer[i] = FTransform::Identity;
-		}
+		const FCachedSocketInfo& SocketInfo = SpecificSocketInfo[i];
+		const FTransform& BoneTransform = SocketInfo.BoneIdx != INDEX_NONE ? SkelComp->GetBoneTransform(SocketInfo.BoneIdx, FTransform::Identity) : FTransform::Identity;
+		WriteBuffer[i] = SocketInfo.Transform * BoneTransform;
 	}
 }
 
