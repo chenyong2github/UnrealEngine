@@ -18,9 +18,16 @@ class FOutBunch;
 class UNetConnection;
 struct FURL;
 
+CSV_DECLARE_CATEGORY_EXTERN(NetworkProfiler);
+
 #if USE_NETWORK_PROFILER 
 
-#define NETWORK_PROFILER( x ) if ( GNetworkProfiler.IsTrackingEnabled() ) { x; }
+#define NETWORK_PROFILER( x ) \
+	if ( GNetworkProfiler.IsTrackingEnabled() ) \
+	{ \
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NetworkProfiler); \
+		x; \
+	}
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkProfileFinished, const FString& /*Filename */);
 
