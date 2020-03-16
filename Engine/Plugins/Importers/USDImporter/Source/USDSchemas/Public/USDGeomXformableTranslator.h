@@ -4,6 +4,8 @@
 
 #include "USDSchemaTranslator.h"
 
+#include "Misc/Optional.h"
+
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
@@ -30,9 +32,8 @@ public:
 	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override;
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return true; }
 
-protected:
-	USceneComponent* CreateComponents( TSubclassOf< USceneComponent > ComponentType );
-	USceneComponent* CreateComponents( TSubclassOf< USceneComponent > ComponentType, const bool bNeedsActor );
+	// If the optional parameters are not set, we'll figure them out automatically.
+	USceneComponent* CreateComponentsEx( TOptional< TSubclassOf< USceneComponent > > ComponentType, TOptional< bool > bNeedsActor );
 
 private:
 	TOptional< TSubclassOf< USceneComponent > > ComponentTypeOverride;
