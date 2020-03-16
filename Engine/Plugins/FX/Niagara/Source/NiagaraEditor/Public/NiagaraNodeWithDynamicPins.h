@@ -83,6 +83,8 @@ protected:
 	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
 	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_MAX; };
 
+	bool IsValidPinToCompile(UEdGraphPin* Pin) const override;
+
 private:
 
 	/** Gets the display text for a pin. */
