@@ -171,7 +171,7 @@ FText UNiagaraStackParameterStoreItem::GetTooltipText() const
 
 void UNiagaraStackParameterStoreItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
-	if (ParameterStore != nullptr && ParameterStore->GetNumParameters() > 0)
+	if (ParameterStore != nullptr && ParameterStore->ParameterVariables.Num() > 0)
 	{
 		TArray<FNiagaraVariable> Variables;
 		ParameterStore->GetParameters(Variables);

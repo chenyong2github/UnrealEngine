@@ -1448,7 +1448,7 @@ private:
 	TArray<uint8> VarData;
 };
 
-FORCEINLINE uint32 GetTypeHash(const FNiagaraVariable& Var)
+FORCEINLINE uint32 GetTypeHash(const FNiagaraVariableBase& Var)
 {
 	return HashCombine(GetTypeHash(Var.GetType()), GetTypeHash(Var.GetName()));
 }

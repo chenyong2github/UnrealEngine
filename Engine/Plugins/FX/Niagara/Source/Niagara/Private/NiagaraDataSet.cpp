@@ -76,8 +76,7 @@ static FAutoConsoleVariableRef CVarNiagaraGPUDataBufferBufferSlack(
 );
 
 FNiagaraDataSet::FNiagaraDataSet()
-	: CompiledData(&FNiagaraDataSetCompiledData::DummyCompiledData)
-	, NumFreeIDs(0)
+	: NumFreeIDs(0)
 	, MaxUsedID(0)
 	, IDAcquireTag(0)
 	, GPUNumAllocatedIDs(0)
@@ -85,6 +84,7 @@ FNiagaraDataSet::FNiagaraDataSet()
 	, DestinationData(nullptr)
 	, bInitialized(false)
 {
+	CompiledData.Init(&FNiagaraDataSetCompiledData::DummyCompiledData);
 }
 
 FNiagaraDataSet::~FNiagaraDataSet()
