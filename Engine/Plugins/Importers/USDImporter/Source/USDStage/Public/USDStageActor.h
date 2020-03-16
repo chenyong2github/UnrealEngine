@@ -85,10 +85,10 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "USD")
 	float TimeCodesPerSecond;
 
-	UPROPERTY(VisibleAnywhere, Category = "USD", NonPIEDuplicateTransient)
+	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
 	ULevelSequence* LevelSequence;
 
-	UPROPERTY(NonPIEDuplicateTransient)
+	UPROPERTY(Transient)
 	TMap<FString, ULevelSequence*> SubLayerLevelSequencesByIdentifier;
 
 public:
@@ -117,6 +117,8 @@ public:
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual void PostDuplicate( bool bDuplicateForPIE ) override;
+	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
 
 private:
 	void Clear();
@@ -125,7 +127,11 @@ private:
 
 #if WITH_EDITOR
 	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);
+	void OnBeginPIE(bool bIsSimulating);
+	void OnPostPIEStarted(bool bIsSimulating);
 #endif // WITH_EDITOR
+
+	void UpdateSpawnedObjectsTransientFlag( bool bTransient );
 
 	void OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin );
 
@@ -133,22 +139,22 @@ private:
 	bool HasAutorithyOverStage() const;
 
 private:
-	UPROPERTY( NonPIEDuplicateTransient )
+	UPROPERTY(Transient)
 	UUsdPrimTwin* RootUsdTwin;
 
-	UPROPERTY( NonPIEDuplicateTransient )
+	UPROPERTY(Transient)
 	TSet< FString > PrimsToAnimate;
 
-	UPROPERTY( Transient )
+	UPROPERTY(Transient)
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
 	/** Hash based assets cache */
-	UPROPERTY( NonPIEDuplicateTransient )
+	UPROPERTY(Transient)
 	TMap< FString, UObject* > AssetsCache;
 
 	/** Map of USD Prim Paths to UE assets */
-	UPROPERTY( NonPIEDuplicateTransient )
+	UPROPERTY(Transient)
 	TMap< FString, UObject* > PrimPathsToAssets;
 
 #if USE_USD_SDK
