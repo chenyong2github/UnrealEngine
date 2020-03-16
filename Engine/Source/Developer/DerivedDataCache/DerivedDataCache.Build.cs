@@ -9,6 +9,12 @@ public class DerivedDataCache : ModuleRules
 	{
 		PrivateDependencyModuleNames.Add("Core");
 
+		// Dependencies for S3 backend
+		PrivateDependencyModuleNames.AddRange(new string[] { "SSL", "Json" });
+		PrivateIncludePathModuleNames.Add("DesktopPlatform");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+
 		// Internal (NotForLicensees) module
 		var DDCUtilsModule = Path.Combine("Developer", "NotForLicensees", "DDCUtils", "DDCUtils.Build.cs");
 		if (File.Exists(DDCUtilsModule))
