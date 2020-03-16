@@ -555,7 +555,7 @@ void UPrimitiveComponent::CreateRenderState_Concurrent(FRegisterComponentContext
 	{
 		if (Context != nullptr)
 		{
-			Context->AddPrimitiveBatches.Add(this);
+			Context->AddPrimitive(this);
 		}
 		else
 		{

@@ -12896,21 +12896,12 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	// Note that AI system will be created only if ai-system-creation conditions are met
 	WorldContext.World()->CreateAISystem();
 
-	FRegisterComponentContext Context;
 	// Initialize gameplay for the level.
-	WorldContext.World()->InitializeActorsForPlay(URL, true, &Context);
-
-	UWorld* ParallelWorld = WorldContext.World();
-	ParallelFor(Context.AddPrimitiveBatches.Num(),
-		[&Context, ParallelWorld](int32 Index)
-		{
-			if (!Context.AddPrimitiveBatches[Index]->IsPendingKill())
-			{
-				ParallelWorld->Scene->AddPrimitive(Context.AddPrimitiveBatches[Index]);
-			}
-		},
-		!FApp::ShouldUseThreadingForPerformance()
-	);
+	{
+		FRegisterComponentContext Context(WorldContext.World());
+		WorldContext.World()->InitializeActorsForPlay(URL, true, &Context);
+		Context.Process();
+	}
 
 	// calling it after InitializeActorsForPlay has been called to have all potential bounding boxed initialized
 	FNavigationSystem::AddNavigationSystemToWorld(*WorldContext.World(), FNavigationSystemRunMode::GameMode);
