@@ -41,8 +41,8 @@ struct FSearchRecord
 struct FSearchStats
 {
 	int32 Scanning = 0;
-	int32 Downloading = 0;
-	int32 PendingDatabaseUpdates = 0;
+	int32 Processing = 0;
+	int32 Updating = 0;
 
 	int32 AssetsMissingIndex = 0;
 

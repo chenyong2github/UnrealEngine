@@ -6,6 +6,22 @@
 #include "Engine/EngineTypes.h"
 #include "SearchUserSettings.generated.h"
 
+USTRUCT()
+struct FSearchPerformance
+{
+	GENERATED_BODY();
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Performance")
+	int32 ParallelDownloads = 0;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	int32 DownloadProcessRate = 0;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	int32 AssetScanRate = 0;
+};
+
 UCLASS(config = EditorPerProjectUserSettings, meta=(DisplayName="Search"))
 class USearchUserSettings : public UDeveloperSettings
 {
@@ -23,4 +39,19 @@ public:
 
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category=General)
 	bool bShowAdvancedData;
+
+	UPROPERTY(config, EditAnywhere, Category = Performance)
+	bool bThrottleInBackground = true;
+
+	UPROPERTY(config, EditAnywhere, Category = Performance)
+	FSearchPerformance DefaultOptions;
+
+	UPROPERTY(config, EditAnywhere, Category = Performance)
+	FSearchPerformance BackgroundtOptions;
+
+	const FSearchPerformance& GetPerformanceOptions() const;
+
+public:
+	UPROPERTY(Transient)
+	int32 SearchInForeground = 0;
 };
