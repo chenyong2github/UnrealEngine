@@ -287,7 +287,7 @@ bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, co
 
 
 	int64 Length = RawBuffer.Num();
-	for (const uint8* Pos = (uint8*)RawBuffer.GetData(); Length > 0; Length--)
+	for (const uint8* Pos = (uint8*)RawBuffer.GetData(); Length > 0; )
 	{
 		const uint8* LineStart = Pos;
 		while (Length > 0 && *Pos != '\r' && *Pos != '\n')
