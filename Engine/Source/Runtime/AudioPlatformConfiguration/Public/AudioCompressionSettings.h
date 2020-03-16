@@ -73,6 +73,9 @@ struct FPlatformAudioCookOverrides
 	// Whether to use the experimental Load on Demand feature, which uses as little memory at runtime as possible.
 	bool bUseStreamCaching;
 
+	// Whether to put streamed audio chunks inline in the Pak file or not (only matters if bUseStreamCaching is true)
+	bool bInlineStreamedAudioChunks;
+
 	// If Load On Demand is enabled, these settings are used to determine chunks and cache sizes.
 	FAudioStreamCachingSettings StreamCachingSettings;
 
@@ -81,6 +84,7 @@ struct FPlatformAudioCookOverrides
 		, CompressionQualityModifier(1.0f)
 		, AutoStreamingThreshold(0.0f)
 		, bUseStreamCaching(false)
+		, bInlineStreamedAudioChunks(false)
 	{
 		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Max, 48000);
 		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::High, 32000);
