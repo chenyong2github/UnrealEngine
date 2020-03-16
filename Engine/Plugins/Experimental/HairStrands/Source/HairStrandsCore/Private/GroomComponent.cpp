@@ -1384,12 +1384,12 @@ void UGroomComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	ReleaseResources();
 
 #if WITH_EDITOR
-	if (bIsGroomAssetCallbackRegistered)
+	if (bIsGroomAssetCallbackRegistered && GroomAsset)
 	{
 		GroomAsset->GetOnGroomAssetChanged().RemoveAll(this);
 		bIsGroomAssetCallbackRegistered = false;
 	}
-	if (bIsGroomBindingAssetCallbackRegistered)
+	if (bIsGroomBindingAssetCallbackRegistered && BindingAsset)
 	{
 		BindingAsset->GetOnGroomBindingAssetChanged().RemoveAll(this);
 		bIsGroomBindingAssetCallbackRegistered = false;
