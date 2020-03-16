@@ -12,7 +12,7 @@ namespace Audio
 	 *
 	 * Contains settings for loudness analyzer.
 	 */
-	class FLoudnessNRTSettings : public IAnalyzerNRTSettings, public FLoudnessAnalyzerSettings
+	class AUDIOSYNESTHESIACORE_API FLoudnessNRTSettings : public IAnalyzerNRTSettings, public FLoudnessAnalyzerSettings
 	{
 		public:
 			/** Number of seconds between loudness measurements */
@@ -36,13 +36,13 @@ namespace Audio
 		float Loudness = 0.f;
 	};
 	/** De/Serialize single loudness datum into archive. */
-	AUDIOSYNESTHESIA_API FArchive &operator <<(FArchive& Ar, FLoudnessDatum& Datum);
+	AUDIOSYNESTHESIACORE_API FArchive &operator <<(FArchive& Ar, FLoudnessDatum& Datum);
 
 	/** FLoudnessNRTResult
 	 *
 	 * FLoudnessNRTResult contains the temporal evolution of loudness.
 	 */
-	class AUDIOSYNESTHESIA_API FLoudnessNRTResult : public IAnalyzerNRTResult
+	class AUDIOSYNESTHESIACORE_API FLoudnessNRTResult : public IAnalyzerNRTResult
 	{
 	public:
 		/** ChannelIndexOverall
@@ -118,7 +118,7 @@ namespace Audio
 	 *
 	 * FLoudnessNRTWorker performs loudness analysis on input sample buffers.
 	 */
-	class FLoudnessNRTWorker : public IAnalyzerNRTWorker
+	class AUDIOSYNESTHESIACORE_API FLoudnessNRTWorker : public IAnalyzerNRTWorker
 	{
 	public:
 		/** Construct a worker */
@@ -157,7 +157,7 @@ namespace Audio
 	 *
 	 * Defines the LoudnessNRT analyzer and creates related classes.
 	 */
-	class FLoudnessNRTFactory : public IAnalyzerNRTFactory
+	class AUDIOSYNESTHESIACORE_API FLoudnessNRTFactory : public IAnalyzerNRTFactory
 	{
 		public:
 
