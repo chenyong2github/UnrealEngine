@@ -46,11 +46,6 @@ protected:
 	double PlayStartTime() const;
 	double PlayEndTime() const;
 
-	TOptional<double> MinPlayStartTime() const;
-	TOptional<double> MaxPlayStartTime() const;
-	TOptional<double> MinPlayEndTime() const;
-	TOptional<double> MaxPlayEndTime() const;
-
 	void OnPlayStartTimeCommitted(double NewValue, ETextCommit::Type InTextCommit);
 	void OnPlayEndTimeCommitted(double NewValue, ETextCommit::Type InTextCommit);
 
@@ -62,9 +57,6 @@ protected:
 	double ViewStartTime() const;
 	double ViewEndTime() const;
 	
-	TOptional<double> MaxViewStartTime() const;
-	TOptional<double> MinViewEndTime() const;
-
 	void OnViewStartTimeCommitted(double NewValue, ETextCommit::Type InTextCommit);
 	void OnViewEndTimeCommitted(double NewValue, ETextCommit::Type InTextCommit);
 
@@ -75,9 +67,6 @@ protected:
 
 	double WorkingStartTime() const;
 	double WorkingEndTime() const;
-
-	TOptional<double> MaxWorkingStartTime() const;
-	TOptional<double> MinWorkingEndTime() const;
 
 	void OnWorkingStartTimeCommitted(double NewValue, ETextCommit::Type InTextCommit);
 	void OnWorkingEndTimeCommitted(double NewValue, ETextCommit::Type InTextCommit);
