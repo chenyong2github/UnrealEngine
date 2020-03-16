@@ -317,8 +317,14 @@ private:
 	/** World containing the data to preview */
 	UWorld* WorldToPreview;
 
-	/** Root actor all mesh components will be attached to for preview. */
-	TWeakObjectPtr<AActor> PreviewActor;
+	/** Root component of the viewport world's root actor. */
+	TWeakObjectPtr<USceneComponent> RootActorComponent;
+
+	/** Actor to hold onto all 'Movable' preview mesh components */
+	TWeakObjectPtr<AActor> MovableActor;
+
+	/** Actor to hold onto all 'Static' preview mesh components */
+	TWeakObjectPtr<AActor> StaticActor;
 
 	/** Array of static mesh components added to the preview scene for display. */
 	TArray< TWeakObjectPtr< UStaticMeshComponent > > PreviewMeshComponents;
