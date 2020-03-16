@@ -462,7 +462,7 @@ EVisibility F3DTransformTrackEditor::IsCameraVisible(FGuid ObjectGuid) const
 		}
 	}
 
-	return EVisibility::Hidden;
+	return EVisibility::Collapsed;
 }
 
 ECheckBoxState F3DTransformTrackEditor::IsCameraLocked(FGuid ObjectGuid) const
