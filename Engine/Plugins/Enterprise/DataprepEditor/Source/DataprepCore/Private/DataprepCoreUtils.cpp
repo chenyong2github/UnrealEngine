@@ -20,6 +20,7 @@
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepSelectionTransform.h"
 
+#include "AssetRegistryModule.h"
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -38,6 +39,7 @@
 #include "Templates/SubclassOf.h"
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "ActorEditorUtils.h"
@@ -368,12 +370,11 @@ bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetI
 
 			FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
 
+			// Erase all temporary packages and files created by the Dataprep asset
+			DeleteTemporaryFolders( TransientContentFolder );
+
 			// Restore LogStaticMesh verbosity
 			LogStaticMesh.SetVerbosity( PrevLogStaticMeshVerbosity );
-
-			// Erase all temporary files created by the Dataprep asset
-			static FString AbsolutePath = FPaths::ConvertRelativePathToFull( DataprepCorePrivateUtils::GetRootTemporaryDir() / RelativeTempFolder );
-			IFileManager::Get().DeleteDirectory( *AbsolutePath, false, true );
 		}
 
 		return bSuccessfulExecute;
@@ -754,5 +755,104 @@ void FDataprepCoreUtils::GetActorsFromWorld(const UWorld* World, TArray<AActor*>
 	DataprepCoreUtilsPrivate::GetActorsFromWorld( World, OutActors );
 }
 
+void FDataprepCoreUtils::DeleteTemporaryFolders(const FString& BaseTemporaryPath)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDataprepCoreUtils::DeleteTemporaryFolders);
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>( TEXT("AssetRegistry") );
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	TArray< UObject* > ObjectsToDelete;
+
+	// Find all registered objects which are in  memory and under the temporary path
+	{
+		// Query for a list of assets in the path to delete
+		FARFilter Filter;
+		Filter.bRecursivePaths = true;
+		Filter.PackagePaths.Emplace( *BaseTemporaryPath );
+
+		TArray<FAssetData> AssetDataList;
+		AssetRegistry.GetAssets( Filter, AssetDataList );
+
+		ObjectsToDelete.Reserve( AssetDataList.Num() );
+		for(const FAssetData& AssetData : AssetDataList)
+		{
+			FSoftObjectPath ObjectPath( AssetData.ObjectPath.ToString() );
+
+			if(UObject* Object = ObjectPath.ResolveObject())
+			{
+				ObjectsToDelete.Add( Object );
+			}
+		}
+	}
+
+	// Find all packages under the temporary path
+	{
+		for (TObjectIterator<UPackage> It; It; ++It)
+		{
+			UPackage*	Package = *It;
+
+			if(Package->GetName().StartsWith( BaseTemporaryPath ))
+			{
+				// Remove package path from asset registry
+				AssetRegistry.RemovePath(Package->GetPathName());
+
+				ObjectsToDelete.Add( Package );
+			}
+		}
+	}
+
+	if(ObjectsToDelete.Num() > 0)
+	{
+		PurgeObjects( MoveTemp( ObjectsToDelete ) );
+	}
+	// No object to delete, force a garbage collection anyway
+	else
+	{
+		CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
+	}
+
+	// Delete all assets on disk
+	{
+		struct FEmptyFolderVisitor : public IPlatformFile::FDirectoryVisitor
+		{
+			bool bIsEmpty;
+
+			FEmptyFolderVisitor()
+				: bIsEmpty( true )
+			{
+			}
+
+			virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory) override
+			{
+				if ( !bIsDirectory )
+				{
+					bIsEmpty = false;
+					return false; // abort searching
+				}
+
+				return true; // continue searching
+			}
+		};
+
+		IFileManager& FileManager = IFileManager::Get();
+
+		FString PathToDeleteOnDisk;
+		if ( FPackageName::TryConvertLongPackageNameToFilename( BaseTemporaryPath, PathToDeleteOnDisk ) )
+		{
+			if( FileManager.DirectoryExists( *PathToDeleteOnDisk ) )
+			{
+				// Look for files on disk in case the folder contains things not tracked by the asset registry
+				FEmptyFolderVisitor EmptyFolderVisitor;
+				FileManager.IterateDirectoryRecursively( *PathToDeleteOnDisk, EmptyFolderVisitor );
+
+				if ( EmptyFolderVisitor.bIsEmpty && IFileManager::Get().DeleteDirectory( *PathToDeleteOnDisk, false, true ) )
+				{
+					AssetRegistry.RemovePath( BaseTemporaryPath );
+				}
+			}
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
