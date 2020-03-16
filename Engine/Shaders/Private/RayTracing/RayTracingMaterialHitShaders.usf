@@ -271,12 +271,15 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	FPackedMaterialClosestHitPayload, PackedPayload,
 	FDefaultAttributes, Attributes)
 {
+	PackedPayload.HitT = RayTCurrent();
+
+#if USE_MATERIAL_CLOSEST_HIT_SHADER
+
 	if (PackedPayload.IsMinimalPayloadMode())
 	{
 		// Minimal payload mode only fills FMinimalPayload::HitT, skipping actual material evaluation.
 		// This mode is used when tracing shadow rays against masked geometry.
 		// Dynamic branch is used to avoid compiling an extra shader permutation.
-		PackedPayload.HitT = RayTCurrent();
 		return;
 	}
 
@@ -328,7 +331,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 
 	Payload.BlendingMode = MaterialBlendingMode;
 
-	Payload.HitT = RayTCurrent();
 	if (HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)
 	{
 		Payload.SetFrontFace();
@@ -446,12 +448,22 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 #endif
 
 	PackedPayload = PackRayTracingPayload(Payload, PropagatedCone);
+
+#endif // USE_MATERIAL_CLOSEST_HIT_SHADER
 }
 
 RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	FPackedMaterialClosestHitPayload, PackedPayload,
 	FDefaultAttributes, Attributes)
 {
+#if USE_MATERIAL_ANY_HIT_SHADER
+
+#if MATERIALBLENDING_SOLID
+	// Continue traversal by simply returning from this shader
+	// Usually this path is inactive because opaque materials don't have AHS bound
+	return;
+#endif // MATERIALBLENDING_SOLID
+
 #if MATERIALBLENDING_MASKED
 	ResolvedView = ResolveView();
 
@@ -488,5 +500,13 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 		// Continue traversal by simply returning from this shader
 		return;
 	}
-#endif
+#endif // MATERIALBLENDING_MASKED
+
+	// For any other blending models, ignore hit in anyhit shader if we're tracing visibility rays until we have proper handling for translucent
+	if (PackedPayload.IsIgnoreTranslucentMaterials())
+	{
+		IgnoreHit();
+	}
+
+#endif // USE_MATERIAL_ANY_HIT_SHADER
 }  
