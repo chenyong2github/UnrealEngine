@@ -171,7 +171,7 @@ public:
 
 public:
 	/** Constructor */
-	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, const TSet<FString>& Extensions);
+	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, TArray<const char*> InEnabledExtensions);
 
 	/** Destructor */
 	virtual ~FOpenXRHMD();
@@ -188,6 +188,7 @@ public:
 	FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
 	FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }
 
+	bool IsExtensionEnabled(const FString& Name) const { return EnabledExtensions.Contains(Name); }
 	XrInstance GetInstance() { return Instance; }
 	XrSystemId GetSystem() { return System; }
 	XrSession GetSession() { return Session; }
@@ -209,6 +210,7 @@ private:
 	XrSessionState			CurrentSessionState;
 
 	FTransform				BaseTransform;
+	TArray<const char*>		EnabledExtensions;
 	XrInstance				Instance;
 	XrSystemId				System;
 	XrSession				Session;
@@ -217,6 +219,7 @@ private:
 	XrSpace					TrackingSpaceRHI;
 	XrReferenceSpaceType	TrackingSpaceType;
 	XrViewConfigurationType SelectedViewConfigurationType;
+	XrEnvironmentBlendMode  SelectedEnvironmentBlendMode;
 
 	XrFrameState			FrameState;
 	XrFrameState			FrameStateRHI;

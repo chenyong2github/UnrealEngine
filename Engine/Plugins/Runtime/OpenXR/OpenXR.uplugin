@@ -3,7 +3,7 @@
 	"Version" : 1,
 	"VersionName" : "1.0",
 	"FriendlyName" : "OpenXR",
-	"Description" : "OpenXR is an open VR/AR standard currently in a provisional release",
+	"Description" : "OpenXR is an open VR/AR standard",
 	"Category" : "Virtual Reality",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",
@@ -14,20 +14,32 @@
 	"CanContainContent" : false,
 	"IsBetaVersion" : true,
 	"Installed" : false,
-	"SupportedTargetPlatforms" : [ "Win32", "Win64" ],
+	"SupportedTargetPlatforms": [
+		"Win32",
+		"Win64",
+		"HoloLens"
+	],
 	"Modules" :
 	[
 		{
 			"Name" : "OpenXRHMD",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PostConfigInit",
-            "WhitelistPlatforms" : [ "Win32", "Win64" ]
+			"WhitelistPlatforms": [
+				"Win32",
+				"Win64",
+				"HoloLens"
+			]
 		},
 		{
 			"Name" : "OpenXRInput",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PostEngineInit",
-            "WhitelistPlatforms" : [ "Win32", "Win64" ]
+			"WhitelistPlatforms": [
+				"Win32",
+				"Win64",
+				"HoloLens"
+			]
 		}
 	]
 }

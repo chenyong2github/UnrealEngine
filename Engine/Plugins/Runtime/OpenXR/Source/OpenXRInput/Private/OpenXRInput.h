@@ -41,10 +41,11 @@ public:
 	struct FInteractionProfile
 	{
 	public:
+		bool HasHaptics;
 		XrPath Path;
 		TArray<XrActionSuggestedBinding> Bindings;
 
-		FInteractionProfile(XrPath InProfile);
+		FInteractionProfile(XrPath InProfile, bool InHasHaptics);
 	};
 
 	class FOpenXRInput : public IInputDevice, public FXRMotionControllerBase, public IHapticDevice, public TSharedFromThis<FOpenXRInput>
@@ -84,6 +85,7 @@ public:
 		TMap<EControllerHand, FOpenXRController> Controllers;
 
 		bool bActionsBound;
+
 		void BuildActions();
 		void DestroyActions();
 
@@ -97,10 +99,12 @@ public:
 	FOpenXRInputPlugin();
 	virtual ~FOpenXRInputPlugin();
 
-	FOpenXRHMD* GetOpenXRHMD() const;
-
 	virtual void StartupModule() override;
 	virtual TSharedPtr< class IInputDevice > CreateInputDevice(const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler) override;
+
+private:
+	void RegisterKeys();
+	FOpenXRHMD* GetOpenXRHMD() const;
 
 private:
 	TSharedPtr<FOpenXRInput> InputDevice;
