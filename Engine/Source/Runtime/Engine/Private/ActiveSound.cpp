@@ -1544,13 +1544,17 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 	if (Settings->bEnableSubmixSends)
 	{
 		ParseParams.SubmixSendSettings.Reset();
-		for (const FAttenuationSubmixSendSettings& SendSettings : Settings->SubmixSendSettings)
+		if (Settings->SubmixSendSettings.Submix)
 		{
-			if (SendSettings.Submix)
-			{
-				ParseParams.SubmixSendSettings.Add(SendSettings);
-			}
+			ParseParams.SubmixSendSettings.Add(Settings->SubmixSendSettings);
 		}
+// 		for (const FAttenuationSubmixSendSettings& SendSettings : Settings->SubmixSendSettings)
+// 		{
+// 			if (SendSettings.Submix)
+// 			{
+// 				ParseParams.SubmixSendSettings.Add(SendSettings);
+// 			}
+// 		}
 	}
 
 	check(AudioDevice);
