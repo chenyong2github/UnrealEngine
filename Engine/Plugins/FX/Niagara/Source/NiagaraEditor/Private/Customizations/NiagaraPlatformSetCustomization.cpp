@@ -953,6 +953,8 @@ FReply FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked(TSharedPtr<F
 		EffectsQualityMenuAnchors[EffectsQuality]->SetIsOpen(false);
 	}
 
+	DeviceProfileTreeWidget->RequestTreeRefresh();
+
 	return FReply::Handled();
 }
 
