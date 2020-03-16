@@ -15,14 +15,14 @@ public:
 	/**
 	 * Creates the backend, checks health status and attempts to acquire an access token.
 	 *
-	 * @param  InManifestPath       Path to the JSON manifest in the workspace containing a list of files to download
+	 * @param  InRootManifestPath   Local path to the JSON manifest in the workspace containing a list of files to download
 	 * @param  InBaseUrl            Base URL for the bucket, with trailing slash (eg. https://foo.s3.us-east-1.amazonaws.com/)
 	 * @param  InRegion	            Name of the AWS region (eg. us-east-1)
 	 * @param  InCanaryObjectKey    Key for a canary object used to test whether this backend is usable
 	 * @param  InAccessKey          The AWS access key
 	 * @param  InSecretKey          The AWS secret key
 	 */
-	FS3DerivedDataBackend(const TCHAR* InManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InAccessKey, const TCHAR* InSecretKey);
+	FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InAccessKey, const TCHAR* InSecretKey);
 	~FS3DerivedDataBackend();
 
 	/**
@@ -45,7 +45,7 @@ private:
 	class FRequest;
 	class FRequestPool;
 
-	FString ManifestPath;
+	FString RootManifestPath;
 	FString BaseUrl;
 	FString Region;
 	FString CanaryObjectKey;
@@ -55,7 +55,7 @@ private:
 	FDerivedDataCacheUsageStats UsageStats;
 	bool bEnabled;
 
-	bool ReadManifest();
+	bool DownloadManifest(FFeedbackContext* Context);
 	void RemoveUnusedBundles();
 	void ReadBundle(FBundle& Bundle);
 	bool FindBundleEntry(const TCHAR* CacheKey, const FBundle*& OutBundle, const FBundleEntry*& OutBundleEntry) const;
