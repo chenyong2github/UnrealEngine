@@ -4,6 +4,7 @@
 
 #include "NiagaraTypes.h"
 #include "UObject/GCObject.h"
+#include "UObject/SoftObjectPtr.h"
 #include "NiagaraClipboard.generated.h"
 
 class UNiagaraDataInterface;
@@ -95,7 +96,7 @@ public:
 	ENiagaraClipboardFunctionScriptMode ScriptMode;
 
 	UPROPERTY()
-	UNiagaraScript* Script;
+	TSoftObjectPtr<UNiagaraScript> Script;
 
 	UPROPERTY()
 	TArray<FNiagaraVariable> AssignmentTargets;

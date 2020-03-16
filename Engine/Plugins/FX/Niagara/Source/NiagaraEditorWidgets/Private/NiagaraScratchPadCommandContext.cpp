@@ -60,7 +60,10 @@ void FNiagaraScratchPadCommandContext::AddMenuItems(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("Script", LOCTEXT("ScriptActions", "Script"));
 	{
-		MenuBuilder.AddMenuEntry(FNiagaraEditorModule::Get().Commands().Apply);
+		MenuBuilder.AddMenuEntry(FNiagaraEditorModule::Get().Commands().Apply, NAME_None, LOCTEXT("ApplyChangesLabel", "Apply Changes"));
+		MenuBuilder.AddMenuEntry(FNiagaraEditorModule::Get().Commands().Discard, NAME_None, LOCTEXT("DiscardChangesLabel", "Discard Changes"));
+		MenuBuilder.AddMenuEntry(FNiagaraEditorModule::Get().Commands().SelectNextUsage, NAME_None, TAttribute<FText>(), LOCTEXT("SelectNextToolTip", "Select the next usage of this script in the selection stack."));
+		MenuBuilder.AddMenuEntry(FNiagaraEditorModule::Get().Commands().CreateAssetFromSelection);
 	}
 	MenuBuilder.EndSection();
 }
@@ -82,6 +85,15 @@ void FNiagaraScratchPadCommandContext::SetupCommands()
 	Commands->MapAction(FNiagaraEditorModule::Get().Commands().Apply, FUIAction(
 		FExecuteAction::CreateSP(this, &FNiagaraScratchPadCommandContext::ApplyChangesToSelectedScripts),
 		FCanExecuteAction::CreateSP(this, &FNiagaraScratchPadCommandContext::CanApplyChangesToSelectedScripts)));
+	Commands->MapAction(FNiagaraEditorModule::Get().Commands().Discard, FUIAction(
+		FExecuteAction::CreateSP(this, &FNiagaraScratchPadCommandContext::DiscardChangesFromSelectedScripts),
+		FCanExecuteAction::CreateSP(this, &FNiagaraScratchPadCommandContext::CanDiscardChangesFromSelectedScripts)));
+	Commands->MapAction(FNiagaraEditorModule::Get().Commands().SelectNextUsage, FUIAction(
+		FExecuteAction::CreateSP(this, &FNiagaraScratchPadCommandContext::SelectNextUsageForSelectedScript),
+		FCanExecuteAction::CreateSP(this, &FNiagaraScratchPadCommandContext::CanSelectNextUsageForSelectedScript)));
+	Commands->MapAction(FNiagaraEditorModule::Get().Commands().CreateAssetFromSelection, FUIAction(
+		FExecuteAction::CreateSP(this, &FNiagaraScratchPadCommandContext::CreateAssetFromSelectedScript),
+		FCanExecuteAction::CreateSP(this, &FNiagaraScratchPadCommandContext::CanCreateAssetFromSelectedScript)));
 }
 
 bool FNiagaraScratchPadCommandContext::CanCutSelectedScripts() const
@@ -151,7 +163,7 @@ void FNiagaraScratchPadCommandContext::DeleteSelectedScripts() const
 
 bool FNiagaraScratchPadCommandContext::CanApplyChangesToSelectedScripts() const
 {
-	return ScratchPadViewModel->GetActiveScriptViewModel().IsValid() && ScratchPadViewModel->GetActiveScriptViewModel()->CanApplyChanges();
+	return ScratchPadViewModel->GetActiveScriptViewModel().IsValid() && ScratchPadViewModel->GetActiveScriptViewModel()->HasUnappliedChanges();
 }
 
 void FNiagaraScratchPadCommandContext::ApplyChangesToSelectedScripts() const
@@ -160,6 +172,39 @@ void FNiagaraScratchPadCommandContext::ApplyChangesToSelectedScripts() const
 	{
 		ScratchPadViewModel->GetActiveScriptViewModel()->ApplyChanges();
 	}
+}
+
+bool FNiagaraScratchPadCommandContext::CanDiscardChangesFromSelectedScripts() const
+{
+	return ScratchPadViewModel->GetActiveScriptViewModel().IsValid() && ScratchPadViewModel->GetActiveScriptViewModel()->HasUnappliedChanges();
+}
+
+void FNiagaraScratchPadCommandContext::DiscardChangesFromSelectedScripts() const
+{
+	if (CanDiscardChangesFromSelectedScripts())
+	{
+		ScratchPadViewModel->GetActiveScriptViewModel()->DiscardChanges();
+	}
+}
+
+bool FNiagaraScratchPadCommandContext::CanSelectNextUsageForSelectedScript() const
+{
+	return ScratchPadViewModel->CanSelectNextUsageForActiveScript();
+}
+
+void FNiagaraScratchPadCommandContext::SelectNextUsageForSelectedScript() const
+{
+	ScratchPadViewModel->SelectNextUsageForActiveScript();
+}
+
+bool FNiagaraScratchPadCommandContext::CanCreateAssetFromSelectedScript() const
+{
+	return ScratchPadViewModel->GetActiveScriptViewModel().IsValid();
+}
+
+void FNiagaraScratchPadCommandContext::CreateAssetFromSelectedScript() const
+{
+	ScratchPadViewModel->CreateAssetFromActiveScript();
 }
 
 #undef LOCTEXT_NAMESPACE

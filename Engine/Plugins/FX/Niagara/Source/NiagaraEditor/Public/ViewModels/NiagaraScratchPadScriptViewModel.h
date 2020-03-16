@@ -40,13 +40,17 @@ public:
 
 	void SetEditorHeight(float InEditorHeight);
 
-	bool CanApplyChanges() const;
+	bool HasUnappliedChanges() const;
 
 	void ApplyChanges();
+
+	void DiscardChanges();
 
 	FOnRenamed& OnRenamed();
 
 	FOnPinnedChanged& OnPinnedChanged();
+
+	FSimpleDelegate& OnRequestDiscardChanges();
 
 private:
 	FText GetDisplayNameInternal() const;
@@ -72,4 +76,5 @@ private:
 
 	FOnRenamed OnRenamedDelegate;
 	FOnPinnedChanged OnPinnedChangedDelegate;
+	FSimpleDelegate OnRequestDiscardChangesDelegate;
 };

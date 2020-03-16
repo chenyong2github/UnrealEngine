@@ -11,6 +11,7 @@
 
 class UNiagaraNodeInput;
 class UNiagaraNodeOutput;
+class UNiagaraNodeFunctionCall;
 struct FNiagaraVariable;
 struct FNiagaraTypeDefinition;
 class UNiagaraGraph;
@@ -289,4 +290,5 @@ namespace FNiagaraEditorUtilities
 
 	FString GetNamespacelessVariableNameString(const FName& InVarName);
 
+	void GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes);
 };

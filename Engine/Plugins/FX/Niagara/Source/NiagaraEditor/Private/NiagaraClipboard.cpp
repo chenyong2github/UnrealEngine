@@ -2,6 +2,7 @@
 
 #include "NiagaraClipboard.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraScript.h"
 
 #include "Factories.h"
 #include "UObject/UObjectMarks.h"
