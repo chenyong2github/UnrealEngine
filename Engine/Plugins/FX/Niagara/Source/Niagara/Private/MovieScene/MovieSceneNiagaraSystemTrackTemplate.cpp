@@ -215,6 +215,16 @@ FMovieSceneNiagaraSystemTrackImplementation::FMovieSceneNiagaraSystemTrackImplem
 {
 }
 
+FMovieSceneNiagaraSystemTrackImplementation::FMovieSceneNiagaraSystemTrackImplementation()
+	: SpawnSectionStartFrame(FFrameNumber())
+	, SpawnSectionEndFrame(FFrameNumber())
+	, SpawnSectionStartBehavior(ENiagaraSystemSpawnSectionStartBehavior::Activate)
+	, SpawnSectionEvaluateBehavior(ENiagaraSystemSpawnSectionEvaluateBehavior::None)
+	, SpawnSectionEndBehavior(ENiagaraSystemSpawnSectionEndBehavior::SetSystemInactive)
+	, AgeUpdateMode(ENiagaraAgeUpdateMode::TickDeltaTime)
+{
+}
+
 void FMovieSceneNiagaraSystemTrackImplementation::Evaluate(const FMovieSceneEvaluationTrack& Track, FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
 	ExecutionTokens.SetContext(Context);
