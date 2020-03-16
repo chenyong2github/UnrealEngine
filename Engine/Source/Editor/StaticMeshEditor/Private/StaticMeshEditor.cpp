@@ -213,6 +213,19 @@ void FStaticMeshEditor::InitEditorForStaticMesh(UStaticMesh* ObjectToEdit)
 	StaticMeshDetailsView->RegisterInstancedCustomPropertyLayout( UStaticMesh::StaticClass(), LayoutCustomStaticMeshProperties );
 
  	SetEditorMesh(ObjectToEdit);
+
+	bool LocalDrawGrids = false;
+	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> CheckShowGridFunc =
+		[this, &LocalDrawGrids](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+	{
+		TSharedRef<SStaticMeshEditorViewport> StaticMeshEditorViewport = StaticCastSharedRef<SStaticMeshEditorViewport>(Entity->AsWidget());
+		FStaticMeshEditorViewportClient& StaticMeshEditorViewportClient = StaticMeshEditorViewport->GetViewportClient();
+		LocalDrawGrids |= StaticMeshEditorViewportClient.IsSetShowGridChecked();
+	};
+
+	ViewportTabContent->PerformActionOnViewports(CheckShowGridFunc);
+
+	bDrawGrids = LocalDrawGrids;
 }
 
 void FStaticMeshEditor::InitStaticMeshEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UStaticMesh* ObjectToEdit )
@@ -2506,7 +2519,7 @@ bool FStaticMeshEditor::IsShowVerticesChecked() const
 
 void FStaticMeshEditor::ToggleShowGrids()
 {
-	bDrawGrids = !bDrawGrids;
+	bDrawGrids = !IsShowGridsChecked();
 	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> ToggleShowGridFunc =
 		[this](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
 	{
@@ -2525,7 +2538,18 @@ void FStaticMeshEditor::ToggleShowGrids()
 
 bool FStaticMeshEditor::IsShowGridsChecked() const
 {
-	return bDrawGrids;
+	bool LocalDrawGrids = false;
+	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> CheckShowGridFunc =
+		[this, &LocalDrawGrids](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+	{
+		TSharedRef<SStaticMeshEditorViewport> StaticMeshEditorViewport = StaticCastSharedRef<SStaticMeshEditorViewport>(Entity->AsWidget());
+		FStaticMeshEditorViewportClient& StaticMeshEditorViewportClient = StaticMeshEditorViewport->GetViewportClient();
+		LocalDrawGrids |= StaticMeshEditorViewportClient.IsSetShowGridChecked();
+	};
+
+	ViewportTabContent->PerformActionOnViewports(CheckShowGridFunc);
+
+	return LocalDrawGrids;
 }
 
 
