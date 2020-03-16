@@ -9,6 +9,7 @@
 #include "ContentStreaming.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "Async/Async.h"
+#include "Sound/SoundEffectPreset.h"
 
 // This is our global recording task:
 static TUniquePtr<Audio::FAudioRecordingData> RecordingData;
@@ -51,17 +52,13 @@ void UAudioMixerBlueprintLibrary::AddMasterSubmixEffect(const UObject* WorldCont
 
 	if (Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject))
 	{
-		// Immediately create a new sound effect base here before the object becomes potentially invalidated
-		FSoundEffectSubmixPtr SoundEffectSubmix = MakeShareable(static_cast<FSoundEffectSubmix*>(SubmixEffectPreset->CreateNewEffect()));
-
 		FSoundEffectSubmixInitData InitData;
 		InitData.SampleRate = MixerDevice->GetSampleRate();
 		InitData.DeviceID = MixerDevice->DeviceID;
 		InitData.PresetSettings = nullptr;
 
-		// Initialize and set the preset immediately
-		SoundEffectSubmix->Init(InitData);
-		SoundEffectSubmix->SetPreset(SubmixEffectPreset);
+		// Immediately create a new sound effect base here before the object becomes potentially invalidated
+		TSoundEffectSubmixPtr SoundEffectSubmix = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *SubmixEffectPreset);
 		SoundEffectSubmix->SetEnabled(true);
 
 		// Get a unique id for the preset object on the game thread. Used to refer to the object on audio render thread.

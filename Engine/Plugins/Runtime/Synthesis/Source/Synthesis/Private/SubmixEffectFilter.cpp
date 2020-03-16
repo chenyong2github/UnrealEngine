@@ -3,7 +3,6 @@
 #include "SubmixEffects/SubmixEffectFilter.h"
 #include "AudioMixer.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
 
 FSubmixEffectFilter::FSubmixEffectFilter()
 	: SampleRate(0.0f)
@@ -15,10 +14,6 @@ FSubmixEffectFilter::FSubmixEffectFilter()
 	, FilterQ(0.0f)
 	, FilterQMod(0.0f)
 	, NumChannels(0)
-{
-}
-
-FSubmixEffectFilter::~FSubmixEffectFilter()
 {
 }
 
@@ -167,75 +162,48 @@ void USubmixEffectFilterPreset::SetSettings(const FSubmixEffectFilterSettings& I
 
 void USubmixEffectFilterPreset::SetFilterType(ESubmixFilterType InType)
 {
-	for (FSoundEffectBase* EffectBaseInstance : Instances)
+	EffectCommand<FSubmixEffectFilter>([InType](FSubmixEffectFilter& FilterEffect)
 	{
-		FSubmixEffectFilter* FilterEffect = (FSubmixEffectFilter*)EffectBaseInstance;
-		EffectBaseInstance->EffectCommand([FilterEffect, InType]()
-		{
-			FilterEffect->SetFilterType(InType);
-		});
-	}
+		FilterEffect.SetFilterType(InType);
+	});
 }
 
 void USubmixEffectFilterPreset::SetFilterAlgorithm(ESubmixFilterAlgorithm InAlgorithm)
 {
-	for (FSoundEffectBase* EffectBaseInstance : Instances)
+	EffectCommand<FSubmixEffectFilter>([InAlgorithm](FSubmixEffectFilter& FilterEffect)
 	{
-		FSubmixEffectFilter* FilterEffect = (FSubmixEffectFilter*)EffectBaseInstance;
-		EffectBaseInstance->EffectCommand([FilterEffect, InAlgorithm]()
-		{
-			FilterEffect->SetFilterAlgorithm(InAlgorithm);
-		});
-	}
+		FilterEffect.SetFilterAlgorithm(InAlgorithm);
+	});
 }
 
 void USubmixEffectFilterPreset::SetFilterCutoffFrequency(float InFrequency)
 {
-	for (FSoundEffectBase* EffectBaseInstance : Instances)
+	EffectCommand<FSubmixEffectFilter>([InFrequency](FSubmixEffectFilter& FilterEffect)
 	{
-		FSubmixEffectFilter* FilterEffect = (FSubmixEffectFilter*)EffectBaseInstance;
-		EffectBaseInstance->EffectCommand([FilterEffect, InFrequency]()
-		{
-			FilterEffect->SetFilterCutoffFrequency(InFrequency);
-		});
-	}
+		FilterEffect.SetFilterCutoffFrequency(InFrequency);
+	});
 }
 
 void USubmixEffectFilterPreset::SetFilterCutoffFrequencyMod(float InFrequency)
 {
-	for (FSoundEffectBase* EffectBaseInstance : Instances)
+	EffectCommand<FSubmixEffectFilter>([InFrequency](FSubmixEffectFilter& FilterEffect)
 	{
-		FSubmixEffectFilter* FilterEffect = (FSubmixEffectFilter*)EffectBaseInstance;
-		EffectBaseInstance->EffectCommand([FilterEffect, InFrequency]()
-		{
-			FilterEffect->SetFilterCutoffFrequencyMod(InFrequency);
-		});
-	}
+		FilterEffect.SetFilterCutoffFrequencyMod(InFrequency);
+	});
 }
 
 void USubmixEffectFilterPreset::SetFilterQ(float InQ)
 {
-	for (FSoundEffectBase* EffectBaseInstance : Instances)
+	EffectCommand<FSubmixEffectFilter>([InQ](FSubmixEffectFilter& FilterEffect)
 	{
-		FSubmixEffectFilter* FilterEffect = (FSubmixEffectFilter*)EffectBaseInstance;
-		EffectBaseInstance->EffectCommand([FilterEffect, InQ]()
-		{
-			FilterEffect->SetFilterQ(InQ);
-		});
-	}
+		FilterEffect.SetFilterQ(InQ);
+	});
 }
 
 void USubmixEffectFilterPreset::SetFilterQMod(float InQ)
 {
-	for (FSoundEffectBase* EffectBaseInstance : Instances)
+	EffectCommand<FSubmixEffectFilter>([InQ](FSubmixEffectFilter& FilterEffect)
 	{
-		FSubmixEffectFilter* FilterEffect = (FSubmixEffectFilter*)EffectBaseInstance;
-		EffectBaseInstance->EffectCommand([FilterEffect, InQ]()
-		{
-			FilterEffect->SetFilterQMod(InQ);
-		});
-	}
-
+		FilterEffect.SetFilterQMod(InQ);
+	});
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

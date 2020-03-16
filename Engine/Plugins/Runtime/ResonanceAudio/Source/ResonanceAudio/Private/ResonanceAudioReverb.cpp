@@ -139,12 +139,9 @@ namespace ResonanceAudio
 			GlobalReverbPluginPreset->AddToRoot();
 			ReverbPluginPreset = GlobalReverbPluginPreset;
 
-			FResonanceAudioReverbPlugin* ReverbSubmixEffect = static_cast<FResonanceAudioReverbPlugin*>(ReverbPluginPreset->CreateNewEffect());
-			ReverbSubmixEffect->SetPreset(GlobalReverbPluginPreset);
-			ReverbSubmixEffect->SetResonanceAudioReverbPlugin(this);
-
-			ReverbSubmixEffect->SetEnabled(true);
-			SubmixEffect = MakeShareable(static_cast<FSoundEffectSubmix*>(ReverbSubmixEffect));
+			SubmixEffect = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(FSoundEffectSubmixInitData(), *ReverbPluginPreset);
+			StaticCastSharedPtr<FResonanceAudioReverbPlugin, FSoundEffectSubmix, ESPMode::ThreadSafe>(SubmixEffect)->SetResonanceAudioReverbPlugin(this);
+			SubmixEffect->SetEnabled(true);
 		}
 		else
 		{
