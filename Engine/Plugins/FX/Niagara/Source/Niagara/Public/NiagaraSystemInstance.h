@@ -284,6 +284,7 @@ public:
 
 	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
 
+	const FString& GetCrashReporterTag()const;
 private:
 
 	void DestroyDataInterfaceInstanceData();
@@ -430,6 +431,9 @@ private:
 
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
 	TArray<int32> EmitterExecutionOrder;
+
+	/** Tag we feed into crash reporter for this instance. */
+	mutable FString CrashReporterTag;
 
 public:
 	// Transient data that is accumulated during tick.

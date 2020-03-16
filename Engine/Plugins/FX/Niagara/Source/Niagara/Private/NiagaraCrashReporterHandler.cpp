@@ -37,9 +37,9 @@ FNiagaraCrashReporterHandler::FNiagaraCrashReporterHandler()
 		ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 	}
 
-	Name = FString::Printf(TEXT("NiagaraCRInfo | %s(%u)"), *ThreadName, ThreadId);
-	
-	NoneInfoString = FString::Printf(TEXT("%s | None |"), *Name);
+	Name = FString::Printf(TEXT("NiagaraCRInfo_%s_%u"), *ThreadName, ThreadId);
+	Name = Name.Replace(TEXT(" "), TEXT("_"));
+	NoneInfoString = TEXT("None");
 
 	FScopeLock Lock(&CritSec);
 	AllHandlers.AddUnique(this);
@@ -53,11 +53,11 @@ FNiagaraCrashReporterHandler::~FNiagaraCrashReporterHandler()
 
 void FNiagaraCrashReporterHandler::Clear()
 {
-	ScopeInfoStack.Empty();
-
 	FScopeLock ScopeLock(&CritSec);
+
+	ScopeInfoStack.Empty();
 	FString Empty;
-	UE_LOG(LogNiagara, Log, TEXT("SetEngineData: %s"), *Empty);
+	//UE_LOG(LogNiagara, Log, TEXT("SetEngineData: %s"), *Empty);
 	FGenericCrashContext::SetEngineData(Name, Empty);
 }
 
@@ -74,35 +74,38 @@ void FNiagaraCrashReporterHandler::OnEnabledChanged(IConsoleVariable* InVariable
 
 void FNiagaraCrashReporterHandler::SetInfo(const FString& Info)
 {
-	FScopeLock ScopeLock(&CritSec);
 	//UE_LOG(LogNiagara, Log, TEXT("SetEngineData: %s"), *Info);
 	FGenericCrashContext::SetEngineData(Name, Info);
 }
 
+static const FString NullStr(TEXT("nullptr"));
 void FNiagaraCrashReporterHandler::PushInfo(FNiagaraSystemInstance* Inst)
 {
-	check(Inst && Inst->GetComponent() && Inst->GetComponent()->GetAsset());
-	UNiagaraComponent* Comp = Inst->GetComponent();
-	USceneComponent* AttachParent = Comp->GetAttachParent();
-
-	PushInfo(FString::Printf(TEXT("%s | SystemInstance | System: %s | bSolo: %s | Component: %s | AttachedTo: %s |"), 
-	*Name, *Comp->GetAsset()->GetFullName(), Inst->IsSolo() ? TEXT("true") : TEXT("false"), *Comp->GetFullName(), AttachParent ? *AttachParent->GetFullName() : TEXT("nullptr")));
-
-	//TODO: More info?
+	FScopeLock ScopeLock(&CritSec);
+	if (Inst)
+	{
+		PushInfo_Internal(Inst->GetCrashReporterTag());
+	}
+	else
+	{
+		PushInfo_Internal(NullStr);
+	}
 }
 
 void FNiagaraCrashReporterHandler::PushInfo(FNiagaraSystemSimulation* SystemSim)
 {
-	check(SystemSim && SystemSim->GetSystem());
-	
-	UNiagaraSystem* System = SystemSim->GetSystem();
-
-	PushInfo(FString::Printf(TEXT("%s | SystemSimulation | System: %s | bSolo: %s |"), *Name, *System->GetFullName(), SystemSim->GetIsSolo() ? TEXT("true") : TEXT("false")));
-
-	//TODO: More info?
+	FScopeLock ScopeLock(&CritSec);
+	if (SystemSim)
+	{
+		PushInfo_Internal(SystemSim->GetCrashReporterTag());
+	}
+	else
+	{
+		PushInfo_Internal(NullStr);
+	}
 }
 
-void FNiagaraCrashReporterHandler::PushInfo(const FString& Info)
+void FNiagaraCrashReporterHandler::PushInfo_Internal(const FString& Info)
 {
 	ScopeInfoStack.Push(Info);
 	SetInfo(Info);
@@ -110,6 +113,7 @@ void FNiagaraCrashReporterHandler::PushInfo(const FString& Info)
 
 void FNiagaraCrashReporterHandler::PopInfo()
 {
+	FScopeLock ScopeLock(&CritSec);
 	ScopeInfoStack.Pop();
 	if (ScopeInfoStack.Num())
 	{
