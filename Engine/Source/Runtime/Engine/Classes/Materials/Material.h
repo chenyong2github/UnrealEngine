@@ -1839,7 +1839,7 @@ private:
 		{
 			if (Parameter && Parameter->SetParameterValue(InParameterName, Args...))
 			{
-				if (FProperty* ParamProperty = FindField<FProperty>(ParameterType::StaticClass(), "DefaultValue"))
+				if (FProperty* ParamProperty = FindFProperty<FProperty>(ParameterType::StaticClass(), "DefaultValue"))
 				{
 					FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 					Parameter->PostEditChangeProperty(PropertyChangedEvent);

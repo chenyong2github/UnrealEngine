@@ -561,7 +561,7 @@ void SGraphEditorImpl::AddContextMenuCommentSection(UToolMenu* InMenu)
 					// send property changed events
 					const FScopedTransaction Transaction(LOCTEXT("EditNodeComment", "Change Node Comment"));
 					SelectedNode->Modify();
-					FProperty* NodeCommentProperty = FindField<FProperty>(SelectedNode->GetClass(), "NodeComment");
+					FProperty* NodeCommentProperty = FindFProperty<FProperty>(SelectedNode->GetClass(), "NodeComment");
 					if (NodeCommentProperty != nullptr)
 					{
 						SelectedNode->PreEditChange(NodeCommentProperty);

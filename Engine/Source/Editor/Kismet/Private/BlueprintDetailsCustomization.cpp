@@ -180,7 +180,7 @@ FReply FBlueprintDetails::HandleAddOrViewEventForVariable(const FName EventName,
 	UBlueprint* BlueprintObj = GetBlueprintObj();
 
 	// Find the corresponding variable property in the Blueprint
-	FObjectProperty* VariableProperty = FindField<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
+	FObjectProperty* VariableProperty = FindFProperty<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
 
 	if ( VariableProperty )
 	{
@@ -773,7 +773,7 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		
 			if(!IsALocalVariable(VariableProperty))
 			{
-				OriginalProperty = FindField<FProperty>(BlueprintObj->GeneratedClass, VariableProperty->GetFName());
+				OriginalProperty = FindFProperty<FProperty>(BlueprintObj->GeneratedClass, VariableProperty->GetFName());
 			}
 			else
 			{
@@ -2166,7 +2166,7 @@ void FBlueprintVarActionDetails::OnBitmaskChanged(ECheckBoxState InNewState)
 		if (LocalBlueprint->GeneratedClass)
 		{
 			UObject* CDO = LocalBlueprint->GeneratedClass->GetDefaultObject(false);
-			FProperty* VarProperty = FindField<FProperty>(LocalBlueprint->GeneratedClass, VarName);
+			FProperty* VarProperty = FindFProperty<FProperty>(LocalBlueprint->GeneratedClass, VarName);
 
 			if (CDO != nullptr && VarProperty != nullptr)
 			{
@@ -2233,7 +2233,7 @@ void FBlueprintVarActionDetails::OnBitmaskEnumTypeChanged(TSharedPtr<FString> It
 		if (LocalBlueprint->GeneratedClass)
 		{
 			UObject* CDO = LocalBlueprint->GeneratedClass->GetDefaultObject(false);
-			FProperty* VarProperty = FindField<FProperty>(LocalBlueprint->GeneratedClass, VarName);
+			FProperty* VarProperty = FindFProperty<FProperty>(LocalBlueprint->GeneratedClass, VarName);
 
 			if (CDO != nullptr && VarProperty != nullptr)
 			{
@@ -3883,7 +3883,7 @@ FText FBlueprintGraphActionDetails::GetCurrentReplicatedEventString() const
 		uint32 NetFlags = CustomEvent->FunctionFlags & ReplicatedNetMask;
 		if (CustomEvent->IsOverride())
 		{
-			UFunction* SuperFunction = FindField<UFunction>(CustomEvent->GetBlueprint()->ParentClass, CustomEvent->CustomFunctionName);
+			UFunction* SuperFunction = FindUField<UFunction>(CustomEvent->GetBlueprint()->ParentClass, CustomEvent->CustomFunctionName);
 			check(SuperFunction != NULL);
 
 			NetFlags = SuperFunction->FunctionFlags & ReplicatedNetMask;
@@ -4349,7 +4349,7 @@ bool FBaseBlueprintGraphActionDetails::OnVerifyPinRename(UK2Node_EditablePinBase
 	{
 		// Check if the name conflicts with any of the other internal UFunction's property names (local variables and parameters).
 		const UFunction* FoundFunction = FFunctionFromNodeHelper::FunctionFromNode(InTargetNode);
-		const FProperty* ExistingProperty = FindField<const FProperty>(FoundFunction, *InNewName);
+		const FProperty* ExistingProperty = FindFProperty<const FProperty>(FoundFunction, *InNewName);
 		if (ExistingProperty)
 		{
 			OutErrorMessage = LOCTEXT("ConflictsWithProperty", "Conflicts with another local variable or function parameter!");
@@ -5881,7 +5881,7 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 	if ( FBlueprintEditorUtils::DoesSupportEventGraphs(BlueprintObj) && Nodes.Num() == 1 )
 	{
 		FName PropertyName = CachedNodePtr->GetVariableName();
-		FObjectProperty* VariableProperty = FindField<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
+		FObjectProperty* VariableProperty = FindFProperty<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
 
 		AddEventsCategory(DetailLayout, VariableProperty);
 	}

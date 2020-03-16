@@ -77,18 +77,18 @@ class FFuncReflection;
  *
  * Old code (manual reflection):
  *	// Reflection for AFortPlayerController->QuickBars
- *	FObjectProperty* QuickBarsProp = FindField<FObjectProperty>(UnitPC->GetClass(), TEXT("QuickBars"));
+ *	FObjectProperty* QuickBarsProp = FindFProperty<FObjectProperty>(UnitPC->GetClass(), TEXT("QuickBars"));
  *	UObject** QuickBarsRef = (QuickBarsProp != NULL ? QuickBarsProp->ContainerPtrToValuePtr<UObject*>(UnitPC.Get()) : NULL);
  *	AActor* QuickBars = (QuickBarsRef != NULL ? Cast<AActor>(*QuickBarsRef) : NULL);
  *
  *
  *	// Reflection for AFortPlayerController->WorldInventory->Inventory->Items->ItemGuid
- *	FObjectProperty* WorldInvProp = FindField<FObjectProperty>(UnitPC->GetClass(), TEXT("WorldInventory"));
+ *	FObjectProperty* WorldInvProp = FindFProperty<FObjectProperty>(UnitPC->GetClass(), TEXT("WorldInventory"));
  *	UObject** WorldInvRef = (WorldInvProp != NULL ? WorldInvProp->ContainerPtrToValuePtr<UObject*>(UnitPC.Get()) : NULL);
  *	AActor* WorldInv = (WorldInvRef != NULL ? Cast<AActor>(*WorldInvRef) : NULL);
- *	FStructProperty* WIInventoryProp = (WorldInv != NULL ? FindField<FStructProperty>(WorldInv->GetClass(), TEXT("Inventory")) : NULL);
+ *	FStructProperty* WIInventoryProp = (WorldInv != NULL ? FindFProperty<FStructProperty>(WorldInv->GetClass(), TEXT("Inventory")) : NULL);
  *	void* WIInventoryRef = (WIInventoryProp != NULL ? WIInventoryProp->ContainerPtrToValuePtr<void>(WorldInv) : NULL);
- *	FArrayProperty* InvItemsProp = (WIInventoryProp != NULL ? FindField<FArrayProperty>(WIInventoryProp->Struct, TEXT("Items")) : NULL);
+ *	FArrayProperty* InvItemsProp = (WIInventoryProp != NULL ? FindFProperty<FArrayProperty>(WIInventoryProp->Struct, TEXT("Items")) : NULL);
  *	FScriptArrayHelper* InvItemsArray = ((InvItemsProp != NULL && WIInventoryRef != NULL) ?
  *							new FScriptArrayHelper(InvItemsProp, InvItemsProp->ContainerPtrToValuePtr<void>(WIInventoryRef)) : NULL);
  *
@@ -96,7 +96,7 @@ class FFuncReflection;
  *								InvItemsArray->GetRawPtr(0) : NULL);
  *	FStructProperty* InvItemsEntryProp = CastField<FStructProperty>(InvItemsProp != NULL ? InvItemsProp->Inner : NULL);
  *	FStructProperty* EntryItemGuidProp = (InvItemsEntryProp != NULL ?
- *											FindField<FStructProperty>(InvItemsEntryProp->Struct, TEXT("ItemGuid")) : NULL);
+ *											FindFProperty<FStructProperty>(InvItemsEntryProp->Struct, TEXT("ItemGuid")) : NULL);
  *	FGuid* EntryItemGuidRef = (EntryItemGuidProp != NULL ? InvItemsEntryProp->ContainerPtrToValuePtr<FGuid>(InvItemsEntryRef) : NULL);
  *
  *	...
@@ -868,7 +868,7 @@ public:
 	 * @param InFuncName	The name of the function
 	 */
 	FFuncReflection(const TCHAR* InClassName, const TCHAR* InFuncName)
-		: FFuncReflection(FindField<UFunction>(FindObject<UClass>(ANY_PACKAGE, InClassName), InFuncName), InFuncName)
+		: FFuncReflection(FindUField<UFunction>(FindObject<UClass>(ANY_PACKAGE, InClassName), InFuncName), InFuncName)
 	{
 	}
 

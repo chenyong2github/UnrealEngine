@@ -42,7 +42,7 @@ public:
 	{
 		if (VariableSource.IsValid() && VariableName != NAME_None)
 		{
-			return FindField<FProperty>(VariableSource.Get(), VariableName);
+			return FindFProperty<FProperty>(VariableSource.Get(), VariableName);
 		}
 		return nullptr;
 	}

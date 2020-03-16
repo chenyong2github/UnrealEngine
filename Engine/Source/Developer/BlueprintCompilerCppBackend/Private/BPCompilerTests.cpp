@@ -248,7 +248,7 @@ bool FBPCompilerCDOTest::RunTest(const FString& Parameters)
 		{
 			continue;
 		}
-		FProperty* BPProperty = FindField<FProperty>(GeneratedTestInstance->GetClass(), *NativeProperty->GetName());
+		FProperty* BPProperty = FindFProperty<FProperty>(GeneratedTestInstance->GetClass(), *NativeProperty->GetName());
 		if (!BPProperty)
 		{
 			AddError(*FString::Printf(TEXT("Cannot find property %s in BPGC"), *NativeProperty->GetName()));

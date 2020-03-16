@@ -214,7 +214,7 @@ UActorComponent* FComponentReference::GetComponent(AActor* OwningActor) const
 		{
 			if(ComponentProperty != NAME_None)
 			{
-				FObjectPropertyBase* ObjProp = FindField<FObjectPropertyBase>(SearchActor->GetClass(), ComponentProperty);
+				FObjectPropertyBase* ObjProp = FindFProperty<FObjectPropertyBase>(SearchActor->GetClass(), ComponentProperty);
 				if(ObjProp != NULL)
 				{
 					// .. and return the component that is there

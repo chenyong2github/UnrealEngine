@@ -417,7 +417,7 @@ FPropertyAndIndex FindPropertyAndArrayIndex(UStruct* InStruct, const FString& Pr
 		if (PropertyName.FindLastChar('[', OpenIndex))
 		{
 			FString TruncatedPropertyName(OpenIndex, *PropertyName);
-			PropertyAndIndex.Property = FindField<FProperty>(InStruct, *TruncatedPropertyName);
+			PropertyAndIndex.Property = FindFProperty<FProperty>(InStruct, *TruncatedPropertyName);
 
 			const int32 NumberLength = PropertyName.Len() - OpenIndex - 2;
 			if (NumberLength > 0 && NumberLength <= 10)
@@ -431,7 +431,7 @@ FPropertyAndIndex FindPropertyAndArrayIndex(UStruct* InStruct, const FString& Pr
 		}
 	}
 
-	PropertyAndIndex.Property = FindField<FProperty>(InStruct, *PropertyName);
+	PropertyAndIndex.Property = FindFProperty<FProperty>(InStruct, *PropertyName);
 	return PropertyAndIndex;
 }
 

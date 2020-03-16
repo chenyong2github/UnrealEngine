@@ -189,7 +189,7 @@ UFunction* FEdGraphSchemaAction_K2Graph::GetFunction() const
 		{
 			if (FuncName != NAME_None)
 			{
-				return FindField<UFunction>(SourceBlueprint->SkeletonGeneratedClass, FuncName);
+				return FindUField<UFunction>(SourceBlueprint->SkeletonGeneratedClass, FuncName);
 			}
 		}
 	}

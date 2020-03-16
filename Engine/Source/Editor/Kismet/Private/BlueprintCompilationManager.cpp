@@ -2586,7 +2586,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 					// __WorldContext:
 					if(bIsStaticFunction)
 					{
-						if( FindField<FObjectProperty>(NewFunction, TEXT("__WorldContext")) == nullptr )
+						if( FindFProperty<FObjectProperty>(NewFunction, TEXT("__WorldContext")) == nullptr )
 						{
 							FEdGraphPinType WorldContextPinType(UEdGraphSchema_K2::PC_Object, NAME_None, UObject::StaticClass(), EPinContainerType::None, false, FEdGraphTerminalType());
 							FProperty* Param = FKismetCompilerUtilities::CreatePropertyOnScope(NewFunction, TEXT("__WorldContext"), WorldContextPinType, Ret, CPF_None, Schema, MessageLog);

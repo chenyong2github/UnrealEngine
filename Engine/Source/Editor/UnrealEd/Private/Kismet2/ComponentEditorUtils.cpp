@@ -997,7 +997,7 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 	if (AActor* OwnerActor = ComponentInstance->GetOwner())
 	{
 		UClass* OwnerActorClass = OwnerActor->GetClass();
-		if (FObjectProperty* TestProperty = FindField<FObjectProperty>(OwnerActorClass, ComponentInstance->GetFName()))
+		if (FObjectProperty* TestProperty = FindFProperty<FObjectProperty>(OwnerActorClass, ComponentInstance->GetFName()))
 		{
 			if (ComponentInstance->GetClass()->IsChildOf(TestProperty->PropertyClass))
 					{

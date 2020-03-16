@@ -80,7 +80,7 @@ public:
 			UBlueprint* Blueprint = CustomEvent->GetBlueprint();
 			check(Blueprint != NULL);
 
-			UFunction* ParentFunction = FindField<UFunction>(Blueprint->ParentClass, *Name);
+			UFunction* ParentFunction = FindUField<UFunction>(Blueprint->ParentClass, *Name);
 			// if this custom-event is overriding a function belonging to the blueprint's parent
 			if (ParentFunction != NULL)
 			{
@@ -243,7 +243,7 @@ bool UK2Node_CustomEvent::IsOverride() const
 	UBlueprint* Blueprint = GetBlueprint();
 	check(Blueprint != NULL);
 
-	UFunction* ParentFunction = FindField<UFunction>(Blueprint->ParentClass, CustomFunctionName);
+	UFunction* ParentFunction = FindUField<UFunction>(Blueprint->ParentClass, CustomFunctionName);
 	UK2Node_CustomEvent const* OverriddenEvent = FindCustomEventNodeFromFunction(ParentFunction);
 
 	return (OverriddenEvent != NULL);
@@ -257,7 +257,7 @@ uint32 UK2Node_CustomEvent::GetNetFlags() const
 		UBlueprint* Blueprint = GetBlueprint();
 		check(Blueprint != NULL);
 
-		UFunction* ParentFunction = FindField<UFunction>(Blueprint->ParentClass, CustomFunctionName);
+		UFunction* ParentFunction = FindUField<UFunction>(Blueprint->ParentClass, CustomFunctionName);
 		check(ParentFunction != NULL);
 
 		// inherited net flags take precedence 
@@ -282,7 +282,7 @@ void UK2Node_CustomEvent::ValidateNodeDuringCompilation(class FCompilerResultsLo
 	UBlueprint* Blueprint = GetBlueprint();
 	check(Blueprint != NULL);
 
-	UFunction* ParentFunction = FindField<UFunction>(Blueprint->ParentClass, CustomFunctionName);
+	UFunction* ParentFunction = FindUField<UFunction>(Blueprint->ParentClass, CustomFunctionName);
 	// if this custom-event is overriding a function belonging to the blueprint's parent
 	if (ParentFunction != NULL)
 	{

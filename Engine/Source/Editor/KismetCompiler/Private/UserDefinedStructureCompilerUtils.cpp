@@ -211,7 +211,7 @@ struct FUserDefinedStructureCompilerInner
 			bool bIsNewVariable = false;
 			if (FStructureEditorUtils::FStructEditorManager::ActiveChange == FStructureEditorUtils::EStructureEditorChangeInfo::DefaultValueChanged)
 			{
-				VarProperty = FindField<FProperty>(Struct, VarDesc.VarName);
+				VarProperty = FindFProperty<FProperty>(Struct, VarDesc.VarName);
 				if (!ensureMsgf(VarProperty, TEXT("Could not find the expected property (%s); was the struct (%s) unexpectedly sanitized?"), *VarDesc.VarName.ToString(), *Struct->GetName()))
 				{
 					VarProperty = FKismetCompilerUtilities::CreatePropertyOnScope(Struct, VarDesc.VarName, VarType, NULL, CPF_None, Schema, MessageLog);

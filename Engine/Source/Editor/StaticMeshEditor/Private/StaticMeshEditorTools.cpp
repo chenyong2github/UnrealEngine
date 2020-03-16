@@ -2819,7 +2819,7 @@ void FMeshMaterialsLayout::OnMaterialNameCommitted(const FText& InValue, ETextCo
 		FScopedTransaction ScopeTransaction(LOCTEXT("StaticMeshEditorMaterialSlotNameChanged", "Staticmesh editor: Material slot name change"));
 
 		FProperty* ChangedProperty = NULL;
-		ChangedProperty = FindField<FProperty>(UStaticMesh::StaticClass(), "StaticMaterials");
+		ChangedProperty = FindFProperty<FProperty>(UStaticMesh::StaticClass(), "StaticMaterials");
 		check(ChangedProperty);
 		StaticMesh.PreEditChange(ChangedProperty);
 
