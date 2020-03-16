@@ -422,7 +422,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	Viewport.UpdateSize(ViewWidth, ViewHeight);
 
-	if (!bIsPanning)
+	if (!bIsPanning && !bAutoScroll)
 	{
 		// Elastic snap to horizontal time limits.
 		if (Viewport.EnforceHorizontalScrollLimits(0.5)) // 0.5 is the interpolation factor
@@ -471,11 +471,42 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	if (bAutoScroll)
 	{
-		const double ViewportDuration = Viewport.GetEndTime() - Viewport.GetStartTime(); // width of the viewport in time units
-		const double MinStartTime = Viewport.GetMaxValidTime() - ViewportDuration * 0.9; // allow 10% space on the right side
-		if (Viewport.GetStartTime() < MinStartTime)
+		//TODO: Expose these settings in UI...
+		const double AutoScrollMinDelay = 0.3; // [seconds]
+		const bool bIsAutoScrollFrameAligned = true;
+		const ETraceFrameType AutoScrollFrameType = TraceFrameType_Game;
+		const uint64 AutoScrollLastFrameCount = 5; // 1 = last frame, 2 = frame before last frame, etc.
+
+		static uint64 LastAutoScrollTime = 0;
+		const uint64 CurrentTime = FPlatformTime::Cycles64();
+		if (static_cast<double>(CurrentTime - LastAutoScrollTime) * FPlatformTime::GetSecondsPerCycle64() > AutoScrollMinDelay)
 		{
-			ScrollAtTime(MinStartTime);
+			const double ViewportDuration = Viewport.GetEndTime() - Viewport.GetStartTime(); // width of the viewport in time units
+
+			// By default, align with current session time, allowing 10% space on the right side of viewport.
+			double MinStartTime = Viewport.GetMaxValidTime() - ViewportDuration * 0.9;
+
+			if (bIsAutoScrollFrameAligned)
+			{
+				if (Session.IsValid())
+				{
+					Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+					const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
+					const uint64 FrameCount = FramesProvider.GetFrameCount(AutoScrollFrameType);
+					if (FrameCount >= AutoScrollLastFrameCount)
+					{
+						// Center on the start time of a frame.
+						const Trace::FFrame* Frame = FramesProvider.GetFrame(AutoScrollFrameType, FrameCount - AutoScrollLastFrameCount);
+						MinStartTime = Frame->StartTime - ViewportDuration * 0.5;
+					}
+				}
+			}
+
+			if (Viewport.GetStartTime() < MinStartTime)
+			{
+				ScrollAtTime(MinStartTime);
+				LastAutoScrollTime = CurrentTime;
+			}
 		}
 	}
 
