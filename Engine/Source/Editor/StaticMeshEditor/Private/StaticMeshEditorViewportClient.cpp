@@ -57,7 +57,7 @@ FStaticMeshEditorViewportClient::FStaticMeshEditorViewportClient(TWeakPtr<IStati
 	DrawHelper.bDrawPivot = false;
 	DrawHelper.bDrawWorldBox = false;
 	DrawHelper.bDrawKillZ = false;
-	DrawHelper.bDrawGrid = true;
+	DrawHelper.bDrawGrid = false;
 	DrawHelper.GridColorAxis = FColor(160,160,160);
 	DrawHelper.GridColorMajor = FColor(144,144,144);
 	DrawHelper.GridColorMinor = FColor(128,128,128);
@@ -1494,10 +1494,10 @@ void FStaticMeshEditorViewportClient::SetShowPivots(bool bShowOn)
 
 void FStaticMeshEditorViewportClient::SetShowGrids(bool bShowOn)
 {
-	DrawHelper.bDrawGrid = bShowOn;
+ 	EngineShowFlags.Grid = bShowOn;
 	if (FEngineAnalytics::IsAvailable())
 	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawGrids"), bDrawVertices ? TEXT("True") : TEXT("False"));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("EngineShowFlags.Grid"), EngineShowFlags.Grid ? TEXT("True") : TEXT("False"));
 	}
 	Invalidate();
 }
