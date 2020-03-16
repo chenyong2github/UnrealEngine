@@ -74,7 +74,8 @@ private:
 	void Initialize();
 	void ShutdownInternal();
 
-	void CreateSession();
+	void CreateSession(const FUniqueNetIdRepl& LocalUserPlatformId);
+	void AddLocalPlayerToSession(UPartyMember* InitializedMember);
 	void FindSession(const FPartyPlatformSessionInfo& SessionInfo);
 	void JoinSession(const FOnlineSessionSearchResult& SessionSearchResult);
 	void LeaveSession();
