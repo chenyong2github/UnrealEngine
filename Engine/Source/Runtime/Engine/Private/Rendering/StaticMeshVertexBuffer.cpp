@@ -334,17 +334,18 @@ void FStaticMeshVertexBuffer::InitRHI()
 
 	TangentsVertexBuffer.VertexBufferRHI = CreateTangentsRHIBuffer_RenderThread();
 	TexCoordVertexBuffer.VertexBufferRHI = CreateTexCoordRHIBuffer_RenderThread();
-	if (TangentsVertexBuffer.VertexBufferRHI && (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform)))
+	if (TangentsData && TangentsVertexBuffer.VertexBufferRHI && (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform)))
 	{
 		TangentsSRV = RHICreateShaderResourceView(
-			TangentsData ? TangentsVertexBuffer.VertexBufferRHI : nullptr,
+			TangentsVertexBuffer.VertexBufferRHI,
 			GetUseHighPrecisionTangentBasis() ? 8 : 4,
 			GetUseHighPrecisionTangentBasis() ? PF_R16G16B16A16_SNORM : PF_R8G8B8A8_SNORM);
 	}
-	if (TexCoordVertexBuffer.VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+
+	if (TexcoordData && TexCoordVertexBuffer.VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
 		TextureCoordinatesSRV = RHICreateShaderResourceView(
-			TexcoordData ? TexCoordVertexBuffer.VertexBufferRHI : nullptr,
+			TexCoordVertexBuffer.VertexBufferRHI,
 			GetUseFullPrecisionUVs() ? 8 : 4,
 			GetUseFullPrecisionUVs() ? PF_G32R32F : PF_G16R16F);
 	}

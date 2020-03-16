@@ -191,9 +191,9 @@ void FPositionVertexBuffer::operator=(const FPositionVertexBuffer &Other)
 template <bool bRenderThread>
 FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Internal()
 {
-	if (NumVertices)
+	if (NumVertices && VertexData)
 	{
-		FResourceArrayInterface* RESTRICT ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
+		FResourceArrayInterface* RESTRICT ResourceArray = VertexData->GetResourceArray();
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
 		CreateInfo.bWithoutNativeResource = !VertexData;
@@ -233,9 +233,9 @@ void FPositionVertexBuffer::InitRHI()
 		// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
 		// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
 		bSRV |= (VertexData && VertexData->GetAllowCPUAccess());
-		if(bSRV)
+		if(bSRV && VertexData && VertexBufferRHI)
 		{
-			PositionComponentSRV = RHICreateShaderResourceView(VertexData ? VertexBufferRHI : nullptr, 4, PF_R32_FLOAT);
+			PositionComponentSRV = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
 		}
 	}
 }
