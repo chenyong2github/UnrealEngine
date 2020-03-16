@@ -185,6 +185,7 @@ public:
 	 * @param Callback function to call for each asset data enumerated
 	 */
 	virtual bool EnumerateAssets(const FARFilter& Filter, TFunctionRef<bool(const FAssetData&)> Callback) const = 0;
+	virtual bool EnumerateAssets(const FARCompiledFilter& Filter, TFunctionRef<bool(const FAssetData&)> Callback) const = 0;
 
 	/**
 	 * Gets the asset data for the specified object path
