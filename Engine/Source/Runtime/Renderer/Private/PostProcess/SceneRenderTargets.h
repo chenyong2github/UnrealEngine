@@ -434,7 +434,7 @@ public:
 	// @return can be 0 if the feature is disabled
 	IPooledRenderTarget* RequestCustomDepth(FRHICommandListImmediate& RHICmdList, bool bPrimitives);
 
-	static bool IsCustomDepthPassWritingStencil();
+	static bool IsCustomDepthPassWritingStencil(ERHIFeatureLevel::Type InFeatureLevel);
 
 	// ---
 
