@@ -5589,7 +5589,8 @@ void UCookOnTheFlyServer::SaveShaderCodeLibrary(FString const& Name)
 					}
 					for (const FString& Item : PlatformSCLCSVPaths)
 					{
-						UE_LOG(LogCook, Display, TEXT("Saved scl.csv %s for platform %s"), *Item, *TargetPlatformName);
+						UE_LOG(LogCook, Display, TEXT("Saved scl.csv %s for platform %s, %d bytes"), *Item, *TargetPlatformName,
+							IFileManager::Get().FileSize(*Item));
 					}
 
 				}
