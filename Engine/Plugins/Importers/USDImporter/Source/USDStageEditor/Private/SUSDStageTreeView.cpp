@@ -824,7 +824,11 @@ void SUsdStageTreeView::OnAddReference()
 		}
 
 		FString RelativePath = AbsoluteFilePath;
-		FString LayerAbsolutePath = UsdToUnreal::ConvertString( UsdStageActor->GetUsdStage()->GetEditTarget().GetLayer()->GetRepositoryPath() );
+
+		pxr::SdfLayerHandle EditLayer = UsdStageActor->GetUsdStage()->GetEditTarget().GetLayer();
+
+		std::string RepositoryPath = EditLayer->GetRepositoryPath().empty() ? EditLayer->GetRealPath() : EditLayer->GetRepositoryPath();
+		FString LayerAbsolutePath = UsdToUnreal::ConvertString( RepositoryPath );
 		FPaths::MakePathRelativeTo( RelativePath, *LayerAbsolutePath );
 
 		References.AddReference( UnrealToUsd::ConvertString( *RelativePath ).Get() );
