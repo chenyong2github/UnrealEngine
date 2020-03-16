@@ -525,6 +525,14 @@ private:
 	/** Maps touch indexes to windows touch IDs. */
 	TArray<TOptional<int32>> TouchIDs;
 #endif
+
+	bool bSimulatingHighPrecisionMouseInputForRDP;
+
+	FIntPoint CachedPreHighPrecisionMousePosForRDP;
+	FIntPoint LastCursorPoint;
+	FIntPoint LastCursorPointPreWrap;
+	int32 NumPreWrapMsgsToRespect;
+	RECT ClipCursorRect;
 };
 
 
