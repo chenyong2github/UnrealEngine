@@ -2,10 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "IAudioExtensionPlugin.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectBase.h"
-#include "IAudioExtensionPlugin.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
 
 #include "SoundEffectSource.generated.h"
 
@@ -99,15 +100,18 @@ struct FSoundEffectSourceInputData
 
 class ENGINE_API FSoundEffectSource : public FSoundEffectBase
 {
-public:
-	virtual ~FSoundEffectSource() {}
-
+protected:
 	/** Called on an audio effect at initialization on main thread before audio processing begins. */
-	virtual void Init(const FSoundEffectSourceInitData& InSampleRate) = 0;
+	virtual void Init(const FSoundEffectSourceInitData& InInitData) = 0;
+
+public:
+	virtual ~FSoundEffectSource() = default;
 
 	/** Process the input block of audio. Called on audio thread. */
 	virtual void ProcessAudio(const FSoundEffectSourceInputData& InData, float* OutAudioBufferData) = 0;
 
 	/** Process modulation controls if enabled */
 	virtual void ProcessControls(const FSoundModulationControls& InControls) { }
+
+	friend class USoundEffectPreset;
 };

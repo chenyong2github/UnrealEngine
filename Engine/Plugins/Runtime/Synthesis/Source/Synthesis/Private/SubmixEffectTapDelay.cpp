@@ -3,69 +3,62 @@
 
 DEFINE_LOG_CATEGORY(LogTapDelay);
 
-static void GetMultichannelPan(const float& Input, const float& Angle, const float& Gain, const int32& NumChannels, float* DestinationFrame)
+namespace TapDelayUtils
 {
-	const float InputWithGain = Input * Gain;
-
-	if (NumChannels == 2)
+	void GetMultichannelPan(const float& Input, const float& Angle, const float& Gain, const int32& NumChannels, float* DestinationFrame)
 	{
-		float LeftGain;
-		float RightGain;
-		Audio::GetStereoPan(Angle / -90.0f, LeftGain, RightGain);
+		const float InputWithGain = Input * Gain;
 
-		DestinationFrame[0] += LeftGain * InputWithGain;
-		DestinationFrame[1] += RightGain * InputWithGain;
-	}
-	else
-	{
-		float QuadChannelMap[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-		// We will spatialize using quad panning
-		// Note input angle results in 0.0 being behind you
-		// We offset the value to align the value so that 0.0 is "front left" i.e. index 0
-		// We use the modulo to make sure it wraps to be between 0.0 and 1.0
-		// We're also (for simplicity) assuming isotropic distribution of the quad speaker map.
-		const float NormalizedAngle = FMath::Fmod((Angle + 180.0f) / 360.0f + 0.625f, 1.0f);
-
-		const float ChannelFraction = 4 * NormalizedAngle;
-		const int32 Channel0 = FMath::FloorToInt(ChannelFraction);
-		const int32 Channel1 = (Channel0 + 1) % 4;
-		const float ChannelAlpha = (ChannelFraction - Channel0) * -2.0f + 1.0f;
-
-		Audio::GetStereoPan(ChannelAlpha, QuadChannelMap[Channel0], QuadChannelMap[Channel1]);
-
-		// Now map to the specific channel outputs
-		if (NumChannels == 6 || NumChannels == 8)
+		if (NumChannels == 2)
 		{
-			// Specifically skipping LFE, Center channel, and side channels
-			DestinationFrame[0] += QuadChannelMap[0] * InputWithGain;
-			DestinationFrame[1] += QuadChannelMap[1] * InputWithGain;
-			DestinationFrame[5] += QuadChannelMap[2] * InputWithGain;
-			DestinationFrame[4] += QuadChannelMap[3] * InputWithGain;
+			float LeftGain;
+			float RightGain;
+			Audio::GetStereoPan(Angle / -90.0f, LeftGain, RightGain);
+
+			DestinationFrame[0] += LeftGain * InputWithGain;
+			DestinationFrame[1] += RightGain * InputWithGain;
 		}
-		else if (NumChannels >= 4)
+		else
 		{
-			// only really supporting quad, but weird channel configs will do something
-			for (int32 i = 0; i < 4; ++i)
+			float QuadChannelMap[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+			// We will spatialize using quad panning
+			// Note input angle results in 0.0 being behind you
+			// We offset the value to align the value so that 0.0 is "front left" i.e. index 0
+			// We use the modulo to make sure it wraps to be between 0.0 and 1.0
+			// We're also (for simplicity) assuming isotropic distribution of the quad speaker map.
+			const float NormalizedAngle = FMath::Fmod((Angle + 180.0f) / 360.0f + 0.625f, 1.0f);
+
+			const float ChannelFraction = 4 * NormalizedAngle;
+			const int32 Channel0 = FMath::FloorToInt(ChannelFraction);
+			const int32 Channel1 = (Channel0 + 1) % 4;
+			const float ChannelAlpha = (ChannelFraction - Channel0) * -2.0f + 1.0f;
+
+			Audio::GetStereoPan(ChannelAlpha, QuadChannelMap[Channel0], QuadChannelMap[Channel1]);
+
+			// Now map to the specific channel outputs
+			if (NumChannels == 6 || NumChannels == 8)
 			{
-				DestinationFrame[i] += QuadChannelMap[i] * InputWithGain;
+				// Specifically skipping LFE, Center channel, and side channels
+				DestinationFrame[0] += QuadChannelMap[0] * InputWithGain;
+				DestinationFrame[1] += QuadChannelMap[1] * InputWithGain;
+				DestinationFrame[5] += QuadChannelMap[2] * InputWithGain;
+				DestinationFrame[4] += QuadChannelMap[3] * InputWithGain;
+			}
+			else if (NumChannels >= 4)
+			{
+				// only really supporting quad, but weird channel configs will do something
+				for (int32 i = 0; i < 4; ++i)
+				{
+					DestinationFrame[i] += QuadChannelMap[i] * InputWithGain;
+				}
 			}
 		}
 	}
-}
 
-static void MixToMono(const float* InputFrame, const int32& NumChannels, float& Output)
-{
-	Output = 0.0f;
-
-	for (int32 Channel = 0; Channel < NumChannels; Channel++)
-	{
-		Output += InputFrame[Channel];
-	}
-}
-
-// Static id to get unique tap Ids
-static int32 TapIdCount = 0;
+	// Static id to get unique tap Ids
+	static int32 IdCount = 0;
+} // namespace TapDelayUtils
 
 FTapDelayInfo::FTapDelayInfo()
 	: TapLineMode(ETapLineMode::Panning)
@@ -73,7 +66,7 @@ FTapDelayInfo::FTapDelayInfo()
 	, Gain(-3.0f)
 	, OutputChannel(0)
 	, PanInDegrees(0.0f)
-	, TapId(TapIdCount++)
+	, TapId(TapDelayUtils::IdCount++)
 {
 }
 
@@ -81,10 +74,6 @@ FSubmixEffectTapDelay::FSubmixEffectTapDelay()
 	: SampleRate(0.0f)
 	, MaxDelayLineLength(10000.0f)
 	, TapIncrementsRemaining(0)
-{
-}
-
-FSubmixEffectTapDelay::~FSubmixEffectTapDelay()
 {
 }
 
@@ -124,7 +113,7 @@ void FSubmixEffectTapDelay::OnProcessAudio(const FSoundEffectSubmixInputData& In
 
 			if (TargetTap.TapLineMode == ETapLineMode::Panning || TargetTap.TapLineMode == ETapLineMode::Disabled)
 			{
-				GetMultichannelPan(DelayLine.ReadDelayAt(CurrentTap.GetLengthValue()), TargetTap.PanInDegrees, CurrentTap.GetGainValue(), OutData.NumChannels, &(OutBuffer[OutputBufferIndex]));
+				TapDelayUtils::GetMultichannelPan(DelayLine.ReadDelayAt(CurrentTap.GetLengthValue()), TargetTap.PanInDegrees, CurrentTap.GetGainValue(), OutData.NumChannels, &(OutBuffer[OutputBufferIndex]));
 			}
 			else
 			{
@@ -132,9 +121,14 @@ void FSubmixEffectTapDelay::OnProcessAudio(const FSoundEffectSubmixInputData& In
 				OutBuffer[BufferIndex] += DelayLine.ReadDelayAt(CurrentTap.GetLengthValue()) * CurrentTap.GetGainValue();
 			}
 		}
+
 		// Finally, write our input into the delay line.
-		float Input;
-		MixToMono(&InBuffer[InputBufferIndex], InData.NumChannels, Input);
+		float Input = 0.0f;
+		for (int32 Channel = 0; Channel < InData.NumChannels; Channel++)
+		{
+			Input += (&InBuffer[InputBufferIndex])[Channel];
+		}
+		
 		DelayLine.WriteDelayAndInc(Input);
 		InputBufferIndex += InData.NumChannels;
 	}
@@ -291,15 +285,12 @@ void FSubmixEffectTapDelay::UpdateInterpolations()
 void USubmixEffectTapDelayPreset::SetInterpolationTime(float Time)
 {
 	DynamicSettings.InterpolationTime = Time;
-	// Dispatch the added tap to all effect instances:
-	for (FSoundEffectBase* EffectBaseInstance : Instances)
+
+	// Dispatch the tap removal to all effect instances:
+	EffectCommand<FSubmixEffectTapDelay>([Time](FSubmixEffectTapDelay& TapDelay)
 	{
-		FSubmixEffectTapDelay* TapDelay = (FSubmixEffectTapDelay*)EffectBaseInstance;
-		EffectBaseInstance->EffectCommand([TapDelay, Time]()
-		{
-			TapDelay->SetInterpolationTime(Time);
-		});
-	}
+		TapDelay.SetInterpolationTime(Time);
+	});
 }
 
 void USubmixEffectTapDelayPreset::OnInit()
@@ -323,14 +314,10 @@ void USubmixEffectTapDelayPreset::AddTap(int32& OutTapId)
 	DynamicSettings.Taps.Add(TapInfo);
 
 	// Dispatch the added tap to all effect instances:
-	for (FSoundEffectBase* EffectBaseInstance : Instances)
+	EffectCommand<FSubmixEffectTapDelay>([OutTapId](FSubmixEffectTapDelay& TapDelay)
 	{
-		FSubmixEffectTapDelay* TapDelay = (FSubmixEffectTapDelay*)EffectBaseInstance;
-		EffectBaseInstance->EffectCommand([TapDelay, OutTapId]()
-		{
-			TapDelay->AddTap(OutTapId);
-		});
-	}
+		TapDelay.AddTap(OutTapId);
+	});
 }
 
 void USubmixEffectTapDelayPreset::RemoveTap(int32 TapId)
@@ -342,14 +329,10 @@ void USubmixEffectTapDelayPreset::RemoveTap(int32 TapId)
 			DynamicSettings.Taps.RemoveAtSwap(TapIndex);
 
 			// Dispatch the tap removal to all effect instances:
-			for (FSoundEffectBase* EffectBaseInstance : Instances)
+			EffectCommand<FSubmixEffectTapDelay>([TapId](FSubmixEffectTapDelay& TapDelay)
 			{
-				FSubmixEffectTapDelay* TapDelayInstance = (FSubmixEffectTapDelay*)EffectBaseInstance;
-				EffectBaseInstance->EffectCommand([TapDelayInstance, TapId]()
-				{
-					TapDelayInstance->RemoveTap(TapId);
-				});
-			}
+				TapDelay.RemoveTap(TapId);
+			});
 
 			return;
 		}
@@ -373,14 +356,11 @@ void USubmixEffectTapDelayPreset::SetTap(int32 TapId, const FTapDelayInfo& TapIn
 			DelayInfo.TapId = TapId;
 
 			// Dispatch the new tap to all effect instances:
-			for (FSoundEffectBase* EffectBaseInstance : Instances)
+			const FTapDelayInfo PassedTapInfo = TapInfo;
+			EffectCommand<FSubmixEffectTapDelay>([TapId, PassedTapInfo](FSubmixEffectTapDelay& TapDelay)
 			{
-				FSubmixEffectTapDelay* TapDelayInstance = (FSubmixEffectTapDelay*)EffectBaseInstance;
-				EffectBaseInstance->EffectCommand([TapDelayInstance, TapId, TapInfo]()
-				{
-					TapDelayInstance->SetTap(TapId, TapInfo);
-				});
-			}
+				TapDelay.SetTap(TapId, PassedTapInfo);
+			});
 
 			return;
 		}

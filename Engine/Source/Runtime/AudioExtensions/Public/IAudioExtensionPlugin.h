@@ -10,18 +10,28 @@
 #include "UObject/ObjectMacros.h"
 #include "AudioDefines.h"
 
-#if !UE_BUILD_SHIPPING
-class FCommonViewportClient;
-class FCanvas;
-class UFont;
-class FViewport;
-#endif // !UE_BUILD_SHIPPING
-
 #include "IAudioExtensionPlugin.generated.h"
 
 // Forward Declarations
+
+#if !UE_BUILD_SHIPPING
+class FCanvas;
+class FCommonViewportClient;
+class FViewport;
+class UFont;
+#endif // !UE_BUILD_SHIPPING
+
 class FAudioDevice;
+class FSoundEffectBase;
+class FSoundEffectSource;
+class FSoundEffectSubmix;
+class IAudioModulation;
+class IAudioOcclusion;
+class IAudioPluginListener;
+class IAudioReverb;
+class IAudioSpatialization;
 class USoundSubmix;
+
 
 /**
 * Enumeration of audio plugin types
@@ -37,14 +47,13 @@ enum class EAudioPlugin : uint8
 	COUNT = 4
 };
 
-class IAudioSpatialization;
-class IAudioModulation;
-class IAudioOcclusion;
-class IAudioReverb;
-class IAudioPluginListener;
-class FSoundEffectSubmix;
-typedef TSharedPtr<FSoundEffectSubmix, ESPMode::ThreadSafe> FSoundEffectSubmixPtr;
 
+// Deprecated in favor of TSoundEffectSubmixPtr
+using FSoundEffectSubmixPtr   = TSharedPtr<FSoundEffectSubmix, ESPMode::ThreadSafe>;
+
+using TSoundEffectPtr		  = TSharedPtr<FSoundEffectBase, ESPMode::ThreadSafe>;
+using TSoundEffectSourcePtr   = TSharedPtr<FSoundEffectSource, ESPMode::ThreadSafe>;
+using TSoundEffectSubmixPtr   = TSharedPtr<FSoundEffectSubmix, ESPMode::ThreadSafe>;
 using TAudioSpatializationPtr = TSharedPtr<IAudioSpatialization, ESPMode::ThreadSafe>;
 using TAudioModulationPtr     = TSharedPtr<IAudioModulation, ESPMode::ThreadSafe>;
 using TAudioOcclusionPtr      = TSharedPtr<IAudioOcclusion, ESPMode::ThreadSafe>;
