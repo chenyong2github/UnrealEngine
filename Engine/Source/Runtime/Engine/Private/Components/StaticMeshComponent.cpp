@@ -1861,6 +1861,31 @@ void UStaticMeshComponent::SetDistanceFieldSelfShadowBias(float NewValue)
 	}
 }
 
+void UStaticMeshComponent::SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue)
+{
+	if (bEvaluateWorldPositionOffset != NewValue && GetScene() != nullptr)
+	{
+		// Update game thread data
+		bEvaluateWorldPositionOffset = NewValue;
+
+		// Skip when this doesn't have a valid static mesh 
+		if (!GetStaticMesh())
+		{
+			return;
+		}
+
+		// Update render thread data
+		ENQUEUE_RENDER_COMMAND(UpdateDFSelfShadowBiasCmd)(
+			[NewValue, PrimitiveSceneProxy = (FStaticMeshSceneProxy*)SceneProxy](FRHICommandList&)
+			{
+				if (PrimitiveSceneProxy)
+				{
+					PrimitiveSceneProxy->SetEvaluateWorldPositionOffsetInRayTracing(NewValue);
+				}
+			});
+	}
+}
+
 void UStaticMeshComponent::SetReverseCulling(bool ReverseCulling)
 {
 	if (ReverseCulling != bReverseCulling)
