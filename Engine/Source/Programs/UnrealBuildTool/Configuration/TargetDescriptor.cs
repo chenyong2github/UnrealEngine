@@ -132,6 +132,11 @@ namespace UnrealBuildTool
 			this.AdditionalArguments = new CommandLineArguments(AdditionalArguments.ToArray());
 		}
 
+		public static TargetDescriptor FromTargetInfo(TargetInfo Info)
+		{
+			return new TargetDescriptor(Info.ProjectFile, Info.Name, Info.Platform, Info.Configuration, Info.Architecture, Info.Arguments);
+		}
+
 		/// <summary>
 		/// Parse a list of target descriptors from the command line
 		/// </summary>
@@ -429,6 +434,30 @@ namespace UnrealBuildTool
 				Result.AppendFormat(" {0}", AdditionalArguments);
 			}
 			return Result.ToString();
+		}
+
+		public override int GetHashCode()
+		{
+			return ProjectFile.GetHashCode() + 
+				Name.GetHashCode() + 
+				Platform.GetHashCode() + 
+				Configuration.GetHashCode() + 
+				Architecture.GetHashCode();
+		}
+
+		public override bool Equals(object Obj) 
+		{
+			TargetDescriptor Other = Obj as TargetDescriptor;
+			if (Other != null)
+			{
+				return
+					ProjectFile == Other.ProjectFile &&
+					Name == Other.Name &&
+					Platform == Other.Platform &&
+					Configuration == Other.Configuration &&
+					Architecture == Other.Architecture;
+			}
+			return false;
 		}
 	}
 }

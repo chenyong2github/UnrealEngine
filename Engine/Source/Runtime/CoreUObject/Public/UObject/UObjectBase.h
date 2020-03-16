@@ -214,6 +214,7 @@ private:
 	UObject*						OuterPrivate;
 	
 	friend class FBlueprintCompileReinstancer;
+	friend class FContextObjectManager;
 
 	/** This is used by the reinstancer to re-class and re-archetype the current instances of a class before recompiling */
 	void SetClass(UClass* NewClass);

@@ -65,6 +65,12 @@ namespace UnrealBuildTool
 		public bool bSkipBuild = false;
 
 		/// <summary>
+		/// Skip pre build targets; just do the main target.
+		/// </summary>
+		[CommandLine("-SkipPreBuildTargets")]
+		public bool bSkipPreBuildTargets = false;
+
+		/// <summary>
 		/// Whether we should just export the XGE XML and pretend it succeeded
 		/// </summary>
 		[CommandLine("-XGEExport")]
@@ -151,8 +157,9 @@ namespace UnrealBuildTool
 			// Parse and build the targets
 			try
 			{
-				// Parse all the target descriptors
 				List<TargetDescriptor> TargetDescriptors;
+
+				// Parse all the target descriptors
 				using(Timeline.ScopeEvent("TargetDescriptor.ParseCommandLine()"))
 				{
 					TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
@@ -165,16 +172,16 @@ namespace UnrealBuildTool
 				}
 
 				// Handle remote builds
-				for(int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
+				for (int Idx = 0; Idx < TargetDescriptors.Count; ++Idx)
 				{
 					TargetDescriptor TargetDesc = TargetDescriptors[Idx];
-					if(RemoteMac.HandlesTargetPlatform(TargetDesc.Platform))
+					if (RemoteMac.HandlesTargetPlatform(TargetDesc.Platform))
 					{
 						FileReference BaseLogFile = Log.OutputFile ?? new FileReference(BaseLogFileName);
 						FileReference RemoteLogFile = FileReference.Combine(BaseLogFile.Directory, BaseLogFile.GetFileNameWithoutExtension() + "_Remote.txt");
 
 						RemoteMac RemoteMac = new RemoteMac(TargetDesc.ProjectFile);
-						if(!RemoteMac.Build(TargetDesc, RemoteLogFile))
+						if (!RemoteMac.Build(TargetDesc, RemoteLogFile, bSkipPreBuildTargets))
 						{
 							return (int)CompilationResult.Unknown;
 						}
@@ -184,13 +191,13 @@ namespace UnrealBuildTool
 				}
 
 				// Handle local builds
-				if(TargetDescriptors.Count > 0)
+				if (TargetDescriptors.Count > 0)
 				{
 					// Get a set of all the project directories
 					HashSet<DirectoryReference> ProjectDirs = new HashSet<DirectoryReference>();
-					foreach(TargetDescriptor TargetDesc in TargetDescriptors)
+					foreach (TargetDescriptor TargetDesc in TargetDescriptors)
 					{
-						if(TargetDesc.ProjectFile != null)
+						if (TargetDesc.ProjectFile != null)
 						{
 							DirectoryReference ProjectDirectory = TargetDesc.ProjectFile.Directory;
 							FileMetadataPrefetch.QueueProjectDirectory(ProjectDirectory);
@@ -200,11 +207,11 @@ namespace UnrealBuildTool
 
 					// Get all the build options
 					BuildOptions Options = BuildOptions.None;
-					if(bSkipBuild)
+					if (bSkipBuild)
 					{
 						Options |= BuildOptions.SkipBuild;
 					}
-					if(bXGEExport)
+					if (bXGEExport)
 					{
 						Options |= BuildOptions.XGEExport;
 					}
@@ -213,10 +220,10 @@ namespace UnrealBuildTool
 						Options |= BuildOptions.NoEngineChanges;
 					}
 
-					// Create the working set provider
+					// Create the working set provider per group.
 					using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(UnrealBuildTool.RootDirectory, ProjectDirs))
 					{
-						Build(TargetDescriptors, BuildConfiguration, WorkingSet, Options, WriteOutdatedActionsFile);
+						Build(TargetDescriptors, BuildConfiguration, WorkingSet, Options, WriteOutdatedActionsFile, bSkipPreBuildTargets);
 					}
 				}
 			}
@@ -237,16 +244,45 @@ namespace UnrealBuildTool
 		/// <param name="WorkingSet">The source file working set</param>
 		/// <param name="Options">Additional options for the build</param>
 		/// <param name="WriteOutdatedActionsFile">Files to write the list of outdated actions to (rather than building them)</param>
+		/// <param name="bSkipPreBuildTargets">If true then only the current target descriptors will be built.</param>
 		/// <returns>Result from the compilation</returns>
-		public static void Build(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference WriteOutdatedActionsFile)
+		public static void Build(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference WriteOutdatedActionsFile, bool bSkipPreBuildTargets = false)
 		{
-			// Create a makefile for each target
-			TargetMakefile[] Makefiles = new TargetMakefile[TargetDescriptors.Count];
-			for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
+
+			List<TargetMakefile> TargetMakefiles = new List<TargetMakefile>();
+
+			for (int Idx = 0; Idx < TargetDescriptors.Count; ++Idx)
 			{
-				Makefiles[TargetIdx] = CreateMakefile(BuildConfiguration, TargetDescriptors[TargetIdx], WorkingSet);
+				TargetMakefile NewMakefile = CreateMakefile(BuildConfiguration, TargetDescriptors[Idx], WorkingSet);
+				TargetMakefiles.Add(NewMakefile);
+				if (!bSkipPreBuildTargets)
+				{
+					foreach (TargetInfo PreBuildTarget in NewMakefile.PreBuildTargets)
+					{
+						TargetDescriptor NewTarget = TargetDescriptor.FromTargetInfo(PreBuildTarget);
+						if (!TargetDescriptors.Contains(NewTarget))
+						{
+							TargetDescriptors.Add(NewTarget);
+						}
+					}
+				}
 			}
 
+			Build(TargetMakefiles.ToArray(), TargetDescriptors, BuildConfiguration, WorkingSet, Options, WriteOutdatedActionsFile);
+		}
+
+		/// <summary>
+		/// Build a list of targets with a given set of makefiles.
+		/// </summary>
+		/// <param name="Makefiles">Makefiles created with CreateMakefiles</param>
+		/// <param name="TargetDescriptors">Target descriptors</param>
+		/// <param name="BuildConfiguration">Current build configuration</param>
+		/// <param name="WorkingSet">The source file working set</param>
+		/// <param name="Options">Additional options for the build</param>
+		/// <param name="WriteOutdatedActionsFile">Files to write the list of outdated actions to (rather than building them)</param>
+		/// <returns>Result from the compilation</returns>
+		static void Build(TargetMakefile[] Makefiles, List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference WriteOutdatedActionsFile)
+		{
 			// Export the actions for each target
 			for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 			{

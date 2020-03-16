@@ -3609,7 +3609,7 @@ UObject* UClass::CreateDefaultObject()
 				FString PackageName;
 				FString CDOName;
 				bool bDoNotify = false;
-				if (GIsInitialLoad && GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn))
+				if (GIsInitialLoad && GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn) && !GetOutermost()->HasAnyPackageFlags(PKG_RuntimeGenerated))
 				{
 					PackageName = GetOutermost()->GetFName().ToString();
 					CDOName = GetDefaultObjectName().ToString();
@@ -5167,7 +5167,10 @@ void UClass::AssembleReferenceTokenStreams()
 		{
 			// Force the default object to be created (except when we're in the middle of exit purge -
 			// this may happen if we exited PreInit early because of error).
-			if (!GExitPurge)
+			// 
+			// Keep from handling script generated classes here, as those systems handle CDO 
+			// instantiation themselves.
+			if (!GExitPurge && !Class->HasAnyFlags(RF_BeingRegenerated))
 			{
 				Class->GetDefaultObject(); // Force the default object to be constructed if it isn't already
 			}

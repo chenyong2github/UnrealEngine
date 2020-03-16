@@ -47,6 +47,9 @@ struct CORE_API FDebug
 	// returns true if an ensure is currently in progress (e.g. the RenderThread is ensuring)
 	static bool IsEnsuring();
 
+	// returns the number of times an ensure has failed in this instance.
+	static SIZE_T GetNumEnsureFailures();
+
 	/** Dumps the stack trace into the log, meant to be used for debugging purposes. */
 	static void DumpStackTraceToLog();
 

@@ -25,6 +25,12 @@ namespace UnrealBuildTool
 		bool bSkipRulesCompile = false;
 
 		/// <summary>
+		/// Skip pre build targets; just do the main target.
+		/// </summary>
+		[CommandLine("-SkipPreBuildTargets")]
+		public bool bSkipPreBuildTargets = false;
+
+		/// <summary>
 		/// Main entry point
 		/// </summary>
 		/// <param name="Arguments">Command-line arguments</param>
@@ -40,27 +46,27 @@ namespace UnrealBuildTool
 
 			// Parse all the targets being built
 			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, bSkipRulesCompile);
-			if(TargetDescriptors.Count == 0)
+			if (TargetDescriptors.Count == 0)
 			{
 				throw new BuildException("No targets specified to clean");
 			}
 
 			// Also add implicit descriptors for cleaning UnrealBuildTool
-			if(!BuildConfiguration.bDoNotBuildUHT)
+			if (!BuildConfiguration.bDoNotBuildUHT)
 			{
 				const string UnrealHeaderToolTarget = "UnrealHeaderTool";
 
 				// Get a list of project files to clean UHT for
 				List<FileReference> ProjectFiles = new List<FileReference>();
-				foreach(TargetDescriptor TargetDesc in TargetDescriptors)
+				foreach (TargetDescriptor TargetDesc in TargetDescriptors)
 				{
-					if(TargetDesc.Name != UnrealHeaderToolTarget && !RemoteMac.HandlesTargetPlatform(TargetDesc.Platform))
+					if (TargetDesc.Name != UnrealHeaderToolTarget && !RemoteMac.HandlesTargetPlatform(TargetDesc.Platform))
 					{
-						if(ProjectFiles.Count == 0)
+						if (ProjectFiles.Count == 0)
 						{
 							ProjectFiles.Add(null);
 						}
-						if(TargetDesc.ProjectFile != null && !ProjectFiles.Contains(TargetDesc.ProjectFile))
+						if (TargetDesc.ProjectFile != null && !ProjectFiles.Contains(TargetDesc.ProjectFile))
 						{
 							ProjectFiles.Add(TargetDesc.ProjectFile);
 						}
@@ -68,11 +74,11 @@ namespace UnrealBuildTool
 				}
 
 				// Add descriptors for cleaning UHT with all these projects
-				if(ProjectFiles.Count > 0)
+				if (ProjectFiles.Count > 0)
 				{
 					UnrealTargetConfiguration Configuration = BuildConfiguration.bForceDebugUnrealHeaderTool ? UnrealTargetConfiguration.Debug : UnrealTargetConfiguration.Development;
 					string Architecture = UEBuildPlatform.GetBuildPlatform(BuildHostPlatform.Current.Platform).GetDefaultArchitecture(null);
-					foreach(FileReference ProjectFile in ProjectFiles)
+					foreach (FileReference ProjectFile in ProjectFiles)
 					{
 						TargetDescriptors.Add(new TargetDescriptor(ProjectFile, UnrealHeaderToolTarget, BuildHostPlatform.Current.Platform, Configuration, Architecture, null));
 					}
@@ -85,13 +91,28 @@ namespace UnrealBuildTool
 			// Loop through all the targets, and clean them all
 			HashSet<FileReference> FilesToDelete = new HashSet<FileReference>();
 			HashSet<DirectoryReference> DirectoriesToDelete = new HashSet<DirectoryReference>();
-			foreach(TargetDescriptor TargetDescriptor in TargetDescriptors)
+
+			for (int Idx = 0; Idx < TargetDescriptors.Count; ++Idx)
 			{
+				TargetDescriptor TargetDescriptor = TargetDescriptors[Idx];
+
 				// Create the rules assembly
 				RulesAssembly RulesAssembly = RulesCompiler.CreateTargetRulesAssembly(TargetDescriptor.ProjectFile, TargetDescriptor.Name, bSkipRulesCompile, BuildConfiguration.bUsePrecompiled, TargetDescriptor.ForeignPlugin);
 
 				// Create the rules object
 				ReadOnlyTargetRules Target = new ReadOnlyTargetRules(RulesAssembly.CreateTargetRules(TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, TargetDescriptor.Architecture, TargetDescriptor.ProjectFile, TargetDescriptor.AdditionalArguments));
+
+				if (!bSkipPreBuildTargets && Target.PreBuildTargets.Count > 0)
+				{
+					foreach (TargetInfo PreBuildTarget in Target.PreBuildTargets)
+					{
+						TargetDescriptor NewTarget = TargetDescriptor.FromTargetInfo(PreBuildTarget);
+						if (!TargetDescriptors.Contains(NewTarget))
+						{
+							TargetDescriptors.Add(NewTarget);
+						}
+					}
+				}
 
 				// Find the base folders that can contain binaries
 				List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
@@ -163,7 +184,7 @@ namespace UnrealBuildTool
 				foreach (DirectoryReference BaseDir in BaseDirs)
 				{
 					DirectoryReference BinariesDir = DirectoryReference.Combine(BaseDir, "Binaries", Target.Platform.ToString());
-					if(DirectoryReference.Exists(BinariesDir))
+					if (DirectoryReference.Exists(BinariesDir))
 					{
 						UEBuildPlatform.GetBuildPlatform(Target.Platform).FindBuildProductsToClean(BinariesDir, NamePrefixesArray, NameSuffixesArray, AdditionalFilesToDelete, AdditionalDirectoriesToDelete);
 					}
@@ -211,10 +232,10 @@ namespace UnrealBuildTool
 			}
 
 			// Also clean all the remote targets
-			for(int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
+			for (int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
 			{
 				TargetDescriptor TargetDescriptor = TargetDescriptors[Idx];
-				if(RemoteMac.HandlesTargetPlatform(TargetDescriptor.Platform))
+				if (RemoteMac.HandlesTargetPlatform(TargetDescriptor.Platform))
 				{
 					RemoteMac RemoteMac = new RemoteMac(TargetDescriptor.ProjectFile);
 					RemoteMac.Clean(TargetDescriptor);

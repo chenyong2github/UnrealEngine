@@ -89,6 +89,11 @@ namespace UnrealBuildTool
 		public FileReference[] PreBuildScripts;
 
 		/// <summary>
+		/// Targets which should be build before building anything
+		/// </summary>
+		public TargetInfo[] PreBuildTargets;
+
+		/// <summary>
 		/// Every action in the action graph
 		/// </summary>
 		public List<Action> Actions;
@@ -223,6 +228,7 @@ namespace UnrealBuildTool
 			bHasProjectScriptPlugin = Reader.ReadBool();
 			AdditionalArguments = Reader.ReadArray(() => Reader.ReadString());
 			PreBuildScripts = Reader.ReadArray(() => Reader.ReadFileReference());
+			PreBuildTargets = Reader.ReadArray(() => new TargetInfo(Reader));
 			Actions = Reader.ReadList(() => new Action(Reader));
 			EnvironmentVariables = Reader.ReadList(() => Tuple.Create(Reader.ReadString(), Reader.ReadString()));
 			OutputItems = Reader.ReadList(() => Reader.ReadFileItem());
@@ -257,6 +263,7 @@ namespace UnrealBuildTool
 			Writer.WriteBool(bHasProjectScriptPlugin);
 			Writer.WriteArray(AdditionalArguments, Item => Writer.WriteString(Item));
 			Writer.WriteArray(PreBuildScripts, Item => Writer.WriteFileReference(Item));
+			Writer.WriteArray(PreBuildTargets, Item => Item.Write(Writer));
 			Writer.WriteList(Actions, Action => Action.Write(Writer));
 			Writer.WriteList(EnvironmentVariables, x => { Writer.WriteString(x.Item1); Writer.WriteString(x.Item2); });
 			Writer.WriteList(OutputItems, Item => Writer.WriteFileItem(Item));

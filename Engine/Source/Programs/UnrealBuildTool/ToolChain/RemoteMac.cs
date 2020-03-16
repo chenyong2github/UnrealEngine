@@ -404,9 +404,30 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="TargetDesc">Descriptor for the target to build</param>
 		/// <param name="RemoteLogFile">Path to store the remote log file</param>
+		/// <param name="bSkipPreBuildTargets">If true then any PreBuildTargets will be skipped</param>
 		/// <returns>True if the build succeeded, false otherwise</returns>
-		public bool Build(TargetDescriptor TargetDesc, FileReference RemoteLogFile)
+		public bool Build(TargetDescriptor TargetDesc, FileReference RemoteLogFile, bool bSkipPreBuildTargets)
 		{
+			// Compile the rules assembly
+			RulesAssembly RulesAssembly = RulesCompiler.CreateTargetRulesAssembly(TargetDesc.ProjectFile, TargetDesc.Name, false, false, TargetDesc.ForeignPlugin);
+
+			// Create the target rules
+			TargetRules Rules = RulesAssembly.CreateTargetRules(TargetDesc.Name, TargetDesc.Platform, TargetDesc.Configuration, TargetDesc.Architecture, TargetDesc.ProjectFile, TargetDesc.AdditionalArguments);
+			if (!bSkipPreBuildTargets)
+			{
+				foreach (TargetInfo PreBuildTargetInfo in Rules.PreBuildTargets)
+				{
+					RemoteMac PreBuildTargetRemoteMac = new RemoteMac(ProjectFile);
+					TargetDescriptor PreBuildTargetDesc = new TargetDescriptor(PreBuildTargetInfo.ProjectFile, PreBuildTargetInfo.Name, PreBuildTargetInfo.Platform, PreBuildTargetInfo.Configuration, PreBuildTargetInfo.Architecture, PreBuildTargetInfo.Arguments);
+
+					Log.TraceInformation("[Remote] Building pre target [{0}] for [{1}] ", PreBuildTargetDesc.ToString(), TargetDesc.ToString());
+					if (!PreBuildTargetRemoteMac.Build(PreBuildTargetDesc, RemoteLogFile, false))
+					{
+						return false;
+					}
+				}
+			}
+
 			// Get the directory for working files
 			DirectoryReference TempDir = CreateTempDirectory(TargetDesc);
 
@@ -425,12 +446,6 @@ namespace UnrealBuildTool
 				Mappings.Add(new RemoteMapping(RemoteLogFile.Directory, GetRemotePath(RemoteLogFile.Directory)));
 			}
 
-			// Compile the rules assembly
-			RulesAssembly RulesAssembly = RulesCompiler.CreateTargetRulesAssembly(TargetDesc.ProjectFile, TargetDesc.Name, false, false, TargetDesc.ForeignPlugin);
-
-			// Create the target rules
-			TargetRules Rules = RulesAssembly.CreateTargetRules(TargetDesc.Name, TargetDesc.Platform, TargetDesc.Configuration, TargetDesc.Architecture, TargetDesc.ProjectFile, TargetDesc.AdditionalArguments);
-
 			// Check if we need to enable a nativized plugin, and compile the assembly for that if we do
 			FileReference NativizedPluginFile = Rules.GetNativizedPlugin();
 			if(NativizedPluginFile != null)
@@ -448,6 +463,7 @@ namespace UnrealBuildTool
 			List<string> RemoteArguments = GetRemoteArgumentsForTarget(TargetDesc, LocalManifestFiles);
 			RemoteArguments.Add(String.Format("-Log={0}", GetRemotePath(RemoteLogFile)));
 			RemoteArguments.Add(String.Format("-Manifest={0}", GetRemotePath(RemoteManifestFile)));
+			RemoteArguments.Add(String.Format("-SkipPreBuildTargets"));
 
 			// Handle any per-platform setup that is required
 			if(TargetDesc.Platform == UnrealTargetPlatform.IOS || TargetDesc.Platform == UnrealTargetPlatform.TVOS)
