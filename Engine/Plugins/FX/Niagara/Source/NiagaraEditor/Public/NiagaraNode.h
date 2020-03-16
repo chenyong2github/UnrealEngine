@@ -151,7 +151,7 @@ protected:
 	virtual bool PODPropertyAppendCompileHash(const void* Container, FProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) const;
 
 	virtual int32 CompileInputPin(class FHlslNiagaraTranslator *Translator, UEdGraphPin* Pin);
-	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const { return true; }; 
+	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const;
 
 	void NumericResolutionByPins(const UEdGraphSchema_Niagara* Schema, TArray<UEdGraphPin*>& InputPins, TArray<UEdGraphPin*>& OutputPins,
 		bool bFixInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache);
