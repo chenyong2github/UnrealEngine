@@ -983,7 +983,8 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 	GraphBuilder.Execute();
 
 	// We only release the SceneColor after the last view was processed (SplitScreen)
-	if(View.IsLastInFamily() && !GIsEditor)
+	if (View.IsLastInFamily() && !GIsEditor 
+		&& View.GetFeatureLevel() > ERHIFeatureLevel::ES3_1) // Mobile renderer may still use SceneColor.A to sample scene depth
 	{
 		// The RT should be released as early as possible to allow sharing of that memory for other purposes.
 		// This becomes even more important with some limited VRam (XBoxOne).
