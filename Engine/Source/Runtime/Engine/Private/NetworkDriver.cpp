@@ -4580,6 +4580,8 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 	// Build the consider list (actors that are ready to replicate)
 	ServerReplicateActors_BuildConsiderList( ConsiderList, ServerTickTime );
 
+	TSet<UNetConnection*> ConnectionsToClose;
+
 	FMemMark Mark( FMemStack::Get() );
 
 	for ( int32 i=0; i < ClientConnections.Num(); i++ )
@@ -4715,6 +4717,11 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 			const bool bWasSaturated = GNumSaturatedConnections > LocalNumSaturated;
 			Connection->TrackReplicationForAnalytics(bWasSaturated);
 		}
+
+		if (Connection->GetPendingCloseDueToReplicationFailure())
+		{
+			ConnectionsToClose.Add(Connection);
+		}
 	}
 
 	// shuffle the list of connections if not all connections were ticked
@@ -4741,6 +4748,11 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 		LastNonRelevantActors.Empty();
 
 		DebugRelevantActors  = false;
+	}
+
+	for (UNetConnection* ConnectionToClose : ConnectionsToClose)
+	{
+		ConnectionToClose->Close();
 	}
 
 	return Updated;

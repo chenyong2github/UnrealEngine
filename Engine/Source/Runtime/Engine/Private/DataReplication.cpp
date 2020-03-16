@@ -176,7 +176,15 @@ public:
 	{
 		UpdateCachedState(Params.DeltaSerializeInfo.Object->GetClass(), Params.DeltaSerializeInfo.Struct);
 		UpdateCachedRepLayout();
-		return CachedRequestState.RepLayout->DeltaSerializeFastArrayProperty(Params, ChangelistMgr.Get());
+
+		const ERepLayoutResult Result = CachedRequestState.RepLayout->DeltaSerializeFastArrayProperty(Params, ChangelistMgr.Get());
+
+		if (ERepLayoutResult::FatalError == Result && Params.DeltaSerializeInfo.Connection)
+		{
+			Params.DeltaSerializeInfo.Connection->SetPendingCloseDueToReplicationFailure();
+		}
+
+		return ERepLayoutResult::Success == Result;
 	}
 
 	virtual void GatherGuidReferencesForFastArray(FFastArrayDeltaSerializeParams& Params) override final
@@ -251,7 +259,7 @@ public:
 		return RepLayout.GetLifetimeCustomDeltaProperty(CustomDeltaPropertyIndex);
 	}
 
-	static void UpdateChangelistMgr(
+	static ERepLayoutResult UpdateChangelistMgr(
 		const FRepLayout& RepLayout,
 		FSendingRepState* RESTRICT RepState,
 		FReplicationChangelistMgr& InChangelistMgr,
@@ -260,7 +268,7 @@ public:
 		const FReplicationFlags& RepFlags,
 		const bool bForceCompare)
 	{
-		RepLayout.UpdateChangelistMgr(RepState, InChangelistMgr, InObject, ReplicationFrame, RepFlags, bForceCompare);
+		return RepLayout.UpdateChangelistMgr(RepState, InChangelistMgr, InObject, ReplicationFrame, RepFlags, bForceCompare);
 	}
 
 	static const ELifetimeCondition GetLifetimeCustomDeltaPropertyCondition(const FRepLayout& RepLayout, const uint16 CustomDeltaPropertyIndex)
@@ -1557,7 +1565,13 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 
 	// Update change list (this will re-use work done by previous connections)
 	FSendingRepState* SendingRepState = ((Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint) && CheckpointRepState.IsValid()) ? CheckpointRepState->GetSendingRepState() : RepState->GetSendingRepState();
-	FNetSerializeCB::UpdateChangelistMgr(*RepLayout, SendingRepState, *ChangelistMgr, Object, Connection->Driver->ReplicationFrame, RepFlags, OwningChannel->bForceCompareProperties);
+	const ERepLayoutResult UpdateResult = FNetSerializeCB::UpdateChangelistMgr(*RepLayout, SendingRepState, *ChangelistMgr, Object, Connection->Driver->ReplicationFrame, RepFlags, OwningChannel->bForceCompareProperties);
+
+	if (UNLIKELY(ERepLayoutResult::FatalError == UpdateResult))
+	{
+		Connection->SetPendingCloseDueToReplicationFailure();
+		return false;
+	}
 
 	// Replicate properties in the layout
 	const bool bHasRepLayout = RepLayout->ReplicateProperties(SendingRepState, ChangelistMgr->GetRepChangelistState(), (uint8*)Object, ObjectClass, OwningChannel, Writer, RepFlags);
