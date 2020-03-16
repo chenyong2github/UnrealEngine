@@ -3831,7 +3831,8 @@ FArchive& FMaterialResourceMemoryWriter::operator<<(class FName& Name)
 		NewIdx = Name2Indices.Num();
 		Name2Indices.Add(Name.GetDisplayIndex(), NewIdx);
 	}
-	auto InstNum = Name.GetNumber();
+	int32 InstNum = Name.GetNumber();
+	static_assert(sizeof(decltype(DeclVal<FName>().GetNumber())) == sizeof(int32), "FName serialization in FMaterialResourceMemoryWriter requires changing, InstNum is no longer 32-bit");
 	*this << NewIdx << InstNum;
 	return *this;
 }
@@ -3933,9 +3934,18 @@ FMaterialResourceProxyReader::~FMaterialResourceProxyReader()
 FArchive& FMaterialResourceProxyReader::operator<<(class FName& Name)
 {
 	int32 NameIdx;
-	decltype(DeclVal<FName>().GetNumber()) InstNum;
+	int32 InstNum;
+	static_assert(sizeof(decltype(DeclVal<FName>().GetNumber())) == sizeof(int32), "FName serialization in FMaterialResourceProxyReader requires changing, InstNum is no longer 32-bit");
 	InnerArchive << NameIdx << InstNum;
-	Name = FName(Names[NameIdx], InstNum);
+	if (NameIdx >= 0 && NameIdx < Names.Num())
+	{
+		Name = FName(Names[NameIdx], InstNum);
+	}
+	else
+	{
+		UE_LOG(LogMaterial, Fatal, TEXT("FMaterialResourceProxyReader: deserialized an invalid FName, NameIdx=%d, Names.Num()=%d (Offset=%lld, InnerArchive.Tell()=%lld, OffsetToFirstResource=%lld)"), 
+			NameIdx, Names.Num(), Tell(), InnerArchive.Tell(), OffsetToFirstResource);
+	}
 	return *this;
 }
 
