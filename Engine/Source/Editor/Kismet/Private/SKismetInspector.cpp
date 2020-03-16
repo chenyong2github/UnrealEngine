@@ -657,7 +657,7 @@ void SKismetInspector::UpdateFromObjects(const TArray<UObject*>& PropertyObjects
 			{
 				AActor* Owner = ActorComponent->GetOwner();
 				if(Owner != nullptr && Owner->HasAnyFlags(RF_ClassDefaultObject))
-				{					
+				{
 					SelectionInfo.ObjectsForPropertyEditing.AddUnique(ActorComponent);
 					SelectionInfo.EditableComponentTemplates.Add(ActorComponent);
 				}
