@@ -84,11 +84,6 @@ UObject * UDataprepAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InPa
 	}
 	check( DataprepAsset->GetConsumer() );
 
-	// Temp code for the nodes development
-	// Initialize Dataprep asset's blueprint
-	DataprepAsset->CreateBlueprint();
-	// end of temp code for nodes development
-
 	DataprepAsset->CreateParameterization();
 
 	FAssetRegistryModule::AssetCreated( DataprepAsset );
