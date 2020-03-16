@@ -70,12 +70,11 @@ FSoundEffectSubmixPtr OculusAudioReverb::GetEffectSubmix()
 	{
 		if (!ReverbPreset)
 		{
-			ReverbPreset = NewObject<USubmixEffectOculusReverbPreset>();
+			ReverbPreset = NewObject<USubmixEffectOculusReverbPluginPreset>();
 			ReverbPreset->AddToRoot();
 		}
 
-		FSoundEffectSubmixInitData InitData;
-		SubmixEffect = FSoundEffectSubmix::Create(InitData, *ReverbPreset);
+		SubmixEffect = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(FSoundEffectSubmixInitData(), *ReverbPreset);
 		SubmixEffect->SetEnabled(true);
 	}
 
