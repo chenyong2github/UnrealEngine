@@ -22,6 +22,7 @@
 #include "Insights/IUnrealInsightsModule.h"
 #include "Trace/StoreClient.h"
 #include "Trace/SessionTraceFilterService.h"
+#include "SessionEditorFilterService.h"
 #include "EventFilterStyle.h"
 
 #define LOCTEXT_NAMESPACE "STraceDataFilterWidget"
@@ -570,7 +571,11 @@ void STraceDataFilterWidget::RestoreItemSelection()
 
 void STraceDataFilterWidget::SetCurrentAnalysisSession(uint32 SessionHandle, TSharedRef<const Trace::IAnalysisSession> AnalysisSession)
 {
+#if WITH_EDITOR
+	SessionFilterService = MakeShareable(new FSessionEditorFilterService(SessionHandle, AnalysisSession));
+#else
 	SessionFilterService = MakeShareable(new FSessionTraceFilterService(SessionHandle, AnalysisSession));
+#endif
 
 	/** Refresh presets so config loaded state is directly applied */
 	OnPresetsChanged();
