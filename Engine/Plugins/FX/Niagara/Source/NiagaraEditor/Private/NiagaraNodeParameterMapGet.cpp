@@ -438,6 +438,11 @@ bool UNiagaraNodeParameterMapGet::CancelEditablePinName(const FText& InName, UEd
 
 bool UNiagaraNodeParameterMapGet::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents)
 {
+	if (InGraphPinObj == PinPendingRename)
+	{
+		PinPendingRename = nullptr;
+	}
+
 	if (Pins.Contains(InGraphPinObj) && InGraphPinObj->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
 		FString OldPinName = InGraphPinObj->PinName.ToString();
