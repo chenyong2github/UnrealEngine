@@ -415,33 +415,6 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 							}
 							++i;
 						}
-
-						// #todo: no special casing for the floor
-						/*
-						bool bHasFloor = false;
-						int32 FloorIndex = CurrentSolver->GetFloorIndex();
-						if (FloorIndex != INDEX_NONE)
-						{
-							bHasFloor = !Particles.Disabled(FloorIndex);
-						}
-
-						TSet<uint32> RemovedParticles;
-						for (const ContextIndex& Index : IndicesArray)
-						{
-							const int32 i = Index.Result;
-							if (!Particles.Disabled(i) && Results[i] > 0.0)
-							{
-								RemovedParticles.Add((uint32)i);
-								CurrentSolver->GetEvolution()->DisableParticle(i);
-							}
-						}
-
-						if (RemovedParticles.Num() && bHasFloor)
-						{
-							CurrentSolver->GetEvolution()->DisableParticle(FloorIndex);
-							Particles.SetObjectState(FloorIndex, Chaos::EObjectStateType::Static);
-						}
-						*/
 					}
 				}
 				CommandsToRemove.Add(CommandIndex);
@@ -946,8 +919,12 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
 						{
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
-							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
-							{								
+							if(RigidHandle && (RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic || RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping))
+							{				
+								if (RigidHandle->Sleeping())
+								{
+									RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+								}
 								RigidHandle->F() += ForceView[i];
 							}
 							++i;
@@ -1006,8 +983,12 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
 						{
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
-							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
+							if(RigidHandle && (RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic || RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping))
 							{
+								if (RigidHandle->Sleeping())
+								{
+									RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+								}
 								RigidHandle->Torque() += TorqueView[i];
 							}
 							++i;
