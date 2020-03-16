@@ -28,6 +28,9 @@ public:
 	/** End of angle range spanned by disc, in degrees */
 	float EndAngle;
 
+	/** If true, output mesh has a single polygroup, otherwise each quad/tri gets a separate group */
+	bool bSinglePolygroup = false;
+
 	/** How to map 2D indices to 3D. Default is (0,1) = (x,y,0). */
 	FIndex2i IndicesMap;
 

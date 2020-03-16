@@ -96,7 +96,10 @@ FMeshShapeGenerator& FRectangleMeshGenerator::Generate()
 			SetTriangleNormals(ti, i00, i10, i11);
 
 			ti++;
-			PolyIndex++;
+			if (!bSinglePolygroup)
+			{
+				PolyIndex++;
+			}
 		}
 	}
 
@@ -230,7 +233,10 @@ FMeshShapeGenerator& FRoundedRectangleMeshGenerator::Generate()
 			SetTriangleNormals(ti, i00, i10, i11);
 
 			ti++;
-			PolyIndex++;
+			if (!bSinglePolygroup)
+			{
+				PolyIndex++;
+			}
 		}
 	}
 
@@ -288,7 +294,10 @@ FMeshShapeGenerator& FRoundedRectangleMeshGenerator::Generate()
 				SetTriangleNormals(ti, VCenterIdx, LastUsedIdx, ActingSinIdx);
 				ti++;
 
-				PolyIndex++;
+				if (! bSinglePolygroup)
+				{
+					PolyIndex++;
+				}
 			}
 		}
 	}
