@@ -161,9 +161,11 @@ namespace AutomationTool.Benchmark
 		None = 0,
 		WarmDDC = 1 << 0,
 		ColdDDC = 1 << 1,
-		NoDDC = 1 << 2,
+		NoSharedDDC = 1 << 2,
 		NoShaderDDC = 1 << 3,
 		HotDDC = 1 << 4,
+
+		KeepMemoryDDC = 1 << 5,
 	}
 
 	abstract class BenchmarkEditorTaskBase : BenchmarkTaskBase
@@ -203,7 +205,7 @@ namespace AutomationTool.Benchmark
 				TaskModifiers.Add("hotddc");
 			}
 
-			if (TaskOptions.HasFlag(DDCTaskOptions.NoDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
 			{
 				TaskModifiers.Add("noddc");
 			}
@@ -213,87 +215,68 @@ namespace AutomationTool.Benchmark
 				TaskModifiers.Add("noshaderddc");
 			}
 
+			if (TaskOptions.HasFlag(DDCTaskOptions.KeepMemoryDDC))
+			{
+				TaskModifiers.Add("withbootddc");
+			}
+
 			if (!string.IsNullOrEmpty(EditorArgs))
 			{
 				TaskModifiers.Add(EditorArgs);
 			}
 		}
 
-		private void DeleteLocalDDC(FileReference InProjectFile)
+		private Dictionary<string, string> StoredEnvVars = new Dictionary<string, string>();
+		private List<DirectoryReference> CachePaths = new List<DirectoryReference>();
+
+		private string GetXPlatformEnvironmentKey(string InKey)
 		{
-			List<DirectoryReference> DirsToClear = new List<DirectoryReference>();
-
-			DirectoryReference ProjectDir = InProjectFile.Directory;
-
-			DirsToClear.Add(DirectoryReference.Combine(ProjectDir, "Saved"));
-			DirsToClear.Add(DirectoryReference.Combine(CommandUtils.EngineDirectory, "DerivedDataCache"));
-			DirsToClear.Add(DirectoryReference.Combine(ProjectDir, "DerivedDataCache"));
-
-			string LocalDDC = Environment.GetEnvironmentVariable("UE-LocalDataCachePath");
-
-			if (!string.IsNullOrEmpty(LocalDDC) && Directory.Exists(LocalDDC))
-			{
-				DirsToClear.Add(new DirectoryReference(LocalDDC));
-			}
-
-			foreach (var Dir in DirsToClear)
-			{
-				try
-				{
-					if (DirectoryReference.Exists(Dir))
-					{
-						Log.TraceInformation("Removing {0}", Dir);
-						DirectoryReference.Delete(Dir, true);
-					}
-				}
-				catch (Exception Ex)
-				{
-					Log.TraceWarning("Failed to remove path {0}. {1}", Dir.FullName, Ex.Message);
-				}
-			}
-		}
-
-		private DirectoryReference PrivateDDCPath = null;
-		private string OldLocalDCCPath = null;
-
-		private string GetLocalDDCPathEnvironmentKey()
-		{
-			string EnvVar = "UE-LocalDataCachePath";
-
+			// Mac uses _ in place of -
 			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64)
 			{
-				EnvVar = EnvVar.Replace("-", "_");
+				InKey = InKey.Replace("-", "_");
 			}
 
-			return EnvVar;
+			return InKey;
 		}
 
 		protected override bool PerformPrequisites()
 		{
 			if (TaskOptions.HasFlag(DDCTaskOptions.ColdDDC))
 			{
-				PrivateDDCPath = DirectoryReference.Combine(CommandUtils.EngineDirectory, "BenchmarkDerivedDataCache");
+				StoredEnvVars.Clear();
+				CachePaths.Clear();
 
-				if (DirectoryReference.Exists(PrivateDDCPath))
+				// We put our temp DDC paths in here
+				DirectoryReference BasePath = DirectoryReference.Combine(CommandUtils.EngineDirectory, "BenchmarkDDC");
+
+				IEnumerable<string> DDCEnvVars = new string[] { GetXPlatformEnvironmentKey("UE-BootDataCachePath"), GetXPlatformEnvironmentKey("UE-LocalDataCachePath") };
+				
+				if (TaskOptions.HasFlag(DDCTaskOptions.KeepMemoryDDC))
 				{
-					DirectoryReference.Delete(PrivateDDCPath, true);
+					DDCEnvVars = DDCEnvVars.Where(E => !E.Contains("UE-Boot"));
 				}
 
-				string Key = GetLocalDDCPathEnvironmentKey();
-
-				OldLocalDCCPath = Environment.GetEnvironmentVariable(Key);
-				Environment.SetEnvironmentVariable(Key, PrivateDDCPath.FullName);
-
-				DirectoryReference BootDDC = DirectoryReference.Combine(ProjectFile.Directory, "DerivedDataCache");
-
-				try
+				// get all current environment vars and set them to our temp dir
+				foreach (var Key in DDCEnvVars)
 				{
-					DirectoryReference.Delete(BootDDC, true);
-				}
-				catch
-				{
+					// save current key
+					StoredEnvVars.Add(Key, Environment.GetEnvironmentVariable(Key));
 
-				}
+					// create a new dir for this key
+					DirectoryReference Dir = DirectoryReference.Combine(BasePath, Key);
+
+					if (DirectoryReference.Exists(Dir))
+					{
+						DirectoryReference.Delete(Dir, true);
+					}
+
+					DirectoryReference.CreateDirectory(Dir);
+
+					// save this dir and set it as the env var
+					CachePaths.Add(Dir);
+					Environment.SetEnvironmentVariable(Key, Dir.FullName);
+				}				
 			}
 
 			return base.PerformPrequisites();
@@ -301,15 +284,19 @@ namespace AutomationTool.Benchmark
 
 		protected override void PerformCleanup()
 		{
-			if (PrivateDDCPath !=  null)
+			// restore keys
+			foreach (var KV in StoredEnvVars)
 			{
-				if (DirectoryReference.Exists(PrivateDDCPath))
-				{
-					DirectoryReference.Delete(PrivateDDCPath, true);
-				}
-
-				Environment.SetEnvironmentVariable(GetLocalDDCPathEnvironmentKey(), OldLocalDCCPath);
+				Environment.SetEnvironmentVariable(KV.Key, KV.Value);
 			}
+
+			foreach (var Dir in CachePaths)
+			{
+				DirectoryReference.Delete(Dir, true);
+			}
+
+			CachePaths.Clear();
+			StoredEnvVars.Clear();
 		}
 	}
 }
