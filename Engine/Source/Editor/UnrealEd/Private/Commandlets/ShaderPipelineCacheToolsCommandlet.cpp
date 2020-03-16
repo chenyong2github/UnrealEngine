@@ -64,12 +64,10 @@ static void LoadStableSCL(TArray<FStableShaderKeyAndValue>& StableArray, const F
 {
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loading %.*s..."), FileName.Len(), FileName.GetData());
 
-	FString SourceFileContents;
-	TArray<FStringView> SourceFileLines;
-	if (FFileHelper::LoadFileToString(SourceFileContents, *FString(FileName)))
+	TArray<FString> SourceFileLines;
+	if (FFileHelper::LoadFileToStringArrayWithPredicate(SourceFileLines, *FString(FileName), [](const FString & Line) { return !Line.IsEmpty(); }))
 	{
-		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loaded %.*s, length = %d..."), FileName.Len(), FileName.GetData(), SourceFileContents.Len());
-		UE::String::ParseLines(SourceFileContents, [&SourceFileLines](FStringView Line) { if (!Line.IsEmpty()) { SourceFileLines.Add(Line); } });
+		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loaded %.*s, %d lines..."), FileName.Len(), FileName.GetData(), SourceFileLines.Num());
 	}
 
 	if (SourceFileLines.Num() < 1)
