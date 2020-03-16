@@ -6,9 +6,9 @@
 
 #include "Framework/Application/SlateApplication.h" 
 
-#include <ShlObj.h>
-
 #if PLATFORM_WINDOWS
+
+#include <ShlObj.h>
 
 class FWindowsStylusInputInterfaceImpl
 {
