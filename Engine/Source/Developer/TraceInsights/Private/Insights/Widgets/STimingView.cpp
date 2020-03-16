@@ -178,7 +178,7 @@ void STimingView::Construct(const FArguments& InArgs)
 				]
 
 				+SHorizontalBox::Slot()
-				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+				.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
 				.AutoWidth()
 				[
 					SNew(STextBlock)
@@ -187,6 +187,26 @@ void STimingView::Construct(const FArguments& InArgs)
 				]
 			]
 		]
+
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Top)
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		[
+			SNew(SCheckBox)
+			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+			.HAlign(HAlign_Center)
+			.Padding(FMargin(2.0f, 3.0f, 2.0f, 5.0f))
+			.OnCheckStateChanged(this, &STimingView::AutoScroll_OnCheckStateChanged)
+			.IsChecked(this, &STimingView::AutoScroll_IsChecked)
+			.ToolTipText(LOCTEXT("AutoScroll_Tooltip", "Auto Scroll"))
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("AutoScroll_Button", " >> "))
+				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
+			]
+		]
+
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
@@ -269,6 +289,7 @@ void STimingView::Reset()
 	bIsSpaceBarKeyPressed = false;
 	bIsDragging = false;
 
+	bAutoScroll = false;
 	bIsPanning = false;
 	PanningMode = EPanningMode::None;
 
@@ -437,6 +458,24 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			//UE_LOG(TimingProfiler, Log, TEXT("Session Duration: %g"), DT);
 			Viewport.SetMaxValidTime(SessionTime);
 			UpdateHorizontalScrollBar();
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	if (bIsPanning)
+	{
+		// Disable auto-scroll if user starts panning manually.
+		bAutoScroll = false;
+	}
+
+	if (bAutoScroll)
+	{
+		const double ViewportDuration = Viewport.GetEndTime() - Viewport.GetStartTime(); // width of the viewport in time units
+		const double MinStartTime = Viewport.GetMaxValidTime() - ViewportDuration * 0.9; // allow 10% space on the right side
+		if (Viewport.GetStartTime() < MinStartTime)
+		{
+			ScrollAtTime(MinStartTime);
 		}
 	}
 
@@ -2506,6 +2545,21 @@ void STimingView::BindCommands()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimingView::AutoScroll_OnCheckStateChanged(ECheckBoxState NewRadioState)
+{
+	bAutoScroll = (NewRadioState == ECheckBoxState::Checked);
+	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ECheckBoxState STimingView::AutoScroll_IsChecked() const
+{
+	return bAutoScroll ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 double STimingView::EnforceHorizontalScrollLimits(const double InStartTime)
 {
 	double NewStartTime = InStartTime;
@@ -2557,6 +2611,9 @@ float STimingView::EnforceVerticalScrollLimits(const float InScrollPosY)
 
 void STimingView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 {
+	// Disable auto-scroll if user starts scrolling with horizontal scrollbar.
+	bAutoScroll = false;
+
 	Viewport.OnUserScrolled(HorizontalScrollBar, ScrollOffset);
 }
 
@@ -2687,8 +2744,8 @@ void STimingView::RaiseTimeMarkerChanged()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::SetTimeMarker(double InMarkerTime)
-{ 
-	TimeMarker = InMarkerTime; 
+{
+	TimeMarker = InMarkerTime;
 
 	RaiseTimeMarkerChanged();
 }

@@ -28,7 +28,7 @@ class FLoadingSharedState;
 class FMarkersTimingTrack;
 class FMenuBuilder;
 class FThreadTimingSharedState;
-class FTimeRulerTrack; 
+class FTimeRulerTrack;
 class FTimingGraphTrack;
 class FTimingViewDrawHelper;
 class SOverlay;
@@ -309,6 +309,9 @@ protected:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	void AutoScroll_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	ECheckBoxState AutoScroll_IsChecked() const;
+
 	void UpdatePositionForScrollableTracks();
 
 	double EnforceHorizontalScrollLimits(const double InStartTime);
@@ -440,6 +443,8 @@ protected:
 
 	////////////////////////////////////////////////////////////
 	// Panning
+
+	bool bAutoScroll;
 
 	/** True, if the user is currently interactively panning the view (horizontally and/or vertically). */
 	bool bIsPanning;
