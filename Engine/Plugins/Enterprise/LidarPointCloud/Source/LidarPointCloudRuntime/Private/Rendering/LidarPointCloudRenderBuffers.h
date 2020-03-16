@@ -15,25 +15,13 @@
 class FLidarPointCloudBuffer
 {
 public:
+	FLidarPointCloudBuffer() : Capacity(100000) {}
+
 	/** Resizes the buffer to the specified capacity, if necessary. Must be called from Rendering thread. */
-	void Resize(const uint32& RequestedCapacity);
-
-	FLidarPointCloudBuffer(const uint32& ElementSize) : Capacity(100000), ElementSize(ElementSize) {}
-
-	virtual FString GetFriendlyName() const { return TEXT("FPointCloudBuffer"); }
-
-	/** Returns the total size of this buffer */
-	virtual uint32 GetSize() const { return Capacity * ElementSize; }
+	virtual void Resize(const uint32& RequestedCapacity) = 0;
 
 protected:
 	uint32 Capacity;
-	uint32 ElementSize;
-
-	FLidarPointCloudBuffer() : FLidarPointCloudBuffer(0) {}
-	virtual ~FLidarPointCloudBuffer();
-
-	virtual void Initialize() = 0;
-	virtual void Release() = 0;
 };
 
 /**
@@ -42,18 +30,10 @@ protected:
 class FLidarPointCloudIndexBuffer : public FLidarPointCloudBuffer, public FIndexBuffer
 {
 public:
-	FLidarPointCloudIndexBuffer() : FLidarPointCloudBuffer(sizeof(uint32)) { }
-
-	uint32 GetPointOffset() const { return PointOffset; }
-
-private:
-	virtual void InitRHI() override;
-	virtual void Initialize() override { InitResource(); }
-	virtual void Release() override { ReleaseResource(); }
-	virtual FString GetFriendlyName() const override { return TEXT("FLidarPointCloudIndexBuffer"); }
-
-private:
 	uint32 PointOffset;
+
+	virtual void Resize(const uint32& RequestedCapacity) override;
+	virtual void InitRHI() override;	
 };
 
 /**
@@ -67,21 +47,9 @@ public:
 
 	int32 PointCount;
 
-	FLidarPointCloudRenderBuffer() : FLidarPointCloudBuffer(4) {}
-	virtual ~FLidarPointCloudRenderBuffer() { Release(); }
-
+	virtual void Resize(const uint32& RequestedCapacity) override;	
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
-
-	virtual void Initialize() override { InitResource(); }
-	virtual void Release() override { ReleaseResource(); }
-	virtual FString GetFriendlyName() const override { return TEXT("FLidarPointCloudRenderBuffer"); }
-
-private:
-	FLidarPointCloudRenderBuffer(const FLidarPointCloudRenderBuffer&) = delete;
-	FLidarPointCloudRenderBuffer(FLidarPointCloudRenderBuffer&&) = delete;
-	FLidarPointCloudRenderBuffer& operator=(const FLidarPointCloudRenderBuffer&) = delete;
-	FLidarPointCloudRenderBuffer& operator=(FLidarPointCloudRenderBuffer&&) = delete;
 };
 
 /**
