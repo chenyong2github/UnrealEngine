@@ -461,6 +461,8 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 	//	}
 	//}
 
+	ProcessGameThreadTasks();
+
 	int32 ScanLimit = GameThread_AssetScanLimit;
 	while (ProcessAssetQueue.Num() > 0 && ScanLimit > 0 && PendingDownloads < PendingDownloadsMax)
 	{
@@ -613,18 +615,19 @@ void FAssetSearchManager::AsyncMainThreadTask(TFunction<void()> Task)
 
 void FAssetSearchManager::ProcessGameThreadTasks()
 {
-	if (GIsSavingPackage)
+	if (!GT_Tasks.IsEmpty())
 	{
-		AsyncTask(ENamedThreads::GameThread, [this]() {
-			ProcessGameThreadTasks();
-		});
-		return;
-	}
+		if (GIsSavingPackage)
+		{
+			// If we're saving packages just give up, the call in Tick_GameThread will do this later.
+			return;
+		}
 
-	TFunction<void()> Operation;
-	if (GT_Tasks.Dequeue(Operation))
-	{
-		Operation();
+		TFunction<void()> Operation;
+		if (GT_Tasks.Dequeue(Operation))
+		{
+			Operation();
+		}
 	}
 }
 
