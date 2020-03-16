@@ -21,6 +21,10 @@ public:
 	virtual bool IsValidOnMaster() const override { return true; }
 	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
 	virtual bool CanBeDisabled() const override { return false; }
+
+	// UObject Interface
+	virtual void PostLoad() override;
+	// ~UObject Interface
 public:
 	/** What directory should all of our output files be relative to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")
