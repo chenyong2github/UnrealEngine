@@ -309,6 +309,8 @@ public:
 	UPROPERTY()
 	TArray<FVMExternalFunctionBindingInfo> CalledVMExternalFunctions;
 
+	TArray<FVMExternalFunction> CalledVMExternalFunctionBindings;
+
 	UPROPERTY()
 	TArray<FNiagaraDataSetID> ReadDataSets;
 
@@ -701,6 +703,9 @@ private:
 
 	/** Kicks off an async job to convert the ByteCode into an optimized version for the platform we are running on. */
 	void AsyncOptimizeByteCode();
+
+	/** Generates all of the function bindings for DI that don't require user data */
+	void GenerateDefaultFunctionBindings();
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
