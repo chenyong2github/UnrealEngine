@@ -514,7 +514,7 @@ namespace UnrealBuildTool
 				if (!File.Exists(TargetManifestFileName))
 				{
 					Log.TraceInformation("Extracting AAR {0}", BaseName);
-					IEnumerable<string> FileNames = UnzipFiles(Entry.Filename + ".aar", TargetPath);
+					/*IEnumerable<string> FileNames =*/ UnzipFiles(Entry.Filename + ".aar", TargetPath);
 
 					// Must have a src directory (even if empty)
 					string SrcDirectory = Path.Combine(TargetPath, "src");

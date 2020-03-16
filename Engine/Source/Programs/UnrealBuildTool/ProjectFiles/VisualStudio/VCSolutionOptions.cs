@@ -368,8 +368,8 @@ namespace UnrealBuildTool
 			if(Format >= VCProjectFileFormat.VisualStudio2017)
 			{
 				int Header1 = Reader.ReadInt32();
-				int Header2 = Reader.ReadInt32();
-				int Header3 = Reader.ReadByte();
+				/*int Header2 =*/ Reader.ReadInt32();
+				/*int Header3 =*/ Reader.ReadByte();
 				if (Header1 != 15)
 				{
 					throw new BuildException("Unexpected data in open projects section");

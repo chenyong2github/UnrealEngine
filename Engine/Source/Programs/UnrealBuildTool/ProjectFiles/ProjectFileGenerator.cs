@@ -2220,7 +2220,7 @@ namespace UnrealBuildTool
 			ProgramProjects = new Dictionary<FileReference, ProjectFile>();
 
 			// Get some standard directories
-			DirectoryReference EngineSourceProgramsDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs");
+			//DirectoryReference EngineSourceProgramsDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs");
 			DirectoryReference EnterpriseSourceProgramsDirectory = DirectoryReference.Combine(UnrealBuildTool.EnterpriseSourceDirectory, "Programs");
 
 			foreach( FileReference TargetFilePath in AllTargetFiles )

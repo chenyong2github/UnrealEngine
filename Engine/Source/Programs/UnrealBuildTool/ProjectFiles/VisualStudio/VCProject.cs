@@ -253,7 +253,7 @@ namespace UnrealBuildTool
 
 	class VCProjectFile : MSBuildProjectFile
 	{
-		FileReference OnlyGameProject;
+		//FileReference OnlyGameProject;
 		VCProjectFileFormat ProjectFileFormat;
 		bool bUseFastPDB;
 		bool bUsePerFileIntellisense;
@@ -289,7 +289,7 @@ namespace UnrealBuildTool
 		public VCProjectFile(FileReference InFilePath, FileReference InOnlyGameProject, VCProjectFileFormat InProjectFileFormat, bool bUseFastPDB, bool bUsePerFileIntellisense, bool bUsePrecompiled, bool bEditorDependsOnShaderCompileWorker, bool bBuildLiveCodingConsole, string BuildToolOverride)
 			: base(InFilePath)
 		{
-			OnlyGameProject = InOnlyGameProject;
+			//OnlyGameProject = InOnlyGameProject;
 			ProjectFileFormat = InProjectFileFormat;
 			this.bUseFastPDB = bUseFastPDB;
 			this.bUsePerFileIntellisense = bUsePerFileIntellisense;
@@ -675,7 +675,7 @@ namespace UnrealBuildTool
 		/// <returns>True on success</returns>
 		public override List<Tuple<ProjectFile, string>> WriteDebugProjectFiles(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
-			string ProjectName = ProjectFilePath.GetFileNameWithoutExtension();
+			//string ProjectName = ProjectFilePath.GetFileNameWithoutExtension();
 
 			List<UnrealTargetPlatform> ProjectPlatforms = new List<UnrealTargetPlatform>();
 			List<Tuple<ProjectFile, string>> ProjectFiles = new List<Tuple<ProjectFile, string>>();
@@ -1005,7 +1005,7 @@ namespace UnrealBuildTool
 
 				// Add all file directories to the filters file as solution filters
 				HashSet<string> FilterDirectories = new HashSet<string>();
-				UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BuildHostPlatform.Current.Platform);
+				//UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BuildHostPlatform.Current.Platform);
 
 				Dictionary<DirectoryReference, string> DirectoryToForceIncludePaths = new Dictionary<DirectoryReference, string>();
 				foreach (AliasedFile AliasedFile in LocalAliasedFiles)
