@@ -2129,14 +2129,16 @@ UClass* FBlueprintEditorUtils::GetSkeletonClass(UClass* FromClass)
 
 UClass* FBlueprintEditorUtils::GetMostUpToDateClass(UClass* FromClass)
 {
-	if(!FromClass || FromClass->HasAnyClassFlags(CLASS_Native) || FromClass->bCooked)
+	if (!FromClass || FromClass->HasAnyClassFlags(CLASS_Native) || FromClass->bCooked)
 	{
 		return FromClass;
 	}
 
 	// It's really not safe/coherent to try and dig out the 'right' class. Things that need the 'most up to date'
 	// version of a class should always be looking at the skeleton:
-	return GetSkeletonClass(FromClass);
+	UClass* SkeletonClass = GetSkeletonClass(FromClass);
+
+	return SkeletonClass ? SkeletonClass : FromClass;
 }
 
 const UClass* FBlueprintEditorUtils::GetMostUpToDateClass(const UClass* FromClass)

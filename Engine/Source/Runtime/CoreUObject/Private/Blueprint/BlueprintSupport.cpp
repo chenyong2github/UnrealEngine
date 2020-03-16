@@ -117,6 +117,7 @@ bool FBlueprintSupport::IsDeferredCDOInitializationDisabled()
 }
 
 static FFlushReinstancingQueueFPtr FlushReinstancingQueueFPtr = nullptr;
+static FClassReparentingFPtr ClassReparentingFPtr = nullptr;
 
 void FBlueprintSupport::FlushReinstancingQueue()
 {
@@ -126,9 +127,22 @@ void FBlueprintSupport::FlushReinstancingQueue()
 	}
 }
 
+void FBlueprintSupport::ReparentHierarchies(const TMap<UClass*, UClass*>& OldClassToNewClass)
+{
+	if (ClassReparentingFPtr)
+	{
+		(*ClassReparentingFPtr)(OldClassToNewClass);
+	}
+}
+
 void FBlueprintSupport::SetFlushReinstancingQueueFPtr(FFlushReinstancingQueueFPtr Ptr)
 {
 	FlushReinstancingQueueFPtr = Ptr;
+}
+
+void FBlueprintSupport::SetClassReparentingFPtr(FClassReparentingFPtr Ptr)
+{
+	ClassReparentingFPtr = Ptr;
 }
 
 bool FBlueprintSupport::IsDeferredDependencyPlaceholder(UObject* LoadedObj)

@@ -599,7 +599,19 @@ namespace UnrealBuildTool
 					Info.GeneratedCPPFilenameBase = Path.Combine(Module.GeneratedCodeDirectory.FullName, Info.ModuleName) + ".gen";
 					if (!Module.Rules.bUsePrecompiled)
 					{
-						Module.GeneratedCodeWildcard = Path.Combine(Module.GeneratedCodeDirectory.FullName, "*.gen.cpp");
+						Module.GeneratedCppDirectories = new List<string>();
+						Module.GeneratedCppDirectories.Add(Module.GeneratedCodeDirectory.FullName);
+
+						if (Module.Rules.AdditionalCodeGenDirectories != null)
+						{
+							foreach (string DirPath in Module.Rules.AdditionalCodeGenDirectories)
+							{
+								if (Directory.Exists(DirPath))
+								{
+									Module.GeneratedCppDirectories.Add(Path.GetFullPath(DirPath));
+								}
+							}
+						}
 					}
 
 					UObjectModules.Add(Info);

@@ -97,7 +97,8 @@ bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FString* OutF
 	}
 
 	TArray<FAssetData> Assets;
-	AssetRegistry->GetAssetsByPackageName(PackageName, Assets, /*bIncludeOnlyDiskAssets*/ true);
+	bool bIncludeOnlyDiskAssets = !FPackageName::IsExtraPackage(PackageName.ToString());
+	AssetRegistry->GetAssetsByPackageName(PackageName, Assets, bIncludeOnlyDiskAssets);
 
 	if (Assets.Num() <= 0)
 	{
