@@ -410,7 +410,7 @@ namespace SteamAudio
 				ReverbPluginPreset = NewObject<USubmixEffectReverbPluginPreset>(Submix, TEXT("Reverb Plugin Effect Preset"));
 			}
 
-			SubmixEffect = FSoundEffectSubmix::Create(FSoundEffectSubmixInitData(), *ReverbPluginPreset);
+			SubmixEffect = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(FSoundEffectSubmixInitData(), *ReverbPluginPreset);
 			StaticCastSharedPtr<FSubmixEffectReverbPlugin, FSoundEffectSubmix, ESPMode::ThreadSafe>(SubmixEffect)->SetPhononReverbPlugin(this);
 			SubmixEffect->SetEnabled(true);
 		}
