@@ -105,6 +105,35 @@ void FNiagaraVMExecutableData::SerializeData(FArchive& Ar, bool bDDCData)
 	FNiagaraVMExecutableDataType->SerializeTaggedProperties(Ar, (uint8*)this, FNiagaraVMExecutableDataType, nullptr);
 }
 
+#if WITH_EDITORONLY_DATA
+void FNiagaraVMExecutableData::BakeScriptLiterals(TArray<uint8>& OutLiterals) const
+{
+	OutLiterals.Empty();
+
+	const auto& Variables = InternalParameters.Parameters;
+	const int32 VariableCount = Variables.Num();
+
+	int32 TotalSize = 0;
+	for (int32 Index = 0; Index < VariableCount; ++Index)
+	{
+		TotalSize += Variables[Index].GetAllocatedSizeInBytes();
+	}
+
+	OutLiterals.AddZeroed(TotalSize);
+
+	uint8* LiteralData = OutLiterals.GetData();
+
+	for (int32 Index = 0; Index < VariableCount; ++Index)
+	{
+		const FNiagaraVariable& Variable = Variables[Index];
+		const int32 VariableSize = Variable.GetAllocatedSizeInBytes();
+		
+		FMemory::Memcpy(LiteralData, Variable.GetData(), VariableSize);
+		LiteralData += VariableSize;
+	}
+}
+#endif
+
 bool FNiagaraVMExecutableDataId::IsValid() const
 {
 	return CompilerVersionID.IsValid();
@@ -809,6 +838,22 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 			UE_LOG(LogNiagara, Verbose, TEXT("Pruned %d/%d parameters from script %s"), NumRemoved, TemporaryStore.ParameterVariables.Num(), *GetFullName());
 		}
 	}
+
+#if WITH_EDITOR
+	if (Ar.IsCooking() && Ar.IsSaving())
+	{
+		auto& ExecutableData = GetVMExecutableData();
+
+		if (Usage != ENiagaraScriptUsage::ParticleGPUComputeScript)
+		{
+			ExecutableData.BakeScriptLiterals(ExecutableData.ScriptLiterals);
+		}
+		else
+		{
+			ExecutableData.ScriptLiterals.Empty();
+		}
+	}
+#endif
 
 	Super::Serialize(Ar);
 

@@ -188,6 +188,8 @@ public:
 	void DirtyDataInterfaces();
 
 	bool CanExecute()const;
+
+	TArrayView<const uint8> GetScriptLiterals() const;
 };
 
 struct FNiagaraGpuSpawnInfoParams

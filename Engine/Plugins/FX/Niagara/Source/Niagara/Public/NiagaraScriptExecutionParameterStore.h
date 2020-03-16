@@ -110,6 +110,10 @@ public:
 	UPROPERTY()
 	uint8 bInitialized : 1;
 
+#if WITH_EDITORONLY_DATA
+	TArray<uint8> CachedScriptLiterals;
+#endif
+
 protected:
 	void AddPaddedParamSize(const FNiagaraTypeDefinition& InParamType, uint32 InOffset);
 	void AddAlignmentPadding();
@@ -176,6 +180,10 @@ public:
 
 	// Helper that converts the data from the base type array internally into the padded out renderer-ready format.
 	void CopyParameterDataToPaddedBuffer(uint8* InTargetBuffer, uint32 InTargetBufferSizeInBytes) const;
+
+#if WITH_EDITORONLY_DATA
+	TArrayView<const uint8> GetScriptLiterals() const;
+#endif
 
 protected:
 	virtual void InternalStorageChanged() override;

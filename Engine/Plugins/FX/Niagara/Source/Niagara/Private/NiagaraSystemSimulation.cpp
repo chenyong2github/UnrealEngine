@@ -1846,17 +1846,16 @@ void FNiagaraSystemSimulation::BuildConstantBufferTable(
 	FNiagaraScriptExecutionContext& ExecContext,
 	FScriptExecutionConstantBufferTable& ConstantBufferTable) const
 {
+	const auto ScriptLiterals = ExecContext.GetScriptLiterals();
+
 	check(!ExecContext.HasInterpolationParameters);
 
 	const auto& ExternalParameterData = ExecContext.Parameters.GetParameterDataArray();
 	uint8* ExternalParameterBuffer = const_cast<uint8*>(ExternalParameterData.GetData());
-
 	const uint32 ExternalParameterSize = ExecContext.Parameters.GetExternalParameterSize();
-	const uint32 LiteralConstantOffset = ExternalParameterSize;
-	const uint32 LiteralConstantSize = ExternalParameterData.Num() - LiteralConstantOffset;
 
 	ConstantBufferTable.Reset(3);
 	ConstantBufferTable.AddTypedBuffer(GlobalParameters);
 	ConstantBufferTable.AddRawBuffer(ExternalParameterBuffer, ExternalParameterSize);
-	ConstantBufferTable.AddRawBuffer(ExternalParameterBuffer + LiteralConstantOffset, LiteralConstantSize);
+	ConstantBufferTable.AddRawBuffer(ScriptLiterals.GetData(), ScriptLiterals.Num());
 }
