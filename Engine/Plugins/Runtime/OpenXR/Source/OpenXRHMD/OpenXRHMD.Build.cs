@@ -25,7 +25,7 @@ namespace UnrealBuildTool.Rules
             {
                 PrivateIncludePaths.Add(EngineDir + "/Source/Runtime/VulkanRHI/Private/Windows");
             }
-            else
+            else if (Target.Platform != UnrealTargetPlatform.Hololens)
             {
                 PrivateIncludePaths.Add(EngineDir + "/Source/Runtime/VulkanRHI/Private/" + Target.Platform);
             }
