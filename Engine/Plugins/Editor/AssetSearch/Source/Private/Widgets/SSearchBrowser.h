@@ -62,19 +62,23 @@ private:
 
 	void HandleListSelectionChanged(TSharedPtr<FSearchNode> TransactionInfo, ESelectInfo::Type SelectInfo);
 
+	bool IsSearching() const;
+
 private:
 
 	FText FilterText;
 
 	// Filters
 	FString FilterString;
+
+	int32 SearchesActive = 0;
 	
 	TMap<FString, TSharedPtr<FAssetNode>> SearchResultHierarchy;
 	TArray< TSharedPtr<FSearchNode> > SearchResults;
 
 	TSharedPtr< STreeView< TSharedPtr<FSearchNode> > > SearchTreeView;
 
-	IAssetRegistry* AssetRegistry;
+	IAssetRegistry* AssetRegistry = nullptr;
 
 	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 

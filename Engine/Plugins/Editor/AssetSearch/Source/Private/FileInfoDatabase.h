@@ -7,20 +7,27 @@
 
 class FSQLiteDatabase;
 enum class ESQLiteDatabaseOpenMode : uint8;
-class FAssetSearchDatabaseStatements;
+class FFileInfoDatabaseStatements;
 struct FAssetData;
 
-class FAssetSearchDatabase
+struct FAssetFileInfo
+{
+	FName PackageName;
+	FDateTime LastModified;
+	FMD5Hash Hash;
+};
+
+class FFileInfoDatabase
 {
 public:
-	FAssetSearchDatabase();
-	~FAssetSearchDatabase();
+	FFileInfoDatabase();
+	~FFileInfoDatabase();
 
-	FAssetSearchDatabase(const FAssetSearchDatabase&) = delete;
-	FAssetSearchDatabase& operator=(const FAssetSearchDatabase&) = delete;
+	FFileInfoDatabase(const FFileInfoDatabase&) = delete;
+	FFileInfoDatabase& operator=(const FFileInfoDatabase&) = delete;
 
-	FAssetSearchDatabase(FAssetSearchDatabase&&) = default;
-	FAssetSearchDatabase& operator=(FAssetSearchDatabase&&) = default;
+	FFileInfoDatabase(FFileInfoDatabase&&) = default;
+	FFileInfoDatabase& operator=(FFileInfoDatabase&&) = default;
 
 	/**
 	 * Is this a valid database? (ie, has been successfully opened).
@@ -65,34 +72,14 @@ public:
 	FString GetLastError() const;
 
 	/**
-	 * Is the asset cache up to date for this asset?
+	 * Update the file hash table.
 	 */
-	bool IsAssetUpToDate(const FAssetData& InAssetData, const FString& IndexedJsonHash);
+	bool AddOrUpdateFileInfo(const FAssetData& InAssetData, FAssetFileInfo& OutFileInfo);
+	void AddOrUpdateFileInfos(const TArray<FAssetData>& InAssets);
 
-	/**
-	 * Adds an asset to the search database.
-	 */
-	void AddOrUpdateAsset(const FAssetData& InAssetData, const FString& IndexedJson, const FString& IndexedJsonHash);
+	void UpdateFileHash(const FAssetData& InAssetData, FAssetFileInfo& OutFileInfo);
 
-	/**
-	 * Search for some stuff.
-	 */
-	bool EnumerateSearchResults(const FSearchQuery& Query, TFunctionRef<bool(FSearchRecord&&)> InCallback);
-
-	/**
-	 * Get the total number of records.
-	 */
-	int64 GetTotalSearchRecords() const;
-
-	/**
-	 * Remove asset from the the search database.
-	 */
-	void RemoveAsset(const FAssetData& InAssetData);
-
-	/**
-	 * Remove asset from the the search database that are not in this set of assets.
-	 */
-	void RemoveAssetsNotInThisSet(const TArray<FAssetData>& InAssets);
+	TMap<FName, FAssetFileInfo> GetAllFileInfos();
 
 private:
 	void LogLastError() const;
@@ -108,5 +95,5 @@ private:
 	FString SessionPath;
 
 	/** Prepared statements for the currently open database */
-	TUniquePtr<FAssetSearchDatabaseStatements> Statements;
+	TUniquePtr<FFileInfoDatabaseStatements> Statements;
 };
