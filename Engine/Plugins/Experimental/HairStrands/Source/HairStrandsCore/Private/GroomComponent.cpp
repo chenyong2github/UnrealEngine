@@ -545,7 +545,6 @@ void UGroomComponent::UpdateHairSimulation()
 {
 	static UNiagaraSystem* CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/GroomRodsSystem.GroomRodsSystem"));
 	static UNiagaraSystem* AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/GroomSpringsSystem.GroomSpringsSystem"));
-
 	const int32 NumGroups = GroomAsset ? GroomAsset->HairGroupsPhysics.Num() : 0;
 	const int32 NumComponents = FMath::Max(NumGroups, NiagaraComponents.Num());
 
@@ -582,13 +581,16 @@ void UGroomComponent::UpdateHairSimulation()
 			if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings)
 			{
 				NiagaraComponent->SetAsset(AngularSpringsSystem);
-				NiagaraComponent->Activate(true);
 			}
 			else if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods)
 			{
 				NiagaraComponent->SetAsset(CosseratRodsSystem);
-				NiagaraComponent->Activate(true);
 			}
+			else 
+			{
+				NiagaraComponent->SetAsset(GroomAsset->HairGroupsPhysics[i].SolverSettings.CustomSystem.LoadSynchronous());
+			}
+			NiagaraComponent->Activate(true);
 			if (NiagaraComponent->GetSystemInstance())
 			{
 				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ReInit);
