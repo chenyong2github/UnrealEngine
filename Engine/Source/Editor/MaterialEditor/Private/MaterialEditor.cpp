@@ -4744,6 +4744,8 @@ void FMaterialEditor::RefreshExpressionPreviews(bool bForceRefreshAll /*= false*
 {
 	const FScopedBusyCursor BusyCursor;
 
+	Material->UpdateCachedExpressionData();
+
 	if ( bAlwaysRefreshAllPreviews || bForceRefreshAll)
 	{
 		// we need to make sure the rendering thread isn't drawing these tiles
