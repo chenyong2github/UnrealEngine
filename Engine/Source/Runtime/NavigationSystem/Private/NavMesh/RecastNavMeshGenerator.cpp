@@ -4913,7 +4913,7 @@ void FRecastNavMeshGenerator::RemoveTiles(const TArray<FIntPoint>& Tiles)
 			PendingDirtyTiles.Remove(DirtyTile);
 		}
 
-		if (SyncTimeSlicedData.TileGeneratorSync.Get())
+		if (SyncTimeSlicedData.TileGeneratorSync.IsValid())
 		{
 			if (SyncTimeSlicedData.TileGeneratorSync->GetTileX() == TileXY.X && SyncTimeSlicedData.TileGeneratorSync->GetTileY() == TileXY.Y)
 			{
@@ -5312,7 +5312,7 @@ bool FRecastNavMeshGenerator::HasDirtyTiles() const
 {
 	return (PendingDirtyTiles.Num() > 0 
 		|| RunningDirtyTiles.Num() > 0
-		|| SyncTimeSlicedData.TileGeneratorSync.Get() != nullptr
+		|| SyncTimeSlicedData.TileGeneratorSync.IsValid()
 		);
 }
 
@@ -6167,11 +6167,17 @@ void FRecastNavMeshGenerator::ExportAggregatedGeometry(const FKAggregateGeom& Ag
 	}
 }
 
-bool FRecastNavMeshGenerator::IsBuildInProgress(bool bCheckDirtyToo) const
+bool FRecastNavMeshGenerator::IsBuildInProgressCheckDirty() const
 {
 	return RunningDirtyTiles.Num()
-		|| (bCheckDirtyToo && PendingDirtyTiles.Num())
-		|| SyncTimeSlicedData.TileGeneratorSync.Get();
+		|| PendingDirtyTiles.Num()
+		|| SyncTimeSlicedData.TileGeneratorSync.IsValid();
+}
+
+//deprecated
+bool FRecastNavMeshGenerator::IsBuildInProgress(bool bCheckDirtyToo) const
+{
+	return IsBuildInProgressCheckDirty();
 }
 
 #if !RECAST_ASYNC_REBUILDING

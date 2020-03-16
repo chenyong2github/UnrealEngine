@@ -838,9 +838,13 @@ public:
 	virtual void OnNavigationBoundsAdded(ANavMeshBoundsVolume* NavVolume);
 	virtual void OnNavigationBoundsRemoved(ANavMeshBoundsVolume* NavVolume);
 
-	/** Used to display "navigation building in progress" notify */
-	bool IsNavigationBuildInProgress(bool bCheckDirtyToo = true);
+	/** determines whether any generator is performing navigation building actions at the moment */
+	UE_DEPRECATED(4.26, "This function is deprecated.  Please use IsNavigationBuildInProgress")
+	bool IsNavigationBuildInProgress(bool bCheckDirtyToo);
 
+	/** determines whether any generator is performing navigation building actions at the moment, dirty areas are also checked */
+	bool IsNavigationBuildInProgress();
+	
 	virtual void OnNavigationGenerationFinished(ANavigationData& NavData);
 
 	/** Used to display "navigation building in progress" counter */

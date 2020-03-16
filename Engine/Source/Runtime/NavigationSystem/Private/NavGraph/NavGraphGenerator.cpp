@@ -15,17 +15,6 @@ FNavGraphGenerator::~FNavGraphGenerator()
 
 }
 
-//----------------------------------------------------------------------//
-// FNavDataGenerator overrides
-//----------------------------------------------------------------------//
-bool FNavGraphGenerator::IsBuildInProgress(bool bCheckDirtyToo) const
-{
-	return false;
-}
-
-//----------------------------------------------------------------------//
-// 
-//----------------------------------------------------------------------//
 void FNavGraphGenerator::Init()
 {
 
