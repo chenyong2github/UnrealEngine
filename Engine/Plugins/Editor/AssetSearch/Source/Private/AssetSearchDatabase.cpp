@@ -23,10 +23,11 @@ DECLARE_LOG_CATEGORY_CLASS(LogAssetSearch, Log, All);
 
 enum class EAssetSearchDatabaseVersion
 {
-	Empty = 0,
-	Initial = 1,
-	IndexingAssetIdsAssetPathsUnique = 2,
-	IntroducingFileHashing = 2,
+	Empty,
+	Initial,
+	IndexingAssetIdsAssetPathsUnique,
+	IntroducingFileHashing,
+	MovingFileInfoIntoAnotherDatabase,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
@@ -66,11 +67,6 @@ public:
 		PREPARE_STATEMENT(Statement_DeleteEntriesForAsset);
 
 		PREPARE_STATEMENT(Statement_SearchAssetsFTS);
-
-		PREPARE_STATEMENT(Statement_AddFileInfo);
-		PREPARE_STATEMENT(Statement_UpdateFileInfo);
-		PREPARE_STATEMENT(Statement_GetFileInfo);
-		PREPARE_STATEMENT(Statement_GetAllFileInfos);
 
 #undef PREPARE_STATEMENT
 
@@ -158,109 +154,6 @@ public:
 		}
 
 		return INDEX_NONE;
-	}
-
-	struct FCachedFileInfo
-	{
-		int64 FileId;
-		FString FilePath;
-		FDateTime LastModifed;
-		FString Hash;
-
-		FAssetFileInfo ToAssetFileInfo() const
-		{
-			FAssetFileInfo AssetFileInfo;
-			AssetFileInfo.LastModified = LastModifed;
-			AssetFileInfo.PackageName = *FilePath;
-			LexFromString(AssetFileInfo.Hash, *Hash);
-
-			return AssetFileInfo;
-		}
-	};
-
-	SQLITE_PREPARED_STATEMENT(FGetFileInfo,
-		"SELECT fileid, file_last_modified, file_hash FROM table_files WHERE file_path = ?1;",
-		SQLITE_PREPARED_STATEMENT_COLUMNS(int64, FDateTime, FString),
-		SQLITE_PREPARED_STATEMENT_BINDINGS(FString)
-	);
-	private: FGetFileInfo Statement_GetFileInfo;
-	public: bool GetFileInfo(const FString& InFullFilePath, FCachedFileInfo& OutFileInfo)
-	{
-		OutFileInfo.FilePath = InFullFilePath.ToLower();
-		if (Statement_GetFileInfo.BindAndExecuteSingle(OutFileInfo.FilePath, OutFileInfo.FileId, OutFileInfo.LastModifed, OutFileInfo.Hash))
-		{
-			return true;
-		}
-
-		return false;
-	}
-
-	SQLITE_PREPARED_STATEMENT(FGetAllFileInfos,
-		"SELECT file_path, file_last_modified, file_hash FROM table_files;",
-		SQLITE_PREPARED_STATEMENT_COLUMNS(FString, FDateTime, FString),
-		SQLITE_PREPARED_STATEMENT_BINDINGS()
-	);
-	FGetAllFileInfos Statement_GetAllFileInfos;
-	bool GetAllFileInfos(TFunctionRef<ESQLitePreparedStatementExecuteRowResult(FAssetFileInfo&&)> InCallback)
-	{
-		return Statement_GetAllFileInfos.BindAndExecute([&InCallback](const FGetAllFileInfos& InStatement)
-		{
-			FCachedFileInfo FileInfo;
-			if (InStatement.GetColumnValues(FileInfo.FilePath, FileInfo.LastModifed, FileInfo.Hash))
-			{
-				return InCallback(FileInfo.ToAssetFileInfo());
-			}
-			return ESQLitePreparedStatementExecuteRowResult::Error;
-		}) != INDEX_NONE;
-	}
-
-	SQLITE_PREPARED_STATEMENT_BINDINGS_ONLY(
-		FUpdateFileInfo,
-		" UPDATE table_files SET file_last_modified = ?2, file_hash = ?3 WHERE file_path = ?1;",
-		SQLITE_PREPARED_STATEMENT_BINDINGS(FString, FDateTime, FString)
-	);
-	private: FUpdateFileInfo Statement_UpdateFileInfo;
-	SQLITE_PREPARED_STATEMENT_BINDINGS_ONLY(
-		FAddFileInfo,
-		" INSERT INTO table_files(file_path, file_last_modified, file_hash)"
-		" VALUES(?1, ?2, ?3);",
-		SQLITE_PREPARED_STATEMENT_BINDINGS(FString, FDateTime, FString)
-	);
-	private: FAddFileInfo Statement_AddFileInfo;
-	public: bool AddOrUpdateFileInfo(const FAssetData& InAssetData, FAssetFileInfo& OutFileInfo)
-	{
-		const FString PackageName = InAssetData.PackageName.ToString();
-		const bool bIsWorldAsset = (InAssetData.AssetClass == UWorld::StaticClass()->GetFName());
-		const FString Extension = bIsWorldAsset ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
-		const FString FilePath = FPackageName::LongPackageNameToFilename(PackageName, Extension);
-		const FString FullFilePath = FPaths::ConvertRelativePathToFull(FilePath);
-
-		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-		const FDateTime CurrentLastModified = PlatformFile.GetTimeStamp(*FullFilePath);
-
-		FCachedFileInfo FileInfo;
-		if (GetFileInfo(PackageName.ToLower(), FileInfo))
-		{
-			if (CurrentLastModified == FileInfo.LastModifed)
-			{
-				OutFileInfo = FileInfo.ToAssetFileInfo();
-				return false;
-			}
-
-			OutFileInfo = FileInfo.ToAssetFileInfo();
-			OutFileInfo.LastModified = CurrentLastModified;
-			OutFileInfo.Hash = FMD5Hash::HashFile(*FullFilePath);
-			Statement_UpdateFileInfo.BindAndExecuteSingle(PackageName.ToLower(), OutFileInfo.LastModified, LexToString(OutFileInfo.Hash));
-			return true;
-		}
-		else
-		{
-			OutFileInfo = FileInfo.ToAssetFileInfo();
-			OutFileInfo.LastModified = CurrentLastModified;
-			OutFileInfo.Hash = FMD5Hash::HashFile(*FullFilePath);
-			Statement_AddFileInfo.BindAndExecuteSingle(PackageName.ToLower(), OutFileInfo.LastModified, LexToString(OutFileInfo.Hash));
-			return true;
-		}
 	}
 
 	SQLITE_PREPARED_STATEMENT_BINDINGS_ONLY(
@@ -580,13 +473,6 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 
 	// Create our required tables
 	//========================================================================
-	if (!ensure(Database->Execute(TEXT("CREATE TABLE IF NOT EXISTS table_files(fileid INTEGER PRIMARY KEY, file_path TEXT UNIQUE, file_last_modified INTEGER NOT NULL, file_hash);"))))
-	{
-		LogLastError();
-		Close();
-		return false;
-	}
-
 	if (!ensure(Database->Execute(TEXT("CREATE TABLE IF NOT EXISTS table_assets(assetid INTEGER PRIMARY KEY, asset_name, asset_class, asset_path TEXT UNIQUE, index_hash);"))))
 	{
 		LogLastError();
@@ -692,15 +578,6 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 	}
 
 	if (!ensure(Database->Execute(
-		TEXT("CREATE UNIQUE INDEX IF NOT EXISTS file_path_index ON table_files(file_path);")
-	)))
-	{
-		LogLastError();
-		Close();
-		return false;
-	}
-
-	if (!ensure(Database->Execute(
 		TEXT("CREATE UNIQUE INDEX IF NOT EXISTS asset_path_index ON table_assets(asset_path);")
 	)))
 	{
@@ -779,16 +656,6 @@ void FAssetSearchDatabase::LogLastError() const
 	UE_LOG(LogAssetSearch, Error, TEXT("Database Error: %s"), *SessionPath, *GetLastError());
 }
 
-bool FAssetSearchDatabase::AddOrUpdateFileInfo(const FAssetData& InAssetData, FAssetFileInfo& OutFileInfo)
-{
-	if (ensure(Statements))
-	{
-		return Statements->AddOrUpdateFileInfo(InAssetData, OutFileInfo);
-	}
-
-	return false;
-}
-
 bool FAssetSearchDatabase::IsAssetUpToDate(const FAssetData& InAssetData, const FString& IndexedJsonHash)
 {
 	if (ensure(Statements))
@@ -843,36 +710,6 @@ void FAssetSearchDatabase::RemoveAsset(const FAssetData& InAssetData)
 	{
 		LogLastError();
 	}
-}
-
-void FAssetSearchDatabase::AddOrUpdateFileInfos(const TArray<FAssetData>& InAssets)
-{
-	for (const FAssetData& InAsset : InAssets)
-	{
-		// If it's a redirector act like it has been removed from the system,
-		// we don't want old duplicate entries for it.
-		if (InAsset.IsRedirector())
-		{
-			continue;
-		}
-
-		// Freshen hash cache
-		FAssetFileInfo FileInfo;
-		AddOrUpdateFileInfo(InAsset, FileInfo);
-	}
-}
-
-TMap<FName, FAssetFileInfo> FAssetSearchDatabase::GetAllFileInfos()
-{
-	TMap<FName, FAssetFileInfo> FileInfos;
-	Statements->GetAllFileInfos([&FileInfos](FAssetFileInfo&& InResult)
-	{
-		FileInfos.Add(InResult.PackageName, InResult);
-
-		return ESQLitePreparedStatementExecuteRowResult::Continue;
-	});
-
-	return FileInfos;
 }
 
 void FAssetSearchDatabase::RemoveAssetsNotInThisSet(const TArray<FAssetData>& InAssets)
