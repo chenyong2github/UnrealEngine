@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "Engine/EngineTypes.h"
 #include "AssetSearchDeveloperSettings.generated.h"
 
 UCLASS(config = Editor, defaultconfig, meta=(DisplayName="Asset Search"))

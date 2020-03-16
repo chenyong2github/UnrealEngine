@@ -13,6 +13,8 @@
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
+#include "Engine/World.h"
+#include "HAL/PlatformFilemanager.h"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
