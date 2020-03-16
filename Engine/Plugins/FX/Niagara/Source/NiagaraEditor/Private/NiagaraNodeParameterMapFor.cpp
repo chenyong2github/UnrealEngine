@@ -19,6 +19,8 @@
 
 UNiagaraNodeParameterMapFor::UNiagaraNodeParameterMapFor() : UNiagaraNodeParameterMapSet()
 {
+
+	UEdGraphNode::NodeUpgradeMessage = LOCTEXT("NodeExperimental", "This node is marked as experimental, use with care!");
 }
 
 void UNiagaraNodeParameterMapFor::AllocateDefaultPins()
