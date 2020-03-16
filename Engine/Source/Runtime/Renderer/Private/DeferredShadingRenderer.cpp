@@ -780,6 +780,15 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 				{
 					continue;
 				}
+				
+				FSceneViewState* ViewState = (FSceneViewState*)View.State;
+				const bool bHLODActive = Scene->SceneLODHierarchy.IsActive();
+				const FHLODVisibilityState* const HLODState = bHLODActive && ViewState ? &ViewState->HLODVisibilityState : nullptr;
+
+				if (HLODState && HLODState->IsNodeForcedHidden(PrimitiveIndex))
+				{
+					continue;
+				}
 
 				//#dxr_todo UE-68621  The Raytracing code path does not support ShowFlags since data moved to the SceneInfo. 
 				//Touching the SceneProxy to determine this would simply cost too much
