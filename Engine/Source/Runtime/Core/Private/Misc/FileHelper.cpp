@@ -367,7 +367,7 @@ bool FFileHelper::SaveArrayToFile(const TArray64<uint8>& Array, const TCHAR* Fil
  * Write the FString to a file.
  * Supports all combination of ANSI/Unicode files and platforms.
  */
-bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename,  EEncodingOptions EncodingOptions, IFileManager* FileManager /*= &IFileManager::Get()*/, uint32 WriteFlags )
+bool FFileHelper::SaveStringToFile( FStringView String, const TCHAR* Filename,  EEncodingOptions EncodingOptions, IFileManager* FileManager /*= &IFileManager::Get()*/, uint32 WriteFlags )
 {
 	// max size of the string is a UCS2CHAR for each character and some UNICODE magic 
 	TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>( FileManager->CreateFileWriter( Filename, WriteFlags ) );
@@ -377,18 +377,18 @@ bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename
 	if( String.IsEmpty() )
 		return true;
 
-	bool SaveAsUnicode = EncodingOptions == EEncodingOptions::ForceUnicode || ( EncodingOptions == EEncodingOptions::AutoDetect && !FCString::IsPureAnsi(*String) );
+	bool SaveAsUnicode = EncodingOptions == EEncodingOptions::ForceUnicode || ( EncodingOptions == EEncodingOptions::AutoDetect && !FCString::IsPureAnsi(String.GetData(), String.Len()) );
 	if( EncodingOptions == EEncodingOptions::ForceUTF8 )
 	{
 		UTF8CHAR UTF8BOM[] = { 0xEF, 0xBB, 0xBF };
 		Ar->Serialize( &UTF8BOM, UE_ARRAY_COUNT(UTF8BOM) * sizeof(UTF8CHAR) );
 
-		FTCHARToUTF8 UTF8String(*String, String.Len());
+		FTCHARToUTF8 UTF8String(String.GetData(), String.Len());
 		Ar->Serialize( (UTF8CHAR*)UTF8String.Get(), UTF8String.Length() * sizeof(UTF8CHAR) );
 	}
 	else if ( EncodingOptions == EEncodingOptions::ForceUTF8WithoutBOM )
 	{
-		FTCHARToUTF8 UTF8String(*String, String.Len());
+		FTCHARToUTF8 UTF8String(String.GetData(), String.Len());
 		Ar->Serialize((UTF8CHAR*)UTF8String.Get(), UTF8String.Length() * sizeof(UTF8CHAR));
 	}
 	else if (SaveAsUnicode)
@@ -397,12 +397,12 @@ bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename
 		Ar->Serialize( &BOM, sizeof(UTF16CHAR) );
 
 		// Note: This is a no-op on platforms that are using a 16-bit TCHAR
-		FTCHARToUTF16 UTF16String(*String, String.Len());
+		FTCHARToUTF16 UTF16String(String.GetData(), String.Len());
 		Ar->Serialize((UTF16CHAR*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
 	}
 	else
 	{
-		auto Src = StringCast<ANSICHAR>(*String, String.Len());
+		auto Src = StringCast<ANSICHAR>(String.GetData(), String.Len());
 		Ar->Serialize( (ANSICHAR*)Src.Get(), Src.Length() * sizeof(ANSICHAR) );
 	}
 

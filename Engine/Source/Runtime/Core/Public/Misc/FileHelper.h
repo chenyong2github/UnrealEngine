@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "HAL/FileManager.h"
 #include "Containers/ArrayView.h"
@@ -130,7 +131,7 @@ struct CORE_API FFileHelper
 	 * Write the FString to a file.
 	 * Supports all combination of ANSI/Unicode files and platforms.
 	 */
-	static bool SaveStringToFile( const FString& String, const TCHAR* Filename, EEncodingOptions EncodingOptions = EEncodingOptions::AutoDetect, IFileManager* FileManager = &IFileManager::Get(), uint32 WriteFlags = 0 );
+	static bool SaveStringToFile( FStringView String, const TCHAR* Filename, EEncodingOptions EncodingOptions = EEncodingOptions::AutoDetect, IFileManager* FileManager = &IFileManager::Get(), uint32 WriteFlags = 0 );
 
 	/**
 	 * Write the FString to a file.
