@@ -163,7 +163,7 @@ void UAddPrimitiveTool::Setup()
 	UpdatePreviewMesh();
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartAddPrimitiveTool", "Position the Primitive by moving the mouse over the scene. Drop a new instance by Left-clicking."),
+		LOCTEXT("OnStartAddPrimitiveTool", "This Tool creates new Primitive objects. Position the Primitive by moving the mouse over the scene. Drop a new Asset or Instance by left-clicking (depending on Instance setting)."),
 		EToolMessageLevel::UserNotification);
 }
 
