@@ -123,7 +123,7 @@ protected:
 	void CancelIORequest();
 
 	class IBulkDataIORequest* IORequests[MAX_MESH_LOD_COUNT];
-	FAsyncFileCallBack AsyncFileCallback;
+	FBulkDataIORequestCallBack AsyncFileCallback;
 	bool bHighPrioIORequest;
 };
 
