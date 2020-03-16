@@ -832,10 +832,7 @@ public:
 	virtual bool Rename(const TCHAR* NewName = nullptr, UObject* NewOuter = nullptr, ERenameFlags Flags = REN_None) override;
 	virtual UClass* RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO) override;
 	virtual void PostLoad() override;
-	virtual void PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph ) override;
-#if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
-#endif
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
@@ -885,6 +882,7 @@ public:
 	 */
 	virtual bool FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const;
 
+	void ConformNativeComponents();
 #endif	//#if WITH_EDITOR
 
 	//~ Begin UObject Interface

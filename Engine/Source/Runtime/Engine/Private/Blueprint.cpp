@@ -57,10 +57,9 @@ DEFINE_LOG_CATEGORY(LogBlueprint);
  * 
  * @param  Blueprint	The blueprint whose components you wish to vet.
  */
-static void ConformNativeComponents(UBlueprint* Blueprint)
+void UBlueprint::ConformNativeComponents()
 {
-#if WITH_EDITOR
-	if (UClass* const BlueprintClass = Blueprint->GeneratedClass)
+	if (UClass* const BlueprintClass = GeneratedClass)
 	{
 		if (AActor* BlueprintCDO = Cast<AActor>(BlueprintClass->ClassDefaultObject))
 		{
@@ -117,7 +116,6 @@ static void ConformNativeComponents(UBlueprint* Blueprint)
 			}
 		}
 	}
-#endif // #if WITH_EDITOR
 }
 
 
@@ -1822,8 +1820,6 @@ bool UBlueprint::ChangeOwnerOfTemplates()
 	bool bIsStillStale = false;
 	if (BPGClass)
 	{
-		check(!bIsRegeneratingOnLoad);
-
 		// >>> Backwards Compatibility:  VER_UE4_EDITORONLY_BLUEPRINTS
 		bool bMigratedOwner = false;
 		TSet<class UCurveBase*> Curves;
@@ -1926,14 +1922,6 @@ bool UBlueprint::ChangeOwnerOfTemplates()
 		UE_LOG(LogBlueprint, Log, TEXT("ChangeOwnerOfTemplates: No BlueprintGeneratedClass in %s"), *GetName());
 	}
 	return !bIsStillStale;
-}
-
-void UBlueprint::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
-{
-	Super::PostLoadSubobjects(OuterInstanceGraph);
-	ChangeOwnerOfTemplates();
-
-	ConformNativeComponents(this);
 }
 
 #if WITH_EDITOR
