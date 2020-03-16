@@ -17,6 +17,8 @@
 #include "NiagaraParameterCollection.h"
 #include "Widgets/SNiagaraParameterMapView.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "ToolMenus.h"
+#include "NiagaraScriptVariable.h"
 
 #include "IAssetTools.h"
 #include "AssetRegistryModule.h"
@@ -225,5 +227,54 @@ void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const F
 	}
 
 }
+
+void UNiagaraNodeParameterMapBase::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
+{
+	Super::GetNodeContextMenuActions(Menu, Context);
+
+	UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context->Pin);
+	if (Pin && !IsAddPin(Pin))
+	{
+
+		FNiagaraVariable Var = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToNiagaraVariable(Pin);
+		const UNiagaraGraph* Graph = GetNiagaraGraph();
+
+		//if (!FNiagaraConstants::IsNiagaraConstant(Var))
+		{
+			FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraParamAction", LOCTEXT("EditPinMenuHeader", "Parameters"));
+			Section.AddMenuEntry(
+				"SelectParameter",
+				LOCTEXT("SelectParameterPin", "Select parameter"),
+				LOCTEXT("SelectParameterPinToolTip", "Select this parameter in the paramter panel"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateUObject(const_cast<UNiagaraNodeParameterMapBase*>(this), &UNiagaraNodeParameterMapBase::SelectParameterFromPin, const_cast<UEdGraphPin*>(Context->Pin))));
+		}
+	}
+}
+
+void UNiagaraNodeParameterMapBase::SelectParameterFromPin(UEdGraphPin* InPin) 
+{
+	UNiagaraGraph* NiagaraGraph = GetNiagaraGraph();
+	if (NiagaraGraph && InPin)
+	{
+		const UEdGraphSchema_Niagara* Schema = Cast<UEdGraphSchema_Niagara>(NiagaraGraph->GetSchema());
+		if (Schema)
+		{
+			if (IsAddPin(InPin))
+			{
+				return;
+			}
+
+			FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(InPin);
+			FNiagaraVariable PinVariable = FNiagaraVariable(TypeDef, InPin->PinName);
+			UNiagaraScriptVariable** PinAssociatedScriptVariable = NiagaraGraph->GetAllMetaData().Find(PinVariable);
+			if (PinAssociatedScriptVariable != nullptr)
+			{
+				NiagaraGraph->OnSubObjectSelectionChanged().Broadcast(*PinAssociatedScriptVariable);
+			}
+		}
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

@@ -134,6 +134,7 @@ class UNiagaraGraph : public UEdGraph
 
 	DECLARE_MULTICAST_DELEGATE(FOnDataInterfaceChanged);
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGetPinVisualWidget, const UEdGraphPin*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSubObjectSelectionChanged, const UObject*);
 
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
@@ -333,6 +334,9 @@ class UNiagaraGraph : public UEdGraph
 	/** Gets a delegate which is called whenever a contained data interfaces changes. */
 	FOnDataInterfaceChanged& OnDataInterfaceChanged();
 
+	/** Gets a delegate which is called whenever a custom subobject in the graph is selected*/
+	FOnSubObjectSelectionChanged& OnSubObjectSelectionChanged();
+
 	void ForceGraphToRecompileOnNextCheck();
 
 	/** Add a listener for OnGraphNeedsRecompile events */
@@ -365,6 +369,7 @@ class UNiagaraGraph : public UEdGraph
 	TSharedRef<SWidget> GetPinVisualWidget(const UEdGraphPin* Pin) const;
 
 	FDelegateHandle RegisterPinVisualWidgetProvider(FOnGetPinVisualWidget OnGetPinVisualWidget);
+	void UnregisterPinVisualWidgetProvider(const FDelegateHandle& InHandle);
 
 	void ScriptVariableChanged(FNiagaraVariable Variable);
 
@@ -444,6 +449,7 @@ private:
 	mutable TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection> ParameterToReferencesMap;
 
 	FOnDataInterfaceChanged OnDataInterfaceChangedDelegate;
+	FOnSubObjectSelectionChanged OnSelectedSubObjectChanged;
 
 	/** Whether currently renaming a parameter to prevent recursion. */
 	bool bIsRenamingParameter;
