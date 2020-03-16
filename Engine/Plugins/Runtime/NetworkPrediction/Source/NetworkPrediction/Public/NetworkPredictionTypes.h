@@ -236,8 +236,12 @@ public:
 	virtual bool ShouldSendServerRPC(float DeltaSeconds) = 0;
 	virtual void SetDesiredServerRPCSendFrequency(float DesiredHz) = 0;
 
+	// Enables simulation extrapolation (run sim code to extrapolate state outside network updates). False = interpolation mode.
+	// Note dependent simulation mode will take precedence over this
+	virtual void SetEnableSimulationExtrapolation(bool bNewValue) = 0;
+
 	// ----------------------------------------------------------------------
-	// Functions for depedent simulation (forward predicting a simulated proxy sim along with an auto proxy sim)
+	// Functions for dependent simulation (forward predicting a simulated proxy sim along with an auto proxy sim)
 	// ----------------------------------------------------------------------
 	
 	// Main function to call on simulated proxy sim
@@ -255,6 +259,11 @@ public:
 	virtual void StepRollback(const struct FNetworkSimTime& Step, const int32 ParentFrame, const bool FinalStep) = 0;
 
 	void ProcessPendingNetSimCues() { ProcessPendingNetSimCuesFunc(); }
+	   	
+	// Unique, global, per process Id of simulation. Used for trace debugging purposes only. Not replicated.
+	virtual uint32 GetSimulationId() const = 0;
+
+	static uint32 NETWORKPREDICTION_API GetNextSimulationId();
 
 protected:
 	TFunction<void()> ProcessPendingNetSimCuesFunc;

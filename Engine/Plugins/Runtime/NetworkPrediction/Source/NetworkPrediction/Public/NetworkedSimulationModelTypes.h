@@ -6,6 +6,7 @@
 #include "NetworkedSimulationModelCues.h"
 #include "NetworkedSimulationModelTime.h"
 #include "NetworkedSimulationModelTraits.h"
+#include "Trace/NetworkPredictionTrace.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	TNetworkSimBufferContainer
@@ -205,7 +206,6 @@ private:
 	TFunction<void(bool bForWrite, TState*& OutState, bool& OutSafe)> GetStateFunc;
 };
 
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 //	Simulation Input/Output parameters. These are the data structures passed into the simulation code each frame
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -239,29 +239,65 @@ struct TNetSimOutput
 		: Sync(InSync), Aux(InAux), CueDispatch(InCueDispatch) { }
 };
 
-// Scoped helper to be used right before entering a call to the sim's ::SimulationTick function.
+// Helper to actual tick a simulation. This does all the setup, runs ::SimulationTick, and finalizes the frame.
+// Caller is responsible to have the input buffers in the correct state: Input/Sync/Aux buffers must have valid data in OutputFrame-1.
+// DeltaTime comes from the InputCmd->GetFrameDeltaTime().
 // Important to note that this advances the PendingFrame to the output Frame. So that any writes that occur to the buffers during this scope will go to the output frame.
 template<typename Model>
-struct TScopedSimulationTick
+struct TSimulationDoTickFunc
 {
-	TScopedSimulationTick(FSimulationTickState& InTicker, TNetSimCueDispatcher<Model>& InDispatcher, ESimulationTickContext TickContext, const int32& InOutputFrame, const FNetworkSimTime& InDeltaSimTime)
-		: Ticker(InTicker), Dispatcher(InDispatcher), OutputFrame(InOutputFrame), DeltaSimTime(InDeltaSimTime)
+	using TSimulation = typename Model::Simulation;
+	using TTickSettings = typename Model::TickSettings;
+	using TDriver = typename TNetSimModelTraits<Model>::Driver;
+	using TBufferTypes = typename TNetSimModelTraits<Model>::InternalBufferTypes;
+	using TInputCmd = typename TBufferTypes::TInputCmd;
+	using TSyncState = typename TBufferTypes::TSyncState;
+	using TAuxState = typename TBufferTypes::TAuxState;
+
+	static void DoTick(TSimulation& Simulation, TSimulationTicker<TTickSettings>& Ticker, TNetworkSimBufferContainer<Model>& Buffers, int32 OutputFrame, ESimulationTickContext Context)
 	{
 		check(Ticker.bUpdateInProgress == false);
+		check(OutputFrame == Ticker.PendingFrame+1);
+
+		// Get inputs. These all need to be present to tick (caller's responsibility)
+		const TInputCmd* InputCmd = Buffers.Input[Ticker.PendingFrame];
+		const TSyncState* InSyncState = Buffers.Sync[Ticker.PendingFrame];
+		const TAuxState* InAuxState = Buffers.Aux[Ticker.PendingFrame];
+
+		check(InputCmd);
+		check(InSyncState);
+		check(InAuxState);
+
+		const FNetworkSimTime& DeltaSimTime = InputCmd->GetFrameDeltaTime();
+
+		// Output (only sync will always be generated
+		TSyncState* OutSyncState = Buffers.Sync.WriteFrame(OutputFrame);
+
+		// PreTick
 		Ticker.PendingFrame = OutputFrame;
 		Ticker.bUpdateInProgress = true;
 
-		Dispatcher.PushContext({Ticker.GetTotalProcessedSimulationTime() + DeltaSimTime, TickContext}); // Cues "take place" at the end of the frame
-	}
-	~TScopedSimulationTick()
-	{
+		Buffers.CueDispatcher.PushContext({Ticker.GetTotalProcessedSimulationTime() + DeltaSimTime, Context}); // Cues "take place" at the end of the frame
+
+		UE_NP_TRACE_SIM_TICK(OutputFrame, DeltaSimTime, Ticker);
+
+		// Simulation Tick
+		Simulation.SimulationTick(
+			{ DeltaSimTime, Ticker }, // How it ticks
+			{ *InputCmd, *InSyncState, *InAuxState }, // Input States
+			{ *OutSyncState, Buffers.Aux.LazyWriter(OutputFrame), Buffers.CueDispatcher } ); // Output
+
+		// Post
+		UE_NP_TRACE_USER_STATE_SYNC(*Buffers.Sync.HeadElement(), OutputFrame);
+		const TAuxState* AuxHead = Buffers.Aux.HeadElement();
+		if (AuxHead != InAuxState)
+		{
+			UE_NP_TRACE_USER_STATE_AUX(*AuxHead, OutputFrame);
+		}
+
 		Ticker.IncrementTotalProcessedSimulationTime(DeltaSimTime, OutputFrame);
 		Ticker.bUpdateInProgress = false;
 
-		Dispatcher.PopContext();
+		Buffers.CueDispatcher.PopContext();
 	}
-	FSimulationTickState& Ticker;
-	TNetSimCueDispatcher<Model>& Dispatcher;
-	const int32& OutputFrame;
-	const FNetworkSimTime& DeltaSimTime;
 };

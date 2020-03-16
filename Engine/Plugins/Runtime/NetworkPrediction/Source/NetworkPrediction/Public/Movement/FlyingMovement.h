@@ -111,11 +111,9 @@ struct FFlyingMovementAuxState
 
 	void Log(FStandardLoggingParameters& P) const
 	{
-		if (P.Context == EStandardLoggingContext::HeaderOnly)
-		{
-			P.Ar->Logf(TEXT(" %d "), P.Frame);
-		}
-		else if (P.Context == EStandardLoggingContext::Full)
+		P.Ar->Logf(TEXT("Frame: %d "), P.Frame);
+		
+		if (P.Context == EStandardLoggingContext::Full)
 		{
 			P.Ar->Logf(TEXT("MaxSpeed: %.2f"), MaxSpeed);
 			P.Ar->Logf(TEXT("TurningBoost: %.2f"), TurningBoost);
