@@ -377,7 +377,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				FNiagaraGPUSortInfo SortInfo;
 				const int32 SortVarIdx = bCustomSorting ? ENiagaraMeshVFLayout::CustomSorting : ENiagaraMeshVFLayout::Position;
 				const bool bSortVarIsHalf = bShouldSort && VFVariables[SortVarIdx].bHalfType;
-				if (bShouldSort)
+				if (bShouldSort && VFVariables[SortVarIdx].GetGPUOffset() != INDEX_NONE)
 				{
 					SortInfo.ParticleCount = NumInstances;
 					SortInfo.SortMode = SortMode;
