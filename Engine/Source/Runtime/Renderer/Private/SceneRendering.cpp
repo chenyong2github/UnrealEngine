@@ -1797,6 +1797,11 @@ void FViewInfo::DestroyAllSnapshots()
 			Snapshot->ParallelMeshDrawCommandPasses[Index].WaitForTasksAndEmpty();
 		}
 
+		for (int i = 0; i < EMeshPass::Num; i++)
+		{
+			Snapshot->ParallelMeshDrawCommandPasses[i].FreeCreateSnapshot();
+		}
+
 		FreeViewInfoSnapshots.Add(Snapshot);
 	}
 	ViewInfoSnapshots.Reset();
@@ -4223,12 +4228,11 @@ void RunGPUSkinCacheTransition(FRHICommandList& RHICmdList, FScene* Scene, EGPUS
 	const bool bRun = 
 		(bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup == Type) || 
 		(!bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup != Type);
-	const EResourceTransitionPipeline TargetPipeline = bHairStrandsEnabled ? EResourceTransitionPipeline::EComputeToCompute : EResourceTransitionPipeline::EComputeToGfx;
 	if (bRun)
 	{
 		if (FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache())
 		{
-			GPUSkinCache->TransitionAllToReadable(RHICmdList, TargetPipeline);
+			GPUSkinCache->TransitionAllToReadable(RHICmdList);
 		}
 	}
 }
