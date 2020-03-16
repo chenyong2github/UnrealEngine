@@ -66,14 +66,15 @@ static FAutoConsoleVariableRef GMallocBinned3AllocExtraCVar(
 	TEXT("When we do acquire the lock, how many blocks cached in TLS caches. In no case will we grab more than a page.")
 	);
 
+#endif
+
 double GMallocBinned3FlushThreadCacheMaxWaitTime = 0.02f;
 static FAutoConsoleVariableRef GMallocBinned3FlushThreadCacheMaxWaitTimeCVar(
 	TEXT("MallocBinned3.FlushThreadCacheMaxWaitTime"),
 	GMallocBinned3FlushThreadCacheMaxWaitTime,
-	TEXT("The threshold of time before warning about FlushCurrentThreadCache taking too long (seconds).")
+	TEXT("The threshold of time before warning about FlushCurrentThreadCache taking too long (seconds)."),
+	ECVF_ReadOnly
 );
-
-#endif
 
 #if BINNED3_ALLOCATOR_STATS
 int64 Binned3AllocatedSmallPoolMemory = 0; // memory that's requested to be allocated by the game
@@ -1315,16 +1316,11 @@ void FMallocBinned3::FlushCurrentThreadCache()
 	}
 
 	// These logs must happen outside the above mutex to avoid deadlocks
-#if BINNED3_ALLOW_RUNTIME_TWEAKING
-	double MaxWaitTimeThreshold = GMallocBinned3FlushThreadCacheMaxWaitTime;
-#else
-	double MaxWaitTimeThreshold = 0.02f;
-#endif
-	if (WaitForMutexTime > MaxWaitTimeThreshold)
+	if (WaitForMutexTime > GMallocBinned3FlushThreadCacheMaxWaitTime)
 	{
 		UE_LOG(LogMemory, Warning, TEXT("FMallocBinned3 took %6.2fms to wait for mutex for trim."), WaitForMutexTime * 1000.0f);
 	}
-	if (WaitForMutexAndTrimTime > MaxWaitTimeThreshold)
+	if (WaitForMutexAndTrimTime > GMallocBinned3FlushThreadCacheMaxWaitTime)
 	{
 		UE_LOG(LogMemory, Warning, TEXT("FMallocBinned3 took %6.2fms to wait for mutex AND trim."), WaitForMutexAndTrimTime * 1000.0f);
 	}
