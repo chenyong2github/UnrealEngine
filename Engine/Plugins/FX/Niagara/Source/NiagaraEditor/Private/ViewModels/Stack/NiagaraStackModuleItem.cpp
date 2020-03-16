@@ -10,6 +10,8 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemOutputCollection.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraNodeOutput.h"
@@ -180,6 +182,7 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 {
 	bCanRefresh = false;
 	bCanMoveAndDeleteCache.Reset();
+	bIsScratchModuleCache.Reset();
 
 	if (FunctionCallNode != nullptr && FunctionCallNode->ScriptIsValid())
 	{
@@ -1197,6 +1200,15 @@ void UNiagaraStackModuleItem::Delete()
 		}
 		ModifiedGroupItemsDelegate.Broadcast();
 	}
+}
+
+bool UNiagaraStackModuleItem::IsScratchModule() const
+{
+	if (bIsScratchModuleCache.IsSet() == false)
+	{
+		bIsScratchModuleCache = GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(FunctionCallNode->FunctionScript).IsValid();
+	}
+	return bIsScratchModuleCache.GetValue();
 }
 
 UObject* UNiagaraStackModuleItem::GetExternalAsset() const

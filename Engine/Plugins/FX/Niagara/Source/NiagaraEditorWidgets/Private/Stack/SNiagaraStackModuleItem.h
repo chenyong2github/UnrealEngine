@@ -38,6 +38,8 @@ private:
 
 	EVisibility GetRefreshVisibility() const;
 
+	FReply ScratchButtonPressed() const;
+	
 	TSharedRef<SWidget> RaiseActionMenuClicked();
 
 	bool CanRaiseActionMenu() const;

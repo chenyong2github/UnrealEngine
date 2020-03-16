@@ -92,6 +92,8 @@ public:
 	virtual FText GetDeleteTransactionText() const override;
 	virtual void Delete() override;
 
+	bool IsScratchModule() const;
+
 	void SetOnRequestDeprecationRecommended(FOnRequestDeprecationRecommended InOnRequest)
 	{
 		DeprecationDelegate = InOnRequest;
@@ -138,6 +140,8 @@ private:
 	UNiagaraStackModuleItemOutputCollection* OutputCollection;
 
 	INiagaraStackItemGroupAddUtilities* GroupAddUtilities;
+
+	mutable TOptional<bool> bIsScratchModuleCache;
 
 	bool bIsModuleScriptReassignmentPending;
 };

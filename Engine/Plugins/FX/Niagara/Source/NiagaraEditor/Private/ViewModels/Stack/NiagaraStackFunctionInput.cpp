@@ -293,10 +293,19 @@ bool UNiagaraStackFunctionInput::TestCanPasteWithMessage(const UNiagaraClipboard
 	}
 	else if (ClipboardContent->FunctionInputs.Num() == 1)
 	{
-		if (ClipboardContent->FunctionInputs[0] != nullptr)
+		const UNiagaraClipboardFunctionInput* ClipboardFunctionInput = ClipboardContent->FunctionInputs[0];
+		if (ClipboardFunctionInput != nullptr)
 		{
-			if (ClipboardContent->FunctionInputs[0]->InputType == InputType)
+			if (ClipboardFunctionInput->InputType == InputType)
 			{
+				if (ClipboardFunctionInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::Dynamic)
+				{
+					if (ClipboardFunctionInput->Dynamic->Script.IsValid() == false)
+					{
+						OutMessage = LOCTEXT("CantPasteInvalidDynamicInputScript", "Can not paste the dynamic input because its script is no longer valid.");
+						return false;
+					}
+				}
 				OutMessage = LOCTEXT("PastMessage", "Paste the input from the clipboard here.");
 				return true;
 			}
@@ -755,6 +764,7 @@ void UNiagaraStackFunctionInput::RefreshValues()
 	bCanResetCache.Reset();
 	bCanResetToBaseCache.Reset();
 	ValueToolTipCache.Reset();
+	bIsScratchDynamicInputCache.Reset();
 	ValueChangedDelegate.Broadcast();
 }
 
@@ -1164,8 +1174,7 @@ void UNiagaraStackFunctionInput::SetScratch()
 	if (ScratchScriptViewModel.IsValid())
 	{
 		SetDynamicInput(ScratchScriptViewModel->GetOriginalScript());
-		GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::ScratchPadTabID);
-		GetSystemViewModel()->GetScriptScratchPadViewModel()->SetActiveScriptViewModel(ScratchScriptViewModel.ToSharedRef());
+		GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchScriptViewModel.ToSharedRef());
 		ScratchScriptViewModel->SetIsPendingRename(true);
 	}
 }
@@ -1825,18 +1834,31 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 			break;
 		case ENiagaraClipboardFunctionInputValueMode::Dynamic:
 			if (ensureMsgf(ClipboardFunctionInput.Dynamic->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset,
-				TEXT("Can not set dynamic input value from clipboard, only script asset funcitons can be set.")))
+				TEXT("Dynamic input values can only be set from script asset clipboard functions.")))
 			{
-				UNiagaraScript* ClipboardScript = ClipboardFunctionInput.Dynamic->Script->IsAsset()
-					? ClipboardFunctionInput.Dynamic->Script
-					: GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionInput.Dynamic->Script)->GetOriginalScript();
-				SetDynamicInput(ClipboardScript, ClipboardFunctionInput.Dynamic->FunctionName);
-
-				TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
-				GetUnfilteredChildrenOfType(DynamicInputCollections);
-				for (UNiagaraStackFunctionInputCollection* DynamicInputCollection : DynamicInputCollections)
+				UNiagaraScript* ClipboardFunctionScript = ClipboardFunctionInput.Dynamic->Script.Get();
+				if (ClipboardFunctionScript != nullptr)
 				{
-					DynamicInputCollection->SetValuesFromClipboardFunctionInputs(ClipboardFunctionInput.Dynamic->Inputs);
+					UNiagaraScript* NewDynamicInputScript;
+					if (ClipboardFunctionScript->IsAsset() ||
+						GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(ClipboardFunctionScript).IsValid())
+					{
+						// If the clipboard script is an asset, or it's in the scratch pad of the current asset, it can be used directly.
+						NewDynamicInputScript = ClipboardFunctionScript;
+					}
+					else
+					{
+						// Otherwise it's a scratch pad script from another asset so we need to add a duplicate scratch pad script to this asset.
+						NewDynamicInputScript = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionScript)->GetOriginalScript();
+					}
+					SetDynamicInput(NewDynamicInputScript, ClipboardFunctionInput.Dynamic->FunctionName);
+
+					TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
+					GetUnfilteredChildrenOfType(DynamicInputCollections);
+					for (UNiagaraStackFunctionInputCollection* DynamicInputCollection : DynamicInputCollections)
+					{
+						DynamicInputCollection->SetValuesFromClipboardFunctionInputs(ClipboardFunctionInput.Dynamic->Inputs);
+					}
 				}
 			}
 			break;
@@ -1850,6 +1872,18 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 	{
 		SetEditConditionEnabled(ClipboardFunctionInput.bEditConditionValue);
 	}
+}
+
+bool UNiagaraStackFunctionInput::IsScratchDynamicInput() const
+{
+	if (bIsScratchDynamicInputCache.IsSet() == false)
+	{
+		bIsScratchDynamicInputCache = 
+			InputValues.Mode == EValueMode::Dynamic &&
+			InputValues.DynamicNode.IsValid() &&
+			GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(InputValues.DynamicNode->FunctionScript).IsValid();
+	}
+	return bIsScratchDynamicInputCache.GetValue();
 }
 
 void UNiagaraStackFunctionInput::GetSearchItems(TArray<FStackSearchItem>& SearchItems) const

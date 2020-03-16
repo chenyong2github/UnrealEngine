@@ -281,7 +281,7 @@ public:
 
 	FOnRequestFocusTab& OnRequestFocusTab();
 
-	void FocusTab(FName TabName);
+	NIAGARAEDITOR_API void FocusTab(FName TabName);
 	
 	/** Gets the system toolkit command list. */
 	NIAGARAEDITOR_API TSharedPtr<FUICommandList> GetToolkitCommands();

@@ -2,6 +2,8 @@
 
 #include "Stack/SNiagaraStackFunctionInputValue.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "NiagaraEditorModule.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
@@ -188,10 +190,37 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 	}
 	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
 	{
-		return SNew(STextBlock)
+		TSharedRef<SWidget> DynamicInputText = SNew(STextBlock)
 			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 			.Text(this, &SNiagaraStackFunctionInputValue::GetDynamicValueText)
 			.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked);
+		if (FunctionInput->IsScratchDynamicInput())
+		{
+			return SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					DynamicInputText
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+					.OnClicked(this, &SNiagaraStackFunctionInputValue::ScratchButtonPressed)
+					.ToolTipText(LOCTEXT("OpenInScratchToolTip", "Open this dynamic input in the scratch pad."))
+					.ContentPadding(FMargin(1.0f, 0.0f))
+					.Content()
+					[
+						SNew(SImage)
+						.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scratch"))
+					]
+				];
+		}
+		else
+		{
+			return DynamicInputText;
+		}
 	}
 	case UNiagaraStackFunctionInput::EValueMode::DefaultFunction:
 	{
@@ -388,10 +417,22 @@ void SNiagaraStackFunctionInputValue::OnExpressionTextCommitted(const FText& Nam
 FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 {
 	UNiagaraNodeFunctionCall* DynamicInputNode = FunctionInput->GetDynamicInputNode();
-	if (DynamicInputNode->FunctionScript != nullptr && DynamicInputNode->FunctionScript->IsAsset())
+	if (DynamicInputNode->FunctionScript != nullptr)
 	{
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(DynamicInputNode->FunctionScript);
-		return FReply::Handled();
+		if (DynamicInputNode->FunctionScript->IsAsset())
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(DynamicInputNode->FunctionScript);
+			return FReply::Handled();
+		}
+		else
+		{
+			TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = FunctionInput->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(DynamicInputNode->FunctionScript);
+			if(ScratchPadScriptViewModel.IsValid())
+			{
+				FunctionInput->GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
+				return FReply::Handled();
+			}
+		}
 	}
 	return FReply::Unhandled();
 }
@@ -910,6 +951,18 @@ bool SNiagaraStackFunctionInputValue::GetLibraryOnly() const
 void SNiagaraStackFunctionInputValue::SetLibraryOnly(bool bInIsLibraryOnly)
 {
 	bLibraryOnly = bInIsLibraryOnly;
+}
+
+FReply SNiagaraStackFunctionInputValue::ScratchButtonPressed() const
+{
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchDynamicInputViewModel = 
+		FunctionInput->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(FunctionInput->GetDynamicInputNode()->FunctionScript);
+	if (ScratchDynamicInputViewModel.IsValid())
+	{
+		FunctionInput->GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchDynamicInputViewModel.ToSharedRef());
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -51,6 +51,18 @@ private:
 
 	void ApplyChangesToSelectedScripts() const;
 
+	bool CanDiscardChangesFromSelectedScripts() const;
+
+	void DiscardChangesFromSelectedScripts() const;
+
+	bool CanSelectNextUsageForSelectedScript() const;
+
+	void SelectNextUsageForSelectedScript() const;
+
+	bool CanCreateAssetFromSelectedScript() const;
+
+	void CreateAssetFromSelectedScript() const;
+
 private:
 	TSharedRef<FUICommandList> Commands;
 

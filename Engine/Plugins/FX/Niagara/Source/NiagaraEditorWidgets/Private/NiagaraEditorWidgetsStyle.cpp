@@ -251,7 +251,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 		.SetFont(ScratchPadLargeHeaderFont);
 	Style->Set("NiagaraEditor.ScratchPad.LargeHeaderText", ScratchPadLargeHeaderText);
 
-	FSlateFontInfo ScratchPadSmallHeaderFont = DEFAULT_FONT("Bold", 10);
+	FSlateFontInfo ScratchPadSmallHeaderFont = DEFAULT_FONT("Bold", 11);
 	FTextBlockStyle ScratchPadSmallHeaderText = FTextBlockStyle(NormalText)
 		.SetFont(ScratchPadSmallHeaderFont);
 	Style->Set("NiagaraEditor.ScratchPad.SmallHeaderText", ScratchPadSmallHeaderText);
