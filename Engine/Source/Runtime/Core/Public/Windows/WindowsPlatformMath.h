@@ -145,4 +145,3 @@ struct FWindowsPlatformMath : public TUnrealPlatformMathSSE4Base<FGenericPlatfor
 };
 
 typedef FWindowsPlatformMath FPlatformMath;
-
