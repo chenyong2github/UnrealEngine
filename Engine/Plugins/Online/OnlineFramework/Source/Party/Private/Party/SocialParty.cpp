@@ -402,6 +402,12 @@ bool USocialParty::TryKickMember(const UPartyMember& PartyMember)
 	return false;
 }
 
+void USocialParty::ResetPrivacySettings()
+{
+	check(PartyDataReplicator.IsValid());
+	PartyDataReplicator->SetPrivacySettings(GetDesiredPrivacySettings());
+}
+
 const FPartyPrivacySettings& USocialParty::GetPrivacySettings() const
 {
 	check(PartyDataReplicator.IsValid());
