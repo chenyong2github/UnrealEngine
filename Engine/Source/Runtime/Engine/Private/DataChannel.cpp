@@ -23,6 +23,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "Misc/NetworkVersion.h"
 
 DEFINE_LOG_CATEGORY(LogNet);
 DEFINE_LOG_CATEGORY(LogRep);
@@ -841,6 +842,7 @@ void UChannel::AppendMustBeMappedGuids( FOutBunch* Bunch )
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+const FString UActorChannel::ClassNetCacheSuffix = TEXT("_ClassNetCache");
 
 UActorChannel::UActorChannel(const FObjectInitializer& ObjectInitializer)
 	: UChannel(ObjectInitializer)
@@ -3813,11 +3815,6 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 	return true;		// More to read
 }
 
-static FORCEINLINE FString GenerateClassNetCacheNetFieldExportGroupName( const UClass* ObjectClass )
-{
-	return ObjectClass->GetName() + FString( TEXT( "_ClassNetCache" ) );
-}
-
 FNetFieldExportGroup* UActorChannel::GetOrCreateNetFieldExportGroupForClassNetCache( const UObject* Object )
 {
 	if ( !Connection->IsInternalAck() )
@@ -3834,7 +3831,9 @@ FNetFieldExportGroup* UActorChannel::GetOrCreateNetFieldExportGroupForClassNetCa
 
 	UPackageMapClient* PackageMapClient = ( ( UPackageMapClient* )Connection->PackageMap );
 
-	const FString NetFieldExportGroupName = GenerateClassNetCacheNetFieldExportGroupName( ObjectClass );
+	FString NetFieldExportGroupName = ObjectClass->GetPathName();
+	GEngine->NetworkRemapPath(Connection->Driver, NetFieldExportGroupName, false);
+	NetFieldExportGroupName += ClassNetCacheSuffix;
 
 	TSharedPtr< FNetFieldExportGroup > NetFieldExportGroup = PackageMapClient->GetNetFieldExportGroup( NetFieldExportGroupName );
 
@@ -3875,18 +3874,29 @@ FNetFieldExportGroup* UActorChannel::GetOrCreateNetFieldExportGroupForClassNetCa
 	return NetFieldExportGroup.Get();
 }
 
-FNetFieldExportGroup* UActorChannel::GetNetFieldExportGroupForClassNetCache( UClass* ObjectClass )
+FNetFieldExportGroup* UActorChannel::GetNetFieldExportGroupForClassNetCache(UClass* ObjectClass)
 {
-	if ( !Connection->IsInternalAck() )
+	if (!Connection->IsInternalAck())
 	{
 		return nullptr;
 	}	
 
-	const FString NetFieldExportGroupName = GenerateClassNetCacheNetFieldExportGroupName( ObjectClass );
+	FString NetFieldExportGroupName;
+	
+	if (Connection->EngineNetworkProtocolVersion < HISTORY_CLASSNETCACHE_FULLNAME)
+	{
+		NetFieldExportGroupName = ObjectClass->GetName() + ClassNetCacheSuffix;
+	}
+	else
+	{
+		NetFieldExportGroupName = ObjectClass->GetPathName();
+		GEngine->NetworkRemapPath(Connection->Driver, NetFieldExportGroupName, true);
+		NetFieldExportGroupName += ClassNetCacheSuffix;
+	}
 
 	UPackageMapClient* PackageMapClient = CastChecked<UPackageMapClient>(Connection->PackageMap);
 
-	TSharedPtr< FNetFieldExportGroup > NetFieldExportGroup = PackageMapClient->GetNetFieldExportGroup( NetFieldExportGroupName );
+	TSharedPtr<FNetFieldExportGroup> NetFieldExportGroup = PackageMapClient->GetNetFieldExportGroup(NetFieldExportGroupName);
 
 	return NetFieldExportGroup.Get();
 }

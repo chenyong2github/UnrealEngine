@@ -331,4 +331,6 @@ private:
 	// TODO: It would be nice to merge the tracking of these with PendingGuidResolves, to not duplicate memory,
 	// especially since both of these sets should be empty most of the time for most channels.
 	TSet<TSharedRef<struct FQueuedBunchObjectReference>> QueuedBunchObjectReferences;
+
+	static const FString ClassNetCacheSuffix;
 };
