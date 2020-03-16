@@ -212,6 +212,17 @@ public:
 	 */
 	virtual void SetRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) = 0;
 
+	/** Delegate type for updating the package localization cache.  Used internally by FPackageLocalizationManager code. */
+	DECLARE_DELEGATE( FUpdatePackageLocalizationCacheDelegate );
+
+	/**
+	 * Sets the delegate to call to update the package localization cache.  This is used internally by the plug-in manager system
+	 * and should not be called by you.  This is registered at application startup by FPackageLocalizationManager code in CoreUObject.
+	 *
+	 * @param	Delegate	The delegate to that will be called when plug-in manager needs to update the package localization cache
+	 */
+	virtual void SetUpdatePackageLocalizationCacheDelegate( const FUpdatePackageLocalizationCacheDelegate& Delegate ) = 0;
+
 	/**
 	 * Checks if all the required plug-ins are available. If not, will present an error dialog the first time a plug-in is loaded or this function is called.
 	 *
