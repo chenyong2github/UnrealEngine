@@ -3,11 +3,12 @@
 #pragma once
 
 #include "IAudioExtensionPlugin.h"
-#include "Sound/SoundEffectSubmix.h"
-#include "ObjectMacros.h"
 #include "OVR_Audio.h"
-#include "Templates/UniquePtr.h"
 #include "Sound/SoundEffectBase.h"
+#include "Sound/SoundEffectSubmix.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
 #include "OculusAudioReverb.generated.h"
 
