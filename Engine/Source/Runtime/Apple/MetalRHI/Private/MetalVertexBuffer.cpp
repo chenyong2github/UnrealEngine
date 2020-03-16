@@ -95,6 +95,8 @@ void FMetalVertexBuffer::Swap(FMetalVertexBuffer& Other)
 void FMetalRHIBuffer::Swap(FMetalRHIBuffer& Other)
 {
 	::Swap(*this, Other);
+	Other.Buffer.SetOwner(&Other);
+	Buffer.SetOwner(this);
 }
 
 static bool CanUsePrivateMemory()
