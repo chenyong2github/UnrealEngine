@@ -24,6 +24,10 @@
 			"Type": "Runtime"
 		},
 		{
+			"Name": "PatchCheck",
+			"Type": "Runtime"
+		},
+		{
 			"Name": "Hotfix",
 			"Type": "Runtime"
 		},
