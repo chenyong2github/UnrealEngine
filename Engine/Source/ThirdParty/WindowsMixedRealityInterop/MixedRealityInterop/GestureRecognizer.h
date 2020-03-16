@@ -27,7 +27,7 @@ namespace WindowsMixedReality
 		static SpatialInteractionManager m_InteractionManager;
 		SpatialGestureRecognizer m_GestureRecognizer = nullptr;
 		SpatialStationaryFrameOfReference m_StationaryReferenceFrame = nullptr;
-		SpatialGestureSettings m_SpatialGestureSettings;
+		SpatialGestureSettings m_SpatialGestureSettings = SpatialGestureSettings::None;
 
 		std::function<void()> m_InteractionCallback;
 		SourceStateCallback m_SourceStateCallback;
