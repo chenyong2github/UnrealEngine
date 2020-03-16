@@ -1467,7 +1467,7 @@ namespace UnrealBuildTool
 		/// HoloLens-specific target settings.
 		/// </summary>
 		[ConfigSubObject]
-		public HoloLensTargetRules HoloLensPlatform = new HoloLensTargetRules();
+		public HoloLensTargetRules HoloLensPlatform;
 
 		/// <summary>
 		/// Constructor.
@@ -1482,6 +1482,7 @@ namespace UnrealBuildTool
 			this.ProjectFile = Target.ProjectFile;
 			this.Version = Target.Version;
 			this.WindowsPlatform = new WindowsTargetRules(this);
+			this.HoloLensPlatform = new HoloLensTargetRules(Target);
 
 			// Read settings from config files
 			foreach (object ConfigurableObject in GetConfigurableObjects())
