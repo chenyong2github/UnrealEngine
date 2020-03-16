@@ -6,6 +6,8 @@
 
 #include "CoreMinimal.h"
 #include "Features/IModularFeature.h"
+#include "Serialization/BitReader.h"
+#include "Serialization/BitWriter.h"
 
 namespace Audio
 {
@@ -15,7 +17,7 @@ namespace Audio
 	 * These parameters are pass to an IAnalyzerNRTFactory when creating
 	 * a new IAnalyzerNRTWorker or IAnalyzerNRTResult
 	 */
-	struct AUDIOANALYZER_API FAnalyzerNRTParameters
+	struct FAnalyzerNRTParameters
 	{
 		public:
 			float SampleRate;
@@ -32,7 +34,7 @@ namespace Audio
 	 * This interface defines the required methods for non-real-time
 	 * analyzer settings.
 	 */
-	class AUDIOANALYZER_API IAnalyzerNRTSettings
+	class IAnalyzerNRTSettings
 	{
 		public:
 			virtual ~IAnalyzerNRTSettings() {};
@@ -43,7 +45,7 @@ namespace Audio
 	 * This interface defines the required methods for non-real-time
 	 * analyzer results.
 	 */
-	class AUDIOANALYZER_API IAnalyzerNRTResult
+	class IAnalyzerNRTResult
 	{
 	public:
 		virtual ~IAnalyzerNRTResult() {};
@@ -53,10 +55,13 @@ namespace Audio
 
 		// This virtual can be overridden to provide a faster copying scheme than full serialization
 		// when analyzing non-remote targets. If not overridden, this function will use the Serialize call.
-		virtual void CopyFrom(IAnalyzerNRTResult* SourceResult);
-
-		// This can be overridden to return a string description of this results struct.
-		virtual FString ToString() const;
+		virtual void CopyFrom(IAnalyzerNRTResult* SourceResult)
+		{
+			FBitWriter SerializedResult;
+			SourceResult->Serialize(SerializedResult);
+			FBitReader DeserializedResult = FBitReader(SerializedResult.GetData(), SerializedResult.GetNumBytes() * 8);
+			Serialize(DeserializedResult);
+		}
 
 		// This must be overridden to return the duration of the original audio analyzed.
 		virtual float GetDurationInSeconds() const = 0;
@@ -67,7 +72,7 @@ namespace Audio
 	 * This interface is used to define a class that will handle actual
 	 * analysis of a singular audio asset.
 	 */
-	class AUDIOANALYZER_API IAnalyzerNRTWorker
+	class IAnalyzerNRTWorker
 	{
 	public:
 		virtual ~IAnalyzerNRTWorker() {};
@@ -88,20 +93,24 @@ namespace Audio
 	 *
 	 * This is used to define a non real-time analyzer.
 	 */
-	class AUDIOANALYZER_API IAnalyzerNRTFactory : public IModularFeature
+	class IAnalyzerNRTFactory : public IModularFeature
 	{
 	public:
 		virtual ~IAnalyzerNRTFactory() {};
 
 		// Supplied unique name of IAnalyzerNRTFactory to enable querying of added 
 		// analyzer factories
-		static FName GetModularFeatureName();
+		static FName GetModularFeatureName()
+		{
+			static FName AudioExtFeatureName = FName(TEXT("AudioAnalyzerNRTPlugin"));
+			return AudioExtFeatureName;
+		}
 
 		// Name of specific analyzer type.
-		virtual FName GetName() const;
+		virtual FName GetName() const = 0;
 
 		// Human readable name of analyzer.
-		virtual FString GetTitle() const;
+		virtual FString GetTitle() const = 0;
 
 		// Create a new result.
 		virtual TUniquePtr<IAnalyzerNRTResult> NewResult() const = 0;
