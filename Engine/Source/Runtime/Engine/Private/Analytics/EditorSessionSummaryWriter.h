@@ -38,7 +38,7 @@ private:
 	FEditorAnalyticsSession* CurrentSession;
 	FString CurrentSessionSectionName;
 	double StartupSeconds;
-	double LastUserInteractionTime;
+	double IdleSeconds;
 	float HeartbeatTimeElapsed;
 	bool bShutdown;
 };
