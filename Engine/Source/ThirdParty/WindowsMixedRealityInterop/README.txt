@@ -7,6 +7,7 @@ To build new interop binaries:
 4) Build MixedRealtityInterop x64 debug and release, MixedRealityInteropHoloLens x64 and arm64 debug and release and submit the results to perforce if you change the implementation.
 The visual studio 'Build->Batch Build' feature is useful here (check all the boxes).
 5) Submit the target files along with whatever changes made it necessary to build.
+*Note: there appears to be a file load race condition or similar in Visual Studio 2019 related to winrt nuget packages.  If one or a few configurations fail to build with winrt related errors you may simply need to close visual studio and open it again to get a successful build (I think doing this once has always worked for me).  Once you get one full success that instance of visual studio 2019 will continue to build successfully.
 
 To update the holographic remoting version, the cppwinrt, or the windows sdk version you will need to do the following:
 1) Install the remoting nuget package via 'manage nuget packages...' in the project context menu for the MixedRealityInterop project.
