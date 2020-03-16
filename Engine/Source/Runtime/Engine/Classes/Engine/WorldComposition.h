@@ -203,9 +203,9 @@ private:
 
 public:
 #if WITH_EDITOR
-	// Hack for a World Browser to be able to temporally show hidden levels 
-	// regardless of current world origin and without offsetting them temporally 
-	bool						bTemporallyDisableOriginTracking;
+	// Hack for a World Browser to be able to temporarily show hidden levels 
+	// regardless of current world origin and without offsetting them temporarily 
+	bool						bTemporarilyDisableOriginTracking;
 #endif //WITH_EDITOR
 
 private:
