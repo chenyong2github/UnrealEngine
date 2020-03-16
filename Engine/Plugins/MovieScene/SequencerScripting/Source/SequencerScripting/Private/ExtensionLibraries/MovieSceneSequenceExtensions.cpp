@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExtensionLibraries/MovieSceneSequenceExtensions.h"
+#include "Tracks/MovieSceneCameraCutTrack.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneFolder.h"
@@ -99,10 +100,13 @@ UMovieSceneTrack* UMovieSceneSequenceExtensions::AddMasterTrack(UMovieSceneSeque
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
 	{
-		UMovieSceneTrack* NewTrack = MovieScene->AddMasterTrack(TrackType);
-		if (NewTrack)
+		if (TrackType->IsChildOf(UMovieSceneCameraCutTrack::StaticClass()))
 		{
-			return NewTrack;
+			return MovieScene->AddCameraCutTrack(TrackType);
+		}
+		else
+		{
+			return MovieScene->AddMasterTrack(TrackType);
 		}
 	}
 
