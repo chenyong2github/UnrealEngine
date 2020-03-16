@@ -119,17 +119,6 @@ namespace UE4String_Private
 	}
 }
 
-FString::FString(const FStringView& Other)
-{
-	if (const FStringView::SizeType OtherLen = Other.Len())
-	{
-		Reserve(OtherLen);
-		Append(Other.GetData(), OtherLen);
-		AppendChar(TEXT('\0'));
-	}
-}
-
-
 FString::FString(const FStringView& Other, int32 ExtraSlack)
 {
 	Reserve(Other.Len() + ExtraSlack);
