@@ -1437,6 +1437,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		// environment.
 		FCommandLine::Append(TEXT(" -EnvAfterHere "));
 		FCommandLine::Append(*Env);
+		CmdLine = FCommandLine::Get();
 	}
 #endif
 
