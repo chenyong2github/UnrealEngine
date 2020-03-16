@@ -162,7 +162,7 @@ struct FUserDefinedStructureCompilerInner
 			StructToClean->DestroyChildPropertiesAndResetPropertyLinks();
 			StructToClean->Script.Empty();
 			StructToClean->MinAlignment = 0;
-			StructToClean->ScriptObjectReferences.Empty();
+			StructToClean->ScriptAndPropertyObjectReferences.Empty();
 			StructToClean->ErrorMessage.Empty();
 			StructToClean->SetStructTrashed(true);
 		}
