@@ -100,6 +100,7 @@ public:
 	virtual bool LoadModulesForEnabledPlugins( const ELoadingPhase::Type LoadingPhase ) override;
 	virtual void GetLocalizationPathsForEnabledPlugins( TArray<FString>& OutLocResPaths ) override;
 	virtual void SetRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) override;
+	virtual void SetUpdatePackageLocalizationCacheDelegate( const FUpdatePackageLocalizationCacheDelegate& Delegate ) override;
 	virtual bool AreRequiredPluginsAvailable() override;
 #if !IS_MONOLITHIC
 	virtual bool CheckModuleCompatibility(TArray<FString>& OutIncompatibleModules, TArray<FString>& OutIncompatibleEngineModules) override;
@@ -184,6 +185,10 @@ private:
 	/** Delegate for mounting content paths.  Bound by FPackageName code in CoreUObject, so that we can access
 	    content path mounting functionality from Core. */
 	FRegisterMountPointDelegate RegisterMountPointDelegate;
+
+	/** Delegate for updating the package localization cache.  Bound by FPackageLocalizationManager code in 
+		CoreUObject, so that we can access localization cache functionality from Core. */
+	FUpdatePackageLocalizationCacheDelegate UpdatePackageLocalizationCacheDelegate;
 
 	/** Set when all the appropriate plugins have been marked as enabled */
 	bool bHaveConfiguredEnabledPlugins;
