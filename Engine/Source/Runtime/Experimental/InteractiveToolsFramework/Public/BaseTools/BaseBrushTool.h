@@ -20,7 +20,7 @@ public:
 	UBrushBaseProperties();
 
 	/** Relative size of brush */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0", DisplayPriority = 1))
 	float BrushSize;
 
 	/** If true, ignore relative Brush Size and use explicit World Radius */
@@ -32,22 +32,25 @@ public:
 	float BrushRadius;
 
 	/** Strength of the brush (0.0 - 1.0) */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowFullSettings"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowStrength", DisplayPriority = 2))
 	float BrushStrength;
 
 	/** Amount of falloff to apply (0.0 - 1.0) */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", HideEditConditionToggle, EditConditionHides, EditCondition="bShowFullSettings"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", HideEditConditionToggle, EditConditionHides, EditCondition="bShowFalloff", DisplayPriority = 3))
 	float BrushFalloffAmount;
 
-	/** If false, then BrushStrength and BrushFalloffAmount will not be shown in DetailsView panels (otherwise no effect)*/
+	/** If false, then BrushStrength will not be shown in DetailsView panels (otherwise no effect) */
 	UPROPERTY()
-	bool bShowFullSettings = true;
+	bool bShowStrength = true;
+
+	/** If false, then BrushFalloffAmount will not be shown in DetailsView panels (otherwise no effect) */
+	UPROPERTY()
+	bool bShowFalloff = true;
 
 	//
 	// save/restore support
 	//
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
 };
 
 

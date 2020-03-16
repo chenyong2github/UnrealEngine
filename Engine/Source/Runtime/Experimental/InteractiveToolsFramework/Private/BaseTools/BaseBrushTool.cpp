@@ -21,26 +21,15 @@ UBrushBaseProperties::UBrushBaseProperties()
 	BrushFalloffAmount = 1.0f;
 }
 
-void UBrushBaseProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+void UBrushBaseProperties::SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving)
 {
 	UBrushBaseProperties* PropertyCache = GetPropertyCache<UBrushBaseProperties>();
-	PropertyCache->BrushSize = this->BrushSize;
-	PropertyCache->bSpecifyRadius = this->bSpecifyRadius;
-	PropertyCache->BrushRadius = this->BrushRadius;
-	PropertyCache->BrushFalloffAmount = this->BrushFalloffAmount;
-	PropertyCache->BrushStrength = this->BrushStrength;
+	SaveRestoreProperty(PropertyCache->BrushSize, this->BrushSize, bSaving);
+	SaveRestoreProperty(PropertyCache->bSpecifyRadius, this->bSpecifyRadius, bSaving);
+	SaveRestoreProperty(PropertyCache->BrushRadius, this->BrushRadius, bSaving);
+	SaveRestoreProperty(PropertyCache->BrushFalloffAmount, this->BrushFalloffAmount, bSaving);
+	SaveRestoreProperty(PropertyCache->BrushStrength, this->BrushStrength, bSaving);
 }
-
-void UBrushBaseProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UBrushBaseProperties* PropertyCache = GetPropertyCache<UBrushBaseProperties>();
-	this->BrushSize = PropertyCache->BrushSize;
-	this->bSpecifyRadius = PropertyCache->bSpecifyRadius;
-	this->BrushRadius = PropertyCache->BrushRadius;
-	this->BrushFalloffAmount = PropertyCache->BrushFalloffAmount;
-	this->BrushStrength = PropertyCache->BrushStrength;
-}
-
 
 
 

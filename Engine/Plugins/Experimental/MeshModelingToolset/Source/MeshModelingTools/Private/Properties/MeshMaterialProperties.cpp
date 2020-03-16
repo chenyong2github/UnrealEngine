@@ -95,6 +95,9 @@ void UMeshEditingViewProperties::SaveProperties(UInteractiveTool* SaveFromTool)
 	UMeshEditingViewProperties* PropertyCache = GetPropertyCache<UMeshEditingViewProperties>();
 	PropertyCache->bShowWireframe = this->bShowWireframe;
 	PropertyCache->MaterialMode = this->MaterialMode;
+	PropertyCache->bFlatShading = this->bFlatShading;
+	PropertyCache->Color = this->Color;
+	PropertyCache->Image = this->Image;
 }
 
 void UMeshEditingViewProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
@@ -102,6 +105,9 @@ void UMeshEditingViewProperties::RestoreProperties(UInteractiveTool* RestoreToTo
 	UMeshEditingViewProperties* PropertyCache = GetPropertyCache<UMeshEditingViewProperties>();
 	this->bShowWireframe = PropertyCache->bShowWireframe;
 	this->MaterialMode = PropertyCache->MaterialMode;
+	this->bFlatShading = PropertyCache->bFlatShading;
+	this->Color = PropertyCache->Color;
+	this->Image = PropertyCache->Image;
 }
 
 
