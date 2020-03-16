@@ -28,6 +28,9 @@ class FNiagaraCrashReporterHandler : public TThreadSingleton<FNiagaraCrashReport
 	static FCriticalSection CritSec;
 
 	void SetInfo(const FString& Info);
+
+	/** Push an arbitrary string onto info stack and set as Niagara's current CR info for this thread. */
+	void PushInfo_Internal(const FString& Info);
 public:
 
 	FNiagaraCrashReporterHandler();
@@ -40,8 +43,6 @@ public:
 	void PushInfo(FNiagaraSystemInstance* Inst);
 	/** Push info on a system simulation to the info stack and set as Niagara's current CR info for this thread. */
 	void PushInfo(FNiagaraSystemSimulation* SystemSim);
-	/** Push an arbitrary string onto info stack and set as Niagara's current CR info for this thread. */
-	void PushInfo(const FString& Info);
 	/** Pop the current info from the stack and set the previous info as Niagara's current CR info for this thread. */
 	void PopInfo();
 
