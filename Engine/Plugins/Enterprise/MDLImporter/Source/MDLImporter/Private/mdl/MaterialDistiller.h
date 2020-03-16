@@ -29,11 +29,6 @@ namespace Mdl
 		virtual ~IMaterialDistiller() = default;
 
 		/**
-		 * Sets the export path for the textures used by the materials to be loaded.
-		 */
-		virtual void SetExportPath(const FString& ExportPath) {}
-
-		/**
 		 * Sets a custom map handler used for the distillation.
 		 */
 		virtual void SetMapHanlder(IMapDistilHandler* MapHandler) {}
@@ -88,8 +83,6 @@ namespace Mdl
 		FMaterialDistiller() = default;
 
 		virtual ~FMaterialDistiller();
-
-		virtual void SetExportPath(const FString& ExportPath) override;
 
 		virtual void SetMapHanlder(IMapDistilHandler* MapHandler) override;
 
@@ -150,7 +143,6 @@ namespace Mdl
 		IMapDistilHandler* MapHandler;
 		uint32             BakeResolution;
 		uint32             BakeSamples;
-		FString            BakePath;
 		float              MetersPerSceneUnit;
 
 		friend class FApiContext;
@@ -159,11 +151,6 @@ namespace Mdl
 	inline void FMaterialDistiller::SetMapHanlder(IMapDistilHandler* Handler)
 	{
 		MapHandler = Handler;
-	}
-
-	inline void FMaterialDistiller::SetExportPath(const FString& Path)
-	{
-		BakePath = Path;
 	}
 
 	inline void FMaterialDistiller::SetBakingSettings(uint32 Resolution, uint32 Samples)
