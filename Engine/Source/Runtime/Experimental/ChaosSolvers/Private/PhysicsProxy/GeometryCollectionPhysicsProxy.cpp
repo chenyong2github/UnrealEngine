@@ -592,10 +592,7 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 		{
 			for(int32 Index = 0; Index < NumDynamicElems; ++Index)
 			{
-				if(SharedRestImplicits)
-				{
-					DynamicCollection.Implicits[Index] = (*SharedRestImplicits)[Index];
-				}
+				DynamicCollection.Implicits[Index] = (*SharedRestImplicits)[Index];
 			}
 		}
 	}
