@@ -225,6 +225,11 @@ protected:
 	void GenerateRampMesh(FDynamicMesh3& PathMesh);
 	void EmitNewObject(EDrawPolyPathOutputMode OutputMode);
 
+	// user feedback messages
+	void ShowStartupMessage();
+	void ShowExtrudeMessage();
+	void ShowOffsetMessage();
+
 	friend class FDrawPolyPathStateChange;
 	int32 CurrentCurveTimestamp = 1;
 	void UndoCurrentOperation();
