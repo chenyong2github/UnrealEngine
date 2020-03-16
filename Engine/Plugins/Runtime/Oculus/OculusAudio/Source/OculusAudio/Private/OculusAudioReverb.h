@@ -9,6 +9,8 @@
 #include "Templates/UniquePtr.h"
 #include "Sound/SoundEffectBase.h"
 
+#include "OculusAudioReverb.generated.h"
+
 
 UCLASS()
 class USubmixEffectOculusReverbPreset : public USoundEffectSubmixPreset
