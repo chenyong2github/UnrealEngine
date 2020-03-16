@@ -1859,7 +1859,7 @@ void FNiagaraEditorUtilities::CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterH
 
 void FNiagaraEditorUtilities::GetScriptRunAndExecutionIndexFromUsage(const ENiagaraScriptUsage& InUsage, int32& OutRunIndex, int32&OutExecutionIndex)
 {
-	switch (InUsage) //@todo(ng) fix numeric scheme Execution Index needing to continuously increment
+	switch (InUsage)
 	{
 	case ENiagaraScriptUsage::SystemSpawnScript:
 		OutRunIndex = 0;
@@ -2110,25 +2110,20 @@ bool FNiagaraEditorUtilities::GetVariableMetaDataNamespaceString(const FNiagaraV
 		return false;
 	}
 
-	if (MetaData.IsInputOrLocalUsage())
+	const FName& MetaDataScopeName = MetaData.GetScopeName();
+	const FNiagaraParameterScopeInfo* ScopeInfo = FNiagaraEditorModule::FindParameterScopeInfo(MetaDataScopeName);
+	if (ScopeInfo == nullptr)
 	{
-		const FName& MetaDataScopeName = MetaData.GetScopeName();
-		const FNiagaraParameterScopeInfo* ScopeInfo = FNiagaraEditorModule::FindParameterScopeInfo(MetaDataScopeName);
-		if (ScopeInfo == nullptr)
-		{
-			ensureMsgf(false, TEXT("Failed to find registered parameter scope info for scope name %s!"), *MetaDataScopeName.ToString());
-			return false;
-		}
-
-		FString NamespaceString = ScopeInfo->GetNamespaceString();
-		if (MetaData.GetUsage() == ENiagaraScriptParameterUsage::InitialValueInput)
-		{
-			NamespaceString.Append(PARAM_MAP_INITIAL_STR);
-		}
-		OutNamespaceString = NamespaceString;
-		return true;
+		ensureMsgf(false, TEXT("Failed to find registered parameter scope info for scope name %s!"), *MetaDataScopeName.ToString());
+		return false;
 	}
-	OutNamespaceString = PARAM_MAP_OUTPUT_STR;
+
+	FString NamespaceString = ScopeInfo->GetNamespaceString();
+	if (MetaData.GetUsage() == ENiagaraScriptParameterUsage::InitialValueInput)
+	{
+		NamespaceString.Append(PARAM_MAP_INITIAL_STR);
+	}
+	OutNamespaceString = NamespaceString;
 	return true;
 }
 
@@ -2284,6 +2279,12 @@ void FNiagaraEditorUtilities::GetParameterMetaDataFromName(const FName& InVarNam
 			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return true;
 		}
+		else if (Namespace == FNiagaraConstants::OutputScopeName)
+		{
+			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Output);
+			return true;
+		}
 
 		MarkAsLegacyCustomName();
 		return false;
@@ -2363,6 +2364,14 @@ void FNiagaraEditorUtilities::GetParameterMetaDataFromName(const FName& InVarNam
 				bool bFoundEngineSubNamespace = GetMetaDataForEngineSubNamespace(DecomposedNamespaces[1], OutMetaData);
 				if (bFoundEngineSubNamespace)
 				{
+					return;
+				}
+			}
+			else if (DecomposedNamespaces[0] == FNiagaraConstants::OutputScopeName)
+			{
+				if (DecomposedNamespaces[1] == FNiagaraConstants::ModuleNamespace)
+				{
+					OutMetaData.SetScopeName(FNiagaraConstants::UniqueOutputScopeName);
 					return;
 				}
 			}
