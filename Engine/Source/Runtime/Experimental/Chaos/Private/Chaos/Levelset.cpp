@@ -45,11 +45,13 @@ TLevelSet<T, d>::TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, 
 	check(MGrid.Counts()[0] > 1 && MGrid.Counts()[1] > 1 && MGrid.Counts()[2] > 1);
 	check(Mesh.GetSurfaceElements().Num());
 
-	const TArray<TVector<T, 3>> Normals = Mesh.GetFaceNormals(InParticles);
-
+	const TArray<TVector<T, 3>> Normals = 
+		Mesh.GetFaceNormals(
+			InParticles, 
+			false);			// Don't fail if the mesh has small faces
 	if (Normals.Num() == 0)
 	{
-		ErrorReporter.ReportError(TEXT("Normals came back empty. Does mesh contain coincident points?"));
+		ErrorReporter.ReportError(TEXT("Normals came back empty."));
 		return;
 	}
 
