@@ -3992,6 +3992,10 @@ void UNetConnection::CleanupStaleDormantReplicators()
 	}
 }
 
+void UNetConnection::SetPendingCloseDueToReplicationFailure()
+{
+	bConnectionPendingCloseDueToReplicationFailure = true;
+}
 
 void UNetConnection::SetPendingCloseDueToSocketSendFailure()
 {
