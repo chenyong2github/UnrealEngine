@@ -184,6 +184,7 @@ namespace Audio
 		else
 		{
 			ActiveDuration = InDuration;
+			Elapsed = 0.0f;
 		}
 	}
 
@@ -232,7 +233,7 @@ namespace Audio
 		if (FadeCurve == EFaderCurve::Logarithmic)
 		{
 			Alpha = Audio::ConvertToLinear(Alpha);
-		}
+		} 
 		Target = Alpha;
 		FadeCurve = EFaderCurve::Linear;
 		Elapsed = ActiveDuration;
