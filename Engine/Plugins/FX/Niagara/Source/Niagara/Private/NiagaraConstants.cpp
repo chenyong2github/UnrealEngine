@@ -42,6 +42,7 @@ const FName FNiagaraConstants::CustomScopeName(TEXT("Custom"));
 
 const FName FNiagaraConstants::InputScopeName(TEXT("Input"));
 const FName FNiagaraConstants::OutputScopeName(TEXT("Output"));
+const FName FNiagaraConstants::UniqueOutputScopeName(TEXT("OutputModule"));
 const FName FNiagaraConstants::ScriptTransientScopeName(TEXT("ScriptTransient"));
 const FName FNiagaraConstants::ScriptPersistentScopeName(TEXT("ScriptPersistent"));
 

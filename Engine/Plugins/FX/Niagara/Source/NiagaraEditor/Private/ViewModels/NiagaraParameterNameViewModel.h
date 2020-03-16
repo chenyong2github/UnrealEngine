@@ -28,7 +28,7 @@ public:
 	virtual bool GetScopeValueIsEnabled(int32 ScopeValue) const = 0;
 
 	virtual FText GetParameterNameText() const = 0;
-	//bool VerifyParameterNameChanged(const FText& NewNameText, FText&) //@todo(ng) impl
+	virtual bool VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const = 0;
 	virtual void OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const = 0;
 };
 
@@ -37,6 +37,7 @@ class FNiagaraParameterPanelEntryParameterNameViewModel : public INiagaraParamet
 public:
 	DECLARE_DELEGATE_ThreeParams(FOnScopeSelectionChanged, const FNiagaraVariable&, const FNiagaraVariableMetaData&, const ENiagaraParameterScope)
 	DECLARE_DELEGATE_ThreeParams(FOnParameterRenamed, const FNiagaraVariable&, const FNiagaraVariableMetaData&, const FText&)
+	DECLARE_DELEGATE_RetVal_FourParams(bool, FOnVerifyParameterRenamed, const FNiagaraVariable&, const FNiagaraVariableMetaData&, TOptional<const FText> , FText&)
 
 	FNiagaraParameterPanelEntryParameterNameViewModel(FCreateWidgetForActionData* const InCreateData, const FNiagaraScriptVariableAndViewInfo& InScriptVarAndViewInfo);
 
@@ -50,16 +51,18 @@ public:
 	virtual bool GetScopeValueIsEnabled(int32 ScopeValue) const override;
 
 	virtual FText GetParameterNameText() const override;
-	//bool VerifyParameterNameChanged(const FText& NewNameText, FText&) //@todo(ng) impl
+	virtual bool VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const override;
 	virtual void OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const override;
 	/** End INiagaraParameterNameViewModel Interface */
 
 	FOnScopeSelectionChanged& GetOnScopeSelectionChangedDelegate() { return OnScopeSelectionChangedDelegate; };
 	FOnParameterRenamed& GetOnParameterRenamedDelegate() { return OnParameterRenamedDelegate; };
+	FOnVerifyParameterRenamed& GetOnVerifyParameterRenamedDelegate() { return OnVerifyParameterRenamedDelegate; };
 
 private:
 	FOnScopeSelectionChanged OnScopeSelectionChangedDelegate;
 	FOnParameterRenamed OnParameterRenamedDelegate;
+	FOnVerifyParameterRenamed OnVerifyParameterRenamedDelegate;
 
 	FCreateWidgetForActionData* const CreateData;
 	const FNiagaraScriptVariableAndViewInfo CachedScriptVarAndViewInfo;
@@ -86,7 +89,7 @@ public:
 	virtual bool GetScopeValueIsEnabled(int32 ScopeValue) const override;
 
 	virtual FText GetParameterNameText() const override;
-	//bool VerifyParameterNameChanged(const FText& NewNameText, FText&) //@todo(ng) impl
+	virtual bool VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const override;
 	virtual void OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const override;
 	/** End INiagaraParameterNameViewModel Interface */
 

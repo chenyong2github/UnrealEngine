@@ -292,19 +292,26 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 		AddParameterOptions.NewParameterUsage = GuessedMetaData.GetUsage();
 		AddParameterOptions.NewParameterScopeName = GuessedMetaData.GetScopeName();
 
-		if (FNiagaraConstants::FindEngineConstant(Parameter) == nullptr)
-			AddParameterOptions.bMakeParameterNameUnique = true;
-	
-		AddParameterOptions.bRefreshMetaDataScopeAndUsage = true;
-
 		UNiagaraGraph* Graph = GetNiagaraGraph();
 		checkf(Graph != nullptr, TEXT("Failed to get niagara graph when adding pin!"));
+
+		// Resolve the unique parameter name before adding to the graph as the pin needs to be created first to resolve the parameter metadata usage.
+		if (FNiagaraConstants::FindEngineConstant(Parameter) == nullptr)
+		{
+			UNiagaraScriptVariable** FoundScriptVariable = Graph->GetAllMetaData().Find(Parameter);
+			if (!FoundScriptVariable)
+			{
+				Parameter.SetName(Graph->MakeUniqueParameterName(Parameter.GetName()));
+			}
+		}
+
+		Modify();
+		UEdGraphPin* Pin = this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
 
 		Graph->Modify();
 		Graph->AddParameter(Parameter, AddParameterOptions);
 
-		Modify();
-		UEdGraphPin* Pin = this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
+		// Add the Parameter Reference 
 		FNiagaraGraphParameterReference NewParameterReference = FNiagaraGraphParameterReference(Pin->PersistentGuid, this);
 		Graph->AddParameterReference(Parameter, NewParameterReference);
 	}
