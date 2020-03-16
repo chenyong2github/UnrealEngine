@@ -21,6 +21,7 @@
 
 #include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
 #include "Chaos/ChaosArchive.h"
+#include "GeometryCollectionProxyData.h"
 
 DEFINE_LOG_CATEGORY_STATIC(UGeometryCollectionLogging, NoLogging, All);
 
@@ -309,6 +310,25 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		}
 #endif
 		GeometryCollection->Serialize(ChaosAr);
+
+		// Fix up the type change for implicits here, previously they were unique ptrs, now they're shared
+		TManagedArray<TUniquePtr<Chaos::FImplicitObject>>* OldAttr = GeometryCollection->FindAttributeTyped<TUniquePtr<Chaos::FImplicitObject>>(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
+		TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>* NewAttr = GeometryCollection->FindAttributeTyped<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>(FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
+		if(OldAttr)
+		{
+			if(!NewAttr)
+			{
+				NewAttr = &GeometryCollection->AddAttribute<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>(FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
+
+				const int32 NumElems = GeometryCollection->NumElements(FTransformCollection::TransformGroup);
+				for(int32 Index = 0; Index < NumElems; ++Index)
+				{
+					(*NewAttr)[Index] = TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>((*OldAttr)[Index].Release());
+				}
+			}
+
+			GeometryCollection->RemoveAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
+		}
 	}
 
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) < FDestructionObjectVersion::GroupAndAttributeNameRemapping)
@@ -332,6 +352,9 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC, const TCHAR* OverrideVersion)
 {
+	// Skips the DDC fetch entirely for testing the builder without adding to the DDC
+	const static bool bSkipDDC = false;
+
 	//Use the DDC to build simulation data. If we are loading in the editor we then serialize this data into the geometry collection
 	TArray<uint8> DDCData;
 	FDerivedDataGeometryCollectionCooker* GeometryCollectionCooker = new FDerivedDataGeometryCollectionCooker(*this);
@@ -339,8 +362,16 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC, const TCHAR
 
 	if (GeometryCollectionCooker->CanBuild())
 	{
-		GetDerivedDataCacheRef().GetSynchronous(GeometryCollectionCooker, DDCData);
-		if (bCopyFromDDC)
+		if(bSkipDDC)
+		{
+			GeometryCollectionCooker->Build(DDCData);
+		}
+		else
+		{
+			GetDerivedDataCacheRef().GetSynchronous(GeometryCollectionCooker, DDCData);
+		}
+
+		if(bCopyFromDDC)
 		{
 			FMemoryReader Ar(DDCData);
 			Chaos::FChaosArchive ChaosAr(Ar);
