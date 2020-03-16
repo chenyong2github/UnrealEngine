@@ -20,8 +20,6 @@
 
 #define LOCTEXT_NAMESPACE "TGenericWindowsTargetPlatform"
 
-		GConfig->GetBool(CategoryName, TEXT("bInlineStreamedAudioChunks"), OutOverrides.bInlineStreamedAudioChunks, GEngineIni);
-
 /**
  * Template for Windows target platforms
  */
