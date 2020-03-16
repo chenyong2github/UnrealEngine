@@ -33,6 +33,9 @@ FString FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(const E
 	case ENiagaraParameterScope::Input:
 		return PARAM_MAP_MODULE_STR;
 		break;
+	case ENiagaraParameterScope::Output:
+		return PARAM_MAP_OUTPUT_MODULE_STR;
+		break;
 	case ENiagaraParameterScope::Local:
 		return PARAM_MAP_LOCAL_STR;
 		break;
