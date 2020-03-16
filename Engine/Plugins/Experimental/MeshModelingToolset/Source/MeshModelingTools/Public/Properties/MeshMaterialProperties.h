@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "Engine/Classes/Engine/Texture2D.h"
 #include "InteractiveToolBuilder.h"
 
 #include "MeshMaterialProperties.generated.h"
@@ -107,7 +107,11 @@ UENUM()
 enum class EMeshEditingMaterialModes
 {
 	ExistingMaterial = 0,
-	MeshFocusMaterial = 1
+	Diffuse = 1,
+	Grey = 2,
+	Soft = 3,
+	TangentNormal = 4,
+	Custom = 5
 };
 
 
@@ -118,12 +122,24 @@ class MESHMODELINGTOOLS_API UMeshEditingViewProperties : public UInteractiveTool
 
 public:
 	/** Toggle drawing of wireframe overlay on/off [Alt+W] */
-	UPROPERTY(EditAnywhere, Category = ViewOptions)
+	UPROPERTY(EditAnywhere, Category = Rendering)
 	bool bShowWireframe = false;
 
 	/** Set which material to use on object */
-	UPROPERTY(EditAnywhere, Category = ViewOptions)
-	EMeshEditingMaterialModes MaterialMode = EMeshEditingMaterialModes::MeshFocusMaterial;
+	UPROPERTY(EditAnywhere, Category = Rendering)
+	EMeshEditingMaterialModes MaterialMode = EMeshEditingMaterialModes::Diffuse;
+
+	/** Toggle flat shading on/off */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode != EMeshEditingMaterialModes::ExistingMaterial") )
+	bool bFlatShading = true;
+
+	/** Main Color of Material */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Diffuse"))
+	FLinearColor Color = FLinearColor(0.4f, 0.4f, 0.4f);
+
+	/** Image used in Image-Based Material */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Custom") )
+	UTexture2D* Image;
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
