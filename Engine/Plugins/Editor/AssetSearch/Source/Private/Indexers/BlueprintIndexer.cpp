@@ -19,6 +19,7 @@ enum class EBlueprintIndexerVersion
 	Empty,
 	Initial,
 	FixingPinsToSaveValues,
+	IndexingPublicEditableFieldsOnNodes,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
@@ -97,6 +98,11 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 					Serializer.IndexProperty(PinLabel, PinValue);
 				}
 			}
+
+			// This will serialize any user exposed options for the node that are editable in the details panel.
+			FIndexerUtilities::IterateIndexableProperties(Node, [&Serializer](const FProperty* Property, const FString& Value) {
+				Serializer.IndexProperty(Property, Value);
+			});
 
 			Serializer.EndIndexingObject();
 		}
