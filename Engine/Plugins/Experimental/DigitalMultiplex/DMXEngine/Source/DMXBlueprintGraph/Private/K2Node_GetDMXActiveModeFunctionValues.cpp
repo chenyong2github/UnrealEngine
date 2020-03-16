@@ -126,7 +126,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 
 	// Second node to execute. GetFunctionsMap
 	static const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetFunctionsMap);
-	UFunction* GetFunctionsMapPointer = FindField<UFunction>(UDMXSubsystem::StaticClass(), FunctionName);
+	UFunction* GetFunctionsMapPointer = FindUField<UFunction>(UDMXSubsystem::StaticClass(), FunctionName);
 	check(GetFunctionsMapPointer);
 
 	UK2Node_CallFunction* GetFunctionsMapNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
@@ -181,7 +181,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 		for (int32 PairIndex = 0; PairIndex < NamePairs.Num(); ++PairIndex)
 		{
 			const FName GetFunctionsValueName = GET_FUNCTION_NAME_CHECKED(UDMXSubsystem, GetFunctionsValue);
-			UFunction* GetFunctionsValuePointer = FindField<UFunction>(UDMXSubsystem::StaticClass(), GetFunctionsValueName);
+			UFunction* GetFunctionsValuePointer = FindUField<UFunction>(UDMXSubsystem::StaticClass(), GetFunctionsValueName);
 			check(GetFunctionsValuePointer);
 
 			UK2Node_CallFunction* GetFunctionsValueNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);

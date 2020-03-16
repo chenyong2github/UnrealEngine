@@ -230,7 +230,7 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 
 				if (Object != EditableComponentTemplate)
 				{
-					FObjectProperty* ObjectProperty = FindField<FObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName());
+					FObjectProperty* ObjectProperty = FindFProperty<FObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName());
 					if (ObjectProperty != nullptr)
 					{
 						SelectedObjectProperties.Add(ObjectProperty);
@@ -251,7 +251,7 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 									if (Archetype->GetClass()->IsChildOf(ObjectProperty->PropertyClass)
 										&& Archetype == ObjectProperty->GetObjectPropertyValue_InContainer(OwnerCDO))
 									{
-										ObjectProperty = FindField<FObjectProperty>(Object->GetClass(), ObjectProperty->GetFName());
+										ObjectProperty = FindFProperty<FObjectProperty>(Object->GetClass(), ObjectProperty->GetFName());
 										if (ObjectProperty != nullptr)
 										{
 											SelectedObjectProperties.Add(ObjectProperty);
