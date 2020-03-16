@@ -37,6 +37,16 @@ ALandscapeBlueprintBrushBase::ALandscapeBlueprintBrushBase(const FObjectInitiali
 #endif // WITH_EDITOR
 }
 
+UTextureRenderTarget2D* ALandscapeBlueprintBrushBase::Render_Implementation(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, const FName& InWeightmapLayerName)
+{
+	return Render_Native(InIsHeightmap, InCombinedResult, InWeightmapLayerName);
+}
+
+void ALandscapeBlueprintBrushBase::Initialize_Implementation(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize)
+{
+	Initialize_Native(InLandscapeTransform, InLandscapeSize, InLandscapeRenderTargetSize);
+}
+
 void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate()
 {
 #if WITH_EDITORONLY_DATA
