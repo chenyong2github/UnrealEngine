@@ -266,23 +266,29 @@ bool FStructScriptLoader::LoadStructWithScript(UStruct* DestScriptContainer, FAr
 
 	int32 BytecodeIndex = 0;
 	{
-		DestScriptContainer->UnresolvedScriptProperties.Empty();
-
 		FPropertyProxyArchive PropertyAr(Ar, BytecodeIndex, DestScriptContainer);
 		while (BytecodeIndex < BytecodeBufferSize)
 		{
 			DestScriptContainer->SerializeExpr(BytecodeIndex, PropertyAr);
 		}
 
-		DestScriptContainer->UnresolvedScriptProperties = MoveTemp(PropertyAr.UnresolvedProperties);
+		if (PropertyAr.UnresolvedProperties.Num())
+		{
+			DestScriptContainer->SetUnresolvedScriptProperties(PropertyAr.UnresolvedProperties);
+		}
+		else
+		{
+			// Make sure there's no stale properties in the array
+			DestScriptContainer->DeleteUnresolvedScriptProperties();
+		}
 	}
 	ensure(ScriptEndOffset == Ar.Tell());
 	checkf(BytecodeIndex == BytecodeBufferSize, TEXT("'%s' script expression-count mismatch; Expected: %i, Got: %i"), *DestScriptContainer->GetName(), BytecodeBufferSize, BytecodeIndex);
 
 	if (!GUObjectArray.IsDisregardForGC(DestScriptContainer))
 	{
-		DestScriptContainer->ScriptObjectReferences.Empty();
-		FArchiveScriptReferenceCollector ObjRefCollector(DestScriptContainer->ScriptObjectReferences);
+		DestScriptContainer->ScriptAndPropertyObjectReferences.Empty();
+		FArchiveScriptReferenceCollector ObjRefCollector(DestScriptContainer->ScriptAndPropertyObjectReferences);
 
 		BytecodeIndex = 0;
 		while (BytecodeIndex < BytecodeBufferSize)
@@ -305,5 +311,5 @@ int32 FStructScriptLoader::ResolveDeferredScriptLoads(FLinkerLoad* Linker)
 void FStructScriptLoader::ClearScriptCode(UStruct* ScriptContainer)
 {
 	ScriptContainer->Script.Empty(BytecodeBufferSize);
-	ScriptContainer->ScriptObjectReferences.Empty();
+	ScriptContainer->ScriptAndPropertyObjectReferences.Empty();
 }

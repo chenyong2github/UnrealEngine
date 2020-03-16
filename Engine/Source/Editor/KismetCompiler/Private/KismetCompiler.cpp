@@ -4304,7 +4304,7 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 			}
 		}
 
-		// Fill ScriptObjectReferences arrays in functions
+		// Fill ScriptAndPropertyObjectReferences arrays in functions
 		if (bIsFullCompile && (0 == MessageLog.NumErrors)) // Backend_VM can generate errors, so bGenerateStubsOnly cannot be reused
 		{
 			for (FKismetFunctionContext& FunctionContext : FunctionList)
@@ -4312,8 +4312,7 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 				if (FunctionContext.IsValid())
 				{
 					UFunction* Function = FunctionContext.Function; 
-					ensure(0 == Function->ScriptObjectReferences.Num());
-					FArchiveScriptReferenceCollector ObjRefCollector(Function->ScriptObjectReferences);
+					FArchiveScriptReferenceCollector ObjRefCollector(Function->ScriptAndPropertyObjectReferences);
 
 					for (int32 iCode = 0; iCode < Function->Script.Num();)
 					{
