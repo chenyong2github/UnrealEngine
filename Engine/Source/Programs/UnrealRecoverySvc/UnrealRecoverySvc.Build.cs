@@ -11,6 +11,7 @@ public class UnrealRecoverySvc : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Concert",
+				"ConcertSyncCore",
 				"ApplicationCore",					// for LaunchEngineLoop.cpp dependency
 				"Projects",							// for LaunchEngineLoop.cpp dependency
 			}
@@ -19,7 +20,6 @@ public class UnrealRecoverySvc : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Launch",
-				"ConcertSyncCore",
 				"ConcertSyncServer",
 			}
 		);

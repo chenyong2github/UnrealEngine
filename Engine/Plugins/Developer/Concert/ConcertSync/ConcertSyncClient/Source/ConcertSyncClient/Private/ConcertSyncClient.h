@@ -39,6 +39,8 @@ public:
 	virtual void PersistAllSessionChanges() override;
 	virtual void GetSessionClientActions(const FConcertSessionClientInfo& InClientInfo, TArray<FConcertActionDefinition>& OutActions) const override;
 
+	virtual void SetFileSharingService(TSharedPtr<IConcertFileSharingService> InFileSharingService) override;
+
 private:
 	void CreateWorkspace(const TSharedRef<FConcertSyncClientLiveSession>& InLiveSession);
 	void DestroyWorkspace();
@@ -75,6 +77,9 @@ private:
 	
 	/** Delegate called just after the workspace was deleted. */
 	FOnConcertClientSyncSessionStartupOrShutdown OnSyncSessionShutdownDelegate;
+
+	/** Optional side channel to exchange large blobs (package data) with the server in a scalable way (ex. the request/response transport layer is not designed and doesn't support exchanging 3GB packages). */
+	TSharedPtr<IConcertFileSharingService> FileSharingService;
 
 #if WITH_EDITOR
 	/** Presence manager for the current session. */

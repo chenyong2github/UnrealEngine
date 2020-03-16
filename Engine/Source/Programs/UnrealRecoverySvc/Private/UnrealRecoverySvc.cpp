@@ -2,6 +2,7 @@
 
 #include "ConcertSettings.h"
 #include "ConcertSyncServerLoop.h"
+#include "ConcertLocalFileSharingService.h"
 
 #include "RequiredProgramMainCPPInclude.h"
 
@@ -23,6 +24,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	ServerLoopInitArgs.ServiceRole = TEXT("DisasterRecovery");
 	ServerLoopInitArgs.ServiceFriendlyName = TEXT("Disaster Recovery Service");
 	ServerLoopInitArgs.ServiceAutoArchiveSessionFilter.bIncludeIgnoredActivities = true;
+	ServerLoopInitArgs.FileSharingService = MakeShared<FConcertLocalFileSharingService>(ServerLoopInitArgs.ServiceRole);
 	ServerLoopInitArgs.bShowConsole = false;
 
 	ServerLoopInitArgs.GetServerConfigFunc = [&EditorProcessId]() -> const UConcertServerConfig*
