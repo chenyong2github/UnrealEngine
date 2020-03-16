@@ -168,6 +168,7 @@ protected:
 		bSeparateTranslucencyPass(false),
 		BufferSize(0, 0),
 		SeparateTranslucencyBufferSize(0, 0),
+		LastStereoSize(0, 0),
 		SeparateTranslucencyScale(1),
 		SmallColorDepthDownsampleFactor(2),
 		bUseDownsizedOcclusionQueries(true),
@@ -762,6 +763,8 @@ private:
 	/* Size of the first view, used for multiview rendertargets */
 	FIntPoint View0Size;
 	FIntPoint SeparateTranslucencyBufferSize;
+	/* Size of the stereo view, if we're an XR device. */
+	FIntPoint LastStereoSize;
 	float SeparateTranslucencyScale;
 	/** e.g. 2 */
 	uint32 SmallColorDepthDownsampleFactor;
