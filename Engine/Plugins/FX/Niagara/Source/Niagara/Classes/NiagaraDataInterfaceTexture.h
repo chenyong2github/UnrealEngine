@@ -65,8 +65,8 @@ protected:
 struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
 {
 	FSamplerStateRHIRef SamplerStateRHI;
-	FTextureReferenceRHIRef	TextureReferenceRHI;
-	float TexDims[2];
+	FTextureRHIRef	TextureRHI;
+	FVector2D TexDims;
 
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
