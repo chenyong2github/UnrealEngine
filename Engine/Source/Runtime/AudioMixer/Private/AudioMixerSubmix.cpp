@@ -50,6 +50,8 @@ namespace Audio
 		, bIsBackgroundMuted(false)
 		, OwningSubmixObject(nullptr)
 	{
+		EnvelopeFollowers.Reset();
+		EnvelopeFollowers.AddDefaulted(AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 	}
 
 	FMixerSubmix::~FMixerSubmix()
@@ -791,6 +793,13 @@ namespace Audio
 
 		// Device format may change channels if device is hot swapped
 		NumChannels = MixerDevice->GetNumDeviceChannels();
+
+		// If we hit this, it means that platform info gave us a garbage NumChannel count.
+		if (!ensure(NumChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS))
+		{
+			return;
+		}
+
 		const int32 NumOutputFrames = OutAudioBuffer.Num() / NumChannels;
 		NumSamples = NumChannels * NumOutputFrames;
 
