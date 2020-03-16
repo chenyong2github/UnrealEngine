@@ -503,6 +503,8 @@ struct FLandscapeRenderSystem
 		float LODOnePlusDistributionScalarSquared;
 		float LastLODScreenSizeSquared;
 		int8 LastLODIndex;
+		int8 DrawCollisionPawnLOD;
+		int8 DrawCollisionVisibilityLOD;
 	};
 
 	static int8 GetLODFromScreenSize(LODSettingsComponent LODSettings, float InScreenSizeSquared, float InViewLODScale, float& OutFractionalLOD)
@@ -575,6 +577,8 @@ struct FLandscapeRenderSystem
 		const FSceneView* ViewPtrAsIdentifier;
 		int32 ViewLODOverride;
 		float ViewLODDistanceFactor;
+		bool ViewEngineShowFlagCollisionPawn;
+		bool ViewEngineShowFlagCollisionVisibility;
 		FVector ViewOrigin;
 		FMatrix ViewProjectionMatrix;
 
@@ -597,7 +601,10 @@ struct FLandscapeRenderSystem
 
 		void AnyThreadTask()
 		{
-			RenderSystem.ComputeSectionPerViewParameters(ViewPtrAsIdentifier, ViewLODOverride, ViewLODDistanceFactor, ViewOrigin, ViewProjectionMatrix);
+			RenderSystem.ComputeSectionPerViewParameters(
+				ViewPtrAsIdentifier, ViewLODOverride, ViewLODDistanceFactor, 
+				ViewEngineShowFlagCollisionPawn, ViewEngineShowFlagCollisionVisibility, 
+				ViewOrigin, ViewProjectionMatrix);
 		}
 
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -693,6 +700,8 @@ struct FLandscapeRenderSystem
 		const FSceneView* ViewPtrAsIdentifier,
 		int32 ViewLODOverride,
 		float ViewLODDistanceFactor,
+		bool bDrawCollisionPawn,
+		bool bDrawCollisionCollision,
 		FVector ViewOrigin,
 		FMatrix ViewProjectionMarix);
 
