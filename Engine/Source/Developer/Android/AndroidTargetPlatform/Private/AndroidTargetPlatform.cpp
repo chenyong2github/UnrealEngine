@@ -375,7 +375,7 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 			return UsesVirtualTextures();
 
 		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
-			return SupportsLandscapeMeshLODStreaming() && !SupportsES2();
+			return SupportsLandscapeMeshLODStreaming();
 
 		default:
 			break;
