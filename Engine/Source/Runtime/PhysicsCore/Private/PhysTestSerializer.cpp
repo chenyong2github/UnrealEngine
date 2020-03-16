@@ -283,9 +283,6 @@ void FPhysTestSerializer::CreateChaosData()
 			{
 				PBDRigid->P() = Particle->X();
 				PBDRigid->Q() = Particle->R();
-
-				PBDRigid->GTGeometryParticle()->CastToRigidParticle()->SetP(PBDRigid->P());
-				PBDRigid->GTGeometryParticle()->CastToRigidParticle()->SetQ(PBDRigid->R());
 			}
 
 			PxActorToChaosHandle.Add(Act, Particle.Get());
@@ -325,7 +322,7 @@ void FPhysTestSerializer::CreateChaosData()
 					auto& ShapeArray = GTParticle->ShapesArray();
 					for (auto& Shape : ShapeArray)
 					{
-						Shape->WorldSpaceInflatedShapeBounds = Geom->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Particle->X(), Particle->R()));
+						Shape->SetWorldSpaceInflatedShapeBounds(Geom->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Particle->X(), Particle->R())));
 					}
 				}
 			}

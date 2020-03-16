@@ -38,7 +38,6 @@ class TPhysicsProxy : public IPhysicsProxyBase
 
 public:
 	using FParticleType = Concrete;
-	using FParticleData = ConcreteData;
 
 	using FParticlesType = Chaos::TPBDRigidParticles<float, 3>;
 	using FCollisionConstraintsType = Chaos::TPBDCollisionConstraints<float, 3>;
@@ -88,7 +87,7 @@ public:
 	 * CONTEXT: GAMETHREAD
 	* Returns a new unmanaged allocation of the data saved on the handle, otherwise nullptr
 	*/
-	Chaos::FParticleData* NewData() { return static_cast<Concrete*>(this)->NewData(); }
+	//ConcreteData* NewData() { return static_cast<Concrete*>(this)->NewData(); }
 
 	/**
 	* CONTEXT: GAMETHREAD -> to -> PHYSICSTHREAD
@@ -96,7 +95,7 @@ public:
 	* callback should Enqueue commands on the PhysicsThread to update the state of
 	* the solver
 	*/
-	void PushToPhysicsState(const Chaos::FParticleData* InData) { static_cast<Concrete*>(this)->PushToPhysicsState(InData); }
+	//void PushToPhysicsState(const ConcreteData* InData) { static_cast<Concrete*>(this)->PushToPhysicsState(InData); }
 
 	/**
 	* CONTEXT: GAMETHREAD

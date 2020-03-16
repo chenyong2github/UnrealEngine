@@ -13,6 +13,7 @@
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
+#include "Chaos/Properties.h"
 
 #ifndef CHAOS_DETERMINISTIC
 #define CHAOS_DETERMINISTIC 1
@@ -21,71 +22,210 @@
 namespace Chaos
 {
 
-	enum EChaosCollisionTraceFlag
-	{
-		/** Use project physics settings (DefaultShapeComplexity) */
-		Chaos_CTF_UseDefault,
-		/** Create both simple and complex shapes. Simple shapes are used for regular scene queries and collision tests. Complex shape (per poly) is used for complex scene queries.*/
-		Chaos_CTF_UseSimpleAndComplex,
-		/** Create only simple shapes. Use simple shapes for all scene queries and collision tests.*/
-		Chaos_CTF_UseSimpleAsComplex,
-		/** Create only complex shapes (per poly). Use complex shapes for all scene queries and collision tests. Can be used in simulation for static shapes only (i.e can be collided against but not moved through forces or velocity.) */
-		Chaos_CTF_UseComplexAsSimple,
-		/** */
-		Chaos_CTF_MAX,
-	};
-
-
 	/** Data that is associated with geometry. If a union is used an entry is created per internal geometry */
-	template <typename T, int d>
-	class CHAOS_API TPerShapeData
+	class CHAOS_API FPerShapeData
 	{
 	public:
 
 		static constexpr bool AlwaysSerializable = true;
-		static TUniquePtr<TPerShapeData<T, d>> CreatePerShapeData();
+		static TUniquePtr<FPerShapeData> CreatePerShapeData(int32 InShapeIdx);
 
-		~TPerShapeData();
-		TPerShapeData(const TPerShapeData<T, d>& Other) = delete;
-		FCollisionFilterData QueryData;
-		FCollisionFilterData SimData;
-		void* UserData;
-		TSerializablePtr<FImplicitObject> Geometry;
-		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
-		TArray<FMaterialHandle> Materials;
-		TArray<FMaterialMaskHandle> MaterialMasks;
-		TArray<uint32> MaterialMaskMaps;
-		TArray<FMaterialHandle> MaterialMaskMapMaterials;
+		~FPerShapeData();
+		FPerShapeData(const FPerShapeData& Other) = delete;
+		
+		void UpdateShapeBounds(const FRigidTransform3& WorldTM);
 
-		// TODO: Bitfields?
-		bool bDisable;
-		bool bSimulate;
-		EChaosCollisionTraceFlag CollisionTraceType;
-
-		void UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM);
-
-		static TPerShapeData<T, d>* SerializationFactory(FChaosArchive& Ar, TPerShapeData<T, d>*);
+		static FPerShapeData* SerializationFactory(FChaosArchive& Ar, FPerShapeData*);
 		void Serialize(FChaosArchive& Ar);
 
+		void* GetUserData() const { return CollisionData.Read().UserData; }
+		void SetUserData(void* InUserData)
+		{
+			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [InUserData](FCollisionData& Data){ Data.UserData = InUserData; });
+		}
+
+		const FCollisionFilterData& GetQueryData() const { return CollisionData.Read().QueryData; }
+		void SetQueryData(const FCollisionFilterData& InQueryData)
+		{
+			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [InQueryData](FCollisionData& Data){ Data.QueryData = InQueryData; });
+		}
+
+		const FCollisionFilterData& GetSimData() const { return CollisionData.Read().SimData; }
+		void SetSimData(const FCollisionFilterData& InSimData)
+		{
+			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [InSimData](FCollisionData& Data){ Data.SimData = InSimData; });
+		}
+
+		template <typename Lambda>
+		void ModifySimData(const Lambda& LambdaFunc)
+		{
+			CollisionData.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&LambdaFunc](FCollisionData& Data){ LambdaFunc(Data.SimData);});
+		}
+
+		TSerializablePtr<FImplicitObject> GetGeometry() const { return Geometry; }
+		void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry)
+		{
+			Geometry = InGeometry;
+		}
+
+		const TAABB<FReal,3>& GetWorldSpaceInflatedShapeBounds() const { return WorldSpaceInflatedShapeBounds; }
+		void SetWorldSpaceInflatedShapeBounds(const TAABB<FReal,3>& InWorldSpaceInflatedShapeBounds)
+		{
+			WorldSpaceInflatedShapeBounds = InWorldSpaceInflatedShapeBounds;
+		}
+
+		const TArray<FMaterialHandle>& GetMaterials() const { return Materials.Read().Materials; }
+		const TArray<FMaterialMaskHandle>& GetMaterialMasks() const { return Materials.Read().MaterialMasks; }
+		const TArray<uint32>& GetMaterialMaskMaps() const { return Materials.Read().MaterialMaskMaps; }
+		const TArray<FMaterialHandle>& GetMaterialMaskMapMaterials() const { return Materials.Read().MaterialMaskMapMaterials; }
+
+		const FShapeDirtyFlags GetDirtyFlags() const { return DirtyFlags; }
+
+		void SetMaterials(const TArray<FMaterialHandle>& InMaterials)
+		{
+			Materials.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&InMaterials](FMaterialData& Data)
+			{
+				Data.Materials = InMaterials;
+			});
+		}
+
+		void SetMaterialMasks(const TArray<FMaterialMaskHandle>& InMaterialMasks)
+		{
+			Materials.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&InMaterialMasks](FMaterialData& Data)
+			{
+				Data.MaterialMasks = InMaterialMasks;
+			});
+		}
+
+		void SetMaterialMaskMaps(const TArray<uint32>& InMaterialMaskMaps)
+		{
+			Materials.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&InMaterialMaskMaps](FMaterialData& Data)
+			{
+				Data.MaterialMaskMaps = InMaterialMaskMaps;
+			});
+		}
+
+		void SetMaterialMaskMapMaterials(const TArray<FMaterialHandle>& InMaterialMaskMapMaterials)
+		{
+			Materials.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&InMaterialMaskMapMaterials](FMaterialData& Data)
+			{
+				Data.MaterialMaskMapMaterials = InMaterialMaskMapMaterials;
+			});
+		}
+
+		template <typename Lambda>
+		void ModifyMaterials(const Lambda& LambdaFunc)
+		{
+			Materials.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&LambdaFunc](FMaterialData& Data)
+			{
+				LambdaFunc(Data.Materials);
+			});
+		}
+
+		template <typename Lambda>
+		void ModifyMaterialMasks(const Lambda& LambdaFunc)
+		{
+			Materials.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&LambdaFunc](FMaterialData& Data)
+			{
+				LambdaFunc(Data.MaterialMasks);
+			});
+		}
+
+		template <typename Lambda>
+		void ModifyMaterialMaskMaps(const Lambda& LambdaFunc)
+		{
+			Materials.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&LambdaFunc](FMaterialData& Data)
+			{
+				LambdaFunc(Data.MaterialMaskMaps);
+			});
+		}
+
+		template <typename Lambda>
+		void ModifyMaterialMaskMapMaterials(const Lambda& LambdaFunc)
+		{
+			Materials.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&LambdaFunc](FMaterialData& Data)
+			{
+				LambdaFunc(Data.MaterialMaskMapMaterials);
+			});
+		}
+
+		bool GetDisable() const { return CollisionData.Read().bDisable; }
+		void SetDisable(const bool bDisable)
+		{
+			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bDisable](FCollisionData& Data){ Data.bDisable = bDisable; });
+		}
+
+		bool GetSimulate() const { return CollisionData.Read().bSimulate; }
+		void SetSimulate(const bool bSimulate)
+		{
+			CollisionData.Modify(true,DirtyFlags,Proxy, ShapeIdx,[bSimulate](FCollisionData& Data){ Data.bSimulate = bSimulate; });
+		}
+
+		EChaosCollisionTraceFlag GetCollisionTraceType() const { return CollisionData.Read().CollisionTraceType; }
+		void SetCollisionTraceType(const EChaosCollisionTraceFlag InTraceFlag)
+		{
+			CollisionData.Modify(true,DirtyFlags,Proxy, ShapeIdx,[InTraceFlag](FCollisionData& Data){ Data.CollisionTraceType = InTraceFlag; });
+		}
+
+		void SetCollisionData(const FCollisionData& Data)
+		{
+			CollisionData.Write(Data,true,DirtyFlags,Proxy, ShapeIdx);
+		}
+
+		void SetMaterialData(const FMaterialData& Data)
+		{
+			Materials.Write(Data,true,DirtyFlags,Proxy,ShapeIdx);
+		}
+
+		void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 ShapeDataIdx, FShapeDirtyData& RemoteData)
+		{
+			RemoteData.SetFlags(DirtyFlags);
+			CollisionData.SyncRemote(Manager, ShapeDataIdx, RemoteData);
+			Materials.SyncRemote(Manager, ShapeDataIdx, RemoteData);
+			DirtyFlags.Clear();
+		}
+
+		void SetProxy(class IPhysicsProxyBase* InProxy)
+		{
+			Proxy = InProxy;
+			if(Proxy)
+			{
+				if(DirtyFlags.IsDirty())
+				{
+					if(FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
+					{
+						PhysicsSolverBase->AddDirtyProxyShape(Proxy,ShapeIdx);
+					}
+				}
+			}
+		}
+
 	private:
-		//use factory
-		TPerShapeData();
+
+		class IPhysicsProxyBase* Proxy;
+		FShapeDirtyFlags DirtyFlags;
+		int32 ShapeIdx;
+
+		TShapeProperty<FCollisionData,EShapeProperty::CollisionData> CollisionData;
+		TShapeProperty<FMaterialData,EShapeProperty::Materials> Materials;
+
+		TSerializablePtr<FImplicitObject> Geometry;
+		TAABB<FReal,3> WorldSpaceInflatedShapeBounds;
+		
+		// use CreatePerShapeData
+		FPerShapeData(int32 InShapeIdx);
 	};
 
-	template <typename T, int d>
-	FChaosArchive& operator<<(FChaosArchive& Ar, TPerShapeData<T, d>& Shape)
+	inline FChaosArchive& operator<<(FChaosArchive& Ar, FPerShapeData& Shape)
 	{
 		Shape.Serialize(Ar);
 		return Ar;
 	}
 
-	template <typename T, int d>
-	using TShapesArray = TArray<TUniquePtr<TPerShapeData<T, d>>, TInlineAllocator<1>>;
+	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
 
-	template <typename T, int d>
-	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM);
+	void CHAOS_API UpdateShapesArrayFromGeometry(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy);
 
-	extern template void CHAOS_API UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry,  const FRigidTransform3& ActorTM);
 
 #if CHAOS_DETERMINISTIC
 	using FParticleID = int32;	//Used to break ties when determinism is needed. Should not be used for anything else
@@ -239,7 +379,7 @@ namespace Chaos
 
 		CHAOS_API const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
 
-		CHAOS_API const TShapesArray<T, d>& ShapesArray(const int32 Index) const { return MShapesArray[Index]; }
+		CHAOS_API const FShapesArray& ShapesArray(const int32 Index) const { return MShapesArray[Index]; }
 
 #if CHAOS_DETERMINISTIC
 		CHAOS_API FParticleID ParticleID(const int32 Idx) const { return MParticleIDs[Idx]; }
@@ -325,10 +465,10 @@ namespace Chaos
 		{
 			MWorldSpaceInflatedBounds[Index] = Bounds;
 
-			const TShapesArray<FReal, 3>& Shapes = ShapesArray(Index);
+			const FShapesArray& Shapes = ShapesArray(Index);
 			for (const auto& Shape : Shapes)
 			{
-				if (Shape->Geometry->HasBoundingBox())
+				if (Shape->GetGeometry()->HasBoundingBox())
 				{
 					const TRigidTransform<FReal, 3> ActorTM(X(Index), R(Index));
 					Shape->UpdateShapeBounds(ActorTM);
@@ -420,11 +560,11 @@ namespace Chaos
 
 		CHAOS_API EParticleType ParticleType() const { return MParticleType; }
 
-		const TPerShapeData<T, d>* GetImplicitShape(int32 Index, const FImplicitObject* InObject)
+		const FPerShapeData* GetImplicitShape(int32 Index, const FImplicitObject* InObject)
 		{
 			checkSlow(Index >= 0 && Index < ImplicitShapeMap.Num());
 			TMap<const FImplicitObject*, int32>& Mapping = ImplicitShapeMap[Index];
-			TShapesArray<T, d>& ShapeArray = MShapesArray[Index];
+			FShapesArray& ShapeArray = MShapesArray[Index];
 			int32* ShapeIndex = Mapping.Find(InObject);
 
 			if(ShapeIndex && ShapeArray.IsValidIndex(*ShapeIndex))
@@ -452,7 +592,7 @@ namespace Chaos
 		TArrayCollectionArray<TUniquePtr<FImplicitObject>> MDynamicGeometry;
 		TArrayCollectionArray<TSerializablePtr<TGeometryParticleHandle<T, d>>> MGeometryParticleHandle;
 		TArrayCollectionArray<TGeometryParticle<T, d>*> MGeometryParticle;
-		TArrayCollectionArray<TShapesArray<T,d>> MShapesArray;
+		TArrayCollectionArray<FShapesArray> MShapesArray;
 		TArrayCollectionArray<TMap<const FImplicitObject*, int32>> ImplicitShapeMap;
 		TArrayCollectionArray<TAABB<T,d>> MLocalBounds;
 		TArrayCollectionArray<TAABB<T, d>> MWorldSpaceInflatedBounds;
@@ -462,7 +602,7 @@ namespace Chaos
 
 		void UpdateShapesArray(const int32 Index)
 		{
-			UpdateShapesArrayFromGeometry(MShapesArray[Index], MGeometry[Index], FRigidTransform3(X(Index), R(Index)));
+			UpdateShapesArrayFromGeometry(MShapesArray[Index], MGeometry[Index], FRigidTransform3(X(Index), R(Index)), nullptr);
 			MapImplicitShapes(Index);
 		}
 

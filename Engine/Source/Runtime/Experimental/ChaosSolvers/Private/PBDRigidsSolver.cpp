@@ -252,10 +252,11 @@ namespace Chaos
 		// NOTE: Do we really need these lists of proxies if we can just
 		// access them through the GTParticles list?
 		
-		Chaos::FParticleData* ProxyData;
 		IPhysicsProxyBase* ProxyBase;
 
 		GTParticle->SetUniqueIdx(GetEvolution()->GenerateUniqueIdx());
+		//Chaos::FParticlePropertiesData& RemoteParticleData = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteParticleProperties();
+		//Chaos::FShapeRemoteDataContainer& RemoteShapeContainer = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteShapeContainer();
 
 		// Make a physics proxy, giving it our particle and particle handle
 		const EParticleType InParticleType = GTParticle->ObjectType();
@@ -263,74 +264,30 @@ namespace Chaos
 		{
 			auto Proxy = new FRigidParticlePhysicsProxy(GTParticle->CastToRigidParticle(), nullptr);
 			RigidParticlePhysicsProxies.Add((FRigidParticlePhysicsProxy*)Proxy);
-			ProxyData = Proxy->NewData();
 			ProxyBase = Proxy;
+			//Proxy->SetRemoteDataForGT(RemoteParticleData, RemoteShapeContainer);
 		}
 		else if (InParticleType == EParticleType::Kinematic)
 		{
 			auto Proxy = new FKinematicGeometryParticlePhysicsProxy(GTParticle->CastToKinematicParticle(), nullptr);
 			KinematicGeometryParticlePhysicsProxies.Add((FKinematicGeometryParticlePhysicsProxy*)Proxy);
-			ProxyData = Proxy->NewData();
 			ProxyBase = Proxy;
+			//Proxy->SetRemoteDataForGT(RemoteParticleData, RemoteShapeContainer);
 		}
 		else // Assume it's a static (geometry) if it's not dynamic or kinematic
 		{
 			auto Proxy = new FGeometryParticlePhysicsProxy(GTParticle, nullptr);
 			GeometryParticlePhysicsProxies.Add((FGeometryParticlePhysicsProxy*)Proxy);
-			ProxyData = Proxy->NewData();
 			ProxyBase = Proxy;
+			//Proxy->SetRemoteDataForGT(RemoteParticleData, RemoteShapeContainer);
 		}
 
 		ProxyBase->SetSolver(this);
 
 		// Associate the proxy with the particle
-		GTParticle->Proxy = ProxyBase;
+		GTParticle->SetProxy(ProxyBase);
 
-		//enqueue onto physics thread for finalizing registration
-		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(this, [GTParticle, InParticleType, ProxyBase, ProxyData](FPBDRigidsSolver* Solver)
-		{
-			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject() ~ Dequeue"));
-
-			// Create a handle for the new particle
-			TGeometryParticleHandle<float, 3>* Handle;
-
-			// Insert the particle ptr into the auxiliary array
-			//
-			// TODO: Is this array even necessary?
-			//       Proxy should be able to map back to Particle.
-			//
-
-			const auto& GeomData = static_cast<const Chaos::TGeometryParticleData<FReal,3>*>(ProxyData);
-
-			if (InParticleType == EParticleType::Rigid)
-			{
-				Handle = Solver->Particles.CreateDynamicParticles(1, &GeomData->UniqueIdx)[0];
-				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(ProxyBase);
-				Proxy->SetHandle(Handle->CastToRigidParticle());
-				Proxy->PushToPhysicsState(ProxyData);
-			}
-			else if (InParticleType == EParticleType::Kinematic)
-			{
-				Handle = Solver->Particles.CreateKinematicParticles(1, &GeomData->UniqueIdx)[0];
-				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(ProxyBase);
-				Proxy->SetHandle(Handle->CastToKinematicParticle());
-				Proxy->PushToPhysicsState(ProxyData);
-			}
-			else // Assume it's a static (geometry) if it's not dynamic or kinematic
-			{
-				Handle = Solver->Particles.CreateStaticParticles(1, &GeomData->UniqueIdx)[0];
-
-				auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(ProxyBase);
-				Proxy->SetHandle(Handle);
-				Proxy->PushToPhysicsState(ProxyData);
-			}
-
-			Handle->GTGeometryParticle() = GTParticle;
-			Solver->MParticleToProxy.Add(Handle, ProxyBase);
-			Solver->GetEvolution()->CreateParticle(Handle);
-
-			delete ProxyData;
-		});
+		AddDirtyProxy(ProxyBase);
 	}
 
 	void FPBDRigidsSolver::UnregisterObject(TGeometryParticle<float, 3>* GTParticle)
@@ -338,17 +295,17 @@ namespace Chaos
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("FPBDRigidsSolver::UnregisterObject()"));
 
 		// Get the proxy associated with this particle
-		IPhysicsProxyBase* InProxy = GTParticle->Proxy;
+		IPhysicsProxyBase* InProxy = GTParticle->GetProxy();
 		check(InProxy);
 
 		// Grab the particle's type
 		const EParticleType InParticleType = GTParticle->ObjectType();
 
 		// remove the proxy from the invalidation list
-		RemoveDirtyProxy(GTParticle->Proxy);
+		RemoveDirtyProxy(GTParticle->GetProxy());
 
 		// Null out the particle's proxy pointer
-		GTParticle->Proxy = nullptr;
+		GTParticle->SetProxy(nullptr);
 
 		// Remove the proxy from the GT proxy map
 		if (InParticleType == EParticleType::Rigid)
@@ -427,14 +384,19 @@ namespace Chaos
 				delete Proxy;
 			}
 
+			//If particle was created and destroyed before commands were enqueued just skip. I suspect we can skip entire lambda, but too much code to verify right now
+
+			if(Handle)
+			{
 			// Remove game thread particle from ActiveGameThreadParticles so we won't crash when pulling physics state
 			// if this particle was deleted after buffering results. 
 			Solver->GetActiveParticlesBuffer()->RemoveActiveParticleFromConsumerBuffer(Handle->GTGeometryParticle());
-
+  
 			Solver->MParticleToProxy.Remove(Handle);
-
+  
 			// Use the handle to destroy the particle data
 			Solver->GetEvolution()->DestroyParticle(Handle);
+			}
 
 		});
 
@@ -531,6 +493,8 @@ namespace Chaos
 		MMaxSubSteps = 1;
 		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, SimMaterials, ChaosSolverCollisionDefaultIterationsCVar, ChaosSolverCollisionDefaultPushoutIterationsCVar, BufferMode == EMultiBufferMode::Single)); 
 
+		DirtyPropertiesManager = MakeUnique<FDoubleBuffer<FDirtyPropertiesManager>>();
+
 		FEventDefaults::RegisterSystemEvents(*GetEventManager());
 	}
 
@@ -565,9 +529,10 @@ namespace Chaos
 	template<typename ProxyType>
 	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy, Chaos::IDispatcher* Dispatcher)
 	{
+		//todo: remove 99% of this
 		LLM_SCOPE(ELLMTag::Chaos);
-
-		if (Chaos::FParticleData* ProxyData = Proxy->NewData())
+#if 0
+		if (Chaos::FParticlePropertiesData* ProxyData = Proxy->NewData())
 		{
 			if (auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Proxy->GetHandle()))
 			{
@@ -581,6 +546,7 @@ namespace Chaos
 							Solver->GetEvolution()->DirtyParticle(*Handle);
 							Proxy->PushToPhysicsState(ProxyData);
 						}
+						//todo: ProxyData->Clear()
 						delete ProxyData;
 					});
 				}
@@ -600,11 +566,13 @@ namespace Chaos
 				delete ProxyData;
 			}
 		}
+#endif
 	}
 
 	template<typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>
 	void FlushExec(FPBDRigidsSolver::TFramePool<ParticleEntry, ProxyEntry, PreAllocCount>& PoolParticles, Chaos::IDispatcher* Dispatcher, FPBDRigidsSolver * Solver)
 	{
+#if 0
 		Dispatcher->EnqueueCommandImmediate([Solver, &PoolParticles](Chaos::FPersistentPhysicsTask* PhysThread)
 		{
 			for (int32 i = 0; i < PoolParticles.GetEntryCount(); i++)
@@ -619,6 +587,7 @@ namespace Chaos
 				Entry.Particle.Reset();
 			}
 		});
+#endif
 	}
 
 	template<typename ProxyType, typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>
@@ -641,7 +610,7 @@ namespace Chaos
 
 	void FPBDRigidsSolver::PushPhysicsStatePooled(IDispatcher* Dispatcher)
 	{
-
+#if 0
 		ensure(Dispatcher != nullptr);
 
 		// reset the per frame pool
@@ -649,7 +618,7 @@ namespace Chaos
 		KinematicGeometryParticlePool.ResetPool();
 		GeometryParticlePool.ResetPool();
 
-		TArray< IPhysicsProxyBase *> DirtyProxiesArray = DirtyProxiesSet.Array();
+		const TArray< IPhysicsProxyBase *>& DirtyProxiesArray = DirtyProxiesSet.GetProxies();
 		for (auto & Proxy : DirtyProxiesArray)
 		{
 			switch (Proxy->GetType())
@@ -671,6 +640,7 @@ namespace Chaos
 		FlushExec(RigidParticlePool, Dispatcher, this);
 		FlushExec(KinematicGeometryParticlePool, Dispatcher, this);
 		FlushExec(GeometryParticlePool, Dispatcher, this);
+#endif
 	}
 	
 	void PushPhysicsStateExec(FPBDRigidsSolver* Solver, FGeometryCollectionPhysicsProxy* Proxy, Chaos::IDispatcher* Dispatcher)
@@ -706,42 +676,115 @@ namespace Chaos
 
 	void FPBDRigidsSolver::PushPhysicsState(IDispatcher* Dispatcher)
 	{
-		if (ChaosSolverUseParticlePool)
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_PushPhysicsState);
+		FDirtySet* DirtyProxiesData = DirtyProxiesDataBuffer.AccessProducerBuffer();
+
+		if(DirtyProxiesData->NumDirtyProxies() == 0)
 		{
-			PushPhysicsStatePooled(Dispatcher);
+			//is this early out really necessary?
+			return;
 		}
-		else
+
+		FDirtyPropertiesManager* Manager = DirtyPropertiesManager->AccessProducerBuffer();
+		Manager->SetNumParticles(DirtyProxiesData->NumDirtyProxies());
+		Manager->SetNumShapes(DirtyProxiesData->NumDirtyShapes());
+		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
+		auto ProcessProxyGT =[ShapeDirtyData, Manager, DirtyProxiesData](auto Proxy, int32 ParticleDataIdx, FDirtyProxy& DirtyProxy)
 		{
-			if (DirtyProxiesSet.Num() == 0)
-				return;
-			TArray< IPhysicsProxyBase *> DirtyProxiesArray = DirtyProxiesSet.Array();
-			for (auto & Proxy : DirtyProxiesArray)
+			auto Particle = Proxy->GetParticle();
+			Particle->SyncRemoteData(*Manager,ParticleDataIdx,DirtyProxy.ParticleData,DirtyProxy.ShapeDataIndices,ShapeDirtyData);
+			Proxy->ClearAccumulatedData();
+			Proxy->ResetDirtyIdx();
+		};
+
+
+		//todo: if we allocate remote data ahead of time we could go wide
+		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT](int32 DataIdx, FDirtyProxy& Dirty)
+		{
+			switch(Dirty.Proxy->GetType())
 			{
-				switch (Proxy->GetType())
+			case EPhysicsProxyType::SingleRigidParticleType:
 				{
-					//case EPhysicsProxyType::NoneType: // 0
-					//case EPhysicsProxyType::StaticMeshType: // 1
-				case EPhysicsProxyType::GeometryCollectionType: // 2
-					PushPhysicsStateExec(this, static_cast<FGeometryCollectionPhysicsProxy*>(Proxy), Dispatcher);
+				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
+				ProcessProxyGT(Proxy,DataIdx,Dirty);
 					break;
-				case EPhysicsProxyType::FieldType: // 3
-					PushPhysicsStateExec(this, static_cast<FFieldSystemPhysicsProxy*>(Proxy), Dispatcher);
+			}
+			case EPhysicsProxyType::SingleKinematicParticleType:
+			{
+				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(Dirty.Proxy);
+				ProcessProxyGT(Proxy,DataIdx,Dirty);
 					break;
-					//case EPhysicsProxyType::SkeletalMeshType: // 4
-				case EPhysicsProxyType::SingleRigidParticleType: // 7
-					PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(Proxy), Dispatcher);
+			}
+			case EPhysicsProxyType::SingleGeometryParticleType:
+			{
+				auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
+				ProcessProxyGT(Proxy,DataIdx,Dirty);
 					break;
-				case EPhysicsProxyType::SingleKinematicParticleType: // 6
-					PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
+			}
+			default:
+			ensure("Unknown proxy type in physics solver.");
+			}
+		});
+
+		DirtyPropertiesManager->FlipProducer();
+		DirtyProxiesDataBuffer.FlipProducer();
+
+		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(this,[Manager, DirtyProxiesData, ShapeDirtyData](FPBDRigidsSolver* Solver)
+		{
+			auto ProcessProxyPT = [Solver, Manager, DirtyProxiesData, ShapeDirtyData](auto& Proxy, int32 DataIdx, FDirtyProxy& Dirty, const auto& CreateHandleFunc)
+			{
+				const bool bIsNew = !Proxy->IsInitialized();
+				if(bIsNew)
+				{
+					const auto* NonFrequentData = Dirty.ParticleData.FindNonFrequentData(*Manager, DataIdx);
+					const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx : nullptr;
+					Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
+				}
+
+				Proxy->PushToPhysicsState(*Manager, DataIdx, Dirty, ShapeDirtyData);
+
+				if(bIsNew)
+				{
+					auto Handle = Proxy->GetHandle();
+					Handle->GTGeometryParticle() = Proxy->GetParticle();
+					Solver->MParticleToProxy.Add(Handle,Proxy);
+					Solver->GetEvolution()->CreateParticle(Handle);
+					Proxy->SetInitialized(true);
+				}
+
+				Dirty.Clear(*Manager, DataIdx, ShapeDirtyData);
+			};
+
+			//need to create new particle handles
+			DirtyProxiesData->ForEachProxy([Solver, &ProcessProxyPT](int32 DataIdx,FDirtyProxy& Dirty)
+			{
+				switch(Dirty.Proxy->GetType())
+				{
+				case EPhysicsProxyType::SingleRigidParticleType:
+				{
+					auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
+					ProcessProxyPT(Proxy,DataIdx,Dirty,[Solver](const FUniqueIdx* UniqueIdx){ return Solver->Particles.CreateDynamicParticles(1,UniqueIdx)[0]; });
 					break;
-				case EPhysicsProxyType::SingleGeometryParticleType: // 5
-					PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
+				}
+				case EPhysicsProxyType::SingleKinematicParticleType:
+				{
+					auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(Dirty.Proxy);
+					ProcessProxyPT(Proxy,DataIdx,Dirty,[Solver](const FUniqueIdx* UniqueIdx){ return Solver->Particles.CreateKinematicParticles(1,UniqueIdx)[0]; });
 					break;
+				}
+				case EPhysicsProxyType::SingleGeometryParticleType:
+				{
+					auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
+					ProcessProxyPT(Proxy,DataIdx,Dirty,[Solver](const FUniqueIdx* UniqueIdx){ return Solver->Particles.CreateStaticParticles(1,UniqueIdx)[0]; });
+					break;
+				}
 				default:
 					ensure("Unknown proxy type in physics solver.");
 				}
-			}
-		}
+			});
+
+			DirtyProxiesData->Reset();
+		});
 	}
 
 	void FPBDRigidsSolver::BufferPhysicsResults()

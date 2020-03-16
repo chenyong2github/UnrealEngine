@@ -1,0 +1,10 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+PROPERTY_TYPE(FParticlePositionRotation_type, FParticlePositionRotation)
+PROPERTY_TYPE(FParticleVelocities_type, FParticleVelocities)
+PROPERTY_TYPE(FParticleDynamics_type, FParticleDynamics)
+PROPERTY_TYPE(FParticleMisc_type, FParticleMisc)
+PROPERTY_TYPE(FParticleNonFrequentData_type, FParticleNonFrequentData)
+PROPERTY_TYPE(FCollisionData_type, FCollisionData)
+PROPERTY_TYPE(FMaterialData_type, FMaterialData)
+PROPERTY_TYPE(FParticleMassProps_type, FParticleMassProps)

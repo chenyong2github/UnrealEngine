@@ -134,7 +134,7 @@ namespace ImmediatePhysics_Chaos
 		Chaos::TPBDRigidsSOAs<FReal, 3>& Particles;
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
 		TUniquePtr<Chaos::FImplicitObject> Geometry;
-		TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>> Shapes;
+		TArray<TUniquePtr<Chaos::FPerShapeData>> Shapes;
 		int32 Level;
 	};
 

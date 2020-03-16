@@ -138,7 +138,7 @@ public:
 
 	void BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommmand) {}
 
-	Chaos::FParticleData* NewData() { return nullptr; }
+	FSkeletalMeshPhysicsProxyOutputs* NewData() { return nullptr; }
 	void SyncBeforeDestroy();
 	void OnRemoveFromScene();
 	void PushToPhysicsState(const Chaos::FParticleData*) {};

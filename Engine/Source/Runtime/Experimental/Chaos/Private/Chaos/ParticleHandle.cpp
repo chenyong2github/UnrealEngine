@@ -16,7 +16,7 @@ namespace Chaos
 
 		for (int32 ShapeIndex = 0; ShapeIndex < MShapesArray.Num(); ++ ShapeIndex)
 		{
-			const FImplicitObject* ImplicitObject = MShapesArray[ShapeIndex]->Geometry.Get();
+			const FImplicitObject* ImplicitObject = MShapesArray[ShapeIndex]->GetGeometry().Get();
 			ImplicitShapeMap.Add(ImplicitObject, ShapeIndex);
 
 			const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject);
@@ -26,7 +26,7 @@ namespace Chaos
 			}
 		}
 
-		auto& Geometry = MGeometry.Read();
+		auto& Geometry = MNonFrequentData.Read().Geometry;
 		if (Geometry)
 		{
 			int32 CurrentShapeIndex = INDEX_NONE;

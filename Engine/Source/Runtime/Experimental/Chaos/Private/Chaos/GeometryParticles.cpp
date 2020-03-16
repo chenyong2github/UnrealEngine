@@ -6,11 +6,11 @@
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 
 namespace Chaos
 {
-	template <typename T, int d>
-	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM)
+	void UpdateShapesArrayFromGeometry(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy)
 	{
 		if(Geometry)
 		{
@@ -25,17 +25,25 @@ namespace Chaos
 					if (ShapeIndex >= OldShapeNum)
 					{
 						// If newly allocated shape, initialize it.
-						ShapesArray[ShapeIndex] = TPerShapeData<T, d>::CreatePerShapeData();
+						ShapesArray[ShapeIndex] = FPerShapeData::CreatePerShapeData(ShapeIndex);
 					}
 
-					ShapesArray[ShapeIndex]->Geometry = MakeSerializable(Union->GetObjects()[ShapeIndex]);
+					ShapesArray[ShapeIndex]->SetGeometry(MakeSerializable(Union->GetObjects()[ShapeIndex]));
 				}
 			}
 			else
 			{
 				ShapesArray.SetNum(1);
-				ShapesArray[0] = TPerShapeData<T, d>::CreatePerShapeData();
-				ShapesArray[0]->Geometry = Geometry;
+				ShapesArray[0] = FPerShapeData::CreatePerShapeData(0);
+				ShapesArray[0]->SetGeometry(Geometry);
+
+				if(Proxy)
+				{
+					if(FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
+					{
+						PhysicsSolverBase->SetNumDirtyShapes(Proxy, 1);
+					}
+				}
 			}
 
 			if (Geometry->HasBoundingBox())
@@ -49,97 +57,64 @@ namespace Chaos
 		else
 		{
 			ShapesArray.Reset();
+			if(Proxy)
+			{
+				if(FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
+				{
+					PhysicsSolverBase->SetNumDirtyShapes(Proxy,0);
+				}
+			}
 		}
 	}
 
-	template <typename T, int d>
-	TPerShapeData<T, d>::TPerShapeData()
-		: QueryData()
-		, SimData()
-		, UserData(nullptr)
+	FPerShapeData::FPerShapeData(int32 InShapeIdx)
+		: Proxy(nullptr)
+		, ShapeIdx(InShapeIdx)
 		, Geometry()
 		, WorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0), FVec3(0)))
-		, Materials()
-		, MaterialMasks()
-		, MaterialMaskMaps()
-		, MaterialMaskMapMaterials()
-		, bDisable(false)
-		, bSimulate(true)
-		, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
 	{
 	}
 
-	template <typename T, int d>
-	TPerShapeData<T, d>::~TPerShapeData()
+	FPerShapeData::~FPerShapeData()
 	{
 	}
 
-	template <typename T, int d>
-	TUniquePtr<TPerShapeData<T, d>> TPerShapeData<T, d>::CreatePerShapeData()
+	TUniquePtr<FPerShapeData> FPerShapeData::CreatePerShapeData(int32 ShapeIdx)
 	{
-		return TUniquePtr<TPerShapeData<T, d>>(new TPerShapeData<T, d>());
+		return TUniquePtr<FPerShapeData>(new FPerShapeData(ShapeIdx));
 	}
 
-	template<typename T, int d>
-	void TPerShapeData<T, d>::UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM)
+	void FPerShapeData::UpdateShapeBounds(const FRigidTransform3& WorldTM)
 	{
 		if (Geometry && Geometry->HasBoundingBox())
 		{
-			WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().TransformedAABB(WorldTM);
+			SetWorldSpaceInflatedShapeBounds(Geometry->BoundingBox().TransformedAABB(WorldTM));
 		}
 	}
 
-	template <typename T, int d>
-	TPerShapeData<T, d>* TPerShapeData<T, d>::SerializationFactory(FChaosArchive& Ar, TPerShapeData<T, d>*)
+	FPerShapeData* FPerShapeData::SerializationFactory(FChaosArchive& Ar, FPerShapeData*)
 	{
-		return Ar.IsLoading() ? new TPerShapeData<T, d>() : nullptr;
+		//todo: need to rework serialization for shapes, for now just give them all shape idx 0
+		return Ar.IsLoading() ? new FPerShapeData(0) : nullptr;
 	}
 
-	template <typename T, int d>
-	void TPerShapeData<T, d>::Serialize(FChaosArchive& Ar)
+	void FPerShapeData::Serialize(FChaosArchive& Ar)
 	{
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		Ar.UsingCustomVersion(FExternalPhysicsMaterialCustomObjectVersion::GUID);
 
 		Ar << Geometry;
-		Ar << QueryData;
-		Ar << SimData;
+		Ar << CollisionData;
+		Ar << Materials;
 
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
 		{
-			TBox<T, d>::SerializeAsAABB(Ar, WorldSpaceInflatedShapeBounds);
+			TBox<FReal,3>::SerializeAsAABB(Ar,WorldSpaceInflatedShapeBounds);
 		}
 		else
 		{
-			// This should be set by particle serializing this TPerShapeData.
-			WorldSpaceInflatedShapeBounds = TAABB<FReal, 3>(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f));
-		}
-
-		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddedMaterialManager)
-		{
-			Ar << Materials;
-		}
-
-		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeCollisionDisable)
-		{
-			Ar << bDisable;
-		}
-
-		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializePerShapeDataSimulateFlag)
-		{
-			Ar << bSimulate;
-		}
-
-		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeCollisionTraceType)
-		{
-			int32 Data = (int32)CollisionTraceType;
-			Ar << Data;
-			CollisionTraceType = (EChaosCollisionTraceFlag)Data;
-		}
-
-		if (Ar.CustomVer(FExternalPhysicsMaterialCustomObjectVersion::GUID) >= FExternalPhysicsMaterialCustomObjectVersion::AddedMaterialMasks)
-		{
-			Ar << MaterialMasks << MaterialMaskMaps << MaterialMaskMapMaterials;
+			// This should be set by particle serializing this FPerShapeData.
+			SetWorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f)));
 		}
 
 	}
@@ -205,12 +180,12 @@ namespace Chaos
 		checkSlow(Index >= 0 && Index < ImplicitShapeMap.Num());
 
 		TMap<const FImplicitObject*, int32>& Mapping = ImplicitShapeMap[Index];
-		TShapesArray<T, d>& ShapeArray = MShapesArray[Index];
+		FShapesArray& ShapeArray = MShapesArray[Index];
 		Mapping.Reset();
 
 		for (int32 ShapeIndex = 0; ShapeIndex < ShapeArray.Num(); ++ ShapeIndex)
 		{
-			const FImplicitObject* ImplicitObject = ShapeArray[ShapeIndex]->Geometry.Get();
+			const FImplicitObject* ImplicitObject = ShapeArray[ShapeIndex]->GetGeometry().Get();
 			Mapping.Add(ImplicitObject, ShapeIndex);
 
 			const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject);
@@ -269,6 +244,4 @@ namespace Chaos
 	
 	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::RigidBodySim>;
 	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>;
-	template class TPerShapeData<float, 3>;
-	template void UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM);
 }
