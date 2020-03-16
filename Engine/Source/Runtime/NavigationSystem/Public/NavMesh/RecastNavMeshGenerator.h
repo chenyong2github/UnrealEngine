@@ -608,7 +608,7 @@ public:
 	virtual void RebuildDirtyAreas(const TArray<FNavigationDirtyArea>& DirtyAreas) override;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(4.26, "This function is deprecated. Please use IsBuildInProgressCheckDirty")
+	//UE_DEPRECATED(4.26, "This function is deprecated. Please use IsBuildInProgressCheckDirty")
 	virtual bool IsBuildInProgress(bool bCheckDirtyToo = false) const override;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
