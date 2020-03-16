@@ -41,6 +41,8 @@ class MESHMODELINGTOOLS_API URemeshMeshToolProperties : public URemeshProperties
 public:
 	URemeshMeshToolProperties();
 
+	void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
+
 	/** Target triangle count */
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (EditCondition = "bUseTargetEdgeLength == false"))
 	int TargetTriangleCount;
