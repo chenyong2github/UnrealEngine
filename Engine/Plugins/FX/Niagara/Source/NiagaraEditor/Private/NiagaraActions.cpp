@@ -196,6 +196,11 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 }
 
 
+bool FNiagaraParameterGraphDragOperation::IsCurrentlyHoveringNode(const UEdGraphNode* TestNode) const
+{
+	return TestNode == GetHoveredNode();
+}
+
 void FNiagaraParameterGraphDragOperation::MakeGetMap(FNiagaraParameterNodeConstructionParams InParams)
 {
 
