@@ -18,22 +18,22 @@ namespace Audio
 	};
 
 	/** Generate equal loudness weight for magnitude spectrum using curve A */
-    float GetEqualLoudnessAWeigthForFrequency(const float Freq);
+    AUDIOSYNESTHESIACORE_API float GetEqualLoudnessAWeigthForFrequency(const float Freq);
 
 	/** Generate equal loudness weight for magnitude spectrum using curve B */
-    float GetEqualLoudnessBWeigthForFrequency(const float Freq);
+    AUDIOSYNESTHESIACORE_API float GetEqualLoudnessBWeigthForFrequency(const float Freq);
 
 	/** Generate equal loudness weight for magnitude spectrum using curve C */
-    float GetEqualLoudnessCWeigthForFrequency(const float Freq);
+    AUDIOSYNESTHESIACORE_API float GetEqualLoudnessCWeigthForFrequency(const float Freq);
 
 	/** Generate equal loudness weight for magnitude spectrum using curve D */
-    float GetEqualLoudnessDWeigthForFrequency(const float Freq);
+    AUDIOSYNESTHESIACORE_API float GetEqualLoudnessDWeigthForFrequency(const float Freq);
 
 	/** Generate equal loudness weight for magnitude spectrum using curve None */
-    float GetEqualLoudnessNoneWeigthForFrequency(const float Freq);
+    AUDIOSYNESTHESIACORE_API float GetEqualLoudnessNoneWeigthForFrequency(const float Freq);
 
 	/** Settings for FLoudnessAnalyzer */
-    struct FLoudnessAnalyzerSettings
+    struct AUDIOSYNESTHESIACORE_API FLoudnessAnalyzerSettings
     {
 		/** Size of FFT describe in number of samples */
         int32 FFTSize;
@@ -66,7 +66,7 @@ namespace Audio
 	 * This analyzer only handles mono audio. See FMultichannelLoudnessAnalyzer for multichannel
 	 * support.
 	 */
-    class FLoudnessAnalyzer
+    class AUDIOSYNESTHESIACORE_API FLoudnessAnalyzer
     {
         public:
 			/** Construct analyzer */
@@ -123,7 +123,7 @@ namespace Audio
 	 * at a time. This module can handle one or more channels at a time. It expects 
 	 * interleaved audio samples.
 	 */
-    class FMultichannelLoudnessAnalyzer 
+    class AUDIOSYNESTHESIACORE_API FMultichannelLoudnessAnalyzer 
     {
         public:
 			/** Construct analyzer. */

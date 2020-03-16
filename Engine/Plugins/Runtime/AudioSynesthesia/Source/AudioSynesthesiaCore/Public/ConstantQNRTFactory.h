@@ -14,7 +14,7 @@ namespace Audio
 	 *
 	 *  Settings for the Constant Q Non-Real-Time Factory.
 	 */
-	class AUDIOSYNESTHESIA_API FConstantQNRTSettings : public IAnalyzerNRTSettings, public FConstantQAnalyzerSettings 
+	class AUDIOSYNESTHESIACORE_API FConstantQNRTSettings : public IAnalyzerNRTSettings, public FConstantQAnalyzerSettings 
 	{
 	public:
 
@@ -39,7 +39,7 @@ namespace Audio
 	 * 
 	 *  Contains Constant Q data relating to one audio window.
 	 */
-	struct AUDIOSYNESTHESIA_API FConstantQFrame
+	struct AUDIOSYNESTHESIACORE_API FConstantQFrame
 	{
 		/** Audio channel which produced the data. */
 		int32 Channel;
@@ -63,13 +63,13 @@ namespace Audio
 	};
 
 	/** Serialize FConstantQFrame */
-	AUDIOSYNESTHESIA_API FArchive &operator <<(FArchive& Ar, FConstantQFrame& Frame);
+	AUDIOSYNESTHESIACORE_API FArchive &operator <<(FArchive& Ar, FConstantQFrame& Frame);
 
 	/** FConstantQNRTResult
 	 *
 	 *  FConstantQNRTResult is a container for the output of the FConstantQNRTWorker.
 	 */
-	class AUDIOSYNESTHESIA_API FConstantQNRTResult : public IAnalyzerNRTResult
+	class AUDIOSYNESTHESIACORE_API FConstantQNRTResult : public IAnalyzerNRTResult
 	{
 	public:
 
@@ -121,7 +121,7 @@ namespace Audio
 	 *
 	 *  FConstantQNRTWorker computes a FConstantQNRTResult from audio samples.
 	 */
-	class AUDIOSYNESTHESIA_API FConstantQNRTWorker : public IAnalyzerNRTWorker
+	class AUDIOSYNESTHESIACORE_API FConstantQNRTWorker : public IAnalyzerNRTWorker
 	{
 	public:
 
@@ -182,7 +182,7 @@ namespace Audio
 	 *  
 	 *  Factory for creating FConstantQNRT workers and results
 	 */
-	class AUDIOSYNESTHESIA_API FConstantQNRTFactory : public IAnalyzerNRTFactory
+	class AUDIOSYNESTHESIACORE_API FConstantQNRTFactory : public IAnalyzerNRTFactory
 	{
 	public:
 
