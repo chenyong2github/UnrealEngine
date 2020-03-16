@@ -281,9 +281,10 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 
 			if ( PrimStaticMesh != StaticMeshComponent->GetStaticMesh() )
 			{
-				if ( PrimStaticMesh )
+				// Need to make sure the mesh's resources are initialized here as it may have just been built in another thread
+				// Only do this if required though, as this mesh could using these resources currently (e.g. PIE and editor world sharing the mesh)
+				if ( PrimStaticMesh && !PrimStaticMesh->AreRenderingResourcesInitialized() )
 				{
-					// Need to make sure the mesh's resources are initialized here as it may have just been built in another thread
 					PrimStaticMesh->InitResources();
 				}
 
