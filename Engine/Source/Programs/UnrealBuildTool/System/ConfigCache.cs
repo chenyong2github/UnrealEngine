@@ -104,11 +104,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Stores the number of config file types
-		/// </summary>
-		static readonly int NumConfigFileTypes = (int)((ConfigHierarchyType[])Enum.GetValues(typeof(ConfigHierarchyType))).Last() + 1;
-
-		/// <summary>
 		/// Cache of individual config files
 		/// </summary>
 		static Dictionary<FileReference, ConfigFile> LocationToConfigFile = new Dictionary<FileReference, ConfigFile>();
