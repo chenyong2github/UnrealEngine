@@ -26,6 +26,7 @@
 #include "Editor.h"
 #include "ScopedTransaction.h"
 #include "NiagaraSystemEditorData.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanelViewModel"
 
@@ -759,7 +760,7 @@ bool FNiagaraScriptToolkitParameterPanelViewModel::GetCanRenameParameterAndToolT
 		};
 
 		// Prevent name values that would alias an existing parameter with relevant usage
-		FText GenericNameAliasToolTip = LOCTEXT("ScriptToolkitParameterPanelViewModel_RenameParameter_Alias", "Cannot rename Parameter: A Parameter already exists with name {0}.");
+		FText GenericNameAliasToolTip = LOCTEXT("ScriptToolkitParameterPanelViewModel_RenameParameter_Alias", "Cannot rename Parameter: A Parameter already exists with name {0} but different type.");
 		FName ExistingName;
 		ensureMsgf(TargetVariableMetaData.GetParameterName(ExistingName), TEXT("Failed to get namespaceless parameter name from metadata on rename verify!"));
 		if (NewName != ExistingName)
@@ -801,8 +802,12 @@ bool FNiagaraScriptToolkitParameterPanelViewModel::GetCanRenameParameterAndToolT
 				const FNiagaraScriptVariableAndViewInfo* NameAliasedVariableInfo = FindParameterNameAlias(AliasScopeNames, NewName);
 				if (NameAliasedVariableInfo != nullptr)
 				{
-					OutCanRenameParameterToolTip = FText::Format(GenericNameAliasToolTip, NewVariableNameText.GetValue());
-					return false;
+					if (TargetVariableToRename.GetType() != NameAliasedVariableInfo->ScriptVariable.GetType())
+					{ 
+						OutCanRenameParameterToolTip = FText::Format(GenericNameAliasToolTip, NewVariableNameText.GetValue());
+						return false;
+					}
+					return true;
 				}
 			}
 		}
@@ -835,11 +840,23 @@ TSharedRef<SWidget> FNiagaraScriptToolkitParameterPanelViewModel::GetScriptParam
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 	const FNiagaraVariable PinVar = Schema->PinToNiagaraVariable(Pin);
 
+	bool bRenameImmediate = false;
+	UNiagaraNode* OwnerNode = Cast<UNiagaraNode>(Pin->GetOwningNode());
+	if (OwnerNode && OwnerNode->IsPinNameEditableUponCreation(Pin))
+	{
+		bRenameImmediate = true;
+	}
+	else if (FNiagaraConstants::IsNiagaraConstant(PinVar))
+	{
+		bRenameImmediate = false;
+	}
+
 	const FNiagaraScriptVariableAndViewInfo* ScriptVarAndViewInfo = CachedViewedParameters.FindByPredicate([PinVar](const FNiagaraScriptVariableAndViewInfo& Entry) {return Entry.ScriptVariable == PinVar; });
 	if (ScriptVarAndViewInfo != nullptr)
 	{
-		TSharedPtr<FNiagaraGraphPinParameterNameViewModel> ParameterNameViewModel = MakeShared<FNiagaraGraphPinParameterNameViewModel>(Pin, *ScriptVarAndViewInfo, this);
-		TSharedPtr<SWidget> ScriptParameterVisualWidget = SNew(SNiagaraParameterNameView, ParameterNameViewModel);
+		TSharedPtr<FNiagaraGraphPinParameterNameViewModel> ParameterNameViewModel = MakeShared<FNiagaraGraphPinParameterNameViewModel>(const_cast<UEdGraphPin*>(Pin), *ScriptVarAndViewInfo, this);
+		TSharedPtr<SNiagaraParameterNameView> ScriptParameterVisualWidget = SNew(SNiagaraParameterNameView, ParameterNameViewModel);
+		ScriptParameterVisualWidget->SetPendingRename(bRenameImmediate);
 		return ScriptParameterVisualWidget->AsShared();
 	}
 	else
@@ -852,8 +869,9 @@ TSharedRef<SWidget> FNiagaraScriptToolkitParameterPanelViewModel::GetScriptParam
 			const TStaticArray<FScopeIsEnabledAndTooltip, (int32)ENiagaraParameterScope::Num> PerScopeInfo = GetParameterScopesEnabledAndTooltips(ScriptVar->Variable, ScriptVar->Metadata);
 			FNiagaraScriptVariableAndViewInfo NewScriptVarAndViewInfo = FNiagaraScriptVariableAndViewInfo(ScriptVar->Variable, ScriptVar->Metadata, PerScopeInfo);
 
-			TSharedPtr<FNiagaraGraphPinParameterNameViewModel> ParameterNameViewModel = MakeShared<FNiagaraGraphPinParameterNameViewModel>(Pin, NewScriptVarAndViewInfo, this);
-			TSharedPtr<SWidget> ScriptParameterVisualWidget = SNew(SNiagaraParameterNameView, ParameterNameViewModel);
+			TSharedPtr<FNiagaraGraphPinParameterNameViewModel> ParameterNameViewModel = MakeShared<FNiagaraGraphPinParameterNameViewModel>(const_cast<UEdGraphPin*>(Pin), NewScriptVarAndViewInfo, this);
+			TSharedPtr<SNiagaraParameterNameView> ScriptParameterVisualWidget = SNew(SNiagaraParameterNameView, ParameterNameViewModel);
+			ScriptParameterVisualWidget->SetPendingRename(bRenameImmediate);
 			return ScriptParameterVisualWidget->AsShared();
 		}
 	}
@@ -865,8 +883,9 @@ TSharedRef<SWidget> FNiagaraScriptToolkitParameterPanelViewModel::GetScriptParam
 	StandInMetaData.SetUsage(ENiagaraScriptParameterUsage::Local);
 	
 	FNiagaraScriptVariableAndViewInfo StandInScriptVarAndViewInfo = FNiagaraScriptVariableAndViewInfo(StandInParameter, StandInMetaData);
-	TSharedPtr<FNiagaraGraphPinParameterNameViewModel> ParameterNameViewModel = MakeShared<FNiagaraGraphPinParameterNameViewModel>(Pin, StandInScriptVarAndViewInfo, this);
-	TSharedPtr<SWidget> ScriptParameterVisualWidget = SNew(SNiagaraParameterNameView, ParameterNameViewModel);
+	TSharedPtr<FNiagaraGraphPinParameterNameViewModel> ParameterNameViewModel = MakeShared<FNiagaraGraphPinParameterNameViewModel>(const_cast<UEdGraphPin*>(Pin), StandInScriptVarAndViewInfo, this);
+	TSharedPtr<SNiagaraParameterNameView> ScriptParameterVisualWidget = SNew(SNiagaraParameterNameView, ParameterNameViewModel);
+	ScriptParameterVisualWidget->SetPendingRename(bRenameImmediate);
 	return ScriptParameterVisualWidget->AsShared();
 }
 

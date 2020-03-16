@@ -2052,6 +2052,17 @@ void FNiagaraEditorUtilities::WarnWithToastAndLog(FText WarningMessage)
 	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *WarningMessage.ToString());
 }
 
+void FNiagaraEditorUtilities::InfoWithToastAndLog(FText InfoMessage)
+{
+	FNotificationInfo WarningNotification(InfoMessage);
+	WarningNotification.ExpireDuration = 5.0f;
+	WarningNotification.bFireAndForget = true;
+	WarningNotification.bUseLargeFont = false;
+	WarningNotification.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
+	FSlateNotificationManager::Get().AddNotification(WarningNotification);
+	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *InfoMessage.ToString());
+}
+
 FName FNiagaraEditorUtilities::GetUniqueObjectName(UObject* Outer, UClass* ObjectClass, const FString& CandidateName)
 {
 	if (StaticFindObject(ObjectClass, Outer, *CandidateName) == nullptr)

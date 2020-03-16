@@ -82,7 +82,7 @@ bool UNiagaraNodeEmitter::VerifyEditablePinName(const FText& InName, FText& OutE
 	return true;
 }
 
-bool UNiagaraNodeEmitter::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj)
+bool UNiagaraNodeEmitter::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents)
 {
 	return false;
 }

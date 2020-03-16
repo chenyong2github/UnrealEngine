@@ -190,7 +190,7 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 	if (Context->Pin != nullptr)
 	{
 		FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraPinActions", LOCTEXT("EditPinMenuHeader", "Edit Pin"));
-		if (CanRenamePin(Context->Pin))
+		if (CanRenamePinFromContextMenu(Context->Pin))
 		{
 			UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context->Pin);
 			TSharedRef<SWidget> RenameWidget =
