@@ -43,10 +43,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 
 #define PLATFORM_LITTLE_ENDIAN								1
 #define PLATFORM_SUPPORTS_UNALIGNED_LOADS					1
-#if defined(__clang__)
-	// @todo clang: Clang compiler on Windows doesn't support SEH exception handling yet (__try/__except)
-	#define PLATFORM_SEH_EXCEPTIONS_DISABLED				1
-#endif
 
 #define PLATFORM_SUPPORTS_PRAGMA_PACK						1
 #define PLATFORM_ENABLE_VECTORINTRINSICS					1
