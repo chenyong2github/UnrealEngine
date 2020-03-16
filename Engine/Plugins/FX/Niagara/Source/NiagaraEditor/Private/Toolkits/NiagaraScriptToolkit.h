@@ -10,6 +10,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "UObject/GCObject.h"
 
+#include "TickableEditorObject.h"
 #include "NiagaraEditorCommon.h"
 
 class IDetailsView;
@@ -23,9 +24,10 @@ struct FEdGraphEditAction;
 class FNiagaraMessageLogViewModel;
 class FNiagaraStandaloneScriptViewModel;
 class FNiagaraScriptToolkitParameterPanelViewModel;
+class SNiagaraSelectedObjectsDetails;
 
 /** Viewer/editor for a DataTable */
-class FNiagaraScriptToolkit : public FAssetEditorToolkit, public FGCObject
+class FNiagaraScriptToolkit : public FAssetEditorToolkit, public FGCObject, public FTickableEditorObject
 {
 public:
 	FNiagaraScriptToolkit();
@@ -60,6 +62,10 @@ public:
 	*/
 	void UpdateModuleStats();
 
+	//~ FTickableEditorObject interface
+	virtual void Tick(float DeltaTime) override;
+	virtual bool IsTickable() const override;
+	virtual TStatId GetStatId() const override;
 protected:
 	//~ FAssetEditorToolkit interface
 	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const override;
@@ -85,6 +91,8 @@ private:
 	TSharedRef<SDockTab> SpawnTabScriptParameters(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabScriptParameters2(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabStats(const FSpawnTabArgs& Args);
+
+	TSharedPtr< SNiagaraSelectedObjectsDetails> SelectedDetailsWidget;
 
 	TSharedRef<SDockTab> SpawnTabMessageLog(const FSpawnTabArgs& Args);
 
@@ -154,6 +162,7 @@ private:
 
 	bool bEditedScriptHasPendingChanges;
 	bool bChangesDiscarded;
+	bool bRefreshSelected = false;
 
 	TSharedPtr<class SNiagaraScriptGraph> NiagaraScriptGraphWidget;
 };
