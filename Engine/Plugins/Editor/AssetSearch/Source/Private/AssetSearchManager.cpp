@@ -249,7 +249,7 @@ bool FAssetSearchManager::RequestIndexAsset(UObject* InAsset)
 				FScopeLock ScopedLock(&SearchDatabaseCS);
 				if (!SearchDatabase.IsAssetUpToDate(AssetData, InDDCKey))
 				{
-					AsyncTask(ENamedThreads::GameThread, [this, AssetWeakPtr]() {
+					AsyncMainThreadTask([this, AssetWeakPtr]() {
 						StoreIndexForAsset(AssetWeakPtr.Get());
 					});
 				}
@@ -340,7 +340,7 @@ bool FAssetSearchManager::AsyncGetDerivedDataKey(const FAssetData& InAssetData, 
 			DDCKey.Append(LexToString(FileInfo.Hash));
 
 			const FString DDCKeyString = DDCKey.ToString();
-			AsyncTask(ENamedThreads::GameThread, [this, DDCKeyString, DDCKeyCallback]() {
+			AsyncMainThreadTask([this, DDCKeyString, DDCKeyCallback]() {
 				DDCKeyCallback(DDCKeyString);
 			});
 		}
@@ -596,10 +596,36 @@ void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArra
 			});
 		}
 
-		AsyncTask(ENamedThreads::GameThread, [ResultsFwd = MoveTemp(Results), InCallback]() mutable {
+		AsyncMainThreadTask([ResultsFwd = MoveTemp(Results), InCallback]() mutable {
 			InCallback(MoveTemp(ResultsFwd));
 		});
 	});
+}
+
+void FAssetSearchManager::AsyncMainThreadTask(TFunction<void()> Task)
+{
+	GT_Tasks.Enqueue(Task);
+
+	AsyncTask(ENamedThreads::GameThread, [this]() {
+		ProcessGameThreadTasks();
+	});
+}
+
+void FAssetSearchManager::ProcessGameThreadTasks()
+{
+	if (GIsSavingPackage)
+	{
+		AsyncTask(ENamedThreads::GameThread, [this]() {
+			ProcessGameThreadTasks();
+		});
+		return;
+	}
+
+	TFunction<void()> Operation;
+	if (GT_Tasks.Dequeue(Operation))
+	{
+		Operation();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

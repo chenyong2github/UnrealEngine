@@ -51,6 +51,9 @@ private:
 	void StoreIndexForAsset(UObject* InAsset);
 	void LoadDDCContentIntoDatabase(const FAssetData& InAsset, const TArray<uint8>& Content, const FString& DerivedDataKey);
 
+	void AsyncMainThreadTask(TFunction<void()> Task);
+	void ProcessGameThreadTasks();
+
 private:
 	FAssetSearchDatabase SearchDatabase;
 	FCriticalSection SearchDatabaseCS;
@@ -85,7 +88,7 @@ private:
 
 	FDelegateHandle TickerHandle;
 
-	TQueue<TFunction<void()>> GT_Requests;
+	TQueue<TFunction<void()>> GT_Tasks;
 
 private:
 	TAtomic<bool> RunThread;
