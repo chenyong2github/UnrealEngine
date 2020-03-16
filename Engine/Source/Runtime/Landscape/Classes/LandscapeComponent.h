@@ -8,6 +8,7 @@
 #include "Engine/TextureStreamingTypes.h"
 #include "Components/PrimitiveComponent.h"
 #include "PerPlatformProperties.h"
+#include "LandscapePhysicalMaterial.h"
 #include "LandscapeWeightmapUsage.h"
 
 #include "LandscapeComponent.generated.h"
@@ -589,6 +590,10 @@ public:
 	TArray<FBox> ActiveExcludedBoxes;
 	uint32 ChangeTag;
 
+#if WITH_EDITOR
+	/** Physical material update task */
+	FLandscapePhysicalMaterialRenderTask PhysicalMaterialTask;
+#endif
 
 	//~ Begin UObject Interface.	
 	virtual void PostInitProperties() override;	
@@ -906,6 +911,11 @@ public:
 	 * Update collision component dominant layer data for the whole component, locking and unlocking the weightmap textures.
 	 */
 	LANDSCAPE_API void UpdateCollisionLayerData();
+
+	/** Update physical material render tasks. */
+	void UpdatePhysicalMaterialTasks();
+	/** Update collision component physical materials from render task results. */
+	void UpdateCollisionPhysicalMaterialData(TArray<UPhysicalMaterial*> const& InPhysicalMaterials, TArray<uint8> const& InMaterialIds);
 
 	/**
 	 * Create weightmaps for this component for the layers specified in the WeightmapLayerAllocations array

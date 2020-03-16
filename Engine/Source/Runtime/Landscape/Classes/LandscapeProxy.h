@@ -904,6 +904,9 @@ public:
 	/** Update any textures baked from the landscape as necessary */
 	void UpdateBakedTextures();
 
+	/** Update the landscape physical material render tasks */
+	void UpdatePhysicalMaterialTasks();
+
 	/** Frame counter to count down to the next time we check to update baked textures, so we don't check every frame */
 	int32 UpdateBakedTexturesCountdown;
 
