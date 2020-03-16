@@ -31,6 +31,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/StringBuilder.h"
 #include "Engine/World.h"
+#include "Editor.h"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
