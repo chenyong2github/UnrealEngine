@@ -235,7 +235,7 @@ TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* Import
 
 	TSharedPtr<SGroomImportOptionsWindow> OptionsWindow;
 
-	FProperty* ConversionOptionsProperty = FindField<FProperty>(ImportOptions->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomImportOptions, ConversionSettings));
+	FProperty* ConversionOptionsProperty = FindFProperty<FProperty>(ImportOptions->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomImportOptions, ConversionSettings));
 	if (ConversionOptionsProperty)
 	{
 		if (EnumHasAnyFlags(VisibilityFlag, EGroomOptionsVisibility::ConversionOptions))
