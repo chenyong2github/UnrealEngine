@@ -16,7 +16,9 @@ enum class ESearchIndexVersion
 	Empty = 0,
 	Initial = 1,
 
-	Current = Initial,
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
 static FName StaticGetNativeClassName(const UClass* InClass)
@@ -65,11 +67,50 @@ FSearchSerializer::~FSearchSerializer()
 
 int32 FSearchSerializer::GetVersion()
 {
-	return (int32)ESearchIndexVersion::Current;
+	return (int32)ESearchIndexVersion::LatestVersion;
 }
 
-void FSearchSerializer::BeginIndexer(IAssetIndexer* InIndexer)
+bool FSearchSerializer::IndexAsset(UObject* InAsset, const TMap<FName, TUniquePtr<IAssetIndexer>>& Indexers)
 {
+	if (InAsset == nullptr)
+	{
+		return false;
+	}
+
+	bool bWasIndexed = false;
+
+	UClass* IndexableClass = InAsset->GetClass();
+	while (IndexableClass)
+	{
+		if (const TUniquePtr<IAssetIndexer>* IndexerPtr = Indexers.Find(IndexableClass->GetFName()))
+		{
+			IAssetIndexer* Indexer = IndexerPtr->Get();
+
+			bWasIndexed = true;
+			BeginIndexer(Indexer);
+			Indexer->IndexAsset(InAsset, *this);
+			EndIndexer();
+		}
+
+		IndexableClass = IndexableClass->GetSuperClass();
+	}
+
+	// 
+	TArray<UObject*> TempNestedAssets = NestedAssets;
+	NestedAssets.Reset();
+	for (UObject* NestedAsset : TempNestedAssets)
+	{
+		IndexAsset(NestedAsset, Indexers);
+	}
+
+	return true;
+}
+
+void FSearchSerializer::BeginIndexer(const IAssetIndexer* InIndexer)
+{
+	check(CurrentIndexer == nullptr);
+	CurrentIndexer = InIndexer;
+
 	JsonWriter->WriteObjectStart(InIndexer->GetName());
 	JsonWriter->WriteValue(TEXT("version"), InIndexer->GetVersion());
 
@@ -80,6 +121,8 @@ void FSearchSerializer::EndIndexer()
 {
 	JsonWriter->WriteArrayEnd();
 	JsonWriter->WriteObjectEnd();
+
+	CurrentIndexer = nullptr;
 }
 
 void FSearchSerializer::BeginIndexingObject(const UObject* InObject, const FText& InFriendlyName)
@@ -96,6 +139,11 @@ void FSearchSerializer::BeginIndexingObject(const UObject* InObject, const FStri
 	CurrentObjectName = InFriendlyName;
 	CurrentObjectClass = StaticGetNativeClassName(InObject->GetClass()).ToString();
 	CurrentObjectPath = InObject->GetPathName();
+}
+
+void FSearchSerializer::IndexNestedAsset(UObject* InNestedAsset)
+{
+	NestedAssets.Add(InNestedAsset);
 }
 
 void FSearchSerializer::EndIndexingObject()

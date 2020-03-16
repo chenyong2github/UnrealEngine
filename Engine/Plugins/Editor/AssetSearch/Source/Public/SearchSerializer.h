@@ -21,7 +21,9 @@ public:
 
 	static int32 GetVersion();
 
-	void BeginIndexer(IAssetIndexer* InIndexer);
+	bool IndexAsset(UObject* InAsset, const TMap<FName, TUniquePtr<IAssetIndexer>>& Indexers);
+
+	void BeginIndexer(const IAssetIndexer* InIndexer);
 
 	//---------------------------------------------------------------
 
@@ -40,6 +42,10 @@ public:
 
 	//---------------------------------------------------------------
 
+	ASSETSEARCH_API void IndexNestedAsset(UObject* InNestedAsset);
+
+	//---------------------------------------------------------------
+
 	void EndIndexer();
 
 private:
@@ -52,6 +58,8 @@ private:
 	TSharedRef< TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR> > > JsonWriter;
 
 	FAssetData AssetData;
+
+	const IAssetIndexer* CurrentIndexer = nullptr;
 
 	const UObject* CurrentObject = nullptr;
 	FString CurrentObjectName;
@@ -69,4 +77,6 @@ private:
 	};
 
 	TArray<FIndexedValue> Values;
+
+	TArray<UObject*> NestedAssets;
 };

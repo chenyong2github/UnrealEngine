@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "IAssetSearchModule.h"
 
-class FDataTableIndexer : public IAssetIndexer
+class FSoundCueIndexer : public IAssetIndexer
 {
-	virtual FString GetName() const override { return TEXT("DataTable"); }
+	virtual FString GetName() const override { return TEXT("SoundCue"); }
 	virtual int32 GetVersion() const override;
 	virtual void IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const override;
 };
