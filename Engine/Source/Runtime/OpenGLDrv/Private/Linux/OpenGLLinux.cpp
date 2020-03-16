@@ -430,7 +430,6 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device,
 							bool bPresent,
 							bool bLockToVsync)
 {
-	int32 SyncInterval = FGenericPlatformRHIFramePacer::GetFramePace();
 	FPlatformOpenGLContext* const Context = Viewport.GetGLContext();
 
 	check( Context && Context->hWnd );
