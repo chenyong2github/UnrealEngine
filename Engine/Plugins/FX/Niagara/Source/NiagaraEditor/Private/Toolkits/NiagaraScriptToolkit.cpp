@@ -334,12 +334,16 @@ void FNiagaraScriptToolkit::OnEditedScriptPropertyFinishedChanging(const FProper
 			}
 		}
 	}
+
 	bEditedScriptHasPendingChanges = true;
 }
 
 void FNiagaraScriptToolkit::OnVMScriptCompiled(UNiagaraScript* InScript)
 {
 	UpdateModuleStats();
+	ParameterPanelViewModel->Refresh();
+	if (SelectedDetailsWidget.IsValid())
+		SelectedDetailsWidget->SelectedObjectsChanged();
 }
 
 TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptDetails(const FSpawnTabArgs& Args)
@@ -373,7 +377,7 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabSelectedDetails(const FSpawn
 		.Label(LOCTEXT("SelectedDetailsTabLabel", "Selected Details"))
 		.TabColorScale(GetTabColorScale())
 		[
-			SNew(SNiagaraSelectedObjectsDetails, ScriptViewModel->GetGraphViewModel()->GetNodeSelection(), ScriptViewModel->GetVariableSelection())
+			SAssignNew(SelectedDetailsWidget, SNiagaraSelectedObjectsDetails, ScriptViewModel->GetGraphViewModel()->GetNodeSelection(), ScriptViewModel->GetVariableSelection())
 		];
 }
 
@@ -523,6 +527,25 @@ FSlateIcon FNiagaraScriptToolkit::GetCompileStatusImage() const
 	case ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings:
 		return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.CompileStatus.Warning");
 	}
+}
+void FNiagaraScriptToolkit::Tick(float DeltaTime)
+{
+	if (bRefreshSelected)
+	{
+		if (SelectedDetailsWidget.IsValid())
+			SelectedDetailsWidget->SelectedObjectsChanged();
+		bRefreshSelected = false;
+	}
+}
+
+bool FNiagaraScriptToolkit::IsTickable() const
+{
+	return true;
+}
+
+TStatId FNiagaraScriptToolkit::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraScriptToolkit, STATGROUP_Tickables);
 }
 
 FText FNiagaraScriptToolkit::GetCompileStatusTooltip() const
@@ -770,6 +793,8 @@ bool FNiagaraScriptToolkit::OnRequestClose()
 void FNiagaraScriptToolkit::OnEditedScriptGraphChanged(const FEdGraphEditAction& InAction)
 {
 	bEditedScriptHasPendingChanges = true;
+	bRefreshSelected = true;
+
 }
 
 void FNiagaraScriptToolkit::FocusGraphElementIfSameScriptID(const FNiagaraScriptIDAndGraphFocusInfo* FocusInfo)
