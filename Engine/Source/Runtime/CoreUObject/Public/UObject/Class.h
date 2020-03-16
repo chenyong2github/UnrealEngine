@@ -317,14 +317,12 @@ public:
 	/** In memory only: Linked list of properties requiring post constructor initialization */
 	FProperty* PostConstructLink;
 
-	/** Array of object references embedded in script code. Mirrored for easy access by realtime garbage collection code */
-	TArray<UObject*> ScriptObjectReferences;
+	/** Array of object references embedded in script code and referenced by FProperties. Mirrored for easy access by realtime garbage collection code */
+	TArray<UObject*> ScriptAndPropertyObjectReferences;
 
-	/** Array of object references from struct properties. Mirrored here for fast access by the garbage collector */
-	TArray<UObject*> PropertyObjectReferences;
-
+	typedef TArray<TPair<TFieldPath<FField>, int32>> FUnresolvedScriptPropertiesArray;
 	/** Contains a list of script properties that couldn't be resolved at load time */
-	TArray<TPair<TFieldPath<FField>, int32>> UnresolvedScriptProperties;
+	FUnresolvedScriptPropertiesArray* UnresolvedScriptProperties;
 
 #if WITH_EDITORONLY_DATA
 	/** List of wrapper UObjects for FProperties */
@@ -527,6 +525,26 @@ public:
 	// Required by UHT makefiles for internal data serialization.
 	friend struct FStructArchiveProxy;
 #endif // HACK_HEADER_GENERATOR
+
+	/** Sets the UnresolvedScriptProperties array */
+	void SetUnresolvedScriptProperties(FUnresolvedScriptPropertiesArray& InUnresolvedProperties)
+	{
+		if (!UnresolvedScriptProperties)
+		{
+			UnresolvedScriptProperties = new FUnresolvedScriptPropertiesArray();
+		}
+		*UnresolvedScriptProperties = MoveTemp(InUnresolvedProperties);
+	}
+
+	/** Deletes the UnresolvedScriptProperties array */
+	FORCEINLINE void DeleteUnresolvedScriptProperties()
+	{
+		if (UnresolvedScriptProperties)
+		{
+			delete UnresolvedScriptProperties;
+			UnresolvedScriptProperties = nullptr;
+		}
+	}
 
 protected:
 
