@@ -1017,7 +1017,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				return TargetPlatform == null ? "None" : TargetPlatform.ToString();
+				return TargetPlatform.ToString();
 			}
 		}
 	}
