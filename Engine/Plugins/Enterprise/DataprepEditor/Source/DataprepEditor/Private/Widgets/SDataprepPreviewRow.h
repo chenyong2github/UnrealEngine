@@ -25,5 +25,7 @@ private:
 
 	FText GetLabel() const;
 
+	FSlateColor GetTextColor() const;
+
 	TSharedPtr<FDataprepPreviewProcessingResult> PreviewData;
 };
