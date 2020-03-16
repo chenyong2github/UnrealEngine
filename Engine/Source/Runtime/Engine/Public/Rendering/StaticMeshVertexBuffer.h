@@ -401,12 +401,7 @@ public:
 		FRHIVertexBuffer* IntermediateTexCoordBuffer,
 		TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
-		if (!TangentsSRV || !TextureCoordinatesSRV || !TangentsVertexBuffer.VertexBufferRHI || !TexCoordVertexBuffer.VertexBufferRHI)
-		{
-			ReleaseRHI();
-			InitRHI();
-		}
-
+		check(TangentsVertexBuffer.VertexBufferRHI && TexCoordVertexBuffer.VertexBufferRHI);
 		if (IntermediateTangentsBuffer)
 		{
 			Batcher.QueueUpdateRequest(TangentsVertexBuffer.VertexBufferRHI, IntermediateTangentsBuffer);
@@ -419,7 +414,6 @@ public:
 					GetUseHighPrecisionTangentBasis() ? (uint8)PF_R16G16B16A16_SNORM : (uint8)PF_R8G8B8A8_SNORM);;
 			}
 		}
-
 		if (IntermediateTexCoordBuffer)
 		{
 			Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, IntermediateTexCoordBuffer);

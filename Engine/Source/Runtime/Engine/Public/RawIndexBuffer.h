@@ -370,9 +370,9 @@ public:
 	{
 		IndexBufferRHI = CreateRHIBuffer_RenderThread();
 
-		if (Indices.Num() && IndexBufferRHI && IsSRVNeeded())
+		if (IndexBufferRHI && IsSRVNeeded() && Indices.Num())
 		{
-			SRVValue = RHICreateShaderResourceView(IndexBufferRHI);
+			SRVValue = RHICreateShaderResourceView(Indices.Num() ? IndexBufferRHI : nullptr);
 		}
 	}
 	
@@ -472,12 +472,6 @@ public:
 	template <uint32 MaxNumUpdates>
 	void InitRHIForStreaming(FRHIIndexBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
-		if (!SRVValue || !IndexBufferRHI)
-		{
-			ReleaseRHI();
-			InitRHI();
-		}
-
 		if (IndexBufferRHI && IntermediateBuffer)
 		{
 			Batcher.QueueUpdateRequest(IndexBufferRHI, IntermediateBuffer);
