@@ -6,9 +6,9 @@
 #include "Delegates/Delegate.h"
 
 class UPackage;
-struct FConcertPackage;
+struct FConcertPackageInfo;
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertClientLocalPackageEvent, const FConcertPackage&);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientLocalPackageEvent, const FConcertPackageInfo&, const FString&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertClientLocalPackageDiscarded, UPackage*);
 
 /**
