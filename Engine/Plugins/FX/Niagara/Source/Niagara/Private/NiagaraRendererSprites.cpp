@@ -154,6 +154,10 @@ FNiagaraRendererSprites::~FNiagaraRendererSprites()
 {
 }
 
+DECLARE_STATS_GROUP(TEXT("D3D12RHI: Ray Tracing"), STATGROUP_D3D12RayTracing, STATCAT_Advanced);
+DECLARE_MEMORY_STAT(TEXT("Total Used Video Memory"), STAT_D3D12RayTracingUsedVideoMemory, STATGROUP_D3D12RayTracing);
+DECLARE_MEMORY_STAT(TEXT("Dynamic Vertex Buffer Memory"), STAT_D3D12RayTracingDynamicVertexBufferMemory, STATGROUP_D3D12RayTracing);
+
 void FNiagaraRendererSprites::ReleaseRenderThreadResources()
 {
 	FNiagaraRenderer::ReleaseRenderThreadResources();
@@ -164,6 +168,9 @@ void FNiagaraRendererSprites::ReleaseRenderThreadResources()
 	{
 		RayTracingGeometry.ReleaseResource();
 		RayTracingDynamicVertexBuffer.Release();
+
+		DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, RayTracingDynamicVertexBuffer.NumBytes);
+		DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, RayTracingDynamicVertexBuffer.NumBytes);
 	}
 #endif
 }
@@ -177,6 +184,9 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 	if (IsRayTracingEnabled())
 	{
 		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FNiagaraRendererSprites::RayTracingDynamicVertexBuffer"));
+
+		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, RayTracingDynamicVertexBuffer.NumBytes);
+		INC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, RayTracingDynamicVertexBuffer.NumBytes);
 
 		FRayTracingGeometryInitializer Initializer;
 		Initializer.IndexBuffer = nullptr;

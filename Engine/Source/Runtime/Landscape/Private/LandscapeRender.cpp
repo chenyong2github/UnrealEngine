@@ -42,6 +42,10 @@ LandscapeRender.cpp: New terrain rendering
 #include "RayTracingInstance.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
+DECLARE_STATS_GROUP(TEXT("D3D12RHI: Ray Tracing"), STATGROUP_D3D12RayTracing, STATCAT_Advanced);
+DECLARE_MEMORY_STAT(TEXT("Total Used Video Memory"), STAT_D3D12RayTracingUsedVideoMemory, STATGROUP_D3D12RayTracing);
+DECLARE_MEMORY_STAT(TEXT("Dynamic Vertex Buffer Memory"), STAT_D3D12RayTracingDynamicVertexBufferMemory, STATGROUP_D3D12RayTracing);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, "LandscapeFixedGrid");
 IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryPixelShaderParameters);
@@ -1660,6 +1664,9 @@ FLandscapeComponentSceneProxy::~FLandscapeComponentSceneProxy()
 			const int8 SubSectionIdx = SubX + SubY * NumSubsections;
 			SectionRayTracingStates[SubSectionIdx].Geometry.ReleaseResource();
 			SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.Release();
+
+			DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.NumBytes);
+			DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.NumBytes);
 		}
 	}
 #endif
@@ -3702,6 +3709,8 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 					bNeedsRayTracingGeometryUpdate = true;
 					SectionRayTracingStates[SubSectionIdx].CurrentLOD = CurrentLOD;
 					SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.Release();
+					DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.NumBytes);
+					DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicVertexBufferMemory, SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.NumBytes);
 				}
 				if (SectionRayTracingStates[SubSectionIdx].HeightmapLODBias != RenderSystem.GetSectionLODBias(ComponentBase))
 				{
