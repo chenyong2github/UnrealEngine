@@ -255,13 +255,41 @@ void SDataprepEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<FDa
 		PreviewSceneWorld->ChangeFeatureLevel(NewFeatureLevel);
 	});
 
-	// Create actor in preview world to hold all preview mesh components
-	PreviewActor = TWeakObjectPtr<AActor>( PreviewSceneWorld->SpawnActor<AActor>( AActor::StaticClass(), FTransform::Identity ) );
+	TFunctionRef<AActor*(USceneComponent*, const TCHAR*)> CreateActor =
+		[&PreviewSceneWorld](USceneComponent* ParentComponent, const TCHAR* ActorName)-> AActor*
+		{
+			AActor* Actor = PreviewSceneWorld->SpawnActor<AActor>( AActor::StaticClass(), FTransform::Identity );
 
-	if ( PreviewActor->GetRootComponent() == nullptr )
+			if ( Actor->GetRootComponent() == nullptr )
+			{
+				USceneComponent* RootComponent = NewObject< USceneComponent >( Actor, USceneComponent::StaticClass(), ActorName, RF_NoFlags );
+				Actor->SetRootComponent( RootComponent );
+			}
+
+			if(ParentComponent)
+			{
+				Actor->GetRootComponent()->AttachToComponent( ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
+			}
+
+			Actor->RegisterAllComponents();
+
+			return Actor;
+		};
+
+	// Create root actor of 3D viewport's world
+	AActor* RootActor = CreateActor(nullptr, TEXT("RootPreviewActor"));
+	RootActorComponent = RootActor->GetRootComponent();
+
+
+	// Create actor to hold all 'Static' preview mesh components
+	StaticActor = CreateActor(RootActorComponent.Get(), TEXT("StaticPreviewActor"));
+	StaticActor->GetRootComponent()->SetMobility(EComponentMobility::Static);
+
+	// If HW supports it, create actor to hold all 'Movable' preview mesh components
+	if(GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() > ERHIFeatureLevel::ES3_1)
 	{
-		USceneComponent* RootComponent = NewObject< USceneComponent >( PreviewActor.Get(), USceneComponent::StaticClass(), TEXT("PreviewActor"), RF_NoFlags );
-		PreviewActor->SetRootComponent( RootComponent );
+		MovableActor = CreateActor(RootActorComponent.Get(), TEXT("MovablePreviewActor"));
+		MovableActor->GetRootComponent()->SetMobility(EComponentMobility::Movable);
 	}
 
 	WorldToPreview = InArgs._WorldToPreview;
@@ -365,7 +393,7 @@ void SDataprepEditorViewport::UpdateScene()
 			SceneBounds.Min *= SceneUniformScale;
 
 			// Set uniform scale on root actor's root component
-			PreviewActor->GetRootComponent()->SetRelativeTransform( FTransform( FRotator::ZeroRotator, FVector::ZeroVector, FVector( SceneUniformScale ) ) );
+			RootActorComponent->SetRelativeTransform( FTransform( FRotator::ZeroRotator, FVector::ZeroVector, FVector( SceneUniformScale ) ) );
 
 			const int32 PerMeshColorsCount = sizeof(PerMeshColor);
 			int32 PerMeshColorIndex = 0;
@@ -381,15 +409,16 @@ void SDataprepEditorViewport::UpdateScene()
 						const FText Message = FText::Format( LOCTEXT("UpdateMeshes_AddOneComponent", "Adding {0} ..."), FText::FromString( SceneMeshComponent->GetOwner()->GetActorLabel() ) );
 						SubSlowTask.EnterProgressFrame( 1.0f, Message );
 
-						UCustomStaticMeshComponent* PreviewMeshComponent = NewObject< UCustomStaticMeshComponent >( PreviewActor.Get(), NAME_None, RF_Transient );
-						if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
+						EComponentMobility::Type Mobility = EComponentMobility::Static;
+						if(MovableActor.IsValid())
 						{
-							PreviewMeshComponent->SetMobility(EComponentMobility::Static);
+							Mobility = SceneMeshComponent->Mobility;
 						}
-						else
-						{
-							PreviewMeshComponent->SetMobility( SceneMeshComponent->Mobility );
-						}
+
+						AActor* PreviewActor = Mobility == EComponentMobility::Movable ? MovableActor.Get() : StaticActor.Get();
+
+						UCustomStaticMeshComponent* PreviewMeshComponent = NewObject< UCustomStaticMeshComponent >( PreviewActor, NAME_None, RF_Transient );
+						PreviewMeshComponent->SetMobility( Mobility );
 
 						PreviewMeshComponent->bOverrideLightMapRes = SceneMeshComponent->bOverrideLightMapRes;
 						PreviewMeshComponent->OverriddenLightMapRes = SceneMeshComponent->OverriddenLightMapRes;
