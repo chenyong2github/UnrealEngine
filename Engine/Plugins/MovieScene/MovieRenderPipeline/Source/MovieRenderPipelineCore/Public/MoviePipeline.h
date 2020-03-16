@@ -206,11 +206,14 @@ private:
 
 
 private:
-	/** Initialize a new Level Sequence Actor to evaluate our target sequence. Disables any existing Level Sequences pointed at our original sequence. */
-	void InitializeLevelSequenceActor(ULevelSequence* OriginalLevelSequence, ULevelSequence* InSequenceToApply);
+	/** Iterates through the changes we've made to a shot and applies the original settings. */
+	void RestoreTargetSequenceToOriginalState();
 
-	/** This converts the sequence into a Shot List and expands bounds.*/
-	TArray<FMoviePipelineShotInfo> BuildShotListFromSequence(const ULevelSequence* InSequence);
+	/** Initialize a new Level Sequence Actor to evaluate our target sequence. Disables any existing Level Sequences pointed at our original sequence. */
+	void InitializeLevelSequenceActor();
+
+	/** This builds the shot list from the target sequence, and expands Playback Bounds to cover any future evaluation we may need. */
+	void BuildShotListFromSequence();
 
 	/** 
 	* Modifies the TargetSequence to ensure that only the specified Shot has it's associated Cinematic Shot Section enabled.
@@ -315,6 +318,32 @@ private:
 	/** Keep track of which job we're working on. This holds our Configuration + which shots we're supposed to render from it. */
 	UPROPERTY(Transient)
 	UMoviePipelineExecutorJob* CurrentJob;
+
+
+	/** Previous values for data that we modified in the sequence for restoration in shutdown. */
+	struct FMovieSceneChanges
+	{
+		// Master level settings
+		EMovieSceneEvaluationType EvaluationType;
+		TRange<FFrameNumber> PlaybackRange;
+		bool bSequenceReadOnly;
+		bool bSequencePlaybackRangeLocked;
+
+		struct FSegmentChange
+		{
+			TWeakObjectPtr<class UMovieScene> MovieScene;
+			TRange<FFrameNumber> MovieScenePlaybackRange;
+			bool bMovieSceneReadOnly;
+			TWeakObjectPtr<UMovieSceneCinematicShotSection> ShotSection;
+			bool bShotSectionIsLocked;
+			TRange<FFrameNumber> ShotSectionRange;
+		};
+
+		// Shot-specific settings
+		TArray<FSegmentChange> Segments;
+	};
+
+	FMovieSceneChanges SequenceChanges;
 };
 
 UCLASS()
