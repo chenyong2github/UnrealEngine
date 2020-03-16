@@ -65,7 +65,11 @@ namespace CommonEditorViewportUtils
 class UNREALED_API SCommonEditorViewportToolbarBase : public SViewportToolBar
 {
 public:
-	SLATE_BEGIN_ARGS(SCommonEditorViewportToolbarBase){}
+	SLATE_BEGIN_ARGS(SCommonEditorViewportToolbarBase)
+		: _AddRealtimeButton(false)
+		{}
+
+		SLATE_ARGUMENT(bool, AddRealtimeButton)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<class ICommonEditorViewportToolbarInfoProvider> InInfoProvider);
@@ -170,6 +174,11 @@ private:
 
 	/** Called when the far view plane slider is adjusted in the perspective viewport */
 	void OnFarViewPlaneValueChanged( float NewValue );
+
+	/** Called when we click the realtime warning */
+	FReply OnRealtimeWarningClicked();
+	/** Called to determine if we should show the realtime warning */
+	EVisibility GetRealtimeWarningVisibility() const;
 
 protected:
 	// Merges the extender list from the host with the specified extender and returns the results
