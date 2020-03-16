@@ -195,10 +195,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	void SetSubmixOutputVolume(const UObject* WorldContextObject, float InOutputVolume);
 
-	// Registers and unregisters buffer listeners with the submix
-	void RegisterSubmixBufferListener(ISubmixBufferListener* InBufferListener);
-	void UnregisterSubmixBufferListener(ISubmixBufferListener* InBufferListener);
-
 protected:
 
 #if WITH_EDITOR

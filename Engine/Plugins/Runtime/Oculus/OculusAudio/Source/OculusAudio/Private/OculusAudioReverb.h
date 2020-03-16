@@ -3,18 +3,21 @@
 #pragma once
 
 #include "IAudioExtensionPlugin.h"
-#include "Sound/SoundEffectSubmix.h"
 #include "OVR_Audio.h"
+#include "Sound/SoundEffectBase.h"
+#include "Sound/SoundEffectSubmix.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
+#include "OculusAudioReverb.generated.h"
+
+
+// Forward Declarations
+class USubmixEffectOculusReverbPluginPreset;
 
 class FSubmixEffectOculusReverbPlugin : public FSoundEffectSubmix
 {
-public:
-	FSubmixEffectOculusReverbPlugin();
-
-	void ClearContext();
-
 	virtual void Init(const FSoundEffectSubmixInitData& InInitData) override;
 	virtual uint32 GetDesiredInputChannelCountOverride() const override
 	{
@@ -26,6 +29,12 @@ public:
 	{
 		return; // PAS
 	}
+
+public:
+	FSubmixEffectOculusReverbPlugin();
+
+	void ClearContext();
+
 private:
 	ovrAudioContext Context;
 	FCriticalSection ContextLock;
@@ -41,6 +50,7 @@ class OculusAudioReverb : public IAudioReverb
 public:
 	OculusAudioReverb()
 		: Context(nullptr)
+		, ReverbPreset(nullptr)
 	{
 		// empty
 	}
@@ -67,5 +77,31 @@ public:
 	}
 private:
 	ovrAudioContext* Context;
-	FSoundEffectSubmixPtr SubmixEffect;
+	TSoundEffectSubmixPtr SubmixEffect;
+	USubmixEffectOculusReverbPluginPreset* ReverbPreset;
+};
+
+USTRUCT()
+struct OCULUSAUDIO_API FSubmixEffectOculusReverbPluginSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FSubmixEffectOculusReverbPluginSettings() = default;
+};
+
+UCLASS()
+class OCULUSAUDIO_API USubmixEffectOculusReverbPluginPreset : public USoundEffectSubmixPreset
+{
+	GENERATED_BODY()
+
+public:
+	EFFECT_PRESET_METHODS(SubmixEffectOculusReverbPlugin)
+
+	UFUNCTION()
+	void SetSettings(const FSubmixEffectOculusReverbPluginSettings& InSettings)
+	{
+	}
+
+	UPROPERTY()
+	FSubmixEffectOculusReverbPluginSettings Settings;
 };

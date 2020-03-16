@@ -66,7 +66,7 @@ class SYNTHESIS_API FSubmixEffectFilter : public FSoundEffectSubmix
 {
 public:
 	FSubmixEffectFilter();
-	~FSubmixEffectFilter();
+	virtual ~FSubmixEffectFilter() = default;
 
 	//~ Begin FSoundEffectSubmix
 	virtual void Init(const FSoundEffectSubmixInitData& InData) override;

@@ -3,6 +3,7 @@
 #include "AudioMixerSubmix.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
+#include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
@@ -123,22 +124,19 @@ namespace Audio
 				{
 					++NumSubmixEffects;
 
-					// Create a new effect instance using the preset
-					FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
 
 					FSoundEffectSubmixInitData InitData;
 					InitData.DeviceID = MixerDevice->DeviceID;
 					InitData.SampleRate = MixerDevice->GetSampleRate();
 					InitData.PresetSettings = nullptr;
 
-					// Now set the preset
-					SubmixEffect->Init(InitData);
-					SubmixEffect->SetPreset(EffectPreset);
+					// Create a new effect instance using the preset & enable
+					TSoundEffectSubmixPtr SubmixEffect = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *EffectPreset);
 					SubmixEffect->SetEnabled(true);
 
 					FSubmixEffectInfo EffectInfo;
 					EffectInfo.PresetId = EffectPreset->GetUniqueID();
-					EffectInfo.EffectInstance = MakeShareable(SubmixEffect);
+					EffectInfo.EffectInstance = SubmixEffect;
 
 					// Add the effect to this submix's chain
 					EffectSubmixChain.Add(MoveTemp(EffectInfo));
@@ -415,7 +413,7 @@ namespace Audio
 		{
 			if (Info.EffectInstance.IsValid())
 			{
-				Info.EffectInstance->ClearPreset();
+				USoundEffectPreset::UnregisterInstance(Info.EffectInstance);
 				Info.EffectInstance.Reset();
 			}
 		}
