@@ -189,7 +189,7 @@ void UBlueprintSetLibrary::GenericSet_SetSetPropertyByName(UObject* OwnerObject,
 {
 	if (OwnerObject)
 	{
-		if (FSetProperty* SetProp = FindField<FSetProperty>(OwnerObject->GetClass(), SetPropertyName))
+		if (FSetProperty* SetProp = FindFProperty<FSetProperty>(OwnerObject->GetClass(), SetPropertyName))
 		{
 			void* Dest = SetProp->ContainerPtrToValuePtr<void>(OwnerObject);
 			SetProp->CopyValuesInternal(Dest, SrcSetAddr, 1);

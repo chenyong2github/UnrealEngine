@@ -76,8 +76,8 @@ void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInsta
 			const FName& SourceName = SourcePropertyNames[Idx];
 			const FName& DestName = DestPropertyNames[Idx];
 
-			FProperty* SourceProperty = FindField<FProperty>(SourceClass, SourceName);
-			FProperty* DestProperty = FindField<FProperty>(InTargetClass, DestName);
+			FProperty* SourceProperty = FindFProperty<FProperty>(SourceClass, SourceName);
+			FProperty* DestProperty = FindFProperty<FProperty>(InTargetClass, DestName);
 
 			if (SourceProperty && DestProperty
 #if WITH_EDITOR

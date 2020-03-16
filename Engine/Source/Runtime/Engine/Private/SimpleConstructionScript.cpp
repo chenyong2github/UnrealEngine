@@ -666,7 +666,7 @@ void USimpleConstructionScript::ExecuteScriptOnActor(AActor* Actor, const TInlin
 					else
 					{
 						// In the non-native case, the SCS node's variable name property is used as the parent identifier
-						FObjectPropertyBase* Property = FindField<FObjectPropertyBase>(ActorClass, RootNode->ParentComponentOrVariableName);
+						FObjectPropertyBase* Property = FindFProperty<FObjectPropertyBase>(ActorClass, RootNode->ParentComponentOrVariableName);
 						if(Property != nullptr)
 						{
 							// If we found a matching property, grab its value and use that as the parent for this node

@@ -1472,7 +1472,7 @@ FString UWidget::GetDefaultFontName()
 
 //bool UWidget::BindProperty(const FName& DestinationProperty, UObject* SourceObject, const FName& SourceProperty)
 //{
-//	FDelegateProperty* DelegateProperty = FindField<FDelegateProperty>(GetClass(), FName(*( DestinationProperty.ToString() + TEXT("Delegate") )));
+//	FDelegateProperty* DelegateProperty = FindFProperty<FDelegateProperty>(GetClass(), FName(*( DestinationProperty.ToString() + TEXT("Delegate") )));
 //
 //	if ( DelegateProperty )
 //	{

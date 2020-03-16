@@ -123,7 +123,7 @@ FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, int32* OutOwnerIn
 	if (UStruct* Owner = Cast<UStruct>(LastOuter))
 	{
 		check(PathIndex <= 1);
-		Result = FindField<FField>(Owner, Path[PathIndex]);
+		Result = FindFProperty<FField>(Owner, Path[PathIndex]);
 		if (Result && PathIndex > 0)
 		{
 			// Nested property

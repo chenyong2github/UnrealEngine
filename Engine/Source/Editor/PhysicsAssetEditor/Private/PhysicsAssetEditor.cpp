@@ -1380,7 +1380,7 @@ bool FPhysicsAssetEditor::ShouldFilterAssetBasedOnSkeleton( const FAssetData& As
 void FPhysicsAssetEditor::CreateOrConvertConstraint(EPhysicsAssetEditorConstraintType ConstraintType)
 {
 	//we have to manually call PostEditChange to ensure profiles are updated correctly
-	FProperty* DefaultInstanceProperty = FindField<FProperty>(UPhysicsConstraintTemplate::StaticClass(), GET_MEMBER_NAME_CHECKED(UPhysicsConstraintTemplate, DefaultInstance));
+	FProperty* DefaultInstanceProperty = FindFProperty<FProperty>(UPhysicsConstraintTemplate::StaticClass(), GET_MEMBER_NAME_CHECKED(UPhysicsConstraintTemplate, DefaultInstance));
 
 	const FScopedTransaction Transaction( LOCTEXT( "CreateConvertConstraint", "Create Or Convert Constraint" ) );
 

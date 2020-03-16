@@ -377,7 +377,7 @@ namespace EditorBuildPromotionTestUtils
 	*/
 	static FString GetPropertyByName(UObject* TargetObject, const FString& InVariableName)
 	{
-		FProperty* FoundProperty = FindField<FProperty>(TargetObject->GetClass(), *InVariableName);
+		FProperty* FoundProperty = FindFProperty<FProperty>(TargetObject->GetClass(), *InVariableName);
 		if (FoundProperty)
 		{
 			FString ValueString;

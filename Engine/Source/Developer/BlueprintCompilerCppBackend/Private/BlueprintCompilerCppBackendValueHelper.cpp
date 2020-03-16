@@ -1070,7 +1070,7 @@ FString FEmitDefaultValueHelper::HandleNonNativeComponent(FEmitterLocalContext& 
 	{
 		const FString VariableCleanName = Node->GetVariableName().ToString();
 
-		const FObjectProperty* VariableProperty = FindField<FObjectProperty>(BPGC, *VariableCleanName);
+		const FObjectProperty* VariableProperty = FindFProperty<FObjectProperty>(BPGC, *VariableCleanName);
 		if (VariableProperty)
 		{
 			NativeVariablePropertyName = FEmitHelper::GetCppName(VariableProperty);
@@ -1119,7 +1119,7 @@ FString FEmitDefaultValueHelper::HandleNonNativeComponent(FEmitterLocalContext& 
 				if (ParentNode)
 				{
 					const FString CleanParentVariableName = ParentNode->GetVariableName().ToString();
-					const FObjectProperty* ParentVariableProperty = FindField<FObjectProperty>(BPGC, *CleanParentVariableName);
+					const FObjectProperty* ParentVariableProperty = FindFProperty<FObjectProperty>(BPGC, *CleanParentVariableName);
 					ParentVariableName = ParentVariableProperty ? FEmitHelper::GetCppName(ParentVariableProperty) : CleanParentVariableName;
 				}
 				else if (USceneComponent* ParentComponentTemplate = Node->GetParentComponentTemplate(CastChecked<UBlueprint>(BPGC->ClassGeneratedBy)))
@@ -1901,7 +1901,7 @@ void FEmitDefaultValueHelper::GenerateConstructor(FEmitterLocalContext& Context)
 			// Check for a valid RootComponent property value; mark it as handled if already set in the defaults.
 			bool bNeedsRootComponentAssignment = false;
 			static const FName RootComponentPropertyName(TEXT("RootComponent"));
-			const FObjectProperty* RootComponentProperty = FindField<FObjectProperty>(BPGC, RootComponentPropertyName);
+			const FObjectProperty* RootComponentProperty = FindFProperty<FObjectProperty>(BPGC, RootComponentPropertyName);
 			if (RootComponentProperty)
 			{
 				if (RootComponentProperty->GetObjectPropertyValue_InContainer(CDO))

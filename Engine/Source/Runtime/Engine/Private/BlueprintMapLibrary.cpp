@@ -112,7 +112,7 @@ void UBlueprintMapLibrary::GenericMap_SetMapPropertyByName(UObject* OwnerObject,
 {
 	if (OwnerObject)
 	{
-		if (FMapProperty* MapProp = FindField<FMapProperty>(OwnerObject->GetClass(), MapPropertyName))
+		if (FMapProperty* MapProp = FindFProperty<FMapProperty>(OwnerObject->GetClass(), MapPropertyName))
 		{
 			void* Dest = MapProp->ContainerPtrToValuePtr<void>(OwnerObject);
 			MapProp->CopyValuesInternal(Dest, SrcMapAddr, 1);

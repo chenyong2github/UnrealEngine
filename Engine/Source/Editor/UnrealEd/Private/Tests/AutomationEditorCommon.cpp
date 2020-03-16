@@ -232,7 +232,7 @@ void FAutomationEditorCommonUtils::ApplyCustomFactorySetting(UObject* InObject, 
 	const FString PropertyName = PropertyChain[0];
 	PropertyChain.RemoveAt(0);
 
-	FProperty* TargetProperty = FindField<FProperty>(InObject->GetClass(), *PropertyName);
+	FProperty* TargetProperty = FindFProperty<FProperty>(InObject->GetClass(), *PropertyName);
 	if (TargetProperty)
 	{
 		if (PropertyChain.Num() == 0)

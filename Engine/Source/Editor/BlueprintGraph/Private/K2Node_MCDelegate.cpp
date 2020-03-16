@@ -128,7 +128,7 @@ FString UK2Node_BaseMCDelegate::GetDocumentationLink() const
 	{
 		if (HasValidBlueprint())
 		{
-			UField* Delegate = FindField<UField>(GetBlueprint()->GeneratedClass, DelegateReference.GetMemberName());
+			UField* Delegate = FindUField<UField>(GetBlueprint()->GeneratedClass, DelegateReference.GetMemberName());
 			if (Delegate)
 			{
 				ParentClass = Delegate->GetOwnerClass();

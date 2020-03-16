@@ -703,7 +703,7 @@ void SKismetInspector::UpdateFromObjects(const TArray<UObject*>& PropertyObjects
 
 				if (Object != EditableComponentTemplate)
 				{
-					if (FObjectProperty* ObjectProperty = FindField<FObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName()))
+					if (FObjectProperty* ObjectProperty = FindFProperty<FObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName()))
 					{
 						SelectedObjectProperties.Add(ObjectProperty);
 					}

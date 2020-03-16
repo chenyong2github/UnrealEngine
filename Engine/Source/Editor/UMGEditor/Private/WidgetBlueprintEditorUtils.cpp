@@ -1515,7 +1515,7 @@ void FWidgetBlueprintEditorUtils::ImportPropertiesFromText(UObject* Object, cons
 	{
 		for ( const auto& Entry : ExportedProperties )
 		{
-			if ( FProperty* Property = FindField<FProperty>(Object->GetClass(), Entry.Key) )
+			if ( FProperty* Property = FindFProperty<FProperty>(Object->GetClass(), Entry.Key) )
 			{
 				FEditPropertyChain PropertyChain;
 				PropertyChain.AddHead(Property);

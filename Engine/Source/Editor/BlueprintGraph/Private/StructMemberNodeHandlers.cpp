@@ -60,7 +60,7 @@ static FBPTerminal* RegisterStructVar(FCompilerResultsLog& MessageLog, FKismetFu
 static void ResolveAndRegisterScopedStructTerm(FCompilerResultsLog& MessageLog, FKismetFunctionContext& Context, UScriptStruct* StructType, UEdGraphPin* Net, FBPTerminal* ContextTerm)
 {
 	// Find the property for the struct
-	if (FProperty* BoundProperty = FindField<FProperty>(StructType, Net->PinName))
+	if (FProperty* BoundProperty = FindFProperty<FProperty>(StructType, Net->PinName))
 	{
 		// Create the term in the list
 		FBPTerminal* Term = new FBPTerminal();

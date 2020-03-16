@@ -148,7 +148,7 @@ namespace
 								UEdGraphPin* Pin = Node->Pins[PinIndex];
 								if(Pin != nullptr && Pin->Direction == EGPD_Output)
 								{
-									FProperty* BoundProperty = FindField<FProperty>(ClassType, Pin->PinName);
+									FProperty* BoundProperty = FindFProperty<FProperty>(ClassType, Pin->PinName);
 									if(BoundProperty != nullptr)
 									{
 										FBPTerminal* OutputTerm = Context.CreateLocalTerminalFromPinAutoChooseScope(Pin, Pin->PinName.ToString());
@@ -369,7 +369,7 @@ void UK2Node_GetClassDefaults::ExpandNode(class FKismetCompilerContext& Compiler
 	{
 		if(OutputPin != nullptr && OutputPin->Direction == EGPD_Output && OutputPin->LinkedTo.Num() > 0)
 		{
-			FProperty* BoundProperty = FindField<FProperty>(ClassType, OutputPin->PinName);
+			FProperty* BoundProperty = FindFProperty<FProperty>(ClassType, OutputPin->PinName);
 			if(BoundProperty != nullptr && (BoundProperty->IsA<FArrayProperty>() || BoundProperty->IsA<FSetProperty>() || BoundProperty->IsA<FMapProperty>()))
 			{
 				UK2Node_TemporaryVariable* LocalVariable = CompilerContext.SpawnIntermediateNode<UK2Node_TemporaryVariable>(this, SourceGraph);

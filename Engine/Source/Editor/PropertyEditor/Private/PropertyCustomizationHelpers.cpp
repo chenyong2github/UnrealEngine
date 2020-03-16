@@ -408,7 +408,7 @@ namespace PropertyCustomizationHelpers
 			if ( ConditionPropertyName.Len() > 0 && !ConditionPropertyName.Contains(TEXT(".")) )
 			{
 				UStruct* Scope = InProperty->GetOwnerStruct();
-				EditConditionProperty = FindField<FBoolProperty>(Scope, *ConditionPropertyName);
+				EditConditionProperty = FindFProperty<FBoolProperty>(Scope, *ConditionPropertyName);
 			}
 		}
 

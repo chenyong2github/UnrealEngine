@@ -43,7 +43,7 @@ FName UK2Node_FunctionTerminator::CreateUniquePinName(FName InSourcePinName) con
 	FName ResultName = InSourcePinName;
 	int UniqueNum = 0;
 	// Prevent the unique name from being the same as another of the UFunction's properties
-	while(FindPin(ResultName) || FindField<const FProperty>(FoundFunction, ResultName) != nullptr)
+	while(FindPin(ResultName) || FindFProperty<const FProperty>(FoundFunction, ResultName) != nullptr)
 	{
 		ResultName = *FString::Printf(TEXT("%s%d"), *InSourcePinName.ToString(), ++UniqueNum);
 	}
@@ -134,7 +134,7 @@ UFunction* UK2Node_FunctionTerminator::FindSignatureFunction() const
 	if (!FoundFunction && FoundClass && GetOuter())
 	{
 		// The resolve will fail if this is a locally-created function, so search using the event graph name
-		FoundFunction = FindField<UFunction>(FoundClass, *GetOuter()->GetName());
+		FoundFunction = FindUField<UFunction>(FoundClass, *GetOuter()->GetName());
 	}
 
 	return FoundFunction;

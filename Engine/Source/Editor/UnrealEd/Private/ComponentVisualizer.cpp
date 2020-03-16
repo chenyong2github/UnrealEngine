@@ -121,7 +121,7 @@ UActorComponent* FComponentPropertyPath::GetComponent() const
 
 				UClass* ActorClass = Actor->GetClass();
 				check(ActorClass);
-				FProperty* Prop = FindField<FProperty>(ActorClass, PropertyName);
+				FProperty* Prop = FindFProperty<FProperty>(ActorClass, PropertyName);
 
 				if (FObjectProperty* ObjectProp = CastField<FObjectProperty>(Prop))
 				{
@@ -207,7 +207,7 @@ UActorComponent* FComponentVisualizer::GetComponentFromPropertyName(const AActor
 	if(CompOwner && Property.IsValid())
 	{
 		UClass* ActorClass = CompOwner->GetClass();
-		FProperty* Prop = FindField<FProperty>(ActorClass, Property.Name);
+		FProperty* Prop = FindFProperty<FProperty>(ActorClass, Property.Name);
 		if (FObjectProperty* ObjectProp = CastField<FObjectProperty>(Prop))
 		{
 			UObject* Object = ObjectProp->GetObjectPropertyValue(ObjectProp->ContainerPtrToValuePtr<void>(CompOwner, Property.Index));

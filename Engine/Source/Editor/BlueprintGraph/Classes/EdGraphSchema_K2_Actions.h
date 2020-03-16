@@ -517,7 +517,7 @@ public:
 
 	FProperty* GetProperty() const
 	{
-		return FindField<FProperty>(GetVariableScope(), VarName);
+		return FindFProperty<FProperty>(GetVariableScope(), VarName);
 	}
 	
 	// FEdGraphSchemaAction interface
@@ -781,7 +781,7 @@ public:
 
 	FMulticastDelegateProperty* GetDelegateProperty() const
 	{
-		return FindField<FMulticastDelegateProperty>(GetVariableClass(), GetVariableName());
+		return FindFProperty<FMulticastDelegateProperty>(GetVariableClass(), GetVariableName());
 	}
 };
 

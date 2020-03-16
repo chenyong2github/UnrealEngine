@@ -637,7 +637,7 @@ void UK2Node_CallFunction::AllocateDefaultPins()
 			UBlueprint* FunctionBlueprint = CastChecked<UBlueprint>(BpClassOwner->ClassGeneratedBy, ECastCheckedType::NullAllowed);
 			if (FunctionBlueprint)
 			{
-				if (UFunction* SkelFunction = FindField<UFunction>(FunctionBlueprint->SkeletonGeneratedClass, FunctionReference.GetMemberName()))
+				if (UFunction* SkelFunction = FindUField<UFunction>(FunctionBlueprint->SkeletonGeneratedClass, FunctionReference.GetMemberName()))
 				{
 					Function = SkelFunction;
 				}
@@ -670,7 +670,7 @@ void UK2Node_CallFunction::AllocateDefaultPins()
 			UClass* TestClass = *ClassIt;
 			if (TestClass->IsChildOf(UBlueprintFunctionLibrary::StaticClass()))
 			{
-				Function = FindField<UFunction>(TestClass, FunctionReference.GetMemberName());
+				Function = FindUField<UFunction>(TestClass, FunctionReference.GetMemberName());
 				if (Function != NULL)
 				{
 					UClass* OldClass = FunctionReference.GetMemberParentClass(GetBlueprintClassFromNode());
@@ -723,7 +723,7 @@ void UK2Node_CallFunction::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin
 		{
 			if (UClass* SelfPinClass = Cast<UClass>(SelfPin->PinType.PinSubCategoryObject.Get()))
 			{
-				if (UFunction* NewFunction = FindField<UFunction>(SelfPinClass, FunctionReference.GetMemberName()))
+				if (UFunction* NewFunction = FindUField<UFunction>(SelfPinClass, FunctionReference.GetMemberName()))
 				{
 					SetFromFunction(NewFunction);
 				}
@@ -802,12 +802,12 @@ void UK2Node_CallFunction::CreateExecPinsForFunctionCall(const UFunction* Functi
 				FProperty* Prop = nullptr;
 				UEnum* Enum = nullptr;
 
-				if (FByteProperty* ByteProp = FindField<FByteProperty>(Function, EnumParamName))
+				if (FByteProperty* ByteProp = FindFProperty<FByteProperty>(Function, EnumParamName))
 				{
 					Prop = ByteProp;
 					Enum = ByteProp->Enum;
 				}
-				else if (FEnumProperty* EnumProp = FindField<FEnumProperty>(Function, EnumParamName))
+				else if (FEnumProperty* EnumProp = FindFProperty<FEnumProperty>(Function, EnumParamName))
 				{
 					Prop = EnumProp;
 					Enum = EnumProp->GetEnum();
@@ -933,8 +933,8 @@ void UK2Node_CallFunction::DetermineWantsEnumToExecExpansion(const UFunction* Fu
 		{
 			const FName& EnumParamName = EnumNamesToCheck[i];
 
-			FByteProperty* EnumProp = FindField<FByteProperty>(Function, EnumParamName);
-			if ((EnumProp != NULL && EnumProp->Enum != NULL) || FindField<FEnumProperty>(Function, EnumParamName))
+			FByteProperty* EnumProp = FindFProperty<FByteProperty>(Function, EnumParamName);
+			if ((EnumProp != NULL && EnumProp->Enum != NULL) || FindFProperty<FEnumProperty>(Function, EnumParamName))
 			{
 				bWantsEnumToExecExpansion = true;
 				EnumNamesToCheck.RemoveAt(i);
@@ -1797,7 +1797,7 @@ FString UK2Node_CallFunction::GetDocumentationLink() const
 	{
 		if (HasValidBlueprint())
 		{
-			UFunction* Function = FindField<UFunction>(GetBlueprint()->GeneratedClass, FunctionReference.GetMemberName());
+			UFunction* Function = FindUField<UFunction>(GetBlueprint()->GeneratedClass, FunctionReference.GetMemberName());
 			if (Function != NULL)
 			{
 				ParentClass = Function->GetOwnerClass();
@@ -2171,7 +2171,7 @@ void UK2Node_CallFunction::Serialize(FArchive& Ar)
 	{
 		if (Ar.UE4Ver() < VER_UE4_SWITCH_CALL_NODE_TO_USE_MEMBER_REFERENCE)
 		{
-			UFunction* Function = FindField<UFunction>(CallFunctionClass_DEPRECATED, CallFunctionName_DEPRECATED);
+			UFunction* Function = FindUField<UFunction>(CallFunctionClass_DEPRECATED, CallFunctionName_DEPRECATED);
 			const bool bProbablySelfCall = (CallFunctionClass_DEPRECATED == NULL) || ((Function != NULL) && (Function->GetOuterUClass()->ClassGeneratedBy == GetBlueprint()));
 
 			FunctionReference.SetDirect(CallFunctionName_DEPRECATED, FGuid(), CallFunctionClass_DEPRECATED, bProbablySelfCall);
@@ -2336,11 +2336,11 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 			{
 				UEnum* Enum = nullptr;
 
-				if (FByteProperty* ByteProp = FindField<FByteProperty>(Function, EnumParamName))
+				if (FByteProperty* ByteProp = FindFProperty<FByteProperty>(Function, EnumParamName))
 				{
 					Enum = ByteProp->Enum;
 				}
-				else if (FEnumProperty* EnumProp = FindField<FEnumProperty>(Function, EnumParamName))
+				else if (FEnumProperty* EnumProp = FindFProperty<FEnumProperty>(Function, EnumParamName))
 				{
 					Enum = EnumProp->GetEnum();
 				}

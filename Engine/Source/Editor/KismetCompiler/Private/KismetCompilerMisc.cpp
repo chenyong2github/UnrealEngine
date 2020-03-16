@@ -743,7 +743,7 @@ UEdGraphPin* FKismetCompilerUtilities::GenerateAssignmentNodes(class FKismetComp
 		{
 			if( OrgPin->LinkedTo.Num() == 0 )
 			{
-				FProperty* Property = FindField<FProperty>(ForClass, OrgPin->PinName);
+				FProperty* Property = FindFProperty<FProperty>(ForClass, OrgPin->PinName);
 				// NULL property indicates that this pin was part of the original node, not the 
 				// class we're assigning to:
 				if( !Property )
@@ -1290,7 +1290,7 @@ FFieldVariant FKismetCompilerUtilities::CheckPropertyNameOnScope(UStruct* Scope,
 
 	if (Scope && !Scope->IsA<UFunction>() && (UBlueprintGeneratedClass::GetUberGraphFrameName() != PropertyName))
 	{
-		if (FProperty* Field = FindField<FProperty>(Scope->GetSuperStruct(), *NameStr))
+		if (FProperty* Field = FindFProperty<FProperty>(Scope->GetSuperStruct(), *NameStr))
 		{
 			return Field;
 		}

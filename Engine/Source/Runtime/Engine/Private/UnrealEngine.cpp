@@ -10464,7 +10464,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			UClass* Cls = Cast<UClass>(DebugProperties[i].Obj);
 			if (Cls != NULL)
 			{
-				FProperty* Prop = FindField<FProperty>(Cls, DebugProperties[i].PropertyName);
+				FProperty* Prop = FindFProperty<FProperty>(Cls, DebugProperties[i].PropertyName);
 				if (Prop != NULL || DebugProperties[i].bSpecialProperty)
 				{
 					// getall
@@ -10485,7 +10485,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			}
 			else
 			{
-				FProperty* Prop = FindField<FProperty>(DebugProperties[i].Obj->GetClass(), DebugProperties[i].PropertyName);
+				FProperty* Prop = FindFProperty<FProperty>(DebugProperties[i].Obj->GetClass(), DebugProperties[i].PropertyName);
 				if (Prop != NULL || DebugProperties[i].bSpecialProperty)
 				{
 					DrawProperty(CanvasObject, DebugProperties[i].Obj, DebugProperties[i], Prop, X, Y);
@@ -14274,7 +14274,7 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 	FObjectProperty* RootComponentProperty = nullptr;
 	if (NewActor != nullptr && Params.bPreserveRootComponent)
 	{
-		RootComponentProperty = FindField<FObjectProperty>(NewActor->GetClass(), "RootComponent");
+		RootComponentProperty = FindFProperty<FObjectProperty>(NewActor->GetClass(), "RootComponent");
 		if (RootComponentProperty != nullptr)
 		{
 			SavedRootComponent = Cast<USceneComponent>(RootComponentProperty->GetObjectPropertyValue_InContainer(NewActor));
