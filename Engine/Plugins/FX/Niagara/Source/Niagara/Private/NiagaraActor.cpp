@@ -65,6 +65,30 @@ ANiagaraActor::ANiagaraActor(const FObjectInitializer& ObjectInitializer)
 #endif // WITH_EDITORONLY_DATA
 }
 
+void ANiagaraActor::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+	// Set Notification Delegate
+	if (NiagaraComponent)
+	{
+		NiagaraComponent->OnSystemFinished.AddUniqueDynamic(this, &ANiagaraActor::OnNiagaraSystemFinished);
+	}
+}
+
+void ANiagaraActor::SetDestroyOnSystemFinish(bool bShouldDestroyOnSystemFinish)
+{
+	bDestroyOnSystemFinish = bShouldDestroyOnSystemFinish ? 1 : 0;  
+};
+
+void ANiagaraActor::OnNiagaraSystemFinished(UNiagaraComponent* FinishedComponent)
+{
+	if (bDestroyOnSystemFinish)
+	{
+		SetLifeSpan(0.0001f);
+	}
+}
+
 #if WITH_EDITOR
 bool ANiagaraActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
 {
@@ -87,4 +111,3 @@ void ANiagaraActor::ResetInLevel()
 	}
 }
 #endif // WITH_EDITOR
-
