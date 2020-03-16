@@ -27,6 +27,7 @@ struct FHairStrandsDatas
 {
 	FHairStrandsVisibilityViews HairVisibilityViews;
 	FHairStrandsMacroGroupViews MacroGroupsPerViews;
+	FHairStrandsDebugData DebugData;
 };
 
 enum class EHairStrandsInterpolationType
