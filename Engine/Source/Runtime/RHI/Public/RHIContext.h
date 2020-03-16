@@ -703,12 +703,13 @@ public:
 			}
 		}
 	}
-#if RHI_RAYTRACING
+
 	virtual void RHICopyBufferRegion(FRHIVertexBuffer* DestBuffer, uint64 DstOffset, FRHIVertexBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes)
 	{
 		checkNoEntry();
 	}
 
+#if RHI_RAYTRACING
 	virtual void RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
 	{
 		checkNoEntry();

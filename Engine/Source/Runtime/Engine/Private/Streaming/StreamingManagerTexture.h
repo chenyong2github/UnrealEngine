@@ -135,6 +135,7 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 	virtual void AddStreamingRenderAsset( UTexture2D* Texture ) override;
 	virtual void AddStreamingRenderAsset(UStaticMesh* StaticMesh) override;
 	virtual void AddStreamingRenderAsset(USkeletalMesh* SkeletalMesh) override;
+	virtual void AddStreamingRenderAsset(ULandscapeLODStreamingProxy* Landscape) override;
 
 	/** Removes a texture/mesh from the streaming manager. */
 	virtual void RemoveStreamingRenderAsset( UStreamableRenderAsset* RenderAsset ) override;
@@ -253,6 +254,9 @@ private:
 			case FStreamingRenderAsset::AT_SkeletalMesh:
 				OutArray = NumStreamedMips_SkeletalMesh.GetData();
 				return NumStreamedMips_SkeletalMesh.Num();
+			case FStreamingRenderAsset::AT_LandscapeMeshMobile:
+				OutArray = NumStreamedMips_LandscapeMeshMobile.GetData();
+				return NumStreamedMips_LandscapeMeshMobile.Num();
 			default:
 				check(false);
 				OutArray = nullptr;
@@ -323,6 +327,7 @@ private:
 	int32 NumStreamedMips_Texture[TEXTUREGROUP_MAX];
 	TArray<int32> NumStreamedMips_StaticMesh;
 	TArray<int32> NumStreamedMips_SkeletalMesh;
+	TArray<int32> NumStreamedMips_LandscapeMeshMobile;
 
 	FRenderAssetStreamingSettings Settings;
 

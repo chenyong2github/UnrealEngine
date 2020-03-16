@@ -238,17 +238,38 @@ void FOpenGLDynamicRHI::UnlockVertexBuffer_BottomOfPipe(FRHICommandListImmediate
 
 void FOpenGLDynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIVertexBuffer* DestBufferRHI)
 {
+	check(SourceBufferRHI && DestBufferRHI && SourceBufferRHI->GetSize() == DestBufferRHI->GetSize());
+	RHICopyBufferRegion(DestBufferRHI, 0, SourceBufferRHI, 0, SourceBufferRHI->GetSize());
+}
+
+void FOpenGLDynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer)
+{
+	check(DestVertexBuffer);
+	FOpenGLVertexBuffer* Dest = ResourceCast(DestVertexBuffer);
+	if (!SrcVertexBuffer)
+	{
+		// Not implemented yet
+		checkNoEntry();
+	}
+	else
+	{
+		FOpenGLVertexBuffer* Src = ResourceCast(SrcVertexBuffer);
+		Dest->Swap(*Src);
+	}
+}
+
+void FOpenGLDynamicRHI::RHICopyBufferRegion(FRHIVertexBuffer* DestBufferRHI, uint64 DstOffset, FRHIVertexBuffer* SourceBufferRHI, uint64 SrcOffset, uint64 NumBytes)
+{
 	VERIFY_GL_SCOPE();
-	check( FOpenGL::SupportsCopyBuffer() );
+	check(FOpenGL::SupportsCopyBuffer());
 	FOpenGLVertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
 	FOpenGLVertexBuffer* DestBuffer = ResourceCast(DestBufferRHI);
-	check(SourceBuffer->GetSize() == DestBuffer->GetSize());
 
-	glBindBuffer(GL_COPY_READ_BUFFER,SourceBuffer->Resource);
-	glBindBuffer(GL_COPY_WRITE_BUFFER,DestBuffer->Resource);
-	FOpenGL::CopyBufferSubData(GL_COPY_READ_BUFFER,GL_COPY_WRITE_BUFFER,0,0,SourceBuffer->GetSize());
-	glBindBuffer(GL_COPY_READ_BUFFER,0);
-	glBindBuffer(GL_COPY_WRITE_BUFFER,0);
+	glBindBuffer(GL_COPY_READ_BUFFER, SourceBuffer->Resource);
+	glBindBuffer(GL_COPY_WRITE_BUFFER, DestBuffer->Resource);
+	FOpenGL::CopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, SrcOffset, DstOffset, NumBytes);
+	glBindBuffer(GL_COPY_READ_BUFFER, 0);
+	glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
 }
 
 FStagingBufferRHIRef FOpenGLDynamicRHI::RHICreateStagingBuffer()

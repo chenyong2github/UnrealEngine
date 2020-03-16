@@ -523,12 +523,12 @@ void FRHICommandPollOcclusionQueries::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIPollOcclusionQueries)();
 }
 
-#if RHI_RAYTRACING
-
 void FRHICommandCopyBufferRegion::Execute(FRHICommandListBase& CmdList)
 {
 	INTERNAL_DECORATOR(RHICopyBufferRegion)(DestBuffer, DstOffset, SourceBuffer, SrcOffset, NumBytes);
 }
+
+#if RHI_RAYTRACING
 
 void FRHICommandCopyBufferRegions::Execute(FRHICommandListBase& CmdList)
 {

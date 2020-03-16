@@ -2787,3 +2787,20 @@ void FMetalRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHI
 	}
 }
 
+void FMetalRHICommandContext::RHICopyBufferRegion(FRHIVertexBuffer* DstBufferRHI, uint64 DstOffset, FRHIVertexBuffer* SrcBufferRHI, uint64 SrcOffset, uint64 NumBytes)
+{
+	if (!DstBufferRHI || !SrcBufferRHI || DstBufferRHI == SrcBufferRHI || !NumBytes)
+	{
+		return;
+	}
+
+	@autoreleasepool {
+		FMetalVertexBuffer* DstVertexBuffer = ResourceCast(DstBufferRHI);
+		FMetalVertexBuffer* SrcVertexBuffer = ResourceCast(SrcBufferRHI);
+
+		check(DstVertexBuffer && SrcVertexBuffer);
+		check(DstOffset + NumBytes <= DstBufferRHI->GetSize() && SrcOffset + NumBytes <= SrcBufferRHI->GetSize());
+
+		GetInternalContext().CopyFromBufferToBuffer(SrcVertexBuffer->Buffer, SrcOffset, DstVertexBuffer->Buffer, DstOffset, NumBytes);
+	}
+}

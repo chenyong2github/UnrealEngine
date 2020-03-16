@@ -32,6 +32,7 @@ class AActor;
 class UTexture2D;
 class UStaticMesh;
 class USkeletalMesh;
+class ULandscapeLODStreamingProxy;
 class UStreamableRenderAsset;
 class FSoundSource;
 class USoundWave;
@@ -427,6 +428,7 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	virtual void AddStreamingRenderAsset(UTexture2D* Texture) = 0;
 	virtual void AddStreamingRenderAsset(UStaticMesh* StaticMesh) = 0;
 	virtual void AddStreamingRenderAsset(USkeletalMesh* SkeletalMesh) = 0;
+	virtual void AddStreamingRenderAsset(ULandscapeLODStreamingProxy* Landscape) = 0;
 
 	/** Removes a texture/mesh from the streaming manager. */
 	virtual void RemoveStreamingRenderAsset(UStreamableRenderAsset* RenderAsset) = 0;

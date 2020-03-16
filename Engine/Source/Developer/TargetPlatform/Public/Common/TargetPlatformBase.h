@@ -312,6 +312,8 @@ public:
 			return TPlatformProperties::SupportsTextureStreaming();
 		case ETargetPlatformFeatures::MeshLODStreaming:
 			return TPlatformProperties::SupportsMeshLODStreaming();
+		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
+			return false;
 
 		case ETargetPlatformFeatures::MemoryMappedFiles:
 			return TPlatformProperties::SupportsMemoryMappedFiles();
