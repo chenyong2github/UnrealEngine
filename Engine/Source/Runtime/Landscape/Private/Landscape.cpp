@@ -1486,6 +1486,10 @@ void ULandscapeComponent::OnUnregister()
 {
 	Super::OnUnregister();
 
+#if WITH_EDITOR
+	PhysicalMaterialTask.Release();
+#endif
+
 	if (GetLandscapeProxy())
 	{
 		// Generate MID representing the MIC
@@ -3727,6 +3731,14 @@ void ALandscapeProxy::UpdateBakedTextures()
 	{
 		// Don't check if we need to update anything for another 60 frames
 		UpdateBakedTexturesCountdown = 60;
+	}
+}
+
+void ALandscapeProxy::UpdatePhysicalMaterialTasks()
+{
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		Component->UpdatePhysicalMaterialTasks();
 	}
 }
 #endif
