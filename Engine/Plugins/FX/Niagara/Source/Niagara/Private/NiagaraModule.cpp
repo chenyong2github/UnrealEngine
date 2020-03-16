@@ -430,6 +430,11 @@ UScriptStruct* FNiagaraTypeDefinition::Vec2Struct;
 UScriptStruct* FNiagaraTypeDefinition::ColorStruct;
 UScriptStruct* FNiagaraTypeDefinition::QuatStruct;
 
+UScriptStruct* FNiagaraTypeDefinition::HalfStruct;
+UScriptStruct* FNiagaraTypeDefinition::HalfVec2Struct;
+UScriptStruct* FNiagaraTypeDefinition::HalfVec3Struct;
+UScriptStruct* FNiagaraTypeDefinition::HalfVec4Struct;
+
 UClass* FNiagaraTypeDefinition::UObjectClass;
 UClass* FNiagaraTypeDefinition::UMaterialClass;
 
@@ -452,6 +457,11 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::Vec3Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::Vec2Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::ColorDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::QuatDef;
+
+FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfVec2Def;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfVec3Def;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfVec4Def;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
@@ -492,6 +502,11 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::IntStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraInt32"));
 	FNiagaraTypeDefinition::Matrix4Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraMatrix"));
 
+	FNiagaraTypeDefinition::HalfStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalf"));
+	FNiagaraTypeDefinition::HalfVec2Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalfVector2"));
+	FNiagaraTypeDefinition::HalfVec3Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalfVector3"));
+	FNiagaraTypeDefinition::HalfVec4Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalfVector4"));
+
 	FNiagaraTypeDefinition::Vec2Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector2D"));
 	FNiagaraTypeDefinition::Vec3Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector"));
 	FNiagaraTypeDefinition::Vec4Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector4"));
@@ -513,6 +528,11 @@ void FNiagaraTypeDefinition::Init()
 	ColorDef = FNiagaraTypeDefinition(ColorStruct);
 	QuatDef = FNiagaraTypeDefinition(QuatStruct);
 	Matrix4Def = FNiagaraTypeDefinition(Matrix4Struct);
+
+	HalfDef = FNiagaraTypeDefinition(HalfStruct);
+	HalfVec2Def = FNiagaraTypeDefinition(HalfVec2Struct);
+	HalfVec3Def = FNiagaraTypeDefinition(HalfVec3Struct);
+	HalfVec4Def = FNiagaraTypeDefinition(HalfVec4Struct);
 
 	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
 	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
@@ -551,6 +571,7 @@ void FNiagaraTypeDefinition::Init()
 	ScalarStructs.Add(BoolStruct);
 	ScalarStructs.Add(IntStruct);
 	ScalarStructs.Add(FloatStruct);
+	ScalarStructs.Add(HalfStruct);
 
 	ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>();
 	ExecutionStateSourceEnum = StaticEnum<ENiagaraExecutionStateSource>();
@@ -652,6 +673,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(IDDef, true, true, false);
 	FNiagaraTypeRegistry::Register(NumericDef, true, false, false);
 	FNiagaraTypeRegistry::Register(FloatDef, true, true, false);
+	FNiagaraTypeRegistry::Register(HalfDef, true, true, false);
 	FNiagaraTypeRegistry::Register(IntDef, true, true, false);
 	FNiagaraTypeRegistry::Register(BoolDef, true, true, false);
 	FNiagaraTypeRegistry::Register(Vec2Def, true, true, false);

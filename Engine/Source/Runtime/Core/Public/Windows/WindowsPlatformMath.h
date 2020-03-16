@@ -18,6 +18,40 @@
 **/
 struct FWindowsPlatformMath : public TUnrealPlatformMathSSE4Base<FGenericPlatformMath>
 {
+#if PLATFORM_XBOXONE
+	static FORCEINLINE void WideVectorLoadHalf(float* RESTRICT Dst, const uint16* RESTRICT Src)
+	{
+		_mm256_storeu_ps(Dst, _mm256_cvtph_ps(_mm_loadu_si128((__m128i*)Src)));
+	}
+
+	static FORCEINLINE void WideVectorStoreHalf(uint16* RESTRICT Dst, const float* RESTRICT Src)
+	{
+		_mm_storeu_si128((__m128i*)Dst, _mm256_cvtps_ph(_mm256_loadu_ps(Src), _MM_FROUND_TO_NEAREST_INT));
+	}
+
+	static FORCEINLINE void VectorStoreHalf(uint16* RESTRICT Dst, const float* RESTRICT Src)
+	{
+		_mm_storeu_si64((__m128i*)Dst, _mm_cvtps_ph(_mm_loadu_ps(Src), _MM_FROUND_TO_NEAREST_INT));
+	}
+
+	static FORCEINLINE void VectorLoadHalf(float* RESTRICT Dst, const uint16* RESTRICT Src)
+	{
+		_mm_storeu_ps(Dst, _mm_cvtph_ps(_mm_loadu_si64((__m128i*)Src)));
+	}
+
+	static FORCEINLINE float LoadHalf(const uint16* Ptr)
+	{
+		float Value;
+		_mm_store_ss(&Value, _mm_cvtph_ps(_mm_loadu_si16(Ptr)));
+		return Value;
+	}
+
+	static FORCEINLINE void StoreHalf(uint16* Ptr, float Value)
+	{
+		_mm_storeu_si16(Ptr, _mm_cvtps_ph(_mm_load_ss(&Value), _MM_FROUND_TO_NEAREST_INT));
+	}
+#endif
+
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 	static FORCEINLINE bool IsNaN( float A ) { return _isnan(A) != 0; }
 	static FORCEINLINE bool IsNaN(double A) { return _isnan(A) != 0; }

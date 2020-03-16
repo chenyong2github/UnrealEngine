@@ -64,6 +64,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraSpriteVFLooseParameters, NIAGARAVER
 	SHADER_PARAMETER(uint32, IndirectArgsOffset)
 	SHADER_PARAMETER_SRV(Buffer<float2>, CutoutGeometry)
 	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataHalf)
 	SHADER_PARAMETER_SRV(Buffer<int>, SortedIndices)
 	SHADER_PARAMETER_SRV(Buffer<uint>, IndirectArgsBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -87,7 +88,6 @@ public:
 		CutoutGeometrySRV(nullptr),
 		AlignmentMode(0),
 		FacingMode(0),
-		FloatDataStride(0),
 		SortedIndicesOffset(0)
 	{}
 
@@ -98,7 +98,6 @@ public:
 		CutoutGeometrySRV(nullptr),
 		AlignmentMode(0),
 		FacingMode(0),
-		FloatDataStride(0),
 		SortedIndicesOffset(0)
 		
 	{}
@@ -145,26 +144,10 @@ public:
 	inline int32 GetNumCutoutVerticesPerFrame() const { return NumCutoutVerticesPerFrame; }
 	inline FRHIShaderResourceView* GetCutoutGeometrySRV() const { return CutoutGeometrySRV; }
 
-	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataStride)
-	{
-		ParticleDataFloatSRV = InParticleDataFloatSRV;
-		FloatDataStride = InFloatDataStride;
-	}
-
 	void SetSortedIndices(const FShaderResourceViewRHIRef& InSortedIndicesSRV, uint32 InSortedIndicesOffset)
 	{
 		SortedIndicesSRV = InSortedIndicesSRV;
 		SortedIndicesOffset = InSortedIndicesOffset;
-	}
-
-	FORCEINLINE FRHIShaderResourceView* GetParticleDataFloatSRV()
-	{
-		return ParticleDataFloatSRV;
-	}
-
-	FORCEINLINE int32 GetFloatDataStride()
-	{
-		return FloatDataStride;
 	}
 
 	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV()
@@ -219,10 +202,6 @@ private:
 	FShaderResourceViewRHIRef CutoutGeometrySRV;
 	uint32 AlignmentMode;
 	uint32 FacingMode;
-	
-	
-	FShaderResourceViewRHIRef ParticleDataFloatSRV;
-	uint32 FloatDataStride;
 
 	FShaderResourceViewRHIRef SortedIndicesSRV;
 	uint32 SortedIndicesOffset;
