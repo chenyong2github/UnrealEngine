@@ -29,6 +29,13 @@ FWindowsCursor::FWindowsCursor()
 		switch( CurCursorIndex )
 		{
 		case EMouseCursor::None:
+			if (FPlatformMisc::IsRemoteSession())
+			{
+				// during remote sessions we rely on constantly resetting the mouse cursor position for infinite mouse deltas while dragging (WM_INPUT doesnt work over rdp)
+				// this hack here is to avoid having a hidden cursor which prevents SetCursorPos from working.  This is just a completely transparent cursor yet "visible" cursor to work around that
+				CursorHandle = LoadCursorFromFile((LPCTSTR) * (FString(FPlatformProcess::BaseDir()) / FString::Printf(TEXT("%sEditor/Slate/Cursor/invisible.cur"), *FPaths::EngineContentDir())));
+			}
+			break;
 		case EMouseCursor::Custom:
 			// The mouse cursor will not be visible when None is used
 			break;
