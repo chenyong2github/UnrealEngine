@@ -1185,7 +1185,7 @@ static void AddClearGraphicPass(
 
 	TShaderMapRef<FPostProcessVS> VertexShader(View->ShaderMap);
 	TShaderMapRef<FClearUIntGraphicPS> PixelShader(View->ShaderMap);
-	const FIntRect Viewport = View->ViewRect;
+	const FIntRect Viewport = FIntRect(FIntPoint(0, 0), OutTarget->Desc.Extent);// View->ViewRect;
 	const FIntPoint Resolution = OutTarget->Desc.Extent;
 
 	ClearUnusedGraphResources(PixelShader, Parameters);
