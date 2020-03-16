@@ -1388,6 +1388,11 @@ void FAudioDevice::HandleAudioSoloCommon(const TCHAR* Cmd, FOutputDevice& Ar, FT
 		{
 			(DeviceManager->GetDebugger().*FPtr)(*Args[0], bExclusive);
 		}
+		else if(bExclusive)
+		{
+			// If we are exclusive and no argument is passed, pass NAME_None to clear the current state.
+			(DeviceManager->GetDebugger().*FPtr)(NAME_None, true);
+		}
 	}
 }
 
