@@ -37,7 +37,7 @@ private:
 	struct FCPUSimParticleDataAllocation
 	{
 		FGlobalDynamicReadBuffer& DynamicReadBuffer;
-		FGlobalDynamicReadBuffer::FAllocation ParticleData;
+		FParticleRenderData ParticleData;
 	};
 
 	FCPUSimParticleDataAllocation ConditionalAllocateCPUSimParticleData(FNiagaraDynamicDataSprites *DynamicDataSprites, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
@@ -47,6 +47,7 @@ private:
 		FNiagaraDynamicDataSprites *DynamicDataSprites,
 		FCPUSimParticleDataAllocation& CPUSimParticleDataAllocation,
 		const FSceneView* View,
+		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
 		const FNiagaraSceneProxy *SceneProxy) const;
 	void CreateMeshBatchForView(
 		const FSceneView* View,
@@ -55,6 +56,7 @@ private:
 		FNiagaraDynamicDataSprites *DynamicDataSprites,
 		uint32 IndirectArgsOffset,
 		FMeshBatch& OutMeshBatch,
+		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
 		class FNiagaraMeshCollectorResourcesSprite& OutCollectorResources) const;
 
 	//Cached data from the properties struct.

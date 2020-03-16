@@ -8,28 +8,21 @@
 //uint NiagaraIntDataOffset;
 //uint NiagaraIntDataStride;
 
-#ifndef NIAGARA_KEYGEN
-#define NIAGARA_KEYGEN 0
-#endif
-
-#if (!RAYHITGROUPSHADER && !COMPUTESHADER) || NIAGARA_KEYGEN
-
-Buffer<float> NiagaraParticleDataFloat;
-uint NiagaraFloatDataStride;
 
 float GetFloat(int RegisterIdx, uint InstanceID)
 {
-	return NiagaraParticleDataFloat[(RegisterIdx * NiagaraFloatDataStride + InstanceID)];
+	bool IsHalf = RegisterIdx & (1 << 31);
+	RegisterIdx &= (~(1 << 31));
+
+	if(IsHalf)
+	{
+		return NiagaraVFLooseParameters.NiagaraParticleDataHalf[(RegisterIdx * NiagaraVFLooseParameters.NiagaraFloatDataStride + InstanceID)];
+	}
+	else
+	{
+		return NiagaraVFLooseParameters.NiagaraParticleDataFloat[(RegisterIdx * NiagaraVFLooseParameters.NiagaraFloatDataStride + InstanceID)];
+	}
 }
-
-#else
-
-float GetFloat(int RegisterIdx, uint InstanceID)
-{
-	return NiagaraVFLooseParameters.NiagaraParticleDataFloat[(RegisterIdx * NiagaraVFLooseParameters.NiagaraFloatDataStride + InstanceID)];
-}
-
-#endif
 
 float2 GetVec2(int RegisterIndex, uint InstanceID)
 {

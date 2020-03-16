@@ -419,6 +419,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	float InputDataFloat(int DataSetIndex, int RegisterIdx);  //DataSetIndex is 0 for main dataset
 	int InputDataInt(int DataSetIndex, int RegisterIdx);
 	bool InputDataBool(int DataSetIndex, int RegisterIdx);
+	float InputDataHalf(int DataSetIndex, int RegisterIdx);
 
 	float InputDataNoadvanceFloat(int DataSetIndex, int RegisterIdx);  //DataSetIndex is 0 for main dataset
 	int InputDataNoadvanceInt(int DataSetIndex, int RegisterIdx);
@@ -427,6 +428,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	void OutputDataFloat(int DataSetIndex, int RegisterIndex, int InstanceIndex, float Value);
 	void OutputDataInt(int DataSetIndex, int RegisterIndex, int InstanceIndex, int Value);
 	void OutputDataBool(int DataSetIndex, int RegisterIndex, int InstanceIndex, bool Value);
+	void OutputDataHalf(int DataSetIndex, int RegisterIndex, int InstanceIndex, float Value);
 #endif
 
 
@@ -458,8 +460,10 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	 */
 	Buffer<float> InputFloat;
 	Buffer<int> InputInt;
+	Buffer<half> InputHalf;
 	RWBuffer<int> RWOutputInt;
 	RWBuffer<float> RWOutputFloat;
+	RWBuffer<half> RWOutputHalf;
 
 	RWBuffer<uint> RWInstanceCounts;
 	uint ReadInstanceCountOffset;
@@ -646,6 +650,10 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		return InputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx] == -1;
 	}
 
+	float InputDataHalf(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return InputHalf[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+	}
 
 	/* ---------------------------------------------------------------------
 	 * OutputData operations 
@@ -664,6 +672,11 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	void OutputDataBool(int DataSetIndex, int RegisterIndex, int InstanceIndex, bool Value)
 	{
 		RWOutputInt[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex + UpdateStartInstance] = Value ? -1 : 0;
+	}
+
+	void OutputDataHalf(int DataSetIndex, int RegisterIndex, int InstanceIndex, float Value)
+	{
+		RWOutputHalf[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex + UpdateStartInstance] = Value;
 	}
 
 	void EnterStatScope(int ID)	{}

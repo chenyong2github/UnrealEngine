@@ -36,9 +36,6 @@ public:
 		NumCutoutVerticesPerFrame.Bind(ParameterMap, TEXT("NumCutoutVerticesPerFrame"));
 		CutoutGeometry.Bind(ParameterMap, TEXT("CutoutGeometry"));
 
-		NiagaraParticleDataFloat.Bind(ParameterMap, TEXT("NiagaraParticleDataFloat"));
-		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
-
 //  		NiagaraParticleDataInt.Bind(ParameterMap, TEXT("NiagaraParticleDataInt"));
 //  		Int32DataOffset.Bind(ParameterMap, TEXT("NiagaraInt32DataOffset"));
 //  		Int32DataStride.Bind(ParameterMap, TEXT("NiagaraInt3DataStride"));
@@ -73,9 +70,6 @@ public:
 		ShaderBindings.Add(ParticleAlignmentMode, SpriteVF->GetAlignmentMode());
 		ShaderBindings.Add(ParticleFacingMode, SpriteVF->GetFacingMode());
 
-		ShaderBindings.Add(NiagaraParticleDataFloat, SpriteVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(FloatDataStride, SpriteVF->GetFloatDataStride());
-
 		ShaderBindings.Add(SortedIndices, SpriteVF->GetSortedIndicesSRV() ? SpriteVF->GetSortedIndicesSRV() : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference());
 		ShaderBindings.Add(SortedIndicesOffset, SpriteVF->GetSortedIndicesOffset());
 	}
@@ -89,8 +83,6 @@ private:
 
 		LAYOUT_FIELD(FShaderResourceParameter, CutoutGeometry);
 
-	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFloat);
-	LAYOUT_FIELD(FShaderParameter, FloatDataStride);
 
 	//  	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataInt);
 	//  	LAYOUT_FIELD(FShaderParameter, Int32DataOffset);

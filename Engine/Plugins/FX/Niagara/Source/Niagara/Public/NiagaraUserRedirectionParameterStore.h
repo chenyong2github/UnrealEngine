@@ -29,7 +29,7 @@ public:
 	FORCEINLINE void GetUserParameters(TArray<FNiagaraVariable>& OutParameters) const { return UserParameterRedirects.GenerateKeyArray(OutParameters); }
 
 	// ~ Begin FNiagaraParameterStore overrides
-	FORCEINLINE_DEBUGGABLE virtual const int32* FindParameterOffset(const FNiagaraVariable& Parameter) const override
+	FORCEINLINE_DEBUGGABLE virtual const int32* FindParameterOffset(const FNiagaraVariable& Parameter, bool IgnoreType = false) const override
 	{
 		const FNiagaraVariable* Redirection = UserParameterRedirects.Find(Parameter);
 		return FNiagaraParameterStore::FindParameterOffset(Redirection ? *Redirection : Parameter);

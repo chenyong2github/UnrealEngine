@@ -93,8 +93,10 @@ public:
 
 	LAYOUT_FIELD(FShaderResourceParameter, FloatInputBufferParam);
 	LAYOUT_FIELD(FShaderResourceParameter, IntInputBufferParam);
+	LAYOUT_FIELD(FShaderResourceParameter, HalfInputBufferParam);
 	LAYOUT_FIELD(FRWShaderParameter, FloatOutputBufferParam);
 	LAYOUT_FIELD(FRWShaderParameter, IntOutputBufferParam);
+	LAYOUT_FIELD(FRWShaderParameter, HalfOutputBufferParam);
 	LAYOUT_FIELD(FRWShaderParameter, InstanceCountsParam);
 	LAYOUT_FIELD(FShaderParameter, ReadInstanceCountOffsetParam);
 	LAYOUT_FIELD(FShaderParameter, WriteInstanceCountOffsetParam);
