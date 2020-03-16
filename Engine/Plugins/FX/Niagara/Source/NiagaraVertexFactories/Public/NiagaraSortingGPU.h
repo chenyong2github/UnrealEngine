@@ -77,4 +77,3 @@ private:
 	/** Output indices buffer. */
 	LAYOUT_FIELD(FShaderResourceParameter, OutParticleIndices)
 };
-
