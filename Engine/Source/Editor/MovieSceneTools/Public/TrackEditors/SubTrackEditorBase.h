@@ -88,6 +88,21 @@ private:
     FFrameNumber InitialStartTimeDuringResize;
 };
 
+class MOVIESCENETOOLS_API FSubTrackEditorUtil
+{
+public:
+	/**
+	 * Check whether the given sequence can be added as a sub-sequence.
+	 *
+	 * The purpose of this method is to disallow circular references
+	 * between sub-sequences in the focused movie scene.
+	 *
+	 * @param Sequence The sequence to check.
+	 * @return true if the sequence can be added as a sub-sequence, false otherwise.
+	 */
+	static bool CanAddSubSequence(const UMovieSceneSequence* CurrentSequence, const UMovieSceneSequence& SubSequence);
+};
+
 /**
  * Mixin class for sub-sequence section interfaces.
  *
