@@ -133,6 +133,13 @@ void UK2Node_MakeStruct::AllocateDefaultPins()
 			bHasAdvancedPins = OptionalPinManager.HasAdvancedPins();
 		}
 
+		// Set container pin types to have their default values ignored, which will in turn
+		// enable auto generation for any that are not set by the user. 
+		for(UEdGraphPin* Pin : Pins)
+		{
+			Pin->bDefaultValueIsIgnored = Pin->bDefaultValueIsIgnored || Pin->PinType.IsContainer();
+		}
+
 		// When struct has a lot of fields, mark their pins as advanced
 		if(!bHasAdvancedPins && Pins.Num() > 5)
 		{
