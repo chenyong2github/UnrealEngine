@@ -44,7 +44,7 @@ namespace UsdPrimInfoWidgetConstants
 void SUsdPrimInfo::Construct( const FArguments& InArgs, const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath )
 {
 	TSharedRef< SWidget > VariantSetsWidget = GenerateVariantSetsWidget( UsdStage, PrimPath );
-	TSharedRef< SWidget > ReferencesListWidget = GenerateVariantSetsWidget( UsdStage, PrimPath );
+	TSharedRef< SWidget > ReferencesListWidget = GenerateReferencesListWidget( UsdStage, PrimPath );
 
 	ChildSlot
 	[
