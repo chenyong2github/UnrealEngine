@@ -2,6 +2,8 @@
 
 #include "SNPSimFrameView.h"
 #include "NetworkPredictionDrawHelpers.h"
+#include "SNPWindow.h"
+#include "Insights/IUnrealInsightsModule.h"
 
 #define LOCTEXT_NAMESPACE "NetworkPredictionInsights"
 
