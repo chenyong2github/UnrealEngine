@@ -226,6 +226,13 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		Mesh = Interface->DefaultMesh;
 	}
 
+#if WITH_EDITORONLY_DATA
+	if (!Mesh && Interface->PreviewMesh)
+	{
+		Mesh = Interface->PreviewMesh;
+	}
+#endif
+
 	if (Component.IsValid() && Mesh)
 	{
 		PrevTransform = Transform;
@@ -626,6 +633,9 @@ void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(
 
 UNiagaraDataInterfaceStaticMesh::UNiagaraDataInterfaceStaticMesh(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+	, PreviewMesh(nullptr)
+#endif
 	, DefaultMesh(nullptr)
 	, Source(nullptr)	
 	, ChangeId(0)
@@ -1093,6 +1103,9 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 	UNiagaraDataInterfaceStaticMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceStaticMesh>(Destination);
 	OtherTyped->Source = Source;
 	OtherTyped->DefaultMesh = DefaultMesh;
+#if WITH_EDITORONLY_DATA
+	OtherTyped->PreviewMesh = PreviewMesh;
+#endif
 	//OtherTyped->bEnableVertexColorRangeSorting = bEnableVertexColorRangeSorting;//TODO: Vertex color filtering needs more work.
 	OtherTyped->SectionFilter = SectionFilter;
 	return true;
@@ -1204,6 +1217,23 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceStaticMesh::GetErrors()
 
 		Errors.Add(CPUAccessNotAllowedError);
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (Source == nullptr && PreviewMesh != nullptr && !PreviewMesh->bAllowCPUAccess)
+	{
+		FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(PreviewMesh->GetName())),
+			LOCTEXT("CPUAccessNotAllowedErrorSummary", "CPU access error"),
+			FNiagaraDataInterfaceFix::CreateLambda([=]()
+		{
+			PreviewMesh->Modify();
+			PreviewMesh->bAllowCPUAccess = true;
+			return true;
+		}));
+
+		Errors.Add(CPUAccessNotAllowedError);
+	}
+#endif
+
 	return Errors;
 }
 #endif
