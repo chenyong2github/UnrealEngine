@@ -1,0 +1,4 @@
+../../../Templates/TP_HololensBP/manifest.json
+../../../Templates/TP_HololensBP/Config/config.ini
+../../../Templates/TP_HololensBP/Media/TP_HololensBP.png
+../../../Templates/TP_HololensBP/Media/TP_HololensBP_Preview.png

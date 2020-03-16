@@ -1,0 +1,31 @@
+{
+	"Version": 1,
+	"Name":
+	[
+		{
+			"Language": "en",
+			"Text": "Hololens Viewer"
+		}
+	],
+	"Description":
+	[
+		{
+			"Language": "en",
+			"Text": "This project template provides navigation and interaction for Hololens 2. Use as a starting point for Industrial or Architectural projects."
+		}
+	],
+	"AssetTypes": [],
+	"SearchTags": [],
+	"ClassTypes": "",
+	"Category": "BlueprintFeature",
+	"FocusAsset": "",
+	"Thumbnail": "TP_HololensBP.png",
+	"Screenshots":
+	[
+		"TP_HololensBP_Preview.png"
+	],
+	"SortKey": "TP_HololensBP",
+	"AdditionalFeaturePacks":
+	[
+	]
+}
