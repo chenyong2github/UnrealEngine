@@ -16,6 +16,7 @@ protected:
 	void KickOffRead();
 
 	bool bIsComplete;
+	bool bFailedToOpenInKickOff;
 	static bool bSystemNoLongerTakingRequests;
 	void* Data;
 	int64 FileSize;
