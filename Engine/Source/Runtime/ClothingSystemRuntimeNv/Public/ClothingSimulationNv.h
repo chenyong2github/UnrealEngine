@@ -54,9 +54,6 @@ public:
 	// Wind adaption, a measure of how quickly to adapt to the wind speed
 	// when using the legacy wind calculation mode
 	float WindAdaption;
-
-	// Scale for the max distance constraints of the simulation mesh
-	float MaxDistanceScale;
 };
 
 // Scratch data for simulation to avoid allocations while processing, per actor data
