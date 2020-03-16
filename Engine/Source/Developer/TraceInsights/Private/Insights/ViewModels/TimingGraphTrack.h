@@ -75,6 +75,8 @@ protected:
 	void UpdateFrameSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
 	void UpdateTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
 	void UpdateStatsCounterSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
+
+	virtual void DrawVerticalAxisGrid(const ITimingTrackDrawContext& Context) const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

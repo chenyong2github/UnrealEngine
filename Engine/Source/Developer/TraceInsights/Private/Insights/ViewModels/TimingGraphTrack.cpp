@@ -9,9 +9,12 @@
 #include "TraceServices/Model/Counters.h"
 
 // Insights
+#include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/ViewModels/AxisViewportDouble.h"
 #include "Insights/ViewModels/GraphTrackBuilder.h"
+#include "Insights/ViewModels/ITimingViewDrawHelper.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
@@ -467,6 +470,114 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Context) const
+{
+	const uint32 SeriesCount = AllSeries.Num();
+	if (SeriesCount == 0)
+	{
+		return;
+	}
+
+	FAxisViewportDouble ViewportY;
+	ViewportY.SetSize(GetHeight());
+	ViewportY.SetScaleLimits(std::numeric_limits<double>::min(), std::numeric_limits<double>::max());
+	ViewportY.SetScale(SharedValueViewport.GetScaleY());
+	ViewportY.ScrollAtPos(SharedValueViewport.GetBaselineY() - GetHeight());
+
+	const float ViewWidth = Context.GetViewport().GetWidth();
+	const float RoundedViewHeight = FMath::RoundToFloat(GetHeight());
+
+	const float X0 = ViewWidth - 12.0f; // let some space for the vertical scrollbar
+	const float Y0 = GetPosY();
+
+	constexpr float MinDY = 32.0f; // min vertical distance between horizontal grid lines
+	constexpr float TextH = 14.0f; // label height
+
+	FDrawContext& DrawContext = Context.GetDrawContext();
+	const FSlateBrush* Brush = Context.GetHelper().GetWhiteBrush();
+	//const FSlateFontInfo& Font = Context.GetHelper().GetEventFont();
+	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+	const double TopValue = ViewportY.GetValueAtOffset(RoundedViewHeight);
+	const double GridValue = ViewportY.GetValueAtOffset(MinDY);
+	const double BottomValue = ViewportY.GetValueAtOffset(0.0f);
+	const double Delta = GridValue - BottomValue;
+
+	if (Delta > 0.0)
+	{
+		const double Thresholds[] =
+		{
+			1.0e-9,	// 1ns
+			1.0e-8,	// 10ns
+			1.0e-7,	// 100ns
+			1.0e-6,	// 1us
+			1.0e-5,	// 10us
+			0.0001,	// 100us
+			0.001,	// 1ms
+			0.01,	// 10ms
+			0.1,	// 100ms
+			1.0,	// 1s
+			10.0,	// 10s
+			60.0,	// 1m
+			600.0,	// 10m
+			3600.0,	// 1h
+			36000.0,// 10h
+			86400.0	// 1d
+		};
+		constexpr int32 NumThresholds = sizeof(Thresholds) / sizeof(double);
+		int32 Index = Algo::LowerBound(Thresholds, Delta);
+		if (Index > 0)
+		{
+			Index--;
+		}
+		double TickUnit = Thresholds[Index];
+		int64 DeltaTicks = static_cast<int64>(FMath::CeilToDouble(Delta / TickUnit));
+		if (Index < NumThresholds - 1)
+		{
+			const double NextTickUnit = Thresholds[Index + 1];
+			if (NextTickUnit <= (DeltaTicks + 1) * TickUnit)
+			{
+				TickUnit = NextTickUnit;
+				DeltaTicks = 1;
+			}
+			else if (DeltaTicks != 1 && DeltaTicks != 5 && DeltaTicks % 2 == 1) // prefer even grid values
+			{
+				DeltaTicks++;
+			}
+		}
+		const double Grid = DeltaTicks * TickUnit;
+		const double StartValue = FMath::GridSnap(BottomValue, Grid);
+
+		const FLinearColor GridColor(0.0f, 0.0f, 0.0f, 0.1f);
+		const FLinearColor TextBgColor(0.05f, 0.05f, 0.05f, 1.0f);
+		const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+		for (double Value = StartValue; Value < TopValue; Value += Grid)
+		{
+			const float Y = Y0 + RoundedViewHeight - FMath::RoundToFloat(ViewportY.GetOffsetForValue(Value));
+
+			const FString LabelText = TimeUtils::FormatTimeAuto(Value);
+
+			// Draw horizontal grid line.
+			DrawContext.DrawBox(0, Y, ViewWidth, 1, Brush, GridColor);
+
+			const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font);
+			const float LabelX = X0 - LabelTextSize.X - 4.0f;
+			const float LabelY = FMath::Min(Y0 + GetHeight() - TextH, FMath::Max(Y0, Y - TextH / 2));
+
+			// Draw background for value text.
+			DrawContext.DrawBox(LabelX, LabelY, LabelTextSize.X + 4.0f, TextH, Brush, TextBgColor);
+
+			// Draw value text.
+			DrawContext.DrawText(LabelX + 2.0f, LabelY + 1.0f, LabelText, Font, TextColor);
+		}
+
+		DrawContext.LayerId++;
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

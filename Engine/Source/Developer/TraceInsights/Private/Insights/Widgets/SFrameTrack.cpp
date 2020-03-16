@@ -667,16 +667,18 @@ void SFrameTrack::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBr
 		// Draw horizontal grid line.
 		DrawContext.DrawBox(0, Y, ViewWidth, 1, Brush, GridColor);
 
-		const FString Text = (Value == 0.0) ? TEXT("0") :
-							 (Value <= 1.0) ? FString::Printf(TEXT("%s (%.0f fps)"), *TimeUtils::FormatTimeAuto(Value), 1.0 / Value) :
-											  TimeUtils::FormatTimeAuto(Value);
-		const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
+		const FString LabelText = (Value == 0.0) ? TEXT("0") :
+								  (Value <= 1.0) ? FString::Printf(TEXT("%s (%.0f fps)"), *TimeUtils::FormatTimeAuto(Value), 1.0 / Value) :
+												   TimeUtils::FormatTimeAuto(Value);
+		const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font);
+		float LabelX = ViewWidth - LabelTextSize.X - 4.0f;
+		float LabelY = FMath::Clamp(Y - TextH / 2, 0.0f, RoundedViewHeight - TextH);
 
 		// Draw background for value text.
-		DrawContext.DrawBox(ViewWidth - TextSize.X - 4.0f, Y - TextH, TextSize.X + 4.0f, TextH, Brush, TextBgColor);
+		DrawContext.DrawBox(LabelX, LabelY, LabelTextSize.X + 4.0f, TextH, Brush, TextBgColor);
 
 		// Draw value text.
-		DrawContext.DrawText(ViewWidth - TextSize.X - 2.0f, Y - TextH + 1.0f, Text, Font, TextColor);
+		DrawContext.DrawText(LabelX + 2.0f, LabelY + 1.0f, LabelText, Font, TextColor);
 	}
 	DrawContext.LayerId++;
 }
@@ -727,11 +729,7 @@ void SFrameTrack::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlate
 		const float ViewHeight = Viewport.GetHeight();
 
 		const FLinearColor GridColor(0.0f, 0.0f, 0.0f, 0.1f);
-		//const FLinearColor TextBgColor(0.05f, 0.05f, 0.05f, 1.0f);
-		//const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 		const FLinearColor TopTextColor(1.0f, 1.0f, 1.0f, 0.7f);
-
-		//const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
 		for (int32 Index = StartIndex; Index < RightIndex; Index += Grid)
 		{
@@ -740,17 +738,9 @@ void SFrameTrack::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlate
 			// Draw vertical grid line.
 			DrawContext.DrawBox(X, 0, 1, ViewHeight, Brush, GridColor);
 
-			const FString Text = FText::AsNumber(Index).ToString();
-			//const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
-			//constexpr float TextH = 14.0f;
-
-			// Draw background for index text.
-			//DrawContext.DrawBox(X, ViewHeight - TextH, TextSize.X + 4.0f, TextH, Brush, TextBgColor);
-
-			// Draw index text.
-			//DrawContext.DrawText(X + 2.0f, ViewHeight - TextH + 1.0f, Text, Font, TextColor);
-
-			DrawContext.DrawText(X + 2.0f, 10.0f, Text, Font, TopTextColor);
+			// Draw label.
+			const FString LabelText = FText::AsNumber(Index).ToString();
+			DrawContext.DrawText(X + 2.0f, 10.0f, LabelText, Font, TopTextColor);
 		}
 		DrawContext.LayerId++;
 	}

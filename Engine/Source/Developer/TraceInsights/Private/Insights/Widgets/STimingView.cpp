@@ -2042,14 +2042,24 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 			// Zoom in/out vertically.
 			const double Delta = MouseEvent.GetWheelDelta();
 			constexpr double ZoomStep = 0.25; // as percent
+			constexpr double MinScaleY = 0.0001;
+			constexpr double MaxScaleY = 1.0e10;
 			double ScaleY = GraphTrack->GetSharedValueViewport().GetScaleY();
 			if (Delta > 0)
 			{
 				ScaleY *= FMath::Pow(1.0 + ZoomStep, Delta);
+				if (ScaleY > MaxScaleY)
+				{
+					ScaleY = MaxScaleY;
+				}
 			}
 			else
 			{
 				ScaleY *= FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
+				if (ScaleY < MinScaleY)
+				{
+					ScaleY = MinScaleY;
+				}
 			}
 			GraphTrack->GetSharedValueViewport().SetScaleY(ScaleY);
 
