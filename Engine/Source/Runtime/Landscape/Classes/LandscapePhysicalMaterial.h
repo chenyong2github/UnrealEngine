@@ -53,4 +53,10 @@ private:
 	FLandscapePhysicalMaterialRenderTask(FLandscapePhysicalMaterialRenderTask const&);
 };
 
+namespace LandscapePhysicalMaterial
+{
+	/** Optional call to allow garbage collection of any FLandscapePhysicalMaterialRenderTask resources and check for leaks. */
+	void GarbageCollectTasks();
+}
+
 #endif // WITH_EDITOR
