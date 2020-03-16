@@ -58,13 +58,14 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
 		if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
 		{
+			const FNiagaraVMExecutableData& ScriptExecutableData = Script->GetVMExecutableData();
 			const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
 
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraRebindDataInterfaceFunctionTable);
 			// UE_LOG(LogNiagara, Log, TEXT("Updating data interfaces for script %s"), *Script->GetFullName());
 
 			// We must make sure that the data interfaces match up between the original script values and our overrides...
-			if (Script->GetVMExecutableData().DataInterfaceInfo.Num() != DataInterfaces.Num())
+			if (ScriptExecutableData.DataInterfaceInfo.Num() != DataInterfaces.Num())
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Mismatch between Niagara Exectuion Context data interfaces and those in it's script!"));
 				return false;
@@ -73,12 +74,12 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 			//Fill the instance data table.
 			if (ParentSystemInstance)
 			{
-				DataInterfaceInstDataTable.SetNumZeroed(Script->GetVMExecutableData().NumUserPtrs, false);
+				DataInterfaceInstDataTable.SetNumZeroed(ScriptExecutableData.NumUserPtrs, false);
 				for (int32 i = 0; i < DataInterfaces.Num(); i++)
 				{
 					UNiagaraDataInterface* Interface = DataInterfaces[i];
 
-					int32 UserPtrIdx = Script->GetVMExecutableData().DataInterfaceInfo[i].UserPtrIdx;
+					int32 UserPtrIdx = ScriptExecutableData.DataInterfaceInfo[i].UserPtrIdx;
 					if (UserPtrIdx != INDEX_NONE)
 					{
 						void* InstData = ParentSystemInstance->FindDataInterfaceInstanceData(Interface);
@@ -88,42 +89,75 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 			}
 			else
 			{
-				check(Script->GetVMExecutableData().NumUserPtrs == 0);//Can't have user ptrs if we have no parent instance.
+				check(ScriptExecutableData.NumUserPtrs == 0);//Can't have user ptrs if we have no parent instance.
 			}
 
-			FunctionTable.Reset(Script->GetVMExecutableData().CalledVMExternalFunctions.Num());
+			const int32 FunctionCount = ScriptExecutableData.CalledVMExternalFunctions.Num();
+			FunctionTable.Reset(FunctionCount);
+			FunctionTable.AddZeroed(FunctionCount);
+			TArray<int32> LocalFunctionTableIndices;
+			LocalFunctionTableIndices.Reserve(FunctionCount);
+
+			const auto& ScriptDataInterfaces = Script->GetExecutionReadyParameterStore(SimTarget)->GetDataInterfaces();
 
 			bool bSuccessfullyMapped = true;
-			for (FVMExternalFunctionBindingInfo& BindingInfo : Script->GetVMExecutableData().CalledVMExternalFunctions)
+
+			for (int32 FunctionIt = 0; FunctionIt < FunctionCount; ++FunctionIt)
 			{
+				const FVMExternalFunctionBindingInfo& BindingInfo = ScriptExecutableData.CalledVMExternalFunctions[FunctionIt];
+
 				// First check to see if we can pull from the fast path library..
 				FVMExternalFunction FuncBind;
 				if (UNiagaraFunctionLibrary::GetVectorVMFastPathExternalFunction(BindingInfo, FuncBind) && FuncBind.IsBound())
 				{
-					FunctionTable.Add(FuncBind);
+					LocalFunctionTable.Add(FuncBind);
+					LocalFunctionTableIndices.Add(FunctionIt);
 					continue;
 				}
 
-				for (int32 i = 0; i < Script->GetVMExecutableData().DataInterfaceInfo.Num(); i++)
+				for (int32 i = 0; i < ScriptExecutableData.DataInterfaceInfo.Num(); i++)
 				{
-					FNiagaraScriptDataInterfaceCompileInfo& ScriptInfo = Script->GetVMExecutableData().DataInterfaceInfo[i];
+					const FNiagaraScriptDataInterfaceCompileInfo& ScriptInfo = ScriptExecutableData.DataInterfaceInfo[i];
 					UNiagaraDataInterface* ExternalInterface = DataInterfaces[i];
 					if (ScriptInfo.Name == BindingInfo.OwnerName)
 					{
-						void* InstData = ScriptInfo.UserPtrIdx == INDEX_NONE ? nullptr : DataInterfaceInstDataTable[ScriptInfo.UserPtrIdx];
-						int32 AddedIdx = FunctionTable.Add(FVMExternalFunction());
-						if (ExternalInterface != nullptr)
+						// first check to see if we should just use the one from the script
+						if (ScriptExecutableData.CalledVMExternalFunctionBindings.IsValidIndex(FunctionIt)
+							&& ExternalInterface == ScriptDataInterfaces[i])
 						{
-							ExternalInterface->GetVMExternalFunction(BindingInfo, InstData, FunctionTable[AddedIdx]);
+							const FVMExternalFunction& ScriptFuncBind = ScriptExecutableData.CalledVMExternalFunctionBindings[FunctionIt];
+							if (ScriptFuncBind.IsBound())
+							{
+								FunctionTable[FunctionIt] = &ScriptFuncBind;
+
+								check(ScriptInfo.UserPtrIdx == INDEX_NONE);
+								break;
+							}
 						}
 
-						if (AddedIdx != INDEX_NONE && !FunctionTable[AddedIdx].IsBound())
+						void* InstData = ScriptInfo.UserPtrIdx == INDEX_NONE ? nullptr : DataInterfaceInstDataTable[ScriptInfo.UserPtrIdx];
+						FVMExternalFunction& LocalFunction = LocalFunctionTable.AddDefaulted_GetRef();
+						LocalFunctionTableIndices.Add(FunctionIt);
+
+						if (ExternalInterface != nullptr)
+						{
+							ExternalInterface->GetVMExternalFunction(BindingInfo, InstData, LocalFunction);
+						}
+
+						if (!LocalFunction.IsBound())
 						{
 							UE_LOG(LogNiagara, Error, TEXT("Could not Get VMExternalFunction '%s'.. emitter will not run!"), *BindingInfo.Name.ToString());
 							bSuccessfullyMapped = false;
 						}
+						break;
 					}
 				}
+			}
+
+			const int32 LocalFunctionCount = LocalFunctionTableIndices.Num();
+			for (int32 LocalFunctionIt = 0; LocalFunctionIt < LocalFunctionCount; ++LocalFunctionIt)
+			{
+				FunctionTable[LocalFunctionTableIndices[LocalFunctionIt]] = &LocalFunctionTable[LocalFunctionIt];
 			}
 
 			if (!bSuccessfullyMapped)
