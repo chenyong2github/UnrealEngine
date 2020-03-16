@@ -47,6 +47,7 @@ namespace Chaos
 	class FPersistentPhysicsTask;
 	class FChaosArchive;
 	class FPBDRigidsSolver;
+	class FRewindData;
 
 	enum class ELockType : uint8
 	{
@@ -127,6 +128,12 @@ namespace Chaos
 		bool UnregisterObject(FFieldSystemPhysicsProxy* InProxy);
 
 		bool IsSimulating() const;
+
+		void EnableRewindCapture(int32 NumFrames);
+		FRewindData* GetRewindData()
+		{
+			return MRewindData.Get();
+		}
 
 		template<typename Lambda>
 		void ForEachPhysicsProxy(Lambda InCallable)
@@ -369,6 +376,7 @@ namespace Chaos
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 		TUniquePtr<FActiveParticlesBuffer> MActiveParticlesBuffer;
 		TMap<const Chaos::TGeometryParticleHandle<float, 3>*, IPhysicsProxyBase*> MParticleToProxy;
+		TUniquePtr<FRewindData> MRewindData;
 
 		//
 		// Commands

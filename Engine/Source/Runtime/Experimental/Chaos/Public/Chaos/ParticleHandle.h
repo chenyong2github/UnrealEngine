@@ -1611,6 +1611,8 @@ public:
 		}
 	}
 
+	const FParticlePositionRotation& XR() const { return MXR.Read(); }
+
 protected:
 
 	// Pointer to any data that the solver wants to associate with this particle
