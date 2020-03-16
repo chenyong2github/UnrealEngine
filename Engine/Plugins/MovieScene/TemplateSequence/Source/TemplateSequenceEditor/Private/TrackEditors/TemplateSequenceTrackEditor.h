@@ -41,6 +41,7 @@ private:
 	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, TArray<FGuid> ObjectBindings, UTemplateSequence* TemplateSequence);
 	FKeyPropertyResult AddLegacyCameraAnimKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, UCameraAnim* CameraAnim);
 
+	bool CanAddSubSequence(const UMovieSceneSequence& Sequence) const;
 	const UClass* AcquireObjectClassFromObjectGuid(const FGuid& Guid);
 	UCameraComponent* AcquireCameraComponentFromObjectGuid(const FGuid& Guid);
 
