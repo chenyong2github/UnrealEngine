@@ -100,6 +100,28 @@ void UFixedPlaneBrushProperties::RestoreProperties(UInteractiveTool* RestoreToTo
 	this->Position = PropertyCache->Position;
 }
 
+void
+UBrushRemeshProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
+{
+	UBrushRemeshProperties* PropertyCache = GetPropertyCache<UBrushRemeshProperties>();
+
+	// MeshConstraintProperties
+	SaveRestoreProperty(PropertyCache->bPreserveSharpEdges, this->bPreserveSharpEdges, bSaving);
+	SaveRestoreProperty(PropertyCache->MeshBoundaryConstraint, this->MeshBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->GroupBoundaryConstraint, this->GroupBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->MaterialBoundaryConstraint, this->MaterialBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->bPreventNormalFlips, this->bPreventNormalFlips, bSaving);
+
+	//RemeshProperties
+	SaveRestoreProperty(PropertyCache->SmoothingStrength, this->SmoothingStrength, bSaving);
+	SaveRestoreProperty(PropertyCache->bFlips, this->bFlips, bSaving);
+	SaveRestoreProperty(PropertyCache->bSplits, this->bSplits, bSaving);
+	SaveRestoreProperty(PropertyCache->bCollapses, this->bCollapses, bSaving);
+
+	//BrushRemeshProperties
+	SaveRestoreProperty(PropertyCache->RelativeSize, this->RelativeSize, bSaving);
+}
+
 /*
  * Tool
  */
@@ -173,6 +195,8 @@ void UDynamicMeshSculptTool::Setup()
 	SculptProperties = NewObject<UBrushSculptProperties>(this, TEXT("Sculpting"));
 
 	RemeshProperties = NewObject<UBrushRemeshProperties>(this, TEXT("Remeshing"));
+	RemeshProperties->RestoreProperties(this);
+
 	InitialEdgeLength = EstimateIntialSafeTargetLength(*Mesh, 5000);
 
 	// hide input Component
@@ -284,6 +308,7 @@ void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 	SculptProperties->SaveProperties(this);
 	ViewProperties->SaveProperties(this);
 	GizmoProperties->SaveProperties(this);
+	RemeshProperties->SaveProperties(this);
 }
 
 void UDynamicMeshSculptTool::OnDynamicMeshComponentChanged()

@@ -66,6 +66,36 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	bUseTargetEdgeLength = false;
 }
 
+void
+URemeshMeshToolProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
+{
+	URemeshMeshToolProperties* PropertyCache = GetPropertyCache<URemeshMeshToolProperties>();
+
+	// MeshConstraintProperties
+	SaveRestoreProperty(PropertyCache->bPreserveSharpEdges, this->bPreserveSharpEdges, bSaving);
+	SaveRestoreProperty(PropertyCache->MeshBoundaryConstraint, this->MeshBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->GroupBoundaryConstraint, this->GroupBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->MaterialBoundaryConstraint, this->MaterialBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->bPreventNormalFlips, this->bPreventNormalFlips, bSaving);
+
+	//RemeshProperties
+	SaveRestoreProperty(PropertyCache->SmoothingStrength, this->SmoothingStrength, bSaving);
+	SaveRestoreProperty(PropertyCache->bFlips, this->bFlips, bSaving);
+	SaveRestoreProperty(PropertyCache->bSplits, this->bSplits, bSaving);
+	SaveRestoreProperty(PropertyCache->bCollapses, this->bCollapses, bSaving);
+
+	//RemeshMeshToolProperties
+	SaveRestoreProperty(PropertyCache->TargetTriangleCount, this->TargetTriangleCount, bSaving);
+	SaveRestoreProperty(PropertyCache->SmoothingType, this->SmoothingType, bSaving);
+	SaveRestoreProperty(PropertyCache->RemeshIterations, this->RemeshIterations, bSaving);
+	SaveRestoreProperty(PropertyCache->bDiscardAttributes, this->bDiscardAttributes, bSaving);
+	SaveRestoreProperty(PropertyCache->bShowWireframe, this->bShowWireframe, bSaving);
+	SaveRestoreProperty(PropertyCache->bShowGroupColors, this->bShowGroupColors, bSaving);
+	SaveRestoreProperty(PropertyCache->bUseTargetEdgeLength, this->bUseTargetEdgeLength, bSaving);
+	SaveRestoreProperty(PropertyCache->TargetEdgeLength, this->TargetEdgeLength, bSaving);
+	SaveRestoreProperty(PropertyCache->bReproject, this->bReproject, bSaving);
+}
+
 URemeshMeshTool::URemeshMeshTool()
 {
 }
@@ -85,6 +115,7 @@ void URemeshMeshTool::Setup()
 	UInteractiveTool::Setup();
 
 	BasicProperties = NewObject<URemeshMeshToolProperties>(this);
+	BasicProperties->RestoreProperties(this);
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
 
 	// hide component and create + show preview
@@ -142,6 +173,7 @@ void URemeshMeshTool::Setup()
 
 void URemeshMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	BasicProperties->SaveProperties(this);
 	ComponentTarget->SetOwnerVisibility(true);
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
