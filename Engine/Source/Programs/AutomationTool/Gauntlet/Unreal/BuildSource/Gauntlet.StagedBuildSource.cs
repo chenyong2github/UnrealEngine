@@ -16,7 +16,7 @@ namespace Gauntlet
 	{
 		public UnrealTargetPlatform Platform { get { return BuildHostPlatform.Current.Platform; } }
 
-		public UnrealTargetConfiguration Configuration { get { return UnrealTargetConfiguration.Development; } }
+		public UnrealTargetConfiguration Configuration { get; protected set; }
 
 		public BuildFlags Flags { get { return BuildFlags.CanReplaceCommandLine | BuildFlags.Loose; } }
 
@@ -24,9 +24,10 @@ namespace Gauntlet
 
 		public string ExecutablePath { get; protected set; }
 
-		public EditorBuild(string InExecutablePath)
+		public EditorBuild(string InExecutablePath, UnrealTargetConfiguration InConfig)
 		{
 			ExecutablePath = InExecutablePath;
+			Configuration = InConfig;
 		}
 	}
 
