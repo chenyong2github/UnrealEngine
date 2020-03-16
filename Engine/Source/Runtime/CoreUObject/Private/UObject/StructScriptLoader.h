@@ -76,7 +76,7 @@ public:
 private:
 	/**
 	 * Empties the specified struct's Script array, as well as its 
-	 * ScriptObjectReferences container.
+	 * ScriptAndPropertyObjectReferences container.
 	 * 
 	 * @param  ScriptContainer    The struct you want emptied.
 	 */

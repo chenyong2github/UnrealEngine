@@ -632,10 +632,11 @@ UStruct::UStruct(EStaticConstructor, int32 InSize, int32 InMinAlignment, EObject
 	, ChildProperties(nullptr)
 	, PropertiesSize(InSize)
 	, MinAlignment(InMinAlignment)
-	, PropertyLink(NULL)
-	, RefLink(NULL)
-	, DestructorLink(NULL)
-	, PostConstructLink(NULL)
+	, PropertyLink(nullptr)
+	, RefLink(nullptr)
+	, DestructorLink(nullptr)
+	, PostConstructLink(nullptr)
+	, UnresolvedScriptProperties(nullptr)
 {
 }
 
@@ -650,6 +651,7 @@ UStruct::UStruct(UStruct* InSuperStruct, SIZE_T ParamsSize, SIZE_T Alignment)
 	, RefLink(nullptr)
 	, DestructorLink(nullptr)
 	, PostConstructLink(nullptr)
+	, UnresolvedScriptProperties(nullptr)
 {
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	this->ReinitializeBaseChainArray();
@@ -667,6 +669,7 @@ UStruct::UStruct(const FObjectInitializer& ObjectInitializer, UStruct* InSuperSt
 	, RefLink(nullptr)
 	, DestructorLink(nullptr)
 	, PostConstructLink(nullptr)
+	, UnresolvedScriptProperties(nullptr)
 {
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	this->ReinitializeBaseChainArray();
@@ -944,23 +947,23 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 		{
 			CurrentField->AddReferencedObjects(PropertyReferenceCollector);
 		}
-		PropertyObjectReferences = PropertyReferenceCollector.UniqueReferences.Array();
+		ScriptAndPropertyObjectReferences.Append(PropertyReferenceCollector.UniqueReferences.Array());
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 		// The old (non-EDL) FLinkerLoad code paths create placeholder objects
 		// for classes and functions. We have to babysit these, just as we do
 		// for bytecode references (reusing the AddReferencingScriptExpr fn).
 		// Long term we should not use placeholder objects like this:
-		for(int32 I = 0; I < PropertyObjectReferences.Num(); ++I)
+		for(int32 I = 0; I < ScriptAndPropertyObjectReferences.Num(); ++I)
 		{
-			if (ULinkerPlaceholderClass* PlaceholderObj = Cast<ULinkerPlaceholderClass>(PropertyObjectReferences[I]))
+			if (ULinkerPlaceholderClass* PlaceholderObj = Cast<ULinkerPlaceholderClass>(ScriptAndPropertyObjectReferences[I]))
 			{
 				// let the placeholder track the reference to it:
-				PlaceholderObj->AddReferencingScriptExpr(reinterpret_cast<UClass**>(&PropertyObjectReferences[I]));
+				PlaceholderObj->AddReferencingScriptExpr(reinterpret_cast<UClass**>(&ScriptAndPropertyObjectReferences[I]));
 			}
 			// I don't currently see how placeholder functions could be present in this list, but that's
 			// a dangerous assumption.
-			ensure(!(PropertyObjectReferences[I]->IsA<ULinkerPlaceholderFunction>()));
+			ensure(!(ScriptAndPropertyObjectReferences[I]->IsA<ULinkerPlaceholderFunction>()));
 		}
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	}
@@ -1610,6 +1613,7 @@ UStruct::~UStruct()
 	// Also, Blueprint generated classes can have DestroyNonNativeProperties called on them after their FinishDestroy has been called
 	// so properties can only be deleted in the destructor
 	DestroyChildPropertiesAndResetPropertyLinks();
+	DeleteUnresolvedScriptProperties();
 }
 
 IMPLEMENT_FSTRUCTUREDARCHIVE_SERIALIZER(UStruct);
@@ -1929,21 +1933,24 @@ void UStruct::PostLoad()
 	Super::PostLoad();
 
 	// Finally try to resolve all script properties that couldn't be resolved at load time
-	for (TPair<TFieldPath<FField>, int32>& MissingProperty : UnresolvedScriptProperties)
+	if (UnresolvedScriptProperties)
 	{
-		FField* ResolvedProperty = MissingProperty.Key.Get(this);
-		if (ResolvedProperty)
-		{			
-			check((int32)Script.Num() >= (int32)(MissingProperty.Value + sizeof(FField*)));
-			FField** TargetScriptPropertyPtr = (FField**)(Script.GetData() + MissingProperty.Value);
-			*TargetScriptPropertyPtr = ResolvedProperty;
-		}
-		else if (!MissingProperty.Key.IsEmpty())
+		for (TPair<TFieldPath<FField>, int32>& MissingProperty : *UnresolvedScriptProperties)
 		{
-			UE_LOG(LogClass, Warning, TEXT("Failed to resolve bytecode referenced field from path: %s when loading %s"), *MissingProperty.Key.ToString(), *GetFullName());
+			FField* ResolvedProperty = MissingProperty.Key.Get(this);
+			if (ResolvedProperty)
+			{
+				check((int32)Script.Num() >= (int32)(MissingProperty.Value + sizeof(FField*)));
+				FField** TargetScriptPropertyPtr = (FField**)(Script.GetData() + MissingProperty.Value);
+				*TargetScriptPropertyPtr = ResolvedProperty;
+			}
+			else if (!MissingProperty.Key.IsEmpty())
+			{
+				UE_LOG(LogClass, Warning, TEXT("Failed to resolve bytecode referenced field from path: %s when loading %s"), *MissingProperty.Key.ToString(), *GetFullName());
+			}
 		}
+		DeleteUnresolvedScriptProperties();
 	}
-	UnresolvedScriptProperties.Empty();
 }
 
 void UStruct::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -1955,11 +1962,7 @@ void UStruct::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collect
 		// Required by the unified GC when running in the editor
 		Collector.AddReferencedObject( This->SuperStruct, This );
 		Collector.AddReferencedObject( This->Children, This );
-
-		for( int32 Index = 0; Index < This->ScriptObjectReferences.Num(); Index++ )
-		{
-			Collector.AddReferencedObject( This->ScriptObjectReferences[ Index ], This );
-		}
+		Collector.AddReferencedObjects(This->ScriptAndPropertyObjectReferences, This);
 	}
 #endif
 #if WITH_EDITORONLY_DATA
@@ -2125,8 +2128,7 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UStruct, UField,
 		// Note: None of the *Link members need to be emitted, as they only contain properties
 		// that are in the Children chain or SuperStruct->Children chains.
 
-		Class->EmitObjectArrayReference(STRUCT_OFFSET(UStruct, ScriptObjectReferences), TEXT("ScriptObjectReferences"));
-		Class->EmitObjectArrayReference(STRUCT_OFFSET(UStruct, PropertyObjectReferences), TEXT("PropertyObjectReferences"));		
+		Class->EmitObjectArrayReference(STRUCT_OFFSET(UStruct, ScriptAndPropertyObjectReferences), TEXT("ScriptAndPropertyObjectReferences"));
 	}
 );
 
@@ -4633,26 +4635,25 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 	}
 #endif
 
-	ClassDefaultObject = NULL;
+	ClassDefaultObject = nullptr;
 
 	Interfaces.Empty();
 	NativeFunctionLookupTable.Empty();
-	SetSuperStruct(NULL);
-	Children = NULL;
+	SetSuperStruct(nullptr);
+	Children = nullptr;
 	Script.Empty();
 	MinAlignment = 0;
-	RefLink = NULL;
-	PropertyLink = NULL;
-	DestructorLink = NULL;
-	ClassAddReferencedObjects = NULL;
+	RefLink = nullptr;
+	PropertyLink = nullptr;
+	DestructorLink = nullptr;
+	ClassAddReferencedObjects = nullptr;
 
-	ScriptObjectReferences.Empty();
-	PropertyObjectReferences.Empty();
-	UnresolvedScriptProperties.Empty();
+	ScriptAndPropertyObjectReferences.Empty();
+	DeleteUnresolvedScriptProperties();
 
 	FuncMap.Empty();
 	ClearFunctionMapsCaches();
-	PropertyLink = NULL;
+	PropertyLink = nullptr;
 
 #if WITH_EDITORONLY_DATA
 	{
