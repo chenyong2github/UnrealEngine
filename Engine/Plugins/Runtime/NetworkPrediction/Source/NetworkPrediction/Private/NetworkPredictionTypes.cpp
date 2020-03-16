@@ -11,6 +11,11 @@
 
 DEFINE_LOG_CATEGORY(LogNetworkSim);
 
+uint32 INetworkedSimulationModel::GetNextSimulationId()
+{
+	static uint32 SimulationIdCounter = 1;
+	return SimulationIdCounter++;
+}
 
 namespace NetSimVLogCVars
 {

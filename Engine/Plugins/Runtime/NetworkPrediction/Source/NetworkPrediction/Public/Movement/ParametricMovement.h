@@ -19,13 +19,13 @@ struct FSimpleParametricMotion
 	// Advance parametric time. This is meant to do simple things like looping/reversing etc.
 	void AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ParametricMovement)
 	FVector ParametricDelta = FVector(0.f, 0.f, 500.f);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ParametricMovement)
 	float MinTime = -1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ParametricMovement)
 	float MaxTime = 1.f;
 
 	FTransform CachedStartingTransform;
@@ -48,15 +48,17 @@ struct FParametricInputCmd
 
 	void Log(FStandardLoggingParameters& P) const
 	{
-		if (P.Context == EStandardLoggingContext::HeaderOnly)
-		{
-			P.Ar->Logf(TEXT(" %d "), P.Frame);
-		}
-		else if (P.Context == EStandardLoggingContext::Full)
+		P.Ar->Logf(TEXT("Frame: %d "), P.Frame);
+		
+		if (P.Context == EStandardLoggingContext::Full)
 		{
 			if (PlayRate.IsSet())
 			{
 				P.Ar->Logf(TEXT("PlayRate: %.2f"), PlayRate.GetValue());
+			}
+			else
+			{
+				P.Ar->Logf(TEXT("PlayRate: Unset"));
 			}
 		}
 	}
@@ -76,11 +78,8 @@ struct FParametricSyncState
 
 	void Log(FStandardLoggingParameters& Params) const
 	{
-		if (Params.Context == EStandardLoggingContext::HeaderOnly)
-		{
-			Params.Ar->Logf(TEXT(" %d "), Params.Frame);
-		}
-		else if (Params.Context == EStandardLoggingContext::Full)
+		Params.Ar->Logf(TEXT("Frame: %d "), Params.Frame);
+		if (Params.Context == EStandardLoggingContext::Full)
 		{
 			Params.Ar->Logf(TEXT("Frame: %d"), Params.Frame);
 			Params.Ar->Logf(TEXT("Pos: %.2f"), Position);
@@ -101,11 +100,8 @@ struct FParametricAuxState
 
 	void Log(FStandardLoggingParameters& Params) const
 	{
-		if (Params.Context == EStandardLoggingContext::HeaderOnly)
-		{
-			Params.Ar->Logf(TEXT(" %d "), Params.Frame);
-		}
-		else if (Params.Context == EStandardLoggingContext::Full)
+		Params.Ar->Logf(TEXT("Frame %d "), Params.Frame);
+		if (Params.Context == EStandardLoggingContext::Full)
 		{
 			Params.Ar->Logf(TEXT("Multiplier: %f"), Multiplier);
 		}
@@ -184,6 +180,9 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	void ProduceInput(const FNetworkSimTime SimTime, FParametricInputCmd& Cmd);
 	void FinalizeFrame(const FParametricSyncState& SyncState, const FParametricAuxState& AuxState) override;
 
+	UFUNCTION(BlueprintCallable, Category="Networking")
+	void EnableInterpolationMode(bool bValue);
+
 protected:
 
 	TNetSimStateAccessor<FParametricSyncState> MovementSyncState;
@@ -222,7 +221,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
 	bool bDisableParametricMovementSimulation = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ParametricMovement, meta=(ExposeOnSpawn=true))
 	FSimpleParametricMotion ParametricMotion;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovementNetworking)

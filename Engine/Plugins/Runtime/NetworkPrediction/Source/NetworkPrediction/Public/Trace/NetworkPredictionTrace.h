@@ -1,0 +1,158 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "NetworkedSimulationModelTick.h"
+#include "Trace/Trace.h"
+#include "Engine/EngineTypes.h" // For ENetRole urgh
+#include "Containers/UnrealString.h"
+#include "NetworkPredictionTypes.h"
+
+#ifndef UE_NP_TRACE_ENABLED
+#define UE_NP_TRACE_ENABLED !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif
+
+// Tracing user state (content) can generate a lot of data. So this can be turned off here
+#ifndef UE_NP_TRACE_USER_STATES_ENABLED
+#define UE_NP_TRACE_USER_STATES_ENABLED 1
+#endif
+
+
+#if UE_NP_TRACE_ENABLED
+
+// Scope Push/Pop for active simulation
+#define UE_NP_TRACE_SET_SCOPE_SIM(SimulationId) FScopedSimulationTraceHelper _ScopedSimIdTraceHelper(SimulationId);
+
+// Called when simulation is created. (Note this also sets a Scope for tracing the initial user states next)
+#define UE_NP_TRACE_SIM_CREATED(OwningActor, GroupName) FNetworkPredictionTrace::TraceSimulationCreated(OwningActor, GroupName);
+
+#define UE_NP_TRACE_NETROLE(SimulationId, NetRole) FNetworkPredictionTrace::TraceSimulationNetRole(SimulationId, NetRole);
+
+// Called when simulation ticks in any context (includes resimulates, sim extrapolates, etc)
+#define UE_NP_TRACE_SIM_TICK(OutputFrame, FrameDeltaTime, TickState) FNetworkPredictionTrace::TraceSimulationTick(OutputFrame, FrameDeltaTime, TickState);
+
+// Called at the end of an engine frame (EOF) to update the current tick state of a simulation
+#define UE_NP_TRACE_SIM_EOF(TickState, LastSentKeyframe, LastReceivedKeyframe) FNetworkPredictionTrace::TraceSimulationEOF(TickState, LastSentKeyframe, LastReceivedKeyframe);
+
+// Called whenever we receive network data: note this only indicates that data was received, not necessarily that it was committed to the simulation buffers
+#define UE_NP_TRACE_NET_SERIALIZE_RECV(ReceivedTime, ReceivedFrame) FNetworkPredictionTrace::TraceNetSerializeRecv(ReceivedTime, ReceivedFrame);
+
+// Called whenever a new user state has been inserted into the buffers. Analysis will determine "how" it got there from previous trace events (SIM_TICK, NET_SERIALIZE_RECV)
+#define UE_NP_TRACE_USER_STATE_INPUT(UserState, Frame) FNetworkPredictionTrace::TraceUserState(UserState, Frame, FNetworkPredictionTrace::ETraceUserState::Input);
+#define UE_NP_TRACE_USER_STATE_SYNC(UserState, Frame) FNetworkPredictionTrace::TraceUserState(UserState, Frame, FNetworkPredictionTrace::ETraceUserState::Sync);
+#define UE_NP_TRACE_USER_STATE_AUX(UserState, Frame) FNetworkPredictionTrace::TraceUserState(UserState, Frame, FNetworkPredictionTrace::ETraceUserState::Aux);
+
+// Called to indicate that the previous received NetSerialized data was committed to the buffers. (Not all data is commited, but we want to trace all received data)
+#define UE_NP_TRACE_NET_SERIALIZE_COMMIT() FNetworkPredictionTrace::TraceNetSerializeCommit();
+
+// Called to indicate the previous received NetSerialized data caused a fault. This means the data was too far in the past and could not be used. (Does not mean "caused correction").
+#define UE_NP_TRACE_NET_SERIALIZE_FAULT() FNetworkPredictionTrace::TraceNetSerializeFault();
+
+// Called prior to sampling local input
+#define UE_NP_TRACE_PRODUCE_INPUT() FNetworkPredictionTrace::TraceProduceInput();
+
+// Called prior to generating synthesized input
+#define UE_NP_TRACE_SYNTH_INPUT() FNetworkPredictionTrace::TraceSynthInput();
+
+// Called to indicate we are about to write state to the buffers outside of the normal simulation tick/netrecive. TODO: add char* identifier to debug where the mod came from
+#define UE_NP_TRACE_OOB_STATE_MOD() FNetworkPredictionTrace::TraceOOBStateMod();
+
+// Called when a PIE session is started. This is so we can keep our *sets* of worlds/simulations seperate.
+#define UE_NP_TRACE_PIE_START() FNetworkPredictionTrace::TracePIEStart();
+
+
+#else
+
+// Compiled out
+#define UE_NP_TRACE_SET_SCOPE_SIM(SimulationId)
+#define UE_NP_TRACE_SIM_CREATED(...)
+#define UE_NP_TRACE_NETROLE(...)
+#define UE_NP_TRACE_SIM_TICK(...)
+#define UE_NP_TRACE_SIM_EOF(...)
+#define UE_NP_TRACE_NET_SERIALIZE_RECV(...)
+#define UE_NP_TRACE_USER_STATE_INPUT(...)
+#define UE_NP_TRACE_USER_STATE_SYNC(...)
+#define UE_NP_TRACE_USER_STATE_AUX(...)
+#define UE_NP_TRACE_ROLLBACK(...)
+#define UE_NP_TRACE_NET_SERIALIZE_COMMIT(...)
+#define UE_NP_TRACE_NET_SERIALIZE_FAULT(...)
+#define UE_NP_TRACE_PRODUCE_INPUT(...)
+#define UE_NP_TRACE_SYNTH_INPUT(...)
+#define UE_NP_TRACE_OOB_STATE_MOD(...)
+#define UE_NP_TRACE_PIE_START(...)
+
+#endif // UE_NP_TRACE_ENABLED
+
+NETWORKPREDICTION_API UE_TRACE_CHANNEL_EXTERN(NetworkPredictionChannel);
+
+class AActor;
+
+// Trace is what the system+user code calls to do traces (could still be wrapped around [my own] macros, etc. This will call into the generic UE_TRACE_LOG macros)
+class NETWORKPREDICTION_API FNetworkPredictionTrace
+{
+public:
+
+	enum ETraceVersion
+	{
+		Initial = 1,
+	};
+
+	static void TraceSimulationCreated(const AActor* OwningActor, const FName& GroupName);
+	static void TraceSimulationNetRole(uint32 SimulationId, ENetRole NetRole);
+	static void TraceSimulationTick(int32 OutputFrame, const FNetworkSimTime& FrameDeltaTime, const FSimulationTickState& TickState);
+	static void TraceSimulationEOF(const FSimulationTickState& TickState, int32 LastSentKeyframe, int32 LastReceivedKeyframe);
+	static void TraceNetSerializeRecv(const FNetworkSimTime& ReceivedTime, int32 ReceivedFrame);
+	static void TraceNetSerializeCommit();
+	static void TraceNetSerializeFault();
+	static void TraceProduceInput();
+	static void TraceSynthInput();
+	static void TraceOOBStateMod();
+	static void TracePIEStart();
+
+	enum ETraceUserState
+	{
+		Input,
+		Sync,
+		Aux
+	};
+	
+	template<typename TUserState>
+	static void TraceUserState(const TUserState& State, int32 Frame, ETraceUserState StateType)
+	{
+#if UE_NP_TRACE_USER_STATES_ENABLED
+		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(NetworkPredictionChannel))
+		{
+			StrOut.SetAutoEmitLineTerminator(true);
+			StrOut.Reset();
+
+			FStandardLoggingParameters LoggingParameters(&StrOut, EStandardLoggingContext::Full, Frame);
+			State.Log(LoggingParameters);
+
+			TraceUserState_Internal(Frame, StateType);
+		}
+#endif
+	}
+
+private:
+
+	static void PushSimulationId(uint32 SimulationId);
+	static void PopSimulationId();
+
+	static void TraceUserState_Internal(int32 Frame, ETraceUserState StateType);
+
+	static FStringOutputDevice StrOut;
+
+	friend struct FScopedSimulationTraceHelper;
+};
+
+struct FScopedSimulationTraceHelper
+{
+	FScopedSimulationTraceHelper(uint32 SimulationId)
+	{
+		FNetworkPredictionTrace::PushSimulationId(SimulationId);
+	}
+	~FScopedSimulationTraceHelper()
+	{
+		FNetworkPredictionTrace::PopSimulationId();
+	}
+};
