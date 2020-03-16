@@ -13,4 +13,7 @@ class COREUOBJECT_API FReferencerFinder
 public:
 	static TArray<UObject*> GetAllReferencers(const TArray<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore);
 	static TArray<UObject*> GetAllReferencers(const TSet<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore);
+
+	/** Called when the initial load phase is complete and we're done registering native UObject classes */
+	static void NotifyRegistrationComplete();
 };

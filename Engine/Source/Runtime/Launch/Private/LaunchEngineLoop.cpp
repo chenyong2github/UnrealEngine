@@ -71,6 +71,7 @@
 	#include "UObject/Package.h"
 	#include "UObject/Linker.h"
 	#include "UObject/LinkerLoad.h"
+	#include "UObject/ReferencerFinder.h"
 #endif
 
 #if WITH_EDITOR
@@ -3239,6 +3240,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		GUObjectArray.CloseDisregardForGC();
 	}
 	NotifyRegistrationComplete();
+	FReferencerFinder::NotifyRegistrationComplete();
 #endif // WITH_COREUOBJECT
 
 #if WITH_ENGINE
