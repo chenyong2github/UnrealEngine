@@ -264,14 +264,14 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 
  	const TCHAR* InBuffer = Buffer;
 
-	FString Temp;
-	Buffer = FPropertyHelpers::ReadToken(Buffer, Temp, true);
+	TStringBuilder<256> Temp;
+	Buffer = FPropertyHelpers::ReadToken(Buffer, /* out */ Temp, true);
 	if ( Buffer == nullptr )
 	{
 		return false;
 	}
 
-	if ( Temp == TEXT("None") )
+	if ( Temp == TEXT("None"_SV) )
 	{
 		out_ResolvedValue = nullptr;
 	}
@@ -285,8 +285,8 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 
 		if( *Buffer == TCHAR('\'') )
 		{
-			FString ObjectText;
-			Buffer = FPropertyHelpers::ReadToken( ++Buffer, ObjectText, true );
+			Temp.Reset();
+			Buffer = FPropertyHelpers::ReadToken( ++Buffer, /* out */ Temp, true);
 			if( Buffer == nullptr )
 			{
 				return false;
@@ -299,12 +299,12 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 
 			// ignore the object class, it isn't fully qualified, and searching ANY_PACKAGE might get the wrong one!
 			// Try the find the object.
-			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, *ObjectText, PortFlags, InSerializeContext, bAllowAnyPackage);
+			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Temp.ToString(), PortFlags, InSerializeContext, bAllowAnyPackage);
 		}
 		else
 		{
 			// Try the find the object.
-			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, *Temp, PortFlags, InSerializeContext, bAllowAnyPackage);
+			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Temp.ToString(), PortFlags, InSerializeContext, bAllowAnyPackage);
 		}
 
 		if ( out_ResolvedValue != nullptr && !out_ResolvedValue->GetClass()->IsChildOf(RequiredMetaClass) )
@@ -403,7 +403,7 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 		if (Result == nullptr && (PortFlags & PPF_SerializedAsImportText))
 		{
 			// Check string asset redirectors
-			FSoftObjectPath Path = FString(Text);
+			FSoftObjectPath Path(Text);
 			if (Path.PreSavePath())
 			{
 				Result = StaticFindObjectSafe(ObjectClass, nullptr, *Path.ToString());

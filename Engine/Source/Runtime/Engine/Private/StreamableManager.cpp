@@ -1164,7 +1164,7 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(TArray<FSoftO
 			--NumValidRequests;
 			continue;
 		}
-		else if (FPackageName::IsShortPackageName(TargetName.ToString()))
+		else if (FPackageName::IsShortPackageName(TargetName.GetAssetPathName()))
 		{
 			UE_LOG(LogStreamableManager, Error, TEXT("RequestAsyncLoad called with invalid package name %s"), *TargetName.ToString());
 			NewRequest->CancelHandle();

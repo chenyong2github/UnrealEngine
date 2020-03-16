@@ -468,7 +468,8 @@ struct TIsContiguousContainer<TStringBuilder<N>> { enum { Value = true }; };
 
 // Append operator implementations
 
-inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const TCHAR Char)						{ return Builder.Append(Char); }
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.Append(Char); }
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, WIDECHAR Char)							{ return Builder.Append(Char); }
 
 #if USE_STRING_LITERAL_PATH
 
@@ -503,6 +504,18 @@ inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, uint8 Val
 
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, int16 Value)							{ return Builder << int32(Value); }
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, uint16 Value)							{ return Builder << uint32(Value); }
+
+/** Prefer using << instead of +=. operator+= is only intended for mechanical FString -> FStringView replacement */
+
+inline FStringBuilderBase&					operator+=(FStringBuilderBase& Builder, FWideStringView Str)					{ return Builder.Append(Str); }
+inline FStringBuilderBase&					operator+=(FStringBuilderBase& Builder, FAnsiStringView Str)					{ return Builder.AppendAnsi(Str); }
+inline FStringBuilderBase&					operator+=(FStringBuilderBase& Builder, const WIDECHAR* Str)					{ return Builder.Append(Str); }
+inline FStringBuilderBase&					operator+=(FStringBuilderBase& Builder, const ANSICHAR* Str)					{ return Builder.AppendAnsi(Str); }
+
+CORE_API FStringBuilderBase&				operator+=(FStringBuilderBase& Builder, const FString& Str);
+inline FStringBuilderBase&					operator+=(FStringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.Append(Char); }
+inline FStringBuilderBase&					operator+=(FStringBuilderBase& Builder, WIDECHAR Char)							{ return Builder.Append(Char); }
+
 
 // Append operator implementations for FAnsiStringBuilderBase
 

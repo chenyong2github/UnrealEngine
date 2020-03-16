@@ -2338,17 +2338,35 @@ bool UAssetManager::GetAssetDataForPath(const FSoftObjectPath& ObjectPath, FAsse
 	return AssetData.IsValid();
 }
 
-FSoftObjectPath UAssetManager::GetAssetPathForData(const FAssetData& AssetData) const
+static bool EndsWithBlueprint(FName Name)
 {
-	FString AssetPath = AssetData.IsValid() ? AssetData.ObjectPath.ToString() : FString();
-
-	// All blueprint types end with blueprint as the class, there is no better test unfortunately
-	if (AssetData.AssetClass.ToString().EndsWith(TEXT("Blueprint")))
+	// Numbered names can't end with Blueprint
+	if (Name.IsNone() || Name.GetNumber() != FName().GetNumber())
 	{
-		AssetPath += TEXT("_C");
+		return false;
 	}
 
-	return FSoftObjectPath(AssetPath);
+	TCHAR Buffer[NAME_SIZE];
+	FStringView PlainName(Buffer, Name.GetPlainNameString(Buffer));
+	return PlainName.EndsWith(TEXT("Blueprint"));
+}
+
+FSoftObjectPath UAssetManager::GetAssetPathForData(const FAssetData& AssetData) const
+{
+	if (!AssetData.IsValid())
+	{
+		return FSoftObjectPath();
+	}
+	else if (EndsWithBlueprint(AssetData.AssetClass))
+	{
+		TStringBuilder<256> AssetPath;
+		AssetPath << AssetData.ObjectPath << TEXT("_C");
+		return FSoftObjectPath(FStringView(AssetPath));
+	}
+	else
+	{
+		return FSoftObjectPath(AssetData.ObjectPath);	
+	}
 }
 
 void UAssetManager::GetAssetDataForPathInternal(IAssetRegistry& AssetRegistry, const FString& AssetPath, OUT FAssetData& OutAssetData) const
