@@ -1657,58 +1657,75 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			{
 				OldGWorld->TransferBlueprintDebugReferences(PlayWorld);
 			}
-
-			// Tick all travel and Pending NetGames (Seamless, server, client)
-			TickWorldTravel(PieContext, DeltaSeconds);
-
-			// Updates 'connecting' message in PIE network games
-			UpdateTransitionType(PlayWorld);
-
-			// Update streaming for dedicated servers in PIE
-			if (PieContext.RunAsDedicated)
+			
+			float TickDeltaSeconds; // How much time to use per tick
+			
+			if (PieContext.PIEFixedTickSeconds > 0.f)
 			{
-				SCOPE_CYCLE_COUNTER(STAT_UpdateLevelStreaming);
-				PlayWorld->UpdateLevelStreaming();
+				PieContext.PIEAccumulatedTickSeconds += DeltaSeconds;
+				TickDeltaSeconds = PieContext.PIEFixedTickSeconds;
 			}
-
-			// Release mouse if the game is paused. The low level input code might ignore the request when e.g. in fullscreen mode.
-			if ( GameViewport != NULL && GameViewport->Viewport != NULL )
+			else
 			{
-				// Decide whether to drop high detail because of frame rate
-				GameViewport->SetDropDetail(DeltaSeconds);
+				PieContext.PIEAccumulatedTickSeconds = DeltaSeconds;
+				TickDeltaSeconds = DeltaSeconds;
 			}
-
-			// Update the level.
-			GameCycles=0;
-			CLOCK_CYCLES(GameCycles);
-
+			
+			for ( ; PieContext.PIEAccumulatedTickSeconds >= TickDeltaSeconds; PieContext.PIEAccumulatedTickSeconds -= TickDeltaSeconds)
 			{
-				// So that hierarchical stats work in PIE
-				SCOPE_CYCLE_COUNTER(STAT_FrameTime);
+				// Tick all travel and Pending NetGames (Seamless, server, client)
+				TickWorldTravel(PieContext, TickDeltaSeconds);
 
-				FKismetDebugUtilities::NotifyDebuggerOfStartOfGameFrame(PieContext.World());
+				// Updates 'connecting' message in PIE network games
+				UpdateTransitionType(PlayWorld);
 
-				// tick the level
-				PieContext.World()->Tick( LEVELTICK_All, DeltaSeconds );
-				bAWorldTicked = true;
-				TickType = LEVELTICK_All;
-
-				if (!bFirstTick)
+				// Update streaming for dedicated servers in PIE
+				if (PieContext.RunAsDedicated)
 				{
-					// Update sky light first because sky diffuse will be visible in reflection capture indirect specular
-					USkyLightComponent::UpdateSkyCaptureContents(PlayWorld);
-					UReflectionCaptureComponent::UpdateReflectionCaptureContents(PlayWorld);
+					SCOPE_CYCLE_COUNTER(STAT_UpdateLevelStreaming);
+					PlayWorld->UpdateLevelStreaming();
 				}
 
-				FKismetDebugUtilities::NotifyDebuggerOfEndOfGameFrame(PieContext.World());
-			}
+				// Release mouse if the game is paused. The low level input code might ignore the request when e.g. in fullscreen mode.
+				if ( GameViewport != NULL && GameViewport->Viewport != NULL )
+				{
+					// Decide whether to drop high detail because of frame rate
+					GameViewport->SetDropDetail(TickDeltaSeconds);
+				}
 
-			UNCLOCK_CYCLES(GameCycles);
+				// Update the level.
+				GameCycles=0;
+				CLOCK_CYCLES(GameCycles);
 
-			// Tick the viewports.
-			if ( GameViewport != NULL )
-			{
-				GameViewport->Tick(DeltaSeconds);
+				{
+					// So that hierarchical stats work in PIE
+					SCOPE_CYCLE_COUNTER(STAT_FrameTime);
+
+					FKismetDebugUtilities::NotifyDebuggerOfStartOfGameFrame(PieContext.World());
+
+					// tick the level
+					PieContext.World()->Tick( LEVELTICK_All, TickDeltaSeconds );
+					bAWorldTicked = true;
+					TickType = LEVELTICK_All;
+
+					if (!bFirstTick)
+					{
+						// Update sky light first because sky diffuse will be visible in reflection capture indirect specular
+						USkyLightComponent::UpdateSkyCaptureContents(PlayWorld);
+						UReflectionCaptureComponent::UpdateReflectionCaptureContents(PlayWorld);
+					}
+
+					FKismetDebugUtilities::NotifyDebuggerOfEndOfGameFrame(PieContext.World());
+				}
+
+
+				UNCLOCK_CYCLES(GameCycles);
+
+				// Tick the viewports.
+				if ( GameViewport != NULL )
+				{
+					GameViewport->Tick(TickDeltaSeconds);
+				}
 			}
 
 			// Pop the world
