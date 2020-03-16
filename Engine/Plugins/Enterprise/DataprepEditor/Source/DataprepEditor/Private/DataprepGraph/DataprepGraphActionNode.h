@@ -64,7 +64,7 @@ protected:
  * to an SGraphNode in order to display actions in a SDataprepGraphEditor.
  */
 UCLASS(MinimalAPI)
-class UDataprepGraphActionNode : public UEdGraphNode
+class UDataprepGraphActionNode final : public UEdGraphNode
 {
 	GENERATED_BODY()
 

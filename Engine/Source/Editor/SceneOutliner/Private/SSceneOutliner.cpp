@@ -1913,14 +1913,20 @@ namespace SceneOutliner
 
 	void SSceneOutliner::AddColumn(FName ColumId, const SceneOutliner::FColumnInfo& ColumInfo)
 	{
-		SharedData->ColumnMap.Add(ColumId, ColumInfo);
-		RefreshColums();
+		if (!SharedData->ColumnMap.Contains(ColumId))
+		{
+			SharedData->ColumnMap.Add(ColumId, ColumInfo);
+			RefreshColums();
+		}
 	}
 
 	void SSceneOutliner::RemoveColumn(FName ColumId)
 	{
-		SharedData->ColumnMap.Remove(ColumId);
-		RefreshColums();
+		if (SharedData->ColumnMap.Contains(ColumId))
+		{
+			SharedData->ColumnMap.Remove(ColumId);
+			RefreshColums();
+		}
 	}
 
 	TArray<FName> SSceneOutliner::GetColumnIds() const

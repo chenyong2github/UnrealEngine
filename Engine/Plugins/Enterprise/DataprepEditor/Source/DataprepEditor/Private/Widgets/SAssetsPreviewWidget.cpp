@@ -432,12 +432,18 @@ namespace AssetPreviewWidget
 
 	void SAssetsPreviewWidget::AddColumn(TSharedRef<IAssetPreviewColumn> Column)
 	{
-		PendingColumnsToAdd.Add( Column );
+		if ( !Columns.Contains( Column->GetColumnID() ) )
+		{
+			PendingColumnsToAdd.Add( Column );
+		}
 	}
 
 	void SAssetsPreviewWidget::RemoveColumn(FName ColumnID)
 	{
-		PendingColumnsToRemove.Add( ColumnID );
+		if ( Columns.Contains( ColumnID ) )
+		{
+			PendingColumnsToRemove.Add( ColumnID );
+		}
 	}
 
 	void SAssetsPreviewWidget::OnSetExpansionRecursive(IAssetTreeItemPtr InTreeNode, bool bInIsItemExpanded)
@@ -522,7 +528,6 @@ namespace AssetPreviewWidget
 			PendingColumnsToRemove.Empty();
 		}
 
-
 		if ( PendingColumnsToAdd.Num() > 0 ) 
 		{
 			PendingColumnsToAdd.StableSort([](const TSharedRef<IAssetPreviewColumn>& First, const TSharedRef<IAssetPreviewColumn>& Second) -> bool
@@ -538,23 +543,28 @@ namespace AssetPreviewWidget
 			TArray<int32> InsertionIndex;
 			InsertionIndex.Reserve( PendingColumnsToAdd.Num() );
 
-			for (const auto& Pair : Columns)
+
+			for (const TPair<FName, TSharedRef<IAssetPreviewColumn>>& Pair : Columns)
 			{
-				if ( Pair.Value->GetCulumnPositionPriorityIndex() < CurrentPriority )
+				while ( Pair.Value->GetCulumnPositionPriorityIndex() < CurrentPriority )
 				{
 					InsertionIndex.Add( CurrentElementToAddIndex + CurrentColumnIndex );
 					++CurrentElementToAddIndex;
-					if ( CurrentElementToAddIndex >= PendingColumnsToAdd.Num() )
+					if ( CurrentElementToAddIndex == PendingColumnsToAdd.Num() )
 					{
 						break;
 					}
+				
 					CurrentPriority = PendingColumnsToAdd[CurrentElementToAddIndex]->GetCulumnPositionPriorityIndex();
+				}
+
+				if ( CurrentElementToAddIndex == PendingColumnsToAdd.Num() )
+				{
+					break;
 				}
 
 				++CurrentColumnIndex;
 			}
-
-			
 
 			Columns.Reserve( PendingColumnsToAdd.Num() );
 			for ( TSharedRef<IAssetPreviewColumn>& NewColumn : PendingColumnsToAdd )

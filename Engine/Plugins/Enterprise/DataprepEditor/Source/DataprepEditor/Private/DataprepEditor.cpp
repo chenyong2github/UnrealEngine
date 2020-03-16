@@ -52,6 +52,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
+#include "SceneOutlinerModule.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "ScopedTransaction.h"
 #include "StatsViewerModule.h"
@@ -1166,6 +1167,31 @@ void FDataprepEditor::OnActionsContextChanged( const UDataprepActionAsset* Actio
 	}
 }
 
+void FDataprepEditor::RefreshColumnsForPreviewSystem()
+{
+	if ( PreviewSystem->HasObservedObjects() )
+	{
+		SceneOutliner->RemoveColumn( SceneOutliner::FBuiltInColumnTypes::ActorInfo() );
+		SceneOutliner::FColumnInfo ColumnInfo( SceneOutliner::EColumnVisibility::Visible, 100, FCreateSceneOutlinerColumn::CreateLambda( [Preview = PreviewSystem](ISceneOutliner& InSceneOutliner) -> TSharedRef< ISceneOutlinerColumn >
+			{
+				return MakeShared<FDataprepPreviewOutlinerColumn>( InSceneOutliner, Preview );
+			} ) );
+		SceneOutliner->AddColumn( FDataprepPreviewOutlinerColumn::ColumnID, ColumnInfo );
+
+		AssetPreviewView->AddColumn( MakeShared<FDataprepPreviewAssetColumn>(PreviewSystem) );
+	}
+	else
+	{
+		SceneOutliner->RemoveColumn( FDataprepPreviewOutlinerColumn::ColumnID );
+		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+		SceneOutliner::FDefaultColumnInfo* ActorInfoColumPtr = SceneOutlinerModule.DefaultColumnMap.Find( SceneOutliner::FBuiltInColumnTypes::ActorInfo() );
+		check( ActorInfoColumPtr );
+		SceneOutliner->AddColumn( SceneOutliner::FBuiltInColumnTypes::ActorInfo(), ActorInfoColumPtr->ColumnInfo );
+
+		AssetPreviewView->RemoveColumn( FDataprepPreviewAssetColumn::ColumnID );
+	}
+}
+
 void FDataprepEditor::UpdateDataForPreviewSystem()
 {
 	TArray<UObject*> ObjectsForThePreviewSystem;
@@ -1183,24 +1209,32 @@ void FDataprepEditor::UpdateDataForPreviewSystem()
 
 bool FDataprepEditor::IsPreviewingStep(const UDataprepParameterizableObject* StepObject) const 
 {
-	return PreviewSystem->IsObservingObject( StepObject );
+	return PreviewSystem->IsObservingStepObject( StepObject );
+}
+
+int32 FDataprepEditor::GetCountOfPreviewedSteps() const
+{
+	return PreviewSystem->GetObservedStepsCount();
 }
 
 void FDataprepEditor::OnStepObjectsAboutToBeDeleted(const TArrayView<UDataprepParameterizableObject*>& StepObjects)
 {
-	// Todo Implement removal of objects from the preview system
+	for ( UDataprepParameterizableObject* StepObject : StepObjects )
+	{
+		if ( IsPreviewingStep( StepObject ) )
+		{
+			ClearPreviewedObjects();
+			break;
+		}
+	}
 }
 
 void FDataprepEditor::PostUndo(bool bSuccess)
 {
 	if ( bSuccess )
 	{
-		if ( PreviewSystem->HasObservedObjects() )
-		{
-			// Check if a object as disappear
-			PreviewSystem->RestartProcessing();
-			// Set Preview view
-		}
+		PreviewSystem->EnsureValidityOfTheObservedObjects();
+		RefreshColumnsForPreviewSystem();
 	}
 }
 
@@ -1208,33 +1242,13 @@ void FDataprepEditor::PostRedo(bool bSuccess)
 {
 	if ( bSuccess )
 	{
-		if ( PreviewSystem->HasObservedObjects() )
-		{
-			// Check if a object as disappear
-			PreviewSystem->RestartProcessing();
-			// Set Preview view
-		}
+		PreviewSystem->EnsureValidityOfTheObservedObjects();
+		RefreshColumnsForPreviewSystem();
 	}
 }
 
 void FDataprepEditor::SetPreviewedObjects(const TArrayView<UDataprepParameterizableObject*>& ObservedObjects)
 {
-	// (possible improvement) A validation that the observed object are from the same action in that the action is from the edited dataprep could help here.
-
-	if ( !PreviewSystem->HasObservedObjects() )
-	{ 
-		SceneOutliner->RemoveColumn( SceneOutliner::FBuiltInColumnTypes::ActorInfo() );
-		
-		SceneOutliner::FColumnInfo ColumnInfo( SceneOutliner::EColumnVisibility::Visible, 100, FCreateSceneOutlinerColumn::CreateLambda([Preview = PreviewSystem](ISceneOutliner& InSceneOutliner) -> TSharedRef< ISceneOutlinerColumn >
-			{
-				return MakeShared<FDataprepPreviewOutlinerColumn>( InSceneOutliner, Preview );
-			}));
-
-		SceneOutliner->AddColumn( FDataprepPreviewOutlinerColumn::ColumnID, ColumnInfo );
-
-		AssetPreviewView->AddColumn( MakeShared<FDataprepPreviewAssetColumn>( PreviewSystem ) );
-	}
-
 	PreviewSystem->SetObservedObjects( ObservedObjects );
 	
 	if ( SDataprepGraphEditor* RawGraphEditor = GraphEditor.Get() )
@@ -1242,6 +1256,13 @@ void FDataprepEditor::SetPreviewedObjects(const TArrayView<UDataprepParameteriza
 		// Refresh the graph
 		RawGraphEditor->NotifyGraphChanged();
 	}
+
+	RefreshColumnsForPreviewSystem();
+}
+
+void FDataprepEditor::ClearPreviewedObjects()
+{
+	SetPreviewedObjects( MakeArrayView<UDataprepParameterizableObject*>( nullptr, 0 ) );
 }
 
 void DataprepEditorUtil::DeleteTemporaryPackage( const FString& PathToDelete )

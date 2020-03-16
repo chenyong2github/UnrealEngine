@@ -115,8 +115,14 @@ public:
 	/** Setup the preview system to observe those steps */
 	void SetPreviewedObjects(const TArrayView<UDataprepParameterizableObject*>& ObservedObjects);
 
+	/** Clear any ongoing preview from the step preview system for this editor */
+	void ClearPreviewedObjects();
+
 	/** Is the preview system observing this step */
 	bool IsPreviewingStep(const UDataprepParameterizableObject* StepObject) const;
+
+	/** Return the number of steps the preview system is currently previewing */
+	int32 GetCountOfPreviewedSteps() const;
 
 private:
 	void BindCommands();
@@ -196,6 +202,9 @@ private:
 
 	/** Handles change to the content passed to an action */
 	void OnActionsContextChanged( const UDataprepActionAsset* ActionAsset, bool bWorldChanged, bool bAssetsChanged, const TArray< TWeakObjectPtr<UObject> >& NewAssets );
+
+	/** Refresh the columns of the scene preview (outliner) and the asset preview */
+	void RefreshColumnsForPreviewSystem();
 
 	/** Update the data used by the preview system */
 	void UpdateDataForPreviewSystem();
