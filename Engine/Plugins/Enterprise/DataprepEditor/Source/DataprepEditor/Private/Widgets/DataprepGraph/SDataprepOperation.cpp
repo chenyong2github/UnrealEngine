@@ -18,7 +18,7 @@ void SDataprepOperation::Construct(const FArguments& InArgs, UDataprepOperation*
 	TAttribute<FText> TooltipTextAttribute = MakeAttributeSP( this, &SDataprepOperation::GetTooltipText );
 	SetToolTipText( TooltipTextAttribute );
 
-	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments().IsSimplified(InArgs._IsSimplified), InDataprepActionContext );
+	SDataprepActionBlock::Construct( SDataprepActionBlock::FArguments(), InDataprepActionContext );
 }
 
 FSlateColor SDataprepOperation::GetOutlineColor() const

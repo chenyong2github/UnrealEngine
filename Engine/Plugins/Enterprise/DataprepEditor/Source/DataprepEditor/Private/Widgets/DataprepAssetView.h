@@ -29,7 +29,7 @@ public:
 	SLATE_BEGIN_ARGS(SDataprepAssetView) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr, TSharedPtr<FUICommandList>& InCommandList);
+	void Construct(const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr);
 
 	~SDataprepAssetView();
 
@@ -47,7 +47,6 @@ private:
 	void OnGetChildrenForCategoryTree( TSharedRef<EDataprepCategory> InTreeNode, TArray< TSharedRef<EDataprepCategory> >& OutChildren ) {}
 
 	TArray<TSharedRef< EDataprepCategory >> Categories;
-	TSharedPtr<FUICommandList> CommandList;
 
 private:
 	TWeakObjectPtr<UDataprepAssetInterface> DataprepAssetInterfacePtr;

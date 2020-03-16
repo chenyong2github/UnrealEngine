@@ -13,7 +13,6 @@
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorModule.h"
 #include "DataprepEditorStyle.h"
-#include "DataprepRecipe.h"
 #include "PreviewSystem/DataprepPreviewAssetColumn.h"
 #include "PreviewSystem/DataprepPreviewSceneOutlinerColumn.h"
 #include "PreviewSystem/DataprepPreviewSystem.h"
@@ -63,21 +62,6 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Layout/SBorder.h"
-
-// Temp code for the nodes development
-#include "Engine/Blueprint.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "K2Node_CustomEvent.h"
-#include "DataprepRecipe.h"
-#include "Engine/BlueprintGeneratedClass.h"
-#include "Kismet2/KismetEditorUtilities.h"
-#include "PropertyEditorModule.h"
-#include "IDetailsView.h"
-#include "DataprepAsset.h"
-#include "IStructureDetailsView.h"
-
-const FName FDataprepEditor::PipelineGraphTabId(TEXT("DataprepEditor_Pipeline_Graph"));
-// end of temp code for nodes development
 
 #define LOCTEXT_NAMESPACE "DataprepEditor"
 
@@ -315,15 +299,8 @@ void FDataprepEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& I
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon( FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Palette"));
 
-		// Temp code for the nodes development
-		InTabManager->RegisterTabSpawner(PipelineGraphTabId, FOnSpawnTab::CreateSP(this, &FDataprepEditor::SpawnTabPipelineGraph))
-			.SetDisplayName(LOCTEXT("PipelineGraphTab", "Pipeline Graph"))
-			.SetGroup(WorkspaceMenuCategoryRef)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
-		// end of temp code for nodes development
-
 		InTabManager->RegisterTabSpawner(DataprepGraphEditorTabId, FOnSpawnTab::CreateSP(this, &FDataprepEditor::SpawnTabGraphEditor))
-			.SetDisplayName(LOCTEXT("GraphEditorTab", "Simplified Graph"))
+			.SetDisplayName(LOCTEXT("GraphEditorTab", "Recipe Graph"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
 		
@@ -400,7 +377,7 @@ const FString& FDataprepEditor::GetRootPackagePath()
 	return RootPackagePath;
 }
 
-void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UDataprepAssetInterface* InDataprepAssetInterface, UObject* Blueprint)
+void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UDataprepAssetInterface* InDataprepAssetInterface)
 {
 	DataprepAssetInterfacePtr = TWeakObjectPtr<UDataprepAssetInterface>(InDataprepAssetInterface);
 	check( DataprepAssetInterfacePtr.IsValid() );
@@ -440,22 +417,6 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	TempDir = FPaths::Combine( GetRootTemporaryDir(), FString::FromInt( FPlatformProcess::GetCurrentProcessId() ), SessionID);
 	IFileManager::Get().MakeDirectory(*TempDir);
 
-#ifndef NO_BLUEPRINT
-	// Temp code for the nodes development
-	if(Blueprint != nullptr)
-	{
-		DataprepRecipeBPPtr = Cast<UBlueprint>(Blueprint);
-		check( DataprepRecipeBPPtr.IsValid() );
-
-		// Necessary step to regenerate blueprint generated class
-		// Note that this compilation will always succeed as Dataprep node does not have real body
-		//{
-		//	FKismetEditorUtilities::CompileBlueprint( DataprepRecipeBPPtr.Get(), EBlueprintCompileOptions::None, nullptr );
-		//}
-	}
-	// End temp code for the nodes development
-#endif
-
 	GEditor->RegisterForUndo(this);
 
 	// Register our commands. This will only register them if not previously registered
@@ -464,9 +425,8 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	BindCommands();
 
 	CreateTabs();
-
 	
-	const TSharedRef<FTabManager::FLayout> Layout = DataprepRecipeBPPtr.IsValid() ? CreateDataprepLayout() : CreateDataprepInstanceLayout();
+	const TSharedRef<FTabManager::FLayout> Layout = bIsDataprepInstance ? CreateDataprepInstanceLayout() : CreateDataprepLayout();
 
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
@@ -486,22 +446,6 @@ void FDataprepEditor::BindCommands()
 	const FDataprepEditorCommands& Commands = FDataprepEditorCommands::Get();
 
 	const TSharedRef<FUICommandList>& UICommandList = GetToolkitCommands();
-
-	//UICommandList->MapAction(FGenericCommands::Get().Delete,
-	//	FExecuteAction::CreateSP(this, &FDataprepEditor::DeleteSelected),
-	//	FCanExecuteAction::CreateSP(this, &FDataprepEditor::CanDeleteSelected));
-
-	//UICommandList->MapAction(FGenericCommands::Get().Undo,
-	//	FExecuteAction::CreateSP(this, &FDataprepEditor::UndoAction));
-
-	//UICommandList->MapAction(FGenericCommands::Get().Redo,
-	//	FExecuteAction::CreateSP(this, &FDataprepEditor::RedoAction));
-
-	// Temp code for the nodes development
-	UICommandList->MapAction(
-		Commands.CompileGraph,
-		FExecuteAction::CreateSP(this, &FDataprepEditor::OnCompile));
-	// end of temp code for nodes development
 
 	UICommandList->MapAction(
 		Commands.SaveScene,
@@ -868,7 +812,9 @@ void FDataprepEditor::CreateTabs()
 		}
 	);
 
-	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetInterfacePtr.Get(), PipelineEditorCommands );
+	CreateGraphEditor();
+
+	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetInterfacePtr.Get() );
 
 	CreateScenePreviewTab();
 
@@ -878,37 +824,7 @@ void FDataprepEditor::CreateTabs()
 
 	// Create Details Panel
 	CreateDetailsViews();
-
-	// Temp code for the nodes development
-	if(DataprepRecipeBPPtr.IsValid())
-	{
-		// Create Pipeline Editor
-		CreatePipelineEditor();
-	}
-	// end of temp code for nodes development
-
-	CreateGraphEditor();
-
 }
-
-// Temp code for the nodes development
-TSharedRef<SDockTab> FDataprepEditor::SpawnTabPipelineGraph(const FSpawnTabArgs & Args)
-{
-	check(Args.GetTabId() == PipelineGraphTabId);
-
-	if(!bIsDataprepInstance)
-	{
-		return SNew(SDockTab)
-			//.Icon(FDataprepEditorStyle::Get()->GetBrush("DataprepEditor.Tabs.Pipeline"))
-			.Label(LOCTEXT("DataprepEditor_PipelineTab_Title", "Pipeline"))
-			[
-				DataprepRecipeBPPtr.IsValid() ? PipelineView.ToSharedRef() : SNullWidget::NullWidget
-			];
-	}
-
-	return SNew(SDockTab);
-}
-// end of temp code for nodes development
 
 TSharedRef<SDockTab> FDataprepEditor::SpawnTabScenePreview(const FSpawnTabArgs & Args)
 {
@@ -1010,7 +926,7 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabGraphEditor(const FSpawnTabArgs & 
 	{
 		return SNew(SDockTab)
 			//.Icon(FDataprepEditorStyle::Get()->GetBrush("DataprepEditor.Tabs.Pipeline"))
-			.Label(LOCTEXT("DataprepEditor_GraphEditorTab_Title", "Simplified Graph"))
+			.Label(LOCTEXT("DataprepEditor_GraphEditorTab_Title", "Recipe Graph"))
 			[
 				GraphEditor.ToSharedRef()
 			];
@@ -1021,7 +937,7 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabGraphEditor(const FSpawnTabArgs & 
 
 TSharedRef<FTabManager::FLayout> FDataprepEditor::CreateDataprepLayout()
 {
-	return FTabManager::NewLayout("Standalone_DataprepEditor_Layout_v0.7")
+	return FTabManager::NewLayout("Standalone_DataprepEditor_Layout_v0.8")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -1074,15 +990,6 @@ TSharedRef<FTabManager::FLayout> FDataprepEditor::CreateDataprepLayout()
 							->AddTab(PaletteTabId, ETabState::OpenedTab)
 							->SetHideTabWell( true )
 						)
-						// Temp code for the nodes development
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.85f)
-							->AddTab(PipelineGraphTabId, ETabState::OpenedTab)
-							->SetHideTabWell( true )
-						)
-						// end of temp code for nodes development
 						->Split
 						(
 							FTabManager::NewStack()

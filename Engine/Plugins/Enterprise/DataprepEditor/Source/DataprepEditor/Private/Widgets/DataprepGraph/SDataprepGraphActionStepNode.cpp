@@ -127,7 +127,7 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 			if (StepType == UDataprepOperation::StaticClass())
 			{
 				UDataprepOperation* Operation = static_cast<UDataprepOperation*>( StepObject );
-				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepOperation, Operation, StepData).IsSimplified(true) );
+				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepOperation, Operation, StepData) );
 			}
 			else if (StepType == UDataprepFilter::StaticClass())
 			{
@@ -136,20 +136,16 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( 
 					SNew( SDataprepFilter, *Filter, StepData )
 						.IsPreviewed( bIsPreviewed )
-						.IsSimplified(true)
 					);
 			}
 			else if (StepType == UDataprepSelectionTransform::StaticClass())
 			{
 				UDataprepSelectionTransform* SelectionTransform = static_cast<UDataprepSelectionTransform*>( StepObject );
-				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepSelectionTransform, SelectionTransform, StepData).IsSimplified(true) );
+				ActionStepBlockPtr = StaticCastSharedRef<SDataprepActionBlock>( SNew(SDataprepSelectionTransform, SelectionTransform, StepData) );
 			}
 
 			if(ActionStepBlockPtr.IsValid())
 			{
-#ifndef NO_BLUEPRINT
-				ActionStepBlockPtr->bIsSimplifiedGraph = true;
-#endif
 				ActionBlockPtr = ActionStepBlockPtr->AsShared();
 			}
 		}

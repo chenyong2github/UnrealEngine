@@ -14,10 +14,7 @@ struct FDataprepSchemaActionContext;
 
 class SDataprepSelectionTransform : public SDataprepActionBlock, public FGCObject
 {
-	SLATE_BEGIN_ARGS(SDataprepSelectionTransform)
-	: _IsSimplified(false)
-	{}
-		SLATE_ARGUMENT( bool, IsSimplified )
+	SLATE_BEGIN_ARGS(SDataprepSelectionTransform){}
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UDataprepSelectionTransform* InTransform, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext);

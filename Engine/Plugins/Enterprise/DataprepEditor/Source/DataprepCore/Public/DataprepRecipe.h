@@ -10,86 +10,44 @@
 class AActor;
 class UWorld;
 
-UCLASS(Experimental, Blueprintable, BlueprintType, meta = (DisplayName = "Data Preparation Recipe"))
-class DATAPREPCORE_API UDataprepRecipe : public UObject
+UCLASS(Deprecated, Experimental, Blueprintable, BlueprintType, meta = (DisplayName = "DEPRECATED Data Preparation Recipe", DeprecationMessage = "No use of Blueprint with Dataprep."))
+class DATAPREPCORE_API UDEPRECATED_DataprepRecipe : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UDataprepRecipe();
+	UDEPRECATED_DataprepRecipe() {}
 
 	/** Begin UObject override */
 	virtual bool IsEditorOnly() const override { return true; }
 	/** End UObject override */
 
-	/**
-	 * Reset array of assets attached to recipe
-	 */
-	void ResetAssets()
-	{
-		Assets.Reset();
-	}
-
-	/**
-	 * Setter on array of assets held by this object
-	 */
-	void SetAssets(TArray<TWeakObjectPtr<UObject>> InAssets)
-	{
-		Assets = MoveTemp(InAssets);
-	}
-
-	/**
-	 * Returns array of assets attached to recipe.
-	 * Usually called after the operations of the recipe have been executed
-	 */
-	TArray<TWeakObjectPtr<UObject>> GetValidAssets(bool bFlushAssets = true);
-
-	/**
-	 * Returns world attached to this recipe
-	 */
-	UWorld* GetTargetWorld()
-	{
-		return TargetWorld;
-	}
-
-	/**
-	 * Attaches a world to this recipe
-	 */
-	void SetTargetWorld(UWorld* InTargetWorld)
-	{
-		TargetWorld = InTargetWorld;
-	}
-
 public:
 	/**
+	 * DEPRECATED
 	 * Returns all actors contained in its attached world
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Dataprep | Query", meta = (HideSelfPin = "true"))
-	virtual TArray<AActor*> GetActors() const;
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Query", meta = (HideSelfPin = "true"), meta=(DeprecatedFunction, DeprecationMessage="No use of Blueprint with Dataprep."))
+	virtual TArray<AActor*> GetActors() const
+	{
+		return TArray<AActor*>();
+	}
 
 	/**
+	 * DEPRECATED
 	 * Returns all valid assets contained in attached world
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Dataprep | Query", meta = (HideSelfPin = "true"))
-	virtual TArray<UObject*> GetAssets() const;
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Query", meta = (DeprecatedFunction, DeprecationMessage="No use of Blueprint with Dataprep.", HideSelfPin = "true"))
+	virtual TArray<UObject*> GetAssets() const
+	{
+		return TArray<UObject*>();
+	}
 
 	/**
+	 * DEPRECATED
 	 * Function used to trigger the execution of the pipeline
 	 * An event node associated to this function must be in the pipeline graph to run it.
 	 */
-	UFUNCTION(BlueprintImplementableEvent)
+	UFUNCTION(BlueprintImplementableEvent, meta=(DeprecatedFunction, DeprecationMessage="No use of Blueprint with Dataprep."))
 	void TriggerPipelineTraversal();
-
-private:
-	/**
-	 * World attached to this recipe.
-	 * All queries on actors will be perform from this world.
-	 * Transient, Can be null.
-	 */
-	UWorld* TargetWorld;
-
-	/**
-	 * All queries on assets will be perform from this array.
-	 */
-	TArray<TWeakObjectPtr<UObject>> Assets;
 };

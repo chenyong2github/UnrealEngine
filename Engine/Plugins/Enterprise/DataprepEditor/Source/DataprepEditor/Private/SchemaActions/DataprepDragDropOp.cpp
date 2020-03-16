@@ -154,35 +154,6 @@ void FDataprepDragDropOp::HoverTargetChanged()
 	SetSimpleFeedbackMessage( Symbol, FLinearColor::White, DrapDropText );
 }
 
-FReply FDataprepDragDropOp::DroppedOnPanel(const TSharedRef<SWidget>& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
-{
-	if ( bDropTargetValid )
-	{
-		if ( DataprepPreDropConfirmation.IsBound() )
-		{
-			TFunction<void ()> OnConfirmation ( [Operation = StaticCastSharedRef<FDataprepDragDropOp>( AsShared() ), Panel, ScreenPosition, GraphPosition, GraphPtr = TWeakObjectPtr<UEdGraph>(&Graph)] ()
-				{
-					UEdGraph* Graph = GraphPtr.Get();
-					if ( Graph )
-					{
-						Operation->DoDropOnPanel(Panel, ScreenPosition, GraphPosition, *Graph);
-					}
-				} );
-
-			DataprepPreDropConfirmation.Execute( FDataprepSchemaActionContext(), OnConfirmation);
-		
-			return FReply::Handled();
-		}
-		else
-		{
-			DoDropOnPanel( Panel, ScreenPosition, GraphPosition, Graph );
-			return FReply::Handled();
-		}
-	}
-
-	return FReply::Unhandled();
-}
-
 void FDataprepDragDropOp::OnDragged(const FDragDropEvent& DragDropEvent)
 {
 	FVector2D TargetPosition = DragDropEvent.GetScreenSpacePosition();
@@ -370,35 +341,6 @@ bool FDataprepDragDropOp::DoDropOnDataprepActionContext(const FDataprepSchemaAct
 		return bDidModification;
 	}
 	return false;
-}
-
-void FDataprepDragDropOp::DoDropOnPanel(const TSharedRef<SWidget>& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
-{
-	if (UEdGraph* EdGraph = GetHoveredGraph())
-	{
-		if(Cast<UDataprepGraph>(EdGraph) != nullptr)
-		{
-			return;
-		}
-
-		FScopedTransaction Transaction( LOCTEXT("AddNode", "Add Dataprep Action Node") );
-		UK2Node_DataprepAction* DataprepActionNode = DataprepSchemaActionUtils::SpawnEdGraphNode< UK2Node_DataprepAction >( Graph, GraphPosition );
-		check( DataprepActionNode );
-		DataprepActionNode->CreateDataprepActionAsset();
-		DataprepActionNode->AutowireNewNode( GetHoveredPin() );
-
-		FDataprepSchemaActionContext Context;
-		Context.DataprepActionPtr = DataprepActionNode->GetDataprepAction();
-		if ( !DoDropOnDataprepActionContext( Context ) )
-		{
-			Transaction.Cancel();
-		}
-
-		if ( UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked( EdGraph ) )
-		{
-			FBlueprintEditorUtils::MarkBlueprintAsModified( Blueprint );
-		}
-	}
 }
 
 FReply FDataprepDragDropOp::DoDropOnActionStep(UDataprepGraphActionStepNode* TargetActionStepNode)

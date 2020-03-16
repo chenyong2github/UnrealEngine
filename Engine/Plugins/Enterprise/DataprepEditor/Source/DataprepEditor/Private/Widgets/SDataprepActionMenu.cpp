@@ -71,40 +71,6 @@ void SDataprepActionMenu::CollectActions(FGraphActionListBuilderBase& OutActions
 
 void SDataprepActionMenu::OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType)
 {
-#ifndef NO_BLUEPRINT
-	/**
-	 * Create a node if needed and execute the action
-	 * return true if the action was properly executed
-	 */
-	auto ExecuteActionBP = [this](FDataprepSchemaAction& DataprepAction) -> bool
-	{
-		UK2Node_DataprepAction* ActionNode = nullptr;
-
-		if ( ShouldCreateNewNode() )
-		{
-			ActionNode = DataprepSchemaActionUtils::SpawnEdGraphNode<UK2Node_DataprepAction>( *GraphObj, NewNodePosition );
-			ActionNode->CreateDataprepActionAsset();
-			Context.DataprepActionPtr = MakeWeakObjectPtr<UDataprepActionAsset>( ActionNode->GetDataprepAction() );
-
-			if ( DraggedFromPins.Num() > 0 )
-			{
-				ActionNode->AutowireNewNode( DraggedFromPins[0] );
-			}
-		}
-
-		if ( !DataprepAction.ExecuteAction( Context ) )
-		{
-			if ( ActionNode )
-			{
-				// Remove the created node
-				GraphObj->RemoveNode( ActionNode );
-			}
-			return false;
-		}
-
-		return true;
-	};
-#endif
 	auto ExecuteAction = [this](FDataprepSchemaAction& DataprepAction, UDataprepGraph* DataprepGraph) -> bool
 	{
 		UDataprepAsset* DataprepAsset = DataprepGraph ? DataprepGraph->GetDataprepAsset() : nullptr;
@@ -134,25 +100,10 @@ void SDataprepActionMenu::OnActionSelected(const TArray< TSharedPtr<FEdGraphSche
 						Transaction.Cancel();
 					}
 				}
-#ifndef NO_BLUEPRINT
-				else if ( !ExecuteActionBP( *DataprepAction ) )
-				{
-					Transaction.Cancel();
-				}
-#endif
 			}
-			else
+			else if(UDataprepGraph* DataprepGraph = Cast<UDataprepGraph>(GraphObj))
 			{
-				if(UDataprepGraph* DataprepGraph = Cast<UDataprepGraph>(GraphObj))
-				{
-					ExecuteAction( *DataprepAction, DataprepGraph );
-				}
-#ifndef NO_BLUEPRINT
-				else
-				{
-					ExecuteActionBP( *DataprepAction );
-				}
-#endif
+				ExecuteAction( *DataprepAction, DataprepGraph );
 			}
 		}
 	}

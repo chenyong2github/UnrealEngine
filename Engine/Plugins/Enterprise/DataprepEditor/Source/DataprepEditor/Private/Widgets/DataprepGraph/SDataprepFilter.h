@@ -18,11 +18,8 @@ class SDataprepFilter : public SDataprepActionBlock, public FGCObject
 {
 public:
 	SLATE_BEGIN_ARGS(SDataprepFilter)
-
-		: _IsSimplified(false)
-		, _IsPreviewed(false)
+		: _IsPreviewed(false)
 	{}
-		SLATE_ARGUMENT( bool, IsSimplified )
 		SLATE_ARGUMENT( bool, IsPreviewed )
 	SLATE_END_ARGS()
 
