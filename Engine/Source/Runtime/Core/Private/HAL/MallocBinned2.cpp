@@ -53,7 +53,7 @@ static FAutoConsoleVariableRef GMallocBinned2AllocExtraCVar(
 
 #endif
 
-double GMallocBinned2FlushThreadCacheMaxWaitTime = 0.02f;
+float GMallocBinned2FlushThreadCacheMaxWaitTime = 0.02f;
 static FAutoConsoleVariableRef GMallocBinned2FlushThreadCacheMaxWaitTimeCVar(
 	TEXT("MallocBinned2.FlushThreadCacheMaxWaitTime"),
 	GMallocBinned2FlushThreadCacheMaxWaitTime,
