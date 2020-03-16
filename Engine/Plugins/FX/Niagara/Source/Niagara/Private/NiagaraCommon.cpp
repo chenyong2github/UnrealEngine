@@ -439,13 +439,13 @@ void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScr
 		FNiagaraParameterStore& PreparedParameterStore = It.Value();
 
 		bool bOverwriteParameters = false;
-		if (Script->RapidIterationParameters.GetNumParameters() != PreparedParameterStore.GetNumParameters())
+		if (Script->RapidIterationParameters.ParameterVariables.Num() != PreparedParameterStore.ParameterVariables.Num())
 		{
 			bOverwriteParameters = true;
 		}
 		else
 		{
-			for (const FNiagaraVariableWithOffset& ParamWithOffset : Script->RapidIterationParameters.GetSortedParameterOffsets())
+			for (const FNiagaraVariableWithOffset& ParamWithOffset : Script->RapidIterationParameters.ParameterVariables)
 			{
 				const FNiagaraVariable& SourceParameter = ParamWithOffset;
 				const int32 SourceOffset = ParamWithOffset.Offset;

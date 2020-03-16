@@ -72,7 +72,6 @@ FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo(FName InName, ENiagaraScr
 UNiagaraScriptSourceBase::UNiagaraScriptSourceBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	
 }
 
 
@@ -530,12 +529,12 @@ bool UNiagaraScript::ContainsUsage(ENiagaraScriptUsage InUsage) const
 	return false;
 }
 
-FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget)
+const FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget)
 {
 #if WITH_EDITORONLY_DATA
 	if (SimTarget == ENiagaraSimTarget::CPUSim && IsReadyToRun(ENiagaraSimTarget::CPUSim))
 	{
-		if (ScriptExecutionParamStoreCPU.IsInitialized() == false)
+		if (!ScriptExecutionParamStoreCPU.bInitialized)
 		{
 			ScriptExecutionParamStoreCPU.InitFromOwningScript(this, SimTarget, false);
 		}
@@ -543,7 +542,7 @@ FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyParamete
 	}
 	else if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
-		if (ScriptExecutionParamStoreGPU.IsInitialized() == false)
+		if (!ScriptExecutionParamStoreGPU.bInitialized)
 		{
 			ScriptExecutionParamStoreGPU.InitFromOwningScript(this, SimTarget, false);
 		}
@@ -754,11 +753,8 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 			TemporaryStore = RapidIterationParameters;
 
 			// Get the active parameters
-			TArray<FNiagaraVariable> Vars;
-			RapidIterationParameters.GetParameters(Vars);
-
 			// Remove all parameters that aren't data interfaces or uobjects
-			for (const FNiagaraVariable& Var : Vars)
+			for (const FNiagaraVariableBase& Var : TemporaryStore.ParameterVariables)
 			{
 				if (Var.IsDataInterface() || Var.IsUObject())
 					continue;
@@ -766,7 +762,7 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 				NumRemoved++;
 			}
 
-			UE_LOG(LogNiagara, Verbose, TEXT("Pruned %d/%d parameters from script %s"), NumRemoved, TemporaryStore.GetNumParameters(), *GetFullName());
+			UE_LOG(LogNiagara, Verbose, TEXT("Pruned %d/%d parameters from script %s"), NumRemoved, TemporaryStore.ParameterVariables.Num(), *GetFullName());
 		}
 	}
 
@@ -893,7 +889,7 @@ void UNiagaraScript::PostLoad()
 	{
 		ScriptExecutionParamStore.PostLoad();
 		RapidIterationParameters.Bind(&ScriptExecutionParamStore, &ScriptExecutionBoundParameters);
-		ScriptExecutionParamStore.SetAsInitialized();
+		ScriptExecutionParamStore.bInitialized = true;
 		ScriptExecutionBoundParameters.Empty();
 	}
 

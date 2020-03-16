@@ -29,13 +29,13 @@ public:
 	FORCEINLINE void GetUserParameters(TArray<FNiagaraVariable>& OutParameters) const { return UserParameterRedirects.GenerateKeyArray(OutParameters); }
 
 	// ~ Begin FNiagaraParameterStore overrides
-	FORCEINLINE_DEBUGGABLE virtual const int32* FindParameterOffset(const FNiagaraVariable& Parameter, bool IgnoreType = false) const override
+	FORCEINLINE_DEBUGGABLE virtual const int32* FindParameterOffset(const FNiagaraVariableBase& Parameter, bool IgnoreType = false) const override
 	{
 		const FNiagaraVariable* Redirection = UserParameterRedirects.Find(Parameter);
 		return FNiagaraParameterStore::FindParameterOffset(Redirection ? *Redirection : Parameter);
 	}
 	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize = true, bool bTriggerRebind = true, int32* OutOffset = nullptr) override;
-	virtual bool RemoveParameter(const FNiagaraVariable& InVar) override;
+	virtual bool RemoveParameter(const FNiagaraVariableBase& InVar) override;
 	virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty) override;
 	virtual void Empty(bool bClearBindings = true) override;
 	virtual void Reset(bool bClearBindings = true) override;
