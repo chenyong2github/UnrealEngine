@@ -12,6 +12,7 @@
 #endif
 #include "Misc/EmbeddedCommunication.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ConfigCacheIni.h"
 #include "HttpModule.h"
 #include "HttpManager.h"
 #include "PlatformHttp.h"
