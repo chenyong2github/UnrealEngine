@@ -138,7 +138,7 @@ void UAudioMixerBlueprintLibrary::ReplaceSoundEffectSubmix(const UObject* WorldC
 {
 	if (!SubmixEffectPreset || !InSoundSubmix)
 	{
-		return 0;
+		return;
 	}
 
 	if (Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject))
