@@ -1783,7 +1783,7 @@ void UDataprepParameterizationInstance::ApplyParameterization(const TMap<UObject
 			void* DestinationAddress = nullptr;
 			if ( FProperty* DestinationProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), DestinationAddress ) )
 			{
-				FProperty* ParameterizationProperty = FindField<FProperty>( SourceParameterization->CustomContainerClass, BindingPair.Value );
+				FProperty* ParameterizationProperty = FindFProperty<FProperty>( SourceParameterization->CustomContainerClass, BindingPair.Value );
 				void* ParameterizationAddress =  DataprepParameterization::GetAddressOf( *ParameterizationProperty, ParameterizationInstance, INDEX_NONE );
 				DataprepParameterization::CopyValue( *DestinationProperty, DestinationAddress, *ParameterizationProperty, ParameterizationAddress );
 			}
