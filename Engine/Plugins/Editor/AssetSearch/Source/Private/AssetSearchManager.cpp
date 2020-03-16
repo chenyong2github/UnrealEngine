@@ -35,6 +35,8 @@
 #include "Editor.h"
 #include "PackageTools.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectKey.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
