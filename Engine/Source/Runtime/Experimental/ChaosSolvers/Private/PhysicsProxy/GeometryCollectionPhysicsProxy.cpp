@@ -564,7 +564,7 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 	DynamicCollection.CopyMatchingAttributesFrom(RestCollection);
 
 	check(DynamicCollection.HasAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup));
-	check(RestCollection.HasAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup));
+	check(RestCollection.HasAttribute(FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup));
 
 	//
 	// User defined initial velocities need to be populated. 
@@ -574,6 +574,29 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 		{
 			DynamicCollection.InitialLinearVelocity.Fill(Params.InitialLinearVelocity);
 			DynamicCollection.InitialAngularVelocity.Fill(Params.InitialAngularVelocity);
+		}
+	}
+
+	/** 
+		Copy over our implicits from the rest collection to the dynamic collection. This doesn't automatically happen
+		in the copy above due to the rest collection storing implicits in a different attribute that the dynamic collection
+		doesn't contain
+	*/
+	{
+		const TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>* SharedRestImplicits = RestCollection.FindAttribute<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>(FGeometryDynamicCollection::FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
+
+		const int32 NumRestElems = RestCollection.NumElements(FTransformCollection::TransformGroup);
+		const int32 NumDynamicElems = DynamicCollection.NumElements(FTransformCollection::TransformGroup);
+
+		if(ensure(SharedRestImplicits && (NumRestElems == NumDynamicElems)))
+		{
+			for(int32 Index = 0; Index < NumDynamicElems; ++Index)
+			{
+				if(SharedRestImplicits)
+				{
+					DynamicCollection.Implicits[Index] = (*SharedRestImplicits)[Index];
+				}
+			}
 		}
 	}
 
@@ -1829,11 +1852,9 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TManagedArray<TUniquePtr<FSimplicial>>& CollectionSimplicials = 
 		RestCollection.AddAttribute<TUniquePtr<FSimplicial>>(
 			FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
-
-	RestCollection.RemoveAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 	TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& CollectionImplicits = 
 		RestCollection.AddAttribute<FGeometryDynamicCollection::FSharedImplicit>(
-			FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
+			FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
 
 	FTransform IdentityXf(FQuat::Identity, FVector(0));
 	IdentityXf.NormalizeRotation();
