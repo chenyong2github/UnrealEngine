@@ -13,15 +13,17 @@ enum class EWidgetBlueprintIndexerVersion
 	Empty = 0,
 	Initial = 1,
 
-	Current = Initial,
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
 int32 FWidgetBlueprintIndexer::GetVersion() const
 {
-	return (int32)EWidgetBlueprintIndexerVersion::Current;
+	return (int32)EWidgetBlueprintIndexerVersion::LatestVersion;
 }
 
-void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer)
+void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
 	const UWidgetBlueprint* BP = Cast<UWidgetBlueprint>(InAssetObject);
 	check(BP);
