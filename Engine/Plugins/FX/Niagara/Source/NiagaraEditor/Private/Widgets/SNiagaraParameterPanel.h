@@ -103,6 +103,7 @@ private:
 	bool CanRequestRenameOnActionNode() const;
 	void HandlePaletteItemParameterRenamed(const FText& InText, const FNiagaraScriptVarAndViewInfoAction& InAction);
 	void HandlePaletteItemScopeComboSelectionChanged(ENiagaraParameterScope InScope, const FNiagaraScriptVarAndViewInfoAction& InAction);
+	void HandleExternalSelectionChanged(const UObject* Obj);
 
 	/** Delegate handler used to match an FName to an action in the list, used for renaming keys */
 	bool HandleActionMatchesName(struct FEdGraphSchemaAction* InAction, const FName& InName) const;

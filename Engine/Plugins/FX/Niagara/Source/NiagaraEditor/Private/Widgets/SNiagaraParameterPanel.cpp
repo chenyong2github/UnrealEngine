@@ -38,6 +38,7 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	ToolkitCommands = InToolkitCommands;
 
 	ParameterPanelViewModel->GetOnRefreshed().BindRaw(this, &SNiagaraParameterPanel::Refresh);
+	ParameterPanelViewModel->GetExternalSelectionChanged().AddRaw(this, &SNiagaraParameterPanel::HandleExternalSelectionChanged);
 
 	AddParameterButtons.SetNum(NiagaraParameterPanelSectionID::CUSTOM + 1); //@Todo(ng) verify
 
@@ -91,6 +92,18 @@ void SNiagaraParameterPanel::Tick(const FGeometry& AllottedGeometry, const doubl
 	{
 		GraphActionMenu->RefreshAllActions(true);
 		bNeedsRefresh = false;
+	}
+}
+
+void SNiagaraParameterPanel::HandleExternalSelectionChanged(const UObject* Obj)
+{
+	if (Obj && Obj->IsA< UNiagaraScriptVariable>())
+	{
+		const UNiagaraScriptVariable* Var = Cast< UNiagaraScriptVariable>(Obj);
+		if (Var)
+		{
+			GraphActionMenu->SelectItemByName(Var->Variable.GetName());
+		}
 	}
 }
 
