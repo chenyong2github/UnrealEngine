@@ -2368,6 +2368,9 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 
 	ViewUniformShaderParameters.MinRoughness = FMath::Clamp(CVarGlobalMinRoughnessOverride.GetValueOnRenderThread(), 0.02f, 1.0f);
 
+	FSceneInterface* Scene = Family->Scene;
+	uint32 SkylightMask = Scene ? Scene->ShouldRenderSkylightMask() : 0;
+	ViewUniformShaderParameters.EnableSkyLight = SkylightMask;
 	//to tail call keep the order and number of parameters of the caller function
 	SetupViewRectUniformBufferParameters(ViewUniformShaderParameters, BufferSize, EffectiveViewRect, InViewMatrices, InPrevViewMatrices);
 }
