@@ -114,6 +114,16 @@ namespace Chaos
 			}
 		}
 
+		template <typename Lambda>
+		void ForEachProxy(const Lambda& Func) const
+		{
+			int32 Idx = 0;
+			for(const FDirtyProxy& Dirty : ProxiesData)
+			{
+				Func(Idx++,Dirty);
+			}
+		}
+
 		void AddShape(IPhysicsProxyBase* Proxy,int32 ShapeIdx)
 		{
 			Add(Proxy);
