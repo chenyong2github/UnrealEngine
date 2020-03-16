@@ -370,6 +370,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server")
 	FString AdditionalServerLaunchParameters;
 
+	/** If > 0, Tick dedicated server at a fixed frame rate. Does not impact Listen Server (use ClientFixedFPS setting). This is the target frame rate, e.g, "20" for 20fps, which will result in 1/20 second tick steps. */
+	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server", meta=(EditCondition = "PlayNetMode == EPlayNetMode::PIE_Client && RunUnderOneProcess"))
+	int32 ServerFixedFPS;
+
+	/** If > 0, Tick clients at a fixed frame rate. Each client instance will map to an element in the list, wrapping around if num clients exceeds size of list. Includes Listen Server. This is the target frame rate, e.g, "20" for 20fps, which will result in 1/20 second tick steps. */
+	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Client", meta=(EditCondition = "PlayNetMode != EPlayNetMode::PIE_Standalone && RunUnderOneProcess"))
+	TArray<int32> ClientFixedFPS;
+
 public:
 
 	/** Should network emulation settings be applied or not */
