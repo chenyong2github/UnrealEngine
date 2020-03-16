@@ -58,6 +58,11 @@ public:
 	virtual UWorld* GetWorld() const override;
 	// ~UObject Interface
 
+	// Post Finalize Export
+	bool HasFinishedExporting() const { return HasFinishedExportingImpl(); }
+	void BeginExport() { BeginExportImpl(); }
+	// ~Post Finalize Export
+
 protected:
 	UMoviePipeline* GetPipeline() const;
 
@@ -115,6 +120,12 @@ public:
 
 	virtual void SetIsUserCustomized(bool bIsUserCustomized) { bUserCustomized = bIsUserCustomized; }
 	virtual bool GetIsUserCustomized() const { return bUserCustomized; }
+
+	/** Has this setting finished any export-related things it needs to do post-finalize? */
+	bool HasFinishedExportingImpl() const { return true; }
+	/** Called once when all files have been finalized. */
+	void BeginExportImpl() { }
+	
 private:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UMoviePipeline> CachedPipeline;

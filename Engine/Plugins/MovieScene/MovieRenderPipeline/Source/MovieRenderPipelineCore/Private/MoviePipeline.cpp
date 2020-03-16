@@ -568,7 +568,10 @@ void UMoviePipeline::BeginFinalize()
 
 void UMoviePipeline::BeginExport()
 {
-	// ToDo: Add exports.
+	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+	{
+		Setting->BeginExport();
+	}
 }
 
 void UMoviePipeline::TickFinalizeOutputContainers(const bool bInForceFinish)
@@ -619,7 +622,7 @@ void UMoviePipeline::TickPostFinalizeExport(const bool bInForceFinish)
 {
 	// This step assumes you have produced data and filled the data structures.
 	check(PipelineState == EMovieRenderPipelineState::Export);
-	UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] PostFinalize Export (Start)."), GFrameCounter);
+	UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("[%d] PostFinalize Export (Start)."), GFrameCounter);
 
 	// ToDo: Loop through any extensions (such as XML export) and let them export using all of the
 	// data that was generated during this run such as containers, output names and lengths.
@@ -631,11 +634,11 @@ void UMoviePipeline::TickPostFinalizeExport(const bool bInForceFinish)
 		bAllContainsFinishedProcessing = true;
 
 		// Ask the containers if they're all done processing.
-		// for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
-		// {
-		// 	bAllContainsFinishedProcessing &= Container->HasFinishedProcessing();
-		// }
-
+		for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+		{
+			bAllContainsFinishedProcessing &= Setting->HasFinishedExporting();
+		}
+		
 		// If we aren't forcing a finish, early out after one loop to keep
 		// the editor/ui responsive.
 		if (!bInForceFinish || bAllContainsFinishedProcessing)
@@ -649,15 +652,14 @@ void UMoviePipeline::TickPostFinalizeExport(const bool bInForceFinish)
 
 	} while (true);
 
+	UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("[%d] PostFinalize Export (End)."), GFrameCounter);
+
 	// If an output container is still working, we'll early out to keep the UI responsive.
 	// If they've forced a finish this will have to be true before we can reach this block.
 	if (!bAllContainsFinishedProcessing)
 	{
 		return;
 	}
-
-
-	UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] PostFinalize Export (End)."), GFrameCounter);
 
 	TransitionToState(EMovieRenderPipelineState::Finished);
 }
