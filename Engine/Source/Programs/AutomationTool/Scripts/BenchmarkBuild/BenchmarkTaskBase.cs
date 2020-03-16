@@ -292,7 +292,7 @@ namespace AutomationTool.Benchmark
 
 			foreach (var Dir in CachePaths)
 			{
-				DirectoryReference.Delete(Dir, true);
+				CommandUtils.DeleteDirectory_NoExceptions(Dir.FullName);
 			}
 
 			CachePaths.Clear();
