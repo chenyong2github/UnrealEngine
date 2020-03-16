@@ -16,6 +16,7 @@
 #include "NiagaraScriptVariable.h"
 #include "Editor/GraphEditor/Private/GraphActionNode.h"
 #include "NiagaraConstants.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanel"
 
