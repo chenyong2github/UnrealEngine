@@ -42,7 +42,7 @@ namespace ChaosTest {
 		Solver->RegisterObject(Particle.Get());
 
 		Particle->SetV(TVector<float, 3>(0, 0, 10));
-		Solver->AddDirtyProxy(Particle->Proxy);
+		Solver->AddDirtyProxy(Particle->GetProxy());
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get() });
 
@@ -100,7 +100,7 @@ namespace ChaosTest {
 		Solver->RegisterObject(Particle.Get());
 
 		Particle->SetV(TVector<float, 3>(0, 0, 10));
-		Solver->AddDirtyProxy(Particle->Proxy);
+		Solver->AddDirtyProxy(Particle->GetProxy());
 
 		int32 Counter = 0;
 		while (Particle->X().Size() == 0.f)
@@ -155,14 +155,14 @@ namespace ChaosTest {
 		Particle->SetX(TVector<float, 3>(0, 0, 1000));
 		Particle->SetV(TVector<float, 3>(0, 0, -10));
 		Solver->RegisterObject(Particle.Get());
-		Solver->AddDirtyProxy(Particle->Proxy);
+		Solver->AddDirtyProxy(Particle->GetProxy());
 
 		TUniquePtr<Chaos::TPBDRigidParticle<float, 3>> Particle2 = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
 		Particle2->SetGeometry(Sphere);
 		Particle2->SetX(TVector<float, 3>(0, 0, 100));
 		Particle2->SetV(TVector<float, 3>(0, 0, 0));
 		Solver->RegisterObject(Particle2.Get());
-		Solver->AddDirtyProxy(Particle2->Proxy);
+		Solver->AddDirtyProxy(Particle2->GetProxy());
 		Particle2->SetObjectState(Chaos::EObjectStateType::Sleeping, false);
 
 		::ChaosTest::SetParticleSimDataToCollide({Particle.Get(),Particle2.Get() });

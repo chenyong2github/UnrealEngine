@@ -17,6 +17,7 @@ namespace ChaosTest
 
 	GTEST_TEST(DirtyParticleTests,Basic)
 	{
+#if 0
 		auto Particle = TGeometryParticle<FReal,3>::CreateParticle();
 		Particle->SetX(FVec3(1,1,1));
 
@@ -64,6 +65,7 @@ namespace ChaosTest
 
 
 
+#endif
 	}
 }
 
