@@ -19,9 +19,18 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "SNPSimFrameContents.h"
+#include "Modules/ModuleManager.h"
+#include "Insights/IUnrealInsightsModule.h"
+#include "NetworkPredictionInsightsManager.h"
+#include "NetworkPredictionInsightsCommands.h"
+#include "SNPSimFrameView.h"
+#include "SNPToolbar.h"
 
 #define LOCTEXT_NAMESPACE "SNetworkPredictionWindow"
 
+const FName FNetworkPredictionInsightsTabs::ToolbarID("Toolbar");
+const FName FNetworkPredictionInsightsTabs::SimFrameViewID("SimFrameView");
+const FName FNetworkPredictionInsightsTabs::SimFrameContentsID("SimFrameContents");
 
 SNPWindow::SNPWindow()
 {
