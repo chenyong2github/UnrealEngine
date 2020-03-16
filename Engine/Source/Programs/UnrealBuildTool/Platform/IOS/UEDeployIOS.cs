@@ -315,7 +315,7 @@ namespace UnrealBuildTool
 				RequiredCaps += "\t\t<string>" + Arches[0] + "</string>\n";
 			}
 
-			ConfigHierarchy GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirRef, UnrealTargetPlatform.IOS);
+			//ConfigHierarchy GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirRef, UnrealTargetPlatform.IOS);
 
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsMetal", out bSupported);
 			RequiredCaps += bSupported ? "\t\t<string>metal</string>\n" : "";
@@ -837,7 +837,7 @@ namespace UnrealBuildTool
 		public virtual bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUE4Game, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, List<string> UPLScripts, VersionNumber SdkVersion, string BundleID, bool bBuildAsFramework, out bool bSupportsPortrait, out bool bSupportsLandscape, out bool bSkipIcons)
 		{
 			// remember name with -IOS-Shipping, etc
-			string ExeName = GameName;
+			// string ExeName = GameName;
 
 			// strip out the markup
 			GameName = GameName.Split("-".ToCharArray())[0];

@@ -42,11 +42,11 @@ namespace UnrealBuildTool
 			string OldPListData = File.Exists(PListFile) ? File.ReadAllText(PListFile) : "";
 
 			// determine if there is a launch.xib
-			string LaunchXib = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.xib";
-			if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.xib"))
-			{
-				LaunchXib = BuildDirectory + "/Resources/Interface/LaunchScreen.xib";
-			}
+			//string LaunchXib = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.xib";
+			//if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.xib"))
+			//{
+			//	LaunchXib = BuildDirectory + "/Resources/Interface/LaunchScreen.xib";
+			//}
 
 			// get the settings from the ini file
 			// plist replacements

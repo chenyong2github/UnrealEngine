@@ -369,7 +369,7 @@ namespace UnrealBuildTool
 			Parent.ChildFiles.Add(Child.File);
 
 			// this should cause an error if it's invalid platform name
-			UnrealTargetPlatform Platform = UnrealTargetPlatform.Parse(PlatformName);
+			//UnrealTargetPlatform Platform = UnrealTargetPlatform.Parse(PlatformName);
 
 			// merge the supported platforms
 			if (Child.Descriptor.SupportedTargetPlatforms != null)

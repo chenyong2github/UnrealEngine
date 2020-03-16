@@ -3198,7 +3198,7 @@ namespace UnrealBuildTool
 				string PluginReferenceChain = String.Format("{0} -> {1}", ReferenceChain, Info.File.GetFileName());
 
 				// Create modules for this plugin
-				UEBuildBinaryType BinaryType = ShouldCompileMonolithic() ? UEBuildBinaryType.StaticLibrary : UEBuildBinaryType.DynamicLinkLibrary;
+				//UEBuildBinaryType BinaryType = ShouldCompileMonolithic() ? UEBuildBinaryType.StaticLibrary : UEBuildBinaryType.DynamicLinkLibrary;
 				if (Info.Descriptor.Modules != null)
 				{
 					foreach (ModuleDescriptor ModuleInfo in Info.Descriptor.Modules)
