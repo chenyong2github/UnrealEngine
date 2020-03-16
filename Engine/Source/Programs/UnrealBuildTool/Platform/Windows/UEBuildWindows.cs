@@ -122,7 +122,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Architecture of Target.
 		/// </summary>
-		public WindowsArchitecture Architecture = WindowsArchitecture.x64;
+		public WindowsArchitecture Architecture
+		{
+			get;
+			internal set;
+		}
+		= WindowsArchitecture.x64;
 
 		/// <summary>
 		/// The specific toolchain version to use. This may be a specific version number (for example, "14.13.26128"), or the string "Latest", to select the newest available version. By default, and if it is available, we use the
