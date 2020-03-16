@@ -81,7 +81,7 @@ public:
 	void EndFrameCallback(const float InDt) { check(false); } // never called
 
 	// Called by FPBDRigidsSolver::PushPhysicsState() on game thread.
-	Chaos::FParticleData* NewData() { return nullptr; }
+	FStubFieldData* NewData() { return nullptr; }
 	// Called by FPBDRigidsSolver::PushPhysicsState() on physics thread.
 	void PushToPhysicsState(const Chaos::FParticleData*) {};
 	// Called by FPBDRigidsSolver::PushPhysicsState() on game thread.

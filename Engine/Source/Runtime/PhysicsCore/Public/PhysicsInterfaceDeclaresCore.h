@@ -28,8 +28,7 @@ namespace Chaos
 	template <typename T, int d>
 	class TGeometryParticle;
 
-	template <typename T, int d>
-	class TPerShapeData;
+	class FPerShapeData;
 
 	class FPhysicalMaterial;
 	class FPhysicalMaterialMask;
@@ -67,7 +66,7 @@ using FPhysicsQueryHit = ChaosInterface::FQueryHit;
 
 using FPhysicsTransform = FTransform;
 
-using FPhysicsShape = Chaos::TPerShapeData<float, 3>;
+using FPhysicsShape = Chaos::FPerShapeData;
 using FPhysicsGeometry = Chaos::FImplicitObject;
 using FPhysicsCapsuleGeometry = Chaos::TCapsule<float>;
 using FPhysicsMaterial = Chaos::FChaosPhysicsMaterial;

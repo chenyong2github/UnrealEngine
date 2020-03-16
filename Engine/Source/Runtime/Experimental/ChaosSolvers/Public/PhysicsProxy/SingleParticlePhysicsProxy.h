@@ -47,9 +47,9 @@ private:
  *		\c Chaos::TPBDRigidParticle<float,3>
  */
 template<class PARTICLE_TYPE>
-class FSingleParticlePhysicsProxy : public TPhysicsProxy<FSingleParticlePhysicsProxy<PARTICLE_TYPE>, typename PARTICLE_TYPE::FData>
+class FSingleParticlePhysicsProxy : public TPhysicsProxy<FSingleParticlePhysicsProxy<PARTICLE_TYPE>,void>
 {
-	typedef TPhysicsProxy<FSingleParticlePhysicsProxy<PARTICLE_TYPE>, typename PARTICLE_TYPE::FData> Base;
+	typedef TPhysicsProxy<FSingleParticlePhysicsProxy<PARTICLE_TYPE>, void> Base;
 
 public:
 	using FParticleHandle = typename PARTICLE_TYPE::FHandle;
@@ -105,14 +105,8 @@ public:
 		return Chaos::TRigidTransform<float, 3>(Handle->X(), Handle->R());
 	}
 
-	/** 
-	 * Creates a copy of sim state and returns it as \c TGeometryParticleData, 
-	 * \c TKinemticGeometr yParticleData, or \c TPBDRigidParticleData. 
-	 */
-	Chaos::FParticleData* NewData()
+	void* NewData()
 	{
-		if (Particle)
-			return Particle->NewData();
 		return nullptr;
 	}
 
@@ -124,8 +118,7 @@ public:
 	/**/
 	void FlipBuffer() { BufferedData->FlipProducer(); }
 
-	/**/
-	void PushToPhysicsState(const Chaos::FParticleData*);
+	void PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData);
 
 	/**/
 	void ClearAccumulatedData();
@@ -138,6 +131,9 @@ public:
 
 	/**/
 	bool IsDirty();
+
+	bool IsInitialized() const { return bInitialized; }
+	void SetInitialized(bool InInitialized) { bInitialized = InInitialized; }
 
 	/**/
 	bool HasAwakeEvent() const;
@@ -160,6 +156,8 @@ private:
 	PARTICLE_TYPE* Particle;
 	FParticleHandle* Handle;
 	TUniquePtr<Chaos::IBufferResource<FStorageData>> BufferedData;
+	//TUniquePtr<Chaos::IBufferResource<FPropertiesDataHolder>> PropertiesData;
+	//TUniquePtr<Chaos::FDoubleBuffer<FPropertiesDataHolder>> PropertiesData;
 };
 
 
@@ -177,7 +175,7 @@ template< >
 bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::IsDirty();
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData);
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData);
 
 template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ConcreteType();
@@ -191,7 +189,7 @@ CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float
 // TKinematicGeometryParticle specialization prototypes
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData);
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData);
 
 template< >
 void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::ClearAccumulatedData();
@@ -229,7 +227,7 @@ template< >
 bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty();
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData);
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float,3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData);
 
 template< >
 EPhysicsProxyType FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ConcreteType();
