@@ -53,11 +53,6 @@ namespace UnrealBuildTool
 		private Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext;
 
 		/// <summary>
-		/// Cache for whether a module has source code
-		/// </summary>
-		private Dictionary<FileReference, bool> ModuleHasSource = new Dictionary<FileReference, bool>();
-
-		/// <summary>
 		/// Whether this assembly contains engine modules. Used to set default values for bTreatAsEngineModule.
 		/// </summary>
 		private bool bContainsEngineModules;

@@ -57,11 +57,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Is this module allowed to be redistributed.
-		/// </summary>
-		private readonly bool? IsRedistributableOverride;
-
-		/// <summary>
 		/// The binary the module will be linked into for the current target.  Only set after UEBuildBinary.BindModules is called.
 		/// </summary>
 		public UEBuildBinary Binary = null;
@@ -227,7 +222,6 @@ namespace UnrealBuildTool
 			{
 				PrivateIncludePaths = CreateDirectoryHashSet(Rules.PrivateIncludePaths);
 			}
-			IsRedistributableOverride = Rules.IsRedistributableOverride;
 
 			WhitelistRestrictedFolders = new HashSet<DirectoryReference>(Rules.WhitelistRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
 
