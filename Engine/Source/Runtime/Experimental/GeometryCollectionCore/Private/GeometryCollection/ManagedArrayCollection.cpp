@@ -278,7 +278,9 @@ void FManagedArrayCollection::SyncGroupSizeFrom(const FManagedArrayCollection& I
 	Resize(InCollection.GroupInfo[Group].Size, Group);
 }
 
-void FManagedArrayCollection::CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection)
+void FManagedArrayCollection::CopyMatchingAttributesFrom(
+	const FManagedArrayCollection& InCollection,
+	const TMap<FName, TSet<FName>>* SkipList)
 {
 	for (const auto& Pair : InCollection.GroupInfo)
 	{
@@ -286,6 +288,16 @@ void FManagedArrayCollection::CopyMatchingAttributesFrom(const FManagedArrayColl
 	}
 	for (TTuple<FKeyType, FValueType>& Entry : Map)
 	{
+		if (SkipList)
+		{
+			if (const TSet<FName>* Attrs = SkipList->Find(Entry.Key.Get<1>()))
+			{
+				if (Attrs->Contains(Entry.Key.Get<0>()))
+				{
+					continue;
+				}
+			}
+		}
 		if (InCollection.HasAttribute(Entry.Key.Get<0>(), Entry.Key.Get<1>()))
 		{
 			const FValueType& OriginalValue = InCollection.Map[Entry.Key];
