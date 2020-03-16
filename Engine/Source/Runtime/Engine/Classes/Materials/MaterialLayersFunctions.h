@@ -253,6 +253,13 @@ struct ENGINE_API FMaterialLayersFunctions
 
 	void MoveBlendedLayer(int32 SrcLayerIndex, int32 DstLayerIndex);
 
+#if WITH_EDITOR
+	void UnlinkLayerFromParent(int32 Index);
+	bool IsLayerLinkedToParent(int32 Index) const;
+	void RelinkLayersToParent();
+	bool HasAnyUnlinkedLayers() const;
+#endif // WITH_EDITOR
+
 	void ToggleBlendedLayerVisibility(int32 Index)
 	{
 		check(LayerStates.IsValidIndex(Index));
@@ -299,12 +306,22 @@ struct ENGINE_API FMaterialLayersFunctions
 
 	FORCEINLINE bool operator==(const FMaterialLayersFunctions& Other) const
 	{
-		return Layers == Other.Layers && Blends == Other.Blends && LayerStates == Other.LayerStates;
+		if (Layers != Other.Layers || Blends != Other.Blends || LayerStates != Other.LayerStates)
+		{
+			return false;
+		}
+#if WITH_EDITORONLY_DATA
+		if (ParentLayerGuids != Other.ParentLayerGuids || DeletedParentLayerGuids != Other.DeletedParentLayerGuids)
+		{
+			return false;
+		}
+#endif // WITH_EDITORONLY_DATA
+		return true;
 	}
 
 	FORCEINLINE bool operator!=(const FMaterialLayersFunctions& Other) const
 	{
-		return Layers != Other.Layers || Blends != Other.Blends || LayerStates != Other.LayerStates;
+		return !operator==(Other);
 	}
 };
 
