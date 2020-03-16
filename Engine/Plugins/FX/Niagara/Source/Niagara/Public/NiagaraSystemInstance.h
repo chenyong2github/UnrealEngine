@@ -10,7 +10,6 @@
 #include "Templates/UniquePtr.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraSystemFastPath.h"
 
 class FNiagaraWorldManager;
 class UNiagaraComponent;
@@ -272,15 +271,9 @@ public:
 
 	void TickInstanceParameters_Concurrent();
 
-	void TickFastPathBindings();
-
-	void ResetFastPathBindings();
-
 	FNiagaraDataSet* CreateEventDataSet(FName EmitterName, FName EventName);
 	FNiagaraDataSet* GetEventDataSet(FName EmitterName, FName EventName) const;
 	void ClearEventDataSets();
-
-	FNiagaraSystemFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
 
 	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
 
@@ -471,13 +464,6 @@ public:
 	};
 
 	FInstanceParameters GatheredInstanceParameters;
-
-	FNiagaraSystemFastPath::FParamMap0 FastPathMap;
-
-	TArray<TNiagaraFastPathRangedInputBinding<int32>> FastPathIntUpdateRangedInputBindings;
-	TArray<TNiagaraFastPathRangedInputBinding<float>> FastPathFloatUpdateRangedInputBindings;
-	TArray<TNiagaraFastPathUserParameterInputBinding<int32>> FastPathIntUserParameterInputBindings;
-	TArray<TNiagaraFastPathUserParameterInputBinding<float>> FastPathFloatUserParameterInputBindings;
 };
 
 FORCEINLINE void FNiagaraSystemInstance::SetLODDistance(float InLODDistance, float InMaxLODDistance)

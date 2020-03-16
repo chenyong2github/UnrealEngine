@@ -1049,8 +1049,6 @@ void UNiagaraEmitter::OnPostCompile()
 	RuntimeEstimation = MemoryRuntimeEstimation();
 
 	OnEmitterVMCompiled().Broadcast(this);
-
-	InitFastPathAttributeNames();
 }
 
 UNiagaraEmitter* UNiagaraEmitter::MakeRecursiveDeepCopy(UObject* DestOuter) const
@@ -1660,35 +1658,4 @@ void UNiagaraEmitter::ResolveScalabilitySettings()
 void UNiagaraEmitter::OnEffectsQualityChanged()
 {
 	ResolveScalabilitySettings();
-}
-
-void UNiagaraEmitter::InitFastPathAttributeNames()
-{
-	auto InitParameters = [](const FNiagaraParameters& Parameters, const FString& EmitterName, FNiagaraFastPathAttributeNames& FastPathParameterNames)
-	{
-		FastPathParameterNames.System.Empty();
-		FastPathParameterNames.SystemFullNames.Empty();
-		FastPathParameterNames.Emitter.Empty();
-		FastPathParameterNames.EmitterFullNames.Empty();
-
-		FString SystemPrefix = TEXT("System.");
-		FString EmitterPrefix = EmitterName + TEXT(".");
-		for (const FNiagaraVariable& Parameter : Parameters.Parameters)
-		{
-			FString ParameterNameString = Parameter.GetName().ToString();
-			if (ParameterNameString.StartsWith(SystemPrefix))
-			{
-				FastPathParameterNames.System.Add(*(Parameter.GetName().ToString().RightChop(SystemPrefix.Len())));
-				FastPathParameterNames.SystemFullNames.Add(Parameter.GetName());
-			}
-			else if (ParameterNameString.StartsWith(EmitterPrefix))
-			{
-				FastPathParameterNames.Emitter.Add(*(Parameter.GetName().ToString().RightChop(EmitterPrefix.Len())));
-				FastPathParameterNames.EmitterFullNames.Add(Parameter.GetName());
-			}
-		}
-	};
-
-	InitParameters(SpawnScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, SpawnFastPathAttributeNames);
-	InitParameters(UpdateScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, UpdateFastPathAttributeNames);
 }
