@@ -5040,12 +5040,6 @@ namespace UnrealGameSync
 			Owner.ModifyApplicationSettings();
 		}
 
-		private void OptionsContextMenu_PerforceSettings_Click(object sender, EventArgs e)
-		{
-			PerforceSyncSettingsWindow Window = new PerforceSyncSettingsWindow(Settings);
-			Window.ShowDialog();
-		}
-
 		private void OptionsContextMenu_TabNames_Stream_Click(object sender, EventArgs e)
 		{
 			Owner.SetTabNames(TabLabels.Stream);
