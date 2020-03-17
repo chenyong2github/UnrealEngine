@@ -1737,6 +1737,12 @@ void FGraphEvent::Recycle(FGraphEvent* ToRecycle)
 	TheGraphEventAllocator.Free(ToRecycle);
 }
 
+void FGraphEvent::DispatchSubsequents(ENamedThreads::Type CurrentThreadIfKnown)
+{
+	TArray<FBaseGraphTask*> NewTasks;
+	DispatchSubsequents(NewTasks, CurrentThreadIfKnown);
+}
+
 void FGraphEvent::DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThreadIfKnown)
 {
 	if (EventsToWaitFor.Num())
