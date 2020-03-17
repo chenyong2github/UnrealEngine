@@ -301,6 +301,14 @@ public:
 		return ReferencedTextures;
 	}
 
+	virtual void GetStaticParameterSet(EShaderPlatform Platform, FStaticParameterSet& OutSet) const override
+	{
+		if (const FMaterialResource* Resource = MaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel))
+		{
+			Resource->GetStaticParameterSet(Platform, OutSet);
+		}
+	}
+
 	////////////////
 	// FMaterialRenderProxy interface.
 	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type FeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override
