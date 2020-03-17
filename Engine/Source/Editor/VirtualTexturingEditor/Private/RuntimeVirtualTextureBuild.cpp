@@ -126,6 +126,7 @@ namespace RuntimeVirtualTexture
 		FSceneInterface* Scene = InComponent->GetScene();
 		const uint32 VirtualTextureSceneIndex = RuntimeVirtualTexture::GetRuntimeVirtualTextureSceneIndex_GameThread(InComponent);
 		const FTransform Transform = InComponent->GetVirtualTextureTransform();
+		const FBox Bounds = InComponent->Bounds.GetBox();
 
 		FVTProducerDescription VTDesc;
 		RuntimeVirtualTexture->GetProducerDescription(VTDesc, Transform);
@@ -176,7 +177,7 @@ namespace RuntimeVirtualTexture
 					Scene, VirtualTextureSceneIndex, 
 					&RenderTileResources,
 					MaterialType, NumLayers,
-					Transform, UVRange,
+					Transform, Bounds, UVRange,
 					RenderLevel, MaxLevel, 
 					TileX, TileY,
 					TileSize, ImageSizeX, ImageSizeY, 
@@ -197,6 +198,7 @@ namespace RuntimeVirtualTexture
 					Desc.Scene = Scene->GetRenderScene();
 					Desc.RuntimeVirtualTextureMask = 1 << VirtualTextureSceneIndex;
 					Desc.UVToWorld = Transform;
+					Desc.WorldBounds = Bounds;
 					Desc.MaterialType = MaterialType;
 					Desc.MaxLevel = MaxLevel;
 					Desc.bClearTextures = true;

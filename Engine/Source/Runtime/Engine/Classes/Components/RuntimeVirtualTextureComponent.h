@@ -48,11 +48,15 @@ public:
 
 protected:
 	//~ Begin UActorComponent Interface
-	virtual bool IsVisible() const override;
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderTransform_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
 	//~ End UActorComponent Interface
+
+	//~ Begin USceneComponent Interface
+	virtual bool IsVisible() const override;
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	//~ End USceneComponent Interface
 
 public:
 	/** Scene proxy object. Managed by the scene but stored here. */
