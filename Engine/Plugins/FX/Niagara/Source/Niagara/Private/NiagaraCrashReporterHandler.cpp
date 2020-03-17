@@ -3,9 +3,9 @@
 #include "NiagaraCrashReporterHandler.h"
 
 #include "CoreMinimal.h"
-#include "HAL\ThreadManager.h"
-#include "GenericPlatform\GenericPlatformCrashContext.h"
-#include "Misc\ScopeLock.h"
+#include "HAL/ThreadManager.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "Misc/ScopeLock.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemSimulation.h"
 #include "NiagaraComponent.h"
