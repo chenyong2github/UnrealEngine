@@ -7,9 +7,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/StringFwd.h"
 
-class FStringBuilderBase;
-class FStringView;
 struct FFileStatData;
 
 class COREUOBJECT_API FPackageName
