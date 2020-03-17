@@ -28,7 +28,6 @@ namespace UnrealGameSync
 			this.pS4ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu_AutoResolveConflicts = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu_SyncFilter = new System.Windows.Forms.ToolStripMenuItem();
-			this.OptionsContextMenu_PerforceSettings = new System.Windows.Forms.ToolStripMenuItem();
 			this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
 			this.OptionsContextMenu_EditorBuildConfiguration = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu_BuildConfig_Debug = new System.Windows.Forms.ToolStripMenuItem();
@@ -175,7 +174,6 @@ namespace UnrealGameSync
             this.OptionsContextMenu_SyncPrecompiledBinaries,
             this.OptionsContextMenu_AutoResolveConflicts,
             this.OptionsContextMenu_SyncFilter,
-            this.OptionsContextMenu_PerforceSettings,
             this.toolStripSeparator3,
             this.OptionsContextMenu_EditorBuildConfiguration,
             this.OptionsContextMenu_UseIncrementalBuilds,
@@ -264,13 +262,6 @@ namespace UnrealGameSync
 			this.OptionsContextMenu_SyncFilter.Size = new System.Drawing.Size(261, 22);
 			this.OptionsContextMenu_SyncFilter.Text = "Sync Filter...";
 			this.OptionsContextMenu_SyncFilter.Click += new System.EventHandler(this.OptionsContextMenu_SyncFilter_Click);
-			// 
-			// OptionsContextMenu_PerforceSettings
-			// 
-			this.OptionsContextMenu_PerforceSettings.Name = "OptionsContextMenu_PerforceSettings";
-			this.OptionsContextMenu_PerforceSettings.Size = new System.Drawing.Size(261, 22);
-			this.OptionsContextMenu_PerforceSettings.Text = "Perforce Sync Settings...";
-			this.OptionsContextMenu_PerforceSettings.Click += new System.EventHandler(this.OptionsContextMenu_PerforceSettings_Click);
 			// 
 			// toolStripSeparator3
 			// 
@@ -1343,7 +1334,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripMenuItem SyncContexMenu_EnterChangelist;
 		private System.Windows.Forms.ToolStripMenuItem SyncContextMenu_LatestStarredChange;
 		private System.Windows.Forms.ContextMenuStrip StreamContextMenu;
-		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_PerforceSettings;
 		private System.Windows.Forms.ToolStripMenuItem tabLabelsToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_TabNames_Stream;
 		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_TabNames_WorkspaceName;
