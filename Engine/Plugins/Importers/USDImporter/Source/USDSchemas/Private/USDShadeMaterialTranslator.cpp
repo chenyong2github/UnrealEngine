@@ -2,10 +2,11 @@
 
 #include "USDShadeMaterialTranslator.h"
 
-#include "USDGeomMeshConversion.h"
+#include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
 
 #include "Materials/Material.h"
+#include "Misc/SecureHash.h"
 
 #if USE_USD_SDK
 
@@ -23,7 +24,8 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		return;
 	}
 
-	UObject*& CachedMaterial = Context->AssetsCache.FindOrAdd( UsdToUnreal::ConvertPath( ShadeMaterial.GetPath() ) );
+	FSHAHash MaterialHash = UsdToUnreal::HashShadeMaterial( ShadeMaterial );
+	UObject*& CachedMaterial = Context->AssetsCache.FindOrAdd( MaterialHash.ToString() );
 
 	if ( !CachedMaterial )
 	{
