@@ -749,6 +749,12 @@ void FStaticMeshEditor::BindCommands()
 		Commands.CreateAutoConvexCollision,
 		FExecuteAction::CreateSP(this, &FStaticMeshEditor::OnConvexDecomposition));
 
+	// Viewport Camera
+	UICommandList->MapAction(
+		Commands.ResetCamera,
+		FExecuteAction::CreateSP(this, &FStaticMeshEditor::ResetCamera));
+
+
 
 }
 
@@ -2711,6 +2717,24 @@ void FStaticMeshEditor::ToggleShowVertexColors()
 bool FStaticMeshEditor::IsShowVertexColorsChecked() const
 {
 	return bDrawVertexColors;
+}
+
+void FStaticMeshEditor::ResetCamera()
+{
+	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> ResetCameraFunc =
+		[this](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+	{
+		TSharedRef<SStaticMeshEditorViewport> StaticMeshEditorViewport = StaticCastSharedRef<SStaticMeshEditorViewport>(Entity->AsWidget());
+		StaticMeshEditorViewport->GetViewportClient().FocusViewportOnBox(StaticMeshEditorViewport->GetStaticMeshComponent()->Bounds.GetBox());
+		StaticMeshEditorViewport->Invalidate();
+	};
+
+	ViewportTabContent->PerformActionOnViewports(ResetCameraFunc);
+
+// 	if (FEngineAnalytics::IsAvailable())
+// 	{
+// 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("ResetCamera"));
+// 	}
 }
 
 void FStaticMeshEditor::RemoveCurrentUVChannel()
