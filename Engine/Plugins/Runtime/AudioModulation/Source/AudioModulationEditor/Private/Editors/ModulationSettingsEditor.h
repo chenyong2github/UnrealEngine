@@ -68,6 +68,8 @@ private:
 
 	int32 GetCurveCount() const;
 
+	bool GetIsBypassed(int32 InCurveIndex) const;
+
 	/** Get the orientation for the snap value controls. */
 	EOrientation GetSnapLabelOrientation() const;
 
