@@ -93,6 +93,9 @@ public:
 	FString FunctionName;
 
 	UPROPERTY()
+	FText DisplayName;
+
+	UPROPERTY()
 	ENiagaraClipboardFunctionScriptMode ScriptMode;
 
 	UPROPERTY()
