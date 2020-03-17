@@ -7,6 +7,12 @@
 
 #if USE_USD_SDK
 
+#include "USDIncludesStart.h"
+
+#include "pxr/usd/usdGeom/tokens.h"
+
+#include "USDIncludesEnd.h"
+
 FUsdListener::FUsdListener( const pxr::UsdStageRefPtr& Stage )
 {
 	Register( Stage );
@@ -70,13 +76,28 @@ void FUsdListener::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& Notice
 
 	PathsToUpdate = Notice.GetChangedInfoOnlyPaths();
 
-	for ( PathRange::const_iterator It = PathsToUpdate.begin(); It != PathsToUpdate.end(); ++It )
+	for ( PathRange::const_iterator  PathToUpdateIt = PathsToUpdate.begin(); PathToUpdateIt != PathsToUpdate.end(); ++PathToUpdateIt )
 	{
-		const FString PrimPath = UsdToUnreal::ConvertPath( It->GetAbsoluteRootOrPrimPath() );
+		const FString PrimPath = UsdToUnreal::ConvertPath( PathToUpdateIt->GetAbsoluteRootOrPrimPath() );
 
 		if ( !PrimsChangedList.Contains( PrimPath ) )
 		{
-			constexpr bool bResync = false;
+			bool bResync = false;
+
+			if ( PathToUpdateIt->GetAbsoluteRootOrPrimPath() == pxr::SdfPath::AbsoluteRootPath() )
+			{
+				pxr::TfTokenVector ChangedFields = PathToUpdateIt.GetChangedFields();
+
+				for ( const pxr::TfToken& ChangeField : ChangedFields )
+				{
+					if ( ChangeField == UsdGeomTokens->metersPerUnit )
+					{
+						bResync = true; // Force a resync when changing the metersPerUnit since it affects all coordinates
+						break;
+					}
+				}
+			}
+
 			PrimsChangedList.Add( PrimPath, bResync );
 		}
 	}
