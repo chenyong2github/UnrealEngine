@@ -488,7 +488,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 			const bool bAddedFilesToPakList = PakListFile->Tell() > 0;
 			PakListFile->Close();
 
-			if (!bAddedFilesToPakList)
+			if (!bFinishedAllFiles && !bAddedFilesToPakList)
 			{
 				UE_LOG(LogAssetRegistryGenerator, Error, TEXT("Failed to add file(s) to paklist '%s', max chunk size '%d' too small"), *PakListFilename, MaxChunkSize);
 				bSucceeded = false;
