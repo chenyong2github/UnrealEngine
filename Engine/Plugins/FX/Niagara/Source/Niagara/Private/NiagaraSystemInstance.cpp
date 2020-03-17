@@ -13,6 +13,7 @@
 #include "Templates/AlignmentTemplates.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "GameFramework/PlayerController.h"
+#include "NiagaraCrashReporterHandler.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -795,47 +796,66 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		bBindParams = !IsDisabled();
 	}
 	
-	if (bBindParams)
+	//If none of our emitters actually made it out of the init process we can just bail here before we ever tick.
+	bool bHasActiveEmitters = false;
+	for (auto& Inst : Emitters)
 	{
-		ResetParameters();
-		BindParameters();
-	}
-
-	SetRequestedExecutionState(ENiagaraExecutionState::Active);
-	SetActualExecutionState(ENiagaraExecutionState::Active);
-
-	if (bBindParams)
-	{
-		InitDataInterfaces();
-	}
-
-	//Interface init can disable the system.
-	if (!IsComplete())
-	{
-		ComputeEmittersExecutionOrder();
-
-		bPendingSpawn = true;
-		SystemSimulation->AddInstance(this);
-
-		UNiagaraSystem* System = GetSystem();
-		if (System->NeedsWarmup())
+		if (!Inst->IsComplete())
 		{
-			int32 WarmupTicks = System->GetWarmupTickCount();
-			float WarmupDt = System->GetWarmupTickDelta();
-			
-			AdvanceSimulation(WarmupTicks, WarmupDt);
-
-			//Reset age to zero.
-			Age = 0.0f;
-			TickCount = 0;
+			bHasActiveEmitters = true;
+			break;
 		}
 	}
 
-	if (Component)
+	SetRequestedExecutionState(ENiagaraExecutionState::Active);
+	if (bHasActiveEmitters)
 	{
-		// This system may not tick again immediately so we mark the render state dirty here so that
-		// the renderers will be reset this frame.
-		Component->MarkRenderDynamicDataDirty();
+		if (bBindParams)
+		{
+			ResetParameters();
+			BindParameters();
+		}
+
+		SetActualExecutionState(ENiagaraExecutionState::Active);
+
+		if (bBindParams)
+		{
+			InitDataInterfaces();
+		}
+
+		//Interface init can disable the system.
+		if (!IsComplete())
+		{
+			ComputeEmittersExecutionOrder();
+
+			bPendingSpawn = true;
+			SystemSimulation->AddInstance(this);
+
+			UNiagaraSystem* System = GetSystem();
+			if (System->NeedsWarmup())
+			{
+				int32 WarmupTicks = System->GetWarmupTickCount();
+				float WarmupDt = System->GetWarmupTickDelta();
+
+				AdvanceSimulation(WarmupTicks, WarmupDt);
+
+				//Reset age to zero.
+				Age = 0.0f;
+				TickCount = 0;
+			}
+		}
+
+		if (Component)
+		{
+			// This system may not tick again immediately so we mark the render state dirty here so that
+			// the renderers will be reset this frame.
+			Component->MarkRenderDynamicDataDirty();
+		}
+	}
+	else
+	{
+		SetActualExecutionState(ENiagaraExecutionState::Complete);
+		Complete();
 	}
 }
 
@@ -1332,6 +1352,11 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
 	{
 		FNiagaraEmitterInstance& Sim = Simulation.Get();
+		if (Sim.IsDisabled())
+		{
+			continue;
+		}
+
 		CalcInstDataSize(Sim.GetSpawnExecutionContext().GetDataInterfaces());
 		CalcInstDataSize(Sim.GetUpdateExecutionContext().GetDataInterfaces());
 		for (int32 i = 0; i < Sim.GetEventExecutionContexts().Num(); i++)
@@ -1911,6 +1936,8 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
 
+	FNiagaraCrashReporterScope CRScope(this);
+
 	UNiagaraSystem* System = GetSystem();
 	FScopeCycleCounter SystemStat(System->GetStatID(true, false));
 
@@ -1939,6 +1966,8 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
 	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
+
+	FNiagaraCrashReporterScope CRScope(this);
 
 	// Reset values that will be accumulated during emitter tick.
 	TotalGPUParamSize = 0;
@@ -2043,6 +2072,8 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 {
 	if (bNeedsFinalize)//We can come in here twice in one tick if the GT calls WaitForAsync() while there is a GT finalize task in the queue.
 	{
+		FNiagaraCrashReporterScope CRScope(this);
+
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_FinalizeGT);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
@@ -2209,3 +2240,19 @@ FNiagaraSystemInstance::FOnDestroyed& FNiagaraSystemInstance::OnDestroyed()
 	return OnDestroyedDelegate;
 }
 #endif
+
+const FString& FNiagaraSystemInstance::GetCrashReporterTag()const
+{
+	if(CrashReporterTag.IsEmpty())
+	{
+		UNiagaraSystem* Sys = Component ? Component->GetAsset() : nullptr;
+		USceneComponent* AttachParent = Component ? Component->GetAttachParent() : nullptr;
+
+		const FString& CompName = Component ? Component->GetFullName() : TEXT("nullptr");
+		const FString& AssetName = Sys ? Sys->GetFullName() : TEXT("nullptr");
+		const FString& AttachName = AttachParent ? AttachParent->GetFullName() : TEXT("nullptr");
+
+		CrashReporterTag = FString::Printf(TEXT("SystemInstance | System: %s | bSolo: %s | Component: %s | AttachedTo: %s |"), *AssetName, IsSolo() ? TEXT("true") : TEXT("false"), *CompName, *AttachName);
+	}
+	return CrashReporterTag;
+}

@@ -173,7 +173,8 @@ public:
 	void DeactivateInternal(bool bIsScalabilityCull);
 	void DeactivateImmediateInternal(bool bIsScalabilityCull);
 
-	bool RegisterWithScalabilityManagerOrPreCull();
+	bool ShouldPreCull();
+	void RegisterWithScalabilityManager();
 	void UnregisterWithScalabilityManager();
 
 	public:
@@ -519,6 +520,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Scalability, meta = (Keywords = "LOD scalability"))
 	void SetAllowScalability(bool bAllow);
 
+	FORCEINLINE bool IsRegisteredWithScalabilityManager()const { return ScalabilityManagerHandle != INDEX_NONE; }
+	FORCEINLINE int32 GetScalabilityManagerHandle()const { return ScalabilityManagerHandle; }
 private:
 	/** Did we try and activate but fail due to the asset being not yet ready. Keep looping.*/
 	uint32 bAwaitingActivationDueToNotReady : 1;
@@ -530,6 +533,9 @@ private:
 
 	/** True if this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
 	uint32 bAllowScalability : 1;
+
+	/** True if this component has been culled by the scalability manager. */
+	uint32 bIsCulledByScalability : 1;
 
 	/** Flag to mark us as currently changing auto attachment as part of Activate/Deactivate so we don't reset in the OnAttachmentChanged() callback. */
 	//uint32 bIsChangingAutoAttachment : 1;

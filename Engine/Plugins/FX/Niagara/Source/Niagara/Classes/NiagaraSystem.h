@@ -193,7 +193,8 @@ public:
 	void Serialize(FArchive& Ar)override;
 	virtual void PostLoad() override; 
 	virtual void BeginDestroy() override;
-	virtual void PreSave(const class ITargetPlatform * TargetPlatform) override;
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const override;
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
@@ -382,6 +383,7 @@ public:
 	uint32 bFixedBounds : 1;
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
+	void AddToInstanceCountStat(int32 NumInstances, bool bSolo)const;
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -504,6 +506,9 @@ protected:
 	mutable TStatId StatID_GT_CNC;
 	mutable TStatId StatID_RT;
 	mutable TStatId StatID_RT_CNC;
+
+	mutable TStatId StatID_InstanceCount;
+	mutable TStatId StatID_InstanceCountSolo;
 #endif
 
 	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;

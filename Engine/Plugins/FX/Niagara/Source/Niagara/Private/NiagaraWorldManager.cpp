@@ -19,10 +19,12 @@
 #include "NiagaraComponentPool.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEffectType.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Update Scalability Managers [GT]"), STAT_UpdateScalabilityManagers, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorldManWaitOnRender, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait Pre Garbage Collect [GT]"), STAT_NiagaraWorldManWaitPreGC, STATGROUP_Niagara);
 
 static int GNiagaraAllowAsyncWorkToEndOfFrame = 1;
 static FAutoConsoleVariableRef CVarNiagaraAllowAsyncWorkToEndOfFrame(
@@ -137,6 +139,7 @@ FName FNiagaraWorldManagerTickFunction::DiagnosticContext(bool bDetailed)
 FNiagaraWorldManager::FNiagaraWorldManager(UWorld* InWorld)
 	: World(InWorld)
 	, CachedEffectsQuality(INDEX_NONE)
+	, bAppHasFocus(true)
 {
 	for (int32 TickGroup=0; TickGroup < NiagaraNumTickGroups; ++TickGroup)
 	{
@@ -145,6 +148,7 @@ FNiagaraWorldManager::FNiagaraWorldManager(UWorld* InWorld)
 		TickFunc.EndTickGroup = GNiagaraAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : (ETickingGroup)TickFunc.TickGroup;
 		TickFunc.bCanEverTick = true;
 		TickFunc.bStartWithTickEnabled = true;
+		TickFunc.bAllowTickOnDedicatedServer = false;
 		TickFunc.bHighPriority = true;
 		TickFunc.Owner = this;
 		TickFunc.RegisterTickFunction(InWorld->PersistentLevel);
@@ -371,6 +375,7 @@ void FNiagaraWorldManager::PreGarbageCollect()
 {
 	if (GNiagaraWaitOnPreGC)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManWaitPreGC);
 		// We must wait for system simulation & instance async ticks to complete before garbage collection can start
 		// The reason for this is that our async ticks could be referencing GC objects, i.e. skel meshes, etc, and we don't want them to become unreachable while we are potentially using them
 		for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
@@ -567,6 +572,12 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	if ( TickGroup == NiagaraFirstTickGroup )
 	{
 		FNiagaraSharedObject::FlushDeletionList();
+
+#if PLATFORM_DESKTOP
+		bAppHasFocus = FPlatformApplicationMisc::IsThisApplicationForeground();
+#else
+		bAppHasFocus = true;
+#endif
 
 		// Cache player view locations for all system instances to access
 		//-TODO: Do we need to do this per tick group?
@@ -795,7 +806,8 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	OwnerLODCull(EffectType, ScalabilitySettings, Component, OutState);
 	
 	//Can't cull dynamic bounds by visibility
-	if (System->bFixedBounds)
+
+	if (System->bFixedBounds && bAppHasFocus)
 	{
 		VisibilityCull(EffectType, ScalabilitySettings, Component, OutState);
 	}

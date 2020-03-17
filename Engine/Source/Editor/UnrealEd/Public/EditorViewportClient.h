@@ -794,6 +794,8 @@ public:
 	 */
 	virtual bool WantsDrawWhenAppIsHidden() const { return false; }
 
+	/** Should this viewport use app time instead of world time. */
+	virtual bool UseAppTime() const { return IsRealtime() && !IsSimulateInEditorViewport(); }
 public:
 	/** True if the window is maximized or floating */
 	bool IsVisible() const;
