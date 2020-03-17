@@ -74,10 +74,11 @@ TSharedRef<SWidget> SNiagaraGraphPinAdd::OnGetAddButtonMenuContent()
 			TArray<TWeakObjectPtr<UNiagaraGraph>> Graphs;
 			Graphs.Add(OwningNode->GetNiagaraGraph());
 
+
 			// Creating a new parameter from a graph pin always defaults to Particles scope.
 			TSharedRef<SNiagaraAddParameterMenu2> MenuWidget = SNew(SNiagaraAddParameterMenu2, Graphs)
 				.NewParameterScope(ENiagaraParameterScope::Local)
-				.NewParameterNamespace(PARAM_MAP_LOCAL_MODULE_STR)
+				.NewParameterNamespace(Cast<UNiagaraNodeParameterMapBase>(OwningNode)->GetNewPinDefaultNamespace().ToString())
 				.ShowKnownConstantParametersFilter(NiagaraParameterPanelSectionID::Type::REFERENCES)
 				.OnAddParameter_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::AddParameter, (const UEdGraphPin*)GetPinObj())
 				.OnCollectCustomActions_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::CollectAddPinActions, GetPinObj())

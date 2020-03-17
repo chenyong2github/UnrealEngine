@@ -100,7 +100,7 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 		FName PinNameWithoutNamespace;
 		if (FNiagaraEditorUtilities::DecomposeVariableNamespace(NewPinName, PinNameWithoutNamespace).Num() == 0)
 		{
-			NewPinName = *(PARAM_MAP_LOCAL_MODULE_STR +  NewPinName.ToString());
+			NewPinName = *(PARAM_MAP_OUTPUT_MODULE_STR +  NewPinName.ToString());
 			bCreatedNamespace = true;
 		}
 
