@@ -1225,6 +1225,11 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 				FunctionInputs = ClipboardFunction->Inputs;
 			}
 			(*NewModuleItemPtr)->SetInputValuesFromClipboardFunctionInputs(FunctionInputs);
+
+			if (!ClipboardFunction->DisplayName.IsEmptyOrWhitespace())
+			{
+				(*NewModuleItemPtr)->OnRenamed(ClipboardFunction->DisplayName);
+			}
 		}
 	}
 
