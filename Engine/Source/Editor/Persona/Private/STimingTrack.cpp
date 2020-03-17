@@ -126,35 +126,8 @@ void STimingTrack::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrange
 
 		for(NodeIsland& Island : Islands)
 		{
-			if(Island.Nodes.Num() == 1)
-			{
-				// Keep single nodes on the data track range but skip everything else
-				FBox2D& NodeBox = Island.Nodes[0]->ActualRect;
-				FBox2D& NodeQueryRect = Island.Nodes[0]->QueryRect;
-				float Offset = 0.0f;
-				float Begin = ScaleInfo.LocalXToInput(NodeBox.Min.X);
-				float End = ScaleInfo.LocalXToInput(NodeBox.Max.X);
-				if(Begin < 0)
-				{
-					Offset = ScaleInfo.InputToLocalX(-Begin);
-				}
-				else if(End > TrackMaxValue.Get())
-				{
-					Offset = ScaleInfo.InputToLocalX(TrackMaxValue.Get() - End);
-				}
-
-				if(Offset != 0.0f)
-				{
-					NodeBox.Min.X += Offset;
-					NodeBox.Max.X += Offset;
-					NodeQueryRect.Min.X = NodeBox.Min.X - NodeSeparation;
-					NodeQueryRect.Max.X = NodeBox.Max.X + NodeSeparation;
-				}
-
-				continue;
-			}
-
 			bResolved = true;
+
 			// Island resolution
 			int32 NumIslandNodes = Island.Nodes.Num();
 			float Width = FMath::Max<float>((NumIslandNodes - 1), 0.0f) * NodeSeparation;
@@ -167,13 +140,8 @@ void STimingTrack::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrange
 			}
 			Centre /= NumIslandNodes;
 
-			// Make sure the group stays on the track
 			float Begin = Centre - Width / 2.0f;
-			float WidthAsInput = Width / ScaleInfo.PixelsPerInput;
-			float BeginAsInput = FMath::Clamp(ScaleInfo.LocalXToInput(Begin), 0.0f, TrackMaxValue.Get() - WidthAsInput);
-			Begin = ScaleInfo.InputToLocalX(BeginAsInput);
-			
-			for(int32 NodeIdx = 0 ; NodeIdx < NumIslandNodes ; ++NodeIdx)
+			for(int32 NodeIdx = 0 ; NodeIdx < NumIslandNodes; ++NodeIdx)
 			{
 				FBox2D& NodeBox = Island.Nodes[NodeIdx]->ActualRect;
 				float NodeWidth = NodeBox.GetSize().X;

@@ -160,19 +160,6 @@ void SAnimTrackPanel::PanInputViewRange(int32 ScreenDelta, FVector2D ScreenViewS
 	float NewViewInputMin = ViewInputMin.Get() + InputDeltaX;
 	float NewViewInputMax = ViewInputMax.Get() + InputDeltaX;
 
-	// we'd like to keep  the range if outside when panning
-	float SequenceLength = GetSequenceLength();
-	if ( NewViewInputMin < 0.f )
-	{
-		NewViewInputMin = 0.f;
-		NewViewInputMax = ScaleInfo.ViewInputRange;
-	}
-	else if ( NewViewInputMax >SequenceLength )
-	{
-		NewViewInputMax = SequenceLength;
-		NewViewInputMin = NewViewInputMax - ScaleInfo.ViewInputRange;
-	}
-
 	InputViewRangeChanged(NewViewInputMin, NewViewInputMax);
 }
 
