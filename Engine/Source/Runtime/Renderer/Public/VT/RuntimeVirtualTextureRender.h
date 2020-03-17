@@ -54,6 +54,8 @@ namespace RuntimeVirtualTexture
 		uint32 RuntimeVirtualTextureMask;
 		/** Virtual texture UV space to world space transform. */
 		FTransform UVToWorld;
+		/** Virtual texture world space bounds. */
+		FBox WorldBounds;
 		/** Material type of the runtime virtual texture that we are rendering. */
 		ERuntimeVirtualTextureMaterialType MaterialType;
 		/** Max mip level of the runtime virtual texture that we are rendering. */

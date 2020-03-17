@@ -69,6 +69,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 
 	const FBox2D DestBox = FBox2D(FVector2D(X, Y), FVector2D(Width, Height));
 	const FTransform Transform = RuntimeVirtualTextureComponent->GetVirtualTextureTransform();
+	const FBox Bounds = RuntimeVirtualTextureComponent->Bounds.GetBox();
 	const uint32 VirtualTextureSceneIndex = RuntimeVirtualTexture::GetRuntimeVirtualTextureSceneIndex_GameThread(RuntimeVirtualTextureComponent);
 	const ERuntimeVirtualTextureMaterialType MaterialType = RuntimeVirtualTexture->GetMaterialType();
 
@@ -77,7 +78,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 	const int32 MaxLevel = (int32)FMath::CeilLogTwo(FMath::Max(VTDesc.BlockWidthInTiles, VTDesc.BlockHeightInTiles));
 
 	ENQUEUE_RENDER_COMMAND(BakeStreamingTextureTileCommand)(
-		[Scene, VirtualTextureSceneIndex, MaterialType, RenderTarget, DestBox, Transform, MaxLevel](FRHICommandListImmediate& RHICmdList)
+		[Scene, VirtualTextureSceneIndex, MaterialType, RenderTarget, DestBox, Transform, Bounds, MaxLevel](FRHICommandListImmediate& RHICmdList)
 	{
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
@@ -85,6 +86,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 		Desc.Scene = Scene->GetRenderScene();
 		Desc.RuntimeVirtualTextureMask = 1 << VirtualTextureSceneIndex;
 		Desc.UVToWorld = Transform;
+		Desc.WorldBounds = Bounds;
 		Desc.MaterialType = MaterialType;
 		Desc.MaxLevel = MaxLevel;
 		Desc.bClearTextures = true;

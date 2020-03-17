@@ -49,6 +49,12 @@ void URuntimeVirtualTextureComponent::DestroyRenderState_Concurrent()
 	Super::DestroyRenderState_Concurrent();
 }
 
+FBoxSphereBounds URuntimeVirtualTextureComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	// Bounds are based on the unit box centered on the origin
+	return FBoxSphereBounds(FBox(FVector(-.5f, -.5f, -1.f), FVector(.5f, .5f, 1.f))).TransformBy(LocalToWorld);
+}
+
 FTransform URuntimeVirtualTextureComponent::GetVirtualTextureTransform() const
 {
 	// Transform is based on bottom left of the URuntimeVirtualTextureComponent unit box (which is centered on the origin)
