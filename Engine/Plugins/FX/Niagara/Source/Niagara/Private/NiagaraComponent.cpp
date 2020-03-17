@@ -1902,8 +1902,16 @@ bool UNiagaraComponent::IsParameterValueOverriddenLocally(const FName& InParamNa
 
 void UNiagaraComponent::SetParameterValueOverriddenLocally(const FNiagaraVariable& InParam, bool bInOverriden, bool bRequiresSystemInstanceReset)
 {
-	bool* FoundVar = EditorOverridesValue.Find(InParam.GetName());
+	FName ParameterName = InParam.GetName();
+	{
+		FString ParameterString = ParameterName.ToString();
+		if (ParameterString.RemoveFromStart(TEXT("User.")))
+		{
+			ParameterName = FName(*ParameterString);
+		}
+	}
 
+	bool* FoundVar = EditorOverridesValue.Find(InParam.GetName());
 	if (FoundVar != nullptr && bInOverriden) 
 	{
 		*(FoundVar) = bInOverriden;
