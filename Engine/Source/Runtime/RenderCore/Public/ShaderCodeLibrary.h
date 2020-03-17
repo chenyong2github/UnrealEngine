@@ -8,13 +8,12 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
 #include "RHI.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogShaderLibrary, Log, All);
 
-class FAnsiStringBuilderBase;
 class FShaderPipeline;
-class FStringView;
 class FShaderMapResource;
 class FShaderMapResourceCode;
 

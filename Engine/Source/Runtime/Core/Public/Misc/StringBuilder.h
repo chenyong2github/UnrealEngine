@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "Containers/StringView.h"
 #include "CoreTypes.h"
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
 #include "Misc/CString.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/EnableIf.h"
@@ -13,9 +14,6 @@
 #include "Traits/IsContiguousContainer.h"
 
 #define USE_STRING_LITERAL_PATH 1
-
-class FAnsiStringBuilderBase;
-class FStringBuilderBase;
 
 namespace StringBuilderPrivate
 {

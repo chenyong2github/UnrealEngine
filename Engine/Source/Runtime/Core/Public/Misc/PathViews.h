@@ -3,9 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-
-class FStringBuilderBase;
-class FStringView;
+#include "Containers/StringFwd.h"
 
 class CORE_API FPathViews
 {

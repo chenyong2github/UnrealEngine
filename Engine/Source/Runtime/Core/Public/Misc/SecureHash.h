@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "Containers/Map.h"
 #include "Containers/StringConv.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
@@ -15,9 +16,6 @@
 #include "String/HexToBytes.h"
 #include "Serialization/MemoryLayout.h"
 
-class FAnsiStringBuilderBase;
-class FStringBuilderBase;
-class FStringView;
 struct FMD5Hash;
 
 /*-----------------------------------------------------------------------------
