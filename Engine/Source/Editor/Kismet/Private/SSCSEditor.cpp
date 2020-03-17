@@ -1318,7 +1318,7 @@ UActorComponent* FSCSEditorTreeNode::FindComponentInstanceInActor(const AActor* 
 				else if (World != nullptr && World->WorldType == EWorldType::EditorPreview)
 				{
 					// If this is the preview actor, return the cached component instance that's being used for the preview actor prior to recompiling the Blueprint
-					ComponentInstance = SCS_Node->EditorComponentInstance;
+					ComponentInstance = SCS_Node->EditorComponentInstance.Get();
 				}
 			}
 		}
