@@ -119,7 +119,7 @@ void FSourceFilterTrace::OutputInstance(const UDataSourceFilter* InFilter)
 		{
 			TCHAR* StringPtr = (TCHAR*)Out;
 			FMemory::Memcpy(StringPtr, *DisplayString, AttachmentSize);
-			StringPtr[AttachmentSize - 1] = '\0';
+			StringPtr[AttachmentSize / sizeof(TCHAR) - 1] = '\0';
 		};
 		
 		UE_TRACE_LOG(SourceFilters, FilterInstance, TraceSourceFiltersChannel, AttachmentSize)
@@ -160,7 +160,7 @@ void FSourceFilterTrace::OutputFilterSettingsValue(const FString& InPropertyName
 	{
 		TCHAR* StringPtr = (TCHAR*)Out;
 		FMemory::Memcpy(StringPtr, *InPropertyName, AttachmentSize);
-		StringPtr[AttachmentSize - 1] = '\0';
+		StringPtr[AttachmentSize / sizeof(TCHAR) - 1] = '\0';
 	};
 
 	UE_TRACE_LOG(SourceFilters, SetFilterSettingValue, TraceSourceFiltersChannel, AttachmentSize)
@@ -184,7 +184,7 @@ void FSourceFilterTrace::OutputWorld(const UWorld* InWorld)
 		{
 			TCHAR* StringPtr = (TCHAR*)Out;
 			FMemory::Memcpy(StringPtr, *SendName, AttachmentSize);
-			StringPtr[AttachmentSize - 1] = '\0';
+			StringPtr[AttachmentSize / sizeof(TCHAR) - 1] = '\0';
 		};
 
 		UE_TRACE_LOG(WorldSourceFilters, WorldInstance, TraceSourceFiltersChannel, AttachmentSize)
