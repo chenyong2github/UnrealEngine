@@ -133,6 +133,7 @@ private:
 
 	void UpdateSpawnedObjectsTransientFlag( bool bTransient );
 
+	void OnPrimsChanged( const TMap< FString, bool >& PrimsChangedList );
 	void OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin );
 
 	void OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
@@ -145,7 +146,7 @@ private:
 	UPROPERTY(Transient)
 	TSet< FString > PrimsToAnimate;
 
-	UPROPERTY(Transient)
+	UPROPERTY( Transient )
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
