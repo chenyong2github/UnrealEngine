@@ -56,10 +56,12 @@ struct FSharedSimulationParameters
 	FSharedSimulationParameters()
 	: bMassAsDensity(false)
 	, Mass(1.0)
-	, MinimumMassClamp(0.1f)
-	, MaximumMassClamp(1000.0f)
-	, MinimumInertiaTensorDiagonalClamp(SMALL_NUMBER) // todo : Expose to users with better initial values
-	, MaximumInertiaTensorDiagonalClamp(1.0e6f) // todo : Expose to users with better initial values
+	, MinimumMassClamp(0.1)								// todo : Expose to users with better initial values
+	, MaximumMassClamp(1e5f)							// todo : Expose to users with better initial values
+	, MinimumBoundingExtentClamp(0.1)					// todo : Expose to users with better initial values
+	, MaximumBoundingExtentClamp(1e6f)					// todo : Expose to users with better initial values
+	, MinimumInertiaTensorDiagonalClamp(SMALL_NUMBER)	// todo : Expose to users with better initial values
+	, MaximumInertiaTensorDiagonalClamp(1e20f)			// todo : Expose to users with better initial values
 	, MaximumCollisionParticleCount(60)
 	{
 		SizeSpecificData.AddDefaulted();
@@ -75,6 +77,8 @@ struct FSharedSimulationParameters
 		,float InMass
 		, float InMinimumMassClamp
 		, float InMaximumMassClamp
+		, float InMinimumBoundingExtentClamp
+		, float InMaximumBoundingExtentClamp
 		, float InMinimumInertiaTensorDiagonalClamp
 		, float InMaximumInertiaTensorDiagonalClamp
 		,float InCollisionParticlesFraction
@@ -83,6 +87,8 @@ struct FSharedSimulationParameters
 	, Mass(InMass)
 	, MinimumMassClamp(InMinimumMassClamp)
 	, MaximumMassClamp(InMinimumMassClamp)
+	, MinimumBoundingExtentClamp(InMinimumBoundingExtentClamp)
+	, MaximumBoundingExtentClamp(InMinimumBoundingExtentClamp)
 	, MinimumInertiaTensorDiagonalClamp(InMinimumInertiaTensorDiagonalClamp)
 	, MaximumInertiaTensorDiagonalClamp(InMaximumInertiaTensorDiagonalClamp)
 	, MaximumCollisionParticleCount(InMaximumCollisionParticleCount)
@@ -102,8 +108,13 @@ struct FSharedSimulationParameters
 	float Mass;
 	float MinimumMassClamp;
 	float MaximumMassClamp;
+	float MinimumBoundingExtentClamp;
+	float MaximumBoundingExtentClamp;
 	float MinimumInertiaTensorDiagonalClamp;
 	float MaximumInertiaTensorDiagonalClamp;
+
+	float MinimumVolumeClamp() const { return MinimumBoundingExtentClamp * MinimumBoundingExtentClamp * MinimumBoundingExtentClamp; }
+	float MaximumVolumeClamp() const { return MaximumBoundingExtentClamp * MaximumBoundingExtentClamp * MaximumBoundingExtentClamp; }
 
 	TArray<FSharedSimulationSizeSpecificData> SizeSpecificData;
 	TArray<int32> RemoveOnFractureIndices;
