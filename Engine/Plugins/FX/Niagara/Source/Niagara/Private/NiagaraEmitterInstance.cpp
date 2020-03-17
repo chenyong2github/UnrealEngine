@@ -185,7 +185,7 @@ FBox FNiagaraEmitterInstance::GetBounds()
 
 bool FNiagaraEmitterInstance::IsReadyToRun() const
 {
-	if (!CachedEmitter->IsReadyToRun())
+	if (!IsDisabled() && !CachedEmitter->IsReadyToRun())
 	{
 		return false;
 	}
@@ -444,6 +444,20 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			EventContext.Parameters.UnbindFromSourceStores();
 		}
 	}	
+
+	const int32 NumEventHandlers = CachedEmitter->GetEventHandlers().Num();
+	EventHandlingInfo.Reset();
+	EventHandlingInfo.SetNum(NumEventHandlers);
+	for (int32 i = 0; i < NumEventHandlers; i++)
+	{
+		const FNiagaraEventScriptProperties& EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
+		FNiagaraEventHandlingInfo& Info = EventHandlingInfo[i];
+		Info.SourceEmitterGuid = EventHandlerProps.SourceEmitterID;
+		Info.SourceEmitterName = Info.SourceEmitterGuid.IsValid() ? *Info.SourceEmitterGuid.ToString() : CachedIDName;
+		Info.SpawnCounts.Reset();
+		Info.TotalSpawnCount = 0;
+		Info.EventData = nullptr;
+	}
 }
 
 void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
@@ -577,6 +591,11 @@ void FNiagaraEmitterInstance::CheckForErrors()
 
 void FNiagaraEmitterInstance::DirtyDataInterfaces()
 {
+	if (IsDisabled())
+	{
+		return;
+	}
+
 	// Make sure that our function tables need to be regenerated...
 	SpawnExecContext.DirtyDataInterfaces();
 	UpdateExecContext.DirtyDataInterfaces();
@@ -847,7 +866,11 @@ void FNiagaraEmitterInstance::PostTick()
 
 	checkSlow(CachedEmitter);
 
-	EventHandlingInfo.Reset();
+	//Clear refs to event data buffers.
+	for (FNiagaraEventHandlingInfo& Info : EventHandlingInfo)
+	{
+		Info.SetEventData(nullptr);
+	}
 
 	CachedBounds.Init();
 	if (CachedSystemFixedBounds.IsSet())
@@ -992,27 +1015,22 @@ void FNiagaraEmitterInstance::PreTick()
 	//Gather events we're going to be reading from / handling this frame.
 	//We must do this in pre-tick so we can gather (and mark in use) all sets from other emitters.
 	const int32 NumEventHandlers = CachedEmitter->GetEventHandlers().Num();
-	if (NumEventHandlers > 0)
+	EventSpawnTotal = 0;
+	for (int32 i = 0; i < NumEventHandlers; i++)
 	{
-		EventHandlingInfo.Reset();
-		EventHandlingInfo.SetNum(NumEventHandlers);
-		EventSpawnTotal = 0;
-		for (int32 i = 0; i < NumEventHandlers; i++)
+		const FNiagaraEventScriptProperties& EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
+		FNiagaraEventHandlingInfo& Info = EventHandlingInfo[i];
+
+		Info.TotalSpawnCount = 0;//This was being done every frame but should be done in init?
+		Info.SpawnCounts.Reset();
+
+		//TODO: We can move this lookup into the init and just store a ptr to the other set?
+		if (FNiagaraDataSet* EventSet = ParentSystemInstance->GetEventDataSet(Info.SourceEmitterName, EventHandlerProps.SourceEventName))
 		{
-			const FNiagaraEventScriptProperties &EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
-			FNiagaraEventHandlingInfo& Info = EventHandlingInfo[i];
-			Info.SourceEmitterGuid = EventHandlerProps.SourceEmitterID;
-			Info.SourceEmitterName = Info.SourceEmitterGuid.IsValid() ? *Info.SourceEmitterGuid.ToString() : CachedIDName;
-			Info.SpawnCounts.Reset();
-			Info.TotalSpawnCount = 0;
-			Info.EventData = nullptr;
-			if (FNiagaraDataSet* EventSet = ParentSystemInstance->GetEventDataSet(Info.SourceEmitterName, EventHandlerProps.SourceEventName))
-			{
-				Info.SetEventData(&EventSet->GetCurrentDataChecked());
-				uint32 EventSpawnNum = CalculateEventSpawnCount(EventHandlerProps, Info.SpawnCounts, EventSet);
-				Info.TotalSpawnCount += EventSpawnNum;
-				EventSpawnTotal += EventSpawnNum;
-			}
+			Info.SetEventData(&EventSet->GetCurrentDataChecked());
+			uint32 EventSpawnNum = CalculateEventSpawnCount(EventHandlerProps, Info.SpawnCounts, EventSet);
+			Info.TotalSpawnCount += EventSpawnNum;
+			EventSpawnTotal += EventSpawnNum;
 		}
 	}
 
@@ -1039,6 +1057,19 @@ void FNiagaraEmitterInstance::SetSystemFixedBoundsOverride(FBox SystemFixedBound
 	CachedSystemFixedBounds = SystemFixedBounds;
 }
 
+static int32 GbTriggerCrash = 0;
+static FAutoConsoleVariableRef CVarTriggerCrash(
+	TEXT("fx.TriggerDebugCrash"),
+	GbTriggerCrash,
+	TEXT("If > 0 we deliberately crash to test Crash Reporter integration."),
+	ECVF_Default
+);
+
+FORCENOINLINE void NiagaraTestCrash()
+{
+	check(0);
+}
+
 void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraTick);
@@ -1052,6 +1083,15 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+
+	//Test crash allowing us to test CR functionality.
+#if !UE_BUILD_SHIPPING
+	if (GbTriggerCrash)
+	{
+		GbTriggerCrash = 0;
+		NiagaraTestCrash();
+	}
+#endif
 
 	checkSlow(ParticleDataSet);
 	FNiagaraDataSet& Data = *ParticleDataSet;
@@ -1081,21 +1121,11 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	}
 
 
-	check(Data.GetNumVariables() > 0);
-	check(CachedEmitter->SpawnScriptProps.Script);
-	check(CachedEmitter->UpdateScriptProps.Script);
+	checkSlow(Data.GetNumVariables() > 0);
+	checkSlow(CachedEmitter->SpawnScriptProps.Script);
+	checkSlow(CachedEmitter->UpdateScriptProps.Script);
 	
 	//TickEvents(DeltaSeconds);
-
-	// add system constants
-	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraConstants);
-
-		auto& EmitterParameters = ParentSystemInstance->EditEmitterParameters(EmitterIdx);
-		EmitterParameters.EmitterTotalSpawnedParticles = TotalSpawnedParticles;
-		EmitterParameters.EmitterAge = EmitterAge;
-		EmitterParameters.EmitterRandomSeed = CachedEmitter->RandomSeed;
-	}
 	
 	// Calculate number of new particles from regular spawning 
 	uint32 SpawnTotal = 0;
@@ -1112,6 +1142,13 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	int32 OrigNumParticles = GetNumParticles();
 	int32 AllocationEstimate = CachedEmitter->GetMaxParticleCountEstimate();
 	int32 RequiredSize = OrigNumParticles + SpawnTotal + EventSpawnTotal;
+
+	if (RequiredSize == 0)
+	{
+		//Early out if we have no particles to process.
+		//return;
+	}
+
 	int32 AllocationSize = FMath::Max<int32>(AllocationEstimate, RequiredSize);
 	if (AllocationSize > MaxAllocationCount)
 	{
@@ -1129,6 +1166,16 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	if (Overallocation >= 0 && (MinOverallocation < 0 || Overallocation < MinOverallocation))
 	{
 		MinOverallocation = Overallocation;
+	}
+
+	// add system constants
+	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraConstants);
+
+		auto& EmitterParameters = ParentSystemInstance->EditEmitterParameters(EmitterIdx);
+		EmitterParameters.EmitterTotalSpawnedParticles = TotalSpawnedParticles;
+		EmitterParameters.EmitterAge = EmitterAge;
+		EmitterParameters.EmitterRandomSeed = CachedEmitter->RandomSeed;
 	}
 
 	/* GPU simulation -  we just create an FNiagaraComputeExecutionContext, queue it, and let the batcher take care of the rest

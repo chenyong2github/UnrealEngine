@@ -228,6 +228,7 @@ FParticleSystemWorldManager::FParticleSystemWorldManager(UWorld* InWorld)
 		TickFunc.EndTickGroup = TickFunc.TickGroup;
 		TickFunc.bCanEverTick = true;
 		TickFunc.bStartWithTickEnabled = true;
+		TickFunc.bAllowTickOnDedicatedServer = false;
 		TickFunc.bHighPriority = true;
 		TickFunc.Owner = this;
 		TickFunc.RegisterTickFunction(InWorld->PersistentLevel);

@@ -120,6 +120,12 @@ void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSyste
 {
 	check(IsInRenderingThread());
 
+	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
+	{
+		return;
+	}
+
+
 	// @todo REMOVE THIS HACK
 	if (GFrameNumberRenderThread > LastFrameThatDrainedData + GNiagaraGpuMaxQueuedRenderFrames)
 	{
@@ -599,6 +605,11 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& Ove
 
 void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FRHIUniformBuffer* SceneTexturesUniformBuffer, bool bAllowGPUParticleUpdate)
 {
+	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	if (bAllowGPUParticleUpdate)
@@ -885,6 +896,11 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 
 void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate)
 {
+	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	// Reset the list of GPUSort tasks and release any resources they hold on to.
@@ -972,6 +988,11 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 
 void NiagaraEmitterInstanceBatcher::PostInitViews(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
 {
+	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	if (bAllowGPUParticleUpdate)
@@ -1021,6 +1042,11 @@ bool NiagaraEmitterInstanceBatcher::RequiresEarlyViewUniformBuffer() const
 
 void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleUpdate)
 {
+	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	GlobalDistanceFieldParams = GlobalDistanceFieldParameterData ? *GlobalDistanceFieldParameterData : FGlobalDistanceFieldParameterData();
