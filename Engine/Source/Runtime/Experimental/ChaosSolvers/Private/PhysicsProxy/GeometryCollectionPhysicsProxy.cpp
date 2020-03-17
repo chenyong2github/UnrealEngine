@@ -288,6 +288,11 @@ void PopulateSimulatedParticle(
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> SharedImplicitTS(Implicit->DeepCopy().Release());
 		Handle->SetSharedGeometry(SharedImplicitTS);
 		Handle->SetHasBounds(true);
+		Handle->SetLocalBounds(SharedImplicitTS->BoundingBox());
+		const Chaos::TAABB<float, 3>& LocalBounds = Handle->LocalBounds();
+		const Chaos::TRigidTransform<float, 3> Xf(Handle->X(), Handle->R());
+		const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
+		Handle->SetWorldSpaceInflatedBounds(TransformedBBox);
 	}
 
 	Handle->CollisionParticlesInitIfNeeded();
@@ -1380,9 +1385,18 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 	* the solver
 	*/
 
-	//
-	// There is currently no per advance updates to the GeometryCollection
-	//
+	// We need to update physics thread world space bounding boxes.
+	for (auto* Handle : SolverParticleHandles)
+	{
+		if (!Handle || !Handle->HasBounds())
+		{
+			continue;
+		}
+		const Chaos::TAABB<float, 3>& LocalBounds = Handle->LocalBounds();
+		const Chaos::TRigidTransform<float, 3> Xf(Handle->X(), Handle->R());
+		const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
+		Handle->SetWorldSpaceInflatedBounds(TransformedBBox);
+	}
 }
 
 void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
