@@ -31,9 +31,9 @@ FAnimatedRange FAnimModel::GetViewRange() const
 	return ViewRange;
 }
 
-FAnimatedRange FAnimModel::GetTotalRange() const
+FAnimatedRange FAnimModel::GetWorkingRange() const
 {
-	return TotalRange;
+	return WorkingRange;
 }
 
 double FAnimModel::GetFrameRate() const
@@ -56,7 +56,7 @@ int32 FAnimModel::GetTickResolution() const
 TRange<FFrameNumber> FAnimModel::GetPlaybackRange() const
 {
 	const int32 Resolution = GetTickResolution();
-	return TRange<FFrameNumber>(FFrameNumber(FMath::RoundToInt(TotalRange.GetLowerBoundValue() * (double)Resolution)), FFrameNumber(FMath::RoundToInt(TotalRange.GetUpperBoundValue() * (double)Resolution)));
+	return TRange<FFrameNumber>(FFrameNumber(FMath::RoundToInt(PlaybackRange.GetLowerBoundValue() * (double)Resolution)), FFrameNumber(FMath::RoundToInt(PlaybackRange.GetUpperBoundValue() * (double)Resolution)));
 }
 
 FFrameNumber FAnimModel::GetScrubPosition() const
@@ -87,12 +87,26 @@ void FAnimModel::SetScrubPosition(FFrameTime NewScrubPostion) const
 
 void FAnimModel::HandleViewRangeChanged(TRange<double> InRange, EViewRangeInterpolation InInterpolation)
 {
-	ViewRange = InRange;
+	SetViewRange(InRange);
 }
 
 void FAnimModel::SetViewRange(TRange<double> InRange)
 {
 	ViewRange = InRange;
+
+	if(WorkingRange.HasLowerBound() && WorkingRange.HasUpperBound())
+	{
+		WorkingRange = TRange<double>::Hull(WorkingRange, ViewRange);
+	}
+	else
+	{
+		WorkingRange = ViewRange;
+	}
+}
+
+void FAnimModel::HandleWorkingRangeChanged(TRange<double> InRange)
+{
+	WorkingRange = InRange;
 }
 
 bool FAnimModel::IsTrackSelected(const TSharedRef<FAnimTimelineTrack>& InTrack) const
