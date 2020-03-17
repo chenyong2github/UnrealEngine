@@ -112,7 +112,7 @@ private:
 #if WITH_EDITOR
 	void AddOrUpdatePose(const FSmartName& InPoseName, const TArray<FTransform>& InlocalSpacePose, const TArray<float>& InCurveData);
 	void RenamePose(FSmartName OldPoseName, FSmartName NewPoseName);
-	bool DeletePose(FSmartName PoseName);
+	int32 DeletePose(FSmartName PoseName);
 	bool DeleteCurve(FSmartName CurveName);
 	bool InsertTrack(const FName& InTrackName, USkeleton* InSkeleton, FName& InRetargetSourceName);
 	
