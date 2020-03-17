@@ -627,6 +627,8 @@ void USoundfieldSubmix::SanitizeLinks()
 	}
 }
 
+#if WITH_EDITOR
+
 void USoundfieldSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	// Whether to clean up now invalid links between submix and refresh the submix graph editor.
@@ -649,6 +651,8 @@ void USoundfieldSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 		SanitizeLinks();
 	}
 }
+
+#endif // WITH_EDITOR
 
 IAudioEndpointFactory* UEndpointSubmix::GetAudioEndpointForSubmix() const
 {
@@ -705,6 +709,8 @@ void USoundfieldEndpointSubmix::SanitizeLinks()
 	}
 }
 
+#if WITH_EDITOR
+
 void USoundfieldEndpointSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.Property != nullptr)
@@ -720,6 +726,8 @@ void USoundfieldEndpointSubmix::PostEditChangeProperty(struct FPropertyChangedEv
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+#endif // WITH_EDITOR
 
 ENGINE_API bool SubmixUtils::AreSubmixFormatsCompatible(const USoundSubmixBase* ChildSubmix, const USoundSubmixBase* ParentSubmix)
 {
