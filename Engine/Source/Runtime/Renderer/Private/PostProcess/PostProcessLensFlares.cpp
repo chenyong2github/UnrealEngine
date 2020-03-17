@@ -225,6 +225,7 @@ FScreenPassTexture AddLensFlaresPass(
 	// Initialize the lens flare output texture.
 	{
 		FRDGTextureDesc LensFlareTextureDesc = Inputs.Bloom.Texture->Desc;
+		LensFlareTextureDesc.Flags |= TexCreate_DisableDCC; // DCC will cause errors on this resource when running splitscreen so disable
 		LensFlareTextureDesc.Reset();
 		LensFlareTextureDesc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
 
