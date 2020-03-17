@@ -179,7 +179,7 @@ public:
 		return nullptr;
 	}
 
-	virtual ITargetPlatform* FindTargetPlatform(const FStringView& Name) override
+	virtual ITargetPlatform* FindTargetPlatform(FStringView Name) override
 	{
 		GetTargetPlatforms(); // Populates PlatformsByName
 
