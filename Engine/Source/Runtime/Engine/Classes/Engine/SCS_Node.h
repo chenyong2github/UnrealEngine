@@ -89,8 +89,7 @@ class USCS_Node : public UObject
 #if WITH_EDITOR
 
 	/** The scene component constructed for component editing in the SCS editor */
-	UPROPERTY(transient)
-	USceneComponent* EditorComponentInstance;
+	TWeakObjectPtr<USceneComponent> EditorComponentInstance;
 
 	/** Make sure, the guid is proper - backward compatibility */
 	ENGINE_API void ValidateGuid();
