@@ -158,7 +158,7 @@ public:
 	 * @param	DebugContext	A string used to describe the data being generated. Typically the path to the object that it is generated from is sufficient.
 	 * @return	true if the data was retrieved from the cache.
 	**/
-	virtual bool GetSynchronous(const TCHAR* CacheKey, TArray<uint8>& OutData, const FStringView& DebugContext) = 0; 
+	virtual bool GetSynchronous(const TCHAR* CacheKey, TArray<uint8>& OutData, FStringView DebugContext) = 0; 
 
 	/** 
 	 * Starts the async process of checking the cache and if the item is present, retrieving the cached results.
@@ -169,7 +169,7 @@ public:
 	 * @param	DebugContext	A string used to describe the data being generated. Typically the path to the object that it is generated from is sufficient.
 	 * @return	A handle that can be used for PollAsynchronousCompletion, WaitAsynchronousCompletion, and GetAsynchronousResults.
 	**/
-	virtual uint32 GetAsynchronous(const TCHAR* CacheKey, const FStringView& DebugContext) = 0;
+	virtual uint32 GetAsynchronous(const TCHAR* CacheKey, FStringView DebugContext) = 0;
 
 	/** 
 	 * Puts data into the cache. This is fire-and-forget and typically asynchronous.
@@ -180,7 +180,7 @@ public:
 	 * @param	Data		Data to put in the cache under this key
 	 * @param	DataContext	A string used to describe the data being generated. Typically the path to the object that it is generated from is sufficient.
 	**/
-	virtual void Put(const TCHAR* CacheKey, TArray<uint8>& Data, const FStringView& DataContext, bool bPutEvenIfExists = false) = 0;
+	virtual void Put(const TCHAR* CacheKey, TArray<uint8>& Data, FStringView DataContext, bool bPutEvenIfExists = false) = 0;
 
 	/**
 	 * Hint that the data associated with the key is transient and may be optionally purged from the cache.
