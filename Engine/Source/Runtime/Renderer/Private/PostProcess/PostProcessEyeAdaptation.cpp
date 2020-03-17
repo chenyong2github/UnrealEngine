@@ -4,8 +4,6 @@
 #include "RHIGPUReadback.h"
 #include "Curves/CurveFloat.h"
 
-RENDERCORE_API bool UsePreExposure(EShaderPlatform Platform);
-
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
 namespace
@@ -73,6 +71,13 @@ static TAutoConsoleVariable<int32> CVarEnablePreExposureOnlyInTheEditor(
 	TEXT("This is to because it currently has an impact on the renderthread performance\n"),
 	ECVF_ReadOnly);
 const ERHIFeatureLevel::Type BasicEyeAdaptationMinFeatureLevel = ERHIFeatureLevel::SM5;
+}
+
+// Function is static because EyeAdaptation is the only system that should be checking this value.
+static bool UsePreExposureEnabled()
+{
+	static const auto CVarUsePreExposure = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.UsePreExposure"));
+	return CVarUsePreExposure->GetValueOnAnyThread() != 0;
 }
 
 bool IsAutoExposureMethodSupported(ERHIFeatureLevel::Type FeatureLevel, EAutoExposureMethod AutoExposureMethodId)
@@ -895,7 +900,7 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 	
 	if (bIsPreExposureRelevant && bEnableAutoExposure)
 	{
-		if (UsePreExposure(View.GetShaderPlatform()))
+		if (UsePreExposureEnabled())
 		{
 			const float PreExposureOverride = CVarEyeAdaptationPreExposureOverride.GetValueOnRenderThread();
 			const float LastExposure = View.GetLastEyeAdaptationExposure();
@@ -910,10 +915,16 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 
 			bUpdateLastExposure = true;
 		}
-		// The exposure compensation curves require the scene average luminance
-		else if (View.FinalPostProcessSettings.AutoExposureBiasCurve)
+		else
 		{
-			bUpdateLastExposure = true;
+			if (View.FinalPostProcessSettings.AutoExposureBiasCurve)
+			{
+				// The exposure compensation curves require the scene average luminance
+				bUpdateLastExposure = true;
+			}
+
+			// Whe PreExposure is not used, we will override the PreExposure value to 1.0, which simulates PreExposure being off.
+			PreExposure = 1.0f;
 		}
 	}
 

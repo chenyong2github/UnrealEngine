@@ -42,12 +42,6 @@ IMPLEMENT_TYPE_LAYOUT(FShaderParameterMapInfo);
 IMPLEMENT_EXPORTED_INTRINSIC_TYPE_LAYOUT(TIndexedPtr<FShaderType>);
 IMPLEMENT_EXPORTED_INTRINSIC_TYPE_LAYOUT(TIndexedPtr<FVertexFactoryType>);
 
-RENDERCORE_API bool UsePreExposure(EShaderPlatform Platform)
-{
-	static const auto CVarUsePreExposure = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.UsePreExposure"));
-	return CVarUsePreExposure->GetValueOnAnyThread() != 0;
-}
-
 static TAutoConsoleVariable<int32> CVarUsePipelines(
 	TEXT("r.ShaderPipelines"),
 	1,
@@ -1341,7 +1335,8 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		KeyString += UsePreExposure(Platform) ? TEXT("_PreExp") : TEXT("");
+		// PreExposure is always used
+		KeyString += TEXT("_PreExp");
 	}
 
 	{
