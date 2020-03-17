@@ -1505,9 +1505,9 @@ FString FPackageName::ExportTextPathToObjectPath(const FString& InExportTextPath
 	return InExportTextPath;
 }
 
-const TCHAR* FPackageName::ExportTextPathToObjectPath(const TCHAR* InExportTextPath)
+FString FPackageName::ExportTextPathToObjectPath(const TCHAR* InExportTextPath)
 {
-	return ExportTextPathToObjectPath(FStringView(InExportTextPath)).GetData();
+	return ExportTextPathToObjectPath(FString(InExportTextPath));
 }
 
 FString FPackageName::ObjectPathToPackageName(const FString& InObjectPath)
