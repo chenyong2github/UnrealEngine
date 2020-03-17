@@ -1326,12 +1326,12 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 	TArray<UMaterialInterface*> UniqueMaterials;
 	//Unique material index to unique section index
-	TMultiMap<uint32, uint32> SectionToMaterialMap;
+	TMultiMap<uint32, uint32> MaterialToSectionMap;
 	for (int32 SectionIndex = 0; SectionIndex < UniqueSections.Num(); ++SectionIndex)
 	{
 		FSectionInfo& Section = UniqueSections[SectionIndex];
 		const int32 UniqueIndex = UniqueMaterials.AddUnique(Section.Material);
-		SectionToMaterialMap.Add(UniqueIndex, SectionIndex);
+		MaterialToSectionMap.Add(UniqueIndex, SectionIndex);
 	}
 
 	TArray<FMeshData> GlobalMeshSettings;
@@ -1359,7 +1359,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 			//Unique section indices
 			TArray<uint32> SectionIndices;
-			SectionToMaterialMap.MultiFind(MaterialIndex, SectionIndices);
+			MaterialToSectionMap.MultiFind(MaterialIndex, SectionIndices);
 
 			// Check whether or not this material requires mesh data
 			int32 NumTexCoords = 0;
