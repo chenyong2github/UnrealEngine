@@ -422,6 +422,9 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 		return;
 	}
 
+#if WITH_EDITOR
+	NiagaraSystem->SetParameterValueOverriddenLocally(Variable, true, false);
+#endif
 	TexureDI->SetTexture(Texture);
 }
 
@@ -457,6 +460,9 @@ void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraS
 		return;
 	}
 
+#if WITH_EDITOR
+	NiagaraSystem->SetParameterValueOverriddenLocally(Variable, true, false);
+#endif
 	TexureDI->SetTexture(Texture);
 }
 
