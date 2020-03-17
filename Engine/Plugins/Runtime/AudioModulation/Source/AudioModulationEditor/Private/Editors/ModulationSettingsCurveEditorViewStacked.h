@@ -5,11 +5,15 @@
 #include "Curves/RichCurve.h"
 #include "RichCurveEditorModel.h"
 #include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Views/SCurveEditorViewStacked.h"
 #include "Views/SInteractiveCurveEditorView.h"
 
+
 // Forward Declarations
 class UCurveFloat;
+class USoundModulationSettings;
 
 
 enum class EModSettingsEditorCurveOutput : uint8
@@ -146,15 +150,18 @@ public:
 	FModCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, FName InControlName, EModSettingsOutputEditorCurveSource InSource, UCurveFloat* SharedCurve);
 	FModCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, EModSettingsEditorCurveOutput InOutput, EModSettingsOutputEditorCurveSource InSource, UCurveFloat* SharedCurve);
 
+	bool GetIsBypassed() const;
+
 	virtual bool IsReadOnly() const override;
 
 	virtual FLinearColor GetColor() const override;
 	EModSettingsEditorCurveOutput GetOutput() const;
 	EModSettingsOutputEditorCurveSource GetSource() const;
 
-	void Refresh(EModSettingsEditorCurveOutput InCurveOutput, const FName* InControlName, UCurveFloat* InSharedCurve);
-
 private:
+	void Init(const FName* InControlName, UCurveFloat* InSharedCurve);
+
+	TWeakObjectPtr<USoundModulationSettings> Settings;
 
 	EModSettingsEditorCurveOutput Output;
 	EModSettingsOutputEditorCurveSource Source;
