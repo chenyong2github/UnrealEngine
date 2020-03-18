@@ -25,13 +25,13 @@ struct FAnimPerturbationError
 {
 	float MaxErrorInTransDueToTrans;
 	float MaxErrorInRotDueToTrans;
-	float MaxErrorInScaleDueToTrans;
+	//float MaxErrorInScaleDueToTrans; // Not used TODO: Either use or remove
 	float MaxErrorInTransDueToRot;
 	float MaxErrorInRotDueToRot;
-	float MaxErrorInScaleDueToRot;
-	float MaxErrorInTransDueToScale;
+	//float MaxErrorInScaleDueToRot; // Not used TODO: Either use or remove
+	float MaxErrorInTransDueToScale; 
 	float MaxErrorInRotDueToScale;
-	float MaxErrorInScaleDueToScale;
+	//float MaxErrorInScaleDueToScale; // Not used TODO: Either use or remove
 };
 
 using AnimationErrorStats = FAnimationErrorStats;
@@ -158,6 +158,12 @@ public:
 
 	/** Makes sure that the animation sequence and all its dependencies required for compression are loaded. */
 	ENGINE_API static void EnsureAnimSequenceLoaded(UAnimSequence& AnimSeq);
+
+	// Extract specific frame from raw track and place in OutAtom (return identity if track is malformed)
+	ENGINE_API static void ExtractTransformForFrameFromTrackSafe(const FRawAnimSequenceTrack& RawTrack, int32 Frame, FTransform& OutAtom);
+
+	// Extract specific frame from raw track and place in OutAtom
+	ENGINE_API static void ExtractTransformForFrameFromTrack(const FRawAnimSequenceTrack& RawTrack, int32 Frame, FTransform& OutAtom);
 
 	static void ExtractTransformFromTrack(float Time, int32 NumFrames, float SequenceLength, const struct FRawAnimSequenceTrack& RawTrack, EAnimInterpolationType Interpolation, FTransform &OutAtom);
 
