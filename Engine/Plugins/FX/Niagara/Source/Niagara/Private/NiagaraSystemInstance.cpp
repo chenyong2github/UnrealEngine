@@ -183,7 +183,9 @@ void FNiagaraSystemInstance::Init(bool bInForceSolo)
 #if WITH_EDITORONLY_DATA
 	InstanceParameters.DebugName = *FString::Printf(TEXT("SystemInstance %p"), this);
 #endif
+#if WITH_EDITOR
 	OnInitializedDelegate.Broadcast();
+#endif
 }
 
 void FNiagaraSystemInstance::SetRequestedExecutionState(ENiagaraExecutionState InState)
@@ -569,7 +571,9 @@ void FNiagaraSystemInstance::Complete()
 		// We've already notified once, no need to do so again.
 		bNotifyOnCompletion = false;
 
+#if WITH_EDITOR
 		OnCompleteDelegate.Broadcast(this);
+#endif
 
 		if (Component)
 		{
@@ -2195,6 +2199,7 @@ FNiagaraEmitterInstance* FNiagaraSystemInstance::GetEmitterByID(FGuid InID)
 	return nullptr;
 }
 
+#if WITH_EDITOR
 FNiagaraSystemInstance::FOnInitialized& FNiagaraSystemInstance::OnInitialized()
 {
 	return OnInitializedDelegate;
@@ -2205,7 +2210,6 @@ FNiagaraSystemInstance::FOnComplete& FNiagaraSystemInstance::OnComplete()
 	return OnCompleteDelegate;
 }
 
-#if WITH_EDITOR
 FNiagaraSystemInstance::FOnReset& FNiagaraSystemInstance::OnReset()
 {
 	return OnResetDelegate;
