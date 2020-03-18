@@ -556,7 +556,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(StackItem->GetIconBrush())
+					.Image_UObject(StackItem, &UNiagaraStackItem::GetIconBrush)
 				];
 		}
 		else
