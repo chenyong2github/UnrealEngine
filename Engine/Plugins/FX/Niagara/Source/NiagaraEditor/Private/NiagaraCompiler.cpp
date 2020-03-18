@@ -702,7 +702,13 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 						return false;
 					});
 
-					checkf(SameUsageSystemHistory != nullptr, TEXT("Failed to find System script with same run index as Emitter script!"));
+					if (SameUsageSystemHistory == nullptr)
+					{
+						UE_LOG(LogNiagaraEditor, Error, TEXT("Precompile failed for system: %s.  Failed to generate valid parameter history for emitter: %s."),
+							*System->GetPathName(), *EmitterRequest->EmitterUniqueName);
+						return TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>();
+					}
+
 					EmitterAndParticleScriptHistoryHandles.Add(FNiagaraParameterMapHistoryHandle(*SameUsageSystemHistory, EmitterScriptHistories[i], EmitterRequest->RequiredRendererVariables, EmitterUniqueName));
 				}
 			}
