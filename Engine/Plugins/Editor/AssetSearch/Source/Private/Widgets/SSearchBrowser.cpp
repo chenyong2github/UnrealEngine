@@ -37,6 +37,7 @@
 #include "Settings/SearchUserSettings.h"
 #include "SearchStyle.h"
 #include "Widgets/SToolTip.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "SObjectBrowser"
 
