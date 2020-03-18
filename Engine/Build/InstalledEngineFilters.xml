@@ -102,7 +102,6 @@
 	</Property>
 	<!-- Win64 specific DDC -->
 	<Property Name="ProjectsToBuildDDCWin64" Value="$(ProjectsToBuildDDC)">
-		Templates/TP_HololensBP/TP_HololensBP.uproject
 	</Property>
 	
 	<!-- Define Editor Filters -->
