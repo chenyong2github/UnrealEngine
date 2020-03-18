@@ -4,6 +4,7 @@
 
 #include "NPAxisViewportInt32.h"
 #include "NPAxisViewportDouble.h"
+#include "Insights/Common/PaintUtils.h"
 
 enum class ESimFrameStatus : uint8
 {
@@ -147,6 +148,8 @@ struct FSimFrameHoverView
 		Y = 0;
 	}
 };
+
+class SNPWindow;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -324,7 +327,7 @@ private:
 
 	void Reset();
 	void UpdateState();
-	void BuildSimulationView_ActorGroups(const FFilteredDataCollection& FilteredDataCollection);
+	void BuildSimulationView_ActorGroups(const struct FFilteredDataCollection& FilteredDataCollection);
 	void BuildSimulationView_Tracks();
 	
 	// 

@@ -6,6 +6,7 @@
 #include "Layout/Geometry.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
+#include "SNPWindow.h"
 
 class SNPWindow;
 
