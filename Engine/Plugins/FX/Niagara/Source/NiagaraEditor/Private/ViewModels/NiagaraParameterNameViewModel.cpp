@@ -88,10 +88,6 @@ int32 FNiagaraParameterPanelEntryParameterNameViewModel::GetScopeValue() const
 	{
 		return int32(ENiagaraParameterScope::DISPLAY_ONLY_StaticSwitch);
 	}
-	else if (CachedScriptVarAndViewInfo.MetaData.GetUsage() == ENiagaraScriptParameterUsage::Output)
-	{
-		return int32(ENiagaraParameterScope::Output);
-	}
 
 	ENiagaraParameterScope CachedScope;
 	if (ensureMsgf(FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
@@ -207,10 +203,6 @@ int32 FNiagaraGraphPinParameterNameViewModel::GetScopeValue() const
 	if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch())
 	{
 		return int32(ENiagaraParameterScope::DISPLAY_ONLY_StaticSwitch);
-	}
-	else if (CachedScriptVarAndViewInfo.MetaData.GetUsage() == ENiagaraScriptParameterUsage::Output)
-	{
-		return int32(ENiagaraParameterScope::Output);
 	}
 
 	ENiagaraParameterScope CachedScope;
