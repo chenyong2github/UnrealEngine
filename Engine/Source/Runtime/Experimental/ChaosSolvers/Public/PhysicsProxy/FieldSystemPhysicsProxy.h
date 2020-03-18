@@ -105,11 +105,6 @@ public:
 	 * When \c Minimum is set only the ActiveIndices and the direct children of 
 	 * the active clusters are set in the \p IndicesArray.
 	 */
-	static void ContiguousIndices(
-		TArray<ContextIndex>& IndicesArray, 
-		const Chaos::FPhysicsSolver* RigidSolver, 
-		const EFieldResolutionType ResolutionType, 
-		const bool bForce = true);
 
 	static void GetParticleHandles(
 		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,
