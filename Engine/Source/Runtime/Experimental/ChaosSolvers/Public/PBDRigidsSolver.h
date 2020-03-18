@@ -329,6 +329,8 @@ namespace Chaos
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
 		void SyncQueryMaterials();
 
+		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles);
+
 	private:
 
 		template<typename ParticleType>
