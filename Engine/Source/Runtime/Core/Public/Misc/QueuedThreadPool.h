@@ -22,9 +22,10 @@ public:
 	 * @param InNumQueuedThreads Specifies the number of threads to use in the pool
 	 * @param StackSize The size of stack the threads in the pool need (32K default)
 	 * @param ThreadPriority priority of new pool thread
+	 * @param Name optional name for the pool to be used for instrumentation
 	 * @return Whether the pool creation was successful or not
 	 */
-	virtual bool Create(uint32 InNumQueuedThreads, uint32 StackSize = (32 * 1024), EThreadPriority ThreadPriority = TPri_Normal) = 0;
+	virtual bool Create(uint32 InNumQueuedThreads, uint32 StackSize = (32 * 1024), EThreadPriority ThreadPriority = TPri_Normal, const TCHAR* Name = TEXT("UnknownThreadPool")) = 0;
 
 	/** Tells the pool to clean up all background threads */
 	virtual void Destroy() = 0;
