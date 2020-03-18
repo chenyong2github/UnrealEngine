@@ -34,19 +34,19 @@ public class GoogleARCoreSDK : ModuleRules
 			PublicSystemLibraries.Add("sqlite3");
 			PublicSystemLibraries.Add("z");
 
-			PublicAdditionalFrameworks.Add(new Framework("ARKit"));
-			PublicAdditionalFrameworks.Add(new Framework("AVFoundation"));
-			PublicAdditionalFrameworks.Add(new Framework("CoreGraphics"));
-			PublicAdditionalFrameworks.Add(new Framework("CoreImage"));
-			PublicAdditionalFrameworks.Add(new Framework("CoreMotion"));
-			PublicAdditionalFrameworks.Add(new Framework("CoreMedia"));
-			PublicAdditionalFrameworks.Add(new Framework("CoreVideo"));
-			PublicAdditionalFrameworks.Add(new Framework("Foundation"));
-			PublicAdditionalFrameworks.Add(new Framework("ImageIO"));
-			PublicAdditionalFrameworks.Add(new Framework("QuartzCore"));
-			PublicAdditionalFrameworks.Add(new Framework("Security"));
-			PublicAdditionalFrameworks.Add(new Framework("UIKit"));
-			PublicAdditionalFrameworks.Add(new Framework("VideoToolbox"));
+			PublicFrameworks.Add("ARKit");
+			PublicFrameworks.Add("AVFoundation");
+			PublicFrameworks.Add("CoreGraphics");
+			PublicFrameworks.Add("CoreImage");
+			PublicFrameworks.Add("CoreMotion");
+			PublicFrameworks.Add("CoreMedia");
+			PublicFrameworks.Add("CoreVideo");
+			PublicFrameworks.Add("Foundation");
+			PublicFrameworks.Add("ImageIO");
+			PublicFrameworks.Add("QuartzCore");
+			PublicFrameworks.Add("Security");
+			PublicFrameworks.Add("UIKit");
+			PublicFrameworks.Add("VideoToolbox");
 
 			PublicAdditionalFrameworks.Add(new Framework("ARCore", "lib/ios/ARCore.embeddedframework.zip", "ARCore.framework/Resources/ARCoreResources.bundle"));
 		}
