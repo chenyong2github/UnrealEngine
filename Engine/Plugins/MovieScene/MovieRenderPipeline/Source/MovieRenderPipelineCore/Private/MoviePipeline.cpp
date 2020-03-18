@@ -1377,4 +1377,12 @@ FString UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatSt
 	return ThisTry;
 }
 
+void UMoviePipeline::SetProgressWidgetVisible(bool bVisible)
+{
+	if (DebugWidget)
+	{
+		DebugWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+}
+
 #undef LOCTEXT_NAMESPACE // "MoviePipeline"
