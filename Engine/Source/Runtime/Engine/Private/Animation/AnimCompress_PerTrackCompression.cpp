@@ -1018,6 +1018,10 @@ void UAnimCompress_PerTrackCompression::CompressUsingUnderlyingCompressor(
 	// Compress each track independently
 	for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 	{
+		if (CompressibleAnimData.IsCancelled())
+		{
+			return;
+		}
 		// Compression parameters / thresholds
 		FPerTrackParams Params;
 		Params.NumFrames = CompressibleAnimData.NumFrames;

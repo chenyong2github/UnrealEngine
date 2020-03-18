@@ -35,7 +35,7 @@ const TCHAR* FDerivedDataAnimationCompression::GetVersionString() const
 	// This is a version string that mimics the old versioning scheme. If you
 	// want to bump this version, generate a new guid using VS->Tools->Create GUID and
 	// return it here. Ex.
-	return TEXT("0F1CECE507FE4F89A374B4C8E7B55052");
+	return TEXT("0B129554D9A4427784EC46E2AFD314B7");
 }
 
 bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
@@ -144,7 +144,7 @@ void FAsyncCompressedAnimationsManagement::Shutdown()
 		
 		const double PreExitDuration = FPlatformTime::Seconds() - PreExitStartTimer;
 
-		if (PreExitDuration > 10.0)
+		if (PreExitDuration > 20.0)
 		{
 			UE_LOG(LogAnimationCompression, Warning, TEXT("Async Compression Pre Init Timer hit, Active Compressions:%i"), ActiveAsyncCompressionTasks.Num());
 			return;
