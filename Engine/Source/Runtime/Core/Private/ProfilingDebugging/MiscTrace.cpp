@@ -88,12 +88,18 @@ void FMiscTrace::OutputSetThreadGroup(uint32 Id, const ANSICHAR* GroupName)
 		<< SetThreadGroup.Attachment(GroupName, NameSize);
 }
 
-void FMiscTrace::OutputBeginThreadGroupScope(const ANSICHAR* GroupName)
+void FMiscTrace::OutputBeginThreadGroupScope(const TCHAR* GroupName)
 {
-	uint16 NameSize = (uint16)(strlen(GroupName) + 1);
+	uint16 NameSize = (uint16)(FCString::Strlen(GroupName) + 1);
 	UE_TRACE_LOG(Misc, BeginThreadGroupScope, TraceLogChannel, NameSize)
 		<< BeginThreadGroupScope.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())
-		<< BeginThreadGroupScope.Attachment(GroupName, NameSize);
+		<< BeginThreadGroupScope.Attachment([GroupName, NameSize] (uint8* Out)
+		{
+			for (uint32 i = 0, n = NameSize; i < n; ++i)
+			{
+				Out[i] = uint8(GroupName[i]);
+			}
+		});
 }
 
 void FMiscTrace::OutputEndThreadGroupScope()

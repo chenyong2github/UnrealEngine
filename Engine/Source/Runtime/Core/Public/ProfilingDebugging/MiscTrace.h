@@ -49,7 +49,7 @@ struct FMiscTrace
 	CORE_API static void OutputRegisterGameThread(uint32 Id);
 	CORE_API static void OutputCreateThread(uint32 Id, const TCHAR* Name, uint32 Priority);
 	CORE_API static void OutputSetThreadGroup(uint32 Id, const ANSICHAR* GroupName);
-	CORE_API static void OutputBeginThreadGroupScope(const ANSICHAR* GroupName);
+	CORE_API static void OutputBeginThreadGroupScope(const TCHAR* GroupName);
 	CORE_API static void OutputEndThreadGroupScope();
 	CORE_API static void OutputBookmarkSpec(const void* BookmarkPoint, const ANSICHAR* File, int32 Line, const TCHAR* Format);
 	template <typename... Types>
@@ -68,7 +68,7 @@ struct FMiscTrace
 
 	struct FThreadGroupScope
 	{
-		FThreadGroupScope(const ANSICHAR* GroupName)
+		FThreadGroupScope(const TCHAR* GroupName)
 		{
 			FMiscTrace::OutputBeginThreadGroupScope(GroupName);
 		}
@@ -93,7 +93,7 @@ private:
 	FMiscTrace::OutputSetThreadGroup(Id, Group);
 
 #define TRACE_THREAD_GROUP_SCOPE(Group) \
-	FMiscTrace::FThreadGroupScope ANONYMOUS_VARIABLE(ThreadGroupScope) (Group);
+	FMiscTrace::FThreadGroupScope ANONYMOUS_VARIABLE(ThreadGroupScope) (TEXT(Group));
 
 #define TRACE_BOOKMARK(Format, ...) \
 	static bool PREPROCESSOR_JOIN(__BookmarkPoint, __LINE__); \
