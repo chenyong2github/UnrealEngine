@@ -799,14 +799,14 @@ void UNiagaraStackEntry::OnRenamed(FText NewName)
 {
 	if (SupportsRename())
 	{
-		if (!NewName.EqualTo(GetDisplayName()))
+		if (!NewName.EqualTo(AlternateDisplayName.Get(FText::GetEmpty())))
 		{
 			FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraStackEntry", "RenameModule", "Rename Module"));
 
 			GetStackEditorData().Modify();
 			GetStackEditorData().SetStackEntryDisplayName(GetStackEditorDataKey(), NewName);
 
-			if (NewName.IsEmptyOrWhitespace())
+			if (NewName.IsEmptyOrWhitespace() || NewName.EqualTo(GetDisplayName()))
 			{
 				AlternateDisplayName.Reset();
 			}
