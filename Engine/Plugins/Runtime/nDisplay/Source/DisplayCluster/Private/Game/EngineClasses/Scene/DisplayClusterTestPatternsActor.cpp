@@ -5,7 +5,6 @@
 #include "Components/PostProcessComponent.h"
 #include "Components/SceneComponent.h"
 
-#include "Engine/Scene.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
