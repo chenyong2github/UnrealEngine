@@ -89,8 +89,12 @@ public:
 				UE_LOG( LogDerivedDataCache, Fatal, TEXT("Unable to create backend graph using the default graph settings (%s) ini=%s."), *GraphName, *GEngineIni );
 			}
 			RootCache = ParseNode( TEXT("Root"), GEngineIni, *GraphName, ParsedNodes );
+			if (!RootCache)
+			{
+				UE_LOG(LogDerivedDataCache, Fatal, TEXT("Unable to create backend graph using the default graph settings (%s) ini=%s. ")
+					TEXT("At least one backend in the graph must be available."), *GraphName, *GEngineIni);
+			}
 		}
-		check(RootCache);
 
 		// Make sure AsyncPutWrapper and KeyLengthWrapper are created
 		if( !AsyncPutWrapper )
