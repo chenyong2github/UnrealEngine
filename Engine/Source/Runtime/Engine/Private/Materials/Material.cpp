@@ -3408,10 +3408,6 @@ void UMaterial::PostLoad()
 
 	Super::PostLoad();
 
-#if WITH_EDITOR
-	UpdateCachedExpressionData();
-#endif // WITH_EDITOR
-
 	if (FApp::CanEverRender())
 	{
 		// Resources can be processed / registered now that we're back on the main thread
@@ -3591,6 +3587,10 @@ void UMaterial::PostLoad()
 
 	// needed for UMaterial as it doesn't have the InitResources() override where this is called
 	PropagateDataToMaterialProxy();
+
+#if WITH_EDITOR
+	UpdateCachedExpressionData();
+#endif // WITH_EDITOR
 
 	STAT(double MaterialLoadTime = 0);
 	{
