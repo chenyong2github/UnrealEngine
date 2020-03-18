@@ -170,7 +170,7 @@ FAssetSearchManager::~FAssetSearchManager()
 
 	StopScanningAssets();
 
-	FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
+	UPackage::PackageSavedEvent.RemoveAll(this);
 	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
 	UObject::FAssetRegistryTag::OnGetExtraObjectTags.RemoveAll(this);
 
@@ -187,7 +187,7 @@ void FAssetSearchManager::Start()
 	RegisterAssetIndexer(UWorld::StaticClass(), MakeUnique<FLevelIndexer>());
 	RegisterAssetIndexer(USoundCue::StaticClass(), MakeUnique<FSoundCueIndexer>());
 
-	FCoreUObjectDelegates::OnObjectSaved.AddRaw(this, &FAssetSearchManager::OnObjectSaved);
+	UPackage::PackageSavedEvent.AddRaw(this, &FAssetSearchManager::HandlePackageSaved);
 	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FAssetSearchManager::OnAssetLoaded);
 
 	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAssetSearchManager::Tick_GameThread), 0);
@@ -372,13 +372,27 @@ void FAssetSearchManager::OnAssetScanFinished()
 	});
 }
 
-void FAssetSearchManager::OnObjectSaved(UObject* InObject)
+void FAssetSearchManager::HandlePackageSaved(const FString& PackageFilename, UObject* Outer)
 {
 	check(IsInGameThread());
 
-	if (!GIsCookerLoadingPackage)
+	// Ignore package operations fired by the cooker (cook on the fly).
+	if (GIsCookerLoadingPackage)
 	{
-		RequestIndexAsset(InObject);
+		return;
+	}
+
+	UPackage* Package = CastChecked<UPackage>(Outer);
+
+	if (GIsEditor && !IsRunningCommandlet())
+	{
+		TArray<UObject*> Objects;
+		const bool bIncludeNestedObjects = false;
+		GetObjectsWithOuter(Package, Objects, bIncludeNestedObjects);
+		for (UObject* Entry : Objects)
+		{
+			RequestIndexAsset(Entry);
+		}
 	}
 }
 
