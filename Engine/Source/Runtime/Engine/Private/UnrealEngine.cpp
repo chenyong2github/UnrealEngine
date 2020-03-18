@@ -3830,6 +3830,12 @@ int InfiniteRecursionFunction(int B)
 	return GInfiniteRecursionCount;
 }
 
+// used to test CRT invalid parameter handling
+void CauseCrtError()
+{
+	printf((const char*)nullptr);
+}
+
 #if defined (__clang__) 
 #pragma clang diagnostic pop
 #endif
@@ -8587,8 +8593,8 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	}
 	else if (FParse::Command(&Cmd, TEXT("CRTINVALID")))
 	{
-	FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
-		FString::Printf(TEXT("%s"), (const char*)nullptr);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		CauseCrtError();
 		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("HITCH")))
