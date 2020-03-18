@@ -775,6 +775,11 @@ namespace Chaos
 					Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
 				}
 
+				if(RewindData)
+				{
+					RewindData->PushGTDirtyData(*Manager,DataIdx,Dirty);
+				}
+
 				Proxy->PushToPhysicsState(*Manager, DataIdx, Dirty, ShapeDirtyData);
 
 				if(bIsNew)
@@ -791,7 +796,7 @@ namespace Chaos
 
 			if(RewindData)
 			{
-				RewindData->SavePrevFrameState(*DirtyProxiesData);
+				RewindData->PrepareFrame(DirtyProxiesData->NumDirtyProxies());
 			}
 
 			//need to create new particle handles
@@ -821,6 +826,11 @@ namespace Chaos
 					ensure("Unknown proxy type in physics solver.");
 				}
 			});
+
+			if(RewindData)
+			{
+				RewindData->AdvanceFrame();
+			}
 
 			DirtyProxiesData->Reset();
 		});
