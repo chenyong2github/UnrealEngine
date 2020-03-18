@@ -28,7 +28,7 @@ namespace ChaosTest {
 		Solver->UpdateGameThreadStructures();
 	}
 
-	GTEST_TEST(RewindTest,DataCapture1)
+	GTEST_TEST(RewindTest,MovingGeomChange)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(0),FVec3(1)));
@@ -120,7 +120,7 @@ namespace ChaosTest {
 	}
 
 
-	GTEST_TEST(RewindTest,DataCapture2)
+	GTEST_TEST(RewindTest,AddForce)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -169,7 +169,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,DataCapture3)
+	GTEST_TEST(RewindTest,IntermittentForce)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 
@@ -242,7 +242,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(RewindTest,DataCapture4)
+	GTEST_TEST(RewindTest,IntermittentGeomChange)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
 		auto Box = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TBox<float,3>(FVec3(0),FVec3(1)));
@@ -321,6 +321,56 @@ namespace ChaosTest {
 			{
 				EXPECT_EQ(Particle->Geometry().Get(),Box.Get());
 			}
+		}
+
+		// Throw out the proxy
+		Solver->UnregisterObject(Particle.Get());
+
+		Module->DestroySolver(Solver);
+	}
+
+	GTEST_TEST(RewindTest,FallingObject)
+	{
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+
+		Solver->EnableRewindCapture(20);
+
+
+		// Make particles
+		auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
+
+		Particle->SetGeometry(Sphere);
+		Solver->RegisterObject(Particle.Get());
+		Particle->SetGravityEnabled(true);
+		Particle->SetX(FVec3(0,0,100));
+
+		TArray<FVec3> X;
+		TArray<FVec3> V;
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			X.Add(Particle->X());
+			V.Add(Particle->V());
+			TickSolverHelper(Module,Solver);
+		}
+
+		const FRewindData* RewindData = Solver->GetRewindData();
+
+
+		for(int Step = 0; Step < 9; ++Step)
+		{
+			const auto ParticleState = RewindData->GetStateAtFrame(*Particle,Step);
+			EXPECT_NE(ParticleState,nullptr);
+			
+			EXPECT_EQ(ParticleState->X()[2],X[Step][2]);
+			EXPECT_EQ(ParticleState->V()[2],V[Step][2]);
 		}
 
 		// Throw out the proxy
