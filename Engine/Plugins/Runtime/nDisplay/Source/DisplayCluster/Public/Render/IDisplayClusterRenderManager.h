@@ -10,7 +10,7 @@ class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
 class IDisplayClusterRenderSyncPolicy;
 class IDisplayClusterRenderSyncPolicyFactory;
-
+struct FPostProcessSettings;
 
 /**
  * Public render manager interface

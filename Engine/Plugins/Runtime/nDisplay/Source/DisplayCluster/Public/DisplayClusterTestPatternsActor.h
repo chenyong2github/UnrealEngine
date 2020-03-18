@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
+#include "Engine/Scene.h"
+
 #include "Cluster/IDisplayClusterClusterManager.h"
 #include "DisplayClusterEnums.h"
 
@@ -16,7 +18,6 @@ class UMaterial;
 class UMaterialInstanceDynamic;
 class UPostProcessComponent;
 struct FDisplayClusterConfigViewport;
-struct FPostProcessSettings;
 struct FWeightedBlendable;
 
 struct FDisplayClusterClusterEvent;
