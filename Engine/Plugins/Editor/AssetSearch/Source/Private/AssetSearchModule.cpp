@@ -14,8 +14,6 @@
 
 #define LOCTEXT_NAMESPACE "FAssetSearchModule"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 static const FName SearchTabName("Search");
 
 class FAssetSearchModule : public IAssetSearchModule
@@ -86,7 +84,5 @@ private:
 };
 
 #undef LOCTEXT_NAMESPACE
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 IMPLEMENT_MODULE(FAssetSearchModule, AssetSearch);
