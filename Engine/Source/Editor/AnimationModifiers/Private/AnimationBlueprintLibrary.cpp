@@ -1569,7 +1569,7 @@ FName UAnimationBlueprintLibrary::RetrieveContainerNameForCurve(const UAnimSeque
 	for (int32 Index = 0; Index < (int32)ESmartNameContainerType::SNCT_MAX; ++Index)
 	{
 		const FSmartNameMapping* CurveMapping = AnimationSequence->GetSkeleton()->GetSmartNameContainer(SmartContainerNames[Index]);
-		if (CurveMapping->Exists(CurveName))
+		if (CurveMapping && CurveMapping->Exists(CurveName))
 		{
 			return SmartContainerNames[Index];
 		}
