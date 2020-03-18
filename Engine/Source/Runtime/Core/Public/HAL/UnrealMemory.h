@@ -80,14 +80,24 @@ struct FScopedMallocTimer
 #endif
 
 
-
-
 /*-----------------------------------------------------------------------------
 	FMemory.
 -----------------------------------------------------------------------------*/
 
 struct CORE_API FMemory
 {
+	/** Some allocators can be given hints to treat allocations differently depending on how the memory is used, it's lifetime etc. */
+	enum AllocationHints
+	{
+		None = -1,
+		Default,
+		Temporary,
+		SmallPool,
+
+		Max
+	};
+
+
 	/** @name Memory functions (wrapper for FPlatformMemory) */
 
 	static FORCEINLINE void* Memmove( void* Dest, const void* Src, SIZE_T Count )
