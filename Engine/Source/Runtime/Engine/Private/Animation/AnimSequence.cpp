@@ -2148,14 +2148,13 @@ FString UAnimSequence::GetDDCCacheKeySuffix(const bool bPerformStripping) const
 }
 #endif
 
-void UAnimSequence::WaitOnExistingCompression(const bool bCancelIfNotStarted)
+void UAnimSequence::WaitOnExistingCompression(const bool bWantResults)
 {
 #if WITH_EDITOR
 	check(IsInGameThread());
 	if (bCompressionInProgress)
 	{
-		double WaitTime = FPlatformTime::Seconds();
-		FAsyncCompressedAnimationsManagement::Get().WaitOnExistingCompression(this, bCancelIfNotStarted);
+		FAsyncCompressedAnimationsManagement::Get().WaitOnExistingCompression(this, bWantResults);
 		bCompressionInProgress = false;
 	}
 #endif
@@ -2177,7 +2176,7 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		return;
 	}
 
-	WaitOnExistingCompression(true);
+	WaitOnExistingCompression(false);
 
 	if (BoneCompressionSettings == nullptr || !BoneCompressionSettings->AreSettingsValid())
 	{

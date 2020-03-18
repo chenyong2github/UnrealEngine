@@ -64,14 +64,14 @@ public:
 	int32 GetNumRemainingJobs() const { return ActiveAsyncCompressionTasks.Num() + QueuedAsyncCompressionWork.Num(); }
 	
 	// Blocks on compression for the supplied animation. Returns false if there was no compression job to wait on. 
-	bool WaitOnExistingCompression(UAnimSequence* Anim, const bool bCancelIfNotStarted);
+	bool WaitOnExistingCompression(UAnimSequence* Anim, const bool bWantResults);
 private:
 
 	void StartAsyncWork(FDerivedDataAnimationCompression& Compressor, UAnimSequence* Anim, const uint64 NewTaskSize, const bool bPerformFrameStripping);
 
 	void StartQueuedTasks(int32 MaxActiveTasks);
 
-	bool WaitOnActiveCompression(UAnimSequence* Anim);
+	bool WaitOnActiveCompression(UAnimSequence* Anim, bool bWantResults);
 
 	void OnActiveCompressionFinished(int32 ActiveAnimIndex);
 
