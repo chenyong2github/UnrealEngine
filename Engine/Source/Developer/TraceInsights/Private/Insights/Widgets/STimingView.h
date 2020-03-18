@@ -33,6 +33,7 @@ class FTimingGraphTrack;
 class FTimingViewDrawHelper;
 class SOverlay;
 class SScrollBar;
+enum class ECheckBoxState : uint8;
 namespace Insights { class ITimingViewExtender; }
 
 /** A custom widget used to display timing events. */

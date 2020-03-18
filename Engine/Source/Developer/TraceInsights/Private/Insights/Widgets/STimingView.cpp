@@ -20,6 +20,7 @@
 #include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SSpacer.h"
