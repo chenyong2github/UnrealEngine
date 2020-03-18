@@ -1072,11 +1072,18 @@ protected:
 	void StopIntelExtensions();
 #endif // INTEL_EXTENSIONS
 
+	enum class EUAVOverlapState
+	{
+		EOff,
+		EPending,
+		EOn
+	};
+
 	// UAV overlap handling
 	bool bUAVOverlapAllowed = false;
-	bool bUAVOverlapEnabled = false;
+	EUAVOverlapState UAVOverlapState = EUAVOverlapState::EOff;
 	bool IsUAVOverlapSupported();
-	void UAVBarrier();
+	void ApplyUAVOverlapState();
 
 #if INTEL_METRICSDISCOVERY
 	void CreateIntelMetricsDiscovery();
