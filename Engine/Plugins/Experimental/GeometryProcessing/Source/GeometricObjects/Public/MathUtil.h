@@ -134,6 +134,7 @@ public:
 	static inline RealType ACos(const RealType Value);
 	static inline RealType Floor(const RealType Value);
 	static inline RealType Ceil(const RealType Value);
+	static inline RealType Pow(const RealType Value, const RealType Power);
 	static inline RealType Lerp(const RealType A, const RealType B, RealType Alpha);
 
 
@@ -253,6 +254,12 @@ template<typename RealType>
 RealType TMathUtil<RealType>::Ceil(const RealType Value)
 {
 	return ceil(Value);
+}
+
+template<typename RealType>
+RealType TMathUtil<RealType>::Pow(const RealType Value, const RealType Power)
+{
+	return pow(Value, Power);
 }
 
 template<typename RealType>
