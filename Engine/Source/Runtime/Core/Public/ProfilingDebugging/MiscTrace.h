@@ -93,7 +93,7 @@ private:
 	FMiscTrace::OutputSetThreadGroup(Id, Group);
 
 #define TRACE_THREAD_GROUP_SCOPE(Group) \
-	FMiscTrace::FThreadGroupScope ANONYMOUS_VARIABLE(ThreadGroupScope) (TEXT(Group));
+	FMiscTrace::FThreadGroupScope ANONYMOUS_VARIABLE(ThreadGroupScope) (Group);
 
 #define TRACE_BOOKMARK(Format, ...) \
 	static bool PREPROCESSOR_JOIN(__BookmarkPoint, __LINE__); \

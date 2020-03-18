@@ -620,6 +620,8 @@ public:
 
 	virtual bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name) override
 	{
+		TRACE_THREAD_GROUP_SCOPE(Name);
+
 		// Make sure we have synch objects
 		bool bWasSuccessful = true;
 		check(SynchQueue == nullptr);
