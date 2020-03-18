@@ -28,12 +28,9 @@ FAutoConsoleVariableRef CVarChaosJointBatching(TEXT("p.Chaos.Joint.Batching"), b
 int32 bChaos_Joint_MaxBatchSize = 1000;
 FAutoConsoleVariableRef CVarChaosJointBatchSize(TEXT("p.Chaos.Joint.MaxBatchSize"), bChaos_Joint_MaxBatchSize, TEXT(""));
 
-#if !INTEL_ISPC
-const bool bChaos_Joint_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bChaos_Joint_ISPC_Enabled = true;
-#else
-extern bool bChaos_Joint_ISPC_Enabled;
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bChaos_Joint_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarChaosJointISPCEnabled(TEXT("p.Chaos.Joint.ISPC"), bChaos_Joint_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Joint Solver"));
 #endif
 
 namespace Chaos
