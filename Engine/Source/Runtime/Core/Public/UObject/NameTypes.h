@@ -10,6 +10,7 @@
 #include "Containers/UnrealString.h"
 #include "HAL/CriticalSection.h"
 #include "Containers/StringConv.h"
+#include "Containers/StringFwd.h"
 #include "UObject/UnrealNames.h"
 #include "Templates/Atomic.h"
 #include "Serialization/MemoryLayout.h"
@@ -28,10 +29,6 @@
 	#define WITH_CASE_PRESERVING_NAME WITH_EDITORONLY_DATA
 #endif
 
-class FAnsiStringBuilderBase;
-class FAnsiStringView;
-class FStringBuilderBase;
-class FStringView;
 class FText;
 
 /** Maximum size of name. */

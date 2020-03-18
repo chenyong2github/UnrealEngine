@@ -10,6 +10,7 @@
 #include "Stats/Stats.h"
 #include "RHIDefinitions.h"
 #include "Containers/StaticArray.h"
+#include "Containers/StringFwd.h"
 
 #ifndef RHI_COMMAND_LIST_DEBUG_TRACES
 #define RHI_COMMAND_LIST_DEBUG_TRACES 0
@@ -19,7 +20,6 @@ template <typename T> class TArrayView;
 
 class FResourceArrayInterface;
 class FResourceBulkDataInterface;
-class FStringView;
 
 /** Alignment of the shader parameters struct is required to be 16-byte boundaries. */
 #define SHADER_PARAMETER_STRUCT_ALIGNMENT 16
