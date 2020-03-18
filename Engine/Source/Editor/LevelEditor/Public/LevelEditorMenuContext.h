@@ -12,6 +12,7 @@ class SLevelEditor;
 class UActorComponent;
 class SLevelViewport;
 class SLevelViewportToolBar;
+class FLevelEditorViewportClient;
 
 UCLASS()
 class LEVELEDITOR_API ULevelEditorMenuContext : public UObject
