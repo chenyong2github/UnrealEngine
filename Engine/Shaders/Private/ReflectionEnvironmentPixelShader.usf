@@ -222,18 +222,12 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 	float3 ReflectionVector = reflect(CameraToPixel, GBuffer.WorldNormal);
 	float IndirectIrradiance = GBuffer.IndirectIrradiance;
 	
-#if ALLOW_STATIC_LIGHTING
-	uint SkyLightMask = MATERIALBLENDING_TRANSLUCENT ? 2 : 1;
-	bool EnableSkyLight = 0 != (View.EnableSkyLight & SkyLightMask) && !MATERIAL_SHADINGMODEL_UNLIT;
+#if ENABLE_SKY_LIGHT && ALLOW_STATIC_LIGHTING
 	BRANCH
-	if (EnableSkyLight)
+	// Add in diffuse contribution from dynamic skylights so reflection captures will have something to mix with
+	if (ReflectionStruct.SkyLightParameters.y > 0 && ReflectionStruct.SkyLightParameters.z > 0)
 	{
-		BRANCH
-		// Add in diffuse contribution from dynamic skylights so reflection captures will have something to mix with
-		if (ReflectionStruct.SkyLightParameters.y > 0 && ReflectionStruct.SkyLightParameters.z > 0)
-		{
-			IndirectIrradiance += GetDynamicSkyIndirectIrradiance(BentNormal, GBuffer.WorldNormal);
-		}
+		IndirectIrradiance += GetDynamicSkyIndirectIrradiance(BentNormal, GBuffer.WorldNormal);
 	}
 #endif
 

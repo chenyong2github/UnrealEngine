@@ -261,81 +261,79 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 	OutDiffuseLighting = 0;
 	OutSubsurfaceLighting = 0;
 
-	uint SkyLightMask = MATERIALBLENDING_TRANSLUCENT ? 2 : 1;
-	bool EnableSkyLight = 0 != (View.EnableSkyLight & SkyLightMask) && !MATERIAL_SHADINGMODEL_UNLIT;
-	BRANCH
-	if(EnableSkyLight)
-	{
-		float SkyVisibility = 1;
-		float GeometryTerm = 1;
-		float3 SkyLightingNormal = WorldNormal;
+#if ENABLE_SKY_LIGHT
+
+	float SkyVisibility = 1;
+	float GeometryTerm = 1;
+	float3 SkyLightingNormal = WorldNormal;
 	
-		#if HQ_TEXTURE_LIGHTMAP || CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING || PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
-			BRANCH
-			if (ShouldSkyLightApplyPrecomputedBentNormalShadowing())
-			{
-				float3 NormalizedBentNormal = SkyLightingNormal;
-
-				#if PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
-			
-					float3 SkyBentNormal = GetVolumetricLightmapSkyBentNormal(SkyOcclusionUV3D);
-					SkyVisibility = length(SkyBentNormal);
-					NormalizedBentNormal = SkyBentNormal / max(SkyVisibility, .0001f);
-
-				#elif HQ_TEXTURE_LIGHTMAP
-
-					// Bent normal from precomputed texture
-					float4 WorldSkyBentNormalAndOcclusion = GetSkyBentNormalAndOcclusion(LightmapVTPageTableResult, LightmapUV * float2(1, 2), LightmapDataIndex, MaterialParameters.SvPosition.xy);
-					// Renormalize as vector was quantized and compressed
-					NormalizedBentNormal = normalize(WorldSkyBentNormalAndOcclusion.xyz);
-					SkyVisibility = WorldSkyBentNormalAndOcclusion.w;
-
-				#elif CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING
-
-					// Bent normal from the indirect lighting cache - one value for the whole object
-					if (View.IndirectLightingCacheShowFlag > 0.0f)
-					{
-						NormalizedBentNormal = IndirectLightingCache.PointSkyBentNormal.xyz;
-						SkyVisibility = IndirectLightingCache.PointSkyBentNormal.w;
-					}
-
-				#endif
-
-				#if (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE) && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL)
-					// NonDirectional lighting can't depend on the normal
-					SkyLightingNormal = NormalizedBentNormal;
-				#else
-				
-					// Weight toward the material normal to increase directionality
-					float BentNormalWeightFactor = 1 - (1 - SkyVisibility) * (1 - SkyVisibility);
-
-					// We are lerping between the inputs of two lighting scenarios based on occlusion
-					// In the mostly unoccluded case, evaluate sky lighting with the material normal, because it has higher detail
-					// In the mostly occluded case, evaluate sky lighting with the bent normal, because it is a better representation of the incoming lighting
-					// Then treat the lighting evaluated along the bent normal as an area light, so we must apply the lambert term
-					SkyLightingNormal = lerp(NormalizedBentNormal, WorldNormal, BentNormalWeightFactor);
-
-					float DotProductFactor = lerp(saturate(dot(NormalizedBentNormal, WorldNormal)), 1, BentNormalWeightFactor);
-					// Account for darkening due to the geometry term
-					GeometryTerm = DotProductFactor;
-				#endif
-			}
-		#endif
-			
-		// Compute the preconvolved incoming lighting with the bent normal direction
-		float3 DiffuseLookup = GetEffectiveSkySHDiffuse(SkyLightingNormal) * ResolvedView.SkyLightColor.rgb;
-
-		// Apply AO to the sky diffuse
-		OutDiffuseLighting += DiffuseLookup * (SkyVisibility * GeometryTerm);
-
-		#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-		if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	#if HQ_TEXTURE_LIGHTMAP || CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING || PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
+		BRANCH
+		if (ShouldSkyLightApplyPrecomputedBentNormalShadowing())
 		{
-			float3 BackfaceDiffuseLookup = GetEffectiveSkySHDiffuse(-WorldNormal) * ResolvedView.SkyLightColor.rgb;
-			OutSubsurfaceLighting += BackfaceDiffuseLookup * SkyVisibility;
+			float3 NormalizedBentNormal = SkyLightingNormal;
+
+			#if PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
+			
+				float3 SkyBentNormal = GetVolumetricLightmapSkyBentNormal(SkyOcclusionUV3D);
+				SkyVisibility = length(SkyBentNormal);
+				NormalizedBentNormal = SkyBentNormal / max(SkyVisibility, .0001f);
+
+			#elif HQ_TEXTURE_LIGHTMAP
+
+				// Bent normal from precomputed texture
+				float4 WorldSkyBentNormalAndOcclusion = GetSkyBentNormalAndOcclusion(LightmapVTPageTableResult, LightmapUV * float2(1, 2), LightmapDataIndex, MaterialParameters.SvPosition.xy);
+				// Renormalize as vector was quantized and compressed
+				NormalizedBentNormal = normalize(WorldSkyBentNormalAndOcclusion.xyz);
+				SkyVisibility = WorldSkyBentNormalAndOcclusion.w;
+
+			#elif CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING
+
+				// Bent normal from the indirect lighting cache - one value for the whole object
+				if (View.IndirectLightingCacheShowFlag > 0.0f)
+				{
+					NormalizedBentNormal = IndirectLightingCache.PointSkyBentNormal.xyz;
+					SkyVisibility = IndirectLightingCache.PointSkyBentNormal.w;
+				}
+
+			#endif
+
+			#if (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE) && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL)
+				// NonDirectional lighting can't depend on the normal
+				SkyLightingNormal = NormalizedBentNormal;
+			#else
+				
+				// Weight toward the material normal to increase directionality
+				float BentNormalWeightFactor = 1 - (1 - SkyVisibility) * (1 - SkyVisibility);
+
+				// We are lerping between the inputs of two lighting scenarios based on occlusion
+				// In the mostly unoccluded case, evaluate sky lighting with the material normal, because it has higher detail
+				// In the mostly occluded case, evaluate sky lighting with the bent normal, because it is a better representation of the incoming lighting
+				// Then treat the lighting evaluated along the bent normal as an area light, so we must apply the lambert term
+				SkyLightingNormal = lerp(NormalizedBentNormal, WorldNormal, BentNormalWeightFactor);
+
+				float DotProductFactor = lerp(saturate(dot(NormalizedBentNormal, WorldNormal)), 1, BentNormalWeightFactor);
+				// Account for darkening due to the geometry term
+				GeometryTerm = DotProductFactor;
+			#endif
 		}
-		#endif
+	#endif
+			
+	// Compute the preconvolved incoming lighting with the bent normal direction
+	float3 DiffuseLookup = GetEffectiveSkySHDiffuse(SkyLightingNormal) * ResolvedView.SkyLightColor.rgb;
+
+	// Apply AO to the sky diffuse
+	OutDiffuseLighting += DiffuseLookup * (SkyVisibility * GeometryTerm);
+
+	#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
+	if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	{
+		float3 BackfaceDiffuseLookup = GetEffectiveSkySHDiffuse(-WorldNormal) * ResolvedView.SkyLightColor.rgb;
+		OutSubsurfaceLighting += BackfaceDiffuseLookup * SkyVisibility;
 	}
+	#endif
+
+#endif
 }
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
