@@ -568,6 +568,22 @@ bool UGameplayTagsManager::ShouldImportTagsFromINI() const
 	return MutableDefault->ImportTagsFromConfig;
 }
 
+void UGameplayTagsManager::GetRestrictedConfigsFromIni(const FString& IniFilePath, TArray<FRestrictedConfigInfo>& OutRestrictedConfigs) const
+{
+	TArray<FString> IniConfigStrings;
+	if (GConfig->GetArray(TEXT("/Script/GameplayTags.GameplayTagsSettings"), TEXT("RestrictedConfigFiles"), IniConfigStrings, IniFilePath))
+	{
+		for (const FString& ConfigString : IniConfigStrings)
+		{
+			FRestrictedConfigInfo Config;
+			if (FRestrictedConfigInfo::StaticStruct()->ImportText(*ConfigString, &Config, nullptr, PPF_None, nullptr, FRestrictedConfigInfo::StaticStruct()->GetName()))
+			{
+				OutRestrictedConfigs.Add(Config);
+			}
+		}
+	}
+}
+
 void UGameplayTagsManager::GetRestrictedTagConfigFiles(TArray<FString>& RestrictedConfigFiles) const
 {
 	UGameplayTagsSettings* MutableDefault = GetMutableDefault<UGameplayTagsSettings>();
@@ -579,6 +595,16 @@ void UGameplayTagsManager::GetRestrictedTagConfigFiles(TArray<FString>& Restrict
 			RestrictedConfigFiles.Add(FString::Printf(TEXT("%sTags/%s"), *FPaths::SourceConfigDir(), *Config.RestrictedConfigName));
 		}
 	}
+
+	for (const FString& IniFilePath : ExtraTagIniList)
+	{
+		TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
+		GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
+		for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
+		{
+			RestrictedConfigFiles.Add(FString::Printf(TEXT("%s/%s"), *FPaths::GetPath(IniFilePath), *Config.RestrictedConfigName));
+		}
+	}
 }
 
 void UGameplayTagsManager::GetRestrictedTagSources(TArray<const FGameplayTagSource*>& Sources) const
@@ -588,6 +614,20 @@ void UGameplayTagsManager::GetRestrictedTagSources(TArray<const FGameplayTagSour
 	if (MutableDefault)
 	{
 		for (const FRestrictedConfigInfo& Config : MutableDefault->RestrictedConfigFiles)
+		{
+			const FGameplayTagSource* Source = FindTagSource(*Config.RestrictedConfigName);
+			if (Source)
+			{
+				Sources.Add(Source);
+			}
+		}
+	}
+
+	for (const FString& IniFilePath : ExtraTagIniList)
+	{
+		TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
+		GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
+		for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
 		{
 			const FGameplayTagSource* Source = FindTagSource(*Config.RestrictedConfigName);
 			if (Source)
