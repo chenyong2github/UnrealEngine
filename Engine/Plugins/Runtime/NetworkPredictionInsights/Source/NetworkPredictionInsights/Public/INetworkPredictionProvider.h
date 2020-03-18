@@ -509,7 +509,7 @@ struct FSimulationData
 			: Store{Allocator, Allocator, Allocator}
 		{ }
 
-		FUserStateStore Store[ENP_UserState::MAX];
+		FUserStateStore Store[(int32)ENP_UserState::MAX];
 	};
 
 	struct FRestrictedUserStateView
