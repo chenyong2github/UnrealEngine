@@ -2357,13 +2357,16 @@ void FNiagaraStackGraphUtilities::RebuildEmitterNodes(UNiagaraSystem& System)
 			TArray<FNiagaraStackGraphUtilities::FStackNodeGroup> StackNodeGroups;
 			FNiagaraStackGraphUtilities::GetStackNodeGroups(*OutputNodes[i], StackNodeGroups);
 
-			FNiagaraStackGraphUtilities::FStackNodeGroup EmitterGroup;
-			EmitterGroup.StartNodes.Add(EmitterNode);
-			EmitterGroup.EndNode = EmitterNode;
+			if (StackNodeGroups.Num() >= 2)
+			{
+				FNiagaraStackGraphUtilities::FStackNodeGroup EmitterGroup;
+				EmitterGroup.StartNodes.Add(EmitterNode);
+				EmitterGroup.EndNode = EmitterNode;
 
-			FNiagaraStackGraphUtilities::FStackNodeGroup& OutputGroup = StackNodeGroups[StackNodeGroups.Num() - 1];
-			FNiagaraStackGraphUtilities::FStackNodeGroup& OutputGroupPrevious = StackNodeGroups[StackNodeGroups.Num() - 2];
-			FNiagaraStackGraphUtilities::ConnectStackNodeGroup(EmitterGroup, OutputGroupPrevious, OutputGroup);
+				FNiagaraStackGraphUtilities::FStackNodeGroup& OutputGroup = StackNodeGroups[StackNodeGroups.Num() - 1];
+				FNiagaraStackGraphUtilities::FStackNodeGroup& OutputGroupPrevious = StackNodeGroups[StackNodeGroups.Num() - 2];
+				FNiagaraStackGraphUtilities::ConnectStackNodeGroup(EmitterGroup, OutputGroupPrevious, OutputGroup);
+			}
 		}
 	}
 
