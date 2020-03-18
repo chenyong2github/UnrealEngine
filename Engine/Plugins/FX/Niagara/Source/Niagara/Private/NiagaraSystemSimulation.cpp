@@ -1107,7 +1107,6 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 			while (SystemInstIndex < Context.Instances.Num())
 			{
 				FNiagaraSystemInstance* Inst = Context.Instances[SystemInstIndex];
-				checkSlow(!Inst->IsComplete());
 				Inst->FinalizeTick_GameThread();
 
 				// If the system completes during finalize it will be removed from the instances, therefore we do not need to increment our system index;
