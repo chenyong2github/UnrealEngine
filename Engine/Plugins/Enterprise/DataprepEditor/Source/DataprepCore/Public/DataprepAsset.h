@@ -225,6 +225,10 @@ protected:
 #endif
 
 private:
+	/** Handler for when an Dataprep asset from version prior to 4.25 is loaded */
+	void OnOldAssetLoaded(UObject* Asset);
+
+private:
 	/** DEPRECATED: Pointer to the entry node of the pipeline blueprint previously used to process input data */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Using directly ActionAssets property instead of Blueprint to manage actions."))
 	UEdGraphNode* StartNode_DEPRECATED;
