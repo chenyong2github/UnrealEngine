@@ -873,6 +873,7 @@ namespace RuntimeVirtualTexture
 		FRHIUnorderedAccessView* OutputUAV2,
 		FBox2D const& DestBox2,
 		FTransform const& UVToWorld,
+		FBox const& WorldBounds,
 		FBox2D const& UVRange,
 		uint8 vLevel,
 		uint8 MaxLevel,
@@ -915,6 +916,11 @@ namespace RuntimeVirtualTexture
 		const float ZOffset = -NearPlane;
 		ViewInitOptions.ProjectionMatrix = FReversedZOrthoMatrix(OrthoWidth, OrthoHeight, ZScale, ZOffset);
 
+		const FVector MipLevelParameter = FVector4((float)vLevel, 0.f, OrthoWidth / (float)TextureSize.X, OrthoHeight / (float)TextureSize.Y);
+		
+		const float HeightRange = FMath::Max(WorldBounds.Max.Z - WorldBounds.Min.Z, 1.f);
+		const FVector2D WorldHeightPackParameter = FVector2D(1.f / HeightRange, -WorldBounds.Min.Z / HeightRange);
+
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
 		ViewInitOptions.OverlayColor = FLinearColor::White;
 
@@ -926,7 +932,9 @@ namespace RuntimeVirtualTexture
 		View->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 		View->SetupUniformBufferParameters(SceneContext, nullptr, 0, *View->CachedViewUniformShaderParameters);
 		View->CachedViewUniformShaderParameters->WorldToVirtualTexture = WorldToUVRotate.ToMatrixNoScale();
-		View->CachedViewUniformShaderParameters->VirtualTextureParams = FVector4((float)vLevel, DebugType == ERuntimeVirtualTextureDebugType::Debug ? 1.f : 0.f, OrthoWidth / (float)TextureSize.X, OrthoHeight / (float)TextureSize.Y);
+		View->CachedViewUniformShaderParameters->RuntimeVirtualTextureMipLevel = MipLevelParameter;
+		View->CachedViewUniformShaderParameters->RuntimeVirtualTexturePackHeight = WorldHeightPackParameter;
+		View->CachedViewUniformShaderParameters->RuntimeVirtualTextureDebugParams = FVector4(DebugType == ERuntimeVirtualTextureDebugType::Debug ? 1.f : 0.f, 0.f, 0.f, 0.f);
 		View->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *(const_cast<FScene*>(Scene)), *View);
 		Scene->UniformBuffers.VirtualTextureViewUniformBuffer.UpdateUniformBufferImmediate(*View->CachedViewUniformShaderParameters);
@@ -1093,6 +1101,7 @@ namespace RuntimeVirtualTexture
 				InDesc.Targets[1].Texture, InDesc.Targets[1].UAV, PageDesc.DestBox[1],
 				InDesc.Targets[2].Texture, InDesc.Targets[2].UAV, PageDesc.DestBox[2],
 				InDesc.UVToWorld,
+				InDesc.WorldBounds,
 				PageDesc.UVRange,
 				PageDesc.vLevel,
 				InDesc.MaxLevel,

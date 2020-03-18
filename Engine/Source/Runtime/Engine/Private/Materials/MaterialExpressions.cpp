@@ -2301,6 +2301,20 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		}
 	}
 
+	// Compile the runtime virtual texture uniforms
+	int32 Uniforms[ERuntimeVirtualTextureShaderUniform_Count];
+	for (int32 UniformIndex = 0; UniformIndex < ERuntimeVirtualTextureShaderUniform_Count; ++UniformIndex)
+	{
+		if (bIsParameter)
+		{
+			Uniforms[UniformIndex] = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], UniformIndex);
+		}
+		else
+		{
+			Uniforms[UniformIndex] = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], UniformIndex);
+		}
+	}
+
 	// Compile the coordinates
 	// We use the virtual texture world space transform by default
 	int32 CoordinateIndex = INDEX_NONE;
@@ -2326,20 +2340,9 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			WorldPositionIndex = Compiler->WorldPosition(WPT_Default);
 		}
 		
-		int32 P0, P1, P2;
-		if (bIsParameter)
-		{
-			P0 = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], 0);
-			P1 = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], 1);
-			P2 = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], 2);
-		}
-		else
-		{
-			P0 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 0);
-			P1 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 1);
-			P2 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 2);
-		}
-
+		const int32 P0 = Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform0];
+		const int32 P1 = Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1];
+		const int32 P2 = Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2];
 		CoordinateIndex = Compiler->VirtualTextureWorldToUV(WorldPositionIndex, P0, P1, P2);
 	}
 	
@@ -2376,7 +2379,8 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	int32 UnpackCodeIndex = INDEX_NONE;
 	if (UnpackType != EVirtualTextureUnpackType::None)
 	{
-		UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex[0], SampleCodeIndex[1], SampleCodeIndex[2], UnpackType);
+		int32 P0 = Uniforms[ERuntimeVirtualTextureShaderUniform_WorldHeightUnpack];
+		UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex[0], SampleCodeIndex[1], SampleCodeIndex[2], P0, UnpackType);
 	}
 	else
 	{
