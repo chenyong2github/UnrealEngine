@@ -2103,7 +2103,7 @@ void FDatasmithC4DImporter::ImportAnimations(TSharedPtr<IDatasmithActorElement> 
 				TransformFrames,
 				InitialValues);
 
-			if (Interpolation != melange::CINTERPOLATION_LINEAR && KeyIndex < Curve->GetKeyCount() - 1)
+			if (KeyIndex < Curve->GetKeyCount() - 1)
 			{
 				//"Bake" the animation by generating a key for each frame between this Key and the next one
 				melange::CKey* NextKey = Curve->GetKey(KeyIndex+1);
