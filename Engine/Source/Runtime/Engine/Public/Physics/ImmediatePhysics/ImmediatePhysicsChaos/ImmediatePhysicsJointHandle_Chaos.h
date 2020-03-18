@@ -27,8 +27,6 @@ namespace ImmediatePhysics_Chaos
 		const Chaos::TVector<FActorHandle*, 2>& GetActorHandles();
 		const Chaos::TVector<const FActorHandle*, 2>& GetActorHandles() const;
 
-		void UpdateLevels();
-
 		void SetSoftLinearSettings(bool bLinearSoft, FReal LinearStiffness, FReal LinearDamping);
 
 	private:

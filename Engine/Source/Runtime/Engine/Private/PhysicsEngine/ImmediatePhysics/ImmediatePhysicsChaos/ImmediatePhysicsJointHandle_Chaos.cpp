@@ -218,11 +218,6 @@ namespace ImmediatePhysics_Chaos
 		return reinterpret_cast<const Chaos::TVector<const FActorHandle*, 2>&>(ActorHandles);
 	}
 
-	void FJointHandle::UpdateLevels()
-	{
-		ConstraintHandle->SetParticleLevels({ ActorHandles[0]->GetLevel(), ActorHandles[1]->GetLevel() });
-	}
-
 	void FJointHandle::SetSoftLinearSettings(bool bLinearSoft, FReal LinearStiffness, FReal LinearDamping)
 	{
 		using namespace Chaos;

@@ -16,12 +16,15 @@ namespace Chaos
 		enum class EDebugDrawJointFeature
 		{
 			None = 0,
-			CoMConnector = 1 << 0,
-			ActorConnector = 1 << 1,
-			Stretch = 1 << 2,
-			Axes = 1 << 3,
-			Level = 1 << 4,
-			Index = 1 << 5,
+			CoMConnector = 1 << 0,		// 1
+			ActorConnector = 1 << 1,	// 2
+			Stretch = 1 << 2,			// 4
+			Axes = 1 << 3,				// 8
+			Level = 1 << 4,				// 16
+			Index = 1 << 5,				// 32
+			Color = 1 << 6,				// 64
+			Batch = 1 << 7,				// 128
+			Island = 1 << 8,			// 256
 
 			Default = ActorConnector | Stretch
 		};

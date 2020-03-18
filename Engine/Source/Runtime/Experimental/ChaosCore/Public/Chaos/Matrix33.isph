@@ -81,6 +81,17 @@ inline uniform FVector Multiply(const uniform FMatrix33& L, const uniform FVecto
 	return SetVector(Result.V[0], Result.V[1], Result.V[2]);
 }
 
+inline varying FVector Multiply(const uniform FMatrix33& L, const varying FVector& R)
+{
+	const uniform FVector4 L0 = SetVector4(L.M[0], L.M[1], L.M[2], L.M[3]);
+	const uniform FVector4 L1 = SetVector4(L.M[4], L.M[5], L.M[6], L.M[7]);
+	const uniform FVector4 L2 = SetVector4(L.M[8], L.M[9], L.M[10], L.M[11]);
+
+	const varying FVector4 Result = L0 * SetVector4(R.V[0]) + L1 * SetVector4(R.V[1]) + L2 * SetVector4(R.V[2]);
+
+	return SetVector(Result.V[0], Result.V[1], Result.V[2]);
+}
+
 inline uniform FMatrix33 AddAB(const uniform FMatrix33& L, const uniform FMatrix33& R)
 {
 	const uniform FVector4 L0 = SetVector4(L.M[0], L.M[1], L.M[2], L.M[3]);

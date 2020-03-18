@@ -29,6 +29,11 @@ namespace Chaos
 		{
 		}
 
+		FReal GetCullDistance() const 
+		{
+			return CullDistance;
+		}
+
 		void SetCullDustance(const FReal InCullDistance)
 		{
 			CullDistance = InCullDistance;
