@@ -22,7 +22,8 @@ public class Hotfix : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"PatchCheck"
+				"PatchCheck",
+				"InstallBundleManager",
 			}
 			);
 

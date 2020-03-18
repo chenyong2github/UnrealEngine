@@ -9,6 +9,7 @@
 #include "Templates/Casts.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "PatchCheck.h"
+#include "InstallBundleTypes.h"
 #include "UpdateManager.generated.h"
 
 class Error;
@@ -252,6 +253,7 @@ protected:
 	 * Patch check
 	 */
 	virtual void StartPatchCheck();
+	void InstallBundlePatchCheckComplete(EInstallBundleManagerPatchCheckResult PatchResult);
 	void PatchCheckComplete(EPatchCheckResult PatchResult);
 
 	/**
@@ -338,7 +340,7 @@ protected:
 	int32 WorstNumFilesPendingLoadViewed;
 
 	/** Result of the last patch check */	
-	EPatchCheckResult LastPatchCheckResult;
+	EInstallBundleManagerPatchCheckResult LastPatchCheckResult;
 
 	/** Result of the last hotfix */
 	UPROPERTY()
