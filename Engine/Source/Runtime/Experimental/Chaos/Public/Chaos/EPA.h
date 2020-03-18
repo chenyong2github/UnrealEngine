@@ -346,6 +346,10 @@ void ComputeEPAResults(const TVec3<T>* VertsA, const TVec3<T>* VertsB, const TEP
 	if (OutPenetration < 1e-4)	//if closest point is on the origin (edge case when surface is right on the origin)
 	{
 		OutDir = Entry.PlaneNormal;	//just fall back on plane normal
+		if (Entry.Distance < 0)
+		{
+			OutPenetration = -OutPenetration; // We are a bit outside of the shape so penetration is negative
+		}
 	}
 	else
 	{
@@ -354,6 +358,7 @@ void ComputeEPAResults(const TVec3<T>* VertsA, const TVec3<T>* VertsB, const TEP
 		{
 			//The origin is on the outside, so the direction is reversed
 			OutDir = -OutDir;
+			OutPenetration = -OutPenetration; // We are a bit outside of the shape so penetration is negative
 		}
 	}
 
@@ -419,7 +424,8 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 	for(int32 Idx = 0; Idx < Entries.Num(); ++Idx)
 	{
 		//ensure(Entries[Idx].Distance > -Eps);
-		if(Entries[Idx].IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
+		// Entries[Idx].Distance <= 0.0f is true if the origin is a bit out of the polytope (we need to support this case for robustness)
+		if(Entries[Idx].Distance <= 0.0f || Entries[Idx].IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
 		{
 			Queue.push(FEPAEntryWrapper {&Entries, Idx});
 		}
@@ -524,11 +530,14 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 					break;
 				}
 
-				//We should never need to check the lower bound, but in the case of bad precision this can happen
-				//We simply ignore this direction as it likely has even more bad precision
-				if (bValidTri && NewEntry.Distance >= LowerBound && NewEntry.Distance <= UpperBound)
+				// Due to numerical inaccuracies NewEntry.Distance >= LowerBound may be false!
+				// However these Entries still have good normals, and needs to be included to prevent
+				// this exiting with very deep penetration results
+				
+				if (bValidTri && NewEntry.Distance <= UpperBound)
 				{
-					if (NewEntry.IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
+					// NewEntry.Distance <= 0.0f is if the origin is a bit out of the polytope
+					if (NewEntry.Distance <= 0.0f || NewEntry.IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
 					{
 						Queue.push(FEPAEntryWrapper{ &Entries, NewIdx });
 					}
