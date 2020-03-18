@@ -282,7 +282,7 @@ bool FStaticParameterSet::Equivalent(const FStaticParameterSet& ReferenceSet) co
 		Temp1.SortForEquivalent();
 		Temp2.SortForEquivalent();
 		bool bResult = (Temp1 == Temp2);
-		check(!bResult || (*this) == ReferenceSet); // if this never fires, then we really didn't need to sort did we?
+		ensure(!bResult || (*this) == ReferenceSet); // if this never fires, then we really didn't need to sort did we?
 		return bResult;
 	}
 	return false;
