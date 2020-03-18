@@ -95,7 +95,7 @@ FText FWindowsErrorReport::DiagnoseReport() const
 
 #if WITH_CRASHREPORTER
 	// Should check if there are local PDBs before doing anything
-	auto CrashDebugHelper = CrashHelperModule ? CrashHelperModule->Get() : nullptr;
+	auto CrashDebugHelper = CrashHelperModule ? CrashHelperModule->GetNew() : nullptr;
 	if (!CrashDebugHelper)
 	{
 		// Not localized: should never be seen
