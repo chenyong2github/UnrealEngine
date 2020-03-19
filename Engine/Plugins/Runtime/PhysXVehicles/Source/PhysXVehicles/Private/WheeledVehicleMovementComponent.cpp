@@ -2005,32 +2005,32 @@ void UWheeledVehicleMovementComponent::CalculateAvoidanceVelocity(float DeltaTim
 
 void UWheeledVehicleMovementComponent::SetAvoidanceGroup(int32 GroupFlags)
 {
-	AvoidanceGroup.SetFlagsDirectly(GroupFlags);
+	SetAvoidanceGroupMask(GroupFlags);
 }
 
 void UWheeledVehicleMovementComponent::SetAvoidanceGroupMask(const FNavAvoidanceMask& GroupMask)
 {
-	AvoidanceGroup.SetFlagsDirectly(GroupMask.Packed);
+	SetAvoidanceGroupMask(GroupMask.Packed);
 }
 
 void UWheeledVehicleMovementComponent::SetGroupsToAvoid(int32 GroupFlags)
 {
-	GroupsToAvoid.SetFlagsDirectly(GroupFlags);
+	SetGroupsToAvoidMask(GroupFlags);
 }
 
 void UWheeledVehicleMovementComponent::SetGroupsToAvoidMask(const FNavAvoidanceMask& GroupMask)
 {
-	GroupsToAvoid.SetFlagsDirectly(GroupMask.Packed);
+	SetGroupsToAvoidMask(GroupMask.Packed);
 }
 
 void UWheeledVehicleMovementComponent::SetGroupsToIgnore(int32 GroupFlags)
 {
-	GroupsToIgnore.SetFlagsDirectly(GroupFlags);
+	SetGroupsToIgnoreMask(GroupFlags);
 }
 
 void UWheeledVehicleMovementComponent::SetGroupsToIgnoreMask(const FNavAvoidanceMask& GroupMask)
 {
-	GroupsToIgnore.SetFlagsDirectly(GroupMask.Packed);
+	SetGroupsToIgnoreMask(GroupMask.Packed);
 }
 
 void UWheeledVehicleMovementComponent::SetAvoidanceEnabled(bool bEnable)
@@ -2099,14 +2099,29 @@ FVector UWheeledVehicleMovementComponent::GetVelocityForRVOConsideration()
 	return Velocity2D;
 }
 
+void UWheeledVehicleMovementComponent::SetAvoidanceGroupMask(int32 GroupFlags)
+{
+	AvoidanceGroup.SetFlagsDirectly(GroupFlags);
+}
+
 int32 UWheeledVehicleMovementComponent::GetAvoidanceGroupMask()
 {
 	return AvoidanceGroup.Packed;
 }
 
+void UWheeledVehicleMovementComponent::SetGroupsToAvoidMask(int32 GroupFlags)
+{
+	GroupsToAvoid.SetFlagsDirectly(GroupFlags);
+}
+
 int32 UWheeledVehicleMovementComponent::GetGroupsToAvoidMask()
 {
 	return GroupsToAvoid.Packed;
+}
+
+void UWheeledVehicleMovementComponent::SetGroupsToIgnoreMask(int32 GroupFlags)
+{
+	GroupsToIgnore.SetFlagsDirectly(GroupFlags);
 }
 
 int32 UWheeledVehicleMovementComponent::GetGroupsToIgnoreMask()
