@@ -455,10 +455,6 @@ void UDatasmithFileProducer::PreventNameCollision()
 		{
 			if( UObject* Object = Assets[Index].Get() )
 			{
-				// Ensure object's package is transient and not public
-				Object->GetOutermost()->ClearFlags( RF_Public );
-				Object->GetOutermost()->SetFlags( RF_Transient );
-
 				PathsToDelete.Add( Object->GetOutermost()->GetPathName() );
 
 				if( Cast<UStaticMesh>( Object ) != nullptr )

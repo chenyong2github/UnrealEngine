@@ -110,29 +110,6 @@ private:
 	FString Text;
 };
 
-namespace DataprepEditorUtil
-{
-	void DeleteActor(AActor* Actor, UWorld* World)
-	{
-		if (Actor == nullptr || World != Actor->GetWorld())
-		{
-			return;
-		}
-
-		TArray<AActor*> Children;
-		Actor->GetAttachedActors(Children);
-
-		for (AActor* ChildActor : Children)
-		{
-			DeleteActor(ChildActor, World);
-		}
-
-		World->DestroyActor(Actor, false, true);
-	}
-
-	void DeleteTemporaryPackage( const FString& PathToDelete );
-}
-
 FDataprepEditor::FDataprepEditor()
 	: bWorldBuilt(false)
 	, bIsFirstRun(false)
@@ -574,7 +551,7 @@ void FDataprepEditor::ResetBuildWorld()
 	bWorldBuilt = false;
 	CleanPreviewWorld();
 	UpdatePreviewPanels();
-	DataprepEditorUtil::DeleteTemporaryPackage( GetTransientContentFolder() );
+	FDataprepCoreUtils::DeleteTemporaryFolders( GetTransientContentFolder() );
 }
 
 void FDataprepEditor::CleanPreviewWorld()
@@ -1263,93 +1240,6 @@ void FDataprepEditor::SetPreviewedObjects(const TArrayView<UDataprepParameteriza
 void FDataprepEditor::ClearPreviewedObjects()
 {
 	SetPreviewedObjects( MakeArrayView<UDataprepParameterizableObject*>( nullptr, 0 ) );
-}
-
-void DataprepEditorUtil::DeleteTemporaryPackage( const FString& PathToDelete )
-{
-	// See ContentBrowserUtils::LoadAssetsIfNeeded
-	// See ContentBrowserUtils::DeleteFolders
-
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-	// Form a filter from the path to delete
-	FARFilter Filter;
-	Filter.bRecursivePaths = true;
-	new (Filter.PackagePaths) FName( *PathToDelete );
-
-	// Query for a list of assets in the path to delete
-	TArray<FAssetData> AssetDataList;
-	AssetRegistryModule.Get().GetAssets(Filter, AssetDataList);
-
-	// Delete all registered objects which are in  memory and under this path
-	{
-		TArray<UObject*> AssetsToDelete;
-		AssetsToDelete.Reserve(AssetDataList.Num());
-		for(const FAssetData& AssetData : AssetDataList)
-		{
-			FSoftObjectPath ObjectPath( AssetData.ObjectPath.ToString() );
-
-			if(UObject* Object = ObjectPath.ResolveObject())
-			{
-				AssetsToDelete.Add(Object);
-			}
-		}
-
-		if(AssetsToDelete.Num() > 0)
-		{
-			ObjectTools::DeleteObjects(AssetsToDelete, false);
-		}
-	}
-
-	// Delete all assets not in memory but on disk
-	{
-		struct FEmptyFolderVisitor : public IPlatformFile::FDirectoryVisitor
-		{
-			bool bIsEmpty;
-
-			FEmptyFolderVisitor()
-				: bIsEmpty(true)
-			{
-			}
-
-			virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory) override
-			{
-				if (!bIsDirectory)
-				{
-					bIsEmpty = false;
-					return false; // abort searching
-				}
-
-				return true; // continue searching
-			}
-		};
-
-		FString PathToDeleteOnDisk;
-		if (FPackageName::TryConvertLongPackageNameToFilename(PathToDelete, PathToDeleteOnDisk))
-		{
-			if(IFileManager::Get().DirectoryExists( *PathToDeleteOnDisk ))
-			{
-				// Look for files on disk in case the folder contains things not tracked by the asset registry
-				FEmptyFolderVisitor EmptyFolderVisitor;
-				IFileManager::Get().IterateDirectoryRecursively(*PathToDeleteOnDisk, EmptyFolderVisitor);
-
-				if (EmptyFolderVisitor.bIsEmpty && IFileManager::Get().DeleteDirectory(*PathToDeleteOnDisk, false, true))
-				{
-					AssetRegistryModule.Get().RemovePath(PathToDelete);
-				}
-			}
-			// Request deletion anyway
-			else
-			{
-				AssetRegistryModule.Get().RemovePath(PathToDelete);
-			}
-		}
-	}
-
-	// Check that no asset remains
-	AssetDataList.Reset();
-	AssetRegistryModule.Get().GetAssets(Filter, AssetDataList);
-	//ensure(AssetDataList.Num() == 0);
 }
 
 #undef LOCTEXT_NAMESPACE
