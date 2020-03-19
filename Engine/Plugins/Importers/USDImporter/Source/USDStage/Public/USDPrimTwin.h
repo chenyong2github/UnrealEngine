@@ -16,7 +16,7 @@
 #include "USDPrimTwin.generated.h"
 
 /** The Unreal equivalent (twin) of a USD prim */
-UCLASS()
+UCLASS( Transient )
 class UUsdPrimTwin final : public UObject
 {
 	GENERATED_BODY()
