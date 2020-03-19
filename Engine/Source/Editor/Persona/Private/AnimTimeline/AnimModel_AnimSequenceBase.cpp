@@ -412,15 +412,15 @@ void FAnimModel_AnimSequenceBase::HandleUndoRedo()
 
 void FAnimModel_AnimSequenceBase::UpdateRange()
 {
-	FAnimatedRange OldTotalRange = TotalRange;
+	FAnimatedRange OldPlaybackRange = PlaybackRange;
 
-	// update range
-	TotalRange = FAnimatedRange(0.0, (double)AnimSequenceBase->GetPlayLength());
+	// update playback range
+	PlaybackRange = FAnimatedRange(0.0, (double)AnimSequenceBase->GetPlayLength());
 
-	if (OldTotalRange != TotalRange)
+	if (OldPlaybackRange != PlaybackRange)
 	{
-		// Update view range if total range changed
-		ViewRange = TotalRange;
+		// Update view/range if playback range changed
+		SetViewRange(PlaybackRange);
 	}
 }
 
