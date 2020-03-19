@@ -15,9 +15,9 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/Public/TimerManager.h"
 
-CSV_DEFINE_CATEGORY(NetworkProfiler, true);
-
 #if USE_NETWORK_PROFILER
+
+CSV_DEFINE_CATEGORY(NetworkProfiler, true);
 
 #define SCOPE_LOCK_REF(X) FScopeLock ScopeLock(&X);
 
