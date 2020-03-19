@@ -27,6 +27,8 @@ public:
 	virtual void ResetToBase() override;
 
 	virtual bool IsExpandedByDefault() const override;
+	virtual bool SupportsIcon() const { return true; }
+	virtual const FSlateBrush* GetIconBrush() const override;
 
 protected:
 	virtual void FinalizeInternal() override;

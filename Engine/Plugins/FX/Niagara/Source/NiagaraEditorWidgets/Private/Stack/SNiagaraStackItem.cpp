@@ -34,7 +34,7 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 		.VAlign(VAlign_Center)
 		[
 			SNew(SImage)
-			.Image(Item->GetIconBrush())
+			.Image_UObject(Item, &UNiagaraStackItem::GetIconBrush)
 		];
 	}
 
