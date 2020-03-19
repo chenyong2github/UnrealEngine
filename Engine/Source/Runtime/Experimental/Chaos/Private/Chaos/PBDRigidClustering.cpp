@@ -1677,8 +1677,7 @@ namespace Chaos
 		}
 
 		TopLevelClusterParents.Remove(ClusteredParticle);
-		TArray<TPBDRigidParticleHandle<T, d>*>& ParentToChildren = MChildren[ClusteredParticle];
-		ParentToChildren.Remove(ClusteredParticle);
+		GetChildrenMap().Remove(ClusteredParticle);
 		ClusteredParticle->ClusterIds() = ClusterId();
 		ClusteredParticle->ClusterGroupIndex() = 0;
 		MActiveRemovalIndices.Remove(ClusteredParticle);
