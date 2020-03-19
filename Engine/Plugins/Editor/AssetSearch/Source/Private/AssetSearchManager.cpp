@@ -42,11 +42,11 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 #define LOCTEXT_NAMESPACE "FAssetSearchManager"
 
-static bool bDisableUniversalSearch = false;
+static bool bForceEnableSearch = false;
 FAutoConsoleVariableRef CVarDisableUniversalSearch(
-	TEXT("Search.Disable"),
-	bDisableUniversalSearch,
-	TEXT("Disable Universal Search (only works on startup)")
+	TEXT("Search.ForceEnable"),
+	bForceEnableSearch,
+	TEXT("Enable universal search")
 );
 
 static bool bIndexUnindexAssetsOnLoad = false;
@@ -54,27 +54,6 @@ FAutoConsoleVariableRef CVarIndexUnindexAssetsOnLoad(
 	TEXT("Search.IndexUnindexAssetsOnLoad"),
 	bIndexUnindexAssetsOnLoad,
 	TEXT("Index Unindex Assets On Load")
-);
-
-static int32 PendingDownloadsMax = 100;
-FAutoConsoleVariableRef CVarPendingDownloadsMax(
-	TEXT("Search.PendingDownloadsMax"),
-	PendingDownloadsMax,
-	TEXT("")
-);
-
-static int32 GameThread_DownloadProcessLimit = 30;
-FAutoConsoleVariableRef CVarGameThread_DownloadProcessLimit(
-	TEXT("Search.GameThread_DownloadProcessLimit"),
-	GameThread_DownloadProcessLimit,
-	TEXT("")
-);
-
-static int32 GameThread_AssetScanLimit = 1000;
-FAutoConsoleVariableRef CVarGameThread_AssetScanLimit(
-	TEXT("Search.GameThread_AssetScanLimit"),
-	GameThread_AssetScanLimit,
-	TEXT("")
 );
 
 class FUnloadPackageScope
@@ -171,7 +150,9 @@ private:
 FAssetSearchManager::FAssetSearchManager()
 {
 	PendingDatabaseUpdates = 0;
-	PendingDownloads = 0;
+	IsAssetUpToDateCount = 0;
+	ActiveDownloads = 0;
+	DownloadQueueCount = 0;
 	TotalSearchRecords = 0;
 	LastRecordCountUpdateSeconds = 0;
 
@@ -187,6 +168,8 @@ FAssetSearchManager::~FAssetSearchManager()
 		DatabaseThread->WaitForCompletion();
 	}
 
+	StopScanningAssets();
+
 	FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
 	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
 	UObject::FAssetRegistryTag::OnGetExtraObjectTags.RemoveAll(this);
@@ -196,13 +179,6 @@ FAssetSearchManager::~FAssetSearchManager()
 
 void FAssetSearchManager::Start()
 {
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAssetSearchManager::Tick_GameThread), 0);
-}
-
-void FAssetSearchManager::InternalStart()
-{
-	bStarted = true;
-
 	RegisterAssetIndexer(UDataAsset::StaticClass(), MakeUnique<FDataAssetIndexer>());
 	RegisterAssetIndexer(UDataTable::StaticClass(), MakeUnique<FDataTableIndexer>());
 	RegisterAssetIndexer(UBlueprint::StaticClass(), MakeUnique<FBlueprintIndexer>());
@@ -214,6 +190,43 @@ void FAssetSearchManager::InternalStart()
 	FCoreUObjectDelegates::OnObjectSaved.AddRaw(this, &FAssetSearchManager::OnObjectSaved);
 	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FAssetSearchManager::OnAssetLoaded);
 
+	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAssetSearchManager::Tick_GameThread), 0);
+
+	RunThread = true;
+	DatabaseThread = FRunnableThread::Create(this, TEXT("UniversalSearch"), 0, TPri_BelowNormal);
+}
+
+void FAssetSearchManager::UpdateScanningAssets()
+{
+	bool bTargetState = GetDefault<USearchUserSettings>()->bEnableSearch;
+
+	if (GIsBuildMachine || FApp::IsUnattended())
+	{
+		bTargetState = false;
+	}
+
+	if (bForceEnableSearch)
+	{
+		bTargetState = true;
+	}
+
+	if (bTargetState != bStarted)
+	{
+		bStarted = bTargetState;
+
+		if (bTargetState)
+		{
+			StartScanningAssets();
+		}
+		else
+		{
+			StopScanningAssets();
+		}
+	}
+}
+
+void FAssetSearchManager::StartScanningAssets()
+{
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	AssetRegistry.OnAssetAdded().AddRaw(this, &FAssetSearchManager::OnAssetAdded);
 	AssetRegistry.OnAssetRemoved().AddRaw(this, &FAssetSearchManager::OnAssetRemoved);
@@ -226,9 +239,19 @@ void FAssetSearchManager::InternalStart()
 	{
 		OnAssetAdded(Data);
 	}
+}
 
-	RunThread = true;
-	DatabaseThread = FRunnableThread::Create(this, TEXT("UniversalSearch"), 0, TPri_BelowNormal);
+void FAssetSearchManager::StopScanningAssets()
+{
+	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
+	{
+		AssetRegistryModule->Get().OnAssetAdded().RemoveAll(this);
+		AssetRegistryModule->Get().OnAssetRemoved().AddRaw(this, &FAssetSearchManager::OnAssetRemoved);
+		AssetRegistryModule->Get().OnFilesLoaded().AddRaw(this, &FAssetSearchManager::OnAssetScanFinished);
+	}
+
+	ProcessAssetQueue.Reset();
+	FailedDDCRequests.Reset();
 }
 
 void FAssetSearchManager::TryConnectToDatabase()
@@ -261,8 +284,8 @@ FSearchStats FAssetSearchManager::GetStats() const
 {
 	FSearchStats Stats;
 	Stats.Scanning = ProcessAssetQueue.Num();
-	Stats.Downloading = PendingDownloads;
-	Stats.PendingDatabaseUpdates = PendingDatabaseUpdates;
+	Stats.Processing = IsAssetUpToDateCount + DownloadQueueCount;
+	Stats.Updating = PendingDatabaseUpdates;
 	Stats.TotalRecords = TotalSearchRecords;
 	Stats.AssetsMissingIndex = FailedDDCRequests.Num();
 	return Stats;
@@ -423,21 +446,34 @@ bool FAssetSearchManager::IsAssetIndexable(UObject* InAsset)
 
 bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAssetData)
 {
-	return AsyncGetDerivedDataKey(InAssetData, [this, InAssetData](FString InDDCKey) {
+	const bool bSuccess = AsyncGetDerivedDataKey(InAssetData, [this, InAssetData](FString InDDCKey) {
 		FeedOperations.Enqueue([this, InAssetData, InDDCKey]() {
 			FScopeLock ScopedLock(&SearchDatabaseCS);
 			if (!SearchDatabase.IsAssetUpToDate(InAssetData, InDDCKey))
 			{
-				PendingDownloads++;
-
-				FAssetDDCRequest DDCRequest;
-				DDCRequest.AssetData = InAssetData;
-				DDCRequest.DDCKey_IndexDataHash = InDDCKey;
-				DDCRequest.DDCHandle = GetDerivedDataCacheRef().GetAsynchronous(*InDDCKey, InAssetData.ObjectPath.ToString());
-				ProcessDDCQueue.Enqueue(DDCRequest);
+				AsyncRequestDownlaod(InAssetData, InDDCKey);
 			}
+
+			IsAssetUpToDateCount--;
 		});
 	});
+
+	if (bSuccess)
+	{
+		IsAssetUpToDateCount++;
+	}
+
+	return bSuccess;
+}
+
+void FAssetSearchManager::AsyncRequestDownlaod(const FAssetData& InAssetData, const FString& InDDCKey)
+{
+	DownloadQueueCount++;
+
+	FAssetDDCRequest DDCRequest;
+	DDCRequest.AssetData = InAssetData;
+	DDCRequest.DDCKey = InDDCKey;
+	DownloadQueue.Enqueue(DDCRequest);
 }
 
 bool FAssetSearchManager::AsyncGetDerivedDataKey(const FAssetData& InAssetData, TFunction<void(FString)> DDCKeyCallback)
@@ -590,36 +626,17 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 {
 	check(IsInGameThread());
 
-	if (bDisableUniversalSearch || !GetDefault<USearchUserSettings>()->bEnableSearch)
-	{
-		return true;
-	}
-
-	if (!bStarted)
-	{
-		InternalStart();
-	}
+	UpdateScanningAssets();
 
 	TryConnectToDatabase();
-
-	//if (0)
-	//{
-	//	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
-	//	TArray<FAssetData> TempAssetData;
-	//	AssetRegistry.GetAllAssets(TempAssetData, true);
-
-	//	for (const FAssetData& Data : TempAssetData)
-	//	{
-	//		OnAssetAdded(Data);
-	//	}
-	//}
 
 	ProcessGameThreadTasks();
 
 	const USearchUserSettings* UserSettings = GetDefault<USearchUserSettings>();
+	const FSearchPerformance& PerformanceLimits = bForceEnableSearch ? UserSettings->DefaultOptions : UserSettings->GetPerformanceOptions();
 
-	int32 ScanLimit = GameThread_AssetScanLimit;
-	while (ProcessAssetQueue.Num() > 0 && ScanLimit > 0 && PendingDownloads < PendingDownloadsMax)
+	int32 ScanLimit = PerformanceLimits.AssetScanRate;
+	while (ProcessAssetQueue.Num() > 0 && ScanLimit > 0)
 	{
 		FAssetOperation Operation = ProcessAssetQueue.Pop(false);
 		FAssetData Asset = Operation.Asset;
@@ -635,16 +652,25 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 		}
 		else
 		{
-			if (TryLoadIndexForAsset(Asset))
-			{
-				ScanLimit -= 10;
-			}
+			TryLoadIndexForAsset(Asset);
 		}
 
 		ScanLimit--;
 	}
 
-	int32 DownloadProcessLimit = GameThread_DownloadProcessLimit;
+	while (!DownloadQueue.IsEmpty() && ActiveDownloads < PerformanceLimits.ParallelDownloads)
+	{
+		FAssetDDCRequest DDCRequest;
+		bool bSuccess = DownloadQueue.Dequeue(DDCRequest);
+		check(bSuccess);
+
+		DownloadQueueCount--;
+
+		DDCRequest.DDCHandle = GetDerivedDataCacheRef().GetAsynchronous(*DDCRequest.DDCKey, DDCRequest.AssetData.ObjectPath.ToString());
+		ProcessDDCQueue.Enqueue(DDCRequest);
+	}
+
+	int32 DownloadProcessLimit = PerformanceLimits.DownloadProcessRate;
 	while (!ProcessDDCQueue.IsEmpty() && DownloadProcessLimit > 0)
 	{
 		const FAssetDDCRequest* PendingRequest = ProcessDDCQueue.Peek();
@@ -656,15 +682,15 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 			bool bGetSuccessful = GetDerivedDataCacheRef().GetAsynchronousResults(PendingRequest->DDCHandle, OutContent, &bDataWasBuilt);
 			if (bGetSuccessful)
 			{
-				LoadDDCContentIntoDatabase(PendingRequest->AssetData, OutContent, PendingRequest->DDCKey_IndexDataHash);
+				LoadDDCContentIntoDatabase(PendingRequest->AssetData, OutContent, PendingRequest->DDCKey);
 			}
-			else
+			else if (UserSettings->bShowAdvancedData)
 			{
 				FailedDDCRequests.Add(*PendingRequest);
 			}
 
 			ProcessDDCQueue.Pop();
-			PendingDownloads--;
+			ActiveDownloads--;
 			DownloadProcessLimit--;
 			continue;
 		}
