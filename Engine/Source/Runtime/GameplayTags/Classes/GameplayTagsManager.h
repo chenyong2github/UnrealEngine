@@ -693,6 +693,9 @@ private:
 	/** Constructs the net indices for each tag */
 	void ConstructNetIndex();
 
+	/** Reads the restricted config info from the specified ini */
+	void GetRestrictedConfigsFromIni(const FString& IniFilePath, TArray<struct FRestrictedConfigInfo>& OutRestrictedConfigs) const;
+
 	/** Marks all of the nodes that descend from CurNode as having an ancestor node that has a source conflict. */
 	void MarkChildrenOfNodeConflict(TSharedPtr<FGameplayTagNode> CurNode);
 
