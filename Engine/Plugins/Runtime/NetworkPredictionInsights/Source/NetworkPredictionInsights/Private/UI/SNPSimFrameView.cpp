@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.h"
 #include "Framework/Commands/UIAction.h"
 #include "Textures/SlateIcon.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "NetworkPredictionInsights"
 
