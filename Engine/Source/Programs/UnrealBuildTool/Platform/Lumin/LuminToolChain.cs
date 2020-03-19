@@ -13,12 +13,12 @@ namespace UnrealBuildTool
 {
 	class LuminToolChain : AndroidToolChain
 	{
-		static private Dictionary<string, string[]> AllArchNames = new Dictionary<string, string[]> {
-			{ "-armv7", new string[] { "armv7", "armeabi-v7a", "android-kk-egl-t124-a32" } },
-			{ "-arm64", new string[] { "arm64", "arm64-v8a", "android-L-egl-t132-a64" } },
-		};
+		//static private Dictionary<string, string[]> AllArchNames = new Dictionary<string, string[]> {
+		//	{ "-armv7", new string[] { "armv7", "armeabi-v7a", "android-kk-egl-t124-a32" } },
+		//	{ "-arm64", new string[] { "arm64", "arm64-v8a", "android-L-egl-t132-a64" } },
+		//};
 
-		static private string[] LibrariesToSkip = new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "vrapi", "ovrkernel", "systemutils", "openglloader", "gpg", };
+		//static private string[] LibrariesToSkip = new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "vrapi", "ovrkernel", "systemutils", "openglloader", "gpg", };
 
 		private List<string> AdditionalGPUArches;
 
@@ -91,7 +91,7 @@ namespace UnrealBuildTool
 				throw new BuildException("Could not parse clang version from mabu spec '{0}'", MabuSpec);
 			}
 
-			string ClangVersion = string.Format("{0}.{1}", SpecMatch.Groups[1].Value, SpecMatch.Groups[2].Value);
+			//string ClangVersion = string.Format("{0}.{1}", SpecMatch.Groups[1].Value, SpecMatch.Groups[2].Value);
 
 			SetClangVersion(int.Parse(SpecMatch.Groups[1].Value), int.Parse(SpecMatch.Groups[2].Value), 0);
 

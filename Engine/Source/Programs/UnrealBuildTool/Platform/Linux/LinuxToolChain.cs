@@ -1278,7 +1278,7 @@ namespace UnrealBuildTool
 			string Arguments = GetCLArguments_Global(CompileEnvironment);
 			string PCHArguments = "";
 
-			var BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
+			//var BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
 
 			if (!bHasPrintedBuildDetails)
 			{
