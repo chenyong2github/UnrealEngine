@@ -8,7 +8,7 @@
 #include "Interfaces/IPluginManager.h"
 
 FPluginStyleSet::FPluginStyleSet(const FName& InPluginName, const FName& InStyleSetName)
-	: FSlateStyleSet(InStyleSetName == NAME_None ? InPluginName : FName(InPluginName.ToString() + TEXT(".") + InStyleSetName.ToString()))
+	: FSlateStyleSet(InStyleSetName == NAME_None ? InPluginName : FName(*(InPluginName.ToString() + TEXT(".") + InStyleSetName.ToString())))
 {
 	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(InPluginName.ToString());
 	check(Plugin.IsValid());
