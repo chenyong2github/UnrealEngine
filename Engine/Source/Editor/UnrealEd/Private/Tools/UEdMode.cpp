@@ -120,7 +120,7 @@ public:
 		//
 		// Run a snap query by casting ray into the world.
 		// If a hit is found, we look up what triangle was hit, and then test its vertices and edges
-		// 
+		//
 
 		// cast ray into world
 		FVector RayStart = CachedViewState.Position;
@@ -153,7 +153,7 @@ public:
 
 					// physics collision data is created from StaticMesh RenderData
 					// so use HitResult.FaceIndex to extract triangle from the LOD0 mesh
-					// (note: this may be incorrect if there are multiple sections...in that case I think we have to 
+					// (note: this may be incorrect if there are multiple sections...in that case I think we have to
 					//  first find section whose accumulated index range would contain .FaceIndexX)
 					UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
 					FStaticMeshLODResources& LOD = StaticMesh->RenderData->LODResources[0];
@@ -457,7 +457,7 @@ bool UEdMode::MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewpo
 
 	if (ToolsContext->InputRouter->HasActiveMouseCapture())
 	{
-		// This state occurs if InputBehavior did not release capture on mouse release. 
+		// This state occurs if InputBehavior did not release capture on mouse release.
 		// UMultiClickSequenceInputBehavior does this, eg for multi-click draw-polygon sequences.
 		// It's not ideal though and maybe would be better done via multiple captures + hover...?
 		ToolsContext->InputRouter->PostInputEvent(InputState);
@@ -509,7 +509,7 @@ bool UEdMode::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewpo
 
 bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
-	
+
 	bool bHandled = false;
 
 	// escape key cancels current tool
@@ -621,7 +621,7 @@ bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewpor
 		{
 			// not supported yet
 		}
-		else if (Key.IsFloatAxis() || Key.IsVectorAxis())
+		else if (Key.IsAnalog())
 		{
 			// not supported yet
 		}
@@ -1020,12 +1020,12 @@ class FEditorModeTools* UEdMode::GetModeManager() const
 
 bool UEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	return false; 
+	return false;
 }
 
 bool UEdMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	return true; 
+	return true;
 }
 
 AActor* UEdMode::GetFirstSelectedActorInstance() const
