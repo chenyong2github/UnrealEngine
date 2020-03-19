@@ -435,7 +435,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual void Stop();
 
-	/** Cues request to stop sound after the provided delay, stopping immediately if delay is zero or negative */
+	/** Cues request to stop sound after the provided delay (In Seconds), stopping immediately if delay is zero or negative */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	void StopDelayed(float DelayTime);
 
