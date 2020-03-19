@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "NetworkPredictionInsightsActionManager.h"
-//#include "Insights/InsightsManager.h"
+
+class SNPWindow;
 
 /**
  * This class manages the Networking Profiler state and settings.
