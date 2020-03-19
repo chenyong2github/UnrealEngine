@@ -1818,12 +1818,11 @@ void FNiagaraEmitterInstance::BuildConstantBufferTable(
 	const FNiagaraScriptExecutionContext& ExecContext,
 	FScriptExecutionConstantBufferTable& ConstantBufferTable) const
 {
+	const auto ScriptLiterals = ExecContext.GetScriptLiterals();
 	const auto& ExternalParameterData = ExecContext.Parameters.GetParameterDataArray();
 	uint8* ExternalParameterBuffer = const_cast<uint8*>(ExternalParameterData.GetData());
 
 	const uint32 ExternalParameterSize = ExecContext.Parameters.GetExternalParameterSize();
-	const uint32 LiteralConstantOffset = (ExecContext.HasInterpolationParameters ? 2 : 1) * ExternalParameterSize;
-	const uint32 LiteralConstantSize = ExternalParameterData.Num() - LiteralConstantOffset;
 
 	const uint32 TableCount = 5 * (ExecContext.HasInterpolationParameters ? 2 : 1) + 1;
 	ConstantBufferTable.Reset(TableCount);
@@ -1843,5 +1842,5 @@ void FNiagaraEmitterInstance::BuildConstantBufferTable(
 		ConstantBufferTable.AddRawBuffer(ExternalParameterBuffer + ExternalParameterSize, ExternalParameterSize);
 	}
 
-	ConstantBufferTable.AddRawBuffer(ExternalParameterBuffer + LiteralConstantOffset, LiteralConstantSize);
+	ConstantBufferTable.AddRawBuffer(ScriptLiterals.GetData(), ScriptLiterals.Num());
 }
