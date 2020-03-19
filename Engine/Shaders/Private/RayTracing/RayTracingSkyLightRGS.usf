@@ -3,7 +3,6 @@
 #include "../Common.ush"
 #include "../SceneTextureParameters.ush"
 #include "../SceneTextureParameters.ush"
-#include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingSkyLightEvaluation.ush"
 #include "RayTracingDeferredShadingCommon.ush"
 
