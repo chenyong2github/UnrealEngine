@@ -597,7 +597,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 		
 		if (bSavePackage)
 		{
-			PackagesRequiringResave++;
+			PackagesConsideredForResave++;
 
 			// Only rebuild static meshes on load for the to be saved package.
 			extern ENGINE_API FName GStaticMeshPackageNameToRebuild;
@@ -770,6 +770,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 					ESaveFlags SaveFlags = bKeepPackageGUIDOnSave ? SAVE_KeepGUID : SAVE_None;
 					if( SavePackageHelper(Package, Filename, RF_Standalone, GWarn, nullptr, SaveFlags) )
 					{
+						PackagesResaved++;
 						if (Verbosity == VERY_VERBOSE)
 						{
 							UE_LOG(LogContentCommandlet, Display, TEXT("Correctly saved:  [%s]."), *Filename );
@@ -1024,7 +1025,8 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	}
 
 	int32 GCIndex = 0;
-	PackagesRequiringResave = 0;
+	PackagesConsideredForResave = 0;
+	PackagesResaved = 0;
 
 	// allow for an option to restart at a given package name (in case it dies during a run, etc)
 	bool bCanProcessPackage = true;
@@ -1081,7 +1083,7 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		}
 
 		// Break out if we've resaved enough packages
-		if( MaxPackagesToResave > -1 && PackagesRequiringResave >= MaxPackagesToResave )
+		if( MaxPackagesToResave > -1 && PackagesResaved >= MaxPackagesToResave )
 		{
 			UE_LOG(LogContentCommandlet, Warning, TEXT( "Attempting to resave more than MaxPackagesToResave; exiting" ) );
 			break;
@@ -1146,8 +1148,9 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		FPlatformMisc::SetEnvironmentVar(TEXT("uebp_UATMutexNoWait"), TEXT("0"));		
 	}
 
-	UE_LOG(LogContentCommandlet, Display, TEXT( "[REPORT] %d/%d packages required resaving" ), PackagesRequiringResave, PackageNames.Num() );
-	
+	UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %d/%d packages were considered for resaving"), PackagesConsideredForResave, PackageNames.Num());
+	UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %d/%d packages were resaved"), PackagesResaved, PackagesConsideredForResave);
+
 
 	return 0;
 }
