@@ -6,6 +6,7 @@
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
 #include "Misc/Attribute.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 struct FCreateWidgetForActionData;
 class FNiagaraScriptToolkitParameterPanelViewModel;
