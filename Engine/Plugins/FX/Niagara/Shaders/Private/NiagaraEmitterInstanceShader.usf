@@ -58,7 +58,7 @@ bool NiagaraAll(bool4 b) { return b.x && b.y && b.z && b.w; }
 	static uint GEmitterTickCounter;
 	static uint GSimStart;
 	static uint GRandomSeedOffset = 0;
-	static bool GStageUsesAlive = false;
+	static bool GStageWritesAlive = false;
 	
 	const static uint GSpawnPhase = 0;
 	const static uint GUpdatePhase = 1;
