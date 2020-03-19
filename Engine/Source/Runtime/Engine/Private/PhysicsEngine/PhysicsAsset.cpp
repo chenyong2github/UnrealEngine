@@ -24,10 +24,10 @@
 FSolverIterations::FSolverIterations()
 	: SolverIterations(3)
 	, JointIterations(2)
-	, CollisionIterations(1)
-	, SolverPushOutIterations(1)
-	, JointPushOutIterations(1)
-	, CollisionPushOutIterations(2)
+	, CollisionIterations(2)
+	, SolverPushOutIterations(0)
+	, JointPushOutIterations(0)
+	, CollisionPushOutIterations(0)
 {
 }
 
