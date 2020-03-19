@@ -6777,7 +6777,7 @@ void UCookOnTheFlyServer::SaveShaderCodeLibrary(FString const& Name)
 			{
 				FString TargetPlatformName = TargetPlatform->PlatformName();
 				TArray<FString>& PlatformSCLCSVPaths = OutSCLCSVPaths.FindOrAdd(FName(TargetPlatformName));
-				bool bSaved = FShaderCodeLibrary::SaveShaderCodeMaster(ShaderCodeDir, MetaDataPath, ShaderFormats, PlatformSCLCSVPaths);
+				bool bSaved = FShaderCodeLibrary::SaveShaderCode(ShaderCodeDir, MetaDataPath, ShaderFormats, PlatformSCLCSVPaths);
 				
 				if(!bSaved)
 				{
