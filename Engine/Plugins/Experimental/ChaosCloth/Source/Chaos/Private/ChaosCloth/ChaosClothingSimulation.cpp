@@ -299,15 +299,10 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 
 	AddConstraints(ChaosClothSimConfig, PhysMesh, InSimDataIndex);
 
-	// Set damping
-	if (ClothSharedSimConfig && ClothSharedSimConfig->bUseDampingOverride)
-	{
-		Evolution->SetDamping(InSimDataIndex, ClothSharedSimConfig->Damping);
-	}
-	else
-	{
-		Evolution->SetDamping(InSimDataIndex, ChaosClothSimConfig->DampingCoefficient);
-	}
+	// Set this cloth damping, collision thickness, friction
+	Evolution->SetDamping(ChaosClothSimConfig->DampingCoefficient, InSimDataIndex);
+	Evolution->SetCollisionThickness(ChaosClothSimConfig->CollisionThickness, InSimDataIndex);
+	Evolution->SetCoefficientOfFriction(ChaosClothSimConfig->FrictionCoefficient, InSimDataIndex);
 
 	// Add velocity field
 	auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
@@ -380,7 +375,6 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		// Now set all the common parameters on the simulation
 		Evolution->SetIterations(ClothSharedSimConfig->IterationCount);
 		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
-		Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
 	}
 }
 
@@ -1662,15 +1656,10 @@ void ClothingSimulation::RefreshClothConfig()
 				LinearDeltaRatios[SimDataIndex] = FVector::OneVector - ChaosClothConfig->LinearVelocityScale.BoundToBox(FVector::ZeroVector, FVector::OneVector);
 				AngularDeltaRatios[SimDataIndex] = 1.f - FMath::Clamp(ChaosClothConfig->AngularVelocityScale, 0.f, 1.f);
 
-				// Set damping
-				if (ClothSharedSimConfig && ClothSharedSimConfig->bUseDampingOverride)
-				{
-					Evolution->SetDamping(SimDataIndex, ClothSharedSimConfig->Damping);
-				}
-				else
-				{
-					Evolution->SetDamping(SimDataIndex, ChaosClothConfig->DampingCoefficient);
-				}
+				// Set per cloth damping, collision thickness, and friction
+				Evolution->SetDamping(ChaosClothConfig->DampingCoefficient, SimDataIndex);
+				Evolution->SetCollisionThickness(ChaosClothConfig->CollisionThickness, SimDataIndex);
+				Evolution->SetCoefficientOfFriction(ChaosClothConfig->FrictionCoefficient, SimDataIndex);
 
 				// Add Velocity field
 				auto GetVelocity = [this](const TVector<float, 3>&)->TVector<float, 3>
