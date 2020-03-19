@@ -3,9 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-
-class FStringBuilderBase;
 
 /*-----------------------------------------------------------------------------
 	Parsing functions.

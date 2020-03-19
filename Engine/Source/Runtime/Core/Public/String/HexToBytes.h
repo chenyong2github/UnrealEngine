@@ -3,9 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-
-class FStringView;
-class FAnsiStringView;
+#include "Containers/StringFwd.h"
 
 namespace UE
 {

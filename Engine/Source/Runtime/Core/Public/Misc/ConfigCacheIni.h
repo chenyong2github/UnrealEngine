@@ -10,6 +10,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "Containers/Map.h"
+#include "Containers/StringFwd.h"
 #include "Math/Color.h"
 #include "UObject/NameTypes.h"
 #include "Logging/LogMacros.h"
@@ -19,8 +20,6 @@
 #include "Math/Rotator.h"
 #include "Misc/Paths.h"
 #include "Serialization/StructuredArchive.h"
-
-class FStringBuilderBase;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConfig, Log, All);
 
