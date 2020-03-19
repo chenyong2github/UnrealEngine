@@ -125,4 +125,9 @@ protected:
 	void SaveEditorStateAndSetForTool();
 	void RestoreEditorState();
 
+	// any actions in this array are executed at the start of the next ::Tick()
+	TArray<TUniqueFunction<void()>> NextTickExecuteActions;
+	// push the input action onto the NextTickExecuteActions list. Use this to defer execution to a "simpler" time, 
+	// eg so we are not kicking off a complicated static mesh rebuild process inside a slate button handler
+	void ScheduleExecuteAction(TUniqueFunction<void()> Action);
 };
