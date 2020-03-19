@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -25,14 +25,19 @@ namespace UnrealBuildTool
 		public readonly FileReference ZipFile;
 
 		/// <summary>
-		/// Path to the extracted framework directory.
+		/// Path to the framework on disk.
 		/// </summary>
-		public readonly DirectoryReference OutputDirectory;
+		public readonly DirectoryReference FrameworkDirectory;
 
 		/// <summary>
 		/// 
 		/// </summary>
 		public readonly string CopyBundledAssets;
+
+		/// <summary>
+		/// Copy the framework to the target's Framework directory
+		/// </summary>
+		public readonly bool bCopyFramework = false;
 
 		/// <summary>
 		/// File created after the framework has been extracted. Used to add dependencies into the action graph.
@@ -57,12 +62,29 @@ namespace UnrealBuildTool
 		/// <param name="ZipFile">Path to the zip file for this framework</param>
 		/// <param name="OutputDirectory">Path for the extracted zip file</param>
 		/// <param name="CopyBundledAssets"></param>
-		public UEBuildFramework(string Name, FileReference ZipFile, DirectoryReference OutputDirectory, string CopyBundledAssets)
+		/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
+		public UEBuildFramework(string Name, FileReference ZipFile, DirectoryReference OutputDirectory, string CopyBundledAssets, bool bCopyFramework)
 		{
 			this.Name = Name;
 			this.ZipFile = ZipFile;
-			this.OutputDirectory = OutputDirectory;
+			this.FrameworkDirectory = OutputDirectory;
 			this.CopyBundledAssets = CopyBundledAssets;
+			this.bCopyFramework = bCopyFramework;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Name">The framework name</param>
+		/// <param name="FrameworkDirectory">Path for the framework on disk</param>
+		/// <param name="CopyBundledAssets"></param>
+		/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
+		public UEBuildFramework(String Name, DirectoryReference FrameworkDirectory, string CopyBundledAssets, bool bCopyFramework)
+		{
+			this.Name = Name;
+			this.FrameworkDirectory = FrameworkDirectory;
+			this.CopyBundledAssets = CopyBundledAssets;
+			this.bCopyFramework = bCopyFramework;
 		}
 	}
 }
