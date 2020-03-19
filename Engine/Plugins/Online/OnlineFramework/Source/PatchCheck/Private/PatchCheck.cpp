@@ -50,8 +50,23 @@ FPatchCheck::~FPatchCheck()
 
 FPatchCheck::FPatchCheck()
 {
-	GConfig->GetBool(TEXT("PatchCheck"), TEXT("bCheckPlatformOSSForUpdate"), bCheckPlatformOSSForUpdate, GEngineIni);
-	GConfig->GetBool(TEXT("PatchCheck"), TEXT("bCheckOSSForUpdate"), bCheckOSSForUpdate, GEngineIni);
+	if (!GConfig->GetBool(TEXT("PatchCheck"), TEXT("bCheckPlatformOSSForUpdate"), bCheckPlatformOSSForUpdate, GEngineIni))
+	{
+		/** For backwards compatibility with UUpdateManager */
+		if (GConfig->GetBool(TEXT("/Script/Hotfix.UpdateManager"), TEXT("bCheckPlatformOSSForUpdate"), bCheckPlatformOSSForUpdate, GEngineIni))
+		{
+			ensureMsgf(false, TEXT("UpdateManager::bCheckPlatformOSSForUpdate is deprecated, Set FPatchCheck::bCheckPlatformOSSForUpdate using section [PatchCheck] instead."));
+		}
+	}
+
+	if (!GConfig->GetBool(TEXT("PatchCheck"), TEXT("bCheckOSSForUpdate"), bCheckOSSForUpdate, GEngineIni))
+	{
+		/** For backwards compatibility with UUpdateManager */
+		if (GConfig->GetBool(TEXT("/Script/Hotfix.UpdateManager"), TEXT("bCheckOSSForUpdate"), bCheckOSSForUpdate, GEngineIni))
+		{
+			ensureMsgf(false, TEXT("UpdateManager::bCheckOSSForUpdate is deprecated, Set FPatchCheck::bCheckOSSForUpdate using section [PatchCheck] instead."));
+		}
+	}
 }
 
 void FPatchCheck::StartPatchCheck()
@@ -73,6 +88,16 @@ void FPatchCheck::StartPatchCheck()
 	{
 		UE_LOG(LogPatchCheck, Warning, TEXT("Patch check disabled for both Platform and Default OSS"));
 	}
+}
+
+void FPatchCheck::AddEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag, FEnvironmentWantsPatchCheck Delegate)
+{
+	BackCompatEnvironmentWantsPatchCheckDelegates.Emplace(Tag, MoveTemp(Delegate));
+}
+
+void FPatchCheck::RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag)
+{
+	BackCompatEnvironmentWantsPatchCheckDelegates.Remove(Tag);
 }
 
 void FPatchCheck::StartPlatformOSSPatchCheck()
@@ -141,6 +166,17 @@ void FPatchCheck::StartOSSPatchCheck()
 
 bool FPatchCheck::EnvironmentWantsPatchCheck() const
 {
+	if (BackCompatEnvironmentWantsPatchCheckDelegates.Num() > 0)
+	{
+		for (const TPair<FName, FEnvironmentWantsPatchCheck>& Pair : BackCompatEnvironmentWantsPatchCheckDelegates)
+		{
+			if (Pair.Value.IsBound() && Pair.Value.Execute())
+			{
+				return true;
+			}
+		}
+	}
+
 	return false;
 }
 
