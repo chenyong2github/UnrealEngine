@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/StringFwd.h"
 #include "CoreTypes.h"
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
@@ -11,9 +12,6 @@
 #include "Templates/RemoveCV.h"
 #include "Templates/UnrealTemplate.h"
 #include "Traits/IsContiguousContainer.h"
-
-class FAnsiStringView;
-class FStringView;
 
 namespace StringViewPrivate
 {

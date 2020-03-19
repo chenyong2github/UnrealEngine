@@ -4,9 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
 #include "Templates/Function.h"
-
-class FStringView;
 
 namespace UE
 {
