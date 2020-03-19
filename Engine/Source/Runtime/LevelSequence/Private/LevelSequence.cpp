@@ -288,6 +288,18 @@ void ULevelSequence::PostLoad()
 #endif
 }
 
+bool ULevelSequence::Rename(const TCHAR* NewName, UObject* NewOuter, ERenameFlags Flags)
+{
+	bool bRetVal = Super::Rename(NewName, NewOuter, Flags);
+
+	if (DirectorBlueprint)
+	{
+		DirectorBlueprint->Rename(*DirectorBlueprint->GetName(), this, Flags);
+	}
+
+	return bRetVal;
+}
+
 void ULevelSequence::ConvertPersistentBindingsToDefault(UObject* FixupContext)
 {
 	if (PossessedObjects_DEPRECATED.Num() == 0)
