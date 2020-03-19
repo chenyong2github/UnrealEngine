@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Types/SlateEnums.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 struct FNiagaraScriptVariableAndViewInfo;
 struct FSlateFontInfo;
