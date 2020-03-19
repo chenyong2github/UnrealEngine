@@ -51,6 +51,10 @@
 		{
 			"Name": "Takes",
 			"Enabled": true
+		},
+		{
+			"Name": "Composure",
+			"Enabled": true
 		}
 	]
 }
