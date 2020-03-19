@@ -2954,33 +2954,6 @@ public:
 
 		return bRenderSkyLight;
 	}
-	virtual uint32 ShouldRenderSkylightMask() const
-	{
-		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !SkyLight->bCastRayTracedShadow;
-		uint32 Mask = 0;
-		{
-			// Both stationary and movable skylights are applied in base pass for translucent materials
-			if(bRenderSkyLight && (ReadOnlyCVARCache.bEnableStationarySkylight || !SkyLight->bWantsStaticShadowing))
-			{
-				Mask |= 2;
-
-			}
-		}
-		{
-			// For opaque materials, stationary skylight is applied in base pass but movable skylight
-			// is applied in a separate render pass (bWantssStaticShadowing means stationary skylight)
-			if(bRenderSkyLight && ((ReadOnlyCVARCache.bEnableStationarySkylight && SkyLight->bWantsStaticShadowing)
-					|| (!SkyLight->bWantsStaticShadowing
-						&& (IsAnyForwardShadingEnabled(GetShaderPlatform()) || IsMobilePlatform(GetShaderPlatform())))))
-			{
-				Mask |= 1;
-			}
-		}
-
-		return Mask;
-	}
-
-
 
 	virtual TArray<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const override
 	{
