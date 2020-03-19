@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "NiagaraScriptVariable.h"
 #include "NiagaraGraph.h"
 #include "NiagaraActions.h"
@@ -579,7 +579,7 @@ TArray<TWeakObjectPtr<UNiagaraGraph>> FNiagaraSystemToolkitParameterPanelViewMod
 /// Script Toolkit Parameter Panel View Model								///
 ///////////////////////////////////////////////////////////////////////////////
 
-FNiagaraScriptToolkitParameterPanelViewModel::FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraStandaloneScriptViewModel> InScriptViewModel)
+FNiagaraScriptToolkitParameterPanelViewModel::FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraScriptViewModel> InScriptViewModel)
 {
 	ScriptViewModel = InScriptViewModel;
 	VariableObjectSelection = ScriptViewModel->GetVariableSelection();
