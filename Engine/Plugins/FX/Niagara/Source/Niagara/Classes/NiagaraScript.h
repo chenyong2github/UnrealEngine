@@ -278,11 +278,11 @@ public:
 	UPROPERTY()
 	int32 NumUserPtrs;
 
-#if WITH_EDITORONLY_DATA
 	/** All the data for using external constants in the script, laid out in the order they are expected in the uniform table.*/
 	UPROPERTY()
 	FNiagaraParameters Parameters;
 
+#if WITH_EDITORONLY_DATA
 	/** All the data for using external constants in the script, laid out in the order they are expected in the uniform table.*/
 	UPROPERTY()
 	FNiagaraParameters InternalParameters;
