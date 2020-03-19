@@ -11,6 +11,7 @@
 #include "HAL/FileManagerGeneric.h"
 #include "DOM/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
+#include "OculusHMDModule.h"
 
 #define LOCTEXT_NAMESPACE "OculusPlatformToolWidget"
 
@@ -33,7 +34,7 @@ SOculusPlatformToolWidget::SOculusPlatformToolWidget()
 
 	LoadConfigSettings();
 
-	ovrp_SendEvent2("oculus_platform_tool", "show_window", "integration");
+	FOculusHMDModule::GetPluginWrapper().SendEvent2("oculus_platform_tool", "show_window", "integration");
 }
 
 void SOculusPlatformToolWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -862,7 +863,7 @@ FReply SOculusPlatformToolWidget::OnStartPlatformUpload()
 	FString launchArgs;
 
 	UpdateLogText("");
-	ovrp_SendEvent2("oculus_platform_tool", "upload", "integration");
+	FOculusHMDModule::GetPluginWrapper().SendEvent2("oculus_platform_tool", "upload", "integration");
 	if (ConstructArguments(launchArgs))
 	{
 		UpdateLogText(LogText + LOCTEXT("StartUpload", "Starting Platform Tool Upload Process . . .\n").ToString());
@@ -1348,7 +1349,7 @@ FPlatformDownloadTask::FPlatformDownloadTask(FUpdateLogTextDel textDel, FEvent* 
 	UpdateLogText = textDel;
 	SaveCompleteEvent = saveEvent;
 
-	ovrp_SendEvent2("oculus_platform_tool", "provision_util", "integration");
+	FOculusHMDModule::GetPluginWrapper().SendEvent2("oculus_platform_tool", "provision_util", "integration");
 }
 
 void FPlatformDownloadTask::DoWork()

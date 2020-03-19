@@ -2,7 +2,7 @@
 #pragma once
 
 #include "UObject/ObjectMacros.h"
-#include "OVR_Plugin_MixedReality.h"
+#include "OculusPluginWrapper.h"
 #include "GameFramework/Actor.h"
 
 #include "OculusMR_BoundaryActor.generated.h"
