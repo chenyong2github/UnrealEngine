@@ -1104,6 +1104,8 @@ void UNiagaraStackModuleItem::Copy(UNiagaraClipboardContent* ClipboardContent) c
 		ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, FunctionCallNode->GetFunctionName(), FunctionCallNode->FunctionScript);
 	}
 
+	ClipboardFunction->DisplayName = CustomDisplayName.Get(FText::GetEmpty());
+
 	InputCollection->ToClipboardFunctionInputs(ClipboardFunction, ClipboardFunction->Inputs);
 	ClipboardContent->Functions.Add(ClipboardFunction);
 }
