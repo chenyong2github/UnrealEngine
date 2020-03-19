@@ -5985,7 +5985,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return true;
 	}
 
-	public void AndroidThunkJava_RestartApplication(String RestartExtra) 
+	private void RestartApplication(String RestartExtra)
 	{
 		Context context = getApplicationContext();
 	
@@ -5999,8 +5999,34 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		context.startActivity(intent);
 
 		// kill the current application instance. Undefined behaviour after this!
-//$${gameActivityOnRestartApplicationAdditions}$$
 		Runtime.getRuntime().exit(0); 
+	}
+
+	public void AndroidThunkJava_RestartApplication(final String RestartExtra) 
+	{
+	    Runnable restartRunnableUIThread = new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				RestartApplication(RestartExtra);
+			}
+		};
+		Log.debug("app restart : " + RestartExtra);
+//$${gameActivityOnRestartApplicationAdditions}$$
+		runOnUiThread(restartRunnableUIThread);
+
+		// wait for exit.
+		while(true)
+		{
+			try 
+			{
+				Thread.sleep(Long.MAX_VALUE); 
+			}
+			catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	public void AndroidThunkJava_ClipboardCopy(String text) 
