@@ -79,6 +79,7 @@ class COREUOBJECT_API UField : public UObject
 	virtual void PostLoad() override;
 	virtual bool NeedsLoadForClient() const override;
 	virtual bool NeedsLoadForServer() const override;
+	virtual bool IsDestructionThreadSafe() const override { return true; }
 
 	// UField interface.
 	virtual void AddCppProperty(FProperty* Property);
