@@ -32,10 +32,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"TraceLog",
-					"TraceAnalysis",
-					"TraceServices",
-					"TraceInsights",
+					"TraceLog"					
                 }
 				);
 
