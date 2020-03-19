@@ -209,6 +209,12 @@ private:
 	/** Allow any Settings to modify the (already duplicated) sequence. This allows inserting automatic pre-roll, etc. */
 	void ModifySequenceViaExtensions(ULevelSequence* InSequence);
 
+	/**
+	* Should the Progress UI be visible on the player's screen?
+	*/
+	void SetProgressWidgetVisible(bool bVisible);
+
+
 
 private:
 	/** Iterates through the changes we've made to a shot and applies the original settings. */
