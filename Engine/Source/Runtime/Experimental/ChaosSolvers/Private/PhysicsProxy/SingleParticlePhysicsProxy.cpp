@@ -47,11 +47,6 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 	const FParticleDirtyData& ParticleData = Dirty.ParticleData;
 	// move the copied game thread data into the handle
 	{
-		//  DynamicProperties are anything that would wake up a sleeping
-		//  particle. For example, if we set position on a sleeping particle
-		//  we will need to wake it up
-		bool bDynamicPropertyUpdated = false;
-
 		auto NewXR = ParticleData.FindXR(Manager, DataIdx);
 		auto NewNonFrequentData = ParticleData.FindNonFrequentData(Manager, DataIdx);
 
@@ -63,7 +58,6 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 			{
 				RigidHandle->SetP(NewXR->X);
 				RigidHandle->SetQ(NewXR->R);
-				bDynamicPropertyUpdated = true;
 			}
 		}
 
@@ -89,10 +83,6 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 		{
 			KinematicHandle->SetV(NewVelocities->V);
 			KinematicHandle->SetW(NewVelocities->W);
-			if(bHasDynamicData)
-			{
-				bDynamicPropertyUpdated = true;
-			}
 		}
 
 		if(NewXR || NewNonFrequentData || NewVelocities)
@@ -149,16 +139,6 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 				RigidHandle->SetTorque(NewData->Torque);
 				RigidHandle->SetLinearImpulse(NewData->LinearImpulse);
 				RigidHandle->SetAngularImpulse(NewData->AngularImpulse);
-			}
-		}
-
-		//if dynamic property changed trigger a wakeup
-		//question: should this be here?
-		if(bDynamicPropertyUpdated)
-		{
-			if(bInitialized && RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping)
-			{
-				Solver->GetEvolution()->SetParticleObjectState(RigidHandle,Chaos::EObjectStateType::Dynamic);
 			}
 		}
 
@@ -457,22 +437,15 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		RigidHandle->SetDebugName(Data->DebugName);
 #endif
 
-		//  DynamicProperties are anything that would wake up a sleeping
-		//  particle. For example, if we set position on a sleeping particle
-		//  we will need to wake it up
-		bool bDynamicPropertyUpdated = false;
-
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::X))
 		{
 			RigidHandle->SetX(Data->X);
 			RigidHandle->SetP(Data->X);
-			bDynamicPropertyUpdated = true;
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::R))
 		{
 			RigidHandle->SetR(Data->R);
 			RigidHandle->SetQ(Data->R);
-			bDynamicPropertyUpdated = true;
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::Geometry))
 		{
@@ -481,20 +454,10 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::V))
 		{
 			RigidHandle->SetV(Data->MV);
-			//TODO: This is gross, we should clean it up
-			if (!(Data->MV.IsNearlyZero() && Data->MObjectState == Chaos::EObjectStateType::Sleeping))
-			{
-				bDynamicPropertyUpdated = true;
-			}
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::W))
 		{
 			RigidHandle->SetW(Data->MW);
-			//TODO: Same as above
-			if (!(Data->MW.IsNearlyZero() && Data->MObjectState == Chaos::EObjectStateType::Sleeping))
-			{
-				bDynamicPropertyUpdated = true;
-			}
 		}
 
 		RigidHandle->SetCenterOfMass(Data->MCenterOfMass);
@@ -509,24 +472,20 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::F))
 		{
 			RigidHandle->SetF(Data->MF);
-			bDynamicPropertyUpdated = true;
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::Torque))
 		{
 			RigidHandle->SetTorque(Data->MTorque);
-			bDynamicPropertyUpdated = true;
 		}
 
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::LinearImpulse))
 		{
 			RigidHandle->SetLinearImpulse(Data->MLinearImpulse);
-			bDynamicPropertyUpdated = true;
 		}
 
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::AngularImpulse))
 		{
 			RigidHandle->SetAngularImpulse(Data->MAngularImpulse);
-			bDynamicPropertyUpdated = true;
 		}
 
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ObjectState))
@@ -585,14 +544,6 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
 				Shape->Materials = Data->ShapeMaterials[CurrShape++];
-			}
-		}
-
-		if (bDynamicPropertyUpdated)
-		{
-			if (bInitialized && RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping)
-			{
-				GetSolver()->GetEvolution()->SetParticleObjectState(RigidHandle, Chaos::EObjectStateType::Dynamic);
 			}
 		}
 		
