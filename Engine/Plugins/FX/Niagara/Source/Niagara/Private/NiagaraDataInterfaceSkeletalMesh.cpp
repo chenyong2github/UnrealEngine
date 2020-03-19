@@ -1522,19 +1522,11 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				NewSkelComp->GetSocketInfoByName(SpecificSockets[i], SpecificSocketInfo[i].Transform, SpecificSocketInfo[i].BoneIdx);
 			}
 		}
-		else if (Mesh != nullptr)
-		{
-			for (int32 i = 0; i < SpecificSocketInfo.Num(); ++i)
-			{
-				SpecificSocketInfo[i].Transform = FTransform(Mesh->GetComposedRefPoseMatrix(SpecificSockets[i]));
-				SpecificSocketInfo[i].BoneIdx = INDEX_NONE;
-			}
-		}
 		else
 		{
 			for (int32 i = 0; i < SpecificSocketInfo.Num(); ++i)
 			{
-				SpecificSocketInfo[i].Transform = FTransform::Identity;
+				SpecificSocketInfo[i].Transform = FTransform(Mesh->GetComposedRefPoseMatrix(SpecificSockets[i]));
 				SpecificSocketInfo[i].BoneIdx = INDEX_NONE;
 			}
 		}
