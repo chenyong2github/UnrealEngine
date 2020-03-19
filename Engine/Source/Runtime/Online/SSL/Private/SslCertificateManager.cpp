@@ -265,11 +265,11 @@ bool FSslCertificateManager::VerifySslCertificates(X509_STORE_CTX* Context, cons
 		bFoundMatch = VerifySslCertificates(CertDigests, Domain);
 	}
 
-	if (!bFoundMatch)
-	{
-		X509_STORE_CTX_set_error(Context, X509_V_ERR_CERT_UNTRUSTED);
-	}
-	return bFoundMatch;
+    if (!bFoundMatch)
+    {
+        X509_STORE_CTX_set_error(Context, X509_V_ERR_CERT_UNTRUSTED);
+    }
+    return bFoundMatch;
 }
 
 bool FSslCertificateManager::VerifySslCertificates(TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>>& Digests, const FString& Domain) const
