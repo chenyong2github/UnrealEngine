@@ -1697,4 +1697,16 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	{
 		KeyString += TEXT("_PPDBM");
 	}
+
+	if (ShouldCompileRayTracingShadersForProject(Platform))
+	{
+		static const auto CVarCompileCHS = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.CompileMaterialCHS"));
+		static const auto CVarCompileAHS = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.CompileMaterialAHS"));
+		static const auto CVarTextureLod = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.UseTextureLod"));
+
+		KeyString += FString::Printf(TEXT("_RAY-CHS%dAHS%dLOD%d"),
+			CVarCompileCHS && CVarCompileCHS->GetBool() ? 1 : 0,
+			CVarCompileAHS && CVarCompileAHS->GetBool() ? 1 : 0,
+			CVarTextureLod && CVarTextureLod->GetBool() ? 1 : 0);
+	}
 }
