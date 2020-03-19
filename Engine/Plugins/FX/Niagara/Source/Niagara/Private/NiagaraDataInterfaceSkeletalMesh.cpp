@@ -1322,7 +1322,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	}
 
 	Transform = Component->GetComponentToWorld().ToMatrixWithScale();
-	TransformInverseTransposed = Transform.InverseFast().GetTransposed();
+	TransformInverseTransposed = Transform.Inverse().GetTransposed();
 	PrevTransform = Transform;
 	
 	CachedAttachParent = Component->GetAttachParent();
