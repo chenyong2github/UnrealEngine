@@ -457,7 +457,7 @@ void UNiagaraSystem::PostLoad()
 			InitEmitterCompiledData();
 		}
 
-		if (SystemCompiledData.InstanceParamStore.ParameterVariables.Num() == 0 ||SystemCompiledData.DataSetCompiledData.Variables.Num() == 0)
+		if (SystemCompiledData.InstanceParamStore.ReadParameterVariables().Num() == 0 ||SystemCompiledData.DataSetCompiledData.Variables.Num() == 0)
 		{
 			InitSystemCompiledData();
 		}

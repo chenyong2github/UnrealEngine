@@ -320,7 +320,6 @@ void FNiagaraScriptInstanceParameterStore::InitFromOwningContext(UNiagaraScript*
 		}
 
 		ScriptParameterStore.Init(SrcStore);
-		InternalStorageChanged();
 	}
 	else
 	{
@@ -375,15 +374,15 @@ void FNiagaraScriptInstanceParameterStore::CopyParameterDataToPaddedBuffer(uint8
 	}
 }
 
-void FNiagaraScriptInstanceParameterStore::InternalStorageChanged()
+TArrayView<const FNiagaraVariableWithOffset> FNiagaraScriptInstanceParameterStore::ReadParameterVariables() const
 {
 	if (const auto* ScriptStore = ScriptParameterStore.Get())
 	{
-		ParameterVariables = ScriptStore->ParameterVariables;
+		return ScriptStore->ReadParameterVariables();
 	}
 	else
 	{
-		ParameterVariables = TArrayView<FNiagaraVariableWithOffset>();
+		return TArrayView<FNiagaraVariableWithOffset>();
 	}
 }
 

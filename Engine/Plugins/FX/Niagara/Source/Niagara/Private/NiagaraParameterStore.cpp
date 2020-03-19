@@ -105,7 +105,7 @@ static FAutoConsoleVariableRef CVarNiagaraAllowQuickSortedParameterOffetsCopy(
 	ECVF_Scalability
 );
 
-void FNiagaraParameterStore::CopySortedParameterOffsets(TArrayView<FNiagaraVariableWithOffset> Src)
+void FNiagaraParameterStore::CopySortedParameterOffsets(TArrayView<const FNiagaraVariableWithOffset> Src)
 {
 	if (GNiagaraAllowQuickSortedParameterOffetsCopy)
 	{
@@ -118,8 +118,6 @@ void FNiagaraParameterStore::CopySortedParameterOffsets(TArrayView<FNiagaraVaria
 	{
 		SortedParameterOffsets = TArray<FNiagaraVariableWithOffset>(Src.GetData(), Src.Num());
 	}
-
-	InternalStorageChanged();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -154,7 +152,7 @@ FNiagaraParameterStore& FNiagaraParameterStore::operator=(const FNiagaraParamete
 #if WITH_EDITORONLY_DATA
 	ParameterOffsets = Other.ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
-	CopySortedParameterOffsets(Other.ParameterVariables);
+	CopySortedParameterOffsets(Other.ReadParameterVariables());
 	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData = Other.ParameterData;
 	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
@@ -200,8 +198,8 @@ void FNiagaraParameterStore::Bind(FNiagaraParameterStore* DestStore, const FNiag
 template <typename TVisitor>
 void FNiagaraParameterStoreBinding::MatchParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, TVisitor Visitor)
 {
-	TArrayView<FNiagaraVariableWithOffset> SrcParamWithOffsets = SrcStore->ParameterVariables;
-	TArrayView<FNiagaraVariableWithOffset> DestParamWithOffsets = DestStore->ParameterVariables;
+	TArrayView<const FNiagaraVariableWithOffset> SrcParamWithOffsets = SrcStore->ReadParameterVariables();
+	TArrayView<const FNiagaraVariableWithOffset> DestParamWithOffsets = DestStore->ReadParameterVariables();
 
 	const int32 SrcNum = SrcParamWithOffsets.Num();
 	const int32 DestNum = DestParamWithOffsets.Num();
@@ -376,7 +374,7 @@ bool FNiagaraParameterStore::VerifyBinding(const FNiagaraParameterStore* DestSto
 
 void FNiagaraParameterStore::CheckForNaNs()const
 {
-	for (const FNiagaraVariableWithOffset& Var : ParameterVariables)
+	for (const FNiagaraVariableWithOffset& Var : ReadParameterVariables())
 	{
 		const int32 Offset = Var.Offset;
 
@@ -439,7 +437,7 @@ void FNiagaraParameterStore::UnbindFromSourceStores()
 
 void FNiagaraParameterStore::DumpParameters(bool bDumpBindings)const
 {
-	for (const FNiagaraVariableWithOffset& VariableBase : ParameterVariables)
+	for (const FNiagaraVariableWithOffset& VariableBase : ReadParameterVariables())
 	{
 		FNiagaraVariable Var(VariableBase);
 		Var.SetData(GetParameterData(VariableBase.Offset));
@@ -459,7 +457,7 @@ FString FNiagaraParameterStore::ToString() const
 {
 	FString Value;
 
-	for (const FNiagaraVariableWithOffset& VariableBase : ParameterVariables)
+	for (const FNiagaraVariableWithOffset& VariableBase : ReadParameterVariables())
 	{
 		FNiagaraVariable Var(VariableBase);
 		Var.SetData(GetParameterData(VariableBase.Offset));
@@ -493,6 +491,8 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 	check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
 #endif
 
+	auto ParameterVariables = ReadParameterVariables();
+
 	int32 InsertPos = 0;
 	if (ParameterVariables.Num())
 	{
@@ -508,7 +508,6 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 	}
 
 	int32& Offset = SortedParameterOffsets.EmplaceAt_GetRef(InsertPos, Param, (int32)INDEX_NONE).Offset;
-	InternalStorageChanged();
 
 	if (Param.GetType().IsDataInterface())
 	{
@@ -574,7 +573,7 @@ bool FNiagaraParameterStore::RemoveParameter(const FNiagaraVariableBase& ToRemov
 		TArray<uint8> NewData;
 		TArray<UNiagaraDataInterface*> NewInterfaces;
 		TArray<UObject*> NewUObjects;
-		for (const FNiagaraVariableWithOffset& Existing : ParameterVariables)
+		for (const FNiagaraVariableWithOffset& Existing : ReadParameterVariables())
 		{
 			const FNiagaraVariable& ExistingVar = Existing;
 			const int32 ExistingOffset = Existing.Offset;
@@ -671,7 +670,7 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 
 	int32 ParameterDataSize = 0;
 
-	for (const FNiagaraVariableWithOffset& Parameter : ParameterVariables)
+	for (const FNiagaraVariableWithOffset& Parameter : ReadParameterVariables())
 	{
 		const int32 SrcIndex = Parameter.Offset;
 
@@ -735,7 +734,7 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 
 void FNiagaraParameterStore::CopyParametersTo(FNiagaraParameterStore& DestStore, bool bOnlyAdd, EDataInterfaceCopyMethod DataInterfaceCopyMethod) const
 {
-	for (const FNiagaraVariableWithOffset& Parameter : ParameterVariables)
+	for (const FNiagaraVariableWithOffset& Parameter : ReadParameterVariables())
 	{
 		int32 SrcIndex = Parameter.Offset;
 
@@ -856,7 +855,7 @@ void FNiagaraParameterStore::InitFromSource(const FNiagaraParameterStore* SrcSto
 #if WITH_EDITORONLY_DATA
 	ParameterOffsets = SrcStore->ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
-	CopySortedParameterOffsets(SrcStore->ParameterVariables);
+	CopySortedParameterOffsets(SrcStore->ReadParameterVariables());
 	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData = SrcStore->ParameterData;
 	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
@@ -876,7 +875,7 @@ void FNiagaraParameterStore::InitFromSource(const FNiagaraParameterStore* SrcSto
 
 void FNiagaraParameterStore::RemoveParameters(FNiagaraParameterStore& DestStore)
 {
-	for (const FNiagaraVariableWithOffset& Parameter : ParameterVariables)
+	for (const FNiagaraVariableWithOffset& Parameter : ReadParameterVariables())
 	{
 		DestStore.RemoveParameter(Parameter);
 	}
@@ -889,7 +888,6 @@ void FNiagaraParameterStore::Empty(bool bClearBindings)
 #endif // WITH_EDITORONLY_DATA
 
 	SortedParameterOffsets.Empty();
-	InternalStorageChanged();
 
 	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData.Empty();
@@ -913,7 +911,6 @@ void FNiagaraParameterStore::Reset(bool bClearBindings)
 #endif // WITH_EDITORONLY_DATA
 
 	SortedParameterOffsets.Reset();
-	InternalStorageChanged();
 
 	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData.Reset();
@@ -949,18 +946,13 @@ void FNiagaraParameterStore::OnLayoutChange()
 #endif
 }
 
-void FNiagaraParameterStore::InternalStorageChanged()
-{
-	ParameterVariables = MakeArrayView(SortedParameterOffsets);
-}
-
 const FNiagaraVariableBase* FNiagaraParameterStore::FindVariable(UNiagaraDataInterface* Interface)const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreFindVar);
 	int32 Idx = DataInterfaces.IndexOfByKey(Interface);
 	if (Idx != INDEX_NONE)
 	{
-		for (const FNiagaraVariableWithOffset& ParamWithOffset : ParameterVariables)
+		for (const FNiagaraVariableWithOffset& ParamWithOffset : ReadParameterVariables())
 		{
 			if (ParamWithOffset.Offset == Idx && ParamWithOffset.GetType().GetClass() == Interface->GetClass())
 			{
@@ -977,6 +969,7 @@ const int32* FNiagaraParameterStore::FindParameterOffset(const FNiagaraVariableB
 	check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
 #endif
 
+	auto ParameterVariables = ReadParameterVariables();
 	if (ParameterVariables.Num())
 	{
 		int32 MatchingIndex = 0;
@@ -999,8 +992,6 @@ void FNiagaraParameterStore::PostLoad()
 			SortedParameterOffsets.Emplace(ParamOffsetPair.Key, ParamOffsetPair.Value);
 		}
 		ParameterOffsets.Empty();
-
-		InternalStorageChanged();
 	}
 #endif
 
@@ -1014,7 +1005,6 @@ void FNiagaraParameterStore::SortParameters()
 	{
 		return FNiagaraVariableSearch::Compare(Lhs, Rhs) < 0;
 	});
-	InternalStorageChanged();
 }
 
 #if WITH_EDITOR
