@@ -345,6 +345,9 @@ namespace UnrealBuildTool
 				this.bCopyFramework = bCopyFramework;
 			}
 
+			/// <summary>
+			/// Specifies if the file is a zip file
+			/// </summary>
 			public bool IsZipFile()
 			{
 				return Path.EndsWith(".zip");
