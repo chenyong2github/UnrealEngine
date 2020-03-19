@@ -282,8 +282,14 @@ public:
 	UPROPERTY()
 	FNiagaraParameters Parameters;
 
+#if WITH_EDITORONLY_DATA
+	/** All the data for using external constants in the script, laid out in the order they are expected in the uniform table.*/
 	UPROPERTY()
 	FNiagaraParameters InternalParameters;
+#endif
+
+	UPROPERTY()
+	TArray<uint8> ScriptLiterals;
 
 	UPROPERTY()
 	TMap<FName, FNiagaraParameters> DataSetToParameters;
@@ -371,6 +377,10 @@ public:
 	bool IsValid() const;
 
 	void Reset();
+
+#if WITH_EDITORONLY_DATA
+	void BakeScriptLiterals(TArray<uint8>& OutLiterals) const;
+#endif
 };
 
 /** Runtime script for a Niagara system */
