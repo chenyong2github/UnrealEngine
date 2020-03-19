@@ -235,12 +235,8 @@ namespace Chaos
 			bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
-			FVec3 X0 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle0);
-			FVec3 X1 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle1);
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
 			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
-			FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0);
-			FRotation3 R1 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle1);
 			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 			FVec3 VectorToPoint0 = Contact.Location - P0;
@@ -271,6 +267,10 @@ namespace Chaos
 				if (Contact.Friction > 0)
 				{
 					// Get contact velocity
+					FVec3 X0 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle0);
+					FVec3 X1 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle1);
+					FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0);
+					FRotation3 R1 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle1);
 					FVec3 V0 = FVec3::CalculateVelocity(X0, P0, IterationParameters.Dt);
 					FVec3 W0 = FRotation3::CalculateAngularVelocity(R0, Q0, IterationParameters.Dt);
 					FVec3 V1 = FVec3::CalculateVelocity(X1, P1, IterationParameters.Dt);
@@ -308,8 +308,6 @@ namespace Chaos
 				{
 					FVec3 DP0 = InvM0 * DX;
 					FVec3 DR0 = Utilities::Multiply(InvI0, FVec3::CrossProduct(VectorToPoint0, DX));
-					PBDRigid0->V() += DP0 / IterationParameters.Dt;
-					PBDRigid0->W() += DR0 / IterationParameters.Dt;
 					P0 += DP0;
 					Q0 += FRotation3::FromElements(DR0, 0.f) * Q0 * FReal(0.5);
 					Q0.Normalize();
@@ -319,8 +317,6 @@ namespace Chaos
 				{
 					FVec3 DP1 = InvM1 * -DX;
 					FVec3 DR1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(VectorToPoint1, -DX));
-					PBDRigid1->V() += DP1 / IterationParameters.Dt;
-					PBDRigid1->W() += DR1 / IterationParameters.Dt;
 					P1 += DP1;
 					Q1 += FRotation3::FromElements(DR1, 0.f) * Q1 * FReal(0.5);
 					Q1.Normalize();
