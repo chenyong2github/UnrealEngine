@@ -33,6 +33,60 @@ static TSharedPtr<FEditorSessionSummaryWriter> SessionSummaryWriter;
 static TSharedPtr<FEditorSessionSummarySender> SessionSummarySender;
 #endif
 
+class FStudioAnalyticsShimProvider : public IAnalyticsProvider
+{
+public:
+	FStudioAnalyticsShimProvider(TSharedPtr<IAnalyticsProviderET> InAnalytics)
+		: Analytics(InAnalytics)
+	{
+	}
+
+	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) override
+	{
+		return Analytics->StartSession(Attributes);
+	}
+
+	virtual void EndSession() override
+	{
+		Analytics->EndSession();
+	}
+	
+	virtual FString GetSessionID() const override
+	{
+		return Analytics->GetSessionID();
+	}
+
+	virtual bool SetSessionID(const FString& InSessionID) override
+	{
+		return Analytics->SetSessionID(InSessionID);
+	}
+
+	virtual void FlushEvents() override
+	{
+		Analytics->FlushEvents();
+	}
+
+	virtual void SetUserID(const FString& InUserID) override
+	{
+		Analytics->SetUserID(InUserID);
+	}
+
+	virtual FString GetUserID() const override
+	{
+		return Analytics->GetUserID();
+	}
+
+	virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) override
+	{
+		FStudioAnalytics::ReportEvent(EventName, Attributes);
+
+		Analytics->RecordEvent(EventName, Attributes);
+	}
+
+private:
+	TSharedPtr<IAnalyticsProviderET> Analytics;
+};
+
 /**
 * Default config func.
 */
@@ -93,7 +147,8 @@ IAnalyticsProviderET& FEngineAnalytics::GetProvider()
 {
 	checkf(bIsInitialized && IsAvailable(), TEXT("FEngineAnalytics::GetProvider called outside of Initialize/Shutdown."));
 
-	return *Analytics.Get();
+	static FStudioAnalyticsShimProvider StudioAnalyticsShim(Analytics);
+	return StudioAnalyticsShim;
 }
 
 void FEngineAnalytics::Initialize()
@@ -234,16 +289,6 @@ void FEngineAnalytics::Tick(float DeltaTime)
 		SessionSummarySender->Tick(DeltaTime);
 	}
 #endif
-}
-
-void FEngineAnalytics::ReportEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
-{
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(EventName, Attributes);
-	}
-
-	FStudioAnalytics::ReportEvent(EventName, Attributes);
 }
 
 void FEngineAnalytics::LowDriveSpaceDetected()
