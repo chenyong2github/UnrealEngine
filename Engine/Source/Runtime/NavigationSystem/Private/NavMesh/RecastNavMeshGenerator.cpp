@@ -6174,12 +6174,6 @@ bool FRecastNavMeshGenerator::IsBuildInProgressCheckDirty() const
 		|| SyncTimeSlicedData.TileGeneratorSync.IsValid();
 }
 
-//deprecated
-bool FRecastNavMeshGenerator::IsBuildInProgress(bool bCheckDirtyToo) const
-{
-	return IsBuildInProgressCheckDirty();
-}
-
 #if !RECAST_ASYNC_REBUILDING
 bool FRecastNavMeshGenerator::GetTimeSliceData(int32& OutNumRemainingBuildTasks, double& OutCurrentBuildTaskDuration) const
 {
