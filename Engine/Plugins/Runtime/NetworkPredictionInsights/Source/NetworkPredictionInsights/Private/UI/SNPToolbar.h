@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class SNPWindow;
