@@ -36,7 +36,9 @@ private:
 	void Tick_DatabaseOperationThread();
 
 private:
-	void InternalStart();
+	void UpdateScanningAssets();
+	void StartScanningAssets();
+	void StopScanningAssets();
 
 	void OnAssetAdded(const FAssetData& InAssetData);
 	void OnAssetRemoved(const FAssetData& InAssetData);
@@ -50,6 +52,7 @@ private:
 	bool RequestIndexAsset(UObject* InAsset);
 	bool IsAssetIndexable(UObject* InAsset);
 	bool TryLoadIndexForAsset(const FAssetData& InAsset);
+	void AsyncRequestDownlaod(const FAssetData& InAssetData, const FString& InDDCKey);
 	bool AsyncGetDerivedDataKey(const FAssetData& UnindexedAsset, TFunction<void(FString)> DDCKeyCallback);
 	bool HasIndexerForClass(const UClass* InAssetClass) const;
 	FString GetIndexerVersion(const UClass* InAssetClass) const;
@@ -68,7 +71,9 @@ private:
 	FAssetSearchDatabase SearchDatabase;
 	FCriticalSection SearchDatabaseCS;
 	TAtomic<int32> PendingDatabaseUpdates;
-	TAtomic<int32> PendingDownloads;
+	TAtomic<int32> IsAssetUpToDateCount;
+	TAtomic<int32> ActiveDownloads;
+	TAtomic<int32> DownloadQueueCount;
 	TAtomic<int64> TotalSearchRecords;
 
 	double LastRecordCountUpdateSeconds;
@@ -89,9 +94,10 @@ private:
 	struct FAssetDDCRequest
 	{
 		FAssetData AssetData;
-		FString DDCKey_IndexDataHash;
+		FString DDCKey;
 		uint32 DDCHandle;
 	};
+	TQueue<FAssetDDCRequest, EQueueMode::Mpsc> DownloadQueue;
 	TQueue<FAssetDDCRequest, EQueueMode::Mpsc> ProcessDDCQueue;
 
 	TArray<FAssetDDCRequest> FailedDDCRequests;

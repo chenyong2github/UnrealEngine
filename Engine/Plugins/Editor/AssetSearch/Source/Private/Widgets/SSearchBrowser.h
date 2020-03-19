@@ -29,6 +29,8 @@ public:
 
 public:
 
+	virtual ~SSearchBrowser();
+
 	/**
 	 * Construct this widget
 	 *
