@@ -8,6 +8,7 @@
 #include "HAL/Allocators/CachedOSPageAllocator.h"
 #include "HAL/PlatformMemory.h"
 
+
 #if UE_USE_VERYLARGEPAGEALLOCATOR
 
 #if PLATFORM_64BITS
@@ -23,10 +24,13 @@ class FCachedOSVeryLargePageAllocator
 	static const uint64 AddressSpaceToReserve = ((1024 * 1024) * (1024 + 512));
 	static const uint64 SizeOfLargePage = (1024 * 1024 * 4);
 	static const uint64 SizeOfSubPage = (1024 * 64);
+	static const uint64 NumberOfLargePages = (AddressSpaceToReserve / SizeOfLargePage);
+	static const uint64 NumberOfSubPagesPerLargePage = (SizeOfLargePage / SizeOfSubPage);
 public:
 
 	FCachedOSVeryLargePageAllocator()
 		: bEnabled(true)
+		, CachedFree(0)
 	{
 		Init();
 	}
@@ -36,7 +40,7 @@ public:
 		// this leaks everything!
 	}
 
-	void* Allocate(SIZE_T Size);
+	void* Allocate(SIZE_T Size, uint32 AllocationHint = 0);
 
 	void Free(void* Ptr, SIZE_T Size);
 
@@ -44,7 +48,7 @@ public:
 
 	uint64 GetCachedFreeTotal()
 	{
-		return CachedOSPageAllocator.GetCachedFreeTotal();
+		return CachedFree + CachedOSPageAllocator.GetCachedFreeTotal();
 	}
 
 private:
@@ -53,20 +57,22 @@ private:
 
 	bool bEnabled;
 	uintptr_t	AddressSpaceReserved;
+	uint64		CachedFree;
 
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block;
 
 	struct FLargePage : public TIntrusiveLinkedList<FLargePage>
 	{
-		uintptr_t	FreeSubPages[SizeOfLargePage / SizeOfSubPage];
+		uintptr_t	FreeSubPages[NumberOfSubPagesPerLargePage];
 		int32		NumberOfFreeSubPages;
+		uint32		AllocationHint;
 
 		uintptr_t	BaseAddress;
 
 		void Init(void* InBaseAddress)
 		{
 			BaseAddress = (uintptr_t)InBaseAddress;
-			NumberOfFreeSubPages = (SizeOfLargePage / SizeOfSubPage);
+			NumberOfFreeSubPages = NumberOfSubPagesPerLargePage;
 			uintptr_t Ptr = BaseAddress;
 			for (int i = 0; i < NumberOfFreeSubPages; i++)
 			{
@@ -95,9 +101,9 @@ private:
 
 	FLargePage*	UsedLargePagesHead;				// has backing store and is full
 
-	FLargePage*	UsedLargePagesWithSpaceHead;	// has backing store and still has room
+	FLargePage*	UsedLargePagesWithSpaceHead[FMemory::AllocationHints::Max];	// has backing store and still has room
 
-	FLargePage	LargePagesArray[AddressSpaceToReserve / SizeOfLargePage];
+	FLargePage	LargePagesArray[NumberOfLargePages];
 
 	TCachedOSPageAllocator<CACHEDOSVERYLARGEPAGEALLOCATOR_MAX_CACHED_OS_FREES, CACHEDOSVERYLARGEPAGEALLOCATOR_BYTE_LIMIT> CachedOSPageAllocator;
 
