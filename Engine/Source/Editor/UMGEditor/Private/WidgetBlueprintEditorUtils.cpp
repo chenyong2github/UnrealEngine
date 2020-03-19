@@ -37,6 +37,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "UObject/ScriptInterface.h"
 #include "Components/NamedSlotInterface.h"
+#include "K2Node_Variable.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -224,6 +225,49 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 			// Find and update all variable references in the graph
 			Widget->SetDisplayLabel(NewDisplayName);
 			Widget->Rename(*NewNameStr);
+		}
+
+		// When a widget gets renamed we need to check any existing blueprint getters that may be placed
+		// in the graphs to fix up their state
+		if(Widget->bIsVariable)
+		{
+			TArray<UEdGraph*> AllGraphs;
+			Blueprint->GetAllGraphs(AllGraphs);
+
+			for (const UEdGraph* CurrentGraph : AllGraphs)
+			{
+				TArray<UK2Node_Variable*> GraphNodes;
+				CurrentGraph->GetNodesOfClass(GraphNodes);
+
+				for (UK2Node_Variable* CurrentNode : GraphNodes)
+				{					
+					UClass* SelfClass = Blueprint->GeneratedClass;
+					UClass* VariableParent = CurrentNode->VariableReference.GetMemberParentClass(SelfClass);
+
+					if (SelfClass == VariableParent)
+					{
+						// Reconstruct this node in order to give it orphan pins and invalidate any 
+						// connections that will no longer be valid
+						if (NewFName == CurrentNode->GetVarName())
+						{
+							UEdGraphPin* ValuePin = CurrentNode->GetValuePin();
+							ValuePin->Modify();
+							CurrentNode->Modify();
+
+							// Make the old pin an orphan and add a new pin of the proper type
+							UEdGraphPin* NewPin = CurrentNode->CreatePin(
+								ValuePin->Direction,
+								ValuePin->PinType.PinCategory,
+								ValuePin->PinType.PinSubCategory,
+								Widget->WidgetGeneratedByClass.Get(),	// This generated object is what needs to patched up
+								NewFName
+							);
+
+							ValuePin->bOrphanedPin = true;
+						}
+					}
+				}
+			}
 		}
 
 		// Update Variable References and
