@@ -237,6 +237,8 @@ FReply SSCSEditor::TryHandleAssetDragDropOperation(const FDragDropEvent& DragDro
 				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 			}
 
+			UpdateTree();
+
 			GWarn->EndSlowTask();
 		}
 
