@@ -430,12 +430,6 @@ public:
 		return GetShadingPath(GetFeatureLevel());
 	}
 
-	virtual uint32 ShouldRenderSkylightMask() const
-	{
-		return 3;
-	}
-
-
 #if WITH_EDITOR
 	/**
 	 * Initialize the pixel inspector buffers.

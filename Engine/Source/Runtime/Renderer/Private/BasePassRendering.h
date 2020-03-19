@@ -470,7 +470,7 @@ public:
 };
 
 /** The concrete base pass pixel shader type. */
-template<typename LightMapPolicyType>
+template<typename LightMapPolicyType, bool bEnableSkyLight>
 class TBasePassPS : public TBasePassPixelShaderBaseType<LightMapPolicyType>
 {
 	DECLARE_SHADER_TYPE(TBasePassPS,MeshMaterial);
@@ -487,7 +487,7 @@ public:
 		const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
 		const bool bForceAllPermutations = SupportAllShaderPermutations && SupportAllShaderPermutations->GetValueOnAnyThread() != 0;
 		const bool bProjectSupportsStationarySkylight = !SupportStationarySkylight || SupportStationarySkylight->GetValueOnAnyThread() != 0 || bForceAllPermutations;
-		const bool bEnableSkyLight = false; //makes bCacheShaders redundant
+
 		const bool bCacheShaders = !bEnableSkyLight
 			//translucent materials need to compile skylight support to support MOVABLE skylights also.
 			|| bTranslucent
@@ -503,7 +503,9 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// For deferred decals, the shader class used is FDeferredDecalPS. the TBasePassPS is only used in the material editor and will read wrong values.
-		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), Parameters.MaterialParameters.MaterialDomain != MD_Surface); 
+		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), Parameters.Material->GetMaterialDomain() != MD_Surface); 
+
+		OutEnvironment.SetDefine(TEXT("ENABLE_SKY_LIGHT"), bEnableSkyLight);
 		TBasePassPixelShaderBaseType<LightMapPolicyType>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 	
@@ -590,7 +592,14 @@ void GetBasePassShaders(
 	{
 		VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, false> >(VertexFactoryType);
 	}
-	PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType> >(VertexFactoryType);
+	if (bEnableSkyLight)
+	{
+		PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, true> >(VertexFactoryType);
+	}
+	else
+	{
+		PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, false> >(VertexFactoryType);
+	}
 }
 
 template <>
