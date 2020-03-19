@@ -2106,6 +2106,12 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
+			// No need to load particle data for stages with an iteration source, since those do not run one thread per particle.
+			if (TranslationStages[i].IterationSource != NAME_None)
+			{
+				continue;
+			}
+
 			if (TranslationStages.Num() > 2)
 			{
 				if (StartIdx == i)
@@ -2246,6 +2252,12 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
+			// No need to store particle data for stages with an iteration source, since those do not run one thread per particle.
+			if (TranslationStages[i].IterationSource != NAME_None)
+			{
+				continue;
+			}
+
 			if (TranslationStages.Num() > 2)
 			{
 				if (StartIdx == i)
@@ -2261,14 +2273,20 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					"	{\n"), TranslationStages[i].SimulationStageIndexMin, TranslationStages[i].SimulationStageIndexMax);
 			}
 
-			if (TranslationStages[i].bUsesAlive)
+			if (TranslationStages[i].bWritesAlive || (i == 1 && TranslationStages[0].bWritesAlive))
 			{
-				HlslOutput += TEXT("\t\tGStageUsesAlive = true;\n");
+				// This stage kills particles, so we must skip the dead ones when writing out the data.
+				// It's also possible that this is the update phase, and it doesn't kill particles, but the spawn phase does. It would be nice
+				// if we could only do this for newly spawned particles, but unfortunately that would mean placing thread sync operations
+				// under dynamic flow control, which is not allowed. Therefore, we must always use the more expensive path when the spawn phase
+				// can kill particles.
+				HlslOutput += TEXT("\t\tGStageWritesAlive = true;\n");
 				HlslOutput += TEXT("\t\tconst bool bValid = Context.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance.Alive;\n");
 				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, true, bValid);\n");
 			}
 			else
 			{
+				// The stage doesn't kill particles, we can take the simpler path which doesn't need to manage the particle count.
 				HlslOutput += TEXT("\t\tconst bool bValid = GCurrentPhase != -1;\n");
 				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, false, bValid);\n");
 			}
@@ -2473,7 +2491,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		HlslOutput += TEXT(
 			"	// If a stage doesn't kill particles, StoreUpdateVariables() never calls AcquireIndex(), so the\n"
 			"   // count isn't updated. In that case we must manually copy the original count here.\n"
-			"	if (!GStageUsesAlive && WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
+			"	if (!GStageWritesAlive && WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
 			"	{ \n"
 			"		RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + SpawnedInstances; \n"
 			"	} \n"
