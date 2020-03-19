@@ -302,10 +302,12 @@ int32 FAnimTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FG
 
 		// draw playback & selection range
 		FPaintPlaybackRangeArgs PlaybackRangeArgs(
-			bMirrorLabels ? FEditorStyle::GetBrush("Anim.Timeline.PlayRange_Bottom_L") : FEditorStyle::GetBrush("Anim.Timeline.PlayRange_Top_L"),
-			bMirrorLabels ? FEditorStyle::GetBrush("Anim.Timeline.PlayRange_Bottom_R") : FEditorStyle::GetBrush("Anim.Timeline.PlayRange_Top_R"),
+			bMirrorLabels ? FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_L") : FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_L"),
+			bMirrorLabels ? FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Bottom_R") : FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_Top_R"),
 			6.f
 		);
+
+		LayerId = DrawPlaybackRange(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, RangeToScreen, PlaybackRangeArgs);
 
 		PlaybackRangeArgs.SolidFillOpacity = 0.05f;
 		LayerId = DrawSelectionRange(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, RangeToScreen, PlaybackRangeArgs);
@@ -450,6 +452,61 @@ int32 FAnimTimeSliderController::DrawSelectionRange(const FGeometry& AllottedGeo
 			DrawColor
 		);
 	}
+
+	return LayerId + 1;
+}
+
+
+int32 FAnimTimeSliderController::DrawPlaybackRange(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FScrubRangeToScreen& RangeToScreen, const FPaintPlaybackRangeArgs& Args) const
+{
+	if (!TimeSliderArgs.PlaybackRange.IsSet())
+	{
+		return LayerId;
+	}
+
+	const uint8 OpacityBlend = TimeSliderArgs.SubSequenceRange.Get().IsSet() ? 128 : 255;
+
+	TRange<FFrameNumber> PlaybackRange = TimeSliderArgs.PlaybackRange.Get();
+	FFrameRate TickResolution = GetTickResolution();
+	const float PlaybackRangeL = RangeToScreen.InputToLocalX(PlaybackRange.GetLowerBoundValue() / TickResolution);
+	const float PlaybackRangeR = RangeToScreen.InputToLocalX(PlaybackRange.GetUpperBoundValue() / TickResolution) - 1;
+
+	FSlateDrawElement::MakeBox(
+		OutDrawElements,
+		LayerId+1,
+		AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeL, 0.f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+		Args.StartBrush,
+		ESlateDrawEffect::None,
+		FColor(32, 128, 32, OpacityBlend)	// 120, 75, 50 (HSV)
+	);
+
+	FSlateDrawElement::MakeBox(
+		OutDrawElements,
+		LayerId+1,
+		AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeR - Args.BrushWidth, 0.f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+		Args.EndBrush,
+		ESlateDrawEffect::None,
+		FColor(128, 32, 32, OpacityBlend)	// 0, 75, 50 (HSV)
+	);
+
+	// Black tint for excluded regions
+	FSlateDrawElement::MakeBox(
+		OutDrawElements,
+		LayerId+1,
+		AllottedGeometry.ToPaintGeometry(FVector2D(0.f, 0.f), FVector2D(PlaybackRangeL, AllottedGeometry.Size.Y)),
+		FEditorStyle::GetBrush("WhiteBrush"),
+		ESlateDrawEffect::None,
+		FLinearColor::Black.CopyWithNewOpacity(0.3f * OpacityBlend / 255.f)
+	);
+
+	FSlateDrawElement::MakeBox(
+		OutDrawElements,
+		LayerId+1,
+		AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeR, 0.f), FVector2D(AllottedGeometry.Size.X - PlaybackRangeR, AllottedGeometry.Size.Y)),
+		FEditorStyle::GetBrush("WhiteBrush"),
+		ESlateDrawEffect::None,
+		FLinearColor::Black.CopyWithNewOpacity(0.3f * OpacityBlend / 255.f)
+	);
 
 	return LayerId + 1;
 }
@@ -822,6 +879,7 @@ int32 FAnimTimeSliderController::OnPaintViewArea( const FGeometry& AllottedGeome
 	if (Args.PlaybackRangeArgs.IsSet())
 	{
 		FPaintPlaybackRangeArgs PaintArgs = Args.PlaybackRangeArgs.GetValue();
+		LayerId = DrawPlaybackRange(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, RangeToScreen, PaintArgs);
 		PaintArgs.SolidFillOpacity = 0.2f;
 		LayerId = DrawSelectionRange(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, RangeToScreen, PaintArgs);
 	}
@@ -985,7 +1043,6 @@ void FAnimTimeSliderController::SetViewRange( double NewRangeMin, double NewRang
 	// Clamp to a minimum size to avoid zero-sized or negative visible ranges
 	double MinVisibleTimeRange = FFrameNumber(1) / GetTickResolution();
 	TRange<double> ExistingViewRange  = TimeSliderArgs.ViewRange.Get();
-	TRange<double> ExistingClampRange = TimeSliderArgs.ClampRange.Get();
 
 	if (NewRangeMax == ExistingViewRange.GetUpperBoundValue())
 	{
@@ -1000,7 +1057,7 @@ void FAnimTimeSliderController::SetViewRange( double NewRangeMin, double NewRang
 	}
 
 	// Clamp to the clamp range
-	const TRange<double> NewRange = TRange<double>::Intersection(TRange<double>(NewRangeMin, NewRangeMax), ExistingClampRange);
+	const TRange<double> NewRange = TRange<double>(NewRangeMin, NewRangeMax);
 	TimeSliderArgs.OnViewRangeChanged.ExecuteIfBound( NewRange, Interpolation );
 
 	if( !TimeSliderArgs.ViewRange.IsBound() )

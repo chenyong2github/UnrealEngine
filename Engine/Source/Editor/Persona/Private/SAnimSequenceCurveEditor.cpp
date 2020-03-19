@@ -124,7 +124,6 @@ public:
 		NewCurveModel->SetShortDisplayName(CurveDisplayName);
 		NewCurveModel->SetLongDisplayName(CurveDisplayName);
 		NewCurveModel->SetColor(CurveColor);
-		NewCurveModel->SetClampInputRange(MakeAttributeLambda([this](){ return TRange<double>(0.0, AnimSequence->GetPlayLength()); }));
 		NewCurveModel->OnCurveModified().Add(OnCurveModified);
 
 		OutCurveModels.Add(MoveTemp(NewCurveModel));
