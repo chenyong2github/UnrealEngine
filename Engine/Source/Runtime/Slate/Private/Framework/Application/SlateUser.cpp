@@ -752,6 +752,10 @@ void FSlateUser::QueryCursor()
 					CursorReply = ArrangedWidget.Widget->OnCursorQuery(ArrangedWidget.Geometry, CursorEvent);
 					if (CursorReply.IsEventHandled())
 					{
+#if WITH_SLATE_DEBUGGING
+						FSlateDebugging::BroadcastCursorQuery(&ArrangedWidget.Widget.Get(), CursorReply);
+#endif
+
 						if (!CursorReply.GetCursorWidget().IsValid())
 						{
 							for (; WidgetIndex >= 0; --WidgetIndex)
@@ -772,12 +776,20 @@ void FSlateUser::QueryCursor()
 				{
 					// Query was NOT handled, and we are still over a slate window.
 					CursorReply = FCursorReply::Cursor(EMouseCursor::Default);
+					
+#if WITH_SLATE_DEBUGGING
+					FSlateDebugging::BroadcastCursorQuery(nullptr, CursorReply);
+#endif
 				}
 			}
 			else
 			{
 				// Set the default cursor when there isn't an active window under the cursor and the mouse isn't captured
 				CursorReply = FCursorReply::Cursor(EMouseCursor::Default);
+
+#if WITH_SLATE_DEBUGGING
+				FSlateDebugging::BroadcastCursorQuery(nullptr, CursorReply);
+#endif
 			}
 		}
 		ProcessCursorReply(CursorReply);
