@@ -27,7 +27,7 @@ void FOculusBuildAnalytics::Shutdown()
 {
 	if (instance != NULL)
 	{
-		ovrp_SetDeveloperMode(false);
+		FOculusHMDModule::GetPluginWrapper().SetDeveloperMode(false);
 	}
 }
 
@@ -89,7 +89,7 @@ void FOculusBuildAnalytics::OnLauncherWorkerStarted(ILauncherWorkerPtr LauncherW
 			TotalBuildTime = 0;
 			BuildStepCount = 0;
 
-			ovrp_SetDeveloperMode(true);
+			FOculusHMDModule::GetPluginWrapper().SetDeveloperMode(true);
 
 			OutputDirectory = Profile.Get().GetPackageDirectory();
 
@@ -138,14 +138,14 @@ void FOculusBuildAnalytics::OnLauncherWorkerStarted(ILauncherWorkerPtr LauncherW
 
 			// Generate build GUID
 			FGuid guid = FGuid::NewGuid();
-			ovrp_AddCustomMetadata("build_guid", TCHAR_TO_ANSI(*guid.ToString()));
+			FOculusHMDModule::GetPluginWrapper().AddCustomMetadata("build_guid", TCHAR_TO_ANSI(*guid.ToString()));
 
 			// Send build start event with corresponding metadata
-			ovrp_AddCustomMetadata("asset_count", TCHAR_TO_ANSI(*FString::FromInt(UserAssetCount)));
-			ovrp_AddCustomMetadata("script_count", TCHAR_TO_ANSI(*FString::FromInt(SourceFileCount)));
+			FOculusHMDModule::GetPluginWrapper().AddCustomMetadata("asset_count", TCHAR_TO_ANSI(*FString::FromInt(UserAssetCount)));
+			FOculusHMDModule::GetPluginWrapper().AddCustomMetadata("script_count", TCHAR_TO_ANSI(*FString::FromInt(SourceFileCount)));
 
-			ovrp_AddCustomMetadata("target_platform", TCHAR_TO_ANSI(*CurrentBuildPlatform));
-			ovrp_AddCustomMetadata("target_oculus_platform", TCHAR_TO_ANSI(*OculusPlatform));
+			FOculusHMDModule::GetPluginWrapper().AddCustomMetadata("target_platform", TCHAR_TO_ANSI(*CurrentBuildPlatform));
+			FOculusHMDModule::GetPluginWrapper().AddCustomMetadata("target_oculus_platform", TCHAR_TO_ANSI(*OculusPlatform));
 
 			TArray<ILauncherTaskPtr> TaskList;
 			LauncherWorker->GetTasks(TaskList);
@@ -185,7 +185,7 @@ void FOculusBuildAnalytics::OnStageCompleted(const FString& StageName, double Ti
 		}
 
 		TotalBuildTime += Time;
-		ovrp_SendEvent2(TCHAR_TO_ANSI(*TaskName), TCHAR_TO_ANSI(*FString::SanitizeFloat(Time)), "ovrbuild");
+		FOculusHMDModule::GetPluginWrapper().SendEvent2(TCHAR_TO_ANSI(*TaskName), TCHAR_TO_ANSI(*FString::SanitizeFloat(Time)), "ovrbuild");
 	}
 }
 
@@ -253,7 +253,7 @@ void FOculusBuildAnalytics::OnBuildOutputRecieved(const FString& Message)
 
 				AndroidPackageTime = Minutes * 60 + Seconds;
 
-				ovrp_SendEvent2("build_step_gradle_build", TCHAR_TO_ANSI(*FString::SanitizeFloat(AndroidPackageTime)), "ovrbuild");
+				FOculusHMDModule::GetPluginWrapper().SendEvent2("build_step_gradle_build", TCHAR_TO_ANSI(*FString::SanitizeFloat(AndroidPackageTime)), "ovrbuild");
 			}
 		}
 	}
@@ -306,10 +306,10 @@ void FOculusBuildAnalytics::SendBuildCompleteEvent(float TotalTime)
 
 		if (APKTotalSize > 0)
 		{
-			ovrp_AddCustomMetadata("build_output_size", TCHAR_TO_ANSI(*FString::FromInt(APKTotalSize)));
+			FOculusHMDModule::GetPluginWrapper().AddCustomMetadata("build_output_size", TCHAR_TO_ANSI(*FString::FromInt(APKTotalSize)));
 		}
 	}
 
-	ovrp_AddCustomMetadata("build_step_count", TCHAR_TO_ANSI(*FString::FromInt(BuildStepCount)));
-	ovrp_SendEvent2("build_complete", TCHAR_TO_ANSI(*FString::SanitizeFloat(TotalTime)), "ovrbuild");
+	FOculusHMDModule::GetPluginWrapper().AddCustomMetadata("build_step_count", TCHAR_TO_ANSI(*FString::FromInt(BuildStepCount)));
+	FOculusHMDModule::GetPluginWrapper().SendEvent2("build_complete", TCHAR_TO_ANSI(*FString::SanitizeFloat(TotalTime)), "ovrbuild");
 }

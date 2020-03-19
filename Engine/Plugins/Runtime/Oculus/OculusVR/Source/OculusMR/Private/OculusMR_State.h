@@ -3,7 +3,7 @@
 
 #include "UObject/ObjectMacros.h"
 #include "OculusFunctionLibrary.h"
-#include "OVR_Plugin_Types.h"
+#include "OculusPluginWrapper.h"
 
 #include "OculusMR_State.generated.h"
 

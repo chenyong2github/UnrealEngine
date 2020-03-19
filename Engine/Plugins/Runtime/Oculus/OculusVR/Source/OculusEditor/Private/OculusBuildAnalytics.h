@@ -7,7 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/Class.h"
 #include "AndroidRuntimeSettings.h"
-#include "OVR_Plugin.h"
+#include "OculusPluginWrapper.h"
 
 enum EBuildStage
 {
