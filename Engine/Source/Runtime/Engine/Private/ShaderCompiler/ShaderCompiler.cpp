@@ -53,8 +53,6 @@
 
 DEFINE_LOG_CATEGORY(LogShaderCompilers);
 
-RENDERCORE_API bool UsePreExposure(EShaderPlatform Platform);
-
 #if ENABLE_COOK_STATS
 namespace GlobalShaderCookStats
 {
@@ -3688,7 +3686,8 @@ void GlobalBeginCompileShader(
 	}
 
 	{
-		Input.Environment.SetDefine(TEXT("USE_PREEXPOSURE"), UsePreExposure((EShaderPlatform)Target.Platform) ? 1 : 0);
+		// PreExposure is now always enabled in the shaders.
+		Input.Environment.SetDefine(TEXT("USE_PREEXPOSURE"), 1);
 	}
 
 	{
