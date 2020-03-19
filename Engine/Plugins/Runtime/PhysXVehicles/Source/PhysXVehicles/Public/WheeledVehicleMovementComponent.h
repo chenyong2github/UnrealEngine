@@ -629,8 +629,11 @@ protected:
 	virtual float GetRVOAvoidanceHeight() override;
 	virtual float GetRVOAvoidanceConsiderationRadius() override;
 	virtual FVector GetVelocityForRVOConsideration() override;
+	virtual void SetAvoidanceGroupMask(int32 GroupFlags) override;
 	virtual int32 GetAvoidanceGroupMask() override;
+	virtual void SetGroupsToAvoidMask(int32 GroupFlags) override;
 	virtual int32 GetGroupsToAvoidMask() override;
+	virtual void SetGroupsToIgnoreMask(int32 GroupFlags) override;
 	virtual int32 GetGroupsToIgnoreMask() override;
 	/** END IRVOAvoidanceInterface */
 

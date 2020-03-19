@@ -50,11 +50,20 @@ class ENGINE_API IRVOAvoidanceInterface
 	/** The velocity of the avoiding entity **/
 	virtual FVector GetVelocityForRVOConsideration() = 0;
 
+	/** Store the avoidance group mask **/
+	virtual void SetAvoidanceGroupMask(int32 GroupFlags) = 0;
+
 	/** This actor's avoidance group mask **/
 	virtual int32 GetAvoidanceGroupMask() = 0;
 
+	/** Store the groups to avoid mask **/
+	virtual void SetGroupsToAvoidMask(int32 GroupFlags) = 0;
+
 	/** Agent groups to avoid mask **/
 	virtual int32 GetGroupsToAvoidMask() = 0;
+
+	/** Store the groups to ignore mask **/
+	virtual void SetGroupsToIgnoreMask(int32 GroupFlags) = 0;
 
 	/** Agent groups to ignore **/
 	virtual int32 GetGroupsToIgnoreMask() = 0;
