@@ -696,6 +696,7 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_ScratchPad(const FSpawnTabA
 {
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Label(LOCTEXT("ScratchPadTabLabel", "Scratch Pad"))
+		.Icon(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scratch"))
 		[
 			FNiagaraEditorModule::Get().GetWidgetProvider()->CreateScriptScratchPad(*SystemViewModel->GetScriptScratchPadViewModel())
 		];
@@ -1379,7 +1380,7 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 	bool bHasUnappliedScratchPadChanges = false;
 	for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadViewModel : SystemViewModel->GetScriptScratchPadViewModel()->GetScriptViewModels())
 	{
-		if (ScratchPadViewModel->CanApplyChanges())
+		if (ScratchPadViewModel->HasUnappliedChanges())
 		{
 			bHasUnappliedScratchPadChanges = true;
 			break;

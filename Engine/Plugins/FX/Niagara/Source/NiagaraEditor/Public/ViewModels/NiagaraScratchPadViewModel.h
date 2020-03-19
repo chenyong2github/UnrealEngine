@@ -45,6 +45,8 @@ public:
 
 	void SetActiveScriptViewModel(TSharedRef<FNiagaraScratchPadScriptViewModel> InActiveScriptViewModel);
 
+	void FocusScratchPadScriptViewModel(TSharedRef<FNiagaraScratchPadScriptViewModel> InScriptViewModel);
+
 	void ResetActiveScriptViewModel();
 
 	void CopyActiveScript();
@@ -59,6 +61,12 @@ public:
 
 	TSharedPtr<FNiagaraScratchPadScriptViewModel> CreateNewScriptAsDuplicate(const UNiagaraScript* ScriptToDuplicate);
 
+	void CreateAssetFromActiveScript();
+
+	bool CanSelectNextUsageForActiveScript();
+
+	void SelectNextUsageForActiveScript();
+
 	FOnScriptViewModelsChanged& OnScriptViewModelsChanged();
 
 	FOnScriptViewModelsChanged& OnEditScriptViewModelsChanged();
@@ -72,6 +80,8 @@ public:
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();
 
+	TSharedRef<FNiagaraScratchPadScriptViewModel> CreateAndSetupScriptviewModel(UNiagaraScript* ScratchPadScript);
+
 	void RefreshEditScriptViewModels();
 
 	void ScriptGraphNodeSelectionChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> InScriptViewModelWeak);
@@ -79,6 +89,8 @@ private:
 	void ScriptViewModelScriptRenamed();
 
 	void ScriptViewModelPinnedChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
+
+	void ScriptViewModelRequestDiscardChanges(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
 
 private:
 	TSharedPtr<FNiagaraObjectSelection> ObjectSelection;
