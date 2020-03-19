@@ -67,7 +67,7 @@ void SMaterialParametersOverviewTreeItem::RefreshOnRowChange(const FAssetData& A
 {
 	if (InTree.IsValid())
 	{
-		InTree->CreateGroupsWidget(false);
+		InTree->CreateGroupsWidget();
 	}
 }
 
@@ -528,7 +528,7 @@ void SMaterialParametersOverviewTree::Construct(const FArguments& InArgs)
 	ColumnWidth = 0.5f;
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Owner = InArgs._InOwner;
-	CreateGroupsWidget(true);
+	CreateGroupsWidget();
 
 
 	STreeView<TSharedPtr<FSortedParamData>>::Construct(
@@ -602,13 +602,9 @@ TSharedPtr<class FAssetThumbnailPool> SMaterialParametersOverviewTree::GetTreeTh
 	return GetOwner().Pin()->GetGenerator()->GetGeneratedThumbnailPool();
 }
 
-void SMaterialParametersOverviewTree::CreateGroupsWidget(const bool bRegenerateArray)
+void SMaterialParametersOverviewTree::CreateGroupsWidget()
 {
 	check(MaterialEditorInstance);
-	if (bRegenerateArray)
-	{
-		MaterialEditorInstance->RegenerateArrays();
-	}
 	UnsortedParameters.Empty();
 	SortedParameters.Empty();
 
@@ -815,10 +811,10 @@ int32 SMaterialParametersOverviewPanel::GetPanelIndex() const
 	return NestedTree && NestedTree->HasAnyParameters() ? 1 : 0;
 }
 
-void SMaterialParametersOverviewPanel::Refresh(const bool bRegenerateArray)
+void SMaterialParametersOverviewPanel::Refresh()
 {
 	TSharedPtr<SHorizontalBox> HeaderBox;
-	NestedTree->CreateGroupsWidget(bRegenerateArray);
+	NestedTree->CreateGroupsWidget();
 
 	FOnClicked 	OnChildButtonClicked = FOnClicked();
 	if (MaterialEditorInstance->OriginalFunction)
