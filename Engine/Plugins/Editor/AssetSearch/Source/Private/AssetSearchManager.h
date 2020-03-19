@@ -44,7 +44,7 @@ private:
 	void OnAssetRemoved(const FAssetData& InAssetData);
 	void OnAssetScanFinished();
 
-	void OnObjectSaved(UObject* InObject);
+	void HandlePackageSaved(const FString& PackageFilename, UObject* Outer);
 	void OnAssetLoaded(UObject* InObject);
 
 	void AddOrUpdateAsset(const FAssetData& InAsset, const FString& IndexedJson, const FString& DerivedDataKey);
