@@ -7,6 +7,8 @@
 #include "Chaos/PBDJointConstraintUtilities.h"
 #include "Chaos/Utilities.h"
 
+#include "HAL/IConsoleManager.h"
+
 //PRAGMA_DISABLE_OPTIMIZATION
 
 int32 bChaos_Joint_MultiDimension = true;
