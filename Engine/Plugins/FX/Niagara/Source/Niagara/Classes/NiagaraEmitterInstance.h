@@ -28,9 +28,25 @@ struct FNiagaraEmitterCompiledData;
 */
 class FNiagaraEmitterInstance
 {
+private:
+	struct FEventInstanceData
+	{
+		TArray<FNiagaraScriptExecutionContext> EventExecContexts;
+		TArray<FNiagaraParameterDirectBinding<int32>> EventExecCountBindings;
+
+		TArray<FNiagaraDataSet*> UpdateScriptEventDataSets;
+		TArray<FNiagaraDataSet*> SpawnScriptEventDataSets;
+
+		TArray<bool> UpdateEventGeneratorIsSharedByIndex;
+		TArray<bool> SpawnEventGeneratorIsSharedByIndex;
+
+		/** Data required for handling events. */
+		TArray<FNiagaraEventHandlingInfo> EventHandlingInfo;
+		int32 EventSpawnTotal = 0;
+	};
+
 public:
 	explicit FNiagaraEmitterInstance(FNiagaraSystemInstance* InParentSystemInstance);
-	bool bDumpAfterEvent;
 	virtual ~FNiagaraEmitterInstance();
 
 	void Init(int32 InEmitterIdx, FNiagaraSystemInstanceID SystemInstanceID);
@@ -39,7 +55,7 @@ public:
 
 	void DirtyDataInterfaces();
 
-	/** Replaces the binding for a single parameter colleciton instance. If for example the component begins to override the global instance. */
+	/** Replaces the binding for a single parameter collection instance. If for example the component begins to override the global instance. */
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
 	void BindParameters(bool bExternalOnly);
 	void UnbindParameters(bool bExternalOnly);
@@ -97,7 +113,7 @@ public:
 
 	FNiagaraScriptExecutionContext& GetSpawnExecutionContext() { return SpawnExecContext; }
 	FNiagaraScriptExecutionContext& GetUpdateExecutionContext() { return UpdateExecContext; }
-	TArray<FNiagaraScriptExecutionContext>& GetEventExecutionContexts() { return EventExecContexts; }
+	TArrayView<FNiagaraScriptExecutionContext> GetEventExecutionContexts();
 
 	FORCEINLINE FName GetCachedIDName()const { return CachedIDName; }
 	FORCEINLINE UNiagaraEmitter* GetCachedEmitter()const { return CachedEmitter; }
@@ -131,36 +147,13 @@ private:
 
 	/** Generate emitter bounds */
 	FBox InternalCalculateDynamicBounds(int32 ParticleCount) const;
-	
-	/** The index of our emitter in our parent system instance. */
-	int32 EmitterIdx;
-
-	/* The age of the emitter*/
-	float EmitterAge;
-
-	int32 TickCount;
-
-	int32 TotalSpawnedParticles;
-	
-	/** Typical resets must be deferred until the tick as the RT could still be using the current buffer. */
-	uint32 bResetPending : 1;
-
-	/* Cycles taken to process the tick. */
-	uint32 CPUTimeCycles;
-	/* Emitter tick state */
-	ENiagaraExecutionState ExecutionState;
-	/* Emitter bounds */
-	FBox CachedBounds;
-
-	uint32 MaxRuntimeAllocation;
 
 	/** Array of all spawn info driven by our owning emitter script. */
 	TArray<FNiagaraSpawnInfo> SpawnInfos;
 
 	FNiagaraScriptExecutionContext SpawnExecContext;
 	FNiagaraScriptExecutionContext UpdateExecContext;
-	FNiagaraComputeExecutionContext* GPUExecContext;
-	TArray<FNiagaraScriptExecutionContext> EventExecContexts;
+	FNiagaraComputeExecutionContext* GPUExecContext = nullptr;
 
 	FNiagaraParameterDirectBinding<float> SpawnIntervalBinding;
 	FNiagaraParameterDirectBinding<float> InterpSpawnStartBinding;
@@ -168,44 +161,59 @@ private:
 
 	FNiagaraParameterDirectBinding<int32> SpawnExecCountBinding;
 	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
-	TArray<FNiagaraParameterDirectBinding<int32>> EventExecCountBindings;
-	
-	/** particle simulation data. Must be a shared ref as various things on the RT can have direct ref to it. */
-	FNiagaraDataSet* ParticleDataSet;
-
-	FNiagaraSystemInstance *ParentSystemInstance;
-
-	/** Raw pointer to the emitter that we're instanced from. Raw ptr should be safe here as we check for the validity of the system and it's emitters higher up before any ticking. */
-	UNiagaraEmitter* CachedEmitter;
-	FName CachedIDName;
-
-	TArray<FNiagaraDataSet*> UpdateScriptEventDataSets;
-	TArray<FNiagaraDataSet*> SpawnScriptEventDataSets;
-
-	TArray<bool> UpdateEventGeneratorIsSharedByIndex;
-	TArray<bool> SpawnEventGeneratorIsSharedByIndex;
-
-	FNiagaraSystemInstanceID OwnerSystemInstanceID;
-
-	/** Cached fixed bounds of the parent system which override this Emitter Instances bounds if set. Whenever we initialize the owning SystemInstance we will reconstruct this
-	 ** EmitterInstance and the cached bounds will be unset. */
-	TOptional<FBox> CachedSystemFixedBounds;
-
-	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
-	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
-
-	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
-
-	/** Data required for handling events. */
-	TArray<FNiagaraEventHandlingInfo> EventHandlingInfo;
-	int32 EventSpawnTotal;
-
-	int32 MaxAllocationCount = 0;
-	int32 MinOverallocation = -1;
-	int32 ReallocationCount = 0;
 
 	/** Optional list of bounds calculators. */
 	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;
 
 	TSharedPtr<const FNiagaraEmitterCompiledData> CachedEmitterCompiledData;
+
+	TUniquePtr<FEventInstanceData> EventInstanceData;
+
+	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
+	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
+
+	/* Emitter bounds */
+	FBox CachedBounds;
+
+	/** Cached fixed bounds of the parent system which override this Emitter Instances bounds if set. Whenever we initialize the owning SystemInstance we will reconstruct this
+	 ** EmitterInstance and the cached bounds will be unset. */
+	TOptional<FBox> CachedSystemFixedBounds;
+
+	FNiagaraSystemInstanceID OwnerSystemInstanceID;
+
+	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+
+	/** particle simulation data. Must be a shared ref as various things on the RT can have direct ref to it. */
+	FNiagaraDataSet* ParticleDataSet = nullptr;
+
+	FNiagaraSystemInstance *ParentSystemInstance = nullptr;
+
+	/** Raw pointer to the emitter that we're instanced from. Raw ptr should be safe here as we check for the validity of the system and it's emitters higher up before any ticking. */
+	UNiagaraEmitter* CachedEmitter = nullptr;
+	FName CachedIDName;
+
+	/** The index of our emitter in our parent system instance. */
+	int32 EmitterIdx = INDEX_NONE;
+
+	/* The age of the emitter*/
+	float EmitterAge = 0.0f;
+
+	int32 TickCount = 0;
+
+	int32 TotalSpawnedParticles = 0;
+	
+	/* Cycles taken to process the tick. */
+	uint32 CPUTimeCycles = 0;
+
+	uint32 MaxRuntimeAllocation = 0;
+
+	int32 MaxAllocationCount = 0;
+	int32 MinOverallocation = -1;
+	int32 ReallocationCount = 0;
+
+	/* Emitter tick state */
+	ENiagaraExecutionState ExecutionState = ENiagaraExecutionState::Inactive;
+
+	/** Typical resets must be deferred until the tick as the RT could still be using the current buffer. */
+	uint32 bResetPending : 1;
 };
