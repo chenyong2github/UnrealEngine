@@ -55,9 +55,6 @@ void SAnimTrackPanel::Construct(const FArguments& InArgs)
 	OnSetInputViewRange = InArgs._OnSetInputViewRange;
 
 	WidgetWidth = InArgs._WidgetWidth;
-
-	bPanning = false;
-	PanningDistance = 0.f;
 }
 
 TSharedRef<class S2ColumnWidget> SAnimTrackPanel::Create2ColumnWidget( TSharedRef<SVerticalBox> Parent )
@@ -72,83 +69,6 @@ TSharedRef<class S2ColumnWidget> SAnimTrackPanel::Create2ColumnWidget( TSharedRe
 		];
 
 	return NewTrack.ToSharedRef();
-}
-
-FReply SAnimTrackPanel::OnMouseButtonDown( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent )
-{
-	const bool bRightMouseButton = InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton;
-
-	if(bRightMouseButton)
-	{
-		UE_LOG(LogAnimation, Log, TEXT("MouseButtonDown %d, %0.5f"), bPanning, PanningDistance);
-		PanningDistance = 0.f;
-	}
-
-	return FReply::Unhandled();
-}
-
-FReply SAnimTrackPanel::OnMouseButtonUp( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent )
-{
-	const bool bRightMouseButton = InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton;
-
-	if(bRightMouseButton && this->HasMouseCapture())
-	{
-		bPanning = false;
-		PanningDistance = 0.f;
-		UE_LOG(LogAnimation, Log, TEXT("MouseButtonUp (Releasing Mouse) %d, %0.5f"), bPanning, PanningDistance);
-		return FReply::Handled().ReleaseMouseCapture();
-	}
-
-	return FReply::Unhandled();
-}
-
-FReply SAnimTrackPanel::OnMouseMove( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent )
-{
-	const bool bRightMouseButtonDown = InMouseEvent.IsMouseButtonDown(EKeys::RightMouseButton);
-
-	// When mouse moves, if we are moving a key, update its 'input' position
-	if(bRightMouseButtonDown)
-	{
-		if( !bPanning )
-		{
-			PanningDistance += FMath::Abs(InMouseEvent.GetCursorDelta().X);
-			if ( PanningDistance > FSlateApplication::Get().GetDragTriggerDistance() )
-			{
-				bPanning = true;
-				UE_LOG(LogAnimation, Log, TEXT("MouseMove (Capturing Mouse) %d, %0.5f"), bPanning, PanningDistance);
-				return FReply::Handled().CaptureMouse(SharedThis(this));
-			}
-		}
-		else
-		{
-			FTrackScaleInfo ScaleInfo(ViewInputMin.Get(),  ViewInputMax.Get(), 0.f, 0.f, InMyGeometry.Size);
-			FVector2D ScreenDelta = InMouseEvent.GetCursorDelta();
-			FVector2D InputDelta;
-			InputDelta.X = ScreenDelta.X/ScaleInfo.PixelsPerInput;
-			InputDelta.Y = -ScreenDelta.Y/ScaleInfo.PixelsPerOutput;
-
-			float NewViewInputMin = ViewInputMin.Get() - InputDelta.X;
-			float NewViewInputMax = ViewInputMax.Get() - InputDelta.X;
-			// we'd like to keep  the range if outside when panning
-			if ( NewViewInputMin < InputMin.Get() )
-			{
-				NewViewInputMin = InputMin.Get();
-				NewViewInputMax = ScaleInfo.ViewInputRange;
-			}
-			else if ( NewViewInputMax > InputMax.Get() )
-			{
-				NewViewInputMax = InputMax.Get();
-				NewViewInputMin = NewViewInputMax - ScaleInfo.ViewInputRange;
-			}
-
-			InputViewRangeChanged(NewViewInputMin, NewViewInputMax);
-
-			UE_LOG(LogAnimation, Log, TEXT("MouseMove (Panning) %0.2f, %0.2f"), ViewInputMin.Get(), ViewInputMax.Get());
-			return FReply::Handled();
-		}
-	}
-
-	return FReply::Unhandled();
 }
 
 void SAnimTrackPanel::PanInputViewRange(int32 ScreenDelta, FVector2D ScreenViewSize)
