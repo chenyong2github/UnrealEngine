@@ -37,8 +37,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectKey.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-
-PRAGMA_DISABLE_OPTIMIZATION
+#include "FileHelpers.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "FAssetSearchManager"
 
@@ -684,7 +684,7 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 			{
 				LoadDDCContentIntoDatabase(PendingRequest->AssetData, OutContent, PendingRequest->DDCKey);
 			}
-			else if (UserSettings->bShowAdvancedData)
+			else if (UserSettings->bShowMissingAssets)
 			{
 				FailedDDCRequests.Add(*PendingRequest);
 			}
@@ -747,6 +747,8 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 
 	int32 RemovedCount = 0;
 
+	TArray<FAssetData> RedirectorsWithBrokenMetadata;
+
 	FUnloadPackageScope UnloadScope;
 	for (const FAssetDDCRequest& Request : FailedDDCRequests)
 	{
@@ -758,6 +760,15 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 		IndexingTask.EnterProgressFrame(1, FText::Format(LOCTEXT("ForceIndexOnAssetsMissingIndexFormat", "Indexing Asset ({0} of {1})"), RemovedCount + 1, FailedDDCRequests.Num()));
 		if (UObject* AssetToIndex = Request.AssetData.GetAsset())
 		{
+			// This object's metadata incorrectly labled it as something other than a redirector.  We need to resave it
+			// to stop it from appearing as something it's not.
+			if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(AssetToIndex))
+			{
+				RedirectorsWithBrokenMetadata.Add(Request.AssetData);
+				RemovedCount++;
+				continue;
+			}
+
 			StoreIndexForAsset(AssetToIndex);
 		}
 
@@ -767,6 +778,26 @@ void FAssetSearchManager::ForceIndexOnAssetsMissingIndex()
 		}
 
 		RemovedCount++;
+	}
+
+	if (RedirectorsWithBrokenMetadata.Num() > 0)
+	{
+		EAppReturnType::Type ReturnValue = FMessageDialog::Open(EAppMsgType::YesNo,
+			LOCTEXT("ResaveRedirectors", "We found some redirectors that didn't have the correct asset metadata identifying them as redirectors.  Would you like to resave them, so that they stop appearing as missing asset indexes?"));
+
+		if (ReturnValue == EAppReturnType::Yes)
+		{
+			TArray<UPackage*> PackagesToSave;
+			for (const FAssetData& BrokenAsset : RedirectorsWithBrokenMetadata)
+			{
+				if (UObject* Redirector = BrokenAsset.GetAsset())
+				{
+					PackagesToSave.Add(Redirector->GetOutermost());
+				}
+			}
+
+			FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, /*bCheckDirty*/false, /*bPromptToSave*/false);
+		}
 	}
 
 	FailedDDCRequests.RemoveAtSwap(0, RemovedCount);
@@ -826,5 +857,3 @@ void FAssetSearchManager::ProcessGameThreadTasks()
 }
 
 #undef LOCTEXT_NAMESPACE
-
-PRAGMA_ENABLE_OPTIMIZATION

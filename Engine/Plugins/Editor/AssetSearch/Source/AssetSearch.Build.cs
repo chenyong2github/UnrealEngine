@@ -33,7 +33,7 @@ public class AssetSearch : ModuleRules
 				"Json",
 				"AssetRegistry",
 				"JsonUtilities",
-
+				"Projects",
 				"UMG",
 				"UMGEditor",
 				"BlueprintGraph",

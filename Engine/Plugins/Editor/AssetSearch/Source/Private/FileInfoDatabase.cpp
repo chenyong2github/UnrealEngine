@@ -17,8 +17,6 @@
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/StringBuilder.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 DECLARE_LOG_CATEGORY_CLASS(LogFileInfo, Log, All);
 
 enum class EFileInfoDatabaseVersion
@@ -432,5 +430,3 @@ TMap<FName, FAssetFileInfo> FFileInfoDatabase::GetAllFileInfos()
 
 	return FileInfos;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
