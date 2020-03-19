@@ -1193,9 +1193,9 @@ namespace UnrealBuildTool
 				// Add any zip files from Additional Frameworks
 				foreach (ModuleRules.Framework Framework in Rules.PublicAdditionalFrameworks)
 				{
-					if (!String.IsNullOrEmpty(Framework.ZipPath))
+					if (Framework.IsZipFile())
 					{
-						Files.Add(FileReference.Combine(Module.ModuleDirectory, Framework.ZipPath));
+						Files.Add(FileReference.Combine(Module.ModuleDirectory, Framework.Path));
 					}
 				}
 
