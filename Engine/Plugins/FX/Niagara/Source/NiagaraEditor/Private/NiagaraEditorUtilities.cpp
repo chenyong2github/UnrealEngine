@@ -2414,4 +2414,16 @@ FString FNiagaraEditorUtilities::GetNamespacelessVariableNameString(const FName&
 	return VarNameString;
 }
 
+void FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes)
+{
+	for (TObjectIterator<UNiagaraNodeFunctionCall> It; It; ++It)
+	{
+		UNiagaraNodeFunctionCall* FunctionCallNode = *It;
+		if (FunctionCallNode->FunctionScript == Script)
+		{
+			OutReferencingFunctionCallNodes.Add(FunctionCallNode);
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

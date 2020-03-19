@@ -78,18 +78,6 @@ void FNiagaraScratchPadScriptViewModel::SetIsPendingRename(bool bInIsPendingRena
 	bIsPendingRename = bInIsPendingRename;
 }
 
-void GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes)
-{
-	for (TObjectIterator<UNiagaraNodeFunctionCall> It; It; ++It)
-	{
-		UNiagaraNodeFunctionCall* FunctionCallNode = *It;
-		if (FunctionCallNode->FunctionScript == Script)
-		{
-			OutReferencingFunctionCallNodes.Add(FunctionCallNode);
-		}
-	}
-}
-
 void FNiagaraScratchPadScriptViewModel::SetScriptName(FText InScriptName)
 {
 	FString NewName = ObjectTools::SanitizeObjectName(InScriptName.ToString());
@@ -102,7 +90,7 @@ void FNiagaraScratchPadScriptViewModel::SetScriptName(FText InScriptName)
 		OriginalScript->Rename(*NewUniqueName.ToString(), nullptr, REN_DontCreateRedirectors);
 
 		TArray<UNiagaraNodeFunctionCall*> ReferencingFunctionCallNodes;
-		GetReferencingFunctionCallNodes(OriginalScript, ReferencingFunctionCallNodes);
+		FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(OriginalScript, ReferencingFunctionCallNodes);
 		for(UNiagaraNodeFunctionCall* ReferencingFunctionCallNode : ReferencingFunctionCallNodes)
 		{
 			ReferencingFunctionCallNode->Modify();
@@ -145,7 +133,7 @@ void FNiagaraScratchPadScriptViewModel::SetEditorHeight(float InEditorHeight)
 	EditorHeight = InEditorHeight;
 }
 
-bool FNiagaraScratchPadScriptViewModel::CanApplyChanges() const
+bool FNiagaraScratchPadScriptViewModel::HasUnappliedChanges() const
 {
 	return bHasPendingChanges;
 }
@@ -161,7 +149,7 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 	bHasPendingChanges = false;
 
 	TArray<UNiagaraNodeFunctionCall*> FunctionCallNodesToRefresh;
-	GetReferencingFunctionCallNodes(OriginalScript, FunctionCallNodesToRefresh);
+	FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(OriginalScript, FunctionCallNodesToRefresh);
 
 	TArray<UNiagaraStackFunctionInputCollection*> InputCollectionsToRefresh;
 	if (FunctionCallNodesToRefresh.Num())
@@ -188,6 +176,11 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 	}
 }
 
+void FNiagaraScratchPadScriptViewModel::DiscardChanges()
+{
+	OnRequestDiscardChangesDelegate.ExecuteIfBound();
+}
+
 FNiagaraScratchPadScriptViewModel::FOnRenamed& FNiagaraScratchPadScriptViewModel::OnRenamed()
 {
 	return OnRenamedDelegate;
@@ -196,6 +189,11 @@ FNiagaraScratchPadScriptViewModel::FOnRenamed& FNiagaraScratchPadScriptViewModel
 FNiagaraScratchPadScriptViewModel::FOnPinnedChanged& FNiagaraScratchPadScriptViewModel::OnPinnedChanged()
 {
 	return OnPinnedChangedDelegate;
+}
+
+FSimpleDelegate& FNiagaraScratchPadScriptViewModel::OnRequestDiscardChanges()
+{
+	return OnRequestDiscardChangesDelegate;
 }
 
 FText FNiagaraScratchPadScriptViewModel::GetDisplayNameInternal() const
