@@ -141,6 +141,8 @@ private:
 
 	void SetLibraryOnly(bool bInIsLibraryOnly);
 
+	FReply ScratchButtonPressed() const;
+
 private:
 	UNiagaraStackFunctionInput* FunctionInput;
 

@@ -490,18 +490,16 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 				.Padding(0.0f, 2.0f, 1.0f, 4.0f)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "RoundButton")
 					.OnClicked(this, &SNiagaraScratchPadScriptEditor::OnApplyButtonClicked)
 					.ToolTipText(LOCTEXT("ApplyButtonToolTip", "Apply the current changes to this script.  This will update the selection stack UI and compile neccessary scripts."))
 					.IsEnabled(this, &SNiagaraScratchPadScriptEditor::GetApplyButtonIsEnabled)
-					.ForegroundColor(FSlateColor::UseForeground())
-					.ContentPadding(FMargin(0.0f))
+					.ContentPadding(FMargin(3.0f, 0.0f))
 					.Content()
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
-						.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+						.Padding(2.0f, 2.0f, 2.0f, 2.0f)
 						[
 							SNew(SImage)
 							.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Apply.Small"))
@@ -541,7 +539,7 @@ private:
 
 	bool GetApplyButtonIsEnabled() const
 	{
-		return ScriptViewModel->CanApplyChanges();
+		return ScriptViewModel->HasUnappliedChanges();
 	}
 
 private:

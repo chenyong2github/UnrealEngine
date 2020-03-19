@@ -12,6 +12,9 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
@@ -49,10 +52,22 @@ void SNiagaraStackModuleItem::FillRowContextMenu(FMenuBuilder& MenuBuilder)
 FReply SNiagaraStackModuleItem::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	const UNiagaraNodeFunctionCall& ModuleFunctionCall = ModuleItem->GetModuleNode();
-	if (ModuleFunctionCall.FunctionScript != nullptr && ModuleFunctionCall.FunctionScript->IsAsset())
+	if (ModuleFunctionCall.FunctionScript != nullptr)
 	{
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UNiagaraScript*>(ModuleFunctionCall.FunctionScript));
-		return FReply::Handled();
+		if (ModuleFunctionCall.FunctionScript->IsAsset())
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UNiagaraScript*>(ModuleFunctionCall.FunctionScript));
+			return FReply::Handled();
+		}
+		else if (ModuleItem->IsScratchModule())
+		{
+			TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(ModuleFunctionCall.FunctionScript);
+			if (ScratchPadScriptViewModel.IsValid())
+			{
+				ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
+				return FReply::Handled();
+			}
+		}
 	}
 	return FReply::Unhandled();
 }
@@ -69,6 +84,24 @@ void SNiagaraStackModuleItem::Tick(const FGeometry& AllottedGeometry, const doub
 
 void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> HorizontalBox)
 {
+	// Scratch navigation
+	if(ModuleItem->IsScratchModule())
+	{
+		HorizontalBox->AddSlot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+			.OnClicked(this, &SNiagaraStackModuleItem::ScratchButtonPressed)
+			.ToolTipText(LOCTEXT("OpenInScratchToolTip", "Open this dynamic input in the scratch pad."))
+			.ContentPadding(FMargin(1.0f, 0.0f))
+			.Content()
+			[
+				SNew(SImage)
+				.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scratch"))
+			]
+		];
+	}
 	// Add menu.
 	HorizontalBox->AddSlot()
 	.VAlign(VAlign_Center)
@@ -141,6 +174,18 @@ EVisibility SNiagaraStackModuleItem::GetRaiseActionMenuVisibility() const
 EVisibility SNiagaraStackModuleItem::GetRefreshVisibility() const
 {
 	return ModuleItem->CanRefresh() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FReply SNiagaraStackModuleItem::ScratchButtonPressed() const
+{
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchModuleViewModel =
+		ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(ModuleItem->GetModuleNode().FunctionScript);
+	if (ScratchModuleViewModel.IsValid())
+	{
+		ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchModuleViewModel.ToSharedRef());
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
 }
 
 TSharedRef<SWidget> SNiagaraStackModuleItem::RaiseActionMenuClicked()

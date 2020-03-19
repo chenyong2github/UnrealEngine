@@ -241,6 +241,8 @@ public:
 
 	void SetValueFromClipboardFunctionInput(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);
 
+	bool IsScratchDynamicInput() const;
+
 public:
 	//~ UNiagaraStackEntry interface
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
@@ -400,6 +402,8 @@ private:
 
 	/** A tooltip to show for the value of this input. */
 	mutable TOptional<FText> ValueToolTipCache;
+
+	mutable TOptional<bool> bIsScratchDynamicInputCache;
 
 	/** A flag to prevent handling graph changes when it's being updated directly by this object. */
 	bool bUpdatingGraphDirectly;
