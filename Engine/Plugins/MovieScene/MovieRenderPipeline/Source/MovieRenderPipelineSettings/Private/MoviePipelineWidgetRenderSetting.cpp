@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MoviePipelineBurnInSetting.h"
+#include "MoviePipelineWidgetRenderSetting.h"
 #include "Slate/WidgetRenderer.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineBurnInWidget.h"
@@ -10,22 +10,21 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "MoviePipelineOutputBuilder.h"
 #include "ImagePixelData.h"
+#include "Widgets/SViewport.h"
+#include "Slate/SGameLayerManager.h"
 
-void UMoviePipelineBurnInSetting::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
+void UMoviePipelineWidgetRenderer::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
-	// If this was transiently added, don't make a burn-in.
+	// If this was transiently added, don't render.
 	if (!GetIsUserCustomized() || !IsEnabled())
 	{
 		return;
 	}
 
-	if (BurnInClass.IsValid())
-	{
-		ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")));
-	}
+	ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(TEXT("ViewportUI")));
 }
 
-void UMoviePipelineBurnInSetting::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
+void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
 {
 	if (InSampleState.bDiscardResult)
 	{
@@ -38,13 +37,16 @@ void UMoviePipelineBurnInSetting::RenderSample_GameThreadImpl(const FMoviePipeli
 
 	if (bFirstTile && bFirstSpatial && bFirstTemporal)
 	{
-		// Update the Widget with the latest frame information
-		BurnInWidgetInstance->OnOutputFrameStarted(GetPipeline());
-
 		// Draw the widget to the render target
-		WidgetRenderer->DrawWindow(RenderTarget, VirtualWindow->GetHittestGrid(), VirtualWindow.ToSharedRef(), 1.f, OutputResolution, InSampleState.OutputState.TimeData.FrameDeltaTime);
-
 		FRenderTarget* BackbufferRenderTarget = RenderTarget->GameThread_GetRenderTargetResource();
+		
+		ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+
+		// Cast the interface to a widget is a little yucky but the implementation is unlikely to change.
+		TSharedPtr<SGameLayerManager> GameLayerManager = StaticCastSharedPtr<SGameLayerManager>(LocalPlayer->ViewportClient->GetGameLayerManager());
+
+		WidgetRenderer->DrawWidget(BackbufferRenderTarget, GameLayerManager.ToSharedRef(), 1.f, FVector2D(RenderTarget->SizeX, RenderTarget->SizeY), (float)InSampleState.OutputState.TimeData.FrameDeltaTime);
+
 		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputBuilder = GetPipeline()->OutputBuilder;
 
 		ENQUEUE_RENDER_COMMAND(BurnInRenderTargetResolveCommand)(
@@ -63,7 +65,7 @@ void UMoviePipelineBurnInSetting::RenderSample_GameThreadImpl(const FMoviePipeli
 
 			TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FrameData = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 			FrameData->OutputState = InSampleState.OutputState;
-			FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("BurnInOverlay"));
+			FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("ViewportUI"));
 			FrameData->SampleState = InSampleState;
 			FrameData->bRequireTransparentOutput = true;
 
@@ -74,41 +76,28 @@ void UMoviePipelineBurnInSetting::RenderSample_GameThreadImpl(const FMoviePipeli
 	}
 }
 
-void UMoviePipelineBurnInSetting::SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
+void UMoviePipelineWidgetRenderer::SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
-	// If this was transiently added, don't make a burn-in.
+	// If this was transiently added, don't render.
 	if (!GetIsUserCustomized() || !IsEnabled())
 	{
 		return;
 	}
 
-	if (BurnInClass.IsValid())
-	{
-		BurnInWidgetInstance = NewObject<UMoviePipelineBurnInWidget>(this, BurnInClass.TryLoadClass<UMoviePipelineBurnInWidget>());
+	RenderTarget = NewObject<UTextureRenderTarget2D>();
+	RenderTarget->ClearColor = FLinearColor::Transparent;
 
-		OutputResolution = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>()->OutputResolution;
-		VirtualWindow = SNew(SVirtualWindow).Size(FVector2D(OutputResolution.X, OutputResolution.Y));
-		VirtualWindow->SetContent(BurnInWidgetInstance->TakeWidget());
+	bool bInForceLinearGamma = false;
+	FIntPoint OutputResolution = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>()->OutputResolution;
+	RenderTarget->InitCustomFormat(OutputResolution.X, OutputResolution.Y, EPixelFormat::PF_B8G8R8A8, bInForceLinearGamma);
 
-		if (FSlateApplication::IsInitialized())
-		{
-			FSlateApplication::Get().RegisterVirtualWindow(VirtualWindow.ToSharedRef());
-		}
-
-		RenderTarget = NewObject<UTextureRenderTarget2D>();
-		RenderTarget->ClearColor = FLinearColor::Transparent;
-
-		bool bInForceLinearGamma = false;
-		RenderTarget->InitCustomFormat(OutputResolution.X, OutputResolution.Y, EPixelFormat::PF_B8G8R8A8, bInForceLinearGamma);
-
-		bool bApplyGammaCorrection = false;
-		WidgetRenderer = MakeShared<FWidgetRenderer>(bApplyGammaCorrection);
-	}
+	bool bApplyGammaCorrection = false;
+	WidgetRenderer = MakeShared<FWidgetRenderer>(bApplyGammaCorrection);
 }
 
-void UMoviePipelineBurnInSetting::TeardownImpl() 
+void UMoviePipelineWidgetRenderer::TeardownImpl() 
 {
-	// If this was transiently added, don't make a burn-in.
+	// If this was transiently added, don't render.
 	if (!GetIsUserCustomized() || !IsEnabled())
 	{
 		return;
@@ -116,14 +105,11 @@ void UMoviePipelineBurnInSetting::TeardownImpl()
 	
 	FlushRenderingCommands();
 
-	if (FSlateApplication::IsInitialized() && VirtualWindow.IsValid())
-	{
-		FSlateApplication::Get().UnregisterVirtualWindow(VirtualWindow.ToSharedRef());
-	}
-	
-	VirtualWindow = nullptr;
-	
 	WidgetRenderer = nullptr;
 	RenderTarget = nullptr;
-	BurnInWidgetInstance = nullptr;
+}
+
+FText UMoviePipelineWidgetRenderer::GetFooterText(UMoviePipelineExecutorJob* InJob) const
+{ 
+	return NSLOCTEXT("MovieRenderPipeline", "WidgetRenderSetting_NoCompositeWarning", "This will render widgets added to the Viewport to a separate texture with alpha. This is currently not composited onto the final image, and will need to be combined in post.");
 }
