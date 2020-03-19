@@ -1171,6 +1171,15 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 		}
 	}
 
+	{
+		// Temp disable gpusorting for Opengl because of issues on Adreno and Mali devices
+		auto* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("FX.AllowGPUSorting"));
+		if (CVar)
+		{
+			CVar->Set(false);
+		}
+	}
+
 	PrivateOpenGLDevicePtr = this;
 	GlobalUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
 }
