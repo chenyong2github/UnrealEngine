@@ -924,6 +924,9 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 				if (LoadedShaderMap->Serialize(Ar, true, bCooked && Ar.IsLoading()))
 				{
 					GameThreadShaderMap = MoveTemp(LoadedShaderMap);
+#if WITH_EDITOR
+					GameThreadShaderMap->MarkAsAssociatedWithAsset(GetAssetPath());
+#endif
 				}
 			}
 		}
@@ -1408,6 +1411,27 @@ void FMaterialResource::NotifyCompilationFinished()
 {
 	UMaterial::NotifyCompilationFinished(MaterialInstance ? (UMaterialInterface*)MaterialInstance : (UMaterialInterface*)Material);
 }
+
+FString FMaterialResource::GetAssetPath() const
+{
+	FString OutermostName;
+	if (MaterialInstance)
+	{
+		OutermostName = MaterialInstance->GetOutermost()->GetName();
+	}
+	else if (Material)
+	{
+		OutermostName = Material->GetOutermost()->GetName();
+	}
+	else
+	{
+		// neither is known
+		return FString();
+	}
+
+	FString Result = FPackageName::LongPackageNameToFilename(OutermostName, TEXT(".uasset"));
+	return Result;
+}
 #endif
 
 void FMaterialResource::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
@@ -1744,6 +1768,14 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 #endif // WITH_EDITOR
 	}
 
+#if WITH_EDITOR
+	// some of the above paths did not mark the shader map as associated with an asset, do so
+	if (GameThreadShaderMap)
+	{
+		GameThreadShaderMap->MarkAsAssociatedWithAsset(GetAssetPath());
+	}
+#endif
+
 	UMaterialInterface* MaterialInterface = GetMaterialInterface();
 	const bool bMaterialInstance = MaterialInterface && MaterialInterface->IsA(UMaterialInstance::StaticClass());
 	const bool bSpecialEngineMaterial = !bMaterialInstance && IsSpecialEngineMaterial();
@@ -1887,6 +1919,9 @@ bool FMaterial::BeginCompileShaderMap(
 
 	SCOPE_SECONDS_COUNTER(MaterialCompileTime);
 
+#if WITH_EDITOR
+	NewShaderMap->MarkAsAssociatedWithAsset(GetAssetPath());
+#endif
 	// Generate the material shader code.
 	FMaterialCompilationOutput NewCompilationOutput;
 	FHLSLMaterialTranslator MaterialTranslator(this, NewCompilationOutput, StaticParameterSet, Platform,GetQualityLevel(), ShaderMapId.FeatureLevel, TargetPlatform);
