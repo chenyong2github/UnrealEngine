@@ -20,7 +20,7 @@ FAutoConsoleVariableRef CVarRecoverRecordingOnShutdown(
 	TEXT("0: Disabled, 1: Enabled"),
 	ECVF_Default);
 
-static int32 BypassAllSubmixEffectsCVar = 1;
+static int32 BypassAllSubmixEffectsCVar = 0;
 FAutoConsoleVariableRef CVarBypassAllSubmixEffects(
 	TEXT("au.BypassAllSubmixEffects"),
 	BypassAllSubmixEffectsCVar,
