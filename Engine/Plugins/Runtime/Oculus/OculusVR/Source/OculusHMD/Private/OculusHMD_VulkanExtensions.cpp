@@ -4,6 +4,7 @@
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 #include "OculusHMDPrivateRHI.h"
+#include "OculusHMDModule.h"
 
 namespace OculusHMD
 {
@@ -27,9 +28,9 @@ bool FVulkanExtensions::GetVulkanInstanceExtensionsRequired(TArray<const ANSICHA
 	TArray<const char*> Extensions;
 	{
 		int32 ExtensionCount = 0;
-		ovrp_GetInstanceExtensionsVk(nullptr, &ExtensionCount);
+		FOculusHMDModule::GetPluginWrapper().GetInstanceExtensionsVk(nullptr, &ExtensionCount);
 		Extensions.SetNum(ExtensionCount);
-		ovrp_GetInstanceExtensionsVk(Extensions.GetData(), &ExtensionCount);
+		FOculusHMDModule::GetPluginWrapper().GetInstanceExtensionsVk(Extensions.GetData(), &ExtensionCount);
 	}
 
 	int32 ExtensionsFound = 0;
@@ -68,9 +69,9 @@ bool FVulkanExtensions::GetVulkanDeviceExtensionsRequired(struct VkPhysicalDevic
 	TArray<const char*> Extensions;
 	{
 		int32 ExtensionCount = 0;
-		ovrp_GetDeviceExtensionsVk(nullptr, &ExtensionCount);
+		FOculusHMDModule::GetPluginWrapper().GetDeviceExtensionsVk(nullptr, &ExtensionCount);
 		Extensions.SetNum(ExtensionCount);
-		ovrp_GetDeviceExtensionsVk(Extensions.GetData(), &ExtensionCount);
+		FOculusHMDModule::GetPluginWrapper().GetDeviceExtensionsVk(Extensions.GetData(), &ExtensionCount);
 	}
 
 	int32 ExtensionsFound = 0;
