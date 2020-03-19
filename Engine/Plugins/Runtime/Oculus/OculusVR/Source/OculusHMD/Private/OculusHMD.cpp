@@ -1420,7 +1420,6 @@ namespace OculusHMD
 
 	bool FOculusHMD::ShouldUseSeparateRenderTarget() const
 	{
-		CheckInGameThread();
 		return IsStereoEnabled();
 	}
 
