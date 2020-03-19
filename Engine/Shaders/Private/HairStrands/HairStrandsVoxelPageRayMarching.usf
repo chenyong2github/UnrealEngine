@@ -574,6 +574,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		TraversalSettings.Random			= SampleRandom;
 		TraversalSettings.TanConeAngle		= 0;
 		TraversalSettings.bIsPrimaryRay		= true;
+		TraversalSettings.PixelRadius		= -1;
 
 		TraversalResult = ComputeHairCountVirtualVoxel(
 			WP0,

@@ -822,6 +822,10 @@ FVirtualVoxelResources AllocateVirtualVoxelResources(
 	Out.Parameters.Common.SteppingScale				= FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
 	Out.Parameters.Common.NodeDescCount				= MacroGroups.Datas.Num();
 	Out.Parameters.Common.IndirectDispatchGroupSize = 64;
+	
+	Out.Parameters.Common.HairCoveragePixelRadiusAtDepth1	= ComputeMinStrandRadiusAtDepth1(FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), View.FOV, 1/*SampleCount*/, 1/*RasterizationScale*/).Primary;
+	Out.Parameters.Common.HairCoverageLUT					= GetHairLUT(RHICmdList, View).Textures[HairLUTType_Coverage]->GetRenderTargetItem().TargetableTexture;
+	Out.Parameters.Common.HairCoverageSampler				= TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	AddAllocateVoxelPagesPass(
 		GraphBuilder, 
