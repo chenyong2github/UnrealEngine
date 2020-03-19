@@ -316,9 +316,9 @@ namespace UnrealBuildTool
 			internal string Name;
 
 			/// <summary>
-			/// For non-system frameworks, specifies the path to a zip file that contains it.
+			/// Specifies the path to a zip file that contains it or where the framework is located on disk
 			/// </summary>
-			internal string ZipPath;
+			internal string Path;
 
 			/// <summary>
 			/// 
@@ -326,16 +326,28 @@ namespace UnrealBuildTool
 			internal string CopyBundledAssets = null;
 
 			/// <summary>
+			/// Copy the framework to the target's Framework directory
+			/// </summary>
+			internal bool bCopyFramework = false;
+
+			/// <summary>
 			/// Constructor
 			/// </summary>
 			/// <param name="Name">Name of the framework</param>
-			/// <param name="ZipPath">Path to a zip file containing the framework. May be null.</param>
+			/// <param name="Path">Path to a zip file containing the framework or a framework on disk</param>
 			/// <param name="CopyBundledAssets"></param>
-			public Framework(string Name, string ZipPath = null, string CopyBundledAssets = null)
+			/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
+			public Framework(string Name, string Path, string CopyBundledAssets = null, bool bCopyFramework = false)
 			{
 				this.Name = Name;
-				this.ZipPath = ZipPath;
+				this.Path = Path;
 				this.CopyBundledAssets = CopyBundledAssets;
+				this.bCopyFramework = bCopyFramework;
+			}
+
+			public bool IsZipFile()
+			{
+				return Path.EndsWith(".zip");
 			}
 		}
 
@@ -349,9 +361,9 @@ namespace UnrealBuildTool
 			/// Constructor
 			/// </summary>
 			/// <param name="Name">Name of the framework</param>
-			/// <param name="ZipPath">Path to a zip file containing the framework. May be null.</param>
+			/// <param name="ZipPath">Path to a zip file containing the framework</param>
 			/// <param name="CopyBundledAssets"></param>
-			public UEBuildFramework(string Name, string ZipPath = null, string CopyBundledAssets = null)
+			public UEBuildFramework(string Name, string ZipPath, string CopyBundledAssets = null)
 				: base(Name, ZipPath, CopyBundledAssets)
 			{
 			}
