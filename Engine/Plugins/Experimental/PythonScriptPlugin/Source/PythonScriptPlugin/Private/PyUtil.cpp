@@ -239,6 +239,30 @@ FPropertyDef::FPropertyDef(const FProperty* InProperty)
 
 bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 {
+	// It is a common error for a user to pass the container type directly
+	// rather than an instance of it that defines the sub-types
+	// eg) To pass "unreal.Map" rather than "unreal.Map(int, str)"
+	// This tests for that case and emits a suitable error
+	{
+		if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperArrayType) == 1)
+		{
+			SetPythonError(PyExc_TypeError, InPyType, TEXT("Cannot create a property definition from 'Array' directly! It must be an instance specifying the element type, eg) 'Array(int)'."));
+			return false;
+		}
+
+		if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperSetType) == 1)
+		{
+			SetPythonError(PyExc_TypeError, InPyType, TEXT("Cannot create a property definition from 'Set' directly! It must be an instance specifying the element type, eg) 'Set(int)'."));
+			return false;
+		}
+
+		if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperMapType) == 1)
+		{
+			SetPythonError(PyExc_TypeError, InPyType, TEXT("Cannot create a property definition from 'Map' directly! It must be an instance specifying the key and value types, eg) 'Map(int, str)'."));
+			return false;
+		}
+	}
+
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperObjectType) == 1)
 	{
 		OutPropertyDef.PropertyClass = FObjectProperty::StaticClass();
@@ -335,31 +359,6 @@ bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 
 bool CalculatePropertyDef(PyObject* InPyObj, FPropertyDef& OutPropertyDef)
 {
-	// It is a common error for a user to pass the container type directly
-	// rather than an instance of it that defines the sub-types
-	// eg) To pass "unreal.Map" rather than "unreal.Map(int, str)"
-	// This tests for that case and emits a suitable error
-	if (PyType_Check(InPyObj))
-	{
-		if (PyObject_IsSubclass(InPyObj, (PyObject*)&PyWrapperArrayType) == 1)
-		{
-			SetPythonError(PyExc_TypeError, InPyObj, TEXT("Cannot create a property definition from 'Array' directly! It must be an instance specifying the element type, eg) 'Array(int)'."));
-			return false;
-		}
-
-		if (PyObject_IsSubclass(InPyObj, (PyObject*)&PyWrapperSetType) == 1)
-		{
-			SetPythonError(PyExc_TypeError, InPyObj, TEXT("Cannot create a property definition from 'Set' directly! It must be an instance specifying the element type, eg) 'Set(int)'."));
-			return false;
-		}
-
-		if (PyObject_IsSubclass(InPyObj, (PyObject*)&PyWrapperMapType) == 1)
-		{
-			SetPythonError(PyExc_TypeError, InPyObj, TEXT("Cannot create a property definition from 'Map' directly! It must be an instance specifying the key and value types, eg) 'Map(int, str)'."));
-			return false;
-		}
-	}
-
 	if (PyObject_IsInstance(InPyObj, (PyObject*)&PyWrapperArrayType) == 1)
 	{
 		FPyWrapperArray* PyArray = (FPyWrapperArray*)InPyObj;
