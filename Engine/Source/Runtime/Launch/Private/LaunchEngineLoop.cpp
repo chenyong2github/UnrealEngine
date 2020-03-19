@@ -1363,6 +1363,25 @@ UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important)
 	UE_TRACE_EVENT_FIELD(uint8, TargetType)
 UE_TRACE_EVENT_END()
 
+static bool InitializeTraceChannels(const TCHAR* CmdLine)
+{
+	FString Parameter;
+	if (!FParse::Value(CmdLine, TEXT("-trace="), Parameter, false))
+	{
+		return false;
+	}
+
+	UE::String::ParseTokens(Parameter, TEXT(","), [] (const FStringView& Token)
+	{
+		TCHAR ChannelName[64];
+		const size_t ChannelNameSize = Token.CopyString(ChannelName, 63);
+		ChannelName[ChannelNameSize] = '\0';
+		Trace::ToggleChannel(ChannelName, true);
+	});
+
+	return true;
+}
+
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StartOfEnginePreInit);
@@ -1466,17 +1485,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			Trace::WriteTo(*Parameter);
 		}
 
-		if (FParse::Value(CmdLine, TEXT("-trace="), Parameter, false))
-		{
-			UE::String::ParseTokens(Parameter, TEXT(","), [] (const FStringView& Token)
-			{
-				TCHAR ChannelName[64];
-				const size_t ChannelNameSize = Token.CopyString(ChannelName, 63);
-				ChannelName[ChannelNameSize] = '\0';
-				Trace::ToggleChannel(ChannelName, true);
-			});
-		}
-		else if (FParse::Value(CmdLine, TEXT("-trace"), Parameter, false))
+		if (!InitializeTraceChannels(CmdLine) && FParse::Value(CmdLine, TEXT("-trace"), Parameter, false))
 		{
 			Trace::ToggleChannel(TEXT("bookmark"), true);
 			Trace::ToggleChannel(TEXT("cpu"), true);
@@ -1484,7 +1493,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			Trace::ToggleChannel(TEXT("log"), true);
 		}
 
+		Trace::ThreadRegister(TEXT("GameThread"), FPlatformTLS::GetCurrentThreadId(), -1);
 		TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
+
 		TRACE_CPUPROFILER_INIT(CmdLine);
 		TRACE_PLATFORMFILE_INIT(CmdLine);
 		TRACE_COUNTERS_INIT(CmdLine);
@@ -4043,6 +4054,8 @@ int32 FEngineLoop::Init()
 			return 1;
 		}
 	}
+
+	InitializeTraceChannels(FCommandLine::Get());
 
 	{
 		SCOPED_BOOT_TIMING("GEngine->Start()");
