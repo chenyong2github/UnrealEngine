@@ -1126,6 +1126,10 @@ UNiagaraScriptVariable* UNiagaraGraph::AddParameter(FNiagaraVariable& Parameter,
 		NewScriptVariable->Metadata.SetWasCreatedInSystemEditor(Options.bAddedFromSystemEditor);
 		VariableToScriptVariable.Add(Parameter, NewScriptVariable);
 
+		FName NewParamName;
+		FNiagaraEditorUtilities::DecomposeVariableNamespace(Parameter.GetName(), NewParamName);
+		NewScriptVariable->Metadata.SetCachedNamespacelessVariableName(NewParamName);
+
 		bool bSkipRefreshMetaDataScopeAndUsage = false;
 		if (Options.NewParameterUsage.IsSet())
 		{
@@ -1214,8 +1218,129 @@ void UNiagaraGraph::RemoveParameter(const FNiagaraVariable& Parameter, bool bAll
 	}
 }
 
-bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch, FName NewScopeName)
+bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FName NewName, UEdGraphPin* InPin)
 {
+	if (Parameter.GetName() == NewName)
+		return true;
+
+	Modify();
+	if (FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(Parameter))
+	{
+		FNiagaraGraphParameterReferenceCollection NewReferences = *ReferenceCollection;
+		if (NewReferences.ParameterReferences.Num() == 1 && NewReferences.ParameterReferences[0].Key == InPin->PersistentGuid)
+		{
+			bool bRenameRequestedFromStaticSwitch = false;
+			FName NewScopeName = FName();
+			bool bMerged = false;
+
+			if (RenameParameter(Parameter, NewName, bRenameRequestedFromStaticSwitch, NewScopeName, &bMerged))
+			{
+				if (!bMerged)
+				{
+					FName ParamName = NewName;
+					FNiagaraEditorUtilities::DecomposeVariableNamespace(NewName, ParamName);
+					FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(LOCTEXT("RenamedVarInGraphForAll", "\"{0}\" has been fully renamed as it was only used on this node."), FText::FromName(ParamName)));
+				}
+				return true;
+			}
+			return false;
+		}
+	}
+
+	// Create the new parameter
+	FNiagaraVariable NewParameter = Parameter;
+	NewParameter.SetName(NewName);
+
+	FNiagaraVariableMetaData MetaData;
+	UNiagaraScriptVariable** OldScriptVariable = VariableToScriptVariable.Find(Parameter);
+	UNiagaraScriptVariable** NewScriptVariableFound = VariableToScriptVariable.Find(NewParameter);
+
+	if (OldScriptVariable != nullptr)
+	{
+		MetaData = (*OldScriptVariable)->Metadata;
+
+
+		//FName CachedName;
+		//MetaData.GetParameterName(CachedName);
+		//UE_LOG(LogNiagaraEditor, Log, TEXT("RenameParameterFromPin %s %s!"), *Parameter.GetName().ToString(), *CachedName.ToString());
+	}
+
+	// Update the OldMetaData which will be applied to the new parameter to synchronize the cached namespace-less name and scope.
+	bool bMerged = false;
+	MetaData.SetCachedNamespacelessVariableName(FName(*FNiagaraEditorUtilities::GetNamespacelessVariableNameString(NewParameter.GetName())));
+	FAddParameterOptions Options;
+	AddParameter(NewParameter, Options);
+
+	if (bIsRenamingParameter)
+	{
+		return false;
+	}
+
+	// Swap metadata to the new parameter; put the new parameter into VariableToScriptVariable
+	if (OldScriptVariable)
+	{
+		// Rename all the bindings that point to the old parameter 
+		for (auto It : VariableToScriptVariable)
+		{
+			UNiagaraScriptVariable* Variable = It.Value;
+			if (Variable && Variable->DefaultBinding.GetName() == Parameter.GetName())
+			{
+				Variable->DefaultBinding.SetName(NewParameter.GetName());
+			}
+		}
+
+		// Only create a new variable if needed.
+		if (!NewScriptVariableFound)
+		{
+			// Replace the script variable data
+			UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional);
+			NewScriptVariable->Variable = NewParameter;
+			NewScriptVariable->DefaultMode = (*OldScriptVariable)->DefaultMode;
+			NewScriptVariable->DefaultBinding = (*OldScriptVariable)->DefaultBinding;
+			VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
+		}
+		VariableToScriptVariable.Remove(Parameter);
+	}
+	// Either set the new meta-data or use the existing meta-data.
+	if (!NewScriptVariableFound)
+	{
+		SetPerScriptMetaData(NewParameter, MetaData);
+	}
+	else
+	{
+		bMerged = true;
+		FName NewParamName = NewName;
+		FNiagaraEditorUtilities::DecomposeVariableNamespace(NewName, NewParamName);
+		FName OldParamName = Parameter.GetName();
+		FNiagaraEditorUtilities::DecomposeVariableNamespace(Parameter.GetName(), OldParamName);
+		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(LOCTEXT("MergedVar", "\"{0}\" has been merged with parameter \"{1}\".\nAll of \"{1}\"'s meta-data will be used, overwriting \"{0}\"'s meta-data."), FText::FromName(OldParamName), FText::FromName(NewParamName)));
+	}
+	RefreshParameterReferences();
+
+	if (!bMerged)
+	{
+		FName NewParamName = NewName;
+		FNiagaraEditorUtilities::DecomposeVariableNamespace(NewName, NewParamName);
+		FName OldParamName = Parameter.GetName();
+		FNiagaraEditorUtilities::DecomposeVariableNamespace(Parameter.GetName(), OldParamName);
+		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(LOCTEXT("RenamedVarInGraphForNode", "\"{0}\" has been duplicated as \"{1}\" as it is used in multiple locations.\nPlease edit the Parameters Panel version to change in all locations."), FText::FromName(OldParamName), FText::FromName(NewParamName)));
+	}
+
+	return false;
+}
+
+
+bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch, FName NewScopeName, bool* bMerged)
+{
+	// Initialize the merger state if requested
+	if (bMerged)
+		*bMerged = false;
+
+	if (Parameter.GetName() == NewName)
+		return true;
+
+	
+
 	// Block rename when already renaming. This prevents recursion when CommitEditablePinName is called on referenced nodes. 
 	if (bIsRenamingParameter)
 	{
@@ -1238,6 +1363,11 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 			return false;
 		}
 		OldMetaData = (*OldScriptVariable)->Metadata;
+
+
+		//FName CachedName;
+		//OldMetaData.GetParameterName(CachedName);
+		//UE_LOG(LogNiagaraEditor, Log, TEXT("RenameParameter %s %s!"), *Parameter.GetName().ToString(), *CachedName.ToString());
 	}
 
 	// Update the OldMetaData which will be applied to the new parameter to synchronize the cached namespace-less name and scope.
@@ -1247,6 +1377,8 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 		OldMetaData.SetScopeName(NewScopeName);
 	}
 		
+	UNiagaraScriptVariable** NewScriptVariableFound = VariableToScriptVariable.Find(NewParameter);
+
 	// Swap metadata to the new parameter; put the new parameter into VariableToScriptVariable
 	if (OldScriptVariable)
 	{
@@ -1261,15 +1393,34 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 			}
 		}
 
-		// Replace the script variable data
-		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional);
-		NewScriptVariable->Variable = NewParameter;
-		NewScriptVariable->DefaultMode = (*OldScriptVariable)->DefaultMode;
-		NewScriptVariable->DefaultBinding = (*OldScriptVariable)->DefaultBinding;
+		// Only create a new variable if needed.
+		if (!NewScriptVariableFound)
+		{
+			// Replace the script variable data
+			UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional);
+			NewScriptVariable->Variable = NewParameter;
+			NewScriptVariable->DefaultMode = (*OldScriptVariable)->DefaultMode;
+			NewScriptVariable->DefaultBinding = (*OldScriptVariable)->DefaultBinding;
+			VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
+		}
 		VariableToScriptVariable.Remove(Parameter);
-		VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
 	}
-	SetPerScriptMetaData(NewParameter, OldMetaData);
+
+	// Either set the new meta-data or use the existing meta-data.
+	if (!NewScriptVariableFound)
+	{
+		SetPerScriptMetaData(NewParameter, OldMetaData);
+	}
+	else
+	{
+		if (bMerged)
+			*bMerged = true;
+		FName NewParamName = NewName;
+		FNiagaraEditorUtilities::DecomposeVariableNamespace(NewName, NewParamName);
+		FName OldParamName = Parameter.GetName();
+		FNiagaraEditorUtilities::DecomposeVariableNamespace(Parameter.GetName(), OldParamName);
+		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(LOCTEXT("MergedVar", "\"{0}\" has been merged with parameter \"{1}\".\nAll of \"{1}\"'s meta-data will be used, overwriting \"{0}\"'s meta-data."), FText::FromName(OldParamName), FText::FromName(NewParamName)));
+	}
 
 	// Fixup reference collection and pin names
 	if (FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(Parameter))
@@ -1285,13 +1436,21 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 				UEdGraphPin* Pin = Node->GetPinByPersistentGuid(Reference.Key);
 				if (Pin)
 				{
-					Node->CommitEditablePinName(NewNameText, Pin);
+					Pin->Modify();
+					Node->CommitEditablePinName(NewNameText, Pin, false);
 				}
 			}
 		}
 
 		ParameterToReferencesMap.Remove(Parameter);
-		ParameterToReferencesMap.Add(NewParameter, NewReferences);
+		if (!bMerged)
+		{
+			ParameterToReferencesMap.Add(NewParameter, NewReferences);
+		}
+		else
+		{
+			RefreshParameterReferences();
+		}
 	}
 
 	bIsRenamingParameter = false;
@@ -1977,6 +2136,11 @@ void UNiagaraGraph::SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVar
 {
 	ensure(FNiagaraConstants::IsNiagaraConstant(InVar) == false);
 
+
+	//FName CachedName;
+	//InMetaData.GetParameterName(CachedName);
+	//UE_LOG(LogNiagaraEditor, Log, TEXT("SetMetaData %s %s!"), *InVar.GetName().ToString(), *CachedName.ToString());
+
 	if (UNiagaraScriptVariable** FoundMetaData = VariableToScriptVariable.Find(InVar))
 	{
 		if (*FoundMetaData)
@@ -2006,6 +2170,8 @@ void UNiagaraGraph::SetPerScriptMetaData(const FNiagaraVariable& InVar, const FN
 			FNiagaraVariableMetaData& OldMetaData = (*FoundMetaData)->Metadata;
 			OldMetaData.CopyPerScriptMetaData(InMetaData);
 			OldMetaData.SetIsStaticSwitch(InMetaData.GetIsStaticSwitch());
+
+
 		}
 	}
 	else
@@ -2015,6 +2181,10 @@ void UNiagaraGraph::SetPerScriptMetaData(const FNiagaraVariable& InVar, const FN
 		NewScriptVariable->Variable = InVar;
 		NewScriptVariable->Metadata = InMetaData;
 	}
+
+	//FName CachedName;
+	//InMetaData.GetParameterName(CachedName);
+	//UE_LOG(LogNiagaraEditor, Log, TEXT("SetPerScriptMetaData %s %s!"), *InVar.GetName().ToString(), *CachedName.ToString());
 }
 
 UNiagaraGraph::FOnDataInterfaceChanged& UNiagaraGraph::OnDataInterfaceChanged()
