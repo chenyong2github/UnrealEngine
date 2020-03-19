@@ -4,6 +4,7 @@
 
 #include "NPAxisViewportInt32.h"
 #include "NPAxisViewportDouble.h"
+#include "INetworkPredictionProvider.h"
 
 enum class ESimFrameStatus : uint8
 {
