@@ -425,7 +425,9 @@ void FColorVertexBuffer::InitRHI()
 
 	if (VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
-		ColorComponentsSRV = RHICreateShaderResourceView(VertexData ? VertexBufferRHI : nullptr, 4, PF_R8G8B8A8);
+		// When VertexData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
+		// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
+		ColorComponentsSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(VertexData ? VertexBufferRHI : nullptr, PF_R8G8B8A8));
 	}
 }
 
