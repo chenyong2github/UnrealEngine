@@ -94,16 +94,16 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters, 
 	typedef TBasePassHS< LightMapPolicyType, true> TBasePassHS##LightMapPolicyName##AtmosphericFogShaderName; \
 	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassHS##LightMapPolicyName##AtmosphericFogShaderName,TEXT("/Engine/Private/BasePassTessellationShaders.usf"),TEXT("MainHull"),SF_Hull);
 
-#define IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,bEnableSkyLight,SkyLightName) \
-	typedef TBasePassPS<LightMapPolicyType, bEnableSkyLight> TBasePassPS##LightMapPolicyName##SkyLightName; \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassPS##LightMapPolicyName##SkyLightName,TEXT("/Engine/Private/BasePassPixelShader.usf"),TEXT("MainPS"),SF_Pixel);
+#define IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
+	typedef TBasePassPS<LightMapPolicyType> TBasePassPS##LightMapPolicyName; \
+	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassPS##LightMapPolicyName,TEXT("/Engine/Private/BasePassPixelShader.usf"),TEXT("MainPS"),SF_Pixel);
 
 // Implement a pixel shader type for skylights and one without, and one vertex shader that will be shared between them
 #define IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
 	IMPLEMENT_BASEPASS_VERTEXSHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
 	IMPLEMENT_BASEPASS_VERTEXSHADER_ONLY_TYPE(LightMapPolicyType,LightMapPolicyName,AtmosphericFog) \
-	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,true,Skylight) \
-	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,false,);
+	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName);
+
 
 // Implement shader types per lightmap policy
 // If renaming or refactoring these, remember to update FMaterialResource::GetRepresentativeInstructionCounts and FPreviewMaterial::ShouldCache().
@@ -430,20 +430,13 @@ void GetUniformBasePassShaders(
 		VertexShader = TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassVS<TUniformLightMapPolicy<Policy>, false> >(VertexFactoryType));
 	}
 
-	if (bEnableSkyLight)
+	if (bUse128bitRT && (Policy == LMP_NO_LIGHTMAP))
 	{
-		PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassPS<TUniformLightMapPolicy<Policy>, true> >(VertexFactoryType));
+		PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<F128BitRTBasePassPS>(VertexFactoryType));
 	}
 	else
 	{
-		if (bUse128bitRT && (Policy == LMP_NO_LIGHTMAP))
-		{
-			PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<F128BitRTBasePassPS>(VertexFactoryType));
-		}
-		else
-		{
-			PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassPS<TUniformLightMapPolicy<Policy>, false> >(VertexFactoryType));
-		}
+		PixelShader = TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>::ReinterpretCast(Material.GetShader<TBasePassPS<TUniformLightMapPolicy<Policy>> >(VertexFactoryType));
 	}
 }
 

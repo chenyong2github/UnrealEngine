@@ -162,34 +162,38 @@ float3 CompositeReflectionCapturesAndSkylight(
 	ImageBasedReflections.rgb *= View.IndirectLightingColorScale;
 	CompositedAverageBrightness.x *= Luminance( View.IndirectLightingColorScale );
 
-#if ENABLE_SKY_LIGHT
-
-	BRANCH  
-	if (ReflectionStruct.SkyLightParameters.y > 0 && bCompositeSkylight)
+	uint SkyLightMask = MATERIALBLENDING_TRANSLUCENT ? 2 : 1;
+	bool EnableSkyLight = 0 != (View.EnableSkyLight & SkyLightMask) && !MATERIAL_SHADINGMODEL_UNLIT;
+	BRANCH
+	if(EnableSkyLight)
 	{
-		float SkyAverageBrightness = 1.0f;
-
-		#if REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND
-			float3 SkyLighting = GetSkyLightReflectionSupportingBlend(RayDirection, Roughness, SkyAverageBrightness);
-		#else
-			float3 SkyLighting = GetSkyLightReflection(RayDirection, Roughness, SkyAverageBrightness);
-		#endif
-
-		// Normalize for static skylight types which mix with lightmaps
-		bool bNormalize = ReflectionStruct.SkyLightParameters.z < 1 && ALLOW_STATIC_LIGHTING;
-
-		FLATTEN
-		if (bNormalize)
+		BRANCH  
+		if (ReflectionStruct.SkyLightParameters.y > 0 && bCompositeSkylight)
 		{
-			ImageBasedReflections.rgb += ImageBasedReflections.a * SkyLighting * IndirectSpecularOcclusion;
-			CompositedAverageBrightness.x += SkyAverageBrightness * CompositedAverageBrightness.y;
-		}
-		else
-		{
-			ExtraIndirectSpecular += SkyLighting * IndirectSpecularOcclusion;
+			float SkyAverageBrightness = 1.0f;
+
+			#if REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND
+				float3 SkyLighting = GetSkyLightReflectionSupportingBlend(RayDirection, Roughness, SkyAverageBrightness);
+			#else
+				float3 SkyLighting = GetSkyLightReflection(RayDirection, Roughness, SkyAverageBrightness);
+			#endif
+
+			// Normalize for static skylight types which mix with lightmaps
+			bool bNormalize = ReflectionStruct.SkyLightParameters.z < 1 && ALLOW_STATIC_LIGHTING;
+
+			FLATTEN
+			if (bNormalize)
+			{
+				ImageBasedReflections.rgb += ImageBasedReflections.a * SkyLighting * IndirectSpecularOcclusion;
+				CompositedAverageBrightness.x += SkyAverageBrightness * CompositedAverageBrightness.y;
+			}
+			else
+			{
+				ExtraIndirectSpecular += SkyLighting * IndirectSpecularOcclusion;
+			}
 		}
 	}
-#endif
+
 
 #if ALLOW_STATIC_LIGHTING
 	ImageBasedReflections.rgb *= ComputeMixingWeight(IndirectIrradiance, CompositedAverageBrightness.x, Roughness);
