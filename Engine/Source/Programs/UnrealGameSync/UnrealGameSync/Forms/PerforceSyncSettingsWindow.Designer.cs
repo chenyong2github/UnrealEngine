@@ -30,8 +30,6 @@ namespace UnrealGameSync
 		{
 			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PerforceSyncSettingsWindow));
 			this.groupBox1 = new System.Windows.Forms.GroupBox();
-			this.NumThreadsTextBox = new System.Windows.Forms.TextBox();
-			this.label3 = new System.Windows.Forms.Label();
 			this.TcpBufferSizeText = new System.Windows.Forms.TextBox();
 			this.label2 = new System.Windows.Forms.Label();
 			this.NumRetriesTextBox = new System.Windows.Forms.TextBox();
@@ -43,40 +41,21 @@ namespace UnrealGameSync
 			// 
 			// groupBox1
 			// 
-			this.groupBox1.Controls.Add(this.NumThreadsTextBox);
-			this.groupBox1.Controls.Add(this.label3);
 			this.groupBox1.Controls.Add(this.TcpBufferSizeText);
 			this.groupBox1.Controls.Add(this.label2);
 			this.groupBox1.Controls.Add(this.NumRetriesTextBox);
 			this.groupBox1.Controls.Add(this.label1);
 			this.groupBox1.Location = new System.Drawing.Point(14, 21);
 			this.groupBox1.Name = "groupBox1";
-			this.groupBox1.Size = new System.Drawing.Size(439, 137);
+			this.groupBox1.Size = new System.Drawing.Size(439, 103);
 			this.groupBox1.TabIndex = 0;
 			this.groupBox1.TabStop = false;
 			this.groupBox1.Text = "Syncing";
 			// 
-			// NumThreadsTextBox
-			// 
-			this.NumThreadsTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-			this.NumThreadsTextBox.Location = new System.Drawing.Point(253, 59);
-			this.NumThreadsTextBox.Name = "NumThreadsTextBox";
-			this.NumThreadsTextBox.Size = new System.Drawing.Size(159, 23);
-			this.NumThreadsTextBox.TabIndex = 4;
-			// 
-			// label3
-			// 
-			this.label3.AutoSize = true;
-			this.label3.Location = new System.Drawing.Point(21, 62);
-			this.label3.Name = "label3";
-			this.label3.Size = new System.Drawing.Size(196, 15);
-			this.label3.TabIndex = 6;
-			this.label3.Text = "Number of threads for parallel sync:";
-			// 
 			// TcpBufferSizeText
 			// 
 			this.TcpBufferSizeText.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-			this.TcpBufferSizeText.Location = new System.Drawing.Point(253, 90);
+			this.TcpBufferSizeText.Location = new System.Drawing.Point(253, 58);
 			this.TcpBufferSizeText.Name = "TcpBufferSizeText";
 			this.TcpBufferSizeText.Size = new System.Drawing.Size(159, 23);
 			this.TcpBufferSizeText.TabIndex = 5;
@@ -84,7 +63,7 @@ namespace UnrealGameSync
 			// label2
 			// 
 			this.label2.AutoSize = true;
-			this.label2.Location = new System.Drawing.Point(21, 93);
+			this.label2.Location = new System.Drawing.Point(21, 61);
 			this.label2.Name = "label2";
 			this.label2.Size = new System.Drawing.Size(89, 15);
 			this.label2.TabIndex = 4;
@@ -109,7 +88,8 @@ namespace UnrealGameSync
 			// 
 			// OkButton
 			// 
-			this.OkButton.Location = new System.Drawing.Point(278, 167);
+			this.OkButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+			this.OkButton.Location = new System.Drawing.Point(278, 136);
 			this.OkButton.Name = "OkButton";
 			this.OkButton.Size = new System.Drawing.Size(87, 26);
 			this.OkButton.TabIndex = 1;
@@ -119,8 +99,9 @@ namespace UnrealGameSync
 			// 
 			// CancButton
 			// 
+			this.CancButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
 			this.CancButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-			this.CancButton.Location = new System.Drawing.Point(371, 167);
+			this.CancButton.Location = new System.Drawing.Point(371, 136);
 			this.CancButton.Name = "CancButton";
 			this.CancButton.Size = new System.Drawing.Size(87, 26);
 			this.CancButton.TabIndex = 2;
@@ -134,7 +115,7 @@ namespace UnrealGameSync
 			this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
 			this.CancelButton = this.CancButton;
-			this.ClientSize = new System.Drawing.Size(470, 203);
+			this.ClientSize = new System.Drawing.Size(470, 173);
 			this.Controls.Add(this.CancButton);
 			this.Controls.Add(this.OkButton);
 			this.Controls.Add(this.groupBox1);
@@ -160,7 +141,5 @@ namespace UnrealGameSync
 		private System.Windows.Forms.Label label1;
 		private System.Windows.Forms.Button OkButton;
 		private System.Windows.Forms.Button CancButton;
-		private System.Windows.Forms.TextBox NumThreadsTextBox;
-		private System.Windows.Forms.Label label3;
 	}
 }
