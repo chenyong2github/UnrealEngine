@@ -37,8 +37,8 @@ public:
 	/** Set the current view range */
 	void SetViewRange(TRange<double> InRange);
 
-	/** Get the total range of the model's data */
-	FAnimatedRange GetTotalRange() const;
+	/** Get the working range of the model's data */
+	FAnimatedRange GetWorkingRange() const;
 
 	/** Get the playback range of the model's data */
 	TRange<FFrameNumber> GetPlaybackRange() const;
@@ -51,6 +51,9 @@ public:
 
 	/** Handle the view range being changed */
 	void HandleViewRangeChanged(TRange<double> InRange, EViewRangeInterpolation InInterpolation);
+
+	/** Handle the working range being changed */
+	void HandleWorkingRangeChanged(TRange<double> InRange);
 
 	/** Delegate fired when tracks have changed */
 	DECLARE_EVENT(FAnimModel, FOnTracksChanged)
@@ -162,8 +165,11 @@ protected:
 	/** The range we are currently viewing */
 	FAnimatedRange ViewRange;
 
-	/** The total range of this model for each timeframe */
-	FAnimatedRange TotalRange;
+	/** The working range of this model, encompassing the view range */
+	FAnimatedRange WorkingRange;
+
+	/** The playback range of this model for each timeframe */
+	FAnimatedRange PlaybackRange;
 
 	/** Delegate fired when tracks change */
 	FOnTracksChanged OnTracksChangedDelegate;
