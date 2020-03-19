@@ -16,7 +16,7 @@ namespace Audio
 		float MeanDelta = 0.07f;
 	};
 
-	class AUDIOSYNESTHESIA_API FPeakPicker
+	class AUDIOSYNESTHESIACORE_API FPeakPicker
 	{
 		public:
 			FPeakPicker(const FPeakPickerSettings& InSettings);
