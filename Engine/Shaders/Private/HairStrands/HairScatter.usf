@@ -176,6 +176,7 @@ SamplerState 				LinearSampler;
 
 FHairTransmittanceMask ComputeTransmittanceVoxel(
 	const uint2 PixelCoord,
+	const float PixelRadius, 
 	float3 WorldPosition,
 	float3 SamplePosition,
 	uint MacroGroupId,
@@ -212,6 +213,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	TraversalSettings.bDebugEnabled = bDebugEnabled;
 	TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
 	TraversalSettings.Random = SampleRandom;
+	TraversalSettings.PixelRadius = PixelRadius;
 
 	FHairTraversalResult Result = ComputeHairCountVirtualVoxel(
 		WorldPosition + DepthBias,
@@ -359,9 +361,11 @@ void MainPS(
 				Settings.DeepShadowDepthBiasScale = 1; // Voxel_DepthBiasScale;
 				Settings.Random = TransmittanceRandom;
 
+				const float PixelRadius = SampleDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
 				const uint MacroGroupId = 0;
 				TransmittanceMask = ComputeTransmittanceVoxel(
 					PixelCoord,
+					PixelRadius, 
 					WorldPosition,
 					SampleWorldPos,
 					MacroGroupId,
