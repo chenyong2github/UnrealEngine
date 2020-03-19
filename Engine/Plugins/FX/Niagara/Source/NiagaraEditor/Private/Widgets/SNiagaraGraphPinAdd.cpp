@@ -12,7 +12,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Framework/Application/SlateApplication.h"
-#include "SNiagaraParameterPanel.h"
+#include "Widgets/SNiagaraParameterPanel.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraConstants.h"
