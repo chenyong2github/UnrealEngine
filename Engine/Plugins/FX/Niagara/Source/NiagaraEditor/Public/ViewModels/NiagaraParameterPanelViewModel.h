@@ -14,7 +14,7 @@ class UNiagaraSystem;
 class FNiagaraSystemViewModel;
 class UNiagaraSystemSelectionViewModel;
 class UNiagaraGraph;
-class FNiagaraStandaloneScriptViewModel;
+class FNiagaraScriptViewModel;
 class FDelegateHandle;
 struct FCreateWidgetForActionData;
 class FNiagaraObjectSelection;
@@ -149,7 +149,7 @@ class FNiagaraScriptToolkitParameterPanelViewModel : public INiagaraParameterPan
 {
 public:
 	/** Construct a ScriptToolkit Parameter Panel View Model from a Script View Model. */
-	FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraStandaloneScriptViewModel> InScriptViewModel);
+	FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraScriptViewModel> InScriptViewModel);
 
 	~FNiagaraScriptToolkitParameterPanelViewModel();
 
@@ -191,7 +191,7 @@ public:
 	void ChangePinScope(const UEdGraphPin* TargetPin, const ENiagaraParameterScope NewScope) const;
 
 private:
-	TSharedPtr<FNiagaraStandaloneScriptViewModel> ScriptViewModel;
+	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModel;
 
 	FDelegateHandle OnGraphChangedHandle;
 	FDelegateHandle OnGraphNeedsRecompileHandle;

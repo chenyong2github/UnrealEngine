@@ -3,6 +3,7 @@
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEmitter.h"
@@ -10,6 +11,7 @@
 
 #include "ObjectTools.h"
 #include "ScopedTransaction.h"
+#include "Framework/Commands/UICommandList.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScratchPadScriptViewModel"
 
@@ -44,6 +46,18 @@ void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script)
 	UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript->GetSource());
 	OnGraphNeedsRecompileHandle = EditScriptSource->NodeGraph->AddOnGraphNeedsRecompileHandler(FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptGraphChanged));
 	EditScript->OnPropertyChanged().AddSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged);
+	ParameterPanelCommands = MakeShared<FUICommandList>();
+	ParameterPaneViewModel = MakeShared<FNiagaraScriptToolkitParameterPanelViewModel>(this->AsShared());
+	ParameterPaneViewModel->InitBindings();
+}
+
+void FNiagaraScratchPadScriptViewModel::Finalize()
+{
+	// This pointer needs to be reset manually here because there is a shared ref cycle.
+	if (ParameterPaneViewModel.IsValid())
+	{
+		ParameterPaneViewModel.Reset();
+	}
 }
 
 void FNiagaraScratchPadScriptViewModel::AddReferencedObjects(FReferenceCollector& Collector)
@@ -59,6 +73,16 @@ UNiagaraScript* FNiagaraScratchPadScriptViewModel::GetOriginalScript() const
 UNiagaraScript* FNiagaraScratchPadScriptViewModel::GetEditScript() const
 {
 	return EditScript;
+}
+
+TSharedPtr<INiagaraParameterPanelViewModel> FNiagaraScratchPadScriptViewModel::GetParameterPanelViewModel() const
+{
+	return ParameterPaneViewModel;
+}
+
+TSharedPtr<FUICommandList> FNiagaraScratchPadScriptViewModel::GetParameterPanelCommands() const
+{
+	return ParameterPanelCommands;
 }
 
 FText FNiagaraScratchPadScriptViewModel::GetToolTip() const

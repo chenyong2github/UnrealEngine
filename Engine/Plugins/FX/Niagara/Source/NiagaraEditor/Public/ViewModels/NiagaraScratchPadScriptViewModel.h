@@ -5,6 +5,9 @@
 #include "ViewModels/NiagaraScriptViewModel.h"
 #include "GraphEditAction.h"
 
+class INiagaraParameterPanelViewModel;
+class FUICommandList;
+
 class NIAGARAEDITOR_API FNiagaraScratchPadScriptViewModel : public FNiagaraScriptViewModel, public FGCObject
 {
 public:
@@ -18,11 +21,17 @@ public:
 
 	void Initialize(UNiagaraScript* Script);
 
+	void Finalize();
+
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	UNiagaraScript* GetOriginalScript() const;
 
 	UNiagaraScript* GetEditScript() const;
+
+	TSharedPtr<INiagaraParameterPanelViewModel> GetParameterPanelViewModel() const;
+
+	TSharedPtr<FUICommandList> GetParameterPanelCommands() const;
 
 	FText GetToolTip() const;
 
@@ -71,6 +80,9 @@ private:
 	UNiagaraScript* EditScript;
 
 	bool bHasPendingChanges;
+
+	TSharedPtr<FUICommandList> ParameterPanelCommands;
+	TSharedPtr<INiagaraParameterPanelViewModel> ParameterPaneViewModel;
 
 	FDelegateHandle OnGraphNeedsRecompileHandle;
 
