@@ -40,6 +40,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=General)
 	bool bShowMissingAssets = true;
 
+	UPROPERTY(config, EditAnywhere, Category = General)
+	bool bAutoExpandAssets = true;
+
 	UPROPERTY(config, EditAnywhere, Category = Performance)
 	bool bThrottleInBackground = true;
 
