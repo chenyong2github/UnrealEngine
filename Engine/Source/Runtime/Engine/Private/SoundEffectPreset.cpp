@@ -58,13 +58,10 @@ void USoundEffectPreset::AddReferencedEffects(FReferenceCollector& InCollector)
 
 void USoundEffectPreset::BeginDestroy()
 {
-	if (!GExitPurge)
+	IterateEffects<FSoundEffectBase>([](FSoundEffectBase& Instance)
 	{
-		IterateEffects<FSoundEffectBase>([](FSoundEffectBase& Instance)
-		{
-			Instance.ClearPreset();
-		});
-	}
+		Instance.ClearPreset();
+	});
 	Instances.Reset();
 
 	Super::BeginDestroy();
