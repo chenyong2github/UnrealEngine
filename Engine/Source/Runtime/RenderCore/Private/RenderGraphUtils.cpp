@@ -92,7 +92,7 @@ void ClearUnusedGraphResourcesImpl(
 		{
 			const FShaderParameterBindings& ShaderBindings = *ShaderBindingsList[Index];
 			int32& GraphResourceId = GraphResourceIds[Index];
-			for (; GraphResourceId < ShaderBindings.ResourceParameters.Num() && ByteOffset < ShaderBindings.ResourceParameters[GraphResourceId].ByteOffset; ++GraphResourceId)
+			for (; GraphResourceId < ShaderBindings.ResourceParameters.Num() && ShaderBindings.ResourceParameters[GraphResourceId].ByteOffset < ByteOffset; ++GraphResourceId)
 			{
 			}
 			bResourceIsUsed|= GraphResourceId < ShaderBindings.ResourceParameters.Num() && ByteOffset == ShaderBindings.ResourceParameters[GraphResourceId].ByteOffset; // check the resouce type as well?
