@@ -654,11 +654,13 @@ float3 ReflectionEnvironmentUniformSampling(
 			HairComponents);	
 
 		const float Area = 0;
+		const float Backlit = 1;
+		const float RoughnessBias = 0.1f;
 		AccLighting += 
-			HairShading(GBuffer, SampleL, V, T, 1, TransmittanceData, 0, Area, uint2(0, 0)) * 
+			HairShading(GBuffer, SampleL, V, T, 1, TransmittanceData, Backlit, Area, uint2(0, 0)) * 
 			Result.Visibility * 
 			PreExposure * 
-			GatherRadiance(SampleL, 0.1f, PixelPosition, PixelSceneDepth, WorldPosition);
+			GatherRadiance(SampleL, RoughnessBias, PixelPosition, PixelSceneDepth, WorldPosition);
 
 		#if PERMUTATION_DEBUG
 		if (bDebugEnabled)
