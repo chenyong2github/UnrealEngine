@@ -33,7 +33,7 @@ public:
 	/**
 	* What was the last configuration preset the user used? Can be null.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TSoftObjectPtr<UMoviePipelineMasterConfig> LastPresetOrigin;
 	
 	/**
