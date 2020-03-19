@@ -7,7 +7,7 @@
 #include "MoviePipelineGameMode.generated.h"
 
 UCLASS()
-class MOVIERENDERPIPELINESETTINGS_API AMoviePipelineGameMode : public AGameModeBase
+class MOVIERENDERPIPELINECORE_API AMoviePipelineGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 public:
