@@ -539,6 +539,16 @@ void UEdModeInteractiveToolsContext::PostInvalidation()
 
 void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
+	// process any actions that were scheduled to execute on the next tick
+	if (NextTickExecuteActions.Num() > 0)
+	{
+		for (TUniqueFunction<void()>& Action : NextTickExecuteActions)
+		{
+			Action();
+		}
+		NextTickExecuteActions.Reset();
+	}
+
 	ToolManager->Tick(DeltaTime);
 	GizmoManager->Tick(DeltaTime);
 
@@ -944,15 +954,26 @@ bool UEdModeInteractiveToolsContext::CanCompleteActiveTool() const
 
 void UEdModeInteractiveToolsContext::StartTool(const FString& ToolTypeIdentifier)
 {
-	if (UInteractiveToolsContext::StartTool(EToolSide::Mouse, ToolTypeIdentifier))
+	FString LocalIdentifier(ToolTypeIdentifier);
+	ScheduleExecuteAction([this, LocalIdentifier]()
 	{
-		SaveEditorStateAndSetForTool();
-	}
+		if (UInteractiveToolsContext::StartTool(EToolSide::Mouse, LocalIdentifier))
+		{
+			SaveEditorStateAndSetForTool();
+		}
+	});
+
+	PostInvalidation();
 }
 
 void UEdModeInteractiveToolsContext::EndTool(EToolShutdownType ShutdownType)
 {
-	UInteractiveToolsContext::EndTool(EToolSide::Mouse, ShutdownType);
+	ScheduleExecuteAction([this, ShutdownType]()
+	{
+		UInteractiveToolsContext::EndTool(EToolSide::Mouse, ShutdownType);
+	});
+
+	PostInvalidation();
 }
 
 
@@ -1023,3 +1044,8 @@ void UEdModeInteractiveToolsContext::RestoreEditorState()
 	}
 }
 
+
+void UEdModeInteractiveToolsContext::ScheduleExecuteAction(TUniqueFunction<void()> Action)
+{
+	NextTickExecuteActions.Add(MoveTemp(Action));
+}
