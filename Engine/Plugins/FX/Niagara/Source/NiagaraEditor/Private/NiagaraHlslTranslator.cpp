@@ -6662,10 +6662,13 @@ int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_CompileOutputPin);
 
-	if (InPin)
+	if (InPin == nullptr)
 	{
-		UpdateStaticSwitchConstants(InPin->GetOwningNode());
+		Error(LOCTEXT("InPinNullptr", "Input pin is nullptr!"), nullptr, nullptr);
+		return INDEX_NONE;
 	}
+
+	UpdateStaticSwitchConstants(InPin->GetOwningNode());
 
 	// The incoming pin to compile may be pointing to a reroute node. If so, we just jump over it
 	// to where it really came from.
