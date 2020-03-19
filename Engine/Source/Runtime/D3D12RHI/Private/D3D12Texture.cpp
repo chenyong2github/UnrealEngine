@@ -1175,7 +1175,7 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 
 		if (MipSize > TempBufferSize)
 		{
-			UE_LOG(LogD3D12RHI, Warning, TEXT("Temp texture streaming buffer not large enough, needed %d bytes"), MipSize);
+			UE_LOG(LogD3D12RHI, Display, TEXT("Temp texture streaming buffer not large enough, needed %d bytes"), MipSize);
 			check(TempBufferSize == ZeroBufferSize);
 			TempBufferSize = MipSize;
 			TempBuffer = FMemory::Malloc(TempBufferSize);
