@@ -8,6 +8,69 @@
 
 namespace Chaos
 {
+	void FPBDJointUtilities::GetSphericalAxisDelta(
+		const FVec3& X0,
+		const FVec3& X1,
+		FVec3& Axis,
+		FReal& Delta)
+	{
+		Axis = FVec3(0);
+		Delta = 0;
+
+		const FVec3 DX = X1 - X0;
+		const FReal DXLen = DX.Size();
+		if (DXLen > KINDA_SMALL_NUMBER)
+		{
+			Axis = DX / DXLen;
+			Delta = DXLen;
+		}
+	}
+
+
+	void FPBDJointUtilities::GetCylindricalAxesDeltas(
+		const FRotation3& R0,
+		const FVec3& X0,
+		const FVec3& X1,
+		const int32 CylinderAxisIndex,
+		FVec3& CylinderAxis,
+		FReal& CylinderDelta,
+		FVec3& RadialAxis,
+		FReal& RadialDelta)
+	{
+		CylinderAxis = FVec3(0);
+		CylinderDelta = 0;
+		RadialAxis = FVec3(0);
+		RadialDelta = 0;
+
+		FVec3 DX = X1 - X0;
+
+		const FMatrix33 R0M = R0.ToMatrix();
+		CylinderAxis = R0M.GetAxis(CylinderAxisIndex);
+		CylinderDelta = FVec3::DotProduct(DX, CylinderAxis);
+
+		DX = DX - CylinderDelta * CylinderAxis;
+		const FReal DXLen = DX.Size();
+		if (DXLen > KINDA_SMALL_NUMBER)
+		{
+			RadialAxis = DX / DXLen;
+			RadialDelta = DXLen;
+		}
+	}
+
+
+	void FPBDJointUtilities::GetPlanarAxisDelta(
+		const FRotation3& R0,
+		const FVec3& X0,
+		const FVec3& X1,
+		const int32 PlaneAxisIndex,
+		FVec3& Axis,
+		FReal& Delta)
+	{
+		const FMatrix33 R0M = R0.ToMatrix();
+		Axis = R0M.GetAxis(PlaneAxisIndex);
+		Delta = FVec3::DotProduct(X1 - X0, Axis);
+	}
+
 	void FPBDJointUtilities::DecomposeSwingTwistLocal(const FRotation3& R0, const FRotation3& R1, FRotation3& R01Swing, FRotation3& R01Twist)
 	{
 		const FRotation3 R01 = R0.Inverse() * R1;
@@ -126,7 +189,7 @@ namespace Chaos
 	}
 
 
-	void FPBDJointUtilities::GetLockedAxes(const FRotation3& R0, const FRotation3& R1, FVec3& Axis0, FVec3& Axis1, FVec3& Axis2)
+	void FPBDJointUtilities::GetLockedRotationAxes(const FRotation3& R0, const FRotation3& R1, FVec3& Axis0, FVec3& Axis1, FVec3& Axis2)
 	{
 		const FReal W0 = R0.W;
 		const FReal W1 = R1.W;
@@ -152,6 +215,32 @@ namespace Chaos
 		}
 	}
 	
+
+	FReal FPBDJointUtilities::GetConeAngleLimit(
+		const FPBDJointSettings& JointSettings,
+		const FVec3& SwingAxisLocal,
+		const FReal SwingAngle)
+	{
+		// Calculate swing limit for the current swing axis
+		const FReal Swing1Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
+		const FReal Swing2Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
+
+		// Circular swing limit
+		FReal SwingAngleMax = Swing1Limit;
+
+		// Elliptical swing limit
+		// @todo(ccaulfield): do elliptical constraints properly (axis is still for circular limit)
+		if (!FMath::IsNearlyEqual(Swing1Limit, Swing2Limit, KINDA_SMALL_NUMBER))
+		{
+			// Map swing axis to ellipse and calculate limit for this swing axis
+			const FReal DotSwing1 = FMath::Abs(FVec3::DotProduct(SwingAxisLocal, FJointConstants::Swing1Axis()));
+			const FReal DotSwing2 = FMath::Abs(FVec3::DotProduct(SwingAxisLocal, FJointConstants::Swing2Axis()));
+			SwingAngleMax = FMath::Sqrt(Swing1Limit * DotSwing1 * Swing1Limit * DotSwing1 + Swing2Limit * DotSwing2 * Swing2Limit * DotSwing2);
+		}
+
+		return SwingAngleMax;
+	}
+
 	
 	// @todo(ccaulfield): separate linear soft and stiff
 	FReal FPBDJointUtilities::GetLinearStiffness(

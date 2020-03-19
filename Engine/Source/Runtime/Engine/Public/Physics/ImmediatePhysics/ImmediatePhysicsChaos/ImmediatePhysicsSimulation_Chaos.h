@@ -73,7 +73,6 @@ namespace ImmediatePhysics_Chaos
 		void SetSolverIterations(const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts);
 
 	private:
-		void ConditionConstraints();
 		void UpdateActivePotentiallyCollidingPairs();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
@@ -124,7 +123,6 @@ namespace ImmediatePhysics_Chaos
 		int32 MaxNumRollingAverageStepTimes;
 
 		bool bActorsDirty;
-		bool bJointsDirty;
 	};
 
 }
