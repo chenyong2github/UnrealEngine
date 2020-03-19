@@ -1063,10 +1063,10 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 
 void FMaterialEditor::GeneratorRowsRefreshed()
 {
-	MaterialParametersOverviewWidget->Refresh(false);
+	MaterialParametersOverviewWidget->Refresh();
 	if (MaterialLayersFunctionsInstance)
 	{
-		MaterialLayersFunctionsInstance->Refresh(false);
+		MaterialLayersFunctionsInstance->Refresh();
 	}
 }
 
@@ -3031,6 +3031,10 @@ void FMaterialEditor::OnConvertObjects()
 							// Refresh the expression preview if we changed its properties after it was created
 							NewExpression->bNeedToUpdatePreview = true;
 							RefreshExpressionPreview( NewExpression, true );
+							if (MaterialEditorInstance)
+							{
+								MaterialEditorInstance->RegenerateArrays();
+							}
 						}
 
 						NodesToDelete.AddUnique(GraphNode);
@@ -4438,6 +4442,11 @@ void FMaterialEditor::RedoGraphAction()
 	{
 		Material->BuildEditorParameterList();
 	}
+
+	if (MaterialEditorInstance)
+	{
+		MaterialEditorInstance->RegenerateArrays();
+	}
 }
 
 void FMaterialEditor::OnAlignTop()
@@ -4529,6 +4538,11 @@ void FMaterialEditor::PostUndo(bool bSuccess)
 		RefreshExpressionPreviews();
 		GraphEditor->NotifyGraphChanged();
 		SetMaterialDirty();
+
+		if (MaterialEditorInstance)
+		{
+			MaterialEditorInstance->RegenerateArrays();
+		}
 
 		FSlateApplication::Get().DismissAllMenus();
 	}
@@ -4638,6 +4652,11 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 
 	Material->MarkPackageDirty();
 	SetMaterialDirty();
+
+	if (MaterialEditorInstance)
+	{
+		MaterialEditorInstance->RegenerateArrays();
+	}
 }
 
 void FMaterialEditor::ToggleCollapsed(UMaterialExpression* MaterialExpression)
@@ -5300,6 +5319,10 @@ void FMaterialEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Ty
 		const FScopedTransaction Transaction( LOCTEXT( "RenameNode", "Rename Node" ) );
 		NodeBeingChanged->Modify();
 		NodeBeingChanged->OnRenameNode(NewText.ToString());
+		if (MaterialEditorInstance)
+		{
+			MaterialEditorInstance->RegenerateArrays();
+		}
 		MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
 	}
 }
