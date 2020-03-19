@@ -31,6 +31,8 @@ namespace UsdSkelRootTranslatorImpl
 {
 	void ProcessMaterials( const pxr::UsdPrim& UsdPrim, FSkeletalMeshImportData& SkelMeshImportData, TMap< FString, UObject* >& PrimPathsToAssets, bool bHasPrimDisplayColor, float Time )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( UsdSkelRootTranslatorImpl::ProcessMaterials );
+
 		for ( SkeletalMeshImportData::FMaterial& ImportedMaterial : SkelMeshImportData.Materials )
 		{
 			if ( !ImportedMaterial.Material.IsValid() )
@@ -80,90 +82,156 @@ namespace UsdSkelRootTranslatorImpl
 
 		return OutHash;
 	}
-}
 
-void FUsdSkelRootTranslator::CreateAssets()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdSkelRootTranslator::CreateAssets );
-
-	FSkeletalMeshImportData SkelMeshImportData;
-	bool bIsSkeletalDataValid = true;
-
-	// Retrieve the USD skeletal data under the SkeletonRoot into the SkeletalMeshImportData
+	bool LoadSkelMeshImportData( FSkeletalMeshImportData& SkelMeshImportData, pxr::UsdSkelCache& SkeletonCache, const pxr::UsdSkelRoot& SkeletonRoot, const float Time, TMap< FString, UObject* > PrimPathsToAssets )
 	{
-		FScopedUsdAllocs UsdAllocs;
+		TRACE_CPUPROFILER_EVENT_SCOPE( UsdSkelRootTranslatorImpl::LoadSkelMeshImportData );
 
-		pxr::UsdPrim Prim = Schema.Get().GetPrim();
+		bool bIsSkeletalDataValid = true;
 
-		pxr::UsdSkelCache SkeletonCache;
-		pxr::UsdSkelRoot SkeletonRoot( Prim );
-		SkeletonCache.Populate( SkeletonRoot );
+		// Retrieve the USD skeletal data under the SkeletonRoot into the SkeletalMeshImportData
+		{
+			FScopedUsdAllocs UsdAllocs;
 
-		pxr::SdfPath PrimPath = Prim.GetPath();
+			SkeletonCache.Populate( SkeletonRoot );
 
-		std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-		SkeletonCache.ComputeSkelBindings( SkeletonRoot, &SkeletonBindings );
+			std::vector< pxr::UsdSkelBinding > SkeletonBindings;
+			SkeletonCache.ComputeSkelBindings( SkeletonRoot, &SkeletonBindings );
 
-		if ( SkeletonBindings.size() == 0 )
+			// Note that there could be multiple skeleton bindings under the SkeletonRoot
+			// For now, extract just the first one
+			for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
+			{
+				const pxr::UsdSkelSkeleton& Skeleton = Binding.GetSkeleton();
+				pxr::UsdSkelSkeletonQuery SkelQuery = SkeletonCache.GetSkelQuery( Skeleton );
+
+				const bool bSkeletonValid = UsdToUnreal::ConvertSkeleton( SkelQuery, SkelMeshImportData );
+				if ( !bSkeletonValid )
+				{
+					bIsSkeletalDataValid = false;
+					break;
+				}
+
+				for (const pxr::UsdSkelSkinningQuery& SkinningQuery : Binding.GetSkinningTargets())
+				{
+					// In USD, the skinning target need not be a mesh, but for Unreal we are only interested in skinning meshes
+					pxr::UsdGeomMesh SkinningMesh = pxr::UsdGeomMesh( SkinningQuery.GetPrim() );
+					if (SkinningMesh)
+					{
+						UsdToUnreal::ConvertSkinnedMesh( SkinningQuery, SkelMeshImportData );
+					}
+				}
+
+				break;
+			}
+		}
+
+		return bIsSkeletalDataValid;
+	}
+
+	class FSkelRootCreateAssetsTaskChain : public FUsdSchemaTranslatorTaskChain
+	{
+	public:
+		explicit FSkelRootCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema );
+
+	protected:
+		// Inputs
+		TUsdStore< pxr::UsdTyped > Schema;
+		TSharedRef< FUsdSchemaTranslationContext > Context;
+
+		// Outputs
+		FSkeletalMeshImportData SkeletalMeshImportData;
+
+		TUsdStore< pxr::UsdSkelCache > SkeletonCache;
+
+		void SetupTasks();
+	};
+
+	FSkelRootCreateAssetsTaskChain::FSkelRootCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const TUsdStore< pxr::UsdTyped >& InSchema )
+		: Schema( InSchema )
+		, Context( InContext )
+	{
+		SetupTasks();
+	}
+
+	void FSkelRootCreateAssetsTaskChain::SetupTasks()
+	{
+		// Ignore prims from disabled purposes
+		if ( !EnumHasAllFlags( Context->PurposesToLoad, IUsdPrim::GetPurpose( Schema.Get().GetPrim() ) ) )
 		{
 			return;
 		}
 
-		const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( Prim.GetStage() );
-
-		pxr::UsdGeomXformable Xformable( Prim );
-
-		std::vector< double > TimeSamples;
-
-		bool bHasPrimDisplayColor = false;
-
-		// Note that there could be multiple skeleton bindings under the SkeletonRoot
-		// For now, extract just the first one
-		for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
 		{
-			const pxr::UsdSkelSkeleton& Skeleton = Binding.GetSkeleton();
-			pxr::UsdSkelSkeletonQuery SkelQuery = SkeletonCache.GetSkelQuery( Skeleton );
+			const bool bIsAsyncTask = true;
 
-			const bool bSkeletonValid = UsdToUnreal::ConvertSkeleton( SkelQuery, SkelMeshImportData );
-			if ( !bSkeletonValid )
-			{
-				bIsSkeletalDataValid = false;
-				break;
-			}
-
-			for (const pxr::UsdSkelSkinningQuery& SkinningQuery : Binding.GetSkinningTargets())
-			{
-				// In USD, the skinning target need not be a mesh, but for Unreal we are only interested in skinning meshes
-				pxr::UsdGeomMesh SkinningMesh = pxr::UsdGeomMesh( SkinningQuery.GetPrim() );
-				if (SkinningMesh)
+			// Create SkeletalMeshImportData (Async)
+			Do( bIsAsyncTask,
+				[ this ]()
 				{
-					UsdToUnreal::ConvertSkinnedMesh( SkinningQuery, SkelMeshImportData );
-					bHasPrimDisplayColor = bHasPrimDisplayColor || SkinningMesh.GetDisplayColorPrimvar().IsDefined();
-				}
-			}
+					const bool bContinueTaskChain = LoadSkelMeshImportData( SkeletalMeshImportData, SkeletonCache.Get(), pxr::UsdSkelRoot( Schema.Get() ), Context->Time, Context->PrimPathsToAssets );
 
-			UsdSkelRootTranslatorImpl::ProcessMaterials( Prim, SkelMeshImportData, Context->PrimPathsToAssets, bHasPrimDisplayColor, Context->Time );
+					return bContinueTaskChain;
+				} );
 
-			break;
+			// Process materials (Main thread)
+			Then( !bIsAsyncTask,
+				[ this ]()
+				{
+					FScopedUsdAllocs UsdAllocs;
+
+					std::vector< pxr::UsdSkelBinding > SkeletonBindings;
+					SkeletonCache.Get().ComputeSkelBindings( pxr::UsdSkelRoot( Schema.Get() ), &SkeletonBindings );
+
+					bool bHasPrimDisplayColor = false;
+
+					for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
+					{
+						for ( const pxr::UsdSkelSkinningQuery& SkinningQuery : Binding.GetSkinningTargets() )
+						{
+							// In USD, the skinning target need not be a mesh, but for Unreal we are only interested in skinning meshes
+							pxr::UsdGeomMesh SkinningMesh = pxr::UsdGeomMesh( SkinningQuery.GetPrim() );
+							if ( SkinningMesh )
+							{
+								bHasPrimDisplayColor = bHasPrimDisplayColor || SkinningMesh.GetDisplayColorPrimvar().IsDefined();
+							}
+						}
+
+						UsdSkelRootTranslatorImpl::ProcessMaterials( Schema.Get().GetPrim(), SkeletalMeshImportData, Context->PrimPathsToAssets, bHasPrimDisplayColor, Context->Time );
+						break;
+					}
+
+					return true;
+				} );
+
+			// Create USkeletalMesh (Main thread)
+			Then( !bIsAsyncTask,
+				[ this ]()
+				{
+					FSHAHash SkeletalMeshHash = UsdSkelRootTranslatorImpl::ComputeSHAHash( SkeletalMeshImportData );
+
+					USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->AssetsCache.FindRef( SkeletalMeshHash.ToString() ) );
+
+					if ( !SkeletalMesh )
+					{
+						SkeletalMesh = UsdToUnreal::GetSkeletalMeshFromImportData( SkeletalMeshImportData, Context->ObjectFlags );
+						Context->AssetsCache.Add( SkeletalMeshHash.ToString(), SkeletalMesh );
+					}
+
+					Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ), SkeletalMesh );
+
+					return true;
+				} );
 		}
 	}
+}
 
-	if ( !bIsSkeletalDataValid )
-	{
-		return;
-	}
+void FUsdSkelRootTranslator::CreateAssets()
+{
+	TSharedRef< UsdSkelRootTranslatorImpl::FSkelRootCreateAssetsTaskChain > AssetsTaskChain =
+		MakeShared< UsdSkelRootTranslatorImpl::FSkelRootCreateAssetsTaskChain >( Context, Schema );
 
-	FSHAHash SkeletalMeshHash = UsdSkelRootTranslatorImpl::ComputeSHAHash( SkelMeshImportData );
-
-	USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->AssetsCache.FindRef( SkeletalMeshHash.ToString() ) );
-
-	if ( !SkeletalMesh )
-	{
-		SkeletalMesh = UsdToUnreal::GetSkeletalMeshFromImportData( SkelMeshImportData, Context->ObjectFlags );
-		Context->AssetsCache.Add( SkeletalMeshHash.ToString(), SkeletalMesh );
-	}
-
-	Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ), SkeletalMesh );
+	Context->TranslatorTasks.Add( MoveTemp( AssetsTaskChain ) );
 }
 
 USceneComponent* FUsdSkelRootTranslator::CreateComponents()
