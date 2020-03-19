@@ -2,7 +2,10 @@
 
 #include "PreviewSystem/DataprepPreviewSystem.h"
 
+#include "DataprepActionAsset.h"
+#include "DataprepAsset.h"
 #include "DataprepBindingCommandChange.h"
+#include "DataprepCoreUtils.h"
 #include "DataprepParameterizableObject.h"
 #include "SelectionSystem/DataprepFilter.h"
 
@@ -179,16 +182,45 @@ void FDataprepPreviewSystem::SetObservedObjects(const TArrayView<UDataprepParame
 {
 	StopTrackingObservedObjects();
 
-	ObservedObjects.Empty( StepObjects.Num() );
-
-	// Reserve the double for the filters which we need to track their also their fetcher
+	ObservedSteps.Empty( StepObjects.Num() );
+	// Reserve the double. For the filters we need to track their fetcher also.
 	ObservedOnPostEdit.Empty( StepObjects.Num() * 2 );
+
+	ObservedActionAsset = nullptr;
+	for ( UDataprepParameterizableObject* Object : StepObjects )
+	{
+		if ( Object )
+		{
+			UDataprepActionAsset* ActionAssetOfStep = FDataprepCoreUtils::GetDataprepActionAssetOf( Object );
+			if ( !ObservedActionAsset )
+			{
+				ObservedActionAsset = ActionAssetOfStep;
+			}
+			
+			if ( !ActionAssetOfStep || ActionAssetOfStep != ObservedActionAsset )
+			{
+				ObservedActionAsset = nullptr;
+				ObservedSteps.Empty();
+				ObservedOnPostEdit.Empty();
+				RestartProcessing();
+				return;
+			}
+		}
+	}
+
+	if ( ObservedActionAsset )
+	{
+		OnActionStepOrderChangedHandle = ObservedActionAsset->GetOnStepsOrderChanged().AddLambda( [this]()
+			{
+				EnsureValidityOfTheObservedObjects();
+			});
+	}
 
 	for ( UDataprepParameterizableObject* Object : StepObjects )
 	{
 		if ( Object )
 		{
-			ObservedObjects.Add( Object );
+			ObservedSteps.Add( Object );
 			
 			FDelegateHandle Handle = Object->GetOnPostEdit().AddSP( this, &FDataprepPreviewSystem::OnObservedObjectPostEdit );
 			ObservedOnPostEdit.Add( Object, Handle );
@@ -205,12 +237,16 @@ void FDataprepPreviewSystem::SetObservedObjects(const TArrayView<UDataprepParame
 		}
 	}
 
-	RestartProcessing();
+	// Make sure the step are inserted in the right order
+	EnsureValidityOfTheObservedObjects();
 }
 
 void FDataprepPreviewSystem::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObjects( ObservedObjects );
+	Collector.AddReferencedObjects( ObservedSteps );
+	Collector.AddReferencedObjects( ObservedOnPostEdit );
+	Collector.AddReferencedObjects( PreviewResult );
+	Collector.AddReferencedObject( ObservedActionAsset );
 }
 
 TSharedPtr<FDataprepPreviewProcessingResult> FDataprepPreviewSystem::GetPreviewDataForObject(UObject* Object) const
@@ -227,7 +263,7 @@ void FDataprepPreviewSystem::IncrementalProcess()
 {
 	const int32 ItemsCount = PreviewResult.Num();
 	int32 BudgetLeft = IncrementalCount;
-	while ( BudgetLeft > 0 && CurrentProgress.CurrentFilterIndex < ObservedObjects.Num() )
+	while ( BudgetLeft > 0 && CurrentProgress.CurrentFilterIndex < ObservedSteps.Num() )
 	{
 		int32 ItemToProcessCount = ItemsCount - CurrentProgress.CurrentObjectProcessed;
 
@@ -240,7 +276,7 @@ void FDataprepPreviewSystem::IncrementalProcess()
 
 		if ( CurrentProgress.Iterator.IsValid() )
 		{
-			if ( UDataprepFilter* Filter = Cast<UDataprepFilter>( ObservedObjects[CurrentProgress.CurrentFilterIndex] ) )
+			if ( UDataprepFilter* Filter = Cast<UDataprepFilter>( ObservedSteps[CurrentProgress.CurrentFilterIndex] ) )
 			{
 				bDidSomeProcessing = true;
 				PrepareFilterBuffers( IncrementalCount );
@@ -298,7 +334,7 @@ void FDataprepPreviewSystem::RestartProcessing()
 			}
 		}
 
-		if ( ObservedObjects.Num() > 0 )
+		if ( ObservedSteps.Num() > 0 )
 		{
 			bIsProcessing = true;
 		}
@@ -323,9 +359,85 @@ bool FDataprepPreviewSystem::HasAnObjectObserved(const TArrayView<UDataprepParam
 	return false;
 }
 
-bool FDataprepPreviewSystem::IsObservingObject(const UDataprepParameterizableObject* StepObject) const
+bool FDataprepPreviewSystem::IsObservingStepObject(const UDataprepParameterizableObject* StepObject) const
 {
 	return ObservedOnPostEdit.Contains( StepObject );
+}
+
+void FDataprepPreviewSystem::EnsureValidityOfTheObservedObjects()
+{
+	if ( ObservedActionAsset )
+	{
+		if ( UDataprepAsset* Owner = Cast<UDataprepAsset>( ObservedActionAsset->GetOuter() ) )
+		{
+			bool bActionWasFoundInParent = false;
+			for ( int32 Index = 0; Index < Owner->GetActionCount(); ++Index )
+			{
+				if ( ObservedActionAsset == Owner->GetAction( Index ) )
+				{
+					bActionWasFoundInParent = true;
+					break;
+				}
+			}
+
+			if ( !bActionWasFoundInParent )
+			{
+				// The action wasn't found in the dataprep asset. Cancel the preview.
+				SetObservedObjects( MakeArrayView<UDataprepParameterizableObject*>( nullptr, 0 ) );
+				return;
+			}
+		}
+		else
+		{
+			// If the action is not own by a dataprep asset bail out.
+			SetObservedObjects( MakeArrayView<UDataprepParameterizableObject*>( nullptr, 0 ) );
+			return;
+		}
+
+		TArray<UDataprepParameterizableObject*> ObjectOrdering;
+		ObjectOrdering.Reserve( ObservedSteps.Num() );
+
+		TSet<UDataprepParameterizableObject*> ObservedStepsSet;
+		ObservedStepsSet.Append( ObservedSteps );
+
+		bool bShouldUpdateStepsOrder = false;
+
+		int32 StepCount = ObservedActionAsset->GetStepsCount();
+		for ( int32 Index = 0; Index < StepCount; ++Index )
+		{
+			if ( UDataprepActionStep* Step = ObservedActionAsset->GetStep( Index ).Get() )
+			{
+				UDataprepParameterizableObject* StepObject = Step->GetStepObject();
+				if ( ObservedStepsSet.Contains( StepObject ) )
+				{
+					if ( ObservedSteps[ObjectOrdering.Num()] != StepObject )
+					{
+						bShouldUpdateStepsOrder = true;
+					}
+
+					ObjectOrdering.Add( StepObject );
+				}
+			}
+		}
+
+		if ( ObjectOrdering.Num() != ObservedSteps.Num() )
+		{
+			// We lost a step. Cancel the preview.
+			SetObservedObjects( MakeArrayView<UDataprepParameterizableObject*>( nullptr, 0 ) );
+			return;
+		}
+
+		if ( bShouldUpdateStepsOrder )
+		{
+			for ( int32 Index = 0; Index < ObjectOrdering.Num(); ++Index )
+			{
+				ObservedSteps[Index] = ObjectOrdering[Index];
+			}
+		}
+		
+		// Just in case a observed object was edited
+		RestartProcessing();
+	}
 }
 
 int32 FDataprepPreviewSystem::FillObjectsBuffer(int32 MaximunNumberOfObject)
@@ -370,7 +482,7 @@ void FDataprepPreviewSystem::PopulateResultFromFilter(int32 NumberOfValidObjects
 
 	NumberOfValidObjects = FMath::Min( ObjectsBuffer.Num(), NumberOfValidObjects );
 	
-	const bool bIsLastFilter =  CurrentProgress.CurrentFilterIndex == ObservedObjects.Num() - 1;
+	const bool bIsLastFilter =  CurrentProgress.CurrentFilterIndex == ObservedSteps.Num() - 1;
 
 	ParallelFor( NumberOfValidObjects, [this, bIsLastFilter](int32 Index)
 		{
@@ -408,6 +520,11 @@ void FDataprepPreviewSystem::PopulateResultFromFilter(int32 NumberOfValidObjects
 
 void FDataprepPreviewSystem::StopTrackingObservedObjects()
 {
+	if ( ObservedActionAsset )
+	{
+		ObservedActionAsset->GetOnStepsOrderChanged().Remove( OnActionStepOrderChangedHandle );
+	}
+
 	for ( auto& Pair : ObservedOnPostEdit )
 	{
 		if ( Pair.Key )
@@ -427,7 +544,7 @@ void FDataprepPreviewSystem::Tick(float DeltaTime)
 {
 	IncrementalProcess();
 
-	if ( CurrentProgress.CurrentFilterIndex >= ObservedObjects.Num() )
+	if ( CurrentProgress.CurrentFilterIndex >= ObservedSteps.Num() )
 	{
 		bIsProcessing = false;
 		OnPreviewIsDoneProcessing.Broadcast();
