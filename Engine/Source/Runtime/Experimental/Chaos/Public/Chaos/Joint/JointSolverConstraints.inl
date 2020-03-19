@@ -1,12 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#pragma once
-
-#include "CoreMinimal.h"
-
-#include "Chaos/Joint/JointSolverConstraints.h"
-#include "Chaos/PBDJointConstraintTypes.h"
-#include "Chaos/PBDJointConstraintUtilities.h"
-#include "Chaos/Utilities.h"
 
 namespace Chaos
 {
