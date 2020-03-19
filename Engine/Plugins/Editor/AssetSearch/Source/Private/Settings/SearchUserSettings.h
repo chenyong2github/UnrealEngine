@@ -38,7 +38,7 @@ public:
 	TArray<FDirectoryPath> IgnoredPaths;
 
 	UPROPERTY(config, EditAnywhere, Category=General)
-	bool bShowMissingAssets;
+	bool bShowMissingAssets = true;
 
 	UPROPERTY(config, EditAnywhere, Category = Performance)
 	bool bThrottleInBackground = true;
