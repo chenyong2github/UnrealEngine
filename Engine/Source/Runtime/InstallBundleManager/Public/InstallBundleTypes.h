@@ -97,6 +97,7 @@ enum class EInstallBundleResult : int
 {
 	OK,
 	FailedPrereqRequiresLatestClient,
+	FailedPrereqRequiresLatestContent,
 	InstallError,
 	InstallerOutOfDiskSpaceError,
 	ManifestArchiveError,
@@ -149,6 +150,21 @@ enum class EInstallBundleStatus : int
 	Count,
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleStatus Status);
+
+enum class EInstallBundleManagerPatchCheckResult : uint32
+{
+	/** No patch required */
+	NoPatchRequired,
+	/** Client Patch required to continue */
+	ClientPatchRequired,
+	/** Content Patch required to continue */
+	ContentPatchRequired,
+	/** Logged in user required for a patch check */
+	NoLoggedInUser,
+	/** Patch check failed */
+	PatchCheckFailure,
+	Count,
+};
 
 struct FInstallBundleSourceInitInfo
 {
