@@ -30,6 +30,8 @@ void UInteractiveToolManager::Initialize(IToolsContextQueriesAPI* queriesAPI, IT
 	this->QueriesAPI = queriesAPI;
 	this->TransactionsAPI = transactionsAPI;
 	this->InputRouter = InputRouterIn;
+
+	bIsActive = true;
 }
 
 
@@ -47,6 +49,8 @@ void UInteractiveToolManager::Shutdown()
 	}
 
 	this->TransactionsAPI = nullptr;
+
+	bIsActive = false;
 }
 
 
@@ -363,7 +367,7 @@ void FBeginToolChange::Revert(UObject* Object)
 bool FBeginToolChange::HasExpired( UObject* Object ) const
 {
 	UInteractiveToolManager* ToolManager = CastChecked<UInteractiveToolManager>(Object);
-	return (ToolManager == nullptr) || (ToolManager->HasAnyActiveTool() == false);
+	return (ToolManager == nullptr) || (ToolManager->IsActive() == false) || (ToolManager->HasAnyActiveTool() == false);
 }
 
 FString FBeginToolChange::ToString() const
@@ -412,7 +416,7 @@ void FActivateToolChange::Revert(UObject* Object)
 bool FActivateToolChange::HasExpired(UObject* Object) const
 {
 	UInteractiveToolManager* ToolManager = CastChecked<UInteractiveToolManager>(Object);
-	return (ToolManager == nullptr);
+	return (ToolManager == nullptr) || (ToolManager->IsActive() == false);
 }
 
 FString FActivateToolChange::ToString() const
