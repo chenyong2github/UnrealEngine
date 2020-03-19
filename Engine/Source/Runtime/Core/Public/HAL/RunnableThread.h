@@ -99,6 +99,12 @@ public:
 		return ThreadName;
 	}
 
+	/** Returns the runnable's thread priority */
+	EThreadPriority GetThreadPriority() const
+	{
+		return ThreadPriority;
+	}
+
 	/** Default constructor. */
 	FRunnableThread();
 
