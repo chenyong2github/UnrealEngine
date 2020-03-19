@@ -6,6 +6,9 @@
 #include "SNPWindow.h"
 #include "NetworkPredictionInsightsManager.h"
 #include "NetworkPredictionInsightsCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Framework/Commands/UICommandList.h"
 
 #define LOCTEXT_NAMESPACE "NetworkPredictionInsightsModule"
 
