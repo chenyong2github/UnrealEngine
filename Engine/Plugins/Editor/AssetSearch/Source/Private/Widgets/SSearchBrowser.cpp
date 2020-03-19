@@ -48,13 +48,25 @@ namespace AssetSearchConstants
 
 //TODO Expose TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const via IContentBrowserSingleton.
 
+SSearchBrowser::~SSearchBrowser()
+{
+	if (UObjectInitialized())
+	{
+		GetMutableDefault<USearchUserSettings>()->SearchInForeground--;
+	}
+}
+
 void SSearchBrowser::Construct( const FArguments& InArgs )
 {
-	if (!GetDefault<USearchUserSettings>()->bEnableSearch)
+	USearchUserSettings* UserSettings = GetMutableDefault<USearchUserSettings>();
+
+	if (!UserSettings->bEnableSearch)
 	{
-		GetMutableDefault<USearchUserSettings>()->bEnableSearch = true;
-		GetMutableDefault<USearchUserSettings>()->SaveConfig();
+		UserSettings->bEnableSearch = true;
+		UserSettings->SaveConfig();
 	}
+
+	UserSettings->SearchInForeground++;
 
 	SortByColumn = SSearchTreeRow::NAME_ColumnName;
 	SortMode = EColumnSortMode::Ascending;
@@ -155,7 +167,6 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 					.AutoHeight()
 					[
 						SNew(STextBlock)
-						.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowAdvancedData ? EVisibility::Visible : EVisibility::Collapsed; })
 						.Text(this, &SSearchBrowser::GetStatusText)
 					]
 
@@ -175,6 +186,7 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 				[
 					SNew(SHyperlink)
 					.Text(this, &SSearchBrowser::GetUnindexedAssetsText)
+					.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowAdvancedData ? EVisibility::Visible : EVisibility::Collapsed; })
 					.OnNavigate(this, &SSearchBrowser::HandleForceIndexOfAssetsMissingIndex)
 				]
 			]
@@ -188,7 +200,7 @@ FText SSearchBrowser::GetStatusText() const
 {
 	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
 	FSearchStats SearchStats = SearchModule.GetStats();
-	int32 UpdatingCount = SearchStats.Scanning + SearchStats.Downloading + SearchStats.PendingDatabaseUpdates;
+	int32 UpdatingCount = SearchStats.Scanning + SearchStats.Processing + SearchStats.Updating;
 
 	if (UpdatingCount > 0)
 	{
@@ -204,7 +216,7 @@ FText SSearchBrowser::GetAdvancedStatus() const
 {
 	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
 	FSearchStats SearchStats = SearchModule.GetStats();
-	return FText::Format(LOCTEXT("AdvancedSearchStatusTextFmt", "Scanning {0}   Downloading {1}   Updating {2}            Total Records {3}"), SearchStats.Scanning, SearchStats.Downloading, SearchStats.PendingDatabaseUpdates, SearchStats.TotalRecords);
+	return FText::Format(LOCTEXT("AdvancedSearchStatusTextFmt", "Scanning {0}   Processing {1}   Updating {2}            Total Records {3}"), SearchStats.Scanning, SearchStats.Processing, SearchStats.Updating, SearchStats.TotalRecords);
 }
 
 FText SSearchBrowser::GetUnindexedAssetsText() const
