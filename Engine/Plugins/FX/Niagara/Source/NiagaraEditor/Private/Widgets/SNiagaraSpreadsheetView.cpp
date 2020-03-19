@@ -1142,7 +1142,7 @@ void SNiagaraSpreadsheetView::ResetEntries(EUITab Tab)
 		}
 	
 		{
-			int32 NumInstances = CaptureData[(int32)Tab].InputParams.ParameterVariables.Num();
+			int32 NumInstances = CaptureData[(int32)Tab].InputParams.ReadParameterVariables().Num();
 			if (!CaptureData[(int32)Tab].bInputColumnsAreAttributes && CaptureData[(int32)Tab].SupportedInputFields.IsValid())
 			{
 				NumInstances = CaptureData[(int32)Tab].SupportedInputFields->Num();

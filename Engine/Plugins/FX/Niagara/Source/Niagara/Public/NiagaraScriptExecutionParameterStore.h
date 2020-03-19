@@ -185,8 +185,7 @@ public:
 	TArrayView<const uint8> GetScriptLiterals() const;
 #endif
 
-protected:
-	virtual void InternalStorageChanged() override;
+	virtual TArrayView<const FNiagaraVariableWithOffset> ReadParameterVariables() const override;
 
 private:
 	FNiagaraCompiledDataReference<FNiagaraScriptExecutionParameterStore> ScriptParameterStore;
