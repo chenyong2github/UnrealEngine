@@ -855,6 +855,8 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		{
 			ExecutableData.ScriptLiterals.Empty();
 		}
+
+		ScriptExecutionParamStore.CoalescePaddingInfo();
 	}
 #endif
 
