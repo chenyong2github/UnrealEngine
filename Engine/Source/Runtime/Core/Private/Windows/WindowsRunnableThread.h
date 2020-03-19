@@ -32,7 +32,9 @@ class FRunnableThreadWin
 	static ::DWORD STDCALL _ThreadProc( LPVOID pThis )
 	{
 		check(pThis);
-		return ((FRunnableThreadWin*)pThis)->GuardedRun();
+		auto* ThisThread = (FRunnableThreadWin*)pThis;
+		FThreadManager::Get().AddThread(ThisThread->GetThreadID(), ThisThread);
+		return ThisThread->GuardedRun();
 	}
 
 	/** Guarding works only if debugger is not attached or GAlwaysReportCrash is true. */
@@ -171,7 +173,6 @@ protected:
 		}
 		else
 		{
-			FThreadManager::Get().AddThread(ThreadID, this);
 			ResumeThread(Thread);
 
 			// Let the thread start up
