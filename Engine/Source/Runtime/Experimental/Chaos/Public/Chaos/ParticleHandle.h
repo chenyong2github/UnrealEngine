@@ -1400,10 +1400,7 @@ public:
 	static TGeometryParticle<T, d>* SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable);
 
 	const TVector<T, d>& X() const { return MXR.Read().X; }
-	void SetX(const TVector<T, d>& InX, bool bInvalidate = true)
-	{
-		MXR.Modify(bInvalidate,MDirtyFlags,Proxy,[&InX](auto& Data){ Data.X = InX;});
-	}
+	void SetX(const TVector<T, d>& InX, bool bInvalidate = true);
 
 	FUniqueIdx UniqueIdx() const { return MNonFrequentData.Read().UniqueIdx; }
 	void SetUniqueIdx(const FUniqueIdx UniqueIdx, bool bInvalidate = true)
@@ -1412,10 +1409,7 @@ public:
 	}
 
 	const TRotation<T, d>& R() const { return MXR.Read().R; }
-	void SetR(const TRotation<T, d>& InR, bool bInvalidate = true)
-	{
-		MXR.Modify(bInvalidate,MDirtyFlags,Proxy,[&InR](auto& Data){ Data.R = InR;});
-	}
+	void SetR(const TRotation<T, d>& InR, bool bInvalidate = true);
 
 	//todo: geometry should not be owned by particle
 	void SetGeometry(TUniquePtr<FImplicitObject>&& UniqueGeometry)
@@ -1831,16 +1825,10 @@ public:
 	}
 
 	const TVector<T, d>& V() const { return MVelocities.Read().V; }
-	void SetV(const TVector<T, d>& InV, bool bInvalidate = true)
-	{
-		MVelocities.Modify(bInvalidate,MDirtyFlags,Proxy,[&InV](auto& Data){ Data.V = InV;});
-	}
+	void SetV(const TVector<T, d>& InV, bool bInvalidate = true);
 
 	const TVector<T, d>& W() const { return MVelocities.Read().W; }
-	void SetW(const TVector<T, d>& InW, bool bInvalidate = true)
-	{
-		MVelocities.Modify(bInvalidate,MDirtyFlags,Proxy,[&InW](auto& Data){ Data.W = InW;});
-	}
+	void SetW(const TVector<T, d>& InW, bool bInvalidate = true);
 
 	const TVector<T, d>& CenterOfMass() const { return MMassProps.Read().CenterOfMass; }
 	void SetCenterOfMass(const TVector<T, d>& InCenterOfMass, bool bInvalidate = true)
@@ -1994,24 +1982,40 @@ public:
 	const TVector<T, d>& F() const { return MDynamics.Read().F; }
 	void SetF(const TVector<T, d>& InF, bool bInvalidate = true)
 	{
+		if (bInvalidate)
+		{
+			SetObjectState(EObjectStateType::Dynamic, true);
+		}
 		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InF](auto& Data){ Data.F = InF;});
 	}
 
 	const TVector<T, d>& Torque() const { return MDynamics.Read().Torque; }
 	void SetTorque(const TVector<T, d>& InTorque, bool bInvalidate=true)
 	{
+		if (bInvalidate)
+		{
+			SetObjectState(EObjectStateType::Dynamic, true);
+		}
 		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InTorque](auto& Data){ Data.Torque = InTorque;});
 	}
 
 	const TVector<T, d>& LinearImpulse() const { return MDynamics.Read().LinearImpulse; }
 	void SetLinearImpulse(const TVector<T, d>& InLinearImpulse, bool bInvalidate = true)
 	{
+		if (bInvalidate)
+		{
+			SetObjectState(EObjectStateType::Dynamic, true);
+		}
 		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InLinearImpulse](auto& Data){ Data.LinearImpulse = InLinearImpulse;});
 	}
 
 	const TVector<T, d>& AngularImpulse() const { return MDynamics.Read().AngularImpulse; }
 	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse, bool bInvalidate = true)
 	{
+		if (bInvalidate)
+		{
+			SetObjectState(EObjectStateType::Dynamic, true);
+		}
 		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InAngularImpulse](auto& Data){ Data.AngularImpulse = InAngularImpulse;});
 	}
 
@@ -2308,6 +2312,34 @@ void TGeometryParticle<T, d>::SetObjectState(const EObjectStateType InState, boo
 }
 
 template <typename T, int d>
+void TGeometryParticle<T, d>::SetX(const TVector<T, d>& InX, bool bInvalidate)
+{
+	if (bInvalidate)
+	{
+		TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
+		if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping)
+		{
+			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
+		}
+	}
+	MXR.Modify(bInvalidate, MDirtyFlags, Proxy, [&InX](auto& Data) { Data.X = InX; });
+}
+
+template <typename T, int d>
+void TGeometryParticle<T, d>::SetR(const TRotation<T, d>& InR, bool bInvalidate)
+{
+	if (bInvalidate)
+	{
+		TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
+		if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping)
+		{
+			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
+		}
+	}
+	MXR.Modify(bInvalidate, MDirtyFlags, Proxy, [&InR](auto& Data) { Data.R = InR; });
+}
+
+template <typename T, int d>
 EObjectStateType TGeometryParticle<T, d>::ObjectState() const
 {
 	const TKinematicGeometryParticle<T, d>* Kin = CastToKinematicParticle();
@@ -2319,6 +2351,34 @@ EObjectStateType TKinematicGeometryParticle<T, d>::ObjectState() const
 {
 	const TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
 	return Dyn ? Dyn->ObjectState() : EObjectStateType::Kinematic;
+}
+
+template <typename T, int d>
+void TKinematicGeometryParticle<T, d>::SetV(const TVector<T, d>& InV, bool bInvalidate)
+{
+	if (bInvalidate)
+	{
+		TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
+		if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping && !InV.IsNearlyZero())
+		{
+			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
+		}
+	}
+	MVelocities.Modify(bInvalidate, MDirtyFlags, Proxy, [&InV](auto& Data) { Data.V = InV; });
+}
+
+template <typename T, int d>
+void TKinematicGeometryParticle<T, d>::SetW(const TVector<T, d>& InW, bool bInvalidate)
+{
+	if (bInvalidate)
+	{
+		TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
+		if (Dyn && Dyn->ObjectState() == EObjectStateType::Sleeping && !InW.IsNearlyZero())
+		{
+			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
+		}
+	}
+	MVelocities.Modify(bInvalidate, MDirtyFlags, Proxy, [&InW](auto& Data) { Data.W = InW; });
 }
 
 template <typename T, int d>
