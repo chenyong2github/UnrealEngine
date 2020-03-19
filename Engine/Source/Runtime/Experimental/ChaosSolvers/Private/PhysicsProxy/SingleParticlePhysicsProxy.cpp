@@ -72,6 +72,13 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 			Handle->SetSharedGeometry(NewNonFrequentData->Geometry);
 			Handle->SetUniqueIdx(NewNonFrequentData->UniqueIdx);
 			Handle->SetUserData(NewNonFrequentData->UserData);
+
+			if(bHasDynamicData)
+			{
+				RigidHandle->SetLinearEtherDrag(NewNonFrequentData->LinearEtherDrag);
+				RigidHandle->SetAngularEtherDrag(NewNonFrequentData->AngularEtherDrag);
+			}
+			
 #if CHAOS_CHECKED
 			Handle->SetDebugName(NewNonFrequentData->DebugName);
 #endif
@@ -142,9 +149,6 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 				RigidHandle->SetTorque(NewData->Torque);
 				RigidHandle->SetLinearImpulse(NewData->LinearImpulse);
 				RigidHandle->SetAngularImpulse(NewData->AngularImpulse);
-
-				RigidHandle->SetLinearEtherDrag(NewData->LinearEtherDrag);
-				RigidHandle->SetAngularEtherDrag(NewData->AngularEtherDrag);
 			}
 		}
 
