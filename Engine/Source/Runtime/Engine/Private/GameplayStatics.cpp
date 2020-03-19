@@ -430,7 +430,7 @@ EMouseCaptureMode UGameplayStatics::GetViewportMouseCaptureMode(const UObject* W
 		UGameViewportClient* const GameViewportClient = World->GetGameViewport();
 		if (GameViewportClient)
 		{
-			return GameViewportClient->CaptureMouseOnClick();
+			return GameViewportClient->GetMouseCaptureMode();
 		}
 	}
 
@@ -445,7 +445,7 @@ void UGameplayStatics::SetViewportMouseCaptureMode(const UObject* WorldContextOb
 		UGameViewportClient* const GameViewportClient = World->GetGameViewport();
 		if (GameViewportClient)
 		{
-			GameViewportClient->SetCaptureMouseOnClick(MouseCaptureMode);
+			GameViewportClient->SetMouseCaptureMode(MouseCaptureMode);
 		}
 	}
 }
