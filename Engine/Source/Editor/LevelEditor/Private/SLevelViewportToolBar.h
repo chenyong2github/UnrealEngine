@@ -30,6 +30,9 @@ public:
 	/** @return Whether the given viewmode is supported. */ 
 	virtual bool IsViewModeSupported(EViewModeIndex ViewModeIndex) const;
 
+	/** @return Level editor viewport client. */ 
+	FLevelEditorViewportClient* GetLevelViewportClient();
+
 private:
 	/**
 	 * Returns the label for the "Camera" tool bar menu, which changes depending on the viewport type

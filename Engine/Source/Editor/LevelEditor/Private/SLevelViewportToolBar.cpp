@@ -311,6 +311,15 @@ bool SLevelViewportToolBar::IsViewModeSupported(EViewModeIndex ViewModeIndex) co
 	return true;
 }
 
+FLevelEditorViewportClient* SLevelViewportToolBar::GetLevelViewportClient()
+{
+	if (Viewport.IsValid())
+	{
+		return &Viewport.Pin()->GetLevelViewportClient();
+	}
+
+	return nullptr;
+}
 
 FText SLevelViewportToolBar::GetCameraMenuLabel() const
 {
@@ -1580,6 +1589,16 @@ TSharedRef<SWidget> SLevelViewportToolBar::GetScalabilityWarningMenuContent() co
 		[
 			SNew(SScalabilitySettings)
 		];
+}
+
+FLevelEditorViewportClient* ULevelViewportToolBarContext::GetLevelViewportClient()
+{
+	if (LevelViewportToolBarWidget.IsValid())
+	{
+		return LevelViewportToolBarWidget.Pin()->GetLevelViewportClient();
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

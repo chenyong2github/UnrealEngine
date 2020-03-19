@@ -48,4 +48,6 @@ class LEVELEDITOR_API ULevelViewportToolBarContext : public UObject
 public:
 	TWeakPtr<SLevelViewportToolBar> LevelViewportToolBarWidget;
 	TWeakPtr<const SLevelViewportToolBar> LevelViewportToolBarWidgetConst;
+
+	FLevelEditorViewportClient* GetLevelViewportClient();
 };
