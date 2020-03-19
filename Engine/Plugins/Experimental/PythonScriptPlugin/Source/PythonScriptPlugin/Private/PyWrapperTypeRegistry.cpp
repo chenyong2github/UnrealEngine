@@ -2026,6 +2026,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedDelegateType(const UFunctio
 		PythonCallableForDelegateFunc->StaticLink(true);
 		PythonCallableForDelegateClass->AddFunctionToFunctionMap(PythonCallableForDelegateFunc, PythonCallableForDelegateFunc->GetFName());
 		PythonCallableForDelegateClass->SetSuperStruct(UPythonCallableForDelegate::StaticClass());
+		PythonCallableForDelegateClass->ClassFlags |= CLASS_HideDropDown;
 		PythonCallableForDelegateClass->Bind();
 		PythonCallableForDelegateClass->StaticLink(true);
 		PythonCallableForDelegateClass->AssembleReferenceTokenStream();
