@@ -97,6 +97,12 @@ namespace Chaos
 				//MSolver->StartFrameCallback(MDeltaTime, MSolver->GetSolverTime());
 			}
 
+
+			if(FRewindData* RewindData = MSolver->GetRewindData())
+			{
+				RewindData->AdvanceFrame();
+			}
+
 			{
 				SCOPE_CYCLE_COUNTER(STAT_EvolutionAndKinematicUpdate);
 
@@ -519,6 +525,11 @@ namespace Chaos
 
 		DirtyPropertiesManager = MakeUnique<FDoubleBuffer<FDirtyPropertiesManager>>();
 
+		MEvolution->SetCaptureRewindDataFunction([this](const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles)
+		{
+			FinalizeRewindData(ActiveParticles);
+		});
+
 		FEventDefaults::RegisterSystemEvents(*GetEventManager());
 	}
 
@@ -827,11 +838,6 @@ namespace Chaos
 				}
 			});
 
-			if(RewindData)
-			{
-				RewindData->AdvanceFrame();
-			}
-
 			DirtyProxiesData->Reset();
 		});
 	}
@@ -1015,6 +1021,29 @@ namespace Chaos
 	void FPBDRigidsSolver::EnableRewindCapture(int32 NumFrames)
 	{
 		MRewindData = MakeUnique<FRewindData>(NumFrames);
+	}
+
+	void FPBDRigidsSolver::FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles)
+	{
+		using namespace Chaos;
+		//Simulated objects must have their properties captured for rewind
+		if(MRewindData && ActiveParticles.Num())
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(RecordRewindData);
+
+			int32 DataIdx = MRewindData->PrepareFrameForPTDirty(ActiveParticles.Num());
+			
+			for(TPBDRigidParticleHandleImp<float,3,false>& ActiveObject : ActiveParticles)
+			{
+				const IPhysicsProxyBase* Proxy = GetProxy(ActiveObject.Handle());
+				{
+					if(ActiveObject.GetParticleType() == EParticleType::Rigid)
+					{
+						MRewindData->PushPTDirtyData(*static_cast<const FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(), DataIdx++);
+					}
+				}
+			}
+		}
 	}
 
 }; // namespace Chaos
