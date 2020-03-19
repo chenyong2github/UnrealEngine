@@ -24,17 +24,10 @@ public:
 	{
 	}
 
-	template <typename LambdaRead>
-	const T& Read(const LambdaRead& ReadFunc) const
+	const T& Read() const
 	{
-		if(Manager)
-		{
-			const TDirtyElementPool<T>& Pool = Manager->GetParticlePool<T,PropName>();
-			return Pool.GetElement(Idx);
-		} else
-		{
-			return ReadFunc();
-		}
+		const TDirtyElementPool<T>& Pool = Manager->GetParticlePool<T,PropName>();
+		return Pool.GetElement(Idx);
 	}
 
 	template <typename LambdaWrite>
@@ -49,12 +42,19 @@ public:
 	}
 
 	template <typename LambdaSet>
-	void SyncRemoteData(FDirtyPropertiesManager* InManager,int32 InIdx,const LambdaSet& SetFunc)
+	void SyncRemoteData(FDirtyPropertiesManager* InManager,int32 InIdx, const FParticleDirtyData& DirtyData, const LambdaSet& SetFunc)
 	{
-		ensure(Manager == nullptr);
-		Manager = InManager;
-		Idx = InIdx;
-		SetFunc(Manager->GetParticlePool<T,PropName>().GetElement(Idx));
+		if(DirtyData.IsDirty(ParticlePropToFlag(PropName)))
+		{
+			Manager = InManager;
+			Idx = InIdx;
+			SetFunc(Manager->GetParticlePool<T,PropName>().GetElement(Idx));
+		}
+	}
+
+	bool IsSet() const
+	{
+		return Manager != nullptr;
 	}
 
 private:
@@ -73,24 +73,61 @@ public:
 
 	const FVec3& X() const
 	{
-		return ParticlePositionRotation.Read([this]() -> const auto& {return Particle->XR();}).X;
+		return ParticlePositionRotation.IsSet() ? ParticlePositionRotation.Read().X : Particle->X();
+	}
+
+	TSerializablePtr<FImplicitObject> Geometry() const
+	{
+		return NonFrequentData.IsSet() ? MakeSerializable(NonFrequentData.Read().Geometry) : Particle->Geometry();
 	}
 
 	void SyncRemoteData(FDirtyPropertiesManager* Manager,int32 Idx,const FDirtyProxy& Dirty)
 	{
 		const auto Proxy = static_cast<const FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
 		const auto Handle = Proxy->GetHandle();
-		ParticlePositionRotation.SyncRemoteData(Manager,Idx,[Handle](FParticlePositionRotation& Data)
+		ParticlePositionRotation.SyncRemoteData(Manager,Idx,Dirty.ParticleData, [Handle](FParticlePositionRotation& Data)
 		{
 			Data.X = Handle->X();
 			Data.R = Handle->R();
 		});
+
+		NonFrequentData.SyncRemoteData(Manager,Idx,Dirty.ParticleData, [Handle](FParticleNonFrequentData& Data)
+		{
+			Data.Geometry = Handle->SharedGeometryLowLevel();
+			Data.UserData = Handle->UserData();
+
+			//note: this data is keyed based on unique idx so it's not really possible to change this
+			//but we save it anyway since it's part of a big struct
+			Data.UniqueIdx = Handle->UniqueIdx();
+#if CHAOS_CHECKED
+			Data.DebugName = Handle->DebugName();
+#endif
+		});
+	}
+
+	bool CoalesceState(const FGeometryParticleState& LatestState)
+	{
+		bool bCoalesced = false;
+		if(!ParticlePositionRotation.IsSet() && LatestState.ParticlePositionRotation.IsSet())
+		{
+			ParticlePositionRotation = LatestState.ParticlePositionRotation;
+			bCoalesced = true;
+		}
+
+		if(!NonFrequentData.IsSet() && LatestState.NonFrequentData.IsSet())
+		{
+			NonFrequentData = LatestState.NonFrequentData;
+			bCoalesced = true;
+		}
+
+		return bCoalesced;
 	}
 
 protected:
 	TGeometryParticle<FReal,3>* Particle;
 private:
 	TParticleStateProperty<FParticlePositionRotation,EParticleProperty::XR> ParticlePositionRotation;
+	TParticleStateProperty<FParticleNonFrequentData, EParticleProperty::NonFrequentData> NonFrequentData;
 };
 
 class FRewindData
@@ -138,7 +175,20 @@ public:
 				const auto PTParticle = Proxy->GetHandle();
 				TArray<FFrameInfo>& Frames = ParticleToFrameInfo.FindOrAdd(PTParticle->UniqueIdx());
 				Frames.Add(FFrameInfo{FGeometryParticleState(GTParticleUnsafe),CurFrame-1});
-				Frames.Last().State.SyncRemoteData(Manager,DataIdx,Dirty);
+
+				FGeometryParticleState& LatestState = Frames.Last().State;
+				LatestState.SyncRemoteData(Manager,DataIdx,Dirty);
+
+				//coalesce any previous data
+				for(int32 FrameIdx = Frames.Num() - 2; FrameIdx >= 0; --FrameIdx)
+				{
+					FFrameInfo& Frame = Frames[FrameIdx];
+					if(Frame.State.CoalesceState(LatestState) == false)
+					{
+						//nothing to coalesce so no need to check earlier frames
+						break;
+					}
+				}
 			}
 		};
 
