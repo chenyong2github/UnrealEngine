@@ -53,16 +53,16 @@ public class GoogleVR : ModuleRules
 			PublicAdditionalLibraries.Add(GoogleVRIOSLibPath+"libGTMSessionFetcher.a");
 
 			// Frameworks that GoogleVR frame depends on
-			PublicAdditionalFrameworks.Add(new Framework("CoreText"));
-			PublicAdditionalFrameworks.Add(new Framework("AudioToolbox"));
-			PublicAdditionalFrameworks.Add(new Framework("AVFoundation"));
-			PublicAdditionalFrameworks.Add(new Framework("CoreGraphics"));
-			PublicAdditionalFrameworks.Add(new Framework("CoreMotion"));
-			PublicAdditionalFrameworks.Add(new Framework("CoreVideo"));
-			PublicAdditionalFrameworks.Add(new Framework("GLKit"));
-			PublicAdditionalFrameworks.Add(new Framework("MediaPlayer"));
-			PublicAdditionalFrameworks.Add(new Framework("OpenGLES"));
-			PublicAdditionalFrameworks.Add(new Framework("QuartzCore"));
+			PublicFrameworks.Add("CoreText");
+			PublicFrameworks.Add("AudioToolbox");
+			PublicFrameworks.Add("AVFoundation");
+			PublicFrameworks.Add("CoreGraphics");
+			PublicFrameworks.Add("CoreMotion");
+			PublicFrameworks.Add("CoreVideo");
+			PublicFrameworks.Add("GLKit");
+			PublicFrameworks.Add("MediaPlayer");
+			PublicFrameworks.Add("OpenGLES");
+			PublicFrameworks.Add("QuartzCore");
 
 			// GoogleVR framework.
 			// Note: Had to add 5 times because there are 5 different resource bundles and there doesn't seem to be support for
