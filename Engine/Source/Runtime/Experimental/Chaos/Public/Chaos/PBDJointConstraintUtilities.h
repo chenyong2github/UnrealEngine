@@ -235,3 +235,12 @@ namespace Chaos
 		static FVec3 GetLimitedPositionError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& CX);
 	};
 }
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_Joint_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_Joint_ISPC_Enabled = true;
+#else
+extern bool bChaos_Joint_ISPC_Enabled;
+#endif
