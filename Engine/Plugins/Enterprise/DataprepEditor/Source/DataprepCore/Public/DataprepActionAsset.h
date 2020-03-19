@@ -48,7 +48,7 @@ namespace DataprepActionAsset
 }
 
 UCLASS(Experimental)
-class UDataprepActionStep : public UObject
+class DATAPREPCORE_API UDataprepActionStep : public UObject
 {
 	GENERATED_BODY()
 
