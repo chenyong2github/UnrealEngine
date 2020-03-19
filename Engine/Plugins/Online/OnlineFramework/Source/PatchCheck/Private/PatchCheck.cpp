@@ -90,12 +90,12 @@ void FPatchCheck::StartPatchCheck()
 	}
 }
 
-void FPatchCheck::AddEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag, FEnvironmentWantsPatchCheck Delegate)
+void FPatchCheck::AddEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag, FEnvironmentWantsPatchCheck Delegate)
 {
 	BackCompatEnvironmentWantsPatchCheckDelegates.Emplace(Tag, MoveTemp(Delegate));
 }
 
-void FPatchCheck::RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag)
+void FPatchCheck::RemoveEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag)
 {
 	BackCompatEnvironmentWantsPatchCheckDelegates.Remove(Tag);
 }
