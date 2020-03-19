@@ -35,7 +35,12 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 	}
 
 	private static final int MAX_RETRY_SEC = 13;
-	private static final String HOST_RESOLUTION_ADDRESS = "https://example.com/";
+	private int currentHostResolutionAddressIndex = 0;
+	private static final String[] HOST_RESOLUTION_ADDRESSES = new String[] {
+		"https://example.com/",
+		"https://google.com/",
+		"https://www.samsung.com/"
+	};
 	private static final long HOSTNAME_RESOLUTION_TIMEOUT_MS = 2000;
 
 	private static final Logger Log = new Logger("UE4", "NetworkChangedManager");
@@ -216,36 +221,53 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 		final Runnable timeoutRunnable = new Runnable() {
 			@Override
 			public void run() {
-				Log.verbose("Unable to connect to: " + HOST_RESOLUTION_ADDRESS);
+				Log.verbose("Unable to connect to: " + getCurrentHostResolutionAddress());
 				networkCheckInProgress = false;
 				executor.shutdownNow();
 				setNetworkState(ConnectivityState.NO_CONNECTION);
 				scheduleRetry();
 			}
 		};
-		internalScheduler.postDelayed(timeoutRunnable, HOSTNAME_RESOLUTION_TIMEOUT_MS);
+		internalScheduler.postDelayed(timeoutRunnable, HOSTNAME_RESOLUTION_TIMEOUT_MS * HOST_RESOLUTION_ADDRESSES.length + 100);
 		executor.execute(new Runnable() {
 			@Override
 			public void run() {
 				HttpURLConnection urlConnection = null;
 				boolean connectedSuccessfully = false;
-				try {
-					URL url = new URL(HOST_RESOLUTION_ADDRESS);
-					urlConnection = (HttpURLConnection) url.openConnection();
-					urlConnection.setRequestMethod("HEAD");
-					urlConnection.setConnectTimeout((int) HOSTNAME_RESOLUTION_TIMEOUT_MS);
-					urlConnection.setReadTimeout((int) HOSTNAME_RESOLUTION_TIMEOUT_MS);
-					urlConnection.getInputStream().close();
-					connectedSuccessfully = true;
-				} catch (MalformedURLException e) {
-					Log.error("Malformed URL, this should never happen. Please fix, url: " + HOST_RESOLUTION_ADDRESS);
-				} catch (IOException e) {
-					Log.verbose("Unable to connect to: " + HOST_RESOLUTION_ADDRESS);
-				} catch (Exception e) {
-					Log.verbose("Unable to connect to: " + HOST_RESOLUTION_ADDRESS + ", exception: " + e.toString());
-				} finally {
-					if (urlConnection != null) {
-						urlConnection.disconnect();
+				// Attempt to connect to any of the hostnames. If any succeed we are connected to
+				// the internet.
+				for (int i = 0; i < HOST_RESOLUTION_ADDRESSES.length; i++) {
+					try {
+						Log.verbose("Verifying internet connection with host: " + getCurrentHostResolutionAddress());
+						URL url = new URL(getCurrentHostResolutionAddress());
+						urlConnection = (HttpURLConnection) url.openConnection();
+						urlConnection.setUseCaches(false);
+						urlConnection.setRequestMethod("HEAD");
+						urlConnection.setConnectTimeout((int) HOSTNAME_RESOLUTION_TIMEOUT_MS);
+						urlConnection.setReadTimeout((int) HOSTNAME_RESOLUTION_TIMEOUT_MS);
+						urlConnection.getInputStream().close();
+						connectedSuccessfully = true;
+						break;
+					} catch (MalformedURLException e) {
+						Log.error("Malformed URL, this should never happen. Please fix, url: " + getCurrentHostResolutionAddress());
+					} catch (IOException e) {
+						Log.verbose("Unable to connect to: " + getCurrentHostResolutionAddress());
+					} catch (Exception e) {
+						Log.verbose("Unable to connect to: " + getCurrentHostResolutionAddress() + ", exception: " + e.toString());
+					} finally {
+						if (urlConnection != null) {
+							urlConnection.disconnect();
+						}
+						if (!connectedSuccessfully) {
+							/*
+							 * Move to the next resolution address.
+							 * When we try again we should do it with the next available URL. For
+							 * some reason on some networks we've had issues with
+							 * https://example.com so using https://google.com and others will give
+							 * us more redundancy
+							 */
+							nextHostResolutionAddress();
+						}
 					}
 				}
 
@@ -276,6 +298,18 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 			} else {
 				return ConnectivityState.NO_CONNECTION;
 			}
+		}
+	}
+
+	private String getCurrentHostResolutionAddress() {
+		return HOST_RESOLUTION_ADDRESSES[currentHostResolutionAddressIndex];
+	}
+
+	private void nextHostResolutionAddress() {
+		if (currentHostResolutionAddressIndex + 1 >= HOST_RESOLUTION_ADDRESSES.length) {
+			currentHostResolutionAddressIndex = 0;
+		} else {
+			currentHostResolutionAddressIndex += 1;
 		}
 	}
 
