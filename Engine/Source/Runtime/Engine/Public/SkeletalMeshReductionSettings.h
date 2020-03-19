@@ -79,6 +79,7 @@ struct FSkeletalMeshOptimizationSettings
 	UPROPERTY(EditAnywhere, Category = ReductionMethod, meta = (DisplayName = "Max Vertex Count", ClampMin = 6))
 	uint32 MaxNumOfVerts;
 
+#if WITH_EDITORONLY_DATA
 	/** The maximum number of triangles to retain when using percentage termination criterion. */
 	UPROPERTY(EditAnywhere, Category = ReductionMethod, meta = (DisplayName = "Max Triangle Count", ClampMin = 4, UIMin = "4"))
 	uint32 MaxNumOfTrianglesPercentage;
@@ -86,6 +87,7 @@ struct FSkeletalMeshOptimizationSettings
 	/** The maximum number of vertices to retain when using percentage termination criterion. */
 	UPROPERTY(EditAnywhere, Category = ReductionMethod, meta = (DisplayName = "Max Vertex Count", ClampMin = 6, UIMin = "6"))
 	uint32 MaxNumOfVertsPercentage;
+#endif
 
 	/**If ReductionMethod equals MaxDeviation this value is the maximum deviation from the base mesh as a percentage of the bounding sphere. 
 	 * In code, it ranges from [0, 1]. In the editor UI, it ranges from [0, 100]
@@ -171,8 +173,10 @@ struct FSkeletalMeshOptimizationSettings
 		, NumOfVertPercentage(0.5f)
 		, MaxNumOfTriangles(4)
 		, MaxNumOfVerts(6)
+#if WITH_EDITORONLY_DATA		
 		, MaxNumOfTrianglesPercentage(MAX_uint32)
 		, MaxNumOfVertsPercentage(MAX_uint32)
+#endif
 		, MaxDeviationPercentage(0.5f)
 		, ReductionMethod(SMOT_NumOfTriangles)
 		, SilhouetteImportance(SMOI_Normal)
