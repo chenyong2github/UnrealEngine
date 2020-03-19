@@ -55,7 +55,7 @@ bool UKismetInputLibrary::Key_IsKeyboardKey(const FKey& Key)
 
 bool UKismetInputLibrary::Key_IsVectorAxis(const FKey& Key)
 {
-	return Key.IsVectorAxis();
+	return Key.IsAxis2D() || Key.IsAxis3D();
 }
 
 bool UKismetInputLibrary::Key_IsAxis1D(const FKey& Key)
