@@ -778,6 +778,10 @@ bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, con
 		{
 			WalkDir /= WalkLen;
 			FVector3d WalkNormal(-WalkDir.Y, WalkDir.X, 0);
+			if (!ensureMsgf(Mesh->IsTriangle(CurrentSeedTriID), TEXT("Invalid triangle somehow passed as seed for mesh path embedding: %d"), CurrentSeedTriID))
+			{
+				return false;
+			}
 			bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(CurrentSeedTriID, StartPos, -1, LastVert, FVector3d(Path2D[IdxB].X, Path2D[IdxB].Y, 0), WalkNormal, ProjectToFrame, false, FMathf::ZeroTolerance, PtSnapVertexOrEdgeThresholdSq);
 			if (!bWalkSuccess)
 			{
