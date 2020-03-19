@@ -67,7 +67,7 @@ bool FPointLightSceneProxy::GetWholeSceneProjectedShadowInitializer(const FScene
 		OutInitializer.MinLightW = 0.1f;
 		OutInitializer.MaxDistanceToCastInLightW = Radius;
 
-		bool bSupportsGeometryShaders = RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[ViewFamily.GetFeatureLevel()]);
+		bool bSupportsGeometryShaders = RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[ViewFamily.GetFeatureLevel()]) || RHISupportsVertexShaderLayer(ViewFamily.GetShaderPlatform());
 		OutInitializer.bOnePassPointLightShadow = bSupportsGeometryShaders;
 
 		OutInitializer.bRayTracedDistanceField = UseRayTracedDistanceFieldShadows() && DoesPlatformSupportDistanceFieldShadowing(ViewFamily.GetShaderPlatform());
