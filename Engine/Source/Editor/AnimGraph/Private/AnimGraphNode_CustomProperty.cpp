@@ -305,7 +305,7 @@ UClass* UAnimGraphNode_CustomProperty::GetTargetClass() const
 UClass* UAnimGraphNode_CustomProperty::GetTargetSkeletonClass() const
 {
 	UClass* TargetClass = GetTargetClass();
-	if(TargetClass)
+	if(TargetClass && TargetClass->ClassGeneratedBy)
 	{
 		UBlueprint* Blueprint = CastChecked<UBlueprint>(TargetClass->ClassGeneratedBy);
 		if(Blueprint)
