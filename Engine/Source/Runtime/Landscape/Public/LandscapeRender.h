@@ -503,6 +503,7 @@ struct FLandscapeRenderSystem
 		float LODOnePlusDistributionScalarSquared;
 		float LastLODScreenSizeSquared;
 		int8 LastLODIndex;
+		int8 ForcedLOD;
 		int8 DrawCollisionPawnLOD;
 		int8 DrawCollisionVisibilityLOD;
 	};
@@ -510,7 +511,7 @@ struct FLandscapeRenderSystem
 	static int8 GetLODFromScreenSize(LODSettingsComponent LODSettings, float InScreenSizeSquared, float InViewLODScale, float& OutFractionalLOD)
 	{
 		float ScreenSizeSquared = InScreenSizeSquared / InViewLODScale;
-
+		
 		if (ScreenSizeSquared <= LODSettings.LastLODScreenSizeSquared)
 		{
 			OutFractionalLOD = LODSettings.LastLODIndex;
@@ -984,7 +985,7 @@ protected:
 	FORCEINLINE void ComputeStaticBatchIndexToRender(FViewCustomDataLOD& OutLODData, int32 InSubSectionIndex);
 	int8 GetLODFromScreenSize(float InScreenSizeSquared, float InViewLODScale) const;
 	FORCEINLINE_DEBUGGABLE float ComputeBatchElementCurrentLOD(int32 InSelectedLODIndex, float InComponentScreenSize, float InViewLODScale) const;
-	
+
 	FORCEINLINE void GetShaderCurrentNeighborLOD(const FSceneView& InView, float InBatchElementCurrentLOD, int8 InSubSectionX, int8 InSubSectionY, int8 InCurrentSubSectionIndex, FVector4& OutShaderCurrentNeighborLOD) const;
 	FORCEINLINE FVector4 GetShaderLODBias() const;
 	FVector4 GetShaderLODValues(int8 BatchElementCurrentLOD) const;
