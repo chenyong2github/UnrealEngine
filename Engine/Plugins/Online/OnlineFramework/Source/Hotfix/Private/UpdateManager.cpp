@@ -329,29 +329,30 @@ void UUpdateManager::PatchCheckComplete(EPatchCheckResult PatchResult)
 void UUpdateManager::InstallBundlePatchCheckComplete(EInstallBundleManagerPatchCheckResult PatchResult)
 {
 	IInstallBundleManager* InstallBundleMan = IInstallBundleManager::GetPlatformInstallBundleManager();
-	check(InstallBundleMan && !InstallBundleMan->IsNullInterface());
-
-	IInstallBundleManager::PatchCheckCompleteDelegate.RemoveAll(this);
-	InstallBundleMan->RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(GetUniqueTag(this));
-
-	LastPatchCheckResult = PatchResult;
-
-	if (PatchResult == EInstallBundleManagerPatchCheckResult::NoPatchRequired)
+	if (InstallBundleMan && !InstallBundleMan->IsNullInterface())
 	{
-		StartPlatformEnvironmentCheck();
-	}
-	else if (PatchResult == EInstallBundleManagerPatchCheckResult::NoLoggedInUser)
-	{
-		CheckComplete(EUpdateCompletionStatus::UpdateFailure_NotLoggedIn);
-	}
-	else
-	{
-		ensure(PatchResult == EInstallBundleManagerPatchCheckResult::PatchCheckFailure ||
-			   PatchResult == EInstallBundleManagerPatchCheckResult::ClientPatchRequired ||
-			   PatchResult == EInstallBundleManagerPatchCheckResult::ContentPatchRequired);
+		IInstallBundleManager::PatchCheckCompleteDelegate.RemoveAll(this);
+		InstallBundleMan->RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(GetUniqueTag(this));
 
-		// Skip hotfix check in error states, but still preload data as if there was nothing wrong
-		StartInitialPreload();
+		LastPatchCheckResult = PatchResult;
+
+		if (PatchResult == EInstallBundleManagerPatchCheckResult::NoPatchRequired)
+		{
+			StartPlatformEnvironmentCheck();
+		}
+		else if (PatchResult == EInstallBundleManagerPatchCheckResult::NoLoggedInUser)
+		{
+			CheckComplete(EUpdateCompletionStatus::UpdateFailure_NotLoggedIn);
+		}
+		else
+		{
+			ensure(PatchResult == EInstallBundleManagerPatchCheckResult::PatchCheckFailure ||
+				   PatchResult == EInstallBundleManagerPatchCheckResult::ClientPatchRequired ||
+				   PatchResult == EInstallBundleManagerPatchCheckResult::ContentPatchRequired);
+
+			// Skip hotfix check in error states, but still preload data as if there was nothing wrong
+			StartInitialPreload();
+		}
 	}
 }
 
