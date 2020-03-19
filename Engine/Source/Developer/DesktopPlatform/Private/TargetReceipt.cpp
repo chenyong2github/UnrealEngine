@@ -114,6 +114,29 @@ bool FTargetReceipt::Read(const FString& FileName)
 		}
 	}
 
+	// Read the list of rules-enabled and disabled plugins
+	const TArray<TSharedPtr<FJsonValue>>* PluginsArray;
+	if (Object->TryGetArrayField(TEXT("Plugins"), PluginsArray))
+	{
+		for (const TSharedPtr<FJsonValue>& PluginValue : *PluginsArray)
+		{
+			const TSharedPtr<FJsonObject>* PluginObject;
+			if (!PluginValue->TryGetObject(PluginObject))
+			{
+				return false;
+			}
+
+			FString PluginName;
+			bool bPluginEnabled;
+			if (!(*PluginObject)->TryGetStringField(TEXT("Name"), PluginName) || !(*PluginObject)->TryGetBoolField(TEXT("Enabled"), bPluginEnabled))
+			{
+				return false;
+			}
+
+			PluginNameToEnabledState.Add(PluginName, bPluginEnabled);
+		}
+	}
+
 	// Read the list of additional properties
 	const TArray<TSharedPtr<FJsonValue>>* AdditionalPropertiesArray;
 	if (Object->TryGetArrayField(TEXT("AdditionalProperties"), AdditionalPropertiesArray))

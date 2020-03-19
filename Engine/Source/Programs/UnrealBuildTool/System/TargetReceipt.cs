@@ -311,6 +311,11 @@ namespace UnrealBuildTool
 		public RuntimeDependencyList RuntimeDependencies = new RuntimeDependencyList();
 
 		/// <summary>
+		/// All plugins that were either enabled or disabled via the target rules.
+		/// </summary>
+		public Dictionary<string, bool> PluginNameToEnabledState = new Dictionary<string, bool>();
+
+		/// <summary>
 		/// Additional build properties passed through from the module rules
 		/// </summary>
 		public List<ReceiptProperty> AdditionalProperties = new List<ReceiptProperty>();
@@ -359,6 +364,13 @@ namespace UnrealBuildTool
 			{
 				RuntimeDependencies.Add(new RuntimeDependency(OtherRuntimeDependency));
 			}
+			foreach (KeyValuePair<string, bool> Pair in Other.PluginNameToEnabledState)
+			{
+				if (!PluginNameToEnabledState.ContainsKey(Pair.Key))
+				{
+					PluginNameToEnabledState.Add(Pair.Key, Pair.Value);
+				}
+			}
 			AdditionalProperties.AddRange(Other.AdditionalProperties);
 		}
 
@@ -390,6 +402,13 @@ namespace UnrealBuildTool
 				if (!RuntimeDependencies.Any(x => x.Path == OtherRuntimeDependency.Path))
 				{
 					RuntimeDependencies.Add(OtherRuntimeDependency);
+				}
+			}
+			foreach (KeyValuePair<string, bool> Pair in Other.PluginNameToEnabledState)
+			{
+				if (!PluginNameToEnabledState.ContainsKey(Pair.Key))
+				{
+					PluginNameToEnabledState.Add(Pair.Key, Pair.Value);
 				}
 			}
 		}
@@ -618,6 +637,24 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Read the enabled/disabled plugins
+			JsonObject[] PluginObjects;
+			if (RawObject.TryGetObjectArrayField("Plugins", out PluginObjects))
+			{
+				foreach (JsonObject PluginObject in PluginObjects)
+				{
+					string PluginName;
+					if (PluginObject.TryGetStringField("Name", out PluginName))
+					{
+						bool PluginEnabled;
+						if (PluginObject.TryGetBoolField("Enabled", out PluginEnabled))
+						{
+							Receipt.PluginNameToEnabledState.Add(PluginName, PluginEnabled);
+						}
+					}
+				}
+			}
+
 			// Read the additional properties
 			JsonObject[] AdditionalPropertyObjects;
 			if(RawObject.TryGetObjectArrayField("AdditionalProperties", out AdditionalPropertyObjects))
@@ -736,7 +773,20 @@ namespace UnrealBuildTool
 				}
 				Writer.WriteArrayEnd();
 
-				if(AdditionalProperties.Count > 0)
+				if (PluginNameToEnabledState.Count > 0)
+				{
+					Writer.WriteArrayStart("Plugins");
+					foreach (KeyValuePair<string, bool> PluginNameToEnabledStatePair in PluginNameToEnabledState.OrderBy(x => x.Key))
+					{
+						Writer.WriteObjectStart();
+						Writer.WriteValue("Name", PluginNameToEnabledStatePair.Key);
+						Writer.WriteValue("Enabled", PluginNameToEnabledStatePair.Value);
+						Writer.WriteObjectEnd();
+					}
+					Writer.WriteArrayEnd();
+				}
+
+				if (AdditionalProperties.Count > 0)
 				{
 					Writer.WriteArrayStart("AdditionalProperties");
 					foreach (ReceiptProperty AdditionalProperty in AdditionalProperties)
