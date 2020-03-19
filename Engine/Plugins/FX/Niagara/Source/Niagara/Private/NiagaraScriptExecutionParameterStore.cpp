@@ -152,6 +152,30 @@ uint32 FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<
 	return InSrcOffset;
 }
 
+void FNiagaraScriptExecutionParameterStore::CoalescePaddingInfo()
+{
+	int32 PaddingIt = 1;
+
+	while (PaddingIt < PaddingInfo.Num())
+	{
+		FNiagaraScriptExecutionPaddingInfo& PreviousEntry = PaddingInfo[PaddingIt - 1];
+		const FNiagaraScriptExecutionPaddingInfo& CurrentEntry = PaddingInfo[PaddingIt];
+
+		if (((PreviousEntry.SrcOffset + PreviousEntry.SrcSize) == CurrentEntry.SrcOffset)
+			&& ((PreviousEntry.DestOffset + PreviousEntry.DestSize) == CurrentEntry.DestOffset)
+			&& ((TNumericLimits<uint16>::Max() - PreviousEntry.SrcSize) >= CurrentEntry.SrcSize))
+		{
+			PreviousEntry.SrcSize += CurrentEntry.SrcSize;
+			PreviousEntry.DestSize += CurrentEntry.DestSize;
+			PaddingInfo.RemoveAt(PaddingIt);
+		}
+		else
+		{
+			++PaddingIt;
+		}
+	}
+}
+
 void FNiagaraScriptExecutionParameterStore::AddPaddedParamSize(const FNiagaraTypeDefinition& InParamType, uint32 InOffset)
 {
 	if (InParamType.IsDataInterface())
