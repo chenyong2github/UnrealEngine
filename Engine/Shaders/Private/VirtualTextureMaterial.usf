@@ -38,16 +38,15 @@ void MainVS(
 }
 
 // Prepare for VirtualTextureUnpackNormal() in VirtualTextureCommon.h
-float3 PackNormal( float3 N )
+float3 PackNormal( in float3 N )
 {
-	return normalize(N) * 0.5f + 0.5f;
+	return normalize(N) * (127.f / 255.f) + (127.f / 255.f);
 }
 
-// Prepare for VirtualTextureUnpackHeightR16() in VirtualTextureCommon.ush
-float PackWorldHeight( float Height )
+// Prepare for VirtualTextureUnpackHeight() in VirtualTextureCommon.ush
+float PackWorldHeight( in float Height, in float2 PackHeightScaleBias )
 {
-	Height *= 0.5f;
-	return saturate((Height + 32768.f) / 65535.f);
+	return saturate(Height * PackHeightScaleBias.x + PackHeightScaleBias.y);
 }
 
 void FPixelShaderInOut_MainPS(
@@ -87,7 +86,7 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 	// Apply debug shading
-	BaseColor = lerp(BaseColor, half3(In.SvPosition.xy * ResolvedView.ViewSizeAndInvSize.zw, 0), ResolvedView.VirtualTextureParams.y * 0.25);
+	BaseColor = lerp(BaseColor, half3(In.SvPosition.xy * ResolvedView.ViewSizeAndInvSize.zw, 0), ResolvedView.RuntimeVirtualTextureDebugParams.x * 0.25);
 
 #if defined(OUT_BASECOLOR)
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
@@ -97,7 +96,8 @@ void FPixelShaderInOut_MainPS(
 	Out.MRT[1] = float4(PackedNormal.xy, Mask, 1.f) * Opacity;
 	Out.MRT[2] = float4(Specular, Roughness, PackedNormal.z, 1.f) * Opacity;
 #elif defined(OUT_WORLDHEIGHT)
-	Out.MRT[0] = float4(PackWorldHeight(WorldHeight), 0, 0, 1);
+	float PackedHeight = PackWorldHeight(WorldHeight, ResolvedView.RuntimeVirtualTexturePackHeight);
+	Out.MRT[0] = float4(PackedHeight, 0, 0, 1);
 #endif
 }
 
