@@ -501,6 +501,8 @@ public:
 	NIAGARA_API void SetParent(UNiagaraEmitter& InParent);
 
 	NIAGARA_API	void Reparent(UNiagaraEmitter& InParent);
+
+	void InitFastPathAttributeNames();
 #endif
 
 	void OnEffectsQualityChanged();
