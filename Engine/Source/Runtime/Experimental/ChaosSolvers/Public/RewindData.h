@@ -86,6 +86,21 @@ public:
 		return ParticlePositionRotation.IsSet() ? ParticlePositionRotation.Read().X : Particle.X();
 	}
 
+	const FRotation3& R() const
+	{
+		return ParticlePositionRotation.IsSet() ? ParticlePositionRotation.Read().R : Particle.R();
+	}
+
+	const FVec3& V() const
+	{
+		return Velocities.IsSet() ? Velocities.Read().V : Particle.CastToKinematicParticle()->V();
+	}
+
+	const FVec3& W() const
+	{
+		return Velocities.IsSet() ? Velocities.Read().W : Particle.CastToKinematicParticle()->W();
+	}
+
 	TSerializablePtr<FImplicitObject> Geometry() const
 	{
 		return NonFrequentData.IsSet() ? MakeSerializable(NonFrequentData.Read().Geometry) : Particle.Geometry();
@@ -110,7 +125,11 @@ public:
 			Data.R = Rigid.R();
 		});
 
-		//todo: velocities
+		Velocities.SyncRemoteData(Manager,Idx,Dirty,[&Rigid](auto& Data)
+		{
+			Data.V = Rigid.PreV();
+			Data.W = Rigid.PreW();
+		});
 	}
 
 	void SyncDirtyDynamics(FDirtyPropertiesManager& DestManager,int32 DataIdx, const FParticleDirtyData& Dirty, const FDirtyPropertiesManager& SrcManager)
@@ -143,6 +162,15 @@ public:
 				Data.X = Handle->X();
 				Data.R = Handle->R();
 			});
+
+			if(auto Kinematic = Handle->CastToKinematicParticle())
+			{
+				Velocities.SyncRemoteData(Manager,Idx,Dirty.ParticleData,[Kinematic](auto& Data)
+				{
+					Data.V = Kinematic->V();
+					Data.W = Kinematic->W();
+				});
+			}
 		}
 		
 		NonFrequentData.SyncRemoteData(Manager,Idx,Dirty.ParticleData, [Handle](FParticleNonFrequentData& Data)
@@ -174,6 +202,12 @@ public:
 			bCoalesced = true;
 		}
 
+		if(!Velocities.IsSet() && LatestState.Velocities.IsSet())
+		{
+			Velocities = LatestState.Velocities;
+			bCoalesced = true;
+		}
+
 		//dynamics do not coalesce since they are always written when dirty
 		
 		return bCoalesced;
@@ -184,6 +218,7 @@ protected:
 private:
 	TParticleStateProperty<FParticlePositionRotation,EParticleProperty::XR> ParticlePositionRotation;
 	TParticleStateProperty<FParticleNonFrequentData, EParticleProperty::NonFrequentData> NonFrequentData;
+	TParticleStateProperty<FParticleVelocities,EParticleProperty::Velocities> Velocities;
 	TParticleStateProperty<FParticleDynamics, EParticleProperty::Dynamics> Dynamics;
 	/*
 	PARTICLE_PROPERTY(XR,FParticlePositionRotation)
