@@ -41,18 +41,25 @@ namespace ChaosTest {
 		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
 		Solver->SetEnabled(true);
 
-		// Make a particle
+		Solver->EnableRewindCapture(20);
 
+
+		// Make particles
 		auto Particle = TKinematicGeometryParticle<float,3>::CreateParticle();
 
 		Particle->SetGeometry(Sphere);
 		Solver->RegisterObject(Particle.Get());
-		Solver->EnableRewindCapture(20);
+
+		auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
+		Dynamic->SetGeometry(Sphere);
+		Solver->RegisterObject(Dynamic.Get());
+		
 
 		for(int Step = 0; Step < 11; ++Step)
 		{
 			//property that changes every step
 			Particle->SetX(FVec3(0,0,100 - Step));
+			Dynamic->SetF(FVec3(0,0,Step + 1));
 
 			//property that changes once half way through
 			if(Step == 3)
@@ -106,6 +113,14 @@ namespace ChaosTest {
 					//second box
 					EXPECT_EQ(ParticleState->Geometry().Get(),Box2.Get());
 				}
+			}
+
+			const auto DynamicState = RewindData->GetStateAtFrame(*Dynamic,Step);
+
+			EXPECT_TRUE(DynamicState != nullptr);
+			if(DynamicState)
+			{
+				EXPECT_EQ(DynamicState->F()[2],Step+1);
 			}
 		}
 		
