@@ -912,9 +912,12 @@ void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
 		float FractionalLOD;
 		GetLODFromScreenSize(SectionLODSettings[EntityIndex], MeshScreenSizeSquared, LODScale * LODScale, FractionalLOD);
 
+		int32 ForcedLODLevel = SectionLODSettings[EntityIndex].ForcedLOD;
+		ForcedLODLevel = ViewLODOverride >= 0 ? ViewLODOverride : ForcedLODLevel;
 		const int32 DrawCollisionLODOverride = GetDrawCollisionLodOverride(bDrawCollisionPawn, bDrawCollisionCollision, SectionLODSettings[EntityIndex].DrawCollisionPawnLOD, SectionLODSettings[EntityIndex].DrawCollisionVisibilityLOD);
-		int32 ForcedLODLevel = DrawCollisionLODOverride >= 0 ? DrawCollisionLODOverride : ViewLODOverride;
+		ForcedLODLevel = DrawCollisionLODOverride >= 0 ? DrawCollisionLODOverride : ForcedLODLevel;
 		ForcedLODLevel = FMath::Min<int32>(ForcedLODLevel, SectionLODSettings[EntityIndex].LastLODIndex);
+
 		NewSectionLODValues[EntityIndex] = ForcedLODLevel >= 0 ? ForcedLODLevel : FractionalLOD;
 
 		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
@@ -1300,10 +1303,15 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		LastLOD = FMath::Min<int32>(MaxLODLevel, LastLOD);
 	}
 
+	// Clamp ForcedLOD to the valid range and then apply
+	ForcedLOD = ForcedLOD >= 0 ? FMath::Clamp<int32>(ForcedLOD, FirstLOD, LastLOD) : ForcedLOD;
+	FirstLOD = ForcedLOD >= 0 ? ForcedLOD : FirstLOD;
+	LastLOD = ForcedLOD >= 0 ? ForcedLOD : LastLOD;
+
 	LODSettings.LastLODIndex = LastLOD;
 	LODSettings.LastLODScreenSizeSquared = LODScreenRatioSquared[LastLOD];
+	LODSettings.ForcedLOD = ForcedLOD;
 
-	ForcedLOD = ForcedLOD != INDEX_NONE ? FMath::Clamp<int32>(ForcedLOD, FirstLOD, LastLOD) : ForcedLOD;
 	LODBias = FMath::Clamp<int8>(LODBias, -MaxLOD, MaxLOD);
 
 	int8 LocalLODBias = LODBias + (int8)GLandscapeMeshLODBias;
@@ -1808,7 +1816,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 		(IsSelected() && !GLandscapeEditModeActive) ||
 		(GLandscapeViewMode != ELandscapeViewMode::Normal) ||
 		(CVarLandscapeShowDirty.GetValueOnRenderThread() && GLandscapeDirtyMaterial) ||
-		(View->Family->LandscapeLODOverride >= 0) ||
+		(GetViewLodOverride(*View) >= 0) ||
 #else
 		IsSelected() ||
 #endif
@@ -3262,8 +3270,10 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 
 			const FSceneView* View = Views[ViewIndex];
 
+			int32 ForcedLODLevel = ForcedLOD;
+
 			const int32 ViewLodOverride = GetViewLodOverride(*View);
-			int32 ForcedLODLevel = ViewLodOverride;
+			ForcedLODLevel = ViewLodOverride >= 0 ? ViewLodOverride : ForcedLODLevel;
 
 #if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			const int32 DrawCollisionLodOverride = GetDrawCollisionLodOverride(*View, CollisionResponse, CollisionMipLevel, SimpleCollisionMipLevel);
@@ -3487,7 +3497,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 						bIsWireframe ||
 #if WITH_EDITOR
 						(IsSelected() && !GLandscapeEditModeActive) ||
-						ViewFamily.LandscapeLODOverride >= 0 ||
+						(GetViewLodOverride(*View) >= 0) ||
 #else
 						IsSelected() ||
 #endif
@@ -3618,9 +3628,13 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 	{
 		return;
 	}
-	float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *Context.ReferenceView);
-	int32 ForcedLODLevel = GetViewLodOverride(*Context.ReferenceView);
 
+	int32 ForcedLODLevel = ForcedLOD;
+
+	int32 ViewLodOveride = GetViewLodOverride(*Context.ReferenceView);
+	ForcedLODLevel = ViewLodOveride >= 0 ? ViewLodOveride : ForcedLODLevel;
+
+	float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *Context.ReferenceView);
 	int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, Context.ReferenceView->LODDistanceFactor);
 	
 	FLandscapeElementParamArray& ParameterArray = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLandscapeElementParamArray>();
