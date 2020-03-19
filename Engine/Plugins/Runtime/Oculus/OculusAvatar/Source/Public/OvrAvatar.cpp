@@ -663,7 +663,7 @@ void UOvrAvatar::UpdateSDK(float DeltaTime)
 void UOvrAvatar::UpdatePostSDK()
 {
 	ovrpHandedness HandedNess = ovrpHandedness_Unsupported;
-	ovrp_GetDominantHand(&HandedNess);
+	FOculusHMDModule::GetPluginWrapper().GetDominantHand(&HandedNess);
 
 	if (HandedNess != DominantHand)
 	{
@@ -843,7 +843,7 @@ void UOvrAvatar::UpdateTransforms(float DeltaTime)
 		ovrpPoseStatef InPoseState;
 		OculusHMD::FPose OutPose;
 
-		if (OVRP_SUCCESS(ovrp_GetNodePoseState3(ovrpStep_Render, CurrentFrame->FrameNumber, ovrpNode_Head, &InPoseState)) &&
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetNodePoseState3(ovrpStep_Render, CurrentFrame->FrameNumber, ovrpNode_Head, &InPoseState)) &&
 			OculusHMD->ConvertPose_Internal(InPoseState.Pose, OutPose, Settings, 1.0f))
 		{
 			ovrpPosef ovrPose;
@@ -858,14 +858,14 @@ void UOvrAvatar::UpdateTransforms(float DeltaTime)
 	ovrpController ControllerMask = ovrpController_None;
 	ovrpController ActiveController = ovrpController_None;
 
-	if (OVRP_FAILURE(result = ovrp_GetConnectedControllers2(&ControllerMask)))
+	if (OVRP_FAILURE(result = FOculusHMDModule::GetPluginWrapper().GetConnectedControllers2(&ControllerMask)))
 	{
-		UE_LOG(LogAvatars, Display, TEXT("ovrp_GetConnectedControllers2 failed %d"), result);
+		UE_LOG(LogAvatars, Display, TEXT("FOculusHMDModule::GetPluginWrapper().GetConnectedControllers2 failed %d"), result);
 	}
 
-	if (OVRP_FAILURE(result = ovrp_GetActiveController2(&ActiveController)))
+	if (OVRP_FAILURE(result = FOculusHMDModule::GetPluginWrapper().GetActiveController2(&ActiveController)))
 	{
-		UE_LOG(LogAvatars, Display, TEXT("ovrp_GetActiveController2 failed %d"), result);
+		UE_LOG(LogAvatars, Display, TEXT("FOculusHMDModule::GetPluginWrapper().GetActiveController2 failed %d"), result);
 	}
 
 	// Left hand
@@ -889,7 +889,7 @@ void UOvrAvatar::UpdateTransforms(float DeltaTime)
 			ovrpPoseStatef InPoseState;
 			OculusHMD::FPose OutPose;
 
-			if (OVRP_SUCCESS(ovrp_GetNodePoseState3(ovrpStep_Render, CurrentFrame->FrameNumber, ovrpNode_HandLeft, &InPoseState)) &&
+			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetNodePoseState3(ovrpStep_Render, CurrentFrame->FrameNumber, ovrpNode_HandLeft, &InPoseState)) &&
 				OculusHMD->ConvertPose_Internal(InPoseState.Pose, OutPose, Settings, 1.0f))
 			{
 				ovrpPosef ovrPose;
@@ -900,7 +900,7 @@ void UOvrAvatar::UpdateTransforms(float DeltaTime)
 			}
 
 			ovrpControllerState4 controllerState;
-			if (OVRP_SUCCESS(ovrp_GetControllerState4(LeftControllerType, &controllerState)))
+			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetControllerState4(LeftControllerType, &controllerState)))
 			{
 				handInputState.isActive = true;
 				handInputState.indexTrigger = controllerState.IndexTrigger[ovrpHand_Left];
@@ -933,7 +933,7 @@ void UOvrAvatar::UpdateTransforms(float DeltaTime)
 			ovrpPoseStatef InPoseState;
 			OculusHMD::FPose OutPose;
 
-			if (OVRP_SUCCESS(ovrp_GetNodePoseState3(ovrpStep_Render, CurrentFrame->FrameNumber, ovrpNode_HandRight, &InPoseState)) &&
+			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetNodePoseState3(ovrpStep_Render, CurrentFrame->FrameNumber, ovrpNode_HandRight, &InPoseState)) &&
 				OculusHMD->ConvertPose_Internal(InPoseState.Pose, OutPose, Settings, 1.0f))
 			{
 				ovrpPosef ovrPose;
@@ -944,7 +944,7 @@ void UOvrAvatar::UpdateTransforms(float DeltaTime)
 			}
 
 			ovrpControllerState4 controllerState;
-			if (OVRP_SUCCESS(ovrp_GetControllerState4(RightControllerType, &controllerState)))
+			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetControllerState4(RightControllerType, &controllerState)))
 			{
 				handInputState.isActive = true;
 				handInputState.indexTrigger = controllerState.IndexTrigger[ovrpHand_Right];
@@ -1999,11 +1999,11 @@ ovrAvatarControllerType UOvrAvatar::GetControllerTypeByHardware()
 	ovrAvatarControllerType controllerType = ovrAvatarControllerType_Touch;
 
 	ovrpSystemHeadset hmdType = ovrpSystemHeadset_None;
-	ovrpResult result = ovrp_GetSystemHeadsetType2(&hmdType);
+	ovrpResult result = FOculusHMDModule::GetPluginWrapper().GetSystemHeadsetType2(&hmdType);
 
 	if (result != ovrpSuccess)
 	{
-		UE_LOG(LogAvatars, Warning, TEXT("GetControllerTypeByHardware: ovrp_GetSystemHeadsetType2 failed %d"), result);
+		UE_LOG(LogAvatars, Warning, TEXT("GetControllerTypeByHardware: FOculusHMDModule::GetPluginWrapper().GetSystemHeadsetType2 failed %d"), result);
 	}
 
 	switch (hmdType)
@@ -2041,11 +2041,11 @@ bool UOvrAvatar::Is3DOFHardware()
 		return false;
 
 	ovrpSystemHeadset hmdType = ovrpSystemHeadset_None;
-	ovrpResult result = ovrp_GetSystemHeadsetType2(&hmdType);
+	ovrpResult result = FOculusHMDModule::GetPluginWrapper().GetSystemHeadsetType2(&hmdType);
 
 	if (result != ovrpSuccess)
 	{
-		UE_LOG(LogAvatars, Warning, TEXT("GetControllerTypeByHardware: ovrp_GetSystemHeadsetType2 failed %d"), result);
+		UE_LOG(LogAvatars, Warning, TEXT("GetControllerTypeByHardware: FOculusHMDModule::GetPluginWrapper().GetSystemHeadsetType2 failed %d"), result);
 	}
 
 	switch (hmdType)
@@ -2660,11 +2660,11 @@ void UOvrAvatar::Root3DofControllers()
 	if (!b3DofHardware)
 		return;
 
-	if (OVRP_SUCCESS(ovrp_GetDominantHand(&DominantHand)))
+	if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetDominantHand(&DominantHand)))
 	{
 		HandType Hand = DominantHand == ovrpHandedness_RightHanded ? HandType_Right : HandType_Left;
 
-		UE_LOG(LogAvatars, Display, TEXT("ovrp_GetDominantHand - %s"), *ControllerNames[Hand]);
+		UE_LOG(LogAvatars, Display, TEXT("FOculusHMDModule::GetPluginWrapper().GetDominantHand - %s"), *ControllerNames[Hand]);
 
 		if (auto ScenePtr = RootAvatarComponents.Find(ControllerNames[Hand]))
 		{
@@ -2688,6 +2688,6 @@ void UOvrAvatar::Root3DofControllers()
 	}
 	else
 	{
-		UE_LOG(LogAvatars, Display, TEXT("ovrp_GetDominantHand Failed"));
+		UE_LOG(LogAvatars, Display, TEXT("FOculusHMDModule::GetPluginWrapper().GetDominantHand Failed"));
 	}
 }

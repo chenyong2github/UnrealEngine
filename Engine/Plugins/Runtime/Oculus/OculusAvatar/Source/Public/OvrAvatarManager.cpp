@@ -136,12 +136,6 @@ void UOvrAvatarManager::Destroy()
 
 UOvrAvatarManager::~UOvrAvatarManager()
 {
-	if (OVRPluginHandle)
-	{
-		FPlatformProcess::FreeDllHandle(OVRPluginHandle);
-		OVRPluginHandle = nullptr;
-	}
-
 	if (OVRAvatarHandle)
 	{
 		FPlatformProcess::FreeDllHandle(OVRAvatarHandle);
