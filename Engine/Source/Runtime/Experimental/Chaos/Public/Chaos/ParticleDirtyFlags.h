@@ -862,6 +862,11 @@ public:
 		Flags.Clear();
 	}
 
+	bool IsDirty(EParticleFlags InBits) const
+	{
+		return Flags.IsDirty(InBits);
+	}
+
 #define PARTICLE_PROPERTY(PropName, Type)\
 Type const & Get##PropName(const FDirtyPropertiesManager& Manager, int32 Idx) const { return ReadImp<Type, EParticleProperty::PropName>(Manager, Idx); }\
 bool Has##PropName() const { return Flags.IsDirty(ParticlePropToFlag(EParticleProperty::PropName)); }\
