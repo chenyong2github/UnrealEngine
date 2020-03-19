@@ -128,7 +128,7 @@ void FDataprepEditorStyle::Initialize()
 		}
 
 
-		StyleSet->Set("Graph.ActionStepNode.PreviewColor", FLinearColor(1.f, 0.87f, 0.0117f, 1.f));
+		StyleSet->Set("Graph.ActionStepNode.PreviewColor", FLinearColor(0.822786f, 0.715693f, 0.0f, 1.f));
 
 		{
 			FTextBlockStyle TilteTextBlockStyle = FEditorStyle::GetWidgetStyle< FTextBlockStyle >("NormalText");

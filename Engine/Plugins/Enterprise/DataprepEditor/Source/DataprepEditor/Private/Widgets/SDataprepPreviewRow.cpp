@@ -8,6 +8,7 @@
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Internationalization/Text.h"
+#include "Styling/SlateColor.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -16,22 +17,21 @@ void SDataprepPreviewRow::Construct(const FArguments& InArgs, const TSharedPtr<F
 {
 	PreviewData = InPreviewData;
 
+	FSlateFontInfo AwsomeFontStyle = FEditorStyle::Get().GetFontStyle("FontAwesome.11");
+	AwsomeFontStyle.Size =9 ;
+
 	ChildSlot
 	[
 		SNew( SHorizontalBox )
 		+ SHorizontalBox::Slot()
 		.VAlign( VAlign_Center )
 		.HAlign( HAlign_Left )
-		.AutoWidth()
+		.MaxWidth(15.f)
 		[
-			SNew( SBox )
-			.WidthOverride( 18.f )
-			[
 				SNew( STextBlock )
-				.Font( FEditorStyle::Get().GetFontStyle("FontAwesome.11") )
+				.Font( AwsomeFontStyle )
 				.ColorAndOpacity( FDataprepEditorStyle::GetColor("Graph.ActionStepNode.PreviewColor"))
 				.Text( this, &SDataprepPreviewRow::GetIcon )
-			]
 		]
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
@@ -40,6 +40,7 @@ void SDataprepPreviewRow::Construct(const FArguments& InArgs, const TSharedPtr<F
 			SNew( STextBlock )
 			.Text( this, &SDataprepPreviewRow::GetLabel )
 			.HighlightText( InArgs._HighlightText )
+			.ColorAndOpacity( this, &SDataprepPreviewRow::GetTextColor )
 		]
 	];
 }
@@ -80,3 +81,15 @@ FText SDataprepPreviewRow::GetLabel() const
 	return {};
 }
 
+FSlateColor SDataprepPreviewRow::GetTextColor() const
+{
+	if ( FDataprepPreviewProcessingResult* Result = PreviewData.Get() )
+	{
+		if ( Result->Status == EDataprepPreviewStatus::Pass )
+		{
+			return FSlateColor::UseForeground();
+		}
+	}
+
+	return FSlateColor::UseSubduedForeground();
+}
