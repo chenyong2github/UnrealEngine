@@ -418,17 +418,29 @@ IAllocatedVirtualTexture* URuntimeVirtualTexture::GetAllocatedVirtualTexture() c
 
 FVector4 URuntimeVirtualTexture::GetUniformParameter(int32 Index) const
 {
-	check(Index >= 0 && Index < sizeof(WorldToUVTransformParameters)/sizeof(WorldToUVTransformParameters[0]));
+	switch (Index)
+	{
+	case ERuntimeVirtualTextureShaderUniform_WorldToUVTransform0: return WorldToUVTransformParameters[0];
+	case ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1: return WorldToUVTransformParameters[1];
+	case ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2: return WorldToUVTransformParameters[2];
+	case ERuntimeVirtualTextureShaderUniform_WorldHeightUnpack: return WorldHeightUnpackParameter;
+	default:
+		break;
+	}
 	
-	return WorldToUVTransformParameters[Index];
+	check(0);
+	return FVector4(ForceInitToZero);
 }
 
-void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld)
+void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld, FBox const& WorldBounds)
 {
 	//todo[vt]: possible issues with precision in large worlds here it might be better to calculate/upload camera space relative transform per frame?
 	WorldToUVTransformParameters[0] = VolumeToWorld.GetTranslation();
 	WorldToUVTransformParameters[1] = VolumeToWorld.GetUnitAxis(EAxis::X) * 1.f / VolumeToWorld.GetScale3D().X;
 	WorldToUVTransformParameters[2] = VolumeToWorld.GetUnitAxis(EAxis::Y) * 1.f / VolumeToWorld.GetScale3D().Y;
+
+	const float HeightRange = FMath::Max(WorldBounds.Max.Z - WorldBounds.Min.Z, 1.f);
+	WorldHeightUnpackParameter = FVector4(HeightRange, WorldBounds.Min.Z, 0.f, 0.f);
 
 	InitResource(InProducer, VolumeToWorld);
 }

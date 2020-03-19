@@ -8,7 +8,14 @@
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 
 
-FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, bool InClearTextures, FSceneInterface* InScene, FTransform const& InUVToWorld)
+FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(
+	FVTProducerDescription const& InDesc, 
+	uint32 InProducerId, 
+	ERuntimeVirtualTextureMaterialType InMaterialType, 
+	bool InClearTextures, 
+	FSceneInterface* InScene, 
+	FTransform const& InUVToWorld,
+	FBox const& InWorldBounds)
 	: Desc(InDesc)
 	, ProducerId(InProducerId)
 	, RuntimeVirtualTextureMask(0)
@@ -16,6 +23,7 @@ FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDesc
 	, bClearTextures(InClearTextures)
 	, Scene(InScene)
 	, UVToWorld(InUVToWorld)
+	, WorldBounds(InWorldBounds)
 {
 }
 
@@ -59,6 +67,7 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 	RenderPageBatchDesc.Scene = Scene->GetRenderScene();
 	RenderPageBatchDesc.RuntimeVirtualTextureMask = RuntimeVirtualTextureMask;
 	RenderPageBatchDesc.UVToWorld = UVToWorld;
+	RenderPageBatchDesc.WorldBounds = WorldBounds;
 	RenderPageBatchDesc.MaterialType = MaterialType;
 	RenderPageBatchDesc.MaxLevel = Desc.MaxLevel;
 	RenderPageBatchDesc.bClearTextures = bClearTextures;
@@ -129,8 +138,15 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 	Tiles.SetNumUnsafeInternal(0);
 }
 
-FRuntimeVirtualTextureProducer::FRuntimeVirtualTextureProducer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, bool InClearTextures, FSceneInterface* InScene, FTransform const& InUVToWorld)
-	: Finalizer(InDesc, InProducerId, InMaterialType, InClearTextures, InScene, InUVToWorld)
+FRuntimeVirtualTextureProducer::FRuntimeVirtualTextureProducer(
+	FVTProducerDescription const& InDesc, 
+	uint32 InProducerId, 
+	ERuntimeVirtualTextureMaterialType InMaterialType, 
+	bool InClearTextures, 
+	FSceneInterface* InScene, 
+	FTransform const& InUVToWorld,
+	FBox const& InWorldBounds)
+	: Finalizer(InDesc, InProducerId, InMaterialType, InClearTextures, InScene, InUVToWorld, InWorldBounds)
 {
 }
 

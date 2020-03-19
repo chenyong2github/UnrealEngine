@@ -59,6 +59,16 @@ enum class ERuntimeVirtualTextureMainPassType : uint8
 	Always UMETA(DisplayName = "Virtual Texture AND Main Pass"),
 };
 
+/** Enumeration of runtime virtual texture shader uniforms. */
+enum ERuntimeVirtualTextureShaderUniform
+{
+	ERuntimeVirtualTextureShaderUniform_WorldToUVTransform0,
+	ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1,
+	ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2,
+	ERuntimeVirtualTextureShaderUniform_WorldHeightUnpack,
+	ERuntimeVirtualTextureShaderUniform_Count,
+};
+
 /** Enumeration of runtime virtual texture debug modes. */
 enum class ERuntimeVirtualTextureDebugType
 {
