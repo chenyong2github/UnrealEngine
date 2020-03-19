@@ -2,6 +2,9 @@
 
 #include "SNPSimFrameContents.h"
 #include "Widgets/Text/SRichTextBlock.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Widgets/SBoxPanel.h"
+#include "INetworkPredictionProvider.h"
 
 #define LOCTEXT_NAMESPACE "SNPSimFrameContents"
 

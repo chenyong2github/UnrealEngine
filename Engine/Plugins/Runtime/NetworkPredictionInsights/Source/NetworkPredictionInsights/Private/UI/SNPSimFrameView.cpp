@@ -4,6 +4,11 @@
 #include "NetworkPredictionDrawHelpers.h"
 #include "SNPWindow.h"
 #include "Insights/IUnrealInsightsModule.h"
+#include "EditorStyleSet.h"
+#include "Styling/CoreStyle.h"
+#include "Modules/ModuleManager.h"
+#include "Framework/Commands/UIAction.h"
+#include "Textures/SlateIcon.h"
 
 #define LOCTEXT_NAMESPACE "NetworkPredictionInsights"
 
