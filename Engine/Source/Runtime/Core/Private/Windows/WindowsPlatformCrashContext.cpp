@@ -638,25 +638,34 @@ int32 ReportCrashForMonitor(
 	}
 
 	// Write the shared context to the pipe
-	int32 OutDataWritten = 0;
-	FPlatformProcess::WritePipe(WritePipe, (UINT8*)SharedContext, sizeof(FSharedCrashContext), &OutDataWritten);
-	check(OutDataWritten == sizeof(FSharedCrashContext));
-
-	// Wait for a response, saying it's ok to continue
-	bool bCanContinueExecution = false;
-	int32 ExitCode = 0;
-	// Would like to use TInlineAllocator here to avoid heap allocation on crashes, but it doesn't work since ReadPipeToArray 
-	// cannot take array with non-default allocator
-	TArray<uint8> ResponseBuffer;
-	ResponseBuffer.AddZeroed(16);
-	while (!FPlatformProcess::GetProcReturnCode(CrashMonitorHandle, &ExitCode) && !bCanContinueExecution)
+	bool bPipeWriteSucceeded = true;
+	const uint8* DataIt = (const uint8*)SharedContext;
+	const uint8* DataEndIt = DataIt + sizeof(FSharedCrashContext);
+	while (DataIt != DataEndIt && bPipeWriteSucceeded)
 	{
-		if (FPlatformProcess::ReadPipeToArray(ReadPipe, ResponseBuffer))
+		int32 OutDataWritten = 0;
+		bPipeWriteSucceeded = FPlatformProcess::WritePipe(WritePipe, DataIt, static_cast<int32>(DataEndIt - DataIt), &OutDataWritten);
+		DataIt += OutDataWritten;
+	}
+
+	if (bPipeWriteSucceeded) // The receiver is not likely to respond if the shared context wasn't successfully written to the pipe.
+	{
+		// Wait for a response, saying it's ok to continue
+		bool bCanContinueExecution = false;
+		int32 ExitCode = 0;
+		// Would like to use TInlineAllocator here to avoid heap allocation on crashes, but it doesn't work since ReadPipeToArray 
+		// cannot take array with non-default allocator
+		TArray<uint8> ResponseBuffer;
+		ResponseBuffer.AddZeroed(16);
+		while (!FPlatformProcess::GetProcReturnCode(CrashMonitorHandle, &ExitCode) && !bCanContinueExecution)
 		{
-			if (ResponseBuffer[0] == 0xd && ResponseBuffer[1] == 0xe &&
-				ResponseBuffer[2] == 0xa && ResponseBuffer[3] == 0xd)
+			if (FPlatformProcess::ReadPipeToArray(ReadPipe, ResponseBuffer))
 			{
-				bCanContinueExecution = true;
+				if (ResponseBuffer[0] == 0xd && ResponseBuffer[1] == 0xe &&
+					ResponseBuffer[2] == 0xa && ResponseBuffer[3] == 0xd)
+				{
+					bCanContinueExecution = true;
+				}
 			}
 		}
 	}
