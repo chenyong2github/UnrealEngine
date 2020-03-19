@@ -92,11 +92,17 @@ class FIOSCommandLineHelper
 			// command line text file included in the bundle
 			FString BundleCommandLineFilePath = FString([[NSBundle mainBundle] bundlePath]) + TEXT("/ue4commandline.txt");
 
-#if !UE_BUILD_SHIPPING
 			// command line text file pushed to the documents folder
 			FString DocumentsCommandLineFilePath = FString([NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/ue4commandline.txt");
-			if (!TryReadCommandLineFile(DocumentsCommandLineFilePath))
+			
+#if UE_BUILD_SHIPPING
+			bool bIsTestFlightOrInternal = [[[[NSBundle mainBundle] appStoreReceiptURL] lastPathComponent] isEqualToString: @"sandboxReceipt"];
+#else
+			bool bIsTestFlightOrInternal = YES;
 #endif
+			
+			bool bFoundDocumentsCommandLine = bIsTestFlightOrInternal && TryReadCommandLineFile(DocumentsCommandLineFilePath);
+			if (!bFoundDocumentsCommandLine)
 			{
 				TryReadCommandLineFile(BundleCommandLineFilePath);
 			}
