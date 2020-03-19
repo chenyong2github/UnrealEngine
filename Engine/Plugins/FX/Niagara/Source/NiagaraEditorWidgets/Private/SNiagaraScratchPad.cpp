@@ -13,6 +13,7 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraScratchPadCommandContext.h"
+#include "Widgets/SNiagaraParameterPanel.h"
 
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Input/SButton.h"
@@ -25,6 +26,7 @@
 #define LOCTEXT_NAMESPACE "NiagaraScratchPad"
 
 FName ScriptSelectorName = "ScriptSelector";
+FName ScriptParameterPanelName = "ScriptParameterPanel";
 FName ScriptEditorName = "ScriptEditor";
 FName SelectionEditorName = "SelectionEditor";
 FName WideLayoutName = "Wide";
@@ -375,7 +377,7 @@ private:
 		.Padding(3, 0, 0, 0)
 		[
 			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.SmallHeaderText")
+			.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
 			.Text(ViewModel->GetDisplayNameForUsage(Category))
 		]
 		+ SHorizontalBox::Slot()
@@ -467,11 +469,11 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
-				.Padding(0, 0, 2, 0)
+				.Padding(2, 0, 2, 0)
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.LargeHeaderText")
+					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.EditorHeaderText")
 					.Text(this, &SNiagaraScratchPadScriptEditor::GetNameText)
 					.ToolTipText(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetToolTip)
 				]
@@ -510,7 +512,7 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 						.Padding(2.0f, 2.0f, 2.0f, 3.0f)
 						[
 							SNew(STextBlock)
-							.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.SmallHeaderText")
+							.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.EditorHeaderText")
 							.Text(LOCTEXT("ApplyButtonLabel", "Apply"))
 						]
 					]
@@ -692,6 +694,89 @@ private:
 	bool bIsUpdatingSelection;
 };
 
+class SNiagaraScratchPadParameterPanel : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SNiagaraScratchPadScriptEditor) {}
+	SLATE_END_ARGS();
+
+	void Construct(const FArguments& InArgs, UNiagaraScratchPadViewModel* InViewModel)
+	{
+		ViewModel = InViewModel;
+		ViewModel->OnActiveScriptChanged().AddSP(this, &SNiagaraScratchPadParameterPanel::ActiveScriptChanged);
+		UpdateContent();
+	}
+
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
+	{
+		TSharedPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModel = ScriptViewModelWeak.Pin();
+		if (ScriptViewModel.IsValid() && ScriptViewModel->GetParameterPanelCommands()->ProcessCommandBindings(InKeyEvent))
+		{
+			return FReply::Handled();
+		}
+		return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+	}
+
+private:
+	void UpdateContent()
+	{
+		TSharedPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModel = ScriptViewModelWeak.Pin();
+		TSharedPtr<FNiagaraScratchPadScriptViewModel> NewScriptViewModel = ViewModel->GetActiveScriptViewModel();
+		if (NewScriptViewModel != ScriptViewModel)
+		{
+			if (NewScriptViewModel.IsValid())
+			{
+				ChildSlot
+				[
+					SNew(SNiagaraParameterPanel, NewScriptViewModel->GetParameterPanelViewModel(), NewScriptViewModel->GetParameterPanelCommands())
+				];
+				ScriptViewModelWeak = NewScriptViewModel;
+			}
+			else
+			{
+				ChildSlot[SNullWidget::NullWidget];
+			}
+		}
+	}
+
+	void ActiveScriptChanged()
+	{
+		UpdateContent();
+	}
+
+private:
+	UNiagaraScratchPadViewModel* ViewModel;
+	TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak;
+};
+
+class SNiagaraScratchPadSectionBox : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SNiagaraScratchPadSectionBox) {}
+		SLATE_ATTRIBUTE(FText, HeaderText)
+		SLATE_DEFAULT_SLOT(FArguments, Content);
+	SLATE_END_ARGS();
+
+	void Construct(const FArguments& InArgs)
+	{
+		ChildSlot
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(1.0f, 5.0f, 0.0f, 4.0f)
+			[
+				SNew(STextBlock)
+				.TextStyle(FEditorStyle::Get(), "Docking.TabFont")
+				.Text(InArgs._HeaderText)
+			]
+			+ SVerticalBox::Slot()
+			.Padding(5.0f, 0.0f, 3.0f, 5.0f)
+			[
+				InArgs._Content.Widget
+			]
+		];
+	}
+};
+
 void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadViewModel* InViewModel)
 {
 	ViewModel = InViewModel;
@@ -705,6 +790,10 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 			if (InWidgetName == ScriptSelectorName)
 			{
 				return ConstructScriptSelector();
+			}
+			else if (InWidgetName == ScriptParameterPanelName)
+			{
+				return ConstructParameterPanel();
 			}
 			else if (InWidgetName == ScriptEditorName)
 			{
@@ -726,17 +815,35 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 			{
 				Layout = SNew(SSplitter)
 				.Orientation(Orient_Horizontal)
-				.PhysicalSplitterHandleSize(7.0f)
-				.HitDetectionSplitterHandleSize(7.0f)
+				.PhysicalSplitterHandleSize(4.0f)
+				.HitDetectionSplitterHandleSize(6.0f)
 				+ SSplitter::Slot()
 				.Value(0.15f)
 				[
-					InNamedWidgetProvider.GetNamedWidget(ScriptSelectorName)
+					SNew(SSplitter)
+					.Style(FEditorStyle::Get(), "SplitterDark")
+					.Orientation(Orient_Vertical)
+					.PhysicalSplitterHandleSize(4.0f)
+					.HitDetectionSplitterHandleSize(6.0f)
+					+ SSplitter::Slot()
+					.Value(0.5f)
+					[
+						InNamedWidgetProvider.GetNamedWidget(ScriptSelectorName)
+					]
+					+ SSplitter::Slot()
+					.Value(0.5f)
+					[
+						InNamedWidgetProvider.GetNamedWidget(ScriptParameterPanelName)
+					]
 				]
 				+ SSplitter::Slot()
 				.Value(0.6f)
 				[
-					InNamedWidgetProvider.GetNamedWidget(ScriptEditorName)
+					SNew(SBox)
+					.Padding(FMargin(3.0f, 0.0f))
+					[
+						InNamedWidgetProvider.GetNamedWidget(ScriptEditorName)
+					]
 				]
 				+ SSplitter::Slot()
 				.Value(0.25f)
@@ -748,20 +855,28 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 			{
 				Layout = SNew(SSplitter)
 				.Orientation(Orient_Horizontal)
-				.PhysicalSplitterHandleSize(7.0f)
-				.HitDetectionSplitterHandleSize(7.0f)
+				.PhysicalSplitterHandleSize(4.0f)
+				.HitDetectionSplitterHandleSize(6.0f)
 				+ SSplitter::Slot()
 				.Value(0.3f)
 				[
 					SNew(SSplitter)
+					.Style(FEditorStyle::Get(), "SplitterDark")
 					.Orientation(Orient_Vertical)
+					.PhysicalSplitterHandleSize(4.0f)
+					.HitDetectionSplitterHandleSize(6.0f)
 					+ SSplitter::Slot()
-					.Value(0.5f)
+					.Value(0.3f)
 					[
 						InNamedWidgetProvider.GetNamedWidget(ScriptSelectorName)
 					]
 					+ SSplitter::Slot()
-					.Value(0.5f)
+					.Value(0.3f)
+					[
+						InNamedWidgetProvider.GetNamedWidget(ScriptParameterPanelName)
+					]
+					+ SSplitter::Slot()
+					.Value(0.4f)
 					[
 						InNamedWidgetProvider.GetNamedWidget(SelectionEditorName)
 					]
@@ -769,7 +884,11 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 				+ SSplitter::Slot()
 				.Value(0.7f)
 				[
-					InNamedWidgetProvider.GetNamedWidget(ScriptEditorName)
+					SNew(SBox)
+					.Padding(FMargin(3.0f, 0.0f, 0.0f, 0.0f))
+					[
+						InNamedWidgetProvider.GetNamedWidget(ScriptEditorName)
+					]
 				];
 			}
 			else
@@ -794,18 +913,19 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 
 TSharedRef<SWidget> SNiagaraScratchPad::ConstructScriptSelector()
 {
-	return SNew(SVerticalBox)
-	+ SVerticalBox::Slot()
-	.AutoHeight()
-	.Padding(0.0f, 2.0f)
-	[
-		SNew(STextBlock)
-		.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.LargeHeaderText")
-		.Text(LOCTEXT("ScriptSelector", "Scratch Script Selector"))
-	]
-	+ SVerticalBox::Slot()
+	return SNew(SNiagaraScratchPadSectionBox)
+	.HeaderText(LOCTEXT("ScriptSelector", "Scratch Script Selector"))
 	[
 		SNew(SNiagaraScratchPadScriptSelector, ViewModel.Get(), CommandContext)
+	];
+}
+
+TSharedRef<SWidget> SNiagaraScratchPad::ConstructParameterPanel()
+{
+	return SNew(SNiagaraScratchPadSectionBox)
+	.HeaderText(LOCTEXT("ScratchScriptParameters", "Scratch Script Parameters"))
+	[
+		SNew(SNiagaraScratchPadParameterPanel, ViewModel.Get())
 	];
 }
 
@@ -816,15 +936,8 @@ TSharedRef<SWidget> SNiagaraScratchPad::ConstructScriptEditor()
 
 TSharedRef<SWidget> SNiagaraScratchPad::ConstructSelectionEditor()
 {
-	return SNew(SVerticalBox)
-	+ SVerticalBox::Slot()
-	.AutoHeight()
-	[
-		SNew(STextBlock)
-		.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.LargeHeaderText")
-		.Text(LOCTEXT("ScratchPadSelection", "Scratch Pad Selection"))
-	]
-	+ SVerticalBox::Slot()
+	return SNew(SNiagaraScratchPadSectionBox)
+	.HeaderText(LOCTEXT("ScratchPadSelection", "Scratch Pad Selection"))
 	[
 		SNew(SNiagaraSelectedObjectsDetails, ViewModel->GetObjectSelection())
 	];
