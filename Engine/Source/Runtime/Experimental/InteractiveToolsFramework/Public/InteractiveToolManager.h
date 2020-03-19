@@ -75,6 +75,13 @@ protected:
 
 public:
 
+
+	/**
+	 * @return true if ToolManager is currently active, ie between Initialize() and Shutdown() 
+	 */
+	bool IsActive() const { return bIsActive; }
+
+
 	//
 	// Tool registration and Current Tool state
 	//
@@ -249,6 +256,9 @@ protected:
 
 	/** Pointer to current InputRouter (Context owns this) */
 	UInputRouter* InputRouter;
+
+	/** This flag is set to true on Initialize() and false on Shutdown(). */
+	bool bIsActive = false;
 
 	/** Current set of named ToolBuilders */
 	UPROPERTY()
