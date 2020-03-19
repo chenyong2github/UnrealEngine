@@ -169,45 +169,48 @@ void FModulationSettingsEditor::GenerateExpressionCurve(const FSoundModulationOu
 	TSharedPtr<FRichCurve> NewCurve = MakeShared<FRichCurve>();
 	ExpressionCurves[InCurveIndex] = NewCurve;
 
-	int32 CurveResolution;
-	switch (InOutput.Transform.Curve)
+	if (!GetIsBypassed(InCurveIndex))
 	{
-		case ESoundModulatorOutputCurve::Linear:
+		int32 CurveResolution;
+		switch (InOutput.Transform.Curve)
 		{
-			CurveResolution = 2;
-		}
-		break;
+			case ESoundModulatorOutputCurve::Linear:
+			{
+				CurveResolution = 2;
+			}
+			break;
 
-		case ESoundModulatorOutputCurve::Sin:
-		case ESoundModulatorOutputCurve::SCurve:
+			case ESoundModulatorOutputCurve::Sin:
+			case ESoundModulatorOutputCurve::SCurve:
+			{
+				CurveResolution = 64;
+			}
+			break;
+
+			case ESoundModulatorOutputCurve::Log:
+			case ESoundModulatorOutputCurve::Exp:
+			case ESoundModulatorOutputCurve::Exp_Inverse:
+			{
+				CurveResolution = 256;
+			}
+			break;
+
+			default:
+			{
+				CurveResolution = 128;
+			}
+			break;
+		}
+
+		const float CurveResolutionRatio = 1.0f / (CurveResolution - 1);
+		for (int32 i = 0; i < CurveResolution; ++i)
 		{
-			CurveResolution = 64;
+			const float X = FMath::Lerp(InOutput.Transform.InputMin, InOutput.Transform.InputMax, CurveResolutionRatio * i);
+			float Y = X;
+			InOutput.Transform.Apply(Y);
+
+			NewCurve->AddKey(X, Y);
 		}
-		break;
-
-		case ESoundModulatorOutputCurve::Log:
-		case ESoundModulatorOutputCurve::Exp:
-		case ESoundModulatorOutputCurve::Exp_Inverse:
-		{
-			CurveResolution = 256;
-		}
-		break;
-
-		default:
-		{
-			CurveResolution = 128;
-		}
-		break;
-	}
-
-	const float CurveResolutionRatio = 1.0f / (CurveResolution - 1);
-	for (int32 i = 0; i < CurveResolution; ++i)
-	{
-		const float X = FMath::Lerp(InOutput.Transform.InputMin, InOutput.Transform.InputMax, CurveResolutionRatio * i);
-		float Y = X;
-		InOutput.Transform.Apply(Y);
-
-		NewCurve->AddKey(X, Y);
 	}
 
 	const EModSettingsOutputEditorCurveSource Source = bIsUnset ? EModSettingsOutputEditorCurveSource::Unset : EModSettingsOutputEditorCurveSource::Expression;
@@ -218,54 +221,29 @@ void FModulationSettingsEditor::SetCurveAtOrderIndex(int32 InCurveIndex, FRichCu
 {
 	check(CurveEditor.IsValid());
 
-	bool bIsNew = false;
-	while (InCurveIndex >= CurveModels.Num())
+	if (CurveModels.Num() <= InCurveIndex)
 	{
-		CurveModels.Add(FCurveModelID::Unique());
-		bIsNew = true;
+		CurveModels.SetNumZeroed(InCurveIndex + 1);
 	}
-
-	// Find if the incoming rich curve is already set.  If so, early out
-	if (!bIsNew)
-	{
-		FCurveModel* CurrentModel = CurveEditor->FindCurve(CurveModels[InCurveIndex]);
-		if (CurrentModel && CurrentModel->GetCurve() == &InRichCurve)
-		{
-			FModCurveEditorModel* ModModel = static_cast<FModCurveEditorModel*>(CurrentModel);
-			if (InCurveIndex < static_cast<int32>(EModSettingsEditorCurveOutput::Control))
-			{
-				ModModel->Refresh(static_cast<EModSettingsEditorCurveOutput>(InCurveIndex), nullptr, InSharedCurve);
-			}
-			else
-			{
-				check(!InSharedCurve);
-
-				FName ControlName = GetControlName(InCurveIndex);
-				ModModel->Refresh(EModSettingsEditorCurveOutput::Control, &ControlName, InSharedCurve);
-			}
-			CurveEditor->PinCurve(CurveModels[InCurveIndex]);
-			return;
-		}
-	}
-
-	// Curves don't match, so remove what's already there
-	if (FCurveModel* CurveModel = CurveEditor->FindCurve(CurveModels[InCurveIndex]))
-	{
-		CurveEditor->RemoveCurve(CurveModels[InCurveIndex]);
-	}
+	CurveModels[InCurveIndex] = FCurveModelID::Unique();
 
 	// Finally, create a FCurveModel add the new FRichCurve
-	if (InCurveIndex < static_cast<int32>(EModSettingsEditorCurveOutput::Control))
+	if (!GetIsBypassed(InCurveIndex))
 	{
-		const EModSettingsEditorCurveOutput CurveOutput = static_cast<EModSettingsEditorCurveOutput>(InCurveIndex);
-		TUniquePtr<FModCurveEditorModel> NewCurve = MakeUnique<FModCurveEditorModel>(InRichCurve, GetEditingObject(), CurveOutput, InSource, InSharedCurve);
-		CurveModels[InCurveIndex] = CurveEditor->AddCurve(MoveTemp(NewCurve));
-	}
-	else
-	{
-		const FName Name = CastChecked<USoundModulationSettings>(GetEditingObject())->Controls[GetControlIndex(InCurveIndex)].Control;
-		TUniquePtr<FModCurveEditorModel> NewCurve = MakeUnique<FModCurveEditorModel>(InRichCurve, GetEditingObject(), Name, InSource, InSharedCurve);
-		CurveModels[InCurveIndex] = CurveEditor->AddCurve(MoveTemp(NewCurve));
+		if (InCurveIndex < static_cast<int32>(EModSettingsEditorCurveOutput::Control))
+		{
+			const EModSettingsEditorCurveOutput CurveOutput = static_cast<EModSettingsEditorCurveOutput>(InCurveIndex);
+			TUniquePtr<FModCurveEditorModel> NewCurve = MakeUnique<FModCurveEditorModel>(InRichCurve, GetEditingObject(), CurveOutput, InSource, InSharedCurve);
+			CurveModels[InCurveIndex] = CurveEditor->AddCurve(MoveTemp(NewCurve));
+		}
+		else
+		{
+			const USoundModulationSettings* ModSettings = CastChecked<USoundModulationSettings>(GetEditingObject());
+			const int32 ControlIndex = GetControlIndex(InCurveIndex);
+			const FName Name = ModSettings->Controls[ControlIndex].Control;
+			TUniquePtr<FModCurveEditorModel> NewCurve = MakeUnique<FModCurveEditorModel>(InRichCurve, GetEditingObject(), Name, InSource, InSharedCurve);
+			CurveModels[InCurveIndex] = CurveEditor->AddCurve(MoveTemp(NewCurve));
+		}
 	}
 
 	CurveEditor->PinCurve(CurveModels[InCurveIndex]);
@@ -345,6 +323,50 @@ FName FModulationSettingsEditor::GetControlName(int32 InCurveIndex) const
 
 	const int32 ControlIndex = InCurveIndex - static_cast<int32>(EModSettingsEditorCurveOutput::Control);
 	return Settings->Controls[ControlIndex].Control;
+}
+
+bool FModulationSettingsEditor::GetIsBypassed(int32 InCurveIndex) const
+{
+	if (USoundModulationSettings* Settings = Cast<USoundModulationSettings>(GetEditingObject()))
+	{
+		const EModSettingsEditorCurveOutput CurveOutput = static_cast<EModSettingsEditorCurveOutput>(InCurveIndex);
+
+		switch (CurveOutput)
+		{
+		case EModSettingsEditorCurveOutput::Volume:
+		{
+			return Settings->Volume.bBypass;
+		}
+		break;
+
+		case EModSettingsEditorCurveOutput::Pitch:
+		{
+			return Settings->Pitch.bBypass;
+		}
+		break;
+
+		case EModSettingsEditorCurveOutput::Highpass:
+		{
+			return Settings->Highpass.bBypass;
+		}
+		break;
+
+		case EModSettingsEditorCurveOutput::Lowpass:
+		{
+			return Settings->Lowpass.bBypass;
+		}
+		break;
+
+		case EModSettingsEditorCurveOutput::Control:
+		default:
+		{
+			return false;
+		}
+		break;
+		}
+	}
+
+	return false;
 }
 
 FSoundModulationOutputBase* FModulationSettingsEditor::FindModulationOutput(int32 InCurveIndex)
@@ -485,6 +507,13 @@ void FModulationSettingsEditor::UpdateCurve(int32 InCurveIndex)
 		return;
 	}
 
+	// Unpin all curves already created while iterating curves being updated, to ensure
+	// they're repinned in the same order
+	if (InCurveIndex < CurveModels.Num())
+	{
+		CurveEditor->UnpinCurve(CurveModels[InCurveIndex]);
+	}
+
 	switch (Output->Transform.Curve)
 	{
 		case ESoundModulatorOutputCurve::Exp:
@@ -535,13 +564,17 @@ void FModulationSettingsEditor::UpdateCurves()
 		return;
 	}
 
-	for (int32 i = 0; i < GetCurveCount(); ++i)
+	CurveEditor->RemoveAllCurves();
+
+	int32 CurveCount = GetCurveCount();
+	for (int32 i = 0; i < CurveCount; ++i)
 	{
 		UpdateCurve(i);
 	}
 
 	// Remove old curves from editor
-	for (int32 i = GetCurveCount(); i < CurveModels.Num(); ++i)
+	CurveCount = GetCurveCount();
+	for (int32 i = CurveCount; i < CurveModels.Num(); ++i)
 	{
 		CurveEditor->RemoveCurve(CurveModels[i]);
 	}
