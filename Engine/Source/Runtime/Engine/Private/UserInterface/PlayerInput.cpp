@@ -261,23 +261,62 @@ bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSa
 	// first event associated with this key, add it to the map
 	FKeyState& KeyState = KeyStateMap.FindOrAdd(Key);
 
-	// look for event edges
-	if (KeyState.Value.X == 0.f && Delta != 0.f)
+	auto TestEventEdges = [this, &Delta](FKeyState &TestKeyState, float EdgeValue)
 	{
-		KeyState.EventAccumulator[IE_Pressed].Add(++EventCount);
-	}
-	else if (KeyState.Value.X != 0.f && Delta == 0.f)
-	{
-		KeyState.EventAccumulator[IE_Released].Add(++EventCount);
-	}
-	else
-	{
-		KeyState.EventAccumulator[IE_Repeat].Add(++EventCount);
-	}
+		// look for event edges
+		if (EdgeValue == 0.f && Delta != 0.f)
+		{
+			TestKeyState.EventAccumulator[IE_Pressed].Add(++EventCount);
+		}
+		else if (EdgeValue != 0.f && Delta == 0.f)
+		{
+			TestKeyState.EventAccumulator[IE_Released].Add(++EventCount);
+		}
+		else
+		{
+			TestKeyState.EventAccumulator[IE_Repeat].Add(++EventCount);
+		}
+	};
+
+	TestEventEdges(KeyState, KeyState.Value.X);
 
 	// accumulate deltas until processed next
 	KeyState.SampleCountAccumulator += NumSamples;
 	KeyState.RawValueAccumulator.X += Delta;
+
+
+	// Mirror the key press to any associated paired axis
+	FKey PairedKey = Key.GetPairedAxisKey();
+	if (PairedKey.IsValid())
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("Spotted axis %s which is paired to %s"), *Key.GetDisplayName().ToString(), Key.GetPairedAxisKey().IsValid() ? *Key.GetPairedAxisKey().GetDisplayName().ToString() : TEXT("NONE"));
+
+		EPairedAxis PairedAxis = Key.GetPairedAxis();
+		FKeyState& PairedKeyState = KeyStateMap.FindOrAdd(PairedKey);
+
+		// Update accumulator for the appropriate axis
+		if (PairedAxis == EPairedAxis::X)
+		{
+			PairedKeyState.RawValueAccumulator.X = KeyState.RawValueAccumulator.X;
+		}
+		else if (PairedAxis == EPairedAxis::Y)
+		{
+			PairedKeyState.RawValueAccumulator.Y = KeyState.RawValueAccumulator.X;
+		}
+		else if (PairedAxis == EPairedAxis::Z)
+		{
+			PairedKeyState.RawValueAccumulator.Z = KeyState.RawValueAccumulator.X;
+		}
+		else
+		{
+			checkf(false, TEXT("Key %s has paired axis key %s but no valid paired axis!"), *Key.GetFName().ToString(), *Key.GetPairedAxisKey().GetFName().ToString());
+		}
+
+		PairedKeyState.SampleCountAccumulator = FMath::Max(PairedKeyState.SampleCountAccumulator, KeyState.SampleCountAccumulator);	// Take max count of each contributing axis.
+
+		// TODO: Will trigger multiple times for the paired axis key. Not desirable.
+		TestEventEdges(PairedKeyState, PairedKeyState.Value.Size());
+	}
 
 #if !UE_BUILD_SHIPPING
 	CurrentEvent		= IE_Axis;
@@ -295,7 +334,7 @@ bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSa
 	return false;
 }
 
-bool UPlayerInput::InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex) 
+bool UPlayerInput::InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex)
 {
 	// if touch disabled from the command line, consume the input and do nothing
 	static bool bTouchDisabled = FParse::Param(FCommandLine::Get(), TEXT("DisableTouch"));
@@ -371,7 +410,7 @@ bool UPlayerInput::InputTouch(uint32 Handle, ETouchType::Type Type, const FVecto
 	return true;
 }
 
-bool UPlayerInput::InputMotion(const FVector& InTilt, const FVector& InRotationRate, const FVector& InGravity, const FVector& InAcceleration) 
+bool UPlayerInput::InputMotion(const FVector& InTilt, const FVector& InRotationRate, const FVector& InGravity, const FVector& InAcceleration)
 {
 	FKeyState& KeyStateTilt = KeyStateMap.FindOrAdd(EKeys::Tilt);
 	KeyStateTilt.RawValueAccumulator += InTilt;
@@ -770,7 +809,7 @@ void UPlayerInput::GetChordsForKeyMapping(const FInputActionKeyMapping& KeyMappi
 		if (bAddDelegate)
 		{
 			check(EventIndices.Num() > 0);
-			FDelegateDispatchDetails FoundChord(  
+			FDelegateDispatchDetails FoundChord(
 										EventIndices[0]
 										, FoundChords.Num()
 										, Chord
@@ -813,7 +852,7 @@ void UPlayerInput::GetChordsForAction(const FInputActionBinding& ActionBinding, 
 				for (TPair<FKey, FKeyState>& KeyStatePair : KeyStateMap)
 				{
 					const FKey& Key = KeyStatePair.Key;
-					if (!Key.IsFloatAxis() && !Key.IsVectorAxis() && !KeyStatePair.Value.bConsumed)
+					if (!Key.IsAnalog() && !KeyStatePair.Value.bConsumed)
 					{
 						FInputActionKeyMapping SubKeyMapping(KeyMapping);
 						SubKeyMapping.Key = Key;
@@ -842,7 +881,7 @@ void UPlayerInput::GetChordForKey(const FInputKeyBinding& KeyBinding, const bool
 		for (TPair<FKey, FKeyState>& KeyStatePair : KeyStateMap)
 		{
 			const FKey& Key = KeyStatePair.Key;
-			if (!Key.IsFloatAxis() && !Key.IsVectorAxis() && !KeyStatePair.Value.bConsumed)
+			if (!Key.IsAnalog() && !KeyStatePair.Value.bConsumed)
 			{
 				FInputKeyBinding SubKeyBinding(KeyBinding);
 				SubKeyBinding.Chord.Key = Key;
@@ -956,7 +995,7 @@ float UPlayerInput::DetermineAxisValue(const FInputAxisBinding& AxisBinding, con
 
 void UPlayerInput::ProcessNonAxesKeys(FKey InKey, FKeyState* KeyState)
 {
-	if (InKey.IsVectorAxis())
+	if (InKey.IsAxis2D() || InKey.IsAxis3D())
 	{
 		KeyState->Value = MassageVectorAxisInput(InKey, KeyState->RawValue);
 	}
@@ -987,7 +1026,7 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 {
 	ConditionalBuildKeyMappings();
 
-	// We collect axis contributions by delegate, so we can sum up 
+	// We collect axis contributions by delegate, so we can sum up
 	// contributions from multiple bindings.
 	struct FAxisDelegateDetails
 	{
@@ -1077,7 +1116,7 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 		 		MouseSamples += KeyState->SampleCountAccumulator;
 		 	}
 		}
-		
+
 		// will just copy for non-axes
 		ProcessNonAxesKeys(Key, KeyState);
 
@@ -1086,7 +1125,7 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 		KeyState->SampleCountAccumulator = 0;
 	}
 	EventCount = 0;
-	
+
 	struct FDelegateDispatchDetailsSorter
 	{
 		bool operator()( const FDelegateDispatchDetails& A, const FDelegateDispatchDetails& B ) const
@@ -1506,7 +1545,7 @@ void UPlayerInput::DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& 
 
 			if ( KeyState->bDown || (KeyState->Value.X != 0.f) )
 			{
-				if (!Key.IsFloatAxis())
+				if (!Key.IsAxis1D())
 				{
 					Str += FString::Printf(TEXT(" time: %.2f"), WorldRealTimeSeconds - KeyState->LastUpDownTransitionTime);
 				}
@@ -1547,7 +1586,7 @@ void UPlayerInput::DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& 
 			DebugUnSmoothedMouseY = FMath::Clamp(DebugUnSmoothedMouseY, CenterY-DEBUGSMOOTHMOUSE_REGIONSIZE, CenterY+DEBUGSMOOTHMOUSE_REGIONSIZE);
 		}
 
-		// draw YELLOW box for SMOOTHED mouse loc 
+		// draw YELLOW box for SMOOTHED mouse loc
 		FCanvasTileItem TileItem( FVector2D(DebugSmoothedMouseX, DebugSmoothedMouseY), GWhiteTexture, FVector2D(8.0f,8.0f), FLinearColor::Yellow );
 		Canvas->DrawItem( TileItem );
 
@@ -1566,7 +1605,7 @@ bool UPlayerInput::WasJustPressed( FKey InKey ) const
 		// Is there any key that has just been pressed
 		for (const TPair<FKey, FKeyState>& KeyStatePair : KeyStateMap)
 		{
-			if (!KeyStatePair.Key.IsFloatAxis() && !KeyStatePair.Key.IsVectorAxis() && KeyStatePair.Value.EventCounts[IE_Pressed].Num() > 0)
+			if (!KeyStatePair.Key.IsAnalog() && KeyStatePair.Value.EventCounts[IE_Pressed].Num() > 0)
 			{
 				return true;
 			}
@@ -1588,7 +1627,7 @@ bool UPlayerInput::WasJustReleased( FKey InKey ) const
 		// Is there any key that has just been released
 		for (const TPair<FKey, FKeyState>& KeyStatePair : KeyStateMap)
 		{
-			if (!KeyStatePair.Key.IsFloatAxis() && !KeyStatePair.Key.IsVectorAxis() && KeyStatePair.Value.EventCounts[IE_Released].Num() > 0)
+			if (!KeyStatePair.Key.IsAnalog() && KeyStatePair.Value.EventCounts[IE_Released].Num() > 0)
 			{
 				return true;
 			}
@@ -1605,7 +1644,7 @@ bool UPlayerInput::WasJustReleased( FKey InKey ) const
 float UPlayerInput::GetTimeDown( FKey InKey ) const
 {
 	UE_CLOG(InKey == EKeys::AnyKey, LogInput, Warning, TEXT("GetTimeDown cannot return a meaningful result for AnyKey"));
-	UWorld* World = GetWorld();	
+	UWorld* World = GetWorld();
 	float DownTime = 0.f;
 	if( World )
 	{
@@ -1682,7 +1721,7 @@ bool UPlayerInput::IsPressed( FKey InKey ) const
 		// Is there any key that is down
 		for (const TPair<FKey, FKeyState>& KeyStatePair : KeyStateMap)
 		{
-			if (!KeyStatePair.Key.IsFloatAxis() && !KeyStatePair.Key.IsVectorAxis() && KeyStatePair.Value.bDown)
+			if (KeyStatePair.Key.IsDigital() && KeyStatePair.Value.bDown)
 			{
 				return true;
 			}
@@ -1756,7 +1795,7 @@ FVector UPlayerInput::MassageVectorAxisInput(FKey Key, FVector RawValue)
 float UPlayerInput::MassageAxisInput(FKey Key, float RawValue)
 {
 	float NewVal = RawValue;
-	
+
 	ConditionalInitAxisProperties();
 
 	// no massaging for buttons atm, might want to support it for things like pressure-sensitivity at some point
@@ -1777,7 +1816,7 @@ float UPlayerInput::MassageAxisInput(FKey Key, float RawValue)
 				NewVal = -FMath::Max( 0.f, -NewVal - AxisProps->DeadZone ) / (1.f - AxisProps->DeadZone);
 			}
 		}
-		
+
 		// apply any exponent curvature while we're in the [0..1] range
 		if (AxisProps->Exponent != 1.f)
 		{
@@ -1813,7 +1852,7 @@ float UPlayerInput::MassageAxisInput(FKey Key, float RawValue)
 			DebugUnSmoothedMouseY += -NewVal * DebugSmoothedMouseSensitivity;
 		}
 
-		// mouse smoothing 
+		// mouse smoothing
 		if (DefaultInputSettings->bEnableMouseSmoothing)
 		{
 			FKeyState* const KeyState = KeyStateMap.Find(Key);
@@ -1921,7 +1960,7 @@ bool UPlayerInput::IsKeyHandledByAction( FKey Key ) const
 {
 	for (const FInputActionKeyMapping& Mapping : ActionMappings)
 	{
-		if( (Mapping.Key == Key || Mapping.Key == EKeys::AnyKey) && 
+		if( (Mapping.Key == Key || Mapping.Key == EKeys::AnyKey) &&
 			(Mapping.bAlt == false || IsAltPressed()) &&
 			(Mapping.bCtrl == false || IsCtrlPressed()) &&
 			(Mapping.bShift == false || IsShiftPressed()) &&

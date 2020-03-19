@@ -9,16 +9,20 @@
 
 /**
  * Implements a details panel customization for FKey structures.
+ * As  "Key"				<SKeySelector>
  */
-class FKeyStructCustomization
+class DETAILCUSTOMIZATIONS_API FKeyStructCustomization
 	: public IPropertyTypeCustomization
 {
 public:
-
 	// IPropertyTypeCustomization interface
 
 	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override { };
+
+	// Helper variant that generates the key struct in the header and appends a single button at the end
+	// TODO: Is there a better way?
+	void CustomizeHeaderOnlyWithButton(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils, TSharedRef<SWidget> Button);
 
 public:
 
@@ -29,7 +33,7 @@ public:
 	 */
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance( );
 
-private:
+protected:
 
 	/** Gets the current Key being edited. */
 	TOptional<FKey> GetCurrentKey() const;
