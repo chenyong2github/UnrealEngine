@@ -3,7 +3,7 @@
 #include "Chaos/ChaosDebugDraw.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Joint/ChaosJointLog.h"
-#include "Chaos/Joint/PBDJointSolverGaussSeidel.h"
+#include "Chaos/Joint/ColoringGraph.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
@@ -13,15 +13,36 @@
 
 #include "HAL/IConsoleManager.h"
 
+#if INTEL_ISPC
+#include "PBDJointSolverGaussSeidel.ispc.generated.h"
+#endif
+
 //PRAGMA_DISABLE_OPTIMIZATION
 
 bool bChaos_Joint_EarlyOut_Enabled = true;
 FAutoConsoleVariableRef CVarChaosJointEarlyOutEnabled(TEXT("p.Chaos.Joint.EarlyOut"), bChaos_Joint_EarlyOut_Enabled, TEXT("Whether to iterating when joints report being solved"));
 
+bool bChaos_Joint_Batching = false;
+FAutoConsoleVariableRef CVarChaosJointBatching(TEXT("p.Chaos.Joint.Batching"), bChaos_Joint_Batching, TEXT(""));
+
+int32 bChaos_Joint_MaxBatchSize = 1000;
+FAutoConsoleVariableRef CVarChaosJointBatchSize(TEXT("p.Chaos.Joint.MaxBatchSize"), bChaos_Joint_MaxBatchSize, TEXT(""));
+
+#if !INTEL_ISPC
+const bool bChaos_Joint_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_Joint_ISPC_Enabled = true;
+#else
+extern bool bChaos_Joint_ISPC_Enabled;
+#endif
+
 namespace Chaos
 {
 	DECLARE_CYCLE_STAT(TEXT("Joints::Sort"), STAT_Joints_Sort, STATGROUP_ChaosJoint);
+	DECLARE_CYCLE_STAT(TEXT("Joints::Prepare"), STAT_Joints_Prepare, STATGROUP_ChaosJoint);
+	DECLARE_CYCLE_STAT(TEXT("Joints::Unprepare"), STAT_Joints_Unprepare, STATGROUP_ChaosJoint);
 	DECLARE_CYCLE_STAT(TEXT("Joints::Apply"), STAT_Joints_Apply, STATGROUP_ChaosJoint);
+	DECLARE_CYCLE_STAT(TEXT("Joints::ApplyBatched"), STAT_Joints_ApplyBatched, STATGROUP_ChaosJoint);
 	DECLARE_CYCLE_STAT(TEXT("Joints::ApplyPushOut"), STAT_Joints_ApplyPushOut, STATGROUP_ChaosJoint);
 
 	//
@@ -45,16 +66,28 @@ namespace Chaos
 		ConstraintContainer->CalculateConstraintSpace(ConstraintIndex, OutXa, OutRa, OutXb, OutRb);
 	}
 
-	
-	void FPBDJointConstraintHandle::SetParticleLevels(const TVector<int32, 2>& ParticleLevels)
+
+	int32 FPBDJointConstraintHandle::GetConstraintIsland() const
 	{
-		ConstraintContainer->SetParticleLevels(ConstraintIndex, ParticleLevels);
+		return ConstraintContainer->GetConstraintIsland(ConstraintIndex);
 	}
 
-	
+
 	int32 FPBDJointConstraintHandle::GetConstraintLevel() const
 	{
 		return ConstraintContainer->GetConstraintLevel(ConstraintIndex);
+	}
+
+
+	int32 FPBDJointConstraintHandle::GetConstraintColor() const
+	{
+		return ConstraintContainer->GetConstraintColor(ConstraintIndex);
+	}
+
+
+	int32 FPBDJointConstraintHandle::GetConstraintBatch() const
+	{
+		return ConstraintContainer->GetConstraintBatch(ConstraintIndex);
 	}
 
 	
@@ -117,6 +150,15 @@ namespace Chaos
 		, AngularDriveStiffness(0)
 		, AngularDriveDamping(0)
 	{
+		if (bChaos_Joint_ISPC_Enabled)
+		{
+#if INTEL_ISPC
+			check(sizeof(FJointSolverJointState) == ispc::SizeofFJointSolverJointState());
+			check(sizeof(FJointSolverConstraintRowState) == ispc::SizeofFJointSolverConstraintRowState());
+			check(sizeof(FJointSolverConstraintRowData) == ispc::SizeofFJointSolverConstraintRowData());
+			check(sizeof(FJointSolverJointState) == ispc::SizeofFJointSolverJointState());
+#endif
+		}
 	}
 
 
@@ -144,10 +186,14 @@ namespace Chaos
 
 	
 	FPBDJointState::FPBDJointState()
-		: Level(INDEX_NONE)
-		, ParticleLevels({ INDEX_NONE, INDEX_NONE })
+		: Batch(INDEX_NONE)
+		, Island(INDEX_NONE)
+		, Level(INDEX_NONE)
+		, Color(INDEX_NONE)
+		, IslandSize(0)
 	{
 	}
+
 
 	//
 	// Solver Settings
@@ -182,6 +228,7 @@ namespace Chaos
 	{
 	}
 
+
 	//
 	// Constraint Container
 	//
@@ -189,7 +236,8 @@ namespace Chaos
 	
 	FPBDJointConstraints::FPBDJointConstraints(const FPBDJointSolverSettings& InSettings)
 		: Settings(InSettings)
-		, bRequiresSort(false)
+		, bJointsDirty(false)
+		, bIsBatched(false)
 		, PreApplyCallback(nullptr)
 		, PostApplyCallback(nullptr)
 	{
@@ -259,6 +307,8 @@ namespace Chaos
 	
 	typename FPBDJointConstraints::FConstraintContainerHandle* FPBDJointConstraints::AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& InConstraintFrames, const FPBDJointSettings& InConstraintSettings)
 	{
+		bJointsDirty = true;
+
 		int ConstraintIndex = Handles.Num();
 		Handles.Add(HandleAllocator.AllocHandle(this, ConstraintIndex));
 		ConstraintParticles.Add(InConstrainedParticles);
@@ -271,6 +321,8 @@ namespace Chaos
 	
 	void FPBDJointConstraints::RemoveConstraint(int ConstraintIndex)
 	{
+		bJointsDirty = true;
+
 		FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintIndex];
 		if (ConstraintHandle != nullptr)
 		{
@@ -309,22 +361,40 @@ namespace Chaos
 		FHandles SortedHandles = Handles;
 		SortedHandles.StableSort([](const FConstraintContainerHandle& L, const FConstraintContainerHandle& R)
 			{
-				return L.GetConstraintLevel() < R.GetConstraintLevel();
+				if (L.GetConstraintBatch() != R.GetConstraintBatch())
+				{
+					return L.GetConstraintBatch() < R.GetConstraintBatch();
+				}
+				else if (L.GetConstraintIsland() != R.GetConstraintIsland())
+				{
+					return L.GetConstraintIsland() < R.GetConstraintIsland();
+				}
+				else if (L.GetConstraintLevel() != R.GetConstraintLevel())
+				{
+					return L.GetConstraintLevel() < R.GetConstraintLevel();
+				}
+				return L.GetConstraintColor() < R.GetConstraintColor();
 			});
 
 		TArray<FPBDJointSettings> SortedConstraintSettings;
 		TArray<FTransformPair> SortedConstraintFrames;
 		TArray<FParticlePair> SortedConstraintParticles;
 		TArray<FPBDJointState> SortedConstraintStates;
-		int32 SortedConstraintIndex = 0;
-		for (FConstraintContainerHandle* Handle : SortedHandles)
+		SortedConstraintSettings.Reserve(SortedHandles.Num());
+		SortedConstraintFrames.Reserve(SortedHandles.Num());
+		SortedConstraintParticles.Reserve(SortedHandles.Num());
+		SortedConstraintStates.Reserve(SortedHandles.Num());
+
+		for (int32 SortedConstraintIndex = 0; SortedConstraintIndex < SortedHandles.Num(); ++SortedConstraintIndex)
 		{
-			int32 UnsortedIndex = Handle->GetConstraintIndex();
-			SortedConstraintSettings.Add(ConstraintSettings[UnsortedIndex]);
-			SortedConstraintFrames.Add(ConstraintFrames[UnsortedIndex]);
-			SortedConstraintParticles.Add(ConstraintParticles[UnsortedIndex]);
-			SortedConstraintStates.Add(ConstraintStates[UnsortedIndex]);
-			SetConstraintIndex(Handle, SortedConstraintIndex++);
+			FConstraintContainerHandle* Handle = SortedHandles[SortedConstraintIndex];
+			int32 UnsortedConstraintIndex = Handle->GetConstraintIndex();
+
+			SortedConstraintSettings.Add(ConstraintSettings[UnsortedConstraintIndex]);
+			SortedConstraintFrames.Add(ConstraintFrames[UnsortedConstraintIndex]);
+			SortedConstraintParticles.Add(ConstraintParticles[UnsortedConstraintIndex]);
+			SortedConstraintStates.Add(ConstraintStates[UnsortedConstraintIndex]);
+			SetConstraintIndex(Handle, SortedConstraintIndex);
 		}
 
 		Swap(ConstraintSettings, SortedConstraintSettings);
@@ -401,68 +471,102 @@ namespace Chaos
 		ConstraintSettings[ConstraintIndex] = InConstraintSettings;
 	}
 
-	
+
+	int32 FPBDJointConstraints::GetConstraintIsland(int32 ConstraintIndex) const
+	{
+		return ConstraintStates[ConstraintIndex].Island;
+	}
+
+
 	int32 FPBDJointConstraints::GetConstraintLevel(int32 ConstraintIndex) const
 	{
 		return ConstraintStates[ConstraintIndex].Level;
 	}
 
-	
-	void FPBDJointConstraints::SetParticleLevels(int32 ConstraintIndex, const TVector<int32, 2>& ParticleLevels)
+
+	int32 FPBDJointConstraints::GetConstraintColor(int32 ConstraintIndex) const
 	{
-		int32 NewLevel = FMath::Min(ParticleLevels[0], ParticleLevels[1]);
-		int32 PreviousLevel = ConstraintStates[ConstraintIndex].Level;
-		ConstraintStates[ConstraintIndex].Level = NewLevel;
-		ConstraintStates[ConstraintIndex].ParticleLevels = ParticleLevels;
-		bRequiresSort = bRequiresSort || (NewLevel != PreviousLevel);
+		return ConstraintStates[ConstraintIndex].Color;
 	}
-	
+
+
+	int32 FPBDJointConstraints::GetConstraintBatch(int32 ConstraintIndex) const
+	{
+		return ConstraintStates[ConstraintIndex].Batch;
+	}
+
 
 	void FPBDJointConstraints::UpdatePositionBasedState(const FReal Dt)
 	{
-		if (bRequiresSort)
+		if (bJointsDirty || (bIsBatched != bChaos_Joint_Batching))
 		{
-			SortConstraints();
-			bRequiresSort = false;
+			DeinitSolverJointData();
+
+			BatchConstraints();
+
+			InitSolverJointData();
+
+			bIsBatched = bChaos_Joint_Batching;
+			bJointsDirty = false;
 		}
 	}
 
 
 	void FPBDJointConstraints::PrepareConstraints(FReal Dt)
 	{
-		ConstraintSolvers.SetNum(NumConstraints());
-		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		SCOPE_CYCLE_COUNTER(STAT_Joints_Prepare);
+
+		if (bChaos_Joint_Batching)
 		{
-			const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-			const FTransformPair& JointFrames = ConstraintFrames[ConstraintIndex];
-			FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
+			InitSolverJointState();
+		}
+		else
+		{
+			ConstraintSolvers.SetNum(NumConstraints());
 
-			int32 Index0, Index1;
-			GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
-			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
-			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+			{
+				const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
 
-			Solver.Init(
-				Dt,
-				Settings,
-				JointSettings,
-				FParticleUtilitiesXR::GetCoMWorldPosition(Particle0),	// Prev position
-				FParticleUtilitiesXR::GetCoMWorldPosition(Particle1),	// Prev position
-				FParticleUtilitiesXR::GetCoMWorldRotation(Particle0),	// Prev rotation
-				FParticleUtilitiesXR::GetCoMWorldRotation(Particle1),	// Prev rotation
-				Particle0->InvM(),
-				Particle0->InvI().GetDiagonal(),
-				Particle1->InvM(),
-				Particle1->InvI().GetDiagonal(),
-				FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
-				FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
+				const FTransformPair& JointFrames = ConstraintFrames[ConstraintIndex];
+				FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
+
+				int32 Index0, Index1;
+				GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
+				TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
+				TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
+
+				Solver.Init(
+					Dt,
+					Settings,
+					JointSettings,
+					FParticleUtilitiesXR::GetCoMWorldPosition(Particle0),	// Prev position
+					FParticleUtilitiesXR::GetCoMWorldPosition(Particle1),	// Prev position
+					FParticleUtilitiesXR::GetCoMWorldRotation(Particle0),	// Prev rotation
+					FParticleUtilitiesXR::GetCoMWorldRotation(Particle1),	// Prev rotation
+					Particle0->InvM(),
+					Particle0->InvI().GetDiagonal(),
+					Particle1->InvM(),
+					Particle1->InvI().GetDiagonal(),
+					FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
+					FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
+			}
 		}
 	}
 
 
 	void FPBDJointConstraints::UnprepareConstraints(FReal Dt)
 	{
-		ConstraintSolvers.Empty();
+		SCOPE_CYCLE_COUNTER(STAT_Joints_Unprepare);
+
+		if (bChaos_Joint_Batching)
+		{
+			DeinitSolverJointState();
+		}
+		else
+		{
+			ConstraintSolvers.Empty();
+		}
 	}
 
 	
@@ -493,53 +597,63 @@ namespace Chaos
 
 	bool FPBDJointConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);
-
 		if (PreApplyCallback != nullptr)
 		{
 			PreApplyCallback(Dt, Handles);
 		}
 
-		FJointSolverResult NetResult;
+		int32 NumActive = 0;
 		if (Settings.ApplyPairIterations > 0)
 		{
-			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+			if (bChaos_Joint_Batching)
 			{
-				NetResult += SolvePosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
+				SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyBatched);
+				for (int32 BatchIndex = 0; BatchIndex < JointBatches.Num(); ++BatchIndex)
+				{
+					NumActive += ApplyBatch(Dt, BatchIndex, Settings.ApplyPairIterations, It, NumIts);
+				}
+			}
+			else
+			{
+				SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);
+				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+				{
+					NumActive += ApplySingle(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
+				}
 			}
 		}
 
-		UE_LOG(LogChaosJoint, Verbose, TEXT("Apply Iteration: %d / %d; Active: %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
+		UE_LOG(LogChaosJoint, Verbose, TEXT("Apply Iteration: %d / %d; Active: %d"), It, NumIts, NumActive);
 
 		if (PostApplyCallback != nullptr)
 		{
 			PostApplyCallback(Dt, Handles);
 		}
 
-		return (NetResult.GetNumActive() > 0);
+		return (NumActive > 0);
 	}
 
 	bool FPBDJointConstraints::ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyPushOut);
 
-		FJointSolverResult NetResult;
+		int32 NumActive = 0;
 		if (Settings.ApplyPushOutPairIterations > 0)
 		{
 			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 			{
-				NetResult += ProjectPosition_GaussSiedel(Dt, ConstraintIndex, Settings.ApplyPushOutPairIterations, It, NumIts);
+				NumActive += ApplyPushOutSingle(Dt, ConstraintIndex, Settings.ApplyPushOutPairIterations, It, NumIts);
 			}
 		}
 
-		UE_LOG(LogChaosJoint, Verbose, TEXT("PushOut Iteration: %d / %d; Active: %d / %d"), It, NumIts, NetResult.GetNumActive(), NetResult.GetNumActive() + NetResult.GetNumSolved());
+		UE_LOG(LogChaosJoint, Verbose, TEXT("PushOut Iteration: %d / %d; Active: %d"), It, NumIts, NumActive);
 
 		if (PostProjectCallback != nullptr)
 		{
 			PostProjectCallback(Dt, Handles);
 		}
 
-		return (NetResult.GetNumActive() > 0);
+		return (NumActive > 0);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -577,12 +691,12 @@ namespace Chaos
 		}
 
 
-		FJointSolverResult NetResult;
+		int32 NumActive = 0;
 		if (Settings.ApplyPairIterations > 0)
 		{
 			for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
 			{
-				NetResult += SolvePosition_GaussSiedel(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
+				NumActive += ApplySingle(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
 			}
 		}
 
@@ -591,7 +705,7 @@ namespace Chaos
 			PostApplyCallback(Dt, SortedConstraintHandles);
 		}
 
-		return (NetResult.GetNumActive() > 0);
+		return (NumActive > 0);
 	}
 
 	
@@ -606,12 +720,12 @@ namespace Chaos
 				return L.GetConstraintLevel() < R.GetConstraintLevel();
 			});
 
-		FJointSolverResult NetResult;
+		int32 NumActive = 0;
 		if (Settings.ApplyPushOutPairIterations > 0)
 		{
 			for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
 			{
-				NetResult += ProjectPosition_GaussSiedel(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPushOutPairIterations, It, NumIts);
+				NumActive += ApplyPushOutSingle(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPushOutPairIterations, It, NumIts);
 			}
 		}
 
@@ -620,7 +734,7 @@ namespace Chaos
 			PostProjectCallback(Dt, SortedConstraintHandles);
 		}
 
-		return (NetResult.GetNumActive() > 0);
+		return (NumActive > 0);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -643,10 +757,10 @@ namespace Chaos
 			FParticleUtilities::SetCoMWorldTransform(Rigid, P, Q);
 			if (bUpdateVelocity && (Dt > SMALL_NUMBER))
 			{
-				const FVec3 DV = FVec3::CalculateVelocity(PrevP, P, Dt);
-				const FVec3 DW = FRotation3::CalculateAngularVelocity(PrevQ, Q, Dt);
-				Rigid->SetV(Rigid->V() + DV);
-				Rigid->SetW(Rigid->W() + DW);
+				const FVec3 V = FVec3::CalculateVelocity(PrevP, P, Dt);
+				const FVec3 W = FRotation3::CalculateAngularVelocity(PrevQ, Q, Dt);
+				Rigid->SetV(V);
+				Rigid->SetW(W);
 			}
 		}
 	}
@@ -662,10 +776,234 @@ namespace Chaos
 		}
 	}
 
+	void FPBDJointConstraints::InitSolverJointData()
+	{
+		SolverConstraints.SetNum(NumConstraints());
+		for (int32 JointIndex = 0; JointIndex < NumConstraints(); ++JointIndex)
+		{
+			const FPBDJointSettings& JointSettings = ConstraintSettings[JointIndex];
+			SolverConstraints[JointIndex].SetJointIndex(JointIndex);
+			SolverConstraints[JointIndex].AddPositionConstraints(SolverConstraintRowDatas, Settings, JointSettings);
+		}
+		for (int32 JointIndex = 0; JointIndex < NumConstraints(); ++JointIndex)
+		{
+			const FPBDJointSettings& JointSettings = ConstraintSettings[JointIndex];
+			SolverConstraints[JointIndex].AddRotationConstraints(SolverConstraintRowDatas, Settings, JointSettings);
+		}
+	}
+
+	void FPBDJointConstraints::DeinitSolverJointData()
+	{
+		SolverConstraints.Empty();
+		SolverConstraintRowDatas.Empty();
+	}
+
+	void FPBDJointConstraints::InitSolverJointState()
+	{
+		SolverConstraintRowStates.SetNum(SolverConstraintRowDatas.Num());
+		SolverConstraintStates.SetNum(NumConstraints());
+
+		for (int32 JointIndex = 0; JointIndex < NumConstraints(); ++JointIndex)
+		{
+			FJointSolverJointState& JointState = SolverConstraintStates[JointIndex];
+			const FPBDJointSettings& JointSettings = ConstraintSettings[JointIndex];
+		
+			const FTransformPair& JointFrames = ConstraintFrames[JointIndex];
+			int32 Index0, Index1;
+			GetConstrainedParticleIndices(JointIndex, Index0, Index1);
+			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[JointIndex][Index0]);
+			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[JointIndex][Index1]);
+
+			JointState.Init(
+				Settings,
+				JointSettings,
+				FParticleUtilitiesXR::GetCoMWorldPosition(Particle0),
+				FParticleUtilitiesXR::GetCoMWorldRotation(Particle0),
+				FParticleUtilitiesXR::GetCoMWorldPosition(Particle1),
+				FParticleUtilitiesXR::GetCoMWorldRotation(Particle1),
+				Particle0->InvM(),
+				Particle0->InvI().GetDiagonal(),
+				Particle1->InvM(),
+				Particle1->InvI().GetDiagonal(),
+				FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
+				FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
+		}
+	}
+
+	void FPBDJointConstraints::DeinitSolverJointState()
+	{
+		SolverConstraintRowStates.Empty();
+		SolverConstraintStates.Empty();
+	}
+
+	void FPBDJointConstraints::GatherSolverJointState(int32 JointIndex)
+	{
+		FJointSolverJointState& JointState = SolverConstraintStates[JointIndex];
+
+		int32 Index0, Index1;
+		GetConstrainedParticleIndices(JointIndex, Index0, Index1);
+		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[JointIndex][Index0]);
+		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[JointIndex][Index1]);
+
+		JointState.Update(
+			FParticleUtilities::GetCoMWorldPosition(Particle0),
+			FParticleUtilities::GetCoMWorldRotation(Particle0),
+			FParticleUtilities::GetCoMWorldPosition(Particle1),
+			FParticleUtilities::GetCoMWorldRotation(Particle1));
+	}
+
+	void FPBDJointConstraints::ScatterSolverJointState(const FReal Dt, int32 JointIndex)
+	{
+		int32 Index0, Index1;
+		GetConstrainedParticleIndices(JointIndex, Index0, Index1);
+		TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[JointIndex][Index0]->CastToRigidParticle();
+		TPBDRigidParticleHandle<FReal, 3>* Particle1 = ConstraintParticles[JointIndex][Index1]->CastToRigidParticle();
+
+		FJointSolverJointState& JointState = SolverConstraintStates[JointIndex];
+		UpdateParticleState(Particle0, Dt, JointState.PrevPs[0], JointState.PrevQs[0], JointState.Ps[0], JointState.Qs[0]);
+		UpdateParticleState(Particle1, Dt, JointState.PrevPs[1], JointState.PrevQs[1], JointState.Ps[1], JointState.Qs[1]);
+	}
+
+	int32 FPBDJointConstraints::ApplyBatch(const FReal Dt, const int32 BatchIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	{
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Batch %d %d-%d (dt = %f; it = %d / %d)"), BatchIndex, JointBatches[BatchIndex][0], JointBatches[BatchIndex][1], Dt, It, NumIts);
+
+		int32 NumActive = 0;
+
+		// The range of joints in the batch
+		const int32 JointIndexBegin = JointBatches[BatchIndex][0];
+		const int32 JointIndexEnd = JointBatches[BatchIndex][1];
+		if (JointIndexEnd <= JointIndexBegin)
+		{
+			return NumActive;
+		}
+
+		// Initialize the state for each joint in the batch (body CoM position, inertias, etc)
+		for (int32 JointIndex = JointIndexBegin; JointIndex < JointIndexEnd; ++JointIndex)
+		{
+			GatherSolverJointState(JointIndex);
+		}
+
+		FJointSolverResult NetResult;
+		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
+		{
+			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("  Pair Iteration %d / %d"), PairIt, NumPairIts);
+
+			// Reset accumulators and update derived state
+			if (bChaos_Joint_ISPC_Enabled)
+			{
+#if INTEL_ISPC
+				ispc::BatchUpdateDerivedState(
+					(ispc::FJointSolverJointState*)SolverConstraintStates.GetData(), 
+					JointBatches[BatchIndex][0], 
+					JointBatches[BatchIndex][1]);
+#endif
+			}
+			else
+			{
+				for (int32 JointIndex = JointIndexBegin; JointIndex < JointIndexEnd; ++JointIndex)
+				{
+					SolverConstraintStates[JointIndex].UpdateDerivedState();
+				}
+			}
+
+			// Update the position constraint axes and errors for all Joints in the batch
+			for (int32 JointIndex = JointIndexBegin; JointIndex < JointIndexEnd; ++JointIndex)
+			{
+				SolverConstraints[JointIndex].UpdatePositionConstraints(
+					SolverConstraintRowDatas, 
+					SolverConstraintRowStates, 
+					SolverConstraintStates[JointIndex], 
+					ConstraintSettings[JointIndex]);
+			}
+
+			// Solve and apply the position constraints for all Joints in the batch
+			if (JointIndexEnd > JointIndexBegin)
+			{
+				const int32 RowIndexBegin = SolverConstraints[JointIndexBegin].GetLinearRowIndexBegin();
+				const int32 RowIndexEnd = SolverConstraints[JointIndexEnd - 1].GetLinearRowIndexEnd();
+				NumActive += FJointSolver::ApplyPositionConstraints(
+					Dt, 
+					SolverConstraintStates, 
+					SolverConstraintRowDatas, 
+					SolverConstraintRowStates, 
+					JointIndexBegin,
+					JointIndexEnd,
+					RowIndexBegin,
+					RowIndexEnd);
+			}
+
+			// Reset accumulators and update derived state
+			if (bChaos_Joint_ISPC_Enabled)
+			{
+#if INTEL_ISPC
+				ispc::BatchUpdateDerivedState(
+					(ispc::FJointSolverJointState*)SolverConstraintStates.GetData(), 
+					JointBatches[BatchIndex][0], 
+					JointBatches[BatchIndex][1]);
+#endif
+			}
+			else
+			{
+				for (int32 JointIndex = JointIndexBegin; JointIndex < JointIndexEnd; ++JointIndex)
+				{
+					SolverConstraintStates[JointIndex].UpdateDerivedState();
+				}
+			}
+
+			// Update the rotation constraint axes and errors for all Joints in the batch
+			for (int32 JointIndex = JointIndexBegin; JointIndex < JointIndexEnd; ++JointIndex)
+			{
+				SolverConstraints[JointIndex].UpdateRotationConstraints(
+					SolverConstraintRowDatas, 
+					SolverConstraintRowStates, 
+					SolverConstraintStates[JointIndex], 
+					ConstraintSettings[JointIndex]);
+			}
+
+			// Solve and apply the rotation constraints for all Joints in the batch
+			const int32 RowIndexBegin = SolverConstraints[JointIndexBegin].GetAngularRowIndexBegin();
+			const int32 RowIndexEnd = SolverConstraints[JointIndexEnd - 1].GetAngularRowIndexEnd();
+			if (bChaos_Joint_ISPC_Enabled)
+			{
+#if INTEL_ISPC
+				ispc::BatchApplyRotationConstraints(
+					Dt, 
+					(ispc::FJointSolverJointState*)SolverConstraintStates.GetData(), 
+					(ispc::FJointSolverConstraintRowData*)SolverConstraintRowDatas.GetData(),
+					(ispc::FJointSolverConstraintRowState*)SolverConstraintRowStates.GetData(),
+					JointIndexBegin,
+					JointIndexEnd,
+					RowIndexBegin,
+					RowIndexEnd);
+#endif
+			}
+			else
+			{
+				NumActive += FJointSolver::ApplyRotationConstraints(
+					Dt, 
+					SolverConstraintStates, 
+					SolverConstraintRowDatas, 
+					SolverConstraintRowStates, 
+					JointIndexBegin,
+					JointIndexEnd,
+					RowIndexBegin,
+					RowIndexEnd);
+			}
+		}
+
+		// Copy the updated state back to the bodies
+		for (int32 JointIndex = JointIndexBegin; JointIndex < JointIndexEnd; ++JointIndex)
+		{
+			ScatterSolverJointState(Dt, JointIndex);
+		}
+
+		return NumActive;
+	}
 
 	// This position solver iterates over each of the inner constraints (position, twist, swing) and solves them independently.
 	// This will converge slowly in some cases, particularly where resolving angular constraints violates position constraints and vice versa.
-	FJointSolverResult FPBDJointConstraints::SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	int32 FPBDJointConstraints::ApplySingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
@@ -694,27 +1032,27 @@ namespace Chaos
 			Particle1->V(),
 			Particle1->W());
 
-		FJointSolverResult NetResult;
+		int32 NumActive = 0;
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("  Pair Iteration %d / %d"), PairIt, NumIts);
+			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("  Pair Iteration %d / %d"), PairIt, NumPairIts);
 
-			NetResult += Solver.ApplyConstraints(Dt, Settings, JointSettings);
-			NetResult +=  Solver.ApplyDrives(Dt, Settings, JointSettings);
+			NumActive += Solver.ApplyConstraints(Dt, Settings, JointSettings);
+			NumActive +=  Solver.ApplyDrives(Dt, Settings, JointSettings);
 
-			if ((NetResult.GetNumActive() == 0) && bChaos_Joint_EarlyOut_Enabled)
+			if ((NumActive == 0) && bChaos_Joint_EarlyOut_Enabled)
 			{
 				break;
 			}
 		}
 
-		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, P0, Q0, Solver.GetP(0), Solver.GetQ(0));
-		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, P1, Q1, Solver.GetP(1), Solver.GetQ(1));
+		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetPrevP(0), Solver.GetPrevQ(0), Solver.GetP(0), Solver.GetQ(0));
+		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetPrevP(1), Solver.GetPrevQ(1), Solver.GetP(1), Solver.GetQ(1));
 
-		return NetResult;
+		return NumActive;
 	}
 
-	FJointSolverResult FPBDJointConstraints::ProjectPosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	int32 FPBDJointConstraints::ApplyPushOutSingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Project Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
@@ -738,12 +1076,12 @@ namespace Chaos
 			Particle1->V(),
 			Particle1->W());
 
-		FJointSolverResult NetResult;
+		int32 NumActive = 0;
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			NetResult = Solver.ApplyProjections(Dt, Settings, JointSettings);
+			NumActive = Solver.ApplyProjections(Dt, Settings, JointSettings);
 			
-			if ((NetResult.GetNumActive() == 0) && bChaos_Joint_EarlyOut_Enabled)
+			if ((NumActive == 0) && bChaos_Joint_EarlyOut_Enabled)
 			{
 				break;
 			}
@@ -752,7 +1090,261 @@ namespace Chaos
 		UpdateParticleStateExplicit(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0), Solver.GetV(0), Solver.GetW(0));
 		UpdateParticleStateExplicit(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1), Solver.GetV(1), Solver.GetW(1));
 
-		return NetResult;
+		return NumActive;
+	}
+
+
+	// Assign an Island, Level and Color to each constraint. Constraints must be processed in Level order, but
+	// constraints of the same color are independent and can be processed in parallel (SIMD or Task)
+	// NOTE: Constraints are the Vertices, and Edges connect constraints sharing a Particle
+	void FPBDJointConstraints::ColorConstraints()
+	{
+		// Add a Vertex for all constraints involving at least one dynamic body
+		// Maintain a map from Constraint Index to Vertex Index
+		FColoringGraph Graph;
+		TArray<int32> ConstraintVertices; // Map of ConstraintIndex -> VertexIndex
+		Graph.ReserveVertices(NumConstraints());
+		ConstraintVertices.SetNumZeroed(NumConstraints());
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
+			TPBDRigidParticleHandle<FReal, 3>* Particle1 = ConstraintParticles[ConstraintIndex][1]->CastToRigidParticle();
+
+			bool bContainsDynamic = (Particle0 != nullptr) || (Particle1 != nullptr);
+			if (bContainsDynamic)
+			{
+				ConstraintVertices[ConstraintIndex] = Graph.AddVertex();
+
+				// Set kinematic-connected constraints to level 0 to initialize level calculation
+				bool bContainsKinematic = (Particle0 == nullptr) || (Particle1 == nullptr);
+				if (bContainsKinematic)
+				{
+					Graph.SetVertexLevel(ConstraintVertices[ConstraintIndex], 0);
+				}
+			}
+			else
+			{
+				ConstraintVertices[ConstraintIndex] = INDEX_NONE;
+			}
+		}
+
+		// Also build a map of particles to constraint indices. We only care about dynamic particles since
+		// two constraints that share only a kinematic particle will not interact.
+		TMap<TPBDRigidParticleHandle<FReal, 3>*, TArray<int32>> ParticleConstraints; // Map of ParticleHandle -> Constraint Indices involving the particle
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
+			TPBDRigidParticleHandle<FReal, 3>* Particle1 = ConstraintParticles[ConstraintIndex][1]->CastToRigidParticle();
+			if (Particle0 != nullptr)
+			{
+				ParticleConstraints.FindOrAdd(Particle0).Add(ConstraintIndex);
+			}
+			if (Particle1 != nullptr)
+			{
+				ParticleConstraints.FindOrAdd(Particle1).Add(ConstraintIndex);
+			}
+		}
+
+		// Connect constraints that share a dynamic particle
+		Graph.ReserveEdges((ParticleConstraints.Num() * (ParticleConstraints.Num() - 1)) / 2);
+		for (auto& ParticleConstraintsElement : ParticleConstraints)
+		{
+			TArray<int32>& ParticleConstraintIndices = ParticleConstraintsElement.Value;
+			int32 NumParticleConstraintIndices = ParticleConstraintIndices.Num();
+			for (int32 ParticleConstraintIndex0 = 0; ParticleConstraintIndex0 < NumParticleConstraintIndices; ++ParticleConstraintIndex0)
+			{
+				int32 ConstraintIndex0 = ParticleConstraintIndices[ParticleConstraintIndex0];
+				int32 VertexIndex0 = ConstraintVertices[ConstraintIndex0];
+				for (int32 ParticleConstraintIndex1 = ParticleConstraintIndex0 + 1; ParticleConstraintIndex1 < NumParticleConstraintIndices; ++ParticleConstraintIndex1)
+				{
+					int32 ConstraintIndex1 = ParticleConstraintIndices[ParticleConstraintIndex1];
+					int32 VertexIndex1 = ConstraintVertices[ConstraintIndex1];
+					Graph.AddEdge(VertexIndex0, VertexIndex1);
+				}
+			}
+		}
+
+		// Colorize the graph
+		Graph.Islandize();
+		Graph.Levelize();
+		Graph.Colorize();
+
+		// Set the constraint colors
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			int32 VertexIndex = ConstraintVertices[ConstraintIndex];
+			ConstraintStates[ConstraintIndex].Island = Graph.GetVertexIsland(VertexIndex);
+			ConstraintStates[ConstraintIndex].IslandSize = Graph.GetVertexIslandSize(VertexIndex);
+			ConstraintStates[ConstraintIndex].Level = Graph.GetVertexLevel(VertexIndex);
+			ConstraintStates[ConstraintIndex].Color = Graph.GetVertexColor(VertexIndex);
+		}
+	}
+
+	// Assign constraints to batches based on Level and Color. A batch is all constraints that shared the same Level-Color and so may be processed in parallel.
+	// NOTE: some constraints may have no dynamic bodies and therefore should be ignored (They will have Level = 0 and Color = -1).
+	// @todo(ccaulfield): eliminate all the sorting (just use indices until we have the final batch ordering and then sort the actual constraint list)
+	void FPBDJointConstraints::BatchConstraints()
+	{
+		// Reset
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			ConstraintStates[ConstraintIndex].Island = INDEX_NONE;
+			ConstraintStates[ConstraintIndex].Level = INDEX_NONE;
+			ConstraintStates[ConstraintIndex].Color = INDEX_NONE;
+			ConstraintStates[ConstraintIndex].Batch = INDEX_NONE;
+			ConstraintStates[ConstraintIndex].IslandSize = 0;
+		}
+
+		// Assign all constraints to islands and set colors
+		ColorConstraints();
+
+		// If batching is disabled, just sort and put in one batch
+		if (!bChaos_Joint_Batching)
+		{
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+			{
+				ConstraintStates[ConstraintIndex].Batch = 0;
+			}
+			JointBatches.Reset();
+			JointBatches.Add(TVector<int32, 2>(0, NumConstraints()));
+			SortConstraints();
+			return;
+		}
+
+		// Build the list of constraints per island
+		TArray<TArray<int32>> IslandConstraints;
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			int32 IslandIndex = ConstraintStates[ConstraintIndex].Island;
+			if (IslandIndex >= IslandConstraints.Num())
+			{
+				IslandConstraints.SetNum(IslandIndex + 1);
+			}
+			IslandConstraints[IslandIndex].Add(ConstraintIndex);
+		}
+
+		// For each island, sort the constraints so that the ones to process first are at the end of the list
+		// Also ensure that constraints of same color are adjacent
+		for (int32 IslandIndex = 0; IslandIndex < IslandConstraints.Num(); ++IslandIndex)
+		{
+			IslandConstraints[IslandIndex].StableSort([this](int32 L, int32 R)
+				{
+					int32 LevelL = ConstraintStates[L].Level;
+					int32 LevelR = ConstraintStates[R].Level;
+					if (LevelL != LevelR)
+					{
+						return LevelL > LevelR;
+					}
+
+					int32 ColorL = ConstraintStates[L].Color;
+					int32 ColorR = ConstraintStates[R].Color;
+					return ColorL < ColorR;
+				});
+		}
+
+		// Now assign constraints to batches of BatchSize, taking the first same-colored items from each island (which will be at the end of the island's array).
+		// This way we depopulate the larger islands first, filling batches with items from smaller islands.
+		int32 BatchSize = bChaos_Joint_MaxBatchSize;
+		int32 NumBatches = 0;
+		int32 NumItemsToBatch = NumConstraints();
+		while (NumItemsToBatch > 0)
+		{
+			// Sort the islands so that the larger ones are first
+			// @todo(ccaulfield): optimize (does it use MoveTemp?)
+			IslandConstraints.StableSort([](const TArray<int32>& L, const TArray<int32>& R)
+				{
+					return L.Num() > R.Num();
+				});
+
+			int32 NumBatchItems = 0;
+			for (int32 IslandIndex = 0; (IslandIndex < IslandConstraints.Num()) && (NumBatchItems < BatchSize); ++IslandIndex)
+			{
+				if (IslandConstraints[IslandIndex].Num() == 0)
+				{
+					// Once we hit an empty island we are done (we have sorted on island size)
+					break;
+				}
+
+				// Take all the constraints of the same level and color from this island (up to batch size).
+				int32 ConstraintIndex = IslandConstraints[IslandIndex].Last();
+				int32 IslandBatchColor = ConstraintStates[ConstraintIndex].Color;
+				while ((IslandConstraints[IslandIndex].Num() > 0) && (NumBatchItems < BatchSize))
+				{
+					ConstraintIndex = IslandConstraints[IslandIndex].Last();
+					int32 ConstraintColor = ConstraintStates[ConstraintIndex].Color;
+					if (ConstraintColor == IslandBatchColor)
+					{
+						IslandConstraints[IslandIndex].Pop(false);
+
+						ConstraintStates[ConstraintIndex].Batch = NumBatches;
+						++NumBatchItems;
+						--NumItemsToBatch;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+			if (NumBatchItems > 0)
+			{
+				++NumBatches;
+			}
+		}
+		check(NumItemsToBatch == 0);
+
+		// Sort constraints by batch
+		SortConstraints();
+
+		// Set up the batch begin/end indices
+		JointBatches.SetNum(NumBatches);
+		int32 BatchIndex = INDEX_NONE;
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			int32 ConstraintBatchIndex = ConstraintStates[ConstraintIndex].Batch;
+			if (ConstraintBatchIndex != BatchIndex)
+			{
+				if (BatchIndex != INDEX_NONE)
+				{
+					JointBatches[BatchIndex][1] = ConstraintIndex;
+				}
+				++BatchIndex;
+				JointBatches[BatchIndex][0] = ConstraintIndex;
+			}
+		}
+		if (BatchIndex != INDEX_NONE)
+		{
+			JointBatches[BatchIndex][1] = NumConstraints();
+		}
+
+		CheckBatches();
+	}
+
+	void FPBDJointConstraints::CheckBatches()
+	{
+#if DO_CHECK
+		for (const TVector<int32, 2>& BatchRange : JointBatches)
+		{
+			// No two Constraints in a batch should operate on the same dynamic particle
+			// TODO: validate Level (i.e., all lower level particles in same Island are in a prior batch)
+			TArray<const TPBDRigidParticleHandle<FReal, 3>*> UsedParticles;
+			for (int32 ConstraintIndex = BatchRange[0]; ConstraintIndex < BatchRange[1]; ++ConstraintIndex)
+			{
+				const TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
+				const TPBDRigidParticleHandle<FReal, 3>* Particle1 = ConstraintParticles[ConstraintIndex][1]->CastToRigidParticle();
+				if (Particle0 != nullptr)
+				{
+					ensure(!UsedParticles.Contains(Particle0));
+					UsedParticles.Add(Particle0);
+				}
+				if (Particle1 != nullptr)
+				{
+					ensure(!UsedParticles.Contains(Particle1));
+					UsedParticles.Add(Particle1);
+				}
+			}
+		}
+#endif
 	}
 }
 

@@ -35,6 +35,7 @@ struct FJointSolverGaussSeidel
 	FVector4 Qs[MaxConstrainedBodies];			// World-space particle CoM rotations
 	FVector Vs[MaxConstrainedBodies];			// World-space particle CoM velocities
 	FVector Ws[MaxConstrainedBodies];			// World-space particle CoM angular velocities
+	FMatrix33 InvIs[MaxConstrainedBodies];		// World-space inverse inertias
 
 	// XPBD Previous iteration world-space body state
 	FVector PrevPs[MaxConstrainedBodies];		// World-space particle CoM positions
@@ -42,13 +43,15 @@ struct FJointSolverGaussSeidel
 	float SwingDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
 	FVector4 PrevQs[MaxConstrainedBodies];		// World-space particle CoM rotations
 	FVector PrevXs[MaxConstrainedBodies];		// World-space joint connector positions
-
-	// Post-angular constraint position fixup (to reduce iterations required for stiff angular constraints)
-	float AngularPositionCorrection;
-
+	
 	float PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 	float AngleTolerance;						// Angle error below which we consider a constraint or drive solved
 };
+
+export uniform int32 SizeofFJointSolverGaussSeidel()
+{
+	return sizeof(uniform FJointSolverGaussSeidel);
+}
 
 static inline uniform FMatrix33 ComputeWorldSpaceInertia(const uniform FVector4 &Q, const uniform FVector &I)
 {
@@ -105,28 +108,6 @@ static inline uniform FVector CalculateVelocity(const uniform FVector& P0, const
 	return (P1 - P0) / Dt;
 }
 
-
-static inline void UpdateDerivedState(uniform FJointSolverGaussSeidel * uniform M, const uniform int Index)
-{
-	M->Xs[Index] = M->Ps[Index] + VectorQuaternionRotateVector(M->Qs[Index], M->XLs[Index].Translation);
-	M->Rs[Index] = VectorQuaternionMultiply2(M->Qs[Index], M->XLs[Index].Rotation);
-
-	const uniform FVector4 Rs1Shortest = VectorQuaternionEnforceShortestArcWith(M->Rs[1], M->Rs[0]);
-	M->Rs[1] = Rs1Shortest;
-}
-
-static inline void UpdateDerivedState(uniform FJointSolverGaussSeidel * uniform M)
-{
-	M->Xs[0] = M->Ps[0] + VectorQuaternionRotateVector(M->Qs[0], M->XLs[0].Translation);
-	M->Xs[1] = M->Ps[1] + VectorQuaternionRotateVector(M->Qs[1], M->XLs[1].Translation);
-
-	const uniform FVector4 Rs0 = VectorQuaternionMultiply2(M->Qs[0], M->XLs[0].Rotation);
-	const uniform FVector4 Rs1 = VectorQuaternionMultiply2(M->Qs[1], M->XLs[1].Rotation);
-	const uniform FVector4 Rs1Shortest = VectorQuaternionEnforceShortestArcWith(Rs1, Rs0);
-	M->Rs[0] = Rs0;
-	M->Rs[1] = Rs1Shortest;
-}
-
 static inline void ApplyPositionDelta(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform int Index,
@@ -163,6 +144,14 @@ static inline void ApplyRotationDelta(
 
 	const uniform FVector4 Qs1Shortest = VectorQuaternionEnforceShortestArcWith(M->Qs[1], M->Qs[0]);
 	M->Qs[1] = Qs1Shortest;
+
+	M->Xs[Index] = M->Ps[Index] + VectorQuaternionRotateVector(M->Qs[Index], M->XLs[Index].Translation);
+	M->Rs[Index] = VectorQuaternionMultiply2(M->Qs[Index], M->XLs[Index].Rotation);
+
+	const uniform FVector4 Rs1Shortest = VectorQuaternionEnforceShortestArcWith(M->Rs[1], M->Rs[0]);
+	M->Rs[1] = Rs1Shortest;
+
+	M->InvIs[Index] = ComputeWorldSpaceInertia(M->Qs[Index], M->InvILs[Index]);
 }
 
 static inline void ApplyRotationDelta(
@@ -171,21 +160,41 @@ static inline void ApplyRotationDelta(
 	const uniform FVector& DR0,
 	const uniform FVector& DR1)
 {
-	const uniform FVector4 Qs0 = M->Qs[0];
-	const uniform FVector4 Qs1 = M->Qs[1];
-	const uniform FVector4 DR0Stiffness = SetVector4(DR0 * Stiffness, 0);
-	const uniform FVector4 DR1Stiffness = SetVector4(DR1 * Stiffness, 0);
+	if (M->InvMs[0] > 0.0f)
+	{
+		const uniform FVector4 Qs0 = M->Qs[0];
+		const uniform FVector4 DR0Stiffness = SetVector4(DR0 * Stiffness, 0);
+		const uniform FVector4 DQ0 = VectorQuaternionMultiply2(DR0Stiffness, Qs0) * 0.5f;
+		const uniform FVector4 Q0 = VectorNormalizeQuaternion(Qs0 + DQ0);
+		M->Qs[0] = Q0;
+		M->Xs[0] = M->Ps[0] + VectorQuaternionRotateVector(Q0, M->XLs[0].Translation);
+		M->Rs[0] = VectorQuaternionMultiply2(Q0, M->XLs[0].Rotation);
+		M->InvIs[0] = ComputeWorldSpaceInertia(Q0, M->InvILs[0]);
+	}
 
-	const uniform FVector4 DQ0 = VectorQuaternionMultiply2(DR0Stiffness, Qs0) * 0.5f;
-	const uniform FVector4 DQ1 = VectorQuaternionMultiply2(DR1Stiffness, Qs1) * 0.5f;
+	if (M->InvMs[1] > 0.0f)
+	{
+		const uniform FVector4 Qs1 = M->Qs[1];
+		const uniform FVector4 DR1Stiffness = SetVector4(DR1 * Stiffness, 0);
+		const uniform FVector4 DQ1 = VectorQuaternionMultiply2(DR1Stiffness, Qs1) * 0.5f;
+		const uniform FVector4 Q1 = VectorNormalizeQuaternion(Qs1 + DQ1);
+		M->Qs[1] = Q1;
+		M->Xs[1] = M->Ps[1] + VectorQuaternionRotateVector(Q1, M->XLs[1].Translation);
+		M->Rs[1] = VectorQuaternionMultiply2(Q1, M->XLs[1].Rotation);
+		M->InvIs[1] = ComputeWorldSpaceInertia(Q1, M->InvILs[1]);
+	}
 
-	const uniform FVector4 Qs0Norm = VectorNormalizeQuaternion(Qs0 + DQ0);
-	const uniform FVector4 Qs1Norm = VectorNormalizeQuaternion(Qs1 + DQ1);
+	M->Qs[1] = VectorQuaternionEnforceShortestArcWith(M->Qs[1], M->Qs[0]);
+	M->Rs[1] = VectorQuaternionEnforceShortestArcWith(M->Rs[1], M->Rs[0]);
+}
 
-	const uniform FVector4 Qs1ShortestArcWith = VectorQuaternionEnforceShortestArcWith(Qs1Norm, Qs0Norm);
-
-	M->Qs[0] = Qs0Norm;
-	M->Qs[1] = Qs1ShortestArcWith;
+export void ApplyRotationDelta2(
+	uniform FJointSolverGaussSeidel * uniform M,
+	const uniform float Stiffness,
+	const uniform FVector& DR0,
+	const uniform FVector& DR1)
+{
+	ApplyRotationDelta(M, Stiffness, DR0, DR1);
 }
 
 static inline void ApplyDelta(
@@ -213,11 +222,6 @@ static inline void ApplyVelocityDelta(
 	M->Ws[1] = M->Ws[1] + Stiffness * DW1;
 }
 
-export uniform int32 SizeofFJointSolverGaussSeidel()
-{
-	return sizeof(uniform FJointSolverGaussSeidel);
-}
-
 export void ApplyPositionConstraintSoft(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform float Dt,
@@ -228,15 +232,11 @@ export void ApplyPositionConstraintSoft(
 	const uniform float Delta,
 	uniform float& Lambda)
 {
-	// World-space inverse mass
-	const uniform FMatrix33 InvI0 = ComputeWorldSpaceInertia(M->Qs[0], M->InvILs[0]);
-	const uniform FMatrix33 InvI1 = ComputeWorldSpaceInertia(M->Qs[1], M->InvILs[1]);
-	
 	// Joint-space inverse mass
 	const uniform FVector AngularAxis0 = VectorCross(M->Xs[0] - M->Ps[0], Axis);
 	const uniform FVector AngularAxis1 = VectorCross(M->Xs[1] - M->Ps[1], Axis);
-	const uniform FVector IA0 = Multiply(InvI0, AngularAxis0);
-	const uniform FVector IA1 = Multiply(InvI1, AngularAxis1);
+	const uniform FVector IA0 = Multiply(M->InvIs[0], AngularAxis0);
+	const uniform FVector IA1 = Multiply(M->InvIs[1], AngularAxis1);
 	const uniform float II0 = VectorDot(AngularAxis0, IA0);
 	const uniform float II1 = VectorDot(AngularAxis1, IA1);
 	const uniform float II = (M->InvMs[0] + II0 + M->InvMs[1] + II1);
@@ -257,13 +257,12 @@ export void ApplyPositionConstraintSoft(
 	
 	const uniform FVector DP0 = (M->InvMs[0] * DLambda) * Axis;
 	const uniform FVector DP1 = (-M->InvMs[1] * DLambda) * Axis;
-	const uniform FVector DR0 = DLambda * Multiply(InvI0, AngularAxis0);
-	const uniform FVector DR1 = -DLambda * Multiply(InvI1, AngularAxis1);
+	const uniform FVector DR0 = DLambda * Multiply(M->InvIs[0], AngularAxis0);
+	const uniform FVector DR1 = -DLambda * Multiply(M->InvIs[1], AngularAxis1);
 
 	Lambda += DLambda;
 	ApplyPositionDelta(M, 1.0f, DP0, DP1);
 	ApplyRotationDelta(M, 1.0f, DR0, DR1);
-	UpdateDerivedState(M);
 }
 
 // See "XPBD: Position-Based Simulation of Compliant Constrained Dynamics"
@@ -280,32 +279,19 @@ export void ApplyRotationConstraintSoftKD(
 	uniform float& Lambda)
 {
 	// World-space inverse mass
-	const uniform FMatrix33 InvI1 = ComputeWorldSpaceInertia(M->Qs[DIndex], M->InvILs[DIndex]);
-	const uniform FVector IA1 = Multiply(InvI1, Axis);
+	const uniform FVector IA1 = Multiply(M->InvIs[DIndex], Axis);
 
 	// Joint-space inverse mass
 	uniform float II1 = VectorDot(Axis, IA1);
-
-	// If we are correcting the position, we need to adjust the constraint effective mass using parallel axis theorem
-	// @todo(ccaulfield): the IMs here are constant per constraint...pre-build and cache it
-	////if (M->AngularPositionCorrection > 0)
-	//{
-	//	const uniform FVector LinearAxis1 = VectorCross(M->Xs[DIndex] - M->Ps[DIndex], Axis);
-	//	const uniform float LinearAxisLen1Sq = VectorSizeSquared(LinearAxis1);
-	//	if (LinearAxisLen1Sq > KINDA_SMALL_NUMBER)
-	//	{
-	//		const uniform float IM1 = M->InvMs[DIndex] / LinearAxisLen1Sq;
-	//		II1 = II1 * IM1 / (II1 + IM1);
-	//	}
-	//}
 	const uniform float II = II1;
 
 	// Damping angular velocity
 	uniform float AngVelDt = 0;
 	if (Damping > KINDA_SMALL_NUMBER)
 	{
+		const uniform FVector W0 = CalculateAngularVelocity(M->PrevQs[KIndex], M->Qs[KIndex], 1.0f);
 		const uniform FVector W1 = CalculateAngularVelocity(M->PrevQs[DIndex], M->Qs[DIndex], 1.0f);
-		AngVelDt = -VectorDot(Axis, W1);
+		AngVelDt = VectorDot(Axis, W0) - VectorDot(Axis, W1);
 	}
 
 	const uniform float SpringMassScale = (bAccelerationMode) ? 1.0f / II : 1.0f;
@@ -319,23 +305,6 @@ export void ApplyRotationConstraintSoftKD(
 
 	Lambda += DLambda;
 	ApplyRotationDelta(M, DIndex, 1.0f, DR1);
-
-	// Correct the positional error that was introduced by the rotation correction. This is
-	// correct when the position dofs are all locked, but not otherwise (fixable).
-	// This significantly improves angular stiffness at lower iterations, although the same effect
-	// is achieved by increasing iterations.
-	// @todo(ccaulfield): this position correction needs to have components in direction of inactive position constraints removed
-	//if (M->AngularPositionCorrection > 0)
-	//{
-	//	const uniform FVector PrevX0 = M->Xs[KIndex];
-	//	const uniform FVector PrevX1 = M->Xs[DIndex];
-	//	UpdateDerivedState(M);
-	//
-	//	const uniform FVector DP1 = (PrevX1 - PrevX0) - (M->Xs[DIndex] - M->Xs[KIndex]);
-	//	ApplyPositionDelta(M, DIndex, M->AngularPositionCorrection, DP1);
-	//}
-
-	UpdateDerivedState(M, DIndex);
 }
 
 export void ApplyRotationConstraintSoftDD(
@@ -349,34 +318,12 @@ export void ApplyRotationConstraintSoftDD(
 	uniform float& Lambda)
 {
 	// World-space inverse mass
-	const uniform FMatrix33 InvI0 = ComputeWorldSpaceInertia(M->Qs[0], M->InvILs[0]);
-	const uniform FMatrix33 InvI1 = ComputeWorldSpaceInertia(M->Qs[1], M->InvILs[1]);
-	const uniform FVector IA0 = Multiply(InvI0, Axis);
-	const uniform FVector IA1 = Multiply(InvI1, Axis);
+	const uniform FVector IA0 = Multiply(M->InvIs[0], Axis);
+	const uniform FVector IA1 = Multiply(M->InvIs[1], Axis);
 
 	// Joint-space inverse mass
 	uniform float II0 = VectorDot(Axis, IA0);
 	uniform float II1 = VectorDot(Axis, IA1);
-
-	// If we are correcting the position, we need to adjust the constraint effective mass using parallel axis theorem
-	// @todo(ccaulfield): the IMs here are constant per constraint...pre-build and cache it
-	//if (M->AngularPositionCorrection > 0)
-	//{
-	//	const uniform FVector LinearAxis0 = VectorCross(M->Xs[0] - M->Ps[0], Axis);
-	//	const uniform float LinearAxisLen0Sq = VectorSizeSquared(LinearAxis0);
-	//	if (LinearAxisLen0Sq > KINDA_SMALL_NUMBER)
-	//	{
-	//		const uniform float IM0 = M->InvMs[0] / LinearAxisLen0Sq;
-	//		II0 = II0 * IM0 / (II0 + IM0);
-	//	}
-	//	const uniform FVector LinearAxis1 = VectorCross(M->Xs[1] - M->Ps[1], Axis);
-	//	const uniform float LinearAxisLen1Sq = VectorSizeSquared(LinearAxis1);
-	//	if (LinearAxisLen1Sq > KINDA_SMALL_NUMBER)
-	//	{
-	//		const uniform float IM1 = M->InvMs[1] / LinearAxisLen1Sq;
-	//		II1 = II1 * IM1 / (II1 + IM1);
-	//	}
-	//}
 	const uniform float II = (II0 + II1);
 
 	// Damping angular velocity
@@ -401,26 +348,8 @@ export void ApplyRotationConstraintSoftDD(
 
 	Lambda += DLambda;
 	ApplyRotationDelta(M, 1.0f, DR0, DR1);
-
-	// Correct the positional error that was introduced by the rotation correction. This is
-	// correct when the position dofs are all locked, but not otherwise (fixable).
-	// This significantly improves angular stiffness at lower iterations, although the same effect
-	// is achieved by increasing iterations.
-	// @todo(ccaulfield): this position correction needs to have components in direction of inactive position constraints removed
-	//if (M->AngularPositionCorrection > 0)
-	//{
-	//	const uniform FVector PrevX0 = M->Xs[0];
-	//	const uniform FVector PrevX1 = M->Xs[1];
-	//	UpdateDerivedState(M);
-	//
-	//	const uniform FVector DX = (M->Xs[1] - M->Xs[0]) - (PrevX1 - PrevX0);
-	//	const uniform FVector DP0 = DX * (M->InvMs[0] / (M->InvMs[0] + M->InvMs[1]));
-	//	const uniform FVector DP1 = DX * (-M->InvMs[1] / (M->InvMs[0] + M->InvMs[1]));
-	//	ApplyPositionDelta(M, M->AngularPositionCorrection, DP0, DP1);
-	//}
-
-	UpdateDerivedState(M);
 }
+
 
 export void ApplyPointPositionConstraintKD(
 	uniform FJointSolverGaussSeidel * uniform M,
@@ -431,17 +360,15 @@ export void ApplyPointPositionConstraintKD(
 {
 
 	// Calculate constraint correction
-	const uniform FMatrix33 InvI1 = ComputeWorldSpaceInertia(M->Qs[DIndex], M->InvILs[DIndex]);
-	const uniform FMatrix33 M1 = ComputeJointFactorMatrix(M->Xs[DIndex] - M->Ps[DIndex], InvI1, M->InvMs[DIndex]);
+	const uniform FMatrix33 M1 = ComputeJointFactorMatrix(M->Xs[DIndex] - M->Ps[DIndex], M->InvIs[DIndex], M->InvMs[DIndex]);
 	const uniform FMatrix33 MI = MatrixInverse(M1);
 	const uniform FVector DX = Multiply(MI, CX);
 
 	// Apply constraint correction
 	const uniform FVector DP1 = DX * -M->InvMs[DIndex];
-	const uniform FVector DR1 = Multiply(InvI1, VectorCross(M->Xs[DIndex] - M->Ps[DIndex], VectorNegate(DX)));
+	const uniform FVector DR1 = Multiply(M->InvIs[DIndex], VectorCross(M->Xs[DIndex] - M->Ps[DIndex], VectorNegate(DX)));
 
 	ApplyDelta(M, DIndex, LinearStiffness, DP1, DR1);
-	UpdateDerivedState(M, DIndex);
 }
 
 export void ApplyPointPositionConstraintDD(
@@ -450,22 +377,19 @@ export void ApplyPointPositionConstraintDD(
 	const uniform float LinearStiffness)
 {
 	// Calculate constraint correction
-	const uniform FMatrix33 InvI0 = ComputeWorldSpaceInertia(M->Qs[0], M->InvILs[0]);
-	const uniform FMatrix33 InvI1 = ComputeWorldSpaceInertia(M->Qs[1], M->InvILs[1]);
-	uniform FMatrix33 M0 = ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], InvI0, M->InvMs[0]);
-	uniform FMatrix33 M1 = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], InvI1, M->InvMs[1]);
+	uniform FMatrix33 M0 = ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], M->InvIs[0], M->InvMs[0]);
+	uniform FMatrix33 M1 = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]);
 	const uniform FMatrix33 MI = MatrixInverse(AddAB(M0, M1));
 	const uniform FVector DX = Multiply(MI, CX);
 
 	// Apply constraint correction
 	const uniform FVector DP0 = DX * M->InvMs[0];
 	const uniform FVector DP1 = DX * -M->InvMs[1];
-	const uniform FVector DR0 = Multiply(InvI0, VectorCross(M->Xs[0] - M->Ps[0], DX));
-	const uniform FVector DR1 = Multiply(InvI1, VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DX)));
+	const uniform FVector DR0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DX));
+	const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DX)));
 
 	ApplyPositionDelta(M, LinearStiffness, DP0, DP1);
 	ApplyRotationDelta(M, LinearStiffness, DR0, DR1);
-	UpdateDerivedState(M);
 }
 
 export void ApplyPositionProjection(
@@ -484,14 +408,12 @@ export void ApplyPositionProjection(
 	const uniform float IM1 = M->InvMs[1];
 	const uniform FVector IIL0 = ParentMassScale * M->InvILs[0];
 	const uniform FVector& IIL1 = M->InvILs[1];
-	const uniform FMatrix33 II0 = ComputeWorldSpaceInertia(M->Qs[0], IIL0);
-	const uniform FMatrix33 II1 = ComputeWorldSpaceInertia(M->Qs[1], IIL1);
 	uniform FMatrix33 J0 = Matrix33Zero;
 	if(IM0 > 0)
 	{
-		J0 = ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], II0, IM0);
+		J0 = ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], M->InvIs[0], IM0);
 	}
-	const uniform FMatrix33 J1 = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], II1, IM1);
+	const uniform FMatrix33 J1 = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], IM1);
 	const uniform FMatrix33 IJ = MatrixInverse(AddAB(J0, J1));
 
 	const uniform FVector DX = Multiply(IJ, CX);
@@ -499,16 +421,235 @@ export void ApplyPositionProjection(
 
 	const uniform FVector DP0 = IM0 * DX;
 	const uniform FVector DP1 = -IM1 * DX;
-	const uniform FVector DR0 = Multiply(II0, VectorCross(M->Xs[0] - M->Ps[0], DX));
-	const uniform FVector DR1 = Multiply(II1, VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DX)));
+	const uniform FVector DR0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DX));
+	const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DX)));
 
 	const uniform FVector DV0 = IM0 * DV;
 	const uniform FVector DV1 = -IM1 * DV;
-	const uniform FVector DW0 = Multiply(II0, VectorCross(M->Xs[0] - M->Ps[0], DV));
-	const uniform FVector DW1 = Multiply(II1, VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DV)));
+	const uniform FVector DW0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DV));
+	const uniform FVector DW1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DV)));
 
 	ApplyPositionDelta(M, Stiffness, DP0, DP1);
 	ApplyRotationDelta(M, Stiffness, DR0, DR1);
 	ApplyVelocityDelta(M, Stiffness, DV0, DW0, DV1, DW1);
-	UpdateDerivedState(M);
+}
+
+//
+//////////////////////////////////////////////////////
+//
+// Batched Mode Stuff
+//
+
+struct FJointSolverJointState
+{
+	// Local-space constraint settings
+	FRigidTransform XLs[MaxConstrainedBodies];
+	FVector InvILs[MaxConstrainedBodies];
+	float InvMs[MaxConstrainedBodies];
+
+	// World-space constraint state
+	FVector Xs[MaxConstrainedBodies];
+	FVector4 Rs[MaxConstrainedBodies];
+
+	// World-space body state
+	FVector Ps[MaxConstrainedBodies];
+	FVector4 Qs[MaxConstrainedBodies];
+	FMatrix33 InvIs[MaxConstrainedBodies];
+
+	// XPBD initial world-space body state (start of each tick, not each sub-tick iteration)
+	FVector PrevPs[MaxConstrainedBodies];
+	FVector4 PrevQs[MaxConstrainedBodies];
+	FVector PrevXs[MaxConstrainedBodies];
+
+	FVector DPs[MaxConstrainedBodies];
+	FVector DRs[MaxConstrainedBodies];
+
+	float PositionTolerance;
+	float AngleTolerance;
+};
+
+export uniform int32 SizeofFJointSolverJointState()
+{
+	return sizeof(uniform FJointSolverJointState);
+}
+
+struct FJointSolverConstraintRowState
+{
+	// Per-Iteration Transient
+	FVector DPs[MaxConstrainedBodies];
+	FVector DRs[MaxConstrainedBodies];
+	FVector Axis;
+	float Error;
+
+	// Per-Tick Transient
+	float Lambda;
+};
+
+export uniform int32 SizeofFJointSolverConstraintRowState()
+{
+	return sizeof(uniform FJointSolverConstraintRowState);
+}
+
+struct FJointSolverConstraintRowData
+{
+	int32 UpdateType;			// Method to use to calculate axis, errors, etc.
+	int32 JointIndex;			// Index into the outer container's joint array
+	int32 ConstraintIndex;		// Context dependent: X,Y,Z or Twist,Swing1,Swing2 for linear and angular rows
+	int32 NumRows;				// Number of rows (including this one) to solve simultaneously
+	float Stiffness;			// PBD or XPBD stiffness
+	float Damping;				// XPBD damping
+	float Limit;
+	bool bIsAccelerationMode;
+	bool bIsSoft;
+};
+
+export uniform int32 SizeofFJointSolverConstraintRowData()
+{
+	return sizeof(uniform FJointSolverConstraintRowData);
+}
+
+static inline void BatchUpdateDerivedStateImpl(uniform FJointSolverJointState Joints[], uniform int JointIndexBegin, uniform int JointIndexEnd)
+{
+	for(uniform int JointIndex = JointIndexBegin; JointIndex < JointIndexEnd; JointIndex++)
+	{
+		if (Joints[JointIndex].InvMs[0] > 0.0f)
+		{
+			Joints[JointIndex].Xs[0] = Joints[JointIndex].Ps[0] + VectorQuaternionRotateVector(Joints[JointIndex].Qs[0], Joints[JointIndex].XLs[0].Translation);
+			Joints[JointIndex].Rs[0] = VectorQuaternionMultiply2(Joints[JointIndex].Qs[0], Joints[JointIndex].XLs[0].Rotation);
+			Joints[JointIndex].InvIs[0] = ComputeWorldSpaceInertia(Joints[JointIndex].Qs[0], Joints[JointIndex].InvILs[0]);
+			Joints[JointIndex].DPs[0] = ZeroVector;
+			Joints[JointIndex].DRs[0] = ZeroVector;
+		}
+
+		if (Joints[JointIndex].InvMs[1] > 0.0f)
+		{
+			Joints[JointIndex].Xs[1] = Joints[JointIndex].Ps[1] + VectorQuaternionRotateVector(Joints[JointIndex].Qs[1], Joints[JointIndex].XLs[1].Translation);
+			Joints[JointIndex].Rs[1] = VectorQuaternionMultiply2(Joints[JointIndex].Qs[1], Joints[JointIndex].XLs[1].Rotation);
+			Joints[JointIndex].InvIs[1] = ComputeWorldSpaceInertia(Joints[JointIndex].Qs[1], Joints[JointIndex].InvILs[1]);
+			Joints[JointIndex].DPs[1] = ZeroVector;
+			Joints[JointIndex].DRs[1] = ZeroVector;
+		}
+
+		Joints[JointIndex].Rs[1] = VectorQuaternionEnforceShortestArcWith(Joints[JointIndex].Rs[1], Joints[JointIndex].Rs[0]);
+	}
+}
+
+export void BatchUpdateDerivedState(uniform FJointSolverJointState Joints[], uniform int JointIndexBegin, uniform int JointIndexEnd)
+{
+	BatchUpdateDerivedStateImpl(Joints, JointIndexBegin, JointIndexEnd);
+}
+
+static inline void BatchApplyRotationConstraint(
+	const uniform float Dt,
+	uniform FJointSolverJointState& JointState,
+	uniform FJointSolverConstraintRowData& RowData,
+	uniform FJointSolverConstraintRowState& RowState)
+{
+	// Joint-space inverse mass
+	uniform FVector IA0 = ZeroVector;
+	uniform FVector IA1 = ZeroVector;
+	uniform float II0 = 0.0f;
+	uniform float II1 = 0.0f;
+	if (JointState.InvMs[0] > 0)
+	{
+		IA0 = Multiply(JointState.InvIs[0], RowState.Axis);
+		II0 = VectorDot(RowState.Axis, IA0);
+	}
+	if (JointState.InvMs[1] > 0)
+	{
+		IA1 = Multiply(JointState.InvIs[1], RowState.Axis);
+		II1 = VectorDot(RowState.Axis, IA1);
+	}
+	const uniform float II = (II0 + II1);
+
+	if (RowData.bIsSoft)
+	{
+		// Damping angular velocity
+		uniform float AngVelDt = 0;
+		if (RowData.Damping > 0.0f)
+		{
+			const uniform FVector W0 = CalculateAngularVelocity(JointState.PrevQs[0], JointState.Qs[0], 1.0f);
+			const uniform FVector W1 = CalculateAngularVelocity(JointState.PrevQs[1], JointState.Qs[1], 1.0f);
+			AngVelDt = VectorDot(RowState.Axis, W0) - VectorDot(RowState.Axis, W1);
+		}
+
+		const uniform float SpringMassScale = (RowData.bIsAccelerationMode) ? 1.0f / II : 1.0f;
+		const uniform float S = SpringMassScale * RowData.Stiffness * Dt * Dt;
+		const uniform float D = SpringMassScale * RowData.Damping * Dt;
+		const uniform float Multiplier = 1.0f / ((S + D) * II + 1.0f);
+		const uniform float DLambda = Multiplier * (S * RowState.Error - D * AngVelDt - RowState.Lambda);
+
+		//const FVector DR0 = IA0 * DLambda;
+		//const FVector DR1 = IA1 * -DLambda;
+		RowState.DRs[0] = RowState.Axis * (DLambda * II0);
+		RowState.DRs[1] = RowState.Axis * -(DLambda * II1);
+		RowState.Lambda += DLambda;
+	}
+	else
+	{
+		RowState.DRs[0] = IA0 * (RowData.Stiffness * RowState.Error / II);
+		RowState.DRs[1] = IA1 * -(RowData.Stiffness * RowState.Error / II);
+	}
+}
+
+static inline void BatchApplyRotationDelta(
+	uniform FJointSolverJointState* uniform JointStates, 
+	uniform int JointIndex)
+{
+	if (JointStates[JointIndex].InvMs[0] > 0.0f)
+	{
+		const uniform FVector4 Qs0 = JointStates[JointIndex].Qs[0];
+		const uniform FVector4 DR0 = SetVector4(JointStates[JointIndex].DRs[0], 0);
+		const uniform FVector4 DQ0 = VectorQuaternionMultiply2(DR0, Qs0) * 0.5f;
+		const uniform FVector4 Q0 = VectorNormalizeQuaternion(Qs0 + DQ0);
+		JointStates[JointIndex].Qs[0] = Q0;
+	}
+
+	if (JointStates[JointIndex].InvMs[1] > 0.0f)
+	{
+		const uniform FVector4 Qs1 = JointStates[JointIndex].Qs[1];
+		const uniform FVector4 DR1 = SetVector4(JointStates[JointIndex].DRs[1], 0);
+		const uniform FVector4 DQ1 = VectorQuaternionMultiply2(DR1, Qs1) * 0.5f;
+		const uniform FVector4 Q1 = VectorNormalizeQuaternion(Qs1 + DQ1);
+		JointStates[JointIndex].Qs[1] = Q1;
+	}
+
+	JointStates[JointIndex].Qs[1] = VectorQuaternionEnforceShortestArcWith(JointStates[JointIndex].Qs[1], JointStates[JointIndex].Qs[0]);
+}
+
+export uniform int BatchApplyRotationConstraints(
+	uniform float Dt, 
+	uniform FJointSolverJointState* uniform JointStates, 
+	uniform FJointSolverConstraintRowData* uniform RowDatas, 
+	uniform FJointSolverConstraintRowState* uniform RowStates, 
+	uniform int JointIndexBegin, 
+	uniform int JointIndexEnd, 
+	uniform int RowIndexBegin, 
+	uniform int RowIndexEnd)
+{
+	uniform int NumActiveConstraints = 0;
+
+	// Calculate the delta position and rotation to fix the constraint errors
+	// NOTE: Rows are in Joint order, so we can loop over them directly rather than looping over joints and then their rows.
+	for (uniform int RowIndex = RowIndexBegin; RowIndex < RowIndexEnd; ++RowIndex)
+	{
+		const uniform int RowJointIndex = RowDatas[RowIndex].JointIndex;
+
+		if (abs(RowStates[RowIndex].Error) > JointStates[RowJointIndex].AngleTolerance)
+		{
+			BatchApplyRotationConstraint(Dt, JointStates[RowJointIndex], RowDatas[RowIndex], RowStates[RowIndex]);
+
+			JointStates[RowJointIndex].DRs[0] = JointStates[RowJointIndex].DRs[0] + RowStates[RowIndex].DRs[0];
+			JointStates[RowJointIndex].DRs[1] = JointStates[RowJointIndex].DRs[1] + RowStates[RowIndex].DRs[1];
+			++NumActiveConstraints;
+		}
+	}
+
+	// Accumulate and apply the deltas for each joint
+	for (uniform int32 JointIndex = JointIndexBegin; JointIndex < JointIndexEnd; ++JointIndex)
+	{
+		BatchApplyRotationDelta(JointStates, JointIndex);
+	}
+
+	return NumActiveConstraints;
 }
