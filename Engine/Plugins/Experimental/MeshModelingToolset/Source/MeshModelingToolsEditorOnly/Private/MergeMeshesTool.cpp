@@ -103,8 +103,7 @@ void UMergeMeshesTool::Setup()
 	CreateLowQualityPreview(); // update the preview with a low-quality result
 	
 	Preview->ConfigureMaterials(
-		// TODO: This is is very likely a bug waiting to happen
-		ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTargets[0]->GetMaterial(0)),
+		ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager()),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
 
