@@ -110,8 +110,8 @@ public:
 	virtual void UpdateContentRequestFlags(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;
 	
 	virtual void StartPatchCheck();
-	virtual void AddEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag, FInstallBundleManagerEnvironmentWantsPatchCheck Delegate) {}
-	virtual void RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag) {}
+	virtual void AddEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag, FInstallBundleManagerEnvironmentWantsPatchCheck Delegate) {}
+	virtual void RemoveEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag) {}
 
 	virtual bool IsNullInterface() const = 0;
 

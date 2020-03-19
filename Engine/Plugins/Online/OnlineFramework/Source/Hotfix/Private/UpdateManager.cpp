@@ -262,7 +262,7 @@ void UUpdateManager::StartPatchCheck()
 	if (InstallBundleMan && !InstallBundleMan->IsNullInterface())
 	{
 		InstallBundleMan->PatchCheckCompleteDelegate.AddUObject(this, &UUpdateManager::InstallBundlePatchCheckComplete);
-		InstallBundleMan->AddEnvironmentWantsPatchCheckBackBackCompatDelegate(
+		InstallBundleMan->AddEnvironmentWantsPatchCheckBackCompatDelegate(
 			GetUniqueTag(this),
 			FEnvironmentWantsPatchCheck::CreateUObject(this, &UUpdateManager::EnvironmentWantsPatchCheck));
 		InstallBundleMan->StartPatchCheck();
@@ -270,7 +270,7 @@ void UUpdateManager::StartPatchCheck()
 	else
 	{
 		FPatchCheck::Get().GetOnComplete().AddUObject(this, &UUpdateManager::PatchCheckComplete);
-		FPatchCheck::Get().AddEnvironmentWantsPatchCheckBackBackCompatDelegate(
+		FPatchCheck::Get().AddEnvironmentWantsPatchCheckBackCompatDelegate(
 			GetUniqueTag(this),
 			FEnvironmentWantsPatchCheck::CreateUObject(this, &UUpdateManager::EnvironmentWantsPatchCheck));
 		FPatchCheck::Get().StartPatchCheck();
@@ -321,7 +321,7 @@ EInstallBundleManagerPatchCheckResult ToInstallBundleManagerPatchCheckResult(EPa
 void UUpdateManager::PatchCheckComplete(EPatchCheckResult PatchResult)
 {
 	FPatchCheck::Get().GetOnComplete().RemoveAll(this);
-	FPatchCheck::Get().RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(GetUniqueTag(this));
+	FPatchCheck::Get().RemoveEnvironmentWantsPatchCheckBackCompatDelegate(GetUniqueTag(this));
 
 	InstallBundlePatchCheckComplete(ToInstallBundleManagerPatchCheckResult(PatchResult));
 }
@@ -331,7 +331,7 @@ void UUpdateManager::InstallBundlePatchCheckComplete(EInstallBundleManagerPatchC
 	IInstallBundleManager* InstallBundleMan = IInstallBundleManager::GetPlatformInstallBundleManager();
 	if (InstallBundleMan && !InstallBundleMan->IsNullInterface())
 	{
-		InstallBundleMan->RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(GetUniqueTag(this));
+		InstallBundleMan->RemoveEnvironmentWantsPatchCheckBackCompatDelegate(GetUniqueTag(this));
 	}
 	IInstallBundleManager::PatchCheckCompleteDelegate.RemoveAll(this);
 
