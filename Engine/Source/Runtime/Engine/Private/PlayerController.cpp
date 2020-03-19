@@ -1462,9 +1462,8 @@ void APlayerController::BeginPlay()
 	//If we are faking touch events show the cursor
 	if (FSlateApplication::IsInitialized() && FSlateApplication::Get().IsFakingTouchEvents())
 	{
-		bShowMouseCursor = true;
+		SetShowMouseCursor(true);
 	}
-
 }
 
 void APlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -2418,6 +2417,19 @@ bool APlayerController::InputMotion(const FVector& Tilt, const FVector& Rotation
 bool APlayerController::ShouldShowMouseCursor() const
 {
 	return bShowMouseCursor;
+}
+
+void APlayerController::SetShowMouseCursor(bool bShow)
+{
+	if (bShowMouseCursor != bShow)
+	{
+		UE_LOG(LogViewport, Display, TEXT("Player bShowMouseCursor Changed, %s -> %s"),
+			bShowMouseCursor ? TEXT("True") : TEXT("False"),
+			bShow ? TEXT("True") : TEXT("False")
+		);
+
+		bShowMouseCursor = bShow;
+	}
 }
 
 EMouseCursor::Type APlayerController::GetMouseCursor() const
@@ -5324,7 +5336,7 @@ void FInputModeUIOnly::ApplyInputMode(FReply& SlateOperations, class UGameViewpo
 
 		GameViewportClient.SetMouseLockMode(MouseLockMode);
 		GameViewportClient.SetIgnoreInput(true);
-		GameViewportClient.SetCaptureMouseOnClick(EMouseCaptureMode::NoCapture);
+		GameViewportClient.SetMouseCaptureMode(EMouseCaptureMode::NoCapture);
 	}
 }
 
@@ -5342,7 +5354,7 @@ void FInputModeGameAndUI::ApplyInputMode(FReply& SlateOperations, class UGameVie
 		GameViewportClient.SetMouseLockMode(MouseLockMode);
 		GameViewportClient.SetIgnoreInput(false);
 		GameViewportClient.SetHideCursorDuringCapture(bHideCursorDuringCapture);
-		GameViewportClient.SetCaptureMouseOnClick(EMouseCaptureMode::CaptureDuringMouseDown);
+		GameViewportClient.SetMouseCaptureMode(EMouseCaptureMode::CaptureDuringMouseDown);
 	}
 }
 
@@ -5357,7 +5369,7 @@ void FInputModeGameOnly::ApplyInputMode(FReply& SlateOperations, class UGameView
 		SlateOperations.LockMouseToWidget(ViewportWidgetRef);
 		GameViewportClient.SetMouseLockMode(EMouseLockMode::LockOnCapture);
 		GameViewportClient.SetIgnoreInput(false);
-		GameViewportClient.SetCaptureMouseOnClick(bConsumeCaptureMouseDown ? EMouseCaptureMode::CapturePermanently : EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+		GameViewportClient.SetMouseCaptureMode(bConsumeCaptureMouseDown ? EMouseCaptureMode::CapturePermanently : EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
 	}
 }
 

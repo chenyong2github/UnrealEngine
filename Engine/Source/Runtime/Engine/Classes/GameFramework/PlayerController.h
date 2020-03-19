@@ -1860,6 +1860,8 @@ public:
 	UFUNCTION(Reliable, Client)
 	void OnServerStartedVisualLogger(bool bIsLogging);
 
+	void SetShowMouseCursor(bool bShow);
+
 	/** Returns true if the mouse cursor should be shown */
 	virtual bool ShouldShowMouseCursor() const;
 
