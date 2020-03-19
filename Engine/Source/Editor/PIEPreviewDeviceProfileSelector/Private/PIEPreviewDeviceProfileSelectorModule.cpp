@@ -222,7 +222,7 @@ void FPIEPreviewDeviceModule::OnViewportCreated()
 	// disable mouse viewport locking
 	if (GEngine->GameViewport != nullptr)
 	{
-		GEngine->GameViewport->SetCaptureMouseOnClick(EMouseCaptureMode::NoCapture);
+		GEngine->GameViewport->SetMouseCaptureMode(EMouseCaptureMode::NoCapture);
 		GEngine->GameViewport->SetMouseLockMode(EMouseLockMode::DoNotLock);
 	}
 }
