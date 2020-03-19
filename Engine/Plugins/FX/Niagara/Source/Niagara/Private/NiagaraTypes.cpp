@@ -68,3 +68,13 @@ void FNiagaraVariableMetaData::CopyPerScriptMetaData(const FNiagaraVariableMetaD
 	SetWasCreatedInSystemEditor(OtherMetaData.GetWasCreatedInSystemEditor());
 	SetIsUsingLegacyNameString(OtherMetaData.GetIsUsingLegacyNameString());
 }
+
+
+void FNiagaraVariableMetaData::SetCachedNamespacelessVariableName(const FName& InVariableName)
+{
+	/*if (InVariableName == NAME_None || InVariableName == TEXT("None"))
+	{
+	}*/
+	//UE_LOG(LogNiagara, Log, TEXT("SetCachedNamespacelessVariableName %s!"), *InVariableName.ToString());
+	CachedNamespacelessVariableName = InVariableName;
+};

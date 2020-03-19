@@ -319,9 +319,14 @@ class UNiagaraGraph : public UEdGraph
 	* @param NewName				The new name to apply.
 	* @param bFromStaticSwitch		Whether the target parameter is from a static switch. Used to determine whether to fixup binding strings.
 	* @param NewScopeName			The new scope name from the FNiagaraVariable's associated FNiagaraVariableMetaData. Used if changing the scope triggered a rename. Applied to the canonical UNiagaraScriptVariable's Metadata.
+	* @param bMerged				Whether or not the rename ended up merging with a different parameter because the names are the same.
 	* @return						true if the new name was applied. 
 	*/
-	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch = false, FName NewScopeName = FName());
+	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch = false, FName NewScopeName = FName(), bool* bMerged = nullptr);
+
+	/** Rename a pin inline in a graph. If this is the only instance used in the graph, then rename them all, otherwise make a duplicate. */
+	bool RenameParameterFromPin(const FNiagaraVariable& Parameter, FName NewName, UEdGraphPin* InPin);
+
 
 	/** 
 	 * Sets the ENiagaraScriptParameterUsage on the Metadata of a ScriptVariable depending on its pin usage in the node graph (used on input/output pins). 
