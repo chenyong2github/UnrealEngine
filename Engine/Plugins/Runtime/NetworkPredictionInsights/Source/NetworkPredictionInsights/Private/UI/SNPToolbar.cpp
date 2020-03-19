@@ -3,6 +3,9 @@
 #include "SNPToolbar.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "SNPWindow.h"
+#include "NetworkPredictionInsightsManager.h"
+#include "NetworkPredictionInsightsCommands.h"
 
 #define LOCTEXT_NAMESPACE "NetworkPredictionInsightsModule"
 
