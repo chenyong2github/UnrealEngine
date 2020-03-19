@@ -25,9 +25,9 @@ public:
 	/** Delegate to know when one of the properties has been changed.*/
 	FOnFinishedChangingProperties& OnFinishedChangingProperties() { return OnFinishedChangingPropertiesDelegate; }
 
+	void SelectedObjectsChanged();
 private:
 	/** Called whenever the object selection changes. */
-	void SelectedObjectsChanged();
 	void SelectedObjectsChangedSecond();
 
 	/** Internal delegate to route to third parties. */

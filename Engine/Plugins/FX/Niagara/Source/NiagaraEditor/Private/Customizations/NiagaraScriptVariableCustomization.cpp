@@ -238,6 +238,20 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 				TypeUtilityValue = nullptr;
 			}
 		}
+		else
+		{
+			if (Variable->DefaultMode == ENiagaraDefaultMode::Value)
+			{
+				FDetailWidgetRow& DefaultValueWidget = CategoryBuilder.AddCustomRow(LOCTEXT("DefaultValueFilterText", "Default Value"));
+				DefaultValueWidget.WholeRowContent()
+					.HAlign(HAlign_Fill)
+					[
+						SNew(STextBlock)
+						.Font(FNiagaraEditorStyle::Get().GetFontStyle("NiagaraEditor.ParameterFont"))
+					.Text(NSLOCTEXT("ScriptVariableCustomization", "MissingDefaults", "To set default, add to a Map Get node."))
+					];
+			}
+		}
 	}
 	
 
