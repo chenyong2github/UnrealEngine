@@ -25,6 +25,9 @@ enum class EPatchCheckResult : uint8
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPatchCheckComplete, EPatchCheckResult /*Result*/);
 
+// For backwards compatibility only!
+DECLARE_DELEGATE_RetVal(bool, FEnvironmentWantsPatchCheck);
+
 class PATCHCHECK_API FPatchCheck
 {
 public:
@@ -42,6 +45,9 @@ private:
 public:
 	void StartPatchCheck();
 
+	void AddEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag, FEnvironmentWantsPatchCheck Delegate);
+	void RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag);
+
 	FOnPatchCheckComplete& GetOnComplete() { return OnComplete; }
 
 protected:
@@ -55,6 +61,9 @@ protected:
 protected:
 
 	FOnPatchCheckComplete OnComplete;
+
+	/** For backwards compatibility with UUpdateManager */
+	TMap<FName, FEnvironmentWantsPatchCheck> BackCompatEnvironmentWantsPatchCheckDelegates;
 
 	/** Track whether we can start a new check */
 	bool bIsCheckInProgress = false;
