@@ -911,7 +911,7 @@ public:
 	 *
 	 * @return	the cursor that the OS should display
 	 */
-	virtual EMouseCursor::Type GetCursor(FViewport* Viewport,int32 X,int32 Y) { return EMouseCursor::Default; }
+	virtual EMouseCursor::Type GetCursor(FViewport* Viewport, int32 X,int32 Y) { return EMouseCursor::Default; }
 
 	/**
 	 * Called to map a cursor reply to an actual widget to render.
@@ -936,8 +936,8 @@ public:
 
 	virtual bool IsInPermanentCapture()
 	{ 
-		return  !GIsEditor && ((CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently) ||
-			(CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown));
+		return  !GIsEditor && ((GetMouseCaptureMode() == EMouseCaptureMode::CapturePermanently) ||
+			(GetMouseCaptureMode() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown));
 	}
 
 	/**
@@ -1039,7 +1039,10 @@ public:
 	/**
 	 * Gets the mouse capture behavior when the viewport is clicked
 	 */
-	virtual EMouseCaptureMode CaptureMouseOnClick() { return EMouseCaptureMode::CapturePermanently; }
+	virtual EMouseCaptureMode GetMouseCaptureMode() const { return EMouseCaptureMode::CapturePermanently; }
+
+	UE_DEPRECATED(4.26, "Please call GetMouseCaptureMode() instead.")
+	void CaptureMouseOnClick() { GetMouseCaptureMode(); }
 
 	/**
 	 * Gets whether or not the viewport captures the Mouse on launch of the application
@@ -1062,7 +1065,7 @@ public:
 	/**
 	 * Gets whether or not the cursor is hidden when the viewport captures the mouse
 	 */
-	virtual bool HideCursorDuringCapture() { return false; }
+	virtual bool HideCursorDuringCapture() const { return false; }
 
 	/** 
 	 * Should we make new windows for popups or create an overlay in the current window.
