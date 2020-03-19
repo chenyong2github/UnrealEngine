@@ -20,7 +20,7 @@ enum class EMoviePipelineTextureStreamingMethod : uint8
 };
 
 UCLASS(BlueprintType)
-class MOVIERENDERPIPELINESETTINGS_API UMoviePipelineGameOverrideSetting : public UMoviePipelineSetting
+class MOVIERENDERPIPELINECORE_API UMoviePipelineGameOverrideSetting : public UMoviePipelineSetting
 {
 	GENERATED_BODY()
 public:
