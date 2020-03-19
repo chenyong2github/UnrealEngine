@@ -246,15 +246,10 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.ShowInCurveEditorIcon", new IMAGE_PLUGIN_BRUSH("Icons/ShowInCurveEditor", Icon16x16, FLinearColor::White));
 
 	// Scratch pad
-	FSlateFontInfo ScratchPadLargeHeaderFont = DEFAULT_FONT("Bold", 11);
-	FTextBlockStyle ScratchPadLargeHeaderText = FTextBlockStyle(NormalText)
-		.SetFont(ScratchPadLargeHeaderFont);
-	Style->Set("NiagaraEditor.ScratchPad.LargeHeaderText", ScratchPadLargeHeaderText);
-
-	FSlateFontInfo ScratchPadSmallHeaderFont = DEFAULT_FONT("Bold", 11);
-	FTextBlockStyle ScratchPadSmallHeaderText = FTextBlockStyle(NormalText)
-		.SetFont(ScratchPadSmallHeaderFont);
-	Style->Set("NiagaraEditor.ScratchPad.SmallHeaderText", ScratchPadSmallHeaderText);
+	FSlateFontInfo ScratchPadEditorHeaderFont = DEFAULT_FONT("Bold", 11);
+	FTextBlockStyle ScratchPadEditorHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(ScratchPadEditorHeaderFont);
+	Style->Set("NiagaraEditor.ScratchPad.EditorHeaderText", ScratchPadEditorHeaderText);
 
 	FSlateBrush ScratchPadCategoryBrush = BOX_PLUGIN_BRUSH("Icons/CategoryRow", FMargin(2.0f / 8.0f), FLinearColor(FColor(48, 48, 48)));
 	FSlateBrush ScratchPadHoveredCategoryBrush = BOX_PLUGIN_BRUSH("Icons/CategoryRow", FMargin(2.0f / 8.0f), FLinearColor(FColor(38, 38, 38)));

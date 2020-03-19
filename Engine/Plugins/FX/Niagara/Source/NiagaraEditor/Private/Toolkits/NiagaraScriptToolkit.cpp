@@ -15,7 +15,7 @@
 #include "SNiagaraParameterCollection.h"
 #include "UObject/Package.h"
 #include "SNiagaraParameterMapView.h"
-#include "SNiagaraParameterPanel.h"
+#include "Widgets/SNiagaraParameterPanel.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSystem.h"
 #include "BusyCursor.h"
@@ -48,7 +48,7 @@
 #include "NiagaraMessageManager.h"
 #include "NiagaraStandaloneScriptViewModel.h"
 #include "NiagaraMessageLogViewModel.h"
-#include "NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptToolkit"
 
