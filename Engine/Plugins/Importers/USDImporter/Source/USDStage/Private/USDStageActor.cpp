@@ -180,6 +180,7 @@ AUsdStageActor::AUsdStageActor()
 
 void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedList )
 {
+#if USE_USD_SDK
 	// Sort paths by length so that we parse the root paths first
 	TMap< FString, bool > SortedPrimsChangedList = PrimsChangedList;
 	SortedPrimsChangedList.KeySort( []( const FString& A, const FString& B ) -> bool { return A.Len() < B.Len(); } );
@@ -313,6 +314,7 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 			OnPrimChanged.Broadcast( PrimChangedInfo.Key, PrimChangedInfo.Value );
 		}
 	}
+#endif // #if USE_USD_SDK
 }
 
 AUsdStageActor::~AUsdStageActor()
