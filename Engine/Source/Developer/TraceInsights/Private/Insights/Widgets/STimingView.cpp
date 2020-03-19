@@ -420,8 +420,6 @@ bool STimingView::IsCpuTrackVisible(uint32 InThreadId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	//SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
@@ -919,8 +917,6 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	TickStopwatch.Stop();
 	TickDurationHistory.AddValue(TickStopwatch.AccumulatedTime);
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
