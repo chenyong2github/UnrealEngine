@@ -339,6 +339,7 @@ namespace UsdGeomMeshTranslatorImpl
 		}
 
 		StaticMesh.CalculateExtendedBounds();
+		StaticMesh.ClearMeshDescriptions(); // Clear mesh descriptions to reduce memory usage, they are kept only in bulk data form
 	}
 }
 
