@@ -111,7 +111,7 @@ void FSoundfieldSubmixDetailsCustomization::CustomizeDetails(IDetailLayoutBuilde
 		// void OnNameChanged(FName InName)
 		[EncodingFormatPropertyHandle](FName SelectedName)
 		{
-			if (EncodingFormatPropertyHandle.IsValid())
+			if (EncodingFormatPropertyHandle.IsValid() && EncodingFormatPropertyHandle->IsValidHandle())
 			{
 				EncodingFormatPropertyHandle->SetValue(SelectedName);
 			}
@@ -121,7 +121,7 @@ void FSoundfieldSubmixDetailsCustomization::CustomizeDetails(IDetailLayoutBuilde
 		{
 			FName SelectedName;
 
-			if (EncodingFormatPropertyHandle.IsValid())
+			if (EncodingFormatPropertyHandle.IsValid() && EncodingFormatPropertyHandle->IsValidHandle())
 			{
 				EncodingFormatPropertyHandle->GetValue(SelectedName);
 			}
