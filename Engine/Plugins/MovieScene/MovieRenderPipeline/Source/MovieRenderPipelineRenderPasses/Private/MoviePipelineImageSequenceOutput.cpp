@@ -68,16 +68,6 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 
-	const TCHAR* Extension = TEXT("");
-	switch (OutputFormat)
-	{
-	case EImageFormat::PNG: Extension = TEXT("png"); break;
-	case EImageFormat::JPEG: Extension = TEXT("jpeg"); break;
-	case EImageFormat::BMP: Extension = TEXT("bmp"); break;
-	case EImageFormat::EXR: Extension = TEXT("exr"); break;
-	}
-
-
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 	{
 		// Don't write out the burn in pass in this loop, it will get handled separately (or composited).
@@ -86,10 +76,34 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 			continue;
 		}
 
+		EImageFormat PreferredOutputFormat = OutputFormat;
+
+		FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
+
+		// If the output requires a transparent output (to be useful) then we'll on a per-case basis override their intended
+		// filetype to something that makes that file useful.
+		if (Payload->bRequireTransparentOutput)
+		{
+			if (PreferredOutputFormat == EImageFormat::BMP ||
+				PreferredOutputFormat == EImageFormat::JPEG)
+			{
+				PreferredOutputFormat = EImageFormat::PNG;
+			}
+		}
+
+		const TCHAR* Extension = TEXT("");
+		switch (PreferredOutputFormat)
+		{
+		case EImageFormat::PNG: Extension = TEXT("png"); break;
+		case EImageFormat::JPEG: Extension = TEXT("jpeg"); break;
+		case EImageFormat::BMP: Extension = TEXT("bmp"); break;
+		case EImageFormat::EXR: Extension = TEXT("exr"); break;
+		}
+
 		TUniquePtr<FImagePixelData> QuantizedPixelData = nullptr;
 		
 
-		switch (OutputFormat)
+		switch (PreferredOutputFormat)
 		{
 		case EImageFormat::PNG:
 		case EImageFormat::JPEG:
@@ -129,7 +143,7 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 		}
 
 		TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
-		TileImageTask->Format = OutputFormat;
+		TileImageTask->Format = PreferredOutputFormat;
 		TileImageTask->CompressionQuality = 100;
 		TileImageTask->Filename = FinalFilePath;
 
@@ -166,7 +180,8 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 				break;
 			}
 		}
-		else
+		// We don't flip these right now because we assume that it comes in with the correct Transparent vs. Opaque.
+		else if(!Payload->bRequireTransparentOutput)
 		{
 			// Fill the alpha channel when alpha is not supported/enabled.
 			switch (QuantizedPixelData->GetType())

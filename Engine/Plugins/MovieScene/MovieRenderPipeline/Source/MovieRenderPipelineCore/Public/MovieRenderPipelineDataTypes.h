@@ -921,6 +921,13 @@ struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<F
 	FMoviePipelineRenderPassMetrics SampleState;
 
 	FMoviePipelinePassIdentifier PassIdentifier;
+	
+	/** Does this output data have to be transparent to be useful? Overrides output format to one that supports transparency. */
+	bool bRequireTransparentOutput;
+
+	FImagePixelDataPayload()
+		: bRequireTransparentOutput(false)
+	{}
 
 	/** Is this the first tile of an image and we should start accumulating? */
 	FORCEINLINE bool IsFirstTile() const

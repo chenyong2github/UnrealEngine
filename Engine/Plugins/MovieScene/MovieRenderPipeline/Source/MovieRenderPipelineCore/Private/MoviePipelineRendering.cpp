@@ -202,6 +202,9 @@ void UMoviePipeline::RenderFrame()
 		return;
 	}
 	
+	// Hide the progress widget before we render anything. This allows widget captures to not include the progress bar.
+	SetProgressWidgetVisible(false);
+
 	// To produce a frame from the movie pipeline we may render many frames over a period of time, additively collecting the results
 	// together before submitting it for writing on the last result - this is referred to as an "output frame". The 1 (or more) samples
 	// that make up each output frame are referred to as "sample frames". Within each sample frame, we may need to render the scene many
@@ -426,6 +429,9 @@ void UMoviePipeline::RenderFrame()
 			}
 		}
 	}
+
+	// Re-enable the progress widget so when the player viewport is drawn to the preview window, it shows.
+	SetProgressWidgetVisible(true);
 }
 
 void UMoviePipeline::ProcessOutstandingFinishedFrames()
