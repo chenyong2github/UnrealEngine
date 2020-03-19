@@ -225,6 +225,9 @@ protected:
 
 	/** @return true if update checks are enabled */
 	virtual bool ChecksEnabled() const;
+	/** @return true if the backend environment requires update checks */
+	UE_DEPRECATED_FORGAME(4.25, "UUpdateManager::EnvironmentWantsPatchCheck is deprecated, please override FPatchCheck::EnvironmentWantsPatchCheck instead.")
+	virtual bool EnvironmentWantsPatchCheck() const;
 
 	/** 
 	 * Internal call for StartCheck
@@ -248,6 +251,13 @@ protected:
 	/** Amount of time to wait at the end of the entire check before notifying listening entities (availability check only) */
 	UPROPERTY(Config)
 	float UpdateCheckAvailabilityCompleteDelay;
+
+	/** Check the platform OSS for an update */
+	UE_DEPRECATED(4.25, "Set FPatchCheck::bCheckPlatformOSSForUpdate using section [PatchCheck] instead.")
+	bool bCheckPlatformOSSForUpdate;
+	/** Check the default OSS for an update */
+	UE_DEPRECATED(4.25, "Set FPatchCheck::bCheckOSSForUpdate using section [PatchCheck] instead.")
+	bool bCheckOSSForUpdate;
 
 	/**
 	 * Patch check

@@ -239,6 +239,11 @@ void UUpdateManager::CheckComplete(EUpdateCompletionStatus Result, bool bUpdateT
 	DelayResponse(CompletionDelegate, bCheckHotfixAvailabilityOnly ? UpdateCheckAvailabilityCompleteDelay : UpdateCheckCompleteDelay);
 }
 
+inline FName GetUniqueTag(UUpdateManager* UpdateManager)
+{
+	return FName(*FString::Printf(TEXT("Tag_%u_%s"), UpdateManager->GetUniqueID(), *UpdateManager->GetName()));
+}
+
 void UUpdateManager::StartPatchCheck()
 {
 	ensure(ChecksEnabled());
@@ -257,11 +262,17 @@ void UUpdateManager::StartPatchCheck()
 	if (InstallBundleMan && !InstallBundleMan->IsNullInterface())
 	{
 		InstallBundleMan->PatchCheckCompleteDelegate.AddUObject(this, &UUpdateManager::InstallBundlePatchCheckComplete);
+		InstallBundleMan->AddEnvironmentWantsPatchCheckBackBackCompatDelegate(
+			GetUniqueTag(this),
+			FEnvironmentWantsPatchCheck::CreateUObject(this, &UUpdateManager::EnvironmentWantsPatchCheck));
 		InstallBundleMan->StartPatchCheck();
 	}
 	else
 	{
 		FPatchCheck::Get().GetOnComplete().AddUObject(this, &UUpdateManager::PatchCheckComplete);
+		FPatchCheck::Get().AddEnvironmentWantsPatchCheckBackBackCompatDelegate(
+			GetUniqueTag(this),
+			FEnvironmentWantsPatchCheck::CreateUObject(this, &UUpdateManager::EnvironmentWantsPatchCheck));
 		FPatchCheck::Get().StartPatchCheck();
 	}
 }
@@ -269,6 +280,11 @@ void UUpdateManager::StartPatchCheck()
 bool UUpdateManager::ChecksEnabled() const
 {
 	return !GIsEditor;
+}
+
+bool UUpdateManager::EnvironmentWantsPatchCheck() const
+{
+	return false;
 }
 
 EInstallBundleManagerPatchCheckResult ToInstallBundleManagerPatchCheckResult(EPatchCheckResult InResult)
@@ -305,13 +321,18 @@ EInstallBundleManagerPatchCheckResult ToInstallBundleManagerPatchCheckResult(EPa
 void UUpdateManager::PatchCheckComplete(EPatchCheckResult PatchResult)
 {
 	FPatchCheck::Get().GetOnComplete().RemoveAll(this);
+	FPatchCheck::Get().RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(GetUniqueTag(this));
 
 	InstallBundlePatchCheckComplete(ToInstallBundleManagerPatchCheckResult(PatchResult));
 }
 
 void UUpdateManager::InstallBundlePatchCheckComplete(EInstallBundleManagerPatchCheckResult PatchResult)
 {
+	IInstallBundleManager* InstallBundleMan = IInstallBundleManager::GetPlatformInstallBundleManager();
+	check(InstallBundleMan && !InstallBundleMan->IsNullInterface());
+
 	IInstallBundleManager::PatchCheckCompleteDelegate.RemoveAll(this);
+	InstallBundleMan->RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(GetUniqueTag(this));
 
 	LastPatchCheckResult = PatchResult;
 

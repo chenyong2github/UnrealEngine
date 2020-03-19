@@ -55,6 +55,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundlePausedMultiDelegate, FInstallB
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleManagerOnPatchCheckComplete, EInstallBundleManagerPatchCheckResult);
 
+DECLARE_DELEGATE_RetVal(bool, FInstallBundleManagerEnvironmentWantsPatchCheck);
+
 class INSTALLBUNDLEMANAGER_API IInstallBundleManager
 {
 public:
@@ -108,6 +110,8 @@ public:
 	virtual void UpdateContentRequestFlags(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;
 	
 	virtual void StartPatchCheck();
+	virtual void AddEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag, FInstallBundleManagerEnvironmentWantsPatchCheck Delegate) {}
+	virtual void RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag) {}
 
 	virtual bool IsNullInterface() const = 0;
 
