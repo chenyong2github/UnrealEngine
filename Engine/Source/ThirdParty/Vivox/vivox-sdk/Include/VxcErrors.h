@@ -201,7 +201,16 @@
 #define VxErrorHostUnknown 5050
 #define VxErrorChannelUriTooLong 5051
 #define VxErrorUserUriTooLong 5052
+#define VxErrorInvalidChannelUri 5053
+#define VxErrorCrossDomainLoginDisabled 5054
+#define VxErrorSipRegistrationAuthorizationFailure 5055
+#define VxErrorUserAlreadyLoggingOut 5056
+#define VxErrorBuddyGroupDoesNotExist 5057
+#define VxErrorPowerEvent 5058
+#define VxErrorNetworkAddressChanged 5059
+#define VxErrorNetworkDown 5060
 #define VxErrorNotUninitializedYet VX_E_NOT_UNINITIALIZED_YET
+#define VxErrorCallTerminatedBanned 5098
 #define VxErrorCallTerminatedKick 5099
 #define VxErrorCallTerminatedByServer 5100
 #define VxErrorServerRtpTimeout VX_E_CALL_TERMINATED_NO_RTP_RXED  // Old value is 5101
