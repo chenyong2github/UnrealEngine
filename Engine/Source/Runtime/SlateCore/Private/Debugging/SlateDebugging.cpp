@@ -168,6 +168,12 @@ FSlateDebuggingMouseCaptureEventArgs::FSlateDebuggingMouseCaptureEventArgs(
 {
 }
 
+FSlateDebuggingCursorQueryEventArgs::FSlateDebuggingCursorQueryEventArgs(const SWidget* InWidgetOverridingCursor, const FCursorReply& InReply)
+	: WidgetOverridingCursor(InWidgetOverridingCursor)
+	, Reply(InReply)
+{
+}
+
 FSlateDebugging::FBeginWindow FSlateDebugging::BeginWindow;
 
 FSlateDebugging::FEndWindow FSlateDebugging::EndWindow;
@@ -190,11 +196,14 @@ FSlateDebugging::FWidgetExecuteNavigationEvent FSlateDebugging::ExecuteNavigatio
 
 FSlateDebugging::FWidgetMouseCaptureEvent FSlateDebugging::MouseCaptureEvent;
 
+FSlateDebugging::FWidgetCursorQuery FSlateDebugging::CursorChangedEvent;
+
 FSlateDebugging::FUICommandRun FSlateDebugging::CommandRun;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetMouseCaptureEvent, const FSlateDebuggingMouseCaptureEventArgs& /*EventArgs*/);
 
 TArray<struct FInvalidatedWidgetDrawer> FSlateDebugging::InvalidatedWidgetDrawers;
+FSlateDebugging::FLastCursorQuery FSlateDebugging::LastCursorQuery;
 
 void FSlateDebugging::BroadcastWarning(const FText& WarningText, const TSharedPtr<SWidget>& OptionalContextWidget)
 {
@@ -263,6 +272,20 @@ void FSlateDebugging::BroadcastMouseCapture(uint32 UserIndex, uint32 PointerInde
 void FSlateDebugging::BroadcastMouseCaptureLost(uint32 UserIndex, uint32 PointerIndex, TSharedPtr<const SWidget> InWidgetLostCapture)
 {
 	MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(false, UserIndex, PointerIndex, InWidgetLostCapture));
+}
+
+void FSlateDebugging::BroadcastCursorQuery(const SWidget* InWidgetOverridingCursor, const FCursorReply& InReply)
+{
+	if (LastCursorQuery.WidgetThatOverrideCursorLast_UnsafeToUseForAnythingButCompare != InWidgetOverridingCursor || 
+		LastCursorQuery.MouseCursor != InReply.GetCursorType() || 
+		LastCursorQuery.CursorWidget.Pin() != InReply.GetCursorWidget())
+	{
+		LastCursorQuery.WidgetThatOverrideCursorLast_UnsafeToUseForAnythingButCompare = InWidgetOverridingCursor;
+		LastCursorQuery.MouseCursor = InReply.GetCursorType();
+		LastCursorQuery.CursorWidget = InReply.GetCursorWidget();
+
+		CursorChangedEvent.Broadcast(FSlateDebuggingCursorQueryEventArgs(InWidgetOverridingCursor, InReply));
+	}
 }
 
 void FSlateDebugging::WidgetInvalidated(FSlateInvalidationRoot& InvalidationRoot, const class FWidgetProxy& WidgetProxy, const FLinearColor* CustomInvalidationColor)
