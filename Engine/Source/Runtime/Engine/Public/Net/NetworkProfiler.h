@@ -11,6 +11,7 @@
 #include "IPAddress.h"
 #include "Containers/BitArray.h"
 #include "Serialization/MemoryWriter.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "Misc/ScopeLock.h"
 
 class AActor;
@@ -18,9 +19,9 @@ class FOutBunch;
 class UNetConnection;
 struct FURL;
 
-CSV_DECLARE_CATEGORY_EXTERN(NetworkProfiler);
-
 #if USE_NETWORK_PROFILER 
+
+CSV_DECLARE_CATEGORY_EXTERN(NetworkProfiler);
 
 #define NETWORK_PROFILER( x ) \
 	if ( GNetworkProfiler.IsTrackingEnabled() ) \
