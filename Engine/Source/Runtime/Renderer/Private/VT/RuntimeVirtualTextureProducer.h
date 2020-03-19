@@ -15,7 +15,15 @@ class FSceneInterface;
 class FRuntimeVirtualTextureFinalizer : public IVirtualTextureFinalizer
 {
 public:
-	FRuntimeVirtualTextureFinalizer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, bool InClearTextures, FSceneInterface* InScene, FTransform const& InUVToWorld);
+	FRuntimeVirtualTextureFinalizer(
+		FVTProducerDescription const& InDesc, 
+		uint32 InProducerId, 
+		ERuntimeVirtualTextureMaterialType InMaterialType, 
+		bool InClearTextures, 
+		FSceneInterface* InScene, 
+		FTransform const& InUVToWorld,
+		FBox const& InWorldBounds);
+
 	virtual ~FRuntimeVirtualTextureFinalizer() {}
 
 	/** A description for a single tile to render. */
@@ -54,6 +62,8 @@ private:
 	FSceneInterface* Scene;
 	/** Transform from UV space to world space. */
 	FTransform UVToWorld;
+	/** Bounds of runtime virtual texture volume in world space. */
+	FBox WorldBounds;
 	/** Array of tiles in the queue to finalize. */
 	TArray<FTileEntry> Tiles;
 };
@@ -62,7 +72,15 @@ private:
 class FRuntimeVirtualTextureProducer : public IVirtualTexture
 {
 public:
-	RENDERER_API FRuntimeVirtualTextureProducer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, bool InClearTextures, FSceneInterface* InScene, FTransform const& InUVToWorld);
+	RENDERER_API FRuntimeVirtualTextureProducer(
+		FVTProducerDescription const& InDesc, 
+		uint32 InProducerId, 
+		ERuntimeVirtualTextureMaterialType InMaterialType, 
+		bool InClearTextures, 
+		FSceneInterface* InScene, 
+		FTransform const& InUVToWorld,
+		FBox const& InWorldBounds);
+	
 	RENDERER_API virtual ~FRuntimeVirtualTextureProducer() {}
 
 	//~ Begin IVirtualTexture Interface.

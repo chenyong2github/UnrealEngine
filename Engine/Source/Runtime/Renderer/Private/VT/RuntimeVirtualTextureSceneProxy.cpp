@@ -23,6 +23,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 
 		VirtualTexture = InComponent->GetVirtualTexture();
 		Transform = InComponent->GetVirtualTextureTransform();
+		const FBox Bounds = InComponent->Bounds.GetBox();
 
 		// The producer description is calculated using the transform to determine the aspect ratio
 		FVTProducerDescription Desc;
@@ -35,7 +36,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		const bool bClearTextures = VirtualTexture->GetClearTextures();
 
 		// The Producer object created here will be passed into the virtual texture system which will take ownership.
-		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, bClearTextures, InComponent->GetScene(), Transform);
+		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, bClearTextures, InComponent->GetScene(), Transform, Bounds);
 
 		if (InComponent->IsStreamingLowMips() && VirtualTexture->GetStreamLowMips() > 0)
 		{
@@ -49,7 +50,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		}
 
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
-		VirtualTexture->Initialize(Producer, Transform);
+		VirtualTexture->Initialize(Producer, Transform, Bounds);
 	}
 }
 
