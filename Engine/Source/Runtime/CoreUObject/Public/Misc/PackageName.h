@@ -446,7 +446,7 @@ public:
 	 */
 	static FStringView	ExportTextPathToObjectPath(FStringView InExportTextPath);
 	static FString		ExportTextPathToObjectPath(const FString& InExportTextPath);
-	static const TCHAR*	ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
+	static FString		ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
 
 	/** 
 	 * Returns the name of the package referred to by the specified object path
