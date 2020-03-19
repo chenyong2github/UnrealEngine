@@ -46,6 +46,26 @@ namespace UnrealGameSync
 		}
 	}
 
+	class ThreadSafeTextWriter : LineBasedTextWriter
+	{
+		object LockObject;
+		TextWriter Inner;
+
+		public ThreadSafeTextWriter(TextWriter Inner)
+		{
+			this.LockObject = new object();
+			this.Inner = Inner;
+		}
+
+		protected override void FlushLine(string Line)
+		{
+			lock (LockObject)
+			{
+				Inner.WriteLine(Line);
+			}
+		}
+	}
+
 	class NullTextWriter : LineBasedTextWriter
 	{
 		protected override void FlushLine(string Line)
