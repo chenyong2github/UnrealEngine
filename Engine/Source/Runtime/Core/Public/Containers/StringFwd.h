@@ -4,9 +4,6 @@
 
 #include "CoreTypes.h"
 
-// String
-class FString;
-
 // String Builder
 class FStringBuilderBase;
 class FAnsiStringBuilderBase;
