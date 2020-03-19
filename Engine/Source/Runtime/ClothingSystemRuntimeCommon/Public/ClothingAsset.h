@@ -267,8 +267,9 @@ private:
 	void AddClothConfigs();
 
 	// Propagate the shared simulation configs between assets.
+	// Also migrate all deprecated shared parameters which have been moved to the per cloth configs if required.
 	// Called after a cloth asset is created or loaded.
-	void PropagateSharedConfigs();
+	void PropagateSharedConfigs(bool bMigrateSharedConfigToConfig=false);
 
 #if WITH_EDITOR
 	// Helper functions used in PostPropertyChangeCb

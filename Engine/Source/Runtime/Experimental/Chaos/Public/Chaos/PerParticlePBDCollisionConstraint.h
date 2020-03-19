@@ -18,8 +18,8 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 	};
 
   public:
-	TPerParticlePBDCollisionConstraint(const TKinematicGeometryParticlesImp<T, d, SimType>& InParticles, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<uint32>& DynamicGroupIds, TArrayCollectionArray<uint32>& KinematicGroupIds, const T Thickness = (T)0, const T Friction = (T)0)
-	    : bFastPositionBasedFriction(true), MParticles(InParticles), MCollided(Collided), MDynamicGroupIds(DynamicGroupIds), MKinematicGroupIds(KinematicGroupIds), MThickness(Thickness), MFriction(Friction) {}
+	TPerParticlePBDCollisionConstraint(const TKinematicGeometryParticlesImp<T, d, SimType>& InParticles, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<uint32>& DynamicGroupIds, TArrayCollectionArray<uint32>& KinematicGroupIds, const TArray<T>& PerGroupThickness, const TArray<T>& PerGroupFriction)
+	    : bFastPositionBasedFriction(true), MParticles(InParticles), MCollided(Collided), MDynamicGroupIds(DynamicGroupIds), MKinematicGroupIds(KinematicGroupIds), MPerGroupThickness(PerGroupThickness), MPerGroupFriction(PerGroupFriction) {}
 	virtual ~TPerParticlePBDCollisionConstraint() {}
 
 	inline void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
@@ -28,25 +28,30 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 			return;
 		for (uint32 i = 0; i < MParticles.Size(); ++i)
 		{
-			if (MDynamicGroupIds[Index] != MKinematicGroupIds[i]) { continue; }  // Bail out if the collision groups doesn't match the particle group id
+			if (MDynamicGroupIds[Index] != MKinematicGroupIds[i])
+			{
+				continue; // Bail out if the collision groups doesn't match the particle group id
+			}
 			TVector<T, d> Normal;
 			TRigidTransform<T, d> Frame(MParticles.X(i), MParticles.R(i));
-			T Phi = MParticles.Geometry(i)->PhiWithNormal(Frame.InverseTransformPosition(InParticles.P(Index)), Normal);
-			if (Phi < MThickness)
+			const T Phi = MParticles.Geometry(i)->PhiWithNormal(Frame.InverseTransformPosition(InParticles.P(Index)), Normal);
+			const T Thickness = MPerGroupThickness[MDynamicGroupIds[Index]];
+			if (Phi < Thickness)
 			{
 				const TVector<T, d> NormalWorld = Frame.TransformVector(Normal);
-				InParticles.P(Index) += (-Phi + MThickness) * NormalWorld;
-				if (MFriction > 0)
+				InParticles.P(Index) += (-Phi + Thickness) * NormalWorld;
+				const T CoefficientOfFriction = MPerGroupFriction[MDynamicGroupIds[Index]];
+				if (CoefficientOfFriction > 0)
 				{
 					const T MaximumFrictionCorrectionPerStep = 1.0f; // 1cm absolute maximum correction the friction force can provide
 					if (bFastPositionBasedFriction)
 					{
-						const T Penetration = (-Phi + MThickness); // This is related to the Normal impulse 
+						const T Penetration = (-Phi + Thickness); // This is related to the Normal impulse
 						TVector<T, d> VectorToPoint = InParticles.P(Index) - MParticles.X(i);
 						const TVector<T, d> RelativeDisplacement = (InParticles.P(Index) - InParticles.X(Index)) - (MParticles.V(i) + TVector<T, d>::CrossProduct(MParticles.W(i), VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
 						const TVector<T, d> RelativeDisplacementTangent = RelativeDisplacement - TVector<T, d>::DotProduct(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
 						const T RelativeDisplacementTangentLength = RelativeDisplacementTangent.Size();
-						T PositionCorrection = FMath::Clamp<T>(Penetration * MFriction, 0, RelativeDisplacementTangentLength);
+						T PositionCorrection = FMath::Clamp<T>(Penetration * CoefficientOfFriction, 0, RelativeDisplacementTangentLength);
 						if (PositionCorrection > MaximumFrictionCorrectionPerStep)
 						{
 							PositionCorrection = MaximumFrictionCorrectionPerStep;
@@ -75,31 +80,33 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 	{
 		if (!bFastPositionBasedFriction)
 		{
-			check(MFriction > 0);
 			if (!MVelocityConstraints.Contains(Index))
 			{
 				return;
 			}
-			T VN = TVector<T, d>::DotProduct(InParticles.V(Index), MVelocityConstraints[Index].Normal);
-			T VNBody = TVector<T, d>::DotProduct(MVelocityConstraints[Index].Velocity, MVelocityConstraints[Index].Normal);
-			TVector<T, d> VTBody = MVelocityConstraints[Index].Velocity - VNBody * MVelocityConstraints[Index].Normal;
-			TVector<T, d> VTRelative = InParticles.V(Index) - VN * MVelocityConstraints[Index].Normal - VTBody;
-			T VTRelativeSize = VTRelative.Size();
-			T VNMax = FGenericPlatformMath::Max(VN, VNBody);
-			T VNDelta = VNMax - VN;
-			T Friction = MFriction * VNDelta < VTRelativeSize ? MFriction * VNDelta / VTRelativeSize : 1;
+			const T VN = TVector<T, d>::DotProduct(InParticles.V(Index), MVelocityConstraints[Index].Normal);
+			const T VNBody = TVector<T, d>::DotProduct(MVelocityConstraints[Index].Velocity, MVelocityConstraints[Index].Normal);
+			const TVector<T, d> VTBody = MVelocityConstraints[Index].Velocity - VNBody * MVelocityConstraints[Index].Normal;
+			const TVector<T, d> VTRelative = InParticles.V(Index) - VN * MVelocityConstraints[Index].Normal - VTBody;
+			const T VTRelativeSize = VTRelative.Size();
+			const T VNMax = FGenericPlatformMath::Max(VN, VNBody);
+			const T VNDelta = VNMax - VN;
+			const T CoefficientOfFriction = MPerGroupFriction[MDynamicGroupIds[Index]];
+			check(CoefficientOfFriction > 0);
+			const T Friction = CoefficientOfFriction * VNDelta < VTRelativeSize ? CoefficientOfFriction * VNDelta / VTRelativeSize : 1;
 			InParticles.V(Index) = VNMax * MVelocityConstraints[Index].Normal + VTBody + VTRelative * (1 - Friction);
 		}
 	}
 
   private:
-	  bool bFastPositionBasedFriction;
+	bool bFastPositionBasedFriction;
 	// TODO(mlentine): Need a bb hierarchy
 	const TKinematicGeometryParticlesImp<T, d, SimType>& MParticles;
 	TArrayCollectionArray<bool>& MCollided;
 	TArrayCollectionArray<uint32>& MDynamicGroupIds;
 	TArrayCollectionArray<uint32>& MKinematicGroupIds;
 	mutable TMap<int32, VelocityConstraint> MVelocityConstraints;
-	const T MThickness, MFriction;
+	const TArray<T>& MPerGroupThickness;
+	const TArray<T>& MPerGroupFriction;
 };
 }

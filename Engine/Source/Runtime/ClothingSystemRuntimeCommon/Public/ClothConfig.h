@@ -18,6 +18,9 @@ public:
 	/** Migrate from the legacy FClothConfig structure. */
 	virtual void MigrateFrom(const FClothConfig_Legacy&) {}
 
+	/** Migrate from shared configs. */
+	virtual void MigrateFrom(const class UClothSharedConfigCommon*) {}
+
 	/**
 	 * Migrate to the legacy FClothConfig structure.
 	 * Useful for converting configs that are compatible with this legacy structure.

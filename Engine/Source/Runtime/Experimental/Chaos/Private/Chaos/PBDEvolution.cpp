@@ -45,6 +45,8 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 	MCollisionParticles.AddArray(&MCollisionParticleGroupIds);
 	MParticles.AddArray(&MParticleGroupIds);
 	MPerGroupDamping.Add(Damping);
+	MPerGroupCollisionThickness.Add(CollisionThickness);
+	MPerGroupCoefficientOfFriction.Add(CoefficientOfFriction);
 
 	SetParticleUpdateFunction(
 		[PBDUpdateRule = 
@@ -76,9 +78,13 @@ uint32 TPBDEvolution<T, d>::AddParticles(uint32 Num, uint32 GroupId)
 	if (GroupId >= GroupNum)
 	{
 		MPerGroupDamping.SetNum((int32)GroupId + 1);
+		MPerGroupCollisionThickness.SetNum((int32)GroupId + 1);
+		MPerGroupCoefficientOfFriction.SetNum((int32)GroupId + 1);
 		for (uint32 i = GroupNum; i <= GroupId; ++i)
 		{
 			MPerGroupDamping[i] = MDamping;
+			MPerGroupCollisionThickness[i] = MCollisionThickness;
+			MPerGroupCoefficientOfFriction[i] = MCoefficientOfFriction;
 		}
 	}
 	return Offset;
@@ -107,7 +113,7 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 	TPerParticleEulerStepVelocity<T, d> EulerStepVelocityRule;
 	TPerGroupDampVelocity<T, d> DampVelocityRule(MParticleGroupIds, MPerGroupDamping);
 	TPerParticlePBDEulerStep<T, d> EulerStepRule;
-	TPerParticlePBDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CollisionRule(MCollisionParticles, MCollided, MParticleGroupIds, MCollisionParticleGroupIds, MCollisionThickness, MCoefficientOfFriction);
+	TPerParticlePBDCollisionConstraint<T, d, EGeometryParticlesSimType::Other> CollisionRule(MCollisionParticles, MCollided, MParticleGroupIds, MCollisionParticleGroupIds, MPerGroupCollisionThickness, MPerGroupCoefficientOfFriction);
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityDampUpdateState);
