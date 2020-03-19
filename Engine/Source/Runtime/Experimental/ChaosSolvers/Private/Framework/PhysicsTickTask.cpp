@@ -185,6 +185,7 @@ ESubsequentsMode::Type FPhysicsSolverAdvanceTask::GetSubsequentsMode()
 
 void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
+	LLM_SCOPE(ELLMTag::Chaos);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 
