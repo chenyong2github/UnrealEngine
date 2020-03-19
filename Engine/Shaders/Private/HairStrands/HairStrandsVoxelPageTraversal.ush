@@ -228,6 +228,7 @@ struct FHairTraversalSettings
 	float	TanConeAngle;
 	bool	bUseOpaqueVisibility;
 	bool	bDebugEnabled;
+	bool	bIsPrimaryRay;
 };
 
 float GetHairTraversalMaxT()
@@ -246,6 +247,7 @@ FHairTraversalSettings InitHairTraversalSettings()
 	Out.TanConeAngle = 0;
 	Out.bUseOpaqueVisibility = true;
 	Out.bDebugEnabled = false;
+	Out.bIsPrimaryRay = false;
 	return Out;
 }
 
@@ -301,6 +303,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 		const float DeltaWorld = OELength / float(MaxStep);
 		float StepScale = 1.0f;
 		float3 PreviousP = O;
+		float ClosestHitT = -1;
 
 		const float3 RandomStepJitter = InSettings.Random.xyz * 2 - 1; // [-1..1]
 		for (float StepIt = 0.0f; StepIt < MaxStep; StepIt += StepScale)
@@ -346,6 +349,11 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 				const FHairTraversalResult StepResult = GetHairVirtualVoxelDensity(VoxelPageCoord, InPageTexture, uint(MipLevel), InSettings.DensityScale * HairCountScale);
 				Acc(Out, StepResult);
 
+				if (InSettings.bIsPrimaryRay && StepResult.HairCount > 0)
+				{
+					ClosestHitT = 1;
+				}
+
 				#if VOXEL_TRAVERSAL_DEBUG
 				if (InSettings.bDebugEnabled)
 				{
@@ -367,7 +375,14 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 				}
 			}
 			#if VOXEL_TRAVERSAL_TYPE == VOXEL_TRAVERSAL_LINEAR_MIPMAP
-			StepScale = min(InCommonDesc.PageResolution, StepScale * InSettings.SteppingScale);
+			if (InSettings.bIsPrimaryRay && ClosestHitT < 0)
+			{
+				// Start the mipmap traversal only when we have reach the first hit (primaryview)
+			}
+			else
+			{
+				StepScale = min(InCommonDesc.PageResolution, StepScale * InSettings.SteppingScale);
+			}
 			#endif
 			PreviousP = HitP;
 		}
