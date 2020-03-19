@@ -17,83 +17,93 @@ void FCachedOSVeryLargePageAllocator::Init()
 
 
 	FreeLargePagesHead = nullptr;
-	for (int i = 0; i < AddressSpaceToReserve / SizeOfLargePage; i++)
+	for (int i = 0; i < NumberOfLargePages; i++)
 	{
 		LargePagesArray[i].Init((void*)((uintptr_t)AddressSpaceReserved + (i*SizeOfLargePage)));
 		LargePagesArray[i].LinkHead(FreeLargePagesHead);
 	}
 
 	UsedLargePagesHead = nullptr;
-	UsedLargePagesWithSpaceHead = nullptr;
-
+	for (int i = 0; i < FMemory::AllocationHints::Max; i++)
+	{
+		UsedLargePagesWithSpaceHead[i] = nullptr;
+	}
 	if (!GEnableVeryLargePageAllocator)
 	{
 		bEnabled = false;
 	}
 }
 
-void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size)
+void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, uint32 AllocationHint)
 {
 	Size = Align(Size, 4096);
 
 	void* ret = nullptr;
 
-	if (bEnabled && Size == SizeOfSubPage)
+	if (bEnabled && Size == SizeOfSubPage && AllocationHint == FMemory::AllocationHints::SmallPool)
 	{
 
-		if (UsedLargePagesWithSpaceHead == nullptr)
+		if (UsedLargePagesWithSpaceHead[AllocationHint] == nullptr)
 		{
 			FLargePage* LargePage = FreeLargePagesHead;
 			if (LargePage)
 			{
 				Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
+				LargePage->AllocationHint = AllocationHint;
 				LargePage->Unlink();
-				LargePage->LinkHead(UsedLargePagesWithSpaceHead);
+				LargePage->LinkHead(UsedLargePagesWithSpaceHead[AllocationHint]);
+				CachedFree += SizeOfLargePage;
 			}
 		}
-		if (UsedLargePagesWithSpaceHead != nullptr)
+		FLargePage* LargePage = UsedLargePagesWithSpaceHead[AllocationHint];
+		if (LargePage != nullptr)
 		{
-			FLargePage* LargePage = UsedLargePagesWithSpaceHead;
 			ret = LargePage->Allocate();
-			if (ret && LargePage->NumberOfFreeSubPages == 0)
+			if (ret)
 			{
-				LargePage->Unlink();
-				LargePage->LinkHead(UsedLargePagesHead);
+				if (LargePage->NumberOfFreeSubPages == 0)
+				{
+					LargePage->Unlink();
+					LargePage->LinkHead(UsedLargePagesHead);
+				}
+				CachedFree -= SizeOfSubPage;
 			}
 		}
 	}
 
-	if( ret == nullptr )
+	if (ret == nullptr)
 	{
 		ret = CachedOSPageAllocator.Allocate(Size);
 	}
 	return ret;
 }
 
-#define LARGEPAGEALLOCATOR_SORT_OnAddress 0
+#define LARGEPAGEALLOCATOR_SORT_OnAddress 1
 
 void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size)
 {
 	Size = Align(Size, 4096);
 	uint64 Index = ((uintptr_t)Ptr - (uintptr_t)AddressSpaceReserved) / SizeOfLargePage;
-	if (Index < (AddressSpaceToReserve / SizeOfLargePage))
+	if (Index < (NumberOfLargePages))
 	{
 		FLargePage* LargePage = &LargePagesArray[Index];
 
 		LargePage->Free(Ptr);
+		CachedFree += SizeOfSubPage;
 
-		if (LargePage->NumberOfFreeSubPages == (SizeOfLargePage / SizeOfSubPage))
+		if (LargePage->NumberOfFreeSubPages == NumberOfSubPagesPerLargePage)
 		{
 			// totally free, need to move which list we are in and remove the backing store
 			LargePage->Unlink();
 			LargePage->LinkHead(FreeLargePagesHead);
 			Block.Decommit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
+			CachedFree -= SizeOfLargePage;
 		}
 		else if (LargePage->NumberOfFreeSubPages == 1)
 		{
 			LargePage->Unlink();
 #if LARGEPAGEALLOCATOR_SORT_OnAddress
-			FLargePage* InsertPoint = UsedLargePagesWithSpaceHead;
+			FLargePage* InsertPoint = UsedLargePagesWithSpaceHead[LargePage->AllocationHint];
 			while (InsertPoint != nullptr)
 			{
 				if (LargePage->BaseAddress < InsertPoint->BaseAddress)	// sort on address
@@ -102,16 +112,16 @@ void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size)
 				}
 				InsertPoint = InsertPoint->Next();
 			}
-			if (InsertPoint == nullptr || InsertPoint == UsedLargePagesWithSpaceHead)
+			if (InsertPoint == nullptr || InsertPoint == UsedLargePagesWithSpaceHead[LargePage->AllocationHint])
 			{
-				LargePage->LinkHead(UsedLargePagesWithSpaceHead);
+				LargePage->LinkHead(UsedLargePagesWithSpaceHead[LargePage->AllocationHint]);
 			}
 			else
 			{
 				LargePage->LinkBefore(InsertPoint);
 			}
 #else
-			LargePage->LinkHead(UsedLargePagesWithSpaceHead);
+			LargePage->LinkHead(UsedLargePagesWithSpaceHead[LargePage->AllocationHint]);
 #endif
 		}
 		else

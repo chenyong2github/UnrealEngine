@@ -33,7 +33,7 @@ struct TCachedOSPageAllocator : private FCachedOSPageAllocator
 	{
 	}
 
-	FORCEINLINE void* Allocate(SIZE_T Size)
+	FORCEINLINE void* Allocate(SIZE_T Size, uint32 AllocationHint = 0)
 	{
 		return AllocateImpl(Size, CachedByteLimit, FreedPageBlocks, FreedPageBlocks + FreedPageBlocksNum, FreedPageBlocksNum, CachedTotal);
 	}
