@@ -112,6 +112,10 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleRightWidget()
 {
+	if (StackViewModel == nullptr)
+	{
+		return SNullWidget::NullWidget;
+	}
 	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
