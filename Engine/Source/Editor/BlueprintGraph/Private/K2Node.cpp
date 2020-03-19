@@ -91,7 +91,7 @@ void UK2Node::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 
-	if (Ar.IsSaving())
+	if (Ar.IsSaving() && !GIsSavingPackage)
 	{
 		if (Ar.IsObjectReferenceCollector() || Ar.Tell() < 0)
 		{
