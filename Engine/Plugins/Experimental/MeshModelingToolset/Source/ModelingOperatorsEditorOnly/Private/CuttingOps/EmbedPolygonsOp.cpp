@@ -156,6 +156,10 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 
 	auto CutHole = [](FDynamicMesh3& Mesh, const FFrame3d& F, int TriStart, const FPolygon2d& PolygonArg, TArray<int>& PathVertIDs, TArray<int>& PathVertCorrespond, bool bCollapseDegenerateEdges)
 	{
+		if (!Mesh.IsTriangle(TriStart))
+		{
+			return false;
+		}
 		FMeshFaceSelection Selection(&Mesh);
 		bool bDidEmbed = EmbedProjectedPath(&Mesh, TriStart, F, PolygonArg.GetVertices(), PathVertIDs, PathVertCorrespond, true, &Selection);
 		if (!bDidEmbed)
@@ -222,7 +226,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		FDynamicMeshEditor MeshEditor(ResultMesh.Get());
 		FDynamicMeshEditResult ResultOut;
 		bool bStitched = MeshEditor.StitchSparselyCorrespondedVertexLoops(PathVertIDs1, PathVertCorrespond1, PathVertIDs2, PathVertCorrespond2, ResultOut);
-		if (ResultMesh->HasAttributes())
+		if (bStitched && ResultMesh->HasAttributes())
 		{
 			MeshEditor.SetTubeNormals(ResultOut.NewTriangles, PathVertIDs1, PathVertCorrespond1, PathVertIDs2, PathVertCorrespond2);
 			TArray<float> UValues; UValues.SetNumUninitialized(PathVertCorrespond2.Num() + 1);
