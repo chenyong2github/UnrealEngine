@@ -58,6 +58,8 @@ FDatasmithWorkerHandler::~FDatasmithWorkerHandler()
 
 void FDatasmithWorkerHandler::StartWorkerProcess()
 {
+	uint32 WorkerProcessId = 0;
+
 	ensure(ErrorState == EWorkerErrorState::Ok);
 	FString ProcessorPath = GetWorkerExecutablePath();
 	if (FPaths::FileExists(ProcessorPath))
@@ -83,11 +85,10 @@ void FDatasmithWorkerHandler::StartWorkerProcess()
 		CommandToProcess += TEXT(" -EnginePluginsDir \"") + FPaths::EnginePluginsDir() + TEXT('"');
 		UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("CommandToProcess: %s"), *CommandToProcess);
 
-		uint32 WorkerProcessId = 0;
 		WorkerHandle = FPlatformProcess::CreateProc(*ProcessorPath, *CommandToProcess, true, false, false, &WorkerProcessId, 0, nullptr, nullptr);
 	}
 
-	if (!WorkerHandle.IsValid())
+	if (!WorkerHandle.IsValid() || !FPlatformProcess::IsProcRunning(WorkerHandle) || !FPlatformProcess::IsApplicationRunning(WorkerProcessId))
 	{
 		ErrorState = EWorkerErrorState::WorkerProcess_CantCreate;
 		return;
