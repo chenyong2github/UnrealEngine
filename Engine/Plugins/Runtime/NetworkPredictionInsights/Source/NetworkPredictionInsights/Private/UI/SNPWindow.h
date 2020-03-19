@@ -17,6 +17,7 @@
 #include "Insights/Common/PaintUtils.h"
 #include "INetworkPredictionProvider.h"
 #include "Containers/ArrayView.h"
+#include "Framework/Commands/UICommandList.h"
 
 namespace Trace
 {
