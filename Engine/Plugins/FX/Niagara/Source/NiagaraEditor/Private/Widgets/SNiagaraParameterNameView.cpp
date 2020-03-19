@@ -3,6 +3,7 @@
 #include "SNiagaraParameterNameView.h"
 #include "ViewModels/NiagaraParameterNameViewModel.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 class SWidget;
 
@@ -10,8 +11,10 @@ void SNiagaraParameterNameView::Construct(const FArguments& InArgs, const TShare
 {
 	ParameterNameViewModel = InParameterNameViewModel;
 
-	TSharedRef<SWidget> ScopeSlotWidget = ParameterNameViewModel->CreateScopeSlotWidget();
-	TSharedRef<SWidget> NameSlotWidget = ParameterNameViewModel->CreateTextSlotWidget();
+	ScopeSlotWidget = ParameterNameViewModel->CreateScopeSlotWidget();
+	NameSlotWidget = ParameterNameViewModel->CreateTextSlotWidget();
+	TSharedRef<SWidget> NameSlotWidgetMade = NameSlotWidget.ToSharedRef();
+	TSharedRef<SWidget> ScopeSlotWidgetMade = ScopeSlotWidget.ToSharedRef();
 
 	ChildSlot
 	[
@@ -21,13 +24,23 @@ void SNiagaraParameterNameView::Construct(const FArguments& InArgs, const TShare
 		.VAlign(VAlign_Center)
 		.Padding(3, 0)
 		[
-			ScopeSlotWidget
+			ScopeSlotWidgetMade
 		]
 		+SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
 		.Padding(3, 0)
 		[
-			NameSlotWidget
+			NameSlotWidgetMade
 		]
 	];
+}
+
+void SNiagaraParameterNameView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) 
+{
+	if (bPendingRename)
+	{
+		NameSlotWidget.Get()->EnterEditingMode();
+		bPendingRename = false;
+	}
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
