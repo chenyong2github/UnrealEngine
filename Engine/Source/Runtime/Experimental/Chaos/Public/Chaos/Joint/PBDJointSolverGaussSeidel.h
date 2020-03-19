@@ -11,44 +11,6 @@
 
 namespace Chaos
 {
-	struct FJointSolverResult
-	{
-	public:
-		static FJointSolverResult MakeActive() { return { 1, 0 }; }
-		static FJointSolverResult MakeSolved() { return { 0, 1 }; }
-
-		FJointSolverResult()
-			: NumActive(0)
-			, NumSolved(0)
-		{
-		}
-		
-		int32 GetNumActive() const { return NumActive; }
-		int32 GetNumSolved() const { return NumSolved; }
-		
-		FJointSolverResult& operator+=(const FJointSolverResult& R)
-		{
-			NumActive += R.NumActive;
-			NumSolved += R.NumSolved;
-			return *this;
-		}
-
-		friend FJointSolverResult operator+(const FJointSolverResult& L, const FJointSolverResult& R)
-		{
-			return { L.NumActive + R.NumActive, L.NumSolved + R.NumSolved };
-		}
-
-	private:
-		FJointSolverResult(int32 InActive, int32 InSolved)
-			: NumActive(InActive)
-			, NumSolved(InSolved)
-		{
-		}
-
-		int32 NumActive;
-		int32 NumSolved;
-	};
-
 	/**
 	 * Calculate new positions and rotations for a pair of bodies connected by a joint.
 	 *
@@ -72,6 +34,18 @@ namespace Chaos
 		{
 			checkSlow(Index < MaxConstrainedBodies);
 			return Qs[Index];
+		}
+
+		FORCEINLINE const FVec3& GetPrevP(const int32 Index) const
+		{
+			checkSlow(Index < MaxConstrainedBodies);
+			return PrevPs[Index];
+		}
+
+		FORCEINLINE const FRotation3& GetPrevQ(const int32 Index) const
+		{
+			checkSlow(Index < MaxConstrainedBodies);
+			return PrevQs[Index];
 		}
 
 		FORCEINLINE const FVec3& GetV(const int32 Index) const
@@ -114,47 +88,49 @@ namespace Chaos
 			const FVec3& V1,
 			const FVec3& W1);
 
-		FJointSolverResult ApplyConstraints(
+		int32 ApplyConstraints(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyDrives(
+		int32 ApplyDrives(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyProjections(
+		int32 ApplyProjections(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
+
 
 	private:
 
+		void InitDerivedState();
 		void UpdateDerivedState(const int32 BodyIndex);
 		void UpdateDerivedState();
 
-		FJointSolverResult ApplyPositionConstraints(
+		int32 ApplyPositionConstraints(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyRotationConstraints(
+		int32 ApplyRotationConstraints(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyPositionDrives(
+		int32 ApplyPositionDrives(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyRotationDrives(
+		int32 ApplyRotationDrives(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyRotationProjection(
+		int32 ApplyRotationProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
@@ -247,47 +223,47 @@ namespace Chaos
 			const FReal Angle,
 			FReal& Lambda);
 
-		FJointSolverResult ApplyLockedRotationConstraints(
+		int32 ApplyLockedRotationConstraints(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const bool bApplyTwist,
 			const bool bApplySwing);
 
-		FJointSolverResult ApplyTwistConstraint(
+		int32 ApplyTwistConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const bool bUseSoftLimit);
 
-		FJointSolverResult ApplyTwistDrive(
+		int32 ApplyTwistDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyTwistProjection(
+		int32 ApplyTwistProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyConeConstraint(
+		int32 ApplyConeConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const bool bUseSoftLimit);
 
-		FJointSolverResult ApplyConeDrive(
+		int32 ApplyConeDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyConeProjection(
+		int32 ApplyConeProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		// One Swing axis is free, and the other locked. This applies the lock: Body1 Twist axis is confined to a plane.
-		FJointSolverResult ApplySingleLockedSwingConstraint(
+		int32 ApplySingleLockedSwingConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
@@ -295,7 +271,7 @@ namespace Chaos
 			const bool bUseSoftLimit);
 
 		// One Swing axis is free, and the other limited. This applies the limit: Body1 Twist axis is confined to space between two cones.
-		FJointSolverResult ApplyDualConeSwingConstraint(
+		int32 ApplyDualConeSwingConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
@@ -303,53 +279,53 @@ namespace Chaos
 			const bool bUseSoftLimit);
 
 		// One swing axis is locked, the other limited or locked. This applies the Limited axis (ApplyDualConeSwingConstraint is used for the locked axis).
-		FJointSolverResult ApplySwingConstraint(
+		int32 ApplySwingConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const bool bUseSoftLimit);
 
-		FJointSolverResult ApplySwingDrive(
+		int32 ApplySwingDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex);
 
-		FJointSolverResult ApplySwingProjection(
+		int32 ApplySwingProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex);
 
-		FJointSolverResult ApplySLerpDrive(
+		int32 ApplySLerpDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyPointPositionConstraintKD(
+		int32 ApplyPointPositionConstraintKD(
 			const int32 KIndex,
 			const int32 DIndex,
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyPointPositionConstraintDD(
+		int32 ApplyPointPositionConstraintDD(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplySphericalPositionConstraint(
+		int32 ApplySphericalPositionConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplySphericalPositionDrive(
+		int32 ApplySphericalPositionDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyCylindricalPositionConstraint(
+		int32 ApplyCylindricalPositionConstraint(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const EJointMotionType AxialMotion,
@@ -357,26 +333,26 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyCircularPositionDrive(
+		int32 ApplyCircularPositionDrive(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyPlanarPositionConstraint(
+		int32 ApplyPlanarPositionConstraint(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const EJointMotionType AxialMotion,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyAxialPositionDrive(
+		int32 ApplyAxialPositionDrive(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		FJointSolverResult ApplyPositionProjection(
+		int32 ApplyPositionProjection(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
@@ -400,6 +376,7 @@ namespace Chaos
 		FRotation3 Qs[MaxConstrainedBodies];		// World-space particle CoM rotations
 		FVec3 Vs[MaxConstrainedBodies];				// World-space particle CoM velocities
 		FVec3 Ws[MaxConstrainedBodies];				// World-space particle CoM angular velocities
+		FMatrix33 InvIs[MaxConstrainedBodies];		// World-space inverse inertias
 
 		// XPBD Previous iteration world-space body state
 		FVec3 PrevPs[MaxConstrainedBodies];			// World-space particle CoM positions
@@ -407,9 +384,6 @@ namespace Chaos
 		FReal SwingDriveLambda;						// XPBD constraint multipliers (net applied constraint-space deltas)
 		FRotation3 PrevQs[MaxConstrainedBodies];	// World-space particle CoM rotations
 		FVec3 PrevXs[MaxConstrainedBodies];			// World-space joint connector positions
-		
-		// Post-angular constraint position fixup (to reduce iterations required for stiff angular constraints)
-		FReal AngularPositionCorrection;
 
 		FReal PositionTolerance;					// Distance error below which we consider a constraint or drive solved
 		FReal AngleTolerance;						// Angle error below which we consider a constraint or drive solved

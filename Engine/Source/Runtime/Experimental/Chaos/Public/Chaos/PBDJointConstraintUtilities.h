@@ -12,6 +12,30 @@ namespace Chaos
 	class FPBDJointUtilities
 	{
 	public:
+		static void GetSphericalAxisDelta(
+			const FVec3& X0,
+			const FVec3& X1,
+			FVec3& Axis,
+			FReal& Delta);
+
+		static void GetCylindricalAxesDeltas(
+			const FRotation3& R0,
+			const FVec3& X0,
+			const FVec3& X1,
+			const int32 CylinderAxisIndex,
+			FVec3& CylinderAxis,
+			FReal& CylinderDelta,
+			FVec3& RadialAxis,
+			FReal& RadialDelta);
+
+		static void GetPlanarAxisDelta(
+			const FRotation3& R0,
+			const FVec3& X0,
+			const FVec3& X1,
+			const int32 PlaneAxisIndex,
+			FVec3& Axis,
+			FReal& Delta);
+
 		static void DecomposeSwingTwistLocal(
 			const FRotation3& R0, 
 			const FRotation3& R1, 
@@ -63,12 +87,17 @@ namespace Chaos
 			FVec3& Axis,
 			FReal& Angle);
 
-		static void GetLockedAxes(
+		static void GetLockedRotationAxes(
 			const FRotation3& R0, 
 			const FRotation3& R1, 
 			FVec3& Axis0, 
 			FVec3& Axis1, 
 			FVec3& Axis2);
+
+		static FReal GetConeAngleLimit(
+			const FPBDJointSettings& JointSettings,
+			const FVec3& SwingAxisLocal,
+			const FReal SwingAngle);
 
 		/**
 		 * Increase the lower inertia components to ensure that the maximum ratio between any pair of elements is MaxRatio.

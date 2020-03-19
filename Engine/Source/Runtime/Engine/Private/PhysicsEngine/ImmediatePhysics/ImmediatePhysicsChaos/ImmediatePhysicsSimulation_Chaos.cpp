@@ -170,7 +170,6 @@ namespace ImmediatePhysics_Chaos
 		, NumRollingAverageStepTimes(1)
 		, MaxNumRollingAverageStepTimes(ChaosImmediate_Evolution_DeltaTimeCount)
 		, bActorsDirty(false)
-		, bJointsDirty(false)
 	{
 		using namespace Chaos;
 
@@ -332,9 +331,6 @@ namespace ImmediatePhysics_Chaos
 	{
 		FJointHandle* JointHandle = new FJointHandle(&Joints, ConstraintInstance, Body1, Body2);
 		JointHandles.Add(JointHandle);
-
-		bJointsDirty = true;
-
 		return JointHandle;
 	}
 
@@ -343,8 +339,6 @@ namespace ImmediatePhysics_Chaos
 		// @todo(ccaulfield): FJointHandle could remember its index to optimize this
 		JointHandles.Remove(JointHandle);
 		delete JointHandle;
-
-		bJointsDirty = true;
 	}
 
 	void FSimulation::SetNumActiveBodies(int32 InNumActiveActorHandles)
@@ -457,65 +451,6 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
-	void FSimulation::ConditionConstraints()
-	{
-		// Assign levels to actors based on connection-distance to a non-dynamic actor
-		// This is used to sort constraints and set parent/child relationship on the constrained particles in a constraint
-		// @todo(ccaulfield): this should use the constraint graph and should only update when constraint connectivity changes or particles change type
-		using namespace Chaos;
-
-		TMap<FActorHandle*, TArray<FJointHandle*>> ActorJoints;
-		TArray<FActorHandle*> ActorQueue;
-		ActorQueue.Reserve(ActorHandles.Num());
-
-		// Reset all actor levels
-		for (FActorHandle* ActorHandle : ActorHandles)
-		{
-			ActorHandle->SetLevel(INDEX_NONE);
-			ActorJoints.Emplace(ActorHandle);
-
-			if (ActorHandle->GetParticle()->ObjectState() != EObjectStateType::Dynamic)
-			{
-				ActorHandle->SetLevel(0);
-				ActorQueue.Add(ActorHandle);
-			}
-		}
-
-		// Build a list of joints per actor
-		for (FJointHandle* JointHandle : JointHandles)
-		{
-			TVector<FActorHandle*, 2> JointActorHandles = JointHandle->GetActorHandles();
-			ActorJoints[JointActorHandles[0]].Add(JointHandle);
-			ActorJoints[JointActorHandles[1]].Add(JointHandle);
-		}
-
-		// Breadth-first assign level
-		for (int32 ActorQueueIndex = 0; ActorQueueIndex < ActorQueue.Num(); ++ActorQueueIndex)
-		{
-			FActorHandle* ActorHandle = ActorQueue[ActorQueueIndex];
-			for (FJointHandle* JointHandle : ActorJoints[ActorHandle])
-			{
-				TVector<FActorHandle*, 2> JointActorHandles = JointHandle->GetActorHandles();
-				if (JointActorHandles[0]->GetLevel() == INDEX_NONE)
-				{
-					JointActorHandles[0]->SetLevel(ActorHandle->GetLevel() + 1);
-					ActorQueue.Add(JointActorHandles[0]);
-				}
-				if (JointActorHandles[1]->GetLevel() == INDEX_NONE)
-				{
-					JointActorHandles[1]->SetLevel(ActorHandle->GetLevel() + 1);
-					ActorQueue.Add(JointActorHandles[1]);
-				}
-			}
-		}
-
-		// Update constraint levels
-		for (FJointHandle* JointHandle : JointHandles)
-		{
-			JointHandle->UpdateLevels();
-		}
-	}
-
 	void FSimulation::SetSimulationSpaceTransform(const FTransform& Transform)
 	{ 
 		SimulationSpaceTransform = Transform;
@@ -619,12 +554,6 @@ namespace ImmediatePhysics_Chaos
 		DebugDrawKinematicParticles(2, 2, FColor(128, 0, 0));
 		DebugDrawDynamicParticles(2, 2, FColor(192, 192, 0));
 		DebugDrawConstraints(2, 2, 0.7f);
-
-		if (bJointsDirty)
-		{
-			ConditionConstraints();
-			bJointsDirty = false;
-		}
 
 		if (bActorsDirty)
 		{
