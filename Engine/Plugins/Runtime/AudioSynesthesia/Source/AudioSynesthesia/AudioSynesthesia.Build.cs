@@ -9,8 +9,6 @@ namespace UnrealBuildTool.Rules
 	{
         public AudioSynesthesia(ReadOnlyTargetRules Target) : base(Target)
 		{
-            //bFasterWithoutUnity = true;
-			
             PublicDependencyModuleNames.AddRange(
 				new string[] {
                     "Core",
@@ -19,7 +17,8 @@ namespace UnrealBuildTool.Rules
 					"SignalProcessing",
 					"AudioMixerCore",
 					"AudioMixer",
-                    "AudioAnalyzer"
+                    "AudioAnalyzer",
+					"AudioSynesthesiaCore"
                 }
             );
 		}

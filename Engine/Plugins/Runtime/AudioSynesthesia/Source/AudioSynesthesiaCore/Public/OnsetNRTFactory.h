@@ -12,7 +12,7 @@ namespace Audio
 	 *
 	 *  Settings for the Constant Q Non-Real-Time Factory.
 	 */
-	class AUDIOSYNESTHESIA_API FOnsetNRTSettings : public IAnalyzerNRTSettings
+	class AUDIOSYNESTHESIACORE_API FOnsetNRTSettings : public IAnalyzerNRTSettings
 	{
 	public:
 
@@ -37,7 +37,7 @@ namespace Audio
 	 * 
 	 *  Contains data relating to one onset.
 	 */
-	struct AUDIOSYNESTHESIA_API FOnset
+	struct AUDIOSYNESTHESIACORE_API FOnset
 	{
 		/** Audio channel which produced the data. */
 		int32 Channel;
@@ -61,13 +61,13 @@ namespace Audio
 	};
 
 	/** Serialize FOnset */
-	AUDIOSYNESTHESIA_API FArchive &operator <<(FArchive& Ar, FOnset& Frame);
+	AUDIOSYNESTHESIACORE_API FArchive &operator <<(FArchive& Ar, FOnset& Frame);
 
 	/** FOnsetNRTResult
 	 *
 	 *  FOnsetNRTResult is a container for the output of the FOnsetNRTWorker.
 	 */
-	class AUDIOSYNESTHESIA_API FOnsetNRTResult : public IAnalyzerNRTResult
+	class AUDIOSYNESTHESIACORE_API FOnsetNRTResult : public IAnalyzerNRTResult
 	{
 	public:
 
@@ -121,7 +121,7 @@ namespace Audio
 	 *
 	 *  FOnsetNRTWorker computes a FOnsetNRTResult from audio samples.
 	 */
-	class AUDIOSYNESTHESIA_API FOnsetNRTWorker : public IAnalyzerNRTWorker
+	class AUDIOSYNESTHESIACORE_API FOnsetNRTWorker : public IAnalyzerNRTWorker
 	{
 	public:
 
@@ -183,7 +183,7 @@ namespace Audio
 	 *  
 	 *  Factory for creating FOnsetNRT workers and results
 	 */
-	class AUDIOSYNESTHESIA_API FOnsetNRTFactory : public IAnalyzerNRTFactory
+	class AUDIOSYNESTHESIACORE_API FOnsetNRTFactory : public IAnalyzerNRTFactory
 	{
 	public:
 

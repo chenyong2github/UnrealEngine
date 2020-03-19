@@ -10,7 +10,7 @@
 namespace Audio
 {
 	/** Onset strength settings */
-	struct AUDIOSYNESTHESIA_API FOnsetStrengthSettings
+	struct AUDIOSYNESTHESIACORE_API FOnsetStrengthSettings
 	{
 		// Number of frames between strength windows
 		int32 NumHopFrames = 1024;
@@ -45,7 +45,7 @@ namespace Audio
 	 *                       |           |
 	 *                       >-[lag]-----|
 	 */
-	class AUDIOSYNESTHESIA_API FOnsetStrengthAnalyzer
+	class AUDIOSYNESTHESIACORE_API FOnsetStrengthAnalyzer
 	{
 		public:
 			FOnsetStrengthAnalyzer(const FOnsetStrengthSettings& InSettings, float InSampleRate);
@@ -96,11 +96,11 @@ namespace Audio
 	 * InOnsetEnvelop is an onset strength envelope generated using the FOnsetStrengthAnalyzer.
 	 * OutOnsetIndices contains the indices where onsets occur.
 	 */
-	void AUDIOSYNESTHESIA_API OnsetExtractIndices(const FPeakPickerSettings& InSettings, TArrayView<const float> InOnsetEnvelope, TArray<int32>& OutOnsetIndices);
+	AUDIOSYNESTHESIACORE_API void OnsetExtractIndices(const FPeakPickerSettings& InSettings, TArrayView<const float> InOnsetEnvelope, TArray<int32>& OutOnsetIndices);
 
 	/**
 	 * Backtracks onset indices to the beginning of the onset attack. This is useful when generating 
 	 * splice points which retain the onset attack. 
 	 */
-	void AUDIOSYNESTHESIA_API OnsetBacktrackIndices(TArrayView<const float> InOnsetEnvelope, TArrayView<const int32> InOnsetIndices, TArray<int32>& OutBacktrackedOnsetIndices);
+	AUDIOSYNESTHESIACORE_API void OnsetBacktrackIndices(TArrayView<const float> InOnsetEnvelope, TArrayView<const int32> InOnsetIndices, TArray<int32>& OutBacktrackedOnsetIndices);
 }
