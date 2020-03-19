@@ -218,6 +218,7 @@ namespace UnrealGameSync
 		public string ClientPath;
 		public string Path;
 		public string Action;
+		public long FileSize;
 		public PerforceFileFlags Flags;
 		public int Revision;
 		public bool IsMapped;
@@ -232,6 +233,12 @@ namespace UnrealGameSync
 			if(!Tags.TryGetValue("action", out Action))
 			{
 				Tags.TryGetValue("headAction", out Action);
+			}
+
+			string FileSizeText;
+			if (Tags.TryGetValue("fileSize", out FileSizeText))
+			{
+				FileSize = long.Parse(FileSizeText);
 			}
 
 			string Type;

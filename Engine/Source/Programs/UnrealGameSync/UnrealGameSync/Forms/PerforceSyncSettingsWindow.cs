@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -26,7 +26,6 @@ namespace UnrealGameSync
 		{
 			PerforceSyncOptions SyncOptions = Settings.SyncOptions;
 			NumRetriesTextBox.Text = (SyncOptions.NumRetries > 0)? SyncOptions.NumRetries.ToString() : "";
-			NumThreadsTextBox.Text = (SyncOptions.NumThreads > 0)? SyncOptions.NumThreads.ToString() : "";
 			TcpBufferSizeText.Text = (SyncOptions.TcpBufferSize > 0)? SyncOptions.TcpBufferSize.ToString() : "";
 		}
 
@@ -39,13 +38,6 @@ namespace UnrealGameSync
 				return;
 			}
 
-			int NewNumThreads = 0;
-			if(NumThreadsTextBox.Text.Length > 0 && !int.TryParse(NumThreadsTextBox.Text, out NewNumThreads))
-			{
-				MessageBox.Show("Invalid value for number of threads");
-				return;
-			}
-
 			int NewTcpBufferSize = 0;
 			if(TcpBufferSizeText.Text.Length > 0 && !int.TryParse(TcpBufferSizeText.Text, out NewTcpBufferSize))
 			{
@@ -54,7 +46,6 @@ namespace UnrealGameSync
 			}
 
 			Settings.SyncOptions.NumRetries = NewNumRetries;
-			Settings.SyncOptions.NumThreads = NewNumThreads;
 			Settings.SyncOptions.TcpBufferSize = NewTcpBufferSize;
 			Settings.Save();
 
