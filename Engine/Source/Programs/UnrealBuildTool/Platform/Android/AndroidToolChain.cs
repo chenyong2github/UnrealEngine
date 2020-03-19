@@ -134,7 +134,7 @@ namespace UnrealBuildTool
 			int RevisionNum = ToolchainInt / 10000;
 			int RevisionMinor = ToolchainInt - (RevisionNum * 10000);
 			int RevisionLetterNum = RevisionMinor / 100;
-			int RevisionBeta = RevisionMinor - (RevisionLetterNum * 100);
+			//int RevisionBeta = RevisionMinor - (RevisionLetterNum * 100);
 			char RevisionLetter = Convert.ToChar('a' + RevisionLetterNum - 1);
 
 			return "r" + RevisionNum + (RevisionLetterNum > 1 ? Char.ToString(RevisionLetter) : "");
@@ -314,12 +314,12 @@ namespace UnrealBuildTool
 			// NDK setup (use no less than 21 for 64-bit targets)
 			int NDKApiLevel32Int = GetNdkApiLevelInt();
 			int NDKApiLevel64Int = NDKApiLevel32Int;
-			string NDKApiLevel32Bit = GetNdkApiLevel();
-			string NDKApiLevel64Bit = NDKApiLevel32Bit;
+			//string NDKApiLevel32Bit = GetNdkApiLevel();
+			//string NDKApiLevel64Bit = NDKApiLevel32Bit;
 			if (NDKApiLevel64Int < 21)
 			{
 				NDKApiLevel64Int = 21;
-				NDKApiLevel64Bit = "android-21";
+				//NDKApiLevel64Bit = "android-21";
 			}
 
 			string GCCToolchainPath = Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePath);
@@ -1294,7 +1294,7 @@ namespace UnrealBuildTool
 			//string NDKRoot = Environment.GetEnvironmentVariable("NDKROOT").Replace("\\", "/");
 
 			string BasePCHName = "";
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
+			//UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
 			string PCHExtension = ".gch";
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{

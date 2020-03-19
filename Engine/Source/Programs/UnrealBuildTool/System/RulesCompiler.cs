@@ -414,7 +414,7 @@ namespace UnrealBuildTool
 				{
 					RulesScope EnterpriseScope = new RulesScope("Enterprise", EngineAssembly.Scope);
 
-					List<DirectoryReference> EnterpriseDirectories = new List<DirectoryReference>() { UnrealBuildTool.EnterpriseDirectory };
+					//List<DirectoryReference> EnterpriseDirectories = new List<DirectoryReference>() { UnrealBuildTool.EnterpriseDirectory };
 
 					IReadOnlyList<PluginInfo> IncludedPlugins = Plugins.ReadEnterprisePlugins(UnrealBuildTool.EnterpriseDirectory);
 					EnterpriseRulesAssembly = CreateEngineOrEnterpriseRulesAssembly(EnterpriseScope, new List<DirectoryReference>() { UnrealBuildTool.EnterpriseDirectory }, 
@@ -546,7 +546,7 @@ namespace UnrealBuildTool
 				}
 
 				DirectoryReference MainProjectDirectory = ProjectFileName.Directory;
-				DirectoryReference MainProjectSourceDirectory = DirectoryReference.Combine(MainProjectDirectory, "Source");
+				//DirectoryReference MainProjectSourceDirectory = DirectoryReference.Combine(MainProjectDirectory, "Source");
 
 				// Create a scope for things in this assembly
 				RulesScope Scope = new RulesScope("Project", Parent.Scope);

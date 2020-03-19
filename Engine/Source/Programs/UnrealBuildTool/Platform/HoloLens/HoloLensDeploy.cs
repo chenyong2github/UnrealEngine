@@ -15,8 +15,8 @@ namespace UnrealBuildTool
 	/// </summary>
 	class HoloLensDeploy : UEBuildDeploy
 	{
-		private FileReference MakeAppXPath;
-		private FileReference SignToolPath;
+		//private FileReference MakeAppXPath;
+		//private FileReference SignToolPath;
 
 		/// <summary>
 		/// Utility function to delete a file
@@ -102,7 +102,7 @@ namespace UnrealBuildTool
 					if (FilesInSource.Contains(DestFilename.ToUpperInvariant()) == false)
 					{
 						Log.TraceInformation("Destination file does not exist in Source - DELETING: {0}", DestFile);
-						FileAttributes attributes = File.GetAttributes(DestFile);
+						//FileAttributes attributes = File.GetAttributes(DestFile);
 						try
 						{
 							DeployHelper_DeleteFile(DestFile);
@@ -204,8 +204,8 @@ namespace UnrealBuildTool
 				ConfigDirRef = new DirectoryReference(UnrealBuildTool.GetRemoteIniPath());
 			}
 
-			MakeAppXPath = HoloLensExports.GetWindowsSdkToolPath("makeappx.exe");
-			SignToolPath = HoloLensExports.GetWindowsSdkToolPath("signtool.exe");
+			//MakeAppXPath = HoloLensExports.GetWindowsSdkToolPath("makeappx.exe");
+			//SignToolPath = HoloLensExports.GetWindowsSdkToolPath("signtool.exe");
 
 			return true;
 		}

@@ -678,7 +678,7 @@ namespace UnrealBuildTool
 						string Command = BaseCommand == "Rebuild" ? "Build" : BaseCommand;
 						string TaskName = String.Format("{0} {1} {2} {3}", Target.Name, BuildProduct.Platform.ToString(), BuildProduct.Config, BaseCommand);
 						string CleanTaskName = String.Format("{0} {1} {2} {3}", Target.Name, BuildProduct.Platform.ToString(), BuildProduct.Config, "Clean");
-						List<string> ExtraParams = new List<string>();
+						//List<string> ExtraParams = new List<string>();
 
 						OutFile.BeginObject();
 						{
@@ -901,9 +901,9 @@ namespace UnrealBuildTool
 			FileReference TargetFilePath = Target.TargetFilePath;
 			string TargetName = TargetFilePath == null ? Project.ProjectFilePath.GetFileNameWithoutExtension() : TargetFilePath.GetFileNameWithoutAnyExtensions();
 			string UBTPlatformName = Platform.ToString();
-			string UBTConfigurationName = Configuration.ToString();
+			//string UBTConfigurationName = Configuration.ToString();
 
-			string ProjectName = Project.ProjectFilePath.GetFileNameWithoutExtension();
+			//string ProjectName = Project.ProjectFilePath.GetFileNameWithoutExtension();
 
 			// Setup output path
 			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
