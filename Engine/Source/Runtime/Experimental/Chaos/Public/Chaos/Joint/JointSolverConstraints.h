@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 
 #include "Chaos/PBDJointConstraintTypes.h"
+#include "Chaos/PBDJointConstraintUtilities.h"
+#include "Chaos/Utilities.h"
 
 namespace Chaos
 {
