@@ -22,6 +22,8 @@ class SNiagaraScratchPad : public SCompoundWidget
 private:
 	TSharedRef<SWidget> ConstructScriptSelector();
 
+	TSharedRef<SWidget> ConstructParameterPanel();
+
 	TSharedRef<SWidget> ConstructScriptEditor();
 
 	TSharedRef<SWidget> ConstructSelectionEditor();

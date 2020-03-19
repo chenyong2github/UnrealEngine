@@ -51,11 +51,11 @@ public:
 	{}
 	SLATE_END_ARGS();
 
-	~SNiagaraParameterPanel();
+	NIAGARAEDITOR_API ~SNiagaraParameterPanel();
 
-	void Construct(const FArguments& InArgs, const TSharedPtr<INiagaraParameterPanelViewModel>& InParameterPanelViewModel, const TSharedPtr<FUICommandList>& InToolkitCommands);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, const TSharedPtr<INiagaraParameterPanelViewModel>& InParameterPanelViewModel, const TSharedPtr<FUICommandList>& InToolkitCommands);
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	NIAGARAEDITOR_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** Whether the add parameter button should be enabled. */
 // 	bool ParameterAddEnabled() const; //@todo(ng) impl

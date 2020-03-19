@@ -7,7 +7,7 @@
 #include "NiagaraActions.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNode.h"
-#include "NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
 #include "CoreMinimal.h"
