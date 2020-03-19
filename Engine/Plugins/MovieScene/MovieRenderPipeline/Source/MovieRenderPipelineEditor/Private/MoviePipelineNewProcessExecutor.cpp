@@ -41,8 +41,8 @@ void UMoviePipelineNewProcessExecutor::ExecuteImpl(UMoviePipelineQueue* InPipeli
 	bool bHasValidMap = true;
 	for (const UMoviePipelineExecutorJob* Job : InPipelineQueue->GetJobs())
 	{
-		FName PackageName = Job->Map.GetLongPackageName();
-		if (!FPackageName::IsValidLongPackageName(PackageName.ToString()))
+		FString PackageName = Job->Map.GetLongPackageName();
+		if (!FPackageName::IsValidLongPackageName(PackageName))
 		{
 			bHasValidMap = false;
 			break;
