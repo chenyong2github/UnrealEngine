@@ -5,6 +5,7 @@
 #include "NiagaraSystemInstance.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceParticleRead"
 
@@ -22,7 +23,7 @@ static const FName GetQuatAttributeFunctionName("Get Quaternion Attribute");
 
 static const FString NumSpawnedParticlesBaseName(TEXT("NumSpawnedParticles_"));
 static const FString SpawnedParticlesAcquireTagBaseName(TEXT("SpawnedParticlesAcquireTag_"));
-static const FString NumParticlesBaseName(TEXT("NumParticles_"));
+static const FString InstanceCountOffsetBaseName(TEXT("InstanceCountOffset_"));
 static const FString SpawnedIDsBufferBaseName(TEXT("SpawnedIDsBuffer_"));
 static const FString IDToIndexTableBaseName(TEXT("IDToIndexTable_"));
 static const FString InputFloatBufferBaseName(TEXT("InputFloatBuffer_"));
@@ -174,7 +175,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 	{
 		NumSpawnedParticlesParam.Bind(ParameterMap, *(NumSpawnedParticlesBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 		SpawnedParticlesAcquireTagParam.Bind(ParameterMap, *(SpawnedParticlesAcquireTagBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		NumParticlesParam.Bind(ParameterMap, *(NumParticlesBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		InstanceCountOffsetParam.Bind(ParameterMap, *(InstanceCountOffsetBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 		SpawnedIDsBufferParam.Bind(ParameterMap, *(SpawnedIDsBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 		IDToIndexTableParam.Bind(ParameterMap, *(IDToIndexTableBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 		InputFloatBufferParam.Bind(ParameterMap, *(InputFloatBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
@@ -225,9 +226,9 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			SetShaderValue(RHICmdList, ComputeShader, NumSpawnedParticlesParam, 0);
 			SetShaderValue(RHICmdList, ComputeShader, SpawnedParticlesAcquireTagParam, 0);
 			SetSRVParameter(RHICmdList, ComputeShader, SpawnedIDsBufferParam, FNiagaraRenderer::GetDummyIntBuffer());
-			SetShaderValue(RHICmdList, ComputeShader, NumParticlesParam, 0);
 		}
 
+		SetShaderValue(RHICmdList, ComputeShader, InstanceCountOffsetParam, -1);
 		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, FNiagaraRenderer::GetDummyIntBuffer());
 		SetSRVParameter(RHICmdList, ComputeShader, InputFloatBufferParam, FNiagaraRenderer::GetDummyFloatBuffer());
 		SetSRVParameter(RHICmdList, ComputeShader, InputIntBufferParam, FNiagaraRenderer::GetDummyIntBuffer());
@@ -410,7 +411,6 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		SetShaderValue(RHICmdList, ComputeShader, NumSpawnedParticlesParam, NumSpawnedInstances);
 		SetShaderValue(RHICmdList, ComputeShader, SpawnedParticlesAcquireTagParam, IDAcquireTag);
 		SetSRVParameter(RHICmdList, ComputeShader, SpawnedIDsBufferParam, GetIntSRVWithFallback(SourceDataSet->GetGPUFreeIDs()));
-		SetShaderValue(RHICmdList, ComputeShader, NumParticlesParam, SourceData ? SourceData->GetNumInstances() : 0);
 
 		if (!SourceData)
 		{
@@ -424,24 +424,26 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			InstanceData->CachedDataSet = SourceDataSet;
 		}
 
-		if (!SourceData->GetGPUIDToIndexTable().Buffer)
-		{
-			// This can happen in the first frame, when there's no previous data yet. The DI shouldn't be
-			// queried in this case, because there's no way to have particle IDs (since there are no particles),
-			// but if it is it will just return failure and default values.
-			SetErrorParams(RHICmdList, ComputeShader, true);
-			return;
-		}
-
 		if (!bReadingOwnEmitter)
 		{
 			FRHIUnorderedAccessView* InputBuffers[] = { SourceData->GetGPUIDToIndexTable().UAV, SourceData->GetGPUBufferFloat().UAV, SourceData->GetGPUBufferInt().UAV };
 			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, InputBuffers, UE_ARRAY_COUNT(InputBuffers));
+
+			if (InstanceCountOffsetParam.IsBound())
+			{
+				// If we're reading the instance count from another emitter, we must insert a barrier on the instance count buffer, to make sure the
+				// previous dispatch finished writing to it. For D3D11, we need to insert an end overlap / begin overlap pair to break up the current
+				// overlap group.
+				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, const_cast<NiagaraEmitterInstanceBatcher*>(Context.Batcher)->GetGPUInstanceCounterManager().GetInstanceCountBuffer().UAV);
+				RHICmdList.EndUAVOverlap();
+				RHICmdList.BeginUAVOverlap();
+			}
 		}
 
 		const uint32 ParticleStrideFloat = SourceData->GetFloatStride() / sizeof(float);
 		const uint32 ParticleStrideInt = SourceData->GetInt32Stride() / sizeof(int32);
 
+		SetShaderValue(RHICmdList, ComputeShader, InstanceCountOffsetParam, SourceData->GetGPUInstanceCountBufferOffset());
 		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, GetIntSRVWithFallback(SourceData->GetGPUIDToIndexTable()));
 		SetSRVParameter(RHICmdList, ComputeShader, InputFloatBufferParam, GetFloatSRVWithFallback(SourceData->GetGPUBufferFloat()));
 		SetSRVParameter(RHICmdList, ComputeShader, InputIntBufferParam, GetIntSRVWithFallback(SourceData->GetGPUBufferInt()));
@@ -454,7 +456,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 private:
 	LAYOUT_FIELD(FShaderParameter, NumSpawnedParticlesParam);
 	LAYOUT_FIELD(FShaderParameter, SpawnedParticlesAcquireTagParam);
-	LAYOUT_FIELD(FShaderParameter, NumParticlesParam);
+	LAYOUT_FIELD(FShaderParameter, InstanceCountOffsetParam);
 	LAYOUT_FIELD(FShaderResourceParameter, SpawnedIDsBufferParam);
 	LAYOUT_FIELD(FShaderResourceParameter, IDToIndexTableParam);
 	LAYOUT_FIELD(FShaderResourceParameter, InputFloatBufferParam);
@@ -1160,7 +1162,7 @@ void UNiagaraDataInterfaceParticleRead::GetParameterDefinitionHLSL(const FNiagar
 	static const TCHAR *FormatDeclarations = TEXT(
 		"int {NumSpawnedParticlesName};\n"
 		"int {SpawnedParticlesAcquireTagName};\n"
-		"int {NumParticlesName};\n"
+		"uint {InstanceCountOffsetName};\n"
 		"uint {ParticleStrideFloatName};\n"
 		"uint {ParticleStrideIntName};\n"
 		"int {AcquireTagRegisterIndexName};\n"
@@ -1180,7 +1182,7 @@ void UNiagaraDataInterfaceParticleRead::GetParameterDefinitionHLSL(const FNiagar
 	TMap<FString, FStringFormatArg> ArgsDeclarations;
 	ArgsDeclarations.Add(TEXT("NumSpawnedParticlesName"), NumSpawnedParticlesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 	ArgsDeclarations.Add(TEXT("SpawnedParticlesAcquireTagName"), SpawnedParticlesAcquireTagBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("NumParticlesName"), NumParticlesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+	ArgsDeclarations.Add(TEXT("InstanceCountOffsetName"), InstanceCountOffsetBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 	ArgsDeclarations.Add(TEXT("ParticleStrideFloatName"), ParticleStrideFloatBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 	ArgsDeclarations.Add(TEXT("ParticleStrideIntName"), ParticleStrideIntBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 	ArgsDeclarations.Add(TEXT("AcquireTagRegisterIndexName"), AcquireTagRegisterIndexBaseName + ParamInfo.DataInterfaceHLSLSymbol);
@@ -1335,13 +1337,20 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 		static const TCHAR* FuncTemplate = TEXT(
 			"void {FunctionName}(out int Out_NumParticles)\n"
 			"{\n"
-			"    Out_NumParticles = {NumParticlesName};\n"
+			"    if({InstanceCountOffsetName} != 0xffffffff)\n"
+			"    {\n"
+			"        Out_NumParticles = RWInstanceCounts[{InstanceCountOffsetName}];\n"
+			"    }\n"
+			"    else\n"
+			"    {\n"
+			"        Out_NumParticles = 0;\n"
+			"    }\n"
 			"}\n\n"
 		);
 
 		TMap<FString, FStringFormatArg> FuncTemplateArgs;
 		FuncTemplateArgs.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
-		FuncTemplateArgs.Add(TEXT("NumParticlesName"), NumParticlesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		FuncTemplateArgs.Add(TEXT("InstanceCountOffsetName"), InstanceCountOffsetBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 
 		OutHLSL += FString::Format(FuncTemplate, FuncTemplateArgs);
 		return true;
