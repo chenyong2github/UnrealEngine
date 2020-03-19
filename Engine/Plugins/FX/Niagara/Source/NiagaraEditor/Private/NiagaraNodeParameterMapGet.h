@@ -43,6 +43,8 @@ public:
 	void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 
+	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_MODULE_STR; }
+
 protected:
 	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin) override;
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;

@@ -4,6 +4,7 @@
 
 #include "NiagaraNodeWithDynamicPins.h"
 #include "SGraphPin.h"
+#include "NiagaraConstants.h"
 #include "NiagaraNodeParameterMapBase.generated.h"
 
 class UEdGraphPin;
@@ -43,6 +44,8 @@ public:
 	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
 
 	virtual bool CanRenamePinFromContextMenu(const UEdGraphPin* Pin) const { return false; }
+
+	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_LOCAL_MODULE_STR; }
 
 protected:
 	virtual void SelectParameterFromPin(UEdGraphPin* InPin);
