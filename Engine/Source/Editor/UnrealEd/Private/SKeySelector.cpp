@@ -221,7 +221,8 @@ FText SKeySelector::GetKeyTooltip() const
 
 FSlateColor SKeySelector::GetKeyIconColor() const
 {
-	return bListenForNextInput ? FColor::Orange : FColor::White;
+	// Orange when listening for input
+	return bListenForNextInput ? FLinearColor(0.953f, 0.612f, 0.071f) : FLinearColor::White;
 }
 
 //=======================================================================

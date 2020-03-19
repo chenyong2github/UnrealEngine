@@ -1283,7 +1283,7 @@ void FSteamVRInputDevice::OnVREditingModeEnter()
 			const FName Action = KeyToAction.Value.ActionType;
 			FName CombinedName = FName("VREditor_" + Hand.ToString() + "_" + Action.ToString());
 
-			if (Key.IsFloatAxis())
+			if (Key.IsAxis1D())
 			{
 				InputSettings->AddAxisMapping(FInputAxisKeyMapping(CombinedName, Key), false);
 			}
@@ -1324,7 +1324,7 @@ void FSteamVRInputDevice::OnVREditingModeExit()
 			const FName Action = KeyToAction.Value.ActionType;
 			FName CombinedName = FName("VREditor_" + Hand.ToString() + "_" + Action.ToString());
 
-			if (Key.IsFloatAxis())
+			if (Key.IsAxis1D())
 			{
 				InputSettings->RemoveAxisMapping(FInputAxisKeyMapping(CombinedName, Key), false);
 			}
