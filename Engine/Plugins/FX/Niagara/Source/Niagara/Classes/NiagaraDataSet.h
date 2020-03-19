@@ -39,6 +39,7 @@ struct FNiagaraVariableLayoutInfo
 class FNiagaraDataSet;
 class FNiagaraShader;
 class FNiagaraGPUInstanceCountManager;
+class NiagaraEmitterInstanceBatcher;
 struct FNiagaraComputeExecutionContext;
 
 //Base class for objects in Niagara that are owned by one object but are then passed for reading to other objects, potentially on other threads.
@@ -178,8 +179,8 @@ public:
 	FORCEINLINE TArray<int32>& GetIDTable() { return IDToIndexTable; }
 	FORCEINLINE const TArray<int32>& GetIDTable() const { return IDToIndexTable; }
 
-	void SetShaderParams(class FNiagaraShader *Shader, FRHICommandList &CommandList, bool bInput);
-	void UnsetShaderParams(class FNiagaraShader *Shader, FRHICommandList &CommandList);
+	void SetShaderParams(class FNiagaraShader* Shader, FRHICommandList& CommandList, bool bInput);
+	void UnsetShaderParams(class FNiagaraShader* Shader, FRHICommandList& CommandList);
 
 	void ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
 
@@ -2142,7 +2143,7 @@ public:
 		}
 	}
 
-	void ReadbackData(class NiagaraEmitterInstanceBatcher* Batcher, FNiagaraDataSet* InDataSet);
+	void ReadbackData(NiagaraEmitterInstanceBatcher* Batcher, FNiagaraDataSet* InDataSet);
 	uint32 GetNumInstances() const { check(DataSet != nullptr); return NumInstances; }
 
 private:
