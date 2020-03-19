@@ -68,6 +68,11 @@ void UDataprepAsset::PostLoad()
 			DataprepRecipeBP_DEPRECATED = nullptr;
 			StartNode_DEPRECATED = nullptr;
 			bMarkDirty = true;
+
+			// Actions must change owner, but it cannot be done in the PostLoad.
+			// Register to be called back when FCoreUObjectDelegates::OnAssetLoad broadcasts
+			// so the change of ownership can be done
+			FCoreUObjectDelegates::OnAssetLoaded.AddUObject(this, &UDataprepAsset::OnOldAssetLoaded);
 		}
 
 		if ( !Parameterization )
@@ -597,6 +602,24 @@ bool UDataprepAsset::RemoveActions(const TArray<int32>& Indices)
 	UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::RemoveActions: None of the indices are in range") );
 
 	return false;
+}
+
+void UDataprepAsset::OnOldAssetLoaded(UObject* Asset)
+{
+	if(Asset == this)
+	{
+		// Move ownership from the deprecated K2Node to the Dataprep asset itself
+		for(UDataprepActionAsset* ActionAsset : ActionAssets)
+		{
+			if(ActionAsset && ActionAsset->GetOuter() != this)
+			{
+				ActionAsset->Rename(nullptr, this, REN_NonTransactional | REN_DontCreateRedirectors);
+			}
+		}
+
+		// Unregister to the OnAssetLoad event as it is not needed anymore
+		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
