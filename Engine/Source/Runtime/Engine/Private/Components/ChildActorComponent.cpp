@@ -286,6 +286,7 @@ void UChildActorComponent::OnUnregister()
 
 FChildActorComponentInstanceData::FChildActorComponentInstanceData(const UChildActorComponent* Component)
 	: FSceneComponentInstanceData(Component)
+	, ChildActorClass(Component->GetChildActorClass())
 	, ChildActorName(Component->GetChildActorName())
 	, ComponentInstanceData(nullptr)
 {
@@ -388,7 +389,11 @@ void UChildActorComponent::ApplyComponentInstanceData(FChildActorComponentInstan
 {
 	check(ChildActorInstanceData);
 
-	ChildActorName = ChildActorInstanceData->ChildActorName;
+	if (ChildActorClass == ChildActorInstanceData->ChildActorClass)
+	{
+		ChildActorName = ChildActorInstanceData->ChildActorName;
+	}
+
 	if (ChildActor)
 	{
 		// Only rename if it is safe to
