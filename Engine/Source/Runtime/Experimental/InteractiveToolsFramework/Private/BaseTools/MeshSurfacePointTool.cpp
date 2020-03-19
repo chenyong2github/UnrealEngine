@@ -57,6 +57,8 @@ void UMeshSurfacePointTool::Setup()
 
 	// add input behaviors
 	UClickDragInputBehavior* DragBehavior = NewObject<UClickDragInputBehavior>();
+	DragBehavior->Modifiers.RegisterModifier(UMeshSurfacePointTool_ShiftModifier, FInputDeviceState::IsShiftKeyDown);
+	DragBehavior->Modifiers.RegisterModifier(UMeshSurfacePointTool_CtrlModifier, FInputDeviceState::IsCtrlKeyDown);
 	DragBehavior->Initialize(this);
 	AddInputBehavior(DragBehavior);
 
