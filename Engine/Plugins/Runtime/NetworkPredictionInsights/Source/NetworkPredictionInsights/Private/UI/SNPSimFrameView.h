@@ -6,6 +6,7 @@
 #include "NPAxisViewportDouble.h"
 #include "INetworkPredictionProvider.h"
 #include "Insights/Common/PaintUtils.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 enum class ESimFrameStatus : uint8
 {
