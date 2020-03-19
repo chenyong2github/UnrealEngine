@@ -55,7 +55,7 @@ UMaterialInstanceDynamic* UMaterialInstanceDynamic::Create(UMaterialInterface* P
 				bRenamed = true;
 				// a collision, we're going to move this existing mid to the transient package and claim the name 
 				// for ourself:
-				MID->Rename(
+				ExistingMID	->Rename(
 					nullptr,
 					TransientPackage,
 					REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional
