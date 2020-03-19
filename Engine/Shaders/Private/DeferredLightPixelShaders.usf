@@ -109,7 +109,7 @@ float GetExposure()
 #if USE_PREEXPOSURE
 	return View.PreExposure;
 #else
-	return 0;
+	return 1;
 #endif
 }
 
