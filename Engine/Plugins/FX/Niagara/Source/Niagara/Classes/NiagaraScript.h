@@ -21,9 +21,6 @@ class UNiagaraDataInterface;
 class FNiagaraCompileRequestDataBase;
 class UNiagaraConvertInPlaceUtilityBase;
 
-void SerializeNiagaraShaderMaps(const TMap<const ITargetPlatform*, TArray<FNiagaraShaderScript*>>* PlatformScriptResourcesToSave, FArchive& Ar, TArray<FNiagaraShaderScript>& OutLoadedResources);
-void ProcessSerializedShaderMaps(UNiagaraScript* Owner, TArray<FNiagaraShaderScript>& LoadedResources, FNiagaraShaderScript& OutResourceForCurrentPlatform, FNiagaraShaderScript* (&OutScriptResourcesLoaded)[ERHIFeatureLevel::Num]);
-
 #define NIAGARA_INVALID_MEMORY (0xBA)
 
 #define NIAGARA_SCRIPT_COMPILE_LOGGING_MEDIUM
@@ -593,34 +590,33 @@ public:
 	FNiagaraShaderScript* AllocateResource();
 	FNiagaraShaderScript* GetRenderThreadScript()
 	{
-		return &ScriptResource;
+		return ScriptResource.Get();
 	}
 
 	const FNiagaraShaderScript* GetRenderThreadScript() const
 	{
-		return &ScriptResource;
+		return ScriptResource.Get();
 	}
+#if WITH_EDITORONLY_DATA
 
 	FComputeShaderRHIRef GetScriptShader() 
 	{
-		if (!ScriptShader)
+		if (!ScriptShader && ScriptResource.IsValid())
 		{
-			ScriptShader = ScriptResource.GetShader().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
+			ScriptShader = ScriptResource->GetShader().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
 		}
 		return ScriptShader; 
 	}
 
 	FComputeShaderRHIRef GetScriptShaderGameThread()
 	{
-		if (!ScriptShader)
+		if (!ScriptShader && ScriptResource.IsValid())
 		{
-			ScriptShader = ScriptResource.GetShaderGameThread().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
+			ScriptShader = ScriptResource->GetShaderGameThread().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
 		}
 		return ScriptShader;
 	}
-
-
-	void SetFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel)		{ FeatureLevel = InFeatureLevel; }
+#endif
 
 	NIAGARA_API void GenerateStatScopeIDs();
 
@@ -709,6 +705,9 @@ private:
 	bool OwnerCanBeRunOnGpu() const;
 	bool LegacyCanBeRunOnGpu()const;
 
+	void ProcessSerializedShaderMaps();
+	void SerializeNiagaraShaderMaps(FArchive& Ar, int32 NiagaraVer, bool IsValidShaderScript);
+
 	/** Return the expected SimTarget for this script. Only returns a valid target if there is valid data to run with. */
 	TOptional<ENiagaraSimTarget> GetSimTarget() const;
 
@@ -762,14 +761,12 @@ private:
 	mutable FNiagaraVMExecutableDataId LastGeneratedVMId;
 #endif
 
+	TUniquePtr<FNiagaraShaderScript> ScriptResource;
+
+#if WITH_EDITORONLY_DATA
 	TArray<FNiagaraShaderScript> LoadedScriptResources;
-
-	FNiagaraShaderScript ScriptResource;
-
 	FNiagaraShaderScript* ScriptResourcesByFeatureLevel[ERHIFeatureLevel::Num];
-
-	/** Feature level that the shader map is going to be compiled for. */
-	ERHIFeatureLevel::Type FeatureLevel;
+#endif
 
 	/** Compute shader compiled for this script */
 	FComputeShaderRHIRef ScriptShader;
