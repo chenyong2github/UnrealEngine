@@ -40,13 +40,14 @@ protected:
 
 private:
 	FPatchCheck(const FPatchCheck& Other) = delete;
+
 	FPatchCheck& operator=(const FPatchCheck& Other) = delete;
 
 public:
 	void StartPatchCheck();
 
-	void AddEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag, FEnvironmentWantsPatchCheck Delegate);
-	void RemoveEnvironmentWantsPatchCheckBackBackCompatDelegate(FName Tag);
+	void AddEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag, FEnvironmentWantsPatchCheck Delegate);
+	void RemoveEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag);
 
 	FOnPatchCheckComplete& GetOnComplete() { return OnComplete; }
 
