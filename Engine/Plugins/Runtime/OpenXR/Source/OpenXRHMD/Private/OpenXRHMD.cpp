@@ -395,9 +395,9 @@ bool FOpenXRHMDPlugin::PreInit()
 	}
 
 	// Switch to constant once out of preview and there is a header available.
-	if (AvailableExtensions.Contains("XR_MSFT_hand_interaction_preview"))
+	if (AvailableExtensions.Contains("XR_MSFT_hand_interaction"))
 	{
-		EnabledExtensions.Add("XR_MSFT_hand_interaction_preview");
+		EnabledExtensions.Add("XR_MSFT_hand_interaction");
 	}
 
 	// Enable layers, if specified by CVar.
