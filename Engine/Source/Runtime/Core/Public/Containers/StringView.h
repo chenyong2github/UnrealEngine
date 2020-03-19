@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Containers/StringFwd.h"
 #include "CoreTypes.h"
+#include "Containers/StringFwd.h"
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/CString.h"
