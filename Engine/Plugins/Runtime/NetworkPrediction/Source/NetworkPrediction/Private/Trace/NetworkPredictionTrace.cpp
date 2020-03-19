@@ -3,7 +3,6 @@
 
 #include "Trace/NetworkPredictionTrace.h"
 #include "CoreMinimal.h"
-#include "TraceServices/Model/AnalysisSession.h"
 #include "HAL/PlatformTime.h"
 #include "UObject/ObjectKey.h"
 #include "Engine/EngineBaseTypes.h"
