@@ -37,8 +37,8 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=General)
 	TArray<FDirectoryPath> IgnoredPaths;
 
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category=General)
-	bool bShowAdvancedData;
+	UPROPERTY(config, EditAnywhere, Category=General)
+	bool bShowMissingAssets;
 
 	UPROPERTY(config, EditAnywhere, Category = Performance)
 	bool bThrottleInBackground = true;

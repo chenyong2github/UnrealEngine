@@ -35,6 +35,8 @@
 #include "Widgets/Images/SThrobber.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Settings/SearchUserSettings.h"
+#include "SearchStyle.h"
+#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "SObjectBrowser"
 
@@ -46,6 +48,7 @@ namespace AssetSearchConstants
 	const int32 ThumbnailPoolSize = 64;
 }
 
+//;
 //TODO Expose TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const via IContentBrowserSingleton.
 
 SSearchBrowser::~SSearchBrowser()
@@ -89,17 +92,17 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 			[
 				SNew(SHorizontalBox)
 
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.OnClicked(this, &SSearchBrowser::OnRefresh)
-					[
-						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-						.Text(FEditorFontGlyphs::Refresh)
-					]
-				]
+				//+ SHorizontalBox::Slot()
+				//.AutoWidth()
+				//[
+				//	SNew(SButton)
+				//	.OnClicked(this, &SSearchBrowser::OnRefresh)
+				//	[
+				//		SNew(STextBlock)
+				//		.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				//		.Text(FEditorFontGlyphs::Refresh)
+				//	]
+				//]
 
 				+ SHorizontalBox::Slot()
 				.FillWidth(1.0f)
@@ -120,25 +123,40 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(0.0f, 4.0f))
 				[
-					SAssignNew(SearchTreeView, STreeView< TSharedPtr<FSearchNode> >)
-					.ItemHeight(24.0f)
-					.TreeItemsSource(&SearchResults)
-					.SelectionMode(ESelectionMode::Single)
-					.OnGenerateRow(this, &SSearchBrowser::HandleListGenerateRow)
-					.OnGetChildren(this, &SSearchBrowser::GetChildrenForInfo)
-					.OnSelectionChanged(this, &SSearchBrowser::HandleListSelectionChanged)
-					.HeaderRow
-					(
-						SNew(SHeaderRow)
+					SNew(SOverlay)
 
-						+ SHeaderRow::Column(SSearchTreeRow::NAME_ColumnName)
-						.DefaultLabel(LOCTEXT("ColumnName", "Name"))
-						.FillWidth(0.80f)
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Clipping(EWidgetClipping::Inherit)
+						.Text(this, &SSearchBrowser::GetSearchBackgroundText)
+						.Justification(ETextJustify::Center)
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 30))
+						.ColorAndOpacity(FLinearColor(1,1,1,0.05))
+						.RenderTransformPivot(FVector2D(0.5, 0.5))
+						.RenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(-30.0f))))
+					]
 
-						+ SHeaderRow::Column(SSearchTreeRow::NAME_ColumnType)
-						.ManualWidth(300)
-						.DefaultLabel(LOCTEXT("ColumnType", "Type"))
-					)
+					+ SOverlay::Slot()
+					[
+						SAssignNew(SearchTreeView, STreeView< TSharedPtr<FSearchNode> >)
+						.ItemHeight(24.0f)
+						.TreeItemsSource(&SearchResults)
+						.SelectionMode(ESelectionMode::Single)
+						.OnGenerateRow(this, &SSearchBrowser::HandleListGenerateRow)
+						.OnGetChildren(this, &SSearchBrowser::GetChildrenForInfo)
+						.OnSelectionChanged(this, &SSearchBrowser::HandleListSelectionChanged)
+						.HeaderRow
+						(
+							SAssignNew(HeaderColumns, SHeaderRow)
+
+							+ SHeaderRow::Column(SSearchTreeRow::NAME_ColumnName)
+							.DefaultLabel(LOCTEXT("ColumnName", "Name"))
+							.FillWidth(70)
+						)
+					]
 				]
 			]
 
@@ -155,28 +173,36 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 			[
 				SNew(SHorizontalBox)
 
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(8, 0)
+				[
+					SNew(SImage)
+					.Image(FSearchStyle::Get().GetBrush("Stats"))
+					.ToolTip(
+						SNew(SToolTip)
+						[
+							SNew(SVerticalBox)
+
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SNew(STextBlock)
+								.Text(this, &SSearchBrowser::GetAdvancedStatus)
+							]
+						]
+					)
+				]
+
 				// Asset Stats 
 				+ SHorizontalBox::Slot()
 				.FillWidth(1.f)
 				.VAlign(VAlign_Center)
-				.Padding(8, 0)
+				.Padding(2, 0)
 				[
-					SNew(SVerticalBox)
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(STextBlock)
-						.Text(this, &SSearchBrowser::GetStatusText)
-					]
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(STextBlock)
-						.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowAdvancedData ? EVisibility::Visible : EVisibility::Collapsed; })
-						.Text(this, &SSearchBrowser::GetAdvancedStatus)
-					]
+					SNew(STextBlock)
+					.Text(this, &SSearchBrowser::GetStatusText)
 				]
 
 				// Index unindexed items
@@ -186,7 +212,7 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 				[
 					SNew(SHyperlink)
 					.Text(this, &SSearchBrowser::GetUnindexedAssetsText)
-					.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowAdvancedData ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowMissingAssets ? EVisibility::Visible : EVisibility::Collapsed; })
 					.OnNavigate(this, &SSearchBrowser::HandleForceIndexOfAssetsMissingIndex)
 				]
 			]
@@ -194,6 +220,41 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 	];
 
 	RefreshList();
+}
+
+void SSearchBrowser::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	const int32 MinSizeForTypeColumn = 400;
+	if (HeaderColumns->GetColumns().Num() == 1 && AllottedGeometry.GetLocalSize().X > MinSizeForTypeColumn)
+	{
+		HeaderColumns->AddColumn(
+			SHeaderRow::Column(SSearchTreeRow::NAME_ColumnType)
+			.DefaultLabel(LOCTEXT("ColumnType", "Type"))
+			.FillWidth(30)
+		);
+	}
+	else if (HeaderColumns->GetColumns().Num() > 1 && AllottedGeometry.GetLocalSize().X < MinSizeForTypeColumn)
+	{
+		HeaderColumns->RemoveColumn(SSearchTreeRow::NAME_ColumnType);
+	}
+}
+
+FText SSearchBrowser::GetSearchBackgroundText() const
+{
+	if (FilterString.Len() > 0 && !IsSearching() && SearchResults.Num() == 0)
+	{
+		return LOCTEXT("SearchAllTheThings", "¯\\_(ツ)_/¯");
+	}
+	else if (FilterString.Len() == 0)
+	{
+		return LOCTEXT("SearchAllTheThings", "Search\nAll The Things!");
+	}
+	else
+	{
+		return FText::GetEmpty();
+	}
 }
 
 FText SSearchBrowser::GetStatusText() const
@@ -216,14 +277,20 @@ FText SSearchBrowser::GetAdvancedStatus() const
 {
 	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
 	FSearchStats SearchStats = SearchModule.GetStats();
-	return FText::Format(LOCTEXT("AdvancedSearchStatusTextFmt", "Scanning {0}   Processing {1}   Updating {2}            Total Records {3}"), SearchStats.Scanning, SearchStats.Processing, SearchStats.Updating, SearchStats.TotalRecords);
+	return FText::Format(LOCTEXT("AdvancedSearchStatusTextFmt", "Scanning {0}\nProcessing {1}\nUpdating {2}\n\nTotal Records {3}"), SearchStats.Scanning, SearchStats.Processing, SearchStats.Updating, SearchStats.TotalRecords);
 }
 
 FText SSearchBrowser::GetUnindexedAssetsText() const
 {
 	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
 	FSearchStats SearchStats = SearchModule.GetStats();
-	return FText::Format(LOCTEXT("UnindexedAssetsLinkFormat", "{0} Missing"), SearchStats.AssetsMissingIndex);
+
+	if (SearchStats.AssetsMissingIndex > 0)
+	{
+		return FText::Format(LOCTEXT("UnindexedAssetsLinkFormat", "{0} Missing"), SearchStats.AssetsMissingIndex);
+	}
+
+	return FText::GetEmpty();
 }
 
 void SSearchBrowser::HandleForceIndexOfAssetsMissingIndex()

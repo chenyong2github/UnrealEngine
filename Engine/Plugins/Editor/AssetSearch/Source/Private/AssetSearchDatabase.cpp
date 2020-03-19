@@ -17,8 +17,6 @@
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/StringBuilder.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 DECLARE_LOG_CATEGORY_CLASS(LogAssetSearch, Log, All);
 
 enum class EAssetSearchDatabaseVersion
@@ -846,5 +844,3 @@ FString FSearchQuery::ConvertToDatabaseQuery() const
 
 	return Q.ToString();
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
