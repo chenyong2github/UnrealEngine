@@ -313,10 +313,11 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	
 	ENiagaraSimTarget SimTargetToBuild = ENiagaraSimTarget::CPUSim;
 	// Ideally we wouldn't want to do this but rather than push the data down
-	// from the emitter.
-	UObject* Obj = GetOuter();
-	if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Obj))
+	// from the emitter.  Checking all outers here to pick up simulation stages too.
+	UNiagaraEmitter* OuterEmitter = GetTypedOuter<UNiagaraEmitter>();
+	if (OuterEmitter != nullptr)
 	{
+		UNiagaraEmitter* Emitter = OuterEmitter;
 		UNiagaraSystem* EmitterOwner = Cast<UNiagaraSystem>(Emitter->GetOuter());
 		if (EmitterOwner && EmitterOwner->bBakeOutRapidIteration)
 		{
@@ -384,6 +385,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		}
 	}
 
+	UObject* Obj = GetOuter();
 	if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Obj))
 	{
 		if (System->bBakeOutRapidIteration)
