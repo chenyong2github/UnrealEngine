@@ -193,6 +193,7 @@ public:
 	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyMemberConnectionStatusChanged, UPartyMember&, EMemberConnectionStatus);
 	FOnPartyMemberConnectionStatusChanged& OnPartyMemberConnectionStatusChanged() const { return OnPartyMemberConnectionStatusChangedEvent; }
 
+	void ResetPrivacySettings();
 	const FPartyPrivacySettings& GetPrivacySettings() const;
 
 PARTY_SCOPE:

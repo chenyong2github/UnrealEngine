@@ -1014,8 +1014,11 @@ void USocialManager::HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, 
 	ECreatePartyCompletionResult LocalCreationResult = Result;
 	if (Result == ECreatePartyCompletionResult::Succeeded)
 	{
-		USocialParty* NewParty = EstablishNewParty(LocalUserId, *PartyId, PartyTypeId);
-		if (!NewParty)
+		if (USocialParty* NewParty = EstablishNewParty(LocalUserId, *PartyId, PartyTypeId))
+		{
+			NewParty->ResetPrivacySettings();
+		}
+		else
 		{
 			LocalCreationResult = ECreatePartyCompletionResult::UnknownClientFailure;
 		}
