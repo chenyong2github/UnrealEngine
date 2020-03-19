@@ -312,16 +312,16 @@ namespace UnrealBuildTool
 
 				NewProcess.WaitForExit();
 
-				TimeSpan Duration;
-				DateTimeOffset EndTime = DateTimeOffset.Now;
-				if (EndTime == DateTimeOffset.MinValue)
-				{
-					Duration = DateTimeOffset.Now - StartTime;
-				}
-				else
-				{
-					Duration = EndTime - StartTime;
-				}
+				//TimeSpan Duration;
+				//DateTimeOffset EndTime = DateTimeOffset.Now;
+				//if (EndTime == DateTimeOffset.MinValue)
+				//{
+				//	Duration = DateTimeOffset.Now - StartTime;
+				//}
+				//else
+				//{
+				//	Duration = EndTime - StartTime;
+				//}
 
 				DummyActionThread.bComplete = true;
 				int ExitCode = NewProcess.ExitCode;

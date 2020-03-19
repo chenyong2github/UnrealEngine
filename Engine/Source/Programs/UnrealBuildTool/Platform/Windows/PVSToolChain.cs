@@ -86,7 +86,7 @@ namespace UnrealBuildTool
 							string[] Tokens = Line.Split(new string[] { "<#~>" }, StringSplitOptions.None);
 							if(Tokens.Length >= 9)
 							{
-								string Trial = Tokens[1];
+								//string Trial = Tokens[1];
 								string LineNumberStr = Tokens[2];
 								string FileName = Tokens[3];
 								string WarningCode = Tokens[5];

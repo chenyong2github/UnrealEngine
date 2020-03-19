@@ -390,7 +390,7 @@ namespace UnrealBuildTool
 			if (DirectoryReference.Exists(ReferenceDir))
 			{
 				// Prefer a contract from a suitable SDK-versioned subdir of the references folder when available (starts with 15063 SDK)
-				Version WindowsSDKVersionMaxForToolchain = Compiler < WindowsCompiler.VisualStudio2017 ? HoloLens.MaximumSDKVersionForVS2015 : null;
+				//Version WindowsSDKVersionMaxForToolchain = Compiler < WindowsCompiler.VisualStudio2017 ? HoloLens.MaximumSDKVersionForVS2015 : null;
 				DirectoryReference SDKVersionedReferenceDir = DirectoryReference.Combine(ReferenceDir, SDKVersion.ToString());
 				DirectoryReference ContractDir = DirectoryReference.Combine(SDKVersionedReferenceDir, ApiContract);
 				Version ContractLatestVersion = null;
@@ -752,8 +752,8 @@ namespace UnrealBuildTool
 	class HoloLensPlatformSDK : UEBuildPlatformSDK
 	{
 		static bool bIsInstalled = false;
-		static string LatestVersionString = string.Empty;
-		static string InstallLocation = string.Empty;
+		//static string LatestVersionString = string.Empty;
+		//static string InstallLocation = string.Empty;
 
 		static HoloLensPlatformSDK()
 		{
@@ -776,8 +776,8 @@ namespace UnrealBuildTool
 				if (Result != null)
 				{
 					bIsInstalled = true;
-					InstallLocation = (string)Result;
-					LatestVersionString = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\" + Version, "ProductVersion", null) as string;
+					//InstallLocation = (string)Result;
+					//LatestVersionString = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\" + Version, "ProductVersion", null) as string;
 					break;
 				}
 			}
