@@ -8,6 +8,7 @@
 #include "Engine/EngineTypes.h"
 #include "Templates/Casts.h"
 #include "Interfaces/OnlineIdentityInterface.h"
+#include "PatchCheck.h"
 #include "UpdateManager.generated.h"
 
 class Error;
@@ -65,22 +66,6 @@ enum class EUpdateCompletionStatus : uint8
 };
 
 HOTFIX_API FString LexToString(EUpdateCompletionStatus Status);
-
-/**
- * Possible outcomes at the end of just the patch check
- */
-UENUM(BlueprintType)
-enum class EPatchCheckResult : uint8
-{
-	/** No patch required */
-	NoPatchRequired,
-	/** Patch required to continue */
-	PatchRequired,
-	/** Logged in user required for a patch check */
-	NoLoggedInUser,
-	/** Patch check failed */
-	PatchCheckFailure,
-};
 
 /**
  * Delegate fired when changes to the update progress have been made
@@ -239,8 +224,6 @@ protected:
 
 	/** @return true if update checks are enabled */
 	virtual bool ChecksEnabled() const;
-	/** @return true if the backend environment requires update checks */
-	virtual bool EnvironmentWantsPatchCheck() const;
 
 	/** 
 	 * Internal call for StartCheck
@@ -264,22 +247,12 @@ protected:
 	/** Amount of time to wait at the end of the entire check before notifying listening entities (availability check only) */
 	UPROPERTY(Config)
 	float UpdateCheckAvailabilityCompleteDelay;
-	/** Check the platform OSS for an update */
-	UPROPERTY(Config)
-	bool bCheckPlatformOSSForUpdate;
-	/** Check the default OSS for an update */
-	UPROPERTY(Config)
-	bool bCheckOSSForUpdate;
-
 
 	/**
 	 * Patch check
 	 */
 	virtual void StartPatchCheck();
-	virtual void StartPlatformOSSPatchCheck();
-	virtual void StartOSSPatchCheck();
-	virtual void OnCheckForPatchComplete(const FUniqueNetId& UniqueId, EUserPrivileges::Type Privilege, uint32 PrivilegeResult, bool bConsoleCheck);
-	virtual void PatchCheckComplete(EPatchCheckResult PatchResult);
+	void PatchCheckComplete(EPatchCheckResult PatchResult);
 
 	/**
 	 * Hotfix check
@@ -364,8 +337,7 @@ protected:
 	UPROPERTY()
 	int32 WorstNumFilesPendingLoadViewed;
 
-	/** Result of the last patch check */
-	UPROPERTY()
+	/** Result of the last patch check */	
 	EPatchCheckResult LastPatchCheckResult;
 
 	/** Result of the last hotfix */
