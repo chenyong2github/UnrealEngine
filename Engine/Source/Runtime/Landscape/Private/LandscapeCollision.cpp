@@ -2007,7 +2007,11 @@ void ULandscapeHeightfieldCollisionComponent::GatherGeometrySlice(FNavigableGeom
 		FTransform HFToW = GetComponentTransform();
 		HFToW.MultiplyScale3D(FVector(CollisionScale, CollisionScale, LANDSCAPE_ZSCALE));
 
-		GeomExport.ExportHeightFieldSlice(CachedHeightFieldSamples, HeightfieldRowsCount, HeightfieldColumnsCount, HFToW, SliceBox);
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+		GeomExport.ExportPxHeightFieldSlice(CachedHeightFieldSamples, HeightfieldRowsCount, HeightfieldColumnsCount, HFToW, SliceBox);
+#elif WITH_CHAOS
+		GeomExport.ExportChaosHeightFieldSlice(CachedHeightFieldSamples, HeightfieldRowsCount, HeightfieldColumnsCount, HFToW, SliceBox);
+#endif
 	}
 }
 
@@ -2061,15 +2065,14 @@ void ULandscapeHeightfieldCollisionComponent::PrepareGeometryExportSync()
 
 			if(CachedHeightFieldSamples.Heights.Num() != HeightfieldRowsCount * HeightfieldRowsCount)
 			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportPxHeightField_saveCells);
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportChaosHeightField_saveCells);
 
 				CachedHeightFieldSamples.Heights.SetNumUninitialized(HeightfieldRowsCount * HeightfieldRowsCount);
 				
 				for(int32 SampleIndex = 0; SampleIndex < CachedHeightFieldSamples.Heights.Num(); ++SampleIndex)
 				{
 					CachedHeightFieldSamples.Heights[SampleIndex] = HeightfieldRef->Heightfield->GetHeight(SampleIndex);
-					// #PHYSTODO Hole support
-					CachedHeightFieldSamples.Holes.Add(false);
+					CachedHeightFieldSamples.Holes.Add(HeightfieldRef->Heightfield->IsHole(SampleIndex));
 				}
 			}
 		}
