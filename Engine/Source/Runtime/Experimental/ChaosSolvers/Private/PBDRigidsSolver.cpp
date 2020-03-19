@@ -418,14 +418,20 @@ namespace Chaos
 
 			if(Handle)
 			{
-			// Remove game thread particle from ActiveGameThreadParticles so we won't crash when pulling physics state
-			// if this particle was deleted after buffering results. 
-			Solver->GetActiveParticlesBuffer()->RemoveActiveParticleFromConsumerBuffer(Handle->GTGeometryParticle());
+				// Remove from rewind data
+				if(FRewindData* RewindData = Solver->GetRewindData())
+				{
+					RewindData->RemoveParticle(*Handle);
+				}
+
+			  // Remove game thread particle from ActiveGameThreadParticles so we won't crash when pulling physics state
+			  // if this particle was deleted after buffering results. 
+			  Solver->GetActiveParticlesBuffer()->RemoveActiveParticleFromConsumerBuffer(Handle->GTGeometryParticle());
   
-			Solver->MParticleToProxy.Remove(Handle);
+			  Solver->MParticleToProxy.Remove(Handle);
   
-			// Use the handle to destroy the particle data
-			Solver->GetEvolution()->DestroyParticle(Handle);
+			  // Use the handle to destroy the particle data
+			  Solver->GetEvolution()->DestroyParticle(Handle);
 			}
 
 		});
@@ -510,6 +516,9 @@ namespace Chaos
 		return false;
 	}
 
+	int32 RewindCaptureNumFrames = -1;
+	FAutoConsoleVariableRef CVarRewindCaptureNumFrames(TEXT("p.RewindCaptureNumFrames"),RewindCaptureNumFrames,TEXT("The number of frames to capture rewind for. Requires restart of solver"));
+	
 	void FPBDRigidsSolver::Reset()
 	{
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::Reset()"));
@@ -524,6 +533,11 @@ namespace Chaos
 		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, SimMaterials, ChaosSolverCollisionDefaultIterationsCVar, ChaosSolverCollisionDefaultPushoutIterationsCVar, BufferMode == EMultiBufferMode::Single)); 
 
 		DirtyPropertiesManager = MakeUnique<FDoubleBuffer<FDirtyPropertiesManager>>();
+
+		if(RewindCaptureNumFrames >= 0)
+		{
+			EnableRewindCapture(20);
+		}
 
 		MEvolution->SetCaptureRewindDataFunction([this](const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles)
 		{
@@ -746,22 +760,22 @@ namespace Chaos
 			switch(Dirty.Proxy->GetType())
 			{
 			case EPhysicsProxyType::SingleRigidParticleType:
-				{
+			{
 				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
 				ProcessProxyGT(Proxy,DataIdx,Dirty);
-					break;
+				break;
 			}
 			case EPhysicsProxyType::SingleKinematicParticleType:
 			{
 				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(Dirty.Proxy);
 				ProcessProxyGT(Proxy,DataIdx,Dirty);
-					break;
+				break;
 			}
 			case EPhysicsProxyType::SingleGeometryParticleType:
 			{
 				auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
 				ProcessProxyGT(Proxy,DataIdx,Dirty);
-					break;
+				break;
 			}
 			default:
 			ensure("Unknown proxy type in physics solver.");
@@ -834,7 +848,7 @@ namespace Chaos
 					break;
 				}
 				default:
-					ensure("Unknown proxy type in physics solver.");
+				ensure("Unknown proxy type in physics solver.");
 				}
 			});
 
