@@ -85,6 +85,9 @@ enum class EDynamicMeshSculptBrushType : uint8
 	/** Move vertices towards a fixed plane in world space, positioned with a 3D gizmo */
 	FixedPlane UMETA(DisplayName = "FixedPlane"),
 
+	/** Remesh the brushed region but do not otherwise deform it */
+	Resample UMETA(DisplayName = "Resample"),
+
 	LastValue UMETA(Hidden)
 
 };
@@ -154,17 +157,16 @@ public:
 	bool bPreserveUVFlow = false;
 
 	/** When Freeze Target is toggled on, the Brush Target Surface will be Frozen in its current state, until toggled off. Brush strokes will be applied relative to the Target Surface, for applicable Brushes */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptView || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptView || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch || PrimaryBrushType == EDynamicMeshSculptBrushType::Resample" ))
 	bool bFreezeTarget = false;
-
 
 	/** Strength of Shift-to-Smooth Brushing and Smoothing Brush */
 	UPROPERTY(EditAnywhere, Category = Smoothing, meta = (DisplayName = "Smoothing Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float SmoothBrushSpeed = 0.25;
 
-	/** If enabled, Remeshing is applied during Smoothing, which will wipe out fine details. Otherwise no remeshing is applied during Smoothing. */
-	UPROPERTY(EditAnywhere, Category = Smoothing, meta = (DisplayName = "Remesh in Smooth", EditConditionHides, HideEditConditionToggle, EditCondition = "bIsRemeshingEnabled"))
-	bool bSmoothBrushRemeshes = false;
+	/** If enabled, Remeshing is limited during Smoothing to avoid wiping out higher-density triangle areas */
+	UPROPERTY(EditAnywhere, Category = Smoothing, meta = (DisplayName = "Preserve Tri Density", EditConditionHides, HideEditConditionToggle, EditCondition = "bIsRemeshingEnabled"))
+	bool bDetailPreservingSmooth = true;
 };
 
 
@@ -228,9 +230,18 @@ class MESHMODELINGTOOLS_API UBrushRemeshProperties : public URemeshProperties
 public:
 	void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
 
-	/** Desired size of triangles after Remeshing, relative to average initial triangle size. Larger value results in larger triangles.  */
-	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.5", UIMax = "2.0", ClampMin = "0.1", ClampMax = "100.0"))
-	float RelativeSize = 1.0f;
+	/** Toggle remeshing on/off */
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (DisplayPriority = 1))
+	bool bEnableRemeshing = true;
+
+	// Note that if you change range here, you must also update UDynamicMeshSculptTool::ConfigureRemesher!
+	/** Desired size of triangles after Remeshing, relative to average initial triangle size. Larger value results in larger triangles. */
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (DisplayName = "Relative Tri Size", UIMin = "-5", UIMax = "5", ClampMin = "-5", ClampMax = "5", DisplayPriority = 2))
+	int TriangleSize = 0;
+
+	/** Control the amount of simplification during sculpting. Higher values will avoid wiping out fine details on the mesh. */
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0", UIMax = "5", ClampMin = "0", ClampMax = "5", DisplayPriority = 3))
+	int PreserveDetail = 0;
 };
 
 /**
@@ -353,7 +364,7 @@ private:
 
 	bool bEnableRemeshing;
 	double InitialEdgeLength;
-
+	void ScheduleRemeshPass();
 	void ConfigureRemesher(FSubRegionRemesher&);
 
 	bool bInDrag;
@@ -414,6 +425,7 @@ private:
 	void ApplyPlaneBrush(const FRay& WorldRay);
 	void ApplyFixedPlaneBrush(const FRay& WorldRay);
 	void ApplyFlattenBrush(const FRay& WorldRay);
+	void ApplyResampleBrush(const FRay& WorldRay);
 
 	double CalculateBrushFalloff(double Distance);
 	TArray<FVector3d> ROIPositionBuffer;
