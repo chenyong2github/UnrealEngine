@@ -205,9 +205,9 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 	Profiles.Add("OculusTouch", FInteractionProfile(GetPath(Instance, "/interaction_profiles/oculus/touch_controller"), true));
 	Profiles.Add("ValveIndex", FInteractionProfile(GetPath(Instance, "/interaction_profiles/valve/index_controller"), true));
 
-	if (OpenXRHMD->IsExtensionEnabled("XR_MSFT_hand_interaction_preview"))
+	if (OpenXRHMD->IsExtensionEnabled("XR_MSFT_hand_interaction"))
 	{
-		Profiles.Add("MicrosoftHandInteraction", FInteractionProfile(GetPath(Instance, "/interaction_profiles/microsoft/hand_interaction_preview"), false));
+		Profiles.Add("MicrosoftHandInteraction", FInteractionProfile(GetPath(Instance, "/interaction_profiles/microsoft/hand_interaction"), false));
 	}
 
 	// Generate a list of the sub-action paths so we can query the left/right hand individually
