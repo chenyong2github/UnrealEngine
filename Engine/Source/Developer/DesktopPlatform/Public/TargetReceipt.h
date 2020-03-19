@@ -76,6 +76,9 @@ struct DESKTOPPLATFORM_API FTargetReceipt
 	/** All the runtime dependencies that this target relies on */
 	TArray<FRuntimeDependency> RuntimeDependencies;
 
+	/** All plugins that were either enabled or disabled via the target rules. */
+	TMap<FString, bool> PluginNameToEnabledState;
+
 	/** Additional build properties passed through from the module rules */
 	TArray<FReceiptProperty> AdditionalProperties;
 
