@@ -16,6 +16,7 @@ class FSearchNode;
 class FAssetNode;
 class FMenuBuilder;
 class IAssetRegistry;
+class SHeaderRow;
 
 /**
  * Implements the undo history panel.
@@ -39,9 +40,11 @@ public:
 	void Construct( const FArguments& InArgs );
 
 public:
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 
+	FText GetSearchBackgroundText() const;
 	FText GetStatusText() const;
 	FText GetAdvancedStatus() const;
 	FText GetUnindexedAssetsText() const;
@@ -84,6 +87,8 @@ private:
 	IAssetRegistry* AssetRegistry = nullptr;
 
 	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
+
+	TSharedPtr<SHeaderRow> HeaderColumns;
 
 	FName SortByColumn;
 	EColumnSortMode::Type SortMode;
