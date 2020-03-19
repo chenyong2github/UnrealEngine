@@ -25,7 +25,7 @@ namespace Chaos
 
 		const T X0ToX1Squared = X0ToX1.SizeSquared();
 
-		if (X0ToX1Squared < Dot || X0ToX1Squared <= std::numeric_limits<T>::min())	//if dividing gives 1+ or the line is degenerate
+		if (X0ToX1Squared <= Dot || X0ToX1Squared <= std::numeric_limits<T>::min())	//if dividing gives 1+ or the line is degenerate
 		{
 			NumVerts = 1;
 			Idxs[0] = Idxs[1];
