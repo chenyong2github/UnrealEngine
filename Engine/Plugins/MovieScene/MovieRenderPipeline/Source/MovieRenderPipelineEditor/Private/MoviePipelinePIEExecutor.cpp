@@ -41,6 +41,7 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 	PlayInEditorSettings->SetPlayNetMode(EPlayNetMode::PIE_Standalone);
 	PlayInEditorSettings->SetPlayNumberOfClients(1);
 	PlayInEditorSettings->bLaunchSeparateServer = false;
+	PlayInEditorSettings->SetRunUnderOneProcess(true);
 
 	FRequestPlaySessionParams Params;
 	Params.EditorPlaySettings = PlayInEditorSettings;
