@@ -291,6 +291,9 @@ private:
 	/** Callback for checking the vertex colors show flag. */
 	bool IsShowVertexColorsChecked() const;
 
+	/** Reset the viewport camera to look at the mesh. */
+	void ResetCamera();
+
 private:
 
 
