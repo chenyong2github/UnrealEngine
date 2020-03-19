@@ -337,16 +337,32 @@ public:
 	{
 		ensure(IsInGameThread());
 		//todo: parallel for
-		for(TGeometryParticle<FReal,3>* Particle : AllDirtyParticles)
+		for(const FDirtyParticleInfo& Info : AllDirtyParticles)
 		{
-			if(const FGeometryParticleStateBase* State = GetStateAtFrameImp(*Particle, Frame))
+			if(const FGeometryParticleStateBase* State = GetStateAtFrameImp(*Info.Particle, Frame))
 			{
-				State->SyncToParticle(*Particle);
+				State->SyncToParticle(*Info.Particle);
 			}
 		}
 		
 		Reset();
 		CurFrame = Frame;
+	}
+
+	void RemoveParticle(const TGeometryParticleHandle<FReal,3>& Particle)
+	{
+		if(const FParticleRewindInfo* Info = ParticleToRewindInfo.Find(Particle.UniqueIdx()))
+		{
+			const int32 Idx = Info->AllDirtyParticlesIdx;
+			AllDirtyParticles.RemoveAtSwap(Idx);
+			if(Idx< AllDirtyParticles.Num())
+			{
+				//update particle in new position
+				ParticleToRewindInfo.FindChecked(AllDirtyParticles[Idx].CachedUniqueIdx).AllDirtyParticlesIdx = Idx;
+			}
+
+			ParticleToRewindInfo.RemoveChecked(Particle.UniqueIdx());
+		}
 	}
 
 	FGeometryParticleState GetStateAtFrame(const TGeometryParticle<FReal,3>& Particle,int32 Frame) const
@@ -537,7 +553,7 @@ private:
 
 
 		FParticleRewindInfo& Info = ParticleToRewindInfo.FindOrAdd(UniqueIdx);
-		Info.AllDirtyParticlesIdx = AllDirtyParticles.Add(UnsafeGTParticle);
+		Info.AllDirtyParticlesIdx = AllDirtyParticles.Add(FDirtyParticleInfo{UnsafeGTParticle,UniqueIdx});
 		return Info;
 	}
 
@@ -571,9 +587,15 @@ private:
 		return nullptr;
 	}
 
+	struct FDirtyParticleInfo
+	{
+		TGeometryParticle<FReal,3>* Particle;
+		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
+	};
+
 	TArrayAsMap<FUniqueIdx,FParticleRewindInfo> ParticleToRewindInfo;
 	TArray<FFrameManagerInfo> Managers;
-	TArray<TGeometryParticle<FReal,3>*> AllDirtyParticles;
+	TArray<FDirtyParticleInfo> AllDirtyParticles;
 	int32 CurFrame;
 };
 }
