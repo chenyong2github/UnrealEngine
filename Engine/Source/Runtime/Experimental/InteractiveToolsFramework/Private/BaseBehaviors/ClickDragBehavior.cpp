@@ -18,6 +18,8 @@ void UClickDragInputBehavior::Initialize(IClickDragBehaviorTarget* TargetIn)
 
 FInputCaptureRequest UClickDragInputBehavior::WantsCapture(const FInputDeviceState& Input)
 {
+	bInClickDrag = false;	// should never be true here, but weird things can happen w/ focus
+
 	if (IsPressed(Input) && (ModifierCheckFunc == nullptr || ModifierCheckFunc(Input)) )
 	{
 		FInputRayHit HitResult = Target->CanBeginClickDragSequence(GetDeviceRay(Input));
@@ -34,17 +36,22 @@ FInputCaptureUpdate UClickDragInputBehavior::BeginCapture(const FInputDeviceStat
 {
 	Modifiers.UpdateModifiers(Input, Target);
 	OnClickPressInternal(Input, Side);
+	bInClickDrag = true;
 	return FInputCaptureUpdate::Begin(this, EInputCaptureSide::Any);
 }
 
 
 FInputCaptureUpdate UClickDragInputBehavior::UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data)
 {
-	Modifiers.UpdateModifiers(Input, Target);
+	if (bUpdateModifiersDuringDrag)
+	{
+		Modifiers.UpdateModifiers(Input, Target);
+	}
 
 	if (IsReleased(Input)) 
 	{
 		OnClickReleaseInternal(Input, Data);
+		bInClickDrag = false;
 		return FInputCaptureUpdate::End();
 	}
 	else
@@ -58,6 +65,7 @@ FInputCaptureUpdate UClickDragInputBehavior::UpdateCapture(const FInputDeviceSta
 void UClickDragInputBehavior::ForceEndCapture(const FInputCaptureData& Data)
 {
 	Target->OnTerminateDragSequence();
+	bInClickDrag = false;
 }
 
 
