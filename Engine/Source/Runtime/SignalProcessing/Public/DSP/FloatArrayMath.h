@@ -145,17 +145,21 @@ namespace Audio
 	{
 		struct FRow
 		{
-			int32 StartIndex;
+			int32 StartIndex = 0;
 			TArray<float> OffsetValues;
 		};
 
 	public:
+		FContiguousSparse2DKernelTransform(const FContiguousSparse2DKernelTransform& ) = delete;
+		FContiguousSparse2DKernelTransform(const FContiguousSparse2DKernelTransform&& ) = delete;
+		FContiguousSparse2DKernelTransform& operator=(const FContiguousSparse2DKernelTransform& ) = delete;
 
 		/**
 		 * NumInElements sets the expected number of input array elements as well as the number of elements in a row.
 		 * NumOutElements sets the number of output array elements as well as the number or rows.
 		 */
 		FContiguousSparse2DKernelTransform(const int32 NumInElements, const int32 NumOutElements);
+		virtual ~FContiguousSparse2DKernelTransform();
 
 		/** Returns the required size of the input array */
 		int32 GetNumInElements() const;

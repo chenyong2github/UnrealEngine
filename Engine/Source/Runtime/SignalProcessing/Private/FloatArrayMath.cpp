@@ -683,8 +683,12 @@ namespace Audio
 		FRow EmptyRow;
 		EmptyRow.StartIndex = 0;
 
-		// Fill up the kernel with emptp rows
+		// Fill up the kernel with empty rows
 		Kernel.Init(EmptyRow, NumOut);
+	}
+
+	FContiguousSparse2DKernelTransform::~FContiguousSparse2DKernelTransform()
+	{
 	}
 
 	int32 FContiguousSparse2DKernelTransform::GetNumInElements() const
