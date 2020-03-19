@@ -5301,6 +5301,17 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 						AttachTo = ActorInstance->GetRootComponent();
 					}
 					check(AttachTo != nullptr);
+
+					// Make sure that the mobility of the new scene component is such that we can attach it
+					if (AttachTo->Mobility == EComponentMobility::Movable)
+					{
+						NewSceneComponent->Mobility = EComponentMobility::Movable;
+					}
+					else if (AttachTo->Mobility == EComponentMobility::Stationary && NewSceneComponent->Mobility == EComponentMobility::Static)
+					{
+						NewSceneComponent->Mobility = EComponentMobility::Stationary;
+					}
+
 					NewSceneComponent->AttachToComponent(AttachTo, FAttachmentTransformRules::KeepRelativeTransform);
 				}
 			}
