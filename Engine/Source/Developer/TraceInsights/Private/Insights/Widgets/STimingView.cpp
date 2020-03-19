@@ -55,6 +55,7 @@
 #include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
+#include "Insights/Widgets/STimingViewTrackList.h"
 
 #include <limits>
 
@@ -85,6 +86,8 @@ STimingView::STimingView()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
+	GraphTrack->SetName(TEXT("Main Graph Track"));
+
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, FrameSharedState.Get());
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, ThreadTimingSharedState.Get());
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, LoadingSharedState.Get());
@@ -194,17 +197,42 @@ void STimingView::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Top)
 		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
 		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.HAlign(HAlign_Center)
-			.Padding(FMargin(2.0f, 3.0f, 2.0f, 5.0f))
-			.OnCheckStateChanged(this, &STimingView::AutoScroll_OnCheckStateChanged)
-			.IsChecked(this, &STimingView::AutoScroll_IsChecked)
-			.ToolTipText(LOCTEXT("AutoScroll_Tooltip", "Auto Scroll"))
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.Padding(0.0f)
+			.AutoWidth()
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("AutoScroll_Button", " >> "))
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
+				SNew(SCheckBox)
+				.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+				.HAlign(HAlign_Center)
+				.Padding(FMargin(0.0f, 2.0f, 1.0f, 4.0f))
+				.OnCheckStateChanged(this, &STimingView::AutoScroll_OnCheckStateChanged)
+				.IsChecked(this, &STimingView::AutoScroll_IsChecked)
+				.ToolTipText(LOCTEXT("AutoScroll_Tooltip", "Auto Scroll"))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("AutoScroll_Button", " >> "))
+					.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.Padding(0.0f)
+			.AutoWidth()
+			[
+				SNew(SComboButton)
+				.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+				.ForegroundColor(FLinearColor::White)
+				//.ToolTipText(LOCTEXT("AutoScrollOptions_ToolTip", "Auto-scroll options"))
+				.OnGetMenuContent(this, &STimingView::MakeAutoScrollOptionsMenu)
+				.HasDownArrow(true)
+				.ContentPadding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+				.ButtonContent()
+				[
+					SNew(SBorder)
+					.Padding(0.0f)
+				]
 			]
 		]
 
@@ -291,6 +319,12 @@ void STimingView::Reset()
 	bIsDragging = false;
 
 	bAutoScroll = false;
+	bIsAutoScrollFrameAligned = true;
+	AutoScrollFrameType = TraceFrameType_Game;
+	AutoScrollViewportOffsetPercent = 0.1; // scrolls forward 10% of viewport's width
+	AutoScrollMinDelay = 0.3; // [seconds]
+	LastAutoScrollTime = 0;
+
 	bIsPanning = false;
 	PanningMode = EPanningMode::None;
 
@@ -386,6 +420,8 @@ bool STimingView::IsCpuTrackVisible(uint32 InThreadId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	//SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
@@ -472,20 +508,14 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	if (bAutoScroll)
 	{
-		//TODO: Expose these settings in UI...
-		const double AutoScrollMinDelay = 0.3; // [seconds]
-		const bool bIsAutoScrollFrameAligned = true;
-		const ETraceFrameType AutoScrollFrameType = TraceFrameType_Game;
-		const uint64 AutoScrollLastFrameCount = 5; // 1 = last frame, 2 = frame before last frame, etc.
-
-		static uint64 LastAutoScrollTime = 0;
 		const uint64 CurrentTime = FPlatformTime::Cycles64();
 		if (static_cast<double>(CurrentTime - LastAutoScrollTime) * FPlatformTime::GetSecondsPerCycle64() > AutoScrollMinDelay)
 		{
-			const double ViewportDuration = Viewport.GetEndTime() - Viewport.GetStartTime(); // width of the viewport in time units
+			const double ViewportDuration = Viewport.GetEndTime() - Viewport.GetStartTime(); // width of the viewport in [seconds]
+			const double AutoScrollViewportOffsetTime = ViewportDuration * AutoScrollViewportOffsetPercent;
 
-			// By default, align with current session time, allowing 10% space on the right side of viewport.
-			double MinStartTime = Viewport.GetMaxValidTime() - ViewportDuration * 0.9;
+			// By default, align the current session time with the offseted right side of the viewport.
+			double MinStartTime = Viewport.GetMaxValidTime() - ViewportDuration + AutoScrollViewportOffsetTime;
 
 			if (bIsAutoScrollFrameAligned)
 			{
@@ -493,21 +523,41 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				{
 					Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 					const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
+
 					const uint64 FrameCount = FramesProvider.GetFrameCount(AutoScrollFrameType);
-					if (FrameCount >= AutoScrollLastFrameCount)
+
+					if (FrameCount > 0)
 					{
-						// Center on the start time of a frame.
-						const Trace::FFrame* Frame = FramesProvider.GetFrame(AutoScrollFrameType, FrameCount - AutoScrollLastFrameCount);
-						MinStartTime = Frame->StartTime - ViewportDuration * 0.5;
+						// Search the last frame with EndTime <= SessionTime.
+						uint64 FrameIndex = FrameCount;
+						while (FrameIndex > 0)
+						{
+							const Trace::FFrame* FramePtr = FramesProvider.GetFrame(AutoScrollFrameType, --FrameIndex);
+							if (FramePtr && FramePtr->EndTime <= Viewport.GetMaxValidTime())
+							{
+								// Align the start time of the frame with the right side of the viewport.
+								MinStartTime = FramePtr->EndTime - ViewportDuration + AutoScrollViewportOffsetTime;
+								break;
+							}
+						}
+
+						// Get the frame at the center of the viewport.
+						Trace::FFrame Frame;
+						const double ViewportCenter = MinStartTime + ViewportDuration / 2;
+						if (FramesProvider.GetFrameFromTime(AutoScrollFrameType, ViewportCenter, Frame))
+						{
+							if (Frame.EndTime > ViewportCenter)
+							{
+								// Align the start time of the frame with the center of the viewport.
+								MinStartTime = Frame.StartTime - ViewportDuration / 2;
+							}
+						}
 					}
 				}
 			}
 
-			if (Viewport.GetStartTime() < MinStartTime)
-			{
-				ScrollAtTime(MinStartTime);
-				LastAutoScrollTime = CurrentTime;
-			}
+			ScrollAtTime(MinStartTime);
+			LastAutoScrollTime = CurrentTime;
 		}
 	}
 
@@ -870,6 +920,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	TickDurationHistory.AddValue(TickStopwatch.AccumulatedTime);
 }
 
+PRAGMA_ENABLE_OPTIMIZATION
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::UpdatePositionForScrollableTracks()
@@ -1188,6 +1240,9 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	// Fill background for the "Tracks" filter combobox.
 	DrawContext.DrawBox(0.0f, 0.0f, 66.0f, 24.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+
+	// Fill background for the "Auto-scroll" toggle button.
+	DrawContext.DrawBox(ViewWidth - 40.0f, 0.0f, 40.0f, 24.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
 	//////////////////////////////////////////////////
 
@@ -2592,6 +2647,69 @@ ECheckBoxState STimingView::AutoScroll_IsChecked() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimingView::AutoScrollFrameAligned_Execute()
+{
+	bIsAutoScrollFrameAligned = !bIsAutoScrollFrameAligned;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::AutoScrollFrameAligned_IsChecked() const
+{
+	return bIsAutoScrollFrameAligned;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::AutoScrollFrameType_Execute(ETraceFrameType FrameType)
+{
+	AutoScrollFrameType = FrameType;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::AutoScrollFrameType_CanExecute(ETraceFrameType FrameType) const
+{
+	return bIsAutoScrollFrameAligned;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::AutoScrollFrameType_IsChecked(ETraceFrameType FrameType) const
+{
+	return AutoScrollFrameType == FrameType;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::AutoScrollViewportOffset_Execute(double Percent)
+{
+	AutoScrollViewportOffsetPercent = Percent;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::AutoScrollViewportOffset_IsChecked(double Percent) const
+{
+	return AutoScrollViewportOffsetPercent == Percent;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::AutoScrollDelay_Execute(double Delay)
+{
+	AutoScrollMinDelay = Delay;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::AutoScrollDelay_IsChecked(double Delay) const
+{
+	return AutoScrollMinDelay == Delay;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 double STimingView::EnforceHorizontalScrollLimits(const double InStartTime)
 {
 	double NewStartTime = InStartTime;
@@ -3271,9 +3389,141 @@ void STimingView::ToggleEventFilterByEventType(const uint64 EventType)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
+
+	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("AutoScrollHeading", "Auto Scroll Options"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollFrameAligned", "Frame Aligned"),
+			LOCTEXT("AutoScrollFrameAligned_Tooltip", "Align the viewport's center position with the start time of a frame."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameAligned_Execute),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollFrameAligned_IsChecked)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollFrameTypeGame", "Align with Game Frames"),
+			LOCTEXT("AutoScrollFrameTypeGame_Tooltip", "Align the viewport's center position with the start time of a Game frame."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameType_Execute, TraceFrameType_Game),
+				FCanExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameType_CanExecute, TraceFrameType_Game),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollFrameType_IsChecked, TraceFrameType_Game)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollFrameTypeRendering", "Align with Rendering Frames"),
+			LOCTEXT("AutoScrollFrameTypeRendering_Tooltip", "Align the viewport's center position with the start time of a Rendering frame."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameType_Execute, TraceFrameType_Rendering),
+				FCanExecuteAction::CreateSP(this, &STimingView::AutoScrollFrameType_CanExecute, TraceFrameType_Rendering),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollFrameType_IsChecked, TraceFrameType_Rendering)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuSeparator();
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollViewportOffset-10", "Viewport Offset: -10%"),
+			LOCTEXT("AutoScrollViewportOffset-10_Tooltip",
+				"Set the viewport offset to -10% (i.e. backward) of the viewport's width.\n"
+				"Avoids flickering as the end of session will be outside of the viewport."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, -0.1),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollViewportOffset_IsChecked, -0.1)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollViewportOffset0", "Viewport Offset: 0"),
+			LOCTEXT("AutoScrollViewportOffset0_Tooltip", "Set the viewport offset to 0."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, 0.0),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollViewportOffset_IsChecked, 0.0)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollViewportOffset+10", "Viewport Offset: +10%"),
+			LOCTEXT("AutoScrollViewportOffset+10_Tooltip",
+				"Set the viewport offset to +10% (i.e. forward) of the viewport's width.\n"
+				"Allows 10% empty space on the right side of the viewport."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, +0.1),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollViewportOffset_IsChecked, +0.1)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuSeparator();
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollDelay0", "Delay: 0"),
+			LOCTEXT("AutoScrollDelay0_Tooltip", "Set the time delay of the auto-scroll update to 0."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollDelay_Execute, 0.0),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollDelay_IsChecked, 0.0)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollDelay300ms", "Delay: 300ms"),
+			LOCTEXT("AutoScrollDelay300ms_Tooltip", "Set the time delay of the auto-scroll update to 300ms."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollDelay_Execute, 0.3),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollDelay_IsChecked, 0.3)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollDelay1s", "Delay: 1s"),
+			LOCTEXT("AutoScrollDelay1s_Tooltip", "Set the time delay of the auto-scroll update to 1s."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollDelay_Execute, 1.0),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollDelay_IsChecked, 1.0)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScrollDelay3s", "Delay: 3s"),
+			LOCTEXT("AutoScrollDelay3s_Tooltip", "Set the time delay of the auto-scroll update to 3s."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollDelay_Execute, 3.0),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::AutoScrollDelay_IsChecked, 3.0)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
+
+	CreateAllTracksMenu(MenuBuilder);
 
 	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("TracksFilterHeading", "Quick Filter"));
 	{
@@ -3307,10 +3557,6 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 	}
 	MenuBuilder.EndSection();
 
-	//MenuBuilder.BeginSection("Tracks", LOCTEXT("TracksHeading", "Tracks"));
-	//CreateTracksMenu(MenuBuilder);
-	//MenuBuilder.EndSection();
-
 	// Let any plugin extend the filter menu.
 	for (Insights::ITimingViewExtender* Extender : GetExtenders())
 	{
@@ -3322,25 +3568,91 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::CreateTracksMenu(FMenuBuilder& MenuBuilder)
+void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 {
-	for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
+	MenuBuilder.BeginSection("AllTracks", LOCTEXT("AllTracksHeading", "All Tracks"));
+
+	if (TopDockedTracks.Num() > 0)
 	{
-		const FBaseTimingTrack& Track = *TrackPtr;
-		if (Track.GetHeight() > 0.0f || Viewport.GetLayout().TargetMinTimelineH > 0.0f)
-		{
-			MenuBuilder.AddMenuEntry(
-				FText::FromString(Track.GetName()),
-				TAttribute<FText>(), // no tooltip
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ToggleTrackVisibility_Execute, Track.GetId()),
-						  FCanExecuteAction::CreateLambda([] { return true; }),
-						  FIsActionChecked::CreateSP(this, &STimingView::ToggleTrackVisibility_IsChecked, Track.GetId())),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-		}
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("TopDockedTracks", "Top Docked Tracks"),
+			LOCTEXT("TopDockedTracks_Tooltip", "Show/hide individual top docked tracks"),
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
+				{
+					InSubMenuBuilder.AddWidget(
+						SNew(SBox)
+						.MaxDesiredHeight(300.0f)
+						.MinDesiredWidth(300.0f)
+						.MaxDesiredWidth(300.0f)
+						[
+							SNew(STimingViewTrackList, SharedThis(this), ETimingViewTrackListType::TopDocked)
+						],
+						FText(), true);
+				})
+		);
 	}
+
+	if (BottomDockedTracks.Num() > 0)
+	{
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("BottomDockedTracks", "Bottom Docked Tracks"),
+			LOCTEXT("BottomDockedTracks_Tooltip", "Show/hide individual bottom docked tracks"),
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
+				{
+					InSubMenuBuilder.AddWidget(
+						SNew(SBox)
+						.MaxDesiredHeight(300.0f)
+						.MinDesiredWidth(300.0f)
+						.MaxDesiredWidth(300.0f)
+						[
+							SNew(STimingViewTrackList, SharedThis(this), ETimingViewTrackListType::BottomDocked)
+						],
+						FText(), true);
+				})
+		);
+	}
+
+	if (ScrollableTracks.Num() > 0)
+	{
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("ScrollableTracks", "Scrollable Tracks"),
+			LOCTEXT("ScrollableTracks_Tooltip", "Show/hide individual scrollable tracks"),
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
+				{
+					InSubMenuBuilder.AddWidget(
+						SNew(SBox)
+						.MaxDesiredHeight(300.0f)
+						.MinDesiredWidth(300.0f)
+						.MaxDesiredWidth(300.0f)
+						[
+							SNew(STimingViewTrackList, SharedThis(this), ETimingViewTrackListType::Scrollable)
+						],
+						FText(), true);
+				})
+		);
+	}
+
+	if (ForegroundTracks.Num() > 0)
+	{
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("ForegroundTracks", "Foreground Tracks"),
+			LOCTEXT("ForegroundTracks_Tooltip", "Show/hide individual foreground tracks"),
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
+				{
+					InSubMenuBuilder.AddWidget(
+						SNew(SBox)
+						.MaxDesiredHeight(300.0f)
+						.MinDesiredWidth(300.0f)
+						.MaxDesiredWidth(300.0f)
+						[
+							SNew(STimingViewTrackList, SharedThis(this), ETimingViewTrackListType::Foreground)
+						],
+						FText(), true);
+				})
+		);
+	}
+
+	MenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

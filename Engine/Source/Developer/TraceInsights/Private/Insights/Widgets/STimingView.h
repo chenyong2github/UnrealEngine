@@ -7,6 +7,7 @@
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
 #include "Layout/Geometry.h"
+#include "Styling/SlateTypes.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -33,8 +34,17 @@ class FTimingGraphTrack;
 class FTimingViewDrawHelper;
 class SOverlay;
 class SScrollBar;
-enum class ECheckBoxState : uint8;
 namespace Insights { class ITimingViewExtender; }
+
+enum class ETimingViewTrackListType
+{
+	Scrollable,
+	TopDocked,
+	BottomDocked,
+	Foreground,
+
+	Count
+};
 
 /** A custom widget used to display timing events. */
 class STimingView : public SCompoundWidget, public Insights::ITimingViewSession
@@ -59,8 +69,10 @@ public:
 	 */
 	void Construct(const FArguments& InArgs);
 
+	TSharedRef<SWidget> MakeAutoScrollOptionsMenu();
+
 	TSharedRef<SWidget> MakeTracksFilterMenu();
-	void CreateTracksMenu(FMenuBuilder& MenuBuilder);
+	void CreateAllTracksMenu(FMenuBuilder& MenuBuilder);
 
 	bool ShowHideGraphTrack_IsChecked() const;
 	void ShowHideGraphTrack_Execute();
@@ -243,6 +255,19 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	const TArray<TSharedPtr<FBaseTimingTrack>>& GetTrackList(ETimingViewTrackListType TrackListType) const
+	{
+		static const TArray<TSharedPtr<FBaseTimingTrack>> EmptyTrackList;
+		switch (TrackListType)
+		{
+			case ETimingViewTrackListType::Scrollable:   return ScrollableTracks;
+			case ETimingViewTrackListType::TopDocked:    return TopDockedTracks;
+			case ETimingViewTrackListType::BottomDocked: return BottomDockedTracks;
+			case ETimingViewTrackListType::Foreground:   return ForegroundTracks;
+			default:                                     return EmptyTrackList;
+		}
+	}
+
 	void UpdateScrollableTracksOrder();
 	int32 GetFirstScrollableTrackOrder() const;
 	int32 GetLastScrollableTrackOrder() const;
@@ -309,9 +334,25 @@ protected:
 	void BindCommands();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Auto-Scroll
 
 	void AutoScroll_OnCheckStateChanged(ECheckBoxState NewRadioState);
 	ECheckBoxState AutoScroll_IsChecked() const;
+
+	void AutoScrollFrameAligned_Execute();
+	bool AutoScrollFrameAligned_IsChecked() const;
+
+	void AutoScrollFrameType_Execute(ETraceFrameType FrameType);
+	bool AutoScrollFrameType_CanExecute(ETraceFrameType FrameType) const;
+	bool AutoScrollFrameType_IsChecked(ETraceFrameType FrameType) const;
+
+	void AutoScrollViewportOffset_Execute(double Percent);
+	bool AutoScrollViewportOffset_IsChecked(double Percent) const;
+
+	void AutoScrollDelay_Execute(double Delay);
+	bool AutoScrollDelay_IsChecked(double Delay) const;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void UpdatePositionForScrollableTracks();
 
@@ -443,9 +484,32 @@ protected:
 	bool bIsDragging;
 
 	////////////////////////////////////////////////////////////
-	// Panning
+	// Auto-Scroll
 
+	/** True if the viewport scrolls automatically. */
 	bool bAutoScroll;
+
+	/** True, if auto-scroll should align center of viewport with start of a frame. */
+	bool bIsAutoScrollFrameAligned;
+
+	/** Type of frame to align with (Game or Rendering), if bIsAutoScrollFrameAligned is enabled. */
+	ETraceFrameType AutoScrollFrameType;
+
+	/**
+	 * Viewport offset while auto-scrolling, as percent of viewport width.
+	 * If positive, it offsets the viewport forward, allowing an empty space at the right side of the viewport (i.e. after end of session).
+	 * If negative, it offsets the viewport backward (i.e. end of session will be outside viewport).
+	 */
+	double AutoScrollViewportOffsetPercent;
+
+	/** Minimum time between two auto-scroll updates, in [seconds]. */
+	double AutoScrollMinDelay;
+
+	/** Timestamp of last auto-scroll update, in [cycle64]. */
+	uint64 LastAutoScrollTime;
+
+	////////////////////////////////////////////////////////////
+	// Panning
 
 	/** True, if the user is currently interactively panning the view (horizontally and/or vertically). */
 	bool bIsPanning;
