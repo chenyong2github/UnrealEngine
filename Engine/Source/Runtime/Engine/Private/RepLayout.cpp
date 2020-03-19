@@ -1521,6 +1521,7 @@ ERepLayoutResult FRepLayout::CompareProperties(
 		const uint32 ReplicateParentPropertiesStartTime = SharedParams.bIsNetworkProfilerActive ? FPlatformTime::Cycles() : 0;
 		if (SharedParams.bIsNetworkProfilerActive)
 		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NetworkProfiler);
 			SharedParams.PropertiesChanged.Init(false, Parents.Num());
 			SharedParams.PropertiesCompared.Init(false, Parents.Num());
 		}
