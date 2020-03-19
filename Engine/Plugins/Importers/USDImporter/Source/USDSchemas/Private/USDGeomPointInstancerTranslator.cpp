@@ -85,7 +85,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 	}
 }
 
-void FUsdGeomPointInstancerTranslator::UpdateComponents(USceneComponent* PointInstancerRootComponent)
+void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointInstancerRootComponent )
 {
 	if ( !PointInstancerRootComponent )
 	{
@@ -114,13 +114,15 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents(USceneComponent* PointIn
 		for ( int32 PrototypeIndex = 0; PrototypeIndex < PrototypesPaths.size(); ++PrototypeIndex)
 		{
 			pxr::UsdPrim PrototypePrim = Prim.GetStage()->GetPrimAtPath( PrototypesPaths[PrototypeIndex] );
-			if (!Prim)
+			if ( !Prim )
 			{
 				continue;
 			}
 
 			FUsdGeomXformableTranslator PrototypeXformTranslator( Context, pxr::UsdTyped( PrototypePrim ) );
-			USceneComponent* PrototypeXformComponent = PrototypeXformTranslator.CreateComponents();
+
+			const bool bNeedsActor = false;
+			USceneComponent* PrototypeXformComponent = PrototypeXformTranslator.CreateComponentsEx( {}, bNeedsActor );
 
 			TGuardValue< USceneComponent* > ParentComponentGuard2( Context->ParentComponent, PrototypeXformComponent );
 
@@ -134,7 +136,7 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents(USceneComponent* PointIn
 
 				FUsdGeomXformableTranslator PrototypeGeomMeshTranslator( UHierarchicalInstancedStaticMeshComponent::StaticClass(), Context, PrototypeGeomMesh );
 
-				USceneComponent* UsdGeomPrimComponent = PrototypeGeomMeshTranslator.CreateComponents();
+				USceneComponent* UsdGeomPrimComponent = PrototypeGeomMeshTranslator.CreateComponentsEx( {}, bNeedsActor );
 
 				if ( UHierarchicalInstancedStaticMeshComponent* HismComponent = Cast< UHierarchicalInstancedStaticMeshComponent >( UsdGeomPrimComponent ) )
 				{

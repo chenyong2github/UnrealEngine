@@ -17,7 +17,7 @@
 USceneComponent* FUsdGeomCameraTranslator::CreateComponents()
 {
 	constexpr bool bNeedsActor = true;
-	USceneComponent* RootComponent = FUsdGeomXformableTranslator::CreateComponents( UCineCameraComponent::StaticClass(), bNeedsActor );
+	USceneComponent* RootComponent = CreateComponentsEx( TSubclassOf< USceneComponent >( UCineCameraComponent::StaticClass() ), bNeedsActor );
 
 	UpdateComponents( RootComponent );
 

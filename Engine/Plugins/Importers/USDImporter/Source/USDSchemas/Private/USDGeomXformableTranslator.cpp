@@ -136,59 +136,10 @@ FUsdGeomXformableTranslator::FUsdGeomXformableTranslator( TSubclassOf< USceneCom
 
 USceneComponent* FUsdGeomXformableTranslator::CreateComponents()
 {
-	TSubclassOf< USceneComponent > ComponentType;
-
-	if ( ComponentTypeOverride.IsSet() )
-	{
-		ComponentType = ComponentTypeOverride.GetValue();
-	}
-	else
-	{
-		ComponentType = UsdUtils::GetComponentTypeForPrim( Schema.Get().GetPrim() );
-
-		if ( CollapsesChildren( ECollapsingType::Assets ) )
-		{
-			if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ) ) ) )
-			{
-				// At this time, we only support collapsing static meshes together
-				ComponentType = UStaticMeshComponent::StaticClass();
-			}
-		}
-	}
-
-	USceneComponent* RootComponent = CreateComponents( ComponentType );
-
-	return RootComponent;
+	return CreateComponentsEx( {}, {} );
 }
 
-USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USceneComponent > ComponentType )
-{
-	TUsdStore< pxr::UsdPrim > Prim = Schema.Get().GetPrim();
-
-	// We should only add components to our transient/instanced actors, never to the AUsdStageActor or any other permanent actor
-	bool bOwnerActorIsPersistent = false;
-	if (USceneComponent* RootComponent = Context->ParentComponent)
-	{
-		if (AActor* Actor = RootComponent->GetOwner())
-		{
-			bOwnerActorIsPersistent = !Actor->HasAnyFlags(RF_Transient);
-		}
-	}
-
-	const bool bNeedsActor =
-		(
-			bOwnerActorIsPersistent ||
-			Context->ParentComponent == nullptr ||
-			Prim.Get().IsPseudoRoot() ||
-			Prim.Get().IsModel() ||
-			Prim.Get().IsGroup() ||
-			UsdUtils::HasCompositionArcs( Prim.Get() )
-		);
-
-	return CreateComponents( ComponentType, bNeedsActor );
-}
-
-USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USceneComponent > ComponentType, const bool bNeedsActor )
+USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSubclassOf< USceneComponent > > ComponentType, TOptional< bool > bNeedsActor )
 {
 	if ( !Context->IsValid() )
 	{
@@ -204,10 +155,33 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USc
 
 	FScopedUnrealAllocs UnrealAllocs;
 
+	if ( !bNeedsActor.IsSet() )
+	{
+		// We should only add components to our transient/instanced actors, never to the AUsdStageActor or any other permanent actor
+		bool bOwnerActorIsPersistent = false;
+		if ( USceneComponent* RootComponent = Context->ParentComponent )
+		{
+			if ( AActor* Actor = RootComponent->GetOwner() )
+			{
+				bOwnerActorIsPersistent = !Actor->HasAnyFlags(RF_Transient);
+			}
+		}
+
+		bNeedsActor =
+		(
+			bOwnerActorIsPersistent ||
+			Context->ParentComponent == nullptr ||
+			Prim.Get().IsPseudoRoot() ||
+			Prim.Get().IsModel() ||
+			Prim.Get().IsGroup() ||
+			UsdUtils::HasCompositionArcs( Prim.Get() )
+		);
+	}
+
 	USceneComponent* SceneComponent = nullptr;
 	UObject* ComponentOuter = nullptr;
 
-	if ( bNeedsActor )
+	if ( bNeedsActor.GetValue() )
 	{
 		// Spawn actor
 		FActorSpawnParameters SpawnParameters;
@@ -234,16 +208,45 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USc
 
 	if ( !SceneComponent )
 	{
-		SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType, FName( Prim.Get().GetName().GetText() ), Context->ObjectFlags );
-
-		if ( AActor* Owner = SceneComponent->GetOwner() )
+		if ( !ComponentType.IsSet() )
 		{
-			Owner->AddInstanceComponent( SceneComponent );
+			if ( ComponentTypeOverride.IsSet() )
+			{
+				ComponentType = ComponentTypeOverride.GetValue();
+			}
+			else
+			{
+				ComponentType = UsdUtils::GetComponentTypeForPrim( Schema.Get().GetPrim() );
+
+				if ( CollapsesChildren( ECollapsingType::Assets ) )
+				{
+					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ) ) ) )
+					{
+						// At this time, we only support collapsing static meshes together
+						ComponentType = UStaticMeshComponent::StaticClass();
+					}
+				}
+			}
+		}
+
+		if ( ComponentType.IsSet() && ComponentType.GetValue() != nullptr )
+		{
+			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), FName( Prim.Get().GetName().GetText() ), Context->ObjectFlags );
+		
+			if ( AActor* Owner = SceneComponent->GetOwner() )
+			{
+				Owner->AddInstanceComponent( SceneComponent );
+			}
 		}
 	}
 
 	if ( SceneComponent )
 	{
+		if ( !SceneComponent->GetOwner()->GetRootComponent() )
+		{
+			SceneComponent->GetOwner()->SetRootComponent( SceneComponent );
+		}
+
 		UpdateComponents( SceneComponent );
 
 		if ( Context->ParentComponent && Context->ParentComponent->Mobility == EComponentMobility::Movable )
@@ -257,11 +260,6 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents( TSubclassOf< USc
 
 		// Attach to parent
 		SceneComponent->AttachToComponent( Context->ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
-
-		if ( !SceneComponent->GetOwner()->GetRootComponent() )
-		{
-			SceneComponent->GetOwner()->SetRootComponent( SceneComponent );
-		}
 	}
 
 	return SceneComponent;
