@@ -1493,9 +1493,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			Trace::ToggleChannel(TEXT("log"), true);
 		}
 
-		Trace::ThreadRegister(TEXT("GameThread"), FPlatformTLS::GetCurrentThreadId(), -1);
 		TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
-
 		TRACE_CPUPROFILER_INIT(CmdLine);
 		TRACE_PLATFORMFILE_INIT(CmdLine);
 		TRACE_COUNTERS_INIT(CmdLine);
