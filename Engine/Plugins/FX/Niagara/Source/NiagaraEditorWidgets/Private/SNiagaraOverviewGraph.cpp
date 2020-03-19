@@ -255,11 +255,13 @@ void SNiagaraOverviewGraph::OnClearIsolated()
 bool SNiagaraOverviewGraph::OnVerifyNodeTitle(const FText& NewText, UEdGraphNode* Node, FText& OutErrorMessage) const
 {
 	UNiagaraOverviewNode* NiagaraNode = Cast<UNiagaraOverviewNode>(Node);
-
-	TSharedPtr<FNiagaraEmitterHandleViewModel> NodeEmitterHandleViewModel = ViewModel->GetSystemViewModel()->GetEmitterHandleViewModelById(NiagaraNode->GetEmitterHandleGuid());
-	if (ensureMsgf(NodeEmitterHandleViewModel.IsValid(), TEXT("Failed to find EmitterHandleViewModel with matching Emitter GUID to Overview Node!")))
+	if (NiagaraNode != nullptr)
 	{
-		return NodeEmitterHandleViewModel->VerifyNameTextChanged(NewText, OutErrorMessage);
+		TSharedPtr<FNiagaraEmitterHandleViewModel> NodeEmitterHandleViewModel = ViewModel->GetSystemViewModel()->GetEmitterHandleViewModelById(NiagaraNode->GetEmitterHandleGuid());
+		if (ensureMsgf(NodeEmitterHandleViewModel.IsValid(), TEXT("Failed to find EmitterHandleViewModel with matching Emitter GUID to Overview Node!")))
+		{
+			return NodeEmitterHandleViewModel->VerifyNameTextChanged(NewText, OutErrorMessage);
+		}
 	}
 
 	return true;
