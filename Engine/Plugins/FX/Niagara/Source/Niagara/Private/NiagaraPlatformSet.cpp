@@ -446,16 +446,21 @@ FNiagaraPlatformSet::FPlatformIniSettings FNiagaraPlatformSet::GetPlatformIniSet
 
 	auto FindCVarValue = [&](const TCHAR* Section, const TCHAR* CVarName, int32& OutVal)
 	{
+		bool bFound = true;
 		if (!ScalabilitySettings.GetInt(Section, CVarName, OutVal))
 		{
 			if (!GameSettings.GetInt(Section, CVarName, OutVal))
 			{
-				EngineSettings.GetInt(Section, CVarName, OutVal);
+				if (!EngineSettings.GetInt(Section, CVarName, OutVal))
+				{
+					bFound = false;
+				}
 			}
 		}
+		return bFound;
 	};
 
-	int32 EffectsQuality = INDEX_NONE;
+	int32 EffectsQuality = Scalability::DefaultQualityLevel;
 	int32 EQMask = INDEX_NONE;
 
 	//If this platform can change quality settings at runtime then we return the full mask.
@@ -469,7 +474,10 @@ FNiagaraPlatformSet::FPlatformIniSettings FNiagaraPlatformSet::GetPlatformIniSet
 	}
 	else
 	{
-		FindCVarValue(TEXT("ScalabilityGroups"), TEXT("sg.EffectsQuality"), EffectsQuality);
+		if (!FindCVarValue(TEXT("ScalabilityGroups"), TEXT("sg.EffectsQuality"), EffectsQuality))
+		{
+			FindCVarValue(TEXT("SystemSettings"), TEXT("sg.EffectsQuality"), EffectsQuality);
+		}
 		EQMask = CreateEQMask(EffectsQuality);
 	}
 

@@ -24,19 +24,37 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			List<string> EnabledPluginStrings = new List<string>();
-			foreach(string EnablePlugin in Target.EnablePlugins)
+			// Monolithic and non-editor builds compile in the enabled/disabled plugins. Non-monolithic editor builds save them in the plugin receipt to avoid invalidating the shared build environment.
+			if (Target.Type == TargetType.Editor && Target.LinkType != TargetLinkType.Monolithic)
 			{
-				EnabledPluginStrings.Add(String.Format("TEXT(\"{0}\")", EnablePlugin));
-			}
-			PrivateDefinitions.Add(String.Format("UBT_TARGET_ENABLED_PLUGINS={0}", String.Join(", ", EnabledPluginStrings)));
+				PublicDefinitions.Add("READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT=1");
 
-			List<string> DisabledPluginStrings = new List<string>();
-			foreach(string DisablePlugin in Target.DisablePlugins)
-			{
-				DisabledPluginStrings.Add(String.Format("TEXT(\"{0}\")", DisablePlugin));
+				// Include DesktopPlatform to work with the target receipt which contains the enabled/disabled plugins
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"DesktopPlatform"
+					}
+				);
 			}
-			PrivateDefinitions.Add(String.Format("UBT_TARGET_DISABLED_PLUGINS={0}", String.Join(", ", DisabledPluginStrings)));
+			else
+			{
+				PublicDefinitions.Add("READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT=0");
+
+				List<string> EnabledPluginStrings = new List<string>();
+				foreach(string EnablePlugin in Target.EnablePlugins)
+				{
+					EnabledPluginStrings.Add(String.Format("TEXT(\"{0}\")", EnablePlugin));
+				}
+				PrivateDefinitions.Add(String.Format("UBT_TARGET_ENABLED_PLUGINS={0}", String.Join(", ", EnabledPluginStrings)));
+
+				List<string> DisabledPluginStrings = new List<string>();
+				foreach(string DisablePlugin in Target.DisablePlugins)
+				{
+					DisabledPluginStrings.Add(String.Format("TEXT(\"{0}\")", DisablePlugin));
+				}
+				PrivateDefinitions.Add(String.Format("UBT_TARGET_DISABLED_PLUGINS={0}", String.Join(", ", DisabledPluginStrings)));
+			}
 
 			if (Target.bIncludePluginsForTargetPlatforms)
 			{

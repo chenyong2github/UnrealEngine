@@ -197,6 +197,7 @@ struct FBXImportOptions
 	bool	bSetMaterialDriveParameterOnCustomAttribute;
 	bool	bRemoveRedundantKeys;
 	bool	bDoNotImportCurveWithZero;
+	bool	bResetToFbxOnMaterialConflict;
 	TArray<FString> MaterialCurveSuffixes;
 
 	/** This allow to add a prefix to the material name when unreal material get created.	
@@ -1047,7 +1048,7 @@ public:
 	static void ShowFbxSkeletonConflictWindow(USkeletalMesh *SkeletalMesh, USkeleton* Skeleton, ImportCompareHelper::FSkeletonCompareData& SkeletonCompareData);
 
 	template<typename TMaterialType>
-	static void PrepareAndShowMaterialConflictDialog(const TArray<TMaterialType>& CurrentMaterial, TArray<TMaterialType>& ResultMaterial, TArray<int32>& RemapMaterial, TArray<FName>& RemapMaterialName, bool bCanShowDialog, bool bIsPreviewDialog, EFBXReimportDialogReturnOption& OutReturnOption);
+	static void PrepareAndShowMaterialConflictDialog(const TArray<TMaterialType>& CurrentMaterial, TArray<TMaterialType>& ResultMaterial, TArray<int32>& RemapMaterial, TArray<FName>& RemapMaterialName, bool bCanShowDialog, bool bIsPreviewDialog, bool bForceResetOnConflict, EFBXReimportDialogReturnOption& OutReturnOption);
 	/*
 	* This function show a dialog to let the user resolve the material conflict that arise when re-importing a mesh
 	*/

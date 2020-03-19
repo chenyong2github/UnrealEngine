@@ -602,11 +602,13 @@ void ScalabilityCVarsSinkCallback()
 
 		if (bRecreateRenderstate || bCacheResourceShaders)
 		{
+			// Make the render state rebuild object before updating the cached values, because its constructor calls UpdateAllPrimitiveSceneInfos(), which
+			// may end up using the material shader maps for the quality level stored in GCachedScalabilityCVars.MaterialQualityLevel. If that value already
+			// points to the new quality level, the shader maps won't exist, and we'll crash.
+			FGlobalComponentRecreateRenderStateContext Recreate;
+
 			// after FlushRenderingCommands() to not have render thread pick up the data partially
 			GCachedScalabilityCVars = LocalScalabilityCVars;
-
-			// Note: constructor and destructor has side effect
-			FGlobalComponentRecreateRenderStateContext Recreate;
 
 			if (bCacheResourceShaders)
 			{
@@ -1294,7 +1296,10 @@ float UEngine::GetTimeBetweenGarbageCollectionPasses() const
 	if ( GLowMemoryMemoryThresholdMB > 0.0 )
 	{
 		float MBFree = float(FPlatformMemory::GetStats().AvailablePhysical / 1024 / 1024);
-		if ( MBFree <= GLowMemoryMemoryThresholdMB)
+#if !UE_BUILD_SHIPPING
+		MBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024 / 1024);
+#endif
+		if (MBFree <= GLowMemoryMemoryThresholdMB)
 		{
 			if (GLowMemoryTimeBetweenPurgingPendingKillObjects < TimeBetweenGC)
 			{
@@ -10462,7 +10467,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			UClass* Cls = Cast<UClass>(DebugProperties[i].Obj);
 			if (Cls != NULL)
 			{
-				FProperty* Prop = FindField<FProperty>(Cls, DebugProperties[i].PropertyName);
+				FProperty* Prop = FindFProperty<FProperty>(Cls, DebugProperties[i].PropertyName);
 				if (Prop != NULL || DebugProperties[i].bSpecialProperty)
 				{
 					// getall
@@ -10483,7 +10488,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			}
 			else
 			{
-				FProperty* Prop = FindField<FProperty>(DebugProperties[i].Obj->GetClass(), DebugProperties[i].PropertyName);
+				FProperty* Prop = FindFProperty<FProperty>(DebugProperties[i].Obj->GetClass(), DebugProperties[i].PropertyName);
 				if (Prop != NULL || DebugProperties[i].bSpecialProperty)
 				{
 					DrawProperty(CanvasObject, DebugProperties[i].Obj, DebugProperties[i], Prop, X, Y);
@@ -12894,21 +12899,12 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	// Note that AI system will be created only if ai-system-creation conditions are met
 	WorldContext.World()->CreateAISystem();
 
-	FRegisterComponentContext Context;
 	// Initialize gameplay for the level.
-	WorldContext.World()->InitializeActorsForPlay(URL, true, &Context);
-
-	UWorld* ParallelWorld = WorldContext.World();
-	ParallelFor(Context.AddPrimitiveBatches.Num(),
-		[&Context, ParallelWorld](int32 Index)
-		{
-			if (!Context.AddPrimitiveBatches[Index]->IsPendingKill())
-			{
-				ParallelWorld->Scene->AddPrimitive(Context.AddPrimitiveBatches[Index]);
-			}
-		},
-		!FApp::ShouldUseThreadingForPerformance()
-	);
+	{
+		FRegisterComponentContext Context(WorldContext.World());
+		WorldContext.World()->InitializeActorsForPlay(URL, true, &Context);
+		Context.Process();
+	}
 
 	// calling it after InitializeActorsForPlay has been called to have all potential bounding boxed initialized
 	FNavigationSystem::AddNavigationSystemToWorld(*WorldContext.World(), FNavigationSystemRunMode::GameMode);
@@ -14281,7 +14277,7 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 	FObjectProperty* RootComponentProperty = nullptr;
 	if (NewActor != nullptr && Params.bPreserveRootComponent)
 	{
-		RootComponentProperty = FindField<FObjectProperty>(NewActor->GetClass(), "RootComponent");
+		RootComponentProperty = FindFProperty<FObjectProperty>(NewActor->GetClass(), "RootComponent");
 		if (RootComponentProperty != nullptr)
 		{
 			SavedRootComponent = Cast<USceneComponent>(RootComponentProperty->GetObjectPropertyValue_InContainer(NewActor));

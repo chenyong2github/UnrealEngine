@@ -42,6 +42,8 @@ struct FNiagaraDataInterfaceProxySpectrum : public FNiagaraDataInterfaceProxySub
 	 */
 	float GetSpectrumValue(float InNormalizedPositionInSpectrum, int32 InChannelIndex);
 
+	int32 GetNumBands() const;
+
 	/** Updates the minimum and maximum frequency of the CQT on the render thread. */
 	void UpdateCQT(float InMinimumFrequency, float InMaximumFrequency, int32 InNumBands);
 
@@ -93,7 +95,7 @@ private:
 
 	float MinimumFrequency;
 	float MaximumFrequency;
-	int32 NumBands;
+	TAtomic<int32> NumBands;
 	float NoiseFloorDb;
 
 	int32 NumChannels;
@@ -138,6 +140,7 @@ public:
 	// Global variable prefixes
 	static const FString GetSpectrumName;
 	static const FString NumChannelsName;
+	static const FString ResolutionName;
 	
 	/** The number of spectrum samples to pass to the GPU */
 	UPROPERTY(EditAnywhere, Category = "Spectrum", meta = (ClampMin = "16", ClampMax = "1024") )
@@ -177,9 +180,12 @@ public:
 
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 
+	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
+
 
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;

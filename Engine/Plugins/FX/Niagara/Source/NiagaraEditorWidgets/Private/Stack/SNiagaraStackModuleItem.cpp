@@ -12,6 +12,9 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
@@ -28,8 +31,11 @@
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
+#include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackModuleItem"
+
+bool SNiagaraStackModuleItem::bLibraryOnly = true;
 
 void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackModuleItem& InModuleItem, UNiagaraStackViewModel* InStackViewModel)
 {
@@ -46,10 +52,22 @@ void SNiagaraStackModuleItem::FillRowContextMenu(FMenuBuilder& MenuBuilder)
 FReply SNiagaraStackModuleItem::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	const UNiagaraNodeFunctionCall& ModuleFunctionCall = ModuleItem->GetModuleNode();
-	if (ModuleFunctionCall.FunctionScript != nullptr && ModuleFunctionCall.FunctionScript->IsAsset())
+	if (ModuleFunctionCall.FunctionScript != nullptr)
 	{
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UNiagaraScript*>(ModuleFunctionCall.FunctionScript));
-		return FReply::Handled();
+		if (ModuleFunctionCall.FunctionScript->IsAsset())
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UNiagaraScript*>(ModuleFunctionCall.FunctionScript));
+			return FReply::Handled();
+		}
+		else if (ModuleItem->IsScratchModule())
+		{
+			TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(ModuleFunctionCall.FunctionScript);
+			if (ScratchPadScriptViewModel.IsValid())
+			{
+				ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
+				return FReply::Handled();
+			}
+		}
 	}
 	return FReply::Unhandled();
 }
@@ -66,6 +84,24 @@ void SNiagaraStackModuleItem::Tick(const FGeometry& AllottedGeometry, const doub
 
 void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> HorizontalBox)
 {
+	// Scratch navigation
+	if(ModuleItem->IsScratchModule())
+	{
+		HorizontalBox->AddSlot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+			.OnClicked(this, &SNiagaraStackModuleItem::ScratchButtonPressed)
+			.ToolTipText(LOCTEXT("OpenInScratchToolTip", "Open this dynamic input in the scratch pad."))
+			.ContentPadding(FMargin(1.0f, 0.0f))
+			.Content()
+			[
+				SNew(SImage)
+				.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scratch"))
+			]
+		];
+	}
 	// Add menu.
 	HorizontalBox->AddSlot()
 	.VAlign(VAlign_Center)
@@ -138,6 +174,18 @@ EVisibility SNiagaraStackModuleItem::GetRaiseActionMenuVisibility() const
 EVisibility SNiagaraStackModuleItem::GetRefreshVisibility() const
 {
 	return ModuleItem->CanRefresh() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FReply SNiagaraStackModuleItem::ScratchButtonPressed() const
+{
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchModuleViewModel =
+		ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(ModuleItem->GetModuleNode().FunctionScript);
+	if (ScratchModuleViewModel.IsValid())
+	{
+		ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchModuleViewModel.ToSharedRef());
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
 }
 
 TSharedRef<SWidget> SNiagaraStackModuleItem::RaiseActionMenuClicked()
@@ -233,12 +281,13 @@ void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedAc
 	}
 }
 
-void CollectModuleActions(FGraphActionListBuilderBase& ModuleActions, UNiagaraStackModuleItem* ModuleItem)
+void SNiagaraStackModuleItem::CollectModuleActions(FGraphActionListBuilderBase& ModuleActions)
 {
 	TArray<FAssetData> ModuleAssets;
 	FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions ModuleScriptFilterOptions;
 	ModuleScriptFilterOptions.ScriptUsageToInclude = ENiagaraScriptUsage::Module;
 	ModuleScriptFilterOptions.TargetUsageToMatch = ModuleItem->GetOutputNode()->GetUsage();
+	ModuleScriptFilterOptions.bIncludeNonLibraryScripts = bLibraryOnly == false;
 	FNiagaraEditorUtilities::GetFilteredScriptAssets(ModuleScriptFilterOptions, ModuleAssets);
 	for (const FAssetData& ModuleAsset : ModuleAssets)
 	{
@@ -268,6 +317,9 @@ void CollectModuleActions(FGraphActionListBuilderBase& ModuleActions, UNiagaraSt
 
 void SNiagaraStackModuleItem::ShowReassignModuleScriptMenu()
 {
+	TSharedPtr<SNiagaraLibraryOnlyToggleHeader> LibraryOnlyToggle;
+	TSharedPtr<SGraphActionMenu> GraphActionMenu;
+
 	TSharedRef<SBorder> MenuWidget = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 		.Padding(5)
@@ -276,17 +328,42 @@ void SNiagaraStackModuleItem::ShowReassignModuleScriptMenu()
 			.WidthOverride(300)
 			.HeightOverride(400)
 			[
-				SNew(SGraphActionMenu)
-				.OnActionSelected_Static(OnActionSelected)
-				.OnCollectAllActions_Static(CollectModuleActions, ModuleItem)
-				.ShowFilterTextBox(true)
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.Padding(1.0f)
+				[
+					SAssignNew(LibraryOnlyToggle, SNiagaraLibraryOnlyToggleHeader)
+					.HeaderLabelText(LOCTEXT("ReassignModuleLabel", "Select a new module"))
+					.LibraryOnly(this, &SNiagaraStackModuleItem::GetLibraryOnly)
+					.LibraryOnlyChanged(this, &SNiagaraStackModuleItem::SetLibraryOnly)
+				]
+				+SVerticalBox::Slot()
+				.FillHeight(15)
+				[
+					SAssignNew(GraphActionMenu, SGraphActionMenu)
+					.OnActionSelected_Static(OnActionSelected)
+					.OnCollectAllActions(this, &SNiagaraStackModuleItem::CollectModuleActions)
+					.ShowFilterTextBox(true)
+				]
 			]
 		];
+
+	LibraryOnlyToggle->SetActionMenu(GraphActionMenu.ToSharedRef());
 
 	FGeometry ThisGeometry = GetCachedGeometry();
 	bool bAutoAdjustForDpiScale = false; // Don't adjust for dpi scale because the push menu command is expecting an unscaled position.
 	FVector2D MenuPosition = FSlateApplication::Get().CalculatePopupWindowPosition(ThisGeometry.GetLayoutBoundingRect(), MenuWidget->GetDesiredSize(), bAutoAdjustForDpiScale);
 	FSlateApplication::Get().PushMenu(AsShared(), FWidgetPath(), MenuWidget, MenuPosition, FPopupTransitionEffect::ContextMenu);
+}
+
+bool SNiagaraStackModuleItem::GetLibraryOnly() const
+{
+	return bLibraryOnly;
+}
+
+void SNiagaraStackModuleItem::SetLibraryOnly(bool bInLibraryOnly)
+{
+	bLibraryOnly = bInLibraryOnly;
 }
 
 #undef LOCTEXT_NAMESPACE

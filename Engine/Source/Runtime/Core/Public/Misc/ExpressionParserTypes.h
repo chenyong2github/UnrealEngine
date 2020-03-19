@@ -167,6 +167,10 @@ template<> struct TGetExpressionNodeTypeId<TYPE>\
 };
 template<typename T> struct TGetExpressionNodeTypeId;
 
+/** Primitive types should only be declared once inside the codebase to avoid conflicts */
+DEFINE_EXPRESSION_NODE_TYPE(bool, 	0xCACBC715, 0x505A6B4A, 0x8808809F, 0x897AA5F6)
+DEFINE_EXPRESSION_NODE_TYPE(double, 0x8444A8A3, 0x19AE4E13, 0xBCFA75EE, 0x39982BD6)
+
 /**
  * A node in an expression.
  * 	Can be constructed from any C++ type that has a corresponding DEFINE_EXPRESSION_NODE_TYPE.

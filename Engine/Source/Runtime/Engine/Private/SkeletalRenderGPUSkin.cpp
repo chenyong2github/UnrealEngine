@@ -189,7 +189,6 @@ void FSkeletalMeshObjectGPUSkin::InitResources(USkinnedMeshComponent* InMeshComp
 	BeginInitResource(&RayTracingGeometry);
 #endif
 }
-
 void FSkeletalMeshObjectGPUSkin::ReleaseResources()
 {
 	for( int32 LODIndex=0;LODIndex < LODs.Num();LODIndex++ )

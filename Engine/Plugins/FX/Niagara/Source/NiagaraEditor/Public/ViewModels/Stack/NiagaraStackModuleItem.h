@@ -14,6 +14,7 @@ class UNiagaraScript;
 class INiagaraStackItemGroupAddUtilities;
 struct FAssetData;
 class UNiagaraClipboardFunctionInput;
+class INiagaraMessage;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackModuleItem : public UNiagaraStackItem
@@ -21,6 +22,8 @@ class NIAGARAEDITOR_API UNiagaraStackModuleItem : public UNiagaraStackItem
 	GENERATED_BODY()
 
 public:
+	DECLARE_DELEGATE_OneParam(FOnRequestDeprecationRecommended, UNiagaraStackModuleItem*);
+
 	UNiagaraStackModuleItem();
 
 	UNiagaraNodeFunctionCall& GetModuleNode() const;
@@ -89,7 +92,22 @@ public:
 	virtual FText GetDeleteTransactionText() const override;
 	virtual void Delete() override;
 
+	bool IsScratchModule() const;
+
+	void SetOnRequestDeprecationRecommended(FOnRequestDeprecationRecommended InOnRequest)
+	{
+		DeprecationDelegate = InOnRequest;
+	}
+
+	void SetEnabled(bool bEnabled)
+	{
+		SetIsEnabledInternal(bEnabled);
+	}
+
 protected:
+	FOnRequestDeprecationRecommended DeprecationDelegate;
+
+	virtual void FinalizeInternal() override;
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 	virtual void SetIsEnabledInternal(bool bInIsEnabled) override;
 
@@ -102,8 +120,8 @@ private:
 	bool FilterLinkedInputCollection(const UNiagaraStackEntry& Child) const;
 	bool FilterLinkedInputCollectionChild(const UNiagaraStackEntry& Child) const;
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
-	void OnEditorDataChanged();
 	void RefreshIsEnabled();
+	void OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages);
 
 private:
 	UNiagaraNodeOutput* OutputNode;
@@ -122,6 +140,8 @@ private:
 	UNiagaraStackModuleItemOutputCollection* OutputCollection;
 
 	INiagaraStackItemGroupAddUtilities* GroupAddUtilities;
+
+	mutable TOptional<bool> bIsScratchModuleCache;
 
 	bool bIsModuleScriptReassignmentPending;
 };

@@ -48,6 +48,49 @@ const float SDataprepGraphEditor::HorizontalPadding = 20.f;
 
 TSharedPtr<FDataprepGraphEditorNodeFactory> SDataprepGraphEditor::NodeFactory;
 
+namespace DataprepGraphEditorUtils
+{
+	void ForEachActionAndStep(const TSet<UObject*>& Nodes,  TFunctionRef<bool (UDataprepActionAsset*, bool /* bIsFromActionNode */)> OnEachAction, TFunctionRef<bool (UDataprepParameterizableObject*)> OnEachStep)
+	{
+		for (UObject* Node : Nodes)
+		{
+			if ( Node )
+			{
+				if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(Node))
+				{
+					if ( OnEachAction( ActionNode->GetDataprepActionAsset(), true ) )
+					{
+						break;
+					}
+				}
+				else if (UDataprepGraphActionStepNode* StepNode = Cast<UDataprepGraphActionStepNode>(Node) )
+				{
+					if (UDataprepActionAsset* Action = StepNode->GetDataprepActionAsset())
+					{
+						if ( OnEachAction( Action, false ) )
+						{
+							break;
+						}
+
+						const int32 StepIndex = StepNode->GetStepIndex();
+						if (UDataprepActionStep* Step = Action->GetStep(StepIndex).Get())
+						{
+							if (UDataprepParameterizableObject* StepObject = Step->GetStepObject())
+							{
+								if ( OnEachStep( StepObject ) )
+								{
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
 TSharedPtr<SGraphNode> FDataprepGraphNodeFactory::CreateNodeWidget(UEdGraphNode* InNode)
 {
 	if (UDataprepGraphRecipeNode* RecipeNode = Cast<UDataprepGraphRecipeNode>(InNode))
@@ -120,17 +163,9 @@ void SDataprepGraphEditor::Construct(const FArguments& InArgs, UDataprepAsset* I
 
 	DataprepAssetPtr->GetOnActionChanged().AddSP(this, &SDataprepGraphEditor::OnDataprepAssetActionChanged);
 
-	// #ueent_toremove: Temp code for the nodes development
-	if(UBlueprint* RecipeBP = InDataprepAsset->GetRecipeBP())
-	{
-		RecipeBP->OnChanged().AddSP(this, &SDataprepGraphEditor::OnPipelineChanged);
-	}
-	// end of temp code for nodes development
-
 	SetCanTick(true);
 
 	bIsComplete = false;
-	bMustRearrange = false;
 
 	LastLocalSize = FVector2D::ZeroVector;
 	LastZoomAmount = BIG_NUMBER;
@@ -152,15 +187,6 @@ void SDataprepGraphEditor::NotifyGraphChanged()
 	LastZoomAmount = BIG_NUMBER;
 
 	SGraphEditor::NotifyGraphChanged();
-}
-
-// #ueent_toremove: Temp code for the nodes development
-void SDataprepGraphEditor::OnPipelineChanged(UBlueprint* InBlueprint)
-{
-	if (InBlueprint)
-	{
-		NotifyGraphChanged();
-	}
 }
 
 void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FDataprepAssetChangeType ChangeType)
@@ -226,7 +252,6 @@ void SDataprepGraphEditor::CacheDesiredSize(float InLayoutScaleMultiplier)
 		if(TrackGraphNodePtr.IsValid())
 		{
 			bIsComplete = TrackGraphNodePtr.Pin()->RefreshLayout();
-			bMustRearrange = true;
 		}
 	}
 }
@@ -262,17 +287,10 @@ void SDataprepGraphEditor::UpdateLayout( const FVector2D& LocalSize, const FVect
 {
 	if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
 	{
-		if(LastZoomAmount != ZoomAmount)
-		{
-			WorkingArea = TrackGraphNode->Update();
-		}
+		WorkingArea = TrackGraphNode->Update();
 
 		if( !LocalSize.Equals(LastLocalSize) )
 		{
-			bMustRearrange = true;
-
-			WorkingArea = TrackGraphNode->Update();
-
 			LastLocalSize = LocalSize;
 
 			// Force a re-compute of the view location
@@ -783,37 +801,39 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			TArray<UDataprepFilter*> Filters;
 			Filters.Reserve( SelectedNodes.Num() );
 
-			const UDataprepActionAsset* ClikedAction = FirstStepNode->GetDataprepActionAsset();
+			const UDataprepActionAsset* ClickedAction = FirstStepNode->GetDataprepActionAsset();
 
-
-			for ( UObject* Node : SelectedNodes )
-			{
-				if ( UDataprepGraphActionStepNode* StepNode = Cast<UDataprepGraphActionStepNode>( Node ) )
+			// Check the if the selection is all from the same action and only from step node
+			auto OnEachAction = [&bAreFilterFromSameAction, &bIsSelectionOnlyFilters, ClickedAction] (UDataprepActionAsset* Action, bool bIsFromActionNode) -> bool
 				{
-					if ( UDataprepActionAsset* Action = StepNode->GetDataprepActionAsset() )
+					if ( bIsFromActionNode )
 					{
-						bAreFilterFromSameAction &= Action == ClikedAction;
-
-						int32 StepIndex = StepNode->GetStepIndex();
-						if ( UDataprepActionStep* Step = Action->GetStep( StepIndex ).Get() )
-						{
-							if ( UDataprepParameterizableObject* StepObject = Step->GetStepObject() )
-							{
-								if ( UDataprepFilter* Filter = Cast<UDataprepFilter>( StepObject ) )
-								{
-									Filters.Add( Filter );
-									continue;
-								}
-							}
-						}
+						bIsSelectionOnlyFilters = false;
+						return true;
 					}
-				}
+					else
+					{
+						bAreFilterFromSameAction &= Action == ClickedAction;
+					}
+					return !bAreFilterFromSameAction;
+				};
 
-				bIsSelectionOnlyFilters = false;
-				break;
-			}
+			// Check if the selection is only filters
+			auto OnEachStepForFilterOnly = [&bIsSelectionOnlyFilters, &Filters](UDataprepParameterizableObject* StepObject) -> bool
+				{
+					if ( UDataprepFilter* Filter = Cast<UDataprepFilter>( StepObject ) )
+					{
+						Filters.Add( Filter );
+					}
+					else
+					{
+						bIsSelectionOnlyFilters = false;
+					}
 
+					return !bIsSelectionOnlyFilters;
+				};
 
+			DataprepGraphEditorUtils::ForEachActionAndStep( SelectedNodes, OnEachAction, OnEachStepForFilterOnly );
 
 			if ( bIsSelectionOnlyFilters )
 			{
@@ -835,18 +855,57 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 
 					if ( TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin() )
 					{ 
-						FUIAction SetFilterPreview;
-						SetFilterPreview.CanExecuteAction.BindLambda( [bAreFilterFromSameAction]() { return bAreFilterFromSameAction; } );
-						SetFilterPreview.ExecuteAction.BindLambda( [Filters, DataprepEditorPtr]()
-							{
-								TArray<UDataprepParameterizableObject*> ObjectsToObserve( Filters );
-								DataprepEditorPtr->SetPreviewedObjects( MakeArrayView<UDataprepParameterizableObject*>( ObjectsToObserve.GetData(), ObjectsToObserve.Num() ) );
-							});
 
-						MenuBuilder->AddMenuEntry(LOCTEXT("SetFilterPreview", "Preview Filter(s)"),
-							bAreFilterFromSameAction ? LOCTEXT("SetFilterPreviewTooltip", "Change the columns of the scene preview and asset preview tabs to display a preview of what the filters would select from the current scene") : LOCTEXT("SetFilterPreviewFailTooltip", "The filters can only be previewed if they are from the same action."),
-							FSlateIcon(),
-							SetFilterPreview);
+						bool bAreAllFilterPreviewed = true;
+
+						/**
+						 * Check if the filters are the same as the previewed steps from the preview system
+						 * Work with the assumption that the filters array contains only unique objects
+						 */
+						{
+							for ( UDataprepFilter* Filter : Filters )
+							{
+								if ( !DataprepEditorPtr->IsPreviewingStep(Filter) )
+								{
+									bAreAllFilterPreviewed = false;
+									break;
+								}
+							}
+							if ( Filters.Num() != DataprepEditorPtr->GetCountOfPreviewedSteps() )
+							{
+								bAreAllFilterPreviewed = false;
+							}
+						}
+
+
+						if ( bAreAllFilterPreviewed )
+						{
+							FUIAction ClearFilterPreview;
+							ClearFilterPreview.ExecuteAction.BindLambda([DataprepEditorPtr]()
+								{
+									DataprepEditorPtr->ClearPreviewedObjects();
+								});
+
+							MenuBuilder->AddMenuEntry(LOCTEXT("ClearFilterPreview", "Clear the previewed Filter(s)"),
+								LOCTEXT("ClearFilterPreviewTooltip", "Clear the columns of the scene preview and asset preview tabs of the Filter Preview."),
+								FSlateIcon(),
+								ClearFilterPreview);
+						}
+						else
+						{
+							FUIAction SetFilterPreview;
+							SetFilterPreview.CanExecuteAction.BindLambda( [bAreFilterFromSameAction]() { return bAreFilterFromSameAction; } );
+							SetFilterPreview.ExecuteAction.BindLambda( [Filters, DataprepEditorPtr]()
+								{
+									TArray<UDataprepParameterizableObject*> ObjectsToObserve( Filters );
+									DataprepEditorPtr->SetPreviewedObjects( MakeArrayView<UDataprepParameterizableObject*>( ObjectsToObserve.GetData(), ObjectsToObserve.Num() ) );
+								});
+
+							MenuBuilder->AddMenuEntry(LOCTEXT("SetFilterPreview", "Preview Filter(s)"),
+								bAreFilterFromSameAction ? LOCTEXT("SetFilterPreviewTooltip", "Change the columns of the scene preview and asset preview tabs to display a preview of what the filters would select from the current scene") : LOCTEXT("SetFilterPreviewFailTooltip", "The filters can only be previewed if they are from the same action."),
+								FSlateIcon(),
+								SetFilterPreview);
+						}
 					}
 				}
 				MenuBuilder->EndSection();

@@ -45,14 +45,14 @@ namespace UnrealBuildTool
 	
 	class EddieProjectFile : ProjectFile
 	{
-		FileReference OnlyGameProject;
+		//FileReference OnlyGameProject;
 		
 		Dictionary<string, EddieFolder> Folders = new Dictionary<string, EddieFolder>();
 		
 		public EddieProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject)
 			: base(InitFilePath)
 		{
-			OnlyGameProject = InOnlyGameProject;
+			//OnlyGameProject = InOnlyGameProject;
 		}
 
 		public override string ToString()
@@ -123,9 +123,9 @@ namespace UnrealBuildTool
 			{
 				EddieSourceFile SourceFile = CurSourceFile as EddieSourceFile;
 				string FileName = SourceFile.Reference.GetFileName();
-				string FileExtension = Path.GetExtension(FileName);
-				string FilePath = SourceFile.Reference.MakeRelativeTo(ProjectFilePath.Directory);
-				string FilePathMac = Utils.CleanDirectorySeparators(FilePath, '/');
+				//string FileExtension = Path.GetExtension(FileName);
+				//string FilePath = SourceFile.Reference.MakeRelativeTo(ProjectFilePath.Directory);
+				//string FilePathMac = Utils.CleanDirectorySeparators(FilePath, '/');
 				
 				string ProjectRelativeSourceFile = CurSourceFile.Reference.MakeRelativeTo(ProjectFilePath.Directory);
 				string RelativeSourceDirectory = Path.GetDirectoryName(ProjectRelativeSourceFile);
@@ -199,17 +199,17 @@ namespace UnrealBuildTool
 		{
 			bool bSuccess = false;
 			
-			string TargetName = ProjectFilePath.GetFileNameWithoutExtension();
+			//string TargetName = ProjectFilePath.GetFileNameWithoutExtension();
 			
-			FileReference GameProjectPath = null;
-			foreach(ProjectTarget Target in ProjectTargets)
-			{
-				if(Target.UnrealProjectFilePath != null)
-				{
-					GameProjectPath = Target.UnrealProjectFilePath;
-					break;
-				}
-			}
+			//FileReference GameProjectPath = null;
+			//foreach(ProjectTarget Target in ProjectTargets)
+			//{
+			//	if(Target.UnrealProjectFilePath != null)
+			//	{
+			//		GameProjectPath = Target.UnrealProjectFilePath;
+			//		break;
+			//	}
+			//}
 			
 			StringBuilder ProjectFileContent = new StringBuilder();
 			

@@ -6,18 +6,20 @@
 
 enum class EDataAssetIndexerVersion
 {
-	Empty = 0,
-	Initial = 1,
+	Empty,
+	Initial,
 
-	Current = Initial,
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
 int32 FDataAssetIndexer::GetVersion() const
 {
-	return (int32)EDataAssetIndexerVersion::Current;
+	return (int32)EDataAssetIndexerVersion::LatestVersion;
 }
 
-void FDataAssetIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer)
+void FDataAssetIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
 	Serializer.BeginIndexingObject(InAssetObject, TEXT("$self"));
 

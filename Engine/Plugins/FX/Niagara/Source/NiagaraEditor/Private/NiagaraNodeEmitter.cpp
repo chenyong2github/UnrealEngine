@@ -82,7 +82,7 @@ bool UNiagaraNodeEmitter::VerifyEditablePinName(const FText& InName, FText& OutE
 	return true;
 }
 
-bool UNiagaraNodeEmitter::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj)
+bool UNiagaraNodeEmitter::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents)
 {
 	return false;
 }
@@ -255,7 +255,12 @@ UNiagaraGraph* UNiagaraNodeEmitter::GetCalledGraph() const
 bool UNiagaraNodeEmitter::RefreshFromExternalChanges()
 {
 	DisplayName = GetNameFromEmitter();
+	ENodeEnabledState OldEnabledState = GetDesiredEnabledState();
 	SyncEnabledState();
+	if (OldEnabledState != GetDesiredEnabledState())
+	{
+		MarkNodeRequiresSynchronization(TEXT("Emitter Node Enabled Changed"), true);
+	}
 	return true;
 }
 

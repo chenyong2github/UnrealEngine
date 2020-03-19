@@ -153,7 +153,7 @@ FString FEmitterLocalContext::FindGloballyMappedObject(const UObject* Object, co
 		const UStruct* FieldOwnerStruct = Field ? GetFieldOwnerStruct(Field) : nullptr;
 		if (FieldOwnerStruct && (Field != FieldOwnerStruct))
 		{
-			ensure(Field == FindField<UField>(FieldOwnerStruct, Field->GetFName()));
+			ensure(Field == FindUField<UField>(FieldOwnerStruct, Field->GetFName()));
 			const FString MappedOwner = FindGloballyMappedObject(FieldOwnerStruct, UStruct::StaticClass(), bLoadIfNotFound, bTryUsedAssetsList);
 			if (!MappedOwner.IsEmpty() && ensure(MappedOwner != TEXT("nullptr")))
 			{

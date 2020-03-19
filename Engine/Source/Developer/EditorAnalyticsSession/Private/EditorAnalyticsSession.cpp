@@ -190,7 +190,7 @@ namespace EditorAnalyticsUtils
 
 		{
 			FString TotalPhysicalRAMString;
-			FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::GRHIAdapterUserDriverVersionStoreKey, TotalPhysicalRAMString);
+			FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TotalPhysicalRAMStoreKey, TotalPhysicalRAMString);
 			Session.TotalPhysicalRAM = FCString::Atoi64(*TotalPhysicalRAMString);
 		}
 
@@ -308,10 +308,6 @@ bool FEditorAnalyticsSession::IsLocked()
 	return StoredValuesLock != nullptr && StoredValuesLock->IsValid();
 }
 
-// Utility macros to make it easier to see that all values are correctly set
-#define SET_STORED_STRING(FieldName) FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::FieldName ## StoreKey, FieldName)
-#define SET_STORED_INT(FieldName) FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::FieldName ## StoreKey, FString::FromInt(FieldName))
-
 bool FEditorAnalyticsSession::Save()
 {
 	if (!ensure(IsLocked()))
@@ -323,66 +319,66 @@ bool FEditorAnalyticsSession::Save()
 
 	if (!bAlreadySaved)
 	{
-		SET_STORED_STRING(EngineVersion);
-		SET_STORED_INT(PlatformProcessID);
-		SET_STORED_STRING(DesktopGPUAdapter);
-		SET_STORED_STRING(RenderingGPUAdapter);
-		SET_STORED_INT(GPUVendorID);
-		SET_STORED_INT(GPUDeviceID);
-		SET_STORED_INT(GRHIDeviceRevision);
-		SET_STORED_STRING(GRHIAdapterInternalDriverVersion);
-		SET_STORED_STRING(GRHIAdapterUserDriverVersion);
-
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TotalPhysicalRAMStoreKey, FString::Printf(TEXT("%llu"), TotalPhysicalRAM));
-
-		SET_STORED_INT(CPUPhysicalCores);
-		SET_STORED_INT(CPULogicalCores);
-		SET_STORED_STRING(CPUVendor);
-		SET_STORED_STRING(CPUBrand);
-
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::StartupTimestampStoreKey, EditorAnalyticsUtils::TimestampToString(StartupTimestamp));
-
-		SET_STORED_STRING(OSMajor);
-		SET_STORED_STRING(OSMinor);
-		SET_STORED_STRING(OSVersion);
-
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::bIs64BitOSStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIs64BitOS));
-
 		const FString PluginsString = FString::Join(Plugins, TEXT(","));
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::PluginsStoreKey, PluginsString);
 
-		SET_STORED_STRING(AppId);
-		SET_STORED_STRING(AppVersion);
-		SET_STORED_STRING(UserId);
-	
+		TMap<FString, FString> KeyValues = {
+			{EditorAnalyticsDefs::EngineVersionStoreKey,       EngineVersion},
+			{EditorAnalyticsDefs::PlatformProcessIDStoreKey,   FString::FromInt(PlatformProcessID)},
+			{EditorAnalyticsDefs::DesktopGPUAdapterStoreKey,   DesktopGPUAdapter},
+			{EditorAnalyticsDefs::RenderingGPUAdapterStoreKey, RenderingGPUAdapter},
+			{EditorAnalyticsDefs::GPUVendorIDStoreKey,         FString::FromInt(GPUVendorID)},
+			{EditorAnalyticsDefs::GPUDeviceIDStoreKey,         FString::FromInt(GPUDeviceID)},
+			{EditorAnalyticsDefs::GRHIDeviceRevisionStoreKey,  FString::FromInt(GRHIDeviceRevision)},
+			{EditorAnalyticsDefs::GRHIAdapterInternalDriverVersionStoreKey, GRHIAdapterUserDriverVersion},
+			{EditorAnalyticsDefs::GRHIAdapterUserDriverVersionStoreKey,     GRHIAdapterUserDriverVersion},
+			{EditorAnalyticsDefs::TotalPhysicalRAMStoreKey, FString::Printf(TEXT("%llu"), TotalPhysicalRAM)},
+			{EditorAnalyticsDefs::CPUPhysicalCoresStoreKey, FString::FromInt(CPUPhysicalCores)},
+			{EditorAnalyticsDefs::CPULogicalCoresStoreKey,  FString::FromInt(CPULogicalCores)},
+			{EditorAnalyticsDefs::CPUVendorStoreKey,        CPUVendor},
+			{EditorAnalyticsDefs::CPUBrandStoreKey,         CPUBrand},
+			{EditorAnalyticsDefs::StartupTimestampStoreKey, EditorAnalyticsUtils::TimestampToString(StartupTimestamp)},
+			{EditorAnalyticsDefs::OSMajorStoreKey,    OSMajor},
+			{EditorAnalyticsDefs::OSMinorStoreKey,    OSMinor},
+			{EditorAnalyticsDefs::OSVersionStoreKey,  OSVersion},
+			{EditorAnalyticsDefs::bIs64BitOSStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIs64BitOS)},
+			{EditorAnalyticsDefs::PluginsStoreKey,    PluginsString},
+			{EditorAnalyticsDefs::AppIdStoreKey,      AppId},
+			{EditorAnalyticsDefs::AppVersionStoreKey, AppVersion},
+			{EditorAnalyticsDefs::UserIdStoreKey,     UserId},
+		};
+
+		FPlatformMisc::SetStoredValues(EditorAnalyticsDefs::StoreId, StorageLocation, KeyValues);
+
 		bAlreadySaved = true;
 	}
 
-	SET_STORED_STRING(ProjectName);
-	SET_STORED_STRING(ProjectID);
-	SET_STORED_STRING(ProjectDescription);
-	SET_STORED_STRING(ProjectVersion);
+	{
+		TMap<FString, FString> KeyValues = {
+			{EditorAnalyticsDefs::ProjectNameStoreKey, ProjectName},
+			{EditorAnalyticsDefs::ProjectIDStoreKey,   ProjectID},
+			{EditorAnalyticsDefs::ProjectDescriptionStoreKey,  ProjectDescription},
+			{EditorAnalyticsDefs::ProjectVersionStoreKey,  ProjectVersion},
+			{EditorAnalyticsDefs::TimestampStoreKey,       EditorAnalyticsUtils::TimestampToString(Timestamp)},
+			{EditorAnalyticsDefs::SessionDurationStoreKey, FString::FromInt(SessionDuration)},
+			{EditorAnalyticsDefs::Idle1MinStoreKey,  FString::FromInt(Idle1Min)},
+			{EditorAnalyticsDefs::Idle5MinStoreKey,  FString::FromInt(Idle5Min)},
+			{EditorAnalyticsDefs::Idle30MinStoreKey, FString::FromInt(Idle30Min)},
+			{EditorAnalyticsDefs::CurrentUserActivityStoreKey, CurrentUserActivity},
+			{EditorAnalyticsDefs::AverageFPSStoreKey,     FString::SanitizeFloat(AverageFPS)},
+			{EditorAnalyticsDefs::IsCrashStoreKey,        EditorAnalyticsUtils::BoolToStoredString(bCrashed)},
+			{EditorAnalyticsDefs::IsGPUCrashStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bGPUCrashed)},
+			{EditorAnalyticsDefs::IsDebuggerStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bIsDebugger)},
+			{EditorAnalyticsDefs::WasDebuggerStoreKey,    EditorAnalyticsUtils::BoolToStoredString(bWasEverDebugger)},
+			{EditorAnalyticsDefs::IsVanillaStoreKey,      EditorAnalyticsUtils::BoolToStoredString(bIsVanilla)},
+			{EditorAnalyticsDefs::IsTerminatingKey,       EditorAnalyticsUtils::BoolToStoredString(bIsTerminating)},
+			{EditorAnalyticsDefs::WasShutdownStoreKey,    EditorAnalyticsUtils::BoolToStoredString(bWasShutdown)},
+			{EditorAnalyticsDefs::IsInPIEStoreKey,        EditorAnalyticsUtils::BoolToStoredString(bIsInPIE)    },
+			{EditorAnalyticsDefs::IsInEnterpriseStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInEnterprise)},
+			{EditorAnalyticsDefs::IsInVRModeStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bIsInVRMode)},
+		};
 
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TimestampStoreKey, EditorAnalyticsUtils::TimestampToString(Timestamp));
-
-	SET_STORED_INT(SessionDuration);
-	SET_STORED_INT(Idle1Min);
-	SET_STORED_INT(Idle5Min);
-	SET_STORED_INT(Idle30Min);
-
-	SET_STORED_STRING(CurrentUserActivity);
-
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::AverageFPSStoreKey, FString::SanitizeFloat(AverageFPS));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(bCrashed));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsGPUCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(bGPUCrashed));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsDebuggerStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsDebugger));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::WasDebuggerStoreKey, EditorAnalyticsUtils::BoolToStoredString(bWasEverDebugger));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsVanillaStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsVanilla));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsTerminatingKey, EditorAnalyticsUtils::BoolToStoredString(bIsTerminating));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::WasShutdownStoreKey, EditorAnalyticsUtils::BoolToStoredString(bWasShutdown));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsInPIEStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInPIE));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsInEnterpriseStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInEnterprise));
-	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsInVRModeStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInVRMode));
+		FPlatformMisc::SetStoredValues(EditorAnalyticsDefs::StoreId, StorageLocation, KeyValues);
+	}
 
 	return true;
 }
@@ -394,24 +390,21 @@ bool FEditorAnalyticsSession::SaveForCrash()
 		return false;
 	}
 
-	// These ini writes are causing MallocCrash to go over its LARGE_MEMORYPOOL_SIZE due to writing to ini files causing a potentially a few large allocations per write
-	if (!PLATFORM_UNIX)
-	{
-		const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
-		
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(bCrashed));
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsGPUCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(bGPUCrashed));
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsTerminatingKey, EditorAnalyticsUtils::BoolToStoredString(bIsTerminating));
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::WasShutdownStoreKey, EditorAnalyticsUtils::BoolToStoredString(bWasShutdown));
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TimestampStoreKey, EditorAnalyticsUtils::TimestampToString(Timestamp));
-		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::SessionDurationStoreKey, FString::FromInt(SessionDuration));
-	}
+	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
+
+	TMap<FString, FString> KeyValues = {
+		{EditorAnalyticsDefs::IsCrashStoreKey,         EditorAnalyticsUtils::BoolToStoredString(bCrashed)},
+		{EditorAnalyticsDefs::IsGPUCrashStoreKey,      EditorAnalyticsUtils::BoolToStoredString(bGPUCrashed)},
+		{EditorAnalyticsDefs::IsTerminatingKey,        EditorAnalyticsUtils::BoolToStoredString(bIsTerminating)},
+		{EditorAnalyticsDefs::WasShutdownStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bWasShutdown)},
+		{EditorAnalyticsDefs::TimestampStoreKey,       EditorAnalyticsUtils::TimestampToString(Timestamp)},
+		{EditorAnalyticsDefs::SessionDurationStoreKey, FString::FromInt(SessionDuration)},
+	};
+
+	FPlatformMisc::SetStoredValues(EditorAnalyticsDefs::StoreId, StorageLocation, KeyValues);
 
 	return true;
 }
-
-#undef SET_STORED_INT
-#undef SET_STORED_STRING
 
 bool FEditorAnalyticsSession::Load(const FString& InSessionID)
 {

@@ -221,58 +221,90 @@ bool FFileHelper::LoadFileToString(FString& Result, IPlatformFile* PlatformFile,
 	return LoadFileToString(Result, *Reader.Get(), VerifyFlags);
 }
 
-bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* Filename, EHashOptions VerifyFlags )
+bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* Filename )
 {
-	Result.Empty();
-
-	FString Buffer;
-	if(!LoadFileToString(Buffer, Filename, VerifyFlags))
-	{
-		return false;
-	}
-
-	for(const TCHAR* Pos = *Buffer; *Pos != 0; )
-	{
-		const TCHAR* LineStart = Pos;
-		while(*Pos != 0 && *Pos != '\r' && *Pos != '\n')
-		{
-			Pos++;
-		}
-
-		Result.Emplace((int32)(Pos - LineStart), LineStart);
-
-		if(*Pos == '\r')
-		{
-			Pos++;
-		}
-		if(*Pos == '\n')
-		{
-			Pos++;
-		}
-	}
-
-	return true;
+	return LoadFileToStringArrayWithPredicate(Result, Filename, [](const FString&) { return true;  });
 }
 
-bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, const TCHAR* Filename, TFunctionRef<bool(const FString&)> Predicate, EHashOptions VerifyFlags)
+// DEPRECATED
+bool FFileHelper::LoadFileToStringArray(TArray<FString>& Result, const TCHAR* Filename, EHashOptions VerifyFlags)
+{
+	return LoadFileToStringArray(Result, Filename);
+}
+
+bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, const TCHAR* Filename, TFunctionRef<bool(const FString&)> Predicate)
 {
 	Result.Empty();
 
-	FString Buffer;
-	if (!LoadFileToString(Buffer, Filename, VerifyFlags))
+	TArray64<uint8> RawBuffer;
+	// can be silent here, since returning false is enough
+	if (!LoadFileToArray(RawBuffer, Filename, FILEREAD_Silent))
 	{
 		return false;
 	}
 
-	for (const TCHAR* Pos = *Buffer; *Pos != 0; )
+	// we only support the 64-bit enabled "per-line conversion" functionality for UTF-8/ANSI strings, because the \r checks against a byte may fail
+	// so we have to use the old "full string conversion" method, which doesn't work with 64-bits worth of data
+	if (RawBuffer.Num() >= 2 && !(RawBuffer.Num() & 1) && 
+		((RawBuffer[0] == 0xFF && RawBuffer[1] == 0xFE) || (RawBuffer[0] == 0xFE && RawBuffer[1] == 0xFF)))
 	{
-		const TCHAR* LineStart = Pos;
-		while (*Pos != 0 && *Pos != '\r' && *Pos != '\n')
+		// make sure we can use 32-bit algorithm
+		if (RawBuffer.Num() > MAX_int32)
 		{
-			Pos++;
+			UE_LOG(LogStreaming, Error, TEXT("A widechar format file used in LoadFileToStringArray[WithPredicate], but it's too large to be processed. File: %s"), Filename);
+			return false;
 		}
 
-		FString Line(UE_PTRDIFF_TO_INT32(Pos - LineStart), LineStart);
+		FString Buffer;
+		BufferToString(Buffer, RawBuffer.GetData(), (int32)RawBuffer.Num());
+
+		for (const TCHAR* Pos = *Buffer; *Pos != 0; )
+		{
+			const TCHAR* LineStart = Pos;
+			while (*Pos != 0 && *Pos != '\r' && *Pos != '\n')
+			{
+				Pos++;
+			}
+
+			FString Line(UE_PTRDIFF_TO_INT32(Pos - LineStart), LineStart);
+			if (Invoke(Predicate, Line))
+			{
+				Result.Add(MoveTemp(Line));
+			}
+
+			if (*Pos == '\r')
+			{
+				Pos++;
+			}
+			if (*Pos == '\n')
+			{
+				Pos++;
+			}
+		}
+
+		return true;
+	}
+
+
+	int64 Length = RawBuffer.Num();
+	for (const uint8* Pos = (uint8*)RawBuffer.GetData(); Length > 0; )
+	{
+		const uint8* LineStart = Pos;
+		while (Length > 0 && *Pos != '\r' && *Pos != '\n')
+		{
+			Pos++;
+			Length--;
+		}
+
+		if (Pos - LineStart > MAX_int32)
+		{
+			UE_LOG(LogStreaming, Error, TEXT("Single line too long found in LoadFileToStringArrayWithPredicate, File: %s"), Filename);
+			return false;
+		}
+
+		FString Line;
+		BufferToString(Line, LineStart, UE_PTRDIFF_TO_INT32(Pos - LineStart));
+		
 		if (Invoke(Predicate, Line))
 		{
 			Result.Add(MoveTemp(Line));
@@ -281,14 +313,22 @@ bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, co
 		if (*Pos == '\r')
 		{
 			Pos++;
+			Length--;
 		}
 		if (*Pos == '\n')
 		{
 			Pos++;
+			Length--;
 		}
 	}
 
 	return true;
+}
+
+// DEPRECATED
+bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, const TCHAR* Filename, TFunctionRef<bool(const FString&)> Predicate, EHashOptions VerifyFlags)
+{
+	return LoadFileToStringArrayWithPredicate(Result, Filename, Predicate);
 }
 
 /**
@@ -327,7 +367,7 @@ bool FFileHelper::SaveArrayToFile(const TArray64<uint8>& Array, const TCHAR* Fil
  * Write the FString to a file.
  * Supports all combination of ANSI/Unicode files and platforms.
  */
-bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename,  EEncodingOptions EncodingOptions, IFileManager* FileManager /*= &IFileManager::Get()*/, uint32 WriteFlags )
+bool FFileHelper::SaveStringToFile( FStringView String, const TCHAR* Filename,  EEncodingOptions EncodingOptions, IFileManager* FileManager /*= &IFileManager::Get()*/, uint32 WriteFlags )
 {
 	// max size of the string is a UCS2CHAR for each character and some UNICODE magic 
 	TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>( FileManager->CreateFileWriter( Filename, WriteFlags ) );
@@ -337,18 +377,18 @@ bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename
 	if( String.IsEmpty() )
 		return true;
 
-	bool SaveAsUnicode = EncodingOptions == EEncodingOptions::ForceUnicode || ( EncodingOptions == EEncodingOptions::AutoDetect && !FCString::IsPureAnsi(*String) );
+	bool SaveAsUnicode = EncodingOptions == EEncodingOptions::ForceUnicode || ( EncodingOptions == EEncodingOptions::AutoDetect && !FCString::IsPureAnsi(String.GetData(), String.Len()) );
 	if( EncodingOptions == EEncodingOptions::ForceUTF8 )
 	{
 		UTF8CHAR UTF8BOM[] = { 0xEF, 0xBB, 0xBF };
 		Ar->Serialize( &UTF8BOM, UE_ARRAY_COUNT(UTF8BOM) * sizeof(UTF8CHAR) );
 
-		FTCHARToUTF8 UTF8String(*String, String.Len());
+		FTCHARToUTF8 UTF8String(String.GetData(), String.Len());
 		Ar->Serialize( (UTF8CHAR*)UTF8String.Get(), UTF8String.Length() * sizeof(UTF8CHAR) );
 	}
 	else if ( EncodingOptions == EEncodingOptions::ForceUTF8WithoutBOM )
 	{
-		FTCHARToUTF8 UTF8String(*String, String.Len());
+		FTCHARToUTF8 UTF8String(String.GetData(), String.Len());
 		Ar->Serialize((UTF8CHAR*)UTF8String.Get(), UTF8String.Length() * sizeof(UTF8CHAR));
 	}
 	else if (SaveAsUnicode)
@@ -357,12 +397,12 @@ bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename
 		Ar->Serialize( &BOM, sizeof(UTF16CHAR) );
 
 		// Note: This is a no-op on platforms that are using a 16-bit TCHAR
-		FTCHARToUTF16 UTF16String(*String, String.Len());
+		FTCHARToUTF16 UTF16String(String.GetData(), String.Len());
 		Ar->Serialize((UTF16CHAR*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
 	}
 	else
 	{
-		auto Src = StringCast<ANSICHAR>(*String, String.Len());
+		auto Src = StringCast<ANSICHAR>(String.GetData(), String.Len());
 		Ar->Serialize( (ANSICHAR*)Src.Get(), Src.Length() * sizeof(ANSICHAR) );
 	}
 

@@ -19,6 +19,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraConstants.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeParameterMapGet"
 
@@ -60,7 +61,12 @@ bool UNiagaraNodeParameterMapGet::IsPinNameEditableUponCreation(const UEdGraphPi
 {
 	if (GraphPinObj == PinPendingRename && GraphPinObj->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
-		return true;
+		const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+		FNiagaraVariable Var = Schema->PinToNiagaraVariable(GraphPinObj);
+		if (!FNiagaraConstants::IsNiagaraConstant(Var))
+			return true;
+		else
+			return false;
 	}
 	else
 	{
@@ -430,18 +436,32 @@ bool UNiagaraNodeParameterMapGet::CancelEditablePinName(const FText& InName, UEd
 	return true;
 }
 
-bool UNiagaraNodeParameterMapGet::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) 
+bool UNiagaraNodeParameterMapGet::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents)
 {
+	if (InGraphPinObj == PinPendingRename)
+	{
+		PinPendingRename = nullptr;
+	}
+
 	if (Pins.Contains(InGraphPinObj) && InGraphPinObj->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
+		FString OldPinName = InGraphPinObj->PinName.ToString();
+		FString NewPinName = InName.ToString();
+
+		// Early out if the same!
+		if (OldPinName == NewPinName)
+		{
+			return true;
+		}
+
 		FScopedTransaction AddNewPinTransaction(LOCTEXT("Rename Pin", "Renamed pin"));
 		Modify();
 		InGraphPinObj->Modify();
 
-		FString OldPinName = InGraphPinObj->PinName.ToString();
 		InGraphPinObj->PinName = *InName.ToString();
 
-		OnPinRenamed(InGraphPinObj, OldPinName);
+		if (!bSuppressEvents)
+			OnPinRenamed(InGraphPinObj, OldPinName);
 
 		return true;
 	}
@@ -500,7 +520,7 @@ void UNiagaraNodeParameterMapGet::GetPinHoverText(const UEdGraphPin& Pin, FStrin
 				const UEdGraphPin* OutputPin = GetOutputPinForDefault(&Pin);
 				if (OutputPin)
 				{
-					FText Desc = FText::Format(LOCTEXT("DefaultValueTooltip", "Default value for \"{0}\" if no other module has set it previously in the stack."), FText::FromName(OutputPin->PinName));
+					FText Desc = FText::Format(LOCTEXT("DefaultValueTooltip", "Default value for \"{0}\" if no other module has set it previously in the stack.\nPlease edit this value by selecting in the parameters panel and editing in the details panel."), FText::FromName(OutputPin->PinName));
 					HoverTextOut = Desc.ToString();
 					return;
 				}
@@ -510,9 +530,23 @@ void UNiagaraNodeParameterMapGet::GetPinHoverText(const UEdGraphPin& Pin, FStrin
 				FNiagaraVariable Var = FNiagaraVariable(TypeDef, Pin.PinName);
 				TOptional<FNiagaraVariableMetaData> Metadata = NiagaraGraph->GetMetaData(Var);
 
-				FText Description = Metadata.IsSet() ? Metadata->Description : FText::GetEmpty();
-				FText ToolTipText = FNiagaraEditorUtilities::FormatVariableDescription(Description, FText::FromName(Pin.PinName), TypeDef.GetNameText());
-				HoverTextOut = ToolTipText.ToString();
+				if (Metadata.IsSet())
+				{
+					FText Description = Metadata->Description;
+					const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nDescription: {2}\nScope: {3}\nUser Editable: {4}\nUsage: {5}");
+					const FText Name = FText::FromName(Var.GetName());
+					FName CachedParamName;
+					Metadata->GetParameterName(CachedParamName);
+					const FText ScopeText = FText::FromName(Metadata->GetScopeName());
+					const FText UserEditableText = FText::FromName(CachedParamName);
+					const FText UsageText = StaticEnum<ENiagaraScriptParameterUsage>()->GetDisplayNameTextByValue((int64)Metadata->GetUsage());
+					const FText ToolTipText = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), Description, ScopeText, UserEditableText, UsageText);
+					HoverTextOut = ToolTipText.ToString();
+				}
+				else
+				{
+					HoverTextOut = TEXT("");
+				}
 			}
 		}
 	}
@@ -522,28 +556,6 @@ void UNiagaraNodeParameterMapGet::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 {
 	Super::GetNodeContextMenuActions(Menu, Context);
 
-	UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context->Pin);
-	if (Pin && Pin->Direction == EEdGraphPinDirection::EGPD_Output)
-	{
-		
-		FNiagaraVariable Var = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToNiagaraVariable(Pin);
-		const UNiagaraGraph* Graph = GetNiagaraGraph();
-
-		if (!FNiagaraConstants::IsNiagaraConstant(Var))
-		{
-			FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraMetaDataActions", LOCTEXT("EditPinMenuHeader", "Meta-Data"));
-			TSharedRef<SWidget> RenameWidget =
-				SNew(SBox)
-				.WidthOverride(100)
-				.Padding(FMargin(5, 0, 0, 0))
-				[
-					SNew(SEditableTextBox)
-					.Text_UObject(this, &UNiagaraNodeParameterMapBase::GetPinDescriptionText, Pin)
-					.OnTextCommitted_UObject(const_cast<UNiagaraNodeParameterMapGet*>(this), &UNiagaraNodeParameterMapBase::PinDescriptionTextCommitted, Pin)
-				];
-			Section.AddEntry(FToolMenuEntry::InitWidget("RenameWidget", RenameWidget, LOCTEXT("DescMenuItem", "Description")));
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

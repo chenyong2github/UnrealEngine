@@ -61,11 +61,31 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	//I'm not a great fan of pulling scalar components out to a structured vert buffer like this.
 	//TODO: Experiment with a new VF that reads the data directly from the scalar layout.
 	FNiagaraDataSetAccessor<FVector> PosAccessor(Data, Properties->PositionBinding.DataSetVariable);
-	FNiagaraDataSetAccessor<FLinearColor> ColAccessor(Data, Properties->ColorBinding.DataSetVariable);
-	FNiagaraDataSetAccessor<float> RadiusAccessor(Data, Properties->RadiusBinding.DataSetVariable);
-	FNiagaraDataSetAccessor<float> ExponentAccessor(Data, Properties->LightExponentBinding.DataSetVariable);
-	FNiagaraDataSetAccessor<float> ScatteringAccessor(Data, Properties->VolumetricScatteringBinding.DataSetVariable);
-	FNiagaraDataSetAccessor<int32> EnabledAccessor(Data, Properties->LightRenderingEnabledBinding.DataSetVariable);
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrColor4> ColAccessor;
+	if (Data.HasVariable(Properties->ColorBinding.DataSetVariable.GetName()))
+	{
+		ColAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrColor4>(Data, Properties->ColorBinding.DataSetVariable.GetName());
+	}
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> RadiusAccessor;
+	if (Data.HasVariable(Properties->RadiusBinding.DataSetVariable.GetName()))
+	{
+		RadiusAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(Data, Properties->RadiusBinding.DataSetVariable.GetName());
+	}
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> ExponentAccessor;
+	if (Data.HasVariable(Properties->LightExponentBinding.DataSetVariable.GetName()))
+	{
+		ExponentAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(Data, Properties->LightExponentBinding.DataSetVariable.GetName());
+	}
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> ScatteringAccessor;
+	if (Data.HasVariable(Properties->VolumetricScatteringBinding.DataSetVariable.GetName()))
+	{
+		ScatteringAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(Data, Properties->VolumetricScatteringBinding.DataSetVariable.GetName());
+	}
+	FNiagaraDataSetAccessor<int32> EnabledAccessor;
+	if (Data.HasVariable(Properties->LightRenderingEnabledBinding.DataSetVariable.GetName()))
+	{
+		EnabledAccessor = FNiagaraDataSetAccessor<int32>(Data, Properties->LightRenderingEnabledBinding.DataSetVariable);
+	}
 
 	const FMatrix& LocalToWorldMatrix = Proxy->GetLocalToWorld();
 	FVector DefaultColor = FVector(Properties->ColorBinding.DefaultValueIfNonExistent.GetValue<FLinearColor>());

@@ -23,7 +23,7 @@ namespace AutomationTool.Benchmark
 	[Help("all", "Run all the things (except noddc)")]
 	[Help("allcompile", "Run all the compile things")]
 	[Help("editor", "Build an editor for compile tests")]
-	[Help("client", "Build a client for comple tests (see -platform)")]	
+	[Help("client", "Build a client for comple tests (see -platform)")]
 	[Help("platform=<p1+p2>", "Specify the platform(s) to use for client compilation/cooking, if empty the local platform be used if -client or -cook is specified")]
 	[Help("xge", "Do a compile with XGE / FASTBuild")]
 	[Help("noxge", "Do a compile without XGE / FASTBuild")]
@@ -31,18 +31,19 @@ namespace AutomationTool.Benchmark
 	[Help("nopcompile", "Do a nothing-needs-compiled compile")]
 	[Help("cores=X+Y+Z", "Do noxge builds with these processor counts (default is Environment.ProcessorCount)")]
 	[Help("cook", "Do a cook for the specified platform")]
-	[Help("cook-cold", "When cooking clear the local ddc before each run")]
-	[Help("cook-noshaderddc", "Do a cook test with no ddc for shaders")]
-	[Help("cook-noddc", "Do a cook test with nodcc (likely to take 10+ hours with cookfortnite)")]
-	[Help("editorstartup", "Launch the editor (only valid when -project is specified")]
-	[Help("editorstartup-cold", "Launch the editor with a cold ddc")]
-	[Help("editorstartup-hot", "Launch the editor with a hot ddc")]
-	[Help("startupmap=", "Maps to use with launcheditor. Should be one per project or specify 'none'")]
+	[Help("pie", "Launch the editor (only valid when -project is specified")]
+	[Help("map", "Map to PIE with (only valid when using a single project")]
+	[Help("warmddc", "Cook / PIE with a warm DDC")]
+	[Help("hotddc", "Cook / PIE with a hot local DDC (an untimed pre-run is performed)")]
+	[Help("coldddc", "Cook / PIE with a cold local DDC (a temporary folder is used)")]
+	[Help("noshaderddc", "Cook / PIE with no shaders in the DDC")]
+	[Help("nosharedddc", "Cook / PIE with no shared ddc")]
 	[Help("iterations=<n>", "How many times to perform each test)")]
 	[Help("wait=<n>", "How many seconds to wait between each test)")]
 	[Help("filename", "Name/path of file to write CSV results to. If empty the local machine name will be used")]
 	[Help("noclean", "Don't build from clean. (Mostly just to speed things up when testing)")]
-	[Help("ExtraCookArgs", "Extra args to use when cooking")]
+	[Help("CookArgs", "Extra args to use when cooking")]
+	[Help("PIEArgs", "Extra args to use when running the editor")]
 	class BenchmarkBuild : BuildCommand
 	{
 		class BenchmarkOptions : BuildCommand
@@ -65,25 +66,21 @@ namespace AutomationTool.Benchmark
 
 			// cooking
 			public bool DoCookTests = false;
-			public bool DoColdCookTests = false;
-			public bool DoHotCookTests = false;
-			public bool DoNoshaderDDCCookTests = false;
-			public bool DoNoDDCCookTests = false;
 
 			// editor startup tests
-			public bool DoEditorStartupTests = false;
-			public bool DoEditorColdStartupTests = false;
-			public bool DoEditorColdStartupHot = false;
+			public bool DoPIETests = false;
 
-			// list of maps for each project
-			public IEnumerable<string> StartupMapList = Enumerable.Empty<string>();
+			public string MapName = "";
 
 			// misc
 			public int Iterations = 1;
 			public bool NoClean = false;
 			public int TimeBetweenTasks = 0;
-			public string ExtraCookArgs = "";
+			public string CookArgs = "";
+			public string PIEArgs = "";
 			public string FileName = string.Format("{0}_Results.csv", Environment.MachineName);
+
+			public DDCTaskOptions DDCOptions = DDCTaskOptions.None;
 
 			public void ParseParams(string[] InParams)
 			{
@@ -105,15 +102,17 @@ namespace AutomationTool.Benchmark
 
 				// cooking
 				DoCookTests = AllThings | ParseParam("cook");
-				DoColdCookTests = AllThings | ParseParam("cook-cold");
-				DoHotCookTests = AllThings | ParseParam("cook-hotddc");
-				DoNoshaderDDCCookTests = AllThings | ParseParam("cook-noshaderddc");
-				DoNoDDCCookTests = ParseParam("cook-noddc");
 
 				// editor startup tests
-				DoEditorStartupTests = AllThings | ParseParam("editorstartup");
-				DoEditorColdStartupTests = AllThings | ParseParam("editorstartup-cold");
-				DoEditorColdStartupHot = AllThings | ParseParam("editorhotstartup-hot");
+				DoPIETests = AllThings | ParseParam("pie");
+				MapName = ParseParamValue("map", "");
+
+				// DDC options
+				DDCOptions |= ParseParam("warmddc") ? DDCTaskOptions.WarmDDC : DDCTaskOptions.None;
+				DDCOptions |= ParseParam("hotddc") ? DDCTaskOptions.HotDDC : DDCTaskOptions.None;
+				DDCOptions |= ParseParam("coldddc") ? DDCTaskOptions.ColdDDC : DDCTaskOptions.None;
+				DDCOptions |= ParseParam("nosharedddc") ? DDCTaskOptions.NoSharedDDC : DDCTaskOptions.None;
+				DDCOptions |= ParseParam("noshaderddc") ? DDCTaskOptions.NoShaderDDC : DDCTaskOptions.None;
 
 				// sanity
 				DoAcceleratedCompileTests = DoAcceleratedCompileTests && BenchmarkBuildTask.SupportsAcceleration;
@@ -124,7 +123,8 @@ namespace AutomationTool.Benchmark
 
 				FileName = ParseParamValue("filename", FileName);
 
-				ExtraCookArgs = ParseParamValue("ExtraCookArgs", "");
+				CookArgs = ParseParamValue("CookArgs", "");
+				PIEArgs = ParseParamValue("PIEArgs", "");
 
 				// Parse the project arg
 				{
@@ -134,22 +134,7 @@ namespace AutomationTool.Benchmark
 					// Look at the project argument and verify it's a valid uproject
 					if (!string.IsNullOrEmpty(ProjectsArg))
 					{
-						var ProjectList = ProjectsArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-						foreach (var Project in ProjectList)
-						{
-							if (!string.Equals(Project, "UE4", StringComparison.OrdinalIgnoreCase))
-							{
-								FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(Project);
-
-								if (ProjectFile == null)
-								{
-									throw new AutomationException("Could not find project file for {0}", Project);
-								}
-							}
-						}
-
-						ProjectsToTest = ProjectList;
+						ProjectsToTest = ProjectsArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
 					}
 				}
 
@@ -194,19 +179,11 @@ namespace AutomationTool.Benchmark
 						CoresForLocalJobs = ProcessorList.Select(P => Convert.ToInt32(P));
 					}
 				}
-
-				// parse maps for startup tests
-				{
-					// pull the list of maps to use for startup tests
-					string MapArg = ParseParamValue("startupmap", "");
-					MapArg = ParseParamValue("startupmaps", MapArg);
-					StartupMapList = MapArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
-				}
 			}
 		}
 
 		public BenchmarkBuild()
-		{ 
+		{
 		}
 
 		public override ExitCode Execute()
@@ -218,28 +195,44 @@ namespace AutomationTool.Benchmark
 
 			Dictionary<BenchmarkTaskBase, List<TimeSpan>> Results = new Dictionary<BenchmarkTaskBase, List<TimeSpan>>();
 
-			for (int ProjectIndex = 0; ProjectIndex <  Options.ProjectsToTest.Count(); ProjectIndex++)
+			for (int ProjectIndex = 0; ProjectIndex < Options.ProjectsToTest.Count(); ProjectIndex++)
 			{
 				string Project = Options.ProjectsToTest.ElementAt(ProjectIndex);
 
+				FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(Project);
+
+				if (ProjectFile == null && !Project.Equals("UE4", StringComparison.OrdinalIgnoreCase))
+				{
+					throw new AutomationException("Could not find project file for {0}", Project);
+				}
+
 				if (Options.DoBuildEditorTests)
 				{
-					Tasks.AddRange(AddBuildTests(Project, BuildHostPlatform.Current.Platform, "Editor", Options));
+					Tasks.AddRange(AddBuildTests(ProjectFile, BuildHostPlatform.Current.Platform, "Editor", Options));
 				}
 
 				// do startup tests
-				Tasks.AddRange(AddStartupTests(Project, Options));
+				if (Options.DoPIETests)
+				{
+					Tasks.AddRange(AddPIETests(ProjectFile, Options));
+				}
 
 				foreach (var ClientPlatform in Options.PlatformsToTest)
 				{
 					// build a client if the project supports it
-					string TargetName = ProjectSupportsClientBuild(Project) ? "Client" : "Game";
+					string TargetName = ProjectSupportsClientBuild(ProjectFile) ? "Client" : "Game";
 
-					// do build tests
-					Tasks.AddRange(AddBuildTests(Project, ClientPlatform, TargetName, Options));
+					if (Options.DoBuildClientTests)
+					{
+						// do build tests
+						Tasks.AddRange(AddBuildTests(ProjectFile, ClientPlatform, TargetName, Options));
+					}
 
 					// do cook tests
-					Tasks.AddRange(AddCookTests(Project, ClientPlatform, Options));
+					if (Options.DoCookTests)
+					{
+						Tasks.AddRange(AddCookTests(ProjectFile, ClientPlatform, Options));
+					}
 				}
 			}
 
@@ -264,7 +257,7 @@ namespace AutomationTool.Benchmark
 				{
 					foreach (var Task in Tasks)
 					{
-						Log.TraceInformation("Starting task {0} (Pass {1})", Task.GetFullTaskName(), i+1);
+						Log.TraceInformation("Starting task {0} (Pass {1})", Task.GetFullTaskName(), i + 1);
 
 						Task.Run();
 
@@ -312,7 +305,7 @@ namespace AutomationTool.Benchmark
 						var AvgTime = new TimeSpan(TaskTimes.Sum(T => T.Ticks) / TaskTimes.Count());
 
 						AvgTimeString = string.Format(" (Avg: {0})", AvgTime.ToString(@"hh\:mm\:ss"));
-					}					
+					}
 
 					Log.TraceInformation("Task {0}:\t{1}{2}", Task.GetFullTaskName(), TimeString, AvgTimeString);
 				}
@@ -320,7 +313,7 @@ namespace AutomationTool.Benchmark
 
 				TimeSpan Elapsed = DateTime.Now - StartTime;
 
-				Log.TraceInformation("Total benchmark time: {0}",  Elapsed.ToString(@"hh\:mm\:ss"));
+				Log.TraceInformation("Total benchmark time: {0}", Elapsed.ToString(@"hh\:mm\:ss"));
 
 				WriteCSVResults(Options.FileName, Tasks, Results);
 			}
@@ -328,7 +321,7 @@ namespace AutomationTool.Benchmark
 			return ExitCode.Success;
 		}
 
-		IEnumerable<BenchmarkTaskBase> AddBuildTests(string InProjectName, UnrealTargetPlatform InPlatform, string InTargetName, BenchmarkOptions InOptions)
+		IEnumerable<BenchmarkTaskBase> AddBuildTests(FileReference InProjectFile, UnrealTargetPlatform InPlatform, string InTargetName, BenchmarkOptions InOptions)
 		{
 			BuildOptions CleanFlag = InOptions.NoClean ? BuildOptions.None : BuildOptions.Clean;
 
@@ -338,14 +331,14 @@ namespace AutomationTool.Benchmark
 
 			if (InOptions.DoAcceleratedCompileTests)
 			{
-				NewTasks.Add(new BenchmarkBuildTask(InProjectName, InTargetName, InPlatform, CleanFlag));
+				NewTasks.Add(new BenchmarkBuildTask(InProjectFile, InTargetName, InPlatform, CleanFlag));
 			}
 
 			if (InOptions.DoNoAcceleratedCompileTests)
 			{
 				foreach (int ProcessorCount in InOptions.CoresForLocalJobs)
 				{
-					NewTasks.Add(new BenchmarkBuildTask(InProjectName, InTargetName, InPlatform, CleanFlag | BuildOptions.NoAcceleration, "", ProcessorCount));
+					NewTasks.Add(new BenchmarkBuildTask(InProjectFile, InTargetName, InPlatform, CleanFlag | BuildOptions.NoAcceleration, "", ProcessorCount));
 				}
 				// do single compilation with these results
 				NoAndSingleCompileOptions |= BuildOptions.NoAcceleration;
@@ -354,23 +347,23 @@ namespace AutomationTool.Benchmark
 			if (InOptions.DoNoCompileTests)
 			{
 				// note, don't clean since we build normally then build a single file
-				NewTasks.Add(new BenchmarkNopCompileTask(InProjectName, InTargetName, InPlatform, NoAndSingleCompileOptions));
+				NewTasks.Add(new BenchmarkNopCompileTask(InProjectFile, InTargetName, InPlatform, NoAndSingleCompileOptions));
 			}
 
 			if (InOptions.DoSingleCompileTests)
 			{
-				FileReference SourceFile = FindProjectSourceFile(InProjectName);
+				FileReference SourceFile = FindProjectSourceFile(InProjectFile);
 
 				// note, don't clean since we build normally then build again
-				NewTasks.Add(new BenchmarkSingleCompileTask(InProjectName, InTargetName, InPlatform, SourceFile, NoAndSingleCompileOptions));
+				NewTasks.Add(new BenchmarkSingleCompileTask(InProjectFile, InTargetName, InPlatform, SourceFile, NoAndSingleCompileOptions));
 			}
 
 			return NewTasks;
 		}
 
-		IEnumerable<BenchmarkTaskBase> AddCookTests(string InProjectName, UnrealTargetPlatform InPlatform, BenchmarkOptions InOptions)
+		IEnumerable<BenchmarkTaskBase> AddCookTests(FileReference InProjectFile, UnrealTargetPlatform InPlatform, BenchmarkOptions InOptions)
 		{
-			if (InProjectName.Equals("UE4", StringComparison.OrdinalIgnoreCase))
+			if (InProjectFile == null)
 			{
 				return Enumerable.Empty<BenchmarkTaskBase>();
 			}
@@ -378,88 +371,87 @@ namespace AutomationTool.Benchmark
 			List<BenchmarkTaskBase> NewTasks = new List<BenchmarkTaskBase>();
 
 			// Cook a client if the project supports i
-			bool CookClient = ProjectSupportsClientBuild(InProjectName);
-			EditorTaskOptions ClientCookOptions = CookClient ? EditorTaskOptions.CookClient : EditorTaskOptions.None;
-
-			EditorTaskOptions DefaultCookOptions = ClientCookOptions;
-			EditorTaskOptions TaskCookOptions = DefaultCookOptions;
-
-			if (InOptions.DoHotCookTests)
-			{
-				// only want to set this for the first cook for a platform
-				TaskCookOptions |= EditorTaskOptions.HotDDC;
-			}
+			bool CookClient = ProjectSupportsClientBuild(InProjectFile);
 
 			if (InOptions.DoCookTests)
 			{
-				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, TaskCookOptions, InOptions.ExtraCookArgs));
-				TaskCookOptions = DefaultCookOptions;
+				// no/warm options
+				if (InOptions.DDCOptions == DDCTaskOptions.None || InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC))
+				{
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.WarmDDC, InOptions.CookArgs));
+				}
+
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.HotDDC))
+				{
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.HotDDC, InOptions.CookArgs));
+				}
+
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
+				{
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.ColdDDC, InOptions.CookArgs));
+				}
+
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
+				{
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.NoShaderDDC, InOptions.CookArgs));
+				}
+
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
+				{
+					NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.NoSharedDDC, InOptions.CookArgs));
+				}
 			}
-
-			if (InOptions.DoColdCookTests)
-			{
-				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, TaskCookOptions | EditorTaskOptions.ColdDDC, InOptions.ExtraCookArgs));
-				TaskCookOptions = DefaultCookOptions;
-			}
-
-			if (InOptions.DoNoshaderDDCCookTests)
-			{
-				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, TaskCookOptions | EditorTaskOptions.NoShaderDDC, InOptions.ExtraCookArgs));
-				TaskCookOptions = DefaultCookOptions;
-			}
-
-			if (InOptions.DoNoDDCCookTests)
-			{
-				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, TaskCookOptions | EditorTaskOptions.NoDDC, InOptions.ExtraCookArgs));
-				TaskCookOptions = DefaultCookOptions;
-			}
-
-			/*bool DoWriteHints = ParseParam("recordhints");
-			bool DoUseHints = ParseParam("usehints");
-
-			if (DoWriteHints)
-			{
-				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, ClientCookOptions, "-recordhints"));
-			}
-
-			if (DoUseHints)
-			{
-				NewTasks.Add(new BenchmarkCookTask(InProjectName, InPlatform, ClientCookOptions | EditorTaskOptions.ColdDDC, "-usehints"));
-			}*/
 
 			return NewTasks;
 		}
 
-		IEnumerable<BenchmarkTaskBase> AddStartupTests(string InProjectName, BenchmarkOptions InOptions)
+		IEnumerable<BenchmarkTaskBase> AddPIETests(FileReference InProjectFile, BenchmarkOptions InOptions)
 		{
-			if (InProjectName.Equals("UE4", StringComparison.OrdinalIgnoreCase))
+			if (InProjectFile == null)
 			{
 				return Enumerable.Empty<BenchmarkTaskBase>();
 			}
 
 			List<BenchmarkTaskBase> NewTasks = new List<BenchmarkTaskBase>();
 
-			bool HaveUE4Project = InOptions.ProjectsToTest.Where(P => P.ToLower() == "ue4").Any();
-			int ProjectIndex = InOptions.ProjectsToTest.ToList().FindIndex(P => P == InProjectName);
+			string DefaultExtraArgs = InOptions.PIEArgs;
 
-			int MapIndex = HaveUE4Project ? ProjectIndex - 1 : ProjectIndex;
-			string ProjectMap = MapIndex < InOptions.StartupMapList.Count() ? InOptions.StartupMapList.ElementAt(ProjectIndex) : "";
-
-			if (ProjectMap.Equals("none", StringComparison.OrdinalIgnoreCase))
+			if (!string.IsNullOrEmpty(InOptions.MapName))
 			{
-				ProjectMap = "";
+				DefaultExtraArgs += " -map=" + InOptions.MapName;
 			}
 
-			if (InOptions.DoEditorStartupTests)
+			if (InOptions.DoPIETests)
 			{
-				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, ProjectMap, EditorTaskOptions.None, "-recordhints"));
-			}
+				// if no options assume warm
+				if (InOptions.DDCOptions == DDCTaskOptions.None || InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC))
+				{
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.WarmDDC, DefaultExtraArgs));
+				}
 
-			if (InOptions.DoEditorColdStartupTests)
-			{
-				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, ProjectMap, EditorTaskOptions.None | EditorTaskOptions.ColdDDC));
+				// hot ddc
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.HotDDC))
+				{
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.HotDDC, DefaultExtraArgs));
+				}
 
-				NewTasks.Add(new BenchmarkRunEditorTask(InProjectName, ProjectMap, EditorTaskOptions.None | EditorTaskOptions.ColdDDC, "-usehints"));
+				// cold ddc
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
+				{
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.ColdDDC, DefaultExtraArgs));
+				}
+
+				// no shaders in the ddc
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
+				{
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoShaderDDC, DefaultExtraArgs));
+				}
+
+				// no ddc!
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
+				{
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoSharedDDC, DefaultExtraArgs));
+				}
 			}
 
 			return NewTasks;
@@ -471,7 +463,6 @@ namespace AutomationTool.Benchmark
 		/// </summary>
 		void WriteCSVResults(string InFileName, List<BenchmarkTaskBase> InTasks, Dictionary<BenchmarkTaskBase, List<TimeSpan>> InResults)
 		{
-
 			Log.TraceInformation("Writing results to {0}", InFileName);
 
 			try
@@ -532,17 +523,15 @@ namespace AutomationTool.Benchmark
 		/// </summary>
 		/// <param name="ProjectName"></param>
 		/// <returns></returns>
-		bool ProjectSupportsClientBuild(string ProjectName)
+		bool ProjectSupportsClientBuild(FileReference InProjectFile)
 		{
-			if (ProjectName.Equals("UE4", StringComparison.OrdinalIgnoreCase))
+			if (InProjectFile == null)
 			{
 				// UE4
 				return true;
 			}
 
-			FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
-
-			ProjectProperties Properties = ProjectUtils.GetProjectProperties(ProjectFile);
+			ProjectProperties Properties = ProjectUtils.GetProjectProperties(InProjectFile);
 
 			return Properties.Targets.Where(T => T.TargetName.Contains("Client")).Any();
 		}
@@ -553,15 +542,13 @@ namespace AutomationTool.Benchmark
 		/// </summary>
 		/// <param name="ProjectName"></param>
 		/// <returns></returns>
-		FileReference FindProjectSourceFile(string ProjectName)
+		FileReference FindProjectSourceFile(FileReference InProjectFile)
 		{
 			FileReference SourceFile = null;
 
-			FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
-
-			if (ProjectFile != null)
+			if (InProjectFile != null)
 			{
-				DirectoryReference SourceDir = DirectoryReference.Combine(ProjectFile.Directory, "Source", ProjectName);
+				DirectoryReference SourceDir = DirectoryReference.Combine(InProjectFile.Directory, "Source", InProjectFile.GetFileNameWithoutAnyExtensions());
 
 				var Files = DirectoryReference.EnumerateFiles(SourceDir, "*.cpp", System.IO.SearchOption.AllDirectories);
 
@@ -574,7 +561,7 @@ namespace AutomationTool.Benchmark
 				SourceFile = FileReference.Combine(CommandUtils.EngineDirectory, "Source/Runtime/Engine/Private/UnrealEngine.cpp");
 			}
 
-			Log.TraceVerbose("Will compile {0} for single-file compilation test for {1}", SourceFile, ProjectName);
+			Log.TraceVerbose("Will compile {0} for single-file compilation test for {1}", SourceFile, InProjectFile.GetFileNameWithoutAnyExtensions());
 
 			return SourceFile;
 		}

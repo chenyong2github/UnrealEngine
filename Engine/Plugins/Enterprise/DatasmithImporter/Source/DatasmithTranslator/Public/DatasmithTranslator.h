@@ -3,6 +3,7 @@
 
 #include "DatasmithPayload.h"
 #include "DatasmithSceneSource.h"
+#include "DatasmithImportOptions.h"
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
@@ -110,14 +111,14 @@ public:
 	 *
 	 * @param OptionClasses list of classes that will be displayed to the user
 	 */
-	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) {}
+	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) {}
 
 	/**
 	 * Values of additional options as entered by the user
 	 *
 	 * @param Options Actual values for the displayed options.
 	 */
-	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) {}
+	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) {}
 
 private:
 	FDatasmithSceneSource SceneSource;

@@ -33,6 +33,7 @@ void MainCopyPS(
     float4 EncodedColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
 	OutColor = EncodedColor;
 
+	// will sample SceneColor.A
 	float SceneW = CalcSceneDepth(Input.UV);
 
 #if SOURCE_MODE_SCENE_COLOR_AND_OPACITY

@@ -5,6 +5,7 @@
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
+#include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "AssetData.h"
 
 class UEdGraph;
@@ -21,9 +22,9 @@ class FNiagaraSystemViewModel;
 class UNiagaraEmitter;
 class FNiagaraEmitterViewModel;
 class UNiagaraStackEditorData;
-class UNiagaraStackEntry;
 class UNiagaraStackErrorItem;
 class FCompileConstantResolver;
+class INiagaraMessage;
 
 namespace FNiagaraStackGraphUtilities
 {
@@ -192,4 +193,6 @@ namespace FNiagaraStackGraphUtilities
 
 	void GatherRenamedStackFunctionOutputVariableNames(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldFunctionName, const FString& NewFunctionName, TMap<FName, FName>& OutOldToNewNameMap);
 	void GatherRenamedStackFunctionInputAndOutputVariableNames(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldFunctionName, const FString& NewFunctionName, TMap<FName, FName>& OutOldToNewNameMap);
+
+	UNiagaraStackEntry::FStackIssue MessageManagerMessageToStackIssue(TSharedRef<const INiagaraMessage> InMessage, FString InStackEditorDataKey);
 }

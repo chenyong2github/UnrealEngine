@@ -1063,7 +1063,7 @@ void UBlueprintGeneratedClass::CreateTimelineComponent(AActor* Actor, const UTim
 
 	// Find property with the same name as the template and assign the new Timeline to it
 	UClass* ActorClass = Actor->GetClass();
-	FObjectPropertyBase* Prop = FindField<FObjectPropertyBase>(ActorClass, TimelineTemplate->GetVariableName());
+	FObjectPropertyBase* Prop = FindFProperty<FObjectPropertyBase>(ActorClass, TimelineTemplate->GetVariableName());
 	if (Prop)
 	{
 		Prop->SetObjectPropertyValue_InContainer(Actor, NewTimeline);
@@ -1740,7 +1740,7 @@ void FBlueprintCookedComponentInstancingData::BuildCachedPropertyList(FCustomPro
 		const UStruct* PropertyScope = CurrentScope;
 		while (!Property && PropertyScope)
 		{
-			Property = FindField<FProperty>(PropertyScope, ChangedPropertyInfo.PropertyName);
+			Property = FindFProperty<FProperty>(PropertyScope, ChangedPropertyInfo.PropertyName);
 			PropertyScope = PropertyScope->GetSuperStruct();
 		}
 
@@ -1879,15 +1879,6 @@ FName UBlueprintGeneratedClass::FindPropertyNameFromGuid(const FGuid& PropertyGu
 {
 	FName RedirectedName = NAME_None;
 #if WITH_EDITORONLY_DATA
-	if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
-	{
-		FName NameFromSuper = Super->FindPropertyNameFromGuid(PropertyGuid);
-		if (NameFromSuper != FName())
-		{
-			return NameFromSuper;
-		}
-	}
-
 	if (const FName* Result = PropertyGuids.FindKey(PropertyGuid))
 	{
 		RedirectedName = *Result;
@@ -1903,10 +1894,6 @@ FGuid UBlueprintGeneratedClass::FindPropertyGuidFromName(const FName InName) con
 	if (const FGuid* Result = PropertyGuids.Find(InName))
 	{
 		PropertyGuid = *Result;
-	}
-	else if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
-	{
-		PropertyGuid = Super->FindPropertyGuidFromName(InName);
 	}
 #endif // WITH_EDITORONLY_DATA
 	return PropertyGuid;

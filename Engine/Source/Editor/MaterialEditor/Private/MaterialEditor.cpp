@@ -727,17 +727,12 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	RegenerateCodeView(true);
 
 	ForceRefreshExpressionPreviews();
+
 	if (Generator.IsValid())
 	{
 		TArray<UObject*> Objects;
 		Objects.Add(MaterialEditorInstance);
 		Generator->SetObjects(Objects);
-	}
-	// Update the parameter list now that the material has been fully initialized
-	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
-	if (MaterialLayersFunctionsInstance.IsValid())
-	{
-		MaterialLayersFunctionsInstance->SetEditorInstance(MaterialEditorInstance);
 	}
 
 	if (OriginalMaterial->bUsedAsSpecialEngineMaterial)
@@ -1052,7 +1047,6 @@ void FMaterialEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& 
 		}
 		RefreshPreviewViewport();
 		UpdatePreviewMaterial();
-		MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 		MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
 	}
 }
@@ -1064,7 +1058,6 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 	{
 		RefreshExpressionPreviews(true);
 		RefreshPreviewViewport();
-		UpdatePreviewMaterial();
 		TArray<TWeakObjectPtr<UObject>> SelectedObjects = MaterialDetailsView->GetSelectedObjects();
 		MaterialDetailsView->SetObjects(SelectedObjects, true);
 		Material->MarkPackageDirty();
@@ -1074,10 +1067,10 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 
 void FMaterialEditor::GeneratorRowsRefreshed()
 {
-	MaterialParametersOverviewWidget->Refresh();
+	MaterialParametersOverviewWidget->Refresh(false);
 	if (MaterialLayersFunctionsInstance)
 	{
-		MaterialLayersFunctionsInstance->Refresh();
+		MaterialLayersFunctionsInstance->Refresh(false);
 	}
 }
 
@@ -1857,14 +1850,6 @@ void FMaterialEditor::UpdatePreviewMaterial( bool bForce )
 		// Null out the expression preview material so they can be GC'ed
 		ExpressionPreviewMaterial = NULL;
 	}
-	if (MaterialEditorInstance != nullptr)
-	{
-		if (MaterialLayersFunctionsInstance.IsValid())
-		{
-			MaterialLayersFunctionsInstance->SetEditorInstance(MaterialEditorInstance);
-		}
-	}
-
 	MaterialStatsManager->SetMaterial(bStatsFromPreviewMaterial ? Material : OriginalMaterial);
 	MaterialStatsManager->SignalMaterialChanged();
 
@@ -3145,11 +3130,6 @@ void FMaterialEditor::OnConvertObjects()
 		{
 			GraphEditor->SetNodeSelection(*NodeIter, true);
 		}
-
-		if (MaterialEditorInstance != nullptr)
-		{
-			MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
-		}
 	}
 }
 
@@ -3515,7 +3495,6 @@ void FMaterialEditor::OnPromoteToParameter()
 	}
 	if (MaterialEditorInstance != nullptr)
 	{
-		MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 		MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
 	}
 }
@@ -4479,7 +4458,6 @@ void FMaterialEditor::UpdateMaterialAfterGraphChange()
 	RegenerateCodeView();
 	RefreshExpressionPreviews();
 	SetMaterialDirty();
-	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 	if (bHideUnrelatedNodes && !bLockNodeFadeState && bSelectRegularNode)
 	{
 		GraphEditor->ResetAllNodesUnrelatedStates();
@@ -4529,7 +4507,6 @@ void FMaterialEditor::UndoGraphAction()
 	{
 		Material->BuildEditorParameterList();
 	}
-	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 }
 
 void FMaterialEditor::RedoGraphAction()
@@ -4543,7 +4520,6 @@ void FMaterialEditor::RedoGraphAction()
 	{
 		Material->BuildEditorParameterList();
 	}
-	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 }
 
 void FMaterialEditor::OnAlignTop()
@@ -4653,11 +4629,6 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 
 	if ( PropertyThatChanged )
 	{
-		if (MaterialLayersFunctionsInstance.IsValid())
-		{
-			MaterialLayersFunctionsInstance->SetEditorInstance(MaterialEditorInstance);
-		}
-		MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 		MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
 
 		const FName NameOfPropertyThatChanged( *PropertyThatChanged->GetName() );
@@ -4772,6 +4743,8 @@ void FMaterialEditor::ToggleCollapsed(UMaterialExpression* MaterialExpression)
 void FMaterialEditor::RefreshExpressionPreviews(bool bForceRefreshAll /*= false*/)
 {
 	const FScopedBusyCursor BusyCursor;
+
+	Material->UpdateCachedExpressionData();
 
 	if ( bAlwaysRefreshAllPreviews || bForceRefreshAll)
 	{
@@ -4917,7 +4890,6 @@ void FMaterialEditor::OnColorPickerCommitted(FLinearColor LinearColor)
 	}
 
 	RefreshExpressionPreviews();
-	MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 	MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
 }
 
@@ -5410,7 +5382,6 @@ void FMaterialEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Ty
 		const FScopedTransaction Transaction( LOCTEXT( "RenameNode", "Rename Node" ) );
 		NodeBeingChanged->Modify();
 		NodeBeingChanged->OnRenameNode(NewText.ToString());
-		MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
 		MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
 	}
 }

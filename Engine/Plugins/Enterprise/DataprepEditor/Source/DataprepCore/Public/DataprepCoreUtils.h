@@ -26,14 +26,14 @@ class DATAPREPCORE_API FDataprepCoreUtils
 public:
 
 	/**
-	 * Return the dataprep asset that own the object, if the object is part of a dataprep asset
-	 * @return nullptr if the object is not a part of a dataprep asset
+	 * Return the Dataprep asset that own the object, if the object is part of a Dataprep asset
+	 * @return nullptr if the object is not a part of a Dataprep asset
 	 */
 	static UDataprepAsset* GetDataprepAssetOfObject(UObject* Object);
 
 	/**
-	 * Return the dataprep action asset that own the object, if the object is part of a dataprep action asset
-	 * @return nullptr if the object is not a part of a dataprep action asset
+	 * Return the Dataprep action asset that own the object, if the object is part of a Dataprep action asset
+	 * @return nullptr if the object is not a part of a Dataprep action asset
 	 */
 	static UDataprepActionAsset* GetDataprepActionAssetOf(UObject* Object);
 
@@ -79,15 +79,15 @@ public:
 	}
 
 	/**
-	 * Execute a dataprep asset (import, execute and commit)
-	 * @param DataprepAssetInterface The dataprep asset to execute
-	 * @param Logger A optional log manager for the dataprep producers, operations and consumer
-	 * @param Reporter A optional progress reporter for the dataprep producers, operations and consumer
+	 * Execute a Dataprep asset (import, execute and commit)
+	 * @param DataprepAssetInterface The Dataprep asset to execute
+	 * @param Logger A optional log manager for the Dataprep producers, operations and consumer
+	 * @param Reporter A optional progress reporter for the Dataprep producers, operations and consumer
 	 */
 	static bool ExecuteDataprep(UDataprepAssetInterface* DataprepAssetInterface, const TSharedPtr<IDataprepLogger>& Logger, const TSharedPtr<IDataprepProgressReporter>& Reporter);
 
 	/**
-	 * Check if class can be used to create a step for a dataprep action
+	 * Check if class can be used to create a step for a Dataprep action
 	 * @param StepType The class for the creation of the step
 	 * @param OutValidRootClass The valid root class if found.
 	 * @param OutMessageIfInvalid A message to report if the class is invalid.
@@ -236,5 +236,12 @@ public:
 	 */
 	static void GetActorsFromWorld(const UWorld* World, TArray<AActor*>& OutActors);
 
+	/**
+	 * Delete the specified folder including all assets and sub-folders inside it.
+	 * @param BaseTemporaryPath			Root folder to start from
+	 * @remark This is called at the end of the execution of a Dataprep asset to remove all
+	 *		   the temporary assets and folders created during its execution.
+	 */
+	static void DeleteTemporaryFolders( const FString& BaseTemporaryPath );
 };
 

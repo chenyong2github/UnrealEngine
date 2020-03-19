@@ -53,12 +53,17 @@ DECLARE_DELEGATE_RetVal_OneParam(EInstallBundleManagerInitErrorHandlerResult, FI
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleCompleteMultiDelegate, FInstallBundleRequestResultInfo);
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundlePausedMultiDelegate, FInstallBundlePauseInfo);
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleManagerOnPatchCheckComplete, EInstallBundleManagerPatchCheckResult);
+
+DECLARE_DELEGATE_RetVal(bool, FInstallBundleManagerEnvironmentWantsPatchCheck);
+
 class INSTALLBUNDLEMANAGER_API IInstallBundleManager
 {
 public:
 	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate;
 	static FInstallBundleCompleteMultiDelegate RemoveBundleCompleteDelegate;
 	static FInstallBundlePausedMultiDelegate PausedBundleDelegate;
+	static FInstallBundleManagerOnPatchCheckComplete PatchCheckCompleteDelegate;
 
 	static IInstallBundleManager* GetPlatformInstallBundleManager();
 
@@ -103,6 +108,10 @@ public:
 	virtual EInstallBundleRequestFlags GetModifyableContentRequestFlags() const = 0;
 	void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags);
 	virtual void UpdateContentRequestFlags(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;
+	
+	virtual void StartPatchCheck();
+	virtual void AddEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag, FInstallBundleManagerEnvironmentWantsPatchCheck Delegate) {}
+	virtual void RemoveEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag) {}
 
 	virtual bool IsNullInterface() const = 0;
 

@@ -13,84 +13,41 @@ namespace AutomationTool.Benchmark
 {
 	class BenchmarkRunEditorTask : BenchmarkEditorTaskBase
 	{
-		FileReference ProjectFile = null;
-
-		string Project = "";
-		string ProjectMap = "";
-		string EditorArgs = "";
-
-		EditorTaskOptions Options;
-
-		public BenchmarkRunEditorTask(string InProject, string InProjectMap="", EditorTaskOptions InOptions = EditorTaskOptions.None, string InEditorArgs="")
+		public BenchmarkRunEditorTask(FileReference InProjectFile, DDCTaskOptions InOptions, string InEditorArgs="")
+			: base(InProjectFile, InOptions, InEditorArgs)
 		{
-			Options = InOptions;
-			EditorArgs = InEditorArgs;
-
-			if (!InProject.Equals("UE4", StringComparison.OrdinalIgnoreCase))
-			{
-				Project = InProject;
-				ProjectFile = ProjectUtils.FindProjectFileFromName(InProject);
-				ProjectMap = InProjectMap;
-
-				if (!string.IsNullOrEmpty(ProjectMap))
-				{
-					TaskModifiers.Add(ProjectMap);
-				}
-			}
-
-			if (Options.HasFlag(EditorTaskOptions.NoDDC))
-			{
-				TaskModifiers.Add("noddc");
-			}
-
-			if (Options.HasFlag(EditorTaskOptions.NoShaderDDC))
-			{
-				TaskModifiers.Add("noshaderddc");
-			}
-
-			if (Options.HasFlag(EditorTaskOptions.ColdDDC))
-			{
-				TaskModifiers.Add("coldddc");
-			}
-
-			if (!string.IsNullOrEmpty(EditorArgs))
-			{
-				TaskModifiers.Add(EditorArgs);
-			}
-
-			TaskName = string.Format("Launch {0} Editor", InProject, BuildHostPlatform.Current.Platform);
+			TaskName = string.Format("{0} PIE", ProjectName, BuildHostPlatform.Current.Platform);
 		}
 
 		protected override bool PerformPrequisites()
 		{
 			// build editor
 			BuildTarget Command = new BuildTarget();
-			Command.ProjectName = Project;
+			Command.ProjectName = ProjectFile != null ? ProjectFile.GetFileNameWithoutAnyExtensions() : null;
 			Command.Platforms = BuildHostPlatform.Current.Platform.ToString();
 			Command.Targets = "Editor";
-			Command.NoTools = true;
+			Command.NoTools = false;
 
 			if (Command.Execute() != ExitCode.Success)
 			{
 				return false;
 
 			}
-			if (Options.HasFlag(EditorTaskOptions.ColdDDC))
-			{
-				DeleteLocalDDC(ProjectFile);
-			}
 
-			// if they want a hot DDC thendo the test one time with no timing
-			if (Options.HasFlag(EditorTaskOptions.HotDDC))
+			// if they want a hot DDC then do the test one time with no timing
+			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
 			{
 				RunEditorAndWaitForMapLoad();
 			}
+
+			base.PerformPrequisites();
 
 			return true;
 		}
 
 		static IProcessResult CurrentProcess = null;
-		static bool CurrentProcessWasKilled = false;
+		static DateTime LastStdOutTime = DateTime.Now;
+		//static bool TestCompleted = false;
 
 		/// <summary>
 		/// A filter that suppresses all output od stdout/stderr
@@ -101,45 +58,70 @@ namespace AutomationTool.Benchmark
 		{
 			if (CurrentProcess != null)
 			{
-				if (Message.Contains("MapCheck: Map check complete"))
+				lock (CurrentProcess)
 				{
-					CurrentProcessWasKilled = true;
-					CurrentProcess.ProcessObject.Kill();
+					if (Message.Contains("TEST COMPLETE"))
+					{
+						Log.TraceInformation("Automation test reported as complete.");
+						//TestCompleted = true;
+					}
+
+					LastStdOutTime = DateTime.Now;
 				}
 			}
 			return Message;
+		}
+
+		private static string MakeValidFileName(string name)
+		{
+			string invalidChars = System.Text.RegularExpressions.Regex.Escape(new string(System.IO.Path.GetInvalidFileNameChars()));
+			string invalidRegStr = string.Format(@"([{0}]*\.+$)|([{0}]+)", invalidChars);
+
+			return System.Text.RegularExpressions.Regex.Replace(name, invalidRegStr, "_");
 		}
 
 		protected bool RunEditorAndWaitForMapLoad()
 		{
 			string ProjectArg = ProjectFile != null ? ProjectFile.ToString() : "";
 			string EditorPath = HostPlatform.Current.GetUE4ExePath("UE4Editor.exe");
-			string Arguments = string.Format("{0} {1} {2} -stdout -AllowStdOutLogVerbosity -unattended", ProjectArg, ProjectMap, EditorArgs);
+			string LogArg = string.Format("-log={0}.log", MakeValidFileName(GetFullTaskName()).Replace(" ", "_"));
+			string Arguments = string.Format("{0} {1} -execcmds=\"automation runtest System.Maps.PIE;Quit\" -stdout -FullStdOutLogOutput -unattended {2}", ProjectArg, EditorArgs, LogArg);
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
+			{
+				Arguments += (" -ddc=noshared");
+			}
 
 			var RunOptions = CommandUtils.ERunOptions.AllowSpew | CommandUtils.ERunOptions.NoWaitForExit;
 
 			var SpewDelegate = new ProcessResult.SpewFilterCallbackType(EndOnMapCheckFilter);
 
-			CurrentProcessWasKilled = false;
+			//TestCompleted = false;
+			LastStdOutTime = DateTime.Now;
 			CurrentProcess = CommandUtils.Run(EditorPath, Arguments, Options: RunOptions, SpewFilterCallback: SpewDelegate);
 
 			DateTime StartTime = DateTime.Now;
 
-			int MaxWaitMins = 30;
+			int MaxWaitMins = 90;
 
 			while (!CurrentProcess.HasExited)
 			{
 				Thread.Sleep(5 * 1000);
 
-				if ((DateTime.Now - StartTime).TotalMinutes >= MaxWaitMins)
+				lock (CurrentProcess)
 				{
-					Log.TraceError("Gave up waiting for task after {0} minutes", MaxWaitMins);
-					CurrentProcess.ProcessObject.Kill();
+					if ((LastStdOutTime - StartTime).TotalMinutes >= MaxWaitMins)
+					{
+						Log.TraceError("Gave up waiting for task after {0} minutes of no output", MaxWaitMins);
+						CurrentProcess.ProcessObject.Kill();
+					}
 				}
 			}
 
+			int ExitCode = CurrentProcess.ExitCode;
 			CurrentProcess = null;
-			return CurrentProcessWasKilled;
+
+			return ExitCode == 0;
 		}
 
 		protected override bool PerformTask()

@@ -615,9 +615,10 @@ void FCurveEditor::StepToNextKey()
 
 	FFrameRate TickResolution = WeakTimeSliderController.Pin()->GetTickResolution();
 
-	double CurrentTime = WeakTimeSliderController.Pin()->GetScrubPosition() / TickResolution;
+	double CurrentTime = TickResolution.AsSeconds(WeakTimeSliderController.Pin()->GetScrubPosition());
 
 	TOptional<double> NextTime;
+	TOptional<double> MinTime;
 
 	for (const TTuple<FCurveModelID, TUniquePtr<FCurveModel>>& Pair : CurveData)
 	{
@@ -643,12 +644,23 @@ void FCurveEditor::StepToNextKey()
 					}
 				}
 			}
+
+			double CurveMinTime, CurveMaxTime;
+			CurveModel->GetTimeRange(CurveMinTime, CurveMaxTime);
+			if (!MinTime.IsSet() || CurveMinTime < MinTime.GetValue())
+			{
+				MinTime = CurveMinTime;
+			}
 		}
 	}
 
 	if (NextTime.IsSet())
 	{
 		WeakTimeSliderController.Pin()->SetScrubPosition(NextTime.GetValue() * TickResolution);
+	}
+	else if (MinTime.IsSet())
+	{
+		WeakTimeSliderController.Pin()->SetScrubPosition(MinTime.GetValue() * TickResolution);
 	}
 }
 
@@ -661,9 +673,10 @@ void FCurveEditor::StepToPreviousKey()
 
 	FFrameRate TickResolution = WeakTimeSliderController.Pin()->GetTickResolution();
 
-	double CurrentTime = WeakTimeSliderController.Pin()->GetScrubPosition() / TickResolution;
+	double CurrentTime = TickResolution.AsSeconds(WeakTimeSliderController.Pin()->GetScrubPosition());
 
 	TOptional<double> PreviousTime;
+	TOptional<double> MaxTime;
 
 	for (const TTuple<FCurveModelID, TUniquePtr<FCurveModel>>& Pair : CurveData)
 	{
@@ -689,12 +702,23 @@ void FCurveEditor::StepToPreviousKey()
 					}
 				}
 			}
+
+			double CurveMinTime, CurveMaxTime;
+			CurveModel->GetTimeRange(CurveMinTime, CurveMaxTime);
+			if (!MaxTime.IsSet() || CurveMaxTime > MaxTime.GetValue())
+			{
+				MaxTime = CurveMaxTime;
+			}
 		}
 	}
 
 	if (PreviousTime.IsSet())
 	{
 		WeakTimeSliderController.Pin()->SetScrubPosition(PreviousTime.GetValue() * TickResolution);
+	}
+	else if (MaxTime.IsSet())
+	{
+		WeakTimeSliderController.Pin()->SetScrubPosition(MaxTime.GetValue() * TickResolution);
 	}
 }
 

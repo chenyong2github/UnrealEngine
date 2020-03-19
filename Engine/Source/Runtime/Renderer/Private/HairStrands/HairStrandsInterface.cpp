@@ -267,6 +267,7 @@ void RunMeshTransfer(
 	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
+	FBufferTransitionQueue TransitionQueue;
 	FRDGBuilder GraphBuilder(RHICmdList);
 
 	const uint32 LODCount = TargetMeshData.LODs.Num();
@@ -276,10 +277,11 @@ void RunMeshTransfer(
 		check(TargetMeshData.LODs[LODIndex].Sections.Num() > 0);
 
 		OutTransferedPositions[LODIndex].Initialize(sizeof(float), TargetMeshData.LODs[LODIndex].Sections[0].TotalVertexCount * 3, PF_R32_FLOAT);
-		TransferMesh(GraphBuilder, ShaderMap, LODIndex, SourceMeshData, TargetMeshData, OutTransferedPositions[LODIndex]);
+		TransferMesh(GraphBuilder, ShaderMap, LODIndex, SourceMeshData, TargetMeshData, OutTransferedPositions[LODIndex], TransitionQueue);
 	}
 	
 	GraphBuilder.Execute();	
+	TransitBufferToReadable(RHICmdList, TransitionQueue);
 }
 
 void RunProjection(
@@ -292,17 +294,19 @@ void RunProjection(
 	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
-	auto Project = [&RHICmdList, ShaderMap, &TargetMeshData, LocalToWorld](FHairStrandsProjectionHairData& ProjectionHairData)
+	FBufferTransitionQueue TransitionQueue;
+
+	auto Project = [&RHICmdList, ShaderMap, &TargetMeshData, LocalToWorld, &TransitionQueue](FHairStrandsProjectionHairData& ProjectionHairData)
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
 		for (FHairStrandsProjectionHairData::HairGroup& HairGroup : ProjectionHairData.HairGroups)
 		{
-			for (FHairStrandsProjectionHairData::LODData& LODData : HairGroup.LODDatas)
+			for (FHairStrandsProjectionHairData::RestLODData& LODData : HairGroup.RestLODDatas)
 			{
 				const uint32 LODIndex = LODData.LODIndex;
 				HairGroup.LocalToWorld = LocalToWorld;
-				ProjectHairStrandsOntoMesh(GraphBuilder, ShaderMap, LODIndex, TargetMeshData, HairGroup);
-				UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, LODIndex, HairStrandsTriangleType::RestPose, TargetMeshData.LODs[LODIndex], HairGroup);
+				ProjectHairStrandsOntoMesh(GraphBuilder, ShaderMap, LODIndex, TargetMeshData, HairGroup, TransitionQueue);
+				UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, LODIndex, HairStrandsTriangleType::RestPose, TargetMeshData.LODs[LODIndex], HairGroup, TransitionQueue);
 			}
 		}
 		GraphBuilder.Execute();
@@ -310,6 +314,8 @@ void RunProjection(
 
 	Project(RenProjectionHairData);
 	Project(SimProjectionHairData);
+
+	TransitBufferToReadable(RHICmdList, TransitionQueue);
 }
 
 void RunHairStrandsInterpolation(
@@ -323,9 +329,9 @@ void RunHairStrandsInterpolation(
 {
 	check(IsInRenderingThread());
 
-	DECLARE_GPU_STAT(HairStrandsInterpolation);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsInterpolation);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsInterpolation);
+	DECLARE_GPU_STAT(HairStrandsInterpolationGrouped);
+	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsInterpolationGrouped);
+	SCOPED_GPU_STAT(RHICmdList, HairStrandsInterpolationGrouped);
 
 	// Update dynamic mesh triangles
 	for (FHairStrandsManager::Element& E : GHairManager.Elements)
@@ -352,31 +358,42 @@ void RunHairStrandsInterpolation(
 			MeshDataLOD.Sections.Add(ConvertMeshSection(Section, E.SkeletalLocalToWorld));
 		}
 
+		FBufferTransitionQueue TransitionQueue;
+
 		FRDGBuilder GraphBuilder(RHICmdList);
 
-		for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
+		if (0 <= E.FrameLODIndex)
 		{
-			if (EHairStrandsInterpolationType::RenderStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
+			if (EHairStrandsInterpolationType::RenderStrands == Type)
 			{
-				UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData);
+				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.RenProjectionHairDatas.HairGroups)
+				{
+					if (E.FrameLODIndex < ProjectionHairData.DeformedLODDatas.Num() && ProjectionHairData.DeformedLODDatas[E.FrameLODIndex].IsValid())
+					{
+						UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData, TransitionQueue);
+					}
+				}
 			}
-		}
 
-		for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
-		{
-			if (EHairStrandsInterpolationType::SimulationStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
+			if (EHairStrandsInterpolationType::SimulationStrands == Type)
 			{
-				UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData);
-			}
-		}
+				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
+				{
+					if (E.FrameLODIndex < ProjectionHairData.DeformedLODDatas.Num() && ProjectionHairData.DeformedLODDatas[E.FrameLODIndex].IsValid())
+					{
+						UpdateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData, TransitionQueue);
+					}
+				}
 
-		for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
-		{
-			if (EHairStrandsInterpolationType::SimulationStrands == Type && 0 <= E.FrameLODIndex && E.FrameLODIndex < ProjectionHairData.LODDatas.Num() && ProjectionHairData.LODDatas[E.FrameLODIndex].bIsValid)
-			{
-				InitHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData);
-				UpdateHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData);
-				//InterpolateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData);
+				for (FHairStrandsProjectionHairData::HairGroup& ProjectionHairData : E.SimProjectionHairDatas.HairGroups)
+				{
+					if (E.FrameLODIndex < ProjectionHairData.DeformedLODDatas.Num() && ProjectionHairData.DeformedLODDatas[E.FrameLODIndex].IsValid())
+					{
+						InitHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, HairStrandsTriangleType::DeformedPose, MeshDataLOD, ProjectionHairData, TransitionQueue);
+						UpdateHairStrandsMeshSamples(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData, TransitionQueue);
+						//InterpolateHairStrandsMeshTriangles(GraphBuilder, ShaderMap, E.FrameLODIndex, MeshDataLOD, ProjectionHairData);
+					}
+				}
 			}
 		}
 
@@ -390,6 +407,7 @@ void RunHairStrandsInterpolation(
 			}
 		}*/
 		GraphBuilder.Execute();
+		TransitBufferToReadable(RHICmdList, TransitionQueue);
 	}
 
 	// Reset deformation
@@ -518,6 +536,8 @@ FHairStrandsDebugInfos GetHairStandsDebugInfos()
 		Info = E.DebugInfo;
 		Info.ComponentId = E.ComponentId;
 		Info.WorldType = E.WorldType;
+		Info.GroomAssetName = E.DebugProjectionInfo.GroomAssetName;
+		Info.SkeletalComponentName = E.DebugProjectionInfo.SkeletalComponentName;
 
 		const uint32 GroupCount = Info.HairGroups.Num();
 		for (uint32 GroupIt=0; GroupIt < GroupCount; ++GroupIt)
@@ -526,8 +546,8 @@ FHairStrandsDebugInfos GetHairStandsDebugInfos()
 			if (GroupIt < uint32(E.RenProjectionHairDatas.HairGroups.Num()))
 			{
 				FHairStrandsProjectionHairData::HairGroup& ProjectionHair = E.RenProjectionHairDatas.HairGroups[GroupIt];
-				GroupInfo.LODCount = ProjectionHair.LODDatas.Num();
-				GroupInfo.bHasSkinInterpolation = ProjectionHair.LODDatas.Num() > 0;
+				GroupInfo.LODCount = ProjectionHair.DeformedLODDatas.Num();
+				GroupInfo.bHasSkinInterpolation = ProjectionHair.DeformedLODDatas.Num() > 0;
 			}
 			else
 			{
@@ -710,4 +730,13 @@ bool HasHairStrandsProcess(EShaderPlatform Platform)
 		IsHairStrandsSupported(Platform) &&
 		GHairStrandsRenderingEnable == 1 &&
 		(!GBindingQueries.IsEmpty() || !GFollicleQueries.IsEmpty());
+}
+
+void TransitBufferToReadable(FRHICommandListImmediate& RHICmdList, FBufferTransitionQueue& BuffersToTransit)
+{
+	if (BuffersToTransit.Num())
+	{
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, BuffersToTransit.GetData(), BuffersToTransit.Num());
+		BuffersToTransit.SetNum(0, false);
+	}
 }

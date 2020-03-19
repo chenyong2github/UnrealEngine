@@ -117,6 +117,7 @@ bool FBlueprintSupport::IsDeferredCDOInitializationDisabled()
 }
 
 static FFlushReinstancingQueueFPtr FlushReinstancingQueueFPtr = nullptr;
+static FClassReparentingFPtr ClassReparentingFPtr = nullptr;
 
 void FBlueprintSupport::FlushReinstancingQueue()
 {
@@ -126,9 +127,22 @@ void FBlueprintSupport::FlushReinstancingQueue()
 	}
 }
 
+void FBlueprintSupport::ReparentHierarchies(const TMap<UClass*, UClass*>& OldClassToNewClass)
+{
+	if (ClassReparentingFPtr)
+	{
+		(*ClassReparentingFPtr)(OldClassToNewClass);
+	}
+}
+
 void FBlueprintSupport::SetFlushReinstancingQueueFPtr(FFlushReinstancingQueueFPtr Ptr)
 {
 	FlushReinstancingQueueFPtr = Ptr;
+}
+
+void FBlueprintSupport::SetClassReparentingFPtr(FClassReparentingFPtr Ptr)
+{
+	ClassReparentingFPtr = Ptr;
 }
 
 bool FBlueprintSupport::IsDeferredDependencyPlaceholder(UObject* LoadedObj)
@@ -693,7 +707,7 @@ bool FLinkerLoad::RegenerateBlueprintClass(UClass* LoadClass, UObject* ExportObj
 			{
 				BlueprintObject->ClearFlags(RF_BeingRegenerated);
 				// Fix up the linker so that the RegeneratedClass is used
-				LoadClass->ClearFlags(RF_NeedLoad | RF_NeedPostLoad);
+				LoadClass->ClearFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects);
 			}
 		}
 	}
@@ -1974,7 +1988,7 @@ void FLinkerLoad::ResolveDeferredExports(UClass* LoadClass)
 			if (DeferredCDOIndex != INDEX_NONE)
 			{
 				const EObjectFlags OldFlags = BlueprintCDO->GetFlags();
-				BlueprintCDO->ClearFlags(RF_NeedLoad | RF_NeedPostLoad);
+				BlueprintCDO->ClearFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects);
 				BlueprintCDO->SetLinker(this, DeferredCDOIndex, /*bShouldDetatchExisting =*/false);
 				BlueprintCDO->SetFlags(OldFlags);
 			}

@@ -293,19 +293,19 @@ void FComponentMaterialCategory::OnMaterialChanged( UMaterialInterface* NewMater
 				UObject* EditChangeObject = CurrentComponent;
 				if( CurrentComponent->IsA( UMeshComponent::StaticClass() ) )
 				{
-					MaterialProperty = FindField<FProperty>( UMeshComponent::StaticClass(), "OverrideMaterials" );
+					MaterialProperty = FindFProperty<FProperty>( UMeshComponent::StaticClass(), "OverrideMaterials" );
 				}
 				else if( CurrentComponent->IsA( UDecalComponent::StaticClass() ) )
 				{
-					MaterialProperty = FindField<FProperty>( UDecalComponent::StaticClass(), "DecalMaterial" );
+					MaterialProperty = FindFProperty<FProperty>( UDecalComponent::StaticClass(), "DecalMaterial" );
 				}
 				else if( CurrentComponent->IsA( UTextRenderComponent::StaticClass() ) )
 				{
-					MaterialProperty = FindField<FProperty>( UTextRenderComponent::StaticClass(), "TextMaterial" );
+					MaterialProperty = FindFProperty<FProperty>( UTextRenderComponent::StaticClass(), "TextMaterial" );
 				}
 				else if (CurrentComponent->IsA<ULandscapeComponent>() )
 				{
-					MaterialProperty = FindField<FProperty>( ALandscapeProxy::StaticClass(), "LandscapeMaterial" );
+					MaterialProperty = FindFProperty<FProperty>( ALandscapeProxy::StaticClass(), "LandscapeMaterial" );
 					EditChangeObject = CastChecked<ULandscapeComponent>(CurrentComponent)->GetLandscapeProxy();
 				}
 

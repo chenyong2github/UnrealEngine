@@ -10,14 +10,25 @@
 #include "GroomActor.h"
 #include "NiagaraDataInterfaceHairStrands.generated.h"
 
-static const int32 MaxDelay = 2;
+static const int32 MaxDelay = 8;
+static const int32 NumScales = 4;
+static const int32 StretchOffset = 0;
+static const int32 BendOffset = 1;
+static const int32 RadiusOffset = 2;
+static const int32 ThicknessOffset = 3;
+
+struct FNDIHairStrandsData;
 
 /** Render buffers that will be used in hlsl functions */
 struct FNDIHairStrandsBuffer : public FRenderResource
 {
 	/** Set the asset that will be used to affect the buffer */
-	void Initialize(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource*  HairStrandsRestResource, 
-		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, const FHairStrandsRootResource* HairStrandsRootResource );
+	void Initialize(const FHairStrandsDatas*  HairStrandsDatas, 
+		const FHairStrandsRestResource*  HairStrandsRestResource, 
+		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, 
+		const FHairStrandsRestRootResource* HairStrandsRestRootResource, 
+		const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource,
+		const FNDIHairStrandsData* NDIStrandsDatas);
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -40,6 +51,9 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** Bounding Box Buffer B*/
 	FRWBuffer BoundingBoxBufferB;
 
+	/** Params scale buffer */
+	FRWBuffer ParamsScaleBuffer;
+
 	/** The strand asset datas from which to sample */
 	const FHairStrandsDatas* SourceDatas;
 
@@ -50,7 +64,13 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	const FHairStrandsDeformedResource* SourceDeformedResources;
 
 	/** The strand root resource to write into */
-	const FHairStrandsRootResource* SourceRootResources;
+	const FHairStrandsRestRootResource* SourceRestRootResources;
+	
+	/** The strand root resource to write into */
+	const FHairStrandsDeformedRootResource* SourceDeformedRootResources;
+
+	/** Niagara datas interface datas */
+	const FNDIHairStrandsData* NDIDatas;
 };
 
 /** Data stored per strand base instance*/
@@ -66,11 +86,16 @@ struct FNDIHairStrandsData
 	/** Release the buffers */
 	void Release();
 
+	/** Update the buffers */
+	void Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsDatas* HairStrandsDatas, UGroomAsset* GroomAsset, const int32 GroupIndex);
+
 	inline void ResetDatas()
 	{
 		WorldTransform.SetIdentity();
 		BoxCenter = FVector(0, 0, 0);
 		BoxExtent = FVector(0, 0, 0);
+
+		KinematicsTarget = false;
 
 		TickCount = 0;
 		ForceReset = true;
@@ -105,6 +130,11 @@ struct FNDIHairStrandsData
 		StrandsDensity = 1.0;
 		StrandsSmoothing = 0.1;
 		StrandsThickness = 0.01;
+
+		for (int32 i = 0; i < 32 * NumScales; ++i)
+		{
+			ParamsScale[i] = 1.0;
+		}
 	}
 
 	inline void CopyDatas(const FNDIHairStrandsData* OtherDatas)
@@ -116,6 +146,8 @@ struct FNDIHairStrandsData
 			WorldTransform = OtherDatas->WorldTransform;
 			BoxCenter = OtherDatas->BoxCenter;
 			BoxExtent = OtherDatas->BoxExtent;
+
+			KinematicsTarget = OtherDatas->KinematicsTarget;
 
 			TickCount = OtherDatas->TickCount;
 			ForceReset = OtherDatas->ForceReset;
@@ -134,13 +166,11 @@ struct FNDIHairStrandsData
 			ProjectBend = OtherDatas->ProjectBend;
 			BendDamping = OtherDatas->BendDamping;
 			BendStiffness = OtherDatas->BendStiffness;
-			BendScale = OtherDatas->BendScale;
 
 			SolveStretch = OtherDatas->SolveStretch;
 			ProjectStretch = OtherDatas->ProjectStretch;
 			StretchDamping = OtherDatas->StretchDamping;
 			StretchStiffness = OtherDatas->StretchStiffness;
-			StretchScale = OtherDatas->StretchScale;
 
 			SolveCollision = OtherDatas->SolveCollision;
 			ProjectCollision = OtherDatas->ProjectCollision;
@@ -148,17 +178,20 @@ struct FNDIHairStrandsData
 			KineticFriction = OtherDatas->KineticFriction;
 			StrandsViscosity = OtherDatas->StrandsViscosity;
 			CollisionRadius = OtherDatas->CollisionRadius;
-			RadiusScale = OtherDatas->RadiusScale;
 
 			StrandsDensity = OtherDatas->StrandsDensity;
 			StrandsSmoothing = OtherDatas->StrandsSmoothing;
 			StrandsThickness = OtherDatas->StrandsThickness;
-			ThicknessScale = OtherDatas->ThicknessScale;
+
+			ParamsScale = OtherDatas->ParamsScale;
 		}
 	}
 
 	/** Cached World transform. */
 	FTransform WorldTransform;
+
+	/** Kinematics target */
+	bool KinematicsTarget;
 
 	/** Number of strands*/
 	int32 NumStrands;
@@ -208,9 +241,6 @@ struct FNDIHairStrandsData
 	/** Stiffness for the bend constraint in GPa */
 	float BendStiffness;
 
-	/** Stiffness scale along the strand */
-	TStaticArray<float,4> BendScale;
-
 	/** Enable the solve of the stretch constraint during the xpbd loop */
 	bool SolveStretch;
 
@@ -222,9 +252,6 @@ struct FNDIHairStrandsData
 
 	/** Stiffness for the stretch constraint in GPa */
 	float StretchStiffness;
-
-	/** Stiffness scale along the strand */
-	TStaticArray<float, 4> StretchScale;
 
 	/** Enable the solve of the collision constraint during the xpbd loop  */
 	bool SolveCollision;
@@ -244,9 +271,6 @@ struct FNDIHairStrandsData
 	/** Radius scale along the strand */
 	float CollisionRadius;
 
-	/** Radius scale along the strand */
-	TStaticArray<float, 4> RadiusScale;
-
 	/** Density of the strands in g/cm3 */
 	float StrandsDensity;
 
@@ -256,8 +280,8 @@ struct FNDIHairStrandsData
 	/** Strands thickness in cm that will be used for mass and inertia computation */
 	float StrandsThickness;
 
-	/** Thickness scale along the curve */
-	TStaticArray<float, 4> ThicknessScale;
+	/** Scales along the strand */
+	TStaticArray<float, 32 * NumScales> ParamsScale;
 };
 
 /** Data Interface for the strand base */
@@ -307,8 +331,15 @@ public:
 	bool IsComponentValid() const;
 
 	/** Extract datas and resources */
-	void ExtractDatasAndResources(FNiagaraSystemInstance* SystemInstance, FHairStrandsDatas*& OutStrandsDatas,
-		FHairStrandsRestResource*& OutStrandsRestResource, FHairStrandsDeformedResource*& OutStrandsDeformedResource, FHairStrandsRootResource*& OutStrandsRootResource, UGroomAsset*& OutGroomAsset);
+	void ExtractDatasAndResources(
+		FNiagaraSystemInstance* SystemInstance, 
+		FHairStrandsDatas*& OutStrandsDatas,
+		FHairStrandsRestResource*& OutStrandsRestResource, 
+		FHairStrandsDeformedResource*& OutStrandsDeformedResource, 
+		FHairStrandsRestRootResource*& OutStrandsRestRootResource, 
+		FHairStrandsDeformedRootResource*& OutStrandsDeformedRootResource,
+		UGroomAsset*& OutGroomAsset,
+		int32& OutGroupIndex);
 
 	/** Get the number of strands */
 	void GetNumStrands(FVectorVMContext& Context);
@@ -486,7 +517,7 @@ public:
 	void SetupSoftCollisionConstraint(FVectorVMContext& Context);
 
 	/** Compute the rest direction*/
-	void ComputeRestDirection(FVectorVMContext& Context);
+	void ComputeEdgeDirection(FVectorVMContext& Context);
 
 	/** Update the strands material frame */
 	void UpdateMaterialFrame(FVectorVMContext& Context);
@@ -502,6 +533,9 @@ public:
 
 	/** Attach the node position and orientation to the transform or to the skin cache */
 	void AttachNodeState(FVectorVMContext& Context);
+
+	/** Update the node position and orientation based on rbf transfer */
+	void UpdateNodeState(FVectorVMContext& Context);
 
 	/** Check if we need or not a simulation reset*/
 	void NeedSimulationReset(FVectorVMContext& Context);
@@ -552,7 +586,7 @@ public:
 	static const FString BoxExtentName;
 
 	/** Param to check if the roots have been attached to the skin */
-	static const FString HasRootAttachedName;
+	static const FString InterpolationModeName;
 
 	/** boolean to check if we need to rest the simulation*/
 	static const FString ResetSimulationName;
@@ -598,6 +632,9 @@ public:
 
 	/** Rbf Sample rest positions */
 	static const FString RestSamplePositionsName;
+
+	/** Params scale buffer */
+	static const FString ParamsScaleBufferName;
 
 protected:
 	/** Copy one niagara DI to this */

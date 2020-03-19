@@ -211,6 +211,7 @@ TArray<TSharedPtr<FXmppUserPresence>> FXmppPresenceStrophe::GetRosterPresence(co
 
 void FXmppPresenceStrophe::GetRosterMembers(TArray<FXmppUserJid>& Members)
 {
+	check(IsInGameThread());
 	Members.Empty(RosterMembers.Num());
 	for (const TMap<FString, TSharedRef<FXmppUserPresence>>::ElementType& Pair : RosterMembers)
 	{

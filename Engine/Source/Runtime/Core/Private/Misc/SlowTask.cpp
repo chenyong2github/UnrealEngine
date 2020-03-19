@@ -98,11 +98,19 @@ void FSlowTask::MakeDialogDelayed(float Threshold, bool bShowCancelButton, bool 
 	bDelayedDialogAllowInPIE = bAllowInPIE;
 }
 
-void FSlowTask::EnterProgressFrame(float ExpectedWorkThisFrame, FText Text)
+void FSlowTask::EnterProgressFrame(float ExpectedWorkThisFrame, const FText& Text)
 {
 	check(!bEnabled || IsInGameThread());
 
-	FrameMessage = Text;
+	// Should actually be FrameMessage = Text; but this code is to investigate crashes in FSlowTask::GetCurrentMessage()
+	if (!Text.IsEmpty())
+	{
+		FrameMessage = Text;
+	}
+	else
+	{
+		FrameMessage = FText::GetEmpty();
+	}
 	CompletedWork += CurrentFrameScope;
 
 	// Make sure OS events are getting through while the task is being processed
@@ -124,7 +132,7 @@ void FSlowTask::EnterProgressFrame(float ExpectedWorkThisFrame, FText Text)
 	}
 }
 
-FText FSlowTask::GetCurrentMessage() const
+const FText& FSlowTask::GetCurrentMessage() const
 {
 	return FrameMessage.IsEmpty() ? DefaultMessage : FrameMessage;
 }

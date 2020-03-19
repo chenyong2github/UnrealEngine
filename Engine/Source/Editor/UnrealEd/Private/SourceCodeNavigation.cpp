@@ -1749,7 +1749,7 @@ FText FSourceCodeNavigation::GetSuggestedSourceCodeIDE(bool bShortIDEName)
 	}
 	else
 	{
-		return LOCTEXT("SuggestedCodeIDE_Windows", "Visual Studio 2017");
+		return LOCTEXT("SuggestedCodeIDE_Windows", "Visual Studio 2019");
 	}
 #elif PLATFORM_MAC
 	return LOCTEXT("SuggestedCodeIDE_Mac", "Xcode");

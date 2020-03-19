@@ -27,22 +27,24 @@ enum class EConcertSyncSessionFlags : uint32
 	EnableSequencer = 1<<5,
 	/** Enable client presence tracking */
 	EnablePresence = 1<<6,
-	
+	/** Enable usage of file sharing to share large blobs (like package data) rather than embedding that data in message/event.*/
+	EnableFileSharing = 1<<7,
+
 	/**
 	 * Flags controlling behavior of enabled features
 	 */
 	
 	/** Discard transactions when a package is unloaded, eg) from a content hot-reload or closing a world editor (requires EnableTransactions) */
-	ShouldDiscardTransactionsOnPackageUnload = 1<<7,
+	ShouldDiscardTransactionsOnPackageUnload = 1<<8,
 	/** Send snapshots of multi-frame transactions (like drags) to other clients (requires EnableTransactions) */
-	ShouldSendTransactionSnapshots = 1<<8,
+	ShouldSendTransactionSnapshots = 1<<9,
 	/** Send the pristine state of a package (as revision 0) before saving it for the first time (requires EnablePackages) */
-	ShouldSendPackagePristineState = 1<<9,
+	ShouldSendPackagePristineState = 1<<10,
 	/** Send package auto-saves, in addition to user-saves (requires EnablePackages) */
-	ShouldSendPackageAutoSaves = 1<<10,
+	ShouldSendPackageAutoSaves = 1<<11,
 	/** Use a sandbox to hold package writes during a session (requires EnablePackages) */
-	ShouldUsePackageSandbox = 1<<11,
-	
+	ShouldUsePackageSandbox = 1<<12,
+
 	/**
 	 * Defaults for different scenarios
 	 */
@@ -50,6 +52,6 @@ enum class EConcertSyncSessionFlags : uint32
 	/** Default settings for a multi-user session */
 	Default_MultiUserSession = EnableLiveSync | EnableConnectionHistory | EnableLocking | EnableTransactions | EnablePackages | EnableSequencer | EnablePresence | ShouldSendTransactionSnapshots | ShouldUsePackageSandbox,
 	/** Default settings for a disaster recovery session */
-	Default_DisasterRecoverySession = EnableTransactions | EnablePackages | ShouldDiscardTransactionsOnPackageUnload | ShouldSendPackagePristineState | ShouldSendPackageAutoSaves,
+	Default_DisasterRecoverySession = EnableTransactions | EnablePackages | EnableFileSharing | ShouldDiscardTransactionsOnPackageUnload | ShouldSendPackagePristineState | ShouldSendPackageAutoSaves,
 };
 ENUM_CLASS_FLAGS(EConcertSyncSessionFlags);

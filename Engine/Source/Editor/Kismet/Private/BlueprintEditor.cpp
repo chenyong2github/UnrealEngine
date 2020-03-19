@@ -576,7 +576,7 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColor(const UStruct* VarScope,
 {
 	if (VarScope != NULL)
 	{
-		FProperty* Property = FindField<FProperty>(VarScope, VarName);
+		FProperty* Property = FindFProperty<FProperty>(VarScope, VarName);
 		if (Property != NULL)
 		{
 			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
@@ -5557,7 +5557,7 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 		FVector2D SpawnPos = EventGraph->GetGoodPlaceForNewNode();
 		
 		// Was this function implemented in as an override?
-		UFunction* ParentFunction = FindField<UFunction>(NodeBP->ParentClass, EventName);
+		UFunction* ParentFunction = FindUField<UFunction>(NodeBP->ParentClass, EventName);
 		bool bIsOverrideFunc = Func->GetSuperFunction() || (ParentFunction != nullptr);
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
@@ -5738,7 +5738,7 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 			SourceGraph->Modify(); 
 
 			// Check if this is an override function
-			UFunction* ParentFunction = FindField<UFunction>(NodeBP->ParentClass, OriginalEventName);
+			UFunction* ParentFunction = FindUField<UFunction>(NodeBP->ParentClass, OriginalEventName);
 			const bool bIsOverrideFunc = FunctionSig->GetSuperFunction() || (ParentFunction != nullptr);
 			UClass* const OverrideFuncClass = FBlueprintEditorUtils::GetOverrideFunctionClass(NodeBP, OriginalEventName);
 
@@ -5868,7 +5868,7 @@ void FBlueprintEditor::ConvertEventToFunction(UK2Node_Event* SelectedEventNode)
 			FBlueprintEditorUtils::RenameGraph(NewGraph, *OriginalEventNameString);
 
 			// If this function is blueprint callable, then spawn a function call node to it in place of the old event
-			UFunction* const NewFunction = FindField<UFunction>(NodeBP->SkeletonGeneratedClass, OriginalEventName);
+			UFunction* const NewFunction = FindUField<UFunction>(NodeBP->SkeletonGeneratedClass, OriginalEventName);
 			if (NewFunction && NewFunction->HasAllFunctionFlags(FUNC_BlueprintCallable))
 			{
 				IBlueprintNodeBinder::FBindingSet Bindings;
@@ -6669,6 +6669,10 @@ void FBlueprintEditor::OnAssignReferencedActor()
 						// Store the node's current state and replace the referenced actor
 						CurrentEvent->Modify();
 						CurrentEvent->EventOwner = SelectedActor;
+						if (!SelectedActor->IsA(CurrentEvent->DelegateOwnerClass))
+						{
+							CurrentEvent->DelegateOwnerClass = SelectedActor->GetClass();
+						}
 						CurrentEvent->ReconstructNode();
 					}
 					FBlueprintEditorUtils::MarkBlueprintAsModified(GetBlueprintObj());
@@ -7751,7 +7755,7 @@ UEdGraph* FBlueprintEditor::CollapseSelectionToFunction(TSharedPtr<SGraphEditor>
 	TempListBuilder.OwnerOfTemporaries->SetFlags(RF_Transient);
 
 	IBlueprintNodeBinder::FBindingSet Bindings;
-	OutFunctionNode = UBlueprintFunctionNodeSpawner::Create(FindField<UFunction>(GetBlueprintObj()->SkeletonGeneratedClass, DocumentName))->Invoke(SourceGraph, Bindings, FVector2D::ZeroVector);
+	OutFunctionNode = UBlueprintFunctionNodeSpawner::Create(FindUField<UFunction>(GetBlueprintObj()->SkeletonGeneratedClass, DocumentName))->Invoke(SourceGraph, Bindings, FVector2D::ZeroVector);
 
 	check(OutFunctionNode);
 
@@ -8165,8 +8169,13 @@ bool FBlueprintEditor::CanAddNewLocalVariable() const
 {
 	if (InEditingMode())
 	{
-		UEdGraph* TargetGraph = FBlueprintEditorUtils::GetTopLevelGraph(FocusedGraphEdPtr.Pin()->GetCurrentGraph());
+		TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+		if (!FocusedGraphEd.IsValid())
+		{
+			return false;
+		}
 
+		UEdGraph* TargetGraph = FBlueprintEditorUtils::GetTopLevelGraph(FocusedGraphEd->GetCurrentGraph());
 		return TargetGraph->GetSchema()->GetGraphType(TargetGraph) == GT_Function;
 	}
 	return false;
@@ -8183,7 +8192,7 @@ void FBlueprintEditor::OnAddNewLocalVariable()
 	UEdGraph* TargetGraph = FBlueprintEditorUtils::GetTopLevelGraph(FocusedGraphEdPtr.Pin()->GetCurrentGraph());
 	check(TargetGraph->GetSchema()->GetGraphType(TargetGraph) == GT_Function);
 
-	FName VarName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewLocalVar"), FindField<UFunction>(GetBlueprintObj()->SkeletonGeneratedClass, TargetGraph->GetFName()));
+	FName VarName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewLocalVar"), FindUField<UFunction>(GetBlueprintObj()->SkeletonGeneratedClass, TargetGraph->GetFName()));
 
 	bool bSuccess = MyBlueprintWidget.IsValid() && FBlueprintEditorUtils::AddLocalVariable(GetBlueprintObj(), TargetGraph, VarName, MyBlueprintWidget->GetLastPinTypeUsed());
 

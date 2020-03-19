@@ -48,7 +48,6 @@ static FAutoConsoleVariableRef CVarNiagaraForceSystemsToCookOutRapidIterationOnL
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , bFixedBounds(false)
-, FastPathMode(ENiagaraFastPathMode::ScriptVMOnly)
 #if WITH_EDITORONLY_DATA
 , bIsolateEnabled(false)
 #endif
@@ -458,7 +457,7 @@ void UNiagaraSystem::PostLoad()
 			InitEmitterCompiledData();
 		}
 
-		if (SystemCompiledData.InstanceParamStore.GetNumParameters() == 0 ||SystemCompiledData.DataSetCompiledData.Variables.Num() == 0)
+		if (SystemCompiledData.InstanceParamStore.ReadParameterVariables().Num() == 0 ||SystemCompiledData.DataSetCompiledData.Variables.Num() == 0)
 		{
 			InitSystemCompiledData();
 		}
@@ -813,6 +812,15 @@ void UNiagaraSystem::WaitForCompilationComplete()
 	{
 		QueryCompileComplete(true, ActiveCompilations.Num() == 1);
 	}
+
+}
+
+void UNiagaraSystem::InvalidateActiveCompiles()
+{
+	for (FNiagaraSystemCompileRequest& ActiveCompilation : ActiveCompilations)
+	{
+		ActiveCompilation.bIsValid = false;
+	}
 }
 
 bool UNiagaraSystem::PollForCompilationComplete()
@@ -855,7 +863,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		}
 
 		// In the world of do not apply, we're exiting the system completely so let's just kill any active compilations altogether.
-		if (bDoNotApply)
+		if (bDoNotApply || ActiveCompilations[ActiveCompileIdx].bIsValid == false)
 		{
 			ActiveCompilations[ActiveCompileIdx].RootObjects.Empty();
 			ActiveCompilations.RemoveAt(ActiveCompileIdx);
@@ -1115,6 +1123,12 @@ bool UNiagaraSystem::RequestCompile(bool bForce)
 
 	INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
 	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData = NiagaraModule.Precompile(this);
+
+	if (SystemPrecompiledData.IsValid() == false)
+	{
+		UE_LOG(LogNiagara, Error, TEXT("Failed to precompile %s.  This is due to unexpected invalid or broken data.  Additional details should be in the log."), *GetPathName());
+		return false;
+	}
 
 	SystemPrecompiledData->GetReferencedObjects(ActiveCompilations[ActiveCompileIdx].RootObjects);
 

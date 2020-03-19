@@ -230,8 +230,12 @@ namespace UnrealBuildTool
 			// Disable Microsoft extensions on VS2017+ for improved standards compliance.
 			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017 && Target.WindowsPlatform.bStrictConformanceMode)
 			{
-				Arguments.Add("/permissive-");
-				Arguments.Add("/Zc:strictStrings-"); // Have to disable strict const char* semantics due to Windows headers not being compliant.
+				// Do not enable if we are running the MSVC code analyzer as it will fail to compile.
+				if (Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.VisualCpp)
+				{
+					Arguments.Add("/permissive-");
+					Arguments.Add("/Zc:strictStrings-"); // Have to disable strict const char* semantics due to Windows headers not being compliant.
+				}
 			}
 
 			// @todo HoloLens: UE4 is non-compliant when it comes to use of %s and %S
@@ -923,7 +927,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, List<Action> Actions)
+		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			List<string> SharedArguments = new List<string>();
 			AppendCLArguments_Global(CompileEnvironment, SharedArguments);
@@ -974,7 +978,7 @@ namespace UnrealBuildTool
 			CPPOutput Result = new CPPOutput();
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				Action CompileAction = new Action(ActionType.Compile);
+				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.CommandDescription = "Compile";
 
 				// ensure compiler timings are captured when we execute the action.
@@ -994,7 +998,7 @@ namespace UnrealBuildTool
 				{
 					// Generate a CPP File that just includes the precompiled header.
 					FileReference PCHCPPPath = CompileEnvironment.PrecompiledHeaderIncludeFilename.ChangeExtension(".cpp");
-					FileItem PCHCPPFile = FileItem.CreateIntermediateTextFile(
+					FileItem PCHCPPFile = Graph.CreateIntermediateTextFile(
 						PCHCPPPath,
 						string.Format("#include \"{0}\"\r\n", CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName.Replace('\\', '/'))
 						);
@@ -1170,7 +1174,7 @@ namespace UnrealBuildTool
 				{
 					FileItem TargetFile = CompileAction.ProducedItems[0];
 					FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
-					FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponseFileName, SharedArguments.Concat(FileArguments).Concat(AdditionalArguments).Select(x => Utils.ExpandVariables(x)));
+					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, SharedArguments.Concat(FileArguments).Concat(AdditionalArguments).Select(x => Utils.ExpandVariables(x)));
 					CompileAction.CommandArguments = " @\"" + ResponseFileName + "\"";
 					CompileAction.PrerequisiteItems.Add(ResponseFileItem);
 				}
@@ -1181,7 +1185,7 @@ namespace UnrealBuildTool
 
 				if(CompileEnvironment.bGenerateDependenciesFile)
 				{
-					GenerateDependenciesFile(Target, OutputDir, Result, SourceFile, Actions, CompileAction);
+					GenerateDependenciesFile(Target, OutputDir, Result, SourceFile, CompileAction, Graph);
 				}
 
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
@@ -1210,14 +1214,12 @@ namespace UnrealBuildTool
 				{
 					CompileAction.bCanExecuteRemotelyWithSNDBS = false;
 				}
-
-				Actions.Add(CompileAction);
 			}
 
 			return Result;
 		}
 
-		private Action GenerateParseTimingInfoAction(FileItem SourceFile, Action CompileAction, CPPOutput Result)
+		private Action GenerateParseTimingInfoAction(FileItem SourceFile, Action CompileAction, CPPOutput Result, IActionGraphBuilder Graph)
 		{
 			FileItem TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(CompileAction.TimingFile.AbsolutePath, ".timing.bin"));
 			Result.DebugDataFiles.Add(TimingJsonFile);
@@ -1229,7 +1231,7 @@ namespace UnrealBuildTool
 				ParseTimingArguments += " -Tracing";
 			}
 
-			Action ParseTimingInfoAction = Action.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, ParseTimingArguments);
+			Action ParseTimingInfoAction = Graph.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, ParseTimingArguments);
 			ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 			ParseTimingInfoAction.StatusDescription = Path.GetFileName(CompileAction.TimingFile.AbsolutePath);
 			ParseTimingInfoAction.bCanExecuteRemotely = true;
@@ -1240,7 +1242,7 @@ namespace UnrealBuildTool
 			return ParseTimingInfoAction;
 		}
 
-		private void GenerateDependenciesFile(ReadOnlyTargetRules Target, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, List<Action> Actions, Action CompileAction)
+		private void GenerateDependenciesFile(ReadOnlyTargetRules Target, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, Action CompileAction, IActionGraphBuilder Graph)
 		{
 			List<string> CommandArguments = new List<string>();
 			CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
@@ -1251,8 +1253,7 @@ namespace UnrealBuildTool
 			{
 				CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.timing.txt", SourceFile.Location.GetFileName())));
 				CompileAction.ProducedItems.Add(CompileAction.TimingFile);
-				Action ParseTimingInfoAction = GenerateParseTimingInfoAction(SourceFile, CompileAction, Result);
-				Actions.Add(ParseTimingInfoAction);
+				/*Action ParseTimingInfoAction = */GenerateParseTimingInfoAction(SourceFile, CompileAction, Result, Graph);
 				CommandArguments.Add(string.Format("-timing={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.TimingFile.Location)));
 			}
 
@@ -1297,7 +1298,7 @@ namespace UnrealBuildTool
 						String.Format("-CompileTimingFile={0}", ExpectedCompileTimeFile),
 					};
 
-					Action AggregateTimingInfoAction = Action.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
+					Action AggregateTimingInfoAction = Makefile.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
 					AggregateTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 					AggregateTimingInfoAction.bCanExecuteRemotely = false;
@@ -1307,18 +1308,17 @@ namespace UnrealBuildTool
 					FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.timing.bin"));
 					AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
 					Makefile.OutputItems.Add(AggregateOutputFile);
-					Makefile.Actions.Add(AggregateTimingInfoAction);
 				}
 			}
 		}
 
-		public override CPPOutput CompileRCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		public override CPPOutput CompileRCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result = new CPPOutput();
 
 			foreach (FileItem RCFile in InputFiles)
 			{
-				Action CompileAction = new Action(ActionType.Compile);
+				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.CommandDescription = "Resource";
 				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				CompileAction.CommandPath = EnvVars.ResourceCompilerPath;
@@ -1427,14 +1427,12 @@ namespace UnrealBuildTool
 
 				// Add the C++ source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(RCFile);
-
-				Actions.Add(CompileAction);
 			}
 
 			return Result;
 		}
 
-		public override void GenerateTypeLibraryHeader(CppCompileEnvironment CompileEnvironment, ModuleRules.TypeLibrary TypeLibrary, FileReference OutputFile, List<Action> Actions)
+		public override void GenerateTypeLibraryHeader(CppCompileEnvironment CompileEnvironment, ModuleRules.TypeLibrary TypeLibrary, FileReference OutputFile, IActionGraphBuilder Graph)
 		{
 			// Create the input file
 			StringBuilder Contents = new StringBuilder();
@@ -1450,7 +1448,7 @@ namespace UnrealBuildTool
 			}
 			Contents.AppendLine();
 
-			FileItem InputFile = FileItem.CreateIntermediateTextFile(OutputFile.ChangeExtension(".cpp"), Contents.ToString());
+			FileItem InputFile = Graph.CreateIntermediateTextFile(OutputFile.ChangeExtension(".cpp"), Contents.ToString());
 
 			// Build the argument list
 			FileItem ObjectFile = FileItem.GetItemByFileReference(OutputFile.ChangeExtension(".obj"));
@@ -1477,7 +1475,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the compile action. Only mark the object file as an output, because we need to touch the generated header afterwards.
-			Action CompileAction = new Action(ActionType.Compile);
+			Action CompileAction = Graph.CreateAction(ActionType.Compile);
 			CompileAction.CommandDescription = "GenerateTLH";
 			CompileAction.PrerequisiteItems.Add(InputFile);
 			CompileAction.ProducedItems.Add(ObjectFile);
@@ -1488,10 +1486,9 @@ namespace UnrealBuildTool
 			CompileAction.CommandArguments = String.Join(" ", Arguments);
 			CompileAction.bShouldOutputStatusDescription = (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang);
 			CompileAction.bCanExecuteRemotely = false; // Incompatible with SN-DBS
-			Actions.Add(CompileAction);
 
 			// Touch the output header
-			Action TouchAction = new Action(ActionType.BuildProject);
+			Action TouchAction = Graph.CreateAction(ActionType.BuildProject);
 			TouchAction.CommandDescription = "Touch";
 			TouchAction.CommandPath = BuildHostPlatform.Current.Shell;
 			TouchAction.CommandArguments = String.Format("/C \"copy /b \"{0}\"+,, \"{0}\" 1>nul:\"", OutputFile.FullName);
@@ -1500,7 +1497,6 @@ namespace UnrealBuildTool
 			TouchAction.ProducedItems.Add(FileItem.GetItemByFileReference(OutputFile));
 			TouchAction.StatusDescription = OutputFile.GetFileName();
 			TouchAction.bCanExecuteRemotely = false;
-			Actions.Add(TouchAction);
 		}
 
 		/// <summary>
@@ -1522,7 +1518,7 @@ namespace UnrealBuildTool
 			return Result.ToString();
 		}
 
-		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
+		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			if (LinkEnvironment.bIsBuildingDotNetAssembly)
 			{
@@ -1744,12 +1740,12 @@ namespace UnrealBuildTool
 			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
 			if (!ProjectFileGenerator.bGenerateProjectFiles)
 			{
-				FileItem ResponseFile = FileItem.CreateIntermediateTextFile(ResponseFileName, String.Join(Environment.NewLine, Arguments));
+				FileItem ResponseFile = Graph.CreateIntermediateTextFile(ResponseFileName, String.Join(Environment.NewLine, Arguments));
 				PrerequisiteItems.Add(ResponseFile);
 			}
 
 			// Create an action that invokes the linker.
-			Action LinkAction = new Action(ActionType.Link);
+			Action LinkAction = Graph.CreateAction(ActionType.Link);
 			LinkAction.CommandDescription = "Link";
 			LinkAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 			if(bIsBuildingLibraryOrImportLibrary)
@@ -1790,7 +1786,6 @@ namespace UnrealBuildTool
 
 			// Allow remote linking.  Especially in modular builds with many small DLL files, this is almost always very efficient
 			LinkAction.bCanExecuteRemotely = true;
-			Actions.Add(LinkAction);
 
 			Log.TraceVerbose("     Linking: " + LinkAction.StatusDescription);
 			Log.TraceVerbose("     Command: " + LinkAction.CommandArguments);

@@ -173,7 +173,7 @@ void FCollisionStructureManager::UpdateImplicitFlags(
 	FImplicit* Implicit, 
 	const ECollisionTypeEnum CollisionType)
 {
-	if (Implicit && (CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric))
+	if (Implicit && (CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric) && Implicit->GetType() == Chaos::ImplicitObjectType::LevelSet)
 	{
 		Implicit->SetDoCollide(false);
 		Implicit->SetConvex(false);
@@ -256,13 +256,14 @@ FCollisionStructureManager::NewImplicitLevelset(
 		const float FilledVolume = LevelSet->ApproximateNegativeMaterial();
 		if (FilledVolume < DomainVolume * 0.05)
 		{
-			ErrorReporter.ReportError(
+			const Chaos::TVector<float,3> Extent = LevelSet->BoundingBox().Extents();
+			ErrorReporter.ReportWarning(
 				*FString::Printf(TEXT(
 					"Level set is small or empty:\n"
-					"    domain volume: %g\n"
+					"    domain extent: (%g %g %g) volume: %g\n"
 					"    estimated level set volume: %g\n"
 					"    percentage filled: %g%%"),
-					DomainVolume, FilledVolume, FilledVolume / DomainVolume * 100.0));
+					Extent[0], Extent[1], Extent[2], DomainVolume, FilledVolume, FilledVolume / DomainVolume * 100.0));
 		}
 		HalfExtents *= CollisionObjectReduction / 100.f;
 		const float MinExtent = FMath::Min(HalfExtents[0], FMath::Min(HalfExtents[1], HalfExtents[2]));

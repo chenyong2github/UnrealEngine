@@ -257,7 +257,8 @@ namespace UnrealBuildTool
 									Writer.WriteLine("#endif");
 								}
 
-								FileItem DummyPCHIncludeFileDependency = FileItem.CreateIntermediateTextFile(new FileReference(DummyPCHIncludeFile + ".dummy.h"), WrapperContents.ToString());
+								FileReference DummyPCHIncludeFileDependency = new FileReference(DummyPCHIncludeFile + ".dummy.h");
+								Utils.WriteFileIfChanged(DummyPCHIncludeFileDependency, WrapperContents.ToString(), StringComparison.OrdinalIgnoreCase);
 								AdditionalStubIncludes = string.Format("/FI\"{0}\"", DummyPCHIncludeFileDependency);
 							}
 
@@ -311,16 +312,16 @@ namespace UnrealBuildTool
 
 				NewProcess.WaitForExit();
 
-				TimeSpan Duration;
-				DateTimeOffset EndTime = DateTimeOffset.Now;
-				if (EndTime == DateTimeOffset.MinValue)
-				{
-					Duration = DateTimeOffset.Now - StartTime;
-				}
-				else
-				{
-					Duration = EndTime - StartTime;
-				}
+				//TimeSpan Duration;
+				//DateTimeOffset EndTime = DateTimeOffset.Now;
+				//if (EndTime == DateTimeOffset.MinValue)
+				//{
+				//	Duration = DateTimeOffset.Now - StartTime;
+				//}
+				//else
+				//{
+				//	Duration = EndTime - StartTime;
+				//}
 
 				DummyActionThread.bComplete = true;
 				int ExitCode = NewProcess.ExitCode;

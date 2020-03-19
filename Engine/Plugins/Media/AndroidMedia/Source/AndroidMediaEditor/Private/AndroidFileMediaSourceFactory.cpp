@@ -13,6 +13,7 @@ UAndroidFileMediaSourceFactory::UAndroidFileMediaSourceFactory(const FObjectInit
 	Formats.Add(TEXT("3gpp;3GPP Multimedia File"));
 	Formats.Add(TEXT("aac;MPEG-2 Advanced Audio Coding File"));
 	Formats.Add(TEXT("mp4;MPEG-4 Movie"));
+	Formats.Add(TEXT("webm;WEBM Movie"));
 
 	SupportedClass = UFileMediaSource::StaticClass();
 	bEditorImport = true;

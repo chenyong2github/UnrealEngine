@@ -2178,7 +2178,7 @@ bool FDatasmithWireTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshEle
 #endif
 }
 
-void FDatasmithWireTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithWireTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 #ifdef USE_OPENMODEL
 	FDatasmithCoreTechTranslator::SetSceneImportOptions(Options);

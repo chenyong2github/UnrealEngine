@@ -486,7 +486,7 @@ void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* Editor
 
 
 	// set up standard materials
-	StandardVertexColorMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Game/Materials/VertexColor"));
+	StandardVertexColorMaterial = GEngine->VertexColorMaterial;
 }
 
 
@@ -539,6 +539,16 @@ void UEdModeInteractiveToolsContext::PostInvalidation()
 
 void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
+	// process any actions that were scheduled to execute on the next tick
+	if (NextTickExecuteActions.Num() > 0)
+	{
+		for (TUniqueFunction<void()>& Action : NextTickExecuteActions)
+		{
+			Action();
+		}
+		NextTickExecuteActions.Reset();
+	}
+
 	ToolManager->Tick(DeltaTime);
 	GizmoManager->Tick(DeltaTime);
 
@@ -677,11 +687,6 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 		}
 	}
 
-	// if alt is down we do not process mouse event
-	if (ViewportClient->IsAltPressed())
-	{
-		return false;
-	}
 	if (ViewportClient->IsMovingCamera())
 	{
 		return false;
@@ -703,11 +708,18 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 			if (bIsLeftMouse || bIsMiddleMouse || bIsRightMouse)
 			{
-
-				// early-out here if we are going to do camera manipulation
-				if (ViewportClient->IsAltPressed())
+				// if alt is down and we are not capturing, somewhere higher in the ViewportClient/EdMode stack 
+				// is going to start doing alt+mouse camera manipulation. So we should ignore this mouse event.
+				if (ViewportClient->IsAltPressed() && InputRouter->HasActiveMouseCapture() == false)
 				{
-					return bHandled;
+					return false;
+				}
+				// This is a special-case hack for UMultiClickSequenceInputBehavior, because it holds capture across multiple
+				// mouse clicks, which prevents alt+mouse navigation from working between clicks (very annoying in draw polygon).
+				// Remove this special-case once that tool is fixed to use CollectSurfacePathMechanic instead
+				if (Event == IE_Pressed && bIsLeftMouse && ViewportClient->IsAltPressed() && InputRouter->HasActiveMouseCapture())
+				{
+					return false;
 				}
 
 				FInputDeviceState InputState = CurrentMouseState;
@@ -942,15 +954,26 @@ bool UEdModeInteractiveToolsContext::CanCompleteActiveTool() const
 
 void UEdModeInteractiveToolsContext::StartTool(const FString& ToolTypeIdentifier)
 {
-	if (UInteractiveToolsContext::StartTool(EToolSide::Mouse, ToolTypeIdentifier))
+	FString LocalIdentifier(ToolTypeIdentifier);
+	ScheduleExecuteAction([this, LocalIdentifier]()
 	{
-		SaveEditorStateAndSetForTool();
-	}
+		if (UInteractiveToolsContext::StartTool(EToolSide::Mouse, LocalIdentifier))
+		{
+			SaveEditorStateAndSetForTool();
+		}
+	});
+
+	PostInvalidation();
 }
 
 void UEdModeInteractiveToolsContext::EndTool(EToolShutdownType ShutdownType)
 {
-	UInteractiveToolsContext::EndTool(EToolSide::Mouse, ShutdownType);
+	ScheduleExecuteAction([this, ShutdownType]()
+	{
+		UInteractiveToolsContext::EndTool(EToolSide::Mouse, ShutdownType);
+	});
+
+	PostInvalidation();
 }
 
 
@@ -988,7 +1011,8 @@ void UEdModeInteractiveToolsContext::SaveEditorStateAndSetForTool()
 				{
 					Flags.SetTemporalAA(false);
 					Flags.SetMotionBlur(false);
-					Flags.SetEyeAdaptation(false);
+					// disable this as depending on fixed exposure settings the entire scene may turn black
+					//Flags.SetEyeAdaptation(false);
 				});
 			}
 		}
@@ -1020,3 +1044,8 @@ void UEdModeInteractiveToolsContext::RestoreEditorState()
 	}
 }
 
+
+void UEdModeInteractiveToolsContext::ScheduleExecuteAction(TUniqueFunction<void()> Action)
+{
+	NextTickExecuteActions.Add(MoveTemp(Action));
+}

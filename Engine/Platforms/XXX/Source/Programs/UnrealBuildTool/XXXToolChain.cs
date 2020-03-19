@@ -17,7 +17,7 @@ namespace UnrealBuildTool
 		{
 		}
 
-		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, List<Action> Actions)
+		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			// Create a compile action for each source file.
 			CPPOutput Result = new CPPOutput();
@@ -25,7 +25,7 @@ namespace UnrealBuildTool
 			{
 				FileItem ObjectFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".xo"));
 
-				Action CompileAction = new Action(ActionType.Compile);
+				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.CommandDescription = "FakeCompile";
 				CompileAction.CommandPath = BuildHostPlatform.Current.Shell;
 				// we use type/cat instead of copy so that timestamp gets updated
@@ -48,19 +48,16 @@ namespace UnrealBuildTool
 				{
 					CompileAction.PrerequisiteItems.Add(ForceIncludeFile);
 				}
-
-
-				Actions.Add(CompileAction);
 			}
 
 			return Result;
 		}
 
-		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
+		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			FileItem OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePath);
 
-			Action LinkAction = new Action(ActionType.Link);
+			Action LinkAction = Graph.CreateAction(ActionType.Link);
 			LinkAction.CommandDescription = "FakeCompile";
 			LinkAction.CommandPath = BuildHostPlatform.Current.Shell;
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
@@ -80,7 +77,6 @@ namespace UnrealBuildTool
 			LinkAction.DeleteItems.Add(OutputFile);
 			LinkAction.StatusDescription = OutputFile.Location.GetFileName();
 			LinkAction.bCanExecuteRemotely = false;
-			Actions.Add(LinkAction);
 
 			return OutputFile;
 		}

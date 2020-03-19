@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
+using UnrealBuildTool;
 
 namespace AutomationTool.Benchmark
 {
@@ -44,6 +45,11 @@ namespace AutomationTool.Benchmark
 		/// Perform any prerequisites the task requires
 		/// </summary>
 		virtual protected bool PerformPrequisites() { return true;  }
+
+		/// <summary>
+		/// Perform post-task cleanup
+		/// </summary>
+		virtual protected void PerformCleanup() { }
 
 		/// <summary>
 		/// Perform the actual task that is measured
@@ -101,6 +107,15 @@ namespace AutomationTool.Benchmark
 			{
 				Log.TraceError("{0} failed. {1}", GetFullTaskName(), FailureString);
 			}
+
+			try
+			{
+				PerformCleanup();
+			}
+			catch (Exception Ex)
+			{
+				Log.TraceError("Cleanup of {0} failed. {1}", GetFullTaskName(), Ex);
+			}
 		}
 
 		/// <summary>
@@ -133,53 +148,155 @@ namespace AutomationTool.Benchmark
 
 			return Name;
 		}
+
+		public override string ToString()
+		{
+			return GetFullTaskName();
+		}
 	}
 
 	[Flags]
-	public enum EditorTaskOptions
+	public enum DDCTaskOptions
 	{
 		None = 0,
-		ColdDDC = 1 << 0,
-		NoDDC = 1 << 1,
-		NoShaderDDC = 1 << 2,
-		CookClient = 1 << 3,
+		WarmDDC = 1 << 0,
+		ColdDDC = 1 << 1,
+		NoSharedDDC = 1 << 2,
+		NoShaderDDC = 1 << 3,
 		HotDDC = 1 << 4,
+
+		KeepMemoryDDC = 1 << 5,
 	}
 
 	abstract class BenchmarkEditorTaskBase : BenchmarkTaskBase
 	{
-		protected void DeleteLocalDDC(FileReference InProjectFile)
+		protected DDCTaskOptions TaskOptions;
+
+		protected FileReference ProjectFile = null;
+
+		protected string EditorArgs = "";
+
+		protected string ProjectName
 		{
-			List<DirectoryReference> DirsToClear = new List<DirectoryReference>();
-
-			DirectoryReference ProjectDir = InProjectFile.Directory;
-
-			DirsToClear.Add(DirectoryReference.Combine(ProjectDir, "Saved"));
-			DirsToClear.Add(DirectoryReference.Combine(CommandUtils.EngineDirectory, "DerivedDataCache"));
-			DirsToClear.Add(DirectoryReference.Combine(ProjectDir, "DerivedDataCache"));
-
-			string LocalDDC = Environment.GetEnvironmentVariable("UE-LocalDataCachePath");
-
-			if (!string.IsNullOrEmpty(LocalDDC) && Directory.Exists(LocalDDC))
+			get
 			{
-				DirsToClear.Add(new DirectoryReference(LocalDDC));
+				return ProjectFile == null ? "UE4" : ProjectFile.GetFileNameWithoutAnyExtensions();
+			}
+		}
+
+		protected BenchmarkEditorTaskBase(FileReference InProjectFile, DDCTaskOptions InTaskOptions, string InEditorArgs)
+		{
+			TaskOptions = InTaskOptions;
+			EditorArgs = InEditorArgs.Trim().Replace("  ", " ");
+			ProjectFile = InProjectFile;
+
+			if (TaskOptions == DDCTaskOptions.None || TaskOptions.HasFlag(DDCTaskOptions.WarmDDC))
+			{
+				TaskModifiers.Add("warmddc");
 			}
 
-			foreach (var Dir in DirsToClear)
+			if (TaskOptions.HasFlag(DDCTaskOptions.ColdDDC))
 			{
-				try
+				TaskModifiers.Add("coldddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
+			{
+				TaskModifiers.Add("hotddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
+			{
+				TaskModifiers.Add("noddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
+			{
+				TaskModifiers.Add("noshaderddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.KeepMemoryDDC))
+			{
+				TaskModifiers.Add("withbootddc");
+			}
+
+			if (!string.IsNullOrEmpty(EditorArgs))
+			{
+				TaskModifiers.Add(EditorArgs);
+			}
+		}
+
+		private Dictionary<string, string> StoredEnvVars = new Dictionary<string, string>();
+		private List<DirectoryReference> CachePaths = new List<DirectoryReference>();
+
+		private string GetXPlatformEnvironmentKey(string InKey)
+		{
+			// Mac uses _ in place of -
+			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64)
+			{
+				InKey = InKey.Replace("-", "_");
+			}
+
+			return InKey;
+		}
+
+		protected override bool PerformPrequisites()
+		{
+			if (TaskOptions.HasFlag(DDCTaskOptions.ColdDDC))
+			{
+				StoredEnvVars.Clear();
+				CachePaths.Clear();
+
+				// We put our temp DDC paths in here
+				DirectoryReference BasePath = DirectoryReference.Combine(CommandUtils.EngineDirectory, "BenchmarkDDC");
+
+				IEnumerable<string> DDCEnvVars = new string[] { GetXPlatformEnvironmentKey("UE-BootDataCachePath"), GetXPlatformEnvironmentKey("UE-LocalDataCachePath") };
+				
+				if (TaskOptions.HasFlag(DDCTaskOptions.KeepMemoryDDC))
 				{
+					DDCEnvVars = DDCEnvVars.Where(E => !E.Contains("UE-Boot"));
+				}
+
+				// get all current environment vars and set them to our temp dir
+				foreach (var Key in DDCEnvVars)
+				{
+					// save current key
+					StoredEnvVars.Add(Key, Environment.GetEnvironmentVariable(Key));
+
+					// create a new dir for this key
+					DirectoryReference Dir = DirectoryReference.Combine(BasePath, Key);
+
 					if (DirectoryReference.Exists(Dir))
 					{
-						Log.TraceInformation("Removing {0}", Dir);
 						DirectoryReference.Delete(Dir, true);
 					}
-				}
-				catch (Exception Ex)
-				{
-					Log.TraceWarning("Failed to remove path {0}. {1}", Dir.FullName, Ex.Message);
-				}
+
+					DirectoryReference.CreateDirectory(Dir);
+
+					// save this dir and set it as the env var
+					CachePaths.Add(Dir);
+					Environment.SetEnvironmentVariable(Key, Dir.FullName);
+				}				
 			}
+
+			return base.PerformPrequisites();
+		}
+
+		protected override void PerformCleanup()
+		{
+			// restore keys
+			foreach (var KV in StoredEnvVars)
+			{
+				Environment.SetEnvironmentVariable(KV.Key, KV.Value);
+			}
+
+			foreach (var Dir in CachePaths)
+			{
+				CommandUtils.DeleteDirectory_NoExceptions(Dir.FullName);
+			}
+
+			CachePaths.Clear();
+			StoredEnvVars.Clear();
 		}
 	}
 }

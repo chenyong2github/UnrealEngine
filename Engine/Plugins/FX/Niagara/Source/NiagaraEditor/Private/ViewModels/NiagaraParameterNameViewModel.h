@@ -6,6 +6,7 @@
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
 #include "Misc/Attribute.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 struct FCreateWidgetForActionData;
 class FNiagaraScriptToolkitParameterPanelViewModel;
@@ -20,7 +21,7 @@ public:
 	virtual ~INiagaraParameterNameViewModel() { }
 
 	virtual TSharedRef<SWidget> CreateScopeSlotWidget() const = 0;
-	virtual TSharedRef<SWidget> CreateTextSlotWidget() const = 0;
+	virtual TSharedRef<SInlineEditableTextBlock> CreateTextSlotWidget() const = 0;
 
 	virtual int32 GetScopeValue() const = 0;
 	virtual void OnScopeValueChanged(int32 NewScopeValue, ESelectInfo::Type SelectionType) const = 0;
@@ -28,7 +29,7 @@ public:
 	virtual bool GetScopeValueIsEnabled(int32 ScopeValue) const = 0;
 
 	virtual FText GetParameterNameText() const = 0;
-	//bool VerifyParameterNameChanged(const FText& NewNameText, FText&) //@todo(ng) impl
+	virtual bool VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const = 0;
 	virtual void OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const = 0;
 };
 
@@ -37,12 +38,13 @@ class FNiagaraParameterPanelEntryParameterNameViewModel : public INiagaraParamet
 public:
 	DECLARE_DELEGATE_ThreeParams(FOnScopeSelectionChanged, const FNiagaraVariable&, const FNiagaraVariableMetaData&, const ENiagaraParameterScope)
 	DECLARE_DELEGATE_ThreeParams(FOnParameterRenamed, const FNiagaraVariable&, const FNiagaraVariableMetaData&, const FText&)
+	DECLARE_DELEGATE_RetVal_FourParams(bool, FOnVerifyParameterRenamed, const FNiagaraVariable&, const FNiagaraVariableMetaData&, TOptional<const FText> , FText&)
 
 	FNiagaraParameterPanelEntryParameterNameViewModel(FCreateWidgetForActionData* const InCreateData, const FNiagaraScriptVariableAndViewInfo& InScriptVarAndViewInfo);
 
 	/** Begin INiagaraParameterNameViewModel Interface */
 	virtual TSharedRef<SWidget> CreateScopeSlotWidget() const override;
-	virtual TSharedRef<SWidget> CreateTextSlotWidget() const override;
+	virtual TSharedRef<SInlineEditableTextBlock> CreateTextSlotWidget() const override;
 
 	virtual int32 GetScopeValue() const override;
 	virtual void OnScopeValueChanged(int32 NewScopeValue, ESelectInfo::Type SelectionType) const override;
@@ -50,16 +52,18 @@ public:
 	virtual bool GetScopeValueIsEnabled(int32 ScopeValue) const override;
 
 	virtual FText GetParameterNameText() const override;
-	//bool VerifyParameterNameChanged(const FText& NewNameText, FText&) //@todo(ng) impl
+	virtual bool VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const override;
 	virtual void OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const override;
 	/** End INiagaraParameterNameViewModel Interface */
 
 	FOnScopeSelectionChanged& GetOnScopeSelectionChangedDelegate() { return OnScopeSelectionChangedDelegate; };
 	FOnParameterRenamed& GetOnParameterRenamedDelegate() { return OnParameterRenamedDelegate; };
+	FOnVerifyParameterRenamed& GetOnVerifyParameterRenamedDelegate() { return OnVerifyParameterRenamedDelegate; };
 
 private:
 	FOnScopeSelectionChanged OnScopeSelectionChangedDelegate;
 	FOnParameterRenamed OnParameterRenamedDelegate;
+	FOnVerifyParameterRenamed OnVerifyParameterRenamedDelegate;
 
 	FCreateWidgetForActionData* const CreateData;
 	const FNiagaraScriptVariableAndViewInfo CachedScriptVarAndViewInfo;
@@ -71,14 +75,14 @@ class FNiagaraGraphPinParameterNameViewModel : public INiagaraParameterNameViewM
 {
 public:
 	FNiagaraGraphPinParameterNameViewModel(
-		  const UEdGraphPin* InOwningPin
+		  UEdGraphPin* InOwningPin
 		, const FNiagaraScriptVariableAndViewInfo& InScriptVarAndViewInfo
 		, const FNiagaraScriptToolkitParameterPanelViewModel* InParameterPanelViewModel
 	);
 
 	/** Begin INiagaraParameterNameViewModel Interface */
 	virtual TSharedRef<SWidget> CreateScopeSlotWidget() const override;
-	virtual TSharedRef<SWidget> CreateTextSlotWidget() const override;
+	virtual TSharedRef<SInlineEditableTextBlock> CreateTextSlotWidget() const override;
 
 	virtual int32 GetScopeValue() const override;
 	virtual void OnScopeValueChanged(int32 NewScopeValue, ESelectInfo::Type SelectionType) const override;
@@ -86,12 +90,12 @@ public:
 	virtual bool GetScopeValueIsEnabled(int32 ScopeValue) const override;
 
 	virtual FText GetParameterNameText() const override;
-	//bool VerifyParameterNameChanged(const FText& NewNameText, FText&) //@todo(ng) impl
+	virtual bool VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const override;
 	virtual void OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const override;
 	/** End INiagaraParameterNameViewModel Interface */
 
 private:
-	const UEdGraphPin* OwningPin;
+	UEdGraphPin* OwningPin;
 	const FNiagaraScriptVariableAndViewInfo CachedScriptVarAndViewInfo;
 	const FNiagaraScriptToolkitParameterPanelViewModel* ParameterPanelViewModel;
 

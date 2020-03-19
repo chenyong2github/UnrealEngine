@@ -146,6 +146,10 @@ public:
 	void ResetAssetToDefault(TSharedPtr<IPropertyHandle> InHandle, TSharedPtr<FSortedParamData> InData);
 	void AddLayer();
 	void RemoveLayer(int32 Index);
+	FReply UnlinkLayer(int32 Index);
+	FReply RelinkLayersToParent();
+	EVisibility GetUnlinkLayerVisibility(int32 Index) const;
+	EVisibility GetRelinkLayersToParentVisibility() const;
 	FReply ToggleLayerVisibility(int32 Index);
 	TSharedPtr<class FAssetThumbnailPool> GetTreeThumbnailPool();
 
@@ -219,7 +223,7 @@ private:
 
 public:
 
-	void RefreshOnRowChange(const FAssetData& AssetData, SMaterialLayersFunctionsInstanceTree* InTree);
+	void RefreshOnRowChange(const FAssetData& AssetData, SMaterialLayersFunctionsMaterialTree* InTree);
 	FText GetLayerName(SMaterialLayersFunctionsMaterialTree* InTree, int32 Counter) const;
 
 	/**
@@ -250,7 +254,7 @@ public:
 	SLATE_ARGUMENT(UMaterialEditorPreviewParameters*, InMaterialEditorInstance)
 	SLATE_ARGUMENT(TSharedPtr<class IPropertyRowGenerator>, InGenerator)
 	SLATE_END_ARGS()
-	void Refresh();
+	void Refresh(const bool bRegenerateArray = false);
 	void Construct(const FArguments& InArgs);
 	void SetEditorInstance(UMaterialEditorPreviewParameters* InMaterialEditorInstance);
 	TSharedPtr<class IPropertyRowGenerator> GetGenerator();
@@ -294,7 +298,7 @@ public:
 		UMaterialEditorPreviewParameters* MaterialEditorInstance;
 
 		/** Builds the custom parameter groups category */
-		void CreateGroupsWidget();
+		void CreateGroupsWidget(const bool bRegenerateArray);
 
 		SMaterialLayersFunctionsMaterialWrapper* GetWrapper() { return Wrapper; }
 

@@ -339,9 +339,29 @@ protected:
 	// user feedback messages
 	void ShowStartupMessage();
 	void ShowExtrudeMessage();
+
+
+	friend class FDrawPolygonStateChange;
+	int32 CurrentCurveTimestamp = 1;
+	void UndoCurrentOperation();
+	bool CheckInCurve(int32 Timestamp) const { return CurrentCurveTimestamp == Timestamp; }
 };
 
 
 
-
-
+// Change event used by DrawPolygonTool to undo draw state.
+// Currently does not redo.
+class MESHMODELINGTOOLS_API FDrawPolygonStateChange : public FToolCommandChange
+{
+public:
+	bool bHaveDoneUndo = false;
+	int32 CurveTimestamp = 0;
+	FDrawPolygonStateChange(int32 CurveTimestampIn)
+	{
+		CurveTimestamp = CurveTimestampIn;
+	}
+	virtual void Apply(UObject* Object) override {}
+	virtual void Revert(UObject* Object) override;
+	virtual bool HasExpired(UObject* Object) const override;
+	virtual FString ToString() const override;
+};

@@ -371,6 +371,10 @@ struct FWorldContext
 	/** Custom description to be display in blueprint debugger UI */
 	FString CustomDescription;
 
+	// If > 0, tick this world at a fixed rate in PIE
+	float PIEFixedTickSeconds  = 0.f;
+	float PIEAccumulatedTickSeconds = 0.f;
+
 	/**************************************************************/
 
 	/** Outside pointers to CurrentWorld that should be kept in sync if current world changes  */

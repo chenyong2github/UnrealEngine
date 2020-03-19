@@ -53,11 +53,15 @@ enum ESimulationInitializationState { Unintialized = 0, Activated, Created, Init
 */
 struct FSharedSimulationParameters
 {
-	static constexpr float MaximumMassClamp = 1000;	//todo: this is way too low, need to handle this in a better way when combining with large inertia
 	FSharedSimulationParameters()
 	: bMassAsDensity(false)
 	, Mass(1.0)
-	, MinimumMassClamp(0.1)
+	, MinimumMassClamp(0.1)								// todo : Expose to users with better initial values
+	, MaximumMassClamp(1e5f)							// todo : Expose to users with better initial values
+	, MinimumBoundingExtentClamp(0.1)					// todo : Expose to users with better initial values
+	, MaximumBoundingExtentClamp(1e6f)					// todo : Expose to users with better initial values
+	, MinimumInertiaTensorDiagonalClamp(SMALL_NUMBER)	// todo : Expose to users with better initial values
+	, MaximumInertiaTensorDiagonalClamp(1e20f)			// todo : Expose to users with better initial values
 	, MaximumCollisionParticleCount(60)
 	{
 		SizeSpecificData.AddDefaulted();
@@ -71,12 +75,22 @@ struct FSharedSimulationParameters
 		,int32 InMaxClusterLevelSetResolution
 		,bool InMassAsDensity
 		,float InMass
-		,float InMinimumMassClamp
+		, float InMinimumMassClamp
+		, float InMaximumMassClamp
+		, float InMinimumBoundingExtentClamp
+		, float InMaximumBoundingExtentClamp
+		, float InMinimumInertiaTensorDiagonalClamp
+		, float InMaximumInertiaTensorDiagonalClamp
 		,float InCollisionParticlesFraction
 		,int32 InMaximumCollisionParticleCount)
 	: bMassAsDensity(InMassAsDensity)
 	, Mass(InMass)
 	, MinimumMassClamp(InMinimumMassClamp)
+	, MaximumMassClamp(InMinimumMassClamp)
+	, MinimumBoundingExtentClamp(InMinimumBoundingExtentClamp)
+	, MaximumBoundingExtentClamp(InMinimumBoundingExtentClamp)
+	, MinimumInertiaTensorDiagonalClamp(InMinimumInertiaTensorDiagonalClamp)
+	, MaximumInertiaTensorDiagonalClamp(InMaximumInertiaTensorDiagonalClamp)
 	, MaximumCollisionParticleCount(InMaximumCollisionParticleCount)
 	{
 		SizeSpecificData.AddDefaulted();
@@ -93,6 +107,15 @@ struct FSharedSimulationParameters
 	bool bMassAsDensity;
 	float Mass;
 	float MinimumMassClamp;
+	float MaximumMassClamp;
+	float MinimumBoundingExtentClamp;
+	float MaximumBoundingExtentClamp;
+	float MinimumInertiaTensorDiagonalClamp;
+	float MaximumInertiaTensorDiagonalClamp;
+
+	float MinimumVolumeClamp() const { return MinimumBoundingExtentClamp * MinimumBoundingExtentClamp * MinimumBoundingExtentClamp; }
+	float MaximumVolumeClamp() const { return MaximumBoundingExtentClamp * MaximumBoundingExtentClamp * MaximumBoundingExtentClamp; }
+
 	TArray<FSharedSimulationSizeSpecificData> SizeSpecificData;
 	TArray<int32> RemoveOnFractureIndices;
 	int32 MaximumCollisionParticleCount;
@@ -222,6 +245,9 @@ struct FSimulationParameters
 		, ReverseCacheBeginTime(0.0f)
 		, bClearCache(false)
 		, RemoveOnFractureEnabled(false)
+		, SimulationFilterData()
+		, QueryFilterData()
+		, UserData(nullptr)
 	{}
 
 
@@ -232,6 +258,7 @@ struct FSimulationParameters
 		, bOwnsTrack(false)
 		, Simulating(Other.Simulating)
 		, WorldTransform(Other.WorldTransform)
+		, EnableClustering(Other.EnableClustering)
 		, ClusterGroupIndex(Other.ClusterGroupIndex)
 		, MaxClusterLevel(Other.MaxClusterLevel)
 		, DamageThreshold(Other.DamageThreshold)
@@ -253,6 +280,9 @@ struct FSimulationParameters
 		, TrailingData(Other.TrailingData)
 		, Shared(Other.Shared)
 		, RemoveOnFractureEnabled(false)
+		, SimulationFilterData(Other.SimulationFilterData)
+		, QueryFilterData(Other.QueryFilterData)
+		, UserData(Other.UserData)
 	{}
 
 	~FSimulationParameters()
@@ -308,4 +338,8 @@ struct FSimulationParameters
 	FSharedSimulationParameters Shared;
 
 	bool RemoveOnFractureEnabled;
+
+	FCollisionFilterData SimulationFilterData;
+	FCollisionFilterData QueryFilterData;
+	void* UserData;
 };

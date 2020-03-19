@@ -526,6 +526,7 @@ void UDisplaceMeshTool::Setup()
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
 	}
 
+	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
 	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
 	OriginalMesh.Copy(*DynamicMeshComponent->GetMesh());
 
@@ -651,9 +652,8 @@ void UDisplaceMeshTool::StartComputation()
 		if (SubdivideTask)
 		{
 			SubdivideTask->CancelAndDelete();
-			SubdividedMesh = nullptr;
 		}
-		auto SubdivideMeshOp = Subdivider->MakeNewOperator();
+		SubdividedMesh = nullptr;
 		SubdivideTask = new FAsyncTaskExecuterWithAbort<TModelingOpTask<FDynamicMeshOperator>>(Subdivider->MakeNewOperator());
 		SubdivideTask->StartBackgroundTask();
 		bNeedsSubdivided = false;

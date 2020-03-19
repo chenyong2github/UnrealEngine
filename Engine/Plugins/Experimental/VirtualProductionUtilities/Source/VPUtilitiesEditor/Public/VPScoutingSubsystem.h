@@ -214,6 +214,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static void ExitVRMode();
 
+	/** Whether editor grid snapping is enabled */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static bool IsGridSnappingEnabled();
+
+	/** Toggle editor grid snapping */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static void ToggleGridSnapping();
+
 private:
 
 	FDelegateHandle EngineInitCompleteDelegate;

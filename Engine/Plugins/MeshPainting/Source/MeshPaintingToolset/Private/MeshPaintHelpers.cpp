@@ -1513,7 +1513,7 @@ bool UMeshToolManager::FindHitResult(const FRay Ray, FHitResult& BestTraceResult
 
 		for (UMeshComponent* MeshComponent : PaintableComponents)
 		{
-			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = GetComponentToAdapterMap().FindChecked(MeshComponent);
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = GetAdapterForComponent(MeshComponent);
 
 			// Ray trace
 			FHitResult TraceHitResult(1.0f);

@@ -16,10 +16,10 @@ namespace AutomationTool.Benchmark
 	{
 		BenchmarkBuildTask PreTask;
 
-		public BenchmarkNopCompileTask(string InProject, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions)
-			: base(InProject, InTarget, InPlatform, InOptions)
+		public BenchmarkNopCompileTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions)
+			: base(InProjectFile, InTarget, InPlatform, InOptions)
 		{
-			PreTask = new BenchmarkBuildTask(InProject, InTarget, InPlatform, InOptions);
+			PreTask = new BenchmarkBuildTask(InProjectFile, InTarget, InPlatform, InOptions);
 			TaskModifiers.Add("nopcompile");
 		}
 

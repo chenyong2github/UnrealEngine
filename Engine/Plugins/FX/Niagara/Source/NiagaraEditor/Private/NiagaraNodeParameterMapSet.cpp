@@ -12,8 +12,11 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraph/EdGraphNode.h"
+#include "NiagaraScriptVariable.h"
+#include "NiagaraConstants.h"
 
 #include "ScopedTransaction.h"
+#include "SNiagaraGraphParameterMapSetNode.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeParameterMapSet"
 
@@ -29,6 +32,11 @@ void UNiagaraNodeParameterMapSet::AllocateDefaultPins()
 	CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), *UNiagaraNodeParameterMapBase::SourcePinName.ToString());
 	CreatePin(EGPD_Output, Schema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), *UNiagaraNodeParameterMapBase::DestPinName.ToString());
 	CreateAddPin(EGPD_Input);
+}
+
+TSharedPtr<SGraphNode> UNiagaraNodeParameterMapSet::CreateVisualWidget()
+{
+	return SNew(SNiagaraGraphParameterMapSetNode, this);
 }
 
 bool UNiagaraNodeParameterMapSet::IsPinNameEditable(const UEdGraphPin* GraphPinObj) const
@@ -49,6 +57,7 @@ bool UNiagaraNodeParameterMapSet::IsPinNameEditableUponCreation(const UEdGraphPi
 {
 	if (GraphPinObj == PinPendingRename)
 	{
+
 		return true;
 	}
 	else
@@ -84,6 +93,16 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 	{
 		TArray<UEdGraphPin*> InputPins;
 		GetInputPins(InputPins);
+		
+		// Determine if this is already namespaced or not. We need to do things differently below if not...
+		FName NewPinName = NewPin->GetFName();
+		bool bCreatedNamespace = false;
+		FName PinNameWithoutNamespace;
+		if (FNiagaraEditorUtilities::DecomposeVariableNamespace(NewPinName, PinNameWithoutNamespace).Num() == 0)
+		{
+			NewPinName = *(PARAM_MAP_OUTPUT_MODULE_STR +  NewPinName.ToString());
+			bCreatedNamespace = true;
+		}
 
 		TSet<FName> Names;
 		for (const UEdGraphPin* Pin : InputPins)
@@ -93,9 +112,29 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 				Names.Add(Pin->GetFName());
 			}
 		}
-		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(*NewPin->GetName(), Names);
+		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewPinName, Names);
+
+		//GetDefault<UEdGraphSchema_Niagara>()->PinToNiagaraVariable()
 		NewPin->PinName = NewUniqueName;
 		NewPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
+		
+		// If dragging from a function or other non-namespaced parent node, we should 
+		// make a local variable to contain the value by default.
+		if (bCreatedNamespace && GetNiagaraGraph())
+		{
+			const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+			FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(NewPin, false);
+			UNiagaraGraph::FAddParameterOptions AddParameterOptions = UNiagaraGraph::FAddParameterOptions();
+
+			//FNiagaraEditorUtilities::GetParameterMetaDataFromName(NewUniqueName, MetaDataGuess);
+			//AddParameterOptions.NewParameterScopeName = FNiagaraConstants::LocalNamespace;
+			//AddParameterOptions.NewParameterUsage = ENiagaraScriptParameterUsage::Local;
+			AddParameterOptions.bMakeParameterNameUnique = true;
+			AddParameterOptions.bRefreshMetaDataScopeAndUsage = true;
+
+			UNiagaraScriptVariable* Var = GetNiagaraGraph()->AddParameter(PinVariable, AddParameterOptions);
+			NewPin->PinName = Var->Variable.GetName();
+		}
 		UpdateAddedPinMetaData(NewPin);
 	}
 
@@ -104,7 +143,13 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
 		NewPin->PersistentGuid = FGuid::NewGuid();
 	}
 
-	PinPendingRename = NewPin;
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	FNiagaraVariable Var = Schema->PinToNiagaraVariable(NewPin);
+	if (!FNiagaraConstants::IsNiagaraConstant(Var))
+		PinPendingRename = NewPin;
+	else
+		PinPendingRename = nullptr;
+	
 }
 
 void UNiagaraNodeParameterMapSet::OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName)
@@ -122,17 +167,32 @@ bool UNiagaraNodeParameterMapSet::CancelEditablePinName(const FText& InName, UEd
 	return true;
 }
 
-bool UNiagaraNodeParameterMapSet::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) 
+bool UNiagaraNodeParameterMapSet::CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents)
 {
+	if (InGraphPinObj == PinPendingRename)
+	{
+		PinPendingRename = nullptr;
+	}
+
 	if (Pins.Contains(InGraphPinObj))
 	{
+		
+		FString OldPinName = InGraphPinObj->PinName.ToString();
+		FString NewPinName = InName.ToString();
+
+		// Early out if the same!
+		if (OldPinName == NewPinName)
+		{
+			return true;
+		}
+
 		FScopedTransaction AddNewPinTransaction(LOCTEXT("Rename Pin", "Renamed pin"));
 		Modify();
 		InGraphPinObj->Modify();
-		
-		FString OldPinName = InGraphPinObj->PinName.ToString();
-		InGraphPinObj->PinName = *InName.ToString();
-		OnPinRenamed(InGraphPinObj, OldPinName);
+
+		InGraphPinObj->PinName = *NewPinName;
+		if (bSuppressEvents == false)	
+			OnPinRenamed(InGraphPinObj, OldPinName);
 
 		return true;
 	}
@@ -259,27 +319,7 @@ void UNiagaraNodeParameterMapSet::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 {
 	Super::GetNodeContextMenuActions(Menu, Context);
 
-	UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context->Pin);
-	if (Pin && Pin->Direction == EEdGraphPinDirection::EGPD_Input)
-	{
-		FNiagaraVariable Var = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToNiagaraVariable(Pin);
-		const UNiagaraGraph* Graph = GetNiagaraGraph();
 
-		if (!FNiagaraConstants::IsNiagaraConstant(Var))
-		{
-			FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraMetaDataActions", LOCTEXT("EditPinMenuHeader", "Meta-Data"));
-			TSharedRef<SWidget> RenameWidget =
-				SNew(SBox)
-				.WidthOverride(100)
-				.Padding(FMargin(5, 0, 0, 0))
-				[
-					SNew(SEditableTextBox)
-					.Text_UObject(this, &UNiagaraNodeParameterMapBase::GetPinDescriptionText, Pin)
-					.OnTextCommitted_UObject(const_cast<UNiagaraNodeParameterMapSet*>(this), &UNiagaraNodeParameterMapBase::PinDescriptionTextCommitted, Pin)
-				];
-			Section.AddEntry(FToolMenuEntry::InitWidget("RenameWidget", RenameWidget, LOCTEXT("DescMenuItem", "Description")));
-		}
-	}
 }
 
 void UNiagaraNodeParameterMapSet::PostLoad()

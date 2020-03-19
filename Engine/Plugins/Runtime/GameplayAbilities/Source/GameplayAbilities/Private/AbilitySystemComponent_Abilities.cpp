@@ -54,6 +54,15 @@ void UAbilitySystemComponent::InitializeComponent()
 	AActor *Owner = GetOwner();
 	InitAbilityActorInfo(Owner, Owner);	// Default init to our outer owner
 
+	// cleanup any bad data that may have gotten into SpawnedAttributes
+	for (int32 Idx = SpawnedAttributes.Num()-1; Idx >= 0; --Idx)
+	{
+		if (SpawnedAttributes[Idx] == nullptr)
+		{
+			SpawnedAttributes.RemoveAt(Idx);
+		}
+	}
+
 	TArray<UObject*> ChildObjects;
 	GetObjectsWithOuter(Owner, ChildObjects, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
 	for (UObject* Obj : ChildObjects)

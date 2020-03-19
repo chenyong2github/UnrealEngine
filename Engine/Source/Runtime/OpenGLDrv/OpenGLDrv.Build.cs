@@ -52,7 +52,22 @@ public class OpenGLDrv : ModuleRules
 			PrivateDependencyModuleNames.Add("detex");
 		}
 
-		if(Target.Platform != UnrealTargetPlatform.Win32 && Target.Platform != UnrealTargetPlatform.Win64
+        if (Target.Platform == UnrealTargetPlatform.Android)
+        {
+            // for Swappy
+            PublicDefinitions.Add("USE_ANDROID_OPENGL_SWAPPY=0");
+/*
+            PrivateDependencyModuleNames.AddRange(
+                new string[]
+                {
+                "Launch",
+                "GoogleGameSDK"
+                }
+            );
+*/
+        }
+
+        if (Target.Platform != UnrealTargetPlatform.Win32 && Target.Platform != UnrealTargetPlatform.Win64
 			&& Target.Platform != UnrealTargetPlatform.IOS && Target.Platform != UnrealTargetPlatform.Android
 			&& !Target.IsInPlatformGroup(UnrealPlatformGroup.Linux)
 			&& Target.Platform != UnrealTargetPlatform.TVOS && Target.Platform != UnrealTargetPlatform.Lumin)

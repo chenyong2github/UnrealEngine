@@ -45,7 +45,7 @@ public:
 
 	void Initialize(UWorld* TargetWorld, const FFrame3d& InitialPlane);
 
-	void SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal);
+	void SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal, bool bIgnoreNormal);
 
 	void SetEnableGridSnaping(bool bEnable);
 

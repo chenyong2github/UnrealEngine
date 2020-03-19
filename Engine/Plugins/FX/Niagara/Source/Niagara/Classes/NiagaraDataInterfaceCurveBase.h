@@ -43,20 +43,20 @@ public:
 protected:
 	GENERATED_BODY()
 
-	UPROPERTY()
-	TArray<float> ShaderLUT;
+		UPROPERTY()
+		TArray<float> ShaderLUT;
 
 	UPROPERTY()
-	float LUTMinTime;
+		float LUTMinTime;
 
 	UPROPERTY()
-	float LUTMaxTime;
+		float LUTMaxTime;
 
 	UPROPERTY()
-	float LUTInvTimeRange;
+		float LUTInvTimeRange;
 
 	UPROPERTY()
-	float LUTNumSamplesMinusOne;
+		float LUTNumSamplesMinusOne;
 
 	/** Remap a sample time for this curve to 0 to 1 between first and last keys for LUT access.*/
 	FORCEINLINE float NormalizeTime(float T) const
@@ -74,23 +74,29 @@ public:
 	DECLARE_NIAGARA_DI_PARAMETER();
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
-	uint32 bUseLUT : 1;
+		uint32 bUseLUT : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** Do we optimize the LUT, this saves memory but may introduce errors.  Errors can be reduced modifying the threshold. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
-	uint32 bOptimizeLUT : 1;
+		uint32 bOptimizeLUT : 1;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
-	uint32 bOverrideOptimizeThreshold : 1;
+		uint32 bOverrideOptimizeThreshold : 1;
 
 	/** Threshold used to optimize the LUT. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve", meta=(EditCondition="bOverrideOptimizeThreshold"))
-	float OptimizeThreshold;
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve", meta = (EditCondition = "bOverrideOptimizeThreshold"))
+		float OptimizeThreshold;
 
 	UPROPERTY(EditAnywhere, Transient, Category = "Curve")
-	bool ShowInCurveEditor;
+		bool ShowInCurveEditor;
 #endif
+
+#if WITH_EDITOR	
+	/** Refreshes and returns the errors detected with the corresponding data, if any.*/
+	virtual TArray<FNiagaraDataInterfaceError> GetErrors() override;
+#endif
+
 
 public:
 	UNiagaraDataInterfaceCurveBase()

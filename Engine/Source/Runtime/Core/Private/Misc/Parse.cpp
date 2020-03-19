@@ -9,8 +9,10 @@
 #include "Misc/Paths.h"
 #include "Containers/Set.h"
 #include "Internationalization/Text.h"
+#include "Misc/AsciiSet.h"
 #include "Misc/Guid.h"
 #include "Misc/OutputDeviceNull.h"
+#include "Misc/StringBuilder.h"
 #include "HAL/IConsoleManager.h"
 #include "Containers/LazyPrintf.h"
 
@@ -342,10 +344,8 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, FString& Value, boo
 	return false;
 }
 
-// 
-// Parse a quoted string.
-//
-bool FParse::QuotedString( const TCHAR* Buffer, FString& Value, int32* OutNumCharsRead )
+template<class T>
+bool ParseQuotedString( const TCHAR* Buffer, T& Value, int32* OutNumCharsRead)
 {
 	if (OutNumCharsRead)
 	{
@@ -362,7 +362,8 @@ bool FParse::QuotedString( const TCHAR* Buffer, FString& Value, int32* OutNumCha
 
 	auto ShouldParse = [](const TCHAR Ch)
 	{
-		return Ch != 0 && Ch != TCHAR('"') && Ch != TCHAR('\n') && Ch != TCHAR('\r');
+		constexpr FAsciiSet StopCharacters = FAsciiSet("\"\n\r") + '\0';
+		return StopCharacters.Test(Ch) == 0;
 	};
 
 	while (ShouldParse(*Buffer))
@@ -403,7 +404,7 @@ bool FParse::QuotedString( const TCHAR* Buffer, FString& Value, int32* OutNumCha
 		}
 		else if (FChar::IsOctDigit(*Buffer)) // octal sequence (\012)
 		{
-			FString OctSequence;
+			TStringBuilder<16> OctSequence;
 			while (ShouldParse(*Buffer) && FChar::IsOctDigit(*Buffer) && OctSequence.Len() < 3) // Octal sequences can only be up-to 3 digits long
 			{
 				OctSequence += *Buffer++;
@@ -415,7 +416,7 @@ bool FParse::QuotedString( const TCHAR* Buffer, FString& Value, int32* OutNumCha
 		{
 			++Buffer;
 
-			FString HexSequence;
+			TStringBuilder<16> HexSequence;
 			while (ShouldParse(*Buffer) && FChar::IsHexDigit(*Buffer))
 			{
 				HexSequence += *Buffer++;
@@ -427,37 +428,27 @@ bool FParse::QuotedString( const TCHAR* Buffer, FString& Value, int32* OutNumCha
 		{
 			++Buffer;
 
-			FString UnicodeSequence;
+			TStringBuilder<16> UnicodeSequence;
 			while (ShouldParse(*Buffer) && FChar::IsHexDigit(*Buffer) && UnicodeSequence.Len() < 4) // UTF-16 sequences can only be up-to 4 digits long
 			{
 				UnicodeSequence += *Buffer++;
 			}
 
-			const uint32 UnicodeCodepoint = (uint32)FCString::Strtoi(*UnicodeSequence, nullptr, 16);
-
-			FString UnicodeString;
-			if (FUnicodeChar::CodepointToString(UnicodeCodepoint, UnicodeString))
-			{
-				Value += MoveTemp(UnicodeString);
-			}
+			const UTF16CHAR Utf16Char = static_cast<UTF16CHAR>(FCString::Strtoi(*UnicodeSequence, nullptr, 16));
+			Value += FStringView(FUTF16ToTCHAR(&Utf16Char, /* Len */ 1).Get());
 		}
 		else if (*Buffer == TCHAR('U') && FChar::IsHexDigit(*(Buffer + 1))) // UTF-32 sequence (\U12345678)
 		{
 			++Buffer;
 
-			FString UnicodeSequence;
+			TStringBuilder<16> UnicodeSequence;
 			while (ShouldParse(*Buffer) && FChar::IsHexDigit(*Buffer) && UnicodeSequence.Len() < 8) // UTF-32 sequences can only be up-to 8 digits long
 			{
 				UnicodeSequence += *Buffer++;
 			}
 
-			const uint32 UnicodeCodepoint = (uint32)FCString::Strtoi(*UnicodeSequence, nullptr, 16);
-
-			FString UnicodeString;
-			if (FUnicodeChar::CodepointToString(UnicodeCodepoint, UnicodeString))
-			{
-				Value += MoveTemp(UnicodeString);
-			}
+			const UTF32CHAR Utf32Str = static_cast<UTF32CHAR>(FCString::Strtoi(*UnicodeSequence, nullptr, 16));
+			Value += FStringView(FUTF32ToTCHAR(&Utf32Str, /* Len */ 1).Get());
 		}
 		else // unhandled escape sequence
 		{
@@ -478,6 +469,16 @@ bool FParse::QuotedString( const TCHAR* Buffer, FString& Value, int32* OutNumCha
 	}
 
 	return true;
+}
+
+bool FParse::QuotedString( const TCHAR* Buffer, FString& Value, int32* OutNumCharsRead )
+{
+	return ParseQuotedString(Buffer, Value, OutNumCharsRead);
+}
+
+bool FParse::QuotedString( const TCHAR* Buffer, FStringBuilderBase& Value, int32* OutNumCharsRead )
+{
+	return ParseQuotedString(Buffer, Value, OutNumCharsRead);
 }
 
 // 

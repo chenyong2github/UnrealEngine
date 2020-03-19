@@ -1489,6 +1489,7 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 
 	GroomAsset->HairGroupsInfo.Reset();
 	GroomAsset->HairGroupsData.Reset();
+	GroomAsset->HairGroupsPhysics.Reset();
 
 	for (TPair<int32, FProcessedHairDescription::FHairGroup> HairGroupIt : ProcessedHairDescription.HairGroups)
 	{
@@ -1498,6 +1499,7 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, const FG
 
 		GroomAsset->HairGroupsInfo.Add(MoveTemp(GroupInfo));
 		GroomAsset->HairGroupsData.Add(MoveTemp(GroupData));
+		GroomAsset->HairGroupsPhysics.Add(FHairGroupsPhysics());
 	}
 
 	// If there's usable closest guides and guide weights attributes, fill them into the asset

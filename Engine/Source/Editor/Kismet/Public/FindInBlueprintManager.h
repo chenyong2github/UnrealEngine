@@ -742,6 +742,9 @@ protected:
 	/** Returns the next pending search data for the given query and advances the index to the next entry */
 	FSearchData GetNextSearchDataForQuery(FActiveSearchQueryPtr InSearchQueryPtr, bool bCheckDeferredList);
 
+	/** If searches are paused, blocks the calling thread until searching is resumed */
+	void BlockSearchQueryIfPaused();
+
 private:
 	/** Maps the Blueprint paths to their index in the SearchArray */
 	TMap<FName, int32> SearchMap;

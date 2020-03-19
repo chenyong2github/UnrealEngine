@@ -342,7 +342,7 @@ namespace FMatineeUtils
 
 			if (InPropertyName.Split(TEXT("."), &CompString, &PropString))
 			{
-				if (FStructProperty* StructProp = FindField<FStructProperty>(InStruct, *CompString))
+				if (FStructProperty* StructProp = FindFProperty<FStructProperty>(InStruct, *CompString))
 				{
 					// The first part of the path was a struct, look inside it
 					void* StructContainer = StructProp->ContainerPtrToValuePtr<void>(InObject);
@@ -375,7 +375,7 @@ namespace FMatineeUtils
 			else
 			{
 				// Look for the property in the current scope
-				if (FProperty* Prop = FindField<FProperty>(InStruct, *InPropertyName))
+				if (FProperty* Prop = FindFProperty<FProperty>(InStruct, *InPropertyName))
 				{
 					OutPropContainer = BasePointer;
 					OutProperty = Prop;

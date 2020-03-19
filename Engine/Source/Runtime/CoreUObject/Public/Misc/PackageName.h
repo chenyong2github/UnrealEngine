@@ -7,9 +7,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/StringFwd.h"
 
-class FStringBuilderBase;
-class FStringView;
 struct FFileStatData;
 
 class COREUOBJECT_API FPackageName
@@ -145,6 +144,7 @@ public:
 	 */
 	static bool IsShortPackageName(const FString& PossiblyLongName);
 	static bool IsShortPackageName(const FName PossiblyLongName);
+	static bool IsShortPackageName(FStringView PossiblyLongName);
 
 	/**
 	 * Converts package name to short name.
@@ -432,7 +432,10 @@ public:
 	 * @param OutObjectPath The path to the object.
 	 * @return True if the supplied export text path could be parsed
 	 */
-	static bool ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath);
+	static bool ParseExportTextPath(FStringView InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
+	static bool ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath);	
+	static bool ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
+
 
 	/** 
 	 * Returns the path to the object referred to by the supplied export text path, excluding the class name.
@@ -440,7 +443,9 @@ public:
 	 * @param InExportTextPath The export text path for an object. Takes on the form: ClassName'ObjectPath'
 	 * @return The path to the object referred to by the supplied export path.
 	 */
-	static FString ExportTextPathToObjectPath(const FString& InExportTextPath);
+	static FStringView	ExportTextPathToObjectPath(FStringView InExportTextPath);
+	static FString		ExportTextPathToObjectPath(const FString& InExportTextPath);
+	static FString		ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
 
 	/** 
 	 * Returns the name of the package referred to by the specified object path
@@ -450,7 +455,13 @@ public:
 	/** 
 	 * Returns the name of the object referred to by the specified object path
 	 */
+	static FStringView ObjectPathToObjectName(FStringView InObjectPath);
 	static FString ObjectPathToObjectName(const FString& InObjectPath);
+
+	/**
+	 * Checks the root of the package's path to see if it's an extra package
+	 */
+	static bool IsExtraPackage(const FString& InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it is a script package
@@ -500,7 +511,7 @@ public:
 	 * @param Extension The extension for this package
 	 * @return True if the long package name was fixed up, false otherwise
 	 */
-	static bool FixPackageNameCase(FString& LongPackageName, const FStringView& Extension);
+	static bool FixPackageNameCase(FString& LongPackageName, FStringView Extension);
 
 	UE_DEPRECATED(4.17, "Deprecated. Call TryConvertLongPackageNameToFilename instead, which also works on nested paths")
 	static bool ConvertRootPathToContentPath(const FString& RootPath, FString& OutContentPath);
@@ -528,7 +539,7 @@ private:
 	 * @param InFilename
 	 * @param OutPackageName Long package name.
 	 */
-	static void InternalFilenameToLongPackageName(const FStringView& InFilename, FStringBuilderBase& OutPackageName);
+	static void InternalFilenameToLongPackageName(FStringView InFilename, FStringBuilderBase& OutPackageName);
 
 	/** Event that is triggered when a new content path is mounted */
 	static FOnContentPathMountedEvent OnContentPathMountedEvent;

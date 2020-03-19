@@ -581,6 +581,7 @@ namespace ChaosTest {
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> DynParticles = SOAs.CreateDynamicParticles(NumParticles);
 		TArray<TGeometryParticleHandle<FReal, 3>*> Particles;
 		TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
  		SOAs.GetParticleHandles().AddArray(&PhysicsMaterials);
 
 		for (int32 Idx = 0; Idx < NumParticles; ++Idx)
@@ -627,7 +628,7 @@ namespace ChaosTest {
 
 			for (int32 IslandIndex = 0; IslandIndex < Graph.NumIslands(); ++IslandIndex)
 			{
-				bool bSleeped = Graph.SleepInactive(IslandIndex, PhysicsMaterials);
+				bool bSleeped = Graph.SleepInactive(IslandIndex, PhysicsMaterials, PhysicalMaterials);
 
 				if (bSleeped)
 				{

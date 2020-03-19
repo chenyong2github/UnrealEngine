@@ -75,6 +75,30 @@ USimplifyMeshToolProperties::USimplifyMeshToolProperties()
 	MaterialBoundaryConstraint = EMaterialBoundaryConstraint::Ignore;
 }
 
+void
+USimplifyMeshToolProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
+{
+	USimplifyMeshToolProperties* PropertyCache = GetPropertyCache<USimplifyMeshToolProperties>();
+
+	// MeshConstraintProperties
+	SaveRestoreProperty(PropertyCache->bPreserveSharpEdges, this->bPreserveSharpEdges, bSaving);
+	SaveRestoreProperty(PropertyCache->MeshBoundaryConstraint, this->MeshBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->GroupBoundaryConstraint, this->GroupBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->MaterialBoundaryConstraint, this->MaterialBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->bPreventNormalFlips, this->bPreventNormalFlips, bSaving);
+
+	// SimplifyMeshToolProperties
+	SaveRestoreProperty(PropertyCache->TargetMode, this->TargetMode, bSaving);
+	SaveRestoreProperty(PropertyCache->SimplifierType, this->SimplifierType, bSaving);
+	SaveRestoreProperty(PropertyCache->TargetPercentage, this->TargetPercentage, bSaving);
+	SaveRestoreProperty(PropertyCache->TargetEdgeLength, this->TargetEdgeLength, bSaving);
+	SaveRestoreProperty(PropertyCache->TargetCount, this->TargetCount, bSaving);
+	SaveRestoreProperty(PropertyCache->bDiscardAttributes, this->bDiscardAttributes, bSaving);
+	SaveRestoreProperty(PropertyCache->bShowWireframe, this->bShowWireframe, bSaving);
+	SaveRestoreProperty(PropertyCache->bShowGroupColors, this->bShowGroupColors, bSaving);
+	SaveRestoreProperty(PropertyCache->bReproject, this->bReproject, bSaving);
+}
+
 void USimplifyMeshTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
@@ -127,10 +151,12 @@ void USimplifyMeshTool::Setup()
 	}
 
 	Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
 	// initialize our properties
 	SimplifyProperties = NewObject<USimplifyMeshToolProperties>(this);
+	SimplifyProperties->RestoreProperties(this);
 	AddToolPropertySource(SimplifyProperties);
 
 	ShowGroupsWatcher.Initialize(
@@ -148,18 +174,20 @@ void USimplifyMeshTool::Setup()
 		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
 	});
 
+	UpdateVisualization();
 	Preview->InvalidateResult();
 }
 
 
 void USimplifyMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
-		ComponentTarget->SetOwnerVisibility(true);
+	SimplifyProperties->SaveProperties(this);
+	ComponentTarget->SetOwnerVisibility(true);
 	FDynamicMeshOpResult Result = Preview->Shutdown();
-		if (ShutdownType == EToolShutdownType::Accept)
-		{
+	if (ShutdownType == EToolShutdownType::Accept)
+	{
 		GenerateAsset(Result);
-		}
+	}
 }
 
 
@@ -226,7 +254,18 @@ void USimplifyMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void USimplifyMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	Preview->InvalidateResult();
+	if ( Property )
+	{
+		if ( ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(USimplifyMeshToolProperties, bShowWireframe) ) ||
+			 ( Property->GetFName() == GET_MEMBER_NAME_CHECKED(USimplifyMeshToolProperties, bShowGroupColors) ) )
+		{
+			UpdateVisualization();
+		}
+		else
+		{
+			Preview->InvalidateResult();
+		}
+	}
 }
 
 void USimplifyMeshTool::UpdateVisualization()

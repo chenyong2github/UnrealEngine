@@ -99,7 +99,7 @@ namespace UnrealGameSync
 					{
 						Log.WriteLine("Missing server settings; finding defaults.");
 						GetDefaultServerSettings(ref ServerAndPort, ref UserName, Log);
-						Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, UpdatePath);
+						Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
 					}
 
 					PerforceConnection DefaultConnection = new PerforceConnection(UserName, null, ServerAndPort);

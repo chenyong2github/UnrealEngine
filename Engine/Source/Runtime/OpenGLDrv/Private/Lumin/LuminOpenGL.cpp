@@ -88,8 +88,9 @@ void* PlatformGetWindow(FPlatformOpenGLContext* Context, void** AddParam)
 	return (void*)&Context->eglContext;
 }
 
-bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport& Viewport, uint32 BackbufferSizeX, uint32 BackbufferSizeY, bool bPresent, bool bLockToVsync, int32 SyncInterval)
+bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport& Viewport, uint32 BackbufferSizeX, uint32 BackbufferSizeY, bool bPresent, bool bLockToVsync)
 {
+	int32 SyncInterval = RHIGetSyncInterval();
 	FPlatformOpenGLContext* const Context = Viewport.GetGLContext();
 	check(Context && Context->eglContext);
 	FScopeContext ScopeContext(Context);

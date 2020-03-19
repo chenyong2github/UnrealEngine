@@ -22,10 +22,27 @@ class AActor;
 class UActorComponent;
 class UAssetUserData;
 class ULevel;
+class UWorld;
+class UPrimitiveComponent;
 
-struct FRegisterComponentContext
+class FRegisterComponentContext
 {
-	TArray<class UPrimitiveComponent*> AddPrimitiveBatches;
+public:
+	FRegisterComponentContext(UWorld* InWorld)
+		: World(InWorld)
+	{}
+
+	void AddPrimitive(UPrimitiveComponent* PrimitiveComponent)
+	{
+		checkSlow(!AddPrimitiveBatches.Contains(PrimitiveComponent));
+		AddPrimitiveBatches.Add(PrimitiveComponent);
+	}
+
+	void Process();
+
+private:
+	UWorld* World;
+	TArray<UPrimitiveComponent*> AddPrimitiveBatches;
 };
 
 #if WITH_EDITOR
@@ -881,7 +898,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components", meta=(Keywords = "Delete", HidePin="Object", DefaultToSelf="Object", DisplayName = "DestroyComponent", ScriptName = "DestroyComponent"))
 	void K2_DestroyComponent(UObject* Object);
 
-	/** Unregisters and immediately re-registers component.  Handles bWillReregister properly. */
+	/** Unregisters and immediately re-registers component. */
 	void ReregisterComponent();
 
 	/** Changes the ticking group for this component */

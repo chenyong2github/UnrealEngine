@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -105,8 +106,8 @@ namespace UnrealGameSync
 		const string VersionHeaderFileName = "/Engine/Source/Runtime/Launch/Resources/Version.h";
 		const string ObjectVersionFileName = "/Engine/Source/Runtime/Core/Private/UObject/ObjectVersion.cpp";
 
-		readonly string LocalVersionHeaderFileName = VersionHeaderFileName.Replace('/', '\\');
-		readonly string LocalObjectVersionFileName = ObjectVersionFileName.Replace('/', '\\');
+		static readonly string LocalVersionHeaderFileName = VersionHeaderFileName.Replace('/', '\\');
+		static readonly string LocalObjectVersionFileName = ObjectVersionFileName.Replace('/', '\\');
 
 		public readonly PerforceConnection Perforce;
 		public readonly string LocalRootPath;
@@ -161,11 +162,43 @@ namespace UnrealGameSync
 			}
 		}
 
+		class SyncBatchBuilder
+		{
+			public int MaxCommandsPerList { get; }
+			public long MaxSizePerList { get; }
+			public Queue<List<string>> Batches { get; }
+
+			List<string> Commands;
+			long Size;
+
+			public SyncBatchBuilder(int MaxCommandsPerList, long MaxSizePerList)
+			{
+				this.MaxCommandsPerList = MaxCommandsPerList;
+				this.MaxSizePerList = MaxSizePerList;
+				this.Batches = new Queue<List<string>>();
+			}
+
+			public void Add(string NewCommand, long NewSize)
+			{
+				if (Commands == null || Commands.Count >= MaxCommandsPerList || Size + NewSize >= MaxSizePerList)
+				{
+					Commands = new List<string>();
+					Batches.Enqueue(Commands);
+					Size = 0;
+				}
+
+				Commands.Add(NewCommand);
+				Size += NewSize;
+			}
+		}
+
 		class SyncTree
 		{
 			public bool bCanUseWildcard;
+			public int TotalIncludedFiles;
+			public long TotalSize;
 			public int TotalExcludedFiles;
-			public HashSet<string> IncludedFiles = new HashSet<string>();
+			public Dictionary<string, long> IncludedFiles = new Dictionary<string, long>();
 			public Dictionary<string, SyncTree> NameToSubTree = new Dictionary<string, SyncTree>(StringComparer.OrdinalIgnoreCase);
 
 			public SyncTree(bool bCanUseWildcard)
@@ -184,18 +217,20 @@ namespace UnrealGameSync
 				return Result;
 			}
 
-			public void IncludeFile(string Path)
+			public void IncludeFile(string Path, long Size)
 			{
 				int Idx = Path.IndexOf('/');
 				if (Idx == -1)
 				{
-					IncludedFiles.Add(Path);
+					IncludedFiles.Add(Path, Size);
 				}
 				else
 				{
 					SyncTree SubTree = FindOrAddSubTree(Path.Substring(0, Idx));
-					SubTree.IncludeFile(Path.Substring(Idx + 1));
+					SubTree.IncludeFile(Path.Substring(Idx + 1), Size);
 				}
+				TotalIncludedFiles++;
+				TotalSize += Size;
 			}
 
 			public void ExcludeFile(string Path)
@@ -209,21 +244,21 @@ namespace UnrealGameSync
 				TotalExcludedFiles++;
 			}
 
-			public void GetOptimizedSyncCommands(string Prefix, int ChangeNumber, SortedSet<string> SyncCommands)
+			public void GetOptimizedSyncCommands(string Prefix, int ChangeNumber, SyncBatchBuilder Builder)
 			{
-				if (bCanUseWildcard && TotalExcludedFiles == 0)
+				if (bCanUseWildcard && TotalExcludedFiles == 0 && TotalSize < Builder.MaxSizePerList)
 				{
-					SyncCommands.Add(String.Format("{0}/...@{1}", Prefix, ChangeNumber));
+					Builder.Add(String.Format("{0}/...@{1}", Prefix, ChangeNumber), TotalSize);
 				}
 				else
 				{
-					foreach(string File in IncludedFiles)
+					foreach (KeyValuePair<string, long> File in IncludedFiles)
 					{
-						SyncCommands.Add(String.Format("{0}/{1}@{2}", Prefix, File, ChangeNumber));
+						Builder.Add(String.Format("{0}/{1}@{2}", Prefix, File.Key, ChangeNumber), File.Value);
 					}
 					foreach (KeyValuePair<string, SyncTree> Pair in NameToSubTree)
 					{
-						Pair.Value.GetOptimizedSyncCommands(String.Format("{0}/{1}", Prefix, PerforceUtils.EscapePath(Pair.Key)), ChangeNumber, SyncCommands);
+						Pair.Value.GetOptimizedSyncCommands(String.Format("{0}/{1}", Prefix, PerforceUtils.EscapePath(Pair.Key)), ChangeNumber, Builder);
 					}
 				}
 			}
@@ -506,25 +541,28 @@ namespace UnrealGameSync
 
 					// Create a tree to store the sync path
 					SyncTree SyncTree = new SyncTree(false);
-					foreach (string RelativeSyncPath in RelativeSyncPaths)
+					if (!Context.Options.HasFlag(WorkspaceUpdateOptions.SyncSingleChange))
 					{
-						const string WildcardSuffix = "/...";
-						if (RelativeSyncPath.EndsWith(WildcardSuffix, StringComparison.Ordinal))
+						foreach (string RelativeSyncPath in RelativeSyncPaths)
 						{
-							SyncTree Leaf = SyncTree;
-
-							string[] Fragments = RelativeSyncPath.Split('/');
-							for (int Idx = 1; Idx < Fragments.Length - 1; Idx++)
+							const string WildcardSuffix = "/...";
+							if (RelativeSyncPath.EndsWith(WildcardSuffix, StringComparison.Ordinal))
 							{
-								Leaf = Leaf.FindOrAddSubTree(Fragments[Idx]);
-							}
+								SyncTree Leaf = SyncTree;
 
-							Leaf.bCanUseWildcard = true;
+								string[] Fragments = RelativeSyncPath.Split('/');
+								for (int Idx = 1; Idx < Fragments.Length - 1; Idx++)
+								{
+									Leaf = Leaf.FindOrAddSubTree(Fragments[Idx]);
+								}
+
+								Leaf.bCanUseWildcard = true;
+							}
 						}
 					}
 
 					// Find all the server changes, and anything that's opened for edit locally. We need to sync files we have open to schedule a resolve.
-					SortedSet<string> SyncCommands = new SortedSet<string>(StringComparer.Ordinal);
+					SyncBatchBuilder BatchBuilder = new SyncBatchBuilder(200, 100 * 1024 * 1024);
 					List<string> SyncDepotPaths = new List<string>();
 					using(RecordCounter Counter = new RecordCounter(Progress, "Filtering files..."))
 					{
@@ -551,7 +589,7 @@ namespace UnrealGameSync
 								// If it doesn't exist locally, just add a sync command for it
 								if (String.IsNullOrEmpty(SyncRecord.ClientPath))
 								{
-									SyncCommands.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, PendingChangeNumber));
+									BatchBuilder.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, PendingChangeNumber), SyncRecord.FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
 									continue;
 								}
@@ -572,7 +610,7 @@ namespace UnrealGameSync
 								// Make sure it's under the current directory. Not sure why this would happen, just being safe.
 								if (!FullName.StartsWith(LocalRootPrefix, StringComparison.OrdinalIgnoreCase))
 								{
-									SyncCommands.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, PendingChangeNumber));
+									BatchBuilder.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, PendingChangeNumber), SyncRecord.FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
 									continue;
 								}
@@ -581,7 +619,7 @@ namespace UnrealGameSync
 								string RelativePath = FullName.Substring(LocalRootPrefix.Length).Replace('\\', '/');
 								if (Filter.Matches(RelativePath))
 								{
-									SyncTree.IncludeFile(RelativePath);
+									SyncTree.IncludeFile(RelativePath, SyncRecord.FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
 								}
 								else
@@ -591,13 +629,13 @@ namespace UnrealGameSync
 							}
 						}
 					}
-					SyncTree.GetOptimizedSyncCommands(ClientRootPath, PendingChangeNumber, SyncCommands);
+					SyncTree.GetOptimizedSyncCommands(ClientRootPath, PendingChangeNumber, BatchBuilder);
 
 					// Find all the depot paths that will be synced
 					HashSet<string> RemainingDepotPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 					RemainingDepotPaths.UnionWith(SyncDepotPaths);
 
-					WorkspaceUpdateResult SyncResult = SyncFileRevisions("Syncing files...", Context, SyncCommands.ToList(), RemainingDepotPaths, out StatusMessage);
+					WorkspaceUpdateResult SyncResult = SyncFileRevisions("Syncing files...", Context, BatchBuilder.Batches, RemainingDepotPaths, out StatusMessage);
 					if(SyncResult != WorkspaceUpdateResult.Success)
 					{
 						return SyncResult;
@@ -1182,13 +1220,135 @@ namespace UnrealGameSync
 			return bMatch;
 		}
 
+		class SyncState
+		{
+			public int TotalDepotPaths;
+			public HashSet<string> RemainingDepotPaths;
+			public Queue<List<string>> SyncCommandLists;
+			public string StatusMessage;
+			public WorkspaceUpdateResult Result = WorkspaceUpdateResult.Success;
+		}
+
 		WorkspaceUpdateResult SyncFileRevisions(string Prefix, WorkspaceUpdateContext Context, List<string> SyncCommands, HashSet<string> RemainingDepotPaths, out string StatusMessage)
 		{
-			int TotalDepotPaths = RemainingDepotPaths.Count;
+			Queue<List<string>> SyncCommandLists = new Queue<List<string>>();
+			SyncCommandLists.Enqueue(SyncCommands);
+			return SyncFileRevisions(Prefix, Context, SyncCommandLists, RemainingDepotPaths, out StatusMessage);
+		}
 
+		WorkspaceUpdateResult SyncFileRevisions(string Prefix, WorkspaceUpdateContext Context, Queue<List<string>> SyncCommandLists, HashSet<string> RemainingDepotPaths, out string StatusMessage)
+		{
+			// Figure out the number of additional background threads we want to run with. We can run worker on the current thread.
+			int NumExtraThreads = Math.Max(Math.Min(SyncCommandLists.Count, Context.PerforceSyncOptions.NumThreads) - 1, 0);
+
+			List<Thread> ChildThreads = new List<Thread>(NumExtraThreads);
+			try
+			{
+				// Create the state object shared by all the worker threads
+				SyncState State = new SyncState();
+				State.TotalDepotPaths = RemainingDepotPaths.Count;
+				State.RemainingDepotPaths = RemainingDepotPaths;
+				State.SyncCommandLists = SyncCommandLists;
+
+				// Wrapper writer around the log class to prevent multiple threads writing to it at once
+				ThreadSafeTextWriter LogWrapper = new ThreadSafeTextWriter(Log);
+
+				// Delegate for updating the sync state after a file has been synced
+				Action<PerforceFileRecord, LineBasedTextWriter> SyncOutput = (Record, LocalLog) => { UpdateSyncState(Prefix, Record, State, Progress, LocalLog); };
+
+				// Create all the child threads
+				for (int ThreadIdx = 0; ThreadIdx < NumExtraThreads; ThreadIdx++)
+				{
+					int ThreadNumber = ThreadIdx + 2;
+					Thread ChildThread = new Thread(() => StaticSyncWorker(ThreadNumber, Perforce, PendingChangeNumber, Context, State, SyncOutput, LogWrapper));
+					ChildThreads.Add(ChildThread);
+					ChildThread.Start();
+				}
+
+				// Run one worker on the current thread
+				StaticSyncWorker(1, Perforce, PendingChangeNumber, Context, State, SyncOutput, LogWrapper);
+
+				// Wait for all the background threads to finish
+				foreach (Thread ChildThread in ChildThreads)
+				{
+					ChildThread.Join();
+				}
+
+				// Return the result that was set on the state object
+				StatusMessage = State.StatusMessage;
+				return State.Result;
+			}
+			finally
+			{
+				foreach (Thread ChildThread in ChildThreads)
+				{
+					ChildThread.Abort();
+				}
+				foreach (Thread ChildThread in ChildThreads)
+				{
+					ChildThread.Join();
+				}
+			}
+		}
+
+		static void UpdateSyncState(string Prefix, PerforceFileRecord Record, SyncState State, ProgressValue Progress, TextWriter Log)
+		{
+			lock (State)
+			{
+				State.RemainingDepotPaths.Remove(Record.DepotPath);
+
+				string Message = String.Format("{0} ({1}/{2})", Prefix, State.TotalDepotPaths - State.RemainingDepotPaths.Count, State.TotalDepotPaths);
+				float Fraction = Math.Min((float)(State.TotalDepotPaths - State.RemainingDepotPaths.Count) / (float)State.TotalDepotPaths, 1.0f);
+				Progress.Set(Message, Fraction);
+
+				Log.WriteLine("p4>   {0} {1}", Record.Action, Record.ClientPath);
+			}
+		}
+
+		static void StaticSyncWorker(int ThreadNumber, PerforceConnection Perforce, int PendingChangeNumber, WorkspaceUpdateContext Context, SyncState State, Action<PerforceFileRecord, LineBasedTextWriter> SyncOutput, LineBasedTextWriter GlobalLog)
+		{
+			PrefixedTextWriter ThreadLog = new PrefixedTextWriter(String.Format("{0}:", ThreadNumber), GlobalLog);
+			for (; ; )
+			{
+				// Remove the next batch that needs to be synced
+				List<string> SyncCommands;
+				lock (State)
+				{
+					if (State.Result == WorkspaceUpdateResult.Success && State.SyncCommandLists.Count > 0)
+					{
+						SyncCommands = State.SyncCommandLists.Dequeue();
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				// Sync the files
+				string StatusMessage;
+				WorkspaceUpdateResult Result = StaticSyncFileRevisions(Perforce, PendingChangeNumber, Context, SyncCommands, Record => SyncOutput(Record, ThreadLog), ThreadLog, out StatusMessage);
+
+				// If it failed, try to set it on the state if nothing else has failed first
+				if (Result != WorkspaceUpdateResult.Success)
+				{
+					lock (State)
+					{
+						if (State.Result == WorkspaceUpdateResult.Success)
+						{
+							State.Result = Result;
+							State.StatusMessage = StatusMessage;
+						}
+					}
+					break;
+				}
+			}
+		}
+
+		static WorkspaceUpdateResult StaticSyncFileRevisions(PerforceConnection Perforce, int PendingChangeNumber, WorkspaceUpdateContext Context, List<string> SyncCommands, Action<PerforceFileRecord> SyncOutput, TextWriter Log, out string StatusMessage)
+		{
 			// Sync them all
 			List<string> TamperedFiles = new List<string>();
-			if(!Perforce.Sync(SyncCommands, Record => UpdateSyncProgress(Prefix, Record, RemainingDepotPaths, TotalDepotPaths), TamperedFiles, false, Context.PerforceSyncOptions, Log))
+			if(!Perforce.Sync(SyncCommands, SyncOutput, TamperedFiles, false, Context.PerforceSyncOptions, Log))
 			{
 				StatusMessage = "Aborted sync due to errors.";
 				return WorkspaceUpdateResult.FailedToSync;
@@ -1234,24 +1394,22 @@ namespace UnrealGameSync
 		static ConfigFile ReadProjectConfigFile(string LocalRootPath, string SelectedLocalFileName, TextWriter Log)
 		{
 			// Find the valid config file paths
-			List<string> ProjectConfigFileNames = Utility.GetConfigFileLocations(LocalRootPath, SelectedLocalFileName, Path.DirectorySeparatorChar);
+			DirectoryInfo EngineDir = new DirectoryInfo(Path.Combine(LocalRootPath, "Engine"));
+			List<FileInfo> LocalConfigFiles = Utility.GetLocalConfigPaths(EngineDir, new FileInfo(SelectedLocalFileName));
 
 			// Read them in
 			ConfigFile ProjectConfig = new ConfigFile();
-			foreach(string ProjectConfigFileName in ProjectConfigFileNames)
+			foreach(FileInfo LocalConfigFile in LocalConfigFiles)
 			{
-				if(File.Exists(ProjectConfigFileName))
+				try
 				{
-					try
-					{
-						string[] Lines = File.ReadAllLines(ProjectConfigFileName);
-						ProjectConfig.Parse(Lines);
-						Log.WriteLine("Read config file from {0}", ProjectConfigFileName);
-					}
-					catch(Exception Ex)
-					{
-						Log.WriteLine("Failed to read config file from {0}: {1}", ProjectConfigFileName, Ex.ToString());
-					}
+					string[] Lines = File.ReadAllLines(LocalConfigFile.FullName);
+					ProjectConfig.Parse(Lines);
+					Log.WriteLine("Read config file from {0}", LocalConfigFile.FullName);
+				}
+				catch(Exception Ex)
+				{
+					Log.WriteLine("Failed to read config file from {0}: {1}", LocalConfigFile.FullName, Ex.ToString());
 				}
 			}
 			return ProjectConfig;
@@ -1314,17 +1472,6 @@ namespace UnrealGameSync
 				UnresolvedFiles.AddRange(Records);
 			}
 			return true;
-		}
-
-		void UpdateSyncProgress(string Prefix, PerforceFileRecord Record, HashSet<string> RemainingFiles, int NumFiles)
-		{
-			RemainingFiles.Remove(Record.DepotPath);
-
-			string Message = String.Format("{0} ({1}/{2})", Prefix, NumFiles - RemainingFiles.Count, NumFiles);
-			float Fraction = Math.Min((float)(NumFiles - RemainingFiles.Count) / (float)NumFiles, 1.0f);
-			Progress.Set(Message, Fraction);
-
-			Log.WriteLine("p4>   {0} {1}", Record.Action, Record.ClientPath);
 		}
 
 		bool UpdateVersionFile(string ClientPath, Dictionary<string, string> VersionStrings, int ChangeNumber)

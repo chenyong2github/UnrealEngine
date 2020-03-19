@@ -281,8 +281,7 @@ public:
 			if (ScratchPadScriptViewModel.IsValid())
 			{
 				NewModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(ScratchPadScriptViewModel->GetOriginalScript(), *OutputNode, TargetIndex);
-				SystemViewModel.Pin()->FocusTab(FNiagaraSystemToolkit::ScratchPadTabID);
-				SystemViewModel.Pin()->GetScriptScratchPadViewModel()->SetActiveScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
+				SystemViewModel.Pin()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
 				ScratchPadScriptViewModel->SetIsPendingRename(true);
 			}
 		}
@@ -379,19 +378,30 @@ bool UNiagaraStackScriptItemGroup::TestCanPasteWithMessage(const UNiagaraClipboa
 {
 	if (ClipboardContent->Functions.Num() > 0)
 	{
+		bool bValidFunction = false;
 		bool bValidUsage = false;
 		UNiagaraNodeOutput* OutputNode = GetScriptOutputNode();
 		for (const UNiagaraClipboardFunction* Function : ClipboardContent->Functions)
 		{
-			if (Function->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset)
+			if (Function == nullptr)
 			{
-				if (Function != nullptr && Function->Script != nullptr && Function->Script->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
+				continue;
+			}
+			else if (Function->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset)
+			{
+				UNiagaraScript* ClipboardFunctionScript = Function->Script.Get();
+				if (ClipboardFunctionScript != nullptr)
 				{
-					bValidUsage = true;
+					bValidFunction = true;
+					if (ClipboardFunctionScript->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
+					{
+						bValidUsage = true;
+					}
 				}
 			}
 			else if (Function->ScriptMode == ENiagaraClipboardFunctionScriptMode::Assignment)
 			{
+				bValidFunction = true;
 				for (const FNiagaraVariable& AssignmentTarget : Function->AssignmentTargets)
 				{
 					if (FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(AssignmentTarget, OutputNode->GetUsage()))
@@ -402,14 +412,22 @@ bool UNiagaraStackScriptItemGroup::TestCanPasteWithMessage(const UNiagaraClipboa
 				}
 			}
 		}
-		if (bValidUsage)
+
+		if (bValidFunction && bValidUsage)
 		{
-			OutMessage = LOCTEXT("PasteModules", "Paste modules from the clipboard which have a valid usage.");
+			OutMessage = LOCTEXT("PasteModules", "Paste modules from the clipboard which have valid function scripts and valid usage.");
 			return true;
 		}
 		else
 		{
-			OutMessage = LOCTEXT("CantPasteModulesForUsage", "Can't paste the copied modules because they don't support the correct usage.");
+			if (bValidFunction == false)
+			{
+				OutMessage = LOCTEXT("CantPasteModulesInvalidFunction", "Can't paste the copied modules because they don't references scripts which are still valid.");
+			}
+			else
+			{
+				OutMessage = LOCTEXT("CantPasteModulesForUsage", "Can't paste the copied modules because they don't support the correct usage.");
+			}
 			return false;
 		}
 	}
@@ -462,6 +480,7 @@ void UNiagaraStackScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 				ModuleItem->OnModifiedGroupItems().AddUObject(this, &UNiagaraStackScriptItemGroup::ChildModifiedGroupItems);
 				ModuleItem->SetOnRequestCanPaste(UNiagaraStackModuleItem::FOnRequestCanPaste::CreateUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestCanPaste));
 				ModuleItem->SetOnRequestPaste(UNiagaraStackModuleItem::FOnRequestPaste::CreateUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestPaste));
+				ModuleItem->SetOnRequestDeprecationRecommended(UNiagaraStackModuleItem::FOnRequestDeprecationRecommended::CreateUObject(this, &UNiagaraStackScriptItemGroup::ChildRequestDeprecatedRecommendation));
 			}
 
 			NewChildren.Add(ModuleItem);
@@ -1014,6 +1033,44 @@ void UNiagaraStackScriptItemGroup::ChildRequestPaste(const UNiagaraClipboardCont
 	PasteModules(ClipboardContent, PasteIndex, OutPasteWarning);
 }
 
+void UNiagaraStackScriptItemGroup::ChildRequestDeprecatedRecommendation(UNiagaraStackModuleItem* TargetChild)
+{
+
+	FScopedTransaction ScopedTransaction(LOCTEXT("UpdateDeprecatedScript", "Update module script to new version"));
+
+	UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+	TargetChild->GetModuleNode().GetNiagaraGraph()->Modify();
+	TargetChild->GetModuleNode().Modify();
+	Modify();
+	TargetChild->Modify();
+
+	// Step 1: Make a copy of the existing node so that we can perform surgery on it to update.
+	UNiagaraScript* TargetScript = TargetChild->GetModuleNode().FunctionScript->DeprecationRecommendation;
+	TargetChild->Copy(ClipboardContent);
+
+	// Step 2: Disable the old master so that end users can use it as reference and inheritance isn't wiped out.
+	//TargetChild->Rename();
+	//TargetChild->GetModuleNode().SuggestName(TEXT("Deprecated Original " + TargetChild->GetModuleNode().GetFunctionName()), true);
+	TargetChild->OnRenamed(FText::Format(LOCTEXT("NewDeprecationName", "Deprecated Original {0}"), TargetChild->GetDisplayName()));
+	TargetChild->SetEnabled(false);
+
+	// Step 3: Paste in the copy
+	FText PasteWarning;
+	int32 NewChildIdx = TargetChild->GetModuleIndex() + 1;
+	PasteModules(ClipboardContent, TargetChild->GetModuleIndex() + 1, PasteWarning);
+	RefreshChildren();
+
+	// Step 4: convert new copy in place to suggested script.
+	TArray<UNiagaraStackModuleItem*> ModuleItems;
+	GetUnfilteredChildrenOfType(ModuleItems);
+
+	if (ModuleItems.Num() > NewChildIdx)
+	{
+		ModuleItems[NewChildIdx]->ReassignModuleScript(TargetScript);
+	}
+	//
+}
+
 void UNiagaraStackScriptItemGroup::OnScriptGraphChanged(const struct FEdGraphEditAction& InAction)
 {
 	if (InAction.Action == GRAPHACTION_RemoveNode)
@@ -1054,7 +1111,7 @@ void RenameInputsFromClipboard(TMap<FName, FName> OldModuleOutputNameToNewModule
 		}
 		else if (SourceInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::Dynamic)
 		{
-			const UNiagaraClipboardFunctionInput* RenamedDynamicInput = UNiagaraClipboardFunctionInput::CreateDynamicValue(InOuter, SourceInput->InputName, SourceInput->InputType, bEditConditionValue, SourceInput->Dynamic->FunctionName, SourceInput->Dynamic->Script);
+			const UNiagaraClipboardFunctionInput* RenamedDynamicInput = UNiagaraClipboardFunctionInput::CreateDynamicValue(InOuter, SourceInput->InputName, SourceInput->InputType, bEditConditionValue, SourceInput->Dynamic->FunctionName, SourceInput->Dynamic->Script.Get());
 			RenameInputsFromClipboard(OldModuleOutputNameToNewModuleOutputNameMap, RenamedDynamicInput->Dynamic, SourceInput->Dynamic->Inputs, RenamedDynamicInput->Dynamic->Inputs);
 			OutRenamedInputs.Add(RenamedDynamicInput);
 		}
@@ -1105,12 +1162,22 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 			}
 			case ENiagaraClipboardFunctionScriptMode::ScriptAsset:
 			{
-				if (ClipboardFunction->Script->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
+				UNiagaraScript* ClipboardFunctionScript = ClipboardFunction->Script.Get();
+				if (ClipboardFunctionScript != nullptr && ClipboardFunctionScript->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
 				{
-					UNiagaraScript* ClipboardScript = ClipboardFunction->Script->IsAsset()
-						? ClipboardFunction->Script
-						: GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunction->Script)->GetOriginalScript();
-					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(ClipboardFunction->Script, *OutputNode, CurrentPasteIndex);
+					UNiagaraScript* NewFunctionScript;
+					if (ClipboardFunctionScript->IsAsset() ||
+						GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(ClipboardFunctionScript).IsValid())
+					{
+						// If the clipboard script is an asset, or it's in the scratch pad of the current asset, it can be used directly.
+						NewFunctionScript = ClipboardFunctionScript;
+					}
+					else
+					{
+						// Otherwise it's a scratch pad script from another asset so we need to add a duplicate scratch pad script to this asset.
+						NewFunctionScript = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionScript)->GetOriginalScript();
+					}
+					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(NewFunctionScript, *OutputNode, CurrentPasteIndex);
 				}
 				else
 				{
@@ -1158,6 +1225,11 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 				FunctionInputs = ClipboardFunction->Inputs;
 			}
 			(*NewModuleItemPtr)->SetInputValuesFromClipboardFunctionInputs(FunctionInputs);
+
+			if (!ClipboardFunction->DisplayName.IsEmptyOrWhitespace())
+			{
+				(*NewModuleItemPtr)->OnRenamed(ClipboardFunction->DisplayName);
+			}
 		}
 	}
 

@@ -29,7 +29,6 @@ const uint32 NIAGARA_MAX_COMPUTE_THREADGROUPS = 65535;
 
 /** The maximum number of spawn infos we can run on the GPU, modifying this will require a version update as it is used in the shader compiler  */
 constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
-constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS_V4 = (NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4;
 
 /** TickGroup information for Niagara.  */
 constexpr ETickingGroup NiagaraFirstTickGroup = TG_PrePhysics;
@@ -52,6 +51,7 @@ enum class ENiagaraTickBehavior : uint8
 
 enum ENiagaraBaseTypes
 {
+	NBT_Half,
 	NBT_Float,
 	NBT_Int32,
 	NBT_Bool,
@@ -547,14 +547,14 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 {
 	GENERATED_BODY()
 
-	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit) :bDestroyOnAdd(false), bOnlyActive(false) { Add(System, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive) { Add(System, bReInit); }
 #if WITH_EDITORONLY_DATA
-	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit) : bDestroyOnAdd(false), bOnlyActive(false) { Add(Emitter, bReInit); }
-	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit) :bDestroyOnAdd(false), bOnlyActive(false) { Add(Script, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive)  { Add(Emitter, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive)  { Add(Script, bReInit); }
 	//FNiagaraSystemUpdateContext(UNiagaraDataInterface* Interface, bool bReinit) : Add(Interface, bReinit) {}
-	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit) :bDestroyOnAdd(false), bOnlyActive(false) { Add(Collection, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive) { Add(Collection, bReInit); }
 #endif
-	FNiagaraSystemUpdateContext():bDestroyOnAdd(false){ }
+	FNiagaraSystemUpdateContext():bDestroyOnAdd(false), bOnlyActive(false){ }
 
 	~FNiagaraSystemUpdateContext();
 
@@ -829,4 +829,61 @@ enum class ENiagaraLegacyTrailWidthMode : uint32
 	FromCentre,
 	FromFirst,
 	FromSecond,
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+/// FNiagaraCompiledDataReference
+//////////////////////////////////////////////////////////////////////////
+
+// Simple struct intended to hide the details of passing a reference to compiled data.  In
+// particular for editor builds it will actually make a copy of the data to help try to avoid the many
+// edge cases of recompiling/editing, while regular builds can reap the wins of just referencing the data
+// and saving memory.
+template<typename T>
+struct FNiagaraCompiledDataReference
+{
+public:
+	void Init(const T* SourceValue)
+	{
+#if WITH_EDITOR
+		OptionalStructValue = *SourceValue;
+#else
+		StructPtr = SourceValue;
+#endif
+	}
+
+	const T* operator->() const
+	{
+		return Get();
+	}
+
+	const T* Get() const
+	{
+#if WITH_EDITOR
+		if (OptionalStructValue.IsSet())
+		{
+			return &OptionalStructValue.GetValue();
+		}
+		return nullptr;
+#else
+		return StructPtr;
+#endif
+	}
+
+	void Reset()
+	{
+#if WITH_EDITOR
+		OptionalStructValue.Reset();
+#else
+		StructPtr = nullptr;
+#endif
+	}
+
+private:
+#if WITH_EDITOR
+	TOptional<T> OptionalStructValue;
+#else
+	const T* StructPtr = nullptr;
+#endif
 };

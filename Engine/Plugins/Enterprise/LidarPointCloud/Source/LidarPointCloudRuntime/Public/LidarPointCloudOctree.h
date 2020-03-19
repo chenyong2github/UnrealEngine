@@ -312,6 +312,9 @@ public:
 	/** Sets visibility of points within the given box. */
 	void SetVisibilityOfPointsInBox(const bool& bNewVisibility, const FBox& Box);
 
+	/** Sets visibility of the first point hit by the given ray. */
+	void SetVisibilityOfFirstPointByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius);
+
 	/** Sets visibility of points hit by the given ray. */
 	void SetVisibilityOfPointsByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius);
 
@@ -330,6 +333,9 @@ public:
 	/** Executes the provided action on each of the points within the given box. */
 	void ExecuteActionOnPointsInBox(TFunction<void(FLidarPointCloudPoint*)> Action, const FBox& Box, const bool& bVisibleOnly);
 
+	/** Executes the provided action on the first point hit by the given ray. */
+	void ExecuteActionOnFirstPointByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly);
+
 	/** Executes the provided action on each of the points hit by the given ray. */
 	void ExecuteActionOnPointsByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly);
 
@@ -341,6 +347,9 @@ public:
 
 	/** Applies the given color to all points within the box */
 	void ApplyColorToPointsInBox(const FColor& NewColor, const FBox& Box, const bool& bVisibleOnly);
+
+	/** Applies the given color to the first point hit by the given ray */
+	void ApplyColorToFirstPointByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly);
 
 	/** Applies the given color to all points hit by the given ray */
 	void ApplyColorToPointsByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly);
@@ -516,4 +525,5 @@ struct FLidarPointCloudTraversalOctree
 	void GetVisibleNodes(TArray<FLidarPointCloudLODManager::FNodeSizeData>& NodeSizeData, const FLidarPointCloudViewData& ViewData, const int32& ProxyIndex, const FLidarPointCloudNodeSelectionParams& SelectionParams, const float& CurrentTime);
 
 	FVector GetCenter() const { return Root.Center; }
+	FVector GetExtent() const { return Extents[0]; }
 };

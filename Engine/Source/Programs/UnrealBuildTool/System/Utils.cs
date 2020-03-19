@@ -1246,5 +1246,53 @@ namespace UnrealBuildTool
 			}
 			return CommandLine.ToString();
 		}
+
+		/// <summary>
+		/// Writes a file if the contents have changed
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">New contents of the file</param>
+		/// <param name="Comparison">The type of string comparison to use</param>
+		public static void WriteFileIfChanged(FileReference Location, string Contents, StringComparison Comparison)
+		{
+			// Only write the file if its contents have changed.
+			if (!FileReference.Exists(Location))
+			{
+				DirectoryReference.CreateDirectory(Location.Directory);
+				FileReference.WriteAllText(Location, Contents, GetEncodingForString(Contents));
+			}
+			else
+			{
+				string CurrentContents = Utils.ReadAllText(Location.FullName);
+				if (!String.Equals(CurrentContents, Contents, Comparison))
+				{
+					FileReference BackupFile = new FileReference(Location.FullName + ".old");
+					try
+					{
+						Log.TraceLog("Updating {0}: contents have changed. Saving previous version to {1}.", Location, BackupFile);
+						FileReference.Delete(BackupFile);
+						FileReference.Move(Location, BackupFile);
+					}
+					catch (Exception Ex)
+					{
+						Log.TraceWarning("Unable to rename {0} to {1}", Location, BackupFile);
+						Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+					}
+					FileReference.WriteAllText(Location, Contents, GetEncodingForString(Contents));
+				}
+			}
+		}
+
+		/// <summary>
+		/// Determines the appropriate encoding for a string: either ASCII or UTF-8.
+		/// </summary>
+		/// <param name="Str">The string to test.</param>
+		/// <returns>Either System.Text.Encoding.ASCII or System.Text.Encoding.UTF8, depending on whether or not the string contains non-ASCII characters.</returns>
+		private static Encoding GetEncodingForString(string Str)
+		{
+			// If the string length is equivalent to the encoded length, then no non-ASCII characters were present in the string.
+			// Don't write BOM as it messes with clang when loading response files.
+			return (Encoding.UTF8.GetByteCount(Str) == Str.Length) ? Encoding.ASCII : new UTF8Encoding(false);
+		}
 	}
 }

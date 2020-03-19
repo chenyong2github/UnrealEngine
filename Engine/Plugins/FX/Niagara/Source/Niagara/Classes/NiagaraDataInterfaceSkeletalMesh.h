@@ -53,39 +53,15 @@ struct FSkeletalMeshSkinningDataHandle
 {
 	FSkeletalMeshSkinningDataHandle();
 	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataUsage InUsage, TSharedPtr<struct FSkeletalMeshSkinningData> InSkinningData);
-
-	FSkeletalMeshSkinningDataHandle& operator=(FSkeletalMeshSkinningDataHandle&& Other)
-	{
-		if (this != &Other)
-		{
-			Usage = Other.Usage;
-			SkinningData = Other.SkinningData;
-			Other.SkinningData = nullptr;
-		}
-		return *this;
-	}
-
-	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other)
-	{
-		Usage = Other.Usage;
-		SkinningData = Other.SkinningData;
-	}
-
+	FSkeletalMeshSkinningDataHandle(const FSkeletalMeshSkinningDataHandle& Other) = delete;
+	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other);
 	~FSkeletalMeshSkinningDataHandle();
+
+	FSkeletalMeshSkinningDataHandle& operator=(const FSkeletalMeshSkinningDataHandle& Other) = delete;
+	FSkeletalMeshSkinningDataHandle& operator=(FSkeletalMeshSkinningDataHandle&& Other);
 
 	FSkeletalMeshSkinningDataUsage Usage;
 	TSharedPtr<FSkeletalMeshSkinningData> SkinningData;
-
-private:
-
-	FSkeletalMeshSkinningDataHandle& operator=(FSkeletalMeshSkinningDataHandle& Other)
-	{
-		return *this;
-	}
-
-	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle& Other)
-	{
-	}
 };
 
 struct FSkeletalMeshSkinningData
@@ -104,6 +80,16 @@ struct FSkeletalMeshSkinningData
 	void ForceDataRefresh();
 
 	bool Tick(float InDeltaSeconds, bool bRequirePreskin = true);
+
+	FORCEINLINE void EnterRead()
+	{
+		RWGuard.ReadLock();
+	}
+
+	FORCEINLINE void ExitRead()
+	{
+		RWGuard.ReadUnlock();
+	}
 
 	FORCEINLINE int32 GetBoneCount(bool RequiresPrevious) const
 	{
@@ -181,7 +167,7 @@ private:
 
 	void UpdateBoneTransforms();
 
-	FCriticalSection CriticalSection; 
+	FRWLock RWGuard;
 	
 	TWeakObjectPtr<USkeletalMeshComponent> MeshComp;
 
@@ -445,7 +431,15 @@ struct FNDISkeletalMesh_InstanceData
 	TArray<int32> SpecificBones;
 
 	/** Name of all the sockets we use. */
-	TArray<FName> SpecificSockets;
+	//TArray<FName> SpecificSockets;
+	struct FCachedSocketInfo
+	{
+		FCachedSocketInfo() : BoneIdx(INDEX_NONE){}
+		FTransform Transform;
+		int32 BoneIdx;
+	};
+	TArray<FCachedSocketInfo> SpecificSocketInfo;
+
 	/** Bone index of the first socket, sockets are appended to the end of the bone array */
 	int32 SpecificSocketBoneOffset = 0;
 
@@ -461,8 +455,8 @@ struct FNDISkeletalMesh_InstanceData
 
 	/** True if the mesh we're using is to be rendered in unlimited bone influences mode. */
 	uint32 bUnlimitedBoneInfluences : 1;
-	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
-	FRHIShaderResourceView* MeshSkinWeightLookupBufferSrv;
+	const FSkinWeightDataVertexBuffer* MeshSkinWeightBuffer;
+	const FSkinWeightLookupVertexBuffer* MeshSkinWeightLookupBuffer;
 	uint32 MeshWeightStrideByte;
 	uint32 MeshSkinWeightIndexSizeByte;
 
@@ -503,7 +497,7 @@ struct FNDISkeletalMesh_InstanceData
 	bool HasColorData();
 };
 
-/** Data Interface allowing sampling of static meshes. */
+/** Data Interface allowing sampling of skeletal meshes. */
 UCLASS(EditInlineNew, Category = "Meshes", meta = (DisplayName = "Skeletal Mesh"))
 class NIAGARA_API UNiagaraDataInterfaceSkeletalMesh : public UNiagaraDataInterface
 {
@@ -516,9 +510,9 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Mesh used to sample from when not overridden by a source actor from the scene. Only available in editor for previewing. This is removed in cooked builds. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
-	USkeletalMesh* DefaultMesh;
+	USkeletalMesh* PreviewMesh;
 #endif
-
+	
 	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	AActor* Source;
@@ -792,8 +786,8 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 {
 	FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers;
 	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer;
-	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
-	FRHIShaderResourceView* MeshSkinWeightLookupBufferSrv;
+	const FSkinWeightDataVertexBuffer* MeshSkinWeightBuffer;
+	const FSkinWeightLookupVertexBuffer* MeshSkinWeightLookupBuffer;
 
 	bool bIsGpuUniformlyDistributedSampling;
 

@@ -609,6 +609,11 @@ SIZE_T FScene::GetSizeBytes() const
 		+ PrimitiveOctree.GetSizeBytes();
 }
 
+void FScene::OnWorldCleanup()
+{
+	UniformBuffers.Clear();
+}
+
 void FScene::CheckPrimitiveArrays(int MaxTypeOffsetIndex)
 {
 	check(Primitives.Num() == PrimitiveTransforms.Num());
@@ -885,6 +890,45 @@ FORCEINLINE static void VerifyProperPIEScene(UPrimitiveComponent* Component, UWo
 #endif
 }
 
+void FPersistentUniformBuffers::Clear()
+{
+	ViewUniformBuffer.SafeRelease();
+	InstancedViewUniformBuffer.SafeRelease();
+	DepthPassUniformBuffer.SafeRelease();
+	OpaqueBasePassUniformBuffer.SafeRelease();
+	TranslucentBasePassUniformBuffer.SafeRelease();
+	ReflectionCaptureUniformBuffer.SafeRelease();
+	CSMShadowDepthViewUniformBuffer.SafeRelease();
+	CSMShadowDepthPassUniformBuffer.SafeRelease();
+	DistortionPassUniformBuffer.SafeRelease();
+	VelocityPassUniformBuffer.SafeRelease();
+	HitProxyPassUniformBuffer.SafeRelease();
+	MeshDecalPassUniformBuffer.SafeRelease();
+	LightmapDensityPassUniformBuffer.SafeRelease();
+	DebugViewModePassUniformBuffer.SafeRelease();
+	VoxelizeVolumePassUniformBuffer.SafeRelease();
+	VoxelizeVolumeViewUniformBuffer.SafeRelease();
+	ConvertToUniformMeshPassUniformBuffer.SafeRelease();
+	CustomDepthPassUniformBuffer.SafeRelease();
+	MobileCustomDepthPassUniformBuffer.SafeRelease();
+	CustomDepthViewUniformBuffer.SafeRelease();
+	InstancedCustomDepthViewUniformBuffer.SafeRelease();
+	VirtualTextureViewUniformBuffer.SafeRelease();
+	MobileOpaqueBasePassUniformBuffer.SafeRelease();
+	MobileTranslucentBasePassUniformBuffer.SafeRelease();
+	MobileCSMShadowDepthPassUniformBuffer.SafeRelease();
+	MobileDistortionPassUniformBuffer.SafeRelease();
+
+
+	for (auto& UniformBuffer : MobileDirectionalLightUniformBuffers)
+	{
+		UniformBuffer.SafeRelease();
+	}
+	MobileSkyReflectionUniformBuffer.SafeRelease();
+#if WITH_EDITOR
+	EditorSelectionPassUniformBuffer.SafeRelease();
+#endif
+}
 void FPersistentUniformBuffers::Initialize()
 {
 	FViewUniformShaderParameters ViewUniformBufferParameters;
@@ -1239,6 +1283,8 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 		// First call for the new frame?
 		Primitive->LastSubmitTime = WorldTime;
 	}
+
+	checkf(!Primitive->SceneProxy, TEXT("Primitive has already been added to the scene!"));
 
 	// Create the primitive's scene proxy.
 	FPrimitiveSceneProxy* PrimitiveSceneProxy = Primitive->CreateSceneProxy();
@@ -4071,12 +4117,18 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 		}
 
 		// Re-add the primitive to the scene with the new transform.
-		FPrimitiveSceneInfo::AddToScene(RHICmdList, this, UpdatedSceneInfosWithStaticDrawListUpdate, true, true, bAsyncCreateLPIs);
-		FPrimitiveSceneInfo::AddToScene(RHICmdList, this, UpdatedSceneInfosWithoutStaticDrawListUpdate, false, true, bAsyncCreateLPIs);
-
-		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : UpdatedSceneInfosWithoutStaticDrawListUpdate)
+		if (UpdatedSceneInfosWithStaticDrawListUpdate.Num() > 0)
 		{
-			PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
+			FPrimitiveSceneInfo::AddToScene(RHICmdList, this, UpdatedSceneInfosWithStaticDrawListUpdate, true, true, bAsyncCreateLPIs);
+		}
+
+		if (UpdatedSceneInfosWithoutStaticDrawListUpdate.Num() > 0)
+		{
+			FPrimitiveSceneInfo::AddToScene(RHICmdList, this, UpdatedSceneInfosWithoutStaticDrawListUpdate, false, true, bAsyncCreateLPIs);
+			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : UpdatedSceneInfosWithoutStaticDrawListUpdate)
+			{
+				PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
+			}
 		}
 
 		if (AsyncCreateLightPrimitiveInteractionsTask && AsyncCreateLightPrimitiveInteractionsTask->GetTask().HasPendingPrimitives())

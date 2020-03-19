@@ -229,10 +229,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	void SetSubmixOutputVolume(const UObject* WorldContextObject, float InOutputVolume);
 
-	// Registers and unregisters buffer listeners with the submix
-	void RegisterSubmixBufferListener(ISubmixBufferListener* InBufferListener);
-	void UnregisterSubmixBufferListener(ISubmixBufferListener* InBufferListener);
-
 protected:
 
 	virtual void PostLoad() override;
@@ -281,6 +277,15 @@ public:
 
 	// Traverses parent submixes until we find a submix that specifies encoding settings.
 	const USoundfieldEncodingSettingsBase* GetEncodingSettings() const;
+
+	// This function goes through every child submix and the parent submix to ensure that they have a compatible format with this  submix's format.
+	void SanitizeLinks();
+
+protected:
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 };
 
 /**
@@ -336,6 +341,9 @@ public:
 	*/
 	bool RecurseCheckChild(const USoundSubmix* ChildSoundSubmix) const;
 
+	// This function goes through every child submix and the parent submix to ensure that they have a compatible format with this  submix's format.
+	void SanitizeLinks();
+
 	//TODO: Make this editable only if EndpointType is non-default,
 	// and filter classes based on ISoundfieldFactory::GetCustomSettingsClass().
 	UPROPERTY(EditAnywhere, Category = Endpoint)
@@ -349,4 +357,18 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Soundfield)
 	TArray<USoundfieldEffectBase*> SoundfieldEffectChain;
+
+protected:
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 };
+
+namespace SubmixUtils
+{
+	ENGINE_API bool AreSubmixFormatsCompatible(const USoundSubmixBase* ChildSubmix, const USoundSubmixBase* ParentSubmix);
+
+#if WITH_EDITOR
+	ENGINE_API void RefreshEditorForSubmix(const USoundSubmixBase* InSubmix);
+#endif
+}

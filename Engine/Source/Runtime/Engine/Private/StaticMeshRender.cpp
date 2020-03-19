@@ -42,6 +42,7 @@
 
 #include "UnrealEngine.h"
 #include "RayTracingInstance.h"
+#include "PrimitiveSceneInfo.h"
 
 /** If true, optimized depth-only index buffers are used for shadow rendering. */
 static bool GUseShadowIndexBuffer = true;
@@ -198,6 +199,12 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	bDynamicRayTracingGeometry = InComponent->bEvaluateWorldPositionOffset && MaterialRelevance.bUsesWorldPositionOffset;
 	if (IsRayTracingEnabled())
 	{
+		RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+		{
+			RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
+		}
+
 		if(bDynamicRayTracingGeometry)
 		{
 			DynamicRayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
@@ -211,14 +218,6 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 				}
 				Initializer.bAllowUpdate = true;
 				Initializer.bFastBuild = true;
-			}
-		} 
-		else
-		{
-			RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
-			for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
-			{
-				RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
 			}
 		}
 	}
@@ -302,6 +301,72 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 #endif
 
 	AddSpeedTreeWind();
+}
+
+void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue)
+{
+#if RHI_RAYTRACING
+	NewValue &= MaterialRelevance.bUsesWorldPositionOffset;
+	if (NewValue && !bDynamicRayTracingGeometry)
+	{
+		bDynamicRayTracingGeometry = true;
+		if (IsRayTracingEnabled())
+		{
+			DynamicRayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
+
+			for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+			{
+				auto& Initializer = DynamicRayTracingGeometries[LODIndex].Initializer;
+				Initializer = RenderData->LODResources[LODIndex].RayTracingGeometry.Initializer;
+				for (FRayTracingGeometrySegment& Segment : Initializer.Segments)
+				{
+					Segment.VertexBuffer = nullptr;
+				}
+				Initializer.bAllowUpdate = true;
+				Initializer.bFastBuild = true;
+			}
+
+			DynamicRayTracingGeometryVertexBuffers.AddDefaulted(DynamicRayTracingGeometries.Num());
+
+			for (int32 i = 0; i < DynamicRayTracingGeometries.Num(); i++)
+			{
+				auto& Geometry = DynamicRayTracingGeometries[i];
+				DynamicRayTracingGeometryVertexBuffers[i].Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
+				Geometry.InitResource();
+			}
+
+			if (GetPrimitiveSceneInfo())
+			{
+				GetPrimitiveSceneInfo()->bIsRayTracingStaticRelevant = IsRayTracingStaticRelevant();
+			}
+		}
+	}
+	else if (!NewValue && bDynamicRayTracingGeometry)
+	{
+		bDynamicRayTracingGeometry = false;
+		if (IsRayTracingEnabled())
+		{
+			for (auto& Geometry : DynamicRayTracingGeometries)
+			{
+				Geometry.ReleaseResource();
+			}
+
+			DynamicRayTracingGeometries.Empty();
+
+			for (auto& Buffer : DynamicRayTracingGeometryVertexBuffers)
+			{
+				Buffer.Release();
+			}
+
+			DynamicRayTracingGeometryVertexBuffers.Empty();
+
+			if (GetPrimitiveSceneInfo())
+			{
+				GetPrimitiveSceneInfo()->bIsRayTracingStaticRelevant = IsRayTracingStaticRelevant();
+			}
+		}
+	}
+#endif
 }
 
 FStaticMeshSceneProxy::~FStaticMeshSceneProxy()

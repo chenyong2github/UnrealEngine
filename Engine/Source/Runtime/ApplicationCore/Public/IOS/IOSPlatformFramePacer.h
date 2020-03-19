@@ -21,14 +21,17 @@ struct FIOSPlatformRHIFramePacer : public FGenericPlatformRHIFramePacer
 {
     // FGenericPlatformRHIFramePacer interface
     static bool IsEnabled();
-	static uint32 GetMaxRefreshRate();
+    static void Destroy();
+	static int32 SetFramePace(int32 FramePace);
+	static int32 GetFramePace();
+	static bool SupportsFramePace(int32 QueryFramePace);
+
+	// FIOSPlatformRHIFramePacer interface
 	static void InitWithEvent(class FEvent* TriggeredEvent);
 	static void AddHandler(FIOSFramePacerHandler Handler);
 	static void RemoveHandler(FIOSFramePacerHandler Handler);
-    static void Destroy();
-	static uint32 GetFramePace() { return Pace; };
+	static uint32 GetMaxRefreshRate();
 
-    
     /** Access to the IOS Frame Pacer: CADisplayLink */
     static FIOSFramePacer* FramePacer;
     

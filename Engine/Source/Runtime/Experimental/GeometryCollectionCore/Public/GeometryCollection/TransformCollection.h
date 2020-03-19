@@ -49,6 +49,7 @@ public:
 	static const FName TransformAttribute;
 	static const FName ParentAttribute;
 	static const FName ChildrenAttribute;
+	static const FName ParticlesAttribute;
 
 	/** Serialize */
 	virtual void Serialize(Chaos::FChaosArchive& Ar) override;

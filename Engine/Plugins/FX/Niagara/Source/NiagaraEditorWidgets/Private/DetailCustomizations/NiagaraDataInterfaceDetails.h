@@ -10,6 +10,7 @@ class IDetailLayoutBuilder;
 class UNiagaraDataInterface;
 class IDetailCategoryBuilder;
 class FNiagaraDataInterfaceCustomNodeBuilder;
+class IPropertyUtilities;
 
 /** Base details customization for Niagara data interfaces. */
 class FNiagaraDataInterfaceDetailsBase : public IDetailCustomization
@@ -27,4 +28,5 @@ private:
 	TSharedPtr<FNiagaraDataInterfaceCustomNodeBuilder> CustomBuilder;
 	IDetailCategoryBuilder* ErrorsCategoryBuilder;
 	IDetailLayoutBuilder* Builder;
+	TWeakPtr<IPropertyUtilities> PropertyUtilitiesWeak;
 };

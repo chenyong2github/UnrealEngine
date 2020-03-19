@@ -956,6 +956,10 @@ protected:
 	/** Cached geometry for use within the active timer */
 	FGeometry CachedGeometry;
 
+	/** A flag to detect when a visual update is pending to prevent deferred
+	    commands like zoom to fit from running when there are no widgets */
+	bool bVisualUpdatePending;
+
 private:
 	/** Active timer that handles deferred zooming until the target zoom is reached */
 	EActiveTimerReturnType HandleZoomToFit(double InCurrentTime, float InDeltaTime);

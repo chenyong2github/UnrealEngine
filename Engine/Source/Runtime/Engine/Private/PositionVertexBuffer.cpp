@@ -235,7 +235,9 @@ void FPositionVertexBuffer::InitRHI()
 		bSRV |= (VertexData && VertexData->GetAllowCPUAccess());
 		if(bSRV)
 		{
-			PositionComponentSRV = RHICreateShaderResourceView(VertexData ? VertexBufferRHI : nullptr, 4, PF_R32_FLOAT);
+			// When VertexData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
+			// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
+			PositionComponentSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(VertexData ? VertexBufferRHI : nullptr, PF_R32_FLOAT));
 		}
 	}
 }

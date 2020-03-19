@@ -95,6 +95,8 @@ void FMetalVertexBuffer::Swap(FMetalVertexBuffer& Other)
 void FMetalRHIBuffer::Swap(FMetalRHIBuffer& Other)
 {
 	::Swap(*this, Other);
+	Other.Buffer.SetOwner(&Other);
+	Buffer.SetOwner(this);
 }
 
 static bool CanUsePrivateMemory()
@@ -304,7 +306,7 @@ FMetalTexture FMetalRHIBuffer::AllocLinearTexture(EPixelFormat InFormat, const F
 		const uint32 MinimumByteAlignment = GetMetalDeviceContext().GetDevice().GetMinimumLinearTextureAlignmentForPixelFormat((mtlpp::PixelFormat)GMetalBufferFormats[InFormat].LinearTextureFormat);
 		const uint32 MinimumElementAlignment = MinimumByteAlignment / BytesPerElement;
 
-		uint32 Offset = LinearTextureDesc.StartElement * BytesPerElement;
+		uint32 Offset = LinearTextureDesc.StartOffsetBytes;
 		check(Offset % MinimumByteAlignment == 0);
 
 		uint32 NumElements = (UINT_MAX == LinearTextureDesc.NumElements) ? ((Size - Offset) / BytesPerElement) : LinearTextureDesc.NumElements;

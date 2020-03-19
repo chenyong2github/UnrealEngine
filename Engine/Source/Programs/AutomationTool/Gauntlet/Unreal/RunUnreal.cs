@@ -223,7 +223,10 @@ namespace Gauntlet
 						{
 							Role.Type = UnrealTargetRole.EditorGame;
 							Role.Platform = DefaultPlatform;
-							Role.Configuration = UnrealTargetConfiguration.Development;
+							if (Role.Configuration > UnrealTargetConfiguration.Development)
+							{
+								Role.Configuration = UnrealTargetConfiguration.Development;
+							}
 						}
 					}
 					else if (Type.IsServer())
@@ -235,7 +238,10 @@ namespace Gauntlet
 						{
 							Role.Type = UnrealTargetRole.EditorServer;
 							Role.Platform = DefaultPlatform;
-							Role.Configuration = UnrealTargetConfiguration.Development;
+							if (Role.Configuration > UnrealTargetConfiguration.Development)
+							{
+								Role.Configuration = UnrealTargetConfiguration.Development;
+							}
 						}
 					}
 

@@ -42,12 +42,6 @@ IMPLEMENT_TYPE_LAYOUT(FShaderParameterMapInfo);
 IMPLEMENT_EXPORTED_INTRINSIC_TYPE_LAYOUT(TIndexedPtr<FShaderType>);
 IMPLEMENT_EXPORTED_INTRINSIC_TYPE_LAYOUT(TIndexedPtr<FVertexFactoryType>);
 
-RENDERCORE_API bool UsePreExposure(EShaderPlatform Platform)
-{
-	static const auto CVarUsePreExposure = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.UsePreExposure"));
-	return CVarUsePreExposure->GetValueOnAnyThread() != 0;
-}
-
 static TAutoConsoleVariable<int32> CVarUsePipelines(
 	TEXT("r.ShaderPipelines"),
 	1,
@@ -1341,7 +1335,8 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		KeyString += UsePreExposure(Platform) ? TEXT("_PreExp") : TEXT("");
+		// PreExposure is always used
+		KeyString += TEXT("_PreExp");
 	}
 
 	{
@@ -1696,5 +1691,17 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	if (IsUsingPerPixelDBufferMask(Platform))
 	{
 		KeyString += TEXT("_PPDBM");
+	}
+
+	if (ShouldCompileRayTracingShadersForProject(Platform))
+	{
+		static const auto CVarCompileCHS = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.CompileMaterialCHS"));
+		static const auto CVarCompileAHS = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.CompileMaterialAHS"));
+		static const auto CVarTextureLod = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.UseTextureLod"));
+
+		KeyString += FString::Printf(TEXT("_RAY-CHS%dAHS%dLOD%d"),
+			CVarCompileCHS && CVarCompileCHS->GetBool() ? 1 : 0,
+			CVarCompileAHS && CVarCompileAHS->GetBool() ? 1 : 0,
+			CVarTextureLod && CVarTextureLod->GetBool() ? 1 : 0);
 	}
 }

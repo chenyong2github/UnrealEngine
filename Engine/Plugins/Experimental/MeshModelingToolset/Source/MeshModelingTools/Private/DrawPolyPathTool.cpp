@@ -23,6 +23,125 @@
 #define LOCTEXT_NAMESPACE "UDrawPolyPathTool"
 
 
+namespace
+{
+	// Simple mesh generator that generates a quad for each edge of an input polygon
+	class FPolygonEdgeMeshGenerator : public FMeshShapeGenerator
+	{
+
+	private:
+
+		// Polygon to triangulate. Assumed to be closed (i.e. last edge is (LastVertex, FirstVertex)). If Polygon has 
+		// self-intersections or degenerate edges, result is undefined.
+		TArray<FFrame3d> Polygon;
+
+		// For each polygon vertex, a scale factor for the patch width at that vertex. Helps keep the width constant
+		// going around acute corners. 
+		TArray<double> OffsetScaleFactors;
+
+		// Width of quads to generate.
+		double Width = 1.0;
+
+		// Normal vector of all vertices will be set to this value. Default is +Z axis.
+		FVector3d Normal = FVector3d::UnitZ();
+
+	public:
+
+		FPolygonEdgeMeshGenerator(const TArray<FFrame3d>& InPolygon, 
+								  const TArray<double>& InOffsetScaleFactors,
+								  double InWidth = 1.0,
+								  FVector3d InNormal = FVector3d::UnitZ()) :
+			Polygon(InPolygon),
+			OffsetScaleFactors(InOffsetScaleFactors),
+			Width(InWidth),
+			Normal(InNormal)
+		{
+			check(Polygon.Num() == OffsetScaleFactors.Num());
+		}
+
+
+		// Generate the triangulation
+		virtual FMeshShapeGenerator& Generate() final
+		{
+			const int NumInputVertices = Polygon.Num();
+			check(NumInputVertices >= 3);
+			if (NumInputVertices < 3)
+			{
+				return *this;
+			}
+			const int NumVertices = 2 * NumInputVertices;
+			const int NumTriangles = 2 * NumInputVertices;
+			SetBufferSizes(NumVertices, NumTriangles, NumVertices, NumVertices);
+
+			// Trace the input path, placing vertices on either side of each input vertex 
+
+			const FVector3d LeftVertex{ 0, -Width, 0 };
+			const FVector3d RightVertex{ 0, Width, 0 };
+			for (int CurrentInputVertex = 0; CurrentInputVertex < NumInputVertices; ++CurrentInputVertex)
+			{
+				const FFrame3d& CurrentFrame = Polygon[CurrentInputVertex];
+				const int NewVertexAIndex = 2 * CurrentInputVertex;
+				const int NewVertexBIndex = NewVertexAIndex + 1;
+				Vertices[NewVertexAIndex] = CurrentFrame.FromFramePoint(OffsetScaleFactors[CurrentInputVertex] * LeftVertex);
+				Vertices[NewVertexBIndex] = CurrentFrame.FromFramePoint(OffsetScaleFactors[CurrentInputVertex] * RightVertex);
+			}
+
+			// Triangulate the vertices we just placed
+
+			for (int CurrentVertex = 0; CurrentVertex < NumInputVertices; ++CurrentVertex)
+			{
+				const int NewVertexA = 2 * CurrentVertex;
+				const int NewVertexB = NewVertexA + 1;
+				const int NewVertexC = (NewVertexA + 2) % NumVertices;
+				const int NewVertexD = (NewVertexA + 3) % NumVertices;
+
+				FIndex3i NewTriA{ NewVertexA, NewVertexB, NewVertexC };
+				const int NewTriAIndex = 2 * CurrentVertex;
+
+				SetTriangle(NewTriAIndex, NewTriA);
+				SetTriangleUVs(NewTriAIndex, NewTriA);
+				SetTriangleNormals(NewTriAIndex, NewTriA);
+				SetTrianglePolygon(NewTriAIndex, 0);
+
+				const int NewTriBIndex = NewTriAIndex + 1;
+				FIndex3i NewTriB{ NewVertexC, NewVertexB, NewVertexD };
+
+				SetTriangle(NewTriBIndex, NewTriB);
+				SetTriangleUVs(NewTriBIndex, NewTriB);
+				SetTriangleNormals(NewTriBIndex, NewTriB);
+				SetTrianglePolygon(NewTriBIndex, 0);
+			}
+
+			// Set UVs, etc. for the vertices we put down previously
+
+			FAxisAlignedBox2d BoundingBox;
+			for (auto& CurrentFrame : Polygon)
+			{
+				BoundingBox.Contain(FVector2d{ CurrentFrame.Origin.X, CurrentFrame.Origin.Y });
+			}
+			BoundingBox.Max += {Width, Width};
+			BoundingBox.Min -= {Width, Width};
+
+			double BoxWidth = BoundingBox.Width(), BoxHeight = BoundingBox.Height();
+			double UVScale = FMath::Max(BoxWidth, BoxHeight);
+
+			for (int NewVertexIndex = 0; NewVertexIndex < NumVertices; ++NewVertexIndex)
+			{
+				FVector3d Pos = Vertices[NewVertexIndex];
+
+				UVs[NewVertexIndex] = FVector2f(
+					(float)((Pos.X - BoundingBox.Min.X) / UVScale),
+					(float)((Pos.Y - BoundingBox.Min.Y) / UVScale));
+				UVParentVertex[NewVertexIndex] = NewVertexIndex;
+				Normals[NewVertexIndex] = FVector3f(Normal);
+				NormalParentVertex[NewVertexIndex] = NewVertexIndex;
+			}
+
+			return *this;
+		}
+	};		// class FPolygonEdgeMeshGenerator
+
+}	// unnamed namespace
 
 /*
  * ToolBuilder
@@ -120,9 +239,7 @@ void UDrawPolyPathTool::Setup()
 	// begin path draw
 	InitializeNewSurfacePath();
 
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartDrawPolyPathTool", "Click to begin drawing path. Doubleclick to finish path."),
-		EToolMessageLevel::UserNotification);
+	ShowStartupMessage();
 }
 
 
@@ -214,6 +331,7 @@ void UDrawPolyPathTool::OnClicked(const FInputDeviceRay& ClickPos)
 		{
 			if (SurfacePathMechanic->IsDone())
 			{
+				bPathIsClosed = SurfacePathMechanic->LoopWasClosed();
 				GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginOffset", "Set Offset"));
 				OnCompleteSurfacePath();
 			}
@@ -325,7 +443,10 @@ void UDrawPolyPathTool::InitializeNewSurfacePath()
 	{
 		return true && ToolSceneQueriesUtil::CalculateViewVisualAngleD(this->CameraState, Position1, Position2) < SnapTol;
 	};
+	SurfacePathMechanic->SetDoubleClickOrCloseLoopMode();
 	UpdateSurfacePathPlane();
+
+	ShowStartupMessage();
 }
 
 
@@ -358,10 +479,17 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 	OffsetScaleFactors[0] = OffsetScaleFactors[NumPoints-1] = 1.0;
 	ArcLengths.SetNum(NumPoints);
 	ArcLengths[0] = 0;
-	for (int j = 1; j < NumPoints - 1; ++j)
+
+	// Set local frames for path points. If the path is closed, we will adjust the first and last frames for continuity,
+	// otherwise we will leave them as set above.
+	int LastPointIndex = bPathIsClosed ? NumPoints : NumPoints - 1;
+	int FirstPointIndex = bPathIsClosed ? 0 : 1;
+	for (int j = FirstPointIndex; j < LastPointIndex; ++j)
 	{
-		FVector3d Prev(CurPathPoints[j - 1].Origin), Next(CurPathPoints[j + 1].Origin), Cur(CurPathPoints[j].Origin);
-		ArcLengths[j] = ArcLengths[j-1] + Cur.Distance(Prev);
+		int NextJ = (j + 1) % NumPoints;
+		int PrevJ = (j - 1 + NumPoints) % NumPoints;
+		FVector3d Prev(CurPathPoints[PrevJ].Origin), Next(CurPathPoints[NextJ].Origin), Cur(CurPathPoints[j].Origin);
+		ArcLengths[j] = ArcLengths[PrevJ] + Cur.Distance(Prev);
 		FLine3d Line1(FLine3d::FromPoints(Prev, Cur)), Line2(FLine3d::FromPoints(Cur, Next));
 		Line1.Origin += DistOffsetDelta * PlaneNormal.Cross(Line1.Direction);
 		Line2.Origin += DistOffsetDelta * PlaneNormal.Cross(Line2.Direction);
@@ -409,6 +537,8 @@ void UDrawPolyPathTool::BeginInteractiveOffsetDistance()
 	CurveDistMechanic->InitializePolyCurve(CurPolyLine, FTransform3d::Identity());
 
 	InitializePreviewMesh();
+
+	ShowOffsetMessage();
 }
 
 
@@ -474,43 +604,52 @@ void UDrawPolyPathTool::GeneratePathMesh(FDynamicMesh3& Mesh)
 	int32 NumPoints = CurPathPoints.Num();
 	if (NumPoints > 1)
 	{
-		CurPathLength = 0;
-		for (int32 k = 1; k < NumPoints; ++k)
+		if (bPathIsClosed)
 		{
-			CurPathLength += CurPathPoints[k].Origin.Distance(CurPathPoints[k-1].Origin);
+			FPolygonEdgeMeshGenerator MeshGen(CurPathPoints, OffsetScaleFactors, CurOffsetDistance, FVector3d::UnitZ());
+			MeshGen.Generate();
+			Mesh.Copy(&MeshGen);
 		}
-
-		FRectangleMeshGenerator MeshGen;
-		MeshGen.Width = CurPathLength;
-		MeshGen.Height = 2 * CurOffsetDistance;
-		MeshGen.Normal = FVector3f::UnitZ();
-		MeshGen.Origin = FVector3d(CurPathLength / 2, 0, 0);
-		MeshGen.HeightVertexCount = 2;
-		MeshGen.WidthVertexCount = NumPoints;
-		MeshGen.Generate();
-		Mesh.Copy(&MeshGen);
-		Mesh.EnableVertexUVs(FVector2f::Zero());		// we will store arc length for each vtx in VertexUV
-
-		FAxisAlignedBox3d PathBounds = Mesh.GetBounds();
-
-		double ShiftX = 0;
-		double DeltaX = CurPathLength / (double)(NumPoints - 1);
-		for (int32 k = 0; k < NumPoints; ++k)
+		else
 		{
-			FFrame3d PathFrame = CurPathPoints[k];
-			FVector3d V0 = Mesh.GetVertex(k);
-			V0.X -= ShiftX;
-			V0.Y *= OffsetScaleFactors[k];
-			V0 = PathFrame.FromFramePoint(V0);
-			Mesh.SetVertex(k, V0);
-			Mesh.SetVertexUV(k, FVector2f((float)ArcLengths[k],(float)k));
-			FVector3d V1 = Mesh.GetVertex(NumPoints + k);
-			V1.X -= ShiftX;
-			V1.Y *= OffsetScaleFactors[k];
-			V1 = PathFrame.FromFramePoint(V1);
-			Mesh.SetVertex(NumPoints + k, V1);
-			Mesh.SetVertexUV(NumPoints+k, FVector2f((float)ArcLengths[k], (float)k));
-			ShiftX += DeltaX;
+			CurPathLength = 0;
+			for (int32 k = 1; k < NumPoints; ++k)
+			{
+				CurPathLength += CurPathPoints[k].Origin.Distance(CurPathPoints[k - 1].Origin);
+			}
+
+			FRectangleMeshGenerator MeshGen;
+			MeshGen.Width = CurPathLength;
+			MeshGen.Height = 2 * CurOffsetDistance;
+			MeshGen.Normal = FVector3f::UnitZ();
+			MeshGen.Origin = FVector3d(CurPathLength / 2, 0, 0);
+			MeshGen.HeightVertexCount = 2;
+			MeshGen.WidthVertexCount = NumPoints;
+			MeshGen.Generate();
+			Mesh.Copy(&MeshGen);
+			Mesh.EnableVertexUVs(FVector2f::Zero());		// we will store arc length for each vtx in VertexUV
+
+			FAxisAlignedBox3d PathBounds = Mesh.GetBounds();
+
+			double ShiftX = 0;
+			double DeltaX = CurPathLength / (double)(NumPoints - 1);
+			for (int32 k = 0; k < NumPoints; ++k)
+			{
+				FFrame3d PathFrame = CurPathPoints[k];
+				FVector3d V0 = Mesh.GetVertex(k);
+				V0.X -= ShiftX;
+				V0.Y *= OffsetScaleFactors[k];
+				V0 = PathFrame.FromFramePoint(V0);
+				Mesh.SetVertex(k, V0);
+				Mesh.SetVertexUV(k, FVector2f((float)ArcLengths[k], (float)k));
+				FVector3d V1 = Mesh.GetVertex(NumPoints + k);
+				V1.X -= ShiftX;
+				V1.Y *= OffsetScaleFactors[k];
+				V1 = PathFrame.FromFramePoint(V1);
+				Mesh.SetVertex(NumPoints + k, V1);
+				Mesh.SetVertexUV(NumPoints + k, FVector2f((float)ArcLengths[k], (float)k));
+				ShiftX += DeltaX;
+			}
 		}
 
 		FMeshNormals::QuickRecomputeOverlayNormals(Mesh);
@@ -547,6 +686,8 @@ void UDrawPolyPathTool::BeginInteractiveExtrudeHeight()
 	FFrame3d UseFrame = DrawPlaneWorld; 
 	UseFrame.Origin = CurPathPoints.Last().Origin;
 	ExtrudeHeightMechanic->Initialize(MoveTemp(TmpMesh), UseFrame, true);
+
+	ShowExtrudeMessage();
 }
 
 
@@ -665,6 +806,29 @@ void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathOutputMode OutputMode)
 	}
 
 	GetToolManager()->EndUndoTransaction();
+}
+
+
+
+void UDrawPolyPathTool::ShowStartupMessage()
+{
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartDraw", "Use this Tool to draw a path on the Drawing Plane, and then Extrude. Left-click to place points, Double-click (or close) to complete path. Ctrl-click on the scene to reposition the Plane (Shift+Ctrl-click to ignore Normal). [A] toggles Gizmo. Hold Shift to ignore Snapping."),
+		EToolMessageLevel::UserNotification);
+}
+
+void UDrawPolyPathTool::ShowOffsetMessage()
+{
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartOffset", "Set the Width of the Extrusion by clicking on the Drawing Plane."),
+		EToolMessageLevel::UserNotification);
+}
+
+void UDrawPolyPathTool::ShowExtrudeMessage()
+{
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartExtrude", "Set the Height of the Extrusion by positioning the mouse over the extrusion volume, or over the scene to snap to relative heights."),
+		EToolMessageLevel::UserNotification);
 }
 
 

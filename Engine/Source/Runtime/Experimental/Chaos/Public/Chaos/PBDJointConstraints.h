@@ -9,6 +9,7 @@
 #include "Chaos/Vector.h"
 
 #include "Chaos/ConstraintHandle.h"
+#include "Chaos/Joint/JointSolverConstraints.h"
 #include "Chaos/Joint/PBDJointSolverGaussSeidel.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDConstraintContainer.h"
@@ -16,22 +17,28 @@
 
 namespace Chaos
 {
+	class FJointSolverConstraints;
+	class FJointSolverGaussSeidel;
+	class FJointSolverResult;
 
-	class FPBDJointConstraintHandle : public TContainerConstraintHandle<FPBDJointConstraints>
+	class CHAOS_API FPBDJointConstraintHandle : public TContainerConstraintHandle<FPBDJointConstraints>
 	{
 	public:
 		using Base = TContainerConstraintHandle<FPBDJointConstraints>;
 		using FConstraintContainer = FPBDJointConstraints;
 
-		CHAOS_API FPBDJointConstraintHandle();
-		CHAOS_API FPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
+		FPBDJointConstraintHandle();
+		FPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
 
-		CHAOS_API void CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb) const;
-		CHAOS_API void SetParticleLevels(const TVector<int32, 2>& ParticleLevels);
-		CHAOS_API int32 GetConstraintLevel() const;
-		CHAOS_API const FPBDJointSettings& GetSettings() const;
-		CHAOS_API void SetSettings(const FPBDJointSettings& Settings);
-		CHAOS_API TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
+		void CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb) const;
+		int32 GetConstraintIsland() const;
+		int32 GetConstraintLevel() const;
+		int32 GetConstraintColor() const;
+		int32 GetConstraintBatch() const;
+
+		const FPBDJointSettings& GetSettings() const;
+		void SetSettings(const FPBDJointSettings& Settings);
+		TVector<TGeometryParticleHandle<float,3>*, 2> GetConstrainedParticles() const;
 
 	protected:
 		using Base::ConstraintIndex;
@@ -43,9 +50,11 @@ namespace Chaos
 	public:
 		FPBDJointState();
 
-		// Priorities used for ordering, mass conditioning, projection, and freezing
+		int32 Batch;
+		int32 Island;
 		int32 Level;
-		TVector<int32, 2> ParticleLevels;
+		int32 Color;
+		int32 IslandSize;
 	};
 
 	/**
@@ -129,8 +138,10 @@ namespace Chaos
 		const FPBDJointSettings& GetConstraintSettings(int32 ConstraintIndex) const;
 		void SetConstraintSettings(int32 ConstraintIndex, const FPBDJointSettings& InConstraintSettings);
 
+		int32 GetConstraintIsland(int32 ConstraintIndex) const;
 		int32 GetConstraintLevel(int32 ConstraintIndex) const;
-		void SetParticleLevels(int32 ConstraintIndex, const TVector<int32, 2>& ParticleLevels);
+		int32 GetConstraintColor(int32 ConstraintIndex) const;
+		int32 GetConstraintBatch(int32 ConstraintIndex) const;
 
 		//
 		// General Rule API
@@ -167,10 +178,22 @@ namespace Chaos
 		void CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1) const;
 		void UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& PrevP, const FRotation3& PrevQ, const FVec3& P, const FRotation3& Q, const bool bUpdateVelocity = true);
 		void UpdateParticleStateExplicit(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const FVec3& V, const FVec3& W);
-		void SortConstraints();
+		
+		void InitSolverJointData();
+		void DeinitSolverJointData();
+		void InitSolverJointState();
+		void DeinitSolverJointState();
+		void GatherSolverJointState(int32 ConstraintIndex);
+		void ScatterSolverJointState(const FReal Dt, int32 ConstraintIndex);
 
-		FJointSolverResult SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
-		FJointSolverResult ProjectPosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		void ColorConstraints();
+		void SortConstraints();
+		void BatchConstraints();
+		void CheckBatches();
+
+		int32 ApplyBatch(const FReal Dt, const int32 BatchIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		int32 ApplySingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		int32 ApplyPushOutSingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 
 		FPBDJointSolverSettings Settings;
 
@@ -181,7 +204,8 @@ namespace Chaos
 
 		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
-		bool bRequiresSort;
+		bool bJointsDirty;
+		bool bIsBatched;
 
 		FJointPreApplyCallback PreApplyCallback;
 		FJointPostApplyCallback PostApplyCallback;
@@ -189,6 +213,12 @@ namespace Chaos
 
 		// @todo(ccaulfield): optimize storage for joint solver
 		TArray<FJointSolverGaussSeidel> ConstraintSolvers;
+
+		TArray<FJointSolverConstraints> SolverConstraints;
+		TArray<TVector<int32, 2>> JointBatches;
+		TArray< FJointSolverJointState> SolverConstraintStates;
+		TArray<FJointSolverConstraintRowData> SolverConstraintRowDatas;
+		TArray<FJointSolverConstraintRowState> SolverConstraintRowStates;
 	};
 
 }

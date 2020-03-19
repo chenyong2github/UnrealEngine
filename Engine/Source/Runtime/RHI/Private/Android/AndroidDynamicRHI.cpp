@@ -12,7 +12,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 	IDynamicRHIModule* DynamicRHIModule = NULL;
 	ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::Num;
 
-	if (FPlatformMisc::ShouldUseVulkan())
+	if (FPlatformMisc::ShouldUseVulkan() || FPlatformMisc::ShouldUseDesktopVulkan())
 	{
 		// Vulkan is required, release the EGL created by FAndroidAppEntry::PlatformInit.
 		FAndroidAppEntry::ReleaseEGL();

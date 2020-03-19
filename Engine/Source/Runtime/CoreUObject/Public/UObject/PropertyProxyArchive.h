@@ -21,7 +21,7 @@ class FPropertyProxyArchive : public FArchiveProxy
 public:
 
 	/** List of fields that could not be resolved at serialize time possibly due to their classes not being fully loaded yet */
-	TArray< TPair< TFieldPath<FField>, int32> > UnresolvedProperties;
+	UStruct::FUnresolvedScriptPropertiesArray UnresolvedProperties;
 	/** Current bytecode offset */
 	int32& BytecodeIndex;
 	/** Script container object */

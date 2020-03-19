@@ -180,7 +180,7 @@ FTimecode UAudioCaptureTimecodeProvider::GetTimecodeInternal() const
 	}
 	else
 	{
-		Result.bDropFrameFormat = FTimecode::IsDropFormatTimecodeSupported(GetFrameRate());
+		Result.bDropFrameFormat = FTimecode::IsDropFormatTimecodeSupported(GetFrameRateInternal());
 	}
 
 	return Result;

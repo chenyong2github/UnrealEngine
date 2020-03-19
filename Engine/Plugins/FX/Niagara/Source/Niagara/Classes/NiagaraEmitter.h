@@ -9,7 +9,6 @@
 #include "NiagaraScript.h"
 #include "NiagaraCollision.h"
 #include "INiagaraMergeManager.h"
-#include "NiagaraSystemFastPath.h"
 #include "NiagaraEffectType.h"
 #include "NiagaraEmitter.generated.h"
 
@@ -505,29 +504,6 @@ public:
 #endif
 
 	void OnEffectsQualityChanged();
-
-	void InitFastPathAttributeNames();
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	FNiagaraFastPath_Module_EmitterScalability EmitterScalability;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	FNiagaraFastPath_Module_EmitterLifeCycle EmitterLifeCycle;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	TArray<FNiagaraFastPath_Module_SpawnRate> SpawnRate;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	TArray<FNiagaraFastPath_Module_SpawnPerUnit> SpawnPerUnit;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	TArray<FNiagaraFastPath_Module_SpawnBurstInstantaneous> SpawnBurstInstantaneous;
-
-	UPROPERTY()
-	FNiagaraFastPathAttributeNames SpawnFastPathAttributeNames;
-
-	UPROPERTY()
-	FNiagaraFastPathAttributeNames UpdateFastPathAttributeNames;
 
 protected:
 	virtual void BeginDestroy() override;

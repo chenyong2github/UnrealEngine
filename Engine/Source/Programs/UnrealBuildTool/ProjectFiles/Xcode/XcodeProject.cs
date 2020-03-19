@@ -124,7 +124,7 @@ namespace UnrealBuildTool
 
 	class XcodeProjectFile : ProjectFile
 	{
-		FileReference OnlyGameProject;
+		//FileReference OnlyGameProject;
 
 		Dictionary<string, XcodeFileGroup> Groups = new Dictionary<string, XcodeFileGroup>();
 
@@ -138,7 +138,7 @@ namespace UnrealBuildTool
 		public XcodeProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject, bool IsForDistribution, string BundleID)
 			: base(InitFilePath)
 		{
-			OnlyGameProject = InOnlyGameProject;
+			//OnlyGameProject = InOnlyGameProject;
 			bForDistribution = IsForDistribution;
 			BundleIdentifier = BundleID;
 		}
@@ -355,7 +355,7 @@ namespace UnrealBuildTool
 			if (UProjectPath != null)
 			{
 				string ProjectExtensionsDir = Path.Combine(Path.GetDirectoryName(UProjectPath.FullName), "Build/IOS/Extensions");
-				string ProjectIntermediateDir = Path.Combine(Path.GetDirectoryName(UProjectPath.FullName), "Intermediate/IOS/Extensions");
+				//string ProjectIntermediateDir = Path.Combine(Path.GetDirectoryName(UProjectPath.FullName), "Intermediate/IOS/Extensions");
 
 				if (Directory.Exists(ProjectExtensionsDir))
 				{
@@ -764,11 +764,11 @@ namespace UnrealBuildTool
 					// look at each zip
 					foreach (FileInfo FI in new System.IO.DirectoryInfo(FrameworkDir.FullName).EnumerateFiles("*.framework.zip"))
 					{
-						string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
-						string RefGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
+						//string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
+						//string RefGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 
 						// for FI of foo.framework.zip, this will give us foo.framework
-						string Framework = Path.GetFileNameWithoutExtension(FI.FullName);
+						//string Framework = Path.GetFileNameWithoutExtension(FI.FullName);
 
 						// unzip the framework right into the .app
 						FrameworkScript.AppendFormat("\\techo Unzipping {0}...\\n", FI.FullName);
@@ -842,7 +842,7 @@ namespace UnrealBuildTool
 			{
 				TVOSPlatform TVOSPlatform = ((TVOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.TVOS));
 				TVOSProjectSettings ProjectSettings = TVOSPlatform.ReadProjectSettings(ProjectFile);
-				TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
+				//TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 				bAutomaticSigning = ProjectSettings.bAutomaticSigning;
 			}
 
@@ -1136,7 +1136,7 @@ namespace UnrealBuildTool
 			Content.Append("\t\t\tbuildSettings = {" + ProjectFileGenerator.NewLine);
 
 			string UE4Dir = ConvertPath(Path.GetFullPath(Directory.GetCurrentDirectory() + "../../.."));
-			string MacExecutableDir = ConvertPath(Config.MacExecutablePath.Directory.FullName);
+			//string MacExecutableDir = ConvertPath(Config.MacExecutablePath.Directory.FullName);
 			string MacExecutableFileName = Config.MacExecutablePath.GetFileName();
 
 			string IOSRunTimeVersion, TVOSRunTimeVersion;
@@ -1424,7 +1424,7 @@ namespace UnrealBuildTool
 		{
 			List<XcodeBuildConfig> BuildConfigs = new List<XcodeBuildConfig>();
 
-			string ProjectName = ProjectFilePath.GetFileNameWithoutExtension();
+			//string ProjectName = ProjectFilePath.GetFileNameWithoutExtension();
 
 			foreach (UnrealTargetConfiguration Configuration in Configurations)
 			{
@@ -1500,7 +1500,7 @@ namespace UnrealBuildTool
                                             {
                                                 string IOSExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.IOS, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
                                                 string TVOSExecutableName = IOSExecutableName.Replace("-IOS-", "-TVOS-");
-                                                string MacExecutableName = IOSExecutableName.Replace("-IOS-", "-Mac-");
+                                                //string MacExecutableName = IOSExecutableName.Replace("-IOS-", "-Mac-");
                                                 BuildConfigs.Add(new XcodeBuildConfig(ConfigName, TargetName, FileReference.Combine(OutputDirectory, "Mac", IOSExecutableName), FileReference.Combine(OutputDirectory, "IOS", IOSExecutableName), FileReference.Combine(OutputDirectory, "TVOS", TVOSExecutableName), ProjectTarget, Configuration));
                                             }
                                         }
@@ -1791,7 +1791,7 @@ namespace UnrealBuildTool
 				{
 					bHasEditorConfiguration = true;
 				}
-				else if (Config.ProjectTarget.TargetRules.bIsBuildingConsoleApplication)
+				else if (Config.ProjectTarget.TargetRules.bIsBuildingConsoleApplication || Config.ProjectTarget.TargetRules.bShouldCompileAsDLL)
 				{
 					bIsAppBundle = false;
 				}

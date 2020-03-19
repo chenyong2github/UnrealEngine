@@ -822,11 +822,10 @@ void FPrimitiveSceneProxy::RenderBounds(
 	}
 }
 
-void FPrimitiveSceneProxy::VerifyUsedMaterial(const FMaterialRenderProxy* MaterialRenderProxy) const
+bool FPrimitiveSceneProxy::VerifyUsedMaterial(const FMaterialRenderProxy* MaterialRenderProxy) const
 {
 	// Only verify GetUsedMaterials if uncooked and we can compile shaders, because FShaderCompilingManager::PropagateMaterialChangesToPrimitives is what needs GetUsedMaterials to be accurate
 #if WITH_EDITOR
-
 	if (bVerifyUsedMaterials)
 	{
 		const UMaterialInterface* MaterialInterface = MaterialRenderProxy->GetMaterialInterface();
@@ -837,10 +836,11 @@ void FPrimitiveSceneProxy::VerifyUsedMaterial(const FMaterialRenderProxy* Materi
 		{
 			// Shader compiling uses GetUsedMaterials to detect which components need their scene proxy recreated, so we can only render with materials present in that list
 			ensureMsgf(false, TEXT("PrimitiveComponent tried to render with Material %s, which was not present in the component's GetUsedMaterials results\n    Owner: %s, Resource: %s"), *MaterialInterface->GetName(), *GetOwnerName().ToString(), *GetResourceName().ToString());
+			return false;
 		}
 	}
-	
 #endif
+	return true;
 }
 
 void FPrimitiveSceneProxy::DrawArc(FPrimitiveDrawInterface* PDI, const FVector& Start, const FVector& End, const float Height, const uint32 Segments, const FLinearColor& Color, uint8 DepthPriorityGroup, const float Thickness, const bool bScreenSpace)

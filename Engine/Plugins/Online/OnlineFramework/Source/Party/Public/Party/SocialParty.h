@@ -193,6 +193,7 @@ public:
 	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyMemberConnectionStatusChanged, UPartyMember&, EMemberConnectionStatus);
 	FOnPartyMemberConnectionStatusChanged& OnPartyMemberConnectionStatusChanged() const { return OnPartyMemberConnectionStatusChangedEvent; }
 
+	void ResetPrivacySettings();
 	const FPartyPrivacySettings& GetPrivacySettings() const;
 
 PARTY_SCOPE:
@@ -228,6 +229,7 @@ protected:
 	/** Only called when a new party is being created by the local player and they are responsible for the rep data. Otherwise we just wait to receive it from the leader. */
 	virtual void InitializePartyRepData();
 	virtual FPartyPrivacySettings GetDesiredPrivacySettings() const;
+	static FPartyPrivacySettings GetPrivacySettingsForConfig(const FPartyConfiguration& PartyConfig);
 	virtual void OnLocalPlayerIsLeaderChanged(bool bIsLeader);
 	virtual void HandlePrivacySettingsChanged(const FPartyPrivacySettings& NewPrivacySettings);
 	virtual void OnMemberCreatedInternal(UPartyMember& NewMember);

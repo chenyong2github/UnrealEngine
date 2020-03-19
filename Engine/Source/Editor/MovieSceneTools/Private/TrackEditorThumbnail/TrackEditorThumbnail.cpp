@@ -345,13 +345,19 @@ void FTrackEditorThumbnailCache::DrawThumbnail(FTrackEditorThumbnail& TrackEdito
 		ViewportThumbnailClient->PostDraw(TrackEditorThumbnail);
 	}
 
-	FThreadSafeBool* bHasFinishedDrawingPtr = &TrackEditorThumbnail.bHasFinishedDrawing;
-	ENQUEUE_RENDER_COMMAND(SetFinishedDrawing)(
-		[bHasFinishedDrawingPtr](FRHICommandList& RHICmdList)
-		{
-			*bHasFinishedDrawingPtr = true;
-		}
-	);
+	FSlateTextureRenderTarget2DResource* pSlateResource = TrackEditorThumbnail.GetRenderTarget();
+	if (pSlateResource != nullptr)
+	{
+		FThreadSafeBool* bHasFinishedDrawingPtr = &TrackEditorThumbnail.bHasFinishedDrawing;
+		ENQUEUE_RENDER_COMMAND(SetFinishedDrawing)(
+			[bHasFinishedDrawingPtr, pSlateResource](FRHICommandList& RHICmdList)
+			{
+				FRHITexture* InTexture = pSlateResource->GetTextureRHI();
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, InTexture);
+				*bHasFinishedDrawingPtr = true;
+			}
+		);
+	}
 }
 void FTrackEditorThumbnailCache::DrawViewportThumbnail(FTrackEditorThumbnail& TrackEditorThumbnail)
 {

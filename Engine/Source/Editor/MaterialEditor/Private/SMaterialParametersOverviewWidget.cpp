@@ -67,7 +67,7 @@ void SMaterialParametersOverviewTreeItem::RefreshOnRowChange(const FAssetData& A
 {
 	if (InTree.IsValid())
 	{
-		InTree->CreateGroupsWidget();
+		InTree->CreateGroupsWidget(false);
 	}
 }
 
@@ -528,7 +528,7 @@ void SMaterialParametersOverviewTree::Construct(const FArguments& InArgs)
 	ColumnWidth = 0.5f;
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Owner = InArgs._InOwner;
-	CreateGroupsWidget();
+	CreateGroupsWidget(true);
 
 
 	STreeView<TSharedPtr<FSortedParamData>>::Construct(
@@ -602,10 +602,13 @@ TSharedPtr<class FAssetThumbnailPool> SMaterialParametersOverviewTree::GetTreeTh
 	return GetOwner().Pin()->GetGenerator()->GetGeneratedThumbnailPool();
 }
 
-void SMaterialParametersOverviewTree::CreateGroupsWidget()
+void SMaterialParametersOverviewTree::CreateGroupsWidget(const bool bRegenerateArray)
 {
 	check(MaterialEditorInstance);
-	MaterialEditorInstance->RegenerateArrays();
+	if (bRegenerateArray)
+	{
+		MaterialEditorInstance->RegenerateArrays();
+	}
 	UnsortedParameters.Empty();
 	SortedParameters.Empty();
 
@@ -636,67 +639,74 @@ void SMaterialParametersOverviewTree::CreateGroupsWidget()
 	TArray<TSharedPtr<IPropertyHandle>> DeferredSearches;
 	for (int32 GroupIdx = 0; GroupIdx < Children.Num(); ++GroupIdx)
 	{
-		bHasAnyParameters = true;
 		TArray<void*> GroupPtrs;
 		TSharedPtr<IPropertyHandle> ChildHandle = Children[GroupIdx]->CreatePropertyHandle();
 		ChildHandle->AccessRawData(GroupPtrs);
 		auto GroupIt = GroupPtrs.CreateConstIterator();
 		const FEditorParameterGroup* ParameterGroupPtr = reinterpret_cast<FEditorParameterGroup*>(*GroupIt);
-		const FEditorParameterGroup& ParameterGroup = *ParameterGroupPtr;
-
-		// Don't create or show the material layer parameter info in this UI
-		if (ParameterGroup.GroupName != FMaterialPropertyHelpers::LayerParamName)
+		if (!ParameterGroupPtr)
 		{
-			for (int32 ParamIdx = 0; ParamIdx < ParameterGroup.Parameters.Num(); ParamIdx++)
-			{
-				UDEditorParameterValue* Parameter = ParameterGroup.Parameters[ParamIdx];
+			continue;
+		}
 
+		const FEditorParameterGroup& ParameterGroup = *ParameterGroupPtr;
+		if (ParameterGroup.GroupName == FMaterialPropertyHelpers::LayerParamName)
+		{
+			// Don't create or show the material layer parameter info in this UI
+			continue;
+		}
+
+		for (int32 ParamIdx = 0; ParamIdx < ParameterGroup.Parameters.Num(); ParamIdx++)
+		{
+			UDEditorParameterValue* Parameter = ParameterGroup.Parameters[ParamIdx];
+			if (Parameter->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
+			{
+				bHasAnyParameters = true;
 				TSharedPtr<IPropertyHandle> ParametersArrayProperty = ChildHandle->GetChildHandle("Parameters");
 				TSharedPtr<IPropertyHandle> ParameterProperty = ParametersArrayProperty->GetChildHandle(ParamIdx);
 				TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
 
+
+				FUnsortedParamData NonLayerProperty;
+				UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(Parameter);
+				UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(Parameter);
+
+				if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
 				{
-					FUnsortedParamData NonLayerProperty;
-					UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(Parameter);
-					UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(Parameter);
-
-					if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
-					{
-						ParameterValueProperty->SetInstanceMetaData("UIMin", FString::Printf(TEXT("%f"), ScalarParam->SliderMin));
-						ParameterValueProperty->SetInstanceMetaData("UIMax", FString::Printf(TEXT("%f"), ScalarParam->SliderMax));
-					}
-
-					if (VectorParam)
-					{
-						static const FName Red("R");
-						static const FName Green("G");
-						static const FName Blue("B");
-						static const FName Alpha("A");
-						if (!VectorParam->ChannelNames.R.IsEmpty())
-						{
-							ParameterProperty->GetChildHandle(Red)->SetPropertyDisplayName(VectorParam->ChannelNames.R);
-						}
-						if (!VectorParam->ChannelNames.G.IsEmpty())
-						{
-							ParameterProperty->GetChildHandle(Green)->SetPropertyDisplayName(VectorParam->ChannelNames.G);
-						}
-						if (!VectorParam->ChannelNames.B.IsEmpty())
-						{
-							ParameterProperty->GetChildHandle(Blue)->SetPropertyDisplayName(VectorParam->ChannelNames.B);
-						}
-						if (!VectorParam->ChannelNames.A.IsEmpty())
-						{
-							ParameterProperty->GetChildHandle(Alpha)->SetPropertyDisplayName(VectorParam->ChannelNames.A);
-						}
-					}
-
-					NonLayerProperty.Parameter = Parameter;
-					NonLayerProperty.ParameterGroup = ParameterGroup;
-					NonLayerProperty.UnsortedName = Parameter->ParameterInfo.Name;
-
-					DeferredSearches.Add(ParameterValueProperty);
-					UnsortedParameters.Add(NonLayerProperty);
+					ParameterValueProperty->SetInstanceMetaData("UIMin", FString::Printf(TEXT("%f"), ScalarParam->SliderMin));
+					ParameterValueProperty->SetInstanceMetaData("UIMax", FString::Printf(TEXT("%f"), ScalarParam->SliderMax));
 				}
+
+				if (VectorParam)
+				{
+					static const FName Red("R");
+					static const FName Green("G");
+					static const FName Blue("B");
+					static const FName Alpha("A");
+					if (!VectorParam->ChannelNames.R.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Red)->SetPropertyDisplayName(VectorParam->ChannelNames.R);
+					}
+					if (!VectorParam->ChannelNames.G.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Green)->SetPropertyDisplayName(VectorParam->ChannelNames.G);
+					}
+					if (!VectorParam->ChannelNames.B.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Blue)->SetPropertyDisplayName(VectorParam->ChannelNames.B);
+					}
+					if (!VectorParam->ChannelNames.A.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Alpha)->SetPropertyDisplayName(VectorParam->ChannelNames.A);
+					}
+				}
+
+				NonLayerProperty.Parameter = Parameter;
+				NonLayerProperty.ParameterGroup = ParameterGroup;
+				NonLayerProperty.UnsortedName = Parameter->ParameterInfo.Name;
+
+				DeferredSearches.Add(ParameterValueProperty);
+				UnsortedParameters.Add(NonLayerProperty);
 			}
 		}
 	}
@@ -805,10 +815,10 @@ int32 SMaterialParametersOverviewPanel::GetPanelIndex() const
 	return NestedTree && NestedTree->HasAnyParameters() ? 1 : 0;
 }
 
-void SMaterialParametersOverviewPanel::Refresh()
+void SMaterialParametersOverviewPanel::Refresh(const bool bRegenerateArray)
 {
 	TSharedPtr<SHorizontalBox> HeaderBox;
-	NestedTree->CreateGroupsWidget();
+	NestedTree->CreateGroupsWidget(bRegenerateArray);
 
 	FOnClicked 	OnChildButtonClicked = FOnClicked();
 	if (MaterialEditorInstance->OriginalFunction)

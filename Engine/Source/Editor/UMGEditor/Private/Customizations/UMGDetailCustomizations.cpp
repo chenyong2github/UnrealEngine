@@ -167,7 +167,7 @@ FReply FBlueprintWidgetCustomization::HandleAddOrViewEventForVariable(const FNam
 	UBlueprint* BlueprintObj = Blueprint;
 
 	// Find the corresponding variable property in the Blueprint
-	FObjectProperty* VariableProperty = FindField<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
+	FObjectProperty* VariableProperty = FindFProperty<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
 
 	if (VariableProperty)
 	{
@@ -218,7 +218,7 @@ void FBlueprintWidgetCustomization::CreateMulticastEventCustomization(IDetailLay
 		PropertyTooltip = FText::FromString(DelegateProperty->GetName());
 	}
 
-	FObjectProperty* ComponentProperty = FindField<FObjectProperty>(Blueprint->SkeletonGeneratedClass, ThisComponentName);
+	FObjectProperty* ComponentProperty = FindFProperty<FObjectProperty>(Blueprint->SkeletonGeneratedClass, ThisComponentName);
 
 	if ( !ComponentProperty )
 	{

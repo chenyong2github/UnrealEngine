@@ -121,7 +121,7 @@ DEFINE_LOG_CATEGORY(LogPlayLevel);
 const static FName NAME_CategoryPIE("PIE");
 
 // Forward declare local utility functions
-FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex = -1);
+FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex, const float FixedTick);
 bool PromptMatineeClose();
 
 
@@ -1668,6 +1668,21 @@ void UEditorEngine::CreateNewPlayInEditorInstance(FRequestPlaySessionParams &InR
 		PIELoginInfo.WorldContextHandle = PieWorldContext.ContextHandle;
 		PIELoginInfo.PIEInstanceIndex = PieWorldContext.PIEInstance;
 
+		// Fixed tick setting
+		if (InRequestParams.EditorPlaySettings->ServerFixedFPS > 0 && bInDedicatedInstance)
+		{
+			PieWorldContext.PIEFixedTickSeconds = 1.f / (float)InRequestParams.EditorPlaySettings->ServerFixedFPS;
+		}
+		if (InRequestParams.EditorPlaySettings->ClientFixedFPS.Num() > 0 && !bInDedicatedInstance)
+		{
+			const int32 ClientFixedIdx = PlayInEditorSessionInfo->NumClientInstancesCreated % InRequestParams.EditorPlaySettings->ClientFixedFPS.Num();
+			const int32 DesiredFPS = InRequestParams.EditorPlaySettings->ClientFixedFPS[ClientFixedIdx];
+			if (DesiredFPS > 0)
+			{
+				PieWorldContext.PIEFixedTickSeconds = 1.f / (float)DesiredFPS;
+			}
+		}
+
 		// We increment how many PIE instances we think are going to boot up as it is decremented
 		// in OnLoginPIEComplete_Deferred and used to check if all instances have booted up.
 		PlayInEditorSessionInfo->NumOutstandingPIELogins++;
@@ -2816,7 +2831,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 	return GameInstance;
 }
 
-FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex)
+FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex, const float FixedTick)
 {
 #if PLATFORM_64BITS
 	const FString PlatformBitsString(TEXT("64"));
@@ -2854,7 +2869,17 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 		Args.Add(TEXT("XRSystemName"), FText::GetEmpty());
 	}
 
-	return FText::Format(NSLOCTEXT("UnrealEd", "PlayInEditor_WindowTitleFormat", "{GameName} Preview [NetMode: {NetMode}] ({PlatformBits}-bit/{RHIName}) {XRSystemName}"), Args);
+	if (FixedTick > 0.f)
+	{
+		int32 FixedFPS = (int32)(1.f / FixedTick);
+		Args.Add(TEXT("FixedFPS"), FText::FromString(FString::Printf(TEXT("Fixed %dfps"), FixedFPS)));
+	}
+	else
+	{
+		Args.Add(TEXT("FixedFPS"), FText::GetEmpty());
+	}
+
+	return FText::Format(NSLOCTEXT("UnrealEd", "PlayInEditor_WindowTitleFormat", "{GameName} Preview [NetMode: {NetMode}] {FixedFPS} ({PlatformBits}-bit/{RHIName}) {XRSystemName}"), Args);
 }
 
 void UEditorEngine::TransferEditorSelectionToSIEInstances()
@@ -2920,8 +2945,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 	// If they haven't provided a Slate Window (common), we will create one.
 	if (!bHasCustomWindow)
 	{
-
-		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams, InViewportIndex);
+		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams,InViewportIndex, InWorldContext.PIEFixedTickSeconds);
 		PieWindow = SNew(SWindow)
 			.Title(ViewportName)
 			.ScreenPosition(FVector2D(WindowPosition.X, WindowPosition.Y))
@@ -3005,7 +3029,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 	{
 		struct FLocal
 		{
-			static void OnPIEWindowClosed(const TSharedRef<SWindow>& WindowBeingClosed, TWeakPtr<SViewport> PIEViewportWidget, TWeakObjectPtr<UEditorEngine> OwningEditorEngine, int32 InInstanceIndex, bool bRestoreRootWindow)
+			static void OnPIEWindowClosed(const TSharedRef<SWindow>& WindowBeingClosed, TWeakPtr<SViewport> PIEViewportWidget, TWeakObjectPtr<UEditorEngine> OwningEditorEngine, int32 ViewportIndex, bool bRestoreRootWindow)
 			{
 				// Save off the window position
 				const FVector2D PIEWindowPos = WindowBeingClosed->GetPositionInScreen();
@@ -3015,7 +3039,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 				if (OwningEditorEngine.IsValid())
 				{
-					OwningEditorEngine->StoreWindowSizeAndPositionForInstanceIndex(InInstanceIndex, WindowSize, WindowPosition);
+					OwningEditorEngine->StoreWindowSizeAndPositionForInstanceIndex(ViewportIndex, WindowSize, WindowPosition);
 				}
 
 				// Route the callback
@@ -3033,11 +3057,8 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 			}
 		};
 
-		const bool bHasServer = InNetMode == EPlayNetMode::PIE_Client;
-		int32 InstanceIndex = bHasServer ? InWorldContext.PIEInstance - 1 : InWorldContext.PIEInstance;
-
 		PieWindow->SetOnWindowClosed(FOnWindowClosed::CreateStatic(&FLocal::OnPIEWindowClosed, TWeakPtr<SViewport>(PieViewportWidget), TWeakObjectPtr<UEditorEngine>(this),
-			InstanceIndex, bShouldMinimizeRootWindow));
+			InViewportIndex, bShouldMinimizeRootWindow));
 	}
 
 	// Create a new viewport that the viewport widget will use to render the game

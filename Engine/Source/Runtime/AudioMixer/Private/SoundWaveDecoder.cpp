@@ -365,7 +365,7 @@ namespace Audio
 		}
 		else
 		{
-			static AlignedFloatBuffer ScratchBuffer;
+
 			ScratchBuffer.Reset();
 			ScratchBuffer.AddZeroed(InNumFrames * SourceInfo.NumSourceChannels);
 

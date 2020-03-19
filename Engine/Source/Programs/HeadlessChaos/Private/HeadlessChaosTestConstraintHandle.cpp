@@ -110,7 +110,8 @@ namespace ChaosTest {
 	void JointConstraintHandles()
 	{
 		TPBDRigidsSOAs<FReal, 3> Particles;
-		TEvolution Evolution(Particles);
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		TEvolution Evolution(Particles, PhysicalMaterials);
 
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> ParticleHandles = Evolution.CreateDynamicParticles(5);
 
@@ -130,7 +131,8 @@ namespace ChaosTest {
 	void PositionConstraintHandles()
 	{
 		TPBDRigidsSOAs<FReal, 3> Particles;
-		TEvolution Evolution(Particles);
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> ParticleHandles = Evolution.CreateDynamicParticles(5);
 
 		TPBDPositionConstraints<FReal, 3> Constraints;
@@ -149,7 +151,8 @@ namespace ChaosTest {
 	void RigidSpringConstraintHandles()
 	{
 		TPBDRigidsSOAs<FReal, 3> Particles;
-		TEvolution Evolution(Particles);
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> ParticleHandles = Evolution.CreateDynamicParticles(5);
 
 		FPBDRigidSpringConstraints Constraints;
@@ -169,7 +172,8 @@ namespace ChaosTest {
 	void RigidDynamicSpringConstraintHandles()
 	{
 		TPBDRigidsSOAs<FReal, 3> Particles;
-		TEvolution Evolution(Particles);
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> ParticleHandles = Evolution.CreateDynamicParticles(5);
 
 		TPBDRigidDynamicSpringConstraints<FReal, 3> Constraints;

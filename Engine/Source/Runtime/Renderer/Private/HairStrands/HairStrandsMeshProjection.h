@@ -14,7 +14,8 @@ void ProjectHairStrandsOntoMesh(
 	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData, 
+	FBufferTransitionQueue& OutTransitionQueue);
 
 void TransferMesh(
 	FRDGBuilder& GraphBuilder,
@@ -22,7 +23,8 @@ void TransferMesh(
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData& SourceMeshData,
 	const FHairStrandsProjectionMeshData& TargetMeshData,
-	struct FRWBuffer& OutPositionBuffer);
+	struct FRWBuffer& OutPositionBuffer,
+	FBufferTransitionQueue& OutTransitionQueue);
 
 enum class HairStrandsTriangleType
 {
@@ -37,7 +39,8 @@ void UpdateHairStrandsMeshTriangles(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData,
+	FBufferTransitionQueue& TransitionQueue);
 
 /* Init the samples information to be used for interpolation*/
 void InitHairStrandsMeshSamples(
@@ -46,7 +49,8 @@ void InitHairStrandsMeshSamples(
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData,
+	FBufferTransitionQueue& TransitionQueue);
 
 /* Update the samples information to be used for interpolation*/
 void UpdateHairStrandsMeshSamples(
@@ -54,7 +58,8 @@ void UpdateHairStrandsMeshSamples(
 	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData,
+	FBufferTransitionQueue& TransitionQueue);
 
 void GenerateFolliculeMask(
 	FRDGBuilder& GraphBuilder,
@@ -77,5 +82,6 @@ void InterpolateHairStrandsMeshTriangles(
 	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
-	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData,
+	FBufferTransitionQueue& TransitionQueue);
 

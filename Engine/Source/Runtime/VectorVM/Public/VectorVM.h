@@ -125,9 +125,15 @@ enum class EVectorVMOp : uint8
 	b2i,
 
 	// data read/write
-	inputdata_32bit,
-	inputdata_noadvance_32bit,
-	outputdata_32bit,
+	inputdata_float,
+	inputdata_int32,
+	inputdata_half,
+	inputdata_noadvance_float,
+	inputdata_noadvance_int32,
+	inputdata_noadvance_half,
+	outputdata_float,
+	outputdata_int32,
+	outputdata_half,
 	acquireindex,
 
 	external_func_call,
@@ -156,8 +162,11 @@ enum class EVectorVMOp : uint8
 //Some require RWBuffer like support.
 struct FDataSetMeta
 {
-	uint8*RESTRICT*RESTRICT InputRegisters;
-	uint8*RESTRICT*RESTRICT OutputRegisters;
+	TArrayView<uint8 const* RESTRICT const> InputRegisters;
+	TArrayView<uint8 const* RESTRICT const> OutputRegisters;
+
+	uint32 InputRegisterTypeOffsets[3];
+	uint32 OutputRegisterTypeOffsets[3];
 
 	int32 DataSetAccessIndex;	// index for individual elements of this set
 
@@ -185,9 +194,7 @@ struct FDataSetMeta
 	FORCEINLINE void UnlockFreeTable();
 
 	FDataSetMeta()
-		: InputRegisters(nullptr)
-		, OutputRegisters(nullptr)
-		, DataSetAccessIndex(INDEX_NONE)
+		: DataSetAccessIndex(INDEX_NONE)
 		, InstanceOffset(INDEX_NONE)
 		, IDTable(nullptr)
 		, FreeIDTable(nullptr)
@@ -200,8 +207,8 @@ struct FDataSetMeta
 
 	FORCEINLINE void Reset()
 	{
-		InputRegisters = nullptr;
-		OutputRegisters = nullptr;
+		InputRegisters = TArrayView<uint8 const* RESTRICT const>();
+		OutputRegisters = TArrayView<uint8 const* RESTRICT const>();
 		DataSetAccessIndex = INDEX_NONE;
 		InstanceOffset = INDEX_NONE;
 		IDTable = nullptr;
@@ -212,7 +219,7 @@ struct FDataSetMeta
 		IDAcquireTag = INDEX_NONE;
 	}
 
-	FORCEINLINE void Init(uint8*RESTRICT *RESTRICT InInputRegisters, uint8*RESTRICT *RESTRICT InOutputRegisters, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32* InMaxUsedID, int32 InIDAcquireTag, TArray<int32>* InSpawnedIDsTable)
+	FORCEINLINE void Init(const TArrayView<uint8 const* RESTRICT const>& InInputRegisters, const TArrayView<uint8 const* RESTRICT const>& InOutputRegisters, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32* InMaxUsedID, int32 InIDAcquireTag, TArray<int32>* InSpawnedIDsTable)
 	{
 		InputRegisters = InInputRegisters;
 		OutputRegisters = InOutputRegisters;
@@ -279,7 +286,7 @@ public:
 	int32 NumTempRegisters;
 
 	/** Pointer to the shared data table. */
-	FVMExternalFunction* RESTRICT ExternalFunctionTable;
+	const FVMExternalFunction* const* RESTRICT ExternalFunctionTable;
 	/** Table of user pointers.*/
 	void** UserPtrTable;
 
@@ -323,7 +330,7 @@ public:
 		int32 ConstantTableCount,
 		const uint8* const* InConstantTables,
 		const int32* InConstantTableSizes,
-		FVMExternalFunction* InExternalFunctionTable,
+		const FVMExternalFunction* const* InExternalFunctionTable,
 		void** InUserPtrTable,
 		TArrayView<FDataSetMeta> InDataSetMetaTable,
 		int32 MaxNumInstances,
@@ -352,17 +359,19 @@ public:
 
 	FORCEINLINE FDataSetMeta& GetDataSetMeta(int32 DataSetIndex) { return DataSetMetaTable[DataSetIndex]; }
 	FORCEINLINE uint8 * RESTRICT GetTempRegister(int32 RegisterIndex) { return TempRegTable.GetData() + TempRegisterSize * RegisterIndex; }
-	template<typename T>
+	template<typename T, int TypeOffset>
 	FORCEINLINE T* RESTRICT GetInputRegister(int32 DataSetIndex, int32 RegisterIndex) 
 	{
 		FDataSetMeta& Meta = GetDataSetMeta(DataSetIndex);
-		return ((T*)Meta.InputRegisters[RegisterIndex]) + Meta.InstanceOffset;
+		uint32 Offset = Meta.InputRegisterTypeOffsets[TypeOffset];
+		return ((T*)Meta.InputRegisters[Offset + RegisterIndex]) + Meta.InstanceOffset;
 	}
-	template<typename T>
+	template<typename T, int TypeOffset>
 	FORCEINLINE T* RESTRICT GetOutputRegister(int32 DataSetIndex, int32 RegisterIndex) 
 	{ 
 		FDataSetMeta& Meta = GetDataSetMeta(DataSetIndex);
-		return  ((T*)Meta.OutputRegisters[RegisterIndex]) + Meta.InstanceOffset;
+		uint32 Offset = Meta.OutputRegisterTypeOffsets[TypeOffset];
+		return  ((T*)Meta.OutputRegisters[Offset + RegisterIndex]) + Meta.InstanceOffset;
 	}
 
 	int32 GetNumInstances() const { return NumInstances; }
@@ -382,6 +391,7 @@ public:
 	FORCEINLINE uint64 DecodeU64() { uint64 v = Code[7]; v = v << 8 | Code[6]; v = v << 8 | Code[5]; v = v << 8 | Code[4]; v = v << 8 | Code[3]; v = v << 8 | Code[2]; v = v << 8 | Code[1]; v = v << 8 | Code[0]; Code += 8; return INTEL_ORDER64(v); }
 #endif
 	FORCEINLINE uintptr_t DecodePtr() { return (sizeof(uintptr_t) == 4) ? DecodeU32() : DecodeU64(); }
+	FORCEINLINE void SkipCode(int64 Count) { Code += Count; }
 
 	/** Decode the next operation contained in the bytecode. */
 	FORCEINLINE EVectorVMOp DecodeOp()
@@ -446,7 +456,7 @@ namespace VectorVM
 		const uint8* const* ConstantTable,
 		const int32* ConstantTableSizes,
 		TArrayView<FDataSetMeta> DataSetMetaTable,
-		FVMExternalFunction* ExternalFunctionTable,
+		const FVMExternalFunction* const* ExternalFunctionTable,
 		void** UserPtrTable,
 		int32 NumInstances
 #if STATS

@@ -16,23 +16,17 @@ namespace AutomationTool.Benchmark
 
 	class BenchmarkCookTask : BenchmarkEditorTaskBase
 	{
-		string			ProjectName;
-
-		FileReference	ProjectFile;
-
 		string			CookPlatformName;
-
-		EditorTaskOptions		Options;
 
 		string			CookArgs;
 
-		public BenchmarkCookTask(string InProject, UnrealTargetPlatform InPlatform, EditorTaskOptions InOptions, string InCookArgs)
-		{
-			ProjectName = InProject;
-			Options = InOptions;
-			CookArgs = InCookArgs;
+		bool			CookAsClient;
 
-			ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
+		public BenchmarkCookTask(FileReference InProjectFile, UnrealTargetPlatform InPlatform, bool bCookAsClient, DDCTaskOptions InOptions, string InCookArgs)
+			: base(InProjectFile, InOptions, InCookArgs)
+		{
+			CookArgs = InCookArgs;
+			CookAsClient = bCookAsClient;
 
 			var PlatformToCookPlatform = new Dictionary<UnrealTargetPlatform, string> {
 				{ UnrealTargetPlatform.Win64, "WindowsClient" },
@@ -48,27 +42,7 @@ namespace AutomationTool.Benchmark
 				CookPlatformName = PlatformToCookPlatform[InPlatform];
 			}
 
-			TaskName = string.Format("Cook {0} {1}", InProject, CookPlatformName);
-
-			if (Options.HasFlag(EditorTaskOptions.NoDDC))
-			{
-				TaskModifiers.Add("noddc");
-			}
-
-			if (Options.HasFlag(EditorTaskOptions.NoShaderDDC))
-			{
-				TaskModifiers.Add("noshaderddc");
-			}
-
-			if (Options.HasFlag(EditorTaskOptions.ColdDDC))
-			{
-				TaskModifiers.Add("coldddc");
-			}
-
-			if (!string.IsNullOrEmpty(CookArgs))
-			{
-				TaskModifiers.Add(CookArgs);
-			}
+			TaskName = string.Format("Cook {0} {1}", ProjectName, CookPlatformName);			
 		}
 
 		protected override bool PerformPrequisites()
@@ -85,17 +59,13 @@ namespace AutomationTool.Benchmark
 			}
 
 			// Do a cook to make sure the remote ddc is warm?
-			if (Options.HasFlag(EditorTaskOptions.HotDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
 			{
 				// will throw an exception if it fails
 				CommandUtils.RunCommandlet(ProjectFile, "UE4Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} ", CookPlatformName));
 			}
 
-			if (Options.HasFlag(EditorTaskOptions.ColdDDC))
-			{
-				DeleteLocalDDC(ProjectFile);
-			}
-
+			base.PerformPrequisites();
 			return true;
 		}
 
@@ -103,18 +73,18 @@ namespace AutomationTool.Benchmark
 		{
 			List<string> ExtraArgsList = new List<string>();
 			
-			if (Options.HasFlag(EditorTaskOptions.CookClient))
+			if (CookAsClient)
 			{
 				ExtraArgsList.Add("client");
 			}
 
-			if (Options.HasFlag(EditorTaskOptions.NoShaderDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
 			{
 				ExtraArgsList.Add("noshaderddc");
 				//ExtraArgs.Add("noxgeshadercompile");
 			}
 
-			if (Options.HasFlag(EditorTaskOptions.NoDDC))
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
 			{
 				ExtraArgsList.Add("ddc=noshared");
 			}

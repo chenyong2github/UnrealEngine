@@ -10,6 +10,7 @@
 #include "Engine/TextureStreamingTypes.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
+#include "LandscapeComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -117,11 +118,13 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 		NumStreamedMips_Texture[LODGroup] = TexGroup.NumStreamedMips;
 	}
 
-	// TODO: NumStreamedMips_StaticMesh, NumStreamedMips_SkeletalMesh
+	// TODO: NumStreamedMips_StaticMesh, NumStreamedMips_SkeletalMesh, NumStreamedMips_LandscapeMeshMobile
 	NumStreamedMips_StaticMesh.Empty(1);
 	NumStreamedMips_StaticMesh.Add(INT32_MAX);
 	NumStreamedMips_SkeletalMesh.Empty(1);
 	NumStreamedMips_SkeletalMesh.Add(INT32_MAX);
+	NumStreamedMips_LandscapeMeshMobile.Empty(1);
+	NumStreamedMips_LandscapeMeshMobile.Add(INT32_MAX);
 
 	// setup the streaming resource flush function pointer
 	GFlushStreamingFunc = &FlushResourceStreaming;
@@ -776,6 +779,11 @@ void FRenderAssetStreamingManager::AddStreamingRenderAsset(UStaticMesh* StaticMe
 void FRenderAssetStreamingManager::AddStreamingRenderAsset(USkeletalMesh* SkeletalMesh)
 {
 	AddStreamingRenderAsset_Internal(SkeletalMesh, FStreamingRenderAsset::AT_SkeletalMesh);
+}
+
+void FRenderAssetStreamingManager::AddStreamingRenderAsset(ULandscapeLODStreamingProxy* Landscape)
+{
+	AddStreamingRenderAsset_Internal(Landscape, FStreamingRenderAsset::AT_LandscapeMeshMobile);
 }
 
 /**
@@ -1946,6 +1954,7 @@ bool FRenderAssetStreamingManager::HandleCancelRenderAssetStreamingCommand( cons
 	UTexture2D::CancelPendingTextureStreaming();
 	UStaticMesh::CancelAllPendingStreamingActions();
 	USkeletalMesh::CancelAllPendingStreamingActions();
+	ULandscapeLODStreamingProxy::CancelAllPendingStreamingActions();
 	return true;
 }
 

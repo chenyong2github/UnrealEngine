@@ -146,7 +146,7 @@ public:
 
 	bool operator == (const FDatasmithStaticMeshImportOptions& Other) const
 	{
-		return MinLightmapResolution == Other.MinLightmapResolution 
+		return MinLightmapResolution == Other.MinLightmapResolution
 			&& MaxLightmapResolution == Other.MaxLightmapResolution
 			&& bGenerateLightmapUVs == Other.bGenerateLightmapUVs
 			&& bRemoveDegenerates == Other.bRemoveDegenerates;
@@ -267,16 +267,11 @@ struct DATASMITHCONTENT_API FDatasmithTessellationOptions
 public:
 	bool operator == (const FDatasmithTessellationOptions& Other) const
 	{
-		return (FMath::IsNearlyEqual(ChordTolerance, Other.ChordTolerance) && FMath::IsNearlyEqual(MaxEdgeLength, Other.MaxEdgeLength) && FMath::IsNearlyEqual(NormalTolerance, Other.NormalTolerance) && StitchingTechnique == Other.StitchingTechnique);
+		return FMath::IsNearlyEqual(ChordTolerance, Other.ChordTolerance)
+			&& FMath::IsNearlyEqual(MaxEdgeLength, Other.MaxEdgeLength)
+			&& FMath::IsNearlyEqual(NormalTolerance, Other.NormalTolerance)
+			&& StitchingTechnique == Other.StitchingTechnique;
 	}
-
-	//void operator = (const FDatasmithTessellationOptions& Other)
-	//{
-	//	ChordTolerance = Other.ChordTolerance;
-	//	MaxEdgeLength = Other.MaxEdgeLength;
-	//	NormalTolerance = Other.NormalTolerance;
-	//	StitchingTechnique = Other.StitchingTechnique;
-	//}
 
 	uint32 GetHash() const
 	{
@@ -289,8 +284,25 @@ public:
 	}
 };
 
+/**
+ * Base class for all import options in datasmith.
+ *
+ * Notable feature: forces a full serialization of its properties (by opposition
+ * to the standard delta serialization which stores only the diff wrt the CDO)
+ * The intent is to store the exact options used in a previous import.
+ */
+UCLASS()
+class DATASMITHCONTENT_API UDatasmithOptionsBase : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	void Serialize(FStructuredArchive::FRecord Record) override;
+};
+
+
 UCLASS(BlueprintType, config = EditorPerProjectUserSettings, Transient)
-class DATASMITHCONTENT_API UDatasmithCommonTessellationOptions : public UObject
+class DATASMITHCONTENT_API UDatasmithCommonTessellationOptions : public UDatasmithOptionsBase
 {
 	GENERATED_BODY()
 
@@ -300,7 +312,7 @@ public:
 };
 
 UCLASS(config = EditorPerProjectUserSettings, HideCategories = ("NotVisible"))
-class DATASMITHCONTENT_API UDatasmithImportOptions : public UObject
+class DATASMITHCONTENT_API UDatasmithImportOptions : public UDatasmithOptionsBase
 {
 	GENERATED_UCLASS_BODY()
 

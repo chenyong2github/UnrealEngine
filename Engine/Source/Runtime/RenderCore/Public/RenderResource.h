@@ -761,25 +761,36 @@ public:
 	struct FAllocation
 	{
 		/** The location of the buffer in main memory. */
-		uint8* Buffer;
+		uint8* Buffer = nullptr;
 		/** The vertex buffer to bind for draw calls. */
-		FIndexBuffer* IndexBuffer;
+		FIndexBuffer* IndexBuffer = nullptr;
 		/** The offset in to the index buffer. */
-		uint32 FirstIndex;
-
-		/** Default constructor. */
-		FAllocation()
-			: Buffer(NULL)
-			, IndexBuffer(NULL)
-			, FirstIndex(0)
-		{
-		}
+		uint32 FirstIndex = 0;
 
 		/** Returns true if the allocation is valid. */
 		FORCEINLINE bool IsValid() const
 		{
 			return Buffer != NULL;
 		}
+	};
+
+	/** Information data with usage details to avoid passing around parameters. */
+	struct FAllocationEx : public FAllocation
+	{
+		FAllocationEx() = default;
+
+		FAllocationEx(const FAllocation& InRef, uint32 InNumIndices, uint32 InIndexStride) 
+			: FAllocation(InRef)
+			, NumIndices(InNumIndices)
+			, IndexStride(InIndexStride) 
+		{}
+
+		/** The number of indices allocated. */
+		uint32 NumIndices = 0;
+		/** The allocation stride (2 or 4 bytes). */
+		uint32 IndexStride = 0;
+		/** The maximum value of the indices used. */
+		uint32 MaxUsedIndex = 0;
 	};
 
 	/** Default constructor. */
@@ -802,9 +813,9 @@ public:
 	 * @returns an FAllocation with information regarding the allocated memory.
 	 */
 	template <typename IndexType>
-	inline FAllocation Allocate(uint32 NumIndices)
+	FORCEINLINE FAllocationEx Allocate(uint32 NumIndices)
 	{
-		return Allocate(NumIndices, sizeof(IndexType));
+		return FAllocationEx(Allocate(NumIndices, sizeof(IndexType)), NumIndices, sizeof(IndexType));
 	}
 
 	/**

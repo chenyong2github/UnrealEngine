@@ -71,7 +71,7 @@ void PrepareAndShowMaterialConflictPreviewDialog(UFbxImportUI* ImportUI)
 		ResultMaterial[Materialindex].ImportedMaterialSlotName = ImportUI->MaterialCompareData.ResultAsset[Materialindex].ImportedMaterialSlotName;
 	}
 	UnFbx::EFBXReimportDialogReturnOption OutReturnOption;
-	UnFbx::FFbxImporter::PrepareAndShowMaterialConflictDialog<TMaterialType>(CurrentMaterial, ResultMaterial, RemapMaterial, RemapMaterialName, true, true, OutReturnOption);
+	UnFbx::FFbxImporter::PrepareAndShowMaterialConflictDialog<TMaterialType>(CurrentMaterial, ResultMaterial, RemapMaterial, RemapMaterialName, true, true, false, OutReturnOption);
 }
 
 void PrepareAndShowSkeletonConflictPreviewDialog(UFbxImportUI* ImportUI)
@@ -358,6 +358,7 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 		InOutImportOptions.bUsedAsFullName			= ImportUI->bOverrideFullName;
 		InOutImportOptions.ImportType				= ImportUI->MeshTypeToImport;
 
+		InOutImportOptions.bResetToFbxOnMaterialConflict = ImportUI->bResetToFbxOnMaterialConflict;
 		InOutImportOptions.bAutoComputeLodDistances	= ImportUI->bAutoComputeLodDistances;
 		InOutImportOptions.LodDistances.Empty(8);
 		InOutImportOptions.LodDistances.Add(ImportUI->LodDistance0);

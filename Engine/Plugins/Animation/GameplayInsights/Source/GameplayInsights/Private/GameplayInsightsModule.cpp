@@ -57,22 +57,6 @@ void FGameplayInsightsModule::StartupModule()
 			GameplayTimingViewExtender.GetCustomDebugObjects(InAnimationBlueprintEditor, OutDebugList);
 		});
 
-		// Create the Store Service.
-		FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
-		Trace::FStoreService::FDesc StoreServiceDesc;
-		StoreServiceDesc.StoreDir = *StoreDir;
-		StoreServiceDesc.RecorderPort = 0; // Let system decide port
-		StoreServiceDesc.ThreadCount = 2;
-		StoreService = TSharedPtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
-
-		FCoreDelegates::OnPreExit.AddLambda([this]() {
-			StoreService.Reset();
-		});
-
-		// Connect to our newly created store and setup the insights module
-		UnrealInsightsModule.ConnectToStore(TEXT("localhost"), StoreService->GetPort());
-		Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
-
 		const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
 
 		TSharedRef<FTabManager::FLayout> MajorTabsLayout = FTabManager::NewLayout("GameplayInsightsMajorLayout_v1.0")
@@ -141,6 +125,7 @@ void FGameplayInsightsModule::StartupModule()
 				->AddTab(FTimingProfilerTabs::LogViewID, ETabState::ClosedTab)
 			)
 		);
+
 		TimingProfilerConfig.WorkspaceGroup = WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory();
 
 		UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId, TimingProfilerConfig);
@@ -151,8 +136,33 @@ void FGameplayInsightsModule::StartupModule()
 
 		UnrealInsightsModule.SetUnrealInsightsLayoutIni(GEditorLayoutIni);
 
-		UnrealInsightsModule.CreateSessionViewer(false);
-		UnrealInsightsModule.StartAnalysisForLastLiveSession();
+		// Create store and start analysis session - should only be done after engine has init and all plugins are loaded
+		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this]
+		{
+			IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+			if (!UnrealInsightsModule.GetStoreClient())
+			{
+				// Create the Store Service.
+				FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
+				Trace::FStoreService::FDesc StoreServiceDesc;
+				StoreServiceDesc.StoreDir = *StoreDir;
+				StoreServiceDesc.RecorderPort = 0; // Let system decide port
+				StoreServiceDesc.ThreadCount = 2;
+				StoreService = TSharedPtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
+
+				FCoreDelegates::OnPreExit.AddLambda([this]() {
+					StoreService.Reset();
+				});
+
+				// Connect to our newly created store and setup the insights module
+				UnrealInsightsModule.ConnectToStore(TEXT("localhost"), StoreService->GetPort());
+				Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
+
+				UnrealInsightsModule.CreateSessionViewer(false);
+				UnrealInsightsModule.StartAnalysisForLastLiveSession();
+			}
+		});
+
 	}
 
 #else

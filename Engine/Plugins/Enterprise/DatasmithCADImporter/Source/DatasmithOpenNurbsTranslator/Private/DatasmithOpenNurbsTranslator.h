@@ -28,9 +28,9 @@ public:
 
 	virtual bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload) override;
 
-	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
+	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;
 
-	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
+	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;
 
 private:
 	TSharedPtr<FOpenNurbsTranslatorImpl> Translator;

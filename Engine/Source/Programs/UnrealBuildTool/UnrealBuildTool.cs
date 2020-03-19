@@ -15,6 +15,12 @@ namespace UnrealBuildTool
 	static class UnrealBuildTool
 	{
 		/// <summary>
+		/// Save the application startup time. This can be used as the timestamp for build makefiles, to determine a base time after which any
+		/// modifications should invalidate it.
+		/// </summary>
+		static public DateTime StartTimeUtc { get; } = DateTime.UtcNow;
+
+		/// <summary>
 		/// The environment at boot time.
 		/// </summary>
 		static public System.Collections.IDictionary InitialEnvironment;

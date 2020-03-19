@@ -9,9 +9,13 @@
 #include "SearchSerializer.h"
 #include "Modules/ModuleManager.h"
 
+class UClass;
+
 struct FSearchQuery
 {
 	FString Query;
+
+	FString ConvertToDatabaseQuery() const;
 };
 
 struct FSearchRecord
@@ -37,8 +41,8 @@ struct FSearchRecord
 struct FSearchStats
 {
 	int32 Scanning = 0;
-	int32 Downloading = 0;
-	int32 PendingDatabaseUpdates = 0;
+	int32 Processing = 0;
+	int32 Updating = 0;
 
 	int32 AssetsMissingIndex = 0;
 
@@ -48,10 +52,22 @@ struct FSearchStats
 class IAssetIndexer
 {
 public:
+
+	virtual ~IAssetIndexer() = 0;
 	virtual FString GetName() const = 0;
 	virtual int32 GetVersion() const = 0;
-	virtual void IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) = 0;
+	virtual void IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const = 0;
+
+	/**
+	 * If your package contains a nested asset, such as the Blueprint stored in Level/World packages, 
+	 * it would return UBlueprint's class in the array.  This is only important if you use IndexNestedAsset.
+	 */
+	virtual void GetNestedAssetTypes(TArray<UClass*>& OutTypes) const { }
 };
+
+inline IAssetIndexer::~IAssetIndexer() = default;
+
+class UClass;
 
 /**
  *
@@ -77,8 +93,7 @@ public:
 
 	virtual void ForceIndexOnAssetsMissingIndex() = 0;
 
-	virtual void RegisterIndexer(FName AssetClassName, IAssetIndexer* Indexer) = 0;
-	virtual void UnregisterIndexer(IAssetIndexer* Indexer) = 0;
+	virtual void RegisterAssetIndexer(const UClass* AssetClass, TUniquePtr<IAssetIndexer>&& Indexer) = 0;
 
 public:
 

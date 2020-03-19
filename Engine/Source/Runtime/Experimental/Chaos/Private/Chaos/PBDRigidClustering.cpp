@@ -342,7 +342,7 @@ namespace Chaos
 				Child = OriginalChild;
 				ChildPosition = Child->X();
 			}
-			else if (ProxyData->KeyChild == OriginalChild)
+			else if (ProxyData && ProxyData->KeyChild == OriginalChild)
 			{
 				Child = MultiChildProxyId.Id;
 				const TRigidTransform<T, d> ProxyWorldTM = 
@@ -1462,7 +1462,7 @@ namespace Chaos
 		{
 			//ensureMsgf(false, TEXT("Checking usage with proxy"));
 			//@coverage {production}
-			Parent->SetSharedGeometry(ProxyGeometry);
+			Parent->SetSharedGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(ProxyGeometry->DeepCopy().Release()));
 		}
 		else if (Objects.Num() == 0)
 		{
@@ -1677,8 +1677,7 @@ namespace Chaos
 		}
 
 		TopLevelClusterParents.Remove(ClusteredParticle);
-		TArray<TPBDRigidParticleHandle<T, d>*>& ParentToChildren = MChildren[ClusteredParticle];
-		ParentToChildren.Remove(ClusteredParticle);
+		GetChildrenMap().Remove(ClusteredParticle);
 		ClusteredParticle->ClusterIds() = ClusterId();
 		ClusteredParticle->ClusterGroupIndex() = 0;
 		MActiveRemovalIndices.Remove(ClusteredParticle);
@@ -2011,7 +2010,7 @@ namespace Chaos
 		TPBDRigidClusteredParticleHandle<T, d>* ClusteredChild1,
 		TPBDRigidClusteredParticleHandle<T, d>* ClusteredChild2)
 	{
-		check(ClusteredChild1 && ClusteredChild1);
+		check(ClusteredChild1 && ClusteredChild2);
 		if (ClusteredChild1 == ClusteredChild2)
 			return;
 		const T AvgStrain = (ClusteredChild1->Strains() + ClusteredChild2->Strains()) * (T)0.5;

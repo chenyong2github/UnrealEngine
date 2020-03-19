@@ -19,7 +19,7 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Engine/GameEngine.h"
 #include "UObject/ObjectVersion.h"
-
+#include "Engine/World.h"
 
 class ENGINE_API FSkinnedMeshComponentUpdateSkinWeightsContext
 {
@@ -71,7 +71,7 @@ static void OnDefaultProfileCVarsChanged(IConsoleVariable* Variable)
 		if (bClearBuffer || bSetBuffer)
 		{
 			// Make sure no pending skeletal mesh LOD updates
-			if (IStreamingManager::Get_Concurrent())
+			if (IStreamingManager::Get_Concurrent() && IStreamingManager::Get().IsRenderAssetStreamingEnabled())
 			{
 				IStreamingManager::Get().GetRenderAssetStreamingManager().BlockTillAllRequestsFinished();
 			}
@@ -373,15 +373,19 @@ void FSkinWeightProfilesData::SetDynamicDefaultSkinWeightProfile(USkeletalMesh* 
 						};
 
 						UWorld* World = nullptr;
+#if WITH_EDITOR
+						World = GWorld;
+#else
 						UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
 						if (GameEngine)
 						{
 							World = GameEngine->GetGameWorld();
 						}
+#endif
 
 						if (World)
 						{
-							if (FSkinWeightProfileManager * Manager = FSkinWeightProfileManager::Get(World))
+							if (FSkinWeightProfileManager* Manager = FSkinWeightProfileManager::Get(World))
 							{
 								Manager->RequestSkinWeightProfile(Profiles[DefaultProfileIndex].Name, Mesh, Mesh, Callback, LODIndex);
 							}
@@ -412,8 +416,11 @@ void FSkinWeightProfilesData::ClearDynamicDefaultSkinWeightProfile(USkeletalMesh
 	{
 		if (DefaultOverrideSkinWeightBuffer != nullptr)
 		{
+#if !WITH_EDITOR
+			// Only release when not in Editor, as any other viewport / editor could be relying on this buffer
 			ReleaseBuffer(DefaultProfileName, true);
-			DefaultOverrideSkinWeightBuffer = nullptr;			
+#endif // !WITH_EDITOR
+			DefaultOverrideSkinWeightBuffer = nullptr;
 		}
 
 		bDefaultOverriden = false;

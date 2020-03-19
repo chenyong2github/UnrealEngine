@@ -1014,6 +1014,13 @@ enum class ERepLayoutFlags : uint8
 };
 ENUM_CLASS_FLAGS(ERepLayoutFlags);
 
+enum class ERepLayoutResult
+{
+	Success,	// Operation succeeded
+	Empty,		// Operation succeeded, but didn't generate (or consume) any data.
+	Error,		// Operation failed, but may succeed later.
+	FatalError	// Operation failed, and connection should be terminated.
+};
 
 /**
  * This class holds all replicated properties for a given type (either a UClass, UStruct, or UFunction).
@@ -1457,7 +1464,7 @@ private:
 	 * @param Data					The newest Property Data available.
 	 * @param RepFlags				Flags that will be used if the object is replicated.
 	 */
-	bool CompareProperties(
+	ERepLayoutResult CompareProperties(
 		FSendingRepState* RESTRICT RepState,
 		FRepChangelistState* RESTRICT RepChangelistState,
 		const FConstRepObjectDataBuffer Data,
@@ -1696,7 +1703,7 @@ private:
 		const int32 CmdEnd,
 		TArray<FHandleToCmdIndex>& HandleToCmdIndex);
 
-	void UpdateChangelistMgr(
+	ERepLayoutResult UpdateChangelistMgr(
 		FSendingRepState* RESTRICT RepState,
 		FReplicationChangelistMgr& InChangelistMgr,
 		const UObject* InObject,
@@ -1733,7 +1740,7 @@ private:
 		FNetDeltaSerializeInfo& Params,
 		FStructProperty* Property) const;
 
-	bool DeltaSerializeFastArrayProperty(struct FFastArrayDeltaSerializeParams& Params, FReplicationChangelistMgr* ChangelistMgr) const;
+	ERepLayoutResult DeltaSerializeFastArrayProperty(struct FFastArrayDeltaSerializeParams& Params, FReplicationChangelistMgr* ChangelistMgr) const;
 
 	void GatherGuidReferencesForFastArray(struct FFastArrayDeltaSerializeParams& Params) const;
 

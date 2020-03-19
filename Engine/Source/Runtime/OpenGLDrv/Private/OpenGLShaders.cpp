@@ -962,6 +962,7 @@ void OPENGLDRV_API GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceC
 		Capabilities.MaxVaryingVectors = FOpenGL::GetMaxVaryingVectors();
 		Capabilities.bRequiresTexture2DPrecisionHack = FOpenGL::RequiresTexture2DPrecisionHack();
 		Capabilities.bRequiresRoundFunctionHack = FOpenGL::RequiresRoundFunctionHack();
+		Capabilities.bRequiresDisabledEarlyFragmentTests = FOpenGL::RequiresDisabledEarlyFragmentTests();
 	#endif // PLATFORM_LUMINGL4
 #elif PLATFORM_IOS
 	Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_iOS;
@@ -1039,7 +1040,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 		AppendCString(GlslCode, "#endif\n");
 	}
 
-	if (TypeEnum == GL_FRAGMENT_SHADER)
+	if (TypeEnum == GL_FRAGMENT_SHADER && Capabilities.bRequiresDisabledEarlyFragmentTests)
 	{
 		ReplaceCString(GlslCodeOriginal, "layout(early_fragment_tests) in;", "");
 	}
@@ -2431,20 +2432,18 @@ void FOpenGLLinkedProgram::ConfigureShaderStage( int Stage, uint32 FirstUniformB
 		Name.Buffer[6] = 0;
 		for (uint8 UB = 0; UB < Config.Shaders[Stage].Bindings.NumUniformBuffers; ++UB)
 		{
+			const TArray<CrossCompiler::FPackedArrayInfo>& PackedInfo = Config.Shaders[Stage].Bindings.PackedUniformBuffers[UB];
+			
 			TArray<FPackedUniformInfo> PackedBuffers;
 			ANSICHAR* Str = SetIndex(Name.Buffer, 2, UB);
 			*Str++ = '_';
 			Str[1] = 0;
-			for (uint8 Index = 0; Index < CrossCompiler::PACKED_TYPEINDEX_MAX; ++Index)
+			for (uint8 Index = 0; Index < PackedInfo.Num(); ++Index)
 			{
-				uint8 ArrayIndexType = CrossCompiler::PackedTypeIndexToTypeName(Index);
-				Str[0] = ArrayIndexType;
-				GLint Location = glGetUniformLocation(StageProgram, Name.Buffer);
-				if ((int32)Location != -1)
-				{
-					FPackedUniformInfo Info = {Location, ArrayIndexType, Index};
-					PackedBuffers.Add(Info);
-				}
+				Str[0] = PackedInfo[Index].TypeName;
+				GLint Location = glGetUniformLocation(StageProgram, Name.Buffer); // This could be -1 if optimized out
+				FPackedUniformInfo Info = {Location, PackedInfo[Index].TypeName,  PackedInfo[Index].TypeIndex};
+				PackedBuffers.Add(Info);
 			}
 
 			StagePackedUniformInfo[Stage].PackedUniformBufferInfos.Add(PackedBuffers);
@@ -4147,6 +4146,12 @@ void FOpenGLShaderParameterCache::CommitPackedUniformBuffers(FOpenGLLinkedProgra
 				{
 					auto& UBInfo = Bindings.PackedUniformBuffers[BufferIndex];
 					const auto& UniformInfo = UniformBufferUploadInfoList[InfoIndex];
+					if (UniformInfo.Location < 0)
+					{
+						// Optimized out
+						continue;
+					}
+					
 					const void* RESTRICT UniformData = PackedUniformsScratch[UniformInfo.Index];
 					int32 NumVectors = UBInfo[InfoIndex].Size / SizeOfFloat4;
 					check(UniformInfo.ArrayType == UBInfo[InfoIndex].TypeName);

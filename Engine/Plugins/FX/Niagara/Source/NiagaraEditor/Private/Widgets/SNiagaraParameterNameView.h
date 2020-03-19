@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Types/SlateEnums.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 struct FNiagaraScriptVariableAndViewInfo;
 struct FSlateFontInfo;
@@ -67,6 +68,8 @@ public:
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, const TSharedPtr<class INiagaraParameterNameViewModel>& InParameterNameViewModel);
+	void SetPendingRename(bool bInPendingRename) { bPendingRename = bInPendingRename; }
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 protected:
 	TSharedPtr<INiagaraParameterNameViewModel> ParameterNameViewModel;
@@ -86,4 +89,8 @@ protected:
 	FText GetTooltipForScopeValue(int32 Value) const;
 	bool GetScopeValueIsEnabled(int32 Value) const;
 	FText GetParameterNameText() const;
+
+	TSharedPtr<SWidget> ScopeSlotWidget;
+	TSharedPtr<SInlineEditableTextBlock> NameSlotWidget;
+	bool bPendingRename = false;
 };

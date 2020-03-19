@@ -14,6 +14,7 @@ class SNiagaraParameterEditor;
 class SBox;
 class IStructureDetailsView;
 class SComboButton;
+struct FGraphActionListBuilderBase;
 
 class SNiagaraStackFunctionInputValue: public SCompoundWidget
 {
@@ -132,11 +133,15 @@ private:
 
 	bool OnFunctionInputAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
 
+	void CollectDynamicInputActionsForReassign(FGraphActionListBuilderBase& DynamicInputActions) const;
+
 	void ShowReassignDynamicInputScriptMenu();
 
-	void OnLibraryToggleChanged(ECheckBoxState CheckState);
+	bool GetLibraryOnly() const;
 
-	ECheckBoxState LibraryToggleIsChecked() const;
+	void SetLibraryOnly(bool bInIsLibraryOnly);
+
+	FReply ScratchButtonPressed() const;
 
 private:
 	UNiagaraStackFunctionInput* FunctionInput;
@@ -149,7 +154,6 @@ private:
 	TSharedPtr<IStructureDetailsView> LocalValueStructDetailsView;
 
 	TSharedPtr<SComboButton> SetFunctionInputButton;
-	TSharedPtr<SGraphActionMenu> SelectInputFunctionMenu;
 
-	static bool bIncludeNonLibraryInputs;
+	static bool bLibraryOnly;
 };

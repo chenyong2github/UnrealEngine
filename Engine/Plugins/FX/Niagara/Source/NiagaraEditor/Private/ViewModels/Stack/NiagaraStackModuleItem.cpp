@@ -10,6 +10,8 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemOutputCollection.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraNodeOutput.h"
@@ -32,6 +34,9 @@
 #include "Widgets/SWidget.h"
 #include "NiagaraActions.h"
 #include "NiagaraClipboard.h"
+#include "NiagaraConvertInPlaceUtilityBase.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "NiagaraMessageManager.h"
 
 #include "ScopedTransaction.h"
 #include "NiagaraScriptVariable.h"
@@ -136,6 +141,8 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterOutputCollection));
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterLinkedInputCollection));
 	}
+
+	FNiagaraMessageManager::Get()->GetOnRequestRefresh().AddUObject(this, &UNiagaraStackModuleItem::OnMessageManagerRefresh);
 }
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
@@ -165,10 +172,17 @@ INiagaraStackItemGroupAddUtilities* UNiagaraStackModuleItem::GetGroupAddUtilitie
 	return GroupAddUtilities;
 }
 
+void UNiagaraStackModuleItem::FinalizeInternal()
+{
+	FNiagaraMessageManager::Get()->GetOnRequestRefresh().RemoveAll(this);
+	Super::FinalizeInternal();
+}
+
 void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	bCanRefresh = false;
 	bCanMoveAndDeleteCache.Reset();
+	bIsScratchModuleCache.Reset();
 
 	if (FunctionCallNode != nullptr && FunctionCallNode->ScriptIsValid())
 	{
@@ -344,8 +358,14 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					{
 						NewIssues[AddIdx].InsertFix(0,
 							FStackIssueFix(
-							LOCTEXT("SelectNewModuleScriptFixUseRecommended", "Use recommended replacement"),
-							FStackIssueFixDelegate::CreateLambda([this]() { ReassignModuleScript(FunctionCallNode->FunctionScript->DeprecationRecommendation); })));
+							LOCTEXT("SelectNewModuleScriptFixUseRecommended", "Use recommended replacement and keep a disabled backup"),
+							FStackIssueFixDelegate::CreateLambda([this]() 
+							{
+									if (DeprecationDelegate.IsBound())
+									{
+										DeprecationDelegate.Execute(this);
+									}
+							})));
 					}
 				}
 				else
@@ -353,7 +373,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Warning,
 						ModuleScriptDeprecationShort,
-						FText::Format(LOCTEXT("ModuleScriptDeprecationFixParentLong", "The script asset for the assigned module {0} has been deprecated.  This module is inherited and this issue must be fixed in the parent emitter."),
+						FText::Format(LOCTEXT("ModuleScriptDeprecationFixParentLong", "The script asset for the assigned module {0} has been deprecated.\nThis module is inherited and this issue must be fixed in the parent emitter.\nYou will need to touch up this instance once that is done."),
 						FText::FromString(FunctionCallNode->GetFunctionName())),
 						GetStackEditorDataKey(),
 						false));
@@ -382,6 +402,13 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					GetStackEditorDataKey(),
 					true));
 			}
+		}
+
+		TArray<TSharedRef<const INiagaraMessage>> Messages = FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(
+			GetSystemViewModel()->GetMessageLogGuid(), FObjectKey(FunctionCallNode));
+		for (TSharedRef<const INiagaraMessage> Message : Messages)
+		{
+			NewIssues.Add(FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey()));
 		}
 
 		if (FunctionCallNode->FunctionScript == nullptr && FunctionCallNode->GetClass() == UNiagaraNodeFunctionCall::StaticClass())
@@ -823,6 +850,17 @@ void UNiagaraStackModuleItem::RefreshIsEnabled()
 	}
 }
 
+void UNiagaraStackModuleItem::OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages)
+{
+	if (GetSystemViewModel()->GetMessageLogGuid() == MessageJobBatchAssetKey)
+	{
+		if (FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(MessageJobBatchAssetKey, FObjectKey(FunctionCallNode)).Num() > 0)
+		{
+			RefreshChildren();
+		}
+	}
+}
+
 bool UNiagaraStackModuleItem::CanMoveAndDelete() const
 {
 	if (bCanMoveAndDeleteCache.IsSet() == false)
@@ -948,9 +986,15 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		FScopedTransaction ScopedTransaction(LOCTEXT("ReassignModuleTransaction", "Reassign module script"));
 
 		const FString OldName = FunctionCallNode->GetFunctionName();
-		const UNiagaraScript* OldScript = FunctionCallNode->FunctionScript;
+		UNiagaraScript* OldScript = FunctionCallNode->FunctionScript;
 
 		FunctionCallNode->Modify();
+		UNiagaraClipboardContent* OldClipboardContent = nullptr;
+		if (ModuleScript->ConversionUtility != nullptr)
+		{
+			OldClipboardContent = UNiagaraClipboardContent::Create();
+			Copy(OldClipboardContent);
+		}
 		FunctionCallNode->FunctionScript = ModuleScript;
 		
 		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
@@ -962,10 +1006,33 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
 		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
 		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
-
 		FunctionCallNode->RefreshFromExternalChanges();
 		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
 		RefreshChildren();
+		
+		
+		if (ModuleScript->ConversionUtility != nullptr && OldClipboardContent != nullptr)
+		{
+			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), ModuleScript->ConversionUtility);
+			FText ConvertMessage;
+
+			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
+			Copy(NewClipboardContent);
+
+			if (ConversionUtility )
+			{
+				bool bConverted = ConversionUtility->Convert(OldScript, OldClipboardContent, ModuleScript, InputCollection, NewClipboardContent, FunctionCallNode, ConvertMessage);
+				if (!ConvertMessage.IsEmptyOrWhitespace())
+				{
+					// Notify the end-user about the convert message, but continue the process as they could always undo.
+					FNotificationInfo Msg(FText::Format(LOCTEXT("FixConvertInPlace", "Conversion Note: {0}"), ConvertMessage));
+					Msg.ExpireDuration = 5.0f;
+					Msg.bFireAndForget = true;
+					Msg.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
+					FSlateNotificationManager::Get().AddNotification(Msg);
+				}
+			}
+		}
 	}
 }
 
@@ -1036,6 +1103,8 @@ void UNiagaraStackModuleItem::Copy(UNiagaraClipboardContent* ClipboardContent) c
 		checkf(FunctionCallNode->FunctionScript != nullptr, TEXT("Can't copy this module because it's script is invalid.  Call TestCanCopyWithMessage to check this."));
 		ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, FunctionCallNode->GetFunctionName(), FunctionCallNode->FunctionScript);
 	}
+
+	ClipboardFunction->DisplayName = GetAlternateDisplayName().Get(FText::GetEmpty());
 
 	InputCollection->ToClipboardFunctionInputs(ClipboardFunction, ClipboardFunction->Inputs);
 	ClipboardContent->Functions.Add(ClipboardFunction);
@@ -1132,6 +1201,15 @@ void UNiagaraStackModuleItem::Delete()
 		}
 		ModifiedGroupItemsDelegate.Broadcast();
 	}
+}
+
+bool UNiagaraStackModuleItem::IsScratchModule() const
+{
+	if (bIsScratchModuleCache.IsSet() == false)
+	{
+		bIsScratchModuleCache = GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(FunctionCallNode->FunctionScript).IsValid();
+	}
+	return bIsScratchModuleCache.GetValue();
 }
 
 UObject* UNiagaraStackModuleItem::GetExternalAsset() const

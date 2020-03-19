@@ -34,7 +34,7 @@ public:
 	// End IDatasmithTranslator overrides
 
 	// Begin ADatasmithCoreTechTranslator overrides
-	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
+	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;
 
 protected:
 	virtual void InitCommonTessellationOptions(FDatasmithTessellationOptions& TessellationOptions) override

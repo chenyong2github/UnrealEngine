@@ -483,7 +483,7 @@ public:
 	FORCEINLINE const TArray<int32>& GetHighlightedBones() const { return HighlightedBones; }
 #endif
 
-	FPhysScene_Chaos* GetPhysicsScene() const;
+	FPhysScene_Chaos* GetInnerChaosScene() const;
 	AChaosSolverActor* GetPhysicsSolverActor() const;
 	const FGeometryCollectionPhysicsProxy* GetPhysicsProxy() const { return PhysicsProxy; }
 
@@ -585,6 +585,10 @@ private:
 	uint32 NavmeshInvalidationTimeSliceIndex;
 	bool IsObjectDynamic;
 	bool IsObjectLoading;
+
+	FCollisionFilterData InitialSimFilter;
+	FCollisionFilterData InitialQueryFilter;
+	FPhysxUserData PhysicsUserData;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)

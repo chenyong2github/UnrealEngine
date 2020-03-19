@@ -83,6 +83,7 @@ void USmoothMeshTool::Setup()
 		// Construct the preview object and set the material on it.
 		Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 		Preview->Setup(this->TargetWorld, this); // Adds the actual functional tool in the Preview object
+		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 		FComponentMaterialSet MaterialSet;
 		ComponentTarget->GetMaterialSet(MaterialSet);

@@ -218,7 +218,7 @@ void FGameplayAttribute::PostSerialize(const FArchive& Ar)
 		}
 		else if (!AttributeName.IsEmpty() && AttributeOwner != nullptr)
 		{
-			Attribute = FindField<FProperty>(AttributeOwner, *AttributeName);
+			Attribute = FindFProperty<FProperty>(AttributeOwner, *AttributeName);
 
 			if (!Attribute.Get())
 			{
@@ -623,7 +623,7 @@ void FAttributeSetInitterDiscreteLevels::PreloadAttributeSetData(const TArray<UC
 			}
 
 			// Find the FProperty
-			FProperty* Property = FindField<FProperty>(*Set, *AttributeName);
+			FProperty* Property = FindFProperty<FProperty>(*Set, *AttributeName);
 			if (!IsSupportedProperty(Property))
 			{
 				ABILITY_LOG(Verbose, TEXT("FAttributeSetInitterDiscreteLevels::PreloadAttributeSetData Unable to match Attribute from %s (row: %s)"), *AttributeName, *RowName);
@@ -721,6 +721,10 @@ void FAttributeSetInitterDiscreteLevels::InitAttributeSetDefaults(UAbilitySystem
 	const FAttributeSetDefaults& SetDefaults = Collection->LevelData[Level - 1];
 	for (const UAttributeSet* Set : AbilitySystemComponent->SpawnedAttributes)
 	{
+		if (!Set)
+		{
+			continue;
+		}
 		const FAttributeDefaultValueList* DefaultDataList = SetDefaults.DataMap.Find(Set->GetClass());
 		if (DefaultDataList)
 		{
@@ -768,6 +772,11 @@ void FAttributeSetInitterDiscreteLevels::ApplyAttributeDefault(UAbilitySystemCom
 	const FAttributeSetDefaults& SetDefaults = Collection->LevelData[Level - 1];
 	for (const UAttributeSet* Set : AbilitySystemComponent->SpawnedAttributes)
 	{
+		if (!Set)
+		{
+			continue;
+		}
+
 		const FAttributeDefaultValueList* DefaultDataList = SetDefaults.DataMap.Find(Set->GetClass());
 		if (DefaultDataList)
 		{

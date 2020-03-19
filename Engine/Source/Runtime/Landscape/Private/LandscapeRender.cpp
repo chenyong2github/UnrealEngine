@@ -641,7 +641,7 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
  * A return value less than 0 means no override.
  * Any positive value must still be clamped into the valid Lod range for the landscape.
  */
-static int32 GetLandscapeLodOverride(FSceneView const& View)
+static int32 GetViewLodOverride(FSceneView const& View)
 {
 	// Apply r.ForceLOD override
 	int32 LodOverride = GetCVarForceLOD();
@@ -652,6 +652,28 @@ static int32 GetLandscapeLodOverride(FSceneView const& View)
 	// Use lod 0 if lodding is disabled
 	LodOverride = View.Family->EngineShowFlags.LOD == 0 ? 0 : LodOverride;
 	return LodOverride;
+}
+
+static int32 GetDrawCollisionLodOverride(bool bShowCollisionPawn, bool bShowCollisionVisibility, int32 DrawCollisionPawnLOD, int32 DrawCollisionVisibilityLOD)
+{
+#if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	return bShowCollisionPawn ? FMath::Max(DrawCollisionPawnLOD, DrawCollisionVisibilityLOD) : bShowCollisionVisibility ? DrawCollisionVisibilityLOD : -1;
+#else
+	return -1;
+#endif
+}
+
+static int32 GetDrawCollisionLodOverride(FSceneView const& View, FCollisionResponseContainer const& CollisionResponse, int32 CollisionLod, int32 SimpleCollisionLod)
+{
+#if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	bool bShowCollisionPawn = View.Family->EngineShowFlags.CollisionPawn;
+	bool bShowCollisionVisibility = View.Family->EngineShowFlags.CollisionVisibility;
+	int32 DrawCollisionPawnLOD = CollisionResponse.GetResponse(ECC_Pawn) == ECR_Ignore ? -1 : SimpleCollisionLod;
+	int32 DrawCollisionVisibilityLOD = CollisionResponse.GetResponse(ECC_Visibility) == ECR_Ignore ? -1 : CollisionLod;
+	return GetDrawCollisionLodOverride(bShowCollisionPawn, bShowCollisionVisibility, DrawCollisionPawnLOD, DrawCollisionVisibilityLOD);
+#else
+	return -1;
+#endif
 }
 
 //
@@ -721,6 +743,10 @@ void FLandscapeRenderSystem::UnregisterEntity(FLandscapeComponentSceneProxy* Sce
 
 	SetSceneProxy(SceneProxy->ComponentBase, nullptr);
 	SetSectionOriginAndRadius(SceneProxy->ComponentBase, FVector4(ForceInitToZero));
+
+	LODSettingsComponent LODSettings;
+	FMemory::Memzero(&LODSettings, sizeof(LODSettingsComponent));
+	SetSectionLODSettings(SceneProxy->ComponentBase, LODSettings);
 
 	if (SceneProxy->MaterialHasTessellationEnabled.Find(true) != INDEX_NONE)
 	{
@@ -807,6 +833,18 @@ void FLandscapeRenderSystem::ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewSize
 
 void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 {
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
+	const int32 NumSceneProxies = SceneProxies.Num();
+	SectionCurrentFirstLODIndices.Empty(NumSceneProxies);
+	SectionCurrentFirstLODIndices.AddUninitialized(NumSceneProxies);
+
+	for (int32 Idx = 0; Idx < NumSceneProxies; ++Idx)
+	{
+		const FLandscapeComponentSceneProxy* Proxy = SceneProxies[Idx];
+		SectionCurrentFirstLODIndices[Idx] = Proxy ? Proxy->GetCurrentFirstLODIdx_RenderThread() : 0;
+	}
+#endif
+	
 	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
 		&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
 
@@ -857,6 +895,8 @@ void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
 	const FSceneView* ViewPtrAsIdentifier,
 	int32 ViewLODOverride,
 	float ViewLODDistanceFactor,
+	bool bDrawCollisionPawn,
+	bool bDrawCollisionCollision,
 	FVector ViewOrigin,
 	FMatrix ViewProjectionMarix
 )
@@ -884,8 +924,17 @@ void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
 		float FractionalLOD;
 		GetLODFromScreenSize(SectionLODSettings[EntityIndex], MeshScreenSizeSquared, LODScale * LODScale, FractionalLOD);
 
-		int32 ForcedLODLevel = FMath::Min<int32>(ViewLODOverride, SectionLODSettings[EntityIndex].LastLODIndex);
-		NewSectionLODValues[EntityIndex] = ForcedLODLevel >= 0 ? ForcedLODLevel : FractionalLOD;
+		const int32 DrawCollisionLODOverride = GetDrawCollisionLodOverride(bDrawCollisionPawn, bDrawCollisionCollision, SectionLODSettings[EntityIndex].DrawCollisionPawnLOD, SectionLODSettings[EntityIndex].DrawCollisionVisibilityLOD);
+		int32 ForcedLODLevel = DrawCollisionLODOverride >= 0 ? DrawCollisionLODOverride : ViewLODOverride;
+		ForcedLODLevel = FMath::Min<int32>(ForcedLODLevel, SectionLODSettings[EntityIndex].LastLODIndex);
+
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
+		const float CurFirstLODIdx = (float)SectionCurrentFirstLODIndices[EntityIndex];
+#else
+		constexpr float CurFirstLODIdx = 0.f;
+#endif
+
+		NewSectionLODValues[EntityIndex] = FMath::Max(ForcedLODLevel >= 0 ? ForcedLODLevel : FractionalLOD, CurFirstLODIdx);
 
 		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
 		{
@@ -1074,8 +1123,10 @@ void FLandscapeRenderSystem::EndFrame()
 FLandscapeRenderSystem::FComputeSectionPerViewParametersTask::FComputeSectionPerViewParametersTask(FLandscapeRenderSystem& InRenderSystem, const FSceneView* InView)
 	: RenderSystem(InRenderSystem)
 	, ViewPtrAsIdentifier(InView)
-	, ViewLODOverride(GetLandscapeLodOverride(*InView))
+	, ViewLODOverride(GetViewLodOverride(*InView))
 	, ViewLODDistanceFactor(InView->LODDistanceFactor)
+	, ViewEngineShowFlagCollisionPawn(InView->Family->EngineShowFlags.CollisionPawn)
+	, ViewEngineShowFlagCollisionVisibility(InView->Family->EngineShowFlags.CollisionVisibility)
 	, ViewOrigin(InView->ViewMatrices.GetViewOrigin())
 	, ViewProjectionMatrix(InView->ViewMatrices.GetProjectionMatrix())
 {
@@ -1281,6 +1332,13 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	LastVirtualTextureLOD = MaxLOD;
 	FirstVirtualTextureLOD = FMath::Max(MaxLOD - InComponent->GetLandscapeProxy()->VirtualTextureNumLods, 0);
 	VirtualTextureLodBias = InComponent->GetLandscapeProxy()->VirtualTextureLodBias;
+
+#if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	LODSettings.DrawCollisionPawnLOD = CollisionResponse.GetResponse(ECC_Pawn) == ECR_Ignore ? -1 : SimpleCollisionMipLevel;
+	LODSettings.DrawCollisionVisibilityLOD = CollisionResponse.GetResponse(ECC_Visibility) == ECR_Ignore ? -1 : CollisionMipLevel;
+#else
+	LODSettings.DrawCollisionPawnLOD = LODSettings.DrawCollisionVisibilityLOD = -1;
+#endif
 
 	ComponentMaxExtend = SubsectionSizeQuads * FMath::Max(InComponent->GetComponentTransform().GetScale3D().X, InComponent->GetComponentTransform().GetScale3D().Y);
 
@@ -1768,7 +1826,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 #if WITH_EDITOR
 		(IsSelected() && !GLandscapeEditModeActive) ||
 		(GLandscapeViewMode != ELandscapeViewMode::Normal) ||
-		(CVarLandscapeShowDirty.GetValueOnRenderThread() && GLandscapeDirtyMaterial) ||
+		(CVarLandscapeShowDirty.GetValueOnAnyThread() && GLandscapeDirtyMaterial) ||
 		(View->Family->LandscapeLODOverride >= 0) ||
 #else
 		IsSelected() ||
@@ -2430,30 +2488,16 @@ void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInter
 
 void FLandscapeComponentSceneProxy::CalculateLODFromScreenSize(const FSceneView& InView, float InMeshScreenSizeSquared, float InViewLODScale, int32 InSubSectionIndex, FViewCustomDataLOD& InOutLODData) const
 {
-	// Handle general LOD override
-	float PreferedLOD = GetLandscapeLodOverride(InView);
+	// Handle LOD overrides
+	const int32 ViewLodOverride = GetViewLodOverride(InView);
+	float PreferedLOD = (float)ViewLodOverride;
 
 #if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (InView.Family->EngineShowFlags.CollisionVisibility || InView.Family->EngineShowFlags.CollisionPawn)
-	{
-		const bool bDrawSimpleCollision = InView.Family->EngineShowFlags.CollisionPawn        && CollisionResponse.GetResponse(ECC_Pawn) != ECR_Ignore;
-		const bool bDrawComplexCollision = InView.Family->EngineShowFlags.CollisionVisibility && CollisionResponse.GetResponse(ECC_Visibility) != ECR_Ignore;
-
-		if (bDrawSimpleCollision)
-		{
-			PreferedLOD = FMath::Max(CollisionMipLevel, SimpleCollisionMipLevel);
-		}
-		else if (bDrawComplexCollision)
-		{
-			PreferedLOD = CollisionMipLevel;
-		}
-	}
+	const int32 DrawCollisionLodOverride = GetDrawCollisionLodOverride(InView, CollisionResponse, CollisionMipLevel, SimpleCollisionMipLevel);
+	PreferedLOD = DrawCollisionLodOverride >= 0 ? (float)DrawCollisionLodOverride : PreferedLOD;
 #endif
 
-	if (ForcedLOD >= 0)
-	{
-		PreferedLOD = (float)ForcedLOD;
-	}
+	PreferedLOD = ForcedLOD >= 0 ? (float)ForcedLOD : PreferedLOD;
 
 	int8 MinStreamedLOD = HeightmapTexture ? FMath::Min<int8>(((FTexture2DResource*)HeightmapTexture->Resource)->GetCurrentFirstMip(), FMath::CeilLogTwo(SubsectionSizeVerts) - 1) : 0;
 	MinStreamedLOD = FMath::Min(MinStreamedLOD, MaxLOD); // We can't go above MaxLOD even for texture streaming
@@ -3223,13 +3267,6 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FLandscapeComponentSceneProxy_GetMeshElements);
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeDynamicDrawTime);
 
-#if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	const bool bInCollisionView = ViewFamily.EngineShowFlags.CollisionVisibility || ViewFamily.EngineShowFlags.CollisionPawn;
-	const bool bDrawSimpleCollision = ViewFamily.EngineShowFlags.CollisionPawn       && CollisionResponse.GetResponse(ECC_Pawn) != ECR_Ignore;
-	const bool bDrawComplexCollision = ViewFamily.EngineShowFlags.CollisionVisibility && CollisionResponse.GetResponse(ECC_Visibility) != ECR_Ignore;
-	const int32 CollisionLODLevel = bDrawSimpleCollision ? FMath::Max(CollisionMipLevel, SimpleCollisionMipLevel) : bDrawComplexCollision ? CollisionMipLevel : -1;
-#endif
-
 	int32 NumPasses = 0;
 	int32 NumTriangles = 0;
 	int32 NumDrawCalls = 0;
@@ -3244,18 +3281,23 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 
 			const FSceneView* View = Views[ViewIndex];
 
-			int32 ForcedLODLevel = GetLandscapeLodOverride(*View);
+			const int32 ViewLodOverride = GetViewLodOverride(*View);
+			int32 ForcedLODLevel = ViewLodOverride;
 
 #if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			ForcedLODLevel = CollisionLODLevel >= 0 ? CollisionLODLevel : ForcedLODLevel;
+			const int32 DrawCollisionLodOverride = GetDrawCollisionLodOverride(*View, CollisionResponse, CollisionMipLevel, SimpleCollisionMipLevel);
+			ForcedLODLevel = DrawCollisionLodOverride >= 0 ? DrawCollisionLodOverride : ForcedLODLevel;
 #endif
 
 			ForcedLODLevel = FMath::Min(ForcedLODLevel, (int32)LODSettings.LastLODIndex);
 
 			const float LODScale = View->LODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
 			const float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *View);
-			const int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
+			int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
 
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
+			LODToRender = FMath::Max<int32>(LODToRender, GetCurrentFirstLODIdx_RenderThread());
+#endif
 			FMeshBatch& Mesh = Collector.AllocateMesh();
 			GetStaticMeshElement(LODToRender, false, ForcedLODLevel >= 0, Mesh, ParameterArray.ElementParams);
 
@@ -3413,8 +3455,11 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				const bool bInCollisionView = View->Family->EngineShowFlags.CollisionVisibility || View->Family->EngineShowFlags.CollisionPawn;
 				if (AllowDebugViewmodes() && bInCollisionView)
 				{
+					const bool bDrawSimpleCollision = View->Family->EngineShowFlags.CollisionPawn && CollisionResponse.GetResponse(ECC_Pawn) != ECR_Ignore;
+					const bool bDrawComplexCollision = View->Family->EngineShowFlags.CollisionVisibility && CollisionResponse.GetResponse(ECC_Visibility) != ECR_Ignore;
 					if (bDrawSimpleCollision || bDrawComplexCollision)
 					{
 						// Override the mesh's material with our material that draws the collision color
@@ -3596,7 +3641,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 		return;
 	}
 	float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *Context.ReferenceView);
-	int32 ForcedLODLevel = GetLandscapeLodOverride(*Context.ReferenceView);
+	int32 ForcedLODLevel = GetViewLodOverride(*Context.ReferenceView);
 
 	int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, Context.ReferenceView->LODDistanceFactor);
 	
@@ -4969,6 +5014,8 @@ public:
 		{
 			FName(TEXT("FLandscapeGrassWeightVS")),
 			FName(TEXT("FLandscapeGrassWeightPS")),
+			FName(TEXT("FLandscapePhysicalMaterialVS")),
+			FName(TEXT("FLandscapePhysicalMaterialPS")),
 		};
 		return ShaderTypes;
 	}
@@ -5151,6 +5198,14 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 		}
 	}
 #endif
+
+	if (IsStreamingRenderAsset(LODStreamingProxy))
+	{
+		const float MeshTexelFactor = ForcedLOD >= 0 ?
+			-FMath::Max(LODStreamingProxy->GetNumMipsForStreaming() - ForcedLOD, 1) :
+			(IsRegistered() ? Bounds.SphereRadius * 2.f : 0.f);
+		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(LODStreamingProxy, Bounds, MeshTexelFactor, PackedRelativeBox_Identity, true);
+	}
 }
 
 void ALandscapeProxy::ChangeTessellationComponentScreenSize(float InTessellationComponentScreenSize)

@@ -566,7 +566,7 @@ private:
 	FText GetNodeTooltip() const;
 
 	/** Detects any overflow on the anim notify track and requests a track pan */
-	float HandleOverflowPan( const FVector2D& ScreenCursorPos, float TrackScreenSpaceXPosition );
+	float HandleOverflowPan( const FVector2D& ScreenCursorPos, float TrackScreenSpaceXPosition, float TrackScreenSpaceMin, float TrackScreenSpaceMax);
 
 	/** Finds a snap position if possible for the provided scrub handle, if it is not possible, returns -1.0f */
 	float GetScrubHandleSnapPosition(float NotifyLocalX, ENotifyStateHandleHit::Type HandleToCheck);
@@ -618,6 +618,9 @@ private:
 
 	/** Delegate to signal selection changing */
 	FOnTrackSelectionChanged	OnSelectionChanged;
+
+	/** Delegate to redraw the notify panel */
+	FOnUpdatePanel				OnUpdatePanel;
 
 	/** Cached owning track geometry */
 	FGeometry CachedTrackGeometry;
@@ -984,6 +987,8 @@ protected:
 	TArray<FAnimSyncMarker*>				AnimSyncMarkers;
 	TAttribute<float>						ViewInputMin;
 	TAttribute<float>						ViewInputMax;
+	TAttribute<float>						InputMin;
+	TAttribute<float>						InputMax;
 	TAttribute<FLinearColor>				TrackColor;
 	int32									TrackIndex;
 	TAttribute<EVisibility>					NotifyTimingNodeVisibility;
@@ -1125,9 +1130,6 @@ public:
 	{
 		int32 TrackPos;
 		int32 TrackSnapTestPos;
-		float TrackMax;
-		float TrackMin;
-		float TrackWidth;
 		TSharedPtr<SAnimNotifyTrack> NotifyTrack;
 	};
 
@@ -1179,13 +1181,17 @@ public:
 		const FGeometry& TrackGeom = SelectionPositionClampInfo->NotifyTrack->GetCachedGeometry();
 		const FTrackScaleInfo& TrackScaleInfo = SelectionPositionClampInfo->NotifyTrack->GetCachedScaleInfo();
 		
+		float TrackMin = TrackGeom.LocalToAbsolute(FVector2D(TrackScaleInfo.InputToLocalX(0.0f), 0.0f)).X;
+		float TrackMax = TrackGeom.LocalToAbsolute(FVector2D(TrackScaleInfo.InputToLocalX(Sequence->GetPlayLength()), 0.0f)).X;
+		float TrackWidth = TrackMax - TrackMin;
+
 		// Tracks the movement amount to apply to the selection due to a snap.
 		float SnapMovement= 0.0f;
 		// Clamp the selection into the track
 		float SelectionBeginPositionX = TrackGeom.GetAbsolutePosition().X + TrackGeom.AbsoluteToLocal(SelectionBeginPosition).X;
 		const float SelectionLocalLength = TrackScaleInfo.PixelsPerInput * SelectionTimeLength;
-		const float ClampedEnd = FMath::Clamp(SelectionBeginPositionX + NodeGroupSize.X, SelectionPositionClampInfo->TrackMin, SelectionPositionClampInfo->TrackMax);
-		const float ClampedBegin = FMath::Clamp(SelectionBeginPositionX, SelectionPositionClampInfo->TrackMin, SelectionPositionClampInfo->TrackMax);
+		const float ClampedEnd = FMath::Clamp(SelectionBeginPositionX + NodeGroupSize.X, TrackMin, TrackMax);
+		const float ClampedBegin = FMath::Clamp(SelectionBeginPositionX, TrackMin, TrackMax);
 		if(ClampedBegin > SelectionBeginPositionX)
 		{
 			SelectionBeginPositionX = ClampedBegin;
@@ -1198,7 +1204,8 @@ public:
 		SelectionBeginPosition.X = TrackGeom.LocalToAbsolute(FVector2D(SelectionBeginPositionX - TrackGeom.GetAbsolutePosition().X, 0.0f)).X;
 
 		// Handle node snaps
-		for(int32 NodeIdx = 0 ; NodeIdx < SelectedNodes.Num() ; ++NodeIdx)
+		bool bSnapped = false;
+		for(int32 NodeIdx = 0 ; NodeIdx < SelectedNodes.Num() && !bSnapped; ++NodeIdx)
 		{
 			TSharedPtr<SAnimNotifyNode> CurrentNode = SelectedNodes[NodeIdx];
 
@@ -1217,10 +1224,10 @@ public:
 			// Always clamp the Y to the current track
 			SelectionBeginPosition.Y = SelectionPositionClampInfo->TrackPos - 1.0f;
 
-			float SnapX = GetSnapPosition(NodeClamp, TrackNodePos.X);
+			float SnapX = GetSnapPosition(NodeClamp, TrackNodePos.X, bSnapped);
 			if (FAnimNotifyEvent* CurrentEvent = CurrentNode->NodeObjectInterface->GetNotifyEvent())
 			{
-				if (SnapX >= 0.f)
+				if (bSnapped)
 				{
 					EAnimEventTriggerOffsets::Type Offset = EAnimEventTriggerOffsets::NoOffset;
 					if (SnapX == 0.0f || SnapX == SequenceEnd)
@@ -1252,10 +1259,10 @@ public:
 				if (CurrentNode.IsValid() && CurrentEvent->GetDuration() > 0)
 				{
 					// If we didn't snap the beginning of the node, attempt to snap the end
-					if (SnapX == -1.0f)
+					if (!bSnapped)
 					{
 						FVector2D TrackNodeEndPos = TrackNodePos + CurrentNode->GetDurationSize();
-						SnapX = GetSnapPosition(*SelectionPositionClampInfo, TrackNodeEndPos.X);
+						SnapX = GetSnapPosition(*SelectionPositionClampInfo, TrackNodeEndPos.X, bSnapped);
 
 						// Only attempt to snap if the node will fit on the track
 						if (SnapX >= CurrentNode->GetDurationSize())
@@ -1299,19 +1306,21 @@ public:
 
 		//scroll view
 		float MouseXPos = TrackGeom.GetAbsolutePosition().X + TrackGeom.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition()).X;
-		if(MouseXPos < SelectionPositionClampInfo->TrackMin)
+		float ViewportMin = TrackGeom.GetAbsolutePosition().X;
+		float ViewportMax = TrackGeom.GetAbsolutePosition().X + TrackGeom.GetAbsoluteSize().X;
+		if(MouseXPos < ViewportMin && ViewportMin > TrackMin - 10.0f)
 		{
-			float ScreenDelta = MouseXPos - SelectionPositionClampInfo->TrackMin;
-			RequestTrackPan.Execute(ScreenDelta, FVector2D(SelectionPositionClampInfo->TrackWidth, 1.f));
+			float ScreenDelta = FMath::Max(MouseXPos - ViewportMin, -10.0f);
+			RequestTrackPan.Execute(ScreenDelta, FVector2D(TrackWidth, 1.f));
 		}
-		else if(MouseXPos > SelectionPositionClampInfo->TrackMax)
+		else if(MouseXPos > ViewportMax && ViewportMax < TrackMax + 10.0f)
 		{
-			float ScreenDelta = MouseXPos - SelectionPositionClampInfo->TrackMax;
-			RequestTrackPan.Execute(ScreenDelta, FVector2D(SelectionPositionClampInfo->TrackWidth, 1.f));
+			float ScreenDelta =  FMath::Max(MouseXPos - ViewportMax, 10.0f);
+			RequestTrackPan.Execute(ScreenDelta, FVector2D(TrackWidth, 1.f));
 		}
 	}
 
-	float GetSnapPosition(const FTrackClampInfo& ClampInfo, float WidgetSpaceNotifyPosition)
+	float GetSnapPosition(const FTrackClampInfo& ClampInfo, float WidgetSpaceNotifyPosition, bool& bOutSnapped)
 	{
 		const FTrackScaleInfo& ScaleInfo = ClampInfo.NotifyTrack->GetCachedScaleInfo();
 
@@ -1319,22 +1328,26 @@ public:
 
 		float CurrentMinSnapDest = MaxSnapDist;
 		float SnapPosition = ScaleInfo.LocalXToInput(WidgetSpaceNotifyPosition);
-		bool bSnapped = OnSnapPosition.IsBound() && OnSnapPosition.Execute(SnapPosition, MaxSnapDist / ScaleInfo.PixelsPerInput);
+		bOutSnapped = OnSnapPosition.IsBound() && OnSnapPosition.Execute(SnapPosition, MaxSnapDist / ScaleInfo.PixelsPerInput);
 		SnapPosition = ScaleInfo.InputToLocalX(SnapPosition);
 
-		if(!bSnapped)
+		float WidgetSpaceStartPosition = ScaleInfo.InputToLocalX(0.0f);
+		float WidgetSpaceEndPosition = ScaleInfo.InputToLocalX(Sequence->SequenceLength);
+
+		if(!bOutSnapped)
 		{
 			// Didn't snap to a bar, snap to the track bounds
-			float WidgetSpaceEndPosition = ScaleInfo.InputToLocalX(Sequence->SequenceLength);
 			float SnapDistBegin = FMath::Abs(-WidgetSpaceNotifyPosition);
 			float SnapDistEnd = FMath::Abs(WidgetSpaceEndPosition - WidgetSpaceNotifyPosition);
 			if(SnapDistBegin < CurrentMinSnapDest)
 			{
 				SnapPosition = 0.0f;
+				bOutSnapped = true;
 			}
 			else if(SnapDistEnd < CurrentMinSnapDest)
 			{
 				SnapPosition = WidgetSpaceEndPosition;
+				bOutSnapped = true;
 			}
 		}
 
@@ -1439,9 +1452,6 @@ public:
 			Info.NotifyTrack = NotifyTracks[i];
 			const FGeometry& CachedGeometry = Info.NotifyTrack->GetCachedGeometry();
 			Info.TrackPos = CachedGeometry.AbsolutePosition.Y;
-			Info.TrackWidth = CachedGeometry.GetLocalSize().X;
-			Info.TrackMin = CachedGeometry.AbsolutePosition.X;
-			Info.TrackMax = Info.TrackMin + Info.TrackWidth;
 			Info.TrackSnapTestPos = Info.TrackPos + (CachedGeometry.Size.Y / 2);
 			Operation->ClampInfos.Add(Info);
 		}
@@ -1527,6 +1537,7 @@ void SAnimNotifyNode::Construct(const FArguments& InArgs)
 	OnNodeDragStarted = InArgs._OnNodeDragStarted;
 	PanTrackRequest = InArgs._PanTrackRequest;
 	OnSelectionChanged = InArgs._OnSelectionChanged;
+	OnUpdatePanel = InArgs._OnUpdatePanel;
 
 	ViewInputMin = InArgs._ViewInputMin;
 	ViewInputMax = InArgs._ViewInputMax;
@@ -1880,6 +1891,8 @@ FReply SAnimNotifyNode::OnMouseMove( const FGeometry& MyGeometry, const FPointer
 	
 	float XPositionInTrack = MyGeometry.AbsolutePosition.X - CachedTrackGeometry.AbsolutePosition.X;
 	float TrackScreenSpaceXPosition = MyGeometry.AbsolutePosition.X - XPositionInTrack;
+	float TrackScreenSpaceOrigin = CachedTrackGeometry.LocalToAbsolute(FVector2D(ScaleInfo.InputToLocalX(0.0f), 0.0f)).X;
+	float TrackScreenSpaceLimit = CachedTrackGeometry.LocalToAbsolute(FVector2D(ScaleInfo.InputToLocalX(Sequence->GetPlayLength()), 0.0f)).X;
 
 	if(CurrentDragHandle == ENotifyStateHandleHit::Start)
 	{
@@ -1897,18 +1910,19 @@ FReply SAnimNotifyNode::OnMouseMove( const FGeometry& MyGeometry, const FPointer
 				NewDisplayTime -= MinimumStateDuration - NewDuration;
 			}
 
-			NodeObjectInterface->SetTime(NewDisplayTime);
+			NodeObjectInterface->SetTime(FMath::Max(0.0f, NewDisplayTime));
 			NodeObjectInterface->SetDuration(NodeObjectInterface->GetDuration() + OldDisplayTime - NodeObjectInterface->GetTime());
 		}
 		else if(NodeObjectInterface->GetDuration() > MinimumStateDuration)
 		{
-			float Overflow = HandleOverflowPan(MouseEvent.GetScreenSpacePosition(), TrackScreenSpaceXPosition);
+			float Overflow = HandleOverflowPan(MouseEvent.GetScreenSpacePosition(), TrackScreenSpaceXPosition, TrackScreenSpaceOrigin, TrackScreenSpaceLimit);
 
 			// Update scale info to the new view inputs after panning
 			ScaleInfo.ViewMinInput = ViewInputMin.Get();
 			ScaleInfo.ViewMaxInput = ViewInputMax.Get();
 
-			NodeObjectInterface->SetTime(ScaleInfo.LocalXToInput(Overflow < 0.0f ? 0.0f : CachedAllotedGeometrySize.X));
+			float NewDisplayTime = ScaleInfo.LocalXToInput((MouseEvent.GetScreenSpacePosition() - MyGeometry.AbsolutePosition + XPositionInTrack).X);
+			NodeObjectInterface->SetTime(FMath::Max(0.0f, NewDisplayTime));
 			NodeObjectInterface->SetDuration(NodeObjectInterface->GetDuration() + OldDisplayTime - NodeObjectInterface->GetTime());
 
 			// Adjust incase we went under the minimum
@@ -1954,13 +1968,19 @@ FReply SAnimNotifyNode::OnMouseMove( const FGeometry& MyGeometry, const FPointer
 		}
 		else if(NodeObjectInterface->GetDuration() > MinimumStateDuration)
 		{
-			float Overflow = HandleOverflowPan(MouseEvent.GetScreenSpacePosition(), TrackScreenSpaceXPosition);
+			float Overflow = HandleOverflowPan(MouseEvent.GetScreenSpacePosition(), TrackScreenSpaceXPosition, TrackScreenSpaceOrigin, TrackScreenSpaceLimit);
 
 			// Update scale info to the new view inputs after panning
 			ScaleInfo.ViewMinInput = ViewInputMin.Get();
 			ScaleInfo.ViewMaxInput = ViewInputMax.Get();
 
-			NodeObjectInterface->SetDuration(FMath::Max(ScaleInfo.LocalXToInput(Overflow > 0.0f ? CachedAllotedGeometrySize.X : 0.0f) - NodeObjectInterface->GetTime(), MinimumStateDuration));
+			float NewDuration = ScaleInfo.LocalXToInput((MouseEvent.GetScreenSpacePosition() - MyGeometry.AbsolutePosition + XPositionInTrack).X) - NodeObjectInterface->GetTime();
+			NodeObjectInterface->SetDuration(FMath::Max(NewDuration, MinimumStateDuration));
+		}
+
+		if(NodeObjectInterface->GetTime() + NodeObjectInterface->GetDuration() > Sequence->GetPlayLength())
+		{
+			NodeObjectInterface->SetDuration(Sequence->GetPlayLength() - NodeObjectInterface->GetTime());
 		}
 
 		// Now we know where the scrub handle should be, look for possible snaps on montage marker bars
@@ -2008,6 +2028,8 @@ FReply SAnimNotifyNode::OnMouseButtonUp( const FGeometry& MyGeometry, const FPoi
 		Sequence->PostEditChange();
 		Sequence->MarkPackageDirty();
 
+		OnUpdatePanel.ExecuteIfBound();
+
 		return FReply::Handled().ReleaseMouseCapture();
 	}
 
@@ -2025,10 +2047,13 @@ float SAnimNotifyNode::GetScrubHandleSnapPosition( float NotifyLocalX, ENotifySt
 
 	if(OnSnapPosition.IsBound())
 	{
-		OnSnapPosition.Execute(SnapPosition, MaxSnapDist / ScaleInfo.PixelsPerInput);
+		if(OnSnapPosition.Execute(SnapPosition, MaxSnapDist / ScaleInfo.PixelsPerInput))
+		{
+			return ScaleInfo.InputToLocalX(SnapPosition);
+		}
 	}	
 
-	return ScaleInfo.InputToLocalX(SnapPosition);
+	return -1.0f;
 }
 
 FReply SAnimNotifyNode::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
@@ -2036,19 +2061,21 @@ FReply SAnimNotifyNode::OnFocusReceived(const FGeometry& MyGeometry, const FFocu
 	return FReply::Handled().SetUserFocus(AsShared(), EFocusCause::SetDirectly, true);
 }
 
-float SAnimNotifyNode::HandleOverflowPan( const FVector2D &ScreenCursorPos, float TrackScreenSpaceXPosition )
+float SAnimNotifyNode::HandleOverflowPan( const FVector2D &ScreenCursorPos, float TrackScreenSpaceXPosition, float TrackScreenSpaceMin, float TrackScreenSpaceMax )
 {
 	float Overflow = 0.0f;
-	if(ScreenCursorPos.X < TrackScreenSpaceXPosition)
+
+	if(ScreenCursorPos.X < TrackScreenSpaceXPosition && TrackScreenSpaceXPosition > TrackScreenSpaceMin - 10.0f)
 	{
 		// Overflow left edge
-		Overflow = ScreenCursorPos.X - TrackScreenSpaceXPosition;
+		Overflow = FMath::Min(ScreenCursorPos.X - TrackScreenSpaceXPosition, -10.0f);
 	}
-	else
+	else if(ScreenCursorPos.X > CachedAllotedGeometrySize.X && (TrackScreenSpaceXPosition + CachedAllotedGeometrySize.X) < TrackScreenSpaceMax + 10.0f)
 	{
 		// Overflow right edge
-		Overflow = ScreenCursorPos.X - (TrackScreenSpaceXPosition + CachedAllotedGeometrySize.X);
+		Overflow = FMath::Max(ScreenCursorPos.X - (TrackScreenSpaceXPosition + CachedAllotedGeometrySize.X), 10.0f);
 	}
+
 	PanTrackRequest.ExecuteIfBound(Overflow, CachedAllotedGeometrySize);
 
 	return Overflow;
@@ -4175,34 +4202,18 @@ FReply SAnimNotifyPanel::OnNotifyNodeDragStarted(TArray<TSharedPtr<SAnimNotifyNo
 		Track->DisconnectSelectedNodesForDrag(Nodes);
 	}
 
-	FVector2D OverlayOrigin = Nodes[0]->GetScreenPosition();
-	FVector2D OverlayExtents = OverlayOrigin;
-	OverlayExtents.X += Nodes[0]->GetDurationSize();
+	FBox2D OverlayBounds(Nodes[0]->GetScreenPosition(), Nodes[0]->GetScreenPosition() + FVector2D(Nodes[0]->GetDurationSize(), 0.0f));
 	for(int32 Idx = 1 ; Idx < Nodes.Num() ; ++Idx)
 	{
 		TSharedPtr<SAnimNotifyNode> Node = Nodes[Idx];
 		FVector2D NodePosition = Node->GetScreenPosition();
 		float NodeDuration = Node->GetDurationSize();
 
-		if(NodePosition.X < OverlayOrigin.X)
-		{
-			OverlayOrigin.X = NodePosition.X;
-		}
-		else if(NodePosition.X + NodeDuration > OverlayExtents.X)
-		{
-			OverlayExtents.X = NodePosition.X + NodeDuration;
-		}
-
-		if(NodePosition.Y < OverlayOrigin.Y)
-		{
-			OverlayOrigin.Y = NodePosition.Y;
-		}
-		else if(NodePosition.Y + NotifyHeight > OverlayExtents.Y)
-		{
-			OverlayExtents.Y = NodePosition.Y + NotifyHeight;
-		}
+		OverlayBounds += FBox2D(NodePosition, NodePosition + FVector2D(NodeDuration, 0.0f));
 	}
-	OverlayExtents -= OverlayOrigin;
+
+	FVector2D OverlayOrigin = OverlayBounds.Min;
+	FVector2D OverlayExtents = OverlayBounds.GetSize();
 
 	for(TSharedPtr<SAnimNotifyNode> Node : Nodes)
 	{

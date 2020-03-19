@@ -11,13 +11,14 @@
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackEntryWidget"
 
-void SNiagaraStackDisplayName::Construct(const FArguments& InArgs, UNiagaraStackEntry& InStackEntry, UNiagaraStackViewModel& InStackViewModel, FName InTextStyleName)
+void SNiagaraStackDisplayName::Construct(const FArguments& InArgs, UNiagaraStackEntry& InStackEntry, UNiagaraStackViewModel& InStackViewModel)
 {
 	StackEntryItem = &InStackEntry;
 	StackViewModel = &InStackViewModel;
-	TextStyleName = InTextStyleName;
 
-	TypeNameStyle = InArgs._TypeNameStyle;
+	NameStyle = InArgs._NameStyle;
+	EditableNameStyle = InArgs._EditableNameStyle;
+	OriginalNameStyle = InArgs._OriginalNameStyle;
 
 	TAttribute<FText> EntryToolTipText;
 	EntryToolTipText.Bind(this, &SNiagaraStackDisplayName::GetEntryToolTipText);
@@ -48,7 +49,6 @@ SNiagaraStackDisplayName::~SNiagaraStackDisplayName()
 TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 {
 	EditableTextBlock.Reset();
-	const FInlineEditableTextBlockStyle& EditableStyle = FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>(TextStyleName);
 	TArray<TSharedRef<SWidget>> NameWidgets;
 
 	// First check to see if we need to insert the emitter name.
@@ -65,7 +65,7 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 	{
 		TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel = StackViewModel->GetTopLevelViewModelForEntry(*StackEntryItem);
 		NameWidgets.Add(SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), TextStyleName)
+			.TextStyle(NameStyle)
 			.Text(this, &SNiagaraStackDisplayName::GetTopLevelDisplayName, TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel>(TopLevelViewModel))
 			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 			.ColorAndOpacity(this, &SNiagaraStackDisplayName::GetTextColorForSearch, FSlateColor::UseForeground()));
@@ -77,7 +77,7 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 	{
 		// If the entry can be renamed we need an editable text block.
 		NameWidgets.Add(SAssignNew(EditableTextBlock, SInlineEditableTextBlock)
-			.Style(&EditableStyle)
+			.Style(EditableNameStyle)
 			.Text(this, &SNiagaraStackDisplayName::GetEntryDisplayName)
 			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 			.ColorAndOpacity(this, &SNiagaraStackEntryWidget::GetTextColorForSearch, FSlateColor::UseForeground())
@@ -87,7 +87,7 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 	{
 		// Otherwise add a regular text block.
 		NameWidgets.Add(SNew(STextBlock)
-			.TextStyle(&EditableStyle.TextStyle)
+			.TextStyle(NameStyle)
 			.Text(this, &SNiagaraStackDisplayName::GetEntryDisplayName)
 			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 			.ColorAndOpacity(this, &SNiagaraStackDisplayName::GetTextColorForSearch, FSlateColor::UseForeground()));
@@ -97,7 +97,7 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 	if(StackEntryItem->GetAlternateDisplayName().IsSet())
 	{
 		NameWidgets.Add(SNew(STextBlock)
-			.TextStyle(TypeNameStyle)
+			.TextStyle(OriginalNameStyle)
 			.Text(this, &SNiagaraStackDisplayName::GetOriginalName)
 			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 			.ColorAndOpacity(this, &SNiagaraStackDisplayName::GetTextColorForSearch, FSlateColor::UseSubduedForeground()));

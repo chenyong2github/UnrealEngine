@@ -1325,12 +1325,12 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 	TArray<UMaterialInterface*> UniqueMaterials;
 	//Unique material index to unique section index
-	TMultiMap<uint32, uint32> SectionToMaterialMap;
+	TMultiMap<uint32, uint32> MaterialToSectionMap;
 	for (int32 SectionIndex = 0; SectionIndex < UniqueSections.Num(); ++SectionIndex)
 	{
 		FSectionInfo& Section = UniqueSections[SectionIndex];
 		const int32 UniqueIndex = UniqueMaterials.AddUnique(Section.Material);
-		SectionToMaterialMap.Add(UniqueIndex, SectionIndex);
+		MaterialToSectionMap.Add(UniqueIndex, SectionIndex);
 	}
 
 	TArray<FMeshData> GlobalMeshSettings;
@@ -1358,7 +1358,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 			//Unique section indices
 			TArray<uint32> SectionIndices;
-			SectionToMaterialMap.MultiFind(MaterialIndex, SectionIndices);
+			MaterialToSectionMap.MultiFind(MaterialIndex, SectionIndices);
 
 			// Check whether or not this material requires mesh data
 			int32 NumTexCoords = 0;
@@ -1383,23 +1383,26 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 					TArray<uint32> MeshIndices;
 					SectionToMesh.MultiFind(SectionIndex, MeshIndices);
 
-					for (uint32 MeshIndex : MeshIndices)
+					for (const uint32 MeshIndex : MeshIndices)
 					{
-						FMeshData MeshSettings;
 						// Retrieve mesh description
+						const UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[MeshIndex];
 						FMeshDescription* MeshDescription = MeshDescriptionData[MeshIndex];
+
+						FMeshData MeshSettings;
 						MeshSettings.RawMeshDescription = MeshDescription;
 
-						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshSettings.RawMeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
-						// If we already have lightmap uvs generated or the lightmap coordinate index != 0 and available we can reuse those instead of having to generate new ones
-						if (InMeshProxySettings.bReuseMeshLightmapUVs
-							&& (StaticMeshComponents[MeshIndex]->GetStaticMesh()->GetSourceModel(0).BuildSettings.bGenerateLightmapUVs
-								|| (StaticMeshComponents[MeshIndex]->GetStaticMesh()->LightMapCoordinateIndex != 0 && VertexInstanceUVs.GetNumElements() > 0 && VertexInstanceUVs.GetNumIndices() > StaticMeshComponents[MeshIndex]->GetStaticMesh()->LightMapCoordinateIndex)))
+						// If we already have lightmap uvs generated and they are valid, we can reuse those instead of having to generate new ones
+						const int32 LightMapCoordinateIndex = StaticMeshComponent->GetStaticMesh()->LightMapCoordinateIndex;
+						if (InMeshProxySettings.bReuseMeshLightmapUVs &&
+							LightMapCoordinateIndex > 0 &&
+							VertexInstanceUVs.GetNumElements() > 0 &&
+							VertexInstanceUVs.GetNumIndices() > LightMapCoordinateIndex)
 						{
 							MeshSettings.CustomTextureCoordinates.Reset(VertexInstanceUVs.GetNumElements());
-							int32 LightMapCoordinateIndex = StaticMeshComponents[MeshIndex]->GetStaticMesh()->LightMapCoordinateIndex;
-							for (const FVertexInstanceID VertexInstanceID : MeshSettings.RawMeshDescription->VertexInstances().GetElementIDs())
+							for (const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 							{
 								MeshSettings.CustomTextureCoordinates.Add(VertexInstanceUVs.Get(VertexInstanceID, LightMapCoordinateIndex));
 							}
@@ -1436,7 +1439,6 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 						}
 
 						// Retrieve lightmap for usage of lightmap data
-						const UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[MeshIndex];
 						if (StaticMeshComponent->LODData.IsValidIndex(0))
 						{
 							const FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[0];

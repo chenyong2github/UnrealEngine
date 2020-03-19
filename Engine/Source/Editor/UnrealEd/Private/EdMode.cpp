@@ -73,7 +73,7 @@ namespace
 			}
 
 			// Obtain the property info from the given structure definition
-			FProperty* CurrentProp = FindField<FProperty>(InStruct, FName(*NameToken));
+			FProperty* CurrentProp = FindFProperty<FProperty>(InStruct, FName(*NameToken));
 
 			// Check first to see if this is a simple structure (i.e. not an array of structures)
 			FStructProperty* StructProp = CastField<FStructProperty>(CurrentProp);
@@ -104,7 +104,7 @@ namespace
 		}
 		else
 		{
-			FProperty* Prop = FindField<FProperty>(InStruct, FName(*PropertyName));
+			FProperty* Prop = FindFProperty<FProperty>(InStruct, FName(*PropertyName));
 			if(Prop != NULL)
 			{
 				if( FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop) )

@@ -18,6 +18,9 @@ public:
 	int NumPhi = 16; // number of vertices along vertical extent from north pole to south pole
 	int NumTheta = 16; // number of vertices around circles
 
+	/** If true, each quad of sphere gets a separate polygroup */
+	bool bPolygroupPerQuad = false;
+
 public:
 
 	inline static FVector3d SphericalToCartesian(double r, double theta, double phi)
@@ -161,7 +164,10 @@ public:
 				SetTriangleUVs(TriIdx, UVCorners[2], UVCorners[0], UVCorners[3]);
 				SetTriangleNormals(TriIdx, Corners[2], Corners[0], Corners[3]);
 				TriIdx++;
-				PolyIdx++;
+				if (bPolygroupPerQuad)
+				{
+					PolyIdx++;
+				}
 			}
 		}
 
@@ -178,7 +184,10 @@ public:
 				SetTriangleUVs(TriIdx, UVCorners[0], UVCorners[2], UVCorners[1]);
 				SetTriangleNormals(TriIdx, Corners[0], Corners[2], Corners[1]);
 				TriIdx++;
-				PolyIdx++;
+				if (bPolygroupPerQuad)
+				{
+					PolyIdx++;
+				}
 			}
 		}
 
@@ -195,7 +204,10 @@ public:
 				SetTriangleUVs(TriIdx, UVCorners[0], UVCorners[2], UVCorners[1]);
 				SetTriangleNormals(TriIdx, Corners[0], Corners[2], Corners[1]);
 				TriIdx++;
-				PolyIdx++;
+				if (bPolygroupPerQuad)
+				{
+					PolyIdx++;
+				}
 			}
 		}
 

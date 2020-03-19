@@ -8,6 +8,8 @@
 
 #include "LandscapeBlueprintBrushBase.generated.h"
 
+class UTextureRenderTarget2D;
+
 UCLASS(Abstract, NotBlueprintable)
 class LANDSCAPE_API ALandscapeBlueprintBrushBase : public AActor
 {
@@ -34,10 +36,13 @@ protected:
 #endif
 
 public:
-	UFUNCTION(BlueprintImplementableEvent)
+	virtual UTextureRenderTarget2D* Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, const FName& InWeightmapLayerName) {return nullptr;}
+	virtual void Initialize_Native(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize) {}
+
+	UFUNCTION(BlueprintNativeEvent)
 	UTextureRenderTarget2D* Render(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, const FName& InWeightmapLayerName);
 
-	UFUNCTION(BlueprintImplementableEvent)
+	UFUNCTION(BlueprintNativeEvent)
 	void Initialize(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize);
 
 	UFUNCTION(BlueprintCallable, Category = "Landscape")

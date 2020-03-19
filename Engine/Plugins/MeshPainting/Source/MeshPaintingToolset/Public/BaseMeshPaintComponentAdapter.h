@@ -6,12 +6,13 @@
 #include "TMeshPaintOctree.h"
 #include "MeshAdapter.h"
 #include "Spatial/MeshAABBTree3.h"
+#include "UObject/GCObject.h"
 
 struct FIndex3i;
 typedef TIndexMeshArrayAdapter<uint32, double> FIndexMeshArrayAdapterd;
 
 /** Base mesh paint geometry adapter, handles basic sphere intersection using a Octree */
-class MESHPAINTINGTOOLSET_API FBaseMeshPaintComponentAdapter : public IMeshPaintComponentAdapter
+class MESHPAINTINGTOOLSET_API FBaseMeshPaintComponentAdapter : public IMeshPaintComponentAdapter, public FGCObject
 {
 public:
 	/** Start IMeshPaintGeometryAdapter Overrides */

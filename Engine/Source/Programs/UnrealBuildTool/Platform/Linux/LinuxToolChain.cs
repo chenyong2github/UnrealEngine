@@ -1273,12 +1273,12 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, List<Action> Actions)
+		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			string Arguments = GetCLArguments_Global(CompileEnvironment);
 			string PCHArguments = "";
 
-			var BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
+			//var BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
 
 			if (!bHasPrintedBuildDetails)
 			{
@@ -1341,7 +1341,7 @@ namespace UnrealBuildTool
 			CPPOutput Result = new CPPOutput();
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				Action CompileAction = new Action(ActionType.Compile);
+				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
@@ -1439,7 +1439,7 @@ namespace UnrealBuildTool
 				Debug.Assert(CompileAction.ProducedItems.Count > 0);
 
 				FileReference CompilerResponseFileName = CompileAction.ProducedItems[0].Location + ".rsp";
-				FileItem CompilerResponseFileItem = FileItem.CreateIntermediateTextFile(CompilerResponseFileName, AllArguments);
+				FileItem CompilerResponseFileItem = Graph.CreateIntermediateTextFile(CompilerResponseFileName, AllArguments);
 
 				CompileAction.CommandArguments = string.Format(" @\"{0}\"", CompilerResponseFileName);
 				CompileAction.PrerequisiteItems.Add(CompilerResponseFileItem);
@@ -1451,8 +1451,6 @@ namespace UnrealBuildTool
 				CompileAction.bCanExecuteRemotely =
 					CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create ||
 					CompileEnvironment.bAllowRemotelyCompiledPCHs;
-
-				Actions.Add(CompileAction);
 			}
 
 			return Result;
@@ -1466,10 +1464,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates an action to archive all the .o files into single .a file
 		/// </summary>
-		public FileItem CreateArchiveAndIndex(LinkEnvironment LinkEnvironment, List<Action> Actions)
+		public FileItem CreateArchiveAndIndex(LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph)
 		{
 			// Create an archive action
-			Action ArchiveAction = new Action(ActionType.Link);
+			Action ArchiveAction = Graph.CreateAction(ActionType.Link);
 			ArchiveAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 			ArchiveAction.CommandPath = BuildHostPlatform.Current.Shell;
 
@@ -1505,7 +1503,7 @@ namespace UnrealBuildTool
 			FileReference ResponsePath = GetResponseFileName(LinkEnvironment, OutputFile);
 			if (!ProjectFileGenerator.bGenerateProjectFiles)
 			{
-				FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponsePath, InputFileNames);
+				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponsePath, InputFileNames);
 				ArchiveAction.PrerequisiteItems.Add(ResponseFileItem);
 			}
 			ArchiveAction.CommandArguments += string.Format(" @\"{0}\"", ResponsePath.FullName);
@@ -1531,12 +1529,11 @@ namespace UnrealBuildTool
 
 			// Only execute linking on the local PC.
 			ArchiveAction.bCanExecuteRemotely = false;
-			Actions.Add(ArchiveAction);
 
 			return OutputFile;
 		}
 
-		public FileItem FixDependencies(LinkEnvironment LinkEnvironment, FileItem Executable, List<Action> Actions)
+		public FileItem FixDependencies(LinkEnvironment LinkEnvironment, FileItem Executable, IActionGraphBuilder Graph)
 		{
 			if (bUseFixdeps)
 			{
@@ -1554,7 +1551,7 @@ namespace UnrealBuildTool
 
 				FileItem FixDepsScript = FileItem.GetItemByFileReference(FileReference.Combine(LinkEnvironment.LocalShadowDirectory, ScriptName));
 
-				Action PostLinkAction = new Action(ActionType.Link);
+				Action PostLinkAction = Graph.CreateAction(ActionType.Link);
 				PostLinkAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				PostLinkAction.CommandPath = ShellBinary;
 				PostLinkAction.StatusDescription = string.Format("{0}", Path.GetFileName(Executable.AbsolutePath));
@@ -1585,7 +1582,6 @@ namespace UnrealBuildTool
 				System.Console.WriteLine("{0} {1}", PostLinkAction.CommandPath, PostLinkAction.CommandArguments);
 
 				PostLinkAction.ProducedItems.Add(OutputFile);
-				Actions.Add(PostLinkAction);
 				return OutputFile;
 			}
 			else
@@ -1601,7 +1597,7 @@ namespace UnrealBuildTool
 		}
 
 
-		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
+		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			Debug.Assert(!bBuildImportLibraryOnly);
 
@@ -1614,11 +1610,11 @@ namespace UnrealBuildTool
 
 			if (LinkEnvironment.bIsBuildingLibrary || bBuildImportLibraryOnly)
 			{
-				return CreateArchiveAndIndex(LinkEnvironment, Actions);
+				return CreateArchiveAndIndex(LinkEnvironment, Graph);
 			}
 
 			// Create an action that invokes the linker.
-			Action LinkAction = new Action(ActionType.Link);
+			Action LinkAction = Graph.CreateAction(ActionType.Link);
 			LinkAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 
 			string LinkCommandString;
@@ -1856,7 +1852,7 @@ namespace UnrealBuildTool
 			ResponseLines.Add(" --end-group");
 
 			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
-			FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponseFileName, ResponseLines);
+			FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseLines);
 
 			LinkCommandString += string.Format(" -Wl,@\"{0}\"", ResponseFileName);
 			LinkAction.PrerequisiteItems.Add(ResponseFileItem);
@@ -1970,7 +1966,6 @@ namespace UnrealBuildTool
 
 			// Only execute linking on the local PC.
 			LinkAction.bCanExecuteRemotely = false;
-			Actions.Add(LinkAction);
 
 			// Prepare a script that will run later, once all shared libraries and the executable
 			// are created. This script will be called by action created in FixDependencies()
@@ -2039,7 +2034,7 @@ namespace UnrealBuildTool
 				else
 				{
 					// Create the action to relink the library. This actions does not overwrite the source file so it can be executed in parallel
-					Action RelinkAction = new Action(ActionType.Link);
+					Action RelinkAction = Graph.CreateAction(ActionType.Link);
 					RelinkAction.WorkingDirectory = LinkAction.WorkingDirectory;
 					RelinkAction.StatusDescription = LinkAction.StatusDescription;
 					RelinkAction.CommandDescription = "Relink";
@@ -2125,7 +2120,6 @@ namespace UnrealBuildTool
 
 					RelinkAction.CommandPath = ShellBinary;
 					RelinkAction.CommandArguments = ExecuteSwitch + " \"" + RelinkScriptFullPath + "\"";
-					Actions.Add(RelinkAction);
 				}
 			}
 			return OutputFile;
@@ -2142,9 +2136,9 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment BinaryLinkEnvironment, List<Action> Actions)
+		public override ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
 		{
-			ICollection<FileItem> OutputFiles = base.PostBuild(Executable, BinaryLinkEnvironment, Actions);
+			ICollection<FileItem> OutputFiles = base.PostBuild(Executable, BinaryLinkEnvironment, Graph);
 
 			if (bUseFixdeps)
 			{
@@ -2153,7 +2147,7 @@ namespace UnrealBuildTool
 					return OutputFiles;
 				}
 
-				FileItem FixDepsOutputFile = FixDependencies(BinaryLinkEnvironment, Executable, Actions);
+				FileItem FixDepsOutputFile = FixDependencies(BinaryLinkEnvironment, Executable, Graph);
 				if (FixDepsOutputFile != null)
 				{
 					OutputFiles.Add(FixDepsOutputFile);

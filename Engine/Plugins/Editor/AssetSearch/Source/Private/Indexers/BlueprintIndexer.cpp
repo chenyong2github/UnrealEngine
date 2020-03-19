@@ -8,6 +8,11 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Utility/IndexerUtilities.h"
 #include "K2Node_BaseMCDelegate.h"
+#include "Internationalization/Text.h"
+#include "K2Node_Knot.h"
+#include "EdGraphNode_Comment.h"
+#include "Engine/SimpleConstructionScript.h"
+#include "Engine/SCS_Node.h"
 
 #define LOCTEXT_NAMESPACE "FBlueprintIndexer"
 
@@ -15,25 +20,41 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 enum class EBlueprintIndexerVersion
 {
-	Empty = 0,
-	Initial = 1,
+	Empty,
+	Initial,
+	FixingPinsToSaveValues,
+	IndexingPublicEditableFieldsOnNodes,
+	DontIndexPinsUnlessItsInputWithNoConnections,
 
-	Current = Initial,
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
 int32 FBlueprintIndexer::GetVersion() const
 {
-	return (int32)EBlueprintIndexerVersion::Current;
+	return (int32)EBlueprintIndexerVersion::LatestVersion;
 }
 
-void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer)
+void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
 	const UBlueprint* BP = Cast<UBlueprint>(InAssetObject);
 	check(BP);
 
-	//UGameplayAbilityBlueprint
+	Serializer.BeginIndexingObject(BP, TEXT("$self"));
+	FIndexerUtilities::IterateIndexableProperties(BP, [&Serializer](const FProperty* Property, const FString& Value) {
+		Serializer.IndexProperty(Property, Value);
+	});
+	Serializer.EndIndexingObject();
 
-	if (UClass* GeneratedClass = BP->GeneratedClass)
+	IndexClassDefaultObject(BP, Serializer);
+	IndexComponents(BP, Serializer);
+	IndexGraphs(BP, Serializer);
+}
+
+void FBlueprintIndexer::IndexClassDefaultObject(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const
+{
+	if (UClass* GeneratedClass = InBlueprint->GeneratedClass)
 	{
 		if (UObject* CDO = GeneratedClass->GetDefaultObject())
 		{
@@ -44,19 +65,57 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 			Serializer.EndIndexingObject();
 		}
 	}
+}
 
+void FBlueprintIndexer::IndexComponents(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const
+{
+	if (InBlueprint->SimpleConstructionScript)
+	{
+		const TArray<USCS_Node*>& BPNodes = InBlueprint->SimpleConstructionScript->GetAllNodes();
+		for (USCS_Node* BPNode : BPNodes)
+		{
+			Serializer.BeginIndexingObject(BPNode->ComponentTemplate, BPNode->GetVariableName().ToString());
+			FIndexerUtilities::IterateIndexableProperties(BPNode->ComponentTemplate, [&Serializer](const FProperty* Property, const FString& Value) {
+				Serializer.IndexProperty(Property, Value);
+			});
+			Serializer.EndIndexingObject();
+		}
+	}
+}
+
+void FBlueprintIndexer::IndexGraphs(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const
+{
 	TArray<UEdGraph*> AllGraphs;
-	BP->GetAllGraphs(AllGraphs);
+	InBlueprint->GetAllGraphs(AllGraphs);
 
 	for (UEdGraph* Graph : AllGraphs)
-	{	
+	{
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
-			FText NodeType = LOCTEXT("Node", "Node");
-			FText NodeText = Node->GetNodeTitle(ENodeTitleType::MenuTitle);
+			// Ignore Knots.
+			if (Cast<UK2Node_Knot>(Node))
+			{
+				continue;
+			}
+
+			// Special rules for comment nodes
+			if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
+			{
+				Serializer.BeginIndexingObject(Node, Node->NodeComment);
+				Serializer.IndexProperty(TEXT("Comment"), Node->NodeComment);
+				Serializer.EndIndexingObject();
+				continue;
+			}
+
+			const FText NodeText = Node->GetNodeTitle(ENodeTitleType::MenuTitle);
 			Serializer.BeginIndexingObject(Node, NodeText);
 			Serializer.IndexProperty(TEXT("Name"), NodeText);
-			
+
+			if (!Node->NodeComment.IsEmpty())
+			{
+				Serializer.IndexProperty(TEXT("Comment"), Node->NodeComment);
+			}
+
 			if (UK2Node_CallFunction* FunctionNode = Cast<UK2Node_CallFunction>(Node))
 			{
 				IndexMemberReference(Serializer, FunctionNode->FunctionReference, TEXT("Function"));
@@ -68,29 +127,40 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 			else if (UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node))
 			{
 				IndexMemberReference(Serializer, VariableNode->VariableReference, TEXT("Variable"));
-				//Serializer.WriteValue(TEXT("bSelfContext"), VariableReference.IsSelfContext());
 			}
 
-			if (Node->GetAllPins().Num())
+			for (UEdGraphPin* Pin : Node->GetAllPins())
 			{
-				for (UEdGraphPin* Pin : Node->GetAllPins())
+				if (Pin->Direction == EGPD_Input && Pin->LinkedTo.Num() == 0)
 				{
-					FText PinText = Pin->GetDisplayName();
+					const FText PinText = Pin->GetDisplayName();
 					if (PinText.IsEmpty())
 					{
 						continue;
 					}
 
-					Serializer.IndexProperty(TEXT("Pin"), PinText);
+					const FText PinValue = Pin->GetDefaultAsText();
+					if (PinValue.IsEmpty())
+					{
+						continue;
+					}
+
+					const FString PinLabel = TEXT("[Pin] ") + *FTextInspector::GetSourceString(PinText);
+					Serializer.IndexProperty(PinLabel, PinValue);
 				}
 			}
+
+			// This will serialize any user exposed options for the node that are editable in the details panel.
+			FIndexerUtilities::IterateIndexableProperties(Node, [&Serializer](const FProperty* Property, const FString& Value) {
+				Serializer.IndexProperty(Property, Value);
+			});
 
 			Serializer.EndIndexingObject();
 		}
 	}
 }
 
-void FBlueprintIndexer::IndexMemberReference(FSearchSerializer& Serializer, const FMemberReference& MemberReference, const FString& MemberType)
+void FBlueprintIndexer::IndexMemberReference(FSearchSerializer& Serializer, const FMemberReference& MemberReference, const FString& MemberType) const
 {
 	Serializer.IndexProperty(MemberType + TEXT("Name"), MemberReference.GetMemberName());
 

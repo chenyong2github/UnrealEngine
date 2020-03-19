@@ -167,7 +167,13 @@ public:
 
 	DECLARE_NIAGARA_DI_PARAMETER();
 	
-	/** Mesh used to sample from when not overridden by a source actor from the scene. Also useful for previewing in the editor. */
+#if WITH_EDITORONLY_DATA
+	/** Mesh used to sample from when not overridden by a source actor from the scene. Only available in editor for previewing. This is removed in cooked builds. */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	UStaticMesh* PreviewMesh;
+#endif
+
+	/** Mesh used to sample from when not overridden by a source actor from the scene. This mesh is NOT removed from cooked builds. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	UStaticMesh* DefaultMesh;
 
@@ -232,6 +238,7 @@ public:
 	static const FString InstanceWorldVelocityName;
 	static const FString AreaWeightedSamplingName;
 	static const FString NumTexCoordName;
+	static const FString UseColorBufferName;
 
 public:
 	void GetNumTriangles(FVectorVMContext& Context);

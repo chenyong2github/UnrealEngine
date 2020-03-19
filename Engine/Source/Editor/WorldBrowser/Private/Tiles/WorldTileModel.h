@@ -120,11 +120,11 @@ public:
 	/** Whether this level landscape based or not */
 	bool IsLandscapeBased() const;
 
-	/** Whether this level based on tiled landscape or not */
-	bool IsTiledLandscapeBased() const;
+	/** Whether this level has a heightmap that can be reimported or not */
+	bool CanReimportHeightmap() const;
 		
-	/** Whether this level has ALandscapeProxy or not */
-	bool IsLandscapeProxy() const;
+	/** Whether this level has ALandscapeStreamingProxy or not */
+	bool IsLandscapeStreamingProxy() const;
 
 	/** @return The landscape actor in case this level is landscape based */
 	ALandscapeProxy* GetLandscape() const;

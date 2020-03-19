@@ -38,6 +38,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "AnimGraphNode_Base.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintDebugging"
 
@@ -1122,12 +1123,22 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::GetWatchText(FStr
 	void* DataPtr = nullptr;
 	void* DeltaPtr = nullptr;
 	UObject* ParentObj = nullptr;
+	bool bShouldUseContainerOffset = false;
 	TArray<UObject*> SeenObjects;
-	FKismetDebugUtilities::EWatchTextResult Result = FindDebuggingData(Blueprint, ActiveObject, WatchPin, PropertyToDebug, DataPtr, DeltaPtr, ParentObj, SeenObjects);
+	FKismetDebugUtilities::EWatchTextResult Result = FindDebuggingData(Blueprint, ActiveObject, WatchPin, PropertyToDebug, DataPtr, DeltaPtr, ParentObj, SeenObjects, &bShouldUseContainerOffset);
 
 	if (Result == FKismetDebugUtilities::EWatchTextResult::EWTR_Valid)
 	{
-		PropertyToDebug->ExportText_InContainer(/*ArrayElement=*/ 0, /*inout*/ OutWatchText, DataPtr, DeltaPtr, /*Parent=*/ ParentObj, PPF_PropertyWindow | PPF_BlueprintDebugView);
+		// If this came from an array property we need to avoid using ExportText_InContainer in order to properly 
+		// calculate the internal offset
+		if(bShouldUseContainerOffset)
+		{
+			PropertyToDebug->ExportText_Direct(/*inout*/ OutWatchText, DataPtr, DeltaPtr, ParentObj, PPF_PropertyWindow | PPF_BlueprintDebugView);
+		}
+		else
+		{
+			PropertyToDebug->ExportText_InContainer(/*ArrayElement=*/ 0, /*inout*/ OutWatchText, DataPtr, DeltaPtr, /*Parent=*/ ParentObj, PPF_PropertyWindow | PPF_BlueprintDebugView);
+		}
 	}
 
 	return Result;
@@ -1150,7 +1161,7 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::GetDebugInfo(FDeb
 	return Result;
 }
 
-FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, FProperty*& OutProperty, void*& OutData, void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects)
+FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, FProperty*& OutProperty, void*& OutData, void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects, bool* OutbShouldUseContainerOffset /* = nullptr */)
 {
 	FKismetDebugUtilitiesData& Data = FKismetDebugUtilitiesData::Get();
 
@@ -1194,17 +1205,36 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::FindDebuggingData
 					{
 						if (OutParmRec->Property == Property)
 						{
-							// try to use the output pin we're linked to
-							// otherwise the output param won't show any data since the return node hasn't executed when we stop here
-							if (WatchPin->Direction == EEdGraphPinDirection::EGPD_Input && WatchPin->LinkedTo.Num() == 1)
+							if (WatchPin->Direction == EEdGraphPinDirection::EGPD_Input)
 							{
-								return FindDebuggingData(Blueprint, ActiveObject, WatchPin->LinkedTo[0], OutProperty, OutData, OutDelta, OutParent, SeenObjects);
+								// try to use the output pin we're linked to
+								// otherwise the output param won't show any data since the return node hasn't executed when we stop here
+								if (WatchPin->LinkedTo.Num() == 1)
+								{
+									return FindDebuggingData(Blueprint, ActiveObject, WatchPin->LinkedTo[0], OutProperty, OutData, OutDelta, OutParent, SeenObjects, OutbShouldUseContainerOffset);
+								}
+								else if (!WatchPin->LinkedTo.Num())
+								{
+									// If this is an output pin with no links, then we have no debug data
+									// so fallback to the local stack frame
+									PropertyBase = TestFrame->Locals;
+								}
 							}
 
-							PropertyBase = OutParmRec->PropAddr;
+							// If this is an out container property then a different offset must be used when exporting this property 
+							// to text. Only container properties are effected by this because ExportText_InContainer adds an extra 
+							// 8 byte offset, which  would point to the container's first element, not the container itself. 
+							const bool bIsContainer = OutParmRec->Property->IsA<FArrayProperty>() || OutParmRec->Property->IsA<FSetProperty>() || OutParmRec->Property->IsA<FMapProperty>();
+							if (PropertyBase == nullptr && OutbShouldUseContainerOffset && bIsContainer)
+							{
+								*OutbShouldUseContainerOffset = true;
+								PropertyBase = OutParmRec->PropAddr;
+							}
 							break;
 						}
 					}
+
+					// Fallback to the local variables if we couldn't find one
 					if (PropertyBase == nullptr)
 					{
 						PropertyBase = TestFrame->Locals;

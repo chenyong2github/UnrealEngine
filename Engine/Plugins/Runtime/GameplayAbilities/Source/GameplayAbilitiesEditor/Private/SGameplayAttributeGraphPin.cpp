@@ -34,6 +34,8 @@ TSharedRef<SWidget>	SGameplayAttributeGraphPin::GetDefaultValueWidget()
 			SNew(SGameplayAttributeWidget)
 			.OnAttributeChanged(this, &SGameplayAttributeGraphPin::OnAttributeChanged)
 			.DefaultProperty(DefaultAttribute.GetUProperty())
+			.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
+			.IsEnabled(this, &SGameplayAttributeGraphPin::GetDefaultValueIsEnabled)
 		];
 }
 

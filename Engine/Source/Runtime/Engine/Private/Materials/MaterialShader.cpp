@@ -1434,7 +1434,12 @@ void FMaterialShaderMap::Compile(
 			UE_LOG(LogShaders, Display, TEXT("	%s"), *WorkingDebugDescription);
 			NewContent->DebugDescription = *WorkingDebugDescription;
 
-			FString DebugExtension = FString::Printf( TEXT("_%08x%08x"), ShaderMapId.BaseMaterialId.A, ShaderMapId.BaseMaterialId.B);
+			FSHA1 IdParameterSetHash;
+			IdParameterSetHash.Reset();
+			IdParameterSetHash.UpdateWithString(*WorkingDebugDescription, WorkingDebugDescription.Len());
+			IdParameterSetHash.Final();
+			uint32* Hash = (uint32*)&IdParameterSetHash.m_digest[0];
+			FString DebugExtension = FString::Printf( TEXT("_%08x%08x"), Hash[0], Hash[1]);
 #else
 			FString DebugExtension = "";
 			FString WorkingDebugDescription = "";
@@ -2404,14 +2409,14 @@ void FMaterialShaderMap::FlushShadersByVertexFactoryType(const FVertexFactoryTyp
 	GetMutableContent()->RemoveMeshShaderMap(VertexFactoryType);
 }
 
-void FMaterialShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
+bool FMaterialShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
 {
 	SCOPED_LOADTIMER(FMaterialShaderMap_Serialize);
 	// Note: This is saved to the DDC, not into packages (except when cooked)
 	// Backwards compatibility therefore will not work based on the version of Ar
 	// Instead, just bump MATERIALSHADERMAP_DERIVEDDATA_VER
 	ShaderMapId.Serialize(Ar, bLoadedByCookedMaterial);
-	Super::Serialize(Ar, bInlineShaderResources, bLoadedByCookedMaterial);
+	return Super::Serialize(Ar, bInlineShaderResources, bLoadedByCookedMaterial);
 }
 
 /*void FMaterialShaderMap::RegisterSerializedShaders(bool bLoadedByCookedMaterial)

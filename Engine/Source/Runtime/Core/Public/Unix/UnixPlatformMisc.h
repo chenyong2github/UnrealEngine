@@ -138,6 +138,8 @@ struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 
 	static IPlatformChunkInstall* GetPlatformChunkInstall();
 
+	static bool SetStoredValues(const FString& InStoreId, const FString& InSectionName, const TMap<FString, FString>& InKeyValues);
+
 #if STATS || ENABLE_STATNAMEDEVENTS
 	static void BeginNamedEventFrame();
 	static void BeginNamedEvent(const struct FColor& Color, const TCHAR* Text);

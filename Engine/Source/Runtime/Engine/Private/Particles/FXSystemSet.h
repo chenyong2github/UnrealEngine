@@ -49,6 +49,7 @@ public:
 		bool bAllowGPUParticleUpdate) override;
 
 	virtual void OnDestroy() override;
+	virtual void DestroyGPUSimulation() override;
 
 	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
 	virtual FGPUSortManager* GetGPUSortManager() const override;

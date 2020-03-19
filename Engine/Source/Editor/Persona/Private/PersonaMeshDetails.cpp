@@ -1267,7 +1267,7 @@ void FSkeletalMeshReductionSettingsLayout::SetNumMaxTrianglesPercentageCount(uin
 {
 	if (ReductionSettings.MaxNumOfTrianglesPercentage != Value)
 	{
-		FText TransactionText = FText::Format(LOCTEXT("PersonaReductionChangedSetMaxTriangleCountLOD", "LOD{0} reduction settings: max triangles percentage count changed"), LODIndex);
+		FText TransactionText = FText::Format(LOCTEXT("PersonaReductionChangedSetMaxTrianglePercentageCountLOD", "LOD{0} reduction settings: max triangles percentage count changed"), LODIndex);
 		FScopedTransaction Transaction(TransactionText);
 		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
 
@@ -1284,7 +1284,7 @@ void FSkeletalMeshReductionSettingsLayout::SetNumMaxVerticesPercentageCount(uint
 {
 	if (ReductionSettings.MaxNumOfVertsPercentage != Value)
 	{
-		FText TransactionText = FText::Format(LOCTEXT("PersonaReductionChangedSetMaxVertexCountLOD", "LOD{0} reduction settings: max vertex percentage count changed"), LODIndex);
+		FText TransactionText = FText::Format(LOCTEXT("PersonaReductionChangedSetMaxVertexPercentageCountLOD", "LOD{0} reduction settings: max vertex percentage count changed"), LODIndex);
 		FScopedTransaction Transaction(TransactionText);
 		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
 
@@ -3940,7 +3940,7 @@ void FPersonaMeshDetails::OnMaterialArrayChanged(UMaterialInterface* NewMaterial
 		// Whether or not we made a transaction and need to end it
 		bool bMadeTransaction = false;
 
-		FProperty* MaterialProperty = FindField<FProperty>(USkeletalMesh::StaticClass(), "Materials");
+		FProperty* MaterialProperty = FindFProperty<FProperty>(USkeletalMesh::StaticClass(), "Materials");
 		check(MaterialProperty);
 		Mesh->PreEditChange(MaterialProperty);
 		check(Mesh->Materials.Num() > SlotIndex)
@@ -4118,7 +4118,7 @@ void FPersonaMeshDetails::OnMaterialNameCommitted(const FText& InValue, ETextCom
 	{
 		FScopedTransaction ScopeTransaction(LOCTEXT("PersonaMaterialSlotNameChanged", "Persona editor: Material slot name change"));
 
-		FProperty* ChangedProperty = FindField<FProperty>(USkeletalMesh::StaticClass(), "Materials");
+		FProperty* ChangedProperty = FindFProperty<FProperty>(USkeletalMesh::StaticClass(), "Materials");
 		check(ChangedProperty);
 		SkeletalMeshPtr->PreEditChange(ChangedProperty);
 

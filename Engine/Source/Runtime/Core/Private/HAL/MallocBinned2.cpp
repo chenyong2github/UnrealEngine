@@ -53,6 +53,14 @@ static FAutoConsoleVariableRef GMallocBinned2AllocExtraCVar(
 
 #endif
 
+float GMallocBinned2FlushThreadCacheMaxWaitTime = 0.02f;
+static FAutoConsoleVariableRef GMallocBinned2FlushThreadCacheMaxWaitTimeCVar(
+	TEXT("MallocBinned2.FlushThreadCacheMaxWaitTime"),
+	GMallocBinned2FlushThreadCacheMaxWaitTime,
+	TEXT("The threshold of time before warning about FlushCurrentThreadCache taking too long (seconds)."),
+	ECVF_ReadOnly
+);
+
 #if BINNED2_ALLOCATOR_STATS
 TAtomic<int64> AllocatedSmallPoolMemory(0); // memory that's requested to be allocated by the game
 TAtomic<int64> AllocatedOSSmallPoolMemory(0);
@@ -1071,11 +1079,11 @@ void FMallocBinned2::FlushCurrentThreadCache()
 	}
 
 	// These logs must happen outside the above mutex to avoid deadlocks
-	if (WaitForMutexTime > 0.02f)
+	if (WaitForMutexTime > GMallocBinned2FlushThreadCacheMaxWaitTime)
 	{
 		UE_LOG(LogMemory, Warning, TEXT("FMallocBinned2 took %6.2fms to wait for mutex for trim."), WaitForMutexTime * 1000.0f);
 	}
-	if (WaitForMutexAndTrimTime > 0.02f)
+	if (WaitForMutexAndTrimTime > GMallocBinned2FlushThreadCacheMaxWaitTime)
 	{
 		UE_LOG(LogMemory, Warning, TEXT("FMallocBinned2 took %6.2fms to wait for mutex AND trim."), WaitForMutexAndTrimTime * 1000.0f);
 	}

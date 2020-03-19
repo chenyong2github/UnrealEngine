@@ -253,10 +253,8 @@ SDataprepProducersWidget::~SDataprepProducersWidget()
 	}
 }
 
-void SDataprepProducersWidget::Construct(const FArguments & InArgs, UDataprepAssetProducers* InAssetProducersPtr, TSharedPtr<FUICommandList>& InCommandList)
+void SDataprepProducersWidget::Construct(const FArguments & InArgs, UDataprepAssetProducers* InAssetProducersPtr)
 {
-	CommandList = InCommandList;
-
 	AssetProducersPtr = InAssetProducersPtr;
 	AssetProducersPtr->GetOnChanged().AddSP( this, &SDataprepProducersWidget::OnDataprepProducersChanged );
 
@@ -324,6 +322,8 @@ void SDataprepProducersWidget::OnDataprepProducersChanged(FDataprepAssetChangeTy
 TSharedRef<SWidget> SDataprepProducersWidget::CreateAddProducerMenuWidget()
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
+
+	TSharedPtr<FUICommandList> CommandList = MakeShared<FUICommandList>();
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
 
 	MenuBuilder.BeginSection("AddNewProducer", LOCTEXT("DataprepProducersWidget_AddImports", "Add Producer"));
@@ -375,9 +375,9 @@ void SDataprepProducersWidget::OnAddProducer( UClass* ProducerClass )
 	TreeView->Refresh();
 }
 
-TSharedRef<SWidget> FDataprepAssetProducersDetails::CreateWidget(UDataprepAssetProducers* Producers, TSharedPtr<FUICommandList>& CommandList)
+TSharedRef<SWidget> FDataprepAssetProducersDetails::CreateWidget(UDataprepAssetProducers* Producers)
 {
-	return SNew(SDataprepProducersWidget, Producers, CommandList );
+	return SNew(SDataprepProducersWidget, Producers );
 }
 
 void FDataprepAssetProducersDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -395,8 +395,6 @@ void FDataprepAssetProducersDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 	FName CategoryName = CategoryNames.Num() > 0 ? CategoryNames[0] : FName( TEXT("DatasmithDirProducer") );
 	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory( CategoryName, FText::GetEmpty(), ECategoryPriority::Important );
 
-	TSharedPtr<FUICommandList> CommandList = DetailBuilder.GetDetailsView()->GetHostCommandList();
-
 	FDetailWidgetRow& CustomRow = CategoryBuilder.AddCustomRow( FText::GetEmpty() )
 	.NameContent()
 	[
@@ -404,7 +402,7 @@ void FDataprepAssetProducersDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 	]
 	.ValueContent()
 	[
-		CreateWidget( Producers, CommandList )
+		CreateWidget( Producers )
 	];
 }
 

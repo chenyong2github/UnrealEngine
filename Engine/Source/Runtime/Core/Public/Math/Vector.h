@@ -1425,13 +1425,13 @@ FORCEINLINE FVector FVector::operator/=(const FVector& V)
 
 FORCEINLINE float& FVector::operator[](int32 Index)
 {
-	check(Index >= 0 && Index < 3);
+	checkSlow(Index >= 0 && Index < 3);
 	return (&X)[Index];
 }
 
 FORCEINLINE float FVector::operator[](int32 Index)const
 {
-	check(Index >= 0 && Index < 3);
+	checkSlow(Index >= 0 && Index < 3);
 	return (&X)[Index];
 }
 

@@ -23,61 +23,6 @@ namespace Chaos
 	template <typename T> struct FClusterCreationParameters;
 }
 
-/**
- * Buffer structure for communicating simulation state between game and physics 
- * threads.
- */
-class FGeometryCollectionResults
-{
-public:
-	FGeometryCollectionResults();
-
-	void Reset();
-
-	int32 NumTransformGroup() const { return Transforms.Num(); }
-
-	void InitArrays(const FGeometryDynamicCollection &Other)
-	{
-		// Managed arrays
-		Transforms.Init(Other.Transform);
-		DynamicState.Init(Other.DynamicState);
-		Parent.Init(Other.Parent);
-		Children.Init(Other.Children);
-		SimulationType.Init(Other.SimulationType);
-		
-		// Arrays
-		const int32 NumTransforms = Other.NumElements(FGeometryCollection::TransformGroup);
-		DisabledStates.SetNumUninitialized(NumTransforms);
-		GlobalTransforms.SetNumUninitialized(NumTransforms);
-		ParticleToWorldTransforms.SetNumUninitialized(NumTransforms);
-	}
-
-	int32 BaseIndex;
-	int32 NumParticlesAdded;
-	TArray<bool> DisabledStates;
-	TArray<FMatrix> GlobalTransforms;
-	TArray<FTransform> ParticleToWorldTransforms;
-
-	TManagedArray<int32> TransformIndex;
-
-	TManagedArray<FTransform> Transforms;
-	TManagedArray<int32> BoneMap;
-	TManagedArray<int32> Parent;
-	TManagedArray<TSet<int32>> Children;
-	TManagedArray<int32> SimulationType;
-	TManagedArray<int32> DynamicState;
-	TManagedArray<float> Mass;
-	TManagedArray<FVector> InertiaTensor;
-
-	TManagedArray<int32> ClusterId;
-
-
-
-	bool IsObjectDynamic;
-	bool IsObjectLoading;
-
-	FBoxSphereBounds WorldBounds;
-};
 
 
 class FStubGeometryCollectionData : public Chaos::FParticleData 
@@ -130,6 +75,8 @@ public:
 		UObject* InOwner, 
 		FGeometryDynamicCollection& GameThreadCollection,
 		const FSimulationParameters& SimulationParameters,
+		FCollisionFilterData InSimFilter,
+		FCollisionFilterData InQueryFilter,
 		FInitFunc InInitFunc, 
 		FCacheSyncFunc InCacheSyncFunc, 
 		FFinalSyncFunc InFinalSyncFunc  ,
@@ -204,6 +151,8 @@ public:
 	void SetCollisionParticlesPerObjectFraction(float CollisionParticlesPerObjectFractionIn) 
 	{CollisionParticlesPerObjectFraction = CollisionParticlesPerObjectFractionIn;}
 
+	TArray<FClusterHandle*>& GetSolverClusterHandles() { return SolverClusterHandles; }
+
 	TArray<FClusterHandle*>& GetSolverParticleHandles() { return SolverParticleHandles; }
 
 	const FGeometryCollectionResults* GetConsumerResultsGT() const 
@@ -229,6 +178,8 @@ public:
 	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs) {}
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) {}
 
+	bool IsGTCollectionDirty() const { return GameThreadCollection.IsDirty(); }
+
 protected:
 	/**
 	 * Build a physics thread cluster parent particle.
@@ -252,17 +203,16 @@ protected:
 		FGeometryDynamicCollection* TargetCollection=nullptr);
 
 	/**
-	 * Generates a mapping between the Position array and the results array. 
-	 * When EFieldResolutionType is set to Maximum the complete particle mapping 
-	 * is provided from the Particles.X to Particles.Attribute, when Minimum is 
-	 * set only the ActiveIndices and the direct children of the active clusters 
-	 * are set in the IndicesArray.
 	 */
-	void ContiguousIndices(
-		TArray<ContextIndex>& IndicesArray, 
+	void GetRelevantHandles(
+		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
+		TArray<FVector>& Samples,
+		TArray<ContextIndex>& SampleIndices,
 		const Chaos::FPhysicsSolver* RigidSolver, 
 		EFieldResolutionType ResolutionType, 
 		bool bForce);
+
+	void PushKinematicStateToSolver(FParticlesType& Particles);
 
 	/** 
 	 * Traverses the parents of \p TransformIndex in \p GeometryCollection, counting
@@ -295,6 +245,11 @@ private:
 	//
 	bool IsObjectDynamic; // Records current dynamic state
 	bool IsObjectLoading; // Indicate when loaded
+
+	TManagedArray<TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>> GTParticles;
+	FCollisionFilterData SimFilter;
+	FCollisionFilterData QueryFilter;
+
 	TArray<int32> EndFrameUnparentingBuffer;
 	// This is a subset of the geometry group that are used in the transform hierarchy to represent geometry
 	TArray<FBox> ValidGeometryBoundingBoxes;
@@ -348,4 +303,5 @@ private:
 
 };
 
+CHAOSSOLVERS_API Chaos::TTriangleMesh<float>* CreateTriangleMesh(const int32 FaceCount,const int32 VertexOffset,const int32 StartIndex,const TManagedArray<FVector>& Vertex,const TManagedArray<bool>& Visible,const TManagedArray<FIntVector>& Indices,TSet<int32>& VertsAdded);
 CHAOSSOLVERS_API void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& GeometryCollection, const FSharedSimulationParameters& SharedParams);

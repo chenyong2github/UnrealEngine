@@ -64,6 +64,8 @@ protected:
 	/** Called when a pin is renamed. */
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldPinName) { }
 
+	virtual bool CanRenamePinFromContextMenu(const UEdGraphPin* Pin) const { return CanRenamePin(Pin); }
+
 	/** Called to determine if a pin can be renamed by the user. */
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const;
 
@@ -82,6 +84,8 @@ protected:
 
 	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
 	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_MAX; };
+
+	bool IsValidPinToCompile(UEdGraphPin* Pin) const override;
 
 private:
 

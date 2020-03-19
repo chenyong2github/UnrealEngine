@@ -111,8 +111,8 @@ class DATASMITHCONTENT_API UDatasmithTranslatedSceneImportData : public UDatasmi
 
 #if WITH_EDITORONLY_DATA
 public:
-	UPROPERTY(EditAnywhere, Category = "Translation", meta = (ShowOnlyInnerProperties))
-	TSubclassOf<UObject> OriginFactory;
+	UPROPERTY(EditAnywhere, Category = "Options", meta = (ShowOnlyInnerProperties))
+	TArray<UDatasmithOptionsBase*> AdditionalOptions;
 #endif // WITH_EDITORONLY_DATA
 };
 

@@ -57,7 +57,7 @@ namespace UnrealBuildTool
 		{
 			this.Inner = Inner;
 
-			UnrealPlatformGroup Group = UnrealPlatformGroup.Android;
+			//UnrealPlatformGroup Group = UnrealPlatformGroup.Android;
 		}
 	}
 

@@ -4,9 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/ArrayView.h"
-
-class FStringBuilderBase;
-class FAnsiStringBuilderBase;
+#include "Containers/StringFwd.h"
 
 namespace UE
 {

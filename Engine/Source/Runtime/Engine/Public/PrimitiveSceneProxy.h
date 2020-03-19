@@ -171,7 +171,7 @@ public:
 	ENGINE_API void RenderBounds(FPrimitiveDrawInterface* PDI, const FEngineShowFlags& EngineShowFlags, const FBoxSphereBounds& Bounds, bool bRenderInEditor) const;
 
 	/** Verifies that a material used for rendering was present in the component's GetUsedMaterials list. */
-	ENGINE_API void VerifyUsedMaterial(const class FMaterialRenderProxy* MaterialRenderProxy) const;
+	ENGINE_API bool VerifyUsedMaterial(const class FMaterialRenderProxy* MaterialRenderProxy) const;
 
 	/** Returns the LOD that the primitive will render at for this view. */
 	virtual int32 GetLOD(const FSceneView* View) const { return INDEX_NONE; }

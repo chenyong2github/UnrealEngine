@@ -63,22 +63,23 @@ public:
 	{
 		if (Mesh.HasAnyDrawCalls())
 		{
-			check(Mesh.VertexFactory);
-			check(Mesh.VertexFactory->IsInitialized());
 			checkSlow(IsInParallelRenderingThread());
 
 			FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimitiveSceneInfo->Proxy;
-			PrimitiveSceneProxy->VerifyUsedMaterial(Mesh.MaterialRenderProxy);
+			const ERHIFeatureLevel::Type FeatureLevel = PrimitiveSceneInfo->Scene->GetFeatureLevel();
+
+			if (!Mesh.Validate(PrimitiveSceneProxy, FeatureLevel))
+			{
+				return;
+			}
 
 			FStaticMeshBatch* StaticMesh = new(PrimitiveSceneInfo->StaticMeshes) FStaticMeshBatch(
 				PrimitiveSceneInfo,
 				Mesh,
 				CurrentHitProxy ? CurrentHitProxy->Id : FHitProxyId()
-				);
+			);
 
-			const ERHIFeatureLevel::Type FeatureLevel = PrimitiveSceneInfo->Scene->GetFeatureLevel();
 			StaticMesh->PreparePrimitiveUniformBuffer(PrimitiveSceneProxy, FeatureLevel);
-
 			// Volumetric self shadow mesh commands need to be generated every frame, as they depend on single frame uniform buffers with self shadow data.
 			const bool bSupportsCachingMeshDrawCommands = SupportsCachingMeshDrawCommands(*StaticMesh, FeatureLevel) && !PrimitiveSceneProxy->CastsVolumetricTranslucentShadow();
 
@@ -400,7 +401,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
-			if (SceneInfo->Proxy->IsRayTracingStaticRelevant() && SceneInfo->StaticMeshes.Num() > 0)
+			if (SceneInfo->RayTracingGeometries.Num() > 0 && SceneInfo->StaticMeshes.Num() > 0)
 			{
 				int32 MaxLOD = -1;
 				for (int32 MeshIndex = 0; MeshIndex < SceneInfo->StaticMeshes.Num(); MeshIndex++)

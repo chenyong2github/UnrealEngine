@@ -819,7 +819,7 @@ static void BlueprintActionDatabaseImpl::AddBlueprintGraphActions(UBlueprint con
 
 		for (UK2Node_FunctionEntry* FunctionEntry : GraphEntryNodes)
 		{
-			UFunction* SkeletonFunction = FindField<UFunction>(Blueprint->SkeletonGeneratedClass, FunctionGraph->GetFName());
+			UFunction* SkeletonFunction = FindUField<UFunction>(Blueprint->SkeletonGeneratedClass, FunctionGraph->GetFName());
 
 			// Create entries for function parameters
 			if (SkeletonFunction != nullptr)

@@ -16,7 +16,10 @@ public:
 	virtual void CreatePinWidgets() override;
 
 protected:
+	FReply OnBorderMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 InWhichPin);
 	const FSlateBrush* GetBackgroundBrush(TSharedPtr<SWidget> Border) const;
+	FReply OnDroppedOnTarget(TSharedPtr<FDragDropOperation> DropOperation);
+	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
 	TSharedPtr<SVerticalBox> PinContainerRoot;
 
 	const FSlateBrush* BackgroundBrush;

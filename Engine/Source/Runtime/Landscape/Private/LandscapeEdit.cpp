@@ -1031,6 +1031,10 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	{
 		CollisionComp->RegisterComponent();
 	}
+
+	// Kick off asynchronous rendering task for physical materials
+	// This task will be updated in UpdatePhysicalMaterialTasks()
+	PhysicalMaterialTask.Init(this);
 }
 
 void ULandscapeComponent::DestroyCollisionData()
@@ -1434,6 +1438,10 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 			CollisionComp->DominantLayerData.Unlock();
 		}
 
+		// Kick off asynchronous rendering task for physical materials
+		// This task will be updated in UpdatePhysicalMaterialTasks()
+		PhysicalMaterialTask.Init(this);
+
 		// We do not force an update of the physics data here. We don't need the layer information in the editor and it
 		// causes problems if we update it multiple times in a single frame.
 	}
@@ -1473,8 +1481,67 @@ void ULandscapeComponent::UpdateCollisionLayerData()
 	UpdateCollisionLayerData(WeightmapTextureMipDataParam.GetData(), SimpleCollisionWeightmapMipDataParam.GetData());
 }
 
+void ULandscapeComponent::UpdatePhysicalMaterialTasks()
+{
+	if (PhysicalMaterialTask.IsValid())
+	{
+		if (PhysicalMaterialTask.IsComplete())
+		{
+			UpdateCollisionPhysicalMaterialData(PhysicalMaterialTask.GetResultMaterials(), PhysicalMaterialTask.GetResultIds());
 
+			PhysicalMaterialTask.Release();
 
+			// We do not force an update of the physics data here. We don't need the information in the editor.
+		}
+		else
+		{
+			PhysicalMaterialTask.Tick();
+		}
+	}
+}
+
+void ULandscapeComponent::UpdateCollisionPhysicalMaterialData(TArray<UPhysicalMaterial*> const& InPhysicalMaterials, TArray<uint8> const& InMaterialIds)
+{
+	// Copy the physical material array
+	CollisionComponent->PhysicalMaterialRenderObjects = InPhysicalMaterials;
+
+	// Copy the physical material IDs for both the full and (optional) simple collision.
+	const int32 SizeVerts = SubsectionSizeQuads * NumSubsections + 1;
+	check(InMaterialIds.Num() == SizeVerts * SizeVerts);
+	const int32 FullCollisionSizeVerts = CollisionComponent->CollisionSizeQuads + 1;
+	const int32 SimpleCollisionSizeVerts = CollisionComponent->SimpleCollisionSizeQuads > 0 ? CollisionComponent->SimpleCollisionSizeQuads + 1 : 0;
+	const int32 BulkDataSize = FullCollisionSizeVerts * FullCollisionSizeVerts + SimpleCollisionSizeVerts * SimpleCollisionSizeVerts;
+
+	void* Data = CollisionComponent->PhysicalMaterialRenderData.Lock(LOCK_READ_WRITE);
+	Data = CollisionComponent->PhysicalMaterialRenderData.Realloc(BulkDataSize);
+	uint8* WritePtr = (uint8*)Data;
+
+	const int32 CollisionSizes[2] = { FullCollisionSizeVerts, SimpleCollisionSizeVerts };
+	for (int32 i = 0; i < 2; ++i)
+	{
+		const int32 CollisionSizeVerts = CollisionSizes[i];
+		if (CollisionSizeVerts == SizeVerts)
+		{
+			FMemory::Memcpy(WritePtr, InMaterialIds.GetData(), SizeVerts * SizeVerts);
+			WritePtr += SizeVerts * SizeVerts;
+		}
+		else if (CollisionSizeVerts > 0)
+		{
+			const int32 StepSize = SizeVerts / CollisionSizeVerts;
+			check(CollisionSizeVerts * StepSize == SizeVerts);
+			for (int32 y = 0; y < SizeVerts; y += StepSize)
+			{
+				for (int32 x = 0; x < SizeVerts; x += StepSize)
+				{
+					*WritePtr++ = InMaterialIds[y * SizeVerts + x];
+				}
+			}
+		}
+	}
+
+	check(WritePtr - (uint8*)Data == BulkDataSize);
+	CollisionComponent->PhysicalMaterialRenderData.Unlock();
+}
 
 void ULandscapeComponent::GenerateHeightmapMips(TArray<FColor*>& HeightmapTextureMipData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, FLandscapeTextureDataInfo* TextureDataInfo/*=nullptr*/)
 {
@@ -6661,10 +6728,21 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	TArray<FLandscapeVertexRef> VertexOrder;
 	VertexOrder.Empty(NumVertices);
 
+	const bool bStreamLandscapeMeshLODs = TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming);
+	const int32 MaxLODClamp = FMath::Min((uint32)GetLandscapeProxy()->MaxLODLevel, (uint32)MAX_MESH_LOD_COUNT - 1u);
+	const int32 NumStreamingLODs = bStreamLandscapeMeshLODs ? FMath::Min(MaxLOD, MaxLODClamp) : 0;
+	TArray<int32> StreamingLODVertStartOffsets;
+	StreamingLODVertStartOffsets.AddUninitialized(NumStreamingLODs);
+
 	for (int32 Mip = MaxLOD; Mip >= 0; Mip--)
 	{
 		int32 LodSubsectionSizeQuads = (SubsectionSizeVerts >> Mip) - 1;
 		float MipRatio = (float)SubsectionSizeQuads / (float)LodSubsectionSizeQuads; // Morph current MIP to base MIP
+
+		if (Mip < NumStreamingLODs)
+		{
+			StreamingLODVertStartOffsets[Mip] = VertexOrder.Num();
+		}
 
 		for (int32 SubY = 0; SubY < NumSubsections; SubY++)
 		{
@@ -6724,13 +6802,33 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 
 	// Fill in the vertices in the specified order.
 	const int32 SizeVerts = SubsectionSizeVerts * NumSubsections;
-	int32 NumMobileVertices = FMath::Square(SizeVerts);
-	TArray<FLandscapeMobileVertex> MobileVertices;
-	MobileVertices.AddZeroed(NumMobileVertices);
-	FLandscapeMobileVertex* DstVert = MobileVertices.GetData();
+	int32 NumInlineMobileVertices = NumStreamingLODs > 0 ? StreamingLODVertStartOffsets.Last() : FMath::Square(SizeVerts);
+	TArray<FLandscapeMobileVertex> InlineMobileVertices;
+	InlineMobileVertices.AddZeroed(NumInlineMobileVertices);
+	FLandscapeMobileVertex* DstVert = InlineMobileVertices.GetData();
+
+	int32 StreamingLODIdx = NumStreamingLODs - 1;
+	TArray<TArray<uint8>> StreamingLODData;
+	StreamingLODData.Empty(NumStreamingLODs);
+	StreamingLODData.AddDefaulted(NumStreamingLODs);
 
 	for (int32 Idx = 0; Idx < NumVertices; Idx++)
 	{
+		if (StreamingLODIdx >= 0
+			&& (StreamingLODIdx >= NumHoleLods - 1)
+			&& Idx >= StreamingLODVertStartOffsets[StreamingLODIdx])
+		{
+			const int32 EndIdx = StreamingLODIdx - 1 < 0 || StreamingLODIdx == NumHoleLods - 1 ?
+				FMath::Square(SizeVerts) :
+				StreamingLODVertStartOffsets[StreamingLODIdx - 1];
+			const int32 NumVerts = EndIdx - StreamingLODVertStartOffsets[StreamingLODIdx];
+			TArray<uint8>& StreamingLOD = StreamingLODData[StreamingLODIdx];
+			StreamingLOD.Empty(NumVerts * sizeof(FLandscapeMobileVertex));
+			StreamingLOD.AddZeroed(NumVerts * sizeof(FLandscapeMobileVertex));
+			DstVert = (FLandscapeMobileVertex*)StreamingLOD.GetData();
+			--StreamingLODIdx;
+		}
+
 		// Store XY position info
 		const int32 X = VertexOrder[Idx].X;
 		const int32 Y = VertexOrder[Idx].Y;
@@ -6795,8 +6893,8 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	}
 
 	// Serialize vertex buffer
-	PlatformAr << NumMobileVertices;
-	PlatformAr.Serialize(MobileVertices.GetData(), NumMobileVertices*sizeof(FLandscapeMobileVertex));
+	PlatformAr << NumInlineMobileVertices;
+	PlatformAr.Serialize(InlineMobileVertices.GetData(), NumInlineMobileVertices*sizeof(FLandscapeMobileVertex));
 
 	// Generate occlusion mesh
 	TArray<FVector> OccluderVertices;
@@ -6841,7 +6939,7 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	PlatformAr.Serialize(OccluderVertices.GetData(), NumOccluderVerices*sizeof(FVector));
 	
 	// Copy to PlatformData as Compressed
-	PlatformData.InitializeFromUncompressedData(NewPlatformData);
+	PlatformData.InitializeFromUncompressedData(NewPlatformData, StreamingLODData);
 }
 
 UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter, bool bCompress) const

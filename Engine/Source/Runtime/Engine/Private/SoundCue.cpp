@@ -195,7 +195,7 @@ void USoundCue::PostLoad()
 		CurrentSoundClass = CurrentSoundClass->ParentClass;
 	}
 
-	if (SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
+	if (!GIsEditor && SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 	{
 		RetainSoundCue();
 	}

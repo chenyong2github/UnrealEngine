@@ -116,6 +116,9 @@ public:
 public:
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	virtual void PostDuplicate( bool bDuplicateForPIE ) override;
+	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
 
 private:
 	void Clear();
@@ -124,8 +127,13 @@ private:
 
 #if WITH_EDITOR
 	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);
+	void OnBeginPIE(bool bIsSimulating);
+	void OnPostPIEStarted(bool bIsSimulating);
 #endif // WITH_EDITOR
 
+	void UpdateSpawnedObjectsTransientFlag( bool bTransient );
+
+	void OnPrimsChanged( const TMap< FString, bool >& PrimsChangedList );
 	void OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin );
 
 	void OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
@@ -138,16 +146,16 @@ private:
 	UPROPERTY(Transient)
 	TSet< FString > PrimsToAnimate;
 
-	UPROPERTY(Transient)
+	UPROPERTY( Transient )
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
 	/** Hash based assets cache */
-	UPROPERTY( NonPIEDuplicateTransient )
+	UPROPERTY(Transient)
 	TMap< FString, UObject* > AssetsCache;
 
 	/** Map of USD Prim Paths to UE assets */
-	UPROPERTY( NonPIEDuplicateTransient )
+	UPROPERTY(Transient)
 	TMap< FString, UObject* > PrimPathsToAssets;
 
 #if USE_USD_SDK
@@ -162,7 +170,12 @@ public:
 	void UpdatePrim( const pxr::SdfPath& UsdPrimPath, bool bResync, FUsdSchemaTranslationContext& TranslationContext );
 
 protected:
+	/** Loads the asset for a single prim */
+	void LoadAsset( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& Prim );
+
+	/** Loads the assets for all prims from StartPrim and its children */
 	void LoadAssets( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& StartPrim );
+
 	void AnimatePrims();
 
 private:

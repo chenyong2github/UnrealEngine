@@ -302,7 +302,7 @@ bool UK2Node_VariableSet::ShouldFlushDormancyOnSet() const
 	}
 
 	// Flush net dormancy before setting a replicated property
-	FProperty *Property = FindField<FProperty>(GetVariableSourceClass(), GetVarName());
+	FProperty *Property = FindFProperty<FProperty>(GetVariableSourceClass(), GetVarName());
 	return (Property != NULL && (Property->PropertyFlags & CPF_Net));
 }
 

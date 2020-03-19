@@ -9,7 +9,8 @@ namespace UnrealBuildTool.Rules
 			PublicIncludePaths.AddRange(
 				new string[] {
                     ModuleDirectory + "/Public",
-				}
+                    "Runtime/TraceLog/Public",
+                }
 				);
 
 			PrivateIncludePaths.AddRange(
@@ -31,7 +32,8 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-				}
+					"TraceLog"					
+                }
 				);
 
 			DynamicallyLoadedModuleNames.AddRange(
@@ -40,6 +42,17 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-		}
+
+
+            // Only needed for the PIE delegate in FNetworkPredictionModule::StartupModule
+            if (Target.Type == TargetType.Editor) {
+                PrivateDependencyModuleNames.AddRange(
+                new string[]
+                {
+                    "UnrealEd",
+                });
+            }
+
+        }
 	}
 }

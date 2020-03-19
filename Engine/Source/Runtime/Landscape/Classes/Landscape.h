@@ -431,7 +431,7 @@ public:
 	/** Used to temporarily disable Grass Update in Editor */
 	bool bGrassUpdateEnabled;
 
-	UPROPERTY(TextExportTransient)
+	UPROPERTY()
 	TArray<FLandscapeLayer> LandscapeLayers;
 
 	UPROPERTY(Transient)

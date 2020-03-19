@@ -111,7 +111,7 @@ public:
 
 	~SDataprepProducersWidget();
 
-	void Construct(const FArguments& InArgs, UDataprepAssetProducers* InAssetProducersPtr, TSharedPtr<FUICommandList>& CommandList);
+	void Construct(const FArguments& InArgs, UDataprepAssetProducers* InAssetProducersPtr);
 
 	TSharedRef<SWidget> CreateAddProducerMenuWidget();
 
@@ -127,7 +127,6 @@ private:
 
 private:
 	TSharedPtr<SWidget> AddNewMenu;
-	TSharedPtr<FUICommandList> CommandList;
 	TWeakObjectPtr<UDataprepAssetProducers> AssetProducersPtr;
 	TSharedPtr<SDataprepProducersTreeView> TreeView;
 };
@@ -142,5 +141,5 @@ public:
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
 
 private:
-	TSharedRef<SWidget> CreateWidget(UDataprepAssetProducers* Producers, TSharedPtr<FUICommandList>& CommandList);
+	TSharedRef<SWidget> CreateWidget(UDataprepAssetProducers* Producers);
 };

@@ -1746,6 +1746,35 @@ bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
 #endif
 }
 
+void FIOSPlatformMisc::RequestExit(bool Force)
+{
+	if (Force)
+	{
+		FApplePlatformMisc::RequestExit(Force);
+	}
+	else
+	{
+		// ForceExit is sort of a misnomer here.  This will exit the engine loop before calling _Exit() from the app delegate
+		[[IOSAppDelegate GetDelegate] ForceExit];
+	}
+}
+
+void FIOSPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
+{
+	if (Force)
+	{
+		FApplePlatformMisc::RequestExit(Force);
+	}
+	else
+	{
+		// Implementation will ignore the return code - this may be important, so warn.
+		UE_LOG(LogIOS, Warning, TEXT("FIOSPlatformMisc::RequestExitWithStatus(%i, %d) - return code will be ignored by the generic implementation."), Force, ReturnCode);
+
+		// ForceExit is sort of a misnomer here.  This will exit the engine loop before calling _Exit() from the app delegate
+		[[IOSAppDelegate GetDelegate] ForceExit];
+	}
+}
+
 void FIOSPlatformMisc::GPUAssert()
 {
     // make this a fatal error that ends here not in the log

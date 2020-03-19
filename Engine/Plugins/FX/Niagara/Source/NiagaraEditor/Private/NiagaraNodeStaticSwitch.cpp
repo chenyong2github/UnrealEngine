@@ -4,6 +4,7 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraConstants.h"
+#include "NiagaraScriptVariable.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeStaticSwitch"
 
@@ -105,7 +106,8 @@ void UNiagaraNodeStaticSwitch::RemoveUnusedGraphParameter(const FNiagaraVariable
 	int Index = GraphVariables.Find(OldParameter);
 	if (Index == INDEX_NONE)
 	{
-		GetNiagaraGraph()->RemoveParameter(OldParameter);
+		// Force delete the old static switch parameter.
+		GetNiagaraGraph()->RemoveParameter(OldParameter, true);
 	}
 	else
 	{
@@ -389,6 +391,24 @@ bool UNiagaraNodeStaticSwitch::SubstituteCompiledPin(FHlslNiagaraTranslator* Tra
 		}
 	}
 	return false;
+}
+
+
+void UNiagaraNodeStaticSwitch::PostLoad()
+{
+	Super::PostLoad();
+
+	// Make sure that we are added to the static switch list.
+	if (GetInputType().IsValid() && InputParameterName.IsValid())
+	{
+		UNiagaraScriptVariable* Var = GetNiagaraGraph()->GetScriptVariable(InputParameterName);
+		if (Var != nullptr && Var->Variable.GetType() == GetInputType() && Var->Metadata.GetIsStaticSwitch() == false)
+		{
+			UE_LOG(LogNiagaraEditor, Log, TEXT("Static switch constant \"%s\" in \"%s\" didn't have static switch meta-data conversion set properly. Fixing now."), *InputParameterName.ToString(), *GetPathName())
+			Var->Metadata.SetIsStaticSwitch(true);
+			MarkNodeRequiresSynchronization(TEXT("Static switch metadata updated"), true);
+		}
+	}
 }
 
 UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin) const

@@ -16,6 +16,7 @@
 #include "UObject/Script.h"
 #include "VPSettings.h"
 #include "VPUtilitiesEditorSettings.h"
+#include "LevelEditorActions.h"
 
 /* UVPScoutingSubsystem name
  *****************************************************************************/
@@ -378,4 +379,14 @@ void UVPScoutingSubsystem::ExitVRMode()
 	{
 		VREditorModule.EnableVREditor(false);
 	}
+}
+
+bool UVPScoutingSubsystem::IsGridSnappingEnabled()
+{
+	return FLevelEditorActionCallbacks::LocationGridSnap_IsChecked();
+}
+
+void UVPScoutingSubsystem::ToggleGridSnapping()
+{
+	FLevelEditorActionCallbacks::LocationGridSnap_Clicked();
 }

@@ -276,213 +276,148 @@ private:
 	int32 Index;
 };
 
-/**
-* Defines the order mapping for files within a pak.
-* When read from the files present in the pak, Indexes will be [0,NumFiles).  This is important for detecting gaps in the order between adjacent files in a patch .pak.
-* For new files being added into the pak, the values can be arbitrary, and will be usable only for relative order in an output list.
-* Due to the arbitrary values for new files, the FPakOrderMap can contain files with duplicate Order values.
- */
-class FPakOrderMap
+bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile)
 {
-public:
-	FPakOrderMap()
-		: MaxPrimaryOrderIndex(MAX_uint64)
-	{}
-
-	void Empty()
+	int32 OrderOffset = 0;
+	if (bSecondaryOrderFile)
 	{
-		OrderMap.Empty();
-		MaxPrimaryOrderIndex = MAX_uint64;
+		OrderOffset = Num();
+		MaxPrimaryOrderIndex = OrderOffset;
 	}
-
-	int32 Num() const
+	// List of all items to add to pak file
+	FString Text;
+	UE_LOG(LogPakFile, Display, TEXT("Loading pak order file %s..."), ResponseFile);
+	if (FFileHelper::LoadFileToString(Text, ResponseFile))
 	{
-		return OrderMap.Num();
-	}
-
-	/** Add the given filename with the given Sorting Index */
-	void Add(const FString& Filename, uint64 Index)
-	{
-		OrderMap.Add(Filename, Index);
-	}
-
-	/**
-	 * Add the given filename with the given Offset interpreted as Offset in bytes in the Pak File.  This version of Add is only useful when all Adds are done by offset, and are converted
-	 * into Sorting Indexes at the end by a call to ConvertOffsetsToOrder
-	 */
-	void AddOffset(const FString& Filename, uint64 Offset)
-	{
-		OrderMap.Add(Filename, Offset);
-	}
-
-	/** Remaps all the current values in the OrderMap onto [0, NumEntries).  Useful to convert from Offset in Pak file bytes into an Index sorted by Offset */
-	void ConvertOffsetsToOrder()
-	{
-		TArray<TPair<FString, uint64>> FilenameAndOffsets;
-		for (auto& FilenameAndOffset : OrderMap)
+		// Read all lines
+		TArray<FString> Lines;
+		Text.ParseIntoArray(Lines, TEXT("\n"), true);
+		for (int32 EntryIndex = 0; EntryIndex < Lines.Num(); EntryIndex++)
 		{
-			FilenameAndOffsets.Add(FilenameAndOffset);
-		}
-		FilenameAndOffsets.Sort([](const TPair<FString, uint64>& A, const TPair<FString, uint64>& B)
-		{
-			return A.Value < B.Value;
-		});
-		int64 Index = 0;
-		for (auto& FilenameAndOffset : FilenameAndOffsets)
-		{
-			OrderMap[FilenameAndOffset.Key] = Index;
-			++Index;
-		}
-	}
-
-	bool ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile = false)
-	{
-		int32 OrderOffset = 0;
-		if (bSecondaryOrderFile)
-		{
-			OrderOffset = Num();
-			MaxPrimaryOrderIndex = OrderOffset;
-		}
-		// List of all items to add to pak file
-		FString Text;
-		UE_LOG(LogPakFile, Display, TEXT("Loading pak order file %s..."), ResponseFile);
-		if (FFileHelper::LoadFileToString(Text, ResponseFile))
-		{
-			// Read all lines
-			TArray<FString> Lines;
-			Text.ParseIntoArray(Lines, TEXT("\n"), true);
-			for (int32 EntryIndex = 0; EntryIndex < Lines.Num(); EntryIndex++)
+			Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""));
+			Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""));
+			int32 OpenOrderNumber = EntryIndex;
+			if (Lines[EntryIndex].FindLastChar('"', OpenOrderNumber))
 			{
-				Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""));
-				Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""));
-				int32 OpenOrderNumber = EntryIndex;
-				if (Lines[EntryIndex].FindLastChar('"', OpenOrderNumber))
+				FString ReadNum = Lines[EntryIndex].RightChop(OpenOrderNumber + 1);
+				Lines[EntryIndex].LeftInline(OpenOrderNumber + 1, false);
+				ReadNum.TrimStartInline();
+				if (ReadNum.IsNumeric())
 				{
-					FString ReadNum = Lines[EntryIndex].RightChop(OpenOrderNumber + 1);
-					Lines[EntryIndex].LeftInline(OpenOrderNumber + 1, false);
-					ReadNum.TrimStartInline();
-					if (ReadNum.IsNumeric())
-					{
-						OpenOrderNumber = FCString::Atoi(*ReadNum);
-					}
+					OpenOrderNumber = FCString::Atoi(*ReadNum);
 				}
-				Lines[EntryIndex] = Lines[EntryIndex].TrimQuotes();
-				FString Path = FString::Printf(TEXT("%s"), *Lines[EntryIndex]);
-				FPaths::NormalizeFilename(Path);
-				Path = Path.ToLower();
-				if (bSecondaryOrderFile && OrderMap.Contains(Path))
-				{
-					continue;
-				}
-				OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
 			}
-			UE_LOG(LogPakFile, Display, TEXT("Finished loading pak order file %s."), ResponseFile);
-			return true;
+			Lines[EntryIndex] = Lines[EntryIndex].TrimQuotes();
+			FString Path = FString::Printf(TEXT("%s"), *Lines[EntryIndex]);
+			FPaths::NormalizeFilename(Path);
+			Path = Path.ToLower();
+			if (bSecondaryOrderFile && OrderMap.Contains(Path))
+			{
+				continue;
+			}
+			OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
 		}
-		else
+		UE_LOG(LogPakFile, Display, TEXT("Finished loading pak order file %s."), ResponseFile);
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogPakFile, Error, TEXT("Unable to load pak order file %s."), ResponseFile);
+		return false;
+	}
+}
+
+uint64 FPakOrderMap::GetFileOrder(const FString& Path, bool bAllowUexpUBulkFallback, bool* OutIsPrimary) const
+{
+	FString RegionStr;
+	FString NewPath = RemapLocalizationPathIfNeeded(Path.ToLower(), RegionStr);
+	const uint64* FoundOrder = OrderMap.Find(NewPath);
+	uint64 ReturnOrder = MAX_uint64;
+	if (FoundOrder != nullptr)
+	{
+		ReturnOrder = *FoundOrder;
+		if (OutIsPrimary)
 		{
-			UE_LOG(LogPakFile, Error, TEXT("Unable to load pak order file %s."), ResponseFile);
-			return false;
+			*OutIsPrimary = (ReturnOrder < MaxPrimaryOrderIndex);
 		}
 	}
-
-	uint64 GetFileOrder(const FString& Path, bool bAllowUexpUBulkFallback, bool* OutIsPrimary=nullptr) const
+	else if (bAllowUexpUBulkFallback)
 	{
-		FString RegionStr;
-		FString NewPath = RemapLocalizationPathIfNeeded(Path.ToLower(), RegionStr);
-		const uint64* FoundOrder = OrderMap.Find(NewPath);
-		uint64 ReturnOrder = MAX_uint64;
-		if (FoundOrder != nullptr)
+		// if this is a cook order or an old order it will not have uexp files in it, so we put those in the same relative order after all of the normal files, but before any ubulk files
+		if (Path.EndsWith(TEXT("uexp")) || Path.EndsWith(TEXT("ubulk")))
 		{
-			ReturnOrder = *FoundOrder;
-			if (OutIsPrimary)
+			uint64 CounterpartOrder = GetFileOrder(FPaths::GetBaseFilename(Path, false) + TEXT(".uasset"), false);
+			if (CounterpartOrder == MAX_uint64)
 			{
-				*OutIsPrimary = ( ReturnOrder < MaxPrimaryOrderIndex );
+				CounterpartOrder = GetFileOrder(FPaths::GetBaseFilename(Path, false) + TEXT(".umap"), false);
 			}
-		}
-		else if (bAllowUexpUBulkFallback)
-		{
-			// if this is a cook order or an old order it will not have uexp files in it, so we put those in the same relative order after all of the normal files, but before any ubulk files
-			if (Path.EndsWith(TEXT("uexp")) || Path.EndsWith(TEXT("ubulk")))
+			if (CounterpartOrder != MAX_uint64)
 			{
-				uint64 CounterpartOrder = GetFileOrder(FPaths::GetBaseFilename(Path, false) + TEXT(".uasset"), false);
-				if (CounterpartOrder == MAX_uint64)
+				if (Path.EndsWith(TEXT("uexp")))
 				{
-					CounterpartOrder = GetFileOrder(FPaths::GetBaseFilename(Path, false) + TEXT(".umap"), false);
+					ReturnOrder = CounterpartOrder | (1 << 29);
 				}
-				if (CounterpartOrder != MAX_uint64)
+				else
 				{
-					if (Path.EndsWith(TEXT("uexp")))
-					{
-						ReturnOrder = CounterpartOrder | (1 << 29);
-					}
-					else
-					{
-						ReturnOrder = CounterpartOrder | (1 << 30);
-					}
+					ReturnOrder = CounterpartOrder | (1 << 30);
 				}
 			}
 		}
+	}
 
-		// Optionally offset based on region, so multiple files in different regions don't get the same order.
-		// I/O profiling suggests this is slightly worse, so leaving this disabled for now
+	// Optionally offset based on region, so multiple files in different regions don't get the same order.
+	// I/O profiling suggests this is slightly worse, so leaving this disabled for now
 #if 0
-		if (ReturnOrder != MAX_uint64)
+	if (ReturnOrder != MAX_uint64)
+	{
+		if (RegionStr.Len() > 0)
 		{
-			if (RegionStr.Len() > 0)
+			uint64 RegionOffset = 0;
+			for (int i = 0; i < RegionStr.Len(); i++)
 			{
-				uint64 RegionOffset = 0;
-				for (int i = 0; i < RegionStr.Len(); i++)
-				{
-					int8 Letter = (int8)(RegionStr[i] - TEXT('a'));
-					RegionOffset |= (uint64(Letter) << (i * 5));
-				}
-				return ReturnOrder + (RegionOffset << 16);
+				int8 Letter = (int8)(RegionStr[i] - TEXT('a'));
+				RegionOffset |= (uint64(Letter) << (i * 5));
 			}
+			return ReturnOrder + (RegionOffset << 16);
 		}
+	}
 #endif
-		return ReturnOrder;
-	}
+	return ReturnOrder;
+}
 
-	void WriteOpenOrder(FArchive* Ar)
+void FPakOrderMap::WriteOpenOrder(FArchive* Ar)
+{
+	OrderMap.ValueSort([](const uint64& A, const uint64& B) { return A < B; });
+	for (const auto& It : OrderMap)
 	{
-		OrderMap.ValueSort([](const uint64& A, const uint64& B) { return A < B; });
-		for (const auto& It : OrderMap)
-		{
-			Ar->Logf(TEXT("\"%s\" %d"), *It.Key, It.Value);
-		}
+		Ar->Logf(TEXT("\"%s\" %d"), *It.Key, It.Value);
 	}
+}
 
-private:
-	FString RemapLocalizationPathIfNeeded(const FString& PathLower, FString& OutRegion) const
+FString FPakOrderMap::RemapLocalizationPathIfNeeded(const FString& PathLower, FString& OutRegion) const
+{
+	static const TCHAR* L10NPrefix = (const TCHAR*)TEXT("/content/l10n/");
+	static const int32 L10NPrefixLength = FCString::Strlen(L10NPrefix);
+	int32 FoundIndex = PathLower.Find(L10NPrefix, ESearchCase::CaseSensitive);
+	if (FoundIndex > 0)
 	{
-		static const TCHAR* L10NPrefix = (const TCHAR*)TEXT("/content/l10n/");
-		static const int32 L10NPrefixLength = FCString::Strlen(L10NPrefix);
-		int32 FoundIndex = PathLower.Find(L10NPrefix, ESearchCase::CaseSensitive);
-		if (FoundIndex > 0)
+		// Validate the content index is the first one
+		int32 ContentIndex = PathLower.Find(TEXT("/content/"), ESearchCase::CaseSensitive);
+		if (ContentIndex == FoundIndex)
 		{
-			// Validate the content index is the first one
-			int32 ContentIndex = PathLower.Find(TEXT("/content/"), ESearchCase::CaseSensitive);
-			if (ContentIndex == FoundIndex)
+			int32 EndL10NOffset = ContentIndex + L10NPrefixLength;
+			int32 NextSlashIndex = PathLower.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, EndL10NOffset);
+			int32 RegionLength = NextSlashIndex - EndL10NOffset;
+			if (RegionLength >= 2)
 			{
-				int32 EndL10NOffset = ContentIndex + L10NPrefixLength;
-				int32 NextSlashIndex = PathLower.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, EndL10NOffset);
-				int32 RegionLength = NextSlashIndex - EndL10NOffset;
-				if (RegionLength >= 2)
-				{
-					FString NonLocalizedPath = PathLower.Mid(0, ContentIndex) + TEXT("/content") + PathLower.Mid(NextSlashIndex);
-					OutRegion = PathLower.Mid(EndL10NOffset, RegionLength);
-					return NonLocalizedPath;
-				}
+				FString NonLocalizedPath = PathLower.Mid(0, ContentIndex) + TEXT("/content") + PathLower.Mid(NextSlashIndex);
+				OutRegion = PathLower.Mid(EndL10NOffset, RegionLength);
+				return NonLocalizedPath;
 			}
 		}
-		return PathLower;
 	}
-
-	TMap<FString, uint64> OrderMap;
-	uint64 MaxPrimaryOrderIndex;
-};
-
+	return PathLower;
+}
 
 enum class ESeekOptMode : uint8
 {
@@ -5121,12 +5056,6 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		FString SecondaryResponseFile;
 		if (FParse::Value(CmdLine, TEXT("-secondaryOrder="), SecondaryResponseFile) && !OrderMap.ProcessOrderFile(*SecondaryResponseFile, true))
 		{
-			return false;
-		}
-
-		if (Entries.Num() == 0)
-		{
-			UE_LOG(LogPakFile, Error, TEXT("No files specified to add to pak file."));
 			return false;
 		}
 

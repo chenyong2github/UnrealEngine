@@ -384,11 +384,62 @@ void UNiagaraStackRendererItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 		NewIssues.Add(TargetSupportError);
 	}
 
+	if (RendererProperties->GetIsEnabled())
+	{
+		TArray<FText> Errors;
+		TArray<FText> Warnings;
+		TArray<FText> Infos;
+
+		RendererProperties->GetRendererFeedback(GetEmitterViewModel()->GetEmitter(), Errors, Warnings, Infos);
+
+		for (const FText& Item : Errors)
+		{
+			FStackIssue TargetSupportError(
+				EStackIssueSeverity::Error,
+				Item,
+				FText(),
+				GetStackEditorDataKey(),
+				false);
+
+			NewIssues.Add(TargetSupportError);
+		}
+
+		for (const FText& Item : Warnings)
+		{
+			FStackIssue TargetSupportError(
+				EStackIssueSeverity::Warning,
+				Item,
+				FText(),
+				GetStackEditorDataKey(),
+				false);
+
+			NewIssues.Add(TargetSupportError);
+		}
+
+		for (const FText& Item : Infos)
+		{
+			FStackIssue TargetSupportError(
+				EStackIssueSeverity::Info,
+				Item,
+				FText(),
+				GetStackEditorDataKey(),
+				false);
+
+			NewIssues.Add(TargetSupportError);
+		}
+	}
+
 }
 
 void UNiagaraStackRendererItem::RendererChanged()
 {
-	bCanResetToBaseCache.Reset();
+	if (IsFinalized() == false)
+	{
+		// Undo/redo can cause objects to disappear and reappear which can prevent safe removal of delegates
+		// so guard against receiving an event when finalized here.
+		bCanResetToBaseCache.Reset();
+		RefreshChildren();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

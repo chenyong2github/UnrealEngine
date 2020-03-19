@@ -75,7 +75,7 @@ public:
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
-	void InitDataprepEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UDataprepAssetInterface* InDataprepAssetInterface, UObject* Blueprint = nullptr);
+	void InitDataprepEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UDataprepAssetInterface* InDataprepAssetInterface);
 
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
@@ -115,8 +115,14 @@ public:
 	/** Setup the preview system to observe those steps */
 	void SetPreviewedObjects(const TArrayView<UDataprepParameterizableObject*>& ObservedObjects);
 
+	/** Clear any ongoing preview from the step preview system for this editor */
+	void ClearPreviewedObjects();
+
 	/** Is the preview system observing this step */
 	bool IsPreviewingStep(const UDataprepParameterizableObject* StepObject) const;
+
+	/** Return the number of steps the preview system is currently previewing */
+	int32 GetCountOfPreviewedSteps() const;
 
 private:
 	void BindCommands();
@@ -197,6 +203,9 @@ private:
 	/** Handles change to the content passed to an action */
 	void OnActionsContextChanged( const UDataprepActionAsset* ActionAsset, bool bWorldChanged, bool bAssetsChanged, const TArray< TWeakObjectPtr<UObject> >& NewAssets );
 
+	/** Refresh the columns of the scene preview (outliner) and the asset preview */
+	void RefreshColumnsForPreviewSystem();
+
 	/** Update the data used by the preview system */
 	void UpdateDataForPreviewSystem();
 
@@ -204,6 +213,8 @@ private:
 
 	virtual void PostUndo( bool bSuccess ) override;
 	virtual void PostRedo( bool bSuccess ) override;
+
+	void CreateGraphEditor();
 
 private:
 	bool bWorldBuilt;
@@ -221,13 +232,11 @@ private:
 	TSharedPtr<SWidget> ScenePreviewView;
 	TSharedPtr<SGraphNodeDetailsWidget> DetailsView;
 	TSharedPtr<class SDataprepAssetView > DataprepAssetView;
-	TSharedPtr<SGraphEditor> PipelineView;
 	TSharedPtr<SDataprepGraphEditor> GraphEditor;
 
 	TSharedPtr<class ICustomSceneOutliner> SceneOutliner;
 
 	/** Command list for the pipeline editor */
-	TSharedPtr<FUICommandList> PipelineEditorCommands;
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 	bool bIsActionMenuContextSensitive;
 	bool bSaveIntermediateBuildProducts;
@@ -277,6 +286,8 @@ private:
 	/** Steps Preview System */
 	TSharedRef<FDataprepPreviewSystem> PreviewSystem;
 
+	TSharedPtr<FDataprepActionContext> ActionsContext;
+
 	/**	The tab ids for all the tabs used */
 	static const FName ScenePreviewTabId;
 	static const FName AssetPreviewTabId;
@@ -286,87 +297,4 @@ private:
 	static const FName SceneViewportTabId;
 	static const FName DataprepStatisticsTabId;
 	static const FName DataprepGraphEditorTabId;
-
-//Temp Code to allow us to work on the nodes while we don't have our own graph.
-public:
-	UBlueprint* GetDataprepBlueprint()
-	{
-		return DataprepRecipeBPPtr.IsValid() ? DataprepRecipeBPPtr.Get() : nullptr;
-	}
-
-private:
-
-	TSharedRef<SDockTab> SpawnTabPipelineGraph(const FSpawnTabArgs& Args);
-
-	void CreatePipelineEditor();
-
-	void CreateGraphEditor();
-
-	
-	/** Called to create context menu when right-clicking on graph */
-	FActionMenuContent OnCreatePipelineActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
-
-	/** Called when the Pipeline Blueprint has changed */
-	void OnPipelineChanged(UBlueprint* InBlueprint);
-
-	/** Called when the Pipeline Blueprint has been compiled */
-	void OnPipelineCompiled(UBlueprint* InBlueprint);
-
-	/** Callback when a token is clicked on in the compiler results log */
-	void OnLogTokenClicked(const TSharedRef<IMessageToken>& Token);
-
-	/** Callback when properties have finished being handled */
-	//virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
-
-	/** Called when Compile button is clicked */
-	void OnCompile();
-
-	/** Returns the current status icon for the blueprint being edited */
-	FSlateIcon GetPipelineCompileButtonImage() const;
-	FText GetPipelineCompileButtonTooltip() const;
-
-	TSet<UObject*> GetSelectedPipelineNodes() const;
-	UEdGraph* GetPipelineGraph() const;
-	bool IsPipelineEditable() const;
-
-	void OnRenameNode();
-	bool CanRenameNode() const;
-
-	void SelectAllNodes();
-	bool CanSelectAllNodes() const;
-
-	void DeleteSelectedPipelineNodes();
-	bool CanDeletePipelineNodes() const;
-
-	void CopySelectedNodes();
-	bool CanCopyNodes() const;
-
-	void CutSelectedNodes();
-	bool CanCutNodes() const;
-
-	void PasteNodes();
-	bool CanPasteNodes() const;
-
-	void DuplicateNodes();
-	bool CanDuplicateNodes() const;
-
-	void OnCreateComment();
-
-	void DeleteSelectedDuplicatableNodes();
-	void PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation);
-
-	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage);
-	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
-
-	// Start of temp code
-	TWeakObjectPtr<UBlueprint> DataprepRecipeBPPtr;
-
-	/** Compiler results log, with the log listing that it reflects */
-	TSharedPtr<SWidget> CompilerResults;
-	TSharedPtr<IMessageLogListing> CompilerResultsListing;
-
-	TSharedPtr<FDataprepActionContext> ActionsContext;
-
-	static const FName PipelineGraphTabId;
-	// End of temp code
 };

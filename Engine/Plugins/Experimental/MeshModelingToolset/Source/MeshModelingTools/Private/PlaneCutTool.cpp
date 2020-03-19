@@ -277,6 +277,7 @@ void UPlaneCutTool::SetupPreviews()
 		CutSide->ComponentIndex = PreviewIdx;
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(CutSide, "Preview"));
 		Preview->Setup(this->TargetWorld, CutSide);
+		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 		FComponentMaterialSet MaterialSet;
 		ComponentTargets[PreviewIdx]->GetMaterialSet(MaterialSet);

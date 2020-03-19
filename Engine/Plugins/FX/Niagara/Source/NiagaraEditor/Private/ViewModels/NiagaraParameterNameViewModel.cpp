@@ -14,6 +14,7 @@
 #include "Modules/ModuleManager.h"
 #include "EdGraph/EdGraphPin.h"
 #include "NiagaraEditorCommon.h"
+#include "NiagaraConstants.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Parameter Panel Entry Parameter Name ViewModel							///
@@ -32,19 +33,13 @@ TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateSco
 	}
 
 	bool bEnableScopeSlotWidget = true;
-	if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch() == false)
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch())
 	{
-		if (CachedScriptVarAndViewInfo.MetaData.GetUsage() != ENiagaraScriptParameterUsage::Input)
-		{
-			bEnableScopeSlotWidget = false;
-		}
-
-		ENiagaraParameterScope CachedScope;
-		FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope);
-		if (CachedScope == ENiagaraParameterScope::Local)
-		{
-			bEnableScopeSlotWidget = false;
-		}
+		bEnableScopeSlotWidget = false;
+	}
+	else if (!FNiagaraEditorUtilities::IsScopeEditable(CachedScriptVarAndViewInfo.MetaData.GetScopeName()))
+	{
+		bEnableScopeSlotWidget = false;
 	}
 
 	UEnum* ParameterScopeEnum = FNiagaraTypeDefinition::GetParameterScopeEnum();
@@ -67,9 +62,9 @@ TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateSco
 	return ScopeComboBoxWidget.ToSharedRef();
 }
 
-TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateTextSlotWidget() const
+TSharedRef<SInlineEditableTextBlock> FNiagaraParameterPanelEntryParameterNameViewModel::CreateTextSlotWidget() const
 {
-	TSharedPtr< SWidget > DisplayWidget;
+	TSharedPtr< SInlineEditableTextBlock > DisplayWidget;
 	const FName FontType = FName("Italic");
 	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle(FontType, 10); //@todo(ng) get correct font
 
@@ -78,11 +73,11 @@ TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateTex
 		.Font(NameFont)
 		.HighlightText(CreateData->HighlightText)
 		.OnTextCommitted(this, &FNiagaraParameterPanelEntryParameterNameViewModel::OnParameterRenamed)
-		//.OnVerifyTextChanged(InArgs._OnVerifyParameterNameChanged) //@todo(ng) impl
+		.OnVerifyTextChanged(this, &FNiagaraParameterPanelEntryParameterNameViewModel::VerifyParameterNameChanged)
 		.IsSelected(CreateData->IsRowSelectedDelegate)
 		.IsReadOnly(bIsReadOnly);
 
-	//CreateData->OnRenameRequest->BindSP(static_cast<SInlineEditableTextBlock*>(DisplayWidget.Get()), &SInlineEditableTextBlock::EnterEditingMode); //@Todo(ng) figure out a way to make this work
+	CreateData->OnRenameRequest->BindSP(static_cast<SInlineEditableTextBlock*>(DisplayWidget.Get()), &SInlineEditableTextBlock::EnterEditingMode);
 
 	return DisplayWidget.ToSharedRef();
 }
@@ -93,6 +88,7 @@ int32 FNiagaraParameterPanelEntryParameterNameViewModel::GetScopeValue() const
 	{
 		return int32(ENiagaraParameterScope::DISPLAY_ONLY_StaticSwitch);
 	}
+
 	ENiagaraParameterScope CachedScope;
 	if (ensureMsgf(FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
 	{
@@ -127,6 +123,16 @@ FText FNiagaraParameterPanelEntryParameterNameViewModel::GetParameterNameText() 
 	return FText::FromName(ParameterName);
 }
 
+bool FNiagaraParameterPanelEntryParameterNameViewModel::VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const
+{
+	if (OnVerifyParameterRenamedDelegate.IsBound())
+	{
+		return OnVerifyParameterRenamedDelegate.Execute(CachedScriptVarAndViewInfo.ScriptVariable, CachedScriptVarAndViewInfo.MetaData, NewNameText, OutErrorText);
+	}
+	ensureMsgf(false, TEXT("Verify parameter renamed delegate was not bound!"));
+	return true;
+}
+
 void FNiagaraParameterPanelEntryParameterNameViewModel::OnParameterRenamed(const FText& NewNameText, ETextCommit::Type TextCommitType) const
 {
 	OnParameterRenamedDelegate.ExecuteIfBound(CachedScriptVarAndViewInfo.ScriptVariable, CachedScriptVarAndViewInfo.MetaData, NewNameText);
@@ -137,7 +143,7 @@ void FNiagaraParameterPanelEntryParameterNameViewModel::OnParameterRenamed(const
 ///////////////////////////////////////////////////////////////////////////////
 
 FNiagaraGraphPinParameterNameViewModel::FNiagaraGraphPinParameterNameViewModel(
-	const UEdGraphPin* InOwningPin
+	UEdGraphPin* InOwningPin
 	, const FNiagaraScriptVariableAndViewInfo& InScriptVarAndViewInfo
 	, const FNiagaraScriptToolkitParameterPanelViewModel* InParameterPanelViewModel
 )
@@ -158,7 +164,7 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateScopeSlotWidge
 	TSharedPtr< SWidget > ScopeComboBoxWidget;
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 
-	bool bEnableScopeSlotWidget = OwningPin->Direction == EEdGraphPinDirection::EGPD_Output;
+	bool bEnableScopeSlotWidget = false;// OwningPin->Direction == EEdGraphPinDirection::EGPD_Output;
 
 	SAssignNew(ScopeComboBoxWidget, SBox)
 		.MinDesiredWidth(80.0f) //@todo(ng) tune and make const static
@@ -176,9 +182,9 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateScopeSlotWidge
 	return ScopeComboBoxWidget.ToSharedRef();
 }
 
-TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget() const
+TSharedRef<SInlineEditableTextBlock> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget() const
 {
-	TSharedPtr< SWidget > DisplayWidget;
+	TSharedPtr< SInlineEditableTextBlock > DisplayWidget;
 	const FName FontType = FName("Italic");
 	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle(FontType, 10); //@todo(ng) get correct style
 
@@ -186,7 +192,7 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget
 		.Text(this, &FNiagaraGraphPinParameterNameViewModel::GetParameterNameText)
 		.Font(NameFont)
 		.OnTextCommitted(this, &FNiagaraGraphPinParameterNameViewModel::OnParameterRenamed)
-		//.OnVerifyTextChanged(InArgs._OnVerifyParameterNameChanged) //@todo(ng) impl
+		.OnVerifyTextChanged(this, &FNiagaraGraphPinParameterNameViewModel::VerifyParameterNameChanged)
 		.IsReadOnly(bIsReadOnly);
 
 	return DisplayWidget.ToSharedRef();
@@ -194,6 +200,11 @@ TSharedRef<SWidget> FNiagaraGraphPinParameterNameViewModel::CreateTextSlotWidget
 
 int32 FNiagaraGraphPinParameterNameViewModel::GetScopeValue() const
 {
+	if (CachedScriptVarAndViewInfo.MetaData.GetIsStaticSwitch())
+	{
+		return int32(ENiagaraParameterScope::DISPLAY_ONLY_StaticSwitch);
+	}
+
 	ENiagaraParameterScope CachedScope;
 	if (ensureMsgf(FNiagaraEditorUtilities::GetVariableMetaDataScope(CachedScriptVarAndViewInfo.MetaData, CachedScope), TEXT("Failed to get scope value for param as override namespace is set! This method should not be bound!")))
 	{
@@ -228,7 +239,35 @@ FText FNiagaraGraphPinParameterNameViewModel::GetParameterNameText() const
 	return FText::FromName(ParameterName);
 }
 
+bool FNiagaraGraphPinParameterNameViewModel::VerifyParameterNameChanged(const FText& NewNameText, FText& OutErrorText) const
+{
+	return ParameterPanelViewModel->GetCanRenameParameterAndToolTip(CachedScriptVarAndViewInfo.ScriptVariable, CachedScriptVarAndViewInfo.MetaData, NewNameText, OutErrorText);
+}
+
 void FNiagaraGraphPinParameterNameViewModel::OnParameterRenamed(const FText& NewNameText, ETextCommit::Type SelectionType) const
 {
-	ParameterPanelViewModel->RenamePin(OwningPin, NewNameText);
+	UNiagaraNode* Node = Cast<UNiagaraNode>(OwningPin->GetOwningNode());
+	if (Node)
+	{
+		if (CachedScriptVarAndViewInfo.MetaData.GetIsUsingLegacyNameString())
+		{
+			Node->CommitEditablePinName(NewNameText, OwningPin);
+		}
+		else
+		{
+			FName OldFullName = CachedScriptVarAndViewInfo.ScriptVariable.GetName();
+			FName OldParameterName;
+			CachedScriptVarAndViewInfo.MetaData.GetParameterName(OldParameterName);
+
+			FString OldParamNameStr = OldParameterName.ToString();
+			FString NewFullNameStr = OldFullName.ToString();
+			NewFullNameStr.RemoveFromEnd(OldParamNameStr);
+			NewFullNameStr += NewNameText.ToString();
+
+			FText NewFullNameText = FText::FromString(NewFullNameStr);
+
+			Node->CommitEditablePinName(NewFullNameText, OwningPin);
+		}
+	}
+	//ParameterPanelViewModel->RenamePin(OwningPin, NewNameText);
 }

@@ -638,7 +638,7 @@ TArray<FProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>&
 			}
 			else
 			{
-				FProperty* ColumnProp = FindField<FProperty>(InRowStruct, PropName);
+				FProperty* ColumnProp = FindFProperty<FProperty>(InRowStruct, PropName);
 
 				for (TFieldIterator<FProperty> It(InRowStruct); It && !ColumnProp; ++It)
 				{
@@ -684,7 +684,7 @@ TArray<FProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>&
 	// Generate warning for any properties in struct we are not filling in
 		for (int32 PropIdx = 0; PropIdx < ExpectedPropNames.Num(); PropIdx++)
 	{
-		const FProperty* const ColumnProp = FindField<FProperty>(InRowStruct, ExpectedPropNames[PropIdx]);
+		const FProperty* const ColumnProp = FindFProperty<FProperty>(InRowStruct, ExpectedPropNames[PropIdx]);
 
 #if WITH_EDITOR
 		// If the structure has specified the property as optional for import (gameplay code likely doing a custom fix-up or parse of that property),

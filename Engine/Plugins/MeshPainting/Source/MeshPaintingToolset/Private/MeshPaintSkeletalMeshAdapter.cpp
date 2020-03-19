@@ -38,6 +38,10 @@ FMeshPaintSkeletalMeshComponentAdapter::~FMeshPaintSkeletalMeshComponentAdapter(
 	{
 		SkeletalMeshComponent->UnregisterOnSkeletalMeshPropertyChanged(SkeletalMeshChangedHandle);
 	}
+	if (ReferencedSkeletalMesh != nullptr)
+	{
+		ReferencedSkeletalMesh->OnPostMeshCached().RemoveAll(this);
+	}
 }
 
 void FMeshPaintSkeletalMeshComponentAdapter::OnSkeletalMeshChanged()

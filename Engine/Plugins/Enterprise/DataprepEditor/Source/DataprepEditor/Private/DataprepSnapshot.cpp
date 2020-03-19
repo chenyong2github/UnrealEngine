@@ -635,6 +635,12 @@ void FDataprepEditor::TakeSnapshot()
 									bLocalIsValid = FFileHelper::SaveArrayToFile( SerializedData, *AssetFilePath );
 								}
 
+								// Ensure DefaultSubojbect flag persists through the clearing of flags
+								if (AssetObject->HasAllFlags(RF_DefaultSubObject))
+								{
+									ObjectFlags |= RF_DefaultSubObject;
+								}
+
 								AssetObject->ClearFlags( RF_AllFlags );
 								AssetObject->SetFlags( ObjectFlags );
 

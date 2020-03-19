@@ -28,7 +28,8 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 		.VAlign(VAlign_Center)
 		.Padding(2, 0, 0, 0)
 		[
-			SNew(SNiagaraStackDisplayName, InGroup, *InStackViewModel, "NiagaraEditor.Stack.GroupText")
+			SNew(SNiagaraStackDisplayName, InGroup, *InStackViewModel)
+			.NameStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.GroupText")
 		]
 		// Delete group button
 		+ SHorizontalBox::Slot()

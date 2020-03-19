@@ -663,6 +663,7 @@ bool UNiagaraNodeAssignment::RenameAssignmentTarget(FName OldName, FName NewName
 {
 	for (FNiagaraVariable& AssignmentTarget : AssignmentTargets)
 	{
+
 		if (AssignmentTarget.GetName() == OldName)
 		{
 			Modify();
@@ -673,9 +674,11 @@ bool UNiagaraNodeAssignment::RenameAssignmentTarget(FName OldName, FName NewName
 			}
 
 			AssignmentTarget.SetName(NewName);
+			RefreshTitle();
 			return true;
 		}
 	}
+
 	return false;
 }
 

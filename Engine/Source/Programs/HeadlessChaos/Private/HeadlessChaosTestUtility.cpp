@@ -680,7 +680,7 @@ namespace ChaosTest {
 		InParticles.SetObjectStateLowLevel(EObjectStateType::Dynamic);
 
 		::ChaosTest::SetParticleSimDataToCollide({ &InParticles });
-		//for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : InParticles.ShapesArray())
+		//for (const TUniquePtr<Chaos::FPerShapeData>& Shape : InParticles.ShapesArray())
 		//{
 		//	Shape->SimData.Word3 = 1;
 		//	Shape->SimData.Word1 = 1;
@@ -777,10 +777,13 @@ namespace ChaosTest {
 	{
 		for (Chaos::TGeometryParticle<float, 3>* Particle : ParticleArray)
 		{
-			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape :Particle->ShapesArray())
+			for (const TUniquePtr<Chaos::FPerShapeData>& Shape :Particle->ShapesArray())
 			{
-				Shape->SimData.Word3 = 1;
-				Shape->SimData.Word1 = 1;
+				Shape->ModifySimData([](auto& SimData)
+				{
+					SimData.Word3 = 1;
+					SimData.Word1 = 1;
+				});
 			}
 		}
 	}
@@ -788,10 +791,13 @@ namespace ChaosTest {
 	{
 		for (Chaos::TGeometryParticleHandle<float, 3>* Particle : ParticleArray)
 		{
-			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : Particle->ShapesArray())
+			for (const TUniquePtr<Chaos::FPerShapeData>& Shape : Particle->ShapesArray())
 			{
-				Shape->SimData.Word3 = 1;
-				Shape->SimData.Word1 = 1;
+				Shape->ModifySimData([](auto& SimData)
+				{
+					SimData.Word3 = 1;
+					SimData.Word1 = 1;
+				});
 			}
 		}
 	}

@@ -51,6 +51,15 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 		return new FFXSystem(InFeatureLevel, InShaderPlatform, GPUSortManager);
 	}
 }
+void FFXSystemInterface::QueueDestroyGPUSimulation(FFXSystemInterface* FXSystem)
+{
+	check(FXSystem);
+	ENQUEUE_RENDER_COMMAND(FDestroyGPUSimulationCommand)(
+		[FXSystem](FRHICommandList& RHICmdList)
+	{
+		FXSystem->DestroyGPUSimulation();
+	});
+}
 
 void FFXSystemInterface::Destroy( FFXSystemInterface* FXSystem )
 {
@@ -108,7 +117,7 @@ namespace FXConsoleVariables
 		TEXT("FX.AllowGPUSorting"),
 		bAllowGPUSorting,
 		TEXT("Allow particles to be sorted on the GPU."),
-		ECVF_Cheat
+		ECVF_ReadOnly
 		);
 	FAutoConsoleVariableRef CVarFreezeGPUSimulation(
 		TEXT("FX.FreezeGPUSimulation"),

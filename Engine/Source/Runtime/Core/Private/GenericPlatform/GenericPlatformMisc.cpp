@@ -529,6 +529,19 @@ void FGenericPlatformMisc::EndNamedEvent()
 #endif
 }
 
+bool FGenericPlatformMisc::SetStoredValues(const FString& InStoreId, const FString& InSectionName, const TMap<FString, FString>& InKeyValues)
+{
+	for (const TPair<FString, FString>& InKeyValue : InKeyValues)
+	{
+		if (!FPlatformMisc::SetStoredValue(InStoreId, InSectionName, InKeyValue.Key, InKeyValue.Value))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool FGenericPlatformMisc::SetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, const FString& InValue)
 {
 	check(!InStoreId.IsEmpty());

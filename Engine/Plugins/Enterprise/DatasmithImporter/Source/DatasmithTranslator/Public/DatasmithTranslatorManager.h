@@ -4,7 +4,6 @@
 
 #include "DatasmithTranslator.h"
 
-#include "UObject/StrongObjectPtr.h"
 
 /**
  * Responsible of the Translators lifecycle.

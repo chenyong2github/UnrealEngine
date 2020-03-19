@@ -411,13 +411,14 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt, const FReal Step
 			}
 			for (const auto Particle : DisabledParticles[Island])
 			{
-				Particles.DisableParticle(Particle);
+				DisableParticle(Particle);
 			}
 		}
 	}
 
 	Clustering.AdvanceClustering(Dt, GetCollisionConstraints());
 
+	CaptureRewindData(Particles.GetActiveParticlesView());
 	ParticleUpdatePosition(Particles.GetActiveParticlesView(), Dt);
 }
 

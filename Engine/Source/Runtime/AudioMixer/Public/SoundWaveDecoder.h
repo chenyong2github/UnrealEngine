@@ -102,6 +102,9 @@ namespace Audio
 		// Object which handles bulk of decoding operations
 		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
 
+		// Scratch buffer used for upmixing and downmixing the audio
+		AlignedFloatBuffer ScratchBuffer;
+
 		FCriticalSection DtorCritSec;
 
 		// Sample rate of the source

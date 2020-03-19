@@ -20,6 +20,13 @@ public class Hotfix : ModuleRules
 			}
 			);
 
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"PatchCheck",
+				"InstallBundleManager",
+			}
+			);
+
 		bool bHasOnlineTracing = Directory.Exists(Path.Combine(EngineDirectory, "Plugins", "Online", "NotForLicensees", "OnlineTracing"));
 		if (bHasOnlineTracing)
 		{

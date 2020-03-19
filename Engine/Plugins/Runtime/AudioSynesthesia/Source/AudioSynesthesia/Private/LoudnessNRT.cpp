@@ -72,6 +72,16 @@ TUniquePtr<Audio::IAnalyzerNRTSettings> ULoudnessNRTSettings::GetSettings(const 
 	return Settings;
 }
 
+FText ULoudnessNRTSettings::GetAssetActionName() const
+{
+	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundSynesthesiaLoudnessNRTSettings", "Synesthesia NRT Settings (Loudness)");
+}
+
+UClass* ULoudnessNRTSettings::GetSupportedClass() const
+{
+	return ULoudnessNRTSettings::StaticClass();
+}
+
 /***************************************************************************/
 /**********************        ULoudnessNRT         ************************/
 /***************************************************************************/
@@ -160,6 +170,16 @@ TUniquePtr<Audio::IAnalyzerNRTSettings> ULoudnessNRT::GetSettings(const float In
 	}
 
 	return AnalyzerSettings;
+}
+
+FText ULoudnessNRT::GetAssetActionName() const
+{
+	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundSynesthesiaLoudnessNRT", "Synesthesia NRT (Loudness)");
+}
+
+UClass* ULoudnessNRT::GetSupportedClass() const
+{
+	return ULoudnessNRT::StaticClass();
 }
 
 FName ULoudnessNRT::GetAnalyzerNRTFactoryName() const

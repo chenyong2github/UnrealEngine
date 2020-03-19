@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LidarPointCloudShared.h"
+#include "LidarPointCloud.h"
 #include "LidarPointCloudFileIO.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Engine/LatentActionManager.h"
@@ -157,6 +158,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (Latent, WorldContext = "WorldContextObject", LatentInfo = "LatentInfo", ExpandEnumAsExecs = "AsyncMode", DisplayName = "Create Lidar Point Cloud From File (ASCII)"))
 	static void CreatePointCloudFromFile(UObject* WorldContextObject, const FString& Filename, bool bUseAsync, FVector2D RGBRange, FLidarPointCloudImportSettings_ASCII_Columns Columns, FLatentActionInfo LatentInfo, ELidarPointCloudAsyncMode& AsyncMode, float& Progress, ULidarPointCloud*& PointCloud);
+	static ULidarPointCloud* CreatePointCloudFromFile(const FString& Filename, const FLidarPointCloudAsyncParameters& AsyncParameters, const FVector2D& RGBRange, const FLidarPointCloudImportSettings_ASCII_Columns& Columns);
 
 	virtual bool HandleImport(const FString& Filename, TSharedPtr<FLidarPointCloudImportSettings> ImportSettings, FLidarPointCloudImportResults &OutImportResults) override;
 	virtual TSharedPtr<FLidarPointCloudImportSettings> GetImportSettings(const FString& Filename) override { return TSharedPtr<FLidarPointCloudImportSettings>(new FLidarPointCloudImportSettings_ASCII(Filename)); }

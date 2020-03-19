@@ -281,7 +281,7 @@ public:
 
 	FOnRequestFocusTab& OnRequestFocusTab();
 
-	void FocusTab(FName TabName);
+	NIAGARAEDITOR_API void FocusTab(FName TabName);
 	
 	/** Gets the system toolkit command list. */
 	NIAGARAEDITOR_API TSharedPtr<FUICommandList> GetToolkitCommands();
@@ -308,6 +308,8 @@ public:
 
 	/** Duplicates a set of emitters and refreshes everything.*/
 	void DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate);
+
+	FGuid GetMessageLogGuid() const;
 
 private:
 
@@ -557,7 +559,10 @@ private:
 	TMap<FGuid, TArray<FNiagaraStackModuleData>> GuidToCachedStackModuleData;
 	
 	/** A handle to the on graph changed delegate for the system script. */
-	FDelegateHandle SystemScriptGraphChangedHandler;
+	FDelegateHandle SystemScriptGraphChangedHandle;
+
+	/** A handle to the on graph needs recompile delegate for the system script. */
+	FDelegateHandle SystemScriptGraphNeedsRecompileHandle;
 
 	/** An array of emitter handle ids which need their sequencer tracks refreshed next frame. */
 	TArray<FGuid> EmitterIdsRequiringSequencerTrackUpdate;

@@ -121,7 +121,7 @@ static TAutoConsoleVariable<int32> CVarPSOFileCachePreCompileMask(
 static TAutoConsoleVariable<int32> CVarPSOFileCacheAutoSaveTimeBoundPSO(
 	TEXT("r.ShaderPipelineCache.AutoSaveTimeBoundPSO"),
 	10,
-	TEXT("Set the time where any logged PSO's will be saved when -logpso is on th ecommand line."),
+	TEXT("Set the time where any logged PSO's will be saved when -logpso is on the command line."),
 	ECVF_Default | ECVF_RenderThreadSafe
 );
 
@@ -1100,6 +1100,7 @@ void FShaderPipelineCache::Flush(bool bClearCompiled /*= true*/)
 
 FShaderPipelineCache::FShaderPipelineCache(EShaderPlatform Platform)
 : FTickableObjectRenderThread(true, false) // (RegisterNow, HighFrequency)
+, CurrentPlatform((EShaderPlatform)-1)
 , BatchSize(0)
 , BatchTime(0.0f)
 , bPaused(false)

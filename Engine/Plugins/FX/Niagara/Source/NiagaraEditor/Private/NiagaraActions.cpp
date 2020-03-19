@@ -9,6 +9,7 @@
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Layout/WidgetPath.h"
+#include "ScopedTransaction.h"
 #include "NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraActions"
@@ -107,11 +108,17 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnNode(FVector2D ScreenPositi
 		const FNiagaraVariable& Parameter = ParameterAction->GetParameter();
 		if (UNiagaraNodeParameterMapGet* GetMapNode = Cast<UNiagaraNodeParameterMapGet>(GetHoveredNode()))
 		{
-			GetMapNode->RequestNewTypedPin(EGPD_Output, Parameter.GetType(), Parameter.GetName());
+			FScopedTransaction AddNewPinTransaction(LOCTEXT("Drop Onto Get Pin", "Drop parameter onto Get node"));
+			GetMapNode->Modify();
+			UEdGraphPin* Pin = GetMapNode->RequestNewTypedPin(EGPD_Output, Parameter.GetType(), Parameter.GetName());
+			GetMapNode->CancelEditablePinName(FText::GetEmpty(), Pin);
 		} 
 		else if (UNiagaraNodeParameterMapSet* SetMapNode = Cast<UNiagaraNodeParameterMapSet>(GetHoveredNode()))
 		{
-			SetMapNode->RequestNewTypedPin(EGPD_Input, Parameter.GetType(), Parameter.GetName());
+			FScopedTransaction AddNewPinTransaction(LOCTEXT("Drop Onto Set Pin", "Drop parameter onto Set node"));
+			SetMapNode->Modify();
+			UEdGraphPin* Pin = SetMapNode->RequestNewTypedPin(EGPD_Input, Parameter.GetType(), Parameter.GetName());
+			SetMapNode->CancelEditablePinName(FText::GetEmpty(), Pin);
 		}
 	}
 
@@ -191,8 +198,15 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 }
 
 
+bool FNiagaraParameterGraphDragOperation::IsCurrentlyHoveringNode(const UEdGraphNode* TestNode) const
+{
+	return TestNode == GetHoveredNode();
+}
+
 void FNiagaraParameterGraphDragOperation::MakeGetMap(FNiagaraParameterNodeConstructionParams InParams)
 {
+
+	FScopedTransaction AddNewPinTransaction(LOCTEXT("MakeGetMap", "Make Get Node For Variable"));
 	check(InParams.Graph);
 	InParams.Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeParameterMapGet> GetNodeCreator(*InParams.Graph);
@@ -205,6 +219,7 @@ void FNiagaraParameterGraphDragOperation::MakeGetMap(FNiagaraParameterNodeConstr
 
 void FNiagaraParameterGraphDragOperation::MakeSetMap(FNiagaraParameterNodeConstructionParams InParams)
 {
+	FScopedTransaction AddNewPinTransaction(LOCTEXT("MakeSetMap", "Make Set Node For Variable"));
 	check(InParams.Graph);
 	InParams.Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeParameterMapSet> SetNodeCreator(*InParams.Graph);

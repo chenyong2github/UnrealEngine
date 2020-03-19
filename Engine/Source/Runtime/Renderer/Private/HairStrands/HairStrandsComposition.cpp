@@ -81,8 +81,16 @@ static void AddHairVisibilityComposeSamplePass(
 	{
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-//		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
-		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Max, BF_SourceAlpha, BF_DestAlpha>::GetRHI();
+
+		// Alpha usage/output is controlled with r.PostProcessing.PropagateAlpha. The value are:
+		// 0: disabled(default);
+		// 1: enabled in linear color space;
+		// 2: same as 1, but also enable it through the tonemapper.
+		//
+		// When enable (PorpagateAlpha is set to 1 or 2), the alpha value means:
+		// 0: valid pixel
+		// 1: invalid pixel (background)
+		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -367,14 +375,20 @@ void RenderHairComposition(
 				if (bPatchBufferData)
 				{
 					FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);				
-					const FRDGTextureRef GBufferATexture = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA , TEXT("GBufferA"));
-					const FRDGTextureRef GBufferBTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferB, TEXT("GBufferB"));
-					AddPatchGbufferDataPass(
-						GraphBuilder,
-						View,
-						RDGCategorisationTexture,
-						GBufferATexture,
-						GBufferBTexture);
+					const FRDGTextureRef GBufferATexture = GraphBuilder.TryRegisterExternalTexture(SceneContext.GBufferA , TEXT("GBufferA"));
+					const FRDGTextureRef GBufferBTexture = GraphBuilder.TryRegisterExternalTexture(SceneContext.GBufferB, TEXT("GBufferB"));
+					if (GBufferATexture && GBufferBTexture)
+					{
+						AddPatchGbufferDataPass(
+							GraphBuilder,
+							View,
+							RDGCategorisationTexture,
+							GBufferATexture,
+							GBufferBTexture);
+
+						GraphBuilder.QueueTextureExtraction(GBufferATexture, &SceneContext.GBufferA, true);
+						GraphBuilder.QueueTextureExtraction(GBufferBTexture, &SceneContext.GBufferB, true);
+					}
 				}
 			}
 		}

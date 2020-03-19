@@ -164,8 +164,10 @@ bool InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, const Sup
 	{
 		case 1:
 		{
-			//assuming it's a touching hit at origin
-			return false;
+			//assuming it's a touching hit at origin, but we still need to calculate a separating normal
+			AddFartherPoint(OutTouchNormal); // Use an arbitrary direction
+
+			// Now we might have a line! So fall trough to the next case
 		}
 		case 2:
 		{
@@ -173,7 +175,7 @@ bool InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, const Sup
 			TVec3<T> Dir = MinkowskiVert(VertsA.GetData(), VertsB.GetData(), 1) - MinkowskiVert(VertsA.GetData(), VertsB.GetData(), 0);
 
 			bValid = Dir.SizeSquared() > 1e-4;
-			if (CHAOS_ENSURE(bValid))	//two verts given should be distinct
+			if (bValid)	//two verts given are distinct
 			{
 				//find most opposing axis
 				int32 BestAxis = 0;
@@ -204,6 +206,12 @@ bool InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, const Sup
 					OutTouchNormal = Orthog.GetUnsafeNormal();
 					return false;
 				}
+			}
+			else
+			{
+				// The two vertices are not distinct that may happen when the single vertex case above was hit and our CSO is very thin in that direction
+				CHAOS_ENSURE(NumVerts == 1); // If this ensure fires we were given 2 vertices that are not distinct to start with
+				return false;
 			}
 			break;
 		}
@@ -255,7 +263,19 @@ bool InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, const Sup
 	if (bValid)
 	{
 		//make sure normals are pointing out of tetrahedron
-		if (TVec3<T>::DotProduct(OutEntries[0].PlaneNormal, MinkowskiVert(VertsA.GetData(), VertsB.GetData(), 0)) > 0)
+		// In the usual case the distances will either all be positive or negative, 
+		// but the tetrahedron can be very close to (or touching) the origin
+		// Look for farthest plane to decide
+		T MaxSignedDistance = 0;
+		for (TEPAEntry<T>& Entry : OutEntries)
+		{
+			if (FMath::Abs(Entry.Distance) > FMath::Abs(MaxSignedDistance))
+			{
+				MaxSignedDistance = Entry.Distance;
+			}
+		}
+
+		if (MaxSignedDistance < 0.0f)
 		{
 			for (TEPAEntry<T>& Entry : OutEntries)
 			{
@@ -326,6 +346,10 @@ void ComputeEPAResults(const TVec3<T>* VertsA, const TVec3<T>* VertsB, const TEP
 	if (OutPenetration < 1e-4)	//if closest point is on the origin (edge case when surface is right on the origin)
 	{
 		OutDir = Entry.PlaneNormal;	//just fall back on plane normal
+		if (Entry.Distance < 0)
+		{
+			OutPenetration = -OutPenetration; // We are a bit outside of the shape so penetration is negative
+		}
 	}
 	else
 	{
@@ -334,6 +358,7 @@ void ComputeEPAResults(const TVec3<T>* VertsA, const TVec3<T>* VertsB, const TEP
 		{
 			//The origin is on the outside, so the direction is reversed
 			OutDir = -OutDir;
+			OutPenetration = -OutPenetration; // We are a bit outside of the shape so penetration is negative
 		}
 	}
 
@@ -399,7 +424,8 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 	for(int32 Idx = 0; Idx < Entries.Num(); ++Idx)
 	{
 		//ensure(Entries[Idx].Distance > -Eps);
-		if(Entries[Idx].IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
+		// Entries[Idx].Distance <= 0.0f is true if the origin is a bit out of the polytope (we need to support this case for robustness)
+		if(Entries[Idx].Distance <= 0.0f || Entries[Idx].IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
 		{
 			Queue.push(FEPAEntryWrapper {&Entries, Idx});
 		}
@@ -504,11 +530,14 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 					break;
 				}
 
-				//We should never need to check the lower bound, but in the case of bad precision this can happen
-				//We simply ignore this direction as it likely has even more bad precision
-				if (bValidTri && NewEntry.Distance >= LowerBound && NewEntry.Distance <= UpperBound)
+				// Due to numerical inaccuracies NewEntry.Distance >= LowerBound may be false!
+				// However these Entries still have good normals, and needs to be included to prevent
+				// this exiting with very deep penetration results
+				
+				if (bValidTri && NewEntry.Distance <= UpperBound)
 				{
-					if (NewEntry.IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
+					// NewEntry.Distance <= 0.0f is if the origin is a bit out of the polytope
+					if (NewEntry.Distance <= 0.0f || NewEntry.IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
 					{
 						Queue.push(FEPAEntryWrapper{ &Entries, NewIdx });
 					}

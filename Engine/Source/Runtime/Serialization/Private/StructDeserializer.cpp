@@ -124,7 +124,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 			{
 				FReadState NewState;
 
-				NewState.Property = FindField<FProperty>(CurrentState.TypeInfo, *PropertyName);
+				NewState.Property = FindFProperty<FProperty>(CurrentState.TypeInfo, *PropertyName);
 
 				if (NewState.Property != nullptr)
 				{
@@ -247,7 +247,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 				else
 				{
 					// handle scalar property
-					FProperty* Property = FindField<FProperty>(CurrentState.TypeInfo, *PropertyName);
+					FProperty* Property = FindFProperty<FProperty>(CurrentState.TypeInfo, *PropertyName);
 
 					if (Property != nullptr)
 					{
@@ -351,7 +351,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 				}
 				else
 				{
-					NewState.Property = FindField<FProperty>(CurrentState.TypeInfo, *PropertyName);
+					NewState.Property = FindFProperty<FProperty>(CurrentState.TypeInfo, *PropertyName);
 
 					// unrecognized property
 					if (NewState.Property == nullptr)

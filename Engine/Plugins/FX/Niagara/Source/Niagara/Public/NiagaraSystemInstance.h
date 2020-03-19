@@ -10,7 +10,6 @@
 #include "Templates/UniquePtr.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraSystemFastPath.h"
 
 class FNiagaraWorldManager;
 class UNiagaraComponent;
@@ -171,16 +170,13 @@ public:
 
 	FORCEINLINE bool IsSolo()const { return bSolo; }
 
-	/** Gets a data set either from another emitter or one owned by the System itself. */
-	FNiagaraDataSet* GetDataSet(FNiagaraDataSetID SetID, FName EmitterName = NAME_None);
-
+#if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
 	FOnInitialized& OnInitialized();
 
 	/** Gets a multicast delegate which is called whenever this instance is complete. */
 	FOnComplete& OnComplete();
 
-#if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is reset due to external changes in the source System asset. */
 	FOnReset& OnReset();
 
@@ -275,18 +271,13 @@ public:
 
 	void TickInstanceParameters_Concurrent();
 
-	void TickFastPathBindings();
-
-	void ResetFastPathBindings();
-
 	FNiagaraDataSet* CreateEventDataSet(FName EmitterName, FName EventName);
 	FNiagaraDataSet* GetEventDataSet(FName EmitterName, FName EventName) const;
 	void ClearEventDataSets();
 
-	FNiagaraSystemFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
-
 	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
 
+	const FString& GetCrashReporterTag()const;
 private:
 
 	void DestroyDataInterfaceInstanceData();
@@ -341,14 +332,12 @@ private:
 	float LODDistance;
 	float MaxLODDistance;
 
-	TMap<FNiagaraDataSetID, FNiagaraDataSet> ExternalEvents;
-
 	TArray< TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > Emitters;
 
+#if WITH_EDITOR
 	FOnInitialized OnInitializedDelegate;
 	FOnComplete OnCompleteDelegate;
 
-#if WITH_EDITOR
 	FOnReset OnResetDelegate;
 	FOnDestroyed OnDestroyedDelegate;
 #endif
@@ -436,6 +425,9 @@ private:
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
 	TArray<int32> EmitterExecutionOrder;
 
+	/** Tag we feed into crash reporter for this instance. */
+	mutable FString CrashReporterTag;
+
 public:
 	// Transient data that is accumulated during tick.
 	uint32 TotalGPUParamSize = 0;
@@ -472,13 +464,6 @@ public:
 	};
 
 	FInstanceParameters GatheredInstanceParameters;
-
-	FNiagaraSystemFastPath::FParamMap0 FastPathMap;
-
-	TArray<TNiagaraFastPathRangedInputBinding<int32>> FastPathIntUpdateRangedInputBindings;
-	TArray<TNiagaraFastPathRangedInputBinding<float>> FastPathFloatUpdateRangedInputBindings;
-	TArray<TNiagaraFastPathUserParameterInputBinding<int32>> FastPathIntUserParameterInputBindings;
-	TArray<TNiagaraFastPathUserParameterInputBinding<float>> FastPathFloatUserParameterInputBindings;
 };
 
 FORCEINLINE void FNiagaraSystemInstance::SetLODDistance(float InLODDistance, float InMaxLODDistance)

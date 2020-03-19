@@ -76,12 +76,12 @@ void FNiagaraEmitterScriptProperties::InitDataSetAccess()
 		//
 		for (FNiagaraDataSetID &ReadID : Script->GetVMExecutableData().ReadDataSets)
 		{
-			EventReceivers.Add( FNiagaraEventReceiverProperties(ReadID.Name, "", "") );
+			EventReceivers.Add( FNiagaraEventReceiverProperties(ReadID.Name, NAME_None, NAME_None) );
 		}
 
 		for (FNiagaraDataSetProperties &WriteID : Script->GetVMExecutableData().WriteDataSets)
 		{
-			FNiagaraEventGeneratorProperties Props(WriteID, "");
+			FNiagaraEventGeneratorProperties Props(WriteID, NAME_None);
 			EventGenerators.Add(Props);
 		}
 	}
@@ -372,21 +372,17 @@ void UNiagaraEmitter::PostLoad()
 		}
 	}
 
+#if WITH_EDITORONLY_DATA
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
-#if WITH_EDITORONLY_DATA
 		GPUComputeScript->SetSource(SpawnScriptProps.Script ? SpawnScriptProps.Script->GetSource() : nullptr);
-#endif
 	}
 
-
-#if WITH_EDITORONLY_DATA
-	if (GPUComputeScript)
-	{
-		GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
-	}
+	GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
+#else
+	check(GPUComputeScript == nullptr || SimTarget == ENiagaraSimTarget::GPUComputeSim);
 #endif
 
 	if (EmitterSpawnScriptProps.Script == nullptr || EmitterUpdateScriptProps.Script == nullptr)
@@ -1049,8 +1045,6 @@ void UNiagaraEmitter::OnPostCompile()
 	RuntimeEstimation = MemoryRuntimeEstimation();
 
 	OnEmitterVMCompiled().Broadcast(this);
-
-	InitFastPathAttributeNames();
 }
 
 UNiagaraEmitter* UNiagaraEmitter::MakeRecursiveDeepCopy(UObject* DestOuter) const
@@ -1660,35 +1654,4 @@ void UNiagaraEmitter::ResolveScalabilitySettings()
 void UNiagaraEmitter::OnEffectsQualityChanged()
 {
 	ResolveScalabilitySettings();
-}
-
-void UNiagaraEmitter::InitFastPathAttributeNames()
-{
-	auto InitParameters = [](const FNiagaraParameters& Parameters, const FString& EmitterName, FNiagaraFastPathAttributeNames& FastPathParameterNames)
-	{
-		FastPathParameterNames.System.Empty();
-		FastPathParameterNames.SystemFullNames.Empty();
-		FastPathParameterNames.Emitter.Empty();
-		FastPathParameterNames.EmitterFullNames.Empty();
-
-		FString SystemPrefix = TEXT("System.");
-		FString EmitterPrefix = EmitterName + TEXT(".");
-		for (const FNiagaraVariable& Parameter : Parameters.Parameters)
-		{
-			FString ParameterNameString = Parameter.GetName().ToString();
-			if (ParameterNameString.StartsWith(SystemPrefix))
-			{
-				FastPathParameterNames.System.Add(*(Parameter.GetName().ToString().RightChop(SystemPrefix.Len())));
-				FastPathParameterNames.SystemFullNames.Add(Parameter.GetName());
-			}
-			else if (ParameterNameString.StartsWith(EmitterPrefix))
-			{
-				FastPathParameterNames.Emitter.Add(*(Parameter.GetName().ToString().RightChop(EmitterPrefix.Len())));
-				FastPathParameterNames.EmitterFullNames.Add(Parameter.GetName());
-			}
-		}
-	};
-
-	InitParameters(SpawnScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, SpawnFastPathAttributeNames);
-	InitParameters(UpdateScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, UpdateFastPathAttributeNames);
 }

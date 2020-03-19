@@ -13,6 +13,7 @@
 #include "Templates/AlignmentTemplates.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "GameFramework/PlayerController.h"
+#include "NiagaraCrashReporterHandler.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -182,7 +183,9 @@ void FNiagaraSystemInstance::Init(bool bInForceSolo)
 #if WITH_EDITORONLY_DATA
 	InstanceParameters.DebugName = *FString::Printf(TEXT("SystemInstance %p"), this);
 #endif
+#if WITH_EDITOR
 	OnInitializedDelegate.Broadcast();
+#endif
 }
 
 void FNiagaraSystemInstance::SetRequestedExecutionState(ENiagaraExecutionState InState)
@@ -568,7 +571,9 @@ void FNiagaraSystemInstance::Complete()
 		// We've already notified once, no need to do so again.
 		bNotifyOnCompletion = false;
 
+#if WITH_EDITOR
 		OnCompleteDelegate.Broadcast(this);
+#endif
 
 		if (Component)
 		{
@@ -1004,11 +1009,6 @@ void FNiagaraSystemInstance::ReInitInternal()
 	CachedDeltaSeconds = 0.0f;
 
 	bAlreadyBound = false;
-
-	FastPathIntUserParameterInputBindings.Empty();
-	FastPathFloatUserParameterInputBindings.Empty();
-	FastPathIntUpdateRangedInputBindings.Empty();
-	FastPathFloatUpdateRangedInputBindings.Empty();
 
 	UNiagaraSystem* System = GetSystem();
 	if (System == nullptr || Component == nullptr)
@@ -1720,37 +1720,6 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 	InstanceParameters.MarkParametersDirty();
 }
 
-void FNiagaraSystemInstance::TickFastPathBindings()
-{
-	for (TNiagaraFastPathUserParameterInputBinding<int32>& IntUserParameterInputBinding : FastPathIntUserParameterInputBindings)
-	{
-		IntUserParameterInputBinding.Tick();
-	}
-
-	for (TNiagaraFastPathUserParameterInputBinding<float>& FloatUserParameterInputBinding : FastPathFloatUserParameterInputBindings)
-	{
-		FloatUserParameterInputBinding.Tick();
-	}
-
-	for (TNiagaraFastPathRangedInputBinding<int32>& IntUpdateRangedInputBinding : FastPathIntUpdateRangedInputBindings)
-	{
-		IntUpdateRangedInputBinding.Tick();
-	}
-
-	for (TNiagaraFastPathRangedInputBinding<float>& FloatUpdateRangedInputBinding : FastPathFloatUpdateRangedInputBindings)
-	{
-		FloatUpdateRangedInputBinding.Tick();
-	}
-}
-
-void FNiagaraSystemInstance::ResetFastPathBindings()
-{
-	FastPathIntUserParameterInputBindings.Empty();
-	FastPathFloatUserParameterInputBindings.Empty();
-	FastPathIntUpdateRangedInputBindings.Empty();
-	FastPathFloatUpdateRangedInputBindings.Empty();
-}
-
 void
 FNiagaraSystemInstance::ClearEventDataSets()
 {
@@ -1971,6 +1940,8 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
 
+	FNiagaraCrashReporterScope CRScope(this);
+
 	UNiagaraSystem* System = GetSystem();
 	FScopeCycleCounter SystemStat(System->GetStatID(true, false));
 
@@ -1999,6 +1970,8 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
 	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
+
+	FNiagaraCrashReporterScope CRScope(this);
 
 	// Reset values that will be accumulated during emitter tick.
 	TotalGPUParamSize = 0;
@@ -2051,7 +2024,7 @@ void FNiagaraSystemInstance::Tick_Concurrent()
 			Inst.Tick(CachedDeltaSeconds);
 		}
 
-		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext() != nullptr && (Inst.GetExecutionState() != ENiagaraExecutionState::Complete))
+		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext() != nullptr && !Inst.IsComplete())
 		{
 			if (FirstGpuEmitter)
 			{
@@ -2103,6 +2076,8 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 {
 	if (bNeedsFinalize)//We can come in here twice in one tick if the GT calls WaitForAsync() while there is a GT finalize task in the queue.
 	{
+		FNiagaraCrashReporterScope CRScope(this);
+
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_FinalizeGT);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
@@ -2224,30 +2199,7 @@ FNiagaraEmitterInstance* FNiagaraSystemInstance::GetEmitterByID(FGuid InID)
 	return nullptr;
 }
 
-FNiagaraDataSet* FNiagaraSystemInstance::GetDataSet(FNiagaraDataSetID SetID, FName EmitterName)
-{
-	if (EmitterName == NAME_None)
-	{
-		if (FNiagaraDataSet* ExternalSet = ExternalEvents.Find(SetID))
-		{
-			return ExternalSet;
-		}
-	}
-	for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Emitter : Emitters)
-	{
-		check(Emitter.IsValid());
-		if (!Emitter->IsComplete())
-		{
-			if (Emitter->GetCachedIDName() == EmitterName)
-			{
-				return Emitter->GetDataSet(SetID);
-			}
-		}
-	}
-
-	return NULL;
-}
-
+#if WITH_EDITOR
 FNiagaraSystemInstance::FOnInitialized& FNiagaraSystemInstance::OnInitialized()
 {
 	return OnInitializedDelegate;
@@ -2258,7 +2210,6 @@ FNiagaraSystemInstance::FOnComplete& FNiagaraSystemInstance::OnComplete()
 	return OnCompleteDelegate;
 }
 
-#if WITH_EDITOR
 FNiagaraSystemInstance::FOnReset& FNiagaraSystemInstance::OnReset()
 {
 	return OnResetDelegate;
@@ -2269,3 +2220,19 @@ FNiagaraSystemInstance::FOnDestroyed& FNiagaraSystemInstance::OnDestroyed()
 	return OnDestroyedDelegate;
 }
 #endif
+
+const FString& FNiagaraSystemInstance::GetCrashReporterTag()const
+{
+	if(CrashReporterTag.IsEmpty())
+	{
+		UNiagaraSystem* Sys = Component ? Component->GetAsset() : nullptr;
+		USceneComponent* AttachParent = Component ? Component->GetAttachParent() : nullptr;
+
+		const FString& CompName = Component ? Component->GetFullName() : TEXT("nullptr");
+		const FString& AssetName = Sys ? Sys->GetFullName() : TEXT("nullptr");
+		const FString& AttachName = AttachParent ? AttachParent->GetFullName() : TEXT("nullptr");
+
+		CrashReporterTag = FString::Printf(TEXT("SystemInstance | System: %s | bSolo: %s | Component: %s | AttachedTo: %s |"), *AssetName, IsSolo() ? TEXT("true") : TEXT("false"), *CompName, *AttachName);
+	}
+	return CrashReporterTag;
+}

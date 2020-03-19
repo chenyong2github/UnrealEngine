@@ -119,6 +119,10 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos, float Seed)
 		const float FunctionValue = sqrt( dot(PositionDelta,PositionDelta)+1);
 		ControlPoint += FunctionValue * MeshSampleWeightsBuffer[i].xyz;
 	}
+	ControlPoint += MeshSampleWeightsBuffer[SampleCount].xyz;
+	ControlPoint += MeshSampleWeightsBuffer[SampleCount+1].xyz * RestControlPoint.x;
+	ControlPoint += MeshSampleWeightsBuffer[SampleCount+2].xyz * RestControlPoint.y;
+	ControlPoint += MeshSampleWeightsBuffer[SampleCount+3].xyz * RestControlPoint.z;
 	return ControlPoint - SimDeformedOffset;
 #endif
 

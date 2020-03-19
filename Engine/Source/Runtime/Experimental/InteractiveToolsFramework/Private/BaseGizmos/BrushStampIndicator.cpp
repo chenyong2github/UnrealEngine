@@ -29,7 +29,14 @@ void UBrushStampIndicator::Render(IToolsContextRenderAPI* RenderAPI)
 		FToolDataVisualizer Draw;
 		Draw.BeginFrame(RenderAPI);
 
-		Draw.DrawCircle(BrushPosition, BrushNormal, BrushRadius, SampleStepCount, LineColor, LineThickness, bDepthTested);
+		if (bDrawRadiusCircle)
+		{
+			Draw.DrawCircle(BrushPosition, BrushNormal, BrushRadius, SampleStepCount, LineColor, LineThickness, bDepthTested);
+		}
+		if (bDrawFalloffCircle)
+		{
+			Draw.DrawCircle(BrushPosition, BrushNormal, BrushFalloff, SampleStepCount, LineColor, LineThickness, bDepthTested);
+		}
 
 		if (bDrawSecondaryLines)
 		{

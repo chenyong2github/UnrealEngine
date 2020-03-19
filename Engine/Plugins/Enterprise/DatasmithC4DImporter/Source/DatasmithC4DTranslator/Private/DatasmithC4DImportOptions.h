@@ -21,7 +21,7 @@ enum class EC4DUVGeneration : uint8
 };*/
 
 UCLASS(config = EditorPerProjectUserSettings, HideCategories = (DebugProperty))
-class UDatasmithC4DImportOptions : public UObject
+class UDatasmithC4DImportOptions : public UDatasmithOptionsBase
 {
 	GENERATED_UCLASS_BODY()
 

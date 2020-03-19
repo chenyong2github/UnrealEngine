@@ -58,6 +58,10 @@ class AUDIOSYNESTHESIA_API ULoudnessNRTSettings : public UAudioSynesthesiaNRTSet
 
 		/** Convert ULoudnessNRTSettings to FLoudnessNRTSettings */
 		TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings(const float InSampleRate, const int32 InNumChannels) const;
+
+		virtual FText GetAssetActionName() const override;
+
+		virtual UClass* GetSupportedClass() const override;
 };
 
 
@@ -107,6 +111,10 @@ class AUDIOSYNESTHESIA_API ULoudnessNRT : public UAudioSynesthesiaNRT
 
 		/** Convert ULoudnessNRTSettings to FLoudnessNRTSettings */
  		TUniquePtr<Audio::IAnalyzerNRTSettings> GetSettings(const float InSampleRate, const int32 InNumChannels) const override;
+
+		virtual FText GetAssetActionName() const override;
+
+		virtual UClass* GetSupportedClass() const override;
 
 	protected:
 

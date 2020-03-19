@@ -1172,7 +1172,7 @@ public:
 	static const FMaterialShaderMap* GetShaderMapBeingCompiled(const FMaterial* Material);
 
 	/** Serializes the shader map. */
-	void Serialize(FArchive& Ar, bool bInlineShaderResources=true, bool bLoadedByCookedMaterial=false);
+	bool Serialize(FArchive& Ar, bool bInlineShaderResources=true, bool bLoadedByCookedMaterial=false);
 
 #if WITH_EDITOR
 	/** Saves this shader map to the derived data cache. */
@@ -1845,6 +1845,8 @@ public:
 	static void BackupEditorLoadedMaterialShadersToMemory(TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > >& ShaderMapToSerializedShaderData);
 	/** Recreates FShaders in editor loaded materials from the passed in memory, handling shader key changes. */
 	static void RestoreEditorLoadedMaterialShadersFromMemory(const TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > >& ShaderMapToSerializedShaderData);
+	/** Allows to associate the shader resources with the asset for load order. */
+	virtual FString GetAssetPath() const { return TEXT(""); };
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
@@ -2434,6 +2436,8 @@ public:
 
 #if WITH_EDITOR
 	ENGINE_API virtual void NotifyCompilationFinished() override;
+	/** Allows to associate the shader resources with the asset for load order. */
+	ENGINE_API virtual FString GetAssetPath() const override;
 #endif // WITH_EDITOR
 
 	ENGINE_API void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);

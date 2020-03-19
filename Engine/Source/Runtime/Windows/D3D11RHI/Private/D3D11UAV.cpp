@@ -200,7 +200,12 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderTh
 	return RHICreateShaderResourceView(StructuredBuffer);
 }
 
-static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, ID3D11Buffer* Buffer, uint32 StartElement, uint32 NumElements, uint8 Format, ID3D11ShaderResourceView** OutSRV)
+uint64 FD3D11DynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
+{
+	return GPixelFormats[Format].BlockBytes;
+}
+
+static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, ID3D11Buffer* Buffer, uint32 StartOffsetBytes, uint32 NumElements, uint8 Format, ID3D11ShaderResourceView** OutSRV)
 {
 	D3D11_BUFFER_DESC BufferDesc;
 	Buffer->GetDesc(&BufferDesc);
@@ -212,7 +217,8 @@ static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, 
 
 	uint32 Stride = GPixelFormats[Format].BlockBytes;
 	uint32 MaxElements = BufferDesc.ByteWidth / Stride;
-	StartElement = FMath::Min(StartElement, MaxElements);
+	StartOffsetBytes = FMath::Min(StartOffsetBytes, BufferDesc.ByteWidth);
+	uint32 StartElement = StartOffsetBytes / Stride;
 
 	SRVDesc.Buffer.FirstElement = StartElement;
 	SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
@@ -237,7 +243,7 @@ static void CreateD3D11ShaderResourceViewOnBuffer(ID3D11Device* Direct3DDevice, 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHIVertexBuffer* VertexBufferRHI, uint32 Stride, uint8 Format)
 {
 	ensureMsgf(Stride == GPixelFormats[Format].BlockBytes, TEXT("provided stride: %i was not consitent with Pixelformat: %s"), Stride, GPixelFormats[Format].Name);
-	return FD3D11DynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(VertexBufferRHI, Format));
+	return FD3D11DynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(VertexBufferRHI, EPixelFormat(Format)));
 }
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
@@ -255,7 +261,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FS
 			}
 
 			TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-			CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, VertexBuffer->Resource, Desc.StartElement, Desc.NumElements, Desc.Format, ShaderResourceView.GetInitReference());
+			CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, VertexBuffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, Desc.Format, ShaderResourceView.GetInitReference());
 
 			return new FD3D11ShaderResourceView(ShaderResourceView, VertexBuffer);
 		}
@@ -277,19 +283,23 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FS
 			if (bByteAccessBuffer)
 			{
 				uint32 MaxElements = BufferDesc.ByteWidth / 4;
-				uint32 StartElement = FMath::Min(Desc.StartElement, MaxElements);
+				uint32 StartOffsetBytes = FMath::Min(Desc.StartOffsetBytes, BufferDesc.ByteWidth);
+				uint32 StartElement = StartOffsetBytes / 4;
+
 				SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
 				SRVDesc.BufferEx.NumElements = FMath::Min(Desc.NumElements, MaxElements - StartElement);
-				SRVDesc.BufferEx.FirstElement = Desc.StartElement;
+				SRVDesc.BufferEx.FirstElement = StartElement;
 				SRVDesc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
 				SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 			}
 			else
 			{
 				uint32 MaxElements = BufferDesc.ByteWidth / BufferDesc.StructureByteStride;
-				uint32 StartElement = FMath::Min(Desc.StartElement, BufferDesc.ByteWidth / BufferDesc.StructureByteStride);
+				uint32 StartOffsetBytes = FMath::Min(Desc.StartOffsetBytes, BufferDesc.ByteWidth);
+				uint32 StartElement = StartOffsetBytes / BufferDesc.StructureByteStride;
+
 				SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-				SRVDesc.Buffer.FirstElement = Desc.StartElement;
+				SRVDesc.Buffer.FirstElement = StartElement;
 				SRVDesc.Buffer.NumElements = FMath::Min(Desc.NumElements, MaxElements - StartElement);
 				SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
 			}
@@ -317,7 +327,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FS
 			check(Stride == 2 || Stride == 4);
 			const EPixelFormat Format = (Stride == 2) ? PF_R16_UINT : PF_R32_UINT;
 			TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-			CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, Buffer->Resource, Desc.StartElement, Desc.NumElements, Format, ShaderResourceView.GetInitReference());
+			CreateD3D11ShaderResourceViewOnBuffer(Direct3DDevice, Buffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, Format, ShaderResourceView.GetInitReference());
 
 			return new FD3D11ShaderResourceView(ShaderResourceView, Buffer);
 		}

@@ -11,6 +11,7 @@ const FName FTransformCollection::TransformGroup = "Transform";
 const FName FTransformCollection::TransformAttribute = "Transform";
 const FName FTransformCollection::ParentAttribute = "Parent";
 const FName FTransformCollection::ChildrenAttribute = "Children";
+const FName FTransformCollection::ParticlesAttribute = "Particles";
 
 
 FTransformCollection::FTransformCollection()

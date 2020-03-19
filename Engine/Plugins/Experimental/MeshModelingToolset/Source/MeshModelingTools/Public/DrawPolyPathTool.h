@@ -195,6 +195,7 @@ protected:
 	double CurPathLength;
 	double CurOffsetDistance;
 	double CurHeight;
+	bool bPathIsClosed = false;		// If true, CurPathPoints are assumed to define a closed path
 
 	UPROPERTY()
 	UPolyEditPreviewMesh* EditPreview;
@@ -223,6 +224,11 @@ protected:
 	void GenerateExtrudeMesh(FDynamicMesh3& PathMesh);
 	void GenerateRampMesh(FDynamicMesh3& PathMesh);
 	void EmitNewObject(EDrawPolyPathOutputMode OutputMode);
+
+	// user feedback messages
+	void ShowStartupMessage();
+	void ShowExtrudeMessage();
+	void ShowOffsetMessage();
 
 	friend class FDrawPolyPathStateChange;
 	int32 CurrentCurveTimestamp = 1;

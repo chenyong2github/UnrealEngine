@@ -5,19 +5,21 @@
 #include "CoreMinimal.h"
 #include "IAssetSearchModule.h"
 #include "AssetSearchDatabase.h"
+#include "FileInfoDatabase.h"
 #include "Containers/Queue.h"
 #include "HAL/Runnable.h"
 
 class FRunnableThread;
+class UClass;
 
 class FAssetSearchManager : public FRunnable
 {
 public:
 	FAssetSearchManager();
-	~FAssetSearchManager();
+	virtual ~FAssetSearchManager();
 	
 	void Start();
-	void RegisterIndexer(FName AssetClassName, IAssetIndexer* Indexer);
+	void RegisterAssetIndexer(const UClass* AssetClass, TUniquePtr<IAssetIndexer>&& Indexer);
 
 	FSearchStats GetStats() const;
 
@@ -27,66 +29,87 @@ public:
 	void ForceIndexOnAssetsMissingIndex();
 
 private:
+	void TryConnectToDatabase();
+
 	bool Tick_GameThread(float DeltaTime);
 	virtual uint32 Run() override;
 	void Tick_DatabaseOperationThread();
 
 private:
+	void UpdateScanningAssets();
+	void StartScanningAssets();
+	void StopScanningAssets();
+
 	void OnAssetAdded(const FAssetData& InAssetData);
-	void OnObjectSaved(UObject* InObject);
+	void OnAssetRemoved(const FAssetData& InAssetData);
+	void OnAssetScanFinished();
+
+	void HandlePackageSaved(const FString& PackageFilename, UObject* Outer);
 	void OnAssetLoaded(UObject* InObject);
-	void OnGetAssetTags(const UObject* Object, TArray<UObject::FAssetRegistryTag>& OutTags);
-	void AddToContentTagCache(const FAssetData& InAsset, const FString& InContent, const FString& InContentHash);
 
 	void AddOrUpdateAsset(const FAssetData& InAsset, const FString& IndexedJson, const FString& DerivedDataKey);
 
-	void RequestIndexAsset(UObject* InAsset);
+	bool RequestIndexAsset(UObject* InAsset);
 	bool IsAssetIndexable(UObject* InAsset);
 	bool TryLoadIndexForAsset(const FAssetData& InAsset);
-	FString TryGetDDCKeyForAsset(const FAssetData& InAsset);
-	FString GetDerivedDataKey(const FSHAHash& IndexedContentHash);
-	FString GetDerivedDataKey(const FAssetData& UnindexedAsset);
-	bool HasIndexerForClass(UClass* AssetClass);
-	void StoreIndexForAsset(UObject* InAsset, bool Unindexed);
+	void AsyncRequestDownlaod(const FAssetData& InAssetData, const FString& InDDCKey);
+	bool AsyncGetDerivedDataKey(const FAssetData& UnindexedAsset, TFunction<void(FString)> DDCKeyCallback);
+	bool HasIndexerForClass(const UClass* InAssetClass) const;
+	FString GetIndexerVersion(const UClass* InAssetClass) const;
+	void StoreIndexForAsset(UObject* InAsset);
 	void LoadDDCContentIntoDatabase(const FAssetData& InAsset, const TArray<uint8>& Content, const FString& DerivedDataKey);
 
-private:
-	struct FContentHashEntry
-	{
-		FString ContentHash;
-		FString Content;
-	};
-	TMap<FString /*AssetPath*/, FContentHashEntry> ContentHashCache;
+	void AsyncMainThreadTask(TFunction<void()> Task);
+	void ProcessGameThreadTasks();
 
 private:
+	bool bStarted = false;
+
+private:
+	FFileInfoDatabase FileInfoDatabase;
+	FCriticalSection FileInfoDatabaseCS;
 	FAssetSearchDatabase SearchDatabase;
 	FCriticalSection SearchDatabaseCS;
 	TAtomic<int32> PendingDatabaseUpdates;
-	TAtomic<int32> PendingDownloads;
+	TAtomic<int32> IsAssetUpToDateCount;
+	TAtomic<int32> ActiveDownloads;
+	TAtomic<int32> DownloadQueueCount;
 	TAtomic<int64> TotalSearchRecords;
 
 	double LastRecordCountUpdateSeconds;
 
 private:
-	TMap<FName, IAssetIndexer*> Indexers;
+	TMap<FName, TUniquePtr<IAssetIndexer>> Indexers;
 
 	TArray<TWeakObjectPtr<UObject>> RequestIndexQueue;
 
-	TArray<FAssetData> ProcessAssetQueue;
+	struct FAssetOperation
+	{
+		FAssetData Asset;
+		bool bRemoval = false;
+	};
+
+	TArray<FAssetOperation> ProcessAssetQueue;
 
 	struct FAssetDDCRequest
 	{
 		FAssetData AssetData;
-		FString DDCKey_IndexDataHash;
+		FString DDCKey;
 		uint32 DDCHandle;
 	};
+	TQueue<FAssetDDCRequest, EQueueMode::Mpsc> DownloadQueue;
 	TQueue<FAssetDDCRequest, EQueueMode::Mpsc> ProcessDDCQueue;
 
 	TArray<FAssetDDCRequest> FailedDDCRequests;
 
 	FDelegateHandle TickerHandle;
 
+	TQueue<TFunction<void()>> GT_Tasks;
+
 private:
+	bool bDatabaseOpen = false;
+	double LastConnectionAttempt = 0;
+
 	TAtomic<bool> RunThread;
 	FRunnableThread* DatabaseThread = nullptr;
 

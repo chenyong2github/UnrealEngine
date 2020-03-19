@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "DatasmithImportOptions.h"
+
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "UObject/Object.h"
@@ -10,7 +12,7 @@
 #include "DatasmithIFCImportOptions.generated.h"
 
 UCLASS(config = EditorPerProjectUserSettings, HideCategories = (DebugProperty))
-class UDatasmithIFCImportOptions : public UObject
+class UDatasmithIFCImportOptions : public UDatasmithOptionsBase
 {
 	GENERATED_BODY()
 

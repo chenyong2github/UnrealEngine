@@ -1858,7 +1858,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		if (CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndViewNormal)
 		{
 			PassParameters->PrevCompressedMetadata[0] = RegisterExternalTextureWithFallback(
-				GraphBuilder, ViewInfoPooledRenderTargets.PrevCompressedDepthViewNormal, GSystemTextures.BlackDummy);
+				GraphBuilder, ViewInfoPooledRenderTargets.PrevCompressedDepthViewNormal, GSystemTextures.ZeroUIntDummy);
 		}
 
 		FScreenSpaceDenoiserHistory DummyPrevFrameHistory;

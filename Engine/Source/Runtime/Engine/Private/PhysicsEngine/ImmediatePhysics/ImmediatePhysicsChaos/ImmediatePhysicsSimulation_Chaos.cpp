@@ -105,11 +105,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysJointAngularPositionCorrection(TEXT("p.C
 // Even more temp that the above...
 //
 int32 ChaosImmediate_UsePositionSolver = 1;
-int32 ChaosImmediate_PositionSolverIts = 3;
-int32 ChaosImmediate_PositionSolverPairIts = 2;
 FAutoConsoleVariableRef CVarChaosImmPhysUsePositionSolver(TEXT("p.Chaos.ImmPhys.UsePositionSolver"), ChaosImmediate_UsePositionSolver, TEXT("Use position based collision solver for Immediate Physics (default true)"));
-FAutoConsoleVariableRef CVarChaosImmPhysPositionIts(TEXT("p.Chaos.ImmPhys.PositionSolverIts"), ChaosImmediate_PositionSolverIts, TEXT("Number of iterations to use in position solver mode (default 3)"));
-FAutoConsoleVariableRef CVarChaosImmPhysPositionPairIts(TEXT("p.Chaos.ImmPhys.PositionSolverPairIts"), ChaosImmediate_PositionSolverPairIts, TEXT("Number of pair-iterations to use in position solver mode (default 2)"));
 
 //
 // end remove when finished
@@ -170,7 +166,6 @@ namespace ImmediatePhysics_Chaos
 		, NumRollingAverageStepTimes(1)
 		, MaxNumRollingAverageStepTimes(ChaosImmediate_Evolution_DeltaTimeCount)
 		, bActorsDirty(false)
-		, bJointsDirty(false)
 	{
 		using namespace Chaos;
 
@@ -211,7 +206,7 @@ namespace ImmediatePhysics_Chaos
 				{
 					DebugDraw::DrawCollisions(SimulationSpaceTransform, Collisions, 0.3f);
 				}
-				DebugDrawDynamicParticles(4, 4, FColor(128, 0, 0));
+				DebugDrawDynamicParticles(4, 4, FColor(128, 128, 0));
 			});
 		Collisions.SetPostApplyPushOutCallback(
 			[this](const float Dt, const TArray<TPBDCollisionConstraintHandle<float, 3>*>& InConstraintHandles, bool bRequiresAnotherIteration)
@@ -245,7 +240,6 @@ namespace ImmediatePhysics_Chaos
 				{
 					DebugDraw::DrawJointConstraints(SimulationSpaceTransform, InConstraintHandles, 0.6f);
 				}
-				DebugDrawDynamicParticles(4, 4, FColor(0, 0, 128));
 			});
 #endif
 	}
@@ -332,9 +326,6 @@ namespace ImmediatePhysics_Chaos
 	{
 		FJointHandle* JointHandle = new FJointHandle(&Joints, ConstraintInstance, Body1, Body2);
 		JointHandles.Add(JointHandle);
-
-		bJointsDirty = true;
-
 		return JointHandle;
 	}
 
@@ -343,8 +334,6 @@ namespace ImmediatePhysics_Chaos
 		// @todo(ccaulfield): FJointHandle could remember its index to optimize this
 		JointHandles.Remove(JointHandle);
 		delete JointHandle;
-
-		bJointsDirty = true;
 	}
 
 	void FSimulation::SetNumActiveBodies(int32 InNumActiveActorHandles)
@@ -457,65 +446,6 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
-	void FSimulation::ConditionConstraints()
-	{
-		// Assign levels to actors based on connection-distance to a non-dynamic actor
-		// This is used to sort constraints and set parent/child relationship on the constrained particles in a constraint
-		// @todo(ccaulfield): this should use the constraint graph and should only update when constraint connectivity changes or particles change type
-		using namespace Chaos;
-
-		TMap<FActorHandle*, TArray<FJointHandle*>> ActorJoints;
-		TArray<FActorHandle*> ActorQueue;
-		ActorQueue.Reserve(ActorHandles.Num());
-
-		// Reset all actor levels
-		for (FActorHandle* ActorHandle : ActorHandles)
-		{
-			ActorHandle->SetLevel(INDEX_NONE);
-			ActorJoints.Emplace(ActorHandle);
-
-			if (ActorHandle->GetParticle()->ObjectState() != EObjectStateType::Dynamic)
-			{
-				ActorHandle->SetLevel(0);
-				ActorQueue.Add(ActorHandle);
-			}
-		}
-
-		// Build a list of joints per actor
-		for (FJointHandle* JointHandle : JointHandles)
-		{
-			TVector<FActorHandle*, 2> JointActorHandles = JointHandle->GetActorHandles();
-			ActorJoints[JointActorHandles[0]].Add(JointHandle);
-			ActorJoints[JointActorHandles[1]].Add(JointHandle);
-		}
-
-		// Breadth-first assign level
-		for (int32 ActorQueueIndex = 0; ActorQueueIndex < ActorQueue.Num(); ++ActorQueueIndex)
-		{
-			FActorHandle* ActorHandle = ActorQueue[ActorQueueIndex];
-			for (FJointHandle* JointHandle : ActorJoints[ActorHandle])
-			{
-				TVector<FActorHandle*, 2> JointActorHandles = JointHandle->GetActorHandles();
-				if (JointActorHandles[0]->GetLevel() == INDEX_NONE)
-				{
-					JointActorHandles[0]->SetLevel(ActorHandle->GetLevel() + 1);
-					ActorQueue.Add(JointActorHandles[0]);
-				}
-				if (JointActorHandles[1]->GetLevel() == INDEX_NONE)
-				{
-					JointActorHandles[1]->SetLevel(ActorHandle->GetLevel() + 1);
-					ActorQueue.Add(JointActorHandles[1]);
-				}
-			}
-		}
-
-		// Update constraint levels
-		for (FJointHandle* JointHandle : JointHandles)
-		{
-			JointHandle->UpdateLevels();
-		}
-	}
-
 	void FSimulation::SetSimulationSpaceTransform(const FTransform& Transform)
 	{ 
 		SimulationSpaceTransform = Transform;
@@ -591,40 +521,26 @@ namespace ImmediatePhysics_Chaos
 
 			if (ChaosImmediate_UsePositionSolver)
 			{
-				SetSolverIterations(
-					ChaosImmediate_PositionSolverIts,
-					ChaosImmediate_PositionSolverPairIts,
-					ChaosImmediate_PositionSolverPairIts,
-					0,
-					0,
-					0);
-
 				Collisions.SetApplyType(ECollisionApplyType::Position);
 			}
 			else
 			{
-				SetSolverIterations(
-					ChaosImmediate_Evolution_Iterations,
-					ChaosImmediate_Joint_PairIterations,
-					ChaosImmediate_Collision_PairIterations,
-					ChaosImmediate_Evolution_PushOutIterations,
-					ChaosImmediate_Joint_PushOutPairIterations,
-					ChaosImmediate_Collision_PushOutPairIterations);
-
 				Collisions.SetApplyType(ECollisionApplyType::Velocity);
 			}
+
+			SetSolverIterations(
+				ChaosImmediate_Evolution_Iterations,
+				ChaosImmediate_Joint_PairIterations,
+				ChaosImmediate_Collision_PairIterations,
+				ChaosImmediate_Evolution_PushOutIterations,
+				ChaosImmediate_Joint_PushOutPairIterations,
+				ChaosImmediate_Collision_PushOutPairIterations);
 		}
 		UE_LOG(LogChaosJoint, Verbose, TEXT("Simulate Dt = %f Steps %d x %f"), DeltaTime, NumSteps, StepTime);
 
 		DebugDrawKinematicParticles(2, 2, FColor(128, 0, 0));
 		DebugDrawDynamicParticles(2, 2, FColor(192, 192, 0));
 		DebugDrawConstraints(2, 2, 0.7f);
-
-		if (bJointsDirty)
-		{
-			ConditionConstraints();
-			bJointsDirty = false;
-		}
 
 		if (bActorsDirty)
 		{

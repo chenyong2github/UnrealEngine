@@ -101,7 +101,7 @@ bool NiagaraAll(bool4 b) { return b.x && b.y && b.z && b.w; }
 	// NIAGARA_MAX_GPU_SPAWN_INFOS is set from the shader compiler
 	#define NIAGARA_MAX_GPU_SPAWN_INFOS_V4	((NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4)
 
-	float4	EmitterSpawnInfoOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
+	int4	EmitterSpawnInfoOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
 	float4	EmitterSpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];			// Packed data where x = IntervalDt, y = InterpStartDt, z = Group, w = Start Particle Index
 
 	static int GInterpSpawnIndex;
@@ -128,9 +128,13 @@ bool NiagaraAll(bool4 b) { return b.x && b.y && b.z && b.w; }
 
 		int SpawnInfoIndex = 0;
 		UNROLL
-		for ( int i=0; i < NIAGARA_MAX_GPU_SPAWN_INFOS_V4; ++i )
+		for (int i = 0; i < NIAGARA_MAX_GPU_SPAWN_INFOS_V4; ++i)
 		{
-			SpawnInfoIndex += (int)dot(1.0f, GGPUExecIndex >= EmitterSpawnInfoOffsets[i]);
+			// This returns 0xffffffff for each component when the comparison is true, so we'll do a
+			// bitwise and with 1 to get increment amounts for each spawn info.
+			int4 CompareResults = GGPUExecIndex >= EmitterSpawnInfoOffsets[i];
+			CompareResults = CompareResults & int4(1, 1, 1, 1);
+			SpawnInfoIndex += CompareResults.x + CompareResults.y + CompareResults.z + CompareResults.w;
 		}
 
 		Emitter_SpawnInterval		= EmitterSpawnInfoParams[SpawnInfoIndex].x;
@@ -415,6 +419,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	float InputDataFloat(int DataSetIndex, int RegisterIdx);  //DataSetIndex is 0 for main dataset
 	int InputDataInt(int DataSetIndex, int RegisterIdx);
 	bool InputDataBool(int DataSetIndex, int RegisterIdx);
+	float InputDataHalf(int DataSetIndex, int RegisterIdx);
 
 	float InputDataNoadvanceFloat(int DataSetIndex, int RegisterIdx);  //DataSetIndex is 0 for main dataset
 	int InputDataNoadvanceInt(int DataSetIndex, int RegisterIdx);
@@ -423,6 +428,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	void OutputDataFloat(int DataSetIndex, int RegisterIndex, int InstanceIndex, float Value);
 	void OutputDataInt(int DataSetIndex, int RegisterIndex, int InstanceIndex, int Value);
 	void OutputDataBool(int DataSetIndex, int RegisterIndex, int InstanceIndex, bool Value);
+	void OutputDataHalf(int DataSetIndex, int RegisterIndex, int InstanceIndex, float Value);
 #endif
 
 
@@ -454,8 +460,10 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	 */
 	Buffer<float> InputFloat;
 	Buffer<int> InputInt;
+	Buffer<half> InputHalf;
 	RWBuffer<int> RWOutputInt;
 	RWBuffer<float> RWOutputFloat;
+	RWBuffer<half> RWOutputHalf;
 
 	RWBuffer<uint> RWInstanceCounts;
 	uint ReadInstanceCountOffset;
@@ -642,6 +650,10 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		return InputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx] == -1;
 	}
 
+	float InputDataHalf(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return InputHalf[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+	}
 
 	/* ---------------------------------------------------------------------
 	 * OutputData operations 
@@ -662,6 +674,11 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		RWOutputInt[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex + UpdateStartInstance] = Value ? -1 : 0;
 	}
 
+	void OutputDataHalf(int DataSetIndex, int RegisterIndex, int InstanceIndex, float Value)
+	{
+		RWOutputHalf[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex + UpdateStartInstance] = Value;
+	}
+
 	void EnterStatScope(int ID)	{}
 	void ExitStatScope()	{}
 #endif // GPU_SIMULATION
@@ -678,7 +695,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 			// that manipulates the RWInstanceCounts UAV. The generated code will copy the source count
 			// at the end of the shader.
 			BRANCH
-			if (SimulationStageIndex > 0 && !bStageKillsParticles)
+			if (!bStageKillsParticles)
 			{
 				return GDispatchThreadId.x;
 			}

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Containers/UnrealString.h"
 
 // Generic iterator for iterating over each frame from tail to head
 template<typename TBuffer, typename ElementType>

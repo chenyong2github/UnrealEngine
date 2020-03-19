@@ -802,15 +802,11 @@ bool FSlateEditableTextLayout::HandleFocusLost(const FFocusEvent& InFocusEvent)
 
 	const FText EditedText = GetEditableText();
 
-	// do not commit if the edited text is the same as original
-	if (!EditedText.ToString().Equals(OriginalText.Text.ToString(), ESearchCase::CaseSensitive))
-	{
-		OwnerWidget->OnTextCommitted(EditedText, TextAction);
+	OwnerWidget->OnTextCommitted(EditedText, TextAction);
 
-		// Reload underlying value now it is committed  (commit may alter the value) 
-		// so it can be re-displayed in the edit box
-		LoadText();
-	}
+	// Reload underlying value now it is committed  (commit may alter the value) 
+	// so it can be re-displayed in the edit box
+	LoadText();
 
 	UpdateCursorHighlight();
 

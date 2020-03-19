@@ -20,15 +20,7 @@ struct APPLICATIONCORE_API FGenericPlatformRHIFramePacer
      * Should the Frame Pacer be enabled?
      */
     bool IsEnabled() { return false; }
-    
-    /**
-     * Init the RHI frame pacer
-     *
-     * @param InTriggeredEvent - The event we wish to trigger when the frame interval has been triggered by the hardware.
-     * @param InFrameInterval - How often should the event be triggered, in Frames.
-     */
-	static void InitWithEvent(FEvent* InTriggeredEvent) {}
-    
+
     /**
      * Teardown the Frame Pacer.
      */
@@ -36,11 +28,33 @@ struct APPLICATIONCORE_API FGenericPlatformRHIFramePacer
 	
 	/**
 	 * The pace we are running at (30 = 30fps, 0 = unpaced)
+	 * The generic implementation returns a result based on rhi.SyncInterval assuming a 60Hz native refresh rate.
 	 */
-	static uint32 GetFramePace() { return 0; };
+	static int32 GetFramePace();
 
 	/**
-	 * The maximum refresh rate the pacer supports
+	 * Sets the pace we would like to running at (30 = 30fps, 0 = unpaced).
+	 * The generic implementation sets the value for rhi.SyncInterval assuming a 60Hz native refresh rate.
+	 *
+	 * @return the pace we will run at.
 	 */
-	static uint32 GetMaxRefreshRate() { return 60; }
+	static int32 SetFramePace(int32 FramePace);
+
+	/**
+	 * Rethers whether the hardware is able to frame pace at the specificed frame rate
+	 */
+	static bool SupportsFramePace(int32 QueryFramePace);
+
+protected:
+	/**
+	 * The generic implementation returns a result based on rhi.SyncInterval assuming a 60Hz native refresh rate.
+	 */
+	static int32 GetFramePaceFromSyncInterval();
+
+	/**
+	 * The generic sets rhi.SyncInterval assuming a 60Hz native refresh rate.
+	 *
+	 * @return the pace we will run at.
+	 */
+	static int32 SetFramePaceToSyncInterval(int32 FramePace);
 };

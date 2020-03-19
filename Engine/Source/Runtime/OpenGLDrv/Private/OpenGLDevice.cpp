@@ -736,9 +736,6 @@ static void InitRHICapabilitiesForGL()
 	GMaxOpenGLColorSamples = Value_GL_MAX_COLOR_TEXTURE_SAMPLES;
 	GMaxOpenGLDepthSamples = Value_GL_MAX_DEPTH_TEXTURE_SAMPLES;
 	GMaxOpenGLIntegerSamples = Value_GL_MAX_INTEGER_SAMPLES;
-#if defined(GL_MAX_TEXTURE_BUFFER_SIZE)
-	GMaxTextureBufferSize = Value_GL_MAX_TEXTURE_BUFFER_SIZE;
-#endif
 
 	// Verify some assumptions.
 	// Android seems like reports one color attachment even when it supports MRT
@@ -814,6 +811,11 @@ static void InitRHICapabilitiesForGL()
 	GMaxTextureMipCount = FMath::CeilLogTwo(Value_GL_MAX_TEXTURE_SIZE) + 1;
 	GMaxTextureMipCount = FMath::Min<int32>(MAX_TEXTURE_MIP_COUNT, GMaxTextureMipCount);
 	GMaxTextureDimensions = Value_GL_MAX_TEXTURE_SIZE;
+	
+#if defined(GL_MAX_TEXTURE_BUFFER_SIZE)
+	GMaxBufferDimensions = Value_GL_MAX_TEXTURE_BUFFER_SIZE;
+#endif
+
 	GMaxCubeTextureDimensions = Value_GL_MAX_CUBE_MAP_TEXTURE_SIZE;
 #if defined(GL_MAX_ARRAY_TEXTURE_LAYERS) && GL_MAX_ARRAY_TEXTURE_LAYERS
 	GMaxTextureArrayLayers = Value_GL_MAX_ARRAY_TEXTURE_LAYERS;
@@ -1166,6 +1168,15 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 			{
 				CVar->Set(false);
 			}
+		}
+	}
+
+	{
+		// Temp disable gpusorting for Opengl because of issues on Adreno and Mali devices
+		auto* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("FX.AllowGPUSorting"));
+		if (CVar)
+		{
+			CVar->Set(false);
 		}
 	}
 

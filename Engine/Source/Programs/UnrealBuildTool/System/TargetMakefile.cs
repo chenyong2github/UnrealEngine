@@ -16,17 +16,22 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Cached list of actions that need to be executed to build a target, along with the information needed to determine whether they are valid.
 	/// </summary>
-	class TargetMakefile
+	class TargetMakefile : IActionGraphBuilder
 	{
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 18;
+		public const int CurrentVersion = 19;
 
 		/// <summary>
 		/// The time at which the makefile was created
 		/// </summary>
 		public DateTime CreateTimeUtc;
+
+		/// <summary>
+		/// The time at which the makefile was modified
+		/// </summary>
+		public DateTime ModifiedTimeUtc;
 
 		/// <summary>
 		/// Additional diagnostic output to print before building this target (toolchain version, etc...)
@@ -82,6 +87,11 @@ namespace UnrealBuildTool
 		/// Scripts which should be run before building anything
 		/// </summary>
 		public FileReference[] PreBuildScripts;
+
+		/// <summary>
+		/// Targets which should be build before building anything
+		/// </summary>
+		public TargetInfo[] PreBuildTargets;
 
 		/// <summary>
 		/// Every action in the action graph
@@ -150,9 +160,14 @@ namespace UnrealBuildTool
 		public HashSet<FileItem> PluginFiles;
 
 		/// <summary>
-		/// Additional files which are required 
+		/// Set of external (ie. user-owned) files which will cause the makefile to be invalidated if modified after
 		/// </summary>
-		public HashSet<FileItem> AdditionalDependencies = new HashSet<FileItem>();
+		public HashSet<FileItem> ExternalDependencies = new HashSet<FileItem>();
+
+		/// <summary>
+		/// Set of internal (eg. response files, unity files) which will cause the makefile to be invalidated if modified.
+		/// </summary>
+		public HashSet<FileItem> InternalDependencies = new HashSet<FileItem>();
 
 		/// <summary>
 		/// Constructor
@@ -167,7 +182,8 @@ namespace UnrealBuildTool
 		/// <param name="bHasProjectScriptPlugin">Whether the target has a project script plugin</param>
 		public TargetMakefile(string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
 		{
-			this.CreateTimeUtc = DateTime.UtcNow;
+			this.CreateTimeUtc = UnrealBuildTool.StartTimeUtc;
+			this.ModifiedTimeUtc = CreateTimeUtc;
 			this.Diagnostics = new List<string>();
 			this.ExternalMetadata = ExternalMetadata;
 			this.ExecutableFile = ExecutableFile;
@@ -188,16 +204,19 @@ namespace UnrealBuildTool
 			this.UObjectModules = new List<UHTModuleInfo>();
 			this.UObjectModuleHeaders = new List<UHTModuleHeaderInfo>();
 			this.PluginFiles = new HashSet<FileItem>();
-			this.AdditionalDependencies = new HashSet<FileItem>();
+			this.ExternalDependencies = new HashSet<FileItem>();
+			this.InternalDependencies = new HashSet<FileItem>();
 		}
 
 		/// <summary>
 		/// Constructor. Reads a makefile from disk.
 		/// </summary>
 		/// <param name="Reader">The archive to read from</param>
-		public TargetMakefile(BinaryArchiveReader Reader)
+		/// <param name="LastWriteTimeUtc">Last modified time for the makefile</param>
+		public TargetMakefile(BinaryArchiveReader Reader, DateTime LastWriteTimeUtc)
 		{
 			CreateTimeUtc = new DateTime(Reader.ReadLong(), DateTimeKind.Utc);
+			ModifiedTimeUtc = LastWriteTimeUtc;
 			Diagnostics = Reader.ReadList(() => Reader.ReadString());
 			ExternalMetadata = Reader.ReadString();
 			ExecutableFile = Reader.ReadFileReference();
@@ -209,6 +228,7 @@ namespace UnrealBuildTool
 			bHasProjectScriptPlugin = Reader.ReadBool();
 			AdditionalArguments = Reader.ReadArray(() => Reader.ReadString());
 			PreBuildScripts = Reader.ReadArray(() => Reader.ReadFileReference());
+			PreBuildTargets = Reader.ReadArray(() => new TargetInfo(Reader));
 			Actions = Reader.ReadList(() => new Action(Reader));
 			EnvironmentVariables = Reader.ReadList(() => Tuple.Create(Reader.ReadString(), Reader.ReadString()));
 			OutputItems = Reader.ReadList(() => Reader.ReadFileItem());
@@ -221,7 +241,8 @@ namespace UnrealBuildTool
 			UObjectModules = Reader.ReadList(() => new UHTModuleInfo(Reader));
 			UObjectModuleHeaders = Reader.ReadList(() => new UHTModuleHeaderInfo(Reader));
 			PluginFiles = Reader.ReadHashSet(() => Reader.ReadFileItem());
-			AdditionalDependencies = Reader.ReadHashSet(() => Reader.ReadFileItem());
+			ExternalDependencies = Reader.ReadHashSet(() => Reader.ReadFileItem());
+			InternalDependencies = Reader.ReadHashSet(() => Reader.ReadFileItem());
 		}
 
 		/// <summary>
@@ -242,6 +263,7 @@ namespace UnrealBuildTool
 			Writer.WriteBool(bHasProjectScriptPlugin);
 			Writer.WriteArray(AdditionalArguments, Item => Writer.WriteString(Item));
 			Writer.WriteArray(PreBuildScripts, Item => Writer.WriteFileReference(Item));
+			Writer.WriteArray(PreBuildTargets, Item => Item.Write(Writer));
 			Writer.WriteList(Actions, Action => Action.Write(Writer));
 			Writer.WriteList(EnvironmentVariables, x => { Writer.WriteString(x.Item1); Writer.WriteString(x.Item2); });
 			Writer.WriteList(OutputItems, Item => Writer.WriteFileItem(Item));
@@ -254,7 +276,8 @@ namespace UnrealBuildTool
 			Writer.WriteList(UObjectModules, e => e.Write(Writer));
 			Writer.WriteList(UObjectModuleHeaders, x => x.Write(Writer));
 			Writer.WriteHashSet(PluginFiles, x => Writer.WriteFileItem(x));
-			Writer.WriteHashSet(AdditionalDependencies, x => Writer.WriteFileItem(x));
+			Writer.WriteHashSet(ExternalDependencies, x => Writer.WriteFileItem(x));
+			Writer.WriteHashSet(InternalDependencies, x => Writer.WriteFileItem(x));
 		}
 
 		/// <summary>
@@ -282,10 +305,11 @@ namespace UnrealBuildTool
 		/// <returns>The loaded makefile, or null if it failed for some reason.  On failure, the 'ReasonNotLoaded' variable will contain information about why</returns>
 		public static TargetMakefile Load(FileReference MakefilePath, FileReference ProjectFile, UnrealTargetPlatform Platform, string[] Arguments, out string ReasonNotLoaded)
 		{
+			FileInfo MakefileInfo;
 			using(Timeline.ScopeEvent("Checking dependent timestamps"))
 			{
 				// Check the directory timestamp on the project files directory.  If the user has generated project files more recently than the makefile, then we need to consider the file to be out of date
-				FileInfo MakefileInfo = new FileInfo(MakefilePath.FullName);
+				MakefileInfo = new FileInfo(MakefilePath.FullName);
 				if (!MakefileInfo.Exists)
 				{
 					// Makefile doesn't even exist, so we won't bother loading it
@@ -387,7 +411,7 @@ namespace UnrealBuildTool
 							ReasonNotLoaded = "makefile version does not match";
 							return null;
 						}
-						Makefile = new TargetMakefile(Reader);
+						Makefile = new TargetMakefile(Reader, MakefileInfo.LastWriteTimeUtc);
 					}
 				}
 				catch (Exception Ex)
@@ -481,25 +505,42 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// Check if any of the additional dependencies has changed
-				foreach(FileItem AdditionalDependency in Makefile.AdditionalDependencies)
+				// Check if any external dependencies have changed. These comparisons are done against the makefile creation time.
+				foreach(FileItem ExternalDependency in Makefile.ExternalDependencies)
 				{
-					if (!AdditionalDependency.Exists)
+					if (!ExternalDependency.Exists)
 					{
-						Log.TraceLog("{0} has been deleted since makefile was built.", AdditionalDependency.Location);
-						ReasonNotLoaded = string.Format("{0} deleted", AdditionalDependency.Location.GetFileName());
+						Log.TraceLog("{0} has been deleted since makefile was built.", ExternalDependency.Location);
+						ReasonNotLoaded = string.Format("{0} deleted", ExternalDependency.Location.GetFileName());
 						return false;
 					}
-					if(AdditionalDependency.LastWriteTimeUtc > Makefile.CreateTimeUtc)
+					if(ExternalDependency.LastWriteTimeUtc > Makefile.CreateTimeUtc)
 					{
-						Log.TraceLog("{0} has been modified since makefile was built.", AdditionalDependency.Location);
-						ReasonNotLoaded = string.Format("{0} modified", AdditionalDependency.Location.GetFileName());
+						Log.TraceLog("{0} has been modified since makefile was built.", ExternalDependency.Location);
+						ReasonNotLoaded = string.Format("{0} modified", ExternalDependency.Location.GetFileName());
+						return false;
+					}
+				}
+
+				// Check if any internal dependencies has changed. These comparisons are done against the makefile modified time.
+				foreach (FileItem InternalDependency in Makefile.InternalDependencies)
+				{
+					if (!InternalDependency.Exists)
+					{
+						Log.TraceLog("{0} has been deleted since makefile was written.", InternalDependency.Location);
+						ReasonNotLoaded = string.Format("{0} deleted", InternalDependency.Location.GetFileName());
+						return false;
+					}
+					if (InternalDependency.LastWriteTimeUtc > Makefile.ModifiedTimeUtc)
+					{
+						Log.TraceLog("{0} has been modified since makefile was written.", InternalDependency.Location);
+						ReasonNotLoaded = string.Format("{0} modified", InternalDependency.Location.GetFileName());
 						return false;
 					}
 				}
 
 				// Check that no new plugins have been added
-				foreach(FileReference PluginFile in Plugins.EnumeratePlugins(ProjectFile))
+				foreach (FileReference PluginFile in Plugins.EnumeratePlugins(ProjectFile))
 				{
 					FileItem PluginFileItem = FileItem.GetItemByFileReference(PluginFile);
 					if(!Makefile.PluginFiles.Contains(PluginFileItem))
@@ -636,6 +677,66 @@ namespace UnrealBuildTool
 		{
 			DirectoryReference BaseDirectory = DirectoryReference.FromFile(ProjectFile) ?? UnrealBuildTool.EngineDirectory;
 			return FileReference.Combine(BaseDirectory, "Intermediate", "Build", Platform.ToString(), TargetName, Configuration.ToString(), "Makefile.bin");
+		}
+
+		/// <inheritdoc/>
+		public Action CreateAction(ActionType Type)
+		{
+			Action Action = new Action(Type);
+			Actions.Add(Action);
+			return Action;
+		}
+
+		/// <inheritdoc/>
+		public FileItem CreateIntermediateTextFile(FileReference Location, string Contents)
+		{
+			// Write the file
+			Utils.WriteFileIfChanged(Location, Contents, StringComparison.InvariantCultureIgnoreCase);
+
+			// Reset the file info, in case it already knows about the old file
+			FileItem Item = FileItem.GetItemByFileReference(Location);
+			InternalDependencies.Add(Item);
+			Item.ResetCachedInfo();
+			return Item;
+		}
+
+		/// <inheritdoc/>
+		public void AddSourceDir(DirectoryItem SourceDir)
+		{
+			SourceDirectories.Add(SourceDir);
+		}
+
+		/// <inheritdoc/>
+		public void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles)
+		{
+			DirectoryToSourceFiles[SourceDir] = SourceFiles;
+		}
+
+		/// <inheritdoc/>
+		public void AddDiagnostic(string Message)
+		{
+			if(!Diagnostics.Contains(Message))
+			{
+				Diagnostics.Add(Message);
+			}
+		}
+
+		/// <inheritdoc/>
+		public void AddFileToWorkingSet(FileItem File)
+		{
+			WorkingSet.Add(File);
+		}
+
+		/// <inheritdoc/>
+		public void AddCandidateForWorkingSet(FileItem File)
+		{
+			CandidatesForWorkingSet.Add(File);
+		}
+
+		/// <inheritdoc/>
+		public void SetOutputItemsForModule(string ModuleName, FileItem[] OutputItems)
+		{
+			ModuleNameToOutputItems[ModuleName] = OutputItems;
 		}
 	}
 }

@@ -82,10 +82,11 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 		TimeSliderArgs.ScrubPosition = MakeAttributeLambda([WeakModel](){ return WeakModel.IsValid() ? WeakModel.Pin()->GetScrubPosition() : FFrameTime(0); });
 		TimeSliderArgs.ViewRange = ViewRange;
 		TimeSliderArgs.PlaybackRange = MakeAttributeLambda([WeakModel](){ return WeakModel.IsValid() ? WeakModel.Pin()->GetPlaybackRange() : TRange<FFrameNumber>(0, 0); });
-		TimeSliderArgs.ClampRange = MakeAttributeLambda([WeakModel](){ return WeakModel.IsValid() ? WeakModel.Pin()->GetTotalRange() : FAnimatedRange(0.0, 0.0); });
+		TimeSliderArgs.ClampRange = MakeAttributeLambda([WeakModel](){ return WeakModel.IsValid() ? WeakModel.Pin()->GetWorkingRange() : FAnimatedRange(0.0, 0.0); });
 		TimeSliderArgs.DisplayRate = DisplayRate;
 		TimeSliderArgs.TickResolution = TickResolution;
 		TimeSliderArgs.OnViewRangeChanged = FOnViewRangeChanged::CreateSP(&InModel.Get(), &FAnimModel::HandleViewRangeChanged);
+		TimeSliderArgs.OnClampRangeChanged = FOnTimeRangeChanged::CreateSP(&InModel.Get(), &FAnimModel::HandleWorkingRangeChanged);
 		TimeSliderArgs.IsPlaybackRangeLocked = true;
 		TimeSliderArgs.PlaybackStatus = EMovieScenePlayerStatus::Stopped;
 		TimeSliderArgs.NumericTypeInterface = NumericTypeInterface;
@@ -104,8 +105,8 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 	// Create bottom time range slider
 	TSharedRef<ITimeSlider> BottomTimeRange = SequencerWidgets.CreateTimeRange(
 		FTimeRangeArgs(
-			EShowRange::ViewRange | EShowRange::PlaybackRange,
-			EShowRange::ViewRange,
+			EShowRange::ViewRange | EShowRange::WorkingRange | EShowRange::PlaybackRange,
+			EShowRange::ViewRange | EShowRange::WorkingRange,
 			TimeSliderControllerRef,
 			EVisibility::Visible,
 			NumericTypeInterface.ToSharedRef()
@@ -288,6 +289,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 						.DisplayScrubPosition( false )
 						.DisplayTickLines( true )
 						.Clipping(EWidgetClipping::ClipToBounds)
+						.PaintPlaybackRangeArgs(FPaintPlaybackRangeArgs(FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_L"), FEditorStyle::GetBrush("Sequencer.Timeline.PlayRange_R"), 6.f))
 					]
 
 					// Overlay that draws the scrub position

@@ -316,9 +316,9 @@ namespace UnrealBuildTool
 			internal string Name;
 
 			/// <summary>
-			/// For non-system frameworks, specifies the path to a zip file that contains it.
+			/// Specifies the path to a zip file that contains it or where the framework is located on disk
 			/// </summary>
-			internal string ZipPath;
+			internal string Path;
 
 			/// <summary>
 			/// 
@@ -326,16 +326,31 @@ namespace UnrealBuildTool
 			internal string CopyBundledAssets = null;
 
 			/// <summary>
+			/// Copy the framework to the target's Framework directory
+			/// </summary>
+			internal bool bCopyFramework = false;
+
+			/// <summary>
 			/// Constructor
 			/// </summary>
 			/// <param name="Name">Name of the framework</param>
-			/// <param name="ZipPath">Path to a zip file containing the framework. May be null.</param>
+			/// <param name="Path">Path to a zip file containing the framework or a framework on disk</param>
 			/// <param name="CopyBundledAssets"></param>
-			public Framework(string Name, string ZipPath = null, string CopyBundledAssets = null)
+			/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
+			public Framework(string Name, string Path, string CopyBundledAssets = null, bool bCopyFramework = false)
 			{
 				this.Name = Name;
-				this.ZipPath = ZipPath;
+				this.Path = Path;
 				this.CopyBundledAssets = CopyBundledAssets;
+				this.bCopyFramework = bCopyFramework;
+			}
+
+			/// <summary>
+			/// Specifies if the file is a zip file
+			/// </summary>
+			public bool IsZipFile()
+			{
+				return Path.EndsWith(".zip");
 			}
 		}
 
@@ -349,9 +364,9 @@ namespace UnrealBuildTool
 			/// Constructor
 			/// </summary>
 			/// <param name="Name">Name of the framework</param>
-			/// <param name="ZipPath">Path to a zip file containing the framework. May be null.</param>
+			/// <param name="ZipPath">Path to a zip file containing the framework</param>
 			/// <param name="CopyBundledAssets"></param>
-			public UEBuildFramework(string Name, string ZipPath = null, string CopyBundledAssets = null)
+			public UEBuildFramework(string Name, string ZipPath, string CopyBundledAssets = null)
 				: base(Name, ZipPath, CopyBundledAssets)
 			{
 			}
@@ -472,6 +487,17 @@ namespace UnrealBuildTool
 		/// Plugin containing this module
 		/// </summary>
 		internal PluginInfo Plugin;
+
+		/// <summary>
+		/// True if a Plugin contains this module
+		/// </summary>
+		public bool IsPlugin
+		{
+			get
+			{
+				return Plugin != null;
+			}
+		}
 
 		/// <summary>
 		/// The rules context for this instance
@@ -829,6 +855,11 @@ namespace UnrealBuildTool
 		public List<string> PublicAdditionalLibraries = new List<string>();
 
 		/// <summary>
+		/// List of additional pre-build libraries (names of the .lib files including extension) - typically used for additional targets which are still built, but using either TargetRules.PreBuildSteps or TargetRules.PreBuildTargets.
+		/// </summary>
+		public List<string> PublicPreBuildLibraries = new List<string>();
+
+		/// <summary>
 		/// List of system libraries to use - these are typically referenced via name and then found via the system paths. If you need to reference a .lib file use the PublicAdditionalLibraries instead
 		/// </summary>
 		public List<string> PublicSystemLibraries = new List<string>();
@@ -944,6 +975,11 @@ namespace UnrealBuildTool
 		/// External files which invalidate the makefile if modified. Relative paths are resolved relative to the .build.cs file.
 		/// </summary>
 		public List<string> ExternalDependencies = new List<string>();
+
+		/// <summary>
+		/// External directories containing generated interop files.
+		/// </summary>
+		public List<string> AdditionalCodeGenDirectories = new List<string>();
 
 		/// <summary>
 		/// Subclass rules files which invalidate the makefile if modified.

@@ -1105,3 +1105,27 @@ IPlatformChunkInstall* FUnixPlatformMisc::GetPlatformChunkInstall()
 
 	return ChunkInstall;
 }
+
+bool FUnixPlatformMisc::SetStoredValues(const FString& InStoreId, const FString& InSectionName, const TMap<FString, FString>& InKeyValues)
+{
+	check(!InStoreId.IsEmpty());
+	check(!InSectionName.IsEmpty());
+
+	const FString ConfigPath = FString(FPlatformProcess::ApplicationSettingsDir()) / InStoreId / FString(TEXT("KeyValueStore.ini"));
+
+	FConfigFile ConfigFile;
+	ConfigFile.Read(ConfigPath);
+
+	for (auto const& InKeyValue : InKeyValues)
+	{
+		check(!InKeyValue.Key.IsEmpty());
+
+		FConfigSection& Section = ConfigFile.FindOrAdd(InSectionName);
+
+		FConfigValue& KeyValue = Section.FindOrAdd(*InKeyValue.Key);
+		KeyValue = FConfigValue(InKeyValue.Value);
+	}
+
+	ConfigFile.Dirty = true;
+	return ConfigFile.Write(ConfigPath);
+}

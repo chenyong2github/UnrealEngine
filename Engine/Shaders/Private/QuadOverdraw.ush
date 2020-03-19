@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #pragma once
-  
+
 // Because we use the same UAV for Descritors and Complexity, we have the same clear value.
 // In this case, the invalid descriptor is 0, so we need to add 1 to the primitive ID to prevent clash.
 const static uint QO_DESC_NONE = 0;

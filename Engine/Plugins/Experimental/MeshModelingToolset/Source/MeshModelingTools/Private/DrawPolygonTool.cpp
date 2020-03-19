@@ -237,21 +237,12 @@ void UDrawPolygonTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 1,
-		TEXT("PopLastVertex"), 
-		LOCTEXT("PopLastVertex", "Pop Last Vertex"),
-		LOCTEXT("PopLastVertexTooltip", "Pop last vertex added to polygon"),
-		EModifierKey::None, EKeys::BackSpace,
-		[this]() { PopLastVertexAction(); });
-
-
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 2,
 		TEXT("ToggleGizmo"),
 		LOCTEXT("ToggleGizmo", "Toggle Gizmo"),
 		LOCTEXT("ToggleGizmoTooltip", "Toggle visibility of the transformation Gizmo"),
 		EModifierKey::None, EKeys::A,
 		[this]() { PolygonProperties->bShowGizmo = !PolygonProperties->bShowGizmo; });
-
 }
 
 
@@ -262,6 +253,8 @@ void UDrawPolygonTool::PopLastVertexAction()
 	{
 		return;
 	}
+
+	bHaveSelfIntersection = false;
 
 	if (bInFixedPolygonMode == false)
 	{
@@ -274,6 +267,7 @@ void UDrawPolygonTool::PopLastVertexAction()
 		{
 			PolygonVertices.RemoveAt(0);
 			bAbortActivePolygonDraw = true;
+			CurrentCurveTimestamp++;
 		}
 	}
 	else
@@ -287,6 +281,7 @@ void UDrawPolygonTool::PopLastVertexAction()
 		{
 			FixedPolygonClickPoints.RemoveAt(0);
 			bAbortActivePolygonDraw = true;
+			CurrentCurveTimestamp++;
 		}
 	}
 }
@@ -504,6 +499,8 @@ void UDrawPolygonTool::ResetPolygon()
 	SnapEngine.Reset();
 	bHaveSurfaceHit = false;
 	bInFixedPolygonMode = false;
+	bHaveSelfIntersection = false;
+	CurrentCurveTimestamp++;
 }
 
 void UDrawPolygonTool::UpdatePreviewVertex(const FVector& PreviewVertexIn)
@@ -670,10 +667,10 @@ void UDrawPolygonTool::OnNextSequencePreview(const FInputDeviceRay& ClickPos)
 	}
 
 	UpdatePreviewVertex(HitPos);
+	UpdateSelfIntersection();
 	if (PolygonVertices.Num() > 2)
 	{
 		bPreviewUpdatePending = true;
-		UpdateSelfIntersection();
 	}
 }
 
@@ -736,7 +733,7 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 	
 	if (bDonePolygon)
 	{
-		SnapEngine.Reset();
+		//SnapEngine.Reset();
 		bHaveSurfaceHit = false;
 		if (PolygonProperties->OutputMode == EDrawPolygonOutputMode::ExtrudedInteractive)
 		{
@@ -759,6 +756,9 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 	}
 
 	AppendVertex(HitPos);
+
+	// emit change event
+	GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolygonStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyAddPoint", "Add Point"));
 
 	// if we are starting a freehand poly, add start point as snap target, but then ignore it until we get 3 verts
 	if (bInFixedPolygonMode == false && PolygonVertices.Num() == 1)
@@ -811,6 +811,10 @@ bool UDrawPolygonTool::UpdateSelfIntersection()
 	}
 
 	int NumVertices = PolygonVertices.Num();
+	if (NumVertices < 3)
+	{
+		return false;
+	}
 
 	FFrame3f DrawFrame(DrawPlaneOrigin, DrawPlaneOrientation);
 	FSegment2f PreviewSegment(DrawFrame.ToPlaneUV(PolygonVertices[NumVertices - 1],2), DrawFrame.ToPlaneUV(PreviewVertex,2));
@@ -1275,7 +1279,7 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, const
 void UDrawPolygonTool::ShowStartupMessage()
 {
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartDraw", "Left-click to place points on the Drawing Plane. Hold Shift to ignore Snapping. Ctrl-click on the scene to reposition the Plane (Shift+Ctrl-click to only Translate). Backspace to discard last vertex. A key toggles Gizmo."),
+		LOCTEXT("OnStartDraw", "Use this Tool to draw a polygon on the Drawing Plane, and Extrude it. Left-click to place points. Ctrl-click on the scene to reposition the Plane (Shift+Ctrl-click to ignore Normal). [A] toggles Gizmo. Hold Shift to ignore Snapping."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -1285,6 +1289,40 @@ void UDrawPolygonTool::ShowExtrudeMessage()
 		LOCTEXT("OnStartExtrude", "Set the height of the Extrusion by positioning the mouse over the extrusion volume, or over the scene to snap to relative heights."),
 		EToolMessageLevel::UserNotification);
 }
+
+
+
+
+void UDrawPolygonTool::UndoCurrentOperation()
+{
+	if (bInInteractiveExtrude)
+	{
+		PreviewMesh->ClearPreview();
+		PreviewMesh->SetVisible(false);
+		bInInteractiveExtrude = false;
+		PopLastVertexAction();
+	}
+	else
+	{
+		PopLastVertexAction();
+	}
+}
+
+
+void FDrawPolygonStateChange::Revert(UObject* Object)
+{
+	Cast<UDrawPolygonTool>(Object)->UndoCurrentOperation();
+	bHaveDoneUndo = true;
+}
+bool FDrawPolygonStateChange::HasExpired(UObject* Object) const
+{
+	return bHaveDoneUndo || (Cast<UDrawPolygonTool>(Object)->CheckInCurve(CurveTimestamp) == false);
+}
+FString FDrawPolygonStateChange::ToString() const
+{
+	return TEXT("FDrawPolygonStateChange");
+}
+
 
 
 #undef LOCTEXT_NAMESPACE

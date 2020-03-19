@@ -146,8 +146,27 @@ public:
 	/** @return true is it's possible to create a blueprint from the specified class */
 	static bool CanCreateBlueprintOfClass(const UClass* Class);
 
+	enum class EAddComponentToBPHarvestMode : uint8
+	{
+		/* Not harvesting */
+		None,
+
+		/* Harvesting, use the component name for the new component directly */
+		Harvest_UseComponentName,
+
+		/* Harvesting, new component name will be OwnerName_ComponentName */
+		Havest_AppendOwnerName
+	};
+
 	/** Take a list of components that belong to a single Actor and add them to a blueprint as SCSNodes */
-	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, bool bHarvesting = false, class USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false);
+	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, EAddComponentToBPHarvestMode HarvestMode = EAddComponentToBPHarvestMode::None, class USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false);
+
+	UE_DEPRECATED(4.25, "Use version that specifies harvest mode via enum instead of boolean")
+	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, bool bHarvesting, class USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false)
+	{
+		AddComponentsToBlueprint(Blueprint, Components, (bHarvesting ? EAddComponentToBPHarvestMode::Harvest_UseComponentName : EAddComponentToBPHarvestMode::None), OptionalNewRootNode, bKeepMobility);
+	}
+
 
 	/** 
 	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class. 

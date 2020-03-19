@@ -130,7 +130,7 @@ public:
 	bool GetClearTextures() const { return bClearTextures; }
 
 	/** (Re)Initialize this object. Call this whenever we modify the producer or transform. */
-	void Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld);
+	void Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld, FBox const& WorldBounds);
 
 	/** Release the resources for this object This will need to be called if our producer becomes stale and we aren't doing a full reinit with a new producer. */
 	void Release();
@@ -176,4 +176,6 @@ private:
 
 	/** Material uniform parameters to support transform from world to UV coordinates. */
 	FVector4 WorldToUVTransformParameters[3];
+	/** Material uniform parameter used to pack world height. */
+	FVector4 WorldHeightUnpackParameter;
 };

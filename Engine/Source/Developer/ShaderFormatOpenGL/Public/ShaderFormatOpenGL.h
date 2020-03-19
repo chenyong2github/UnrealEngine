@@ -70,7 +70,7 @@ protected:
 	virtual struct FGlslCodeBackend* CreateBackend(GLSLVersion Version, uint32 CCFlags, EHlslCompileTarget HlslCompilerTarget);
 
 	// create the language spec
-	virtual class FGlslLanguageSpec* CreateLanguageSpec(GLSLVersion Version);
+	virtual class FGlslLanguageSpec* CreateLanguageSpec(GLSLVersion Version, bool bDefaultPrecisionIsHalf);
 
 
 	// Allow a subclass to perform additional work on the cross compiled source code

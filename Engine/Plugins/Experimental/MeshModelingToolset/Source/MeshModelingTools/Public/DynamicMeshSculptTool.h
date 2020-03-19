@@ -22,6 +22,7 @@
 
 class UTransformGizmo;
 class UTransformProxy;
+class UMaterialInstanceDynamic;
 
 DECLARE_STATS_GROUP(TEXT("SculptTool"), STATGROUP_SculptTool, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("SculptTool_UpdateROI"), SculptTool_UpdateROI, STATGROUP_SculptTool);
@@ -51,32 +52,41 @@ class FSubRegionRemesher;
 UENUM()
 enum class EDynamicMeshSculptBrushType : uint8
 {
-	/** Move Brush moves vertices parallel to the view plane  */
+	/** Move vertices parallel to the view plane  */
 	Move UMETA(DisplayName = "Move"),
 
-	/** Smooth brush smooths mesh vertices  */
+	/** Smooth mesh vertices */
 	Smooth UMETA(DisplayName = "Smooth"),
 
-	/** Sculpt Brush displaces vertices from the surface */
-	Offset UMETA(DisplayName = "Sculpt"),
+	/** Displace vertices along the average surface normal (Ctrl to invert) */
+	Offset UMETA(DisplayName = "Sculpt (Normal)"),
 
-	/** SculptMax Brush displaces vertices to a maximum offset height */
+	/** Displace vertices towards the camera viewpoint (Ctrl to invert) */
+	SculptView UMETA(DisplayName = "Sculpt (Viewpoint)"),
+
+	/** Displaces vertices along the average surface normal to a maximum height based on the brush size (Ctrl to invert) */
 	SculptMax UMETA(DisplayName = "Sculpt Max"),
 
-	/** Inflate brush displaces vertices along their vertex normals */
+	/** Displace vertices along their vertex normals */
 	Inflate UMETA(DisplayName = "Inflate"),
 
-	/** Pinch Brush pulls vertices towards the center of the brush*/
+	/** Move vertices towards the center of the brush (Ctrl to push away) */
 	Pinch UMETA(DisplayName = "Pinch"),
 
-	/** Flatten Brush pulls vertices towards the average plane of the brush stamp */
+	/** Move vertices towards the average plane of the brush stamp region */
 	Flatten UMETA(DisplayName = "Flatten"),
 
-	/** Plane Brush pulls vertices to a plane defined by the initial brush position  */
-	Plane UMETA(DisplayName = "Plane"),
+	/** Move vertices towards a plane defined by the initial brush position  */
+	Plane UMETA(DisplayName = "Plane (Normal)"),
 
-	/** FixedPlane Brush pulls vertices to a fixed plane defined by the gizmo */
+	/** Move vertices towards a view-facing plane defined at the initial brush position */
+	PlaneViewAligned UMETA(DisplayName = "Plane (Viewpoint)"),
+
+	/** Move vertices towards a fixed plane in world space, positioned with a 3D gizmo */
 	FixedPlane UMETA(DisplayName = "FixedPlane"),
+
+	/** Remesh the brushed region but do not otherwise deform it */
+	Resample UMETA(DisplayName = "Resample"),
 
 	LastValue UMETA(Hidden)
 
@@ -101,51 +111,88 @@ public:
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API USculptBrushProperties : public UBrushBaseProperties
+{
+	GENERATED_BODY()
+public:
+	USculptBrushProperties();
+
+	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
+
+	/** Depth of Brush into surface along view ray or surface normal, depending on the Active Brush Type */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0", DisplayPriority = 5))
+	float Depth = 0;
+
+	/** Allow the Brush to hit the back-side of the mesh */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayPriority = 6))
+	bool bHitBackFaces = true;
+};
+
+
 UCLASS()
 class MESHMODELINGTOOLS_API UBrushSculptProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
 public:
-	/* This is a dupe of the bool in the tool class.  I needed it here so it could be checked as an EDITCONDITION */
+	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
+
+	/* This is a dupe of the bool in the tool class.  I needed it here so it could be checked as an EditCondition */
 	UPROPERTY()
 	bool bIsRemeshingEnabled = false;
 
 	/** Primary Brush Mode */
-	UPROPERTY(EditAnywhere, Category = Sculpting)
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Brush Type"))
 	EDynamicMeshSculptBrushType PrimaryBrushType = EDynamicMeshSculptBrushType::Move;
 
-	/** Power/Speed of Brush */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", EditCondition = "PrimaryBrushType != EDynamicMeshSculptBrushType::Pull"))
+	/** Strength of the Primary Brush */
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", EditCondition = "PrimaryBrushType != EDynamicMeshSculptBrushType::Pull"))
 	float PrimaryBrushSpeed = 0.5;
 
-	/** Smoothing Speed of Smoothing brush */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float SmoothBrushSpeed = 0.25;
-
-	/** If enabled, Full Remeshing is applied during smoothing, which will wipe out fine details */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "bIsRemeshingEnabled"))
-	bool bSmoothBrushRemeshes = false;
-
-	/** If true, try to preserve the shape of the UV/3D mapping. This will prevent smoothing in some cases */
+	/** If true, try to preserve the shape of the UV/3D mapping. This will limit Smoothing and Remeshing in some cases. */
 	UPROPERTY(EditAnywhere, Category = Sculpting)
 	bool bPreserveUVFlow = false;
 
-	/** Depth of Brush into surface along view ray or surface normal, depending on brush */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
-	float BrushDepth = 0;
-
-	/** Disable updating of the brush Target Surface after each stroke */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
+	/** When Freeze Target is toggled on, the Brush Target Surface will be Frozen in its current state, until toggled off. Brush strokes will be applied relative to the Target Surface, for applicable Brushes */
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptView || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch || PrimaryBrushType == EDynamicMeshSculptBrushType::Resample" ))
 	bool bFreezeTarget = false;
 
-	/** Hit back sides of triangles */
-	UPROPERTY(EditAnywhere, Category = Sculpting)
-	bool bHitBackFaces = true;
+	/** Strength of Shift-to-Smooth Brushing and Smoothing Brush */
+	UPROPERTY(EditAnywhere, Category = Smoothing, meta = (DisplayName = "Smoothing Strength", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float SmoothBrushSpeed = 0.25;
 
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+	/** If enabled, Remeshing is limited during Smoothing to avoid wiping out higher-density triangle areas */
+	UPROPERTY(EditAnywhere, Category = Smoothing, meta = (DisplayName = "Preserve Tri Density", EditConditionHides, HideEditConditionToggle, EditCondition = "bIsRemeshingEnabled"))
+	bool bDetailPreservingSmooth = true;
 };
+
+
+
+
+UENUM()
+enum class EPlaneBrushSideMode : uint8
+{
+	BothSides = 0,
+	PushDown = 1,
+	PullTowards = 2
+};
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UPlaneBrushProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
+
+	/** Control whether effect of brush should be limited to one side of the Plane  */
+	UPROPERTY(EditAnywhere, Category = PlaneBrush)
+	EPlaneBrushSideMode WhichSide = EPlaneBrushSideMode::BothSides;
+};
+
 
 UCLASS()
 class MESHMODELINGTOOLS_API UFixedPlaneBrushProperties : public UInteractiveToolPropertySet
@@ -155,22 +202,24 @@ class MESHMODELINGTOOLS_API UFixedPlaneBrushProperties : public UInteractiveTool
 public:
 	UFixedPlaneBrushProperties();
 
+	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
+
 	UPROPERTY()
 	bool bPropertySetEnabled = true;
 
-	/** Toggle whether interactive plane gizmo is visible */
-	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (EditCondition = "bPropertySetEnabled == true"))
+	/** Toggle whether Work Plane Positioing Gizmo is visible */
+	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
 	bool bShowGizmo;
 
-	/** Toggle whether fixed plane snaps to grid */
-	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (EditCondition = "bPropertySetEnabled == true"))
+	/** Toggle whether Work Plane snaps to grid when using Gizmo */
+	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
 	bool bSnapToGrid;
 
-	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (EditCondition = "bPropertySetEnabled == true"))
+	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
 	FVector Position;
 
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
+	FQuat Rotation;
 };
 
 UCLASS()
@@ -179,9 +228,20 @@ class MESHMODELINGTOOLS_API UBrushRemeshProperties : public URemeshProperties
 	GENERATED_BODY()
 
 public:
-	/** Target Relative Triangle Sizefor Dynamic Meshing */
-	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.5", UIMax = "2.0", ClampMin = "0.1", ClampMax = "100.0"))
-	float RelativeSize = 1.0f;
+	void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
+
+	/** Toggle remeshing on/off */
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (DisplayPriority = 1))
+	bool bEnableRemeshing = true;
+
+	// Note that if you change range here, you must also update UDynamicMeshSculptTool::ConfigureRemesher!
+	/** Desired size of triangles after Remeshing, relative to average initial triangle size. Larger value results in larger triangles. */
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (DisplayName = "Relative Tri Size", UIMin = "-5", UIMax = "5", ClampMin = "-5", ClampMax = "5", DisplayPriority = 2))
+	int TriangleSize = 0;
+
+	/** Control the amount of simplification during sculpting. Higher values will avoid wiping out fine details on the mesh. */
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0", UIMax = "5", ClampMin = "0", ClampMax = "5", DisplayPriority = 3))
+	int PreserveDetail = 0;
 };
 
 /**
@@ -222,29 +282,34 @@ public:
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 public:
+	/** Properties that control brush size/etc*/
+	UPROPERTY()
+	USculptBrushProperties* BrushProperties;
+
 	/** Properties that control sculpting*/
 	UPROPERTY()
 	UBrushSculptProperties* SculptProperties;
 
-	/** Properties that control brush size/etc*/
 	UPROPERTY()
-	UBrushBaseProperties* BrushProperties;
+	UPlaneBrushProperties* PlaneBrushProperties;
 
 	/** Properties that control dynamic remeshing */
 	UPROPERTY()
 	UBrushRemeshProperties* RemeshProperties;
 
 	UPROPERTY()
-	UMeshEditingViewProperties* ViewProperties;
+	UFixedPlaneBrushProperties* GizmoProperties;
 
 	UPROPERTY()
-	UFixedPlaneBrushProperties* GizmoProperties;
+	UMeshEditingViewProperties* ViewProperties;
 
 public:
 	virtual void IncreaseBrushRadiusAction();
 	virtual void DecreaseBrushRadiusAction();
 	virtual void IncreaseBrushRadiusSmallStepAction();
 	virtual void DecreaseBrushRadiusSmallStepAction();
+	virtual void IncreaseBrushFalloffAction();
+	virtual void DecreaseBrushFalloffAction();
 
 	virtual void IncreaseBrushSpeedAction();
 	virtual void DecreaseBrushSpeedAction();
@@ -257,6 +322,7 @@ public:
 
 private:
 	UWorld* TargetWorld;		// required to spawn UPreviewMesh/etc
+	FViewCameraState CameraState;
 
 	UPROPERTY()
 	UBrushStampIndicator* BrushIndicator;
@@ -267,6 +333,9 @@ private:
 	UPROPERTY()
 	UOctreeDynamicMeshComponent* DynamicMeshComponent;
 
+	UPROPERTY()
+	UMaterialInstanceDynamic* ActiveOverrideMaterial;
+
 	FTransform3d InitialTargetTransform;
 	FTransform3d CurTargetTransform;
 
@@ -276,7 +345,18 @@ private:
 
 	TValueWatcher<bool> ShowWireframeWatcher;
 	TValueWatcher<EMeshEditingMaterialModes> MaterialModeWatcher;
+	TValueWatcher<bool> FlatShadingWatcher;
+	TValueWatcher<FLinearColor> ColorWatcher;
+	TValueWatcher<UTexture2D*> ImageWatcher;
+	TValueWatcher<EDynamicMeshSculptBrushType> BrushTypeWatcher;
+	TValueWatcher<FVector> GizmoPositionWatcher;
+	TValueWatcher<FQuat> GizmoRotationWatcher;
 	void UpdateMaterialMode(EMeshEditingMaterialModes NewMode);
+	void UpdateFlatShadingSetting(bool bNewValue);
+	void UpdateColorSetting(FLinearColor NewColor);
+	void UpdateImageSetting(UTexture2D* NewImage);
+	void UpdateBrushType(EDynamicMeshSculptBrushType BrushType);
+	void UpdateGizmoFromProperties();
 
 	FInterval1d BrushRelativeSizeRange;
 	double CurrentBrushRadius;
@@ -284,7 +364,7 @@ private:
 
 	bool bEnableRemeshing;
 	double InitialEdgeLength;
-
+	void ScheduleRemeshPass();
 	void ConfigureRemesher(FSubRegionRemesher&);
 
 	bool bInDrag;
@@ -330,25 +410,28 @@ private:
 	int FindHitSculptMeshTriangle(const FRay3d& LocalRay);
 	int FindHitTargetMeshTriangle(const FRay3d& LocalRay);
 
+	bool UpdateBrushPosition(const FRay& WorldRay);
 	bool UpdateBrushPositionOnActivePlane(const FRay& WorldRay);
 	bool UpdateBrushPositionOnTargetMesh(const FRay& WorldRay);
 	bool UpdateBrushPositionOnSculptMesh(const FRay& WorldRay);
+	void AlignBrushToView();
 
 	void ApplySmoothBrush(const FRay& WorldRay);
 	void ApplyMoveBrush(const FRay& WorldRay);
-	void ApplyOffsetBrush(const FRay& WorldRay);
+	void ApplyOffsetBrush(const FRay& WorldRay, bool bUseViewDirection);
 	void ApplySculptMaxBrush(const FRay& WorldRay);
 	void ApplyPinchBrush(const FRay& WorldRay);
 	void ApplyInflateBrush(const FRay& WorldRay);
 	void ApplyPlaneBrush(const FRay& WorldRay);
 	void ApplyFixedPlaneBrush(const FRay& WorldRay);
 	void ApplyFlattenBrush(const FRay& WorldRay);
+	void ApplyResampleBrush(const FRay& WorldRay);
 
 	double CalculateBrushFalloff(double Distance);
 	TArray<FVector3d> ROIPositionBuffer;
 
 	FFrame3d ActiveFixedBrushPlane;
-	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth);
+	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth, bool bViewAligned);
 
 	TArray<int> TrianglesBuffer;
 	TArray<int> NormalsBuffer;
@@ -389,17 +472,19 @@ private:
 	UPROPERTY()
 	UTransformProxy* PlaneTransformProxy;
 
-	/** Orientation of plane we will draw polygon on */
-	UPROPERTY()
-	FQuat DrawPlaneOrientation;
-
 	void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
 
-	bool bPendingSetFixedPlanePosition = false;
-	void SetFixedSculptPlaneFromWorldPos(const FVector& Position);
-
+	enum class EPendingWorkPlaneUpdate
+	{
+		NoUpdatePending,
+		MoveToHitPositionNormal,
+		MoveToHitPosition,
+		MoveToHitPositionViewAligned
+	};
+	EPendingWorkPlaneUpdate PendingWorkPlaneUpdate;
+	void SetFixedSculptPlaneFromWorldPos(const FVector& Position, const FVector& Normal, EPendingWorkPlaneUpdate UpdateType);
 	void UpdateFixedSculptPlanePosition(const FVector& Position);
-
+	void UpdateFixedSculptPlaneRotation(const FQuat& Rotation);
 	void UpdateFixedPlaneGizmoVisibility(bool bVisible);
 };
 

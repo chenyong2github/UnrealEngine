@@ -111,12 +111,12 @@ public:
 	 * @param		ExpectedWorkThisFrame	The amount of work that will happen between now and the next frame, as a numerator of TotalAmountOfWork.
 	 * @param		Text					Optional text to describe this frame's purpose.
 	 */
-	void EnterProgressFrame(float ExpectedWorkThisFrame = 1.f, FText Text = FText());
+	void EnterProgressFrame(float ExpectedWorkThisFrame = 1.f, const FText& Text = FText());
 
 	/**
 	 * Get the frame message or default message if empty
 	 */
-	FText GetCurrentMessage() const;
+	const FText& GetCurrentMessage() const;
 
 	/**
 	 * True if the user has requested that the slow task be canceled

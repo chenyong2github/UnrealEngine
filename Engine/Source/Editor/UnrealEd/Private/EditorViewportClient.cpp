@@ -412,7 +412,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	DrawHelper.bDrawPivot = false;
 	DrawHelper.bDrawWorldBox = false;
 	DrawHelper.bDrawKillZ = false;
-	DrawHelper.bDrawGrid = true;
+	DrawHelper.bDrawGrid = false; // disable this since we rely on the show flags
 	DrawHelper.GridColorAxis = FColor(160, 160, 160);
 	DrawHelper.GridColorMajor = FColor(144, 144, 144);
 	DrawHelper.GridColorMinor = FColor(128, 128, 128);
@@ -5032,8 +5032,8 @@ void FEditorViewportClient::MoveViewportPerspectiveCamera( const FVector& InDrag
 
 		// normalize to -180 to 180
 		ViewRotation.Pitch = FRotator::NormalizeAxis(ViewRotation.Pitch);
-		// Make sure its withing  +/- 90 degrees.
-		ViewRotation.Pitch = FMath::Clamp( ViewRotation.Pitch, -90.f, 90.f );
+		// Make sure its withing  +/- 90 degrees (minus a small tolerance to avoid numerical issues w/ camera orientation conversions later on).
+		ViewRotation.Pitch = FMath::Clamp( ViewRotation.Pitch, -90.f+KINDA_SMALL_NUMBER, 90.f-KINDA_SMALL_NUMBER );
 	}
 	else
 	{
@@ -5127,17 +5127,17 @@ bool FEditorViewportClient::IsCameraLocked() const
 
 void FEditorViewportClient::SetShowGrid()
 {
-	DrawHelper.bDrawGrid = !DrawHelper.bDrawGrid;
+	EngineShowFlags.SetGrid(!EngineShowFlags.Grid) ;
 	if (FEngineAnalytics::IsAvailable())
 	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawGrid"), DrawHelper.bDrawGrid ? TEXT("True") : TEXT("False"));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("EngineShowFlags.Grid"), EngineShowFlags.Grid ? TEXT("True") : TEXT("False"));
 	}
 	Invalidate();
 }
 
 bool FEditorViewportClient::IsSetShowGridChecked() const
 {
-	return DrawHelper.bDrawGrid;
+	return EngineShowFlags.Grid;
 }
 
 void FEditorViewportClient::SetShowBounds(bool bShow)

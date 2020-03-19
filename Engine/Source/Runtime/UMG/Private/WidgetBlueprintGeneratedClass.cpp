@@ -140,7 +140,7 @@ void UWidgetBlueprintGeneratedClass::InitializeBindingsStatic(UUserWidget* UserW
 	for (const FDelegateRuntimeBinding& Binding : InBindings)
 	{
 		// If the binding came from a parent class, this will still find it - FindField() searches the super class hierarchy by default.
-		FObjectProperty* WidgetProperty = FindField<FObjectProperty>(UserWidget->GetClass(), *Binding.ObjectName);
+		FObjectProperty* WidgetProperty = FindFProperty<FObjectProperty>(UserWidget->GetClass(), *Binding.ObjectName);
 		if (WidgetProperty == nullptr)
 		{
 			continue;
@@ -150,10 +150,10 @@ void UWidgetBlueprintGeneratedClass::InitializeBindingsStatic(UUserWidget* UserW
 
 		if (Widget)
 		{
-			FDelegateProperty* DelegateProperty = FindField<FDelegateProperty>(Widget->GetClass(), FName(*(Binding.PropertyName.ToString() + TEXT("Delegate"))));
+			FDelegateProperty* DelegateProperty = FindFProperty<FDelegateProperty>(Widget->GetClass(), FName(*(Binding.PropertyName.ToString() + TEXT("Delegate"))));
 			if (!DelegateProperty)
 			{
-				DelegateProperty = FindField<FDelegateProperty>(Widget->GetClass(), Binding.PropertyName);
+				DelegateProperty = FindFProperty<FDelegateProperty>(Widget->GetClass(), Binding.PropertyName);
 			}
 
 			if (DelegateProperty)
@@ -297,7 +297,7 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 			FString VariableName = Widget->GetName();
 
 			// Find property with the same name as the template and assign the new widget to it.
-			FObjectPropertyBase* Prop = FindField<FObjectPropertyBase>(WidgetBlueprintClass, *VariableName);
+			FObjectPropertyBase* Prop = FindFProperty<FObjectPropertyBase>(WidgetBlueprintClass, *VariableName);
 			if (Prop)
 			{
 				Prop->SetObjectPropertyValue_InContainer(UserWidget, Widget);
@@ -335,7 +335,7 @@ void UWidgetBlueprintGeneratedClass::BindAnimations(UUserWidget* Instance, const
 		if (Animation->GetMovieScene())
 		{
 			// Find property with the same name as the animation and assign the animation to it.
-			FObjectPropertyBase* Prop = FindField<FObjectPropertyBase>(Instance->GetClass(), Animation->GetMovieScene()->GetFName());
+			FObjectPropertyBase* Prop = FindFProperty<FObjectPropertyBase>(Instance->GetClass(), Animation->GetMovieScene()->GetFName());
 			if (Prop)
 			{
 				Prop->SetObjectPropertyValue_InContainer(Instance, Animation);

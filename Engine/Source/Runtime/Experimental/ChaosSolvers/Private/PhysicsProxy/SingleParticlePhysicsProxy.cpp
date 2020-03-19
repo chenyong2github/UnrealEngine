@@ -36,74 +36,176 @@ FSingleParticlePhysicsProxy<PARTICLE_TYPE>::GetInitialState() const
 	return InitialState; 
 }
 
+template <Chaos::EParticleType ParticleType>
+void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos::TGeometryParticleHandle<float,3>* Handle, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, Chaos::FPhysicsSolver* Solver, const bool bInitialized)
+{
+	using namespace Chaos;
+	constexpr bool bHasKinematicData = ParticleType != EParticleType::Static;
+	constexpr bool bHasDynamicData = ParticleType == EParticleType::Rigid;
+	auto KinematicHandle = bHasKinematicData ? static_cast<Chaos::TKinematicGeometryParticleHandle<float,3>*>(Handle) : nullptr;
+	auto RigidHandle = bHasDynamicData ? static_cast<Chaos::TPBDRigidParticleHandle<float,3>*>(Handle) : nullptr;
+	const FParticleDirtyData& ParticleData = Dirty.ParticleData;
+	// move the copied game thread data into the handle
+	{
+		//  DynamicProperties are anything that would wake up a sleeping
+		//  particle. For example, if we set position on a sleeping particle
+		//  we will need to wake it up
+		bool bDynamicPropertyUpdated = false;
+
+		auto NewXR = ParticleData.FindXR(Manager, DataIdx);
+		auto NewNonFrequentData = ParticleData.FindNonFrequentData(Manager, DataIdx);
+
+		if(NewXR)
+		{
+			Handle->SetX(NewXR->X);
+			Handle->SetR(NewXR->R);
+			if(bHasDynamicData)
+			{
+				RigidHandle->SetP(NewXR->X);
+				RigidHandle->SetQ(NewXR->R);
+				bDynamicPropertyUpdated = true;
+			}
+		}
+
+		if(NewNonFrequentData)
+		{
+			Handle->SetSharedGeometry(NewNonFrequentData->Geometry);
+			Handle->SetUniqueIdx(NewNonFrequentData->UniqueIdx);
+			Handle->SetUserData(NewNonFrequentData->UserData);
+
+			if(bHasDynamicData)
+			{
+				RigidHandle->SetLinearEtherDrag(NewNonFrequentData->LinearEtherDrag);
+				RigidHandle->SetAngularEtherDrag(NewNonFrequentData->AngularEtherDrag);
+			}
+			
+#if CHAOS_CHECKED
+			Handle->SetDebugName(NewNonFrequentData->DebugName);
+#endif
+		}
+
+		auto NewVelocities = bHasKinematicData ? ParticleData.FindVelocities(Manager, DataIdx) : nullptr;
+		if(NewVelocities)
+		{
+			KinematicHandle->SetV(NewVelocities->V);
+			KinematicHandle->SetW(NewVelocities->W);
+			if(bHasDynamicData)
+			{
+				bDynamicPropertyUpdated = true;
+			}
+		}
+
+		if(NewXR || NewNonFrequentData || NewVelocities)
+		{
+			const auto& Geometry = Handle->Geometry();
+			if(Geometry && Geometry->HasBoundingBox())
+			{
+				Handle->SetHasBounds(true);
+				Handle->SetLocalBounds(Geometry->BoundingBox());
+				TAABB<float,3> WorldSpaceBounds = Geometry->BoundingBox().TransformedAABB(TRigidTransform<float,3>(Handle->X(),Handle->R()));
+				if(bHasKinematicData)
+				{
+					WorldSpaceBounds.ThickenSymmetrically(KinematicHandle->V());
+				}
+				Handle->SetWorldSpaceInflatedBounds(WorldSpaceBounds);
+			}
+
+			Solver->GetEvolution()->DirtyParticle(*Handle);
+		}
+
+		if(auto NewData = ParticleData.FindMisc(Manager, DataIdx))
+		{
+			Handle->SetSpatialIdx(NewData->SpatialIdx);
+
+			if(bHasDynamicData)
+			{
+				Solver->GetEvolution()->SetParticleObjectState(RigidHandle,NewData->ObjectState);
+				Solver->GetEvolution()->GetGravityForces().SetEnabled(*RigidHandle,NewData->bGravityEnabled);
+			}
+		}
+
+		if(auto NewData = ParticleData.FindMassProps(Manager, DataIdx))
+		{
+			if(bHasKinematicData)
+			{
+				KinematicHandle->SetCenterOfMass(NewData->CenterOfMass);
+				KinematicHandle->SetRotationOfMass(NewData->RotationOfMass);
+			}
+
+			if(bHasDynamicData)
+			{
+				RigidHandle->SetM(NewData->M);
+				RigidHandle->SetInvM(NewData->InvM);
+				RigidHandle->SetI(NewData->I);
+				RigidHandle->SetInvI(NewData->InvI);
+			}
+		}
+
+		if(bHasDynamicData)
+		{
+			if(auto NewData = ParticleData.FindDynamics(Manager, DataIdx))
+			{
+				RigidHandle->SetF(NewData->F);
+				RigidHandle->SetTorque(NewData->Torque);
+				RigidHandle->SetLinearImpulse(NewData->LinearImpulse);
+				RigidHandle->SetAngularImpulse(NewData->AngularImpulse);
+			}
+		}
+
+		//if dynamic property changed trigger a wakeup
+		//question: should this be here?
+		if(bDynamicPropertyUpdated)
+		{
+			if(bInitialized && RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping)
+			{
+				Solver->GetEvolution()->SetParticleObjectState(RigidHandle,Chaos::EObjectStateType::Dynamic);
+			}
+		}
+
+		//shape properties
+		for(int32 ShapeDataIdx : Dirty.ShapeDataIndices)
+		{
+			const FShapeDirtyData& ShapeData = ShapesData[ShapeDataIdx];
+			const int32 ShapeIdx = ShapeData.GetShapeIdx();
+			if(auto NewData = ShapeData.FindCollisionData(Manager, ShapeDataIdx)){ Handle->ShapesArray()[ShapeIdx]->SetCollisionData(*NewData); }
+			if(auto NewData = ShapeData.FindMaterials(Manager, ShapeDataIdx)){ Handle->ShapesArray()[ShapeIdx]->SetMaterialData(*NewData); }
+		}
+	}
+}
 
 //
 // TGeometryParticle<float, 3> template specialization 
 //
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData)
+void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData)
 {
+	PushToPhysicsStateImp<Chaos::EParticleType::Static>(Manager,Handle,DataIdx,Dirty,ShapesData,GetSolver(),bInitialized);
+#if 0
 	// move the copied game thread data into the handle
 	if (auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Handle))
 	{
-		typedef Chaos::TKinematicGeometryParticle<float, 3> PARTICLE_TYPE;
-		const auto* Data = static_cast<const typename PARTICLE_TYPE::FData*>(InData);
+		auto NewX = Data->FindX();
+		auto NewR = Data->FindR();
+		auto NewGeometry = Data->FindGeometry();
 
-		RigidHandle->SetX(Data->X);
-		RigidHandle->SetR(Data->R);
-		RigidHandle->SetSharedGeometry(Data->Geometry);
-		if (Data->Geometry && Data->Geometry->HasBoundingBox())
-		{
-			RigidHandle->SetHasBounds(true);
-			RigidHandle->SetLocalBounds(Data->Geometry->BoundingBox());
-			RigidHandle->SetWorldSpaceInflatedBounds(Data->Geometry->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float, 3>(Data->X, Data->R)));
-		}
-		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
-		RigidHandle->SetUniqueIdx(Data->UniqueIdx);
-		RigidHandle->SetUserData(Data->UserData);
-#if CHAOS_CHECKED
-		RigidHandle->SetDebugName(Data->DebugName);
-#endif
+		if(NewX){ RigidHandle->SetX(*NewX); }
+		if(NewR){ RigidHandle->SetR(*NewR); }
+		if(NewGeometry){ RigidHandle->SetSharedGeometry(*NewGeometry); }
 
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeDisableCollision))
+		if(NewX || NewR || NewGeometry)
 		{
-			int32 CurrShape = 0;
-			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			const auto& Geometry = RigidHandle->Geometry();
+			if(Geometry && Geometry->HasBoundingBox())
 			{
-				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
+				RigidHandle->SetHasBounds(true);
+				RigidHandle->SetLocalBounds(Geometry->BoundingBox());
+				RigidHandle->SetWorldSpaceInflatedBounds(Geometry->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float,3>(RigidHandle->X(),RigidHandle->R())));
 			}
 		}
 
-		// @todo(chaos) : Fix - The initial update is not flagging the dirty flag, so this state is not updated. 
-		//if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::CollisionTraceType))
-		{
-			int32 CurrShape = 0;
-			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
-			{
-				Shape->CollisionTraceType = Data->CollisionTraceType[CurrShape++];
-			}
-		}
-
-		// @todo(chaos) : Fix - The initial update is not flagging the dirty flag, so this state is not updated. 
-		//if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeSimData))
-		{
-			int32 CurrShape = 0;
-			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
-			{
-				Shape->SimData = Data->ShapeSimData[CurrShape];
-				Shape->QueryData = Data->ShapeQueryData[CurrShape++];
-			}
-		}
-
-		{
-			int32 CurrShape = 0;
-			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
-			{
-				Shape->Materials = Data->ShapeMaterials[CurrShape++];
-			}
-		}
 	}
+#endif
 }
 
 
@@ -156,8 +258,62 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearEvent
 //
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData)
+void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData)
 {
+	PushToPhysicsStateImp<Chaos::EParticleType::Kinematic>(Manager,Handle,DataIdx,Dirty,ShapesData,GetSolver(),bInitialized);
+#if 0
+	// move the copied game thread data into the handle
+	if(auto* RigidHandle = static_cast<Chaos::TKinematicGeometryParticleHandle<float,3>*>(Handle))
+	{
+		auto NewX = Data->FindX();
+		auto NewR = Data->FindR();
+		auto NewGeometry = Data->FindGeometry();
+
+		if(NewX){ RigidHandle->SetX(*NewX); }
+		if(NewR){ RigidHandle->SetR(*NewR); }
+		if(NewGeometry){ RigidHandle->SetSharedGeometry(*NewGeometry); }
+
+		if(NewX || NewR || NewGeometry)
+		{
+			const auto& Geometry = RigidHandle->Geometry();
+			if(Geometry && Geometry->HasBoundingBox())
+			{
+				RigidHandle->SetHasBounds(true);
+				RigidHandle->SetLocalBounds(Geometry->BoundingBox());
+				RigidHandle->SetWorldSpaceInflatedBounds(Geometry->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float,3>(RigidHandle->X(),RigidHandle->R())));
+			}
+		}
+
+		if(auto NewSpatialIdx = Data->FindSpatialIdx()){ RigidHandle->SetSpatialIdx(*NewSpatialIdx); }
+		if(auto NewUniqueIdx = Data->FindUniqueIdx()){ RigidHandle->SetUniqueIdx(*NewUniqueIdx); }
+		if(auto NewUserData = Data->FindUserData()){ RigidHandle->SetUserData(*NewUserData); }
+#if CHAOS_CHECKED
+		if(auto NewDebugName = Data->FindDebugName()){ RigidHandle->SetDebugName(*NewDebugName); }
+#endif
+
+		int32 ShapeIdx = 0;
+		const auto& Shapes = RigidHandle->ShapesArray();
+		for(Chaos::FShapePropertiesData* ShapeData : ShapesData->GetRemoteDatas())
+		{
+			//todo: avoid iterating over every shape regardless of if it's dirty or not
+			if(auto NewData = ShapeData->FindQueryData()){ Shapes[ShapeIdx]->SetQueryData(*NewData); }
+			if(auto NewData = ShapeData->FindSimData()){ Shapes[ShapeIdx]->SetSimData(*NewData); }
+			if(auto NewData = ShapeData->FindUserData()){ Shapes[ShapeIdx]->SetUserData(*NewData); }
+			if(auto NewData = ShapeData->FindGeometry()){ Shapes[ShapeIdx]->SetGeometry(*NewData); }
+			//todo: fully marshal materials
+#if 0
+			if(auto NewData = ShapeData->FindMaterials()){ Shapes[ShapeIdx]->SetMaterials(*NewData); }
+			if(auto NewData = ShapeData->FindMaterialMasks()){ Shapes[ShapeIdx]->SetMaterialMasks(*NewData); }
+			if(auto NewData = ShapeData->FindMaterialMaskMaps()){ Shapes[ShapeIdx]->SetMaterialMaskMaps(*NewData); }
+			if(auto NewData = ShapeData->FindMaterialMaskMapMaterials()){ Shapes[ShapeIdx]->SetMaterialMaskMapMaterials(*NewData); }
+#endif
+			if(auto NewData = ShapeData->FindDisable()){ Shapes[ShapeIdx]->SetDisable(*NewData); }
+			if(auto NewData = ShapeData->FindSimulate()){ Shapes[ShapeIdx]->SetSimulate(*NewData); }
+			if(auto NewData = ShapeData->FindCollisionTraceType()){ Shapes[ShapeIdx]->SetCollisionTraceType(*NewData); }
+		}
+	}
+
+#if 0
 	// move the copied game thread data into the handle
 	if (auto* RigidHandle = static_cast<Chaos::TKinematicGeometryParticleHandle<float, 3>*>(Handle))
 	{
@@ -223,6 +379,8 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 
 
 	}
+#endif
+#endif
 }
 
 template< >
@@ -272,8 +430,10 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::C
 //
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhysicsState(const Chaos::FParticleData* InData)
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData)
 {
+	PushToPhysicsStateImp<Chaos::EParticleType::Rigid>(Manager,Handle,DataIdx,Dirty,ShapesData,GetSolver(),bInitialized);
+#if 0
 	// move the copied game thread data into the handle
 	if (auto* RigidHandle = static_cast<Chaos::TPBDRigidParticleHandle<float, 3>*>(Handle))
 	{
@@ -321,12 +481,20 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::V))
 		{
 			RigidHandle->SetV(Data->MV);
-			bDynamicPropertyUpdated = true;
+			//TODO: This is gross, we should clean it up
+			if (!(Data->MV.IsNearlyZero() && Data->MObjectState == Chaos::EObjectStateType::Sleeping))
+			{
+				bDynamicPropertyUpdated = true;
+			}
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::W))
 		{
 			RigidHandle->SetW(Data->MW);
-			bDynamicPropertyUpdated = true;
+			//TODO: Same as above
+			if (!(Data->MW.IsNearlyZero() && Data->MObjectState == Chaos::EObjectStateType::Sleeping))
+			{
+				bDynamicPropertyUpdated = true;
+			}
 		}
 
 		RigidHandle->SetCenterOfMass(Data->MCenterOfMass);
@@ -434,16 +602,16 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			bInitialized = true;
 		}
 	}
-
+#endif
 }
 
 template< >
 void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccumulatedData()
 {
-	Particle->SetF(Chaos::TVector<float, 3>(0));
-	Particle->SetTorque(Chaos::TVector<float, 3>(0));
-	Particle->SetLinearImpulse(Chaos::TVector<float, 3>(0));
-	Particle->SetAngularImpulse(Chaos::TVector<float, 3>(0));
+	Particle->SetF(Chaos::TVector<float, 3>(0), false);
+	Particle->SetTorque(Chaos::TVector<float, 3>(0), false);
+	Particle->SetLinearImpulse(Chaos::TVector<float, 3>(0), false);
+	Particle->SetAngularImpulse(Chaos::TVector<float, 3>(0), false);
 	Particle->ClearDirtyFlags();
 }
 
@@ -474,7 +642,9 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPh
 		Particle->SetV(Buffer->MV, false);
 		Particle->SetW(Buffer->MW, false);
 		Particle->UpdateShapeBounds();
-		if (!Particle->IsDirty(Chaos::EParticleFlags::ObjectState))
+		//if (!Particle->IsDirty(Chaos::EParticleFlags::ObjectState))
+		//question: is it ok to call this when it was one of the other properties that changed?
+		if (!Particle->IsDirty(Chaos::EParticleFlags::Misc))
 		{
 			Particle->SetObjectState(Buffer->MObjectState, true);
 		}

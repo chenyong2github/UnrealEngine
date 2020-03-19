@@ -241,6 +241,12 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 
 			if (bValid)
 			{
+				// associate right here
+				if (BaseVMScript)
+				{
+					FString AssetFile = FPackageName::LongPackageNameToFilename(BaseVMScript->GetOutermost()->GetName(), TEXT(".uasset"));
+					GameThreadShaderMap->MarkAsAssociatedWithAsset(AssetFile);
+				}
 				GameThreadShaderMap->Serialize(Ar);
 			}
 			//else if (GameThreadShaderMap != nullptr && !GameThreadShaderMap->CompiledSuccessfully())

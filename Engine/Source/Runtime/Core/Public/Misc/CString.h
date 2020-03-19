@@ -63,6 +63,7 @@ struct TCString
 	 * @param Str - string that will be checked
 	 **/
 	static FORCEINLINE bool IsPureAnsi(const CharType* Str);
+	static FORCEINLINE bool IsPureAnsi(const CharType* Str, const SIZE_T StrLen);
 
 	/**
 	 * Returns whether this string contains only numeric characters 
@@ -880,11 +881,25 @@ int32 TCString<T>::GetVarArgs( CharType* Dest, SIZE_T DestSize, const CharType*&
 	TCString<WIDECHAR> specializations
 -----------------------------------------------------------------------------*/
 template <> FORCEINLINE
-bool TCString<WIDECHAR>::IsPureAnsi(const WIDECHAR* Str)
+bool TCString<WIDECHAR>::IsPureAnsi(const CharType* Str)
 {
 	for( ; *Str; Str++ )
 	{
 		if( *Str>0x7f )
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+
+template <> FORCEINLINE
+bool TCString<WIDECHAR>::IsPureAnsi(const CharType* Str, const SIZE_T StrLen)
+{
+	for (SIZE_T Idx = 0; Idx < StrLen; Idx++, Str++)
+	{
+		if (*Str > 0x7f)
 		{
 			return false;
 		}
@@ -918,7 +933,14 @@ FORCEINLINE bool TCString<TCHAR>::ToBool(const WIDECHAR* Str)
 /*-----------------------------------------------------------------------------
 	TCString<ANSICHAR> specializations
 -----------------------------------------------------------------------------*/
-template <> FORCEINLINE bool TCString<ANSICHAR>::IsPureAnsi(const CharType* Str)
+template <> FORCEINLINE
+bool TCString<ANSICHAR>::IsPureAnsi(const CharType* Str)
+{
+	return true;
+}
+
+template <> FORCEINLINE
+bool TCString<ANSICHAR>::IsPureAnsi(const CharType* Str, const SIZE_T StrLen)
 {
 	return true;
 }

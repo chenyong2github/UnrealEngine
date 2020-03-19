@@ -1124,7 +1124,7 @@ FString GetPathNameSafe(const FField* InField)
 	}
 }
 
-FField* FindFieldByPath(const TCHAR* InFieldPath)
+FField* FindFPropertyByPath(const TCHAR* InFieldPath)
 { 
 	// Expected format: FullPackageName.OwnerName:Field
 	FField* FoundField = nullptr;
@@ -1155,7 +1155,7 @@ FField* FindFieldByPath(const TCHAR* InFieldPath)
 				checkf(*TestChar != ':' && *TestChar != '.', TEXT("FindFieldByPath can't resolve nested properties: %s"), InFieldPath);
 			}
 #endif
-			FoundField = FindField<FField>(Owner, InFieldPath);
+			FoundField = FindFProperty<FField>(Owner, InFieldPath);
 		}
 	}
 	return FoundField;

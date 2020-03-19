@@ -825,12 +825,19 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 
 	bWasConnectionSaturated = false;
 
+	TSet<UNetConnection*> ConnectionsToClose;
+
 	ON_SCOPE_EXIT
 	{
 		// We increment this after our replication has happened. If we increment at the beginning of this function, then we rep with FrameNum X, then start the next game frame with the same FrameNum X. If at the top of that frame,
 		// when processing packets, ticking, etc, we get calls to TearOff, ForceNetUpdate etc which make use of ReplicationGraphFrame, they will be using a stale frame num. So we could replicate, get a server move next frame, ForceNetUpdate, but think we 
 		// already replicated this frame.
 		ReplicationGraphFrame++;
+
+		for (UNetConnection* ConnectionToClose : ConnectionsToClose)
+		{
+			ConnectionToClose->Close();
+		}
 	};
 
 	// -------------------------------------------------------
@@ -1038,7 +1045,11 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 				}
 			}
 #endif
-			
+		}
+
+		if (NetConnection->GetPendingCloseDueToReplicationFailure())
+		{
+			ConnectionsToClose.Add(NetConnection);
 		}
 	}
 	

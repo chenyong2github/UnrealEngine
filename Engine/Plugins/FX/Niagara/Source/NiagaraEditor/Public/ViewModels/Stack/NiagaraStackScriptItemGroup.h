@@ -58,6 +58,8 @@ private:
 
 	void ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex, FText& OutPasteWarning);
 
+	void ChildRequestDeprecatedRecommendation(class UNiagaraStackModuleItem* TargetChild);
+
 	void OnScriptGraphChanged(const struct FEdGraphEditAction& InAction);
 
 	TOptional<FDropRequestResponse> CanDropOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);

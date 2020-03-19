@@ -83,12 +83,13 @@ protected:
 		UNiagaraNode* ParentNode = Cast<UNiagaraNode>(this->GraphPinObj->GetOwningNode());
 
 		auto CreateLabelTextBlock = [&]()->TSharedRef<SWidget> {
-			return SNew(SInlineEditableTextBlock)
+			CreatedTextBlock = SNew(SInlineEditableTextBlock)
 				.Style(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.Node.InlineEditablePinName"))
 				.Text(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinLabel)
 				.Visibility(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinVisibility)
 				.ColorAndOpacity(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinTextColor)
 				.IsReadOnly(true);
+			return CreatedTextBlock.ToSharedRef();
 		};
 
 		auto CreateRenamableLabelTextBlock = [&]()->TSharedRef<SWidget> {
@@ -97,13 +98,14 @@ protected:
 				bPendingRename = true;
 			}
 			
-			return SNew(SInlineEditableTextBlock)
+			CreatedTextBlock = SNew(SInlineEditableTextBlock)
 				.Style(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.Node.InlineEditablePinName"))
 				.Text(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinLabel)
 				.Visibility(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinVisibility)
 				.ColorAndOpacity(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinTextColor)
 				.OnVerifyTextChanged(this, &TNiagaraGraphPinEditableName<BaseClass>::OnVerifyTextChanged)
 				.OnTextCommitted(this, &TNiagaraGraphPinEditableName<BaseClass>::OnTextCommitted);
+			return CreatedTextBlock.ToSharedRef();
 		};
 
 		if (ParentNode && ParentNode->IsPinNameEditable(this->GraphPinObj))
@@ -119,13 +121,8 @@ protected:
 					}
 					return CreateLabelTextBlock();
 				}
-				else if (ParentNode->IsA<UNiagaraNodeCustomHlsl>())
+				else 
 				{
-					return CreateRenamableLabelTextBlock();
-				}
-				else
-				{
-					ensureMsgf(false, TEXT("Tried to create a pin widget for unhandled node class!"));
 					return CreateRenamableLabelTextBlock();
 				}
 			}
@@ -136,6 +133,7 @@ protected:
 		}
 		else
 		{
+			
 			return BaseClass::GetLabelWidget(InLabelStyle);
 		}
 	}

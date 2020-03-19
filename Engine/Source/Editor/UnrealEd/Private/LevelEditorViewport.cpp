@@ -236,19 +236,19 @@ namespace LevelEditorViewportClientHelper
 		switch (WidgetMode)
 		{
 		case FWidget::WM_Translate:
-			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
+			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		case FWidget::WM_Rotate:
-			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName());
+			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName());
 			break;
 		case FWidget::WM_Scale:
-			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName());
+			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName());
 			break;
 		case FWidget::WM_TranslateRotateZ:
-			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
+			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		case FWidget::WM_2D:
-			ValueProperty = FindField<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
+			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		default:
 			break;

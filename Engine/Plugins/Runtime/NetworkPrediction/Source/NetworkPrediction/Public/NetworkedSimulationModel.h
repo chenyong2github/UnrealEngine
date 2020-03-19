@@ -88,9 +88,9 @@ struct TNetSimModelRepControllerTraitsBase
 // Template struct to specialize per-model
 template<typename T> struct TNetSimModelRepControllerTraits : public TNetSimModelRepControllerTraitsBase { };
 
-// The actual NetworkedSimulationModel templated class.
+// The actual NetworkedSimulationModel templated class. InModelDef will be a user defined subtype of FNetSimModelDefBase
 template <typename InModelDef>
-class TNetworkedSimulationModel : public InModelDef::Base
+class TNetworkedSimulationModel : public InModelDef::Base // InModelDef::Base defaults to INetworkedSimulationModel
 {
 public:
 
@@ -144,6 +144,13 @@ public:
 		};
 
 		this->Buffers.CueDispatcher.GetDebugName = [this]() { return Driver->GetDebugName(); };
+		
+		SimulationId = this->GetNextSimulationId();
+		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
+		UE_NP_TRACE_SIM_CREATED(Driver->GetVLogOwner(), GetSimulationGroupName());
+		UE_NP_TRACE_OOB_STATE_MOD();
+		UE_NP_TRACE_USER_STATE_SYNC(InitialSyncState, 0);
+		UE_NP_TRACE_USER_STATE_AUX(InitialAuxState, 0);
 	}
 
 	virtual ~TNetworkedSimulationModel()
@@ -154,6 +161,8 @@ public:
 
 	void Tick(const FNetSimTickParameters& Parameters) final override
 	{
+		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
+
 		// Update previous DebugState based on what we (might) have sent *after* our last Tick 
 		// (property replication and ServerRPC get sent after the tick, rather than forcing awkward callback into the NetSim post replication, we can check it here)
 		if (auto* DebugBuffer = GetLocalDebugBuffer())
@@ -236,23 +245,9 @@ public:
 					InSyncState = Buffers.Sync.WriteFrameInitializedFromHead(InputFrame);
 				}
 
-				const TAuxState* InAuxState = Buffers.Aux[InputFrame];
-				checkf(InAuxState, TEXT("No AuxState available for Frame %d. PendingFrame: %d. MaxAllowedFrame: %d."), InputFrame, Ticker.PendingFrame, Ticker.MaxAllowedFrame);
-
-				TSyncState* OutSyncState = Buffers.Sync.WriteFrame(OutputFrame);
-				check(OutSyncState);
-
-				{
-					ESimulationTickContext Context = Parameters.Role == ROLE_Authority ? ESimulationTickContext::Authority : ESimulationTickContext::Predict;
-					TScopedSimulationTick<Model> UpdateScope(Ticker, Buffers.CueDispatcher, Context, OutputFrame, InputCmd->GetFrameDeltaTime());
-					
-					Simulation->SimulationTick( 
-						{ InputCmd->GetFrameDeltaTime(), Ticker },
-						{ *InputCmd, *InSyncState, *InAuxState },
-						{ *OutSyncState, Buffers.Aux.LazyWriter(OutputFrame), Buffers.CueDispatcher } );
-													
-				}
-
+				ESimulationTickContext Context = Parameters.Role == ROLE_Authority ? ESimulationTickContext::Authority : ESimulationTickContext::Predict;
+				TSimulationDoTickFunc<Model>::DoTick(*Simulation.Get(), Ticker, Buffers, OutputFrame, Context);
+				
 				if (DebugState)
 				{
 					DebugState->ProcessedFrames.Add(InputFrame);
@@ -302,10 +297,33 @@ public:
 			HistoricData->Sync.CopyAndMerge(Buffers.Sync);
 			HistoricData->Aux.CopyAndMerge(Buffers.Aux);
 		}
+		
+		int32 LastSentKeyframe = 0;
+		int32 LastReceivedKeyframe = 0;
+		switch (Parameters.Role)
+		{
+			case ROLE_Authority:
+				LastSentKeyframe = RepProxy_Autonomous.GetLastSerializedFrame();
+				LastReceivedKeyframe = RepProxy_ServerRPC.GetLastSerializedFrame();
+			break;
+
+			case ROLE_AutonomousProxy:
+				LastSentKeyframe = RepProxy_ServerRPC.GetLastSerializedFrame();
+				LastReceivedKeyframe = RepProxy_Autonomous.GetLastSerializedFrame();
+			break;
+
+			case ROLE_SimulatedProxy:
+				LastReceivedKeyframe = RepProxy_Simulated.GetLastSerializedFrame();
+			break;
+		}
+
+		UE_NP_TRACE_SIM_EOF(Ticker, LastSentKeyframe, LastReceivedKeyframe);
 	}
 
 	virtual void Reconcile(const ENetRole Role) final override
 	{
+		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
+
 		// --------------------------------------------------------------------------------------------------------------------------
 		//	Reconcile
 		//	This will eventually be called outside the Tick loop, only after processing a network bunch
@@ -329,6 +347,8 @@ public:
 	
 	void InitializeForNetworkRole(const ENetRole Role, const FNetworkSimulationModelInitParameters& Parameters) final override
 	{
+		UE_NP_TRACE_NETROLE(SimulationId, Role);
+
 		// FIXME: buffer sizes are now inlined allocated but we want to support role based buffer sizes
 
 		//Buffers.Input.SetBufferSize(Parameters.InputBufferSize);
@@ -352,6 +372,8 @@ public:
 
 	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params) final override
 	{
+		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
+
 		switch(Target)
 		{
 		case EReplicationProxyTarget::ServerRPC:
@@ -443,6 +465,11 @@ public:
 		return nullptr;
 	}
 
+	void SetEnableSimulationExtrapolation(bool bNewValue) final override
+	{
+		RepProxy_Simulated.bAllowSimulatedExtrapolation = bNewValue;
+	}
+
 	// ------------------------------------------------------------------------------------------------------
 	//	Dependent Simulations
 	// ------------------------------------------------------------------------------------------------------
@@ -485,11 +512,13 @@ public:
 
 	void BeginRollback(const FNetworkSimTime& RollbackDeltaTime, const int32 ParentFrame) final override
 	{
+		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
 		RepProxy_Simulated.DependentRollbackBegin(Simulation.Get(), Driver, Buffers, Ticker, RollbackDeltaTime, ParentFrame);
 	}
 
 	void StepRollback(const FNetworkSimTime& Step, const int32 ParentFrame, const bool bFinalStep) final override
 	{
+		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
 		RepProxy_Simulated.DependentRollbackStep(Simulation.Get(), Driver, Buffers, Ticker, Step, ParentFrame, bFinalStep);
 	}
 
@@ -546,9 +575,14 @@ public:
 	// Simulation class should have a static const FName GroupName member
 	FName GetSimulationGroupName() const final override { return Model::GroupName; }
 
+	// Unique, global, per process Id of simulation. Used for trace debugging purposes only. Not replicated.
+	uint32 GetSimulationId() const final override { return SimulationId; }
+
 private:
 	float ServerRPCAccumulatedTimeSeconds = 0.f;
 	float ServerRPCThresholdTimeSeconds = 1.f / 999.f; // Default is to send at a max of 999hz. This part of the system needs to be build out more (better handling of super high FPS clients and fixed rate servers)
+
+	uint32 SimulationId = 0;
 
 	// ------------------------------------------------------------------
 	//	Debugging

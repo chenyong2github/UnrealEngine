@@ -158,9 +158,52 @@ namespace PackageDataUtil
 {
 
 const int32 MinFilesToCache = 10;
-const uint32 DataVersion = 1;
+const uint8 DataVersion = 2;
 const uint64 MaxFileSizeBytesToCache = 200 * 1024 * 1024;
 const FGuid EntryFooter = FGuid(0x2EFC8CDD, 0x748E46C0, 0xA5485769, 0x13A3C354);
+
+/**
+ * Defines how the package data file written. The 8 LSB are reserved for FileFormatVersion which control how 24 MSB are interpreted.
+ */
+enum class EPackageDataFormat : uint8
+{
+	/** The package data (the body) is written in a single compressed block. The value 1 represents the original format. Still used to store small packages.*/
+	PackageDataCompressed = 1 << 0,
+
+	/** The package data (the body) is written uncompressed. Added at 4.25 to support large package files. */
+	PackageDataUncompressed = 1 << 1,
+};
+ENUM_CLASS_FLAGS(EPackageDataFormat)
+
+/** Write the version/format information in the first 4 bytes of the blob, enabling the reader to parse the blob. */
+void WritePackageBlobVersionInfo(FArchive& Ar, EPackageDataFormat PackageDataFormat)
+{
+	check(Ar.IsSaving() && Ar.Tell() == 0); // Expects to write the version/format info at the beginning.
+
+	// Keep the major DataVersion in the 8 LSB, encode package data format in the 24 MSB.
+	constexpr uint32 BitsPerByte = 8;
+	uint32 SerializedDataVersion = static_cast<uint32>(DataVersion) | (static_cast<uint32>(PackageDataFormat) << (sizeof(DataVersion) * BitsPerByte));
+	Ar.SerializeIntPacked(SerializedDataVersion);
+}
+
+/** Reads the first 4 bytes of the archive and detect how the package data was written in the blob. */
+EPackageDataFormat ParsePackageDataFormat(FArchive& Ar)
+{
+	check(Ar.IsLoading() && Ar.Tell() == 0); // Expected to read the version/format info at the beginning.
+
+	uint32 SerializedDataVersion = 0;
+	Ar.SerializeIntPacked(SerializedDataVersion);
+	uint8 ExtractedDataVersion = static_cast<uint8>(SerializedDataVersion & 0xFF); // DataVersion is in the 8 LSB
+	if (ExtractedDataVersion == 1)
+	{
+		// In Version 1, the package was always written compressed into a single block.
+		return EPackageDataFormat::PackageDataCompressed;
+	}
+
+	// In Version 2, the package data format was encoded after the 8 LSB used for 'DataVersion'
+	constexpr uint32 BitsPerByte = 8;
+	return static_cast<EPackageDataFormat>(SerializedDataVersion >> (sizeof(DataVersion) * BitsPerByte));
+}
 
 FString GetDataPath(const FString& InSessionPath)
 {
@@ -177,89 +220,190 @@ FString GetDataFilename(const FName InPackageName, const int64 InRevision)
 	return GetDataFilename(InPackageName.ToString(), InRevision);
 }
 
-bool WritePackage(const FConcertPackageInfo& InPackageInfo, const TArray<uint8>& InPackageData, TArray<uint8>& OutSerializedPackageData)
+/** Internally used by WritePackageBlob() - write the serialized package header. */
+void WritePackageHeader(FArchive& Ar, EPackageDataFormat PackageDataFormat)
 {
-	FMemoryWriter Ar(OutSerializedPackageData);
+	// First 4-bytes contains information about the format.
+	WritePackageBlobVersionInfo(Ar, PackageDataFormat);
 
-	// Serialize the data version
-	uint32 SerializedDataVersion = DataVersion;
-	Ar.SerializeIntPacked(SerializedDataVersion);
-
-	// Serialize the info (header)
-	int64 BodyOffsetTell = Ar.Tell();
-	int64 BodyOffset = 0;
-	Ar << BodyOffset;
-	FConcertPackageInfo::StaticStruct()->SerializeItem(Ar, const_cast<FConcertPackageInfo*>(&InPackageInfo), nullptr);
-
-	// Serialize the raw data (body)
-	BodyOffset = Ar.Tell();
-	Ar.Seek(BodyOffsetTell);
-	Ar << BodyOffset;
-	Ar.Seek(BodyOffset);
-	uint32 UncompressedPackageSize = InPackageData.Num();
-	Ar.SerializeIntPacked(UncompressedPackageSize);
-	if (UncompressedPackageSize > 0)
-	{
-		Ar.SerializeCompressed((uint8*)InPackageData.GetData(), UncompressedPackageSize, NAME_Zlib);
-	}
-
-	// Serialize the footer so we know we didn't crash mid-write
-	FGuid SerializedFooter = EntryFooter;
-	Ar << SerializedFooter;
-
-	return !Ar.IsError();
+	// PackageDataOffset is kept to allow 4.25 to read 4.24 packages. The variable-length data stored between version info and package data was never used, so it was stripped in 4.25.
+	int64 PackageDataOffsetPlaceholderPos = Ar.Tell(); // Remember at which offset the package data offset variable is going to be written.
+	int64 PackageDataOffsetPlaceholder = 0;
+	Ar << PackageDataOffsetPlaceholder; // Reserve a space in the header to store the package data offset.
+	int64 PackageDataOffset = Ar.Tell(); // Read the end position of the header.
+	Ar.Seek(PackageDataOffsetPlaceholderPos); // Rewind to update the place holder value.
+	Ar << PackageDataOffset; // Replace the place holder value with the actual value.
 }
 
-bool ReadPackage(const TArray<uint8>& InSerializedPackageData, FConcertPackageInfo* OutPackageInfo, TArray<uint8>* OutPackageData)
+/** Internally used by ExtractPackageData() - read serialized package header. */
+TTuple<EPackageDataFormat, int64> ReadPackageHeader(FArchive& Ar)
 {
-	FMemoryReader Ar(InSerializedPackageData);
+	// Consume the first bytes to read the package version and package data format.
+	EPackageDataFormat PackageDataFormat = ParsePackageDataFormat(Ar);
+	
+	// Deserialize the next 8 bytes containing the offset to the package data (for binary compatibility with 4.24)
+	int64 PackageDataOffset = 0;
+	Ar << PackageDataOffset;
+	return MakeTuple(PackageDataFormat, PackageDataOffset);
+}
 
+/** Internally used by WritePackageBlob() - write the serialized package footer. */
+void WritePackageFooter(FArchive& Ar)
+{
+	FGuid SerializedFooter = EntryFooter;
+	Ar << SerializedFooter;
+}
+
+/** Internally used by ExtractPackageData() - ensure the file was fully written. */
+bool HasValidPackageFooter(FArchive& Ar)
+{
 	// Test the footer is in place so we know we didn't crash mid-write
-	bool bParsedFooter = false;
+	const int64 SerializedPackageSize = Ar.TotalSize();
+	if (SerializedPackageSize >= sizeof(FGuid))
 	{
-		const int64 SerializedTransactionSize = Ar.TotalSize();
-		if (SerializedTransactionSize >= sizeof(FGuid))
+		FGuid SerializedFooter;
+		Ar.Seek(SerializedPackageSize - sizeof(FGuid));
+		Ar << SerializedFooter;
+		Ar.Seek(0);
+		return SerializedFooter == EntryFooter;
+	}
+	return false;
+}
+
+int64 EstimatePackageBlobMetaDataSize()
+{
+	// Roughly: VersionInfo + PackageDataOffset + Footer.
+	return sizeof(uint32) + sizeof(int64) + sizeof(FGuid);
+}
+
+/**
+ * Store the package data, possibly compressed, along with some meta data.
+ * @param PackageDataStream The source stream containing the package data.
+ * @param PackageDataFormat How the package data should be stored in the blob.
+ * @param DstAr The archive used to write the blob data.
+ */
+bool WritePackageBlob(FConcertPackageDataStream& PackageDataStream, EPackageDataFormat PackageDataFormat, FArchive& DstAr)
+{
+	check(DstAr.IsSaving() && DstAr.Tell() == 0);
+	check(PackageDataStream.DataAr == nullptr || PackageDataStream.DataAr->IsLoading()); // The package data stream may be null to write an 'empty' package.
+	check(PackageDataStream.DataAr != nullptr || (PackageDataStream.DataAr == nullptr && PackageDataStream.DataSize == 0 && PackageDataStream.DataBlob == nullptr)); // If the package data archive is null, the size must be zero.
+
+	// Write blob version and format.
+	WritePackageHeader(DstAr, PackageDataFormat);
+
+	if (PackageDataFormat == EPackageDataFormat::PackageDataCompressed)
+	{
+		// Write the package data size.
+		uint32 UncompressedPackageSize = PackageDataStream.DataSize;
+		DstAr.SerializeIntPacked(UncompressedPackageSize);
+		check(static_cast<uint64>(UncompressedPackageSize) <= TNumericLimits<TArray<uint8>::SizeType>::Max());
+
+		// Compress and write the package data.
+		if (UncompressedPackageSize > 0)
 		{
-			FGuid SerializedFooter;
-			Ar.Seek(SerializedTransactionSize - sizeof(FGuid));
-			Ar << SerializedFooter;
-			Ar.Seek(0);
-			bParsedFooter = SerializedFooter == EntryFooter;
+			if (PackageDataStream.DataBlob) // Optimization to avoid transfering from the archive to a temporary buffer.
+			{
+				DstAr.SerializeCompressed(const_cast<uint8*>(PackageDataStream.DataBlob->GetData()), UncompressedPackageSize, NAME_Zlib); // Write
+			}
+			else
+			{
+				TArray<uint8> UncompressedPackageData;
+				UncompressedPackageData.AddUninitialized(UncompressedPackageSize);
+				PackageDataStream.DataAr->Serialize(UncompressedPackageData.GetData(), UncompressedPackageSize); // Read.
+				DstAr.SerializeCompressed(const_cast<uint8*>(UncompressedPackageData.GetData()), UncompressedPackageSize, NAME_Zlib); // Write.
+			}
 		}
 	}
-	if (!bParsedFooter)
+	else
+	{
+		check(PackageDataFormat == EPackageDataFormat::PackageDataUncompressed);
+
+		// Write the package size.
+		DstAr << PackageDataStream.DataSize;
+
+		// Copy the package data in the destination.
+		if (PackageDataStream.DataSize > 0 && PackageDataStream.DataAr != nullptr)
+		{
+			ConcertUtil::Copy(DstAr, *PackageDataStream.DataAr, PackageDataStream.DataSize);
+		}
+	}
+
+	// Write a footer as proof that the operation did not crash mid-write.
+	WritePackageFooter(DstAr);
+
+	return !DstAr.IsError();
+}
+
+bool WritePackageBlob(FConcertPackageDataStream& PackageDataStream, EPackageDataFormat InPackageDataFormat, TArray<uint8>& OutPackageBlob)
+{
+	FMemoryWriter DstAr(OutPackageBlob);
+	return WritePackageBlob(PackageDataStream, InPackageDataFormat, DstAr);
+}
+
+/** Extract the package data in OutPackageData if the data is smaller than the streaming threshold, otherwise, stream the data using the streaming function.*/
+bool ExtractPackageData(FArchive& PackageBlobAr, const TFunctionRef<void(FConcertPackageDataStream&)>& PackageDataStreamFallbackFn)
+{
+	// Ensure the footer is in place so we know we didn't crash mid-write
+	if (!HasValidPackageFooter(PackageBlobAr))
 	{
 		return false;
 	}
 
-	// Deserialize the data version
-	uint32 SerializedDataVersion = 0;
-	Ar.SerializeIntPacked(SerializedDataVersion);
+	// Read the header.
+	TTuple<EPackageDataFormat, int64> Header = ReadPackageHeader(PackageBlobAr);
+	EPackageDataFormat PackageFormat = Header.Get<0>();
+	int64 PackageDataOffset = Header.Get<1>();
 
-	// Deserialize the info (header)
-	int64 BodyOffset = 0;
-	Ar << BodyOffset;
-	if (OutPackageInfo)
+	// Put the stream in position.
+	PackageBlobAr.Seek(PackageDataOffset);
+
+	// The package data is compressed (this hints the package is small enough to be loaded in memory)
+	if (PackageFormat == EPackageDataFormat::PackageDataCompressed)
 	{
-		FConcertPackageInfo::StaticStruct()->SerializeItem(Ar, OutPackageInfo, nullptr);
-	}
-
-	// Deserialize the raw data (body)
-	if (OutPackageData)
-	{
-		Ar.Seek(BodyOffset);
-
+		// Read the uncompressed package data size.
 		uint32 UncompressedPackageSize = 0;
-		Ar.SerializeIntPacked(UncompressedPackageSize);
-		OutPackageData->Reset(UncompressedPackageSize);
-		OutPackageData->AddZeroed(UncompressedPackageSize);
+		PackageBlobAr.SerializeIntPacked(UncompressedPackageSize);
+		check(static_cast<uint64>(UncompressedPackageSize) <= TNumericLimits<TArray<uint8>::SizeType>::Max()); // Prevent overflowing the variable holding the number of element in the array.
+
+		// Decompress the data (in memory).
+		TArray<uint8> DecompressedData;
 		if (UncompressedPackageSize > 0)
 		{
-			Ar.SerializeCompressed(OutPackageData->GetData(), UncompressedPackageSize, NAME_Zlib);
+			DecompressedData.AddUninitialized(UncompressedPackageSize);
+			PackageBlobAr.SerializeCompressed(DecompressedData.GetData(), UncompressedPackageSize, NAME_Zlib); // Read and decompress the data.
 		}
+
+		// Let the caller stream the package data from a memory archive.
+		FMemoryReader DataAr(DecompressedData);
+		FConcertPackageDataStream PackageDataStream{ &DataAr, UncompressedPackageSize, &DecompressedData };
+		PackageDataStreamFallbackFn(PackageDataStream);
+	}
+	else
+	{
+		check(PackageFormat == EPackageDataFormat::PackageDataUncompressed);
+
+		// Read the package size.
+		int64 PackageDataSize = 0;
+		PackageBlobAr << PackageDataSize;
+
+		// Let the caller stream the package data from the archive.
+		FConcertPackageDataStream PackageDataStream{ &PackageBlobAr, PackageDataSize, nullptr };
+		PackageDataStreamFallbackFn(PackageDataStream);
 	}
 
-	return !Ar.IsError();
+	return !PackageBlobAr.IsError();
+}
+
+bool ExtractPackageData(const TArray<uint8>& InPackageBlob, const TFunctionRef<void(FConcertPackageDataStream&)>& PackageDataStreamFallbackFn)
+{
+	FMemoryReader PackageBlobAr(InPackageBlob);
+	return ExtractPackageData(PackageBlobAr, PackageDataStreamFallbackFn);
+}
+
+bool ExtractPackageData(const FString& InPackageBlobPathname, const TFunctionRef<void(FConcertPackageDataStream&)>& PackageDataStreamFallbackFn)
+{
+	TUniquePtr<FArchive> PackageBlobAr(IFileManager::Get().CreateFileReader(*InPackageBlobPathname)); // The file containing the database package data (along with the package info and some meta data)
+	return PackageBlobAr ? ExtractPackageData(*PackageBlobAr, PackageDataStreamFallbackFn) : false;
 }
 
 } // namespace PackageDataUtil
@@ -1199,8 +1343,11 @@ private:
 /** Defined here where TUniquePtr can see the definition of FConcertFileCache and FConcertSyncSessionDatabaseStatements as the TUniquePtr constructor/destructor cannot work with a forward declared type */
 FConcertSyncSessionDatabase::FConcertSyncSessionDatabase()
 	: Database(MakeUnique<FSQLiteDatabase>())
+	, MaxPackageBlobSizeForCaching(FMath::Max(PackageDataUtil::MaxFileSizeBytesToCache / PackageDataUtil::MinFilesToCache, 16ull * 1024 * 1024)) // Prevent caching very large files.
+	, MaxPackageDataSizeForCompression(32ull * 1024 * 1024) // Bigger files will not be compressed to avoid performance hit to decompress them when requested. (Streaming compression is not supported yet, so it is done in memory only)
 {
 }
+
 FConcertSyncSessionDatabase::~FConcertSyncSessionDatabase() = default;
 
 bool FConcertSyncSessionDatabase::IsValid() const
@@ -1384,13 +1531,13 @@ bool FConcertSyncSessionDatabase::AddTransactionActivity(const FConcertSyncTrans
 		);
 }
 
-bool FConcertSyncSessionDatabase::AddPackageActivity(const FConcertSyncPackageActivity& InPackageActivity, int64& OutActivityId, int64& OutPackageEventId)
+bool FConcertSyncSessionDatabase::AddPackageActivity(const FConcertSyncActivity& InPackageActivityBasePart, const FConcertPackageInfo& PackageInfo, FConcertPackageDataStream& InPackageDataStream, int64& OutActivityId, int64& OutPackageEventId)
 {
 	FConcertSyncSessionDatabaseScopedTransaction ScopedTransaction(*Statements);
 	return ScopedTransaction.CommitOrRollback(
-		AddPackageEvent(InPackageActivity.EventData, OutPackageEventId) &&
-		Statements->AddActivityData(InPackageActivity.EndpointId, EConcertSyncActivityEventType::Package, OutPackageEventId, InPackageActivity.EventSummary, OutActivityId) &&
-		SetActivityIgnoredState(OutActivityId, InPackageActivity.bIgnored)
+		AddPackageEvent(PackageInfo, InPackageDataStream, OutPackageEventId) &&
+		Statements->AddActivityData(InPackageActivityBasePart.EndpointId, EConcertSyncActivityEventType::Package, OutPackageEventId, InPackageActivityBasePart.EventSummary, OutActivityId) &&
+		SetActivityIgnoredState(OutActivityId, InPackageActivityBasePart.bIgnored)
 		);
 }
 
@@ -1424,13 +1571,13 @@ bool FConcertSyncSessionDatabase::SetTransactionActivity(const FConcertSyncTrans
 		);
 }
 
-bool FConcertSyncSessionDatabase::SetPackageActivity(const FConcertSyncPackageActivity& InPackageActivity, const bool bMetaDataOnly)
+bool FConcertSyncSessionDatabase::SetPackageActivity(const FConcertSyncActivity& InPackageActivityBasePart, FConcertSyncPackageEventData& InPackageActivityEventPart, const bool bMetaDataOnly)
 {
 	FConcertSyncSessionDatabaseScopedTransaction ScopedTransaction(*Statements);
 	return ScopedTransaction.CommitOrRollback(
-		SetPackageEvent(InPackageActivity.EventId, InPackageActivity.EventData, bMetaDataOnly) &&
-		Statements->SetActivityData(InPackageActivity.ActivityId, InPackageActivity.EndpointId, InPackageActivity.EventTime, InPackageActivity.EventType, InPackageActivity.EventId, InPackageActivity.EventSummary) &&
-		SetActivityIgnoredState(InPackageActivity.ActivityId, InPackageActivity.bIgnored)
+		SetPackageEvent(InPackageActivityBasePart.EventId, InPackageActivityEventPart.MetaData.PackageRevision, InPackageActivityEventPart.MetaData.PackageInfo, bMetaDataOnly ? static_cast<FConcertPackageDataStream*>(nullptr) : &InPackageActivityEventPart.PackageDataStream) &&
+		Statements->SetActivityData(InPackageActivityBasePart.ActivityId, InPackageActivityBasePart.EndpointId, InPackageActivityBasePart.EventTime, InPackageActivityBasePart.EventType, InPackageActivityBasePart.EventId, InPackageActivityBasePart.EventSummary) &&
+		SetActivityIgnoredState(InPackageActivityBasePart.ActivityId, InPackageActivityBasePart.bIgnored)
 		);
 }
 
@@ -1459,10 +1606,17 @@ bool FConcertSyncSessionDatabase::GetTransactionActivity(const int64 InActivityI
 		&& GetTransactionEvent(OutTransactionActivity.EventId, OutTransactionActivity.EventData);
 }
 
-bool FConcertSyncSessionDatabase::GetPackageActivity(const int64 InActivityId, FConcertSyncPackageActivity& OutPackageActivity) const
+bool FConcertSyncSessionDatabase::GetPackageActivity(const int64 InActivityId, const TFunctionRef<void(FConcertSyncActivity&&, FConcertSyncPackageEventData&)>& PackageActivityFn) const
 {
-	return GetActivity(InActivityId, OutPackageActivity)
-		&& GetPackageEvent(OutPackageActivity.EventId, OutPackageActivity.EventData);
+	FConcertSyncActivity PackageActivityBasePart;
+
+	auto GetPackageActivityEventFn = [&PackageActivityFn, &PackageActivityBasePart](FConcertSyncPackageEventData& PackageActivityEventPart) mutable
+	{
+		PackageActivityFn(MoveTemp(PackageActivityBasePart), PackageActivityEventPart);
+	};
+
+	return GetActivity(InActivityId, PackageActivityBasePart) // Pull the base part of the package activity.
+		&& GetPackageEvent(PackageActivityBasePart.EventId, GetPackageActivityEventFn); // Pull the event part of the activity and call back (to let the caller stream the package data).
 }
 
 bool FConcertSyncSessionDatabase::GetActivityEventType(const int64 InActivityId, EConcertSyncActivityEventType& OutEventType) const
@@ -1500,10 +1654,17 @@ bool FConcertSyncSessionDatabase::GetTransactionActivityForEvent(const int64 InT
 		&& GetTransactionEvent(InTransactionEventId, OutTransactionActivity.EventData);
 }
 
-bool FConcertSyncSessionDatabase::GetPackageActivityForEvent(const int64 InPackageEventId, FConcertSyncPackageActivity& OutPackageActivity) const
+bool FConcertSyncSessionDatabase::GetPackageActivityForEvent(const int64 InPackageEventId, const TFunctionRef<void(FConcertSyncActivity&&, FConcertSyncPackageEventData&)>& PackageActivityFn) const
 {
-	return GetActivityForEvent(InPackageEventId, EConcertSyncActivityEventType::Package, OutPackageActivity)
-		&& GetPackageEvent(InPackageEventId, OutPackageActivity.EventData);
+	FConcertSyncActivity PackageActivityBasePart;
+
+	auto GetPackageActivityEventFn = [&PackageActivityFn, &PackageActivityBasePart](FConcertSyncPackageEventData& PackageActivityEventPart) mutable
+	{
+		PackageActivityFn(MoveTemp(PackageActivityBasePart), PackageActivityEventPart);
+	};
+
+	return GetActivityForEvent(InPackageEventId, EConcertSyncActivityEventType::Package, PackageActivityBasePart) // Pull the base activity part (common to all activity)
+		&& GetPackageEvent(InPackageEventId, GetPackageActivityEventFn); // Pull the package specific part and callback
 }
 
 bool FConcertSyncSessionDatabase::EnumerateActivities(TFunctionRef<bool(FConcertSyncActivity&&)> InCallback) const
@@ -1590,11 +1751,11 @@ bool FConcertSyncSessionDatabase::EnumerateTransactionActivities(TFunctionRef<bo
 	});
 }
 
-bool FConcertSyncSessionDatabase::EnumeratePackageActivities(TFunctionRef<bool(FConcertSyncPackageActivity&&)> InCallback) const
+bool FConcertSyncSessionDatabase::EnumeratePackageActivities(const TFunctionRef<bool(FConcertSyncActivity&&, FConcertSyncPackageEventData&)>& InCallback) const
 {
 	return Statements->GetAllActivityDataForEventType(EConcertSyncActivityEventType::Package, [this, &InCallback](const int64 InActivityId, const FGuid& InEndpointId, const FDateTime InEventTime, const int64 InEventId, FConcertSessionSerializedCborPayload&& InEventSummary)
 	{
-		FConcertSyncPackageActivity PackageActivity;
+		FConcertSyncActivity PackageActivity;
 		PackageActivity.ActivityId = InActivityId;
 		PackageActivity.bIgnored = Statements->IsActivityIgnored(InActivityId);
 		PackageActivity.EndpointId = InEndpointId;
@@ -1602,13 +1763,15 @@ bool FConcertSyncSessionDatabase::EnumeratePackageActivities(TFunctionRef<bool(F
 		PackageActivity.EventType = EConcertSyncActivityEventType::Package;
 		PackageActivity.EventId = InEventId;
 		PackageActivity.EventSummary = MoveTemp(InEventSummary);
-		if (GetPackageEvent(PackageActivity.EventId, PackageActivity.EventData))
+
+		ESQLitePreparedStatementExecuteRowResult Result = ESQLitePreparedStatementExecuteRowResult::Error;
+		GetPackageEvent(PackageActivity.EventId, [&InCallback, &Result, BasePart = MoveTemp(PackageActivity)](FConcertSyncPackageEventData& PackageEventPart) mutable
 		{
-			return InCallback(MoveTemp(PackageActivity))
+			Result = InCallback(MoveTemp(BasePart), PackageEventPart)
 				? ESQLitePreparedStatementExecuteRowResult::Continue
 				: ESQLitePreparedStatementExecuteRowResult::Stop;
-		}
-		return ESQLitePreparedStatementExecuteRowResult::Error;
+		});
+		return Result;
 	});
 }
 
@@ -1978,18 +2141,19 @@ bool FConcertSyncSessionDatabase::AddDummyPackageEvent(const FName InPackageName
 			{
 				// If the head package event is a dummy event with no activity associated with it, we'll re-use the head package event, otherwise we'll add a new one
 				FString FoundDataFilename;
-				FConcertSyncPackageEvent FoundPackageEvent;
-				if (Statements->GetPackageEventForId(OutPackageEventId, FoundPackageEvent.PackageRevision, FoundPackageEvent.Package.Info, FoundDataFilename))
+				FConcertPackageInfo PackageInfo;
+				int64 PackageRevision;
+				if (Statements->GetPackageEventForId(OutPackageEventId, PackageRevision, PackageInfo, FoundDataFilename))
 				{
-					if (FoundPackageEvent.Package.Info.PackageUpdateType == EConcertPackageUpdateType::Dummy)
+					if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Dummy)
 					{
 						// Does this package have associated activity? If so, we need to keep it as-is
 						FConcertSyncActivity FoundActivity;
 						if (!GetActivityForEvent(OutPackageEventId, EConcertSyncActivityEventType::Package, FoundActivity))
 						{
 							// Update this package event
-							return Statements->GetTransactionMaxEventId(FoundPackageEvent.Package.Info.TransactionEventIdAtSave)
-								&& Statements->SetPackageEvent(OutPackageEventId, PackageNameId, FoundPackageEvent.PackageRevision, FoundPackageEvent.Package.Info.TransactionEventIdAtSave, FoundPackageEvent.Package.Info, FoundDataFilename);
+							return Statements->GetTransactionMaxEventId(PackageInfo.TransactionEventIdAtSave)
+								&& Statements->SetPackageEvent(OutPackageEventId, PackageNameId, PackageRevision, PackageInfo.TransactionEventIdAtSave, PackageInfo, FoundDataFilename);
 						}
 					}
 				}
@@ -1997,18 +2161,19 @@ bool FConcertSyncSessionDatabase::AddDummyPackageEvent(const FName InPackageName
 		}
 
 		// Add a new package event
-		FConcertSyncPackageEvent DummyPackageEvent;
-		DummyPackageEvent.Package.Info.PackageName = InPackageName;
-		DummyPackageEvent.Package.Info.PackageUpdateType = EConcertPackageUpdateType::Dummy;
-		return Statements->GetTransactionMaxEventId(DummyPackageEvent.Package.Info.TransactionEventIdAtSave)
-			&& AddPackageEvent(DummyPackageEvent, OutPackageEventId);
+		FConcertPackageInfo DummyPackageInfo;
+		FConcertPackageDataStream DummyPackageDataStream;
+		DummyPackageInfo.PackageName = InPackageName;
+		DummyPackageInfo.PackageUpdateType = EConcertPackageUpdateType::Dummy;
+		return Statements->GetTransactionMaxEventId(DummyPackageInfo.TransactionEventIdAtSave)
+			&& AddPackageEvent(DummyPackageInfo, DummyPackageDataStream, OutPackageEventId);
 	};
 
 	FConcertSyncSessionDatabaseScopedTransaction ScopedTransaction(*Statements);
 	return ScopedTransaction.CommitOrRollback(AddDummyPackageEventImpl());
 }
 
-bool FConcertSyncSessionDatabase::AddPackageEvent(const FConcertSyncPackageEvent& InPackageEvent, int64& OutPackageEventId)
+bool FConcertSyncSessionDatabase::AddPackageEvent(const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream, int64& OutPackageEventId)
 {
 	// Get the next package ID
 	if (!GetPackageMaxEventId(OutPackageEventId) || OutPackageEventId == MAX_int64)
@@ -2019,84 +2184,81 @@ bool FConcertSyncSessionDatabase::AddPackageEvent(const FConcertSyncPackageEvent
 
 	// Get the next package revision
 	int64 PackageRevision = 0;
-	if (!GetPackageHeadRevision(InPackageEvent.Package.Info.PackageName, PackageRevision) || PackageRevision == MAX_int64)
+	if (!GetPackageHeadRevision(InPackageInfo.PackageName, PackageRevision) || PackageRevision == MAX_int64)
 	{
 		return false;
 	}
 	++PackageRevision;
 
-	return SetPackageEvent(OutPackageEventId, PackageRevision, InPackageEvent.Package);
+	return SetPackageEvent(OutPackageEventId, PackageRevision, InPackageInfo, &InPackageDataStream);
 }
 
-bool FConcertSyncSessionDatabase::UpdatePackageEvent(const int64 InPackageEventId, const FConcertSyncPackageEvent& InPackageEvent)
+bool FConcertSyncSessionDatabase::UpdatePackageEvent(const int64 InPackageEventId, FConcertSyncPackageEventData& PackageEventSrc)
 {
 	int64 MaxPackageEventId;
 	if (GetPackageMaxEventId(MaxPackageEventId) && InPackageEventId <= MaxPackageEventId) // Ensure the package ID is in bound.
 	{
 		FConcertSyncSessionDatabaseScopedTransaction ScopedTransaction(*Statements);
 		return ScopedTransaction.CommitOrRollback(
-			SetPackageEvent(InPackageEventId, InPackageEvent)
+			SetPackageEvent(InPackageEventId, PackageEventSrc.MetaData.PackageRevision, PackageEventSrc.MetaData.PackageInfo, &PackageEventSrc.PackageDataStream)
 		);
 	}
 
 	return false;
 }
 
-bool FConcertSyncSessionDatabase::SetPackageEvent(const int64 InPackageEventId, const FConcertSyncPackageEvent& InPackageEvent, const bool bMetaDataOnly)
-{
-	return SetPackageEvent(InPackageEventId, InPackageEvent.PackageRevision, InPackageEvent.Package, bMetaDataOnly);
-}
-
-bool FConcertSyncSessionDatabase::SetPackageEvent(const int64 InPackageEventId, const int64 InPackageRevision, const FConcertPackage& InPackage, const bool bMetaDataOnly)
+bool FConcertSyncSessionDatabase::SetPackageEvent(const int64 InPackageEventId, int64 InPackageRevision, const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream* InPackageDataStream)
 {
 	if (!ensureAlwaysMsgf(InPackageRevision > 0, TEXT("Invalid package revision! Must be greater than zero.")))
 	{
 		return false;
 	}
-	if (!ensureAlwaysMsgf(!InPackage.Info.PackageName.IsNone(), TEXT("Invalid package name! Must be set.")))
+	if (!ensureAlwaysMsgf(!InPackageInfo.PackageName.IsNone(), TEXT("Invalid package name! Must be set.")))
 	{
 		return false;
 	}
 
 	// Ensure an entry for this package name
 	int64 PackageNameId = 0;
-	if (!EnsurePackageNameId(InPackage.Info.PackageName, PackageNameId))
+	if (!EnsurePackageNameId(InPackageInfo.PackageName, PackageNameId))
 	{
 		return false;
 	}
 
 	// Write the data blob file
-	const FString PackageDataFilename = PackageDataUtil::GetDataFilename(InPackage.Info.PackageName, InPackageRevision);
+	const FString PackageDataFilename = PackageDataUtil::GetDataFilename(InPackageInfo.PackageName, InPackageRevision);
 
-	if (!bMetaDataOnly)
+	if (InPackageDataStream) // If !MetaDataOnly
 	{
-		const FString PackageDataPathname = PackageDataUtil::GetDataPath(SessionPath) / PackageDataFilename;
-		if (!SavePackage(PackageDataPathname, InPackage.Info, InPackage.PackageData))
+		const FString DstPackagBlobPathname = PackageDataUtil::GetDataPath(SessionPath) / PackageDataFilename;
+		if (!SavePackage(DstPackagBlobPathname, InPackageInfo, *InPackageDataStream))
 		{
 			return false;
 		}
 	}
 
 	// Add the database entry
-	return Statements->SetPackageEvent(InPackageEventId, PackageNameId, InPackageRevision, InPackage.Info.TransactionEventIdAtSave, InPackage.Info, PackageDataFilename);
+	return Statements->SetPackageEvent(InPackageEventId, PackageNameId, InPackageRevision, InPackageInfo.TransactionEventIdAtSave, InPackageInfo, PackageDataFilename);
 }
 
-bool FConcertSyncSessionDatabase::GetPackageEvent(const int64 InPackageEventId, FConcertSyncPackageEvent& OutPackageEvent, const bool InMetaDataOnly) const
+bool FConcertSyncSessionDatabase::GetPackageEventMetaData(const int64 InPackageEventId, int64& OuptPackageRevision, FConcertPackageInfo& OutPackageInfo) const
+{
+	FString UnusedDataFilename;
+	return Statements->GetPackageEventForId(InPackageEventId, OuptPackageRevision, OutPackageInfo, UnusedDataFilename);
+}
+
+bool FConcertSyncSessionDatabase::GetPackageEvent(const int64 InPackageEventId, const TFunctionRef<void(FConcertSyncPackageEventData&)>& PackageEventFn) const
 {
 	FString DataFilename;
-	if (Statements->GetPackageEventForId(InPackageEventId, OutPackageEvent.PackageRevision, OutPackageEvent.Package.Info, DataFilename))
+	FConcertSyncPackageEventData PackageEventSrc;
+	if (Statements->GetPackageEventForId(InPackageEventId, PackageEventSrc.MetaData.PackageRevision, PackageEventSrc.MetaData.PackageInfo, DataFilename))
 	{
-		if (InMetaDataOnly)
-		{
-			OutPackageEvent.Package.PackageData.Reset();
-			return true;
-		}
-
 		const FString PackageDataPathname = PackageDataUtil::GetDataPath(SessionPath) / DataFilename;
-		if (LoadPackage(PackageDataPathname, nullptr, &OutPackageEvent.Package.PackageData))
+		return LoadPackage(PackageDataPathname, [&PackageEventSrc, &PackageEventFn](FConcertPackageDataStream& InPackageDataStream)
 		{
-			return true;
-		}
+			PackageEventSrc.PackageDataStream = InPackageDataStream;
+			PackageEventFn(PackageEventSrc);
+		});
 	}
 
 	return false;
@@ -2152,23 +2314,22 @@ bool FConcertSyncSessionDatabase::EnumeratePackageNamesWithHeadRevision(TFunctio
 	});
 }
 
-bool FConcertSyncSessionDatabase::EnumerateHeadRevisionPackageData(TFunctionRef<bool(FConcertPackage&&)> InCallback, const bool InMetaDataOnly) const
+bool FConcertSyncSessionDatabase::EnumerateHeadRevisionPackageData(TFunctionRef<bool(const FConcertPackageInfo&, FConcertPackageDataStream&)> InCallback) const
 {
-	return Statements->GetUniquePackageNameIdsForPackageEvents([this, &InCallback, InMetaDataOnly](int64 InPackageNameId)
+	return Statements->GetUniquePackageNameIdsForPackageEvents([this, &InCallback](int64 InPackageNameId)
 	{
 		int64 PackageHeadRevision = 0;
 		if (Statements->GetPackageHeadRevision(InPackageNameId, PackageHeadRevision))
 		{
 			FString DataFilename;
-			FConcertPackage Package;
-			if (Statements->GetPackageDataForRevision(InPackageNameId, PackageHeadRevision, Package.Info, DataFilename))
+			FConcertPackageInfo PackageInfo;
+			if (Statements->GetPackageDataForRevision(InPackageNameId, PackageHeadRevision, PackageInfo, DataFilename))
 			{
-				const FString PackageDataPathname = PackageDataUtil::GetDataPath(SessionPath) / DataFilename;
-				if (InMetaDataOnly || LoadPackage(PackageDataPathname, nullptr, &Package.PackageData))
+				bool bContinue = true;
+				const FString PackageBlobPathname = PackageDataUtil::GetDataPath(SessionPath) / DataFilename;
+				if (LoadPackage(PackageBlobPathname, [&bContinue, &InCallback, &PackageInfo](FConcertPackageDataStream& InPackageDataStream){ bContinue = InCallback(PackageInfo, InPackageDataStream); }))
 				{
-					return InCallback(MoveTemp(Package))
-						? ESQLitePreparedStatementExecuteRowResult::Continue
-						: ESQLitePreparedStatementExecuteRowResult::Stop;
+					return bContinue ? ESQLitePreparedStatementExecuteRowResult::Continue : ESQLitePreparedStatementExecuteRowResult::Stop;
 				}
 			}
 		}
@@ -2193,12 +2354,7 @@ bool FConcertSyncSessionDatabase::AddPersistEventForHeadRevision(FName InPackage
 	return false;
 }
 
-bool FConcertSyncSessionDatabase::GetPackageDataForRevision(const FName InPackageName, FConcertPackage& OutPackage, const int64* InPackageRevision) const
-{
-	return GetPackageDataForRevision(InPackageName, OutPackage.Info, &OutPackage.PackageData, InPackageRevision);
-}
-
-bool FConcertSyncSessionDatabase::GetPackageDataForRevision(const FName InPackageName, FConcertPackageInfo& OutPackageInfo, TArray<uint8>* OutPackageData, const int64* InPackageRevision) const
+bool FConcertSyncSessionDatabase::GetPackageInfoForRevision(const FName InPackageName, FConcertPackageInfo& OutPackageInfo, const int64* InPackageRevision) const
 {
 	int64 PackageRevision = 0;
 	if (InPackageRevision)
@@ -2221,18 +2377,40 @@ bool FConcertSyncSessionDatabase::GetPackageDataForRevision(const FName InPackag
 	}
 
 	FString DataFilename;
-	if (Statements->GetPackageDataForRevision(PackageNameId, PackageRevision, OutPackageInfo, DataFilename))
-	{
-		if (!OutPackageData)
-		{
-			return true;
-		}
+	return Statements->GetPackageDataForRevision(PackageNameId, PackageRevision, OutPackageInfo, DataFilename);
+}
 
+bool FConcertSyncSessionDatabase::GetPackageDataForRevision(const FName InPackageName, const TFunctionRef<void(const FConcertPackageInfo&, FConcertPackageDataStream&)>& InPackageDataCallback, const int64* InPackageRevision) const
+{
+	int64 PackageRevision = 0;
+	if (InPackageRevision)
+	{
+		PackageRevision = *InPackageRevision;
+	}
+	else if (!GetPackageHeadRevision(InPackageName, PackageRevision))
+	{
+		return false;
+	}
+	if (PackageRevision == 0)
+	{
+		return false;
+	}
+
+	int64 PackageNameId = 0;
+	if (!GetPackageNameId(InPackageName, PackageNameId))
+	{
+		return false;
+	}
+
+	FConcertPackageInfo PackageInfo;
+	FString DataFilename;
+	if (Statements->GetPackageDataForRevision(PackageNameId, PackageRevision, PackageInfo, DataFilename))
+	{
 		const FString PackageDataPathname = PackageDataUtil::GetDataPath(SessionPath) / DataFilename;
-		if (LoadPackage(PackageDataPathname, nullptr, OutPackageData))
+		return LoadPackage(PackageDataPathname, [&PackageInfo, &InPackageDataCallback](FConcertPackageDataStream& InPackageDataStream)
 		{
-			return true;
-		}
+			InPackageDataCallback(PackageInfo, InPackageDataStream);
+		});
 	}
 
 	return false;
@@ -2351,16 +2529,74 @@ bool FConcertSyncSessionDatabase::LoadTransaction(const FString& InTransactionFi
 	return false;
 }
 
-bool FConcertSyncSessionDatabase::SavePackage(const FString& InPackageFilename, const FConcertPackageInfo& InPackageInfo, const TArray<uint8>& InPackageData) const
+bool FConcertSyncSessionDatabase::SavePackage(const FString& InDstPackageBlobPathname, const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream) const
 {
-	TArray<uint8> SerializedPackageData;
-	return PackageDataUtil::WritePackage(InPackageInfo, InPackageData, SerializedPackageData) && PackageFileCache->SaveAndCacheFile(InPackageFilename, MoveTemp(SerializedPackageData));
+	// Decide if the package data should be stored compressed.
+	PackageDataUtil::EPackageDataFormat PackageDataFormat = ShouldCompressPackageData(InPackageDataStream.DataSize) ? PackageDataUtil::EPackageDataFormat::PackageDataCompressed : PackageDataUtil::EPackageDataFormat::PackageDataUncompressed;
+	if (PackageDataFormat == PackageDataUtil::EPackageDataFormat::PackageDataCompressed)
+	{
+		TArray<uint8> PackageBlob;
+		if (PackageDataUtil::WritePackageBlob(InPackageDataStream, PackageDataFormat, PackageBlob))
+		{
+			if (ShouldCachePackageBlob(PackageBlob.Num()))
+			{
+				return PackageFileCache->SaveAndCacheFile(InDstPackageBlobPathname, MoveTemp(PackageBlob));
+			}
+
+			TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
+			if (DstAr)
+			{
+				DstAr->Serialize(PackageBlob.GetData(), PackageBlob.Num());
+				return DstAr->IsError();
+			}
+		}
+	}
+	else
+	{
+		check(PackageDataFormat == PackageDataUtil::EPackageDataFormat::PackageDataUncompressed);
+
+		int64 EstimatedPackageBlobSize = InPackageDataStream.DataSize + PackageDataUtil::EstimatePackageBlobMetaDataSize();
+		if (ShouldCachePackageBlob(EstimatedPackageBlobSize))
+		{
+			TArray<uint8> PackageBlob;
+			return PackageDataUtil::WritePackageBlob(InPackageDataStream, PackageDataFormat, PackageBlob) && PackageFileCache->SaveAndCacheFile(InDstPackageBlobPathname, MoveTemp(PackageBlob));
+		}
+		else
+		{
+			TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
+			return DstAr && PackageDataUtil::WritePackageBlob(InPackageDataStream, PackageDataFormat, *DstAr);
+		}
+	}
+
+	return false;
 }
 
-bool FConcertSyncSessionDatabase::LoadPackage(const FString& InPackageFilename, FConcertPackageInfo* OutPackageInfo, TArray<uint8>* OutPackageData) const
+bool FConcertSyncSessionDatabase::LoadPackage(const FString& InPackageBlobFilename, const TFunctionRef<void(FConcertPackageDataStream&)>& PackageDataStreamFn) const
 {
-	TArray<uint8> SerializedPackageData;
-	return PackageFileCache->FindOrCacheFile(InPackageFilename, SerializedPackageData) && PackageDataUtil::ReadPackage(SerializedPackageData, OutPackageInfo, OutPackageData);
+	int64 PackageBlobSize = IFileManager::Get().FileSize(*InPackageBlobFilename);
+	if (PackageBlobSize < 0) // Possible if the file doesn't exist.
+	{
+		UE_LOG(LogConcert, Warning, TEXT("Failed to read the size of database file '%s'."), *InPackageBlobFilename);
+		return false;
+	}
+
+	if (ShouldCachePackageBlob(static_cast<uint64>(PackageBlobSize))) // Try the cache if the blob is small enough to be found or stored.
+	{
+		TArray<uint8> PackageBlob;
+		return PackageFileCache->FindOrCacheFile(InPackageBlobFilename, PackageBlob) && PackageDataUtil::ExtractPackageData(PackageBlob, PackageDataStreamFn);
+	}
+
+	return PackageDataUtil::ExtractPackageData(InPackageBlobFilename, PackageDataStreamFn);
+}
+
+bool FConcertSyncSessionDatabase::ShouldCachePackageBlob(uint64 PackageBlobSize) const
+{
+	return PackageBlobSize <= MaxPackageBlobSizeForCaching;
+}
+
+bool FConcertSyncSessionDatabase::ShouldCompressPackageData(uint64 PackageDataSize) const
+{
+	return PackageDataSize <= MaxPackageDataSizeForCompression;
 }
 
 bool ConcertSyncSessionDatabaseFilterUtil::TransactionEventPassesFilter(const int64 InTransactionEventId, const FConcertSessionFilter& InSessionFilter, const FConcertSyncSessionDatabase& InDatabase)

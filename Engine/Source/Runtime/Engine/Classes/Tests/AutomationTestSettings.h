@@ -374,6 +374,12 @@ public:
 	TArray<FSoftObjectPath> AssetsToOpen;
 
 	/**
+	 * Maps to PIE during the PIE test
+	 */
+	UPROPERTY(EditAnywhere, config, Category = "PIE Test Maps")
+	TArray<FString> MapsToPIETest;
+
+	/**
 	* Editor build promotion test settings
 	*/
 	UPROPERTY(EditAnywhere, config, Category = Automation)

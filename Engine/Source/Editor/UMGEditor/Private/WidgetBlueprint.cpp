@@ -203,11 +203,7 @@ FFieldVariant FEditorPropertyPathSegment::GetMember() const
 	FName FieldName = GetMemberName();
 	if ( FieldName != NAME_None )
 	{
-		FFieldVariant Field = FindField<UField>(Struct, FieldName);
-		if (!Field.IsValid())
-		{
-			Field = FindField<FField>(Struct, FieldName);
-		}
+		FFieldVariant Field = FindUFieldOrFProperty(Struct, FieldName);
 		//if ( Field == nullptr )
 		//{
 		//	if ( UClass* Class = Cast<UClass>(Struct) )
@@ -216,7 +212,7 @@ FFieldVariant FEditorPropertyPathSegment::GetMember() const
 		//		{
 		//			if ( UClass* SkeletonClass = Blueprint->SkeletonGeneratedClass )
 		//			{
-		//				Field = FindField<UField>(SkeletonClass, FieldName);
+		//				Field = FindUField<UField>(SkeletonClass, FieldName);
 		//			}
 		//		}
 		//	}
@@ -414,7 +410,7 @@ bool FDelegateEditorBinding::IsAttributePropertyBinding(UWidgetBlueprint* Bluepr
 	{
 		// Next find the underlying delegate we're actually binding to, if it's an event the name will be the same,
 		// for properties we need to lookup the delegate property we're actually going to be binding to.
-		FDelegateProperty* BindableProperty = FindField<FDelegateProperty>(TargetWidget->GetClass(), FName(*(PropertyName.ToString() + TEXT("Delegate"))));
+		FDelegateProperty* BindableProperty = FindFProperty<FDelegateProperty>(TargetWidget->GetClass(), FName(*(PropertyName.ToString() + TEXT("Delegate"))));
 		return BindableProperty != nullptr;
 	}
 
@@ -441,8 +437,8 @@ bool FDelegateEditorBinding::IsBindingValid(UClass* BlueprintGeneratedClass, UWi
 	{
 		// Next find the underlying delegate we're actually binding to, if it's an event the name will be the same,
 		// for properties we need to lookup the delegate property we're actually going to be binding to.
-		FDelegateProperty* BindableProperty = FindField<FDelegateProperty>(TargetWidget->GetClass(), FName(*( PropertyName.ToString() + TEXT("Delegate") )));
-		FDelegateProperty* EventProperty = FindField<FDelegateProperty>(TargetWidget->GetClass(), PropertyName);
+		FDelegateProperty* BindableProperty = FindFProperty<FDelegateProperty>(TargetWidget->GetClass(), FName(*( PropertyName.ToString() + TEXT("Delegate") )));
+		FDelegateProperty* EventProperty = FindFProperty<FDelegateProperty>(TargetWidget->GetClass(), PropertyName);
 
 		bool bNeedsToBePure = BindableProperty ? true : false;
 		FDelegateProperty* DelegateProperty = BindableProperty ? BindableProperty : EventProperty;

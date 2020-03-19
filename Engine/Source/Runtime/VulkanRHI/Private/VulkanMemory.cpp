@@ -58,6 +58,26 @@ constexpr int32 GForceCoherent = 0;
 
 namespace VulkanRHI
 {
+	struct FVulkanMemoryAllocation
+	{
+		const TCHAR* Name;
+		FName ResourceName;
+		void* Address;
+		void* RHIResouce;
+		uint32 Size;
+		uint32 Width;
+		uint32 Height;
+		uint32 Depth;
+		uint32 BytesPerPixel;
+	};
+
+	struct FVulkanMemoryBucket
+	{
+		TArray<FVulkanMemoryAllocation> Allocations;
+	};
+
+
+
 	enum
 	{
 		GPU_ONLY_HEAP_PAGE_SIZE = 256 * 1024 * 1024,
@@ -403,19 +423,24 @@ namespace VulkanRHI
 	void FDeviceMemoryManager::DumpMemory()
 	{
 		SetupAndPrintMemInfo();
-		UE_LOG(LogVulkanRHI, Display, TEXT("Device Memory: %d allocations on %d heaps"), NumAllocations, HeapInfos.Num());
+#if 1 //in case of debugging, it is useful to be able to log directly to LowLevelPrintf, as this is easier to diff. Please do not delete this code.
+#define VULKAN_LOGMEMORY(fmt, ...) UE_LOG(LogVulkanRHI, Display, fmt, ##__VA_ARGS__)
+#else 
+#define VULKAN_LOGMEMORY(fmt, ...) FPlatformMisc::LowLevelOutputDebugStringf(fmt TEXT("\n"), ##__VA_ARGS__)
+#endif
+		VULKAN_LOGMEMORY(TEXT("Device Memory: %d allocations on %d heaps"), NumAllocations, HeapInfos.Num());
 		for (int32 Index = 0; Index < HeapInfos.Num(); ++Index)
 		{
 			FHeapInfo& HeapInfo = HeapInfos[Index];
-			UE_LOG(LogVulkanRHI, Display, TEXT("\tHeap %d, %d allocations"), Index, HeapInfo.Allocations.Num());
+			VULKAN_LOGMEMORY(TEXT("\tHeap %d, %d allocations"), Index, HeapInfo.Allocations.Num());
 			uint64 TotalSize = 0;
 
 			if (HeapInfo.Allocations.Num() > 0)
 			{
 #if VULKAN_MEMORY_TRACK_FILE_LINE
-				UE_LOG(LogVulkanRHI, Display, TEXT("\t\tAlloc AllocSize(MB) TotalSize(MB)    Handle  UID  File(Line)"));
+				VULKAN_LOGMEMORY(TEXT("\t\tAlloc AllocSize(MB) TotalSize(MB)    Handle  UID  File(Line)"));
 #else
-				UE_LOG(LogVulkanRHI, Display, TEXT("\t\tAlloc AllocSize(MB) TotalSize(MB)    Handle"));
+				VULKAN_LOGMEMORY(TEXT("\t\tAlloc AllocSize(MB) TotalSize(MB)    Handle"));
 #endif
 			}
 
@@ -423,14 +448,66 @@ namespace VulkanRHI
 			{
 				FDeviceMemoryAllocation* Allocation = HeapInfo.Allocations[SubIndex];
 #if VULKAN_MEMORY_TRACK_FILE_LINE
-				UE_LOG(LogVulkanRHI, Display, TEXT("\t\t%5d %13.3f %13.3f %p %4d %s(%d)"), SubIndex, Allocation->Size / 1024.f / 1024.f, TotalSize / 1024.0f / 1024.0f, (void*)Allocation->Handle, Allocation->UID, ANSI_TO_TCHAR(Allocation->File), Allocation->Line);
+				VULKAN_LOGMEMORY(TEXT("\t\t%5d %13.3f %13.3f %p %4d %s(%d)"), SubIndex, Allocation->Size / 1024.f / 1024.f, TotalSize / 1024.0f / 1024.0f, (void*)Allocation->Handle, Allocation->UID, ANSI_TO_TCHAR(Allocation->File), Allocation->Line);
 #else
-				UE_LOG(LogVulkanRHI, Display, TEXT("\t\t%5d %13.3f %13.3f %p"), SubIndex, Allocation->Size / 1024.f / 1024.f, TotalSize / 1024.0f / 1024.0f, (void*)Allocation->Handle);
+				VULKAN_LOGMEMORY(TEXT("\t\t%5d %13.3f %13.3f %p"), SubIndex, Allocation->Size / 1024.f / 1024.f, TotalSize / 1024.0f / 1024.0f, (void*)Allocation->Handle);
 #endif
 				TotalSize += Allocation->Size;
 			}
-			UE_LOG(LogVulkanRHI, Display, TEXT("\t\tTotal Allocated %.2f MB, Peak %.2f MB"), TotalSize / 1024.0f / 1024.0f, HeapInfo.PeakSize / 1024.0f / 1024.0f);
+			VULKAN_LOGMEMORY(TEXT("\t\tTotal Allocated %.2f MB, Peak %.2f MB"), TotalSize / 1024.0f / 1024.0f, HeapInfo.PeakSize / 1024.0f / 1024.0f);
 		}
+#if VULKAN_OBJECT_TRACKING
+		{
+
+			TSortedMap<uint32, FVulkanMemoryBucket> AllocationBuckets;
+			auto Collector = [&](const TCHAR* Name, FName ResourceName, void* Address, void* RHIRes, uint32 Width, uint32 Height, uint32 Depth, uint32 Format)
+			{
+				uint32 BytesPerPixel = (Format != VK_FORMAT_UNDEFINED ? GetNumBitsPerPixel((VkFormat)Format) : 8) / 8;
+				uint32 Size = FPlatformMath::Max(Width,1u) * FPlatformMath::Max(Height,1u) * FPlatformMath::Max(Depth, 1u) * BytesPerPixel;
+				uint32 Bucket = Size;
+				if(Bucket >= (1<<20))
+				{
+					Bucket = (Bucket + ((1 << 20) - 1)) & ~((1 << 20)-1);
+				}
+				else
+				{
+					Bucket = (Bucket + ((1 << 10) - 1)) & ~((1 << 10)-1);
+				}
+				FVulkanMemoryAllocation Allocation = 
+				{
+					Name, ResourceName, Address, RHIRes, Size, Width, Height, Depth, BytesPerPixel
+				};
+				FVulkanMemoryBucket& ActualBucket = AllocationBuckets.FindOrAdd(Bucket);
+				ActualBucket.Allocations.Add(Allocation);
+			};
+
+
+			TVulkanTrackBase<FVulkanTextureBase>::CollectAll(Collector);
+			TVulkanTrackBase<FVulkanResourceMultiBuffer>::CollectAll(Collector);
+			for(auto& Itr : AllocationBuckets)
+			{
+				VULKAN_LOGMEMORY(TEXT("***** BUCKET < %d kb *****"), Itr.Key/1024);
+				FVulkanMemoryBucket& B = Itr.Value;
+				uint32 Size = 0;
+				for (FVulkanMemoryAllocation& A : B.Allocations)
+				{
+					Size += A.Size;
+				}
+				VULKAN_LOGMEMORY(TEXT("\t\t%d / %d kb"), B.Allocations.Num(), Size / 1024);
+
+
+				B.Allocations.Sort([](const FVulkanMemoryAllocation& L, const FVulkanMemoryAllocation& R)
+				{
+					return L.Address < R.Address;
+				}
+				);
+				for(FVulkanMemoryAllocation& A : B.Allocations)
+				{
+					VULKAN_LOGMEMORY(TEXT("\t\t%p/%p %6.2fkb (%d) %5d/%5d/%5d %s ::: %s"), A.Address, A.RHIResouce, A.Size / 1024.f, A.Size, A.Width, A.Height, A.Depth, A.Name, *A.ResourceName.ToString());
+				}
+			}
+		}
+#endif
 		Device->GetResourceHeapManager().DumpMemory();
 		GLog->PanicFlushThreadedLogs();
 	}

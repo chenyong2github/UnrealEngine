@@ -4,6 +4,7 @@
 
 #include "NiagaraTypes.h"
 #include "UObject/GCObject.h"
+#include "UObject/SoftObjectPtr.h"
 #include "NiagaraClipboard.generated.h"
 
 class UNiagaraDataInterface;
@@ -67,6 +68,8 @@ public:
 
 	UPROPERTY()
 	UNiagaraClipboardFunction* Dynamic;
+
+	bool CopyValuesFrom(const UNiagaraClipboardFunctionInput* InOther);
 };
 
 UENUM()
@@ -90,10 +93,13 @@ public:
 	FString FunctionName;
 
 	UPROPERTY()
+	FText DisplayName;
+
+	UPROPERTY()
 	ENiagaraClipboardFunctionScriptMode ScriptMode;
 
 	UPROPERTY()
-	UNiagaraScript* Script;
+	TSoftObjectPtr<UNiagaraScript> Script;
 
 	UPROPERTY()
 	TArray<FNiagaraVariable> AssignmentTargets;
@@ -134,4 +140,44 @@ public:
 	void SetClipboardContent(UNiagaraClipboardContent* ClipboardContent);
 
 	const UNiagaraClipboardContent* GetClipboardContent() const;
+};
+
+UCLASS()
+class UNiagaraClipboardEditorScriptingUtilities : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static void TryGetInputByName(const TArray<UNiagaraClipboardFunctionInput*>& InInputs, FName InInputName, bool& bOutSucceeded, UNiagaraClipboardFunctionInput*& OutInput);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static void TryGetLocalValueAsFloat(const UNiagaraClipboardFunctionInput* InInput, bool& bOutSucceeded, float& OutValue);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static void TryGetLocalValueAsInt(const UNiagaraClipboardFunctionInput* InInput, bool& bOutSucceeded, int32& OutValue);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static void TrySetLocalValueAsInt(UNiagaraClipboardFunctionInput* InInput, bool& bOutSucceeded, int32 InValue, bool bLooseTyping = true);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static FName GetTypeName(const UNiagaraClipboardFunctionInput* InInput);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static UNiagaraClipboardFunctionInput* CreateFloatLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, float InLocalValue);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static UNiagaraClipboardFunctionInput* CreateIntLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, int32 InLocalValue);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static UNiagaraClipboardFunctionInput* CreateLinkedValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, FName InLinkedValue);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static UNiagaraClipboardFunctionInput* CreateDataValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, UNiagaraDataInterface* InDataValue);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static UNiagaraClipboardFunctionInput* CreateExpressionValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, const FString& InExpressionValue);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	static UNiagaraClipboardFunctionInput* CreateDynamicValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, FString InDynamicValueName, UNiagaraScript* InDynamicValue);
 };

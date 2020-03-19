@@ -87,7 +87,7 @@ public:
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("DataprepEmptyActionLabel", "+ Add Action"))
-					.TextStyle( &FDataprepEditorStyle::GetWidgetStyle<FTextBlockStyle>( "DataprepAction.TitleTextBlockStyle" ) )
+					.TextStyle( &FDataprepEditorStyle::GetWidgetStyle<FTextBlockStyle>( "DataprepAction.TitleTextStyle" ) )
 					.ColorAndOpacity(FDataprepEditorStyle::GetColor("DataprepAction.EmptyStep.Text.Hovered"))
 					.Justification(ETextJustify::Center)
 				]
@@ -473,23 +473,38 @@ FReply SDataprepGraphTrackNode::OnDrop(const FGeometry& MyGeometry, const FDragD
 	return SGraphNode::OnDrop(MyGeometry, DragDropEvent);
 }
 
-FReply SDataprepGraphTrackNode::OnDragOver(const FGeometry & MyGeometry, const FDragDropEvent & DragDropEvent)
+FReply SDataprepGraphTrackNode::OnDragOver(const FGeometry & MyGeometry, const FDragDropEvent& DragDropEvent)
 {
 	TSharedPtr<FDataprepDragDropOp> DragActionNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 	if(DragActionNodeOp.IsValid())
 	{
-		DragActionNodeOp->SetHoveredNode(GraphNode);
-		TrackWidgetPtr->UpdateDragIndicator(DragDropEvent.GetScreenSpacePosition());
+		// It looks like there is a bug in the handling of DnD, OnDragOver is still called after leaving the track.
+		// This seems to be related to the header of the graph panel. The event is going through
+		// Quick fix: Detect onDragOver is called while cursor is not on top of track and manually leave.
+		// #ueent_todo: Fix this at the root.
+		if(!GetTickSpaceGeometry().IsUnderLocation(DragDropEvent.GetScreenSpacePosition()))
+		{
+			if(TrackWidgetPtr->DragIndicatorIndex != INDEX_NONE)
+			{
+				OnDragLeave(DragDropEvent);
+			}
+		}
+		else
+		{
+			DragActionNodeOp->SetHoveredNode(GraphNode);
+			TrackWidgetPtr->UpdateDragIndicator(DragDropEvent.GetScreenSpacePosition());
+		}
 	}
 
 	return SGraphNode::OnDragOver(MyGeometry, DragDropEvent);
 }
 
-void SDataprepGraphTrackNode::OnDragLeave(const FDragDropEvent & DragDropEvent)
+void SDataprepGraphTrackNode::OnDragLeave(const FDragDropEvent& DragDropEvent)
 {
 	TSharedPtr<FDataprepDragDropOp> DragActionNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 	if(DragActionNodeOp.IsValid())
 	{
+		DragActionNodeOp->SetHoveredNode(nullptr);
 		TrackWidgetPtr->ResetDragIndicator();
 		TrackWidgetPtr->RefreshLayout();
 	}
@@ -518,34 +533,37 @@ FSlateRect SDataprepGraphTrackNode::Update()
 
 	if(SDataprepGraphTrackWidget* TrackWidget = TrackWidgetPtr.Get())
 	{
-		RefreshLayout();
-
-		SGraphPanel& GraphPanel = *OwnerGraphPanelPtr.Pin();
-
 		const FVector2D& WorkingSize = TrackWidget->WorkingSize;
-
-		// Determine canvas offset attribute in track widget's coordinates
-		const FVector2D PanelSize = GraphPanel.GetTickSpaceGeometry().GetLocalSize() / GraphPanel.GetZoomAmount();
-
 		const FVector2D TrackPosition = GetPosition().GetAbs();
-		const FVector2D TargetSize = FVector2D(FMath::Max(WorkingSize.X, PanelSize.X), FMath::Max(WorkingSize.Y, PanelSize.Y)) + TrackPosition + 20.f;
 
-		FMargin& CanvasOffset = TrackWidgetPtr->CanvasOffset;
-
-		CanvasOffset.Left = -TrackPosition.X - 10.f;
-		CanvasOffset.Top = -TrackPosition.Y - 10.f;
-
-		if(TargetSize.X > CanvasOffset.Right)
+		if(TrackWidget->DragIndicatorIndex == INDEX_NONE && !bNodeDragging)
 		{
-			CanvasOffset.Right = TargetSize.X;
-		}
+			RefreshLayout();
 
-		if(TargetSize.Y > CanvasOffset.Bottom)
-		{
-			CanvasOffset.Bottom = TargetSize.Y;
-		}
+			SGraphPanel& GraphPanel = *OwnerGraphPanelPtr.Pin();
 
-		TrackWidgetPtr->CanvasSlot->OffsetAttr.Set(CanvasOffset);
+			// Determine canvas offset attribute in track widget's coordinates
+			const FVector2D PanelSize = GraphPanel.GetTickSpaceGeometry().GetLocalSize() / GraphPanel.GetZoomAmount();
+
+			const FVector2D TargetSize = FVector2D(FMath::Max(WorkingSize.X, PanelSize.X), FMath::Max(WorkingSize.Y, PanelSize.Y)) + TrackPosition + 20.f;
+
+			FMargin& CanvasOffset = TrackWidgetPtr->CanvasOffset;
+
+			CanvasOffset.Left = -TrackPosition.X - 10.f;
+			CanvasOffset.Top = -TrackPosition.Y - 10.f;
+
+			if(TargetSize.X > CanvasOffset.Right)
+			{
+				CanvasOffset.Right = TargetSize.X;
+			}
+
+			if(TargetSize.Y > CanvasOffset.Bottom)
+			{
+				CanvasOffset.Bottom = TargetSize.Y;
+			}
+
+			TrackWidgetPtr->CanvasSlot->OffsetAttr.Set(CanvasOffset);
+		}
 
 		WorkingArea = FSlateRect(FVector2D::ZeroVector, WorkingSize + TrackPosition);
 	}

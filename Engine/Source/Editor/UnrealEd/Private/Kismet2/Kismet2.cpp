@@ -1062,9 +1062,15 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FString& Pat
 	return NewBlueprint;
 }
 
-void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, bool bHarvesting, USCS_Node* OptionalNewRootNode, bool bKeepMobility /*= false*/)
+void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, FKismetEditorUtilities::EAddComponentToBPHarvestMode HarvestMode, USCS_Node* OptionalNewRootNode, const bool bKeepMobility /*= false*/)
 {
 	USimpleConstructionScript* SCS = Blueprint->SimpleConstructionScript;
+
+	USceneComponent* RootTemplate = nullptr;
+	if (OptionalNewRootNode == nullptr)
+	{
+		RootTemplate = SCS->GetSceneRootComponentTemplate();
+	}
 
 	TArray<UBlueprint*> ParentBPStack;
 	UBlueprint::GetBlueprintHierarchyFromClass(Blueprint->GeneratedClass, ParentBPStack);
@@ -1085,43 +1091,49 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 		}
 	};
 
-	struct FAddComponentsToBlueprintImpl
+	/** 
+	 * Creates a new USCS_Node in the TargetSCS, duplicating the specified 
+	 * component (leaving the new node unattached). If a copy was already 
+	 * made (found  in NewSceneComponents) then that will be returned instead.
+	 */	
+	auto MakeComponentCopy = [SCS, HarvestMode, bKeepMobility, &InstanceComponentToNodeMap](UActorComponent* ActorComponent)
 	{
-		/** 
-		 * Creates a new USCS_Node in the TargetSCS, duplicating the specified 
-		 * component (leaving the new node unattached). If a copy was already 
-		 * made (found  in NewSceneComponents) then that will be returned instead.
-		 */
-		static USCS_Node* MakeComponentCopy(UActorComponent* ActorComponent, USimpleConstructionScript* TargetSCS, TMap<USceneComponent*, USCS_Node*>& NewSceneComponents, bool bInternalKeepMobility)
+		USceneComponent* AsSceneComponent = Cast<USceneComponent>(ActorComponent);
+		if (AsSceneComponent != nullptr)
 		{
-			USceneComponent* AsSceneComponent = Cast<USceneComponent>(ActorComponent);
-			if (AsSceneComponent != nullptr)
+			USCS_Node** ExistingCopy = InstanceComponentToNodeMap.Find(AsSceneComponent);
+			if (ExistingCopy != nullptr)
 			{
-				USCS_Node** ExistingCopy = NewSceneComponents.Find(AsSceneComponent);
-				if (ExistingCopy != nullptr)
-				{
-					return *ExistingCopy;
-				}
+				return *ExistingCopy;
 			}
-
-			USCS_Node* NewSCSNode = TargetSCS->CreateNode(ActorComponent->GetClass(), ActorComponent->GetFName());
-			UEditorEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
-			Params.bDoDelta = false; // We need a deep copy of parameters here so the CDO values get copied as well
-			UEditorEngine::CopyPropertiesForUnrelatedObjects(ActorComponent, NewSCSNode->ComponentTemplate, Params);
-
-			// Clear the instance component flag
-			NewSCSNode->ComponentTemplate->CreationMethod = EComponentCreationMethod::Native;
-
-			if (AsSceneComponent != nullptr)
-			{
-				NewSceneComponents.Add(AsSceneComponent, NewSCSNode);
-				if (!bInternalKeepMobility)
-				{
-					Cast<USceneComponent>(NewSCSNode->ComponentTemplate)->SetMobility(EComponentMobility::Movable);
-				}
-			}
-			return NewSCSNode;
 		}
+
+		FName NewComponentName = ActorComponent->GetFName();
+		if (HarvestMode == EAddComponentToBPHarvestMode::Havest_AppendOwnerName)
+		{
+			if (AActor* Owner = ActorComponent->GetOwner())
+			{
+				NewComponentName = *(Owner->GetActorLabel() + TEXT("_") + ActorComponent->GetName());
+			}
+		}
+
+		USCS_Node* NewSCSNode = SCS->CreateNode(ActorComponent->GetClass(), NewComponentName);
+		UEditorEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
+		Params.bDoDelta = false; // We need a deep copy of parameters here so the CDO values get copied as well
+		UEditorEngine::CopyPropertiesForUnrelatedObjects(ActorComponent, NewSCSNode->ComponentTemplate, Params);
+
+		// Clear the instance component flag
+		NewSCSNode->ComponentTemplate->CreationMethod = EComponentCreationMethod::Native;
+
+		if (AsSceneComponent != nullptr)
+		{
+			InstanceComponentToNodeMap.Add(AsSceneComponent, NewSCSNode);
+			if (!bKeepMobility)
+			{
+				Cast<USceneComponent>(NewSCSNode->ComponentTemplate)->SetMobility(EComponentMobility::Movable);
+			}
+		}
+		return NewSCSNode;
 	};
 
 	// Associate a scene node to its first attached parent if there is one.
@@ -1171,7 +1183,7 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 
 	TFunction<void (USceneComponent*)> ConstructSceneComponentNodes;
 	// Fill the SceneComponentNodes array
-	ConstructSceneComponentNodes = [&SceneComponentsMap, &SceneComponentNodes, &ConstructSceneComponentNodes] (USceneComponent* SceneComponent)
+	ConstructSceneComponentNodes = [&SceneComponentsMap, &SceneComponentNodes, &ConstructSceneComponentNodes, RootTemplate] (USceneComponent* SceneComponent)
 	{
 		// The scene component should always be present in the map
 		if (*SceneComponentsMap.Find(SceneComponent))
@@ -1193,6 +1205,11 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 				Parent = Parent->GetAttachParent();
 			}
 
+			if (Parent == nullptr && RootTemplate)
+			{
+				Parent = RootTemplate;
+			}
+
 			SceneComponentNodes.Emplace(SceneComponent, Parent);
 			SceneComponentsMap.Add(SceneComponent, true);
 		}
@@ -1206,22 +1223,18 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 	}
 
 	// The easy part to add the non-scene components.
-	for (int32 CompIndex = 0; CompIndex < ActorComponents.Num(); ++CompIndex)
+	for (UActorComponent* ActorComponent : ActorComponents)
 	{
-		UActorComponent* ActorComponent = ActorComponents[CompIndex];
-
-		USCS_Node* SCSNode = FAddComponentsToBlueprintImpl::MakeComponentCopy(ActorComponent, SCS, InstanceComponentToNodeMap, bKeepMobility);
-
+		USCS_Node* SCSNode = MakeComponentCopy(ActorComponent);
 		SCS->AddNode(SCSNode);
 	}
 
 	// The loop to add the scene components
-	for (int32 CompIndex = 0; CompIndex < SceneComponentNodes.Num(); ++CompIndex)
+	for (const FSceneComponentAndFirstParent& ComponentNode : SceneComponentNodes)
 	{
-		const FSceneComponentAndFirstParent& ComponentNode = SceneComponentNodes[CompIndex];
 		USceneComponent* SceneComponent = ComponentNode.SceneComponent;
-
-		USCS_Node* SCSNode = FAddComponentsToBlueprintImpl::MakeComponentCopy(SceneComponent, SCS, InstanceComponentToNodeMap, bKeepMobility);
+		
+		USCS_Node* SCSNode = MakeComponentCopy(SceneComponent);
 
 		USceneComponent* FirstAttachParent = ComponentNode.FirstAttachParent;
 		
@@ -1259,6 +1272,10 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 			}
 			else
 			{
+				if (RootTemplate)
+				{
+					SCSNode->SetParent(RootTemplate);
+				}
 				SCS->AddNode(SCSNode);
 			}
 		}
@@ -1301,7 +1318,7 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 				ParentSCSNode->AddChildNode(SCSNode);
 			}
 		}
-		else if ((SceneComponent->GetAttachParent()->CreationMethod == EComponentCreationMethod::Native) && !bHarvesting)
+		else if ((SceneComponent->GetAttachParent()->CreationMethod == EComponentCreationMethod::Native) && (HarvestMode == EAddComponentToBPHarvestMode::None))
 		{
 			// If we're attached to a component that will be native in the new blueprint
 			SCS->AddNode(SCSNode);
@@ -1391,14 +1408,14 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FName Bluepri
 						{
 							TArray<UActorComponent*> InstanceComponents = Actor->GetInstanceComponents();
 							InstanceComponents.Remove(RootComponent);
-							AddComponentsToBlueprint(NewBlueprint, InstanceComponents, false, NewBlueprint->SimpleConstructionScript->GetDefaultSceneRootNode(), bKeepMobility);
+							AddComponentsToBlueprint(NewBlueprint, InstanceComponents, FKismetEditorUtilities::EAddComponentToBPHarvestMode::None, NewBlueprint->SimpleConstructionScript->GetDefaultSceneRootNode(), bKeepMobility);
 						}
 					}
 				}
 
 				if (!bUsedDefaultSceneRoot)
 				{
-					AddComponentsToBlueprint(NewBlueprint, Actor->GetInstanceComponents(), false, nullptr, bKeepMobility);
+					AddComponentsToBlueprint(NewBlueprint, Actor->GetInstanceComponents(), FKismetEditorUtilities::EAddComponentToBPHarvestMode::None, nullptr, bKeepMobility);
 				}
 			}
 
@@ -1506,19 +1523,50 @@ void CreateBlueprintFromActors_Internal(UBlueprint* Blueprint, const TArray<AAct
 		}
 	}
 
-	// If there is not one unique root actor then create a new scene component to serve as the shared root node
-	if (RootActors.Num() != 1)
+	FTransform NewActorTransform = FTransform::Identity;
+	bool bRepositionTopLevelNodes = false;
+
+	// If the new blueprint already has a root node, then we will use it, but that will require adjusting
+	// the positions of the SCS's root nodes as an inherited root is not in this blueprint's SCS
+	if (SCS->GetSceneRootComponentTemplate() == nullptr)
 	{
-		AssemblyProps.RootNodeOverride = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("SharedRoot"));
-		SCS->AddNode(AssemblyProps.RootNodeOverride);
+		// If there is not one unique root actor then create a new scene component to serve as the shared root node
+		if (RootActors.Num() != 1)
+		{
+			AssemblyProps.RootNodeOverride = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("SharedRoot"));
+			SCS->AddNode(AssemblyProps.RootNodeOverride);
+		}
+	}
+	else
+	{
+		bRepositionTopLevelNodes = true;
 	}
 
 	AssembleBlueprintFunc(AssemblyProps);
 
-	FTransform NewActorTransform = FTransform::Identity;
+	// Reposition nodes to recenter them around the new pivot
+	auto RepositionNodes = [&NewActorTransform](const TArray<USCS_Node*>& Nodes)
+	{
+		for (USCS_Node* Node : Nodes)
+		{
+			if (USceneComponent* NodeTemplate = Cast<USceneComponent>(Node->ComponentTemplate))
+			{
+				//The relative transform for those component was converted into the world space
+				const FTransform NewRelativeTransform = NodeTemplate->GetRelativeTransform().GetRelativeTransform(NewActorTransform);
+				NodeTemplate->SetRelativeLocation_Direct(NewRelativeTransform.GetLocation());
+				NodeTemplate->SetRelativeRotation_Direct(NewRelativeTransform.GetRotation().Rotator());
+				NodeTemplate->SetRelativeScale3D_Direct(NewRelativeTransform.GetScale3D());
+			}
+		}
+	};
+
 	if (RootActors.Num() == 1)
 	{
 		NewActorTransform = RootActors[0]->GetTransform();
+		if (bRepositionTopLevelNodes)
+		{
+			RepositionNodes(SCS->GetRootNodes());
+		}
 	}
 	else if (RootActors.Num() > 1)
 	{
@@ -1539,19 +1587,17 @@ void CreateBlueprintFromActors_Internal(UBlueprint* Blueprint, const TArray<AAct
 			NewActorTransform.SetTranslation(AverageLocation);
 		}
 
-		// Reposition all of the children of the root node to recenter them around the new pivot
-		for (USCS_Node* TopLevelNode : SCS->GetRootNodes())
+		if (bRepositionTopLevelNodes)
 		{
-			if (USceneComponent* TestRoot = Cast<USceneComponent>(TopLevelNode->ComponentTemplate))
+			RepositionNodes(SCS->GetRootNodes());
+		}
+		else
+		{
+			for (USCS_Node* TopLevelNode : SCS->GetRootNodes())
 			{
-				for (USCS_Node* ChildNode : TopLevelNode->GetChildNodes())
+				if (USceneComponent* TestRoot = Cast<USceneComponent>(TopLevelNode->ComponentTemplate))
 				{
-					if (USceneComponent* ChildComponent = Cast<USceneComponent>(ChildNode->ComponentTemplate))
-					{
-						//The relative transform for those component was converted into the world space
-						const FTransform NewRelativeTransform = ChildComponent->GetRelativeTransform().GetRelativeTransform(NewActorTransform);
-						ChildComponent->SetRelativeTransform(NewRelativeTransform);
-					}
+					RepositionNodes(TopLevelNode->GetChildNodes());
 				}
 			}
 		}
@@ -1630,7 +1676,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName Bluepr
 			RecursiveCreateChildActorTemplates(Actor, nullptr);
 		}
 
-		FKismetEditorUtilities::AddComponentsToBlueprint(AssemblyProps.Blueprint, ChildActorComponents, /*bHarvesting=*/ true, AssemblyProps.RootNodeOverride);
+		FKismetEditorUtilities::AddComponentsToBlueprint(AssemblyProps.Blueprint, ChildActorComponents, FKismetEditorUtilities::EAddComponentToBPHarvestMode::Harvest_UseComponentName, AssemblyProps.RootNodeOverride);
 
 		// Since the names we create are well defined relative to the SCS but created in the transient package, we could end up reusing objects
 		// unless we rename these temporary components out of the way
@@ -1702,7 +1748,8 @@ UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName Bluep
 			}
 		}
 
-		FKismetEditorUtilities::AddComponentsToBlueprint(AssemblyProps.Blueprint, AllSelectedComponents, /*bHarvesting=*/ true, AssemblyProps.RootNodeOverride);
+		const FKismetEditorUtilities::EAddComponentToBPHarvestMode HarvestMode = (AssemblyProps.Actors.Num() > 1 ? FKismetEditorUtilities::EAddComponentToBPHarvestMode::Havest_AppendOwnerName : FKismetEditorUtilities::EAddComponentToBPHarvestMode::Harvest_UseComponentName);
+		FKismetEditorUtilities::AddComponentsToBlueprint(AssemblyProps.Blueprint, AllSelectedComponents, HarvestMode, AssemblyProps.RootNodeOverride);
 
 		// Replace the modified components to their relative transform
 		for (const TPair<USceneComponent*, FTransform >& Pair : SceneComponentOldRelativeTransforms)
@@ -2029,7 +2076,7 @@ void FKismetEditorUtilities::CreateNewBoundEventForActor(AActor* Actor, FName Ev
 	if ((Actor != nullptr) && (EventName != NAME_None))
 	{
 		// First, find the property we want to bind to
-		if (FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(Actor->GetClass(), EventName))
+		if (FMulticastDelegateProperty* DelegateProperty = FindFProperty<FMulticastDelegateProperty>(Actor->GetClass(), EventName))
 		{
 			// Get the correct level script blueprint
 			if (ULevelScriptBlueprint* LSB = Actor->GetLevel()->GetLevelScriptBlueprint())
@@ -2073,7 +2120,7 @@ void FKismetEditorUtilities::CreateNewBoundEventForClass(UClass* Class, FName Ev
 	if ( ( Class != nullptr ) && ( EventName != NAME_None ) && ( Blueprint != nullptr ) && ( ComponentProperty != nullptr ) )
 	{
 		// First, find the property we want to bind to
-		FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(Class, EventName);
+		FMulticastDelegateProperty* DelegateProperty = FindFProperty<FMulticastDelegateProperty>(Class, EventName);
 		if ( DelegateProperty != nullptr )
 		{
 			UEdGraph* TargetGraph = Blueprint->GetLastEditedUberGraph();

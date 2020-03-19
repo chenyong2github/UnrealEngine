@@ -14,6 +14,7 @@
 #include "MemoryDerivedDataBackend.h"
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "PakFileDerivedDataBackend.h"
+#include "S3DerivedDataBackend.h"
 #include "HierarchicalDerivedDataBackend.h"
 #include "DerivedDataLimitKeyLengthWrapper.h"
 #include "DerivedDataBackendCorruptionWrapper.h"
@@ -28,7 +29,7 @@ DEFINE_LOG_CATEGORY(LogDerivedDataCache);
 #define MAX_BACKEND_KEY_LENGTH (120)
 #define LOCTEXT_NAMESPACE "DerivedDataBackendGraph"
 
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, bool bForceReadOnly = false, bool bTouchFiles = false, bool bPurgeTransient = false, bool bDeleteOldFiles = false, int32 InDaysToDeleteUnusedFiles = 60, int32 InMaxNumFoldersToCheck = -1, int32 InMaxContinuousFileChecks = -1);
+FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, bool bForceReadOnly = false, bool bTouchFiles = false, bool bPurgeTransient = false, bool bDeleteOldFiles = false, int32 InDaysToDeleteUnusedFiles = 60, int32 InMaxNumFoldersToCheck = -1, int32 InMaxContinuousFileChecks = -1, const TCHAR* InAccessLogFileName = nullptr);
 
 /**
   * This class is used to create a singleton that represents the derived data cache hierarchy and all of the wrappers necessary
@@ -89,8 +90,12 @@ public:
 				UE_LOG( LogDerivedDataCache, Fatal, TEXT("Unable to create backend graph using the default graph settings (%s) ini=%s."), *GraphName, *GEngineIni );
 			}
 			RootCache = ParseNode( TEXT("Root"), GEngineIni, *GraphName, ParsedNodes );
+			if (!RootCache)
+			{
+				UE_LOG(LogDerivedDataCache, Fatal, TEXT("Unable to create backend graph using the default graph settings (%s) ini=%s. ")
+					TEXT("At least one backend in the graph must be available."), *GraphName, *GEngineIni);
+			}
 		}
-		check(RootCache);
 
 		// Make sure AsyncPutWrapper and KeyLengthWrapper are created
 		if( !AsyncPutWrapper )
@@ -202,6 +207,10 @@ public:
 				else if( NodeType == TEXT("WritePak") )
 				{
 					ParsedNode = ParsePak( NodeName, *Entry, true );
+				}
+				else if (NodeType == TEXT("S3"))
+				{
+					ParsedNode = ParseS3Cache(NodeName, *Entry);
 				}
 			}
 		}
@@ -562,6 +571,8 @@ public:
 			FParse::Value( Entry, TEXT("FoldersToClean="), MaxFoldersToClean );
 			int32 MaxFileChecksPerSec = -1;
 			FParse::Value( Entry, TEXT("MaxFileChecksPerSec="), MaxFileChecksPerSec );
+			FString WriteAccessLog;
+			FParse::Value( Entry, TEXT("WriteAccessLog="), WriteAccessLog );
 
 			if( bFlush )
 			{
@@ -578,7 +589,7 @@ public:
 			bool bShared = FCString::Stricmp(NodeName, TEXT("Shared")) == 0;
 			if( !bShared || IFileManager::Get().DirectoryExists(*Path) )
 			{
-				InnerFileSystem = CreateFileSystemDerivedDataBackend( *Path, bReadOnly, bTouch, bPurgeTransient, bDeleteUnused, UnusedFileAge, MaxFoldersToClean, MaxFileChecksPerSec);
+				InnerFileSystem = CreateFileSystemDerivedDataBackend( *Path, bReadOnly, bTouch, bPurgeTransient, bDeleteUnused, UnusedFileAge, MaxFoldersToClean, MaxFileChecksPerSec, *WriteAccessLog);
 			}
 
 			if( InnerFileSystem )
@@ -596,6 +607,67 @@ public:
 		}
 
 		return DataCache;
+	}
+
+	/**
+	 * Creates an S3 data cache interface.
+	 */
+	FDerivedDataBackendInterface* ParseS3Cache(const TCHAR* NodeName, const TCHAR* Entry)
+	{
+#if WITH_S3_DDC_BACKEND
+		FString ManifestPath;
+		if (!FParse::Value(Entry, TEXT("Manifest="), ManifestPath))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Manifest'."), NodeName);
+			return nullptr;
+		}
+
+		FString BaseUrl;
+		if (!FParse::Value(Entry, TEXT("BaseUrl="), BaseUrl))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'BaseUrl'."), NodeName);
+			return nullptr;
+		}
+
+		FString CanaryObjectKey;
+		FParse::Value(Entry, TEXT("Canary="), CanaryObjectKey);
+
+		FString Region;
+		if (!FParse::Value(Entry, TEXT("Region="), Region))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Region'."), NodeName);
+			return nullptr;
+		}
+
+		FString AccessKey;
+		if (!FParse::Value(Entry, TEXT("AccessKey="), AccessKey))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'AccessKey'."), NodeName);
+			return nullptr;
+		}
+
+		FString SecretKey;
+		if (!FParse::Value(Entry, TEXT("SecretKey="), SecretKey))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'SecretKey'."), NodeName);
+			return nullptr;
+		}
+
+		FS3DerivedDataBackend* Backend = new FS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *AccessKey, *SecretKey);
+		if (!Backend->IsUsable())
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *BaseUrl);
+			delete Backend;
+			return nullptr;
+		}
+
+		// Insert the backend corruption wrapper. Since the filesystem already uses this, and we're recycling the data with the trailer intact, we need to use it for the S3 cache too.
+		UE_LOG(LogDerivedDataCache, Display, TEXT("Using %s S3 backend at %s"), *Region, *BaseUrl);
+		return new FDerivedDataBackendCorruptionWrapper(Backend);
+#else
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("S3 backend is not supported in the current build configuration."));
+		return nullptr;
+#endif
 	}
 
 	/**

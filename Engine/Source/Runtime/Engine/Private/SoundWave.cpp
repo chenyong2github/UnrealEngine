@@ -36,7 +36,7 @@
 #include "Async/Async.h"
 #include "Misc/CommandLine.h"
 
-static int32 SoundWaveDefaultLoadingBehaviorCVar = 0;
+static int32 SoundWaveDefaultLoadingBehaviorCVar = 1;
 FAutoConsoleVariableRef CVarSoundWaveDefaultLoadingBehavior(
 	TEXT("au.streamcache.SoundWaveDefaultLoadingBehavior"),
 	SoundWaveDefaultLoadingBehaviorCVar,
@@ -126,6 +126,14 @@ ITargetPlatform* USoundWave::GetRunningPlatform()
 void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkIndex)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("FStreamedAudioChunk::Serialize"), STAT_StreamedAudioChunk_Serialize, STATGROUP_LoadTime );
+	bool bShouldInlineAudioChunk = false;
+
+// 	const ITargetPlatform* CookingTarget = Ar.CookingTarget();
+// 	if (CookingTarget != nullptr)
+// 	{
+// 		const FPlatformAudioCookOverrides* Overrides = CookingTarget->GetAudioCompressionSettings();
+// 		bShouldInlineAudioChunk = Overrides->bInlineStreamedAudioChunks;
+// 	}
 
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
@@ -133,7 +141,7 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 	// ChunkIndex 0 is always inline payload, all other chunks are streamed.
 	if (Ar.IsSaving())
 	{
-		if (ChunkIndex == 0)
+		if (ChunkIndex == 0 || (ChunkIndex == 1 && bShouldInlineAudioChunk))
 		{
 			BulkData.SetBulkDataFlags(BULKDATA_ForceInlinePayload);
 		}
@@ -439,13 +447,13 @@ void USoundWave::Serialize( FArchive& Ar )
 #endif // #if WITH_EDITORONLY_DATA
 	}
 
-	if (!GIsEditor && Ar.IsLoading())
+	if (!GIsEditor && !(IsTemplate() || IsRunningDedicatedServer()) &&  Ar.IsLoading())
 	{
 		// For non-editor builds, we can immediately cache the sample rate.
 		SampleRate = GetSampleRateForCurrentPlatform();
 
 		// If stream caching is enabled, here we determine if we should retain or prime this wave on load.
-		if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+		if (bShouldStreamSound && FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
 		{
 			ESoundWaveLoadingBehavior CurrentLoadingBehavior = GetLoadingBehavior(false);
 
@@ -2033,6 +2041,11 @@ bool USoundWave::ShouldUseStreamCaching() const
 
 TArrayView<const uint8> USoundWave::GetZerothChunk(bool bForImmediatePlayback)
 {
+	if(IsTemplate() || IsRunningDedicatedServer())
+	{
+		return TArrayView<const uint8>();
+	}
+	
 	if (ShouldUseStreamCaching())
 	{
 		// In editor, we actually don't have a zeroth chunk until we try to play an audio file.
@@ -2475,11 +2488,13 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 {
 	// Since the zeroth chunk is always inlined and stored in memory,
 	// early exit if we only have one chunk.
-	if (DisableRetainingCVar || GetNumChunks() <= 1)
+	if (GIsEditor || IsTemplate() || IsRunningDedicatedServer() || !IsStreaming() || DisableRetainingCVar || GetNumChunks() <= 1)
 	{
 		return;
 	}
 
+	// If the first chunk is already loaded and being retained,
+	// don't kick off another load.
 	if (FirstChunk.IsValid())
 	{
 		return;
@@ -2487,6 +2502,7 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 	else if (bForceSync)
 	{
 		FirstChunk = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(this, 1, true);
+		ensureAlwaysMsgf(FirstChunk.IsValid(), TEXT("First chunk was invalid after synchronous load in RetainCompressedAudio()!"));
 	}
 	else
 	{

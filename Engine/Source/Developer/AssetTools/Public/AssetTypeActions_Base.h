@@ -162,7 +162,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		InFilter.bRecursiveClasses = true;
 	}
 	
-	virtual FText GetDisplayNameFromAssetData(const FAssetData& AssetData) const
+	virtual FText GetDisplayNameFromAssetData(const FAssetData& AssetData) const override
 	{
 		return FText::GetEmpty();
 	}

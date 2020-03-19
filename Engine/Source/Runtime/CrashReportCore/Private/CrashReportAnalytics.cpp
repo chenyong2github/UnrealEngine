@@ -41,7 +41,19 @@ void FCrashReportAnalytics::Initialize()
 {
 	checkf(!bIsInitialized, TEXT("FCrashReportAnalytics::Initialize called more than once."));
 
-	FAnalyticsET::Config Config = GetCrashReportAnalyticsConfigFunc()();
+	// Allow build machines to force CRC to enable internal telemetry.
+	#if defined(CRC_TELEMETRY_URL) && defined(CRC_TELEMETRY_KEY)
+
+		FAnalyticsET::Config Config;
+		Config.APIServerET = TEXT(PREPROCESSOR_TO_STRING(CRC_TELEMETRY_URL));
+		Config.APIKeyET = TEXT(PREPROCESSOR_TO_STRING(CRC_TELEMETRY_KEY));
+
+	#else
+
+		FAnalyticsET::Config Config = GetCrashReportAnalyticsConfigFunc()();
+
+	#endif
+
 	if (!Config.APIServerET.IsEmpty())
 	{
 		// Connect the engine analytics provider (if there is a configuration delegate installed)

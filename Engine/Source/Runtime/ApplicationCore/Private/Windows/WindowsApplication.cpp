@@ -72,6 +72,7 @@ FAutoConsoleVariableRef	CVarPreventDuplicateMouseEventsForTouch(
 );
 
 
+#if !UE_BUILD_SHIPPING
 static int32 EnableRawInputSimulationOverRDP = true;
 FAutoConsoleVariableRef	CVarEnableRawInputSimulationOverRDP(
 	TEXT("Slate.EnableRawInputSimulationOverRDP"),
@@ -79,9 +80,25 @@ FAutoConsoleVariableRef	CVarEnableRawInputSimulationOverRDP(
 	TEXT("")
 );
 
+static int32 ForceRawInputSimulation = false;
+FAutoConsoleVariableRef	CVarForceRawInputSimulation(
+	TEXT("Slate.ForceRawInputSimulation"),
+	ForceRawInputSimulation,
+	TEXT("")
+);
+#else
+static int32 ForceRawInputSimulation = false;
+static int32 EnableRawInputSimulationOverRDP = false;
+#endif
+
 const FIntPoint FWindowsApplication::MinimizedWindowPosition(-32000,-32000);
 
 FWindowsApplication* WindowsApplication = nullptr;
+
+static bool ShouldSimulateRawInput()
+{
+	return ForceRawInputSimulation || (EnableRawInputSimulationOverRDP && FPlatformMisc::IsRemoteSession());
+}
 
 FWindowsApplication* FWindowsApplication::CreateWindowsApplication( const HINSTANCE InstanceHandle, const HICON IconHandle )
 {
@@ -110,6 +127,12 @@ FWindowsApplication::FWindowsApplication( const HINSTANCE HInstance, const HICON
 #if WITH_ACCESSIBILITY
 	, UIAManager(new FWindowsUIAManager(*this))
 #endif
+	, bSimulatingHighPrecisionMouseInputForRDP(false)
+	, CachedPreHighPrecisionMousePosForRDP(FIntPoint::ZeroValue)
+	, LastCursorPoint(FIntPoint::ZeroValue)
+	, LastCursorPointPreWrap(FIntPoint::ZeroValue)
+	, NumPreWrapMsgsToRespect(0)
+	, ClipCursorRect()
 
 {
 	FMemory::Memzero(ModifierKeyState, EModifierKey::Count);
@@ -435,7 +458,7 @@ void* FWindowsApplication::GetCapture( void ) const
 
 void FWindowsApplication::SetHighPrecisionMouseMode( const bool Enable, const TSharedPtr< FGenericWindow >& InWindow )
 {
-	if (EnableRawInputSimulationOverRDP && FPlatformMisc::IsRemoteSession())
+	if (ShouldSimulateRawInput())
 	{
 		if(Enable)
 		{
@@ -444,9 +467,16 @@ void FWindowsApplication::SetHighPrecisionMouseMode( const bool Enable, const TS
 
 			POINT CursorPos;
 			BOOL bGotPoint = ::GetCursorPos(&CursorPos);
+
+			::GetClipCursor(&ClipCursorRect);
+
+			//UE_LOG(LogWindowsDesktop, Log, TEXT("Entering High Precision to Top: %d Bottom: %d Left: %d Right: %d"), ClipCursorRect.top, ClipCursorRect.bottom, ClipCursorRect.left, ClipCursorRect.right);
 		
 			CachedPreHighPrecisionMousePosForRDP = FIntPoint(CursorPos.x, CursorPos.y);
-			LastCursorPoint = CachedPreHighPrecisionMousePosForRDP;
+			LastCursorPoint = FIntPoint(CursorPos.x - ClipCursorRect.left, CursorPos.y - ClipCursorRect.top);
+			
+			LastCursorPointPreWrap = FIntPoint::ZeroValue;
+			NumPreWrapMsgsToRespect = 0;
 		}
 		else
 		{
@@ -1025,11 +1055,110 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 					if (Raw->header.dwType == RIM_TYPEMOUSE) 
 					{
 						const bool IsAbsoluteInput = (Raw->data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE) == MOUSE_MOVE_ABSOLUTE;
-						if( IsAbsoluteInput )
+						if (IsAbsoluteInput)
 						{
 							if (bSimulatingHighPrecisionMouseInputForRDP)
-							{
-								DeferMessage(CurrentNativeEventWindowPtr, hwnd, WM_MOUSEMOVE, wParam, lParam);
+							{	
+								const bool IsVirtualScreen = (Raw->data.mouse.usFlags & MOUSE_VIRTUAL_DESKTOP) == MOUSE_VIRTUAL_DESKTOP;
+
+								// Get the new cursor position
+								POINT CursorPoint;
+								const int32 Top = 0;
+								const int32 Left = 0;
+								const int32 Width = GetSystemMetrics(IsVirtualScreen ? SM_CXVIRTUALSCREEN : SM_CXSCREEN);
+								const int32 Height = GetSystemMetrics(IsVirtualScreen ? SM_CYVIRTUALSCREEN : SM_CYSCREEN);
+
+								CursorPoint.x = static_cast<int>((float(Raw->data.mouse.lLastX) / 65535.0f) * Width);
+								CursorPoint.y = static_cast<int>((float(Raw->data.mouse.lLastY) / 65535.0f) * Height);
+
+								const int32 DeltaWidthMax = (int32)((float)Width * 0.4f);
+								const int32 DeltaHeightMax = (int32)((float)Height * 0.4f);
+
+								const POINT CursorPointNoWrap = CursorPoint;
+
+								const bool bCanAcceptPreWrapMsg = NumPreWrapMsgsToRespect > 0;
+								NumPreWrapMsgsToRespect--;
+
+								// Calculate the cursor delta from the last position
+								// We do this prior to and wrapping for continuous input as that would mean an incorrect delta we'd just ignore
+								int32 DeltaX = CursorPoint.x - LastCursorPoint.X;
+								int32 DeltaY = CursorPoint.y - LastCursorPoint.Y;
+
+								bool bAcceptingPreWrapDelta = false;
+								if (bCanAcceptPreWrapMsg)
+								{
+									const int32 DeltaXPreWrap = CursorPoint.x - LastCursorPointPreWrap.X;
+									const int32 DeltaYPreWrap = CursorPoint.y - LastCursorPointPreWrap.Y;
+
+									const int32 DeltaLen = (DeltaX * DeltaX) + (DeltaY * DeltaY);
+									const int32 DeltaPreWrapLen = (DeltaXPreWrap * DeltaXPreWrap) + (DeltaYPreWrap * DeltaYPreWrap);
+
+									if (DeltaPreWrapLen < DeltaLen)
+									{
+										bAcceptingPreWrapDelta = true;
+
+										DeltaX = DeltaXPreWrap;
+										DeltaY = DeltaYPreWrap;
+										LastCursorPointPreWrap.X = CursorPoint.x;
+										LastCursorPointPreWrap.Y = CursorPoint.y;
+
+										//UE_LOG(LogWindowsDesktop, Log, TEXT("Accept PreWrap Delta X: %d Y: %d  ---- Last X: %d Y: %d ---- Cur X: %d Y: %d ---- Width: %d Height: %d"), DeltaX, DeltaY, LastCursorPointPreWrap.X, LastCursorPointPreWrap.Y, CursorPoint.x, CursorPoint.y, (int32)Width, (int32)Height);
+									}
+								}
+
+								if (!bAcceptingPreWrapDelta)
+								{
+									// Wrap and set cursor position in necessary
+									const int32 WrapLeeway = 50; // We add some leeway on the wrap so that if the user is doing small movements hear the border we don't wrap back and fourth constantly
+									const int32 TopEdge = Top + int32(0.1f * float(Height));
+									const int32 BottomEdge = Top + int32(0.9f * float(Height));
+									const int32 LeftEdge = Left + int32(0.1f * float(Width));
+									const int32 RightEdge = Left + int32(0.9f * float(Width));
+
+									bool bSet = false;
+									if (CursorPoint.y < TopEdge) { CursorPoint.y = BottomEdge - WrapLeeway;	bSet = true; }
+									else if (CursorPoint.y > BottomEdge) { CursorPoint.y = TopEdge + WrapLeeway;		bSet = true; }
+
+									if (CursorPoint.x < LeftEdge) { CursorPoint.x = RightEdge - WrapLeeway;	bSet = true; }
+									else if (CursorPoint.x > RightEdge) { CursorPoint.x = LeftEdge + WrapLeeway;	bSet = true; }
+
+									if (bSet)
+									{
+										//UE_LOG(LogWindowsDesktop, Log, TEXT("Wrapping Cursor to X: %d Y: %d"), CursorPoint.x, CursorPoint.y);
+
+										MessageHandler->SetCursorPos(FVector2D(CursorPoint.x + ClipCursorRect.left,CursorPoint.y + ClipCursorRect.top));
+										LastCursorPoint.X = CursorPoint.x;
+										LastCursorPoint.Y = CursorPoint.y;
+
+										NumPreWrapMsgsToRespect = 10;
+										LastCursorPointPreWrap.X = CursorPointNoWrap.x;
+										LastCursorPointPreWrap.Y = CursorPointNoWrap.y;
+									}
+
+									
+									/*
+									if (DeltaX != 0 && DeltaY != 0)
+									{
+										if (FMath::Abs(DeltaX) < DeltaWidthMax && FMath::Abs(DeltaY) < DeltaHeightMax)
+										{
+											UE_LOG(LogWindowsDesktop, Log, TEXT("Accept Delta X: %d Y: %d  ---- Last X: %d Y: %d ---- Cur X: %d Y: %d ---- Width: %d Height: %d"), DeltaX, DeltaY, LastCursorPoint.X, LastCursorPoint.Y, CursorPoint.x, CursorPoint.y, (int32)Width, (int32)Height);
+										}
+										else
+										{
+											UE_LOG(LogWindowsDesktop, Log, TEXT("IGNORE Delta X: %d Y: %d  ---- Last X: %d Y: %d ---- Cur X: %d Y: %d ---- Width: %d Height: %d"), DeltaX, DeltaY, LastCursorPoint.X, LastCursorPoint.Y, CursorPoint.x, CursorPoint.y, (int32)Width, (int32)Height);
+										}
+									}*/
+
+									LastCursorPoint.X = CursorPoint.x;
+									LastCursorPoint.Y = CursorPoint.y;
+								}
+
+								// Send a delta assuming it's not zero or beyond our max delta 
+								if (DeltaX != 0 && DeltaY != 0 && FMath::Abs(DeltaX) < DeltaWidthMax && FMath::Abs(DeltaY) < DeltaHeightMax)
+								{
+									DeferMessage(CurrentNativeEventWindowPtr, hwnd, msg, wParam, lParam, DeltaX, DeltaY, MOUSE_MOVE_RELATIVE);
+								}
+								return 1;
 							}
 							else
 							{
@@ -2020,7 +2149,7 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 			{
 				if( DeferredMessage.RawInputFlags == MOUSE_MOVE_RELATIVE )
 				{
-					MessageHandler->OnRawMouseMove( DeferredMessage.X, DeferredMessage.Y );
+					MessageHandler->OnRawMouseMove(DeferredMessage.X, DeferredMessage.Y);
 				}
 				else
 				{
@@ -2037,22 +2166,7 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 		case WM_MOUSEMOVE:
 			{
 				BOOL Result = false;
-				if (bUsingHighPrecisionMouseInput && bSimulatingHighPrecisionMouseInputForRDP)
-				{
-					POINT CursorPoint;
-					::GetCursorPos(&CursorPoint);
-
-					int32 DeltaX = CursorPoint.x - LastCursorPoint.X;
-					int32 DeltaY = CursorPoint.y - LastCursorPoint.Y;
-					
-					LastCursorPoint.X = CursorPoint.x;
-					LastCursorPoint.Y = CursorPoint.y;
-
-					MessageHandler->OnRawMouseMove(DeltaX, DeltaY);
-
-					Result = true;
-				}
-				else if( !bUsingHighPrecisionMouseInput )
+				if (!bUsingHighPrecisionMouseInput)
 				{
 					Result = MessageHandler->OnMouseMove();
 				}
@@ -2616,18 +2730,7 @@ void FWindowsApplication::AddExternalInputDevice(TSharedPtr<IInputDevice> InputD
 
 void FWindowsApplication::FinishedInputThisFrame()
 {
-	if (bSimulatingHighPrecisionMouseInputForRDP)
-	{
-		MessageHandler->SetCursorPos(FVector2D(CachedPreHighPrecisionMousePosForRDP));
-		LastCursorPoint = CachedPreHighPrecisionMousePosForRDP;
-		//::SetCursorPos(CachedPreHighPrecisionMousePosForRDP.X, CachedPreHighPrecisionMousePosForRDP.Y);
 
-		// SetCursorPos sends a windows message, we dont want to process it as real input so get rid of it
-		// Todo needed?  It is theoretically possible this could remove valid WM_MOUSEMOVE messages that came right after we finished 
-		// processing input
-		MSG msg;
-		while (::PeekMessage(&msg, NULL, WM_MOUSEMOVE, WM_MOUSEMOVE, PM_REMOVE)) {};
-	}
 }
 
 TSharedPtr<FTaskbarList> FWindowsApplication::GetTaskbarList()

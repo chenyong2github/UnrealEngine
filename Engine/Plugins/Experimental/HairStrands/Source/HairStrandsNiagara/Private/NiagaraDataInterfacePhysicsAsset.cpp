@@ -24,7 +24,11 @@ static const FName GetNumCapsulesName(TEXT("GetNumCapsules"));
 
 //------------------------------------------------------------------------------------------------------------
 
+static const FName GetClosestElementName(TEXT("GetClosestElement"));
+static const FName GetElementPointName(TEXT("GetElementPoint"));
+static const FName GetElementDistanceName(TEXT("GetElementDistance"));
 static const FName GetClosestPointName(TEXT("GetClosestPoint"));
+static const FName GetClosestDistanceName(TEXT("GetClosestDistance"));
 static const FName GetTexturePointName(TEXT("GetTexturePoint"));
 static const FName GetProjectionPointName(TEXT("GetProjectionPoint"));
 
@@ -130,83 +134,86 @@ void CreateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, cons
 				TArray<FTransform> BoneTransforms = (SkeletalMesh != nullptr) ? SkeletalMesh->GetComponentSpaceTransforms() : RestTransforms;
 				const bool bHasMasterPoseComponent = (SkeletalMesh != nullptr) && SkeletalMesh->MasterPoseComponent.IsValid();
 
-				uint32 NumBoxes = 0;
-				uint32 NumSpheres = 0;
-				uint32 NumCapsules = 0;
-				for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+				if (BoneTransforms.Num() == RestTransforms.Num())
 				{
-					const FName BoneName = BodySetup->BoneName;
-					const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-					if (BoneIndex != INDEX_NONE)
+					uint32 NumBoxes = 0;
+					uint32 NumSpheres = 0;
+					uint32 NumCapsules = 0;
+					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
 					{
-						NumBoxes += BodySetup->AggGeom.BoxElems.Num();
-						NumSpheres += BodySetup->AggGeom.SphereElems.Num();
-						NumCapsules += BodySetup->AggGeom.SphylElems.Num();
-					}
-				}
-
-				OutAssetArrays->ElementOffsets.BoxOffset = 0;
-				OutAssetArrays->ElementOffsets.SphereOffset = OutAssetArrays->ElementOffsets.BoxOffset + NumBoxes;
-				OutAssetArrays->ElementOffsets.CapsuleOffset = OutAssetArrays->ElementOffsets.SphereOffset + NumSpheres;
-				OutAssetArrays->ElementOffsets.NumElements = OutAssetArrays->ElementOffsets.CapsuleOffset + NumCapsules;
-
-				const uint32 NumTransforms = OutAssetArrays->ElementOffsets.NumElements * 3;
-				const uint32 NumExtents = OutAssetArrays->ElementOffsets.NumElements;
-
-				OutAssetArrays->CurrentTransform.SetNum(NumTransforms);
-				OutAssetArrays->InverseTransform.SetNum(NumTransforms);
-				OutAssetArrays->RestInverse.SetNum(NumTransforms);
-				OutAssetArrays->RestTransform.SetNum(NumTransforms);
-				OutAssetArrays->PreviousTransform.SetNum(NumTransforms);
-				OutAssetArrays->PreviousInverse.SetNum(NumTransforms);
-				OutAssetArrays->ElementExtent.SetNum(NumExtents);
-
-				uint32 ElementCount = 0;
-				for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
-				{
-					const FName BoneName = BodySetup->BoneName;
-					const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-					if (BoneIndex != INDEX_NONE)
-					{
-						const FTransform RestTransform = RestTransforms[BoneIndex];
-						const FTransform BoneTransform = bHasMasterPoseComponent ? SkeletalMesh->GetBoneTransform(BoneIndex) : BoneTransforms[BoneIndex] * WorldTransform;
-
-						for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
+						const FName BoneName = BodySetup->BoneName;
+						const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
+						if (BoneIndex != INDEX_NONE && BoneIndex < BoneTransforms.Num())
 						{
-							const FTransform RestElement = FTransform(BoxElem.Rotation, BoxElem.Center) * RestTransform;
-							FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-							--ElementCount;
-
-							const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
-							OutAssetArrays->ElementExtent[ElementCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
-							FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
-						}
-
-						for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
-						{
-							const FTransform RestElement = FTransform(SphereElem.Center) * RestTransform;
-							FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-							--ElementCount;
-
-							const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
-							OutAssetArrays->ElementExtent[ElementCount] = FVector4(SphereElem.Radius, 0, 0, 0);
-							FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
-						}
-
-						for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
-						{
-							const FTransform RestElement = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * RestTransform;
-							FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
-							--ElementCount;
-
-							const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
-							OutAssetArrays->ElementExtent[ElementCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
-							FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+							NumBoxes += BodySetup->AggGeom.BoxElems.Num();
+							NumSpheres += BodySetup->AggGeom.SphereElems.Num();
+							NumCapsules += BodySetup->AggGeom.SphylElems.Num();
 						}
 					}
+
+					OutAssetArrays->ElementOffsets.BoxOffset = 0;
+					OutAssetArrays->ElementOffsets.SphereOffset = OutAssetArrays->ElementOffsets.BoxOffset + NumBoxes;
+					OutAssetArrays->ElementOffsets.CapsuleOffset = OutAssetArrays->ElementOffsets.SphereOffset + NumSpheres;
+					OutAssetArrays->ElementOffsets.NumElements = OutAssetArrays->ElementOffsets.CapsuleOffset + NumCapsules;
+
+					const uint32 NumTransforms = OutAssetArrays->ElementOffsets.NumElements * 3;
+					const uint32 NumExtents = OutAssetArrays->ElementOffsets.NumElements;
+
+					OutAssetArrays->CurrentTransform.SetNum(NumTransforms);
+					OutAssetArrays->InverseTransform.SetNum(NumTransforms);
+					OutAssetArrays->RestInverse.SetNum(NumTransforms);
+					OutAssetArrays->RestTransform.SetNum(NumTransforms);
+					OutAssetArrays->PreviousTransform.SetNum(NumTransforms);
+					OutAssetArrays->PreviousInverse.SetNum(NumTransforms);
+					OutAssetArrays->ElementExtent.SetNum(NumExtents);
+
+					uint32 ElementCount = 0;
+					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+					{
+						const FName BoneName = BodySetup->BoneName;
+						const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
+						if (BoneIndex != INDEX_NONE && BoneIndex < BoneTransforms.Num())
+						{
+							const FTransform RestTransform = RestTransforms[BoneIndex];
+							const FTransform BoneTransform = bHasMasterPoseComponent ? SkeletalMesh->GetBoneTransform(BoneIndex) : BoneTransforms[BoneIndex] * WorldTransform;
+
+							for (const FKBoxElem& BoxElem : BodySetup->AggGeom.BoxElems)
+							{
+								const FTransform RestElement = FTransform(BoxElem.Rotation, BoxElem.Center) * RestTransform;
+								FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+								--ElementCount;
+
+								const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
+								OutAssetArrays->ElementExtent[ElementCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
+								FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+							}
+
+							for (const FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
+							{
+								const FTransform RestElement = FTransform(SphereElem.Center) * RestTransform;
+								FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+								--ElementCount;
+
+								const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
+								OutAssetArrays->ElementExtent[ElementCount] = FVector4(SphereElem.Radius, 0, 0, 0);
+								FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+							}
+
+							for (const FKSphylElem& CapsuleElem : BodySetup->AggGeom.SphylElems)
+							{
+								const FTransform RestElement = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * RestTransform;
+								FillCurrentTransforms(RestElement, ElementCount, OutAssetArrays->RestTransform, OutAssetArrays->RestInverse);
+								--ElementCount;
+
+								const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
+								OutAssetArrays->ElementExtent[ElementCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
+								FillCurrentTransforms(ElementTransform, ElementCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+							}
+						}
+					}
+					OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
+					OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
 				}
-				OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
-				OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
 			}
 		}
 	}
@@ -239,7 +246,7 @@ void UpdateInternalArrays(const TWeakObjectPtr<UPhysicsAsset> PhysicsAsset, cons
 			{
 				const FName BoneName = BodySetup->BoneName;
 				const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
-				if (BoneIndex != INDEX_NONE)
+				if (BoneIndex != INDEX_NONE && BoneIndex < BoneTransforms.Num() )
 				{
 					const FTransform BoneTransform = bHasMasterPoseComponent ? SkeletalMesh->GetBoneTransform(BoneIndex) : BoneTransforms[BoneIndex] * WorldTransform;
 
@@ -321,25 +328,6 @@ void FNDIPhysicsAssetBuffer::InitRHI()
 		UE_LOG(LogPhysicsAsset, Warning, TEXT("Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), AssetArrays->ElementOffsets.NumElements - AssetArrays->ElementOffsets.CapsuleOffset,
 			AssetArrays->ElementOffsets.CapsuleOffset - AssetArrays->ElementOffsets.SphereOffset, AssetArrays->ElementOffsets.SphereOffset - AssetArrays->ElementOffsets.BoxOffset);
 	}
-
-	// /*const FPrimitiveComponentId LocalComponentId = SkeletalMesh->ComponentId;
-	//EWorldType::Type WorldType = SkeletalMesh->GetWorld() ? EWorldType::Type(SkeletalMesh->GetWorld()->WorldType) : EWorldType::None;
-	//WorldType = WorldType == EWorldType::Inactive ? EWorldType::Editor : WorldType;*/
-
-	//// Always setup the callback, even if the SkeletalMeshData are not ready yet
-	//if (SkeletalMesh.IsValid() && SkeletalMesh.Get() != nullptr)
-	//{
-	//	/*FSkeletalMeshObjectCallbackData CallbackData;
-	//	CallbackData.Run = MeshObjectCallback;
-	//	CallbackData.UserData = (uint64(LocalComponentId.PrimIDValue) & 0xFFFFFFFF) | (uint64(WorldType) << 32);
-	//	SkeletalMesh->MeshObjectCallbackData = CallbackData;*/
-
-	//	if (SkeletalMesh->MeshObject != nullptr)
-	//	{
-	//		UE_LOG(LogPhysicsAsset, Log, TEXT("Skin Cache there : %d %d %d"), SkeletalMesh->MeshObject, SkeletalMesh->MeshObject->GetCachedGeometry().LODIndex, 
-	//				SkeletalMesh->MeshObject->GetCachedGeometry().Sections.Num());
-	//	}
-	//}
 }
 
 void FNDIPhysicsAssetBuffer::ReleaseRHI()
@@ -751,12 +739,64 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("World Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Delta Time")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Time Fraction")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Closest Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Closest Normal")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Closest Velocity")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetClosestElementName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Time Fraction")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Closest Element")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetElementPointName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Delta Time")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Time Fraction")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Element Index")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Closest Position")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Closest Normal")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Closest Velocity")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetElementDistanceName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Time Fraction")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Element Index")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Closest Distance")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetClosestDistanceName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Time Fraction")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Closest Distance")));
 
 		OutFunctions.Add(Sig);
@@ -767,7 +807,7 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("World Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Element Index")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Texture Position")));
 
@@ -779,7 +819,7 @@ void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSign
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Asset")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("World Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Delta Time")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Element Index")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Texture Value")));
@@ -797,6 +837,10 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetNumBoxes);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetNumSpheres);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetNumCapsules);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetClosestPoint);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetClosestElement);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetElementPoint);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetElementDistance);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetClosestDistance);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetTexturePoint);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetProjectionPoint);
 
@@ -819,8 +863,28 @@ void UNiagaraDataInterfacePhysicsAsset::GetVMExternalFunction(const FVMExternalF
 	}
 	else if (BindingInfo.Name == GetClosestPointName)
 	{
-		check(BindingInfo.GetNumInputs() == 6 && BindingInfo.GetNumOutputs() == 10);
+		check(BindingInfo.GetNumInputs() == 6 && BindingInfo.GetNumOutputs() == 9);
 		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetClosestPoint)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == GetClosestElementName)
+	{
+		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetClosestElement)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == GetElementPointName)
+	{
+		check(BindingInfo.GetNumInputs() == 7 && BindingInfo.GetNumOutputs() == 9);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetElementPoint)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == GetElementDistanceName)
+	{
+		check(BindingInfo.GetNumInputs() == 6 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetElementDistance)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == GetClosestDistanceName)
+	{
+		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetClosestDistance)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == GetTexturePointName)
 	{
@@ -847,6 +911,22 @@ void UNiagaraDataInterfacePhysicsAsset::GetNumCapsules(FVectorVMContext& Context
 }
 
 void UNiagaraDataInterfacePhysicsAsset::GetClosestPoint(FVectorVMContext& Context)
+{
+}
+
+void UNiagaraDataInterfacePhysicsAsset::GetClosestElement(FVectorVMContext& Context)
+{
+}
+
+void UNiagaraDataInterfacePhysicsAsset::GetElementPoint(FVectorVMContext& Context)
+{
+}
+
+void UNiagaraDataInterfacePhysicsAsset::GetElementDistance(FVectorVMContext& Context)
+{
+}
+
+void UNiagaraDataInterfacePhysicsAsset::GetClosestDistance(FVectorVMContext& Context)
 {
 }
 
@@ -912,11 +992,59 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 	else if (FunctionInfo.DefinitionName == GetClosestPointName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 WorldPosition, in float DeltaTime, in float TimeFraction, out float3 OutClosestPosition, 
-							out float3 OutClosestNormal, out float3 OutClosestVelocity, out float OutClosestDistance)
+		void {InstanceFunctionName}(in float3 NodePosition, in float DeltaTime, in float TimeFraction, out float3 OutClosestPosition, 
+							out float3 OutClosestNormal, out float3 OutClosestVelocity)
 		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetClosestPoint(DIContext,WorldPosition,DeltaTime,TimeFraction,
-				OutClosestPosition,OutClosestNormal,OutClosestVelocity,OutClosestDistance);
+			{PhysicsAssetContextName} DIPhysicsAsset_GetClosestPoint(DIContext,NodePosition,DeltaTime,TimeFraction,
+				OutClosestPosition,OutClosestNormal,OutClosestVelocity);
+		}
+		)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetClosestElementName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+		void {InstanceFunctionName}(in float3 NodePosition, in float TimeFraction, out int OutClosestElement)
+		{
+			{PhysicsAssetContextName} DIPhysicsAsset_GetClosestElement(DIContext,NodePosition,TimeFraction,
+				OutClosestElement);
+		}
+		)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetElementPointName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+		void {InstanceFunctionName}(in float3 NodePosition, in float DeltaTime, in float TimeFraction, in int ElementIndex, out float3 OutClosestPosition, 
+							out float3 OutClosestNormal, out float3 OutClosestVelocity)
+		{
+			{PhysicsAssetContextName} DIPhysicsAsset_GetElementPoint(DIContext,NodePosition,DeltaTime,TimeFraction,ElementIndex,
+				OutClosestPosition,OutClosestNormal,OutClosestVelocity);
+		}
+		)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetElementDistanceName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+		void {InstanceFunctionName}(in float3 NodePosition, in float TimeFraction, in int ElementIndex, out float OutClosestDistance)
+		{
+			{PhysicsAssetContextName} DIPhysicsAsset_GetElementDistance(DIContext,NodePosition,TimeFraction,ElementIndex,
+				OutClosestDistance);
+		}
+		)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetClosestDistanceName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+		void {InstanceFunctionName}(in float3 NodePosition, in float TimeFraction, out float OutClosestDistance)
+		{
+			{PhysicsAssetContextName} DIPhysicsAsset_GetClosestDistance(DIContext,NodePosition,TimeFraction,OutClosestDistance);
 		}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -925,9 +1053,9 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 	else if (FunctionInfo.DefinitionName == GetTexturePointName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 WorldPosition, out int OutElementIndex, out float3 OutTexturePosition)
+		void {InstanceFunctionName}(in float3 NodePosition, out int OutElementIndex, out float3 OutTexturePosition)
 		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetTexturePoint(DIContext,WorldPosition,OutElementIndex,OutTexturePosition);
+			{PhysicsAssetContextName} DIPhysicsAsset_GetTexturePoint(DIContext,NodePosition,OutElementIndex,OutTexturePosition);
 		}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -936,10 +1064,10 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 	else if (FunctionInfo.DefinitionName == GetProjectionPointName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 WorldPosition, in float DeltaTime, in int ElementIndex, in float TextureValue, in float3 TextureGradient, out float3 OutClosestPosition, 
+		void {InstanceFunctionName}(in float3 NodePosition, in float DeltaTime, in int ElementIndex, in float TextureValue, in float3 TextureGradient, out float3 OutClosestPosition, 
 							out float3 OutClosestNormal, out float3 OutClosestVelocity, out float OutClosestDistance)
 		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetProjectionPoint(DIContext,WorldPosition,DeltaTime,ElementIndex,TextureValue,TextureGradient,
+			{PhysicsAssetContextName} DIPhysicsAsset_GetProjectionPoint(DIContext,NodePosition,DeltaTime,ElementIndex,TextureValue,TextureGradient,
 				OutClosestPosition,OutClosestNormal,OutClosestVelocity,OutClosestDistance);
 		}
 		)");

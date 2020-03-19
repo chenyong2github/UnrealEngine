@@ -13,7 +13,6 @@
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraUserRedirectionParameterStore.h"
-#include "NiagaraSystemFastPath.h"
 #include "NiagaraEffectType.h"
 
 #include "NiagaraSystem.generated.h"
@@ -157,6 +156,11 @@ USTRUCT()
 struct FNiagaraSystemCompileRequest
 {
 	GENERATED_USTRUCT_BODY()
+
+	FNiagaraSystemCompileRequest()
+		: bIsValid(true)
+	{
+	}
 		
 	double StartTime;
 
@@ -166,6 +170,8 @@ struct FNiagaraSystemCompileRequest
 	TArray<FEmitterCompiledScriptPair> EmitterCompiledScriptPairs;
 	
 	TMap<UNiagaraScript*, TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> > MappedData;
+
+	bool bIsValid;
 };
 
 /** Container for multiple emitters that combine together to create a particle system effect.*/
@@ -277,6 +283,9 @@ public:
 	/** Blocks until all active compile jobs have finished */
 	void WaitForCompilationComplete();
 
+	/** Invalidates any active compilation requests which will ignore their results. */
+	void InvalidateActiveCompiles();
+
 	/** Delegate called when the system's dependencies have all been compiled.*/
 	FOnSystemCompiled& OnSystemCompiled();
 
@@ -333,6 +342,11 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
 	uint32 bBakeOutRapidIteration : 1;
 
+	/** Toggles whether or not emitters within this system will try and compress their particle attributes. 
+	    In some cases, this precision change can lead to perceivable differences, but memory costs and or performance (especially true for GPU emitters) can improve. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	uint32 bCompressAttributes : 1;
+
 	/** Experimental feature to depromote parameters in the dataset that are not accessed during the precompile process. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
 	uint32 bCullDatasetParameters : 1;
@@ -375,15 +389,6 @@ public:
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
 	void AddToInstanceCountStat(int32 NumInstances, bool bSolo)const;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	ENiagaraFastPathMode FastPathMode;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	FNiagaraFastPath_Module_SystemScalability SystemScalability;
-
-	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
-	FNiagaraFastPath_Module_SystemLifeCycle SystemLifeCycle;
 
 private:
 #if WITH_EDITORONLY_DATA

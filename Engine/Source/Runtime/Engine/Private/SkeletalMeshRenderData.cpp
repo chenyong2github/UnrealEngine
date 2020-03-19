@@ -58,16 +58,12 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 // If skeletal mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("EBD3AC7CCBB449049C38BE9816BF7C2E")
+// and set this new GUID as the version.                                       
+#define SKELETALMESH_DERIVEDDATA_VER TEXT("8972F79737FD445387F6914AC5D6374D")
 
 static const FString& GetSkeletalMeshDerivedDataVersion()
 {
-	static FString CachedVersionString;
-	if (CachedVersionString.IsEmpty())
-	{
-		CachedVersionString = FString::Printf(TEXT("%s"), SKELETALMESH_DERIVEDDATA_VER);
-	}
+	static FString CachedVersionString = SKELETALMESH_DERIVEDDATA_VER;
 	return CachedVersionString;
 }
 
@@ -149,7 +145,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, Owner->GetPathName()))
 		{
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
-
+			
 			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 
 			//With skeletal mesh build refactor we serialize the LODModel sections into the DDC

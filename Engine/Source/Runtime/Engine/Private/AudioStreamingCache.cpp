@@ -325,6 +325,11 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 
 		// The function call below increments the reference count to the internal chunk.
 		TArrayView<uint8> LoadedChunk = Cache->GetChunk(ChunkKey, bBlockForLoad, (bForImmediatePlayback || bBlockForLoad));
+		
+		// Ensure that, if we requested a synchronous load of this chunk, we didn't fail to load said chunk.
+		ensureAlwaysMsgf(!bBlockForLoad || LoadedChunk.GetData(), TEXT("Synchronous load of chunk index %d for SoundWave %s failed to return any data."), ChunkIndex, *SoundWave->GetName());
+
+		UE_CLOG(!bBlockForLoad && !LoadedChunk.GetData(), LogAudio, Display, TEXT("GetLoadedChunk called for chunk index %d of SoundWave %s when audio was not loaded yet. This will result in latency."), ChunkIndex, *SoundWave->GetName());
 
 		// Finally, if there's a chunk after this in the sound, request that it is in the cache.
 		const int32 NextChunk = GetNextChunkIndex(SoundWave, ChunkIndex);
@@ -621,31 +626,49 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 	{
 		// If we missed it, kick off a new load with it.
 		FoundElement = InsertChunk(InKey);
-
 		if (!FoundElement)
 		{
 			return TArrayView<uint8>();
 		}
-
-		KickOffAsyncLoad(FoundElement, InKey, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bNeededForPlayback);
-
 		if (bBlockForLoadCompletion)
 		{
-			// If bBlockForLoadCompletion was true and we don't have an element present, we have to load the element into the cache:
-			FoundElement->WaitForAsyncLoadCompletion(false);
+			FStreamedAudioChunk& Chunk = InKey.SoundWave->RunningPlatformData->Chunks[InKey.ChunkIndex];
+			int32 ChunkAudioDataSize = Chunk.AudioDataSize;
+#if DEBUG_STREAM_CACHE
+			FoundElement->DebugInfo.NumTotalChunks = InKey.SoundWave->GetNumChunks() - 1;
+			FoundElement->DebugInfo.TimeLoadStarted = FPlatformTime::Cycles64();
+#endif
+			MemoryCounterBytes -= FoundElement->ChunkData.Num();
 
-			FoundElement->NumConsumers.Increment();
-			return TArrayView<uint8>(FoundElement->ChunkData.GetData(), FoundElement->ChunkDataSize);
+			// Reallocate our chunk data This allows us to shrink if possible.
+			// Unfortunately, GetCopy will write out the full zero-padded length of the bulk data,
+			// rather than just the audio data. So we set the array to Chunk.DataSize, then shrink to Chunk.AudioDataSize.
+			FoundElement->ChunkData.SetNumUninitialized(Chunk.DataSize, true);
+			void* DataDestPtr = FoundElement->ChunkData.GetData();
+			Chunk.BulkData.GetCopy(&DataDestPtr, true);
+
+			FoundElement->ChunkData.SetNumUninitialized(ChunkAudioDataSize);
+			MemoryCounterBytes += FoundElement->ChunkData.Num();
+
+			// Populate key and DataSize. The async read request was set up to write directly into CacheElement->ChunkData.
+			FoundElement->Key = InKey;
+			FoundElement->ChunkDataSize = ChunkAudioDataSize;
+			FoundElement->bIsLoaded = true;
+#if DEBUG_STREAM_CACHE
+			FoundElement->DebugInfo.TimeToLoad = (FPlatformTime::Seconds() - FoundElement->DebugInfo.TimeLoadStarted) * 1000.0f;
+#endif
 		}
-		else if (bNeededForPlayback && (bLogCacheMisses || AlwaysLogCacheMissesCVar))
+		else
 		{
-			// We missed 
+			KickOffAsyncLoad(FoundElement, InKey, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bNeededForPlayback);
+		}
+		if (bLogCacheMisses && !bBlockForLoadCompletion)
+		{
+			// Chunks missing. Log this as a miss.
 			const uint32 TotalNumChunksInWave = InKey.SoundWave->GetNumChunks();
-
 			FCacheMissInfo CacheMissInfo = { InKey.SoundWaveName, InKey.ChunkIndex, TotalNumChunksInWave, false };
 			CacheMissQueue.Enqueue(MoveTemp(CacheMissInfo));
 		}
-
 		// We missed, return an empty array view.
 		return TArrayView<uint8>();
 	}
@@ -1484,7 +1507,7 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 
 		const bool bWasTrimmed = CurrentElement->ChunkData.Num() == 0;
 
-		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Average Index: %6.2f  Number of Handles Retaining Chunk: %d     Chunk Load Time: %6.4fms      Name: %s Notes: %s %s"),
+		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Average Index: %6.2f  Number of Handles Retaining Chunk: %d     Chunk Load Time(in ms): %6.4fms      Name: %s Notes: %s %s"),
 			Index,
 			CurrentElement->ChunkData.Num() / 1024.0f,
 			CurrentElement->Key.ChunkIndex,
@@ -1616,7 +1639,7 @@ FString FAudioChunkCache::DebugPrint()
 
 		const bool bWasTrimmed = CurrentElement->ChunkData.Num() == 0;
 
-		FString ElementInfo = *FString::Printf(TEXT("%4i.\t, %6.2f KB\t, %d of %d\t, %d\t, %6.2f\t, %d\t,  %6.4fms\t, %s\t, %s %s %s"),
+		FString ElementInfo = *FString::Printf(TEXT("%4i.\t, %6.2f\t, %d of %d\t, %d\t, %6.2f\t, %d\t,  %6.4f\t, %s\t, %s %s %s"),
 			Index,
 			CurrentElement->ChunkData.Num() / 1024.0f,
 			CurrentElement->Key.ChunkIndex,

@@ -85,16 +85,34 @@ FSkeletalMeshSkinningDataHandle::~FSkeletalMeshSkinningDataHandle()
 	}
 }
 
+FSkeletalMeshSkinningDataHandle::FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other)
+{
+	Usage = Other.Usage;
+	SkinningData = Other.SkinningData;
+	Other.SkinningData = nullptr;
+}
+
+FSkeletalMeshSkinningDataHandle& FSkeletalMeshSkinningDataHandle::operator=(FSkeletalMeshSkinningDataHandle&& Other)
+{
+	if (this != &Other)
+	{
+		Usage = Other.Usage;
+		SkinningData = Other.SkinningData;
+		Other.SkinningData = nullptr;
+	}
+	return *this;
+}
+
 //////////////////////////////////////////////////////////////////////////
 void FSkeletalMeshSkinningData::ForceDataRefresh()
 {
-	FScopeLock Lock(&CriticalSection);
+	FRWScopeLock Lock(RWGuard, SLT_Write);
 	bForceDataRefresh = true;
 }
 
 void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usage)
 {
-	FScopeLock Lock(&CriticalSection);
+	FRWScopeLock Lock(RWGuard, SLT_Write);
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
 
 	int32 LODIndex = Usage.GetLODIndex();
@@ -150,7 +168,7 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 
 void FSkeletalMeshSkinningData::UnregisterUser(FSkeletalMeshSkinningDataUsage Usage)
 {
-	FScopeLock Lock(&CriticalSection);
+	FRWScopeLock Lock(RWGuard, SLT_Write);
 	check(LODData.IsValidIndex(Usage.GetLODIndex()));
 
 	if (Usage.NeedBoneMatrices())
@@ -165,7 +183,7 @@ void FSkeletalMeshSkinningData::UnregisterUser(FSkeletalMeshSkinningDataUsage Us
 	}
 }
 
-bool FSkeletalMeshSkinningData::IsUsed()const
+bool FSkeletalMeshSkinningData::IsUsed() const
 {
 	if (BoneMatrixUsers > 0)
 	{
@@ -256,6 +274,8 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 
 bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 {
+	FRWScopeLock Lock(RWGuard, SLT_Write);
+
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
 	check(SkelComp);
 	DeltaSeconds = InDeltaSeconds;
@@ -314,6 +334,11 @@ FSkeletalMeshSkinningDataHandle FNDI_SkeletalMesh_GeneratedData::GetCachedSkinni
 		if ( CachedSkinningDataAndUsage* Existing = CachedSkinningData.Find(Component) )
 		{
 			check(Existing->SkinningData.IsValid());
+			ensure(Existing->Usage.NeedBoneMatrices() == Usage.NeedBoneMatrices());
+			ensure(Existing->Usage.NeedPreSkinnedVerts() == Usage.NeedPreSkinnedVerts());
+			ensure(Existing->Usage.NeedsDataImmediately() == Usage.NeedsDataImmediately());
+			ensure(Existing->Usage.GetLODIndex() == Usage.GetLODIndex());
+
 			return FSkeletalMeshSkinningDataHandle(Existing->Usage, Existing->SkinningData);
 		}
 	}
@@ -470,7 +495,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 			}
 		}
 
-		NumSpecificSockets = InstData->SpecificSockets.Num();
+		NumSpecificSockets = InstData->SpecificSocketInfo.Num();
 		SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
 	}
 }
@@ -657,8 +682,6 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 	auto FillBuffers =
 		[&](const TArray<FTransform>& BoneTransforms)
 		{
-			check(BoneTransforms.Num() == SkelMesh->RefBasesInvMatrix.Num());
-
 			// Fill AllSectionsRefToLocalMatrices
 			TIndirectArray<FSkeletalMeshLODRenderData>& LODRenderDataArray = SkelMesh->GetResourceForRendering()->LODRenderData;
 			check(0 <= LODIndex && LODIndex < LODRenderDataArray.Num());
@@ -683,7 +706,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 				{
 					const int32 BoneIndex = Section.BoneMap[m];
 					const FTransform& BoneTransform = BoneTransforms[BoneIndex];
-					const FMatrix BoneMatrix = SkelMesh->RefBasesInvMatrix[BoneIndex] * BoneTransform.ToMatrixWithScale();
+					const FMatrix BoneMatrix = SkelMesh->RefBasesInvMatrix.IsValidIndex(BoneIndex) ? SkelMesh->RefBasesInvMatrix[BoneIndex] * BoneTransform.ToMatrixWithScale() : BoneTransform.ToMatrixWithScale();
 					BoneMatrix.To3x4MatrixTranspose(&AllSectionsRefToLocalMatrices[Float4Count].X);
 					Float4Count += 3;
 				}
@@ -955,8 +978,8 @@ public:
 				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
 			}
 
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightBuffer, InstanceData->MeshSkinWeightBufferSrv);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightLookupBuffer, InstanceData->MeshSkinWeightLookupBufferSrv);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightBuffer, InstanceData->MeshSkinWeightBuffer->GetSRV());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightLookupBuffer, InstanceData->MeshSkinWeightLookupBuffer->GetSRV());
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshWeightStride, InstanceData->MeshWeightStrideByte/4);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshSkinWeightIndexSize, InstanceData->MeshSkinWeightIndexSizeByte);
@@ -1095,9 +1118,8 @@ void FNiagaraDataInterfaceProxySkeletalMesh::ConsumePerInstanceDataFromGameThrea
 	Data.StaticBuffers = SourceData->StaticBuffers;
 	Data.Transform = SourceData->Transform;
 
-	// @todo-threadsafety race here. Need to hold a ref to this buffer on the RT
-	Data.MeshSkinWeightBufferSrv = SourceData->MeshSkinWeightBufferSrv;
-	Data.MeshSkinWeightLookupBufferSrv = SourceData->MeshSkinWeightLookupBufferSrv;
+	Data.MeshSkinWeightBuffer = SourceData->MeshSkinWeightBuffer;
+	Data.MeshSkinWeightLookupBuffer = SourceData->MeshSkinWeightLookupBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1118,9 +1140,8 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 	Data->StaticBuffers = SourceData->MeshGpuSpawnStaticBuffers;
 	Data->Transform = SourceData->Transform;
 
-	// @todo-threadsafety race here. Need to hold a ref to this buffer on the RT
-	Data->MeshSkinWeightBufferSrv = SourceData->MeshSkinWeightBufferSrv;
-	Data->MeshSkinWeightLookupBufferSrv = SourceData->MeshSkinWeightLookupBufferSrv;
+	Data->MeshSkinWeightBuffer = SourceData->MeshSkinWeightBuffer;
+	Data->MeshSkinWeightLookupBuffer = SourceData->MeshSkinWeightLookupBuffer;
 }
 
 USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
@@ -1246,9 +1267,9 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraCompon
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (!Mesh && DefaultMesh)
+	if (!Mesh && PreviewMesh)
 	{
-		Mesh = DefaultMesh;
+		Mesh = PreviewMesh;
 	}
 #endif
 
@@ -1301,7 +1322,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	}
 
 	Transform = Component->GetComponentToWorld().ToMatrixWithScale();
-	TransformInverseTransposed = Transform.InverseFast().GetTransposed();
+	TransformInverseTransposed = Transform.Inverse().GetTransposed();
 	PrevTransform = Transform;
 	
 	CachedAttachParent = Component->GetAttachParent();
@@ -1490,7 +1511,26 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	// Gather specific socket information
 	{
-		SpecificSockets = Interface->SpecificSockets;
+		TArray<FName>& SpecificSockets = Interface->SpecificSockets;
+		SpecificSocketInfo.SetNum(SpecificSockets.Num());
+
+		//-TODO: We may need to handle skinning mode changes here
+		if (NewSkelComp != nullptr)
+		{
+			for (int32 i = 0; i < SpecificSocketInfo.Num(); ++i)
+			{
+				NewSkelComp->GetSocketInfoByName(SpecificSockets[i], SpecificSocketInfo[i].Transform, SpecificSocketInfo[i].BoneIdx);
+			}
+		}
+		else
+		{
+			for (int32 i = 0; i < SpecificSocketInfo.Num(); ++i)
+			{
+				SpecificSocketInfo[i].Transform = FTransform(Mesh->GetComposedRefPoseMatrix(SpecificSockets[i]));
+				SpecificSocketInfo[i].BoneIdx = INDEX_NONE;
+			}
+		}
+
 		SpecificSocketBoneOffset = Mesh->RefSkeleton.GetNum();
 
 		SpecificSocketTransformsIndex = 0;
@@ -1529,9 +1569,9 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		bUnlimitedBoneInfluences = (BoneInfluenceType == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence);
 		MeshWeightStrideByte = SkinWeightBuffer->GetConstantInfluencesVertexStride();
 		MeshSkinWeightIndexSizeByte = SkinWeightBuffer->GetBoneIndexByteSize();
-		MeshSkinWeightBufferSrv = SkinWeightBuffer->GetDataVertexBuffer()->GetSRV();
+		MeshSkinWeightBuffer = SkinWeightBuffer->GetDataVertexBuffer();
 		//check(MeshSkinWeightBufferSrv->IsValid()); // not available in this stream
-		MeshSkinWeightLookupBufferSrv = SkinWeightBuffer->GetLookupVertexBuffer()->GetSRV();
+		MeshSkinWeightLookupBuffer = SkinWeightBuffer->GetLookupVertexBuffer();
 
 		FSkeletalMeshLODInfo* LODInfo = Mesh->GetLODInfo(LODIndex);
 		bIsGpuUniformlyDistributedSampling = LODInfo->bSupportUniformlyDistributedSampling && bAllRegionsAreAreaWeighting;
@@ -1550,7 +1590,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		BeginInitResource(MeshGpuSpawnStaticBuffers);
 
 		MeshGpuSpawnDynamicBuffers = new FSkeletalMeshGpuDynamicBufferProxy();
-		MeshGpuSpawnDynamicBuffers->Initialise(RefSkel, LODData, SpecificSockets.Num());
+		MeshGpuSpawnDynamicBuffers->Initialise(RefSkel, LODData, SpecificSocketInfo.Num());
 		BeginInitResource(MeshGpuSpawnDynamicBuffers);
 	}
 
@@ -1603,7 +1643,7 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 	else
 	{
 #if WITH_EDITORONLY_DATA
-		if (!Interface->DefaultMesh)
+		if (!Interface->PreviewMesh)
 		{
 			return true;
 		}
@@ -1667,30 +1707,11 @@ void FNDISkeletalMesh_InstanceData::UpdateSpecificSocketTransforms()
 	USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get());
 	TArray<FTransform>& WriteBuffer = GetSpecificSocketsWriteBuffer();
 
-	//-TODO: We may need to handle skinning mode changes here
-	if (SkelComp != nullptr)
+	for (int32 i = 0; i < SpecificSocketInfo.Num(); ++i)
 	{
-		for (int32 i = 0; i < SpecificSockets.Num(); ++i)
-		{
-			FTransform SocketTransform;
-			int32 BoneIdx;
-			SkelComp->GetSocketInfoByName(SpecificSockets[i], SocketTransform, BoneIdx);
-			WriteBuffer[i] = SocketTransform * SkelComp->GetBoneTransform(BoneIdx, FTransform::Identity);
-		}
-	}
-	else if ( Mesh != nullptr )
-	{
-		for (int32 i = 0; i < SpecificSockets.Num(); ++i)
-		{
-			WriteBuffer[i] = FTransform(Mesh->GetComposedRefPoseMatrix(SpecificSockets[i]));
-		}
-	}
-	else
-	{
-		for (int32 i = 0; i < SpecificSockets.Num(); ++i)
-		{
-			WriteBuffer[i] = FTransform::Identity;
-		}
+		const FCachedSocketInfo& SocketInfo = SpecificSocketInfo[i];
+		const FTransform& BoneTransform = SocketInfo.BoneIdx != INDEX_NONE ? SkelComp->GetBoneTransform(SocketInfo.BoneIdx, FTransform::Identity) : FTransform::Identity;
+		WriteBuffer[i] = SocketInfo.Transform * BoneTransform;
 	}
 }
 
@@ -1737,7 +1758,7 @@ void FNDISkeletalMesh_InstanceData::Release()
 UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
-	, DefaultMesh(nullptr)
+	, PreviewMesh(nullptr)
 #endif
 	, Source(nullptr)
 	, SkinningMode(ENDISkeletalMesh_SkinningMode::SkinOnTheFly)
@@ -1782,7 +1803,6 @@ void UNiagaraDataInterfaceSkeletalMesh::PostEditChangeProperty(FPropertyChangedE
 }
 
 #endif //WITH_EDITOR
-
 
 void UNiagaraDataInterfaceSkeletalMesh::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
@@ -1861,7 +1881,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::CopyToInternal(UNiagaraDataInterface* De
 	OtherTyped->SpecificBones = SpecificBones;
 	OtherTyped->SpecificSockets = SpecificSockets;
 #if WITH_EDITORONLY_DATA
-	OtherTyped->DefaultMesh = DefaultMesh;
+	OtherTyped->PreviewMesh = PreviewMesh;
 	OtherTyped->bRequiresCPUAccess = bRequiresCPUAccess;
 #endif
 	return true;
@@ -1876,7 +1896,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::Equals(const UNiagaraDataInterface* Othe
 	const UNiagaraDataInterfaceSkeletalMesh* OtherTyped = CastChecked<const UNiagaraDataInterfaceSkeletalMesh>(Other);
 	return OtherTyped->Source == Source &&
 #if WITH_EDITORONLY_DATA
-		OtherTyped->DefaultMesh == DefaultMesh &&
+		OtherTyped->PreviewMesh == PreviewMesh &&
 #endif
 		OtherTyped->MeshUserParameter == MeshUserParameter &&
 		OtherTyped->SkinningMode == SkinningMode &&
@@ -1935,11 +1955,11 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceSkeletalMesh::GetErrors(
 	
 	// Collect Errors
 #if WITH_EDITORONLY_DATA
-	if (DefaultMesh != nullptr)
+	if (PreviewMesh != nullptr)
 	{
 		if (bRequiresCPUAccess)
 		{
-			for (const FSkeletalMeshLODInfo& LODInfo : DefaultMesh->GetLODInfoArray())
+			for (const FSkeletalMeshLODInfo& LODInfo : PreviewMesh->GetLODInfoArray())
 			{
 				if (!LODInfo.bAllowCPUAccess)
 				{
@@ -1957,12 +1977,12 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceSkeletalMesh::GetErrors(
 	// Report Errors
 	if (Source == nullptr && bHasCPUAccessError)
 	{
-		FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(DefaultMesh->GetName())),
+		FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(PreviewMesh->GetName())),
 			LOCTEXT("CPUAccessNotAllowedErrorSummary", "CPU access error"),
 			FNiagaraDataInterfaceFix::CreateLambda([=]()
 		{
-			DefaultMesh->Modify();
-			for (FSkeletalMeshLODInfo& LODInfo : DefaultMesh->GetLODInfoArray())
+			PreviewMesh->Modify();
+			for (FSkeletalMeshLODInfo& LODInfo : PreviewMesh->GetLODInfoArray())
 			{
 				LODInfo.bAllowCPUAccess = true;
 			}
@@ -2351,6 +2371,11 @@ void FSkeletalMeshAccessorHelper::Init<
 	const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->Mesh->GetSamplingInfo();
 	SamplingRegion = &SamplingInfo.GetRegion(InstData->SamplingRegionIndices[0]);
 	SamplingRegionBuiltData = &SamplingInfo.GetRegionBuiltData(InstData->SamplingRegionIndices[0]);
+
+	if (SkinningData != nullptr)
+	{
+		SkinningData->EnterRead();
+	}
 }
 
 template<>
@@ -2369,6 +2394,11 @@ void FSkeletalMeshAccessorHelper::Init<
 	const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->Mesh->GetSamplingInfo();
 	SamplingRegion = &SamplingInfo.GetRegion(InstData->SamplingRegionIndices[0]);
 	SamplingRegionBuiltData = &SamplingInfo.GetRegionBuiltData(InstData->SamplingRegionIndices[0]);
+
+	if (SkinningData != nullptr)
+	{
+		SkinningData->EnterRead();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

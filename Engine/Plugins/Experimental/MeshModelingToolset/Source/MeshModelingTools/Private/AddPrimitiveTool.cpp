@@ -18,6 +18,7 @@
 #include "Generators/BoxSphereGenerator.h"
 #include "Generators/DiscMeshGenerator.h"
 #include "DynamicMeshAttributeSet.h"
+#include "FaceGroupUtil.h"
 
 #include "Drawing/MeshDebugDrawing.h"
 
@@ -55,6 +56,7 @@ UProceduralShapeToolProperties::UProceduralShapeToolProperties()
 	//EndAngle = 360;
 	Slices = 16;
 	Subdivisions = 0;
+	PolygroupMode = EMakeMeshPolygroupMode::PerFace;
 	PivotLocation = EMakeMeshPivotLocation::Base;
 	PlaceMode = EMakeMeshPlacementType::OnScene;
 	bAlignShapeToPlacementSurface = true;
@@ -69,9 +71,11 @@ void UProceduralShapeToolProperties::SaveProperties(UInteractiveTool* SaveFromTo
 	PropertyCache->FeatureRadius = this->FeatureRadius;
 	PropertyCache->Slices = this->Slices;
 	PropertyCache->Subdivisions = this->Subdivisions;
+	PropertyCache->PolygroupMode = this->PolygroupMode;
 	PropertyCache->PivotLocation = this->PivotLocation;
 	PropertyCache->PlaceMode = this->PlaceMode;
 	PropertyCache->bAlignShapeToPlacementSurface = this->bAlignShapeToPlacementSurface;
+	PropertyCache->bInstanceIfPossible = this->bInstanceIfPossible;
 }
 
 void UProceduralShapeToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
@@ -83,9 +87,12 @@ void UProceduralShapeToolProperties::RestoreProperties(UInteractiveTool* Restore
 	this->FeatureRadius = PropertyCache->FeatureRadius;
 	this->Slices = PropertyCache->Slices;
 	this->Subdivisions = PropertyCache->Subdivisions;
+	this->PolygroupMode = PropertyCache->PolygroupMode;
 	this->PivotLocation = PropertyCache->PivotLocation;
 	this->PlaceMode = PropertyCache->PlaceMode;
 	this->bAlignShapeToPlacementSurface = PropertyCache->bAlignShapeToPlacementSurface;
+	this->bInstanceIfPossible = PropertyCache->bInstanceIfPossible;
+
 }
 
 namespace
@@ -100,10 +107,11 @@ namespace
 	  { TEXT("Height"),        EMakeMeshShapeType::Box | EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::Rectangle | EMakeMeshShapeType::RoundedRectangle },
 	  { TEXT("FeatureRadius"),		   EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Torus },
 	  { TEXT("Rotation"),      EMakeMeshShapeType::All },
+	  { TEXT("PolygroupMode"), EMakeMeshShapeType::All },
 	  { TEXT("PlaceMode"),     EMakeMeshShapeType::All },
 	  { TEXT("PivotLocation"), EMakeMeshShapeType::All },
 	  { TEXT("bAlignShapeToPlacementSurface"), EMakeMeshShapeType::All },
-	  { TEXT("bInstanceLastCreatedAssetIfPossible"), EMakeMeshShapeType::All },
+	  { TEXT("bInstanceIfPossible"), EMakeMeshShapeType::All },
 	  { TEXT("Slices"),        EMakeMeshShapeType::Cylinder | EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Disc | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Sphere | EMakeMeshShapeType::Torus },
 	  { TEXT("Subdivisions"),  EMakeMeshShapeType::Box | EMakeMeshShapeType::Rectangle | EMakeMeshShapeType::RoundedRectangle | EMakeMeshShapeType::Disc | EMakeMeshShapeType::PuncturedDisc | EMakeMeshShapeType::Cylinder |
 							   EMakeMeshShapeType::Cone | EMakeMeshShapeType::Arrow | EMakeMeshShapeType::SphericalBox | EMakeMeshShapeType::Torus }
@@ -163,7 +171,7 @@ void UAddPrimitiveTool::Setup()
 	UpdatePreviewMesh();
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartAddPrimitiveTool", "Position the Primitive by moving the mouse over the scene. Drop a new instance by Left-clicking."),
+		LOCTEXT("OnStartAddPrimitiveTool", "This Tool creates new Primitive mesh assets. Position the Primitive by moving the mouse over the scene. Drop a new Asset or Instance by left-clicking (depending on Asset settings)."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -322,6 +330,11 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 		break;
 	}
 
+	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::Single)
+	{
+		FaceGroupUtil::SetGroupID(NewMesh, 0);
+	}
+
 	if (MaterialProperties->UVScale != 1.0 || MaterialProperties->bWorldSpaceUVScale)
 	{
 		FDynamicMeshEditor Editor(&NewMesh);
@@ -358,7 +371,7 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 	FString ShapeTypeName = MakeMeshShapeTypeEnum->GetNameStringByValue((int64)ShapeSettings->Shape);
 	UMaterialInterface* Material = PreviewMesh->GetMaterial();
 
-	if (ShapeSettings->bInstanceLastCreatedAssetIfPossible && IsEquivalentLastGeneratedAsset())
+	if (ShapeSettings->bInstanceIfPossible && IsEquivalentLastGeneratedAsset())
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
 		FActorSpawnParameters SpawnParameters;
@@ -413,6 +426,10 @@ void UAddPrimitiveTool::GenerateBox(FDynamicMesh3* OutMesh)
 	BoxGen.Box = FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(ShapeSettings->Width, ShapeSettings->Width, ShapeSettings->Height));
 	int EdgeNum = ShapeSettings->Subdivisions + 2;
 	BoxGen.EdgeVertices = FIndex3i(EdgeNum, EdgeNum, EdgeNum);
+	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	{
+		BoxGen.bPolygroupPerQuad = true;
+	}
 	BoxGen.Generate();
 	OutMesh->Copy(&BoxGen);
 }
@@ -424,6 +441,10 @@ void UAddPrimitiveTool::GenerateRectangle(FDynamicMesh3* OutMesh)
 	RectGen.Width = ShapeSettings->Width;
 	RectGen.Height = ShapeSettings->Height;
 	RectGen.WidthVertexCount = RectGen.HeightVertexCount = ShapeSettings->Subdivisions + 2;
+	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
+	{
+		RectGen.bSinglePolygroup = true;
+	}
 	RectGen.Generate();
 	OutMesh->Copy(&RectGen);
 }
@@ -434,6 +455,10 @@ void UAddPrimitiveTool::GenerateRoundedRectangle(FDynamicMesh3* OutMesh)
 	RectGen.Width = ShapeSettings->Width;
 	RectGen.Height = ShapeSettings->Height;
 	RectGen.WidthVertexCount = RectGen.HeightVertexCount = ShapeSettings->Subdivisions + 2;
+	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
+	{
+		RectGen.bSinglePolygroup = true;
+	}
 	RectGen.Radius = ShapeSettings->FeatureRadius;
 	RectGen.AngleSamples = ShapeSettings->Slices;
 	RectGen.Generate();
@@ -447,6 +472,10 @@ void UAddPrimitiveTool::GenerateDisc(FDynamicMesh3* OutMesh)
 	Gen.Radius = ShapeSettings->Width * 0.5f;
 	Gen.AngleSamples = ShapeSettings->Slices;
 	Gen.RadialSamples = ShapeSettings->Subdivisions;
+	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
+	{
+		Gen.bSinglePolygroup = true;
+	}
 	Gen.Generate();
 	OutMesh->Copy(&Gen);
 }
@@ -459,6 +488,10 @@ void UAddPrimitiveTool::GeneratePuncturedDisc(FDynamicMesh3* OutMesh)
 	Gen.HoleRadius = FMath::Min(ShapeSettings->FeatureRadius, Gen.Radius * .999f); // hole cannot be bigger than outer radius
 	Gen.AngleSamples = ShapeSettings->Slices;
 	Gen.RadialSamples = ShapeSettings->Subdivisions;
+	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
+	{
+		Gen.bSinglePolygroup = true;
+	}
 	Gen.Generate();
 	OutMesh->Copy(&Gen);
 }
@@ -475,6 +508,10 @@ void UAddPrimitiveTool::GenerateTorus(FDynamicMesh3* OutMesh)
 	}
 	Gen.bLoop = true;
 	Gen.bCapped = false;
+	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	{
+		Gen.bPolygroupPerQuad = true;
+	}
 	Gen.InitialFrame = FFrame3d(Gen.Path[0]);
 	Gen.Generate();
 	OutMesh->Copy(&Gen);
@@ -490,6 +527,10 @@ void UAddPrimitiveTool::GenerateCylinder(FDynamicMesh3* OutMesh)
 	CylGen.AngleSamples = ShapeSettings->Slices;
 	CylGen.LengthSamples = ShapeSettings->Subdivisions;
 	CylGen.bCapped = true;
+	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	{
+		CylGen.bPolygroupPerQuad = true;
+	}
 	CylGen.Generate();
 	OutMesh->Copy(&CylGen);
 }
@@ -505,6 +546,10 @@ void UAddPrimitiveTool::GenerateCone(FDynamicMesh3* OutMesh)
 	CylGen.AngleSamples = ShapeSettings->Slices;
 	CylGen.LengthSamples = ShapeSettings->Subdivisions;
 	CylGen.bCapped = true;
+	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	{
+		CylGen.bPolygroupPerQuad = true;
+	}
 	CylGen.Generate();
 	OutMesh->Copy(&CylGen);
 }
@@ -520,6 +565,10 @@ void UAddPrimitiveTool::GenerateArrow(FDynamicMesh3* OutMesh)
 	ArrowGen.HeadLength = ShapeSettings->Height * .75f;
 	ArrowGen.AngleSamples = ShapeSettings->Slices;
 	ArrowGen.bCapped = true;
+	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	{
+		ArrowGen.bPolygroupPerQuad = true;
+	}
 	ArrowGen.DistributeAdditionalLengthSamples(ShapeSettings->Subdivisions);
 	ArrowGen.Generate();
 	OutMesh->Copy(&ArrowGen);
@@ -532,6 +581,10 @@ void UAddPrimitiveTool::GenerateSphere(FDynamicMesh3* OutMesh)
 	SphereGen.Radius = ShapeSettings->Width * 0.5f;
 	SphereGen.NumTheta = ShapeSettings->Slices;
 	SphereGen.NumPhi = ShapeSettings->Slices;
+	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	{
+		SphereGen.bPolygroupPerQuad = true;
+	}
 	SphereGen.Generate();
 	OutMesh->Copy(&SphereGen);
 }
@@ -544,6 +597,10 @@ void UAddPrimitiveTool::GenerateSphericalBox(FDynamicMesh3* OutMesh)
 	SphereGen.Box = FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(ShapeSettings->Width, ShapeSettings->Width, ShapeSettings->Width));
 	int EdgeNum = ShapeSettings->Subdivisions + 3;
 	SphereGen.EdgeVertices = FIndex3i(EdgeNum, EdgeNum, EdgeNum);
+	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	{
+		SphereGen.bPolygroupPerQuad = true;
+	}
 	SphereGen.Generate();
 	OutMesh->Copy(&SphereGen);
 }

@@ -1282,6 +1282,10 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 
 	for (int i = 0; i < FilteredScriptAssets.Num(); ++i)
 	{
+		// Get the custom version the asset was saved with so it can be used below.
+		int32 NiagaraVersion = INDEX_NONE;
+		FilteredScriptAssets[i].GetTagValue(UNiagaraScript::NiagaraCustomVersionTagName, NiagaraVersion);
+
 		// Check if the script is deprecated
 		if (InFilter.bIncludeDeprecatedScripts == false)
 		{
@@ -1307,11 +1311,26 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 		// Check if usage bitmask matches
 		if (InFilter.TargetUsageToMatch.IsSet())
 		{
-			FString BitfieldTagValue;
-			int32 BitfieldValue, TargetBit;
-			BitfieldTagValue = FilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
-			BitfieldValue = FCString::Atoi(*BitfieldTagValue);
-			TargetBit = (BitfieldValue >> (int32)InFilter.TargetUsageToMatch.GetValue()) & 1;
+			int32 BitfieldValue = 0;
+			if (NiagaraVersion == INDEX_NONE || NiagaraVersion < FNiagaraCustomVersion::AddSimulationStageUsageEnum)
+			{
+				// If there is no custom version, or it's less than the simulation stage enum fix up, we need to load the 
+				// asset to get the correct bitmask since the shader stage enum broke the old ones.
+				UNiagaraScript* AssetScript = Cast<UNiagaraScript>(FilteredScriptAssets[i].GetAsset());
+				if (AssetScript != nullptr)
+				{
+					BitfieldValue = AssetScript->ModuleUsageBitmask;
+				}
+			}
+			else
+			{
+				// Otherwise the asset is new enough to have a valid bitmask.
+				FString BitfieldTagValue;
+				BitfieldTagValue = FilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
+				BitfieldValue = FCString::Atoi(*BitfieldTagValue);
+			}
+
+			int32 TargetBit = (BitfieldValue >> (int32)InFilter.TargetUsageToMatch.GetValue()) & 1;
 			if (TargetBit != 1)
 			{
 				continue;
@@ -1840,7 +1859,7 @@ void FNiagaraEditorUtilities::CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterH
 
 void FNiagaraEditorUtilities::GetScriptRunAndExecutionIndexFromUsage(const ENiagaraScriptUsage& InUsage, int32& OutRunIndex, int32&OutExecutionIndex)
 {
-	switch (InUsage) //@todo(ng) fix numeric scheme Execution Index needing to continuously increment
+	switch (InUsage)
 	{
 	case ENiagaraScriptUsage::SystemSpawnScript:
 		OutRunIndex = 0;
@@ -2033,6 +2052,17 @@ void FNiagaraEditorUtilities::WarnWithToastAndLog(FText WarningMessage)
 	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *WarningMessage.ToString());
 }
 
+void FNiagaraEditorUtilities::InfoWithToastAndLog(FText InfoMessage)
+{
+	FNotificationInfo WarningNotification(InfoMessage);
+	WarningNotification.ExpireDuration = 5.0f;
+	WarningNotification.bFireAndForget = true;
+	WarningNotification.bUseLargeFont = false;
+	WarningNotification.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
+	FSlateNotificationManager::Get().AddNotification(WarningNotification);
+	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *InfoMessage.ToString());
+}
+
 FName FNiagaraEditorUtilities::GetUniqueObjectName(UObject* Outer, UClass* ObjectClass, const FString& CandidateName)
 {
 	if (StaticFindObject(ObjectClass, Outer, *CandidateName) == nullptr)
@@ -2091,25 +2121,20 @@ bool FNiagaraEditorUtilities::GetVariableMetaDataNamespaceString(const FNiagaraV
 		return false;
 	}
 
-	if (MetaData.IsInputOrLocalUsage())
+	const FName& MetaDataScopeName = MetaData.GetScopeName();
+	const FNiagaraParameterScopeInfo* ScopeInfo = FNiagaraEditorModule::FindParameterScopeInfo(MetaDataScopeName);
+	if (ScopeInfo == nullptr)
 	{
-		const FName& MetaDataScopeName = MetaData.GetScopeName();
-		const FNiagaraParameterScopeInfo* ScopeInfo = FNiagaraEditorModule::FindParameterScopeInfo(MetaDataScopeName);
-		if (ScopeInfo == nullptr)
-		{
-			ensureMsgf(false, TEXT("Failed to find registered parameter scope info for scope name %s!"), *MetaDataScopeName.ToString());
-			return false;
-		}
-
-		FString NamespaceString = ScopeInfo->GetNamespaceString();
-		if (MetaData.GetUsage() == ENiagaraScriptParameterUsage::InitialValueInput)
-		{
-			NamespaceString.Append(PARAM_MAP_INITIAL_STR);
-		}
-		OutNamespaceString = NamespaceString;
-		return true;
+		ensureMsgf(false, TEXT("Failed to find registered parameter scope info for scope name %s!"), *MetaDataScopeName.ToString());
+		return false;
 	}
-	OutNamespaceString = PARAM_MAP_OUTPUT_STR;
+
+	FString NamespaceString = ScopeInfo->GetNamespaceString();
+	if (MetaData.GetUsage() == ENiagaraScriptParameterUsage::InitialValueInput)
+	{
+		NamespaceString.Append(PARAM_MAP_INITIAL_STR);
+	}
+	OutNamespaceString = NamespaceString;
 	return true;
 }
 
@@ -2161,7 +2186,9 @@ FName FNiagaraEditorUtilities::GetScopeNameForParameterScope(ENiagaraParameterSc
 	case ENiagaraParameterScope::ScriptPersistent:
 		return FNiagaraConstants::ScriptPersistentScopeName;
 	case ENiagaraParameterScope::ScriptTransient:
-		return FNiagaraConstants::ScriptTransientScopeName;
+		return FNiagaraConstants::ScriptTransientScopeName; 
+	case ENiagaraParameterScope::Output:
+		return FNiagaraConstants::OutputScopeName;
 	default:
 		ensureMsgf(false, TEXT("Tried to get scope name for unknown parameter scope!"));
 	}
@@ -2183,6 +2210,36 @@ TArray<FName> FNiagaraEditorUtilities::DecomposeVariableNamespace(const FName& I
 	return OutNamespaces;
 }
 
+void  FNiagaraEditorUtilities::RecomposeVariableNamespace(const FName& InVarNameToken, const TArray<FName>& InParentNamespaces, FName& OutName)
+{
+	FString VarNameString;
+	for (FName Name : InParentNamespaces)
+	{
+		VarNameString += Name.ToString() + TEXT(".");
+	}
+	VarNameString += InVarNameToken.ToString();
+	OutName = FName(*VarNameString);
+}
+
+bool FNiagaraEditorUtilities::IsScopeEditable(const FName& InScopeName)
+{
+	if (InScopeName == FNiagaraConstants::EngineNamespace || InScopeName == FNiagaraConstants::EngineOwnerScopeName || InScopeName == FNiagaraConstants::EngineSystemScopeName || InScopeName == FNiagaraConstants::EngineEmitterScopeName)
+	{
+		return false;
+	}
+	return true;
+}
+
+bool FNiagaraEditorUtilities::IsScopeUserAssignable(const FName& InScopeName)
+{
+	if (InScopeName == FNiagaraConstants::EngineNamespace || InScopeName == FNiagaraConstants::EngineOwnerScopeName || InScopeName == FNiagaraConstants::EngineSystemScopeName || InScopeName == FNiagaraConstants::EngineEmitterScopeName)
+	{
+		return false;
+	}
+	return true;
+}
+
+
 void FNiagaraEditorUtilities::GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData)
 {
 	auto MarkAsLegacyCustomName = [&OutMetaData]() {
@@ -2200,31 +2257,43 @@ void FNiagaraEditorUtilities::GetParameterMetaDataFromName(const FName& InVarNam
 		else if (Namespace == FNiagaraConstants::ModuleNamespace)
 		{
 			OutMetaData.SetScopeName(FNiagaraConstants::InputScopeName);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return false;
 		}
 		else if (Namespace == FNiagaraConstants::UserNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return false;
 		}
 		else if (Namespace == FNiagaraConstants::EngineNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return true;
 		}
 		else if (Namespace == FNiagaraConstants::SystemNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return true;
 		}
 		else if (Namespace == FNiagaraConstants::EmitterNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
 			return true;
 		}
 		else if (Namespace == FNiagaraConstants::ParticleAttributeNamespace)
 		{
 			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Input);
+			return true;
+		}
+		else if (Namespace == FNiagaraConstants::OutputScopeName)
+		{
+			OutMetaData.SetScopeName(Namespace);
+			OutMetaData.SetUsage(ENiagaraScriptParameterUsage::Output);
 			return true;
 		}
 
@@ -2309,6 +2378,14 @@ void FNiagaraEditorUtilities::GetParameterMetaDataFromName(const FName& InVarNam
 					return;
 				}
 			}
+			else if (DecomposedNamespaces[0] == FNiagaraConstants::OutputScopeName)
+			{
+				if (DecomposedNamespaces[1] == FNiagaraConstants::ModuleNamespace)
+				{
+					OutMetaData.SetScopeName(FNiagaraConstants::UniqueOutputScopeName);
+					return;
+				}
+			}
 			else if (GetScopeCanHaveInitialNamespaceSuffix(FirstNamespaceScope))
 			{
 				bool bFoundInitialNamespace = GetMetaDataForInitialNamespace(DecomposedNamespaces[1], OutMetaData);
@@ -2335,6 +2412,18 @@ FString FNiagaraEditorUtilities::GetNamespacelessVariableNameString(const FName&
 	}
 	// No dot index, must be a namespaceless variable name (e.g. static switch name) just return the name to string.
 	return VarNameString;
+}
+
+void FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes)
+{
+	for (TObjectIterator<UNiagaraNodeFunctionCall> It; It; ++It)
+	{
+		UNiagaraNodeFunctionCall* FunctionCallNode = *It;
+		if (FunctionCallNode->FunctionScript == Script)
+		{
+			OutReferencingFunctionCallNodes.Add(FunctionCallNode);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

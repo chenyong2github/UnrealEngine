@@ -4,6 +4,7 @@
 
 #include "NiagaraNodeWithDynamicPins.h"
 #include "SGraphPin.h"
+#include "NiagaraConstants.h"
 #include "NiagaraNodeParameterMapBase.generated.h"
 
 class UEdGraphPin;
@@ -32,6 +33,7 @@ public:
 	/** Called when a pin's description text is committed. */
 	void PinDescriptionTextCommitted(const FText& Text, ETextCommit::Type CommitType, UEdGraphPin* Pin);
 
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual void CollectAddPinActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin) override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 
@@ -39,8 +41,16 @@ public:
 
 	void SetPinName(UEdGraphPin* InPin, const FName& InName);
 
+	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
+
+	virtual bool CanRenamePinFromContextMenu(const UEdGraphPin* Pin) const { return false; }
+
+	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_LOCAL_MODULE_STR; }
+
 protected:
+	virtual void SelectParameterFromPin(UEdGraphPin* InPin);
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
+
 
 	UEdGraphPin* PinPendingRename;
 

@@ -32,7 +32,9 @@
 
 bool UCombineMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 1;
+	return (bIsDuplicateTool) ?
+		  (AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1)
+		: (AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 1);
 }
 
 UInteractiveTool* UCombineMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -40,7 +42,7 @@ UInteractiveTool* UCombineMeshesToolBuilder::BuildTool(const FToolBuilderState& 
 	UCombineMeshesTool* NewTool = NewObject<UCombineMeshesTool>(SceneState.ToolManager);
 
 	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 1);
+	check(Components.Num() > 0);
 
 	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
 	for (UActorComponent* ActorComponent : Components)
@@ -55,6 +57,7 @@ UInteractiveTool* UCombineMeshesToolBuilder::BuildTool(const FToolBuilderState& 
 	NewTool->SetSelection(MoveTemp(ComponentTargets));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
+	NewTool->SetDuplicateMode(bIsDuplicateTool);
 
 	return NewTool;
 }
@@ -81,12 +84,31 @@ void UCombineMeshesTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
+void UCombineMeshesTool::SetDuplicateMode(bool bDuplicateModeIn)
+{
+	this->bDuplicateMode = bDuplicateModeIn;
+}
+
 void UCombineMeshesTool::Setup()
 {
 	UInteractiveTool::Setup();
 
 	BasicProperties = NewObject<UCombineMeshesToolProperties>(this);
 	AddToolPropertySource(BasicProperties);
+
+
+	if (bDuplicateMode)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartToolDuplicate", "This Tool duplicates input Asset into a new Asset, and optionally replaces the input Actor with a new Actor containing the new Asset."),
+			EToolMessageLevel::UserNotification);
+	}
+	else
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartToolCombine", "This Tool appends the meshes from the input Assets into a new Asset, and optionally replaces the source Actors with a new Actor containing the new Asset."),
+			EToolMessageLevel::UserNotification);
+	}
 }
 
 

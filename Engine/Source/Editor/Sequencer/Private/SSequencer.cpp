@@ -108,8 +108,10 @@ class SSequencerCurveEditor : public SCompoundWidget
 	{}
 	SLATE_END_ARGS()
 public:
-	void Construct(const FArguments& InArgs, TSharedRef<SCurveEditorPanel> InEditorPanel)
+	void Construct(const FArguments& InArgs, TSharedRef<SCurveEditorPanel> InEditorPanel, TSharedPtr<FSequencer> InSequencer)
 	{
+		WeakSequencer = InSequencer;
+
 		ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -132,10 +134,44 @@ public:
 		FToolBarBuilder ToolBarBuilder(InEditorPanel->GetCommands(), FMultiBoxCustomization::None, InEditorPanel->GetToolbarExtender(), EOrientation::Orient_Horizontal, true);
 		ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
 		ToolBarBuilder.BeginSection("Asset");
+
+		{
+			TAttribute<FSlateIcon> SaveIcon;
+			SaveIcon.Bind(TAttribute<FSlateIcon>::FGetter::CreateLambda([&] {
+
+				TArray<UMovieScene*> MovieScenesToSave;
+				MovieSceneHelpers::GetDescendantMovieScenes(WeakSequencer.Pin()->GetRootMovieSceneSequence(), MovieScenesToSave);
+				for (UMovieScene* MovieSceneToSave : MovieScenesToSave)
+				{
+					UPackage* MovieScenePackageToSave = MovieSceneToSave->GetOuter()->GetOutermost();
+					if (MovieScenePackageToSave->IsDirty())
+					{
+						return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAsterisk");
+					}
+				}
+
+				return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Save");
+				}));
+
+			if (WeakSequencer.Pin()->GetHostCapabilities().bSupportsSaveMovieSceneAsset)
+			{
+				ToolBarBuilder.AddToolBarButton(
+					FUIAction(FExecuteAction::CreateLambda([&] { WeakSequencer.Pin()->SaveCurrentMovieScene(); })),
+					NAME_None,
+					LOCTEXT("SaveDirtyPackages", "Save"),
+					LOCTEXT("SaveDirtyPackagesTooltip", "Saves the current sequence and any subsequences"),
+					SaveIcon
+				);
+			}		
+		}
+		
 		ToolBarBuilder.EndSection();
 		// We just use all of the extenders as our toolbar, we don't have a need to create a separate toolbar.
 		return ToolBarBuilder.MakeWidget();
 	}
+
+private:
+	TWeakPtr<FSequencer> WeakSequencer;
 };
 
 class FSequencerCurveEditorTimeSliderController : public FSequencerTimeSliderController
@@ -488,7 +524,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		CurveEditorWidget->GetKeyDetailsView()->GetPropertyRowGenerator()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateStatic(CreateFrameNumberCustomization, SequencerPtr));
 		TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SSequencer::GetIsCurveEditorEnabled));
 	
-		CurveEditorPanel = SNew(SSequencerCurveEditor, CurveEditorWidget);
+		CurveEditorPanel = SNew(SSequencerCurveEditor, CurveEditorWidget, InSequencer);
 		CurveEditorPanel->SetEnabled(IsEnabledAttribute);
 		CurveEditorWidget->SetEnabled(IsEnabledAttribute);
 
@@ -1280,28 +1316,17 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			TAttribute<FSlateIcon> SaveIcon;
 			SaveIcon.Bind(TAttribute<FSlateIcon>::FGetter::CreateLambda([&] {
 
-				bool bAnyMovieSceneDirty = false;
-
 				TArray<UMovieScene*> MovieScenesToSave;
 				MovieSceneHelpers::GetDescendantMovieScenes(SequencerPtr.Pin()->GetRootMovieSceneSequence(), MovieScenesToSave);
-				for (auto MovieSceneToSave : MovieScenesToSave)
+				for (UMovieScene* MovieSceneToSave : MovieScenesToSave)
 				{
 					UPackage* MovieScenePackageToSave = MovieSceneToSave->GetOuter()->GetOutermost();
 					if (MovieScenePackageToSave->IsDirty())
 					{
-						bAnyMovieSceneDirty = true;
-						break;
+						return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAsterisk");
 					}
 				}
-
-				if (bAnyMovieSceneDirty)
-				{
-					return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAsterisk");
-				}
-				else
-				{
-					return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Save");
-				}
+				return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Save");
 			}));
 
 			if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsSaveMovieSceneAsset)
@@ -1990,18 +2015,16 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		// Menu entry for the start position
 		auto OnStartChanged = [=](double NewValue){
 
-			// We clamp the new value when the value is set. We can't clamp in the UI because we need an unset Min/Max for linear scaling to work.
-			double Min = -FLT_MAX;
-			double Max = SequencerPtr.Pin()->GetPlaybackRange().GetUpperBoundValue().Value;
-
-			NewValue = FMath::Clamp(NewValue, Min, Max);
 			FFrameNumber ValueAsFrame = FFrameTime::FromDecimal(NewValue).GetFrame();
+			FFrameNumber PlayStart = ValueAsFrame;
+			FFrameNumber PlayEnd = MovieScene::DiscreteExclusiveUpper(SequencerPtr.Pin()->GetPlaybackRange());
+			if (PlayStart >= PlayEnd)
+			{
+				FFrameNumber Duration = PlayEnd - MovieScene::DiscreteInclusiveLower(SequencerPtr.Pin()->GetPlaybackRange());
+				PlayEnd = PlayStart + Duration;
+			}
 
-			FFrameNumber Upper = MovieScene::DiscreteExclusiveUpper(SequencerPtr.Pin()->GetPlaybackRange());
-
-			TRange<FFrameNumber> NewRange = TRange<FFrameNumber>(FMath::Min(ValueAsFrame, Upper - 1), Upper);
-
-			SequencerPtr.Pin()->SetPlaybackRange(NewRange);
+			SequencerPtr.Pin()->SetPlaybackRange(TRange<FFrameNumber>(PlayStart, PlayEnd));
 
 			TRange<double> PlayRangeSeconds = SequencerPtr.Pin()->GetPlaybackRange() / SequencerPtr.Pin()->GetFocusedTickResolution();
 			const double AdditionalRange = (PlayRangeSeconds.GetUpperBoundValue() - PlayRangeSeconds.GetLowerBoundValue()) * 0.1;
@@ -2053,15 +2076,16 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		// Menu entry for the end position
 		auto OnEndChanged = [=](double NewValue) {
 
-			// We clamp the new value when the value is set. We can't clamp in the UI because we need an unset Min/Max for linear scaling to work.
-			double Min = SequencerPtr.Pin()->GetPlaybackRange().GetLowerBoundValue().Value;
-			double Max = FLT_MAX;
-
-			NewValue = FMath::Clamp(NewValue, Min, Max);
 			FFrameNumber ValueAsFrame = FFrameTime::FromDecimal(NewValue).GetFrame();
+			FFrameNumber PlayStart = MovieScene::DiscreteInclusiveLower(SequencerPtr.Pin()->GetPlaybackRange());
+			FFrameNumber PlayEnd = ValueAsFrame;
+			if (PlayEnd <= PlayStart)
+			{
+				FFrameNumber Duration = MovieScene::DiscreteExclusiveUpper(SequencerPtr.Pin()->GetPlaybackRange()) - PlayStart;
+				PlayStart = PlayEnd - Duration;
+			}
 
-			FFrameNumber Lower = MovieScene::DiscreteInclusiveLower(SequencerPtr.Pin()->GetPlaybackRange());
-			SequencerPtr.Pin()->SetPlaybackRange(TRange<FFrameNumber>(Lower, FMath::Max(ValueAsFrame, Lower)));
+			SequencerPtr.Pin()->SetPlaybackRange(TRange<FFrameNumber>(PlayStart, PlayEnd));
 
 			TRange<double> PlayRangeSeconds = SequencerPtr.Pin()->GetPlaybackRange() / SequencerPtr.Pin()->GetFocusedTickResolution();
 			const double AdditionalRange = (PlayRangeSeconds.GetUpperBoundValue() - PlayRangeSeconds.GetLowerBoundValue()) * 0.1;
@@ -3075,6 +3099,20 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 							StepToTime = Time;
 							ClosestKeyDistance = CurrentTime - Time;
 						}
+					}
+				}
+
+				if (!StepToTime.IsSet() && AllTimes.Num() > 0)
+				{
+					AllTimes.Sort();
+
+					if (bStepToNextKey)
+					{
+						StepToTime = AllTimes[0];
+					}
+					else
+					{
+						StepToTime = AllTimes.Last();
 					}
 				}
 			}

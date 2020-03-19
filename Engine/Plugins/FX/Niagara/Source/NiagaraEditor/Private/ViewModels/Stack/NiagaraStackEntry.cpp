@@ -26,9 +26,10 @@ UNiagaraStackEntry::FStackIssueFix::FStackIssueFix()
 {
 }
 
-UNiagaraStackEntry::FStackIssueFix::FStackIssueFix(FText InDescription, FStackIssueFixDelegate InFixDelegate)
+UNiagaraStackEntry::FStackIssueFix::FStackIssueFix(FText InDescription, FStackIssueFixDelegate InFixDelegate, EStackIssueFixStyle InFixStyle)
 	: Description(InDescription)
 	, FixDelegate(InFixDelegate)
+	, Style(InFixStyle)
 	, UniqueIdentifier(FMD5::HashAnsiString(*FString::Printf(TEXT("%s"), *InDescription.ToString())))
 {
 	checkf(Description.IsEmptyOrWhitespace() == false, TEXT("Description can not be empty."));
@@ -60,6 +61,11 @@ const UNiagaraStackEntry::FStackIssueFixDelegate& UNiagaraStackEntry::FStackIssu
 	return FixDelegate;
 }
 
+UNiagaraStackEntry::EStackIssueFixStyle UNiagaraStackEntry::FStackIssueFix::GetStyle() const
+{
+	return Style;
+}
+
 UNiagaraStackEntry::FStackIssue::FStackIssue()
 {
 }
@@ -74,10 +80,10 @@ UNiagaraStackEntry::FStackIssue::FStackIssue(EStackIssueSeverity InSeverity, FTe
 {
 	checkf(ShortDescription.IsEmptyOrWhitespace() == false, TEXT("Short description can not be empty."));
 	//checkf(LongDescription.IsEmptyOrWhitespace() == false, TEXT("Long description can not be empty."));
-	if (LongDescription.IsEmptyOrWhitespace())
-	{
-		LongDescription = ShortDescription;
-	}
+	//if (LongDescription.IsEmptyOrWhitespace())
+	//{
+	//	LongDescription = ShortDescription;
+	//}
 	checkf(InStackEditorDataKey.IsEmpty() == false, TEXT("Stack editor data key can not be empty."));
 }
 
@@ -793,14 +799,14 @@ void UNiagaraStackEntry::OnRenamed(FText NewName)
 {
 	if (SupportsRename())
 	{
-		if (!NewName.EqualTo(GetDisplayName()))
+		if (!NewName.EqualTo(AlternateDisplayName.Get(FText::GetEmpty())))
 		{
 			FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraStackEntry", "RenameModule", "Rename Module"));
 
 			GetStackEditorData().Modify();
 			GetStackEditorData().SetStackEntryDisplayName(GetStackEditorDataKey(), NewName);
 
-			if (NewName.IsEmptyOrWhitespace())
+			if (NewName.IsEmptyOrWhitespace() || NewName.EqualTo(GetDisplayName()))
 			{
 				AlternateDisplayName.Reset();
 			}

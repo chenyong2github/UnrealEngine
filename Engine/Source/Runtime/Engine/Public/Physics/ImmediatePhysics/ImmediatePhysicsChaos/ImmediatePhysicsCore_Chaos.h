@@ -19,7 +19,7 @@ namespace Chaos
 	template<typename P> class TPBDConstraintIslandRule;
 	template<typename T, int D> struct TPBDRigidParticleParameters;
 	template<typename T, int D> class TPBDRigidsSOAs;
-	template<typename T, int D> class TPerShapeData;
+	class FPerShapeData;
 }
 
 namespace ImmediatePhysics_Chaos

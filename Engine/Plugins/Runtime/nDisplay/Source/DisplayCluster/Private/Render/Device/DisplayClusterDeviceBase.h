@@ -17,7 +17,7 @@
 
 class IDisplayClusterPostProcess;
 class FDisplayClusterPresentationBase;
-
+class FSceneView;
 
 /**
  * Abstract render device

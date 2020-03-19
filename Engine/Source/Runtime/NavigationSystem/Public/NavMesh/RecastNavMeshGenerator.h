@@ -606,7 +606,9 @@ public:
 
 	/** Asks generator to update navigation affected by DirtyAreas */
 	virtual void RebuildDirtyAreas(const TArray<FNavigationDirtyArea>& DirtyAreas) override;
-	virtual bool IsBuildInProgress(bool bCheckDirtyToo = false) const override;
+
+	/** determines whether this generator is performing navigation building actions at the moment, dirty areas are also checked */
+	virtual bool IsBuildInProgressCheckDirty() const override;
 
 #if !RECAST_ASYNC_REBUILDING
 	/** returns true if we are time slicing and the data is valid to use false otherwise*/

@@ -32,6 +32,14 @@
 		PC_STREAMTEXTFILE_OFFSET(OldBufferSize)														\
 	}
 
+TSharedPtr<FLidarPointCloudImportSettings_ASCII> MakeImportSettings(const FString& Filename, const FVector2D& RGBRange, const FLidarPointCloudImportSettings_ASCII_Columns& Columns)
+{
+	TSharedPtr<FLidarPointCloudImportSettings_ASCII> ImportSettings = MakeShared<FLidarPointCloudImportSettings_ASCII>(Filename);
+	ImportSettings->RGBRange = RGBRange;
+	ImportSettings->SelectedColumns = { FMath::Max(-1, Columns.LocationX), FMath::Max(-1, Columns.LocationY), FMath::Max(-1, Columns.LocationZ), FMath::Max(-1, Columns.Red), FMath::Max(-1, Columns.Green), FMath::Max(-1, Columns.Blue), FMath::Max(-1, Columns.Intensity) };
+	return ImportSettings;
+}
+
 bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TSharedPtr<FLidarPointCloudImportSettings> ImportSettings, FLidarPointCloudImportResults &OutImportResults)
 {
 	if (!ValidateImportSettings(ImportSettings, Filename))
@@ -275,11 +283,12 @@ bool ULidarPointCloudFileIO_ASCII::HandleExport(const FString& Filename, class U
 
 void ULidarPointCloudFileIO_ASCII::CreatePointCloudFromFile(UObject* WorldContextObject, const FString& Filename, bool bUseAsync, FVector2D RGBRange, FLidarPointCloudImportSettings_ASCII_Columns Columns, FLatentActionInfo LatentInfo, ELidarPointCloudAsyncMode& AsyncMode, float& Progress, ULidarPointCloud*& PointCloud)
 {
-	TSharedPtr<FLidarPointCloudImportSettings_ASCII> ImportSettings = MakeShared<FLidarPointCloudImportSettings_ASCII>(Filename);
-	ImportSettings->RGBRange = RGBRange;
-	ImportSettings->SelectedColumns = { FMath::Max(-1, Columns.LocationX), FMath::Max(-1, Columns.LocationY), FMath::Max(-1, Columns.LocationZ), FMath::Max(-1, Columns.Red), FMath::Max(-1, Columns.Green), FMath::Max(-1, Columns.Blue), FMath::Max(-1, Columns.Intensity) };
+	ULidarPointCloudBlueprintLibrary::CreatePointCloudFromFile(WorldContextObject, Filename, bUseAsync, LatentInfo, MakeImportSettings(Filename, RGBRange, Columns), AsyncMode, Progress, PointCloud);
+}
 
-	ULidarPointCloudBlueprintLibrary::CreatePointCloudFromFile(WorldContextObject, Filename, bUseAsync, LatentInfo, ImportSettings, AsyncMode, Progress, PointCloud);
+ULidarPointCloud* ULidarPointCloudFileIO_ASCII::CreatePointCloudFromFile(const FString& Filename, const FLidarPointCloudAsyncParameters& AsyncParameters, const FVector2D& RGBRange, const FLidarPointCloudImportSettings_ASCII_Columns& Columns)
+{
+	return ULidarPointCloud::CreateFromFile(Filename, AsyncParameters, MakeImportSettings(Filename, RGBRange, Columns));
 }
 
 FLidarPointCloudImportSettings_ASCII::FLidarPointCloudImportSettings_ASCII(const FString& Filename)

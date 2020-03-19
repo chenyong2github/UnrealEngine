@@ -6,18 +6,20 @@
 
 enum class EDataTableIndexerVersion
 {
-	Empty = 0,
-	Initial = 1,
+	Empty,
+	Initial,
 
-	Current = Initial,
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
 int32 FDataTableIndexer::GetVersion() const
 {
-	return (int32)EDataTableIndexerVersion::Current;
+	return (int32)EDataTableIndexerVersion::LatestVersion;
 }
 
-void FDataTableIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer)
+void FDataTableIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
 	const UDataTable* DataTable = Cast<UDataTable>(InAssetObject);
 	check(DataTable);

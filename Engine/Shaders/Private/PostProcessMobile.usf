@@ -237,6 +237,15 @@ void BloomPS_ES2(
 	)
 {
 	half3 AverageColor = 0.0f;
+
+#if USE_PREEXPOSURE
+	const float OneOverPreExposure = View.OneOverPreExposure;
+	const float PreExposure = View.PreExposure;
+#else
+	const float OneOverPreExposure = 1.0f;
+	const float PreExposure = View.PreExposure;
+#endif
+
 #if ES2_USE_BLOOM || ES2_USE_SUN || ES2_USE_EYEADAPTATION
 	half4 C0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0]);
 	half4 C1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]);
@@ -257,7 +266,7 @@ void BloomPS_ES2(
 	#endif
 
 	// Try to kill negatives and NaNs here
-	AverageColor.rgb = max(AverageColor.rgb, 0);
+	AverageColor.rgb = max(AverageColor.rgb, 0) * OneOverPreExposure;
 
 	
 	#if ES2_USE_BLOOM || ES2_USE_SUN
@@ -272,7 +281,7 @@ void BloomPS_ES2(
 		OutColor.rgb *= Amount;
 		OutColor.a = 0;
 
-		OutColor = OutColor;
+		OutColor = OutColor * PreExposure;
 	#endif
 #endif
 
@@ -319,10 +328,6 @@ void BloomPS_ES2(
 #endif
 
 #if ES2_USE_EYEADAPTATION
-
-	#if USE_PREEXPOSURE
-		AverageColor.xyz *= View.OneOverPreExposure;
-	#endif
 
 	const half Intensity = max(dot(AverageColor, half3(1.0f, 1.0f, 1.0f) / 3.0f), EyeAdaptation_LuminanceMin);
 	const float LogIntensity = clamp(log2(Intensity), -10.0f, 20.0f);
@@ -1150,14 +1155,14 @@ static const float INV_FLOAT_PRECISION = 1e-5;
 uint NumEntries;
 
 uint ClearValue;
-RWTexture2D<uint> UAV;
+RWBuffer<uint> UAV;
 
 [numthreads(64, 1, 1)]
 void ClearUAVUIntCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId.x < NumEntries)
 	{
-		UAV[DispatchThreadId.xy] = ClearValue;
+		UAV[DispatchThreadId.x] = ClearValue;
 	}
 }
 #endif
@@ -1304,7 +1309,7 @@ const static  float InvHistogramSizeMinusOne = 1.0f / (float)(HISTOGRAM_SIZE - 1
 
 
 #if HISTOGRAM_COMPUTE_SHADER
-// Output histogram texture (UAV)
+// Output histogram buffer (UAV)
 RWBuffer<uint> RWHistogramBuffer;
 
 const static uint QUARTER_HISTOGRAM_SIZE = HISTOGRAM_SIZE / 4;
@@ -1382,8 +1387,19 @@ void Histogram_MainCS(
 				}
 
 				// Accumulate the weight to the nearby history buckets.
+#if IOS // The IOS A8 and lower devices seems don't support using a float4 array as a two dimension array, separate the operations to two steps.
+				float4 Histogram0 = float4(0.0f, 0.0f, 0.0f, 0.0f);
+				float4 Histogram1 = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+				Histogram0[Bucket0 % 4] = Weight0 * ScreenWeight;
+				Histogram1[Bucket1 % 4] = Weight1 * ScreenWeight;
+
+				SharedHistogram[(Bucket0 / 4) * ThreadGroupSize + GroupIndex] += Histogram0;
+				SharedHistogram[(Bucket1 / 4) * ThreadGroupSize + GroupIndex] += Histogram1;
+#else
 				SharedHistogram[(Bucket0 / 4) * ThreadGroupSize + GroupIndex][Bucket0 % 4] += Weight0 * ScreenWeight;
 				SharedHistogram[(Bucket1 / 4) * ThreadGroupSize + GroupIndex][Bucket1 % 4] += Weight1 * ScreenWeight;
+#endif
 			}
 		}
 	}
@@ -1423,11 +1439,11 @@ void Histogram_MainCS(
 #endif
 
 #if HISTOGRAM_EYEADAPTATION_COMPUTE_SHADER
-groupshared float SharedHistogram[HISTOGRAM_SIZE];
+Buffer<uint> HistogramBuffer;
 
 float GetHistogramBucket_Mobile(uint BucketIndex)
 {
-	return SharedHistogram[BucketIndex];
+	return HistogramBuffer[BucketIndex];
 }
 
 float ComputeHistogramSum_Mobile()
@@ -1482,18 +1498,11 @@ float ComputeEyeAdaptationExposure_Mobile()
 	return LumAve;
 }
 
-Buffer<uint> HistogramBuffer;
-
 RWBuffer<float4> OutputBuffer;
 
 [numthreads(1, 1, 1)]
 void HistogramEyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	UNROLL for (uint i = 0; i < HISTOGRAM_SIZE; ++i)
-	{
-		SharedHistogram[i] = HistogramBuffer[i];
-	}
-
 	float4 OutColor = 0;
 
 	const float AverageSceneLuminance = ComputeEyeAdaptationExposure_Mobile();

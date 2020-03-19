@@ -282,6 +282,17 @@ public:
 		}
 	}
 
+	/** Sets visibility of the first point hit by the given ray. */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	void SetVisibilityOfFirstPointByRay(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfFirstPointByRay(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
+	void SetVisibilityOfFirstPointByRay(bool bNewVisibility, FLidarPointCloudRay Ray, float Radius)
+	{
+		if (PointCloud)
+		{
+			PointCloud->SetVisibilityOfFirstPointByRay(bNewVisibility, Ray.TransformBy(GetComponentTransform().Inverse()), Radius);
+		}
+	}
+
 	/** Sets visibility of points hit by the given ray. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void SetVisibilityOfPointsByRay(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfPointsByRay(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
@@ -313,6 +324,15 @@ public:
 		}
 	}
 
+	/** Executes the provided action on the first point hit by the given ray. */
+	void ExecuteActionOnFirstPointByRay(TFunction<void(FLidarPointCloudPoint*)> Action, FLidarPointCloudRay Ray, float Radius, bool bVisibleOnly)
+	{
+		if (PointCloud)
+		{
+			PointCloud->ExecuteActionOnFirstPointByRay(MoveTemp(Action), Ray.TransformBy(GetComponentTransform().Inverse()), Radius, bVisibleOnly);
+		}
+	}
+
 	/** Executes the provided action on each of the points hit by the given ray. */
 	void ExecuteActionOnPointsByRay(TFunction<void(FLidarPointCloudPoint*)> Action, FLidarPointCloudRay Ray, float Radius, bool bVisibleOnly)
 	{
@@ -341,6 +361,17 @@ public:
 		if (PointCloud)
 		{
 			PointCloud->ApplyColorToPointsInBox(NewColor, Box.TransformBy(GetComponentTransform().Inverse()), bVisibleOnly);
+		}
+	}
+
+	/** Applies the given color to the first point hit by the given ray */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	void ApplyColorToFirstPointByRay(FColor NewColor, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { ApplyColorToFirstPointByRay(NewColor, FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
+	void ApplyColorToFirstPointByRay(const FColor& NewColor, FLidarPointCloudRay Ray, float Radius, bool bVisibleOnly)
+	{
+		if (PointCloud)
+		{
+			PointCloud->ApplyColorToFirstPointByRay(NewColor, Ray.TransformBy(GetComponentTransform().Inverse()), Radius, bVisibleOnly);
 		}
 	}
 

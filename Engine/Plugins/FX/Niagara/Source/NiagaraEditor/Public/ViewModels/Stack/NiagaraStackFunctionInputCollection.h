@@ -52,6 +52,8 @@ private:
 
 	UNiagaraStackEntry::FStackIssueFix GetNodeRemovalFix(UEdGraphPin* PinToRemove, FText FixDescription);
 
+	UNiagaraStackEntry::FStackIssueFix GetResetPinFix(UEdGraphPin* PinToReset, FText FixDescription);
+
 	struct FInputData
 	{
 		const UEdGraphPin* Pin;

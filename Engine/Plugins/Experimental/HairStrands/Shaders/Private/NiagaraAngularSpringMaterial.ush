@@ -162,28 +162,3 @@ void ProjectAngularSpringMaterial(in bool EnableConstraint, in int StrandsSize, 
 	GroupMemoryBarrier();
 	OutNodePosition = SharedNodePosition[GGroupThreadId.x];
 }
-
-/* -----------------------------------------------------------------
- * Compute Rest Direction 
- * -----------------------------------------------------------------
- */
-
-void ComputeRestDirection(in int StrandsSize, in float3 NodePosition, in float4 NodeOrientation, out float3 OutRestDirection)
-{
-	SharedNodePosition[GGroupThreadId.x] = NodePosition;
-	SharedNodeOrientation[GGroupThreadId.x] = NodeOrientation;
-	GroupMemoryBarrier(); 
-
-	ComputeMaterialFrame(StrandsSize);
-
-	OutRestDirection = float3(0,0,0);
-	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
-	if( LocalIndex > 1 )
-	{
-		const float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
-
-		const float4 ParentFrame = SlerpQuat(SharedNodeOrientation[GGroupThreadId.x-2],SharedNodeOrientation[GGroupThreadId.x-2],0.5);
-		OutRestDirection = UnrotateVectorByQuat(EdgeDirection,ParentFrame);
-	}
-	GroupMemoryBarrier(); 
-}

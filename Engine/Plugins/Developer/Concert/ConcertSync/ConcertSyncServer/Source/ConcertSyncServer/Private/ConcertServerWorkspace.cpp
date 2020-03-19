@@ -3,16 +3,18 @@
 #include "ConcertServerWorkspace.h"
 
 #include "IConcertSession.h"
+#include "IConcertFileSharingService.h"
 #include "ConcertSyncServerLiveSession.h"
 #include "ConcertServerSyncCommandQueue.h"
 #include "ConcertSyncSessionDatabase.h"
 #include "ConcertTransactionEvents.h"
 #include "ConcertServerDataStore.h"
 #include "ConcertLogGlobal.h"
-
+#include "Serialization/MemoryReader.h"
 #include "Algo/Transform.h"
 
-FConcertServerWorkspace::FConcertServerWorkspace(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession)
+FConcertServerWorkspace::FConcertServerWorkspace(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession, TSharedPtr<IConcertFileSharingService> InFileSharingService)
+	: FileSharingService(MoveTemp(InFileSharingService))
 {
 	BindSession(InLiveSession);
 }
@@ -285,27 +287,50 @@ void FConcertServerWorkspace::HandlePackageUpdateEvent(const FConcertSessionCont
 	{
 		// If the client has the lock, then add the package activity
 		{
-			FConcertSyncPackageActivity PackageActivity;
-			PackageActivity.EndpointId = Context.SourceEndpointId;
-			PackageActivity.EventData.Package = Event.Package;
-			if (PackageActivity.EventData.Package.Info.PackageUpdateType == EConcertPackageUpdateType::Dummy && PackageActivity.EventData.Package.PackageData.Num() == 0)
-			{
-				// If this is a dummy package, attempt to migrate the package data from the current head package revision so that newly synced clients will receive the correct package data
-				FConcertPackageInfo HeadPackageInfo;
-				if (LiveSession->GetSessionDatabase().GetPackageDataForRevision(PackageActivity.EventData.Package.Info.PackageName, HeadPackageInfo, &PackageActivity.EventData.Package.PackageData))
-				{
-					PackageActivity.EventData.Package.Info.PackageFileExtension = HeadPackageInfo.PackageFileExtension;
-				}
+			bool bActivityAdded = false;
 
+			// Fill up required fields for the 'base' part of the activity.
+			FConcertSyncPackageActivity PackageActivityBasePart;
+			PackageActivityBasePart.EndpointId = Context.SourceEndpointId;
+			PackageActivityBasePart.EventSummary.SetTypedPayload(FConcertSyncPackageActivitySummary::CreateSummaryForEvent(Event.Package.Info));
+			PackageActivityBasePart.bIgnored = ShouldIgnoreClientActivityOnRestore(Context.SourceEndpointId);
+
+			// Fill up required fields for the 'event' part of the activity.
+			FConcertPackage Package;
+			Package.Info = Event.Package.Info;
+
+			if (Event.Package.Info.PackageUpdateType == EConcertPackageUpdateType::Dummy)
+			{
 				// Without Live Sync, the clients don't track the ongoing transactions in their 'local' database and can't provide the current transaction event ID when unsaved modifications to a package are discarded (to discard corresponding live transactions on this package).
 				if (!EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableLiveSync))
 				{
-					LiveSession->GetSessionDatabase().GetTransactionMaxEventId(PackageActivity.EventData.Package.Info.TransactionEventIdAtSave); // Get the last transaction event from the server db.
+					LiveSession->GetSessionDatabase().GetTransactionMaxEventId(Package.Info.TransactionEventIdAtSave); // Get the last transaction event from the server db.
+				}
+
+				if (!Event.Package.HasPackageData()) // The dummy event didn't come with any package data.
+				{
+					// Attempt to migrate the package data from the current head package revision so that newly synced clients will receive the correct package data.
+					LiveSession->GetSessionDatabase().GetPackageDataForRevision(Package.Info.PackageName, [this, &bActivityAdded, &Package, &PackageActivityBasePart](const FConcertPackageInfo& InHeadPackageInfo, FConcertPackageDataStream& InHeadPackageDataStream)
+					{
+						// Add the new package activity with the head revision data.
+						Package.Info.PackageFileExtension = InHeadPackageInfo.PackageFileExtension;
+						AddPackageActivity(PackageActivityBasePart, Package.Info, InHeadPackageDataStream);
+						bActivityAdded = true;
+					});
 				}
 			}
-			PackageActivity.EventSummary.SetTypedPayload(FConcertSyncPackageActivitySummary::CreateSummaryForEvent(PackageActivity.EventData));
-			PackageActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(Context.SourceEndpointId);
-			AddPackageActivity(PackageActivity);
+
+			if (!bActivityAdded)
+			{
+				TSharedPtr<FArchive> PackageDataAr = GetPackageDataStream(Event.Package);
+				FConcertPackageDataStream PackageDataStream { 
+					PackageDataAr.Get(),
+					PackageDataAr ? PackageDataAr->TotalSize() : 0,
+					Event.Package.PackageData.Num() ? &Event.Package.PackageData : nullptr
+				};
+
+				AddPackageActivity(PackageActivityBasePart, Package.Info, PackageDataStream);
+			}
 		}
 
 		// Explicitly unlock the resource after saving it
@@ -445,16 +470,7 @@ EConcertSessionResponseCode FConcertServerWorkspace::HandleSyncEventRequest(cons
 			return EConcertSessionResponseCode::Success;
 		}
 	}
-	else if (Request.EventType == EConcertSyncActivityEventType::Package)
-	{
-		FConcertSyncPackageEvent PackageEvent;
-		if (LiveSession->GetSessionDatabase().GetPackageEvent(Request.EventId, PackageEvent, /*bMetaDataOnly*/false)) // The request is meant to retrive the package data from a partially sync event.
-		{
-			Response.Event.SetTypedPayload(PackageEvent);
-			return EConcertSessionResponseCode::Success;
-		}
-	}
-	// else Other event types (connection/lock) don't have interesting non-meta-data data to retrieve.
+	// else Other event types (package/connection/lock) don't have interesting non-meta-data data to retrieve.
 
 	return EConcertSessionResponseCode::Failed;
 }
@@ -494,14 +510,16 @@ void FConcertServerWorkspace::HandleEndPlaySession(const FName InPlayPackageName
 	{
 		// Save a dummy package to discard the live transactions for the previous play world
 		// Play worlds are never saved, so we don't have to worry about migrating over the previous data here
-		FConcertSyncPackageActivity DummyPackageActivity;
+		FConcertSyncActivity DummyPackageActivity;
+		FConcertPackageInfo DummyPackageInfo;
+		FConcertPackageDataStream DummyPackageStream;
 		DummyPackageActivity.EndpointId = InEndpointId;
-		DummyPackageActivity.EventData.Package.Info.PackageUpdateType = EConcertPackageUpdateType::Dummy;
-		DummyPackageActivity.EventData.Package.Info.PackageName = InPlayPackageName;
-		LiveSession->GetSessionDatabase().GetTransactionMaxEventId(DummyPackageActivity.EventData.Package.Info.TransactionEventIdAtSave);
-		DummyPackageActivity.EventSummary.SetTypedPayload(FConcertSyncPackageActivitySummary::CreateSummaryForEvent(DummyPackageActivity.EventData));
+		DummyPackageInfo.PackageUpdateType = EConcertPackageUpdateType::Dummy;
+		DummyPackageInfo.PackageName = InPlayPackageName;
+		LiveSession->GetSessionDatabase().GetTransactionMaxEventId(DummyPackageInfo.TransactionEventIdAtSave);
+		DummyPackageActivity.EventSummary.SetTypedPayload(FConcertSyncPackageActivitySummary::CreateSummaryForEvent(DummyPackageInfo));
 		DummyPackageActivity.bIgnored = ShouldIgnoreClientActivityOnRestore(InEndpointId);
-		AddPackageActivity(DummyPackageActivity);
+		AddPackageActivity(DummyPackageActivity, DummyPackageInfo, DummyPackageStream);
 	}
 }
 
@@ -909,12 +927,13 @@ void FConcertServerWorkspace::SendSyncTransactionActivityEvent(const FGuid& InTa
 	}
 }
 
-void FConcertServerWorkspace::AddPackageActivity(const FConcertSyncPackageActivity& InPackageActivity)
+void FConcertServerWorkspace::AddPackageActivity(const FConcertSyncActivity& InPackageActivityBasePart, const FConcertPackageInfo& PackageInfo, FConcertPackageDataStream& InPackageDataStream)
 {
 	// Add the activity and sync it
 	int64 ActivityId = 0;
 	int64 EventId = 0;
-	if (LiveSession->GetSessionDatabase().AddPackageActivity(InPackageActivity, ActivityId, EventId))
+
+	if (LiveSession->GetSessionDatabase().AddPackageActivity(InPackageActivityBasePart, PackageInfo, InPackageDataStream, ActivityId, EventId))
 	{
 		PostActivityAdded(ActivityId);
 		SyncCommandQueue->QueueCommand(LiveSyncEndpoints, [this, SyncActivityId = ActivityId](const FConcertServerSyncCommandQueue::FSyncCommandContext& InSyncCommandContext, const FGuid& InEndpointId)
@@ -940,7 +959,22 @@ void FConcertServerWorkspace::SendSyncPackageActivityEvent(const FGuid& InTarget
 			bMetaDataOnly = !ConcertSyncSessionDatabaseFilterUtil::PackageEventPassesFilter(SyncActivity.EventId, SessionFilter, LiveSession->GetSessionDatabase());
 		}
 
-		if (!LiveSession->GetSessionDatabase().GetPackageEvent(SyncActivity.EventId, SyncActivity.EventData, bMetaDataOnly))
+		if (!bMetaDataOnly) // Package data is needed.
+		{
+			// Callback function used to fill the package event (containing the package data, which can be small or large).
+			EConcertSessionResponseCode FillPackageEventResponseCode = EConcertSessionResponseCode::Success;
+			auto FillPackageEventFn = [this, &SyncActivity, &FillPackageEventResponseCode](FConcertSyncPackageEventData& PackageEventSrc)
+			{
+				// May embed the package data directly or link it if its too big and file sharing is enabled.
+				FillPackageEventResponseCode = FillPackageEvent(PackageEventSrc, SyncActivity.EventData);
+			};
+
+			if (!LiveSession->GetSessionDatabase().GetPackageEvent(SyncActivity.EventId, FillPackageEventFn) || FillPackageEventResponseCode == EConcertSessionResponseCode::Failed)
+			{
+				UE_LOG(LogConcert, Error, TEXT("Failed to get package event '%s' from live session '%s': %s"), *LexToString(SyncActivity.EventId), *LiveSession->GetSession().GetName(), *LiveSession->GetSessionDatabase().GetLastError());
+			}
+		}
+		else if (!LiveSession->GetSessionDatabase().GetPackageEventMetaData(SyncActivity.EventId, SyncActivity.EventData.PackageRevision, SyncActivity.EventData.Package.Info)) // Ignore package data.
 		{
 			UE_LOG(LogConcert, Error, TEXT("Failed to get package event '%s' from live session '%s': %s"), *LexToString(SyncActivity.EventId), *LiveSession->GetSession().GetName(), *LiveSession->GetSessionDatabase().GetLastError());
 		}
@@ -958,7 +992,7 @@ void FConcertServerWorkspace::SendSyncPackageActivityEvent(const FGuid& InTarget
 
 void FConcertServerWorkspace::PostActivityAdded(const int64 InActivityId)
 {
-	FConcertSyncPackageActivity Activity;
+	FConcertSyncActivity Activity;
 	if (LiveSession->GetSessionDatabase().GetActivity(InActivityId, Activity))
 	{
 		FConcertSyncEndpointData EndpointData;
@@ -974,3 +1008,50 @@ void FConcertServerWorkspace::PostActivityAdded(const int64 InActivityId)
 		}
 	}
 }
+
+bool FConcertServerWorkspace::CanExchangePackageDataAsByteArray(int64 PackageDataSize) const
+{
+	if (FileSharingService && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::EnableFileSharing))
+	{
+		return FConcertPackage::ShouldEmbedPackageDataAsByteArray(PackageDataSize); // Test the package data size against a preferred limit.
+	}
+
+	return FConcertPackage::CanEmbedPackageDataAsByteArray(PackageDataSize); // The the package data size against the maximum permitted.
+}
+
+EConcertSessionResponseCode FConcertServerWorkspace::FillPackageEvent(FConcertSyncPackageEventData& InPackageEvent, FConcertSyncPackageEvent& OutPackageEvent) const
+{
+	EConcertSessionResponseCode FillPackageEventResponseCode = EConcertSessionResponseCode::Success;
+
+	// Fill the meta data.
+	OutPackageEvent.PackageRevision = InPackageEvent.MetaData.PackageRevision;
+	OutPackageEvent.Package.Info = InPackageEvent.MetaData.PackageInfo;
+
+	// Fill the package data.
+	if (CanExchangePackageDataAsByteArray(InPackageEvent.PackageDataStream.DataSize))
+	{
+		// Store the package data directly in the package event.
+		OutPackageEvent.Package.PackageData.AddUninitialized(InPackageEvent.PackageDataStream.DataSize);
+		InPackageEvent.PackageDataStream.DataAr->Serialize(OutPackageEvent.Package.PackageData.GetData(), InPackageEvent.PackageDataStream.DataSize);
+	}
+	else if (FileSharingService)
+	{
+		// Share a link to the file.
+		FillPackageEventResponseCode = FileSharingService->Publish(*InPackageEvent.PackageDataStream.DataAr, InPackageEvent.PackageDataStream.DataSize, OutPackageEvent.Package.FileId) ? EConcertSessionResponseCode::Success : EConcertSessionResponseCode::Failed;
+	}
+	else
+	{
+		// The package data is too big.
+		FillPackageEventResponseCode = EConcertSessionResponseCode::Failed;
+	}
+
+	return FillPackageEventResponseCode;
+}
+
+TSharedPtr<FArchive> FConcertServerWorkspace::GetPackageDataStream(const FConcertPackage& Package)
+{
+	return !Package.FileId.IsEmpty() ?
+		FileSharingService->CreateReader(Package.FileId) : // Package data is not embedded with the activty itself, but linked.
+		MakeShared<FMemoryReader>(Package.PackageData); // Package data is embedded in the activity object.
+}
+

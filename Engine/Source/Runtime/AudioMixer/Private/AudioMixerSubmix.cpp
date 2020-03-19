@@ -3,6 +3,7 @@
 #include "AudioMixerSubmix.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
+#include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
@@ -19,7 +20,7 @@ FAutoConsoleVariableRef CVarRecoverRecordingOnShutdown(
 	TEXT("0: Disabled, 1: Enabled"),
 	ECVF_Default);
 
-static int32 BypassAllSubmixEffectsCVar = 1;
+static int32 BypassAllSubmixEffectsCVar = 0;
 FAutoConsoleVariableRef CVarBypassAllSubmixEffects(
 	TEXT("au.BypassAllSubmixEffects"),
 	BypassAllSubmixEffectsCVar,
@@ -50,6 +51,8 @@ namespace Audio
 		, bIsBackgroundMuted(false)
 		, OwningSubmixObject(nullptr)
 	{
+		EnvelopeFollowers.Reset();
+		EnvelopeFollowers.AddDefaulted(AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 	}
 
 	FMixerSubmix::~FMixerSubmix()
@@ -102,8 +105,6 @@ namespace Audio
 			CurrentOutputVolume = FMath::Clamp(SoundSubmix->OutputVolume, 0.0f, 1.0f);
 			TargetOutputVolume = CurrentOutputVolume;
 
-
-			FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 			// Set the initialized output volume
 			CurrentWetLevel = FMath::Clamp(SoundSubmix->WetLevel, 0.0f, 1.0f);
 			TargetWetLevel = CurrentWetLevel;
@@ -111,33 +112,32 @@ namespace Audio
 			CurrentDryLevel = FMath::Clamp(SoundSubmix->DryLevel, 0.0f, 1.0f);
 			TargetDryLevel = CurrentDryLevel;
 
-			NumSubmixEffects = 0;
-
-			for (USoundEffectSubmixPreset* EffectPreset : SoundSubmix->SubmixEffectChain)
+			FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 			{
-				if (EffectPreset)
+    			NumSubmixEffects = 0;
+				for (USoundEffectSubmixPreset* EffectPreset : SoundSubmix->SubmixEffectChain)
 				{
-					++NumSubmixEffects;
+					if (EffectPreset)
+					{
+						++NumSubmixEffects;
 
-					// Create a new effect instance using the preset
-					FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
 
-					FSoundEffectSubmixInitData InitData;
-					InitData.DeviceID = MixerDevice->DeviceID;
-					InitData.SampleRate = MixerDevice->GetSampleRate();
-					InitData.PresetSettings = nullptr;
+						FSoundEffectSubmixInitData InitData;
+						InitData.DeviceID = MixerDevice->DeviceID;
+						InitData.SampleRate = MixerDevice->GetSampleRate();
+						InitData.PresetSettings = nullptr;
 
-					// Now set the preset
-					SubmixEffect->Init(InitData);
-					SubmixEffect->SetPreset(EffectPreset);
-					SubmixEffect->SetEnabled(true);
+						// Create a new effect instance using the preset & enable
+						TSoundEffectSubmixPtr SubmixEffect = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *EffectPreset);
+						SubmixEffect->SetEnabled(true);
 
-					FSubmixEffectInfo EffectInfo;
-					EffectInfo.PresetId = EffectPreset->GetUniqueID();
-					EffectInfo.EffectInstance = MakeShareable(SubmixEffect);
+						FSubmixEffectInfo EffectInfo;
+						EffectInfo.PresetId = EffectPreset->GetUniqueID();
+						EffectInfo.EffectInstance = SubmixEffect;
 
-					// Add the effect to this submix's chain
-					EffectSubmixChain.Add(MoveTemp(EffectInfo));
+						// Add the effect to this submix's chain
+						EffectSubmixChain.Add(MoveTemp(EffectInfo));
+					}
 				}
 			}
 
@@ -411,7 +411,7 @@ namespace Audio
 		{
 			if (Info.EffectInstance.IsValid())
 			{
-				Info.EffectInstance->ClearPreset();
+				USoundEffectPreset::UnregisterInstance(Info.EffectInstance);
 				Info.EffectInstance.Reset();
 			}
 		}
@@ -791,6 +791,13 @@ namespace Audio
 
 		// Device format may change channels if device is hot swapped
 		NumChannels = MixerDevice->GetNumDeviceChannels();
+
+		// If we hit this, it means that platform info gave us a garbage NumChannel count.
+		if (!ensure(NumChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS))
+		{
+			return;
+		}
+
 		const int32 NumOutputFrames = OutAudioBuffer.Num() / NumChannels;
 		NumSamples = NumChannels * NumOutputFrames;
 

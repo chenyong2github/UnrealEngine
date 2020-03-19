@@ -9,6 +9,7 @@
 #include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "SCurveEditorPanel.h"
+#include "SoundModulationPatch.h"
 #include "Widgets/Text/STextBlock.h"
 
 
@@ -21,22 +22,25 @@ FModCurveEditorModel::FModCurveEditorModel(FRichCurve& InRichCurve, UObject* InO
 	, Source(InSource)
 {
 	SupportedViews = ViewId;
-	Refresh(EModSettingsEditorCurveOutput::Control, &InControlName, InSharedCurve);
+	Init(&InControlName, InSharedCurve);
 }
 
 FModCurveEditorModel::FModCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, EModSettingsEditorCurveOutput InOutput, EModSettingsOutputEditorCurveSource InSource, UCurveFloat* InSharedCurve)
 	: FRichCurveEditorModelRaw(&InRichCurve, InOwner)
+	, Settings(Cast<USoundModulationSettings>(InOwner))
 	, Output(InOutput)
 	, Source(InSource)
 {
 	SupportedViews = ViewId;
-	Refresh(InOutput, nullptr /* InControlName */, InSharedCurve);
+	Init(nullptr /* InControlName */, InSharedCurve);
 }
 
-void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, const FName* InControlName, UCurveFloat* InSharedCurve)
+void FModCurveEditorModel::Init(const FName* InControlName, UCurveFloat* InSharedCurve)
 {
+	bKeyDrawEnabled = true;
+
 	FText ShortNameBase;
-	switch (InCurveOutput)
+	switch (Output)
 	{
 		case EModSettingsEditorCurveOutput::Volume:
 		{
@@ -79,43 +83,95 @@ void FModCurveEditorModel::Refresh(EModSettingsEditorCurveOutput InCurveOutput, 
 		break;
 	}
 
-	switch (Source)
+	const bool bIsBypassed = GetIsBypassed();
+	if (bIsBypassed)
 	{
-		case EModSettingsOutputEditorCurveSource::Shared:
+		SetShortDisplayName(FText::Format(LOCTEXT("ModulationCurveDisabledDisplayName", "{0} (Bypassed)"), ShortNameBase));
+		bKeyDrawEnabled = false;
+	}
+	else
+	{
+		switch (Source)
 		{
-			check(InSharedCurve);
-			FText CurveNameText = FText::FromString(InSharedCurve->GetName());
-			SetShortDisplayName(FText::Format(LOCTEXT("ModulationSharedDisplayName", "{0} (Shared - {1})"), ShortNameBase, CurveNameText));
-		}
-		break;
+			case EModSettingsOutputEditorCurveSource::Shared:
+			{
+				check(InSharedCurve);
+				FText CurveNameText = FText::FromString(InSharedCurve->GetName());
+				SetShortDisplayName(FText::Format(LOCTEXT("ModulationSharedDisplayName", "{0} (Shared - {1})"), ShortNameBase, CurveNameText));
+			}
+			break;
 
-		case EModSettingsOutputEditorCurveSource::Custom:
-		{
-			ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveDisplayName", "{0} (Custom)"), ShortNameBase);
-		}
-		break;
+			case EModSettingsOutputEditorCurveSource::Custom:
+			{
+				ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveDisplayName", "{0} (Custom)"), ShortNameBase);
+			}
+			break;
 
-		case EModSettingsOutputEditorCurveSource::Expression:
-		{
-			bKeyDrawEnabled = false;
-			ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveExpressionDisplayName", "{0} (Expression)"), ShortNameBase);
-		}
-		break;
+			case EModSettingsOutputEditorCurveSource::Expression:
+			{
+				bKeyDrawEnabled = false;
+				ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveExpressionDisplayName", "{0} (Expression)"), ShortNameBase);
+			}
+			break;
 
-		case EModSettingsOutputEditorCurveSource::Unset:
-		default:
-		{
-			bKeyDrawEnabled = false;
-			ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveUnsetDisplayName", "{0} (Shared - Unset)"), ShortNameBase);
+			case EModSettingsOutputEditorCurveSource::Unset:
+			default:
+			{
+				bKeyDrawEnabled = false;
+				ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveUnsetDisplayName", "{0} (Shared - Unset)"), ShortNameBase);
+			}
+			break;
 		}
 	}
 }
 
 FLinearColor FModCurveEditorModel::GetColor() const
 {
-	return Source == EModSettingsOutputEditorCurveSource::Custom || Source == EModSettingsOutputEditorCurveSource::Expression
+	return !GetIsBypassed() && (Source == EModSettingsOutputEditorCurveSource::Custom || Source == EModSettingsOutputEditorCurveSource::Expression)
 		? Color
 		: Color.Desaturate(0.45f);
+}
+
+bool FModCurveEditorModel::GetIsBypassed() const
+{
+	if (Settings.IsValid())
+	{
+		switch (Output)
+		{
+		case EModSettingsEditorCurveOutput::Volume:
+		{
+			return Settings->Volume.bBypass;
+		}
+		break;
+
+		case EModSettingsEditorCurveOutput::Pitch:
+		{
+			return Settings->Pitch.bBypass;
+		}
+		break;
+
+		case EModSettingsEditorCurveOutput::Highpass:
+		{
+			return Settings->Highpass.bBypass;
+		}
+		break;
+
+		case EModSettingsEditorCurveOutput::Lowpass:
+		{
+			return Settings->Lowpass.bBypass;
+		}
+		break;
+
+		case EModSettingsEditorCurveOutput::Control:
+		default:
+		{
+			return false;
+		}
+		break;
+		}
+	}
+
+	return false;
 }
 
 EModSettingsEditorCurveOutput FModCurveEditorModel::GetOutput() const

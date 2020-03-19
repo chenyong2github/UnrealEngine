@@ -35,7 +35,7 @@ const TCHAR* FDerivedDataAnimationCompression::GetVersionString() const
 	// This is a version string that mimics the old versioning scheme. If you
 	// want to bump this version, generate a new guid using VS->Tools->Create GUID and
 	// return it here. Ex.
-	return TEXT("0F1CECE507FE4F89A374B4C8E7B55052");
+	return TEXT("0B129554D9A4427784EC46E2AFD314B7");
 }
 
 bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
@@ -144,7 +144,7 @@ void FAsyncCompressedAnimationsManagement::Shutdown()
 		
 		const double PreExitDuration = FPlatformTime::Seconds() - PreExitStartTimer;
 
-		if (PreExitDuration > 10.0)
+		if (PreExitDuration > 20.0)
 		{
 			UE_LOG(LogAnimationCompression, Warning, TEXT("Async Compression Pre Init Timer hit, Active Compressions:%i"), ActiveAsyncCompressionTasks.Num());
 			return;
@@ -336,24 +336,32 @@ void FAsyncCompressedAnimationsManagement::StartAsyncWork(FDerivedDataAnimationC
 	ActiveAsyncCompressionTasks.Emplace(Anim, SourceData, CacheKey, NewTaskSize, AsyncHandle, bPerformFrameStripping);
 }
 
-bool FAsyncCompressedAnimationsManagement::WaitOnActiveCompression(UAnimSequence* Anim)
+bool FAsyncCompressedAnimationsManagement::WaitOnActiveCompression(UAnimSequence* Anim, bool bWantResults)
 {
 	for (int32 ActiveIndex = 0; ActiveIndex < ActiveAsyncCompressionTasks.Num(); ++ActiveIndex)
 	{
 		FActiveAsyncCompressionTask& Task = ActiveAsyncCompressionTasks[ActiveIndex];
 		if (Task.Sequence == Anim)
 		{
-			GetDerivedDataCacheRef().WaitAsynchronousCompletion(Task.AsyncHandle);
-			OnActiveCompressionFinished(ActiveIndex);
-			return true; // Done
+			if(bWantResults)
+			{
+				GetDerivedDataCacheRef().WaitAsynchronousCompletion(Task.AsyncHandle);
+				OnActiveCompressionFinished(ActiveIndex);
+			}
+			else
+			{
+				Task.DataToCompress->IsCancelledSignal.Cancel();
+				Task.Sequence = nullptr;
+			}
+			return true; // Was active
 		}
 	}
 	return false;
 }
 
-bool FAsyncCompressedAnimationsManagement::WaitOnExistingCompression(UAnimSequence* Anim, const bool bCancelIfNotStarted)
+bool FAsyncCompressedAnimationsManagement::WaitOnExistingCompression(UAnimSequence* Anim, const bool bWantResults)
 {
-	if(!WaitOnActiveCompression(Anim))
+	if(!WaitOnActiveCompression(Anim, bWantResults))
 	{
 		//Check if we have a queued task
 		for (int32 QueuedIndex = 0; QueuedIndex < QueuedAsyncCompressionWork.Num(); ++QueuedIndex)
@@ -361,7 +369,7 @@ bool FAsyncCompressedAnimationsManagement::WaitOnExistingCompression(UAnimSequen
 			FQueuedAsyncCompressionWork& Task = QueuedAsyncCompressionWork[QueuedIndex];
 			if (Task.Anim == Anim)
 			{
-				if (!bCancelIfNotStarted)
+				if (bWantResults)
 				{
 					StartAsyncWork(Task.Compressor, Task.Anim, Task.Compressor.GetMemoryUsage(), Task.bPerformFrameStripping);
 				}
@@ -372,7 +380,7 @@ bool FAsyncCompressedAnimationsManagement::WaitOnExistingCompression(UAnimSequen
 				QueuedAsyncCompressionWork.RemoveAtSwap(QueuedIndex, 1, false);
 			}
 		}
-		return bCancelIfNotStarted ? false : WaitOnActiveCompression(Anim);
+		return bWantResults ? WaitOnActiveCompression(Anim, bWantResults) : false;
 	}
 	return true;
 }

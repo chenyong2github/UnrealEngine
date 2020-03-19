@@ -194,6 +194,12 @@ void UParametricMovementComponent::ProduceInput(const FNetworkSimTime DeltaTimeS
 	PendingPlayRate.Reset();
 }
 
+void UParametricMovementComponent::EnableInterpolationMode(bool bValue)
+{
+	bEnableInterpolation = bValue;
+	GetNetworkSimulation()->SetEnableSimulationExtrapolation(!bEnableInterpolation);
+}
+
 // -------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------
 

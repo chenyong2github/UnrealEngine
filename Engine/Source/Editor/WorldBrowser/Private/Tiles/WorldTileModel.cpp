@@ -229,7 +229,7 @@ bool FWorldTileModel::ShouldBeVisible(FBox EditableArea) const
 	}
 
 	// When this hack is activated level should be visible regardless of current world origin
-	if (LevelCollectionModel.GetWorld()->WorldComposition->bTemporallyDisableOriginTracking)
+	if (LevelCollectionModel.GetWorld()->WorldComposition->bTemporarilyDisableOriginTracking)
 	{
 		return true;
 	}
@@ -335,7 +335,7 @@ bool FWorldTileModel::IsLandscapeBased() const
 	return Landscape.IsValid();
 }
 
-bool FWorldTileModel::IsTiledLandscapeBased() const
+bool FWorldTileModel::CanReimportHeightmap() const
 {
 	if (IsLandscapeBased() && !GetLandscape()->ReimportHeightmapFilePath.IsEmpty())
 	{
@@ -362,7 +362,7 @@ bool FWorldTileModel::IsTiledLandscapeBased() const
 	return false;
 }
 
-bool FWorldTileModel::IsLandscapeProxy() const
+bool FWorldTileModel::IsLandscapeStreamingProxy() const
 {
 	return (Landscape.IsValid() && Landscape.Get()->IsA(ALandscapeStreamingProxy::StaticClass()));
 }
@@ -1018,6 +1018,11 @@ ALandscapeProxy* FWorldTileModel::ImportLandscapeTile(const FLandscapeImportSett
 	// Create landscape components
 	LandscapeProxy->Import(	Settings.LandscapeGuid, 0, 0, Settings.SizeX - 1, Settings.SizeY - 1, Settings.SectionsPerComponent, Settings.QuadsPerSection, HeightmapDataPerLayers, *Settings.HeightmapFilename,	
 							MaterialLayerDataPerLayer,	Settings.ImportLayerType);
+
+	for (const FLandscapeImportLayerInfo& ImportLayerInfo : Settings.ImportLayers)
+	{
+		LandscapeProxy->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(ImportLayerInfo.LayerInfo, ImportLayerInfo.SourceFilePath));
+	}
 
 	return LandscapeProxy;
 }

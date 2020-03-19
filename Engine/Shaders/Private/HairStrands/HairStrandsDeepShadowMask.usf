@@ -11,23 +11,17 @@
 #include "HairStrandsVoxelPageCommon.ush"
 
 #include "HairStrandsCommon.ush"
-#include "HairStrandsVoxelPageCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 #include "HairStrandsDebugCommon.ush"
 #include "HairStrandsDeepTransmittanceCommon.ush"
 
 #define OPAQUE_MASK_TYPE_DEEP_SHADOW 0
-#define OPAQUE_MASK_TYPE_VOXEL 1
-#define OPAQUE_MASK_TYPE_VIRTUAL_VOXEL 2
+#define OPAQUE_MASK_TYPE_VIRTUAL_VOXEL 1
 
 #define VOXEL_TRAVERSAL_DEBUG 0
-#if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VOXEL || PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VIRTUAL_VOXEL
-  #if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VOXEL
-	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LEGACY
-  #elif PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VIRTUAL_VOXEL
+#if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VIRTUAL_VOXEL
 	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
-  #endif
-  #include "HairStrandsVoxelPageTraversal.ush"
+	#include "HairStrandsVoxelPageTraversal.ush"
 #endif
 
 StructuredBuffer<FDeepShadowTransform> DeepShadow_WorldToLightTransformBuffer;
@@ -44,12 +38,7 @@ float				DeepShadow_DensityScale;
 
 float4				Voxel_LightPosition;
 float3				Voxel_LightDirection;
-float				Voxel_DensityScale;
-float3				Voxel_MinAABB;
-uint				Voxel_Resolution;
-float3				Voxel_MaxAABB;
 uint				Voxel_MacroGroupId;
-Texture3D<uint> 	Voxel_DensityTexture;
 
 Texture2D<float4>	RayMarchMaskTexture;
 
@@ -409,7 +398,7 @@ void MainPS(
 
 #endif
 
-#if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VOXEL || PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VIRTUAL_VOXEL
+#if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VIRTUAL_VOXEL
 
 void MainPS(
 	FScreenVertexOutput Input,
@@ -436,13 +425,7 @@ void MainPS(
 		// Origin is shifted 2 voxels away towards the light + a constant bias of the size of the voxel
 		const float3 Random = GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8);
 		{
-		#if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VOXEL
-			const float3 VoxelSize = (Voxel_MaxAABB - Voxel_MinAABB) / Voxel_Resolution;
-			const float MaxVoxelSize = max(VoxelSize.x, max(VoxelSize.y, VoxelSize.z));
-		#elif PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VIRTUAL_VOXEL
-			const float MaxVoxelSize = VirtualVoxel.VoxelWorldSize;
-		#endif
-			const float3 DepthBias = MaxVoxelSize * (2 * LightDirection + Random);
+			const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (2 * LightDirection + Random);
 			WorldPosition += DepthBias;
 		}
 
@@ -451,27 +434,6 @@ void MainPS(
 		const float DistanceThreshold = 100000.0f;
 		const float CoverageThreshold = 0.995f; // When Coverage is high, we do not trace shadow on opaque since hair/fur is covering the background.
 
-	#if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VOXEL
-		if (RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r > 0.0f &&  Categorization.PixelCoverage < CoverageThreshold)
-		{
-			Result = ComputeHairCountVoxel(
-				WorldPosition,
-				LightPosition,
-				Voxel_MinAABB,
-				Voxel_MaxAABB,
-				Voxel_Resolution,
-				Voxel_DensityTexture,
-				Voxel_DensityScale,
-				1,
-				DistanceThreshold);
-		}
-		else
-		{
-			discard;
-		}
-	#endif
-
-	#if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VIRTUAL_VOXEL
 		FVirtualVoxelCommonDesc CommonDesc;
 		CommonDesc.PageCountResolution = VirtualVoxel.PageCountResolution;
 		CommonDesc.VoxelWorldSize = VirtualVoxel.VoxelWorldSize;
@@ -511,7 +473,6 @@ void MainPS(
 		{
 			discard;
 		}
-	#endif
 
 		Visibility = min(saturate(1 - Result.HairCount), Result.Visibility);
 	}

@@ -1348,6 +1348,11 @@ namespace UnrealBuildTool
 		public bool bOverrideBuildEnvironment = false;
 
 		/// <summary>
+		/// Specifies a list of targets which should be built before this target is built.
+		/// </summary>
+		public List<TargetInfo> PreBuildTargets = new List<TargetInfo>();
+
+		/// <summary>
 		/// Specifies a list of steps which should be executed before this target is built, in the context of the host platform's shell.
 		/// The following variables will be expanded before execution:
 		/// $(EngineDir), $(ProjectDir), $(TargetName), $(TargetPlatform), $(TargetConfiguration), $(TargetType), $(ProjectFile).
@@ -1462,7 +1467,7 @@ namespace UnrealBuildTool
 		/// HoloLens-specific target settings.
 		/// </summary>
 		[ConfigSubObject]
-		public HoloLensTargetRules HoloLensPlatform = new HoloLensTargetRules();
+		public HoloLensTargetRules HoloLensPlatform;
 
 		/// <summary>
 		/// Constructor.
@@ -1477,6 +1482,7 @@ namespace UnrealBuildTool
 			this.ProjectFile = Target.ProjectFile;
 			this.Version = Target.Version;
 			this.WindowsPlatform = new WindowsTargetRules(this);
+			this.HoloLensPlatform = new HoloLensTargetRules(Target);
 
 			// Read settings from config files
 			foreach (object ConfigurableObject in GetConfigurableObjects())
@@ -2559,6 +2565,11 @@ namespace UnrealBuildTool
 		public bool bOverrideBuildEnvironment
 		{
 			get { return Inner.bOverrideBuildEnvironment; }
+		}
+
+		public IReadOnlyList<TargetInfo> PreBuildTargets
+		{
+			get { return Inner.PreBuildTargets; }
 		}
 
 		public IReadOnlyList<string> PreBuildSteps

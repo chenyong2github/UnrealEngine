@@ -23,8 +23,9 @@ UENUM(BlueprintType)
 enum class EGroomNiagaraSolvers : uint8
 {
 	None = 0 UMETA(Hidden),
-	CosseratRods = 0x02 UMETA(DisplatName = "CosseratRods"),
-	AngularSprings = 0x04 UMETA(DisplatName = "AngularSprings")
+	CosseratRods = 0x02 UMETA(DisplatName = "GroomRods"),
+	AngularSprings = 0x04 UMETA(DisplatName = "GroomSprings"),
+	CustomSolver = 0x08 UMETA(DisplatName = "CustomSolver")
 };
 
 /** Size of each strands*/
@@ -99,12 +100,12 @@ struct FHairStrandsRootData
 };
 
 /* Render buffers for root deformation for dynamic meshes */
-struct FHairStrandsRootResource : public FRenderResource
+struct FHairStrandsRestRootResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsRootResource();
-	FHairStrandsRootResource(const FHairStrandsRootData& RootData);
-	FHairStrandsRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
+	FHairStrandsRestRootResource();
+	FHairStrandsRestRootResource(const FHairStrandsRootData& RootData);
+	FHairStrandsRestRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -113,7 +114,7 @@ struct FHairStrandsRootResource : public FRenderResource
 	virtual void ReleaseRHI() override;
 
 	/* Get the resource name */
-	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRootResource"); }
+	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRestRootResource"); }
 
 	/* Populate GPU LOD data from RootData (this function doesn't initialize resources) */
 	void PopulateFromRootData();
@@ -124,7 +125,8 @@ struct FHairStrandsRootResource : public FRenderResource
 
 	struct FMeshProjectionLOD
 	{
-		FHairStrandsProjectionHairData::LODData::EStatus Status = FHairStrandsProjectionHairData::LODData::EStatus::Invalid;
+		const bool IsValid() const { return Status == FHairStrandsProjectionHairData::EStatus::Completed; }
+		FHairStrandsProjectionHairData::EStatus Status = FHairStrandsProjectionHairData::EStatus::Invalid;
 		int32 LODIndex = -1;
 
 		/* Triangle on which a root is attached */
@@ -138,18 +140,11 @@ struct FHairStrandsRootResource : public FRenderResource
 		FRWBuffer RestRootTrianglePosition1Buffer;
 		FRWBuffer RestRootTrianglePosition2Buffer;
 
-		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
-		FRWBuffer DeformedRootTrianglePosition0Buffer;
-		FRWBuffer DeformedRootTrianglePosition1Buffer;
-		FRWBuffer DeformedRootTrianglePosition2Buffer;
-
 		/* Strand hair mesh interpolation matrix and sample indices */
 		uint32 SampleCount = 0;
 		FRWBuffer MeshInterpolationWeightsBuffer;
 		FRWBuffer MeshSampleIndicesBuffer;
 		FRWBuffer RestSamplePositionsBuffer;
-		FRWBuffer DeformedSamplePositionsBuffer;
-		FRWBuffer MeshSampleWeightsBuffer;
 	};
 
 	/* Store the hair projection information for each mesh LOD */
@@ -157,6 +152,45 @@ struct FHairStrandsRootResource : public FRenderResource
 
 	/* Store CPU data for root info & root binding */
 	FHairStrandsRootData RootData;
+};
+
+
+/* Render buffers for root deformation for dynamic meshes */
+struct FHairStrandsDeformedRootResource : public FRenderResource
+{
+	/** Build the hair strands resource */
+	FHairStrandsDeformedRootResource();
+	FHairStrandsDeformedRootResource(const FHairStrandsRestRootResource* InRestResources);
+
+	/* Init the buffer */
+	virtual void InitRHI() override;
+
+	/* Release the buffer */
+	virtual void ReleaseRHI() override;
+
+	/* Get the resource name */
+	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsDeformedRootResource"); }
+
+	struct FMeshProjectionLOD
+	{
+		const bool IsValid() const { return Status == FHairStrandsProjectionHairData::EStatus::Completed; }
+		FHairStrandsProjectionHairData::EStatus Status = FHairStrandsProjectionHairData::EStatus::Invalid;
+		int32 LODIndex = -1;
+
+		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
+		FRWBuffer DeformedRootTrianglePosition0Buffer;
+		FRWBuffer DeformedRootTrianglePosition1Buffer;
+		FRWBuffer DeformedRootTrianglePosition2Buffer;
+
+		/* Strand hair mesh interpolation matrix and sample indices */
+		uint32 SampleCount = 0;
+		FRWBuffer DeformedSamplePositionsBuffer;
+		FRWBuffer MeshSampleWeightsBuffer;
+	};
+
+	/* Store the hair projection information for each mesh LOD */
+	uint32 RootCount = 0;
+	TArray<FMeshProjectionLOD> MeshProjectionLODs;
 };
 
 /* Render buffers that will be used for rendering */
@@ -313,6 +347,225 @@ struct FHairStrandsRaytracingResource : public FRenderResource
 };
 #endif
 
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairSolverSettings
+{
+	GENERATED_BODY()
+
+	FHairSolverSettings();
+
+	/** Enable the simulation for the group */
+	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Enable the simulation on that group"))
+	bool EnableSimulation;
+
+	/** Allow the simulation to follow a kinematics target*/
+	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Allow the simulation to follow a kinematics target"))
+	bool KinematicsTarget;
+
+	/** Niagara solver to be used for simulation */
+	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Niagara solver to be used for simulation"))
+	EGroomNiagaraSolvers NiagaraSolver;
+
+	/** Custom system to be used for simulation */
+	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (EditCondition = "NiagaraSolver == EGroomNiagaraSolvers::CustomSolver", ToolTip = "Custom niagara system to be used if custom solver is picked"))
+	TSoftObjectPtr<UNiagaraSystem> CustomSystem;
+
+	/** Number of substeps to be used */
+	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Number of sub steps to be done per frame. The actual solver calls are done at 24 fps"))
+	int32 SubSteps;
+
+	/** Number of iterations for the constraint solver  */
+	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Number of iterations to solve the constraints with the xpbd solver"))
+	int32 IterationCount;
+};
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairExternalForces
+{
+	GENERATED_BODY()
+
+	FHairExternalForces();
+
+	/** Acceleration vector in cm/s2 to be used for the gravity*/
+	UPROPERTY(EditAnywhere, Category = "ExternalForces", meta = (ToolTip = "Acceleration vector in cm/s2 to be used for the gravity"))
+	FVector GravityVector;
+
+	/** Coefficient between 0 and 1 to be used for the air drag */
+	UPROPERTY(EditAnywhere, Category = "ExternalForces", meta = (ToolTip = "Coefficient between 0 and 1 to be used for the air drag"))
+	float AirDrag;
+
+	/** Velocity of the surrounding air in cm/s */
+	UPROPERTY(EditAnywhere, Category = "ExternalForces", meta = (ToolTip = "Velocity of the surrounding air in cm/s"))
+	FVector AirVelocity;
+};
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairBendConstraint
+{
+	GENERATED_BODY()
+
+	FHairBendConstraint();
+
+	/** Enable the solve of the bend constraint during the xpbd loop */
+	UPROPERTY(EditAnywhere, Category = "BendConstraint", meta = (ToolTip = "Enable the solve of the bend constraint during the xpbd loop"))
+	bool SolveBend;
+
+	/** Enable the projection of the bend constraint after the xpbd loop */
+	UPROPERTY(EditAnywhere, Category = "BendConstraint", meta = (ToolTip = "Enable ther projection of the bend constraint after the xpbd loop"))
+	bool ProjectBend;
+
+	/** Damping for the bend constraint between 0 and 1 */
+	UPROPERTY(EditAnywhere, Category = "BendConstraint", meta = (ToolTip = "Damping for the bend constraint between 0 and 1"))
+	float BendDamping;
+
+	/** Stiffness for the bend constraint in GPa */
+	UPROPERTY(EditAnywhere, Category = "BendConstraint", meta = (ToolTip = "Stiffness for the bend constraint in GPa"))
+	float BendStiffness;
+
+	/** Stiffness scale along the strand */
+	UPROPERTY(EditAnywhere, Category = "BendConstraint", meta = (DisplayName = "Stiffness Scale", ViewMinInput = "0.0", ViewMaxInput = "1.0", ViewMinOutput = "0.0", ViewMaxOutput = "1.0", TimeLineLength = "1.0", XAxisName = "Strand Coordinate (0,1)", YAxisName = "Bend Scale", ToolTip = "This curve determines how much the bend stiffness will be scaled along each strand. \n The X axis range is [0,1], 0 mapping the root and 1 the tip"))
+	FRuntimeFloatCurve BendScale;
+};
+
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairStretchConstraint
+{
+	GENERATED_BODY()
+
+	FHairStretchConstraint();
+
+	/** Enable the solve of the stretch constraint during the xpbd loop */
+	UPROPERTY(EditAnywhere, Category = "StretchConstraint", meta = (ToolTip = "Enable the solve of the stretch constraint during the xpbd loop"))
+	bool SolveStretch;
+
+	/** Enable the projection of the stretch constraint after the xpbd loop */
+	UPROPERTY(EditAnywhere, Category = "StretchConstraint", meta = (ToolTip = "Enable ther projection of the stretch constraint after the xpbd loop"))
+	bool ProjectStretch;
+
+	/** Damping for the stretch constraint between 0 and 1 */
+	UPROPERTY(EditAnywhere, Category = "StretchConstraint", meta = (ToolTip = "Damping for the stretch constraint between 0 and 1"))
+	float StretchDamping;
+
+	/** Stiffness for the stretch constraint in GPa */
+	UPROPERTY(EditAnywhere, Category = "StretchConstraint", meta = (ToolTip = "Stiffness for the stretch constraint in GPa"))
+	float StretchStiffness;
+
+	/** Stretch scale along the strand  */
+	UPROPERTY(EditAnywhere, Category = "StretchConstraint", meta = (DisplayName = "Stiffness Scale", ViewMinInput = "0.0", ViewMaxInput = "1.0", ViewMinOutput = "0.0", ViewMaxOutput = "1.0", TimeLineLength = "1.0", XAxisName = "Strand Coordinate (0,1)", YAxisName = "Stretch Scale", ToolTip = "This curve determines how much the stretch stiffness will be scaled along each strand. \n The X axis range is [0,1], 0 mapping the root and 1 the tip"))
+	FRuntimeFloatCurve StretchScale;
+};
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairCollisionConstraint
+{
+	GENERATED_BODY()
+
+	FHairCollisionConstraint();
+
+	/** Enable the solve of the collision constraint during the xpbd loop  */
+	UPROPERTY(EditAnywhere, Category = "CollisionConstraint", meta = (ToolTip = "Enable the solve of the collision constraint during the xpbd loop"))
+	bool SolveCollision;
+
+	/** Enable ther projection of the collision constraint after the xpbd loop */
+	UPROPERTY(EditAnywhere, Category = "CollisionConstraint", meta = (ToolTip = "Enable ther projection of the collision constraint after the xpbd loop"))
+	bool ProjectCollision;
+
+	/** Static friction used for collision against the physics asset */
+	UPROPERTY(EditAnywhere, Category = "Collision Constraint", meta = (ToolTip = "Static friction used for collision against the physics asset"))
+	float StaticFriction;
+
+	/** Kinetic friction used for collision against the physics asset*/
+	UPROPERTY(EditAnywhere, Category = "CollisionConstraint", meta = (ToolTip = "Kinetic friction used for collision against the physics asset"))
+	float KineticFriction;
+
+	/** Viscosity parameter between 0 and 1 that will be used for self collision */
+	UPROPERTY(EditAnywhere, Category = "CollisionConstraint", meta = (ToolTip = "Viscosity parameter between 0 and 1 that will be used for self collision"))
+	float StrandsViscosity;
+
+	/** Radius that will be used for the collision detection against the physics asset */
+	UPROPERTY(EditAnywhere, Category = "CollisionConstraint", meta = (ToolTip = "Radius that will be used for the collision detection against the physics asset"))
+	float CollisionRadius;
+
+	/** Radius scale along the strand */
+	UPROPERTY(EditAnywhere, Category = "CollisionConstraint", meta = (ViewMinInput = "0.0", ViewMaxInput = "1.0", ViewMinOutput = "0.0", ViewMaxOutput = "1.0", TimeLineLength = "1.0", XAxisName = "Strand Coordinate (0,1)", YAxisName = "Collision Radius", ToolTip = "This curve determines how much the collision radius will be scaled along each strand. \n The X axis range is [0,1], 0 mapping the root and 1 the tip"))
+	FRuntimeFloatCurve RadiusScale;
+};
+
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairMaterialConstraints
+{
+	GENERATED_BODY()
+
+	FHairMaterialConstraints();
+
+	/** Radius scale along the strand */
+	UPROPERTY(EditAnywhere, Category = "MaterialConstraints", meta = (ToolTip = "Bend constraint settings to be applied to the hair strands"))
+	FHairBendConstraint BendConstraint;
+
+	/** Radius scale along the strand */
+	UPROPERTY(EditAnywhere, Category = "MaterialConstraints", meta = (ToolTip = "Stretch constraint settings to be applied to the hair strands"))
+	FHairStretchConstraint StretchConstraint;
+
+	/** Radius scale along the strand */
+	UPROPERTY(EditAnywhere, Category = "MaterialConstraints", meta = (ToolTip = "Collision constraint settings to be applied to the hair strands"))
+	FHairCollisionConstraint CollisionConstraint;
+};
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairStrandsParameters
+{
+	GENERATED_BODY()
+
+		FHairStrandsParameters();
+
+	/** Number of particles per guide that will be used for simulation*/
+	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ToolTip = "Number of particles per guide that will be used for simulation"))
+		EGroomStrandsSize StrandsSize;
+
+	/** Density of the strands in g/cm3 */
+	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ToolTip = "Density of the strands in g/cm3"))
+		float StrandsDensity;
+
+	/** Smoothing between 0 and 1 of the incoming guides curves for better stability */
+	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ToolTip = "Smoothing between 0 and 1 of the incoming guides curves for better stability"))
+		float StrandsSmoothing;
+
+	/** Strands thickness in cm that will be used for mass and inertia computation */
+	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ToolTip = "Strands thickness in cm that will be used for mass and inertia computation"))
+		float StrandsThickness;
+
+	/** Thickness scale along the curve */
+	UPROPERTY(EditAnywhere, Category = "StrandsParameters", meta = (ViewMinInput = "0.0", ViewMaxInput = "1.0", ViewMinOutput = "0.0", ViewMaxOutput = "1.0", TimeLineLength = "1.0", XAxisName = "Strand Coordinate (0,1)", YAxisName = "Strands Thickness", ToolTip = "This curve determines how much the strands thickness will be scaled along each strand. \n The X axis range is [0,1], 0 mapping the root and 1 the tip"))
+		FRuntimeFloatCurve ThicknessScale;
+};
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairGroupsPhysics
+{
+	GENERATED_BODY()
+
+	FHairGroupsPhysics();
+
+	/** Enable the simulation for the group */
+	UPROPERTY(EditAnywhere, Category = "GroupsPhysics", meta = (ToolTip = "Solver Settings for the hair physics"))
+	FHairSolverSettings SolverSettings;
+
+	/** Enable the simulation for the group */
+	UPROPERTY(EditAnywhere, Category = "GroupsPhysics", meta = (ToolTip = "External Forces for the hair physics"))
+	FHairExternalForces ExternalForces;
+
+	/** Enable the simulation for the group */
+	UPROPERTY(EditAnywhere, Category = "GroupsPhysics", meta = (ToolTip = "Material Constraints for the hair physics"))
+	FHairMaterialConstraints MaterialConstraints;
+
+	/** Enable the simulation for the group */
+	UPROPERTY(EditAnywhere, Category = "GroupsPhysics", meta = (ToolTip = "Strands Parameters for the hair physics"))
+	FHairStrandsParameters StrandsParameters;
+};
+
 USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairGroupInfo
 {
@@ -330,7 +583,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInfo
 	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Import options", ToolTip = "Show the options used at import time"))
 	FGroomBuildSettings ImportSettings;
 
-	UPROPERTY(EditAnywhere, Category="Rendering")
+	UPROPERTY(EditAnywhere, Category = "Rendering")
 	UMaterialInterface* Material = nullptr;
 
 	friend FArchive& operator<<(FArchive& Ar, FHairGroupInfo& GroupInfo);
@@ -375,6 +628,9 @@ public:
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairGroups", meta = (DisplayName = "Group"))
 	TArray<FHairGroupInfo> HairGroupsInfo;
 
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairPhysics", meta = (DisplayName = "Group"))
+	TArray<FHairGroupsPhysics> HairGroupsPhysics;
+
 	TArray<FHairGroupData> HairGroupsData;
 
 	//~ Begin UObject Interface.
@@ -385,126 +641,6 @@ public:
 	/** Density factor for converting hair into guide curve if no guides are provided. */
 	UPROPERTY(BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
 	float HairToGuideDensity = 0.1f; // To remove, as this is now stored into the import settings
-
-	/** Group Id to be simulated */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Group Setup", meta = (ToolTip = "Group ID that will be simulated with niagara"))
-	int32 SimulatedGroup;
-
-	/** Enable the simulation for the group */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Group Setup", meta = (ToolTip = "Enable the simulation on that group"))
-	bool EnableSimulation;
-
-	/** Enable the simulation for the group */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Group Setup", meta = (ToolTip = "Niagara solver to be used for simulation"))
-	EGroomNiagaraSolvers NiagaraSolver;
-
-	/** Number of substeps to be used */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Niagara Solver", meta = (ToolTip = "Number of sub steps to be done per frame. The actual solver calls are done at 24 fps"))
-	int32 SubSteps;
-
-	/** Number of iterations for the constraint solver  */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Niagara Solver", meta = (ToolTip = "Number of iterations to solve the constraints with the xpbd solver"))
-	int32 IterationCount;
-
-	/** Acceleration vector in cm/s2 to be used for the gravity*/
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|External Forces", meta = (ToolTip = "Acceleration vector in cm/s2 to be used for the gravity"))
-	FVector GravityVector;
-
-	/** Coefficient between 0 and 1 to be used for the air drag */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|External Forces", meta = (ToolTip = "Coefficient between 0 and 1 to be used for the air drag"))
-	float AirDrag;
-
-	/** Velocity of the surrounding air in cm/s */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|External Forces", meta = (ToolTip = "Velocity of the surrounding air in cm/s"))
-	FVector AirVelocity;
-
-	/** Enable the solve of the bend constraint during the xpbd loop */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Bend Constraint", meta = (ToolTip = "Enable the solve of the bend constraint during the xpbd loop"))
-	bool SolveBend;
-
-	/** Enable ther projection of the bend constraint after the xpbd loop */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Bend Constraint", meta = (ToolTip = "Enable ther projection of the bend constraint after the xpbd loop"))
-	bool ProjectBend;
-
-	/** Damping for the bend constraint between 0 and 1 */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Bend Constraint", meta = (ToolTip = "Damping for the bend constraint between 0 and 1"))
-	float BendDamping;
-
-	/** Stiffness for the bend constraint in GPa */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Bend Constraint", meta = (ToolTip = "Stiffness for the bend constraint in GPa"))
-	float BendStiffness;
-
-	/** Stiffness scale along the strand */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Bend Constraint", meta = (ViewMinInput = "0.0", ViewMaxInput = "1.0", ViewMinOutput = "0.0", ViewMaxOutput = "1.0", TimeLineLength = "1.0", XAxisName = "Strand Coordinate (0,1)", YAxisName = "Bend Scale", ToolTip = "This curve determines how much the bend stiffness will be scaled along each strand. \n The X axis range is [0,1], 0 mapping the root and 1 the tip"))
-	FRuntimeFloatCurve BendScale;
-
-	/** Enable the solve of the stretch constraint during the xpbd loop */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Stretch Constraint", meta = (ToolTip = "Enable the solve of the stretch constraint during the xpbd loop"))
-	bool SolveStretch;
-
-	/** Enable the projection of the stretch constraint after the xpbd loop */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Stretch Constraint", meta = (ToolTip = "Enable ther projection of the stretch constraint after the xpbd loop"))
-	bool ProjectStretch;
-
-	/** Damping for the stretch constraint between 0 and 1 */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Stretch Constraint", meta = (ToolTip = "Damping for the stretch constraint between 0 and 1"))
-	float StretchDamping;
-
-	/** Stiffness for the stretch constraint in GPa */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Stretch Constraint", meta = (ToolTip = "Stiffness for the stretch constraint in GPa"))
-	float StretchStiffness;
-
-	/** Stretch scale along the strand  */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Stretch Constraint", meta = (ViewMinInput = "0.0", ViewMaxInput = "1.0", ViewMinOutput = "0.0", ViewMaxOutput = "1.0", TimeLineLength = "1.0", XAxisName = "Strand Coordinate (0,1)", YAxisName = "Stretch Scale", ToolTip = "This curve determines how much the stretch stiffness will be scaled along each strand. \n The X axis range is [0,1], 0 mapping the root and 1 the tip"))
-	FRuntimeFloatCurve StretchScale;
-
-	/** Enable the solve of the collision constraint during the xpbd loop  */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Collision Constraint", meta = (ToolTip = "Enable the solve of the collision constraint during the xpbd loop"))
-	bool SolveCollision;
-
-	/** Enable ther projection of the collision constraint after the xpbd loop */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Collision Constraint", meta = (ToolTip = "Enable ther projection of the collision constraint after the xpbd loop"))
-	bool ProjectCollision;
-
-	/** Static friction used for collision against the physics asset */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Collision Constraint", meta = (ToolTip = "Static friction used for collision against the physics asset"))
-	float StaticFriction;
-
-	/** Kinetic friction used for collision against the physics asset*/
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Collision Constraint", meta = (ToolTip = "Kinetic friction used for collision against the physics asset"))
-	float KineticFriction;
-
-	/** Viscosity parameter between 0 and 1 that will be used for self collision */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Collision Constraint", meta = (ToolTip = "Viscosity parameter between 0 and 1 that will be used for self collision"))
-	float StrandsViscosity;
-
-	/** Radius that will be used for the collision detection against the physics asset */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Collision Constraint", meta = (ToolTip = "Radius that will be used for the collision detection against the physics asset"))
-	float CollisionRadius;
-
-	/** Radius scale along the strand */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Solver Constraints|Collision Constraint", meta = (ViewMinInput = "0.0", ViewMaxInput = "1.0", ViewMinOutput = "0.0", ViewMaxOutput = "1.0", TimeLineLength = "1.0", XAxisName = "Strand Coordinate (0,1)", YAxisName = "Collision Radius", ToolTip = "This curve determines how much the collision radius will be scaled along each strand. \n The X axis range is [0,1], 0 mapping the root and 1 the tip"))
-	FRuntimeFloatCurve RadiusScale;
-
-	/** Number of particles per guide that will be used for simulation*/
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Strands Parameters", meta = (ToolTip = "Number of particles per guide that will be used for simulation"))
-	EGroomStrandsSize StrandsSize;
-
-	/** Density of the strands in g/cm3 */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Strands Parameters", meta = (ToolTip = "Density of the strands in g/cm3"))
-	float StrandsDensity;
-
-	/** Smoothing between 0 and 1 of the incoming guides curves for better stability */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Strands Parameters", meta = (ToolTip = "Smoothing between 0 and 1 of the incoming guides curves for better stability"))
-	float StrandsSmoothing;
-
-	/** Strands thickness in cm that will be used for mass and inertia computation */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Strands Parameters", meta = (ToolTip = "Strands thickness in cm that will be used for mass and inertia computation"))
-	float StrandsThickness;
-
-	/** Thickness scale along the curve */
-	UPROPERTY(EditAnywhere, Category = "Hair Physics|Strands Parameters", meta = (ViewMinInput = "0.0", ViewMaxInput = "1.0", ViewMinOutput = "0.0", ViewMaxOutput = "1.0", TimeLineLength = "1.0", XAxisName = "Strand Coordinate (0,1)", YAxisName = "Strands Thickness", ToolTip = "This curve determines how much the strands thickness will be scaled along each strand. \n The X axis range is [0,1], 0 mapping the root and 1 the tip"))
-	FRuntimeFloatCurve ThicknessScale;
 
 #if WITH_EDITOR
 	FOnGroomAssetChanged& GetOnGroomAssetChanged() { return OnGroomAssetChanged;  }
@@ -638,8 +774,8 @@ public:
 	/** GPU and CPU binding data for both simulation and rendering. */
 	struct FHairGroupResource
 	{
-		FHairStrandsRootResource* SimRootResources = nullptr;
-		FHairStrandsRootResource* RenRootResources = nullptr;
+		FHairStrandsRestRootResource* SimRootResources = nullptr;
+		FHairStrandsRestRootResource* RenRootResources = nullptr;
 	};
 	typedef TArray<FHairGroupResource> FHairGroupResources;
 	FHairGroupResources HairGroupResources;

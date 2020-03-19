@@ -245,11 +245,14 @@ half3 BlendReflectionCaptures(FMaterialPixelParameters MaterialParameters, half 
 	ReflectionCubemapAverageBrightness = 0.0f;
 #endif
 
+#if ALLOW_STATIC_LIGHTING
 	//To keep ImageBasedReflectionLighting conherence with PC, use ComputeMixingWeight instead of InvReflectionAverageBrightness to calulate the IBL constribution
 	half3 MixingWeight = MobileComputeMixingWeight3(IndirectIrradiance, ReflectionCubemapAverageBrightness, Roughness);
 
 	SpecularIBL = SpecularIBL0 * MixingWeight.x + SpecularIBL1 * MixingWeight.y + SpecularIBL2 * MixingWeight.z;
-
+#else
+	SpecularIBL = SpecularIBL0 + SpecularIBL1 + SpecularIBL2;
+#endif
 	return SpecularIBL;
 }
 #endif // HQ_REFLECTIONS
@@ -313,8 +316,10 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 		SpecularIBL = RGBMDecode(SpecularIBLSample, 16.0);
 		SpecularIBL = SpecularIBL * SpecularIBL;
 		
+#if ALLOW_STATIC_LIGHTING
 		//To keep ImageBasedReflectionLighting conherence with PC, use ComputeMixingWeight instead of InvReflectionAverageBrightness to calulate the IBL constribution
 		SpecularIBL *= MobileComputeMixingWeight(IndirectIrradiance, MobileReflectionCapture.Params.x, Roughness);
+#endif
 
 	}
 
@@ -362,13 +367,11 @@ void ApplyPixelDepthOffsetForMobileBasePass(inout FMaterialPixelParameters Mater
     float PixelDepthOffset = ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
 }
 
-
-// Disable early depth_stencil for masked materials and depth writes
-// Cross-compiler (hlslcc) checks for 'discard' and depth write usage anyway and disables it, this ifdef is needed for HLSL
-#if MATERIALBLENDING_MASKED || USE_DITHERED_LOD_TRANSITION || OUTPUT_PIXEL_DEPTH_OFFSET
-	#define PIXELSHADER_EARLYDEPTHSTENCIL 
+// Force early depth_stencil for non-masked material that use VT feedback
+#if (NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED) && !(MATERIALBLENDING_MASKED || USE_DITHERED_LOD_TRANSITION || OUTPUT_PIXEL_DEPTH_OFFSET)
+	#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL	
 #else
-	#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
+	#define PIXELSHADER_EARLYDEPTHSTENCIL 	
 #endif
 
 PIXELSHADER_EARLYDEPTHSTENCIL
@@ -786,9 +789,9 @@ void Main(
 		#endif
 	#endif
 
-	#if !MATERIALBLENDING_MODULATE
+	#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
 		// MobileHDR applies PreExposure in tonemapper
-		OutColor.rgb *= USE_PREEXPOSURE ? ResolvedView.PreExposure : 1;
+		OutColor.rgb *= ResolvedView.PreExposure;
 	#endif
 
 	#if MATERIAL_IS_SKY

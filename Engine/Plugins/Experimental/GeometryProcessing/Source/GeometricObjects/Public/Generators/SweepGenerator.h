@@ -31,6 +31,9 @@ public:
 	{
 	}
 
+	/** If true, each quad gets a separate polygroup */
+	bool bPolygroupPerQuad = false;
+
 protected:
 	int32 CapVertStart[2], CapNormalStart[2], CapUVStart[2], CapTriangleStart[2], CapPolygonStart[2];
 
@@ -149,6 +152,7 @@ protected:
 
 		// fill in UVs and triangles along length
 		int MinValidCrossSections = bLoop ? 3 : 2;
+		int CurFaceGroupIndex = NumPolygons;
 		if (NumCrossSections >= MinValidCrossSections)
 		{
 			int32 UVSection = 0, UVSubIdx = 0;
@@ -240,8 +244,8 @@ protected:
 						int32 PIdx = XVerts * XIdx + VertSubIdx;
 						int32 NextXIdx = (XIdx + 1) % CrossSectionsMod;
 						int32 NextNXIdx = (NXIdx + 1) % NormalCrossSectionsMod;
-						SetTrianglePolygon(T0Idx, PIdx);
-						SetTrianglePolygon(T1Idx, PIdx);
+						SetTrianglePolygon(T0Idx, (bPolygroupPerQuad) ? PIdx : (CurFaceGroupIndex+XIdx) );
+						SetTrianglePolygon(T1Idx, (bPolygroupPerQuad) ? PIdx : (CurFaceGroupIndex+XIdx) );
 						SetTriangle(T0Idx,
 									XIdx * XVerts + VertSubIdx,
 									XIdx * XVerts + WrappedNextVertexSubIdx,

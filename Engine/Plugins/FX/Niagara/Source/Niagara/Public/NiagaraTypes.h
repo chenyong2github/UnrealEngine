@@ -70,6 +70,60 @@ private:
 	int32 Value = FNiagaraBool::False;
 };
 
+USTRUCT(meta = (DisplayName = "Half"))
+struct FNiagaraHalf
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 Value = 0;
+};
+
+USTRUCT(meta = (DisplayName = "Half Vector2"))
+struct FNiagaraHalfVector2
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 x = 0;
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 y = 0;
+};
+
+USTRUCT(meta = (DisplayName = "Half Vector3"))
+struct FNiagaraHalfVector3
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 x = 0;
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 y = 0;
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 z = 0;
+};
+
+USTRUCT(meta = (DisplayName = "Half Vector4"))
+struct FNiagaraHalfVector4
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 x = 0;
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 y = 0;
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 z = 0;
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint16 w = 0;
+};
+
 USTRUCT()
 struct FNiagaraNumeric
 {
@@ -211,7 +265,13 @@ struct FNiagaraTypeLayoutInfo
 	UPROPERTY()
 	TArray<uint32> Int32ComponentRegisterOffsets;
 
-	FORCEINLINE uint32 GetNumComponents()const { return FloatComponentByteOffsets.Num() + Int32ComponentByteOffsets.Num(); }
+	/** Byte offset of each half component in a structured layout. */
+	UPROPERTY()
+	TArray<uint32> HalfComponentByteOffsets;
+
+	/** Offset into register table for each half component. */
+	UPROPERTY()
+	TArray<uint32> HalfComponentRegisterOffsets;
 
 	static void GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout, const UScriptStruct* Struct)
 	{
@@ -219,6 +279,8 @@ struct FNiagaraTypeLayoutInfo
 		Layout.FloatComponentRegisterOffsets.Empty();
 		Layout.Int32ComponentByteOffsets.Empty();
 		Layout.Int32ComponentRegisterOffsets.Empty();
+		Layout.HalfComponentByteOffsets.Empty();
+		Layout.HalfComponentRegisterOffsets.Empty();
 		GenerateLayoutInfoInternal(Layout, Struct);
 	}
 
@@ -231,12 +293,17 @@ private:
 			int32 PropOffset = BaseOffest + Property->GetOffset_ForInternal();
 			if (Property->IsA(FFloatProperty::StaticClass()))
 			{
-				Layout.FloatComponentRegisterOffsets.Add(Layout.GetNumComponents());
+				Layout.FloatComponentRegisterOffsets.Add(Layout.FloatComponentByteOffsets.Num());
 				Layout.FloatComponentByteOffsets.Add(PropOffset);
+			}
+			else if (Property->IsA(FUInt16Property::StaticClass()))
+			{
+				Layout.HalfComponentRegisterOffsets.Add(Layout.HalfComponentByteOffsets.Num());
+				Layout.HalfComponentByteOffsets.Add(PropOffset);
 			}
 			else if (Property->IsA(FIntProperty::StaticClass()) || Property->IsA(FBoolProperty::StaticClass()))
 			{
-				Layout.Int32ComponentRegisterOffsets.Add(Layout.GetNumComponents());
+				Layout.Int32ComponentRegisterOffsets.Add(Layout.Int32ComponentByteOffsets.Num());
 				Layout.Int32ComponentByteOffsets.Add(PropOffset);
 			}
 			//Should be able to support double easily enough
@@ -442,29 +509,43 @@ public:
 UENUM()
 enum class ENiagaraParameterScope : uint32
 {
-	Input,
+	/** Parameter that is an input argument into this graph.*/
+	Input UMETA(DisplayName = "Input"),
 
-	User,
+	/** Parameter that is exposed to the owning component for editing and are read-only when used in the graph*/
+	User UMETA(DisplayName = "User"),
 
-	Engine,
+	/** Parameter provided by the engine. These are explicitly defined by the engine codebase and read-only. */
+	Engine UMETA(DisplayName = "Engine (Generic)", Hidden),
 
-	Owner,
+	/** Parameter provided by the engine focused on the owning component. These are explicitly defined by the engine codebase and read-only.*/
+	Owner UMETA(DisplayName = "Engine (Owner)", Hidden),
 
-	System,
+	/** Parameter is an attribute of the owning system payload. It is persistent across frames and initialized in the System Spawn stage of the stack.*/
+	System  UMETA(DisplayName = "System"),
 
-	Emitter,
+	/** Parameter is an attribute of the owning emitter payload. It is persistent across frames and initialized in the Emitter Spawn stage of the stack.*/
+	Emitter   UMETA(DisplayName = "Emitter"),
 
-	Particles,
+	/** Parameter is an attribute of the owning particle payload. It is persistent across frames and initialized in the Particle Spawn stage of the stack.*/
+	Particles  UMETA(DisplayName = "Particles"),
 
-	ScriptPersistent UMETA(Hidden), //@todo(ng) hiding until autotest verification is made.
+	/** Parameter is initialized in the appropriate spawn stage for the stack. It is persistent from frame to frame. For example, if used consistently in an Emitter stage, this parameter will turn into an emitter attribute. Similarly, if used in a Particle stage, it will turn into a particle attribute.*/
+	ScriptPersistent UMETA(DisplayName = "Stage (Persistent)", Hidden), //@todo(ng) hiding until autotest verification is made.
 
-	ScriptTransient,
-
-	Local UMETA(Hidden), //Convenience markup for ScopeToString functions, only use in conjunction with ENiagaraScriptParameterUsage::Local.
+	/** Parameter is initialized at the start of this stage and can be shared amongst other modules within this stack stage, but is not persistent across runs or from stack stage to stack stage.*/
+	ScriptTransient UMETA(DisplayName = "Stage (Transient)"),
+	
+	/** Parameter is initialized at the start of this script and is only used within the context of this script. It is invisible to the parent stage stack.*/
+	Local UMETA(DisplayName = "Local"), //Convenience markup for ScopeToString functions, only use in conjunction with ENiagaraScriptParameterUsage::Local.
 
 	Custom UMETA(Hidden), //Convenience markup for expressing parameters using legacy editor mode to freetype namespace and name.
 
 	DISPLAY_ONLY_StaticSwitch UMETA(DisplayName="Static Switch", Hidden), //Only use for display string in SEnumComboBoxes; does not have implementation for classes that interact with ENiagaraParameterScope.
+	
+	/** Parameter is output to the owning stack stage from this script, but is only meaningful if bound elsewhere in the stage.*/
+	Output UMETA(DisplayName = "Output"),
+
 	// insert new scopes before
 	None UMETA(Hidden),
 
@@ -598,7 +679,7 @@ public:
 	 * @return bool			Whether the CachedNamespacelessParameterName can be returned. Is false if bUseLegacyNameString is set.
 	 */
 	bool GetParameterName(FName& OutName) const;
-	void SetCachedNamespacelessVariableName(const FName& InVariableName) { CachedNamespacelessVariableName = InVariableName; };
+	void SetCachedNamespacelessVariableName(const FName& InVariableName);;
 
 	bool GetWasCreatedInSystemEditor() const { return bCreatedInSystemEditor; };
 	void SetWasCreatedInSystemEditor(bool bWasCreatedInSystemEditor) { bCreatedInSystemEditor = bWasCreatedInSystemEditor; };
@@ -646,7 +727,7 @@ private:
 	bool bOutputIsPersistent;
 
 	/** Namespace-less name for associated FNiagaraVariable. Edited directly by user and then used to generate full Name of associated FNiagaraVariable. */
-	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	UPROPERTY(VisibleAnywhere, Category = "Variable", DisplayName = "Property Name", meta = (SkipForCompileHash = "true"))
 	FName CachedNamespacelessVariableName;
 
 	/** Track if the associated parameter was created in the Emitter/System editor. Used to determine whether the associated parameter can be deleted from the Emitter/System editor. */
@@ -870,7 +951,9 @@ private:
 
 public:
 	static void Init();
+#if WITH_EDITOR
 	static void RecreateUserDefinedTypeRegistry();
+#endif
 	static const FNiagaraTypeDefinition& GetFloatDef() { return FloatDef; }
 	static const FNiagaraTypeDefinition& GetBoolDef() { return BoolDef; }
 	static const FNiagaraTypeDefinition& GetIntDef() { return IntDef; }
@@ -886,6 +969,11 @@ public:
 	static const FNiagaraTypeDefinition& GetUObjectDef() { return UObjectDef; }
 	static const FNiagaraTypeDefinition& GetUMaterialDef() { return UMaterialDef; }
 
+	static const FNiagaraTypeDefinition& GetHalfDef() { return HalfDef; }
+	static const FNiagaraTypeDefinition& GetHalfVec2Def() { return HalfVec2Def; }
+	static const FNiagaraTypeDefinition& GetHalfVec3Def() { return HalfVec3Def; }
+	static const FNiagaraTypeDefinition& GetHalfVec4Def() { return HalfVec4Def; }
+
 	static UScriptStruct* GetFloatStruct() { return FloatStruct; }
 	static UScriptStruct* GetBoolStruct() { return BoolStruct; }
 	static UScriptStruct* GetIntStruct() { return IntStruct; }
@@ -898,6 +986,11 @@ public:
 	static UScriptStruct* GetGenericNumericStruct() { return NumericStruct; }
 	static UScriptStruct* GetParameterMapStruct() { return ParameterMapStruct; }
 	static UScriptStruct* GetIDStruct() { return IDStruct; }
+
+	static UScriptStruct* GetHalfStruct() { return HalfStruct; }
+	static UScriptStruct* GetHalfVec2Struct() { return HalfVec2Struct; }
+	static UScriptStruct* GetHalfVec3Struct() { return HalfVec3Struct; }
+	static UScriptStruct* GetHalfVec4Struct() { return HalfVec4Struct; }
 
 	static UEnum* GetExecutionStateEnum() { return ExecutionStateEnum; }
 	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
@@ -943,6 +1036,11 @@ private:
 	static FNiagaraTypeDefinition UObjectDef;
 	static FNiagaraTypeDefinition UMaterialDef;
 
+	static FNiagaraTypeDefinition HalfDef;
+	static FNiagaraTypeDefinition HalfVec2Def;
+	static FNiagaraTypeDefinition HalfVec3Def;
+	static FNiagaraTypeDefinition HalfVec4Def;
+
 	static UScriptStruct* FloatStruct;
 	static UScriptStruct* BoolStruct;
 	static UScriptStruct* IntStruct;
@@ -953,6 +1051,11 @@ private:
 	static UScriptStruct* ColorStruct;
 	static UScriptStruct* Matrix4Struct;
 	static UScriptStruct* NumericStruct;
+
+	static UScriptStruct* HalfStruct;
+	static UScriptStruct* HalfVec2Struct;
+	static UScriptStruct* HalfVec3Struct;
+	static UScriptStruct* HalfVec4Struct;
 
 	static UClass* UObjectClass;
 	static UClass* UMaterialClass;
@@ -1345,7 +1448,7 @@ private:
 	TArray<uint8> VarData;
 };
 
-FORCEINLINE uint32 GetTypeHash(const FNiagaraVariable& Var)
+FORCEINLINE uint32 GetTypeHash(const FNiagaraVariableBase& Var)
 {
 	return HashCombine(GetTypeHash(Var.GetType()), GetTypeHash(Var.GetName()));
 }

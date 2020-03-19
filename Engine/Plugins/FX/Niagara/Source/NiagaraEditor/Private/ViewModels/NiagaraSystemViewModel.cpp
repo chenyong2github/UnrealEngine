@@ -419,6 +419,11 @@ void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate
 	bForceAutoCompileOnce = true;
 }
 
+FGuid FNiagaraSystemViewModel::GetMessageLogGuid() const
+{
+	return SystemMessageLogGuidKey.IsSet() ? SystemMessageLogGuidKey.GetValue() : FGuid();
+}
+
 void FNiagaraSystemViewModel::DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete)
 {
 	if (EmitterHandleIdsToDelete.Num() > 0)
@@ -510,6 +515,8 @@ void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 	ResetEmitterHandleViewModelsAndTracks();
 	RefreshAll();
 	GetDefault<UEdGraphSchema_NiagaraSystemOverview>()->ForceVisualizationCacheClear();
+	System->InvalidateActiveCompiles();
+	System->RequestCompile(false);
 }
 
 void FNiagaraSystemViewModel::Tick(float DeltaTime)
@@ -1233,7 +1240,6 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 				Component->SetDesiredAge(0);
 			}
 		}
-
 		else if (ReinitMode == EReinitMode::ReinitializeSystem)
 		{
 			Component->ReinitializeSystem();
@@ -1954,54 +1960,66 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 
 void FNiagaraSystemViewModel::AddSystemEventHandlers()
 {
-	if (GetSystem().IsValid())
+	if (System != nullptr)
 	{
 		TArray<UNiagaraScript*> Scripts;
-		Scripts.Add(GetSystem().GetSystemSpawnScript());
-		Scripts.Add(GetSystem().GetSystemUpdateScript());
+		Scripts.Add(System->GetSystemSpawnScript());
+		Scripts.Add(System->GetSystemUpdateScript());
 		
 		for (UNiagaraScript* Script : Scripts)
 		{
-			FDelegateHandle OnParameterStoreChangedHandle = Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateRaw<FNiagaraSystemViewModel, const FNiagaraParameterStore&, const UNiagaraScript*>(
-					this, &FNiagaraSystemViewModel::SystemParameterStoreChanged, Script->RapidIterationParameters, Script));
-			ScriptToOnParameterStoreChangedHandleMap.Add(FObjectKey(Script), OnParameterStoreChangedHandle);
+			if (Script != nullptr)
+			{
+				FDelegateHandle OnParameterStoreChangedHandle = Script->RapidIterationParameters.AddOnChangedHandler(
+					FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP<FNiagaraSystemViewModel, const FNiagaraParameterStore&, const UNiagaraScript*>(
+						this->AsShared(), &FNiagaraSystemViewModel::SystemParameterStoreChanged, Script->RapidIterationParameters, Script));
+				ScriptToOnParameterStoreChangedHandleMap.Add(FObjectKey(Script), OnParameterStoreChangedHandle);
+			}
 		}
 
-		UserParameterStoreChangedHandle = GetSystem().GetExposedParameters().AddOnChangedHandler(
-			FNiagaraParameterStore::FOnChanged::FDelegate::CreateRaw<FNiagaraSystemViewModel, const FNiagaraParameterStore&, const UNiagaraScript*>(
-				this, &FNiagaraSystemViewModel::SystemParameterStoreChanged, GetSystem().GetExposedParameters(), nullptr));
+		UserParameterStoreChangedHandle = System->GetExposedParameters().AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP<FNiagaraSystemViewModel, const FNiagaraParameterStore&, const UNiagaraScript*>(
+				this->AsShared(), &FNiagaraSystemViewModel::SystemParameterStoreChanged, System->GetExposedParameters(), nullptr));
 
-		SystemScriptGraphChangedHandler = SystemScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphChangedHandler(FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraSystemViewModel::SystemScriptGraphChanged));
+		SystemScriptGraphChangedHandle = SystemScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphChangedHandler(
+			FOnGraphChanged::FDelegate::CreateSP(this->AsShared(), &FNiagaraSystemViewModel::SystemScriptGraphChanged));
+		SystemScriptGraphNeedsRecompileHandle = SystemScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
+			FOnGraphChanged::FDelegate::CreateSP(this->AsShared(), &FNiagaraSystemViewModel::SystemScriptGraphChanged));
 	}
 }
 
 void FNiagaraSystemViewModel::RemoveSystemEventHandlers()
 {
-	if (System != nullptr && System->IsValid())
+	if (System != nullptr)
 	{
 		TArray<UNiagaraScript*> Scripts;
-		Scripts.Add(GetSystem().GetSystemSpawnScript());
-		Scripts.Add(GetSystem().GetSystemUpdateScript());
+		Scripts.Add(System->GetSystemSpawnScript());
+		Scripts.Add(System->GetSystemUpdateScript());
 
 		for (UNiagaraScript* Script : Scripts)
 		{
-			FDelegateHandle* OnParameterStoreChangedHandle = ScriptToOnParameterStoreChangedHandleMap.Find(FObjectKey(Script));
-			if (OnParameterStoreChangedHandle != nullptr)
+			if (Script != nullptr)
 			{
-				Script->RapidIterationParameters.RemoveOnChangedHandler(*OnParameterStoreChangedHandle);
+				FDelegateHandle* OnParameterStoreChangedHandle = ScriptToOnParameterStoreChangedHandleMap.Find(FObjectKey(Script));
+				if (OnParameterStoreChangedHandle != nullptr)
+				{
+					Script->RapidIterationParameters.RemoveOnChangedHandler(*OnParameterStoreChangedHandle);
+				}
 			}
 		}
 
-		GetSystem().GetExposedParameters().RemoveOnChangedHandler(UserParameterStoreChangedHandle);
+		System->GetExposedParameters().RemoveOnChangedHandler(UserParameterStoreChangedHandle);
 		if (SystemScriptViewModel.IsValid())
 		{
-			SystemScriptViewModel->GetGraphViewModel()->GetGraph()->RemoveOnGraphChangedHandler(SystemScriptGraphChangedHandler);
+			SystemScriptViewModel->GetGraphViewModel()->GetGraph()->RemoveOnGraphChangedHandler(SystemScriptGraphChangedHandle);
+			SystemScriptViewModel->GetGraphViewModel()->GetGraph()->RemoveOnGraphNeedsRecompileHandler(SystemScriptGraphNeedsRecompileHandle);
 		}
 	}
 
 	ScriptToOnParameterStoreChangedHandleMap.Empty();
 	UserParameterStoreChangedHandle.Reset();
+	SystemScriptGraphChangedHandle.Reset();
+	SystemScriptGraphNeedsRecompileHandle.Reset();
 }
 
 void FNiagaraSystemViewModel::NotifyPinnedCurvesChanged()

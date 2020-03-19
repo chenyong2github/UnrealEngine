@@ -641,7 +641,7 @@ uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, FArrayProper
 uint8* UAnimSequenceBase::FindArrayProperty(const TCHAR* PropName, FArrayProperty*& ArrayProperty, int32 ArrayIndex)
 {
 	// find Notifies property start point
-	FProperty* Property = FindField<FProperty>(GetClass(), PropName);
+	FProperty* Property = FindFProperty<FProperty>(GetClass(), PropName);
 
 	// found it and if it is array
 	if (Property && Property->IsA(FArrayProperty::StaticClass()))

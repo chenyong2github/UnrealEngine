@@ -10,6 +10,7 @@
 #include "IConcertSyncClient.h"
 #include "ConcertFrontendStyle.h"
 #include "ConcertUtil.h"
+#include "ConcertLocalFileSharingService.h"
 
 #include "Misc/Paths.h"
 #include "Misc/CoreDelegates.h"
@@ -105,6 +106,7 @@ public:
 
 		// Create and start the client.
 		DisasterRecoveryClient = IConcertSyncClientModule::Get().CreateClient(Role);
+		DisasterRecoveryClient->SetFileSharingService(MakeShared<FConcertLocalFileSharingService>(Role));
 		DisasterRecoveryClient->Startup(ClientConfig, EConcertSyncSessionFlags::Default_DisasterRecoverySession);
 
 		// Hook to sync session is created/destroyed event to detect when a Multi-User session (incompatible) is started.

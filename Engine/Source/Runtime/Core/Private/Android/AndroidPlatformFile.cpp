@@ -35,10 +35,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogAndroidFile, Log, All);
 	#define __lseek(_fd, _offset, _whence)			lseek64(_fd, _offset, _whence)
 	#define __pread(_fd, _buf, _count, _offset)		pread64(_fd, _buf, _count, _offset)
 	#define __pwrite(_fd, _buf, _count, _offset)	pwrite64(_fd, _buf, _count, _offset)
+	#define __ftruncate(_fd, _length)				ftruncate64(_fd, _length)
 #else
 	#define __lseek(_fd, _offset, _whence)			lseek(_fd, _offset, _whence)
 	#define __pread(_fd, _buf, _count, _offset)		pread(_fd, _buf, _count, _offset)
 	#define __pwrite(_fd, _buf, _count, _offset)	pwrite(_fd, _buf, _count, _offset)
+	#define __ftruncate(_fd, _length)				ftruncate(_fd, _length)
 #endif
 
 // make an FTimeSpan object that represents the "epoch" for time_t (from a stat struct)
@@ -389,7 +391,9 @@ public:
 			return false;
 		}
 
-		return ftruncate(File->Handle, NewSize) == 0;
+		int Result = 0;
+		do { Result = __ftruncate(File->Handle, NewSize); } while (Result < 0 && errno == EINTR);
+		return Result == 0;
 	}
 
 	virtual int64 Size() override

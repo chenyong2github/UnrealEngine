@@ -293,6 +293,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, bSeparateTranslucencyPass(SnapshotSource.bSeparateTranslucencyPass)
 	, BufferSize(SnapshotSource.BufferSize)
 	, SeparateTranslucencyBufferSize(SnapshotSource.SeparateTranslucencyBufferSize)
+	, LastStereoSize(SnapshotSource.LastStereoSize)
 	, SeparateTranslucencyScale(SnapshotSource.SeparateTranslucencyScale)
 	, SmallColorDepthDownsampleFactor(SnapshotSource.SmallColorDepthDownsampleFactor)
 	, bUseDownsizedOcclusionQueries(SnapshotSource.bUseDownsizedOcclusionQueries)
@@ -404,15 +405,62 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 		bIsVRScene |= (IStereoRendering::IsStereoEyeView(*View) && GEngine->XRSystem.IsValid());
 	}
 
+	FIntPoint DesiredBufferSize = FIntPoint::ZeroValue;
+	FIntPoint DesiredFamilyBufferSize = FSceneRenderer::GetDesiredInternalBufferSize(ViewFamily);
+
 	{
 		bool bUseResizeMethodCVar = true;
 
 		if (CVarSceneTargetsResizeMethodForceOverride.GetValueOnRenderThread() != 1)
 		{
-			if (!FPlatformProperties::SupportsWindowedMode() || (bIsVRScene && !bIsSceneCapture))
+			if (!FPlatformProperties::SupportsWindowedMode() || bIsVRScene)
 			{
-				// Force ScreenRes on non windowed platforms.
-				SceneTargetsSizingMethod = RequestedSize;
+				if (bIsVRScene)
+				{
+					if (!bIsSceneCapture && !bIsReflectionCapture)
+					{
+						// If this isn't a scene capture, and it's a VR scene, and the size has changed since the last time we
+						// rendered a VR scene (or this is the first time), use the requested size method.
+						if (DesiredFamilyBufferSize.X != LastStereoSize.X || DesiredFamilyBufferSize.Y != LastStereoSize.Y)
+						{
+							LastStereoSize = DesiredFamilyBufferSize;
+							SceneTargetsSizingMethod = RequestedSize;
+							UE_LOG(LogRenderer, Warning, TEXT("Resizing VR buffer to %d by %d"), DesiredFamilyBufferSize.X, DesiredFamilyBufferSize.Y);
+						}
+						else
+						{
+							// Otherwise use the grow method.
+							SceneTargetsSizingMethod = Grow;
+						}
+					}
+					else
+					{
+						// If this is a scene capture, and it's smaller than the VR view size, then don't re-allocate buffers, just use the "grow" method.
+						// If it's bigger than the VR view, then log a warning, and use resize method.
+						if (DesiredFamilyBufferSize.X > LastStereoSize.X || DesiredFamilyBufferSize.Y > LastStereoSize.Y)
+						{
+							if (LastStereoSize.X > 0 && bIsSceneCapture)
+							{
+								static bool DisplayedCaptureSizeWarning = false;
+								if (!DisplayedCaptureSizeWarning)
+								{
+									DisplayedCaptureSizeWarning = true;
+									UE_LOG(LogRenderer, Warning, TEXT("Scene capture of %d by %d is larger than the current VR target. If this is deliberate for a capture that is being done for multiple frames, consider the performance and memory implications. To disable this warning and ensure optimal behavior with this path, set r.SceneRenderTargetResizeMethod to 2, and r.SceneRenderTargetResizeMethodForceOverride to 1."), DesiredFamilyBufferSize.X, DesiredFamilyBufferSize.Y);
+								}
+							}
+							SceneTargetsSizingMethod = RequestedSize;
+						}
+						else
+						{
+							SceneTargetsSizingMethod = Grow;
+						}
+					}
+				}
+				else
+				{
+					// Force ScreenRes on non windowed platforms.
+					SceneTargetsSizingMethod = RequestedSize;
+				}
 				bUseResizeMethodCVar = false;
 			}
 			else if (GIsEditor)
@@ -430,8 +478,6 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 		}
 	}
 
-	FIntPoint DesiredBufferSize = FIntPoint::ZeroValue;
-	FIntPoint DesiredFamilyBufferSize = FSceneRenderer::GetDesiredInternalBufferSize(ViewFamily);
 	switch (SceneTargetsSizingMethod)
 	{
 		case RequestedSize:
@@ -1464,7 +1510,7 @@ bool FSceneRenderTargets::BeginRenderingCustomDepth(FRHICommandListImmediate& RH
 
 		FRHIRenderPassInfo RPInfo;
 
-		const bool bWritesCustomStencilValues = IsCustomDepthPassWritingStencil();
+		const bool bWritesCustomStencilValues = IsCustomDepthPassWritingStencil(CurrentFeatureLevel);
 		const bool bRequiresStencilColorTarget = (CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1);
 
 		int32 NumColorTargets = 0;
@@ -2258,12 +2304,12 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	AllocateFoveationTexture(RHICmdList);
 
 	static const auto MobileMultiViewCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
-	static const auto CVarMobileMultiViewDirect = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView.Direct"));
 
 	const bool bIsUsingMobileMultiView = (GSupportsMobileMultiView || GRHISupportsArrayIndexFromAnyShader) && (MobileMultiViewCVar && MobileMultiViewCVar->GetValueOnAnyThread() != 0);
 
-	// TODO: Test platform support for direct
-	const bool bIsMobileMultiViewDirectEnabled = (CVarMobileMultiViewDirect && CVarMobileMultiViewDirect->GetValueOnAnyThread() != 0);
+	// If the plugin uses separate render targets it is required to support mobile multi-view direct
+	IStereoRenderTargetManager* const StereoRenderTargetManager = GEngine->StereoRenderingDevice.IsValid() ? GEngine->StereoRenderingDevice->GetRenderTargetManager() : nullptr;
+	const bool bIsMobileMultiViewDirectEnabled = StereoRenderTargetManager && StereoRenderTargetManager->ShouldUseSeparateRenderTarget();
 
 	if (bIsUsingMobileMultiView)
 	{
@@ -2410,7 +2456,7 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 	if (!SceneDepthZ || GFastVRamConfig.bDirty)
 	{
 		FTexture2DRHIRef DepthTex, SRTex;
-		bHMDAllocatedDepthTarget = StereoRenderTargetManager && StereoRenderTargetManager->AllocateDepthTexture(0, BufferSize.X, BufferSize.Y, PF_X24_G8, 0, TexCreate_None, TexCreate_DepthStencilTargetable, DepthTex, SRTex, GetNumSceneColorMSAASamples(CurrentFeatureLevel));
+		bHMDAllocatedDepthTarget = StereoRenderTargetManager && StereoRenderTargetManager->AllocateDepthTexture(0, BufferSize.X, BufferSize.Y, PF_DepthStencil, 1, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, DepthTex, SRTex, GetNumSceneColorMSAASamples(CurrentFeatureLevel));
 
 		// Allow UAV depth?
 		const uint32 DepthUAVFlag = GRHISupportsDepthUAV ? TexCreate_UAV : 0;
@@ -3036,7 +3082,7 @@ const FUnorderedAccessViewRHIRef& FSceneRenderTargets::GetSceneColorTextureUAV()
 IPooledRenderTarget* FSceneRenderTargets::RequestCustomDepth(FRHICommandListImmediate& RHICmdList, bool bPrimitives)
 {
 	int Value = CVarCustomDepth.GetValueOnRenderThread();
-	const bool bCustomDepthPassWritingStencil = IsCustomDepthPassWritingStencil();
+	const bool bCustomDepthPassWritingStencil = IsCustomDepthPassWritingStencil(CurrentFeatureLevel);
 	const bool bMobilePath = (CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1);
 	int32 DownsampleFactor = bMobilePath && CVarMobileCustomDepthDownSample.GetValueOnRenderThread() > 0 ? 2 : 1;
 
@@ -3102,9 +3148,15 @@ IPooledRenderTarget* FSceneRenderTargets::RequestCustomDepth(FRHICommandListImme
 	return 0;
 }
 
-bool FSceneRenderTargets::IsCustomDepthPassWritingStencil()
+bool FSceneRenderTargets::IsCustomDepthPassWritingStencil(ERHIFeatureLevel::Type InFeatureLevel)
 {
-	return (CVarCustomDepth.GetValueOnRenderThread() == 3);
+	int32 CustomDepthValue = CVarCustomDepth.GetValueOnRenderThread();
+	// Mobile uses "On Demand" for both Depth and Stencil textures
+	if (CustomDepthValue == 3 || (CustomDepthValue == 1 && InFeatureLevel <= ERHIFeatureLevel::ES3_1))
+	{
+		return true;
+	}
+	return false;
 }
 
 /** Returns an index in the range [0, NumCubeShadowDepthSurfaces) given an input resolution. */
@@ -3421,7 +3473,8 @@ void SetupMobileSceneTextureUniformParameters(
 
 	FRHITexture* MobileCustomStencil = BlackDefault2D;
 
-	if (bCustomDepthIsValid && SceneContext.MobileCustomStencil.IsValid())
+	if (bCustomDepthIsValid && SceneContext.MobileCustomStencil.IsValid() 
+		&& (SceneContext.MobileCustomStencil->GetDesc().TargetableFlags & TexCreate_Memoryless) == 0)
 	{
 		MobileCustomStencil = SceneContext.MobileCustomStencil->GetRenderTargetItem().ShaderResourceTexture;
 	}

@@ -176,7 +176,7 @@ void FLevelCollectionModel::BindCommands()
 	ActionList.MapAction( Commands.World_LockSelectedLevels,
 		FExecuteAction::CreateSP( this, &FLevelCollectionModel::LockSelectedLevels_Executed  ) );
 	
-	ActionList.MapAction( Commands.World_UnockSelectedLevels,
+	ActionList.MapAction( Commands.World_UnlockSelectedLevels,
 		FExecuteAction::CreateSP( this, &FLevelCollectionModel::UnlockSelectedLevels_Executed  ) );
 
 	ActionList.MapAction(Commands.World_LockOnlySelectedLevels,
@@ -1810,9 +1810,9 @@ void FLevelCollectionModel::FillLockSubMenu(FMenuBuilder& InMenuBuilder)
 	const FLevelCollectionCommands& Commands = FLevelCollectionCommands::Get();
 
 	InMenuBuilder.AddMenuEntry( Commands.World_LockSelectedLevels );
-	InMenuBuilder.AddMenuEntry( Commands.World_UnockSelectedLevels );
-	InMenuBuilder.AddMenuEntry(Commands.World_LockOnlySelectedLevels);
-	InMenuBuilder.AddMenuEntry(Commands.World_LockAllButSelectedLevels);
+	InMenuBuilder.AddMenuEntry( Commands.World_UnlockSelectedLevels );
+	InMenuBuilder.AddMenuEntry( Commands.World_LockOnlySelectedLevels );
+	InMenuBuilder.AddMenuEntry( Commands.World_LockAllButSelectedLevels );
 	InMenuBuilder.AddMenuEntry( Commands.World_LockAllLevels );
 	InMenuBuilder.AddMenuEntry( Commands.World_UnockAllLevels );
 
@@ -1833,7 +1833,7 @@ void FLevelCollectionModel::FillVisibilitySubMenu(FMenuBuilder& InMenuBuilder)
 	InMenuBuilder.AddMenuEntry( Commands.World_ShowSelectedLevels );
 	InMenuBuilder.AddMenuEntry( Commands.World_HideSelectedLevels );
 	InMenuBuilder.AddMenuEntry( Commands.World_ShowOnlySelectedLevels );
-	InMenuBuilder.AddMenuEntry(Commands.World_ShowAllButSelectedLevels);
+	InMenuBuilder.AddMenuEntry( Commands.World_ShowAllButSelectedLevels );
 	InMenuBuilder.AddMenuEntry( Commands.World_ShowAllLevels );
 	InMenuBuilder.AddMenuEntry( Commands.World_HideAllLevels );
 }

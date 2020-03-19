@@ -590,11 +590,8 @@ void FVulkanCommandListContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 		Query->Pool.CurrentTimestamp = (Query->Pool.CurrentTimestamp + 1) % Query->Pool.BufferSize;
 		const uint32 QueryEndIndex = Query->Pool.CurrentTimestamp;
 		FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-
-		VulkanRHI::vkCmdResetQueryPool(CmdBuffer->GetHandle(), Query->Pool.GetHandle(), QueryEndIndex, 1);
 		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, Query->Pool.GetHandle(), QueryEndIndex);
 		CmdBuffer->AddPendingTimestampQuery(QueryEndIndex, 1, Query->Pool.GetHandle(), Query->Pool.ResultsBuffer->GetHandle());
-
 		Query->Pool.TimestampListHandles[QueryEndIndex].CmdBuffer = CmdBuffer;
 		Query->Pool.TimestampListHandles[QueryEndIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
 		Query->Pool.NumIssuedTimestamps = FMath::Min<uint32>(Query->Pool.NumIssuedTimestamps + 1, Query->Pool.BufferSize);

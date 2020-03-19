@@ -28,16 +28,40 @@ struct FInputPinsAndOutputPins
 class UNiagaraNode;
 class UNiagaraGraph;
 
-typedef TPair<FGuid, TWeakObjectPtr<UNiagaraNode>> FNiagaraGraphParameterReference;
+USTRUCT()
+struct FNiagaraGraphParameterReference
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	FNiagaraGraphParameterReference() {}
+	FNiagaraGraphParameterReference(const FGuid& InKey, UObject* InValue): Key(InKey), Value(InValue){}
 
+
+	UPROPERTY()
+	FGuid Key;
+
+	UPROPERTY()
+	TWeakObjectPtr<UObject> Value;
+
+	FORCEINLINE bool operator==(const FNiagaraGraphParameterReference& Other)const
+	{
+		return Other.Key == Key && Other.Value == Value;
+	}
+};
+
+USTRUCT()
 struct FNiagaraGraphParameterReferenceCollection
 {
+
+	GENERATED_USTRUCT_BODY()
 public:
 	FNiagaraGraphParameterReferenceCollection(const bool bInCreated = false);
 
 	/** All the references in the graph. */
+	UPROPERTY()
 	TArray<FNiagaraGraphParameterReference> ParameterReferences;
 
+	UPROPERTY()
 	const UNiagaraGraph* Graph;
 
 	/** Returns true if this parameter was initially created by the user. */
@@ -45,6 +69,7 @@ public:
 
 private:
 	/** Whether this parameter was initially created by the user. */
+	UPROPERTY()
 	bool bCreated;
 };
 
@@ -109,6 +134,7 @@ class UNiagaraGraph : public UEdGraph
 
 	DECLARE_MULTICAST_DELEGATE(FOnDataInterfaceChanged);
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGetPinVisualWidget, const UEdGraphPin*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSubObjectSelectionChanged, const UObject*);
 
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
@@ -276,15 +302,15 @@ class UNiagaraGraph : public UEdGraph
 	UNiagaraScriptVariable* GetScriptVariable(FName ParameterName) const;
 
 	/** Adds parameter to parameters map setting it as created by the user.*/
-	void AddParameter(const FNiagaraVariable& Parameter, bool bIsStaticSwitch = false);
+	UNiagaraScriptVariable* AddParameter(const FNiagaraVariable& Parameter, bool bIsStaticSwitch = false);
 
-	void AddParameter(FNiagaraVariable& Parameter, const FAddParameterOptions Options);
+	UNiagaraScriptVariable* AddParameter(FNiagaraVariable& Parameter, const FAddParameterOptions Options);
 
 	/** Adds an FNiagaraGraphParameterReference to the ParameterToReferenceMap. */
 	void AddParameterReference(const FNiagaraVariable& Parameter, FNiagaraGraphParameterReference& NewParameterReference);
 
 	/** Remove parameter from map and all the pins associated. */
-	void RemoveParameter(const FNiagaraVariable& Parameter);
+	void RemoveParameter(const FNiagaraVariable& Parameter, bool bAllowDeleteStaticSwitch = false);
 
 	/**
 	* Rename parameter from map and all the pins associated.
@@ -293,9 +319,14 @@ class UNiagaraGraph : public UEdGraph
 	* @param NewName				The new name to apply.
 	* @param bFromStaticSwitch		Whether the target parameter is from a static switch. Used to determine whether to fixup binding strings.
 	* @param NewScopeName			The new scope name from the FNiagaraVariable's associated FNiagaraVariableMetaData. Used if changing the scope triggered a rename. Applied to the canonical UNiagaraScriptVariable's Metadata.
+	* @param bMerged				Whether or not the rename ended up merging with a different parameter because the names are the same.
 	* @return						true if the new name was applied. 
 	*/
-	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bFromStaticSwitch = false, FName NewScopeName = FName());
+	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch = false, FName NewScopeName = FName(), bool* bMerged = nullptr);
+
+	/** Rename a pin inline in a graph. If this is the only instance used in the graph, then rename them all, otherwise make a duplicate. */
+	bool RenameParameterFromPin(const FNiagaraVariable& Parameter, FName NewName, UEdGraphPin* InPin);
+
 
 	/** 
 	 * Sets the ENiagaraScriptParameterUsage on the Metadata of a ScriptVariable depending on its pin usage in the node graph (used on input/output pins). 
@@ -307,6 +338,9 @@ class UNiagaraGraph : public UEdGraph
 
 	/** Gets a delegate which is called whenever a contained data interfaces changes. */
 	FOnDataInterfaceChanged& OnDataInterfaceChanged();
+
+	/** Gets a delegate which is called whenever a custom subobject in the graph is selected*/
+	FOnSubObjectSelectionChanged& OnSubObjectSelectionChanged();
 
 	void ForceGraphToRecompileOnNextCheck();
 
@@ -340,8 +374,15 @@ class UNiagaraGraph : public UEdGraph
 	TSharedRef<SWidget> GetPinVisualWidget(const UEdGraphPin* Pin) const;
 
 	FDelegateHandle RegisterPinVisualWidgetProvider(FOnGetPinVisualWidget OnGetPinVisualWidget);
+	void UnregisterPinVisualWidgetProvider(const FDelegateHandle& InHandle);
 
 	void ScriptVariableChanged(FNiagaraVariable Variable);
+
+	/** Go through all known parameter names in this graph and generate a new unique one.*/
+	FName MakeUniqueParameterName(const FName& InName);
+
+
+	static FName MakeUniqueParameterNameAcrossGraphs(const FName& InName, TArray<TWeakObjectPtr<UNiagaraGraph>>& InGraphs);
 
 protected:
 	void RebuildNumericCache();
@@ -409,9 +450,11 @@ private:
 	mutable TMap<FNiagaraVariable, UNiagaraScriptVariable*> VariableToScriptVariable;
 	
 	/** A map of parameters in the graph to their referencers. */
+	UPROPERTY(Transient)
 	mutable TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection> ParameterToReferencesMap;
 
 	FOnDataInterfaceChanged OnDataInterfaceChangedDelegate;
+	FOnSubObjectSelectionChanged OnSelectedSubObjectChanged;
 
 	/** Whether currently renaming a parameter to prevent recursion. */
 	bool bIsRenamingParameter;

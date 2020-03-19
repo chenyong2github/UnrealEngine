@@ -11,9 +11,11 @@
 #include "Types/ReflectionMetadata.h"
 #include "GenericPlatform/GenericPlatformStackWalk.h"
 #include "HAL/PlatformStackWalk.h"
+#include "Layout/WidgetPath.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
-#include "Layout/WidgetPath.h"
+#include "UObject/ReflectedTypeAccessors.h"
+#include "UObject/Class.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSlateDebugger, Log, All);
 
@@ -117,6 +119,7 @@ void FConsoleSlateDebugger::RemoveListeners()
 	FSlateDebugging::FocusEvent.RemoveAll(this);
 	FSlateDebugging::AttemptNavigationEvent.RemoveAll(this);
 	FSlateDebugging::MouseCaptureEvent.RemoveAll(this);
+	FSlateDebugging::CursorChangedEvent.RemoveAll(this);
 #endif
 }
 
@@ -131,6 +134,7 @@ void FConsoleSlateDebugger::UpdateListeners()
 	FSlateDebugging::AttemptNavigationEvent.AddRaw(this, &FConsoleSlateDebugger::OnAttemptNavigationEvent);
 	FSlateDebugging::ExecuteNavigationEvent.AddRaw(this, &FConsoleSlateDebugger::OnExecuteNavigationEvent);
 	FSlateDebugging::MouseCaptureEvent.AddRaw(this, &FConsoleSlateDebugger::OnCaptureStateChangeEvent);
+	FSlateDebugging::CursorChangedEvent.AddRaw(this, &FConsoleSlateDebugger::OnCursorChangeEvent);
 #endif
 }
 
@@ -282,6 +286,35 @@ void FConsoleSlateDebugger::OnCaptureStateChangeEvent(const FSlateDebuggingMouse
 		EventArgs.PointerIndex,
 		SourceWidget
 	);
+
+	UE_LOG(LogSlateDebugger, Log, TEXT("%s"), *EventText.ToString());
+
+	OptionallyDumpCallStack();
+}
+
+void FConsoleSlateDebugger::OnCursorChangeEvent(const FSlateDebuggingCursorQueryEventArgs& EventArgs)
+{
+	const FText ContextWidget = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(EventArgs.WidgetOverridingCursor));
+
+	FText EventText;
+	if (EventArgs.Reply.GetCursorWidget().IsValid())
+	{
+		static const FText InputEventFormat = LOCTEXT("CursorChangedToWidget", "{0} To Widget: {0} (Widget: {1})");
+		EventText = FText::Format(
+			InputEventFormat,
+			FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(EventArgs.Reply.GetCursorWidget().Get())),
+			ContextWidget
+		);
+	}
+	else
+	{
+		static const FText InputEventFormat = LOCTEXT("CursorChangedToCursor", "Cursor Changed: To Type: {0} (By Widget: {1})");
+		EventText = FText::Format(
+			InputEventFormat,
+			FText::FromString(StaticEnum<EMouseCursor::Type>()->GetNameStringByValue((int64)EventArgs.Reply.GetCursorType())),
+			ContextWidget
+		);
+	}
 
 	UE_LOG(LogSlateDebugger, Log, TEXT("%s"), *EventText.ToString());
 

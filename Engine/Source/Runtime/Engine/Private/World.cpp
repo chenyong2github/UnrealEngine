@@ -4201,7 +4201,8 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 	{
 		return;
 	}
-
+	bool bWorldChanged = NewWorld != this && NewWorld != nullptr;
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("XYXYXY XYXYXY Clearnupworld %p -> %p\n"), this, NewWorld);
 	CleanupWorldTag = CleanupWorldGlobalTag;
 
 	UE_LOG(LogWorld, Log, TEXT("UWorld::CleanupWorld for %s, bSessionEnded=%s, bCleanupResources=%s"), *GetName(), bSessionEnded ? TEXT("true") : TEXT("false"), bCleanupResources ? TEXT("true") : TEXT("false"));
@@ -4219,7 +4220,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 	FWorldDelegates::OnWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
 
-	GetRendererModule().OnWorldCleanup(this, bSessionEnded, bCleanupResources);
+	GetRendererModule().OnWorldCleanup(this, bSessionEnded, bCleanupResources, bWorldChanged);
 
 	if (AISystem != nullptr)
 	{
@@ -4335,6 +4336,12 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 	FWorldDelegates::OnPostWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
 
 	SubsystemCollection.Deinitialize();
+
+	if(FXSystem && bWorldChanged)
+	{
+		FFXSystemInterface::QueueDestroyGPUSimulation(FXSystem);
+	}
+
 }
 
 UGameViewportClient* UWorld::GetGameViewport() const

@@ -61,6 +61,11 @@ public:
 	UPROPERTY()
 	bool bDrawIndicatorLines = true;
 
+	UPROPERTY()
+	bool bDrawRadiusCircle = true;
+
+	UPROPERTY()
+	bool bDrawFalloffCircle = true;
 
 	UPROPERTY()
 	int SampleStepCount = 32;

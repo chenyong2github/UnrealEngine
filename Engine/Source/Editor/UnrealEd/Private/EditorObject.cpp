@@ -573,6 +573,12 @@ static const TCHAR* ImportProperties(
 							NewFlags &= ~RF_Transactional;
 						}
 					}
+					
+					// Ensure DefaultSubojbect flag persists through the clearing of flags
+					if (ComponentTemplate->HasAllFlags(RF_DefaultSubObject))
+					{
+						NewFlags |= RF_DefaultSubObject;
+					}
 
 					// Make sure desired flags are set - existing object could be pending kill
 					ComponentTemplate->ClearFlags(RF_AllFlags);

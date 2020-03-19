@@ -6,79 +6,6 @@
 #include "HairStrandsVoxelPageCommonStruct.ush"
 #include "HairStrandsVoxelPageCommon.ush"
 
-#if SHADER_INJECTOPAQUE_VOXEL
-float3 VoxelMinAABB;
-uint   VoxelResolution;
-float3 VoxelMaxAABB;
-uint   VoxelBiasCount;
-float2 OutputResolution;
-float2 SceneDepthResolution;
-uint   VoxelMarkCount;
-
-Texture2D<float> SceneDepthTexture;
-RWTexture3D<uint> DensityTexture;
-SamplerState LinearSampler;
-
-float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
-{
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
-	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
-
-	return WorldPosition;
-}
-
-// hair_todo: change to CS & optmize (naive code)
-void MainPS(
-	FScreenVertexOutput Input,
-	out float4  OutColor0 : SV_Target0)
-{
-	const float2 UV = Input.UV;
-	const float2 PixelCoord = UV * OutputResolution;
-
-	const float VoxelSize = (VoxelMaxAABB.x - VoxelMinAABB.x) / VoxelResolution;
-
-	uint3 VoxelPos = 0;
-	uint2 TileCount = OutputResolution / VoxelResolution;
-	VoxelPos.x = PixelCoord.x % VoxelResolution;
-	VoxelPos.y = PixelCoord.y % VoxelResolution;
-	VoxelPos.z = PixelCoord.x / VoxelResolution + PixelCoord.y / VoxelResolution * TileCount.x;
-
-	const float3 WorldPosition = VoxelPos / float(VoxelResolution) * (VoxelMaxAABB - VoxelMinAABB) + VoxelMinAABB;
-
-	float4 ClipPos = mul(float4(WorldPosition,1), View.WorldToClip);
-	ClipPos /= ClipPos.w;
-	const float DepthBias 			= VoxelBiasCount * VoxelSize;
-	const float  VoxelDepth 		= ConvertFromDeviceZ(ClipPos.z) - DepthBias;
-	float2 SceneUV 					= float2(0.5f*(ClipPos.x+1), 1-0.5f*(ClipPos.y+1));
-	SceneUV							= ViewportUVToBufferUV(SceneUV);
-	const float2 ScenePixelCoord 	= SceneUV * SceneDepthResolution;
-
-	OutColor0 = float4(VoxelPos.xy / float(VoxelResolution), 0, 1); 
-	const bool bIsOnScreen = SceneUV.x >= 0 && SceneUV.x < 1 && SceneUV.y >= 0 && SceneUV.y < 1;
-	if (!bIsOnScreen)
-		return;
-
-	const float ClosestDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScenePixelCoord,0)));
-	const float3 SceneWorldPos = ReconstructWorldPositionFromDepth(SceneUV, ClosestDepth);
-
-	const bool bIsInVolume = 
-		SceneWorldPos.x >= VoxelMinAABB.x && SceneWorldPos.x < VoxelMaxAABB.x && 
-		SceneWorldPos.y >= VoxelMinAABB.y && SceneWorldPos.y < VoxelMaxAABB.y && 
-		SceneWorldPos.z >= VoxelMinAABB.z && SceneWorldPos.z < VoxelMaxAABB.z;
-
-	if (!bIsInVolume)
-		return;
-
-	// Inject opaque depth on a thin layer (Dist < DistThreshold) for avoiding weird projection
-	if (ClosestDepth < VoxelDepth && abs(ClosestDepth - VoxelDepth) < VoxelMarkCount * VoxelSize)
-	{
-		OutColor0 = float4(1,0,0,1);
-		InterlockedOr(DensityTexture[VoxelPos], VOXEL_OPAQUE_ADD);
-	}
-}
-#endif
-
 #if SHADER_INJECTOPAQUE_VIRTUALVOXEL
 uint3 DispatchedPageIndexResolution;
 uint MacroGroupId;
@@ -169,43 +96,5 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			}
 		}
 	}
-}
-#endif
-
-
-#if SHADER_FILTERDEPTH_VOXEL
-
-uint				VoxelResolution;
-RWTexture3D<uint>	VoxelTexture;
-
-[numthreads(4, 4, 4)]
-void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
-{
-	const uint3 VoxelCoord  = DispatchThreadId;
-	const uint  RawDensity	= VoxelTexture[VoxelCoord];
-	const bool  bHasOpaque	= GetInternalVoxelOpaqueVisibility(RawDensity) > 0;
-
-	// If the current voxel does not contains any opaque data, there is nothing to filter.
-	if (!bHasOpaque)
-	{
-		return;
-	}
-
-	const int FilterSize = 3;
-	for (int z = -FilterSize; z <= FilterSize; z++)
-	for (int y = -FilterSize; y <= FilterSize; y++)
-	for (int x = -FilterSize; x <= FilterSize; x++)
-	{
-		const int3 Offset = int3(x, y, z);
-		const int3 Sample = clamp(VoxelCoord + Offset, 0, VoxelResolution-1);
-		const uint Density = VoxelTexture[Sample] & VOXEL_HAIR_MASK;
-		if (Density > 0)
-		{
-			return;
-		}
-	}
-
-	// No hair density has been found, so this opaque voxel is a false positive
-	InterlockedAnd(VoxelTexture[VoxelCoord], VOXEL_HAIR_MASK);
 }
 #endif

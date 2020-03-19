@@ -8,13 +8,12 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
 #include "RHI.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogShaderLibrary, Log, All);
 
-class FAnsiStringBuilderBase;
 class FShaderPipeline;
-class FStringView;
 class FShaderMapResource;
 class FShaderMapResourceCode;
 
@@ -190,7 +189,11 @@ struct RENDERCORE_API FShaderCodeLibrary
 
 	// Specify the shader formats to cook and which ones needs stable keys. Provide an array of FShaderFormatDescriptors
     static void CookShaderFormats(TArray<FShaderFormatDescriptor> const& ShaderFormats);
-	
+
+	// At cook time, mark a shadermap boundary.
+	static void BeginShaderMap(EShaderPlatform InShaderPlatform, const TArray<FString>& AssociatedAssets, const FName& ShaderMapTypeName);
+	static void EndShaderMap(EShaderPlatform InShaderPlatform);
+
 	// At cook time, add shader code to collection
 	static bool AddShaderCode(EShaderPlatform ShaderPlatform, const FShaderMapResourceCode* Code);
 
@@ -202,11 +205,8 @@ struct RENDERCORE_API FShaderCodeLibrary
 	// At cook time, add the human readable key value information
 	static void AddShaderStableKeyValue(EShaderPlatform ShaderPlatform, FStableShaderKeyAndValue& StableKeyValue);
 
-	// Save collected shader code to a file for each specified shader platform, collating all child cooker results.
-	static bool SaveShaderCodeMaster(const FString& OutputDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath);
-	
-	// Save collected shader code to a file for each specified shader platform, handles only this instances intermediate results.
-	static bool SaveShaderCodeChild(const FString& OutputDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats);
+	// Save collected shader code to a file for each specified shader platform
+	static bool SaveShaderCode(const FString& OutputDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath);
 	
 	// Package the separate shader bytecode files into a single native shader library. Must be called by the master process.
 	static bool PackageNativeShaderLibrary(const FString& ShaderCodeDir, const TArray<FName>& ShaderFormats);

@@ -563,10 +563,10 @@ public:
 
 	struct FResourceParameter
 	{
-		DECLARE_INLINE_TYPE_LAYOUT(FResourceParameter, NonVirtual);
-
-		LAYOUT_FIELD(uint16, BaseIndex);
+		DECLARE_INLINE_TYPE_LAYOUT(FResourceParameter, NonVirtual);		
 		LAYOUT_FIELD(uint16, ByteOffset);
+		LAYOUT_FIELD(uint8, BaseIndex);
+		LAYOUT_FIELD(EUniformBufferBaseType, BaseType);
 
 	};
 
@@ -587,13 +587,7 @@ public:
 	void BindForRootShaderParameters(const FShader* Shader, const FShaderParameterMap& ParameterMaps);
 
 	LAYOUT_FIELD(TMemoryImageArray<FParameter>, Parameters);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, Textures);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, SRVs);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, UAVs);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, Samplers);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphTextures);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphSRVs);
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphUAVs);
+	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, ResourceParameters);
 	LAYOUT_FIELD(TMemoryImageArray<FParameterStructReference>, ParameterReferences);
 
 	// Hash of the shader parameter structure when doing the binding.
@@ -1973,7 +1967,7 @@ public:
 	void AssignContent(FShaderMapContent* InContent);
 	void FinalizeContent();
 	void UnfreezeContent();
-	void Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial);
+	bool Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial);
 
 #if WITH_EDITOR
 	inline void GetOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes) const
@@ -1983,6 +1977,14 @@ public:
 	void SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& SaveKeyVal)
 	{
 		Content->SaveShaderStableKeys(*this, TargetShaderPlatform, SaveKeyVal);
+	}
+
+	/** Associates a shadermap with an asset (note: one shadermap can be used by several assets, e.g. MIs). 
+	 * This helps cooker lay out the shadermaps (and shaders) in the file open order, if provided. Maps not associated with any assets
+	 * may be placed after all maps associated with known assets. Global shadermaps need to be associated with a "Global" asset */
+	void MarkAsAssociatedWithAsset(const FString& AssetPath)
+	{
+		AssociatedAssets.AddUnique(AssetPath);
 	}
 #endif // WITH_EDITOR
 
@@ -1994,6 +1996,10 @@ protected:
 	virtual FShaderMapPointerTable* CreatePointerTable() const = 0;
 
 private:
+#if WITH_EDITOR
+	/** List of the assets that are using this shadermap. This is only available in the editor (cooker) to influence ordering of shader libraries. */
+	TArray<FString> AssociatedAssets;
+#endif
 	const FTypeLayoutDesc& ContentTypeLayout;
 	TRefCountPtr<FShaderMapResource> Resource;
 	TRefCountPtr<FShaderMapResourceCode> Code;

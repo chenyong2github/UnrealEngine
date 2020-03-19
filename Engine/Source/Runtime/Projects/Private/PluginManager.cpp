@@ -20,6 +20,11 @@
 #include "ProjectManager.h"
 #include "PluginManifest.h"
 #include "HAL/PlatformTime.h"
+#if READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
+#include "IDesktopPlatform.h"
+#include "DesktopPlatformModule.h"
+#include "TargetReceipt.h"
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC( LogPluginManager, Log, All );
 
@@ -618,7 +623,44 @@ bool FPluginManager::ConfigureEnabledPlugins()
 
 		if (!FParse::Param(FCommandLine::Get(), TEXT("NoEnginePlugins")))
 		{
-			// Configure the plugins that were enabled from the target file
+#if READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
+			// Configure the plugins that were enabled or disabled from the target file using the target receipt file
+			FString EditorTargetFileName;
+			for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForCurrentProject())
+			{
+				if (Target.Type == FApp::GetBuildTargetType())
+				{
+					if (FPaths::IsUnderDirectory(Target.Path, FPlatformMisc::ProjectDir()))
+					{
+						EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+					}
+					else if (FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
+					{
+						EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+					}
+					break;
+				}
+			}
+
+			FTargetReceipt Receipt;
+			if (Receipt.Read(EditorTargetFileName))
+			{
+				for (const TPair<FString, bool>& Pair : Receipt.PluginNameToEnabledState)
+				{
+					const FString& PluginName = Pair.Key;
+					const bool bEnabled = Pair.Value;
+					if (!ConfiguredPluginNames.Contains(PluginName))
+					{
+						if (!ConfigureEnabledPluginForCurrentTarget(FPluginReferenceDescriptor(PluginName, bEnabled), EnabledPlugins))
+						{
+							return false;
+						}
+						ConfiguredPluginNames.Add(PluginName);
+					}
+				}
+			}
+#else
+			// Configure the plugins that were enabled from the target file using defines
 			TArray<FString> TargetEnabledPlugins = { UBT_TARGET_ENABLED_PLUGINS };
 			for (const FString& TargetEnabledPlugin : TargetEnabledPlugins)
 			{
@@ -632,7 +674,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				}
 			}
 
-			// Configure the plugins that were disabled from the target file
+			// Configure the plugins that were disabled from the target file using defines
 			TArray<FString> TargetDisabledPlugins = { UBT_TARGET_DISABLED_PLUGINS };
 			for (const FString& TargetDisabledPlugin : TargetDisabledPlugins)
 			{
@@ -645,6 +687,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					ConfiguredPluginNames.Add(TargetDisabledPlugin);
 				}
 			}
+#endif // READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
 
 			bool bAllowEnginePluginsEnabledByDefault = true;
 			// Find all the plugin references in the project file
@@ -1303,6 +1346,11 @@ void FPluginManager::SetRegisterMountPointDelegate( const FRegisterMountPointDel
 	RegisterMountPointDelegate = Delegate;
 }
 
+void FPluginManager::SetUpdatePackageLocalizationCacheDelegate( const FUpdatePackageLocalizationCacheDelegate& Delegate )
+{
+	UpdatePackageLocalizationCacheDelegate = Delegate;
+}
+
 bool FPluginManager::AreRequiredPluginsAvailable()
 {
 	return ConfigureEnabledPlugins();
@@ -1484,6 +1532,9 @@ void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Pl
 				CoreSystemSection->AddUnique("Paths", MoveTemp(ContentDir));
 			}
 		}
+
+		// Update the localization cache for the newly added content directory
+		UpdatePackageLocalizationCacheDelegate.ExecuteIfBound();
 	}
 
 	// If it's a code module, also load the modules for it

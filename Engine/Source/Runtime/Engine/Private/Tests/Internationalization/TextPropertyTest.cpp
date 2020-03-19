@@ -22,8 +22,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTextPropertyTest, "System.Engine.International
 bool FTextPropertyTest::RunTest (const FString& Parameters)
 {
 	UClass* const TextPropertyTestObjectClass = UTextPropertyTestObject::StaticClass();
-	FTextProperty* const DefaultedTextProperty = FindField<FTextProperty>(TextPropertyTestObjectClass, "DefaultedText");
-	FTextProperty* const UndefaultedTextProperty = FindField<FTextProperty>(TextPropertyTestObjectClass, "UndefaultedText");
+	FTextProperty* const DefaultedTextProperty = FindFProperty<FTextProperty>(TextPropertyTestObjectClass, "DefaultedText");
+	FTextProperty* const UndefaultedTextProperty = FindFProperty<FTextProperty>(TextPropertyTestObjectClass, "UndefaultedText");
 	UTextPropertyTestObject* const TextPropertyTestCDO = Cast<UTextPropertyTestObject>( TextPropertyTestObjectClass->ClassDefaultObject );
 
 	{

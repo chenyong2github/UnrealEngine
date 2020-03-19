@@ -2120,7 +2120,6 @@ FRHICOMMAND_MACRO(FRHICommandUpdateRHIResources)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-#if RHI_RAYTRACING
 FRHICOMMAND_MACRO(FRHICommandCopyBufferRegion)
 {
 	FRHIVertexBuffer* DestBuffer;
@@ -2139,6 +2138,8 @@ FRHICOMMAND_MACRO(FRHICommandCopyBufferRegion)
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
+
+#if RHI_RAYTRACING
 
 FRHICOMMAND_MACRO(FRHICommandCopyBufferRegions)
 {
@@ -3582,9 +3583,6 @@ public:
 		ALLOC_COMMAND(FRHICommandDiscardRenderTargets)(Depth, Stencil, ColorBitMask);
 	}
 	
-#if RHI_RAYTRACING
-	// Ray tracing API
-	UE_DEPRECATED(4.25, "CopyBufferRegion API is deprecated. Use an explicit compute shader copy dispatch instead.")
 	FORCEINLINE_DEBUGGABLE void CopyBufferRegion(FRHIVertexBuffer* DestBuffer, uint64 DstOffset, FRHIVertexBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes)
 	{
 		// No copy/DMA operation inside render passes
@@ -3600,6 +3598,8 @@ public:
 		}
 	}
 
+#if RHI_RAYTRACING
+	// Ray tracing API
 	UE_DEPRECATED(4.25, "CopyBufferRegions API is deprecated. Use an explicit compute shader copy dispatch instead.")
 	FORCEINLINE_DEBUGGABLE void CopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
 	{

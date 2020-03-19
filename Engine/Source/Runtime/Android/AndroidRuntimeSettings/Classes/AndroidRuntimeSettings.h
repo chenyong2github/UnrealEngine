@@ -237,7 +237,7 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Disable verify OBB on first start/update."))
 	bool bDisableVerifyOBBOnStartUp;
 
-	// If checked, OBB is limited to 500 MiB.
+	// If checked, OBB is limited to 1 GiB.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Force small OBB files."))
 	bool bForceSmallOBBFiles;
 
@@ -601,6 +601,10 @@ public:
 	// Which NDK to compile with (a specific version or (without quotes) 'latest' for latest version on disk). Note that choosing android-21 or later won't run on pre-5.0 devices.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Project SDK Override", Meta = (DisplayName = "NDK API Level (specific version or 'latest' - see tooltip)"))
 	FString NDKAPILevelOverride;
+
+	/** Whether to enable LOD streaming for landscape visual meshes. Only supported on feature level ES3.1 or above. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Misc", Meta = (DisplayName = "Stream landscape visual mesh LODs"))
+	bool bStreamLandscapeMeshLODs;
 
 	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 

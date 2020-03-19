@@ -28,6 +28,7 @@ const FString UNiagaraDataInterfaceStaticMesh::InstanceInvDeltaTimeName(TEXT("In
 const FString UNiagaraDataInterfaceStaticMesh::InstanceWorldVelocityName(TEXT("InstanceWorldVelocity_"));
 const FString UNiagaraDataInterfaceStaticMesh::AreaWeightedSamplingName(TEXT("AreaWeightedSamplingName_"));
 const FString UNiagaraDataInterfaceStaticMesh::NumTexCoordName(TEXT("NumTexCoordName_"));
+const FString UNiagaraDataInterfaceStaticMesh::UseColorBufferName(TEXT("UseColorBuffer_"));
 
 static int32 GNiagaraFailStaticMeshDataInterface = 0;
 static FAutoConsoleVariableRef CVarNiagaraFailStaticMeshDataInterface(
@@ -249,6 +250,13 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		Mesh = Interface->DefaultMesh;
 	}
 
+#if WITH_EDITORONLY_DATA
+	if (!Mesh && Interface->PreviewMesh)
+	{
+		Mesh = Interface->PreviewMesh;
+	}
+#endif
+
 	if (SafeComponent_GT.IsValid() && Mesh)
 	{
 		PrevTransform = Transform;
@@ -457,6 +465,7 @@ struct FNDIStaticMeshParametersName
 	FString InstanceWorldVelocityName;
 	FString AreaWeightedSamplingName;
 	FString NumTexCoordName;
+	FString UseColorBufferName;
 };
 
 static void GetNiagaraDataInterfaceParametersName(FNDIStaticMeshParametersName& Names, const FString& Suffix)
@@ -476,6 +485,7 @@ static void GetNiagaraDataInterfaceParametersName(FNDIStaticMeshParametersName& 
 	Names.InstanceWorldVelocityName = UNiagaraDataInterfaceStaticMesh::InstanceWorldVelocityName + Suffix;
 	Names.AreaWeightedSamplingName = UNiagaraDataInterfaceStaticMesh::AreaWeightedSamplingName + Suffix;
 	Names.NumTexCoordName = UNiagaraDataInterfaceStaticMesh::NumTexCoordName + Suffix;
+	Names.UseColorBufferName = UNiagaraDataInterfaceStaticMesh::UseColorBufferName + Suffix;
 }
 
 struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfaceParametersCS
@@ -502,6 +512,7 @@ public:
 		InstanceWorldVelocity.Bind(ParameterMap, *ParamNames.InstanceWorldVelocityName);
 		AreaWeightedSampling.Bind(ParameterMap, *ParamNames.AreaWeightedSamplingName);
 		NumTexCoord.Bind(ParameterMap, *ParamNames.NumTexCoordName);
+		UseColorBuffer.Bind(ParameterMap, *ParamNames.UseColorBufferName);
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -529,16 +540,18 @@ public:
 				}
 				else
 				{
-					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloat2Buffer());
 				}
 
 				if(SpawnBuffer->GetBufferColorSRV())
 				{
 					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, SpawnBuffer->GetBufferColorSRV());
+					SetShaderValue(RHICmdList, ComputeShaderRHI, UseColorBuffer, 1);
 				}
 				else
 				{
-					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+					SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyWhiteColorBuffer());
+					SetShaderValue(RHICmdList, ComputeShaderRHI, UseColorBuffer, 0);
 				}
 
 				check(SpawnBuffer); // should always be allocated, we always need the GPU buffer for a GpuSimulation.
@@ -566,16 +579,17 @@ public:
 			else
 			{
 				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshVertexBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTangentBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTangentBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
 				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshIndexBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
 
 				SetShaderValue(RHICmdList, ComputeShaderRHI, NumTexCoord, 0);
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloat2Buffer());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyWhiteColorBuffer());
+				SetShaderValue(RHICmdList, ComputeShaderRHI, UseColorBuffer, 0);
 
 				SetShaderValue(RHICmdList, ComputeShaderRHI, SectionCount, 0);
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSectionBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSectionBuffer, FNiagaraRenderer::GetDummyUInt4Buffer());
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleBuffer, FNiagaraRenderer::GetDummyUInt4Buffer());
 
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, FMatrix::Identity);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformInverseTransposed, FMatrix::Identity);
@@ -603,6 +617,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, InstanceWorldVelocity);
 	LAYOUT_FIELD(FShaderParameter, AreaWeightedSampling);
 	LAYOUT_FIELD(FShaderParameter, NumTexCoord);
+	LAYOUT_FIELD(FShaderParameter, UseColorBuffer);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_StaticMesh);
@@ -654,6 +669,9 @@ void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(
 
 UNiagaraDataInterfaceStaticMesh::UNiagaraDataInterfaceStaticMesh(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+	, PreviewMesh(nullptr)
+#endif
 	, DefaultMesh(nullptr)
 	, Source(nullptr)	
 	, ChangeId(0)
@@ -1016,7 +1034,7 @@ void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFun
 {
 	FNDIStaticMesh_InstanceData* InstData = (FNDIStaticMesh_InstanceData*)InstanceData;
 	check(InstData && InstData->Mesh && InstData->SafeComponent_GT.IsValid());
-
+	
 	if (BindingInfo.Name == StaticMeshHelpers::RandomSectionName)
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
@@ -1121,6 +1139,9 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 	UNiagaraDataInterfaceStaticMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceStaticMesh>(Destination);
 	OtherTyped->Source = Source;
 	OtherTyped->DefaultMesh = DefaultMesh;
+#if WITH_EDITORONLY_DATA
+	OtherTyped->PreviewMesh = PreviewMesh;
+#endif
 	//OtherTyped->bEnableVertexColorRangeSorting = bEnableVertexColorRangeSorting;//TODO: Vertex color filtering needs more work.
 	OtherTyped->SectionFilter = SectionFilter;
 	return true;
@@ -1232,6 +1253,23 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceStaticMesh::GetErrors()
 
 		Errors.Add(CPUAccessNotAllowedError);
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (Source == nullptr && PreviewMesh != nullptr && !PreviewMesh->bAllowCPUAccess)
+	{
+		FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(PreviewMesh->GetName())),
+			LOCTEXT("CPUAccessNotAllowedErrorSummary", "CPU access error"),
+			FNiagaraDataInterfaceFix::CreateLambda([=]()
+		{
+			PreviewMesh->Modify();
+			PreviewMesh->bAllowCPUAccess = true;
+			return true;
+		}));
+
+		Errors.Add(CPUAccessNotAllowedError);
+	}
+#endif
+
 	return Errors;
 }
 #endif
@@ -1954,6 +1992,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FNiagaraDataInterfac
 		{TEXT("InstanceWorldVelocity"), ParamNames.InstanceWorldVelocityName},
 		{TEXT("AreaWeightedSamplingName"), ParamNames.AreaWeightedSamplingName},
 		{TEXT("NumTexCoordName"), ParamNames.NumTexCoordName},
+		{TEXT("UseColorBufferName"), ParamNames.UseColorBufferName},
 	};
 
 	if (FunctionInfo.DefinitionName == StaticMeshHelpers::RandomSectionName)
@@ -2225,16 +2264,20 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FNiagaraDataInterfac
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in {MeshTriCoordinateStructName} In_Coord, out float4 Out_Color)
 			{
-				uint TriangleIndex = In_Coord.Tri * 3;
-				uint VertexIndex0 = {MeshIndexBufferName}[TriangleIndex  ];
-				uint VertexIndex1 = {MeshIndexBufferName}[TriangleIndex+1];
-				uint VertexIndex2 = {MeshIndexBufferName}[TriangleIndex+2];
+				Out_Color = float4(1, 1, 1, 1);
+				if ({UseColorBufferName})
+				{
+					uint TriangleIndex = In_Coord.Tri * 3;
+					uint VertexIndex0 = {MeshIndexBufferName}[TriangleIndex  ];
+					uint VertexIndex1 = {MeshIndexBufferName}[TriangleIndex+1];
+					uint VertexIndex2 = {MeshIndexBufferName}[TriangleIndex+2];
 
-				float4 Color0 = {MeshColorBufferName}[VertexIndex0] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
-				float4 Color1 = {MeshColorBufferName}[VertexIndex1] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
-				float4 Color2 = {MeshColorBufferName}[VertexIndex2] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
+					float4 Color0 = {MeshColorBufferName}[VertexIndex0] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
+					float4 Color1 = {MeshColorBufferName}[VertexIndex1] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
+					float4 Color2 = {MeshColorBufferName}[VertexIndex2] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
 
-				Out_Color = Color0 * In_Coord.BaryCoord.x + Color1 * In_Coord.BaryCoord.y + Color2 * In_Coord.BaryCoord.z;
+					Out_Color = Color0 * In_Coord.BaryCoord.x + Color1 * In_Coord.BaryCoord.y + Color2 * In_Coord.BaryCoord.z;
+				}
 			}
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -2368,6 +2411,7 @@ void UNiagaraDataInterfaceStaticMesh::GetParameterDefinitionHLSL(const FNiagaraD
 	OutHLSL += TEXT("Buffer<float4> ") + ParamNames.MeshColorBufferName + TEXT(";\n");
 	OutHLSL += TEXT("Buffer<uint4> ") + ParamNames.MeshSectionBufferName + TEXT(";\n");
 	OutHLSL += TEXT("Buffer<uint4> ") + ParamNames.MeshTriangleBufferName + TEXT(";\n");
+	OutHLSL += TEXT("uint ") + ParamNames.UseColorBufferName + TEXT(";\n");
 	OutHLSL += TEXT("uint ") + ParamNames.SectionCountName + TEXT(";\n");
 	OutHLSL += TEXT("float4x4 ") + ParamNames.InstanceTransformName + TEXT(";\n");
 	OutHLSL += TEXT("float4x4 ") + ParamNames.InstanceTransformInverseTransposedName + TEXT(";\n");

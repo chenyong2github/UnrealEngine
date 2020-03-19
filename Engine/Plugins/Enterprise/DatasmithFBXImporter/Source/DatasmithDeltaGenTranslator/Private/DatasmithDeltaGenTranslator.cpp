@@ -136,7 +136,7 @@ bool FDatasmithDeltaGenTranslator::LoadLevelSequence(const TSharedRef<IDatasmith
 	return false;
 }
 
-void FDatasmithDeltaGenTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithDeltaGenTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	if (!ImportOptions.IsValid())
 	{
@@ -149,12 +149,11 @@ void FDatasmithDeltaGenTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr
 	Options.Add(ImportOptions);
 }
 
-void FDatasmithDeltaGenTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithDeltaGenTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	for (TStrongObjectPtr<UObject>& OptionPtr : Options)
+	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
-		UObject* Option = OptionPtr.Get();
-		if (UDatasmithDeltaGenImportOptions* InImportOptions = Cast<UDatasmithDeltaGenImportOptions>(Option))
+		if (UDatasmithDeltaGenImportOptions* InImportOptions = Cast<UDatasmithDeltaGenImportOptions>(OptionPtr.Get()))
 		{
 			ImportOptions.Reset(InImportOptions);
 		}

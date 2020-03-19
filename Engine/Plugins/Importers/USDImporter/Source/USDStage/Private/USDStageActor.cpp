@@ -113,77 +113,33 @@ AUsdStageActor::AUsdStageActor()
 
 	RootComponent = SceneComponent;
 
-	RootUsdTwin = NewObject<UUsdPrimTwin>(this, TEXT("RootUsdTwin"), RF_Transient | RF_Transactional);
+	RootUsdTwin = NewObject<UUsdPrimTwin>(this, TEXT("RootUsdTwin"), DefaultObjFlag);
 
 #if WITH_EDITOR
 	// We can't use PostLoad to trigger LoadUsdStage when first loading a saved level because LoadUsdStage may trigger
 	// Rename() calls, and that is not allowed.
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.OnMapChanged().AddUObject(this, &AUsdStageActor::OnMapChanged);
+	FEditorDelegates::BeginPIE.AddUObject(this, &AUsdStageActor::OnBeginPIE);
+	FEditorDelegates::PostPIEStarted.AddUObject(this, &AUsdStageActor::OnPostPIEStarted);
 #endif // WITH_EDITOR
 
 #if USE_USD_SDK
+	OnTimeChanged.AddUObject( this, &AUsdStageActor::AnimatePrims );
+
 	RootUsdTwin->PrimPath = TEXT("/");
 
-	UsdListener.OnPrimChanged.AddLambda(
-		[ this ]( const FString& OriginalPrimPath, bool bResync )
-			{
-				auto UnwindToNonCollapsedPrim = [ &OriginalPrimPath, this ]( FUsdSchemaTranslator::ECollapsingType CollapsingType ) -> TUsdStore< pxr::SdfPath >
-				{
-					IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-
-					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, OriginalPrimPath );
-
-					TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *OriginalPrimPath );
-					TUsdStore< pxr::UsdPrim > UsdPrim = this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() );
-
-					if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) ) )
-					{
-						while ( SchemaTranslator->IsCollapsed( CollapsingType ) )
-						{
-							UsdPrimPath = UsdPrimPath.Get().GetParentPath();
-							UsdPrim = this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() );
-
-							TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( UsdPrimPath.Get() ) );
-							SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) );
-
-							if ( !SchemaTranslator.IsValid() )
-							{
-								break;
-							}
-						}
-					}
-
-					return UsdPrimPath;
-				};
-
-				// Reload assets
-				{
-					TUsdStore< pxr::SdfPath > AssetsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Assets );
-
-					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( AssetsPrimPath.Get() ) );
-					this->LoadAssets( *TranslationContext, this->GetUsdStage()->GetPrimAtPath( AssetsPrimPath.Get() ) );
-				}
-
-				// Update components
-				{
-					TUsdStore< pxr::SdfPath > ComponentsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Components );
-
-					TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( ComponentsPrimPath.Get() ) );
-					this->UpdatePrim( ComponentsPrimPath.Get(), bResync, *TranslationContext );
-					TranslationContext->CompleteTasks();
-				}
-
-				if ( this->HasAutorithyOverStage() )
-				{
-					this->OnPrimChanged.Broadcast( OriginalPrimPath, bResync );
-				}
-			}
-		);
+	UsdListener.OnPrimsChanged.AddUObject( this, &AUsdStageActor::OnPrimsChanged );
 
 	UsdListener.OnLayersChanged.AddLambda(
 		[&](const pxr::SdfLayerChangeListVec& ChangeVec)
 		{
+			TUniquePtr<TGuardValue<ITransaction*>> SuppressTransaction = nullptr;
+			if ( this->GetOutermost()->HasAnyPackageFlags( PKG_PlayInEditor ) )
+			{
+				SuppressTransaction = MakeUnique<TGuardValue<ITransaction*>>( GUndo, nullptr );
+			}
+
 			// Check to see if any layer reloaded. If so, rebuild all of our animations as a single layer changing
 			// might propagate timecodes through all level sequences
 			for (const std::pair<pxr::SdfLayerHandle, pxr::SdfChangeList>& ChangeVecItem : ChangeVec)
@@ -222,18 +178,152 @@ AUsdStageActor::AUsdStageActor()
 	}
 }
 
-AUsdStageActor::~AUsdStageActor()
+void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedList )
 {
 #if USE_USD_SDK
-	if ( HasAutorithyOverStage() )
+	// Sort paths by length so that we parse the root paths first
+	TMap< FString, bool > SortedPrimsChangedList = PrimsChangedList;
+	SortedPrimsChangedList.KeySort( []( const FString& A, const FString& B ) -> bool { return A.Len() < B.Len(); } );
+
+	// During PIE, the PIE and the editor world will respond to notices. We have to prevent any PIE
+	// objects from being added to the transaction however, or else it will be discarded when finalized.
+	// We need to keep the transaction, or else we may end up with actors outside of the transaction
+	// system that want to use assets that will be destroyed by it on an undo.
+	// Note that we can't just make the spawned components/assets nontransactional because the PIE world will transact too
+	TUniquePtr<TGuardValue<ITransaction*>> SuppressTransaction = nullptr;
+	if ( this->GetOutermost()->HasAnyPackageFlags( PKG_PlayInEditor ) )
 	{
-		UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
+		SuppressTransaction = MakeUnique<TGuardValue<ITransaction*>>(GUndo, nullptr);
+	}
+
+	FScopedSlowTask RefreshStageTask( SortedPrimsChangedList.Num(), LOCTEXT( "RefreshingUSDStage", "Refreshing USD Stage" ) );
+	RefreshStageTask.MakeDialog();
+
+	TSet< FString > UpdatedAssets;
+	TSet< FString > UpdatedComponents;
+	TSet< FString > ResyncedComponents;
+
+	for ( const TPair< FString, bool >& PrimChangedInfo : SortedPrimsChangedList )
+	{
+		RefreshStageTask.EnterProgressFrame();
+
+		auto UnwindToNonCollapsedPrim = [ &PrimChangedInfo, this ]( FUsdSchemaTranslator::ECollapsingType CollapsingType ) -> TUsdStore< pxr::SdfPath >
+		{
+			IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+
+			TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, PrimChangedInfo.Key );
+
+			TUsdStore< pxr::SdfPath > UsdPrimPath = UnrealToUsd::ConvertPath( *PrimChangedInfo.Key );
+			TUsdStore< pxr::UsdPrim > UsdPrim = this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() );
+
+			if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) ) )
+			{
+				while ( SchemaTranslator->IsCollapsed( CollapsingType ) )
+				{
+					UsdPrimPath = UsdPrimPath.Get().GetParentPath();
+					UsdPrim = this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() );
+
+					TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( UsdPrimPath.Get() ) );
+					SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) );
+
+					if ( !SchemaTranslator.IsValid() )
+					{
+						break;
+					}
+				}
+			}
+
+			return UsdPrimPath;
+		};
+
+		// Return if the path or any of its higher level paths are already processed
+		auto IsPathAlreadyProcessed = []( TSet< FString >& PathsProcessed, FString PathToProcess ) -> bool
+		{
+			FString SubPath;
+			FString ParentPath;
+
+			if ( PathsProcessed.Contains( TEXT("/") ) )
+			{
+				return true;
+			}
+
+			while ( !PathToProcess.IsEmpty() && !PathsProcessed.Contains( PathToProcess ) )
+			{
+				if ( PathToProcess.Split( TEXT("/"), &ParentPath, &SubPath, ESearchCase::IgnoreCase, ESearchDir::FromEnd ) )
+				{
+					PathToProcess = ParentPath;
+				}
+				else
+				{
+					return false;
+				}
+			}
+			
+			return !PathToProcess.IsEmpty() && PathsProcessed.Contains( PathToProcess );
+		};
+
+		// Reload assets
+		{
+			TUsdStore< pxr::SdfPath > AssetsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Assets );
+			const FString UEAssetsPrimPath = UsdToUnreal::ConvertPath( AssetsPrimPath.Get() );
+
+			if ( !IsPathAlreadyProcessed( UpdatedAssets, UEAssetsPrimPath ) )
+			{
+				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( AssetsPrimPath.Get() ) );
+				
+				const bool bIsResync = PrimChangedInfo.Value;
+				if ( bIsResync )
+				{
+					this->LoadAssets( *TranslationContext, this->GetUsdStage()->GetPrimAtPath( AssetsPrimPath.Get() ) );
+				}
+				else
+				{
+					this->LoadAsset( *TranslationContext, this->GetUsdStage()->GetPrimAtPath( AssetsPrimPath.Get() ) );
+				}
+
+				UpdatedAssets.Add( UEAssetsPrimPath );
+			}
+		}
+
+		// Update components
+		{
+			TUsdStore< pxr::SdfPath > ComponentsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Components );
+			const FString UEComponentsPrimPath = UsdToUnreal::ConvertPath( ComponentsPrimPath.Get() );
+
+			const bool bResync = PrimChangedInfo.Value;
+			TSet< FString >& RefreshedComponents = bResync ? ResyncedComponents : UpdatedComponents;
+
+			if ( !IsPathAlreadyProcessed( RefreshedComponents, UEComponentsPrimPath ) )
+			{
+				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, UsdToUnreal::ConvertPath( ComponentsPrimPath.Get() ) );
+				UpdatePrim( ComponentsPrimPath.Get(), PrimChangedInfo.Value, *TranslationContext );
+				TranslationContext->CompleteTasks();
+
+				RefreshedComponents.Add( UEComponentsPrimPath );
+
+				if ( bResync )
+				{
+					// Consider that the path has been updated in the case of a resync
+					UpdatedComponents.Add( UEComponentsPrimPath );
+				}
+			}
+		}
+
+		if ( HasAutorithyOverStage() )
+		{
+			OnPrimChanged.Broadcast( PrimChangedInfo.Key, PrimChangedInfo.Value );
+		}
 	}
 #endif // #if USE_USD_SDK
+}
 
+AUsdStageActor::~AUsdStageActor()
+{
 #if WITH_EDITOR
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.OnMapChanged().RemoveAll(this);
+	FEditorDelegates::BeginPIE.RemoveAll(this);
+	FEditorDelegates::PostPIEStarted.RemoveAll(this);
 #endif // WITH_EDITOR
 }
 
@@ -298,11 +388,16 @@ UUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const pxr::SdfPath& UsdPrimPa
 			{
 				this->OnUsdPrimTwinDestroyed( UsdPrimTwin );
 			} );
+	}
 
-		if ( UsdUtils::IsAnimated( Prim ) )
-		{
-			PrimsToAnimate.Add( PrimPath );
-		}
+	// Update the prim animated status
+	if ( UsdUtils::IsAnimated( Prim ) )
+	{
+		PrimsToAnimate.Add( PrimPath );
+	}
+	else
+	{
+		PrimsToAnimate.Remove( PrimPath );
 	}
 
 	return UsdPrimTwin;
@@ -471,6 +566,8 @@ void AUsdStageActor::OpenUsdStage()
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::OpenUsdStage );
+
 	FString FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead( *RootLayer.FilePath );
 	FilePath = FPaths::GetPath(FilePath) + TEXT("/");
 	FString CleanFilename = FPaths::GetCleanFilename( RootLayer.FilePath );
@@ -514,14 +611,32 @@ void AUsdStageActor::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 			// This is in charge of clearing the SUSDStage window when switching away from our level
 			// SUSDStage window needs to update
 			OnActorDestroyed.Broadcast();
+			Reset();
 		}
 	}
 }
+
+void AUsdStageActor::OnBeginPIE(bool bIsSimulating)
+{
+	// Remove transient flag from our spawned actors and components so they can be duplicated for PIE
+	const bool bTransient = false;
+	UpdateSpawnedObjectsTransientFlag(bTransient);
+}
+
+void AUsdStageActor::OnPostPIEStarted(bool bIsSimulating)
+{
+	// Restore transient flags to our spawned actors and components so they aren't saved otherwise
+	const bool bTransient = true;
+	UpdateSpawnedObjectsTransientFlag(bTransient);
+}
+
 #endif // WITH_EDITOR
 
 void AUsdStageActor::LoadUsdStage()
 {
 #if USE_USD_SDK
+	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadUsdStage );
+
 	double StartTime = FPlatformTime::Cycles64();
 
 	FScopedSlowTask SlowTask( 1.f, LOCTEXT( "LoadingUDStage", "Loading USD Stage") );
@@ -555,8 +670,6 @@ void AUsdStageActor::LoadUsdStage()
 
 	GEditor->BroadcastLevelActorListChanged();
 
-	OnTimeChanged.AddUObject( this, &AUsdStageActor::AnimatePrims );
-
 	// Log time spent to load the stage
 	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
 
@@ -569,15 +682,14 @@ void AUsdStageActor::LoadUsdStage()
 
 void AUsdStageActor::Refresh() const
 {
-	if ( HasAutorithyOverStage() )
-	{
-		OnTimeChanged.Broadcast();
-	}
+	OnTimeChanged.Broadcast();
 }
 
 void AUsdStageActor::ReloadAnimations()
 {
 #if USE_USD_SDK
+	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::ReloadAnimations );
+
 	const pxr::UsdStageRefPtr& UsdStage = GetUsdStage();
 	if ( !UsdStage )
 	{
@@ -608,6 +720,7 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		if (this->IsPendingKill())
 		{
 			OnActorDestroyed.Broadcast();
+			Reset();
 		}
 		// This fires when being spawned in an existing level, undo delete, redo spawn
 		else
@@ -638,6 +751,80 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		}
 #endif // #if USE_USD_SDK
 	}
+}
+
+void AUsdStageActor::PostDuplicate( bool bDuplicateForPIE )
+{
+	Super::PostDuplicate( bDuplicateForPIE );
+
+#if USE_USD_SDK
+	// Setup for the very first frame when we duplicate into PIE, or else we will just show a T-pose
+	if ( bDuplicateForPIE )
+	{
+		AnimatePrims();
+	}
+#endif // #if USE_USD_SDK
+}
+
+void AUsdStageActor::PostLoad()
+{
+	Super::PostLoad();
+
+	// This may be reset to nullptr when loading a level or serializing, because the property is Transient
+	if (RootUsdTwin == nullptr)
+	{
+		RootUsdTwin = NewObject<UUsdPrimTwin>(this, TEXT("RootUsdTwin"), DefaultObjFlag);
+	}
+}
+
+void AUsdStageActor::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
+	{
+		// We want to duplicate these properties for PIE only, as they are required to animate and listen to notices
+		Ar << LevelSequence;
+		Ar << SubLayerLevelSequencesByIdentifier;
+		Ar << RootUsdTwin;
+		Ar << PrimsToAnimate;
+		Ar << ObjectsToWatch;
+		Ar << AssetsCache;
+		Ar << PrimPathsToAssets;
+	}
+}
+
+void AUsdStageActor::UpdateSpawnedObjectsTransientFlag(bool bTransient)
+{
+	if (!RootUsdTwin)
+	{
+		return;
+	}
+
+	EObjectFlags Flag = bTransient ? EObjectFlags::RF_Transient : EObjectFlags::RF_NoFlags;
+	TFunction<void(UUsdPrimTwin&)> UpdateTransient = [=](UUsdPrimTwin& PrimTwin)
+	{
+		if (AActor* SpawnedActor = PrimTwin.SpawnedActor.Get())
+		{
+			SpawnedActor->ClearFlags(EObjectFlags::RF_Transient);
+			SpawnedActor->SetFlags(Flag);
+		}
+
+		if (USceneComponent* Component = PrimTwin.SceneComponent.Get())
+		{
+			Component->ClearFlags(EObjectFlags::RF_Transient);
+			Component->SetFlags(Flag);
+
+			if (AActor* ComponentOwner = Component->GetOwner())
+			{
+				ComponentOwner->ClearFlags(EObjectFlags::RF_Transient);
+				ComponentOwner->SetFlags(Flag);
+			}
+		}
+	};
+
+	const bool bRecursive = true;
+	RootUsdTwin->Iterate(UpdateTransient, bRecursive);
 }
 
 void AUsdStageActor::OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin )
@@ -712,6 +899,7 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 				// To accomplish that while blocking notices we must always propagate component visibility changes
 				if ( PropertyChangedEvent.GetPropertyName() == TEXT( "bVisible" ) )
 				{
+					PrimSceneComponent->Modify();
 					PrimSceneComponent->SetVisibility( PrimSceneComponent->GetVisibleFlag(), true );
 				}
 
@@ -732,6 +920,23 @@ bool AUsdStageActor::HasAutorithyOverStage() const
 }
 
 #if USE_USD_SDK
+void AUsdStageActor::LoadAsset( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& Prim )
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadAsset );
+
+	const FString PrimPath = UsdToUnreal::ConvertPath( Prim.GetPrimPath() );
+	PrimPathsToAssets.Remove( PrimPath );
+
+	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+	if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext.AsShared(), pxr::UsdTyped( Prim ) ) )
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::CreateAssetsForPrim );
+		SchemaTranslator->CreateAssets();
+	}
+
+	TranslationContext.CompleteTasks(); // Finish the asset tasks before moving on
+}
+
 void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& StartPrim )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadAssets );
@@ -786,6 +991,13 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 
 void AUsdStageActor::AnimatePrims()
 {
+	// Don't try to animate if we don't have a stage opened
+	const pxr::UsdStageRefPtr& UsdStage = GetUsdStage();
+	if (!UsdStage)
+	{
+		return;
+	}
+
 	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootUsdTwin->PrimPath );
 
 	for ( const FString& PrimToAnimate : PrimsToAnimate )
@@ -807,6 +1019,7 @@ void AUsdStageActor::AnimatePrims()
 	GEditor->BroadcastLevelActorListChanged();
 	GEditor->RedrawLevelEditingViewports();
 }
+
 #endif // #if USE_USD_SDK
 
 #undef LOCTEXT_NAMESPACE

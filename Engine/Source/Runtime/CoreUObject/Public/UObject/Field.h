@@ -242,7 +242,7 @@ public:
 		return !!Container.Object;
 	}
 	bool IsValidLowLevel() const;
-	operator bool() const
+	inline operator bool() const
 	{
 		return IsValid();
 	}
@@ -917,13 +917,13 @@ COREUOBJECT_API FString GetPathNameSafe(const FField* InField);
 /** 
  * Finds a field given a path to the field (Package.Class[:Subobject:...]:FieldName)
  */
-COREUOBJECT_API FField* FindFieldByPath(const TCHAR* InFieldPath);
+COREUOBJECT_API FField* FindFPropertyByPath(const TCHAR* InFieldPath);
 /**
  * Templated version of FindFieldByPath
  */
 template <typename FieldType>
-inline FieldType* FindField(const TCHAR* InFieldPath)
+inline FieldType* FindFProperty(const TCHAR* InFieldPath)
 {
-	FField* FoundField = FindFieldByPath(InFieldPath);
+	FField* FoundField = FindFPropertyByPath(InFieldPath);
 	return CastField<FieldType>(FoundField);
 }

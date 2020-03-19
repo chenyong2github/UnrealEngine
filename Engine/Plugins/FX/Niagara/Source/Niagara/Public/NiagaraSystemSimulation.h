@@ -32,13 +32,21 @@ struct FNiagaraParameterStoreToDataSetBinding
 		int32 DataSetComponentOffset;
 		FDataOffsets(int32 InParamOffset, int32 InDataSetComponentOffset) : ParameterOffset(InParamOffset), DataSetComponentOffset(InDataSetComponentOffset) {}
 	};
+	struct FHalfDataOffsets : public FDataOffsets
+	{
+		bool ApplyAsFloat;
+		FHalfDataOffsets(int32 InParamOffset, int32 InDataSetComponentOffset, bool InApplyAsFloat) : FDataOffsets(InParamOffset, InDataSetComponentOffset), ApplyAsFloat(InApplyAsFloat) {}
+	};
+
 	TArray<FDataOffsets> FloatOffsets;
 	TArray<FDataOffsets> Int32Offsets;
+	TArray<FHalfDataOffsets> HalfOffsets;
 
 	void Empty()
 	{
 		FloatOffsets.Empty();
 		Int32Offsets.Empty();
+		HalfOffsets.Empty();
 	}
 
 	void Init(FNiagaraDataSet& DataSet, const FNiagaraParameterStore& ParameterStore)
@@ -49,9 +57,10 @@ struct FNiagaraParameterStoreToDataSetBinding
 		for (const FNiagaraVariable& Var : DataSet.GetVariables())
 		{
 			const FNiagaraVariableLayoutInfo* Layout = DataSet.GetVariableLayout(Var);
-			const int32* ParameterOffsetPtr = ParameterStore.FindParameterOffset(Var);
+			const int32* ParameterOffsetPtr = ParameterStore.FindParameterOffset(Var, true);
 			int32 NumFloats = 0;
 			int32 NumInts = 0;
+			int32 NumHalfs = 0;
 			if (ParameterOffsetPtr && Layout)
 			{
 				int32 ParameterOffset = *ParameterOffsetPtr;
@@ -66,6 +75,26 @@ struct FNiagaraParameterStoreToDataSetBinding
 					int32 ParamOffset = ParameterOffset + Layout->LayoutInfo.Int32ComponentByteOffsets[CompIdx];
 					int32 DataSetOffset = Layout->Int32ComponentStart + NumInts++;
 					Int32Offsets.Emplace(ParamOffset, DataSetOffset);
+				}
+				for (uint32 CompIdx = 0; CompIdx < Layout->GetNumHalfComponents(); ++CompIdx)
+				{
+					constexpr bool ParameterSetsSupportHalf = false;
+
+					if (ParameterSetsSupportHalf)
+					{
+						int32 ParamOffset = ParameterOffset + Layout->LayoutInfo.HalfComponentByteOffsets[CompIdx];
+						int32 DataSetOffset = Layout->HalfComponentStart + NumHalfs++;
+						HalfOffsets.Emplace(ParamOffset, DataSetOffset, !ParameterSetsSupportHalf);
+					}
+					else
+					{
+						// if parameter sets don't support half, then we need to write in floats into the parameter set, and
+						// for that we need to adjust the offset based on the difference in stride between float & half
+						// In reality 
+						int32 ParamOffset = ParameterOffset + sizeof(float) * Layout->LayoutInfo.HalfComponentByteOffsets[CompIdx] / sizeof(FFloat16);
+						int32 DataSetOffset = Layout->HalfComponentStart + NumHalfs++;
+						HalfOffsets.Emplace(ParamOffset, DataSetOffset, !ParameterSetsSupportHalf);
+					}
 				}
 			}
 		}
@@ -88,6 +117,18 @@ struct FNiagaraParameterStoreToDataSetBinding
 		{
 			int32* DataSetPtr = CurrBuffer->GetInstancePtrInt32(DataOffsets.DataSetComponentOffset, DataSetInstanceIndex);
 			ParameterStore.SetParameterByOffset(DataOffsets.ParameterOffset, *DataSetPtr);
+		}
+		for (const FHalfDataOffsets& DataOffsets : HalfOffsets)
+		{
+			FFloat16* DataSetPtr = CurrBuffer->GetInstancePtrHalf(DataOffsets.DataSetComponentOffset, DataSetInstanceIndex);
+			if (DataOffsets.ApplyAsFloat)
+			{
+				ParameterStore.SetParameterByOffset(DataOffsets.ParameterOffset, DataSetPtr->GetFloat());
+			}
+			else
+			{
+				ParameterStore.SetParameterByOffset(DataOffsets.ParameterOffset, *DataSetPtr);
+			}
 		}
 
 #if NIAGARA_NAN_CHECKING
@@ -117,6 +158,21 @@ struct FNiagaraParameterStoreToDataSetBinding
 			int32* ParamPtr = (int32*)(ParameterData + DataOffsets.ParameterOffset);
 			int32* DataSetPtr = CurrBuffer.GetInstancePtrInt32(DataOffsets.DataSetComponentOffset, DataSetInstanceIndex);
 			*DataSetPtr = *ParamPtr;
+		}
+		for (const FHalfDataOffsets& DataOffsets : HalfOffsets)
+		{
+			FFloat16* DataSetPtr = CurrBuffer.GetInstancePtrHalf(DataOffsets.DataSetComponentOffset, DataSetInstanceIndex);
+
+			if (DataOffsets.ApplyAsFloat)
+			{
+				float* ParamPtr = (float*)(ParameterData + DataOffsets.ParameterOffset);
+				*DataSetPtr = *ParamPtr;
+			}
+			else
+			{
+				FFloat16* ParamPtr = (FFloat16*)(ParameterData + DataOffsets.ParameterOffset);
+				*DataSetPtr = *ParamPtr;
+			}
 		}
 
 #if NIAGARA_NAN_CHECKING
@@ -193,8 +249,6 @@ public:
 	/** Second phase of system sim tick that can run on any thread. */
 	void Tick_Concurrent(FNiagaraSystemSimulationTickContext& Context);
 
-	void TickFastPath(FNiagaraSystemSimulationTickContext& Context);
-
 	/** Update TickGroups for pending instances and execute tick group promotions. */
 	void UpdateTickGroups_GameThread();
 	/** Spawn any pending instances, assumes that you have update tick groups ahead of time. */
@@ -234,6 +288,7 @@ public:
 
 	void AddTickGroupPromotion(FNiagaraSystemInstance* Instance);
 
+	const FString& GetCrashReporterTag()const;
 protected:
 	/** Sets constant parameter values */
 	void SetupParameters_GameThread(float DeltaSeconds);
@@ -352,4 +407,6 @@ protected:
 
 	/** Current task that is executing */
 	FGraphEventRef SystemTickGraphEvent;
+
+	mutable FString CrashReporterTag;
 };

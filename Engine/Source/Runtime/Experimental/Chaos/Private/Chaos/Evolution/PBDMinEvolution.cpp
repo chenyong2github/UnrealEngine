@@ -170,6 +170,8 @@ namespace Chaos
 					// We could add the AABB at X/R here, but I'm avoiding another call to TransformedAABB. Hopefully this is good enough.
 					WorldSpaceBounds.GrowByVector(Particle.X() - Particle.P());
 
+					WorldSpaceBounds.ThickenSymmetrically(FVec3(CollisionDetector.GetBroadPhase().GetCullDistance()));
+
 					Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 				}
 			}

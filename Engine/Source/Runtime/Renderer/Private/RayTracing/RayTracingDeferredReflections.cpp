@@ -128,6 +128,11 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		if (!ShouldCompileRayTracingShadersForProject(Parameters.Platform))
+		{
+			return false;
+		}
+
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		if (PermutationVector.Get<FDeferredMaterialMode>() == EDeferredMaterialMode::None)
 		{

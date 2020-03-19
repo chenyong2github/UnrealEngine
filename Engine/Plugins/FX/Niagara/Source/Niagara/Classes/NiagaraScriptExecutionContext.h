@@ -149,18 +149,23 @@ struct FNiagaraScriptExecutionContext
 {
 	UNiagaraScript* Script;
 
-	/** Table of external function delegates called from the VM. */
-	TArray<FVMExternalFunction> FunctionTable;
+	/** Table of external function delegate handles called from the VM. */
+	TArray<const FVMExternalFunction*> FunctionTable;
 
+private:
+	/** Table of external function delegates unique to the instance */
+	TArray<FVMExternalFunction> LocalFunctionTable;
+
+public:
 	/** Table of instance data for data interfaces that require it. */
 	TArray<void*> DataInterfaceInstDataTable;
 
 	/** Parameter store. Contains all data interfaces and a parameter buffer that can be used directly by the VM or GPU. */
-	FNiagaraScriptExecutionParameterStore Parameters;
+	FNiagaraScriptInstanceParameterStore Parameters;
 
-	TArray<FDataSetMeta, TInlineAllocator<4>> DataSetMetaTable;
+	TArray<FDataSetMeta, TInlineAllocator<2>> DataSetMetaTable;
 
-	TArray<FNiagaraDataSetExecutionInfo, TInlineAllocator<4>> DataSetInfo;
+	TArray<FNiagaraDataSetExecutionInfo, TInlineAllocator<2>> DataSetInfo;
 
 	static uint32 TickCounter;
 
@@ -171,7 +176,7 @@ struct FNiagaraScriptExecutionContext
 
 	bool Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget);
 	
-	bool Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget = ENiagaraSimTarget::CPUSim);
+	bool Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget);
 	void PostTick();
 
 	void BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts);
@@ -183,15 +188,25 @@ struct FNiagaraScriptExecutionContext
 	void DirtyDataInterfaces();
 
 	bool CanExecute()const;
+
+	TArrayView<const uint8> GetScriptLiterals() const;
+};
+
+struct FNiagaraGpuSpawnInfoParams
+{
+	float IntervalDt;
+	float InterpStartDt;
+	int32 SpawnGroup;
+	int32 GroupSpawnStartIndex;
 };
 
 struct FNiagaraGpuSpawnInfo
 {
-	uint32		EventSpawnTotal = 0;
-	uint32		SpawnRateInstances = 0;
-	uint32		MaxParticleCount = 0;
-	FVector4	SpawnInfoStartOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
-	FVector4	SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
+	uint32 EventSpawnTotal = 0;
+	uint32 SpawnRateInstances = 0;
+	uint32 MaxParticleCount = 0;
+	int32 SpawnInfoStartOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS];
+	FNiagaraGpuSpawnInfoParams SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
 };
 
 struct FNiagaraComputeExecutionContext
@@ -247,7 +262,7 @@ public:
 
 	//Dynamic state updated either from GT via RT commands or from the RT side sim code itself.
 	//TArray<uint8, TAlignedHeapAllocator<16>> ParamData_RT;		// RT side copy of the parameter data
-	FNiagaraScriptExecutionParameterStore CombinedParamStore;
+	FNiagaraScriptInstanceParameterStore CombinedParamStore;
 #if DO_CHECK
 	TArray< FString >  DIClassNames;
 #endif
@@ -268,6 +283,8 @@ public:
 
 	/** Temp data used in NiagaraEmitterInstanceBatcher::ExecuteAll() to avoid creating a map per FNiagaraComputeExecutionContext */
 	mutable int32 ScratchIndex = INDEX_NONE;
+	mutable uint32 ScratchNumInstances = 0;
+	mutable uint32 ScratchMaxInstances = 0;
 
 	TArray < FSimulationStageMetaData> SimStageInfo;
 
@@ -279,11 +296,14 @@ public:
 #if WITH_EDITORONLY_DATA
 	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackFloat;
 	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackInt;
+	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackHalf;
 	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackCounts;
 	mutable uint32 GPUDebugDataFloatSize;
 	mutable uint32 GPUDebugDataIntSize;
+	mutable uint32 GPUDebugDataHalfSize;
 	mutable uint32 GPUDebugDataFloatStride;
 	mutable uint32 GPUDebugDataIntStride;
+	mutable uint32 GPUDebugDataHalfStride;
 	mutable uint32 GPUDebugDataCountOffset;
 	mutable TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo;
 #endif

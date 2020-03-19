@@ -150,14 +150,14 @@ void FConcertClientPackageBridge::HandlePackagePreSave(UPackage* Package)
 	FString PackageFilename;
 	if (FPackageName::TryConvertLongPackageNameToFilename(Package->GetFName().ToString(), PackageFilename, World ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension()))
 	{
-		FConcertPackage Event;
-		ConcertClientPackageBridgeUtil::FillPackageInfo(Package, EConcertPackageUpdateType::Saved, Event.Info);
-		Event.Info.bPreSave = true;
-		Event.Info.bAutoSave = GEngine->IsAutosaving();
-
-		if (FFileHelper::LoadFileToArray(Event.PackageData, *PackageFilename))
+		if (IFileManager::Get().FileExists(*PackageFilename))
 		{
-			OnLocalPackageEventDelegate.Broadcast(Event);
+			FConcertPackageInfo PackageInfo;
+			ConcertClientPackageBridgeUtil::FillPackageInfo(Package, EConcertPackageUpdateType::Saved, PackageInfo);
+			PackageInfo.bPreSave = true;
+			PackageInfo.bAutoSave = GEngine->IsAutosaving();
+		
+			OnLocalPackageEventDelegate.Broadcast(PackageInfo, PackageFilename);
 		}
 	}
 
@@ -191,15 +191,15 @@ void FConcertClientPackageBridge::HandlePackageSaved(const FString& PackageFilen
 	FName NewPackageName;
 	PackagesBeingRenamed.RemoveAndCopyValue(Package->GetFName(), NewPackageName);
 
-	FConcertPackage Event;
-	ConcertClientPackageBridgeUtil::FillPackageInfo(Package, NewPackageName.IsNone() ? EConcertPackageUpdateType::Saved : EConcertPackageUpdateType::Renamed, Event.Info);
-	Event.Info.NewPackageName = NewPackageName;
-	Event.Info.bPreSave = false;
-	Event.Info.bAutoSave = GEngine->IsAutosaving();
-
-	if (FFileHelper::LoadFileToArray(Event.PackageData, *PackageFilename))
+	if (IFileManager::Get().FileExists(*PackageFilename))
 	{
-		OnLocalPackageEventDelegate.Broadcast(Event);
+		FConcertPackageInfo PackageInfo;
+		ConcertClientPackageBridgeUtil::FillPackageInfo(Package, NewPackageName.IsNone() ? EConcertPackageUpdateType::Saved : EConcertPackageUpdateType::Renamed, PackageInfo);
+		PackageInfo.NewPackageName = NewPackageName;
+		PackageInfo.bPreSave = false;
+		PackageInfo.bAutoSave = GEngine->IsAutosaving();
+	
+		OnLocalPackageEventDelegate.Broadcast(PackageInfo, PackageFilename);
 	}
 
 	UE_LOG(LogConcert, Verbose, TEXT("Asset Saved: %s"), *Package->GetName());
@@ -233,15 +233,14 @@ void FConcertClientPackageBridge::HandleAssetAdded(UObject *Object)
 			// Saving the newly added asset here shouldn't modify any of its package flags since it's a 'dummy' save i.e. PKG_NewlyCreated
 			Package->SetPackageFlagsTo(PackageFlags);
 
-			FConcertPackage Event;
-			ConcertClientPackageBridgeUtil::FillPackageInfo(Package, EConcertPackageUpdateType::Added, Event.Info);
-
-			if (FFileHelper::LoadFileToArray(Event.PackageData, *PackageFilename))
+			if (IFileManager::Get().FileExists(*PackageFilename))
 			{
-				OnLocalPackageEventDelegate.Broadcast(Event);
-			}
+				FConcertPackageInfo PackageInfo;
+				ConcertClientPackageBridgeUtil::FillPackageInfo(Package, EConcertPackageUpdateType::Added, PackageInfo);
 
-			IFileManager::Get().Delete(*PackageFilename);
+				OnLocalPackageEventDelegate.Broadcast(PackageInfo, PackageFilename);
+				IFileManager::Get().Delete(*PackageFilename);
+			}
 		}
 	}
 
@@ -258,9 +257,9 @@ void FConcertClientPackageBridge::HandleAssetDeleted(UObject *Object)
 
 	UPackage* Package = Object->GetOutermost();
 
-	FConcertPackage Event;
-	ConcertClientPackageBridgeUtil::FillPackageInfo(Package, EConcertPackageUpdateType::Deleted, Event.Info);
-	OnLocalPackageEventDelegate.Broadcast(Event);
+	FConcertPackageInfo PackageInfo;
+	ConcertClientPackageBridgeUtil::FillPackageInfo(Package, EConcertPackageUpdateType::Deleted, PackageInfo);
+	OnLocalPackageEventDelegate.Broadcast(PackageInfo, FString());
 
 	UE_LOG(LogConcert, Verbose, TEXT("Asset Deleted: %s"), *Package->GetName());
 }

@@ -104,7 +104,7 @@ void UAnimGraphNode_CustomProperty::GetInstancePinProperty(const UClass* InOwner
 	// The actual name of the instance property
 	FString FullName = GetPinTargetVariableName(InInputPin);
 
-	if(FProperty* Property = FindField<FProperty>(InOwnerInstanceClass, *FullName))
+	if(FProperty* Property = FindFProperty<FProperty>(InOwnerInstanceClass, *FullName))
 	{
 		OutProperty = Property;
 	}
@@ -305,7 +305,7 @@ UClass* UAnimGraphNode_CustomProperty::GetTargetClass() const
 UClass* UAnimGraphNode_CustomProperty::GetTargetSkeletonClass() const
 {
 	UClass* TargetClass = GetTargetClass();
-	if(TargetClass)
+	if(TargetClass && TargetClass->ClassGeneratedBy)
 	{
 		UBlueprint* Blueprint = CastChecked<UBlueprint>(TargetClass->ClassGeneratedBy);
 		if(Blueprint)

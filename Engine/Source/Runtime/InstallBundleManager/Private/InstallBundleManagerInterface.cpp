@@ -9,6 +9,8 @@ FInstallBundleCompleteMultiDelegate IInstallBundleManager::RemoveBundleCompleteD
 
 FInstallBundlePausedMultiDelegate IInstallBundleManager::PausedBundleDelegate;
 
+FInstallBundleManagerOnPatchCheckComplete IInstallBundleManager::PatchCheckCompleteDelegate;
+
 IInstallBundleManager* IInstallBundleManager::GetPlatformInstallBundleManager()
 {
 	static IInstallBundleManager* Manager = nullptr;
@@ -25,7 +27,6 @@ IInstallBundleManager* IInstallBundleManager::GetPlatformInstallBundleManager()
 
 		if (FModuleManager::Get().ModuleExists(*ModuleName))
 		{
-			FModuleStatus Status;
 			Module = FModuleManager::LoadModulePtr<IInstallBundleManagerModule>(*ModuleName);
 			if (Module)
 			{
@@ -77,5 +78,10 @@ void IInstallBundleManager::ResumeUpdateContent(FName BundleName)
 void IInstallBundleManager::UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags)
 {
 	UpdateContentRequestFlags(MakeArrayView(&BundleName, 1), AddFlags, RemoveFlags);
+}
+
+void IInstallBundleManager::StartPatchCheck()
+{
+	PatchCheckCompleteDelegate.Broadcast(EInstallBundleManagerPatchCheckResult::NoPatchRequired);
 }
 

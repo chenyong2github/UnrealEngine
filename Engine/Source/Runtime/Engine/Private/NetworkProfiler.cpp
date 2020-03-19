@@ -17,6 +17,8 @@
 
 #if USE_NETWORK_PROFILER
 
+CSV_DEFINE_CATEGORY(NetworkProfiler, true);
+
 #define SCOPE_LOCK_REF(X) FScopeLock ScopeLock(&X);
 
 struct FNetworkProfilerCVarHelper

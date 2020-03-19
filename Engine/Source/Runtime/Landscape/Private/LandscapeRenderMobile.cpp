@@ -194,6 +194,11 @@ bool FLandscapeFixedGridVertexFactoryMobile::ShouldCompilePermutation(const FVer
 		(Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
+void FLandscapeVertexBufferMobile::UpdateMemoryStat(int32 Delta)
+{
+	INC_DWORD_STAT_BY(STAT_LandscapeVertexMem, Delta);
+}
+
 /**
 * Initialize the RHI for this rendering resource
 */
@@ -252,91 +257,81 @@ void SerializeLandscapeMobileHoleData(FMemoryArchive& Ar, FLandscapeMobileHoleDa
 	}
 }
 
-/**
- * Container for FLandscapeVertexBufferMobile that we can reference from a thread-safe shared pointer
- * while ensuring the vertex buffer is always destroyed on the render thread.
- **/
-struct FLandscapeMobileRenderData
+FLandscapeMobileRenderData::FLandscapeMobileRenderData(const TArray<uint8>& InPlatformData, uint8 InCurFirstLODIdx)
+	: CurrentFirstLODIdx(InCurFirstLODIdx)
 {
-	FLandscapeVertexBufferMobile* VertexBuffer = nullptr;
-	FLandscapeMobileHoleData* HoleData = nullptr;
-	FOccluderVertexArraySP OccluderVerticesSP;
+	FMemoryReader MemAr(InPlatformData);
 
-	FLandscapeMobileRenderData(const TArray<uint8>& InPlatformData)
+	int32 NumHoleLods;
+	MemAr << NumHoleLods;
+	if (NumHoleLods > 0)
 	{
-		FMemoryReader MemAr(InPlatformData);
+		HoleData = new FLandscapeMobileHoleData;
+		HoleData->NumHoleLods = NumHoleLods;
 
-		int32 NumHoleLods;
-		MemAr << NumHoleLods;
-		if (NumHoleLods > 0)
+		bool b16BitIndices;
+		MemAr << b16BitIndices;
+		if (b16BitIndices)
 		{
-			HoleData = new FLandscapeMobileHoleData;
-			HoleData->NumHoleLods = NumHoleLods;
-
-			bool b16BitIndices;
-			MemAr << b16BitIndices;
-			if (b16BitIndices)
-			{
-				SerializeLandscapeMobileHoleData<uint16>(MemAr, *HoleData);
-			}
-			else
-			{
-				SerializeLandscapeMobileHoleData<uint32>(MemAr, *HoleData);
-			}
+			SerializeLandscapeMobileHoleData<uint16>(MemAr, *HoleData);
 		}
-
+		else
 		{
-			int32 VertexCount;
-			MemAr << VertexCount;
-			TArray<uint8> VertexData;
-			VertexData.SetNumUninitialized(VertexCount*sizeof(FLandscapeMobileVertex));
-			MemAr.Serialize(VertexData.GetData(), VertexData.Num());
-			VertexBuffer = new FLandscapeVertexBufferMobile(MoveTemp(VertexData));
-		}
-		
-		{
-			int32 NumOccluderVertices;
-			MemAr << NumOccluderVertices;
-			if (NumOccluderVertices > 0)
-			{
-				OccluderVerticesSP = MakeShared<FOccluderVertexArray, ESPMode::ThreadSafe>();
-				OccluderVerticesSP->SetNumUninitialized(NumOccluderVertices);
-				MemAr.Serialize(OccluderVerticesSP->GetData(), NumOccluderVertices * sizeof(FVector));
-
-				INC_DWORD_STAT_BY(STAT_LandscapeOccluderMem, OccluderVerticesSP->GetAllocatedSize());
-			}
+			SerializeLandscapeMobileHoleData<uint32>(MemAr, *HoleData);
 		}
 	}
 
-	~FLandscapeMobileRenderData()
 	{
-		// Make sure the vertex buffer is always destroyed from the render thread 
-		if (VertexBuffer != nullptr)
-		{
-			if (IsInRenderingThread())
-			{
-				delete VertexBuffer;
-				delete HoleData;
-			}
-			else
-			{
-				FLandscapeVertexBufferMobile* InVertexBuffer = VertexBuffer;
-				FLandscapeMobileHoleData* InHoleData = HoleData;
-				ENQUEUE_RENDER_COMMAND(InitCommand)(
-					[InVertexBuffer, InHoleData](FRHICommandListImmediate& RHICmdList)
-				{
-					delete InVertexBuffer;
-					delete InHoleData;
-				});
-			}
-		}
+		int32 VertexCount;
+		MemAr << VertexCount;
+		TArray<uint8> VertexData;
+		VertexData.SetNumUninitialized(VertexCount * sizeof(FLandscapeMobileVertex));
+		MemAr.Serialize(VertexData.GetData(), VertexData.Num());
+		VertexBuffer = new FLandscapeVertexBufferMobile(MoveTemp(VertexData));
+	}
 
-		if (OccluderVerticesSP.IsValid())
+	{
+		int32 NumOccluderVertices;
+		MemAr << NumOccluderVertices;
+		if (NumOccluderVertices > 0)
 		{
-			DEC_DWORD_STAT_BY(STAT_LandscapeOccluderMem, OccluderVerticesSP->GetAllocatedSize());
+			OccluderVerticesSP = MakeShared<FOccluderVertexArray, ESPMode::ThreadSafe>();
+			OccluderVerticesSP->SetNumUninitialized(NumOccluderVertices);
+			MemAr.Serialize(OccluderVerticesSP->GetData(), NumOccluderVertices * sizeof(FVector));
+
+			INC_DWORD_STAT_BY(STAT_LandscapeOccluderMem, OccluderVerticesSP->GetAllocatedSize());
 		}
 	}
-};
+}
+
+FLandscapeMobileRenderData::~FLandscapeMobileRenderData()
+{
+	// Make sure the vertex buffer is always destroyed from the render thread 
+	if (VertexBuffer != nullptr)
+	{
+		if (IsInRenderingThread())
+		{
+			delete VertexBuffer;
+			delete HoleData;
+		}
+		else
+		{
+			FLandscapeVertexBufferMobile* InVertexBuffer = VertexBuffer;
+			FLandscapeMobileHoleData* InHoleData = HoleData;
+			ENQUEUE_RENDER_COMMAND(InitCommand)(
+				[InVertexBuffer, InHoleData](FRHICommandListImmediate& RHICmdList)
+			{
+				delete InVertexBuffer;
+				delete InHoleData;
+			});
+		}
+	}
+
+	if (OccluderVerticesSP.IsValid())
+	{
+		DEC_DWORD_STAT_BY(STAT_LandscapeOccluderMem, OccluderVerticesSP->GetAllocatedSize());
+	}
+}
 
 FLandscapeComponentSceneProxyMobile::FLandscapeComponentSceneProxyMobile(ULandscapeComponent* InComponent)
 	: FLandscapeComponentSceneProxy(InComponent)
@@ -463,6 +458,21 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 			1.f / (float)((SubsectionSizeVerts >> LodIndex) - 1));
 		LandscapeFixedGridUniformShaderParameters[LodIndex].SetContents(Parameters);
 	}
+
+	if (GetLandscapeComponent())
+	{
+		const_cast<ULandscapeComponent*>(GetLandscapeComponent())->SetReadyForLODStreaming(true);
+	}
+}
+
+void FLandscapeComponentSceneProxyMobile::DestroyRenderThreadResources()
+{
+	if (GetLandscapeComponent())
+	{
+		const_cast<ULandscapeComponent*>(GetLandscapeComponent())->SetReadyForLODStreaming(false);
+	}
+
+	FLandscapeComponentSceneProxy::DestroyRenderThreadResources();
 }
 
 TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> FLandscapeComponentDerivedData::GetRenderData()
@@ -478,6 +488,7 @@ TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> FLandscapeComponentD
 	else
 	{
 		check(CompressedLandscapeData.Num() > 0);
+		CachedRenderData.Reset();
 
 		FMemoryReader Ar(CompressedLandscapeData);
 
@@ -499,19 +510,30 @@ TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> FLandscapeComponentD
 
 		verify(FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedSize, CompressedData.GetData(), CompressedSize));
 
-		TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> RenderData = MakeShareable(new FLandscapeMobileRenderData(MoveTemp(UncompressedData)));
+		TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> RenderData = MakeShareable(new FLandscapeMobileRenderData(MoveTemp(UncompressedData), (uint8)StreamingLODDataArray.Num()));
 
 		// if running on device		
 		if (FPlatformProperties::RequiresCookedData())
 		{
 			// free the compressed data now that we have used it to create the render data.
 			CompressedLandscapeData.Empty();
-			// store a reference to the render data so we can use it again should the component be reregistered.
-			CachedRenderData = RenderData;
 		}
+
+		// store a reference to the render data so we can use it again should the component be reregistered.
+		CachedRenderData = RenderData;
 
 		return RenderData;
 	}
+}
+
+int32 ULandscapeLODStreamingProxy::GetNumResidentMips() const
+{
+	check(LandscapeComponent);
+	const int32 NumLODs = GetNumMipsForStreaming();
+	const int32 NumMissingLODs = LandscapeComponent->PlatformData.CachedRenderData.IsValid() ?
+		LandscapeComponent->PlatformData.CachedRenderData->CurrentFirstLODIdx :
+		LandscapeComponent->PlatformData.StreamingLODDataArray.Num();
+	return NumLODs - NumMissingLODs;
 }
 
 void FLandscapeComponentSceneProxyMobile::ApplyMeshElementModifier(FMeshBatchElement& InOutMeshElement, int32 InLodIndex) const
@@ -527,3 +549,11 @@ void FLandscapeComponentSceneProxyMobile::ApplyMeshElementModifier(FMeshBatchEle
 		InOutMeshElement.MaxVertexIndex = HoleData.MaxHoleIndex;
 	}
 }
+
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
+uint8 FLandscapeComponentSceneProxyMobile::GetCurrentFirstLODIdx_RenderThread() const
+{
+	check(MobileRenderData.IsValid());
+	return MobileRenderData->CurrentFirstLODIdx;
+}
+#endif

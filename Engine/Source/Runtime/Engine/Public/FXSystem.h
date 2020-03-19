@@ -134,6 +134,11 @@ public:
 	ENGINE_API static void Destroy(FFXSystemInterface* FXSystem);
 
 	/**
+	 * Queue Destroy the gpu simulation on the render thread
+	 */
+	ENGINE_API static void QueueDestroyGPUSimulation(FFXSystemInterface* FXSystem);
+
+	/**
 	 * Register a custom FX system implementation.
 	 */
 	ENGINE_API static void RegisterCustomFXSystem(const FName& InterfaceName, const FCreateCustomFXSystemDelegate& InCreateDelegate);
@@ -152,6 +157,11 @@ public:
 	 * Gamethread callback when destroy gets called, allows to clean up references.
 	 */
 	ENGINE_API virtual void OnDestroy() { bIsPendingKill = true; }
+
+	/**
+	 * Gamethread callback when destroy gets called, allows to clean up references.
+	 */
+	ENGINE_API virtual void DestroyGPUSimulation() { }
 
 
 	/**

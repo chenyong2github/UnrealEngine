@@ -744,7 +744,7 @@ namespace AnimationEditorUtils
 
 					// Clear CompressCommandletVersion so we can recompress these animations later.
 					AnimSeq->CompressCommandletVersion = 0;
-					AnimSeq->RequestAnimCompression(FRequestAnimCompressionParams(false, CompressContext));
+					AnimSeq->RequestAnimCompression(FRequestAnimCompressionParams(true, CompressContext));
 					++CompressContext->AnimIndex;
 				}
 			}

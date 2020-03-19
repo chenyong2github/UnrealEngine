@@ -64,6 +64,7 @@ private:
 
 	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFloat)
 	LAYOUT_FIELD(FShaderParameter, FloatDataStride)
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataHalf)
 	LAYOUT_FIELD(FShaderResourceParameter, GPUParticleCountBuffer)
 	LAYOUT_FIELD(FShaderParameter, ParticleCountParams)
 	LAYOUT_FIELD(FShaderParameter, SortParams)
@@ -76,4 +77,3 @@ private:
 	/** Output indices buffer. */
 	LAYOUT_FIELD(FShaderResourceParameter, OutParticleIndices)
 };
-

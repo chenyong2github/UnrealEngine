@@ -10,18 +10,21 @@
 
 enum class EWidgetBlueprintIndexerVersion
 {
-	Empty = 0,
-	Initial = 1,
+	Empty,
+	Initial,
+	FixLabels,
 
-	Current = Initial,
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
 int32 FWidgetBlueprintIndexer::GetVersion() const
 {
-	return (int32)EWidgetBlueprintIndexerVersion::Current;
+	return (int32)EWidgetBlueprintIndexerVersion::LatestVersion;
 }
 
-void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer)
+void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
 	const UWidgetBlueprint* BP = Cast<UWidgetBlueprint>(InAssetObject);
 	check(BP);
@@ -30,8 +33,14 @@ void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSe
 
 	for (const UWidget* Widget : AllWidgets)
 	{
-		Serializer.BeginIndexingObject(Widget, Widget->GetDisplayLabel());
-		Serializer.IndexProperty(TEXT("Name"), Widget->GetDisplayLabel());
+		FString Label = Widget->GetDisplayLabel();
+		if (Label.IsEmpty())
+		{
+			Label = Widget->GetName();
+		}
+
+		Serializer.BeginIndexingObject(Widget, Label);
+		Serializer.IndexProperty(TEXT("Name"), Label);
 
 		FIndexerUtilities::IterateIndexableProperties(Widget, [&Serializer](const FProperty* Property, const FString& Value) {
 			Serializer.IndexProperty(Property, Value);

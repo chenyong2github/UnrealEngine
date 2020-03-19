@@ -109,6 +109,8 @@ struct FMaterialCachedParameters
 	GENERATED_USTRUCT_BODY()
 
 	inline int32 GetNumParameters(EMaterialParameterType Type) const { return Entries[(int32)Type].ParameterInfos.Num(); }
+	inline const FName& GetParameterName(EMaterialParameterType Type, int32 Index) const { return Entries[(int32)Type].ParameterInfos[Index].Name; }
+
 	int32 FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo, bool bOveriddenOnly) const;
 	int32 FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo) const;
 	bool IsParameterValid(EMaterialParameterType Type, int32 Index, bool bOveriddenOnly) const;
@@ -161,8 +163,10 @@ struct FMaterialCachedParameters
 
 struct FMaterialCachedExpressionContext
 {
-	explicit FMaterialCachedExpressionContext(UMaterialInterface* InParent = nullptr) : Parent(InParent) {}
+	explicit FMaterialCachedExpressionContext(UMaterialInterface* InParent = nullptr) : Parent(InParent), bUpdateFunctionExpressions(true) {}
+
 	UMaterialInterface* Parent;
+	bool bUpdateFunctionExpressions;
 };
 
 USTRUCT()

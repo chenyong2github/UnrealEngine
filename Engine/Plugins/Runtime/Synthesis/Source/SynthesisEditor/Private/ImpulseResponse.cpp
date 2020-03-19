@@ -40,6 +40,8 @@ UObject* UImpulseResponseFactory::FactoryCreateNew(UClass* Class, UObject* InPar
 	{
 		USoundWave* Wave = StagedSoundWave.Get();
 
+		constexpr bool bForceSynchronousLoad = true;
+
 		Loader.LoadSoundWave(Wave, [&](const USoundWave* SoundWave, const Audio::FSampleBuffer& LoadedSampleBuffer)
 		{
 			NewAsset->NumChannels = LoadedSampleBuffer.GetNumChannels();
@@ -65,7 +67,9 @@ UObject* UImpulseResponseFactory::FactoryCreateNew(UClass* Class, UObject* InPar
 				const int32 CurrOutputIndex = CurrChannel * NumFrames + CurrFrame;
 				OutputBuffer[CurrOutputIndex] = CurrSample;
 			}
-		});
+		}, bForceSynchronousLoad);
+
+		Loader.Update();
 
 		StagedSoundWave.Reset();
 	}

@@ -51,15 +51,21 @@ void UNiagaraStackErrorItem::RefreshChildrenInternal(const TArray<UNiagaraStackE
 			FixChild->OnIssueFixed().RemoveAll(this);
 		}
 	}
-	// long description
-	UNiagaraStackErrorItemLongDescription* ErrorEntryLongDescription = FindCurrentChildOfTypeByPredicate<UNiagaraStackErrorItemLongDescription>(CurrentChildren,
-		[&](UNiagaraStackErrorItemLongDescription* CurrentChild) { return true; });
-	if (ErrorEntryLongDescription == nullptr)
+	
+	if (!StackIssue.GetLongDescription().IsEmptyOrWhitespace())
 	{
-		ErrorEntryLongDescription = NewObject<UNiagaraStackErrorItemLongDescription>(this);
-		ErrorEntryLongDescription->Initialize(CreateDefaultChildRequiredData(), StackIssue, GetStackEditorDataKey());
+		// long description
+		UNiagaraStackErrorItemLongDescription* ErrorEntryLongDescription = FindCurrentChildOfTypeByPredicate<UNiagaraStackErrorItemLongDescription>(CurrentChildren,
+			[&](UNiagaraStackErrorItemLongDescription* CurrentChild) { return true; });
+		if (ErrorEntryLongDescription == nullptr)
+		{
+			ErrorEntryLongDescription = NewObject<UNiagaraStackErrorItemLongDescription>(this);
+			ErrorEntryLongDescription->Initialize(CreateDefaultChildRequiredData(), StackIssue, GetStackEditorDataKey());
+		}
+
+
+		NewChildren.Add(ErrorEntryLongDescription);
 	}
-	NewChildren.Add(ErrorEntryLongDescription);
 
 	// fixes
 	for (int i = 0; i < StackIssue.GetFixes().Num(); i++)

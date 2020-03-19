@@ -11,6 +11,7 @@
 
 class UNiagaraNodeInput;
 class UNiagaraNodeOutput;
+class UNiagaraNodeFunctionCall;
 struct FNiagaraVariable;
 struct FNiagaraTypeDefinition;
 class UNiagaraGraph;
@@ -242,6 +243,7 @@ namespace FNiagaraEditorUtilities
 	void CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
 
 	NIAGARAEDITOR_API void WarnWithToastAndLog(FText WarningMessage);
+	NIAGARAEDITOR_API void InfoWithToastAndLog(FText WarningMessage);
 
 	void GetScriptRunAndExecutionIndexFromUsage(const ENiagaraScriptUsage& InUsage, int32& OutRunIndex, int32&OutExecutionIndex);
 
@@ -277,10 +279,16 @@ namespace FNiagaraEditorUtilities
 
 	FName GetScopeNameForParameterScope(ENiagaraParameterScope InScope);
 
+	bool IsScopeEditable(const FName& InScopeName);
+	bool IsScopeUserAssignable(const FName& InScopeName);
+
 	TArray<FName> DecomposeVariableNamespace(const FName& InVarNameToken, FName& OutName);
+
+	void  RecomposeVariableNamespace(const FName& InVarNameToken, const TArray<FName>& InParentNamespaces, FName& OutName);
 
 	void GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData);
 
 	FString GetNamespacelessVariableNameString(const FName& InVarName);
 
+	void GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes);
 };

@@ -10,6 +10,7 @@
 #include "Stats/Stats.h"
 #include "RHIDefinitions.h"
 #include "Containers/StaticArray.h"
+#include "Containers/StringFwd.h"
 
 #ifndef RHI_COMMAND_LIST_DEBUG_TRACES
 #define RHI_COMMAND_LIST_DEBUG_TRACES 0
@@ -19,7 +20,6 @@ template <typename T> class TArrayView;
 
 class FResourceArrayInterface;
 class FResourceBulkDataInterface;
-class FStringView;
 
 /** Alignment of the shader parameters struct is required to be 16-byte boundaries. */
 #define SHADER_PARAMETER_STRUCT_ALIGNMENT 16
@@ -420,9 +420,16 @@ extern RHI_API TRHIGlobal<int32> GMaxShadowDepthBufferSizeY;
 /** The maximum size allowed for 2D textures in both dimensions. */
 extern RHI_API TRHIGlobal<int32> GMaxTextureDimensions;
 
+/** The maximum size allowed for 2D textures in both dimensions. */
+extern RHI_API TRHIGlobal<int64> GMaxBufferDimensions;
+
 /** The maximum size allowed for 3D textures in all three dimensions. */
 extern RHI_API TRHIGlobal<int32> GMaxVolumeTextureDimensions;
 
+FORCEINLINE uint64 GetMaxBufferDimension()
+{
+	return GMaxBufferDimensions;
+}
 
 FORCEINLINE uint32 GetMax2DTextureDimension()
 {
@@ -485,8 +492,7 @@ extern RHI_API volatile int32 GCurrentTextureMemorySize;
 extern RHI_API volatile int32 GCurrentRendertargetMemorySize;
 /** Current texture streaming pool size, in bytes. 0 means unlimited. */
 extern RHI_API int64 GTexturePoolSize;
-/** Maximum texture buffer size. Relevant for OpenGL. 0 means we do not take it into account*/
-extern RHI_API int64 GMaxTextureBufferSize;
+
 /** In percent. If non-zero, the texture pool size is a percentage of GTotalGraphicsMemory. */
 extern RHI_API int32 GPoolSizeVRAMPercentage;
 

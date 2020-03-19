@@ -609,7 +609,7 @@ protected:
 	virtual int32 VirtualTextureUniform(int32 TextureIndex, int32 VectorIndex) override;
 	virtual int32 VirtualTextureUniform(FName ParameterName, int32 TextureIndex, int32 VectorIndex) override;
 	virtual int32 VirtualTextureWorldToUV(int32 WorldPositionIndex, int32 P0, int32 P1, int32 P2) override;
-	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, int32 CodeIndex2, EVirtualTextureUnpackType UnpackType) override;
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, int32 CodeIndex2, int32 P0, EVirtualTextureUnpackType UnpackType) override;
 
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) override;
 	virtual int32 ExternalTexture(UTexture* InTexture, int32& TextureReferenceIndex) override;

@@ -14,6 +14,9 @@
 #include "SNiagaraParameterPanelPaletteItem.h"
 #include "SNiagaraGraphActionWidget.h"
 #include "NiagaraScriptVariable.h"
+#include "Editor/GraphEditor/Private/GraphActionNode.h"
+#include "NiagaraConstants.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanel"
 
@@ -33,10 +36,14 @@ void FNiagaraParameterPanelCommands::RegisterCommands()
 
 void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPtr<INiagaraParameterPanelViewModel>& InParameterPanelViewModel, const TSharedPtr<FUICommandList>& InToolkitCommands)
 {
+	bNeedsRefresh = false;
+	bGraphActionPendingRename = false;
+
 	ParameterPanelViewModel = InParameterPanelViewModel;
 	ToolkitCommands = InToolkitCommands;
 
 	ParameterPanelViewModel->GetOnRefreshed().BindRaw(this, &SNiagaraParameterPanel::Refresh);
+	ParameterPanelViewModel->GetExternalSelectionChanged().AddRaw(this, &SNiagaraParameterPanel::HandleExternalSelectionChanged);
 
 	AddParameterButtons.SetNum(NiagaraParameterPanelSectionID::CUSTOM + 1); //@Todo(ng) verify
 
@@ -58,8 +65,8 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
  		.OnActionDragged(this, &SNiagaraParameterPanel::OnActionDragged)
 		.OnActionSelected(this, &SNiagaraParameterPanel::OnActionSelected)
 // 		.OnActionDoubleClicked(this, &SNiagaraParameterMapView::OnActionDoubleClicked) //@todo(ng) impl
-// 		.OnContextMenuOpening(this, &SNiagaraParameterMapView::OnContextMenuOpening)
-// 		.OnCanRenameSelectedAction(this, &SNiagaraParameterMapView::CanRequestRenameOnActionNode)
+		.OnContextMenuOpening(this, &SNiagaraParameterPanel::OnContextMenuOpening)
+		.OnCanRenameSelectedAction(this, &SNiagaraParameterPanel::CanRequestRenameOnActionNode)
  		.OnGetSectionTitle(this, &SNiagaraParameterPanel::OnGetSectionTitle)
  		.OnGetSectionWidget(this, &SNiagaraParameterPanel::OnGetSectionWidget)
  		.OnCreateCustomRowExpander_Static(&SNiagaraParameterPanel::CreateCustomActionExpander)
@@ -91,19 +98,45 @@ void SNiagaraParameterPanel::Tick(const FGeometry& AllottedGeometry, const doubl
 		GraphActionMenu->RefreshAllActions(true);
 		bNeedsRefresh = false;
 	}
+
+	if (bGraphActionPendingRename)
+	{
+		if (GraphActionMenu->CanRequestRenameOnActionNode())
+		{
+			GraphActionMenu->OnRequestRenameOnActionNode();
+			bGraphActionPendingRename = false;
+		}
+	}
+}
+
+void SNiagaraParameterPanel::HandleExternalSelectionChanged(const UObject* Obj)
+{
+	if (Obj && Obj->IsA< UNiagaraScriptVariable>())
+	{
+		const UNiagaraScriptVariable* Var = Cast< UNiagaraScriptVariable>(Obj);
+		if (Var)
+		{
+			GraphActionMenu->SelectItemByName(Var->Variable.GetName());
+		}
+	}
 }
 
 void SNiagaraParameterPanel::AddParameter(FNiagaraVariable NewVariable, const NiagaraParameterPanelSectionID::Type SectionID)
 {
-	FNiagaraVariableMetaData NewVariableMetaData = FNiagaraVariableMetaData();
-	NewVariableMetaData.SetScopeName(FNiagaraEditorUtilities::GetScopeNameForParameterScope(NiagaraParameterPanelSectionID::GetScopeForNewParametersInSection(SectionID)));
-	NewVariableMetaData.SetUsage(NiagaraParameterPanelSectionID::GetUsageForNewParametersInSection(SectionID));
 
-	ParameterPanelViewModel->AddParameter(NewVariable, NewVariableMetaData);
+	FNiagaraVariableMetaData GuessedMetaData;
+	FNiagaraEditorUtilities::GetParameterMetaDataFromName(NewVariable.GetName(), GuessedMetaData);
+	const UNiagaraScriptVariable* NewScriptVar = ParameterPanelViewModel->AddParameter(NewVariable, GuessedMetaData);
+	
+	if (NewScriptVar != nullptr)
+	{
+		GraphActionMenu->RefreshAllActions(true);
+		GraphActionMenu->SelectItemByName(NewScriptVar->Variable.GetName());
 
-	GraphActionMenu->RefreshAllActions(true);
-	GraphActionMenu->SelectItemByName(NewVariable.GetName());
-	GraphActionMenu->OnRequestRenameOnActionNode();
+		// Delay calling the rename delegate one tick as the widget to which it is bound is not yet constructed.
+		if (FNiagaraConstants::IsNiagaraConstant(NewVariable) == false)
+			bGraphActionPendingRename = true;
+	}
 }
 
 bool SNiagaraParameterPanel::AllowMakeType(const FNiagaraTypeDefinition& InType) const
@@ -143,13 +176,23 @@ void SNiagaraParameterPanel::CollectAllActions(FGraphActionListBuilderBase& OutA
 
 	TArray<FNiagaraScriptVariableAndViewInfo> VarAndViewInfos = ParameterPanelViewModel->GetViewedParameters();
 	VarAndViewInfos.Sort(SortParameterPanelEntries);
+	//UE_LOG(LogNiagaraEditor, Log, TEXT("Adding Vars--------------------------------------------------"));
+	TArray<FNiagaraVariable> AddedVars;
 	for (const FNiagaraScriptVariableAndViewInfo& VarAndViewInfo : VarAndViewInfos)
 	{
-		const FText Name = FText::FromName(VarAndViewInfo.ScriptVariable.GetName());
-		const FText Tooltip = FText::Format(TooltipFormat, FText::FromName(VarAndViewInfo.ScriptVariable.GetName()), VarAndViewInfo.ScriptVariable.GetType().GetNameText());
-		const NiagaraParameterPanelSectionID::Type Section = ParameterPanelViewModel->GetSectionForVarAndViewInfo(VarAndViewInfo);
-		TSharedPtr<FNiagaraScriptVarAndViewInfoAction> ScriptVarAndViewInfoAction(new FNiagaraScriptVarAndViewInfoAction(VarAndViewInfo, FText::GetEmpty(), Name, Tooltip, 0, FText(), Section /*= 0*/));
-		OutAllActions.AddAction(ScriptVarAndViewInfoAction);
+		int32 FoundVarIndex = AddedVars.Find(VarAndViewInfo.ScriptVariable);
+		if (FoundVarIndex < 0)
+		{
+			const FText Name = FText::FromName(VarAndViewInfo.ScriptVariable.GetName());
+			const FText Tooltip = FText::Format(TooltipFormat, FText::FromName(VarAndViewInfo.ScriptVariable.GetName()), VarAndViewInfo.ScriptVariable.GetType().GetNameText());
+			const NiagaraParameterPanelSectionID::Type Section = ParameterPanelViewModel->GetSectionForVarAndViewInfo(VarAndViewInfo);
+			TSharedPtr<FNiagaraScriptVarAndViewInfoAction> ScriptVarAndViewInfoAction(new FNiagaraScriptVarAndViewInfoAction(VarAndViewInfo, FText::GetEmpty(), Name, Tooltip, 0, FText(), Section /*= 0*/));
+			OutAllActions.AddAction(ScriptVarAndViewInfoAction);
+			AddedVars.Add(VarAndViewInfo.ScriptVariable);
+
+			//UE_LOG(LogNiagaraEditor, Log, TEXT("%s"), *Name.ToString());
+		}
+
 	}
 }
  
@@ -173,6 +216,59 @@ void SNiagaraParameterPanel::OnActionSelected(const TArray< TSharedPtr<FEdGraphS
 	{
 		ParameterPanelViewModel->HandleActionSelected(InActions[0], InSelectionType);
 	}
+}
+
+TSharedPtr<SWidget> SNiagaraParameterPanel::OnContextMenuOpening()
+{
+	// Get the current selected action
+	TArray<TSharedPtr<FEdGraphSchemaAction> > SelectedActions;
+	GraphActionMenu->GetSelectedActions(SelectedActions);
+	ensureMsgf(SelectedActions.Num() == 1 || SelectedActions.Num() == 0, TEXT("Unexpected number of selected actions encountered when getting current selected action for parameter panel!"));
+	if (SelectedActions.Num() == 1 && SelectedActions[0].IsValid())
+	{
+		TSharedPtr<FNiagaraScriptVarAndViewInfoAction> CurrentAction = StaticCastSharedPtr<FNiagaraScriptVarAndViewInfoAction>(SelectedActions[0]);
+		if (ensureMsgf(CurrentAction.Get(), TEXT("Action pointer was null when getting selected action for parameter panel!")))
+		{
+			const bool bShouldCloseWindowAfterMenuSelection = true;
+			FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ToolkitCommands);
+			MenuBuilder.BeginSection("BasicOperations");
+
+			const FNiagaraVariable& CurrentParameter = CurrentAction->ScriptVariableAndViewInfo.ScriptVariable;
+			const FNiagaraVariableMetaData& CurrentParameterMetaData = CurrentAction->ScriptVariableAndViewInfo.MetaData;
+
+			FText CanRenameParameterToolTip;
+			bool bCanRequestRenameParameter = ParameterPanelViewModel->GetCanRenameParameterAndToolTip(CurrentParameter, CurrentParameterMetaData, TOptional<const FText>(), CanRenameParameterToolTip);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ParameterPanelRenameParameterContextMenu", "Rename Parameter"),
+				CanRenameParameterToolTip,
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this]()
+						{
+							OnRequestRenameOnActionNode();
+						}),
+					FCanExecuteAction::CreateLambda([bCanRequestRenameParameter]() {return bCanRequestRenameParameter; }))
+			);
+
+			FText CanDeleteParameterToolTip;
+			bool bCanDeleteParameter = ParameterPanelViewModel->GetCanDeleteParameterAndToolTip(CurrentParameter, CurrentParameterMetaData, CanDeleteParameterToolTip);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ParameterPanelDeleteParameterContextMenu", "Delete Parameter"),
+				CanDeleteParameterToolTip,
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this, CurrentParameter, CurrentParameterMetaData]()
+						{
+							ParameterPanelViewModel->DeleteParameter(CurrentParameter, CurrentParameterMetaData);
+						}),
+					FCanExecuteAction::CreateLambda([bCanDeleteParameter]() {return bCanDeleteParameter; }))
+			);
+
+			MenuBuilder.EndSection();
+			return MenuBuilder.MakeWidget();
+		}
+	}
+	return SNullWidget::NullWidget;
 }
 
 FText SNiagaraParameterPanel::OnGetSectionTitle(int32 InSectionID)
@@ -212,17 +308,6 @@ TSharedRef<SWidget> SNiagaraParameterPanel::CreateAddToSectionButton(const Niaga
 			.Image(FEditorStyle::GetBrush("Plus"))
 		]
 
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(FMargin(2, 0, 0, 0))
-		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFontBold())
-			.Text(AddNewText)
-			//.Visibility(this, &SNiagaraParameterMapView::OnAddButtonTextVisibility, WeakRowWidget, InSection) //@todo(ng) impl
-			.ShadowOffset(FVector2D(1, 1))
-		]
 	];
 
 	AddParameterButtons[(int32)InSection] = Button;
@@ -234,11 +319,17 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGetParameterMenu(const NiagaraPara
 {
 	ENiagaraParameterScope NewParameterScopeForSection = NiagaraParameterPanelSectionID::GetScopeForNewParametersInSection(InSection);
 
+	const bool bCanCreateNew = InSection != NiagaraParameterPanelSectionID::Type::ENGINE && InSection != NiagaraParameterPanelSectionID::Type::OWNER;
+	const bool bAutoExpand = InSection == NiagaraParameterPanelSectionID::Type::LOCALS || InSection == NiagaraParameterPanelSectionID::Type::INPUTS ||
+		InSection == NiagaraParameterPanelSectionID::Type::OUTPUTS || InSection == NiagaraParameterPanelSectionID::Type::USER || 
+		InSection == NiagaraParameterPanelSectionID::Type::ENGINE || InSection == NiagaraParameterPanelSectionID::Type::OWNER;
 	TSharedRef<SNiagaraAddParameterMenu2> MenuWidget = SNew(SNiagaraAddParameterMenu2, ParameterPanelViewModel->GetEditableGraphs())
 		.OnAddParameter(this, &SNiagaraParameterPanel::AddParameter, InSection)
 		.OnAllowMakeType(this, &SNiagaraParameterPanel::AllowMakeType)
 		.ShowGraphParameters(false)
-		.AutoExpandMenu(true)
+		.ShowKnownConstantParametersFilter(InSection)
+		.AllowCreatingNew(bCanCreateNew)
+		.AutoExpandMenu(bAutoExpand)
 		.NewParameterScope(NewParameterScopeForSection);
 
 	AddParameterButtons[(int32)InSection]->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox()->AsShared());
@@ -257,9 +348,10 @@ void SNiagaraParameterPanel::TryDeleteEntries()
 		{
 			const FNiagaraVariable& Parameter = ScriptVarAndViewInfoAction->ScriptVariableAndViewInfo.ScriptVariable;
 			const FNiagaraVariableMetaData& ParameterMetaData = ScriptVarAndViewInfoAction->ScriptVariableAndViewInfo.MetaData;
-			if (ParameterPanelViewModel->CanRemoveParameter(Parameter, ParameterMetaData))
+			FText ToolTipText;
+			if (ParameterPanelViewModel->GetCanDeleteParameterAndToolTip(Parameter, ParameterMetaData, ToolTipText))
 			{
-				ParameterPanelViewModel->RemoveParameter(Parameter, ParameterMetaData);
+				ParameterPanelViewModel->DeleteParameter(Parameter, ParameterMetaData);
 			}
 		}
 	}
@@ -277,7 +369,8 @@ bool SNiagaraParameterPanel::CanTryDeleteEntries() const
 		{
 			const FNiagaraVariable& Parameter = ScriptVarAndViewInfoAction->ScriptVariableAndViewInfo.ScriptVariable;
 			const FNiagaraVariableMetaData& ParameterMetaData = ScriptVarAndViewInfoAction->ScriptVariableAndViewInfo.MetaData;
-			if (ParameterPanelViewModel->CanRemoveParameter(Parameter, ParameterMetaData))
+			FText ToolTipText;
+			if (ParameterPanelViewModel->GetCanDeleteParameterAndToolTip(Parameter, ParameterMetaData, ToolTipText))
 			{
 				return true;
 			}
@@ -291,9 +384,21 @@ void SNiagaraParameterPanel::OnRequestRenameOnActionNode()
 	GraphActionMenu->OnRequestRenameOnActionNode();
 }
 
-bool SNiagaraParameterPanel::CanRequestRenameOnActionNode(TWeakPtr<struct FGraphActionNode> InSelectedNode) const
+bool SNiagaraParameterPanel::CanRequestRenameOnActionNode(TWeakPtr<FGraphActionNode> InSelectedNode) const
 {
-	return true; //@todo(ng) delegate to viewmodel
+	if (InSelectedNode.IsValid() && InSelectedNode.Pin()->Actions.Num() == 1 && InSelectedNode.Pin()->Actions[0].IsValid())
+	{
+		const FNiagaraScriptVarAndViewInfoAction* SelectedAction = static_cast<FNiagaraScriptVarAndViewInfoAction*>(InSelectedNode.Pin()->Actions[0].Get());
+		FText BlankText = FText();
+		return ParameterPanelViewModel->GetCanRenameParameterAndToolTip(
+			SelectedAction->ScriptVariableAndViewInfo.ScriptVariable,
+			SelectedAction->ScriptVariableAndViewInfo.MetaData,
+			TOptional<const FText>(),
+			BlankText
+		);
+	}
+	
+	return false;
 }
 
 bool SNiagaraParameterPanel::CanRequestRenameOnActionNode() const
@@ -329,12 +434,21 @@ void SNiagaraAddParameterMenu2::Construct(const FArguments& InArgs, TArray<TWeak
 	this->OnAllowMakeType = InArgs._OnAllowMakeType;
 	this->AllowCreatingNew = InArgs._AllowCreatingNew;
 	this->ShowGraphParameters = InArgs._ShowGraphParameters;
+	this->ShowKnownConstantParametersFilter = InArgs._ShowKnownConstantParametersFilter;
 	this->AutoExpandMenu = InArgs._AutoExpandMenu;
 	this->IsParameterRead = InArgs._IsParameterRead;
 	this->NewParameterScope = InArgs._NewParameterScope;
+	this->NewParameterNamespace = InArgs._NewParameterNamespace;
 
 	Graphs = InGraphs;
-	NewParameterScopeText = FText::FromString(FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(NewParameterScope));
+	if (NewParameterNamespace.IsSet())
+	{
+		NewParameterScopeText = FText::FromString(NewParameterNamespace.Get());
+	}
+	else
+	{
+		NewParameterScopeText = FText::FromString(FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(NewParameterScope));
+	}
 
 	ChildSlot
 	[
@@ -344,6 +458,7 @@ void SNiagaraAddParameterMenu2::Construct(const FArguments& InArgs, TArray<TWeak
 		[
 			SNew(SBox)
 			.MinDesiredWidth(300)
+			.MaxDesiredHeight(700) // Set max desired height to prevent flickering bug for menu larger than screen
 			[
 				SAssignNew(GraphMenu, SGraphActionMenu)
 				.OnActionSelected(this, &SNiagaraAddParameterMenu2::OnActionSelected)
@@ -442,7 +557,9 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 					NewMenuActionInfo.TooltipText = VariableStruct->GetToolTipText(true);
 				}
 
-				const FName NewVariableName = FName(*(NewParameterScopeText.ToString() + RegisteredTypeNameText.ToString()));
+				FName NewVariableName = FName(*(NewParameterScopeText.ToString() + TEXT("New ") + RegisteredTypeNameText.ToString()));
+				NewVariableName = UNiagaraGraph::MakeUniqueParameterNameAcrossGraphs(NewVariableName, Graphs);
+			
 				FNiagaraVariable NewVar = FNiagaraVariable(RegisteredType, NewVariableName);
 				FNiagaraEditorUtilities::ResetVariableToDefaultValue(NewVar);
 				NewMenuActionInfo.NewVariable = NewVar;
@@ -500,6 +617,74 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 			}
 		}
 	}
+
+	if (ShowKnownConstantParametersFilter.IsSet())
+	{
+		NiagaraParameterPanelSectionID::Type Type = ShowKnownConstantParametersFilter.Get();
+		if (Type != NiagaraParameterPanelSectionID::Type::NONE)
+		{
+			// Handle engine parameters, but only in read-only contexts.
+			if ((!IsParameterRead.IsSet() || (IsParameterRead.IsSet() && IsParameterRead.Get())) &&
+				(Type == NiagaraParameterPanelSectionID::Type::ENGINE ||
+				Type == NiagaraParameterPanelSectionID::Type::OWNER ||
+				Type == NiagaraParameterPanelSectionID::Type::REFERENCES ||
+				Type == NiagaraParameterPanelSectionID::Type::SYSTEM ||
+				Type == NiagaraParameterPanelSectionID::Type::EMITTER))
+			{
+				const TArray<FNiagaraVariable>& EngineConstants = FNiagaraConstants::GetEngineConstants();
+				for (const FNiagaraVariable& Var : EngineConstants)
+				{
+					const FText Category = LOCTEXT("NiagaraAddEngineParameterMenu", "Engine Constant");
+					const FText DisplayName = FText::FromName(Var.GetName());
+					const FText Tooltip = FNiagaraConstants::GetEngineConstantDescription(Var);
+
+
+					FNiagaraVariableMetaData GuessedMetaData;
+					FNiagaraEditorUtilities::GetParameterMetaDataFromName(Var.GetName(), GuessedMetaData);
+					bool bAdd = Type == NiagaraParameterPanelSectionID::Type::REFERENCES; // References has all of these!
+					if (Type == NiagaraParameterPanelSectionID::Type::ENGINE && GuessedMetaData.GetScopeName() == FNiagaraConstants::EngineNamespace)
+						bAdd = true;
+					else if (Type == NiagaraParameterPanelSectionID::Type::OWNER && GuessedMetaData.GetScopeName() == FNiagaraConstants::EngineOwnerScopeName)
+						bAdd = true;
+					else if (Type == NiagaraParameterPanelSectionID::Type::SYSTEM && GuessedMetaData.GetScopeName() == FNiagaraConstants::EngineSystemScopeName)
+						bAdd = true;
+					else if (Type == NiagaraParameterPanelSectionID::Type::EMITTER && GuessedMetaData.GetScopeName() == FNiagaraConstants::EngineEmitterScopeName)
+						bAdd = true;
+
+					if (!bAdd)
+						continue;
+
+					TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
+						Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
+						FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu2::AddParameterSelected, Var)));
+
+					OutAllActions.AddAction(Action);
+				}
+			}
+
+			// Handle particles 
+			if (Type == NiagaraParameterPanelSectionID::Type::PARTICLES ||
+				Type == NiagaraParameterPanelSectionID::Type::REFERENCES )
+			{
+				const TArray<FNiagaraVariable>& Vars = FNiagaraConstants::GetCommonParticleAttributes();
+
+				for (const FNiagaraVariable& Var : Vars)
+				{
+					const FText Category = LOCTEXT("NiagaraAddCommParticleParameterMenu", "Common Particle Attributes");
+					const FText DisplayName = FText::FromName(Var.GetName());
+					const FText Tooltip = FNiagaraConstants::GetAttributeDescription(Var);
+					
+					TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
+						Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
+						FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu2::AddParameterSelected, Var)));
+
+					OutAllActions.AddAction(Action);
+
+				}
+			}
+
+		}
+	}
 }
 
 void SNiagaraAddParameterMenu2::AddParameterSelected(FNiagaraVariable NewVariable)
@@ -545,11 +730,6 @@ private:
 TSharedRef<SExpanderArrow> SNiagaraParameterPanel::CreateCustomActionExpander(const FCustomExpanderData& ActionMenuData)
 {
 	return SNew(SNiagaraActionMenuExpander2, ActionMenuData);
-}
-
-void SNiagaraParameterPanel::SetVariablesObjectSelection(const TSharedRef<FNiagaraObjectSelection>& InVariablesObjectSelection)
-{
-	SelectedVariableObjects = InVariablesObjectSelection;
 }
 
 #undef LOCTEXT_NAMESPACE // "NiagaraParameterPanel"

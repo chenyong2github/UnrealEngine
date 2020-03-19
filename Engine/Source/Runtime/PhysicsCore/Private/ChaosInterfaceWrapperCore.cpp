@@ -50,14 +50,14 @@ namespace ChaosInterface
 		return InCapsule.GetHeight() / 2.;
 	}
 
-	FCollisionFilterData GetQueryFilterData(const Chaos::TPerShapeData<float, 3>& Shape)
+	FCollisionFilterData GetQueryFilterData(const Chaos::FPerShapeData& Shape)
 	{
-		return Shape.QueryData;
+		return Shape.GetQueryData();
 	}
 
-	FCollisionFilterData GetSimulationFilterData(const Chaos::TPerShapeData<float, 3>& Shape)
+	FCollisionFilterData GetSimulationFilterData(const Chaos::FPerShapeData& Shape)
 	{
-		return Shape.SimData;
+		return Shape.GetSimData();
 	}
 
 

@@ -46,7 +46,6 @@ public:
 	// FGraphEditorDragDropAction Interface
 	virtual void HoverTargetChanged() override;
 	virtual FReply DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphPosition) override;
-	virtual FReply DroppedOnPanel(const TSharedRef<SWidget>& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph) override;
 	virtual void OnDragged (const class FDragDropEvent& DragDropEvent ) override;
 	virtual EVisibility GetIconVisible() const;
 	virtual EVisibility GetErrorIconVisible() const;
@@ -78,7 +77,6 @@ protected:
 	typedef FGraphEditorDragDropAction Super;
 
 	bool DoDropOnDataprepActionContext(const FDataprepSchemaActionContext& Context);
-	void DoDropOnPanel(const TSharedRef<SWidget>& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph);
 
 	/** Executes drop on existing action step */
 	FReply DoDropOnActionStep(UDataprepGraphActionStepNode* TargetActionStepNode);

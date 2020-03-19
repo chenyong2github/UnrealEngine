@@ -719,9 +719,16 @@ namespace UnrealGameSync
 			if(Settings.bScheduleEnabled)
 			{
 				DateTime CurrentTime = DateTime.Now;
-				DateTime NextScheduleTime = new DateTime(CurrentTime.Year, CurrentTime.Month, CurrentTime.Day, Settings.ScheduleTime.Hours, Settings.ScheduleTime.Minutes, Settings.ScheduleTime.Seconds);
+				Random Rnd = new Random();
 
-				if(NextScheduleTime < CurrentTime)
+				// add or subtract from the schedule time to distribute scheduled syncs over a little bit more time
+				// this avoids everyone hitting the p4 server at exactly the same time.
+				const int FudgeMinutes = 10;
+				TimeSpan FudgeTime = TimeSpan.FromMinutes(Rnd.Next(FudgeMinutes * -100, FudgeMinutes * 100) / 100.0);
+				DateTime NextScheduleTime = new DateTime(CurrentTime.Year, CurrentTime.Month, CurrentTime.Day, Settings.ScheduleTime.Hours, Settings.ScheduleTime.Minutes, Settings.ScheduleTime.Seconds);
+				NextScheduleTime += FudgeTime;
+
+				if (NextScheduleTime < CurrentTime)
 				{
 					NextScheduleTime = NextScheduleTime.AddDays(1.0);
 				}

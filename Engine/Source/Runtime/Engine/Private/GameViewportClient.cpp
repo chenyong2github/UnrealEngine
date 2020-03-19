@@ -2717,10 +2717,54 @@ void UGameViewportClient::VerifyPathRenderingComponents()
 	}
 }
 
+void UGameViewportClient::SetMouseCaptureMode(EMouseCaptureMode Mode)
+{
+	if (MouseCaptureMode != Mode)
+	{
+		UE_LOG(LogViewport, Display, TEXT("Viewport MouseCaptureMode Changed, %s -> %s"),
+			*StaticEnum<EMouseCaptureMode>()->GetNameStringByValue((uint64)MouseCaptureMode),
+			*StaticEnum<EMouseCaptureMode>()->GetNameStringByValue((uint64)Mode)
+		);
+
+		MouseCaptureMode = Mode;
+	}
+}
+
+EMouseCaptureMode UGameViewportClient::GetMouseCaptureMode() const
+{
+	return MouseCaptureMode;
+}
+
 bool UGameViewportClient::CaptureMouseOnLaunch()
 {
 	// Capture mouse unless headless
 	return !FApp::CanEverRender() ? false : GetDefault<UInputSettings>()->bCaptureMouseOnLaunch;
+}
+
+void UGameViewportClient::SetMouseLockMode(EMouseLockMode InMouseLockMode)
+{
+	if (MouseLockMode != InMouseLockMode)
+	{
+		UE_LOG(LogViewport, Display, TEXT("Viewport MouseLockMode Changed, %s -> %s"),
+			*StaticEnum<EMouseLockMode>()->GetNameStringByValue((uint64)MouseLockMode),
+			*StaticEnum<EMouseLockMode>()->GetNameStringByValue((uint64)InMouseLockMode)
+		);
+
+		MouseLockMode = InMouseLockMode;
+	}
+}
+
+void UGameViewportClient::SetHideCursorDuringCapture(bool InHideCursorDuringCapture)
+{
+	if (bHideCursorDuringCapture != InHideCursorDuringCapture)
+	{
+		UE_LOG(LogViewport, Display, TEXT("Viewport HideCursorDuringCapture Changed, %s -> %s"),
+			bHideCursorDuringCapture ? TEXT("True") : TEXT("False"),
+			InHideCursorDuringCapture ? TEXT("True") : TEXT("False")
+		);
+
+		bHideCursorDuringCapture = InHideCursorDuringCapture;
+	}
 }
 
 bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
@@ -3560,7 +3604,7 @@ bool UGameViewportClient::HandleDisplayCommand( const TCHAR* Cmd, FOutputDevice&
 		if (Obj != nullptr)
 		{
 			FName PropertyName(PropStr, FNAME_Find);
-			if (PropertyName != NAME_None && FindField<FProperty>(Obj->GetClass(), PropertyName) != nullptr)
+			if (PropertyName != NAME_None && FindFProperty<FProperty>(Obj->GetClass(), PropertyName) != nullptr)
 			{
 				AddDebugDisplayProperty(Obj, nullptr, PropertyName);
 			}
@@ -3612,7 +3656,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 			if (Cls != nullptr)
 			{
 				FName PropertyName(PropStr, FNAME_Find);
-				FProperty* Prop = PropertyName != NAME_None ? FindField<FProperty>(Cls, PropertyName) : nullptr;
+				FProperty* Prop = PropertyName != NAME_None ? FindFProperty<FProperty>(Cls, PropertyName) : nullptr;
 				{
 					// add all un-GCable things immediately as that list is static
 					// so then we only have to iterate over dynamic things each frame

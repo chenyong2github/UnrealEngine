@@ -190,6 +190,44 @@ public:
 	};
 
 	/**
+	* Returns attribute(Name) of Type(T) from the group if and only if the types of T and the array match
+	* @param Name - The name of the attribute
+	* @param Group - The group that manages the attribute
+	* @return ManagedArray<T> &
+	*/
+	template<typename T>
+	TManagedArray<T>* FindAttributeTyped(FName Name, FName Group)
+	{
+		if(HasAttribute(Name, Group))
+		{
+			FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+			FValueType& FoundValue = Map[Key];
+
+			if(FoundValue.ArrayType == ManagedArrayType<T>())
+			{
+				return static_cast<TManagedArray<T>*>(Map[Key].Value);
+			}
+		}
+		return nullptr;
+	};
+
+	template<typename T>
+	const TManagedArray<T>* FindAttributeTyped(FName Name, FName Group) const
+	{
+		if(HasAttribute(Name, Group))
+		{
+			FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+			const FValueType& FoundValue = Map[Key];
+
+			if(FoundValue.ArrayType == ManagedArrayType<T>())
+			{
+				return static_cast<TManagedArray<T>*>(Map[Key].Value);
+			}
+		}
+		return nullptr;
+	};
+
+	/**
 	* Returns attribute access of Type(T) from the group
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
@@ -270,8 +308,9 @@ public:
 	/**
 	* Copy attributes that match the input collection. This is a utility to easily sync collections
 	* @param InCollection - All groups from this collection found in the input will be sized accordingly
+	* @param SkipList - Group/Attrs to skip. Keys are group names, values are attributes in those groups.
 	*/
-	void CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection);
+	void CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection, const TMap<FName, TSet<FName>>* SkipList=nullptr);
 
 	/**
 	* Number of elements in a group
@@ -312,11 +351,11 @@ public:
 	*/
 	void MakeDirty() { bDirty = true; }
 	void MakeClean() { bDirty = false; }
-	bool IsDirty() { return bDirty; }
+	bool IsDirty() const { return bDirty; }
 
 	/**
 	* Serialize
-	*/
+		*/
 	virtual void Serialize(Chaos::FChaosArchive& Ar);
 
 	/**

@@ -11,6 +11,7 @@
 #include "IPAddress.h"
 #include "Containers/BitArray.h"
 #include "Serialization/MemoryWriter.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "Misc/ScopeLock.h"
 
 class AActor;
@@ -20,7 +21,14 @@ struct FURL;
 
 #if USE_NETWORK_PROFILER 
 
-#define NETWORK_PROFILER( x ) if ( GNetworkProfiler.IsTrackingEnabled() ) { x; }
+CSV_DECLARE_CATEGORY_EXTERN(NetworkProfiler);
+
+#define NETWORK_PROFILER( x ) \
+	if ( GNetworkProfiler.IsTrackingEnabled() ) \
+	{ \
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NetworkProfiler); \
+		x; \
+	}
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkProfileFinished, const FString& /*Filename */);
 

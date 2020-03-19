@@ -121,9 +121,19 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 		return (T*)GetOrCreateAttributeSubobject(T::StaticClass());
 	}
 
-	/** Adds a new AttributeSet that is a DSO (created by called in their CStor) */
 	template <class T>
+	UE_DEPRECATED(4.25, "AddDefaultSubobjectSet is deprecated. Use AddAttributeSetSubobject instead.")
 	const T*	AddDefaultSubobjectSet(T* Subobject)
+	{
+		return AddAttributeSetSubobject(Subobject);
+	}
+
+	/** 
+	 * Manually add a new attribute set that is a subobject of this ability system component.
+	 * All subobjects of this component are automatically added during initialization.
+	 */
+	template <class T>
+	const T* AddAttributeSetSubobject(T* Subobject)
 	{
 		SpawnedAttributes.AddUnique(Subobject);
 		return Subobject;
@@ -151,7 +161,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	TArray<FAttributeDefaults>	DefaultStartingData;
 
 	/** List of attribute sets */
-	UPROPERTY(Replicated)
+	UPROPERTY(Replicated, Transient)
 	TArray<UAttributeSet*>	SpawnedAttributes;
 
 	/** The linked Anim Instance that this component will play montages in. Use NAME_None for the main anim instance. */

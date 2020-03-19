@@ -33,6 +33,7 @@ namespace Chaos
 	/**
 	 * The order of the angular constraints (for settings held in vectors etc)
 	 */
+	// @todo(ccaulfield): rename EJointAngularConstraintType
 	enum class EJointAngularConstraintIndex : int32
 	{
 		Twist,
@@ -185,4 +186,44 @@ namespace Chaos
 		FReal SoftSwingStiffness;
 		FReal SoftSwingDamping;
 	};
+
+	class FJointSolverResult
+	{
+	public:
+		static FJointSolverResult MakeActive() { return { 1, 0 }; }
+		static FJointSolverResult MakeInactive() { return { 0, 1 }; }
+		static FJointSolverResult Make(int32 NumActive, int32 NumInactive) { return { NumActive, NumInactive }; }
+
+		FJointSolverResult()
+			: NumActive(0)
+			, NumInactive(0)
+		{
+		}
+
+		int32 GetNumActive() const { return NumActive; }
+		int32 GetNumInactive() const { return NumInactive; }
+
+		FJointSolverResult& operator+=(const FJointSolverResult& R)
+		{
+			NumActive += R.NumActive;
+			NumInactive += R.NumInactive;
+			return *this;
+		}
+
+		friend FJointSolverResult operator+(const FJointSolverResult& L, const FJointSolverResult& R)
+		{
+			return { L.NumActive + R.NumActive, L.NumInactive + R.NumInactive };
+		}
+
+	private:
+		FJointSolverResult(int32 InActive, int32 InSolved)
+			: NumActive(InActive)
+			, NumInactive(InSolved)
+		{
+		}
+
+		int32 NumActive;
+		int32 NumInactive;
+	};
+
 }

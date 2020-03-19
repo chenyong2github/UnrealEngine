@@ -11,11 +11,12 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "UObject/SoftObjectPtr.h"
 
 #include "USDPrimTwin.generated.h"
 
 /** The Unreal equivalent (twin) of a USD prim */
-UCLASS(Transient)
+UCLASS( Transient )
 class UUsdPrimTwin final : public UObject
 {
 	GENERATED_BODY()
@@ -51,7 +52,7 @@ public:
 	FString PrimPath;
 
 	UPROPERTY()
-	TWeakObjectPtr< class AActor > SpawnedActor;
+	TSoftObjectPtr< class AActor > SpawnedActor;
 
 	UPROPERTY()
 	TWeakObjectPtr< class USceneComponent > SceneComponent;

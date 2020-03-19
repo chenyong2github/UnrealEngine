@@ -84,7 +84,7 @@ public:
 
 	void RegisterOutputTerm(FKismetFunctionContext& Context, UScriptStruct* StructType, UEdGraphPin* Net, FBPTerminal* ContextTerm)
 	{
-		if (FProperty* BoundProperty = FindField<FProperty>(StructType, Net->PinName))
+		if (FProperty* BoundProperty = FindFProperty<FProperty>(StructType, Net->PinName))
 		{
 			if (BoundProperty->HasAnyPropertyFlags(CPF_Deprecated) && Net->LinkedTo.Num())
 			{

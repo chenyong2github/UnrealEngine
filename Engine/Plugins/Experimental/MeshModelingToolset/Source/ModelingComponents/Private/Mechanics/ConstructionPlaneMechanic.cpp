@@ -39,9 +39,9 @@ void UConstructionPlaneMechanic::Initialize(UWorld* TargetWorld, const FFrame3d&
 	// click to set plane behavior
 	FSelectClickedAction* SetPlaneAction = new FSelectClickedAction();
 	SetPlaneAction->World = TargetWorld;
-	SetPlaneAction->OnClickedPositionFunc = [this](const FHitResult& Hit)
+	SetPlaneAction->OnClickedPositionFunc = [this, SetPlaneAction](const FHitResult& Hit)
 	{
-		SetDrawPlaneFromWorldPos(FVector3d(Hit.ImpactPoint), FVector3d(Hit.ImpactNormal));
+		SetDrawPlaneFromWorldPos(FVector3d(Hit.ImpactPoint), FVector3d(Hit.ImpactNormal), SetPlaneAction->bShiftModifierToggle);
 	};
 	SetPlaneAction->ExternalCanClickPredicate = [this]() { return this->CanUpdatePlaneFunc(); };
 
@@ -49,6 +49,7 @@ void UConstructionPlaneMechanic::Initialize(UWorld* TargetWorld, const FFrame3d&
 
 	ClickToSetPlaneBehavior = NewObject<USingleClickInputBehavior>();
 	ClickToSetPlaneBehavior->ModifierCheckFunc = FInputDeviceState::IsCtrlKeyDown;
+	ClickToSetPlaneBehavior->Modifiers.RegisterModifier(FSelectClickedAction::ShiftModifier, FInputDeviceState::IsShiftKeyDown);
 	ClickToSetPlaneBehavior->Initialize(SetPointInWorldConnector.Get());
 
 	GetParentTool()->AddInputBehavior(ClickToSetPlaneBehavior);
@@ -79,10 +80,13 @@ void UConstructionPlaneMechanic::TransformChanged(UTransformProxy* Proxy, FTrans
 }
 
 
-void UConstructionPlaneMechanic::SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal)
+void UConstructionPlaneMechanic::SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal, bool bIgnoreNormal)
 {
 	Plane.Origin = Position;
-	Plane.AlignAxis(2, Normal);
+	if (bIgnoreNormal == false)
+	{
+		Plane.AlignAxis(2, Normal);
+	}
 	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
 	PlaneTransformGizmo->SetNewGizmoTransform(Plane.ToFTransform());
 

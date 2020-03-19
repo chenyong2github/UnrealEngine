@@ -10,6 +10,7 @@ StreamingTexture.cpp: Definitions of classes used for texture.
 #include "HAL/FileManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
+#include "LandscapeComponent.h"
 
 FStreamingRenderAsset::FStreamingRenderAsset(
 	UStreamableRenderAsset* InRenderAsset,
@@ -35,6 +36,7 @@ FStreamingRenderAsset::FStreamingRenderAsset(
 	VisibleWantedMips = MinAllowedMips;
 	HiddenWantedMips = MinAllowedMips;
 	RetentionPriority = 0;
+	NormalizedScreenSize = 0.f;
 	BudgetedMips = MinAllowedMips;
 	NumForcedMips = 0;
 	LoadOrderPriority = 0;
@@ -83,7 +85,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 					LODScreenSizes[Idx] = StaticMesh->RenderData->ScreenSize[LODIdx].GetValueForFeatureLevel(GMaxRHIFeatureLevel) * 0.5f;
 				}
 			}
-			else // AT_SkeletalMesh
+			else if (RenderAssetType == AT_SkeletalMesh)
 			{
 				USkeletalMesh* SkeletalMesh = CastChecked<USkeletalMesh>(RenderAsset);
 				const TArray<FSkeletalMeshLODInfo>& LODInfos =  SkeletalMesh->GetLODInfoArray();
@@ -91,6 +93,16 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 				{
 					const int32 LODIdx = FMath::Max(MipCount - Idx - 1, 0);
 					LODScreenSizes[Idx] = LODInfos[LODIdx].ScreenSize.GetValueForFeatureLevel(GMaxRHIFeatureLevel) * 0.5f;
+				}
+			}
+			else
+			{
+				const ULandscapeLODStreamingProxy* LandscapeProxy = CastChecked<ULandscapeLODStreamingProxy>(RenderAsset);
+				const TArray<float> LODScreenSizeArray = LandscapeProxy->GetLODScreenSizeArray();
+				for (int32 Idx = 0; Idx < MaxNumMeshLODs; ++Idx)
+				{
+					const int32 LODIdx = FMath::Max(MipCount - Idx - 1, 0);
+					LODScreenSizes[Idx] = LODScreenSizeArray[LODIdx];
 				}
 			}
 		}
@@ -293,7 +305,7 @@ float FStreamingRenderAsset::GetExtraBoost(TextureGroup	LODGroup, const FRenderA
 	}
 }
 
-int32 FStreamingRenderAsset::GetWantedMipsFromSize(float Size, float MaxScreenSizeOverAllViews) const
+int32 FStreamingRenderAsset::GetWantedMipsFromSize(float Size, float InvMaxScreenSizeOverAllViews) const
 {
 	if (IsTexture())
 	{
@@ -305,10 +317,10 @@ int32 FStreamingRenderAsset::GetWantedMipsFromSize(float Size, float MaxScreenSi
 	{
 		check(MinAllowedMips >= 1);
 		check(MaxAllowedMips <= MipCount);
-		check(RenderAssetType == AT_StaticMesh || RenderAssetType == AT_SkeletalMesh);
+		check(RenderAssetType == AT_StaticMesh || RenderAssetType == AT_SkeletalMesh || RenderAssetType == AT_LandscapeMeshMobile);
 		if (Size != FLT_MAX)
 		{
-			const float NormalizedSize = Size / MaxScreenSizeOverAllViews;
+			const float NormalizedSize = Size * InvMaxScreenSizeOverAllViews;
 			for (int32 NumMips = MinAllowedMips; NumMips <= MaxAllowedMips; ++NumMips)
 			{
 				if (GetNormalizedScreenSize(NumMips) >= NormalizedSize)
@@ -332,6 +344,7 @@ void FStreamingRenderAsset::SetPerfectWantedMips_Async(
 {
 	bForceFullyLoadHeuristic = (MaxSize == FLT_MAX || MaxSize_VisibleOnly == FLT_MAX);
 	bLooksLowRes = InLooksLowRes; // Things like lightmaps, HLOD and close instances.
+	NormalizedScreenSize = 0.f;
 
 	if (MaxNumForcedLODs >= MaxAllowedMips)
 	{
@@ -340,20 +353,27 @@ void FStreamingRenderAsset::SetPerfectWantedMips_Async(
 		return;
 	}
 
+	float InvMaxScreenSizeOverAllViews = 1.f;
+	if (IsMesh())
+	{
+		InvMaxScreenSizeOverAllViews = 1.f / MaxScreenSizeOverAllViews;
+		NormalizedScreenSize = FMath::Max(MaxSize, MaxSize_VisibleOnly) * InvMaxScreenSizeOverAllViews;
+	}
+
 	NumForcedMips = FMath::Min(MaxNumForcedLODs, MaxAllowedMips);
-	VisibleWantedMips = FMath::Max(GetWantedMipsFromSize(MaxSize_VisibleOnly, MaxScreenSizeOverAllViews), NumForcedMips);
+	VisibleWantedMips = FMath::Max(GetWantedMipsFromSize(MaxSize_VisibleOnly, InvMaxScreenSizeOverAllViews), NumForcedMips);
 
 	// Terrain, Forced Fully Load and Things that already look bad are not affected by hidden scale.
 	if (bIsTerrainTexture || bForceFullyLoadHeuristic || bLooksLowRes)
 	{
-		HiddenWantedMips = FMath::Max(GetWantedMipsFromSize(MaxSize, MaxScreenSizeOverAllViews), NumForcedMips);
+		HiddenWantedMips = FMath::Max(GetWantedMipsFromSize(MaxSize, InvMaxScreenSizeOverAllViews), NumForcedMips);
 		NumMissingMips = 0; // No impact for terrains as there are not allowed to drop mips.
 	}
 	else
 	{
-		HiddenWantedMips = FMath::Max(GetWantedMipsFromSize(MaxSize * Settings.HiddenPrimitiveScale, MaxScreenSizeOverAllViews), NumForcedMips);
+		HiddenWantedMips = FMath::Max(GetWantedMipsFromSize(MaxSize * Settings.HiddenPrimitiveScale, InvMaxScreenSizeOverAllViews), NumForcedMips);
 		// NumMissingMips contains the number of mips not loaded because of HiddenPrimitiveScale. When out of budget, those texture will be considered as already sacrificed.
-		NumMissingMips = FMath::Max<int32>(GetWantedMipsFromSize(MaxSize, MaxScreenSizeOverAllViews) - FMath::Max<int32>(VisibleWantedMips, HiddenWantedMips), 0);
+		NumMissingMips = FMath::Max<int32>(GetWantedMipsFromSize(MaxSize, InvMaxScreenSizeOverAllViews) - FMath::Max<int32>(VisibleWantedMips, HiddenWantedMips), 0);
 	}
 }
 

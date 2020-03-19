@@ -569,11 +569,6 @@ int32 ReportCrashForMonitor(
 	SharedContext->SessionContext.bIsExitRequested = IsEngineExitRequested();
 	FCString::Strcpy(SharedContext->ErrorMessage, CR_MAX_ERROR_MESSAGE_CHARS-1, ErrorMessage);
 
-	if (GLog)
-	{
-		GLog->PanicFlushThreadedLogs();
-	}
-
 	// Setup all the thread ids and names using snapshot dbghelp. Since it's not possible to 
 	// query thread names from an external process.
 	uint32 ThreadIdx = 0;
@@ -596,8 +591,11 @@ int32 ReportCrashForMonitor(
 					if (ThreadEntry.th32ThreadID != CurrentThreadId)
 					{
 						HANDLE ThreadHandle = OpenThread(THREAD_SUSPEND_RESUME, FALSE, ThreadEntry.th32ThreadID);
-						SuspendThread(ThreadHandle);
-						ThreadHandles.Push(ThreadHandle);
+						if (ThreadHandle != NULL)
+						{
+							SuspendThread(ThreadHandle);
+							ThreadHandles.Push(ThreadHandle);
+						}
 					}
 
 					SharedContext->ThreadIds[ThreadIdx] = ThreadEntry.th32ThreadID;
@@ -643,25 +641,34 @@ int32 ReportCrashForMonitor(
 	}
 
 	// Write the shared context to the pipe
-	int32 OutDataWritten = 0;
-	FPlatformProcess::WritePipe(WritePipe, (UINT8*)SharedContext, sizeof(FSharedCrashContext), &OutDataWritten);
-	check(OutDataWritten == sizeof(FSharedCrashContext));
-
-	// Wait for a response, saying it's ok to continue
-	bool bCanContinueExecution = false;
-	int32 ExitCode = 0;
-	// Would like to use TInlineAllocator here to avoid heap allocation on crashes, but it doesn't work since ReadPipeToArray 
-	// cannot take array with non-default allocator
-	TArray<uint8> ResponseBuffer;
-	ResponseBuffer.AddZeroed(16);
-	while (!FPlatformProcess::GetProcReturnCode(CrashMonitorHandle, &ExitCode) && !bCanContinueExecution)
+	bool bPipeWriteSucceeded = true;
+	const uint8* DataIt = (const uint8*)SharedContext;
+	const uint8* DataEndIt = DataIt + sizeof(FSharedCrashContext);
+	while (DataIt != DataEndIt && bPipeWriteSucceeded)
 	{
-		if (FPlatformProcess::ReadPipeToArray(ReadPipe, ResponseBuffer))
+		int32 OutDataWritten = 0;
+		bPipeWriteSucceeded = FPlatformProcess::WritePipe(WritePipe, DataIt, static_cast<int32>(DataEndIt - DataIt), &OutDataWritten);
+		DataIt += OutDataWritten;
+	}
+
+	if (bPipeWriteSucceeded) // The receiver is not likely to respond if the shared context wasn't successfully written to the pipe.
+	{
+		// Wait for a response, saying it's ok to continue
+		bool bCanContinueExecution = false;
+		int32 ExitCode = 0;
+		// Would like to use TInlineAllocator here to avoid heap allocation on crashes, but it doesn't work since ReadPipeToArray 
+		// cannot take array with non-default allocator
+		TArray<uint8> ResponseBuffer;
+		ResponseBuffer.AddZeroed(16);
+		while (!FPlatformProcess::GetProcReturnCode(CrashMonitorHandle, &ExitCode) && !bCanContinueExecution)
 		{
-			if (ResponseBuffer[0] == 0xd && ResponseBuffer[1] == 0xe &&
-				ResponseBuffer[2] == 0xa && ResponseBuffer[3] == 0xd)
+			if (FPlatformProcess::ReadPipeToArray(ReadPipe, ResponseBuffer))
 			{
-				bCanContinueExecution = true;
+				if (ResponseBuffer[0] == 0xd && ResponseBuffer[1] == 0xe &&
+					ResponseBuffer[2] == 0xa && ResponseBuffer[3] == 0xd)
+				{
+					bCanContinueExecution = true;
+				}
 			}
 		}
 	}
@@ -746,7 +753,6 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 			InContext.CopyPlatformSpecificFiles(*CrashFolderAbsolute, (void*) ExceptionInfo);
 
 			// Copy the log file to output
-			GLog->PanicFlushThreadedLogs();
 			FGenericCrashContext::DumpLog(CrashFolderAbsolute);
 
 			// Build machines do not upload these automatically since it is not okay to have lingering processes after the build completes.
@@ -1133,13 +1139,13 @@ private:
 		// Stop the heartbeat thread so that it doesn't interfere with crashreporting
 		FThreadHeartBeat::Get().Stop();
 
-		GLog->PanicFlushThreadedLogs();
-
 		// Then try run time crash processing and broadcast information about a crash.
 		FCoreDelegates::OnHandleSystemError.Broadcast();
 
 		if (GLog)
 		{
+			//Panic flush the logs to make sure there are no entries queued. This is
+			//not thread safe so it will skip for example editor log.
 			GLog->PanicFlushThreadedLogs();
 		}
 		

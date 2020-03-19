@@ -99,7 +99,7 @@ struct FTabletContextInfo : public IStylusInputDevice
 };
 
 /**
- * An implementation of an IStylusSyncPlugin for use with the RealTimeStylus API.
+ * An implementation of an IStylusAsyncPlugin for use with the InRealTimeStylus API.
  */
 class FWindowsRealTimeStylusPlugin : public IStylusSyncPlugin
 {
@@ -107,9 +107,9 @@ public:
 	FWindowsRealTimeStylusPlugin() = default;
 	virtual ~FWindowsRealTimeStylusPlugin()
 	{
-		if (FreeThreadedMarshaller != nullptr)
+		if (FreeThreadedMarshaler != nullptr)
 		{
-			FreeThreadedMarshaller->Release();
+			FreeThreadedMarshaler->Release();
 		}
 	}
 
@@ -125,30 +125,30 @@ public:
 
 	virtual HRESULT QueryInterface(const IID& InterfaceID, void** Pointer) override;
 
-	virtual HRESULT TabletAdded(IRealTimeStylus* RealTimeStylus, IInkTablet* InkTablet) override;
-	virtual HRESULT TabletRemoved(IRealTimeStylus* RealTimeStylus, LONG iTabletIndex) override;
+	virtual HRESULT TabletAdded(IRealTimeStylus* InRealTimeStylus, IInkTablet* InkTablet) override;
+	virtual HRESULT TabletRemoved(IRealTimeStylus* InRealTimeStylus, LONG iTabletIndex) override;
 
-	virtual HRESULT RealTimeStylusEnabled(IRealTimeStylus* RealTimeStylus, ULONG Num, const TABLET_CONTEXT_ID* InTabletContexts) override;
-	virtual HRESULT RealTimeStylusDisabled(IRealTimeStylus* RealTimeStylus, ULONG Num, const TABLET_CONTEXT_ID* InTabletContexts) override;
+	virtual HRESULT RealTimeStylusEnabled(IRealTimeStylus* InRealTimeStylus, ULONG Num, const TABLET_CONTEXT_ID* InTabletContexts) override;
+	virtual HRESULT RealTimeStylusDisabled(IRealTimeStylus* InRealTimeStylus, ULONG Num, const TABLET_CONTEXT_ID* InTabletContexts) override;
 
-	virtual HRESULT StylusInRange(IRealTimeStylus* RealTimeStylus, TABLET_CONTEXT_ID TabletContext, STYLUS_ID StylusID) override { return S_OK; }
-	virtual HRESULT StylusOutOfRange(IRealTimeStylus* RealTimeStylus, TABLET_CONTEXT_ID TabletContext, STYLUS_ID StylusID) override { return S_OK; }
+	virtual HRESULT StylusInRange(IRealTimeStylus* InRealTimeStylus, TABLET_CONTEXT_ID TabletContext, STYLUS_ID StylusID) override { return S_OK; }
+	virtual HRESULT StylusOutOfRange(IRealTimeStylus* InRealTimeStylus, TABLET_CONTEXT_ID TabletContext, STYLUS_ID StylusID) override { return S_OK; }
 
-	virtual HRESULT StylusDown(IRealTimeStylus* RealTimeStylus, const StylusInfo* StylusInfo, ULONG PacketSize, LONG* Packet, LONG** InOutPackets) override;
-	virtual HRESULT StylusUp(IRealTimeStylus* RealTimeStylus, const StylusInfo* StylusInfo, ULONG PacketSize, LONG* Packet, LONG** InOutPackets) override;
+	virtual HRESULT StylusDown(IRealTimeStylus* InRealTimeStylus, const StylusInfo* StylusInfo, ULONG PacketSize, LONG* Packet, LONG** InOutPackets) override;
+	virtual HRESULT StylusUp(IRealTimeStylus* InRealTimeStylus, const StylusInfo* StylusInfo, ULONG PacketSize, LONG* Packet, LONG** InOutPackets) override;
 
-	virtual HRESULT StylusButtonDown(IRealTimeStylus* RealTimeStylus, STYLUS_ID StylusID, const GUID* GUID, POINT* Position) override { return S_OK; }
-	virtual HRESULT StylusButtonUp(IRealTimeStylus* RealTimeStylus, STYLUS_ID StylusID, const GUID* GUID, POINT* Position) override { return S_OK; }
+	virtual HRESULT StylusButtonDown(IRealTimeStylus* InRealTimeStylus, STYLUS_ID StylusID, const GUID* GUID, POINT* Position) override { return S_OK; }
+	virtual HRESULT StylusButtonUp(IRealTimeStylus* InRealTimeStylus, STYLUS_ID StylusID, const GUID* GUID, POINT* Position) override { return S_OK; }
 
-	virtual HRESULT InAirPackets(IRealTimeStylus* RealTimeStylus, const StylusInfo* StylusInfo,
+	virtual HRESULT InAirPackets(IRealTimeStylus* InRealTimeStylus, const StylusInfo* StylusInfo,
 		ULONG PacketCount, ULONG PacketBufferLength, LONG* Packets, ULONG* NumOutPackets, LONG** PtrOutPackets) override;
-	virtual HRESULT Packets(IRealTimeStylus* RealTimeStylus, const StylusInfo* StylusInfo,
+	virtual HRESULT Packets(IRealTimeStylus* InRealTimeStylus, const StylusInfo* StylusInfo,
 		ULONG PacketCount, ULONG PacketBufferSize, LONG* Packets, ULONG* NumOutPackets, LONG** PtrOutPackets) override;
 
-	virtual HRESULT CustomStylusDataAdded(IRealTimeStylus* RealTimeStylus, const GUID* GUID, ULONG Data, const BYTE* ByteData) override { return S_OK; }
+	virtual HRESULT CustomStylusDataAdded(IRealTimeStylus* InRealTimeStylus, const GUID* GUID, ULONG Data, const BYTE* ByteData) override { return S_OK; }
 
-	virtual HRESULT SystemEvent(IRealTimeStylus* RealTimeStylus, TABLET_CONTEXT_ID TabletContext, STYLUS_ID StylusID, SYSTEM_EVENT EventType, SYSTEM_EVENT_DATA EventData) override { return S_OK; }
-	virtual HRESULT Error(IRealTimeStylus* RealTimeStylus, IStylusPlugin* Plugin, RealTimeStylusDataInterest DataInterest, HRESULT ErrorCode, LONG_PTR* Key) override { return S_OK; }
+	virtual HRESULT SystemEvent(IRealTimeStylus* InRealTimeStylus, TABLET_CONTEXT_ID TabletContext, STYLUS_ID StylusID, SYSTEM_EVENT EventType, SYSTEM_EVENT_DATA EventData) override { return S_OK; }
+	virtual HRESULT Error(IRealTimeStylus* InRealTimeStylus, IStylusPlugin* Plugin, RealTimeStylusDataInterest DataInterest, HRESULT ErrorCode, LONG_PTR* Key) override { return S_OK; }
 
 	virtual HRESULT DataInterest(RealTimeStylusDataInterest* OutDataInterest) override
 	{
@@ -156,21 +156,23 @@ public:
 		return S_OK;
 	}
 
-	virtual HRESULT UpdateMapping(IRealTimeStylus* RealTimeStylus) override { return S_OK; }
+	virtual HRESULT UpdateMapping(IRealTimeStylus* InRealTimeStylus) override { return S_OK; }
 
 	FTabletContextInfo* FindTabletContext(TABLET_CONTEXT_ID TabletID);
 
-	IUnknown* FreeThreadedMarshaller;
-	TArray<FTabletContextInfo> TabletContexts;
 	bool HasChanges { false };
+
+	TArray<FTabletContextInfo>* TabletContexts;
+	TComPtr<IRealTimeStylus> RealTimeStylus;
+	IUnknown* FreeThreadedMarshaler;
 
 private:
 	int RefCount { 1 };
 
-	void HandlePacket(IRealTimeStylus* RealTimeStylus, const StylusInfo* StylusInfo, ULONG PacketCount, ULONG PacketBufferLength, LONG* Packets);
+	void HandlePacket(IRealTimeStylus* InRealTimeStylus, const StylusInfo* StylusInfo, ULONG PacketCount, ULONG PacketBufferLength, LONG* Packets);
 
-	void AddTabletContext(IRealTimeStylus* RealTimeStylus, TABLET_CONTEXT_ID TabletID);
-	void RemoveTabletContext(IRealTimeStylus* RealTimeStylus, TABLET_CONTEXT_ID TabletID);
+	void AddTabletContext(IRealTimeStylus* InRealTimeStylus, TABLET_CONTEXT_ID TabletID);
+	void RemoveTabletContext(IRealTimeStylus* InRealTimeStylus, TABLET_CONTEXT_ID TabletID);
 };
 
 #endif // PLATFORM_WINDOWS

@@ -10,6 +10,7 @@
 class UNiagaraStackModuleItem;
 class UNiagaraStackViewModel;
 class SNiagaraStackDisplayName;
+struct FGraphActionListBuilderBase;
 
 class SNiagaraStackModuleItem : public SNiagaraStackItem
 {
@@ -37,6 +38,8 @@ private:
 
 	EVisibility GetRefreshVisibility() const;
 
+	FReply ScratchButtonPressed() const;
+	
 	TSharedRef<SWidget> RaiseActionMenuClicked();
 
 	bool CanRaiseActionMenu() const;
@@ -47,8 +50,16 @@ private:
 
 	bool OnModuleItemAllowDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
 
+	void CollectModuleActions(FGraphActionListBuilderBase& ModuleActions);
+
 	void ShowReassignModuleScriptMenu();
+
+	bool GetLibraryOnly() const;
+
+	void SetLibraryOnly(bool bInLibraryOnly);
 
 private:
 	UNiagaraStackModuleItem* ModuleItem;
+
+	static bool bLibraryOnly;
 };

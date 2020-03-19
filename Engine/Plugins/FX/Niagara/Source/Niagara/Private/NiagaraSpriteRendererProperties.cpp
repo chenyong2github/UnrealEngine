@@ -213,6 +213,7 @@ void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyCh
 	}
 	
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 }
 
 const TArray<FNiagaraVariable>& UNiagaraSpriteRendererProperties::GetBoundAttributes()
@@ -316,6 +317,22 @@ void UNiagaraSpriteRendererProperties::GetRendererWidgets(const FNiagaraEmitterI
 		TSharedRef<SWidget> SpriteWidget = SNew(SImage)
 			.Image(FSlateIconFinder::FindIconBrushForClass(GetClass()));
 		OutWidgets.Add(SpriteWidget);
+	}
+}
+
+
+void UNiagaraSpriteRendererProperties::GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const
+{
+	Super::GetRendererFeedback(InEmitter, OutErrors, OutWarnings, OutInfo);
+	if (InEmitter->SpawnScriptProps.Script->GetVMExecutableData().IsValid())
+	{
+		if (bUseMaterialCutoutTexture || CutoutTexture)
+		{
+			if (InEmitter->SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(UVScaleBinding.DataSetVariable))
+			{
+				OutInfo.Add(LOCTEXT("SpriteRendererUVScaleWithCutout", "Cutouts will not be sized dynamically with UVScale variable. If scaling above 1.0, geometry may clip."));
+			}			
+		}
 	}
 }
 

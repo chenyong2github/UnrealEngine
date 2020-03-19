@@ -401,7 +401,7 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, List<Action> Actions)
+		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			StringBuilder Arguments = new StringBuilder();
 			StringBuilder PCHArguments = new StringBuilder();
@@ -452,7 +452,7 @@ namespace UnrealBuildTool
 			// Create a compile action for each source file.
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				Action CompileAction = new Action(ActionType.Compile);
+				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
@@ -558,7 +558,6 @@ namespace UnrealBuildTool
 				// We're already distributing the command by execution on Mac.
 				CompileAction.bCanExecuteRemotely = Extension != ".C";
 				CompileAction.bShouldOutputStatusDescription = true;
-				Actions.Add(CompileAction);
 			}
 			return Result;
 		}
@@ -662,12 +661,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
+		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			bool bIsBuildingLibrary = LinkEnvironment.bIsBuildingLibrary || bBuildImportLibraryOnly;
 
 			// Create an action that invokes the linker.
-			Action LinkAction = new Action(ActionType.Link);
+			Action LinkAction = Graph.CreateAction(ActionType.Link);
 
 			LinkAction.WorkingDirectory = GetMacDevSrcRoot();
 			LinkAction.CommandPath = BuildHostPlatform.Current.Shell;
@@ -867,8 +866,6 @@ namespace UnrealBuildTool
 
 			LinkAction.ProducedItems.Add(OutputFile);
 
-			Actions.Add(LinkAction);
-
 			if (!DirectoryReference.Exists(LinkEnvironment.IntermediateDirectory))
 			{
 				return OutputFile;
@@ -1056,9 +1053,9 @@ namespace UnrealBuildTool
 			return String.Format("rsync --checksum \"{0}\" \"{1}\"", SourceFile, TargetFile);
 		}
 
-		FileItem FixDylibDependencies(LinkEnvironment LinkEnvironment, FileItem Executable, List<Action> Actions)
+		FileItem FixDylibDependencies(LinkEnvironment LinkEnvironment, FileItem Executable, IActionGraphBuilder Graph)
 		{
-			Action FixDylibAction = new Action(ActionType.PostBuildStep);
+			Action FixDylibAction = Graph.CreateAction(ActionType.PostBuildStep);
 			FixDylibAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 			FixDylibAction.CommandPath = BuildHostPlatform.Current.Shell;
 			FixDylibAction.CommandDescription = "";
@@ -1086,7 +1083,6 @@ namespace UnrealBuildTool
 			FixDylibAction.CommandArguments += "'";
 
 			FixDylibAction.ProducedItems.Add(OutputFile);
-			Actions.Add(FixDylibAction);
 
 			return OutputFile;
 		}
@@ -1096,8 +1092,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="MachOBinary">FileItem describing the executable or dylib to generate debug info for</param>
 		/// <param name="LinkEnvironment"></param>
-		/// <param name="Actions">List of actions to be executed. Additional actions will be added to this list.</param>
-		public FileItem GenerateDebugInfo(FileItem MachOBinary, LinkEnvironment LinkEnvironment, List<Action> Actions)
+		/// <param name="Graph">List of actions to be executed. Additional actions will be added to this list.</param>
+		public FileItem GenerateDebugInfo(FileItem MachOBinary, LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph)
 		{
 			string BinaryPath = MachOBinary.AbsolutePath;
 			if (BinaryPath.Contains(".app"))
@@ -1122,7 +1118,7 @@ namespace UnrealBuildTool
 			}
 
 			// Make the compile action
-			Action GenDebugAction = new Action(ActionType.GenerateDebugInfo);
+			Action GenDebugAction = Graph.CreateAction(ActionType.GenerateDebugInfo);
 			GenDebugAction.WorkingDirectory = GetMacDevSrcRoot();
 			GenDebugAction.CommandPath = BuildHostPlatform.Current.Shell;
 
@@ -1145,7 +1141,6 @@ namespace UnrealBuildTool
 			GenDebugAction.CommandDescription = "";
 			GenDebugAction.StatusDescription = "Generating " + Path.GetFileName(BinaryPath);
 			GenDebugAction.bCanExecuteRemotely = false;
-			Actions.Add(GenDebugAction);
 
 			return OutputFile;
 		}
@@ -1156,15 +1151,15 @@ namespace UnrealBuildTool
 		/// <param name="LinkEnvironment"></param>
 		/// <param name="Executable">FileItem describing the executable to generate app bundle for</param>
 		/// <param name="FixDylibOutputFile"></param>
-		/// <param name="Actions">List of actions to be executed. Additional actions will be added to this list.</param>
-		FileItem FinalizeAppBundle(LinkEnvironment LinkEnvironment, FileItem Executable, FileItem FixDylibOutputFile, List<Action> Actions)
+		/// <param name="Graph">List of actions to be executed. Additional actions will be added to this list.</param>
+		FileItem FinalizeAppBundle(LinkEnvironment LinkEnvironment, FileItem Executable, FileItem FixDylibOutputFile, IActionGraphBuilder Graph)
 		{
 			// Make a file item for the source and destination files
 			string FullDestPath = Executable.AbsolutePath.Substring(0, Executable.AbsolutePath.IndexOf(".app") + 4);
 			FileItem DestFile = FileItem.GetItemByPath(FullDestPath);
 
 			// Make the compile action
-			Action FinalizeAppBundleAction = new Action(ActionType.CreateAppBundle);
+			Action FinalizeAppBundleAction = Graph.CreateAction(ActionType.CreateAppBundle);
 			FinalizeAppBundleAction.WorkingDirectory = GetMacDevSrcRoot(); // Path.GetFullPath(".");
 			FinalizeAppBundleAction.CommandPath = BuildHostPlatform.Current.Shell;
 			FinalizeAppBundleAction.CommandDescription = "";
@@ -1177,14 +1172,13 @@ namespace UnrealBuildTool
 			FinalizeAppBundleAction.ProducedItems.Add(DestFile);
 			FinalizeAppBundleAction.StatusDescription = string.Format("Finalizing app bundle: {0}.app", Path.GetFileName(Executable.AbsolutePath));
 			FinalizeAppBundleAction.bCanExecuteRemotely = false;
-			Actions.Add(FinalizeAppBundleAction);
 
 			return DestFile;
 		}
 
-		FileItem CopyBundleResource(UEBuildBundleResource Resource, FileItem Executable, DirectoryReference BundleDirectory, List<Action> Actions)
+		FileItem CopyBundleResource(UEBuildBundleResource Resource, FileItem Executable, DirectoryReference BundleDirectory, IActionGraphBuilder Graph)
 		{
-			Action CopyAction = new Action(ActionType.CreateAppBundle);
+			Action CopyAction = Graph.CreateAction(ActionType.CreateAppBundle);
 			CopyAction.WorkingDirectory = GetMacDevSrcRoot(); // Path.GetFullPath(".");
 			CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
 			CopyAction.CommandDescription = "";
@@ -1201,7 +1195,6 @@ namespace UnrealBuildTool
 			CopyAction.bShouldOutputStatusDescription = Resource.bShouldLog;
 			CopyAction.StatusDescription = string.Format("Copying {0} to app bundle", Path.GetFileName(Resource.ResourcePath));
 			CopyAction.bCanExecuteRemotely = false;
-			Actions.Add(CopyAction);
 
 			return TargetItem;
 		}
@@ -1315,9 +1308,9 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment BinaryLinkEnvironment, List<Action> Actions)
+		public override ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
 		{
-			ICollection<FileItem> OutputFiles = base.PostBuild(Executable, BinaryLinkEnvironment, Actions);
+			ICollection<FileItem> OutputFiles = base.PostBuild(Executable, BinaryLinkEnvironment, Graph);
 
 			if (BinaryLinkEnvironment.bIsBuildingLibrary)
 			{
@@ -1328,7 +1321,7 @@ namespace UnrealBuildTool
 			{
 				foreach (UEBuildBundleResource Resource in BinaryLinkEnvironment.AdditionalBundleResources)
 				{
-					OutputFiles.Add(CopyBundleResource(Resource, Executable, BinaryLinkEnvironment.BundleDirectory, Actions));
+					OutputFiles.Add(CopyBundleResource(Resource, Executable, BinaryLinkEnvironment.BundleDirectory, Graph));
 				}
 			}
 
@@ -1338,7 +1331,7 @@ namespace UnrealBuildTool
 				// We want dsyms to be created after all dylib dependencies are fixed. If FixDylibDependencies action was not created yet, save the info for later.
 				if (FixDylibOutputFile != null)
 				{
-					OutputFiles.Add(GenerateDebugInfo(Executable, BinaryLinkEnvironment, Actions));
+					OutputFiles.Add(GenerateDebugInfo(Executable, BinaryLinkEnvironment, Graph));
 				}
 				else
 				{
@@ -1351,17 +1344,19 @@ namespace UnrealBuildTool
 				return OutputFiles;
 			}
 
-			FixDylibOutputFile = FixDylibDependencies(BinaryLinkEnvironment, Executable, Actions);
+			FixDylibOutputFile = FixDylibDependencies(BinaryLinkEnvironment, Executable, Graph);
 			OutputFiles.Add(FixDylibOutputFile);
-			if (!BinaryLinkEnvironment.bIsBuildingConsoleApplication)
+
+			bool bIsBuildingAppBundle = !BinaryLinkEnvironment.bIsBuildingDLL && !BinaryLinkEnvironment.bIsBuildingLibrary && !BinaryLinkEnvironment.bIsBuildingConsoleApplication;
+			if (bIsBuildingAppBundle)
 			{
-				OutputFiles.Add(FinalizeAppBundle(BinaryLinkEnvironment, Executable, FixDylibOutputFile, Actions));
+				OutputFiles.Add(FinalizeAppBundle(BinaryLinkEnvironment, Executable, FixDylibOutputFile, Graph));
 			}
 
 			// Add dsyms that we couldn't add before FixDylibDependencies action was created
 			foreach (FileItem Exe in ExecutablesThatNeedDsyms)
 			{
-				OutputFiles.Add(GenerateDebugInfo(Exe, BinaryLinkEnvironment, Actions));
+				OutputFiles.Add(GenerateDebugInfo(Exe, BinaryLinkEnvironment, Graph));
 			}
 			ExecutablesThatNeedDsyms.Clear();
 

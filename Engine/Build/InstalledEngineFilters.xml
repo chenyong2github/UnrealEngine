@@ -38,6 +38,15 @@
 
 
 	<Property Name="WindowsSignFilter" Value="*.exe;*.dll"/>
+
+	<Property Name="PluginsExceptions">
+		Engine/Plugins/Enterprise/DatasmithCADImporter/...
+		Engine/Plugins/Enterprise/DatasmithIFCImporter/...
+		Engine/Plugins/Enterprise/DatasmithC4DImporter/...
+		Engine/Plugins/Enterprise/AxFImporter/...
+		Engine/Plugins/Enterprise/StaticMeshEditorExtension/...
+		Engine/Plugins/Enterprise/MDLImporter/...
+	</Property>
 	<Property Name="MacSignFilter" Value="*.dylib;*.app"/>
 	<Property Name="SignExceptions" Value=".../ThirdParty/..."/>
 
@@ -84,12 +93,15 @@
 		Templates/TP_PuzzleBP/TP_PuzzleBP.uproject
 		Templates/TP_2DSideScrollerBP/TP_2DSideScrollerBP.uproject
 		Templates/TP_VehicleAdvBP/TP_VehicleAdvBP.uproject
-		Templates/TP_CollaborativeBP/TP_CollaborativeBP.uproject
 		Templates/TP_AEC_BlankBP/TP_AEC_BlankBP.uproject
 		Templates/TP_AEC_ArchvisBP/TP_AEC_ArchvisBP.uproject
 		Templates/TP_PhotoStudioBP/TP_PhotoStudioBP.uproject
+		Templates/TP_CollaborativeBP/TP_CollaborativeBP.uproject
 		Samples/StarterContent/StarterContent.uproject
 		Samples/MobileStarterContent/MobileStarterContent.uproject
+	</Property>
+	<!-- Win64 specific DDC -->
+	<Property Name="ProjectsToBuildDDCWin64" Value="$(ProjectsToBuildDDC)">
 	</Property>
 	
 	<!-- Define Editor Filters -->
@@ -148,11 +160,12 @@
 		<!-- Enterprise Templates -->
 		Templates/TP_AEC_BlankBP/...
 		Templates/TP_AEC_ArchvisBP/...
-		Templates/TP_CollaborativeBP/...
 		Templates/TP_PhotoStudioBP/...
 
 		Templates/TP_ME_BlankBP/...
 		Templates/TP_ME_VProdBP/...
+
+		Templates/TP_CollaborativeBP/...
 
 		<!-- Shared template resources -->
 		Templates/TemplateResources/...
@@ -248,9 +261,6 @@
 	<!-- Win64 editor specific dependencies -->
 	
 	<Property Name="CopyEditorFilterWin64" Value="$(CopyEditorFilter)">
-		<!-- Leap SDK -->
-		Engine/Plugins/Runtime/LeapMotion/ThirdParty/LeapSDK/...
-
 		<!-- Build batch files -->
 		Engine/Build/BatchFiles/Build.bat
 		Engine/Build/BatchFiles/Clean.bat
@@ -277,8 +287,11 @@
 		Engine/Extras/UnrealVS/...
 		Engine/Extras/Redist/en-us/*
 			
-		<!-- nDisplay Template -->
+		<!-- Virtual Production Templates -->
 		Templates/TP_nDisplayBP/...
+
+		<!-- Enterprise Templates -->
+		Templates/TP_HololensBP/...
 	</Property>
 
 	<Property Name="CopyEditorExceptionsWin64" Value="$(CopyEditorExceptions)">

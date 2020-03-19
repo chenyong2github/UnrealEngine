@@ -166,8 +166,20 @@ public:
 	/** Get the number of capsules */
 	void GetNumCapsules(FVectorVMContext& Context);
 
+	/** Get the element point */
+	void GetElementPoint(FVectorVMContext& Context);
+
+	/** Get the element distance */
+	void GetElementDistance(FVectorVMContext& Context);
+
+	/** Get the closest element */
+	void GetClosestElement(FVectorVMContext& Context);
+
 	/** Get the closest point */
 	void GetClosestPoint(FVectorVMContext& Context);
+
+	/** Get the closest distance */
+	void GetClosestDistance(FVectorVMContext& Context);
 
 	/** Get the closest texture point */
 	void GetTexturePoint(FVectorVMContext& Context);

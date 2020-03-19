@@ -820,9 +820,14 @@ public:
 	TOptional<float> ExposureCompensation;
 
 	/**
-	* Any additional texture mip map bias that should be added when rendering. Can be used to force extra sharpness.
+	* Any additional texture mip map bias that should be added when rendering. Can be used to force extra sharpness. A more negative number means more likely to use a higher quality mip map.
 	*/
 	float TextureSharpnessBias;
+
+	/**
+	* What screen percentage should each view be rendered at? 1.0 = standard size. Can gain more detail (at the cost of longer renders, more device timeouts), consider trying to use TextureSharpnessBias if possible instead.
+	*/
+	float GlobalScreenPercentageFraction;
 
 
 	FMoviePipelineFrameOutputState OutputState;
@@ -916,6 +921,13 @@ struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<F
 	FMoviePipelineRenderPassMetrics SampleState;
 
 	FMoviePipelinePassIdentifier PassIdentifier;
+	
+	/** Does this output data have to be transparent to be useful? Overrides output format to one that supports transparency. */
+	bool bRequireTransparentOutput;
+
+	FImagePixelDataPayload()
+		: bRequireTransparentOutput(false)
+	{}
 
 	/** Is this the first tile of an image and we should start accumulating? */
 	FORCEINLINE bool IsFirstTile() const

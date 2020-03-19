@@ -24,5 +24,8 @@ public:
 	FProperty* LastSelectedProperty;
 
 private:
-
+	bool GetDefaultValueIsEnabled() const
+	{
+		return !GraphPinObj->bDefaultValueIsReadOnly;
+	}
 };

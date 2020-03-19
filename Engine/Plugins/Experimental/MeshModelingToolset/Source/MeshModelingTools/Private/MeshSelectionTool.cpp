@@ -92,7 +92,7 @@ void UMeshSelectionTool::Setup()
 	UDynamicMeshBrushTool::Setup();
 
 	// hide strength and falloff
-	BrushProperties->bShowFullSettings = false;
+	BrushProperties->bShowStrength = BrushProperties->bShowFalloff = false;
 	BrushProperties->RestoreProperties(this);
 
 	SelectionProps = NewObject<UMeshSelectionToolProperties>(this);
@@ -107,6 +107,9 @@ void UMeshSelectionTool::Setup()
 
 	EditActions = CreateEditActions();
 	AddToolPropertySource(EditActions);
+
+	// set autocalculated tangents
+	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 	// enable wireframe on component
 	PreviewMesh->EnableWireframe(SelectionProps->bShowWireframe);
@@ -155,6 +158,12 @@ void UMeshSelectionTool::Setup()
 
 	RecalculateBrushRadius();
 	UpdateVisualization(true);
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartMeshSelectionTool", "This Tool allows you to modify the mesh based on a triangle selection. [Q] cyles through Selection Mode. [A] cycles through Face Color modes. [ and ] change brush size, < and > grow/shrink selection."),
+		EToolMessageLevel::UserNotification);
+
+
 }
 
 
@@ -251,14 +260,14 @@ void UMeshSelectionTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		TEXT("ShrinkSelection"),
 		LOCTEXT("ShrinkSelection", "Shrink Selection"),
 		LOCTEXT("ShrinkSelectionTooltip", "Shrink selection"),
-		EModifierKey::None, EKeys::Comma,
+		EModifierKey::Shift, EKeys::Comma,
 		[this]() { GrowShrinkSelection(false); });
 
 	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::GrowSelection,
 		TEXT("GrowSelection"),
 		LOCTEXT("GrowSelection", "Grow Selection"),
 		LOCTEXT("GrowSelectionTooltip", "Grow selection"),
-		EModifierKey::None, EKeys::Period,
+		EModifierKey::Shift, EKeys::Period,
 		[this]() { GrowShrinkSelection(true); });
 
 	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::OptimizeSelection,

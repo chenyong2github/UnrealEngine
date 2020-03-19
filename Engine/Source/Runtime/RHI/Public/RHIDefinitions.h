@@ -1088,7 +1088,7 @@ enum EBufferUsageFlags
 	BUF_ByteAddressBuffer = 0x0020,
 
 	/** Create a structured buffer with an atomic UAV counter. */
-	BUF_UAVCounter UE_DEPRECATED(4.25, "BUF_UAVCounter is deprecated and getting removed; please don't use.") = 0x0040,
+	BUF_UAVCounter UE_DEPRECATED(4.25, "BUF_UAVCounter is deprecated and getting removed; please don't use.") = 0x10000,
 
 	/** Buffer that the GPU will use as a source for a copy. */
 	BUF_SourceCopy			= 0x0040,
@@ -1122,7 +1122,7 @@ enum EBufferUsageFlags
 	BUF_Transient		  = 0x2000,
 
 	/** Buffer that should be accessed one byte at a time. */
-	BUF_UINT8 UE_DEPRECATED(4.25, "BUF_UINT8 is deprecated and getting removed; please don't use.") = 0x4000,
+	BUF_UINT8 UE_DEPRECATED(4.25, "BUF_UINT8 is deprecated and getting removed; please don't use.") = 0x20000,
 
 	/**
 	 * Buffer contains opaque ray tracing acceleration structure data.
@@ -1218,6 +1218,8 @@ enum ETextureCreateFlags
 	TexCreate_FastVRAMPartialAlloc  = 1<<13,
 	// Do not create associated shader resource view, only applicable to D3D11 and D3D12
 	TexCreate_DisableSRVCreation = 1 << 14,
+	// Do not allow Delta Color Compression (DCC) to be used with this texture
+	TexCreate_DisableDCC		    = 1 << 15,
 	// UnorderedAccessView (DX11 only)
 	// Warning: Causes additional synchronization between draw calls when using a render target allocated with this flag, use sparingly
 	// See: GCNPerformanceTweets.pdf Tip 37

@@ -111,7 +111,8 @@ void SPropertyEditorText::OnTextCommitted( const FText& NewText, ETextCommit::Ty
 	const TSharedRef< IPropertyHandle > PropertyHandle = PropertyEditor->GetPropertyHandle();
 
 	FText CurrentText;
-	if( PropertyHandle->GetValueAsFormattedText( CurrentText ) != FPropertyAccess::MultipleValues || NewText.ToString() != FPropertyEditor::MultipleValuesDisplayName )
+	if( (PropertyHandle->GetValueAsFormattedText( CurrentText ) != FPropertyAccess::MultipleValues || NewText.ToString() != FPropertyEditor::MultipleValuesDisplayName)
+		&& !NewText.ToString().Equals(CurrentText.ToString(), ESearchCase::CaseSensitive))
 	{
 		PropertyHandle->SetValueFromFormattedString( NewText.ToString() );
 	}

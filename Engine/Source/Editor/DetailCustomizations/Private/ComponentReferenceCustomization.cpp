@@ -509,7 +509,7 @@ FText FComponentReferenceCustomization::OnGetComponentName() const
 		if (UActorComponent* ActorComponent = CachedComponent.Get())
 		{
 			const FName ComponentName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(ActorComponent);
-			const bool bIsArrayVariable = !ComponentName.IsNone() && ActorComponent->GetOwner() != nullptr && FindField<FArrayProperty>(ActorComponent->GetOwner()->GetClass(), ComponentName);
+			const bool bIsArrayVariable = !ComponentName.IsNone() && ActorComponent->GetOwner() != nullptr && FindFProperty<FArrayProperty>(ActorComponent->GetOwner()->GetClass(), ComponentName);
 
 			if (!ComponentName.IsNone() && !bIsArrayVariable)
 			{

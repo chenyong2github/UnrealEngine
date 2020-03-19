@@ -130,11 +130,11 @@ bool UDatasmithFileProducer::Initialize()
 	TSharedPtr<IDatasmithTranslator> TranslatorPtr = TranslatableSourcePtr->GetTranslator();
 	if(IDatasmithTranslator* Translator = TranslatorPtr.Get())
 	{
-		TArray< TStrongObjectPtr<UObject> > Options;
+		TArray< TStrongObjectPtr<UDatasmithOptionsBase> > Options;
 		Translator->GetSceneImportOptions( Options );
 
 		bool bUpdateOptions = false;
-		for(TStrongObjectPtr<UObject>& ObjectPtr : Options)
+		for(TStrongObjectPtr<UDatasmithOptionsBase>& ObjectPtr : Options)
 		{
 			if(UDatasmithCommonTessellationOptions* TessellationOption = Cast<UDatasmithCommonTessellationOptions>(ObjectPtr.Get()))
 			{
@@ -455,10 +455,6 @@ void UDatasmithFileProducer::PreventNameCollision()
 		{
 			if( UObject* Object = Assets[Index].Get() )
 			{
-				// Ensure object's package is transient and not public
-				Object->GetOutermost()->ClearFlags( RF_Public );
-				Object->GetOutermost()->SetFlags( RF_Transient );
-
 				PathsToDelete.Add( Object->GetOutermost()->GetPathName() );
 
 				if( Cast<UStaticMesh>( Object ) != nullptr )

@@ -7,7 +7,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(FManagedArrayCollectionLogging, NoLogging, All);
 
-int8 FManagedArrayCollection::Invalid = -1;
+int8 FManagedArrayCollection::Invalid = INDEX_NONE;
 
 
 FManagedArrayCollection::FManagedArrayCollection()
@@ -278,7 +278,9 @@ void FManagedArrayCollection::SyncGroupSizeFrom(const FManagedArrayCollection& I
 	Resize(InCollection.GroupInfo[Group].Size, Group);
 }
 
-void FManagedArrayCollection::CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection)
+void FManagedArrayCollection::CopyMatchingAttributesFrom(
+	const FManagedArrayCollection& InCollection,
+	const TMap<FName, TSet<FName>>* SkipList)
 {
 	for (const auto& Pair : InCollection.GroupInfo)
 	{
@@ -286,9 +288,26 @@ void FManagedArrayCollection::CopyMatchingAttributesFrom(const FManagedArrayColl
 	}
 	for (TTuple<FKeyType, FValueType>& Entry : Map)
 	{
+		if (SkipList)
+		{
+			if (const TSet<FName>* Attrs = SkipList->Find(Entry.Key.Get<1>()))
+			{
+				if (Attrs->Contains(Entry.Key.Get<0>()))
+				{
+					continue;
+				}
+			}
+		}
 		if (InCollection.HasAttribute(Entry.Key.Get<0>(), Entry.Key.Get<1>()))
 		{
-			CopyAttribute(InCollection, Entry.Key.Get<0>(), Entry.Key.Get<1>());
+			const FValueType& OriginalValue = InCollection.Map[Entry.Key];
+			const FValueType& DestValue = Map[Entry.Key];
+
+			// If we don't have a type match don't attempt the copy.
+			if(OriginalValue.ArrayType == DestValue.ArrayType)
+			{
+				CopyAttribute(InCollection, Entry.Key.Get<0>(), Entry.Key.Get<1>());
+			}
 		}
 	}
 

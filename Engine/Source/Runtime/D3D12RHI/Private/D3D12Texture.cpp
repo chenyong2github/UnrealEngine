@@ -205,9 +205,9 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 
 			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
 			hCommandList.GetCurrentOwningContext()->numCopies += NumSubresources;
-
-			FConditionalScopeResourceBarrier ConditionalScopeResourceBarrier(hCommandList, Resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
+			
+			// resource should be in copy dest already, because it's created like that, so no transition required here
+			
 			ID3D12GraphicsCommandList* CmdList = hCommandList.GraphicsCommandList();
 
 			D3D12_TEXTURE_COPY_LOCATION Dst;
@@ -221,7 +221,18 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 				CmdList->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
 			}
 
-			hCommandList.UpdateResidency(Resource);
+			// Update the resource state after the copy has been done (will take care of updating the residency as well)
+			if (Resource->RequiresResourceStateTracking())
+			{
+				// record the dummy copy_dest to copy_dest transition in the command list to make sure we have proper tracking of the resource
+				// mostly needed to make sure we have correct storage of end resource state when all the pending buffer transitions are flushed 
+				// (otherwise it's untracked and not updated)
+				FD3D12DynamicRHI::TransitionResource(hCommandList, Resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			}
+			else
+			{
+				hCommandList.AddTransitionBarrier(Resource, D3D12_RESOURCE_STATE_COPY_DEST, Resource->GetDefaultResourceState(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			}
 
 			CurrentTexture = CurrentTexture->GetNextObject();
 		}
@@ -3017,14 +3028,17 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 
 	if (CopyInfo.Size != FIntVector::ZeroValue || bReadback)
 	{
+		// Interpret zero size as source size
+		const FIntVector CopySize = CopyInfo.Size == FIntVector::ZeroValue ? SourceTextureRHI->GetSizeXYZ() : CopyInfo.Size;
+
 		// Copy sub texture regions
 		CD3DX12_BOX SourceBoxD3D(
 			CopyInfo.SourcePosition.X,
 			CopyInfo.SourcePosition.Y,
 			CopyInfo.SourcePosition.Z,
-			CopyInfo.SourcePosition.X + CopyInfo.Size.X,
-			CopyInfo.SourcePosition.Y + CopyInfo.Size.Y,
-			CopyInfo.SourcePosition.Z + CopyInfo.Size.Z
+			CopyInfo.SourcePosition.X + CopySize.X,
+			CopyInfo.SourcePosition.Y + CopySize.Y,
+			CopyInfo.SourcePosition.Z + CopySize.Z
 		);
 
 		D3D12_TEXTURE_COPY_LOCATION Src;
@@ -3055,9 +3069,9 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 				uint32 SourceMipIndex = CopyInfo.SourceMipIndex + MipIndex;
 				uint32 DestMipIndex   = CopyInfo.DestMipIndex   + MipIndex;
 
-				uint32 SizeX = FMath::Max(CopyInfo.Size.X >> MipIndex, 1);
-				uint32 SizeY = FMath::Max(CopyInfo.Size.Y >> MipIndex, 1);
-				uint32 SizeZ = FMath::Max(CopyInfo.Size.Z >> MipIndex, 1);
+				uint32 SizeX = FMath::Max(CopySize.X >> MipIndex, 1);
+				uint32 SizeY = FMath::Max(CopySize.Y >> MipIndex, 1);
+				uint32 SizeZ = FMath::Max(CopySize.Z >> MipIndex, 1);
 
 				SourceBoxD3D.right  = CopyInfo.SourcePosition.X + SizeX;
 				SourceBoxD3D.bottom = CopyInfo.SourcePosition.Y + SizeY;

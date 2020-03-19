@@ -153,6 +153,18 @@ inline FVector4 operator*(const FVector4 &A, const FVector4 &B)
 	return Result;
 }
 
+inline FVector4 operator*(const uniform FVector4 &A, const FVector4 &B)
+{
+	FVector4 Result;
+
+	for(uniform int i = 0; i < 4; i++)
+	{
+		Result.V[i] = A.V[i] * B.V[i];
+	}
+
+	return Result;
+}
+
 inline FVector4 operator*(const FVector4 &A, const uniform FVector4 &B)
 {
 	FVector4 Result;
@@ -333,6 +345,12 @@ inline uniform FVector4 SetVector4(const uniform FVector &V, const uniform float
 inline uniform FVector4 SetVector4(const uniform float F)
 {
 	const uniform FVector4 Result = {{F, F, F, F}};
+	return Result;
+}
+
+inline varying FVector4 SetVector4(const varying float F)
+{
+	const varying FVector4 Result = {{F, F, F, F}};
 	return Result;
 }
 
@@ -1568,6 +1586,13 @@ inline uniform float VectorDot( const uniform FVector4& Vec1, const uniform FVec
 inline uniform float VectorDot( const uniform FVector &Vec1, const uniform FVector &Vec2 )
 {
 	const uniform FVector Temp = Vec1 * Vec2;
+	return Temp.V[0] + Temp.V[1] + Temp.V[2];
+}
+
+
+inline varying float VectorDot( const varying FVector &Vec1, const varying FVector &Vec2 )
+{
+	const varying FVector Temp = Vec1 * Vec2;
 	return Temp.V[0] + Temp.V[1] + Temp.V[2];
 }
 

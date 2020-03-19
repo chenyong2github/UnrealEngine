@@ -99,14 +99,9 @@ namespace UnrealBuildTool
 			/// <returns>Hash value for this object</returns>
 			public override int GetHashCode()
 			{
-				return ((ProjectDir != null)? ProjectDir.GetHashCode() : 0) + ((int)Type * 123) + ((Platform != null ? Platform.ToString() : "None").GetHashCode() * 345);
+				return ((ProjectDir != null) ? ProjectDir.GetHashCode() : 0) + ((int)Type * 123) + (Platform.GetHashCode() * 345);
 			}
 		}
-
-		/// <summary>
-		/// Stores the number of config file types
-		/// </summary>
-		static readonly int NumConfigFileTypes = (int)((ConfigHierarchyType[])Enum.GetValues(typeof(ConfigHierarchyType))).Last() + 1;
 
 		/// <summary>
 		/// Cache of individual config files

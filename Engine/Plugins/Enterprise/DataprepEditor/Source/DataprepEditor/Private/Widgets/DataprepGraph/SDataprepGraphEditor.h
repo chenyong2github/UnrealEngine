@@ -88,9 +88,6 @@ public:
 	virtual void NotifyGraphChanged() override;
 	// End of SGraphEditor overrides
 
-	// #ueent_toremove: Temp code for the nodes development
-	void OnPipelineChanged(UBlueprint* InBlueprint);
-
 	/** Called when a change has occurred in the set of the Dataprep asset's actions */
 	void OnDataprepAssetActionChanged(UObject* InObject, FDataprepAssetChangeType ChangeType);
 
@@ -141,9 +138,6 @@ private:
 private:
 	/** When false, indicates the graph editor has not been drawn yet */
 	mutable bool bIsComplete;
-
-	/** Indicates layout must be recomputed */
-	mutable bool bMustRearrange;
 
 	/** Last size of the window displaying the graph's canvas */
 	FVector2D LastLocalSize;

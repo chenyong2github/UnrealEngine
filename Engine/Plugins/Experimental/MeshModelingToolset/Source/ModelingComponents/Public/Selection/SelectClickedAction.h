@@ -31,6 +31,10 @@ public:
 	TFunction<void(const FHitResult&)> OnClickedPositionFunc = nullptr;
 	TUniqueFunction<bool()> ExternalCanClickPredicate = nullptr;
 
+	// can alternately track shift modifier, however client must register this modifier w/ behavior
+	static const int ShiftModifier = 1;
+	bool bShiftModifierToggle = false;
+
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override
 	{
 		if (ExternalCanClickPredicate && ExternalCanClickPredicate() == false)
@@ -44,4 +48,14 @@ public:
 	{
 		DoRayCast(ClickPos, true);
 	}
+
+
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn)
+	{
+		if (ModifierID == ShiftModifier)
+		{
+			bShiftModifierToggle = bIsOn;
+		}
+	}
+
 };

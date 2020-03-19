@@ -20,11 +20,12 @@ public:
 
 	virtual void AllocateDefaultPins() override;
 
+	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 	virtual bool IsPinNameEditable(const UEdGraphPin* GraphPinObj) const override;
 	virtual bool IsPinNameEditableUponCreation(const UEdGraphPin* GraphPinObj) const override;
 	virtual void RemoveDynamicPin(UEdGraphPin* Pin) override;
 	virtual bool VerifyEditablePinName(const FText& InName, FText& OutErrorMessage, const UEdGraphPin* InGraphPinObj) const override;
-	virtual bool CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj)  override;
+	virtual bool CommitEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj, bool bSuppressEvents = false)  override;
 	virtual bool CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) override;
 
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
@@ -36,6 +37,7 @@ public:
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual bool IncludeParentNodeContextMenu() const { return true; }
 	virtual void PostLoad() override;
+	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_OUTPUT_MODULE_STR; }
 
 protected:
 	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin); 

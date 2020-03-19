@@ -286,7 +286,7 @@ bool FLidarPointCloudViewData::ComputeFromEditorViewportClient(FViewportClient* 
 void FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudLODManager::FNodeSizeData>& NodeSizeData, const FLidarPointCloudViewData& ViewData, const int32& ProxyIndex, const FLidarPointCloudNodeSelectionParams& SelectionParams, const float& CurrentTime)
 {
 	// Skip processing, if the asset is not visible
-	if (!ViewData.ViewFrustum.IntersectBox(GetCenter(), Octree->GetExtent()))
+	if (!ViewData.ViewFrustum.IntersectBox(GetCenter(), GetExtent()))
 	{
 		return;
 	}

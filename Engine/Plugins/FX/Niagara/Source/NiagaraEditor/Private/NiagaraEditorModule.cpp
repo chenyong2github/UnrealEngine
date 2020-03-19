@@ -37,6 +37,7 @@
 #include "NiagaraNodeConvert.h"
 #include "NiagaraNodeAssignment.h"
 #include "EdGraphSchema_Niagara.h"
+
 #include "TypeEditorUtilities/NiagaraFloatTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraIntegerTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraEnumTypeEditorUtilities.h"
@@ -46,10 +47,9 @@
 #include "TypeEditorUtilities/NiagaraColorTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraMatrixTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraDataInterfaceCurveTypeEditorUtilities.h"
+
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorCommands.h"
-#include "Sequencer/NiagaraSequence/NiagaraEmitterTrackEditor.h"
-#include "Sequencer/LevelSequence/NiagaraSystemTrackEditor.h"
 #include "PropertyEditorModule.h"
 #include "NiagaraSettings.h"
 #include "NiagaraModule.h"
@@ -64,7 +64,6 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "TNiagaraGraphPinEditableName.h"
-#include "Sequencer/NiagaraSequence/Sections/MovieSceneNiagaraEmitterSection.h"
 #include "UObject/Class.h"
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraEmitter.h"
@@ -87,15 +86,22 @@
 #include "Sections/MovieSceneVectorSection.h"
 #include "Sections/MovieSceneColorSection.h"
 
+#include "Sequencer/NiagaraSequence/Sections/MovieSceneNiagaraEmitterSection.h"
+#include "Sequencer/NiagaraSequence/NiagaraEmitterTrackEditor.h"
+#include "Sequencer/LevelSequence/NiagaraSystemTrackEditor.h"
+
 #include "ISequencerSection.h"
 #include "Sections/BoolPropertySection.h"
 #include "Sections/ColorPropertySection.h"
 
 #include "Customizations/NiagaraComponentDetails.h"
-#include "Customizations/NiagaraTypeCustomizations.h"
+#include "Customizations/NiagaraFunctionCallNodeDetails.h"
 #include "Customizations/NiagaraEventScriptPropertiesCustomization.h"
+#include "Customizations/NiagaraPlatformSetCustomization.h"
 #include "Customizations/NiagaraScriptVariableCustomization.h"
 #include "Customizations/NiagaraScriptDetails.h"
+#include "Customizations/NiagaraStaticSwitchNodeDetails.h"
+#include "Customizations/NiagaraTypeCustomizations.h"
 
 #include "NiagaraComponent.h"
 #include "NiagaraNodeStaticSwitch.h"
@@ -108,8 +114,6 @@
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraThumbnailRenderer.h"
 #include "Misc/FeedbackContext.h"
-#include "Customizations/NiagaraStaticSwitchNodeDetails.h"
-#include "Customizations/NiagaraFunctionCallNodeDetails.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "Engine/Selection.h"
 #include "NiagaraActor.h"
@@ -143,14 +147,6 @@ const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0
 TArray<TPair<FName, FNiagaraParameterScopeInfo>> FNiagaraEditorModule::RegisteredParameterScopeInfos;
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
-
-int32 GbShowFastPathOptions = 0;
-static FAutoConsoleVariableRef CVarShowFastPathOptions(
-	TEXT("fx.Niagara.ShowFastPathOptions"),
-	GbShowFastPathOptions,
-	TEXT("If > 0 the experimental fast path options will be shown in the system and emitter properties in the niagara system editor.\n"),
-	ECVF_Default
-);
 
 const FNiagaraParameterScopeInfo* FNiagaraEditorModule::FindParameterScopeInfo(const FName& ParameterScopeInfoName)
 {
@@ -829,7 +825,7 @@ void FNiagaraEditorModule::StartupModule()
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraPlatformSet::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraPlatformSetTypeCustomization::MakeInstance)
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraPlatformSetCustomization::MakeInstance)
 	);
 	
 	PropertyModule.RegisterCustomPropertyTypeLayout(
@@ -1034,6 +1030,8 @@ void FNiagaraEditorModule::StartupModule()
 	RegisterParameterScopeInfo(FNiagaraConstants::LocalNamespace, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Local, PARAM_MAP_LOCAL_MODULE_STR));
 	RegisterParameterScopeInfo(FNiagaraConstants::ScriptPersistentScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::ScriptPersistent, PARAM_MAP_SCRIPT_PERSISTENT_STR));
 	RegisterParameterScopeInfo(FNiagaraConstants::ScriptTransientScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::ScriptTransient, PARAM_MAP_SCRIPT_TRANSIENT_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::OutputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Output, PARAM_MAP_OUTPUT_STR));
+	RegisterParameterScopeInfo(FNiagaraConstants::UniqueOutputScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Output, PARAM_MAP_OUTPUT_MODULE_STR));
 	RegisterParameterScopeInfo(FNiagaraConstants::CustomScopeName, FNiagaraParameterScopeInfo(ENiagaraParameterScope::Custom, FString()));
 }
 

@@ -30,6 +30,8 @@
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "UObject/ObjectMacros.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #define LOCTEXT_NAMESPACE "UDynamicMeshSculptTool"
 
@@ -44,60 +46,94 @@ UMeshSurfacePointTool* UDynamicMeshSculptToolBuilder::CreateNewTool(const FToolB
 	return SculptTool;
 }
 
+USculptBrushProperties::USculptBrushProperties() : UBrushBaseProperties()
+{
+	this->BrushFalloffAmount = 0.5f;
+}
+
+
+
+void USculptBrushProperties::SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving)
+{
+	// do not restore base properties, they have their own CDO
+	//UBrushBaseProperties::SaveRestoreProperties(Tool, bSaving);
+
+	USculptBrushProperties* PropertyCache = GetPropertyCache<USculptBrushProperties>();
+
+	SaveRestoreProperty(PropertyCache->BrushSize, this->BrushSize, bSaving);
+	SaveRestoreProperty(PropertyCache->bSpecifyRadius, this->bSpecifyRadius, bSaving);
+	SaveRestoreProperty(PropertyCache->BrushRadius, this->BrushRadius, bSaving);
+	SaveRestoreProperty(PropertyCache->BrushFalloffAmount, this->BrushFalloffAmount, bSaving);
+	SaveRestoreProperty(PropertyCache->BrushStrength, this->BrushStrength, bSaving);
+
+	SaveRestoreProperty(PropertyCache->Depth, this->Depth, bSaving);
+	SaveRestoreProperty(PropertyCache->bHitBackFaces, this->bHitBackFaces, bSaving);
+}
+
 /*
  * BrushSculptProperties
  */
-void UBrushSculptProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+void UBrushSculptProperties::SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving)
 {
 	UBrushSculptProperties* PropertyCache = GetPropertyCache<UBrushSculptProperties>();
-	PropertyCache->PrimaryBrushType = this->PrimaryBrushType;
-	PropertyCache->PrimaryBrushSpeed = this->PrimaryBrushSpeed;
-	PropertyCache->SmoothBrushSpeed = this->SmoothBrushSpeed;
-	PropertyCache->bPreserveUVFlow = this->bPreserveUVFlow;
-	PropertyCache->bSmoothBrushRemeshes = this->bSmoothBrushRemeshes;
-	PropertyCache->BrushDepth = this->BrushDepth;
-	PropertyCache->bFreezeTarget = this->bFreezeTarget;
-	PropertyCache->bHitBackFaces = this->bHitBackFaces;
+	SaveRestoreProperty(PropertyCache->PrimaryBrushType, this->PrimaryBrushType, bSaving);
+	SaveRestoreProperty(PropertyCache->PrimaryBrushSpeed, this->PrimaryBrushSpeed, bSaving);
+	SaveRestoreProperty(PropertyCache->SmoothBrushSpeed, this->SmoothBrushSpeed, bSaving);
+	SaveRestoreProperty(PropertyCache->bPreserveUVFlow, this->bPreserveUVFlow, bSaving);
+	SaveRestoreProperty(PropertyCache->bDetailPreservingSmooth, this->bDetailPreservingSmooth, bSaving);
+	SaveRestoreProperty(PropertyCache->bFreezeTarget, this->bFreezeTarget, bSaving);
 }
 
-void UBrushSculptProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+
+
+void UPlaneBrushProperties::SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving)
 {
-	UBrushSculptProperties* PropertyCache = GetPropertyCache<UBrushSculptProperties>();
-	this->PrimaryBrushType = PropertyCache->PrimaryBrushType;
-	this->PrimaryBrushSpeed = PropertyCache->PrimaryBrushSpeed;
-	this->SmoothBrushSpeed = PropertyCache->SmoothBrushSpeed;
-	this->bPreserveUVFlow = PropertyCache->bPreserveUVFlow;
-	this->bSmoothBrushRemeshes = PropertyCache->bSmoothBrushRemeshes;
-	this->BrushDepth = PropertyCache->BrushDepth;
-	this->bFreezeTarget = PropertyCache->bFreezeTarget;
-	this->bHitBackFaces = PropertyCache->bHitBackFaces;
+	UPlaneBrushProperties* PropertyCache = GetPropertyCache<UPlaneBrushProperties>();
+	SaveRestoreProperty(PropertyCache->WhichSide, this->WhichSide, bSaving);
 }
 
-/*
- * FixedPlaneBrushProperties
- */
+
+
 UFixedPlaneBrushProperties::UFixedPlaneBrushProperties()
 {
 	bPropertySetEnabled = true;
 	bSnapToGrid = true;
 	bShowGizmo = true;
 	Position = FVector::ZeroVector;
+	Rotation = FQuat::Identity;
 }
 
-void UFixedPlaneBrushProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+void UFixedPlaneBrushProperties::SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving)
 {
 	UFixedPlaneBrushProperties* PropertyCache = GetPropertyCache<UFixedPlaneBrushProperties>();
-	PropertyCache->bShowGizmo = this->bShowGizmo;
-	PropertyCache->bSnapToGrid = this->bSnapToGrid;
-	PropertyCache->Position = this->Position;
+	SaveRestoreProperty(PropertyCache->bShowGizmo, this->bShowGizmo, bSaving);
+	SaveRestoreProperty(PropertyCache->bSnapToGrid, this->bSnapToGrid, bSaving);
+	SaveRestoreProperty(PropertyCache->Position, this->Position, bSaving);
+	SaveRestoreProperty(PropertyCache->Rotation, this->Rotation, bSaving);
 }
 
-void UFixedPlaneBrushProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+
+void UBrushRemeshProperties::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
 {
-	UFixedPlaneBrushProperties* PropertyCache = GetPropertyCache<UFixedPlaneBrushProperties>();
-	this->bShowGizmo = PropertyCache->bShowGizmo;
-	this->bSnapToGrid = PropertyCache->bSnapToGrid;
-	this->Position = PropertyCache->Position;
+	UBrushRemeshProperties* PropertyCache = GetPropertyCache<UBrushRemeshProperties>();
+
+	// MeshConstraintProperties
+	SaveRestoreProperty(PropertyCache->bPreserveSharpEdges, this->bPreserveSharpEdges, bSaving);
+	SaveRestoreProperty(PropertyCache->MeshBoundaryConstraint, this->MeshBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->GroupBoundaryConstraint, this->GroupBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->MaterialBoundaryConstraint, this->MaterialBoundaryConstraint, bSaving);
+	SaveRestoreProperty(PropertyCache->bPreventNormalFlips, this->bPreventNormalFlips, bSaving);
+
+	//RemeshProperties
+	SaveRestoreProperty(PropertyCache->SmoothingStrength, this->SmoothingStrength, bSaving);
+	SaveRestoreProperty(PropertyCache->bFlips, this->bFlips, bSaving);
+	SaveRestoreProperty(PropertyCache->bSplits, this->bSplits, bSaving);
+	SaveRestoreProperty(PropertyCache->bCollapses, this->bCollapses, bSaving);
+
+	//BrushRemeshProperties
+	SaveRestoreProperty(PropertyCache->TriangleSize, this->TriangleSize, bSaving);
+	SaveRestoreProperty(PropertyCache->PreserveDetail, this->PreserveDetail, bSaving);
+	SaveRestoreProperty(PropertyCache->bEnableRemeshing, this->bEnableRemeshing, bSaving);
 }
 
 /*
@@ -166,13 +202,16 @@ void UDynamicMeshSculptTool::Setup()
 	// initialize brush radius range interval, brush properties
 	double MaxDimension = DynamicMeshComponent->GetMesh()->GetCachedBounds().MaxDim();
 	BrushRelativeSizeRange = FInterval1d(MaxDimension*0.01, MaxDimension);
-	BrushProperties = NewObject<UBrushBaseProperties>(this, TEXT("Brush"));
+	BrushProperties = NewObject<USculptBrushProperties>(this);
+	BrushProperties->bShowStrength = false;
 	CalculateBrushRadius();
 
 	// initialize other properties
-	SculptProperties = NewObject<UBrushSculptProperties>(this, TEXT("Sculpting"));
+	SculptProperties = NewObject<UBrushSculptProperties>(this);
 
-	RemeshProperties = NewObject<UBrushRemeshProperties>(this, TEXT("Remeshing"));
+	RemeshProperties = NewObject<UBrushRemeshProperties>(this);
+	RemeshProperties->RestoreProperties(this);
+
 	InitialEdgeLength = EstimateIntialSafeTargetLength(*Mesh, 5000);
 
 	// hide input Component
@@ -190,11 +229,20 @@ void UDynamicMeshSculptTool::Setup()
 	BrushIndicator = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UBrushStampIndicator>(BrushIndicatorGizmoType, FString(), this);
 	BrushIndicatorMesh = MakeDefaultSphereMesh(this, TargetWorld);
 	BrushIndicator->AttachedComponent = BrushIndicatorMesh->GetRootComponent();
-	BrushIndicator->bDrawIndicatorLines = false;
+	BrushIndicator->LineThickness = 1.0;
+	BrushIndicator->bDrawIndicatorLines = true;
+	BrushIndicator->bDrawRadiusCircle = false;
+	BrushIndicator->bDrawFalloffCircle = true;
+	BrushIndicator->LineColor = FLinearColor(0.9f, 0.4f, 0.4f);
 
 	// initialize our properties
-	AddToolPropertySource(SculptProperties);
 	AddToolPropertySource(BrushProperties);
+	AddToolPropertySource(SculptProperties);
+
+	PlaneBrushProperties = NewObject<UPlaneBrushProperties>(this);
+	PlaneBrushProperties->RestoreProperties(this);
+	AddToolPropertySource(PlaneBrushProperties);
+
 	if (this->bEnableRemeshing)
 	{
 		SculptProperties->bIsRemeshingEnabled = true;
@@ -209,24 +257,45 @@ void UDynamicMeshSculptTool::Setup()
 	GizmoProperties->RestoreProperties(this);
 	AddToolPropertySource(GizmoProperties);
 
+	// disable tool-specific properties
+	SetToolPropertySourceEnabled(PlaneBrushProperties, false);
+	SetToolPropertySourceEnabled(GizmoProperties, false);
+
 	ViewProperties = NewObject<UMeshEditingViewProperties>();
 	ViewProperties->RestoreProperties(this);
 	AddToolPropertySource(ViewProperties);
+
+	// register watchers
 	ShowWireframeWatcher.Initialize(
 		[this]() { return ViewProperties->bShowWireframe; },
-		[this](bool bNewValue) { DynamicMeshComponent->bExplicitShowWireframe = bNewValue; }, false);
+		[this](bool bNewValue) { DynamicMeshComponent->bExplicitShowWireframe = bNewValue; }, ViewProperties->bShowWireframe);
 	MaterialModeWatcher.Initialize(
 		[this]() { return ViewProperties->MaterialMode; },
 		[this](EMeshEditingMaterialModes NewMode) { UpdateMaterialMode(NewMode); }, EMeshEditingMaterialModes::ExistingMaterial);
+	FlatShadingWatcher.Initialize(
+		[this]() { return ViewProperties->bFlatShading; },
+		[this](bool bNewValue) { UpdateFlatShadingSetting(bNewValue); }, ViewProperties->bFlatShading);
+	ColorWatcher.Initialize(
+		[this]() { return ViewProperties->Color; },
+		[this](FLinearColor NewColor) { UpdateColorSetting(NewColor); }, ViewProperties->Color);
+	ImageWatcher.Initialize(
+		[this]() { return ViewProperties->Image; },
+		[this](UTexture2D* NewImage) { UpdateImageSetting(NewImage); }, ViewProperties->Image);
+	BrushTypeWatcher.Initialize(
+		[this]() { return SculptProperties->PrimaryBrushType; },
+		[this](EDynamicMeshSculptBrushType NewBrushType) { UpdateBrushType(NewBrushType); }, SculptProperties->PrimaryBrushType);
+	GizmoPositionWatcher.Initialize(
+		[this]() { return GizmoProperties->Position; },
+		[this](FVector NewPosition) { UpdateGizmoFromProperties(); }, GizmoProperties->Position);
+	GizmoRotationWatcher.Initialize(
+		[this]() { return GizmoProperties->Rotation; },
+		[this](FQuat NewRotation) { UpdateGizmoFromProperties(); }, GizmoProperties->Rotation);
+
 
 	// create proxy for plane gizmo, but not gizmo itself, as it only appears in FixedPlane brush mode
 	// listen for changes to the proxy and update the plane when that happens
 	PlaneTransformProxy = NewObject<UTransformProxy>(this);
 	PlaneTransformProxy->OnTransformChanged.AddUObject(this, &UDynamicMeshSculptTool::PlaneTransformChanged);
-
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartSculptTool", "Hold Shift to Smooth, Ctrl to Invert (where applicable). Shift+Q/A keys cycle through Brush Types. Shift+S/D change Size (Ctrl+Shift to small-step), Shift+W/E change Speed."),
-		EToolMessageLevel::UserNotification);
 
 	if (bEnableRemeshing)
 	{
@@ -244,6 +313,8 @@ void UDynamicMeshSculptTool::Setup()
 				EToolMessageLevel::UserWarning);
 		}
 	}
+
+	UpdateBrushType(SculptProperties->PrimaryBrushType);
 }
 
 void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
@@ -284,6 +355,8 @@ void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 	SculptProperties->SaveProperties(this);
 	ViewProperties->SaveProperties(this);
 	GizmoProperties->SaveProperties(this);
+	PlaneBrushProperties->SaveProperties(this);
+	RemeshProperties->SaveProperties(this);
 }
 
 void UDynamicMeshSculptTool::OnDynamicMeshComponentChanged()
@@ -329,7 +402,7 @@ void UDynamicMeshSculptTool::OnBeginDrag(const FRay& Ray)
 	FHitResult OutHit;
 	if (HitTest(Ray, OutHit))
 	{
-		BrushStartCenterWorld = Ray.PointAt(OutHit.Distance) + SculptProperties->BrushDepth*CurrentBrushRadius*Ray.Direction;
+		BrushStartCenterWorld = Ray.PointAt(OutHit.Distance) + BrushProperties->Depth*CurrentBrushRadius*Ray.Direction;
 
 		bInDrag = true;
 
@@ -347,7 +420,12 @@ void UDynamicMeshSculptTool::OnBeginDrag(const FRay& Ray)
 
 		if (SculptProperties->PrimaryBrushType == EDynamicMeshSculptBrushType::Plane)
 		{
-			ActiveFixedBrushPlane = ComputeROIBrushPlane(LastBrushPosLocal, false);
+			ActiveFixedBrushPlane = ComputeROIBrushPlane(LastBrushPosLocal, false, false);
+		}
+		else if (SculptProperties->PrimaryBrushType == EDynamicMeshSculptBrushType::PlaneViewAligned)
+		{
+			AlignBrushToView();
+			ActiveFixedBrushPlane = ComputeROIBrushPlane(LastBrushPosLocal, false, true);
 		}
 
 		// apply initial stamp
@@ -451,7 +529,10 @@ void UDynamicMeshSculptTool::ApplyStamp(const FRay& WorldRay)
 	switch (SculptProperties->PrimaryBrushType)
 	{
 		case EDynamicMeshSculptBrushType::Offset:
-			ApplyOffsetBrush(WorldRay);
+			ApplyOffsetBrush(WorldRay, false);
+			break;
+		case EDynamicMeshSculptBrushType::SculptView:
+			ApplyOffsetBrush(WorldRay, true);
 			break;
 		case EDynamicMeshSculptBrushType::SculptMax:
 			ApplySculptMaxBrush(WorldRay);
@@ -474,8 +555,14 @@ void UDynamicMeshSculptTool::ApplyStamp(const FRay& WorldRay)
 		case EDynamicMeshSculptBrushType::Plane:
 			ApplyPlaneBrush(WorldRay);
 			break;
+		case EDynamicMeshSculptBrushType::PlaneViewAligned:
+			ApplyPlaneBrush(WorldRay);
+			break;
 		case EDynamicMeshSculptBrushType::FixedPlane:
 			ApplyFixedPlaneBrush(WorldRay);
+			break;
+		case EDynamicMeshSculptBrushType::Resample:
+			ApplyResampleBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::LastValue:
 			break;
@@ -484,12 +571,13 @@ void UDynamicMeshSculptTool::ApplyStamp(const FRay& WorldRay)
 
 double UDynamicMeshSculptTool::CalculateBrushFalloff(double Distance)
 {
+	double f = FMathd::Clamp(1.0 - BrushProperties->BrushFalloffAmount, 0.0, 1.0);
 	double d = Distance / CurrentBrushRadius;
 	double w = 1;
-	if (d > 0.5)
+	if (d > f)
 	{
-		d = VectorUtil::Clamp((d - 0.5) / 0.5, 0.0, 1.0);
-		w = (1 - d * d);
+		d = FMathd::Clamp((d - f) / (1.0 - f), 0.0, 1.0);
+		w = (1.0 - d * d);
 		w = w * w * w;
 	}
 	return w;
@@ -534,7 +622,7 @@ void UDynamicMeshSculptTool::ApplySmoothBrush(const FRay& WorldRay)
 		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
 	}
 
-	bRemeshPending = bEnableRemeshing;
+	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 }
 
@@ -579,19 +667,23 @@ void UDynamicMeshSculptTool::ApplyMoveBrush(const FRay& WorldRay)
 		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
 	}
 
-	bRemeshPending = bEnableRemeshing;
+	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 }
 
-void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay)
+void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay, bool bUseViewDirection)
 {
-	bool bHit = UpdateBrushPositionOnTargetMesh(WorldRay);
-	if (bHit == false)
+	if ( UpdateBrushPositionOnTargetMesh(WorldRay) == false )
 	{
 		return;
 	}
+	if (bUseViewDirection)
+	{
+		AlignBrushToView();
+	}
 
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
+	FVector3d LocalNormal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
 
 	double Direction = (bInvert) ? -1.0 : 1.0;
 	double UseSpeed = Direction * FMathd::Sqrt(CurrentBrushRadius) * (SculptProperties->PrimaryBrushSpeed) * ActivePressure;
@@ -600,7 +692,7 @@ void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay)
 	int NumV = VertexROI.Num();
 	ROIPositionBuffer.SetNum(NumV, false);
 
-	ParallelFor(NumV, [this, Mesh, NewBrushPosLocal, UseSpeed](int k)
+	ParallelFor(NumV, [&](int k)
 	{
 		int VertIdx = VertexROI[k];
 		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
@@ -612,7 +704,7 @@ void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay)
 		}
 		else
 		{
-			FVector3d MoveVec = UseSpeed * BaseNormal;
+			FVector3d MoveVec = (bUseViewDirection) ?  (UseSpeed*LocalNormal) : (UseSpeed*BaseNormal);
 			double Falloff = CalculateBrushFalloff(OrigPos.Distance(NewBrushPosLocal));
 			FVector3d NewPos = OrigPos + Falloff * MoveVec;
 			ROIPositionBuffer[k] = NewPos;
@@ -628,8 +720,7 @@ void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay)
 		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
 	}
 
-	bRemeshPending = bEnableRemeshing;
-
+	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 }
 
@@ -687,8 +778,7 @@ void UDynamicMeshSculptTool::ApplySculptMaxBrush(const FRay& WorldRay)
 		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
 	}
 
-	bRemeshPending = bEnableRemeshing;
-
+	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 }
 
@@ -702,7 +792,7 @@ void UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
 
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
-	FVector3d OffsetBrushPosLocal = NewBrushPosLocal - SculptProperties->BrushDepth * CurrentBrushRadius * BrushNormalLocal;
+	FVector3d OffsetBrushPosLocal = NewBrushPosLocal - BrushProperties->Depth * CurrentBrushRadius * BrushNormalLocal;
 
 	// hardcoded lazybrush...
 	FVector3d NewSmoothBrushPosLocal = (0.75f)*LastSmoothBrushPosLocal + (0.25f)*NewBrushPosLocal;
@@ -753,13 +843,12 @@ void UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
 	}
 
 
-	bRemeshPending = bEnableRemeshing;
-
+	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 	LastSmoothBrushPosLocal = NewSmoothBrushPosLocal;
 }
 
-FFrame3d UDynamicMeshSculptTool::ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth)
+FFrame3d UDynamicMeshSculptTool::ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth, bool bViewAligned)
 {
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FVector3d AverageNormal(0, 0, 0);
@@ -777,10 +866,15 @@ FFrame3d UDynamicMeshSculptTool::ComputeROIBrushPlane(const FVector3d& BrushCent
 	AverageNormal.Normalize();
 	AveragePos /= WeightSum;
 
+	if (bViewAligned)
+	{
+		AverageNormal = -CameraState.Forward();
+	}
+
 	FFrame3d Result = FFrame3d(AveragePos, AverageNormal);
 	if (bIgnoreDepth == false)
 	{
-		Result.Origin -= SculptProperties->BrushDepth * CurrentBrushRadius * Result.Z();
+		Result.Origin -= BrushProperties->Depth * CurrentBrushRadius * Result.Z();
 	}
 
 	return Result;
@@ -794,26 +888,31 @@ void UDynamicMeshSculptTool::ApplyPlaneBrush(const FRay& WorldRay)
 		return;
 	}
 
+	static const double PlaneSigns[3] = { 0, -1, 1 };
+	double PlaneSign = PlaneSigns[(int32)PlaneBrushProperties->WhichSide];
+
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
 	double UseSpeed = FMathd::Sqrt(CurrentBrushRadius) * FMathd::Sqrt(SculptProperties->PrimaryBrushSpeed) * 0.05 * ActivePressure;
-
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	int NumV = VertexROI.Num();
 	ROIPositionBuffer.SetNum(NumV, false);
 
-	ParallelFor(NumV, [this, Mesh, NewBrushPosLocal, UseSpeed](int k)
+	ParallelFor(NumV, [&](int k)
 	{
 		int VertIdx = VertexROI[k];
 		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
 		FVector3d PlanePos = ActiveFixedBrushPlane.ToPlane(OrigPos, 2);
 		FVector3d Delta = PlanePos - OrigPos;
-		FVector3d MoveVec = UseSpeed * Delta;
-
-		double Falloff = CalculateBrushFalloff(OrigPos.Distance(NewBrushPosLocal));
-
-		FVector3d NewPos = OrigPos + Falloff * MoveVec;
+		double Dot = Delta.Dot(ActiveFixedBrushPlane.Z());
+		FVector3d NewPos = OrigPos;
+		if (Dot * PlaneSign >= 0)
+		{
+			FVector3d MoveVec = UseSpeed * Delta;
+			double Falloff = CalculateBrushFalloff(OrigPos.Distance(NewBrushPosLocal));
+			NewPos = OrigPos + Falloff * MoveVec;
+		}
 		ROIPositionBuffer[k] = NewPos;
 	});
 
@@ -826,8 +925,7 @@ void UDynamicMeshSculptTool::ApplyPlaneBrush(const FRay& WorldRay)
 		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
 	}
 
-	bRemeshPending = bEnableRemeshing;
-
+	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 }
 
@@ -839,30 +937,37 @@ void UDynamicMeshSculptTool::ApplyFixedPlaneBrush(const FRay& WorldRay)
 		return;
 	}
 
+	static const double PlaneSigns[3] = { 0, -1, 1 };
+	double PlaneSign = PlaneSigns[(int32)PlaneBrushProperties->WhichSide];
+
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
 	double UseSpeed = CurrentBrushRadius * FMathd::Sqrt(SculptProperties->PrimaryBrushSpeed) * 0.1 * ActivePressure;
 
 	FFrame3d FixedPlaneLocal(
 		CurTargetTransform.InverseTransformPosition(GizmoProperties->Position),
-		CurTargetTransform.GetRotation().Inverse() * (FQuaterniond)DrawPlaneOrientation);
+		CurTargetTransform.GetRotation().Inverse() * (FQuaterniond)GizmoProperties->Rotation);
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	int NumV = VertexROI.Num();
 	ROIPositionBuffer.SetNum(NumV, false);
 
-	ParallelFor(NumV, [this, Mesh, NewBrushPosLocal, UseSpeed, FixedPlaneLocal](int k)
+	ParallelFor(NumV, [&](int k)
 	{
 		int VertIdx = VertexROI[k];
 		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
 		FVector3d PlanePos = FixedPlaneLocal.ToPlane(OrigPos, 2);
 		FVector3d Delta = PlanePos - OrigPos;
-		double MaxDist = Delta.Normalize();
-		double Falloff = CalculateBrushFalloff(OrigPos.Distance(NewBrushPosLocal));
-		FVector3d MoveVec = Falloff * UseSpeed * Delta;
-		FVector3d NewPos = (MoveVec.SquaredLength() > MaxDist*MaxDist) ?
-			PlanePos : OrigPos + Falloff * MoveVec;
-
+		double Dot = Delta.Dot(FixedPlaneLocal.Z());
+		FVector3d NewPos = OrigPos;
+		if (Dot * PlaneSign >= 0)
+		{
+			double MaxDist = Delta.Normalize();
+			double Falloff = CalculateBrushFalloff(OrigPos.Distance(NewBrushPosLocal));
+			FVector3d MoveVec = Falloff * UseSpeed * Delta;
+			NewPos = (MoveVec.SquaredLength() > MaxDist* MaxDist) ?
+				PlanePos : OrigPos + Falloff * MoveVec;
+		}
 		ROIPositionBuffer[k] = NewPos;
 	});
 
@@ -875,8 +980,7 @@ void UDynamicMeshSculptTool::ApplyFixedPlaneBrush(const FRay& WorldRay)
 		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
 	}
 
-	bRemeshPending = bEnableRemeshing;
-
+	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 }
 
@@ -892,8 +996,8 @@ void UDynamicMeshSculptTool::ApplyFlattenBrush(const FRay& WorldRay)
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
 
 	double UseSpeed = FMathd::Sqrt(CurrentBrushRadius) * FMathd::Sqrt(SculptProperties->PrimaryBrushSpeed) * 0.05 * ActivePressure;
-	FFrame3d StampFlattenPlane = ComputeROIBrushPlane(NewBrushPosLocal, true);
-	//StampFlattenPlane.Origin -= SculptProperties->BrushDepth * CurrentBrushRadius * StampFlattenPlane.Z();
+	FFrame3d StampFlattenPlane = ComputeROIBrushPlane(NewBrushPosLocal, true, false);
+	//StampFlattenPlane.Origin -= BrushProperties->Depth * CurrentBrushRadius * StampFlattenPlane.Z();
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	int NumV = VertexROI.Num();
@@ -922,8 +1026,7 @@ void UDynamicMeshSculptTool::ApplyFlattenBrush(const FRay& WorldRay)
 		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
 	}
 
-	bRemeshPending = bEnableRemeshing;
-
+	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 }
 
@@ -975,14 +1078,63 @@ void UDynamicMeshSculptTool::ApplyInflateBrush(const FRay& WorldRay)
 		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
 	}
 
-	bRemeshPending = bEnableRemeshing;
-
+	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 }
 
+
+
+void UDynamicMeshSculptTool::ApplyResampleBrush(const FRay& WorldRay)
+{
+	if (UpdateBrushPositionOnTargetMesh(WorldRay) == false)
+	{
+		return;
+	}
+
+	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
+	FVector3d LocalNormal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
+
+	double UseSpeed = FMathd::Sqrt(CurrentBrushRadius) * (SculptProperties->PrimaryBrushSpeed) * ActivePressure;
+
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	int NumV = VertexROI.Num();
+	ROIPositionBuffer.SetNum(NumV, false);
+	ParallelFor(NumV, [&](int k)
+	{
+		int VertIdx = VertexROI[k];
+		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
+
+		FVector3d BasePos, BaseNormal;
+		if (GetTargetMeshNearest(OrigPos, (double)(4 * CurrentBrushRadius), BasePos, BaseNormal) == false)
+		{
+			ROIPositionBuffer[k] = OrigPos;
+		}
+		else
+		{
+			double Falloff = CalculateBrushFalloff(OrigPos.Distance(NewBrushPosLocal));
+			FVector3d NewPos = BasePos;// FVector3d::Lerp(OrigPos, BasePos, Falloff);
+			ROIPositionBuffer[k] = NewPos;
+		}
+	});
+
+	for (int k = 0; k < NumV; ++k)
+	{
+		int VertIdx = VertexROI[k];
+		const FVector3d& NewPos = ROIPositionBuffer[k];
+		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
+		Mesh->SetVertex(VertIdx, NewPos);
+		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
+	}
+
+	ScheduleRemeshPass();
+	LastBrushPosLocal = NewBrushPosLocal;
+}
+
+
+
 int UDynamicMeshSculptTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
 {
-	if (SculptProperties->bHitBackFaces)
+	if (BrushProperties->bHitBackFaces)
 	{
 		return DynamicMeshComponent->GetOctree()->FindNearestHitObject(LocalRay);
 	}
@@ -1006,7 +1158,7 @@ int UDynamicMeshSculptTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
 
 int UDynamicMeshSculptTool::FindHitTargetMeshTriangle(const FRay3d& LocalRay)
 {
-	if (SculptProperties->bHitBackFaces == false)
+	if (BrushProperties->bHitBackFaces == false)
 	{
 		FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 
@@ -1024,7 +1176,7 @@ int UDynamicMeshSculptTool::FindHitTargetMeshTriangle(const FRay3d& LocalRay)
 
 	int HitTID =  BrushTargetMeshSpatial.FindNearestHitTriangle(LocalRay);
 
-	if (SculptProperties->bHitBackFaces == false)
+	if (BrushProperties->bHitBackFaces == false)
 	{
 		BrushTargetMeshSpatial.TriangleFilterF = nullptr;
 	}
@@ -1087,6 +1239,61 @@ bool UDynamicMeshSculptTool::UpdateBrushPositionOnSculptMesh(const FRay& WorldRa
 	return false;
 }
 
+void UDynamicMeshSculptTool::AlignBrushToView()
+{
+	LastBrushPosNormalWorld = -CameraState.Forward();
+}
+
+
+bool UDynamicMeshSculptTool::UpdateBrushPosition(const FRay& WorldRay)
+{
+	// This is an unfortunate hack necessary because we haven't refactored brushes properly yet
+
+	if (bSmoothing)
+	{
+		return UpdateBrushPositionOnSculptMesh(WorldRay);
+	}
+
+	bool bHit = false;
+	switch (SculptProperties->PrimaryBrushType)
+	{
+	case EDynamicMeshSculptBrushType::Offset:
+	case EDynamicMeshSculptBrushType::SculptMax:
+	case EDynamicMeshSculptBrushType::Pinch:
+	case EDynamicMeshSculptBrushType::Resample:
+		bHit = UpdateBrushPositionOnTargetMesh(WorldRay);
+		break;
+
+	case EDynamicMeshSculptBrushType::SculptView:
+	case EDynamicMeshSculptBrushType::PlaneViewAligned:
+		bHit = UpdateBrushPositionOnTargetMesh(WorldRay);
+		AlignBrushToView();
+		break;
+
+	case EDynamicMeshSculptBrushType::Move:
+		//return UpdateBrushPositionOnActivePlane(WorldRay);
+		bHit = UpdateBrushPositionOnSculptMesh(WorldRay);
+		break;
+
+	case EDynamicMeshSculptBrushType::Smooth:
+	case EDynamicMeshSculptBrushType::Inflate:
+	case EDynamicMeshSculptBrushType::Flatten:
+	case EDynamicMeshSculptBrushType::Plane:
+	case EDynamicMeshSculptBrushType::FixedPlane:
+		bHit = UpdateBrushPositionOnSculptMesh(WorldRay);
+		break;
+
+	default:
+		UE_LOG(LogTemp, Warning, TEXT("UDynamicMeshSculptTool: unknown brush type in UpdateBrushPosition"));
+		bHit = UpdateBrushPositionOnSculptMesh(WorldRay);
+		break;
+	}
+
+	return bHit;
+}
+
+
+
 void UDynamicMeshSculptTool::OnEndDrag(const FRay& Ray)
 {
 	bInDrag = false;
@@ -1115,12 +1322,14 @@ bool UDynamicMeshSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	}
 	else
 	{
-		FHitResult OutHit;
-		if (HitTest(DevicePos.WorldRay, OutHit))
-		{
-			LastBrushPosWorld = DevicePos.WorldRay.PointAt(OutHit.Distance + SculptProperties->BrushDepth*CurrentBrushRadius);
-			LastBrushPosNormalWorld = OutHit.Normal;
-		}
+		UpdateBrushPosition(DevicePos.WorldRay);
+
+		//FHitResult OutHit;
+		//if (HitTest(DevicePos.WorldRay, OutHit))
+		//{
+		//	LastBrushPosWorld = DevicePos.WorldRay.PointAt(OutHit.Distance + BrushProperties->Depth*CurrentBrushRadius);
+		//	LastBrushPosNormalWorld = OutHit.Normal;
+		//}
 	}
 	return true;
 }
@@ -1128,8 +1337,9 @@ bool UDynamicMeshSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 void UDynamicMeshSculptTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UMeshSurfacePointTool::Render(RenderAPI);
+	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 
-	BrushIndicator->Update( (float)this->CurrentBrushRadius, (FVector)this->LastBrushPosWorld, (FVector)this->LastBrushPosNormalWorld, 1.0f);
+	BrushIndicator->Update( (float)this->CurrentBrushRadius, (FVector)this->LastBrushPosWorld, (FVector)this->LastBrushPosNormalWorld, 1.0f-BrushProperties->BrushFalloffAmount);
 
 	if (SculptProperties->PrimaryBrushType == EDynamicMeshSculptBrushType::FixedPlane)
 	{
@@ -1138,7 +1348,7 @@ void UDynamicMeshSculptTool::Render(IToolsContextRenderAPI* RenderAPI)
 		float GridThickness = 0.5f;
 		float GridLineSpacing = 25.0f;   // @todo should be relative to view
 		int NumGridLines = 10;
-		FFrame3f DrawFrame(GizmoProperties->Position, DrawPlaneOrientation);
+		FFrame3f DrawFrame(GizmoProperties->Position, GizmoProperties->Rotation);
 		MeshDebugDraw::DrawSimpleGrid(DrawFrame, NumGridLines, GridLineSpacing, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 }
@@ -1161,16 +1371,22 @@ void UDynamicMeshSculptTool::Tick(float DeltaTime)
 
 	ShowWireframeWatcher.CheckAndUpdate();
 	MaterialModeWatcher.CheckAndUpdate();
+	FlatShadingWatcher.CheckAndUpdate();
+	ColorWatcher.CheckAndUpdate();
+	ImageWatcher.CheckAndUpdate();
+	BrushTypeWatcher.CheckAndUpdate();
+	GizmoPositionWatcher.CheckAndUpdate();
+	GizmoRotationWatcher.CheckAndUpdate();
 
 	bool bGizmoVisible = (SculptProperties->PrimaryBrushType == EDynamicMeshSculptBrushType::FixedPlane)
 		&& (GizmoProperties->bShowGizmo);
 	UpdateFixedPlaneGizmoVisibility(bGizmoVisible);
 	GizmoProperties->bPropertySetEnabled = (SculptProperties->PrimaryBrushType == EDynamicMeshSculptBrushType::FixedPlane);
 
-	if (bPendingSetFixedPlanePosition)
+	if (PendingWorkPlaneUpdate != EPendingWorkPlaneUpdate::NoUpdatePending)
 	{
-		SetFixedSculptPlaneFromWorldPos((FVector)LastBrushPosWorld);
-		bPendingSetFixedPlanePosition = false;
+		SetFixedSculptPlaneFromWorldPos((FVector)LastBrushPosWorld, (FVector)LastBrushPosNormalWorld, PendingWorkPlaneUpdate);
+		PendingWorkPlaneUpdate = EPendingWorkPlaneUpdate::NoUpdatePending;
 	}
 
 	// if user changed to not-frozen, we need to update the target
@@ -1325,6 +1541,14 @@ void UDynamicMeshSculptTool::PrecomputeRemeshInfo()
 	}
 }
 
+void UDynamicMeshSculptTool::ScheduleRemeshPass()
+{
+	if (bEnableRemeshing && RemeshProperties != nullptr && RemeshProperties->bEnableRemeshing)
+	{
+		bRemeshPending = true;
+	}
+}
+
 /*
         Split	Collapse	Vertices Pinned	Flip
 Fixed	FALSE	FALSE		TRUE				FALSE
@@ -1333,16 +1557,22 @@ Free	TRUE	TRUE		FALSE				FALSE
 Ignore	TRUE	TRUE		FALSE				TRUE
 */
 
-void
-UDynamicMeshSculptTool::ConfigureRemesher(FSubRegionRemesher& Remesher)
+void UDynamicMeshSculptTool::ConfigureRemesher(FSubRegionRemesher& Remesher)
 {
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FDynamicMeshOctree3* Octree = DynamicMeshComponent->GetOctree();
 
-	double TargetEdgeLength = RemeshProperties->RelativeSize * InitialEdgeLength;
+	const double SizeRange = 5;
+	double LengthMultiplier = (RemeshProperties->TriangleSize >= 0) ?
+		FMathd::Lerp(1.0, 5.0, FMathd::Pow( (double)RemeshProperties->TriangleSize / SizeRange, 2.0) )
+		: FMathd::Lerp(0.25, 1.0, 1.0 - FMathd::Pow(FMathd::Abs((double)RemeshProperties->TriangleSize) / SizeRange, 2.0) );
+	double TargetEdgeLength = LengthMultiplier * InitialEdgeLength;
+
 	Remesher.SetTargetEdgeLength(TargetEdgeLength);
 
+	double DetailT = (double)(RemeshProperties->PreserveDetail) / 5.0;
 	double UseSmoothing = RemeshProperties->SmoothingStrength * 0.25;
+	UseSmoothing *= FMathd::Lerp(1.0, 0.25, DetailT);
 	Remesher.SmoothSpeedT = UseSmoothing;
 
 	// this is a temporary tweak for Pinch brush. Remesh params should be per-brush!
@@ -1357,13 +1587,27 @@ UDynamicMeshSculptTool::ConfigureRemesher(FSubRegionRemesher& Remesher)
 			return (1.0f - Falloff) * UseSmoothing;
 		};
 	}
-
-	// tweak remesh params for Smooth brush
-	if (bSmoothing && SculptProperties->bSmoothBrushRemeshes == false)
+	else if (bSmoothing && SculptProperties->bDetailPreservingSmooth)
 	{
-		Remesher.MaxEdgeLength = 2*InitialEdgeLength;
+		// this is the case where we don't want remeshing in smoothing
+		Remesher.MaxEdgeLength = 2 * InitialEdgeLength;
 		Remesher.MinEdgeLength = InitialEdgeLength * 0.01;
 	}
+	else
+	{
+		if (RemeshProperties->PreserveDetail > 0)
+		{
+			Remesher.MinEdgeLength *= FMathd::Lerp(1.0, 0.1, DetailT);
+			Remesher.CustomSmoothSpeedF = [this, UseSmoothing, DetailT](const FDynamicMesh3& Mesh, int vID)
+			{
+				FVector3d Pos = Mesh.GetVertex(vID);
+				double FalloffT = 1.0 - CalculateBrushFalloff(Pos.Distance((FVector3d)LastBrushPosLocal));
+				FalloffT = FMathd::Lerp(1.0, FalloffT, DetailT);
+				return FalloffT * UseSmoothing;
+			};
+		}
+	}
+
 
 	Remesher.SmoothType = (SculptProperties->bPreserveUVFlow) ?
 		FRemesher::ESmoothTypes::MeanValue : FRemesher::ESmoothTypes::Uniform;
@@ -1666,6 +1910,26 @@ void UDynamicMeshSculptTool::DecreaseBrushSpeedAction()
 	SculptProperties->PrimaryBrushSpeed = FMath::Clamp(SculptProperties->PrimaryBrushSpeed - 0.05f, 0.0f, 1.0f);
 }
 
+void UDynamicMeshSculptTool::IncreaseBrushFalloffAction()
+{
+	const float ChangeAmount = 0.1f;
+	const float OldValue = BrushProperties->BrushFalloffAmount;
+
+	float NewValue = OldValue + ChangeAmount;
+	BrushProperties->BrushFalloffAmount = FMath::Clamp(NewValue, 0.f, 1.f);
+}
+
+void UDynamicMeshSculptTool::DecreaseBrushFalloffAction()
+{
+	const float ChangeAmount = 0.1f;
+	const float OldValue = BrushProperties->BrushFalloffAmount;
+
+	float NewValue = OldValue - ChangeAmount;
+	BrushProperties->BrushFalloffAmount = FMath::Clamp(NewValue, 0.f, 1.f);
+}
+
+
+
 void UDynamicMeshSculptTool::NextBrushModeAction()
 {
 	uint8 LastMode = (uint8)EDynamicMeshSculptBrushType::LastValue;
@@ -1723,18 +1987,33 @@ void UDynamicMeshSculptTool::RegisterActions(FInteractiveToolActionSet& ActionSe
 		EModifierKey::None, EKeys::LeftBracket,
 		[this]() { DecreaseBrushRadiusAction(); } );
 
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 12,
+		TEXT("BrushIncreaseFalloff"),
+		LOCTEXT("BrushIncreaseFalloff", "Increase Brush Falloff"),
+		LOCTEXT("BrushIncreaseFalloffTooltip", "Press this key to increase brush falloff by a fixed increment."),
+		EModifierKey::Shift | EModifierKey::Control, EKeys::RightBracket,
+		[this]() { IncreaseBrushFalloffAction(); });
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 13,
+		TEXT("BrushDecreaseFalloff"),
+		LOCTEXT("BrushDecreaseFalloff", "Decrease Brush Falloff"),
+		LOCTEXT("BrushDecreaseFalloffTooltip", "Press this key to decrease brush falloff by a fixed increment."),
+		EModifierKey::Shift | EModifierKey::Control, EKeys::LeftBracket,
+		[this]() { DecreaseBrushFalloffAction(); });
+
+
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID+1,
 		TEXT("NextBrushMode"),
 		LOCTEXT("SculptNextBrushMode", "Next Brush Type"),
 		LOCTEXT("SculptNextBrushModeTooltip", "Cycle to next Brush Type"),
-		EModifierKey::Shift, EKeys::A,
+		EModifierKey::None, EKeys::A,
 		[this]() { NextBrushModeAction(); });
 
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID+2,
 		TEXT("PreviousBrushMode"),
 		LOCTEXT("SculptPreviousBrushMode", "Previous Brush Type"),
 		LOCTEXT("SculptPreviousBrushModeTooltip", "Cycle to previous Brush Type"),
-		EModifierKey::Shift, EKeys::Q,
+		EModifierKey::None, EKeys::Q,
 		[this]() { PreviousBrushModeAction(); });
 
 	//ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 10,
@@ -1755,28 +2034,28 @@ void UDynamicMeshSculptTool::RegisterActions(FInteractiveToolActionSet& ActionSe
 		TEXT("SculptIncreaseSize"),
 		LOCTEXT("SculptIncreaseSize", "Increase Size"),
 		LOCTEXT("SculptIncreaseSizeTooltip", "Increase Brush Size"),
-		EModifierKey::Shift, EKeys::D,
+		EModifierKey::None, EKeys::D,
 		[this]() { IncreaseBrushRadiusAction(); });
 
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 51,
 		TEXT("SculptDecreaseSize"),
 		LOCTEXT("SculptDecreaseSize", "Decrease Size"),
 		LOCTEXT("SculptDecreaseSizeTooltip", "Decrease Brush Size"),
-		EModifierKey::Shift, EKeys::S,
+		EModifierKey::None, EKeys::S,
 		[this]() { DecreaseBrushRadiusAction(); });
 
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 52,
 		TEXT("SculptIncreaseSizeSmallStep"),
 		LOCTEXT("SculptIncreaseSize", "Increase Size"),
 		LOCTEXT("SculptIncreaseSizeTooltip", "Increase Brush Size"),
-		EModifierKey::Shift | EModifierKey::Control, EKeys::D,
+		EModifierKey::Shift, EKeys::D,
 		[this]() { IncreaseBrushRadiusSmallStepAction(); });
 
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 53,
 		TEXT("SculptDecreaseSizeSmallStemp"),
 		LOCTEXT("SculptDecreaseSize", "Decrease Size"),
 		LOCTEXT("SculptDecreaseSizeTooltip", "Decrease Brush Size"),
-		EModifierKey::Shift | EModifierKey::Control, EKeys::S,
+		EModifierKey::Shift, EKeys::S,
 		[this]() { DecreaseBrushRadiusSmallStepAction(); });
 
 
@@ -1786,14 +2065,14 @@ void UDynamicMeshSculptTool::RegisterActions(FInteractiveToolActionSet& ActionSe
 		TEXT("SculptIncreaseSpeed"),
 		LOCTEXT("SculptIncreaseSpeed", "Increase Speed"),
 		LOCTEXT("SculptIncreaseSpeedTooltip", "Increase Brush Speed"),
-		EModifierKey::Shift, EKeys::E,
+		EModifierKey::None, EKeys::E,
 		[this]() { IncreaseBrushSpeedAction(); });
 
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 61,
 		TEXT("SculptDecreaseSpeed"),
 		LOCTEXT("SculptDecreaseSpeed", "Decrease Speed"),
 		LOCTEXT("SculptDecreaseSpeedTooltip", "Decrease Brush Speed"),
-		EModifierKey::Shift, EKeys::W,
+		EModifierKey::None, EKeys::W,
 		[this]() { DecreaseBrushSpeedAction(); });
 
 
@@ -1807,11 +2086,25 @@ void UDynamicMeshSculptTool::RegisterActions(FInteractiveToolActionSet& ActionSe
 
 
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 100,
-		TEXT("SetFixedSculptPlane"),
-		LOCTEXT("SetFixedSculptPlane", "Set Fixed Sculpt Plane"),
-		LOCTEXT("SetFixedSculptPlaneTooltip", "Set position of fixed sculpt plane"),
-		EModifierKey::None, EKeys::P,
-		[this]() { bPendingSetFixedPlanePosition = true; });
+		TEXT("SetSculptWorkSurfacePosNormal"),
+		LOCTEXT("SetSculptWorkSurfacePosNormal", "Reorient Work Surface"),
+		LOCTEXT("SetSculptWorkSurfacePosNormalTooltip", "Move the Sculpting Work Plane/Surface to Position and Normal of World hit point under cursor"),
+		EModifierKey::Shift, EKeys::T,
+		[this]() { PendingWorkPlaneUpdate = EPendingWorkPlaneUpdate::MoveToHitPositionNormal; });
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 101,
+		TEXT("SetSculptWorkSurfacePos"),
+		LOCTEXT("SetSculptWorkSurfacePos", "Reposition Work Surface"),
+		LOCTEXT("SetSculptWorkSurfacePosTooltip", "Move the Sculpting Work Plane/Surface to World hit point under cursor (keep current Orientation)"),
+		EModifierKey::None, EKeys::T,
+		[this]() { PendingWorkPlaneUpdate = EPendingWorkPlaneUpdate::MoveToHitPosition; });
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 102,
+		TEXT("SetSculptWorkSurfaceView"),
+		LOCTEXT("SetSculptWorkSurfaceView", "View-Align Work Surface"),
+		LOCTEXT("SetSculptWorkSurfaceViewTooltip", "Move the Sculpting Work Plane/Surface to World hit point under cursor and align to View"),
+		EModifierKey::Control | EModifierKey::Shift, EKeys::T,
+		[this]() { PendingWorkPlaneUpdate = EPendingWorkPlaneUpdate::MoveToHitPositionViewAligned; });
 
 }
 
@@ -1882,36 +2175,153 @@ void UDynamicMeshSculptTool::UpdateMaterialMode(EMeshEditingMaterialModes Materi
 	{
 		DynamicMeshComponent->ClearOverrideRenderMaterial();
 		DynamicMeshComponent->bCastDynamicShadow = ComponentTarget->GetOwnerComponent()->bCastDynamicShadow;
+		ActiveOverrideMaterial = nullptr;
 	}
-	else if (MaterialMode == EMeshEditingMaterialModes::MeshFocusMaterial)
+	else 
 	{
-		UMaterialInterface* SculptMaterial = ToolSetupUtil::GetSculptMaterial1(GetToolManager());
-		if (SculptMaterial != nullptr)
+		if (MaterialMode == EMeshEditingMaterialModes::Custom)
 		{
-			DynamicMeshComponent->SetOverrideRenderMaterial(SculptMaterial);
+			ActiveOverrideMaterial = ToolSetupUtil::GetCustomImageBasedSculptMaterial(GetToolManager(), ViewProperties->Image);
+			if (ViewProperties->Image != nullptr)
+			{
+				ActiveOverrideMaterial->SetTextureParameterValue(TEXT("ImageTexture"), ViewProperties->Image);
+			}
 		}
+		else
+		{
+			UMaterialInterface* SculptMaterial = nullptr;
+			switch (MaterialMode)
+			{
+			case EMeshEditingMaterialModes::Diffuse:
+				SculptMaterial = ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
+				break;
+			case EMeshEditingMaterialModes::Grey:
+				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::DefaultBasic);
+				break;
+			case EMeshEditingMaterialModes::Soft:
+				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::DefaultSoft);
+				break;
+			case EMeshEditingMaterialModes::TangentNormal:
+				SculptMaterial = ToolSetupUtil::GetImageBasedSculptMaterial(GetToolManager(), ToolSetupUtil::ImageMaterialType::TangentNormalFromView);
+				break;
+			}
+			if (SculptMaterial != nullptr)
+			{
+				ActiveOverrideMaterial = UMaterialInstanceDynamic::Create(SculptMaterial, this);
+			}
+		}
+
+		if (ActiveOverrideMaterial != nullptr)
+		{
+			DynamicMeshComponent->SetOverrideRenderMaterial(ActiveOverrideMaterial);
+			ActiveOverrideMaterial->SetScalarParameterValue(TEXT("FlatShading"), (ViewProperties->bFlatShading) ? 1.0f : 0.0f);
+		}
+
 		DynamicMeshComponent->bCastDynamicShadow = false;
 	}
 }
 
-void UDynamicMeshSculptTool::SetFixedSculptPlaneFromWorldPos(const FVector& Position)
+
+void UDynamicMeshSculptTool::UpdateFlatShadingSetting(bool bNewValue)
 {
-	UpdateFixedSculptPlanePosition(Position);
+	if (ActiveOverrideMaterial != nullptr)
+	{
+		ActiveOverrideMaterial->SetScalarParameterValue(TEXT("FlatShading"), (bNewValue) ? 1.0f : 0.0f);
+	}
+}
+
+
+void UDynamicMeshSculptTool::UpdateColorSetting(FLinearColor NewColor)
+{
+	if (ActiveOverrideMaterial != nullptr)
+	{
+		ActiveOverrideMaterial->SetVectorParameterValue(TEXT("Color"), NewColor);
+	}
+}
+
+void UDynamicMeshSculptTool::UpdateImageSetting(UTexture2D* NewImage)
+{
+	if (ActiveOverrideMaterial != nullptr)
+	{
+		ActiveOverrideMaterial->SetTextureParameterValue(TEXT("ImageTexture"), NewImage);
+	}
+}
+
+void UDynamicMeshSculptTool::UpdateBrushType(EDynamicMeshSculptBrushType BrushType)
+{
+	static const FText BaseMessage = LOCTEXT("OnStartSculptTool", "Hold Shift to Smooth, Ctrl to Invert (where applicable). Q/A keys cycle Brush Type. S/D changes Size (+Shift to small-step), W/E changes Strength.");
+	FTextBuilder Builder;
+	Builder.AppendLine(BaseMessage);
+
+	SetToolPropertySourceEnabled(GizmoProperties, false);
+	SetToolPropertySourceEnabled(PlaneBrushProperties, false);
+
+	if (BrushType == EDynamicMeshSculptBrushType::FixedPlane)
+	{
+		Builder.AppendLine(LOCTEXT("FixedPlaneTip", "Use T to reposition Work Plane at cursor, Shift+T to align to Normal, Ctrl+Shift+T to align to View"));
+		SetToolPropertySourceEnabled(PlaneBrushProperties, true);
+		SetToolPropertySourceEnabled(GizmoProperties, true);
+	}
+	if (BrushType == EDynamicMeshSculptBrushType::Plane || BrushType == EDynamicMeshSculptBrushType::PlaneViewAligned)
+	{
+		SetToolPropertySourceEnabled(PlaneBrushProperties, true);
+	}
+
+	GetToolManager()->DisplayMessage(Builder.ToText(), EToolMessageLevel::UserNotification);
+}
+
+
+void UDynamicMeshSculptTool::SetFixedSculptPlaneFromWorldPos(const FVector& Position, const FVector& Normal, EPendingWorkPlaneUpdate UpdateType)
+{
+	if (UpdateType == EPendingWorkPlaneUpdate::MoveToHitPositionNormal)
+	{
+		UpdateFixedSculptPlanePosition(Position);
+		FFrame3d CurFrame(FVector::ZeroVector, GizmoProperties->Rotation);
+		CurFrame.AlignAxis(2, (FVector3d)Normal );
+		UpdateFixedSculptPlaneRotation( (FQuat)CurFrame.Rotation );
+	}
+	else if (UpdateType == EPendingWorkPlaneUpdate::MoveToHitPositionViewAligned)
+	{
+		UpdateFixedSculptPlanePosition(Position);
+		FFrame3d CurFrame(FVector::ZeroVector, GizmoProperties->Rotation);
+		CurFrame.AlignAxis(2, -(FVector3d)CameraState.Forward());
+		UpdateFixedSculptPlaneRotation((FQuat)CurFrame.Rotation);
+	}
+	else
+	{
+		UpdateFixedSculptPlanePosition(Position);
+	}
+
 	if (PlaneTransformGizmo != nullptr)
 	{
-		PlaneTransformGizmo->SetNewGizmoTransform(FTransform(DrawPlaneOrientation, GizmoProperties->Position));
+		PlaneTransformGizmo->SetNewGizmoTransform(FTransform(GizmoProperties->Rotation, GizmoProperties->Position));
 	}
 }
 
 void UDynamicMeshSculptTool::PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform)
 {
-	DrawPlaneOrientation = Transform.GetRotation();
+	UpdateFixedSculptPlaneRotation(Transform.GetRotation());
 	UpdateFixedSculptPlanePosition(Transform.GetLocation());
 }
 
 void UDynamicMeshSculptTool::UpdateFixedSculptPlanePosition(const FVector& Position)
 {
 	GizmoProperties->Position = Position;
+	GizmoPositionWatcher.SilentUpdate();
+}
+
+void UDynamicMeshSculptTool::UpdateFixedSculptPlaneRotation(const FQuat& Rotation)
+{
+	GizmoProperties->Rotation = Rotation;
+	GizmoRotationWatcher.SilentUpdate();
+}
+
+void UDynamicMeshSculptTool::UpdateGizmoFromProperties()
+{
+	if (PlaneTransformGizmo != nullptr)
+	{
+		PlaneTransformGizmo->SetNewGizmoTransform(FTransform(GizmoProperties->Rotation, GizmoProperties->Position));
+	}
 }
 
 void UDynamicMeshSculptTool::UpdateFixedPlaneGizmoVisibility(bool bVisible)
@@ -1930,8 +2340,10 @@ void UDynamicMeshSculptTool::UpdateFixedPlaneGizmoVisibility(bool bVisible)
 		{
 			PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
 				ETransformGizmoSubElements::StandardTranslateRotate, this);
+			PlaneTransformGizmo->bUseContextCoordinateSystem = false;
+			PlaneTransformGizmo->CurrentCoordinateSystem = EToolContextCoordinateSystem::Local;
 			PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
-			PlaneTransformGizmo->SetNewGizmoTransform(FTransform(DrawPlaneOrientation, GizmoProperties->Position));
+			PlaneTransformGizmo->SetNewGizmoTransform(FTransform(GizmoProperties->Rotation, GizmoProperties->Position));
 		}
 
 		PlaneTransformGizmo->bSnapToWorldGrid = GizmoProperties->bSnapToGrid;

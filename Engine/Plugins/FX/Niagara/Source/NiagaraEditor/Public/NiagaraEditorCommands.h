@@ -24,9 +24,12 @@ public:
 	virtual void RegisterCommands() override;
 
 	TSharedPtr<FUICommandInfo> Apply;
+	TSharedPtr<FUICommandInfo> Discard;
 	TSharedPtr<FUICommandInfo> Compile;
 	TSharedPtr<FUICommandInfo> RefreshNodes;
 	TSharedPtr<FUICommandInfo> ResetSimulation;
+	TSharedPtr<FUICommandInfo> SelectNextUsage;
+	TSharedPtr<FUICommandInfo> CreateAssetFromSelection;
 
 	/** Toggles the preview pane's grid */
 	TSharedPtr<FUICommandInfo> TogglePreviewGrid;

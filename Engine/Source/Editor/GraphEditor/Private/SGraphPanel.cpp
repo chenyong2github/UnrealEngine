@@ -1554,6 +1554,9 @@ void SGraphPanel::Update()
 
 	// Invoke any delegate methods
 	OnUpdateGraphPanel.ExecuteIfBound();
+
+	// Clear the update pending flag to allow deferred zoom commands to run.
+	bVisualUpdatePending = false;
 }
 
 // Purges the existing visual representation (typically followed by an Update call in the next tick)
@@ -1564,6 +1567,9 @@ void SGraphPanel::PurgeVisualRepresentation()
 
 	// Clear all of the nodes and pins
 	RemoveAllNodes();
+
+	// Set a flag to know that an update is pending to prevent running pending commands like zoom to fit until widgets are generated.
+	bVisualUpdatePending = true;
 }
 
 bool SGraphPanel::IsNodeTitleVisible(const class UEdGraphNode* Node, bool bRequestRename)

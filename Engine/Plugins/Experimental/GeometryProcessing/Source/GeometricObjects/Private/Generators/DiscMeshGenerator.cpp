@@ -66,14 +66,22 @@ FMeshShapeGenerator& FDiscMeshGenerator::Generate()
 	for (int AngleIdx = 0; AngleIdx+1 < AngleNV; AngleIdx++)
 	{
 		SetTriangleWithMatchedUVNormal(TriIdx, 0, AngleIdx + 2, AngleIdx + 1);
-		SetTrianglePolygon(TriIdx, PolyIdx++);
+		SetTrianglePolygon(TriIdx, PolyIdx);
+		if (!bSinglePolygroup)
+		{
+			PolyIdx++;
+		}
 		TriIdx++;
 	}
 	if (bFullDisc)
 	{
 		SetTriangleWithMatchedUVNormal(TriIdx, 0, 1, AngleNV);
-		SetTrianglePolygon(TriIdx, PolyIdx++);
+		SetTrianglePolygon(TriIdx, PolyIdx);
 		TriIdx++;
+		if (!bSinglePolygroup)
+		{
+			PolyIdx++;
+		}
 	}
 
 	for (int RadiusIdx = 0; RadiusIdx+1 < RadialNV; RadiusIdx++)
@@ -90,7 +98,10 @@ FMeshShapeGenerator& FDiscMeshGenerator::Generate()
 			SetTrianglePolygon(TriIdx, PolyIdx);
 			TriIdx++;
 
-			PolyIdx++;
+			if (!bSinglePolygroup)
+			{
+				PolyIdx++;
+			}
 		}
 		if (bFullDisc)
 		{
@@ -102,7 +113,10 @@ FMeshShapeGenerator& FDiscMeshGenerator::Generate()
 			SetTrianglePolygon(TriIdx, PolyIdx);
 			TriIdx++;
 
-			PolyIdx++;
+			if (!bSinglePolygroup)
+			{
+				PolyIdx++;
+			}
 		}
 	}
 
@@ -163,7 +177,10 @@ FMeshShapeGenerator& FPuncturedDiscMeshGenerator::Generate()
 			SetTrianglePolygon(TriIdx, PolyIdx);
 			TriIdx++;
 
-			PolyIdx++;
+			if (!bSinglePolygroup)
+			{
+				PolyIdx++;
+			}
 		}
 		if (bFullDisc)
 		{
@@ -175,7 +192,10 @@ FMeshShapeGenerator& FPuncturedDiscMeshGenerator::Generate()
 			SetTrianglePolygon(TriIdx, PolyIdx);
 			TriIdx++;
 
-			PolyIdx++;
+			if (!bSinglePolygroup)
+			{
+				PolyIdx++;
+			}
 		}
 	}
 

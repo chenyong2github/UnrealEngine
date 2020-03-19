@@ -571,10 +571,11 @@ void FKismetCompilerContext::ValidateVariableNames()
 			}
 			else if (ParentClass->IsNative()) // the above case handles when the parent is a blueprint
 			{
-				if (UField* ExisingField = FindField<UField>(ParentClass, *VarNameStr))
+				FFieldVariant ExisingField = FindUFieldOrFProperty(ParentClass, *VarNameStr);
+				if (ExisingField)
 				{
 					UE_LOG(LogK2Compiler, Warning, TEXT("ValidateVariableNames name %s (used in %s) is already taken by %s")
-						, *VarNameStr, *Blueprint->GetPathName(), *ExisingField->GetPathName());
+						, *VarNameStr, *Blueprint->GetPathName(), *ExisingField.GetPathName());
 					NewVarName = FBlueprintEditorUtils::FindUniqueKismetName(Blueprint, VarNameStr);
 				}
 			}
@@ -680,6 +681,16 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 	if (bRebuildPropertyMap)
 	{
 		NewClass->PropertyGuids.Reset();
+		// Add any chained parent blueprint map values
+		UBlueprint* ParentBP = Cast<UBlueprint>(Blueprint->ParentClass->ClassGeneratedBy);
+		while (ParentBP)
+		{
+			if (UBlueprintGeneratedClass* ParentBPGC = Cast<UBlueprintGeneratedClass>(ParentBP->GeneratedClass))
+			{
+				NewClass->PropertyGuids.Append(ParentBPGC->PropertyGuids);
+			}
+			ParentBP = Cast<UBlueprint>(ParentBP->ParentClass->ClassGeneratedBy);
+		}
 	}
 
 	for (int32 i = 0; i < Blueprint->NewVariables.Num(); ++i)
@@ -693,7 +704,7 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 			{
 				if(FMulticastDelegateProperty* AsDelegate = CastField<FMulticastDelegateProperty>(NewProperty))
 				{
-					AsDelegate->SignatureFunction = FindField<UFunction>(NewClass, *(Variable.VarName.ToString() + HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX));
+					AsDelegate->SignatureFunction = FindUField<UFunction>(NewClass, *(Variable.VarName.ToString() + HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX));
 					// Skeleton compilation phase may run when the delegate has been created but the function has not:
 					ensureAlways(AsDelegate->SignatureFunction || !bIsFullCompile);
 				}
@@ -1673,7 +1684,7 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 			);
 			return;
 		}
-		else if (NULL != FindField<FProperty>(NewClass, NewFunctionName))
+		else if (NULL != FindFProperty<FProperty>(NewClass, NewFunctionName))
 		{
 			MessageLog.Error(
 				*FText::Format(
@@ -1963,7 +1974,7 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 		{
 			Context.Function->FunctionFlags |= FUNC_Delegate;
 
-			if (FMulticastDelegateProperty* Property = FindField<FMulticastDelegateProperty>(NewClass, Context.DelegateSignatureName))
+			if (FMulticastDelegateProperty* Property = FindFProperty<FMulticastDelegateProperty>(NewClass, Context.DelegateSignatureName))
 			{
 				Property->SignatureFunction = Context.Function;
 			}
@@ -4303,7 +4314,7 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 			}
 		}
 
-		// Fill ScriptObjectReferences arrays in functions
+		// Fill ScriptAndPropertyObjectReferences arrays in functions
 		if (bIsFullCompile && (0 == MessageLog.NumErrors)) // Backend_VM can generate errors, so bGenerateStubsOnly cannot be reused
 		{
 			for (FKismetFunctionContext& FunctionContext : FunctionList)
@@ -4311,8 +4322,7 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 				if (FunctionContext.IsValid())
 				{
 					UFunction* Function = FunctionContext.Function; 
-					ensure(0 == Function->ScriptObjectReferences.Num());
-					FArchiveScriptReferenceCollector ObjRefCollector(Function->ScriptObjectReferences);
+					FArchiveScriptReferenceCollector ObjRefCollector(Function->ScriptAndPropertyObjectReferences);
 
 					for (int32 iCode = 0; iCode < Function->Script.Num();)
 					{

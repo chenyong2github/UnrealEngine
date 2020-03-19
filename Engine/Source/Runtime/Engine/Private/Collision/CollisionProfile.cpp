@@ -327,7 +327,7 @@ void UCollisionProfile::LoadProfileConfig(bool bForceInit)
 		{
 			// verify if the Struct name matches
 			// this is to avoid situations where they mismatch and causes random bugs
-			FField* Field = FindField<FField>(Struct, DisplayName);
+			FField* Field = FindFProperty<FField>(Struct, DisplayName);
 
 			if (!Field)
 			{
@@ -451,7 +451,7 @@ void UCollisionProfile::LoadProfileConfig(bool bForceInit)
 				}
 #if WITH_EDITOR
 				// now enum is fixed, so find member variable for the field
-				FField* Field = FindField<FField>(Struct, FName(*VariableName));
+				FField* Field = FindFProperty<FField>(Struct, FName(*VariableName));
 				// I verified up in the class, this can't happen
 				check (Field);
 				Field->SetMetaData(*DisplayNameKey, *DisplayValue);

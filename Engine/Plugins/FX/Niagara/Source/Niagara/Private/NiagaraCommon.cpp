@@ -67,6 +67,11 @@ FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* Stru
 				{
 					Ret += FString::Printf(TEXT("%s: %g "), *Property->GetNameCPP(), *(float*)PropPtr);
 				}
+				else if (Property->IsA(FUInt16Property::StaticClass()))
+				{
+					FFloat16 Val = *(FFloat16*)PropPtr;
+					Ret += FString::Printf(TEXT("%s: %f "), *Property->GetNameCPP(), Val.GetFloat());
+				}
 				else if (Property->IsA(FIntProperty::StaticClass()))
 				{
 					Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *(int32*)PropPtr);
@@ -135,7 +140,7 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
 		bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
-		if (bIsActive && bOnlyActive)
+		if (bIsActive || bOnlyActive == false)
 		{
 			AddInternal(Comp, bReInit);
 		}
@@ -151,7 +156,7 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit
 		if (Comp->GetAsset() == System)
 		{
 			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
-			if (bIsActive && bOnlyActive)
+			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
 			}
@@ -170,7 +175,7 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReIn
 		if (SystemInst && SystemInst->UsesEmitter(Emitter))
 		{
 			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
-			if (bIsActive && bOnlyActive)
+			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
 			}
@@ -188,7 +193,7 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraScript* Script, bool bReInit
 		if (System && System->UsesScript(Script))
 		{
 			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
-			if (bIsActive && bOnlyActive)
+			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
 			}
@@ -222,7 +227,7 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 		if (SystemInst && SystemInst->UsesCollection(Collection))
 		{
 			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
-			if (bIsActive && bOnlyActive)
+			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
 			}
@@ -433,14 +438,16 @@ void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScr
 		UNiagaraScript* Script = It.Key();
 		FNiagaraParameterStore& PreparedParameterStore = It.Value();
 
+		auto RapidIterationParameters = Script->RapidIterationParameters.ReadParameterVariables();
+
 		bool bOverwriteParameters = false;
-		if (Script->RapidIterationParameters.GetNumParameters() != PreparedParameterStore.GetNumParameters())
+		if (RapidIterationParameters.Num() != PreparedParameterStore.ReadParameterVariables().Num())
 		{
 			bOverwriteParameters = true;
 		}
 		else
 		{
-			for (const FNiagaraVariableWithOffset& ParamWithOffset : Script->RapidIterationParameters.GetSortedParameterOffsets())
+			for (const FNiagaraVariableWithOffset& ParamWithOffset : RapidIterationParameters)
 			{
 				const FNiagaraVariable& SourceParameter = ParamWithOffset;
 				const int32 SourceOffset = ParamWithOffset.Offset;

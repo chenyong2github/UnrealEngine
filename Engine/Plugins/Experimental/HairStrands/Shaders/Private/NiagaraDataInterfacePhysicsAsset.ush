@@ -311,20 +311,36 @@ int DIPhysicsAsset_GetClosestElement(in FDIPhysicsAssetContext DIContext, in flo
  * -----------------------------------------------------------------
  */
 
-// Given a world space position (NodePosition) compute the sphere closest point (position,normal,velocity)
-void DIPhysicsAsset_GetClosestPoint(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in float DeltaTime, in float TimeFraction, out float3 OutClosestPosition, 
-										  out float3 OutClosestNormal, out float3 OutClosestVelocity, out float OutClosestDistance)
+// Given a world space position (NodePosition) and an element index compute the physics asset closest point (position,normal,velocity)
+void DIPhysicsAsset_GetElementPoint(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in float DeltaTime, in float TimeFraction, in int ElementIndex, out float3 OutClosestPosition, 
+										  out float3 OutClosestNormal, out float3 OutClosestVelocity)
 {	
+	const float3 LocalPosition = DIPhysicsAsset_GetLocalPosition(DIContext,NodePosition,ElementIndex,TimeFraction);
+
+	float MinDistance = MAX_DISTANCE;
+	int OutputIndex = -1;
 	float3 CollisionPosition = float3(0,0,0);
 	float3 CollisionNormal = float3(0,0,0);
-	float MinDistance = 0.0;
 
-	const int ElementIndex = DIPhysicsAsset_GetClosestElement(DIContext,NodePosition,CollisionPosition,CollisionNormal,MinDistance,TimeFraction);
+	if( ElementIndex >= DIContext.ElementOffsets[SPHERE_INDEX] && ElementIndex < DIContext.ElementOffsets[SPHERE_INDEX+1] )
+	{
+		DIPhysicsAsset_GetSphereProjection(LocalPosition, float3(0,0,0), DIContext.ElementExtentBuffer[ElementIndex].x, ElementIndex,
+				CollisionPosition, CollisionNormal, OutputIndex, MinDistance);
+	}
+	else if ( ElementIndex >= DIContext.ElementOffsets[CAPSULE_INDEX] && ElementIndex < DIContext.ElementOffsets[CAPSULE_INDEX+1] )
+	{
+		DIPhysicsAsset_GetCapsuleProjection(LocalPosition, DIContext.ElementExtentBuffer[ElementIndex].xy, ElementIndex,
+				CollisionPosition, CollisionNormal, OutputIndex, MinDistance);
+	}
+	else if ( ElementIndex >= DIContext.ElementOffsets[BOX_INDEX] && ElementIndex < DIContext.ElementOffsets[BOX_INDEX+1] )
+	{
+		DIPhysicsAsset_GetBoxProjection(LocalPosition, DIContext.ElementExtentBuffer[ElementIndex].xyz, ElementIndex,
+				CollisionPosition, CollisionNormal, OutputIndex, MinDistance);
+	}
 
 	OutClosestNormal = float3(0,0,0);
 	OutClosestPosition = float3(0,0,0);
 	OutClosestVelocity = float3(0,0,0);
-	OutClosestDistance = 0.0;
 
 	if (ElementIndex != -1)
 	{
@@ -338,12 +354,104 @@ void DIPhysicsAsset_GetClosestPoint(in FDIPhysicsAssetContext DIContext, in floa
 		OutClosestNormal = normalize(PreviousNormal + TimeFraction * (CurrentNormal-PreviousNormal));
 
 		OutClosestVelocity = ( CurrentPosition - PreviousPosition ) / DeltaTime;
+	}
+}
+
+// Given a world space position (NodePosition) and an element index compute the physics asset closest distance
+void DIPhysicsAsset_GetElementDistance(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in float TimeFraction, in int ElementIndex, out float OutClosestDistance)
+{	
+	const float3 LocalPosition = DIPhysicsAsset_GetLocalPosition(DIContext,NodePosition,ElementIndex,TimeFraction);
+
+	float MinDistance = MAX_DISTANCE;
+	int OutputIndex = -1;
+	float3 CollisionPosition = float3(0,0,0);
+	float3 CollisionNormal = float3(0,0,0);
+
+	if( ElementIndex >= DIContext.ElementOffsets[SPHERE_INDEX] && ElementIndex < DIContext.ElementOffsets[SPHERE_INDEX+1] )
+	{
+		DIPhysicsAsset_GetSphereProjection(LocalPosition, float3(0,0,0), DIContext.ElementExtentBuffer[ElementIndex].x, ElementIndex,
+				CollisionPosition, CollisionNormal, OutputIndex, MinDistance);
+	}
+	else if ( ElementIndex >= DIContext.ElementOffsets[CAPSULE_INDEX] && ElementIndex < DIContext.ElementOffsets[CAPSULE_INDEX+1] )
+	{
+		DIPhysicsAsset_GetCapsuleProjection(LocalPosition, DIContext.ElementExtentBuffer[ElementIndex].xy, ElementIndex,
+				CollisionPosition, CollisionNormal, OutputIndex, MinDistance);
+	}
+	else if ( ElementIndex >= DIContext.ElementOffsets[BOX_INDEX] && ElementIndex < DIContext.ElementOffsets[BOX_INDEX+1] )
+	{
+		DIPhysicsAsset_GetBoxProjection(LocalPosition, DIContext.ElementExtentBuffer[ElementIndex].xyz, ElementIndex,
+				CollisionPosition, CollisionNormal, OutputIndex, MinDistance);
+	}
+	
+	OutClosestDistance = 0.0;
+
+	if (ElementIndex != -1)
+	{
 		OutClosestDistance = MinDistance;
 	}
 }
 
+ // Given a world space position (NodePosition) compute the physics asset closest element
+void DIPhysicsAsset_GetClosestElement(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in float TimeFraction, out int OutElementIndex)
+{	
+	float3 CollisionPosition = float3(0,0,0);
+	float3 CollisionNormal = float3(0,0,0);
+	float MinDistance = 0.0;
+
+	OutElementIndex = DIPhysicsAsset_GetClosestElement(DIContext,NodePosition,CollisionPosition,CollisionNormal,MinDistance,TimeFraction);
+}
+
+// Given a world space position (NodePosition) compute the physics asset closest point (position,normal,velocity)
+void DIPhysicsAsset_GetClosestPoint(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in float DeltaTime, in float TimeFraction, out float3 OutClosestPosition, 
+										  out float3 OutClosestNormal, out float3 OutClosestVelocity)
+{	
+	float3 CollisionPosition = float3(0,0,0);
+	float3 CollisionNormal = float3(0,0,0);
+	float MinDistance = 0.0;
+
+	const int ElementIndex = DIPhysicsAsset_GetClosestElement(DIContext,NodePosition,CollisionPosition,CollisionNormal,MinDistance,TimeFraction);
+
+	OutClosestNormal = float3(0,0,0);
+	OutClosestPosition = float3(0,0,0);
+	OutClosestVelocity = float3(0,0,0);
+
+	if (ElementIndex != -1)
+	{
+		const float3 PreviousPosition = mul(DIPhysicsAsset_GetPreviousTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
+		const float3 CurrentPosition = mul(DIPhysicsAsset_GetCurrentTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
+
+		const float3 PreviousNormal = mul(DIPhysicsAsset_GetPreviousTransform(DIContext,ElementIndex), float4(CollisionNormal,0.0)).xyz;
+		const float3 CurrentNormal = mul(DIPhysicsAsset_GetCurrentTransform(DIContext,ElementIndex), float4(CollisionNormal,0.0)).xyz;
+
+		OutClosestPosition = PreviousPosition + TimeFraction * (CurrentPosition-PreviousPosition);
+		OutClosestNormal = normalize(PreviousNormal + TimeFraction * (CurrentNormal-PreviousNormal));
+
+		OutClosestVelocity = ( CurrentPosition - PreviousPosition ) / DeltaTime;
+	}
+}
+
+// Given a world space position (NodePosition) compute the physics asset closest distance
+void DIPhysicsAsset_GetClosestDistance(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in float TimeFraction, out float OutClosestDistance)
+{	
+	float3 CollisionPosition = float3(0,0,0);
+	float3 CollisionNormal = float3(0,0,0);
+	float MinDistance = 0.0;
+
+	OutClosestDistance = 0.0;
+
+	const int ElementIndex = DIPhysicsAsset_GetClosestElement(DIContext,NodePosition,CollisionPosition,CollisionNormal,MinDistance,TimeFraction);
+
+	OutClosestDistance = 0.0;
+
+	if (ElementIndex != -1)
+	{
+		OutClosestDistance = MinDistance;
+	}
+}
+
+
 /* -----------------------------------------------------------------
- * Get the closest point to the physics asset 
+ * Get the texture point to the physics asset 
  * -----------------------------------------------------------------
  */
 

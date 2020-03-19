@@ -213,6 +213,19 @@ void FStaticMeshEditor::InitEditorForStaticMesh(UStaticMesh* ObjectToEdit)
 	StaticMeshDetailsView->RegisterInstancedCustomPropertyLayout( UStaticMesh::StaticClass(), LayoutCustomStaticMeshProperties );
 
  	SetEditorMesh(ObjectToEdit);
+
+	bool LocalDrawGrids = false;
+	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> CheckShowGridFunc =
+		[this, &LocalDrawGrids](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+	{
+		TSharedRef<SStaticMeshEditorViewport> StaticMeshEditorViewport = StaticCastSharedRef<SStaticMeshEditorViewport>(Entity->AsWidget());
+		FStaticMeshEditorViewportClient& StaticMeshEditorViewportClient = StaticMeshEditorViewport->GetViewportClient();
+		LocalDrawGrids |= StaticMeshEditorViewportClient.IsSetShowGridChecked();
+	};
+
+	ViewportTabContent->PerformActionOnViewports(CheckShowGridFunc);
+
+	bDrawGrids = LocalDrawGrids;
 }
 
 void FStaticMeshEditor::InitStaticMeshEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UStaticMesh* ObjectToEdit )
@@ -735,6 +748,12 @@ void FStaticMeshEditor::BindCommands()
 	UICommandList->MapAction(
 		Commands.CreateAutoConvexCollision,
 		FExecuteAction::CreateSP(this, &FStaticMeshEditor::OnConvexDecomposition));
+
+	// Viewport Camera
+	UICommandList->MapAction(
+		Commands.ResetCamera,
+		FExecuteAction::CreateSP(this, &FStaticMeshEditor::ResetCamera));
+
 
 
 }
@@ -2506,7 +2525,7 @@ bool FStaticMeshEditor::IsShowVerticesChecked() const
 
 void FStaticMeshEditor::ToggleShowGrids()
 {
-	bDrawGrids = !bDrawGrids;
+	bDrawGrids = !IsShowGridsChecked();
 	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> ToggleShowGridFunc =
 		[this](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
 	{
@@ -2525,7 +2544,18 @@ void FStaticMeshEditor::ToggleShowGrids()
 
 bool FStaticMeshEditor::IsShowGridsChecked() const
 {
-	return bDrawGrids;
+	bool LocalDrawGrids = false;
+	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> CheckShowGridFunc =
+		[this, &LocalDrawGrids](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+	{
+		TSharedRef<SStaticMeshEditorViewport> StaticMeshEditorViewport = StaticCastSharedRef<SStaticMeshEditorViewport>(Entity->AsWidget());
+		FStaticMeshEditorViewportClient& StaticMeshEditorViewportClient = StaticMeshEditorViewport->GetViewportClient();
+		LocalDrawGrids |= StaticMeshEditorViewportClient.IsSetShowGridChecked();
+	};
+
+	ViewportTabContent->PerformActionOnViewports(CheckShowGridFunc);
+
+	return LocalDrawGrids;
 }
 
 
@@ -2687,6 +2717,24 @@ void FStaticMeshEditor::ToggleShowVertexColors()
 bool FStaticMeshEditor::IsShowVertexColorsChecked() const
 {
 	return bDrawVertexColors;
+}
+
+void FStaticMeshEditor::ResetCamera()
+{
+	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> ResetCameraFunc =
+		[this](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+	{
+		TSharedRef<SStaticMeshEditorViewport> StaticMeshEditorViewport = StaticCastSharedRef<SStaticMeshEditorViewport>(Entity->AsWidget());
+		StaticMeshEditorViewport->GetViewportClient().FocusViewportOnBox(StaticMeshEditorViewport->GetStaticMeshComponent()->Bounds.GetBox());
+		StaticMeshEditorViewport->Invalidate();
+	};
+
+	ViewportTabContent->PerformActionOnViewports(ResetCameraFunc);
+
+// 	if (FEngineAnalytics::IsAvailable())
+// 	{
+// 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("ResetCamera"));
+// 	}
 }
 
 void FStaticMeshEditor::RemoveCurrentUVChannel()

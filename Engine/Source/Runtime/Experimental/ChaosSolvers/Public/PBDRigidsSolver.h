@@ -47,6 +47,7 @@ namespace Chaos
 	class FPersistentPhysicsTask;
 	class FChaosArchive;
 	class FPBDRigidsSolver;
+	class FRewindData;
 
 	enum class ELockType : uint8
 	{
@@ -127,6 +128,12 @@ namespace Chaos
 		bool UnregisterObject(FFieldSystemPhysicsProxy* InProxy);
 
 		bool IsSimulating() const;
+
+		void EnableRewindCapture(int32 NumFrames);
+		FRewindData* GetRewindData()
+		{
+			return MRewindData.Get();
+		}
 
 		template<typename Lambda>
 		void ForEachPhysicsProxy(Lambda InCallable)
@@ -300,6 +307,11 @@ namespace Chaos
 			return FieldSystemPhysicsProxies;
 		}
 
+		TArray<FGeometryCollectionPhysicsProxy*>& GetGeometryCollectionPhysicsProxies()
+		{
+			return GeometryCollectionPhysicsProxies;
+		}
+
 		/** Events hooked up to the Chaos material manager */
 		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
 		void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
@@ -316,6 +328,8 @@ namespace Chaos
 
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
 		void SyncQueryMaterials();
+
+		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles);
 
 	private:
 
@@ -364,6 +378,7 @@ namespace Chaos
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 		TUniquePtr<FActiveParticlesBuffer> MActiveParticlesBuffer;
 		TMap<const Chaos::TGeometryParticleHandle<float, 3>*, IPhysicsProxyBase*> MParticleToProxy;
+		TUniquePtr<FRewindData> MRewindData;
 
 		//
 		// Commands
@@ -397,6 +412,7 @@ namespace Chaos
 		template<ELockType>
 		friend struct TSolverQueryMaterialScope;
 
+		TUniquePtr<IBufferResource<FDirtyPropertiesManager>> DirtyPropertiesManager;
 	public:
 
 		template<typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>

@@ -260,13 +260,18 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Normal Text
 	{
-		Set( "RichTextBlock.TextHighlight", FTextBlockStyle(NormalText)
-			.SetColorAndOpacity( FLinearColor( 1.0f, 1.0f, 1.0f ) ) );
-		Set( "RichTextBlock.Bold", FTextBlockStyle(NormalText)
-			.SetFont( DEFAULT_FONT("Bold", FCoreStyle::RegularTextSize )) );
-		Set( "RichTextBlock.BoldHighlight", FTextBlockStyle(NormalText)
-			.SetFont( DEFAULT_FONT("Bold", FCoreStyle::RegularTextSize ))
-			.SetColorAndOpacity( FLinearColor( 1.0f, 1.0f, 1.0f ) ) );
+		Set("RichTextBlock.TextHighlight", FTextBlockStyle(NormalText)
+			.SetColorAndOpacity(FLinearColor( 1.0f, 1.0f, 1.0f)));
+		Set("RichTextBlock.Bold", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Bold", FCoreStyle::RegularTextSize)));
+		Set("RichTextBlock.BoldHighlight", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Bold", FCoreStyle::RegularTextSize))
+			.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f)));
+		Set("RichTextBlock.Italic", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Italic", FCoreStyle::RegularTextSize)));
+		Set("RichTextBlock.ItalicHighlight", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Italic", FCoreStyle::RegularTextSize))
+			.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f)));
 
 		Set( "TextBlock.HighlightShape",  new BOX_BRUSH( "Common/TextBlockHighlightShape", FMargin(3.f/8.f) ));
 		Set( "TextBlock.HighlighColor", FLinearColor( 0.02f, 0.3f, 0.0f ) );
@@ -4672,10 +4677,15 @@ void FSlateEditorStyle::FStyle::SetupGraphEditorStyles()
 			);
 		}
 
-		Set("ClassIcon.K2Node_CallFunction", new IMAGE_BRUSH("Icons/icon_Blueprint_NewFunction_16x", Icon16x16));
-		Set("ClassIcon.K2Node_Variable", new IMAGE_BRUSH("Graph/Icons/Node", Icon22x22, FLinearColor::White));
-		Set("ClassIcon.K2Node_VariableGet", new IMAGE_BRUSH("Graph/Icons/FIB_VarGet", Icon22x22, FLinearColor::White));
-		Set("ClassIcon.K2Node_VariableSet", new IMAGE_BRUSH("Graph/Icons/FIB_VarSet", Icon22x22, FLinearColor::White));
+		Set("ClassIcon.K2Node_CallFunction",	new IMAGE_BRUSH("Icons/icon_Blueprint_NewFunction_16x", Icon16x16));
+		Set("ClassIcon.K2Node_FunctionEntry",	new IMAGE_BRUSH("Icons/icon_Blueprint_NewFunction_16x", Icon16x16));
+		Set("ClassIcon.K2Node_CustomEvent",		new IMAGE_BRUSH("Icons/icon_Blueprint_Event_16x", Icon16x16));
+		Set("ClassIcon.K2Node_Event",			new IMAGE_BRUSH("Icons/icon_Blueprint_Event_16x", Icon16x16));
+		Set("ClassIcon.K2Node_Variable",		new IMAGE_BRUSH("Graph/Icons/Node", Icon16x16, FLinearColor::White));
+		Set("ClassIcon.K2Node_VariableGet",		new IMAGE_BRUSH("Graph/Icons/FIB_VarGet", Icon16x16, FLinearColor::White));
+		Set("ClassIcon.K2Node_VariableSet",		new IMAGE_BRUSH("Graph/Icons/FIB_VarSet", Icon16x16, FLinearColor::White));
+		Set("ClassIcon.K2Node_DynamicCast",		new IMAGE_BRUSH("Icons/icon_Blueprint_Cast_16x", Icon16x16));
+		Set("ClassIcon.EdGraphNode_Comment",	new IMAGE_BRUSH("Icons/icon_Blueprint_Comment_16x", Icon16x16));
 
 
 		Set( "GraphEditor.Default_16x", new IMAGE_BRUSH("Icons/icon_Blueprint_Node_16x", Icon16x16));

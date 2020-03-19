@@ -30,5 +30,8 @@ public:
 	void Construct(const FArguments& InArgs, UNiagaraStackErrorItemFix* InErrorItem, UNiagaraStackViewModel* InStackViewModel);
 
 private:
+	void LinkNavigate();
+
+private:
 	UNiagaraStackErrorItemFix* ErrorItem;
 };

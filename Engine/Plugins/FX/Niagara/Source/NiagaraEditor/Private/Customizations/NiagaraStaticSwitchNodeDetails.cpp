@@ -50,6 +50,22 @@ void FNiagaraStaticSwitchNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 	if (ObjectsCustomized.Num() == 1 && ObjectsCustomized[0]->IsA<UNiagaraNodeStaticSwitch>())
 	{
 		Node = CastChecked<UNiagaraNodeStaticSwitch>(ObjectsCustomized[0].Get());
+
+		FNiagaraTypeDefinition TypeDefOnNode = Node->GetInputType();
+
+		// Just in case the actual enum type isn't shown, add to the list.
+		if (TypeDefOnNode.IsEnum())
+		{
+			bool bFoundAlready = false;
+			for (TSharedPtr<SwitchDropdownOption>& Option : DropdownOptions)
+			{
+				if (Option->Enum == TypeDefOnNode.GetEnum())
+					bFoundAlready = true;
+			}
+
+			if (!bFoundAlready)
+				DropdownOptions.Add(MakeShareable(new SwitchDropdownOption(TypeDefOnNode.GetEnum()->GetName(), TypeDefOnNode.GetEnum())));
+		}
 		UpdateSelectionFromNode();
 		
 		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(SwitchCategoryName);		

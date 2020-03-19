@@ -43,7 +43,7 @@ void UMoviePipelineLinearExecutorBase::StartPipelineByIndex(int32 InPipelineInde
 		return;
 	}
 	
-	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase starting jobs [%d/%d]"), CurrentPipelineIndex, Queue->GetJobs().Num());
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase starting job [%d/%d]"), CurrentPipelineIndex + 1, Queue->GetJobs().Num());
 	Start(Queue->GetJobs()[CurrentPipelineIndex]);
 }
 

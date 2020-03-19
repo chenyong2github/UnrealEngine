@@ -616,11 +616,6 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 	}
 }
 
-bool UNiagaraNodeFunctionCall::IsValidPinToCompile(UEdGraphPin* Pin) const
-{
-	return !IsAddPin(Pin);
-}
-
 UObject*  UNiagaraNodeFunctionCall::GetReferencedAsset() const
 {
 	if (FunctionScript && FunctionScript->GetOutermost() != GetOutermost())
@@ -930,9 +925,9 @@ UEdGraphPin* UNiagaraNodeFunctionCall::FindStaticSwitchInputPin(const FName& Var
 	return nullptr;
 }
 
-void UNiagaraNodeFunctionCall::SuggestName(FString SuggestedName)
+void UNiagaraNodeFunctionCall::SuggestName(FString SuggestedName, bool bForceSuggestion)
 {
-	ComputeNodeName(SuggestedName);
+	ComputeNodeName(SuggestedName, bForceSuggestion);
 }
 
 UNiagaraNodeFunctionCall::FOnInputsChanged& UNiagaraNodeFunctionCall::OnInputsChanged()
@@ -979,7 +974,7 @@ void UNiagaraNodeFunctionCall::AutowireNewNode(UEdGraphPin* FromPin)
 	ComputeNodeName();
 }
 
-void UNiagaraNodeFunctionCall::ComputeNodeName(FString SuggestedName)
+void UNiagaraNodeFunctionCall::ComputeNodeName(FString SuggestedName, bool bForceSuggestion)
 {
 	FString FunctionName = FunctionScript ? FunctionScript->GetName() : Signature.GetName();
 	FName ProposedName;
@@ -987,7 +982,7 @@ void UNiagaraNodeFunctionCall::ComputeNodeName(FString SuggestedName)
 	{ 
 		// If we have a suggested name and and either there is no function name, or it is a permutation of the function name
 		// it can be used as the proposed name.
-		if (FunctionName.IsEmpty() || SuggestedName == FunctionName || (SuggestedName.StartsWith(FunctionName) && SuggestedName.RightChop(FunctionName.Len()).IsNumeric()))
+		if (bForceSuggestion || FunctionName.IsEmpty() || SuggestedName == FunctionName || (SuggestedName.StartsWith(FunctionName) && SuggestedName.RightChop(FunctionName.Len()).IsNumeric()))
 		{
 			ProposedName = *SuggestedName;
 		}

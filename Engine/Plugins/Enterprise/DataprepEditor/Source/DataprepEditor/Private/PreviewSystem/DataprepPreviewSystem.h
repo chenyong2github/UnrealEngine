@@ -14,6 +14,7 @@
 #include "UObject/GCObject.h"
 
 class FReferenceCollector;
+class UDataprepActionAsset;
 
 struct TStatId;
 
@@ -71,7 +72,7 @@ public:
 
 	void SetObservedObjects(const TArrayView<UDataprepParameterizableObject*>& Objects);
 
-	bool HasObservedObjects() const { return ObservedObjects.Num() > 0; }
+	bool HasObservedObjects() const { return ObservedSteps.Num() > 0; }
 
 	// Begin FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -87,8 +88,17 @@ public:
 
 	bool HasAnObjectObserved(const TArrayView<UDataprepParameterizableObject*>& StepObjects) const;
 
-	// Is the preview system observing an object
-	bool IsObservingObject(const UDataprepParameterizableObject* StepObject) const;
+	// Is the preview system observing the object
+	bool IsObservingStepObject(const UDataprepParameterizableObject* StepObject) const;
+
+	// Return the current number of the step observed
+	int32 GetObservedStepsCount() const { return ObservedSteps.Num(); }
+
+	/**
+	 * Check if the observed object are valid and also check if the observed object are in the right order
+	 * If an observed object is invalid clear the preview
+	 */
+	void EnsureValidityOfTheObservedObjects();
 
 	// Broadcast when the preview system is done processing the data to preview
 	DECLARE_EVENT(FDataprepPreviewSystem, FOnPreviewIsDoneProcessing)
@@ -129,8 +139,12 @@ public:
 	// End FTickableObjectBase interface
 
 private:
+	// The action from which the step object are previewed
+	UDataprepActionAsset* ObservedActionAsset;
+	FDelegateHandle OnActionStepOrderChangedHandle;
+
 	// The filters previewed
-	TArray<UDataprepParameterizableObject*> ObservedObjects;
+	TArray<UDataprepParameterizableObject*> ObservedSteps;
 
 	// The handle for the PostEditEvents of the observed objects
 	TMap<UDataprepParameterizableObject*,FDelegateHandle> ObservedOnPostEdit;

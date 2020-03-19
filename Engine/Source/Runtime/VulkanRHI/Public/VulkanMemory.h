@@ -22,6 +22,54 @@ class FVulkanCommandListContext;
 class FVulkanQueue;
 class FVulkanCmdBuffer;
 
+#if !VULKAN_OBJECT_TRACKING
+#define VULKAN_TRACK_OBJECT_CREATE(Type, Ptr) do{}while(0)
+#define VULKAN_TRACK_OBJECT_DELETE(Type, Ptr) do{}while(0)
+#else
+#define VULKAN_TRACK_OBJECT_CREATE(Type, Ptr) do{TVulkanTrackBase<Type>::Add(Ptr);}while(0)
+#define VULKAN_TRACK_OBJECT_DELETE(Type, Ptr) do{TVulkanTrackBase<Type>::Remove(Ptr);}while(0)
+
+template<typename Type>
+class TVulkanTrackBase
+{
+public:
+
+	static FCriticalSection Lock;
+	static TSet<Type*> Objects;
+	template<typename Callback>
+	static uint32 CollectAll(Callback CB)
+	{
+		uint32 Count = 0;
+		FScopeLock L(&Lock);
+		TArray<Type*> Temp;
+		for(Type* Object : Objects)
+		{
+			Object->DumpMemory(CB);
+			Count++;
+		}
+		return Count;
+	}
+	static void Add(Type* Object)
+	{
+		FScopeLock L(&Lock);
+		Objects.Add(Object);
+
+	}
+	static void Remove(Type* Object)
+	{
+		FScopeLock L(&Lock);
+		Objects.Remove(Object);
+	}
+};
+
+template<typename Type>
+FCriticalSection TVulkanTrackBase<Type>::Lock;
+template<typename Type>
+TSet<Type*> TVulkanTrackBase<Type>::Objects;
+#endif
+
+
+
 enum class EDelayAcquireImageType
 {
 	None,			// acquire next image on frame start

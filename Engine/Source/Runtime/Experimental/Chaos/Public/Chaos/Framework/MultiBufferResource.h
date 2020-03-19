@@ -37,7 +37,7 @@ namespace Chaos
 	 * Single Buffer Implementation
 	 */
 	template<typename ResourceType>
-	class FSingleBuffer : public IBufferResource<ResourceType>
+	class FSingleBuffer final : public IBufferResource<ResourceType>
 	{
 	public:
 
@@ -61,7 +61,7 @@ namespace Chaos
 	* Double Buffer Implementation - Not thread-safe requires external locks
 	*/
 	template<typename ResourceType>
-	class FDoubleBuffer : public IBufferResource<ResourceType>
+	class FDoubleBuffer final : public IBufferResource<ResourceType>
 	{
 	public:
 
@@ -103,7 +103,7 @@ namespace Chaos
 	* Triple Buffer Implementation - Not thread-safe requires external locks
 	*/
 	template<typename ResourceType>
-	class FTripleBuffer : public IBufferResource<ResourceType>
+	class FTripleBuffer final : public IBufferResource<ResourceType>
 	{
 	public:
 
@@ -149,7 +149,7 @@ namespace Chaos
 	 * Not thread-safe, requires external locks.
 	 */
 	template<typename ResourceType>
-	class FGuardedTripleBuffer : public IBufferResource<ResourceType>
+	class FGuardedTripleBuffer final : public IBufferResource<ResourceType>
 	{
 	public:
 		/** This class implements a circular buffer access pattern, such that during

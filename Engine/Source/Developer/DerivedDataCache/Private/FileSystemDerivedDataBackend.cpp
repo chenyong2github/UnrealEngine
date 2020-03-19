@@ -29,8 +29,18 @@
 #endif // PLATFORM_LINUX
 #define MAX_CACHE_EXTENTION_LEN (4)
 
-
-
+FString BuildPathForCacheKey(const TCHAR* CacheKey)
+{
+	FString Key = FString(CacheKey).ToUpper();
+	for (int32 i = 0; i < Key.Len(); i++)
+	{
+		check(FChar::IsAlnum(Key[i]) || FChar::IsUnderscore(Key[i]) || Key[i] == L'$');
+	}
+	uint32 Hash = FCrc::StrCrc_DEPRECATED(*Key);
+	// this creates a tree of 1000 directories
+	FString HashPath = FString::Printf(TEXT("%1d/%1d/%1d/"), (Hash / 100) % 10, (Hash / 10) % 10, Hash % 10);
+	return HashPath / Key + TEXT(".udd");
+}
 
 /** 
  * Cache server that uses the OS filesystem
@@ -44,7 +54,7 @@ public:
 	 * @param InCacheDirectory	directory to store the cache in
 	 * @param bForceReadOnly	if true, do not attempt to write to this cache
 	*/
-	FFileSystemDerivedDataBackend(const TCHAR* InCacheDirectory, bool bForceReadOnly, bool bTouchFiles, bool bPurgeTransientData, bool bDeleteOldFiles, int32 InDaysToDeleteUnusedFiles, int32 InMaxNumFoldersToCheck, int32 InMaxContinuousFileChecks)
+	FFileSystemDerivedDataBackend(const TCHAR* InCacheDirectory, bool bForceReadOnly, bool bTouchFiles, bool bPurgeTransientData, bool bDeleteOldFiles, int32 InDaysToDeleteUnusedFiles, int32 InMaxNumFoldersToCheck, int32 InMaxContinuousFileChecks, const TCHAR* InAccessLogFileName)
 		: CachePath(InCacheDirectory)
 		, bReadOnly(bForceReadOnly)
 		, bFailed(true)
@@ -128,6 +138,11 @@ public:
 			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s access is very slow (initialization took %.2f seconds), consider disabling it."), *CachePath, AccessDuration);
 		}
 
+		if (!bFailed && InAccessLogFileName != nullptr && *InAccessLogFileName != 0)
+		{
+			AccessLogWriter.Reset(new FAccessLogWriter(InAccessLogFileName));
+		}
+
 		if (!bReadOnly && !bFailed && bDeleteOldFiles && !FParse::Param(FCommandLine::Get(),TEXT("NODDCCLEANUP")) && FDDCCleanup::Get())
 		{			
 			FDDCCleanup::Get()->AddFilesystem( CachePath, InDaysToDeleteUnusedFiles, InMaxNumFoldersToCheck, InMaxContinuousFileChecks );
@@ -145,6 +160,36 @@ public:
 	{
 		return !bReadOnly;
 	}
+
+	class FAccessLogWriter
+	{
+	public:
+		FAccessLogWriter(const TCHAR* FileName)
+			: Archive(IFileManager::Get().CreateFileWriter(FileName, FILEWRITE_AllowRead))
+		{
+		}
+
+		void Append(const TCHAR* CacheKey)
+		{
+			FScopeLock Lock(&CriticalSection);
+
+			FString CacheKeyStr(CacheKey);
+			if (!CacheKeys.Contains(CacheKeyStr))
+			{
+				CacheKeys.Add(MoveTemp(CacheKeyStr));
+
+				auto FileName = StringCast<ANSICHAR>(*BuildPathForCacheKey(CacheKey));
+				Archive->Serialize(const_cast<ANSICHAR*>(FileName.Get()), FileName.Length());
+				Archive->Serialize(const_cast<ANSICHAR*>(LINE_TERMINATOR_ANSI), sizeof(LINE_TERMINATOR_ANSI) - 1);
+			}
+		}
+
+	private:
+		TUniquePtr<FArchive> Archive;
+		FCriticalSection CriticalSection;
+		TSet<FString> CacheKeys;
+	};
+
 	/**
 	 * Synchronous test for the existence of a cache item
 	 *
@@ -165,6 +210,11 @@ public:
 				 (!bReadOnly && (FDateTime::UtcNow() - TimeStamp).GetDays() > (DaysToDeleteUnusedFiles / 4)))
 			{
 				IFileManager::Get().SetTimeStamp(*Filename, FDateTime::UtcNow());
+			}
+
+			if (AccessLogWriter.IsValid())
+			{
+				AccessLogWriter->Append(CacheKey);
 			}
 
 			COOK_STAT(Timer.AddHit(0));
@@ -206,6 +256,11 @@ public:
 				UE_CLOG(ReadSpeed < 0.5, LogDerivedDataCache, Warning, TEXT("%s is very slow (%.2fMB/s) when accessing %s, consider disabling it."), *CachePath, ReadSpeed, *Filename);
 			}
 
+			if (AccessLogWriter.IsValid())
+			{
+				AccessLogWriter->Append(CacheKey);
+			}
+
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("FileSystemDerivedDataBackend: Cache hit on %s"),*Filename);
 			COOK_STAT(Timer.AddHit(Data.Num()));
 			return true;
@@ -239,6 +294,11 @@ public:
 		check(!bFailed);
 		if (!bReadOnly)
 		{
+			if (AccessLogWriter.IsValid())
+			{
+				AccessLogWriter->Append(CacheKey);
+			}
+
 			if (bPutEvenIfExists || !CachedDataProbablyExists(CacheKey))
 			{
 				COOK_STAT(Timer.AddHit(Data.Num()));
@@ -367,15 +427,7 @@ private:
 	 */
 	FString BuildFilename(const TCHAR* CacheKey)
 	{
-		FString Key = FString(CacheKey).ToUpper();
-		for (int32 i = 0; i < Key.Len(); i++)
-		{
-			check(FChar::IsAlnum(Key[i]) || FChar::IsUnderscore(Key[i]) || Key[i] == L'$');
-		}
-		uint32 Hash = FCrc::StrCrc_DEPRECATED(*Key);
-		// this creates a tree of 1000 directories
-		FString HashPath = FString::Printf(TEXT("%1d/%1d/%1d/"),(Hash/100)%10,(Hash/10)%10,Hash%10);
-		return CachePath / HashPath / Key + TEXT(".udd");
+		return CachePath / BuildPathForCacheKey(CacheKey);
 	}
 
 	/** Base path we are storing the cache files in. **/
@@ -401,11 +453,13 @@ private:
 	/** The total estimated build time accumulated from cache miss/put deltas */
 	double TotalEstimatedBuildTime;
 
+	/** Access log to write to */
+	TUniquePtr<FAccessLogWriter> AccessLogWriter;
 };
 
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, bool bForceReadOnly /*= false*/, bool bTouchFiles /*= false*/, bool bPurgeTransient /*= false*/, bool bDeleteOldFiles /*= false*/, int32 InDaysToDeleteUnusedFiles /*= 60*/, int32 InMaxNumFoldersToCheck /*= -1*/, int32 InMaxContinuousFileChecks /*= -1*/)
+FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, bool bForceReadOnly /*= false*/, bool bTouchFiles /*= false*/, bool bPurgeTransient /*= false*/, bool bDeleteOldFiles /*= false*/, int32 InDaysToDeleteUnusedFiles /*= 60*/, int32 InMaxNumFoldersToCheck /*= -1*/, int32 InMaxContinuousFileChecks /*= -1*/, const TCHAR* InAccessLogFileName /*= nullptr*/)
 {
-	FFileSystemDerivedDataBackend* FileDDB = new FFileSystemDerivedDataBackend(CacheDirectory, bForceReadOnly, bTouchFiles, bPurgeTransient, bDeleteOldFiles, InDaysToDeleteUnusedFiles, InMaxNumFoldersToCheck, InMaxContinuousFileChecks);
+	FFileSystemDerivedDataBackend* FileDDB = new FFileSystemDerivedDataBackend(CacheDirectory, bForceReadOnly, bTouchFiles, bPurgeTransient, bDeleteOldFiles, InDaysToDeleteUnusedFiles, InMaxNumFoldersToCheck, InMaxContinuousFileChecks, InAccessLogFileName);
 	if (!FileDDB->IsUsable())
 	{
 		delete FileDDB;

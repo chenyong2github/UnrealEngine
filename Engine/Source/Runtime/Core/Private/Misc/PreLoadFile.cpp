@@ -30,6 +30,7 @@ struct FPreloadFileRegistry
 FPreLoadFile::FPreLoadFile(const TCHAR* InPath)
 	: FDelayedAutoRegisterHelper(STATS ? EDelayedRegisterRunPhase::StatSystemReady : EDelayedRegisterRunPhase::FileSystemReady, [this] { bSystemNoLongerTakingRequests = false; KickOffRead(); })
 	, bIsComplete(false)
+	, bFailedToOpenInKickOff(false)
 	, Data(nullptr)
 	, FileSize(0)
 	, Path(InPath)
@@ -50,15 +51,18 @@ void FPreLoadFile::KickOffRead()
 		Path = Path.Replace(TEXT("{PROJECT}"), *FPaths::ProjectDir());
 	}
 
-	check(CompletionEvent == nullptr);
-	CompletionEvent = FPlatformProcess::GetSynchEventFromPool();
-	check(CompletionEvent != nullptr);
+	// if we are reading again because we had failed earlier, the CompletionEvent may be valid, no need to recreate it
+	if (CompletionEvent == nullptr)
+	{
+		CompletionEvent = FPlatformProcess::GetSynchEventFromPool();
+		check(CompletionEvent != nullptr);
+	}
 
 #if PLATFORM_CAN_ASYNC_PRELOAD_FILES
 	FAsyncFileCallBack SizeCallbackFunction = [this](bool bWasCancelled, IAsyncReadRequest* SizeRequest)
 	{
 		FileSize = (int32)SizeRequest->GetSizeResults();
-//		printf("Preloading %s, size = %d\n", TCHAR_TO_ANSI(*Path), FileSize);
+
 		if (FileSize > 0)
 		{
 			FAsyncFileCallBack ReadCallbackFunction = [this](bool bWasCancelledInner, IAsyncReadRequest* ReadRequest)
@@ -89,25 +93,34 @@ void FPreLoadFile::KickOffRead()
 		Data = FMemory::Malloc(FileSize);
 		Reader->Serialize(Data, FileSize);
 		delete Reader;
+		CompletionEvent->Trigger();
 	}
-	CompletionEvent->Trigger();
+	else
+	{
+		// if we are failing a second time, then just mark the event complete, we have exhausted attempts
+		if (bFailedToOpenInKickOff)
+		{
+			CompletionEvent->Trigger();
+		}
+		// it's possible pak files with the file weren't mounted yet, so note that we didn't find it, and try again in TakeOwnership time
+		bFailedToOpenInKickOff = true;
+
+	}
 #endif
 }	
 
 
 void* FPreLoadFile::TakeOwnershipOfLoadedData(int64* OutFileSize)
 {
-	if (!CompletionEvent)
+	// may need to attempt to read again, if (re-)requesting data after the initial boot sequence, or if a pak file wasn't mounted in time
+	if (!CompletionEvent || bFailedToOpenInKickOff)
 	{
-		// may need to read again, if (re-)requesting data after the initial boot sequence
 		KickOffRead();
 	}
 
 	check(CompletionEvent);
 	if (CompletionEvent->Wait(0) == false)
 	{
-		printf("PreLoadFile %s wasn't ready...\n", TCHAR_TO_ANSI(*Path));
-
 		// wait until we are done
 		CompletionEvent->Wait();
 	}

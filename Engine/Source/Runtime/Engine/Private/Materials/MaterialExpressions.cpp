@@ -849,7 +849,7 @@ bool UMaterialExpression::CanEditChange(const FProperty* InProperty) const
 		{
 			const FString& OverridingPropertyName = InProperty->GetMetaData(OverridingInputPropertyMetaData);
 
-			FStructProperty* StructProp = FindField<FStructProperty>(GetClass(), *OverridingPropertyName);
+			FStructProperty* StructProp = FindFProperty<FStructProperty>(GetClass(), *OverridingPropertyName);
 			if (ensure(StructProp != nullptr))
 			{
 				static FName RequiredInputMetaData(TEXT("RequiredInput"));
@@ -2301,6 +2301,20 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		}
 	}
 
+	// Compile the runtime virtual texture uniforms
+	int32 Uniforms[ERuntimeVirtualTextureShaderUniform_Count];
+	for (int32 UniformIndex = 0; UniformIndex < ERuntimeVirtualTextureShaderUniform_Count; ++UniformIndex)
+	{
+		if (bIsParameter)
+		{
+			Uniforms[UniformIndex] = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], UniformIndex);
+		}
+		else
+		{
+			Uniforms[UniformIndex] = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], UniformIndex);
+		}
+	}
+
 	// Compile the coordinates
 	// We use the virtual texture world space transform by default
 	int32 CoordinateIndex = INDEX_NONE;
@@ -2326,20 +2340,9 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			WorldPositionIndex = Compiler->WorldPosition(WPT_Default);
 		}
 		
-		int32 P0, P1, P2;
-		if (bIsParameter)
-		{
-			P0 = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], 0);
-			P1 = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], 1);
-			P2 = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], 2);
-		}
-		else
-		{
-			P0 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 0);
-			P1 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 1);
-			P2 = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], 2);
-		}
-
+		const int32 P0 = Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform0];
+		const int32 P1 = Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1];
+		const int32 P2 = Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2];
 		CoordinateIndex = Compiler->VirtualTextureWorldToUV(WorldPositionIndex, P0, P1, P2);
 	}
 	
@@ -2376,7 +2379,8 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	int32 UnpackCodeIndex = INDEX_NONE;
 	if (UnpackType != EVirtualTextureUnpackType::None)
 	{
-		UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex[0], SampleCodeIndex[1], SampleCodeIndex[2], UnpackType);
+		int32 P0 = Uniforms[ERuntimeVirtualTextureShaderUniform_WorldHeightUnpack];
+		UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex[0], SampleCodeIndex[1], SampleCodeIndex[2], P0, UnpackType);
 	}
 	else
 	{
@@ -2495,7 +2499,7 @@ void UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetValueToMatching
 	if (Material->GetRuntimeVirtualTextureParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), Value))
 	{
 		VirtualTexture = Value;
-		FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionRuntimeVirtualTextureSampleParameter, VirtualTexture));
+		FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionRuntimeVirtualTextureSampleParameter, VirtualTexture));
 		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 		PostEditChangeProperty(PropertyChangedEvent);
 	}
@@ -2717,7 +2721,7 @@ void UMaterialExpressionTextureSampleParameter::SetValueToMatchingExpression(UMa
 	UTexture* ExistingValue;
 	Material->GetTextureParameterValue(OtherExpression->GetParameterName(), ExistingValue);
 	Texture = ExistingValue;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionTextureSampleParameter, Texture));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionTextureSampleParameter, Texture));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -4413,16 +4417,16 @@ void UMaterialExpressionStaticComponentMaskParameter::SetValueToMatchingExpressi
 	DefaultG = G;
 	DefaultB = B;
 	DefaultA = A;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultR));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultR));
 	FPropertyChangedEvent RChangedEvent(ParamProperty);
 	PostEditChangeProperty(RChangedEvent);
-	ParamProperty = FindField<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultG));
+	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultG));
 	FPropertyChangedEvent GChangedEvent(ParamProperty);
 	PostEditChangeProperty(GChangedEvent);
-	ParamProperty = FindField<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultB));
+	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultB));
 	FPropertyChangedEvent BChangedEvent(ParamProperty);
 	PostEditChangeProperty(BChangedEvent);
-	ParamProperty = FindField<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultA));
+	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultA));
 	FPropertyChangedEvent AChangedEvent(ParamProperty);
 	PostEditChangeProperty(AChangedEvent);
 }
@@ -7359,7 +7363,7 @@ void UMaterialExpressionVectorParameter::SetValueToMatchingExpression(UMaterialE
 	FLinearColor ExistingValue = FLinearColor::Transparent;
 	Material->GetVectorParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), ExistingValue);
 	DefaultValue = ExistingValue;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionVectorParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionVectorParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -7660,7 +7664,7 @@ void UMaterialExpressionScalarParameter::SetValueToMatchingExpression(UMaterialE
 	float ExistingValue = 0.0f;
 	Material->GetScalarParameterDefaultValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), ExistingValue);
 	DefaultValue = ExistingValue;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionScalarParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, DefaultValue));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionScalarParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, DefaultValue));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -7779,7 +7783,7 @@ void UMaterialExpressionStaticBoolParameter::SetValueToMatchingExpression(UMater
 	FGuid Guid;
 	Material->GetStaticSwitchParameterValue(OtherExpression->GetParameterName(), ExistingValue, Guid);
 	DefaultValue = ExistingValue;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionStaticBoolParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticBoolParameter, DefaultValue));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticBoolParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticBoolParameter, DefaultValue));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -9251,7 +9255,7 @@ FName UMaterialExpressionSceneDepth::GetInputName(int32 InputIndex) const
 	if(InputIndex == 0)
 	{
 		// Display the current InputMode enum's display name.
-		FByteProperty* InputModeProperty = FindField<FByteProperty>( UMaterialExpressionSceneDepth::StaticClass(), "InputMode" );
+		FByteProperty* InputModeProperty = FindFProperty<FByteProperty>( UMaterialExpressionSceneDepth::StaticClass(), "InputMode" );
 		// Can't use GetNameByValue as GetNameStringByValue does name mangling that GetNameByValue does not
 		return *InputModeProperty->Enum->GetNameStringByValue((int64)InputMode.GetValue());
 	}
@@ -9548,7 +9552,7 @@ FName UMaterialExpressionSceneColor::GetInputName(int32 InputIndex) const
 	if(InputIndex == 0)
 	{
 		// Display the current InputMode enum's display name.
-		FByteProperty* InputModeProperty = FindField<FByteProperty>( UMaterialExpressionSceneColor::StaticClass(), "InputMode" );
+		FByteProperty* InputModeProperty = FindFProperty<FByteProperty>( UMaterialExpressionSceneColor::StaticClass(), "InputMode" );
 		// Can't use GetNameByValue as GetNameStringByValue does name mangling that GetNameByValue does not
 		return *InputModeProperty->Enum->GetNameStringByValue((int64)InputMode.GetValue());
 	}
@@ -10274,10 +10278,10 @@ void UMaterialExpressionFontSampleParameter::SetValueToMatchingExpression(UMater
 	Material->GetFontParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), FontValue, FontPage);
 	Font = FontValue;
 	FontTexturePage = FontPage;
-	FProperty* ParamProperty = FindField<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, Font));
+	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, Font));
 	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
 	PostEditChangeProperty(PropertyChangedEvent);
-	ParamProperty = FindField<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, FontTexturePage));
+	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, FontTexturePage));
 	FPropertyChangedEvent PageChangedEvent(ParamProperty);
 	PostEditChangeProperty(PageChangedEvent);
 }
@@ -12658,21 +12662,53 @@ void FMaterialLayersFunctions::MoveBlendedLayer(int32 SrcLayerIndex, int32 DstLa
 		RestrictToBlendRelatives.Swap(SrcLayerIndex - 1, DstLayerIndex - 1);
 		LayerGuids.Swap(SrcLayerIndex, DstLayerIndex);
 		// Disconnect layers from parent when they're moved at the instance level
-		if (ParentLayerGuids[SrcLayerIndex] != NoParentGuid)
-		{
-			check(ParentLayerGuids[SrcLayerIndex] != UninitializedParentGuid);
-			DeletedParentLayerGuids.Add(ParentLayerGuids[SrcLayerIndex]);
-			ParentLayerGuids[SrcLayerIndex] = NoParentGuid;
-		}
-		if (ParentLayerGuids[DstLayerIndex] != NoParentGuid)
-		{
-			check(ParentLayerGuids[DstLayerIndex] != UninitializedParentGuid);
-			DeletedParentLayerGuids.Add(ParentLayerGuids[DstLayerIndex]);
-			ParentLayerGuids[DstLayerIndex] = NoParentGuid;
-		}
+		UnlinkLayerFromParent(SrcLayerIndex);
+		UnlinkLayerFromParent(DstLayerIndex);
 #endif //WITH_EDITOR
 	}
 }
+
+#if WITH_EDITOR
+void FMaterialLayersFunctions::UnlinkLayerFromParent(int32 Index)
+{
+	check(Index > 0);
+	if (ParentLayerGuids[Index] != NoParentGuid)
+	{
+		check(ParentLayerGuids[Index] != UninitializedParentGuid);
+		DeletedParentLayerGuids.Add(ParentLayerGuids[Index]);
+		ParentLayerGuids[Index] = NoParentGuid;
+	}
+}
+
+bool FMaterialLayersFunctions::IsLayerLinkedToParent(int32 Index) const
+{
+	if (Index > 0 && Index < ParentLayerGuids.Num())
+	{
+		const FGuid ParentGuid = ParentLayerGuids[Index];
+		check(ParentGuid != BackgroundGuid);
+		return ParentGuid != UninitializedParentGuid && ParentGuid != NoParentGuid;
+	}
+	return false;
+}
+
+void FMaterialLayersFunctions::RelinkLayersToParent()
+{
+	for (const FGuid& ParentGuid : DeletedParentLayerGuids)
+	{
+		const int32 LayerIndex = LayerGuids.Find(ParentGuid);
+		if (LayerIndex != INDEX_NONE && ParentLayerGuids[LayerIndex] == NoParentGuid)
+		{
+			ParentLayerGuids[LayerIndex] = ParentGuid;
+		}
+	}
+	DeletedParentLayerGuids.Empty();
+}
+
+bool FMaterialLayersFunctions::HasAnyUnlinkedLayers() const
+{
+	return DeletedParentLayerGuids.Num() > 0;
+}
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 void FMaterialLayersFunctions::CopyGuidsToParent()

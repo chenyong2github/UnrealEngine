@@ -33,6 +33,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraClipboard.h"
 #include "Toolkits/NiagaraSystemToolkit.h"
+#include "NiagaraMessageManager.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
@@ -44,6 +45,9 @@
 #include "EdGraph/EdGraphPin.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "NiagaraConvertInPlaceUtilityBase.h"
 
 #include "NiagaraScriptVariable.h"
 
@@ -180,6 +184,12 @@ void UNiagaraStackFunctionInput::FinalizeInternal()
 		SourceScript->GetSource()->OnChanged().RemoveAll(this);
 	}
 
+	if (MessageManagerRefreshHandle.IsValid())
+	{
+		FNiagaraMessageManager::Get()->GetOnRequestRefresh().Remove(MessageManagerRefreshHandle);
+		MessageManagerRefreshHandle.Reset();
+	}
+
 	Super::FinalizeInternal();
 }
 
@@ -283,10 +293,19 @@ bool UNiagaraStackFunctionInput::TestCanPasteWithMessage(const UNiagaraClipboard
 	}
 	else if (ClipboardContent->FunctionInputs.Num() == 1)
 	{
-		if (ClipboardContent->FunctionInputs[0] != nullptr)
+		const UNiagaraClipboardFunctionInput* ClipboardFunctionInput = ClipboardContent->FunctionInputs[0];
+		if (ClipboardFunctionInput != nullptr)
 		{
-			if (ClipboardContent->FunctionInputs[0]->InputType == InputType)
+			if (ClipboardFunctionInput->InputType == InputType)
 			{
+				if (ClipboardFunctionInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::Dynamic)
+				{
+					if (ClipboardFunctionInput->Dynamic->Script.IsValid() == false)
+					{
+						OutMessage = LOCTEXT("CantPasteInvalidDynamicInputScript", "Can not paste the dynamic input because its script is no longer valid.");
+						return false;
+					}
+				}
 				OutMessage = LOCTEXT("PastMessage", "Paste the input from the clipboard here.");
 				return true;
 			}
@@ -385,6 +404,22 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 
 	RefreshFromMetaData();
 	RefreshValues();
+
+	if (InputValues.DynamicNode.IsValid())
+	{
+		if (MessageManagerRefreshHandle.IsValid() == false)
+		{
+			MessageManagerRefreshHandle = FNiagaraMessageManager::Get()->GetOnRequestRefresh().AddUObject(this, &UNiagaraStackFunctionInput::OnMessageManagerRefresh);
+		}
+	}
+	else
+	{
+		if (MessageManagerRefreshHandle.IsValid())
+		{
+			FNiagaraMessageManager::Get()->GetOnRequestRefresh().Remove(MessageManagerRefreshHandle);
+			MessageManagerRefreshHandle.Reset();
+		}
+	}
 
 	if (InputValues.Mode == EValueMode::Dynamic && InputValues.DynamicNode.IsValid())
 	{
@@ -538,6 +573,16 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 			}
 			DisplayNameOverride = FText::FromString(DisplayNameStr);
 		}	
+	}
+
+	if (InputValues.DynamicNode.IsValid())
+	{
+		TArray<TSharedRef<const INiagaraMessage>> Messages = FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(
+			GetSystemViewModel()->GetMessageLogGuid(), FObjectKey(InputValues.DynamicNode.Get()));
+		for (TSharedRef<const INiagaraMessage> Message : Messages)
+		{
+			NewIssues.Add(FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey()));
+		}
 	}
 }
 
@@ -719,6 +764,7 @@ void UNiagaraStackFunctionInput::RefreshValues()
 	bCanResetCache.Reset();
 	bCanResetToBaseCache.Reset();
 	ValueToolTipCache.Reset();
+	bIsScratchDynamicInputCache.Reset();
 	ValueChangedDelegate.Broadcast();
 }
 
@@ -1128,8 +1174,7 @@ void UNiagaraStackFunctionInput::SetScratch()
 	if (ScratchScriptViewModel.IsValid())
 	{
 		SetDynamicInput(ScratchScriptViewModel->GetOriginalScript());
-		GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::ScratchPadTabID);
-		GetSystemViewModel()->GetScriptScratchPadViewModel()->SetActiveScriptViewModel(ScratchScriptViewModel.ToSharedRef());
+		GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchScriptViewModel.ToSharedRef());
 		ScratchScriptViewModel->SetIsPendingRename(true);
 	}
 }
@@ -1468,6 +1513,17 @@ FNiagaraVariable UNiagaraStackFunctionInput::CreateRapidIterationVariable(const 
 	return FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, OutputNode->GetUsage(), InName, InputType);
 }
 
+void UNiagaraStackFunctionInput::OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages)
+{
+	if (InputValues.DynamicNode.IsValid() && GetSystemViewModel()->GetMessageLogGuid() == MessageJobBatchAssetKey)
+	{
+		if (FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(MessageJobBatchAssetKey, FObjectKey(InputValues.DynamicNode.Get())).Num() > 0)
+		{
+			RefreshChildren();
+		}
+	}
+}
+
 bool UNiagaraStackFunctionInput::SupportsRename() const
 {
 	// Only module level assignment node inputs can be renamed.
@@ -1636,6 +1692,15 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		const FString OldName = InputValues.DynamicNode->GetFunctionName();
 
 		InputValues.DynamicNode->Modify();
+
+		UNiagaraClipboardContent* OldClipboardContent = nullptr;
+		UNiagaraScript* OldScript = InputValues.DynamicNode->FunctionScript;
+		if (DynamicInputScript->ConversionUtility != nullptr)
+		{
+			OldClipboardContent = UNiagaraClipboardContent::Create();
+			Copy(OldClipboardContent);
+		}
+
 		InputValues.DynamicNode->FunctionScript = DynamicInputScript;
 
 		// intermediate refresh to purge any rapid iteration parameters that have been removed in the new script
@@ -1649,8 +1714,35 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *InputValues.DynamicNode.Get(), OldName, NewName);
 
 		InputValues.DynamicNode->RefreshFromExternalChanges();
+
 		InputValues.DynamicNode->MarkNodeRequiresSynchronization(TEXT("Dynamic input script reassigned."), true);
 		RefreshChildren();
+		
+		if (DynamicInputScript->ConversionUtility != nullptr && OldClipboardContent != nullptr)
+		{
+			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), DynamicInputScript->ConversionUtility);
+
+			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
+			Copy(NewClipboardContent);
+			TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
+			GetUnfilteredChildrenOfType(DynamicInputCollections);
+
+			FText ConvertMessage;
+			if (ConversionUtility && DynamicInputCollections.Num() == 0)
+			{
+				bool bConverted = ConversionUtility->Convert(OldScript, OldClipboardContent, DynamicInputScript, DynamicInputCollections[0], NewClipboardContent, InputValues.DynamicNode.Get(), ConvertMessage);
+				if (!ConvertMessage.IsEmptyOrWhitespace())
+				{
+					// Notify the end-user about the convert message, but continue the process as they could always undo.
+					FNotificationInfo Msg(FText::Format(LOCTEXT("FixConvertInPlace", "Conversion Note: {0}"), ConvertMessage));
+					Msg.ExpireDuration = 5.0f;
+					Msg.bFireAndForget = true;
+					Msg.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
+					FSlateNotificationManager::Get().AddNotification(Msg);
+				}
+			}
+		}
+
 	}
 }
 
@@ -1742,18 +1834,31 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 			break;
 		case ENiagaraClipboardFunctionInputValueMode::Dynamic:
 			if (ensureMsgf(ClipboardFunctionInput.Dynamic->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset,
-				TEXT("Can not set dynamic input value from clipboard, only script asset funcitons can be set.")))
+				TEXT("Dynamic input values can only be set from script asset clipboard functions.")))
 			{
-				UNiagaraScript* ClipboardScript = ClipboardFunctionInput.Dynamic->Script->IsAsset()
-					? ClipboardFunctionInput.Dynamic->Script
-					: GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionInput.Dynamic->Script)->GetOriginalScript();
-				SetDynamicInput(ClipboardScript, ClipboardFunctionInput.Dynamic->FunctionName);
-
-				TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
-				GetUnfilteredChildrenOfType(DynamicInputCollections);
-				for (UNiagaraStackFunctionInputCollection* DynamicInputCollection : DynamicInputCollections)
+				UNiagaraScript* ClipboardFunctionScript = ClipboardFunctionInput.Dynamic->Script.Get();
+				if (ClipboardFunctionScript != nullptr)
 				{
-					DynamicInputCollection->SetValuesFromClipboardFunctionInputs(ClipboardFunctionInput.Dynamic->Inputs);
+					UNiagaraScript* NewDynamicInputScript;
+					if (ClipboardFunctionScript->IsAsset() ||
+						GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(ClipboardFunctionScript).IsValid())
+					{
+						// If the clipboard script is an asset, or it's in the scratch pad of the current asset, it can be used directly.
+						NewDynamicInputScript = ClipboardFunctionScript;
+					}
+					else
+					{
+						// Otherwise it's a scratch pad script from another asset so we need to add a duplicate scratch pad script to this asset.
+						NewDynamicInputScript = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionScript)->GetOriginalScript();
+					}
+					SetDynamicInput(NewDynamicInputScript, ClipboardFunctionInput.Dynamic->FunctionName);
+
+					TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
+					GetUnfilteredChildrenOfType(DynamicInputCollections);
+					for (UNiagaraStackFunctionInputCollection* DynamicInputCollection : DynamicInputCollections)
+					{
+						DynamicInputCollection->SetValuesFromClipboardFunctionInputs(ClipboardFunctionInput.Dynamic->Inputs);
+					}
 				}
 			}
 			break;
@@ -1767,6 +1872,18 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 	{
 		SetEditConditionEnabled(ClipboardFunctionInput.bEditConditionValue);
 	}
+}
+
+bool UNiagaraStackFunctionInput::IsScratchDynamicInput() const
+{
+	if (bIsScratchDynamicInputCache.IsSet() == false)
+	{
+		bIsScratchDynamicInputCache = 
+			InputValues.Mode == EValueMode::Dynamic &&
+			InputValues.DynamicNode.IsValid() &&
+			GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(InputValues.DynamicNode->FunctionScript).IsValid();
+	}
+	return bIsScratchDynamicInputCache.GetValue();
 }
 
 void UNiagaraStackFunctionInput::GetSearchItems(TArray<FStackSearchItem>& SearchItems) const

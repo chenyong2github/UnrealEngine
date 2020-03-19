@@ -113,7 +113,7 @@ bool FDatasmithIFCTranslator::LoadLevelSequence(const TSharedRef<IDatasmithLevel
 	return false;
 }
 
-void FDatasmithIFCTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithIFCTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	if (!ImportOptions.IsValid())
 	{
@@ -123,12 +123,11 @@ void FDatasmithIFCTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObj
 	Options.Add(ImportOptions);
 }
 
-void FDatasmithIFCTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+void FDatasmithIFCTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	for (TStrongObjectPtr<UObject>& OptionPtr : Options)
+	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
-		UObject* Option = OptionPtr.Get();
-		if (UDatasmithIFCImportOptions* InImportOptions = Cast<UDatasmithIFCImportOptions>(Option))
+		if (UDatasmithIFCImportOptions* InImportOptions = Cast<UDatasmithIFCImportOptions>(OptionPtr.Get()))
 		{
 			ImportOptions.Reset(InImportOptions);
 		}

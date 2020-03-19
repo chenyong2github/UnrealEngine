@@ -7,6 +7,7 @@
 #include "ConcertSyncSessionFlags.h"
 
 class UConcertServerConfig;
+class IConcertFileSharingService;
 
 struct FConcertSyncServerLoopInitArgs
 {
@@ -25,11 +26,14 @@ struct FConcertSyncServerLoopInitArgs
 	/** The session filter to apply when auto-archiving sessions on this server */
 	FConcertSessionFilter ServiceAutoArchiveSessionFilter;
 
+	/** The optional file sharing server to exchange large files. Can be null. */
+	TSharedPtr<IConcertFileSharingService> FileSharingService;
+
 	/** Function to get the server settings object to configure the server with with, or unbound to parse the default settings */
 	TFunction<const UConcertServerConfig*()> GetServerConfigFunc;
-    
-    /** Whether the service should show the log console. */
-    bool bShowConsole = true;
+
+	/** Whether the service should show the log console. */
+	bool bShowConsole = true;
 };
 
 /**

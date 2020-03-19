@@ -189,6 +189,7 @@ void UUVProjectionTool::UpdateNumPreviews()
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
+			Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 			FComponentMaterialSet MaterialSet;
 			ComponentTargets[PreviewIdx]->GetMaterialSet(MaterialSet);

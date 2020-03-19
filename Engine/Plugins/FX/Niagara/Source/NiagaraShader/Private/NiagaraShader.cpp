@@ -400,9 +400,8 @@ TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> FNiagaraShaderType::Beg
 	SetupCompileEnvironment(Platform, Script, ShaderEnvironment);
 
 	TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> ShaderJob(NewJob);
-	FString DebugGroupName = Script->SourceName;
 	::GlobalBeginCompileShader(
-		DebugGroupName,
+		Script->GetFriendlyName(),
 		nullptr,
 		this,
 		nullptr,//ShaderPipeline,
@@ -1106,8 +1105,10 @@ void FNiagaraShader::BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>&
 {
 	FloatInputBufferParam.Bind(ParameterMap, TEXT("InputFloat"));
 	IntInputBufferParam.Bind(ParameterMap, TEXT("InputInt"));
+	HalfInputBufferParam.Bind(ParameterMap, TEXT("InputHalf"));
 	FloatOutputBufferParam.Bind(ParameterMap, TEXT("OutputFloat"));
 	IntOutputBufferParam.Bind(ParameterMap, TEXT("OutputInt"));
+	HalfOutputBufferParam.Bind(ParameterMap, TEXT("OutputHalf"));
 
 	InstanceCountsParam.Bind(ParameterMap, TEXT("InstanceCounts"));
 	ReadInstanceCountOffsetParam.Bind(ParameterMap, TEXT("ReadInstanceCountOffset"));
@@ -1179,7 +1180,7 @@ void FNiagaraShader::BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>&
 		ParamRef.Bind(DIParamInfo, ParameterMap);
 	}
 
-	ensure(FloatOutputBufferParam.IsBound() || IntOutputBufferParam.IsBound());	// we should have at least one output buffer we're writing to
+	ensure(HalfOutputBufferParam.IsBound() || FloatOutputBufferParam.IsBound() || IntOutputBufferParam.IsBound());	// we should have at least one output buffer we're writing to
 	ensure(InstanceCountsParam.IsBound());
 	ensure(UpdateStartInstanceParam.IsBound());
 	ensure(NumSpawnedInstancesParam.IsBound());

@@ -21,6 +21,9 @@ namespace UnrealBuildTool
 		// filename of current BundleTool
 		private const string BUNDLETOOL_JAR = "bundletool-all-0.13.0.jar";
 
+		// classpath of default android build tools gradle plugin
+		private const string ANDROID_TOOLS_BUILD_GRADLE_VERSION = "com.android.tools.build:gradle:3.5.3";
+
 		// Minimum Android SDK that must be used for Java compiling
 		readonly int MinimumSDKLevel = 28;
 
@@ -833,9 +836,13 @@ namespace UnrealBuildTool
 				// override store version with changelist if enabled and is build machine
 				if (bUseChangeListAsStoreVersion && IsBuildMachine)
 				{
-					// make sure changelist is cached
+					// make sure changelist is cached (clear unused warning)
 					string EngineVersion = ReadEngineVersion();
-					
+					if (EngineVersion == null)
+					{
+						throw new BuildException("No engine version!");
+					}
+
 					int Changelist = 0;
 					if (int.TryParse(EngineChangelist, out Changelist))
 					{
@@ -2952,6 +2959,7 @@ namespace UnrealBuildTool
 				GradleProperties.AppendLine(string.Format("OBB_FILE{0}={1}", OBBFileIndex++, OBBFile.Replace("\\", "/")));
 			}
 
+			GradleProperties.AppendLine("ANDROID_TOOLS_BUILD_GRADLE_VERSION={0}", ANDROID_TOOLS_BUILD_GRADLE_VERSION);
 			GradleProperties.AppendLine("BUNDLETOOL_JAR=" + Path.GetFullPath(Path.Combine(UE4BuildFilesPath, "..", "Prebuilt", "bundletool", BUNDLETOOL_JAR)).Replace("\\", "/"));
 			GradleProperties.AppendLine("GENUNIVERSALAPK_JAR=" + Path.GetFullPath(Path.Combine(UE4BuildFilesPath, "..", "Prebuilt", "GenUniversalAPK", "bin", "GenUniversalAPK.jar")).Replace("\\", "/"));
 
@@ -3136,6 +3144,7 @@ namespace UnrealBuildTool
 			{
 				if (!bSkipGradleBuild)
 				{
+					/*
 					IEnumerable<Tuple<string, string>> TargetList = null;
 
 					TargetList = from Arch in Arches
@@ -3145,7 +3154,6 @@ namespace UnrealBuildTool
 					string DestApkDirectory = Path.Combine(ProjectDirectory, "Binaries/Android");
 					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UE4Game", ProjectName);
 
-					/*
 					foreach (Tuple<string, string> target in TargetList)
 					{
 						string Arch = target.Item1;
@@ -3176,8 +3184,12 @@ namespace UnrealBuildTool
 				throw new BuildException("Cannot make APK with UPL errors");
 			}
 
-			// make sure it is cached
+			// make sure it is cached (clear unused warning)
 			string EngineVersion = ReadEngineVersion();
+			if (EngineVersion == null)
+			{
+				throw new BuildException("No engine version!");
+			}
 
 			SetMinimumSDKLevelForGradle();
 
@@ -3200,8 +3212,8 @@ namespace UnrealBuildTool
 			string BuildToolsVersion = GetBuildToolsVersion();
 
 			// cache some tools paths
-			string NDKBuildPath = Environment.ExpandEnvironmentVariables("%NDKROOT%/ndk-build" + (Utils.IsRunningOnMono ? "" : ".cmd"));
-			bool HasNDKPath = File.Exists(NDKBuildPath);
+			//string NDKBuildPath = Environment.ExpandEnvironmentVariables("%NDKROOT%/ndk-build" + (Utils.IsRunningOnMono ? "" : ".cmd"));
+			//bool HasNDKPath = File.Exists(NDKBuildPath);
 
 			// set up some directory info
 			string IntermediateAndroidPath = Path.Combine(ProjectDirectory, "Intermediate", "Android");
@@ -3672,7 +3684,7 @@ namespace UnrealBuildTool
 					string[] CompileSDKLines = CompileSDKMin.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
 					foreach (string CompileLine in CompileSDKLines)
 					{
-						string VersionString = CompileLine.Replace("android-", "");
+						//string VersionString = CompileLine.Replace("android-", "");
 						int VersionInt;
 						if (int.TryParse(CompileLine, out VersionInt))
 						{
@@ -3735,7 +3747,7 @@ namespace UnrealBuildTool
 					
 				// move JavaLibs into subprojects
 				string JavaLibsDir = Path.Combine(UE4BuildPath, "JavaLibs");
-				PrepareJavaLibsForGradle(JavaLibsDir, UE4BuildGradlePath, MinSDKVersion.ToString(), TargetSDKVersion.ToString(), CompileSDKVersion, BuildToolsVersion);
+				PrepareJavaLibsForGradle(JavaLibsDir, UE4BuildGradlePath, MinSDKVersion.ToString(), TargetSDKVersion.ToString(), CompileSDKVersion, BuildToolsVersion, NDKArch);
 
 				// Create local.properties
 				String LocalPropertiesFilename = Path.Combine(UE4BuildGradlePath, "local.properties");
@@ -4453,7 +4465,8 @@ namespace UnrealBuildTool
 				{ "//$${gameActivityGetLoginIdAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityGetLoginIdAdditions", "")},
 				{ "//$${gameActivityGetFunnelIdAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityGetFunnelIdAdditions", "")},
 				{ "//$${gameActivityAllowedRemoteNotificationsAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityAllowedRemoteNotificationsAdditions", "")},
-				{ "//$${gameActivityOnRestartApplicationAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnRestartApplicationAdditions", "")},				
+				{ "//$${gameActivityOnRestartApplicationAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnRestartApplicationAdditions", "")},
+				{ "//$${gameActivityForceQuitAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityForceQuitAdditions", "")},
 				{ "//$${soLoadLibrary}$$", UPL.ProcessPluginNode(NDKArch, "soLoadLibrary", LoadLibraryDefaults)},
 				{ "$${gameActivitySuperClass}$$", SuperClassDefault},
 			};
@@ -4639,7 +4652,7 @@ namespace UnrealBuildTool
 			return AARHandler;
 		}
 
-		private void PrepareJavaLibsForGradle(string JavaLibsDir, string UE4BuildGradlePath, string InMinSdkVersion, string InTargetSdkVersion, string CompileSDKVersion, string BuildToolsVersion)
+		private void PrepareJavaLibsForGradle(string JavaLibsDir, string UE4BuildGradlePath, string InMinSdkVersion, string InTargetSdkVersion, string CompileSDKVersion, string BuildToolsVersion, string NDKArch)
 		{
 			StringBuilder SettingsGradleContent = new StringBuilder();
 			StringBuilder ProjectDependencyContent = new StringBuilder();
@@ -4794,6 +4807,9 @@ namespace UnrealBuildTool
 				}
 			}
 			ProjectDependencyContent.AppendLine("}");
+
+			// Add any UPL settingsGradleAdditions
+			SettingsGradleContent.Append(UPL.ProcessPluginNode(NDKArch, "settingsGradleAdditions", ""));
 
 			string SettingsGradleFilename = Path.Combine(UE4BuildGradlePath, "settings.gradle");
 			File.WriteAllText(SettingsGradleFilename, SettingsGradleContent.ToString());

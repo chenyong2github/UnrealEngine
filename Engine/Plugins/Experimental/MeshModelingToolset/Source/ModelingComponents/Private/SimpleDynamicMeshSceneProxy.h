@@ -105,9 +105,22 @@ public:
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 		}
 
+		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
+		if (UVOverlay != nullptr)
+		{
+			FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+			if (Tangents != nullptr)
+			{
+				TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
+				{
+					return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
+				};
+			}
+		}
+
 		InitializeBuffersFromOverlays(RenderBuffers, Mesh,
 			Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
-			UVOverlay, NormalOverlay);
+			UVOverlay, NormalOverlay, TangentsFunc);
 
 		ENQUEUE_RENDER_COMMAND(FOctreeDynamicMeshSceneProxyInitializeSingle)(
 			[RenderBuffers](FRHICommandListImmediate& RHICmdList)
@@ -189,7 +202,7 @@ public:
 
 				InitializeBuffersFromOverlays(RenderBuffers, Mesh,
 					Triangles.Num(), Triangles,
-					UVOverlay, NormalOverlay);
+					UVOverlay, NormalOverlay, TangentsFunc);
 
 				RenderBuffers->Triangles = Triangles;
 

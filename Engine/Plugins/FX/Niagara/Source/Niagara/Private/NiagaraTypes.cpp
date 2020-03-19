@@ -33,8 +33,11 @@ FString FNiagaraTypeUtilities::GetNamespaceStringForScriptParameterScope(const E
 	case ENiagaraParameterScope::Input:
 		return PARAM_MAP_MODULE_STR;
 		break;
+	case ENiagaraParameterScope::Output:
+		return PARAM_MAP_OUTPUT_MODULE_STR;
+		break;
 	case ENiagaraParameterScope::Local:
-		return PARAM_MAP_LOCAL_STR;
+		return PARAM_MAP_LOCAL_MODULE_STR;
 		break;
 	default:
 		checkf(false, TEXT("Unhandled parameter scope encountered!"));
@@ -65,3 +68,13 @@ void FNiagaraVariableMetaData::CopyPerScriptMetaData(const FNiagaraVariableMetaD
 	SetWasCreatedInSystemEditor(OtherMetaData.GetWasCreatedInSystemEditor());
 	SetIsUsingLegacyNameString(OtherMetaData.GetIsUsingLegacyNameString());
 }
+
+
+void FNiagaraVariableMetaData::SetCachedNamespacelessVariableName(const FName& InVariableName)
+{
+	/*if (InVariableName == NAME_None || InVariableName == TEXT("None"))
+	{
+	}*/
+	//UE_LOG(LogNiagara, Log, TEXT("SetCachedNamespacelessVariableName %s!"), *InVariableName.ToString());
+	CachedNamespacelessVariableName = InVariableName;
+};

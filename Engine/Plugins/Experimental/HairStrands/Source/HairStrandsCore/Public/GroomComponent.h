@@ -23,9 +23,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
 	UGroomAsset* GroomAsset;
 
-	/** Niagara component that will be attached to the system*/
-	//UPROPERTY()
-	class UNiagaraComponent* NiagaraComponent;
+	/** Niagara components that will be attached to the system*/
+	UPROPERTY(Transient)
+	TArray<class UNiagaraComponent*> NiagaraComponents;
 
 	/** 
 	 * When activated, the groom will be attached and skinned onto the skeletal mesh, if the groom component is a child of a skeletal/skinned component.
@@ -44,10 +44,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
 	class UGroomBindingAsset* BindingAsset;
 
-	/** Create default Niagara component for simulation */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
-	bool	bCreateNiagaraComponent;
-
 	/** Boolean to check when the simulation should be reset */
 	bool bResetSimulation;
 
@@ -57,17 +53,17 @@ public:
 	/** Previous bone matrix to compare the difference and decide to reset or not the simulation */
 	FMatrix	PrevBoneMatrix;
 
-	/** Update Niagara component */
-	void UpdateNiagaraComponent();
+	/** Update Niagara components */
+	void UpdateHairSimulation();
+
+	/** Release Niagara components */
+	void ReleaseHairSimulation();
 
 	/** Update Group Description */
 	void UpdateHairGroupsDesc();
 
-	/** Enable simulated groups */
-	void EnableSimulatedGroups();
-
-	/** Disable Simulated groups */
-	void DisableSimulatedGroups();
+	/** Update simulated groups */
+	void UpdateSimulatedGroups();
 
 	//~ Begin UActorComponent Interface.
 	virtual void OnRegister() override;
@@ -102,7 +98,8 @@ public:
 	FHairStrandsDeformedResource* GetGuideStrandsDeformedResource(uint32 GroupIndex);
 
 	/** Return the guide hairs root resources*/
-	FHairStrandsRootResource* GetGuideStrandsRootResource(uint32 GroupIndex);
+	FHairStrandsRestRootResource* GetGuideStrandsRestRootResource(uint32 GroupIndex);
+	FHairStrandsDeformedRootResource* GetGuideStrandsDeformedRootResource(uint32 GroupIndex);
 
 #if WITH_EDITOR
 	virtual void CheckForErrors() override;
@@ -137,8 +134,12 @@ private:
 
 		// Projection resources
 		bool bOwnRootResourceAllocation = true;
-		struct FHairStrandsRootResource* RenRootResources = nullptr;
-		struct FHairStrandsRootResource* SimRootResources = nullptr;
+		struct FHairStrandsRestRootResource* RenRestRootResources = nullptr;
+		struct FHairStrandsRestRootResource* SimRestRootResources = nullptr;
+
+		struct FHairStrandsDeformedRootResource* RenDeformedRootResources = nullptr;
+		struct FHairStrandsDeformedRootResource* SimDeformedRootResources = nullptr;
+
 	#if RHI_RAYTRACING
 		FHairStrandsRaytracingResource* RaytracingResources = nullptr;
 	#endif

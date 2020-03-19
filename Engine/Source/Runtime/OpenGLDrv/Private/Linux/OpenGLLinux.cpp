@@ -11,6 +11,7 @@
 #include "OpenGLDrvPrivate.h"
 #include "ComponentReregisterContext.h"
 #include "Linux/LinuxPlatformApplicationMisc.h"
+#include "GenericPlatform/GenericPlatformFramePacer.h"
 
 /*------------------------------------------------------------------------------
 	OpenGL function pointers.
@@ -427,14 +428,16 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device,
 							uint32 BackbufferSizeX,
 							uint32 BackbufferSizeY,
 							bool bPresent,
-							bool bLockToVsync,
-							int32 SyncInterval )
+							bool bLockToVsync)
 {
 	FPlatformOpenGLContext* const Context = Viewport.GetGLContext();
 
 	check( Context && Context->hWnd );
 
 	FScopeLock ScopeLock( Device->ContextUsageGuard );
+
+	int32 SyncInterval = (int32)RHIGetSyncInterval();
+
 	{
 		FScopeContext ScopeContext( Context );
 

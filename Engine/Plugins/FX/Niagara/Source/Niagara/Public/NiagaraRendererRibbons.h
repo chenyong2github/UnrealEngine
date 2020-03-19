@@ -35,13 +35,24 @@ public:
 
 	FORCEINLINE void AddDynamicParam(TArray<FNiagaraRibbonVertexDynamicParameter>& ParamData, const FVector4& DynamicParam);
 protected:
-	static void GenerateIndexBuffer(uint16* OutIndices, uint16& outVertexCount, const TArray<int32>& SegmentData, int32 InterpCount, bool bInvertOrder);
+
+	template <typename TValue>
+	static TValue* AppendToIndexBuffer(TValue* OutIndices, uint32& OutMaxUsedIndex, const TArrayView<int32>& SegmentData, int32 InterpCount, bool bInvertOrder);
+
+	/** Generate the raw index buffer preserving multi ribbon ordering. */
+	template <typename TValue>
+	void GenerateIndexBuffer(
+		FGlobalDynamicIndexBuffer::FAllocationEx& InOutIndexAllocation, 
+		int32 InterpCount, 
+		const FVector& ViewDirection, 
+		const FVector& ViewOriginForDistanceCulling, 
+		struct FNiagaraDynamicDataRibbon* DynamicData) const;
 
 private:
 	struct FCPUSimParticleDataAllocation
 	{
 		FGlobalDynamicReadBuffer& DynamicReadBuffer;
-		FGlobalDynamicReadBuffer::FAllocation ParticleData;
+		FParticleRenderData ParticleData;
 	};
 
 	void SetupMeshBatchAndCollectorResourceForView(
@@ -50,14 +61,17 @@ private:
 		const FNiagaraSceneProxy* SceneProxy,
 		FMeshElementCollector& Collector,
 		struct FNiagaraDynamicDataRibbon* DynamicData,
-		uint32 NumPrimitives,
-		const FGlobalDynamicIndexBuffer::FAllocation& IndexAllocation,
+		const FGlobalDynamicIndexBuffer::FAllocationEx& IndexAllocation,
 		FMeshBatch& OutMeshBatch,
 		class FNiagaraMeshCollectorResourcesRibbon& OutCollectorResources) const;
 
 	void CreatePerViewResources(
-		const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy* SceneProxy, FMeshElementCollector& Collector,
-		uint16& outVertexCount, uint32& OutNumSegments, FNiagaraRibbonUniformBufferRef& OutUniformBuffer, FGlobalDynamicIndexBuffer::FAllocation& InOutIndexAllocation) const;
+		const FSceneView* View,
+		const FSceneViewFamily& ViewFamily,
+		const FNiagaraSceneProxy* SceneProxy,
+		FMeshElementCollector& Collector,
+		FNiagaraRibbonUniformBufferRef& OutUniformBuffer,
+		FGlobalDynamicIndexBuffer::FAllocationEx& InOutIndexAllocation) const;
 
 	FCPUSimParticleDataAllocation AllocateParticleDataIfCPUSim(struct FNiagaraDynamicDataRibbon* DynamicDataRibbon, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
 

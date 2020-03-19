@@ -17,6 +17,8 @@
 #include "NiagaraParameterCollection.h"
 #include "Widgets/SNiagaraParameterMapView.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "ToolMenus.h"
+#include "NiagaraScriptVariable.h"
 
 #include "IAssetTools.h"
 #include "AssetRegistryModule.h"
@@ -175,8 +177,16 @@ void UNiagaraNodeParameterMapBase::GetPinHoverText(const UEdGraphPin& Pin, FStri
 
 			FNiagaraVariable Var = FNiagaraVariable(TypeDef, Pin.PinName);
 			TOptional<FNiagaraVariableMetaData> Metadata = NiagaraGraph->GetMetaData(Var);
+
 			FText Description = Metadata.IsSet() ? Metadata->Description : FText::GetEmpty();
-			FText ToolTipText = FNiagaraEditorUtilities::FormatVariableDescription(Description, FText::FromName(Pin.PinName), TypeDef.GetNameText());
+			const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nDescription: {2}\nScope: {3}\nUser Editable: {4}\nUsage: {5}");
+			const FText Name = FText::FromName(Var.GetName());
+			FName CachedParamName;
+			Metadata->GetParameterName(CachedParamName);
+			const FText ScopeText = FText::FromName(Metadata->GetScopeName());
+			const FText UserEditableText = FText::FromName(CachedParamName);
+			const FText UsageText = StaticEnum<ENiagaraScriptParameterUsage>()->GetDisplayNameTextByValue((int64)Metadata->GetUsage());
+			const FText ToolTipText = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), Description, ScopeText, UserEditableText, UsageText);
 			HoverTextOut = ToolTipText.ToString();
 		}
 	}
@@ -187,6 +197,11 @@ void UNiagaraNodeParameterMapBase::SetPinName(UEdGraphPin* InPin, const FName& I
 	FName OldName = InPin->PinName;
 	InPin->PinName = InName;
 	OnPinRenamed(InPin, OldName.ToString());
+}
+
+bool UNiagaraNodeParameterMapBase::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+{
+	return true;
 }
 
 void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName)
@@ -217,7 +232,7 @@ void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const F
 	FNiagaraVariable Var(VarType, *OldName);
 
 	UNiagaraGraph* Graph = GetNiagaraGraph();
-	Graph->RenameParameter(Var, NewUniqueName);
+	Graph->RenameParameterFromPin(Var, NewUniqueName, RenamedPin);
 
 	if (RenamedPin == PinPendingRename)
 	{
@@ -225,5 +240,54 @@ void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const F
 	}
 
 }
+
+void UNiagaraNodeParameterMapBase::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
+{
+	Super::GetNodeContextMenuActions(Menu, Context);
+
+	UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context->Pin);
+	if (Pin && !IsAddPin(Pin))
+	{
+
+		FNiagaraVariable Var = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToNiagaraVariable(Pin);
+		const UNiagaraGraph* Graph = GetNiagaraGraph();
+
+		//if (!FNiagaraConstants::IsNiagaraConstant(Var))
+		{
+			FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraParamAction", LOCTEXT("EditPinMenuHeader", "Parameters"));
+			Section.AddMenuEntry(
+				"SelectParameter",
+				LOCTEXT("SelectParameterPin", "Select parameter"),
+				LOCTEXT("SelectParameterPinToolTip", "Select this parameter in the paramter panel"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateUObject(const_cast<UNiagaraNodeParameterMapBase*>(this), &UNiagaraNodeParameterMapBase::SelectParameterFromPin, const_cast<UEdGraphPin*>(Context->Pin))));
+		}
+	}
+}
+
+void UNiagaraNodeParameterMapBase::SelectParameterFromPin(UEdGraphPin* InPin) 
+{
+	UNiagaraGraph* NiagaraGraph = GetNiagaraGraph();
+	if (NiagaraGraph && InPin)
+	{
+		const UEdGraphSchema_Niagara* Schema = Cast<UEdGraphSchema_Niagara>(NiagaraGraph->GetSchema());
+		if (Schema)
+		{
+			if (IsAddPin(InPin))
+			{
+				return;
+			}
+
+			FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(InPin);
+			FNiagaraVariable PinVariable = FNiagaraVariable(TypeDef, InPin->PinName);
+			UNiagaraScriptVariable** PinAssociatedScriptVariable = NiagaraGraph->GetAllMetaData().Find(PinVariable);
+			if (PinAssociatedScriptVariable != nullptr)
+			{
+				NiagaraGraph->OnSubObjectSelectionChanged().Broadcast(*PinAssociatedScriptVariable);
+			}
+		}
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

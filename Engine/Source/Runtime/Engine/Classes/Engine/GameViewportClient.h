@@ -618,6 +618,9 @@ protected:
 	FName GetCurrentBufferVisualizationMode() const { return CurrentBufferVisualizationMode; }
 	bool HasAudioFocus() const { return bHasAudioFocus; }
 
+	/** Updates CSVProfiler camera stats */
+	void UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap);
+
 protected:
 	/** FCommonViewportClient interface */
 	virtual float UpdateViewportClientWindowDPIScale() const override;
@@ -700,20 +703,17 @@ public:
 	}
 
 	/**
-	 * Set the mouse capture behavior when the viewport is clicked
+	 * Set the mouse capture behavior for the viewport.
 	 */
-	void SetCaptureMouseOnClick(EMouseCaptureMode Mode)
-	{
-		MouseCaptureMode = Mode;
-	}
+	void SetMouseCaptureMode(EMouseCaptureMode Mode);
+
+	UE_DEPRECATED(4.26, "Please call UGameViewportClient::SetMouseCaptureMode(EMouseCaptureMode) instead.")
+	void SetCaptureMouseOnClick(EMouseCaptureMode Mode) { SetMouseCaptureMode(Mode); }
 
 	/**
 	 * Gets the mouse capture behavior when the viewport is clicked
 	 */
-	virtual EMouseCaptureMode CaptureMouseOnClick() override
-	{
-		return MouseCaptureMode;
-	}
+	virtual EMouseCaptureMode GetMouseCaptureMode() const override;
 
 	/**
 	 * Gets whether or not the viewport captures the Mouse on launch of the application
@@ -752,23 +752,17 @@ public:
 	/**
 	* Sets the current mouse cursor lock mode when the viewport is clicked
 	*/
-	void SetMouseLockMode(EMouseLockMode InMouseLockMode)
-	{
-		MouseLockMode = InMouseLockMode;
-	}
+	void SetMouseLockMode(EMouseLockMode InMouseLockMode);
 
 	/**
 	 * Sets whether or not the cursor is hidden when the viewport captures the mouse
 	 */
-	void SetHideCursorDuringCapture(bool InHideCursorDuringCapture)
-	{
-		bHideCursorDuringCapture = InHideCursorDuringCapture;
-	}
+	void SetHideCursorDuringCapture(bool InHideCursorDuringCapture);
 
 	/**
 	 * Gets whether or not the cursor is hidden when the viewport captures the mouse
 	 */
-	virtual bool HideCursorDuringCapture() override
+	virtual bool HideCursorDuringCapture() const override
 	{
 		return bHideCursorDuringCapture;
 	}
@@ -949,10 +943,6 @@ private:
 	 * @param WindowMode What window mode do we want to st the display to.
 	 */
 	bool SetDisplayConfiguration( const FIntPoint* Dimensions, EWindowMode::Type WindowMode);
-
-	/** Updates CSVProfiler camera stats */
-	void UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap);
-
 
 #if WITH_EDITOR
 	/** Delegate called when game viewport client received input key */

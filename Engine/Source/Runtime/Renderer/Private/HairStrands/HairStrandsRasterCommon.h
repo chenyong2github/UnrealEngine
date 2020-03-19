@@ -17,8 +17,6 @@ enum class EHairStrandsRasterPassType : uint8
 {
 	FrontDepth,
 	DeepOpacityMap,
-	Voxelization,
-	VoxelizationMaterial,
 	VoxelizationVirtual
 };
 
@@ -60,12 +58,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterPassParameters, )
 	SHADER_PARAMETER(uint32, MacroGroupId)
 	SHADER_PARAMETER(FIntPoint, ViewportResolution)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVoxelizationViewInfo>, VoxelizationViewInfoBuffer)
-
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, DensityTexture)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, TangentXTexture)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, TangentYTexture)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, TangentZTexture)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, MaterialTexture)
 
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -75,7 +68,6 @@ void AddHairVoxelizationRasterPass(
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
 	const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos,
-	const EHairStrandsRasterPassType ShadowPassType,
 	const FIntRect& ViewportRect,
 	const FVector4& HairRenderInfo,
 	const uint32 HairRenderInfoBits,

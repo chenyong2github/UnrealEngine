@@ -483,7 +483,7 @@ public:
 	ENGINE_API FRawSkeletalMeshBulkData();
 
 	/*Static function helper to serialize an array of Raw source data. */
-	ENGINE_API static void Serialize(FArchive& Ar, TArray<FRawSkeletalMeshBulkData>& RawSkeltalMeshBulkDatas, UObject* Owner);
+	ENGINE_API static void Serialize(FArchive& Ar, TArray<TSharedRef<FRawSkeletalMeshBulkData>>& RawSkeltalMeshBulkDatas, UObject* Owner);
 	
 	/** Serialization. */
 	ENGINE_API void Serialize(class FArchive& Ar, class UObject* Owner);

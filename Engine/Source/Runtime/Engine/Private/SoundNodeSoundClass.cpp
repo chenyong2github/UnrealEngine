@@ -41,7 +41,7 @@ void USoundNodeSoundClass::PostLoad()
 		CurrentSoundClass = CurrentSoundClass->ParentClass;
 	}
 
-	if (SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
+	if (!GIsEditor && SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 	{
 		RetainChildWavePlayers(true);
 		bRetainingAudioDueToSoundClass = true;

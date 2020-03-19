@@ -31,6 +31,7 @@
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "AssetRegistryModule.h"
 #include "ObjectTools.h"
+#include "NiagaraMessageManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - StackGraphUtilities - RelayoutGraph"), STAT_NiagaraEditor_StackGraphUtilities_RelayoutGraph, STATGROUP_NiagaraEditor);
 
@@ -2356,13 +2357,16 @@ void FNiagaraStackGraphUtilities::RebuildEmitterNodes(UNiagaraSystem& System)
 			TArray<FNiagaraStackGraphUtilities::FStackNodeGroup> StackNodeGroups;
 			FNiagaraStackGraphUtilities::GetStackNodeGroups(*OutputNodes[i], StackNodeGroups);
 
-			FNiagaraStackGraphUtilities::FStackNodeGroup EmitterGroup;
-			EmitterGroup.StartNodes.Add(EmitterNode);
-			EmitterGroup.EndNode = EmitterNode;
+			if (StackNodeGroups.Num() >= 2)
+			{
+				FNiagaraStackGraphUtilities::FStackNodeGroup EmitterGroup;
+				EmitterGroup.StartNodes.Add(EmitterNode);
+				EmitterGroup.EndNode = EmitterNode;
 
-			FNiagaraStackGraphUtilities::FStackNodeGroup& OutputGroup = StackNodeGroups[StackNodeGroups.Num() - 1];
-			FNiagaraStackGraphUtilities::FStackNodeGroup& OutputGroupPrevious = StackNodeGroups[StackNodeGroups.Num() - 2];
-			FNiagaraStackGraphUtilities::ConnectStackNodeGroup(EmitterGroup, OutputGroupPrevious, OutputGroup);
+				FNiagaraStackGraphUtilities::FStackNodeGroup& OutputGroup = StackNodeGroups[StackNodeGroups.Num() - 1];
+				FNiagaraStackGraphUtilities::FStackNodeGroup& OutputGroupPrevious = StackNodeGroups[StackNodeGroups.Num() - 2];
+				FNiagaraStackGraphUtilities::ConnectStackNodeGroup(EmitterGroup, OutputGroupPrevious, OutputGroup);
+			}
 		}
 	}
 
@@ -2538,6 +2542,62 @@ void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem& Sy
 			}
 		}
 	}
+}
+
+UNiagaraStackEntry::FStackIssue FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(TSharedRef<const INiagaraMessage> InMessage, FString InStackEditorDataKey)
+{
+	TSharedRef<FTokenizedMessage> TokenizedMessage = InMessage->GenerateTokenizedMessage();
+	EStackIssueSeverity StackIssueSeverity;
+	switch (TokenizedMessage->GetSeverity())
+	{
+	case EMessageSeverity::CriticalError:
+	case EMessageSeverity::Error:
+		StackIssueSeverity = EStackIssueSeverity::Error;
+		break;
+	case EMessageSeverity::PerformanceWarning:
+	case EMessageSeverity::Warning:
+		StackIssueSeverity = EStackIssueSeverity::Warning;
+		break;
+	case EMessageSeverity::Info:
+		StackIssueSeverity = EStackIssueSeverity::Info;
+		break;
+	default:
+		StackIssueSeverity = EStackIssueSeverity::Info;
+		break;
+	}
+
+	FText ShortDescription;
+	switch (InMessage->GetMessageType())
+	{
+	case ENiagaraMessageType::CompileEventMessage:
+		ShortDescription = LOCTEXT("CompileErrorShortDescription", "Compile Error");
+		break;
+	default:
+		ShortDescription = LOCTEXT("UnspecifiedErrorShortDescription", "Unspecified Error");
+		break;
+	}
+
+	TArray<UNiagaraStackEntry::FStackIssueFix> FixLinks;
+	TArray<FText> LinkMessages;
+	TArray<FSimpleDelegate> LinkNavigateActions;
+	InMessage->GenerateLinks(LinkMessages, LinkNavigateActions);
+	for (int32 LinkIndex = 0; LinkIndex < LinkMessages.Num(); LinkIndex++)
+	{
+		const FText& LinkMessage = LinkMessages[LinkIndex];
+		const FSimpleDelegate& LinkNavigateAction = LinkNavigateActions[LinkIndex];
+		FixLinks.Add(UNiagaraStackEntry::FStackIssueFix(
+			LinkMessage,
+			UNiagaraStackEntry::FStackIssueFixDelegate::CreateLambda([LinkNavigateAction]() { LinkNavigateAction.Execute(); }),
+			UNiagaraStackEntry::EStackIssueFixStyle::Link));
+	}
+
+	return UNiagaraStackEntry::FStackIssue(
+		StackIssueSeverity,
+		ShortDescription,
+		InMessage->GenerateMessageText(),
+		InStackEditorDataKey,
+		false,
+		FixLinks);
 }
 
 #undef LOCTEXT_NAMESPACE

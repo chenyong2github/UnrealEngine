@@ -527,10 +527,13 @@ private:
 	TArray<TOptional<int32>> TouchIDs;
 #endif
 
-	bool bSimulatingHighPrecisionMouseInputForRDP = false;
+	bool bSimulatingHighPrecisionMouseInputForRDP;
 
-	FIntPoint CachedPreHighPrecisionMousePosForRDP = FIntPoint::ZeroValue;
-	FIntPoint LastCursorPoint = FIntPoint::ZeroValue;
+	FIntPoint CachedPreHighPrecisionMousePosForRDP;
+	FIntPoint LastCursorPoint;
+	FIntPoint LastCursorPointPreWrap;
+	int32 NumPreWrapMsgsToRespect;
+	RECT ClipCursorRect;
 };
 
 

@@ -51,16 +51,16 @@ DEFINE_LOG_CATEGORY(LogBlueprint);
 //////////////////////////////////////////////////////////////////////////
 // Static Helpers
 
+#if WITH_EDITOR
 /**
  * Updates the blueprint's OwnedComponents, such that they reflect changes made 
  * natively since the blueprint was last saved (a change in AttachParents, etc.)
  * 
  * @param  Blueprint	The blueprint whose components you wish to vet.
  */
-static void ConformNativeComponents(UBlueprint* Blueprint)
+void UBlueprint::ConformNativeComponents()
 {
-#if WITH_EDITOR
-	if (UClass* const BlueprintClass = Blueprint->GeneratedClass)
+	if (UClass* const BlueprintClass = GeneratedClass)
 	{
 		if (AActor* BlueprintCDO = Cast<AActor>(BlueprintClass->ClassDefaultObject))
 		{
@@ -117,8 +117,9 @@ static void ConformNativeComponents(UBlueprint* Blueprint)
 			}
 		}
 	}
-#endif // #if WITH_EDITOR
 }
+
+#endif // WITH_EDITOR
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -1599,7 +1600,7 @@ ETimelineSigType UBlueprint::GetTimelineSignatureForFunctionByName(const FName& 
 	// If an object property was specified, find the class of that property instead
 	if(ObjectPropertyName != NAME_None)
 	{
-		FObjectPropertyBase* ObjProperty = FindField<FObjectPropertyBase>(SkeletonGeneratedClass, ObjectPropertyName);
+		FObjectPropertyBase* ObjProperty = FindFProperty<FObjectPropertyBase>(SkeletonGeneratedClass, ObjectPropertyName);
 		if(ObjProperty == NULL)
 		{
 			UE_LOG(LogBlueprint, Log, TEXT("GetTimelineSignatureForFunction: Object Property '%s' not found."), *ObjectPropertyName.ToString());
@@ -1609,7 +1610,7 @@ ETimelineSigType UBlueprint::GetTimelineSignatureForFunctionByName(const FName& 
 		UseClass = ObjProperty->PropertyClass;
 	}
 
-	UFunction* Function = FindField<UFunction>(UseClass, FunctionName);
+	UFunction* Function = FindUField<UFunction>(UseClass, FunctionName);
 	if(Function == NULL)
 	{
 		UE_LOG(LogBlueprint, Log, TEXT("GetTimelineSignatureForFunction: Function '%s' not found in class '%s'."), *FunctionName.ToString(), *UseClass->GetName());
@@ -1804,8 +1805,6 @@ bool UBlueprint::ChangeOwnerOfTemplates()
 	bool bIsStillStale = false;
 	if (BPGClass)
 	{
-		check(!bIsRegeneratingOnLoad);
-
 		// >>> Backwards Compatibility:  VER_UE4_EDITORONLY_BLUEPRINTS
 		bool bMigratedOwner = false;
 		TSet<class UCurveBase*> Curves;
@@ -1908,14 +1907,6 @@ bool UBlueprint::ChangeOwnerOfTemplates()
 		UE_LOG(LogBlueprint, Log, TEXT("ChangeOwnerOfTemplates: No BlueprintGeneratedClass in %s"), *GetName());
 	}
 	return !bIsStillStale;
-}
-
-void UBlueprint::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
-{
-	Super::PostLoadSubobjects(OuterInstanceGraph);
-	ChangeOwnerOfTemplates();
-
-	ConformNativeComponents(this);
 }
 
 #if WITH_EDITOR

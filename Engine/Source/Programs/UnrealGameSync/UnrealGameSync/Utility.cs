@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
@@ -266,32 +267,93 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static List<string> GetConfigFileLocations(string BaseWorkspacePath, string ProjectPath, char Separator)
+		/******/
+
+		private static void AddLocalConfigPaths_PlatformFolders(DirectoryInfo BaseDir, string FileName, List<FileInfo> Files)
 		{
-			List<string> ProjectConfigFileNames = new List<string>();
-			ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}UnrealGameSync.ini", BaseWorkspacePath, Separator));
-			ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}PS4{1}UnrealGameSync.ini", BaseWorkspacePath, Separator));
-			ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}XboxOne{1}UnrealGameSync.ini", BaseWorkspacePath, Separator));
-			ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}Switch{1}UnrealGameSync.ini", BaseWorkspacePath, Separator));
-			ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}NotForLicensees{1}UnrealGameSync.ini", BaseWorkspacePath, Separator));
-			if(ProjectPath.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+			if(BaseDir.Exists)
 			{
-				ProjectConfigFileNames.Add(String.Format("{0}{1}Build{1}UnrealGameSync.ini", ProjectPath.Substring(0, ProjectPath.LastIndexOf(Separator)), Separator));
-			    ProjectConfigFileNames.Add(String.Format("{0}{1}Build{1}PS4{1}UnrealGameSync.ini", ProjectPath.Substring(0, ProjectPath.LastIndexOf(Separator)), Separator));
-			    ProjectConfigFileNames.Add(String.Format("{0}{1}Build{1}XboxOne{1}UnrealGameSync.ini", ProjectPath.Substring(0, ProjectPath.LastIndexOf(Separator)), Separator));
-			    ProjectConfigFileNames.Add(String.Format("{0}{1}Build{1}Switch{1}UnrealGameSync.ini", ProjectPath.Substring(0, ProjectPath.LastIndexOf(Separator)), Separator));
-				ProjectConfigFileNames.Add(String.Format("{0}{1}Build{1}NotForLicensees{1}UnrealGameSync.ini", ProjectPath.Substring(0, ProjectPath.LastIndexOf(Separator)), Separator));
+				FileInfo BaseFileInfo = new FileInfo(Path.Combine(BaseDir.FullName, FileName));
+				if(BaseFileInfo.Exists)
+				{
+					Files.Add(BaseFileInfo);
+				}
+
+				foreach (DirectoryInfo SubDirInfo in BaseDir.EnumerateDirectories())
+				{
+					FileInfo SubFile = new FileInfo(Path.Combine(SubDirInfo.FullName, FileName));
+					if (SubFile.Exists)
+					{
+						Files.Add(SubFile);
+					}
+				}
+			}
+		}
+
+		private static void AddLocalConfigPaths_PlatformExtensions(DirectoryInfo BaseDir, string RelativePath, string FileName, List<FileInfo> Files)
+		{
+			if (BaseDir.Exists)
+			{
+				AddLocalConfigPaths_PlatformFolders(new DirectoryInfo(Path.Combine(BaseDir.FullName, RelativePath)), FileName, Files);
+
+				DirectoryInfo PlatformExtensionsDir = new DirectoryInfo(Path.Combine(BaseDir.FullName, "Platforms"));
+				if (PlatformExtensionsDir.Exists)
+				{
+					foreach (DirectoryInfo PlatformExtensionDir in PlatformExtensionsDir.EnumerateDirectories())
+					{
+						AddLocalConfigPaths_PlatformFolders(new DirectoryInfo(Path.Combine(PlatformExtensionDir.FullName, RelativePath)), FileName, Files);
+					}
+				}
+			}
+		}
+
+		public static List<FileInfo> GetLocalConfigPaths(DirectoryInfo EngineDir, FileInfo ProjectFile)
+		{
+			List<FileInfo> SearchPaths = new List<FileInfo>();
+			AddLocalConfigPaths_PlatformExtensions(EngineDir, "Programs/UnrealGameSync", "UnrealGameSync.ini", SearchPaths);
+
+			if (ProjectFile.Name.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
+			{
+				AddLocalConfigPaths_PlatformExtensions(ProjectFile.Directory, "Build", "UnrealGameSync.ini", SearchPaths);
 			}
 			else
 			{
-				ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}DefaultProject.ini", BaseWorkspacePath, Separator));
-			    ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}PS4{1}DefaultProject.ini", BaseWorkspacePath, Separator));
-			    ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}XboxOne{1}DefaultProject.ini", BaseWorkspacePath, Separator));
-			    ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}Switch{1}DefaultProject.ini", BaseWorkspacePath, Separator));
-				ProjectConfigFileNames.Add(String.Format("{0}{1}Engine{1}Programs{1}UnrealGameSync{1}NotForLicensees{1}DefaultProject.ini", BaseWorkspacePath, Separator));
+				AddLocalConfigPaths_PlatformExtensions(EngineDir, "Programs/UnrealGameSync", "DefaultEngine.ini", SearchPaths);
 			}
-			return ProjectConfigFileNames;
+			return SearchPaths;
 		}
+
+		/******/
+
+		private static void AddDepotConfigPaths_PlatformFolders(string BasePath, string FileName, List<string> SearchPaths)
+		{
+			SearchPaths.Add(String.Format("{0}/{1}", BasePath, FileName));
+			SearchPaths.Add(String.Format("{0}/*/{1}", BasePath, FileName));
+		}
+
+		private static void AddDepotConfigPaths_PlatformExtensions(string BasePath, string RelativePath, string FileName, List<string> SearchPaths)
+		{
+			AddDepotConfigPaths_PlatformFolders(BasePath + RelativePath, FileName, SearchPaths);
+			AddDepotConfigPaths_PlatformFolders(BasePath + "/Platforms/*" + RelativePath, FileName, SearchPaths);
+		}
+
+		public static List<string> GetDepotConfigPaths(string EnginePath, string ProjectPath)
+		{
+			List<string> SearchPaths = new List<string>();
+			AddDepotConfigPaths_PlatformExtensions(EnginePath, "/Programs/UnrealGameSync", "UnrealGameSync.ini", SearchPaths);
+
+			if (ProjectPath.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
+			{
+				AddDepotConfigPaths_PlatformExtensions(ProjectPath.Substring(0, ProjectPath.LastIndexOf('/')), "/Build", "UnrealGameSync.ini", SearchPaths);
+			}
+			else
+			{
+				AddDepotConfigPaths_PlatformExtensions(EnginePath, "/Programs/UnrealGameSync", "DefaultEngine.ini", SearchPaths);
+			}
+			return SearchPaths;
+		}
+
+		/******/
 
 		public static void ReadGlobalPerforceSettings(ref string ServerAndPort, ref string UserName, ref string DepotPath)
 		{
@@ -302,6 +364,17 @@ namespace UnrealGameSync
 					ServerAndPort = Key.GetValue("ServerAndPort", ServerAndPort) as string;
 					UserName = Key.GetValue("UserName", UserName) as string;
 					DepotPath = Key.GetValue("DepotPath", DepotPath) as string;
+
+					// Fix corrupted depot path string
+					if(DepotPath != null)
+					{
+						Match Match = Regex.Match(DepotPath, "^(.*)/(Release|UnstableRelease)/\\.\\.\\.@.*$");
+						if (Match.Success)
+						{
+							DepotPath = Match.Groups[1].Value;
+							SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
+						}
+					}
 				}
 			}
 		}

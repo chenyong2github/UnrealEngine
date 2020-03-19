@@ -158,6 +158,14 @@ bool UMovieSceneControlRigParameterTrack::HasSection(const UMovieSceneSection& S
 void UMovieSceneControlRigParameterTrack::AddSection(UMovieSceneSection& Section)
 {
 	Sections.Add(&Section);
+	if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(&Section))
+	{
+		if (CRSection->ControlRig != ControlRig)
+		{
+			CRSection->ControlRig = ControlRig;
+		}
+		CRSection->ReconstructChannelProxy(true);
+	}
 }
 
 void UMovieSceneControlRigParameterTrack::RemoveSection(UMovieSceneSection& Section)
@@ -408,7 +416,7 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::GetSectionToKey() const
 void UMovieSceneControlRigParameterTrack::PostLoad()
 {
 	Super::PostLoad();
-	if (ControlRig)
+	if (ControlRig && !ControlRig->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedInitialization))
 	{
 		ControlRig->Initialize();
 		ControlRig->CreateRigControlsForCurveContainer();

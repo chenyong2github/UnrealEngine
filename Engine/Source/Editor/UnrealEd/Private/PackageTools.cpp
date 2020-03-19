@@ -39,15 +39,18 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+#include "AssetData.h"
 #include "AssetRegistryModule.h"
-#include "Logging/MessageLog.h"
-#include "UObject/UObjectIterator.h"
 #include "ComponentReregisterContext.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/GameEngine.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Engine/Selection.h"
+#include "IAssetRegistry.h"
+#include "Logging/MessageLog.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UObjectIterator.h"
 
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
@@ -1183,6 +1186,65 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		SanitizedName.ReplaceInline(TEXT("//"), TEXT("/"));
 
 		return SanitizedName;
+	}
+
+	UPackage* UPackageTools::FindOrCreatePackageForAssetType(const FName LongPackageName, UClass* AssetClass)
+	{
+		if (AssetClass)
+		{
+			// Test the asset registry first
+			// Only scan the disk cache since it's fast O(1) (otherwise the asset registry will iterate on all the objects in memory)
+			constexpr bool bIncludeOnlyOnDiskAssets = true;
+			TArray<FAssetData> OutAssets;
+			IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
+			AssetRegistry.GetAssetsByPackageName(LongPackageName, OutAssets, bIncludeOnlyOnDiskAssets);
+			bool bShouldGenerateUniquePackageName = false;
+			int32 NumberOfAssets = OutAssets.Num();
+			if (NumberOfAssets == 1)
+			{
+				const FAssetData& AssetData = OutAssets[0];
+				if (AssetData.AssetClass != AssetClass->GetFName())
+				{
+					bShouldGenerateUniquePackageName = true;
+				}
+			}
+			else if (NumberOfAssets > 1)
+			{
+				// this shouldn't happen in UE4
+				bShouldGenerateUniquePackageName = true;
+			}
+
+			UPackage* Package = nullptr;
+			if (!bShouldGenerateUniquePackageName)
+			{
+				// Create or return the existing package
+				FString PackageNameAsString = LongPackageName.ToString();
+				Package = LoadPackage(PackageNameAsString);
+
+				if (Package)
+				{
+					UObject* Object = FindObjectFast<UObject>(Package, Package->GetFName());
+					if (Object && Object->GetClass() != AssetClass)
+					{
+						bShouldGenerateUniquePackageName = true;
+					}
+				}
+				else
+				{
+					Package = NewObject<UPackage>(nullptr, LongPackageName, RF_Public);
+				}
+			}
+
+			if (bShouldGenerateUniquePackageName)
+			{
+				FString NewPackageName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), LongPackageName).ToString();
+				Package = NewObject<UPackage>(nullptr, *NewPackageName, RF_Public);
+			}
+
+			return Package;
+		}
+
+		return nullptr;
 	}
 
 #undef LOCTEXT_NAMESPACE

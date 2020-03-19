@@ -15,6 +15,8 @@ class AEmitterCameraLensEffectBase;
 class APlayerController;
 class FDebugDisplayInfo;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAudioFadeChangeSignature, bool, bFadeOut, float, FadeTime);
+
 /** 
  * Options that define how to blend when changing view targets. 
  * @see FViewTargetTransitionParams, SetViewTarget 
@@ -293,6 +295,10 @@ public:
 	/** Offset to view target (used in certain CameraStyles) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 	FVector ViewTargetOffset;
+
+	/** If bound, broadcast on fade start (with fade time) instead of manually altering audio device's master volume directly */
+	UPROPERTY(BlueprintAssignable, Transient)
+	FOnAudioFadeChangeSignature OnAudioFadeChangeEvent;
 
 	/** Current camera fade alpha range, where X = starting alpha and Y = final alpha (when bEnableFading == true) */
 	FVector2D FadeAlpha;

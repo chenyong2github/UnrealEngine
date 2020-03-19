@@ -414,7 +414,7 @@ namespace DataprepParameterization
 		while ( LevelIndex < PropertyChain.Num() && CurrentOuter )
 		{
 			FDataprepPropertyLink& PropertyLink = Binding.PropertyChain[LevelIndex];
-			PropetyAtCurrentLevel = FindField<FProperty>(CurrentOuter.Get<UStruct>(), PropertyLink.PropertyName);
+			PropetyAtCurrentLevel = FindFProperty<FProperty>(CurrentOuter.Get<UStruct>(), PropertyLink.PropertyName);
 			if (!PropetyAtCurrentLevel)
 			{
 				if ( UStruct* OuterAsStruct = CurrentOuter.Get<UStruct>() )
@@ -422,7 +422,7 @@ namespace DataprepParameterization
 					OuterAsStruct = OuterAsStruct->GetSuperStruct();
 					while ( !PropetyAtCurrentLevel && OuterAsStruct )
 					{
-						PropetyAtCurrentLevel = FindField<FProperty>(OuterAsStruct, PropertyLink.PropertyName);
+						PropetyAtCurrentLevel = FindFProperty<FProperty>(OuterAsStruct, PropertyLink.PropertyName);
 						OuterAsStruct = OuterAsStruct->GetSuperStruct();
 					}
 				}
@@ -1783,7 +1783,7 @@ void UDataprepParameterizationInstance::ApplyParameterization(const TMap<UObject
 			void* DestinationAddress = nullptr;
 			if ( FProperty* DestinationProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), DestinationAddress ) )
 			{
-				FProperty* ParameterizationProperty = FindField<FProperty>( SourceParameterization->CustomContainerClass, BindingPair.Value );
+				FProperty* ParameterizationProperty = FindFProperty<FProperty>( SourceParameterization->CustomContainerClass, BindingPair.Value );
 				void* ParameterizationAddress =  DataprepParameterization::GetAddressOf( *ParameterizationProperty, ParameterizationInstance, INDEX_NONE );
 				DataprepParameterization::CopyValue( *DestinationProperty, DestinationAddress, *ParameterizationProperty, ParameterizationAddress );
 			}

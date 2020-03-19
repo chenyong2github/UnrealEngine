@@ -22,33 +22,40 @@ public:
 		static const FName ScaleName(TEXT("Scale"));
 		static const FName RibbonWidthName(TEXT("RibbonWidth"));
 
-		PositionAccessor = FNiagaraDataSetAccessor<FVector>(DataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), PositionName));
-
-		if (bUsedWithSprites)
+		if (DataSet.HasVariable(PositionName))
 		{
-			SpriteSizeAccessor = FNiagaraDataSetAccessor<FVector2D>(DataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), SpriteSizeName));
+			PositionAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>(DataSet, PositionName);
 		}
 		else
 		{
-			SpriteSizeAccessor = FNiagaraDataSetAccessor<FVector2D>();
+			PositionAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>();
 		}
 
-		if (bUsedWithMeshes)
+		if (bUsedWithSprites && DataSet.HasVariable(SpriteSizeName))
 		{
-			ScaleAccessor = FNiagaraDataSetAccessor<FVector>(DataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), ScaleName));
+			SpriteSizeAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2>(DataSet, SpriteSizeName);
 		}
 		else
 		{
-			ScaleAccessor = FNiagaraDataSetAccessor<FVector>();
+			SpriteSizeAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2>();
 		}
 
-		if (bUsedWithRibbons)
+		if (bUsedWithMeshes && DataSet.HasVariable(ScaleName))
 		{
-			RibbonWidthAccessor = FNiagaraDataSetAccessor<float>(DataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), RibbonWidthName));
+			ScaleAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>(DataSet, ScaleName);
 		}
 		else
 		{
-			RibbonWidthAccessor = FNiagaraDataSetAccessor<float>();
+			ScaleAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>();
+		}
+
+		if (bUsedWithRibbons && DataSet.HasVariable(RibbonWidthName))
+		{
+			RibbonWidthAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(DataSet, RibbonWidthName);
+		}
+		else
+		{
+			RibbonWidthAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>();
 		}
 	}
 
@@ -79,15 +86,13 @@ public:
 
 		constexpr float kDefaultSize = 50.0f;
 
-		const FVector PositionMax = FVector(
-			GetFloatMax(MakeArrayView(PositionAccessor.GetX(), NumInstances)),
-			GetFloatMax(MakeArrayView(PositionAccessor.GetY(), NumInstances)),
-			GetFloatMax(MakeArrayView(PositionAccessor.GetZ(), NumInstances)));
 
-		const FVector PositionMin = FVector(
-			GetFloatMin(MakeArrayView(PositionAccessor.GetX(), NumInstances)),
-			GetFloatMin(MakeArrayView(PositionAccessor.GetY(), NumInstances)),
-			GetFloatMin(MakeArrayView(PositionAccessor.GetZ(), NumInstances)));
+		FNiagaraMinMaxStruct MinMaxXs = PositionAccessor.GetMinMaxElement(0);
+		FNiagaraMinMaxStruct MinMaxYs = PositionAccessor.GetMinMaxElement(1);
+		FNiagaraMinMaxStruct MinMaxZs = PositionAccessor.GetMinMaxElement(2);
+
+		const FVector PositionMax = FVector(MinMaxXs.Max, MinMaxYs.Max, MinMaxZs.Max);
+		const FVector PositionMin = FVector(MinMaxXs.Min, MinMaxYs.Min, MinMaxZs.Min);
 
 		float MaxSize = KINDA_SMALL_NUMBER;
 		if (bUsedWithMeshes)
@@ -95,10 +100,12 @@ public:
 			FVector MaxScale = FVector(kDefaultSize, kDefaultSize, kDefaultSize);
 			if (ScaleAccessor.IsValid())
 			{
-				MaxScale = FVector(
-					GetFloatMax(MakeArrayView(ScaleAccessor.GetX(), NumInstances)),
-					GetFloatMax(MakeArrayView(ScaleAccessor.GetY(), NumInstances)),
-					GetFloatMax(MakeArrayView(ScaleAccessor.GetZ(), NumInstances)));
+				MaxScale = FVector
+				(
+					ScaleAccessor.GetMaxElement(0),
+					ScaleAccessor.GetMaxElement(1),
+					ScaleAccessor.GetMaxElement(2)
+				);
 			}
 
 			const FVector ScaledExtents = MeshExtents * (MaxScale.IsNearlyZero() ? FVector::OneVector : MaxScale);
@@ -111,9 +118,7 @@ public:
 
 			if (SpriteSizeAccessor.IsValid())
 			{
-				MaxSpriteSize = FMath::Max(
-					GetFloatMax(MakeArrayView(SpriteSizeAccessor.GetX(), NumInstances)),
-					GetFloatMax(MakeArrayView(SpriteSizeAccessor.GetY(), NumInstances)));
+				MaxSpriteSize = FMath::Max(SpriteSizeAccessor.GetMaxElement(0), SpriteSizeAccessor.GetMaxElement(1));
 			}
 			MaxSize = FMath::Max(MaxSize, FMath::IsNearlyZero(MaxSpriteSize) ? 1.0f : MaxSpriteSize);
 		}
@@ -123,7 +128,7 @@ public:
 			float MaxRibbonWidth = kDefaultSize;
 			if (RibbonWidthAccessor.IsValid())
 			{
-				MaxRibbonWidth = GetFloatMax(MakeArrayView(RibbonWidthAccessor.GetX(), NumInstances));
+				MaxRibbonWidth = RibbonWidthAccessor.GetMaxElement(0);
 			}
 
 			MaxSize = FMath::Max(MaxSize, FMath::IsNearlyZero(MaxRibbonWidth) ? 1.0f : MaxRibbonWidth);
@@ -132,9 +137,9 @@ public:
 		return FBox(PositionMin, PositionMax).ExpandBy(MaxSize);
 	}
 
-	FNiagaraDataSetAccessor<FVector> PositionAccessor;
-	FNiagaraDataSetAccessor<FVector2D> SpriteSizeAccessor;
-	FNiagaraDataSetAccessor<FVector> ScaleAccessor;
-	FNiagaraDataSetAccessor<float> RibbonWidthAccessor;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> PositionAccessor;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2> SpriteSizeAccessor;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> ScaleAccessor;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> RibbonWidthAccessor;
 	const FVector MeshExtents = FVector::OneVector;
 };

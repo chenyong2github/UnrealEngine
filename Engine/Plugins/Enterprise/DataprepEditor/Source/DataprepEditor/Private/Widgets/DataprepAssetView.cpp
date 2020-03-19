@@ -230,7 +230,7 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 
 				if (Object != EditableComponentTemplate)
 				{
-					FObjectProperty* ObjectProperty = FindField<FObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName());
+					FObjectProperty* ObjectProperty = FindFProperty<FObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName());
 					if (ObjectProperty != nullptr)
 					{
 						SelectedObjectProperties.Add(ObjectProperty);
@@ -251,7 +251,7 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 									if (Archetype->GetClass()->IsChildOf(ObjectProperty->PropertyClass)
 										&& Archetype == ObjectProperty->GetObjectPropertyValue_InContainer(OwnerCDO))
 									{
-										ObjectProperty = FindField<FObjectProperty>(Object->GetClass(), ObjectProperty->GetFName());
+										ObjectProperty = FindFProperty<FObjectProperty>(Object->GetClass(), ObjectProperty->GetFName());
 										if (ObjectProperty != nullptr)
 										{
 											SelectedObjectProperties.Add(ObjectProperty);
@@ -297,7 +297,7 @@ TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedR
 	{
 		case EDataprepCategory::Producers:
 		{
-			ProducersWidget = SNew( SDataprepProducersWidget, DataprepAssetInterfacePtr->GetProducers(), CommandList )
+			ProducersWidget = SNew( SDataprepProducersWidget, DataprepAssetInterfacePtr->GetProducers() )
 				.ColumnSizeData( ColumnSizeData );
 
 			TSharedPtr< SWidget > ProducerWrapper = SNew( SHorizontalBox )
@@ -393,12 +393,11 @@ TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedR
 	return Row.ToSharedRef();
 }
 
-void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr, TSharedPtr<FUICommandList>& InCommandList )
+void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr )
 {
 	check( InDataprepAssetPtr );
 
 	DataprepAssetInterfacePtr = InDataprepAssetPtr;
-	CommandList = InCommandList;
 
 	DataprepAssetInterfacePtr->GetOnChanged().AddRaw( this, &SDataprepAssetView::OnDataprepAssetChanged );
 

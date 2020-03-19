@@ -93,6 +93,17 @@ void TTriangleMesh<T>::InitHelper(const int32 StartIdx, const int32 EndIdx, cons
 	ExpandVertexRange(StartIdx, EndIdx);
 }
 
+template <class T>
+void TTriangleMesh<T>::ResetAuxiliaryStructures()
+{
+	MPointToTriangleMap.Reset();
+	MPointToNeighborsMap.Reset();
+	TArray<TVector<int32, 2>> EmptyEdges;
+	MSegmentMesh.Init(EmptyEdges);
+	MFaceToEdges.Reset();
+	MEdgeToFaces.Reset();
+}
+
 template<class T>
 TPair<int32, int32> TTriangleMesh<T>::GetVertexRange() const
 {
@@ -265,7 +276,7 @@ void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArr
 			if (Size2 < SMALL_NUMBER)
 			{
 				//particles should not be coincident by the time they get here. Return empty to signal problem to caller
-				check(false);
+				ensure(false);
 				Normals.Empty();
 				return;
 			}
@@ -581,6 +592,25 @@ FORCEINLINE TVector<int32, 2> GetOrdered(const TVector<int32, 2>& elem)
 	    ordered ? elem[1] : elem[0]);
 }
 
+void Order(int32& A, int32& B)
+{
+	if (B < A)
+	{
+		int32 Tmp = A;
+		A = B;
+		B = Tmp;
+	}
+}
+
+TVector<int32, 3> GetOrdered(const TVector<int32, 3>& Elem)
+{
+	TVector<int32, 3> OrderedElem = Elem;  // 3 2 1		1 2 3		1 2 1	2 1 1
+	Order(OrderedElem[0], OrderedElem[1]); // 2 3 1		1 2 3		1 2 1	1 2 1
+	Order(OrderedElem[1], OrderedElem[2]); // 2 1 3		1 2 3		1 1 2	1 1 2
+	Order(OrderedElem[0], OrderedElem[1]); // 1 2 3		1 2 3		1 1 2	1 1 2
+	return OrderedElem;
+}
+
 /**
  * Comparator for TSet<TVector<int32,2>> that compares the components of vectors in ascending
  * order.
@@ -682,6 +712,146 @@ const TArray<TVector<int32, 2>>& TTriangleMesh<T>::GetEdgeToFaces()
 {
 	GetSegmentMesh();
 	return MEdgeToFaces;
+}
+
+
+template <class T>
+TSet<int32> TTriangleMesh<T>::GetBoundaryPoints()
+{
+	TSegmentMesh<T>& SegmentMesh = GetSegmentMesh();
+	const TArray<TVector<int32, 2>>& Edges = SegmentMesh.GetElements();
+	const TArray<TVector<int32, 2>>& EdgeToFaces = GetEdgeToFaces();
+	TSet<int32> OpenBoundaryPoints;
+	for (int32 EdgeIdx = 0; EdgeIdx < EdgeToFaces.Num(); ++EdgeIdx)
+	{
+		const TVector<int32, 2>& CoincidentFaces = EdgeToFaces[EdgeIdx];
+		if (CoincidentFaces[0] == INDEX_NONE || CoincidentFaces[1] == INDEX_NONE)
+		{
+			const TVector<int32, 2>& Edge = Edges[EdgeIdx];
+			OpenBoundaryPoints.Add(Edge[0]);
+			OpenBoundaryPoints.Add(Edge[1]);
+		}
+	}
+	return OpenBoundaryPoints;
+}
+
+template <class T>
+TMap<int32, int32> TTriangleMesh<T>::FindCoincidentVertexRemappings(
+	const TArray<int32>& TestIndices,
+	const TArrayView<const TVector<T, 3>>& Points)
+{
+	// From index -> To index
+	TMap<int32, int32> Remappings;
+
+	const int32 NumPoints = TestIndices.Num();
+	if (NumPoints <= 1)
+	{
+		return Remappings;
+	}
+
+	// Move the points to the origin to avoid floating point aliasing far away
+	// from the origin.
+	TAABB<T, 3> Bbox(Points[0], Points[0]);
+	for (int i = 1; i < NumPoints; i++)
+	{
+		Bbox.GrowToInclude(Points[TestIndices[i]]);
+	}
+	const TVector<T, 3> Center = Bbox.Center();
+
+	TArray<TVector<T, 3>> LocalPoints;
+	LocalPoints.AddUninitialized(NumPoints);
+	LocalPoints[0] = Points[TestIndices[0]] - Center;
+	TAABB<T, 3> LocalBBox(LocalPoints[0], LocalPoints[0]);
+	for (int i = 1; i < NumPoints; i++)
+	{
+		LocalPoints[i] = Points[TestIndices[i]] - Center;
+		LocalBBox.GrowToInclude(LocalPoints[i]);
+	}
+
+	// Return early if all points are coincident
+	if (LocalBBox.Extents().Max() < KINDA_SMALL_NUMBER)
+	{
+		int32 First = INDEX_NONE;
+		for (const int32 Pt : TestIndices)
+		{
+			if (First == INDEX_NONE)
+			{
+				First = Pt;
+			}
+			else
+			{
+				// Remap Pt to First
+				Remappings.Add(Pt, First);
+			}
+		}
+		return Remappings;
+	}
+
+	LocalBBox.Thicken(1.0e-3);
+	const TVector<T, 3> LocalCenter = LocalBBox.Center();
+	const TVector<T, 3>& LocalMin = LocalBBox.Min();
+
+	const T MaxBBoxDim = LocalBBox.Extents().Max();
+
+	// Find coincident vertices.
+	// We hash to a grid of fine enough resolution such that if 2 particles 
+	// hash to the same cell, then we're going to consider them coincident.
+	TMap<int64, TSet<int32>> OccupiedCells;
+	OccupiedCells.Reserve(NumPoints);
+
+	const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / 0.01));
+	const T CellSize = MaxBBoxDim / Resolution;
+	for (int i = 0; i < 2; i++)
+	{
+		OccupiedCells.Reset();
+
+		// Shift the grid by 1/2 a grid cell the second iteration so that
+		// we don't miss slightly adjacent coincident points across cell
+		// boundaries.
+		const TVector<T, 3> GridCenter = LocalCenter - TVector<T, 3>(i * CellSize / 2);
+		for (int32 LocalIdx = 0; LocalIdx < NumPoints; LocalIdx++)
+		{
+			const int32 Idx = TestIndices[LocalIdx];
+			if (i != 0 && Remappings.Contains(Idx))
+			{
+				// Already remapped
+				continue;
+			}
+
+			const TVector<T, 3>& Pos = LocalPoints[LocalIdx];
+			const TVector<int64, 3> Coord(
+				static_cast<int64>(floor((Pos[0] - GridCenter[0]) / CellSize + Resolution / 2)),
+				static_cast<int64>(floor((Pos[1] - GridCenter[1]) / CellSize + Resolution / 2)),
+				static_cast<int64>(floor((Pos[2] - GridCenter[2]) / CellSize + Resolution / 2)));
+			const int64 FlatIdx =
+				((Coord[0] * Resolution + Coord[1]) * Resolution) + Coord[2];
+
+			TSet<int32>& Bucket = OccupiedCells.FindOrAdd(FlatIdx);
+			Bucket.Add(Idx);
+		}
+
+		// Iterate over all occupied cells and remap redundant vertices to the first index.
+		for (auto& KV : OccupiedCells)
+		{
+			const TSet<int32>& CoincidentVertices = KV.Value;
+			if (CoincidentVertices.Num() <= 1)
+				continue;
+			int32 First = INDEX_NONE;
+			for (const int32 Idx : CoincidentVertices)
+			{
+				if (First == INDEX_NONE)
+				{
+					First = Idx;
+				}
+				else
+				{
+					Remappings.Add(Idx, First);
+				}
+			}
+		}
+	}
+
+	return Remappings;
 }
 
 template<class T>
@@ -859,7 +1029,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 		const bool IsFree = Neighbors == nullptr || Neighbors->Num() == 0;
 		Rank[Idx - Offset] = IsFree ? 1 : 0;
 		FoundFreeParticle |= IsFree;
-	}
+			}
 	if (FoundFreeParticle)
 	{
 		StableSort(&PointOrder[0], NumPoints, AscendingRankPred);
@@ -896,7 +1066,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 	TAABB<T, 3> Bbox(Points[0], Points[0]);
 	for (int i = 1; i < NumPoints; i++)
 	{
-		Bbox.GrowToInclude(Points[i]);
+		Bbox.GrowToInclude(Points[i+Offset]);
 	}
 	const TVector<T, 3> Center = Bbox.Center();
 
@@ -1059,12 +1229,97 @@ template<class T>
 void TTriangleMesh<T>::RemapVertices(const TArray<int32>& Order)
 {
 	// Remap element indices
+	int32 MinIdx = TNumericLimits<int32>::Max();
+	int32 MaxIdx = -TNumericLimits<int32>::Max();
 	for (int32 i = 0; i < MElements.Num(); i++)
 	{
 		TVector<int32, 3>& elem = MElements[i];
-		elem[0] = Order[elem[0]];
-		elem[1] = Order[elem[1]];
-		elem[2] = Order[elem[2]];
+		for (int32 j = 0; j < 3; ++j)
+		{
+			if (elem[j] != Order[elem[j]])
+			{
+				elem[j] = Order[elem[j]];
+				MinIdx = elem[j] < MinIdx ? elem[j] : MinIdx;
+				MaxIdx = elem[j] > MaxIdx ? elem[j] : MaxIdx;
+			}
+		}
+	}
+	if (MinIdx != TNumericLimits<int32>::Max())
+	{
+		ExpandVertexRange(MinIdx, MaxIdx);
+		RemoveDuplicateElements();
+		RemoveDegenerateElements();
+		ResetAuxiliaryStructures();
+	}
+}
+
+template <class T>
+void TTriangleMesh<T>::RemapVertices(const TMap<int32, int32>& Remapping)
+{
+	if (!Remapping.Num())
+	{
+		return;
+	}
+	int32 MinIdx = TNumericLimits<int32>::Max();
+	int32 MaxIdx = -TNumericLimits<int32>::Max();
+	for (TVector<int32, 3>& Tri : MElements)
+	{
+		for (int32 Idx = 0; Idx < 3; ++Idx)
+		{
+			if (const int32* ToIdx = Remapping.Find(Tri[Idx]))
+			{
+				Tri[Idx] = *ToIdx;
+				MinIdx = *ToIdx < MinIdx ? *ToIdx : MinIdx;
+				MaxIdx = *ToIdx > MaxIdx ? *ToIdx : MaxIdx;
+			}
+		}
+	}
+	if (MinIdx != TNumericLimits<int32>::Max())
+	{
+		ExpandVertexRange(MinIdx, MaxIdx);
+		RemoveDuplicateElements();
+		RemoveDegenerateElements();
+		ResetAuxiliaryStructures();
+	}
+}
+
+template <class T>
+void TTriangleMesh<T>::RemoveDuplicateElements()
+{
+	TArray<int32> ToRemove;
+	TSet<TVector<int32, 3>> Existing;
+	for (int32 Idx = 0; Idx < MElements.Num(); ++Idx)
+	{
+		const TVector<int32, 3>& Tri = MElements[Idx];
+		const TVector<int32, 3> OrderedTri = GetOrdered(Tri);
+		if (!Existing.Contains(OrderedTri))
+		{
+			Existing.Add(OrderedTri);
+			continue;
+		}
+		ToRemove.Add(Idx);
+	}
+	for (int32 Idx = ToRemove.Num() - 1; Idx >= 0; --Idx)
+	{
+		MElements.RemoveAtSwap(ToRemove[Idx]);
+	}
+}
+
+template <class T>
+void TTriangleMesh<T>::RemoveDegenerateElements()
+{
+	for (int i = MElements.Num() - 1; i >= 0; --i)
+	{
+		if (MElements[i][0] == MElements[i][1] ||
+			MElements[i][0] == MElements[i][2] ||
+			MElements[i][1] == MElements[i][2])
+		{
+			// It's possible that the order of the triangles might be important.
+			// RemoveAtSwap() changes the order of the array.  I figure that if
+			// you're up for CullDegenerateElements, then triangle reordering is
+			// fair game.
+			MElements.RemoveAtSwap(i);
+		}
 	}
 }
 
