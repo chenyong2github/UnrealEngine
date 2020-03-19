@@ -296,6 +296,15 @@ bool FNiagaraScriptExecutionContext::CanExecute()const
 	return Script && Script->GetVMExecutableData().IsValid() && Script->GetVMExecutableData().ByteCode.Num() > 0;
 }
 
+TArrayView<const uint8> FNiagaraScriptExecutionContext::GetScriptLiterals() const
+{
+#if WITH_EDITORONLY_DATA
+	return Parameters.GetScriptLiterals();
+#else
+	return MakeArrayView(Script->GetVMExecutableData().ScriptLiterals);
+#endif
+}
+
 void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 {
 	check(IsInGameThread());

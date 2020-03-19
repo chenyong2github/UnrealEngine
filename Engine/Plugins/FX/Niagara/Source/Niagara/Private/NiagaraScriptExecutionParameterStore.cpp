@@ -225,9 +225,11 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 	}
 	PaddingInfo.Empty();
 
+	const FNiagaraVMExecutableData& ExecutableData = Script->GetVMExecutableData();
+
 	//Here we add the current frame parameters.
 	bool bAdded = false;
-	for (FNiagaraVariable& Param : Script->GetVMExecutableData().Parameters.Parameters)
+	for (const FNiagaraVariable& Param : ExecutableData.Parameters.Parameters)
 	{
 		bAdded |= AddParameter(Param, false, false);
 	}
@@ -243,20 +245,17 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 	{
 		AddAlignmentPadding();
 
-		for (FNiagaraVariable& Param : Script->GetVMExecutableData().Parameters.Parameters)
+		for (const FNiagaraVariable& Param : ExecutableData.Parameters.Parameters)
 		{
 			FNiagaraVariable PrevParam(Param.GetType(), FName(*(INTERPOLATED_PARAMETER_PREFIX + Param.GetName().ToString())));
 			bAdded |= AddParameter(PrevParam, false, false);
 		}
 	}
 
-	//Internal constants - only needed for non-GPU sim
+	// for VM scripts we need to build the script literals; in cooked builds this is already in the cached VM data
 	if (SimTarget != ENiagaraSimTarget::GPUComputeSim)
 	{
-		for (FNiagaraVariable& InternalVar : Script->GetVMExecutableData().InternalParameters.Parameters)
-		{
-			bAdded |= AddParameter(InternalVar, false, false);
-		}
+		ExecutableData.BakeScriptLiterals(CachedScriptLiterals);
 	}
 
 	check(Script->GetVMExecutableData().DataInterfaceInfo.Num() == Script->GetCachedDefaultDataInterfaces().Num());
@@ -387,3 +386,14 @@ void FNiagaraScriptInstanceParameterStore::InternalStorageChanged()
 		ParameterVariables = TArrayView<FNiagaraVariableWithOffset>();
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+TArrayView<const uint8> FNiagaraScriptInstanceParameterStore::GetScriptLiterals() const
+{
+	if (const auto* ScriptStore = ScriptParameterStore.Get())
+	{
+		return MakeArrayView(ScriptStore->CachedScriptLiterals);
+	}
+	return MakeArrayView<const uint8>(nullptr, 0);
+}
+#endif
