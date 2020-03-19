@@ -170,13 +170,13 @@ public:
 
 	FORCEINLINE bool IsSolo()const { return bSolo; }
 
+#if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
 	FOnInitialized& OnInitialized();
 
 	/** Gets a multicast delegate which is called whenever this instance is complete. */
 	FOnComplete& OnComplete();
 
-#if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is reset due to external changes in the source System asset. */
 	FOnReset& OnReset();
 
@@ -334,10 +334,10 @@ private:
 
 	TArray< TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > Emitters;
 
+#if WITH_EDITOR
 	FOnInitialized OnInitializedDelegate;
 	FOnComplete OnCompleteDelegate;
 
-#if WITH_EDITOR
 	FOnReset OnResetDelegate;
 	FOnDestroyed OnDestroyedDelegate;
 #endif
