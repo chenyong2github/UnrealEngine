@@ -2028,6 +2028,8 @@ void FMagicLeapHMD::RenderTexture_RenderThread(class FRHICommandListImmediate& R
 		const uint32 TextureWidth = SrcTexture->GetSizeX();
 		const uint32 TextureHeight = SrcTexture->GetSizeY();
 
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SrcTexture);
+
 		// The BackBuffer is the debug view for mirror modes, i.e. vr-preview. In which case
 		// it can be an arbitrary size different than the render size. Which means
 		// we scale to that BackBuffer size, with either a letter-box or pill-box to

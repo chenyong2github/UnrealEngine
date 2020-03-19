@@ -109,7 +109,6 @@ public:
 	virtual void UpdateViewportRHIBridge(bool bUseSeparateRenderTarget, const class FViewport& Viewport, FRHIViewport* const ViewportRHI) override;
 	virtual bool ShouldUseSeparateRenderTarget() const override
 	{
-		check(IsInGameThread());
 		return IsStereoEnabled();
 	}
 	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override;
