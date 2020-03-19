@@ -20,7 +20,7 @@ using System.Text;
 class BuildPlugin : BuildCommand
 {
 	const string AndroidArchitectures = "armv7+arm64";
-	const string HoloLensArchitecture = "arm64";
+	const string HoloLensArchitecture = "arm64+x64";
 
 	public override void ExecuteBuild()
 	{
