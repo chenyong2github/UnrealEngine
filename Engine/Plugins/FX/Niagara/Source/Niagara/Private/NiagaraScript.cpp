@@ -2174,9 +2174,15 @@ void UNiagaraScript::SerializeNiagaraShaderMaps(FArchive& Ar, int32 NiagaraVer, 
 			FNiagaraShaderScript Resource;
 			Resource.SerializeShaderMap(Ar);
 
-			if (!ScriptResource && GMaxRHIShaderPlatform == Resource.GetGameThreadShaderMap()->GetShaderPlatform())
+			if (!ScriptResource)
 			{
-				ScriptResource = MakeUnique<FNiagaraShaderScript>(Resource);
+				if (FNiagaraShaderMap* ShaderMap = Resource.GetGameThreadShaderMap())
+				{
+					if (GMaxRHIShaderPlatform == ShaderMap->GetShaderPlatform())
+					{
+						ScriptResource = MakeUnique<FNiagaraShaderScript>(Resource);
+					}
+				}
 			}
 		}
 	}
