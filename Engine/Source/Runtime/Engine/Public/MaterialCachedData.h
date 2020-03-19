@@ -163,8 +163,10 @@ struct FMaterialCachedParameters
 
 struct FMaterialCachedExpressionContext
 {
-	explicit FMaterialCachedExpressionContext(UMaterialInterface* InParent = nullptr) : Parent(InParent) {}
+	explicit FMaterialCachedExpressionContext(UMaterialInterface* InParent = nullptr) : Parent(InParent), bUpdateFunctionExpressions(true) {}
+
 	UMaterialInterface* Parent;
+	bool bUpdateFunctionExpressions;
 };
 
 USTRUCT()
