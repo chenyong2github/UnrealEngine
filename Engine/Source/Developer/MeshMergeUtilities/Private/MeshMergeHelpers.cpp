@@ -487,9 +487,9 @@ void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& Stati
 		for (int32 SectionIndex = 0; SectionIndex < StaticMeshLOD.Sections.Num(); ++SectionIndex)
 		{
 			const FStaticMeshSection& Section = StaticMeshLOD.Sections[SectionIndex];
-			uint32 FirstTriangle = Section.FirstIndex / 3;
-			uint32 LastTriangle = FirstTriangle + Section.NumTriangles - 1;
-			if ((uint32)TriangleIndex >= FirstTriangle && (uint32)TriangleIndex <= LastTriangle)
+			uint32 BeginTriangle = Section.FirstIndex / 3;
+			uint32 EndTriangle = BeginTriangle + Section.NumTriangles;
+			if ((uint32)TriangleIndex >= BeginTriangle && (uint32)TriangleIndex < EndTriangle)
 			{
 				CurrentPolygonGroupID = FPolygonGroupID(SectionIndex);
 				break;
