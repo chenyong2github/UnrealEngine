@@ -21,7 +21,7 @@ namespace Audio
 	 *
 	 * 	Settings for the Constant Q Analyzer.
 	 */
-	struct FConstantQAnalyzerSettings : public FPseudoConstantQKernelSettings
+	struct AUDIOSYNESTHESIACORE_API FConstantQAnalyzerSettings : public FPseudoConstantQKernelSettings
 	{
 		/** Size of FFT describe in number of samples */
 		int32 FFTSize;
@@ -50,7 +50,7 @@ namespace Audio
 	 *  intervals (as opposed to the linearly spaced intervals of the FFT). Logarithmically
 	 *  spaced frequency intervals map nicely to musical scales.
 	 */
-	class AUDIOSYNESTHESIA_API FConstantQAnalyzer
+	class AUDIOSYNESTHESIACORE_API FConstantQAnalyzer
 	{
 	public:
 
