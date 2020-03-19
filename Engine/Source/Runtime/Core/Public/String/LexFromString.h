@@ -3,8 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-
-class FStringView;
+#include "Containers/StringFwd.h"
 
 CORE_API void LexFromString(int8& OutValue,   const FStringView& InString);
 CORE_API void LexFromString(int16& OutValue,  const FStringView& InString);
