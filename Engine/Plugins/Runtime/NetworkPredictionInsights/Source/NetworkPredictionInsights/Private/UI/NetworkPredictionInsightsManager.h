@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NetworkPredictionInsightsActionManager.h"
+#include "Containers/Ticker.h"
 
 class SNPWindow;
 
@@ -67,25 +68,16 @@ public:
 	/** @return an instance of the Networking Profiler action manager. */
 	static FNetworkPredictionInsightsActionManager& GetActionManager();
 
-	void AddProfilerWindow(const TSharedRef<SNPWindow>& InWindow)
-	{
-		NetworkPredictionInsightsWindows.Add(InWindow);
-	}
+	void AddProfilerWindow(const TSharedRef<SNPWindow>& InWindow);
 
-	void RemoveProfilerWindow(const TSharedRef<SNPWindow>& InWindow)
-	{
-		NetworkPredictionInsightsWindows.Remove(InWindow);
-	}
+	void RemoveProfilerWindow(const TSharedRef<SNPWindow>& InWindow);
 
 	/**
 	 * Converts profiler window weak pointer to a shared pointer and returns it.
 	 * Make sure the returned pointer is valid before trying to dereference it.
 	 */
-	TSharedPtr<class SNPWindow> GetProfilerWindow(int32 Index) const
-	{
-		return NetworkPredictionInsightsWindows[Index].Pin();
-	}
-
+	TSharedPtr<class SNPWindow> GetProfilerWindow(int32 Index) const;
+	
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void OnSessionChanged();
