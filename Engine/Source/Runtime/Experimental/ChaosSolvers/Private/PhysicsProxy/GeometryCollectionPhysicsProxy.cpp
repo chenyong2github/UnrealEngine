@@ -919,6 +919,9 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 					}
 					SolverClusterID[TransformGroupIndex] = Handle->ClusterIds().Id;
 
+					// Hook the handle up with the GT particle
+					Handle->GTGeometryParticle() = GTParticles[TransformGroupIndex].Get();
+
 					SolverClusterHandles[TransformGroupIndex] = Handle;
 					SolverParticleHandles[TransformGroupIndex] = Handle;
 					HandleToTransformGroupIndex.Add(Handle, TransformGroupIndex);
