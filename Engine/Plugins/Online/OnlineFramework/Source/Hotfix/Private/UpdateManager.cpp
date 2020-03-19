@@ -53,8 +53,6 @@ UUpdateManager::UUpdateManager()
 	, UpdateCheckCompleteDelay(0.5f)
 	, HotfixAvailabilityCheckCompleteDelay(0.1f)
 	, UpdateCheckAvailabilityCompleteDelay(0.1f)
-	, bCheckPlatformOSSForUpdate(true)
-	, bCheckOSSForUpdate(true)
 	, AppSuspendedUpdateCheckTimeSeconds(600)
 	, bPlatformEnvironmentDetected(false)
 	, bInitialUpdateFinished(false)
@@ -243,114 +241,18 @@ void UUpdateManager::StartPatchCheck()
 {
 	ensure(ChecksEnabled());
 
-	SetUpdateState(EUpdateState::CheckingForPatch);
-	if (bCheckPlatformOSSForUpdate && IOnlineSubsystem::GetByPlatform() != nullptr)
-	{
-		StartPlatformOSSPatchCheck();
-	}
-	else if (bCheckOSSForUpdate)
-	{
-		StartOSSPatchCheck();
-	}
-	else
-	{
-		UE_LOG(LogHotfixManager, Warning, TEXT("Patch check disabled for both Platform and Default OSS"));
-		PatchCheckComplete(EPatchCheckResult::NoPatchRequired);
-	}
-}
-
-void UUpdateManager::StartPlatformOSSPatchCheck()
-{
-	EPatchCheckResult PatchResult = EPatchCheckResult::PatchCheckFailure;
-	bool bStarted = false;
-
-	IOnlineSubsystem* PlatformOnlineSub = IOnlineSubsystem::GetByPlatform();
-	check(PlatformOnlineSub);
-	IOnlineIdentityPtr PlatformOnlineIdentity = PlatformOnlineSub->GetIdentityInterface();
-	if (PlatformOnlineIdentity.IsValid())
-	{
-		TSharedPtr<const FUniqueNetId> UserId = GetFirstSignedInUser(PlatformOnlineIdentity);
-#if PLATFORM_SWITCH
-		// checking the CanPlayOnline privilege on switch will log the user in if required in all but the NotLoggedIn state
-		const bool bCanCheckPlayOnlinePrivilege = UserId.IsValid() && (PlatformOnlineIdentity->GetLoginStatus(*UserId) != ELoginStatus::NotLoggedIn);
-#else
-		const bool bCanCheckPlayOnlinePrivilege = UserId.IsValid() && (PlatformOnlineIdentity->GetLoginStatus(*UserId) == ELoginStatus::LoggedIn);
-#endif
-		if (bCanCheckPlayOnlinePrivilege)
-		{
-			bStarted = true;
-			PlatformOnlineIdentity->GetUserPrivilege(*UserId,
-				EUserPrivileges::CanPlayOnline, IOnlineIdentity::FOnGetUserPrivilegeCompleteDelegate::CreateUObject(this, &ThisClass::OnCheckForPatchComplete, true));
-		}
-		else if (!bInitialUpdateFinished)
-		{
-			UE_LOG(LogHotfixManager, Verbose, TEXT("Skipping initial patch check with no signed in user"));
-			bStarted = true;
-			PatchCheckComplete(EPatchCheckResult::NoPatchRequired);
-		}
-		else
-		{
-			UE_LOG(LogHotfixManager, Warning, TEXT("No valid platform user id when starting patch check!"));
-			PatchResult = EPatchCheckResult::NoLoggedInUser;
-		}
-	}
-
-	if (!bStarted)
-	{
-		// Any failure to call GetUserPrivilege will result in completing the flow via this path
-		PatchCheckComplete(PatchResult);
-	}
-}
-
-void UUpdateManager::StartOSSPatchCheck()
-{
 	UGameInstance* GameInstance = GetGameInstance();
 	check(GameInstance);
 
-	EPatchCheckResult PatchResult = EPatchCheckResult::PatchCheckFailure;
-	bool bStarted = false;
-
+	SetUpdateState(EUpdateState::CheckingForPatch);
 	if (GameInstance->IsDedicatedServerInstance())
 	{
-		bStarted = true;
 		PatchCheckComplete(EPatchCheckResult::NoPatchRequired);
-	}
-	else
-	{
-		UWorld* World = GetWorld();
-		IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World);
-		if (IdentityInt.IsValid())
-		{
-			ULocalPlayer* LP = GameInstance->GetFirstGamePlayer();
-			if (LP != nullptr)
-			{
-				const int32 ControllerId = LP->GetControllerId();
-				TSharedPtr<const FUniqueNetId> UserId = IdentityInt->GetUniquePlayerId(ControllerId);
-				if (!UserId.IsValid())
-				{
-					// Invalid user for "before title/login" check, underlying code doesn't need a valid user currently
-					UserId = IdentityInt->CreateUniquePlayerId(TEXT("InvalidUser"));
-				}
-
-				if (UserId.IsValid())
-				{
-					bStarted = true;
-					IdentityInt->GetUserPrivilege(*UserId,
-						EUserPrivileges::CanPlayOnline, IOnlineIdentity::FOnGetUserPrivilegeCompleteDelegate::CreateUObject(this, &ThisClass::OnCheckForPatchComplete, false));
-				}
-			}
-			else
-			{
-				UE_LOG(LogHotfixManager, Warning, TEXT("No local player to perform check!"));
-			}
-		}
+		return;
 	}
 
-	if (!bStarted)
-	{
-		// Any failure to call GetUserPrivilege will result in completing the flow via this path
-		PatchCheckComplete(PatchResult);
-	}
+	FPatchCheck::Get().GetOnComplete().AddUObject(this, &UUpdateManager::PatchCheckComplete);
+	FPatchCheck::Get().StartPatchCheck();
 }
 
 bool UUpdateManager::ChecksEnabled() const
@@ -358,77 +260,10 @@ bool UUpdateManager::ChecksEnabled() const
 	return !GIsEditor;
 }
 
-bool UUpdateManager::EnvironmentWantsPatchCheck() const
-{
-	return false;
-}
-
-inline bool SkipPatchCheck(UUpdateManager* UpdateManager)
-{
-	// Does the environment care about patch checks (LIVE, STAGE, etc)
-	bool bEnvironmentWantsPatchCheck = UpdateManager->EnvironmentWantsPatchCheck();
-
-	// Can always opt in to a check
-	const bool bForcePatchCheck = FParse::Param(FCommandLine::Get(), TEXT("ForcePatchCheck"));
-
-	// Prevent a patch check on editor builds 
-	const bool bSkipDueToEditor = UE_EDITOR;
-
-	// prevent a check when running unattended
-	const bool bSkipDueToUnattended = FApp::IsUnattended();
-
-	// Explicitly skipping the check
-	const bool bForceSkipCheck = FParse::Param(FCommandLine::Get(), TEXT("SkipPatchCheck"));
-	const bool bSkipPatchCheck = !bForcePatchCheck && (!bEnvironmentWantsPatchCheck || bSkipDueToEditor || bForceSkipCheck || bSkipDueToUnattended);
-
-	return bSkipPatchCheck;
-}
-
-void UUpdateManager::OnCheckForPatchComplete(const FUniqueNetId& UniqueId, EUserPrivileges::Type Privilege, uint32 PrivilegeResult, bool bConsoleCheck)
-{
-	UE_LOG(LogHotfixManager, Verbose, TEXT("[OnCheckForPatchComplete] Privilege=%d PrivilegeResult=%d"), (uint32)Privilege, PrivilegeResult);
-
-	EPatchCheckResult Result = EPatchCheckResult::NoPatchRequired;
-	if (Privilege == EUserPrivileges::CanPlayOnline)
-	{
-		if (bConsoleCheck || !SkipPatchCheck(this))
-		{
-			if (PrivilegeResult & (uint32)IOnlineIdentity::EPrivilegeResults::RequiredSystemUpdate)
-			{
-				Result = EPatchCheckResult::PatchRequired;
-			}
-			else if (PrivilegeResult & (uint32)IOnlineIdentity::EPrivilegeResults::RequiredPatchAvailable)
-			{
-				Result = EPatchCheckResult::PatchRequired;
-			}
-			else if (PrivilegeResult & ((uint32)IOnlineIdentity::EPrivilegeResults::UserNotLoggedIn | (uint32)IOnlineIdentity::EPrivilegeResults::UserNotFound))
-			{
-				Result = EPatchCheckResult::NoLoggedInUser;
-			}
-			else if (PrivilegeResult & (uint32)IOnlineIdentity::EPrivilegeResults::GenericFailure)
-			{
-#if (PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_SWITCH)
-				// Skip console backend failures
-				Result = EPatchCheckResult::NoPatchRequired;
-#else
-				Result = EPatchCheckResult::PatchCheckFailure;
-#endif
-			}
-		}
-	}
-
-	if (bCheckOSSForUpdate && bConsoleCheck && Result == EPatchCheckResult::NoPatchRequired)
-	{
-		// We perform both checks in this case
-		StartOSSPatchCheck();
-		return;
-	}
-
-	PatchCheckComplete(Result);
-}
-
 void UUpdateManager::PatchCheckComplete(EPatchCheckResult PatchResult)
 {
+	FPatchCheck::Get().GetOnComplete().RemoveAll(this);
+
 	LastPatchCheckResult = PatchResult;
 
 	if (PatchResult == EPatchCheckResult::NoPatchRequired)
