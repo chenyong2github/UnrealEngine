@@ -913,9 +913,9 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 							CreationParameters);
 
 					int32 RigidChildrenIdx = 0;
-					for (const int32 ChildIndex : Children[TransformGroupIndex])
+					for(const int32 ChildTransformIndex : RigidChildrenTransformGroupIndex)
 					{
-						SolverClusterID[ChildIndex] = RigidChildren[RigidChildrenIdx++]->CastToClustered()->ClusterIds().Id;
+						SolverClusterID[ChildTransformIndex] = RigidChildren[RigidChildrenIdx++]->CastToClustered()->ClusterIds().Id;;
 					}
 					SolverClusterID[TransformGroupIndex] = Handle->ClusterIds().Id;
 
