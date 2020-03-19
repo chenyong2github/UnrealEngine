@@ -53,10 +53,20 @@ public:
 	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
 	virtual void ForceEndCapture(const FInputCaptureData& Data) override;
 
+	/**
+	 * If true, then we will update Modifier states in UpdateCapture(). This defaults to false because
+	 * in most cases during a capture you don't want this, eg in a brush interaction, if you have a shift-to-smooth modifier,
+	 * you don't want to toggle this on/off during a sculpting stroke.
+	 */
+	UPROPERTY()
+	bool bUpdateModifiersDuringDrag = false;
 
 protected:
 	/** Click Target object */
 	IClickDragBehaviorTarget* Target;
+
+	/** set to true if we are in a capture */
+	bool bInClickDrag = false;
 
 	/**
 	 * Internal function that forwards click evens to Target::OnClickPress, you can customize behavior here
