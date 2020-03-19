@@ -223,6 +223,7 @@ class FPBDRigidsEvolutionBase
 	typedef TFunction<void(const TArray<TGeometryParticleHandle<FReal, 3>*>&, const FReal)> FUpdateVelocityRule;
 	typedef TFunction<void(const TParticleView<TPBDRigidParticles<FReal, 3>>&, const FReal)> FUpdatePositionRule;
 	typedef TFunction<void(TPBDRigidParticles<FReal, 3>&, const FReal, const FReal, const int32)> FKinematicUpdateRule;
+	typedef TFunction<void(TParticleView<TPBDRigidParticles<FReal,3>>&)> FCaptureRewindRule;
 
 	friend void ChaosTest::TestPendingSpatialDataHandlePointerConflict();
 
@@ -283,6 +284,7 @@ class FPBDRigidsEvolutionBase
 	CHAOS_API void AddImpulseFunction(FForceRule ImpulseFunction) { ImpulseRules.Add(ImpulseFunction); }
 	CHAOS_API void SetParticleUpdateVelocityFunction(FUpdateVelocityRule ParticleUpdate) { ParticleUpdateVelocity = ParticleUpdate; }
 	CHAOS_API void SetParticleUpdatePositionFunction(FUpdatePositionRule ParticleUpdate) { ParticleUpdatePosition = ParticleUpdate; }
+	CHAOS_API void SetCaptureRewindDataFunction(FCaptureRewindRule Rule){ CaptureRewindData = Rule; }
 
 	CHAOS_API TGeometryParticleHandles<FReal, 3>& GetParticleHandles() { return Particles.GetParticleHandles(); }
 	CHAOS_API const TGeometryParticleHandles<FReal, 3>& GetParticleHandles() const { return Particles.GetParticleHandles(); }
@@ -692,6 +694,7 @@ protected:
 	FUpdateVelocityRule ParticleUpdateVelocity;
 	FUpdatePositionRule ParticleUpdatePosition;
 	FKinematicUpdateRule KinematicUpdate;
+	FCaptureRewindRule CaptureRewindData;
 	TArray<FPBDConstraintGraphRule*> ConstraintRules;
 	TArray<FPBDConstraintGraphRule*> PrioritizedConstraintRules;
 	FPBDConstraintGraph ConstraintGraph;

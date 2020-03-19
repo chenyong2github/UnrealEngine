@@ -57,17 +57,13 @@ struct FParticleDynamics
 	FVec3 Torque;
 	FVec3 LinearImpulse;
 	FVec3 AngularImpulse;
-	FReal LinearEtherDrag;
-	FReal AngularEtherDrag;
 
 	void Serialize(FChaosArchive& Ar)
 	{
 		Ar << F;
 		Ar << Torque;
 		Ar << LinearImpulse;
-		Ar << AngularImpulse;
-		Ar << LinearEtherDrag;
-		Ar << AngularEtherDrag;		
+		Ar << AngularImpulse;	
 	}
 };
 
@@ -143,6 +139,9 @@ struct FParticleNonFrequentData
 	TSharedPtr<FImplicitObject,ESPMode::ThreadSafe> Geometry;
 	void* UserData;
 	FUniqueIdx UniqueIdx;
+	FReal LinearEtherDrag;
+	FReal AngularEtherDrag;
+
 #if CHAOS_CHECKED
 	FName DebugName;
 #endif
@@ -398,6 +397,11 @@ struct TPropertyTypeTrait<Type>\
 		void SetNum(int32 Num)
 		{
 			Elements.SetNum(Num);
+		}
+
+		int32 Num() const
+		{
+			return Elements.Num();
 		}
 
 	private:
@@ -716,6 +720,12 @@ public:
 #undef PARTICLE_PROPERTY
 	}
 
+	int32 GetNumParticles() const
+	{
+		//assume this property exists, if it gets renamed just pick any property
+		return XRPool.Num();
+	}
+
 	void SetNumShapes(int32 NumShapes)
 	{
 #define SHAPE_PROPERTY(PropName, Type) PropName##ShapePool.SetNum(NumShapes);
@@ -843,6 +853,11 @@ public:
 	void SetFlags(FParticleDirtyFlags InFlags)
 	{
 		Flags = InFlags;
+	}
+
+	FParticleDirtyFlags GetFlags() const
+	{
+		return Flags;
 	}
 
 	template <typename T, EParticleProperty PropName>
