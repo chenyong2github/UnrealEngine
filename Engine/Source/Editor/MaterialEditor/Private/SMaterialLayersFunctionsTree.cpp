@@ -1889,7 +1889,7 @@ void SMaterialLayersFunctionsMaterialTreeItem::RefreshOnRowChange(const FAssetDa
 {
 	if (SMaterialLayersFunctionsMaterialWrapper* Wrapper = InTree->GetWrapper())
 	{
-		InTree->CreateGroupsWidget(false);
+		InTree->CreateGroupsWidget();
 	}
 }
 
@@ -2563,7 +2563,7 @@ void SMaterialLayersFunctionsMaterialTree::Construct(const FArguments& InArgs)
 	ColumnWidth = 0.5f;
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Wrapper = InArgs._InWrapper;
-	CreateGroupsWidget(true);
+	CreateGroupsWidget();
 
 #ifdef WITH_EDITOR
 	//Fixup for adding new bool arrays to the class
@@ -2657,13 +2657,10 @@ TSharedPtr<class FAssetThumbnailPool> SMaterialLayersFunctionsMaterialTree::GetT
 	return Wrapper->GetGenerator()->GetGeneratedThumbnailPool();
 }
 
-void SMaterialLayersFunctionsMaterialTree::CreateGroupsWidget(const bool bRegenerateArray)
+void SMaterialLayersFunctionsMaterialTree::CreateGroupsWidget()
 {
 	check(MaterialEditorInstance);
-	if (bRegenerateArray)
-	{
-		MaterialEditorInstance->RegenerateArrays();
-	}
+
 	NonLayerProperties.Empty();
 	LayerProperties.Empty();
 	FunctionParameter = nullptr;
@@ -3000,11 +2997,11 @@ void SMaterialLayersFunctionsMaterialTree::ShowSubParameters(TSharedPtr<FSortedP
 	}
 }
 
-void SMaterialLayersFunctionsMaterialWrapper::Refresh(const bool bRegenerateArray)
+void SMaterialLayersFunctionsMaterialWrapper::Refresh()
 {
 	LayerParameter = nullptr;
 	TSharedPtr<SHorizontalBox> HeaderBox;
-	NestedTree->CreateGroupsWidget(bRegenerateArray);
+	NestedTree->CreateGroupsWidget();
 	LayerParameter = NestedTree->FunctionParameter;
 
 	if (LayerParameter != nullptr)
