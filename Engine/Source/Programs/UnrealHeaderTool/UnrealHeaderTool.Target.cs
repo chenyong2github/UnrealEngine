@@ -36,5 +36,6 @@ public class UnrealHeaderToolTarget : TargetRules
         GlobalDefinitions.Add("HACK_HEADER_GENERATOR=1");
         GlobalDefinitions.Add("FNAME_WRITE_PROTECT_PAGES=0");
         GlobalDefinitions.Add("USE_LOCALIZED_PACKAGE_CACHE=0");
+		GlobalDefinitions.Add("STATS=0");
 	}
 }
