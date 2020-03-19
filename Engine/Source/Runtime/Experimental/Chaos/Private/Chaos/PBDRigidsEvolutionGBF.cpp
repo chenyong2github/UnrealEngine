@@ -418,7 +418,11 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt, const FReal Step
 
 	Clustering.AdvanceClustering(Dt, GetCollisionConstraints());
 
-	CaptureRewindData(Particles.GetActiveParticlesView());
+	if(CaptureRewindData)
+	{
+		CaptureRewindData(Particles.GetActiveParticlesView());
+	}
+
 	ParticleUpdatePosition(Particles.GetActiveParticlesView(), Dt);
 }
 
