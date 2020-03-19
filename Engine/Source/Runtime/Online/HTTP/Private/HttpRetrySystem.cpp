@@ -303,6 +303,7 @@ static FRandomStream temp(4435261);
 bool FHttpRetrySystem::FManager::Update(uint32* FileCount, uint32* FailingCount, uint32* FailedCount, uint32* CompletedCount)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpRetrySystem_FManager_Update);
+	LLM_SCOPE(ELLMTag::Networking);
 
 	bool bIsGreen = true;
 
