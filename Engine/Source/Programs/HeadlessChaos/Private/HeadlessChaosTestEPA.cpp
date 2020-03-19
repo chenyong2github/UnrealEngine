@@ -522,6 +522,69 @@ namespace ChaosTest
 			EXPECT_FLOAT_EQ(Penetration, 1);
 			EXPECT_NEAR(WitnessA.Size(), 1, 1e-1);	//don't know exact point, but should be 1 away from origin
 		}
+
+		// Tetrahedron that does not quite contain the origin (so not in penetration)
+		{
+			T eps = 0.00001f;
+			TVec3<T> HullVerts[4] = { {-1, 0, 0}, {0 - eps, 1, -1}, {0 - eps, 0, 1}, {0 - eps, -1, -1}};
+
+			auto Support = [&HullVerts](const auto& V)
+			{
+				auto MaxDist = TNumericLimits<T>::Lowest();
+				auto BestVert = HullVerts[0];
+				for (const auto& Vert : HullVerts)
+				{
+					const auto Dist = TVec3<T>::DotProduct(V, Vert);
+					if (Dist > MaxDist)
+					{
+						MaxDist = Dist;
+						BestVert = Vert;
+					}
+				}
+				return BestVert;
+			};
+
+			TArray<TVec3<T>> Tetrahedron = { HullVerts[0], HullVerts[1], HullVerts[2], HullVerts[3] };
+			TArray <TVec3<T>> Zeros = { TVec3<T>(0), TVec3<T>(0), TVec3<T>(0), TVec3<T>(0) };
+
+			T Penetration;
+			TVec3<T> Dir, WitnessA, WitnessB;
+			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::Ok);
+			EXPECT_LT(Penetration, 0); // Negative penetration
+			EXPECT_NEAR(Dir.X, 1.0f, 0.001f);
+		}
+
+		// Tetrahedron that is quite a bit away from the origin (so not in penetration)
+		// This takes a slightly different code path as compared to the previous test
+		{
+			T eps = 0.1f;
+			TVec3<T> HullVerts[4] = { {-1, 0, 0}, {0 - eps, 1, -1}, {0 - eps, 0, 1}, {0 - eps, -1, -1} };
+
+			auto Support = [&HullVerts](const auto& V)
+			{
+				auto MaxDist = TNumericLimits<T>::Lowest();
+				auto BestVert = HullVerts[0];
+				for (const auto& Vert : HullVerts)
+				{
+					const auto Dist = TVec3<T>::DotProduct(V, Vert);
+					if (Dist > MaxDist)
+					{
+						MaxDist = Dist;
+						BestVert = Vert;
+					}
+				}
+				return BestVert;
+			};
+
+			TArray<TVec3<T>> Tetrahedron = { HullVerts[0], HullVerts[1], HullVerts[2], HullVerts[3] };
+			TArray <TVec3<T>> Zeros = { TVec3<T>(0), TVec3<T>(0), TVec3<T>(0), TVec3<T>(0) };
+
+			T Penetration;
+			TVec3<T> Dir, WitnessA, WitnessB;
+			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::Ok);
+			EXPECT_LT(Penetration, 0); // Negative penetration
+			EXPECT_NEAR(Dir.X, 1.0f, 0.001f);
+		}
 	}
 
 	template void EPASimpleTest<float>();
@@ -531,15 +594,15 @@ namespace ChaosTest
 	{
 		{
 			//get to EPA from GJKPenetration
+			// Boxes that are very close to each other (Almost penetrating).
 			TAABB<float, 3> Box({ -50, -50, -50 }, { 50, 50, 50 });
 
 			const FRigidTransform3 BToATM({ -8.74146843, 4.58291769, -100.029655 }, FRotation3::FromElements(6.63562241e-05, -0.000235952888, 0.00664712908, 0.999977887));
 			FVec3 ClosestA, ClosestB, Normal;
 			float Penetration;
-			GJKPenetration(Box, Box, BToATM, Penetration, ClosestA, ClosestB, Normal);
 
-			EXPECT_GT(Penetration, 0);
-			EXPECT_LT(Penetration, 2);
+			GJKPenetration<true>(Box, Box, BToATM, Penetration, ClosestA, ClosestB, Normal);
+			EXPECT_NEAR(Penetration, 0.0, 0.01);
 		}
 
 		// Problem: EPA was selecting the wrong face on the second box, resulting in a large penetration depth (131cm, but the box is only 20cm thick)
@@ -1053,6 +1116,31 @@ namespace ChaosTest
 			EXPECT_NEAR(Normal.Y, 0.0f, 1e-3f);
 			EXPECT_NEAR(Normal.Z, 0.0f, 1e-3f);
 		}
+
+		// Two boxes almost touching each other (Separation is small enough for GJK to fail and fall back to EPA)
+		// (This was a failing case that was fixed)
+		{
+			TBox<FReal, 3> A(FVec3(0.0f, 0.0f, 0.0f), FVec3(100.0f, 100.0f, 100.0f));
+			TBox<FReal, 3> B(FVec3(100.0f + 0.00001f, 0.0f, 0.0f), FVec3(200.0f, 100.0f, 100.0f));
+			FRigidTransform3 ATM = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
+			FRigidTransform3 BTM = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
+			FVec3 InitialDir = FVec3(1.0f, 0.0f, 0.0f);
+
+			const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
+			FReal Penetration;
+			FVec3 ClosestA, ClosestB, NormalA;
+			int32 NumIterations = 0;
+			GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, 0.0f, InitialDir, 0.0f, &NumIterations);
+
+			FVec3 Location = ATM.TransformPosition(ClosestA);  // These transforms are not really necessary since they are identity
+			FVec3 Normal = ATM.TransformVectorNoScale(NormalA);
+			FReal Phi = -Penetration;
+
+			EXPECT_NEAR(Normal.X, 1.0f, 1e-3f);
+			EXPECT_NEAR(Normal.Y, 0.0f, 1e-3f);
+			EXPECT_NEAR(Normal.Z, 0.0f, 1e-3f);
+		}
+
 	}
 
 
