@@ -549,6 +549,16 @@ bool FICUInternationalization::IsCultureAllowed(const FString& Name)
 	return (EnabledCultures.Num() == 0 || EnabledCultures.Contains(Name)) && !DisabledCultures.Contains(Name);
 }
 
+void FICUInternationalization::RefreshCultureDisplayNames()
+{
+	// Update the cached display names in any existing cultures
+	FScopeLock Lock(&CachedCulturesCS);
+	for (const auto& CachedCulturePair : CachedCultures)
+	{
+		CachedCulturePair.Value->RefreshCultureDisplayNames();
+	}
+}
+
 void FICUInternationalization::HandleLanguageChanged(const FString& Name)
 {
 	UErrorCode ICUStatus = U_ZERO_ERROR;
@@ -558,7 +568,7 @@ void FICUInternationalization::HandleLanguageChanged(const FString& Name)
 	FScopeLock Lock(&CachedCulturesCS);
 	for (const auto& CachedCulturePair : CachedCultures)
 	{
-		CachedCulturePair.Value->HandleCultureChanged();
+		CachedCulturePair.Value->RefreshCultureDisplayNames(/*bFullRefresh*/false);
 	}
 }
 
