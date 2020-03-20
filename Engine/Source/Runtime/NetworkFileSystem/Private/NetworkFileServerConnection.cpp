@@ -139,9 +139,9 @@ void FNetworkFileServerClientConnection::ConvertClientFilenameToServerFilename(F
 
 static bool TrySubstituteDirectory(FString& FilenameToConvert, const FString& Directory, const FString& DirectoryAbs)
 {
-	if (FilenameToConvert.StartsWith(DirectoryAbs))
+	if (FilenameToConvert.StartsWith(DirectoryAbs) && (FilenameToConvert.Len() == DirectoryAbs.Len() || FilenameToConvert[DirectoryAbs.Len()] == '/'))
 	{
-		if ((FilenameToConvert.Len() > DirectoryAbs.Len()) && (FilenameToConvert[DirectoryAbs.Len()] == '/'))
+		if (FilenameToConvert.Len() > DirectoryAbs.Len())
 		{
 			FilenameToConvert = Directory / FilenameToConvert.RightChop(DirectoryAbs.Len() + 1);
 		}
