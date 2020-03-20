@@ -2517,8 +2517,7 @@ typedef struct vx_resp_account_control_communications {
 
     vx_resp_base_t base;
     /**
-     * Line feed separated list of blocked or muted URIs.
-     * May be null for clear list operations or if no one were muted or blocked.
+     * Line feed separated list of blocked URIs (only set for vx_control_communications_operation_list, otherwise null)
      */
     char *blocked_uris;
 } vx_resp_account_control_communications_t;
