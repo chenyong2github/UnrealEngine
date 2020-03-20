@@ -477,8 +477,16 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 						//To keep ImageBasedReflectionLighting coherence with PC, use AverageBrightness instead of InvAverageBrightness to calculate the IBL contribution
 						ReflectionParams[i] = ReflectionProxy->EncodedHDRAverageBrightness;
 					}
+					else if (Scene->SkyLight != nullptr)
+					{
+						// NegativeInfluence to signal the shader we are defaulting to SkyLight if there are no ReflectionComponents in the Level
+						CapturePositions[i].W = -1.0f;
+						ReflectionCubemapTextures[i] = Scene->SkyLight->ProcessedTexture;
+						break;
+					}
 				}
 			}
+
 			for (int32 i = 0; i < MaxNumReflections; i++)
 			{
 				ShaderBindings.AddTexture(HQReflectionCubemaps[i], HQReflectionSamplers[i], ReflectionCubemapTextures[i]->SamplerStateRHI, ReflectionCubemapTextures[i]->TextureRHI);
