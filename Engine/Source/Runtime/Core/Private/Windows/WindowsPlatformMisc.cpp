@@ -1669,44 +1669,43 @@ static void QueryCpuInformation(uint32& OutGroupCount, uint32& OutNumaNodeCount,
 	}
 
 	OutGroupCount = OutNumaNodeCount = OutCoreCount = OutLogicalProcessorCount = 0;
-	char* buffer = nullptr;
-	DWORD len = 0;
+	uint8* BufferPtr = nullptr;
+	DWORD BufferBytes = 0;
 
-	if (false == GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buffer, &len))
+	if (false == GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) BufferPtr, &BufferBytes))
 	{
 		if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
 		{
-			buffer = (char*)malloc(len);
+			BufferPtr = reinterpret_cast<uint8*>(FMemory::Malloc(BufferBytes));
 
-			if (GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buffer, &len))
+			if (GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) BufferPtr, &BufferBytes))
 			{
-				DWORD offset = 0;
-				char* ptr = buffer;
+				uint8* InfoPtr = BufferPtr;
 
-				while (ptr < buffer + len)
+				while (InfoPtr < BufferPtr + BufferBytes)
 				{
-					PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX pi = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)ptr;
+					PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ProcessorInfo = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) InfoPtr;
 
-					if (nullptr == pi)
+					if (nullptr == ProcessorInfo)
 					{
 						break;
 					}
 
-					if (pi->Relationship == RelationProcessorCore)
+					if (ProcessorInfo->Relationship == RelationProcessorCore)
 					{
 						if (bForceSingleNumaNode)
 						{
-							for (int g = 0; g < pi->Processor.GroupCount; ++g)
+							for (int GroupIdx = 0; GroupIdx < ProcessorInfo->Processor.GroupCount; ++GroupIdx)
 							{
-								if (FilterGroupAffinity.Group == pi->Processor.GroupMask[g].Group)
+								if (FilterGroupAffinity.Group == ProcessorInfo->Processor.GroupMask[GroupIdx].Group)
 								{
-									KAFFINITY intersection = FilterGroupAffinity.Mask & pi->Processor.GroupMask[g].Mask;
+									KAFFINITY Intersection = FilterGroupAffinity.Mask & ProcessorInfo->Processor.GroupMask[GroupIdx].Mask;
 
-									if (intersection > 0)
+									if (Intersection > 0)
 									{
 										OutCoreCount++;
 
-										OutLogicalProcessorCount += FMath::CountBits(intersection);
+										OutLogicalProcessorCount += FMath::CountBits(Intersection);
 									}
 								}
 							}
@@ -1715,27 +1714,27 @@ static void QueryCpuInformation(uint32& OutGroupCount, uint32& OutNumaNodeCount,
 						{
 							OutCoreCount++;
 
-							for (size_t g = 0; g < pi->Processor.GroupCount; ++g)
+							for (int GroupIdx = 0; GroupIdx < ProcessorInfo->Processor.GroupCount; ++GroupIdx)
 							{
-								OutLogicalProcessorCount += FMath::CountBits(pi->Processor.GroupMask[g].Mask);
+								OutLogicalProcessorCount += FMath::CountBits(ProcessorInfo->Processor.GroupMask[GroupIdx].Mask);
 							}
 						}
 					}
-					if (pi->Relationship == RelationNumaNode)
+					if (ProcessorInfo->Relationship == RelationNumaNode)
 					{
 						OutNumaNodeCount++;
 					}
 
-					if (pi->Relationship == RelationGroup)
+					if (ProcessorInfo->Relationship == RelationGroup)
 					{
-						OutGroupCount = pi->Group.ActiveGroupCount;
+						OutGroupCount = ProcessorInfo->Group.ActiveGroupCount;
 					}
 
-					ptr += pi->Size;
+					InfoPtr += ProcessorInfo->Size;
 				}
 			}
 
-			free(buffer);
+			FMemory::Free(BufferPtr);
 		}
 	}
 }
