@@ -13,6 +13,7 @@
 #include "winrt/Windows.Perception.Spatial.h"
 #include "winrt/Windows.UI.Input.Spatial.h"
 #include "winrt/Windows.Foundation.Numerics.h"
+#include <winrt/Windows.Foundation.Collections.h>
 
 #include <HolographicSpaceInterop.h>
 #include <SpatialInteractionManagerInterop.h>

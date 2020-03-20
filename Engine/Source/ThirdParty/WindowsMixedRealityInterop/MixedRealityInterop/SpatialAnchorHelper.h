@@ -11,6 +11,7 @@
 //#include <sstream>
 #include <map>
 #include <functional>
+#include <mutex>
 #include "winrt/base.h"
 #include "winrt/Windows.Perception.Spatial.h"
 
