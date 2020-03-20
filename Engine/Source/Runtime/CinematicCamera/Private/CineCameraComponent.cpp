@@ -130,6 +130,11 @@ void UCineCameraComponent::PostLoad()
 		}
 	}
 
+	if (FocusSettings.FocusMethod >= ECameraFocusMethod::MAX )
+	{
+		FocusSettings.FocusMethod = ECameraFocusMethod::DoNotOverride;
+	}
+
 	RecalcDerivedData();
 	bResetInterpolation = true;
 	Super::PostLoad();
@@ -476,13 +481,19 @@ void UCineCameraComponent::UpdateDebugFocusPlane()
 
 void UCineCameraComponent::UpdateCameraLens(float DeltaTime, FMinimalViewInfo& DesiredView)
 {
-	if (FocusSettings.FocusMethod == ECameraFocusMethod::None)
+	if (FocusSettings.FocusMethod == ECameraFocusMethod::DoNotOverride)
 	{
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldFstop = false;
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldMinFstop = false;
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldBladeCount = false;
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldFocalDistance = false;
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldSensorWidth = false;
+	}
+	else if (FocusSettings.FocusMethod == ECameraFocusMethod::Disable)
+	{
+		// There might be a post process volume that is enabled with depth of field settings, override it and disable depth of field by setting the distance to 0
+		DesiredView.PostProcessSettings.bOverride_DepthOfFieldFocalDistance = true;
+		DesiredView.PostProcessSettings.DepthOfFieldFocalDistance = 0.f;
 	}
 	else
 	{

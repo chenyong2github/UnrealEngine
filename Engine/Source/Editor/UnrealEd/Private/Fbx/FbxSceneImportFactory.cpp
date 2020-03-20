@@ -1293,7 +1293,7 @@ USceneComponent *CreateCameraComponent(AActor *ParentActor, TSharedPtr<FFbxCamer
 	CameraComponent->Filmback.SensorHeight = FUnitConversion::Convert(CameraInfo->ApertureHeight, EUnit::Inches, EUnit::Millimeters);
 	CameraComponent->LensSettings.MaxFocalLength = CameraInfo->FocalLength;
 	CameraComponent->LensSettings.MinFocalLength = CameraInfo->FocalLength;
-	CameraComponent->FocusSettings.FocusMethod = ECameraFocusMethod::None;
+	CameraComponent->FocusSettings.FocusMethod = ECameraFocusMethod::DoNotOverride;
 
 	return CameraComponent;
 }
