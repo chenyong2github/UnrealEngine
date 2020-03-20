@@ -917,7 +917,7 @@ UFunction* UEdGraphSchema_K2::GetCallableParentFunction(UFunction* Function)
 bool UEdGraphSchema_K2::CanUserKismetCallFunction(const UFunction* Function)
 {
 	return Function && 
-		(Function->HasAllFunctionFlags(FUNC_BlueprintCallable) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && (!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctions));
+		(Function->HasAllFunctionFlags(FUNC_BlueprintCallable) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && (!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctionsAndClasses));
 }
 
 bool UEdGraphSchema_K2::CanKismetOverrideFunction(const UFunction* Function)
@@ -928,7 +928,7 @@ bool UEdGraphSchema_K2::CanKismetOverrideFunction(const UFunction* Function)
 			Function->HasAllFunctionFlags(FUNC_BlueprintEvent)
 			&& !Function->HasAllFunctionFlags(FUNC_Delegate) && 
 			!Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && 
-			(!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctions)
+			(!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctionsAndClasses)
 		);
 }
 
