@@ -342,10 +342,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
 	uint32 bBakeOutRapidIteration : 1;
 
-	/** Experimental feature to depromote parameters in the dataset that are not accessed during the precompile process. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
-	uint32 bCullDatasetParameters : 1;
-
 #endif
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)

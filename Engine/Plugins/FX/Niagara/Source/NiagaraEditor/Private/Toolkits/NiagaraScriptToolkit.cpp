@@ -101,12 +101,9 @@ void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("ParametersTab", "Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 
-	if (FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 > 0)
-	{
-		InTabManager->RegisterTabSpawner(ParametersTabId2, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters2))
-			.SetDisplayName(LOCTEXT("ParametersTab2", "Parameters2"))
-			.SetGroup(WorkspaceMenuCategoryRef);
-	}
+	InTabManager->RegisterTabSpawner(ParametersTabId2, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters2))
+		.SetDisplayName(LOCTEXT("ParametersTab2", "Parameters2"))
+		.SetGroup(WorkspaceMenuCategoryRef);
 		
 	InTabManager->RegisterTabSpawner(StatsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabStats))
 		.SetDisplayName(LOCTEXT("StatsTab", "Stats"))
