@@ -409,7 +409,7 @@ float GetInstanceRandom(FVertexFactoryIntermediates Intermediates)
 
 float3 GetInstanceOrigin(FVertexFactoryIntermediates Intermediates)
 {
-	return Intermediates.InstanceOrigin.xyz + InstancingOffset;
+	return Intermediates.InstanceOrigin.xyz + InstancingOffset.xyz;
 }
 
 #endif	// USE_INSTANCING

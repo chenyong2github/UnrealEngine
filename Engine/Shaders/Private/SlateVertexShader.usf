@@ -63,10 +63,12 @@ VertexToPixelInterpolants Main(
 		float2(0,0)  //uv channel 7
 	};
 
-	UNROLL
-	for( int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++ )
 	{
-		VertexParameters.TexCoords[CoordinateIndex] = UVArrays[CoordinateIndex];
+		UNROLL
+		for( int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++ )
+		{
+			VertexParameters.TexCoords[CoordinateIndex] = UVArrays[CoordinateIndex];
+		}
 	}
 
 	#if HAS_MATERIAL_TEXCOORDS
