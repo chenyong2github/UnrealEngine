@@ -1342,7 +1342,14 @@ int32 FAudioDebugger::RenderStatSounds(UWorld* World, FViewport* Viewport, FCanv
 			}
 			case FAudioStats::EDisplaySort::Priority:
 			{
-				DebugValue = FString::Printf(TEXT("%06.2f"), StatSoundInfo.Priority);
+				if (FMath::IsNearlyEqual(StatSoundInfo.Priority, TNumericLimits<float>::Max()))
+				{
+					DebugValue += TEXT("Always  ");
+				}
+				else
+				{
+					DebugValue = FString::Printf(TEXT("%06.2f"), StatSoundInfo.Priority);
+				}
 				break;
 			}
 			case FAudioStats::EDisplaySort::Volume:
