@@ -2,6 +2,7 @@
 
 #include "stdafx.h"
 #include "MixedRealityInterop.h"
+#include <winrt/Windows.Media.Devices.h>
 
 #include <wrl.h>
 #include <mmdeviceapi.h>
@@ -9,8 +10,7 @@
 #include <mutex>
 
 using namespace Microsoft::WRL;
-using namespace Windows::System::Threading;
-using namespace Windows::Media::Devices;
+using namespace winrt::Windows::Media::Devices;
 
 namespace WindowsMixedReality
 {
@@ -52,7 +52,7 @@ namespace WindowsMixedReality
 
 				// This call must be made on the main UI thread.  Async operation will call back to 
 				// IActivateAudioInterfaceCompletionHandler::ActivateCompleted, which must be an agile interface implementation
-				hr = ActivateAudioInterfaceAsync(m_DeviceIdString->Data(), __uuidof(ISpatialAudioClient), nullptr, this, &AsyncOperation);
+				hr = ActivateAudioInterfaceAsync(m_DeviceIdString.c_str(), __uuidof(ISpatialAudioClient), nullptr, this, &AsyncOperation);
 				if (FAILED(hr))
 				{
 					m_RenderState = RenderState::Inactive;
@@ -240,7 +240,7 @@ namespace WindowsMixedReality
 		ComPtr<ISpatialAudioObjectRenderStream> m_SpatialAudioStream;
 		HANDLE m_bufferCompletionEvent;
 
-		Platform::String^ m_DeviceIdString;
+		std::wstring m_DeviceIdString;
 		RenderState	m_RenderState;
 		UINT32 m_MaxDynamicObjects;
 		UINT32 m_SampleRate;
@@ -251,7 +251,7 @@ namespace WindowsMixedReality
 	std::map<int, ComPtr<SpatialAudioClientRendererWinRT>> sacRendererMap;
 	int sacRendererIndex = 0;
 
-	static ComPtr<SpatialAudioClientRendererWinRT> GetSac(int32 Id)
+	static ComPtr<SpatialAudioClientRendererWinRT> GetSac(int32_t Id)
 	{
 		std::lock_guard<std::mutex> lock(sacRendererLock);
 		return sacRendererMap[Id];
