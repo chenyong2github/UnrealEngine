@@ -13,8 +13,16 @@
 
 #include "WindowsMixedRealityInputSimulationEngineSubsystem.generated.h"
 
+struct WINDOWSMIXEDREALITYINPUTSIMULATION_API FWindowsMixedRealityInputSimulationPointerPose
+{
+	FVector Origin = FVector::ZeroVector;
+	FVector Direction = FVector::ForwardVector;
+	FVector Up = FVector::UpVector;
+	FQuat Orientation = FQuat::Identity;
+};
+
 /** Simulated data for one hand. */
-struct FWindowsMixedRealityInputSimulationHandState
+struct WINDOWSMIXEDREALITYINPUTSIMULATION_API FWindowsMixedRealityInputSimulationHandState
 {
 	typedef TStaticArray<FTransform, (uint32)EWMRHandKeypointCount> KeypointTransformArray;
 	typedef TStaticArray<float, (uint32)EWMRHandKeypointCount> KeypointRadiusArray;
@@ -28,6 +36,9 @@ struct FWindowsMixedRealityInputSimulationHandState
 
 	ButtonStateArray IsButtonPressed = ButtonStateArray();
 	ButtonStateArray PrevButtonPressed = ButtonStateArray();
+
+	bool bHasPointerPose = false;
+	FWindowsMixedRealityInputSimulationPointerPose PointerPose;
 };
 
 /** Engine subsystem that stores input simulation data for access by the XR device. */
@@ -77,6 +88,10 @@ public:
 	 * Returns true only if the button state is valid.
 	 */
 	bool GetPressState(EControllerHand Hand, EHMDInputControllerButtons Button, bool OnlyRegisterClicks, bool& OutPressState) const;
+
+	/** Get the pointer pose for a hand.
+	 */
+	bool GetHandPointerPose(EControllerHand Hand, FWindowsMixedRealityInputSimulationPointerPose& OutPointerPose) const;
 
 	/** Update the simulated data. */
 	void UpdateSimulatedData(
