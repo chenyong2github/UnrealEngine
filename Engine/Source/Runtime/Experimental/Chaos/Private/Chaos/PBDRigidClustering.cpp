@@ -696,7 +696,7 @@ namespace Chaos
 	TSet<TPBDRigidParticleHandle<T, d>*> 
 	TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::ReleaseClusterParticles(
 		TPBDRigidClusteredParticleHandle<T,d>* ClusteredParticle,
-		const TArrayView<T>* ExternalStrainArray)
+		const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticles_STRAIN);
 
@@ -762,8 +762,8 @@ namespace Chaos
 			TPBDRigidClusteredParticleHandle<T, d>* Child = Children[ChildIdx]->CastToClustered();
 			if (!Child)
 				continue;
-			if ((ExternalStrainArray && (*ExternalStrainArray)[ChildIdx]) ||
-			   (!ExternalStrainArray && Child->CollisionImpulses() >= Child->Strain()))
+			if ((ExternalStrainMap && (ExternalStrainMap->Find(Child))) ||
+			   (!ExternalStrainMap && Child->CollisionImpulses() >= Child->Strain()))
 			{
 				// The piece that hits just breaks off - we may want more control 
 				// by looking at the edges of this piece which would give us cleaner 
@@ -1096,7 +1096,7 @@ namespace Chaos
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	TMap<TPBDRigidClusteredParticleHandle<T, d>*, TSet<TPBDRigidParticleHandle<T, d>*>> 
 	TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::BreakingModel(
-		TArrayView<T>* ExternalStrain)
+		TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BreakingModel);
 
@@ -1109,7 +1109,7 @@ namespace Chaos
 			{
 				AllActivatedChildren.Add(
 					ClusteredParticle, 
-					ReleaseClusterParticles(ClusteredParticle, ExternalStrain));
+					ReleaseClusterParticles(ClusteredParticle, ExternalStrainMap));
 			}
 			else
 			{
