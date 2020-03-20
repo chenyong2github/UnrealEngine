@@ -1854,7 +1854,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	}
 	else
 	{
-		WaveInstance->Priority = ParseParams.Priority;
+		WaveInstance->Priority = FMath::Clamp(ParseParams.Priority, 0.0f, 100.0f);
 	}
 
 	WaveInstance->Location = ParseParams.Transform.GetTranslation();

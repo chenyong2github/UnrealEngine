@@ -234,8 +234,8 @@ void FConcurrencyGroup::CullSoundsDueToMaxConcurrency()
 				case EMaxConcurrentResolutionRule::StopLowestPriority:
 				case EMaxConcurrentResolutionRule::StopLowestPriorityThenPreventNew:
 				{
-					const int32 APriority = A.GetHighestPriority();
-					const int32 BPriority = B.GetHighestPriority();
+					const float APriority = A.GetHighestPriority();
+					const float BPriority = B.GetHighestPriority();
 					if (!FMath::IsNearlyEqual(APriority, BPriority, KINDA_SMALL_NUMBER))
 					{
 						return APriority < BPriority;
