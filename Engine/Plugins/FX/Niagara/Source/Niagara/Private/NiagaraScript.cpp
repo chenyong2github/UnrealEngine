@@ -1733,7 +1733,7 @@ void UNiagaraScript::CacheShadersForResources(EShaderPlatform ShaderPlatform, FN
 	if (CanBeRunOnGpu())
 	{
 		// When not running in the editor, the shaders are created in-sync (in the postload) to avoid update issues.
-		const bool bSuccess = ResourceToCache->CacheShaders(ShaderPlatform, bApplyCompletedShaderMapForRendering, bForceRecompile, bCooking || !GIsEditor);
+		const bool bSuccess = ResourceToCache->CacheShaders(ShaderPlatform, bApplyCompletedShaderMapForRendering, bForceRecompile, bCooking || !GIsEditor || GIsAutomationTesting);
 
 #if defined(NIAGARA_SCRIPT_COMPILE_LOGGING_MEDIUM)
 		if (!bSuccess)
