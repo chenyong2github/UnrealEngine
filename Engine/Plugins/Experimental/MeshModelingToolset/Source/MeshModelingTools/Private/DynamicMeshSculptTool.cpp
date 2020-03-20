@@ -1376,12 +1376,18 @@ bool UDynamicMeshSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	return true;
 }
 
+
 void UDynamicMeshSculptTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UMeshSurfacePointTool::Render(RenderAPI);
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 
 	BrushIndicator->Update( (float)this->CurrentBrushRadius, (FVector)this->LastBrushPosWorld, (FVector)this->LastBrushPosNormalWorld, 1.0f-BrushProperties->BrushFalloffAmount);
+	if (BrushIndicatorMaterial)
+	{
+		double FixedDimScale = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(CameraState, LastBrushPosWorld, 1.5f);
+		BrushIndicatorMaterial->SetScalarParameterValue(TEXT("FalloffWidth"), FixedDimScale);
+	}
 
 	if (SculptProperties->PrimaryBrushType == EDynamicMeshSculptBrushType::FixedPlane)
 	{
@@ -1914,7 +1920,13 @@ UPreviewMesh* UDynamicMeshSculptTool::MakeDefaultSphereMesh(UObject* Parent, UWo
 	SphereGen.Generate();
 	FDynamicMesh3 Mesh(&SphereGen);
 	SphereMesh->UpdatePreview(&Mesh);
-	SphereMesh->SetMaterial(ToolSetupUtil::GetDefaultBrushVolumeMaterial(nullptr));
+
+	BrushIndicatorMaterial = ToolSetupUtil::GetDefaultBrushVolumeMaterial(GetToolManager());
+	if (BrushIndicatorMaterial)
+	{
+		SphereMesh->SetMaterial(BrushIndicatorMaterial);
+	}
+
 	return SphereMesh;
 }
 
