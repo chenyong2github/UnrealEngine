@@ -161,6 +161,20 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetPressState(EControll
 	return false;
 }
 
+bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandPointerPose(EControllerHand Hand, FWindowsMixedRealityInputSimulationPointerPose& OutPointerPose) const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
+	{
+		if (handState->bHasPointerPose)
+		{
+			OutPointerPose = handState->PointerPose;
+			return true;
+		}
+	}
+	return false;
+}
+
 void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedData(
 	bool HasTracking,
 	const FQuat& NewHeadOrientation,
