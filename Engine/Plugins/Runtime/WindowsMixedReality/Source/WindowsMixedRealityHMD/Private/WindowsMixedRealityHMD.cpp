@@ -2174,21 +2174,41 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::GetPointerPose(EControllerHand hand, PointerPoseInfo& pi)
 	{
-		HMD->GetPointerPose((HMDHand)hand, pi);
+#if WITH_INPUT_SIMULATION
+		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		{
+			FWindowsMixedRealityInputSimulationPointerPose InputSimPointerPose;
+			if (InputSim->GetHandPointerPose(hand, InputSimPointerPose))
+			{
+				FVector pos = InputSimPointerPose.Origin;
+				FVector dir = InputSimPointerPose.Direction;
+				FVector up = InputSimPointerPose.Up;
+				FQuat rot = InputSimPointerPose.Orientation;
+				pi.origin = DirectX::XMFLOAT3(pos.X, pos.Y, pos.Z);
+				pi.orientation = DirectX::XMFLOAT4(rot.X, rot.Y, rot.Z, rot.W);
+				pi.up = DirectX::XMFLOAT3(up.X, up.Y, up.Z);
+				pi.direction = DirectX::XMFLOAT3(dir.X, dir.Y, dir.Z);
+			}
+		}
+		else
+#endif
+		{
+			HMD->GetPointerPose((HMDHand)hand, pi);
 
-		FTransform TrackingSpaceTransformOrigin(WMRUtility::FromMixedRealityQuaternion(pi.orientation), WMRUtility::FromMixedRealityVector(pi.origin) * GetWorldToMetersScale());
+			FTransform TrackingSpaceTransformOrigin(WMRUtility::FromMixedRealityQuaternion(pi.orientation), WMRUtility::FromMixedRealityVector(pi.origin) * GetWorldToMetersScale());
 
-		FTransform tOrigin = (TrackingSpaceTransformOrigin * CachedTrackingToWorld);
-		FVector pos = tOrigin.GetLocation();
-		FQuat rot = tOrigin.GetRotation();
+			FTransform tOrigin = (TrackingSpaceTransformOrigin * CachedTrackingToWorld);
+			FVector pos = tOrigin.GetLocation();
+			FQuat rot = tOrigin.GetRotation();
 
-		FVector up = CachedTrackingToWorld.GetRotation() * WMRUtility::FromMixedRealityVector(pi.up);
-		FVector dir = CachedTrackingToWorld.GetRotation() * WMRUtility::FromMixedRealityVector(pi.direction);
+			FVector up = CachedTrackingToWorld.GetRotation() * WMRUtility::FromMixedRealityVector(pi.up);
+			FVector dir = CachedTrackingToWorld.GetRotation() * WMRUtility::FromMixedRealityVector(pi.direction);
 
-		pi.origin = DirectX::XMFLOAT3(pos.X, pos.Y, pos.Z);
-		pi.orientation = DirectX::XMFLOAT4(rot.X, rot.Y, rot.Z, rot.W);
-		pi.up = DirectX::XMFLOAT3(up.X, up.Y, up.Z);
-		pi.direction = DirectX::XMFLOAT3(dir.X, dir.Y, dir.Z);
+			pi.origin = DirectX::XMFLOAT3(pos.X, pos.Y, pos.Z);
+			pi.orientation = DirectX::XMFLOAT4(rot.X, rot.Y, rot.Z, rot.W);
+			pi.up = DirectX::XMFLOAT3(up.X, up.Y, up.Z);
+			pi.direction = DirectX::XMFLOAT3(dir.X, dir.Y, dir.Z);
+		}
 	}
 
 #endif
