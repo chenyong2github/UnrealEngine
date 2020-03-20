@@ -1910,8 +1910,12 @@ void FWorldTileCollectionModel::OnPostSaveWorld(uint32 SaveFlags, UWorld* World,
 void FWorldTileCollectionModel::OnNewCurrentLevel()
 {
 	TSharedPtr<FLevelModel> CurrentLevelModel = FindLevelModel(CurrentWorld->GetCurrentLevel());
-	// Make sure level will be in focus
-	Focus(CurrentLevelModel->GetLevelBounds(), FWorldTileCollectionModel::OriginAtCenter);
+	// it's possible the level model has not been registered yet because the RefreshLevelBrowser event hasn't been broadcasted yet : 
+	if (CurrentLevelModel.IsValid())
+	{
+		// Make sure level will be in focus
+		Focus(CurrentLevelModel->GetLevelBounds(), FWorldTileCollectionModel::OriginAtCenter);
+	}
 }
 
 bool FWorldTileCollectionModel::HasMeshProxySupport() const
