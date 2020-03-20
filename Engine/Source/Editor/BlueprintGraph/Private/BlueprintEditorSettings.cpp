@@ -18,7 +18,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bSplitContextTargetSettings(true)
 	, bExposeAllMemberComponentFunctions(true)
 	, bShowContextualFavorites(false)
-	, bExposeDeprecatedFunctions(false)
+	, bExposeDeprecatedFunctionsAndClasses(false)
 	, bCompactCallOnMemberNodes(false)
 	, bFlattenFavoritesMenus(true)
 	, bFavorPureCastNodes(false)
@@ -87,7 +87,7 @@ void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 	bool bShouldRebuildRegistry = false;
 	
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, bExposeDeprecatedFunctions))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, bExposeDeprecatedFunctionsAndClasses))
 	{
 		bShouldRebuildRegistry = true;
 	}
