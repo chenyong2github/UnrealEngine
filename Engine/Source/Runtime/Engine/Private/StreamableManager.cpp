@@ -1149,7 +1149,9 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(TArray<FSoftO
 	NewRequest->CompleteDelegate = DelegateToCall;
 	NewRequest->OwningManager = this;
 	NewRequest->RequestedAssets = MoveTemp(TargetsToStream);
+#if (!PLATFORM_IOS && !PLATFORM_ANDROID)
 	NewRequest->DebugName = MoveTemp(DebugName);
+#endif
 	NewRequest->Priority = Priority;
 
 	int32 NumValidRequests = NewRequest->RequestedAssets.Num();
