@@ -67,5 +67,19 @@ FText UPythonScriptPluginSettings::GetSectionText() const
 
 #endif	// WITH_EDITOR
 
+UPythonScriptPluginUserSettings::UPythonScriptPluginUserSettings()
+{
+	CategoryName = TEXT("Plugins");
+	SectionName = TEXT("Python");
+}
+
+#if WITH_EDITOR
+FText UPythonScriptPluginUserSettings::GetSectionText() const
+{
+	return LOCTEXT("UserSettingsDisplayName", "Python");
+}
+
+#endif	// WITH_EDITOR
+
 #undef LOCTEXT_NAMESPACE
 

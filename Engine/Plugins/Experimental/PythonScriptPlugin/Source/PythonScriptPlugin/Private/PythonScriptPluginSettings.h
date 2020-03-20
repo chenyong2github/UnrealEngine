@@ -35,8 +35,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true, RelativePath))
 	TArray<FDirectoryPath> AdditionalPaths;
 
-	/** Should Developer Mode be enabled on the Python interpreter (will enable extra warnings (eg, for deprecated code), and enable stub code generation for use with external IDEs). */
-	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true))
+	/**
+	 * Should Developer Mode be enabled on the Python interpreter *for all users of the project*
+	 * Note: Most of the time you want to enable bDeveloperMode in the Editor Preferences instead!
+	 *
+	 * (will also enable extra warnings (e.g., for deprecated code), and enable stub code generation for
+	 * use with external IDEs).
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true, DisplayName="Developer Mode (all users)"), AdvancedDisplay)
 	bool bDeveloperMode;
 
 	/** Should remote Python execution be enabled? */
@@ -62,4 +68,28 @@ public:
 	/** The TTL that the UDP multicast socket should use (0 is limited to the local host, 1 is limited to the local subnet) */
 	UPROPERTY(config, EditAnywhere, Category=PythonRemoteExecution, AdvancedDisplay, meta=(DisplayName="Multicast Time-To-Live"))
 	uint8 RemoteExecutionMulticastTtl;
+};
+
+
+UCLASS(config=EditorPerProjectUserSettings)
+class UPythonScriptPluginUserSettings : public UDeveloperSettings
+{
+	GENERATED_BODY()
+
+public:
+	UPythonScriptPluginUserSettings();
+
+#if WITH_EDITOR
+	//~ UDeveloperSettings interface
+	virtual FText GetSectionText() const override;
+#endif
+
+	/**
+	 * Should Developer Mode be enabled on the Python interpreter?
+	 *
+	 * (will also enable extra warnings (e.g., for deprecated code), and enable stub code generation for
+	 * use with external IDEs).
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true))
+	bool bDeveloperMode;
 };
