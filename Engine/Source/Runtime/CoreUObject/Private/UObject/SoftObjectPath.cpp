@@ -76,13 +76,13 @@ void FSoftObjectPath::SetPath(FWideStringView Path)
 		if (Path.FindChar(':', ColonIndex))
 		{
 			// Has a subobject, split on that then create a name from the temporary path
-			AssetPathName = Path.Left(ColonIndex);
+			AssetPathName = FName(Path.Left(ColonIndex));
 			SubPathString = Path.Mid(ColonIndex + 1);
 		}
 		else
 		{
 			// No Subobject
-			AssetPathName = Path;
+			AssetPathName = FName(Path);
 			SubPathString.Empty();
 		}
 	}
@@ -118,7 +118,7 @@ void FSoftObjectPath::SetPath(FName PathName)
 			if (Path.FindChar(':', ColonIndex))
 			{
 				// Has a subobject, split on that then create a name from the temporary path
-				AssetPathName = Path.Left(ColonIndex);
+				AssetPathName = FName(Path.Left(ColonIndex));
 				SubPathString = Path.Mid(ColonIndex + 1);
 			}
 			else
