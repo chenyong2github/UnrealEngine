@@ -36,7 +36,7 @@ namespace UE4Game
 				|| (AppConfig.ProcessType.IsClient() && RoleCount(UnrealTargetRole.Server) == 0))
 				{
 					// must be the first argument!
-					AppConfig.CommandLine = ConfigRole.MapOverride + " " + AppConfig.CommandLine;
+					AppConfig.CommandLineParams.GameMap = ConfigRole.MapOverride;
 				}
 			}
 			else if (string.IsNullOrEmpty(Map) == false)
@@ -45,8 +45,7 @@ namespace UE4Game
 				if (AppConfig.ProcessType.IsServer()
 				|| (AppConfig.ProcessType.IsClient() && RoleCount(UnrealTargetRole.Server) == 0))
 				{
-					// must be the first argument!
-					AppConfig.CommandLine = Map + " " + AppConfig.CommandLine;
+					AppConfig.CommandLineParams.GameMap = Map;
 				}
 			}			
 		}

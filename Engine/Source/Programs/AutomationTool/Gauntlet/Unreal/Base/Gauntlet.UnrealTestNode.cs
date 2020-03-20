@@ -108,7 +108,6 @@ namespace Gauntlet
 		/// </summary>
 		/// 
 		protected Version TestVersion;
-		
 
 		/// <summary>
 		/// Path to the directory that logs and other artifacts are copied to after the test run.
@@ -366,9 +365,9 @@ namespace Gauntlet
 
 					UnrealSessionRole SessionRole = new UnrealSessionRole(RoleContext.Type, SessionPlatform, RoleContext.Configuration, TestRole.CommandLine);
 
-					SessionRole.RoleModifier = TestRole.RoleType;
+					SessionRole.CommandLineParams = TestRole.CommandLineParams;
+ 					SessionRole.RoleModifier = TestRole.RoleType;
 					SessionRole.Constraint = UseContextConstraint ? Context.Constraint : new UnrealTargetConstraint(SessionPlatform);
-					
 					Log.Verbose("Created SessionRole {0} from RoleContext {1} (RoleType={2})", SessionRole, RoleContext, TypesToRoles.Key);
 
 					// TODO - this can all / mostly go into UnrealTestConfiguration.ApplyToConfig
@@ -381,18 +380,17 @@ namespace Gauntlet
 					else
 					{
 						// start with anything from our context
-						SessionRole.CommandLine = RoleContext.ExtraArgs;
+						SessionRole.CommandLine += RoleContext.ExtraArgs;
 
 						// did the test ask for anything?
 						if (string.IsNullOrEmpty(TestRole.CommandLine) == false)
 						{
-							SessionRole.CommandLine += " " + TestRole.CommandLine;
+							SessionRole.CommandLine += TestRole.CommandLine;
 						}
 
 						// add controllers
-						SessionRole.CommandLine += TestRole.Controllers.Count > 0 ?
-							string.Format(" -gauntlet=\"{0}\"", string.Join(",", TestRole.Controllers)) 
-							: " -gauntlet";
+						SessionRole.CommandLineParams.Add("gauntlet", 
+							TestRole.Controllers.Count > 0 ? string.Join(",", TestRole.Controllers) : null);				
 
 						if (PassThroughArgs.Count() > 0)
 						{
