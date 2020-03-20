@@ -65,12 +65,12 @@ class UK2Node_AddComponent : public UK2Node_CallFunction
 
 	UEdGraphPin* GetRelativeTransformPin() const
 	{
-		return FindPinChecked(TEXT("RelativeTransform"));
+		return FindPinChecked(NAME_RelativeTransform);
 	}
 
 	UEdGraphPin* GetManualAttachmentPin() const
 	{
-		return FindPinChecked(TEXT("bManualAttachment"));
+		return FindPinChecked(NAME_ManualAttachment);
 	}
 
 	/** Tries to get a template object from this node. */
@@ -92,6 +92,9 @@ private:
 	}
 
 	UClass* GetSpawnedType() const;	
+
+	static const FName NAME_RelativeTransform;
+	static const FName NAME_ManualAttachment;
 };
 
 
