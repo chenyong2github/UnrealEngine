@@ -216,10 +216,3 @@ namespace NiagaraParameterPanelSectionID
 	ENiagaraScriptParameterUsage GetUsageForNewParametersInSection(NiagaraParameterPanelSectionID::Type InSection);
 
 }
-
-class FNiagaraEditorCommonCVar
-{
-public:
-	static int32 GNiagaraEnableParameterPanel2;
-	static FAutoConsoleVariableRef CVarEnableParameterPanel2;
-};
