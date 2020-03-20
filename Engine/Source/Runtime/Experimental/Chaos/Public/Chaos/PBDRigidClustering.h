@@ -102,7 +102,7 @@ public:
 	*    that have a strain value less than this valid will be released from the 
 	*    cluster.
 	*/
-	TSet<TPBDRigidParticleHandle<T, d>*> ReleaseClusterParticles(TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle, const TArrayView<T>* ExternalStrainArray=nullptr);
+	TSet<TPBDRigidParticleHandle<T, d>*> ReleaseClusterParticles(TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle, const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap = nullptr);
 
 #if 0 // Not called currently
 	/*
@@ -133,7 +133,7 @@ public:
 	*    the children clusters.
 	*/
 	TMap<TPBDRigidClusteredParticleHandle<T, d>*, TSet<TPBDRigidParticleHandle<T, d>*>> BreakingModel(
-		TArrayView<T>* ExternalStrain=nullptr);
+		TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap = nullptr);
 
 	/**
 	*  PromoteStrains

@@ -365,7 +365,16 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 
 						if (StrainSamples.Num())
 						{
-							CurrentSolver->GetEvolution()->GetRigidClustering().BreakingModel(&FloatBuffer);
+							TMap<TGeometryParticleHandle<float, 3>*, float> Map;
+							
+							for (int Index=0; Index < StrainSamples.Num(); Index++)
+							{
+								if (StrainSamples[Index] > 0)
+								{
+									Map.Add(Handles[Index], StrainSamples[Index]);
+								}
+							}
+							CurrentSolver->GetEvolution()->GetRigidClustering().BreakingModel(&Map);
 						}
 					}
 				}
