@@ -2529,6 +2529,10 @@ namespace Chaos
 
 		bool GetPairTOIHack(const TPBDRigidParticleHandle<FReal, 3>* Particle0, const TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const FRigidTransform3& StartTransform0, const FRigidTransform3& Transform1, FReal& OutTOI, FVec3& OutNormal, FReal& OutPhi)
 		{
+			// It's impossible to access an null Implicit0 or Implicit1 as we check types.
+			CA_ASSUME(Implicit0);
+			CA_ASSUME(Implicit1);
+
 			// @todo(chaos): We use GetInnerType here because TriMeshes are left with their "Instanced" wrapper, unlike all other instanced implicits. Should we strip the instance on Tri Mesh too?
 			EImplicitObjectType Implicit0Type = Implicit0 ? GetInnerType(Implicit0->GetType()) : ImplicitObjectType::Unknown;
 			EImplicitObjectType Implicit1Type = Implicit1 ? GetInnerType(Implicit1->GetType()) : ImplicitObjectType::Unknown;
@@ -2542,8 +2546,6 @@ namespace Chaos
 				return false;
 			}
 			Dir /= Length;
-
-			CA_SUPPRESS(6011); // It's impossible to have an null Implicit0 or Implicit1 as we check types.
 
 			if (Implicit0Type == TBox<FReal, 3>::StaticType() && Implicit1Type == THeightField<FReal>::StaticType())
 			{
