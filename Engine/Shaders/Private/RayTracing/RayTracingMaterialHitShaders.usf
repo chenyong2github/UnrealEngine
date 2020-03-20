@@ -138,7 +138,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	out float3 OutSubsurfaceLighting,
 	out float OutIndirectIrradiance)
 {
-	OutIndirectIrradiance = float3(0,0,0);
+	OutIndirectIrradiance = 0;
 	OutDiffuseLighting = float3(0,0,0);
 	OutSubsurfaceLighting = 0;
 	float2 SkyOcclusionUV = 0;
