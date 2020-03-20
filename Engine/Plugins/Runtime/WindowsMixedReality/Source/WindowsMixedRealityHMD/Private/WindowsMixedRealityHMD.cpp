@@ -2043,7 +2043,16 @@ namespace WindowsMixedReality
 
 	HMDTrackingStatus FWindowsMixedRealityHMD::GetControllerTrackingStatus(HMDHand hand)
 	{
-		return HMD->GetControllerTrackingStatus(hand);
+#if WITH_INPUT_SIMULATION
+		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		{
+			return (HMDTrackingStatus)InputSim->GetControllerTrackingStatus((EControllerHand)hand);
+		}
+		else
+#endif
+		{
+			return HMD->GetControllerTrackingStatus(hand);
+		}
 	}
 
 	// GetControllerOrientationAndPosition() is pre-scaled to UE4 world scale
