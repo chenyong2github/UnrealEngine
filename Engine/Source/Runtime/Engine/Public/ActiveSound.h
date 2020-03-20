@@ -669,7 +669,7 @@ public:
 	void ParseAttenuation(FSoundParseParameters& OutParseParams, int32 ListenerIndex, const FSoundAttenuationSettings& InAttenuationSettings);
 
 	/** Returns the highest effective priority of the child wave instances */
-	float GetHighestPriority() const { return Priority * FocusData.PriorityHighest * FocusData.PriorityScale; }
+	float GetHighestPriority() const;
 
 	/** Sets the amount of audio from this active sound to send to the submix. */
 	void SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo);
