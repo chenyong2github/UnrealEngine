@@ -931,7 +931,7 @@ private:
 
 
 /** Internal helper that synchronizes certain state between all proxy archives */
-class FSynchronizedArchiveState : private FArchiveState
+class FSynchronizedArchiveState : public FArchiveState
 {
 protected:
 	FSynchronizedArchiveState() = default;
