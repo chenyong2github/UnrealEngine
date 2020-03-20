@@ -97,7 +97,7 @@ static FAutoConsoleVariableRef CVarEnablePowerSavingThreadPriorityReduction(
 		{
 			UE_LOG(LogConsoleResponse, Display, TEXT("This command requires two arguments, both 0 or 1 to control the use of high priority and background priority threads, respectively."));
 		}
-		UE_LOG(LogConsoleResponse, Display, TEXT("High priority task threads: %d    Bacxkground priority threads: %d"), ENamedThreads::bHasHighPriorityThreads, ENamedThreads::bHasBackgroundThreads);
+		UE_LOG(LogConsoleResponse, Display, TEXT("High priority task threads: %d    Background priority threads: %d"), ENamedThreads::bHasHighPriorityThreads, ENamedThreads::bHasBackgroundThreads);
 	}
 
 	static FAutoConsoleCommand ThreadSwitchForABTestCommand(
