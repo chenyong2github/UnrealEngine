@@ -4250,26 +4250,6 @@ UEdGraph* FBlueprintEditorUtils::GetDelegateSignatureGraphByName(UBlueprint* Blu
 	return nullptr;
 }
 
-void FBlueprintEditorUtils::GetHiddenPinsForFunction(UEdGraph const* Graph, UFunction const* Function, TSet<FString>& HiddenPins, TSet<FString>* OutInternalPins)
-{
-	TSet<FName> HiddenPinNames;
-	if (OutInternalPins)
-	{
-		TSet<FName> InternalPinNames;
-		GetHiddenPinsForFunction(Graph, Function, HiddenPinNames, &InternalPinNames);
-
-		OutInternalPins->Reserve(HiddenPinNames.Num());
-		Algo::Transform(InternalPinNames, *OutInternalPins, [](const FName InternalPinName) { return InternalPinName.ToString(); });
-	}
-	else
-	{
-		GetHiddenPinsForFunction(Graph, Function, HiddenPinNames);
-	}
-
-	HiddenPins.Reserve(HiddenPinNames.Num());
-	Algo::Transform(HiddenPinNames, HiddenPins, [](const FName HiddenPinName) { return HiddenPinName.ToString(); });
-}
-
 // Gets a list of pins that should hidden for a given function
 void FBlueprintEditorUtils::GetHiddenPinsForFunction(UEdGraph const* Graph, UFunction const* Function, TSet<FName>& HiddenPins, TSet<FName>* OutInternalPins)
 {
@@ -4279,14 +4259,21 @@ void FBlueprintEditorUtils::GetHiddenPinsForFunction(UEdGraph const* Graph, UFun
 	{
 		for (TMap<FName, FString>::TConstIterator It(*MetaData); It; ++It)
 		{
-			static const FName NAME_LatentInfo = TEXT("LatentInfo");
-			static const FName NAME_HidePin = TEXT("HidePin");
-
 			const FName& Key = It.Key();
 
-			if (Key == NAME_LatentInfo || Key == NAME_HidePin)
+			if (Key == FBlueprintMetadata::MD_LatentInfo)
 			{
 				HiddenPins.Add(*It.Value());
+			}
+			else if (Key == FBlueprintMetadata::MD_HidePin)
+			{
+				TArray<FString> HiddenPinNames;
+				It.Value().ParseIntoArray(HiddenPinNames, TEXT(","));
+				for (FString& HiddenPinName : HiddenPinNames)
+				{
+					HiddenPinName.TrimStartAndEndInline();
+					HiddenPins.Add(*HiddenPinName);
+				}
 			}
 			else if (Key == FBlueprintMetadata::MD_ExpandEnumAsExecs ||
 					Key == FBlueprintMetadata::MD_ExpandBoolAsExecs)
@@ -4301,12 +4288,19 @@ void FBlueprintEditorUtils::GetHiddenPinsForFunction(UEdGraph const* Graph, UFun
 			}
 			else if (Key == FBlueprintMetadata::MD_InternalUseParam)
 			{
-				const FName HiddenPinName = *It.Value();
-				HiddenPins.Add(HiddenPinName);
-
-				if (OutInternalPins != nullptr)
+				TArray<FString> HiddenPinNames;
+				It.Value().ParseIntoArray(HiddenPinNames, TEXT(","));
+				for (FString& HiddenPinName : HiddenPinNames)
 				{
-					OutInternalPins->Add(HiddenPinName);
+					HiddenPinName.TrimStartAndEndInline();
+
+					FName HiddenPinFName(*HiddenPinName);
+					HiddenPins.Add(HiddenPinFName);
+
+					if (OutInternalPins)
+					{
+						OutInternalPins->Add(HiddenPinFName);
+					}
 				}
 			}
 			else if (Key == FBlueprintMetadata::MD_WorldContext)

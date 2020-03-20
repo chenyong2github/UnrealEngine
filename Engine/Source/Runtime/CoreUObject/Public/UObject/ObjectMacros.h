@@ -750,8 +750,11 @@ namespace UC
 		/// Marks this class as an 'early access' preview (while not considered production-ready, it's a step beyond 'experimental' and is being provided as a preview of things to come)
 		EarlyAccessPreview,
 
-		// Some properties are stored once per class in a sidecar structure and not on instances of the class
+		/// Some properties are stored once per class in a sidecar structure and not on instances of the class
 		SparseClassDataType,
+
+		/// Specifies the struct that contains the CustomThunk implementations
+		CustomThunkTemplates
 	};
 }
 

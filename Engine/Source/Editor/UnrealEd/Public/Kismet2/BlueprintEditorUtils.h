@@ -735,9 +735,6 @@ public:
 	 * @param [out]		HiddenPins		Set of pins that should be hidden
 	 * @param [out]		OutInternalPins	Subset of hidden pins that are marked for internal use only rather than marked as hidden (optional)
 	 */
-	UE_DEPRECATED(4.19, "Use version that passes sets by name")
-	static void GetHiddenPinsForFunction(UEdGraph const* Graph, UFunction const* Function, TSet<FString>& HiddenPins, TSet<FString>* OutInternalPins = nullptr);
-
 	static void GetHiddenPinsForFunction(UEdGraph const* Graph, UFunction const* Function, TSet<FName>& HiddenPins, TSet<FName>* OutInternalPins = nullptr);
 
 	/** Makes sure that calls to parent functions are valid, and removes them if not */

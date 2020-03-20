@@ -113,6 +113,8 @@ const FName FBlueprintMetadata::MD_IgnoreCategoryKeywordsInSubclasses(TEXT("Igno
 
 const FName FBlueprintMetadata::MD_Protected(TEXT("BlueprintProtected"));
 const FName FBlueprintMetadata::MD_Latent(TEXT("Latent"));
+const FName FBlueprintMetadata::MD_CustomThunkTemplates(TEXT("CustomThunkTemplates"));
+const FName FBlueprintMetadata::MD_CustomThunk(TEXT("CustomThunk"));
 const FName FBlueprintMetadata::MD_Variadic(TEXT("Variadic"));
 const FName FBlueprintMetadata::MD_UnsafeForConstructionScripts(TEXT("UnsafeDuringActorConstruction"));
 const FName FBlueprintMetadata::MD_FunctionCategory(TEXT("Category"));
@@ -128,6 +130,7 @@ const FName FBlueprintMetadata::MD_PropertySetFunction(TEXT("BlueprintSetter"));
 
 const FName FBlueprintMetadata::MD_ExposeOnSpawn(TEXT("ExposeOnSpawn"));
 const FName FBlueprintMetadata::MD_HideSelfPin(TEXT("HideSelfPin"));
+const FName FBlueprintMetadata::MD_HidePin(TEXT("HidePin"));
 const FName FBlueprintMetadata::MD_DefaultToSelf(TEXT("DefaultToSelf"));
 const FName FBlueprintMetadata::MD_WorldContext(TEXT("WorldContext"));
 const FName FBlueprintMetadata::MD_CallableWithoutWorldContext(TEXT("CallableWithoutWorldContext"));
@@ -139,7 +142,7 @@ const FName FBlueprintMetadata::MD_Private(TEXT("BlueprintPrivate"));
 
 const FName FBlueprintMetadata::MD_BlueprintInternalUseOnly(TEXT("BlueprintInternalUseOnly"));
 const FName FBlueprintMetadata::MD_NeedsLatentFixup(TEXT("NeedsLatentFixup"));
-
+const FName FBlueprintMetadata::MD_LatentInfo(TEXT("LatentInfo"));
 const FName FBlueprintMetadata::MD_LatentCallbackTarget(TEXT("LatentCallbackTarget"));
 const FName FBlueprintMetadata::MD_AllowPrivateAccess(TEXT("AllowPrivateAccess"));
 
@@ -167,6 +170,8 @@ const FName FBlueprintMetadata::MD_NativeBreakFunction(TEXT("HasNativeBreak"));
 
 const FName FBlueprintMetadata::MD_DynamicOutputType(TEXT("DeterminesOutputType"));
 const FName FBlueprintMetadata::MD_DynamicOutputParam(TEXT("DynamicOutputParam"));
+
+const FName FBlueprintMetadata::MD_CustomStructureParam(TEXT("CustomStructureParam"));
 
 const FName FBlueprintMetadata::MD_ArrayParam(TEXT("ArrayParm"));
 const FName FBlueprintMetadata::MD_ArrayDependentParam(TEXT("ArrayTypeDependentParams"));

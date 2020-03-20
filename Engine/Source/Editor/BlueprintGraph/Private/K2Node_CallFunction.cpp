@@ -50,18 +50,12 @@
 
 struct FCustomStructureParamHelper
 {
-	static FName GetCustomStructureParamName()
-	{
-		static FName Name(TEXT("CustomStructureParam"));
-		return Name;
-	}
-
 	static void FillCustomStructureParameterNames(const UFunction* Function, TArray<FString>& OutNames)
 	{
 		OutNames.Reset();
 		if (Function)
 		{
-			const FString& MetaDataValue = Function->GetMetaData(GetCustomStructureParamName());
+			const FString& MetaDataValue = Function->GetMetaData(FBlueprintMetadata::MD_CustomStructureParam);
 			if (!MetaDataValue.IsEmpty())
 			{
 				MetaDataValue.ParseIntoArray(OutNames, TEXT(","), true);
