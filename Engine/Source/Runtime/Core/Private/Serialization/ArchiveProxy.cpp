@@ -10,5 +10,10 @@ FArchiveProxy::FArchiveProxy(FArchive& InInnerArchive)
 : FArchive    (InInnerArchive)
 , InnerArchive(InInnerArchive)
 {
+	LinkProxy(&InnerArchive, this);
 }
 
+FArchiveProxy::~FArchiveProxy()
+{
+	UnlinkProxy(&InnerArchive, this);
+}

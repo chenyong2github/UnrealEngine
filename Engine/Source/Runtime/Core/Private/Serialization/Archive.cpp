@@ -261,22 +261,6 @@ FString FArchiveState::GetArchiveName() const
 	return TEXT("FArchive");
 }
 
-void FArchiveState::SetError()
-{
-	ArIsError = true;
-}
-
-void FArchiveState::ClearError()
-{
-	ArIsError = false;
-}
-
-void FArchiveState::SetCriticalError()
-{
-	SetError();
-	ArIsCriticalError = true;
-}
-
 void FArchiveState::GetSerializedPropertyChain(TArray<class FProperty*>& OutProperties) const
 {
 	if (SerializedPropertyChain)
@@ -319,6 +303,61 @@ void FArchiveState::SetSerializedPropertyChain(const FArchiveSerializedPropertyC
 	{
 		SerializedProperty = nullptr;
 	}
+}
+
+FSynchronizedArchiveState::~FSynchronizedArchiveState()
+{
+	checkf(NextProxy == nullptr, TEXT("Archive destroyed before its proxies"));
+}
+
+void FSynchronizedArchiveState::LinkProxy(FSynchronizedArchiveState* Inner, FSynchronizedArchiveState* Proxy)
+{
+	Proxy->NextProxy = Inner->NextProxy;
+	Inner->NextProxy = Proxy;
+}
+
+void FSynchronizedArchiveState::UnlinkProxy(FSynchronizedArchiveState* Inner, FSynchronizedArchiveState* Proxy)
+{
+	while (Inner->NextProxy != Proxy)
+	{
+		Inner = Inner->NextProxy;
+		checkf(Inner, TEXT("Proxy link not found - likely  lifetime violation"));
+	}
+
+	Inner->NextProxy = Proxy->NextProxy;
+	Proxy->NextProxy = nullptr;
+}
+
+template<typename T>
+FORCEINLINE void FSynchronizedArchiveState::ForEachState(T Func)
+{
+	FSynchronizedArchiveState& RootState = GetInnermostState();
+	Func(RootState);
+
+	for (FSynchronizedArchiveState* Proxy = RootState.NextProxy; Proxy; Proxy = Proxy->NextProxy)
+	{
+		Func(*Proxy);
+	}
+}
+
+void FSynchronizedArchiveState::SetArchiveState(const FArchiveState& InState)
+{
+	ForEachState([&InState](FArchiveState& State) { State = InState; });
+}
+
+void FSynchronizedArchiveState::SetError()
+{
+	ForEachState([](FArchiveState& State) { State.ArIsError = true; });
+}
+
+void FSynchronizedArchiveState::SetCriticalError()
+{
+	ForEachState([](FArchiveState& State) { State.ArIsError = State.ArIsCriticalError = true; });
+}
+
+void FSynchronizedArchiveState::ClearError()
+{
+	ForEachState([](FArchiveState& State) { State.ArIsError = false; });
 }
 
 void FArchive::PushSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty)
@@ -1222,9 +1261,6 @@ void FArchiveState::SetIsPersistent(bool bInIsPersistent)
 	ArIsPersistent = bInIsPersistent;
 }
 
-void FArchive::SetArchiveState(const FArchiveState& InState)
-{
-	ImplicitConv<FArchiveState&>(*this) = InState;
-}
+static_assert(sizeof(FArchive) == sizeof(FSynchronizedArchiveState), "New FArchive members should be added to FArchiveState instead");
 
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

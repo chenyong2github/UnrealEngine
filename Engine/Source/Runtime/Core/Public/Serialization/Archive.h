@@ -52,6 +52,7 @@ struct CORE_API FArchiveState
 private:
 	// Only FArchive is allowed to instantiate this, by inheritance
 	friend class FArchive;
+	friend class FSynchronizedArchiveState;
 
 	FArchiveState();
 
@@ -105,26 +106,10 @@ public:
 		return ((Pos != INDEX_NONE) && (Pos >= TotalSize()));
 	}
 
-	virtual bool GetError()
+	FORCEINLINE bool GetError() const
 	{
 		return ArIsError;
 	}
-
-	/**
-	 * Sets ArIsError to true. Also sets error in the proxy archiver if one is wrapping this.
-	 */
-	void SetError();
-
-	/**
-	 * Sets ArIsError to false, this does not clear any CriticalErrors
-	 */
-	void ClearError();
-
-	/**
-	 * Sets the archiver IsCriticalError and IsError to true. Also sets CriticalError in the proxy archiver if one is wrapping this.
-	 */
-	void SetCriticalError();
-
 
 	FORCEINLINE bool IsByteSwapping()
 	{
@@ -945,11 +930,59 @@ private:
 };
 
 
+/** Internal helper that synchronizes certain state between all proxy archives */
+class FSynchronizedArchiveState : private FArchiveState
+{
+protected:
+	FSynchronizedArchiveState() = default;
+	FSynchronizedArchiveState(const FSynchronizedArchiveState& State) : FArchiveState(static_cast<const FArchiveState&>(State)) {}
+	FSynchronizedArchiveState& operator=(const FSynchronizedArchiveState& State) { static_cast<FArchiveState&>(*this) = State; return *this; }
+	~FSynchronizedArchiveState();
+
+	static void LinkProxy(FSynchronizedArchiveState* Inner, FSynchronizedArchiveState* Proxy);
+	static void UnlinkProxy(FSynchronizedArchiveState* Inner, FSynchronizedArchiveState* Proxy);
+
+public:
+	virtual FSynchronizedArchiveState& GetInnermostState()
+	{
+		return *this;
+	}
+
+	const FArchiveState& GetArchiveState() const
+	{
+		return ImplicitConv<const FArchiveState&>(*this);
+	}
+
+	CORE_API void SetArchiveState(const FArchiveState& InState);
+
+	/**
+	 * Sets ArIsError to true. Also sets error in the proxy archiver if one is wrapping this.
+	 */
+	CORE_API void SetError();
+
+	/**
+	 * Sets ArIsError to false, this does not clear any CriticalErrors
+	 */
+	CORE_API void ClearError();
+
+	/**
+	 * Sets the archiver IsCriticalError and IsError to true. Also sets CriticalError in the proxy archiver if one is wrapping this.
+	 */
+	CORE_API void SetCriticalError();
+
+private:
+	/** Linked list to all proxies */
+	FSynchronizedArchiveState* NextProxy = nullptr;
+
+	template<typename T> void ForEachState(T Func);
+};
+
+
 /**
  * Base class for archives that can be used for loading, saving, and garbage
  * collecting in a byte order neutral way.
  */
-class CORE_API FArchive : private FArchiveState
+class CORE_API FArchive : public FSynchronizedArchiveState
 {
 public:
 	FArchive() = default;
@@ -1515,9 +1548,6 @@ public:
 	}
 
 	using FArchiveState::GetError;
-	using FArchiveState::SetError;
-	using FArchiveState::ClearError;
-	using FArchiveState::SetCriticalError;
 
 	/**
 	 * Serializes and compresses/ uncompresses data. This is a shared helper function for compression
@@ -1761,13 +1791,6 @@ public:
 	}
 #endif
 
-	const FArchiveState& GetArchiveState() const
-	{
-		return ImplicitConv<const FArchiveState&>(*this);
-	}
-
-	virtual void SetArchiveState(const FArchiveState& InState);
-
 private:
 	// Used internally only to control the amount of generated code/type under control.
 	template<typename T>
@@ -1950,7 +1973,7 @@ private:
 	using FArchiveState::bCustomVersionsAreReset;
 };
 
-static_assert(sizeof(FArchive) == sizeof(FArchiveState), "New FArchive members should be added to FArchiveState instead");
+
 
 
 /**
