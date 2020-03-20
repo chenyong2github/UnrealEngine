@@ -654,7 +654,7 @@ void FPythonScriptPlugin::InitializePython()
 		PySys_SetArgvEx(1, NullPyArgPtrs, 0);
 
 		// Enable developer warnings if requested
-		if (GetDefault<UPythonScriptPluginSettings>()->bDeveloperMode)
+		if (IsDeveloperModeEnabled())
 		{
 			PyUtil::EnableDeveloperWarnings();
 		}
@@ -836,7 +836,7 @@ void FPythonScriptPlugin::RequestStubCodeGeneration()
 
 void FPythonScriptPlugin::GenerateStubCode()
 {
-	if (GetDefault<UPythonScriptPluginSettings>()->bDeveloperMode)
+	if (IsDeveloperModeEnabled())
 	{
 		// Generate stub code if developer mode enabled
 		FPyWrapperTypeRegistry::Get().GenerateStubCodeForWrappedTypes();
@@ -1174,6 +1174,11 @@ void FPythonScriptPlugin::OnContentPathDismounted(const FString& InAssetPath, co
 {
 	FPyScopedGIL GIL;
 	PyUtil::RemoveSystemPath(FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python")));
+}
+
+bool FPythonScriptPlugin::IsDeveloperModeEnabled()
+{
+	return GetDefault<UPythonScriptPluginSettings>()->bDeveloperMode || GetDefault<UPythonScriptPluginUserSettings>()->bDeveloperMode;
 }
 
 void FPythonScriptPlugin::OnAssetRenamed(const FAssetData& Data, const FString& OldName)
