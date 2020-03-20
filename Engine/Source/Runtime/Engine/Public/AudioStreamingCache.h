@@ -16,6 +16,7 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 #include "Async/AsyncFileHandle.h"
 #include "HAL/ThreadSafeBool.h"
 #include "AudioStreaming.h"
+#include "Sound/SoundWave.h"
 
 
 #define DEBUG_STREAM_CACHE !UE_BUILD_SHIPPING
