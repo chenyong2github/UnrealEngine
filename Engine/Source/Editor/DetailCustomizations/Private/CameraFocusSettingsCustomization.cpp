@@ -181,9 +181,9 @@ EVisibility FCameraFocusSettingsCustomization::IsGeneralSettingGroupVisible() co
 	uint8 FocusMethodNumber;
 	FocusMethodHandle->GetValue(FocusMethodNumber);
 	ECameraFocusMethod const FocusMethod = static_cast<ECameraFocusMethod>(FocusMethodNumber);
-	if (FocusMethod != ECameraFocusMethod::None)
+	if (FocusMethod != ECameraFocusMethod::Disable && FocusMethod != ECameraFocusMethod::DoNotOverride)
 	{
-		// if focus method is set to none, all non-none setting groups are collapsed
+		// if focus method is set to disable, all non-none setting groups are collapsed
 		return EVisibility::Visible;
 	}
 

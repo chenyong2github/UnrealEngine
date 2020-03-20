@@ -110,7 +110,7 @@ void FDatasmithCameraImporter::SetupCineCameraComponent( UCineCameraComponent* C
 	CameraTemplate->CurrentFocalLength = CameraElement->GetFocalLength();
 	CameraTemplate->CurrentAperture = CameraElement->GetFStop();
 
-	CameraTemplate->FocusSettings.FocusMethod = CameraElement->GetEnableDepthOfField() ? ECameraFocusMethod::Manual : ECameraFocusMethod::None;
+	CameraTemplate->FocusSettings.FocusMethod = CameraElement->GetEnableDepthOfField() ? ECameraFocusMethod::Manual : ECameraFocusMethod::DoNotOverride;
 	CameraTemplate->FocusSettings.ManualFocusDistance = CameraElement->GetFocusDistance();
 
 	CameraTemplate->PostProcessSettings = FDatasmithPostProcessImporter::CopyDatasmithPostProcessToUEPostProcess( CameraElement->GetPostProcess() );
