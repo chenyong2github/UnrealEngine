@@ -724,8 +724,9 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	RegenerateCodeView(true);
 
 	ForceRefreshExpressionPreviews();
-	if (Generator.IsValid())
+	if (Generator.IsValid() && MaterialEditorInstance)
 	{
+		MaterialEditorInstance->RegenerateArrays();
 		TArray<UObject*> Objects;
 		Objects.Add(MaterialEditorInstance);
 		Generator->SetObjects(Objects);
