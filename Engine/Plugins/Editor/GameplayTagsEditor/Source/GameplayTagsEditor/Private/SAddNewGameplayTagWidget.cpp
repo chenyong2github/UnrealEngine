@@ -7,6 +7,7 @@
 #include "GameplayTagsModule.h"
 #include "Widgets/Input/SButton.h"
 #include "Misc/MessageDialog.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "AddNewGameplayTagWidget"
 
