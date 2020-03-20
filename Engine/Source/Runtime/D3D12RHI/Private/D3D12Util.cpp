@@ -355,8 +355,6 @@ static void LogDREDData(ID3D12Device* Device)
 				}
 			}
 		}
-
-		GLog->Flush();
 	}
 }
 
@@ -388,6 +386,10 @@ static void TerminateOnDeviceRemoved(HRESULT D3DResult, ID3D12Device* Device)
 			LogDREDData(Device);
 		}
 #endif  // PLATFORM_WINDOWS
+		
+		// Make sure the log is flushed!
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
 
 		if (!FApp::IsUnattended())
 		{
