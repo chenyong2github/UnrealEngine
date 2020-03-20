@@ -111,20 +111,13 @@ protected:
 		if (ParentNode && ParentNode->IsPinNameEditable(this->GraphPinObj))
 		{
 			UNiagaraGraph* NiagaraGraph = ParentNode->GetNiagaraGraph();
-			if (FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 > 0)
+			if (ParentNode->IsA<UNiagaraNodeParameterMapBase>())
 			{
-				if (ParentNode->IsA<UNiagaraNodeParameterMapBase>())
+				if (NiagaraGraph->IsPinVisualWidgetProviderRegistered())
 				{
-					if (NiagaraGraph->IsPinVisualWidgetProviderRegistered())
-					{
-						return NiagaraGraph->GetPinVisualWidget(this->GraphPinObj);
-					}
-					return CreateLabelTextBlock();
+					return NiagaraGraph->GetPinVisualWidget(this->GraphPinObj);
 				}
-				else 
-				{
-					return CreateRenamableLabelTextBlock();
-				}
+				return CreateLabelTextBlock();
 			}
 			else
 			{
@@ -132,8 +125,7 @@ protected:
 			}
 		}
 		else
-		{
-			
+		{	
 			return BaseClass::GetLabelWidget(InLabelStyle);
 		}
 	}
