@@ -419,6 +419,11 @@ bool FInternationalization::IsCultureAllowed(const FString& Name)
 	return Implementation->IsCultureAllowed(Name);
 }
 
+void FInternationalization::RefreshCultureDisplayNames()
+{
+	Implementation->RefreshCultureDisplayNames();
+}
+
 void FInternationalization::GetCultureNames(TArray<FString>& CultureNames) const
 {
 	Implementation->GetCultureNames(CultureNames);
