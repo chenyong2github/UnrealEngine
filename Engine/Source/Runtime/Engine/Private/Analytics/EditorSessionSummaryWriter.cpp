@@ -33,33 +33,22 @@ DEFINE_LOG_CATEGORY_STATIC(LogEditorSessionSummary, Verbose, All);
 
 namespace EditorSessionWriterDefs
 {
+	// Number of seconds to wait between each update of the mutable metrics.
 	static const float HeartbeatPeriodSeconds = 60;
 }
 
-FEditorSessionSummaryWriter::FEditorSessionSummaryWriter() :
-	CurrentSession(nullptr)
-	, StartupSeconds(0.0)
-	, IdleSeconds(0.0f)
-	, HeartbeatTimeElapsed(0.0f)
+FEditorSessionSummaryWriter::FEditorSessionSummaryWriter()
+	: HeartbeatTimeElapsed(0.0f)
 	, bShutdown(false)
 {
 }
 
-void FEditorSessionSummaryWriter::Initialize()
+FEditorSessionSummaryWriter::~FEditorSessionSummaryWriter()
 {
-	// Register for crash and app state callbacks
-	FCoreDelegates::OnHandleSystemError.AddRaw(this, &FEditorSessionSummaryWriter::OnCrashing);
-	FCoreDelegates::ApplicationWillTerminateDelegate.AddRaw(this, &FEditorSessionSummaryWriter::OnTerminate);
-	FCoreDelegates::IsVanillaProductChanged.AddRaw(this, &FEditorSessionSummaryWriter::OnVanillaStateChanged);
-	FUserActivityTracking::OnActivityChanged.AddRaw(this, &FEditorSessionSummaryWriter::OnUserActivity);
-	FSlateApplication::Get().GetOnModalLoopTickEvent().AddRaw(this, &FEditorSessionSummaryWriter::Tick);
-
-	StartupSeconds = FPlatformTime::Seconds();
-
-	InitializeSessions();
+	Shutdown(); // In case it wasn't already called.
 }
 
-void FEditorSessionSummaryWriter::InitializeSessions()
+void FEditorSessionSummaryWriter::Initialize()
 {
 	if (!FEngineAnalytics::IsAvailable() || CurrentSession != nullptr)
 	{
@@ -68,7 +57,7 @@ void FEditorSessionSummaryWriter::InitializeSessions()
 
 	UE_LOG(LogEditorSessionSummary, Verbose, TEXT("Initializing EditorSessionSummaryWriter for editor session tracking"));
 
-	if (FEditorAnalyticsSession::Lock())
+	if (FEditorAnalyticsSession::Lock()) // System wide locking to write the session file/registry
 	{
 		// Create a session Session for this session
 		CurrentSession = CreateCurrentSession();
@@ -86,29 +75,44 @@ void FEditorSessionSummaryWriter::InitializeSessions()
 
 		FEditorAnalyticsSession::Unlock();
 	}
+
+	if (CurrentSession)
+	{
+		// Register for crash and app state callbacks
+		FCoreDelegates::OnHandleSystemError.AddRaw(this, &FEditorSessionSummaryWriter::OnCrashing); // WARNING: Don't assume this function is only called from game thread.
+		FCoreDelegates::ApplicationWillTerminateDelegate.AddRaw(this, &FEditorSessionSummaryWriter::OnTerminate); // WARNING: Don't assume this function is only called from game thread.
+		FCoreDelegates::IsVanillaProductChanged.AddRaw(this, &FEditorSessionSummaryWriter::OnVanillaStateChanged);
+		FUserActivityTracking::OnActivityChanged.AddRaw(this, &FEditorSessionSummaryWriter::OnUserActivity);
+		FSlateApplication::Get().GetOnModalLoopTickEvent().AddRaw(this, &FEditorSessionSummaryWriter::Tick);
+	}
 }
 
 void FEditorSessionSummaryWriter::UpdateTimestamps()
 {
 	CurrentSession->Timestamp = FDateTime::UtcNow();
-	CurrentSession->SessionDuration = FMath::FloorToInt(static_cast<float>((CurrentSession->Timestamp - CurrentSession->StartupTimestamp).GetTotalSeconds()));
+	UpdateIdleTimes();
+}
+
+void FEditorSessionSummaryWriter::UpdateIdleTimes()
+{
+	int32 IdleSecondsTmp = FPlatformAtomics::AtomicRead(&CurrentSession->IdleSeconds); // Atomically load only once.
 
 	// 1 + 1 minutes
-	if (IdleSeconds > (60 + 60))
+	if (IdleSecondsTmp > (60 + 60))
 	{
-		CurrentSession->Idle1Min += 1;
+		FPlatformAtomics::InterlockedIncrement(&CurrentSession->Idle1Min); // User spent one more minute as idle > 1 min
 	}
 
 	// 5 + 1 minutes
-	if (IdleSeconds > (5 * 60 + 60))
+	if (IdleSecondsTmp > (5 * 60 + 60))
 	{
-		CurrentSession->Idle5Min += 1;
+		FPlatformAtomics::InterlockedIncrement(&CurrentSession->Idle5Min); // User spent one more minute as idle > 5 min
 	}
 
 	// 30 + 1 minutes
-	if (IdleSeconds > (30 * 60 + 60))
+	if (IdleSecondsTmp > (30 * 60 + 60))
 	{
-		CurrentSession->Idle30Min += 1;
+		FPlatformAtomics::InterlockedIncrement(&CurrentSession->Idle30Min); // User spent one more minute as idle > 30 min
 	}
 }
 
@@ -119,9 +123,11 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 		return;
 	}
 
-	// Note: Update idle time is Tick() because Slate cannot be invoked from any thread and UpdateTimeStamps() can be called from any crashing thread.
+	// Note: Update idle time in Tick() because Slate cannot be invoked from any thread and UpdateTimeStamps() can be called from a crashing thread.
 	//       Compute the idle time from Slate point-of view. Note that some tasks blocking the UI (such as importing large assets) may be considered idle time.
-	IdleSeconds = FSlateApplication::Get().GetCurrentTime() - FSlateApplication::Get().GetLastUserInteractionTime();
+	CurrentSession->IdleSeconds = FSlateApplication::Get().GetLastUserInteractionTime() != 0 ? // In case Slate did not register any interaction yet (ex the user just launches the Editor and goes away)
+		FMath::FloorToInt(static_cast<float>(FSlateApplication::Get().GetCurrentTime() - FSlateApplication::Get().GetLastUserInteractionTime())) :
+		FMath::FloorToInt(static_cast<float>((FDateTime::UtcNow() - CurrentSession->StartupTimestamp).GetTotalSeconds()));
 
 	HeartbeatTimeElapsed += DeltaTime;
 
@@ -129,8 +135,11 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 	{
 		HeartbeatTimeElapsed = 0.0f;
 
-		// Try late initialization
-		InitializeSessions();
+		// Try late initialization (in case user toggled the analytics 'Send Data' on during the session).
+		if (CurrentSession == nullptr)
+		{
+			Initialize();
+		}
 
 		if (CurrentSession != nullptr)
 		{
@@ -164,43 +173,41 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 
 void FEditorSessionSummaryWriter::LowDriveSpaceDetected()
 {
-	CurrentSession->bIsLowDriveSpace = true;
+	if (CurrentSession)
+	{
+		CurrentSession->bIsLowDriveSpace = true;
 
-	TrySaveCurrentSession();
+		TrySaveCurrentSession();
+	}
 }
 
 void FEditorSessionSummaryWriter::Shutdown()
 {
-	FCoreDelegates::OnHandleSystemError.RemoveAll(this);
-	FCoreDelegates::ApplicationWillTerminateDelegate.RemoveAll(this);
-	FCoreDelegates::IsVanillaProductChanged.RemoveAll(this);
-
-	FUserActivityTracking::OnActivityChanged.RemoveAll(this);
-
-	if (CurrentSession != nullptr)
+	// NOTE: Initialize(), Shutdown() and ~FEditorSessionSummaryWriter() are expected to be called from the game thread only.
+	if (CurrentSession && !bShutdown)
 	{
-		if (!CurrentSession->bIsTerminating && !CurrentSession->bCrashed)
-		{
-			FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);
+		// NOTE: Shutdown() may crash if a delegate is broadcasted from another thread at the same time (that's a bug in 4.25) the delegate are modified.
+		FCoreDelegates::ApplicationWillTerminateDelegate.RemoveAll(this);
+		FCoreDelegates::IsVanillaProductChanged.RemoveAll(this);
+		FUserActivityTracking::OnActivityChanged.RemoveAll(this);
+		FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);
+		FCoreDelegates::OnHandleSystemError.RemoveAll(this);
 
-			CurrentSession->bWasShutdown = true;
-		}
-
+		CurrentSession->bWasShutdown = true;
 		UpdateTimestamps();
-
 		TrySaveCurrentSession();
 
-		delete CurrentSession;
-		CurrentSession = nullptr;
-		bShutdown = true;
+		CurrentSession.Reset();
 	}
+
+	bShutdown = true;
 }
 
-FEditorAnalyticsSession* FEditorSessionSummaryWriter::CreateCurrentSession() const
+TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSession()
 {
 	check(FEngineAnalytics::IsAvailable()); // The function assumes the caller checked it before calling.
 
-	FEditorAnalyticsSession* Session = new FEditorAnalyticsSession();
+	TUniquePtr<FEditorAnalyticsSession> Session = MakeUnique<FEditorAnalyticsSession>();
 	IAnalyticsProviderET& AnalyticProvider = FEngineAnalytics::GetProvider();
 
 	FGuid SessionId;
@@ -228,7 +235,6 @@ FEditorAnalyticsSession* FEditorSessionSummaryWriter::CreateCurrentSession() con
 	Session->ProjectVersion = ProjectSettings.ProjectVersion;
 	Session->EngineVersion = FEngineVersion::Current().ToString(EVersionComponent::Changelist);
 	Session->Timestamp = Session->StartupTimestamp = FDateTime::UtcNow();
-	Session->SessionDuration = 0;
 	Session->bIsDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->bWasEverDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->CurrentUserActivity = GetUserActivityString();
@@ -270,31 +276,31 @@ FEditorAnalyticsSession* FEditorSessionSummaryWriter::CreateCurrentSession() con
 extern CORE_API bool GIsGPUCrashed;
 void FEditorSessionSummaryWriter::OnCrashing()
 {
+	// NOTE: This function is called from the crashing thread or the a crash processing thread and is concurrent with other functions such as Tick(), Initialize() or Shutdown() running on the game thread.
 	if (CurrentSession != nullptr)
 	{
-		UpdateTimestamps();
+		UpdateIdleTimes();
+		CurrentSession->LogEvent(FEditorAnalyticsSession::EEventType::Crashed, FDateTime::UtcNow());
 
-		CurrentSession->bCrashed = true;
-		CurrentSession->bGPUCrashed = GIsGPUCrashed;
+		if (GIsGPUCrashed)
+		{
+			CurrentSession->LogEvent(FEditorAnalyticsSession::EEventType::GpuCrashed, FDateTime::UtcNow());
+		}
 
-		TrySaveCurrentSession();
+		// NOTE: Don't try to save the session, we don't know if the lock used to save the key-store is corrupted (or held by the crashing thread) when OnCrashing() is called from the crash handler thread.
 	}
 }
 
 void FEditorSessionSummaryWriter::OnTerminate()
 {
+	// NOTE: This function can be called from any thread (from the crashing thread too) and is likely concurrent with other functions such as Tick(), Initiallize() or Shutdown() running on the game thread.
 	if (CurrentSession != nullptr)
 	{
-		UpdateTimestamps();
+		UpdateIdleTimes();
+		CurrentSession->LogEvent(FEditorAnalyticsSession::EEventType::Terminated, FDateTime::UtcNow());
 
-		CurrentSession->bIsTerminating = true;
-
-		TrySaveCurrentSession();
-
-		if (IsEngineExitRequested())
-		{
-			Shutdown();
-		}
+		// NOTE: Don't try to save the session, we don't know if this is called from a crash handler (and if the crashing thread corrupted (or held) the lock to save the key-store.)
+		// NOTE: Don't explicitely Shutdown(), it is expected to be called on game thread to prevent unregistered delegate from a random thread. Just let the normal flow call Shutdown() or not. Destructor will do in last resort.
 	}
 }
 
@@ -318,7 +324,7 @@ void FEditorSessionSummaryWriter::OnUserActivity(const FUserActivity& UserActivi
 	}
 }
 
-FString FEditorSessionSummaryWriter::GetUserActivityString() const
+FString FEditorSessionSummaryWriter::GetUserActivityString()
 {
 	const FUserActivity& UserActivity = FUserActivityTracking::GetUserActivity();
 
@@ -332,10 +338,10 @@ FString FEditorSessionSummaryWriter::GetUserActivityString() const
 
 void FEditorSessionSummaryWriter::TrySaveCurrentSession()
 {
-	if (FEditorAnalyticsSession::Lock())
+	if (FEditorAnalyticsSession::Lock()) // Inter-process lock to grant this process exclusive access to the key-store file/registry.
 	{
+		FScopeLock ScopedLock(&SaveSessionLock); // Intra-process lock to grant the calling thread exclusive access to the key-store file/registry.
 		CurrentSession->Save();
-
 		FEditorAnalyticsSession::Unlock();
 	}
 }

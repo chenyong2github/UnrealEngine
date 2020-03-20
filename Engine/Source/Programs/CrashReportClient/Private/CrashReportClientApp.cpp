@@ -940,10 +940,10 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			bool bAbnormalShutdownFromEditorPov = false;
 			bool bNormalShutdownFromOsPov = false; // Can only be true if the Editor process exit code is known and equal to zero.
 
+			// Send the editor summary event(s) first, maximizing chance of sucessfull transmission (less opportunities for bugs to prevent it).
+			FCrashReportAnalytics::Initialize();
+			if (FCrashReportAnalytics::IsAvailable())
 			{
-				// Send the editor summary event(s) first, maximizing chance of sucessfull transmission (less opportunities for bugs to prevent it).
-				FCrashReportAnalytics::Initialize();
-				if (FCrashReportAnalytics::IsAvailable())
 				{
 					// NOTE: The Editor doesn't create summary events if analytics are disabled (not permitted to send). It may still send pending events
 					//       accmulated while 'Send Data' was true, but will not send any newer.
@@ -975,21 +975,21 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					// Send summary session event(s).
 					EditorSessionSummarySender.Shutdown();
 				}
-				FCrashReportAnalytics::Shutdown();
-			}
 
-			// If the Editor hasn't called all its crash/exit handlers properly (session summary flags are not set) and the Editor exit code isn't known or different than zero.
-			if (bAbnormalShutdownFromEditorPov && !bNormalShutdownFromOsPov)
-			{
-				// Load our temporary crash context file.
-				FSharedCrashContext TempCrashContext;
-				FMemory::Memzero(TempCrashContext);
-				if (LoadTempCrashContextFromFile(TempCrashContext, MonitorPid) && TempCrashContext.UserSettings.bSendUsageData && TempCrashContext.UserSettings.bSendUnattendedBugReports)
+				// If the Editor hasn't called all its crash/exit handlers properly (session summary flags are not set) and the Editor exit code isn't known or different than zero.
+				if (bAbnormalShutdownFromEditorPov && !bNormalShutdownFromOsPov)
 				{
-					// Send a spoofed crash report in the case that we detect an abnormal shutdown has occurred
-					HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr);
+					// Load our temporary crash context file.
+					FSharedCrashContext TempCrashContext;
+					FMemory::Memzero(TempCrashContext);
+					if (LoadTempCrashContextFromFile(TempCrashContext, MonitorPid) && TempCrashContext.UserSettings.bSendUsageData && TempCrashContext.UserSettings.bSendUnattendedBugReports)
+					{
+						// Send a spoofed crash report in the case that we detect an abnormal shutdown has occurred
+						HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr);
+					}
 				}
 			}
+			FCrashReportAnalytics::Shutdown();
 		}
 #endif
 		// clean up the context file
