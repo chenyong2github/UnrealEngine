@@ -1654,45 +1654,110 @@ bool FWindowsPlatformMisc::IsValidAbsolutePathFormat(const FString& Path)
 	return bIsValid;
 }
 
+static void QueryCpuInformation(uint32& OutGroupCount, uint32& OutNumaNodeCount, uint32& OutCoreCount, uint32& OutLogicalProcessorCount, bool bForceSingleNumaNode = false)
+{
+	GROUP_AFFINITY FilterGroupAffinity = {};
+
+	if (bForceSingleNumaNode)
+	{
+		PROCESSOR_NUMBER ProcessorNumber = {};
+		USHORT NodeNumber = 0;
+
+		GetThreadIdealProcessorEx(GetCurrentThread(), &ProcessorNumber);
+		GetNumaProcessorNodeEx(&ProcessorNumber, &NodeNumber);
+		GetNumaNodeProcessorMaskEx(NodeNumber, &FilterGroupAffinity);
+	}
+
+	OutGroupCount = OutNumaNodeCount = OutCoreCount = OutLogicalProcessorCount = 0;
+	char* buffer = nullptr;
+	DWORD len = 0;
+
+	if (false == GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buffer, &len))
+	{
+		if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+		{
+			buffer = (char*)malloc(len);
+
+			if (GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buffer, &len))
+			{
+				DWORD offset = 0;
+				char* ptr = buffer;
+
+				while (ptr < buffer + len)
+				{
+					PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX pi = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)ptr;
+
+					if (nullptr == pi)
+					{
+						break;
+					}
+
+					if (pi->Relationship == RelationProcessorCore)
+					{
+						if (bForceSingleNumaNode)
+						{
+							for (int g = 0; g < pi->Processor.GroupCount; ++g)
+							{
+								if (FilterGroupAffinity.Group == pi->Processor.GroupMask[g].Group)
+								{
+									KAFFINITY intersection = FilterGroupAffinity.Mask & pi->Processor.GroupMask[g].Mask;
+
+									if (intersection > 0)
+									{
+										OutCoreCount++;
+
+										OutLogicalProcessorCount += FMath::CountBits(intersection);
+									}
+								}
+							}
+						}
+						else
+						{
+							OutCoreCount++;
+
+							for (size_t g = 0; g < pi->Processor.GroupCount; ++g)
+							{
+								OutLogicalProcessorCount += FMath::CountBits(pi->Processor.GroupMask[g].Mask);
+							}
+						}
+					}
+					if (pi->Relationship == RelationNumaNode)
+					{
+						OutNumaNodeCount++;
+					}
+
+					if (pi->Relationship == RelationGroup)
+					{
+						OutGroupCount = pi->Group.ActiveGroupCount;
+					}
+
+					ptr += pi->Size;
+				}
+			}
+
+			free(buffer);
+		}
+	}
+}
+
 int32 FWindowsPlatformMisc::NumberOfCores()
 {
 	static int32 CoreCount = 0;
 	if (CoreCount == 0)
 	{
+		uint32 NumGroups = 0;
+		uint32 NumaNodeCount = 0;
+		uint32 NumCores = 0;
+		uint32 LogicalProcessorCount = 0;
+		QueryCpuInformation(NumGroups, NumaNodeCount, NumCores, LogicalProcessorCount);
+
 		if (FCommandLine::IsInitialized() && FParse::Param(FCommandLine::Get(), TEXT("usehyperthreading")))
 		{
-			CoreCount = NumberOfCoresIncludingHyperthreads();
+			CoreCount = LogicalProcessorCount;
 		}
 		else
 		{
-			// Get only physical cores
-			PSYSTEM_LOGICAL_PROCESSOR_INFORMATION InfoBuffer = NULL;
-			::DWORD BufferSize = 0;
-
-			// Get the size of the buffer to hold processor information.
-			::BOOL Result = GetLogicalProcessorInformation(InfoBuffer, &BufferSize);
-			check(!Result && GetLastError() == ERROR_INSUFFICIENT_BUFFER);
-			check(BufferSize > 0);
-
-			// Allocate the buffer to hold the processor info.
-			InfoBuffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)FMemory::Malloc(BufferSize);
-			check(InfoBuffer);
-
-			// Get the actual information.
-			Result = GetLogicalProcessorInformation(InfoBuffer, &BufferSize);
-			check(Result);
-
-			// Count physical cores
-			const int32 InfoCount = (int32)(BufferSize / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
-			for (int32 Index = 0; Index < InfoCount; ++Index)
-			{
-				SYSTEM_LOGICAL_PROCESSOR_INFORMATION* Info = &InfoBuffer[Index];
-				if (Info->Relationship ==  RelationProcessorCore)
-				{
-					CoreCount++;
-				}
-			}
-			FMemory::Free(InfoBuffer);
+			CoreCount = NumCores;
 		}
 
 		// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
@@ -1712,10 +1777,13 @@ int32 FWindowsPlatformMisc::NumberOfCoresIncludingHyperthreads()
 	static int32 CoreCount = 0;
 	if (CoreCount == 0)
 	{
-		// Get the number of logical processors, including hyperthreaded ones.
-		SYSTEM_INFO SI;
-		GetSystemInfo(&SI);
-		CoreCount = (int32)SI.dwNumberOfProcessors;
+		uint32 NumGroups = 0;
+		uint32 NumaNodeCount = 0;
+		uint32 NumCores = 0;
+		uint32 LogicalProcessorCount = 0;
+		QueryCpuInformation(NumGroups, NumaNodeCount, NumCores, LogicalProcessorCount);
+
+		CoreCount = LogicalProcessorCount;
 
 		// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
 
