@@ -8,8 +8,8 @@
 UENUM()
 enum class EVirtualCameraFocusMethod : uint8
 {
-	/* Depth of Field disabled entirely */
-	None,
+	/** Don't override, ie. allow post process volume settings to persist. */
+	DoNotOverride,
 
 	/* User controls focus distance directly */
 	Manual,
@@ -19,6 +19,9 @@ enum class EVirtualCameraFocusMethod : uint8
 
 	/* Focus distance automatically changes to focus on actors in a specific screen location */
 	Auto,
+
+	/** Disable depth of field entirely. */
+	Disable,
 };
 
 UCLASS(Blueprintable, BlueprintType)
