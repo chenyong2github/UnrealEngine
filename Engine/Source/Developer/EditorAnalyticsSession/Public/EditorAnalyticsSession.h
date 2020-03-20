@@ -6,9 +6,17 @@
 #include "HAL/CriticalSection.h"
 #include "Misc/DateTime.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/Atomic.h"
 
 struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 {
+	enum class EEventType
+	{
+		Crashed = 0,
+		GpuCrashed,
+		Terminated,
+	};
+
 	FString SessionId;
 
 	FString AppId;
@@ -24,10 +32,10 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 
 	FDateTime StartupTimestamp;
 	FDateTime Timestamp;
-	int32 SessionDuration;
-	int32 Idle1Min;
-	int32 Idle5Min;
-	int32 Idle30Min;
+	volatile int32 IdleSeconds; // Can be updated from concurrent threads.
+	volatile int32 Idle1Min;
+	volatile int32 Idle5Min;
+	volatile int32 Idle30Min;
 	FString CurrentUserActivity;
 	TArray<FString> Plugins;
 	float AverageFPS;
@@ -49,8 +57,8 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	FString OSMajor;
 	FString OSMinor;
 	FString OSVersion;
-	bool bIs64BitOS : 1;
 
+	bool bIs64BitOS : 1;
 	bool bCrashed : 1;
 	bool bGPUCrashed : 1;
 	bool bIsDebugger : 1;
@@ -70,12 +78,6 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	 * @returns true if the session was successfully saved.
 	 */
 	bool Save();
-
-	/**
-	 * Save only the bare minimum of fields that may have changed during a crash.
-	 * @returns true if the session was successfully saved.
-	 */
-	bool SaveForCrash();
 
 	/**
 	 *  Load a session with the given session ID from stored values.
@@ -122,8 +124,19 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	/** Is the local storage already locked? */
 	static bool IsLocked();
 
-private:
+	/**
+	 * Append an event to the session log. The function is meant to record concurrent events, especially during a crash
+	 * with minimum contention. The logger appends and persists the events of interest locklessly on spot as opposed to
+	 * overriding existing values in the key-store. Appending is better because it prevent dealing with event ordering
+	 * on the spot (no synchronization needed) and will preserve more information.
+	 *
+	 * @note They key-store is not easily usable in a 'lockless' fashion. On Windows, the OS provides thread safe API
+	 *       to modify the registry (add/update). On Mac/Linux, the key-store is a simple file and without synchronization,
+	 *       concurrent writes will likely corrupt the file.
+	 */
+	void LogEvent(EEventType EventTpe, const FDateTime& Timestamp);
 
+private:
 	static FSystemWideCriticalSection* StoredValuesLock;
 
 	/** 
