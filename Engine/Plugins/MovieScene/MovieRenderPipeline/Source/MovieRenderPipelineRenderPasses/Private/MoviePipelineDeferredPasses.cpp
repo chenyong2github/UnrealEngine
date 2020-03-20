@@ -55,6 +55,9 @@ namespace MoviePipeline
 		// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
 		TileRenderTarget->InitCustomFormat(InInitSettings.BackbufferResolution.X, InInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
 
+		GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
+
+
 		// Allocate 
 		ViewState.Allocate();
 
@@ -64,6 +67,8 @@ namespace MoviePipeline
 	void FDeferredRenderEnginePass::Teardown()
 	{
 		FMoviePipelineEnginePass::Teardown();
+
+		GetPipeline()->SetPreviewTexture(nullptr);
 
 		// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
 		SurfaceQueue->Shutdown();
