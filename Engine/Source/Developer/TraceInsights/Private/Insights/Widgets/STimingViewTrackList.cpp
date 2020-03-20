@@ -29,7 +29,7 @@ public:
 	SLATE_BEGIN_ARGS(STimingViewTrackListEntry) {}
 
 	SLATE_ARGUMENT(TSharedPtr<STimingView>, TimingView)
-	SLATE_ARGUMENT(ETimingViewTrackListType, TrackListType)
+	SLATE_ARGUMENT(ETimingTrackLocation, TrackLocation)
 	SLATE_ARGUMENT(TSharedPtr<FBaseTimingTrack>, Track)
 
 	SLATE_ATTRIBUTE(FText, SearchText)
@@ -39,7 +39,7 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable)
 	{
 		TimingView = InArgs._TimingView;
-		TrackListType = InArgs._TrackListType;
+		TrackLocation = InArgs._TrackLocation;
 		Track = InArgs._Track;
 		SearchText = InArgs._SearchText;
 
@@ -89,8 +89,8 @@ public:
 	// The widget containing the track we represent
 	TWeakPtr<STimingView> TimingView;
 
-	// The list type of the track we represent
-	ETimingViewTrackListType TrackListType;
+	// The location of the track we represent
+	ETimingTrackLocation TrackLocation;
 
 	// The track we represent
 	TWeakPtr<FBaseTimingTrack> Track;
@@ -103,12 +103,12 @@ public:
 // STimingViewTrackList
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingViewTrackList::Construct(const FArguments& InArgs, const TSharedRef<STimingView>& InTimingView, ETimingViewTrackListType InTrackListType)
+void STimingViewTrackList::Construct(const FArguments& InArgs, const TSharedRef<STimingView>& InTimingView, ETimingTrackLocation InTrackLocation)
 {
 	TimingView = InTimingView;
-	TrackListType = InTrackListType;
+	TrackLocation = InTrackLocation;
 
-	FilteredTracks = InTimingView->GetTrackList(TrackListType);
+	FilteredTracks = InTimingView->GetTrackList(TrackLocation);
 
 	ListView = SNew(SListView<TSharedPtr<FBaseTimingTrack>>)
 		.IsFocusable(true)
@@ -192,7 +192,7 @@ TSharedRef<ITableRow> STimingViewTrackList::OnGenerateRow(TSharedPtr<FBaseTiming
 {
 	return SNew(STimingViewTrackListEntry, OwnerTable)
 		.TimingView(TimingView.Pin())
-		.TrackListType(TrackListType)
+		.TrackLocation(TrackLocation)
 		.Track(Item)
 		.SearchText_Lambda([this](){ return SearchText; });
 }
@@ -203,7 +203,7 @@ void STimingViewTrackList::RefreshFilter()
 {
 	FilteredTracks.Reset();
 
-	for (TSharedPtr<FBaseTimingTrack> Track : TimingView.Pin()->GetTrackList(TrackListType))
+	for (TSharedPtr<FBaseTimingTrack> Track : TimingView.Pin()->GetTrackList(TrackLocation))
 	{
 		if (SearchText.IsEmpty() || Track->GetName().Contains(SearchText.ToString()))
 		{

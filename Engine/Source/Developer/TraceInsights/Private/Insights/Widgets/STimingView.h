@@ -16,6 +16,7 @@
 // Insights
 #include "Insights/Common/FixedCircularBuffer.h"
 #include "Insights/ITimingViewSession.h"
+#include "Insights/ViewModels/BaseTimingTrack.h"
 #include "Insights/ViewModels/TimerNode.h"
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
@@ -35,16 +36,6 @@ class FTimingViewDrawHelper;
 class SOverlay;
 class SScrollBar;
 namespace Insights { class ITimingViewExtender; }
-
-enum class ETimingViewTrackListType
-{
-	Scrollable,
-	TopDocked,
-	BottomDocked,
-	Foreground,
-
-	Count
-};
 
 /** A custom widget used to display timing events. */
 class STimingView : public SCompoundWidget, public Insights::ITimingViewSession
@@ -225,17 +216,17 @@ public:
 	// ITimingViewSession interface
 
 	virtual void AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+	virtual bool RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 
 	virtual void AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+	virtual bool RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 
 	virtual void AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+	virtual bool RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 	virtual void InvalidateScrollableTracksOrder() override;
 
 	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
-	virtual void RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
+	virtual bool RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) override;
 
 	virtual TSharedPtr<FBaseTimingTrack> FindTrack(uint64 InTrackId) override;
 
@@ -255,16 +246,16 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	const TArray<TSharedPtr<FBaseTimingTrack>>& GetTrackList(ETimingViewTrackListType TrackListType) const
+	const TArray<TSharedPtr<FBaseTimingTrack>>& GetTrackList(ETimingTrackLocation TrackLocation) const
 	{
 		static const TArray<TSharedPtr<FBaseTimingTrack>> EmptyTrackList;
-		switch (TrackListType)
+		switch (TrackLocation)
 		{
-			case ETimingViewTrackListType::Scrollable:   return ScrollableTracks;
-			case ETimingViewTrackListType::TopDocked:    return TopDockedTracks;
-			case ETimingViewTrackListType::BottomDocked: return BottomDockedTracks;
-			case ETimingViewTrackListType::Foreground:   return ForegroundTracks;
-			default:                                     return EmptyTrackList;
+			case ETimingTrackLocation::Scrollable:   return ScrollableTracks;
+			case ETimingTrackLocation::TopDocked:    return TopDockedTracks;
+			case ETimingTrackLocation::BottomDocked: return BottomDockedTracks;
+			case ETimingTrackLocation::Foreground:   return ForegroundTracks;
+			default:                                 return EmptyTrackList;
 		}
 	}
 
@@ -329,6 +320,10 @@ protected:
 	}
 
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
+	void CreateTrackLocationMenu(FMenuBuilder& MenuBuilder, TSharedRef<FBaseTimingTrack> Track);
+
+	void ChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation);
+	bool CanChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation) const;
 
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
@@ -571,6 +566,9 @@ protected:
 
 	const FSlateBrush* WhiteBrush;
 	const FSlateFontInfo MainFont;
+
+	bool bDrawTopSeparatorLine;
+	bool bDrawBottomSeparatorLine;
 
 	// Debug stats
 	int32 NumUpdatedEvents;

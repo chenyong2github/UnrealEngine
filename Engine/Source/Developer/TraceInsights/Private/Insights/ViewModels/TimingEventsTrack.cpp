@@ -24,6 +24,7 @@ FTimingEventsTrack::FTimingEventsTrack()
 	, DrawState(MakeShared<FTimingEventsTrackDrawState>())
 	, FilteredDrawState(MakeShared<FTimingEventsTrackDrawState>())
 {
+	SetValidLocations(ETimingTrackLocation::Scrollable | ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -34,6 +35,7 @@ FTimingEventsTrack::FTimingEventsTrack(const FString& InName)
 	, DrawState(MakeShared<FTimingEventsTrackDrawState>())
 	, FilteredDrawState(MakeShared<FTimingEventsTrackDrawState>())
 {
+	SetValidLocations(ETimingTrackLocation::Scrollable | ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

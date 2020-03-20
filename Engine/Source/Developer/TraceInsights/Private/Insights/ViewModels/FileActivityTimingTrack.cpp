@@ -127,7 +127,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 	if (!IoOverviewTrack.IsValid())
 	{
 		IoOverviewTrack = MakeShared<FOverviewFileActivityTimingTrack>(*this);
-		IoOverviewTrack->SetOrder(-999999); // first track
+		IoOverviewTrack->SetOrder(FTimingTrackOrder::First);
 		IoOverviewTrack->SetVisibilityFlag(bShowHideAllIoTracks);
 		InSession.AddScrollableTrack(IoOverviewTrack);
 	}
@@ -135,7 +135,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 	if (!IoActivityTrack.IsValid())
 	{
 		IoActivityTrack = MakeShared<FDetailedFileActivityTimingTrack>(*this);
-		IoActivityTrack->SetOrder(+999999); // last track
+		IoActivityTrack->SetOrder(FTimingTrackOrder::Last);
 		IoActivityTrack->SetVisibilityFlag(bShowHideAllIoTracks);
 		InSession.AddScrollableTrack(IoActivityTrack);
 	}

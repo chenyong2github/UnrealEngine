@@ -88,7 +88,8 @@ void FLoadingSharedState::Tick(Insights::ITimingViewSession& InSession, const Tr
 					//const TCHAR* const GroupName = ThreadInfo.GroupName ? ThreadInfo.GroupName : ThreadInfo.Name;
 					const FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? FString::Printf(TEXT("Loading - %s"), ThreadInfo.Name) : FString::Printf(TEXT("Loading - Thread %u"), ThreadInfo.Id));
 					TSharedRef<FLoadingTimingTrack> LoadingThreadTrack = MakeShared<FLoadingTimingTrack>(*this, LoadingTimelineIndex, TrackName);
-					LoadingThreadTrack->SetOrder(-100 + LoadingTracks.Num());
+					static_assert(FTimingTrackOrder::GroupRange > 1000, "Order group range too small");
+					LoadingThreadTrack->SetOrder(FTimingTrackOrder::Cpu - 1000 + LoadingTracks.Num() * 10);
 					LoadingThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
 					InSession.AddScrollableTrack(LoadingThreadTrack);
 					LoadingTracks.Add(LoadingTimelineIndex, LoadingThreadTrack);

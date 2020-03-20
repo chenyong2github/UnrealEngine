@@ -53,25 +53,25 @@ public:
 
 	/** Adds a new top docked track. */
 	virtual void AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
-	/** Removes a top docked track. */
-	virtual void RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
+	/** Removes a top docked track. Returns whether the track was removed or not. */
+	virtual bool RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
 
 	/** Adds a new bottom docked track. */
 	virtual void AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
-	/** Removes a bottom docked track. */
-	virtual void RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
+	/** Removes a bottom docked track. Returns whether the track was removed or not. */
+	virtual bool RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
 
 	/** Adds a new scrollable track. */
 	virtual void AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
-	/** Removes a scrollable track. */
-	virtual void RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
+	/** Removes a scrollable track. Returns whether the track was removed or not. */
+	virtual bool RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
 	/** Marks the scrollable tracks as not being in the correct order, so they will be re-sorted. */
 	virtual void InvalidateScrollableTracksOrder() = 0;
 
 	/** Adds a new foreground track. */
 	virtual void AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
-	/** Removes a foreground track. */
-	virtual void RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
+	/** Removes a foreground track. Returns whether the track was removed or not. */
+	virtual bool RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
 
 	/** Finds a track has been added via Add*Track(). */
 	virtual TSharedPtr<FBaseTimingTrack> FindTrack(uint64 InTrackId) = 0;

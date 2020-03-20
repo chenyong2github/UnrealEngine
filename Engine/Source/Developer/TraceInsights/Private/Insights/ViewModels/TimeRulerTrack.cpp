@@ -31,6 +31,8 @@ FTimeRulerTrack::FTimeRulerTrack()
 	, CrtMousePosTextWidth(0.0f)
 	, CrtTimeMarkerTextWidth(0.0f)
 {
+	SetValidLocations(ETimingTrackLocation::TopDocked);
+	SetOrder(FTimingTrackOrder::TimeRuler);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

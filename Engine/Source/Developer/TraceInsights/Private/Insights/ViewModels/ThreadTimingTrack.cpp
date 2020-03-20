@@ -113,14 +113,14 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 			if (TimingProfilerProvider->GetGpuTimelineIndex(GpuTimelineIndex))
 			{
 				GpuTrack = MakeShared<FGpuTimingTrack>(*this, TEXT("GPU"), nullptr, GpuTimelineIndex, 0);
-				GpuTrack->SetOrder(1000);
+				GpuTrack->SetOrder(FTimingTrackOrder::Gpu);
 				GpuTrack->SetVisibilityFlag(bShowHideAllGpuTracks);
 				InSession.AddScrollableTrack(GpuTrack);
 			}
 		}
 
 		bool bTracksOrderChanged = false;
-		int32 Order = 2000;
+		int32 Order = FTimingTrackOrder::Cpu;
 
 		// Iterate through threads.
 		const Trace::IThreadProvider& ThreadProvider = Trace::ReadThreadProvider(InAnalysisSession);
@@ -192,7 +192,9 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 				}
 			}
 
-			Order += 100;
+			constexpr int32 OrderIncrement = FTimingTrackOrder::GroupRange / 1000; // distribute max 1000 tracks in the order group range
+			static_assert(OrderIncrement >= 1, "Order group range too small");
+			Order += OrderIncrement;
 		});
 
 		if (bTracksOrderChanged)
@@ -802,28 +804,21 @@ void FThreadTimingTrack::OnClipboardCopyEvent(const ITimingEvent& InSelectedEven
 
 void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-	FText SectionTitle;
 	if (GetGroupName() != nullptr)
 	{
-		SectionTitle = FText::Format(LOCTEXT("TrackTitleGroupFmt", "{0} (Group: {1})"), FText::FromString(GetName()), FText::FromString(GetGroupName()));
+		MenuBuilder.BeginSection(TEXT("Misc"));
+		{
+			MenuBuilder.AddMenuEntry(
+				FText::Format(LOCTEXT("CpuThreadGroupFmt", "CPU Thread Group: {0}"), FText::FromString(GetGroupName())),
+				FText(),
+				FSlateIcon(),
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([]() { return false; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		MenuBuilder.EndSection();
 	}
-	else
-	{
-		SectionTitle = FText::FromString(GetName());
-	}
-
-	MenuBuilder.BeginSection(TEXT("Empty"), SectionTitle);
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ContextMenu_NA", "N/A"),
-			LOCTEXT("ContextMenu_NA_Desc", "No actions available."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([](){ return false; })),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-	}
-	MenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

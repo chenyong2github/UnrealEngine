@@ -350,9 +350,7 @@ void FTimingViewDrawHelper::DrawEvents(const FTimingEventsTrackDrawState& DrawSt
 	const float TrackY = Track.GetPosY();
 	const float TrackH = Track.GetHeight();
 
-	if (TrackH > 0.0f &&
-		TrackY + TrackH > Viewport.GetTopOffset() &&
-		TrackY < Viewport.GetHeight() - Viewport.GetBottomOffset())
+	if (TrackH > 0.0f)
 	{
 		const FTimingViewLayout& Layout = Viewport.GetLayout();
 
@@ -421,9 +419,7 @@ void FTimingViewDrawHelper::DrawFadedEvents(const FTimingEventsTrackDrawState& D
 	const float TrackY = Track.GetPosY();
 	const float TrackH = Track.GetHeight();
 
-	if (TrackH > 0.0f &&
-		TrackY + TrackH > Viewport.GetTopOffset() &&
-		TrackY < Viewport.GetHeight() - Viewport.GetBottomOffset())
+	if (TrackH > 0.0f)
 	{
 		const FTimingViewLayout& Layout = Viewport.GetLayout();
 
@@ -523,9 +519,7 @@ void FTimingViewDrawHelper::DrawTrackHeader(const FBaseTimingTrack& Track) const
 	const float TrackY = Track.GetPosY();
 	const float TrackH = Track.GetHeight();
 
-	if (TrackH > 0.0f &&
-		TrackY + TrackH > Viewport.GetTopOffset() &&
-		TrackY < Viewport.GetHeight() - Viewport.GetBottomOffset())
+	if (TrackH > 0.0f)
 	{
 		// Draw a horizontal line between timelines (top line of a track).
 		const int32 HeaderLayerId = ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground);
@@ -587,33 +581,36 @@ void FTimingViewDrawHelper::EndDrawTracks() const
 {
 	if (Viewport.GetWidth() > 0.0f)
 	{
-		// Y position of the first pixel below the last track.
-		const float Y = Viewport.GetTopOffset() + Viewport.GetScrollHeight() - Viewport.GetScrollPosY();
-
 		const float TopY = Viewport.GetTopOffset();
 		const float BottomY = Viewport.GetHeight() - Viewport.GetBottomOffset();
 
-		if (Y >= Viewport.GetTopOffset() && Y < BottomY)
+		if (TopY < BottomY)
 		{
-			// Draw a last horizontal line.
-			DrawContext.DrawBox(ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground), 0.0f, Y, Viewport.GetWidth(), 1.0f, WhiteBrush, EdgeColor);
-		}
+			// Y position of the first pixel below the last track.
+			const float Y = TopY + Viewport.GetScrollHeight() - Viewport.GetScrollPosY();
 
-		// Note: ValidAreaX and ValidAreaW are computed in DrawBackground.
-		if (ValidAreaW > 0.0f)
-		{
-			const float TopInvalidAreaH = FMath::Min(0.0f - Viewport.GetScrollPosY(), Viewport.GetScrollableAreaHeight());
-			if (TopInvalidAreaH > 0.0f)
+			if (Y >= TopY && Y < BottomY)
 			{
-				// Draw invalid area (top).
-				DrawContext.DrawBox(ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground), ValidAreaX, TopY, ValidAreaW, TopInvalidAreaH, BackgroundAreaBrush, InvalidAreaColor);
+				// Draw a last horizontal line.
+				DrawContext.DrawBox(ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground), 0.0f, Y, Viewport.GetWidth(), 1.0f, WhiteBrush, EdgeColor);
 			}
 
-			const float BottomInvalidAreaH = FMath::Min(BottomY - Y - 1.0f, Viewport.GetScrollableAreaHeight());
-			if (BottomInvalidAreaH > 0.0f)
+			// Note: ValidAreaX and ValidAreaW are computed in DrawBackground.
+			if (ValidAreaW > 0.0f)
 			{
-				// Draw invalid area (bottom).
-				DrawContext.DrawBox(ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground), ValidAreaX, BottomY - BottomInvalidAreaH, ValidAreaW, BottomInvalidAreaH, BackgroundAreaBrush, InvalidAreaColor);
+				const float TopInvalidAreaH = FMath::Min(0.0f - Viewport.GetScrollPosY(), Viewport.GetScrollableAreaHeight());
+				if (TopInvalidAreaH > 0.0f)
+				{
+					// Draw invalid area (top).
+					DrawContext.DrawBox(ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground), ValidAreaX, TopY, ValidAreaW, TopInvalidAreaH, BackgroundAreaBrush, InvalidAreaColor);
+				}
+
+				const float BottomInvalidAreaH = FMath::Min(BottomY - Y - 1.0f, Viewport.GetScrollableAreaHeight());
+				if (BottomInvalidAreaH > 0.0f)
+				{
+					// Draw invalid area (bottom).
+					DrawContext.DrawBox(ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground), ValidAreaX, BottomY - BottomInvalidAreaH, ValidAreaW, BottomInvalidAreaH, BackgroundAreaBrush, InvalidAreaColor);
+				}
 			}
 		}
 	}

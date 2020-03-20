@@ -266,6 +266,11 @@ void STimingView::Reset()
 
 	//////////////////////////////////////////////////
 
+	for (auto& KV : AllTracks)
+	{
+		KV.Value->SetLocation(ETimingTrackLocation::None);
+	}
+
 	AllTracks.Reset();
 	TopDockedTracks.Reset();
 	BottomDockedTracks.Reset();
@@ -279,15 +284,13 @@ void STimingView::Reset()
 	//////////////////////////////////////////////////
 
 	TimeRulerTrack->Reset();
-	TimeRulerTrack->SetOrder(-999);
 	AddTopDockedTrack(TimeRulerTrack);
 
 	MarkersTrack->Reset();
-	MarkersTrack->SetOrder(-100);
 	AddTopDockedTrack(MarkersTrack);
 
 	GraphTrack->Reset();
-	GraphTrack->SetOrder(0);
+	GraphTrack->SetOrder(FTimingTrackOrder::First);
 	constexpr double GraphTrackHeight = 200.0;
 	GraphTrack->SetHeight(static_cast<float>(GraphTrackHeight));
 	GraphTrack->GetSharedValueViewport().SetBaselineY(GraphTrackHeight - 1.0);
@@ -374,6 +377,9 @@ void STimingView::Reset()
 	bIsScrubbing = false;
 
 	//ThisGeometry
+
+	bDrawTopSeparatorLine = false;
+	bDrawBottomSeparatorLine = false;
 
 	//////////////////////////////////////////////////
 
@@ -650,9 +656,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Update Y postion for the visible top/bottom docked tracks.
-	// Compute the total height of top/bottom docked areas.
+	// Update Y postion for the visible top docked tracks.
+	// Compute the total height of top docked areas.
 
+	int32 NumVisibleTopDockedTracks = 0;
 	float TopOffset = 0.0f;
 	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
 	{
@@ -660,9 +667,23 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		if (TrackPtr->IsVisible())
 		{
 			TopOffset += TrackPtr->GetHeight();
+			NumVisibleTopDockedTracks++;
 		}
 	}
+	if (NumVisibleTopDockedTracks > 0)
+	{
+		bDrawTopSeparatorLine = true;
+		TopOffset += 2.0f;
+	}
+	else
+	{
+		bDrawTopSeparatorLine = false;
+	}
 	Viewport.SetTopOffset(TopOffset);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Update Y postion for the visible bottom docked tracks.
+	// Compute the total height of bottom docked areas.
 
 	float BottomOffset = 0.0f;
 	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
@@ -673,13 +694,24 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		}
 	}
 	float BottomOffsetY = Viewport.GetHeight() - BottomOffset;
+	int32 NumVisibleBottomDockedTracks = 0;
 	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
 	{
 		TrackPtr->SetPosY(BottomOffsetY);
 		if (TrackPtr->IsVisible())
 		{
 			BottomOffsetY += TrackPtr->GetHeight();
+			NumVisibleBottomDockedTracks++;
 		}
+	}
+	if (NumVisibleBottomDockedTracks > 0)
+	{
+		bDrawBottomSeparatorLine = true;
+		BottomOffset += 2.0f;
+	}
+	else
+	{
+		bDrawBottomSeparatorLine = false;
 	}
 	Viewport.SetBottomOffset(BottomOffset);
 
@@ -1110,6 +1142,13 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 				}
 			}
 
+			if (bDrawTopSeparatorLine)
+			{
+				// Draw separator line between top docked tracks and scrollable tracks.
+				DrawContext.DrawBox(0.0f, Viewport.GetTopOffset() - 2.0f, Viewport.GetWidth(), 2.0f, WhiteBrush, FLinearColor(0.01f, 0.01f, 0.01f, 1.0f));
+				++DrawContext.LayerId;
+			}
+
 			DrawContext.ElementList.PopClip();
 		}
 
@@ -1128,6 +1167,13 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 				{
 					TrackPtr->Draw(TimingDrawContext);
 				}
+			}
+
+			if (bDrawBottomSeparatorLine)
+			{
+				// Draw separator line between top docked tracks and scrollable tracks.
+				DrawContext.DrawBox(0.0f, Viewport.GetHeight() - Viewport.GetBottomOffset(), Viewport.GetWidth(), 2.0f, WhiteBrush, FLinearColor(0.01f, 0.01f, 0.01f, 1.0f));
+				++DrawContext.LayerId;
 			}
 
 			DrawContext.ElementList.PopClip();
@@ -1241,6 +1287,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	DrawContext.DrawBox(ViewWidth - 40.0f, 0.0f, 40.0f, 24.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
 	//////////////////////////////////////////////////
+	// Draw the overscroll indication lines.
 
 	constexpr float OverscrollLineSize = 1.0f;
 	constexpr int32 OverscrollLineCount = 8;
@@ -1481,6 +1528,8 @@ void STimingView::AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
+	ensure(Track->GetLocation() == ETimingTrackLocation::None);
+	Track->SetLocation(ETimingTrackLocation::TopDocked);
 	AllTracks.Add(Track->GetId(), Track);
 	TopDockedTracks.Add(Track);
 	Algo::SortBy(TopDockedTracks, &FBaseTimingTrack::GetOrder);
@@ -1488,7 +1537,7 @@ void STimingView::AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
+bool STimingView::RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	if (TopDockedTracks.Remove(Track) > 0)
 	{
@@ -1496,8 +1545,12 @@ void STimingView::RemoveTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 			TopDockedTracks.Num(),
 			*Track->GetTypeName().ToString(),
 			*Track->GetName());
+		ensure(Track->GetLocation() == ETimingTrackLocation::TopDocked);
+		Track->SetLocation(ETimingTrackLocation::None);
 		AllTracks.Remove(Track->GetId());
+		return true;
 	}
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1510,6 +1563,8 @@ void STimingView::AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
+	ensure(Track->GetLocation() == ETimingTrackLocation::None);
+	Track->SetLocation(ETimingTrackLocation::BottomDocked);
 	AllTracks.Add(Track->GetId(), Track);
 	BottomDockedTracks.Add(Track);
 	Algo::SortBy(BottomDockedTracks, &FBaseTimingTrack::GetOrder);
@@ -1517,7 +1572,7 @@ void STimingView::AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
+bool STimingView::RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	if (BottomDockedTracks.Remove(Track) > 0)
 	{
@@ -1525,8 +1580,12 @@ void STimingView::RemoveBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 			BottomDockedTracks.Num(),
 			*Track->GetTypeName().ToString(),
 			*Track->GetName());
+		ensure(Track->GetLocation() == ETimingTrackLocation::BottomDocked);
+		Track->SetLocation(ETimingTrackLocation::None);
 		AllTracks.Remove(Track->GetId());
+		return true;
 	}
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1539,6 +1598,8 @@ void STimingView::AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
+	ensure(Track->GetLocation() == ETimingTrackLocation::None);
+	Track->SetLocation(ETimingTrackLocation::Scrollable);
 	AllTracks.Add(Track->GetId(), Track);
 	ScrollableTracks.Add(Track);
 	InvalidateScrollableTracksOrder();
@@ -1546,7 +1607,7 @@ void STimingView::AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
+bool STimingView::RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	if (ScrollableTracks.Remove(Track) > 0)
 	{
@@ -1554,9 +1615,13 @@ void STimingView::RemoveScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 			ScrollableTracks.Num(),
 			*Track->GetTypeName().ToString(),
 			*Track->GetName());
+		ensure(Track->GetLocation() == ETimingTrackLocation::Scrollable);
+		Track->SetLocation(ETimingTrackLocation::None);
 		AllTracks.Remove(Track->GetId());
 		InvalidateScrollableTracksOrder();
+		return true;
 	}
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1612,6 +1677,8 @@ void STimingView::AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
 		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
+	ensure(Track->GetLocation() == ETimingTrackLocation::None);
+	Track->SetLocation(ETimingTrackLocation::Foreground);
 	AllTracks.Add(Track->GetId(), Track);
 	ForegroundTracks.Add(Track);
 	Algo::SortBy(ForegroundTracks, &FBaseTimingTrack::GetOrder);
@@ -1619,7 +1686,7 @@ void STimingView::AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
+bool STimingView::RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	if (ForegroundTracks.Remove(Track) > 0)
 	{
@@ -1627,8 +1694,12 @@ void STimingView::RemoveForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
 			ForegroundTracks.Num(),
 			*Track->GetTypeName().ToString(),
 			*Track->GetName());
+		ensure(Track->GetLocation() == ETimingTrackLocation::Foreground);
+		Track->SetLocation(ETimingTrackLocation::None);
 		AllTracks.Remove(Track->GetId());
+		return true;
 	}
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2554,22 +2625,27 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 	//FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ProfilerCommandList);
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
 
-	if (GraphTrack->IsVisible() &&
-		MousePosition.Y >= GraphTrack->GetPosY() &&
-		MousePosition.Y < GraphTrack->GetPosY() + GraphTrack->GetHeight())
+	//if (GraphTrack->IsVisible() &&
+	//	MousePosition.Y >= GraphTrack->GetPosY() &&
+	//	MousePosition.Y < GraphTrack->GetPosY() + GraphTrack->GetHeight())
+	//{
+	//	//GraphTrack->BuildContextMenu(MenuBuilder);
+	//	MenuBuilder.AddSubMenu
+	//	(
+	//		LOCTEXT("ContextMenu_Header_GraphTrack", "Graph Track"),
+	//		TAttribute<FText>(), // no tooltip
+	//		FNewMenuDelegate::CreateSP(GraphTrack.Get(), &FBaseTimingTrack::BuildContextMenu),
+	//		false,
+	//		FSlateIcon()
+	//	);
+	//}
+	//else
+	if (HoveredTrack.IsValid())
 	{
-		//GraphTrack->BuildContextMenu(MenuBuilder);
-		MenuBuilder.AddSubMenu
-		(
-			LOCTEXT("ContextMenu_Header_GraphTrack", "Graph Track"),
-			TAttribute<FText>(), // no tooltip
-			FNewMenuDelegate::CreateSP(GraphTrack.Get(), &FBaseTimingTrack::BuildContextMenu),
-			false,
-			FSlateIcon()
-		);
-	}
-	else if (HoveredTrack.IsValid())
-	{
+		MenuBuilder.BeginSection(TEXT("Track"), FText::FromString(HoveredTrack->GetName()));
+		CreateTrackLocationMenu(MenuBuilder, HoveredTrack.ToSharedRef());
+		MenuBuilder.EndSection();
+
 		HoveredTrack->BuildContextMenu(MenuBuilder);
 	}
 	else
@@ -2602,6 +2678,174 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 	FWidgetPath EventPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 	const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
 	FSlateApplication::Get().PushMenu(SharedThis(this), EventPath, MenuWidget, ScreenSpacePosition, FPopupTransitionEffect::ContextMenu);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::CreateTrackLocationMenu(FMenuBuilder& MenuBuilder, TSharedRef<FBaseTimingTrack> Track)
+{
+	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::TopDocked))
+	{
+		if (Track->GetLocation() == ETimingTrackLocation::TopDocked)
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContextMenu_LocationTopDocked", "Location: Top Docked Tracks"),
+				LOCTEXT("ContextMenu_LocationTopDocked_Desc", "This track is in the list of top docked tracks."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		else
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContextMenu_DockToTop", "Dock To Top"),
+				LOCTEXT("ContextMenu_DockToTop_Desc", "Dock this track to the top."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::TopDocked),
+						  FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::TopDocked)),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+	}
+
+	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::Scrollable))
+	{
+		if (Track->GetLocation() == ETimingTrackLocation::Scrollable)
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContextMenu_LocationScrollable", "Location: Scrollable Tracks"),
+				LOCTEXT("ContextMenu_LocationScrollable_Desc", "This track is in the list of scrollable tracks."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		else
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContextMenu_MoveToScrollable", "Move to Scrollable Tracks"),
+				LOCTEXT("ContextMenu_MoveToScrollable_Desc", "Move this track to the list of scrollable tracks."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::Scrollable),
+						  FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::Scrollable)),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+	}
+
+	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::BottomDocked))
+	{
+		if (Track->GetLocation() == ETimingTrackLocation::BottomDocked)
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContextMenu_LocationBottomDocked", "Location: Bottom Docked Tracks"),
+				LOCTEXT("ContextMenu_LocationBottomDocked_Desc", "This track is in the list of bottom docked tracks."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		else
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContextMenu_DockToBottom", "Dock To Bottom"),
+				LOCTEXT("ContextMenu_DockToBottom_Desc", "Dock this track to the bottom."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::BottomDocked),
+						  FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::BottomDocked)),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+	}
+
+	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::Foreground))
+	{
+		if (Track->GetLocation() == ETimingTrackLocation::Foreground)
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContextMenu_LocationForeground", "Location: Foreground Tracks"),
+				LOCTEXT("ContextMenu_LocationForeground_Desc", "This track is in the list of foreground tracks."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		else
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContextMenu_MoveToForeground", "Move to Foreground Tracks"),
+				LOCTEXT("ContextMenu_MoveToForeground_Desc", "Move this track to the list of foreground tracks."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::Foreground),
+						  FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::Foreground)),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation)
+{
+	if (ensure(CanChangeTrackLocation(Track, NewLocation)))
+	{
+		switch (Track->GetLocation())
+		{
+		case ETimingTrackLocation::Scrollable:
+			ensure(RemoveScrollableTrack(Track));
+			break;
+
+		case ETimingTrackLocation::TopDocked:
+			ensure(RemoveTopDockedTrack(Track));
+			break;
+
+		case ETimingTrackLocation::BottomDocked:
+			ensure(RemoveBottomDockedTrack(Track));
+			break;
+
+		case ETimingTrackLocation::Foreground:
+			ensure(RemoveForegroundTrack(Track));
+			break;
+		}
+
+		switch (NewLocation)
+		{
+		case ETimingTrackLocation::Scrollable:
+			AddScrollableTrack(Track);
+			break;
+
+		case ETimingTrackLocation::TopDocked:
+			AddTopDockedTrack(Track);
+			break;
+
+		case ETimingTrackLocation::BottomDocked:
+			AddBottomDockedTrack(Track);
+			break;
+
+		case ETimingTrackLocation::Foreground:
+			AddForegroundTrack(Track);
+			break;
+		}
+
+		OnTrackVisibilityChanged();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::CanChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation) const
+{
+	return EnumHasAnyFlags(Track->GetValidLocations(), NewLocation) && Track->GetLocation() != NewLocation;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3581,7 +3825,7 @@ void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 						.MinDesiredWidth(300.0f)
 						.MaxDesiredWidth(300.0f)
 						[
-							SNew(STimingViewTrackList, SharedThis(this), ETimingViewTrackListType::TopDocked)
+							SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::TopDocked)
 						],
 						FText(), true);
 				})
@@ -3601,7 +3845,7 @@ void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 						.MinDesiredWidth(300.0f)
 						.MaxDesiredWidth(300.0f)
 						[
-							SNew(STimingViewTrackList, SharedThis(this), ETimingViewTrackListType::BottomDocked)
+							SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::BottomDocked)
 						],
 						FText(), true);
 				})
@@ -3621,7 +3865,7 @@ void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 						.MinDesiredWidth(300.0f)
 						.MaxDesiredWidth(300.0f)
 						[
-							SNew(STimingViewTrackList, SharedThis(this), ETimingViewTrackListType::Scrollable)
+							SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::Scrollable)
 						],
 						FText(), true);
 				})
@@ -3641,7 +3885,7 @@ void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 						.MinDesiredWidth(300.0f)
 						.MaxDesiredWidth(300.0f)
 						[
-							SNew(STimingViewTrackList, SharedThis(this), ETimingViewTrackListType::Foreground)
+							SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::Foreground)
 						],
 						FText(), true);
 				})

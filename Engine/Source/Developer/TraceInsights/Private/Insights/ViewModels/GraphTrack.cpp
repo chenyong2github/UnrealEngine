@@ -48,6 +48,7 @@ FGraphTrack::FGraphTrack()
 	, NumDrawLines(0)
 	, NumDrawBoxes(0)
 {
+	SetValidLocations(ETimingTrackLocation::Scrollable | ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,6 +69,7 @@ FGraphTrack::FGraphTrack(const FString& InName)
 	, NumDrawLines(0)
 	, NumDrawBoxes(0)
 {
+	SetValidLocations(ETimingTrackLocation::Scrollable | ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

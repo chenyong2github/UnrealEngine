@@ -79,6 +79,8 @@ public:
 	//void SetFrameType(uint32 InFrameType) { FrameType = InFrameType; }
 
 	bool IsCollapsed() const { return Header.IsCollapsed(); }
+	void Expand() { Header.SetIsCollapsed(false); }
+	void Collapse() { Header.SetIsCollapsed(true); }
 	void ToggleCollapsed() { Header.ToggleCollapsed(); }
 
 	const FString GetShortFrameName(const uint64 FrameIndex) const;
