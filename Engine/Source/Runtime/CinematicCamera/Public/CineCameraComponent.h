@@ -120,14 +120,19 @@ struct FNamedLensPreset
 UENUM()
 enum class ECameraFocusMethod : uint8
 {
-	/** Disables DoF entirely. */
-	None,
+	/** Don't override, ie. allow post process volume settings to persist. */
+	DoNotOverride,
 
 	/** Allows for specifying or animating exact focus distances. */
 	Manual,
 
 	/** Locks focus to specific object. */
 	Tracking,
+
+	/** Disable depth of field entirely. */
+	Disable,
+
+	MAX UMETA(Hidden)
 };
 
 /** Settings to control tracking-focus mode. */
