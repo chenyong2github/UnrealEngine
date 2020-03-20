@@ -184,6 +184,7 @@ namespace Audio
 		else
 		{
 			ActiveDuration = InDuration;
+			Elapsed = 0.0f;
 		}
 	}
 
