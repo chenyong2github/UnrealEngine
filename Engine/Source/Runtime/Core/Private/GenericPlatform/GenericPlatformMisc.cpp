@@ -1415,6 +1415,11 @@ bool FGenericPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<u
 	return false;
 }
 
+TArray<FCustomChunk> FGenericPlatformMisc::GetOnDemandChunksForPakchunkIndices(const TArray<int32>& PakchunkIndices)
+{
+	return TArray<FCustomChunk>();
+}
+
 TArray<FCustomChunk> FGenericPlatformMisc::GetAllOnDemandChunks()
 {
 	return TArray<FCustomChunk>();
