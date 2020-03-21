@@ -22,7 +22,7 @@
 
 //wrap for non-windows platforms
 #if !__UNREAL__ || (PLATFORM_HOLOLENS || PLATFORM_WINDOWS)
-
+#include <Windows.h>
 #include <string>
 
 #include <d3d11.h>
@@ -113,13 +113,13 @@ struct MIXEDREALITYINTEROP_API QRCodeData
 	float Rotation[4] = { 0.f, 0.f, 0.f, 1.f };
 
 	/** Version number of the QR code */
-	int32				Version;
+	int32_t				Version;
 	/** Physical width and height of the QR code in meters (all QR codes are square) */
 	float				SizeInMeters;
 	/** Timestamp in seconds of the last time this QR code was seen */
 	float				LastSeenTimestamp;
 	/** Size in wchar_t's of the QR code's data string */
-	uint32				DataSize;
+	uint32_t				DataSize;
 	/** Data string embedded in the QR code */
 	wchar_t*			Data;
 };
@@ -388,10 +388,10 @@ namespace WindowsMixedReality
 
 		void SetScreenScaleFactor(float scale);
 		
-		int32 GetMaxQuadLayerCount() const;
+		int32_t GetMaxQuadLayerCount() const;
 
-		uint32 AddQuadLayer(
-			uint32 Id,
+		uint32_t AddQuadLayer(
+			uint32_t Id,
 			ID3D11Texture2D* quadLayerTexture, 
 			float widthM, float heightM,
 			DirectX::XMFLOAT3 position,
@@ -401,7 +401,7 @@ namespace WindowsMixedReality
 			bool preserveAspectRatio,
 			int priority);
 
-		void RemoveQuadLayer(uint32 Id);
+		void RemoveQuadLayer(uint32_t Id);
 
 		bool CreateRenderingParameters();
 		ID3D11Texture2D* GetBackBufferTexture();
@@ -490,8 +490,8 @@ namespace WindowsMixedReality
 		void DisconnectFromDevice();
 		bool IsRemoting();
 		bool IsRemotingConnected();
-		uint32 SubscribeConnectionEvent(ConnectionCallback callback);
-		void UnsubscribeConnectionEvent(uint32 id);
+		uint32_t SubscribeConnectionEvent(ConnectionCallback callback);
+		void UnsubscribeConnectionEvent(uint32_t id);
 
 		// Spatial Mapping
 		void StartSpatialMapping(float InTriangleDensity, float InVolumeSize, void(*StartFunctionPointer)(),
@@ -514,6 +514,7 @@ namespace WindowsMixedReality
 			void(*FinishFunctionPointer)()
 		);
 		void StopSceneUnderstanding();
+		void SetSUCoordinateSystem();
 		//~Scene understanding
 
 		// Used by the AR system to receive notifications of tracking change
@@ -578,7 +579,7 @@ namespace WindowsMixedReality
 		SpatialAudioClient();
 		~SpatialAudioClient();
 
-		int32 sacId;
+		int32_t sacId;
 	};
 }
 
