@@ -490,6 +490,7 @@ inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const ANS
 CORE_API FStringBuilderBase&				operator<<(FStringBuilderBase& Builder, const FString& Str);
 
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const FStringView& Str)					{ return Builder.Append(Str); }
+inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, const FAnsiStringView& Str)				{ return Builder.AppendAnsi(Str); }
 
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, int32 Value)							{ return Builder.Appendf(TEXT("%d"), Value); }
 inline FStringBuilderBase&					operator<<(FStringBuilderBase& Builder, uint32 Value)							{ return Builder.Appendf(TEXT("%u"), Value); }
