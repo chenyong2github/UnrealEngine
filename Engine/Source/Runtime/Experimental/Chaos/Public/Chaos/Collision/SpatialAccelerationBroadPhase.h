@@ -204,7 +204,7 @@ namespace Chaos
 					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
 						(Particle2.ObjectState() == EObjectStateType::Kinematic &&
 							(Particle2.CastToKinematicParticle()->V().SizeSquared() > 1e-4 ||
-								Particle2.Geometry()->GetType(true) == TCapsule<float>::StaticType()));
+								Particle2.Geometry()->GetType() == TCapsule<float>::StaticType()));
 					if (Particle1.ObjectState() == EObjectStateType::Sleeping && !bIsParticle2Kinematic)
 					{
 						continue;

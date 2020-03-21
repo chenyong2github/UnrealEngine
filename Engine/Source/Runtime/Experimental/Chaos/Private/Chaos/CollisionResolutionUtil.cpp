@@ -179,7 +179,7 @@ namespace Chaos
 				{
 					SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetSignedDistance);
 
-					if (Object.GetType(true) == ImplicitObjectType::LevelSet && PotentialParticles.Num() > 0)
+					if (Object.GetType() == ImplicitObjectType::LevelSet && PotentialParticles.Num() > 0)
 					{
 						//QUICK_SCOPE_CYCLE_COUNTER(STAT_LevelSet);
 						const TLevelSet<float, 3>* LevelSet = Object.GetObject<TLevelSet<float, 3>>();
@@ -223,7 +223,7 @@ namespace Chaos
 							}
 						}
 					}
-					else if (Object.GetType(true) == ImplicitObjectType::Box && PotentialParticles.Num() > 0)
+					else if (Object.GetType() == ImplicitObjectType::Box && PotentialParticles.Num() > 0)
 					{
 						//QUICK_SCOPE_CYCLE_COUNTER(STAT_Box);
 						const TBox<float, 3>* Box = Object.GetObject<Chaos::TBox<float, 3>>();
@@ -288,7 +288,7 @@ namespace Chaos
 			else
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetAll);
-				if (Object.GetType(true) == ImplicitObjectType::LevelSet && NumParticles > 0)
+				if (Object.GetType() == ImplicitObjectType::LevelSet && NumParticles > 0)
 				{
 					const TLevelSet<float, 3>* LevelSet = Object.GetObject<Chaos::TLevelSet<float, 3>>();
 					const TUniformGrid<float, 3>& Grid = LevelSet->GetGrid();
@@ -329,7 +329,7 @@ namespace Chaos
 						}
 					}
 				}
-				else if (Object.GetType(true) == ImplicitObjectType::Plane && NumParticles > 0)
+				else if (Object.GetType() == ImplicitObjectType::Plane && NumParticles > 0)
 				{
 					const TPlane<float, 3>* Plane = Object.GetObject<Chaos::TPlane<float, 3>>();
 
@@ -363,7 +363,7 @@ namespace Chaos
 						}
 					}
 				}
-				else if (Object.GetType(true) == ImplicitObjectType::Box && NumParticles > 0)
+				else if (Object.GetType() == ImplicitObjectType::Box && NumParticles > 0)
 				{
 					const TBox<float, 3>* Box = Object.GetObject<Chaos::TBox<float, 3>>();
 

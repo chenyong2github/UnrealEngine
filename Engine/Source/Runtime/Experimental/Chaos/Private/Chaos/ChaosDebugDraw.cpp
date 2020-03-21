@@ -56,7 +56,7 @@ namespace Chaos
 		void DrawShapesImpl(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, FColor Color)
 		{
 			// @todo(ccaulfield): handle scale throughout
-			switch (Shape->GetType(false))
+			switch (Shape->GetType())
 			{
 			case ImplicitObjectType::Sphere:
 			{

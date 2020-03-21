@@ -18,7 +18,7 @@ namespace Chaos
 		template <typename Lambda>
 		FORCEINLINE_DEBUGGABLE auto CastHelper(const FImplicitObject& Geom, const FRigidTransform3& TM, const Lambda& Func)
 		{
-			const EImplicitObjectType Type = Geom.GetType(true);
+			const EImplicitObjectType Type = Geom.GetType();
 			switch (Type)
 			{
 			case ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>(), TM);
