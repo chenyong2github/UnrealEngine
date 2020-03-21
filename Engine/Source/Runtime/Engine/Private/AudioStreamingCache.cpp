@@ -6,7 +6,6 @@ AudioStreaming.cpp: Implementation of audio streaming classes.
 
 #include "AudioStreamingCache.h"
 #include "Misc/CoreStats.h"
-#include "Sound/SoundWave.h"
 #include "Sound/AudioSettings.h"
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
