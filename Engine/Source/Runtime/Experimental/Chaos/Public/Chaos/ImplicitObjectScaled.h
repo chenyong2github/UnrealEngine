@@ -36,7 +36,7 @@ public:
 		: FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsInstanced)
 		, MObject(MoveTemp(Object))
 	{
-		ensure(IsInstanced(MObject->GetType(true)) == false);	//cannot have an instance of an instance
+		ensure(IsInstanced(MObject->GetType()) == false);	//cannot have an instance of an instance
 		this->bIsConvex = MObject->IsConvex();
 		this->bDoCollide = MObject->GetDoCollide();
 	}
@@ -45,7 +45,7 @@ public:
 		: FImplicitObject(EImplicitObject::HasBoundingBox,Object->GetType() | ImplicitObjectType::IsInstanced)
 		,MObject(Object)
 	{
-		ensure(IsInstanced(MObject->GetType(true)) == false);	//cannot have an instance of an instance
+		ensure(IsInstanced(MObject->GetType()) == false);	//cannot have an instance of an instance
 		this->bIsConvex = MObject->IsConvex();
 		this->bDoCollide = MObject->GetDoCollide();
 	}
@@ -176,9 +176,9 @@ public:
 		, MSharedPtrForRefCount(nullptr)
 		, MInternalThickness(Thickness)
 	{
-		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
-		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
-		switch (MObject->GetType(true))
+		ensureMsgf((IsScaled(MObject->GetType()) == false), TEXT("Scaled objects should not contain each other."));
+		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
+		switch (MObject->GetType())
 		{
 		case ImplicitObjectType::Transformed:
 		case ImplicitObjectType::Union:
@@ -197,9 +197,9 @@ public:
 		, MSharedPtrForRefCount(Object)
 		, MInternalThickness(Thickness)
 	{
-		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
-		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
-		switch (MObject->GetType(true))
+		ensureMsgf((IsScaled(MObject->GetType()) == false), TEXT("Scaled objects should not contain each other."));
+		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
+		switch (MObject->GetType())
 		{
 		case ImplicitObjectType::Transformed:
 		case ImplicitObjectType::Union:
@@ -235,8 +235,8 @@ public:
 		, MInternalThickness(Other.MInternalThickness)
 	    , MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
 	{
-		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
-		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
+		ensureMsgf((IsScaled(MObject->GetType()) == false), TEXT("Scaled objects should not contain each other."));
+		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Other.MObject->IsConvex();
 		this->bDoCollide = Other.MObject->GetDoCollide();
 	}

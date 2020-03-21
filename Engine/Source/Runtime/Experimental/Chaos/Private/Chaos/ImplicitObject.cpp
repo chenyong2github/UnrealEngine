@@ -16,11 +16,13 @@
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/DestructionObjectVersion.h"
+#include "UObject/ReleaseObjectVersion.h"
 
 using namespace Chaos;
 
 FImplicitObject::FImplicitObject(int32 Flags, EImplicitObjectType InType)
     : Type(InType)
+	, CollisionType(InType)
     , bIsConvex(!!(Flags & EImplicitObject::IsConvex))
     , bDoCollide(!(Flags & EImplicitObject::DisableCollisions))
     , bHasBoundingBox(!!(Flags & EImplicitObject::HasBoundingBox))
@@ -56,9 +58,14 @@ void FImplicitObject::Track(TSerializablePtr<FImplicitObject> This, const FStrin
 
 #endif
 
-EImplicitObjectType FImplicitObject::GetType(bool bGetTrueType) const
+EImplicitObjectType FImplicitObject::GetType() const
 {
 	return Type;
+}
+
+EImplicitObjectType FImplicitObject::GetCollisionType() const
+{
+	return CollisionType;
 }
 
 bool FImplicitObject::IsValidGeometry() const
@@ -320,6 +327,16 @@ void FImplicitObject::SerializeImp(FArchive& Ar)
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) <= FDestructionObjectVersion::ImplicitObjectDoCollideAttribute)
 	{
 		bDoCollide = true;
+	}
+
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) > FReleaseObjectVersion::CustomImplicitCollisionType)
+	{
+		Ar << CollisionType;
+	}
+	else
+	{
+		CollisionType = Type;
 	}
 }
 
