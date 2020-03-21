@@ -23,6 +23,7 @@ class FMoviePipelineOutputMerger;
 class IImageWriteQueue;
 class UMoviePipelineExecutorJob;
 class UMoviePipelineSetting;
+class UTexture;
 
 
 
@@ -97,6 +98,11 @@ public:
 
 public:
 	ULevelSequence* GetTargetSequence() const { return TargetSequence; }
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	UTexture* GetPreviewTexture() const { return PreviewTexture; }
+
+	void SetPreviewTexture(UTexture* InTexture) { PreviewTexture = InTexture; }
 
 	const TArray<FMoviePipelineShotInfo>& GetShotList() const { return ShotList; }
 
@@ -266,6 +272,9 @@ private:
 	/** The Debug UI Widget that is spawned and placed on the player UI */
 	UPROPERTY(Transient)
 	UMovieRenderDebugWidget* DebugWidget;
+
+	UPROPERTY(Transient)
+	UTexture* PreviewTexture;
 
 	/** A list of all of the shots we are going to render out from this sequence. */
 	TArray<FMoviePipelineShotInfo> ShotList;
