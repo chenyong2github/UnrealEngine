@@ -156,11 +156,6 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 		NumOutputPasses++;
 	}
 
-	if (OutputSettings->bHidePreview)
-	{
-		GetWorld()->GetGameViewport()->bDisableWorldRendering = true;
-	}
-
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Engine Passes and %d Output Passes."), ActiveRenderPasses.Num(), NumOutputPasses);
 }
 
