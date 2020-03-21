@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/Culture.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/App.h"
 
 #if UE_ENABLE_ICU
 #include "Internationalization/ICUCulture.h"
