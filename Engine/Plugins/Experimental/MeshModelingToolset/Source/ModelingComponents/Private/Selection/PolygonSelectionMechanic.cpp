@@ -280,6 +280,7 @@ TUniquePtr<FToolCommandChange> UPolygonSelectionMechanic::EndChange()
 	{
 		return MoveTemp(ActiveChange);
 	}
+	ActiveChange = TUniquePtr<FPolygonSelectionMechanicSelectionChange>();
 	return TUniquePtr<FToolCommandChange>();
 }
 
@@ -293,6 +294,7 @@ bool UPolygonSelectionMechanic::EndChangeAndEmitIfModified()
 			LOCTEXT("SelectionChange", "Selection Change"));
 		return true;
 	}
+	ActiveChange = TUniquePtr<FPolygonSelectionMechanicSelectionChange>();
 	return false;
 }
 
