@@ -244,6 +244,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 	enum class EPass : uint32
 	{
+		MotionBlur,
 		Tonemap,
 		FXAA,
 		PostProcessMaterialAfterTonemapping,
@@ -267,6 +268,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 	const TCHAR* PassNames[] =
 	{
+		TEXT("MotionBlur"),
 		TEXT("Tonemap"),
 		TEXT("FXAA"),
 		TEXT("PostProcessMaterial (AfterTonemapping)"),
@@ -365,6 +367,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		const FPostProcessMaterialChain PostProcessMaterialAfterTonemappingChain = GetPostProcessMaterialChain(View, BL_AfterTonemapping);
 
+		PassSequence.SetEnabled(EPass::MotionBlur, bVisualizeMotionBlur || bMotionBlurEnabled);
 		PassSequence.SetEnabled(EPass::Tonemap, bTonemapEnabled);
 		PassSequence.SetEnabled(EPass::FXAA, AntiAliasingMethod == AAM_FXAA);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
@@ -467,16 +470,25 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 		}
 
-		// Motion blur visualization replaces motion blur when enabled.
-		if (bVisualizeMotionBlur)
+		if (PassSequence.IsEnabled(EPass::MotionBlur))
 		{
-			check(Velocity.ViewRect == SceneDepth.ViewRect);
-			SceneColor.Texture = AddVisualizeMotionBlurPass(GraphBuilder, View, SceneColor.ViewRect, SceneDepth.ViewRect, SceneColor.Texture, SceneDepth.Texture, Velocity.Texture);
-		}
-		else if (bMotionBlurEnabled)
-		{
-			check(Velocity.ViewRect == SceneDepth.ViewRect);
-			SceneColor.Texture = AddMotionBlurPass(GraphBuilder, View, SceneColor.ViewRect, SceneDepth.ViewRect, SceneColor.Texture, SceneDepth.Texture, Velocity.Texture);
+			FMotionBlurInputs PassInputs;
+			PassSequence.AcceptOverrideIfLastPass(EPass::MotionBlur, PassInputs.OverrideOutput);
+			PassInputs.SceneColor = SceneColor;
+			PassInputs.SceneDepth = SceneDepth;
+			PassInputs.SceneVelocity = Velocity;
+			PassInputs.Quality = GetMotionBlurQuality();
+			PassInputs.Filter = GetMotionBlurFilter();
+
+			// Motion blur visualization replaces motion blur when enabled.
+			if (bVisualizeMotionBlur)
+			{
+				SceneColor = AddVisualizeMotionBlurPass(GraphBuilder, View, PassInputs);
+			}
+			else
+			{
+				SceneColor = AddMotionBlurPass(GraphBuilder, View, PassInputs);
+			}
 		}
 
 		// If TAA didn't do it, downsample the scene color texture by half.
@@ -656,6 +668,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	// Minimal PostProcessing - Separate translucency composition and gamma-correction only.
 	else
 	{
+		PassSequence.SetEnabled(EPass::MotionBlur, false);
 		PassSequence.SetEnabled(EPass::Tonemap, true);
 		PassSequence.SetEnabled(EPass::FXAA, false);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, false);
