@@ -6,6 +6,7 @@
 #include "Containers/StringFwd.h"
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
+#include "Misc/Crc.h"
 #include "Misc/CString.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/EnableIf.h"
@@ -295,5 +296,13 @@ using FWideStringView = FStringView;
 constexpr inline FWideStringView operator "" _WSV(const WIDECHAR* String, size_t Size) { return FWideStringView(String, Size); }
 
 //////////////////////////////////////////////////////////////////////////
+
+/** Case insensitive string hash function. */
+template <typename CharType>
+FORCEINLINE uint32 GetTypeHash(const TStringViewImpl<CharType>& S)
+{
+	// This must match the GetTypeHash behavior of FString
+	return FCrc::Strihash_DEPRECATED(S.Len(), S.GetData());
+}
 
 #include "StringView.inl"
