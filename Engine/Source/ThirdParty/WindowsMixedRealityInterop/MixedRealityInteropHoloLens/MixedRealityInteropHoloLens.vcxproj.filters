@@ -43,6 +43,9 @@
     <ClInclude Include="..\MixedRealityInterop\CxDataFromBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\MixedRealityInterop\HandMeshObserver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\MixedRealityInterop\AzureSpatialAnchors.h">
       <Filter>Header Files</Filter>
     </ClInclude>
