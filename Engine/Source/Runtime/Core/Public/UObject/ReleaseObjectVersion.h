@@ -95,6 +95,10 @@ struct CORE_API FReleaseObjectVersion
 
 		// Upgrade filmback
 		DeprecateFilmbackSettings,
+		
+		// custom collision type
+		CustomImplicitCollisionType,
+
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
