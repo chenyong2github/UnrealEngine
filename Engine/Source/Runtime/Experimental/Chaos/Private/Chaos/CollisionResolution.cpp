@@ -308,7 +308,7 @@ namespace Chaos
 			const TRigidTransform<T, d> AToBTM = AStartTransform.GetRelativeTransform(BTransform);
 			const TVector<T, d> LocalDir = BTransform.InverseTransformVectorNoScale(Dir);
 
-			if (!ensure(B.GetType(true) & ImplicitObjectType::TriangleMesh) || !ensure(!IsInstanced(B.GetType(true))))
+			if (!ensure(B.GetType() & ImplicitObjectType::TriangleMesh) || !ensure(!IsInstanced(B.GetType())))
 			{
 				return TContactPoint<T>();
 			}
