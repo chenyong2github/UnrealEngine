@@ -1767,7 +1767,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 		for (FPhysicsShapeHandle& ShapeHandle : Shapes)
 		{
 			const Chaos::FImplicitObject& ImplicitObject = ShapeHandle.GetGeometry();
-			EImplicitObjectType ImplicitType = ImplicitObject.GetType(true);
+			EImplicitObjectType ImplicitType = ImplicitObject.GetType();
 			EImplicitObjectType GeomType = GetInnerType(ImplicitType);
 
 			const FTransform& RelativeTM = GetRelativeBodyTransform(ShapeHandle);
@@ -1779,7 +1779,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 
 				// Get GeomType that is transformed
 				const TImplicitObjectTransformed<FReal, 3>& ImplicitObjectTransformed = static_cast<const TImplicitObjectTransformed<FReal, 3>&>(ImplicitObject);
-				GeomType = ImplicitObjectTransformed.GetTransformedObject()->GetType(true);
+				GeomType = ImplicitObjectTransformed.GetTransformedObject()->GetType();
 				CHAOS_ENSURE(!IsInstanced(GeomType));
 			}
 

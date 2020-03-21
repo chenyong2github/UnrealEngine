@@ -31,7 +31,7 @@ namespace Chaos
 	template <typename QueryGeometry>
 	bool OverlapQuery(const FImplicitObject& A, const FRigidTransform3& ATM, const QueryGeometry& B, const FRigidTransform3& BTM, const FReal Thickness = 0, FMTDInfo* OutMTD=nullptr)
 	{
-		const EImplicitObjectType AType = A.GetType(true);
+		const EImplicitObjectType AType = A.GetType();
 		constexpr EImplicitObjectType BType = QueryGeometry::StaticType();
 		
 		if (AType == ImplicitObjectType::Transformed)
@@ -121,7 +121,7 @@ namespace Chaos
 	template <typename SweptGeometry>
 	bool SweepQuery(const FImplicitObject& A, const FRigidTransform3& ATM, const SweptGeometry& B, const FRigidTransform3& BTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, const bool bComputeMTD)
 	{
-		const EImplicitObjectType AType = A.GetType(true);
+		const EImplicitObjectType AType = A.GetType();
 		constexpr EImplicitObjectType BType = SweptGeometry::StaticType();
 
 		bool bResult = false;
