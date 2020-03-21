@@ -46,6 +46,10 @@ bool FLegacyInternationalization::IsCultureAllowed(const FString& Name)
 	return true;
 }
 
+void FLegacyInternationalization::RefreshCultureDisplayNames()
+{
+}
+
 void FLegacyInternationalization::HandleLanguageChanged(const FString& Name)
 {
 }
