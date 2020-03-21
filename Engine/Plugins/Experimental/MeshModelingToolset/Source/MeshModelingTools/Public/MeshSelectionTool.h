@@ -48,7 +48,6 @@ enum class EMeshSelectionToolActions
 	SeparateSelected,
 	FlipSelected,
 	CreateGroup,
-	AssignMaterial,
 
 	CycleSelectionMode,
 	CycleViewMode
