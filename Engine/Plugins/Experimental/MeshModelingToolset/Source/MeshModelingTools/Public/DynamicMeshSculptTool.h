@@ -352,6 +352,9 @@ private:
 	UBrushStampIndicator* BrushIndicator;
 
 	UPROPERTY()
+	UMaterialInstanceDynamic* BrushIndicatorMaterial;
+
+	UPROPERTY()
 	UPreviewMesh* BrushIndicatorMesh;
 
 	UPROPERTY()
