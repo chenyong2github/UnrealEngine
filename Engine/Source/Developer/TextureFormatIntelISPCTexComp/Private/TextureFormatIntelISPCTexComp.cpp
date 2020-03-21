@@ -875,7 +875,7 @@ public:
 #elif PLATFORM_MAC
 			DLLPath = TEXT("libispc_texcomp.dylib");
 #elif PLATFORM_LINUX
-			DLLPath = FPaths::EngineDir() / TEXT("ThirdParty/IntelISPCTexComp/Linux64-Release/libispc_texcomp.so");
+			DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/IntelISPCTexComp/Linux64-Release/libispc_texcomp.so");
 #endif
 
 			if (DLLPath.Len() > 0)
