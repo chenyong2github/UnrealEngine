@@ -37,7 +37,7 @@ namespace WindowsMixedReality
 #if PLATFORM_HOLOLENS
 		std::vector<short> m_indices;
 #else
-		std::vector<uint32> m_indices;
+		std::vector<uint32_t> m_indices;
 #endif
 		std::vector<HandMeshVertex> m_vertices;
 

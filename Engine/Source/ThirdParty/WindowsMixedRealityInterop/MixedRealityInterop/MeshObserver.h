@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include <Windows.Perception.Spatial.h>
-#include <Windows.Perception.Spatial.Surfaces.h>
+#include <winrt/Windows.Perception.Spatial.h>
+#include <winrt/Windows.Perception.Spatial.Surfaces.h>
 
-using namespace Windows::Perception::Spatial;
-using namespace Windows::Perception::Spatial::Surfaces;
+using namespace winrt::Windows::Perception::Spatial;
+using namespace winrt::Windows::Perception::Spatial::Surfaces;
 using namespace Platform;
 
 /**
@@ -30,7 +30,7 @@ public:
 		void(*FinishFunctionPointer)()
 	);
 	/** Called to move the bounding volume that surrounds the player */
-	void UpdateBoundingVolume(Windows::Perception::Spatial::SpatialCoordinateSystem^ InCoordinateSystem, Windows::Foundation::Numerics::float3 Position);
+	void UpdateBoundingVolume(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem, winrt::Windows::Foundation::Numerics::float3 Position);
 	void StopMeshObserver();
 
 	void Log(const wchar_t* LogMsg);
@@ -39,10 +39,10 @@ private:
 	MeshUpdateObserver();
 	~MeshUpdateObserver();
 
-	void OnSurfacesChanged(SpatialSurfaceObserver^ Observer, Platform::Object^);
+	void OnSurfacesChanged(SpatialSurfaceObserver Observer, winrt::Windows::Foundation::IInspectable);
 	
-	void CopyTransform(MeshUpdate& DestMesh, SpatialSurfaceMesh^ SurfaceMesh);
-	void CopyMeshData(MeshUpdate& DestMesh, SpatialSurfaceMesh^ SurfaceMesh);
+	void CopyTransform(MeshUpdate& DestMesh, SpatialSurfaceMesh SurfaceMesh);
+	void CopyMeshData(MeshUpdate& DestMesh, SpatialSurfaceMesh SurfaceMesh);
 
 	/** Inits and optionally logs out the formats that the API supports so we can request the one that matches ours best */
 	void InitSupportedMeshFormats();
@@ -63,7 +63,7 @@ private:
 	float TriangleDensityPerCubicMeter;
 	float VolumeSize;
 
-	Windows::Perception::Spatial::SpatialCoordinateSystem^ LastCoordinateSystem = nullptr;
+	winrt::Windows::Perception::Spatial::SpatialCoordinateSystem LastCoordinateSystem = nullptr;
 	/** Lets us customize the options we want when requesting meshes from the surfaces */
-	SpatialSurfaceMeshOptions^ MeshOptions = nullptr;
+	SpatialSurfaceMeshOptions MeshOptions = nullptr;
 };

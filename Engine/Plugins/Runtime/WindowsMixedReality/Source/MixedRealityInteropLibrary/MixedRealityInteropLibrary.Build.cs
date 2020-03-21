@@ -9,7 +9,7 @@ public class MixedRealityInteropLibrary : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string LibName = "MixedRealityInterop";
 			if (Target.Configuration == UnrealTargetConfiguration.Debug)
@@ -24,12 +24,12 @@ public class MixedRealityInteropLibrary : ModuleRules
 
 			// Delay-load the DLL, so we can load it from the right place first
 			PublicDelayLoadDLLs.Add(DLLName);
-			RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/MixedRealityInteropLibrary/" + Target.Platform.ToString() + "/" + DLLName);
+			RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/Windows/x64/" + DLLName);
 			
 			// Hologram remoting dlls
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				string[] Dlls = { "Microsoft.Holographic.AppRemoting.dll", "PerceptionDevice.dll" };
+				string[] Dlls = { "Microsoft.Holographic.AppRemoting.dll", "PerceptionDevice.dll", "Microsoft.MixedReality.QR.dll" };
 
 				foreach(var Dll in Dlls)
 				{
@@ -48,17 +48,8 @@ public class MixedRealityInteropLibrary : ModuleRules
 		}
 		else if(Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
-			{
-				string InteropLibPath = Target.UEThirdPartySourceDirectory + "/WindowsMixedRealityInterop/Lib/x64/";
-				PublicAdditionalLibraries.Add(InteropLibPath + "MixedRealityInteropHoloLens.lib");
-			}
-			else 
-			{ 
-
-				string InteropLibPath = Target.UEThirdPartySourceDirectory + "/WindowsMixedRealityInterop/Lib/arm64/";
-				PublicAdditionalLibraries.Add(InteropLibPath + "MixedRealityInteropHoloLens.lib");
-			}
+            string InteropLibPath = Target.UEThirdPartySourceDirectory + "/WindowsMixedRealityInterop/Lib/" + Target.WindowsPlatform.GetArchitectureSubpath() + "/";
+            PublicAdditionalLibraries.Add(InteropLibPath + (Target.Configuration == UnrealTargetConfiguration.Debug ? "MixedRealityInteropHoloLensDebug.lib" : "MixedRealityInteropHoloLens.lib"));
 		}
 	}
 }
