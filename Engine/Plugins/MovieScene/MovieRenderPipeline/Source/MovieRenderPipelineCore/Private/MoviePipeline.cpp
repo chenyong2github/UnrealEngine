@@ -225,6 +225,8 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 
 	// Construct a debug UI and bind it to this instance.
 	LoadDebugWidget();
+	
+	GetWorld()->GetGameViewport()->bDisableWorldRendering = true;
 
 	SetupAudioRendering();
 
@@ -388,6 +390,8 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			// And then make sure all frames are sent to the Output Containers before we finalize.
 			ProcessOutstandingFinishedFrames();
 
+			PreviewTexture = nullptr;
+
 			// This is called once notifying output containers that all frames that will be submitted have been submitted.
 			PipelineState = EMovieRenderPipelineState::Finalize;
 			BeginFinalize();
@@ -436,6 +440,7 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			TeardownAudioRendering();
 			RestoreTargetSequenceToOriginalState();
 
+			GetWorld()->GetGameViewport()->bDisableWorldRendering = false;
 			GAreScreenMessagesEnabled = bPrevGScreenMessagesEnabled;
 
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Movie Pipeline completed. Duration: %s"), *(FDateTime::UtcNow() - InitializationTime).ToString());
