@@ -25,10 +25,13 @@ public:
 	void ResetMaterial();
 
 	/** @return The material render proxy */
-	FMaterialRenderProxy* GetRenderProxy() const { return MaterialObject ? MaterialObject->GetRenderProxy() : nullptr; }
+	FMaterialRenderProxy* GetRenderProxy() const { return MaterialProxy; }
 
 	/** @return the material object */
-	const UMaterialInterface* GetMaterialObject() const { return MaterialObject; }
+	const UMaterialInterface* GetMaterialObject() const
+	{
+		return MaterialObject;
+	}
 
 	/** Slate proxy used for batching the material */
 	FSlateShaderResourceProxy* GetResourceProxy() const { return SlateProxy; }
@@ -41,6 +44,7 @@ public:
 
 private:
 	const class UMaterialInterface* MaterialObject;
+	class FMaterialRenderProxy* MaterialProxy;
 
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
 	// Used to guard against crashes when the material object is deleted.  This is expensive so we do not do it in shipping

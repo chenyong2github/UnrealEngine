@@ -5,15 +5,31 @@
 #include "Styling/SlateBrush.h"
 
 
-FSlateMaterialResource::FSlateMaterialResource(const UMaterialInterface& InMaterial, const FVector2D& InImageSize, FSlateShaderResource* InTextureMask )
-	: MaterialObject( &InMaterial )
+FSlateMaterialResource::FSlateMaterialResource(const UMaterialInterface& InMaterialResource, const FVector2D& InImageSize, FSlateShaderResource* InTextureMask )
+	: MaterialObject( &InMaterialResource)
 	, SlateProxy( new FSlateShaderResourceProxy )
 	, TextureMaskResource( InTextureMask )
 	, Width(FMath::RoundToInt(InImageSize.X))
 	, Height(FMath::RoundToInt(InImageSize.Y))
 {
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
+	ensure(!InMaterialResource.IsPendingKill());
+#endif
+
 	SlateProxy->ActualSize = InImageSize.IntPoint();
 	SlateProxy->Resource = this;
+
+	MaterialProxy = InMaterialResource.GetRenderProxy();
+
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
+	ensure(!MaterialProxy->IsDeleted());
+	ensure(!MaterialProxy->IsMarkedForGarbageCollection());
+#endif
+
+	if (MaterialProxy->IsDeleted() || MaterialProxy->IsMarkedForGarbageCollection())
+	{
+		MaterialProxy = nullptr;
+	}
 
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
 	MaterialObjectWeakPtr = MaterialObject; 
@@ -31,7 +47,22 @@ FSlateMaterialResource::~FSlateMaterialResource()
 
 void FSlateMaterialResource::UpdateMaterial(const UMaterialInterface& InMaterialResource, const FVector2D& InImageSize, FSlateShaderResource* InTextureMask )
 {
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
+	ensure(!InMaterialResource.IsPendingKill());
+#endif
+
 	MaterialObject = &InMaterialResource;
+	MaterialProxy = InMaterialResource.GetRenderProxy();
+
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
+	ensure(!MaterialProxy->IsDeleted());
+	ensure(!MaterialProxy->IsMarkedForGarbageCollection());
+#endif
+
+	if (MaterialProxy->IsDeleted() || MaterialProxy->IsMarkedForGarbageCollection())
+	{
+		MaterialProxy = nullptr;
+	}
 
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
 	MaterialObjectWeakPtr = MaterialObject;
