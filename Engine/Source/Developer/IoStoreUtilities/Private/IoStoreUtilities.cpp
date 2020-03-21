@@ -3255,7 +3255,11 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 				if (TargetFile.Padding)
 				{
-					ReadFileTask.IoStoreWriter->AppendPadding(TargetFile.Padding);
+					const FIoStatus PaddingResult = ReadFileTask.IoStoreWriter->AppendPadding(TargetFile.Padding);
+					if (!PaddingResult.IsOk())
+					{
+						UE_LOG(LogIoStore, Warning, TEXT("Failed to append padding due to: %s"), *PaddingResult.ToString());
+					}
 				}
 				FIoWriteOptions WriteOptions;
 				WriteOptions.DebugName = *TargetFile.TargetPath;
