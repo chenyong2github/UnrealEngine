@@ -821,7 +821,7 @@ void FAssetSearchManager::Search(const FSearchQuery& Query, TFunction<void(TArra
 {
 	check(IsInGameThread());
 
-	FStudioAnalytics::ReportEvent(TEXT("AssetSearch"), {
+	FStudioAnalytics::RecordEvent(TEXT("AssetSearch"), {
 		FAnalyticsEventAttribute(TEXT("QueryString"), Query.Query)
 	});
 
