@@ -33,6 +33,11 @@ namespace UnrealBuildTool.Rules
 					"WindowsMixedRealityRuntimeSettings",
 				}
 			);
-		}
+
+            if (Target.bBuildEditor)
+            {
+                PrivateDependencyModuleNames.Add("UnrealEd");
+            }
+        }
 	}
 }
