@@ -1981,7 +1981,8 @@ inline int32 GetNum(const FString& String)
 /** Case insensitive string hash function. */
 FORCEINLINE uint32 GetTypeHash(const FString& S)
 {
-	return FCrc::Strihash_DEPRECATED(*S);
+	// This must match the GetTypeHash behavior of FStringView
+	return FCrc::Strihash_DEPRECATED(S.Len(), *S);
 }
 
 /** 
