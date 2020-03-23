@@ -2539,7 +2539,6 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 	SCOPED_GPU_STAT(RHICmdList, HairStrandsVisibility);
 
 	FHairStrandsVisibilityViews Output;
-
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
@@ -2557,16 +2556,18 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 			// Use the scene color for computing target resolution as the View.ViewRect, 
 			// doesn't include the actual resolution padding which make buffer size 
 			// mismatch, and create artifact (e.g. velocity computation)
-			const FIntPoint Resolution = InSceneColorTexture->GetDesc().Extent;
+			check(InSceneDepthTexture);
+			const FIntPoint Resolution = InSceneDepthTexture->GetDesc().Extent;
 
 
 			FRDGBuilder GraphBuilder(RHICmdList);
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 			FRDGTextureRef SceneGBufferBTexture = GraphBuilder.TryRegisterExternalTexture(InSceneGBufferBTexture, TEXT("SceneGBufferBTexture"));
-			FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(InSceneColorTexture, TEXT("SceneColorTexture"));
+			FRDGTextureRef SceneColorTexture = GraphBuilder.TryRegisterExternalTexture(InSceneColorTexture, TEXT("SceneColorTexture"));
 			FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(InSceneDepthTexture, TEXT("SceneDepthTexture"));
-			FRDGTextureRef SceneVelocityTexture = InSceneVelocityTexture ? GraphBuilder.RegisterExternalTexture(InSceneVelocityTexture, TEXT("SceneVelocityTexture")) : nullptr;
+			FRDGTextureRef SceneVelocityTexture = GraphBuilder.TryRegisterExternalTexture(InSceneVelocityTexture, TEXT("SceneVelocityTexture"));
 
+			const bool bRunColorAndDepthPatching = SceneGBufferBTexture && SceneColorTexture;
 			const EHairVisibilityRenderMode RenderMode = GetHairVisibilityRenderMode();
 			check(RenderMode == HairVisibilityRenderMode_MSAA || RenderMode == HairVisibilityRenderMode_PPLL);
 
@@ -2766,13 +2767,16 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				// * black color into the scene color
 				// * closest depth
 				// * unlit shading model ID 
-				AddHairVisibilityColorAndDepthPatchPass(
-					GraphBuilder,
-					View,
-					CategorizationTexture,
-					SceneGBufferBTexture,
-					SceneColorTexture,
-					SceneDepthTexture);
+				if (bRunColorAndDepthPatching)
+				{
+					AddHairVisibilityColorAndDepthPatchPass(
+						GraphBuilder,
+						View,
+						CategorizationTexture,
+						SceneGBufferBTexture,
+						SceneColorTexture,
+						SceneDepthTexture);
+				}
 			}
 			else if (RenderMode == HairVisibilityRenderMode_PPLL)
 			{
@@ -2825,13 +2829,16 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					GraphBuilder.QueueTextureExtraction(NodeCounter, &VisibilityData.NodeCount);
 				}
 
-				AddHairVisibilityColorAndDepthPatchPass(
-					GraphBuilder,
-					View,
-					CategorizationTexture,
-					SceneGBufferBTexture,
-					SceneColorTexture,
-					SceneDepthTexture);
+				if (bRunColorAndDepthPatching)
+				{
+					AddHairVisibilityColorAndDepthPatchPass(
+						GraphBuilder,
+						View,
+						CategorizationTexture,
+						SceneGBufferBTexture,
+						SceneColorTexture,
+						SceneDepthTexture);
+				}
 
 				// Allocate buffer for storing all the light samples
 				FRDGTextureRef SampleLightingBuffer = AddClearLightSamplePass(GraphBuilder, &View, VisibilityData.MaxNodeCount, NodeCounter);

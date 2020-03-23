@@ -2284,6 +2284,45 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 	}
 }
 
+// Forward lighting version for hair
+void FDeferredShadingSceneRenderer::RenderLightsForHair(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsDatas* HairDatas, TRefCountPtr<IPooledRenderTarget>& InScreenShadowMaskSubPixelTexture)
+{
+	const FSimpleLightArray &SimpleLights = SortedLightSet.SimpleLights;
+	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightSet.SortedLights;
+	const int32 AttenuationLightStart = SortedLightSet.AttenuationLightStart;
+	const int32 SimpleLightsEnd = SortedLightSet.SimpleLightsEnd;
+
+	const bool bUseHairLighting = HairDatas != nullptr;
+	if (ViewFamily.EngineShowFlags.DirectLighting && bUseHairLighting)
+	{
+		SCOPED_DRAW_EVENT(RHICmdList, DirectLighting);
+
+		//FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
+		{
+			const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
+			const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
+			if (LightSceneInfo.Proxy)
+			{
+				TRefCountPtr<IPooledRenderTarget> ScreenShadowMaskSubPixelTexture = InScreenShadowMaskSubPixelTexture;
+
+				const bool bDrawDeepShadow = SortedLightInfo.SortKey.Fields.bShadowed;
+				FHairStrandsTransmittanceMaskData TransmittanceMaskData;
+				if (bDrawDeepShadow)
+				{
+					TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, Views, &LightSceneInfo, HairDatas, ScreenShadowMaskSubPixelTexture);
+				}
+
+				RenderLightForHair(RHICmdList, 
+					&LightSceneInfo,
+					ScreenShadowMaskSubPixelTexture,
+					bDrawDeepShadow ? &TransmittanceMaskData : nullptr,
+					&HairDatas->HairVisibilityViews);
+			}
+		}
+	}
+}
+
 void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(FRHICommandListImmediate& RHICmdList, const FSimpleLightArray& SimpleLights)
 {
 	SCOPE_CYCLE_COUNTER(STAT_DirectLightRenderingTime);
