@@ -35,6 +35,7 @@ void FClothingSimulationContextCommon::Fill(const USkeletalMeshComponent* InComp
 	FillWindVelocity(InComponent);
 	FillDeltaSeconds(InDeltaSeconds, InMaxPhysicsDelta);
 	FillTeleportMode(InComponent, InDeltaSeconds, InMaxPhysicsDelta);
+	FillMaxDistanceScale(InComponent);
 }
 
 void FClothingSimulationContextCommon::FillBoneTransforms(const USkeletalMeshComponent* InComponent)
@@ -134,6 +135,11 @@ float FClothingSimulationContextCommon::SetWindFromComponent(const USkeletalMesh
 	float WindAdaption;
 	Component->GetWindForCloth_GameThread(WindVelocity, WindAdaption);
 	return WindAdaption;
+}
+
+void FClothingSimulationContextCommon::FillMaxDistanceScale(const USkeletalMeshComponent* Component)
+{
+	MaxDistanceScale = Component->GetClothMaxDistanceScale();
 }
 
 //==============================================================================

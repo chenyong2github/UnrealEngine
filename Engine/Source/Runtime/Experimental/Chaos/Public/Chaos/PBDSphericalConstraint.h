@@ -28,6 +28,7 @@ public:
 		, SphereRadii(InSphereRadii)
 		, SphereOffsetDistances(InSphereOffsetDistances)
 		, SphereOffsetDirections(InSphereOffsetDirections)
+		, SphereRadiiMultiplier(1.f)
 	{
 		check(SphereRadii);
 		check(SpherePositions);
@@ -46,7 +47,7 @@ public:
 				return;
 			}
 			
-			const T Radius = (*SphereRadii)[Index];
+			const T Radius = (*SphereRadii)[Index] * SphereRadiiMultiplier;
 			TVector<T, d> Centre = (*SpherePositions)[Index + FirstParticleIndex];
 			if (SphereOffsetDistances && SphereOffsetDirections)
 			{
@@ -66,6 +67,11 @@ public:
 		});
 	}
 
+	inline void SetSphereRadiiMultiplier(const T InSphereRadiiMultiplier)
+	{
+		SphereRadiiMultiplier = InSphereRadiiMultiplier;
+	}
+
 private:	
 	const uint32 FirstParticleIndex; // TODO: Get rid of this member variable (this is specific to a temporary cloth instancing implementation)
 	const uint32 ParticleCount;
@@ -76,6 +82,8 @@ private:
 
 	const TArray<T>* const SphereOffsetDistances;  // Optional Sphere position offsets // start at index 0
 	const TArray<TVector<T, d>>* const SphereOffsetDirections; //	Optional Sphere offset directions (TBD: This is really implementation specific to backstop constraints, consider creating a specialized constraint instead).
+
+	T SphereRadiiMultiplier;
 };
 
 }

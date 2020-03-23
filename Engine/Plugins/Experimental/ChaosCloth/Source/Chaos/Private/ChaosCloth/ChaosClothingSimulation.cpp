@@ -157,6 +157,7 @@ void ClothingSimulation::Shutdown()
 {
 	Assets.Reset();
 	AnimDriveSpringStiffness.Reset();
+	MaxDistancesMultipliers.Reset();
 	ExternalCollisions.Reset();
 	OldCollisionTransforms.Reset();
 	CollisionTransforms.Reset();
@@ -211,6 +212,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 		// TODO: Refactor all these arrays into a single cloth runtime asset structure
 		Assets.SetNumZeroed(NumAssets);
 		AnimDriveSpringStiffness.SetNumZeroed(NumAssets);
+		MaxDistancesMultipliers.SetNumZeroed(NumAssets);
 
 		Meshes.SetNum(NumAssets);
 		FaceNormals.SetNum(NumAssets);
@@ -687,10 +689,16 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 	const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
 	if (MaxDistances.Num() > 0)
 	{
+		// Initialize the interactor's multiplier
+		MaxDistancesMultipliers[InSimDataIndex] = 1.f;
+
 		check(Mesh.GetNumElements() > 0);
 		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, MaxDistances.Num(), true, &AnimationPositions, &MaxDistances.Values);
-		Evolution->AddPBDConstraintFunction([SphericalContraint = MoveTemp(SphericalContraint)](TPBDParticles<float, 3>& InParticles, const float Dt)
+		Evolution->AddPBDConstraintFunction([
+			&SphereRadiiMultiplier = MaxDistancesMultipliers[InSimDataIndex],
+			SphericalContraint = MoveTemp(SphericalContraint)](TPBDParticles<float, 3>& InParticles, const float Dt) mutable
 		{
+			SphericalContraint.SetSphereRadiiMultiplier(SphereRadiiMultiplier);
 			SphericalContraint.Apply(InParticles, Dt);
 		});
 	}
@@ -1424,6 +1432,9 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 					CollisionParticles.X(i) = OldCollisionTransforms[i].GetTranslation();
 				}, Index);
 			}
+
+			// Update max distance multiplier
+			MaxDistancesMultipliers[Index] = Context->MaxDistanceScale;
 		}
 	}
 
