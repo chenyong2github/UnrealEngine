@@ -857,7 +857,7 @@ protected:
 	/** Sets up SuportedAgents and NavigationDataCreators. Override it to add additional setup, but make sure to call Super implementation */
 	virtual void DoInitialSetup();
 
-	/** spawn new crowd manager */
+	/** Find or create abstract nav data */
 	virtual void UpdateAbstractNavData();
 	
 	/** Called during ConditionalPopulateNavOctree and gives subclassess a chance
@@ -971,8 +971,18 @@ protected:
 
 	UPROPERTY()
 	FNavigationSystemRunMode OperationMode;
-	
+
+	/** Queued async pathfinding queries to process in the next update. */
 	TArray<FAsyncPathFindingQuery> AsyncPathFindingQueries;
+
+	/** Queued async pathfinding results computed by the dedicated task in the last frame and ready to dispatch in the next update. */
+	TArray<FAsyncPathFindingQuery> AsyncPathFindingCompletedQueries;
+
+	/** Graph event that the main thread will wait for to synchronize with the async pathfinding task, if any. */
+	FGraphEventRef AsyncPathFindingTask;
+
+	/** Flag used by main thread to ask the async pathfinding task to stop and postpone remaining queries, if any. */
+	TAtomic<bool> bAbortAsyncQueriesRequested;
 
 	FCriticalSection NavDataRegistration;
 
@@ -1094,6 +1104,9 @@ protected:
 	/** Handler for FWorldDelegates::LevelRemovedFromWorld event */
 	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
 
+	/** Handler for FWorldDelegates::OnWorldPostActorTick event */
+	void OnWorldPostActorTick(UWorld* World, ELevelTick TickType, float DeltaTime) { PostponeAsyncQueries(); }
+
 	/** Adds given request to requests queue. Note it's to be called only on game thread only */
 	void AddAsyncQuery(const FAsyncPathFindingQuery& Query);
 		 
@@ -1103,6 +1116,15 @@ protected:
 
 	/** Processes pathfinding requests given in PathFindingQueries.*/
 	void PerformAsyncQueries(TArray<FAsyncPathFindingQuery> PathFindingQueries);
+
+	/** Broadcasts completion delegate for all completed async pathfinding requests. */
+	void DispatchAsyncQueriesResults(const TArray<FAsyncPathFindingQuery>& PathFindingQueries) const;
+
+	/**
+	 * Requests the async pathfinding task to abort and waits for it to complete
+	 * before resuming the main thread. Pathfind task will postpone remaining queries to next frame.
+	 */
+	void PostponeAsyncQueries();
 
 	/** */
 	virtual void DestroyNavOctree();
