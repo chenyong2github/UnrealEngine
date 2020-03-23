@@ -286,7 +286,7 @@ public:
 		return InnerArchive.GetCacheableArchive();
 	}
 
-	virtual FSynchronizedArchiveState& GetInnermostState() override
+	virtual ::FArchiveState& GetInnermostState() override
 	{
 		return InnerArchive.GetInnermostState();
 	}
