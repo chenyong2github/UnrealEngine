@@ -4,9 +4,9 @@
 
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -257,28 +257,27 @@ void FMarkersTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			EUserInterfaceActionType::ToggleButton
 		);
 
-		if (IsBookmarksTrack())
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_Logs", "Bookmarks -> Logs"),
-				LOCTEXT("ContextMenu_Logs_Desc", "Change this track to show all logs."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::SetLogsTrack), FCanExecuteAction()),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
-		else
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_Bookmarks", "Logs -> Bookmarks"),
-				LOCTEXT("ContextMenu_Bookmarks_Desc", "Change this track to show only the bookmarks."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::SetBookmarksTrack), FCanExecuteAction()),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_Bookmarks", "Bookmarks"),
+			LOCTEXT("ContextMenu_Bookmarks_Desc", "Change this track to show only the bookmarks."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::SetBookmarksTrack),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &FMarkersTimingTrack::IsBookmarksTrack)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_Logs", "Logs"),
+			LOCTEXT("ContextMenu_Logs_Desc", "Change this track to show all logs."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::SetLogsTrack),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &FMarkersTimingTrack::IsLogsTrack)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
 	}
 	MenuBuilder.EndSection();
 }

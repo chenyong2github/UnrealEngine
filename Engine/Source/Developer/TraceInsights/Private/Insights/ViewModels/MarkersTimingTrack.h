@@ -58,6 +58,7 @@ public:
 	void ToggleCollapsed() { Header.ToggleCollapsed(); }
 
 	bool IsBookmarksTrack() const { return bUseOnlyBookmarks; }
+	bool IsLogsTrack() const { return !bUseOnlyBookmarks; }
 	void SetBookmarksTrackFlag(bool bInUseOnlyBookmarks)
 	{
 		bUseOnlyBookmarks = bInUseOnlyBookmarks;
