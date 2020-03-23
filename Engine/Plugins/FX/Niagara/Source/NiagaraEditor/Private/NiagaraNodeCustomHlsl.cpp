@@ -79,77 +79,90 @@ bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens) const
 		return false;
 	}
 	
-	FString InputVars = TEXT(";/*+-)(?:, []\t\n");
-	int32 LastValidIdx = INDEX_NONE;
-	bool bComment = false;
+	FString Separators = TEXT(";/*+-=)(?:, []<>\"\t\n");
+	int32 TokenStart = 0;
 	int32 TargetLength = HlslData.Len();
 	for (int32 i = 0; i < TargetLength; )
 	{
 		int32 Index = INDEX_NONE;
 
 		// Determine if we are a splitter character or a regular character.
-		if (InputVars.FindChar(HlslData[i], Index) && Index != INDEX_NONE)
+		if (Separators.FindChar(HlslData[i], Index) && Index != INDEX_NONE)
 		{
-			if (HlslData[i] == '/' && (i + 1 != TargetLength) && HlslData[i+1] == '/') // We are a comment, go to end of line.
+			// Commit the current token, if any.
+			if (i > TokenStart)
 			{
-				int32 FoundEndIdx = HlslData.Find("\n", ESearchCase::IgnoreCase, ESearchDir::FromStart, i + 2);
-				if (FoundEndIdx != INDEX_NONE)
-				{
-					// do nothing // FoundEndIdx = FoundEndIdx;
-				}
-				else
+				OutTokens.Add(HlslData.Mid(TokenStart, i - TokenStart));
+			}
+
+			if (HlslData[i] == '/' && (i + 1 != TargetLength) && HlslData[i+1] == '/')
+			{
+				// Single-line comment, everything up to the end of the line becomes a token (including the comment start and the newline).
+				int32 FoundEndIdx = HlslData.Find("\n", ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 2);
+				if (FoundEndIdx == INDEX_NONE)
 				{
 					FoundEndIdx = TargetLength - 1;
 				}
 
-				OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i));
-				OutTokens.Add("\n");
+				OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
 				i = FoundEndIdx + 1;
 			}
-			else if (HlslData[i] == '/' && (i + 1 != TargetLength) && HlslData[i+1] == '*') // We are a multiline comment, go to end comment. Nested comments are not supported currently.
+			else if (HlslData[i] == '/' && (i + 1 != TargetLength) && HlslData[i+1] == '*')
 			{
-				int32 FoundEndIdx = HlslData.Find("*/", ESearchCase::IgnoreCase, ESearchDir::FromStart, i + 2);
+				// Multi-line comment, all of it becomes a single token, including the start and end markers.
+				int32 FoundEndIdx = HlslData.Find("*/", ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 2);
 				if (FoundEndIdx != INDEX_NONE)
 				{
-					FoundEndIdx = FoundEndIdx + 1;
+					// Include both characters of the terminator.
+					FoundEndIdx += 1;
 				}
 				else
 				{
+					// This is an unterminated multi-line comment, but there's nothing we can do at this point.
 					FoundEndIdx = TargetLength - 1;
 				}
 
-				OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i));
+				OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
 				i = FoundEndIdx + 1;
 			}
-			else if (LastValidIdx != INDEX_NONE) // We encountered a non-splitter character in the past that hasn't been recorded yet but we are a splitter.
+			else if (HlslData[i] == '"')
 			{
-				OutTokens.Add(HlslData.Mid(LastValidIdx, i - LastValidIdx));
-				OutTokens.Add(FString(1, &HlslData[i]));
-				i++;
+				// Strings in HLSL, what?
+				// This is an extension used to support calling DI functions which have specifiers. The syntax is:
+				//		DIName.Function<Specifier1="Value 1", Specifier2="Value 2">();
+				// The string is considered a single token, including the quotation marks.
+				int32 FoundEndIdx = HlslData.Find("\"", ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 1);
+				if (FoundEndIdx == INDEX_NONE)
+				{
+					// Unterminated string. A very weird compiler error will follow, but there's nothing we can do at this point.
+					FoundEndIdx = TargetLength - 1;
+				}
+
+				OutTokens.Add(HlslData.Mid(i, FoundEndIdx - i + 1));
+				i = FoundEndIdx + 1;
+
 			}
-			else //if (LastValidIdx == INDEX_NONE) // We are a splitter with no known unrecorded tokens prior.
+			else
 			{
+				// The separator will be its own token.
 				OutTokens.Add(FString(1, &HlslData[i]));
 				i++;
 			}
 
-			LastValidIdx = INDEX_NONE;
+			// Start a new token after the separator.
+			TokenStart = i;
 		}
-		else if (LastValidIdx == INDEX_NONE)
-		{
-			LastValidIdx = i; // Record that this is where we encountered the first non-splitter character that has yet to be recorded.
-			i++;
-		}		
 		else
 		{
+			// This character is part of a token, continue scanning.
 			i++;
 		}
 	}
 
 	// We may need to pull in the last chars from the end.
-	if (LastValidIdx != INDEX_NONE)
+	if (TokenStart < TargetLength)
 	{
-		OutTokens.Add(HlslData.Mid(LastValidIdx));
+		OutTokens.Add(HlslData.Mid(TokenStart));
 	}
 
 	return true;
