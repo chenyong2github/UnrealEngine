@@ -424,6 +424,14 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = ExtraData)
 	FString AdditionalPlistData;
 
+	/**
+	 * Choose whether to use a storyboard as a Launchscreen or not. If True, LaunchScreen.storyboard in Build/IOS/Resources/Interface
+	 * in the Engine folder will be copied to the bundle app and the Launchscreen images WILL NOT be included.
+	 * When using assets in your LaunchScreen.Storyboard, add them in Build/IOS/Resources/Interface/Assets and they will be included.
+	 */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = LaunchScreen)
+	bool 	bLaunchscreenStoryboard;
+
 	// Whether the app supports Facebook
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online)
 	bool bEnableFacebookSupport;
