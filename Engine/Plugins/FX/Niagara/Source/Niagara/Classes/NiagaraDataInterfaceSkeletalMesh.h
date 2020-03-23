@@ -301,11 +301,11 @@ public:
 	uint32 GetNumTexCoord() const { return NumTexCoord; }
 	uint32 GetNumWeights() const { return NumWeights; }
 
-	uint32 GetNumSpecificBones() const { return NumSpecificBones; }
-	FRHIShaderResourceView* GetSpecificBonesSRV() const { return SpecificBonesSRV; }
+	int32 GetNumFilteredBones() const { return NumFilteredBones; }
+	FRHIShaderResourceView* GetFilteredBonesSRV() const { return FilteredBonesSRV; }
 
-	uint32 GetNumSpecificSockets() const { return NumSpecificSockets; }
-	uint32 GetSpecificSocketBoneOffset() const { return SpecificSocketBoneOffset; }
+	int32 GetNumFilteredSockets() const { return NumFilteredSockets; }
+	int32 GetFilteredSocketBoneOffset() const { return FilteredSocketBoneOffset; }
 
 protected:
 
@@ -316,13 +316,13 @@ protected:
 	FVertexBufferRHIRef BufferTriangleMatricesOffsetRHI = nullptr;
 	FShaderResourceViewRHIRef BufferTriangleMatricesOffsetSRV = nullptr;
 
-	uint32 NumSpecificBones = 0;
-	TResourceArray<uint16> SpecificBonesArray;
-	FVertexBufferRHIRef SpecificBonesBuffer;
-	FShaderResourceViewRHIRef SpecificBonesSRV;
+	int32 NumFilteredBones = 0;
+	TResourceArray<uint16> FilteredBonesArray;
+	FVertexBufferRHIRef FilteredBonesBuffer;
+	FShaderResourceViewRHIRef FilteredBonesSRV;
 
-	uint32 NumSpecificSockets = 0;
-	uint32 SpecificSocketBoneOffset = 0;
+	int32 NumFilteredSockets = 0;
+	int32 FilteredSocketBoneOffset = 0;
 
 	/** Cached SRV to gpu buffers of the mesh we spawn from */
 	FRHIShaderResourceView* MeshVertexBufferSrv;
@@ -363,6 +363,8 @@ public:
 	void NewFrame(const FNDISkeletalMesh_InstanceData* InstanceData, int32 LODIndex);
 
 	bool DoesBoneDataExist() const { return bBoneGpuBufferValid;}
+
+	int32 GetNumBones() const { return (int32)SamplingBoneCount;  }
 
 	/** Encapsulates a GPU read / CPU write buffer for bone data */
 	struct FSkeletalBuffer
@@ -427,26 +429,25 @@ struct FNDISkeletalMesh_InstanceData
 	/** Time separating Transform and PrevTransform. */
 	float DeltaSeconds;
 
-	/** Indices of the bones specifically referenced by the interface. */
-	TArray<int32> SpecificBones;
+	/** Indices of the bones filtered by the user. */
+	TArray<int32> FilteredBones;
 
 	/** Name of all the sockets we use. */
-	//TArray<FName> SpecificSockets;
 	struct FCachedSocketInfo
 	{
 		FCachedSocketInfo() : BoneIdx(INDEX_NONE){}
 		FTransform Transform;
 		int32 BoneIdx;
 	};
-	TArray<FCachedSocketInfo> SpecificSocketInfo;
+	TArray<FCachedSocketInfo> FilteredSocketInfo;
 
 	/** Bone index of the first socket, sockets are appended to the end of the bone array */
-	int32 SpecificSocketBoneOffset = 0;
+	int32 FilteredSocketBoneOffset = 0;
 
 	/** Index into which socket transforms to use.  */
-	uint32 SpecificSocketTransformsIndex = 0;
+	uint32 FilteredSocketTransformsIndex = 0;
 	/** Transforms for sockets. */
-	TStaticArray<TArray<FTransform>, 2> SpecificSocketTransforms;
+	TStaticArray<TArray<FTransform>, 2> FilteredSocketTransforms;
 
 	uint32 ChangeId;
 
@@ -489,10 +490,19 @@ struct FNDISkeletalMesh_InstanceData
 		return Ret;
 	}
 
-	void UpdateSpecificSocketTransforms();
-	TArray<FTransform>& GetSpecificSocketsWriteBuffer() { return SpecificSocketTransforms[SpecificSocketTransformsIndex]; }
-	const TArray<FTransform>& GetSpecificSocketsCurrBuffer() const { return SpecificSocketTransforms[SpecificSocketTransformsIndex]; }
-	const TArray<FTransform>& GetSpecificSocketsPrevBuffer() const { return SpecificSocketTransforms[(SpecificSocketTransformsIndex + 1) % SpecificSocketTransforms.Num()]; }
+	FORCEINLINE_DEBUGGABLE FSkinWeightVertexBuffer* GetSkinWeights()
+	{
+		if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get()))
+		{
+			return SkelComp->GetSkinWeightBuffer(GetLODIndex());
+		}
+		return &Mesh->GetResourceForRendering()->LODRenderData[GetLODIndex()].SkinWeightVertexBuffer;
+	}
+
+	void UpdateFilteredSocketTransforms();
+	TArray<FTransform>& GetFilteredSocketsWriteBuffer() { return FilteredSocketTransforms[FilteredSocketTransformsIndex]; }
+	const TArray<FTransform>& GetFilteredSocketsCurrBuffer() const { return FilteredSocketTransforms[FilteredSocketTransformsIndex]; }
+	const TArray<FTransform>& GetFilteredSocketsPrevBuffer() const { return FilteredSocketTransforms[(FilteredSocketTransformsIndex + 1) % FilteredSocketTransforms.Num()]; }
 
 	bool HasColorData();
 };
@@ -536,13 +546,13 @@ public:
 	UPROPERTY(EditAnywhere, Category="Mesh")
 	int32 WholeMeshLOD;
 
-	/** Set of specific bones that can be used for sampling. Select from these with GetSpecificBoneAt and RandomSpecificBone. */
+	/** Set of filtered bones that can be used for sampling. Select from these with GetFilteredBoneAt and RandomFilteredBone. */
 	UPROPERTY(EditAnywhere, Category = "Skeleton")
-	TArray<FName> SpecificBones;
+	TArray<FName> FilteredBones;
 
-	/** Set of specific sockets that can be used for sampling. Select from these with GetSpecificSocketAt and RandomSpecificSocket. */
+	/** Set of filtered sockets that can be used for sampling. Select from these with GetFilteredSocketAt and RandomFilteredSocket. */
 	UPROPERTY(EditAnywhere, Category = "Skeleton")
-	TArray<FName> SpecificSockets;
+	TArray<FName> FilteredSockets;
 
 #if WITH_EDITORONLY_DATA
 	/** Do we require CPU access to the data, this is set during GetVMExternalFunction. */
@@ -585,6 +595,9 @@ public:
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+#if WITH_EDITORONLY_DATA
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+#endif
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
@@ -608,10 +621,11 @@ public:
 	static const FString MeshSkinWeightIndexSizeName;
 	static const FString MeshNumTexCoordName;
 	static const FString MeshNumWeightsName;
-	static const FString NumSpecificBonesName;
-	static const FString SpecificBonesName;
-	static const FString NumSpecificSocketsName;
-	static const FString SpecificSocketBoneOffsetName;
+	static const FString NumBonesName;
+	static const FString NumFilteredBonesName;
+	static const FString FilteredBonesName;
+	static const FString NumFilteredSocketsName;
+	static const FString FilteredSocketBoneOffsetName;
 	static const FString InstanceTransformName;
 	static const FString InstancePrevTransformName;
 	static const FString InstanceInvDeltaTimeName;
@@ -658,10 +672,10 @@ private:
 	FORCEINLINE int32 RandomTriIndex(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex);
 
 	template<typename FilterMode, typename AreaWeightingMode>
-	FORCEINLINE int32 GetSpecificTriangleCount(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
+	FORCEINLINE int32 GetFilteredTriangleCount(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
 
 	template<typename FilterMode, typename AreaWeightingMode>
-	FORCEINLINE int32 GetSpecificTriangleAt(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 FilteredIdx);
+	FORCEINLINE int32 GetFilteredTriangleAt(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 FilteredIdx);
 	//End of Mesh Sampling
 	//////////////////////////////////////////////////////////////////////////
 
@@ -697,13 +711,13 @@ public:
 
 private:
 	template<typename FilterMode>
-	FORCEINLINE int32 RandomVertIndex(FRandomStream& RandStream, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
+	FORCEINLINE int32 RandomVertIndex(FNDIRandomHelper& RandHelper, int32 Instance, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
 
 	template<typename FilterMode>
-	FORCEINLINE int32 GetSpecificVertexCount(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
+	FORCEINLINE int32 GetFilteredVertexCount(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
 
 	template<typename FilterMode>
-	FORCEINLINE int32 GetSpecificVertexAt(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 FilteredIdx);
+	FORCEINLINE int32 GetFilteredVertexAt(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 FilteredIdx);
 
 	//End of Vertex Sampling
 	//////////////////////////////////////////////////////////////////////////
@@ -715,24 +729,22 @@ public:
 	void GetSkeletonSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
 	void BindSkeletonSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
-	void IsValidBone(FVectorVMContext& Context);
-
-	void GetSpecificBoneCount(FVectorVMContext& Context);
-
-	void GetSpecificBoneAt(FVectorVMContext& Context);
-
-	void RandomSpecificBone(FVectorVMContext& Context);
-
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename bInterpolated>
 	void GetSkinnedBoneData(FVectorVMContext& Context);
-	
-	void GetSpecificSocketCount(FVectorVMContext& Context);
 
-	void GetSpecificSocketBoneAt(FVectorVMContext& Context);
+	void IsValidBone(FVectorVMContext& Context);
+	void RandomBone(FVectorVMContext& Context);
+	void GetBoneCount(FVectorVMContext& Context);
 
-	void GetSpecificSocketTransform(FVectorVMContext& Context);
+	void GetFilteredBoneCount(FVectorVMContext& Context);
+	void GetFilteredBoneAt(FVectorVMContext& Context);
+	void RandomFilteredBone(FVectorVMContext& Context);
 
-	void RandomSpecificSocketBone(FVectorVMContext& Context);
+
+	void GetFilteredSocketCount(FVectorVMContext& Context);
+	void GetFilteredSocketBoneAt(FVectorVMContext& Context);
+	void GetFilteredSocketTransform(FVectorVMContext& Context);
+	void RandomFilteredSocketBone(FVectorVMContext& Context);
 		
 	// End of Direct Bone + Socket Sampling
 	//////////////////////////////////////////////////////////////////////////
@@ -762,14 +774,16 @@ public:
 	static const FName GetSkinnedBoneDataWSName;
 	static const FName GetSkinnedBoneDataInterpolatedName;
 	static const FName GetSkinnedBoneDataWSInterpolatedName;
-	static const FName RandomSpecificBoneName;
 	static const FName IsValidBoneName;
-	static const FName GetSpecificBoneCountName;
-	static const FName GetSpecificBoneAtName;
-	static const FName RandomSpecificSocketBoneName;
-	static const FName GetSpecificSocketCountName;
-	static const FName GetSpecificSocketBoneAtName;
-	static const FName GetSpecificSocketTransformName;
+	static const FName RandomBoneName;
+	static const FName GetBoneCountName;
+	static const FName RandomFilteredBoneName;
+	static const FName GetFilteredBoneCountName;
+	static const FName GetFilteredBoneAtName;
+	static const FName RandomFilteredSocketBoneName;
+	static const FName GetFilteredSocketCountName;
+	static const FName GetFilteredSocketBoneAtName;
+	static const FName GetFilteredSocketTransformName;
 
 	// Vertex Sampling
 	static const FName IsValidVertexName;

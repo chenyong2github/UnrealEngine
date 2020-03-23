@@ -263,6 +263,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	/** The message to display when a function is marked experimental. */
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bExperimental", MultiLine = true, SkipForCompileHash = true))
 	FText ExperimentalMessage;
+
+	/** Per function version, it is up to the discretion of the function as to what the version means. */
+	UPROPERTY()
+	uint32 FunctionVersion = 0;
 #endif
 
 	/** Support running on the CPU. */
@@ -347,13 +351,13 @@ struct NIAGARA_API FNiagaraFunctionSignature
 
 	bool EqualsIgnoringSpecifiers(const FNiagaraFunctionSignature& Other) const
 	{
-		bool bNamesEqual = Name.ToString().Equals(Other.Name.ToString());
-		bool bInputsEqual = Inputs == Other.Inputs;
-		bool bOutputsEqual = Outputs == Other.Outputs;
-		bool bContextsEqual = bRequiresContext == Other.bRequiresContext;
-		bool bMemberFunctionsEqual = bMemberFunction == Other.bMemberFunction;
-		bool bOwnerNamesEqual = OwnerName == Other.OwnerName;
-		return bNamesEqual && bInputsEqual && bOutputsEqual && bContextsEqual && bMemberFunctionsEqual && bOwnerNamesEqual;
+		bool bMatches = Name.ToString().Equals(Other.Name.ToString());
+		bMatches &= Inputs == Other.Inputs;
+		bMatches &= Outputs == Other.Outputs;
+		bMatches &= bRequiresContext == Other.bRequiresContext;
+		bMatches &= bMemberFunction == Other.bMemberFunction;
+		bMatches &= OwnerName == Other.OwnerName;
+		return bMatches;
 	}
 
 	FString GetName()const { return Name.ToString(); }
