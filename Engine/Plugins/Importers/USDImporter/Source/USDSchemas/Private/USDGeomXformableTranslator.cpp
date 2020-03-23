@@ -249,17 +249,23 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 		UpdateComponents( SceneComponent );
 
+		// Don't call SetMobility as it would trigger a reregister, queuing unnecessary rhi commands since this is a brand new component
 		if ( Context->ParentComponent && Context->ParentComponent->Mobility == EComponentMobility::Movable )
 		{
-			SceneComponent->SetMobility( EComponentMobility::Movable );
+			SceneComponent->Mobility = EComponentMobility::Movable;
 		}
 		else
 		{
-			SceneComponent->SetMobility( UsdUtils::IsAnimated( Prim.Get() ) ? EComponentMobility::Movable : EComponentMobility::Static ); /*PrimsToAnimate.Contains( UsdToUnreal::ConvertPath( Path.GetPrimPath() ) */
+			SceneComponent->Mobility = UsdUtils::IsAnimated( Prim.Get() ) ? EComponentMobility::Movable : EComponentMobility::Static;
 		}
 
 		// Attach to parent
 		SceneComponent->AttachToComponent( Context->ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
+
+		if ( !SceneComponent->IsRegistered() )
+		{
+			SceneComponent->RegisterComponent();
+		}
 	}
 
 	return SceneComponent;
