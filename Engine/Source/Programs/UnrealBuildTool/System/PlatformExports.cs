@@ -106,7 +106,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the platform supports XGE</returns>
 		public static bool CanUseXGE(UnrealTargetPlatform Platform)
 		{
-			return UEBuildPlatform.IsPlatformAvailable(Platform) && UEBuildPlatform.GetBuildPlatform(Platform).CanUseXGE();
+			return UEBuildPlatform.IsPlatformAvailable(Platform) && UEBuildPlatform.GetBuildPlatform(Platform).CanUseXGE() && XGE.IsAvailable();
 		}
 
 		/// <summary>

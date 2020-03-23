@@ -135,7 +135,25 @@ namespace UnrealBuildTool
 		public static bool IsAvailable()
 		{
 			string XgConsoleExe;
-			return TryGetXgConsoleExecutable(out XgConsoleExe);
+
+			bool Success = TryGetXgConsoleExecutable(out XgConsoleExe);
+
+			// on windows check the service is actually running
+			if (Success && BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+			{
+				try
+				{
+					// will throw if the service doesn't exist, which it should if IB is present but just incase...
+					System.ServiceProcess.ServiceController SC = new System.ServiceProcess.ServiceController("Incredibuild Agent");
+					Success = SC.Status == System.ServiceProcess.ServiceControllerStatus.Running;
+				}
+				catch
+				{
+					Success = false;
+				}
+			}
+
+			return Success;
 		}
 
 		// precompile the Regex needed to parse the XGE output (the ones we want are of the form "File (Duration at +time)"
