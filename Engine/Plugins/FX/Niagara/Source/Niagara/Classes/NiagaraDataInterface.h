@@ -291,6 +291,17 @@ public:
 		return false;
 	}
 
+#if WITH_EDITORONLY_DATA
+	/**
+	Allows data interfaces the opportunity to rename / change the function signature and perform an upgrade.
+	Return true if the signature was modified and we need to refresh the pins / name, etc.
+	*/
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+	{
+		return false;
+	}
+#endif
+
 	virtual void PostExecute() {}
 
 #if WITH_EDITOR	
