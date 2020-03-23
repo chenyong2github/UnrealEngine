@@ -1823,11 +1823,22 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ComputeVolumetricFog(RHICmdList);
 	}
 
-	TRefCountPtr<IPooledRenderTarget> ForwardScreenSpaceShadowMask;
+	FHairStrandsDatas* HairDatas = nullptr;
+	FHairStrandsDatas HairDatasStorage;
+	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
+	const bool bHairEnable = IsHairStrandsEnable(Scene->GetShaderPlatform()) && bIsViewCompatible;
 
+	TRefCountPtr<IPooledRenderTarget> ForwardScreenSpaceShadowMask;
+	TRefCountPtr<IPooledRenderTarget> ForwardScreenSpaceShadowMask_Hair;
 	if (IsForwardShadingEnabled(ShaderPlatform))
 	{
-		RenderForwardShadingShadowProjections(RHICmdList, ForwardScreenSpaceShadowMask);
+		if (bHairEnable)
+		{
+			RenderHairBasePass(RHICmdList, Scene, SceneContext, Views, HairClusterData, HairDatasStorage);
+			HairDatas = &HairDatasStorage;
+		}
+
+		RenderForwardShadingShadowProjections(RHICmdList, ForwardScreenSpaceShadowMask, ForwardScreenSpaceShadowMask_Hair, HairDatas);
 	}
 
 	// only temporarily available after early z pass and until base pass
@@ -2230,49 +2241,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
-	// #hair_todo: Add multi-view
-	FHairStrandsDatas* HairDatas = nullptr;
-	FHairStrandsDatas HairDatasStorage;
-	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit; 
-	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && bIsViewCompatible)
+	// Hair base pass for deferred shading
+	if (bHairEnable && !HairDatas)
 	{
-		SCOPED_GPU_STAT(RHICmdList, HairRendering);
-		HairDatasStorage.MacroGroupsPerViews = CreateHairStrandsMacroGroups(RHICmdList, Scene, Views);
-
-		// Culling/LOD pass for DOM and Voxelisation altogether
-		FHairCullingParams CullingParams;
-		CullingParams.bShadowViewMode = true;
-		CullingParams.bCullingProcessSkipped = false;
-		ComputeHairStrandsClustersCulling(RHICmdList, *GetGlobalShaderMap(FeatureLevel), Views, CullingParams, HairClusterData);
-
-		ServiceLocalQueue();
-
-		// Voxelization and Deep Opacity Maps
-		VoxelizeHairStrands(RHICmdList, Scene, Views, HairDatasStorage.MacroGroupsPerViews);
-		RenderHairStrandsDeepShadows(RHICmdList, Scene, Views, HairDatasStorage.MacroGroupsPerViews);
-
-		ServiceLocalQueue();
-
-		// Culling/LOD pass for visibility (must be done after HZB is generated)
-		CullingParams.bShadowViewMode = false;
-		ComputeHairStrandsClustersCulling(RHICmdList, *GetGlobalShaderMap(FeatureLevel), Views, CullingParams, HairClusterData);
-		// Hair visibility pass
-		HairDatasStorage.HairVisibilityViews = RenderHairStrandsVisibilityBuffer(RHICmdList, Scene, Views, SceneContext.GBufferB, SceneContext.GetSceneColor(), SceneContext.SceneDepthZ, SceneContext.SceneVelocity, HairDatasStorage.MacroGroupsPerViews);
-		// Reset indirect draw buffer
-		ResetHairStrandsClusterToLOD0(RHICmdList, *GetGlobalShaderMap(FeatureLevel), HairClusterData);
-
-		ServiceLocalQueue();
-
+		RenderHairBasePass(RHICmdList, Scene, SceneContext, Views, HairClusterData, HairDatasStorage);
 		HairDatas = &HairDatasStorage;
-
-		if (SceneContext.bScreenSpaceAOIsValid && SceneContext.ScreenSpaceAO)
-		{
-			RenderHairStrandsAmbientOcclusion(
-				RHICmdList,
-				Views,
-				HairDatas,
-				SceneContext.ScreenSpaceAO);
-		}
 	}
 
 	// Render lighting.
@@ -2381,7 +2354,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 #endif // RHI_RAYTRACING
 		ServiceLocalQueue();
 	}
-
+	else if (HairDatas)
+	{
+		RenderLightsForHair(RHICmdList, SortedLightSet, HairDatas, ForwardScreenSpaceShadowMask_Hair);
+		RenderDeferredReflectionsAndSkyLightingHair(RHICmdList, HairDatas);
+	}
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
 	const bool bShouldRenderSingleLayerWater = ShouldRenderSingleLayerWater(Views, ViewFamily.EngineShowFlags);
