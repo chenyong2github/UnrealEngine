@@ -20,6 +20,7 @@ FClothingSimulationContextCommon::FClothingSimulationContextCommon()
 	, WindVelocity(FVector::ZeroVector)
 	, DeltaSeconds(0.f)
 	, TeleportMode(EClothingTeleportMode::None)
+	, MaxDistanceScale(1.f)
 {}
 
 FClothingSimulationContextCommon::~FClothingSimulationContextCommon()
