@@ -952,6 +952,7 @@ public class IOSPlatform : Platform
 
 		bool bLaunchscreenStoryboard = false;
 		ConfigHierarchy PlatformGameConfig;
+		bool bXCArchive = false;
 		if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformGameConfig))
 		{
 			PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bLaunchscreenStoryboard", out bLaunchscreenStoryboard);
