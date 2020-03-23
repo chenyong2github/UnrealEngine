@@ -904,6 +904,7 @@ public:
 	*
 	* @param ObjectsToSerialize An array of remaining objects to serialize.
 	* @param ReferencingObject Object referencing the object to process.
+	* @param Object Object being referenced.
 	* @param TokenIndex Index to the token stream where the reference was found.
 	* @param bAllowReferenceElimination True if reference elimination is allowed.
 	*/
@@ -2168,11 +2169,13 @@ void UObject::AddReferencedObjects(UObject* This, FReferenceCollector& Collector
 	if (GIsEditor)
 	{
 		UObject* LoadOuter = This->GetOuter();
-		UClass *Class = This->GetClass();
+		UClass* Class = This->GetClass();
+		UPackage* Package = This->GetExternalPackageInternal();
 		Collector.AllowEliminatingReferences(false);
-		Collector.AddReferencedObject( LoadOuter, This );
+		Collector.AddReferencedObject(LoadOuter, This);
+		Collector.AddReferencedObject(Package, This);
 		Collector.AllowEliminatingReferences(true);
-		Collector.AddReferencedObject( Class, This );
+		Collector.AddReferencedObject(Class, This);
 	}
 #endif
 }
@@ -2590,6 +2593,14 @@ void UClass::EmitFixedArrayEnd()
 	ReferenceTokenStream.EmitReturn();
 }
 
+void UClass::EmitExternalPackageReference()
+{
+#if WITH_EDITOR
+	static const FName TokenName("ExternalPackageToken");
+	ReferenceTokenStream.EmitReferenceInfo(FGCReferenceInfo(GCRT_ExternalPackage, 0), TokenName);
+#endif
+}
+
 struct FScopeLockIfNotNative
 {
 	FCriticalSection& ScopeCritical;
@@ -2812,13 +2823,14 @@ void FGCReferenceTokenStream::Fixup(void (*AddReferencedObjectsPtr)(UObject*, cl
 			}
 			break;
 		case GCRT_None:
-		case GCRT_Object:		
+		case GCRT_Object:
+		case GCRT_ExternalPackage:
 		case GCRT_ArrayObject:
 		case GCRT_ArrayObjectFreezable:
 		case GCRT_AddFieldPathReferencedObject:
 		case GCRT_ArrayAddFieldPathReferencedObject:
 		case GCRT_EndOfPointer:
-		case GCRT_EndOfStream:			
+		case GCRT_EndOfStream:
 			break;
 		default:
 			UE_LOG(LogGarbage, Fatal, TEXT("Unknown token type (%u) when trying to add ARO token."), (uint32)Token.Type);

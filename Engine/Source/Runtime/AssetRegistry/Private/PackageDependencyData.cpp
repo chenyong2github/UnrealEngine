@@ -4,16 +4,21 @@
 
 FName FPackageDependencyData::GetImportPackageName(int32 ImportIndex)
 {
-	FName Result;
-	for (FPackageIndex LinkerIndex = FPackageIndex::FromImport(ImportIndex); !LinkerIndex.IsNull();)
+	FPackageIndex LinkerIndex = FPackageIndex::FromImport(ImportIndex);
+	while (LinkerIndex.IsImport())
 	{
-		FObjectResource* Resource = &ImpExp(LinkerIndex);
-		LinkerIndex = Resource->OuterIndex;
-		if ( LinkerIndex.IsNull() )
+		FObjectImport& Resource = Imp(LinkerIndex);
+		// If the import has a package name set, then that's the import package name,
+		if (Resource.HasPackageName())
 		{
-			Result = Resource->ObjectName;
+			return Resource.GetPackageName();
 		}
+		// If our outer is null, then we have a package
+		else if (Resource.OuterIndex.IsNull())
+		{
+			return Resource.ObjectName;
+		}
+		LinkerIndex = Resource.OuterIndex;
 	}
-
-	return Result;
+	return NAME_None;
 }

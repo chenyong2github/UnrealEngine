@@ -215,6 +215,46 @@ void UObjectBase::LowLevelRename(FName NewName,UObject *NewOuter)
 	HashObject(this);
 }
 
+UPackage* UObjectBase::GetExternalPackage() const
+{
+	// if we have no outer, consider this a package, packages returns themselves as their external package
+	if (OuterPrivate == nullptr)
+	{
+		return CastChecked<UPackage>((UObject*)(this));
+	}
+	UPackage* ExternalPackage = nullptr;
+	if ((GetFlags() & RF_HasExternalPackage) != 0)
+	{
+		ExternalPackage = GetObjectExternalPackageThreadSafe(this);
+		// if the flag is set there should be an override set.
+		ensure(ExternalPackage);
+	}
+	return ExternalPackage;
+}
+
+UPackage* UObjectBase::GetExternalPackageInternal() const
+{
+	// if we have no outer, consider this a package, packages returns themselves as their external package
+	if (OuterPrivate == nullptr)
+	{
+		return CastChecked<UPackage>((UObject*)(this));
+	}
+	return (GetFlags() & RF_HasExternalPackage) != 0 ? GetObjectExternalPackageInternal(this) : nullptr;
+}
+
+void UObjectBase::SetExternalPackage(UPackage* InPackage)
+{
+	HashObjectExternalPackage(this, InPackage);
+	if (InPackage)
+	{
+		SetFlagsTo(GetFlags() | RF_HasExternalPackage);
+	}
+	else
+	{
+		SetFlagsTo(GetFlags() & ~RF_HasExternalPackage);
+	}
+}
+
 void UObjectBase::SetClass(UClass* NewClass)
 {
 	STAT(((UObject*)this)->ResetStatID()); // reset the stat id since this thing now has a different name
@@ -305,9 +345,9 @@ void UObjectBase::EmitBaseReferences(UClass *RootClass)
 {
 	static const FName ClassPropertyName(TEXT("Class"));
 	static const FName OuterPropertyName(TEXT("Outer"));
-
 	RootClass->EmitObjectReference(STRUCT_OFFSET(UObjectBase, ClassPrivate), ClassPropertyName, GCRT_Class);
 	RootClass->EmitObjectReference(STRUCT_OFFSET(UObjectBase, OuterPrivate), OuterPropertyName, GCRT_PersistentObject);
+	RootClass->EmitExternalPackageReference();
 }
 
 #if USE_PER_MODULE_UOBJECT_BOOTSTRAP

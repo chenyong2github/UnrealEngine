@@ -784,6 +784,8 @@ void UObject::BeginDestroy()
 #endif // WITH_EDITORONLY_DATA
 
 	LowLevelRename(NAME_None);
+	// Remove any associated external package, at this point
+	SetExternalPackage(nullptr);
 
 	// ensure BeginDestroy has been routed back to UObject::BeginDestroy.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

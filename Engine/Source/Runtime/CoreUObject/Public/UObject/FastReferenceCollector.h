@@ -252,7 +252,7 @@ private:
 		 void LogDetailedStatsSummary();
 	 };
 
-	 class FSampleCollctor : public FReferenceCollector 
+	 class FSampleCollector : public FReferenceCollector 
 	 {
 	   // Needs to implement FReferenceCollector pure virtual functions
 	 };
@@ -757,6 +757,15 @@ private:
 						UObject**	ObjectPtr = (UObject**)(StackEntryData + ReferenceInfo.Offset);
 						UObject*&	Object = *ObjectPtr;
 						TokenReturnCount = ReferenceInfo.ReturnCount;
+						ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
+					}
+					break;
+					case GCRT_ExternalPackage:
+					{
+						// We're dealing with the external package reference.
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						// Test if the object class isn't a package, since currently package are their own override and tracking that reference is pointless
+						UObject* Object = CurrentObject->GetClass() != UPackage::StaticClass() ? CurrentObject->GetExternalPackageInternal() : nullptr;
 						ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
 					}
 					break;
