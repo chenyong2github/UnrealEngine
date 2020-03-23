@@ -69,11 +69,11 @@ struct FGrassVariety
 	FFloatInterval ScaleX;
 
 	/** Specifies the range of scale, from minimum to maximum, to apply to a grass instance's Y Scale property */
-	UPROPERTY(EditAnywhere, Category=Grass)
+	UPROPERTY(EditAnywhere, Category=Grass, meta = (EditCondition = "Scaling == EGrassScaling::Free"))
 	FFloatInterval ScaleY;
 
 	/** Specifies the range of scale, from minimum to maximum, to apply to a grass instance's Z Scale property */
-	UPROPERTY(EditAnywhere, Category=Grass)
+	UPROPERTY(EditAnywhere, Category=Grass, meta = (EditCondition = "Scaling == EGrassScaling::Free || Scaling == EGrassScaling::LockXY"))
 	FFloatInterval ScaleZ;
 
 	/** Whether the grass instances should be placed at random rotation (true) or all at the same rotation (false) */
