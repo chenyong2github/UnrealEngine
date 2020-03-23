@@ -81,11 +81,25 @@ struct TDefaultMapKeyFuncs : BaseKeyFuncs<TPair<KeyType, ValueType>, KeyType, bI
 	{
 		return Element.Key;
 	}
+
 	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
 	{
 		return A == B;
 	}
+
+	template<typename ComparableKey>
+	static FORCEINLINE bool Matches(KeyInitType A, ComparableKey B)
+	{
+		return A == B;
+	}
+
 	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	{
+		return GetTypeHash(Key);
+	}
+
+	template<typename ComparableKey>
+	static FORCEINLINE uint32 GetKeyHash(ComparableKey Key)
 	{
 		return GetTypeHash(Key);
 	}
