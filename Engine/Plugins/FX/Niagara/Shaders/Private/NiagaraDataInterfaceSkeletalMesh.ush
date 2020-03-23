@@ -501,6 +501,21 @@ void DISkelMesh_RandomFilteredSocketBone(in FDISkelMeshContext DIContext, uint S
     SocketBone = DIContext.FilteredSocketBoneOffset + min(int(RandT0 * float(DIContext.NumFilteredSockets)), DIContext.NumFilteredSockets - 1); // avoid % by using mul/min to Tri = MeshVertexCount
 }
 
+void DISkelMesh_RandomFilteredSocketOrBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
+{
+	float RandT0 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
+	int NumFilteredSocketsAndBones = DIContext.NumFilteredBones + DIContext.NumFilteredSockets;
+    int FilteredIndex = min(int(RandT0 * float(NumFilteredSocketsAndBones)), NumFilteredSocketsAndBones - 1);
+	if ( FilteredIndex < DIContext.NumFilteredBones )
+	{
+		Bone = (int)DIContext.FilteredBones[FilteredIndex];
+	}
+	else
+	{
+		Bone = DIContext.FilteredSocketBoneOffset + FilteredIndex - DIContext.NumFilteredBones;
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define DISKELMESH_DECLARE_CONSTANTS(NAME) \
