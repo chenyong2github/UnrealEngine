@@ -374,6 +374,7 @@ namespace VulkanRHI
 #if VULKAN_USE_LLM
 		LLM_PLATFORM_SCOPE_VULKAN(ELLMTagVulkan::VulkanDriverMemoryGPU);
 		LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, (void*)NewAllocation->Handle, AllocationSize, ELLMTag::GraphicsPlatform, ELLMAllocType::System));
+		LLM_TRACK_VULKAN_SPARE_MEMORY_GPU((int64)AllocationSize);
 #endif
 
 		INC_DWORD_STAT(STAT_VulkanNumPhysicalMemAllocations);
@@ -404,6 +405,7 @@ namespace VulkanRHI
 
 #if VULKAN_USE_LLM
 		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, (void*)Allocation->Handle, ELLMAllocType::System));
+		LLM_TRACK_VULKAN_SPARE_MEMORY_GPU(-(int64)Allocation->Size);
 #endif
 
 		--NumAllocations;
@@ -877,6 +879,8 @@ namespace VulkanRHI
 
 				LLM_TRACK_VULKAN_HIGH_LEVEL_ALLOC(NewResourceAllocation, Size);
 
+				LLM_TRACK_VULKAN_SPARE_MEMORY_GPU(-(int64)Size);
+
 				return NewResourceAllocation;
 			}
 		}
@@ -888,6 +892,8 @@ namespace VulkanRHI
 	{
 		{
 			LLM_TRACK_VULKAN_HIGH_LEVEL_FREE(Allocation);
+
+			LLM_TRACK_VULKAN_SPARE_MEMORY_GPU((int64)Allocation->RequestedSize);
 
 			FScopeLock ScopeLock(&GOldResourcePageLock);
 			ResourceAllocations.RemoveSingleSwap(Allocation, false);
@@ -1829,6 +1835,8 @@ namespace VulkanRHI
 
 				LLM_TRACK_VULKAN_HIGH_LEVEL_ALLOC(NewSuballocation, InSize);
 
+				LLM_TRACK_VULKAN_SPARE_MEMORY_GPU(-(int64)InSize);
+
 				//PeakNumAllocations = FMath::Max(PeakNumAllocations, ResourceAllocations.Num());
 				return NewSuballocation;
 			}
@@ -1850,6 +1858,8 @@ namespace VulkanRHI
 			Suballocations.RemoveSingleSwap(Suballocation, false);
 
 			LLM_TRACK_VULKAN_HIGH_LEVEL_FREE(Suballocation);
+
+			LLM_TRACK_VULKAN_SPARE_MEMORY_GPU((int64)Suballocation->RequestedSize);
 
 			FRange NewFree;
 			NewFree.Offset = Suballocation->AllocationOffset;
