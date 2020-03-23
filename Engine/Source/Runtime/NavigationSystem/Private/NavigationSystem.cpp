@@ -57,6 +57,7 @@ static const uint32 REGISTRATION_QUEUE_SIZE = 16;	// and we'll not reallocate
 
 DECLARE_CYCLE_STAT(TEXT("Nav Tick: mark dirty"), STAT_Navigation_TickMarkDirty, STATGROUP_Navigation);
 DECLARE_CYCLE_STAT(TEXT("Nav Tick: async build"), STAT_Navigation_TickAsyncBuild, STATGROUP_Navigation);
+DECLARE_CYCLE_STAT(TEXT("Nav Tick: dispatch async pathfinding results"), STAT_Navigation_DispatchAsyncPathfindingResults, STATGROUP_Navigation);
 DECLARE_CYCLE_STAT(TEXT("Nav Tick: async pathfinding"), STAT_Navigation_TickAsyncPathfinding, STATGROUP_Navigation);
 DECLARE_CYCLE_STAT(TEXT("Debug NavOctree Time"), STAT_DebugNavOctree, STATGROUP_Navigation);
 
@@ -375,6 +376,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 	, bSkipAgentHeightCheckWhenPickingNavData(false)
 	, DirtyAreaWarningSizeThreshold(-1.0f)
 	, OperationMode(FNavigationSystemRunMode::InvalidMode)
+	, bAbortAsyncQueriesRequested(false)
 	, NavBuildingLockFlags(0)
 	, InitialNavBuildingLockFlags(0)
 	, bInitialSetupHasBeenPerformed(false)
@@ -527,6 +529,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 		AsyncPathFindingQueries.Reserve( INITIAL_ASYNC_QUERIES_SIZE );
 		NavDataRegistrationQueue.Reserve( REGISTRATION_QUEUE_SIZE );
 	
+		FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &UNavigationSystemV1::OnWorldPostActorTick);
 		FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UNavigationSystemV1::OnLevelAddedToWorld);
 		FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UNavigationSystemV1::OnLevelRemovedFromWorld);
 #if !UE_BUILD_SHIPPING
@@ -1220,12 +1223,23 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 	CSV_CUSTOM_STAT(NavTasks, NumRemainingTasks, GetNumRemainingBuildTasks(), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(NavTasks, NumRunningTasks, GetNumRunningBuildTasks(), ECsvCustomStatOp::Set);
 
+	// In multithreaded configuration we can process async pathfinding queries
+	// in dedicated task while dispatching completed queries results on the main thread.
+	// The created task can start and append new result right away so we transfer
+	// completed queries before to keep the list safe.
+	TArray<FAsyncPathFindingQuery> AsyncPathFindingCompletedQueriesToDispatch;
+	Swap(AsyncPathFindingCompletedQueriesToDispatch, AsyncPathFindingCompletedQueries);
+
+	// Trigger the async pathfinding queries (new ones and those that may have been postponed from last frame)
 	if (AsyncPathFindingQueries.Num() > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Navigation_TickAsyncPathfinding);
 		TriggerAsyncQueries(AsyncPathFindingQueries);
 		AsyncPathFindingQueries.Reset();
 	}
+
+	// Dispatch async pathfinding queries results from last frame
+	DispatchAsyncQueriesResults(AsyncPathFindingCompletedQueriesToDispatch);
 
 	if (CrowdManager.IsValid())
 	{
@@ -1416,16 +1430,33 @@ void UNavigationSystemV1::TriggerAsyncQueries(TArray<FAsyncPathFindingQuery>& Pa
 		STAT_FSimpleDelegateGraphTask_NavigationSystemBatchedAsyncQueries,
 		STATGROUP_TaskGraphTasks);
 
-	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+	AsyncPathFindingTask = FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 		FSimpleDelegateGraphTask::FDelegate::CreateUObject(this, &UNavigationSystemV1::PerformAsyncQueries, PathFindingQueries),
 		GET_STATID(STAT_FSimpleDelegateGraphTask_NavigationSystemBatchedAsyncQueries), nullptr, CPrio_TriggerAsyncQueries.Get());
 }
 
-static void AsyncQueryDone(FAsyncPathFindingQuery Query)
+void UNavigationSystemV1::PostponeAsyncQueries()
 {
-	CSV_SCOPED_TIMING_STAT(NavigationSystem, AsyncNavQueryFinished);
+	if (AsyncPathFindingTask.GetReference() && !AsyncPathFindingTask->IsComplete())
+	{
+		bAbortAsyncQueriesRequested = true;
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(AsyncPathFindingTask, ENamedThreads::GameThread);
+		bAbortAsyncQueriesRequested = false;
+	}
+}
 
-	Query.OnDoneDelegate.ExecuteIfBound(Query.QueryID, Query.Result.Result, Query.Result.Path);
+void UNavigationSystemV1::DispatchAsyncQueriesResults(const TArray<FAsyncPathFindingQuery>& PathFindingQueries) const
+{
+	if (PathFindingQueries.Num() > 0)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Navigation_DispatchAsyncPathfindingResults);
+		CSV_SCOPED_TIMING_STAT(NavigationSystem, AsyncNavQueryFinished);
+
+		for (const FAsyncPathFindingQuery& Query : PathFindingQueries)
+		{
+			Query.OnDoneDelegate.ExecuteIfBound(Query.QueryID, Query.Result.Result, Query.Result.Path);
+		}
+	}
 }
 
 void UNavigationSystemV1::PerformAsyncQueries(TArray<FAsyncPathFindingQuery> PathFindingQueries)
@@ -1437,7 +1468,8 @@ void UNavigationSystemV1::PerformAsyncQueries(TArray<FAsyncPathFindingQuery> Pat
 	{
 		return;
 	}
-	
+
+	int32 NumProcessed = 0;
 	for (FAsyncPathFindingQuery& Query : PathFindingQueries)
 	{
 		// @todo this is not necessarily the safest way to use UObjects outside of main thread. 
@@ -1460,17 +1492,28 @@ void UNavigationSystemV1::PerformAsyncQueries(TArray<FAsyncPathFindingQuery> Pat
 		{
 			Query.Result = ENavigationQueryResult::Error;
 		}
+		++NumProcessed;
 
-		// @todo make it return more informative results (bResult == false)
-		// trigger calling delegate on main thread - otherwise it may depend too much on stuff being thread safe
-		DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.Async nav query finished"),
-			STAT_FSimpleDelegateGraphTask_AsyncNavQueryFinished,
-			STATGROUP_TaskGraphTasks);
-
-		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-			FSimpleDelegateGraphTask::FDelegate::CreateStatic(AsyncQueryDone, Query),
-			GET_STATID(STAT_FSimpleDelegateGraphTask_AsyncNavQueryFinished), NULL, ENamedThreads::GameThread);
+		// Check for abort request from the main tread
+		if (bAbortAsyncQueriesRequested)
+		{
+			break;
+		}
 	}
+
+	const int32 NumQueries = PathFindingQueries.Num();
+	const int32 NumPostponed = NumQueries - NumProcessed;
+
+	// Queue remaining queries for next frame
+	if (bAbortAsyncQueriesRequested)
+	{
+		AsyncPathFindingQueries.Append(PathFindingQueries.GetData() + NumProcessed, NumPostponed);
+	}
+	
+	// Append to list of completed queries to dispatch results in main thread
+	AsyncPathFindingCompletedQueries.Append(PathFindingQueries.GetData(), NumProcessed);
+
+	UE_LOG(LogNavigation, Log, TEXT("Async pathfinding queries: %d completed, %d postponed to next frame"), NumProcessed, NumPostponed);
 }
 
 bool UNavigationSystemV1::GetRandomPoint(FNavLocation& ResultLocation, ANavigationData* NavData, FSharedConstNavQueryFilter QueryFilter)
