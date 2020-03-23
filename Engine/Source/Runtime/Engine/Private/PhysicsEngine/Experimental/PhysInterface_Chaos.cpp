@@ -2207,8 +2207,8 @@ uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 Inter
 template<typename AllocatorType>
 int32 GetAllShapesInternal_AssumedLocked(const FPhysicsActorHandle& InActorHandle, TArray<FPhysicsShapeReference_Chaos, AllocatorType>& OutShapes)
 {
-	OutShapes.Reset();
 	const Chaos::FShapesArray& ShapesArray = InActorHandle->ShapesArray();
+	OutShapes.Reset(ShapesArray.Num());
 	//todo: can we avoid this construction?
 	for (const TUniquePtr<Chaos::FPerShapeData>& Shape : ShapesArray)
 	{
