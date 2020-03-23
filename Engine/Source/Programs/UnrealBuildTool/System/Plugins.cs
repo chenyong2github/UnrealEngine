@@ -444,18 +444,16 @@ namespace UnrealBuildTool
 						PluginReferenceDescriptor ParentPluginReference = Parent.Descriptor.Plugins.FirstOrDefault(x => x.Name.Equals(ChildPluginReference.Name));
 						if (ParentPluginReference != null)
 						{
-							// merge white/blacklists (if the parent had a list, and child didn't specify a list, just add the child platform to the parent list - for white and black!)
-							if (ChildPluginReference.WhitelistPlatforms != null)
+							// we only need to whitelist the platform if the parent had a whitelist (otherwise, we could mistakenly remove all other platforms)
+							if (ParentPluginReference.WhitelistPlatforms != null)
 							{
-								if (ParentPluginReference.WhitelistPlatforms == null)
-								{
-									ParentPluginReference.WhitelistPlatforms = ChildPluginReference.WhitelistPlatforms;
-								}
-								else 
+								if (ChildPluginReference.WhitelistPlatforms != null)
 								{
 									ParentPluginReference.WhitelistPlatforms = ParentPluginReference.WhitelistPlatforms.Union(ChildPluginReference.WhitelistPlatforms).ToList();
 								}
 							}
+
+							// if we want to blacklist a platform, add it even if the parent didn't have a blacklist. this won't cause problems with other platforms
 							if (ChildPluginReference.BlacklistPlatforms != null)
 							{
 								if (ParentPluginReference.BlacklistPlatforms == null)
