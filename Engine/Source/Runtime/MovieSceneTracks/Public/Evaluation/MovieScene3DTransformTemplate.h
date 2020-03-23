@@ -73,7 +73,4 @@ protected:
 	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
 	virtual void Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
 	virtual void Interrogate(const FMovieSceneContext& Context, FMovieSceneInterrogationData& Container, UObject* BindingOverride) const override;
-
-private:
-	MovieScene::TMultiChannelValue<float, 9> EvaluateTransform(FFrameTime Time, const FGlobalTransformPersistentData* GlobalTransformData) const;
 };
