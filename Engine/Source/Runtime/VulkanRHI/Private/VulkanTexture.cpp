@@ -50,6 +50,14 @@ struct FTextureLock
 	}
 };
 
+#if VULKAN_USE_LLM
+inline ELLMTagVulkan GetMemoryTagForTextureFlags(uint32 UEFlags)
+{
+	bool bRenderTarget = ((TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable) & UEFlags) != 0u;
+	return bRenderTarget ? ELLMTagVulkan::VulkanRenderTargets : ELLMTagVulkan::VulkanTextures;
+}
+#endif // VULKAN_USE_LLM
+
 inline bool operator == (const FTextureLock& A, const FTextureLock& B)
 {
 	return A.Texture == B.Texture && A.MipIndex == B.MipIndex && A.LayerIndex == B.LayerIndex;
@@ -1026,7 +1034,7 @@ uint32 FVulkanDynamicRHI::RHIComputeMemorySize(FRHITexture* TextureRHI)
 FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 
 {
-	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
+	LLM_SCOPE_VULKAN(GetMemoryTagForTextureFlags(Flags));
 	return new FVulkanTexture2D(*Device, (EPixelFormat)Format, SizeX, SizeY, NumMips, NumSamples, Flags, CreateInfo);
 }
 
@@ -1044,13 +1052,13 @@ void FVulkanDynamicRHI::RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHIText
 
 FTexture2DArrayRHIRef FVulkanDynamicRHI::RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 {
-	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
+	LLM_SCOPE_VULKAN(GetMemoryTagForTextureFlags(Flags));
 	return new FVulkanTexture2DArray(*Device, (EPixelFormat)Format, SizeX, SizeY, SizeZ, NumMips, NumSamples, Flags, CreateInfo.BulkData, CreateInfo.ClearValueBinding);
 }
 
 FTexture3DRHIRef FVulkanDynamicRHI::RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 {
-	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
+	LLM_SCOPE_VULKAN(GetMemoryTagForTextureFlags(Flags));
 	FVulkanTexture3D* Tex3d = new FVulkanTexture3D(*Device, (EPixelFormat)Format, SizeX, SizeY, SizeZ, NumMips, Flags, CreateInfo.BulkData, CreateInfo.ClearValueBinding);
 
 	return Tex3d;
@@ -2026,13 +2034,13 @@ FVulkanTexture3D::~FVulkanTexture3D()
 -----------------------------------------------------------------------------*/
 FTextureCubeRHIRef FVulkanDynamicRHI::RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 {
-	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
+	LLM_SCOPE_VULKAN(GetMemoryTagForTextureFlags(Flags));
 	return new FVulkanTextureCube(*Device, (EPixelFormat)Format, Size, false, 1, NumMips, Flags, CreateInfo.BulkData, CreateInfo.ClearValueBinding);
 }
 
 FTextureCubeRHIRef FVulkanDynamicRHI::RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 {
-	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
+	LLM_SCOPE_VULKAN(GetMemoryTagForTextureFlags(Flags));
 	return new FVulkanTextureCube(*Device, (EPixelFormat)Format, Size, true, ArraySize, NumMips, Flags, CreateInfo.BulkData, CreateInfo.ClearValueBinding);
 }
 
