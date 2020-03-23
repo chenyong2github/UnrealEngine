@@ -1295,10 +1295,22 @@ private:
 		if (EngineConfig)
 		{
 			TArray<FString> Settings;
-			FString& Setting = Settings.Emplace_GetRef();
+			FString Setting;
 
 			// Unicast endpoint setting
 			EngineConfig->GetString(TEXT("/Script/UdpMessaging.UdpMessagingSettings"), TEXT("UnicastEndpoint"), Setting);
+
+			// if the unicast endpoint port is bound, add 1 to the port for server 
+			if (Setting.ParseIntoArray(Settings, TEXT(":"), false) == 2)
+			{
+				if (Settings[1] != TEXT("0"))
+				{
+					int32 Port = FCString::Atoi(*Settings[1]);
+					Port += 1;
+					Setting = Settings[0] + TEXT(":") + FString::FromInt(Port);
+				}
+			}
+
 			CmdLine = TEXT("-UDPMESSAGING_TRANSPORT_UNICAST=") + Setting;
 
 			// Multicast endpoint setting
