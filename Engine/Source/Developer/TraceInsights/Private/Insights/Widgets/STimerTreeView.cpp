@@ -136,7 +136,13 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 			PropertyName = HoveredColumnPtr->GetShortName();
 			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
 		}
-		SelectionStr = FText::FromName(SelectedNode->GetName());
+		FString ItemName = SelectedNode->GetName().ToString();
+		const int32 MaxStringLen = 64;
+		if (ItemName.Len() > MaxStringLen)
+		{
+			ItemName = ItemName.Left(MaxStringLen) + TEXT("...");
+		}
+		SelectionStr = FText::FromString(ItemName);
 	}
 	else
 	{

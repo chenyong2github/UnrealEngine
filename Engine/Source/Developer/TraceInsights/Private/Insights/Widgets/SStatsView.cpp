@@ -249,8 +249,8 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 {
 	const TArray<FStatsNodePtr> SelectedStatsNodes = TreeView->GetSelectedItems();
-	const int32 NumSelectedStatsNodes = SelectedStatsNodes.Num();
-	FStatsNodePtr SelectedStatsNode = NumSelectedStatsNodes ? SelectedStatsNodes[0] : nullptr;
+	const int32 NumSelectedNodes = SelectedStatsNodes.Num();
+	FStatsNodePtr SelectedNode = NumSelectedNodes ? SelectedStatsNodes[0] : nullptr;
 
 	const FStatsViewColumn* const * ColumnPtrPtr = FStatsViewColumnFactory::Get().ColumnIdToPtrMapping.Find(HoveredColumnId);
 	const FStatsViewColumn* const ColumnPtr = (ColumnPtrPtr != nullptr) ? *ColumnPtrPtr : nullptr;
@@ -259,18 +259,24 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 	FText PropertyName;
 	FText PropertyValue;
 
-	if (NumSelectedStatsNodes == 0)
+	if (NumSelectedNodes == 0)
 	{
 		SelectionStr = LOCTEXT("NothingSelected", "Nothing selected");
 	}
-	else if (NumSelectedStatsNodes == 1)
+	else if (NumSelectedNodes == 1)
 	{
 		if (ColumnPtr != nullptr)
 		{
 			PropertyName = ColumnPtr->ShortName;
-			PropertyValue = ColumnPtr->GetFormattedValue(*SelectedStatsNode);
+			PropertyValue = ColumnPtr->GetFormattedValue(*SelectedNode);
 		}
-		SelectionStr = FText::FromName(SelectedStatsNode->GetName());
+		FString ItemName = SelectedNode->GetName().ToString();
+		const int32 MaxStringLen = 64;
+		if (ItemName.Len() > MaxStringLen)
+		{
+			ItemName = ItemName.Left(MaxStringLen) + TEXT("...");
+		}
+		SelectionStr = FText::FromString(ItemName);
 	}
 	else
 	{

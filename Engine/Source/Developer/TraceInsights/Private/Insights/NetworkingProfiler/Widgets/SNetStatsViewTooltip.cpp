@@ -157,6 +157,8 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
+						.WrapTextAt(512.0f)
+						.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 						.Text(FText::FromName(NetEventNodePtr->GetName()))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					]
@@ -173,6 +175,8 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					//.Padding(2.0f)
 					//[
 					//	SNew(STextBlock)
+					//	.WrapTextAt(512.0f)
+					//	.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 					//	.Text(FText::FromName(NetEventNodePtr->GetMetaGroupName()))
 					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					//]
