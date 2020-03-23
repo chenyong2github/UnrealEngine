@@ -18,8 +18,8 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 	};
 
   public:
-	TPerParticlePBDCollisionConstraint(const TKinematicGeometryParticlesImp<T, d, SimType>& InParticles, TArrayCollectionArray<bool>& Collided, const T Thickness = (T)0, const T Friction = (T)0)
-	    : bFastPositionBasedFriction(true), MParticles(InParticles), MCollided(Collided), MThickness(Thickness), MFriction(Friction) {}
+	TPerParticlePBDCollisionConstraint(const TKinematicGeometryParticlesImp<T, d, SimType>& InParticles, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<uint32>& DynamicGroupIds, TArrayCollectionArray<uint32>& KinematicGroupIds, const T Thickness = (T)0, const T Friction = (T)0)
+	    : bFastPositionBasedFriction(true), MParticles(InParticles), MCollided(Collided), MDynamicGroupIds(DynamicGroupIds), MKinematicGroupIds(KinematicGroupIds), MThickness(Thickness), MFriction(Friction) {}
 	virtual ~TPerParticlePBDCollisionConstraint() {}
 
 	inline void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
@@ -28,6 +28,7 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 			return;
 		for (uint32 i = 0; i < MParticles.Size(); ++i)
 		{
+			if (MDynamicGroupIds[Index] != MKinematicGroupIds[i]) { continue; }  // Bail out if the collision groups doesn't match the particle group id
 			TVector<T, d> Normal;
 			TRigidTransform<T, d> Frame(MParticles.X(i), MParticles.R(i));
 			T Phi = MParticles.Geometry(i)->PhiWithNormal(Frame.InverseTransformPosition(InParticles.P(Index)), Normal);
@@ -96,6 +97,8 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 	// TODO(mlentine): Need a bb hierarchy
 	const TKinematicGeometryParticlesImp<T, d, SimType>& MParticles;
 	TArrayCollectionArray<bool>& MCollided;
+	TArrayCollectionArray<uint32>& MDynamicGroupIds;
+	TArrayCollectionArray<uint32>& MKinematicGroupIds;
 	mutable TMap<int32, VelocityConstraint> MVelocityConstraints;
 	const T MThickness, MFriction;
 };
