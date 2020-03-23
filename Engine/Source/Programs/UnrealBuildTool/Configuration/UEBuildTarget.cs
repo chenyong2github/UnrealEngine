@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Xml;
 using System.Runtime.Serialization;
@@ -17,7 +19,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// The platform we're building for
 	/// </summary>
-	[Serializable]
+	[Serializable, TypeConverter(typeof(UnrealTargetPlatformTypeConverter))]
 	public partial struct UnrealTargetPlatform : ISerializable
 	{
 		#region Private/boilerplate
@@ -274,6 +276,44 @@ namespace UnrealBuildTool
 		/// Confidential platform
 		/// </summary>
 		public static UnrealTargetPlatform Lumin = FindOrAddByName("Lumin");
+	}
+
+	internal class UnrealTargetPlatformTypeConverter : TypeConverter
+	{
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+		{
+			if (sourceType == typeof(string))
+				return true;
+
+			return base.CanConvertFrom(context, sourceType);
+		}
+
+		public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
+		{
+			if (destinationType == typeof(string))
+				return true;
+
+			return base.CanConvertTo(context, destinationType);
+		}
+
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
+		{
+			if (value.GetType() == typeof(string))
+			{
+				return UnrealTargetPlatform.Parse((string) value);
+			}
+			return base.ConvertFrom(context, culture, value);
+		}
+
+		public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
+		{
+			if (destinationType == typeof(string))
+			{ 
+				UnrealTargetPlatform Platform = (UnrealTargetPlatform) value;
+				return Platform.ToString();
+			}
+			return base.ConvertTo(context, culture, value, destinationType);
+		}
 	}
 
 	/// <summary>
