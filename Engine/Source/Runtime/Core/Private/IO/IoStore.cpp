@@ -214,7 +214,7 @@ FIoStoreWriter::FIoStoreWriter(FIoStoreEnvironment& InEnvironment)
 
 FIoStoreWriter::~FIoStoreWriter()
 {
-	Impl->FlushMetadata();
+	(void)Impl->FlushMetadata();
 }
 
 FIoStatus FIoStoreWriter::Initialize()
