@@ -656,7 +656,7 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 		// if the search fail and the OuterPackage is a UPackage, lookup potential external package
 		if (Result == nullptr && ObjectPackage->IsA(UPackage::StaticClass()))
 		{
-			Result = StaticFindObjectInPackageInternal(ThreadHash, ObjectClass, Cast<UPackage>(ObjectPackage), ObjectName, bExactClass, ExcludeFlags, ExclusiveInternalFlags);
+			Result = StaticFindObjectInPackageInternal(ThreadHash, ObjectClass, static_cast<const UPackage*>(ObjectPackage), ObjectName, bExactClass, ExcludeFlags, ExclusiveInternalFlags);
 		}
 #endif
 	}

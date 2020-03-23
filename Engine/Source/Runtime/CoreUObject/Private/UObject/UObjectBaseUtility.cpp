@@ -7,6 +7,7 @@
 #include "UObject/UObjectBaseUtility.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectHash.h"
 #include "Templates/Casts.h"
 #include "UObject/Interface.h"
 #include "Modules/ModuleManager.h"

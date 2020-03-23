@@ -764,8 +764,9 @@ private:
 					{
 						// We're dealing with the external package reference.
 						TokenReturnCount = ReferenceInfo.ReturnCount;
-						// Test if the object class isn't a package, since currently package are their own override and tracking that reference is pointless
-						UObject* Object = CurrentObject->GetClass() != UPackage::StaticClass() ? CurrentObject->GetExternalPackageInternal() : nullptr;
+						// Test if the object isn't itself, since currently package are their own external and tracking that reference is pointless
+						UObject* Object = CurrentObject->GetExternalPackageInternal();
+						Object = Object != CurrentObject ? Object : nullptr;
 						ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, Object, ReferenceTokenStreamIndex, false);
 					}
 					break;
