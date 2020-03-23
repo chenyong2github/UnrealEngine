@@ -602,7 +602,11 @@ FReply SPlacementModeTools::OnKeyDown( const FGeometry& MyGeometry, const FKeyEv
 	if ( InKeyEvent.GetKey() == EKeys::Escape )
 	{
 		FPlacementMode* PlacementEditMode = (FPlacementMode*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Placement );
-		PlacementEditMode->StopPlacing();
+		// Catch potential nullptr
+		if (ensureMsgf(PlacementEditMode, TEXT("PlacementEditMode was null, but SPlacementModeTools is still accepting KeyDown events")))
+		{
+			PlacementEditMode->StopPlacing();
+		}
 		Reply = FReply::Handled();
 	}
 
