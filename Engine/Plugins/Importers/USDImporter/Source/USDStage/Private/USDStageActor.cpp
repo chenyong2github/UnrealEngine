@@ -924,6 +924,9 @@ void AUsdStageActor::LoadAsset( FUsdSchemaTranslationContext& TranslationContext
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadAsset );
 
+	// Mark the assets as non transactional so that they don't get serialized in the transaction buffer
+	TGuardValue< EObjectFlags > ContextFlagsGuard( TranslationContext.ObjectFlags, TranslationContext.ObjectFlags & ~RF_Transactional );
+
 	const FString PrimPath = UsdToUnreal::ConvertPath( Prim.GetPrimPath() );
 	PrimPathsToAssets.Remove( PrimPath );
 
@@ -940,6 +943,9 @@ void AUsdStageActor::LoadAsset( FUsdSchemaTranslationContext& TranslationContext
 void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& StartPrim )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadAssets );
+
+	// Mark the assets as non transactional so that they don't get serialized in the transaction buffer
+	TGuardValue< EObjectFlags > ContextFlagsGuard( TranslationContext.ObjectFlags, TranslationContext.ObjectFlags & ~RF_Transactional );
 
 	// Clear existing prim/asset association
 	FString StartPrimPath = UsdToUnreal::ConvertPath( StartPrim.GetPrimPath() );
