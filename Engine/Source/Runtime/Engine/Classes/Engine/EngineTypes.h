@@ -2016,6 +2016,10 @@ struct ENGINE_API FHitResult
 	UPROPERTY()
 	int32 Item;
 
+	/** Index to item that was hit, also hit primitive specific. */
+	UPROPERTY()
+	uint8 ElementIndex;
+
 	/**
 	 * Physical material that was hit.
 	 * @note Must set bReturnPhysicalMaterial on the swept PrimitiveComponent or in the query params for this to be returned.

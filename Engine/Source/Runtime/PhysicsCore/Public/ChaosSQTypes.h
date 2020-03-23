@@ -29,13 +29,15 @@ namespace ChaosInterface
 
 	struct FQueryHit : public FActorShape
 	{
-		FQueryHit() : FaceIndex(-1) {} 
+		FQueryHit() : FaceIndex(-1), ElementIndex(-1) {} 
 
 		/**
 		Face index of touched triangle, for triangle meshes, convex meshes and height fields. Defaults to -1 if face index is not available
 		*/
 
 		int32 FaceIndex; // Signed int to match TArray's size type, and so INDEX_NONE/-1 doesn't underflow.
+
+		int32 ElementIndex; // Currently used to indicate which shape was hit for a particle with multiple shapes.
 
 		void Serialize(Chaos::FChaosArchive& Ar);
 	};

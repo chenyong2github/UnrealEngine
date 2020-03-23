@@ -200,6 +200,11 @@ namespace Chaos
 			}
 		}
 
+		int32 GetShapeIndex() const
+		{
+			return ShapeIdx;
+		}
+
 	private:
 
 		class IPhysicsProxyBase* Proxy;
