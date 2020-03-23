@@ -540,6 +540,7 @@ public:
 
 
 	static FString GetSanitizedSymbolName(FString SymbolName, bool bCollapseNamespaces=false);
+	static FString GetSanitizedDIFunctionName(const FString& FunctionName);
 	static FString GetSanitizedFunctionNameSuffix(FString Name);
 
 	/** Replaces all non-ascii characters with a "ASCXXX" string, where XXX is their int value */
@@ -578,6 +579,7 @@ private:
 	FString ComputeMatrixColumnAccess(const FString& Name);
 	FString ComputeMatrixRowAccess(const FString& Name);
 
+	bool ParseDIFunctionSpecifiers(UNiagaraNodeCustomHlsl* CustomHLSLNode, FNiagaraFunctionSignature& Sig, TArray<FString>& Tokens, int32& TokenIdx);
 	void HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl,
 		FNiagaraFunctionSignature& OutSignature, TArray<int32>& Inputs);
 	
