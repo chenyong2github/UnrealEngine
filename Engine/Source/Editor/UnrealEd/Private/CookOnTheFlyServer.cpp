@@ -5901,6 +5901,8 @@ void UCookOnTheFlyServer::CancelCookByTheBook()
 
 		CancelAllQueues();
 
+		ClearPackageStoreContexts();
+
 		CookByTheBookOptions->bRunning = false;
 		SandboxFile = nullptr;
 	}
@@ -5946,7 +5948,7 @@ void UCookOnTheFlyServer::CancelAllQueues()
 
 	// Remove all elements from all Queues and send them to Idle
 	UE::Cook::FPackageDataQueue& SaveQueue = PackageDatas->GetSaveQueue();
-	while (SaveQueue.IsEmpty())
+	while (!SaveQueue.IsEmpty())
 	{
 		UE::Cook::FPackageData& PackageData = *SaveQueue.PopFrontValue();
 		PackageData.SendToState(UE::Cook::EPackageState::Idle, UE::Cook::ESendFlags::QueueAdd);
