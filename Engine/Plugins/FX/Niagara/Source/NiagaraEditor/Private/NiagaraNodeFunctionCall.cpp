@@ -73,6 +73,20 @@ void UNiagaraNodeFunctionCall::PostLoad()
 		}
 	}
 
+	// Allow data interfaces an opportunity to intercept changes
+	if (Signature.IsValid() && Signature.bMemberFunction)
+	{
+		if ((Signature.Inputs.Num() > 0) && Signature.Inputs[0].GetType().IsDataInterface())
+		{
+			UNiagaraDataInterface* CDO = CastChecked<UNiagaraDataInterface>(Signature.Inputs[0].GetType().GetClass()->GetDefaultObject());
+			if (CDO->UpgradeFunctionCall(Signature))
+			{
+				FunctionDisplayName.Empty();
+				ReallocatePins();
+			}
+		}
+	}
+
 	// Clean up invalid old references to propagated parameters
 	CleanupPropagatedSwitchValues();
 	
@@ -84,6 +98,8 @@ void UNiagaraNodeFunctionCall::PostLoad()
 
 void UNiagaraNodeFunctionCall::UpgradeDIFunctionCalls()
 {
+	// We no longer use this upgrade path, but leaving here for convience in case we need to use this route again for other things
+#if 0
 	UClass* InterfaceClass = nullptr;
 	UNiagaraDataInterface* InterfaceCDO = nullptr;
 	if (Signature.IsValid() && FunctionScript == nullptr)
@@ -99,25 +115,6 @@ void UNiagaraNodeFunctionCall::UpgradeDIFunctionCalls()
 	}
 
 	FString UpgradeNote;
-
-	//TODO: Move this out into DI specific functions or helper classes?
-	if (InterfaceClass && InterfaceCDO)
-	{		
-		if (InterfaceClass == UNiagaraDataInterfaceSkeletalMesh::StaticClass())
-		{
-			if (Signature.Name == TEXT("RandomTriCoord"))
-			{
-				if (Signature.Inputs.Num() == 1)//If this is before we added the additional seed inputs. TODO: Add a per DI version number to make this simpler and clearer. In this case we can detect old data easy enough but a version number is better.
-				{
-					UpgradeNote = TEXT("Adding RandomInfo parameter to support deterministic random sampling.");
-
-					Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(FNiagaraRandInfo::StaticStruct()), TEXT("RandomInfo")));
-					ReallocatePins();
-				}
-			}
-		}
-	}
-
 	if (!UpgradeNote.IsEmpty())
 	{
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Upgradeing Niagara Data Interface fuction call node. This may cause unnessessary recompiles. Please resave these assets if this occurs. Or use fx.UpgradeAllNiagaraAssets."));
@@ -129,6 +126,7 @@ void UNiagaraNodeFunctionCall::UpgradeDIFunctionCalls()
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Function: %s"), *Signature.GetName());
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Upgrade Note: %s"),* UpgradeNote);
 	}
+#endif
 }
 
 TSharedPtr<SGraphNode> UNiagaraNodeFunctionCall::CreateVisualWidget()

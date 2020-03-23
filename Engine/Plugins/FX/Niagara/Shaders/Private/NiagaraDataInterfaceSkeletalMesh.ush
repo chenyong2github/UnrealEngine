@@ -32,10 +32,11 @@ struct FDISkelMeshContext
 	uint			MeshSkinWeightIndexSize;
 	uint			MeshNumTexCoord;
 	uint			MeshNumWeights;
-	uint			NumSpecificBones;
-	Buffer<uint>	SpecificBones;
-	uint			NumSpecificSockets;
-	uint			SpecificSocketBoneOffset;
+	int				NumBones;
+	int				NumFilteredBones;
+	Buffer<uint>	FilteredBones;
+	int				NumFilteredSockets;
+	int				FilteredSocketBoneOffset;
 	float4x4		InstanceTransform;
 	float4x4		InstancePrevTransform;
 	float			InstanceInvDeltaTime;
@@ -403,9 +404,9 @@ void DISkelMesh_GetTriColor(in FDISkelMeshContext DIContext, in uint TriangleInd
     OutColor = (DIContext.MeshColorBuffer[VertexIndex0] * BaryCoord.x) + (DIContext.MeshColorBuffer[VertexIndex1] * BaryCoord.y) + (DIContext.MeshColorBuffer[VertexIndex2] * BaryCoord.z);
 }
 
-void DISkelMesh_GetRandomVertex(in FDISkelMeshContext DIContext, out int OutVertex)
+void DISkelMesh_GetRandomVertex(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int OutVertex)
 {
-    float RandT0 = NiagaraInternalNoise(1, 2, 3);
+	float RandT0 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
     OutVertex = min(uint(RandT0 * float(DIContext.MeshVertexCount)), DIContext.MeshVertexCount - 1); // avoid % by using mul/min to Tri = MeshVertexCount
 }
 
@@ -449,38 +450,55 @@ void DISkelMesh_GetVertexUV(in FDISkelMeshContext DIContext, in int VertexIndex,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Specific Bones / Sockets
-void DISkelMesh_GetSpecificBoneCount(in FDISkelMeshContext DIContext, out int Count)
+// Filtered Bones / Sockets
+void DISkelMesh_IsValidBone(in FDISkelMeshContext DIContext, in int BoneIndex, out bool IsValid)
 {
-    Count = DIContext.NumSpecificBones;
+	IsValid = BoneIndex >= 0 && BoneIndex < DIContext.NumBones;
 }
 
-void DISkelMesh_GetSpecificBoneAt(in FDISkelMeshContext DIContext, in int InBoneIndex, out int Bone)
+void DISkelMesh_RandomBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
 {
-    int BoneIndex = min(InBoneIndex, int(DIContext.NumSpecificBones - 1));
-    Bone = (int)DIContext.SpecificBones[BoneIndex];
+	float RandT0 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
+    Bone = min(int(RandT0 * float(DIContext.NumBones)), DIContext.NumBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
 }
 
-void DISkelMesh_RandomSpecificBone(in FDISkelMeshContext DIContext, out int Bone)
+void DISkelMesh_GetBoneCount(in FDISkelMeshContext DIContext, out int Count)
 {
-    float RandT0 = NiagaraInternalNoise(1, 2, 3);
-    Bone = min(uint(RandT0 * float(DIContext.NumSpecificBones)), DIContext.NumSpecificBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+	Count = DIContext.NumBones;
 }
 
-void DISkelMesh_GetSpecificSocketCount(in FDISkelMeshContext DIContext, out int Count)
+void DISkelMesh_GetFilteredBoneCount(in FDISkelMeshContext DIContext, out int Count)
 {
-    Count = DIContext.NumSpecificSockets;
+    Count = DIContext.NumFilteredBones;
 }
 
-void DISkelMesh_GetSpecificSocketBoneAt(in FDISkelMeshContext DIContext, in int InSocketIndex, out int Bone)
+void DISkelMesh_GetFilteredBoneAt(in FDISkelMeshContext DIContext, in int InBoneIndex, out int Bone)
 {
-    Bone = (int)DIContext.SpecificSocketBoneOffset + clamp(InSocketIndex, 0, (int)DIContext.NumSpecificSockets);
+    int BoneIndex = min(InBoneIndex, DIContext.NumFilteredBones - 1);
+    Bone = (int)DIContext.FilteredBones[BoneIndex];
 }
 
-void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out int SocketBone)
+void DISkelMesh_RandomFilteredBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
 {
-    float RandT0 = NiagaraInternalNoise(1, 2, 3);
-    SocketBone = min(uint(RandT0 * float(DIContext.NumSpecificSockets)), DIContext.NumSpecificSockets - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+	float RandT0 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
+    int FilteredBone = min(int(RandT0 * float(DIContext.NumFilteredBones)), DIContext.NumFilteredBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+    Bone = (int)DIContext.FilteredBones[FilteredBone];
+}
+
+void DISkelMesh_GetFilteredSocketCount(in FDISkelMeshContext DIContext, out int Count)
+{
+    Count = DIContext.NumFilteredSockets;
+}
+
+void DISkelMesh_GetFilteredSocketBoneAt(in FDISkelMeshContext DIContext, in int InSocketIndex, out int Bone)
+{
+    Bone = DIContext.FilteredSocketBoneOffset + clamp(InSocketIndex, 0, DIContext.NumFilteredSockets);
+}
+
+void DISkelMesh_RandomFilteredSocketBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int SocketBone)
+{
+	float RandT0 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
+    SocketBone = DIContext.FilteredSocketBoneOffset + min(int(RandT0 * float(DIContext.NumFilteredSockets)), DIContext.NumFilteredSockets - 1); // avoid % by using mul/min to Tri = MeshVertexCount
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -506,10 +524,11 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	uint			MeshSkinWeightIndexSize_ ## NAME; \
 	uint			MeshNumTexCoord_ ## NAME; \
 	uint			MeshNumWeights_ ## NAME; \
-	uint			NumSpecificBones_ ## NAME; \
-	Buffer<uint>	SpecificBones_ ## NAME; \
-	uint			NumSpecificSockets_ ## NAME; \
-	uint			SpecificSocketBoneOffset_ ## NAME; \
+	int				NumBones_ ## NAME; \
+	int				NumFilteredBones_ ## NAME; \
+	Buffer<uint>	FilteredBones_ ## NAME; \
+	int				NumFilteredSockets_ ## NAME; \
+	int				FilteredSocketBoneOffset_ ## NAME; \
 	float4x4		InstanceTransform_ ## NAME; \
 	float4x4		InstancePrevTransform_ ## NAME; \
 	float			InstanceInvDeltaTime_ ## NAME; \
@@ -535,10 +554,11 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	DIContext.MeshVertexCount = MeshVertexCount_ ## NAME; \
 	DIContext.MeshNumTexCoord = MeshNumTexCoord_ ## NAME; \
 	DIContext.MeshNumWeights = MeshNumWeights_ ## NAME; \
-	DIContext.NumSpecificBones	= NumSpecificBones_ ## NAME; \
-	DIContext.SpecificBones	= SpecificBones_ ## NAME; \
-	DIContext.NumSpecificSockets = NumSpecificSockets_ ## NAME; \
-	DIContext.SpecificSocketBoneOffset = SpecificSocketBoneOffset_ ## NAME; \
+	DIContext.NumBones = NumBones_ ## NAME; \
+	DIContext.NumFilteredBones	= NumFilteredBones_ ## NAME; \
+	DIContext.FilteredBones	= FilteredBones_ ## NAME; \
+	DIContext.NumFilteredSockets = NumFilteredSockets_ ## NAME; \
+	DIContext.FilteredSocketBoneOffset = FilteredSocketBoneOffset_ ## NAME; \
 	DIContext.MeshWeightStride = MeshWeightStride_ ## NAME; \
 	DIContext.MeshSkinWeightIndexSize = MeshSkinWeightIndexSize_ ## NAME; \
 	DIContext.InstanceTransform = InstanceTransform_ ## NAME; \
