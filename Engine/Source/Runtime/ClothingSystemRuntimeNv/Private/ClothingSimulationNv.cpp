@@ -41,7 +41,6 @@ DECLARE_CYCLE_STAT(TEXT("Update Anim Drive"), STAT_NvClothUpdateAnimDrive, STATG
 FClothingSimulationContextNv::FClothingSimulationContextNv()
 	: PredictedLod(0)
 	, WindAdaption(0.0f)
-	, MaxDistanceScale(1.f)
 {
 }
 
