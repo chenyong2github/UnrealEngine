@@ -275,6 +275,7 @@ void PopulateSimulatedParticle(
 	if (Implicit)	//todo(ocohen): this is only needed for cases where clusters have no proxy. Kind of gross though, should refactor
 	{
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> SharedImplicitTS(Implicit->DeepCopy().Release());
+		FCollisionStructureManager::UpdateImplicitFlags(SharedImplicitTS.Get(), SharedParams.SizeSpecificData[0].CollisionType); // @todo(chaos) : Implicit constructor clobbers CollisionType
 		Handle->SetSharedGeometry(SharedImplicitTS);
 		Handle->SetHasBounds(true);
 		Handle->SetLocalBounds(SharedImplicitTS->BoundingBox());
@@ -2416,14 +2417,28 @@ void IdentifySimulatableElements(Chaos::FErrorReporter& ErrorReporter, FGeometry
 	TArray<bool> HiddenObject;
 	HiddenObject.Init(true, NumTransforms);
 	int32 PrevObject = INDEX_NONE;
+	bool bContiguous = true;
 	for(int32 i = 0; i < Indices.Num(); i++)
 	{
 		if(Visible[i]) // Face index i is visible
 		{
 			const int32 ObjIdx = BoneMap[Indices[i][0]]; // Look up associated bone to the faces X coord.
 			HiddenObject[ObjIdx] = false;
+
+			if (!ensure(ObjIdx >= PrevObject))
+			{
+				bContiguous = false;
+			}
+
 			PrevObject = ObjIdx;
 		}
+	}
+
+	if (!bContiguous)
+	{
+		// What assumptions???  How are we ever going to know if this is still the case?
+		ErrorReporter.ReportError(TEXT("Objects are not contiguous. This breaks assumptions later in the pipeline"));
+		ErrorReporter.HandleLatestError();
 	}
 
 	//For now all simulation data is a non compiled attribute. Not clear what we want for simulated vs kinematic collections
