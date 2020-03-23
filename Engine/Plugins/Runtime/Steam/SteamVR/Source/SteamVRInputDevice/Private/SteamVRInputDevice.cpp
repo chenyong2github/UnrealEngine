@@ -2834,7 +2834,7 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 		{
 			bool bIsGenerated = true;
 
-			if (DeleteIfExists)
+			if (!FileManager.FileExists(*ManifestPath) || DeleteIfExists)
 			{
 				// Set this binding as one we need to regenerate
 				bIsGenerated = false;
