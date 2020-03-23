@@ -6,6 +6,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
