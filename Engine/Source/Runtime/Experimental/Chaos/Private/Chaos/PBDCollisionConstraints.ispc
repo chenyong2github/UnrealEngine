@@ -89,7 +89,7 @@ inline static float SquaredSum(const FVector &Vec)
 	return SquareSum;
 }
 
-inline static float NormalSize(const FVector &Normal)
+inline static float VectorSize(const FVector &Normal)
 {
 	return rcp(rsqrt(SquaredSum(Normal)));
 }
@@ -143,7 +143,7 @@ inline static float BoxPhi(const uniform FVector &BoxMin, const uniform FVector 
 				Normal.V[i] = 0;
 			}
 		}
-		Phi = NormalSize(Normal);
+		Phi = VectorSize(Normal);
 	}
 
 	return Phi;
@@ -638,6 +638,79 @@ export uniform bool SamplePlaneNoNormalAll(const uniform FVector &ObjectNormal,
 
 			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 			float LocalPhi = DotProduct(LocalPoint - ObjectMX, ObjectNormal);
+
+			if(LocalPhi < Phi)
+			{
+				foreach_active(j)
+				{
+					unmasked
+					{
+						if(!bPhiFound)
+						{
+							Phi = extract(LocalPhi, j);
+							DeepestParticle = extract(i, j);
+							bPhiFound = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return bPhiFound;
+}
+
+export void SampleSphereNormalAverageAll(const uniform float &ObjectRadius,
+									const uniform FVector &ObjectMX,
+									const uniform FTransform &SampleToObjectTransform, 
+									const uniform FVector SampleParticles[],
+									const uniform float Thickness, 
+									uniform float &TotalThickness, 
+									uniform FVector &ConstraintLocation,
+									const uniform unsigned int NumParticles)
+{
+	FVector ConstraintLocationSum = SetVector(0.0f, 0.0f, 0.0f);
+	float ThicknessSum = 0.0f;
+
+	foreach(i = 0 ... NumParticles)
+	{
+		#pragma ignore warning(perf)
+		FVector Particle = SampleParticles[i];
+
+		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+		float LocalPhi = ObjectRadius - VectorSize(LocalPoint - ObjectMX);
+
+		float LocalThickness = LocalPhi - Thickness;
+		if(LocalThickness < -KINDA_SMALL_NUMBER)
+		{
+			ConstraintLocationSum = ConstraintLocationSum + (LocalPoint * LocalThickness);
+			ThicknessSum += LocalThickness;
+		}
+	}
+
+	ConstraintLocation = ConstraintLocation + SetVector(reduce_add(ConstraintLocationSum.V[0]), reduce_add(ConstraintLocationSum.V[1]), reduce_add(ConstraintLocationSum.V[2]));
+	TotalThickness = TotalThickness + reduce_add(ThicknessSum);
+}
+
+export uniform bool SampleSphereNoNormalAll(const uniform float &ObjectRadius,
+										const uniform FVector &ObjectMX,
+										const uniform FTransform &SampleToObjectTransform, 
+										const uniform FVector SampleParticles[],
+										uniform int &DeepestParticle,
+										uniform float &Phi,
+										const uniform unsigned int NumParticles)
+{
+	uniform bool bPhiFound = false;
+
+	foreach(i = 0 ... NumParticles)
+	{
+		if(!bPhiFound)
+		{
+			#pragma ignore warning(perf)
+			FVector Particle = SampleParticles[i];
+
+			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+			float LocalPhi = ObjectRadius - VectorSize(LocalPoint - ObjectMX);
 
 			if(LocalPhi < Phi)
 			{

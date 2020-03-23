@@ -363,6 +363,40 @@ namespace Chaos
 						}
 					}
 				}
+				else if (Object.GetType() == ImplicitObjectType::Sphere && NumParticles > 0)
+				{
+					const TSphere<float, 3>* Sphere = Object.GetObject<Chaos::TSphere<float, 3>>();
+
+					if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)
+					{
+						ispc::SampleSphereNormalAverageAll(
+							Sphere->GetRadius(),
+							(ispc::FVector&)Sphere->GetCenter(),
+							(ispc::FTransform&)SampleToObjectTM,
+							(ispc::FVector*) & SampleParticles.XArray()[0],
+							Thickness,
+							TotalThickness,
+							(ispc::FVector&)AvgContact.Location,
+							NumParticles);
+					}
+					else
+					{
+						ispc::SampleSphereNoNormalAll(
+							Sphere->GetRadius(),
+							(ispc::FVector&)Sphere->GetCenter(),
+							(ispc::FTransform&)SampleToObjectTM,
+							(ispc::FVector*) & SampleParticles.XArray()[0],
+							DeepestParticle,
+							AvgContact.Phi,
+							NumParticles);
+
+						if (UpdateType == ECollisionUpdateType::Any)
+						{
+							Contact.Phi = AvgContact.Phi;
+							return;
+						}
+					}
+				}
 				else if (Object.GetType() == ImplicitObjectType::Box && NumParticles > 0)
 				{
 					const TBox<float, 3>* Box = Object.GetObject<Chaos::TBox<float, 3>>();
