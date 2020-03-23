@@ -2984,6 +2984,32 @@ FString FHlslNiagaraTranslator::GetSanitizedSymbolName(FString SymbolName, bool 
 	return Ret;
 }
 
+FString FHlslNiagaraTranslator::GetSanitizedDIFunctionName(const FString& FunctionName)
+{
+	bool bWordStart = true;
+	FString Sanitized;
+	for (int i = 0; i < FunctionName.Len(); ++i)
+	{
+		TCHAR c = FunctionName[i];
+
+		if (c == ' ')
+		{
+			bWordStart = true;
+		}
+		else
+		{
+			if (bWordStart)
+			{
+				c = FChar::ToUpper(c);
+				bWordStart = false;
+			}
+			Sanitized.AppendChar(c);
+		}
+	}
+
+	return Sanitized;
+}
+
 FString FHlslNiagaraTranslator::GetSanitizedFunctionNameSuffix(FString Name)
 {
 	if (Name.Len() == 0)
@@ -5427,6 +5453,117 @@ void FHlslNiagaraTranslator::FinalResolveNamespacedTokens(const FString& Paramet
 	}
 }
 
+static bool IsWhitespaceToken(const FString& Token)
+{
+	return
+		Token.Len() == 0 ||
+		Token[0] == TCHAR('\r') || Token[0] == TCHAR('\n') || Token[0] == TCHAR('\t') || Token[0] == TCHAR(' ') || 
+		(Token.Len() >= 2 && Token[0] == TCHAR('/') && (Token[1] == TCHAR('/') || Token[1] == TCHAR('*')))
+		;
+}
+
+bool FHlslNiagaraTranslator::ParseDIFunctionSpecifiers(UNiagaraNodeCustomHlsl* CustomHLSLNode, FNiagaraFunctionSignature& Sig, TArray<FString>& Tokens, int32& TokenIdx)
+{
+	const int32 NumTokens = Tokens.Num();
+
+	// Skip whitespace between the function name and the arguments or specifiers.
+	while (TokenIdx < NumTokens && IsWhitespaceToken(Tokens[TokenIdx]))
+	{
+		++TokenIdx;
+	}
+
+	// If we don't have a specifier list start token, we don't need to do anything.
+	if (TokenIdx == NumTokens || Tokens[TokenIdx] != TEXT("<"))
+	{
+		return true;
+	}
+
+	enum class EParserState
+	{
+		ExpectName,
+		ExpectEquals,
+		ExpectValue,
+		ExpectCommaOrEnd
+	};
+
+	EParserState ParserState = EParserState::ExpectName;
+	FString SpecifierName;
+
+	// All the tokens inside the specifier list, including the angle brackets, will be replaced with empty strings,
+	// because they're not valid HLSL. We just want to extract Key=Value pairs into the signature's specifier list.
+	while (TokenIdx < NumTokens)
+	{
+		FString Token = Tokens[TokenIdx];
+		Tokens[TokenIdx] = TEXT("");
+		++TokenIdx;
+
+		if (IsWhitespaceToken(Token))
+		{
+			continue;
+		}
+
+		if (Token[0] == TCHAR('<'))
+		{
+			// Nothing.
+		}
+		else if (Token[0] == TCHAR('>'))
+		{
+			if (ParserState != EParserState::ExpectCommaOrEnd)
+			{
+				Error(LOCTEXT("DataInterfaceFunctionCallUnexpectedEnd", "Unexpected end of specifier list."), CustomHLSLNode, nullptr);
+				return false;
+			}
+			break;
+		}
+		else if (Token[0] == TCHAR('='))
+		{
+			if (ParserState == EParserState::ExpectEquals)
+			{
+				ParserState = EParserState::ExpectValue;
+			}
+			else
+			{
+				Error(LOCTEXT("DataInterfaceFunctionCallExpectEquals", "Invalid token in specifier list, expecting '='."), CustomHLSLNode, nullptr);
+				return false;
+			}
+		}
+		else if (Token[0] == TCHAR(','))
+		{
+			if (ParserState == EParserState::ExpectCommaOrEnd)
+			{
+				ParserState = EParserState::ExpectName;
+			}
+			else
+			{
+				Error(LOCTEXT("DataInterfaceFunctionCallExpectComma", "Invalid token in specifier list, expecting ','."), CustomHLSLNode, nullptr);
+				return false;
+			}
+		}
+		else
+		{
+			if (ParserState == EParserState::ExpectName)
+			{
+				SpecifierName = Token;
+				ParserState = EParserState::ExpectEquals;
+			}
+			else if (ParserState == EParserState::ExpectValue)
+			{
+				int32 Start = 0, ValueLen = Token.Len();
+				// Remove the quotation marks if they are used.
+				if (Token.Len() >= 2 && Token[0] == TCHAR('"') && Token[ValueLen - 1] == TCHAR('"'))
+				{
+					Start = 1;
+					ValueLen -= 2;
+				}
+				Sig.FunctionSpecifiers.Add(FName(SpecifierName), FName(Token.Mid(Start, ValueLen)));
+				ParserState = EParserState::ExpectCommaOrEnd;
+			}
+		}
+	}
+
+	return true;
+}
+
 void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl,
 	FNiagaraFunctionSignature& OutSignature, TArray<int32>& Inputs)
 {
@@ -5492,30 +5629,54 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 			// actual custom hlsl source. If they do, then add them to the function table that we need to map.
 			FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[OwnerIdx];
 			TArray<FNiagaraFunctionSignature> Funcs;
-			TArray<FNiagaraFunctionSignature> AddedFuncs;
 			CDO->GetFunctions(Funcs);
 			for (int32 FuncIdx = 0; FuncIdx < Funcs.Num(); FuncIdx++)
 			{
-				FNiagaraFunctionSignature Sig = Funcs[FuncIdx];
-				FString ReplaceSrc = Input.GetName().ToString() + TEXT(".") + Sig.GetName();
-				FString ReplaceDest = GetSanitizedSymbolName(Sig.GetName() + TEXT("_") + (Info.Name.ToString().Replace(TEXT("."), TEXT(""))));
-				uint32 NumFound = CustomFunctionHlsl->ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, false);
-				if (NumFound != 0)
+				FString DIMethodInvocation = Input.GetName().ToString() + TEXT(".") + GetSanitizedDIFunctionName(Funcs[FuncIdx].GetName());
+
+				for (int32 TokenIndex = 0; TokenIndex < Tokens.Num();)
 				{
-					AddedFuncs.Add(Sig);
-
-					if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
+					if (Tokens[TokenIndex].Compare(DIMethodInvocation, ESearchCase::CaseSensitive) == 0)
 					{
-						//This interface requires per instance data via a user ptr so place the index to it at the end of the inputs.
-						//Skip this for now... Inputs.Add(AddSourceChunk(LexToString(Info.UserPtrIdx), FNiagaraTypeDefinition::GetIntDef(), false));
-						Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")));
-					}
-					//Override the owner id of the signature with the actual caller.
-					Sig.OwnerName = Info.Name;
-					Info.RegisteredFunctions.Add(Sig);
-					Functions.FindOrAdd(Sig);
+						// We can't replace the method-style call with the actual function name yet, because function specifiers
+						// are part of the name, and we haven't determined them yet. Just store a pointer to the token for now.
+						FString& FunctionNameToken = Tokens[TokenIndex];
+						++TokenIndex;
 
-					HandleDataInterfaceCall(Info, Sig);
+						FNiagaraFunctionSignature Sig = Funcs[FuncIdx];
+
+						// Override the owner id of the signature with the actual caller.
+						Sig.OwnerName = Info.Name;
+
+						// Function specifiers can be given inside angle brackets, using this syntax:
+						//
+						//		DI.Function<Specifier1=Value1, Specifier2="Value 2">(Arguments);
+						//
+						// We need to extract the specifiers and replace any tokens inside the angle brackets with empty strings,
+						// to arrive back at valid HLSL.
+						if (!ParseDIFunctionSpecifiers(CustomFunctionHlsl, Sig, Tokens, TokenIndex))
+						{
+							return;
+						}
+
+						// Now we can build the function name and replace the method call token with the final function name.
+						FunctionNameToken = GetFunctionSignatureSymbol(Sig);
+
+						if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
+						{
+							//This interface requires per instance data via a user ptr so place the index to it at the end of the inputs.
+							Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")));
+						}
+
+						Info.RegisteredFunctions.Add(Sig);
+						Functions.FindOrAdd(Sig);
+
+						HandleDataInterfaceCall(Info, Sig);
+					}
+					else
+					{
+						++TokenIndex;
+					}
 				}
 			}
 			SigInputs.Add(Input);
