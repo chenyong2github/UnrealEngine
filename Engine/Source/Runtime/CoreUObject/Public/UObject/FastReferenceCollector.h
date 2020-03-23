@@ -6,6 +6,7 @@
 #include "Stats/Stats.h"
 #include "UObject/GarbageCollection.h"
 #include "UObject/Class.h"
+#include "UObject/Package.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "UObject/UnrealType.h"
 #include "Misc/ScopeLock.h"
