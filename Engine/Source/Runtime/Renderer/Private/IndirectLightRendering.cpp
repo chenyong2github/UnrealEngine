@@ -927,3 +927,52 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 	ResolveSceneColor(RHICmdList);
 }
+
+void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
+	FRHICommandListImmediate& RHICmdList,
+	FHairStrandsDatas* HairDatas)
+{
+	check(RHICmdList.IsOutsideRenderPass());
+
+	if (ViewFamily.EngineShowFlags.VisualizeLightCulling || !ViewFamily.EngineShowFlags.Lighting)
+	{
+		return;
+	}
+
+	// If we're currently capturing a reflection capture, output SpecularColor * IndirectIrradiance for metals so they are not black in reflections,
+	// Since we don't have multiple bounce specular reflections
+	bool bReflectionCapture = false;
+	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+		bReflectionCapture = bReflectionCapture || View.bIsReflectionCapture;
+	}
+
+	if (bReflectionCapture)
+	{
+		// if we are rendering a reflection capture then we can skip this pass entirely (no reflection and no sky contribution evaluated in this pass)
+		return;
+	}
+
+	// The specular sky light contribution is also needed by RT Reflections as a fallback.
+	const bool bSkyLight = Scene->SkyLight
+		&& Scene->SkyLight->ProcessedTexture
+		&& !Scene->SkyLight->bHasStaticLighting;
+
+	bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily);
+	bool bApplySkyShadowing = false;
+	const bool bReflectionEnv = ShouldDoReflectionEnvironment();
+
+	uint32 ViewIndex = 0;
+	for (FViewInfo& View : Views)
+	{
+		const uint32 CurrentViewIndex = ViewIndex++;
+		const bool bIsHairSkyLightingEnabled = HairDatas && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
+		if (bIsHairSkyLightingEnabled)
+		{
+			FRDGBuilder GraphBuilder(RHICmdList);
+			RenderHairStrandsEnvironmentLighting(GraphBuilder, CurrentViewIndex, Views, HairDatas);
+			GraphBuilder.Execute();
+		}
+	}
+}
