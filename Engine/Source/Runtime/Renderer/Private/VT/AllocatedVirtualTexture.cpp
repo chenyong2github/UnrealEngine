@@ -85,13 +85,25 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 		}
 	}
 
+	// Use 16bit page table entries if all physical spaces are small enough
+	bool bSupport16BitPageTable = true;
+	for (int32 Index = 0; Index < UniquePageTableLayers.Num(); ++Index)
+	{
+		if (!UniquePageTableLayers[Index].PhysicalSpace->DoesSupport16BitPageTable())
+		{
+			bSupport16BitPageTable = false;
+			break;
+		}
+	}
+
 	FVTSpaceDescription SpaceDesc;
 	SpaceDesc.Dimensions = InDesc.Dimensions;
 	SpaceDesc.NumPageTableLayers = UniquePageTableLayers.Num();
 	SpaceDesc.TileSize = InDesc.TileSize;
 	SpaceDesc.TileBorderSize = InDesc.TileBorderSize;
 	SpaceDesc.bPrivateSpace = InDesc.bPrivateSpace;
-	SpaceDesc.PageTableFormat = EVTPageTableFormat::UInt32;
+	SpaceDesc.PageTableFormat = bSupport16BitPageTable ? EVTPageTableFormat::UInt16 : EVTPageTableFormat::UInt32;
+
 	Space = InSystem->AcquireSpace(SpaceDesc, this);
 	SpaceID = Space->GetID();
 	PageTableFormat = Space->GetPageTableFormat();
