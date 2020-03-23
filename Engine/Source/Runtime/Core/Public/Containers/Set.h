@@ -56,6 +56,14 @@ struct DefaultKeyFuncs : BaseKeyFuncs<ElementType,ElementType,bInAllowDuplicateK
 	/**
 	 * @return True if the keys match.
 	 */
+	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	{
+		return A == B;
+	}
+
+	/**
+	 * @return True if the keys match.
+	 */
 	template<typename ComparableKey>
 	static FORCEINLINE bool Matches(KeyInitType A, ComparableKey B)
 	{
@@ -64,6 +72,13 @@ struct DefaultKeyFuncs : BaseKeyFuncs<ElementType,ElementType,bInAllowDuplicateK
 
 	/** Calculates a hash index for a key. */
 	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	{
+		return GetTypeHash(Key);
+	}
+
+	/** Calculates a hash index for a key. */
+	template<typename ComparableKey>
+	static FORCEINLINE uint32 GetKeyHash(ComparableKey Key)
 	{
 		return GetTypeHash(Key);
 	}
