@@ -188,15 +188,16 @@ bool FUdpMessageBeacon::SendPing(const FTimespan& SocketWaitTime)
 	}
 
 	int32 Sent;
+	bool Result = true;
 	for (const auto& StaticAddress : StaticAddresses)
 	{
 		if (!Socket->SendTo(Writer.GetData(), Writer.Num(), Sent, *StaticAddress))
 		{	
-			return false; // send failed
+			Result = false; // send failed
 		}
 
 	}
-	return true;
+	return Result;
 }
 
 
