@@ -716,6 +716,8 @@ void UClothingAssetCommon::BuildSelfCollisionData()
 void UClothingAssetCommon::PostLoad()
 {
 	Super::PostLoad();
+	// TODO: Remove all UObject PostLoad dependencies.
+	//       Even with these ConditionalPostLoad calls, the UObject PostLoads' order of execution cannot be guaranted.
 	for (UClothLODDataCommon* Lod : ClothLodData)
 	{
 		Lod->ConditionalPostLoad();
@@ -726,15 +728,6 @@ void UClothingAssetCommon::PostLoad()
 
 	if (ClothingCustomVersion < FClothingAssetCustomVersion::MovePropertiesToCommonBaseClasses)
 	{
-		// Remap legacy struct FClothConfig to new config objects
-		for (TPair<FName, UClothConfigBase*>& ClothConfig : ClothConfigs)
-		{
-			if (UClothConfigCommon* const ClothConfigCommon = Cast<UClothConfigCommon>(ClothConfig.Value))
-			{
-				ClothConfigCommon->MigrateFrom(ClothConfig_DEPRECATED);
-			}
-		}
-
 		// Remap legacy struct FClothLODData to class UClothLODDataCommon
 		for (const FClothLODData_Legacy& ClothLODData_Legacy : LodData_DEPRECATED)
 		{
@@ -747,7 +740,7 @@ void UClothingAssetCommon::PostLoad()
 	{
 #if WITH_EDITORONLY_DATA
 		// Convert current parameters to masks
-		for(UClothLODDataCommon* LodPtr : ClothLodData)
+		for (UClothLODDataCommon* LodPtr : ClothLodData)
 		{
 			check(LodPtr);
 			UClothLODDataCommon& Lod = *LodPtr;
@@ -789,7 +782,7 @@ void UClothingAssetCommon::PostLoad()
 
 #if WITH_EDITORONLY_DATA
 	// Fix content imported before we kept vertex colors
-	if(ClothingCustomVersion < FClothingAssetCustomVersion::AddVertexColorsToPhysicalMesh)
+	if (ClothingCustomVersion < FClothingAssetCustomVersion::AddVertexColorsToPhysicalMesh)
 	{
 		for (UClothLODDataCommon* Lod : ClothLodData)
 		{
@@ -806,45 +799,72 @@ void UClothingAssetCommon::PostLoad()
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-	if(AnimPhysCustomVersion < FAnimPhysObjectVersion::CacheClothMeshInfluences)
+	if (AnimPhysCustomVersion < FAnimPhysObjectVersion::CacheClothMeshInfluences)
 	{
 		// Rebuild data cache
 		InvalidateCachedData();
 	}
 #endif
 
-	// Migrate simulation dependent config parameters to the new config map
-	if (ClothSimConfig_DEPRECATED)
+	// Add any missing configs for the available cloth factories, and try to migrate them from any existing one
+	AddClothConfigs();
+
+	// Migrate configs
+	bool bMigrateSharedConfigToConfig = true;  // Shared config to config migration can be disabled to avoid overriding the newly migrated values
+
+	if (ClothingCustomVersion < FClothingAssetCustomVersion::MovePropertiesToCommonBaseClasses)
 	{
-		// Try a remap to the new config objects through the legacy structure
-		if (const UClothConfigCommon* const ClothSimConfigCommon = Cast<UClothConfigCommon>(ClothSimConfig_DEPRECATED))
+		// Remap legacy struct FClothConfig to new config objects
+		for (TPair<FName, UClothConfigBase*>& ClothConfig : ClothConfigs)
 		{
-			FClothConfig_Legacy ClothConfigLegacy;
-			if (ClothSimConfigCommon->MigrateTo(ClothConfigLegacy))
+			if (UClothConfigCommon* const ClothConfigCommon = Cast<UClothConfigCommon>(ClothConfig.Value))
 			{
-				for (TPair<FName, UClothConfigBase*>& ClothConfig : ClothConfigs)
+				ClothConfigCommon->MigrateFrom(ClothConfig_DEPRECATED);
+			}
+		}
+		bMigrateSharedConfigToConfig = false;
+	}
+	else
+	{
+		// Migrate simulation dependent config parameters to the new config map
+		if (ClothSimConfig_DEPRECATED)
+		{
+			// Try a remap to the new config objects through the legacy structure
+			if (const UClothConfigCommon* const ClothSimConfigCommon = Cast<UClothConfigCommon>(ClothSimConfig_DEPRECATED))
+			{
+				FClothConfig_Legacy ClothConfigLegacy;
+				if (ClothSimConfigCommon->MigrateTo(ClothConfigLegacy))
 				{
-					if (UClothConfigCommon* const ClothConfigCommon = Cast<UClothConfigCommon>(ClothConfig.Value))
+					for (TPair<FName, UClothConfigBase*>& ClothConfig : ClothConfigs)
 					{
-						ClothConfigCommon->MigrateFrom(ClothConfigLegacy);
+						if (UClothConfigCommon* const ClothConfigCommon = Cast<UClothConfigCommon>(ClothConfig.Value))
+						{
+							ClothConfigCommon->MigrateFrom(ClothConfigLegacy);
+						}
 					}
 				}
 			}
+			// And keep the old config too
+			SetClothConfig(ClothSimConfig_DEPRECATED);
+			ClothSimConfig_DEPRECATED = nullptr;
+			bMigrateSharedConfigToConfig = false;
 		}
-		// And keep the old config too
-		SetClothConfig(ClothSimConfig_DEPRECATED);
-		ClothSimConfig_DEPRECATED = nullptr;
+		if (ChaosClothSimConfig_DEPRECATED)
+		{
+			SetClothConfig(ChaosClothSimConfig_DEPRECATED);
+			ChaosClothSimConfig_DEPRECATED = nullptr;
+			bMigrateSharedConfigToConfig = false;
+		}
+		if (ClothSharedSimConfig_DEPRECATED)
+		{
+			SetClothConfig(ClothSharedSimConfig_DEPRECATED);
+			ClothSharedSimConfig_DEPRECATED = nullptr;
+			bMigrateSharedConfigToConfig = false;
+		}
 	}
-	if (ChaosClothSimConfig_DEPRECATED)
-	{
-		SetClothConfig(ChaosClothSimConfig_DEPRECATED);
-		ChaosClothSimConfig_DEPRECATED = nullptr;
-	}
-	if (ClothSharedSimConfig_DEPRECATED)
-	{
-		SetClothConfig(ClothSharedSimConfig_DEPRECATED);
-		ClothSharedSimConfig_DEPRECATED = nullptr;
-	}
+
+	// Propagate shared configs between cloth assets
+	PropagateSharedConfigs(bMigrateSharedConfigToConfig);
 
 	// After fixing the content, we are ready to call functions that rely on it
 	BuildSelfCollisionData();
@@ -907,7 +927,7 @@ void UClothingAssetCommon::AddClothConfigs()
 	}
 }
 
-void UClothingAssetCommon::PropagateSharedConfigs()
+void UClothingAssetCommon::PropagateSharedConfigs(bool bMigrateSharedConfigToConfig)
 {
 	// Update this asset's shared config when the asset belongs to a skeletal mesh
 	if (USkeletalMesh* const SkeletalMesh = Cast<USkeletalMesh>(GetOuter()))
@@ -919,7 +939,10 @@ void UClothingAssetCommon::PropagateSharedConfigs()
 
 		for (const UClothingAssetBase* ClothingAssetBase : ClothingAssets)
 		{
-			if (ClothingAssetBase == static_cast<UClothingAssetBase* >(this)) { continue; }
+			if (ClothingAssetBase == static_cast<UClothingAssetBase* >(this))
+			{
+				continue;
+			}
 
 			// Only common assets have shared configs
 			if (const UClothingAssetCommon* const ClothingAsset = Cast<UClothingAssetCommon>(ClothingAssetBase))
@@ -929,29 +952,54 @@ void UClothingAssetCommon::PropagateSharedConfigs()
 				ClothSharedConfigs.Reserve(Max);
 
 				// Iterate through all configs, and find the shared ones
-				for (const TPair<FName, UClothConfigBase*>& ClothConfigItem : ClothingAsset->ClothConfigs)
+				for (const TPair<FName, UClothConfigBase*>& ClothSharedConfigItem : ClothingAsset->ClothConfigs)
 				{
-					if (Cast<UClothSharedConfigCommon>(ClothConfigItem.Value) &&  // Only needs shared configs
-						!ClothSharedConfigs.Find(ClothConfigItem.Key))            // Only needs a single shared config per type
+					if (Cast<UClothSharedConfigCommon>(ClothSharedConfigItem.Value) &&  // Only needs shared configs
+						!ClothSharedConfigs.Find(ClothSharedConfigItem.Key))            // Only needs a single shared config per type
 					{
-						ClothSharedConfigs.Add(ClothConfigItem);
+						ClothSharedConfigs.Add(ClothSharedConfigItem);
 					}
 				}
 			}
 		}
 
 		// Propagate the found shared configs to this asset
-		for (const TPair<FName, UClothConfigBase*>& ClothConfigItem : ClothSharedConfigs)
+		for (const TPair<FName, UClothConfigBase*>& ClothSharedConfigItem : ClothSharedConfigs)
 		{
-			if (UClothConfigBase** const ClothConfigBase = ClothConfigs.Find(ClothConfigItem.Key))
+			// Set share config
+			if (UClothConfigBase** const ClothConfigBase = ClothConfigs.Find(ClothSharedConfigItem.Key))
 			{
 				// Reset this shared config
-				*ClothConfigBase = ClothConfigItem.Value;
+				*ClothConfigBase = ClothSharedConfigItem.Value;
 			}
 			else
 			{
 				// Add new map entry
-				ClothConfigs.Add(ClothConfigItem);
+				ClothConfigs.Add(ClothSharedConfigItem);
+			}
+		}
+
+		// Migrate the common shared configs' deprecated parameters to all per cloth configs
+		if (bMigrateSharedConfigToConfig)
+		{
+			// Iterate through all this asset's shared configs
+			for (const TPair<FName, UClothConfigBase*>& ClothSharedConfigItem : ClothConfigs)
+			{
+				if (const UClothSharedConfigCommon* const ClothSharedConfig = Cast<UClothSharedConfigCommon>(ClothSharedConfigItem.Value))
+				{
+					// Iterate through all this asset's configs, and migrate from the shared ones
+					for (const TPair<FName, UClothConfigBase*>& ClothConfigItem : ClothConfigs)
+					{
+						if (Cast<UClothSharedConfigCommon>(ClothConfigItem.Value))
+						{
+							continue;  // Don't migrate shared configs to another shared configs (or itself)
+						}
+						if (UClothConfigCommon* const ClothConfig = Cast<UClothConfigCommon>(ClothConfigItem.Value))
+						{
+							ClothConfig->MigrateFrom(ClothSharedConfig);
+						}
+					}
+				}
 			}
 		}
 	}

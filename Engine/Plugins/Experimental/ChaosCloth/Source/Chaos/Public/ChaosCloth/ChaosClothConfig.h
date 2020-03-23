@@ -19,6 +19,9 @@ public:
 	/** Migrate from the legacy FClothConfig structure. */
 	virtual void MigrateFrom(const FClothConfig_Legacy&) override;
 
+	/** Migrate from shared config. */
+	virtual void MigrateFrom(const UClothSharedConfigCommon* ClothSharedConfig) override;
+
 	/** Serialize override used to set the current custom version. */
 	virtual void Serialize(FArchive& Ar) override;
 
@@ -92,13 +95,17 @@ public:
 	UPROPERTY()
 	float ShapeTargetStiffness = 0.f;
 
+	// The radius of cloth points when considering collisions against collider shapes
+	UPROPERTY(EditAnywhere, Category = "Cloth Dynamics", meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	float CollisionThickness = 1.0f;
+
+	// Friction coefficient for cloth - collider interaction
+	UPROPERTY(EditAnywhere, Category = "Cloth Dynamics", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
+	float FrictionCoefficient = 0.2f;
+
 	// The amount of damping applied to the cloth velocities
 	UPROPERTY(EditAnywhere, Category = "Cloth Dynamics", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float DampingCoefficient = 0.01f;
-
-	// Friction coefficient for cloth - collider interaction
-	UPROPERTY()
-	float FrictionCoefficient = 0.f;
 
 	// The drag coefficient applying on each particle
 	UPROPERTY(EditAnywhere, Category = "Cloth Dynamics", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
@@ -152,7 +159,7 @@ public:
 	virtual ~UChaosClothSharedSimConfig() override;
 
 	/** Migrate from the legacy FClothConfig structure. */
-	virtual void MigrateFrom(const FClothConfig_Legacy&) override;
+	virtual void MigrateFrom(const FClothConfig_Legacy& ClothConfig) override;
 
 	/** Serialize override used to set the current custom version. */
 	virtual void Serialize(FArchive& Ar) override;
@@ -175,16 +182,16 @@ public:
 	float SelfCollisionThickness = 2.0f;
 
 	// The radius of cloth points when considering collisions against collider shapes
-	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
-	float CollisionThickness = 1.0f;
+	UPROPERTY()
+	float CollisionThickness_DEPRECATED = 1.0f;
 
 	// Use shared config damping rather than per cloth damping
-	UPROPERTY(EditAnywhere, Category = Simulation, meta = (InlineEditConditionToggle))
-	bool bUseDampingOverride = true;
+	UPROPERTY()
+	bool bUseDampingOverride_DEPRECATED = true;
 
 	// The amount of cloth damping. Override the per cloth damping coefficients.
-	UPROPERTY(EditAnywhere, Category = Simulation, meta = (EditCondition = "bUseDampingOverride", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float Damping = 0.01f;
+	UPROPERTY()
+	float Damping_DEPRECATED = 0.01f;
 
 	// Use gravity value vs world gravity
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (InlineEditConditionToggle))

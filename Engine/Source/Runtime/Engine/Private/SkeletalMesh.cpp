@@ -2221,14 +2221,16 @@ void USkeletalMesh::PostLoad()
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	Super::PostLoad();
 
-	// Consolidate the shared cloth configs once all cloth assets are loaded
+	// Make sure the cloth assets have finished loading
+	// TODO: Remove all UObject PostLoad dependencies.
+	//       Even with these ConditionalPostLoad calls, the UObject PostLoads' order of execution cannot be guaranted.
+	//       E.g. in some instance it has been found that the SkeletalMesh EndLoad can trigger a ConditionalPostLoad
+	//       on the cloth assets even before reaching this point.
+	//       In these occurences, the cloth asset's RF_NeedsPostLoad flag is already cleared despite its PostLoad still
+	//       being un-executed, making the following block code ineffective.
 	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)
 	{
-		MeshClothingAsset->ConditionalPostLoad();  // Make sure the cloth asset has finished loading
-	}
-	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)  // PostUpdateAllAssets will also iterate through all clothing assets so this cannot be merged with the loop above
-	{
-		MeshClothingAsset->PostUpdateAllAssets();
+		MeshClothingAsset->ConditionalPostLoad();
 	}
 
 #if WITH_EDITOR
