@@ -1303,14 +1303,18 @@ private:
 			// if the unicast endpoint port is bound, add 1 to the port for server 
 			if (Setting.ParseIntoArray(Settings, TEXT(":"), false) == 2)
 			{
-				if (Settings[1] != TEXT("0"))
+				const UConcertClientConfig* ClientConfig = GetDefault<UConcertClientConfig>();
+				if (ClientConfig && ClientConfig->ClientSettings.ServerPort != 0)
+				{
+					Setting = FString::Printf(TEXT("%s:%d"), *Settings[0], ClientConfig->ClientSettings.ServerPort);
+				}
+				else if (Settings[1] != TEXT("0"))
 				{
 					int32 Port = FCString::Atoi(*Settings[1]);
 					Port += 1;
-					Setting = Settings[0] + TEXT(":") + FString::FromInt(Port);
+					Setting = FString::Printf(TEXT("%s:%d"), *Settings[0], Port);
 				}
 			}
-
 			CmdLine = TEXT("-UDPMESSAGING_TRANSPORT_UNICAST=") + Setting;
 
 			// Multicast endpoint setting
