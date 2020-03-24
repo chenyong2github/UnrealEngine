@@ -14,6 +14,7 @@
 #include "DatasmithScene.h"
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithStaticMeshImporter.h"
 #include "DatasmithTranslatorManager.h"
 #include "IDatasmithSceneElements.h"
 #include "Utility/DatasmithImporterUtils.h"
@@ -240,6 +241,8 @@ void UDatasmithFileProducer::SceneElementToWorld()
 	// STATIC MESHES
 	FDatasmithImporter::ImportStaticMeshes( *ImportContextPtr );
 
+	FDatasmithStaticMeshImporter::PreBuildStaticMeshes( *ImportContextPtr );
+
 	// ACTORS
 	{
 		FDatasmithImporter::ImportActors( *ImportContextPtr );
@@ -276,27 +279,6 @@ void UDatasmithFileProducer::SceneElementToWorld()
 
 	TArray<UStaticMesh*> StaticMeshes;
 	ImportContextPtr->ImportedStaticMeshes.GenerateValueArray(StaticMeshes);
-
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(CommitMeshDescriptions);
-
-		UStaticMesh::FCommitMeshDescriptionParams Params;
-		Params.bMarkPackageDirty = false;
-		Params.bUseHashAsGuid = true;
-
-		ParallelFor(StaticMeshes.Num(),
-			[&](int32 StaticMeshIndex)
-			{
-				if(UStaticMesh* StaticMesh = StaticMeshes[StaticMeshIndex])
-				{
-					for (int32 Index = 0; Index < StaticMesh->GetNumSourceModels(); ++Index)
-					{
-						StaticMesh->CommitMeshDescription( Index, Params );
-					}
-				}
-			}
-		);
-	}
 
 	// Note: Some of the assets might be null (incomplete or failed import), only add non-null ones to Assets
 
