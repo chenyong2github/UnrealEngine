@@ -2821,7 +2821,8 @@ bool UAssetManager::GetPackageManagers(FName PackageName, bool bRecurseToParents
 					{
 						if (!ManagerSet.Contains(Manager))
 						{
-							// Add to end of list, this will recurse again if needed
+							ManagerSet.Add(Manager);
+							// Add to end of list to recurse into the parent
 							ReferencingPrimaryAssets.Add(Manager);
 						}
 					}
