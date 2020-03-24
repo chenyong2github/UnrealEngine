@@ -56,6 +56,12 @@ public:
 	 * Constructs the menu
 	 */
 	void Construct( const FArguments& Declaration );
+
+	/**
+	 * Returns parent tool bar
+	 */
+	TWeakPtr<class SViewportToolBar> GetParentToolBar() const;
+
 private:
 	/**
 	 * Called when the menu button is clicked.  Will toggle the visibility of the menu content                   
@@ -73,6 +79,9 @@ private:
 protected:
 	/** Parent tool bar for querying other open menus */
 	TWeakPtr<class SViewportToolBar> ParentToolBar;
+
+	/** Name of tool menu */
+	FName MenuName;
 
 private:
 	/** Our menus anchor */
