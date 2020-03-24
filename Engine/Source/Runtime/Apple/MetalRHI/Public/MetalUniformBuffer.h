@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 //
 //  Implements handles to linearly allocated per-frame constant buffers for shared memory systems.
 //
