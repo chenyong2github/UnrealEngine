@@ -2139,6 +2139,8 @@ class IAllocatedVirtualTexture* FVirtualTexture2DResource::AcquireAllocatedVT()
 		VTDesc.TileSize = VTData->TileSize;
 		VTDesc.TileBorderSize = VTData->TileBorderSize;
 		VTDesc.NumTextureLayers = VTData->GetNumLayers();
+		VTDesc.bShareDuplicateLayers = TextureOwner->IsVirtualTexturedWithSinglePhysicalSpace();
+
 		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumTextureLayers; ++LayerIndex)
 		{
 			VTDesc.ProducerHandle[LayerIndex] = ProducerHandle; // use the same producer for each layer
