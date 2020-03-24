@@ -539,13 +539,13 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 	struct FStatsHelper
 	{
 		TMap<uint32, FNetProfilerAggregatedStats> AggregatedStats;
-		uint32 StackLevel = 0;
+		uint64 StackSize;
 		TArray<FStackEntry> Stack;
 	};
 
 	FStatsHelper Helper;
 	Helper.AggregatedStats.Reserve(EventTypes.Num());
-	Helper.StackLevel = 0;
+	Helper.StackSize = 0; // stack is empty
 	Helper.Stack.SetNum(256);
 
 	auto GetStatsFunction = [&Helper, this](const FNetProfilerContentEvent& ContentEvent)
@@ -557,28 +557,31 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 			StatsEntry->EventTypeIndex = ContentEvent.EventTypeIndex;
 		}
 
-		// Fill in basics
-		uint32 InclusiveSize = ContentEvent.EndPos - ContentEvent.StartPos;
-
+		// Fill in basics.
+		const uint32 InclusiveSize = ContentEvent.EndPos - ContentEvent.StartPos;
 		++StatsEntry->InstanceCount;
 		StatsEntry->TotalInclusive += InclusiveSize;
 		StatsEntry->MaxInclusive = FMath::Max(InclusiveSize, StatsEntry->MaxInclusive);
 
-		// Finalize exclusive for the parent events on stack.
-		while (Helper.StackLevel > ContentEvent.Level)
+		// Pops events from the stack. Keeps only the parent hierarchy of the current event.
+		while (Helper.StackSize > ContentEvent.Level)
 		{
-			--Helper.StackLevel;
-			FStackEntry& ParentStackEntry = Helper.Stack[Helper.StackLevel];
-			FNetProfilerAggregatedStats& ParentStats = Helper.AggregatedStats.FindChecked(ParentStackEntry.EventTypeIndex);
-			const uint32 ExclusiveSize = (ParentStackEntry.EndPos - ParentStackEntry.StartPos) - ParentStackEntry.ExclusiveAccumulator;
-			ParentStats.TotalExclusive += ExclusiveSize;
-			ParentStats.MaxExclusive = FMath::Max(ParentStats.MaxExclusive, ExclusiveSize);
-		}
-		Helper.StackLevel = ContentEvent.Level;
+			FStackEntry& StackEntry = Helper.Stack[--Helper.StackSize]; // pop
 
-		// We track what we have visited to be able to update exclusive bits for our parent
-		// We accumulate during the first pass and finalize the values during the second
+			// Finalize exclusive for each poped event (all its children were already processed).
+			FNetProfilerAggregatedStats& Stats = Helper.AggregatedStats.FindChecked(StackEntry.EventTypeIndex);
+			const uint32 ExclusiveSize = (StackEntry.EndPos - StackEntry.StartPos) - StackEntry.ExclusiveAccumulator;
+			Stats.TotalExclusive += ExclusiveSize;
+			Stats.MaxExclusive = FMath::Max(Stats.MaxExclusive, ExclusiveSize);
+		}
+
+		// Pushes the new event on the stack.
+		ensure(ContentEvent.Level == Helper.StackSize);
+		Helper.StackSize = ContentEvent.Level + 1; // push
 		FStackEntry& CurrentEventLevelStackEntry = Helper.Stack[ContentEvent.Level];
+
+		// We track what we have visited to be able to update exclusive bits for our parent.
+		// We accumulate during the first pass and finalize the values during the second.
 		CurrentEventLevelStackEntry.EventTypeIndex = ContentEvent.EventTypeIndex;
 		CurrentEventLevelStackEntry.StartPos = ContentEvent.StartPos;
 		CurrentEventLevelStackEntry.EndPos = ContentEvent.EndPos;
@@ -586,6 +589,7 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 
 		if (ContentEvent.Level > 0U)
 		{
+			// Update parent event with the contribution from current event.
 			FStackEntry& ParentStackEntry = Helper.Stack[ContentEvent.Level - 1U];
 			ParentStackEntry.ExclusiveAccumulator += InclusiveSize;
 		}
@@ -594,17 +598,20 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 	// Iterate over content events
 	if (PacketIndexIntervalStart == PacketIndexIntervalEnd)
 	{
+		ensure(Helper.StackSize == 0); // stack should be empty
+
 		EnumeratePacketContentEventsByPosition(ConnectionIndex, Mode, PacketIndexIntervalStart, StartPosition, EndPosition, GetStatsFunction);
 
-		// Finalize exclusive for the remaing events on stack.
-		while (Helper.StackLevel > 0)
+		// Pops the remaining events from the stack.
+		while (Helper.StackSize > 0)
 		{
-			--Helper.StackLevel;
-			FStackEntry& ParentStackEntry = Helper.Stack[Helper.StackLevel];
-			FNetProfilerAggregatedStats& ParentStats = Helper.AggregatedStats.FindChecked(ParentStackEntry.EventTypeIndex);
-			const uint32 ExclusiveSize = (ParentStackEntry.EndPos - ParentStackEntry.StartPos) - ParentStackEntry.ExclusiveAccumulator;
-			ParentStats.TotalExclusive += ExclusiveSize;
-			ParentStats.MaxExclusive = FMath::Max(ParentStats.MaxExclusive, ExclusiveSize);
+			FStackEntry& StackEntry = Helper.Stack[--Helper.StackSize]; // pop
+
+			// Finalize exclusive for each poped event (all its children were already processed).
+			FNetProfilerAggregatedStats& Stats = Helper.AggregatedStats.FindChecked(StackEntry.EventTypeIndex);
+			const uint32 ExclusiveSize = (StackEntry.EndPos - StackEntry.StartPos) - StackEntry.ExclusiveAccumulator;
+			Stats.TotalExclusive += ExclusiveSize;
+			Stats.MaxExclusive = FMath::Max(Stats.MaxExclusive, ExclusiveSize);
 		}
 	}
 	else
@@ -618,21 +625,24 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 			const FNetProfilerPacket& Packet = Packets[PacketIt];
 			if (Packet.EventCount > 0U)
 			{
+				ensure(Helper.StackSize == 0); // stack should be empty (before each packet)
+
 				const uint32 StartEventIndex = Packet.StartEventIndex;
 				for (uint32 It = 0U; It < Packet.EventCount; ++It)
 				{
 					GetStatsFunction(ContentEvents[StartEventIndex + It]);
 				}
 
-				// Finalize exclusive for the remaing events on stack, for each packet.
-				while (Helper.StackLevel > 0)
+				// Pops the remaining events from the stack, for each packet.
+				while (Helper.StackSize > 0)
 				{
-					--Helper.StackLevel;
-					FStackEntry& ParentStackEntry = Helper.Stack[Helper.StackLevel];
-					FNetProfilerAggregatedStats& ParentStats = Helper.AggregatedStats.FindChecked(ParentStackEntry.EventTypeIndex);
-					const uint32 ExclusiveSize = (ParentStackEntry.EndPos - ParentStackEntry.StartPos) - ParentStackEntry.ExclusiveAccumulator;
-					ParentStats.TotalExclusive += ExclusiveSize;
-					ParentStats.MaxExclusive = FMath::Max(ParentStats.MaxExclusive, ExclusiveSize);
+					FStackEntry& StackEntry = Helper.Stack[--Helper.StackSize]; // pop
+
+					// Finalize exclusive for each poped event (all its children were already processed).
+					FNetProfilerAggregatedStats& Stats = Helper.AggregatedStats.FindChecked(StackEntry.EventTypeIndex);
+					const uint32 ExclusiveSize = (StackEntry.EndPos - StackEntry.StartPos) - StackEntry.ExclusiveAccumulator;
+					Stats.TotalExclusive += ExclusiveSize;
+					Stats.MaxExclusive = FMath::Max(Stats.MaxExclusive, ExclusiveSize);
 				}
 			}
 		}
