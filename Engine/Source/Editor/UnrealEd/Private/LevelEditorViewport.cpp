@@ -1826,9 +1826,13 @@ FLevelEditorViewportClient::~FLevelEditorViewportClient()
 		Layers->RemoveViewFromActorViewVisibility(this);
 
 		GEditor->RemoveLevelViewportClients(this);
+		
+		if (FocusTimerHandle.IsValid())
+		{
+			GEditor->GetTimerManager()->ClearTimer(FocusTimerHandle);
+		}
 
 		GetMutableDefault<ULevelEditorViewportSettings>()->OnSettingChanged().RemoveAll(this);
-
 
 		RemoveReferenceToWorldContext(GEditor->GetEditorWorldContext());
 	}
@@ -2117,13 +2121,13 @@ void FLevelEditorViewportClient::ReceivedFocus(FViewport* InViewport)
 		bReceivedFocusRecently = true;
 
 		// A few frames can pass between receiving focus and processing a click, so we use a timer to track whether we have recently received focus.
-		FTimerHandle DummyHandle;
 		FTimerDelegate ResetFocusReceivedTimer;
 		ResetFocusReceivedTimer.BindLambda([&] ()
 		{
 			bReceivedFocusRecently = false;
+			FocusTimerHandle.Invalidate(); // The timer will only execute once, so we can invalidate now.
 		});
-		GEditor->GetTimerManager()->SetTimer(DummyHandle, ResetFocusReceivedTimer, 0.1f, false);
+		GEditor->GetTimerManager()->SetTimer(FocusTimerHandle, ResetFocusReceivedTimer, 0.1f, false);	
 	}
 
 	FEditorViewportClient::ReceivedFocus(InViewport);
