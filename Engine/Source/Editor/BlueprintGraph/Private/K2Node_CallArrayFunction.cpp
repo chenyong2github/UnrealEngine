@@ -74,14 +74,16 @@ void UK2Node_CallArrayFunction::NotifyPinConnectionListChanged(UEdGraphPin* Chan
 		}
 	}
 
+	UEdGraphPin* TargetArray = GetTargetArrayPin();
+
 	if (PinsToCheck.Contains(ChangedPin))
 	{
 		bool bNeedToPropagate = false;
 
 		if(ChangedPin->LinkedTo.Num() > 0)
 		{
-			// If the pin being changed is a WildCard or an object type, then we must propogate changes
-			if (ChangedPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard || ChangedPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object)
+			// If the pin being changed is a WildCard or the array input itself, then we must propagate changes
+			if (ChangedPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard || ChangedPin == TargetArray)
 			{
 				UEdGraphPin* LinkedTo = ChangedPin->LinkedTo[0];
 				check(LinkedTo);
