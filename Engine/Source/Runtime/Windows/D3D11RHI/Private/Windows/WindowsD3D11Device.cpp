@@ -20,7 +20,7 @@
 #include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
 #include "GenericPlatform/GenericPlatformCrashContext.h"
-#include "dxgi1_3.h"
+#include "dxgi1_6.h"
 #include "RHIValidation.h"
 
 #if NV_AFTERMATH
@@ -838,6 +838,9 @@ void FD3D11DynamicRHIModule::FindAdapter()
 		return;
 	}
 
+	TRefCountPtr<IDXGIFactory6> DXGIFactory6;
+	DXGIFactory1->QueryInterface(__uuidof(IDXGIFactory6), (void**)DXGIFactory6.GetInitReference());
+
 	bool bAllowPerfHUD = true;
 
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -874,8 +877,31 @@ void FD3D11DynamicRHIModule::FindAdapter()
 	int PreferredVendor = D3D11RHI_PreferAdapterVendor();
 	bool bAllowSoftwareFallback = D3D11RHI_AllowSoftwareFallback();
 
+
+	int GpuPreferenceInt = DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE;
+	FParse::Value(FCommandLine::Get(), TEXT("-gpupreference="), GpuPreferenceInt);
+	DXGI_GPU_PREFERENCE GpuPreference;
+	switch(GpuPreferenceInt)
+	{
+	case 1: GpuPreference = DXGI_GPU_PREFERENCE_MINIMUM_POWER; break;
+	case 2: GpuPreference = DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE; break;
+	default: GpuPreference = DXGI_GPU_PREFERENCE_UNSPECIFIED; break;
+	}
+
+	auto LocalEnumAdapters = [&DXGIFactory6, &DXGIFactory1, GpuPreference](UINT AdapterIndex, IDXGIAdapter** Adapter) -> HRESULT
+	{
+		if(!DXGIFactory6 || GpuPreference == DXGI_GPU_PREFERENCE_UNSPECIFIED)
+		{
+			return DXGIFactory1->EnumAdapters(AdapterIndex, Adapter);
+		}
+		else
+		{
+			return DXGIFactory6->EnumAdapterByGpuPreference(AdapterIndex, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, __uuidof(IDXGIAdapter), (void**)Adapter);
+		}
+	};
+
 	// Enumerate the DXGIFactory's adapters.
-	for(uint32 AdapterIndex = 0; DXGIFactory1->EnumAdapters(AdapterIndex,TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
+	for(uint32 AdapterIndex = 0; LocalEnumAdapters(AdapterIndex,TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
 	{
 		// to make sure the array elements can be indexed with AdapterIndex
 		DXGI_ADAPTER_DESC& AdapterDesc = AdapterDescription[AdapterDescription.AddZeroed()];
