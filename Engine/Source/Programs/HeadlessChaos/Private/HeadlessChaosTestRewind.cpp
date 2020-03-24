@@ -391,11 +391,8 @@ namespace ChaosTest {
 		V.Add(Particle->V());
 
 		FRewindData* RewindData = Solver->GetRewindData();
-		RewindData->RewindToFrame(3);
-
-		EXPECT_EQ(Particle->X()[2],X[3][2]);
-		EXPECT_EQ(Particle->V()[2],V[3][2]);
-
+		EXPECT_TRUE(RewindData->RewindToFrame(0));
+		
 		//make sure recorded data is still valid even at head
 		for(int Step = 0; Step < 11; ++Step)
 		{
@@ -403,7 +400,17 @@ namespace ChaosTest {
 			EXPECT_EQ(State.X()[2],X[Step][2]);
 			EXPECT_EQ(State.V()[2],V[Step][2]);
 		}
-		
+
+		//rewind to each frame and make sure data is recorded
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			EXPECT_TRUE(RewindData->RewindToFrame(Step));
+			EXPECT_EQ(Particle->X()[2],X[Step][2]);
+			EXPECT_EQ(Particle->V()[2],V[Step][2]);
+		}
+
+		//can't rewind earlier than latest rewind
+		EXPECT_FALSE(RewindData->RewindToFrame(5));
 
 		// Throw out the proxy
 		Solver->UnregisterObject(Particle.Get());
@@ -458,6 +465,70 @@ namespace ChaosTest {
 			const FGeometryParticleState State = RewindData->GetStateAtFrame(*Particle,5);
 			EXPECT_EQ(Particle->X(), State.X());
 		}
+
+		Module->DestroySolver(Solver);
+	}
+
+	GTEST_TEST(RewindTest,BufferLimit)
+	{
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+
+		Solver->EnableRewindCapture(5);
+
+
+		// Make particles
+		auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
+
+		Particle->SetGeometry(Sphere);
+		Solver->RegisterObject(Particle.Get());
+		Particle->SetGravityEnabled(true);
+		Particle->SetX(FVec3(0,0,100));
+
+		TArray<FVec3> X;
+		TArray<FVec3> V;
+
+		const int32 NumSteps = 20;
+		for(int Step = 0; Step < NumSteps; ++Step)
+		{
+			//teleport from GT
+			if(Step == 15)
+			{
+				Particle->SetX(FVec3(0,0,10));
+				Particle->SetV(FVec3(0,0,1));
+			}
+
+			X.Add(Particle->X());
+			V.Add(Particle->V());
+			TickSolverHelper(Module,Solver);
+		}
+		X.Add(Particle->X());
+		V.Add(Particle->V());
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		const int32 LastValidStep = NumSteps - 1;
+		const int32 FirstValid = NumSteps - RewindData->Capacity() + 1;	//we lose 1 step because we have to save head
+		for(int Step = 0; Step < FirstValid; ++Step)
+		{
+			//can't go back that far
+			EXPECT_FALSE(RewindData->RewindToFrame(Step));
+		}
+
+		for(int Step = FirstValid; Step <= LastValidStep; ++Step)
+		{
+			EXPECT_TRUE(RewindData->RewindToFrame(Step));
+			EXPECT_EQ(Particle->X()[2],X[Step][2]);
+			EXPECT_EQ(Particle->V()[2],V[Step][2]);
+		}
+
+		// Throw out the proxy
+		Solver->UnregisterObject(Particle.Get());
 
 		Module->DestroySolver(Solver);
 	}
