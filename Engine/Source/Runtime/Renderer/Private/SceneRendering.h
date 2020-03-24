@@ -808,6 +808,7 @@ struct FPreviousViewInfo
 	
 	// Temporal AA history for SSR
 	FTemporalAAHistory SSRHistory;
+	FTemporalAAHistory WaterSSRHistory;
 
 	// Scene color input for SSR, that can be different from TemporalAAHistory.RT[0] if there is a SSR
 	// input post process material.
@@ -815,6 +816,7 @@ struct FPreviousViewInfo
 
 	// History for the reflections
 	FScreenSpaceDenoiserHistory ReflectionsHistory;
+	FScreenSpaceDenoiserHistory WaterReflectionsHistory;
 	
 	// History for the ambient occlusion
 	FScreenSpaceDenoiserHistory AmbientOcclusionHistory;
