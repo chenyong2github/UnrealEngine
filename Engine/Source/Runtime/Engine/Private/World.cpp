@@ -4374,6 +4374,11 @@ FConstControllerIterator UWorld::GetControllerIterator() const
 	return ControllerList.CreateConstIterator();
 }
 
+int32 UWorld::GetNumControllers() const
+{
+	return ControllerList.Num();
+}
+
 FConstPlayerControllerIterator UWorld::GetPlayerControllerIterator() const
 {
 	return PlayerControllerList.CreateConstIterator();
