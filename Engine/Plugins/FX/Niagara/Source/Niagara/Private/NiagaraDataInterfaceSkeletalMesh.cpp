@@ -461,22 +461,20 @@ FSkeletalMeshGpuSpawnStaticBuffers::~FSkeletalMeshGpuSpawnStaticBuffers()
 
 void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceData* InstData, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, const FSkeletalMeshSamplingLODBuiltData& MeshSamplingLODBuiltData)
 {
-	if (!InstData)
-    {
-		SkeletalMeshSamplingLODBuiltData = nullptr;
-		bUseGpuUniformlyDistributedSampling = false;
+	SkeletalMeshSamplingLODBuiltData = nullptr;
+	bUseGpuUniformlyDistributedSampling = false;
 
-		LODRenderData = nullptr;
-		TriangleCount = 0;
-		VertexCount = 0;
+	LODRenderData = nullptr;
+	TriangleCount = 0;
+	VertexCount = 0;
 
-		NumFilteredBones = 0;
-		FilteredBonesArray.Empty();
-		NumFilteredSockets = 0;
-		FilteredSocketBoneOffset = 0;
-		return;
-	}
-	else
+	NumFilteredBones = 0;
+	NumUnfilteredBones = 0;
+	FilteredAndUnfilteredBonesArray.Empty();
+	NumFilteredSockets = 0;
+	FilteredSocketBoneOffset = 0;
+
+	if (InstData)
 	{
 		SkeletalMeshSamplingLODBuiltData = &MeshSamplingLODBuiltData;
 		bUseGpuUniformlyDistributedSampling = InstData->bIsGpuUniformlyDistributedSampling;
@@ -496,15 +494,13 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 
 		// Copy filtered Bones / Socket data into arrays that the renderer will use to create read buffers
 		//-TODO: Exclude setting up these arrays if we don't sample from them
-		NumFilteredBones = InstData->FilteredBones.Num();
-		if (NumFilteredBones > 0)
+		NumFilteredBones = InstData->NumFilteredBones;
+		NumUnfilteredBones = InstData->NumUnfilteredBones;
+
+		FilteredAndUnfilteredBonesArray.Reserve(InstData->FilteredAndUnfilteredBones.Num());
+		for (uint16 v : InstData->FilteredAndUnfilteredBones)
 		{
-			FilteredBonesArray.Reserve(NumFilteredBones);
-			for (int32 v : InstData->FilteredBones)
-			{
-				check(v <= 65535);
-				FilteredBonesArray.Add(v);
-			}
+			FilteredAndUnfilteredBonesArray.Add(v);
 		}
 
 		NumFilteredSockets = InstData->FilteredSocketInfo.Num();
@@ -585,20 +581,20 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 	}
 
 	// Create arrays for filtered bones / sockets
-	if ( NumFilteredBones > 0 )
+	if ( FilteredAndUnfilteredBonesArray.Num() > 0 )
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.ResourceArray = &FilteredBonesArray;
+		CreateInfo.ResourceArray = &FilteredAndUnfilteredBonesArray;
 
-		FilteredBonesBuffer = RHICreateVertexBuffer(NumFilteredBones * sizeof(uint16), BUF_Static | BUF_ShaderResource, CreateInfo);
-		FilteredBonesSRV = RHICreateShaderResourceView(FilteredBonesBuffer, sizeof(uint16), PF_R16_UINT);
+		FilteredAndUnfilteredBonesBuffer = RHICreateVertexBuffer(FilteredAndUnfilteredBonesArray.Num() * FilteredAndUnfilteredBonesArray.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+		FilteredAndUnfilteredBonesSRV = RHICreateShaderResourceView(FilteredAndUnfilteredBonesBuffer, sizeof(uint16), PF_R16_UINT);
 	}
 }
 
 void FSkeletalMeshGpuSpawnStaticBuffers::ReleaseRHI()
 {
-	FilteredBonesBuffer.SafeRelease();
-	FilteredBonesSRV.SafeRelease();
+	FilteredAndUnfilteredBonesBuffer.SafeRelease();
+	FilteredAndUnfilteredBonesSRV.SafeRelease();
 
 	BufferTriangleUniformSamplerProbaRHI.SafeRelease();
 	BufferTriangleUniformSamplerProbaSRV.SafeRelease();
@@ -866,7 +862,8 @@ struct FNDISkeletalMeshParametersName
 	FString MeshNumWeightsName;
 	FString NumBonesName;
 	FString NumFilteredBonesName;
-	FString FilteredBonesName;
+	FString NumUnfilteredBonesName;
+	FString FilteredAndUnfilteredBonesName;
 	FString NumFilteredSocketsName;
 	FString FilteredSocketBoneOffsetName;
 	FString InstanceTransformName;
@@ -899,7 +896,8 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 	Names.MeshNumWeightsName = UNiagaraDataInterfaceSkeletalMesh::MeshNumWeightsName + Suffix;
 	Names.NumBonesName = UNiagaraDataInterfaceSkeletalMesh::NumBonesName + Suffix;
 	Names.NumFilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::NumFilteredBonesName + Suffix;
-	Names.FilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::FilteredBonesName + Suffix;
+	Names.NumUnfilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::NumUnfilteredBonesName + Suffix;
+	Names.FilteredAndUnfilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::FilteredAndUnfilteredBonesName + Suffix;
 	Names.NumFilteredSocketsName = UNiagaraDataInterfaceSkeletalMesh::NumFilteredSocketsName + Suffix;
 	Names.FilteredSocketBoneOffsetName = UNiagaraDataInterfaceSkeletalMesh::FilteredSocketBoneOffsetName + Suffix;
 	Names.InstanceTransformName = UNiagaraDataInterfaceSkeletalMesh::InstanceTransformName + Suffix;
@@ -939,7 +937,8 @@ public:
 		MeshNumWeights.Bind(ParameterMap, *ParamNames.MeshNumWeightsName);
 		NumBones.Bind(ParameterMap, *ParamNames.NumBonesName);
 		NumFilteredBones.Bind(ParameterMap, *ParamNames.NumFilteredBonesName);
-		FilteredBones.Bind(ParameterMap, *ParamNames.FilteredBonesName);
+		NumUnfilteredBones.Bind(ParameterMap, *ParamNames.NumUnfilteredBonesName);
+		FilteredAndUnfilteredBones.Bind(ParameterMap, *ParamNames.FilteredAndUnfilteredBonesName);
 		NumFilteredSockets.Bind(ParameterMap, *ParamNames.NumFilteredSocketsName);
 		FilteredSocketBoneOffset.Bind(ParameterMap, *ParamNames.FilteredSocketBoneOffsetName);
 		InstanceTransform.Bind(ParameterMap, *ParamNames.InstanceTransformName);
@@ -1026,9 +1025,10 @@ public:
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumBones, DynamicBuffers->GetNumBones());
 
-			FRHIShaderResourceView* FilteredBonesSRV = StaticBuffers->GetNumFilteredBones() > 0 ? StaticBuffers->GetFilteredBonesSRV() : FNiagaraRenderer::GetDummyUIntBuffer();
+			FRHIShaderResourceView* FilteredAndUnfilteredBonesSRV = StaticBuffers->GetNumFilteredBones() > 0 ? StaticBuffers->GetFilteredAndUnfilteredBonesSRV() : FNiagaraRenderer::GetDummyUIntBuffer();
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredBones, StaticBuffers->GetNumFilteredBones());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredBones, FilteredBonesSRV);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, NumUnfilteredBones, StaticBuffers->GetNumUnfilteredBones());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredAndUnfilteredBones, FilteredAndUnfilteredBonesSRV);
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredSockets, StaticBuffers->GetNumFilteredSockets());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, FilteredSocketBoneOffset, StaticBuffers->GetFilteredSocketBoneOffset());
@@ -1071,7 +1071,8 @@ public:
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumBones, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredBones, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredBones, FNiagaraRenderer::GetDummyUIntBuffer());
+			SetShaderValue(RHICmdList, ComputeShaderRHI, NumUnfilteredBones, 0);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredAndUnfilteredBones, FNiagaraRenderer::GetDummyUIntBuffer());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredSockets, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, FilteredSocketBoneOffset, 0);
 
@@ -1106,7 +1107,8 @@ private:
 	LAYOUT_FIELD(FShaderParameter, MeshNumWeights);
 	LAYOUT_FIELD(FShaderParameter, NumBones);
 	LAYOUT_FIELD(FShaderParameter, NumFilteredBones);
-	LAYOUT_FIELD(FShaderResourceParameter, FilteredBones);
+	LAYOUT_FIELD(FShaderParameter, NumUnfilteredBones);
+	LAYOUT_FIELD(FShaderResourceParameter, FilteredAndUnfilteredBones);
 	LAYOUT_FIELD(FShaderParameter, NumFilteredSockets);
 	LAYOUT_FIELD(FShaderParameter, FilteredSocketBoneOffset);
 	LAYOUT_FIELD(FShaderParameter, InstanceTransform);
@@ -1500,21 +1502,51 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	// Gather filtered bones information
 	FReferenceSkeleton& RefSkel = Mesh->RefSkeleton;
+	if (Interface->FilteredBones.Num() > 0)
 	{
-		FilteredBones.SetNumUninitialized(Interface->FilteredBones.Num());
-		TArray<FName, TInlineAllocator<16>> MissingBones;
-		for (int32 BoneIdx = 0; BoneIdx < FilteredBones.Num(); ++BoneIdx)
+		if (RefSkel.GetNum() > TNumericLimits<uint16>::Max())
 		{
-			FName BoneName = Interface->FilteredBones[BoneIdx];
-			int32 Bone = RefSkel.FindBoneIndex(BoneName);
+			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface '%s' requires more bones '%d' than we currently support '%d' Mesh '%s' Component '%s'"), *Interface->GetFullName(), RefSkel.GetNum(), TNumericLimits<uint16>::Max(), *Mesh->GetFullName(), *Component->GetFullName());
+			return false;
+		}
+
+		//-TODO: If the DI does not use unfiltered bones we can skip adding them here...
+		TArray<FName, TInlineAllocator<16>> MissingBones;
+
+		FilteredAndUnfilteredBones.Reserve(RefSkel.GetNum());
+
+		// Append filtered bones to the array first
+		for (const FName& BoneName : Interface->FilteredBones)
+		{
+			const int32 Bone = RefSkel.FindBoneIndex(BoneName);
 			if (Bone == INDEX_NONE)
 			{
 				MissingBones.Add(BoneName);
-				FilteredBones[BoneIdx] = 0;
 			}
 			else
 			{
-				FilteredBones[BoneIdx] = Bone;
+				ensure(Bone <= TNumericLimits<uint16>::Max());
+				FilteredAndUnfilteredBones.Add(Bone);
+				++NumFilteredBones;
+			}
+		}
+
+		// Append unfiltered bones to the array
+		for (int32 i=0; i < RefSkel.GetNum(); ++i)
+		{
+			bool bExists = false;
+			for (int32 j=0; j < NumFilteredBones; ++j)
+			{
+				if (FilteredAndUnfilteredBones[j] == i)
+				{
+					bExists = true;
+					break;
+				}
+			}
+			if (!bExists)
+			{
+				FilteredAndUnfilteredBones.Add(i);
+				++NumUnfilteredBones;
 			}
 		}
 
@@ -2166,7 +2198,8 @@ const FString UNiagaraDataInterfaceSkeletalMesh::MeshNumTexCoordName(TEXT("MeshN
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshNumWeightsName(TEXT("MeshNumWeights_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::NumBonesName(TEXT("NumBones_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::NumFilteredBonesName(TEXT("NumFilteredBones_"));
-const FString UNiagaraDataInterfaceSkeletalMesh::FilteredBonesName(TEXT("FilteredBones_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::NumUnfilteredBonesName(TEXT("NumUnfilteredBones_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::FilteredAndUnfilteredBonesName(TEXT("FilteredAndUnfilteredBones_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::NumFilteredSocketsName(TEXT("NumFilteredSockets_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::FilteredSocketBoneOffsetName(TEXT("FilteredSocketBoneOffset_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::InstanceTransformName(TEXT("InstanceTransform_"));
@@ -2334,6 +2367,21 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_RandomFilteredBone(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, Bone); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetUnfilteredBoneAtName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int Count) { {GetDISkelMeshContextName} DISkelMesh_GetUnfilteredBoneCount(DIContext, Count); }");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+	}
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetUnfilteredBoneAtName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int BoneIndex, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_GetUnfilteredBoneAt(DIContext, BoneIndex, Bone); }");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+	}
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomUnfilteredBoneName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_RandomUnfilteredBone(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, Bone); }");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+	}
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Filtered Socket
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredSocketCountName)
@@ -2353,9 +2401,9 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int SocketIndex, in int bShouldApplyTransform, out float3 Translation, out float4 Rotation, out float4 Scale) { Translation = float3(0.0, 0.0, 0.0); Rotation = float4(0.0, 0.0, 0.0, 1.0); Scale = float3(1.0, 1.0, 1.0); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	} 
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomFilteredSocketBoneName)
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomFilteredSocketName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int SocketBone) { {GetDISkelMeshContextName} DISkelMesh_RandomFilteredSocketBone(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, SocketBone); }");
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int SocketBone) { {GetDISkelMeshContextName} DISkelMesh_RandomFilteredSocket(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, SocketBone); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2391,10 +2439,11 @@ bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSign
 		MakeTuple(FName("RandomSpecificBone"), FSkeletalMeshInterfaceHelper::RandomFilteredBoneName),
 		MakeTuple(FName("GetSpecificBoneCount"), FSkeletalMeshInterfaceHelper::GetFilteredBoneCountName),
 		MakeTuple(FName("GetSpecificBone"), FSkeletalMeshInterfaceHelper::GetFilteredBoneAtName),
-		MakeTuple(FName("RandomSpecificSocketBone"), FSkeletalMeshInterfaceHelper::RandomFilteredSocketBoneName),
+		MakeTuple(FName("RandomSpecificSocketBone"), FSkeletalMeshInterfaceHelper::RandomFilteredSocketName),
 		MakeTuple(FName("GetSpecificSocketCount"), FSkeletalMeshInterfaceHelper::GetFilteredSocketCountName),
 		MakeTuple(FName("GetSpecificSocketTransform"), FSkeletalMeshInterfaceHelper::GetFilteredSocketTransformName),
 		MakeTuple(FName("GetSpecificSocketBone"), FSkeletalMeshInterfaceHelper::GetFilteredSocketBoneAtName),
+		MakeTuple(FName("RandomFilteredSocketBone"), FSkeletalMeshInterfaceHelper::RandomFilteredSocketName),
 	};
 	bool bWasChanged = false;
 
@@ -2424,7 +2473,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSign
 			FunctionSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(FNiagaraRandInfo::StaticStruct()), TEXT("RandomInfo")));
 			bWasChanged = true;
 		}
-		else if (FunctionSignature.Name == FSkeletalMeshInterfaceHelper::RandomFilteredSocketBoneName)
+		else if (FunctionSignature.Name == FSkeletalMeshInterfaceHelper::RandomFilteredSocketName)
 		{
 			FunctionSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(FNiagaraRandInfo::StaticStruct()), TEXT("RandomInfo")));
 			bWasChanged = true;
@@ -2435,7 +2484,6 @@ bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSign
 			bWasChanged = true;
 		}
 	}
-	FunctionSignature.FunctionVersion = FNiagaraSkelMeshDIFunctionVersion::LatestVersion;
 
 	return bWasChanged;
 }
