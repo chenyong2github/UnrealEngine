@@ -222,9 +222,6 @@ void FHardwareTargetingModule::GatherSettings(FMetaSettingGatherer& Builder)
 	const bool bAnyScalable = Settings->DefaultGraphicsPerformance == EGraphicsPreset::Scalable;
 
 	{
-		// Based roughly on https://docs.unrealengine.com/latest/INT/Platforms/Mobile/PostProcessEffects/index.html
-		UE_META_SETTING_ENTRY(Builder, URendererSettings, bMobileHDR, !bLowEndMobile);
-
 		// Bloom works and isn't terribly expensive on anything beyond low-end
 		UE_META_SETTING_ENTRY(Builder, URendererSettings, bDefaultFeatureBloom, !bLowEndMobile);
 

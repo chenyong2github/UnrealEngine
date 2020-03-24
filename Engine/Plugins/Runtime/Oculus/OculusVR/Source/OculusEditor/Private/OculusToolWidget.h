@@ -77,8 +77,8 @@ protected:
 	FReply ForwardShadingEnable(bool text);
 	EVisibility ForwardShadingVisibility(FName tag) const;
 
-	FReply InstancedStereoEnable(bool text);
-	EVisibility InstancedStereoVisibility(FName tag) const;
+	FReply MultiViewEnable(bool text);
+	EVisibility MultiViewVisibility(FName tag) const;
 
 	FReply StartInVREnable(bool text);
 	EVisibility StartInVRVisibility(FName tag) const;
@@ -92,8 +92,8 @@ protected:
 	FReply MobileMultiViewEnable(bool text);
 	EVisibility MobileMultiViewVisibility(FName tag) const;
 
-	FReply MobileHDRDisable(bool text);
-	EVisibility MobileHDRVisibility(FName tag) const;
+	FReply MobilePostProcessingDisable(bool text);
+	EVisibility MobilePostProcessingVisibility(FName tag) const;
 
 	FReply AndroidManifestGearGo(bool text);
 	FReply AndroidManifestQuest(bool text);

@@ -1596,7 +1596,7 @@ inline bool RHIHasTiledGPU(const FStaticShaderPlatform Platform)
 inline bool RHISupportsMobileMultiView(const FStaticShaderPlatform Platform)
 {
 	return Platform == EShaderPlatform::SP_OPENGL_ES3_1_ANDROID || IsVulkanMobilePlatform(Platform)
-		|| Platform == EShaderPlatform::SP_PCD3D_ES3_1 || FDataDrivenShaderPlatformInfo::GetSupportsMobileMultiView(Platform);
+		|| FDataDrivenShaderPlatformInfo::GetSupportsMobileMultiView(Platform);
 }
 
 inline bool RHISupportsNativeShaderLibraries(const FStaticShaderPlatform Platform)
