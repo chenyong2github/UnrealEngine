@@ -460,7 +460,6 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bIsCulledByScalability(false)
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
-	, OwnerLOD(0)
 {
 	OverrideParameters.SetOwner(this);
 
@@ -1935,11 +1934,6 @@ void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, 
 #else
 void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance){}
 #endif
-
-void UNiagaraComponent::SetOwnerLOD(int32 InOwnerLOD)
-{
-	OwnerLOD = InOwnerLOD;  
-}
 
 void UNiagaraComponent::SetAllowScalability(bool bAllow)
 {

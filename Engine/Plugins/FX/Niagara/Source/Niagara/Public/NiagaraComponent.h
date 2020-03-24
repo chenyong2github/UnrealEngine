@@ -512,11 +512,6 @@ public:
 	uint32 bWaitForCompilationOnActivate : 1;
 #endif
 
-	virtual void SetOwnerLOD(int32 InOwnerLOD);
-
-	UFUNCTION(BlueprintCallable, Category = Scalability, meta = (Keywords = "LOD scalability"))
-	FORCEINLINE int32 GetOwnerLOD()const { return OwnerLOD; }
-
 	/** Set whether this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
 	UFUNCTION(BlueprintCallable, Category = Scalability, meta = (Keywords = "LOD scalability"))
 	void SetAllowScalability(bool bAllow);
@@ -553,13 +548,6 @@ private:
 	FDelegateHandle AssetExposedParametersChangedHandle;
 
 	int32 ScalabilityManagerHandle;
-
-	/**
-	LOD level of our owning actor / component if it's been provided. 
-	Can be useful for scalability calculations for actor based FX on actors who have some other system determining their LOD level.
-	Would be nice if we just had a virtual on the actor Actor->GetLODLevel() for example that would return 0 by default and the correct level for any actors implementing a LOD level.
-	*/
-	int32 OwnerLOD;
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
