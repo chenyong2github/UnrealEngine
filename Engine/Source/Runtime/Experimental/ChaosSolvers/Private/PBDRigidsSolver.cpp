@@ -421,7 +421,7 @@ namespace Chaos
 				// Remove from rewind data
 				if(FRewindData* RewindData = Solver->GetRewindData())
 				{
-					RewindData->RemoveParticle(*Handle);
+					RewindData->RemoveParticle(Handle->UniqueIdx());
 				}
 
 			  // Remove game thread particle from ActiveGameThreadParticles so we won't crash when pulling physics state

@@ -453,9 +453,9 @@ public:
 		return true;
 	}
 
-	void RemoveParticle(const TGeometryParticleHandle<FReal,3>& Particle)
+	void RemoveParticle(const FUniqueIdx UniqueIdx)
 	{
-		if(const FParticleRewindInfo* Info = ParticleToRewindInfo.Find(Particle.UniqueIdx()))
+		if(const FParticleRewindInfo* Info = ParticleToRewindInfo.Find(UniqueIdx))
 		{
 			const int32 Idx = Info->AllDirtyParticlesIdx;
 			AllDirtyParticles.RemoveAtSwap(Idx);
@@ -465,7 +465,7 @@ public:
 				ParticleToRewindInfo.FindChecked(AllDirtyParticles[Idx].CachedUniqueIdx).AllDirtyParticlesIdx = Idx;
 			}
 
-			ParticleToRewindInfo.RemoveChecked(Particle.UniqueIdx());
+			ParticleToRewindInfo.RemoveChecked(UniqueIdx);
 		}
 	}
 
@@ -487,7 +487,19 @@ public:
 		{
 			++EarliestFrame;
 		}
+
+		//remove any old dirty particles
+		for(int32 DirtyIdx = AllDirtyParticles.Num() - 1; DirtyIdx >= 0; --DirtyIdx)
+		{
+			if(AllDirtyParticles[DirtyIdx].LastDirtyFrame < EarliestFrame)
+			{
+				RemoveParticle(AllDirtyParticles[DirtyIdx].CachedUniqueIdx);
+			}
+		}
 	}
+
+	//Number of particles that we're currently storing history for
+	int32 GetNumDirtyParticles() const { return AllDirtyParticles.Num(); }
 
 	void PrepareFrame(int32 NumDirtyParticles)
 	{
@@ -527,6 +539,7 @@ public:
 		{
 			const auto PTParticle = Proxy->GetHandle();
 			FParticleRewindInfo& Info = FindOrAddParticle(Proxy->GetParticle(),PTParticle->UniqueIdx());
+			AllDirtyParticles[Info.AllDirtyParticlesIdx].LastDirtyFrame = CurFrame;
 
 			//Most properties are always a frame behind
 			if(Proxy->IsInitialized())	//Frame delay so proxy must be initialized
@@ -575,7 +588,8 @@ public:
 		if(SimWritablePropsMayChange(Rigid))
 		{
 			FParticleRewindInfo& Info = FindOrAddParticle(Rigid.GTGeometryParticle(), Rigid.UniqueIdx());
-			
+			AllDirtyParticles[Info.AllDirtyParticlesIdx].LastDirtyFrame = CurFrame-1;
+
 			//User called PrepareManagerForFrame (or PrepareFrameForPTDirty) for the previous frame, so use it
 			FDirtyPropertiesManager& DestManager = *Managers[CurFrame-1].Manager;
 
@@ -658,7 +672,7 @@ private:
 
 
 		FParticleRewindInfo& Info = ParticleToRewindInfo.FindOrAdd(UniqueIdx);
-		Info.AllDirtyParticlesIdx = AllDirtyParticles.Add(FDirtyParticleInfo{UnsafeGTParticle,UniqueIdx});
+		Info.AllDirtyParticlesIdx = AllDirtyParticles.Add(FDirtyParticleInfo{UnsafeGTParticle,UniqueIdx, CurFrame});
 		return Info;
 	}
 
@@ -696,6 +710,7 @@ private:
 	{
 		TGeometryParticle<FReal,3>* Particle;
 		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
+		uint32 LastDirtyFrame;	//Track how recently this was made dirty
 	};
 
 	TArrayAsMap<FUniqueIdx,FParticleRewindInfo> ParticleToRewindInfo;
