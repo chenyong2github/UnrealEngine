@@ -100,6 +100,9 @@ public:
 		Chaos::FPBDRigidsSolver::FParticlesType& Particles);
 
 	/** */
+	static void InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params);
+
+	/** */
 	bool IsSimulating() const { return Parameters.Simulating; }
 
 	/**
@@ -220,7 +223,6 @@ protected:
 	 */
 	int32 CalculateHierarchyLevel(const FGeometryDynamicCollection& GeometryCollection, int32 TransformIndex) const;
 
-	static void InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params);
 	void InitializeRemoveOnFracture(FParticlesType& Particles, const TManagedArray<int32>& DynamicState);
 	void ProcessCommands(FParticlesType& Particles, const float Time);
 
