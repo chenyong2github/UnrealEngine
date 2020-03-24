@@ -4,183 +4,107 @@
 	MetalConstantBuffer.cpp: Metal Constant buffer implementation.
 =============================================================================*/
 
+#include "MetalRHI.h"
+#include "MetalResources.h"
+#include "MetalFrameAllocator.h"
 #include "MetalRHIPrivate.h"
-#include "MetalProfiler.h"
-#include "MetalBuffer.h"
-#include "MetalCommandBuffer.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "Misc/ScopeRWLock.h"
 
-@implementation FMetalIAB
+#pragma mark Suballocated Uniform Buffer Implementation
 
-APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalIAB)
-
--(instancetype)init
-{
-	id Self = [super init];
-	if (Self)
-		((FMetalIAB*)Self)->UpdateIAB = 0;
-	return Self;
-}
--(void)dealloc
-{
-	SafeReleaseMetalBuffer(IndirectArgumentBuffer);
-	SafeReleaseMetalBuffer(IndirectArgumentBufferSideTable);
-	[super dealloc];
-}
-@end
-
-FMetalUniformBuffer::FMetalUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage InUsage, EUniformBufferValidation Validation)
-	: FRHIUniformBuffer(Layout)
-    , FMetalRHIBuffer(Layout.ConstantBufferSize, (FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs) && Layout.Resources.Num() ? (EMetalBufferUsage_GPUOnly|BUF_Volatile) : BUF_Volatile), RRT_UniformBuffer)
-{
-	uint32 NumResources = Layout.Resources.Num();
-	if (NumResources)
-	{
-		ResourceTable.Empty(NumResources);
-		ResourceTable.AddZeroed(NumResources);
-		
-		for (uint32 i = 0; i < NumResources; ++i)
-		{
-			FRHIResource* Resource = *(FRHIResource**)((uint8*)Contents + Layout.Resources[i].MemberOffset);
-			
-			// Allow null SRV's in uniform buffers for feature levels that don't support SRV's in shaders
-			if (Validation == EUniformBufferValidation::ValidateResources && !(GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && Layout.Resources[i].MemberType == UBMT_SRV))
-			{
-				check(Resource);
-			}
-			
-			ResourceTable[i] = Resource;
-		}
-	}
-
-    uint32 ConstantSize = Layout.ConstantBufferSize;
-	if (ConstantSize > 0)
-	{
-		UE_CLOG(ConstantSize > 65536, LogMetal, Fatal, TEXT("Trying to allocated a uniform layout of size %d that is greater than the maximum permitted 64k."), ConstantSize);
-		
-		if (Buffer)
-		{
-			FMemory::Memcpy(Buffer.GetContents(), Contents, ConstantSize);
-#if PLATFORM_MAC
-			if(Mode == mtlpp::StorageMode::Managed)
-			{
-				MTLPP_VALIDATE(mtlpp::Buffer, Buffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, ConstantSize)));
-			}
+FMetalSuballocatedUniformBuffer::FMetalSuballocatedUniformBuffer(const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation InValidation)
+    : FRHIUniformBuffer(Layout)
+    , LastFrameUpdated(0)
+    , Offset(0)
+    , Backing(nil)
+    , Shadow(nullptr)
+    , ResourceTable()
+#if !UE_BUILD_SHIPPING
+    , Validation(InValidation)
 #endif
-		}
-		else
-		{
-			check(Data && Data->Data);
-			FMemory::Memcpy(Data->Data, Contents, ConstantSize);
-		}
-	}
-
-    UpdateResourceTable(ResourceTable, Validation);
-}
-
-void const* FMetalUniformBuffer::GetData()
 {
-	if (Data)
-	{
-		return Data->Data;
-	}
-	else if (Buffer)
-	{
-		return MTLPP_VALIDATE(mtlpp::Buffer, Buffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, GetContents());
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-void FMetalUniformBuffer::UpdateResourceTable(TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation)
-{
-	ResourceTable = Resources;
-}
-
-void FMetalUniformBuffer::Update(const void* Contents, TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation)
-{
-    uint32 ConstantSize = FRHIUniformBuffer::GetSize();
-    if (ConstantSize > 0)
+    // Slate can create SingleDraw uniform buffers and use them several frames later. So it must be included.
+    if(Usage == UniformBuffer_SingleDraw || Usage == UniformBuffer_MultiFrame)
     {
-        UE_CLOG(ConstantSize > 65536, LogMetal, Fatal, TEXT("Trying to allocated a uniform layout of size %d that is greater than the maximum permitted 64k."), ConstantSize);
+        Shadow = FMemory::Malloc(this->GetSize());
+    }
+}
+
+FMetalSuballocatedUniformBuffer::~FMetalSuballocatedUniformBuffer()
+{
+    if(this->HasShadow())
+    {
+        FMemory::Free(Shadow);
+    }
+    
+    // Note: this object does NOT own a reference
+    // to the uniform buffer backing store
+}
+
+bool FMetalSuballocatedUniformBuffer::HasShadow()
+{
+    return this->Shadow != nullptr;
+}
+
+void FMetalSuballocatedUniformBuffer::Update(const void* Contents)
+{
+    if(this->HasShadow())
+    {
+        FMemory::Memcpy(this->Shadow, Contents, this->GetSize());
+    }
+    
+    const FRHIUniformBufferLayout& Layout = this->GetLayout();
+    uint32 NumResources = Layout.Resources.Num();
+    if (NumResources > 0)
+    {
+        ResourceTable.Empty(NumResources);
+        ResourceTable.AddZeroed(NumResources);
         
-		ns::AutoReleased<FMetalBuffer> Buf(Buffer);
-		
-		void* Data = Lock(true, RLM_WriteOnly, 0, 0, true);
-        FMemory::Memcpy(Data, Contents, ConstantSize);
-        Unlock();
+        for (uint32 i = 0; i < NumResources; ++i)
+        {
+            FRHIResource* Resource = *(FRHIResource**)((uint8*)Contents + Layout.Resources[i].MemberOffset);
+            
+            // Allow null SRV's in uniform buffers for feature levels that don't support SRV's in shaders
+#if METAL_UNIFORM_BUFFER_VALIDATION
+            if (Validation == EUniformBufferValidation::ValidateResources && !(GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && GetLayout().Resources[i].MemberType == UBMT_SRV))
+            {
+                check(Resource);
+            }
+#endif
+            
+            ResourceTable[i] = Resource;
+        }
+    }
 
-		ConditionalSetUniformBufferFrameIndex();
-	}
-	
-	UpdateResourceTable(Resources, Validation);
+    this->PushToGPUBacking(Contents);
 }
 
-FUniformBufferRHIRef FMetalDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
+// Acquires a region in the current frame's uniform buffer and
+// pushes the data in Contents into that GPU backing store
+// The amount of data read from Contents is given by the Layout
+void FMetalSuballocatedUniformBuffer::PushToGPUBacking(const void* Contents)
 {
-	@autoreleasepool {
-	check(IsInRenderingThread() || IsInParallelRenderingThread() || IsInRHIThread());
-		return new FMetalUniformBuffer(Contents, Layout, Usage, Validation);
-	}
+    check(IsInRenderingThread() ^ IsRunningRHIInSeparateThread());
+    
+    FMetalDeviceContext& DeviceContext = GetMetalDeviceContext();
+    
+    FMetalFrameAllocator* Allocator = DeviceContext.GetUniformAllocator();
+    FMetalFrameAllocator::AllocationEntry Entry = Allocator->AcquireSpace(this->GetSize());
+    // copy contents into backing
+    this->Backing = Entry.Backing;
+    this->Offset = Entry.Offset;
+    uint8* ConstantSpace = reinterpret_cast<uint8*>([this->Backing contents]) + Entry.Offset;
+    FMemory::Memcpy(ConstantSpace, Contents, this->GetSize());
+    LastFrameUpdated = DeviceContext.GetFrameNumberRHIThread();
 }
 
-struct FMetalRHICommandUpateUniformBuffer : public FRHICommand<FMetalRHICommandUpateUniformBuffer>
+// Because we can create a uniform buffer on frame N and may not bind it until frame N+10
+// we need to keep a copy of the most recent data. Then when it's time to bind this
+// uniform buffer we can push the data into the GPU backing.
+void FMetalSuballocatedUniformBuffer::PrepareToBind()
 {
-	TRefCountPtr<FMetalUniformBuffer> Buffer;
-	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
-	char* Contents;
-	
-	FORCEINLINE_DEBUGGABLE FMetalRHICommandUpateUniformBuffer(FMetalUniformBuffer* InBuffer, void const* Data, TArray<TRefCountPtr<FRHIResource>>& Resources)
-	: Buffer(InBuffer)
-	, ResourceTable(Resources)
-	, Contents(nullptr)
-	{
-		uint32 MaxLayoutSize = InBuffer->GetSize();
-		Contents = new char[MaxLayoutSize];
-		FMemory::Memcpy(Contents, Data, MaxLayoutSize);
-	}
-	
-	virtual ~FMetalRHICommandUpateUniformBuffer()
-	{
-		delete [] Contents;
-	}
-	
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		Buffer->Update(Contents, ResourceTable, EUniformBufferValidation::None);
-	}
-};
-
-void FMetalDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
-{
-	@autoreleasepool {
-	// check((IsInRenderingThread() || IsInRHIThread()) && !IsInParallelRenderingThread());
-
-	FMetalUniformBuffer* UniformBuffer = ResourceCast(UniformBufferRHI);
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		
-	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
-	ResourceTable.AddZeroed(UniformBuffer->GetLayout().Resources.Num());
-		
-	const FRHIUniformBufferLayout& Layout = UniformBuffer->GetLayout();
-		
-	for (uint32 i = 0; i < UniformBuffer->GetLayout().Resources.Num(); ++i)
-	{
-		FRHIResource* Resource = *(FRHIResource**)((uint8*)Contents + Layout.Resources[i].MemberOffset);
-		ResourceTable[i] = Resource;
-	}	
-		
-	if (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
-	{
-		UniformBuffer->Update(Contents, ResourceTable, EUniformBufferValidation::None);
-	}
-	else
-	{
-		new (RHICmdList.AllocCommand<FMetalRHICommandUpateUniformBuffer>()) FMetalRHICommandUpateUniformBuffer(UniformBuffer, Contents, ResourceTable);
-		RHICmdList.RHIThreadFence(true);
-	}
-	}
+    FMetalDeviceContext& DeviceContext = GetMetalDeviceContext();
+    if(Shadow && LastFrameUpdated < DeviceContext.GetFrameNumberRHIThread())
+    {
+        this->PushToGPUBacking(this->Shadow);
+    }
 }
