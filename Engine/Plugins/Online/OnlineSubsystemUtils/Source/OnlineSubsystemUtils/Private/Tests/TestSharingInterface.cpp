@@ -34,17 +34,23 @@ void FTestSharingInterface::Test(UWorld* InWorld, bool bWithImage)
 	check(OnlineSub); 
 
 	SharingInterface = OnlineSub->GetSharingInterface();
-	check(SharingInterface.IsValid());
-
-	TestStatusUpdate.Message = FString::Printf(TEXT("This is a test post for UE4 Sharing support! Date = %s"), *FDateTime::Now().ToString());
-	TestStatusUpdate.PostPrivacy = EOnlineStatusUpdatePrivacy::OnlyMe;
-	if( bWithImage )
+	if (SharingInterface.IsValid())
 	{
-		TestStatusUpdate.Image = new FImage( 256, 256, ERawImageFormat::BGRA8, EGammaSpace::Linear );
-	}
+		TestStatusUpdate.Message = FString::Printf(TEXT("This is a test post for UE4 Sharing support! Date = %s"), *FDateTime::Now().ToString());
+		TestStatusUpdate.PostPrivacy = EOnlineStatusUpdatePrivacy::OnlyMe;
+		if (bWithImage)
+		{
+			TestStatusUpdate.Image = new FImage(256, 256, ERawImageFormat::BGRA8, EGammaSpace::Linear);
+		}
 
-	// Kick off the first part of the test,
-	RequestPermissionsToSharePosts();
+		// Kick off the first part of the test,
+		RequestPermissionsToSharePosts();
+	}
+	else
+	{
+		UE_LOG_ONLINE_SHARING(Display, TEXT("FTestSharingInterface TESTS SKIPPED. Sharing Interface implementation not found"));
+		delete this;
+	}
 }
 
 
