@@ -12,6 +12,8 @@ using System.Reflection;
 using Microsoft.Win32;
 using System.Text;
 using Tools.DotNETCommon;
+using System.Net;
+using System.Net.NetworkInformation;
 
 namespace UnrealBuildTool
 {
@@ -34,6 +36,18 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		bool bStopXGECompilationAfterErrors = false;
+
+		/// <summary>
+		/// When set to false, XGE will not be When enabled, XGE will stop compiling targets after a compile error occurs.  Recommended, as it saves computing resources for others.
+		/// </summary>
+		[XmlConfigFile(Category = "XGE")]
+		static bool bAllowOverVpn = true;
+
+		/// <summary>
+		/// List of subnets containing IP addresses assigned by VPN
+		/// </summary>
+		[XmlConfigFile(Category = "XGE")]
+		static string[] VpnSubnets = null;
 
 		private const string ProgressMarkupPrefix = "@action";
 
@@ -135,25 +149,68 @@ namespace UnrealBuildTool
 		public static bool IsAvailable()
 		{
 			string XgConsoleExe;
-
-			bool Success = TryGetXgConsoleExecutable(out XgConsoleExe);
+			if (!TryGetXgConsoleExecutable(out XgConsoleExe))
+			{
+				return false;
+			}
 
 			// on windows check the service is actually running
-			if (Success && BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
 				try
 				{
 					// will throw if the service doesn't exist, which it should if IB is present but just incase...
 					System.ServiceProcess.ServiceController SC = new System.ServiceProcess.ServiceController("Incredibuild Agent");
-					Success = SC.Status == System.ServiceProcess.ServiceControllerStatus.Running;
+					if (SC.Status != System.ServiceProcess.ServiceControllerStatus.Running)
+					{
+						return false;
+					}
 				}
-				catch
+				catch(Exception Ex)
 				{
-					Success = false;
+					Log.TraceLog("Unable to query for status of Incredibuild service: {0}", ExceptionUtils.FormatExceptionDetails(Ex));
+					return false;
 				}
 			}
 
-			return Success;
+			// Check if we're connected over VPN
+			if (!bAllowOverVpn && VpnSubnets != null && VpnSubnets.Length > 0)
+			{
+				// Parse all the subnets from the config file
+				List<Subnet> ParsedVpnSubnets = new List<Subnet>();
+				foreach (string VpnSubnet in VpnSubnets)
+				{
+					ParsedVpnSubnets.Add(Subnet.Parse(VpnSubnet));
+				}
+
+				// Check if any network adapters have an IP within one of these subnets
+				try
+				{
+					NetworkInterface[] Interfaces = NetworkInterface.GetAllNetworkInterfaces();
+					foreach (NetworkInterface Interface in Interfaces)
+					{
+						IPInterfaceProperties Properties = Interface.GetIPProperties();
+						foreach (UnicastIPAddressInformation UnicastAddressInfo in Properties.UnicastAddresses)
+						{
+							byte[] AddressBytes = UnicastAddressInfo.Address.GetAddressBytes();
+							foreach (Subnet Subnet in ParsedVpnSubnets)
+							{
+								if (Subnet.Contains(AddressBytes))
+								{
+									Log.TraceInformationOnce("XGE will be not be used over VPN (adapter '{0}' with IP {1} is in subnet {2}). Set <XGE><bAllowOverVpn>true</bAllowOverVpn></XGE> in BuildConfiguration.xml to override.", Interface.Name, UnicastAddressInfo.Address, Subnet);
+									return false;
+								}
+							}
+						}
+					}
+				}
+				catch (Exception Ex)
+				{
+					Log.TraceWarning("Unable to check whether machine is connected to VPN:\n{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+				}
+			}
+
+			return true;
 		}
 
 		// precompile the Regex needed to parse the XGE output (the ones we want are of the form "File (Duration at +time)"
