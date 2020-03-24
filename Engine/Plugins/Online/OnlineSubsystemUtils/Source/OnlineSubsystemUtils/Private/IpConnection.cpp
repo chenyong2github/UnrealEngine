@@ -606,6 +606,10 @@ void UIpConnection::CleanupResolutionSockets()
 			if (CurSocket != Socket || bCleanAll)
 			{
 				SocketSubsystem->DestroySocket(CurSocket);
+				if (CurSocket == Socket)
+				{
+					Socket = nullptr;
+				}
 				CurSocket = nullptr;
 			}
 		}
