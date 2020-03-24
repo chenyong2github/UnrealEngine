@@ -47,6 +47,7 @@ void UNiagaraDataInterfaceCollisionQuery::PostInitProperties()
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
+		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(TraceChannelEnum), true, false, false);
 	}
 }
 
