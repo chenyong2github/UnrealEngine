@@ -62,7 +62,6 @@ public:
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
-	
 	virtual bool IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter)
 	{
 		return true;
@@ -72,6 +71,9 @@ protected:
 	// flags used to identify modifier keys/buttons
 	static const int AdditiveSelectionModifier = 1;
 	bool bAddToSelectionSet;
+
+private:
+	FHitResult FindInitialHitResult(const FInputDeviceRay& ClickPos, class UMeshToolManager* MeshToolManager);
 
 };
 
