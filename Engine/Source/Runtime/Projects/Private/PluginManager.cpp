@@ -624,6 +624,15 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					{
 						EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
 					}
+					else
+					{
+						// Unknown path, possibly built on another machine. Try project first with this target name, then engine
+						EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+						if (!FPaths::FileExists(EditorTargetFileName))
+						{
+							EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+						}
+					}
 					break;
 				}
 			}
