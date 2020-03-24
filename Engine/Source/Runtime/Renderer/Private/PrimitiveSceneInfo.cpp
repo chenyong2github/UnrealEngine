@@ -394,7 +394,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	FGraphicsMinimalPipelineStateId::InitializePersistentIds();
 					
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
 	{
 		FCachedRayTracingMeshCommandContext CommandContext(Scene->CachedRayTracingMeshCommands);
 		FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr);
