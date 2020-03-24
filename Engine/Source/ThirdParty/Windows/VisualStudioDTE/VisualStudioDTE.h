@@ -8,6 +8,7 @@
 #include <unknwn.h>
 
 #if WITH_VISUALSTUDIO_DTE
+	THIRD_PARTY_INCLUDES_START
 	#pragma warning(push)
 	#pragma warning(disable: 4278)
 	#pragma warning(disable: 4471)
@@ -18,6 +19,7 @@
 	#include "dte80a.tlh"
 
 	#pragma warning(pop)
+	THIRD_PARTY_INCLUDES_END
 #endif
 
 #include "Windows/HideWindowsPlatformAtomics.h"
