@@ -27,9 +27,25 @@ DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Exists Time"),STAT_DDC_ExistTime,STA
 class FDerivedDataBackendInterface
 {
 public:
+
+	/*
+		Speed classes. Higher values are faster so > / < comparisons make sense.
+	*/
+	enum class ESpeedClass
+	{
+		Unknown,		/* Don't know yet*/
+		Slow,			/* Slow, likely a remote drive. Some benefit but handle with care */
+		Ok,				/* Ok but not great.  */
+		Fast,			/* Fast but seek times still have an impact */
+		Local			/* Little to no impact from seek times and extremly fast reads */
+	};
+
 	virtual ~FDerivedDataBackendInterface()
 	{
 	}
+
+	/** Return a name for this interface */
+	virtual FString GetName() const = 0;
 
 	/** return true if this cache is writable **/
 	virtual bool IsWritable()=0;
@@ -42,6 +58,11 @@ public:
 	{
 		return true;
 	}
+
+	/**
+	 * Returns a class of speed for this interface
+	 **/
+	virtual ESpeedClass GetSpeedClass() = 0;
 
 	/**
 	 * Synchronous test for the existence of a cache item
@@ -82,6 +103,20 @@ public:
 	 *								This will create a path such as "0. 1. 0. 2", which can uniquely identify this node.
 	 */
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) = 0;
+
+	/**
+	 * Synchronous attempt to make sure the cached data will be available as optimally as possible. This is left up to the implementation 
+	 * to implement or just skip.
+	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
+	 * @return				true if any steps were performed to optimize future retrieval
+	 */
+	virtual bool TryToPrefetch(const TCHAR* CacheKey) = 0;
+
+	/**
+	 * Allows the DDC backend to determine if it wants to cache the provided data. Reasons for returning false could be a slow connection,
+	 * a file size limit, etc.
+	 */
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) = 0;
 };
 
 class FDerivedDataBackend
@@ -127,3 +162,23 @@ public:
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStats) = 0;
 
 };
+
+
+inline const TCHAR* LexToString(FDerivedDataBackendInterface::ESpeedClass SpeedClass)
+{
+	switch (SpeedClass)
+	{
+	case FDerivedDataBackendInterface::ESpeedClass::Unknown:
+		return TEXT("Unknown");
+	case FDerivedDataBackendInterface::ESpeedClass::Slow:
+		return TEXT("Slow");
+	case FDerivedDataBackendInterface::ESpeedClass::Ok:
+		return TEXT("Ok");
+	case FDerivedDataBackendInterface::ESpeedClass::Fast:
+		return TEXT("Fast");
+	case FDerivedDataBackendInterface::ESpeedClass::Local:
+		return TEXT("Local");
+	}
+
+	return TEXT("Unknow value! (Update LexToString!)");
+}
