@@ -23,8 +23,9 @@ public:
 	/**
 	 * Called after the session has been created (and before Startup has been called on it).
 	 * @note This function is called for both newly created sessions and after recovering a live session during server start-up.
+	 * @return true if the session creation could be completed without error, false otherwise (ex if the database fails to open).
 	 */
-	virtual void OnLiveSessionCreated(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InLiveSession) = 0;
+	virtual bool OnLiveSessionCreated(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InLiveSession) = 0;
 	
 	/**
 	 * Called before the session is destroyed (and before Shutdown is called on it).
@@ -35,8 +36,9 @@ public:
 	/**
 	 * Called after the session has been created.
 	 * @note This function is called for both newly created sessions and after recovering an archived session during server start-up.
+	 * @return true if the session creation could be completed without error, false otherwise (ex if the database fails to open).
 	 */
-	virtual void OnArchivedSessionCreated(const IConcertServer& InServer, const FString& InArchivedSessionRoot, const FConcertSessionInfo& InArchivedSessionInfo) = 0;
+	virtual bool OnArchivedSessionCreated(const IConcertServer& InServer, const FString& InArchivedSessionRoot, const FConcertSessionInfo& InArchivedSessionInfo) = 0;
 	
 	/**
 	 * Called before the session is destroyed.
