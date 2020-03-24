@@ -298,9 +298,14 @@ private:
 	TArray<TSharedPtr<FConnectionModeItem>> AvailableConnectionModes;
 	TSharedPtr<FConnectionModeItem> SelectedConnectionMode;
 
+	// [SelectedPacketStartIndex, SelectedPacketEndIndex) is the exclusive interval of selected packages.
+	// NumSelectedPackets == SelectedPacketEndIndex - SelectedPacketStartIndex.
 	uint32 SelectedPacketStartIndex;
 	uint32 SelectedPacketEndIndex;
 
+	// [SelectionStartPosition, SelectionEndPosition) is the exclusive selected bit range inside a single selected package.
+	// Used only when NumSelectedPackets == SelectedPacketEndIndex - SelectedPacketStartIndex == 1.
+	// SelectedBitSize == SelectionEndPosition - SelectionStartPosition.
 	uint32 SelectionStartPosition;
 	uint32 SelectionEndPosition;
 
