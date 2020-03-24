@@ -15,6 +15,7 @@
 #include "TickableEditorObject.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "INetworkFileSystemModule.h"
+#include "CookOnTheSide/CookLog.h"
 #include "CookOnTheFlyServer.generated.h"
 
 
@@ -98,8 +99,6 @@ enum class ECookTickFlags : uint8
 	HideProgressDisplay =					0x00000002, /** Hides the progress report */
 };
 ENUM_CLASS_FLAGS(ECookTickFlags);
-
-DECLARE_LOG_CATEGORY_EXTERN(LogCook, Log, All);
 
 namespace UE
 {

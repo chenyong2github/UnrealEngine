@@ -2926,6 +2926,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageName,
  */
 bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuffix)
 {
+	SCOPED_LOADTIMER(LinkerLoad_VerifyImportInner);
 	// Lambda used to load an import package
 	auto LoadImportPackage = [this](FObjectImport& Import, TOptional<FScopedSlowTask>& SlowTask) -> UPackage*
 	{

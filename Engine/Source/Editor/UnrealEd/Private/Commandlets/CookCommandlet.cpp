@@ -41,6 +41,7 @@
 #include "HAL/MemoryMisc.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "AssetRegistryModule.h"
+#include "Cooker/CookProfiling.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCookCommandlet, Log, All);
 
@@ -627,7 +628,7 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 
 bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, TArray<FString>& FilesInPath )
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(CookByTheBook);
+	TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(CookByTheBook, CookChannel);
 
 	COOK_STAT(FScopedDurationTimer CookByTheBookTimer(DetailedCookStats::CookByTheBookTimeSec));
 	UCookOnTheFlyServer *CookOnTheFlyServer = NewObject<UCookOnTheFlyServer>();
@@ -929,13 +930,16 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 				TickResults = CookOnTheFlyServer->TickCookOnTheSide( CookOnTheSideTimeSlice, NonMapPackageCountSinceLastGC, ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay );
 
 				{
-					COOK_STAT(FScopedDurationTimer ShaderProcessAsyncTimer(DetailedCookStats::TickLoopShaderProcessAsyncResultsTimeSec));
+					SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_ShaderProcessAsync, DetailedCookStats::TickLoopShaderProcessAsyncResultsTimeSec);
 					GShaderCompilingManager->ProcessAsyncResults(true, false);
 				}
 
 				
 				// Flush the asset registry before GC
-				FAssetRegistryModule::TickAssetRegistry(-1.0f);
+				{
+					SCOPED_COOKTIMER(CookByTheBook_TickAssetRegistry);
+					FAssetRegistryModule::TickAssetRegistry(-1.0f);
+				}
 
 				auto DumpMemStats = []()
 				{
@@ -966,6 +970,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 
 					int32 JobsToLogAt = GShaderCompilingManager->GetNumRemainingJobs();
 
+					SCOPED_COOKTIMER(CookByTheBook_ShaderJobFlush);
 					UE_LOG(LogCookCommandlet, Display, TEXT("Detected max mem exceeded - forcing shader compilation flush"));
 					while ( true )
 					{
@@ -999,6 +1004,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 
 				if (bShouldGC )
 				{
+					SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_GC, DetailedCookStats::TickLoopGCTimeSec);
 					bShouldGC = false;
 
 					int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
@@ -1009,7 +1015,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 
 					DumpMemStats();
 
-					COOK_STAT(FScopedDurationTimer GCTimer(DetailedCookStats::TickLoopGCTimeSec));
 					CollectGarbage(RF_NoFlags);
 
 					int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
@@ -1022,20 +1027,20 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 				}
 
 				{
-					COOK_STAT(FScopedDurationTimer RecompileTimer(DetailedCookStats::TickLoopRecompileShaderRequestsTimeSec));
+					SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_RecompileShaderRequests, DetailedCookStats::TickLoopRecompileShaderRequestsTimeSec);
 					CookOnTheFlyServer->TickRecompileShaderRequests();
 
 					FPlatformProcess::Sleep( 0.0f );
 				}
 
 				{
-					COOK_STAT(FScopedDurationTimer ProcessDeferredCommandsTimer(DetailedCookStats::TickLoopProcessDeferredCommandsTimeSec));
+					SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_ProcessDeferredCommands, DetailedCookStats::TickLoopProcessDeferredCommandsTimeSec);
 					ProcessDeferredCommands();
 				}
 			}
 
 			{
-				COOK_STAT(FScopedDurationTimer TickCommandletStatsTimer(DetailedCookStats::TickLoopTickCommandletStatsTimeSec));
+				SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_TickCommandletStats, DetailedCookStats::TickLoopTickCommandletStatsTimeSec);
 				FStats::TickCommandletStats();
 			}
 		}

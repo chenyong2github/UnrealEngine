@@ -9,6 +9,7 @@
 
 #include "Cooker/CookPackageData.h"
 #include "Cooker/CookPlatformManager.h"
+#include "Cooker/CookProfiling.h"
 #include "Cooker/CookRequests.h"
 #include "Cooker/CookTypes.h"
 #include "Cooker/PackageTracker.h"
@@ -114,17 +115,9 @@
 #include "Commandlets/ShaderPipelineCacheToolsCommandlet.h"
 
 #define LOCTEXT_NAMESPACE "Cooker"
-#define REMAPPED_PLUGGINS TEXT("RemappedPlugins")
+#define REMAPPED_PLUGINS TEXT("RemappedPlugins")
 
 DEFINE_LOG_CATEGORY(LogCook);
-
-#define OUTPUT_TIMING 1
-
-#if OUTPUT_TIMING || ENABLE_COOK_STATS
-#include "ProfilingDebugging/ScopedTimers.h"
-#endif
-
-#define PROFILE_NETWORK 0
 
 int32 GCookProgressDisplay = (int32)ECookProgressDisplayMode::RemainingPackages;
 static FAutoConsoleVariableRef CVarCookDisplayMode(
@@ -151,194 +144,8 @@ static FAutoConsoleVariableRef CVarCookDisplayRepeatTime(
 	TEXT("Controls the time before the cooker will repeat the same progress message.\n"),
 	ECVF_Default);
 
-#if OUTPUT_TIMING
-#include <Containers/AllocatorFixedSizeFreeList.h>
 
-struct FHierarchicalTimerInfo
-{
-public:
-	FHierarchicalTimerInfo(const FHierarchicalTimerInfo& InTimerInfo) = delete;
-	FHierarchicalTimerInfo(FHierarchicalTimerInfo&& InTimerInfo) = delete;
-
-	explicit FHierarchicalTimerInfo(const char* InName, uint16 InId)
-	:	Id(InId)
-	,	Name(InName)
-	{
-	}
-
-	~FHierarchicalTimerInfo()
-	{
-		ClearChildren();
-	}
-
-	void							ClearChildren();
-	FHierarchicalTimerInfo*			GetChild(int InId, const char* InName);
-
-	uint32							HitCount = 0;
-	uint16							Id = 0;
-	bool							IncrementDepth = true;
-	double							Length = 0;
-	const char*						Name;
-
-	FHierarchicalTimerInfo*			FirstChild = nullptr;
-	FHierarchicalTimerInfo*			NextSibling = nullptr;
-
-private:
-	static FHierarchicalTimerInfo*	AllocNew(const char* InName, uint16 InId);
-	static void						DestroyAndFree(FHierarchicalTimerInfo*);
-};
-
-static FHierarchicalTimerInfo RootTimerInfo("Root", 0);
-static FHierarchicalTimerInfo* CurrentTimerInfo = &RootTimerInfo;
-static TAllocatorFixedSizeFreeList<sizeof(FHierarchicalTimerInfo), 256> TimerInfoAllocator;
-
-FHierarchicalTimerInfo* FHierarchicalTimerInfo::AllocNew(const char* InName, uint16 InId)
-{
-	return new(TimerInfoAllocator.Allocate()) FHierarchicalTimerInfo(InName, InId);
-}
-
-void FHierarchicalTimerInfo::DestroyAndFree(FHierarchicalTimerInfo* InPtr)
-{
-	InPtr->~FHierarchicalTimerInfo();
-	TimerInfoAllocator.Free(InPtr);
-}
-
-void FHierarchicalTimerInfo::ClearChildren()
-{
-	for (FHierarchicalTimerInfo* Child = FirstChild; Child;)
-	{
-		FHierarchicalTimerInfo* NextChild = Child->NextSibling;
-
-		DestroyAndFree(Child);
-
-		Child = NextChild;
-	}
-
-	FirstChild = nullptr;
-}
-
-FHierarchicalTimerInfo* FHierarchicalTimerInfo::GetChild(int InId, const char* InName)
-{
-	for (FHierarchicalTimerInfo* Child = FirstChild; Child;)
-	{
-		if (Child->Id == InId)
-			return Child;
-
-		Child = Child->NextSibling;
-	}
-
-	FHierarchicalTimerInfo* Child = AllocNew(InName, InId);
-
-	Child->NextSibling	= FirstChild;
-	FirstChild			= Child;
-
-	return Child;
-}
-
-struct FScopeTimer
-{
-public:
-	FScopeTimer(const FScopeTimer&) = delete;
-	FScopeTimer(FScopeTimer&&) = delete;
-
-	FScopeTimer(int InId, const char* InName, bool IncrementScope = false )
-	{
-		checkSlow(IsInGameThread());
-
-		HierarchyTimerInfo = CurrentTimerInfo->GetChild(InId, InName);
-
-		HierarchyTimerInfo->IncrementDepth = IncrementScope;
-
-		PrevTimerInfo		= CurrentTimerInfo;
-		CurrentTimerInfo	= HierarchyTimerInfo;
-	}
-
-	void Start()
-	{
-		if (StartTime)
-		{
-			return;
-		}
-
-		StartTime = FPlatformTime::Cycles64();
-	}
-
-	void Stop()
-	{
-		if (!StartTime)
-		{
-			return;
-		}
-
-		HierarchyTimerInfo->Length += FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
-		++HierarchyTimerInfo->HitCount;
-
-		StartTime = 0;
-	}
-
-	~FScopeTimer()
-	{
-		Stop();
-
-		check(CurrentTimerInfo == HierarchyTimerInfo);
-		CurrentTimerInfo = PrevTimerInfo;
-	}
-
-private:
-	uint64					StartTime = 0;
-	FHierarchicalTimerInfo* HierarchyTimerInfo;
-	FHierarchicalTimerInfo* PrevTimerInfo;
-};
-
-void OutputHierarchyTimers(const FHierarchicalTimerInfo* TimerInfo, int32 Depth)
-{
-	FString TimerName(TimerInfo->Name);
-
-	static const TCHAR LeftPad[] = TEXT("                                ");
-	const SIZE_T PadOffset = FMath::Max<int>(UE_ARRAY_COUNT(LeftPad) - 1 - Depth * 2, 0);
-
-	UE_LOG(LogCook, Display, TEXT("  %s%s: %.3fs (%u)"), &LeftPad[PadOffset], *TimerName, TimerInfo->Length, TimerInfo->HitCount);
-
-	// We need to print in reverse order since the child list begins with the most recently added child
-
-	TArray<const FHierarchicalTimerInfo*> Stack;
-
-	for (const FHierarchicalTimerInfo* Child = TimerInfo->FirstChild; Child; Child = Child->NextSibling)
-	{
-		Stack.Add(Child);
-	}
-
-	const int32 ChildDepth = Depth + TimerInfo->IncrementDepth;
-
-	for (size_t i = Stack.Num(); i > 0; --i)
-	{
-		OutputHierarchyTimers(Stack[i - 1], ChildDepth);
-	}
-}
-
-void OutputHierarchyTimers()
-{
-	UE_LOG(LogCook, Display, TEXT("Hierarchy Timer Information:"));
-
-	OutputHierarchyTimers(&RootTimerInfo, 0);
-}
-
-void ClearHierarchyTimers()
-{
-	RootTimerInfo.ClearChildren();
-}
-
-#define CREATE_TIMER(name, incrementScope) FScopeTimer ScopeTimer##name(__COUNTER__, #name, incrementScope); 
-
-#define SCOPE_TIMER(name)				TRACE_CPUPROFILER_EVENT_SCOPE(name); CREATE_TIMER(name, true); ScopeTimer##name.Start();
-
-#else
-#define SCOPE_TIMER(name)
-
-void OutputHierarchyTimers() {}
-void ClearHierarchyTimers() {}
-#endif
-
+#define PROFILE_NETWORK 0
 
 #if PROFILE_NETWORK
 double TimeTillRequestStarted = 0.0;
@@ -1247,7 +1054,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 	bool bCookComplete = false;
 
 	{
-		SCOPE_TIMER(TickCookOnTheSide); // Make sure no SCOPE_TIMERs are around CookByTheBookFinishes, as that function deletes memory for them
+		SCOPED_HIERARCHICAL_COOKTIMER(TickCookOnTheSide); // Make sure no SCOPED_HIERARCHICAL_COOKTIMERs are around CookByTheBookFinishes, as that function deletes memory for them
 
 		bSaveBusy = false;
 		bLoadBusy = false;
@@ -1322,6 +1129,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 
 void UCookOnTheFlyServer::TickCookStatus(UE::Cook::FTickStackData& StackData)
 {
+	SCOPED_COOKTIMER(TickCookStatus);
 	const float CurrentProgressDisplayTime = FPlatformTime::Seconds();
 	const float DeltaProgressDisplayTime = CurrentProgressDisplayTime - LastProgressDisplayTime;
 	const int32 CookedPackagesCount = PackageDatas->GetNumCooked();
@@ -1425,6 +1233,7 @@ void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& Coo
 	{
 		return;
 	}
+	SCOPED_COOKTIMER(PumpExternalRequests);
 
 	UE::Cook::FFilePlatformRequest ToBuild;
 	TArray<UE::Cook::FSchedulerCallback> SchedulerCallbacks;
@@ -1481,6 +1290,7 @@ void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& Coo
 
 void UCookOnTheFlyServer::PumpRequests(UE::Cook::FTickStackData& StackData)
 {
+	SCOPED_COOKTIMER(PumpRequests);
 	using namespace UE::Cook;
 
 	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
@@ -1807,6 +1617,8 @@ void UCookOnTheFlyServer::UpdatePackageFilter()
 		return;
 	}
 	bPackageFilterDirty = false;
+	
+	SCOPED_COOKTIMER(UpdatePackageFilter);
 	for (UPackage* Package : PackageTracker->LoadedPackages)
 	{
 		FilterLoadedPackage(Package, true);
@@ -1862,7 +1674,7 @@ bool UCookOnTheFlyServer::BeginPackageCacheForCookedPlatformData(UE::Cook::FPack
 		PackageData.SetCookedPlatformDataStarted(true);
 	}
 
-	COOK_STAT(FScopedDurationTimer DurationTimer(DetailedCookStats::TickCookOnTheSideBeginPackageCacheForCookedPlatformDataTimeSec));
+	SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(BeginPackageCacheForCookedPlatformData, DetailedCookStats::TickCookOnTheSideBeginPackageCacheForCookedPlatformDataTimeSec);
 
 #if DEBUG_COOKONTHEFLY 
 	UE_LOG(LogCook, Display, TEXT("Caching objects for package %s"), *Package->GetFName().ToString());
@@ -1982,7 +1794,7 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 		// Since we have completed CookedPlatformData, we know we called BeginCacheForCookedPlatformData on all objects in the package, and none are pending
 		if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData calls are only used when not in editor
 		{
-			SCOPE_TIMER(ClearAllCachedCookedPlatformData);
+			SCOPED_HIERARCHICAL_COOKTIMER(ClearAllCachedCookedPlatformData);
 			for (UObject* Object : PackageData.GetCachedObjectsInOuter())
 			{
 				if (Object)
@@ -2064,7 +1876,8 @@ void UCookOnTheFlyServer::TickCancels()
 
 bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage)
 {
-	COOK_STAT(FScopedDurationTimer LoadPackagesTimer(DetailedCookStats::TickCookOnTheSideLoadPackagesTimeSec));
+	SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(LoadPackageForCooking, DetailedCookStats::TickCookOnTheSideLoadPackagesTimeSec);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*PackageData.GetFileName().ToString(), CookChannel); // Temporary until scope metadata becomes available
 	check(PackageTracker->LoadingPackageData == nullptr);
 	PackageTracker->LoadingPackageData = &PackageData;
 	ON_SCOPE_EXIT
@@ -2093,7 +1906,6 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 	{
 		bool bWasPartiallyLoaded = OutPackage != nullptr;
 		GIsCookerLoadingPackage = true;
-		SCOPE_TIMER(LoadPackage);
 		UPackage* LoadedPackage = LoadPackage(NULL, *FileName, LOAD_None);
 		if (LoadedPackage)
 		{
@@ -2141,7 +1953,7 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages()
 	// PostLoadPackageFixup
 
 	{
-		SCOPE_TIMER(PostLoadPackageFixup);
+		SCOPED_HIERARCHICAL_COOKTIMER(PostLoadPackageFixup);
 
 		TArray<UPackage*> NewPackages = PackageTracker->GetNewPackages();
 
@@ -2160,7 +1972,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData)
 {
 	using namespace UE::Cook;
 
-	SCOPE_TIMER(SavingPackages);
+	SCOPED_HIERARCHICAL_COOKTIMER(SavingPackages);
 	check(IsInGameThread());
 
 	// save as many packages as we can during our time slice
@@ -2279,7 +2091,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData)
 			// Should we wait?
 			if (PackageData.GetIsUrgent() && !IsRealtimeMode())
 			{
-				SCOPE_TIMER(WaitingForCachedCookedPlatformData);
+				SCOPED_HIERARCHICAL_COOKTIMER(WaitingForCachedCookedPlatformData);
 				do
 				{
 					// The only reason all objects are not cached should be that we have some pending CookedPlatformDatas.
@@ -2306,7 +2118,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData)
 		// precache the next few packages
 		if (!IsCookOnTheFlyMode() && SaveQueue.Num() != 0)
 		{
-			SCOPE_TIMER(PrecachePlatformDataForNextPackage);
+			SCOPED_HIERARCHICAL_COOKTIMER(PrecachePlatformDataForNextPackage);
 			const int32 NumberToPrecache = 2;
 			int32 LeftToPrecache = NumberToPrecache;
 			for (FPackageData* NextData : SaveQueue)
@@ -2331,8 +2143,8 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData)
 		TArray<bool> SucceededSavePackage;
 		TArray<FSavePackageResultStruct> SavePackageResults;
 		{
-			COOK_STAT(FScopedDurationTimer TickCookOnTheSideSaveCookedPackageTimer(DetailedCookStats::TickCookOnTheSideSaveCookedPackageTimeSec));
-			SCOPE_TIMER(SaveCookedPackage);
+			SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(SaveCookedPackage, DetailedCookStats::TickCookOnTheSideSaveCookedPackageTimeSec);
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*PackageData.GetFileName().ToString(), CookChannel); // Temporary until scope metadata becomes available
 			uint32 SaveFlags = SAVE_KeepGUID | (bSaveAsyncAllowed ? SAVE_Async : SAVE_None) | (IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
 
 			bool KeepEditorOnlyPackages = false;
@@ -2527,6 +2339,7 @@ void UCookOnTheFlyServer::PostLoadPackageFixup(UPackage* Package)
 	GIsCookerLoadingPackage = true;
 	if (World->GetStreamingLevels().Num())
 	{
+		SCOPED_COOKTIMER(PostLoadPackageFixup_LoadSecondaryLevels);
 		TSet<FName> NeverCookPackageNames;
 		PackageTracker->NeverCookPackageList.GetValues(NeverCookPackageNames);
 
@@ -3482,7 +3295,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 				else
 				{
 					static FDiffModeCookServerUtils DiffModeHelper;
-					SCOPE_TIMER(GEditorSavePackage);
+					SCOPED_HIERARCHICAL_COOKTIMER(GEditorSavePackage);
 					GIsCookerLoadingPackage = true;
 
 					if (DiffModeHelper.IsRunningCookDiff())
@@ -3511,7 +3324,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 					}
 					GIsCookerLoadingPackage = false;
 					{
-						SCOPE_TIMER(ConvertingBlueprints);
+						SCOPED_HIERARCHICAL_COOKTIMER(ConvertingBlueprints);
 						IBlueprintNativeCodeGenModule::Get().Convert(Package, Result.Result, *(Target->PlatformName()));
 					}
 
@@ -3520,7 +3333,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 					// If package was actually saved check with asset manager to make sure it wasn't excluded for being a development or never cook package. We do this after Editor Only filtering
 					if (Result == ESavePackageResult::Success && UAssetManager::IsValid())
 					{
-						SCOPE_TIMER(VerifyCanCookPackage);
+						SCOPED_HIERARCHICAL_COOKTIMER(VerifyCanCookPackage);
 						if (!UAssetManager::Get().VerifyCanCookPackage(Package->GetFName()))
 						{
 							Result = ESavePackageResult::Error;
@@ -4430,7 +4243,7 @@ bool UCookOnTheFlyServer::SaveCurrentIniSettings(const ITargetPlatform* TargetPl
 
 
 	{
-		SCOPE_TIMER(ProcessingAccessedStrings)
+		SCOPED_HIERARCHICAL_COOKTIMER(ProcessingAccessedStrings)
 		for (const auto& CurrentIniFilename : CurrentIniSettings)
 		{
 			const FName& Filename = CurrentIniFilename.Key;
@@ -4477,11 +4290,11 @@ FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
 	OutUncookedPath.Reset();
 
 	// Check for remapped plugins' cooked content
-	if (PluginsToRemap.Num() > 0 && CookedPath.Contains(REMAPPED_PLUGGINS))
+	if (PluginsToRemap.Num() > 0 && CookedPath.Contains(REMAPPED_PLUGINS))
 	{
-		int32 RemappedIndex = CookedPath.Find(REMAPPED_PLUGGINS);
+		int32 RemappedIndex = CookedPath.Find(REMAPPED_PLUGINS);
 		check(RemappedIndex >= 0);
-		static uint32 RemappedPluginStrLen = FCString::Strlen(REMAPPED_PLUGGINS);
+		static uint32 RemappedPluginStrLen = FCString::Strlen(REMAPPED_PLUGINS);
 		// Snip everything up through the RemappedPlugins/ off so we can find the plugin it corresponds to
 		FString PluginPath = CookedPath.RightChop(RemappedIndex + RemappedPluginStrLen + 1);
 		// Find the plugin that owns this content
@@ -5036,11 +4849,8 @@ void UCookOnTheFlyServer::AddFileToCook( TArray<FName>& InOutFilesToCook, const 
 void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const TArray<FString>& CookMaps, const TArray<FString>& InCookDirectories,
 	const TArray<FString> &IniMapSections, ECookByTheBookOptions FilesToCookFlags, const TArrayView<const ITargetPlatform* const>& TargetPlatforms)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::CollectFilesToCook);
+	SCOPED_HIERARCHICAL_COOKTIMER(CollectFilesToCook);
 
-#if OUTPUT_TIMING
-	SCOPE_TIMER(CollectFilesToCook);
-#endif
 	UProjectPackagingSettings* PackagingSettings = Cast<UProjectPackagingSettings>(UProjectPackagingSettings::StaticClass()->GetDefaultObject());
 
 	bool bCookAll = (!!(FilesToCookFlags & ECookByTheBookOptions::CookAll)) || PackagingSettings->bCookAll;
@@ -5134,8 +4944,7 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 
 	if (!(FilesToCookFlags & ECookByTheBookOptions::NoGameAlwaysCookPackages))
 	{
-		COOK_STAT(FScopedDurationTimer TickTimer(DetailedCookStats::GameCookModificationDelegateTimeSec));
-		SCOPE_TIMER(CookModificationDelegate);
+		SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(CookModificationDelegate, DetailedCookStats::GameCookModificationDelegateTimeSec);
 #define DEBUG_COOKMODIFICATIONDELEGATE 0
 #if DEBUG_COOKMODIFICATIONDELEGATE
 		TSet<UPackage*> LoadedPackages;
@@ -5191,7 +5000,7 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 
 	for ( const FString& CurrEntry : CookMaps )
 	{
-		SCOPE_TIMER(SearchForPackageOnDisk);
+		SCOPED_HIERARCHICAL_COOKTIMER(SearchForPackageOnDisk);
 		if (FPackageName::IsShortPackageName(CurrEntry))
 		{
 			FString OutFilename;
@@ -5478,7 +5287,7 @@ FString UCookOnTheFlyServer::ConvertToFullSandboxPath( const FString &FileName, 
 					FString SnippedOffPath = FileName.RightChop(FoundAt);
 					// Put this is in <sandbox path>/RemappedPlugins/<PluginName>/Content/<remaing path to file>
 					FString RemappedPath = SandboxFile->GetSandboxDirectory();
-					RemappedPath /= REMAPPED_PLUGGINS;
+					RemappedPath /= REMAPPED_PLUGINS;
 					Result = RemappedPath / SnippedOffPath;
 					return Result;
 				}
@@ -5786,7 +5595,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	{
 		if (IBlueprintNativeCodeGenModule::IsNativeCodeGenModuleLoaded())
 		{
-			SCOPE_TIMER(GeneratingBlueprintAssets)
+			SCOPED_HIERARCHICAL_COOKTIMER(GeneratingBlueprintAssets)
 			IBlueprintNativeCodeGenModule& CodeGenModule = IBlueprintNativeCodeGenModule::Get();
 
 			CodeGenModule.GenerateFullyConvertedClasses(); // While generating fully converted classes the list of necessary stubs is created.
@@ -5815,7 +5624,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 		}				
 		
 		{
-			SCOPE_TIMER(SavingCurrentIniSettings)
+			SCOPED_HIERARCHICAL_COOKTIMER(SavingCurrentIniSettings)
 			for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms() )
 			{
 				SaveCurrentIniSettings(TargetPlatform);
@@ -5823,7 +5632,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 		}
 
 		{
-			SCOPE_TIMER(SavingAssetRegistry);
+			SCOPED_HIERARCHICAL_COOKTIMER(SavingAssetRegistry);
 			for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 			{
 				UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
@@ -5845,7 +5654,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				{
 					bForceNoFilterAssetsFromAssetRegistry = true;
 					// remove the previous release cooked packages from the new asset registry, add to ignore list
-					SCOPE_TIMER(RemovingOldManifestEntries);
+					SCOPED_HIERARCHICAL_COOKTIMER(RemovingOldManifestEntries);
 					
 					const TArray<FName>* PreviousReleaseCookedPackages = CookByTheBookOptions->BasedOnReleaseCookedPackages.Find(PlatformName);
 					if (PreviousReleaseCookedPackages)
@@ -5884,11 +5693,11 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					Generator.PreSave(CookedPackageNames);
 				}
 				{
-					SCOPE_TIMER(BuildChunkManifest);
+					SCOPED_HIERARCHICAL_COOKTIMER(BuildChunkManifest);
 					Generator.BuildChunkManifest(CookedPackageNames, IgnorePackageNames, SandboxFile.Get(), CookByTheBookOptions->bGenerateStreamingInstallManifests);
 				}
 				{
-					SCOPE_TIMER(SaveManifests);
+					SCOPED_HIERARCHICAL_COOKTIMER(SaveManifests);
 					// Always try to save the manifests, this is required to make the asset registry work, but doesn't necessarily write a file
 					Generator.SaveManifests(SandboxFile.Get());
 
@@ -5902,14 +5711,14 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					}
 				}
 				{
-					SCOPE_TIMER(SaveRealAssetRegistry);
+					SCOPED_HIERARCHICAL_COOKTIMER(SaveRealAssetRegistry);
 					Generator.SaveAssetRegistry(SandboxRegistryFilename, true, bForceNoFilterAssetsFromAssetRegistry);
 				}
 				{
 					Generator.PostSave();
 				}
 				{
-					SCOPE_TIMER(WriteCookerOpenOrder);
+					SCOPED_HIERARCHICAL_COOKTIMER(WriteCookerOpenOrder);
 					if (!IsCookFlagSet(ECookInitializationFlags::Iterative))
 					{
 						Generator.WriteCookerOpenOrder();
@@ -5940,7 +5749,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 
 	if (CookByTheBookOptions->bGenerateDependenciesForMaps)
 	{
-		SCOPE_TIMER(GenerateMapDependencies);
+		SCOPED_HIERARCHICAL_COOKTIMER(GenerateMapDependencies);
 		for (auto& MapDependencyGraphIt : CookByTheBookOptions->MapDependencyGraphs)
 		{
 			BuildMapDependencyGraph(MapDependencyGraphIt.Key);
@@ -6182,15 +5991,11 @@ void UCookOnTheFlyServer::CreateSandboxFile()
 
 void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatform* const>& TargetPlatforms)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::CleanSandbox);
-#if OUTPUT_TIMING
+#if OUTPUT_COOKTIMING
 	double CleanSandboxTime = 0.0;
 #endif
 	{
-#if OUTPUT_TIMING
-		SCOPE_SECONDS_COUNTER(CleanSandboxTime);
-		SCOPE_TIMER(CleanSandbox);
-#endif
+		SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(CleanSandbox, CleanSandboxTime);
 
 		if (SandboxFile == nullptr)
 		{
@@ -6282,7 +6087,7 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 		}
 	}
 
-#if OUTPUT_TIMING
+#if OUTPUT_COOKTIMING
 	FString PlatformNames;
 	for (const ITargetPlatform* Target : TargetPlatforms)
 	{
@@ -6320,7 +6125,7 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 
 void UCookOnTheFlyServer::FinalizePackageStore()
 {
-	SCOPE_TIMER(FinalizePackageStore);
+	SCOPED_HIERARCHICAL_COOKTIMER(FinalizePackageStore);
 
 	UE_LOG(LogCook, Display, TEXT("Saving BulkData manifest(s)..."));
 	for (FSavePackageContext* PackageContext : SavePackageContexts)
@@ -6425,7 +6230,7 @@ void UCookOnTheFlyServer::TermSandbox()
 
 void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions& CookByTheBookStartupOptions )
 {
-	SCOPE_TIMER(StartCookByTheBookTime);
+	SCOPED_COOKTIMER(StartCookByTheBook);
 
 	const TArray<FString>& CookMaps = CookByTheBookStartupOptions.CookMaps;
 	const TArray<FString>& CookDirectories = CookByTheBookStartupOptions.CookDirectories;
@@ -6790,9 +6595,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	}
 
 	{
-#if OUTPUT_TIMING
-		SCOPE_TIMER(GenerateLongPackageName);
-#endif
+		SCOPED_HIERARCHICAL_COOKTIMER(GenerateLongPackageName);
 		GenerateLongPackageNames(FilesInPath);
 	}
 	// add all the files for the requested platform to the cook list
@@ -7228,7 +7031,7 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 
 uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 {
-	SCOPE_TIMER(FullLoadAndSave);
+	SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave);
 	check(CurrentCookMode == ECookMode::CookByTheBook);
 	check(CookByTheBookOptions);
 	check(IsInGameThread());
@@ -7239,7 +7042,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 	{
 		UE_LOG(LogCook, Display, TEXT("Loading requested packages..."));
-		SCOPE_TIMER(FullLoadAndSave_RequestedLoads);
+		SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_RequestedLoads);
 		while (ExternalRequests->HasRequests())
 		{
 			UE::Cook::FFilePlatformRequest ToBuild;
@@ -7260,7 +7063,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 			{
 				const FString BuildFilename = BuildFilenameFName.ToString();
 				GIsCookerLoadingPackage = true;
-				SCOPE_TIMER(LoadPackage);
+				SCOPED_HIERARCHICAL_COOKTIMER(LoadPackage);
 				LoadPackage(nullptr, *BuildFilename, LOAD_None);
 				if (GShaderCompilingManager)
 				{
@@ -7296,7 +7099,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 		{
 			UE_LOG(LogCook, Display, TEXT("Caching platform data and discovering string referenced assets..."));
-			SCOPE_TIMER(FullLoadAndSave_CachePlatformDataAndDiscoverNewAssets);
+			SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_CachePlatformDataAndDiscoverNewAssets);
 			for (TObjectIterator<UPackage> It; It; ++It)
 			{
 				UPackage* Package = *It;
@@ -7347,7 +7150,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 
 				{
-					SCOPE_TIMER(FullLoadAndSave_PerObjectLogic);
+					SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PerObjectLogic);
 					TSet<UObject*> ProcessedObjects;
 					ProcessedObjects.Reserve(64);
 					bool bObjectsMayHaveBeenCreated = false;
@@ -7356,7 +7159,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						bObjectsMayHaveBeenCreated = false;
 						TArray<UObject*> ObjsInPackage;
 						{
-							SCOPE_TIMER(FullLoadAndSave_GetObjectsWithOuter);
+							SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_GetObjectsWithOuter);
 							GetObjectsWithOuter(Package, ObjsInPackage, true);
 						}
 						for (UObject* Obj : ObjsInPackage)
@@ -7379,17 +7182,17 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 							bool bForceInitializedWorld = false;
 							if (World && bSaveConcurrent)
 							{
-								SCOPE_TIMER(FullLoadAndSave_SettingUpWorlds);
+								SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_SettingUpWorlds);
 								// We need a physics scene at save time in case code does traces during onsave events.
 								bInitializedPhysicsSceneForSave = GEditor->InitializePhysicsSceneForSaveIfNecessary(World, bForceInitializedWorld);
 
 								GIsCookerLoadingPackage = true;
 								{
-									SCOPE_TIMER(FullLoadAndSave_PreSaveWorld);
+									SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PreSaveWorld);
 									GEditor->OnPreSaveWorld(SaveFlags, World);
 								}
 								{
-									SCOPE_TIMER(FullLoadAndSave_PreSaveRoot);
+									SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PreSaveRoot);
 									bool bCleanupIsRequired = World->PreSaveRoot(TEXT(""));
 									WorldsToPostSaveRoot.Add(World, bCleanupIsRequired);
 								}
@@ -7404,7 +7207,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 								{
 									GIsCookerLoadingPackage = true;
 									{
-										SCOPE_TIMER(FullLoadAndSave_PreSave);
+										SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PreSave);
 										Obj->PreSave(TargetPlatform);
 									}
 									GIsCookerLoadingPackage = false;
@@ -7412,7 +7215,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 								if (!bIsTexture || bSaveConcurrent)
 								{
-									SCOPE_TIMER(FullLoadAndSave_BeginCache);
+									SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_BeginCache);
 									Obj->BeginCacheForCookedPlatformData(TargetPlatform);
 									if (!Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform))
 									{
@@ -7428,7 +7231,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 							if (World && bInitializedPhysicsSceneForSave)
 							{
-								SCOPE_TIMER(FullLoadAndSave_CleaningUpWorlds);
+								SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_CleaningUpWorlds);
 								GEditor->CleanupPhysicsSceneThatWasInitializedForSave(World, bForceInitializedWorld);
 							}
 						}
@@ -7436,14 +7239,14 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 					if (bSaveConcurrent)
 					{
-						SCOPE_TIMER(FullLoadAndSave_MiscPrep);
+						SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_MiscPrep);
 						// Precache the metadata so we don't risk rehashing the map in the parallelfor below
 						Package->GetMetaData();
 					}
 				}
 
 				{
-					SCOPE_TIMER(ResolveStringReferences);
+					SCOPED_HIERARCHICAL_COOKTIMER(ResolveStringReferences);
 					TSet<FName> StringAssetPackages;
 					GRedirectCollector.ProcessSoftObjectPathPackageList(PackageName, false, StringAssetPackages);
 
@@ -7471,7 +7274,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 		{
 			UE_LOG(LogCook, Display, TEXT("Loading string referenced assets..."));
-			SCOPE_TIMER(FullLoadAndSave_LoadStringReferencedAssets);
+			SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_LoadStringReferencedAssets);
 			GIsCookerLoadingPackage = true;
 			for (const FString& ToLoad : PackagesToLoad)
 			{
@@ -7495,14 +7298,14 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	if (bSaveConcurrent)
 	{
 		UE_LOG(LogCook, Display, TEXT("Flushing async loading..."));
-		SCOPE_TIMER(FullLoadAndSave_FlushAsyncLoading);
+		SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_FlushAsyncLoading);
 		FlushAsyncLoading();
 	}
 
 	if (bSaveConcurrent)
 	{
 		UE_LOG(LogCook, Display, TEXT("Waiting for async tasks..."));
-		SCOPE_TIMER(FullLoadAndSave_ProcessThreadUntilIdle);
+		SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_ProcessThreadUntilIdle);
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 	}
 
@@ -7510,7 +7313,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	if (GShaderCompilingManager)
 	{
 		UE_LOG(LogCook, Display, TEXT("Waiting for shader compilation..."));
-		SCOPE_TIMER(FullLoadAndSave_WaitForShaderCompilation);
+		SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_WaitForShaderCompilation);
 		while(GShaderCompilingManager->IsCompiling())
 		{
 			GShaderCompilingManager->ProcessAsyncResults(false, false);
@@ -7524,14 +7327,14 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	if (GDistanceFieldAsyncQueue)
 	{
 		UE_LOG(LogCook, Display, TEXT("Waiting for distance field async operations..."));
-		SCOPE_TIMER(FullLoadAndSave_WaitForDistanceField);
+		SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_WaitForDistanceField);
 		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
 	}
 
 	// Wait for all platform data to be loaded
 	{
 		UE_LOG(LogCook, Display, TEXT("Waiting for cooked platform data..."));
-		SCOPE_TIMER(FullLoadAndSave_WaitForCookedPlatformData);
+		SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_WaitForCookedPlatformData);
 		while (ObjectsToWaitForCookedPlatformData.Num() > 0)
 		{
 			for (int32 ObjIdx = ObjectsToWaitForCookedPlatformData.Num() - 1; ObjIdx >= 0; --ObjIdx)
@@ -7561,7 +7364,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 	{
 		UE_LOG(LogCook, Display, TEXT("Saving packages..."));
-		SCOPE_TIMER(FullLoadAndSave_Save);
+		SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_Save);
 		check(bIsSavingPackage == false);
 		bIsSavingPackage = true;
 
@@ -7616,7 +7419,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 				TArray<UObject*> ObjsInPackage;
 				UWorld* World = nullptr;
 				{
-					//SCOPE_TIMER(SaveCookedPackage_FindWorldInPackage);
+					//SCOPED_HIERARCHICAL_COOKTIMER(SaveCookedPackage_FindWorldInPackage);
 					GetObjectsWithOuter(Package, ObjsInPackage, false);
 					for (UObject* Obj : ObjsInPackage)
 					{
@@ -7732,7 +7535,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	if (bSaveConcurrent)
 	{
 		UE_LOG(LogCook, Display, TEXT("Calling PostSaveRoot on worlds..."));
-		SCOPE_TIMER(FullLoadAndSave_PostSaveRoot);
+		SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_PostSaveRoot);
 		for (auto WorldIt = WorldsToPostSaveRoot.CreateConstIterator(); WorldIt; ++WorldIt)
 		{
 			UWorld* World = WorldIt.Key();
