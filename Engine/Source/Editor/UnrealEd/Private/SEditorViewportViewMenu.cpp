@@ -12,9 +12,12 @@
 
 #define LOCTEXT_NAMESPACE "EditorViewportViewMenu"
 
+const FName SEditorViewportViewMenu::BaseMenuName("UnrealEd.ViewportToolbar.View");
+
 void SEditorViewportViewMenu::Construct( const FArguments& InArgs, TSharedRef<SEditorViewport> InViewport, TSharedRef<class SViewportToolBar> InParentToolBar )
 {
 	Viewport = InViewport;
+	MenuName = BaseMenuName;
 	MenuExtenders = InArgs._MenuExtenders;
 
 	SEditorViewportToolbarMenu::Construct
@@ -191,21 +194,27 @@ const FSlateBrush* SEditorViewportViewMenu::GetViewMenuLabelIcon() const
 	return FEditorStyle::GetBrush(Icon);
 }
 
-TSharedRef<SWidget> SEditorViewportViewMenu::GenerateViewMenuContent() const
+void SEditorViewportViewMenu::RegisterMenus() const
 {
-	static const FName MenuName("UnrealEd.ViewportToolbar.View");
-	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
+	if (!UToolMenus::Get()->IsMenuRegistered(BaseMenuName))
 	{
-		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(MenuName);
-		Menu->AddDynamicSection("DynamicSection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(BaseMenuName);
+		Menu->AddDynamicSection("BaseSection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{
-			UEditorViewportViewMenuContext* Context = InMenu->FindContext<UEditorViewportViewMenuContext>();
-			Context->Widget.Pin()->FillViewMenu(InMenu);
+			if (UEditorViewportViewMenuContext* Context = InMenu->FindContext<UEditorViewportViewMenuContext>())
+			{
+				Context->EditorViewportViewMenu.Pin()->FillViewMenu(InMenu);
+			}
 		}));
 	}
+}
+
+TSharedRef<SWidget> SEditorViewportViewMenu::GenerateViewMenuContent() const
+{
+	RegisterMenus();
 
 	UEditorViewportViewMenuContext* ContextObject = NewObject<UEditorViewportViewMenuContext>();
-	ContextObject->Widget = SharedThis(this);
+	ContextObject->EditorViewportViewMenu = SharedThis(this);
 
 	FToolMenuContext MenuContext(Viewport.Pin()->GetCommandList(), MenuExtenders, ContextObject);
 	return UToolMenus::Get()->GenerateWidget(MenuName, MenuContext);
