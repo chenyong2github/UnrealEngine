@@ -254,6 +254,7 @@ private:
 	{
 		Done,		// The cook is complete; no requests remain in any non-idle state
 		Request,    // Process the RequestQueue
+		Load,		// Process the LoadQueue
 		Save,       // Process the SaveQueue
 		YieldTick,  // Progress is blocked by an async result. Temporarily exit TickCookOnTheSide.
 		Cancel,		// Cancel the current CookByTheBook
@@ -262,14 +263,22 @@ private:
 	ECookAction DecideNextCookAction(UE::Cook::FTickStackData& StackData);
 	/** Execute any existing external callbacks and push any existing external cook requests into the RequestQueue. */
 	void PumpExternalRequests(const UE::Cook::FCookerTimer& CookerTimer);
-	/** Load the next package in the RequestQueue and push it on to its next state. */
-	void PumpRequestQueue(UE::Cook::FTickStackData& StackData);
-	/** Try to save all packages in the SaveQueue until blocked or out of time. */
-	void PumpSaveQueue(UE::Cook::FTickStackData& StackData);
-	/** Load the given package and push it on to its next state. */
-	void ProcessLoadQueuePackage(UE::Cook::FPackageData& PackageData, uint32& ResultFlags);
+	/** Inspect the next package in the RequestQueue and push it on to its next state. */
+	void PumpRequests(UE::Cook::FTickStackData& StackData);
+	/** Handle the requested PackageData that has been peeled off of the RequestQueue, e.g. by sending it on to the LoadQueue. */
+	void ProcessRequest(UE::Cook::FPackageData& PackageData, UE::Cook::FTickStackData& StackData);
+	/** Get the list of unloaded Packages the load of the given PackageData is dependent upon, and add their PackageDatas to the load queue */
+	void AddDependenciesToLoadQueue(UE::Cook::FPackageData& PackageData);
+
+	/** Load all packages in the LoadQueue until it's time to break. */
+	void PumpLoads(UE::Cook::FTickStackData& StackData);
+	/** Load the given PackageData that was in the load queue and send it on to its next state */
+	void LoadPackageInQueue(UE::Cook::FPackageData& PackageData, uint32& ResultFlags);
 	/** Mark that the given PackageData failed to load and return it to idle. */
 	void RejectPackageToLoad(UE::Cook::FPackageData& PackageData, const TCHAR* Reason);
+
+	/** Try to save all packages in the SaveQueue until it's time to break. */
+	void PumpSaves(UE::Cook::FTickStackData& StackData);
 	/**
 	 * Inspect the given package from the PackageTracker and add it to the SaveQueue if the cooker should save it.
 	 *
@@ -285,16 +294,6 @@ private:
 	 * Does not modify Cooked platforms.
 	 */
 	void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform);
-
-	/** Entry/Exit gates for PackageData states, used to enforce state contracts and free unneeded memory. */
-	void EnterIdle(UE::Cook::FPackageData& PackageData);
-	void ExitIdle(UE::Cook::FPackageData& PackageData);
-	void EnterInProgress(UE::Cook::FPackageData& PackageData);
-	void ExitInProgress(UE::Cook::FPackageData& PackageData);
-	void EnterRequest(UE::Cook::FPackageData& PackageData);
-	void ExitRequest(UE::Cook::FPackageData& PackageData);
-	void EnterSave(UE::Cook::FPackageData& PackageData);
-	void ExitSave(UE::Cook::FPackageData& PackageData);
 
 public:
 
@@ -737,13 +736,7 @@ private:
 	 * @param OutPackage UPackage of the package loaded, non-null on success, may be non-null on failure if the UPackage existed but had another failure
 	 * @return Whether LoadPackage was completely successful and the package can be cooked
 	 */
-	bool LoadPackageForCooking(const FString& BuildFilename, UPackage*& OutPackage);
-
-	/**
-	* Makes sure a package is fully loaded before we save it out
-	* returns true if it succeeded
-	*/
-	bool MakePackageFullyLoaded(UPackage* Package) const;
+	bool LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage);
 
 	/**
 	* Initialize the sandbox for @param TargetPlatforms
@@ -1008,8 +1001,10 @@ private:
 
 	/** This is set to true when the decision about which packages we need to cook changes because e.g. a platform was added to the sessionplatforms. */
 	bool bPackageFilterDirty = false;
-	/** This is set to true when PumpSaveQueue has detected it is blocked and therefore the CookOnTheFlyServer should do work elsewhere. */
-	bool bIsYieldingSave = false;
+	/** Set to true when PumpLoads has detected it is blocked on async work and CookOnTheFlyServer should do work elsewhere. */
+	bool bLoadBusy = false;
+	/** Set to true when PumpSaves has detected it is blocked on async work and CookOnTheFlyServer should do work elsewhere. */
+	bool bSaveBusy = false;
 	/** Tracks whether we need to do once-per-process initializations for cookbythebook. */
 	bool bHasRunCookByTheBookBefore = false;
 

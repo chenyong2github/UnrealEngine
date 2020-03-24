@@ -82,6 +82,7 @@ namespace Cook
 	{
 		Idle,		  /* The Package is not being operated on by the cooker, and is not in any queues.  This is the state both for packages that have never been requested and for packages that have finished cooking. */
 		Request,	  /* The Package is in the RequestQueue; it is known to the cooker but has not had any operations performed on it. */
+		Load,		  /* The Package is in the LoadQueue; nothing has been done yet but it is about to be loaded .*/
 		Save,		  /* The Package is in the SaveQueue; it has been fully loaded and some target data may have been calculated. */
 
 		Count,		  /* Number of values in this enum, not a valid value for any EPackageState variable. */

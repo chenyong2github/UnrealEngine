@@ -3,6 +3,7 @@
 #include "PackageTracker.h"
 
 #include "CookPackageData.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 
@@ -10,6 +11,18 @@ namespace UE
 {
 namespace Cook
 {
+
+#if ENABLE_COOK_STATS
+	namespace Stats
+	{
+		// Stats tracked through FAutoRegisterCallback
+		static uint32 NumInlineLoads = 0;
+		static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+			{
+				AddStat(TEXT("Package.Load"), FCookStatsManager::CreateKeyValueArray(TEXT("NumInlineLoads"), NumInlineLoads));
+			});
+	}
+#endif
 
 	void FThreadSafeUnsolicitedPackagesList::AddCookedPackage(const FFilePlatformRequest& PlatformRequest)
 	{
@@ -59,7 +72,11 @@ namespace Cook
 			}
 		}
 
-		NewPackages = LoadedPackages;
+		NewPackages.Reserve(LoadedPackages.Num());
+		for (UPackage* Package : LoadedPackages)
+		{
+			NewPackages.Add(Package);
+		}
 
 		GUObjectArray.AddUObjectDeleteListener(this);
 		GUObjectArray.AddUObjectCreateListener(this);
@@ -84,6 +101,11 @@ namespace Cook
 
 			if (Package->GetOuter() == nullptr)
 			{
+				if (LoadingPackageData && Package->GetFName() != LoadingPackageData->GetPackageName())
+				{
+					COOK_STAT(++Stats::NumInlineLoads);
+				}
+
 				LoadedPackages.Add(Package);
 				NewPackages.Add(Package);
 			}

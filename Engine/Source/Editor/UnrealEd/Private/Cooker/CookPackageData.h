@@ -91,7 +91,7 @@ namespace Cook
 		const FName& GetFileName() const;
 
 		/** Get the current set of RequestedPlatforms. */
-		const TArray<const ITargetPlatform*> GetRequestedPlatforms() const;
+		const TArray<const ITargetPlatform*>& GetRequestedPlatforms() const;
 		/** Return true if and only if every element of Platforms is present in RequestedPlatforms.  Returns true if Platforms is empty. */
 		bool ContainsAllRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms) const;
 		/**
@@ -106,12 +106,14 @@ namespace Cook
 		 * back to an earlier state where the changes can be made.
 		 * Once the changes can be made without invalidating the PackageData's current state, the given request data will be added on to the PackageData's current request data;
 		 * the new request data will be the union of the two previous sets of data.
+		 
+		 * @param SendFlags If the PackageData needs to be moved to a new state, these SendFlags will be used for whether to remove and add from the containers for the states.
 		 */
-		void UpdateRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms, bool bInIsUrgent, FCompletionCallback&& InCompletionCallback);
+		void UpdateRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms, bool bInIsUrgent, FCompletionCallback&& InCompletionCallback, ESendFlags SendFlags = ESendFlags::QueueAddAndRemove);
 		/* Set the given data, which are all fields describing a request for the cook of this PackageData's Package, onto the existing request data. It is invalid to call this on a PackageData that is already InProgress. */
 		void SetRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms, bool bInIsUrgent, FCompletionCallback&& InCompletionCallback);
-		/* Clear all the request data fields from the current PackageData. It is invalid to call this except when the PackageData is transitioning out of InProgress. */
-		void ClearRequestData();
+		/* Clear all the inprogress variables from the current PackageData. It is invalid to call this except when the PackageData is transitioning out of InProgress. */
+		void ClearInProgressData();
 
 		/**
 		 * Add each element of New to CookedPlatforms if it is not already present, with the given succeeded flag.  New and Succeeded must be the same length; the succeeded flag for New[n] is Succeeded[n].
@@ -154,7 +156,7 @@ namespace Cook
 			}
 		}
 
-		/* Return the package pointer. By contract it will be non-null if and only if the PackageData's state is after EPackageState::Load. */
+		/* Return the package pointer. By contract it will be non-null if and only if the PackageData's state is >= EPackageState::Load. */
 		UPackage* GetPackage() const;
 		/* Set the package pointer. Caller is responsible for maintaining the contract for this field. */
 		void SetPackage(UPackage* InPackage);
@@ -170,8 +172,8 @@ namespace Cook
 		 *                  See definition of ESendFlags for a description of the behavior controlled by SendFlags.
 		 */
 		void SendToState(EPackageState NextState, ESendFlags SendFlags);
-		/** Return the CookOnTheFlyServer's queue for PackageDatas in state equal to this PackageData's current state. Will return null for states not managed by queue such as Idle. */
-		FPackageDataQueue* GetQueue() const;
+		/* Debug-only code to assert that this PackageData is contained by the container matching its current state. */
+		void CheckInContainer() const;
 		/**
 		 * Return true if and only if this PackageData is InProgress in the current CookOnTheFlyServer session. Some data is allocated/destroyed/verified when moving in and out of InProgress.
 		 * InProgress means the CookOnTheFlyServer will at some point inspect the PackageData and decide to cook, failtocook, or skip it.
@@ -185,6 +187,10 @@ namespace Cook
 		FCompletionCallback& GetCompletionCallback();
 		/** Add the given callback into this PackageData's callback field. It is invalid to call this function with a non-empty callback if this PackageData already has a CompletionCallback. */
 		void AddCompletionCallback(FCompletionCallback&& InCompletionCallback);
+
+		/** Get/Set a visited flag used when searching graphs of PackageData. User of the graph is responsible for setting the bIsVisited flag back to empty when graph operations are done. */
+		bool GetIsVisited() const { return bIsVisited != 0; }
+		void SetIsVisited(bool bValue) { bIsVisited = static_cast<uint32>(bValue); }
 
 		/** The list of objects inside the package.  Only non-empty during saving; it is populated on demand by TryCreateObjectCache and is cleared when leaving the save state. */
 		TArray<UObject*>& GetCachedObjectsInOuter();
@@ -253,10 +259,41 @@ namespace Cook
 
 		/** Set the State of this PackageDAta in the CookOnTheFlyServer's session. This member is private because it needs to be updated in sync with other contract data. */
 		void SetState(EPackageState NextState);
-		/** Helper function to call the Enter/Exit callbacks for the InProgress property that is defined on the domain of states. */
-		void SetInProgressState(bool bOldInProgress, bool bNewInProgress);
 
 	private:
+		/** Helper function to call the given EdgeFunction (e.g. OnExitInProgress) when a property changes from true to false. */
+		typedef void (FPackageData::*FEdgeFunction)();
+		inline void UpdateDownEdge(bool bOld, bool bNew, const FEdgeFunction& EdgeFunction)
+		{
+			if ((bOld != bNew) & bOld)
+			{
+				(this->*EdgeFunction)();
+			}
+		}
+		/** Helper function to call the given EdgeFunction (e.g. OnEnterInProgress) when a property changes from false to true. */
+		inline void UpdateUpEdge(bool bOld, bool bNew, const FEdgeFunction& EdgeFunction)
+		{
+			if ((bOld != bNew) & bNew)
+			{
+				(this->*EdgeFunction)();
+			}
+		}
+
+		/* Entry/Exit gates for PackageData states, used to enforce state contracts and free unneeded memory. */
+		void OnEnterIdle();
+		void OnExitIdle();
+		void OnEnterRequest();
+		void OnExitRequest();
+		void OnEnterLoad();
+		void OnExitLoad();
+		void OnEnterSave();
+		void OnExitSave();
+		/* Entry/Exit gates for Properties shared between multiple states */
+		void OnExitInProgress();
+		void OnEnterInProgress();
+		void OnExitHasPackage();
+		void OnEnterHasPackage();
+
 		TArray<const ITargetPlatform*> RequestedPlatforms;
 		TArray<const ITargetPlatform*> CookedPlatforms; // Platform part of the CookedPlatforms set. Always the same length as CookSucceeded.
 		TArray<bool> CookSucceeded; // Success flag part of the CookedPlatforms set. Always the same length as CookedPlatforms.
@@ -271,6 +308,7 @@ namespace Cook
 
 		uint32 State : EPackageState::BitCount;
 		uint32 bIsUrgent : 1;
+		uint32 bIsVisited : 1;
 		uint32 bHasSaveCache : 1;
 		uint32 bCookedPlatformDataStarted : 1;
 		uint32 bCookedPlatformDataCalled : 1;
@@ -338,14 +376,21 @@ namespace Cook
 	struct FPackageDataMonitor
 	{
 	public:
+
+		/** Report the number of FPackageData that are in any non-idle state and need to be acted on at some point by the CookOnTheFlyServer */
+		int32 GetNumInProgress() const;
+		/** Report the number of packages that have cooked any platform. Used by the cook commandlet for progress reporting to the user. */
+		int32 GetNumCooked() const;
+		/** Report the number of FPackageData that are currently marked as urgent. Used to check if a Pump function needs to exit to handle urgent PackageData in other states. */
+		int32 GetNumUrgent() const;
 		/**
 		 * Report the number of FPackageData that are in the given state and have been marked as urgent. Only valid to call on states that are in the InProgress set, such as Save.
 		 * Used to prioritize scheduler actions.
 		 */
-		int32 GetNumUrgent(EPackageState InState);
-		/** Report the number of packages that have cooked any platform. Used by the cook commandlet for progress reporting to the user. */
-		int32 GetNumCooked();
+		int32 GetNumUrgent(EPackageState InState) const;
 
+		/** Callback called from FPackageData when it transitions to or from inprogress. */
+		void OnInProgressChanged(FPackageData& PackageData, bool bInProgress);
 		/** Callback called from FPackageData when it has added a platform to its CookedPackages list. */
 		void OnCookedPlatformAdded(FPackageData& PackageData);
 		/** Callback called from FPackageData when it has removed a platform from its CookedPackages list. */
@@ -359,9 +404,35 @@ namespace Cook
 		/** Increment or decrement the NumUrgent counter for the given state. */
 		void TrackUrgentRequests(EPackageState State, int32 Delta);
 
+		int32 NumInProgress = 0;
 		int32 NumCooked = 0;
+		int32 NumUrgent = 0;
+		int32 NumUrgentLoads = 0;
 		int32 NumUrgentRequests = 0;
 		int32 NumUrgentSaves = 0;
+	};
+
+
+	/**
+	 * A container for FPackageDatas in the Request state. This container needs to support fast find and remove,
+	 * and FIFO AddRequest/PopRequest that is overridden for urgent requests to push them to the front.
+	 */
+	class FRequestQueue
+	{
+	public:
+		bool IsEmpty() const;
+		uint32 Num() const;
+		uint32 Remove(FPackageData* PackageData);
+		bool Contains(const FPackageData* PackageData) const;
+		void Empty();
+
+		FPackageData* PopRequest();
+		void AddRequest(FPackageData* PackageData, bool bForceUrgent=false);
+		uint32 RemoveRequest(FPackageData* PackageData);
+
+	private:
+		TFastPointerSet<FPackageData*> UrgentRequests;
+		TFastPointerSet<FPackageData*> NormalRequests;
 	};
 
 	/*
@@ -388,7 +459,9 @@ namespace Cook
 		/** Return the backpointer to the CookOnTheFlyServer */
 		UCookOnTheFlyServer& GetCookOnTheFlyServer();
 		/** Return the RequestQueue used by the CookOnTheFlyServer. The RequestQueue is the mostly-FIFO list of PackageData that need to be cooked. */
-		FPackageDataQueue& GetRequestQueue();
+		FRequestQueue& GetRequestQueue();
+		/** Return the LoadQueue used by the CookOnTheFlyServer. The LoadQueue is the dependency-ordered list of PackageData that need to be loaded. */
+		FPackageDataQueue& GetLoadQueue() { return LoadQueue; }
 		/** Return the SaveQueue used by the CookOnTheFlyServer. The SaveQueue is the performance-sorted list of PackageData that have been loaded and need to start or are only part way through saving. */
 		FPackageDataQueue& GetSaveQueue();
 
@@ -453,10 +526,25 @@ namespace Cook
 		TMap<FName, FPackageData*> PackageNameToPackageData;
 		TMap<FName, FPackageData*> FileNameToPackageData;
 		TArray<FPendingCookedPlatformData> PendingCookedPlatformDatas;
-		FPackageDataQueue RequestQueue;
+		FRequestQueue RequestQueue;
+		FPackageDataQueue LoadQueue;
 		FPackageDataQueue SaveQueue;
 		UCookOnTheFlyServer& CookOnTheFlyServer;
 	};
 
+	/**
+	 * A debug-only scope class to confirm that each FPackageData removed from a container during a Pump function
+	 * is added to the container for its new state before leaving the Pump function.
+	 */
+	struct FPoppedPackageDataScope
+	{
+		explicit FPoppedPackageDataScope(FPackageData& InPackageData);
+
+#if COOK_CHECKSLOW_PACKAGEDATA
+		~FPoppedPackageDataScope();
+
+		FPackageData& PackageData;
+#endif
+	};
 }
 }

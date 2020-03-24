@@ -187,10 +187,13 @@ namespace Cook
 		TSet<UPackage*>			PostLoadFixupPackages;
 
 		// This is a complete list of currently loaded UPackages
-		TArray<UPackage*>		LoadedPackages;
+		TFastPointerSet<UPackage*> LoadedPackages;
 
 		// This list contains the UPackages loaded since last call to GetNewPackages
 		TArray<UPackage*>		NewPackages;
+
+		/** The package currently being loaded at CookOnTheFlyServer's direct request. Used to determine which load dependencies were not preloaded. */
+		FPackageData* LoadingPackageData = nullptr;
 
 		FPackageDatas& PackageDatas;
 

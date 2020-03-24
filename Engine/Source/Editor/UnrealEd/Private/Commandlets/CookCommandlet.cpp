@@ -174,9 +174,12 @@ namespace DetailedCookStats
 		TSet<FDDCResourceUsageStat, FDDCResourceUsageStatKeyFuncs> DDCResourceUsageStats;
 		TArray<FCookStatsManager::StringKeyValue> DDCSummaryStats;
 		TArray<FCookProfileData> CookProfileData;
+		TArray<FString> StatCategories;
+		TMap<FString, TArray<FCookStatsManager::StringKeyValue>> StatsInCategories;
 
 		/** this functor will take a collected cooker stat and log it out using some custom formatting based on known stats that are collected.. */
-		auto LogStatsFunc = [&DDCResourceUsageStats, &DDCSummaryStats, &CookProfileData](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
+		auto LogStatsFunc = [&DDCResourceUsageStats, &DDCSummaryStats, &CookProfileData, &StatCategories, &StatsInCategories]
+							(const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
 		{
 			// Some stats will use custom formatting to make a visibly pleasing summary.
 			bool bStatUsedCustomFormatting = false;
@@ -240,7 +243,7 @@ namespace DetailedCookStats
 			}
 			else if (StatName == TEXT("DDC.Summary"))
 			{
-				DDCSummaryStats = StatAttributes;
+				DDCSummaryStats.Append(StatAttributes);
 				bStatUsedCustomFormatting = true;
 			}
 			else if (StatName == TEXT("Cook.Profile"))
@@ -255,18 +258,30 @@ namespace DetailedCookStats
 			// if a stat doesn't use custom formatting, just spit out the raw info.
 			if (!bStatUsedCustomFormatting)
 			{
-				UE_LOG(LogCookCommandlet, Display, TEXT("%s"), *StatName);
-				// log each key/value pair, with the equal signs lined up.
-				for (const auto& Attr : StatAttributes)
+				TArray<FCookStatsManager::StringKeyValue>& StatsInCategory = StatsInCategories.FindOrAdd(StatName);
+				if (StatsInCategory.Num() == 0)
 				{
-					UE_LOG(LogCookCommandlet, Display, TEXT("    %s=%s"), *Attr.Key, *Attr.Value);
+					StatCategories.Add(StatName);
 				}
+				StatsInCategory.Append(StatAttributes);
 			}
 		};
 
+		FCookStatsManager::LogCookStats(LogStatsFunc);
+
 		UE_LOG(LogCookCommandlet, Display, TEXT("Misc Cook Stats"));
 		UE_LOG(LogCookCommandlet, Display, TEXT("==============="));
-		FCookStatsManager::LogCookStats(LogStatsFunc);
+		for (FString& StatCategory : StatCategories)
+		{
+			UE_LOG(LogCookCommandlet, Display, TEXT("%s"), *StatCategory);
+			TArray<FCookStatsManager::StringKeyValue>& StatsInCategory = StatsInCategories.FindOrAdd(StatCategory);
+
+			// log each key/value pair, with the equal signs lined up.
+			for (const FCookStatsManager::StringKeyValue& StatKeyValue : StatsInCategory)
+			{
+				UE_LOG(LogCookCommandlet, Display, TEXT("    %s=%s"), *StatKeyValue.Key, *StatKeyValue.Value);
+			}
+		}
 
 		// DDC Usage stats are custom formatted, and the above code just accumulated them into a TSet. Now log it with our special formatting for readability.
 		if (CookProfileData.Num() > 0)

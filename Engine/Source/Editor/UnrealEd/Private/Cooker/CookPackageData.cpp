@@ -24,7 +24,7 @@ namespace Cook
 
 	FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName)
 		: PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas)
-		, bIsUrgent(0), bHasSaveCache(0), bCookedPlatformDataStarted(0), bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
+		, bIsUrgent(0), bIsVisited(0), bHasSaveCache(0), bCookedPlatformDataStarted(0), bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
 	{
 		SetState(EPackageState::Idle);
 		SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
@@ -33,6 +33,7 @@ namespace Cook
 	FPackageData::~FPackageData()
 	{
 		ClearCookedPlatforms(); // We need to send OnCookedPlatformRemoved message to the monitor, so it is not valid to destruct without calling ClearCookedPlatforms
+		SendToState(EPackageState::Idle, ESendFlags::QueueNone); // Update the monitor's counters and call exit functions
 	}
 
 	const FName& FPackageData::GetPackageName() const
@@ -50,7 +51,7 @@ namespace Cook
 		FileName = InFileName;
 	}
 
-	const TArray<const ITargetPlatform*> FPackageData::GetRequestedPlatforms() const
+	const TArray<const ITargetPlatform*>& FPackageData::GetRequestedPlatforms() const
 	{
 		return RequestedPlatforms;
 	}
@@ -105,7 +106,8 @@ namespace Cook
 		}
 	}
 
-	void FPackageData::UpdateRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms, bool bInIsUrgent, FCompletionCallback&& InCompletionCallback)
+	void FPackageData::UpdateRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms, bool bInIsUrgent,
+		FCompletionCallback&& InCompletionCallback, ESendFlags SendFlags)
 	{
 		if (IsInProgress())
 		{
@@ -120,25 +122,40 @@ namespace Cook
 
 			if (!ContainsAllRequestedPlatforms(InRequestedPlatforms))
 			{
-				// Send back to the Request state (cancelling any current operations) and then add the new platforms
-				SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
+				// Send back to the Request state (canceling any current operations) and then add the new platforms
+				if (GetState() != EPackageState::Request)
+				{
+					check(SendFlags == ESendFlags::QueueAddAndRemove);
+					SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
+				}
 				AddRequestedPlatforms(InRequestedPlatforms);
 			}
-			else if (bUrgencyChanged)
+			else if (bUrgencyChanged && SendFlags == ESendFlags::QueueAddAndRemove)
 			{
-				FPackageDataQueue* Queue = GetQueue();
-				check(Queue);
-				if (Queue)
+				switch (GetState())
 				{
-					Queue->Remove(this);
-					Queue->PushFront(this);
+				case EPackageState::Request:
+					PackageDatas.GetRequestQueue().Remove(this);
+					PackageDatas.GetRequestQueue().AddRequest(this);
+					break;
+				case EPackageState::Load:
+					PackageDatas.GetLoadQueue().Remove(this);
+					PackageDatas.GetLoadQueue().PushFront(this);
+					break;
+				case EPackageState::Save:
+					PackageDatas.GetSaveQueue().Remove(this);
+					PackageDatas.GetSaveQueue().PushFront(this);
+					break;
+				default:
+					check(false);
+					break;
 				}
 			}
 		}
 		else
 		{
 			SetRequestData(InRequestedPlatforms, bInIsUrgent, MoveTemp(InCompletionCallback));
-			SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
+			SendToState(EPackageState::Request, SendFlags);
 		}
 	}
 
@@ -152,7 +169,7 @@ namespace Cook
 		AddCompletionCallback(MoveTemp(InCompletionCallback));
 	}
 
-	void FPackageData::ClearRequestData()
+	void FPackageData::ClearInProgressData()
 	{
 		ClearRequestedPlatforms();
 		SetIsUrgent(false);
@@ -335,128 +352,223 @@ namespace Cook
 		return static_cast<EPackageState>(State);
 	}
 
+	/** Boilerplate-reduction struct that defines all of the multi-state properties and sets them based on the given state */
+	struct FStateProperties
+	{
+		bool bInProgress;
+		bool bHasPackage;
+		explicit FStateProperties(EPackageState InState)
+		{
+			switch (InState)
+			{
+			case EPackageState::Idle:
+				bInProgress = false;
+				bHasPackage = false;
+				break;
+			case EPackageState::Request:
+				bInProgress = true;
+				bHasPackage = false;
+				break;
+			case EPackageState::Load:
+				bInProgress = true;
+				bHasPackage = false;
+				break;
+			// TODO_SaveQueue: Add When we add state PrepareForSave, it will also have bHasPackage = true, 
+			case EPackageState::Save:
+				bInProgress = true;
+				bHasPackage = true;
+				break;
+			default:
+				check(false);
+				break;
+			}
+		}
+	};
+
 	void FPackageData::SendToState(EPackageState NextState, ESendFlags SendFlags)
 	{
-		bool bWasInProgress;
 		EPackageState OldState = GetState();
 		switch (OldState)
 		{
 		case EPackageState::Idle:
-			bWasInProgress = false;
-			PackageDatas.GetCookOnTheFlyServer().ExitIdle(*this);
+			OnExitIdle();
 			break;
 		case EPackageState::Request:
-			bWasInProgress = true;
 			if (!!(SendFlags & ESendFlags::QueueRemove))
 			{
 				ensure(PackageDatas.GetRequestQueue().Remove(this) == 1);
 			}
-			PackageDatas.GetCookOnTheFlyServer().ExitRequest(*this);
+			OnExitRequest();
+			break;
+		case EPackageState::Load:
+			if (!!(SendFlags & ESendFlags::QueueRemove))
+			{
+				ensure(PackageDatas.GetLoadQueue().Remove(this) == 1);
+			}
+			OnExitLoad();
 			break;
 		case EPackageState::Save:
-			bWasInProgress = true;
 			if (!!(SendFlags & ESendFlags::QueueRemove))
 			{
 				ensure(PackageDatas.GetSaveQueue().Remove(this) == 1);
 			}
-			PackageDatas.GetCookOnTheFlyServer().ExitSave(*this);
+			OnExitSave();
 			break;
 		default:
-			bWasInProgress = false;
 			check(false);
 			break;
 		}
 
-		FPackageDataQueue* Queue = nullptr;
+		FStateProperties OldProperties(OldState);
+		FStateProperties NewProperties(NextState);
+		UpdateDownEdge(OldProperties.bHasPackage, NewProperties.bHasPackage, &FPackageData::OnExitHasPackage);
+		UpdateDownEdge(OldProperties.bInProgress, NewProperties.bInProgress, &FPackageData::OnExitInProgress);
+		UpdateUpEdge(OldProperties.bInProgress, NewProperties.bInProgress, &FPackageData::OnEnterInProgress);
+		UpdateUpEdge(OldProperties.bHasPackage, NewProperties.bHasPackage, &FPackageData::OnEnterHasPackage);
+
+		SetState(NextState);
 		switch (NextState)
 		{
 		case EPackageState::Idle:
-			SetInProgressState(bWasInProgress, false);
-			SetState(NextState);
-			PackageDatas.GetCookOnTheFlyServer().EnterIdle(*this);
+			OnEnterIdle();
 			break;
 		case EPackageState::Request:
-			SetInProgressState(bWasInProgress, true);
-			SetState(NextState);
-			PackageDatas.GetCookOnTheFlyServer().EnterRequest(*this);
-			Queue = &PackageDatas.GetRequestQueue();
+			OnEnterRequest();
+			if (((SendFlags & ESendFlags::QueueAdd) != ESendFlags::QueueNone))
+			{
+				PackageDatas.GetRequestQueue().AddRequest(this);
+			}
+			break;
+		case EPackageState::Load:
+			OnEnterLoad();
+			if ((SendFlags & ESendFlags::QueueAdd) != ESendFlags::QueueNone)
+			{
+				if (GetIsUrgent())
+				{
+					PackageDatas.GetLoadQueue().PushFront(this);
+				}
+				else
+				{
+					PackageDatas.GetLoadQueue().PushBack(this);
+				}
+			}
 			break;
 		case EPackageState::Save:
-			SetInProgressState(bWasInProgress, true);
-			SetState(NextState);
-			PackageDatas.GetCookOnTheFlyServer().EnterSave(*this);
-			Queue = &PackageDatas.GetSaveQueue();
+			OnEnterSave();
+			if (((SendFlags & ESendFlags::QueueAdd) != ESendFlags::QueueNone))
+			{
+				if (GetIsUrgent())
+				{
+					PackageDatas.GetSaveQueue().PushFront(this);
+				}
+				else
+				{
+					PackageDatas.GetSaveQueue().PushBack(this);
+				}
+			}
 			break;
 		default:
 			check(false);
 			break;
 		}
 
-		if (((SendFlags & ESendFlags::QueueAdd) != ESendFlags::QueueNone) & (Queue != nullptr))
-		{
-			if (GetIsUrgent())
-			{
-				Queue->PushFront(this);
-			}
-			else
-			{
-				Queue->PushBack(this);
-			}
-		}
 		PackageDatas.GetMonitor().OnStateChanged(*this, OldState);
 	}
 
-	FPackageDataQueue* FPackageData::GetQueue() const
+	void FPackageData::CheckInContainer() const
 	{
 		switch (GetState())
 		{
 		case EPackageState::Idle:
-			return nullptr;
+			break;
 		case EPackageState::Request:
-			return &PackageDatas.GetRequestQueue();
+			check(PackageDatas.GetRequestQueue().Contains(this));
+			break;
+		case EPackageState::Load:
+			check(Algo::Find(PackageDatas.GetLoadQueue(), this) != nullptr);
+			break;
 		case EPackageState::Save:
-			return &PackageDatas.GetSaveQueue();
+			check(Algo::Find(PackageDatas.GetSaveQueue(), this) != nullptr);
+			break;
 		default:
 			check(false);
-			return nullptr;
+			break;
 		}
 	}
 
 	bool FPackageData::IsInProgress() const
 	{
-		switch (GetState())
+		return FStateProperties(GetState()).bInProgress;
+	}
+
+	void FPackageData::OnEnterIdle()
+	{
+		// Note that this might be on construction of the PackageData
+	}
+
+	void FPackageData::OnExitIdle()
+	{
+	}
+
+	void FPackageData::OnEnterRequest()
+	{
+		check(RequestedPlatforms.Num() > 0); // It is not valid to enter the request state without requested platforms; it indicates a bug due to e.g. calling SendToState without UpdateRequestData from Idle
+	}
+
+	void FPackageData::OnExitRequest()
+	{
+	}
+
+	void FPackageData::OnEnterLoad()
+	{
+	}
+
+	void FPackageData::OnExitLoad()
+	{
+	}
+
+	void FPackageData::OnEnterSave()
+	{
+		check(GetPackage() != nullptr && GetPackage()->IsFullyLoaded());
+
+		CheckObjectCacheEmpty();
+		CheckCookedPlatformDataEmpty();
+	}
+
+	void FPackageData::OnExitSave()
+	{
+		PackageDatas.GetCookOnTheFlyServer().ReleaseCookedPlatformData(*this);
+		ClearObjectCache();
+	}
+
+	void FPackageData::OnEnterInProgress()
+	{
+		PackageDatas.GetMonitor().OnInProgressChanged(*this, true);
+	}
+
+	void FPackageData::OnExitInProgress()
+	{
+		PackageDatas.GetMonitor().OnInProgressChanged(*this, false);
+		UE::Cook::FCompletionCallback LocalCompletionCallback(MoveTemp(GetCompletionCallback()));
+		if (LocalCompletionCallback)
 		{
-		case EPackageState::Idle:
-			return false;
-		case EPackageState::Request:
-			return true;
-		case EPackageState::Save:
-			return true;
-		default:
-			check(false);
-			return false;
+			LocalCompletionCallback();
 		}
+		ClearInProgressData();
+	}
+
+	void FPackageData::OnEnterHasPackage()
+	{
+	}
+
+	void FPackageData::OnExitHasPackage()
+	{
+		SetPackage(nullptr);
 	}
 
 	void FPackageData::SetState(EPackageState NextState)
 	{
 		State = static_cast<uint32>(NextState);
-	}
-
-	void FPackageData::SetInProgressState(bool bOldInProgress, bool bNewInProgress)
-	{
-		if (bOldInProgress == bNewInProgress)
-		{
-			return;
-		}
-		if (bNewInProgress)
-		{
-			PackageDatas.GetCookOnTheFlyServer().EnterInProgress(*this);
-		}
-		else
-		{
-			PackageDatas.GetCookOnTheFlyServer().ExitInProgress(*this);
-		}
 	}
 
 	FCompletionCallback& FPackageData::GetCompletionCallback()
@@ -675,13 +787,19 @@ namespace Cook
 	//////////////////////////////////////////////////////////////////////////
 	// FPackageDataMonitor
 
+	int32 FPackageDataMonitor::GetNumUrgent() const
+	{
+		return NumUrgentRequests + NumUrgentLoads + NumUrgentSaves;
+	}
 
-	int32 FPackageDataMonitor::GetNumUrgent(EPackageState InState)
+	int32 FPackageDataMonitor::GetNumUrgent(EPackageState InState) const
 	{
 		switch (InState)
 		{
 		case EPackageState::Request:
 			return NumUrgentRequests;
+		case EPackageState::Load:
+			return NumUrgentLoads;
 		case EPackageState::Save:
 			return NumUrgentSaves;
 		default:
@@ -690,9 +808,20 @@ namespace Cook
 		}
 	}
 
-	int32 FPackageDataMonitor::GetNumCooked()
+	int32 FPackageDataMonitor::GetNumInProgress() const
+	{
+		return NumInProgress;
+	}
+
+	int32 FPackageDataMonitor::GetNumCooked() const
 	{
 		return NumCooked;
+	}
+
+	void FPackageDataMonitor::OnInProgressChanged(FPackageData& PackageData, bool bInProgress)
+	{
+		int32 Delta = bInProgress ? 1 : -1;
+		NumInProgress += Delta;
 	}
 
 	void FPackageDataMonitor::OnCookedPlatformAdded(FPackageData& PackageData)
@@ -742,6 +871,10 @@ namespace Cook
 		case EPackageState::Request:
 			NumUrgentRequests += Delta;
 			check(NumUrgentRequests >= 0);
+			break;
+		case EPackageState::Load:
+			NumUrgentLoads += Delta;
+			check(NumUrgentLoads >= 0);
 			break;
 		case EPackageState::Save:
 			NumUrgentSaves += Delta;
@@ -793,7 +926,7 @@ namespace Cook
 		return CookOnTheFlyServer;
 	}
 
-	FPackageDataQueue& FPackageDatas::GetRequestQueue()
+	FRequestQueue& FPackageDatas::GetRequestQueue()
 	{
 		return RequestQueue;
 	}
@@ -843,6 +976,11 @@ namespace Cook
 		}
 
 		FName FileName = PackageNameCache.GetCachedStandardFileName(PackageName);
+		if (FileName.IsNone())
+		{
+			// This can happen if PackageName is a script package
+			return nullptr;
+		}
 		checkf(FileNameToPackageData.Find(FileName) == nullptr, TEXT("Package \"%s\" and package \"%s\" share the same filename \"%s\"."),
 			*PackageName.ToString(), *(*FileNameToPackageData.Find(FileName))->GetPackageName().ToString(), *FileName.ToString()); 
 		return &CreatePackageData(PackageName, FileName);
@@ -1057,5 +1195,84 @@ namespace Cook
 	{
 		return PackageDatas.end();
 	}
+
+	void FRequestQueue::Empty()
+	{
+		NormalRequests.Empty();
+		UrgentRequests.Empty();
+	}
+
+	bool FRequestQueue::IsEmpty() const
+	{
+		return Num() == 0;
+	}
+
+	uint32 FRequestQueue::Num() const
+	{
+		return NormalRequests.Num() + UrgentRequests.Num();
+	}
+
+	bool FRequestQueue::Contains(const FPackageData* InPackageData) const
+	{
+		FPackageData* PackageData = const_cast<FPackageData*>(InPackageData);
+		return NormalRequests.Contains(PackageData) || UrgentRequests.Contains(PackageData);
+	}
+
+	uint32 FRequestQueue::RemoveRequest(FPackageData* PackageData)
+	{
+		uint32 OriginalNum = NormalRequests.Num() + UrgentRequests.Num();
+		NormalRequests.Remove(PackageData);
+		UrgentRequests.Remove(PackageData);
+		uint32 Result = OriginalNum - (NormalRequests.Num() + UrgentRequests.Num());
+		check(Result == 0 || Result == 1);
+		return Result;
+	}
+
+	uint32 FRequestQueue::Remove(FPackageData* PackageData)
+	{
+		return RemoveRequest(PackageData);
+	}
+
+	FPackageData* FRequestQueue::PopRequest()
+	{
+		for (FPackageData* PackageData : UrgentRequests)
+		{
+			UrgentRequests.Remove(PackageData);
+			return PackageData;
+		}
+		for (FPackageData* PackageData : NormalRequests)
+		{
+			NormalRequests.Remove(PackageData);
+			return PackageData;
+		}
+		return nullptr;
+	}
+
+	void FRequestQueue::AddRequest(FPackageData* PackageData, bool bForceUrgent)
+	{
+		if (bForceUrgent || PackageData->GetIsUrgent())
+		{
+			UrgentRequests.Add(PackageData);
+		}
+		else
+		{
+			NormalRequests.Add(PackageData);
+		}
+	}
+
+	FPoppedPackageDataScope::FPoppedPackageDataScope(FPackageData& InPackageData)
+#if COOK_CHECKSLOW_PACKAGEDATA
+		: PackageData(InPackageData)
+#endif
+	{
+	}
+
+#if COOK_CHECKSLOW_PACKAGEDATA
+	FPoppedPackageDataScope::~FPoppedPackageDataScope()
+	{
+		PackageData.CheckInContainer();
+	}
+#endif
+
 }
 }
