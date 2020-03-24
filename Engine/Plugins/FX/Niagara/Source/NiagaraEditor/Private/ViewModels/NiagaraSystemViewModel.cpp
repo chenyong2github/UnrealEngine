@@ -898,6 +898,8 @@ void FNiagaraSystemViewModel::RefreshAll()
 	RefreshSequencerTracks();
 	ResetCurveData();
 	ScriptScratchPadViewModel->RefreshScriptViewModels();
+	SystemStackViewModel->GetRootEntry()->RefreshChildren();
+	SelectionViewModel->Refresh();
 }
 
 void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
@@ -1039,12 +1041,6 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 		}
 	}
 	GetSystem().SetIsolateEnabled(bAnyEmitterIsolated);
-
-	if (SelectionViewModel != nullptr)
-	{
-		SelectionViewModel->Refresh();
-	}
-
 	OnEmitterHandleViewModelsChangedDelegate.Broadcast();
 }
 
