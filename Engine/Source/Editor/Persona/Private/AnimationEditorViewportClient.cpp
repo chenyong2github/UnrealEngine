@@ -842,10 +842,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 			int32 NumSections = LODData.RenderSections.Num();
 			for(int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
 			{
-				if (!LODData.RenderSections[SectionIndex].bDisabled)
-				{
-					NumTotalTriangles += LODData.RenderSections[SectionIndex].NumTriangles;
-				}
+				NumTotalTriangles += LODData.RenderSections[SectionIndex].NumTriangles;
 			}
 
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("MeshInfoFormat", "LOD: {0}, Bones: {1} (Mapped to Vertices: {2}), Polys: {3}"),
@@ -855,7 +852,6 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 				FText::AsNumber(NumTotalTriangles)));
 
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("ScreenSizeFOVFormat", "Current Screen Size: {0}, FOV: {1}"), FText::AsNumber(CachedScreenSize), FText::AsNumber(ViewFOV)));
-			int32 NumVertices = 0;
 			for (int32 SectionIndex = 0; SectionIndex < LODData.RenderSections.Num(); SectionIndex++)
 			{
 				int32 SectionVerts = LODData.RenderSections[SectionIndex].GetNumVertices();
@@ -868,14 +864,10 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 					FText::AsNumber(LODData.RenderSections[SectionIndex].BoneMap.Num()),
 					FText::AsNumber(LODData.RenderSections[SectionIndex].MaxBoneInfluences)
 					));
-				if (!LODData.RenderSections[SectionIndex].bDisabled)
-				{
-					NumVertices += LODData.RenderSections[SectionIndex].GetNumVertices();
-				}
 			}
 
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("TotalVerts", "TOTAL Verts: {0}"),
-				FText::AsNumber(NumVertices)));
+				FText::AsNumber(LODData.GetNumVertices())));
 
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("Sections", "Sections: {0}"),
 				NumSectionsInUse
@@ -940,21 +932,16 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 
 			// Triangles
 			uint32 NumTotalTriangles = 0;
-			uint32 NumTotalVertices = 0;
 			int32 NumSections = LODData.RenderSections.Num();
 			for (int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
 			{
-				if (!LODData.RenderSections[SectionIndex].bDisabled)
-				{
-					NumTotalTriangles += LODData.RenderSections[SectionIndex].NumTriangles;
-					NumTotalVertices += LODData.RenderSections[SectionIndex].NumVertices;
-				}
+				NumTotalTriangles += LODData.RenderSections[SectionIndex].NumTriangles;
 			}
 
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("TrianglesFormat", "Triangles: {0}"), FText::AsNumber(NumTotalTriangles)));
 
 			// Vertices
-			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("VerticesFormat", "Vertices: {0}"), FText::AsNumber(NumTotalVertices)));
+			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("VerticesFormat", "Vertices: {0}"), FText::AsNumber(LODData.GetNumVertices())));
 
 			// UV Channels
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("UVChannelsFormat", "UV Channels: {0}"), FText::AsNumber(LODData.GetNumTexCoords())));
