@@ -31,6 +31,14 @@ class FDragDropActionNodeImpl : public FDragDropActionNode
 public:
 	DRAG_DROP_OPERATOR_TYPE(FDragDropActionNodeImpl, FDragDropActionNode)
 
+	virtual void Construct() override
+	{
+		// Hide cursor when starting the drag. The track node will restore it
+		MouseCursor = EMouseCursor::None;
+		bCreateNewWindow = false;
+		FDragDropActionNode::Construct();
+	}
+
 	// FDragDropOperation interface
 	virtual void OnDrop( bool bDropWasHandled, const FPointerEvent& MouseEvent ) override;
 	virtual void OnDragged( const class FDragDropEvent& DragDropEvent ) override;
@@ -48,73 +56,33 @@ public:
 
 TSharedRef<FDragDropActionNode> FDragDropActionNode::New(const TSharedRef<SDataprepGraphTrackNode>& InTrackNodePtr, const TSharedRef<SDataprepGraphActionNode>& InDraggedNode)
 {
-	FDragDropActionNodeImpl* OperationImpl = new FDragDropActionNodeImpl;
+	TSharedPtr<FDragDropActionNodeImpl> OperationImpl = MakeShared<FDragDropActionNodeImpl>();
 
 	OperationImpl->TrackNodePtr = InTrackNodePtr;
 	OperationImpl->ActionNodePtr = InDraggedNode;
 
-	OperationImpl->bCreateNewWindow = false;
 	OperationImpl->Construct();
 
 	InTrackNodePtr->OnStartNodeDrag(InDraggedNode);
 
 	TSharedRef<FDragDropActionNode> Operation = MakeShareable(new FDragDropActionNode);
-	Operation->Impl = TSharedPtr<FDragDropActionNode>(OperationImpl);
+	Operation->Impl = StaticCastSharedPtr<FDragDropActionNode>(OperationImpl);
 
 	return Operation;
 }
 
 void FDragDropActionNodeImpl::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)
 {
-	int32 NewExecutionOrder = TrackNodePtr->OnEndNodeDrag();
-
-	if(bDropWasHandled)
-	{
-		if(UDataprepAsset* DataprepAsset = TrackNodePtr->GetDataprepAsset())
-		{
-			FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
-			const bool bCopyRequested = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
-
-			FScopedTransaction Transaction( bCopyRequested ? LOCTEXT("OnDropCopy", "Add/Insert action") : LOCTEXT("OnDropMove", "Move action") );
-			bool bTransactionSuccessful = false;
-
-			if(bCopyRequested)
-			{
-				if(NewExecutionOrder >= DataprepAsset->GetActionCount())
-				{
-					bTransactionSuccessful = DataprepAsset->AddAction(ActionNodePtr->GetDataprepAction()) != INDEX_NONE;
-				}
-				else
-				{
-					bTransactionSuccessful = DataprepAsset->InsertAction(ActionNodePtr->GetDataprepAction(), NewExecutionOrder);
-				}
-			}
-			else if( NewExecutionOrder != ActionNodePtr->GetExecutionOrder())
-			{
-				bTransactionSuccessful = DataprepAsset->MoveAction(ActionNodePtr->GetExecutionOrder(), NewExecutionOrder);
-			}
-			else
-			{
-				TrackNodePtr->RefreshLayout();
-			}
-
-			if(!bTransactionSuccessful)
-			{
-				Transaction.Cancel();
-			}
-		}
-	}
-	else
-	{
-		TrackNodePtr->RefreshLayout();
-	}
+	TrackNodePtr->OnEndNodeDrag(bDropWasHandled);
 
 	FDragDropOperation::OnDrop(bDropWasHandled, MouseEvent);
 }
 
 void FDragDropActionNodeImpl::OnDragged(const FDragDropEvent& DragDropEvent)
 {
-	TrackNodePtr->OnNodeDragged( ActionNodePtr, DragDropEvent.GetScreenSpacePosition(), DragDropEvent.GetCursorDelta() );
+	const bool bNodeDragged = TrackNodePtr->OnNodeDragged( ActionNodePtr, DragDropEvent.GetScreenSpacePosition(), DragDropEvent.GetCursorDelta() );
+
+	MouseCursor = bNodeDragged ? EMouseCursor::None : EMouseCursor::SlashedCircle;
 
 	FDragDropOperation::OnDragged(DragDropEvent);
 }
