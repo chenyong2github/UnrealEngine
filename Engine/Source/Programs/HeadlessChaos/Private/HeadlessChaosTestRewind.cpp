@@ -591,4 +591,78 @@ namespace ChaosTest {
 
 		Module->DestroySolver(Solver);
 	}
+
+	GTEST_TEST(RewindTest,Resim)
+	{
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+
+		Solver->EnableRewindCapture(5);
+
+		// Make particles
+		auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
+
+		Particle->SetGeometry(Sphere);
+		Solver->RegisterObject(Particle.Get());
+		Particle->SetGravityEnabled(true);
+
+		auto Kinematic = TKinematicGeometryParticle<float,3>::CreateParticle();
+
+		Kinematic->SetGeometry(Sphere);
+		Solver->RegisterObject(Kinematic.Get());
+		Kinematic->SetX(FVec3(2,2,2));
+
+		TArray<FVec3> X;
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			X.Add(Particle->X());
+
+			if(Step == 9)
+			{
+				Kinematic->SetX(FVec3(50,50,50));
+			}
+
+			TickSolverHelper(Module,Solver);
+		}
+
+		const int RewindStep = 7;
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+		//Move particle and rerun
+		Particle->SetX(FVec3(0,0,100));
+		for(int Step = RewindStep; Step < 10; ++Step)
+		{
+			X[Step] = Particle->X();
+			TickSolverHelper(Module,Solver);
+		}
+
+		EXPECT_EQ(Kinematic->X()[2],2);	//Rewound kinematic and never updated it so back to original value
+
+		//Make sure we recorded the new data
+		for(int Step = RewindStep; Step < 10; ++Step)
+		{
+			const FGeometryParticleState State = RewindData->GetStateAtFrame(*Particle,Step);
+			EXPECT_EQ(State.X()[2],X[Step][2]);
+
+			const FGeometryParticleState KinState = RewindData->GetStateAtFrame(*Kinematic,Step);
+			//TODO: this is a form of desync, need support for that still
+			//EXPECT_EQ(KinState.X()[2],2);	//even though not dirty, data is properly stored as not moving
+		}
+
+
+
+		// Throw out the proxy
+		Solver->UnregisterObject(Particle.Get());
+
+		Module->DestroySolver(Solver);
+	}
 }
