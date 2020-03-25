@@ -98,12 +98,15 @@ public:
 
 	/**
 	 * Terminates the horizontal drag of an action node
-	 * @return Returns the new execution order for the dragged action node
+	 * @param bDoDrop Indicates if the drop must be done
 	 */
-	int32 OnEndNodeDrag();
+	void OnEndNodeDrag(bool bDoDrop);
 
-	/** Updates the position of other action nodes based on the position of the incoming node */
-	void OnNodeDragged( TSharedPtr<SDataprepGraphActionNode>& ActionNodePtr, const FVector2D& DragScreenSpacePosition, const FVector2D& ScreenSpaceDelta);
+	/**
+	 * Updates the position of other action nodes based on the position of the incoming node
+	 * @return True if the action node was actually dragged
+	 */
+	bool OnNodeDragged( TSharedPtr<SDataprepGraphActionNode>& ActionNodePtr, const FVector2D& DragScreenSpacePosition, const FVector2D& ScreenSpaceDelta);
 
 	/** Update the execution order of the actions and call ReArrangeActionNodes */
 	void OnActionsOrderChanged();
@@ -117,15 +120,20 @@ public:
 	/** Start editing of action asset associated to input EdGraphNode */
 	void RequestRename(const UEdGraphNode* Node);
 
+	/**
+	 * Change the view position of the panel based on input screen space position
+	 * @Note: Replaces SGrpahPanel::RequestDeferredPan which perform the change one frame too early
+	 */
 	void RequestViewportPan(const FVector2D& ScreenSpacePosition);
+
+	/** Helper to set the position of the graph nodes registered to the graph panel */
+	void UpdateProxyNode(TSharedRef<SDataprepGraphActionNode> ActioNodePtr, const FVector2D& ScreenSpacePosition);
 
 	/** Miscellaneous values used in the display */
 	static FVector2D TrackAnchor;
 
-protected:
-	// SWidget interface
-	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
-	// End of SWidget interface
+private:
+	FVector2D ComputePanAmount(const FVector2D& ScreenSpacePosition, float MaxPanSpeed = 200.f);
 
 private:
 	/** Pointer to the widget displaying the track */
@@ -143,14 +151,32 @@ private:
 	/** Indicates a drag is happening */
 	bool bNodeDragging;
 
+	/** Indicates a drag has started.  */
+	bool bNodeDragJustStarted;
+
+	/** Indicates a drag has started.  */
+	float LastDragDirection;
+
 	/**
-	 * Indicates to skip the next mouse position update as it has been triggered
-	 * by a call to FSlateApplication::SetCursorPos
+	 * Indicates to skip the next mouse position update during a drag
+	 * @remark Set to true when FSlateApplication::SetCursorPos has been called
 	 */
 	bool bSkipNextDragUpdate;
 
-	/** Cached of the last position of the cursor as the drag is happening */
-	FVector2D LastDragScreenSpacePosition;
+	/** Cached of the last position the software cursor was set to */
+	FVector2D LastSetCursorPosition;
+
+	/**
+	 * Indicates to skip the next refresh of the track widget layout
+	 * @remark Set to true when SNodePanel::RestoreViewSettings has been called
+	 */
+	bool bSkipRefreshLayout;
+
+	/** Indicates whether the mouse pointer left the graph panel on the left */
+	bool bCursorLeftOnLeft;
+
+	/** Indicates whether the mouse pointer left the graph panel on the right */
+	bool bCursorLeftOnRight;
 
 	/** Array of strong pointers to the UEdGraphNodes created for the Dataprep asset's actions */
 	TArray<TStrongObjectPtr<UDataprepGraphActionNode>> EdGraphActionNodes;
