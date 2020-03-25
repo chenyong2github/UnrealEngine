@@ -289,6 +289,12 @@ Chaos::TLevelSet<float, 3>* FCollisionStructureManager::NewLevelset(
 	const int32 MaxRes,
 	const ECollisionTypeEnum CollisionType)
 {
+	if(TriMesh.GetNumElements() == 0)
+	{
+		// Empty tri-mesh, can't create a new level set
+		return nullptr;
+	}
+
 	Chaos::TVector<int32, 3> Counts;
 	const FVector Extents = CollisionBounds.GetExtent();
 	if (Extents.X < Extents.Y && Extents.X < Extents.Z)
