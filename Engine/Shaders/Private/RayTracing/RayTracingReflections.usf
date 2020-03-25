@@ -93,6 +93,7 @@ uint UseReflectionCaptures;
 uint ReflectedShadowsType;
 uint ShouldDoDirectLighting;
 uint ShouldDoEmissiveAndIndirectLighting;
+uint ShouldReflectOnlyWater;
 uint UpscaleFactor;
 uint SortTileSize;
 uint2 RayTracingResolution;
@@ -330,7 +331,11 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	// Cutoff
 	// * Roughness value
 	// * Hair material is not for RT reflection at the moment. Their indirect contributuion is based on diffuse SH evaluation in ReflectionEnvironemenPixelShader.usf
-    const bool bIsValidPixel = (RoughnessFade > 0 || ClearCoatRoughnessFade > 0) && GBufferData.ShadingModelID != SHADINGMODELID_HAIR;
+    bool bIsValidPixel = (RoughnessFade > 0 || ClearCoatRoughnessFade > 0) && GBufferData.ShadingModelID != SHADINGMODELID_HAIR;
+	if (ShouldReflectOnlyWater)
+	{
+		bIsValidPixel = bIsValidPixel && (GBufferData.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER);
+	}
 
     const uint LocalMaxBounces = DIM_HYBRID ? 1 : MaxBounces;
 

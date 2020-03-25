@@ -698,11 +698,14 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 					RayTracingConfig.ResolutionFraction = 1.0f;
 				}
 
+				bool bReflectOnlyWater = false;
 				RenderRayTracingReflections(
 					GraphBuilder,
 					SceneTextures,
 					View,
-					RayTracingConfig.RayCountPerPixel, RayTracingConfig.ResolutionFraction,
+					RayTracingConfig.RayCountPerPixel,
+					bReflectOnlyWater,
+					RayTracingConfig.ResolutionFraction,
 					&DenoiserInputs);
 			}
 			else if (bScreenSpaceReflections)
