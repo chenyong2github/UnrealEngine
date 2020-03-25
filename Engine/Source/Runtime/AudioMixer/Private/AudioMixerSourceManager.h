@@ -35,10 +35,15 @@ namespace Audio
 		AlignedFloatBuffer AudioData;
 
 		/** How many times this buffer will loop. */
-		int32 LoopCount = 0;
+		int32 LoopCount;
 
 		/** If this buffer is from real-time decoding and needs to make callbacks for more data. */
-		bool bRealTimeBuffer = false;
+		uint32 bRealTimeBuffer : 1;
+
+		FMixerSourceVoiceBuffer()
+		{
+			FMemory::Memzero(this, sizeof(*this));
+		}
 	};
 
 	typedef TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmixPtr;
@@ -67,53 +72,79 @@ namespace Audio
 		FMixerSubmixWeakPtr Submix;
 
 		// The amount of audio that is to be mixed into this submix
-		float SendLevel = 0.0f;
+		float SendLevel;
 
 		// Whather or not this is the primary send (i.e. first in the send chain)
-		bool bIsMainSend = false;
+		bool bIsMainSend;
 
 		// If this is a soundfield submix, this is a pointer to the submix's Soundfield Factory.
 		// If this is nullptr, the submix is not a soundfield submix.
-		ISoundfieldFactory* SoundfieldFactory = nullptr;
+		ISoundfieldFactory* SoundfieldFactory;
 	};
 
 	// Struct holding mappings of bus ids (unique ids) to send level
-	struct FInitAudioBusSend
+	struct FMixerBusSend
 	{
-		uint32 AudioBusId = INDEX_NONE;
-		float SendLevel = 0.0f;
+		uint32 BusId;
+		float SendLevel;
 	};
 
 	struct FMixerSourceVoiceInitParams
 	{
-		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer = nullptr;
-		ISourceListener* SourceListener = nullptr;
+		TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
+		ISourceListener* SourceListener;
 		TArray<FMixerSourceSubmixSend> SubmixSends;
-		TArray<FInitAudioBusSend> AudioBusSends[(int32)EBusSendType::Count];
-		uint32 AudioBusId = INDEX_NONE;
-		float SourceBusDuration = 0.0f;
-		uint32 SourceEffectChainId = INDEX_NONE;
+		TArray<FMixerBusSend> BusSends[(int32)EBusSendType::Count];
+		uint32 BusId;
+		float BusDuration;
+		uint32 SourceEffectChainId;
 		TArray<FSourceEffectChainEntry> SourceEffectChain;
-		FMixerSourceVoice* SourceVoice = nullptr;
-		int32 NumInputChannels = 0;
-		int32 NumInputFrames = 0;
-		float EnvelopeFollowerAttackTime = 10.0f;
-		float EnvelopeFollowerReleaseTime = 100.0f;
+		FMixerSourceVoice* SourceVoice;
+		int32 NumInputChannels;
+		int32 NumInputFrames;
+		float EnvelopeFollowerAttackTime;
+		float EnvelopeFollowerReleaseTime;
 		FString DebugName;
-		USpatializationPluginSourceSettingsBase* SpatializationPluginSettings = nullptr;
-		UOcclusionPluginSourceSettingsBase* OcclusionPluginSettings = nullptr;
-		UReverbPluginSourceSettingsBase* ReverbPluginSettings = nullptr;
-		USoundModulationPluginSourceSettingsBase* ModulationPluginSettings = nullptr;
+		USpatializationPluginSourceSettingsBase* SpatializationPluginSettings;
+		UOcclusionPluginSourceSettingsBase* OcclusionPluginSettings;
+		UReverbPluginSourceSettingsBase* ReverbPluginSettings;
+		USoundModulationPluginSourceSettingsBase* ModulationPluginSettings;
 		FName AudioComponentUserID;
-		uint64 AudioComponentID = 0;
-		bool bPlayEffectChainTails = false;
-		bool bUseHRTFSpatialization = false;
-		bool bIsExternalSend = false;
-		bool bIsDebugMode  = false;
-		bool bOutputToBusOnly = false;
-		bool bIsVorbis = false;
-		bool bIsAmbisonics = false;
-		bool bIsSeeking = false;
+		uint64 AudioComponentID;
+		uint8 bPlayEffectChainTails : 1;
+		uint8 bUseHRTFSpatialization : 1;
+		uint8 bIsExternalSend : 1;
+		uint8 bIsDebugMode : 1;
+		uint8 bOutputToBusOnly : 1;
+		uint8 bIsVorbis : 1;
+		uint8 bIsAmbisonics : 1;
+		uint8 bIsSeeking : 1;
+
+		FMixerSourceVoiceInitParams()
+			: MixerSourceBuffer(nullptr)
+			, SourceListener(nullptr)
+			, BusId(INDEX_NONE)
+			, BusDuration(0.0f)
+			, SourceEffectChainId(INDEX_NONE)
+			, SourceVoice(nullptr)
+			, NumInputChannels(0)
+			, NumInputFrames(0)
+			, EnvelopeFollowerAttackTime(10.0f)
+			, EnvelopeFollowerReleaseTime(100.0f)
+			, SpatializationPluginSettings(nullptr)
+			, OcclusionPluginSettings(nullptr)
+			, ReverbPluginSettings(nullptr)
+			, ModulationPluginSettings(nullptr)
+			, AudioComponentID(0)
+			, bPlayEffectChainTails(false)
+			, bUseHRTFSpatialization(false)
+			, bIsExternalSend(false)
+			, bIsDebugMode(false)
+			, bOutputToBusOnly(false)
+			, bIsVorbis(false)
+			, bIsAmbisonics(false)
+			, bIsSeeking(false)
+		{}
 	};
 
 	struct FSourceChannelMap
@@ -123,8 +154,8 @@ namespace Audio
 
 		// This is the number of bytes the gain array is using:
 		// (Number of input channels * number of output channels) * sizeof float.
-		int32 CopySize = 0;
-		bool bIsInit = false;
+		int32 CopySize;
+		bool bIsInit;
 
 		FSourceChannelMap(int32 InNumInChannels, int32 InNumOutChannels) 
 			: CopySize(InNumInChannels * InNumOutChannels * sizeof(float))
@@ -171,10 +202,10 @@ namespace Audio
 	struct FSourceManagerInitParams
 	{
 		// Total number of sources to use in the source manager
-		int32 NumSources = 0;
+		int32 NumSources;
 
 		// Number of worker threads to use for the source manager.
-		int32 NumSourceWorkers = 0;
+		int32 NumSourceWorkers;
 	};
 
 	class FMixerSourceManager
@@ -188,16 +219,10 @@ namespace Audio
 
 		bool GetFreeSourceId(int32& OutSourceId);
 		int32 GetNumActiveSources() const;
-		int32 GetNumActiveAudioBuses() const;
+		int32 GetNumActiveBuses() const;
 
 		void ReleaseSourceId(const int32 SourceId);
 		void InitSource(const int32 SourceId, const FMixerSourceVoiceInitParams& InitParams);
-
-		// Creates an audio bus manually. Returns an audio bus Id.
-		void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic);
-		void StopAudioBus(uint32 InAudioBusId);
-		bool IsAudioBusActive(uint32 InAudioBusId);
-		FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float PatchGain);
 
 		void Play(const int32 SourceId);
 		void Stop(const int32 SourceId);
@@ -231,8 +256,7 @@ namespace Audio
 		const FQuat GetListenerRotation(const int32 SourceId) const;
 
 		void SetSubmixSendInfo(const int32 SourceId, const FMixerSourceSubmixSend& SubmixSend);
-
-		void SetBusSendInfo(const int32 SourceId, EBusSendType InAudioBusSendType, uint32 AudiobusId, float BusSendLevel);
+		void SetBusSendInfo(const int32 SourceId, EBusSendType InBusSendType, FMixerBusSend& BusSend);
 
 		void UpdateDeviceChannelCount(const int32 InNumOutputChannels);
 
@@ -241,11 +265,10 @@ namespace Audio
 
 		const float* GetPreDistanceAttenuationBuffer(const int32 SourceId) const;
 		const float* GetPreEffectBuffer(const int32 SourceId) const;
-		const float* GetPreviousSourceBusBuffer(const int32 SourceId) const;
-		const float* GetPreviousAudioBusBuffer(const int32 AudioBusId) const;
+		const float* GetPreviousBusBuffer(const int32 SourceId) const;
 		int32 GetNumChannels(const int32 SourceId) const;
 		int32 GetNumOutputFrames() const { return NumOutputFrames; }
-		bool IsSourceBus(const int32 SourceId) const;
+		bool IsBus(const int32 SourceId) const;
 		void PumpCommandQueue();
 		void UpdatePendingReleaseData(bool bForceWait = false);
 		void FlushCommandQueue(bool bPumpCommandQueue = false);
@@ -428,11 +451,11 @@ namespace Audio
 			~FSourceInfo() {}
 
 			// Object which handles source buffer decoding
-			TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
+			TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
 			ISourceListener* SourceListener;
 
 			// Data used for rendering sources
-			TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe> CurrentPCMBuffer;
+			TSharedPtr<FMixerSourceVoiceBuffer> CurrentPCMBuffer;
 			int32 CurrentAudioChunkNumFrames;
 
 			// The post-attenuation source buffer, used to send audio to submixes
@@ -452,14 +475,14 @@ namespace Audio
 
 			TArray<FMixerSourceSubmixSend> SubmixSends;
 
-			// What audio bus Id this source is sonfiying, if it is a source bus. This is INDEX_NONE for sources which are not source buses.
-			uint32 AudioBusId;
+			// What bus Id this source is, if it is a bus. This is INDEX_NONE for sources which are not buses.
+			uint32 BusId;
 
-			// Number of samples to count for source bus
-			int64 SourceBusDurationFrames;
+			// Number of samples to count for bus
+			int64 BusDurationFrames;
 
 			// What buses this source is sending its audio to. Used to remove this source from the bus send list.
-			TArray<uint32> AudioBusSends[(int32)EBusSendType::Count];
+			TArray<uint32> BusSends[(int32)EBusSendType::Count];
 
 			// Interpolated source params
 			FParam PitchSourceParam;
@@ -562,15 +585,14 @@ namespace Audio
 		// sources.
 		TArray<FSourceDownmixData> DownmixDataArray;
 
-		// Map of bus object Id's to audio bus data. 
-		TMap<uint32, TSharedPtr<FMixerAudioBus>> AudioBuses;
-		TArray<uint32> AudioBusIds_AudioThread;
+		// Map of bus object Id's to bus data. 
+		TMap<uint32, FMixerBus> Buses;
 
 		// Async task workers for processing sources in parallel
 		TArray<FAsyncTask<FAudioMixerSourceWorker>*> SourceWorkers;
 
 		// Array of task data waiting to finished. Processed on audio render thread.
-		TArray<TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe>> PendingSourceBuffers;
+		TArray<TSharedPtr<FMixerSourceBuffer>> PendingSourceBuffers;
 
 		// General information about sources in source manager accessible from game thread
 		struct FGameThreadInfo
@@ -597,7 +619,6 @@ namespace Audio
 
 		// Set to true when the audio source manager should pump the command queue
 		FThreadSafeBool bPumpQueue;
-		uint64 LastPumpTimeInCycles = 0;
 
 		friend class FMixerSourceVoice;
 	};
