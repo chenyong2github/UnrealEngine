@@ -387,12 +387,23 @@ namespace ChaosTest {
 			V.Add(Particle->V());
 			TickSolverHelper(Module,Solver);
 		}
+		X.Add(Particle->X());
+		V.Add(Particle->V());
 
 		FRewindData* RewindData = Solver->GetRewindData();
 		RewindData->RewindToFrame(3);
-		
+
 		EXPECT_EQ(Particle->X()[2],X[3][2]);
 		EXPECT_EQ(Particle->V()[2],V[3][2]);
+
+		//make sure recorded data is still valid even at head
+		for(int Step = 0; Step < 11; ++Step)
+		{
+			const FGeometryParticleState State = RewindData->GetStateAtFrame(*Particle,Step);
+			EXPECT_EQ(State.X()[2],X[Step][2]);
+			EXPECT_EQ(State.V()[2],V[Step][2]);
+		}
+		
 
 		// Throw out the proxy
 		Solver->UnregisterObject(Particle.Get());
