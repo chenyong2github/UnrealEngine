@@ -290,11 +290,6 @@ void UMeshPaintMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveT
 	Super::OnToolEnded(Manager, Tool);
 }
 
-bool UMeshPaintMode::InputAxis(FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime)
-{
-	return !InViewportClient->IsAltPressed();
-}
-
 void UMeshPaintMode::ActorSelectionChangeNotify()
 {
 	UpdateSelectedMeshes();
