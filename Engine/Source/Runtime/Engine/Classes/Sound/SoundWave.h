@@ -49,6 +49,8 @@ enum class ESoundWavePrecacheState
 	Done
 };
 
+constexpr uint64 InvalidAudioStreamCacheLookupID = TNumericLimits<uint64>::Max();
+
 /**
  * A chunk of streamed audio.
  */
@@ -63,8 +65,14 @@ struct FStreamedAudioChunk
 	/** Bulk data if stored in the package. */
 	FByteBulkData BulkData;
 
+	/** This is set by the audio stream cache to speed up lookup. Maps directly to the location into the cache chunk table that we loaded this chunk into. */
+	uint64 CacheLookupID;
+
 	/** Default constructor. */
 	FStreamedAudioChunk()
+		: DataSize(0)
+		, AudioDataSize(0)
+		, CacheLookupID(InvalidAudioStreamCacheLookupID)
 	{
 	}
 
@@ -484,6 +492,19 @@ public:
 	void ReleaseCompressedAudio();
 
 	bool IsRetainingAudio();
+
+	/**
+	 * This is called by the audio stream cache once we put a chunk of compressed data in the chunk table. 
+	 * It allows us to look up the chunk directly, rather than searching the cache linearly.
+	 */
+	void SetCacheLookupIDForChunk(uint32 InChunkIndex, uint64 InCacheLookupID);
+
+	/**
+	 * This is called by the audio stream cache when we try to get a chunk of compressed data.
+	 * It allows us to look up the chunk directly, rather than searching the cache linearly.
+	 * Returns InvalidAudioStreamCacheLookupID if the chunk hasn't been added to the cache.
+	 */
+	uint64 GetCacheLookupIDForChunk(uint32 InChunkIndex);
 
 	/** Returns the loading behavior we should use for this sound wave.
 	 *  If this is called within Serialize(), this should be called with bCheckSoundClasses = false,
