@@ -80,6 +80,8 @@ DECLARE_CYCLE_STAT(TEXT("CreatePhysicsActor"), STAT_CreatePhysicsActor, STATGROU
 DECLARE_CYCLE_STAT(TEXT("BodyInstance SetCollisionProfileName"), STAT_BodyInst_SetCollisionProfileName, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Phys SetBodyTransform"), STAT_SetBodyTransform, STATGROUP_Physics);
 
+static int32 GUseDeferredPhysicsBodyCreation = 0;
+
 // @HACK Guard to better encapsulate game related hacks introduced into UpdatePhysicsFilterData()
 TAutoConsoleVariable<int32> CVarEnableDynamicPerBodyFilterHacks(
 	TEXT("p.EnableDynamicPerBodyFilterHacks"), 
@@ -88,12 +90,20 @@ TAutoConsoleVariable<int32> CVarEnableDynamicPerBodyFilterHacks(
 	ECVF_ReadOnly
 );
 
-TAutoConsoleVariable<int32> CVarEnableDeferredPhysicsCreation(
+FAutoConsoleVariableRef CVarEnableDeferredPhysicsCreation(
 	TEXT("p.EnableDeferredPhysicsCreation"), 
-	0, 
+	GUseDeferredPhysicsBodyCreation,
 	TEXT("Enables/Disables deferred physics creation."),
 	ECVF_Default
 );
+
+bool FBodyInstance::UseDeferredPhysicsBodyCreation()
+{
+	// @todo: this could be improved by tracking all oustanding delayed creations, and return true if there are any at all. 
+	// or maybe keep a list of instances that have them, so we don't loop over all actors, etc
+	return GUseDeferredPhysicsBodyCreation != 0;
+}
+
 
 using namespace PhysicsInterfaceTypes;
 
@@ -1353,7 +1363,7 @@ void FBodyInstance::InitBody(class UBodySetup* Setup, const FTransform& Transfor
 	bool bIsStatic = SpawnParams.bStaticPhysics;
 	if(bIsStatic)
 	{
-		if (CVarEnableDeferredPhysicsCreation.GetValueOnGameThread())
+		if (GUseDeferredPhysicsBodyCreation)
 		{
 			InitBodiesDeferredListStatic.Add(FInitBodiesHelperWithData<true>(MoveTemp(Bodies), MoveTemp(Transforms), Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate));
 		}
@@ -1365,7 +1375,7 @@ void FBodyInstance::InitBody(class UBodySetup* Setup, const FTransform& Transfor
 	}
 	else
 	{
-		if (CVarEnableDeferredPhysicsCreation.GetValueOnGameThread())
+		if (GUseDeferredPhysicsBodyCreation)
 		{
 			InitBodiesDeferredListDynamic.Add(FInitBodiesHelperWithData<false>(MoveTemp(Bodies), MoveTemp(Transforms), Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate));
 		}
