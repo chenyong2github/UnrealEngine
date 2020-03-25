@@ -26,3 +26,5 @@ enum class ESoundWaveLoadingBehavior : uint8
 	// This value is used to delineate when the value of ESoundWaveLoadingBehavior hasn't been cached on a USoundWave yet.
 	Uninitialized = 0xff UMETA(Hidden)
 };
+
+const TCHAR* EnumToString(ESoundWaveLoadingBehavior InCurrentState);
