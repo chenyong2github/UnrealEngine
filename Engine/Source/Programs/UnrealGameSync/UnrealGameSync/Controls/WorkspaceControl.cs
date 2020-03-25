@@ -1761,7 +1761,8 @@ namespace UnrealGameSync
 			if (RequireNotificationForChange != -1)
 			{
 				// Format the platform list
-				StringBuilder PlatformList = new StringBuilder(NotifyBuilds[0].BuildType);
+				StringBuilder PlatformList = new StringBuilder();
+				PlatformList.AppendFormat("{0}: {1}", StreamName, NotifyBuilds[0].BuildType);
 				for (int Idx = 1; Idx < NotifyBuilds.Count - 1; Idx++)
 				{
 					PlatformList.AppendFormat(", {0}", NotifyBuilds[Idx].BuildType);
@@ -4251,9 +4252,21 @@ namespace UnrealGameSync
 
 		private void BuildListContextMenu_MoreInfo_Click(object sender, EventArgs e)
 		{
-			if (!Utility.SpawnHiddenProcess("p4vc.exe", String.Format("-p\"{0}\" -c{1} change {2}", Workspace.Perforce.ServerAndPort ?? "perforce:1666", Workspace.ClientName, ContextMenuChange.Number)))
+			if (!Utility.SpawnHiddenProcess("p4vc.exe", String.Format("-p\"{0}\" -u\"{1}\" -c{2} change {3}", Workspace.Perforce.ServerAndPort ?? "perforce:1666", Workspace.Perforce.UserName, Workspace.ClientName, ContextMenuChange.Number)))
 			{
 				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
+			}
+		}
+
+		private void BuildListContextMenu_ViewInSwarm_Click(object sender, EventArgs e)
+		{
+			string SwarmURL;
+			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "SwarmURL", out SwarmURL))
+			{
+				Process.Start(String.Format("{0}/changes/{1}", SwarmURL, ContextMenuChange.Number));
+			} else
+			{
+				MessageBox.Show("Swarm URL is not configured.");
 			}
 		}
 
