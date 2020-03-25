@@ -626,6 +626,13 @@ void FNiagaraParameterStore::RenameParameter(const FNiagaraVariableBase& Param, 
 	check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
 #endif
 
+	if (Param.GetName() == NewName)
+	{
+		// Early out here to prevent crashes later on due to delta size mismatches when the newly named
+		// parameter isn't added.
+		return;
+	}
+
 	int32 Idx = IndexOf(Param);
 	if(Idx != INDEX_NONE)
 	{
