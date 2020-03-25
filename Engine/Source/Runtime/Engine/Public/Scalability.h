@@ -181,4 +181,6 @@ namespace Scalability
 #endif
 
 	ENGINE_API FText GetQualityLevelText(int32 Value, int32 NumLevels);
+
+	ENGINE_API FString GetScalabilitySectionString(const TCHAR* InGroupName, int32 InQualityLevel, int32 InNumLevels);
 }
