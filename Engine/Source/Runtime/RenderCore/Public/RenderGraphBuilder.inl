@@ -26,6 +26,8 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	OutTexture->ResourceRHI = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
 	AllocatedTextures.Add(OutTexture, ExternalPooledTexture);
 
+	TextureCount++;
+
 	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalTexture(OutTexture));
 
 	ExternalTextures.Add(ExternalPooledTexture.GetReference(), OutTexture);
@@ -66,6 +68,8 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 	}
 	AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
 
+	BufferCount++;
+
 	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalBuffer(OutBuffer));
 
 	ExternalBuffers.Add(ExternalPooledBuffer.GetReference(), OutBuffer);
@@ -104,6 +108,8 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 
 	FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(Name, TextureDesc, Flags);
 
+	TextureCount++;
+
 	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateTexture(Texture));
 
 	return Texture;
@@ -129,6 +135,8 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 #endif
 
 	FRDGBufferRef Buffer = AllocateForRHILifeTime<FRDGBuffer>(Name, Desc, Flags);
+
+	BufferCount++;
 
 	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateBuffer(Buffer));
 
