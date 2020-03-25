@@ -375,7 +375,7 @@ void FDeferredShadingSceneRenderer::RenderVelocitiesInner(FRHICommandListImmedia
 
 bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 {
-	if (!FVelocityRendering::IsSeparateVelocityPassSupported())
+	if (!FVelocityRendering::IsSeparateVelocityPassSupported() || ViewFamily.UseDebugViewPS())
 	{
 		return false;
 	}
