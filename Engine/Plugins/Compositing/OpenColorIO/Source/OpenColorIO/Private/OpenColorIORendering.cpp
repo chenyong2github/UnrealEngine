@@ -105,6 +105,9 @@ static void ProcessOCIOColorSpaceTransform_RenderThread(
 
 	// Resolve render target.
 	InRHICmdList.EndRenderPass();
+
+	// Restore readable state
+	InRHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, OutputSpaceColorResource->TextureRHI);
 }
 
 // static
