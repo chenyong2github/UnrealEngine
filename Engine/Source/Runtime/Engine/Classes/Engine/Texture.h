@@ -16,6 +16,7 @@
 #include "MaterialShared.h"
 #include "TextureResource.h"
 #include "Engine/StreamableRenderAsset.h"
+#include "PerPlatformProperties.h"
 #include "Texture.generated.h"
 
 class ITargetPlatform;
@@ -798,6 +799,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LevelOfDetail, meta=(DisplayName="Texture Group"), AssetRegistrySearchable)
 	TEnumAsByte<enum TextureGroup> LODGroup;
 
+	/** Downscale source texture, applied only to textures without mips 
+	 * 0.0 - use scale value from texture group
+	 * 1.0 - do not scale texture
+	 * > 1.0 - scale texure
+	 */
+	UPROPERTY(EditAnywhere, Category=LevelOfDetail, AdvancedDisplay, meta=(ClampMin="0.0", ClampMax="8.0"))
+	FPerPlatformFloat Downscale;
+
+	/** Texture downscaling options */
+	UPROPERTY(EditAnywhere, Category=LevelOfDetail, AdvancedDisplay)
+	ETextureDownscaleOptions DownscaleOptions;
+
+	
 	/** This should be unchecked if using alpha channels individually as masks. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, meta=(DisplayName="sRGB"), AssetRegistrySearchable)
 	uint8 SRGB:1;

@@ -692,6 +692,192 @@ static void GenerateTopMip(const FImage& SrcImage, FImage& DestImage, const FTex
 	}
 }
 
+static FLinearColor LookupSourceMipBilinear(const FImageView2D& SourceImageData, float X, float Y)
+{
+	X = FMath::Clamp(X, 0.f, SourceImageData.SizeX - 1.f);
+	Y = FMath::Clamp(Y, 0.f, SourceImageData.SizeY - 1.f);
+	int32 IntX0 = FMath::FloorToInt(X);
+	int32 IntY0 = FMath::FloorToInt(Y);
+	float FractX = X - IntX0;
+	float FractY = Y - IntY0;
+	int32 IntX1 = FMath::Min(IntX0+1, SourceImageData.SizeX-1);
+	int32 IntY1 = FMath::Min(IntY0+1, SourceImageData.SizeY-1);
+	
+	FLinearColor Sample00 = SourceImageData.Access(IntX0,IntY0);
+	FLinearColor Sample10 = SourceImageData.Access(IntX1,IntY0);
+	FLinearColor Sample01 = SourceImageData.Access(IntX0,IntY1);
+	FLinearColor Sample11 = SourceImageData.Access(IntX1,IntY1);
+	FLinearColor Sample0 = FMath::Lerp(Sample00, Sample10, FractX);
+	FLinearColor Sample1 = FMath::Lerp(Sample01, Sample11, FractX);
+		
+	return FMath::Lerp(Sample0, Sample1, FractY);
+}
+
+struct FTextureDownscaleSettings
+{
+	int32 BlockSize;
+	float Downscale;
+	uint8 DownscaleOptions;
+	bool bDitherMipMapAlpha;
+};
+
+static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FTextureDownscaleSettings& Settings)
+{
+	if (Settings.Downscale <= 1.f)
+	{
+		return;
+	}
+	
+	float Downscale = FMath::Clamp(Settings.Downscale, 1.f, 8.f);
+	int32 FinalSizeX = FMath::CeilToInt(SrcImage.SizeX / Downscale);
+	int32 FinalSizeY = FMath::CeilToInt(SrcImage.SizeY / Downscale);
+
+	// compute final size respecting image block size
+	if (Settings.BlockSize > 1 
+		&& SrcImage.SizeX % Settings.BlockSize == 0 
+		&& SrcImage.SizeY % Settings.BlockSize == 0)
+	{
+		int32 NumBlocksX = SrcImage.SizeX / Settings.BlockSize;
+		int32 NumBlocksY = SrcImage.SizeY / Settings.BlockSize;
+		int32 GCD = FMath::GreatestCommonDivisor(NumBlocksX, NumBlocksY);
+		int32 RatioX = NumBlocksX/GCD;
+		int32 RatioY = NumBlocksY/GCD;
+		int32 FinalNumBlocksX = (int32)FMath::GridSnap((float)FinalSizeX/Settings.BlockSize, (float)RatioX);
+		int32 FinalNumBlocksY = FinalNumBlocksX/RatioX*RatioY;
+		FinalSizeX = FinalNumBlocksX*Settings.BlockSize;
+		FinalSizeY = FinalNumBlocksY*Settings.BlockSize;
+	}
+
+	Downscale = (float)SrcImage.SizeX / FinalSizeX;
+		
+	FImage Image0;
+	FImage Image1;
+	FImage* ImageChain[2] = {&const_cast<FImage&>(SrcImage), &Image1};
+	bool bUnfiltered = Settings.DownscaleOptions == (uint8)ETextureDownscaleOptions::Unfiltered;
+	
+	// Scaledown using 2x2 average, use user specified filtering only for last iteration
+	FImageKernel2D AvgKernel;
+	AvgKernel.BuildSeparatableGaussWithSharpen(2);
+	int32 NumIterations = 0;
+	while(Downscale > 2.0f)
+	{
+		int32 DstSizeX = ImageChain[0]->SizeX / 2;
+		int32 DstSizeY = ImageChain[0]->SizeY / 2;
+		ImageChain[1]->Init(DstSizeX, DstSizeY, ImageChain[0]->NumSlices, ImageChain[0]->Format, ImageChain[0]->GammaSpace);
+
+		FImageView2D SrcImageData(*ImageChain[0], 0);
+		FImageView2D DstImageData(*ImageChain[1], 0);
+		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(
+			SrcImageData, 
+			DstImageData, 
+			Settings.bDitherMipMapAlpha, 
+			FVector4(0, 0, 0, 0),
+			FVector4(0, 0, 0, 0), 
+			AvgKernel, 
+			2, 
+			false,
+			bUnfiltered);
+
+		if (NumIterations == 0)
+		{
+			ImageChain[0] = &Image0;
+		}
+		Swap(ImageChain[0], ImageChain[1]);
+		
+		NumIterations++;
+		Downscale/= 2.f;
+	}
+
+	if (ImageChain[0]->SizeX == FinalSizeX &&
+		ImageChain[0]->SizeY == FinalSizeY)
+	{
+		ImageChain[0]->CopyTo(DstImage, ImageChain[0]->Format, ImageChain[0]->GammaSpace);
+		return;
+	}
+	
+	int32 KernelSize = 2;
+	float Sharpening = 0.0f;
+	if (Settings.DownscaleOptions >= (uint8)ETextureDownscaleOptions::Sharpen0 && Settings.DownscaleOptions <= (uint8)ETextureDownscaleOptions::Sharpen10)
+	{
+		// 0 .. 2.0f
+		Sharpening = ((int32)Settings.DownscaleOptions - (int32)ETextureDownscaleOptions::Sharpen0) * 0.2f;
+		KernelSize = 8;
+	}
+	
+	bool bBilinear = Settings.DownscaleOptions == (uint8)ETextureDownscaleOptions::SimpleAverage;
+	
+	FImageKernel2D KernelSharpen;
+	KernelSharpen.BuildSeparatableGaussWithSharpen(KernelSize, Sharpening);
+	const int32 KernelCenter = (int32)KernelSharpen.GetFilterTableSize() / 2 - 1;
+		
+	ImageChain[1] = &DstImage;
+	if (ImageChain[0] == ImageChain[1])
+	{
+		ImageChain[0]->CopyTo(Image0, ImageChain[0]->Format, ImageChain[0]->GammaSpace);
+		ImageChain[0] = &Image0;
+	}
+	
+	// Set up a random number stream for dithering.
+	FRandomStream RandomStream(0);
+	ImageChain[1]->Init(FinalSizeX, FinalSizeY, ImageChain[0]->NumSlices, ImageChain[0]->Format, ImageChain[0]->GammaSpace);
+	Downscale = (float)ImageChain[0]->SizeX / FinalSizeX;
+
+	FImageView2D SrcImageData(*ImageChain[0], 0);
+	FImageView2D DstImageData(*ImageChain[1], 0);
+					
+	for (int32 Y = 0; Y < FinalSizeY; ++Y)
+	{
+		float SourceY = Y * Downscale;
+		int32 IntSourceY = FMath::RoundToInt(SourceY);
+		
+		for (int32 X = 0; X < FinalSizeX; ++X)
+		{
+			float SourceX = X * Downscale;
+			int32 IntSourceX = FMath::RoundToInt(SourceX);
+
+			FLinearColor FilteredColor(0,0,0,0);
+
+			if (bUnfiltered)
+			{
+				FilteredColor = LookupSourceMip<MGTAM_Clamp>(SrcImageData, IntSourceX, IntSourceY);
+			}
+			else if(bBilinear)
+			{
+				FilteredColor = LookupSourceMipBilinear(SrcImageData, SourceX, SourceY);
+			}
+			else
+			{
+				for (uint32 KernelY = 0; KernelY < KernelSharpen.GetFilterTableSize();  ++KernelY)
+				{
+					for (uint32 KernelX = 0; KernelX < KernelSharpen.GetFilterTableSize();  ++KernelX)
+					{
+						float Weight = KernelSharpen.GetAt(KernelX, KernelY);
+						FLinearColor Sample = LookupSourceMipBilinear(SrcImageData, SourceX + KernelX - KernelCenter, SourceY + KernelY - KernelCenter);
+						FilteredColor += Weight	* Sample;
+					}
+				}
+			}
+
+			if (Settings.bDitherMipMapAlpha)
+			{
+				// Dither the alpha of any pixel which passes an alpha threshold test.
+				const int32 DitherAlphaThreshold = 5.0f / 255.0f;
+				const float MinRandomAlpha = 85.0f;
+				const float MaxRandomAlpha = 255.0f;
+
+				if (FilteredColor.A > DitherAlphaThreshold)
+				{
+					FilteredColor.A = FMath::TruncToInt(FMath::Lerp(MinRandomAlpha, MaxRandomAlpha, RandomStream.GetFraction()));
+				}
+			}
+
+			// Set the destination pixel.
+			FLinearColor& DestColor = DstImageData.Access(X, Y);
+			DestColor = FilteredColor;
+		}
+	}
+}
+
 void ITextureCompressorModule::GenerateMipChain(
 	const FTextureBuildSettings& Settings,
 	const FImage& BaseImage,
@@ -2291,6 +2477,17 @@ private:
 						NormalizeMip(*Mip);
 					}
 				}				
+			}
+
+			if (BuildSettings.Downscale > 1.f)
+			{
+				FTextureDownscaleSettings DownscaleSettings;
+				DownscaleSettings.Downscale = BuildSettings.Downscale;
+				DownscaleSettings.DownscaleOptions = BuildSettings.DownscaleOptions;
+				DownscaleSettings.bDitherMipMapAlpha = BuildSettings.bDitherMipMapAlpha;
+				DownscaleSettings.BlockSize = 4;
+		
+				DownscaleImage(*Mip, *Mip, DownscaleSettings);
 			}
 
 			// Apply color adjustments
