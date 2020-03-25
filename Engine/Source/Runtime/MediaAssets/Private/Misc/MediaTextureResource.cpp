@@ -1041,7 +1041,7 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 		OutputCreateFlags |= (TexCreate_GenerateMipCapable | TexCreate_UAV);
 
 		// Make sure we only set a number of mips that actually makes sense, given the sample size
-		uint8 MaxMips = FGenericPlatformMath::FloorToInt(FGenericPlatformMath::Log2(FGenericPlatformMath::Max(InDim.X, InDim.Y)));
+		uint8 MaxMips = FGenericPlatformMath::FloorToInt(FGenericPlatformMath::Log2(FGenericPlatformMath::Min(InDim.X, InDim.Y)));
 		InNumMips = FMath::Min(InNumMips, MaxMips);
 	}
 
