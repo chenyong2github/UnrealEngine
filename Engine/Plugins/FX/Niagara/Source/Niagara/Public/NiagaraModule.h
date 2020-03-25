@@ -72,8 +72,6 @@ public:
 
 #endif
 
-	FORCEINLINE static int32 GetEffectsQuality() { return EngineEffectsQuality; }
-
 	FORCEINLINE static float GetGlobalSpawnCountScale() { return EngineGlobalSpawnCountScale; }
 	FORCEINLINE static float GetGlobalSystemCountScale() { return EngineGlobalSystemCountScale; }
 
@@ -164,8 +162,6 @@ public:
 	
 	FORCEINLINE static const FNiagaraVariable&  GetVar_DataInstance_Alive() { return DataInstance_Alive; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_BeginDefaults() { return Translator_BeginDefaults; }
-
-	static void OnEffectsQualityChanged(int32 NewEffectsQuality, bool bForce);
 
 	FOnProcessQueue OnProcessQueue;
 
