@@ -803,7 +803,6 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	bool bOldCulled = OutState.bCulled;
 	OutState.bCulled = false;
 	SignificanceCull(EffectType, ScalabilitySettings, Significance, OutState);
-	OwnerLODCull(EffectType, ScalabilitySettings, Component, OutState);
 	
 	//Can't cull dynamic bounds by visibility
 
@@ -868,15 +867,6 @@ void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const 
 	OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
 	OutState.bCulledByVisibility = bCull;
-#endif
-}
-
-void FNiagaraWorldManager::OwnerLODCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
-{
-	bool bCull = ScalabilitySettings.bCullByMaxOwnerLOD && Component->GetOwnerLOD() > ScalabilitySettings.MaxOwnerLOD;
-	OutState.bCulled |= bCull;
-#if DEBUG_SCALABILITY_STATE
-	OutState.bCulledByMaxOwnerLOD = bCull;
 #endif
 }
 

@@ -1474,12 +1474,6 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 				CurrentScalabilitySettings.MaxInstances = Override.MaxInstances;
 			}
 
-			if (Override.bOverrideOwnerLODSettings)
-			{
-				CurrentScalabilitySettings.bCullByMaxOwnerLOD = Override.bCullByMaxOwnerLOD;
-				CurrentScalabilitySettings.MaxOwnerLOD = Override.MaxOwnerLOD;
-			}
-
 			if (Override.bOverrideTimeSinceRendererSettings)
 			{
 				CurrentScalabilitySettings.bCullByMaxTimeWithoutRender = Override.bCullByMaxTimeWithoutRender;
