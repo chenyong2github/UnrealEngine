@@ -70,6 +70,7 @@ namespace WindowsMixedReality
 			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Holographic.AppRemoting.dll"));
 			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.MixedReality.QR.dll"));
 			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.MixedReality.SceneUnderstanding.dll"));
+			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Azure.SpatialAnchors.dll"));
 			FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
 
 			FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries" / BinariesSubDir / "HolographicStreamerDesktop.dll"));
