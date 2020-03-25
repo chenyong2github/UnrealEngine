@@ -1825,7 +1825,8 @@ namespace Chaos
 
 			if (SampleParticles)
 			{
-				SampleObject<UpdateType>(*Particle1->Geometry(), LevelsetTM, *SampleParticles, ParticlesTM, CullDistance, Constraint);
+				const FImplicitObject* Obj1 = Constraint.Manifold.Implicit[1];
+				SampleObject<UpdateType>(*Obj1, LevelsetTM, *SampleParticles, ParticlesTM, CullDistance, Constraint);
 			}
 		}
 
