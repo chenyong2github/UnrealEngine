@@ -801,11 +801,6 @@ void UNiagaraStackEntry::OnRenamed(FText NewName)
 	{
 		if (!NewName.EqualTo(AlternateDisplayName.Get(FText::GetEmpty())))
 		{
-			FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraStackEntry", "RenameModule", "Rename Module"));
-
-			GetStackEditorData().Modify();
-			GetStackEditorData().SetStackEntryDisplayName(GetStackEditorDataKey(), NewName);
-
 			if (NewName.IsEmptyOrWhitespace() || NewName.EqualTo(GetDisplayName()))
 			{
 				AlternateDisplayName.Reset();
@@ -814,6 +809,12 @@ void UNiagaraStackEntry::OnRenamed(FText NewName)
 			{
 				AlternateDisplayName = NewName;
 			}
+
+			FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraStackEntry", "RenameModule", "Rename Module"));
+			
+			GetStackEditorData().Modify();
+			GetStackEditorData().SetStackEntryDisplayName(GetStackEditorDataKey(), AlternateDisplayName.Get(FText::GetEmpty()));
+
 			AlternateDisplayNameChangedDelegate.Broadcast();
 		}
 	}
