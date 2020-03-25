@@ -1118,7 +1118,7 @@ TSharedRef<SWidget> SLevelViewportToolBar::GenerateShowMenu() const
 	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
 	{
 		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(MenuName);
-		Menu->AddDynamicSection("DynamicSection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		Menu->AddDynamicSection("LevelDynamicSection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{
 			ULevelViewportToolBarContext* Context = InMenu->FindContext<ULevelViewportToolBarContext>();
 			Context->LevelViewportToolBarWidgetConst.Pin()->FillShowMenu(InMenu);
@@ -1149,10 +1149,7 @@ void SLevelViewportToolBar::FillShowMenu(UToolMenu* Menu) const
 			Section.AddMenuEntry(Actions.UseDefaultShowFlags);
 		}
 
-		Menu->AddDynamicSection("ShowFlagsMenu", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& InMenuBuilder, UToolMenu* InMenu)
-		{
-			FShowFlagMenuCommands::Get().BuildShowFlagsMenu(InMenuBuilder);
-		}));
+		FShowFlagMenuCommands::Get().BuildShowFlagsMenu(Menu);
 
 		FText ShowAllLabel = LOCTEXT("ShowAllLabel", "Show All");
 		FText HideAllLabel = LOCTEXT("HideAllLabel", "Hide All");
