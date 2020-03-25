@@ -1437,6 +1437,8 @@ public:
 		check(false);
 	}
 
+	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MNonFrequentData.Read().Geometry; }
+
 	void* UserData() const { return MNonFrequentData.Read().UserData; }
 	void SetUserData(void* InUserData)
 	{
