@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SoundWaveLoadingBehavior.h"
-#include "CoreMinimal.h"
 
 
 const TCHAR* EnumToString(ESoundWaveLoadingBehavior InCurrentState)
