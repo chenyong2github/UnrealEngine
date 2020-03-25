@@ -516,17 +516,20 @@ void FDisplayClusterClusterManager::SyncObjects(EDisplayClusterSyncGroup SyncGro
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
-	TMap<FString, FString> SyncData;
-
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (objects)..."));
-	Controller->GetSyncData(SyncData, SyncGroup);
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (objects)."), SyncData.Num());
-
-	// We don't have to import data here unless sync data provider is located on master node
-	if (IsSlave())
+	if (Controller)
 	{
-		// Perform data load (objects state update)
-		ImportSyncData(SyncData, SyncGroup);
+		TMap<FString, FString> SyncData;
+
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (objects)..."));
+		Controller->GetSyncData(SyncData, SyncGroup);
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (objects)."), SyncData.Num());
+
+		// We don't have to import data here unless sync data provider is located on master node
+		if (IsSlave())
+		{
+			// Perform data load (objects state update)
+			ImportSyncData(SyncData, SyncGroup);
+		}
 	}
 }
 
@@ -534,18 +537,21 @@ void FDisplayClusterClusterManager::SyncInput()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
-	TMap<FString, FString> InputData;
-
-	// Get input data from a provider
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (input)..."));
-	Controller->GetInputData(InputData);
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (input)."), InputData.Num());
-
-	// We don't have to import data here unless input data provider is located on master node
-	if (IsSlave())
+	if (Controller)
 	{
-		// Perform data load (objects state update)
-		GDisplayCluster->GetPrivateInputMgr()->ImportInputData(InputData);
+		TMap<FString, FString> InputData;
+
+		// Get input data from a provider
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (input)..."));
+		Controller->GetInputData(InputData);
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (input)."), InputData.Num());
+
+		// We don't have to import data here unless input data provider is located on master node
+		if (IsSlave())
+		{
+			// Perform data load (objects state update)
+			GDisplayCluster->GetPrivateInputMgr()->ImportInputData(InputData);
+		}
 	}
 }
 
@@ -553,15 +559,18 @@ void FDisplayClusterClusterManager::SyncEvents()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
-	TMap<FString, FString> EventsData;
+	if (Controller)
+	{
+		TMap<FString, FString> EventsData;
 
-	// Get events data from a provider
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (events)..."));
-	Controller->GetEventsData(EventsData);
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (events)."), EventsData.Num());
+		// Get events data from a provider
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (events)..."));
+		Controller->GetEventsData(EventsData);
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (events)."), EventsData.Num());
 
-	// Import and process them
-	ImportEventsData(EventsData);
+		// Import and process them
+		ImportEventsData(EventsData);
+	}
 }
 
 void FDisplayClusterClusterManager::ProvideNativeInputData(const TMap<FString, FString>& NativeInputData)
@@ -589,7 +598,10 @@ void FDisplayClusterClusterManager::SyncNativeInput(TMap<FString, FString>& Nati
 	else
 	{
 		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading native input data..."));
-		Controller->GetNativeInputData(NativeInputData);
+		if (Controller)
+		{
+			Controller->GetNativeInputData(NativeInputData);
+		}
 	}
 }
 
