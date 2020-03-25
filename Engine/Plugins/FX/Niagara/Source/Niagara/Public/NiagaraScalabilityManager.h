@@ -90,7 +90,6 @@ struct FNiagaraScalabilityState
 		, bCulledBySignificance(0)
 		, bCulledByInstanceCount(0)
 		, bCulledByVisibility(0)
-		, bCulledByMaxOwnerLOD(0)
 #endif
 	{
 	}
@@ -103,7 +102,6 @@ struct FNiagaraScalabilityState
 	uint8 bCulledBySignificance : 1;
 	uint8 bCulledByInstanceCount : 1;
 	uint8 bCulledByVisibility : 1;
-	uint8 bCulledByMaxOwnerLOD : 1;
 #endif
 };
 
