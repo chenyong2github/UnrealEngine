@@ -269,10 +269,10 @@ FText FNiagaraEmitterViewModel::GetStatsText() const
 					return LOCTEXT("InvalidInstance", "Invalid Emitter! May have compile errors.");
 				}
 
- 				int32 EffectsQuality = INiagaraModule::GetEffectsQuality();
+ 				int32 QualityLevel = FNiagaraPlatformSet::GetQualityLevel();
   				if (!HandleEmitter->IsAllowedByScalability())
   				{
-					return FText::Format(ParticleDisabledDueToScalability, FNiagaraPlatformSet::GetEffectsQualityText(EffectsQuality));
+					return FText::Format(ParticleDisabledDueToScalability, FNiagaraPlatformSet::GetQualityLevelText(QualityLevel));
   				}
 
 				if (NiagaraCommands::EmitterStatsFormat->GetInt() == 1)

@@ -441,7 +441,7 @@ public:
 
 	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return CurrentScalabilitySettings; }
 
-	/** Returns true if this emitter's platform filter allows it on this platform and EffectsQuality level. */
+	/** Returns true if this emitter's platform filter allows it on this platform and quality level. */
 	NIAGARA_API bool IsAllowedByScalability()const;
 
 	NIAGARA_API bool RequiresPersistentIDs() const;
@@ -503,7 +503,7 @@ public:
 	NIAGARA_API	void Reparent(UNiagaraEmitter& InParent);
 #endif
 
-	void OnEffectsQualityChanged();
+	void OnQualityLevelChanged();
 
 protected:
 	virtual void BeginDestroy() override;
