@@ -1364,6 +1364,10 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		{
 			SamplingInfo.BuildWholeMesh(this);
 		}
+		else if (PropertyChangedEvent.MemberProperty->GetFName() == FName(TEXT("bSupportUniformlyDistributedSampling")))
+		{
+			SamplingInfo.BuildWholeMesh(this);
+		}
 	}
 	else
 	{
