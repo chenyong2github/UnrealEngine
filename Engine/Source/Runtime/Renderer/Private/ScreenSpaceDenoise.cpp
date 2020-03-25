@@ -2453,6 +2453,52 @@ public:
 		ReflectionsOutput.Color = SignalOutput.Textures[0];
 		return ReflectionsOutput;
 	}
+
+	FReflectionsOutputs DenoiseWaterReflections(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FReflectionsInputs& ReflectionInputs,
+		const FReflectionsRayTracingConfig RayTracingConfig) const override
+	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, ReflectionsDenoiser);
+
+		// Imaginary depth is only used for Nvidia denoiser.
+		// TODO: permutation to not generate it?
+		if (ReflectionInputs.RayImaginaryDepth)
+			GraphBuilder.RemoveUnusedTextureWarning(ReflectionInputs.RayImaginaryDepth);
+
+		FSSDSignalTextures InputSignal;
+		InputSignal.Textures[0] = ReflectionInputs.Color;
+		InputSignal.Textures[1] = ReflectionInputs.RayHitDistance;
+
+		FSSDConstantPixelDensitySettings Settings;
+		Settings.FullResViewport = View.ViewRect;
+		Settings.SignalProcessing = ESignalProcessing::Reflections; // TODO: water reflection to denoise only water pixels
+		Settings.InputResolutionFraction = RayTracingConfig.ResolutionFraction;
+		Settings.ReconstructionSamples = CVarReflectionReconstructionSampleCount.GetValueOnRenderThread();
+		Settings.bUseTemporalAccumulation = CVarReflectionTemporalAccumulation.GetValueOnRenderThread() != 0;
+		Settings.HistoryConvolutionSampleCount = CVarReflectionHistoryConvolutionSampleCount.GetValueOnRenderThread();
+		Settings.MaxInputSPP = RayTracingConfig.RayCountPerPixel;
+
+		TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
+		TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
+		PrevHistories[0] = &PreviousViewInfos->WaterReflectionsHistory;
+		NewHistories[0] = View.ViewState ? &View.ViewState->PrevFrameViewInfo.WaterReflectionsHistory : nullptr;
+
+		FSSDSignalTextures SignalOutput;
+		DenoiseSignalAtConstantPixelDensity(
+			GraphBuilder, View, SceneTextures,
+			InputSignal, Settings,
+			PrevHistories,
+			NewHistories,
+			&SignalOutput);
+
+		FReflectionsOutputs ReflectionsOutput;
+		ReflectionsOutput.Color = SignalOutput.Textures[0];
+		return ReflectionsOutput;
+	}
 	
 	FAmbientOcclusionOutputs DenoiseAmbientOcclusion(
 		FRDGBuilder& GraphBuilder,
