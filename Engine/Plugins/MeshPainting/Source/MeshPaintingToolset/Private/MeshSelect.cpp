@@ -69,47 +69,23 @@ void UMeshClickTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
 
 FInputRayHit UMeshClickTool::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
-	return FInputRayHit(0.0f);
+	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
+	{
+		FHitResult TraceHitResult = FindInitialHitResult(ClickPos, MeshToolManager);
+		if (TraceHitResult.bBlockingHit)
+		{
+			return FInputRayHit(TraceHitResult.Distance);
+		}
+	}
+	return FInputRayHit();
 }
 
 void UMeshClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
 	{
-		const FVector& RayOrigin = ClickPos.WorldRay.Origin;
-		const FVector& RayDirection = ClickPos.WorldRay.Direction;
-		FRay Ray = FRay(RayOrigin, RayDirection);
-		const FVector TraceStart(RayOrigin);
-		const FVector TraceEnd(RayOrigin + RayDirection * HALF_WORLD_MAX);
-		MeshToolManager->ResetState();
-		//Default iterator only iterates over active levels.
-		const EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
-		// TODO: The tool needs to know the world its acting on
-		for (TActorIterator<AActor> It(GEditor->GetEditorWorldContext(false).World(), AActor::StaticClass(), Flags); It; ++It)
-		{
-			AActor* Actor = *It;
-			if (Actor->IsEditable() &&
-				Actor->IsListedInSceneOutliner() &&					// Only add actors that are allowed to be selected and drawn in editor
-				!Actor->IsTemplate() &&								// Should never happen, but we never want CDOs
-				!Actor->HasAnyFlags(RF_Transient))				// Don't add transient actors in non-play worlds
-			{
-				TArray<UActorComponent*> CandidateComponents = Actor->K2_GetComponentsByClass(UMeshComponent::StaticClass());
-				for (UActorComponent* CandidateComponent : CandidateComponents)
-				{
-					UMeshComponent* MeshComponent = Cast<UMeshComponent>(CandidateComponent);
-					TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
-					if (MeshAdapter.IsValid() && IsMeshAdapterSupported(MeshAdapter))
-					{
-						MeshToolManager->AddPaintableMeshComponent(MeshComponent);
-						MeshToolManager->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
-					}
-				}
-					
-			}
-		}
-		FHitResult TraceHitResult(1.0f);
-		MeshToolManager->FindHitResult(Ray, TraceHitResult);
-		MeshToolManager->ResetState();
+		FHitResult TraceHitResult = FindInitialHitResult(ClickPos, MeshToolManager);
+
 		TArray<AActor*> SelectedActors;
 		if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(TraceHitResult.GetComponent()))
 		{
@@ -136,6 +112,45 @@ void UMeshClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 }
 
 
+
+FHitResult UMeshClickTool::FindInitialHitResult(const FInputDeviceRay& ClickPos, class UMeshToolManager* MeshToolManager)
+{
+	const FVector& RayOrigin = ClickPos.WorldRay.Origin;
+	const FVector& RayDirection = ClickPos.WorldRay.Direction;
+	FRay Ray = FRay(RayOrigin, RayDirection);
+	const FVector TraceStart(RayOrigin);
+	const FVector TraceEnd(RayOrigin + RayDirection * HALF_WORLD_MAX);
+	MeshToolManager->ResetState();
+	//Default iterator only iterates over active levels.
+	const EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
+	// TODO: The tool needs to know the world its acting on
+	for (TActorIterator<AActor> It(GEditor->GetEditorWorldContext(false).World(), AActor::StaticClass(), Flags); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (Actor->IsEditable() &&
+			Actor->IsListedInSceneOutliner() &&					// Only add actors that are allowed to be selected and drawn in editor
+			!Actor->IsTemplate() &&								// Should never happen, but we never want CDOs
+			!Actor->HasAnyFlags(RF_Transient))				// Don't add transient actors in non-play worlds
+		{
+			TArray<UActorComponent*> CandidateComponents = Actor->K2_GetComponentsByClass(UMeshComponent::StaticClass());
+			for (UActorComponent* CandidateComponent : CandidateComponents)
+			{
+				UMeshComponent* MeshComponent = Cast<UMeshComponent>(CandidateComponent);
+				TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
+				if (MeshAdapter.IsValid() && IsMeshAdapterSupported(MeshAdapter))
+				{
+					MeshToolManager->AddPaintableMeshComponent(MeshComponent);
+					MeshToolManager->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
+				}
+			}
+
+		}
+	}
+	FHitResult TraceHitResult(1.0f);
+	MeshToolManager->FindHitResult(Ray, TraceHitResult);
+	MeshToolManager->ResetState();
+	return TraceHitResult;
+}
 
 UVertexAdapterClickTool::UVertexAdapterClickTool()
 	: UMeshClickTool()
