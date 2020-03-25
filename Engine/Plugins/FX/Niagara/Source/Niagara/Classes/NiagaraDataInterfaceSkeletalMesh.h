@@ -302,7 +302,8 @@ public:
 	uint32 GetNumWeights() const { return NumWeights; }
 
 	int32 GetNumFilteredBones() const { return NumFilteredBones; }
-	FRHIShaderResourceView* GetFilteredBonesSRV() const { return FilteredBonesSRV; }
+	int32 GetNumUnfilteredBones() const { return NumUnfilteredBones;  }
+	FRHIShaderResourceView* GetFilteredAndUnfilteredBonesSRV() const { return FilteredAndUnfilteredBonesSRV; }
 
 	int32 GetNumFilteredSockets() const { return NumFilteredSockets; }
 	int32 GetFilteredSocketBoneOffset() const { return FilteredSocketBoneOffset; }
@@ -317,9 +318,10 @@ protected:
 	FShaderResourceViewRHIRef BufferTriangleMatricesOffsetSRV = nullptr;
 
 	int32 NumFilteredBones = 0;
-	TResourceArray<uint16> FilteredBonesArray;
-	FVertexBufferRHIRef FilteredBonesBuffer;
-	FShaderResourceViewRHIRef FilteredBonesSRV;
+	int32 NumUnfilteredBones = 0;
+	TResourceArray<uint16> FilteredAndUnfilteredBonesArray;
+	FVertexBufferRHIRef FilteredAndUnfilteredBonesBuffer;
+	FShaderResourceViewRHIRef FilteredAndUnfilteredBonesSRV;
 
 	int32 NumFilteredSockets = 0;
 	int32 FilteredSocketBoneOffset = 0;
@@ -429,8 +431,12 @@ struct FNDISkeletalMesh_InstanceData
 	/** Time separating Transform and PrevTransform. */
 	float DeltaSeconds;
 
-	/** Indices of the bones filtered by the user. */
-	TArray<int32> FilteredBones;
+	/* Number of filtered bones in the array. */
+	int32 NumFilteredBones = 0;
+	/* Number of unfiltered bones in the array. */
+	int32 NumUnfilteredBones = 0;
+	/** Indices of the bones filtered by the user followed by the unfiltered bones, if this array is empty no filtering is in effect. */
+	TArray<uint16> FilteredAndUnfilteredBones;
 
 	/** Name of all the sockets we use. */
 	struct FCachedSocketInfo
@@ -623,7 +629,8 @@ public:
 	static const FString MeshNumWeightsName;
 	static const FString NumBonesName;
 	static const FString NumFilteredBonesName;
-	static const FString FilteredBonesName;
+	static const FString NumUnfilteredBonesName;
+	static const FString FilteredAndUnfilteredBonesName;
 	static const FString NumFilteredSocketsName;
 	static const FString FilteredSocketBoneOffsetName;
 	static const FString InstanceTransformName;
@@ -740,11 +747,14 @@ public:
 	void GetFilteredBoneAt(FVectorVMContext& Context);
 	void RandomFilteredBone(FVectorVMContext& Context);
 
+	void GetUnfilteredBoneCount(FVectorVMContext& Context);
+	void GetUnfilteredBoneAt(FVectorVMContext& Context);
+	void RandomUnfilteredBone(FVectorVMContext& Context);
 
 	void GetFilteredSocketCount(FVectorVMContext& Context);
 	void GetFilteredSocketBoneAt(FVectorVMContext& Context);
 	void GetFilteredSocketTransform(FVectorVMContext& Context);
-	void RandomFilteredSocketBone(FVectorVMContext& Context);
+	void RandomFilteredSocket(FVectorVMContext& Context);
 
 	void RandomFilteredSocketOrBone(FVectorVMContext& Context);
 	// End of Direct Bone + Socket Sampling
@@ -778,13 +788,20 @@ public:
 	static const FName IsValidBoneName;
 	static const FName RandomBoneName;
 	static const FName GetBoneCountName;
+
 	static const FName RandomFilteredBoneName;
 	static const FName GetFilteredBoneCountName;
 	static const FName GetFilteredBoneAtName;
-	static const FName RandomFilteredSocketBoneName;
+
+	static const FName RandomUnfilteredBoneName;
+	static const FName GetUnfilteredBoneCountName;
+	static const FName GetUnfilteredBoneAtName;
+
+	static const FName RandomFilteredSocketName;
 	static const FName GetFilteredSocketCountName;
 	static const FName GetFilteredSocketBoneAtName;
 	static const FName GetFilteredSocketTransformName;
+
 	static const FName RandomFilteredSocketOrBoneName;
 
 	// Vertex Sampling
