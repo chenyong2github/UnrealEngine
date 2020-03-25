@@ -532,4 +532,63 @@ namespace ChaosTest {
 
 		Module->DestroySolver(Solver);
 	}
+
+	GTEST_TEST(RewindTest,NumDirty)
+	{
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+
+		Solver->EnableRewindCapture(5);
+
+
+		// Make particles
+		auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
+
+		Particle->SetGeometry(Sphere);
+		Solver->RegisterObject(Particle.Get());
+		Particle->SetGravityEnabled(true);
+		
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			TickSolverHelper(Module,Solver);
+
+			const FRewindData* RewindData = Solver->GetRewindData();
+			EXPECT_EQ(RewindData->GetNumDirtyParticles(),1);
+		}
+
+		//stop movement
+		Particle->SetGravityEnabled(false);
+		Particle->SetV(FVec3(0));
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			TickSolverHelper(Module,Solver);
+		}
+
+		{
+			//enough frames with no changes so no longer dirty
+			const FRewindData* RewindData = Solver->GetRewindData();
+			EXPECT_EQ(RewindData->GetNumDirtyParticles(),0);
+		}
+
+		{
+			//single change so back to being dirty
+			Particle->SetGravityEnabled(true);
+			TickSolverHelper(Module,Solver);
+
+			const FRewindData* RewindData = Solver->GetRewindData();
+			EXPECT_EQ(RewindData->GetNumDirtyParticles(),1);
+		}
+
+		// Throw out the proxy
+		Solver->UnregisterObject(Particle.Get());
+
+		Module->DestroySolver(Solver);
+	}
 }
