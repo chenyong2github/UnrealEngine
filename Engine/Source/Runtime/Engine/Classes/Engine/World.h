@@ -2131,6 +2131,9 @@ public:
 	/** Returns an iterator for the controller list. */
 	FConstControllerIterator GetControllerIterator() const;
 
+	/** @return Returns the number of Controllers. */
+	int32 GetNumControllers() const;
+	
 	/** @return Returns an iterator for the pawn list. */
 	UE_DEPRECATED(4.24, "The PawnIterator is an inefficient mechanism for iterating pawns. Please use TActorIterator<PawnType> instead.")
 	FConstPawnIterator GetPawnIterator() const;
