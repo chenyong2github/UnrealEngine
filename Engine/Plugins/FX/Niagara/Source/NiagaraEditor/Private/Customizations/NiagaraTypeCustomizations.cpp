@@ -918,4 +918,5 @@ void FNiagaraScriptVariableBindingCustomization::CustomizeHeader(TSharedRef<IPro
 	}
 }
 
+
 #undef LOCTEXT_NAMESPACE
