@@ -36,6 +36,8 @@
 #include "Tests/TestVoice.h"
 #include "Tests/TestExternalUIInterface.h"
 #include "Tests/TestPresenceInterface.h"
+#include "Tests/TestStoreInterface.h"
+#include "Tests/TestPurchaseInterface.h"
 
 
 static FAutoConsoleCommand GSendRemoteTalkersToEndpointCommand(
@@ -727,6 +729,29 @@ static bool OnlineExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 							TestHarness->Test();
 						}
 
+						bWasHandled = true;
+					}
+					else if (FParse::Command(&Cmd, TEXT("STORE")))
+					{
+						TArray<FString> OfferIds;
+						for (FString OfferId = FParse::Token(Cmd, false); !OfferId.IsEmpty(); OfferId = FParse::Token(Cmd, false))
+						{
+							OfferIds.Add(OfferId);
+						}
+						// This class deletes itself once done
+						(new FTestStoreInterface(SubName))->Test(InWorld, OfferIds);
+						bWasHandled = true;
+					}
+					else if (FParse::Command(&Cmd, TEXT("PURCHASE")))
+					{
+						FString Namespace = FParse::Token(Cmd, false);
+						TArray<FString> OfferIds;
+						for (FString OfferId = FParse::Token(Cmd, false); !OfferId.IsEmpty(); OfferId = FParse::Token(Cmd, false))
+						{
+							OfferIds.Add(OfferId);
+						}
+						// This class deletes itself once done
+						(new FTestPurchaseInterface(SubName))->Test(InWorld, Namespace, OfferIds);
 						bWasHandled = true;
 					}
 #endif //WITH_DEV_AUTOMATION_TESTS
