@@ -16,6 +16,8 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 #include "Async/AsyncFileHandle.h"
 #include "HAL/ThreadSafeBool.h"
 #include "AudioStreaming.h"
+#include "Sound/SoundWave.h"
+#include "Sound/SoundWaveLoadingBehavior.h"
 
 
 #define DEBUG_STREAM_CACHE !UE_BUILD_SHIPPING
@@ -120,6 +122,9 @@ private:
 		// This is a cumulative moving average of a chunks location before it was 
 		float AverageLocationInCacheWhenNeeded;
 
+		// Note the loading behavior of the sound wave that inserted this element into the cache
+		ESoundWaveLoadingBehavior LoadingBehavior;
+
 		// if true, 
 		bool bWasCacheMiss;
 
@@ -129,6 +134,7 @@ private:
 			, TimeLoadStarted(0.0)
 			, TimeToLoad(0.0)
 			, AverageLocationInCacheWhenNeeded(0.0f)
+			, LoadingBehavior(ESoundWaveLoadingBehavior::Uninitialized)
 			, bWasCacheMiss(false)
 		{
 		}
@@ -139,6 +145,7 @@ private:
 			NumTimesTouched = 0;
 			TimeLoadStarted = 0;
 			TimeToLoad = 0.0f;
+			LoadingBehavior = ESoundWaveLoadingBehavior::Uninitialized;
 			bWasCacheMiss = false;
 			AverageLocationInCacheWhenNeeded = 0.0f;
 		}
