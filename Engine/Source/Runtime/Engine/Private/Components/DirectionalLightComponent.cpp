@@ -787,7 +787,8 @@ private:
 		{
 			SplitFar += FadeExtension;
 		}
-		else 
+		// Only do this if there is no static shadowing taking over after the fade (i.e., the intention is to fade to nothing, when only dynamic shadowing is used)
+		else if (!(bPrecomputedLightingIsValid && bStaticShadowing))
 		{
 			if (bIsRayTracedCascade)
 			{
