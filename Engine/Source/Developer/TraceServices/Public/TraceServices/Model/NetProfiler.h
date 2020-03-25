@@ -66,8 +66,8 @@ struct FNetProfilerObjectInstance
 
 struct FNetProfilerContentEvent
 {
-	uint64 StartPos : 24;		// Start position in the packet
-	uint64 EndPos : 24;			// End position in the packet
+	uint64 StartPos : 24;		// Inclusive start position in the packet
+	uint64 EndPos : 24;			// Exclusive end position in the packet; BitSize = EndPos - StartPos
 	uint64 Level : 4;			// Level
 	uint64 Padding : 12;		// Padding
 
@@ -158,17 +158,24 @@ public:
 	// Find Packet Index from SequenceNumber
 	virtual int32 FindPacketIndexFromPacketSequence(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 SequenceNumber) const = 0;
 
-	// Enumerate packets in the provided packet interval
+	// Gets the number of packets for the specified connection and connection mode.
 	virtual uint32 GetPacketCount(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode) const = 0;
+
+	// Enumerates packets in the provided inclusive packet interval, [PacketIndexIntervalStart, PacketIndexIntervalEnd].
 	virtual void EnumeratePackets(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd, TFunctionRef<void(const FNetProfilerPacket&)> Callback) const = 0;
+	// Returns a change number incremented each time a change occurs in the packets for the specified connection and connection mode.
 	virtual uint32 GetPacketChangeCount(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode) const = 0;
 
-	// Enumerate packet content events by range
+	// Enumerates packet content events in the inclusive event index interval [StartEventIndex, EndEventIndex]. */
 	virtual void EnumeratePacketContentEventsByIndex(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 StartEventIndex, uint32 EndEventIndex, TFunctionRef<void(const FNetProfilerContentEvent&)> Callback) const = 0;
+	// Enumerates packet content events for a packet, in the exclusive bit range [StartPosition, EndPosition). */
 	virtual void EnumeratePacketContentEventsByPosition(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndex, uint32 StartPosition, uint32 EndPosition, TFunctionRef<void(const FNetProfilerContentEvent&)> Callback) const = 0;
+	// Returns a change number incremented each time a change occurs in the packet content events for the specified connection and connection mode. */
 	virtual uint32 GetPacketContentEventChangeCount(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode) const = 0;
 
-	// Stats queries
+	// Computes aggregated stats for a packet interval or for a range of content events in a single packet.
+	// [PacketIndexIntervalStart, PacketIndexIntervalEnd] is the inclusive packet interval.
+	// [StartPosition, EndPosition) is the exclusive bit range interval; only used when PacketIndexIntervalStart == PacketIndexIntervalEnd.
 	virtual ITable<FNetProfilerAggregatedStats>* CreateAggregation(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd, uint32 StartPosition, uint32 EndPosition) const = 0;
 };
 
