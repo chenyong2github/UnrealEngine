@@ -449,8 +449,8 @@ namespace Chaos
 			const FReal PartialDT = Constraint.TimeOfImpact * IterationParameters.Dt;
 			const FReal RemainingDT = (1 - Constraint.TimeOfImpact) * IterationParameters.Dt;
 			const int32 FakeIteration = FMath::Max(IterationParameters.Iteration, 1); // Force Apply to update constraint, as other constraints could've changed P
-			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration, IterationParameters.AlwaysUpdateManifold };
-			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration, IterationParameters.AlwaysUpdateManifold };
+			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
+			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);

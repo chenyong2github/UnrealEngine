@@ -230,10 +230,6 @@ namespace Chaos
 			}
 		}
 
-		// Swept constraint may drastically change particle position during Apply, other constraint's
-		// manifolds with particle may be invalidated, so we should update manifolds with this particle even on first apply iteration.
-		AddParticleAlwaysUpdateManifold(InConstraint.Particle[0]);
-
 		UpdateConstraintMaterialProperties(Constraints.SinglePointSweptConstraints[Idx]);
 	}
 
@@ -292,7 +288,6 @@ namespace Chaos
 			HandleAllocator.FreeHandle(Handle);
 		}
 		Constraints.Reset();
-		ParticlesAlwaysUpdatingManifold.Reset();
 		Handles.Reset();
 #endif
 
@@ -478,28 +473,15 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::AddParticleAlwaysUpdateManifold(const TGeometryParticleHandle<T, d>* Particle)
-	{
-		ParticlesAlwaysUpdatingManifold.Add(Particle);
-	}
-
-	template<typename T, int d>
-	bool TPBDCollisionConstraints<T, d>::ShouldParticleAlwaysUpdateManifold(const TGeometryParticleHandle<T, d>* Particle) const
-	{
-		return ParticlesAlwaysUpdatingManifold.Contains(Particle);
-	}
-
-	template<typename T, int d>
 	bool TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
 
 		bool bNeedsAnotherIteration = false;
-		bool bAlwaysUpdateManifold = false;
 		if (MApplyPairIterations > 0)
 		{
 			const Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-			const Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration, &bAlwaysUpdateManifold };
+			const Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration };
 
 			NumActivePointConstraints = 0;
 			for (FPointContactConstraint& Contact : Constraints.SinglePointConstraints)
@@ -602,10 +584,9 @@ namespace Chaos
 				check(ConstraintHandle != nullptr);
 
 				TVector<const TGeometryParticleHandle<T, d>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
-				bool bAlwaysUpdateManifold = ShouldParticleAlwaysUpdateManifold(ConstrainedParticles[0]) || ShouldParticleAlwaysUpdateManifold(ConstrainedParticles[1]);
 				bool bNeedsAnotherIteration = false;
 				Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration, &bAlwaysUpdateManifold };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration };
 				Collisions::Apply(ConstraintHandle->GetContact(), IterationParameters, ParticleParameters);
 
 				if (bNeedsAnotherIteration)

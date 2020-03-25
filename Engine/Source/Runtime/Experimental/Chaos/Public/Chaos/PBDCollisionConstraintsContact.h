@@ -28,7 +28,6 @@ namespace Chaos
 			const int32 NumPairIterations;
 			const ECollisionApplyType ApplyType;	// @todo(chaos): a better way to customize the collision solver
 			bool* NeedsAnotherIteration;
-			bool* AlwaysUpdateManifold;
 		};
 		using FContactIterationParameters = TContactIterationParameters<FReal>;
 
