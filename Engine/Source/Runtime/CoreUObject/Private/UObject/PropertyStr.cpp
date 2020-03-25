@@ -101,8 +101,24 @@ FString FStrProperty::ExportCppHardcodedText(const FString& InSource, const FStr
 			{
 				if (EscapableCharacters.Contains(*SourceIt))
 				{
+					const TCHAR CharToEscape = (TCHAR)*SourceIt++;
+
 					Result << TEXT('\\');
-					Result << (TCHAR)*SourceIt++;
+					switch (CharToEscape)
+					{
+					case TEXT('\n'):
+						Result << TEXT('n');
+						break;
+					case TEXT('\r'):
+						Result << TEXT('r');
+						break;
+					case TEXT('\t'):
+						Result << TEXT('t');
+						break;
+					default:
+						Result << CharToEscape;
+						break;
+					}
 				}
 				else if (*SourceIt > 0x7f)
 				{
