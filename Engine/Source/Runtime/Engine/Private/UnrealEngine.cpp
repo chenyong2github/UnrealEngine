@@ -3836,7 +3836,9 @@ int InfiniteRecursionFunction(int B)
 // used to test CRT invalid parameter handling
 void CauseCrtError()
 {
+#if PLATFORM_WINDOWS
 	printf((const char*)nullptr);
+#endif
 }
 
 #if defined (__clang__) 
