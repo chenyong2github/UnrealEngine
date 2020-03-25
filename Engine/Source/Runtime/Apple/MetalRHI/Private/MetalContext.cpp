@@ -13,6 +13,8 @@
 #include "MetalProfiler.h"
 #include "MetalCommandBuffer.h"
 
+#include "MetalFrameAllocator.h"
+
 int32 GMetalSupportsIntermediateBackBuffer = 0;
 static FAutoConsoleVariableRef CVarMetalSupportsIntermediateBackBuffer(
 	TEXT("rhi.Metal.SupportsIntermediateBackBuffer"),
@@ -99,6 +101,26 @@ static FAutoConsoleVariableRef CVarMetalPresentFramePacing(
 	GMetalPresentFramePacing,
 	TEXT("Specify the desired frame rate for presentation (iOS 10.3+ only, default: 0.0f, off"));
 #endif
+
+#if PLATFORM_MAC
+static int32 GMetalDefaultUniformBufferAllocation = 1024*1024;
+#else
+static int32 GMetalDefaultUniformBufferAllocation = 1024*32;
+#endif
+static FAutoConsoleVariableRef CVarMetalDefaultUniformBufferAllocation(
+    TEXT("rhi.Metal.DefaultUniformBufferAllocation"),
+    GMetalDefaultUniformBufferAllocation,
+    TEXT("Default size of a uniform buffer allocation."));
+
+#if PLATFORM_MAC
+static int32 GMetalTargetUniformAllocationLimit = 1024 * 1024 * 50;
+#else
+static int32 GMetalTargetUniformAllocationLimit = 1024 * 1024 * 5;
+#endif
+static FAutoConsoleVariableRef CVarMetalTargetUniformAllocationLimit(
+     TEXT("rhi.Metal.TargetUniformAllocationLimit"),
+     GMetalTargetUniformAllocationLimit,
+     TEXT("Target Allocation limit for the uniform buffer pool."));
 
 #if PLATFORM_MAC
 static ns::AutoReleased<ns::Object<id <NSObject>>> GMetalDeviceObserver;
@@ -343,7 +365,7 @@ FMetalDeviceContext::FMetalDeviceContext(mtlpp::Device MetalDevice, uint32 InDev
 , ActiveContexts(1)
 , ActiveParallelContexts(0)
 , PSOManager(0)
-, DeviceFrameIndex(0)
+, FrameNumberRHIThread(0)
 {
 	CommandQueue.SetRuntimeDebuggingLevel(GMetalRuntimeDebugLevel);
 	
@@ -377,6 +399,12 @@ FMetalDeviceContext::FMetalDeviceContext(mtlpp::Device MetalDevice, uint32 InDev
 	{
 		GMetalSupportsIntermediateBackBuffer = 1;
 	}
+    
+    // initialize uniform allocator
+    UniformBufferAllocator = new FMetalFrameAllocator(MetalDevice.GetPtr());
+    UniformBufferAllocator->SetTargetAllocationLimitInBytes(GMetalTargetUniformAllocationLimit);
+    UniformBufferAllocator->SetDefaultAllocationSizeInBytes(GMetalDefaultUniformBufferAllocation);
+    UniformBufferAllocator->SetStatIds(GET_STATID(STAT_MetalUniformAllocatedMemory), GET_STATID(STAT_MetalUniformMemoryInFlight), GET_STATID(STAT_MetalUniformBytesPerFrame));
 	
 	PSOManager = new FMetalPipelineStateCacheManager();
 	
@@ -391,6 +419,8 @@ FMetalDeviceContext::~FMetalDeviceContext()
 	delete &(GetCommandQueue());
 	
 	delete PSOManager;
+    
+    delete UniformBufferAllocator;
 	
 #if PLATFORM_MAC
 	if (FPlatformMisc::MacOSXVersionCompare(10, 13, 4) >= 0)
@@ -413,9 +443,6 @@ void FMetalDeviceContext::BeginFrame()
 	
 	// Wait for the frame semaphore on the immediate context.
 	dispatch_semaphore_wait(CommandBufferSemaphore, DISPATCH_TIME_FOREVER);
-	
-	// Bump the frame counter.
-	DeviceFrameIndex++;
 }
 
 #if METAL_DEBUG_OPTIONS
@@ -532,7 +559,11 @@ void FMetalDeviceContext::EndFrame()
 		SubmitFlags |= EMetalSubmitFlagsWaitOnCommandBuffer;
 	}
 #endif
+    
 	SubmitCommandsHint((uint32)SubmitFlags);
+    
+    // increment the internal frame counter
+    FrameNumberRHIThread++;
 	
     FlushFreeList();
     

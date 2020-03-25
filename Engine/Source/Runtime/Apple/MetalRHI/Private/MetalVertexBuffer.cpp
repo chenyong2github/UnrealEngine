@@ -236,7 +236,7 @@ void FMetalRHIBuffer::Unalias()
 	}
 }
 
-void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode, bool bIsUniformBuffer)
+void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode)
 {
 	if (!Buffer)
 	{
@@ -260,8 +260,6 @@ void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode, bool bIsU
 				check(Pair.Value);
 			}
 		}
-
-		bIsUniformBufferBacking = bIsUniformBuffer;
 	}
 }
 
@@ -459,22 +457,7 @@ ns::AutoReleased<FMetalTexture> FMetalRHIBuffer::GetLinearTexture(EPixelFormat I
 	return Texture;
 }
 
-bool FMetalRHIBuffer::CanUseBufferAsBackingForAsyncCopy() const
-{
-	return (!bIsUniformBufferBacking ||
-			UniformBufferFrameIndex != GetMetalDeviceContext().GetDeviceFrameIndex() ||
-			UniformBufferPreviousOffset != Buffer.GetOffset());
-}
-
-void FMetalRHIBuffer::ConditionalSetUniformBufferFrameIndex()
-{
-	if (bIsUniformBufferBacking)
-	{
-		UniformBufferFrameIndex = GetMetalDeviceContext().GetDeviceFrameIndex();
-	}
-}
-
-void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uint32 Offset, uint32 InSize, bool bIsUniformBuffer /*= false*/)
+void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uint32 Offset, uint32 InSize)
 {
 	check(LockSize == 0 && LockOffset == 0);
 	
@@ -519,16 +502,14 @@ void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uin
 	// When we can't we have to reallocate the backing store
 	if (LockMode != RLM_ReadOnly &&
 		Mode == mtlpp::StorageMode::Private &&
-		Buffer &&
-		(!GetMetalDeviceContext().CanAsyncCopyToBuffer(Buffer) ||
-		 !CanUseBufferAsBackingForAsyncCopy()))
+		Buffer)
 	{
 		METAL_INC_DWORD_STAT_BY(Type, MemFreed, Len);
 		SafeReleaseMetalBuffer(Buffer);
 		Buffer = nil;
 	}
 	
-    Alloc(Len, LockMode, bIsUniformBuffer);
+    Alloc(Len, LockMode);
 	AllocTransferBuffer(bIsOnRHIThread, Len, LockMode);
 	
 	FMetalBuffer& theBufferToUse = CPUBuffer ? CPUBuffer : Buffer;
@@ -578,8 +559,6 @@ void FMetalRHIBuffer::Unlock()
 		{
 			// Synchronise the buffer with the GPU
 			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(CPUBuffer, 0, Buffer, 0, FMath::Min(CPUBuffer.GetLength(), Buffer.GetLength()));
-			
-			ConditionalSetUniformBufferPreviousOffset();
 			
 			if (CPUBuffer)
             {
