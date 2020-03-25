@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Misc/AsciiSet.h"
 #include "Misc/Guid.h"
+#include "Misc/StringBuilder.h"
 #include "Math/RandomStream.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "UObject/ObjectMacros.h"
