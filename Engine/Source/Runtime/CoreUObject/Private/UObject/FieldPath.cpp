@@ -33,9 +33,10 @@ void FFieldPath::Generate(FField* InField)
 		{
 			Path.Add(Iter.GetFName());
 		}
-		ResolvedFieldOwner = GUObjectArray.ObjectToIndex(InField->GetOwnerUObject());
-		SerialNumber = GlobalSerialNumber;
+		UStruct* OwnerStruct = CastChecked<UStruct>(InField->GetOwnerUObject());
+		ResolvedOwner = OwnerStruct;
 #if WITH_EDITORONLY_DATA
+		FieldPathSerialNumber = OwnerStruct->FieldPathSerialNumber;
 		InitialFieldClass = InField->GetClass();
 #endif // WITH_EDITORONLY_DATA
 	}
@@ -89,7 +90,7 @@ void FFieldPath::Generate(const TCHAR* InFieldPathString)
 	}
 }
 
-FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, int32* OutOwnerIndex, FFieldPath::EPathResolveType InResolveType /*= FFieldPath::UseStructIfOuterNotFound*/) const
+FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, UStruct** OutOwner, FFieldPath::EPathResolveType InResolveType /*= FFieldPath::UseStructIfOuterNotFound*/) const
 {
 	FField* Result = nullptr;
 
@@ -124,16 +125,18 @@ FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, int32* OutOwnerIn
 	{
 		check(PathIndex <= 1);
 		Result = FindFProperty<FField>(Owner, Path[PathIndex]);
-		if (Result && PathIndex > 0)
+		if (Result)
 		{
-			// Nested property
-			Result = Result->GetInnerFieldByName(Path[0]);
-		}	
-		
-	}
-	if (Result && OutOwnerIndex)
-	{
-		*OutOwnerIndex = GUObjectArray.ObjectToIndex(LastOuter);
+			if (PathIndex > 0)
+			{
+				// Nested property
+				Result = Result->GetInnerFieldByName(Path[0]);
+			}
+			if (OutOwner)
+			{
+				*OutOwner = Owner;
+			}
+		}
 	}
 
 	return Result;
@@ -179,12 +182,15 @@ void FFieldPath::GenerateFromUField(UField* InField)
 		Path.Add(Obj->GetFName());
 	}	
 }
-#endif // WITH_EDITORONLY_DATA
 
-int32 FFieldPath::GlobalSerialNumber = 0;
-
-void FFieldPath::OnFieldDeleted()
+bool FFieldPath::IsFieldPathSerialNumberIdentical(UStruct* InStruct) const
 {
-	checkSlow(IsInGameThread());
-	GlobalSerialNumber++;
+	return FieldPathSerialNumber == InStruct->FieldPathSerialNumber;
 }
+
+int32 FFieldPath::GetFieldPathSerialNumber(UStruct* InStruct) const
+{
+	return InStruct->FieldPathSerialNumber;
+}
+
+#endif // WITH_EDITORONLY_DATA

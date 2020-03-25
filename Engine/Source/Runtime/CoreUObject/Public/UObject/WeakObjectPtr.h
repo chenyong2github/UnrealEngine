@@ -21,6 +21,8 @@ struct FWeakObjectPtr
 {
 public:
 
+	friend struct FFieldPath;
+
 	/** Null constructor **/
 	FORCEINLINE FWeakObjectPtr()
 	{
