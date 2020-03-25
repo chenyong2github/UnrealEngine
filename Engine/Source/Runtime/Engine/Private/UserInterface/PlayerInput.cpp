@@ -284,7 +284,6 @@ bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSa
 	KeyState.SampleCountAccumulator += NumSamples;
 	KeyState.RawValueAccumulator.X += Delta;
 
-
 	// Mirror the key press to any associated paired axis
 	FKey PairedKey = Key.GetPairedAxisKey();
 	if (PairedKey.IsValid())
@@ -298,14 +297,17 @@ bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSa
 		if (PairedAxis == EPairedAxis::X)
 		{
 			PairedKeyState.RawValueAccumulator.X = KeyState.RawValueAccumulator.X;
+			PairedKeyState.PairSampledAxes |= 0b001;
 		}
 		else if (PairedAxis == EPairedAxis::Y)
 		{
 			PairedKeyState.RawValueAccumulator.Y = KeyState.RawValueAccumulator.X;
+			PairedKeyState.PairSampledAxes |= 0b010;
 		}
 		else if (PairedAxis == EPairedAxis::Z)
 		{
 			PairedKeyState.RawValueAccumulator.Z = KeyState.RawValueAccumulator.X;
+			PairedKeyState.PairSampledAxes |= 0b100;
 		}
 		else
 		{
@@ -1090,9 +1092,25 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 
 		if ( (KeyState->SampleCountAccumulator > 0) || Key.ShouldUpdateAxisWithoutSamples() )
 		{
+			if (KeyState->PairSampledAxes)
+			{
+				// Paired keys sample only the axes that have changed, leaving unaltered axes in their previous state
+				for (int32 Axis = 0; Axis < 3; ++Axis)
+				{
+					if (KeyState->PairSampledAxes & (1 << Axis))
+					{
+						KeyState->RawValue[Axis] = KeyState->RawValueAccumulator[Axis];
+					}
+				}
+			}
+			else
+			{
+				// Unpaired keys just take the whole accumulator
+				KeyState->RawValue = KeyState->RawValueAccumulator;
+			}
+
 			// if we had no samples, we'll assume the state hasn't changed
 			// except for some axes, where no samples means the mouse stopped moving
-			KeyState->RawValue = KeyState->RawValueAccumulator;
 			if (KeyState->SampleCountAccumulator == 0)
 			{
 				KeyState->EventCounts[IE_Released].Add(++EventCount);
@@ -1123,6 +1141,7 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 		// reset the accumulators
 		KeyState->RawValueAccumulator = FVector(0.f, 0.f, 0.f);
 		KeyState->SampleCountAccumulator = 0;
+		KeyState->PairSampledAxes = 0;
 	}
 	EventCount = 0;
 
@@ -1406,6 +1425,7 @@ void UPlayerInput::DiscardPlayerInput()
 		FKeyState& KeyState = It.Value();
 		KeyState.RawValueAccumulator = FVector(0.f,0.f,0.f);
 		KeyState.SampleCountAccumulator = 0;
+		KeyState.PairSampledAxes = 0;
 		for (uint8 EventIndex = 0; EventIndex < IE_MAX; ++EventIndex)
 		{
 			KeyState.EventAccumulator[EventIndex].Reset();
