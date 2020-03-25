@@ -1952,6 +1952,7 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 		}
 	}
 	PreviewComponent->MarkRenderTransformDirty();
+	ResetSystem(ETimeResetMode::KeepCurrentTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
 }
 
 void FNiagaraSystemViewModel::AddSystemEventHandlers()
