@@ -83,6 +83,16 @@ UObject* ULevelSequence::MakeSpawnableTemplateFromInstance(UObject& InSourceObje
 		Actor->DetachFromActor(FDetachmentTransformRules(FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), false));
 	}
 
+	// The spawnable source object was created with RF_Transient. The object generated from that needs its 
+	// component flags cleared of RF_Transient so that the template object can be saved to the level sequence.
+	for (UActorComponent* Component : Actor->GetComponents())
+	{
+		if (Component)
+		{
+			Component->ClearFlags(RF_Transient);
+		}
+	}
+
 	return NewInstance;
 }
 
