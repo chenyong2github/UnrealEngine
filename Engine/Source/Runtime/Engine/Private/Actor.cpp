@@ -3405,44 +3405,7 @@ void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 		if (!IsPendingKill())
 		{
 			// Initialize overlap state
-			if (!bFromLevelStreaming)
-			{
-				UpdateOverlaps();
-			}
-			else
-			{
-				// Note: Conditionally doing notifies here since loading or streaming in isn't actually conceptually beginning a touch.
-				//	     Rather, it was always touching and the mechanics of loading is just an implementation detail.
-				if (bGenerateOverlapEventsDuringLevelStreaming)
-				{
-					UpdateOverlaps(bGenerateOverlapEventsDuringLevelStreaming);
-				}
-				else
-				{
-					bool bUpdateOverlaps = true;
-					const EActorUpdateOverlapsMethod UpdateMethod = GetUpdateOverlapsMethodDuringLevelStreaming();
-					switch (UpdateMethod)
-					{
-					case EActorUpdateOverlapsMethod::OnlyUpdateMovable:
-						bUpdateOverlaps = IsRootComponentMovable();
-						break;
-
-					case EActorUpdateOverlapsMethod::NeverUpdate:
-						bUpdateOverlaps = false;
-						break;
-
-					case EActorUpdateOverlapsMethod::AlwaysUpdate:
-					default:
-						bUpdateOverlaps = true;
-						break;
-					}
-
-					if (bUpdateOverlaps)
-					{
-						UpdateOverlaps(bGenerateOverlapEventsDuringLevelStreaming);
-					}
-				}
-			}
+			UpdateInitialOverlaps(bFromLevelStreaming);
 		}
 
 		bActorBeginningPlayFromLevelStreaming = false;
@@ -3490,6 +3453,48 @@ void AActor::BeginPlay()
 	ReceiveBeginPlay();
 
 	ActorHasBegunPlay = EActorBeginPlayState::HasBegunPlay;
+}
+
+void AActor::UpdateInitialOverlaps(bool bFromLevelStreaming)
+{
+	if (!bFromLevelStreaming)
+	{
+		UpdateOverlaps();
+	}
+	else
+	{
+		// Note: Conditionally doing notifies here since loading or streaming in isn't actually conceptually beginning a touch.
+		//	     Rather, it was always touching and the mechanics of loading is just an implementation detail.
+		if (bGenerateOverlapEventsDuringLevelStreaming)
+		{
+			UpdateOverlaps(bGenerateOverlapEventsDuringLevelStreaming);
+		}
+		else
+		{
+			bool bUpdateOverlaps = true;
+			const EActorUpdateOverlapsMethod UpdateMethod = GetUpdateOverlapsMethodDuringLevelStreaming();
+			switch (UpdateMethod)
+			{
+				case EActorUpdateOverlapsMethod::OnlyUpdateMovable:
+					bUpdateOverlaps = IsRootComponentMovable();
+					break;
+
+				case EActorUpdateOverlapsMethod::NeverUpdate:
+					bUpdateOverlaps = false;
+					break;
+
+				case EActorUpdateOverlapsMethod::AlwaysUpdate:
+				default:
+					bUpdateOverlaps = true;
+					break;
+			}
+
+			if (bUpdateOverlaps)
+			{
+				UpdateOverlaps(bGenerateOverlapEventsDuringLevelStreaming);
+			}
+		}
+	}
 }
 
 void AActor::EnableInput(APlayerController* PlayerController)
