@@ -123,6 +123,9 @@ namespace UnrealBuildTool.Rules
 
                 if (Target.Platform == UnrealTargetPlatform.Win64)
                 {
+					RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.Azure.SpatialAnchors.dll"));
+                    RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.Azure.SpatialAnchors.winmd"));
+                    PublicDelayLoadDLLs.Add("Microsoft.Azure.SpatialAnchors.dll");
                     RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.QR.dll"));
                     PublicDelayLoadDLLs.Add("Microsoft.MixedReality.QR.dll");
                     RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.SceneUnderstanding.dll"));
@@ -135,6 +138,9 @@ namespace UnrealBuildTool.Rules
                 }
                 else if (Target.Platform == UnrealTargetPlatform.HoloLens)
                 {
+					RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.Azure.SpatialAnchors.dll"));
+                    RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.Azure.SpatialAnchors.winmd"));
+                    PublicDelayLoadDLLs.Add("Microsoft.Azure.SpatialAnchors.dll");
                     PublicDelayLoadDLLs.Add("Microsoft.MixedReality.QR.dll");
                     RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.QR.dll"));
 
