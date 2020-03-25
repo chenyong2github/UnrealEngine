@@ -188,6 +188,14 @@ private:
 		//todo: add a check to ensure hitbuffer matches SQ type
 		using namespace Chaos;
 		TGeometryParticle<float, 3>* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
+
+		if(!GeometryParticle)
+		{
+			// This case handles particles created by the physics simulation without the main thread
+			// being made aware of their creation. We have a PT particle but no external particle
+			return true;
+		}
+
 		const TShapesArray<float,3>& Shapes = GeometryParticle->ShapesArray();
 
 		const bool bTestShapeBounds =  Shapes.Num() > 1;
