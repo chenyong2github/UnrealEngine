@@ -279,7 +279,7 @@ public:
 
 	int32 NumConstraints() const
 	{
-		return PointConstraints.Num() + SweptPointConstraints.Num() + IterativeConstraints.Num();
+		return Constraints.SinglePointConstraints.Num() + Constraints.SinglePointSweptConstraints.Num() + Constraints.MultiPointConstraints.Num();
 	}
 
 	FHandles& GetConstraintHandles()
@@ -294,6 +294,7 @@ public:
 
 	const FConstraintBase& GetConstraint(int32 Index) const;
 
+	FCollisionConstraintsArray& GetConstraintsArray() { return Constraints; }
 
 protected:
 	using Base::GetConstraintIndex;
@@ -305,9 +306,10 @@ private:
 
 	const TPBDRigidsSOAs<T,d>& Particles;
 
-	TArray<FPointContactConstraint> PointConstraints;
-	TArray<FSweptPointContactConstraint> SweptPointConstraints;
-	TArray<FMultiPointContactConstraint> IterativeConstraints;
+	FCollisionConstraintsArray Constraints;
+	int32 NumActivePointConstraints;
+	int32 NumActiveSweptPointConstraints;
+	int32 NumActiveIterativeConstraints;
 
 	TSet<const TGeometryParticleHandle<T, d>*> ParticlesAlwaysUpdatingManifold;
 
