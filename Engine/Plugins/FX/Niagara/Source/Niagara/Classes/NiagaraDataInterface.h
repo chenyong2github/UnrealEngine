@@ -512,6 +512,16 @@ struct FNDIRandomHelper
 		return Min + (int(Rand(InstanceIndex) * (Range + 1)));
 	}
 
+	FORCEINLINE_DEBUGGABLE FVector RandomBarycentricCoord(int32 InstanceIndex)
+	{
+		//TODO: This is gonna be slooooow. Move to an LUT possibly or find faster method.
+		//Can probably handle lower quality randoms / uniformity for a decent speed win.
+		FVector2D r = Rand2(InstanceIndex);
+		float sqrt0 = FMath::Sqrt(r.X);
+		float sqrt1 = FMath::Sqrt(r.Y);
+		return FVector(1.0f - sqrt0, sqrt0 * (1.0 - r.Y), r.Y * sqrt0);
+	}
+
 	FVectorVMContext& Context;
 	FNDIParameter<FNiagaraRandInfo> RandParam;
 
