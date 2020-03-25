@@ -15,6 +15,7 @@
 DEFINE_LOG_CATEGORY(LogAvatars);
 
 UOvrAvatarManager* UOvrAvatarManager::sAvatarManager = nullptr;
+void* UOvrAvatarManager::OVRAvatarHandle = nullptr;
 
 FSoftObjectPath UOvrAvatarManager::AssetList[] =
 {
@@ -129,17 +130,27 @@ void UOvrAvatarManager::Destroy()
 {
 	if (sAvatarManager)
 	{
-		sAvatarManager->RemoveFromRoot();
+		sAvatarManager->ShutdownSDK();
+		UOvrAvatarManager* temp_avatar_manager = sAvatarManager;
 		sAvatarManager = nullptr;
+		temp_avatar_manager->RemoveFromRoot();
+	}
+
+	if (OVRAvatarHandle)
+	{
+		FPlatformProcess::FreeDllHandle(OVRAvatarHandle);
+		OVRAvatarHandle = nullptr;
 	}
 }
 
 UOvrAvatarManager::~UOvrAvatarManager()
 {
-	if (OVRAvatarHandle)
+	if (sAvatarManager != nullptr)
 	{
-		FPlatformProcess::FreeDllHandle(OVRAvatarHandle);
-		OVRAvatarHandle = nullptr;
+		UE_LOG(LogAvatars, Log, TEXT("Shutdown ordering error closing down OVRAvatar module."));
+		sAvatarManager = nullptr;
+
+		ShutdownSDK();
 	}
 }
 

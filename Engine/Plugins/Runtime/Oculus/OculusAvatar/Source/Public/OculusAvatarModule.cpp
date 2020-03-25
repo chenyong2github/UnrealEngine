@@ -11,7 +11,6 @@ void OculusAvatarModule::StartupModule()
  
 void OculusAvatarModule::ShutdownModule()
 {
-	UOvrAvatarManager::Get().ShutdownSDK();
 	UOvrAvatarManager::Destroy();
 }
 
