@@ -12,6 +12,7 @@
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "MemoryDerivedDataBackend.h"
+#include "HttpDerivedDataBackend.h"
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "PakFileDerivedDataBackend.h"
 #include "S3DerivedDataBackend.h"
@@ -211,6 +212,10 @@ public:
 				else if (NodeType == TEXT("S3"))
 				{
 					ParsedNode = ParseS3Cache(NodeName, *Entry);
+				}
+				else if (NodeType == TEXT("Http"))
+				{
+					ParsedNode = ParseHttpCache(NodeName, *Entry);
 				}
 			}
 		}
@@ -668,6 +673,56 @@ public:
 		UE_LOG(LogDerivedDataCache, Warning, TEXT("S3 backend is not supported in the current build configuration."));
 		return nullptr;
 #endif
+	}
+
+	/**
+	 * Creates a HTTP data cache interface.
+	 */
+	FDerivedDataBackendInterface* ParseHttpCache(const TCHAR* NodeName, const TCHAR* Entry)
+	{
+		FString ServiceUrl;
+		if (!FParse::Value(Entry, TEXT("Host="), ServiceUrl))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Host'."), NodeName);
+			return nullptr;
+		}
+
+		FString Namespace;
+		if (!FParse::Value(Entry, TEXT("Namespace="), Namespace))
+		{
+			Namespace = FApp::GetProjectName();
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'Namespace', falling back to '%s'"), NodeName, *Namespace);
+		}
+
+		FString OAuthProvider;
+		if (!FParse::Value(Entry, TEXT("OAuthProvider="), OAuthProvider))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthProvider'."), NodeName);
+			return nullptr;
+		}
+
+		FString OAuthSecret;
+		if (!FParse::Value(Entry, TEXT("OAuthSecret="), OAuthSecret))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthSecret'."), NodeName);
+			return nullptr;
+		}
+
+		FString OAuthClientId;
+		if (!FParse::Value(Entry, TEXT("OAuthClientId="), OAuthClientId))
+		{
+			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthClientId'."), NodeName);
+			return nullptr;
+		}
+
+		FHttpDerivedDataBackend* backend = new FHttpDerivedDataBackend(*ServiceUrl, *Namespace, *OAuthProvider, *OAuthClientId, *OAuthSecret);
+		if (!backend->IsUsable())
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *ServiceUrl);
+			delete backend;
+			return nullptr;
+		}
+		return backend;
 	}
 
 	/**
