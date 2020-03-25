@@ -101,23 +101,20 @@ namespace Chaos
 		{
 		}
 
-		/**
-		 * Called by a CollisionDetector (possibly in a task) when it finds collisions.
-		 */
-		void ReceiveCollisions(const FCollisionConstraintsArray& Constraints)
+		FCollisionConstraintsArray& GetConstraintsArray()
 		{
-			for (const TRigidBodyPointContactConstraint<FReal, 3>& Constraint : Constraints.SinglePointConstraints)
-			{
-				CollisionConstraints.AddConstraint(Constraint);
-			}
-			for (const TRigidBodyMultiPointContactConstraint<FReal, 3>& Constraint : Constraints.MultiPointConstraints)
-			{
-				CollisionConstraints.AddConstraint(Constraint);
-			}
+			return CollisionConstraints.GetConstraintsArray();
 		}
 
 		/**
-		 * No-op
+		 * Does nothing - we write directly into the Constraints Container
+		 */
+		void ReceiveCollisions(const FCollisionConstraintsArray& Constraints)
+		{
+		}
+
+		/**
+		 * Does nothing - we write directly into the Constraints Container
 		 */
 		void ProcessCollisions()
 		{

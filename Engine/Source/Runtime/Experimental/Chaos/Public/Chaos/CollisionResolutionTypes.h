@@ -74,7 +74,7 @@ namespace Chaos
 	{
 	public:
 		TCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
-		    : bDisabled(true), Normal(0), Location(0), Phi(FLT_MAX), Friction(0), AngularFriction(0), Restitution(0), InvInertiaScale0(1.f), InvInertiaScale1(1.f), ShapesType(EContactShapesType::Unknown)
+		    : bDisabled(false), Normal(0), Location(0), Phi(FLT_MAX), Friction(0), AngularFriction(0), Restitution(0), InvInertiaScale0(1.f), InvInertiaScale1(1.f), ShapesType(EContactShapesType::Unknown)
 		{
 			Implicit[0] = InImplicit0;
 			Implicit[1] = InImplicit1;
@@ -384,42 +384,42 @@ namespace Chaos
 		{ 
 			if (GetType() == FConstraintBase::FType::SinglePoint)
 			{
-				return ConstraintContainer->PointConstraints[ConstraintIndex];
+				return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex];
 			}
 			else if (GetType() == FConstraintBase::FType::SinglePointSwept)
 			{
-				return ConstraintContainer->SweptPointConstraints[ConstraintIndex];
+				return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex];
 			}
 
 			check(GetType() == FConstraintBase::FType::MultiPoint);
-			return ConstraintContainer->IterativeConstraints[ConstraintIndex];
+			return ConstraintContainer->Constraints.MultiPointConstraints[ConstraintIndex];
 		}
 
 		TCollisionConstraintBase<T, d>& GetContact()
 		{
 			if (GetType() == FConstraintBase::FType::SinglePoint)
 			{
-				return ConstraintContainer->PointConstraints[ConstraintIndex];
+				return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex];
 			}
 			else if (GetType() == FConstraintBase::FType::SinglePointSwept)
 			{
-				return ConstraintContainer->SweptPointConstraints[ConstraintIndex];
+				return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex];
 			}
 
 			check(GetType() == FConstraintBase::FType::MultiPoint);
-			return ConstraintContainer->IterativeConstraints[ConstraintIndex];
+			return ConstraintContainer->Constraints.MultiPointConstraints[ConstraintIndex];
 		}
 
 
 
-		const TRigidBodyPointContactConstraint<T, d>& GetPointContact() const { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
-		TRigidBodyPointContactConstraint<T, d>& GetPointContact() { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
+		const TRigidBodyPointContactConstraint<T, d>& GetPointContact() const { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex]; }
+		TRigidBodyPointContactConstraint<T, d>& GetPointContact() { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex]; }
 
-		const TRigidBodySweptPointContactConstraint<T, d>& GetSweptPointContact() const { check(GetType() == FConstraintBase::FType::SinglePointSwept); return ConstraintContainer->SweptPointConstraints[ConstraintIndex]; }
-		TRigidBodySweptPointContactConstraint<T, d>& GetSweptPointContact() { check(GetType() == FConstraintBase::FType::SinglePointSwept); return ConstraintContainer->SweptPointConstraints[ConstraintIndex]; }
+		const TRigidBodySweptPointContactConstraint<T, d>& GetSweptPointContact() const { check(GetType() == FConstraintBase::FType::SinglePointSwept); return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex]; }
+		TRigidBodySweptPointContactConstraint<T, d>& GetSweptPointContact() { check(GetType() == FConstraintBase::FType::SinglePointSwept); return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex]; }
 
-		const TRigidBodyMultiPointContactConstraint<T, d>& GetMultiPointContact() const { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->IterativeConstraints[ConstraintIndex]; }
-		TRigidBodyMultiPointContactConstraint<T, d>& GetMultiPointContact() { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->IterativeConstraints[ConstraintIndex]; }
+		const TRigidBodyMultiPointContactConstraint<T, d>& GetMultiPointContact() const { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->Constraints.MultiPointConstraints[ConstraintIndex]; }
+		TRigidBodyMultiPointContactConstraint<T, d>& GetMultiPointContact() { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->Constraints.MultiPointConstraints[ConstraintIndex]; }
 
 		typename FConstraintBase::FType GetType() const { return ConstraintType; }
 
@@ -470,12 +470,39 @@ namespace Chaos
 
 		int32 Num() const { return SinglePointConstraints.Num() + SinglePointSweptConstraints.Num() + MultiPointConstraints.Num(); }
 
+		void Reset()
+		{
+			SinglePointConstraints.Reset();
+			SinglePointSweptConstraints.Reset();
+			MultiPointConstraints.Reset();
+		}
+
 		void Empty()
 		{
 			SinglePointConstraints.Empty();
 			SinglePointSweptConstraints.Empty();
 			MultiPointConstraints.Empty();
 		}
+
+
+		TRigidBodyPointContactConstraint<FReal, 3>* Add(const TRigidBodyPointContactConstraint<FReal, 3>& C)
+		{
+			int32 ConstraintIndex = SinglePointConstraints.Add(C);
+			return &SinglePointConstraints[ConstraintIndex];
+		}
+
+		TRigidBodySweptPointContactConstraint<FReal, 3>* Add(const TRigidBodySweptPointContactConstraint<FReal, 3>& C)
+		{
+			int32 ConstraintIndex = SinglePointSweptConstraints.Add(C);
+			return &SinglePointSweptConstraints[ConstraintIndex];
+		}
+
+		TRigidBodyMultiPointContactConstraint<FReal, 3>* Add(const TRigidBodyMultiPointContactConstraint<FReal, 3>& C)
+		{
+			int32 ConstraintIndex = MultiPointConstraints.Add(C);
+			return &MultiPointConstraints[ConstraintIndex];
+		}
+
 
 		TRigidBodyPointContactConstraint<FReal, 3>* TryAdd(FReal MaxPhi, const TRigidBodyPointContactConstraint<FReal, 3>& C)
 		{
