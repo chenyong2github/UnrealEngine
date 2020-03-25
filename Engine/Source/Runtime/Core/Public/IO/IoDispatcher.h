@@ -6,7 +6,6 @@
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Logging/LogMacros.h"
-#include "Misc/StringBuilder.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/TypeCompatibleBytes.h"
