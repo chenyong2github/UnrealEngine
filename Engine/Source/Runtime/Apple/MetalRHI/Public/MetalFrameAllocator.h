@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #import <Metal/Metal.h>
 #import <os/lock.h>
 
