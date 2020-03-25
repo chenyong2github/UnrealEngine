@@ -420,79 +420,83 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 		NumStoppingSources = 0;
 	}
 
-	// Cache any plugin settings objects we have loaded
-	UpdateAudioPluginSettingsObjectCache();
-
-	//Get the requested spatialization plugin and set it up.
-	IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin();
-	if (SpatializationPluginFactory != nullptr)
 	{
-		SpatializationPluginInterface = SpatializationPluginFactory->CreateNewSpatializationPlugin(this);
-		if (!IsAudioMixerEnabled())
+		LLM_SCOPE(ELLMTag::AudioMixerPlugins);
+
+		// Cache any plugin settings objects we have loaded
+		UpdateAudioPluginSettingsObjectCache();
+
+		//Get the requested spatialization plugin and set it up.
+		IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin();
+		if (SpatializationPluginFactory != nullptr)
 		{
+			SpatializationPluginInterface = SpatializationPluginFactory->CreateNewSpatializationPlugin(this);
+			if (!IsAudioMixerEnabled())
+			{
+				//Set up initialization parameters for system level effect plugins:
+				FAudioPluginInitializationParams PluginInitializationParams;
+				PluginInitializationParams.SampleRate = SampleRate;
+				PluginInitializationParams.NumSources = GetMaxSources();
+				PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
+				PluginInitializationParams.AudioDevicePtr = this;
+
+				SpatializationPluginInterface->Initialize(PluginInitializationParams);
+			}
+
+			bSpatializationInterfaceEnabled = true;
+			bSpatializationIsExternalSend = SpatializationPluginFactory->IsExternalSend();
+			MaxChannelsSupportedBySpatializationPlugin = SpatializationPluginFactory->GetMaxSupportedChannels();
+			UE_LOG(LogAudio, Log, TEXT("Using Audio Spatialization Plugin: %s is external send: %d"), *(SpatializationPluginFactory->GetDisplayName()), bSpatializationIsExternalSend);
+		}
+		else
+		{
+			UE_LOG(LogAudio, Log, TEXT("Using built-in audio spatialization."));
+		}
+
+		//Get the requested reverb plugin and set it up:
+		IAudioReverbFactory* ReverbPluginFactory = AudioPluginUtilities::GetDesiredReverbPlugin();
+		if (ReverbPluginFactory != nullptr)
+		{
+			ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
+			bReverbInterfaceEnabled = true;
+			bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
+			UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
+		}
+		else
+		{
+			UE_LOG(LogAudio, Log, TEXT("Using built-in audio reverb."));
+		}
+
+		//Get the requested occlusion plugin and set it up.
+		IAudioOcclusionFactory* OcclusionPluginFactory = AudioPluginUtilities::GetDesiredOcclusionPlugin();
+		if (OcclusionPluginFactory != nullptr)
+		{
+			OcclusionInterface = OcclusionPluginFactory->CreateNewOcclusionPlugin(this);
+			bOcclusionInterfaceEnabled = true;
+			bOcclusionIsExternalSend = OcclusionPluginFactory->IsExternalSend();
+			UE_LOG(LogAudio, Display, TEXT("Audio Occlusion Plugin: %s"), *(OcclusionPluginFactory->GetDisplayName()));
+		}
+		else
+		{
+			UE_LOG(LogAudio, Display, TEXT("Using built-in audio occlusion."));
+		}
+
+		//Get the requested modulation plugin and set it up.
+		if (IAudioModulationFactory* ModulationPluginFactory = AudioPluginUtilities::GetDesiredModulationPlugin())
+		{
+			ModulationInterface = ModulationPluginFactory->CreateNewModulationPlugin(this);
+
 			//Set up initialization parameters for system level effect plugins:
 			FAudioPluginInitializationParams PluginInitializationParams;
 			PluginInitializationParams.SampleRate = SampleRate;
 			PluginInitializationParams.NumSources = GetMaxSources();
 			PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
 			PluginInitializationParams.AudioDevicePtr = this;
+			ModulationInterface->Initialize(PluginInitializationParams);
 
-			SpatializationPluginInterface->Initialize(PluginInitializationParams);
+			bModulationInterfaceEnabled = true;
+			UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName().ToString()));
 		}
-
-		bSpatializationInterfaceEnabled = true;
-		bSpatializationIsExternalSend = SpatializationPluginFactory->IsExternalSend();
-		MaxChannelsSupportedBySpatializationPlugin = SpatializationPluginFactory->GetMaxSupportedChannels();
-		UE_LOG(LogAudio, Log, TEXT("Using Audio Spatialization Plugin: %s is external send: %d"), *(SpatializationPluginFactory->GetDisplayName()), bSpatializationIsExternalSend);
-	}
-	else
-	{
-		UE_LOG(LogAudio, Log, TEXT("Using built-in audio spatialization."));
-	}
-
-	//Get the requested reverb plugin and set it up:
-	IAudioReverbFactory* ReverbPluginFactory = AudioPluginUtilities::GetDesiredReverbPlugin();
-	if (ReverbPluginFactory != nullptr)
-	{
-		ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
-		bReverbInterfaceEnabled = true;
-		bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
-		UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
-	}
-	else
-	{
-		UE_LOG(LogAudio, Log, TEXT("Using built-in audio reverb."));
-	}
-
-	//Get the requested occlusion plugin and set it up.
-	IAudioOcclusionFactory* OcclusionPluginFactory = AudioPluginUtilities::GetDesiredOcclusionPlugin();
-	if (OcclusionPluginFactory != nullptr)
-	{
-		OcclusionInterface = OcclusionPluginFactory->CreateNewOcclusionPlugin(this);
-		bOcclusionInterfaceEnabled = true;
-		bOcclusionIsExternalSend = OcclusionPluginFactory->IsExternalSend();
-		UE_LOG(LogAudio, Display, TEXT("Audio Occlusion Plugin: %s"), *(OcclusionPluginFactory->GetDisplayName()));
-	}
-	else
-	{
-		UE_LOG(LogAudio, Display, TEXT("Using built-in audio occlusion."));
-	}
-
-	//Get the requested modulation plugin and set it up.
-	if (IAudioModulationFactory* ModulationPluginFactory = AudioPluginUtilities::GetDesiredModulationPlugin())
-	{
-		ModulationInterface = ModulationPluginFactory->CreateNewModulationPlugin(this);
-
-		//Set up initialization parameters for system level effect plugins:
-		FAudioPluginInitializationParams PluginInitializationParams;
-		PluginInitializationParams.SampleRate = SampleRate;
-		PluginInitializationParams.NumSources = GetMaxSources();
-		PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
-		PluginInitializationParams.AudioDevicePtr = this;
-		ModulationInterface->Initialize(PluginInitializationParams);
-
-		bModulationInterfaceEnabled = true;
-		UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName().ToString()));
 	}
 
 	// allow the platform to startup
@@ -689,6 +693,8 @@ void FAudioDevice::Teardown()
 
 	Sources.Reset();
 	FreeSources.Reset();
+
+	LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 
 	if (SpatializationPluginInterface.IsValid())
 	{
