@@ -14,6 +14,8 @@ IMPLEMENT_MODULE(FSynthesisModule, Synthesis)
 void FSynthesisModule::StartupModule()
 {
 	FSynthSlateStyleSet::Initialize();
+
+	FModuleManager::Get().LoadModuleChecked(TEXT("SignalProcessing"));
 }
 
 void FSynthesisModule::ShutdownModule()

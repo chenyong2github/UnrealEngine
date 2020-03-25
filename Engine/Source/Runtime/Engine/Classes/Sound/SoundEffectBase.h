@@ -85,7 +85,7 @@ public:
 	bool IsPreset(USoundEffectPreset* InPreset) const;
 
 	/** Enqueues a lambda command on a thread safe queue which is pumped from the audio render thread. */
-	void EffectCommand(TFunction<void()> Command);
+	void EffectCommand(TUniqueFunction<void()> Command);
 
 protected:
 	FSoundEffectBase();
@@ -106,7 +106,7 @@ protected:
 	FThreadSafeBool bIsActive;
 
 	// Effect command queue
-	TQueue<TFunction<void()>> CommandQueue;
+	TQueue<TUniqueFunction<void()>> CommandQueue;
 
 	// Allow preset to re-register when editor update is requested
 	// and create effects using the templated Create call
