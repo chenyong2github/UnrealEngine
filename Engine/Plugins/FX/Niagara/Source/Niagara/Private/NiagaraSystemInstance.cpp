@@ -2152,6 +2152,19 @@ bool FNiagaraSystemInstance::GetIsolateEnabled() const
 
 void FNiagaraSystemInstance::DestroyDataInterfaceInstanceData()
 {
+	NiagaraEmitterInstanceBatcher* InstanceBatcher = GetBatcher();
+	if (bHasGPUEmitters && FNiagaraUtilities::AllowGPUParticles(InstanceBatcher->GetShaderPlatform()))
+	{
+		ENQUEUE_RENDER_COMMAND(NiagaraRemoveGPUSystem)
+		(
+			[InstanceBatcher, InstanceID=GetId()](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				InstanceBatcher->InstanceDeallocated_RenderThread(InstanceID);
+			}
+		);
+	}
+
+	//
 	for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
 	{
 		if (UNiagaraDataInterface* Interface = Pair.Key.Get())
