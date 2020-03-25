@@ -447,6 +447,9 @@ private:
 	UPROPERTY(Config, Category = Collision, VisibleAnywhere)
 	EActorUpdateOverlapsMethod DefaultUpdateOverlapsMethodDuringLevelStreaming;
 
+	/** Internal helper to update Overlaps during Actor initialization/BeginPlay correctly based on the UpdateOverlapsMethodDuringLevelStreaming and bGenerateOverlapEventsDuringLevelStreaming settings. */
+	void UpdateInitialOverlaps(bool bFromLevelStreaming);
+
 	/** Describes how much control the remote machine has over the actor. */
 	UPROPERTY(Replicated, Transient)
 	TEnumAsByte<enum ENetRole> RemoteRole;	
