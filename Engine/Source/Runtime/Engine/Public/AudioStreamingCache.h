@@ -53,15 +53,18 @@ public:
 	
 	~FAudioChunkCache();
 
-	// Places chunk in cache, or puts this chunk back at the top of the cache if it's already loaded. Returns false on failure.
-	bool AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult) > OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback);
+	// Places chunk in cache, or puts this chunk back at the top of the cache if it's already loaded. Returns the static lookup ID of the chunk in the cache on success,
+	// or InvalidAudioStreamCacheLookupID on failiure.
+	uint64 AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult) > OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback);
 
 	// Returns the chunk asked for, or an empty TArrayView if that chunk is not loaded.
-	TArrayView<uint8> GetChunk(const FChunkKey& InKey, bool bBlockForLoadCompletion, bool bNeededForPlayback);
+	// InOutCacheLookupID can optionally be set as a cache offset to use directly rather than searching the cache for a matching chunk.
+	// InOutCacheLookupID will be set to the offset the chunk is in the cache, which can be used for faster lookup in the future.
+	TArrayView<uint8> GetChunk(const FChunkKey& InKey, bool bBlockForLoadCompletion, bool bNeededForPlayback, uint64& InOutCacheLookupID);
 
 	// add an additional reference for a chunk.
-	void AddNewReferenceToChunk(const FChunkKey& InKey);
-	void RemoveReferenceToChunk(const FChunkKey& InKey);
+	void AddNewReferenceToChunk(const FChunkKey& InKey, uint64 InCacheLookupID);
+	void RemoveReferenceToChunk(const FChunkKey& InKey, uint64 InCacheLookupID);
 
 	// Evict all sounds from the cache.
 	void ClearCache();
@@ -160,7 +163,7 @@ private:
 		uint32 ChunkDataSize;
 		FCacheElement* MoreRecentElement;
 		FCacheElement* LessRecentElement;
-		uint32 CacheIndex;
+		uint64 CacheLookupID;
 
 		FThreadSafeBool bIsLoaded;
 		
@@ -182,7 +185,7 @@ private:
 			: ChunkDataSize(0)
 			, MoreRecentElement(nullptr)
 			, LessRecentElement(nullptr)
-			, CacheIndex(InCacheIndex)
+			, CacheLookupID(InCacheIndex)
 			, bIsLoaded(false)
 		{
 		}
@@ -270,7 +273,8 @@ private:
 	bool bLogCacheMisses;
 
 	// Returns cached element if it exists in our cache, nullptr otherwise.
-	FCacheElement* FindElementForKey(const FChunkKey& InKey);
+	// If the index of the element is already known, it can be used here to avoid searching the cache.
+	FCacheElement* FindElementForKey(const FChunkKey& InKey, uint64 CacheLookupID = InvalidAudioStreamCacheLookupID);
 
 	// Puts this element at the front of the linked list.
 	void TouchElement(FCacheElement* InElement);
@@ -350,7 +354,7 @@ public:
 	virtual void NotifyLevelOffset( class ULevel* Level, const FVector& Offset ) override;
 	// End IStreamingManager interface
 
-	// IAudioStreamingManager interface
+	// IAudioStreamingManager interface (unused functions)
 	virtual void AddStreamingSoundWave(USoundWave* SoundWave) override;
 	virtual void RemoveStreamingSoundWave(USoundWave* SoundWave) override;
 	virtual void AddDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
@@ -361,6 +365,9 @@ public:
 	virtual void AddStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual void RemoveStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual bool IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const override;
+	// End IAudioStreamingManager interface (unused)
+
+	// IAudioStreamingManager interface (used functions)
 	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
 	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
 	virtual uint64 TrimMemory(uint64 NumBytesToFree) override;
