@@ -23,6 +23,7 @@
 #include "Windows/WindowsHWrapper.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/Fork.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -1301,9 +1302,12 @@ void FWindowsPlatformProcess::SleepInfinite()
 
 FEvent* FWindowsPlatformProcess::CreateSynchEvent(bool bIsManualReset)
 {
+	// While windows does not support forking we can still simulate the forking codeflow and test the singlethread to multithread switch on Win targets
+	const bool bIsMultithread = FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::SupportsMultithreadingPostFork();
+
 	// Allocate the new object
 	FEvent* Event = NULL;	
-	if (FPlatformProcess::SupportsMultithreading())
+	if (bIsMultithread)
 	{
 		Event = new FEventWin();
 	}
