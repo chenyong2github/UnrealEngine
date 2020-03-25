@@ -56,11 +56,22 @@ struct NAVIGATIONSYSTEM_API FNavMeshSceneProxyData : public TSharedFromThis<FNav
 	};
 	TArray<FDebugMeshData> MeshBuilders;
 
+	struct FDebugPoint
+	{
+		FDebugPoint() {}
+		FDebugPoint(const FVector& InPosition, const FColor& InColor, const float InSize) : Position(InPosition), Color(InColor), Size(InSize) {}
+		FVector Position;
+		FColor Color;
+		float Size;
+	};
+
 	TArray<FDebugRenderSceneProxy::FDebugLine> ThickLineItems;
 	TArray<FDebugRenderSceneProxy::FDebugLine> TileEdgeLines;
 	TArray<FDebugRenderSceneProxy::FDebugLine> NavMeshEdgeLines;
 	TArray<FDebugRenderSceneProxy::FDebugLine> NavLinkLines;
 	TArray<FDebugRenderSceneProxy::FDebugLine> ClusterLinkLines;
+	TArray<FDebugRenderSceneProxy::FDebugLine> AuxLines;
+	TArray<FDebugPoint> AuxPoints;
 	TArray<FDebugRenderSceneProxy::FDebugBox> AuxBoxes;
 	TArray<FDebugRenderSceneProxy::FMesh> Meshes;
 
