@@ -586,12 +586,14 @@ int32 UNiagaraNodeAssignment::CalculateScriptUsageBitmask()
 		}
 		if (UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleSpawnScript) ||
 			UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleUpdateScript) ||
-			UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleEventScript))
+			UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleEventScript) ||
+			UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleSimulationStageScript))
 		{
 			UsageBitmask =
 				UsageToBitmask(ENiagaraScriptUsage::ParticleSpawnScript) |
 				UsageToBitmask(ENiagaraScriptUsage::ParticleUpdateScript) |
-				UsageToBitmask(ENiagaraScriptUsage::ParticleEventScript);
+				UsageToBitmask(ENiagaraScriptUsage::ParticleEventScript) |
+				UsageToBitmask(ENiagaraScriptUsage::ParticleSimulationStageScript);
 		}
 	}
 	return UsageBitmask;
