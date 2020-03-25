@@ -494,12 +494,9 @@ bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 				{
 					const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
 
-					if (!Section.bDisabled)
-					{
-						//Make sure the count fit in a uint32
-						LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
-						LODTriNumber += Section.NumTriangles;
-					}
+					//Make sure the count fit in a uint32
+					LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
+					LODTriNumber += Section.NumTriangles;
 				}
 			}
 			else if (GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex)
