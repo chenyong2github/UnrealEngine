@@ -38,6 +38,7 @@
 #include <memory>
 #include <vector>
 
+
 #pragma warning(default:4005)
 #pragma warning(default:4668)
 
@@ -352,7 +353,7 @@ namespace WindowsMixedReality
 
 		UINT64 GraphicsAdapterLUID();
 
-		void Initialize(ID3D11Device* device, float nearPlane = 0.001f, float farPlane = 650.0f);
+		void Initialize(ID3D11Device* device, float nearPlane = 0.001f);
 		void Dispose(bool force = false);
 		bool IsStereoEnabled();
 		bool IsTrackingAvailable();
@@ -756,7 +757,7 @@ public:
 	// AsyncDataPtr objects are created by UE4, and passed in here.
 	virtual bool HasEnoughDataForSaving() = 0;
 	virtual const wchar_t* GetCloudSpatialAnchorIdentifier(CloudAnchorID cloudAnchorID) = 0;
-	virtual bool CreateCloudAnchor(LocalAnchorID localAnchorId, CloudAnchorID& outCloudAnchorID) = 0;
+	virtual bool CreateCloudAnchor(const LocalAnchorID& localAnchorId, CloudAnchorID& outCloudAnchorID) = 0;
 	virtual bool SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float lifetime) = 0; // lifetime is seconds into the future
 	virtual bool GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float& outLifetime) = 0;
 	virtual bool SetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, const std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) = 0;
@@ -769,7 +770,7 @@ public:
 	virtual bool GetCloudAnchorProperties(GetCloudAnchorPropertiesAsyncDataPtr Data) = 0;
 	virtual bool CreateWatcher(CreateWatcherData& Data) = 0;
 	virtual bool StopWatcher(WatcherID WatcherIdentifier) = 0;
-	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(LocalAnchorID localAnchorId, CloudAnchorID cloudAnchorID) = 0;
+	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(const LocalAnchorID& localAnchorId, CloudAnchorID cloudAnchorID) = 0;
 
 
 protected:

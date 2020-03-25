@@ -216,7 +216,6 @@ namespace WindowsMixedReality
 		ID3D11Texture2D* stereoDepthTexture = nullptr;
 		// For third camera
 		ID3D11Texture2D* monoDepthTexture = nullptr;
-		const float farPlaneDistance = 650.0f;
 
 		bool bNeedReallocateDepthTexture = false;
 		FTexture2DRHIRef CurrentBackBuffer;
