@@ -45,7 +45,12 @@ public:
 	void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
 	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
 	void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
-	
+
+	FString GetName() const override;
+	ESpeedClass GetSpeedClass() override;
+	bool TryToPrefetch(const TCHAR* CacheKey) override;
+	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
+
 private:
 	struct FBundle;
 	struct FBundleEntry;

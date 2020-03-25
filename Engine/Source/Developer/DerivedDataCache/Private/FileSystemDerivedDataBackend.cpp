@@ -11,6 +11,7 @@
 #include "Misc/Guid.h"
 #include "Misc/ScopeLock.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Async/Async.h"
 
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataBackendInterface.h"
@@ -42,6 +43,22 @@ FString BuildPathForCacheKey(const TCHAR* CacheKey)
 	return HashPath / Key + TEXT(".udd");
 }
 
+/**
+ * Helper function to get the value of parsed bool as the return value
+ **/
+bool GetParsedBool(const TCHAR* Stream, const TCHAR* Match) 
+{
+	bool bValue = 0;
+	FParse::Bool(Stream, Match, bValue);
+	return bValue;
+}
+
+/** Delete the old files in a directory **/
+void DeleteOldFiles(const TCHAR* Directory, int Age)
+{
+	// @todo(agrant) the original implementation of this did nothing. Do we need this?
+}
+
 /** 
  * Cache server that uses the OS filesystem
  * The entire API should be callable from any thread (except the singleton can be assumed to be called at least once before concurrent access).
@@ -54,111 +71,368 @@ public:
 	 * @param InCacheDirectory	directory to store the cache in
 	 * @param bForceReadOnly	if true, do not attempt to write to this cache
 	*/
-	FFileSystemDerivedDataBackend(const TCHAR* InCacheDirectory, bool bForceReadOnly, bool bTouchFiles, bool bPurgeTransientData, bool bDeleteOldFiles, int32 InDaysToDeleteUnusedFiles, int32 InMaxNumFoldersToCheck, int32 InMaxContinuousFileChecks, const TCHAR* InAccessLogFileName)
+	FFileSystemDerivedDataBackend(const TCHAR* InCacheDirectory, const TCHAR* InParams, const int InMissRate, const TCHAR* InAccessLogFileName)
 		: CachePath(InCacheDirectory)
-		, bReadOnly(bForceReadOnly)
-		, bFailed(true)
-		, bTouch(bTouchFiles)
-		, bPurgeTransient(bPurgeTransientData)
-		, DaysToDeleteUnusedFiles(InDaysToDeleteUnusedFiles)
+		, SpeedClass(ESpeedClass::Unknown)
+		, bReadOnly(false)
+		, bTouch(false)
+		, bPurgeTransient(false)
+		, DaysToDeleteUnusedFiles(15)
+		, bDisabled(false)
 		, TotalEstimatedBuildTime(0)
+		, DebugMissRate(0)
 	{
 		// If we find a platform that has more stingent limits, this needs to be rethought.
 		checkf(MAX_BACKEND_KEY_LENGTH + MAX_CACHE_DIR_LEN + MAX_BACKEND_NUMBERED_SUBFOLDER_LENGTH + MAX_CACHE_EXTENTION_LEN < FPlatformMisc::GetMaxPathLength(),
 			TEXT("Not enough room left for cache keys in max path."));
-		const double SlowInitDuration = 10.0;
-		double AccessDuration = 0.0;
 
 		check(CachePath.Len());
 		FPaths::NormalizeFilename(CachePath);
-		const FString AbsoluteCachePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*CachePath);
-		if (AbsoluteCachePath.Len() > MAX_CACHE_DIR_LEN)
+
+		// Params that override our instance defaults
+		bReadOnly = GetParsedBool(InParams, TEXT("ReadOnly="));
+		bTouch = GetParsedBool(InParams, TEXT("Touch="));
+		bPurgeTransient = GetParsedBool(InParams, TEXT("PurgeTransient="));
+		FParse::Value(InParams, TEXT("UnusedFileAge="), DaysToDeleteUnusedFiles);
+
+		// Params that are used when setting up our path
+		const bool bClean = GetParsedBool(InParams, TEXT("Clean="));
+		const bool bFlush = GetParsedBool(InParams, TEXT("Flush="));
+	
+
+		// These are used to determine if we kick off a worker to cleanup our cache
+		bool bDeleteUnused = true; // On by default
+		int32 MaxFoldersToClean = -1;
+		int32 MaxFileChecksPerSec = -1;
+
+		FParse::Bool(InParams, TEXT("DeleteUnused="), bDeleteUnused);
+
+		if (bDeleteUnused)
 		{
-			const FText ErrorMessage = FText::Format( NSLOCTEXT("DerivedDataCache", "PathTooLong", "Cache path {0} is longer than {1} characters...please adjust [DerivedDataBackendGraph] paths to be shorter (this leaves more room for cache keys)."), FText::FromString( AbsoluteCachePath ), FText::AsNumber( MAX_CACHE_DIR_LEN ) );
-			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
-			UE_LOG(LogDerivedDataCache, Fatal, TEXT("%s"), *ErrorMessage.ToString());
+			FParse::Value(InParams, TEXT("FoldersToClean="), MaxFoldersToClean);
+			FParse::Value(InParams, TEXT("MaxFileChecksPerSec="), MaxFileChecksPerSec);
 		}
-		if (!bReadOnly)
+
+		if (bFlush)
 		{
-			double TestStart = FPlatformTime::Seconds();
-			FString TempFilename = CachePath / FGuid::NewGuid().ToString() + ".tmp";
-			FFileHelper::SaveStringToFile(FString("TEST"),*TempFilename);
-			uint32 WriteErrorCode = FPlatformMisc::GetLastError();
-			int32 TestFileSize = IFileManager::Get().FileSize(*TempFilename);
-			if (TestFileSize < 4)
+			IFileManager::Get().DeleteDirectory(*(CachePath / TEXT("")), false, true);
+		}
+		else if (bClean)
+		{
+			DeleteOldFiles(InCacheDirectory, DaysToDeleteUnusedFiles);
+		}
+
+		// check latency and speed. Read values should always be valid
+		double ReadSpeedMBs = 0.0;
+		double WriteSpeedMBs = 0.0;
+		double SeekTimeMS = 0.0;
+
+		/* Speeds faster than this are considered local*/
+		const float ConsiderFastAtMS = 10;
+		/* Speeds faster than this are ok. Everything else is slow. This value can be overridden in the ini file */
+		float ConsiderSlowAtMS = 50;
+		FParse::Value(InParams, TEXT("ConsiderSlowAt="), ConsiderSlowAtMS);
+
+		// can skip the speed test so everything acts as fast local (e.g. 4.25 and earlier behavior).  Mostly used
+		// for verifying speed related optimizations can can be removed soon (3/17/20).
+		bool SkipSpeedTest = FParse::Param(FCommandLine::Get(), TEXT("ddcskipspeedtest"));
+		if (SkipSpeedTest)
+		{
+			ReadSpeedMBs = 999;
+			WriteSpeedMBs = 999;
+			SeekTimeMS = 0;
+		}
+
+		if (!SkipSpeedTest && !RunSpeedTest(ConsiderSlowAtMS * 2, SeekTimeMS, ReadSpeedMBs, WriteSpeedMBs))
+		{
+			bDisabled = true;
+			UE_LOG(LogDerivedDataCache, Error, TEXT("No read or write access to %s"), *CachePath);
+		}
+		else
+		{
+			bool bReadTestPassed = ReadSpeedMBs > 0.0;
+			bool bWriteTestPassed = WriteSpeedMBs > 0.0;
+
+			// if we failed writes mark this as read only
+			bReadOnly = bReadOnly || !bWriteTestPassed;
+
+			// classify and report on these times
+			if (SeekTimeMS < 1)
 			{
-				uint32 ReadErrorCode = FPlatformMisc::GetLastError();
-				TCHAR WriteErrorBuffer[1024];
-				TCHAR ReadErrorBuffer[1024];
-				FPlatformMisc::GetSystemErrorMessage(WriteErrorBuffer, 1024, WriteErrorCode);
-				FPlatformMisc::GetSystemErrorMessage(ReadErrorBuffer, 1024, ReadErrorCode);
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("Fail to write to %s, derived data cache to this directory will be read only. WriteError: %u (%s) ReadError: %u (%s)"), *CachePath, WriteErrorCode, WriteErrorBuffer, ReadErrorCode, ReadErrorBuffer);
+				SpeedClass = ESpeedClass::Local;
+			}
+			else if (SeekTimeMS <= ConsiderFastAtMS)
+			{
+				SpeedClass = ESpeedClass::Fast;
+			}
+			else if (SeekTimeMS >= ConsiderSlowAtMS)
+			{
+				SpeedClass = ESpeedClass::Slow;
 			}
 			else
 			{
-				bFailed = false;
-			}			
-			if (TestFileSize >= 0)
-			{
-				IFileManager::Get().Delete(*TempFilename, false, false, true);
+				SpeedClass = ESpeedClass::Ok;
 			}
-			AccessDuration = FPlatformTime::Seconds() - TestStart;
-		}
-		if (bFailed)
-		{
-			double StartTime = FPlatformTime::Seconds();
-			TArray<FString> FilesAndDirectories;
-			IFileManager::Get().FindFiles(FilesAndDirectories,*(CachePath / TEXT("*.*")), true, true);
-			AccessDuration = FPlatformTime::Seconds() - StartTime;
-			if (FilesAndDirectories.Num() > 0)
+
+			UE_LOG(LogDerivedDataCache, Display, TEXT("Performance to %s: Latency=%.02fms. RandomReadSpeed=%.02fMBs, RandomWriteSpeed=%.02fMBs. Assigned SpeedClass '%s'"), 
+				*CachePath, SeekTimeMS, ReadSpeedMBs, WriteSpeedMBs, LexToString(SpeedClass));
+
+			if (SpeedClass <= FDerivedDataBackendInterface::ESpeedClass::Slow && !bReadOnly)
 			{
-				bReadOnly = true;
-				bFailed = false;
+				UE_LOG(LogDerivedDataCache, Warning, TEXT("Access to %s appears to be slow. 'Touch' will be disabled and queries/writes will be limited."), *CachePath);
+				bTouch = false;
+				//bReadOnly = true;
+			}
+
+			if (!bReadOnly)
+			{
+				if (FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache")))
+				{
+					bTouch = true; // we always touch files when running the DDC commandlet
+				}
+
+				// The command line (-ddctouch) enables touch on all filesystem backends if specified. 
+				bTouch = bTouch || FParse::Param(FCommandLine::Get(), TEXT("DDCTOUCH"));
+
+				if (bTouch)
+				{
+					UE_LOG(LogDerivedDataCache, Display, TEXT("Files in %s will be touched."), *CachePath);
+				}
+
+				if (bDeleteUnused && !FParse::Param(FCommandLine::Get(), TEXT("NODDCCLEANUP")) && FDDCCleanup::Get())
+				{
+					FDDCCleanup::Get()->AddFilesystem(CachePath, DaysToDeleteUnusedFiles, MaxFoldersToClean, MaxFileChecksPerSec);
+				}
+			}
+			
+			if (IsUsable() && InAccessLogFileName != nullptr && *InAccessLogFileName != 0)
+			{
+				AccessLogWriter.Reset(new FAccessLogWriter(InAccessLogFileName));
 			}
 		}
-		if (FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache")) )
-		{
-			bTouch = true; // we always touch files when running the DDC commandlet
-		}
-		// The command line (-ddctouch) enables touch on all filesystem backends if specified. 
-		bTouch = bTouch || FParse::Param(FCommandLine::Get(), TEXT("DDCTOUCH"));
+	}
 
-		if (bReadOnly)
+	bool RunSpeedTest(double InSkipTestsIfSeeksExceedMS, double& OutSeekTimeMS, double& OutReadSpeedMBs, double& OutWriteSpeedMBs) const
+	{
+		//  files of increasing size. Most DDC data falls within this range so we don't want to skew by reading 
+		// large amounts of data. Ultimately we care most about latency anyway.
+		const int FileSizes[] = { 4, 8, 16, 64, 128, 256 };
+		const int NumTestFolders = 2; //(0-9)
+		const int FileSizeCount = UE_ARRAY_COUNT(FileSizes);
+
+		bool bWriteTestPassed = true;
+		bool bReadTestPassed = true;
+		bool bTestDataExists = true;
+
+		double TotalSeekTime = 0;
+		double TotalReadTime = 0;
+		double TotalWriteTime = 0;
+		int TotalDataRead = 0;
+		int TotalDataWritten = 0;
+
+		const FString AbsoluteCachePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*CachePath);
+		if (AbsoluteCachePath.Len() > MAX_CACHE_DIR_LEN)
 		{
-			bTouch = false; // we won't touch read only paths
+			const FText ErrorMessage = FText::Format(NSLOCTEXT("DerivedDataCache", "PathTooLong", "Cache path {0} is longer than {1} characters...please adjust [DerivedDataBackendGraph] paths to be shorter (this leaves more room for cache keys)."), FText::FromString(AbsoluteCachePath), FText::AsNumber(MAX_CACHE_DIR_LEN));
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
+			UE_LOG(LogDerivedDataCache, Fatal, TEXT("%s"), *ErrorMessage.ToString());
 		}
 
-		if (bTouch)
+		TArray<FString> Paths;
+		TArray<FString> MissingFiles;
+
+		MissingFiles.Reserve(NumTestFolders * FileSizeCount);
+
+		const FString TestDataPath = FPaths::Combine(CachePath, TEXT("TestData"));
+
+		// create an upfront map of paths to data size in bytes
+		// create the paths we'll use. <path>/0/TestData.dat, <path>/1/TestData.dat etc. If those files don't exist we'll
+		// create them which will likely give an invalid result when measuring them now but not in the future...
+		TMap<FString, int> TestFileEntries;
+		for (int iSize = 0; iSize < FileSizeCount; iSize++)
 		{
-			UE_LOG(LogDerivedDataCache, Display, TEXT("Files in %s will be touched."),*CachePath);
+			// make sure we dont stat/read/write to consecuting files in folders
+			for (int iFolder = 0; iFolder < NumTestFolders; iFolder++)
+			{
+				int FileSizeKB = FileSizes[iSize];
+				FString Path = FPaths::Combine(CachePath, TEXT("TestData"), *FString::FromInt(iFolder), *FString::Printf(TEXT("TestData_%dkb.dat"), FileSizeKB));
+				TestFileEntries.Add(Path, FileSizeKB * 1024);
+			}
 		}
 
-		if (!bFailed && AccessDuration > SlowInitDuration && !GIsBuildMachine)
+		// measure latency by checking for the presence of all these files. We'll also track which don't exist..
+		const double StatStartTime = FPlatformTime::Seconds();
+		int TotalStatChecks = 0;
+		FDateTime CurrentTime = FDateTime::Now();
+ 		for (auto& KV : TestFileEntries)
 		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s access is very slow (initialization took %.2f seconds), consider disabling it."), *CachePath, AccessDuration);
+			FFileStatData StatData = IFileManager::Get().GetStatData(*KV.Key);
+
+			if (!StatData.bIsValid || StatData.FileSize != KV.Value)
+			{
+				MissingFiles.Add(KV.Key);
+			}
+			else if (!bReadOnly)
+			{
+				IFileManager::Get().SetTimeStamp(*KV.Key, CurrentTime);
+			}
 		}
 
-		if (!bFailed && InAccessLogFileName != nullptr && *InAccessLogFileName != 0)
+		// save total stat time
+		TotalSeekTime = (FPlatformTime::Seconds() - StatStartTime);
+
+		// calculate seek time here
+		OutSeekTimeMS = (TotalSeekTime / TestFileEntries.Num()) * 1000;
+
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Stat tests to %s took %.02f seconds"), *CachePath, TotalSeekTime);
+
+		// if seek times are very slow do a single read/write test just to confirm access
+		if (OutSeekTimeMS >= InSkipTestsIfSeeksExceedMS)
 		{
-			AccessLogWriter.Reset(new FAccessLogWriter(InAccessLogFileName));
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Limiting read/write speed tests due to seek times of %.02f exceeding %.02fms. Values will be inaccurate."), OutSeekTimeMS, InSkipTestsIfSeeksExceedMS);
+
+			FString Path = TestFileEntries.begin()->Key;
+			int Size = TestFileEntries.begin()->Value;
+
+			TestFileEntries.Reset();
+			TestFileEntries.Add(Path, Size);		
+		}
+	
+		// create any files that were missing
+		if (!bReadOnly)
+		{
+			TArray<uint8> Data;
+			for (auto& File : MissingFiles)
+			{
+				const int DesiredSize = TestFileEntries[File];
+				Data.SetNumUninitialized(DesiredSize);
+
+				if (!FFileHelper::SaveArrayToFile(Data, *File))
+				{
+					uint32 ErrorCode = FPlatformMisc::GetLastError();
+					TCHAR ErrorBuffer[1024];
+					FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+					UE_LOG(LogDerivedDataCache, Warning, TEXT("Fail to write to %s, derived data cache to this directory will be read only. WriteError: %u (%s)"), *File, ErrorCode, ErrorBuffer);
+					bTestDataExists = false;
+					bWriteTestPassed = false;
+					break;
+				}
+			}
 		}
 
-		if (!bReadOnly && !bFailed && bDeleteOldFiles && !FParse::Param(FCommandLine::Get(),TEXT("NODDCCLEANUP")) && FDDCCleanup::Get())
-		{			
-			FDDCCleanup::Get()->AddFilesystem( CachePath, InDaysToDeleteUnusedFiles, InMaxNumFoldersToCheck, InMaxContinuousFileChecks );
+		// now read all sizes from random folders
+		{
+			const int ArraySize = UE_ARRAY_COUNT(FileSizes);
+			TArray<uint8> TempData;
+			TempData.Empty(FileSizes[ArraySize - 1] * 1024);
+
+			const double ReadStartTime = FPlatformTime::Seconds();
+
+			for (auto& KV : TestFileEntries)
+			{
+				const int FileSize = KV.Value;
+				const FString& FilePath = KV.Key;
+
+				if (!FFileHelper::LoadFileToArray(TempData, *FilePath))
+				{
+					uint32 ErrorCode = FPlatformMisc::GetLastError();
+					TCHAR ErrorBuffer[1024];
+					FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+					UE_LOG(LogDerivedDataCache, Warning, TEXT("Fail to read from %s, derived data cache will be disabled. ReadError: %u (%s)"), *FilePath, ErrorCode, ErrorBuffer);
+					bReadTestPassed = false;
+					break;
+				}
+
+				TotalDataRead += TempData.Num();
+			}
+
+			TotalReadTime = FPlatformTime::Seconds() - ReadStartTime;
+
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Read tests %s on %s and took %.02f seconds"), bReadTestPassed ? TEXT("passed") : TEXT("failed"), *CachePath, TotalReadTime);
 		}
+		
+		// do write tests if or read tests passed and our seeks were below the cut-off 
+		if (bReadTestPassed && !bReadOnly)
+		{
+			// do write tests but use a machine specific folder
+			FString CustomPath = FPaths::Combine(CachePath, TEXT("TestData"), FPlatformMisc::GetLoginId());
+
+			const int ArraySize = UE_ARRAY_COUNT(FileSizes);
+			TArray<uint8> TempData;
+			TempData.Empty(FileSizes[ArraySize - 1] * 1024);
+
+			const double WriteStartTime = FPlatformTime::Seconds();
+
+			for (auto& KV : TestFileEntries)
+			{
+				const int FileSize = KV.Value;
+				FString FilePath = KV.Key;
+
+				TempData.SetNumUninitialized(FileSize);
+
+				FilePath = FilePath.Replace(*CachePath, *CustomPath);
+
+				if (!FFileHelper::SaveArrayToFile(TempData, *FilePath))
+				{
+					uint32 ErrorCode = FPlatformMisc::GetLastError();
+					TCHAR ErrorBuffer[1024];
+					FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+					UE_LOG(LogDerivedDataCache, Warning, TEXT("Fail to write to %s, derived data cache will be disabled. ReadError: %u (%s)"), *FilePath, ErrorCode, ErrorBuffer);
+					bWriteTestPassed = false;
+					break;
+				}
+
+				TotalDataWritten += TempData.Num();
+			}
+
+			TotalWriteTime = FPlatformTime::Seconds() - WriteStartTime;
+
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("write tests %s on %s and took %.02f seconds"), bWriteTestPassed ? TEXT("passed") : TEXT("failed"), *CachePath, TotalReadTime)
+
+			// remove the custom path but do it async as this can be slow on
+			AsyncTask(ENamedThreads::AnyThread, [CustomPath]() {
+				IFileManager::Get().DeleteDirectory(*CustomPath, false, true);
+			});
+	
+			// check latency and speed. Read values should always be valid
+			const double ReadSpeedMBs = (bReadTestPassed ? (TotalDataRead / TotalReadTime) : 0) / (1024 * 1024);
+			const double WriteSpeedMBs = (bWriteTestPassed ? (TotalDataWritten / TotalWriteTime) : 0) / (1024 * 1024);
+			const double SeekTimeMS = (TotalSeekTime / TestFileEntries.Num()) * 1000;
+		}
+
+		const double TotalTestTime = FPlatformTime::Seconds() - StatStartTime;
+
+		UE_LOG(LogDerivedDataCache, Log, TEXT("Speed tests for %s took %.02f seconds"), *CachePath, TotalTestTime);
+
+		// check latency and speed. Read values should always be valid
+		OutReadSpeedMBs = (bReadTestPassed ? (TotalDataRead / TotalReadTime) : 0) / (1024 * 1024);
+		OutWriteSpeedMBs = (bWriteTestPassed ? (TotalDataWritten / TotalWriteTime) : 0) / (1024 * 1024);
+
+		return bWriteTestPassed || bReadTestPassed;
+	}
+
+	/** Return a name for this interface */
+	virtual FString GetName() const override 
+	{ 
+		return CachePath; 
 	}
 
 	/** return true if the cache is usable **/
 	bool IsUsable()
 	{
-		return !bFailed;
+		return !bDisabled;
 	}
 
 	/** return true if this cache is writable **/
 	virtual bool IsWritable() override
 	{
-		return !bReadOnly;
+		return !bReadOnly && !bDisabled;
+	}
+
+	/** Returns a class of speed for this interface **/
+	virtual ESpeedClass GetSpeedClass() override
+	{
+		return SpeedClass;
 	}
 
 	class FAccessLogWriter
@@ -189,7 +463,8 @@ public:
 		FCriticalSection CriticalSection;
 		TSet<FString> CacheKeys;
 	};
-
+	
+	
 	/**
 	 * Synchronous test for the existence of a cache item
 	 *
@@ -199,12 +474,23 @@ public:
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
-		check(!bFailed);
-		FString Filename = BuildFilename(CacheKey);
-		FDateTime TimeStamp = IFileManager::Get().GetTimeStamp(*Filename);
-		bool bExists = TimeStamp > FDateTime::MinValue();
-		if (bExists)
+		check(IsUsable());
+
+		// if we're a slow device just say we have the data. It's faster to try and fail than it
+		// is to check and succeed.
+		if (GetSpeedClass() <= FDerivedDataBackendInterface::ESpeedClass::Slow)
 		{
+			return true;
+		}
+
+		FString Filename = BuildFilename(CacheKey);
+
+		FFileStatData FileStat = IFileManager::Get().GetStatData(*Filename);
+
+		if (FileStat.bIsValid)
+		{
+			FDateTime TimeStamp = FileStat.ModificationTime;
+
 			// Update file timestamp to prevent it from being deleted by DDC Cleanup.
 			if (bTouch || 
 				 (!bReadOnly && (FDateTime::UtcNow() - TimeStamp).GetDays() > (DaysToDeleteUnusedFiles / 4)))
@@ -221,7 +507,7 @@ public:
 		}
 
 		// If not using a shared cache, record a (probable) miss
-		if (!bExists && !GetDerivedDataCacheRef().GetUsingSharedDDC())
+		if (!FileStat.bIsValid && !GetDerivedDataCacheRef().GetUsingSharedDDC())
 		{
 			// store a cache miss
 			FScopeLock ScopeLock(&SynchronizationObject);
@@ -231,7 +517,7 @@ public:
 			}
 		}
 
-		return bExists;
+		return FileStat.bIsValid;
 	}
 	/**
 	 * Synchronous retrieve of a cache item
@@ -243,15 +529,30 @@ public:
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& Data) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
-		check(!bFailed);
+		check(IsUsable());
 		FString Filename = BuildFilename(CacheKey);
 		double StartTime = FPlatformTime::Seconds();
+
+		if (DebugMissRate > 0)
+		{
+			bool Miss = FMath::RandHelper(100) < DebugMissRate;
+
+			if (Miss)
+			{
+				FScopeLock Lock(&MissedKeysCS);
+				UE_LOG(LogDerivedDataCache, Log, TEXT("%s Pretending key didn't exist: %s"), *GetName(), CacheKey);
+				DebugMissedKeys.Add(FName(CacheKey));
+				return false;
+			}
+		}
+
 		if (FFileHelper::LoadFileToArray(Data,*Filename,FILEREAD_Silent))
 		{
-			if(!GIsBuildMachine)
-			{
-				double ReadDuration = FPlatformTime::Seconds() - StartTime;
-				double ReadSpeed = ReadDuration > 5.0 ? (Data.Num() / ReadDuration) / (1024.0 * 1024.0) : 100.0;
+			double ReadDuration = FPlatformTime::Seconds() - StartTime;
+			double ReadSpeed = (Data.Num() / ReadDuration) / (1024.0 * 1024.0);
+
+			if(!GIsBuildMachine && ReadDuration > 5.0)
+			{				
 				// Slower than 0.5MB/s?
 				UE_CLOG(ReadSpeed < 0.5, LogDerivedDataCache, Warning, TEXT("%s is very slow (%.2fMB/s) when accessing %s, consider disabling it."), *CachePath, ReadSpeed, *Filename);
 			}
@@ -261,11 +562,11 @@ public:
 				AccessLogWriter->Append(CacheKey);
 			}
 
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("FileSystemDerivedDataBackend: Cache hit on %s"),*Filename);
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit on %s (%d bytes, %.02f secs, %.2fMB/s)"), *GetName(), CacheKey, Data.Num(), ReadDuration, ReadSpeed);
 			COOK_STAT(Timer.AddHit(Data.Num()));
 			return true;
 		}
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("FileSystemDerivedDataBackend: Cache miss on %s"),*Filename);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss on %s"), *GetName(), CacheKey);
 		Data.Empty();
 
 		// If not using a shared cache, record a miss
@@ -281,6 +582,15 @@ public:
 
 		return false;
 	}
+
+	/**
+	 * Would we cache this? Say yes so long as we aren't read-only.
+	 */
+	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override
+	{
+		return IsWritable() && !CachedDataProbablyExists(CacheKey);
+	}
+
 	/**
 	 * Asynchronous, fire-and-forget placement of a cache item
 	 *
@@ -291,12 +601,19 @@ public:
 	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> Data, bool bPutEvenIfExists) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
-		check(!bFailed);
-		if (!bReadOnly)
+		check(IsUsable());
+
+		if (IsWritable())
 		{
 			if (AccessLogWriter.IsValid())
 			{
 				AccessLogWriter->Append(CacheKey);
+			}
+
+			// don't put anything we pretended didn't exist
+			if (DebugMissRate > 0 && WasDebugMissed(CacheKey))
+			{
+				return;
 			}
 
 			if (bPutEvenIfExists || !CachedDataProbablyExists(CacheKey))
@@ -399,8 +716,8 @@ public:
 
 	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override
 	{
-		check(!bFailed);
-		if (!bReadOnly && (!bTransient || bPurgeTransient))
+		check(IsUsable());
+		if (IsWritable() && (!bTransient || bPurgeTransient))
 		{
 			FString Filename = BuildFilename(CacheKey);
 			if (bTransient)
@@ -414,6 +731,23 @@ public:
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override
 	{
 		COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s.%s"), *GraphPath, TEXT("FileSystem"), *CachePath), UsageStats));
+	}
+
+	bool TryToPrefetch(const TCHAR* CacheKey) override
+	{
+		return false;
+	}
+
+	void SetDebugMissRate(int InMissRate)
+	{
+		UE_LOG(LogDerivedDataCache, Log, TEXT("Setting DebugMissRate to %d for cache %s"), InMissRate, *GetName());
+		DebugMissRate = InMissRate;
+	}
+
+	bool WasDebugMissed(const TCHAR* InKey)
+	{
+		FScopeLock Lock(&MissedKeysCS);
+		return DebugMissedKeys.Contains(FName(InKey));
 	}
 
 private:
@@ -432,16 +766,21 @@ private:
 
 	/** Base path we are storing the cache files in. **/
 	FString	CachePath;
+	/** Class of this cache */
+	ESpeedClass SpeedClass;
 	/** If true, do not attempt to write to this cache **/
 	bool		bReadOnly;
-	/** If true, we failed to write to this directory and it did not contain anything so we should not be used **/
-	bool		bFailed;
+	
 	/** If true, CachedDataProbablyExists will update the file timestamps. */
 	bool		bTouch;
 	/** If true, allow transient data to be removed from the cache. */
 	bool		bPurgeTransient;
 	/** Age of file when it should be deleted from DDC cache. */
 	int32		DaysToDeleteUnusedFiles;
+
+	/** If true, we failed to write to this directory and it did not contain anything so we should not be used **/
+	bool		bDisabled;
+
 	/** Object used for synchronization via a scoped lock						*/
 	FCriticalSection SynchronizationObject;
 
@@ -453,17 +792,32 @@ private:
 	/** The total estimated build time accumulated from cache miss/put deltas */
 	double TotalEstimatedBuildTime;
 
+	/** Miss rate that can be set for profiling */
+	int DebugMissRate;
+
 	/** Access log to write to */
 	TUniquePtr<FAccessLogWriter> AccessLogWriter;
+
+	/** Keys we ignored due to miss rate settings */
+	FCriticalSection MissedKeysCS;
+	TSet<FName> DebugMissedKeys;
+
 };
 
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, bool bForceReadOnly /*= false*/, bool bTouchFiles /*= false*/, bool bPurgeTransient /*= false*/, bool bDeleteOldFiles /*= false*/, int32 InDaysToDeleteUnusedFiles /*= 60*/, int32 InMaxNumFoldersToCheck /*= -1*/, int32 InMaxContinuousFileChecks /*= -1*/, const TCHAR* InAccessLogFileName /*= nullptr*/)
+FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const int InMissRate, const TCHAR* InAccessLogFileName /*= nullptr*/)
 {
-	FFileSystemDerivedDataBackend* FileDDB = new FFileSystemDerivedDataBackend(CacheDirectory, bForceReadOnly, bTouchFiles, bPurgeTransient, bDeleteOldFiles, InDaysToDeleteUnusedFiles, InMaxNumFoldersToCheck, InMaxContinuousFileChecks, InAccessLogFileName);
+	FFileSystemDerivedDataBackend* FileDDB = new FFileSystemDerivedDataBackend( CacheDirectory, InParams, InMissRate, InAccessLogFileName);
+
+	if (InMissRate > 0)
+	{
+		FileDDB->SetDebugMissRate(InMissRate);
+	}
+
 	if (!FileDDB->IsUsable())
 	{
 		delete FileDDB;
 		FileDDB = NULL;
 	}
+
 	return FileDDB;
 }

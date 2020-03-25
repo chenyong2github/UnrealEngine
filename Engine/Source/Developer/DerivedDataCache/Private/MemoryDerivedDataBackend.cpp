@@ -3,8 +3,9 @@
 #include "MemoryDerivedDataBackend.h"
 #include "Templates/UniquePtr.h"
 
-FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(int64 InMaxCacheSize)
-	: MaxCacheSize(InMaxCacheSize)
+FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize)
+	: Name(InName)
+	, MaxCacheSize(InMaxCacheSize)
 	, bDisabled( false )
 	, CurrentCacheSize( SerializationSpecificDataSize )
 	, bMaxSizeExceeded(false)
@@ -20,6 +21,11 @@ bool FMemoryDerivedDataBackend::IsWritable()
 {
 	FScopeLock ScopeLock(&SynchronizationObject);
 	return !bDisabled;
+}
+
+FDerivedDataBackendInterface::ESpeedClass FMemoryDerivedDataBackend::GetSpeedClass()
+{
+	return ESpeedClass::Local;
 }
 
 bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
@@ -59,13 +65,30 @@ bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint
 	return false;
 }
 
+bool FMemoryDerivedDataBackend::TryToPrefetch(const TCHAR* CacheKey)
+{
+	return false;
+}
+
+bool FMemoryDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+{
+	if (bDisabled || bMaxSizeExceeded)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePut());
 	FScopeLock ScopeLock(&SynchronizationObject);
 	
-	if (bDisabled || bMaxSizeExceeded)
+	// Should never hit this as higher level code should be checking..
+	if (!WouldCache(CacheKey, InData))
 	{
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("WouldCache was not called prior to attempted Put!"));
 		return;
 	}
 	

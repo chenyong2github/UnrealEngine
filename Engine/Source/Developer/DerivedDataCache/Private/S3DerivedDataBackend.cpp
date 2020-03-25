@@ -835,6 +835,26 @@ void FS3DerivedDataBackend::GatherUsageStats(TMap<FString, FDerivedDataCacheUsag
 	COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s @ %s"), *GraphPath, TEXT("S3"), *BaseUrl), UsageStats));
 }
 
+FString FS3DerivedDataBackend::GetName() const
+{
+	return BaseUrl;
+}
+
+FDerivedDataBackendInterface::ESpeedClass FS3DerivedDataBackend::GetSpeedClass()
+{
+	return ESpeedClass::Local;
+}
+
+bool FS3DerivedDataBackend::TryToPrefetch(const TCHAR* CacheKey)
+{
+	return false;
+}
+
+bool FS3DerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+{
+	return false;
+}
+
 bool FS3DerivedDataBackend::DownloadManifest(FFeedbackContext* Context)
 {
 	// Read the root manifest from disk
