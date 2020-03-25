@@ -94,7 +94,8 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	ChromaKeyThreshold = 1.0f / 255.0f;
 	VirtualTextureStreaming = 0;
 	CompressionYCoCg = 0;
-	
+	Downscale = 0.f;
+	DownscaleOptions = ETextureDownscaleOptions::Default;
 #endif // #if WITH_EDITORONLY_DATA
 
 	if (FApp::CanEverRender() && !IsTemplate())
