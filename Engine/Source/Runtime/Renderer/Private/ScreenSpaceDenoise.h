@@ -208,6 +208,15 @@ public:
 		const FSceneTextureParameters& SceneTextures,
 		const FReflectionsInputs& ReflectionInputs,
 		const FReflectionsRayTracingConfig RayTracingConfig) const = 0;
+
+	/** Entry point to denoise water reflections. */
+	virtual FReflectionsOutputs DenoiseWaterReflections(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FReflectionsInputs& ReflectionInputs,
+		const FReflectionsRayTracingConfig RayTracingConfig) const = 0;
 	
 	/** Entry point to denoise reflections. */
 	virtual FAmbientOcclusionOutputs DenoiseAmbientOcclusion(
