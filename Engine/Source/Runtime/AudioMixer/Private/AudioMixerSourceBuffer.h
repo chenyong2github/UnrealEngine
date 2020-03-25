@@ -43,7 +43,7 @@ namespace Audio
 		AsynchronousSkipFirstFrame
 	};
 
-	using FMixerSourceBufferPtr = TSharedPtr<class FMixerSourceBuffer, ESPMode::ThreadSafe>;
+	using FMixerSourceBufferPtr = TSharedPtr<class FMixerSourceBuffer>;
 
 	/** Class which handles decoding audio for a particular source buffer. */
 	class FMixerSourceBuffer : public ISoundWaveClient
@@ -68,10 +68,10 @@ namespace Audio
 		void OnBufferEnd();
 
 		// Return the number of buffers enqueued on the mixer source buffer
-		int32 GetNumBuffersQueued() const;
-
+		int32 GetNumBuffersQueued() const { return NumBuffersQeueued; }
+		
 		// Returns the next enqueued buffer, returns nullptr if no buffers enqueued
-		TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe> GetNextBuffer();
+		TSharedPtr<FMixerSourceVoiceBuffer> GetNextBuffer();
 
 		// Returns if buffer looped
 		bool DidBufferLoop() const { return bLoopCallback; }
@@ -102,15 +102,14 @@ namespace Audio
 		void SubmitInitialRealtimeBuffers();
 		void SubmitRealTimeSourceData(const bool bLooped);
 		void ProcessRealTimeSource();
-		void SubmitBuffer(TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe> InSourceVoiceBuffer);
-		void DeleteDecoder();
+		void SubmitBuffer(TSharedPtr<FMixerSourceVoiceBuffer> InSourceVoiceBuffer);
 
 
 		int32 NumBuffersQeueued;
 		FRawPCMDataBuffer RawPCMDataBuffer;
 
-		TArray<TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe>> SourceVoiceBuffers;
-		TQueue<TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe>> BufferQueue;
+		TArray<TSharedPtr<FMixerSourceVoiceBuffer>> SourceVoiceBuffers;
+		TQueue<TSharedPtr<FMixerSourceVoiceBuffer>> BufferQueue;
 		int32 CurrentBuffer;
 		// SoundWaves are only set for procedural sound waves
 		USoundWave* SoundWave;
@@ -122,8 +121,7 @@ namespace Audio
 		int32 NumPrecacheFrames;
 		TArray<uint8> CachedRealtimeFirstBuffer;
 
-		mutable FCriticalSection SoundWaveCritSec;
-		mutable FCriticalSection DecodeTaskCritSec;
+		FCriticalSection DtorCritSec;
 
 		uint32 bInitialized : 1;
 		uint32 bBufferFinished : 1;
