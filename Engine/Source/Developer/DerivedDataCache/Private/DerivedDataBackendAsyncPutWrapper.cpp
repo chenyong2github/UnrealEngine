@@ -94,7 +94,7 @@ public:
 
 FDerivedDataBackendAsyncPutWrapper::FDerivedDataBackendAsyncPutWrapper(FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts)
 	: InnerBackend(InInnerBackend)
-	, InflightCache(bCacheInFlightPuts ? (new FMemoryDerivedDataBackend) : NULL)
+	, InflightCache(bCacheInFlightPuts ? (new FMemoryDerivedDataBackend(TEXT("AsyncPutCache"))) : NULL)
 {
 	check(InnerBackend);
 }
@@ -103,6 +103,11 @@ FDerivedDataBackendAsyncPutWrapper::FDerivedDataBackendAsyncPutWrapper(FDerivedD
 bool FDerivedDataBackendAsyncPutWrapper::IsWritable()
 {
 	return InnerBackend->IsWritable();
+}
+
+FDerivedDataBackendInterface::ESpeedClass FDerivedDataBackendAsyncPutWrapper::GetSpeedClass()
+{
+	return InnerBackend->GetSpeedClass();
 }
 
 /**
@@ -117,6 +122,31 @@ bool FDerivedDataBackendAsyncPutWrapper::CachedDataProbablyExists(const TCHAR* C
 	bool Result = (InflightCache && InflightCache->CachedDataProbablyExists(CacheKey)) || InnerBackend->CachedDataProbablyExists(CacheKey);
 	COOK_STAT(if (Result) {	Timer.AddHit(0); });
 	return Result;
+}
+
+bool FDerivedDataBackendAsyncPutWrapper::TryToPrefetch(const TCHAR* CacheKey)
+{
+	COOK_STAT(auto Timer = UsageStats.TimePrefetch());
+
+	bool SkipCheck = (!InflightCache && InflightCache->CachedDataProbablyExists(CacheKey));
+	
+	bool Hit = false;
+
+	if (!SkipCheck)
+	{
+		Hit = InnerBackend->TryToPrefetch(CacheKey);
+	}
+
+	COOK_STAT(if (Hit) { Timer.AddHit(0); });
+	return Hit;
+}
+
+/*
+	Determine if we would cache this by asking all our inner layers
+*/
+bool FDerivedDataBackendAsyncPutWrapper::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+{
+	return InnerBackend->WouldCache(CacheKey, InData);
 }
 
 bool FDerivedDataBackendAsyncPutWrapper::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
