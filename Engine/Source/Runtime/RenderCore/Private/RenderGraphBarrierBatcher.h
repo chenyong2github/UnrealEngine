@@ -3,16 +3,16 @@
 #pragma once
 
 #include "RenderGraphResources.h"
+#include "Containers/SortedMap.h"
 
 /** Class that queues up batches of resource barriers and then submits them to a command list. */
 class RENDERCORE_API FRDGBarrierBatcher final
 {
 public:
-	/** RAII initialization of batcher. Batcher will flush all queued transitions in the destructor.
-	 *  @param Pass The current pass if performing inter-pass barriers. This can be null (e.g. for post-execution barriers).
-	 */
-	FRDGBarrierBatcher(FRHICommandList& RHICmdList, const FRDGPass* Pass);
-	~FRDGBarrierBatcher();
+	FRDGBarrierBatcher() = default;
+
+	void Begin(const FRDGPass* Pass);
+	void End(FRHICommandList& RHICmdList);
 
 	/** Queues a transition of the texture to the requested access state. */
 	void QueueTransitionTexture(FRDGTexture* Texture, FRDGResourceState::EAccess AccessAfter);
@@ -45,6 +45,11 @@ private:
 			return TransitionAccess == Other.TransitionAccess && TransitionPipeline == Other.TransitionPipeline;
 		}
 
+		bool operator<(const FTransitionParameters& Other) const
+		{
+			return GetHash() < Other.GetHash();
+		}
+
 		uint32 GetHash() const
 		{
 			return uint32(TransitionAccess) | (uint32(TransitionPipeline) << 8);
@@ -54,22 +59,11 @@ private:
 		EResourceTransitionPipeline TransitionPipeline = EResourceTransitionPipeline::EGfxToGfx;
 	};
 
-	template <typename TBatchType>
-	struct TBatchMapKeyFuncs : public TDefaultMapKeyFuncs<FTransitionParameters, TBatchType, /** bAllowDuplicateKeys */ false>
-	{
-		static uint32 GetKeyHash(FTransitionParameters Key)
-		{
-			return Key.GetHash();
-		}
-	};
-
 	using FUAVBatch = TArray<FRHIUnorderedAccessView*, SceneRenderingAllocator>;
-	using FUAVBatchMap = TMap<FTransitionParameters, FUAVBatch, SceneRenderingSetAllocator, TBatchMapKeyFuncs<FUAVBatch>>;
+	using FUAVBatchMap = TSortedMap<FTransitionParameters, FUAVBatch, SceneRenderingAllocator>;
 
 	using FTextureBatch = TArray<FRHITexture*, SceneRenderingAllocator>;
-	using FTextureBatchMap = TMap<FTransitionParameters, FTextureBatch, SceneRenderingSetAllocator, TBatchMapKeyFuncs<FTextureBatch>>;
-
-	FRHICommandList& RHICmdList;
+	using FTextureBatchMap = TSortedMap<FTransitionParameters, FTextureBatch, SceneRenderingAllocator>;
 
 	FTextureBatch TextureUpdateMultiFrameBegins;
 	FTextureBatch TextureUpdateMultiFrameEnds;
