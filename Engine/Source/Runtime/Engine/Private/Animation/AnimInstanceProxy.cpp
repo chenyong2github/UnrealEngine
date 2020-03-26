@@ -90,13 +90,13 @@ void FAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 
 	if (AnimClassInterface)
 	{
-		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
 
 		// Grab a pointer to the default root node, if any
 		RootNode = nullptr;
 		if(AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
 		{
-			if(FProperty* RootNodeProperty = AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeProperty.Get())
+			if(FProperty* RootNodeProperty = AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeProperty)
 			{
 				RootNode = RootNodeProperty->ContainerPtrToValuePtr<FAnimNode_Root>(InAnimInstance);
 			}
@@ -196,7 +196,7 @@ void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
 	if(AnimClassInterface)
 	{
 		// cache any state machine descriptions we have
-		for (const FStructPropertyPath& Property : AnimClassInterface->GetStateMachineNodeProperties())
+		for (const FStructProperty* Property : AnimClassInterface->GetStateMachineNodeProperties())
 		{
 			FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
 			StateMachine->CacheMachineDescription(AnimClassInterface);
@@ -204,21 +204,21 @@ void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
 
 		// Init any nodes that need non-relevancy based initialization
 		UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(GetAnimInstanceObject());
-		for (const FStructPropertyPath& Property : AnimClassInterface->GetInitializationNodeProperties())
+		for (const FStructProperty* Property : AnimClassInterface->GetInitializationNodeProperties())
 		{
 			FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(AnimInstanceObject);
 			AnimNode->OnInitializeAnimInstance(this, AnimInstance);
 		}
 
 		// Cache any preupdate nodes
-		for (const FStructPropertyPath& Property : AnimClassInterface->GetPreUpdateNodeProperties())
+		for (const FStructProperty* Property : AnimClassInterface->GetPreUpdateNodeProperties())
 		{
 			FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(AnimInstanceObject);
 			GameThreadPreUpdateNodes.Add(AnimNode);
 		}
 
 		// Cache any dynamic reset nodes
-		for (const FStructPropertyPath& Property : AnimClassInterface->GetDynamicResetNodeProperties())
+		for (const FStructProperty* Property : AnimClassInterface->GetDynamicResetNodeProperties())
 		{
 			FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(AnimInstanceObject);
 			DynamicResetNodes.Add(AnimNode);
@@ -1096,12 +1096,12 @@ FAnimNode_Base* FAnimInstanceProxy::GetCheckedNodeFromIndexUntyped(int32 NodeIdx
 	FAnimNode_Base* NodePtr = nullptr;
 	if (AnimClassInterface)
 	{
-		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
 		const int32 InstanceIdx = AnimNodeProperties.Num() - 1 - NodeIdx;
 
 		if (AnimNodeProperties.IsValidIndex(InstanceIdx))
 		{
-			FStructProperty* NodeProperty = AnimNodeProperties[InstanceIdx].Get();
+			FStructProperty* NodeProperty = AnimNodeProperties[InstanceIdx];
 
 			if (NodeProperty->Struct->IsChildOf(RequiredStructType))
 			{
@@ -1128,12 +1128,12 @@ FAnimNode_Base* FAnimInstanceProxy::GetNodeFromIndexUntyped(int32 NodeIdx, UScri
 	FAnimNode_Base* NodePtr = nullptr;
 	if (AnimClassInterface)
 	{
-		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
 		const int32 InstanceIdx = AnimNodeProperties.Num() - 1 - NodeIdx;
 
 		if (AnimNodeProperties.IsValidIndex(InstanceIdx))
 		{
-			FStructProperty* NodeProperty = AnimNodeProperties[InstanceIdx].Get();
+			FStructProperty* NodeProperty = AnimNodeProperties[InstanceIdx];
 
 			if (NodeProperty->Struct->IsChildOf(RequiredStructType))
 			{
@@ -1236,7 +1236,7 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 			if(AnimClassInterface)
 			{
 				// Initialize linked sub graphs
-				for(const FStructPropertyPath& LayerNodeProperty : AnimClassInterface->GetLinkedAnimLayerNodeProperties())
+				for(const FStructProperty* LayerNodeProperty : AnimClassInterface->GetLinkedAnimLayerNodeProperties())
 				{
 					if(FAnimNode_LinkedAnimLayer* LayerNode = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(AnimInstanceObject))
 					{
@@ -2033,12 +2033,12 @@ FAnimNode_StateMachine* FAnimInstanceProxy::GetStateMachineInstance(int32 Machin
 {
 	if (AnimClassInterface)
 	{
-		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
 		if ((MachineIndex >= 0) && (MachineIndex < AnimNodeProperties.Num()))
 		{
 			const int32 InstancePropertyIndex = AnimNodeProperties.Num() - 1 - MachineIndex;
 
-			FStructProperty* MachineInstanceProperty = AnimNodeProperties[InstancePropertyIndex].Get();
+			FStructProperty* MachineInstanceProperty = AnimNodeProperties[InstancePropertyIndex];
 			checkSlow(MachineInstanceProperty->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()));
 
 			return MachineInstanceProperty->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
@@ -2129,9 +2129,9 @@ void FAnimInstanceProxy::BindNativeDelegates()
 
 	auto ForEachStateLambda = [&](IAnimClassInterface* InAnimClassInterface, const FName& MachineName, const FName& StateName, TFunctionRef<void(FAnimNode_StateMachine*, const FBakedAnimationState&, int32)> Predicate)
 	{
-		for (const FStructPropertyPath& Property : InAnimClassInterface->GetAnimNodeProperties())
+		for (const FStructProperty* Property : InAnimClassInterface->GetAnimNodeProperties())
 		{
-			if(Property.Get() && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
+			if(Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 			{
 				FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
 				if(StateMachine)
@@ -2221,10 +2221,10 @@ FAnimNode_StateMachine* FAnimInstanceProxy::GetStateMachineInstanceFromName(FNam
 {
 	if (AnimClassInterface)
 	{
-		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
 		for (int32 MachineIndex = 0; MachineIndex < AnimNodeProperties.Num(); MachineIndex++)
 		{
-			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex].Get();
+			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
 			if (Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 			{
 				FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
@@ -2249,10 +2249,10 @@ const FBakedAnimationStateMachine* FAnimInstanceProxy::GetStateMachineInstanceDe
 {
 	if (AnimClassInterface)
 	{
-		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
 		for (int32 MachineIndex = 0; MachineIndex < AnimNodeProperties.Num(); MachineIndex++)
 		{
-			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex].Get();
+			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
 			if(Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 			{
 				FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
@@ -2277,10 +2277,10 @@ int32 FAnimInstanceProxy::GetStateMachineIndex(FName MachineName)
 {
 	if (AnimClassInterface)
 	{
-		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
 		for (int32 MachineIndex = 0; MachineIndex < AnimNodeProperties.Num(); MachineIndex++)
 		{
-			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex].Get();
+			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
 			if(Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 			{
 				FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
@@ -2305,10 +2305,10 @@ void FAnimInstanceProxy::GetStateMachineIndexAndDescription(FName InMachineName,
 {
 	if (AnimClassInterface)
 	{
-		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
 		for (int32 MachineIndex = 0; MachineIndex < AnimNodeProperties.Num(); MachineIndex++)
 		{
-			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex].Get();
+			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
 			if (Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 			{
 				FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
@@ -2344,7 +2344,7 @@ int32 FAnimInstanceProxy::GetInstanceAssetPlayerIndex(FName MachineName, FName S
 	{
 		if(const FBakedAnimationStateMachine* MachineDescription = GetStateMachineInstanceDesc(MachineName))
 		{
-			const TArray<FStructPropertyPath>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+			const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
 			for(int32 StateIndex = 0; StateIndex < MachineDescription->States.Num(); StateIndex++)
 			{
 				const FBakedAnimationState& State = MachineDescription->States[StateIndex];
@@ -2353,7 +2353,7 @@ int32 FAnimInstanceProxy::GetInstanceAssetPlayerIndex(FName MachineName, FName S
 					for(int32 PlayerIndex = 0; PlayerIndex < State.PlayerNodeIndices.Num(); PlayerIndex++)
 					{
 						checkSlow(State.PlayerNodeIndices[PlayerIndex] < AnimNodeProperties.Num());
-						FStructProperty* AssetPlayerProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - State.PlayerNodeIndices[PlayerIndex]].Get();
+						FStructProperty* AssetPlayerProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - State.PlayerNodeIndices[PlayerIndex]];
 						if(AssetPlayerProperty && AssetPlayerProperty->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
 						{
 							FAnimNode_AssetPlayerBase* AssetPlayer = AssetPlayerProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(AnimInstanceObject);

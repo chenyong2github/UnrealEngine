@@ -37,6 +37,7 @@ void FBackendHelperAnim::CreateAnimClassData(FEmitterLocalContext& Context)
 				, FEmitDefaultValueHelper::EPropertyGenerationControlFlags::AllowTransient);
 		}
 
+		Context.AddLine(FString::Printf(TEXT("%s->ResolvePropertyPaths();"), *LocalNativeName));
 		Context.AddLine(FString::Printf(TEXT("InDynamicClass->%s = %s;"), GET_MEMBER_NAME_STRING_CHECKED(UDynamicClass, AnimClassImplementation), *LocalNativeName));
 	}
 }

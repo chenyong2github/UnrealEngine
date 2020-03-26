@@ -2294,6 +2294,10 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	NewAnimBlueprintClass->AnimNodeProperties.Empty();
 	NewAnimBlueprintClass->LinkedAnimGraphNodeProperties.Empty();
 	NewAnimBlueprintClass->LinkedAnimLayerNodeProperties.Empty();
+	NewAnimBlueprintClass->PreUpdateNodeProperties.Empty();
+	NewAnimBlueprintClass->DynamicResetNodeProperties.Empty();
+	NewAnimBlueprintClass->StateMachineNodeProperties.Empty();
+	NewAnimBlueprintClass->InitializationNodeProperties.Empty();
 	NewAnimBlueprintClass->EvaluateGraphExposedInputs.Empty();
 	NewAnimBlueprintClass->GraphAssetPlayerInformation.Empty();
 	NewAnimBlueprintClass->GraphBlendOptions.Empty();
