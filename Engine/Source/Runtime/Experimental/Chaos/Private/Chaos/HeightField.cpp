@@ -12,7 +12,6 @@
 
 namespace Chaos
 {
-
 	template<typename T>
 	class THeightfieldRaycastVisitor
 	{
