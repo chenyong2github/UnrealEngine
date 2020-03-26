@@ -19,28 +19,27 @@ namespace Chaos
 	/**
 	 *
 	 */
-	template <typename T, int d>
-	struct TSimOverlapVisitor
+	struct FSimOverlapVisitor
 	{
-		TArray<TAccelerationStructureHandle<T, d>>& Intersections;
-		TSimOverlapVisitor(TArray<TAccelerationStructureHandle<T, d>>& InIntersections)
+		TArray<TAccelerationStructureHandle<FReal, 3>>& Intersections;
+		FSimOverlapVisitor(TArray<TAccelerationStructureHandle<FReal, 3>>& InIntersections)
 			: Intersections(InIntersections)
 		{
 		}
 
-		bool VisitOverlap(const TSpatialVisitorData<TAccelerationStructureHandle<T, d>>& Instance)
+		bool VisitOverlap(const TSpatialVisitorData<TAccelerationStructureHandle<FReal, 3>>& Instance)
 		{
 			Intersections.Add(Instance.Payload);
 			return true;
 		}
 
-		bool VisitSweep(TSpatialVisitorData<TAccelerationStructureHandle<T, d>>, FQueryFastData& CurData)
+		bool VisitSweep(TSpatialVisitorData<TAccelerationStructureHandle<FReal, 3>>, FQueryFastData& CurData)
 		{
 			check(false);
 			return false;
 		}
 
-		bool VisitRaycast(TSpatialVisitorData<TAccelerationStructureHandle<T, d>>, FQueryFastData& CurData)
+		bool VisitRaycast(TSpatialVisitorData<TAccelerationStructureHandle<FReal, 3>>, FQueryFastData& CurData)
 		{
 			check(false);
 			return false;
@@ -154,7 +153,7 @@ namespace Chaos
 
 					CHAOS_COLLISION_STAT(StatData.RecordBoundsData(Box1));
 
-					TSimOverlapVisitor<FReal, 3> OverlapVisitor(PotentialIntersections);
+					FSimOverlapVisitor OverlapVisitor(PotentialIntersections);
 					InSpatialAcceleration.Overlap(Box1, OverlapVisitor);
 				}
 				else
@@ -246,8 +245,8 @@ namespace Chaos
 	void MoveToTOIHackImpl(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle1, const T_SPATIALACCELERATION* SpatialAcceleration)
 	{
 		TArray<TAccelerationStructureHandle<FReal, 3>> PotentialIntersections;
-		const TAABB<FReal, 3> Box1 = ComputeWorldSpaceBoundingBox(Particle1);
-		TSimOverlapVisitor<FReal, 3> OverlapVisitor(PotentialIntersections);
+		const FAABB3 Box1 = ComputeWorldSpaceBoundingBox(Particle1);
+		FSimOverlapVisitor OverlapVisitor(PotentialIntersections);
 		SpatialAcceleration->Overlap(Box1, OverlapVisitor);
 
 		const int32 NumPotentials = PotentialIntersections.Num();

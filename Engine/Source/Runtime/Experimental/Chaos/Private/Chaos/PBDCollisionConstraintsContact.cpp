@@ -62,8 +62,8 @@ namespace Chaos
 		FVec3 ApplyContact(FCollisionContact& Contact,
 			TGenericParticleHandle<FReal, 3> Particle0, 
 			TGenericParticleHandle<FReal, 3> Particle1,
-			const TContactIterationParameters<FReal> & IterationParameters,
-			const TContactParticleParameters<FReal> & ParticleParameters)
+			const FContactIterationParameters & IterationParameters,
+			const FContactParticleParameters & ParticleParameters)
 		{
 			FVec3 AccumulatedImpulse(0);
 
@@ -232,8 +232,8 @@ namespace Chaos
 		FVec3 ApplyContact2(FCollisionContact& Contact,
 			TGenericParticleHandle<FReal, 3> Particle0,
 			TGenericParticleHandle<FReal, 3> Particle1,
-			const TContactIterationParameters<FReal>& IterationParameters,
-			const TContactParticleParameters<FReal>& ParticleParameters)
+			const FContactIterationParameters& IterationParameters,
+			const FContactParticleParameters& ParticleParameters)
 		{
 			FVec3 AccumulatedImpulse(0);
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
@@ -609,6 +609,18 @@ namespace Chaos
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
 				Update(Constraint, ParticleParameters.CullDistance);
+
+				// Permanently disable a constraint that is beyond the cull distance
+				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
+				{
+					Constraint.SetDisabled(true);
+					return;
+				}
+
+				if (Constraint.GetPhi() >= ParticleParameters.ShapePadding)
+				{
+					return;
+				}
 
 				Constraint.AccumulatedImpulse += 
 					ApplyPushOutContact(Constraint.Manifold, Particle0, Particle1, IsTemporarilyStatic, IterationParameters, ParticleParameters);
