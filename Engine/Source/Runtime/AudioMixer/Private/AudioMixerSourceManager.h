@@ -91,7 +91,7 @@ namespace Audio
 
 	struct FMixerSourceVoiceInitParams
 	{
-		TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
+		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
 		ISourceListener* SourceListener;
 		TArray<FMixerSourceSubmixSend> SubmixSends;
 		TArray<FMixerBusSend> BusSends[(int32)EBusSendType::Count];
@@ -451,11 +451,11 @@ namespace Audio
 			~FSourceInfo() {}
 
 			// Object which handles source buffer decoding
-			TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
+			TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
 			ISourceListener* SourceListener;
 
 			// Data used for rendering sources
-			TSharedPtr<FMixerSourceVoiceBuffer> CurrentPCMBuffer;
+			TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe> CurrentPCMBuffer;
 			int32 CurrentAudioChunkNumFrames;
 
 			// The post-attenuation source buffer, used to send audio to submixes
@@ -592,7 +592,7 @@ namespace Audio
 		TArray<FAsyncTask<FAudioMixerSourceWorker>*> SourceWorkers;
 
 		// Array of task data waiting to finished. Processed on audio render thread.
-		TArray<TSharedPtr<FMixerSourceBuffer>> PendingSourceBuffers;
+		TArray<TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe>> PendingSourceBuffers;
 
 		// General information about sources in source manager accessible from game thread
 		struct FGameThreadInfo

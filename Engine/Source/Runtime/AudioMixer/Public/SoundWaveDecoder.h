@@ -100,8 +100,9 @@ namespace Audio
 		FMixerBuffer* MixerBuffer;
 
 		// Object which handles bulk of decoding operations
-		TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
+		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
 
+		FCriticalSection DtorCritSec;
 		// Scratch buffer used for upmixing and downmixing the audio
 		AlignedFloatBuffer ScratchBuffer;
 
@@ -164,7 +165,7 @@ namespace Audio
 			TArray<float> NextFrameValues;
 
 			// The current decoded PCM buffer we are reading from
-			TSharedPtr<FMixerSourceVoiceBuffer> CurrentPCMBuffer;
+			TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe> CurrentPCMBuffer;
 
 			// If this sound is done (has decoded all data)
 			bool bIsDone;

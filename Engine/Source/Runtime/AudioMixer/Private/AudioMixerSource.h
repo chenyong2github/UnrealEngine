@@ -116,7 +116,7 @@ namespace Audio
 
 		FMixerDevice* MixerDevice;
 		FMixerBuffer* MixerBuffer;
-		TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
+		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
 		FMixerSourceVoice* MixerSourceVoice;
 
 		// This holds data copied from FSoundSourceBusSendInfo when a new sound starts playing
