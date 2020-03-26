@@ -157,8 +157,6 @@ protected:
 	/** Helper function for creating and registering the tab containing the row editor */
 	virtual void CreateAndRegisterRowEditorTab(const TSharedRef<class FTabManager>& InTabManager);
 
-	void BrowseDocumentation_Execute() const;
-
 	virtual FString GetDocumentationLink() const override;
 	
 	void OnAddClicked();

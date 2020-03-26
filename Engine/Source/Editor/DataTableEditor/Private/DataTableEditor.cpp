@@ -277,8 +277,6 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 		SpawnToolkitTab( DataTableTabId, TabInitializationPayload, EToolkitTabSpot::Details );
 	}*/
 
-	ToolkitCommands->MapAction(FGlobalEditorCommonCommands::Get().OpenDocumentation, FExecuteAction::CreateSP(this, &FDataTableEditor::BrowseDocumentation_Execute));
-
 	// asset editor commands here
 	ToolkitCommands->MapAction(FGenericCommands::Get().Copy, FExecuteAction::CreateSP(this, &FDataTableEditor::CopySelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FDataTableEditor::PasteOnSelectedRow));
@@ -293,11 +291,6 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 FName FDataTableEditor::GetToolkitFName() const
 {
 	return FName("DataTableEditor");
-}
-
-void FDataTableEditor::BrowseDocumentation_Execute() const
-{
-	IDocumentation::Get()->Open(GetDocumentationLink(), FDocumentationSourceInfo(TEXT("help_menu_asset")));
 }
 
 FString FDataTableEditor::GetDocumentationLink() const
@@ -541,6 +534,17 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
 	ToolbarBuilder.BeginSection("DataTableCommands");
 	{
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FDataTableEditor::Reimport_Execute),
+				FCanExecuteAction::CreateSP(this, &FDataTableEditor::CanReimport)),
+			NAME_None,
+			LOCTEXT("ReimportText", "Reimport"),
+			LOCTEXT("ReimportTooltip", "Reimport this DataTable"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.ReimportAsset"));
+
+		ToolbarBuilder.AddSeparator();
+
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(FExecuteAction::CreateSP(this, &FDataTableEditor::OnAddClicked)),
 			NAME_None,
