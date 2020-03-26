@@ -792,6 +792,8 @@ public:
 	void RandomFilteredSocket(FVectorVMContext& Context);
 
 	void RandomFilteredSocketOrBone(FVectorVMContext& Context);
+	void GetFilteredSocketOrBoneCount(FVectorVMContext& Context);
+	void GetFilteredSocketOrBoneBoneAt(FVectorVMContext& Context);
 	// End of Direct Bone + Socket Sampling
 	//////////////////////////////////////////////////////////////////////////
 
@@ -841,6 +843,8 @@ public:
 	static const FName GetFilteredSocketTransformName;
 
 	static const FName RandomFilteredSocketOrBoneName;
+	static const FName GetFilteredSocketOrBoneCountName;
+	static const FName GetFilteredSocketOrBoneAtName;
 
 	// Vertex Sampling
 	static const FName GetSkinnedVertexDataName;
