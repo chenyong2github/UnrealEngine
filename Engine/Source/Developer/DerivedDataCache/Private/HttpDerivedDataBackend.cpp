@@ -918,6 +918,27 @@ FHttpDerivedDataBackend::~FHttpDerivedDataBackend()
 {
 }
 
+FString FHttpDerivedDataBackend::GetName() const
+{
+	return Domain;
+}
+
+bool FHttpDerivedDataBackend::TryToPrefetch(const TCHAR* CacheKey)
+{
+	return false;
+}
+
+bool FHttpDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+{
+	return true;
+}
+
+FHttpDerivedDataBackend::ESpeedClass FHttpDerivedDataBackend::GetSpeedClass()
+{
+	return ESpeedClass::Slow;
+}
+
+
 bool FHttpDerivedDataBackend::IsServiceReady()
 {
 	FRequest Request(*Domain, nullptr, false);

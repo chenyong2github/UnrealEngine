@@ -8,7 +8,7 @@
 
 // Macro for whether to enable the S3 backend. libcurl is not currently available on Mac.
 #if PLATFORM_WINDOWS
-#define WITH_HTTP_DDC_BACKEND 0
+#define WITH_HTTP_DDC_BACKEND 1
 #else
 #define WITH_HTTP_DDC_BACKEND 0
 #endif
@@ -47,13 +47,17 @@ public:
 	 */
 	bool IsUsable() const { return bIsUsable; }
 
-	bool IsWritable() override { return true; }
-	bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
-	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
-	void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
-	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
-	void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
+	virtual bool IsWritable() override { return true; }
+	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
+	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
+	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
+	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
+	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
 	
+	virtual FString GetName() const override;
+	virtual bool TryToPrefetch(const TCHAR* CacheKey) override;
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
+	virtual ESpeedClass GetSpeedClass() override;
 
 private:
 	
