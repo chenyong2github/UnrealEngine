@@ -668,11 +668,11 @@ void UNiagaraDataInterfacePressureGrid::GetGridVelocity(FVectorVMContext& Contex
 
 void UNiagaraDataInterfacePressureGrid::SetGridDimension(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
 	VectorVM::FExternalFuncInputHandler<float> GridDimensionX(Context);
 	VectorVM::FExternalFuncInputHandler<float> GridDimensionY(Context);
 	VectorVM::FExternalFuncInputHandler<float> GridDimensionZ(Context);
 
-	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<bool> OutFunctionStatus(Context);
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
@@ -691,6 +691,8 @@ void UNiagaraDataInterfacePressureGrid::SetGridDimension(FVectorVMContext& Conte
 
 void UNiagaraDataInterfacePressureGrid::BuildGridTopology(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
+
 	VectorVM::FExternalFuncInputHandler<float> CenterXParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> CenterYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> CenterZParam(Context);
@@ -698,7 +700,6 @@ void UNiagaraDataInterfacePressureGrid::BuildGridTopology(FVectorVMContext& Cont
 	VectorVM::FExternalFuncInputHandler<float> ExtentYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> ExtentZParam(Context);
 
-	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGridOriginX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGridOriginY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGridOriginZ(Context);
@@ -732,6 +733,8 @@ void UNiagaraDataInterfacePressureGrid::BuildGridTopology(FVectorVMContext& Cont
 
 void UNiagaraDataInterfacePressureGrid::UpdateGridTransform(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
+
 	VectorVM::FExternalFuncInputHandler<float> Out00(Context);
 	VectorVM::FExternalFuncInputHandler<float> Out01(Context);
 	VectorVM::FExternalFuncInputHandler<float> Out02(Context);
@@ -752,7 +755,6 @@ void UNiagaraDataInterfacePressureGrid::UpdateGridTransform(FVectorVMContext& Co
 	VectorVM::FExternalFuncInputHandler<float> Out32(Context);
 	VectorVM::FExternalFuncInputHandler<float> Out33(Context);
 
-	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<bool> OutTransformStatus(Context);
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
