@@ -2437,19 +2437,10 @@ namespace OculusHMD
 		ovrpLayout Layout = ovrpLayout_DoubleWide;
 #if PLATFORM_ANDROID
 		static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
-		static const auto CVarMobileMultiViewDirect = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView.Direct"));
 		static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 		const bool bIsMobileMultiViewEnabled = (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
-		const bool bIsMobileMultiViewDirectEnabled = (CVarMobileMultiViewDirect && CVarMobileMultiViewDirect->GetValueOnAnyThread() != 0);
-		const bool bIsUsingDirectMobileMultiView = GSupportsMobileMultiView && bIsMobileMultiViewEnabled && bIsMobileMultiViewDirectEnabled;
+		const bool bIsUsingMobileMultiView = GSupportsMobileMultiView && bIsMobileMultiViewEnabled;
 		const bool bMobileHDR = CVarMobileHDR && CVarMobileHDR->GetValueOnAnyThread() == 1;
-
-		if (bIsMobileMultiViewEnabled && !bIsMobileMultiViewDirectEnabled)
-		{
-			static bool bDisplayedMultiViewError = false;
-			UE_CLOG(!bDisplayedMultiViewError, LogHMD, Error, TEXT("\"Mobile Multiview Direct\" must always be enabled if \"Mobile Multiview\" is enabled on Oculus Mobile HMD devices."));
-			bDisplayedMultiViewError = true;
-		}
 
 		if (bMobileHDR)
 		{
@@ -2458,7 +2449,7 @@ namespace OculusHMD
 			bDisplayedHDRError = true;
 		}
 
-		if (Settings->Flags.bDirectMultiview && bIsUsingDirectMobileMultiView)
+		if (bIsUsingMobileMultiView)
 		{
 			Layout = ovrpLayout_Array;
 			Settings->Flags.bIsUsingDirectMultiview = true;

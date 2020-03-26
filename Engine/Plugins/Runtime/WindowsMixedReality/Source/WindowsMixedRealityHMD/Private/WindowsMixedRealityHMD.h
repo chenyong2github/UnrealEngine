@@ -121,10 +121,10 @@ namespace WindowsMixedReality
 		virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 		virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 		virtual class IStereoLayers* GetStereoLayers() override;
-		
-		virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override 
-		{ 
-			return (bStereoRequested) ? 3 : 1; 
+
+		virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override
+		{
+			return (bStereoRequested) ? 3 : 1;
 		}
 
 		virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const override
@@ -206,6 +206,8 @@ namespace WindowsMixedReality
 
 		bool bRequestRestart = false;
 		bool bRequestShutdown = false;
+
+		bool bIsMobileMultiViewEnabled = false;
 
 		float ScreenScalePercentage = 1.0f;
 		float CachedWorldToMetersScale = 100.0f;
@@ -386,4 +388,3 @@ namespace WindowsMixedReality
 		void CreateSpectatorScreenController();
 	};
 }
-
