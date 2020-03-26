@@ -707,23 +707,36 @@ FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, co
 {
 	// Test whether we can reach the canary URL
 	bool bCanaryValid = true;
-	if (CanaryObjectKey.Len() > 0)
+	if (GIsBuildMachine)
+	{
+		UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling on build machine"));
+		bCanaryValid = false;
+	}
+	else if (CanaryObjectKey.Len() > 0)
 	{
 		TArray<uint8> Data;
-		bCanaryValid = IsSuccessfulHttpResponse(RequestPool->Download(*(BaseUrl / CanaryObjectKey), nullptr, Data, GLog));
+
+		FStringOutputDevice DummyOutputDevice;
+		if (!IsSuccessfulHttpResponse(RequestPool->Download(*(BaseUrl / CanaryObjectKey), nullptr, Data, &DummyOutputDevice)))
+		{
+			UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Unable to download canary file. Disabling."));
+			bCanaryValid = false;
+		}
 	}
 
 	// Allow the user to override it from the editor
 	bool bSetting;
 	if (GConfig->GetBool(TEXT("/Script/UnrealEd.EditorSettings"), TEXT("bEnableS3DDC"), bSetting, GEditorSettingsIni) && !bSetting)
 	{
-		UE_LOG(LogDerivedDataCache, Display, TEXT("S3DerivedDataBackend: Disabling due to config setting"));
+		UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling due to config setting"));
 		bCanaryValid = false;
 	}
 
 	// Try to read the bundles
 	if (bCanaryValid)
 	{
+		UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s S3 backend at %s"), *Region, *BaseUrl);
+
 		FFeedbackContext* Context = FDesktopPlatformModule::Get()->GetNativeFeedbackContext();
 		Context->BeginSlowTask(NSLOCTEXT("S3DerivedDataBackend", "DownloadingDDCBundles", "Downloading DDC bundles..."), true, true);
 
