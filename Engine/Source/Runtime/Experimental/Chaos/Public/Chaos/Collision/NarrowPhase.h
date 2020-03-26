@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/Core.h"
-#include "Chaos/Collision/CollisionReceiver.h"
+#include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Collision/StatsData.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/ParticleHandle.h"
@@ -30,10 +30,11 @@ namespace Chaos
 	class CHAOS_API FNarrowPhase
 	{
 	public:
-		FNarrowPhase(const FCollisionContext& InContext)
-			: Context(InContext)
+		FNarrowPhase()
 		{
 		}
+
+		FCollisionContext& GetContext() { return Context; }
 
 		// @todo(chaos): COLLISION Transient Handle version
 		/**
@@ -59,6 +60,6 @@ namespace Chaos
 		}
 
 	private:
-		const FCollisionContext& Context;
+		FCollisionContext Context;
 	};
 }

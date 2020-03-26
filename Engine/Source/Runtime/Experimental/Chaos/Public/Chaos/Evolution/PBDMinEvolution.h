@@ -7,15 +7,9 @@
 
 namespace Chaos
 {
-	class FNarrowPhase;
-	class FParticlePairBroadPhase;
+	class FParticlePairCollisionDetector;
 	class FPBDCollisionConstraints;
 	class FSimpleConstraintRule;
-	class FSyncCollisionReceiver;
-
-
-	template<typename T_BROADPHASE, typename T_NARROWPHASE, typename T_RECEIVER, typename T_CONTAINER>
-	class TCollisionDetector;
 
 	template <typename T, int d>
 	class TPBDRigidsSOAs;
@@ -33,7 +27,7 @@ namespace Chaos
 	public:
 		// @todo(ccaulfield): make it so that CollisionDetection is plugged in with a constraint rule...
 
-		using FCollisionDetector = TCollisionDetector<FParticlePairBroadPhase, FNarrowPhase, FSyncCollisionReceiver, FPBDCollisionConstraints>;
+		using FCollisionDetector = FParticlePairCollisionDetector;
 		using FEvolutionCallback = TFunction<void()>;
 		using FRigidParticleSOAs = TPBDRigidsSOAs<FReal, 3>;
 

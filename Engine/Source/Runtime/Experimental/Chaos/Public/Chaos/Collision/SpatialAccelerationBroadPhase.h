@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/Collision/BroadPhase.h"
+#include "Chaos/Collision/CollisionReceiver.h"
 #include "Chaos/Collision/StatsData.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/ISpatialAccelerationCollection.h"
@@ -11,8 +12,6 @@
 
 namespace Chaos
 {
-	class FAsyncCollisionReceiver;
-
 	template <typename TPayloadType, typename T, int d>
 	class ISpatialAcceleration;
 

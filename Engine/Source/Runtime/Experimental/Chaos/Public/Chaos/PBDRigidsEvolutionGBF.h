@@ -2,19 +2,18 @@
 #pragma once
 
 #include "Chaos/ChaosPerfTest.h"
-#include "Chaos/Collision/CollisionDetector.h"
-#include "Chaos/Collision/CollisionReceiver.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
+#include "Chaos/Collision/SpatialAccelerationCollisionDetector.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidsEvolution.h"
+#include "Chaos/PerParticleAddImpulses.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleExternalForces.h"
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
-#include "Chaos/PerParticleAddImpulses.h"
 
 namespace Chaos
 {
@@ -40,7 +39,7 @@ namespace Chaos
 		using FGravityForces = TPerParticleGravity<FReal, 3>;
 		using FCollisionConstraints = FPBDCollisionConstraints;
 		using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
-		using FCollisionDetector = TCollisionDetector<FSpatialAccelerationBroadPhase, FNarrowPhase, FAsyncCollisionReceiver, FCollisionConstraints>;
+		using FCollisionDetector = FSpatialAccelerationCollisionDetector;
 		using FExternalForces = TPerParticleExternalForces<FReal, 3>;
 
 		static constexpr int32 DefaultNumIterations = 1;
@@ -188,7 +187,8 @@ namespace Chaos
 		FCollisionConstraints CollisionConstraints;
 		FCollisionConstraintRule CollisionRule;
 		FSpatialAccelerationBroadPhase BroadPhase;
-		FCollisionDetector CollisionDetector;
+		FNarrowPhase NarrowPhase;
+		FSpatialAccelerationCollisionDetector CollisionDetector;
 
 		FPBDRigidsEvolutionCallback PostIntegrateCallback;
 		FPBDRigidsEvolutionCallback PostDetectCollisionsCallback;
