@@ -2005,6 +2005,8 @@ struct FNiagaraDataConversions
 	struct FNiagaraInt {};
 
 	struct FNiagaraBool {};
+
+	struct FNiagaraConvertID {};
 };
 
 template<>
@@ -2062,6 +2064,13 @@ struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraBool> : public F
 	}
 };
 
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraConvertID> : public FNiagaraDataSetAccessor<FNiagaraID>
+{
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraConvertID>(FNiagaraDataSet& InDataSet, const FName& InName) : FNiagaraDataSetAccessor<FNiagaraID>(InDataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), InName))
+	{
+	}
+};
 
 /**
 Iterator that will pull or push data between a NiagaraDataBuffer and some FNiagaraVariables it contains.
