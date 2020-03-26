@@ -153,6 +153,7 @@ protected:
 		ThreadInitSyncEvent	= FPlatformProcess::GetSynchEventFromPool(true);
 
 		ThreadName = InThreadName ? InThreadName : TEXT("Unnamed UE4");
+		ThreadPriority = InThreadPri;
 
 		// Create the new thread
 		{
@@ -178,6 +179,7 @@ protected:
 			// Let the thread start up
 			ThreadInitSyncEvent->Wait(INFINITE);
 
+			ThreadPriority = TPri_Normal; // Set back to default in case any SetThreadPrio() impls compare against current value to reduce syscalls
 			SetThreadPriority(InThreadPri);
 		}
 

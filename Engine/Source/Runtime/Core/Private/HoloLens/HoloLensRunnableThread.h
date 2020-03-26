@@ -181,6 +181,7 @@ protected:
 		check(InRunnable);
 		Runnable = InRunnable;
 		ThreadAffintyMask = InThreadAffinityMask;
+		ThreadPriority = InThreadPri;
 
 		// Create a sync event to guarantee the Init() function is called first
 		ThreadInitSyncEvent = FPlatformProcess::CreateSynchEvent(true);
@@ -199,6 +200,8 @@ protected:
 			ThreadInitSyncEvent->Wait(INFINITE);
 			ThreadName = InThreadName ? InThreadName : TEXT("Unnamed UE4");
 			SetThreadName(ThreadID, TCHAR_TO_ANSI(*ThreadName));
+
+			ThreadPriority = TPri_Normal;
 			SetThreadPriority(InThreadPri);
 		}
 

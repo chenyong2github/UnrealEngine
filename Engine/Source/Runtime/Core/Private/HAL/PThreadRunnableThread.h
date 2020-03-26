@@ -306,6 +306,7 @@ protected:
 		ThreadInitSyncEvent	= FPlatformProcess::GetSynchEventFromPool(true);
 		// A name for the thread in for debug purposes. _ThreadProc will set it.
 		ThreadName = InThreadName ? InThreadName : TEXT("Unnamed UE4");
+		ThreadPriority = InThreadPri;
 		ThreadAffinityMask = InThreadAffinityMask;
 
 		// Create the new thread
@@ -317,6 +318,7 @@ protected:
 			ThreadInitSyncEvent->Wait((uint32)-1); // infinite wait
 
 			// set the priority
+			ThreadPriority = TPri_Normal; // set back to default as some impls check if calling syscalls is necessary 
 			SetThreadPriority(InThreadPri);
 		}
 		else // If it fails, clear all the vars
