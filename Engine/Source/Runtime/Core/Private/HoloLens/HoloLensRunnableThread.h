@@ -183,6 +183,7 @@ protected:
 		check(InRunnable);
 		Runnable = InRunnable;
 		ThreadAffintyMask = InThreadAffinityMask;
+		ThreadName = InThreadName ? InThreadName : TEXT("Unnamed UE4");
 		ThreadPriority = InThreadPri;
 
 		// Create a sync event to guarantee the Init() function is called first
@@ -200,7 +201,6 @@ protected:
 		{
 			// Let the thread start up, then set the name for debug purposes.
 			ThreadInitSyncEvent->Wait(INFINITE);
-			ThreadName = InThreadName ? InThreadName : TEXT("Unnamed UE4");
 			SetThreadName(ThreadID, TCHAR_TO_ANSI(*ThreadName));
 
 			ThreadPriority = TPri_Normal;
