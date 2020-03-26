@@ -58,7 +58,8 @@ private:
 	struct FRoute
 	{
 		uint32			Hash;
-		uint16			AnalyzerIndex;
+		uint16			AnalyzerIndex : 15;
+		uint16			bScoped : 1;
 		uint16			Id;
 		union
 		{
@@ -89,11 +90,11 @@ private:
 	int32				OnDataProtocol2(FStreamReader& Reader, FThreads::FInfo& Info);
 	int32				OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollector& Collector);
 	int32				OnDataProtocol4(FStreamReader& Reader, FThreads::FInfo& Info);
-	int32				OnDataProtocol4Impl(FStreamReader& Reader, FThreads::FInfo& ThreadInfo);
+	int32				OnDataProtocol4Impl(FStreamReader& Reader, FThreads::FInfo& ThreadInfo, bool bScoped);
 	bool				AddDispatch(FDispatch* Dispatch);
 	template <typename ImplType>
-	void				ForEachRoute(uint32 RouteIndex, ImplType&& Impl);
-	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event);
+	void				ForEachRoute(uint32 RouteIndex, bool bScoped, ImplType&& Impl);
+	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event, bool bScoped);
 	void				RetireAnalyzer(IAnalyzer* Analyzer);
 	FSessionContext		SessionContext;
 	TArray<FRoute>		Routes;

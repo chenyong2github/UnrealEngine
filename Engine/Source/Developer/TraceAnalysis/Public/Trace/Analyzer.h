@@ -45,17 +45,20 @@ public:
 		/** Subscribe to an event required for analysis.
 		 * @param RouteId User-provided identifier for this event subscription.
 		 * @param Logger Name of the logger that emits the event.
-		 * @param Event Name of the event to subscribe to. */
-		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) = 0;
+		 * @param Event Name of the event to subscribe to.
+		 * @param bScoped Route scoped events. */
+		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event, bool bScoped=false) = 0;
 
 		/** Subscribe to all events from a particular logger.
 		 * @param RouteId User-provided identifier for this event subscription.
-		 * @param Logger Name of the logger that emits the event. */
-		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger) = 0;
+		 * @param Logger Name of the logger that emits the event.
+		 * @param bScoped Route scoped events. */
+		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger, bool bScoped=false) = 0;
 
 		/** Subscribe to all events in the trace stream being analyzed.
-		 * @param RouteId User-provided identifier for this event subscription. */
-		virtual void RouteAllEvents(uint16 RouteId) = 0;
+		 * @param RouteId User-provided identifier for this event subscription.
+		 * @param bScoped Route scoped events. */
+		virtual void RouteAllEvents(uint16 RouteId, bool bScoped=false) = 0;
 	};
 
 	struct FOnAnalysisContext
@@ -194,6 +197,12 @@ public:
 		const FEventData&		EventData;
 	};
 
+	struct FOnEventScopedContext
+	{
+		const FThreadInfo&	ThreadInfo;
+		const FEventData*	EventData;
+	};
+
 	virtual ~IAnalyzer() = default;
 
 	/** Called when analysis of a trace is beginning. Analyzer implementers can
@@ -233,6 +242,17 @@ public:
 	 * @param Context Access to the instance of the subscribed event.
 	 * @return This analyzer is removed from the analysis session if false is returned. */
 	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context)
+	{
+		return true;
+	}
+
+	/** Called by the analysus engine twice for each traced scoped event. If the
+	 * event data pointer is not null then the event's scope is being entered,
+	 * otherwise it is being left.
+	 * @param RouteId User-provided identifier given when subscribing to an event.
+	 * @param Context Access to the instance of the subscribed event.
+	 * @return Return true to continue analysis. */
+	virtual bool OnEventScoped(uint16 RouteId, const FOnEventScopedContext& Context)
 	{
 		return true;
 	}

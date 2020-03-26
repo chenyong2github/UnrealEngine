@@ -585,19 +585,19 @@ void FAnalysisEngine::Begin()
 	// Call out to all registered analyzers to have them register event interest
 	struct : IAnalyzer::FInterfaceBuilder
 	{
-		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) override
+		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event, bool bScoped) override
 		{
-			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event);
+			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event, bScoped);
 		}
 
-		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger) override
+		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger, bool bScoped) override
 		{
-			Self->AddRoute(AnalyzerIndex, RouteId, Logger, "");
+			Self->AddRoute(AnalyzerIndex, RouteId, Logger, "", bScoped);
 		}
 
-		virtual void RouteAllEvents(uint16 RouteId) override
+		virtual void RouteAllEvents(uint16 RouteId, bool bScoped) override
 		{
-			Self->AddRoute(AnalyzerIndex, RouteId, "", "");
+			Self->AddRoute(AnalyzerIndex, RouteId, "", "", bScoped);
 		}
 
 		FAnalysisEngine* Self;
@@ -728,7 +728,8 @@ void FAnalysisEngine::AddRoute(
 	uint16 AnalyzerIndex,
 	uint16 Id,
 	const ANSICHAR* Logger,
-	const ANSICHAR* Event)
+	const ANSICHAR* Event,
+	bool bScoped)
 {
 	check(AnalyzerIndex < Analyzers.Num());
 
@@ -749,6 +750,7 @@ void FAnalysisEngine::AddRoute(
 	Route.Hash = Hash.Get();
 	Route.ParentHash = ParentHash;
 	Route.AnalyzerIndex = AnalyzerIndex;
+	Route.bScoped = (bScoped == true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -859,7 +861,7 @@ void FAnalysisEngine::OnTiming(const FOnEventContext& Context)
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ImplType>
-void FAnalysisEngine::ForEachRoute(uint32 RouteIndex, ImplType&& Impl)
+void FAnalysisEngine::ForEachRoute(uint32 RouteIndex, bool bScoped, ImplType&& Impl)
 {
 	uint32 RouteCount = Routes.Num();
 	if (RouteIndex >= RouteCount)
@@ -874,6 +876,11 @@ void FAnalysisEngine::ForEachRoute(uint32 RouteIndex, ImplType&& Impl)
 		const FRoute* NextRoute = FirstRoute + Route->Parent;
 		for (uint32 n = Route->Count; n--; ++Route)
 		{
+			if (Route->bScoped != (bScoped == true))
+			{
+				continue;
+			}
+
 			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
 			if (Analyzer != nullptr)
 			{
@@ -912,7 +919,7 @@ void FAnalysisEngine::OnNewEventInternal(const void* EventData)
 	}
 
 	// Inform routes that a new event has been declared.
-	ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+	ForEachRoute(Dispatch->FirstRoute, false, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 	{
 		if (!Analyzer->OnNewEvent(RouteId, *(FEventTypeInfo*)Dispatch))
 		{
@@ -1164,7 +1171,7 @@ bool FAnalysisEngine::OnDataProtocol0()
 			(FEventData&)EventDataInfo,
 		};
 
-		ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+		ForEachRoute(Dispatch->FirstRoute, false, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
 			if (!Analyzer->OnEvent(RouteId, Context))
 			{
@@ -1344,7 +1351,7 @@ int32 FAnalysisEngine::OnDataProtocol2(FStreamReader& Reader, FThreads::FInfo& T
 			(const FThreadInfo&)ThreadInfo,
 			(FEventData&)EventDataInfo,
 		};
-		ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+		ForEachRoute(Dispatch->FirstRoute, false, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
 			if (!Analyzer->OnEvent(RouteId, Context))
 			{
@@ -1405,7 +1412,7 @@ int32 FAnalysisEngine::OnDataProtocol4(FStreamReader& Reader, FThreads::FInfo& T
 {
 	while (true)
 	{
-		int32 Serial = OnDataProtocol4Impl(Reader, ThreadInfo);
+		int32 Serial = OnDataProtocol4Impl(Reader, ThreadInfo, false);
 		if (Serial != NextLogSerial)
 		{
 			return Serial;
@@ -1416,7 +1423,8 @@ int32 FAnalysisEngine::OnDataProtocol4(FStreamReader& Reader, FThreads::FInfo& T
 ////////////////////////////////////////////////////////////////////////////////
 int32 FAnalysisEngine::OnDataProtocol4Impl(
 	FStreamReader& Reader,
-	FThreads::FInfo& ThreadInfo)
+	FThreads::FInfo& ThreadInfo,
+	bool bScoped)
 {
 	using namespace Protocol4;
 
@@ -1446,8 +1454,9 @@ int32 FAnalysisEngine::OnDataProtocol4Impl(
 	{
 		Reader.Advance(UidBytes);
 
-		if (Uid == EKnownEventUids::NewEvent)
+		switch (Uid)
 		{
+		case EKnownEventUids::NewEvent:
 			if (const auto* Size = Reader.GetPointer<uint16>())
 			{
 				Reader.Advance(sizeof(*Size));
@@ -1459,7 +1468,29 @@ int32 FAnalysisEngine::OnDataProtocol4Impl(
 					return NextLogSerial;
 				}
 			}
-		}
+			break;
+
+		case EKnownEventUids::EnterScope:
+			if (OnDataProtocol4Impl(Reader, ThreadInfo, true) == NextLogSerial)
+			{
+				return NextLogSerial;
+			}
+			break;
+
+		case EKnownEventUids::LeaveScope:
+			if (ThreadInfo.ScopeRoutes.Num() > 0)
+			{
+				uint32 RouteIndex = ThreadInfo.ScopeRoutes.Pop(false);
+				ForEachRoute(RouteIndex, true, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+				{
+					if (!Analyzer->OnEventScoped(RouteId, { (FThreadInfo&)ThreadInfo }))
+					{
+						RetireAnalyzer(Analyzer);
+					}
+				});
+			}
+			return NextLogSerial;
+		};
 
 		Reader.RestoreMark(Mark);
 		return -1;
@@ -1533,19 +1564,38 @@ int32 FAnalysisEngine::OnDataProtocol4Impl(
 		Header->Size,
 	};
 
-	FOnEventContext Context = {
-		SessionContext,
-		(FThreadInfo&)ThreadInfo,
-		(FEventData&)EventDataInfo,
-	};
-
-	ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+	if (bScoped)
 	{
-		if (!Analyzer->OnEvent(RouteId, Context))
+		FOnEventScopedContext Context = {
+			(FThreadInfo&)ThreadInfo,
+			&(FEventData&)EventDataInfo,
+		};
+
+		ThreadInfo.ScopeRoutes.Push(Dispatch->FirstRoute);
+		ForEachRoute(Dispatch->FirstRoute, true, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			RetireAnalyzer(Analyzer);
-		}
-	});
+			if (!Analyzer->OnEventScoped(RouteId, Context))
+			{
+				RetireAnalyzer(Analyzer);
+			}
+		});
+	}
+	else
+	{
+		FOnEventContext Context = {
+			SessionContext,
+			(FThreadInfo&)ThreadInfo,
+			(FEventData&)EventDataInfo,
+		};
+
+		ForEachRoute(Dispatch->FirstRoute, false, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+		{
+			if (!Analyzer->OnEvent(RouteId, Context))
+			{
+				RetireAnalyzer(Analyzer);
+			}
+		});
+	}
 
 	return NextLogSerial;
 }
