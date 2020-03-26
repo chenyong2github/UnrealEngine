@@ -173,14 +173,10 @@ public:
 		bImmediateFlush = FParse::Param(FCommandLine::Get(), TEXT("FORCELOGFLUSH"));
 	}
 
-	/**
-	 * Deletes the inner archive
-	 */
-	void DeleteInnerArchive()
+	FArchive& GetInnerArchive()
 	{
-		delete (FArchive*)&InnerArchive;
+		return InnerArchive;
 	}
-
 
 	/**
 	 * Pushes the current archive position onto a stack
