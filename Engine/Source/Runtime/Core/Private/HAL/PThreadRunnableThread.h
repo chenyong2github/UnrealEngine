@@ -53,7 +53,10 @@ protected:
 			case TPri_BelowNormal: return 5;
 			case TPri_Lowest: return 1;
 			case TPri_SlightlyBelowNormal: return 14;
-			default: UE_LOG(LogHAL, Fatal, TEXT("Unknown Priority passed to FRunnableThreadPThread::TranslateThreadPriority()"));
+			case TPri_Num:
+			default:
+				UE_LOG(LogHAL, Fatal, TEXT("Unknown Priority passed to FRunnableThreadPThread::TranslateThreadPriority()"));
+				return 15;
 		}
 	}
 
