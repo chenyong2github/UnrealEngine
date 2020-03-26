@@ -46,7 +46,7 @@ void FAudioModulationEditorModule::SetIcon(const FString& ClassName)
 	static const FVector2D Icon16 = FVector2D(16.0f, 16.0f);
 	static const FVector2D Icon64 = FVector2D(64.0f, 64.0f);
 
-	static const FString IconDir = FPaths::EngineDir() / FString(TEXT("Plugins/Runtime/AudioModulation/Icons"));
+	static const FString IconDir = FPaths::EnginePluginsDir() / FString(TEXT("Runtime/AudioModulation/Content"));
 
 	const FString IconFileName16 = FString::Printf(TEXT("%s_16x.png"), *ClassName);
 	const FString IconFileName64 = FString::Printf(TEXT("%s_64x.png"), *ClassName);
