@@ -2493,6 +2493,7 @@ public:
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
 			GraphBuilder, View, SceneTextures,
+			ViewInfoPooledRenderTargets,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
