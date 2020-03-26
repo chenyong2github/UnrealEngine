@@ -35,29 +35,10 @@ UObject* UVolumeTextureFactory::FactoryCreateNew(UClass* Class,UObject* InParent
 		NewVolumeTexture->MipGenSettings = TMGS_FromTextureGroup;
 		NewVolumeTexture->NeverStream = true;
 		NewVolumeTexture->CompressionNone = false;
-
-		const FTextureSource& Source = InitialTexture->Source;
-		const int32 NumPixels = Source.GetSizeX() * Source.GetSizeY();
-
-		if (NumPixels > 0)
-		{
-			// By default, assume that the 2d texture holds a square images.
-			int32 TileSize = FMath::RoundToInt(FMath::Pow((float)NumPixels, 1.f / 3.f));
-
-			// Remap the tiles as if there were streached accross the texture length.
-			int32 NumTilesBySide = FMath::RoundToInt(FMath::Sqrt((float)(Source.GetSizeX() / TileSize) * (Source.GetSizeY() / TileSize)));
-
-			if (NumTilesBySide > 0)
-			{
-				NewVolumeTexture->Source2DTexture = InitialTexture;
-				NewVolumeTexture->Source2DTileSizeX = Source.GetSizeX() / NumTilesBySide;
-				NewVolumeTexture->Source2DTileSizeY = Source.GetSizeY() / NumTilesBySide;
-
-				NewVolumeTexture->UpdateSourceFromSourceTexture();
-				NewVolumeTexture->UpdateResource();
-			}
-
-		}
+		NewVolumeTexture->Source2DTexture = InitialTexture;
+		NewVolumeTexture->SetDefaultSource2DTileSize();
+		NewVolumeTexture->UpdateSourceFromSourceTexture();
+		NewVolumeTexture->UpdateResource();
 	}
 
 	return NewVolumeTexture;
