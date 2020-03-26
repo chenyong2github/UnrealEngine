@@ -492,7 +492,7 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 	// Link functions to their nodes
 	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
 	{
-		FStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex].Get();
+		FStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex];
 		if (StructProperty->Struct->IsChildOf(FAnimNode_Root::StaticStruct()))
 		{
 			FAnimNode_Root* RootNode = StructProperty->ContainerPtrToValuePtr<FAnimNode_Root>(DefaultObject);
@@ -541,7 +541,7 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 	// Determine whether functions are 'implemented'
 	for(FAnimBlueprintFunction& AnimBlueprintFunction : AnimBlueprintFunctions)
 	{
-		if(AnimBlueprintFunction.OutputPoseNodeProperty.Get())
+		if(AnimBlueprintFunction.OutputPoseNodeProperty)
 		{
 			FAnimNode_Root* RootNode = AnimBlueprintFunction.OutputPoseNodeProperty->ContainerPtrToValuePtr<FAnimNode_Root>(DefaultObject);
 			if(RootNode->Result.LinkID != INDEX_NONE)
