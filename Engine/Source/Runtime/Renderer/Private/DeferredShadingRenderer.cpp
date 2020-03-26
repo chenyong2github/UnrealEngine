@@ -866,9 +866,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					float MeshScreenSizeSquared = 0;
 					if (SceneInfo->bIsUsingCustomLODRules)
 					{
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
 						FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
 						LODToRender = SceneProxy->GetCustomLOD(View, View.LODDistanceFactor, ForcedLODLevel, MeshScreenSizeSquared);
 						LODToRender.ClampToFirstLOD(CurFirstLODIdx);
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 					else
 					{
