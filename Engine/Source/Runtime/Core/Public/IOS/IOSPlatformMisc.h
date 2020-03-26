@@ -105,6 +105,8 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static void RequestStoreReview();
 
 	static bool IsUpdateAvailable();
+
+	static bool IsSupportedIOSVersion();
 	
 	// Possible iOS devices
 	enum EIOSDevice
