@@ -2,6 +2,7 @@
 
 #include "XmlFile.h"
 #include "Misc/FileHelper.h"
+#include "Misc/ScopeExit.h"
 
 FXmlFile::FXmlFile(const FString& InFile, EConstructMethod::Type ConstructMethod)
 	: RootNode(nullptr), bFileLoaded(false)
@@ -329,6 +330,15 @@ static bool IsQuote(TCHAR Char)
 void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 {
 	FString WorkingToken;
+	ON_SCOPE_EXIT
+	{
+		// Add working token if it still exists
+		if (WorkingToken.Len())
+		{
+			Tokens.Add(MoveTemp(WorkingToken));
+		}
+	};
+
 	enum TOKENTYPE { OPERATOR, STRING, NONE } Type = NONE;
 	bool bInToken = false;
 	bool bInQuote = false;
@@ -434,12 +444,6 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 				Type = NONE;
 			}
 		}
-	}
-
-	// Add working token if it still exists
-	if(WorkingToken.Len())
-	{
-		Tokens.Add(MoveTemp(WorkingToken));
 	}
 }
 
