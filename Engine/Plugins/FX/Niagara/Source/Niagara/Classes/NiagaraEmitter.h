@@ -577,6 +577,8 @@ private:
 	FOnRenderersChanged OnRenderersChangedDelegate;
 #endif
 
+	void EnsureScriptsPostLoaded();
+
 	void GenerateStatID()const;
 #if STATS
 	mutable TStatId StatID_GT;
