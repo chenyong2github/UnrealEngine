@@ -88,6 +88,7 @@ namespace ChaosClothingSimulationDefault
 ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
 	, ExternalCollisionsOffset(0)
+	, NumSubsteps(1)
 	, bOverrideGravity(false)
 	, bUseConfigGravity(false)
 	, GravityScale(1.f)
@@ -96,7 +97,6 @@ ClothingSimulation::ClothingSimulation()
 	, WindVelocity(FVector::ZeroVector)
 	, bUseLocalSpaceSimulation(false)
 	, LocalSpaceLocation(FVector::ZeroVector)
-	, NumSubsteps(1)
 {
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
