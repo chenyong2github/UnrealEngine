@@ -111,6 +111,12 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	static bool SaveStoredSessionIDs(const TArray<FString>& InSessions);
 
 	/**
+	 * Try to acquire the local storage lock without blocking.
+	 * @return true if the lock was acquired successfully.
+	 */
+	static bool TryLock() { return Lock(FTimespan::Zero()); }
+
+	/**
 	 * Acquire a lock for local storage.
 	 * @returns true if the lock was acquired successfully.
 	 */
