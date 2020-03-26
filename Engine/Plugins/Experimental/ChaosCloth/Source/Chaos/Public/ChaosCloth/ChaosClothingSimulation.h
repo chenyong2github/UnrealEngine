@@ -158,9 +158,13 @@ namespace Chaos
 
 		float Time;
 		float DeltaTime;
+		int32 NumSubsteps;
 
 		bool bOverrideGravity;
+		bool bUseConfigGravity;
+		float GravityScale;
 		FVector Gravity;
+		FVector ConfigGravity;
 		FVector WindVelocity;
 
 		TArray<TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>>> LongRangeConstraints;
