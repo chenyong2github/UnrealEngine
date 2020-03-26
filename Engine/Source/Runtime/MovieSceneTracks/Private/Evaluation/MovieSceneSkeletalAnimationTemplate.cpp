@@ -321,6 +321,7 @@ namespace MovieScene
 				}
 			}
 
+			const bool bHasTickedThisFrame = SkeletalMeshComponent->PoseTickedThisFrame();
 			if (InFinalValue.SimulatedAnimations.Num() != 0 && Player.MotionVectorSimulation.IsValid())
 			{
 				ApplyAnimations(PersistentData, Player, SkeletalMeshComponent, InFinalValue.SimulatedAnimations, DeltaTime, bPreviewPlayback, bFireNotifies, bResetDynamics);
@@ -334,21 +335,6 @@ namespace MovieScene
 			}
 
 			ApplyAnimations(PersistentData, Player, SkeletalMeshComponent, InFinalValue.AllAnimations, DeltaTime, bPreviewPlayback, bFireNotifies, bResetDynamics);
-
-			// If the skeletal component has already ticked this frame because tick prerequisites weren't set up yet or a new binding was created, forcibly tick this component to update.
-			// This resolves first frame issues where the skeletal component ticks first, then the sequencer binding is resolved which sets up tick prerequisites
-			// for the next frame.
-			if (SkeletalMeshComponent->PoseTickedThisFrame() || (SequencerInstance && SequencerInstance->GetSourceAnimInstance() != ExistingAnimInstance))
-			{
-				SkeletalMeshComponent->TickAnimation(0.f, false);
-
-				SkeletalMeshComponent->RefreshBoneTransforms();
-				SkeletalMeshComponent->RefreshSlaveComponents();
-				SkeletalMeshComponent->UpdateComponentToWorld();
-				SkeletalMeshComponent->FinalizeBoneTransform();
-				SkeletalMeshComponent->MarkRenderTransformDirty();
-				SkeletalMeshComponent->MarkRenderDynamicDataDirty();
-			}
 
 			Player.PreAnimatedState.SetCaptureEntity(FMovieSceneEvaluationKey(), EMovieSceneCompletionMode::KeepState);
 		}
