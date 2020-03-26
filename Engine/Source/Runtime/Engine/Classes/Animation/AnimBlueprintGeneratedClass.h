@@ -303,13 +303,13 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	TArray<FAnimBlueprintFunction> AnimBlueprintFunctions;
 
 	// The arrays of anim nodes; this is transient generated data (created during Link)
-	TArray<FStructPropertyPath> AnimNodeProperties;
-	TArray<FStructPropertyPath> LinkedAnimGraphNodeProperties;
-	TArray<FStructPropertyPath> LinkedAnimLayerNodeProperties;
-	TArray<FStructPropertyPath> PreUpdateNodeProperties;
-	TArray<FStructPropertyPath> DynamicResetNodeProperties;
-	TArray<FStructPropertyPath> StateMachineNodeProperties;
-	TArray<FStructPropertyPath> InitializationNodeProperties;
+	TArray<FStructProperty*> AnimNodeProperties;
+	TArray<FStructProperty*> LinkedAnimGraphNodeProperties;
+	TArray<FStructProperty*> LinkedAnimLayerNodeProperties;
+	TArray<FStructProperty*> PreUpdateNodeProperties;
+	TArray<FStructProperty*> DynamicResetNodeProperties;
+	TArray<FStructProperty*> StateMachineNodeProperties;
+	TArray<FStructProperty*> InitializationNodeProperties;
 
 	// Array of sync group names in the order that they are requested during compile
 	UPROPERTY()
@@ -332,13 +332,13 @@ public:
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return BakedStateMachines; }
 	virtual USkeleton* GetTargetSkeleton() const override { return TargetSkeleton; }
 	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const override { return AnimNotifies; }
-	virtual const TArray<FStructPropertyPath>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetLinkedAnimGraphNodeProperties() const override { return LinkedAnimGraphNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetLinkedAnimLayerNodeProperties() const override { return LinkedAnimLayerNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetPreUpdateNodeProperties() const override { return PreUpdateNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetDynamicResetNodeProperties() const override { return DynamicResetNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetStateMachineNodeProperties() const override { return StateMachineNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetInitializationNodeProperties() const override { return InitializationNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetLinkedAnimGraphNodeProperties() const override { return LinkedAnimGraphNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetLinkedAnimLayerNodeProperties() const override { return LinkedAnimLayerNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetPreUpdateNodeProperties() const override { return PreUpdateNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetDynamicResetNodeProperties() const override { return DynamicResetNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetStateMachineNodeProperties() const override { return StateMachineNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetInitializationNodeProperties() const override { return InitializationNodeProperties; }
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return SyncGroupNames; }
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return OrderedSavedPoseIndicesMap; }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
@@ -400,7 +400,7 @@ public:
 		const int32* pIndex = GetNodePropertyIndex<StructType>(Node, SearchMode);
 		if (pIndex)
 		{
-			if (FStructProperty* AnimationProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - *pIndex].Get())
+			if (FStructProperty* AnimationProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - *pIndex])
 			{
 				if (AnimationProperty->Struct->IsChildOf(StructType::StaticStruct()))
 				{
@@ -430,7 +430,7 @@ public:
 		const int32* pIndex = GetNodePropertyIndexFromGuid(NodeGuid, SearchMode);
 		if (pIndex)
 		{
-			if (FStructProperty* AnimProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - *pIndex].Get())
+			if (FStructProperty* AnimProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - *pIndex])
 			{
 				if (AnimProperty->Struct->IsChildOf(StructType::StaticStruct()))
 				{
@@ -446,7 +446,7 @@ public:
 	StructType& GetPropertyInstanceChecked(UObject* Object, UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
 	{
 		const int32 Index = AnimBlueprintDebugData.NodePropertyToIndexMap.FindChecked(Node);
-		FStructProperty* AnimationProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - Index].Get();
+		FStructProperty* AnimationProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - Index];
 		check(AnimationProperty);
 		check(AnimationProperty->Struct->IsChildOf(StructType::StaticStruct()));
 		return AnimationProperty->ContainerPtrToValuePtr<StructType>((void*)Object);
@@ -484,7 +484,7 @@ NodeType* GetNodeFromPropertyIndex(UObject* AnimInstanceObject, const IAnimClass
 {
 	if (PropertyIndex != INDEX_NONE)
 	{
-		FStructProperty* NodeProperty = AnimBlueprintClass->GetAnimNodeProperties()[AnimBlueprintClass->GetAnimNodeProperties().Num() - 1 - PropertyIndex].Get(); //@TODO: Crazysauce
+		FStructProperty* NodeProperty = AnimBlueprintClass->GetAnimNodeProperties()[AnimBlueprintClass->GetAnimNodeProperties().Num() - 1 - PropertyIndex]; //@TODO: Crazysauce
 		check(NodeProperty->Struct == NodeType::StaticStruct());
 		return NodeProperty->ContainerPtrToValuePtr<NodeType>(AnimInstanceObject);
 	}
