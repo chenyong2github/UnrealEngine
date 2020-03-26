@@ -400,13 +400,9 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 			}
 			else // STRING
 			{
-				if(IsQuote(Ch) && !bInQuote)
+				if (IsQuote(Ch))
 				{
-					bInQuote = true;
-				}
-				else if(IsQuote(Ch) && bInQuote)
-				{
-					bInQuote = false;
+					bInQuote = !bInQuote;
 				}
 
 				// Still a string. Allow '>' within a string
