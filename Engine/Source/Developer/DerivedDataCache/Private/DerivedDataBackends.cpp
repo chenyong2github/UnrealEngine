@@ -25,12 +25,13 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
 
+
 DEFINE_LOG_CATEGORY(LogDerivedDataCache);
 
 #define MAX_BACKEND_KEY_LENGTH (120)
 #define LOCTEXT_NAMESPACE "DerivedDataBackendGraph"
 
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, bool bForceReadOnly = false, bool bTouchFiles = false, bool bPurgeTransient = false, bool bDeleteOldFiles = false, int32 InDaysToDeleteUnusedFiles = 60, int32 InMaxNumFoldersToCheck = -1, int32 InMaxContinuousFileChecks = -1, const TCHAR* InAccessLogFileName = nullptr);
+FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const int InMissRate, const TCHAR* InAccessLogFileName = nullptr);
 
 /**
   * This class is used to create a singleton that represents the derived data cache hierarchy and all of the wrappers necessary
@@ -162,7 +163,7 @@ public:
 					}
 					else
 					{
-						UE_LOG( LogDerivedDataCache, Warning, TEXT("FDerivedDataBackendGraph:  Unable to create %s Boot cache because only one Boot cache node is supported."), *NodeName );
+						UE_LOG( LogDerivedDataCache, Warning, TEXT("FDerivedDataBackendGraph:  Unable to create %s Boot cache because only one Boot or Sparse cache node is supported."), *NodeName );
 					}
 				}
 				else if( NodeType == TEXT("Memory") )
@@ -562,54 +563,56 @@ public:
 		}
 		else
 		{
-			const bool bReadOnly = GetParsedBool( Entry, TEXT("ReadOnly=") );
-			const bool bClean = GetParsedBool( Entry, TEXT("Clean=") );
-			const bool bFlush = GetParsedBool( Entry, TEXT("Flush=") );
-			const bool bTouch = GetParsedBool( Entry, TEXT("Touch=") );
-			const bool bPurgeTransient = GetParsedBool( Entry, TEXT("PurgeTransient=") );
-
-			bool bDeleteUnused = true; // On by default
-			FParse::Bool( Entry, TEXT("DeleteUnused="), bDeleteUnused );
-			int32 UnusedFileAge = 17;
-			FParse::Value( Entry, TEXT("UnusedFileAge="), UnusedFileAge );
-			int32 MaxFoldersToClean = -1;
-			FParse::Value( Entry, TEXT("FoldersToClean="), MaxFoldersToClean );
-			int32 MaxFileChecksPerSec = -1;
-			FParse::Value( Entry, TEXT("MaxFileChecksPerSec="), MaxFileChecksPerSec );
-			FString WriteAccessLog;
-			FParse::Value( Entry, TEXT("WriteAccessLog="), WriteAccessLog );
-
-			if( bFlush )
-			{
-				IFileManager::Get().DeleteDirectory( *(Path / TEXT("")), false, true );
-			}
-			else if( bClean )
-			{
-				DeleteOldFiles( *Path );
-			}
-
 			FDerivedDataBackendInterface* InnerFileSystem = NULL;
-			
-			// Don't create the file system if shared data cache directory is not mounted
-			bool bShared = FCString::Stricmp(NodeName, TEXT("Shared")) == 0;
-			if( !bShared || IFileManager::Get().DirectoryExists(*Path) )
-			{
-				InnerFileSystem = CreateFileSystemDerivedDataBackend( *Path, bReadOnly, bTouch, bPurgeTransient, bDeleteUnused, UnusedFileAge, MaxFoldersToClean, MaxFileChecksPerSec, *WriteAccessLog);
-			}
 
-			if( InnerFileSystem )
+			// Try to set up the shared drive, allow user to correct any issues that may exist.
+			bool RetryOnFailure = false;
+			do
 			{
-				bUsingSharedDDC = bUsingSharedDDC ? bUsingSharedDDC : bShared;
+				RetryOnFailure = false;
 
-				DataCache = new FDerivedDataBackendCorruptionWrapper( InnerFileSystem );
-				UE_LOG( LogDerivedDataCache, Log, TEXT("Using %s data cache path %s: %s"), NodeName, *Path, bReadOnly ? TEXT("ReadOnly") : TEXT("Writable") );
-				Directories.AddUnique(Path);
-			}
-			else
-			{
-				UE_LOG( LogDerivedDataCache, Warning, TEXT("%s data cache path (%s) was not usable, will not use it."), NodeName, *Path );
-			}
+				// Don't create the file system if shared data cache directory is not mounted
+				bool bShared = FCString::Stricmp(NodeName, TEXT("Shared")) == 0;
+				
+				FString WriteAccessLog;
+				FParse::Value( Entry, TEXT("WriteAccessLog="), WriteAccessLog );
+
+				// look for -ddclocalmissrate, -ddcsharedmissrate etc
+				FString MissRateCmd = FString::Printf(TEXT("DDC%sMissRate="), NodeName);
+				int MissRate = 0;
+				FParse::Value(FCommandLine::Get(), *MissRateCmd, MissRate);
+
+				if (!bShared || IFileManager::Get().DirectoryExists(*Path))
+				{
+					InnerFileSystem = CreateFileSystemDerivedDataBackend( *Path, Entry, MissRate, *WriteAccessLog);
+				}
+
+				if (InnerFileSystem)
+				{
+					bUsingSharedDDC = bUsingSharedDDC ? bUsingSharedDDC : bShared;
+	
+					DataCache = new FDerivedDataBackendCorruptionWrapper(InnerFileSystem);
+					UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s data cache path %s: %s"), NodeName, *Path, !InnerFileSystem->IsWritable() ? TEXT("ReadOnly") : TEXT("Writable"));
+					Directories.AddUnique(Path);
+				}
+				else
+				{
+					FString Message = FString::Printf(TEXT("%s data cache path (%s) is unavailable so cache will be disabled."), NodeName, *Path);
+					
+					UE_LOG(LogDerivedDataCache, Warning, TEXT("%s"), *Message);
+
+					// Give the user a chance to retry incase they need to connect a network drive or something.
+					if (!FApp::IsUnattended())
+					{
+						Message += FString::Printf(TEXT("\n\nRetry connection to %s?"), *Path);
+						EAppReturnType::Type MessageReturn = FPlatformMisc::MessageBoxExt(EAppMsgType::YesNo, *Message, TEXT("Could not access DDC"));
+						RetryOnFailure = MessageReturn == EAppReturnType::Yes;
+					}
+				}
+			} while (RetryOnFailure);
 		}
+
+
 
 		return DataCache;
 	}
@@ -738,7 +741,7 @@ public:
 	 * @param OutFilename filename specified for the cache
 	 * @return Boot data cache backend interface instance or NULL if unsuccessful
 	 */
-	FMemoryDerivedDataBackend* ParseBootCache( const TCHAR* NodeName, const TCHAR* Entry, FString& OutFilename )
+	FFileBackedDerivedDataBackend* ParseBootCache( const TCHAR* NodeName, const TCHAR* Entry, FString& OutFilename )
 	{
 		FMemoryDerivedDataBackend* Cache = NULL;
 
@@ -760,7 +763,7 @@ public:
 			MaxCacheSize = FMath::Min(MaxCacheSize, MaxSupportedCacheSize);
 
 			UE_LOG( LogDerivedDataCache, Display, TEXT("Max Cache Size: %d MB"), MaxCacheSize);
-			Cache = new FMemoryDerivedDataBackend(MaxCacheSize * 1024 * 1024);
+			Cache = new FMemoryDerivedDataBackend(TEXT("Boot"), MaxCacheSize * 1024 * 1024);
 
 			if( Cache && Filename.Len() )
 			{
@@ -769,7 +772,6 @@ public:
 				if (MaxCacheSize > 0 && IFileManager::Get().FileSize(*Filename) >= (MaxCacheSize * 1024 * 1024))
 				{
 					UE_LOG( LogDerivedDataCache, Warning, TEXT("FDerivedDataBackendGraph:  %s filename exceeds max size."), NodeName );
-					return Cache;
 				}
 
 				if (IFileManager::Get().FileSize(*Filename) < 0)
@@ -803,7 +805,7 @@ public:
 		FString Filename;
 
 		FParse::Value( Entry, TEXT("Filename="), Filename );
-		Cache = new FMemoryDerivedDataBackend;
+		Cache = new FMemoryDerivedDataBackend(TEXT("Memory"));
 		if( Cache && Filename.Len() )
 		{
 			if( Cache->LoadCache( *Filename ) )
@@ -987,15 +989,6 @@ public:
 
 private:
 
-	/** Delete the old files in a directory **/
-	void DeleteOldFiles(const TCHAR* Directory)
-	{
-		float MinimumDaysToKeepFile = 7;
-		GConfig->GetFloat( *GraphName, TEXT("MinimumDaysToKeepFile"), MinimumDaysToKeepFile, GEngineIni );
-		check(MinimumDaysToKeepFile > 0.0f); // sanity
-		//@todo 
-	}
-
 	/** Delete all created backends in the reversed order they were created. */
 	void DestroyCreatedBackends()
 	{
@@ -1041,7 +1034,7 @@ private:
 	TArray< FDerivedDataBackendInterface* > CreatedBackends;
 
 	/** Instances of backend interfaces which exist in only one copy */
-	FMemoryDerivedDataBackend*		BootCache;
+	FFileBackedDerivedDataBackend*	BootCache;
 	FPakFileDerivedDataBackend*		WritePakCache;
 	FDerivedDataBackendInterface*	AsyncPutWrapper;
 	FDerivedDataBackendInterface*	KeyLengthWrapper;
