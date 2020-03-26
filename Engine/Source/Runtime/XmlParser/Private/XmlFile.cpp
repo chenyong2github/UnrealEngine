@@ -340,7 +340,6 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 	};
 
 	enum TOKENTYPE { OPERATOR, STRING, NONE } Type = NONE;
-	bool bInToken = false;
 	bool bInQuote = false;
 
 	const TCHAR* PtrStart = GetData(Input);
@@ -357,18 +356,15 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 				Tokens.Add(MoveTemp(WorkingToken));
 				checkSlow(WorkingToken.Len() == 0);
 			}
-			bInToken = false;
 			Type = NONE;
 
 			continue;
 		}
 
 		// Mark the start of a token
-		if(bInToken == false)
+		if(!WorkingToken.Len())
 		{
-			WorkingToken.Reset();
 			WorkingToken += Ch;
-			bInToken = true;
 			if(CheckTagOperator(PtrStart, Ptr, PtrEnd))
 			{
 				Type = OPERATOR;
@@ -440,7 +436,6 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 			{
 				Tokens.Add(MoveTemp(WorkingToken));
 				checkSlow(WorkingToken.Len() == 0);
-				bInToken = false;
 				Type = NONE;
 			}
 		}
