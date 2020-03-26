@@ -1259,15 +1259,8 @@ void UMeshSelectionTool::DisconnectSelectedTriangles()
 		FMeshRegionBoundaryLoops BoundaryLoops(&Mesh, SelectedFaces);
 		for (const FEdgeLoop& Loop : BoundaryLoops.Loops)
 		{
-			for (int VID : Loop.Vertices)
-			{
-				ChangeTracker.SaveVertex(VID);
-				// include the whole one-ring in case the disconnect creates bowties that need to be split
-				for (int TID : Mesh.VtxTrianglesItr(VID))
-				{
-					ChangeTracker.SaveTriangle(TID, true);
-				}
-			}
+			// include the whole one-ring in case the disconnect creates bowties that need to be split
+			ChangeTracker.SaveVertexOneRingTriangles(Loop.Vertices, true);
 		}
 
 		FDynamicMeshEditor Editor(&Mesh);
