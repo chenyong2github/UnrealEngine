@@ -11,6 +11,8 @@
 #include "Trace/Trace.inl"
 #include "WriteBufferRedirect.h"
 
+#include <stdlib.h>
+
 namespace Trace {
 namespace Private {
 
@@ -35,23 +37,6 @@ UE_TRACE_EVENT_BEGIN($Trace, Memory)
 	UE_TRACE_EVENT_FIELD(uint32, AllocSize)
 UE_TRACE_EVENT_END()
 #endif // TRACE_PRIVATE_PERF
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
-{
-	uint8* Address = MemoryReserve(Size);
-	MemoryMap(Address, Size);
-	return Address;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void Writer_MemoryFree(void* Address, SIZE_T Size, uint32 Alignment)
-{
-	MemoryUnmap(Address, Size);
-	MemoryFree(Address, Size);
-}
 
 
 
@@ -123,6 +108,52 @@ uint32 FWriteTlsContext::GetThreadId()
 
 ////////////////////////////////////////////////////////////////////////////////
 thread_local FWriteTlsContext	GTlsContext;
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+static uint32 Writer_SendData(uint32, uint8* __restrict, uint32);
+
+////////////////////////////////////////////////////////////////////////////////
+static void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
+{
+	TWriteBufferRedirect<6 << 10> TraceData;
+
+	void* Ret = nullptr;
+#if defined(_MSC_VER)
+	Ret = _aligned_malloc(Size, Alignment);
+#elif defined(__ANDROID_API__) && __ANDROID_API__ < 28
+	posix_memalign(&Ret, Alignment, Size);
+#else
+	Ret = aligned_alloc(Alignment, Size);
+#endif
+
+	if (TraceData.GetSize())
+	{
+		uint32 ThreadId = GTlsContext.GetThreadId();
+		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
+	}
+
+	return Ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_MemoryFree(void* Address, SIZE_T Size, uint32 Alignment)
+{
+	TWriteBufferRedirect<6 << 10> TraceData;
+
+#if defined(_MSC_VER)
+	_aligned_free(Address);
+#else
+	free(Address);
+#endif
+
+	if (TraceData.GetSize())
+	{
+		uint32 ThreadId = GTlsContext.GetThreadId();
+		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
+	}
+}
 
 
 
