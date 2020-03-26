@@ -80,7 +80,9 @@ class FRunnableThreadHoloLens
 	static DWORD STDCALL _ThreadProc(LPVOID pThis)
 	{
 		check(pThis);
-		return ((FRunnableThreadHoloLens*)pThis)->GuardedRun();
+		auto* ThisThread = (FRunnableThreadHoloLens*)pThis;
+		FThreadManager::Get().AddThread(ThisThread->GetThreadID(), ThisThread);
+		return ThisThread->GuardedRun();
 	}
 
 	/** Guarding works only if debugger is not attached or GAlwaysReportCrash is true. */
