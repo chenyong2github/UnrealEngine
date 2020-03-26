@@ -256,6 +256,8 @@ protected:
  * Call BeginChange() before making any changes to the mesh, then call SaveVertex()
  * and SaveTriangle() before modifying the respective elements. Then call EndChange()
  * to construct a FDynamicMeshChange that represents the mesh delta.
+ *
+ * @warning Currently only vertices that are part of saved triangles will be stored in the emitted FMeshChange!
  * 
  */
 class DYNAMICMESH_API FDynamicMeshChangeTracker
@@ -269,18 +271,11 @@ public:
 	/** Construct a change object that represents the delta between the Begin and End states */
 	TUniquePtr<FDynamicMeshChange> EndChange();
 
-	/** Save necessary information about a vertex before it is modified */
-	void SaveVertex(int32 VertexID);
-
 	/** Save necessary information about a triangle before it is modified */
 	void SaveTriangle(int32 TriangleID, bool bSaveVertices);
 
 	/** Save necessary information about an edge before it is modified */
-	inline void SaveEdge(int32 EdgeID, bool bTriangles, bool bVertices);
-
-	/** Save necessary information about a set of vertices before they are modified */
-	template<typename EnumerableType>
-	void SaveVertices(EnumerableType VertexIDs);
+	inline void SaveEdge(int32 EdgeID, bool bVertices);
 
 	/** Save necessary information about a set of triangles before they are modified */
 	template<typename EnumerableType>
@@ -299,6 +294,22 @@ public:
 
 	/** Do (limited) sanity checking to make sure that the change is well-formed*/
 	void VerifySaveState();
+
+protected:
+
+	//
+	// Currently EndChange() only stores vertices that are part of modified triangles.
+	// So calling SaveVertex() independently, on triangles that are not saved, will be lost.
+	// (This needs to be fixed)
+	//
+
+	/** Save necessary information about a vertex before it is modified */
+	void SaveVertex(int32 VertexID);
+
+	/** Save necessary information about a set of vertices before they are modified */
+	template<typename EnumerableType>
+	void SaveVertices(EnumerableType VertexIDs);
+
 
 protected:
 	const FDynamicMesh3* Mesh = nullptr;
@@ -320,21 +331,13 @@ protected:
 
 
 
-void FDynamicMeshChangeTracker::SaveEdge(int32 EdgeID, bool bTriangles, bool bVertices)
+void FDynamicMeshChangeTracker::SaveEdge(int32 EdgeID, bool bVertices)
 {
 	FIndex4i EdgeInfo = Mesh->GetEdge(EdgeID);
-	if (bTriangles)
+	SaveTriangle(EdgeInfo.C, bVertices);
+	if (EdgeInfo.D != FDynamicMesh3::InvalidID)
 	{
-		SaveTriangle(EdgeInfo.C, bVertices);
-		if (EdgeInfo.D != FDynamicMesh3::InvalidID)
-		{
-			SaveTriangle(EdgeInfo.D, bVertices);
-		}
-	}
-	else
-	{
-		SaveVertex(EdgeInfo.A);
-		SaveVertex(EdgeInfo.B);
+		SaveTriangle(EdgeInfo.D, bVertices);
 	}
 }
 
