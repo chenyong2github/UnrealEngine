@@ -478,10 +478,15 @@ public:
 
 		// if we're a slow device just say we have the data. It's faster to try and fail than it
 		// is to check and succeed.
+		
+		// todo(@agrant: Some types currently use ProbablyExists as a guarantee. Disabling this until those can be 
+		// addressed.
+		/*
 		if (GetSpeedClass() <= FDerivedDataBackendInterface::ESpeedClass::Slow)
 		{
 			return true;
 		}
+		*/
 
 		FString Filename = BuildFilename(CacheKey);
 
