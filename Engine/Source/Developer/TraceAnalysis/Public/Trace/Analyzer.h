@@ -135,8 +135,9 @@ public:
 		/** Queries the value of a field of the event. It is not necessary to match
 		 * ValueType to the type in the event.
 		 * @param FieldName The name of the event's field to get the value for.
+		 * @param Default Return this value if the given field was not found.
 		 * @return Value of the field (coerced to ValueType) if found, otherwise 0. */
-		template <typename ValueType> ValueType GetValue(const ANSICHAR* FieldName) const;
+		template <typename ValueType> ValueType GetValue(const ANSICHAR* FieldName, ValueType Default=ValueType(0)) const;
 
 		/** Returns an object for reading data from an array-type field. A valid
 		 * array reader object will always be return even if no field matching the
@@ -217,11 +218,6 @@ private:
 template <typename ValueType>
 ValueType IAnalyzer::CoerceValue(const void* Addr, int16 SizeAndType)
 {
-	if (Addr == nullptr)
-	{
-		return ValueType(0);
-	}
-
 	switch (SizeAndType)
 	{
 	case -4: return ValueType(*(const float*)(Addr));
@@ -260,11 +256,14 @@ const ValueType* IAnalyzer::CoercePtr(const void* Addr, int16 SizeAndType)
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ValueType>
-ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName) const
+ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName, ValueType Default) const
 {
 	int16 FieldSizeAndType;
-	const void* Addr = GetValueImpl(FieldName, FieldSizeAndType);
-	return CoerceValue<ValueType>(Addr, FieldSizeAndType);
+	if (const void* Addr = GetValueImpl(FieldName, FieldSizeAndType))
+	{
+		return CoerceValue<ValueType>(Addr, FieldSizeAndType);
+	}
+	return Default;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
