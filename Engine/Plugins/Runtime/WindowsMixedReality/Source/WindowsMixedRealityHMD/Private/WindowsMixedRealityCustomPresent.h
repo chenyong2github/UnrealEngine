@@ -24,10 +24,10 @@ namespace WindowsMixedReality
 			ID3D11Device* device,
 			bool bMultiView)
 			: FRHICustomPresent()
-			, bIsMultiViewEnabled(bMultiView)
 #if WITH_WINDOWS_MIXED_REALITY
 			, hmd(_hmd)
 #endif
+			, bIsMultiViewEnabled(bMultiView)
 		{
 			// Get the D3D11 context.
 			device->GetImmediateContext(&D3D11Context);
