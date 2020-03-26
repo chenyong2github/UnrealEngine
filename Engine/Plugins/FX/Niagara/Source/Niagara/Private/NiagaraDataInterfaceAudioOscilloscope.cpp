@@ -141,7 +141,7 @@ float FNiagaraDataInterfaceProxyOscilloscope::SampleAudio(float NormalizedPositi
 
 void UNiagaraDataInterfaceAudioOscilloscope::SampleAudio(FVectorVMContext& Context)
 {
-	//VectorVM::FUserPtrHandler<UNiagaraDataInterfaceAudioOscilloscope> InstData(Context);
+	VectorVM::FUserPtrHandler<UNiagaraDataInterfaceAudioOscilloscope> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> InNormalizedPos(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> InChannel(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutAmplitude(Context);
