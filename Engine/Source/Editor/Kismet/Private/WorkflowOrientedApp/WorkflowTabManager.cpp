@@ -487,8 +487,13 @@ void FDocumentTracker::OnTabForegrounded(TSharedPtr<SDockTab> ForegroundedTab, T
 	}
 
 	TSharedPtr<FGenericTabHistory> CurrentTabHistory = GetCurrentTabHistory();
+	TSharedPtr<FGenericTabHistory> NewTabHistory;
+	if (NewTabInfo.IsValid())
+	{
+		NewTabHistory = NewTabInfo->GetCurrentHistory();
+	}
 
-	if ( ForegroundFactory.IsValid() && NewTabInfo.IsValid() && NewTabInfo->GetCurrentHistory() != CurrentTabHistory )
+	if ( ForegroundFactory.IsValid() && NewTabHistory.IsValid() && NewTabHistory->IsHistoryValid() && NewTabHistory != CurrentTabHistory )
 	{
 		// If a tab was manually foregrounded, need to add tab history
 		NewTabInfo->AddTabHistory(ForegroundFactory->CreateTabHistoryNode(NewTabInfo->GetPayload()), true);
