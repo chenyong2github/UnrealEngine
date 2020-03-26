@@ -89,10 +89,14 @@ ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
 	, ExternalCollisionsOffset(0)
 	, bOverrideGravity(false)
+	, bUseConfigGravity(false)
+	, GravityScale(1.f)
 	, Gravity(ChaosClothingSimulationDefault::Gravity)
+	, ConfigGravity(ChaosClothingSimulationDefault::Gravity)
 	, WindVelocity(FVector::ZeroVector)
 	, bUseLocalSpaceSimulation(false)
 	, LocalSpaceLocation(FVector::ZeroVector)
+	, NumSubsteps(1)
 {
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
@@ -149,7 +153,7 @@ void ClothingSimulation::Initialize()
 			ParticlesInput.R(Index) = NewR;
 		});
 
-    Time = 0.f;
+    Time = Evolution->GetTime();
 	DeltaTime = 1.f / 30.f;  // Initialize filtered timestep at 30fps 
 }
 
@@ -272,7 +276,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	}
 	ComponentToLocalSpace.AddToTranslation(-LocalSpaceLocation);
 
-	// Init local cloth sim space & teleport tranform
+	// Init local cloth sim space & teleport transform
 	const FTransform RootBoneTransform = Context.BoneTransforms[Asset->ReferenceBoneIndex];
 	RootBoneWorldTransforms[InSimDataIndex] = RootBoneTransform * Context.ComponentToWorld;  // Velocity scale deltas are calculated in world space
 	LinearDeltaRatios[InSimDataIndex] = FVector::OneVector - ChaosClothSimConfig->LinearVelocityScale.BoundToBox(FVector::ZeroVector, FVector::OneVector);
@@ -372,7 +376,13 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		// Update local space simulation switch
 		bUseLocalSpaceSimulation = ClothSharedSimConfig->bUseLocalSpaceSimulation;
 
+		// Update gravity related config values
+		ConfigGravity = ClothSharedSimConfig->Gravity;
+		GravityScale = ClothSharedSimConfig->GravityScale;
+		bUseConfigGravity = ClothSharedSimConfig->bUseGravityOverride;
+
 		// Now set all the common parameters on the simulation
+		NumSubsteps = ClothSharedSimConfig->SubdivisionCount;
 		Evolution->SetIterations(ClothSharedSimConfig->IterationCount);
 		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 	}
@@ -518,10 +528,48 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 		}
 		else
 		{
-			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), SurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+			TArray<TVector<int32, 3>> DynamicSurfaceElements;
+			TArray<TVector<int32, 2>> Attachments;
+			for (const TVector<int32, 3>& SurfaceElement : SurfaceElements)
 			{
-				SpringConstraints.Apply(InParticles, Dt);
-			});
+				const bool bIsKinematic0 = (Evolution->Particles().InvM(SurfaceElement[0]) == 0.f);
+				const bool bIsKinematic1 = (Evolution->Particles().InvM(SurfaceElement[1]) == 0.f);
+				const bool bIsKinematic2 = (Evolution->Particles().InvM(SurfaceElement[2]) == 0.f);
+				bool bIsAttachment = false;
+				if (bIsKinematic0 != bIsKinematic1)
+				{
+					Attachments.Emplace(SurfaceElement[0], SurfaceElement[1]);
+					bIsAttachment = true;
+				}
+				if (bIsKinematic1 != bIsKinematic2)
+				{
+					Attachments.Emplace(SurfaceElement[1], SurfaceElement[2]);
+					bIsAttachment = true;
+				}
+				if (bIsKinematic2 != bIsKinematic0)
+				{
+					Attachments.Emplace(SurfaceElement[2], SurfaceElement[0]);
+					bIsAttachment = true;
+				}
+				if (!bIsAttachment)
+				{
+					DynamicSurfaceElements.Add(SurfaceElement);
+				}
+			}
+			if (Attachments.Num())
+			{
+				Evolution->AddPBDConstraintFunction([AttachmentConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(Attachments), ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+				{
+					AttachmentConstraints.Apply(InParticles, Dt);
+				});
+			}
+			if (DynamicSurfaceElements.Num())
+			{
+				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), DynamicSurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+				{
+					SpringConstraints.Apply(InParticles, Dt);
+				});
+			}
 		}
 	}
 	if (ChaosClothSimConfig->BendingStiffness)
@@ -1246,12 +1294,11 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	static const float Decay = 0.1f;
 	DeltaTime = DeltaTime + (Context->DeltaSeconds - DeltaTime) * Decay;
 
-	// Set gravity, using the legacy priority: 1) config override, 2) game override, 3) world gravity
+	// Set gravity, using the legacy priority: 1) game override, 2) config override, 3) world gravity
 	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(
-		bOverrideGravity ? Gravity * ClothSharedSimConfig->GravityScale :
-		(ClothSharedSimConfig && ClothSharedSimConfig->bUseGravityOverride) ? ClothSharedSimConfig->Gravity :
-		ClothSharedSimConfig ? Context->WorldGravity * ClothSharedSimConfig->GravityScale :
-		Context->WorldGravity));
+		bOverrideGravity ? Gravity * GravityScale :
+		bUseConfigGravity ? ConfigGravity :  // Config gravity is not subject to scale
+		Context->WorldGravity * GravityScale));
 
 	// Set wind velocity, used by the velocity field lambda
 	WindVelocity = Context->WindVelocity * ChaosClothingSimulationDefault::WorldScale;  // Wind speed is set in m/s and need to be converted to cm/s
@@ -1383,7 +1430,7 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 				if (DeltaAngle > PI) { DeltaAngle -= 2.f * PI; }
 				DeltaAngle *= AngularDeltaRatios[Index];
 				DeltaRotation = FQuat(Axis, DeltaAngle);
-				DeltaRotation.Normalize();  // ToMatrixNoScale does not like quaternions built straight from axis angles without being normilized (although they should have been already).
+				DeltaRotation.Normalize();  // ToMatrixNoScale does not like quaternions built straight from axis angles without being normalized (although they should have been already).
 
 				// Transform points back into the previous frame of reference before applying the adjusted deltas 
 				const FMatrix Matrix = (PrevRootBoneLocalTransform.Inverse() * FTransform(DeltaRotation, DeltaPosition) * PrevRootBoneLocalTransform).ToMatrixNoScale();
@@ -1433,8 +1480,14 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	}
 
 	// Advance Sim
-	Evolution->AdvanceOneTimeStep(DeltaTime);
-	Time += DeltaTime;
+	const float SubstepDeltaTime = DeltaTime / (float)NumSubsteps;
+	
+	for (int32 i = 0; i < NumSubsteps; ++i)
+	{
+		Evolution->AdvanceOneTimeStep(SubstepDeltaTime);
+	}
+
+	Time = Evolution->GetTime();
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, FilteredDeltaTime: %.6f, Time = %.6f,  MaxPhysicsDelta = %.6f"), Context->DeltaSeconds, DeltaTime, Time, FClothingSimulationCommon::MaxPhysicsDelta);
 
 	// Debug draw
@@ -1974,6 +2027,9 @@ void ClothingSimulation::DebugDrawGravity() const
 
 void ClothingSimulation::DebugDrawPhysMeshWired(USkeletalMeshComponent* /*OwnerComponent*/, FPrimitiveDrawInterface* PDI) const
 {
+	static const FLinearColor DynamicColor = FColor::White;
+	static const FLinearColor KinematicColor = FColor::Purple;
+
 	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
 
 	for (int32 Index = 0; Index < Assets.Num(); ++Index)
@@ -1990,9 +2046,13 @@ void ClothingSimulation::DebugDrawPhysMeshWired(USkeletalMeshComponent* /*OwnerC
 				const FVector Pos1 = LocalSpaceLocation + Particles.X(Element.Y);
 				const FVector Pos2 = LocalSpaceLocation + Particles.X(Element.Z);
 
-				DrawLine(PDI, Pos0, Pos1, FLinearColor::White);
-				DrawLine(PDI, Pos1, Pos2, FLinearColor::White);
-				DrawLine(PDI, Pos2, Pos0, FLinearColor::White);
+				const bool bIsKinematic0 = Particles.InvM(Element.X) == 0.f;
+				const bool bIsKinematic1 = Particles.InvM(Element.Y) == 0.f;
+				const bool bIsKinematic2 = Particles.InvM(Element.Z) == 0.f;
+
+				DrawLine(PDI, Pos0, Pos1, bIsKinematic0 && bIsKinematic1 ? KinematicColor : DynamicColor);
+				DrawLine(PDI, Pos1, Pos2, bIsKinematic1 && bIsKinematic2 ? KinematicColor : DynamicColor);
+				DrawLine(PDI, Pos2, Pos0, bIsKinematic2 && bIsKinematic0 ? KinematicColor : DynamicColor);
 			}
 		}
 	}
@@ -2128,7 +2188,7 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* /*OwnerCompo
 					DrawCapsule(PDI, Object->GetObjectChecked<TCapsule<float>>(), Rotation, Position, Color);
 					break;
 
-				case ImplicitObjectType::Union:  // Union only used as collision tappered capsules
+				case ImplicitObjectType::Union:  // Union only used as collision tapered capsules
 					for (const TUniquePtr<FImplicitObject>& SubObjectPtr : Object->GetObjectChecked<FImplicitObjectUnion>().GetObjects())
 					{
 						if (const FImplicitObject* const SubObject = SubObjectPtr.Get())
@@ -2270,7 +2330,7 @@ void ClothingSimulation::DebugDrawAnimDrive(USkeletalMeshComponent* /*OwnerCompo
 		const UClothingAssetCommon* const Asset = Assets[Index];
 		if (!Asset) { continue; }
 
-		// Get Animdrive Multiplier
+		// Get anim drive multiplier
 		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
 		check(AssetLodData);
 		const FClothPhysicalMeshData& PhysMesh = AssetLodData->ClothPhysicalMeshData;
