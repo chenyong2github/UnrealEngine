@@ -523,6 +523,11 @@ public:
 		}
 	}
 
+	void operator delete(void* InMem)
+	{
+		FMemory::Free(InMem);
+	}
+
 	int64 InitialSlotOffset;
 	int64 Size;
 	int32 NumCacheSlots;
