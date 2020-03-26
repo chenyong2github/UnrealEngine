@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "HttpDerivedDataBackend.h"
 
 #if WITH_HTTP_DDC_BACKEND
