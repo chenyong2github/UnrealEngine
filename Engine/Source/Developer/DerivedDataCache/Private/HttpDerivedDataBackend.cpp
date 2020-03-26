@@ -13,15 +13,16 @@
 #endif
 #include "Containers/StaticArray.h"
 #include "Containers/Ticker.h"
-#include "Misc/FileHelper.h"
 #include "Dom/JsonObject.h"
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonSerializer.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/PlatformFilemanager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/SecureHash.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/CountersTrace.h"
-#include "Misc/SecureHash.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include <HAL/PlatformFilemanager.h>
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 #define UE_HTTPDDC_BACKEND_WAIT_INTERVAL 0.01f
 #define UE_HTTPDDC_HTTP_REQUEST_TIMEOUT_SECONDS 30L
