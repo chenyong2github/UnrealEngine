@@ -697,7 +697,7 @@ void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay, bool bUseVie
 	FVector3d LocalNormal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
 
 	double Direction = (bInvert) ? -1.0 : 1.0;
-	double UseSpeed = Direction * FMathd::Sqrt(CurrentBrushRadius) * (SculptProperties->PrimaryBrushSpeed) * ActivePressure;
+	double UseSpeed = 0.5 * Direction * FMathd::Sqrt(CurrentBrushRadius) * (SculptProperties->PrimaryBrushSpeed) * ActivePressure;
 	double MaxOffset = CurrentBrushRadius;
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
@@ -1702,6 +1702,11 @@ void UDynamicMeshSculptTool::RemeshROIPass()
 	FSubRegionRemesher Remesher(Mesh);
 	ConfigureRemesher(Remesher);
 
+	if (ActiveMeshChange != nullptr)
+	{
+		Remesher.SetMeshChangeTracker(ActiveMeshChange);
+	}
+
 	bool bIsUniformSmooth = (Remesher.SmoothType == FRemesher::ESmoothTypes::Uniform);
 	for (int k = 0; k < 5; ++k)
 	{
@@ -1717,6 +1722,9 @@ void UDynamicMeshSculptTool::RemeshROIPass()
 
 			if (ActiveMeshChange != nullptr)
 			{
+				// [TODO] would like to only save vertices here, as triangles will be saved by Remesher as necessary.
+				// However currently FDynamicMeshChangeTracker cannot independently save vertices, only vertices 
+				// that are part of saved triangles will be included in the output FDynamicMeshChange
 				Remesher.SaveActiveROI(ActiveMeshChange);
 				//ActiveMeshChange->VerifySaveState();    // useful for debugging
 			}
@@ -2206,10 +2214,8 @@ void UDynamicMeshSculptTool::SaveActiveROI()
 {
 	if (ActiveMeshChange != nullptr)
 	{
-		for (int vid : VertexROI)
-		{
-			ActiveMeshChange->SaveVertex(vid);
-		}
+		// must save triangles containing vertex ROI or they will not be included in emitted mesh change (due to limitations of change tracker)
+		ActiveMeshChange->SaveVertexOneRingTriangles(VertexROI, true);
 	}
 }
 
