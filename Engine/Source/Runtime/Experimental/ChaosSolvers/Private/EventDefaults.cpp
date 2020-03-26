@@ -47,7 +47,7 @@ namespace Chaos
 
 			const FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
 
-			const FPhysicsSolver::FPBDCollisionConstraints& CollisionRule = Evolution->GetCollisionConstraints();
+			const FPBDCollisionConstraints& CollisionRule = Evolution->GetCollisionConstraints();
 
 
 			const TPBDRigidParticles<float, 3>& Particles = Evolution->GetParticles().GetDynamicParticles();
@@ -55,20 +55,20 @@ namespace Chaos
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
 			const Chaos::FPBDRigidsSolver::FClusteringType::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
 #endif
-			const Chaos::TPBDRigidClustering<FPhysicsSolver::FPBDRigidsEvolution, FPhysicsSolver::FPBDCollisionConstraints, float, 3>::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
+			const Chaos::TPBDRigidClustering<FPhysicsSolver::FPBDRigidsEvolution, FPBDCollisionConstraints, float, 3>::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
 
 			if(CollisionRule.NumConstraints() > 0)
 			{
 				// Get the number of valid constraints (AccumulatedImpulse != 0.f and Phi < 0.f) from AllConstraintsArray
-				TArray<const Chaos::TPBDCollisionConstraintHandle<float, 3> *> ValidCollisionHandles;
+				TArray<const Chaos::FPBDCollisionConstraintHandle*> ValidCollisionHandles;
 				ValidCollisionHandles.SetNumUninitialized(CollisionRule.NumConstraints());
 				int32 NumValidCollisions = 0;
 
-				for (const Chaos::TPBDCollisionConstraintHandle<float, 3> * ContactHandle : CollisionRule.GetConstConstraintHandles())
+				for (const Chaos::FPBDCollisionConstraintHandle * ContactHandle : CollisionRule.GetConstConstraintHandles())
 				{
-					if (ContactHandle->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::SinglePoint)
+					if (ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePoint)
 					{
-						const TRigidBodyPointContactConstraint<float, 3>& Constraint = ContactHandle->GetPointContact();
+						const FRigidBodyPointContactConstraint& Constraint = ContactHandle->GetPointContact();
 
 						// Since Clustered GCs can be unioned the particleIndex representing the union 
 						// is not associated with a PhysicsProxy
@@ -100,9 +100,9 @@ namespace Chaos
 							}
 						}
 					}
-					else if (ContactHandle->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::MultiPoint)
+					else if (ContactHandle->GetType() == FCollisionConstraintBase::FType::MultiPoint)
 					{
-						const TRigidBodyMultiPointContactConstraint<float, 3>& Constraint = ContactHandle->GetMultiPointContact();
+						const FRigidBodyMultiPointContactConstraint& Constraint = ContactHandle->GetMultiPointContact();
 
 						// Since Clustered GCs can be unioned the particleIndex representing the union 
 						// is not associated with a PhysicsProxy
@@ -141,9 +141,9 @@ namespace Chaos
 				{
 					for (int32 IdxCollision = 0; IdxCollision < ValidCollisionHandles.Num(); ++IdxCollision)
 					{
-						if (ValidCollisionHandles[IdxCollision]->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::SinglePoint)
+						if (ValidCollisionHandles[IdxCollision]->GetType() == FCollisionConstraintBase::FType::SinglePoint)
 						{
-							Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetPointContact();
+							Chaos::FRigidBodyPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetPointContact();
 
 							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
 							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
@@ -215,9 +215,9 @@ namespace Chaos
 							}
 						}
 
-						else if (ValidCollisionHandles[IdxCollision]->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::MultiPoint)
+						else if (ValidCollisionHandles[IdxCollision]->GetType() == FCollisionConstraintBase::FType::MultiPoint)
 						{
-							Chaos::TPBDCollisionConstraints<float, 3>::FMultiPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetMultiPointContact();
+							Chaos::FRigidBodyMultiPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetMultiPointContact();
 
 							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
 							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];

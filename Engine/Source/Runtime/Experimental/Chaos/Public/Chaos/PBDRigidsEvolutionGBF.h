@@ -38,7 +38,7 @@ namespace Chaos
 		using Base = FPBDRigidsEvolutionBase;
 
 		using FGravityForces = TPerParticleGravity<FReal, 3>;
-		using FCollisionConstraints = TPBDCollisionConstraints<FReal, 3>;
+		using FCollisionConstraints = FPBDCollisionConstraints;
 		using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 		using FCollisionDetector = TCollisionDetector<FSpatialAccelerationBroadPhase, FNarrowPhase, FAsyncCollisionReceiver, FCollisionConstraints>;
 		using FExternalForces = TPerParticleExternalForces<FReal, 3>;
@@ -61,7 +61,7 @@ namespace Chaos
 			PostDetectCollisionsCallback = Cb;
 		}
 
-		void SetCollisionModifierCallback(const TCollisionModifierCallback<FReal, 3>& Cb)
+		void SetCollisionModifierCallback(const FCollisionModifierCallback& Cb)
 		{
 			CollisionModifierCallback = Cb;
 		}
@@ -182,7 +182,7 @@ namespace Chaos
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
 	protected:
-		TPBDRigidClustering<FPBDRigidsEvolutionGBF, TPBDCollisionConstraints<FReal, 3>, FReal, 3> Clustering;
+		TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints, FReal, 3> Clustering;
 
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;
@@ -192,7 +192,7 @@ namespace Chaos
 
 		FPBDRigidsEvolutionCallback PostIntegrateCallback;
 		FPBDRigidsEvolutionCallback PostDetectCollisionsCallback;
-		TCollisionModifierCallback<FReal, 3> CollisionModifierCallback;
+		FCollisionModifierCallback CollisionModifierCallback;
 		FPBDRigidsEvolutionCallback PreApplyCallback;
 		FPBDRigidsEvolutionIslandCallback PostApplyCallback;
 		FPBDRigidsEvolutionIslandCallback PostApplyPushOutCallback;
