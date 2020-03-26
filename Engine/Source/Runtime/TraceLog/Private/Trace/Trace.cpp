@@ -24,17 +24,19 @@ bool	Writer_WriteTo(const ANSICHAR*);
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int DestSize>
-static void ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const WIDECHAR* Src)
+static uint32 ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const WIDECHAR* Src)
 {
+	const WIDECHAR* Cursor = Src;
 	for (ANSICHAR& Out : Dest)
 	{
-		Out = ANSICHAR(*Src++ & 0x7f);
+		Out = ANSICHAR(*Cursor++ & 0x7f);
 		if (Out == '\0')
 		{
 			break;
 		}
 	}
 	Dest[DestSize - 1] = '\0';
+	return uint32(UPTRINT(Cursor - Src));
 };
 
 ////////////////////////////////////////////////////////////////////////////////
