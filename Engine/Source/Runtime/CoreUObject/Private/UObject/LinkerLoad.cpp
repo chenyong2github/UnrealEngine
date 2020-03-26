@@ -40,6 +40,7 @@
 #include "Serialization/LoadTimeTracePrivate.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
+#include "Misc/StringBuilder.h"
 
 class FTexture2DResourceMem;
 
