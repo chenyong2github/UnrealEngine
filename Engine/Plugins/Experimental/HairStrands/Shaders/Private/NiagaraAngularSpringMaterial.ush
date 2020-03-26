@@ -149,7 +149,7 @@ void ProjectAngularSpringMaterial(in bool EnableConstraint, in int StrandsSize, 
 		{
 			for(int i = 2; i < StrandsSize; ++i)
 			{
-				ComputeMaterialFrame(StrandsSize);
+				//ComputeMaterialFrame(StrandsSize);
 				if( LocalIndex == i )
 				{
 					UpdateAngularSpringMultiplier(RestLength,RestDirection,DeltaTime,true,0.0,MaterialCompliance,MaterialWeight,MaterialMultiplier);
