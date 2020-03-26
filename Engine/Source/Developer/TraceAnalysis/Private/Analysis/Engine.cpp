@@ -676,7 +676,6 @@ void FAnalysisEngine::Begin()
 		break;
 
 	case Protocol3::EProtocol::Id:
-	case Protocol4::EProtocol::Id:
 		{
 			FDispatchBuilder Dispatch;
 			Dispatch.SetUid(uint16(Protocol3::EKnownEventUids::NewEvent));
@@ -1442,6 +1441,29 @@ int32 FAnalysisEngine::OnDataProtocol4Impl(
 		case 2:	Uid = *(uint16*)UidCursor;	break;
 	}
 	Uid >>= EKnownEventUids::_UidShift;
+
+	if (Uid < UserUidBias)
+	{
+		Reader.Advance(UidBytes);
+
+		if (Uid == EKnownEventUids::NewEvent)
+		{
+			if (const auto* Size = Reader.GetPointer<uint16>())
+			{
+				Reader.Advance(sizeof(*Size));
+				uint32 EventSize = *Size;
+				if (const void* EventData = Reader.GetPointer(EventSize))
+				{
+					Reader.Advance(EventSize);
+					OnNewEventInternal(EventData);
+					return NextLogSerial;
+				}
+			}
+		}
+
+		Reader.RestoreMark(Mark);
+		return -1;
+	}
 
 	// Do we know about this event type yet?
 	if (Uid >= uint32(Dispatches.Num()))
