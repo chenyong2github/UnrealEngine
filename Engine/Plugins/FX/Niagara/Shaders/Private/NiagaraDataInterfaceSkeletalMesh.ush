@@ -601,7 +601,7 @@ void DISkelMesh_GetFilteredSocketCount(in FDISkelMeshContext DIContext, out int 
 
 void DISkelMesh_GetFilteredSocketBoneAt(in FDISkelMeshContext DIContext, in int InSocketIndex, out int Bone)
 {
-    Bone = DIContext.FilteredSocketBoneOffset + clamp(InSocketIndex, 0, DIContext.NumFilteredSockets);
+    Bone = DIContext.FilteredSocketBoneOffset + clamp(InSocketIndex, 0, DIContext.NumFilteredSockets - 1);
 }
 
 void DISkelMesh_RandomFilteredSocket(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int SocketBone)
@@ -615,6 +615,23 @@ void DISkelMesh_RandomFilteredSocketOrBone(in FDISkelMeshContext DIContext, uint
 	float RandT0 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
 	int NumFilteredSocketsAndBones = DIContext.NumFilteredBones + DIContext.NumFilteredSockets;
     int FilteredIndex = min(int(RandT0 * float(NumFilteredSocketsAndBones)), NumFilteredSocketsAndBones - 1);
+	if ( FilteredIndex < DIContext.NumFilteredBones )
+	{
+		Bone = (int)DIContext.FilteredAndUnfilteredBones[FilteredIndex];
+	}
+	else
+	{
+		Bone = DIContext.FilteredSocketBoneOffset + FilteredIndex - DIContext.NumFilteredBones;
+	}
+}
+
+void DISkelMesh_GetFilteredSocketOrBoneCount(in FDISkelMeshContext DIContext, out int Count)
+{
+	Count = DIContext.NumFilteredBones + DIContext.NumFilteredSockets;
+}
+
+void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int FilteredIndex, out int Bone)
+{
 	if ( FilteredIndex < DIContext.NumFilteredBones )
 	{
 		Bone = (int)DIContext.FilteredAndUnfilteredBones[FilteredIndex];
