@@ -66,14 +66,14 @@ uint64 FMiscTraceInternal::LastFrameCycle[TraceFrameType_Count] = { 0, 0 };
 
 void FMiscTrace::OutputRegisterGameThread(uint32 Id)
 {
-	UE_TRACE_LOG(Misc, RegisterGameThread, TraceLogChannel)
+	UE_TRACE_LOG(Misc, RegisterGameThread, Trace::TraceLogChannel)
 		<< RegisterGameThread.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
 void FMiscTrace::OutputCreateThread(uint32 Id, const TCHAR* Name, uint32 Priority)
 {
 	uint16 NameSize = (uint16)((FCString::Strlen(Name) + 1) * sizeof(TCHAR));
-	UE_TRACE_LOG(Misc, CreateThread, TraceLogChannel, NameSize)
+	UE_TRACE_LOG(Misc, CreateThread, Trace::TraceLogChannel, NameSize)
 		<< CreateThread.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< CreateThread.CreatedThreadId(Id)
 		<< CreateThread.Priority(Priority)
@@ -83,7 +83,7 @@ void FMiscTrace::OutputCreateThread(uint32 Id, const TCHAR* Name, uint32 Priorit
 void FMiscTrace::OutputSetThreadGroup(uint32 Id, const ANSICHAR* GroupName)
 {
 	uint16 NameSize = (uint16)(strlen(GroupName) + 1);
-	UE_TRACE_LOG(Misc, SetThreadGroup, TraceLogChannel, NameSize)
+	UE_TRACE_LOG(Misc, SetThreadGroup, Trace::TraceLogChannel, NameSize)
 		<< SetThreadGroup.ThreadId(Id)
 		<< SetThreadGroup.Attachment(GroupName, NameSize);
 }
@@ -91,7 +91,7 @@ void FMiscTrace::OutputSetThreadGroup(uint32 Id, const ANSICHAR* GroupName)
 void FMiscTrace::OutputBeginThreadGroupScope(const TCHAR* GroupName)
 {
 	uint16 NameSize = (uint16)(FCString::Strlen(GroupName) + 1);
-	UE_TRACE_LOG(Misc, BeginThreadGroupScope, TraceLogChannel, NameSize)
+	UE_TRACE_LOG(Misc, BeginThreadGroupScope, Trace::TraceLogChannel, NameSize)
 		<< BeginThreadGroupScope.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< BeginThreadGroupScope.Attachment([GroupName, NameSize] (uint8* Out)
 		{
@@ -104,7 +104,7 @@ void FMiscTrace::OutputBeginThreadGroupScope(const TCHAR* GroupName)
 
 void FMiscTrace::OutputEndThreadGroupScope()
 {
-	UE_TRACE_LOG(Misc, EndThreadGroupScope, TraceLogChannel)
+	UE_TRACE_LOG(Misc, EndThreadGroupScope, Trace::TraceLogChannel)
 		<< EndThreadGroupScope.CurrentThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 

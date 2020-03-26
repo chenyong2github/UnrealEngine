@@ -1520,7 +1520,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
 		uint8 CommandLineOffset = AddToPayload(CmdLine);
 
-		UE_TRACE_LOG(Diagnostics, Session, TraceLogChannel, PayloadSize)
+		UE_TRACE_LOG(Diagnostics, Session, Trace::TraceLogChannel, PayloadSize)
 			<< Session.AppNameOffset(AppNameOffset)
 			<< Session.CommandLineOffset(CommandLineOffset)
 			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))

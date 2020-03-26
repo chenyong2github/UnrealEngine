@@ -10,10 +10,17 @@
 
 #if UE_TRACE_ENABLED
 
-// General trace channel. Used by all built in events.
-Trace::FTraceChannel TraceLogChannel;
-
 namespace Trace {
+
+////////////////////////////////////////////////////////////////////////////////
+struct FTraceChannel : public FChannel
+{
+	bool IsEnabled() const { return true; }
+	explicit operator bool() const { return true; }
+};
+
+static FTraceChannel	TraceLogChannelDetail;
+FChannel&				TraceLogChannel			= TraceLogChannelDetail;
 
 ///////////////////////////////////////////////////////////////////////////////
 UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, Important)
