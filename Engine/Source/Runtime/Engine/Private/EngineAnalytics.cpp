@@ -66,6 +66,11 @@ public:
 		return Analytics.Pin()->StartSession(MoveTemp(Attributes));
 	}
 
+	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) override
+	{
+		return Analytics.Pin()->StartSession(MoveTemp(InSessionID), MoveTemp(Attributes));
+	}
+
 	virtual void SetDefaultEventAttributes(TArray<FAnalyticsEventAttribute>&& Attributes) override
 	{
 		Analytics.Pin()->SetDefaultEventAttributes(MoveTemp(Attributes));

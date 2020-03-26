@@ -183,6 +183,7 @@ public:
 
 	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) override;
 	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes) override;
+	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) override;
 	virtual void EndSession() override;
 	virtual void FlushEvents() override;
 
@@ -450,7 +451,18 @@ bool FAnalyticsProviderET::StartSession(const TArray<FAnalyticsEventAttribute>& 
 	return StartSession(TArray<FAnalyticsEventAttribute>(Attributes));
 }
 
+/**
+ * Start capturing stats for upload with provided SessionID
+ * Uses the unique ApiKey associated with your app
+ */
 bool FAnalyticsProviderET::StartSession(TArray<FAnalyticsEventAttribute>&& Attributes)
+{
+	FGuid SessionGUID;
+	FPlatformMisc::CreateGuid(SessionGUID);
+	return StartSession(SessionGUID.ToString(EGuidFormats::DigitsWithHyphensInBraces), MoveTemp(Attributes));;
+}
+
+bool FAnalyticsProviderET::StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes)
 {
 	UE_LOG(LogAnalytics, Log, TEXT("[%s] AnalyticsET::StartSession"), *Config.APIKeyET);
 
@@ -459,11 +471,7 @@ bool FAnalyticsProviderET::StartSession(TArray<FAnalyticsEventAttribute>&& Attri
 	{
 		EndSession();
 	}
-
-	FGuid SessionGUID;
-	FPlatformMisc::CreateGuid(SessionGUID);
-	SessionID = SessionGUID.ToString(EGuidFormats::DigitsWithHyphensInBraces);
-
+	SessionID = MoveTemp(InSessionID);
 	// always ensure we send a few specific attributes on session start.
 	TArray<FAnalyticsEventAttribute> AppendedAttributes(MoveTemp(Attributes));
 	// we should always know what platform is hosting this session.
