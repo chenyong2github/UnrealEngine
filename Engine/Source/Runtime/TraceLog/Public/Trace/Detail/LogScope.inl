@@ -99,6 +99,27 @@ inline void FLogScope::EnterNoSync(uint32 Uid, uint32 Size, bool bMaybeHasAux)
 
 
 
+////////////////////////////////////////////////////////////////////////////////
+inline FScopedLogScope::~FScopedLogScope()
+{
+	if (!bActive)
+	{
+		return;
+	}
+
+	static_assert(sizeof(FWriteBuffer::Overflow) >= sizeof(uint8), "");
+	FWriteBuffer* Buffer = Writer_GetBuffer();
+	Buffer->Cursor[0] = uint8(EKnownEventUids::LeaveScope << EKnownEventUids::_UidShift);
+	Buffer->Cursor++;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+inline void FScopedLogScope::SetActive()
+{
+	bActive = true;
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class T>
@@ -112,6 +133,18 @@ template <class T>
 auto TLogScope<T>::Enter(uint32 Uid, uint32 Size, uint32 ExtraBytes)
 {
 	return Enter(Uid, Size + ExtraBytes);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <class T>
+auto TLogScope<T>::ScopedEnter(uint32 Uid, uint32 Size)
+{
+	static_assert(sizeof(FWriteBuffer::Overflow) >= sizeof(uint8), "");
+	FWriteBuffer* Buffer = Writer_GetBuffer();
+	Buffer->Cursor[0] = uint8(EKnownEventUids::EnterScope << EKnownEventUids::_UidShift);
+	Buffer->Cursor++;
+
+	return Enter(Uid, Size);
 }
 
 } // namespace Private

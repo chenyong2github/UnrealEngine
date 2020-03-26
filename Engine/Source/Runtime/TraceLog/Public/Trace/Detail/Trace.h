@@ -100,14 +100,22 @@ namespace Trace
 #define TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName) \
 	decltype(F##LoggerName##EventName##Fields::EventProps_Private)::Size
 
-#define TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ...) \
+#define TRACE_PRIVATE_LOG_PRELUDE(EnterFunc, LoggerName, EventName, ChannelsExpr, ...) \
 	if (TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)) \
-		if (auto LogScope = Trace::Private::TLogScope<F##LoggerName##EventName##Fields>::Enter( \
+		if (auto LogScope = Trace::Private::TLogScope<F##LoggerName##EventName##Fields>::EnterFunc( \
 			LoggerName##EventName##Event.GetUid() ? LoggerName##EventName##Event.GetUid() : F##LoggerName##EventName##Fields::Initialize(), \
 			TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), \
 			##__VA_ARGS__)) \
 				if (const auto& __restrict EventName = *(F##LoggerName##EventName##Fields*)LogScope.GetPointer()) \
-					LogScope
+
+#define TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ...) \
+	TRACE_PRIVATE_LOG_PRELUDE(Enter, LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__) \
+		LogScope
+
+#define TRACE_PRIVATE_LOG_SCOPED(LoggerName, EventName, ChannelsExpr, ...) \
+	Trace::Private::FScopedLogScope PREPROCESSOR_JOIN(TheScope, __LINE__); \
+	TRACE_PRIVATE_LOG_PRELUDE(ScopedEnter, LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__) \
+		PREPROCESSOR_JOIN(TheScope, __LINE__).SetActive(), LogScope
 
 #else
 

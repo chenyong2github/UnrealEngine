@@ -41,6 +41,15 @@ class FImportantLogScope
 {
 };
 
+////////////////////////////////////////////////////////////////////////////////
+class FScopedLogScope
+{
+public:
+			~FScopedLogScope();
+	void	SetActive();
+	bool	bActive = false;
+};
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -54,6 +63,7 @@ struct TLogScope
 {
 	static auto Enter(uint32 Uid, uint32 Size);
 	static auto Enter(uint32 Uid, uint32 Size, uint32 ExtraBytes);
+	static auto ScopedEnter(uint32 Uid, uint32 Size);
 };
 
 } // namespace Private
