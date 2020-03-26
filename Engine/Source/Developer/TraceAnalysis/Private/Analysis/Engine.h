@@ -88,6 +88,8 @@ private:
 	bool				OnDataProtocol2();
 	int32				OnDataProtocol2(FStreamReader& Reader, FThreads::FInfo& Info);
 	int32				OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollector& Collector);
+	int32				OnDataProtocol4(FStreamReader& Reader, FThreads::FInfo& Info);
+	int32				OnDataProtocol4Impl(FStreamReader& Reader, FThreads::FInfo& ThreadInfo);
 	bool				AddDispatch(FDispatch* Dispatch);
 	template <typename ImplType>
 	void				ForEachRoute(uint32 RouteIndex, ImplType&& Impl);

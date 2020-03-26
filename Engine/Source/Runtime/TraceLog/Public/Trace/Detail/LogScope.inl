@@ -83,7 +83,7 @@ inline void FLogScope::Enter(uint32 Uid, uint32 Size, bool bMaybeHasAux)
 	auto* Header = (uint16*)(Instance.Ptr - sizeof(FEventHeaderSync::SerialHigh)); // FEventHeader1
 	*(uint32*)(Header - 1) = uint32(AtomicIncrementRelaxed(&GLogSerial));
 	Header[-2] = uint16(Size);
-	Header[-3] = uint16(Uid);
+	Header[-3] = uint16(Uid)|int(EKnownEventUids::Flag_TwoByteUid);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -94,7 +94,7 @@ inline void FLogScope::EnterNoSync(uint32 Uid, uint32 Size, bool bMaybeHasAux)
 	// Event header
 	auto* Header = (uint16*)(Instance.Ptr);
 	Header[-1] = uint16(Size);
-	Header[-2] = uint16(Uid);
+	Header[-2] = uint16(Uid)|int(EKnownEventUids::Flag_TwoByteUid);
 }
 
 

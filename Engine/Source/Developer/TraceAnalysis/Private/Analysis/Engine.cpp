@@ -676,6 +676,7 @@ void FAnalysisEngine::Begin()
 		break;
 
 	case Protocol3::EProtocol::Id:
+	case Protocol4::EProtocol::Id:
 		{
 			FDispatchBuilder Dispatch;
 			Dispatch.SetUid(uint16(Protocol3::EKnownEventUids::NewEvent));
@@ -894,6 +895,7 @@ void FAnalysisEngine::OnNewEventInternal(const void* EventData)
 	case Protocol1::EProtocol::Id:
 	case Protocol2::EProtocol::Id:
 	case Protocol3::EProtocol::Id:
+	case Protocol4::EProtocol::Id:
 		OnNewEventProtocol1(Builder, EventData);
 		break;
 	}
@@ -1067,6 +1069,7 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 	case Protocol1::EProtocol::Id:
 	case Protocol2::EProtocol::Id:
 	case Protocol3::EProtocol::Id:
+	case Protocol4::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol2;
 		break;
 
@@ -1188,7 +1191,17 @@ bool FAnalysisEngine::OnDataProtocol2()
 		{
 			uint32 ThreadId = InnerTransport->GetThreadId(Iter);
 			FThreads::FInfo& ThreadInfo = Threads.GetInfo(ThreadId);
-			int32 ReqLogSerial = OnDataProtocol2(*Reader, ThreadInfo);
+
+			int32 ReqLogSerial;
+			if (ProtocolVersion == Protocol4::EProtocol::Id)
+			{
+				ReqLogSerial = OnDataProtocol4(*Reader, ThreadInfo);
+			}
+			else
+			{
+				ReqLogSerial = OnDataProtocol2(*Reader, ThreadInfo);
+			}
+
 			if (ReqLogSerial >= 0)
 			{
 				MinLogSerial = FMath::Min(MinLogSerial, ReqLogSerial);
@@ -1382,6 +1395,133 @@ int32 FAnalysisEngine::OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollect
 
 		Reader.Advance(BlockSize);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FAnalysisEngine::OnDataProtocol4(FStreamReader& Reader, FThreads::FInfo& ThreadInfo)
+{
+	while (true)
+	{
+		int32 Serial = OnDataProtocol4Impl(Reader, ThreadInfo);
+		if (Serial != NextLogSerial)
+		{
+			return Serial;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FAnalysisEngine::OnDataProtocol4Impl(
+	FStreamReader& Reader,
+	FThreads::FInfo& ThreadInfo)
+{
+	using namespace Protocol4;
+
+	auto Mark = Reader.SaveMark();
+
+	const auto* UidCursor = Reader.GetPointer<uint8>();
+	if (UidCursor == nullptr)
+	{
+		return -1;
+	}
+
+	uint32 UidBytes = 1 + !!(*UidCursor & EKnownEventUids::Flag_TwoByteUid);
+	if (UidBytes > 1 && Reader.GetPointer(UidBytes) == nullptr)
+	{
+		return -1;
+	}
+
+	uint32 Uid = ~0u;
+	switch (UidBytes)
+	{
+		case 1:	Uid = *UidCursor;			break;
+		case 2:	Uid = *(uint16*)UidCursor;	break;
+	}
+	Uid >>= EKnownEventUids::_UidShift;
+
+	// Do we know about this event type yet?
+	if (Uid >= uint32(Dispatches.Num()))
+	{
+		return -1;
+	}
+
+	const FDispatch* Dispatch = Dispatches[Uid];
+	if (Dispatch == nullptr)
+	{
+		return -1;
+	}
+
+	// Parse the header
+	const auto* Header = Reader.GetPointer<FEventHeader>();
+	if (Header == nullptr)
+	{
+		return -1;
+	}
+
+	uint32 BlockSize = Header->Size;
+
+	// Make sure we consume events in the correct order
+	if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
+	{
+		const auto* HeaderSync = (Protocol4::FEventHeaderSync*)Header;
+		uint32 EventSerial = HeaderSync->SerialLow|(uint32(HeaderSync->SerialHigh) << 16);
+		if (EventSerial != (NextLogSerial & 0x00ffffff))
+		{
+			return EventSerial;
+		}
+		BlockSize += sizeof(*HeaderSync);
+	}
+	else
+	{
+		BlockSize += sizeof(*Header);
+	}
+
+	// Is all the event's data available?
+	if (Reader.GetPointer(BlockSize) == nullptr)
+	{
+		return -1;
+	}
+
+	Reader.Advance(BlockSize);
+
+	FAuxDataCollector AuxCollector;
+	if (Dispatch->Flags & FDispatch::Flag_MaybeHasAux)
+	{
+		int AuxStatus = OnDataProtocol2Aux(Reader, AuxCollector);
+		if (AuxStatus == 0)
+		{
+			Reader.RestoreMark(Mark);
+			return -1;
+		}
+	}
+
+	if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
+	{
+		++NextLogSerial;
+	}
+
+	FEventDataInfo EventDataInfo = {
+		*Dispatch,
+		&AuxCollector,
+		(const uint8*)Header + BlockSize - Header->Size,
+		Header->Size,
+	};
+
+	FOnEventContext Context = {
+		SessionContext,
+		(FThreadInfo&)ThreadInfo,
+		(FEventData&)EventDataInfo,
+	};
+
+	ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+	{
+		if (!Analyzer->OnEvent(RouteId, Context))
+		{
+			RetireAnalyzer(Analyzer);
+		}
+	});
+
+	return NextLogSerial;
 }
 
 } // namespace Trace

@@ -21,7 +21,17 @@ using Protocol3::EEventFlags;
 using Protocol3::FAuxHeader;
 using Protocol3::FEventHeader;
 using Protocol3::FEventHeaderSync;
-using Protocol3::EKnownEventUids;
+
+////////////////////////////////////////////////////////////////////////////////
+struct EKnownEventUids
+{
+	static const uint16 Flag_TwoByteUid	= 1 << 0;
+	static const uint16 _UidShift		= 1;
+	static const uint16 NewEvent		= 0;
+	static const uint16 User			= 1;
+	static const uint16 Max				= (1 << (16 - _UidShift)) - 1;
+	static const uint16 Invalid			= Max;
+};
 
 } // namespace Protocol4
 } // namespace Trace

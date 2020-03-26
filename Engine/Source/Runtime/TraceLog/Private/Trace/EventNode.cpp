@@ -66,6 +66,16 @@ uint32 FEventNode::Initialize(const FEventInfo* InInfo)
 		return Uid = uint16(EKnownEventUids::Invalid);
 	}
 
+	// Calculate Uid's flags and pack it.
+	uint32 UidFlags = 0;
+	if (NewUid >= (1 << (8 - int(EKnownEventUids::_UidShift))))
+	{
+		UidFlags |= int(EKnownEventUids::Flag_TwoByteUid);
+	}
+
+	NewUid <<= int(EKnownEventUids::_UidShift);
+	NewUid |= UidFlags;
+
 	Info = InInfo;
 	Uid = uint16(NewUid);
 
@@ -96,7 +106,8 @@ void FEventNode::Describe() const
 	}
 
 	// Allocate the new event event in the log stream.
-	uint16 EventUid = uint16(EKnownEventUids::NewEvent);
+	uint16 EventUid = EKnownEventUids::NewEvent << EKnownEventUids::_UidShift;
+
 	uint16 EventSize = sizeof(FNewEventEvent);
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * Info->FieldCount;
 	EventSize += NamesSize;
@@ -105,7 +116,7 @@ void FEventNode::Describe() const
 	auto& Event = *(FNewEventEvent*)(LogScope.GetPointer());
 
 	// Write event's main properties.
-	Event.EventUid = uint16(Uid);
+	Event.EventUid = uint16(Uid) >> int(EKnownEventUids::_UidShift);
 	Event.LoggerNameSize = LoggerName.Length;
 	Event.EventNameSize = EventName.Length;
 	Event.Flags = 0;
