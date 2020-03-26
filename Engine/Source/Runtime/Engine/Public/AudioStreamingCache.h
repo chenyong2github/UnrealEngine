@@ -159,7 +159,7 @@ private:
 	struct FCacheElement
 	{
 		FChunkKey Key;
-		TArray<uint8> ChunkData;
+		uint8* ChunkData;
 		uint32 ChunkDataSize;
 		FCacheElement* MoreRecentElement;
 		FCacheElement* LessRecentElement;
@@ -182,7 +182,8 @@ private:
 #endif
 
 		FCacheElement(uint32 MaxChunkSize, uint32 InCacheIndex)
-			: ChunkDataSize(0)
+			: ChunkData(nullptr)
+			, ChunkDataSize(0)
 			, MoreRecentElement(nullptr)
 			, LessRecentElement(nullptr)
 			, CacheLookupID(InCacheIndex)
@@ -235,6 +236,12 @@ private:
 		{
 			WaitForAsyncLoadCompletion(true);
 			checkf(NumConsumers.GetValue() == 0, TEXT("Tried to destroy streaming cache while the cached data was in use!"));
+			if (ChunkData)
+			{
+				FMemory::Free(ChunkData);
+			}
+
+			ChunkData = nullptr;
 		}
 	};
 
