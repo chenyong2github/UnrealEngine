@@ -223,15 +223,19 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category=NavigationSystem)
 	uint32 bAutoCreateNavigationData:1;
 
+	/** If true will try to spawn the navigation data instance in the sublevel with navigation bounds, if false it will spawn in the persistent level */
 	UPROPERTY(config, EditAnywhere, Category = NavigationSystem)
 	uint32 bSpawnNavDataInNavBoundsLevel:1;
 
+	/** If false, will not create nav collision when connecting as a client */
 	UPROPERTY(config, EditAnywhere, Category=NavigationSystem)
 	uint32 bAllowClientSideNavigation:1;
 
+	/** If true, games should ignore navigation data inside loaded sublevels */
 	UPROPERTY(config, EditAnywhere, Category = NavigationSystem)
 	uint32 bShouldDiscardSubLevelNavData:1;
 
+	/** If true, will update navigation even when the game is paused */
 	UPROPERTY(config, EditAnywhere, Category=NavigationSystem)
 	uint32 bTickWhilePaused:1;
 
@@ -278,6 +282,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Navigation Enforcing", meta = (ClampMin = "0.1", UIMin = "0.1", EditCondition = "bGenerateNavigationOnlyAroundNavigationInvokers"), config)
 	float ActiveTilesUpdateInterval;
 
+	/** Sets how navigation data should be gathered when building collision information */
 	UPROPERTY(EditDefaultsOnly, Category = "NavigationSystem", config)
 	ENavDataGatheringModeConfig DataGatheringMode;
 
@@ -285,6 +290,7 @@ protected:
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = NavigationSystem, meta = (ClampMin = "-1.0", UIMin = "-1.0"))
 	float DirtyAreaWarningSizeThreshold;
 
+	/** List of agents types supported by this navigation system */
 	UPROPERTY(config, EditAnywhere, Category = Agents)
 	TArray<FNavDataConfig> SupportedAgents;
 

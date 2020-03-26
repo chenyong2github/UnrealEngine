@@ -890,21 +890,6 @@ UProjectPackagingSettings::UProjectPackagingSettings( const FObjectInitializer& 
 
 void UProjectPackagingSettings::PostInitProperties()
 {
-	// Migrate from deprecated Blueprint nativization packaging flags.
-	// Note: This assumes that LoadConfig() has been called before getting here.
-	FString NewValue;
-	const FString ConfigFileName = UProjectPackagingSettings::StaticClass()->GetConfigName();
-	const FString ClassSectionName = UProjectPackagingSettings::StaticClass()->GetPathName();
-	const bool bIgnoreOldFlags = GConfig->GetString(*ClassSectionName, GET_MEMBER_NAME_STRING_CHECKED(UProjectPackagingSettings, BlueprintNativizationMethod), NewValue, ConfigFileName);
-	if (!bIgnoreOldFlags && bNativizeBlueprintAssets_DEPRECATED)
-	{
-		BlueprintNativizationMethod = bNativizeOnlySelectedBlueprints_DEPRECATED ? EProjectPackagingBlueprintNativizationMethod::Exclusive : EProjectPackagingBlueprintNativizationMethod::Inclusive;
-	}
-
-	// Reset deprecated settings to defaults.
-	bNativizeBlueprintAssets_DEPRECATED = false;
-	bNativizeOnlySelectedBlueprints_DEPRECATED = false;
-
 	// Build code projects by default
 	Build = EProjectPackagingBuild::IfProjectHasCode;
 

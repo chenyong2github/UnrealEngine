@@ -66,6 +66,7 @@ class NAVIGATIONSYSTEM_API UNavCollision : public UNavCollisionBase
 	UPROPERTY(EditAnywhere, Category=Navigation, config)
 	uint32 bGatherConvexGeometry : 1;
 
+	/** If false, will not create nav collision when connecting as a client */
 	UPROPERTY(EditAnywhere, Category=Navigation, config)
 	uint32 bCreateOnClient : 1;
 

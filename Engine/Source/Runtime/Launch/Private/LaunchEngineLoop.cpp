@@ -3987,9 +3987,6 @@ int32 FEngineLoop::Init()
 	}
 
 	// Call init callbacks
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UEngine::OnPostEngineInit.Broadcast();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FCoreDelegates::OnPostEngineInit.Broadcast();
 
 	SlowTask.EnterProgressFrame(30);

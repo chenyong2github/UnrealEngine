@@ -462,10 +462,6 @@ void FTemporaryPlayInEditorIDOverride::SetID(int32 NewID)
 	}
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FSimpleMulticastDelegate UEngine::OnPostEngineInit;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 // We expose these variables to everyone as we need to access them in other files via an extern
 ENGINE_API float GAverageFPS = 0.0f;
 ENGINE_API float GAverageMS = 0.0f;

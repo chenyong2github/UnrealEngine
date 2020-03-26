@@ -2170,7 +2170,7 @@ namespace AutomationTool
 					{
 						if (AvailableEditorTargets.Count > 1)
 						{
-							throw new AutomationException("Project contains multiple editor targets but no default is set in engine.ini");
+							throw new AutomationException("Project contains multiple editor targets but no DefaultEditorTarget is set in the [/Script/BuildSettings.BuildSettings] section of DefaultEngine.ini");
 						}
 
 						EditorTarget = AvailableEditorTargets.First();

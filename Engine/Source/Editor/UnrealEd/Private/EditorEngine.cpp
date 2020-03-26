@@ -1694,9 +1694,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				}
 
 				// Update the level.
-				GameCycles=0;
-				CLOCK_CYCLES(GameCycles);
-
 				{
 					// So that hierarchical stats work in PIE
 					SCOPE_CYCLE_COUNTER(STAT_FrameTime);
@@ -1717,9 +1714,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 					FKismetDebugUtilities::NotifyDebuggerOfEndOfGameFrame(PieContext.World());
 				}
-
-
-				UNCLOCK_CYCLES(GameCycles);
 
 				// Tick the viewports.
 				if ( GameViewport != NULL )

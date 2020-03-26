@@ -18,6 +18,7 @@ struct FBodyInstance;
 struct FCollisionResponseParams;
 struct FPropertyChangedEvent;
 
+/** Structure representing a collision profile name, this gets a special UI in the editor */
 USTRUCT(BlueprintType)
 struct FCollisionProfileName
 {
@@ -44,9 +45,11 @@ struct ENGINE_API FCollisionResponseTemplate
 {
 	GENERATED_USTRUCT_BODY()
 
+	/** Name of collision profile */
 	UPROPERTY()
 	FName Name;
 
+	/** Type of collision used for things with this profile */
 	UPROPERTY()
 	TEnumAsByte<ECollisionEnabled::Type> CollisionEnabled;
 
@@ -54,12 +57,14 @@ struct ENGINE_API FCollisionResponseTemplate
 	// no property anymore
 	TEnumAsByte<enum ECollisionChannel> ObjectType;
 
+	/** If this profile can be modified by games */
 	UPROPERTY()
 	bool	bCanModify;
 
 	/** This is result of ResponseToChannel after loaded - please note that it is not property serializable **/
 	struct FCollisionResponseContainer ResponseToChannels;
 
+	/** Collision object type to use for things with this profile */
 	UPROPERTY()
 	FName ObjectTypeName;
 
@@ -108,7 +113,7 @@ struct FCustomChannelSetup
 	UPROPERTY()
 	bool bStaticObject;	
 
-	/** Name of channel you'd like to show up **/
+	/** Name used in editor and metadata to refer to this channel */
 	UPROPERTY()
 	FName Name;
 
@@ -137,7 +142,8 @@ USTRUCT()
 struct ENGINE_API FCustomProfile
 {
 	GENERATED_USTRUCT_BODY()
-
+	
+	/** Name of new profile to add */
 	UPROPERTY()
 	FName Name;
 
@@ -157,20 +163,23 @@ class UCollisionProfile : public UDeveloperSettings
 
 private:
 
-	// This is hacky, but without this edit tag, we can't get valid property handle
-	// and we can't save them properly to config, so we need this tag. 
+	/** List of all profiles, engine and game-specific */
 	UPROPERTY(globalconfig)
 	TArray<FCollisionResponseTemplate>	Profiles;
 
+	/** Game-specific overrides to default responses to collision channels */
 	UPROPERTY(globalconfig)
 	TArray<FCustomChannelSetup>			DefaultChannelResponses;
 
+	/** Game-specific overrides to engine profiles */
 	UPROPERTY(globalconfig)
 	TArray<FCustomProfile>				EditProfiles;
 
+	/** Used to handle renaming profiles */
 	UPROPERTY(globalconfig)
 	TArray<FRedirector>					ProfileRedirects;
 
+	/** Used to handle renaming collision channels */
 	UPROPERTY(globalconfig)
 	TArray<FRedirector>					CollisionChannelRedirects;
 

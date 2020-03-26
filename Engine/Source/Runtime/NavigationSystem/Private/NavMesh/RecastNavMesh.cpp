@@ -275,7 +275,6 @@ ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer)
 	, bDrawOctreeDetails(true)
 	, bDrawMarkedForbiddenPolys(false)
 	, bDistinctlyDrawTilesBeingBuilt(true)
-	, bDrawNavMesh(true)
 	, DrawOffset(10.f)
 	, TilePoolSize(1024)
 	, MaxSimplificationError(1.3f)	// from RecastDemo
