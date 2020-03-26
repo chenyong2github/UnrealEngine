@@ -472,6 +472,31 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomTriangle(FVectorVMContext& Context
 	FSkeletalMeshAccessorHelper MeshAccessor;
 	MeshAccessor.Init<TIntegralConstant<int32, 0>, TIntegralConstant<int32, 0>>(InstData);
 
+	//-TODO: AREA WEIGHTED
+	const int32 LODIndex = InstData->GetLODIndex();
+	const bool bAreaWeighted = InstData->Mesh->GetLODInfo(LODIndex)->bSupportUniformlyDistributedSampling;
+
+	if (bAreaWeighted)
+	{
+		const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->Mesh->GetSamplingInfo();
+		const FSkeletalMeshSamplingLODBuiltData& WholeMeshBuiltData = SamplingInfo.GetWholeMeshLODBuiltData(InstData->GetLODIndex());
+		if (WholeMeshBuiltData.AreaWeightedTriangleSampler.GetNumEntries() > 0)
+		{
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				RandHelper.GetAndAdvance();
+
+				const int32 Triangle = WholeMeshBuiltData.AreaWeightedTriangleSampler.GetEntryIndex(RandHelper.Rand(i), RandHelper.Rand(i));
+				const FVector Bary = RandHelper.RandomBarycentricCoord(i);
+				*OutTri.GetDestAndAdvance() = Triangle;
+				*OutBaryX.GetDestAndAdvance() = Bary.X;
+				*OutBaryY.GetDestAndAdvance() = Bary.Y;
+				*OutBaryZ.GetDestAndAdvance() = Bary.Z;
+			}
+			return;
+		}
+	}
+
 	const int32 MaxTriangle = (MeshAccessor.IndexBuffer->Num() / 3) - 1;
 	if (MaxTriangle >= 0)
 	{
