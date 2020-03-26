@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/StringBuilder.h"
-#include "Containers/UnrealString.h"
-#include "Misc/AssertionMacros.h"
 #include "HAL/PlatformMath.h"
 #include "HAL/UnrealMemory.h"
-
-//#include "doctest.h"
 
 static inline uint64_t NextPowerOfTwo(uint64_t x)
 {
@@ -20,28 +16,25 @@ static inline uint64_t NextPowerOfTwo(uint64_t x)
 	return x + 1;
 }
 
-template<typename C>
-TStringBuilderImpl<C>::~TStringBuilderImpl()
+template <typename C>
+TStringBuilderBase<C>::~TStringBuilderBase()
 {
 	if (bIsDynamic)
 	{
-		FreeBuffer(Base, UE_PTRDIFF_TO_INT32(End - Base));
+		FreeBuffer(Base, static_cast<SIZE_T>(End - Base));
 	}
 }
 
-template<typename C>
-void
-TStringBuilderImpl<C>::Extend(SIZE_T ExtraCapacity)
+template <typename C>
+void TStringBuilderBase<C>::Extend(SIZE_T ExtraCapacity)
 {
-	check(bIsExtendable);
-
 	const SIZE_T OldCapacity = End - Base;
 	const SIZE_T NewCapacity = NextPowerOfTwo(OldCapacity + ExtraCapacity);
 
 	C* NewBase = (C*)AllocBuffer(NewCapacity);
 
 	SIZE_T Pos = CurPos - Base;
-	memcpy(NewBase, Base, Pos * sizeof(C));
+	FMemory::Memcpy(NewBase, Base, Pos * sizeof(C));
 
 	if (bIsDynamic)
 	{
@@ -54,23 +47,20 @@ TStringBuilderImpl<C>::Extend(SIZE_T ExtraCapacity)
 	bIsDynamic	= true;
 }
 
-template<typename C>
-void*
-TStringBuilderImpl<C>::AllocBuffer(SIZE_T ByteCount)
+template <typename C>
+void* TStringBuilderBase<C>::AllocBuffer(SIZE_T CharCount)
 {
-	return FMemory::Malloc(ByteCount * sizeof(C));
+	return FMemory::Malloc(CharCount * sizeof(C));
 }
 
-template<typename C>
-void
-TStringBuilderImpl<C>::FreeBuffer(void* Buffer, SIZE_T ByteCount)
+template <typename C>
+void TStringBuilderBase<C>::FreeBuffer(void* Buffer, SIZE_T CharCount)
 {
 	FMemory::Free(Buffer);
 }
 
-template<typename C>
-typename TStringBuilderImpl<C>::BuilderType&
-TStringBuilderImpl<C>::AppendfImpl(BuilderType& Self, const C* Fmt, ...)
+template <typename C>
+TStringBuilderBase<C>& TStringBuilderBase<C>::AppendfImpl(BuilderType& Self, const C* Fmt, ...)
 {
 	for (;;)
 	{
@@ -93,69 +83,7 @@ TStringBuilderImpl<C>::AppendfImpl(BuilderType& Self, const C* Fmt, ...)
 	}
 }
 
-FStringBuilderBase&	operator<<(FStringBuilderBase& Builder, const FString& Str)
-{
-	return Builder.Append(*Str, Str.Len());
-}
-
-FStringBuilderBase&	operator+=(FStringBuilderBase& Builder, const FString& Str)
-{
-	return Builder.Append(*Str, Str.Len());
-}
-
 // Instantiate templates once
 
-template class TStringBuilderImpl<ANSICHAR>;
-template class TStringBuilderImpl<TCHAR>;
-
-#if 0
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
-TEST_CASE("Core.StringView")
-{
-	{
-		TAnsiStringBuilder<32> boo;
-		CHECK(boo.Len() == 0);
-		CHECK(strcmp(boo.ToString(), "") == 0);
-
-		{
-			FAnsiStringView view = boo;
-			CHECK(boo.Len() == view.Len());
-		}
-
-		boo.Append("bababa");
-
-		CHECK(strcmp(boo.ToString(), "bababa") == 0);
-
-		{
-			FAnsiStringView view = boo;
-			CHECK(boo.Len() == view.Len());
-		}
-	}
-
-	{
-		TWideStringBuilder<32> booboo;
-		booboo.Append(TEXT("babababa"));
-
-		{
-			FWideStringView view = booboo;
-			CHECK(booboo.Len() == view.Len());
-		}
-
-		//booboo << TEXT("bobo");
-		//booboo << "baba";	// ANSI
-		//booboo << 'b';
-
-		char foo[] = "aaaaa";
-		char noo[] = "oOoOo";
-
-		booboo << noo;
-		booboo << foo;
-
-		FString ouch(TEXT("ouch"));
-		booboo << ouch;
-	}
-}
-
-#endif
-#endif
+template class TStringBuilderBase<ANSICHAR>;
+template class TStringBuilderBase<WIDECHAR>;
