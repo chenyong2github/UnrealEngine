@@ -102,6 +102,7 @@ private:
 	class FTransport*	Transport = nullptr;
 	ProtocolHandlerType	ProtocolHandler = nullptr;
 	uint32				NextLogSerial = 0;
+	uint32				UserUidBias = 1; // 1 because new-event events must exists be uid zero.
 	uint8				ProtocolVersion = 0;
 	FThreads			Threads;
 };

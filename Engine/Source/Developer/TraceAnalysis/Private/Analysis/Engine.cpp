@@ -789,13 +789,17 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 {
+	const FEventData& EventData = Context.EventData;
+
 	// "Serial" will tell us approximately where we've started in the log serial
 	// range. We'll bias is by half so we won't accept any serialised events and
 	// mark the MSB to indicate that NextLogSerial should be corrected.
-	NextLogSerial = Context.EventData.GetValue<uint32>("Serial");
+	NextLogSerial = EventData.GetValue<uint32>("Serial");
 	NextLogSerial -= (0x00ffffff + 1) >> 2;
 	NextLogSerial &= 0x00ffffff;
 	NextLogSerial |= 0x80000000;
+
+	UserUidBias = EventData.GetValue<uint32>("UserUidBias", uint32(Protocol3::EKnownEventUids::User));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
