@@ -877,6 +877,7 @@ void FNiagaraSystemViewModel::SetupPreviewComponentAndInstance()
 		PreviewComponent = NewObject<UNiagaraComponent>(GetTransientPackage(), NAME_None, RF_Transient);
 		PreviewComponent->CastShadow = 1;
 		PreviewComponent->bCastDynamicShadow = 1;
+		PreviewComponent->SetAllowScalability(false);
 		PreviewComponent->SetAsset(System);
 		PreviewComponent->SetForceSolo(true);
 		PreviewComponent->SetAgeUpdateMode(ENiagaraAgeUpdateMode::DesiredAge);
