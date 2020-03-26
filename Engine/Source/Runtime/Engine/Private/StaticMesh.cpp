@@ -6054,6 +6054,7 @@ ENGINE_API void UStaticMesh::RemoveVertexColors()
 	{
 		Build();
 		MarkPackageDirty();
+		OnMeshChanged.Broadcast();
 	}
 #endif
 }
