@@ -585,11 +585,11 @@ namespace WindowsMixedReality
 				DirectX::XMMATRIX lastKnownCoordSystemTransform = DirectX::XMMatrixIdentity();
 				if (displayCamera)
 				{
-					DirectX::XMMATRIX lastKnownCoordSystemTransform = DirectX::XMLoadFloat4x4((const DirectX::XMFLOAT4X4*)&LastKnownCoordinateSystemTransform);
+					lastKnownCoordSystemTransform = DirectX::XMLoadFloat4x4((const DirectX::XMFLOAT4X4*)&LastKnownCoordinateSystemTransform);
 				}
 				else
 				{
-					DirectX::XMMATRIX lastKnownCoordSystemTransform = DirectX::XMLoadFloat4x4((const DirectX::XMFLOAT4X4*)&LastKnownThirdCameraCoordinateSystemTransform);
+					lastKnownCoordSystemTransform = DirectX::XMLoadFloat4x4((const DirectX::XMFLOAT4X4*)&LastKnownThirdCameraCoordinateSystemTransform);
 				}
 
 				// Transform the left and right poses by the last known coordinate system transform.
