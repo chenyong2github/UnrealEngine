@@ -680,6 +680,7 @@ public:
 	 */
 	FDerivedDataBackendInterface* ParseHttpCache(const TCHAR* NodeName, const TCHAR* Entry)
 	{
+#if WITH_HTTP_DDC_BACKEND
 		FString ServiceUrl;
 		if (!FParse::Value(Entry, TEXT("Host="), ServiceUrl))
 		{
@@ -723,6 +724,10 @@ public:
 			return nullptr;
 		}
 		return backend;
+#else
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("HTTP backend is not yet supported in the current build configuration."));
+		return nullptr;
+#endif
 	}
 
 	/**
