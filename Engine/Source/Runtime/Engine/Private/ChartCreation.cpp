@@ -632,6 +632,12 @@ void FPerformanceTrackingChart::Reset(const FDateTime& InStartTime)
 	AccumulatedChartTime = 0.0;
 	TimeDisregarded = 0.0;
 	FramesDisregarded = 0;
+	MaxPhysicalMemory = 0;
+	MaxVirtualMemory = 0;
+	MinPhysicalMemory = ULONG_MAX;
+	MinVirtualMemory = ULONG_MAX;
+	TotalPhysicalMemoryUsed = 0;
+	TotalVirtualMemoryUsed = 0;
 
 	FrametimeHistogram.InitFromArray({ 0.0/1000.0, 15.0/1000.0, 20.0/1000.0, 30.0/1000.0, 35.0/1000.0, 60.0/1000.0, 100.0/1000.0, 1000.0/1000.0 });
 
@@ -706,6 +712,12 @@ void FPerformanceTrackingChart::AccumulateWith(const FPerformanceTrackingChart& 
 	TimeDisregarded += Chart.TimeDisregarded;
 	FramesDisregarded += Chart.FramesDisregarded;
 	CaptureStartTime = FMath::Min(CaptureStartTime, Chart.CaptureStartTime);
+	MaxPhysicalMemory = FMath::Max(MaxPhysicalMemory, Chart.MaxPhysicalMemory);
+	MaxVirtualMemory = FMath::Min(MaxVirtualMemory, Chart.MaxVirtualMemory);
+	MinPhysicalMemory = FMath::Min(MinPhysicalMemory, Chart.MinPhysicalMemory);
+	MinVirtualMemory = FMath::Min(MinVirtualMemory, Chart.MinVirtualMemory);
+	TotalPhysicalMemoryUsed += Chart.TotalPhysicalMemoryUsed;
+	TotalVirtualMemoryUsed += Chart.TotalVirtualMemoryUsed;
 }
 
 void FPerformanceTrackingChart::StartCharting()
@@ -798,6 +810,15 @@ void FPerformanceTrackingChart::ProcessFrame(const FFrameData& FrameData)
 		MaxDrawnPrimitives = FMath::Max(MaxDrawnPrimitives, GNumPrimitivesDrawnRHI);
 		MinDrawnPrimitives = FMath::Min(MinDrawnPrimitives, GNumPrimitivesDrawnRHI);
 		TotalDrawnPrimitives += GNumPrimitivesDrawnRHI;
+
+		// track memory
+		FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
+		MaxPhysicalMemory = FMath::Max(MaxPhysicalMemory, static_cast<uint64>(MemoryStats.UsedPhysical));
+		MaxVirtualMemory = FMath::Max(MaxVirtualMemory, static_cast<uint64>(MemoryStats.UsedVirtual));
+		MinPhysicalMemory = FMath::Min(MinPhysicalMemory, static_cast<uint64>(MemoryStats.UsedPhysical));
+		MinVirtualMemory = FMath::Min(MinVirtualMemory, static_cast<uint64>(MemoryStats.UsedVirtual));
+		TotalPhysicalMemoryUsed += MemoryStats.UsedPhysical;
+		TotalVirtualMemoryUsed += MemoryStats.UsedVirtual;
 
 		// Handle hitching
 		if (FrameData.HitchStatus != EFrameHitchType::NoHitch)
