@@ -1701,6 +1701,7 @@ namespace Chaos
 	}
 
 	template class THeightField<float>;
+
 }
 
 
