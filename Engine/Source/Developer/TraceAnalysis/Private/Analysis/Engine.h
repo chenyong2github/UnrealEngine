@@ -49,7 +49,7 @@ private:
 	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	void				OnNewTrace(const FOnEventContext& Context);
 	void				OnTiming(const FOnEventContext& Context);
-	void				OnNewEventInternal(const FOnEventContext& Context);
+	void				OnNewEventInternal(const void* EventData);
 	void				OnNewEventProtocol0(FDispatchBuilder& Builder, const void* EventData);
 	void				OnNewEventProtocol1(FDispatchBuilder& Builder, const void* EventData);
 	bool				EstablishTransport(FStreamReader& Reader);

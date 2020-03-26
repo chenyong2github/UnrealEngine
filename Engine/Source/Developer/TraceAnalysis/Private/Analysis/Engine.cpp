@@ -657,9 +657,15 @@ void FAnalysisEngine::OnAnalysisBegin(const FOnAnalysisContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
+	if (RouteId == RouteId_NewEvent)
+	{
+		const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
+		OnNewEventInternal(EventData.Ptr);
+		return true;
+	}
+
 	switch (RouteId)
 	{
-	case RouteId_NewEvent:			OnNewEventInternal(Context);		break;
 	case RouteId_NewTrace:			OnNewTrace(Context);				break;
 	case RouteId_Timing:			OnTiming(Context);					break;
 	}
@@ -715,21 +721,19 @@ void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
+void FAnalysisEngine::OnNewEventInternal(const void* EventData)
 {
-	const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
-
 	FDispatchBuilder Builder;
 	switch (ProtocolVersion)
 	{
 	case Protocol0::EProtocol::Id:
-		OnNewEventProtocol0(Builder, EventData.Ptr);
+		OnNewEventProtocol0(Builder, EventData);
 		break;
 
 	case Protocol1::EProtocol::Id:
 	case Protocol2::EProtocol::Id:
 	case Protocol3::EProtocol::Id:
-		OnNewEventProtocol1(Builder, EventData.Ptr);
+		OnNewEventProtocol1(Builder, EventData);
 		break;
 	}
 
