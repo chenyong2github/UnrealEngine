@@ -1129,8 +1129,10 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool
 
 			if (InPrimitiveSceneInfo->bIsUsingCustomLODRules)
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				ViewLODToRender = InPrimitiveSceneInfo->Proxy->GetCustomLOD(InCurrentView, InCurrentView.LODDistanceFactor, ForcedLOD, MeshScreenSizeSquared);
 				ViewLODToRender.ClampToFirstLOD(CurFirstLODIdx);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 			else
 			{
@@ -1145,7 +1147,9 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool
 			{
 				if (InCurrentView.GetCustomData(InPrimitiveSceneInfo->GetIndex()) == nullptr)
 				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					InCurrentView.SetCustomData(InPrimitiveSceneInfo, InPrimitiveSceneInfo->Proxy->InitViewCustomData(InCurrentView, InCurrentView.LODDistanceFactor, InCurrentView.GetCustomDataGlobalMemStack(), true, true, &ViewLODToRender, MeshScreenSizeSquared));
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 			}
 		}
@@ -1188,12 +1192,14 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool
 
 		if (WholeSceneDirectionalShadow)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (InPrimitiveSceneInfo->bIsUsingCustomWholeSceneShadowLODRules)
 			{
 				const bool bHasShelfShadow = !bReflectiveShadowmap && !bPreShadow;
 				const float ShadowMapTextureResolution = BorderSize * 2 + ResolutionX; // We assume Shadow Map texture to be squared (current design)
 				ShadowLODToRender = InPrimitiveSceneInfo->Proxy->GetCustomWholeSceneShadowLOD(InCurrentView, InCurrentView.LODDistanceFactor, ForcedLOD, *VisibilePrimitiveLODMask, ShadowMapTextureResolution, ShadowBounds.W * 2.0f, ShadowId, bHasShelfShadow);
 			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// Don't cache if it requires per view per mesh state for distance cull fade.
 			const bool bIsPrimitiveDistanceCullFading = InCurrentView.PotentiallyFadingPrimitiveMap[InPrimitiveSceneInfo->GetIndex()];
@@ -2178,6 +2184,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElementsArray(
 
 			if (ViewRelevance.bUseCustomViewData && DependentView != nullptr)
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				if (DependentView->GetCustomData(PrimitiveSceneInfo->GetIndex()) == nullptr)
 				{
 					void* CustomData = PrimitiveSceneInfo->Proxy->InitViewCustomData(*DependentView, DependentView->LODDistanceFactor, DependentView->GetCustomDataGlobalMemStack(), false, true);
@@ -2186,6 +2193,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElementsArray(
 					// This is required as GetDynamicMeshElements will received ReusedViewsArray which contains only FoundView
 					FoundView->SetCustomData(PrimitiveSceneInfo, CustomData);
 				}
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			PrimitiveSceneInfo->Proxy->GetDynamicMeshElements(ReusedViewsArray, Renderer.ViewFamily, 0x1, Renderer.MeshCollector);
