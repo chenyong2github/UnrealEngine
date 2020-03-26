@@ -887,6 +887,7 @@ bool UMaterial::IsDefaultMaterial() const
 
 UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, ReleasedByRT(true)
 {
 	BlendMode = BLEND_Opaque;
 	ShadingModel = MSM_DefaultLit;
@@ -4413,23 +4414,26 @@ void UMaterial::BeginDestroy()
 
 	if (DefaultMaterialInstance)
 	{
+		ReleasedByRT = false;
+
 		FMaterialRenderProxy* LocalResource = DefaultMaterialInstance;
+		FThreadSafeBool* Released = &ReleasedByRT;
 		ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
-		[LocalResource](FRHICommandList& RHICmdList)
+		[LocalResource, Released](FRHICommandListImmediate& RHICmdList)
 		{
 			LocalResource->MarkForGarbageCollection();
 			LocalResource->ReleaseResource();
+
+			*Released = true;
 		});
 	}
-
-	ReleaseFence.BeginFence();
 }
 
 bool UMaterial::IsReadyForFinishDestroy()
 {
 	bool bReady = Super::IsReadyForFinishDestroy();
 
-	return bReady && ReleaseFence.IsFenceComplete();
+	return bReady && ReleasedByRT;
 }
 
 void UMaterial::ReleaseResources()
