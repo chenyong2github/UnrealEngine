@@ -55,6 +55,109 @@ struct FAnalysisEngine::FAuxDataCollector
 
 
 ////////////////////////////////////////////////////////////////////////////////
+FThreads::FThreads()
+{
+	Infos.Reserve(64);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FThreads::FInfo* FThreads::GetInfo()
+{
+	if (LastGetInfoId >= uint32(Infos.Num()))
+	{
+		return nullptr;
+	}
+
+	return Infos.GetData() + LastGetInfoId;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FThreads::FInfo& FThreads::GetInfo(uint32 ThreadId)
+{
+	LastGetInfoId = ThreadId;
+
+	if (ThreadId < uint32(Infos.Num()))
+	{
+		return Infos[ThreadId];
+	}
+
+	Infos.SetNum(ThreadId + 1);
+
+	FInfo& Info = Infos[ThreadId];
+	Info.ThreadId = ThreadId;
+	return Info;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FThreads::SetGroupName(const ANSICHAR* InGroupName, uint32 Length)
+{
+	if (*InGroupName == '\0')
+	{
+		GroupName.SetNum(0);
+		return;
+	}
+
+	GroupName.SetNumUninitialized(Length);
+	memcpy(GroupName.GetData(), InGroupName, Length);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const TArray<uint8>* FThreads::GetGroupName() const
+{
+	return (GroupName.Num() > 0) ? &GroupName : nullptr;
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FThreadInfo::GetId() const
+{
+	const auto* Info = (FThreads::FInfo*)this;
+	return Info->ThreadId;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FThreadInfo::GetSystemId() const
+{
+	const auto* Info = (FThreads::FInfo*)this;
+	return Info->SystemId;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 IAnalyzer::FThreadInfo::GetSortHint() const
+{
+	const auto* Info = (FThreads::FInfo*)this;
+	return Info->SortHint;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FThreadInfo::GetName() const
+{
+	const auto* Info = (FThreads::FInfo*)this;
+	if (Info->Name.Num() <= 0)
+	{
+		return "UnknownThread";
+	}
+
+	return (const ANSICHAR*)(Info->Name.GetData());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FThreadInfo::GetGroupName() const
+{
+	const auto* Info = (FThreads::FInfo*)this;
+	if (Info->GroupName.Num() <= 0)
+	{
+		return "";
+	}
+
+	return (const ANSICHAR*)(Info->GroupName.GetData());
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FDispatch
 {
 	enum
@@ -454,6 +557,9 @@ enum ERouteId : uint16
 	RouteId_NewEvent,
 	RouteId_NewTrace,
 	RouteId_Timing,
+	RouteId_ThreadInfo,
+	RouteId_ThreadGroupBegin,
+	RouteId_ThreadGroupEnd,
 };
 
 
@@ -649,9 +755,12 @@ void FAnalysisEngine::AddRoute(
 void FAnalysisEngine::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	auto& Builder = Context.InterfaceBuilder;
-	Builder.RouteEvent(RouteId_NewTrace, "$Trace", "NewTrace");
-	Builder.RouteEvent(RouteId_NewEvent, "$Trace", "NewEvent");
-	Builder.RouteEvent(RouteId_Timing,   "$Trace", "Timing");
+	Builder.RouteEvent(RouteId_NewTrace,		"$Trace", "NewTrace");
+	Builder.RouteEvent(RouteId_NewEvent,		"$Trace", "NewEvent");
+	Builder.RouteEvent(RouteId_Timing,			"$Trace", "Timing");
+	Builder.RouteEvent(RouteId_ThreadInfo,		"$Trace", "ThreadInfo");
+	Builder.RouteEvent(RouteId_ThreadGroupBegin,"$Trace", "ThreadGroupBegin");
+	Builder.RouteEvent(RouteId_ThreadGroupEnd,	"$Trace", "ThreadGroupEnd");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -666,8 +775,11 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 
 	switch (RouteId)
 	{
-	case RouteId_NewTrace:			OnNewTrace(Context);				break;
-	case RouteId_Timing:			OnTiming(Context);					break;
+	case RouteId_NewTrace:			OnNewTrace(Context);			break;
+	case RouteId_Timing:			OnTiming(Context);				break;
+	case RouteId_ThreadInfo:		OnThreadInfoInternal(Context);	break;
+	case RouteId_ThreadGroupBegin:	OnThreadGroupBegin(Context);	break;
+	case RouteId_ThreadGroupEnd:	OnThreadGroupEnd();				break;
 	}
 
 	return true;
@@ -683,6 +795,55 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 	NextLogSerial -= (0x00ffffff + 1) >> 2;
 	NextLogSerial &= 0x00ffffff;
 	NextLogSerial |= 0x80000000;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnThreadInfoInternal(const FOnEventContext& Context)
+{
+	const FEventData& EventData = Context.EventData;
+
+	FThreads::FInfo* ThreadInfo = Threads.GetInfo();
+	if (ThreadInfo == nullptr)
+	{
+		return;
+	}
+	ThreadInfo->SystemId = EventData.GetValue<uint32>("SystemId");
+	ThreadInfo->SortHint = EventData.GetValue<int32>("SortHint");
+
+	const ANSICHAR* Name = (const ANSICHAR*)(EventData.GetAttachment());
+	ThreadInfo->Name.SetNumUninitialized(EventData.GetAttachmentSize());
+	memcpy(ThreadInfo->Name.GetData(), Name, EventData.GetAttachmentSize());
+
+	if (ThreadInfo->GroupName.Num() <= 0)
+	{
+		if (const TArray<uint8>* GroupName = Threads.GetGroupName())
+		{
+			ThreadInfo->GroupName = *GroupName;
+		}
+	}
+
+	const auto* OuterInfo = (FThreadInfo*)ThreadInfo;
+	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
+	{
+		if (IAnalyzer* Analyzer = Analyzers[i])
+		{
+			Analyzer->OnThreadInfo(*OuterInfo);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnThreadGroupBegin(const FOnEventContext& Context)
+{
+	const FEventData& EventData = Context.EventData;
+	const ANSICHAR* Name = (const ANSICHAR*)(EventData.GetAttachment());
+	Threads.SetGroupName(Name, EventData.GetAttachmentSize());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnThreadGroupEnd()
+{
+	Threads.SetGroupName("", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -955,6 +1116,8 @@ bool FAnalysisEngine::OnData(FStreamReader& Reader)
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::OnDataProtocol0()
 {
+	FThreads::FInfo ThreadInfo;
+
 	while (true)
 	{
 		const auto* Header = Transport->GetPointer<Protocol0::FEventHeader>();
@@ -991,8 +1154,8 @@ bool FAnalysisEngine::OnDataProtocol0()
 
 		FOnEventContext Context = {
 			SessionContext,
+			(const FThreadInfo&)ThreadInfo,
 			(FEventData&)EventDataInfo,
-			~0u,
 		};
 
 		ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
@@ -1024,7 +1187,8 @@ bool FAnalysisEngine::OnDataProtocol2()
 		while (FStreamReader* Reader = InnerTransport->GetNextThread(Iter))
 		{
 			uint32 ThreadId = InnerTransport->GetThreadId(Iter);
-			int32 ReqLogSerial = OnDataProtocol2(ThreadId, *Reader);
+			FThreads::FInfo& ThreadInfo = Threads.GetInfo(ThreadId);
+			int32 ReqLogSerial = OnDataProtocol2(*Reader, ThreadInfo);
 			if (ReqLogSerial >= 0)
 			{
 				MinLogSerial = FMath::Min(MinLogSerial, ReqLogSerial);
@@ -1066,7 +1230,7 @@ bool FAnalysisEngine::OnDataProtocol2()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
+int32 FAnalysisEngine::OnDataProtocol2(FStreamReader& Reader, FThreads::FInfo& ThreadInfo)
 {
 	while (true)
 	{
@@ -1161,8 +1325,8 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 
 		FOnEventContext Context = {
 			SessionContext,
+			(const FThreadInfo&)ThreadInfo,
 			(FEventData&)EventDataInfo,
-			ThreadId,
 		};
 		ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{

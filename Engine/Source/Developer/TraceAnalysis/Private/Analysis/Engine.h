@@ -12,6 +12,34 @@ namespace Trace
 class FStreamReader;
 
 ////////////////////////////////////////////////////////////////////////////////
+class FThreads
+{
+public:
+	struct FInfo
+	{
+		uint32			ThreadId;
+		uint32			SystemId = 0;
+		int32			SortHint = 0;
+		TArray<uint16>	ScopeRoutes;
+		TArray<uint8>	Name;
+		TArray<uint8>	GroupName;
+	};
+
+						FThreads();
+	FInfo*				GetInfo();
+	FInfo&				GetInfo(uint32 ThreadId);
+	void				SetGroupName(const ANSICHAR* InGroupName, uint32 Length);
+	const TArray<uint8>*GetGroupName() const;
+
+private:
+	uint32				LastGetInfoId = ~0u;
+	TArray<FInfo>		Infos;
+	TArray<uint8>		GroupName;
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 class FAnalysisEngine
 	: public IAnalyzer
 {
@@ -48,6 +76,9 @@ private:
 	virtual bool		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	void				OnNewTrace(const FOnEventContext& Context);
+	void				OnThreadInfoInternal(const FOnEventContext& Context);
+	void				OnThreadGroupBegin(const FOnEventContext& Context);
+	void				OnThreadGroupEnd();
 	void				OnTiming(const FOnEventContext& Context);
 	void				OnNewEventInternal(const void* EventData);
 	void				OnNewEventProtocol0(FDispatchBuilder& Builder, const void* EventData);
@@ -55,7 +86,7 @@ private:
 	bool				EstablishTransport(FStreamReader& Reader);
 	bool				OnDataProtocol0();
 	bool				OnDataProtocol2();
-	int32				OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader);
+	int32				OnDataProtocol2(FStreamReader& Reader, FThreads::FInfo& Info);
 	int32				OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollector& Collector);
 	bool				AddDispatch(FDispatch* Dispatch);
 	template <typename ImplType>
@@ -70,6 +101,7 @@ private:
 	ProtocolHandlerType	ProtocolHandler = nullptr;
 	uint32				NextLogSerial = 0;
 	uint8				ProtocolVersion = 0;
+	FThreads			Threads;
 };
 
 } // namespace Trace

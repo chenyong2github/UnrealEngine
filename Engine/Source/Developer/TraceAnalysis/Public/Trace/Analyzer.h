@@ -167,11 +167,31 @@ public:
 		const FArrayReader* GetArrayImpl(const ANSICHAR* FieldName) const;
 	};
 
+	struct TRACEANALYSIS_API FThreadInfo
+	{
+		/* Returns the trace-specific id for the thread */
+		uint32 GetId() const;
+
+		/* Returns the system if for the thread. Because this may not be known by
+		 * trace and because IDs can be reused by the system, relying on the value
+		 * of this is discouraged. */
+		uint32 GetSystemId() const;
+
+		/* Returns a hint for use when sorting threads. */
+		int32 GetSortHint() const;
+
+		/* Returns the thread's name or an empty string */
+		const ANSICHAR* GetName() const;
+
+		/* Returns the name of the group a thread has been assigned ti, or an empty string */
+		const ANSICHAR* GetGroupName() const;
+	};
+
 	struct FOnEventContext
 	{
 		const FSessionContext&	SessionContext;
+		const FThreadInfo&		ThreadInfo;
 		const FEventData&		EventData;
-		uint32					ThreadId;
 	};
 
 	virtual ~IAnalyzer() = default;
@@ -186,6 +206,14 @@ public:
 	/** Indicates that the analysis of a trace log has completed and there are no
 	 * further events */
 	virtual void OnAnalysisEnd()
+	{
+	}
+
+	/** Called when information about a thread has been updated. It is entirely
+	 * possible that this might get called more than once for a particular thread
+	 * if its details changed.
+	 * @param ThreadInfo Describes the thread whose information has changed. */
+	virtual void OnThreadInfo(const FThreadInfo& ThreadInfo)
 	{
 	}
 
