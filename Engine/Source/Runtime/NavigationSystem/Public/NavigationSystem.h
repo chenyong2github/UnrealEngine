@@ -944,13 +944,14 @@ public:
 			;
 	}
 
-	/** Use this function to signal the NavigationSystem it doesn't need to store
+	/**	call with bEnableStatic == true to signal the NavigationSystem it doesn't need to store
 	 *	any navigation-generation-related data at game runtime, because 
 	 *	nothing is going to use it anyway. This will short-circuit all code related 
 	 *	to navmesh rebuilding, so use it only if you have fully static navigation in 
-	 *	your game.
-	 *	Note: this is not a runtime switch. Call it before any actual game starts. */
-	static void ConfigureAsStatic();
+	 *	your game. bEnableStatic = false will reset the mechanism.
+	 *	Note: this is not a runtime switch. It's highly advisable not to call it manually and 
+	 *	use UNavigationSystemModuleConfig.bStrictlyStatic instead */
+	static void ConfigureAsStatic(bool bEnableStatic = true);
 
 	static void SetUpdateNavOctreeOnComponentChange(bool bNewUpdateOnComponentChange);
 

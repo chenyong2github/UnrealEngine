@@ -554,10 +554,10 @@ UNavigationSystemV1::~UNavigationSystemV1()
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-void UNavigationSystemV1::ConfigureAsStatic()
+void UNavigationSystemV1::ConfigureAsStatic(bool bEnableStatic)
 {
-	bStaticRuntimeNavigation = true;
-	SetWantsComponentChangeNotifies(false);
+	bStaticRuntimeNavigation = bEnableStatic;
+	SetWantsComponentChangeNotifies(!bEnableStatic);
 }
 
 void UNavigationSystemV1::SetUpdateNavOctreeOnComponentChange(bool bNewUpdateOnComponentChange)
@@ -4765,7 +4765,9 @@ void UNavigationSystemModuleConfig::UpdateWithNavSysCDO(const UNavigationSystemV
 	UClass* MyClass = NavigationSystemClass.ResolveClass();
 	if (MyClass != nullptr && MyClass->IsChildOf(NavSysCDO.GetClass()))
 	{
-		bStrictlyStatic = NavSysCDO.bStaticRuntimeNavigation;
+		// note that we're not longer copying bStrictlyStatic due to UE-91171
+		// Copying NavSysCDO.bStaticRuntimeNavigation resulted in copying 'true' 
+		// between unrelated maps
 		bCreateOnClient = NavSysCDO.bAllowClientSideNavigation;
 		bAutoSpawnMissingNavData = NavSysCDO.bAutoCreateNavigationData;
 		bSpawnNavDataInNavBoundsLevel = NavSysCDO.bSpawnNavDataInNavBoundsLevel;
@@ -4790,10 +4792,7 @@ UNavigationSystemBase* UNavigationSystemModuleConfig::CreateAndConfigureNavigati
 	{
 		NavSysInstance->bAutoCreateNavigationData = bAutoSpawnMissingNavData;
 		NavSysInstance->bSpawnNavDataInNavBoundsLevel = bSpawnNavDataInNavBoundsLevel;
-		if (bStrictlyStatic)
-		{
-			NavSysInstance->ConfigureAsStatic();
-		}
+		NavSysInstance->ConfigureAsStatic(bStrictlyStatic);
 	}
 
 	return NavSysInstance;
