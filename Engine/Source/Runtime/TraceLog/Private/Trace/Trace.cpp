@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Trace/Trace.h" // should be Config.h :(
+#include "Trace/Trace.inl" // should be Config.h :(
 
 #if UE_TRACE_ENABLED
 
@@ -74,6 +74,50 @@ bool ToggleChannel(const TCHAR* ChannelName, bool bEnabled)
 	ANSICHAR ChannelNameA[64];
 	ToAnsiCheap(ChannelNameA, ChannelName);
 	return FChannel::Toggle(ChannelNameA, bEnabled);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+UE_TRACE_CHANNEL_EXTERN(TraceLogChannel)
+
+UE_TRACE_EVENT_BEGIN($Trace, ThreadInfo)
+	UE_TRACE_EVENT_FIELD(uint32, SystemId)
+	UE_TRACE_EVENT_FIELD(int32, SortHint)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN($Trace, ThreadGroupBegin)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN($Trace, ThreadGroupEnd)
+UE_TRACE_EVENT_END()
+
+////////////////////////////////////////////////////////////////////////////////
+void ThreadRegister(const TCHAR* Name, uint32 SystemId, int32 SortHint)
+{
+	ANSICHAR NameA[64];
+	uint32 NameLength = ToAnsiCheap(NameA, Name);
+
+	UE_TRACE_LOG($Trace, ThreadInfo, TraceLogChannel, NameLength)
+		<< ThreadInfo.SystemId(SystemId)
+		<< ThreadInfo.SortHint(SortHint)
+		<< ThreadInfo.Attachment(NameA, NameLength);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void ThreadGroupBegin(const TCHAR* Name)
+{
+	ANSICHAR NameA[64];
+	uint32 NameLength = ToAnsiCheap(NameA, Name);
+
+	UE_TRACE_LOG($Trace, ThreadGroupBegin, TraceLogChannel, NameLength)
+		<< ThreadGroupBegin.Attachment(NameA, NameLength);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void ThreadGroupEnd()
+{
+	UE_TRACE_LOG($Trace, ThreadGroupEnd, TraceLogChannel);
 }
 
 } // namespace Trace
