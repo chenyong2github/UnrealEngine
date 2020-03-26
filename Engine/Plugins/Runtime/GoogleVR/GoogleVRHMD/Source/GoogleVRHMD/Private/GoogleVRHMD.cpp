@@ -269,7 +269,7 @@ FGoogleVRHMD::FGoogleVRHMD(const FAutoRegister& AutoRegister)
 	, bUseOffscreenFramebuffers(false)
 	, bIsInDaydreamMode(false)
 	, bForceStopPresentScene(false)
-	, bIsMobileMultiViewDirect(false)
+	, bIsMobileMultiView(false)
 	, NeckModelScale(1.0f)
 	, BaseOrientation(FQuat::Identity)
 	, PixelDensity(1.0f)
@@ -415,10 +415,8 @@ FGoogleVRHMD::FGoogleVRHMD(const FAutoRegister& AutoRegister)
 		// Query for direct multi-view
 		GSupportsMobileMultiView = gvr_is_feature_supported(GVRAPI, GVR_FEATURE_MULTIVIEW) && bUseOffscreenFramebuffers;
 		const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
-		const auto CVarMobileMultiViewDirect = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView.Direct"));
 		const bool bIsMobileMultiViewEnabled = (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
-		const bool bIsMobileMultiViewDirectEnabled = (CVarMobileMultiViewDirect && CVarMobileMultiViewDirect->GetValueOnAnyThread() != 0);
-		bIsMobileMultiViewDirect = GSupportsMobileMultiView && bIsMobileMultiViewEnabled && bIsMobileMultiViewDirectEnabled;
+		bIsMobileMultiView = GSupportsMobileMultiView && bIsMobileMultiViewEnabled;
 
 		if(bUseOffscreenFramebuffers)
 		{
@@ -1332,7 +1330,7 @@ void FGoogleVRHMD::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& R
 #endif  // GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
 
 #if GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
-bool FGoogleVRHMD::GetCurrentReferencePose(FQuat& CurrentOrientation, FVector& CurrentPosition) const 
+bool FGoogleVRHMD::GetCurrentReferencePose(FQuat& CurrentOrientation, FVector& CurrentPosition) const
 {
 	FMatrix TransposeHeadPoseUnreal;
 	memcpy(&TransposeHeadPoseUnreal.M, CurrentReferencePose.pose.transform, 4 * 4 * sizeof(float));
@@ -1349,7 +1347,7 @@ bool FGoogleVRHMD::GetCurrentReferencePose(FQuat& CurrentOrientation, FVector& C
 	return true;
 }
 
-FVector FGoogleVRHMD::GetLocalEyePos(const instant_preview::EyeView& EyeView) 
+FVector FGoogleVRHMD::GetLocalEyePos(const instant_preview::EyeView& EyeView)
 {
 	const float* mat = EyeView.eye_pose.transform;
 	FMatrix PoseMatrix(
@@ -1360,7 +1358,7 @@ FVector FGoogleVRHMD::GetLocalEyePos(const instant_preview::EyeView& EyeView)
 	return PoseMatrix.TransformPosition(FVector(0, 0, 0));
 }
 
-void FGoogleVRHMD::PushVideoFrame(const FColor* VideoFrameBuffer, int width, int height, int stride, instant_preview::PixelFormat pixel_format, instant_preview::ReferencePose reference_pose) 
+void FGoogleVRHMD::PushVideoFrame(const FColor* VideoFrameBuffer, int width, int height, int stride, instant_preview::PixelFormat pixel_format, instant_preview::ReferencePose reference_pose)
 {
 	instant_preview::Session *session = ip_static_server_acquire_active_session(IpServerHandle);
 	if (session != NULL && width > 0 && height > 0)
