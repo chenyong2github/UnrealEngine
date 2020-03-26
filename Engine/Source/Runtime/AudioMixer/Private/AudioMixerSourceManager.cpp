@@ -376,6 +376,12 @@ namespace Audio
 		AUDIO_MIXER_CHECK(bInitialized);
 		AUDIO_MIXER_CHECK(MixerSources[SourceId] != nullptr);
 
+		if (MixerSources[SourceId] == nullptr)
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Ignoring double release of SourceId: %i"), SourceId);
+			return;
+		}
+
 		AUDIO_MIXER_DEBUG_LOG(SourceId, TEXT("Is releasing"));
 		
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
