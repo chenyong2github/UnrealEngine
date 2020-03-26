@@ -598,7 +598,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bNvidiaAftermathEnabled : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
-		ConsoleVariable = "vr.InstancedStereo", DisplayName = "Multi-View",
+		ConsoleVariable = "vr.InstancedStereo", DisplayName = "Instanced Stereo",
 		ToolTip = "Enable single-pass stereoscopic rendering through view instancing or draw call instancing.",
 		ConfigRestartRequired = true))
 	uint32 bMultiView : 1;
