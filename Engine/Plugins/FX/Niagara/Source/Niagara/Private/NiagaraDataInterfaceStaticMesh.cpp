@@ -1458,9 +1458,9 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoord<TSampleModeInvalid>(FVector
 
 void UNiagaraDataInterfaceStaticMesh::RandomTriCoordVertexColorFiltered(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> MinValue(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> RangeValue(Context);
-	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutTri(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryX(Context);
@@ -1552,8 +1552,8 @@ FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndexOnSection<TSamp
 template<typename TSampleMode>
 void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection(FVectorVMContext& Context)
 {
-	VectorVM::FExternalFuncInputHandler<int32> SectionIdxParam(Context);
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
+	VectorVM::FExternalFuncInputHandler<int32> SectionIdxParam(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutTri(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryX(Context);
@@ -1586,8 +1586,8 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection(FVectorVMContext& 
 template<>
 void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection<TSampleModeInvalid>(FVectorVMContext& Context)
 {
-	VectorVM::FExternalFuncInputHandler<int32> SectionIdxParam(Context);
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
+	VectorVM::FExternalFuncInputHandler<int32> SectionIdxParam(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutTri(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryX(Context);
@@ -1606,12 +1606,12 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection<TSampleModeInvalid
 template<typename TransformHandlerType>
 void UNiagaraDataInterfaceStaticMesh::GetTriCoordPosition(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	TransformHandlerType TransformHandler;
 	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
-	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> OutPosX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutPosY(Context);
@@ -1665,13 +1665,14 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPosition(FVectorVMContext& Cont
 template<typename TransformHandlerType>
 void UNiagaraDataInterfaceStaticMesh::GetTriCoordNormal(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
+
 	TransformHandlerType TransformHandler;
 
 	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
-	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> OutNormX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutNormY(Context);
@@ -1721,13 +1722,14 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordNormal(FVectorVMContext& Contex
 template<typename VertexAccessorType, typename TransformHandlerType>
 void UNiagaraDataInterfaceStaticMesh::GetTriCoordTangents(FVectorVMContext& Context)
 {
-	TransformHandlerType TransformHandler;	
+	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
+
+	TransformHandlerType TransformHandler;
 
 	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
-	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> OutTangentX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutTangentY(Context);
@@ -1802,11 +1804,12 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordTangents(FVectorVMContext& Cont
 
 void UNiagaraDataInterfaceStaticMesh::GetTriCoordColor(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
+
 	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
-	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> OutColorR(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutColorG(Context);
@@ -1865,12 +1868,13 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordColor(FVectorVMContext& Context
 template<typename VertexAccessorType>
 void UNiagaraDataInterfaceStaticMesh::GetTriCoordUV(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
+
 	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
 	VectorVM::FExternalFuncInputHandler<int32> UVSetParam(Context);
-	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> OutU(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutV(Context);
@@ -1917,11 +1921,12 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordUV(FVectorVMContext& Context)
 
 void UNiagaraDataInterfaceStaticMesh::GetTriCoordPositionAndVelocity(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
+
 	VectorVM::FExternalFuncInputHandler<int32> TriParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryXParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> BaryZParam(Context);
-	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> OutPosX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutPosY(Context);
@@ -2067,9 +2072,10 @@ void UNiagaraDataInterfaceStaticMesh::GetWorldVelocity(FVectorVMContext& Context
 template<typename TransformHandlerType>
 void UNiagaraDataInterfaceStaticMesh::GetVertexPosition(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
+
 	TransformHandlerType TransformHandler;
 	VectorVM::FExternalFuncInputHandler<int32> VertexIndexParam(Context);
-	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> OutPosX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutPosY(Context);
