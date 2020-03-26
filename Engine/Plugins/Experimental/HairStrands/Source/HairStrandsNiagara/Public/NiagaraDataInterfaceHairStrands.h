@@ -10,7 +10,7 @@
 #include "GroomActor.h"
 #include "NiagaraDataInterfaceHairStrands.generated.h"
 
-static const int32 MaxDelay = 8;
+static const int32 MaxDelay = 2;
 static const int32 NumScales = 4;
 static const int32 StretchOffset = 0;
 static const int32 BendOffset = 1;
@@ -125,6 +125,7 @@ struct FNDIHairStrandsData
 		KineticFriction = 0.1;
 		StaticFriction = 0.1;
 		StrandsViscosity = 1.0;
+		GridDimension = FIntVector(30,30,30);
 		CollisionRadius = 1.0;
 
 		StrandsDensity = 1.0;
@@ -177,6 +178,7 @@ struct FNDIHairStrandsData
 			StaticFriction = OtherDatas->StaticFriction;
 			KineticFriction = OtherDatas->KineticFriction;
 			StrandsViscosity = OtherDatas->StrandsViscosity;
+			GridDimension = OtherDatas->GridDimension;
 			CollisionRadius = OtherDatas->CollisionRadius;
 
 			StrandsDensity = OtherDatas->StrandsDensity;
@@ -267,6 +269,9 @@ struct FNDIHairStrandsData
 
 	/** Radius that will be used for the collision detection against the physics asset */
 	float StrandsViscosity;
+
+	/** Grid Dimension used to compute the viscosity forces */
+	FIntVector GridDimension;
 
 	/** Radius scale along the strand */
 	float CollisionRadius;
@@ -386,6 +391,8 @@ public:
 	void GetKineticFriction(FVectorVMContext& Context);
 
 	void GetStrandsViscosity(FVectorVMContext& Context);
+
+	void GetGridDimension(FVectorVMContext& Context);
 
 	void GetCollisionRadius(FVectorVMContext& Context);
 
