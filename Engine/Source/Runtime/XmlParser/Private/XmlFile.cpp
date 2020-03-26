@@ -281,22 +281,26 @@ void FXmlFile::WhiteOut(TArray<FString>& Input, int32 LineStart, int32 LineEnd, 
 }
 
 /** Checks if the passed character is an operator */
-static bool CheckTagOperator(const FString& InString, int32 InIndex)
+static bool CheckTagOperator(const TCHAR* PtrStart, const TCHAR* Ptr, const TCHAR* PtrEnd)
 {
-	check(InIndex >= 0 && InIndex < InString.Len())
-	if(InString[InIndex] == TCHAR('/'))
+	checkSlow(PtrStart <= Ptr && Ptr < PtrEnd);
+
+	TCHAR Ch = *Ptr;
+	if(Ch == TCHAR('/'))
 	{
-		if(InIndex < InString.Len() - 1 && InString[InIndex + 1] == TCHAR('>'))
+		const TCHAR* PtrNext = Ptr + 1;
+		if(PtrNext != PtrEnd && *PtrNext == TCHAR('>'))
 		{
 			return true;
 		}
+
 		// check either the next or previous chars are tag closures - otherwise, this is just a slash
-		else if(InIndex > 0 && InString[InIndex - 1] == TCHAR('<'))
+		if(Ptr != PtrStart  && *(Ptr - 1) == TCHAR('<'))
 		{
 			return true;
 		}
 	}
-	else if(InString[InIndex] == TCHAR('<') || InString[InIndex] == TCHAR('>'))
+	else if(Ch == TCHAR('<') || Ch == TCHAR('>'))
 	{
 		return true;
 	}
@@ -322,21 +326,26 @@ static bool IsQuote(TCHAR Char)
 	return Char == TCHAR('\"');
 }
 
-void FXmlFile::Tokenize(FString Input, TArray<FString>& Tokens)
+void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 {
 	FString WorkingToken;
 	enum TOKENTYPE { OPERATOR, STRING, NONE } Type = NONE;
 	bool bInToken = false;
 	bool bInQuote = false;
-	for(int32 i = 0; i < Input.Len(); ++i)
+
+	const TCHAR* PtrStart = GetData(Input);
+	const TCHAR* PtrEnd   = PtrStart + GetNum(Input);
+	for (const TCHAR* Ptr = PtrStart; Ptr != PtrEnd; ++Ptr)
 	{
-		if(IsWhiteSpace(Input[i]) && !bInQuote)
+		TCHAR Ch = *Ptr;
+
+		if(IsWhiteSpace(Ch) && !bInQuote)
 		{
 			// End the current token 
 			if(WorkingToken.Len())
 			{
-				Tokens.Add(WorkingToken);
-				WorkingToken = TEXT("");
+				Tokens.Add(MoveTemp(WorkingToken));
+				checkSlow(WorkingToken.Len() == 0);
 			}
 			bInToken = false;
 			Type = NONE;
@@ -347,10 +356,10 @@ void FXmlFile::Tokenize(FString Input, TArray<FString>& Tokens)
 		// Mark the start of a token
 		if(bInToken == false)
 		{
-			WorkingToken = TEXT("");
-			WorkingToken += Input[i];
+			WorkingToken.Reset();
+			WorkingToken += Ch;
 			bInToken = true;
-			if(CheckTagOperator(Input, i))
+			if(CheckTagOperator(PtrStart, Ptr, PtrEnd))
 			{
 				Type = OPERATOR;
 			}
@@ -366,9 +375,9 @@ void FXmlFile::Tokenize(FString Input, TArray<FString>& Tokens)
 			if(Type == OPERATOR)
 			{
 				// Still the tag, so add it to the working token
-				if(CheckTagOperator(Input, i))
+				if(CheckTagOperator(PtrStart, Ptr, PtrEnd))
 				{
-					WorkingToken += Input[i];
+					WorkingToken += Ch;
 				}
 
 				// Not a tag operator anymore, so add the old token and start a new one
@@ -376,28 +385,28 @@ void FXmlFile::Tokenize(FString Input, TArray<FString>& Tokens)
 				{
 					if(WorkingToken.Len())
 					{
-						Tokens.Add(WorkingToken);
-						WorkingToken = TEXT("");
+						Tokens.Add(MoveTemp(WorkingToken));
+						checkSlow(WorkingToken.Len() == 0);
 					}
-					WorkingToken += Input[i];
+					WorkingToken += Ch;
 					Type = STRING;
 				}
 			}
 			else // STRING
 			{
-				if(IsQuote(Input[i]) && !bInQuote)
+				if(IsQuote(Ch) && !bInQuote)
 				{
 					bInQuote = true;
 				}
-				else if(IsQuote(Input[i]) && bInQuote)
+				else if(IsQuote(Ch) && bInQuote)
 				{
 					bInQuote = false;
 				}
 
 				// Still a string. Allow '>' within a string
-				if(!CheckTagOperator(Input, i) || (bInQuote && Input[i] == TCHAR('>')))
+				if(!CheckTagOperator(PtrStart, Ptr, PtrEnd) || (bInQuote && Ch == TCHAR('>')))
 				{
-					WorkingToken += Input[i];
+					WorkingToken += Ch;
 				}
 
 				// Moving back to operator
@@ -405,10 +414,10 @@ void FXmlFile::Tokenize(FString Input, TArray<FString>& Tokens)
 				{
 					if(WorkingToken.Len())
 					{
-						Tokens.Add(WorkingToken);
-						WorkingToken = TEXT("");
+						Tokens.Add(MoveTemp(WorkingToken));
+						checkSlow(WorkingToken.Len() == 0);
 					}
-					WorkingToken += Input[i];
+					WorkingToken += Ch;
 					Type = OPERATOR;
 				}
 			}
@@ -419,8 +428,8 @@ void FXmlFile::Tokenize(FString Input, TArray<FString>& Tokens)
 		{
 			if(WorkingToken[WorkingToken.Len() - 1] == TCHAR('>'))
 			{
-				Tokens.Add(WorkingToken);
-				WorkingToken = TEXT("");
+				Tokens.Add(MoveTemp(WorkingToken));
+				checkSlow(WorkingToken.Len() == 0);
 				bInToken = false;
 				Type = NONE;
 			}
@@ -430,17 +439,17 @@ void FXmlFile::Tokenize(FString Input, TArray<FString>& Tokens)
 	// Add working token if it still exists
 	if(WorkingToken.Len())
 	{
-		Tokens.Add(WorkingToken);
+		Tokens.Add(MoveTemp(WorkingToken));
 	}
 }
 
-TArray<FString> FXmlFile::Tokenize(TArray<FString>& Input)
+TArray<FString> FXmlFile::Tokenize(const TArray<FString>& Input)
 {
 	TArray<FString> Tokens;
 	Tokens.Reserve(Input.Num());
-	for(int32 i = 0; i < Input.Num(); ++i)
+	for(const FString& Line : Input)
 	{
-		Tokenize(Input[i], Tokens);
+		Tokenize(Line, Tokens);
 	}
 	return Tokens;
 }

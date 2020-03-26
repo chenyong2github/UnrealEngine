@@ -85,9 +85,9 @@ private:
 	/** Whites of the text at the specified locations in a passed-in array */
 	void WhiteOut(TArray<FString>& Input, int32 LineStart, int32 LineEnd, int32 IndexStart, int32 IndexEnd);
 	/** Converts the passed input into a list of tokens for parsing */
-	void Tokenize(FString Input, TArray<FString>& Tokens);
+	void Tokenize(FStringView Input, TArray<FString>& Tokens);
 	/** Converts the passed input into a list of tokens for parsing */
-	TArray<FString> Tokenize(TArray<FString>& Input);
+	TArray<FString> Tokenize(const TArray<FString>& Input);
 	/** 
 	 * Add an attribute to the passed-in array.
 	 * This makes the assumption that an attribute comes in as one 'token' (i.e. no spaces between tag="value").
