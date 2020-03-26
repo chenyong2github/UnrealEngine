@@ -216,6 +216,14 @@ public:
 	FDelegateHandle DeviceProfilesUpdatedDelegateHandle;
 
 	bool bIsChartingPaused;
+	
+	// memory stats
+	uint64 MaxPhysicalMemory;
+	uint64 MaxVirtualMemory;
+	uint64 MinPhysicalMemory;
+	uint64 MinVirtualMemory;
+	uint64 TotalPhysicalMemoryUsed;
+	uint64 TotalVirtualMemoryUsed;
 
 public:
 	FPerformanceTrackingChart();
