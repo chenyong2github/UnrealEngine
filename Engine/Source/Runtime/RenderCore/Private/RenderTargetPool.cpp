@@ -253,10 +253,12 @@ bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPool
 		{
 			// we can reuse the same, but the debug name might have changed
 			Current->Desc.DebugName = InDebugName;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if (Current->GetRenderTargetItem().TargetableTexture)
 			{
 				RHIBindDebugLabelName(Current->GetRenderTargetItem().TargetableTexture, InDebugName);
 			}
+#endif
 			check(!Out->IsFree());
 			return true;
 		}
@@ -445,7 +447,9 @@ Done:
 				}
 			}
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			RHIBindDebugLabelName(Found->RenderTargetItem.TargetableTexture, InDebugName);
+#endif
 		}
 		else if (!bDeferTextureAllocation)
 		{
@@ -488,7 +492,9 @@ Done:
 				}
 			}
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			RHIBindDebugLabelName(Found->RenderTargetItem.ShaderResourceTexture, InDebugName);
+#endif
 		}
 
 		if ((Desc.TargetableFlags & TexCreate_UAV) && !bDeferTextureAllocation)
@@ -549,10 +555,12 @@ Done:
 	// Transient RTs have to be targettable
 	check( ( Desc.Flags & TexCreate_Transient ) == 0 || Found->GetRenderTargetItem().TargetableTexture != nullptr );
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (Found->GetRenderTargetItem().TargetableTexture)
 	{
 		RHIBindDebugLabelName(Found->GetRenderTargetItem().TargetableTexture, InDebugName);
 	}
+#endif
 
 	return false;
 }
