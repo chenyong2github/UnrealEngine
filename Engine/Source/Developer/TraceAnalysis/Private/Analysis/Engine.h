@@ -59,7 +59,7 @@ private:
 	int32				OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollector& Collector);
 	bool				AddDispatch(FDispatch* Dispatch);
 	template <typename ImplType>
-	void				ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl);
+	void				ForEachRoute(uint32 RouteIndex, ImplType&& Impl);
 	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event);
 	void				RetireAnalyzer(IAnalyzer* Analyzer);
 	FSessionContext		SessionContext;

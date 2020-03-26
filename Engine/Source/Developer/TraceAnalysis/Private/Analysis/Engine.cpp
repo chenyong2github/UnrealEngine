@@ -694,16 +694,16 @@ void FAnalysisEngine::OnTiming(const FOnEventContext& Context)
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ImplType>
-void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
+void FAnalysisEngine::ForEachRoute(uint32 RouteIndex, ImplType&& Impl)
 {
 	uint32 RouteCount = Routes.Num();
-	if (Dispatch->FirstRoute >= RouteCount)
+	if (RouteIndex >= RouteCount)
 	{
 		return;
 	}
 
 	const FRoute* FirstRoute = Routes.GetData();
-	const FRoute* Route = FirstRoute + Dispatch->FirstRoute;
+	const FRoute* Route = FirstRoute + RouteIndex;
 	do
 	{
 		const FRoute* NextRoute = FirstRoute + Route->Parent;
@@ -746,7 +746,7 @@ void FAnalysisEngine::OnNewEventInternal(const void* EventData)
 	}
 
 	// Inform routes that a new event has been declared.
-	ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+	ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 	{
 		if (!Analyzer->OnNewEvent(RouteId, *(FEventTypeInfo*)Dispatch))
 		{
@@ -990,7 +990,7 @@ bool FAnalysisEngine::OnDataProtocol0()
 		};
 		const FEventData& EventData = (FEventData&)EventDataInfo;
 
-		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+		ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
 			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ~0u }))
 			{
@@ -1155,7 +1155,7 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 		};
 		const FEventData& EventData = (FEventData&)EventDataInfo;
 
-		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+		ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
 			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ThreadId }))
 			{
