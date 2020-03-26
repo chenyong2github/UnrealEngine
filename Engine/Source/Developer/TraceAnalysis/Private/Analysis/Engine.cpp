@@ -988,11 +988,16 @@ bool FAnalysisEngine::OnDataProtocol0()
 			Header->EventData,
 			Header->Size
 		};
-		const FEventData& EventData = (FEventData&)EventDataInfo;
+
+		FOnEventContext Context = {
+			SessionContext,
+			(FEventData&)EventDataInfo,
+			~0u,
+		};
 
 		ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ~0u }))
+			if (!Analyzer->OnEvent(RouteId, Context))
 			{
 				RetireAnalyzer(Analyzer);
 			}
@@ -1153,11 +1158,15 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 			(const uint8*)Header + BlockSize - Header->Size,
 			Header->Size,
 		};
-		const FEventData& EventData = (FEventData&)EventDataInfo;
 
+		FOnEventContext Context = {
+			SessionContext,
+			(FEventData&)EventDataInfo,
+			ThreadId,
+		};
 		ForEachRoute(Dispatch->FirstRoute, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ThreadId }))
+			if (!Analyzer->OnEvent(RouteId, Context))
 			{
 				RetireAnalyzer(Analyzer);
 			}
