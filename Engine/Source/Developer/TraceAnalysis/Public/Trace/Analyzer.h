@@ -287,8 +287,11 @@ template <typename ValueType>
 ValueType IAnalyzer::TArrayReader<ValueType>::operator [] (uint32 Index) const
 {
 	int16 ElementSizeAndType;
-	const void* Addr = GetImpl(Index, ElementSizeAndType);
-	return CoerceValue<ValueType>(Addr, ElementSizeAndType);
+	if (const void* Addr = GetImpl(Index, ElementSizeAndType))
+	{
+		return CoerceValue<ValueType>(Addr, ElementSizeAndType);
+	}
+	return ValueType(0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
