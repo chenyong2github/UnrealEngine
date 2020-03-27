@@ -1447,16 +1447,11 @@ public:
 
 	void UpdateShapeBounds()
 	{
-		UpdateShapeBounds(FRigidTransform3(X(), R()));
-	}
-
-	void UpdateShapeBounds(const FTransform& Transform)
-	{
 		if (MNonFrequentData.Read().Geometry->HasBoundingBox())
 		{
 			for (auto& Shape : MShapesArray)
 			{
-				Shape->UpdateShapeBounds(Transform);
+				Shape->UpdateShapeBounds(FRigidTransform3(X(), R()));
 			}
 		}
 	}

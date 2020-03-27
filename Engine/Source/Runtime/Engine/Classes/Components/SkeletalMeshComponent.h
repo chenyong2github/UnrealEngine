@@ -451,6 +451,8 @@ public:
 	UPROPERTY(transient)
 	uint8 bHasValidBodies:1;
 
+	/** Indicates that this SkeletalMeshComponent has deferred kinematic bone updates until next physics sim.  */
+	uint8 bDeferredKinematicUpdate:1;
 
 	/** Enables blending in of physics bodies whether Simulate or not*/
 	UPROPERTY(transient)
@@ -474,9 +476,6 @@ public:
 	/** Disable cloth simulation and play original animation without simulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Clothing)
 	uint8 bDisableClothSimulation:1;
-
-	/** Indicates that this SkeletalMeshComponent has deferred kinematic bone updates until next physics sim if not INDEX_NONE. */
-	int32 DeferredKinematicUpdateIndex;
 
 private:
 	/** Disable rigid body animation nodes and play original animation without simulation */
