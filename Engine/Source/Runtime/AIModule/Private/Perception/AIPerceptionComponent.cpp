@@ -415,7 +415,7 @@ void UAIPerceptionComponent::SetDominantSense(TSubclassOf<UAISense> InDominantSe
 
 FGenericTeamId UAIPerceptionComponent::GetTeamIdentifier() const
 {
-	return AIOwner ? FGenericTeamId::GetTeamIdentifier(AIOwner) : FGenericTeamId::NoTeam;
+	return FGenericTeamId::GetTeamIdentifier(GetOwner());
 }
 
 FVector UAIPerceptionComponent::GetActorLocation(const AActor& Actor) const 
@@ -507,7 +507,7 @@ void UAIPerceptionComponent::ProcessStimuli()
 				// tell it what's our dominant sense
 				PerceptualInfo->DominantSense = DominantSenseID;
 
-				PerceptualInfo->bIsHostile = AIOwner != NULL && FGenericTeamId::GetAttitude(AIOwner, SourceActor) == ETeamAttitude::Hostile;
+				PerceptualInfo->bIsHostile = (FGenericTeamId::GetAttitude(GetOwner(), SourceActor) == ETeamAttitude::Hostile);
 			}
 		}
 
