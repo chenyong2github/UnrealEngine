@@ -318,6 +318,12 @@ public:
 	**/
 	static CORE_API FTaskGraphInterface& Get();
 
+	/**
+	* The task graph is always multi-threaded for platforms that support it.
+	* For forked processes, the taskgraph will be singlethread for the master process but becomes multithread in the forked process
+	*/
+	static bool IsMultithread();
+
 	/** Return the current thread type, if known. **/
 	virtual ENamedThreads::Type GetCurrentThreadIfKnown(bool bLocalQueue = false) = 0;
 
