@@ -2,10 +2,10 @@
 
 #include "HeadlessChaos.h"
 
-#include "Chaos/Collision/CollisionDetector.h"
 #include "Chaos/Collision/CollisionReceiver.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/ParticlePairBroadPhase.h"
+#include "Chaos/Collision/ParticlePairCollisionDetector.h"
 #include "Chaos/Evolution/PBDMinEvolution.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
@@ -24,7 +24,7 @@ namespace ChaosTest
 	{
 		// @todo(ccaulfield): remove template parameters on collisions and other constraints
 		using FCollisionConstraints = FPBDCollisionConstraints;
-		using FCollisionDetector = TCollisionDetector<FParticlePairBroadPhase, FNarrowPhase, FSyncCollisionReceiver, FCollisionConstraints>;
+		using FCollisionDetector = FParticlePairCollisionDetector;
 		using FRigidParticleSOAs = TPBDRigidsSOAs<FReal, 3>;
 		using FParticleHandle = TPBDRigidParticleHandle<FReal, 3>;
 		using FParticlePair = TVector<TGeometryParticleHandle<FReal, 3>*, 2>;
@@ -40,7 +40,8 @@ namespace ChaosTest
 		TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
 		FCollisionConstraints Collisions(ParticlesContainer, CollidedParticles, ParticleMaterials);
 		FParticlePairBroadPhase BroadPhase(ActivePotentiallyCollidingPairs, 0);
-		FCollisionDetector CollisionDetector(BroadPhase, Collisions);
+		FNarrowPhase NarrowPhase;
+		FCollisionDetector CollisionDetector(BroadPhase, NarrowPhase, Collisions);
 		TSimpleConstraintRule<FCollisionConstraints> CollisionsRule(1, Collisions);
 		// End collisions stuff
 
