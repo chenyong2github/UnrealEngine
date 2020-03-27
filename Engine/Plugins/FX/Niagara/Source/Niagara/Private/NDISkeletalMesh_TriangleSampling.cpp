@@ -462,8 +462,8 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomTriangle(FVectorVMContext& Context
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Sample);
 
-	FNDIRandomHelper RandHelper(Context);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
+	FNDIRandomHelper RandHelper(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutTri(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryY(Context);

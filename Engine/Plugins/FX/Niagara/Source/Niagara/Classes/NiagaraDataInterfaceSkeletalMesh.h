@@ -113,6 +113,12 @@ struct FSkeletalMeshSkinningData
 		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex ^ 1][VertexIndex];
 	}
 
+	FORCEINLINE void GetTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentZ)
+	{
+		OutTangentX = LODData[LODIndex].SkinnedTangentBasis[(VertexIndex * 2) + 0];
+		OutTangentZ = LODData[LODIndex].SkinnedTangentBasis[(VertexIndex * 2) + 1];
+	}
+
 	FORCEINLINE TArray<FVector>& CurrSkinnedPositions(int32 LODIndex)
 	{
 		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex];
@@ -121,6 +127,11 @@ struct FSkeletalMeshSkinningData
 	FORCEINLINE TArray<FVector>& PrevSkinnedPositions(int32 LODIndex)
 	{
 		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex ^ 1];
+	}
+
+	FORCEINLINE TArray<FVector>& CurrSkinnedTangentBasis(int32 LODIndex)
+	{
+		return LODData[LODIndex].SkinnedTangentBasis;
 	}
 
 	FORCEINLINE TArray<FMatrix>& CurrBoneRefToLocals()
@@ -195,6 +206,9 @@ private:
 
 		/** CPU Skinned vertex positions. Double buffered to allow accurate velocity calculation. */
 		TArray<FVector> SkinnedCPUPositions[2];
+
+		/** CPU Skinned tangent basis, where each vertex will map to TangentX + TangentZ */
+		TArray<FVector> SkinnedTangentBasis;
 	};
 	TArray<FLODData> LODData;
 
