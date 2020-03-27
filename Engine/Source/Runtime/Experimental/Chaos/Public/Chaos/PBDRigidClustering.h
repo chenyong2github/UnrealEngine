@@ -88,13 +88,11 @@ public:
 	// Releasing
 	//
 
-#if 0 // Not called currently
 	/*
 	*  DeactivateClusterParticle
 	*    Release all the particles within the cluster particle
 	*/
-	TSet<uint32> DeactivateClusterParticle(TPBDRigidClusteredParticleHandle<T,d>* ClusteredParticle);
-#endif // 0
+	TSet<TPBDRigidParticleHandle<T, d>*> DeactivateClusterParticle(TPBDRigidClusteredParticleHandle<T,d>* ClusteredParticle);
 
 	/*
 	*  ReleaseClusterParticles (BasedOnStrain)
@@ -103,16 +101,17 @@ public:
 	*    that have a strain value less than this valid will be released from the 
 	*    cluster.
 	*/
-	TSet<TPBDRigidParticleHandle<T, d>*> ReleaseClusterParticles(TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle, const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap = nullptr);
+	TSet<TPBDRigidParticleHandle<T, d>*> ReleaseClusterParticles(
+		TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle, 
+		const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap = nullptr);
 
-#if 0 // Not called currently
 	/*
 	*  ReleaseClusterParticles
 	*    Release all rigid body IDs passed,
 	*/
-	TSet<uint32> ReleaseClusterParticles(
+	TSet<TPBDRigidParticleHandle<T, d>*> ReleaseClusterParticles(
 		TArray<TPBDRigidParticleHandle<T, d>*> ChildrenParticles);
-#endif // 0
+
 	//
 	// Operational 
 	//
