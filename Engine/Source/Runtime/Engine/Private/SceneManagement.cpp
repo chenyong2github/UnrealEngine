@@ -1111,7 +1111,7 @@ void FMeshBatch::PreparePrimitiveUniformBuffer(const FPrimitiveSceneProxy* Primi
 			checkf(!bPrimitiveShaderDataComesFromSceneBuffer || !MeshElement.PrimitiveUniformBuffer,
 				TEXT("FMeshBatch was assigned a PrimitiveUniformBuffer even though Vertex Factory %s fetches primitive shader data through a Scene buffer. The assigned PrimitiveUniformBuffer cannot be respected. Use PrimitiveUniformBufferResource instead for dynamic primitive data, or leave both null to get FPrimitiveSceneProxy->UniformBuffer."), VertexFactory->GetType()->GetName());
 		}
-		else if (!MeshElement.PrimitiveUniformBufferResource)
+		else if (!MeshElement.PrimitiveUniformBufferResource && bVFSupportsPrimitiveIdStream)
 		{
 			// If not using GPU scene, fall back to the primitive uniform buffer.
 			MeshElement.PrimitiveUniformBuffer = PrimitiveSceneProxy->GetUniformBuffer();
