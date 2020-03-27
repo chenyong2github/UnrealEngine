@@ -837,11 +837,18 @@ void FEditorModeTools::InvokeToolPaletteTab(FEditorModeID InModeID, FName InPale
 		{
 			TSharedRef<SWidget> PaletteWidget = Row.ToolbarWidget.ToSharedRef();
 
-			FEdMode* Mode = GetActiveMode(InModeID);
-			TSharedPtr<FModeToolkit> RowToolkit = Mode->GetToolkit();
+			TSharedPtr<FModeToolkit> RowToolkit;
+			if (FEdMode* Mode = GetActiveMode(InModeID))
+			{
+				RowToolkit = Mode->GetToolkit();
+			}
+			else if (UEdMode* ScriptableMode = GetActiveScriptableMode(InModeID))
+			{
+				RowToolkit = ScriptableMode->GetToolkit();
+			}
 
 			TSharedPtr<SWidget> ActiveWidget = ModeToolbarPaletteSwitcher.Pin()->GetActiveWidget();
-			if (ActiveWidget.Get() != Row.ToolbarWidget.Get())
+			if (RowToolkit && ActiveWidget.Get() != Row.ToolbarWidget.Get())
 			{
 				ModeToolbarPaletteSwitcher.Pin()->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
 				RowToolkit->OnToolPaletteChanged(Row.PaletteName);

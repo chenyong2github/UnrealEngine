@@ -46,6 +46,11 @@ public:
 	static FName MeshPaintMode_Color;
 	static FName MeshPaintMode_Texture;
 	static FName MeshPaintMode_Weights;
+	static FString VertexSelectToolName;
+	static FString TextureSelectToolName;
+	static FString ColorPaintToolName;
+	static FString WeightPaintToolName;
+	static FString TexturePaintToolName;
 
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const override;
 	/** Returns the instance of ComponentClass found in the current Editor selection */
