@@ -383,66 +383,65 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 			{
 				Type = STRING;
 			}
+
+			continue;
 		}
 
 		// Already in a token, so continue parsing
-		else
+		if(Type == OPERATOR)
 		{
-			if(Type == OPERATOR)
+			// Still the tag, so add it to the working token
+			if(CheckTagOperator(PtrStart, Ptr, PtrEnd))
 			{
-				// Still the tag, so add it to the working token
-				if(CheckTagOperator(PtrStart, Ptr, PtrEnd))
-				{
-					WorkingToken += Ch;
-				}
-
-				// Not a tag operator anymore, so add the old token and start a new one
-				else
-				{
-					if(WorkingToken.Len())
-					{
-						Tokens.Add(MoveTemp(WorkingToken));
-						checkSlow(WorkingToken.Len() == 0);
-					}
-					WorkingToken += Ch;
-					Type = STRING;
-				}
-			}
-			else // STRING
-			{
-				if (IsQuote(Ch))
-				{
-					bInQuote = !bInQuote;
-				}
-
-				// Still a string. Allow '>' within a string
-				if(!CheckTagOperator(PtrStart, Ptr, PtrEnd) || (bInQuote && Ch == TCHAR('>')))
-				{
-					WorkingToken += Ch;
-				}
-
-				// Moving back to operator
-				else
-				{
-					if(WorkingToken.Len())
-					{
-						Tokens.Add(MoveTemp(WorkingToken));
-						checkSlow(WorkingToken.Len() == 0);
-					}
-					WorkingToken += Ch;
-					Type = OPERATOR;
-				}
+				WorkingToken += Ch;
 			}
 
-			// If we have a working token, add it if it's final (ie: ends with '>')
-			if ((WorkingToken.Len() > 0) && (Type == OPERATOR))
+			// Not a tag operator anymore, so add the old token and start a new one
+			else
 			{
-				if (WorkingToken[WorkingToken.Len() - 1] == TCHAR('>'))
+				if(WorkingToken.Len())
 				{
 					Tokens.Add(MoveTemp(WorkingToken));
 					checkSlow(WorkingToken.Len() == 0);
-					Type = NONE;
 				}
+				WorkingToken += Ch;
+				Type = STRING;
+			}
+		}
+		else // STRING
+		{
+			if (IsQuote(Ch))
+			{
+				bInQuote = !bInQuote;
+			}
+
+			// Still a string. Allow '>' within a string
+			if(!CheckTagOperator(PtrStart, Ptr, PtrEnd) || (bInQuote && Ch == TCHAR('>')))
+			{
+				WorkingToken += Ch;
+			}
+
+			// Moving back to operator
+			else
+			{
+				if(WorkingToken.Len())
+				{
+					Tokens.Add(MoveTemp(WorkingToken));
+					checkSlow(WorkingToken.Len() == 0);
+				}
+				WorkingToken += Ch;
+				Type = OPERATOR;
+			}
+		}
+
+		// If we have a working token, add it if it's final (ie: ends with '>')
+		if ((WorkingToken.Len() > 0) && (Type == OPERATOR))
+		{
+			if (WorkingToken[WorkingToken.Len() - 1] == TCHAR('>'))
+			{
+				Tokens.Add(MoveTemp(WorkingToken));
+				checkSlow(WorkingToken.Len() == 0);
+				Type = NONE;
 			}
 		}
 	}
