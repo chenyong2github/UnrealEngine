@@ -327,7 +327,6 @@ bool FGameplayEffectContextHandle::NetSerialize(FArchive& Ar, class UPackageMap*
 			}
 		}
 
-		void* ContainerPtr = Data.Get();
 		UScriptStruct* ScriptStruct = Data->GetScriptStruct();
 
 		if (ScriptStruct->StructFlags & STRUCT_NetSerializeNative)
