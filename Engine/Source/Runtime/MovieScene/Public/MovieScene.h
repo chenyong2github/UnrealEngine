@@ -266,6 +266,8 @@ public:
 	TArrayView<FString> GetNodes() { return Nodes; }
 	bool ContainsNode(const FString& Path) const;
 
+	void UpdateNodePath(const FString& OldPath, const FString& NewPath);
+
 	bool GetEnableFilter() const { return bEnableFilter; }
 	void SetEnableFilter(bool bInEnableFilter);
 
@@ -322,6 +324,8 @@ public:
 	bool Contains(UMovieSceneNodeGroup* NodeGroup) const { return NodeGroups.Contains(NodeGroup); }
 	const int32 Num() const { return NodeGroups.Num(); }
 	bool HasAnyActiveFilter() const { return bAnyActiveFilter; }
+
+	void UpdateNodePath(const FString& OldPath, const FString& NewPath);
 
 	/** Event that is triggered whenever this collection of node groups, or an included node group, has changed */
 	DECLARE_EVENT(UMovieSceneNodeGroupCollection, FOnNodeGroupCollectionChanged)
