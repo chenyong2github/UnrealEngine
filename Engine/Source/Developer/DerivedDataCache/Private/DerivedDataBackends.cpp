@@ -662,8 +662,21 @@ public:
 			return nullptr;
 		}
 
+		// Check the EnvPathOverride environment variable to allow persistent overriding of data cache path, eg for offsite workers.
+		FString EnvPathOverride;
+		FString CachePath = FPaths::ProjectSavedDir() / TEXT("S3DDC");
+		if (FParse::Value(Entry, TEXT("EnvPathOverride="), EnvPathOverride))
+		{
+			FString FilesystemCachePathEnv = FPlatformMisc::GetEnvironmentVariable(*EnvPathOverride);
+			if (FilesystemCachePathEnv.Len() > 0)
+			{
+				CachePath = FilesystemCachePathEnv;
+				UE_LOG(LogDerivedDataCache, Log, TEXT("Found environment variable %s=%s"), *EnvPathOverride, *CachePath);
+			}
+		}
+
 		// Insert the backend corruption wrapper. Since the filesystem already uses this, and we're recycling the data with the trailer intact, we need to use it for the S3 cache too.
-		FS3DerivedDataBackend* Backend = new FS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *AccessKey, *SecretKey);
+		FS3DerivedDataBackend* Backend = new FS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *CachePath, *AccessKey, *SecretKey);
 		return new FDerivedDataBackendCorruptionWrapper(Backend);
 #else
 		UE_LOG(LogDerivedDataCache, Log, TEXT("S3 backend is not supported on the current platform."));
