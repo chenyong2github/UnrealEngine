@@ -122,16 +122,41 @@ private:
 	void CreateBuffers_Internal(const FContext& Context);
 };
 
-class FStaticMeshStreamOut : public FStaticMeshUpdate
+#if WITH_EDITOR
+/** A streamout that doesn't actually touches the CPU data. Required because DDC stream in doesn't reset. */
+class FStaticMeshStreamOut_DDC : public FStaticMeshUpdate
 {
 public:
-	FStaticMeshStreamOut(UStaticMesh* InMesh, int32 InRequestedMips);
-
-	virtual ~FStaticMeshStreamOut() {}
+	FStaticMeshStreamOut_DDC(UStaticMesh* InMesh, int32 InRequestedMips);
 
 private:
 	/** Release RHI buffers and update SRVs */
 	void DoReleaseBuffers(const FContext& Context);
+};
+#endif
+
+class FStaticMeshStreamOut_IO : public FStaticMeshUpdate
+{
+public:
+	FStaticMeshStreamOut_IO(UStaticMesh* InMesh, int32 InRequestedMips);
+
+	virtual ~FStaticMeshStreamOut_IO() { ReleaseLODResources(); }
+
+private:
+
+	int32 NumReferenceChecks = 0;
+	TIndirectArray<FStaticMeshLODResources>  LODResourcesToRelease;
+
+	/** Release RHI buffers and update SRVs */
+	void DoReleaseBuffers(const FContext& Context);
+
+	/** Check reference and possibly release LODResourcesToRelease */
+	void DoReleaseLODResources(const FContext& Context);
+
+	/** Release all LODs in LODResourcesToRelease */
+	void ReleaseLODResources();
+
+
 };
 
 class FStaticMeshStreamIn_IO : public FStaticMeshStreamIn

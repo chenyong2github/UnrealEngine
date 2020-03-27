@@ -433,7 +433,13 @@ private:
 	/** Tag we feed into crash reporter for this instance. */
 	mutable FString CrashReporterTag;
 
+	/** The feature level of for this component instance. */
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
+
 public:
+
+	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
+
 	// Transient data that is accumulated during tick.
 	uint32 TotalGPUParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
