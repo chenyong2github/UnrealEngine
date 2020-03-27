@@ -26,7 +26,8 @@ public class OnlineSubsystem : ModuleRules
 				"ImageCore",
 				"Sockets",
 				"JsonUtilities",
-				"AudioMixer",
+				"AudioMixerCore",
+				"SignalProcessing",
 			}
 		);
 	}
