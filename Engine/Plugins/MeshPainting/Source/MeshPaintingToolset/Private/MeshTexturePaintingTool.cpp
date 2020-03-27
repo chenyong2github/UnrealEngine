@@ -124,6 +124,26 @@ void UMeshTexturePaintingTool::Setup()
 void UMeshTexturePaintingTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	FinishPainting();
+	// If the user has pending changes and the editor is not exiting, we want to do the commit for all the modified textures.
+	if ((GetNumberOfPendingPaintChanges() > 0) && !IsEngineExitRequested())
+	{
+		CommitAllPaintedTextures();
+	}
+	else
+	{
+		ClearAllTextureOverrides();
+	}
+
+	PaintTargetData.Empty();
+
+	// Remove any existing texture targets
+	TexturePaintTargetList.Empty();
+	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
+	if (MeshToolManager)
+	{
+		MeshToolManager->Refresh();
+	}
+
 	BrushProperties->SaveProperties(this);
 	Super::Shutdown(ShutdownType);
 }
