@@ -15,6 +15,7 @@
 #include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/App.h"
+#include "Misc/Fork.h"
 
 // Flags controlling the ParallelFor's behavior.
 enum class EParallelForFlags
@@ -193,7 +194,8 @@ namespace ParallelForImpl
 		check(Num >= 0);
 
 		int32 AnyThreadTasks = 0;
-		if (Num > 1 && (Flags & EParallelForFlags::ForceSingleThread) == EParallelForFlags::None && FApp::ShouldUseThreadingForPerformance())
+		const bool bIsMultithread = FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::IsForkedMultithreadInstance();
+		if (Num > 1 && (Flags & EParallelForFlags::ForceSingleThread) == EParallelForFlags::None && bIsMultithread)
 		{
 			AnyThreadTasks = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads(), Num - 1);
 		}
@@ -251,7 +253,8 @@ namespace ParallelForImpl
 		SCOPE_CYCLE_COUNTER(STAT_ParallelFor);
 
 		int32 AnyThreadTasks = 0;
-		if ((Flags & EParallelForFlags::ForceSingleThread) == EParallelForFlags::None && FApp::ShouldUseThreadingForPerformance())
+		const bool bIsMultithread = FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::IsForkedMultithreadInstance();
+		if ((Flags & EParallelForFlags::ForceSingleThread) == EParallelForFlags::None && bIsMultithread)
 		{
 			AnyThreadTasks = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads(), Num);
 		}
