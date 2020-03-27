@@ -94,6 +94,11 @@ struct ENGINE_API FNavigationRelevantData : public TSharedFromThis<FNavigationRe
 			(Modifiers.HasAgentHeightAdjust() ? ENavigationDirtyFlag::UseAgentHeight : 0);
 	}
 
+	FORCEINLINE FCompositeNavModifier GetModifierForAgent(const struct FNavAgentProperties* NavAgent = nullptr) const
+	{
+		return Modifiers.HasMetaAreas() ? Modifiers.GetInstantiatedMetaModifier(NavAgent, SourceObject) : Modifiers;
+	}
+
 	bool HasPerInstanceTransforms() const;
 	bool IsMatchingFilter(const FNavigationRelevantDataFilter& Filter) const;
 	void Shrink();
