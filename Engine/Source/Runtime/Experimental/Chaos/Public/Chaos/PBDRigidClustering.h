@@ -62,7 +62,7 @@ public:
 	Chaos::TPBDRigidClusteredParticleHandle<float, 3>* CreateClusterParticle(
 		const int32 ClusterGroupIndex, 
 		TArray<Chaos::TPBDRigidParticleHandle<T,d>*>&& Children, 
-		const FClusterCreationParameters<T>& Parameters/* = FClusterCreationParameters<T>()*/,
+		const FClusterCreationParameters<T>& Parameters = FClusterCreationParameters<T>(),
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry = nullptr,
 		const TRigidTransform<T, d>* ForceMassOrientation = nullptr);
 
@@ -76,14 +76,13 @@ public:
 		const TRigidTransform<T, d>& ClusterWorldTM, 
 		const FClusterCreationParameters<T>& Parameters/* = FClusterCreationParameters<T>()*/);
 
-#if 0 // Not called currently
 	/**
 	 *  UnionClusterGroups
 	 *    Clusters that share a group index should be unioned into a single cluster prior to simulation.
 	 *    The GroupIndex should be set on creation, and never touched by the client again.
 	 */
 	void UnionClusterGroups();
-#endif // 0
+
 	//
 	// Releasing
 	//
@@ -103,7 +102,8 @@ public:
 	*/
 	TSet<TPBDRigidParticleHandle<T, d>*> ReleaseClusterParticles(
 		TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle, 
-		const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap = nullptr);
+		const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap = nullptr,
+		bool bForceRelease = false);
 
 	/*
 	*  ReleaseClusterParticles
@@ -223,18 +223,11 @@ public:
 	/** If multi child proxy is used, this is the data needed */
 	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<T, d>>>& GetMultiChildProxyDataArray() const { return MParticles.MultiChildProxyDataArray(); }
 
-	/*
-	*  GetClusterGroupIndexArray
-	*  Cluster counters are used the defer the initialization of grouped clusters until
-	*  all bodies are initialized within the simulation. During construction the counter
-	*  is incremented, and when ActivateBodies on the solver triggers activation across
-	*  multiple sets of bodies, the counter is decremented, when its back to Zero the
-	*  the union cluster is allowed to initialize. Once a cluster group ID is used up
-	*  is can not be reused.
-	*/
-	void IncrementPendingClusterCounter(uint32 ClusterGroupID);
-	void DecrementPendingClusterCounter(uint32 ClusterGroupID);
-	int32 NumberOfPendingClusters() const { return PendingClusterCounter.Num(); }
+	void AddToClusterUnion(int32 ClusterID, TPBDRigidClusteredParticleHandle<T, 3>* Handle) {
+		if (ClusterID <= 0) return;
+		if (!ClusterUnionMap.Contains(ClusterID)) ClusterUnionMap.Add(ClusterID, TArray<TPBDRigidClusteredParticleHandle<T, 3>*>());
+		ClusterUnionMap[ClusterID].Add(Handle);
+	}
 
 	const TArray<TBreakingData<float, 3>>& GetAllClusterBreakings() const { return MAllClusterBreakings; }
 	void SetGenerateClusterBreaking(bool DoGenerate) { DoGenerateBreakingData = DoGenerate; }
@@ -323,11 +316,12 @@ private:
 	TSet<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> TopLevelClusterParents;
 	TSet<Chaos::TPBDRigidParticleHandle<float, 3>*> MActiveRemovalIndices;
 
+
 	// Cluster data
 	mutable FRWLock ResourceLock;
 	TClusterBuffer<T, d> BufferResource;
 	FClusterMap MChildren;
-	TMap<int32, int32> PendingClusterCounter;
+	TMap<int32, TArray<TPBDRigidClusteredParticleHandle<T, 3>*> > ClusterUnionMap;
 
 
 	// Collision Impulses
