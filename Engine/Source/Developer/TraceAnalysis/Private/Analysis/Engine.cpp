@@ -48,7 +48,7 @@ struct FAuxData
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FAuxDataCollector
-	: public TArray<FAuxData>
+: public TArray<FAuxData>
 {
 };
 
