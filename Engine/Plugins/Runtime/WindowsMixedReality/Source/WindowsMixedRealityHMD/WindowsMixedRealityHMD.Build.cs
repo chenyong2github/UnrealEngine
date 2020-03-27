@@ -83,6 +83,11 @@ namespace UnrealBuildTool.Rules
 					}
 					);
 
+				if (Target.Platform == UnrealTargetPlatform.Win64 ||
+					Target.Platform == UnrealTargetPlatform.HoloLens)
+				{
+					PrivateDependencyModuleNames.Add("HoloLensAR");
+				}
 
 				if (Target.bBuildEditor == true)
 				{
