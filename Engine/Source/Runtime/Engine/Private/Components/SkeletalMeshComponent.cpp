@@ -254,6 +254,8 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 
 	bSkipKinematicUpdateWhenInterpolating = false;
 	bSkipBoundsUpdateWhenInterpolating = false;
+
+	DeferredKinematicUpdateIndex = INDEX_NONE;
 }
 
 void USkeletalMeshComponent::Serialize(FArchive& Ar)
@@ -578,7 +580,7 @@ void USkeletalMeshComponent::OnUnregister()
 		ClothingSimulationContext = nullptr;
 	}
 
-	if (bDeferredKinematicUpdate != 0)
+	if (DeferredKinematicUpdateIndex != INDEX_NONE)
 	{
 		UWorld* World = GetWorld();
 		FPhysScene* PhysScene = World ? World->GetPhysicsScene() : nullptr;
