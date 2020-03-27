@@ -100,6 +100,7 @@ public:
 	FLiveLinkWorldTime(const double InTime)
 		: Time(InTime)
 	{
+		//Initialize offset with an instantaneous offset, to be corrected at a later stage from a continuous calculation
 		Offset = FPlatformTime::Seconds() - InTime;
 	}
 
@@ -109,14 +110,37 @@ public:
 	{
 	}
 
-	double GetOffsettedTime() const { return Time + Offset; }
+	// Returns the raw time received from the sender
+	double GetSourceTime() const 
+	{
+		return Time;
+	}
+
+	// Returns offset between source time and engine time
+	double GetOffset() const
+	{
+		return Offset;
+	}
+
+	// Returns the time + the adjustment between source clock and engine clock to have a time comparable to engine one
+	double GetOffsettedTime() const 
+	{ 
+		return Time + Offset; 
+	}
+
+	// Adjust clock offset with a better evaluation of the difference between source clock and engine clock
+	void SetClockOffset(double ClockOffset) 
+	{
+		Offset = ClockOffset;
+	}
 
 private:
-	// Time for this frame. Used during interpolation. If this goes backwards we will dump already stored frames.
+	// SourceTime for this frame. Used during interpolation and to compute a running clock offset
 	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	double Time;
 
 	// Value calculated on create to represent the different between the source time and client time
+	// Can also be updated afterwards if a better continuous offset is calculated
 	UPROPERTY()
 	double Offset;
 };
@@ -154,6 +178,8 @@ struct LIVELINKINTERFACE_API FLiveLinkMetaData
 	FQualifiedFrameTime SceneTime;
 };
 
+// Identifier assigned to each incoming frame once in the pipeline
+using FLiveLinkFrameIdentifier = int32;
 
 /**
  * Base data structure for each frame coming in for a subject
@@ -175,6 +201,12 @@ struct LIVELINKINTERFACE_API FLiveLinkBaseFrameData
 	/** Values of the properties defined in the static structure. Use FLiveLinkBaseStaticData.FindPropertyValue to evaluate. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="LiveLink")
 	TArray<float> PropertyValues;
+
+	/** Time at which this frame was received - populated once inside pipeline */
+	FLiveLinkTime ArrivalTime;
+
+	/** This frame identifier - populated once inside pipeline*/
+	FLiveLinkFrameIdentifier FrameId = INDEX_NONE;
 
 	/** Return the LiveLinkTime struct constructed from this frame data. */
 	FLiveLinkTime GetLiveLinkTime() const { return FLiveLinkTime(WorldTime.GetOffsettedTime(), MetaData.SceneTime); }

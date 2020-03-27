@@ -58,6 +58,14 @@ struct FLiveLinkSourceBufferManagementSettings
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bGenerateSubFrame = false;
 
+	/** When evaluating with timecode, align source timecode using a continuous clock offset to do a smooth latest 
+	 * This means that even if engine Timecode and source Timecode are not aligned, the offset between both clocks
+	 * will be tracked to keep them aligned. With an additionnal offset, 1.5 is a good number, you can evaluate
+	 * your subject using the latest frame by keeping just enough margin to have a smooth playback and avoid starving.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bUseTimecodeSmoothLatest = false;
+
 	/**
 	 * What is the source frame rate.
 	 * When the refresh rate of the source is bigger than the timecode frame rate, LiveLink will try to generate sub frame numbers.
