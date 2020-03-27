@@ -163,7 +163,8 @@ bool FSlateRenderer::IsViewportFullscreen( const SWindow& Window ) const
 		}
 		else
 		{
-			bFullscreen = Window.GetWindowMode() == EWindowMode::Fullscreen;
+			bFullscreen = Window.GetNativeWindow()->IsFullscreenSupported() && Window.GetWindowMode() == EWindowMode::Fullscreen;
+
 #if PLATFORM_WINDOWS
 			// When we are in fullscreen mode but the user alt-tabs out we need to temporarily drop out of fullscreen while the window has lost focus, otherwise DXGI will eventually
 			// forcibly throw us out of fullscreen mode with device loss and crash as typical result. By returning false here we'll trigger a mode switch to windowed when the user
