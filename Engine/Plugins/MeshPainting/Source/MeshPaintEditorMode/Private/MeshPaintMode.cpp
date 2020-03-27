@@ -264,8 +264,16 @@ void UMeshPaintMode::BindCommands()
 			FCanExecuteAction::CreateUObject(this, &UMeshPaintMode::CanPropagateVertexColorsToLODs)
 		));
 
-	CommandList->MapAction(Commands.NextTexture, FExecuteAction::CreateUObject(this, &UMeshPaintMode::CycleTextures, 1));
-	CommandList->MapAction(Commands.PreviousTexture, FExecuteAction::CreateUObject(this, &UMeshPaintMode::CycleTextures, -1));
+	CommandList->MapAction(Commands.NextTexture, 
+		FUIAction(
+			FExecuteAction::CreateUObject(this, &UMeshPaintMode::CycleTextures, 1),
+			FCanExecuteAction::CreateUObject(this, &UMeshPaintMode::CanCycleTextures)
+		));
+	CommandList->MapAction(Commands.PreviousTexture,
+		FUIAction(
+			FExecuteAction::CreateUObject(this, &UMeshPaintMode::CycleTextures, -1),
+			FCanExecuteAction::CreateUObject(this, &UMeshPaintMode::CanCycleTextures)
+		));
 	CommandList->MapAction(Commands.SaveTexturePaint, FUIAction(FExecuteAction::CreateStatic(&UMeshPaintModeHelpers::SaveModifiedTextures), FCanExecuteAction::CreateStatic(&UMeshPaintModeHelpers::CanSaveModifiedTextures)));
 
 	auto HasPaintChanges = [this]() -> bool { return GetNumberOfPendingPaintChanges() > 0; };
@@ -698,20 +706,26 @@ void UMeshPaintMode::UpdateCachedVertexDataSize()
 
 void UMeshPaintMode::CycleMeshLODs(int32 Direction)
 {
-	FScopedTransaction Transaction(LOCTEXT("LevelMeshPainter_CycleLOD", "Changed Current LOD"));
 	if (UMeshColorPaintingTool* ColorPaintingTool = Cast<UMeshColorPaintingTool>(GetToolManager()->GetActiveTool(EToolSide::Left)))
 	{
+		FScopedTransaction Transaction(LOCTEXT("LevelMeshPainter_CycleLOD", "Changed Current LOD"));
 		ColorPaintingTool->CycleMeshLODs(Direction);
 	}
 }
 
 void UMeshPaintMode::CycleTextures(int32 Direction)
 {
-	FScopedTransaction Transaction(LOCTEXT("LevelMeshPainter_CycleTexture", "Changed Current Texture"));
 	if (UMeshTexturePaintingTool* TexturePaintingTool = Cast<UMeshTexturePaintingTool>(GetToolManager()->GetActiveTool(EToolSide::Left)))
 	{
+		FScopedTransaction Transaction(LOCTEXT("LevelMeshPainter_CycleTexture", "Changed Current Texture"));
 		TexturePaintingTool->CycleTextures(Direction);
 	}
+}
+
+bool UMeshPaintMode::CanCycleTextures() const
+{
+	UMeshTexturePaintingTool* TexturePaintingTool = Cast<UMeshTexturePaintingTool>(GetToolManager()->GetActiveTool(EToolSide::Left));
+	return TexturePaintingTool != nullptr;
 }
 
 void UMeshPaintMode::CommitAllPaintedTextures()
