@@ -153,6 +153,8 @@ private:
 	int32 MaxVertexIndex;
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FLidarPointCloudSceneProxy : public ILidarPointCloudSceneProxy, public FPrimitiveSceneProxy
 {
 public:
@@ -265,8 +267,7 @@ public:
 
 		return Result;
 	}
-	
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) override
 	{
 		// Don't process for shadow views
@@ -277,7 +278,6 @@ public:
 
 		return nullptr;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool PrepareCollisionWireframe(FMeshBatch& MeshBatch, FColoredMaterialRenderProxy* CollisionMaterialInstance) const
 	{
@@ -371,6 +371,8 @@ private:
 
 	FLidarPointCloudCollisionRendering* CollisionRendering;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FPrimitiveSceneProxy* ULidarPointCloudComponent::CreateSceneProxy()
 {
