@@ -150,6 +150,9 @@ public:
 		/** The Marked Frames */
 		SLATE_ATTRIBUTE(TArray<FMovieSceneMarkedFrame>, MarkedFrames)
 
+		/** The Global Marked Frames */
+		SLATE_ATTRIBUTE(TArray<FMovieSceneMarkedFrame>, GlobalMarkedFrames)
+
 		/** The current sub sequence range */
 		SLATE_ATTRIBUTE( TOptional<TRange<FFrameNumber>>, SubSequenceRange)
 
@@ -428,6 +431,8 @@ private:
 	bool IsTrackLevelFilterActive(const FString LevelName) const;
 
 	void FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder);
+
+	void ClearGlobalMarkedFrames();
 
 	/**
 	* Called when the time snap interval changes.
