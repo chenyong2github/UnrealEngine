@@ -937,6 +937,23 @@ public:
 	 */
 	int32 FindNextMarkedFrame(FFrameNumber InFrameNumber, bool bForward);
 
+#if WITH_EDITORONLY_DATA
+	/*
+	 * Set whether this scene's marked frames should be shown globally
+	 */
+	void SetGloballyShowMarkedFrames(bool bShowMarkedFrames) { bGloballyShowMarkedFrames = bShowMarkedFrames; }
+
+	/*
+	 * Toggle whether this scene's marked frames should be shown globally
+	 */
+	void ToggleGloballyShowMarkedFrames() { bGloballyShowMarkedFrames = !bGloballyShowMarkedFrames; }
+
+	/*
+	 * Returns whether this scene's marked frames should be shown globally
+	 */
+	bool GetGloballyShowMarkedFrames() const { return bGloballyShowMarkedFrames; }
+#endif
+
 	/*
 	 * Retrieve all the tagged binding groups for this movie scene
 	 */
@@ -1082,6 +1099,9 @@ private:
 	/** Groups of sections which should maintain the same relative offset */
 	UPROPERTY()
 	TArray<FMovieSceneSectionGroup> SectionGroups;
+
+	/** Whether this scene's marked frames should be shown globally */
+	bool bGloballyShowMarkedFrames;
 
 private:
 

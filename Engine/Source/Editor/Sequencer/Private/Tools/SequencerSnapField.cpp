@@ -52,7 +52,7 @@ struct FSnapGridVisitor : ISequencerEntityVisitor
 	mutable TArray<FSequencerSnapPoint> Snaps;
 };
 
-FSequencerSnapField::FSequencerSnapField(const ISequencer& InSequencer, ISequencerSnapCandidate& Candidate, uint32 EntityMask)
+FSequencerSnapField::FSequencerSnapField(const FSequencer& InSequencer, ISequencerSnapCandidate& Candidate, uint32 EntityMask)
 {
 	TSharedPtr<SSequencerTreeView> TreeView = StaticCastSharedRef<SSequencer>(InSequencer.GetSequencerWidget())->GetTreeView();
 
@@ -94,6 +94,12 @@ FSequencerSnapField::FSequencerSnapField(const ISequencer& InSequencer, ISequenc
 	for (const FMovieSceneMarkedFrame& MarkedFrame : InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetMarkedFrames())
 	{
 		Visitor.Snaps.Add( FSequencerSnapPoint{ FSequencerSnapPoint::Mark, MarkedFrame.FrameNumber } );
+	}
+
+	// Add in the global marked frames
+	for (const FMovieSceneMarkedFrame& MarkedFrame : InSequencer.GetGlobalMarkedFrames())
+	{
+		Visitor.Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::Mark, MarkedFrame.FrameNumber });
 	}
 
 	// Sort
