@@ -924,7 +924,7 @@ FStaticMeshAreaWeightedSectionSampler::FStaticMeshAreaWeightedSectionSampler()
 {
 }
 
-void FStaticMeshAreaWeightedSectionSampler::Init(FStaticMeshLODResources* InOwner)
+void FStaticMeshAreaWeightedSectionSampler::Init(const FStaticMeshLODResources* InOwner)
 {
 	Owner = InOwner;
 	Initialize();
@@ -1096,10 +1096,23 @@ void FStaticMeshVertexBuffers::InitFromDynamicVertex(FLocalVertexFactory* Vertex
 		});
 };
 
-FStaticMeshLODResources::FStaticMeshLODResources()
-	: AdditionalIndexBuffers(nullptr)
-	, DistanceFieldData(nullptr)
-	, MaxDeviation(0.0f)
+void FStaticMeshVertexBuffers::CopyRHIForStreaming(const FStaticMeshVertexBuffers& Other, bool InAllowCPUAccess)
+{
+	StaticMeshVertexBuffer.CopyRHIForStreaming(Other.StaticMeshVertexBuffer, InAllowCPUAccess);
+	PositionVertexBuffer.CopyRHIForStreaming(Other.PositionVertexBuffer, InAllowCPUAccess);
+	ColorVertexBuffer.CopyRHIForStreaming(Other.ColorVertexBuffer, InAllowCPUAccess);
+}
+
+void FAdditionalStaticMeshIndexBuffers::CopyRHIForStreaming(const FAdditionalStaticMeshIndexBuffers& Other, bool InAllowCPUAccess)
+{
+	ReversedIndexBuffer.CopyRHIForStreaming(Other.ReversedIndexBuffer, InAllowCPUAccess);
+	ReversedDepthOnlyIndexBuffer.CopyRHIForStreaming(Other.ReversedDepthOnlyIndexBuffer, InAllowCPUAccess);
+	WireframeIndexBuffer.CopyRHIForStreaming(Other.WireframeIndexBuffer, InAllowCPUAccess);
+	AdjacencyIndexBuffer.CopyRHIForStreaming(Other.AdjacencyIndexBuffer, InAllowCPUAccess);
+}
+
+FStaticMeshLODData::FStaticMeshLODData()
+	: MaxDeviation(0.0f)
 	, bHasAdjacencyInfo(false)
 	, bHasDepthOnlyIndices(false)
 	, bHasReversedIndices(false)
@@ -1119,8 +1132,29 @@ FStaticMeshLODResources::FStaticMeshLODResources()
 
 FStaticMeshLODResources::~FStaticMeshLODResources()
 {
-	// DistanceFieldData.SafeDelete();
+	check(GetRefCount() == 0);
 	delete DistanceFieldData;
+	delete AdditionalIndexBuffers;
+}
+
+void FStaticMeshLODResources::CopyRHIForStreaming(const FStaticMeshLODResources& Other, bool InAllowCPUAccess)
+{
+	VertexBuffers.CopyRHIForStreaming(Other.VertexBuffers, InAllowCPUAccess);
+	IndexBuffer.CopyRHIForStreaming(Other.IndexBuffer, InAllowCPUAccess);
+	DepthOnlyIndexBuffer.CopyRHIForStreaming(Other.DepthOnlyIndexBuffer, InAllowCPUAccess);
+	if (Other.AdditionalIndexBuffers)
+	{
+		if (!AdditionalIndexBuffers)
+		{
+			AdditionalIndexBuffers = new FAdditionalStaticMeshIndexBuffers;
+		}
+		AdditionalIndexBuffers->CopyRHIForStreaming(*Other.AdditionalIndexBuffers, InAllowCPUAccess);
+	}
+	else if (AdditionalIndexBuffers)
+	{
+		delete AdditionalIndexBuffers;
+		AdditionalIndexBuffers = nullptr;
+	}
 }
 
 template <bool bIncrement>
@@ -1129,7 +1163,7 @@ void FStaticMeshLODResources::UpdateIndexMemoryStats()
 #if STATS
 	if (bIncrement)
 	{
-		StaticMeshIndexMemory += IndexBuffer.GetAllocatedSize();
+		StaticMeshIndexMemory = IndexBuffer.GetAllocatedSize();
 		StaticMeshIndexMemory += DepthOnlyIndexBuffer.GetAllocatedSize();
 
 		if (AdditionalIndexBuffers)
@@ -1347,6 +1381,18 @@ FStaticMeshRenderData::FStaticMeshRenderData()
 	}
 }
 
+FStaticMeshRenderData::~FStaticMeshRenderData()
+{
+	FStaticMeshLODResources** LODResourcesArray = LODResources.GetData();
+	for (int32 LODIndex = 0; LODIndex < LODResources.Num(); ++LODIndex)
+	{
+		LODResourcesArray[LODIndex]->Release();
+		// Prevent the array from calling the destructor to handle correctly the refcount.
+		// For compatibility reason, LODResourcesArray is using ptr directly instead of TRefCountPtr.
+		LODResourcesArray[LODIndex] = nullptr;
+	}
+	LODResources.Empty();
+}
 
 void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCooked)
 {
@@ -1370,31 +1416,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 
 #endif // #if WITH_EDITORONLY_DATA
 
-	if (Ar.IsLoading())
-	{
-		// Load array.
-		int32 NewNum;
-		Ar << NewNum;
-		LODResources.Empty(NewNum);
-		for (int32 Index = 0; Index < NewNum; Index++)
-		{
-			new (LODResources) FStaticMeshLODResources;
-		}
-		for (int32 Index = 0; Index < NewNum; Index++)
-		{
-			LODResources[Index].Serialize(Ar, Owner, Index);
-		}
-	}
-	else
-	{
-		// Save array.
-		int32 Num = LODResources.Num();
-		Ar << Num;
-		for (int32 Index = 0; Index < Num; Index++)
-		{
-			LODResources[Index].Serialize(Ar, Owner, Index);
-		}
-	}
+	LODResources.Serialize(Ar, Owner);
 
 #if WITH_EDITOR
 	if (Ar.IsSaving())
@@ -1590,9 +1612,20 @@ void FStaticMeshRenderData::AllocateLODResources(int32 NumLODs)
 	LODVertexFactories.Reserve(NumLODs);
 	while (LODResources.Num() < NumLODs)
 	{
-		new (LODResources) FStaticMeshLODResources;
+		LODResources.Add(new FStaticMeshLODResources);
 		new (LODVertexFactories) FStaticMeshVertexFactories(GMaxRHIFeatureLevel);
 	}
+}
+
+int32 FStaticMeshRenderData::GetFirstValidLODIdx(int32 MinIdx) const
+{
+	const int32 LODCount = LODResources.Num();
+	int32 LODIndex = FMath::Clamp<int32>(MinIdx, 0, LODCount - 1);
+	while (LODIndex < LODCount && !LODResources[LODIndex].GetNumVertices())
+	{
+		++LODIndex;
+	}
+	return LODIndex;
 }
 
 FStaticMeshOccluderData::FStaticMeshOccluderData()
@@ -2643,7 +2676,11 @@ void UStaticMesh::InitResources()
 
 	// Determine whether or not this mesh can be streamed.
 	const int32 NumLODs = GetNumLODs();
-	bIsStreamable = !NeverStream
+
+	// Most tools assume that LOD0 is available and wouldn't work correctly if not. For example lighting build.
+	// Because of this, mesh streaming is in game mode (cooked or not).
+	bIsStreamable = !GIsEditor 
+		&& !NeverStream
 		&& NumLODs > 1
 		&& !RenderData->LODResources[0].bBuffersInlined;
 		//&& !bTemporarilyDisableStreaming;
@@ -2664,7 +2701,12 @@ void UStaticMesh::InitResources()
 	{
 		LinkStreaming();
 	}
-	
+	else if (GIsEditor)
+	{
+		RenderData->CurrentFirstLODIdx = RenderData->GetFirstValidLODIdx(0);
+		SetCachedNumResidentLODs(RenderData->LODResources.Num() - RenderData->CurrentFirstLODIdx);
+	}
+
 #if	STATS
 	UStaticMesh* This = this;
 	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
@@ -2763,9 +2805,7 @@ int32 UStaticMesh::GetNumLODs() const
 //
 bool UStaticMesh::HasValidRenderData(bool bCheckLODForVerts, int32 LODIndex) const
 {
-	if (RenderData != nullptr
-		&& RenderData->LODResources.Num() > 0
-		&& RenderData->LODResources.GetData() != nullptr)
+	if (RenderData && RenderData->LODResources.Num() && RenderData->LODResources.GetData())
 	{
 		if (bCheckLODForVerts)
 		{
@@ -2805,7 +2845,7 @@ int32 UStaticMesh::GetNumSections(int32 InLOD) const
 }
 
 #if WITH_EDITORONLY_DATA
-static float GetUVDensity(const TArrayView<FStaticMeshLODResources>& LODResources, int32 UVIndex)
+static float GetUVDensity(const FStaticMeshLODResourcesArray& LODResources, int32 UVIndex)
 {
 	float WeightedUVDensity = 0;
 	float WeightSum = 0;
@@ -5537,7 +5577,16 @@ bool UStaticMesh::StreamOut(int32 NewMipCount)
 	check(IsInGameThread());
 	if (bIsStreamable && !PendingUpdate && RenderData.IsValid() && RenderData->bReadyForStreaming && NewMipCount < GetNumResidentMips())
 	{
-		PendingUpdate = new FStaticMeshStreamOut(this, NewMipCount);
+#if WITH_EDITOR
+		if (FPlatformProperties::HasEditorOnlyData())
+		{
+			PendingUpdate = new FStaticMeshStreamOut_DDC(this, NewMipCount);
+		}
+		else
+#endif
+		{
+			PendingUpdate = new FStaticMeshStreamOut_IO(this, NewMipCount);
+		}
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;

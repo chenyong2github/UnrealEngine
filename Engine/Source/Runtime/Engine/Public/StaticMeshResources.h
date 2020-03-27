@@ -243,11 +243,11 @@ protected:
 struct ENGINE_API FStaticMeshAreaWeightedSectionSampler : FWeightedRandomSampler
 {
 	FStaticMeshAreaWeightedSectionSampler();
-	void Init(FStaticMeshLODResources* InOwner);
+	void Init(const FStaticMeshLODResources* InOwner);
 	virtual float GetWeights(TArray<float>& OutWeights)override;
 
 protected:
-	FStaticMeshLODResources* Owner;
+	TRefCountPtr<const FStaticMeshLODResources> Owner;
 };
 
 typedef TArray<FStaticMeshSectionAreaWeightedTriangleSampler, FMemoryImageAllocator> FStaticMeshSectionAreaWeightedTriangleSamplerArray;
@@ -308,6 +308,9 @@ struct FStaticMeshVertexBuffers
 
 	/* This is a temporary function to refactor and convert old code, do not copy this as is and try to build your data as SoA from the beginning.*/
 	void ENGINE_API InitModelVF(FLocalVertexFactory* VertexFactory);
+
+	/** Copy everything, keeping reference to the same RHI resources. */
+	void CopyRHIForStreaming(const FStaticMeshVertexBuffers& Other, bool InAllowCPUAccess);
 };
 
 struct FAdditionalStaticMeshIndexBuffers
@@ -320,30 +323,22 @@ struct FAdditionalStaticMeshIndexBuffers
 	FRawStaticIndexBuffer WireframeIndexBuffer;
 	/** Index buffer containing adjacency information required by tessellation. */
 	FRawStaticIndexBuffer AdjacencyIndexBuffer;
+
+	/** Copy everything, keeping reference to the same RHI resources. */
+	void CopyRHIForStreaming(const FAdditionalStaticMeshIndexBuffers& Other, bool InAllowCPUAccess);
 };
 
-/** Rendering resources needed to render an individual static mesh LOD. */
-struct FStaticMeshLODResources
+/** The part of FStaticMeshLODResources which is not streamable. */
+struct FStaticMeshLODData
 {
-	FStaticMeshVertexBuffers VertexBuffers;
-
-	/** Index buffer resource for rendering. */
-	FRawStaticIndexBuffer IndexBuffer;
-
-	/** Index buffer resource for rendering in depth only passes. */
-	FRawStaticIndexBuffer DepthOnlyIndexBuffer;
-
-	FAdditionalStaticMeshIndexBuffers* AdditionalIndexBuffers;
-
-	/** Resources used for ray tracing */
-	FRayTracingGeometry RayTracingGeometry;
+	FStaticMeshLODData();
 
 	/** Sections for this LOD. */
 	using FStaticMeshSectionArray = TArray<FStaticMeshSection, TInlineAllocator<1>>;
 	FStaticMeshSectionArray Sections;
 
 	/** Distance field data associated with this mesh, null if not present.  */
-	class FDistanceFieldVolumeData* DistanceFieldData; 
+	class FDistanceFieldVolumeData* DistanceFieldData = nullptr; 
 
 	/** The maximum distance by which this LOD deviates from the base from which it was generated. */
 	float MaxDeviation;
@@ -372,13 +367,6 @@ struct FStaticMeshLODResources
 
 	/** True if this LOD is optional. That is, vertex and index data may not be available */
 	uint32 bIsOptionalLOD : 1;
-	
-	/**	Allows uniform random selection of mesh sections based on their area. */
-	FStaticMeshAreaWeightedSectionSampler AreaWeightedSampler;
-	/**	Allows uniform random selection of triangles on each mesh section based on triangle area. */
-	FStaticMeshSectionAreaWeightedTriangleSamplerArray AreaWeightedSectionSamplers;
-	/** Allows uniform random selection of triangles on GPU. It is not cooked and serialised but created at runtime from AreaWeightedSectionSamplers when it is available and static mesh bSupportGpuUniformlyDistributedSampling=true*/
-	FStaticMeshSectionAreaWeightedTriangleSamplerBuffer AreaWeightedSectionSamplersBuffer;
 
 	uint32 DepthOnlyNumTriangles;
 
@@ -399,11 +387,75 @@ struct FStaticMeshLODResources
 	/** Map of wedge index to vertex index. Each LOD need one*/
 	TArray<int32> WedgeMap;
 #endif
+};
+
+/** 
+ * Rendering resources needed to render an individual static mesh LOD.
+ * They are ref counted to prevent streaming out LODs while they are being accessed for read.
+ * The stream out implies swapping the LODResoures entry by a dummy empty one. This is always executed within a render command.
+ * This means that any direct reference to a LODResources is safe within the scope of any render commands.
+ * If the reference is required on the gamethread, async threads or RHI threads (not synchronized at the end of the render command that created the tasks),
+ * then the ref count must be incremented / decremented through the use of a TRefCountPtr. 
+ * The stream out logic in FStaticMeshStreamOut will postpone the operation if the ref count is not 1.
+ * "1" accounting for the reference in the FStaticMeshRenderData::LODResources. In order to prevent postponing indefinitely the streamout, 
+ * it is required that anyone using a TRefCountPtr also check for CurrentFirstLODIdx for things that may run every frame.
+ */
+struct FStaticMeshLODResources : public FRefCountBase, public FStaticMeshLODData
+{
+public:
+
+	FStaticMeshVertexBuffers VertexBuffers;
+
+	/** Index buffer resource for rendering. */
+	FRawStaticIndexBuffer IndexBuffer;
+
+	/** Index buffer resource for rendering in depth only passes. */
+	FRawStaticIndexBuffer DepthOnlyIndexBuffer;
+
+	FAdditionalStaticMeshIndexBuffers* AdditionalIndexBuffers = nullptr;
+
+	/** Geometry for ray tracing. */
+	FRayTracingGeometry RayTracingGeometry;
+
+	/**	Allows uniform random selection of mesh sections based on their area. */
+	FStaticMeshAreaWeightedSectionSampler AreaWeightedSampler;
+	/**	Allows uniform random selection of triangles on each mesh section based on triangle area. */
+	FStaticMeshSectionAreaWeightedTriangleSamplerArray AreaWeightedSectionSamplers;
+	/** Allows uniform random selection of triangles on GPU. It is not cooked and serialised but created at runtime from AreaWeightedSectionSamplers when it is available and static mesh bSupportGpuUniformlyDistributedSampling=true*/
+	FStaticMeshSectionAreaWeightedTriangleSamplerBuffer AreaWeightedSectionSamplersBuffer;
 	
-	/** Default constructor. */
-	ENGINE_API FStaticMeshLODResources();
+	/** Default constructor. Add a reference if not stored with a TRefCountPtr */
+	FORCEINLINE FStaticMeshLODResources(bool bAddRef = true)
+	{
+		if (bAddRef)
+		{
+			AddRef();
+		}
+	}
 
 	ENGINE_API ~FStaticMeshLODResources();
+
+	/** Copy everything, keeping reference to the same RHI resources. */
+	void CopyRHIForStreaming(const FStaticMeshLODResources& Other, bool InAllowCPUAccess);
+
+	template <typename TBatcher>
+	void ReleaseRHIForStreaming(TBatcher& Batcher)
+	{
+		VertexBuffers.StaticMeshVertexBuffer.ReleaseRHIForStreaming(Batcher);
+		VertexBuffers.PositionVertexBuffer.ReleaseRHIForStreaming(Batcher);
+		VertexBuffers.ColorVertexBuffer.ReleaseRHIForStreaming(Batcher);
+
+		IndexBuffer.ReleaseRHIForStreaming(Batcher);
+		DepthOnlyIndexBuffer.ReleaseRHIForStreaming(Batcher);
+
+		if (AdditionalIndexBuffers)
+		{
+			AdditionalIndexBuffers->ReversedIndexBuffer.ReleaseRHIForStreaming(Batcher);
+			AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.ReleaseRHIForStreaming(Batcher);
+			AdditionalIndexBuffers->WireframeIndexBuffer.ReleaseRHIForStreaming(Batcher);
+			AdditionalIndexBuffers->AdjacencyIndexBuffer.ReleaseRHIForStreaming(Batcher);
+		}
+	}
 
 	/** Initializes all rendering resources. */
 	void InitResources(UStaticMesh* Parent);
@@ -509,7 +561,7 @@ private:
 	friend class FStaticMeshRenderData;
 	friend class FStaticMeshStreamIn;
 	friend class FStaticMeshStreamIn_IO;
-	friend class FStaticMeshStreamOut;
+	friend class FStaticMeshStreamOut_DDC;
 };
 
 struct ENGINE_API FStaticMeshVertexFactories
@@ -552,7 +604,7 @@ struct ENGINE_API FStaticMeshVertexFactories
 	void ReleaseResources();
 };
 
-using FStaticMeshLODResourcesArray = TArray<FStaticMeshLODResources>;
+using FStaticMeshLODResourcesArray = TIndirectArray<FStaticMeshLODResources>;
 using FStaticMeshVertexFactoriesArray = TArray<FStaticMeshVertexFactories>;
 
 /**
@@ -561,10 +613,15 @@ using FStaticMeshVertexFactoriesArray = TArray<FStaticMeshVertexFactories>;
 class FStaticMeshRenderData
 {
 public:
+
 	/** Default constructor. */
 	ENGINE_API FStaticMeshRenderData();
+	ENGINE_API ~FStaticMeshRenderData();
 
-	/** Per-LOD resources. */
+	/**
+	 * Per-LOD resources. For compatibility reasons, the FStaticMeshLODResources array are not referenced through TRefCountPtr.
+	 * The LODResource still has a ref count of at least 1, see FStaticMeshLODResources() constructor.
+	 */
 	FStaticMeshLODResourcesArray LODResources;
 	FStaticMeshVertexFactoriesArray LODVertexFactories;
 
@@ -638,6 +695,25 @@ public:
 	/** Resolve all per-section settings. */
 	ENGINE_API void ResolveSectionInfo(UStaticMesh* Owner);
 #endif // #if WITH_EDITORONLY_DATA
+
+	/** Return first valid LOD index starting at MinLODIdx. */
+	ENGINE_API int32 GetFirstValidLODIdx(int32 MinLODIdx) const;
+
+	/** Return the current first LODIdx that can be used. */
+	FORCEINLINE int32 GetCurrentFirstLODIdx(int32 MinLODIdx) const
+	{
+		return GetFirstValidLODIdx(FMath::Max<int32>(CurrentFirstLODIdx, MinLODIdx));
+	}
+
+	/** 
+	 * Return the current first LOD that can be used for rendering starting at MinLODIdx.
+	 * This takes into account the streaming status from CurrentFirstLODIdx, 
+	 * and MinLODIdx is expected to be UStaticMesh::MinLOD, which is platform specific.
+	 */
+	FORCEINLINE const FStaticMeshLODResources* GetCurrentFirstLOD(int32 MinLODIdx) const
+	{
+		return &LODResources[GetCurrentFirstLODIdx(MinLODIdx)];
+	}
 
 private:
 #if WITH_EDITORONLY_DATA

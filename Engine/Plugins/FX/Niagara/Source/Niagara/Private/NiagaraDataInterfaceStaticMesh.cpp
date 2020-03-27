@@ -41,7 +41,7 @@ FStaticMeshFilteredAreaWeightedSectionSampler::FStaticMeshFilteredAreaWeightedSe
 {
 }
 
-void FStaticMeshFilteredAreaWeightedSectionSampler::Init(FStaticMeshLODResources* InRes, FNDIStaticMesh_InstanceData* InOwner)
+void FStaticMeshFilteredAreaWeightedSectionSampler::Init(const FStaticMeshLODResources* InRes, FNDIStaticMesh_InstanceData* InOwner)
 {
 	Res = InRes;
 	Owner = InOwner;
@@ -54,13 +54,26 @@ float FStaticMeshFilteredAreaWeightedSectionSampler::GetWeights(TArray<float>& O
 	check(Owner && Owner->Mesh);
 	float Total = 0.0f;
 	OutWeights.Empty(Owner->GetValidSections().Num());
-	FStaticMeshLODResources& LODRes = Owner->Mesh->RenderData->LODResources[0];
-	for (int32 i = 0; i < Owner->GetValidSections().Num(); ++i)
+	if (Owner->Mesh->bSupportUniformlyDistributedSampling && Res->AreaWeightedSectionSamplers.Num() > 0)
 	{
-		int32 SecIdx = Owner->GetValidSections()[i];
-		float T = LODRes.AreaWeightedSectionSamplers[SecIdx].GetTotalWeight();
-		OutWeights.Add(T);
-		Total += T;
+		for (int32 i = 0; i < Owner->GetValidSections().Num(); ++i)
+		{
+			int32 SecIdx = Owner->GetValidSections()[i];
+			float T = Res->AreaWeightedSectionSamplers[SecIdx].GetTotalWeight();
+			OutWeights.Add(T);
+			Total += T;
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < Owner->GetValidSections().Num(); ++i)
+		{
+			int32 SecIdx = Owner->GetValidSections()[i];
+			float T = 1.0f;
+			OutWeights.Add(T);
+			Total += T;
+		}
+
 	}
 	return Total;
 }
@@ -72,11 +85,11 @@ FStaticMeshGpuSpawnBuffer::~FStaticMeshGpuSpawnBuffer()
 	//ValidSections.Empty();
 }
 
-void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources& Res, const UNiagaraDataInterfaceStaticMesh& Interface, bool bIsGpuUniformlyDistributedSampling, const TArray<int32>& ValidSection, const FStaticMeshFilteredAreaWeightedSectionSampler& SectionSamplerParam)
+void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources* Res, const UNiagaraDataInterfaceStaticMesh& Interface, bool bIsGpuUniformlyDistributedSampling, const TArray<int32>& ValidSection, const FStaticMeshFilteredAreaWeightedSectionSampler& SectionSamplerParam)
 {
 	// In this function we prepare some data to be uploaded on GPU from the available mesh data. This is a thread safe place to create this data.
 	// The section buffer needs to be specific to the current UI being built (section/material culling).
-	SectionRenderData = &Res;
+	SectionRenderData = Res;
 
 	const uint32 ValidSectionCount = ValidSection.Num();
 	const TArray<float, FMemoryImageAllocator>& Prob = SectionSamplerParam.GetProb();
@@ -88,15 +101,15 @@ void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources& Res, c
 	for (uint32 i = 0; i < ValidSectionCount; ++i)
 	{
 		uint32 ValidSectionId = ValidSection[i];
-		const FStaticMeshSection& Section = Res.Sections[ValidSectionId];
+		const FStaticMeshSection& Section = Res->Sections[ValidSectionId];
 		SectionInfo NewSectionInfo = { Section.FirstIndex / 3, Section.NumTriangles, Prob[i], (uint32)Alias[i] };
 		ValidSections.Add(NewSectionInfo);
 
-		check(!bIsGpuUniformlyDistributedSampling || bIsGpuUniformlyDistributedSampling && Res.AreaWeightedSectionSamplers[ValidSectionId].GetProb().Num() == Section.NumTriangles);
+		check(!bIsGpuUniformlyDistributedSampling || bIsGpuUniformlyDistributedSampling && Res->AreaWeightedSectionSamplers[ValidSectionId].GetProb().Num() == Section.NumTriangles);
 	}
 
 	if (bIsGpuUniformlyDistributedSampling)
-		BufferUniformTriangleSamplingSRV = Res.AreaWeightedSectionSamplersBuffer.GetBufferSRV(); // Cache that SRV for later
+		BufferUniformTriangleSamplingSRV = Res->AreaWeightedSectionSamplersBuffer.GetBufferSRV(); // Cache that SRV for later
 }
 
 void FStaticMeshGpuSpawnBuffer::InitRHI()
@@ -274,15 +287,18 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	ValidSections.Empty();
 	if (Mesh)
 	{
+	    MinLOD = Mesh->MinLOD.GetValueForFeatureLevel(SystemInstance->GetFeatureLevel());
+	    CachedLODIdx = Mesh->RenderData->GetCurrentFirstLODIdx(MinLOD);
+
 		bMeshAllowsCpuAccess = Mesh->bAllowCPUAccess;
 		bIsCpuUniformlyDistributedSampling = Mesh->bSupportUniformlyDistributedSampling;
 		bIsGpuUniformlyDistributedSampling = bIsCpuUniformlyDistributedSampling && Mesh->bSupportGpuUniformlyDistributedSampling;
 
 		//Init the instance filter
-		FStaticMeshLODResources& Res = Mesh->RenderData->LODResources[0];
-		for (int32 i = 0; i < Res.Sections.Num(); ++i)
+		TRefCountPtr<const FStaticMeshLODResources> Res = GetCurrentFirstLOD();
+		for (int32 i = 0; i < Res->Sections.Num(); ++i)
 		{
-			if (Interface->SectionFilter.AllowedMaterialSlots.Num() == 0 || Interface->SectionFilter.AllowedMaterialSlots.Contains(Res.Sections[i].MaterialIndex))
+			if (Interface->SectionFilter.AllowedMaterialSlots.Num() == 0 || Interface->SectionFilter.AllowedMaterialSlots.Contains(Res->Sections[i].MaterialIndex))
 			{
 				ValidSections.Add(i);
 			}
@@ -293,7 +309,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 			UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface has a section filter preventing any spawning. Failed InitPerInstanceData - %s"), *Interface->GetFullName());
 		}
 
-		Sampler.Init(&Res, this);
+		Sampler.Init(Res, this);
 	}
 
 	return true;
@@ -312,6 +328,14 @@ bool FNDIStaticMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceStaticMesh*
 		return true;
 	}
 
+	// Currently we only reset if the cached LOD was streamed out, to avoid performance hits. To revisit.
+	// We could probably just recache the data derived from the LOD instead of resetting everything.
+	if (Mesh && Mesh->RenderData->GetCurrentFirstLODIdx(MinLOD) > CachedLODIdx)
+	{
+		return true;
+	}
+
+	// The following conditions look like they could only be triggered in Editor...
 	//bool bPrevVCSampling = bSupportingVertexColorSampling;//TODO: Vertex color filtering needs more work.
 	if (Mesh)
 	{
@@ -1000,10 +1024,10 @@ struct TTypedMeshAccessorBinder
 		}
 
 		UNiagaraDataInterfaceStaticMesh* MeshInterface = CastChecked<UNiagaraDataInterfaceStaticMesh>(Interface);
-		FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-		if (Res.VertexBuffers.StaticMeshVertexBuffer.GetUseHighPrecisionTangentBasis())			
+		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		if (Res->VertexBuffers.StaticMeshVertexBuffer.GetUseHighPrecisionTangentBasis())			
 		{
-			if (Res.VertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
+			if (Res->VertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
 			{
 				NextBinder::template Bind<ParamTypes..., TTypedMeshVertexAccessor<EStaticMeshVertexTangentBasisType::HighPrecision, EStaticMeshVertexUVType::HighPrecision>>(Interface, BindingInfo, InstanceData, OutFunc);
 			}
@@ -1014,7 +1038,7 @@ struct TTypedMeshAccessorBinder
 		}
 		else
 		{
-			if (Res.VertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
+			if (Res->VertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
 			{
 				NextBinder::template Bind<ParamTypes..., TTypedMeshVertexAccessor<EStaticMeshVertexTangentBasisType::Default, EStaticMeshVertexUVType::HighPrecision>>(Interface, BindingInfo, InstanceData, OutFunc);
 			}
@@ -1193,7 +1217,7 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 			ensure(Inst->Mesh->bAllowCPUAccess); // this should have been verified in Init()
 
 			MeshGpuSpawnBuffer = new FStaticMeshGpuSpawnBuffer;
-			FStaticMeshLODResources& Res = Inst->Mesh->RenderData->LODResources[0];
+			TRefCountPtr<const FStaticMeshLODResources> Res = Inst->GetCurrentFirstLOD();
 			MeshGpuSpawnBuffer->Initialise(Res, *this, Inst->bIsGpuUniformlyDistributedSampling, Inst->ValidSections, Inst->Sampler);
 		}
 
@@ -1318,27 +1342,27 @@ void UNiagaraDataInterfaceStaticMesh::IsValid(FVectorVMContext& Context)
 //RandomSection specializations.
 //Each combination for SampleMode and Section filtered. NOTE: Invalid sample mode left intentionally unimplemented
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeAreaWeighted, true>(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeAreaWeighted, true>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
 {
 	int32 Idx = InstData->GetAreaWeightedSampler().GetEntryIndex(RandStream.GetFraction(), RandStream.GetFraction());
 	return InstData->GetValidSections()[Idx];
 }
 
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeAreaWeighted, false>(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeAreaWeighted, false>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
 {
 	return Res.AreaWeightedSampler.GetEntryIndex(RandStream.GetFraction(), RandStream.GetFraction());
 }
 
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeDefault, true>(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeDefault, true>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
 {
 	int32 Idx = RandStream.RandRange(0, InstData->GetValidSections().Num() - 1);
 	return InstData->GetValidSections()[Idx];
 }
 
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeDefault, false>(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeDefault, false>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
 {
 	return RandStream.RandRange(0, Res.Sections.Num() - 1);
 }
@@ -1349,10 +1373,10 @@ void UNiagaraDataInterfaceStaticMesh::RandomSection(FVectorVMContext& Context)
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSection(Context);
 
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		*OutSection.GetDestAndAdvance() = RandomSection<TSampleMode, true>(Context.RandStream, Res, InstData);
+		*OutSection.GetDestAndAdvance() = RandomSection<TSampleMode, true>(Context.RandStream, *Res, InstData);
 	}
 }
 
@@ -1363,7 +1387,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeInvalid>(FVectorV
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSection(Context);
 
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		*OutSection.GetDestAndAdvance() = -1;
@@ -1373,39 +1397,63 @@ void UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeInvalid>(FVectorV
 //RandomTriIndex specializations.
 //Each combination for SampleMode and Section filtered. NOTE: Invalid sample mode left intentionally unimplemented
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndex<TSampleModeAreaWeighted, true>(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndex<TSampleModeAreaWeighted, true>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
 {
 	int32 SecIdx = RandomSection<TSampleModeAreaWeighted, true>(RandStream, Res, InstData);
-	FStaticMeshSection&  Sec = Res.Sections[SecIdx];
-	int32 Tri = Res.AreaWeightedSectionSamplers[SecIdx].GetEntryIndex(RandStream.GetFraction(), RandStream.GetFraction());
-	return (Sec.FirstIndex / 3) + Tri;
+	if (SecIdx < Res.Sections.Num() && SecIdx < Res.AreaWeightedSectionSamplers.Num())
+	{
+		const FStaticMeshSection&  Sec = Res.Sections[SecIdx];
+		if (Res.AreaWeightedSectionSamplers[SecIdx].GetNumEntries() > 0)
+		{
+			int32 Tri = Res.AreaWeightedSectionSamplers[SecIdx].GetEntryIndex(RandStream.GetFraction(), RandStream.GetFraction());
+			return (Sec.FirstIndex / 3) + Tri;
+		}
+		return (Sec.FirstIndex / 3);
+	}
+	return 0;
 }
 
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndex<TSampleModeAreaWeighted, false>(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndex<TSampleModeAreaWeighted, false>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
 {
 	int32 SecIdx = RandomSection<TSampleModeAreaWeighted, false>(RandStream, Res, InstData);
-	FStaticMeshSection&  Sec = Res.Sections[SecIdx];
-	int32 Tri = Res.AreaWeightedSectionSamplers[SecIdx].GetEntryIndex(RandStream.GetFraction(), RandStream.GetFraction());
-	return (Sec.FirstIndex / 3) + Tri;
+	if (SecIdx < Res.Sections.Num() && SecIdx < Res.AreaWeightedSectionSamplers.Num())
+	{
+		const FStaticMeshSection&  Sec = Res.Sections[SecIdx];
+		if (Res.AreaWeightedSectionSamplers[SecIdx].GetNumEntries() > 0)
+		{
+			int32 Tri = Res.AreaWeightedSectionSamplers[SecIdx].GetEntryIndex(RandStream.GetFraction(), RandStream.GetFraction());
+			return (Sec.FirstIndex / 3) + Tri;
+		}
+		return (Sec.FirstIndex / 3);
+	}
+	return 0;
 }
 
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndex<TSampleModeDefault, true>(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndex<TSampleModeDefault, true>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
 {
 	int32 SecIdx = RandomSection<TSampleModeDefault, true>(RandStream, Res, InstData);
-	FStaticMeshSection&  Sec = Res.Sections[SecIdx];
-	int32 Tri = RandStream.RandRange(0, Sec.NumTriangles - 1);
-	return (Sec.FirstIndex / 3) + Tri;
+	if (SecIdx < Res.Sections.Num())
+	{
+		const FStaticMeshSection&  Sec = Res.Sections[SecIdx];
+		int32 Tri = RandStream.RandRange(0, Sec.NumTriangles - 1);
+		return (Sec.FirstIndex / 3) + Tri;
+	}
+	return 0;
 }
 
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndex<TSampleModeDefault, false>(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndex<TSampleModeDefault, false>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData)
 {
 	int32 SecIdx = RandomSection<TSampleModeDefault, false>(RandStream, Res, InstData);
-	FStaticMeshSection&  Sec = Res.Sections[SecIdx];
-	int32 Tri = RandStream.RandRange(0, Sec.NumTriangles - 1);
-	return (Sec.FirstIndex / 3) + Tri;
+	if (SecIdx < Res.Sections.Num())
+	{
+		const FStaticMeshSection&  Sec = Res.Sections[SecIdx];
+		int32 Tri = RandStream.RandRange(0, Sec.NumTriangles - 1);
+		return (Sec.FirstIndex / 3) + Tri;
+	}
+	return 0;
 }
 
 template<typename TSampleMode>
@@ -1419,11 +1467,11 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoord(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryZ(Context);
 
 	check(InstData->Mesh);
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-	FIndexArrayView Indices = Res.IndexBuffer.GetArrayView();
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	FIndexArrayView Indices = Res->IndexBuffer.GetArrayView();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		*OutTri.GetDest() = RandomTriIndex<TSampleMode, true>(Context.RandStream, Res, InstData);
+		*OutTri.GetDest() = RandomTriIndex<TSampleMode, true>(Context.RandStream, *Res, InstData);
 		FVector Bary = RandomBarycentricCoord(Context.RandStream);
 		*OutBaryX.GetDest() = Bary.X;
 		*OutBaryY.GetDest() = Bary.Y;
@@ -1466,7 +1514,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordVertexColorFiltered(FVectorV
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryZ(Context);
-
+	
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
 	if (!InstData->Mesh)
@@ -1482,8 +1530,8 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordVertexColorFiltered(FVectorV
 	}
 	
 	FDynamicVertexColorFilterData* VCFData = InstData->DynamicVertexColorSampler.Get();
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-	FIndexArrayView Indices = Res.IndexBuffer.GetArrayView();
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	FIndexArrayView Indices = Res->IndexBuffer.GetArrayView();
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
@@ -1534,17 +1582,17 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordVertexColorFiltered(FVectorV
 }
 
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndexOnSection<TSampleModeAreaWeighted>(FRandomStream& RandStream, FStaticMeshLODResources& Res, int32 SecIdx, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndexOnSection<TSampleModeAreaWeighted>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, int32 SecIdx, FNDIStaticMesh_InstanceData* InstData)
 {
-	FStaticMeshSection&  Sec = Res.Sections[SecIdx];
+	const FStaticMeshSection&  Sec = Res.Sections[SecIdx];
 	int32 Tri = Res.AreaWeightedSectionSamplers[SecIdx].GetEntryIndex(RandStream.GetFraction(), RandStream.GetFraction());
 	return (Sec.FirstIndex / 3) + Tri;
 }
 
 template<>
-FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndexOnSection<TSampleModeDefault>(FRandomStream& RandStream, FStaticMeshLODResources& Res, int32 SecIdx, FNDIStaticMesh_InstanceData* InstData)
+FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomTriIndexOnSection<TSampleModeDefault>(FRandomStream& RandStream, const FStaticMeshLODResources& Res, int32 SecIdx, FNDIStaticMesh_InstanceData* InstData)
 {
-	FStaticMeshSection&  Sec = Res.Sections[SecIdx];
+	const FStaticMeshSection&  Sec = Res.Sections[SecIdx];
 	int32 Tri = RandStream.RandRange(0, Sec.NumTriangles - 1);
 	return (Sec.FirstIndex / 3) + Tri;
 }
@@ -1561,14 +1609,14 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection(FVectorVMContext& 
 	VectorVM::FExternalFuncRegisterHandler<float> OutBaryZ(Context);
 
 	check(InstData->Mesh);
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-	FIndexArrayView Indices = Res.IndexBuffer.GetArrayView();
-	const int32 MaxSection = Res.Sections.Num() - 1;
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	FIndexArrayView Indices = Res->IndexBuffer.GetArrayView();
+	const int32 MaxSection = Res->Sections.Num() - 1;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 
 		int32 SecIdx = FMath::Clamp(SectionIdxParam.Get(), 0, MaxSection);
-		*OutTri.GetDest() = RandomTriIndexOnSection<TSampleMode>(Context.RandStream, Res, SecIdx, InstData);
+		*OutTri.GetDest() = RandomTriIndexOnSection<TSampleMode>(Context.RandStream, *Res, SecIdx, InstData);
 		FVector Bary = RandomBarycentricCoord(Context.RandStream);
 		*OutBaryX.GetDest() = Bary.X;
 		*OutBaryY.GetDest() = Bary.Y;
@@ -1633,9 +1681,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPosition(FVectorVMContext& Cont
 		return;
 	}
 
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-	const FIndexArrayView& Indices = Res.IndexBuffer.GetArrayView();
-	const FPositionVertexBuffer& Positions = Res.VertexBuffers.PositionVertexBuffer;
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+	const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
 
 	const int32 NumTriangles = Indices.Num() / 3;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -1691,9 +1739,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordNormal(FVectorVMContext& Contex
 		return;
 	}
 
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-	const FIndexArrayView& Indices = Res.IndexBuffer.GetArrayView();
-	const FStaticMeshVertexBuffer& Verts = Res.VertexBuffers.StaticMeshVertexBuffer;
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+	const FStaticMeshVertexBuffer& Verts = Res->VertexBuffers.StaticMeshVertexBuffer;
 
 	const int32 NumTriangles = Indices.Num() / 3;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -1760,9 +1808,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordTangents(FVectorVMContext& Cont
 		return;
 	}
 
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-	const FIndexArrayView& Indices = Res.IndexBuffer.GetArrayView();
-	const VertexAccessorType Verts(Res.VertexBuffers.StaticMeshVertexBuffer);
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+	const VertexAccessorType Verts(Res->VertexBuffers.StaticMeshVertexBuffer);
 	const int32 NumTriangles = Indices.Num() / 3;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
@@ -1816,10 +1864,10 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordColor(FVectorVMContext& Context
 	VectorVM::FExternalFuncRegisterHandler<float> OutColorB(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutColorA(Context);
 
-	FStaticMeshLODResources* Res = nullptr;
+	TRefCountPtr<const FStaticMeshLODResources> Res;
 	if (InstData->Mesh)
 	{
-		Res = &InstData->Mesh->RenderData->LODResources[0];
+		Res = InstData->GetCurrentFirstLOD();
 	}
 
 	if (Res && Res->VertexBuffers.ColorVertexBuffer.GetNumVertices() > 0)
@@ -1891,9 +1939,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordUV(FVectorVMContext& Context)
 		return;
 	}
 
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-	const FIndexArrayView& Indices = Res.IndexBuffer.GetArrayView();
-	const VertexAccessorType Verts(Res.VertexBuffers.StaticMeshVertexBuffer);
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+	const VertexAccessorType Verts(Res->VertexBuffers.StaticMeshVertexBuffer);
 
 	const int32 NumTriangles = Indices.Num() / 3;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -1952,9 +2000,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPositionAndVelocity(FVectorVMCo
 		return;
 	}
 
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-	const FIndexArrayView& Indices = Res.IndexBuffer.GetArrayView();
-	const FPositionVertexBuffer& Positions = Res.VertexBuffers.PositionVertexBuffer;
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+	const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
 
 	const int32 NumTriangles = Indices.Num() / 3;
 	float InvDt = 1.0f / InstData->DeltaSeconds;
@@ -2095,8 +2143,8 @@ void UNiagaraDataInterfaceStaticMesh::GetVertexPosition(FVectorVMContext& Contex
 		return;
 	}
 
-	FStaticMeshLODResources& Res = InstData->Mesh->RenderData->LODResources[0];
-	const FPositionVertexBuffer& Positions = Res.VertexBuffers.PositionVertexBuffer;
+	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+	const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
 
 	const int32 NumVerts = Positions.GetNumVertices();
 	FVector Pos;
@@ -2708,9 +2756,9 @@ bool FDynamicVertexColorFilterData::Init(FNDIStaticMesh_InstanceData* Owner)
 	VertexColorToTriangleStart.AddDefaulted(256);
 	check(Owner->Mesh);
 
-	FStaticMeshLODResources& Res = Owner->Mesh->RenderData->LODResources[0];
+	TRefCountPtr<const FStaticMeshLODResources> Res = Owner->GetCurrentFirstLOD();
 
-	if (Res.VertexBuffers.ColorVertexBuffer.GetNumVertices() == 0)
+	if (Res->VertexBuffers.ColorVertexBuffer.GetNumVertices() == 0)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("Cannot initialize vertex color filter data for a mesh with no color data - %s"), *Owner->Mesh->GetFullName());
 		return false;
@@ -2723,20 +2771,20 @@ bool FDynamicVertexColorFilterData::Init(FNDIStaticMesh_InstanceData* Owner)
 		uint32 MaxVertexColorRed = i + 1;
 		VertexColorToTriangleStart[i] = TrianglesSortedByVertexColor.Num();
 
-		FIndexArrayView IndexView = Res.IndexBuffer.GetArrayView();
+		FIndexArrayView IndexView = Res->IndexBuffer.GetArrayView();
 		for (int32 j = 0; j < Owner->GetValidSections().Num(); j++)
 		{
 			int32 SectionIdx = Owner->GetValidSections()[j];
-			int32 TriStartIdx = Res.Sections[SectionIdx].FirstIndex;
-			for (uint32 TriIdx = 0; TriIdx < Res.Sections[SectionIdx].NumTriangles; TriIdx++)
+			int32 TriStartIdx = Res->Sections[SectionIdx].FirstIndex;
+			for (uint32 TriIdx = 0; TriIdx < Res->Sections[SectionIdx].NumTriangles; TriIdx++)
 			{
 				uint32 V0Idx = IndexView[TriStartIdx + TriIdx * 3 + 0];
 				uint32 V1Idx = IndexView[TriStartIdx + TriIdx * 3 + 1];
 				uint32 V2Idx = IndexView[TriStartIdx + TriIdx * 3 + 2];
 
-				uint8 MaxR = FMath::Max<uint8>(Res.VertexBuffers.ColorVertexBuffer.VertexColor(V0Idx).R,
-					FMath::Max<uint8>(Res.VertexBuffers.ColorVertexBuffer.VertexColor(V1Idx).R,
-						Res.VertexBuffers.ColorVertexBuffer.VertexColor(V2Idx).R));
+				uint8 MaxR = FMath::Max<uint8>(Res->VertexBuffers.ColorVertexBuffer.VertexColor(V0Idx).R,
+					FMath::Max<uint8>(Res->VertexBuffers.ColorVertexBuffer.VertexColor(V1Idx).R,
+						Res->VertexBuffers.ColorVertexBuffer.VertexColor(V2Idx).R));
 				if (MaxR >= MinVertexColorRed && MaxR < MaxVertexColorRed)
 				{
 					TrianglesSortedByVertexColor.Add(TriStartIdx + TriIdx * 3);
