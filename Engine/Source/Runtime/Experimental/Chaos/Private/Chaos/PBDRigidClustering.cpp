@@ -434,7 +434,6 @@ namespace Chaos
 		Chaos::TPBDRigidClusteredParticleHandle<float, 3>* NewParticle = Parameters.ClusterParticleHandle;
 		if (!NewParticle)
 		{
-			//NewParticle = MEvolution.CreateClusteredParticles(1)[0]; // calls Evolution.DirtyParticle()
 			NewParticle = MEvolution.CreateClusteredParticles(1)[0]; // calls Evolution.DirtyParticle()
 		}
 
@@ -506,6 +505,7 @@ namespace Chaos
 		UpdateGeometry(NewParticle, ChildrenSet, ProxyGeometry, Parameters);
 		GenerateConnectionGraph(NewParticle, Parameters);
 		NewParticle->SetSleeping(bClusterIsAsleep);
+		if (ClusterGroupIndex) AddToClusterUnion(ClusterGroupIndex, NewParticle);
 		return NewParticle;
 	}
 
@@ -588,7 +588,6 @@ namespace Chaos
 		return NewParticle;
 	}
 
-#if 0
 	int32 UseMultiChildProxy = 1;
 	FAutoConsoleVariableRef CVarUseMultiChildProxy(TEXT("p.UseMultiChildProxy"), UseMultiChildProxy, TEXT("Whether to merge multiple children into a single collision proxy when one is available"));
 
@@ -601,77 +600,23 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UnionClusterGroups);
 
-		TMap<int32, TArray<uint32>> GroupMapping;
-		for (uint32 i = 0; i < MParticles.Size(); i++) // just loop active clusters here.
+
+		for (TTuple<int32, TArray<TPBDRigidClusteredParticleHandle<T, 3>* >>& Group : ClusterUnionMap)
 		{
-			uint32 ParticleIndex = i;
-			int32 GroupIndex = MParticles.ClusterGroupIndex(ParticleIndex);
-			if (GroupIndex > 0)
+			uint32 ClusterGroupID = Group.Key;
+			TArray<TPBDRigidClusteredParticleHandle<T, 3>* > Handles = Group.Value;
+
+
+			TArray<TPBDRigidParticleHandle<T, 3>*> ClusterBodies;
+			for (TPBDRigidClusteredParticleHandle<T, 3>* ActiveCluster : Handles)
 			{
-				if (!GroupMapping.Contains(GroupIndex))
-				{
-					GroupMapping.Add(GroupIndex, TArray<uint32>());
-				}
-				GroupMapping[GroupIndex].Add(ParticleIndex);
+				ClusterBodies.Append(ReleaseClusterParticles(ActiveCluster, nullptr, true).Array());
 			}
+			CreateClusterParticle(-Group.Key, MoveTemp(ClusterBodies));
 		}
-
-		for (TTuple<int32, TArray<uint32>>& Group : GroupMapping)
-		{
-			if (PendingClusterCounter.Contains(Group.Key) && PendingClusterCounter[Group.Key] == 0)
-			{
-				TArray<uint32> ClusterChildren;
-				for (uint32& OriginalRootIdx : Group.Value)
-				{
-					TUniquePtr<TMultiChildProxyData<T, d>> ProxyData;
-					if (MChildren.Contains(MParticles.Handle(OriginalRootIdx)))
-					{
-						if (UseMultiChildProxy && !MParticles.DynamicGeometry(OriginalRootIdx) && MChildren[MParticles.Handle(OriginalRootIdx)].Num() > MinChildrenForMultiProxy) //Don't support dynamic geometry
-						{
-							if (ensure(MChildren[MParticles.Handle(OriginalRootIdx)].Num()))
-							{
-								ProxyData = MakeUnique<TMultiChildProxyData<T, d>>();
-								ProxyData->KeyChild = (MChildren[MParticles.Handle(OriginalRootIdx)])[0];
-								ProxyData->RelativeToKeyChild = TRigidTransform<T, d>(MParticles.X(OriginalRootIdx), MParticles.R(OriginalRootIdx)); //store world space of original root. Need to break it up and then compute relative to world space of key child
-							}
-						}
-
-						const TArray<uint32> OriginalRootChildren = DeactivateClusterParticle(MParticles.Handle(OriginalRootIdx)).Array();
-						ClusterChildren.Append(OriginalRootChildren);
-
-						if (ProxyData)
-						{
-							//now that we have world space updated for key child, compute relative transform for original root
-							const TRigidTransform<T, d> OriginalRootWorldTM = ProxyData->RelativeToKeyChild;
-							ProxyData->RelativeToKeyChild = 
-								OriginalRootWorldTM.GetRelativeTransform(
-									TRigidTransform<T, d>(MParticles.X(ProxyData->KeyChild), MParticles.R(ProxyData->KeyChild)));
-							MParticles.MultiChildProxyData(OriginalRootIdx) = MoveTemp(ProxyData);
-
-							for (uint32 Child : OriginalRootChildren)
-							{
-								//remember original proxy of child cluster
-								MParticles.MultiChildProxyId(Child).Id = OriginalRootIdx;
-							}
-						}
-					}
-					else
-					{
-						ClusterChildren.Add(OriginalRootIdx);
-					}
-				}
-
-				FClusterCreationParameters<T> Parameters(0.3, 100, false, !!UnionsHaveCollisionParticles);
-				Parameters.ConnectionMethod = MClusterUnionConnectionType;
-				int32 NewIndex = CreateClusterParticle(-Group.Key, MoveTemp(ClusterChildren), TSerializablePtr<FImplicitObject>(), nullptr, Parameters);
-				MParticles.InternalCluster(NewIndex) = true;
-				MEvolution.SetPhysicsMaterial(MParticles.Handle(NewIndex), MEvolution.GetPhysicsMaterial(MParticles.Handle(Group.Value[0])));
-
-				PendingClusterCounter.Remove(Group.Key);
-			}
-		}
+		ClusterUnionMap.Empty();
 	}
-#endif
+
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::DeactivateClusterParticle"), STAT_DeactivateClusterParticle, STATGROUP_Chaos);
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
@@ -694,7 +639,8 @@ namespace Chaos
 	TSet<TPBDRigidParticleHandle<T, d>*> 
 	TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::ReleaseClusterParticles(
 		TPBDRigidClusteredParticleHandle<T,d>* ClusteredParticle,
-		const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap)
+		const TMap<TGeometryParticleHandle<T, d>*, float>* ExternalStrainMap,
+		bool bForceRelease)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticles_STRAIN);
 
@@ -761,7 +707,8 @@ namespace Chaos
 			if (!Child)
 				continue;
 			if ((ExternalStrainMap && (ExternalStrainMap->Find(Child))) ||
-			   (!ExternalStrainMap && Child->CollisionImpulses() >= Child->Strain()))
+			   (!ExternalStrainMap && Child->CollisionImpulses() >= Child->Strain()) ||
+				bForceRelease)
 			{
 				// The piece that hits just breaks off - we may want more control 
 				// by looking at the edges of this piece which would give us cleaner 
@@ -1250,25 +1197,6 @@ namespace Chaos
 			Child = Child->CastToClustered()->ClusterIds().Id;
 		}
 		return Child; 
-	}
-
-	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-	void TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::IncrementPendingClusterCounter(
-		uint32 ClusterGroupID)
-	{
-		if (!PendingClusterCounter.Contains(ClusterGroupID))
-		{
-			PendingClusterCounter.Add(ClusterGroupID, 0);
-		}
-		PendingClusterCounter[ClusterGroupID]++;
-	}
-
-	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-	void TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::DecrementPendingClusterCounter(
-		uint32 ClusterGroupID)
-	{
-		PendingClusterCounter[ClusterGroupID]--;
-		ensure(0 <= PendingClusterCounter[ClusterGroupID]);
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::GenerateConnectionGraph"), STAT_GenerateConnectionGraph, STATGROUP_Chaos);
@@ -2049,14 +1977,6 @@ namespace Chaos
 	}
 
 
-/*
-	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-	void TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::ClearPendingClusterCounter(uint32 ClusterGroupID)
-	{
-		PendingClusterCounter[ClusterGroupID]=0;
-		//ensure(0 <= PendingClusterCounter[ClusterGroupID]);
-	}
-*/
 } // namespace Chaos
 
 using namespace Chaos;
