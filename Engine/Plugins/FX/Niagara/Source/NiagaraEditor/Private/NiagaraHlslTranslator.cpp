@@ -4215,7 +4215,7 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 		if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetSimulationTargetEnum(), TEXT("Emitter.SimulationTarget")))
 		{
 			FNiagaraInt32 EnumValue;
-			EnumValue.Value = (uint8) CompilationTarget;
+			EnumValue.Value = CompilationTarget == ENiagaraSimTarget::GPUComputeSim || CompileOptions.AdditionalDefines.Contains(TEXT("GPUComputeSim")) ? 1 : 0;
 			OutVar.SetValue(EnumValue);
 			return true;
 		}
