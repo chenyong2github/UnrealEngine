@@ -434,7 +434,7 @@ static FText GetFormattedDeprecationMessage(const UNiagaraScript* FunctionScript
 
 	if (FunctionScript->DeprecationRecommendation != nullptr && FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
 	{
-		FormatString = LOCTEXT("DeprecationErrorFmtMessageAndRecommendation", "Function call \"{NodeName}\" is deprecated. Reason: {Message}. Please use {Recommendation} instead.");
+		FormatString = LOCTEXT("DeprecationErrorFmtMessageAndRecommendation", "Function call \"{NodeName}\" is deprecated. Reason:\n{Message}.\nPlease use {Recommendation} instead.");
 	}
 	else if (FunctionScript->DeprecationRecommendation != nullptr)
 	{
@@ -442,7 +442,7 @@ static FText GetFormattedDeprecationMessage(const UNiagaraScript* FunctionScript
 	}
 	else if (FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
 	{
-		FormatString = LOCTEXT("DeprecationErrorFmtMessage", "Function call \"{NodeName}\" is deprecated. Reason: {Message} ");
+		FormatString = LOCTEXT("DeprecationErrorFmtMessage", "Function call \"{NodeName}\" is deprecated. Reason:\n{Message} ");
 	}
 
 	return FText::Format(FormatString, Args);
@@ -650,7 +650,7 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("Message"), FunctionScript->ExperimentalMessage);
-				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason: {Message}."), Args);
+				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason:\n{Message}."), Args);
 			}
 		}
 		else
@@ -674,7 +674,7 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("Message"), Signature.ExperimentalMessage);
-				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason: {Message}."), Args);
+				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason:\n{Message}."), Args);
 			}
 		}
 	}
