@@ -1848,7 +1848,8 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 	if (bByIndex)
 	{
 		FuncTemplate += TEXT(
-			"    if(RegisterIndex != -1)\n"
+			"    int NumParticles = {InstanceCountOffsetName} != 0xffffffff ? RWInstanceCounts[{InstanceCountOffsetName}] : 0;\n"
+			"    if(RegisterIndex != -1 && ParticleIndex >= 0 && ParticleIndex < NumParticles)\n"
 		);
 	}
 	else
@@ -1859,19 +1860,6 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 			"    if(ParticleIndex != -1 && In_ParticleID.AcquireTag == AcquireTag)\n"
 		);
 	}
-
-	FuncTemplate += TEXT(
-		"    {\n"
-		"        Out_Valid = true;\n"
-		"{FetchValueCode}"
-		"    }\n"
-		"    else\n"
-		"    {\n"
-		"        Out_Valid = false;\n"
-		"        Out_Value = ({ValueType})0;\n"
-		"    }\n"
-		"}\n\n"
-	);
 
 	static const TCHAR* VectorComponentNames[] = { TEXT(".x"), TEXT(".y"), TEXT(".z"), TEXT(".w") };
 	static const TCHAR* IDComponentNames[] = { TEXT(".Index"), TEXT(".AcquireTag") };
@@ -1937,6 +1925,23 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 		ValueTypeName = FString::Printf(TEXT("%s%d"), ComponentTypeName, NumComponents);
 	}
 
+	FuncTemplate += TEXT(
+		"    {\n"
+		"        Out_Valid = true;\n"
+	);
+
+	FuncTemplate += FetchValueCode;
+
+	FuncTemplate += TEXT(
+		"    }\n"
+		"    else\n"
+		"    {\n"
+		"        Out_Valid = false;\n"
+		"        Out_Value = ({ValueType})0;\n"
+		"    }\n"
+		"}\n\n"
+	);
+
 	TMap<FString, FStringFormatArg> FuncTemplateArgs;
 	FuncTemplateArgs.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
 	FuncTemplateArgs.Add(TEXT("ValueType"), ValueTypeName);
@@ -1948,7 +1953,8 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 	FuncTemplateArgs.Add(TEXT("AcquireTagRegisterIndexName"), AcquireTagRegisterIndexBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 	FuncTemplateArgs.Add(TEXT("ParticleStrideIntName"), ParticleStrideIntName);
 	FuncTemplateArgs.Add(TEXT("FetchValueCode"), FetchValueCode);
-	
+	FuncTemplateArgs.Add(TEXT("InstanceCountOffsetName"), InstanceCountOffsetBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+
 	OutHLSL += FString::Format(*FuncTemplate, FuncTemplateArgs);
 
 	return true;
