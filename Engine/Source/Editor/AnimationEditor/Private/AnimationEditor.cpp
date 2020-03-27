@@ -442,6 +442,7 @@ TSharedPtr<SDockTab> FAnimationEditor::OpenNewAnimationDocumentTab(UAnimationAss
 				];
 
 			OpenedTab->SetLeftContent(IDocumentation::Get()->CreateAnchor(DocumentLink));
+			OpenedTab->SetCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([]() -> bool { return false; }));
 
 			TabManager->InsertNewDocumentTab(AnimationEditorTabs::DocumentTab, FTabManager::ESearchPreference::RequireClosedTab, OpenedTab.ToSharedRef());
 
