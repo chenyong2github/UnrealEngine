@@ -205,7 +205,7 @@ void FLiveLinkMessageBusSource::InternalHandleMessage(const TSharedRef<IMessageC
 		FLiveLinkFrameDataStruct DataStruct(MessageTypeInfo);
 		const FLiveLinkBaseFrameData* Message = reinterpret_cast<const FLiveLinkBaseFrameData*>(Context->GetMessage());
 		DataStruct.InitializeWith(MessageTypeInfo, Message);
-		DataStruct.GetBaseData()->WorldTime = FLiveLinkWorldTime(Message->WorldTime.GetOffsettedTime(), MachineTimeOffset);
+		DataStruct.GetBaseData()->WorldTime = Message->WorldTime.GetOffsettedTime();
 		Client->PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(DataStruct));
 	}
 }
