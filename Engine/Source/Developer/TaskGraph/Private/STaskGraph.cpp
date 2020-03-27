@@ -173,7 +173,7 @@ public:
 			.SetDisplayName(NSLOCTEXT("ProfileVisualizerModule", "TabTitle", "Profile Data Visualizer"))
 			.SetTooltipText(NSLOCTEXT("ProfileVisualizerModule", "TooltipText", "Open the Profile Data Visualizer tab."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
-			;
+			.SetIcon(FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "Profiler.Tab"));
 #endif
 			
 	}
