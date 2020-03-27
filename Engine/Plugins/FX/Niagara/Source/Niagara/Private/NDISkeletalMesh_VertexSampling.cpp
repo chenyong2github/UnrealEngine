@@ -47,6 +47,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSamplingFunctions(TArray<FNiaga
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Vertex")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Normal")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Binormal")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Tangent")));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 #if WITH_EDITORONLY_DATA
@@ -62,6 +65,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSamplingFunctions(TArray<FNiaga
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Vertex")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Normal")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Binormal")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Tangent")));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 #if WITH_EDITORONLY_DATA
@@ -170,12 +176,12 @@ void UNiagaraDataInterfaceSkeletalMesh::BindVertexSamplingFunction(const FVMExte
 	//////////////////////////////////////////////////////////////////////////
 	if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataName)
 	{
-		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 6);
+		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 15);
 		TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandlerNoop, TVertexAccessorBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetVertexSkinnedData)>>>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataWSName)
 	{
-		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 6);
+		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 15);
 		TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandler, TVertexAccessorBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetVertexSkinnedData)>>>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetVertexColorName)
@@ -240,8 +246,8 @@ void UNiagaraDataInterfaceSkeletalMesh::IsValidVertex(FVectorVMContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 
-	VectorVM::FExternalFuncInputHandler<int32> VertexParam(Context);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
+	VectorVM::FExternalFuncInputHandler<int32> VertexParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutValid(Context);
 
 	FSkeletalMeshAccessorHelper MeshAccessor;
@@ -262,8 +268,8 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomVertex(FVectorVMContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 
-	FNDIRandomHelper RandHelper(Context);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
+	FNDIRandomHelper RandHelper(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutVertex(Context);
 
 	FSkeletalMeshAccessorHelper MeshAccessor;
@@ -341,8 +347,8 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomFilteredVertex(FVectorVMContext& C
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 
-	FNDIRandomHelper RandHelper(Context);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
+	FNDIRandomHelper RandHelper(Context);
 	checkfSlow(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
 	checkfSlow(InstData->Mesh, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
 
@@ -609,16 +615,28 @@ struct FGetVertexSkinnedDataOutputHandler
 	FGetVertexSkinnedDataOutputHandler(FVectorVMContext& Context)
 		: PosX(Context), PosY(Context), PosZ(Context)
 		, VelX(Context), VelY(Context), VelZ(Context)
+		, TangentZX(Context), TangentZY(Context), TangentZZ(Context)
+		, TangentYX(Context), TangentYY(Context), TangentYZ(Context)
+		, TangentXX(Context), TangentXY(Context), TangentXZ(Context)
 		, bNeedsPosition(PosX.IsValid() || PosY.IsValid() || PosZ.IsValid())
 		, bNeedsVelocity(VelX.IsValid() || VelY.IsValid() || VelZ.IsValid())
+		, bNeedsTangentX(TangentXX.IsValid() || TangentXY.IsValid() || TangentXZ.IsValid())
+		, bNeedsTangentY(TangentYX.IsValid() || TangentYY.IsValid() || TangentYZ.IsValid())
+		, bNeedsTangentZ(TangentZX.IsValid() || TangentZY.IsValid() || TangentZZ.IsValid())
 	{
 	}
 
 	VectorVM::FExternalFuncRegisterHandler<float> PosX; VectorVM::FExternalFuncRegisterHandler<float> PosY; VectorVM::FExternalFuncRegisterHandler<float> PosZ;
 	VectorVM::FExternalFuncRegisterHandler<float> VelX; VectorVM::FExternalFuncRegisterHandler<float> VelY; VectorVM::FExternalFuncRegisterHandler<float> VelZ;
+	VectorVM::FExternalFuncRegisterHandler<float> TangentZX; VectorVM::FExternalFuncRegisterHandler<float> TangentZY; VectorVM::FExternalFuncRegisterHandler<float> TangentZZ;
+	VectorVM::FExternalFuncRegisterHandler<float> TangentYX; VectorVM::FExternalFuncRegisterHandler<float> TangentYY; VectorVM::FExternalFuncRegisterHandler<float> TangentYZ;
+	VectorVM::FExternalFuncRegisterHandler<float> TangentXX; VectorVM::FExternalFuncRegisterHandler<float> TangentXY; VectorVM::FExternalFuncRegisterHandler<float> TangentXZ;
 
 	const bool bNeedsPosition;
 	const bool bNeedsVelocity;
+	const bool bNeedsTangentX;
+	const bool bNeedsTangentY;
+	const bool bNeedsTangentZ;
 
 	FORCEINLINE void SetPosition(FVector Position)
 	{
@@ -632,6 +650,27 @@ struct FGetVertexSkinnedDataOutputHandler
 		*VelX.GetDestAndAdvance() = Velocity.X;
 		*VelY.GetDestAndAdvance() = Velocity.Y;
 		*VelZ.GetDestAndAdvance() = Velocity.Z;
+	}
+
+	FORCEINLINE void SetTangentX(FVector TangentX)
+	{
+		*TangentXX.GetDestAndAdvance() = TangentX.X;
+		*TangentXY.GetDestAndAdvance() = TangentX.Y;
+		*TangentXZ.GetDestAndAdvance() = TangentX.Z;
+	}
+
+	FORCEINLINE void SetTangentY(FVector TangentY)
+	{
+		*TangentYX.GetDestAndAdvance() = TangentY.X;
+		*TangentYY.GetDestAndAdvance() = TangentY.Y;
+		*TangentYZ.GetDestAndAdvance() = TangentY.Z;
+	}
+
+	FORCEINLINE void SetTangentZ(FVector TangentZ)
+	{
+		*TangentZX.GetDestAndAdvance() = TangentZ.X;
+		*TangentZY.GetDestAndAdvance() = TangentZ.Y;
+		*TangentZZ.GetDestAndAdvance() = TangentZ.Z;
 	}
 };
 
@@ -658,18 +697,15 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& C
 
 	FSkeletalMeshAccessorHelper Accessor;
 	Accessor.Init<TIntegralConstant<int32, 0>, TIntegralConstant<int32, 0>>(InstData);
-	int32 VertMax = Accessor.LODData->GetNumVertices();
-	float InvDt = 1.0f / InstData->DeltaSeconds;
+	const int32 VertMax = Accessor.LODData->GetNumVertices() - 1;
+	const float InvDt = 1.0f / InstData->DeltaSeconds;
 
-	FVector Pos;
-	FVector Prev;
-	FVector Velocity;
-
+	const bool bNeedsTangentBasis = Output.bNeedsTangentX || Output.bNeedsTangentY || Output.bNeedsTangentZ;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		int32 Vertex = VertParam.GetAndAdvance();
-		Vertex = FMath::Min(VertMax, Vertex);
+		const int32 Vertex = FMath::Min(VertParam.GetAndAdvance(), VertMax);
 		
+		FVector Pos = FVector::ZeroVector;
 		if (Output.bNeedsPosition || Output.bNeedsVelocity)
 		{
 			Pos = SkinningHandler.GetSkinnedVertexPosition(Accessor, Vertex);
@@ -679,10 +715,34 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& C
 
 		if (Output.bNeedsVelocity)
 		{
-			Prev = SkinningHandler.GetSkinnedVertexPreviousPosition(Accessor, Vertex);
+			FVector Prev = SkinningHandler.GetSkinnedVertexPreviousPosition(Accessor, Vertex);
 			TransformHandler.TransformPosition(Prev, PrevTransform);
-			Velocity = (Pos - Prev) * InvDt;
+			const FVector Velocity = (Pos - Prev) * InvDt;
 			Output.SetVelocity(Velocity);
+		}
+
+		if (bNeedsTangentBasis)
+		{
+			FVector TangentX = FVector::ZeroVector;
+			FVector TangentZ = FVector::ZeroVector;
+			SkinningHandler.GetSkinnedTangentBasis(Accessor, Vertex, TangentX, TangentZ);
+
+			if (Output.bNeedsTangentX)
+			{
+				TransformHandler.TransformVector(TangentX, Transform);
+				Output.SetTangentX(TangentX);
+			}
+
+			if (Output.bNeedsTangentY)
+			{
+				Output.SetTangentY((TangentX ^ TangentZ).GetSafeNormal());
+			}
+
+			if (Output.bNeedsTangentZ)
+			{
+				TransformHandler.TransformVector(TangentZ, Transform);
+				Output.SetTangentZ(TangentZ);
+			}
 		}
 	}
 }
