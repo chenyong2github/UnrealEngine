@@ -339,6 +339,13 @@ class FPBDRigidsEvolutionBase
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& Particle)
 	{
+		const TPBDRigidParticleHandleImp<FReal, 3, bPersistent>* AsRigid = Particle.CastToRigidParticle();
+		if(AsRigid && AsRigid->Disabled())
+		{
+			// Disabled particles take no immediate part in sim or query so shouldn't be added to the acceleration
+			return;
+		}
+
 		//TODO: distinguish between new particles and dirty particles
 		const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
 		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
