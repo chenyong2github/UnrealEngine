@@ -254,6 +254,9 @@ public:
 	FIndexBufferRHIRef CreateRHIBuffer_RenderThread();
 	FIndexBufferRHIRef CreateRHIBuffer_Async();
 
+	/** Copy everything, keeping reference to the same RHI resources. */
+	void CopyRHIForStreaming(const FRawStaticIndexBuffer& Other, bool InAllowCPUAccess);
+
 	/** Take over ownership of IntermediateBuffer */
 	template <uint32 MaxNumUpdates>
 	void InitRHIForStreaming(FRHIIndexBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
