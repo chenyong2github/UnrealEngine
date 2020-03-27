@@ -717,7 +717,7 @@ void UClothingAssetCommon::PostLoad()
 {
 	Super::PostLoad();
 	// TODO: Remove all UObject PostLoad dependencies.
-	//       Even with these ConditionalPostLoad calls, the UObject PostLoads' order of execution cannot be guaranted.
+	//       Even with these ConditionalPostLoad calls, the UObject PostLoads' order of execution cannot be guaranteed.
 	for (UClothLODDataCommon* Lod : ClothLodData)
 	{
 		Lod->ConditionalPostLoad();
@@ -807,6 +807,15 @@ void UClothingAssetCommon::PostLoad()
 #endif
 
 	// Add any missing configs for the available cloth factories, and try to migrate them from any existing one
+	// TODO: Remove all UObject PostLoad dependencies.
+	//       Even with these ConditionalPostLoad calls, the UObject PostLoads' order of execution cannot be guaranteed.
+	for (TPair<FName, UClothConfigBase*>& ClothConfig : ClothConfigs)
+	{
+		if (ClothConfig.Value)
+		{
+			ClothConfig.Value->ConditionalPostLoad();  // PostLoad configs before adding new ones
+		}
+	}
 	AddClothConfigs();
 
 	// Migrate configs
