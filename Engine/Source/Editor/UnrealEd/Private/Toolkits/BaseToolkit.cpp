@@ -419,11 +419,6 @@ void FModeToolkit::OnToolPaletteChanged(FName PaletteName)
 	if (UEdMode* EditorMode = GetScriptableEditorMode())
 	{
 		EditorMode->SetCurrentPaletteName(PaletteName);
-		if (UInteractiveTool* CurrentTool = EditorMode->GetToolManager()->GetActiveTool(EToolSide::Left))
-		{
-			// When swapping tools, default to accepting the active tool
-			EditorMode->GetToolManager()->DeactivateTool(EToolSide::Left, EToolShutdownType::Accept);
-		}
 	}
 }
 
