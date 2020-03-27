@@ -1777,21 +1777,11 @@ void UEngine::OnExternalUIChange(bool bInIsOpening)
 	FSlateApplication::Get().ExternalUIChange(bInIsOpening);
 }
 
-void UEngine::ShutdownAudioDeviceManager()
+void UEngine::ReleaseAudioDeviceManager()
 {
-	// Shutdown the main audio device in the UEEngine
-	if (AudioDeviceManager)
-	{
-		FAudioCommandFence Fence;
-		Fence.BeginFence();
-		Fence.Wait();
-
-		FAudioThread::StopAudioThread();
-
-		MainAudioDeviceHandle.Reset();
-		delete AudioDeviceManager;
-		AudioDeviceManager = NULL;
-	}
+	// Release the main audio device handle.
+	MainAudioDeviceHandle.Reset();
+	AudioDeviceManager = nullptr;
 }
 
 void UEngine::PreExit()
@@ -2285,17 +2275,6 @@ void UEngine::UpdateTimecode()
 
 void UEngine::ParseCommandline()
 {
-	// If dedicated server, the -nosound, or -benchmark parameters are used, disable sound.
-	if(FParse::Param(FCommandLine::Get(),TEXT("nosound")) || FApp::IsBenchmarking() || IsRunningDedicatedServer() || (IsRunningCommandlet() && !IsAllowCommandletAudio()))
-	{
-		bUseSound = false;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("enablesound")))
-	{
-		bUseSound = true;
-	}
-
 	if( FParse::Param( FCommandLine::Get(), TEXT("noailogging")) )
 	{
 		bDisableAILogging = true;
@@ -2772,7 +2751,7 @@ void UEngine::FinishDestroy()
 	{
 		// shut down all subsystems.
 		GEngine = NULL;
-		ShutdownAudioDeviceManager();
+		ReleaseAudioDeviceManager();
 
 		FURL::StaticExit();
 	}
@@ -2929,23 +2908,19 @@ FAudioDeviceHandle UEngine::GetActiveAudioDevice()
 
 void UEngine::InitializeAudioDeviceManager()
 {
-	if (AudioDeviceManager == nullptr && bUseSound)
+	FAudioDeviceManager::Initialize();
+
+	AudioDeviceManager = FAudioDeviceManager::Get();
+
+	if (AudioDeviceManager)
 	{
-		AudioDeviceManager = new FAudioDeviceManager();
-		if (AudioDeviceManager->Initialize())
-		{
-			MainAudioDeviceHandle = AudioDeviceManager->GetMainAudioDeviceHandle();
-		}
-		else
-		{
-			ShutdownAudioDeviceManager();
-		}
+		MainAudioDeviceHandle = AudioDeviceManager->GetMainAudioDeviceHandle();
 	}
 }
 
 bool UEngine::UseSound() const
 {
-	return (bUseSound && AudioDeviceManager != nullptr);
+	return AudioDeviceManager != nullptr;
 }
 /**
 * A fake stereo rendering device used to test stereo rendering without an attached device.

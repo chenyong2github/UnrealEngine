@@ -76,6 +76,8 @@ static FAutoConsoleCommand GReportAudioDevicesCommand(
 	})
 );
 
+FAudioDeviceManager* FAudioDeviceManager::Singleton = nullptr;
+
 // Some stress tests:
 #if INSTRUMENT_AUDIODEVICE_HANDLES
 static TArray<FAudioDeviceHandle> IntentionallyLeakedHandles;
@@ -146,6 +148,11 @@ FAudioDeviceManager::FAudioDeviceManager()
 
 FAudioDeviceManager::~FAudioDeviceManager()
 {
+	FAudioCommandFence Fence;
+	Fence.BeginFence();
+	Fence.Wait();
+	FAudioThread::StopAudioThread();
+
 	MainAudioDeviceHandle.Reset();
 
 	// Notify anyone listening to the device manager that we are about to destroy the audio device.
@@ -390,7 +397,7 @@ FAudioDeviceHandle FAudioDeviceManager::RequestAudioDevice(const FAudioDevicePar
 	}
 }
 
-bool FAudioDeviceManager::Initialize()
+bool FAudioDeviceManager::InitializeManager()
 {
 	if (LoadDefaultAudioDeviceModule())
 	{
@@ -639,14 +646,51 @@ FAudioDevice* FAudioDeviceManager::GetAudioDeviceRaw(Audio::FDeviceId Handle)
 	return AudioDevice;
 }
 
-FAudioDeviceManager* FAudioDeviceManager::Get()
+bool FAudioDeviceManager::Initialize()
 {
-	if (GEngine)
+	if (!Singleton)
 	{
-		return GEngine->GetAudioDeviceManager();
+		bool bUseSound = true;
+
+		// If dedicated server, the -nosound, or -benchmark parameters are used, disable sound.
+		if (FParse::Param(FCommandLine::Get(), TEXT("nosound")) || FApp::IsBenchmarking() || IsRunningDedicatedServer() || (IsRunningCommandlet() && !IsAllowCommandletAudio()))
+		{
+			bUseSound = false;
+		}
+
+		if (FParse::Param(FCommandLine::Get(), TEXT("enablesound")))
+		{
+			bUseSound = true;
+		}
+
+		if (bUseSound)
+		{
+			Singleton = new FAudioDeviceManager();
+
+			if (!Singleton->InitializeManager())
+			{
+				UE_LOG(LogAudio, Warning, TEXT("Initializing the Audio Device Manager Failed!"));
+				delete Singleton;
+				Singleton = nullptr;
+			}
+		}
 	}
 
-	return nullptr;
+	return Singleton != nullptr;
+}
+
+FAudioDeviceManager* FAudioDeviceManager::Get()
+{
+	return Singleton;
+}
+
+void FAudioDeviceManager::Shutdown()
+{
+	if (Singleton)
+	{
+		delete Singleton;
+		Singleton = nullptr;
+	}
 }
 
 FAudioDeviceHandle FAudioDeviceManager::GetActiveAudioDevice()
@@ -1292,7 +1336,7 @@ FAudioDeviceHandle::~FAudioDeviceHandle()
 {
 	if (IsValid())
 	{
-		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
 		if (AudioDeviceManager)
 		{
 			AudioDeviceManager->DecrementDevice(DeviceId, World);
@@ -1317,7 +1361,7 @@ Audio::FDeviceId FAudioDeviceHandle::GetDeviceID() const
 
 bool FAudioDeviceHandle::IsValid() const
 {
-	return GEngine && GEngine->GetAudioDeviceManager() && Device != nullptr;
+	return Device != nullptr;
 }
 
 void FAudioDeviceHandle::Reset()
