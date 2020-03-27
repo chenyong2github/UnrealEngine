@@ -451,6 +451,8 @@ void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent
 	TSharedPtr<FSequencerDisplayNode> CurrentParent = ParentNode.Pin();
 	if (CurrentParent != InParent)
 	{
+		const FString OldPath = GetPathName();
+
 		TSharedRef<FSequencerDisplayNode> ThisNode = AsShared();
 		if (CurrentParent)
 		{
@@ -478,9 +480,11 @@ void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent
 				ParentTree.SavePinnedState(*this, false);
 			}
 		}
-	}
 
-	ParentNode = InParent;
+		ParentNode = InParent;
+
+		ParentTree.GetSequencer().OnNodePathChanged(OldPath, GetPathName());
+	}
 }
 
 void FSequencerDisplayNode::MoveChild(int32 InChildIndex, int32 InDesiredNewIndex)
@@ -925,6 +929,12 @@ FString FSequencerDisplayNode::GetPathName() const
 	return PathName;
 }
 
+void FSequencerDisplayNode::SetNodeName(const FName& InName)
+{
+	const FString OldPath = GetPathName();
+	NodeName = InName;
+	ParentTree.GetSequencer().OnNodePathChanged(OldPath, GetPathName());
+}
 
 TSharedPtr<SWidget> FSequencerDisplayNode::OnSummonContextMenu()
 {
