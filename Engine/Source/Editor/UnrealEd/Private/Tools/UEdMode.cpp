@@ -396,7 +396,6 @@ UEdMode::UEdMode()
 	ToolsContext = nullptr;
 	ToolsContextClass = UInteractiveToolsContext::StaticClass();
 	ToolCommandList = MakeShareable(new FUICommandList);
-	bCheckIfDefaultToolNeeded = false;
 }
 
 
@@ -714,11 +713,6 @@ void UEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 	{
 		ToolsContext->ToolManager->Tick(DeltaTime);
 		ToolsContext->GizmoManager->Tick(DeltaTime);
-
-		if(bCheckIfDefaultToolNeeded && ToolsContext->ToolManager->GetActiveTool(EToolSide::Left) == nullptr)
-		{
-			ActivateDefaultTool();
-		}
 
 		if (bInvalidationPending)
 		{

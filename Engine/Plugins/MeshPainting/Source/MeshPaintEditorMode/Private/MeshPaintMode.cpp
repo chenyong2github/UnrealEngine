@@ -32,6 +32,13 @@ FName UMeshPaintMode::MeshPaintMode_Color = FName(TEXT("Color"));
 FName UMeshPaintMode::MeshPaintMode_Weights = FName(TEXT("Weights"));
 FName UMeshPaintMode::MeshPaintMode_Texture = FName(TEXT("Texture"));
 
+FString UMeshPaintMode::VertexSelectToolName = TEXT("VertexAdapterClickTool");
+FString UMeshPaintMode::TextureSelectToolName = TEXT("TextureAdapterClickTool");
+FString UMeshPaintMode::ColorPaintToolName = TEXT("ColorBrushTool");
+FString UMeshPaintMode::WeightPaintToolName = TEXT("WeightBrushTool");
+FString UMeshPaintMode::TexturePaintToolName = TEXT("TextureBrushTool");
+
+
 UMeshVertexPaintingToolProperties* UMeshPaintMode::GetVertexToolProperties()
 {
 	if (GLevelEditorModeTools().GetActiveScriptableMode("MeshPaintMode")
@@ -120,11 +127,11 @@ void UMeshPaintMode::Enter()
 	ModeSettings = Cast<UMeshPaintModeSettings>(SettingsObject);
 	
 	FMeshPaintEditorModeCommands ToolManagerCommands = FMeshPaintEditorModeCommands::Get();
-	RegisterTool(ToolManagerCommands.VertexSelect, TEXT("VertexAdapterClickTool"), NewObject<UVertexAdapterClickToolBuilder>());
-	RegisterTool(ToolManagerCommands.TextureSelect, TEXT("TextureAdapterClickTool"), NewObject<UTextureAdapterClickToolBuilder>());
-	RegisterTool(ToolManagerCommands.ColorPaint, TEXT("ColorBrushTool"), NewObject<UMeshColorPaintingToolBuilder>());
-	RegisterTool(ToolManagerCommands.WeightPaint, TEXT("WeightBrushTool"), NewObject<UMeshWeightPaintingToolBuilder>());
-	RegisterTool(ToolManagerCommands.TexturePaint, TEXT("TextureBrushTool"), NewObject<UMeshTexturePaintingToolBuilder>());
+	RegisterTool(ToolManagerCommands.VertexSelect, VertexSelectToolName, NewObject<UVertexAdapterClickToolBuilder>());
+	RegisterTool(ToolManagerCommands.TextureSelect, TextureSelectToolName, NewObject<UTextureAdapterClickToolBuilder>());
+	RegisterTool(ToolManagerCommands.ColorPaint, ColorPaintToolName, NewObject<UMeshColorPaintingToolBuilder>());
+	RegisterTool(ToolManagerCommands.WeightPaint, WeightPaintToolName, NewObject<UMeshWeightPaintingToolBuilder>());
+	RegisterTool(ToolManagerCommands.TexturePaint, TexturePaintToolName, NewObject<UMeshTexturePaintingToolBuilder>());
 	UpdateSelectedMeshes();
 
 	// disable tool change tracking to activate default tool, and then switch to full undo/redo tracking mode
@@ -188,6 +195,28 @@ void UMeshPaintMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime
 	if (bRecacheVertexDataSize)
 	{
 		UpdateCachedVertexDataSize();
+	}
+
+	// Make sure that correct tab is visible for the current tool
+	// Note that currently Color and Weight mode share the same Select tool
+	FString ActiveTool = GetToolManager()->GetActiveToolName(EToolSide::Mouse);
+	FName ActiveTab = GetCurrentPaletteName();
+	FName TargetTab = ActiveTab;
+	if (ActiveTool == TexturePaintToolName || ActiveTool == TextureSelectToolName)
+	{
+		TargetTab = MeshPaintMode_Texture;
+	}
+	else if (ActiveTool == ColorPaintToolName)
+	{
+		TargetTab = MeshPaintMode_Color;
+	}
+	else if (ActiveTool == WeightPaintToolName)
+	{
+		TargetTab = MeshPaintMode_Weights;
+	}
+	if ( TargetTab != ActiveTab)
+	{
+		GetModeManager()->InvokeToolPaletteTab(GetID(), TargetTab);
 	}
 }
 
@@ -748,24 +777,48 @@ int32 UMeshPaintMode::GetNumberOfPendingPaintChanges()
 
 void UMeshPaintMode::ActivateDefaultTool()
 {
-	if (CurrentPaletteName == UMeshPaintMode::MeshPaintMode_Color)
+	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Color)
 	{
-		ToolsContext->StartTool(EToolSide::Mouse, TEXT("VertexAdapterClickTool"));
+		ToolsContext->StartTool(EToolSide::Mouse, VertexSelectToolName);
 	}
-	if (CurrentPaletteName == UMeshPaintMode::MeshPaintMode_Weights)
+	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Weights)
 	{
-		ToolsContext->StartTool(EToolSide::Mouse, TEXT("VertexAdapterClickTool"));
+		ToolsContext->StartTool(EToolSide::Mouse, VertexSelectToolName);
 	}
-	if (CurrentPaletteName == UMeshPaintMode::MeshPaintMode_Texture)
+	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Texture)
 	{
-		ToolsContext->StartTool(EToolSide::Mouse, TEXT("TextureAdapterClickTool"));
+		ToolsContext->StartTool(EToolSide::Mouse, TextureSelectToolName);
 	}
 }
 
 void UMeshPaintMode::UpdateOnPaletteChange()
 {
 	UpdateSelectedMeshes();
+
+	FString ActiveTool = GetToolManager()->GetActiveToolName(EToolSide::Mouse);
+	bool bInAnyPaintTool = (ActiveTool == WeightPaintToolName || ActiveTool == TexturePaintToolName || ActiveTool == ColorPaintToolName);
+
+	// figure out which tool we would like to be in based on currently-active tool
+	FString SwitchToTool;
+	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Color)
+	{
+		SwitchToTool = (bInAnyPaintTool) ? ColorPaintToolName : VertexSelectToolName;
+	}
+	else if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Weights)
+	{
+		SwitchToTool = (bInAnyPaintTool) ? WeightPaintToolName: VertexSelectToolName;
+	}
+	else if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Texture)
+	{
+		SwitchToTool = (bInAnyPaintTool) ? TexturePaintToolName : TextureSelectToolName;
+	}
+	// change to new tool if it is different
+	if (SwitchToTool.IsEmpty() == false && SwitchToTool != ActiveTool)
+	{
+		ToolsContext->StartTool(EToolSide::Mouse, SwitchToTool);
+	}
 }
+
 
 void UMeshPaintMode::OnResetViewMode()
 {
