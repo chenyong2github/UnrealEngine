@@ -535,6 +535,7 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	TArray< UObject* > ObjectsToEdit;
 	ObjectsToEdit.Add(ObjectToEdit);
 	ObjectsToEdit.Add(Material);
+	ObjectsToEdit.Add(MaterialEditorInstance);
 	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, MaterialEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit, false );
 
 	AddMenuExtender(GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
