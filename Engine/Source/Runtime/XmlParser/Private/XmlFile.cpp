@@ -339,7 +339,7 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 		}
 	};
 
-	enum TOKENTYPE { OPERATOR, STRING, NONE } Type = NONE;
+	enum TOKENTYPE { OPERATOR, STRING } Type = STRING;
 	bool bInQuote = false;
 
 	const TCHAR* PtrStart = GetData(Input);
@@ -356,7 +356,6 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 				Tokens.Add(MoveTemp(WorkingToken));
 				checkSlow(WorkingToken.Len() == 0);
 			}
-			Type = NONE;
 
 			continue;
 		}
@@ -372,7 +371,6 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 				{
 					Tokens.Add(MoveTemp(WorkingToken));
 					checkSlow(WorkingToken.Len() == 0);
-					Type = NONE;
 				}
 				else
 				{
@@ -400,7 +398,6 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 				{
 					Tokens.Add(MoveTemp(WorkingToken));
 					checkSlow(WorkingToken.Len() == 0);
-					Type = NONE;
 				}
 			}
 
@@ -438,7 +435,6 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 				{
 					Tokens.Add(MoveTemp(WorkingToken));
 					checkSlow(WorkingToken.Len() == 0);
-					Type = NONE;
 				}
 				else
 				{
