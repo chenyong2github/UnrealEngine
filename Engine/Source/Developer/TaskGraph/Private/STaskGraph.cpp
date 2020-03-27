@@ -13,6 +13,7 @@
 #if WITH_EDITOR
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "EditorStyleSet.h"
 #endif //#if WITH_EDITOR
 
 /**
