@@ -687,8 +687,16 @@ void FNiagaraSystemInstance::ComputeEmittersExecutionOrder()
 		EmitterPriorities[EmitterIdx] = -1;
 
 		EmitterDependencies.SetNum(0, false);
-		FindDataInterfaceDependencies(Inst.GetSpawnExecutionContext().GetDataInterfaces(), EmitterDependencies);
-		FindDataInterfaceDependencies(Inst.GetUpdateExecutionContext().GetDataInterfaces(), EmitterDependencies);
+
+		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext())
+		{
+			FindDataInterfaceDependencies(Inst.GetGPUContext()->GetDataInterfaces(), EmitterDependencies);
+		}
+		else
+		{
+			FindDataInterfaceDependencies(Inst.GetSpawnExecutionContext().GetDataInterfaces(), EmitterDependencies);
+			FindDataInterfaceDependencies(Inst.GetUpdateExecutionContext().GetDataInterfaces(), EmitterDependencies);
+		}
 
 		// Map the pointers returned by the emitter to indices inside the Emitters array. This is O(N^2), but we expect
 		// to have few dependencies, so in practice it should be faster than a TMap. If it gets out of hand, we can also
