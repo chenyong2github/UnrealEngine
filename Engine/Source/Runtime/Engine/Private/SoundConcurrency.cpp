@@ -248,6 +248,8 @@ void FConcurrencyGroup::UpdateGeneration(FActiveSound* NewActiveSound)
 					return APriority < BPriority;
 				}
 			}
+
+			return true;
 		}
 	};
 
