@@ -6,7 +6,6 @@
 #include "Toolkits/IToolkitHost.h"
 #include "Modules/ModuleInterface.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "Editor/EnvironmentQueryEditor/Private/AssetTypeActions_EnvironmentQuery.h"
 #include "AIGraphTypes.h"
 
 class IEnvironmentQueryEditor;

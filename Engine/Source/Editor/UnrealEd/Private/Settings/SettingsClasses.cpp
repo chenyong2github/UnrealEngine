@@ -193,8 +193,6 @@ void UEditorExperimentalSettings::PostInitProperties()
 
 void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent )
 {
-	static const FName NAME_EQS = GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bEQSEditor);
-
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName Name = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
@@ -202,13 +200,6 @@ void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChange
 	if (Name == FName(TEXT("ConsoleForGamepadLabels")))
 	{
 		EKeys::SetConsoleForGamepadLabels(ConsoleForGamepadLabels);
-	}
-	else if (Name == NAME_EQS)
-	{
-		if (bEQSEditor)
-		{
-			FModuleManager::Get().LoadModule(TEXT("EnvironmentQueryEditor"));
-		}
 	}
 	else if (Name == FName(TEXT("bHDREditor")))
 	{

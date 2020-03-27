@@ -1,27 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class EnvironmentQueryEditor : ModuleRules
 {
 	public EnvironmentQueryEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.AddRange(
-            new string[] {
-				"Editor/GraphEditor/Private",
-				"Editor/AIGraph/Private",
-				"Editor/EnvironmentQueryEditor/Private",
-			}
-		);
+		var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
+		// These nodes are not public so are hard to subclass
+		PrivateIncludePaths.AddRange(
+			new string[] {
+					"EnvironmentQueryEditor/Private",
+					 Path.Combine(EngineDir, @"Source/Editor/GraphEditor/Private"),
+					 Path.Combine(EngineDir, @"Source/Editor/AIGraph/Private")
+			});
+
+		PrivateIncludePathModuleNames.AddRange(
+		   new string[] {
 				"AssetRegistry",
 				"AssetTools",
-                "PropertyEditor",
-                "DesktopPlatform",
-            }
-        );
+				"PropertyEditor",
+				"DesktopPlatform",
+				"LevelEditor",
+		   });
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -43,15 +46,8 @@ public class EnvironmentQueryEditor : ModuleRules
                 "AIGraph",
                 "AIModule",
 				"ToolMenus",
+				"WorkspaceMenuStructure",
 			}
-		);
-
-		PublicIncludePathModuleNames.Add("LevelEditor");
-
-        DynamicallyLoadedModuleNames.AddRange(
-            new string[] { 
-                "WorkspaceMenuStructure",
-            }
 		);
 	}
 }
