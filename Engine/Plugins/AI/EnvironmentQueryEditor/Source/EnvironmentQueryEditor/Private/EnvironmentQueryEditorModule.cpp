@@ -16,8 +16,9 @@
 #include "EdGraphUtilities.h"
 
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_BlueprintBase.h"
-
-
+#include "AssetTypeActions_EnvironmentQuery.h"
+#include "AssetToolsModule.h"
+ 
 IMPLEMENT_MODULE( FEnvironmentQueryEditorModule, EnvironmentQueryEditor );
 DEFINE_LOG_CATEGORY(LogEnvironmentQueryEditor);
 

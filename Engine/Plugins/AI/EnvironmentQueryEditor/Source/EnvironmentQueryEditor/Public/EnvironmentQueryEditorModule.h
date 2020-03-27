@@ -12,8 +12,6 @@ class IEnvironmentQueryEditor;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEnvironmentQueryEditor, Log, All);
 
-class IEnvironmentQueryEditor;
-
 class FEnvironmentQueryEditorModule : public IModuleInterface, public IHasMenuExtensibility, public IHasToolBarExtensibility
 {
 
