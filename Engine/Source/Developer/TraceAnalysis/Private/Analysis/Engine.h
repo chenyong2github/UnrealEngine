@@ -96,6 +96,7 @@ private:
 	void				ForEachRoute(uint32 RouteIndex, bool bScoped, ImplType&& Impl);
 	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event, bool bScoped);
 	void				RetireAnalyzer(IAnalyzer* Analyzer);
+	FThreads			Threads;
 	FSessionContext		SessionContext;
 	TArray<FRoute>		Routes;
 	TArray<IAnalyzer*>	Analyzers;
@@ -105,7 +106,6 @@ private:
 	uint32				NextLogSerial = 0;
 	uint32				UserUidBias = 1; // 1 because new-event events must exists be uid zero.
 	uint8				ProtocolVersion = 0;
-	FThreads			Threads;
 };
 
 } // namespace Trace
