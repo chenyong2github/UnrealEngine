@@ -1293,8 +1293,10 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 
 			if (PrimitiveSceneInfo->bIsUsingCustomLODRules)
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				ViewLODToRender = Proxy->GetCustomLOD(CurrentView, CurrentView.LODDistanceFactor, ForcedLOD, MeshScreenSizeSquared);
 				ViewLODToRender.ClampToFirstLOD(CurFirstLODIdx);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 			else
 			{
@@ -1343,12 +1345,14 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 
 		if (WholeSceneDirectionalShadow)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (PrimitiveSceneInfo->bIsUsingCustomWholeSceneShadowLODRules)
 			{
 				const bool bHasShelfShadow = !bReflectiveShadowmap && !bPreShadow;
 				const float ShadowMapTextureResolution = BorderSize * 2 + ResolutionX; // We assume Shadow Map texture to be squared (current design)
 				ShadowLODToRender = Proxy->GetCustomWholeSceneShadowLOD(CurrentView, CurrentView.LODDistanceFactor, ForcedLOD, *VisibilePrimitiveLODMask, ShadowMapTextureResolution, ShadowBounds.W * 2.0f, ShadowId, bHasShelfShadow);
 			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// Don't cache if it requires per view per mesh state for distance cull fade.
 			const bool bCanCache = !bMayBeFading && !bNeedUpdateStaticMeshes;
