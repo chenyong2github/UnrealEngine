@@ -1629,7 +1629,7 @@ private:
 		ImportFBXCamera(FbxImporter, MovieScene, *Sequencer, ObjectBindingMap, bMatchByNameOnly, bCreateCameras.IsSet() ? bCreateCameras.GetValue() : ImportFBXSettings->bCreateCameras);
 
 		UWorld* World = Cast<UWorld>(Sequencer->GetPlaybackContext());
-		bool bValid = MovieSceneToolHelpers::ImportFBXIfReady(World, MovieScene, Sequencer, ObjectBindingMap, ImportFBXSettings, InOutParams);
+		bool bValid = MovieSceneToolHelpers::ImportFBXIfReady(World, MovieScene, Sequencer, Sequencer->GetFocusedTemplateID(), ObjectBindingMap, ImportFBXSettings, InOutParams);
 	
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 
@@ -1678,7 +1678,7 @@ bool MovieSceneToolHelpers::ReadyFBXForImport(const FString&  ImportFilename, UM
 }
 
 
-bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, TMap<FGuid, FString>& ObjectBindingMap, UMovieSceneUserImportFBXSettings* ImportFBXSettings,
+bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, TMap<FGuid, FString>& ObjectBindingMap, UMovieSceneUserImportFBXSettings* ImportFBXSettings,
 	const FFBXInOutParameters& InParams)
 {
 	UMovieSceneUserImportFBXSettings* CurrentImportFBXSettings = GetMutableDefault<UMovieSceneUserImportFBXSettings>();
@@ -1718,7 +1718,7 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieSc
 		{
 			if (FCString::Strcmp(*It.Value().ToUpper(), *NodeName.ToUpper()) == 0)
 			{
-				MovieSceneToolHelpers::ImportFBXNode(NodeName, CurveAPI, MovieScene, Player, MovieSceneSequenceID::Root, It.Key());
+				MovieSceneToolHelpers::ImportFBXNode(NodeName, CurveAPI, MovieScene, Player, TemplateID, It.Key());
 
 				ObjectBindingMap.Remove(It.Key());
 				AllNodeNames.RemoveAt(NodeIndex);
@@ -1751,7 +1751,7 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieSc
 			auto It = ObjectBindingMap.CreateConstIterator();
 			if (It)
 			{
-				MovieSceneToolHelpers::ImportFBXNode(NodeName, CurveAPI, MovieScene, Player, MovieSceneSequenceID::Root, It.Key());
+				MovieSceneToolHelpers::ImportFBXNode(NodeName, CurveAPI, MovieScene, Player, TemplateID, It.Key());
 
 				UE_LOG(LogMovieScene, Warning, TEXT("Fbx Import: Failed to find any matching node for (%s). Defaulting to first available (%s)."), *NodeName, *It.Value());
 				ObjectBindingMap.Remove(It.Key());
