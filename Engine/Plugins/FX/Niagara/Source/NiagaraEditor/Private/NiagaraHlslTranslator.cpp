@@ -271,7 +271,7 @@ bool FHlslNiagaraTranslator::ValidateTypePins(UNiagaraNode* NodeToValidate)
 
 		if (Pin->bOrphanedPin)
 		{
-			Error(LOCTEXT("OrphanedPinError", "Node pin is no longer valid.  This pin must be disconnected or reset to default so it can be removed."), NodeToValidate, Pin);
+			Warning(LOCTEXT("OrphanedPinError", "Node pin is no longer valid.  This pin must be disconnected or reset to default so it can be removed."), NodeToValidate, Pin);
 		}
 	}
 	return bPinsAreValid;
@@ -6964,9 +6964,8 @@ int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 	return Ret;
 }
 
-void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
+void FHlslNiagaraTranslator::Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
 {
-
 	const UNiagaraNode* CurContextNode = ActiveHistoryForFunctionCalls.GetCallingContext();
 	const UNiagaraNode* TargetNode = InNode ? InNode : CurContextNode;
 
@@ -6997,34 +6996,27 @@ void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* InNode, 
 		NodePinSuffix = TEXT(" - ");
 	}
 
-	FString ErrorString = FString::Printf(TEXT("%s%s%s%s"), *ErrorText.ToString(), *NodePinPrefix, *NodePinStr, *NodePinSuffix);
-	TranslateResults.CompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Error, ErrorString, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids()));
-	TranslateResults.NumErrors++;
+	FString MessageString = FString::Printf(TEXT("%s%s%s%s"), *MessageText.ToString(), *NodePinPrefix, *NodePinStr, *NodePinSuffix);
+	TranslateResults.CompileEvents.Add(FNiagaraCompileEvent(Severity, MessageString, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids()));
+
+	if (Severity == FNiagaraCompileEventSeverity::Error)
+	{
+		TranslateResults.NumErrors++;
+	}
+	else if (Severity == FNiagaraCompileEventSeverity::Warning)
+	{
+		TranslateResults.NumWarnings++;
+	}
+}
+
+void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
+{
+	Message(FNiagaraCompileEventSeverity::Error, ErrorText, InNode, Pin);
 }
 
 void FHlslNiagaraTranslator::Warning(FText WarningText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
 {
-
-	const UNiagaraNode* CurContextNode = ActiveHistoryForFunctionCalls.GetCallingContext();
-	const UNiagaraNode* TargetNode = InNode ? InNode : CurContextNode;
-
-	FString NodePinStr = TEXT("");
-	FString NodePinPrefix = TEXT(" - ");
-	FString NodePinSuffix = TEXT("");
-	if (TargetNode && TargetNode->GetName().Len() > 0)
-	{
-		NodePinStr += TEXT("Node: ") + TargetNode->GetName();
-		NodePinSuffix = TEXT(" - ");
-	}
-	if (Pin && Pin->PinFriendlyName.ToString().Len() > 0)
-	{
-		NodePinStr += TEXT(" Pin: ") + Pin->PinFriendlyName.ToString();
-		NodePinSuffix = TEXT(" - ");
-	}
-
-	FString WarnString = FString::Printf(TEXT("%s%s%s%s"), *WarningText.ToString(), *NodePinPrefix, *NodePinStr, *NodePinSuffix);
-	TranslateResults.CompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Warning, WarnString, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids()));
-	TranslateResults.NumWarnings++;
+	Message(FNiagaraCompileEventSeverity::Warning, WarningText, InNode, Pin);
 }
 
 bool FHlslNiagaraTranslator::GetFunctionParameter(const FNiagaraVariable& Parameter, int32& OutParam)const
