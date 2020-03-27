@@ -152,11 +152,7 @@ namespace WindowsMixedReality
 			if (HMD)
 			{
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
-				HololensARModule = (IHoloLensModuleARInterface*)FModuleManager::Get().LoadModule("HoloLensAR");
-				if (HololensARModule)
-				{
-					HololensARModule->SetInterop(nullptr);
-				}
+				FHoloLensModuleAR::SetInterop(nullptr);
 #endif
 				HMD->Dispose(true);
 				delete HMD;
@@ -178,7 +174,6 @@ namespace WindowsMixedReality
 
 #if WITH_WINDOWS_MIXED_REALITY
 		MixedRealityInterop* HMD = nullptr;
-		IHoloLensModuleARInterface * HololensARModule = nullptr;
 #endif
 	};
 
@@ -189,22 +184,14 @@ namespace WindowsMixedReality
 		{
 			IARSystemSupport* ARSystem = nullptr;
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
-			HololensARModule = (IHoloLensModuleARInterface *)FModuleManager::Get().LoadModule("HoloLensAR");
-			if (HololensARModule)
-			{
-				ARSystem = HololensARModule->CreateARSystem();
-			}
+			ARSystem = FHoloLensModuleAR::CreateARSystem();
 #endif
 			auto WindowsMRHMD = FSceneViewExtensions::NewExtension<WindowsMixedReality::FWindowsMixedRealityHMD>(ARSystem, HMD);
 			if (WindowsMRHMD->IsInitialized())
 			{
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
-				HololensARModule = (IHoloLensModuleARInterface*)FModuleManager::Get().LoadModule("HoloLensAR");
-				if (HololensARModule)
-				{
-					HololensARModule->SetTrackingSystem(WindowsMRHMD);
-					HololensARModule->SetInterop(HMD);
-				}
+				FHoloLensModuleAR::SetTrackingSystem(WindowsMRHMD);
+				FHoloLensModuleAR::SetInterop(HMD);
 				// Register the AR modular features
 				WindowsMRHMD->GetARCompositionComponent()->InitializeARSystem();
 #endif
