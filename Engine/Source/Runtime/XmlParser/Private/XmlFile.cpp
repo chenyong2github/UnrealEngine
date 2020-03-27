@@ -373,6 +373,17 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 			{
 				Type = STRING;
 			}
+
+			// If we have a working token, add it if it's final (ie: ends with '>')
+			if ((WorkingToken.Len() > 0) && (Type == OPERATOR))
+			{
+				if (WorkingToken[WorkingToken.Len() - 1] == TCHAR('>'))
+				{
+					Tokens.Add(MoveTemp(WorkingToken));
+					checkSlow(WorkingToken.Len() == 0);
+					Type = NONE;
+				}
+			}
 		}
 
 		// Already in a token, so continue parsing
@@ -423,16 +434,16 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 					Type = OPERATOR;
 				}
 			}
-		}
 
-		// If we have a working token, add it if it's final (ie: ends with '>')
-		if((WorkingToken.Len() > 0) && (Type == OPERATOR))
-		{
-			if(WorkingToken[WorkingToken.Len() - 1] == TCHAR('>'))
+			// If we have a working token, add it if it's final (ie: ends with '>')
+			if ((WorkingToken.Len() > 0) && (Type == OPERATOR))
 			{
-				Tokens.Add(MoveTemp(WorkingToken));
-				checkSlow(WorkingToken.Len() == 0);
-				Type = NONE;
+				if (WorkingToken[WorkingToken.Len() - 1] == TCHAR('>'))
+				{
+					Tokens.Add(MoveTemp(WorkingToken));
+					checkSlow(WorkingToken.Len() == 0);
+					Type = NONE;
+				}
 			}
 		}
 	}
