@@ -3931,9 +3931,11 @@ bool UStaticMesh::LoadMeshDescription(int32 LodIndex, FMeshDescription& OutMeshD
 	FString MeshDataKey;
 	if (GetMeshDataKey(LodIndex, MeshDataKey))
 	{
+		COOK_STAT(auto Timer = StaticMeshCookStats::UsageStats.TimeSyncWork());
 		TArray<uint8> DerivedData;
 		if (GetDerivedDataCacheRef().GetSynchronous(*MeshDataKey, DerivedData, GetPathName()))
 		{
+			COOK_STAT(Timer.AddHit(DerivedData.Num()));
 			// If there was valid DDC data, we assume this is because the asset is an old one with valid RawMeshBulkData
 			check(!SourceModel.RawMeshBulkData->IsEmpty());
 
@@ -3948,6 +3950,10 @@ bool UStaticMesh::LoadMeshDescription(int32 LodIndex, FMeshDescription& OutMeshD
 			// Unpack MeshDescription from the bulk data
 			MeshDescriptionBulkData.LoadMeshDescription(OutMeshDescription);
 			return true;
+		}
+		else
+		{
+			COOK_STAT(Timer.TrackCyclesOnly());
 		}
 	}
 
@@ -4226,8 +4232,13 @@ void UStaticMesh::CacheMeshData()
 				FString MeshDataKey;
 				if (GetMeshDataKey(LodIndex, MeshDataKey))
 				{
+					COOK_STAT(auto Timer = StaticMeshCookStats::UsageStats.TimeSyncWork());
 					// If the DDC key doesn't exist, convert the data and save it to DDC
-					if (!GetDerivedDataCacheRef().CachedDataProbablyExists(*MeshDataKey))
+					if (GetDerivedDataCacheRef().CachedDataProbablyExists(*MeshDataKey))
+					{
+						COOK_STAT(Timer.TrackCyclesOnly());
+					}
+					else
 					{
 						// Get the RawMesh for this LOD
 						FRawMesh TempRawMesh;
@@ -4252,6 +4263,7 @@ void UStaticMesh::CacheMeshData()
 						FMemoryWriter Ar(DerivedData, bIsPersistent);
 						MeshDescriptionBulkData.Serialize(Ar, this);
 						GetDerivedDataCacheRef().Put(*MeshDataKey, DerivedData, GetPathName());
+						COOK_STAT(Timer.AddMiss(DerivedData.Num()));
 					}
 				}
 			}

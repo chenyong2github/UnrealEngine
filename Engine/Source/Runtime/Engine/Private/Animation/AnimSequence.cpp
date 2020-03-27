@@ -44,12 +44,24 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Animation/AnimStreamable.h"
 #include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/CookStats.h"
 
 #define USE_SLERP 0
 #define LOCTEXT_NAMESPACE "AnimSequence"
 
 DECLARE_CYCLE_STAT(TEXT("AnimSeq GetBonePose"), STAT_AnimSeq_GetBonePose, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("AnimSeq EvalCurveData"), STAT_AnimSeq_EvalCurveData, STATGROUP_Anim);
+
+#if ENABLE_COOK_STATS
+namespace AnimSequenceCookStats
+{
+	static FCookStats::FDDCResourceUsageStats UsageStats;
+	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+	{
+		UsageStats.LogStats(AddStat, TEXT("AnimSequence.Usage"), TEXT(""));
+	});
+}
+#endif
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
@@ -2187,8 +2199,10 @@ void UAnimSequence::WaitOnExistingCompression(const bool bWantResults)
 	check(IsInGameThread());
 	if (bCompressionInProgress)
 	{
+		COOK_STAT(auto Timer = AnimSequenceCookStats::UsageStats.TimeAsyncWait());
 		FAsyncCompressedAnimationsManagement::Get().WaitOnExistingCompression(this, bWantResults);
 		bCompressionInProgress = false;
+		COOK_STAT(Timer.TrackCyclesOnly()); // Need to get hit/miss and size from WaitOnExistingCompression!
 	}
 #endif
 }
@@ -2249,6 +2263,8 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 
 	TArray<uint8> OutData;
 	{
+		COOK_STAT(auto Timer = AnimSequenceCookStats::UsageStats.TimeSyncWork());
+
 		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(TEXT("AnimSeq"), AssetDDCKey, Params.CompressContext);
 
 		const FString FinalDDCKey = FDerivedDataCacheInterface::BuildCacheKey(AnimCompressor->GetPluginName(), AnimCompressor->GetVersionString(), *AnimCompressor->GetPluginSpecificCacheKeySuffix());
@@ -2256,7 +2272,11 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		// For debugging DDC/Compression issues		
 		const bool bSkipDDC = false;
 
-		if (bSkipDDC || !GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData, AnimCompressor->GetDebugContextString()))
+		if (!bSkipDDC && GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData, AnimCompressor->GetDebugContextString()))
+		{
+			COOK_STAT(Timer.AddHit(OutData.Num()));
+		}
+		else
 		{
 			// Data does not exist, need to build it.
 			// Filter RAW data to get rid of mismatched tracks (translation/rotation data with a different number of keys than there are frames)
@@ -2269,18 +2289,26 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 			if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))
 			{
 				AnimCompressor->Build(OutData);
+				COOK_STAT(Timer.AddMiss(OutData.Num()));
 			}
 			else if (AnimCompressor->CanBuild())
 			{
 				if (Params.bAsyncCompression)
 				{
 					FAsyncCompressedAnimationsManagement::Get().RequestAsyncCompression(*AnimCompressor, this, bPerformStripping, OutData);
+					COOK_STAT(Timer.TrackCyclesOnly());
 				}
 				else
 				{
-					GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData);
+					bool bBuilt = false;
+					const bool bSuccess = GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData, &bBuilt);
+					COOK_STAT(Timer.AddHitOrMiss(!bSuccess || bBuilt ? FCookStats::CallStats::EHitOrMiss::Miss : FCookStats::CallStats::EHitOrMiss::Hit, OutData.Num()));
 				}
 				AnimCompressor = nullptr;
+			}
+			else
+			{
+				COOK_STAT(Timer.TrackCyclesOnly());
 			}
 		}
 		else
