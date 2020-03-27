@@ -367,22 +367,21 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 			WorkingToken += Ch;
 			if(CheckTagOperator(PtrStart, Ptr, PtrEnd))
 			{
-				Type = OPERATOR;
-			}
-			else
-			{
-				Type = STRING;
-			}
-
-			// If we have a working token, add it if it's final (ie: ends with '>')
-			if ((WorkingToken.Len() > 0) && (Type == OPERATOR))
-			{
-				if (WorkingToken[WorkingToken.Len() - 1] == TCHAR('>'))
+				// Add the working token if it's final (ie: ends with '>')
+				if (Ch == TCHAR('>'))
 				{
 					Tokens.Add(MoveTemp(WorkingToken));
 					checkSlow(WorkingToken.Len() == 0);
 					Type = NONE;
 				}
+				else
+				{
+					Type = OPERATOR;
+				}
+			}
+			else
+			{
+				Type = STRING;
 			}
 		}
 
