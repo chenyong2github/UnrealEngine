@@ -166,6 +166,20 @@ enum class EInstallBundleManagerPatchCheckResult : uint32
 	Count,
 };
 
+inline const TCHAR* LexToString(EInstallBundleManagerPatchCheckResult EnumVal)
+{
+	static_assert((int32)EInstallBundleManagerPatchCheckResult::Count == 5, "Please add support for the extra values to the function below.");
+	switch (EnumVal)
+	{
+		case EInstallBundleManagerPatchCheckResult::NoPatchRequired: return TEXT("EInstallBundleManagerPatchCheckResult::NoPatchRequired");
+		case EInstallBundleManagerPatchCheckResult::ClientPatchRequired: return TEXT("EInstallBundleManagerPatchCheckResult::ClientPatchRequired");
+		case EInstallBundleManagerPatchCheckResult::ContentPatchRequired: return TEXT("EInstallBundleManagerPatchCheckResult::ContentPatchRequired");
+		case EInstallBundleManagerPatchCheckResult::NoLoggedInUser: return TEXT("EInstallBundleManagerPatchCheckResult::NoLoggedInUser");
+		case EInstallBundleManagerPatchCheckResult::PatchCheckFailure: return TEXT("EInstallBundleManagerPatchCheckResult::PatchCheckFailure");
+		default: return TEXT("EInstallBundleManagerPatchCheckResult::Unknown");
+	}
+};
+
 struct FInstallBundleSourceInitInfo
 {
 	EInstallBundleManagerInitResult Result = EInstallBundleManagerInitResult::OK;
