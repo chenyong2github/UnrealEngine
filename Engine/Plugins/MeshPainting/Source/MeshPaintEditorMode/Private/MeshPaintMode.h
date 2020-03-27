@@ -91,6 +91,7 @@ protected:
 	void UpdateCachedVertexDataSize();
 	void CycleMeshLODs(int32 Direction);
 	void CycleTextures(int32 Direction);
+	bool CanCycleTextures() const;
 	void CommitAllPaintedTextures();
 	int32 GetNumberOfPendingPaintChanges();
 
