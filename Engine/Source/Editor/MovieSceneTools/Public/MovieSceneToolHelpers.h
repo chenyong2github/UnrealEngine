@@ -263,14 +263,15 @@ public:
 	* loading the data.
 	*
 	* @param World The world to import the fbx into
-	* @param World The movie scene to import the fbx into
+	* @param InMovieScene The movie scene to import the fbx into
 	* @param ObjectBindingMap Map relating binding id's to track names. 
+	* @param TemplateID Id of the sequence that contains the objects being imported onto 
 	* @param ImportFBXSettings FBX Import Settings to enforce.
 	* @param InFBXParams Paremter from ImportReadiedFbx used to reset some internal fbx settings that we override.
 	* @return Whether the fbx file was ready and is ready to be import.
 	*/
 
-	static bool ImportFBXIfReady(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, TMap<FGuid, FString>& ObjectBindingMap, UMovieSceneUserImportFBXSettings* ImportFBXSettings,
+	static bool ImportFBXIfReady(UWorld* World, UMovieScene* InMovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, TMap<FGuid, FString>& ObjectBindingMap, UMovieSceneUserImportFBXSettings* ImportFBXSettings,
 		const FFBXInOutParameters& InFBXParams);
 
 	/**
@@ -279,7 +280,7 @@ public:
 	* @param FbxImporter The Fbx importer
 	* @param InMovieScene The movie scene to import the fbx into
 	* @param Player The player we are getting objects from.
-	* @param TemplateID Id of the sequence template ID.
+	* @param TemplateID Id of the sequence that contains the objects being imported onto
 	* @param InObjectBindingNameMap The object binding to name map to map import fbx animation onto
 	* @param bCreateCameras Whether to allow creation of cameras if found in the fbx file.
 	* @param bNotifySlate  If an issue show's up, whether or not to notify the UI.
