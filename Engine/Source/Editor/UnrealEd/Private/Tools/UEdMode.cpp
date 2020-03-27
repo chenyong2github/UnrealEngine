@@ -413,7 +413,7 @@ void UEdMode::TerminateActiveToolsOnPIEStart()
 {
 	DeactivateAllActiveTools();
 }
-void UEdMode::TerminateActiveToolsOnSaveWorld()
+void UEdMode::TerminateActiveToolsOnOnMapChanged(uint32 MapChangeFlags)
 {
 	DeactivateAllActiveTools();
 }
@@ -788,9 +788,9 @@ void UEdMode::Enter()
 	{
 		TerminateActiveToolsOnPIEStart();
 	});
-	PreSaveWorldDelegateHandle = FEditorDelegates::PreSaveWorld.AddLambda([this](uint32 SaveFlags, UWorld* World)
+	MapChangeDelegateHandle = FEditorDelegates::MapChange.AddLambda([this](uint32 ChangeFlags)
 	{
-		TerminateActiveToolsOnSaveWorld();
+		TerminateActiveToolsOnOnMapChanged(ChangeFlags);
 	});
 	bInvalidationPending = false;
 
@@ -811,7 +811,7 @@ void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIde
 void UEdMode::Exit()
 {
 	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
-	FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
+	FEditorDelegates::MapChange.Remove(MapChangeDelegateHandle);
 	GetToolManager()->OnToolStarted.RemoveAll(this);
 	GetToolManager()->OnToolEnded.RemoveAll(this);
 	// auto-accept any in-progress tools
