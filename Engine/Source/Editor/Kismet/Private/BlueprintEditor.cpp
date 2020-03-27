@@ -8776,17 +8776,8 @@ TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Gr
 	// First, switch back to standard mode
 	SetCurrentMode(FBlueprintEditorApplicationModes::StandardBlueprintEditorMode);
 
-		
-	TSharedPtr<SDockTab> TabWithGraph;
-	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-	if (FocusedGraphEd.IsValid() && FocusedGraphEd->GetCurrentGraph() == Graph)
-	{
-		TabWithGraph = OpenDocument(Graph, FDocumentTracker::CreateHistoryEvent);
-	}
-	else
-	{
-		 TabWithGraph = OpenDocument(Graph, FDocumentTracker::NavigatingCurrentDocument);
-	}
+	// This will either reuse an existing tab or spawn a new one
+	TSharedPtr<SDockTab> TabWithGraph = OpenDocument(Graph, FDocumentTracker::OpenNewDocument);
 
 	// We know that the contents of the opened tabs will be a graph editor.
 	TSharedRef<SGraphEditor> NewGraphEditor = StaticCastSharedRef<SGraphEditor>(TabWithGraph->GetContent());
