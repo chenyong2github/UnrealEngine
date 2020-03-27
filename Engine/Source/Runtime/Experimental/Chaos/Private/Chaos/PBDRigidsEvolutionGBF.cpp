@@ -258,6 +258,10 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt, const FReal Step
 #endif
 
 	{
+		Clustering.UnionClusterGroups();
+	}
+
+	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);
 		Integrate(Particles.GetActiveParticlesView(), Dt);
 	}

@@ -756,8 +756,7 @@ namespace Chaos
 		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticles = GetParticles().GetActiveParticlesView();
 		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& ActiveObject : ActiveParticles)
 		{
-			IPhysicsProxyBase* Proxy = GetProxy(ActiveObject.Handle());
-			if (ensure(Proxy))
+			if (IPhysicsProxyBase* Proxy = GetProxy(ActiveObject.Handle()))
 			{
 				switch (ActiveObject.GetParticleType())
 				{
@@ -797,8 +796,7 @@ namespace Chaos
 		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticles = GetParticles().GetActiveParticlesView();
 		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& ActiveObject : ActiveParticles)
 		{
-			IPhysicsProxyBase* Proxy = GetProxy(ActiveObject.Handle());
-			if (ensure(Proxy))
+			if (IPhysicsProxyBase* Proxy = GetProxy(ActiveObject.Handle()))
 			{
 				switch (ActiveObject.GetParticleType())
 				{
@@ -843,8 +841,7 @@ namespace Chaos
 		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticles = GetParticles().GetActiveParticlesView();
 		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& ActiveObject : ActiveParticles)
 		{
-			IPhysicsProxyBase* Proxy = GetProxy(ActiveObject.Handle());
-			if (ensure(Proxy))
+			if (IPhysicsProxyBase* Proxy = GetProxy(ActiveObject.Handle()))
 			{
 				switch (ActiveObject.GetParticleType())
 				{
