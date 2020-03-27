@@ -31,6 +31,9 @@ struct FGrassVariety
 	UPROPERTY(EditAnywhere, Category=Grass)
 	UStaticMesh* GrassMesh;
 
+	UPROPERTY(EditAnywhere, Category=Grass, meta = (ToolTip = "Material Overrides."))
+	TArray<class UMaterialInterface*> OverrideMaterials;
+
 	/* Instances per 10 square meters. */
 	UPROPERTY(EditAnywhere, Category=Grass, meta = (UIMin = 0, ClampMin = 0, UIMax = 1000, ClampMax = 1000))
 	FPerPlatformFloat GrassDensity;
