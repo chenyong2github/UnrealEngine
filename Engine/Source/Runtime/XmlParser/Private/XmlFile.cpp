@@ -407,11 +407,8 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 			// Not a tag operator anymore, so add the old token and start a new one
 			else
 			{
-				if(WorkingToken.Len())
-				{
-					Tokens.Add(MoveTemp(WorkingToken));
-					checkSlow(WorkingToken.Len() == 0);
-				}
+				Tokens.Add(MoveTemp(WorkingToken));
+				checkSlow(WorkingToken.Len() == 0);
 				WorkingToken += Ch;
 				Type = STRING;
 			}
@@ -432,11 +429,8 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 			// Moving back to operator
 			else
 			{
-				if(WorkingToken.Len())
-				{
-					Tokens.Add(MoveTemp(WorkingToken));
-					checkSlow(WorkingToken.Len() == 0);
-				}
+				Tokens.Add(MoveTemp(WorkingToken));
+				checkSlow(WorkingToken.Len() == 0);
 				WorkingToken += Ch;
 
 				// Add the working token if it's final (ie: ends with '>')
