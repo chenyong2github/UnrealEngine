@@ -96,6 +96,8 @@ public:
 
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override { return true; }
 
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override { return false; }
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 

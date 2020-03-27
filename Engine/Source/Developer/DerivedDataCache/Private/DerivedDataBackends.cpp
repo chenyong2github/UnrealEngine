@@ -30,7 +30,7 @@ DEFINE_LOG_CATEGORY(LogDerivedDataCache);
 #define MAX_BACKEND_KEY_LENGTH (120)
 #define LOCTEXT_NAMESPACE "DerivedDataBackendGraph"
 
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const int InMissRate, const TCHAR* InAccessLogFileName = nullptr);
+FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName = nullptr);
 
 /**
   * This class is used to create a singleton that represents the derived data cache hierarchy and all of the wrappers necessary
@@ -222,6 +222,17 @@ public:
 			InParsedNodes.Add( NodeName, ParsedNode );
 			// Keep references to all created nodes.
 			CreatedBackends.AddUnique( ParsedNode );
+
+			// parse any debug options for this backend. E.g. -ddc-<name>-missrate
+			FDerivedDataBackendInterface::FBackendDebugOptions DebugOptions;
+
+			if (FDerivedDataBackendInterface::FBackendDebugOptions::ParseFromTokens(DebugOptions, NodeName, FCommandLine::Get()))
+			{
+				if (!ParsedNode->ApplyDebugOptions(DebugOptions))
+				{
+					UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s is ignoring one or mode -ddc-<nodename>-opt debug options"), NodeName);
+				}
+			}
 		}
 
 		return ParsedNode;
@@ -570,16 +581,11 @@ public:
 				bool bShared = FCString::Stricmp(NodeName, TEXT("Shared")) == 0;
 				
 				FString WriteAccessLog;
-				FParse::Value( Entry, TEXT("WriteAccessLog="), WriteAccessLog );
-
-				// look for -ddclocalmissrate, -ddcsharedmissrate etc
-				FString MissRateCmd = FString::Printf(TEXT("DDC%sMissRate="), NodeName);
-				int MissRate = 0;
-				FParse::Value(FCommandLine::Get(), *MissRateCmd, MissRate);
+				FParse::Value( Entry, TEXT("WriteAccessLog="), WriteAccessLog );				
 
 				if (!bShared || IFileManager::Get().DirectoryExists(*Path))
 				{
-					InnerFileSystem = CreateFileSystemDerivedDataBackend( *Path, Entry, MissRate, *WriteAccessLog);
+					InnerFileSystem = CreateFileSystemDerivedDataBackend( *Path, Entry, *WriteAccessLog);
 				}
 
 				if (InnerFileSystem)
@@ -989,6 +995,122 @@ private:
 FDerivedDataBackend& FDerivedDataBackend::Get()
 {
 	return FDerivedDataBackendGraph::Get();
+}
+
+
+/**
+ * Parse debug options for the provided node name. Returns true if any options were specified
+ */
+bool FDerivedDataBackendInterface::FBackendDebugOptions::ParseFromTokens(FDerivedDataBackendInterface::FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InInputTokens)
+{
+	// check if the input stream has any ddc options for this node
+	FString PrefixKey = FString(TEXT("-ddc-")) + InNodeName;
+
+	if (FCString::Stristr(InInputTokens, *PrefixKey) == nullptr)
+	{
+		// check if it has any -ddc-all- args
+		PrefixKey = FString(TEXT("-ddc-all"));
+
+		if (FCString::Stristr(InInputTokens, *PrefixKey) == nullptr)
+		{
+			return false;
+		}
+	}
+
+	// turn -arg= into arg= for parsing
+	PrefixKey.RightChopInline(1);
+
+	/** types that can be set to ignored (-ddc-<name>-misstypes="foo+bar" etc) */
+	// look for -ddc-local-misstype=AnimSeq+Audio -ddc-shared-misstype=AnimSeq+Audio 
+	FString ArgName = FString::Printf(TEXT("%s-misstypes="), *PrefixKey);
+
+	FString TempArg;
+	FParse::Value(InInputTokens, *ArgName, TempArg);
+	TempArg.ParseIntoArray(OutOptions.SimulateMissTypes, TEXT("+"), true);
+
+	// look for -ddc-local-missrate=, -ddc-shared-missrate= etc
+	ArgName = FString::Printf(TEXT("%s-missrate="), *PrefixKey);
+	int MissRate = 0;
+	FParse::Value(InInputTokens, *ArgName, OutOptions.RandomMissRate);
+
+	// look for -ddc-local-speed=, -ddc-shared-speed= etc
+	ArgName = FString::Printf(TEXT("%s-speed="), *PrefixKey);
+	if (FParse::Value(InInputTokens, *ArgName, TempArg))
+	{
+		if (!TempArg.IsEmpty())
+		{
+			LexFromString(OutOptions.SpeedClass, *TempArg);
+		}
+	}
+
+	return true;
+}
+
+/* Convenience function for backends that check if the key should be missed or not */
+bool FDerivedDataBackendInterface::FBackendDebugOptions::ShouldSimulateMiss(const TCHAR* InCacheKey)
+{
+	bool bDoMiss = false;
+
+	if (SimulateMissTypes.Num() > 0)
+	{
+		FString TypeStr = FString(InCacheKey);
+		TypeStr = TypeStr.Left(TypeStr.Find(TEXT("_")));
+
+		if (SimulateMissTypes.Contains(TypeStr))
+		{
+			bDoMiss = true;
+		}
+	}
+
+	if (!bDoMiss && RandomMissRate > 0)
+	{
+		bDoMiss = FMath::RandHelper(100) < RandomMissRate;
+	}
+
+	return bDoMiss;
+}
+
+
+const TCHAR* LexToString(FDerivedDataBackendInterface::ESpeedClass SpeedClass)
+{
+	switch (SpeedClass)
+	{
+	case FDerivedDataBackendInterface::ESpeedClass::Unknown:
+		return TEXT("Unknown");
+	case FDerivedDataBackendInterface::ESpeedClass::Slow:
+		return TEXT("Slow");
+	case FDerivedDataBackendInterface::ESpeedClass::Ok:
+		return TEXT("Ok");
+	case FDerivedDataBackendInterface::ESpeedClass::Fast:
+		return TEXT("Fast");
+	case FDerivedDataBackendInterface::ESpeedClass::Local:
+		return TEXT("Local");
+	}
+
+	return TEXT("Unknow value! (Update LexToString!)");
+}
+
+
+void LexFromString(FDerivedDataBackendInterface::ESpeedClass& OutValue, const TCHAR* Buffer)
+{
+	OutValue = FDerivedDataBackendInterface::ESpeedClass::Unknown;
+
+	if (FCString::Stricmp(Buffer, TEXT("Slow")) == 0)
+	{
+		OutValue = FDerivedDataBackendInterface::ESpeedClass::Slow;
+	}
+	else if (FCString::Stricmp(Buffer, TEXT("Ok")) == 0)
+	{
+		OutValue = FDerivedDataBackendInterface::ESpeedClass::Ok;
+	}
+	if (FCString::Stricmp(Buffer, TEXT("Fast")) == 0)
+	{
+		OutValue = FDerivedDataBackendInterface::ESpeedClass::Fast;
+	}
+	if (FCString::Stricmp(Buffer, TEXT("Local")) == 0)
+	{
+		OutValue = FDerivedDataBackendInterface::ESpeedClass::Local;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -118,6 +118,8 @@ public:
 
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
 
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 	FDerivedDataCacheUsageStats PutSyncUsageStats;
