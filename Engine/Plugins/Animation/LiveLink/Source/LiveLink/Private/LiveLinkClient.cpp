@@ -608,6 +608,17 @@ void FLiveLinkClient::PushSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& 
 		}
 		else
 		{
+			//Stamp arrival time of each packet to track clock difference
+			if (SubjectFrame.FrameData.GetBaseData())
+			{
+				SubjectFrame.FrameData.GetBaseData()->ArrivalTime.WorldTime = FPlatformTime::Seconds();
+				const TOptional<FQualifiedFrameTime>& CurrentTime = FApp::GetCurrentFrameTime();
+				if (CurrentTime.IsSet())
+				{
+					SubjectFrame.FrameData.GetBaseData()->ArrivalTime.SceneTime = *CurrentTime;
+				}
+			}
+			
 			{
 				FScopeLock BroadcastLock(&SubjectFrameReceivedHandleseCriticalSection);
 				if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(InSubjectKey))
@@ -615,6 +626,7 @@ void FLiveLinkClient::PushSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& 
 					Handles->OnFrameDataReceived.Broadcast(SubjectFrame.FrameData);
 				}
 			}
+			
 			SubjectFrameToPush.Add(MoveTemp(SubjectFrame));
 		}
 	}
