@@ -620,12 +620,12 @@ ETimedDataMonitorEvaluationState UTimedDataMonitorSubsystem::GetInputEvaluationS
 {
 	BuildSourcesListIfNeeded();
 
-	ETimedDataMonitorEvaluationState WorstState = ETimedDataMonitorEvaluationState::NoSample;
+	ETimedDataMonitorEvaluationState WorstState = ETimedDataMonitorEvaluationState::Disabled;
 	if (const FTimeDataInputItem* InputItem = InputMap.Find(Identifier))
 	{
-		if (InputItem->ChannelIdentifiers.Num() > 0)
+		// Only consider inputs with a synchronizable evaluation type
+		if (InputItem->ChannelIdentifiers.Num() > 0 && GetInputEvaluationType(Identifier) != ETimedDataInputEvaluationType::None)
 		{
-			WorstState = ETimedDataMonitorEvaluationState::Disabled;
 			for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : InputItem->ChannelIdentifiers)
 			{
 				const ETimedDataMonitorEvaluationState ChannelState = GetChannelEvaluationState(ChannelIdentifier);
