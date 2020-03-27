@@ -40,6 +40,35 @@ public:
 		Local			/* Little to no impact from seek times and extremly fast reads */
 	};
 
+	/* Debug options that can be applied to backends to simulate different behavior */
+	struct FBackendDebugOptions
+	{
+		/* Percentage of requests that should result in random misses */
+		int					RandomMissRate;
+
+		/* Apply behavior of this speed class */
+		ESpeedClass			SpeedClass;		
+
+		/* Types of DDC entries that should always be a miss */
+		TArray<FString>		SimulateMissTypes;
+
+		FBackendDebugOptions()
+			: RandomMissRate(0)
+			, SpeedClass(ESpeedClass::Unknown)
+		{
+		}
+
+		/* Fill in the provided structure based on the name of the node (e.g. 'shared') and the provided token stream */
+		static bool ParseFromTokens(FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InTokens);
+
+		/* 
+			Returns true if, according to the properties of this struct, the provided key should be treated as a miss.
+			Implementing that miss and accounting for any behaviour impact (e.g. skipping a subsequent put) is left to
+			each backend.
+		*/
+		bool ShouldSimulateMiss(const TCHAR* InCacheKey);
+	};
+
 	virtual ~FDerivedDataBackendInterface()
 	{
 	}
@@ -117,6 +146,12 @@ public:
 	 * a file size limit, etc.
 	 */
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) = 0;
+
+	/**
+	 *  Ask a backend to apply debug behavior to simulate different conditions. Backends that don't support these options should return 
+		false which will result in a warning if an attempt is made to apply these options.
+	 */
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) = 0;
 };
 
 class FDerivedDataBackend
@@ -163,22 +198,6 @@ public:
 
 };
 
-
-inline const TCHAR* LexToString(FDerivedDataBackendInterface::ESpeedClass SpeedClass)
-{
-	switch (SpeedClass)
-	{
-	case FDerivedDataBackendInterface::ESpeedClass::Unknown:
-		return TEXT("Unknown");
-	case FDerivedDataBackendInterface::ESpeedClass::Slow:
-		return TEXT("Slow");
-	case FDerivedDataBackendInterface::ESpeedClass::Ok:
-		return TEXT("Ok");
-	case FDerivedDataBackendInterface::ESpeedClass::Fast:
-		return TEXT("Fast");
-	case FDerivedDataBackendInterface::ESpeedClass::Local:
-		return TEXT("Local");
-	}
-
-	return TEXT("Unknow value! (Update LexToString!)");
-}
+/* Lexical conversions from and to enums */
+const TCHAR* LexToString(FDerivedDataBackendInterface::ESpeedClass SpeedClass);
+void LexFromString(FDerivedDataBackendInterface::ESpeedClass& OutValue, const TCHAR* Buffer);

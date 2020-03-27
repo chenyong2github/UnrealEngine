@@ -165,6 +165,20 @@ public:
 		return false;
 	}
 
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override
+	{
+		bool bSuccess = true;
+		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
+		{
+			if (!InnerBackends[CacheIndex]->ApplyDebugOptions(InOptions))
+			{
+				bSuccess = false;
+			}
+		}
+
+		return bSuccess;
+	}
+
 	/**
 	 * Synchronous retrieve of a cache item
 	 *

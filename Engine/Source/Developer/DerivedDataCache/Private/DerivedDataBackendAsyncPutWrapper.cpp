@@ -149,6 +149,11 @@ bool FDerivedDataBackendAsyncPutWrapper::WouldCache(const TCHAR* CacheKey, TArra
 	return InnerBackend->WouldCache(CacheKey, InData);
 }
 
+bool FDerivedDataBackendAsyncPutWrapper::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+{
+	return InnerBackend->ApplyDebugOptions(InOptions);
+}
+
 bool FDerivedDataBackendAsyncPutWrapper::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
