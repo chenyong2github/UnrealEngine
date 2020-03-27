@@ -328,6 +328,34 @@ FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Async()
 	return CreateTexCoordRHIBuffer_Internal<false>();
 }
 
+void FStaticMeshVertexBuffer::CopyRHIForStreaming(const FStaticMeshVertexBuffer& Other, bool InAllowCPUAccess)
+{
+	// Copy serialized properties.
+	TangentsStride = Other.TangentsStride;
+	TexcoordStride = Other.TexcoordStride;
+	NumTexCoords = Other.NumTexCoords;
+	NumVertices = Other.NumVertices;
+	bUseFullPrecisionUVs = Other.bUseFullPrecisionUVs;
+	bUseHighPrecisionTangentBasis = Other.bUseHighPrecisionTangentBasis;
+
+	// Handle CPU access.
+	if (InAllowCPUAccess)
+	{
+		NeedsCPUAccess = Other.NeedsCPUAccess;
+		AllocateData(NeedsCPUAccess);
+	}
+	else
+	{
+		NeedsCPUAccess = false;
+	}
+
+	// Copy resource references.
+	TangentsVertexBuffer.VertexBufferRHI = Other.TangentsVertexBuffer.VertexBufferRHI;
+	TexCoordVertexBuffer.VertexBufferRHI = Other.TexCoordVertexBuffer.VertexBufferRHI;
+	TangentsSRV = Other.TangentsSRV;
+	TextureCoordinatesSRV = Other.TextureCoordinatesSRV;
+}
+
 void FStaticMeshVertexBuffer::InitRHI()
 {
 	SCOPED_LOADTIMER(FStaticMeshVertexBuffer_InitRHI);
