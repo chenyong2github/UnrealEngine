@@ -981,10 +981,10 @@ FSlateIcon SCurveEditorPanel::GetCurveExtrapolationPostIcon() const
 void SCurveEditorPanel::ShowCurveFilterUI(TSubclassOf<UCurveEditorFilterBase> FilterClass)
 {
 	TSharedPtr<FTabManager> TabManager = WeakTabManager.Pin();
-	if (TabManager)
-	{
-		SCurveEditorFilterPanel::OpenDialog(TabManager.ToSharedRef(), CurveEditor.ToSharedRef(), FilterClass);
-	}
+	TSharedPtr<SDockTab> OwnerTab = TabManager.IsValid() ? TabManager->GetOwnerTab() : TSharedPtr<SDockTab>();
+	TSharedPtr<SWindow> RootWindow = OwnerTab.IsValid() ? OwnerTab->GetParentWindow() : TSharedPtr<SWindow>();
+
+	SCurveEditorFilterPanel::OpenDialog(RootWindow, CurveEditor.ToSharedRef(), FilterClass);
 }
 
 const FGeometry& SCurveEditorPanel::GetScrollPanelGeometry() const
