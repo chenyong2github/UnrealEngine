@@ -696,15 +696,16 @@ struct FS3DerivedDataBackend::FBundleDownload : IRequestCallback
 // FS3DerivedDataBackend
 //----------------------------------------------------------------------------------------------------------
 
-FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InAccessKey, const TCHAR* InSecretKey)
+FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath, const TCHAR* InAccessKey, const TCHAR* InSecretKey)
 	: RootManifestPath(InRootManifestPath)
 	, BaseUrl(InBaseUrl)
 	, Region(InRegion)
 	, CanaryObjectKey(InCanaryObjectKey)
-	, CacheDir(FPaths::ProjectSavedDir() / TEXT("S3DDC"))
+	, CacheDir(InCachePath)
 	, RequestPool(new FRequestPool(TCHAR_TO_ANSI(InRegion), TCHAR_TO_ANSI(InAccessKey), TCHAR_TO_ANSI(InSecretKey)))
 	, bEnabled(false)
 {
+
 	// Test whether we can reach the canary URL
 	bool bCanaryValid = true;
 	if (GIsBuildMachine)
@@ -723,6 +724,8 @@ FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, co
 			bCanaryValid = false;
 		}
 	}
+
+
 
 	// Allow the user to override it from the editor
 	bool bSetting;
