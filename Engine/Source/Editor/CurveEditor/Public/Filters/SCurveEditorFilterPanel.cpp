@@ -165,7 +165,7 @@ bool SCurveEditorFilterPanel::CanApplyFilter() const
 }
 
 
-void SCurveEditorFilterPanel::OpenDialog(const TSharedRef<FTabManager>& TabManager, TSharedRef<FCurveEditor> InHostCurveEditor, TSubclassOf<UCurveEditorFilterBase> DefaultFilterClass)
+void SCurveEditorFilterPanel::OpenDialog(TSharedPtr<SWindow> RootWindow, TSharedRef<FCurveEditor> InHostCurveEditor, TSubclassOf<UCurveEditorFilterBase> DefaultFilterClass)
 {
 	TSharedPtr<SWindow> ExistingWindow = ExistingFilterWindow.Pin();
 	if (ExistingWindow.IsValid())
@@ -181,8 +181,6 @@ void SCurveEditorFilterPanel::OpenDialog(const TSharedRef<FTabManager>& TabManag
 			.SupportsMinimize(false)
 			.ClientSize(FVector2D(480, 360));
 
-		TSharedPtr<SDockTab> OwnerTab = TabManager->GetOwnerTab();
-		TSharedPtr<SWindow> RootWindow = OwnerTab.IsValid() ? OwnerTab->GetParentWindow() : TSharedPtr<SWindow>();
 		if (RootWindow.IsValid())
 		{
 			FSlateApplication::Get().AddWindowAsNativeChild(ExistingWindow.ToSharedRef(), RootWindow.ToSharedRef());
