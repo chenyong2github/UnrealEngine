@@ -132,14 +132,14 @@ public:
 		float ConsiderSlowAtMS = 50;
 		FParse::Value(InParams, TEXT("ConsiderSlowAt="), ConsiderSlowAtMS);
 
-		// can skip the speed test so everything acts as fast local (e.g. 4.25 and earlier behavior).  Mostly used
-		// for verifying speed related optimizations can can be removed soon (3/17/20).
-		bool SkipSpeedTest = FParse::Param(FCommandLine::Get(), TEXT("ddcskipspeedtest"));
+		// can skip the speed test so everything acts as local (e.g. 4.25 and earlier behavior). 
+		bool SkipSpeedTest = !WITH_EDITOR || FParse::Param(FCommandLine::Get(), TEXT("ddcskipspeedtest"));
 		if (SkipSpeedTest)
 		{
 			ReadSpeedMBs = 999;
 			WriteSpeedMBs = 999;
 			SeekTimeMS = 0;
+			UE_LOG(LogDerivedDataCache, Log, TEXT("Skipping speed test to %s. Assuming local performance"), *CachePath);
 		}
 
 		if (!SkipSpeedTest && !RunSpeedTest(ConsiderSlowAtMS * 2, SeekTimeMS, ReadSpeedMBs, WriteSpeedMBs))
