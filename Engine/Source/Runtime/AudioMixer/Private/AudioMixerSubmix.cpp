@@ -924,6 +924,29 @@ namespace Audio
 			FMemory::Memzero((void*)BufferPtr, sizeof(float)*NumSamples);
 		}
 
+
+		// Don't necessarily need to do this if the user isn't using this feature
+		if (!FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel) || !FMath::IsNearlyEqual(CurrentWetLevel, 1.0f))
+		{
+			// If we've already set the volume, only need to multiply by constant
+			if (FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel))
+			{
+				Audio::MultiplyBufferByConstantInPlace(InputBuffer, TargetWetLevel);
+			}
+			else
+			{
+				// To avoid popping, we do a fade on the buffer to the target volume
+				Audio::FadeBufferFast(InputBuffer, CurrentWetLevel, TargetWetLevel);
+				CurrentWetLevel = TargetWetLevel;
+			}
+		}
+
+		// Check to see if need to mix together the dry and wet buffers
+		if (DryChannelBuffer.Num())
+		{
+			Audio::MixInBufferFast(DryChannelBuffer, InputBuffer);
+		}
+		
 		// If we are recording, Add out buffer to the RecordingData buffer:
 		{
 			FScopeLock ScopedLock(&RecordingCriticalSection);
@@ -943,14 +966,11 @@ namespace Audio
 			SpectrumAnalyzer->PerformAnalysisIfPossible(true, true);
 		}
 
-		// If the channel types match, just do a copy
-		Audio::MixInBufferFast(InputBuffer, OutAudioBuffer);
-
 		// Perform any envelope following if we're told to do so
 		if (bIsEnvelopeFollowing)
 		{
-			const int32 OutBufferSamples = OutAudioBuffer.Num();
-			const float* OutAudioBufferPtr = OutAudioBuffer.GetData();
+			const int32 OutBufferSamples = InputBuffer.Num();
+			const float* OutAudioBufferPtr = InputBuffer.GetData();
 
 
 			// Perform envelope following per channel
@@ -975,7 +995,28 @@ namespace Audio
 			EnvelopeNumChannels = NumChannels;
 		}
 
-		// Don't necessarily need to do this if the user isn't using this feature
+		if (!FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel) || !FMath::IsNearlyEqual(CurrentWetLevel, 1.0f))
+		{
+			// If we've already set the volume, only need to multiply by constant
+			if (FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel))
+			{
+				Audio::MultiplyBufferByConstantInPlace(InputBuffer, TargetWetLevel);
+			}
+			else
+			{
+				// To avoid popping, we do a fade on the buffer to the target volume
+				Audio::FadeBufferFast(InputBuffer, CurrentWetLevel, TargetWetLevel);
+				CurrentWetLevel = TargetWetLevel;
+			}
+		}
+
+		// Check to see if need to mix together the dry and wet buffers
+		if (DryChannelBuffer.Num())
+		{
+			Audio::MixInBufferFast(DryChannelBuffer, InputBuffer);
+		}
+
+
 		if (bApplyOutputVolumeScale)
 		{
 			const float TargetVolumeProduct = TargetOutputVolume * InitializedOutputVolume;
@@ -984,12 +1025,12 @@ namespace Audio
 			// If we've already set the volume, only need to multiply by constant
 			if (FMath::IsNearlyEqual(TargetVolumeProduct, OutputVolumeProduct))
 			{
-				Audio::MultiplyBufferByConstantInPlace(OutAudioBuffer, OutputVolumeProduct);
+				Audio::MultiplyBufferByConstantInPlace(InputBuffer, OutputVolumeProduct);
 			}
 			else
 			{
 				// To avoid popping, we do a fade on the buffer to the target volume
-				Audio::FadeBufferFast(OutAudioBuffer, OutputVolumeProduct, TargetVolumeProduct);
+				Audio::FadeBufferFast(InputBuffer, OutputVolumeProduct, TargetVolumeProduct);
 				OutputVolume = TargetOutputVolume;
 
 				// No longer need to multiply the output buffer if we're now at 1.0
@@ -999,6 +1040,9 @@ namespace Audio
 				}
 			}
 		}
+
+		// Mix the audio buffer of this submix with the audio buffer of the output buffer (i.e. with other submixes)
+		Audio::MixInBufferFast(InputBuffer, OutAudioBuffer);
 
 		// Now loop through any buffer listeners and feed the listeners the result of this audio callback
 		if(const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
