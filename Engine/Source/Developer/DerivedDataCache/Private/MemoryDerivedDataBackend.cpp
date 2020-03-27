@@ -357,5 +357,5 @@ bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 		return true;
 	}
 
-	return true;
+	return false;
 }
