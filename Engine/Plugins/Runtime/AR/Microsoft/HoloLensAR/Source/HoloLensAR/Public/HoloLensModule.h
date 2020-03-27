@@ -5,7 +5,6 @@
 #include "Modules/ModuleManager.h"
 #include "Features/IModularFeature.h"
 #include "HoloLensARSystem.h"
-#include "WindowsMixedRealityHMD/Public/IWindowsMixedRealityHMDPlugin.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHoloLensAR, Log, All);
 
@@ -16,16 +15,16 @@ namespace WindowsMixedReality
 }
 
 class HOLOLENSAR_API FHoloLensModuleAR :
-	public IHoloLensModuleARInterface
+	public IModuleInterface
 {
 public:
-	static TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> GetHoloLensARSystem();
-
 	/** Used to init our AR system */
-	virtual class IARSystemSupport* CreateARSystem() override;
+	static IARSystemSupport* CreateARSystem();
 
-	virtual void SetTrackingSystem(TSharedPtr<class FXRTrackingSystemBase, ESPMode::ThreadSafe> InTrackingSystem) override;
-	virtual void SetInterop(WindowsMixedReality::MixedRealityInterop* InWMRInterop) override;
+	static TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> GetHoloLensARSystem();
+	
+	static void SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPMode::ThreadSafe> InTrackingSystem);
+	static void SetInterop(WindowsMixedReality::MixedRealityInterop* InWMRInterop);
 
 	virtual void StartupModule() override;
 
