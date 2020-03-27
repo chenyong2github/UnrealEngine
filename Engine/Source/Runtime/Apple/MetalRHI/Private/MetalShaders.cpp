@@ -552,7 +552,7 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 			GlslCodeNSString = [FMetalShaderDebugCache::Get().GetShaderCode(SourceLen, SourceCRC).GetPtr() retain];
 		}
 #endif
-        if (bForceTextShaders)
+        if (bForceTextShaders && CodeSize && CompressedSource.Num())
         {
             bHasShaderSource = (GetSourceCode() != nil);
         }
