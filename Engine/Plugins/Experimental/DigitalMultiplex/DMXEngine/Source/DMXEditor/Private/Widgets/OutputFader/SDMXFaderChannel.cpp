@@ -22,7 +22,7 @@ void SDMXFaderChannel::Construct(const FArguments& InArgs)
 	WeakDMXEditor = InArgs._DMXEditor;
 	UniverseNumber = InArgs._UniverseNumber;
 	ChannelNumber = InArgs._ChannelNumber;
-	WeakDMXProtocol = InArgs._DMXProtocol;
+
 
 	ChildSlot
 	.Padding(0.f)
