@@ -422,6 +422,13 @@ public:
 	 */
 	void BuildObjectBindingEditButtons(TSharedPtr<SHorizontalBox> EditBox, const FGuid& ObjectBinding, const UClass* ObjectClass);
 
+	/**
+	 * Builds up the menu of node groups to add selected nodes to
+	 *
+	 * @param MenuBuilder The menu builder to add things to.
+	 */
+	void BuildAddSelectedToNodeGroupMenu(FMenuBuilder& MenuBuilder);
+
 	/** Called when an actor is dropped into Sequencer */
 	void OnActorsDropped( const TArray<TWeakObjectPtr<AActor> >& Actors );
 
@@ -554,6 +561,9 @@ public:
 	/** Updates the sequencer selection to match the current external selection. */
 	void SynchronizeSequencerSelectionWithExternalSelection();
 		
+	/** Updates the sequencer selection to match the list of node paths. */
+	void SelectNodesByPath(const TSet<FString>& NodePaths);
+
 	/** Whether the binding is visible in the tree view */
 	bool IsBindingVisible(const FMovieSceneBinding& InBinding);
 
@@ -974,6 +984,18 @@ protected:
 	// End of FEditorUndoClient
 
 	void OnSelectedOutlinerNodesChanged();
+
+	void AddNodeGroupsCollectionChangedDelegate();
+	void RemoveNodeGroupsCollectionChangedDelegate();
+
+	void OnNodeGroupsCollectionChanged();
+
+public:
+	void AddSelectedNodesToNewNodeGroup();
+	void AddSelectedNodesToExistingNodeGroup(UMovieSceneNodeGroup* NodeGroup);
+	void AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerDisplayNode>>& Nodes, UMovieSceneNodeGroup* NodeGroup);
+
+private:
 
 	/** Updates a viewport client from camera cut data */
 	void UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewportClient& InViewportClient, UObject* InCameraObject, const EMovieSceneCameraCutParams& CameraCutParams);

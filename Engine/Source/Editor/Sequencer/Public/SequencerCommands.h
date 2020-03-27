@@ -240,7 +240,10 @@ public:
 
 	/** Opens the tagged binding manager. */
 	TSharedPtr< FUICommandInfo > OpenTaggedBindingManager;
-	
+
+	/** Opens the node group manager. */
+	TSharedPtr< FUICommandInfo > OpenNodeGroupsManager;
+
 	/** Sets the tree search widget as the focused widget in Slate for easy typing. */
 	TSharedPtr< FUICommandInfo > QuickTreeSearch;
 
