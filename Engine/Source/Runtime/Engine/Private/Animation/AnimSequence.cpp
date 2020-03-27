@@ -2275,6 +2275,7 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		if (!bSkipDDC && GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData, AnimCompressor->GetDebugContextString()))
 		{
 			COOK_STAT(Timer.AddHit(OutData.Num()));
+			bCompressedDataFromDDC = true;
 		}
 		else
 		{
@@ -2310,10 +2311,6 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 			{
 				COOK_STAT(Timer.TrackCyclesOnly());
 			}
-		}
-		else
-		{
-			bCompressedDataFromDDC = true;
 		}
 
 		if (AnimCompressor)
