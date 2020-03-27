@@ -23,11 +23,23 @@
 	/** Keep track of success across all functions and callbacks */
 	bool bOverallSuccess;
 
+	/** Set every time we try to read a Leaderboard, indicates if the read was attempted or not */
+	bool bReadLeaderboardAttempted;
+
 	/** Logged in UserId */
 	TSharedPtr<const FUniqueNetId> UserId;
 
 	/** Passed in UserId */
 	FString FindRankUserId;
+
+	/** Passed in LeaderboardName */
+	FString LeaderboardName;
+
+	/** Passed in ColumnName */
+	FString SortedColumn;
+
+	/** Passed in Columns */
+	TMap<FString, EOnlineKeyValuePairDataType::Type> Columns;
 
 	/** Convenient access to the leaderboard interfaces */
 	IOnlineLeaderboardsPtr Leaderboards;
@@ -111,7 +123,7 @@
 	/**
 	 * Kicks off all of the testing process
 	 */
-	void Test(class UWorld* InWorld, const FString& InUserId);
+	void Test(UWorld* InWorld, const FString& InLeaderboardName, const FString& InSortedColumn, TMap<FString, EOnlineKeyValuePairDataType::Type>&& InColumns, const FString& InUserId);
  };
 
 #endif //WITH_DEV_AUTOMATION_TESTS
