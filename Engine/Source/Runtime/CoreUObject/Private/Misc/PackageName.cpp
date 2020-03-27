@@ -988,10 +988,9 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 	FString Filename = LongPackageNameToFilename(PackageName, TEXT(""));
 
 	// Find the filename (with extension).
-
-	// suppress warning C6286: (<non-zero constant> || <expression>) is always a non-zero constant. <expression> is never evaluated and might have side effects.
-	CA_SUPPRESS(6286);
-	if (!WITH_EDITORONLY_DATA || !IsExtraPackage(PackageName))
+#if WITH_EDITORONLY_DATA
+	if (!IsExtraPackage(PackageName))
+#endif
 	{
 		bFoundFile = FindPackageFileWithoutExtension(Filename, Filename, InAllowTextFormats);
 	}
@@ -1019,7 +1018,11 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 		delete PackageReader;
 	}
 
-	if (OutFilename && (bFoundFile || (WITH_EDITORONLY_DATA && IsExtraPackage(PackageName))))
+#if WITH_EDITORONLY_DATA
+	if (OutFilename && (bFoundFile || IsExtraPackage(PackageName)))
+#else
+	if (OutFilename && bFoundFile)
+#endif
 	{
 		*OutFilename = Filename;
 	}
