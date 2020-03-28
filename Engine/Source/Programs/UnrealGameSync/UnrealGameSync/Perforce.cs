@@ -325,8 +325,10 @@ namespace UnrealGameSync
 
 	public class PerforceSyncOptions
 	{
+		public const int DefaultNumThreads = 2;
+
 		public int NumRetries;
-		public int NumThreads;
+		public int NumThreads = DefaultNumThreads;
 		public int TcpBufferSize;
 
 		public PerforceSyncOptions Clone()
