@@ -2701,7 +2701,7 @@ void UStaticMesh::InitResources()
 	{
 		LinkStreaming();
 	}
-	else if (GIsEditor)
+	else if (GIsEditor && RenderData)
 	{
 		RenderData->CurrentFirstLODIdx = RenderData->GetFirstValidLODIdx(0);
 		SetCachedNumResidentLODs(RenderData->LODResources.Num() - RenderData->CurrentFirstLODIdx);
