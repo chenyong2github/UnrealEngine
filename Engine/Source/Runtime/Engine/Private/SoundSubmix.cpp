@@ -8,6 +8,7 @@
 #include "Sound/SoundSubmixSend.h"
 #include "UObject/UObjectIterator.h"
 #include "DSP/Dsp.h"
+#include "DSP/SpectrumAnalyzer.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -91,10 +92,13 @@ void USoundSubmix::StartRecordingOutput(const UObject* WorldContextObject, float
 	}
 
 	// Find device for this specific audio recording thing.
-	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* DesiredAudioDevice = ThisWorld->GetAudioDeviceRaw();
-
-	StartRecordingOutput(DesiredAudioDevice, ExpectedDuration);
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			StartRecordingOutput(AudioDevice, ExpectedDuration);
+		}
+	}
 }
 
 void USoundSubmix::StartRecordingOutput(FAudioDevice* InDevice, float ExpectedDuration)
@@ -113,10 +117,13 @@ void USoundSubmix::StopRecordingOutput(const UObject* WorldContextObject, EAudio
 	}
 
 	// Find device for this specific audio recording thing.
-	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* DesiredAudioDevice = ThisWorld->GetAudioDeviceRaw();
-
-	StopRecordingOutput(DesiredAudioDevice, ExportType, Name, Path, ExistingSoundWaveToOverwrite);
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			StopRecordingOutput(AudioDevice, ExportType, Name, Path, ExistingSoundWaveToOverwrite);
+		}
+	}
 }
 
 void USoundSubmix::StopRecordingOutput(FAudioDevice* InDevice, EAudioRecordingExportType ExportType, const FString& Name, FString Path, USoundWave* ExistingSoundWaveToOverwrite /*= nullptr*/)
@@ -193,10 +200,13 @@ void USoundSubmix::StartEnvelopeFollowing(const UObject* WorldContextObject)
 	}
 
 	// Find device for this specific audio recording thing.
-	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw();
-
-	StartEnvelopeFollowing(AudioDevice);
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			StartEnvelopeFollowing(AudioDevice);
+		}
+	}
 }
 
 void USoundSubmix::StartEnvelopeFollowing(FAudioDevice* InAudioDevice)
@@ -215,10 +225,13 @@ void USoundSubmix::StopEnvelopeFollowing(const UObject* WorldContextObject)
 	}
 
 	// Find device for this specific audio recording thing.
-	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw();
-
-	StopEnvelopeFollowing(AudioDevice);
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			StopEnvelopeFollowing(AudioDevice);
+		}
+	}
 }
 
 void USoundSubmix::StopEnvelopeFollowing(FAudioDevice* InAudioDevice)
@@ -237,11 +250,85 @@ void USoundSubmix::AddEnvelopeFollowerDelegate(const UObject* WorldContextObject
 	}
 
 	// Find device for this specific audio recording thing.
-	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw();
-	if (AudioDevice)
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
-		AudioDevice->AddEnvelopeFollowerDelegate(this, OnSubmixEnvelopeBP);
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			AudioDevice->AddEnvelopeFollowerDelegate(this, OnSubmixEnvelopeBP);
+		}
+	}
+}
+
+void USoundSubmix::AddSpectralAnalysisDelegate(const UObject* WorldContextObject, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, float UpdateRate)
+{
+	if (!GEngine)
+	{
+		return;
+	}
+
+	// Find device for this specific audio recording thing.
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			AudioDevice->AddSpectralAnalysisDelegate(this, InBandSettings, OnSubmixSpectralAnalysisBP, UpdateRate);
+		}
+	}
+}
+
+void USoundSubmix::StartSpectralAnalysis(const UObject* WorldContextObject, EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, EAudioSpectrumType SpectrumType)
+{
+	if (!GEngine)
+	{
+		return;
+	}
+
+	// Find device for this specific audio recording thing.
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{	
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			StartSpectralAnalysis(AudioDevice, FFTSize, InterpolationMethod, WindowType, HopSize, SpectrumType);
+		}
+	}
+}
+
+void USoundSubmix::StartSpectralAnalysis(FAudioDevice* InAudioDevice, EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, EAudioSpectrumType SpectrumType)
+{
+	if (!GEngine)
+	{
+		return;
+	}
+
+	if (InAudioDevice)
+	{
+		Audio::FSpectrumAnalyzerSettings Settings = USoundSubmix::GetSpectrumAnalyzerSettings(FFTSize, InterpolationMethod, WindowType, HopSize, SpectrumType);
+		InAudioDevice->StartSpectrumAnalysis(this, Settings);
+	}
+}
+
+void USoundSubmix::StopSpectralAnalysis(const UObject* WorldContextObject)
+{
+	if (!GEngine)
+	{
+		return;
+	}
+
+	// Find device for this specific audio recording thing.
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			AudioDevice->StopSpectrumAnalysis(this);
+		}
+	}
+}
+
+void USoundSubmix::StopSpectralAnalysis(FAudioDevice* InAudioDevice)
+{
+	if (InAudioDevice)
+	{
+		InAudioDevice->StopSpectrumAnalysis(this);
 	}
 }
 
@@ -252,11 +339,12 @@ void USoundSubmix::SetSubmixOutputVolume(const UObject* WorldContextObject, floa
 		return;
 	}
 
-	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw();
-	if (AudioDevice)
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
-		AudioDevice->SetSubmixOutputVolume(this, InOutputVolume);
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			AudioDevice->SetSubmixOutputVolume(this, InOutputVolume);
+		}
 	}
 }
 
@@ -333,8 +421,6 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 		{
 			if (bUpdateSubmixGain)
 			{
-//				AudioDeviceManager->UpdateSubmix(this);
-
 				const float NewOutputVolume = OutputVolume;
 				const float NewWetLevel = WetLevel;
 				const float NewDryLevel = DryLevel;
@@ -779,6 +865,91 @@ const USoundfieldEncodingSettingsBase* USoundfieldEndpointSubmix::GetEncodingSet
 TArray<USoundfieldEffectBase*> USoundfieldEndpointSubmix::GetSoundfieldProcessors() const
 {
 	return SoundfieldEffectChain;
+}
+
+
+Audio::FSpectrumAnalyzerSettings USoundSubmix::GetSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, EAudioSpectrumType AudioSpectrumType)
+{
+	Audio::FSpectrumAnalyzerSettings OutSettings;
+
+	switch (FFTSize)
+	{
+	case EFFTSize::DefaultSize:
+		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Default;
+		break;
+	case EFFTSize::Min:
+		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Min_64;
+		break;
+	case EFFTSize::Small:
+		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Small_256;
+		break;
+	case EFFTSize::Medium:
+		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Medium_512;
+		break;
+	case EFFTSize::Large:
+		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Large_1024;
+		break;
+	case EFFTSize::VeryLarge:
+		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::VeryLarge_2048;
+		break;
+	case EFFTSize::Max:
+		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::TestLarge_4096;
+		break;
+	default:
+		break;
+	}
+
+	switch (InterpolationMethod)
+	{
+	case EFFTPeakInterpolationMethod::NearestNeighbor:
+		OutSettings.InterpolationMethod = Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::NearestNeighbor;
+		break;
+	case EFFTPeakInterpolationMethod::Linear:
+		OutSettings.InterpolationMethod = Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::Linear;
+		break;
+	case EFFTPeakInterpolationMethod::Quadratic:
+		OutSettings.InterpolationMethod = Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::Quadratic;
+		break;
+	case EFFTPeakInterpolationMethod::ConstantQ:
+		OutSettings.InterpolationMethod = Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::ConstantQ;
+	default:
+		break;
+	}
+
+	switch (WindowType)
+	{
+	case EFFTWindowType::None:
+		OutSettings.WindowType = Audio::EWindowType::None;
+		break;
+	case EFFTWindowType::Hamming:
+		OutSettings.WindowType = Audio::EWindowType::Hamming;
+		break;
+	case EFFTWindowType::Hann:
+		OutSettings.WindowType = Audio::EWindowType::Hann;
+		break;
+	case EFFTWindowType::Blackman:
+		OutSettings.WindowType = Audio::EWindowType::Blackman;
+		break;
+	default:
+		break;
+	}
+
+	switch (AudioSpectrumType)
+	{
+	case EAudioSpectrumType::MagnitudeSpectrum:
+		OutSettings.SpectrumType = Audio::FSpectrumAnalyzerSettings::ESpectrumAnalyzerType::Magnitude;
+		break;
+	case EAudioSpectrumType::PowerSpectrum:
+		OutSettings.SpectrumType = Audio::FSpectrumAnalyzerSettings::ESpectrumAnalyzerType::Power;
+		break;
+	case EAudioSpectrumType::Decibel:
+		OutSettings.SpectrumType = Audio::FSpectrumAnalyzerSettings::ESpectrumAnalyzerType::Decibel;
+		break;
+	}
+
+	OutSettings.HopSize = HopSize;
+
+	return OutSettings;
 }
 
 void USoundfieldEndpointSubmix::SanitizeLinks()
