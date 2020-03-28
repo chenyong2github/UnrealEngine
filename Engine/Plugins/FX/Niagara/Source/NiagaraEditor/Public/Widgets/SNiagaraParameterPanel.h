@@ -7,6 +7,9 @@
 #include "NiagaraTypes.h"
 #include "NiagaraActions.h"
 #include "Framework/Commands/Commands.h"
+#include "Widgets/SItemSelector.h"
+
+typedef SItemSelector<ENiagaraParameterPanelCategory, FNiagaraScriptVariableAndViewInfo> SNiagaraParameterPanelSelector;
 
 class SGraphActionMenu;
 class SEditableTextBox;
@@ -41,12 +44,6 @@ public:
 class SNiagaraParameterPanel : public SCompoundWidget
 {
 public:
-	enum EToolkitType
-	{
-		SCRIPT,
-		SYSTEM,
-	};
-
 	SLATE_BEGIN_ARGS(SNiagaraParameterPanel)
 	{}
 	SLATE_END_ARGS();
@@ -55,75 +52,81 @@ public:
 
 	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, const TSharedPtr<INiagaraParameterPanelViewModel>& InParameterPanelViewModel, const TSharedPtr<FUICommandList>& InToolkitCommands);
 
+	TArray<ENiagaraParameterPanelCategory> OnGetCategoriesForItem(const FNiagaraScriptVariableAndViewInfo& Item);
+	bool OnCompareCategoriesForEquality(const ENiagaraParameterPanelCategory& CategoryA, const ENiagaraParameterPanelCategory& CategoryB) const;
+	bool OnCompareCategoriesForSorting(const ENiagaraParameterPanelCategory& CategoryA, const ENiagaraParameterPanelCategory& CategoryB) const;
+	bool OnCompareItemsForEquality(const FNiagaraScriptVariableAndViewInfo& ItemA, const FNiagaraScriptVariableAndViewInfo& ItemB) const;
+	bool OnCompareItemsForSorting(const FNiagaraScriptVariableAndViewInfo& ItemA, const FNiagaraScriptVariableAndViewInfo& ItemB) const;
+	bool OnDoesItemMatchFilterText(const FText& FilterText, const FNiagaraScriptVariableAndViewInfo& Item);
+	TSharedRef<SWidget> OnGenerateWidgetForCategory(const ENiagaraParameterPanelCategory& Category);
+	TSharedRef<SWidget> OnGenerateWidgetForItem(const FNiagaraScriptVariableAndViewInfo& Item);
+	const TArray<TArray<ENiagaraParameterPanelCategory>>& GetDefaultCategoryPaths() const;
+
 	NIAGARAEDITOR_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+// 
+// 	/** Whether the add parameter button should be enabled. */
+// // 	bool ParameterAddEnabled() const; //@todo(ng) impl
+// 
+	void AddParameter(FNiagaraVariable NewVariable, const ENiagaraParameterPanelCategory Category);
 
-	/** Whether the add parameter button should be enabled. */
-// 	bool ParameterAddEnabled() const; //@todo(ng) impl
-
-	void AddParameter(FNiagaraVariable NewVariable, const NiagaraParameterPanelSectionID::Type SectionID);
-
- 	/** Refreshes the palette items for the graph action menu on the next tick. */
- 	void Refresh();
+	/** Refreshes the items for the item selector on the next tick. */
+	void Refresh();
 
 	static TSharedRef<SExpanderArrow> CreateCustomActionExpander(const struct FCustomExpanderData& ActionMenuData);
 
 private:
+	bool SelectParameterEntryByName(const FName& ParameterName) const;
+
 	/** Function to bind to SNiagaraAddParameterMenus to filter types we allow creating */
 	bool AllowMakeType(const FNiagaraTypeDefinition& InType) const;
 
-	// SGraphActionMenu delegates
-	TSharedRef<SWidget> OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData);
-	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);
-	void CollectStaticSections(TArray<int32>& StaticSectionIDs) const;
-	FReply OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent);
-	void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType);
-// 	void OnActionDoubleClicked(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions); //@todo(ng) impl
-	TSharedPtr<SWidget> OnContextMenuOpening();
- 	FText OnGetSectionTitle(int32 InSectionID);
-	TSharedRef<SWidget> OnGetSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID);
-	TSharedRef<SWidget> CreateAddToSectionButton(const NiagaraParameterPanelSectionID::Type InSection, TWeakPtr<SWidget> WeakRowWidget, FText AddNewText, FName MetaDataTag);
-// 
-// 	/** Checks if the selected action has context menu */
-// 	bool SelectionHasContextMenu() const; //@todo(ng) impl
-// 
-	TSharedRef<SWidget> OnGetParameterMenu(const NiagaraParameterPanelSectionID::Type InSection);
-	
-	//EVisibility OnAddButtonTextVisibility(TWeakPtr<SWidget> RowWidget, const NiagaraParameterMapSectionID::Type InSection) const; //@todo(ng) impl
+	TSharedRef<SWidget> CreateAddToCategoryButton(const ENiagaraParameterPanelCategory Category, FText AddNewText, FName MetaDataTag);
+// // 
+// // 	/** Checks if the selected action has context menu */
+// // 	bool SelectionHasContextMenu() const; //@todo(ng) impl
+// // 
+	TSharedRef<SWidget> OnGetParameterMenu(const ENiagaraParameterPanelCategory Category);
 
-
-// 	//Callbacks
-	/** Try to delete all entries that are selected. If only some selected entries pass CanDeleteEntry(), then only those selected entries will be deleted. */
-	void TryDeleteEntries();
-	/** Test if ALL selected entries cannot be deleted. If only one selected entry passes INiagaraParameterPanelViewModel::CanRemoveParameter(), return true. Per entry deletion handling is done in TryDeleteEntries(). */
-	bool CanTryDeleteEntries() const;
-	void OnRequestRenameOnActionNode();
-	bool CanRequestRenameOnActionNode(TWeakPtr<struct FGraphActionNode> InSelectedNode) const;
-	bool CanRequestRenameOnActionNode() const;
-	void HandlePaletteItemParameterRenamed(const FText& InText, const FNiagaraScriptVarAndViewInfoAction& InAction);
-	void HandlePaletteItemScopeComboSelectionChanged(ENiagaraParameterScope InScope, const FNiagaraScriptVarAndViewInfoAction& InAction);
+	static ENiagaraParameterScope GetScopeForNewParametersInCategory(const ENiagaraParameterPanelCategory Category);
+	static bool GetCanAddParametersToCategory(const ENiagaraParameterPanelCategory Category);
+// 	
+// 	//EVisibility OnAddButtonTextVisibility(TWeakPtr<SWidget> RowWidget, const NiagaraParameterMapSectionID::Type InSection) const; //@todo(ng) impl
+// 
+// 
+// // 	//Callbacks
+// 	/** Try to delete all entries that are selected. If only some selected entries pass CanDeleteEntry(), then only those selected entries will be deleted. */
+// 	void TryDeleteEntries();
+// 	/** Test if ALL selected entries cannot be deleted. If only one selected entry passes INiagaraParameterPanelViewModel::CanRemoveParameter(), return true. Per entry deletion handling is done in TryDeleteEntries(). */
+// 	bool CanTryDeleteEntries() const;
+// 	void OnRequestRenameOnActionNode();
+// 	bool CanRequestRenameOnActionNode(TWeakPtr<struct FGraphActionNode> InSelectedNode) const;
+// 	bool CanRequestRenameOnActionNode() const;
+// 	void HandlePaletteItemParameterRenamed(const FText& InText, const FNiagaraScriptVarAndViewInfoAction& InAction);
+// 	void HandlePaletteItemScopeComboSelectionChanged(ENiagaraParameterScope InScope, const FNiagaraScriptVarAndViewInfoAction& InAction);
 	void HandleExternalSelectionChanged(const UObject* Obj);
-
-	/** Delegate handler used to match an FName to an action in the list, used for renaming keys */
-	bool HandleActionMatchesName(struct FEdGraphSchemaAction* InAction, const FName& InName) const;
-
-private:
-	/** Graph Action Menu for displaying all our variables and functions */
-	TSharedPtr<SGraphActionMenu> GraphActionMenu;
-
-	/** The filter box that handles filtering for both graph action menus. */
-	TSharedPtr<SSearchBox> FilterBox;
- 
-	/** Add parameter buttons for all sections. */
-	TArray<TSharedPtr<SComboButton>> AddParameterButtons;
-
-	TSharedPtr<FNiagaraObjectSelection> SelectedVariableObjects;
-
+// 
+// 	/** Delegate handler used to match an FName to an action in the list, used for renaming keys */
+// 	bool HandleActionMatchesName(struct FEdGraphSchemaAction* InAction, const FName& InName) const;
+// 
+// private:
+// 	/** Graph Action Menu for displaying all our variables and functions */
+// 	TSharedPtr<SGraphActionMenu> GraphActionMenu;
+// 
+// 	/** The filter box that handles filtering for both graph action menus. */
+// 	TSharedPtr<SSearchBox> FilterBox;
+//  
+// 	/** Add parameter buttons for all sections. */
+	TMap<ENiagaraParameterPanelCategory, TSharedPtr<SComboButton>> AddParameterButtons;
+// 
+// 	TSharedPtr<FNiagaraObjectSelection> SelectedVariableObjects;
+// 
 	TSharedPtr<FUICommandList> ToolkitCommands; //@todo(ng) add Find And Rename Parameter command
-
+// 
 	bool bNeedsRefresh;
-	bool bGraphActionPendingRename;
-
+// 	bool bGraphActionPendingRename;
+// 
 	TSharedPtr<INiagaraParameterPanelViewModel> ParameterPanelViewModel;
+	TSharedPtr<SNiagaraParameterPanelSelector> ItemSelector;
 };
 
 class SNiagaraAddParameterMenu2 : public SCompoundWidget
@@ -137,7 +140,7 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraAddParameterMenu2)
 		: _AllowCreatingNew(true)
 		, _ShowGraphParameters(true)
-		, _ShowKnownConstantParametersFilter(NiagaraParameterPanelSectionID::Type::NONE)
+		, _ShowKnownConstantParametersFilter(ENiagaraParameterPanelCategory::None)
 		, _AutoExpandMenu(false)
 		, _IsParameterRead(true)
 		, _NewParameterScope(ENiagaraParameterScope::Particles) {}
@@ -146,7 +149,7 @@ public:
 		SLATE_EVENT(FOnAllowMakeType, OnAllowMakeType)
 		SLATE_ATTRIBUTE(bool, AllowCreatingNew)
 		SLATE_ATTRIBUTE(bool, ShowGraphParameters)
-		SLATE_ATTRIBUTE(NiagaraParameterPanelSectionID::Type, ShowKnownConstantParametersFilter)
+		SLATE_ATTRIBUTE(ENiagaraParameterPanelCategory, ShowKnownConstantParametersFilter)
 		SLATE_ATTRIBUTE(bool, AutoExpandMenu)
 		SLATE_ATTRIBUTE(bool, IsParameterRead)
 		SLATE_ATTRIBUTE(FString, NewParameterNamespace)
@@ -174,7 +177,7 @@ private:
 
 	TAttribute<bool> AllowCreatingNew;
 	TAttribute<bool> ShowGraphParameters;
-	TAttribute<NiagaraParameterPanelSectionID::Type> ShowKnownConstantParametersFilter;
+	TAttribute<ENiagaraParameterPanelCategory> ShowKnownConstantParametersFilter;
 	TAttribute<bool> AutoExpandMenu;
 	TAttribute<bool> IsParameterRead;
 	TAttribute<FString> NewParameterNamespace;
