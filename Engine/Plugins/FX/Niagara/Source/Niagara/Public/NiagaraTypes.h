@@ -558,7 +558,6 @@ private:
 		FString NamespaceString;
 };
 
-#if WITH_EDITOR
 UENUM()
 enum class ENiagaraParameterPanelCategory : uint32
 {
@@ -601,7 +600,6 @@ enum class ENiagaraParameterPanelCategory : uint32
 
 	Num UMETA(Hidden)
 };
-#endif
 
 USTRUCT()
 struct NIAGARA_API FNiagaraVariableMetaData
