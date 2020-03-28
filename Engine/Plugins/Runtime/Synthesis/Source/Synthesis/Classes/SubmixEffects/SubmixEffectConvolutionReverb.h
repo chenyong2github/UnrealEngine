@@ -38,7 +38,6 @@ class SYNTHESIS_API UAudioImpulseResponse : public UObject
 
 public:
 	UAudioImpulseResponse();
-
 	/** The interleaved audio samples used in convolution. */
 	UPROPERTY()
 	TArray<float> ImpulseResponse;
@@ -88,6 +87,16 @@ struct SYNTHESIS_API FSubmixEffectConvolutionReverbSettings
 	/* If true, send Surround Rear Channel Bleed Amount sends front left to back right and vice versa */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset)
 	bool bSurroundRearChannelFlip;
+
+	UPROPERTY(meta = ( DeprecatedProperty ) )
+	float SurroundRearChannelBleedAmount_DEPRECATED;
+
+	UPROPERTY(meta = ( DeprecatedProperty ) )
+	UAudioImpulseResponse* ImpulseResponse_DEPRECATED;
+
+	UPROPERTY(meta = ( DeprecatedProperty ) )
+	bool AllowHardwareAcceleration_DEPRECATED;
+
 };
 
 

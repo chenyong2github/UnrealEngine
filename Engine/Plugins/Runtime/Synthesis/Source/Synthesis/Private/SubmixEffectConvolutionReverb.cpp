@@ -215,6 +215,9 @@ FSubmixEffectConvolutionReverbSettings::FSubmixEffectConvolutionReverbSettings()
 ,	SurroundRearChannelBleedDb(-60.f)
 ,	bInvertRearChannelBleedPhase(false)
 ,	bSurroundRearChannelFlip(false)
+,	SurroundRearChannelBleedAmount_DEPRECATED(NAN)
+,	ImpulseResponse_DEPRECATED(nullptr)
+,	AllowHardwareAcceleration_DEPRECATED(true)
 {
 }
 
@@ -661,6 +664,24 @@ void USubmixEffectConvolutionReverbPreset::PreEditChange(FProperty* PropertyAbou
 void USubmixEffectConvolutionReverbPreset::PostLoad()
 {
 	Super::PostLoad();
+
+	// This handles previous version 
+	if (FMath::IsFinite(Settings.SurroundRearChannelBleedAmount_DEPRECATED))
+	{
+		Settings.SurroundRearChannelBleedDb = Audio::ConvertToDecibels(FMath::Abs(Settings.SurroundRearChannelBleedAmount_DEPRECATED));
+		Settings.bInvertRearChannelBleedPhase = Settings.SurroundRearChannelBleedAmount_DEPRECATED < 0.f;
+	}
+
+	if (nullptr != Settings.ImpulseResponse_DEPRECATED)
+	{
+		ImpulseResponse = Settings.ImpulseResponse_DEPRECATED;
+	}
+
+	if (!Settings.AllowHardwareAcceleration_DEPRECATED)
+	{
+		bEnableHardwareAcceleration = false;
+	}
+
 
 	BindToImpulseResponseObjectChange();
 }
