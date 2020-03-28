@@ -22,7 +22,6 @@ class ISocketSubsystem;
 class DMXPROTOCOLSACN_API FDMXProtocolUniverseSACN
 	: public IDMXProtocolUniverse
 	, public IDMXNetworkInterface
-	, public FTickableGameObject
 {
 public:
 	FDMXProtocolUniverseSACN(IDMXProtocolPtr InDMXProtocol, const FJsonObject& InSettings);
@@ -37,15 +36,9 @@ public:
 	virtual uint32 GetUniverseID() const override;
 	virtual TSharedPtr<FJsonObject> GetSettings() const override;
 	virtual bool IsSupportRDM() const override;
-	//~ End IDMXProtocolDevice implementation
 
-	//~ Begin FTickableObjectBase implementation
 	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const;
-	virtual TStatId GetStatId() const override;
-	virtual bool IsTickableInEditor() const override { return true; }
-	virtual bool IsTickableWhenPaused() const override { return true; }
-	//~ End FTickableObjectBase implementation
+	//~ End IDMXProtocolDevice implementation
 
 	//~ Begin IDMXNetworkInterface implementation
 	virtual void OnNetworkInterfaceChanged(const FString& InInterfaceIPAddress) override;
