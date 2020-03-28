@@ -558,6 +558,51 @@ private:
 		FString NamespaceString;
 };
 
+#if WITH_EDITOR
+UENUM()
+enum class ENiagaraParameterPanelCategory : uint32
+{
+	/** Parameter that is an input argument into this graph.*/
+	Input UMETA(DisplayName = "Module Inputs"),
+
+	Attributes UMETA(DisplayName = "Input Attributes"),
+
+	/** Parameter is output to the owning stack stage from this script, but is only meaningful if bound elsewhere in the stage.*/
+	Output UMETA(DisplayName = "Output Attributes"),
+
+	/** Parameter is initialized at the start of this script and is only used within the context of this script. It is invisible to the parent stage stack.*/
+	Local UMETA(DisplayName = "Local"),
+
+	/** Parameter that is exposed to the owning component for editing and are read-only when used in the graph*/
+	User UMETA(DisplayName = "User"),
+
+	/** Parameter provided by the engine. These are explicitly defined by the engine codebase and read-only. */
+	Engine UMETA(DisplayName = "Engine (Generic)", Hidden),
+
+	/** Parameter provided by the engine focused on the owning component. These are explicitly defined by the engine codebase and read-only.*/
+	Owner UMETA(DisplayName = "Engine (Owner)", Hidden),
+
+	/** Parameter is an attribute of the owning system payload. It is persistent across frames and initialized in the System Spawn stage of the stack.*/
+	System  UMETA(DisplayName = "System"),
+
+	/** Parameter is an attribute of the owning emitter payload. It is persistent across frames and initialized in the Emitter Spawn stage of the stack.*/
+	Emitter   UMETA(DisplayName = "Emitter"),
+
+	/** Parameter is an attribute of the owning particle payload. It is persistent across frames and initialized in the Particle Spawn stage of the stack.*/
+	Particles  UMETA(DisplayName = "Particles"),
+
+	/** Parameter is initialized at the start of this stage and can be shared amongst other modules within this stack stage, but is not persistent across runs or from stack stage to stack stage.*/
+	ScriptTransient UMETA(DisplayName = "Stage (Transient)"),
+
+	StaticSwitch UMETA(DisplayName = "Static Switch"),
+
+	// insert new categories before
+	None UMETA(Hidden),
+
+	Num UMETA(Hidden)
+};
+#endif
+
 USTRUCT()
 struct NIAGARA_API FNiagaraVariableMetaData
 {
@@ -924,6 +969,7 @@ public:
 	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
+	static UEnum* GetParameterPanelCategoryEnum() { return ParameterPanelCategoryEnum; }
 
 	static UEnum* GetParameterScopeEnum() { return ParameterScopeEnum; }
 
@@ -984,6 +1030,7 @@ private:
 	static UEnum* ExecutionStateSourceEnum;
 
 	static UEnum* ParameterScopeEnum;
+	static UEnum* ParameterPanelCategoryEnum;
 
 	static UScriptStruct* ParameterMapStruct;
 	static UScriptStruct* IDStruct;
