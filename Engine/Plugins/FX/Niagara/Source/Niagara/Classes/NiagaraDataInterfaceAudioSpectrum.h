@@ -62,14 +62,14 @@ struct FNiagaraDataInterfaceProxySpectrum : public FNiagaraDataInterfaceProxySub
 		return 0;
 	}
 
+	// Calculates the CQT
+	void UpdateSpectrum();
+
 private:
 	typedef Audio::TSlidingBuffer<float> FSlidingBuffer;
 	typedef Audio::TAutoSlidingWindow<float, Audio::FAudioBufferAlignedAllocator> FSlidingWindow;
 	typedef Audio::TAutoDeinterleaveView<float, Audio::FAudioBufferAlignedAllocator> FDeinterleaveView;
 	typedef FDeinterleaveView::TChannel<Audio::FAudioBufferAlignedAllocator> FChannel;
-
-	// Calculates the CQT
-	void UpdateSpectrum();
 
 	// Updates internal objects for num channels and samplerate
 	void SetAudioFormat(int32 InNumChannels, float InSampleRate);
@@ -159,21 +159,15 @@ public:
 	float NoiseFloorDb;
 
 	//VM function overrides:
-	void GetSpectrumValue(FVectorVMContext& Context) {}
-	void GetNumChannels(FVectorVMContext& Context) {}
+	void GetSpectrumValue(FVectorVMContext& Context);
+	void GetNumChannels(FVectorVMContext& Context);
 
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 
-	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { 
-		if (Target == ENiagaraSimTarget::GPUComputeSim)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override 
+	{
+		return true;
 	}
 
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;

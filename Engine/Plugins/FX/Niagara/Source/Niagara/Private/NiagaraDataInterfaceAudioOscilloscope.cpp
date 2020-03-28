@@ -36,6 +36,9 @@ FNiagaraDataInterfaceProxyOscilloscope::FNiagaraDataInterfaceProxyOscilloscope(i
 {
 	DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FNiagaraDataInterfaceProxyOscilloscope::OnNewDeviceCreated);
 	DeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddRaw(this, &FNiagaraDataInterfaceProxyOscilloscope::OnDeviceDestroyed);
+
+	VectorVMReadBuffer.Reset();
+	VectorVMReadBuffer.AddZeroed(Resolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 }
 
 FNiagaraDataInterfaceProxyOscilloscope::~FNiagaraDataInterfaceProxyOscilloscope()
@@ -121,36 +124,41 @@ UNiagaraDataInterfaceAudioOscilloscope::UNiagaraDataInterfaceAudioOscilloscope(F
 {
 	Proxy = TUniquePtr<FNiagaraDataInterfaceProxyOscilloscope>(new FNiagaraDataInterfaceProxyOscilloscope(Resolution, ScopeInMilliseconds));
 }
-
-float FNiagaraDataInterfaceProxyOscilloscope::SampleAudio(float NormalizedPositionInBuffer, int32 ChannelIndex)
+PRAGMA_DISABLE_OPTIMIZATION
+float FNiagaraDataInterfaceProxyOscilloscope::SampleAudio(float NormalizedPositionInBuffer, int32 ChannelIndex, int32 NumFramesInBuffer, int32 NumChannelsInBuffer)
 {
-	if (DownsampledBuffer.Num() == 0)
+	if (NumFramesInBuffer == 0 || NumChannelsInBuffer == 0)
 	{
 		return 0.0f;
 	}
 
 	NormalizedPositionInBuffer = FMath::Clamp(NormalizedPositionInBuffer, 0.0f, 1.0f - SMALL_NUMBER);
-	float FrameIndex = NormalizedPositionInBuffer * DownsampledBuffer.Num();
+	//ChannelIndex = FMath::Clamp(ChannelIndex, 0, NumChannelsInDownsampledBuffer);
+
+	float FrameIndex = NormalizedPositionInBuffer * NumFramesInBuffer;
 	int32 LowerFrameIndex = FMath::FloorToInt(FrameIndex);
-	float LowerFrameAmplitude = DownsampledBuffer[LowerFrameIndex * NumChannelsInDownsampledBuffer + ChannelIndex];
-	int32 HigherFrameIndex = FMath::CeilToInt(FrameIndex);
-	float HigherFrameAmplitude = DownsampledBuffer[HigherFrameIndex * NumChannelsInDownsampledBuffer + ChannelIndex];
+	float LowerFrameAmplitude = VectorVMReadBuffer[LowerFrameIndex * NumChannelsInBuffer + ChannelIndex];
+	int32 HigherFrameIndex = FMath::Clamp(FMath::CeilToInt(FrameIndex), 0, NumFramesInBuffer - 1);
+	float HigherFrameAmplitude = VectorVMReadBuffer[HigherFrameIndex * NumChannelsInBuffer + ChannelIndex];
 	float Fraction = HigherFrameIndex - FrameIndex;
 	return FMath::Lerp<float>(LowerFrameAmplitude, HigherFrameAmplitude, Fraction);
 }
 
 void UNiagaraDataInterfaceAudioOscilloscope::SampleAudio(FVectorVMContext& Context)
 {
-	VectorVM::FUserPtrHandler<UNiagaraDataInterfaceAudioOscilloscope> InstData(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> InNormalizedPos(Context);
-	VectorVM::FExternalFuncRegisterHandler<int32> InChannel(Context);
+	const int32 NumFramesInDownsampledBuffer = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->DownsampleAudioToBuffer();
+
+	VectorVM::FExternalFuncInputHandler<float> InNormalizedPos(Context);
+	VectorVM::FExternalFuncInputHandler<int32> InChannel(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutAmplitude(Context);
+
+	const int32 NumChannelsInDownsampledBuffer = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->GetNumChannels();
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{
 		float Position = InNormalizedPos.Get();
 		int32 Channel = InChannel.Get();
-		*OutAmplitude.GetDest() = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->SampleAudio(Position, Channel);
+		*OutAmplitude.GetDest() = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->SampleAudio(Position, Channel, NumFramesInDownsampledBuffer, NumChannelsInDownsampledBuffer);
 
 		InNormalizedPos.Advance();
 		InChannel.Advance();
@@ -160,12 +168,11 @@ void UNiagaraDataInterfaceAudioOscilloscope::SampleAudio(FVectorVMContext& Conte
 
 int32 FNiagaraDataInterfaceProxyOscilloscope::GetNumChannels()
 {
-	return NumChannelsInDownsampledBuffer;
+	return NumChannelsInDownsampledBuffer.GetValue();
 }
 
 void UNiagaraDataInterfaceAudioOscilloscope::GetNumChannels(FVectorVMContext& Context)
 {
-	VectorVM::FUserPtrHandler<UNiagaraDataInterfaceAudioOscilloscope> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutChannel(Context);
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
@@ -173,6 +180,8 @@ void UNiagaraDataInterfaceAudioOscilloscope::GetNumChannels(FVectorVMContext& Co
 		*OutChannel.GetDestAndAdvance() = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->GetNumChannels();
 	}
 }
+
+PRAGMA_ENABLE_OPTIMIZATION
 
 void UNiagaraDataInterfaceAudioOscilloscope::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
@@ -336,7 +345,7 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateResampling(int32 InResoluti
 	Resolution = InResolution;
 	ScopeInMilliseconds = InScopeInMilliseconds;
 
-	const int32 NumSamplesInBuffer = Resolution * NumChannelsInDownsampledBuffer;
+	const int32 NumSamplesInBuffer = Resolution * NumChannelsInDownsampledBuffer.GetValue();
 	if (NumSamplesInBuffer)
 	{
 		ENQUEUE_RENDER_COMMAND(FUpdateDIAudioBuffer)(
@@ -349,8 +358,9 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateResampling(int32 InResoluti
 
 			GPUDownsampledBuffer.Initialize(sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		});
+
+		VectorVMReadBuffer.SetNumZeroed(Resolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 	}
-	
 }
 
 FReadBuffer& FNiagaraDataInterfaceProxyOscilloscope::ComputeAndPostSRV()
@@ -457,7 +467,7 @@ void FNiagaraDataInterfaceProxyOscilloscope::PostAudioToGPU()
 		size_t BufferSize = DownsampledBuffer.Num() * sizeof(float);
 		if (BufferSize != 0 && !GPUDownsampledBuffer.NumBytes)
 		{
-			GPUDownsampledBuffer.Initialize(sizeof(float), Resolution * NumChannelsInDownsampledBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+			GPUDownsampledBuffer.Initialize(sizeof(float), Resolution * NumChannelsInDownsampledBuffer.GetValue(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		}
 
 		if (GPUDownsampledBuffer.NumBytes > 0)
@@ -470,39 +480,40 @@ void FNiagaraDataInterfaceProxyOscilloscope::PostAudioToGPU()
 	});
 }
 
-void FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
+int32 FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
 {
 	FScopeLock ScopeLock(&DownsampleBufferLock);
 
 	// Get the number of channels from the first listener we find.
 	// If the num channels hasn't been set, either SubmixListeners is empty
 	// or we haven't pushed audio to any of them yet.
-	NumChannelsInDownsampledBuffer = 0;
 	float SourceSampleRate = 0.0f;
+	int32 NumChannels = 0;
 
 	for (auto& Listener : SubmixListeners)
 	{
-		NumChannelsInDownsampledBuffer = Listener.Value->GetNumChannels();
+		NumChannels = Listener.Value->GetNumChannels();
 		SourceSampleRate = Listener.Value->GetSampleRate();
 
-		if (NumChannelsInDownsampledBuffer != 0)
+		if (NumChannels != 0)
 		{
 			break;
 		}
 	}
 
-	if (NumChannelsInDownsampledBuffer == 0 || FMath::IsNearlyZero(SourceSampleRate))
+	if (NumChannels == 0 || FMath::IsNearlyZero(SourceSampleRate))
 	{
-		return;
+		return 0;
 	}
 
-	check(NumChannelsInDownsampledBuffer > 0);
+	check(NumChannels > 0);
+	NumChannelsInDownsampledBuffer.Set(NumChannels);
 
 	// Get the number of frames of audio in the original sample rate to show.
 	int32 NumFramesToPop = Align(FMath::FloorToInt(SourceSampleRate * (ScopeInMilliseconds / 1000.0f)), 4);
 
 	// If we have enough frames buffered to pop, update the PopBuffer. Otherwise, use the previous frames buffer.
-	int32 NumSamplesToPop = NumFramesToPop * NumChannelsInDownsampledBuffer;
+	int32 NumSamplesToPop = NumFramesToPop * NumChannels;
 
 	if (PopBuffer.Num() != NumSamplesToPop)
 	{
@@ -521,7 +532,7 @@ void FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
 
 	Audio::FResamplingParameters ResampleParameters = {
 		Audio::EResamplingMethod::Linear,
-		NumChannelsInDownsampledBuffer,
+		NumChannels,
 		SourceSampleRate,
 		DestinationSampleRate,
 		PopBuffer
@@ -539,8 +550,12 @@ void FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
 	check(bResampleResult);
 
 	// here we may have an extra sample or two due to roundoff.
-	DownsampledBuffer.SetNumZeroed(Resolution * NumChannelsInDownsampledBuffer);
-}
+	DownsampledBuffer.SetNumZeroed(Resolution * NumChannels);
 
+	check(DownsampledBuffer.Num() <= VectorVMReadBuffer.Num());
+	FMemory::Memcpy(VectorVMReadBuffer.GetData(), DownsampledBuffer.GetData(), VectorVMReadBuffer.Num());
+
+	return Resolution;
+}
 
 #undef LOCTEXT_NAMESPACE
