@@ -449,7 +449,7 @@ namespace Audio
 
 		// Loop through any envelope-following submixes and perform any broadcasting of envelope data if needed
 		TArray<float> SubmixEnvelopeData;
-		for (USoundSubmix* SoundSubmix : EnvelopeFollowingSubmixes)
+		for (USoundSubmix* SoundSubmix : DelegateBoundSubmixes)
 		{
 			if (SoundSubmix)
 			{
@@ -463,7 +463,7 @@ namespace Audio
 					Audio::FMixerSubmixPtr ThisSubmixPtr = SubmixPtr.Pin();
 					if (ThisSubmixPtr.IsValid())
 					{
-						ThisSubmixPtr->BroadcastEnvelope();
+						ThisSubmixPtr->BroadcastDelegates();
 					}
 				});
 			}
@@ -1752,7 +1752,7 @@ namespace Audio
 			MasterSubmixPtr->StartEnvelopeFollowing(InSubmix->EnvelopeFollowerAttackTime, InSubmix->EnvelopeFollowerReleaseTime);
 		}
 
-		EnvelopeFollowingSubmixes.AddUnique(InSubmix);
+		DelegateBoundSubmixes.AddUnique(InSubmix);
 	}
 
 	void FMixerDevice::StopEnvelopeFollowing(USoundSubmix* InSubmix)
@@ -1784,7 +1784,7 @@ namespace Audio
 			MasterSubmixPtr->StopEnvelopeFollowing();
 		}
 
-		EnvelopeFollowingSubmixes.RemoveSingleSwap(InSubmix);
+		DelegateBoundSubmixes.RemoveSingleSwap(InSubmix);
 	}
 
 	void FMixerDevice::AddEnvelopeFollowerDelegate(USoundSubmix* InSubmix, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP)
@@ -1845,6 +1845,8 @@ namespace Audio
 
 			MasterSubmixPtr->StartSpectrumAnalysis(InSettings);
 		}
+
+		DelegateBoundSubmixes.AddUnique(InSubmix);
 	}
 
 	void FMixerDevice::StopSpectrumAnalysis(USoundSubmix* InSubmix)
@@ -1874,6 +1876,9 @@ namespace Audio
 
 			MasterSubmixPtr->StopSpectrumAnalysis();
 		}
+
+		DelegateBoundSubmixes.RemoveSingleSwap(InSubmix);
+
 	}
 
 	void FMixerDevice::GetMagnitudesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes)
@@ -1907,6 +1912,36 @@ namespace Audio
 			check(MasterSubmixPtr.IsValid());
 
 			MasterSubmixPtr->GetPhaseForFrequencies(InFrequencies, OutPhases);
+		}
+	}
+
+	void FMixerDevice::AddSpectralAnalysisDelegate(USoundSubmix* InSubmix, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, float UpdateRate)
+	{
+		if (!IsInAudioThread())
+		{
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AddFFTDelegate"), STAT_AddFFTDelegate, STATGROUP_AudioThreadCommands);
+
+			FAudioThread::RunCommandOnAudioThread([this, InSubmix, InBandSettings, OnSubmixSpectralAnalysisBP, UpdateRate]()
+			{
+				CSV_SCOPED_TIMING_STAT(Audio, AddEnvelopeFollowerDelegate);
+				AddSpectralAnalysisDelegate(InSubmix, InBandSettings, OnSubmixSpectralAnalysisBP, UpdateRate);
+			}, GET_STATID(STAT_AddFFTDelegate));
+			return;
+		}
+
+		// if we can find the submix here, record that submix. Otherwise, just record the master submix.
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+		if (FoundSubmix.IsValid())
+		{
+			FoundSubmix->AddSpectralAnalysisDelegate(OnSubmixSpectralAnalysisBP, InBandSettings, UpdateRate);
+		}
+		else
+		{
+			FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
+			FMixerSubmixPtr MasterSubmixPtr = MasterSubmix.Pin();
+			check(MasterSubmixPtr.IsValid());
+
+			MasterSubmixPtr->AddSpectralAnalysisDelegate(OnSubmixSpectralAnalysisBP, InBandSettings, UpdateRate);
 		}
 	}
 
