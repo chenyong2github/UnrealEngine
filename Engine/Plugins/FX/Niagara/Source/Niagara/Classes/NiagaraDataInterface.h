@@ -291,6 +291,17 @@ public:
 		return false;
 	}
 
+#if WITH_EDITORONLY_DATA
+	/**
+	Allows data interfaces the opportunity to rename / change the function signature and perform an upgrade.
+	Return true if the signature was modified and we need to refresh the pins / name, etc.
+	*/
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+	{
+		return false;
+	}
+#endif
+
 	virtual void PostExecute() {}
 
 #if WITH_EDITOR	
@@ -499,6 +510,16 @@ struct FNDIRandomHelper
 		// NOTE: Inclusive! So [0, x] instead of [0, x)
 		int32 Range = Max - Min;
 		return Min + (int(Rand(InstanceIndex) * (Range + 1)));
+	}
+
+	FORCEINLINE_DEBUGGABLE FVector RandomBarycentricCoord(int32 InstanceIndex)
+	{
+		//TODO: This is gonna be slooooow. Move to an LUT possibly or find faster method.
+		//Can probably handle lower quality randoms / uniformity for a decent speed win.
+		FVector2D r = Rand2(InstanceIndex);
+		float sqrt0 = FMath::Sqrt(r.X);
+		float sqrt1 = FMath::Sqrt(r.Y);
+		return FVector(1.0f - sqrt0, sqrt0 * (1.0 - r.Y), r.Y * sqrt0);
 	}
 
 	FVectorVMContext& Context;
