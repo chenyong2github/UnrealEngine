@@ -3,6 +3,8 @@
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolTransportSACN.h"
 #include "Common/UdpSocketBuilder.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/App.h"
 
 #include "Packets/DMXProtocolE131PDUPacket.h"
 #include "DMXProtocolPackager.h"
@@ -43,6 +45,9 @@ bool FDMXProtocolSACN::Init()
 		UE_LOG_DMXPROTOCOL(Error, TEXT("%s:%s"), NetworkErrorMessagePrefix, *ErrorMessage);
 	}
 
+	// Declare Engine ticker
+	OnEndFrameHandle = FCoreDelegates::OnEndFrame.AddRaw(this, &FDMXProtocolSACN::OnEndFrame);
+
 	return true;
 }
 
@@ -50,6 +55,8 @@ bool FDMXProtocolSACN::Shutdown()
 {
 	ReleaseNetworkInterface();
 	IDMXProtocol::OnNetworkInterfaceChanged.Remove(NetworkInterfaceChangedDelegate.GetHandle());
+
+	FCoreDelegates::OnEndFrame.Remove(OnEndFrameHandle);
 
 	return false;
 }
@@ -109,7 +116,20 @@ TSharedPtr<IDMXProtocolSender> FDMXProtocolSACN::GetSenderInterface() const
 
 bool FDMXProtocolSACN::Tick(float DeltaTime)
 {
+	for (const TPair<uint32, FDMXProtocolUniverseSACNPtr>& UniversePair : UniverseManager->GetAllUniverses())
+	{
+		if (FDMXProtocolUniverseSACNPtr Universe = UniversePair.Value)
+		{
+			Universe->Tick(DeltaTime);
+		}
+	}
+
 	return true;
+}
+
+void FDMXProtocolSACN::OnEndFrame()
+{
+	Tick(FApp::GetDeltaTime());
 }
 
 bool FDMXProtocolSACN::SendDiscovery(const TArray<uint16>& Universes)
