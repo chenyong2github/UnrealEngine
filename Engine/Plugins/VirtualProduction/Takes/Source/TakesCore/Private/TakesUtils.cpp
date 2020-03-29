@@ -43,13 +43,16 @@ void ClampPlaybackRangeToEncompassAllSections(UMovieScene* InMovieScene, bool bU
 	for (UMovieSceneSection* Section : MovieSceneSections)
 	{
 		TRange<FFrameNumber> SectionRange = Section->GetRange();
-		if (!PlayRange.IsSet())
+		if (SectionRange.GetLowerBound().IsClosed() && SectionRange.GetUpperBound().IsClosed())
 		{
-			PlayRange = SectionRange;
-		}
-		else if (SectionRange.GetLowerBound().IsClosed() && SectionRange.GetUpperBound().IsClosed())
-		{
-			PlayRange = TRange<FFrameNumber>::Hull(PlayRange.GetValue(), SectionRange);
+			if (!PlayRange.IsSet())
+			{
+				PlayRange = SectionRange;
+			}
+			else
+			{
+				PlayRange = TRange<FFrameNumber>::Hull(PlayRange.GetValue(), SectionRange);
+			}
 		}
 	}
 
