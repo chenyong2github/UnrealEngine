@@ -68,10 +68,13 @@ static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 						AllocateSize = MessageLength;
 					}
 
-					// get the actual message data from the queue
-					hr = d3dInfoQueue->GetMessage(MessageIndex, d3dMessage, &MessageLength);
+					if (d3dMessage)
+					{
+						// get the actual message data from the queue
+						hr = d3dInfoQueue->GetMessage(MessageIndex, d3dMessage, &MessageLength);
 
-					UE_LOG(LogD3D12RHI, Error, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+						UE_LOG(LogD3D12RHI, Error, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+					}
 
 					// when we get here, then it means that BreakOnSeverity was set for this error message, so request the debug break here as well
 					UE_DEBUG_BREAK();
