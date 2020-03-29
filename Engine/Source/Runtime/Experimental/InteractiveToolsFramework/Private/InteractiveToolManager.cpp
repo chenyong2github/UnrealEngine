@@ -245,7 +245,7 @@ FString UInteractiveToolManager::GetActiveToolName(EToolSide Side)
 	{
 		return FString();
 	}
-	return (Side == EToolSide::Left) ? ActiveLeftToolName : ActiveLeftToolName;
+	return (Side == EToolSide::Left) ? ActiveLeftToolName : ActiveRightToolName;
 }
 
 
