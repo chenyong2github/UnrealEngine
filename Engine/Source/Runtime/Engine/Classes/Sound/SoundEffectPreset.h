@@ -91,10 +91,14 @@ public:
 	static TSharedPtr<TSoundEffectType, ESPMode::ThreadSafe> CreateInstance(const TInitData& InInitData, USoundEffectPreset& InOutPreset)
 	{
 		TSoundEffectType* NewEffect = static_cast<TSoundEffectType*>(InOutPreset.CreateNewEffect());
+		NewEffect->Preset = &InOutPreset;
 		NewEffect->Init(InInitData);
 
 		TSharedPtr<TSoundEffectType, ESPMode::ThreadSafe> NewEffectPtr(NewEffect);
-		RegisterInstance(InOutPreset, StaticCastSharedPtr<FSoundEffectBase, TSoundEffectType, ESPMode::ThreadSafe>(NewEffectPtr));
+
+		TSoundEffectPtr SoundEffectPtr = StaticCastSharedPtr<FSoundEffectBase, TSoundEffectType, ESPMode::ThreadSafe>(NewEffectPtr);
+		InOutPreset.AddEffectInstance(SoundEffectPtr);
+
 		return NewEffectPtr;
 	}
 
