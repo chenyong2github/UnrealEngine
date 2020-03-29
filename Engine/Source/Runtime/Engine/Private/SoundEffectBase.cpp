@@ -6,7 +6,7 @@
 
 
 FSoundEffectBase::FSoundEffectBase()
-	: bChanged(false)
+	: bChanged(true)
 	, bIsRunning(false)
 	, bIsActive(false)
 {}

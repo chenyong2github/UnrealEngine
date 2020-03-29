@@ -1821,81 +1821,69 @@ namespace Audio
 
 	void FMixerDevice::RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix)
 	{
-		if (!IsInAudioThread())
-		{
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.RegisterSubmixBufferListener"), STAT_RegisterSubmixBufferListener, STATGROUP_AudioThreadCommands);
-			auto AudioThreadCommand = [this, InSubmixBufferListener, InSubmix]()
-			{
-				CSV_SCOPED_TIMING_STAT(Audio, StopSpectrumAnalysis);
-				RegisterSubmixBufferListener(InSubmixBufferListener, InSubmix);
-			};
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.RegisterSubmixBufferListener"), STAT_RegisterSubmixBufferListener, STATGROUP_AudioThreadCommands);
 
-			if (IsInGameThread())
+		const bool bUseMaster = InSubmix == nullptr;
+		const TWeakObjectPtr<USoundSubmix> SubmixPtr(InSubmix);
+
+		auto RegisterLambda = [this, InSubmixBufferListener, bUseMaster, SubmixPtr]()
+		{
+			CSV_SCOPED_TIMING_STAT(Audio, RegisterSubmixBufferListener);
+
+			FMixerSubmixPtr FoundSubmix = bUseMaster
+				? GetMasterSubmix().Pin()
+				: GetSubmixInstance(SubmixPtr.Get()).Pin();
+
+			// Attempt to register submix if instance not found and is not master (i.e. default) submix
+			if (!bUseMaster && !FoundSubmix.IsValid() && SubmixPtr.IsValid())
 			{
-				FAudioThread::RunCommandOnAudioThread(AudioThreadCommand, GET_STATID(STAT_RegisterSubmixBufferListener));
+				RegisterSoundSubmix(SubmixPtr.Get(), true /* bInit */);
+				FoundSubmix = GetSubmixInstance(SubmixPtr.Get()).Pin();
+			}
+
+			if (FoundSubmix.IsValid())
+			{
+				FoundSubmix->RegisterBufferListener(InSubmixBufferListener);
 			}
 			else
 			{
-				AsyncTask(ENamedThreads::GameThread, [AudioThreadCommand]() {
-					FAudioThread::RunCommandOnAudioThread(AudioThreadCommand, GET_STATID(STAT_RegisterSubmixBufferListener));
-				});
+				UE_LOG(LogAudioMixer, Warning, TEXT("Submix buffer listener not registered. Submix not loaded."));
 			}
-			return;
-		}
+		};
 
-		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
-		if (FoundSubmix.IsValid())
-		{
-			return FoundSubmix->RegisterBufferListener(InSubmixBufferListener);
-		}
-		else
-		{
-			FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
-			FMixerSubmixPtr MasterSubmixPtr = MasterSubmix.Pin();
-			check(MasterSubmixPtr.IsValid());
-
-			return MasterSubmixPtr->RegisterBufferListener(InSubmixBufferListener);
-		}
+		IsInAudioThread()
+			? RegisterLambda()
+			: AsyncTask(ENamedThreads::AudioThread, MoveTemp(RegisterLambda));
 	}
 
 	void FMixerDevice::UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix)
 	{
-		if (!IsInAudioThread())
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UnregisterSubmixBufferListener"), STAT_UnregisterSubmixBufferListener, STATGROUP_AudioThreadCommands);
+
+		const bool bUseMaster = InSubmix == nullptr;
+		const TWeakObjectPtr<USoundSubmix> SubmixPtr(InSubmix);
+
+		auto UnregisterLambda = [this, InSubmixBufferListener, bUseMaster, SubmixPtr]()
 		{
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UnregisterSubmixBufferListener"), STAT_UnregisterSubmixBufferListener, STATGROUP_AudioThreadCommands);
+			CSV_SCOPED_TIMING_STAT(Audio, UnregisterSubmixBufferListener);
 
-			auto AudioThreadCommand = [this, InSubmixBufferListener, InSubmix]()
-			{
-				CSV_SCOPED_TIMING_STAT(Audio, UnregisterSubmixBufferListener);
-				UnregisterSubmixBufferListener(InSubmixBufferListener, InSubmix);
-			};
+			FMixerSubmixPtr FoundSubmix = bUseMaster
+				? GetMasterSubmix().Pin()
+				: GetSubmixInstance(SubmixPtr.Get()).Pin();
 
-			if (IsInGameThread())
+			if (FoundSubmix.IsValid())
 			{
-				FAudioThread::RunCommandOnAudioThread(AudioThreadCommand, GET_STATID(STAT_UnregisterSubmixBufferListener));
+				FoundSubmix->UnregisterBufferListener(InSubmixBufferListener);
 			}
 			else
 			{
-				AsyncTask(ENamedThreads::GameThread, [AudioThreadCommand]() {
-					FAudioThread::RunCommandOnAudioThread(AudioThreadCommand, GET_STATID(STAT_UnregisterSubmixBufferListener));
-				});
+				UE_LOG(LogAudioMixer, Display, TEXT("Submix buffer listener not unregistered. Submix not loaded."));
 			}
+		};
 
-			return;
-		}
-
-		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
-		if (FoundSubmix.IsValid())
-		{
-			return FoundSubmix->UnregisterBufferListener(InSubmixBufferListener);
-		}
-		else
-		{
-			FMixerSubmixPtr MasterSubmixPtr = GetMasterSubmix().Pin();
-			check(MasterSubmixPtr.IsValid());
-
-			return MasterSubmixPtr->UnregisterBufferListener(InSubmixBufferListener);
-		}
+		IsInAudioThread()
+			? UnregisterLambda()
+			: AsyncTask(ENamedThreads::AudioThread, MoveTemp(UnregisterLambda));
 	}
 
 	int32 FMixerDevice::GetDeviceSampleRate() const
