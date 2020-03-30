@@ -98,7 +98,7 @@ public:
 	 */
 	const TArray<ETextPluralForm>& GetValidPluralForms(const ETextPluralType PluralType) const;
 	
-	void RefreshCultureDisplayNames(const bool bFullRefresh = true);
+	void RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames, const bool bFullRefresh = true);
 
 private:
 	explicit FCulture(TUniquePtr<FCultureImplementation>&& InImplementation);
