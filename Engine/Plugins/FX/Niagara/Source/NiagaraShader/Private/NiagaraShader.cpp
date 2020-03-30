@@ -1045,8 +1045,9 @@ void FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, boo
 	Super::Serialize(Ar, bInlineShaderResources, bLoadedByCookedMaterial);
 }
 
-void FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
+bool FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
 {
+	bool bRemoved = false;
 	//All access to NiagaraShaderMapsBeingCompiled must be done on the game thread!
 	check(IsInGameThread());
 	for (TMap<TRefCountPtr<FNiagaraShaderMap>, TArray<FNiagaraShaderScript*> >::TIterator It(NiagaraShaderMapsBeingCompiled); It; ++It)
@@ -1057,6 +1058,7 @@ void FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
 		{
 			Script->RemoveOutstandingCompileId(It.Key()->CompilingId);
 			Script->NotifyCompilationFinished();
+			bRemoved = true;
 		}
 #if DEBUG_INFINITESHADERCOMPILE
 		if ( Result )
@@ -1065,6 +1067,8 @@ void FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
 		}
 #endif
 	}
+
+	return bRemoved;
 }
 
 
