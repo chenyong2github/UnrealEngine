@@ -29,6 +29,43 @@ public:
 	}
 
 	/**
+	 * Checks if element counts match. If false then Update can't be called -- you must call Convert
+	 *
+	 * @param DynamicMesh The dynamic mesh with updated vertices or attributes
+	 * @param MeshDescription The corresponding mesh description
+	 * @param bVerticesOnly If true, only check vertex counts match
+	 * @param bAttributesOnly If true, only check what needs to be checked for UpdateAttributes
+							 (will check vertices or triangles depending on whether attributes are per vertex or in overlays)
+	 */
+	static bool HaveMatchingElementCounts(const FDynamicMesh3* DynamicMesh, const FMeshDescription* MeshDescription, bool bVerticesOnly, bool bAttributesOnly)
+	{
+		bool bVerticesMatch = DynamicMesh->IsCompactV() && DynamicMesh->VertexCount() == MeshDescription->Vertices().Num();
+		bool bTrianglesMatch = DynamicMesh->IsCompactT() && DynamicMesh->TriangleCount() == MeshDescription->Triangles().Num();
+		if (bVerticesOnly || (bAttributesOnly && !DynamicMesh->HasAttributes()))
+		{
+			return bVerticesMatch;
+		}
+		else if (bAttributesOnly && DynamicMesh->HasAttributes())
+		{
+			return bTrianglesMatch;
+		}
+		return bVerticesMatch && bTrianglesMatch;
+	}
+
+	/**
+	 * Checks if element counts match. If false then Update can't be called -- you must call Convert
+	 * Result is based on the current ConversionOptions (e.g. if you are only updating vertices, mismatched triangles are ok)
+	 *
+	 * @param DynamicMesh The dynamic mesh with updated vertices or attributes
+	 * @param MeshDescription The corresponding mesh description
+	 */
+	bool HaveMatchingElementCounts(const FDynamicMesh3* DynamicMesh, const FMeshDescription* MeshDescription)
+	{
+		bool bUpdateAttributes = ConversionOptions.bUpdateNormals || ConversionOptions.bUpdateUVs;
+		return HaveMatchingElementCounts(DynamicMesh, MeshDescription, !bUpdateAttributes, !ConversionOptions.bUpdatePositions);
+	}
+
+	/**
 	 * Default conversion of DynamicMesh to MeshDescription. Calls functions below depending on mesh state
 	 */
 	void Convert(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
