@@ -384,7 +384,7 @@ void FSlateRHIResourceManager::CreateTextures( const TArray< const FSlateBrush* 
 
 		checkSlow( TextureName != NAME_None );
 
-		FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info );
+		FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info, TextureName );
 
 		ResourceMap.Add( TextureName, NewTexture );
 	}
