@@ -1354,6 +1354,7 @@ public:
 	DECLARE_FUNCTION(execStringConst);
 	DECLARE_FUNCTION(execUnicodeStringConst);
 	DECLARE_FUNCTION(execTextConst);
+	DECLARE_FUNCTION(execPropertyConst);
 	DECLARE_FUNCTION(execObjectConst);
 	DECLARE_FUNCTION(execSoftObjectConst);
 	DECLARE_FUNCTION(execFieldPathConst);
