@@ -89,6 +89,7 @@ private:
 
 	/** Spawns the tab with the script details inside. */
 	TSharedRef<SDockTab> SpawnTabScriptParameters(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTabScriptParameters2(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabStats(const FSpawnTabArgs& Args);
 
 	TSharedPtr< SNiagaraSelectedObjectsDetails> SelectedDetailsWidget;
@@ -149,6 +150,7 @@ private:
 	static const FName ScriptDetailsTabId;
 	static const FName SelectedDetailsTabId;
 	static const FName ParametersTabId;
+	static const FName ParametersTabId2;
 	static const FName StatsTabId;
 	static const FName MessageLogTabID;
 
