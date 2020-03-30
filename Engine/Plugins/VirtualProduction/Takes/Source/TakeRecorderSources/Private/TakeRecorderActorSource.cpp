@@ -720,11 +720,10 @@ bool UTakeRecorderActorSource::EnsureObjectTemplateHasComponent(UActorComponent*
 {
 	check(InComponent);
 
-	//If it's native it will be caught below as a component so might as well bail here.
 	//If it's coming from a component that is created from a template defined in the Components section of the Blueprint
 	//it will NOT be found as a Component in AllChildren below but it will exist when created so we also exit here.
 	//So we only do the check if UserConstructionScript or Instance, with the latter may not be needed.. not sure
-	if (InComponent->CreationMethod == EComponentCreationMethod::Native || InComponent->CreationMethod == EComponentCreationMethod::SimpleConstructionScript)
+	if (InComponent->CreationMethod == EComponentCreationMethod::SimpleConstructionScript)
 	{
 		return false;
 	}
@@ -1359,7 +1358,13 @@ void UTakeRecorderActorSource::GetActorComponents(AActor* OnActor, TSet<UActorCo
 
 		for (UActorComponent* ActorComponent : ActorComponents)
 		{
-			if (!ActorComponent->IsA<USceneComponent>())
+			USceneComponent* SceneComponent = Cast<USceneComponent>(ActorComponent);
+
+			// Child of the root component are gathered in GetSceneComponents(). 
+			// Here we gather the rest of the components - either non scene components or 
+			// scene components that are not directly attached to the root component. This 
+			// includes spawned particle systems
+			if (!SceneComponent || !SceneComponent->GetAttachParent())
 			{
 				if (ActorComponent->GetOwner() != Target.Get())
 				{

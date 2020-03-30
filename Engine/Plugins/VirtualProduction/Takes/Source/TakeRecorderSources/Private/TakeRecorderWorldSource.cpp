@@ -80,6 +80,12 @@ TArray<UTakeRecorderSource*> UTakeRecorderWorldSource::PreRecording(class ULevel
 
 		UTakeRecorderActorSource* ActorSource = NewObject<UTakeRecorderActorSource>(Sources, UTakeRecorderActorSource::StaticClass(), NAME_None, RF_Transactional);
 		ActorSource->Target = WorldSettings;
+
+		// Send a PropertyChangedEvent so the class catches the callback and rebuilds the property map. We can't rely on the Actor rebuilding the map on PreRecording
+		// because that would wipe out any user adjustments from one added natively.
+		FPropertyChangedEvent PropertyChangedEvent(UTakeRecorderActorSource::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UTakeRecorderActorSource, Target)), EPropertyChangeType::ValueSet);
+		ActorSource->PostEditChangeProperty(PropertyChangedEvent);
+
 		NewSources.Add(ActorSource);
 		WorldSource = ActorSource;
 	}
