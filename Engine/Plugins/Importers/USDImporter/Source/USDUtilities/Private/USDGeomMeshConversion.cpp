@@ -355,7 +355,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 			if ( !PolygonGroupMapping.Contains( RealMaterialIndex ) )
 			{
-				FName ImportedMaterialSlotName = *UsdToUnreal::ConvertPath( UsdMesh.GetPath() );
+				FName ImportedMaterialSlotName = *LexToString( RealMaterialIndex );
 				if ( MaterialNames.IsValidIndex( MaterialIndex ) )
 				{
 					FString MaterialName = MaterialNames[MaterialIndex];
