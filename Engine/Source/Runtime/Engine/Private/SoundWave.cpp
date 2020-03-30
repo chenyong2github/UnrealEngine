@@ -824,8 +824,9 @@ void USoundWave::PostLoad()
 
 		if (ShouldUseStreamCaching() && ActualLoadingBehavior != GetLoadingBehavior(false))
 		{
-			if (ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
+			if (!DisableRetainingCVar && ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 			{
+				UE_LOG(LogAudio, Display, TEXT("Sound Wave '%s' will have to load its compressed audio data async."), *GetName());
 				RetainCompressedAudio(false);
 			}
 			else
@@ -838,6 +839,12 @@ void USoundWave::PostLoad()
 					IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult) {});
 				}
 			}
+		}
+
+		// If DisableRetainingCVar was set after this USoundWave was loaded by the ALT, release its compressed audio here.
+		if (DisableRetainingCVar)
+		{
+			ReleaseCompressedAudio();
 		}
 
 		// In case any code accesses bStreaming directly, we fix up bStreaming based on the current platform's cook overrides.
