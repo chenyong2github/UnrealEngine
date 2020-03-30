@@ -917,14 +917,6 @@ namespace AutomationTool
 
     public class BranchInfo
     {
-
-        public static List<TargetType> MonolithicKinds = new List<TargetType>
-        {
-            TargetType.Game,
-            TargetType.Client,
-            TargetType.Server,
-        };
-
 		[DebuggerDisplay("{GameName}")]
         public class BranchUProject
         {
@@ -957,24 +949,12 @@ namespace AutomationTool
                     throw new AutomationException("Could not resolve relative path corrctly {0} -> {1} which doesn't exist.", ProjectFile, FilePath);
                 }
             }
-
-            public BranchUProject()
-            {
-                GameName = "UE4";
-                if (!Properties.Targets.Exists(Target => Target.Rules.Type == TargetType.Editor))
-                {
-                    throw new AutomationException("Base UE4 project did not contain an editor target.");
-                }
-            }
         }
 
-        public BranchUProject BaseEngineProject = null;
 		public List<BranchUProject> AllProjects = new List<BranchUProject>();
 
         public BranchInfo()
         {
-            BaseEngineProject = new BranchUProject();
-
             IEnumerable<FileReference> ProjectFiles = UnrealBuildTool.NativeProjects.EnumerateProjectFiles();
 			foreach (FileReference InfoEntry in ProjectFiles)
 			{
@@ -988,6 +968,7 @@ namespace AutomationTool
 			}
         }
 
+		[Obsolete("BranchInfo no longer requires HostPlatforms passed to constructor")]
 		public BranchInfo(List<UnrealTargetPlatform> HostPlatforms)
 			: this()
 		{
