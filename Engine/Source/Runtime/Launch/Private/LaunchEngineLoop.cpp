@@ -1325,6 +1325,7 @@ static void UpdateCoreCsvStats_BeginFrame()
 		{
 			for (FString Cmd : *FrameCommands)
 			{
+				CSV_EVENT_GLOBAL(TEXT("Executing CSV exec command : %s"), *Cmd);
 				GEngine->Exec(GWorld, *Cmd);
 			}
 		}
