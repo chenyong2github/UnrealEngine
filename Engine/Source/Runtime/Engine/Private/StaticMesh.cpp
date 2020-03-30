@@ -5136,6 +5136,12 @@ void UStaticMesh::PostLoad()
 	ClearMeshDescriptions();
 #endif
 
+	// If any, make sure the ComplexCollisionMesh is loaded before creating the NavCollision
+	if (ComplexCollisionMesh && ComplexCollisionMesh != this)
+	{
+		ComplexCollisionMesh->ConditionalPostLoad();
+	}
+
 	CreateNavCollision();
 }
 
@@ -6001,6 +6007,9 @@ void UStaticMesh::CreateNavCollision(const bool bIsUpdate)
 				NavCollision->InvalidateCollision();
 			}
 #endif // WITH_EDITOR
+
+			// Physics meshes need to be ready to gather the collision in Setup().
+			BodySetup->CreatePhysicsMeshes();
 			NavCollision->Setup(BodySetup);
 		}
 	}
