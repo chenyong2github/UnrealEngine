@@ -82,6 +82,12 @@ namespace Audio
 		/** Window used when perform FFT */
 		EWindowType WindowType;
 
+		FSpectrumBandExtractorSettings()
+		:	SampleRate(48000.f)
+		,	FFTSize(1024)
+		,	FFTScaling(EFFTScaling::None)
+		,	WindowType(EWindowType::None)
+		{}
 
 		/** Compare whether two settings structures are equal. */
 		bool operator==(const FSpectrumBandExtractorSettings& Other) const
