@@ -145,13 +145,13 @@ public:
 	template <typename TParticle>
 	const FVec3& V(const TParticle& Particle) const
 	{
-		return Velocities.IsSet() ? Velocities.Read().V : Particle.CastToKinematicParticle()->V();
+		return Velocities.IsSet() ? Velocities.Read().V() : Particle.CastToKinematicParticle()->V();
 	}
 
 	template <typename TParticle>
 	const FVec3& W(const TParticle& Particle) const
 	{
-		return Velocities.IsSet() ? Velocities.Read().W : Particle.CastToKinematicParticle()->W();
+		return Velocities.IsSet() ? Velocities.Read().W() : Particle.CastToKinematicParticle()->W();
 	}
 
 	template <typename TParticle>
@@ -163,7 +163,7 @@ public:
 	template <typename TParticle>
 	const FVec3& F(const TParticle& Particle) const
 	{
-		return Dynamics.IsSet() ? Dynamics.Read().F : Particle.CastToRigidParticle()->F();
+		return Dynamics.IsSet() ? Dynamics.Read().F() : Particle.CastToRigidParticle()->F();
 	}
 
 	void SyncSimWritablePropsFromSim(FDirtyPropertiesManager& Manager,int32 Idx,const TPBDRigidParticleHandle<FReal,3>& Rigid)
@@ -181,8 +181,8 @@ public:
 
 		Velocities.SyncRemoteData(Manager,Idx,Dirty,[&Rigid](auto& Data)
 		{
-			Data.V = Rigid.PreV();
-			Data.W = Rigid.PreW();
+			Data.SetV(Rigid.PreV());
+			Data.SetW(Rigid.PreW());
 		});
 	}
 
@@ -210,8 +210,7 @@ public:
 		{
 			Velocities.SyncToParticle([Kinematic](const auto& Data)
 			{
-				Kinematic->SetV(Data.V);
-				Kinematic->SetW(Data.W);
+				Kinematic->SetVelocities(Data);
 			});
 		}
 
@@ -236,10 +235,7 @@ public:
 		{
 			Dynamics.SyncToParticle([Rigid](const auto& Data)
 			{
-				Rigid->SetF(Data.F);
-				Rigid->SetTorque(Data.Torque);
-				Rigid->SetLinearImpulse(Data.LinearImpulse);
-				Rigid->SetAngularImpulse(Data.AngularImpulse);
+				Rigid->SetDynamics(Data);
 			});
 		}
 	}
@@ -267,8 +263,7 @@ public:
 			{
 				Velocities.SyncRemoteData(Manager,Idx,Dirty.ParticleData,[Kinematic](auto& Data)
 				{
-					Data.V = Kinematic->V();
-					Data.W = Kinematic->W();
+					Data.CopyFrom(*Kinematic);
 				});
 			}
 		}
@@ -312,8 +307,7 @@ public:
 			{
 				Velocities.SyncRemoteDataForced(Manager,Idx,[Kinematic](auto& Data)
 				{
-					Data.V = Kinematic->V();
-					Data.W = Kinematic->W();
+					Data.CopyFrom(*Kinematic);
 				});
 			}
 		}
