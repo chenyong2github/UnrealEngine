@@ -68,7 +68,7 @@ public:
 	virtual ~FSoundEffectBase() = default;
 
 	/** Called when the sound effect's preset changed. */
-	virtual void OnPresetChanged() {};
+	virtual void OnPresetChanged() { }
 
 	/** Returns if the submix is active or bypassing audio. */
 	bool IsActive() const;
@@ -90,9 +90,6 @@ public:
 protected:
 	FSoundEffectBase();
 
-	/** Removes the instance from the preset. */
-	void ClearPreset();
-
 	/** Pumps messages awaiting execution on the audio render thread */
 	void PumpPendingMessages();
 
@@ -108,8 +105,13 @@ protected:
 	// Effect command queue
 	TQueue<TUniqueFunction<void()>> CommandQueue;
 
+private:
+	/** Removes the instance from the preset. */
+	void ClearPreset();
+
 	// Allow preset to re-register when editor update is requested
-	// and create effects using the templated Create call
+	// and create effects using the templated Create call, as well
+	// as clear preset.
 	friend class USoundEffectPreset;
 };
 
