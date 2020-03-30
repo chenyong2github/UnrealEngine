@@ -22,6 +22,15 @@ struct SLATECORE_API FSlateTextureData
 		INC_MEMORY_STAT_BY( STAT_SlateTextureDataMemory, Bytes.GetAllocatedSize() );
 	}
 
+	FSlateTextureData(uint32 InWidth, uint32 InHeight, uint32 InBytesPerPixel, TArray<uint8>&& InBytes)
+		: Bytes(InBytes)
+		, Width(InWidth)
+		, Height(InHeight)
+		, BytesPerPixel(InBytesPerPixel)
+	{
+		INC_MEMORY_STAT_BY(STAT_SlateTextureDataMemory, Bytes.GetAllocatedSize());
+	}
+
 	/**
 	 * Constructor to create texture data by copying from a pointer instead of an array
 	 * @param InBuffer Pointer to Texture data (must contain InWidth*InHeight*InBytesPerPixel bytes).
