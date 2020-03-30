@@ -2282,6 +2282,7 @@ public:
 	virtual int32 FindShaderIndex(const FSHAHash& Hash) = 0;
 	virtual FGraphEventRef PreloadShader(int32 ShaderIndex) { return FGraphEventRef(); }
 	virtual FGraphEventRef PreloadShaderMap(int32 ShaderMapIndex) { return FGraphEventRef(); }
+	virtual void ReleasePreloadedShaderMap(int32 ShaderMapIndex) {}
 
 	virtual TRefCountPtr<FRHIShader> CreateShader(int32 ShaderIndex) { return nullptr; }
 	virtual void Teardown() {};

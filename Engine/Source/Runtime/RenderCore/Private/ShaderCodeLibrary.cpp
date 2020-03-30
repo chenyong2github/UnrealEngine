@@ -788,6 +788,8 @@ void FShaderMapResource_SharedCode::ReleaseRHI()
 		}
 	}
 
+	LibraryInstance->Library->ReleasePreloadedShaderMap(ShaderMapIndex);
+
 	FShaderMapResource::ReleaseRHI();
 }
 
