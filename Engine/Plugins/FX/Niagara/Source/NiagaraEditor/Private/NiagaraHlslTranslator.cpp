@@ -1273,12 +1273,16 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			}
 		}
 
+		// NiagaraID is a fundamental type which can be used in custom HLSL without declaring any pins of that type in any nodes.
+		// Make sure it's always defined in the generated HLSL.
+		StructsToDefine.AddUnique(FNiagaraTypeDefinition::GetIDDef());
+
 		// Generate the Parameter Map HLSL definitions. We don't add to the final HLSL output here. We just build up the strings and tables
 		// that are needed later.
 		TArray<FNiagaraVariable> PrimaryDataSetOutputEntries;
 		FString ParameterMapDefinitionStr = BuildParameterMapHlslDefinitions(PrimaryDataSetOutputEntries);
 
-		for (FNiagaraTypeDefinition Type : StructsToDefine)
+		for (const FNiagaraTypeDefinition& Type : StructsToDefine)
 		{
 			FText ErrorMessage;
 			HlslOutput += BuildHLSLStructDecl(Type, ErrorMessage);
@@ -7031,7 +7035,7 @@ FGuid FHlslNiagaraTranslator::GetTargetUsageId() const
 }
 //////////////////////////////////////////////////////////////////////////
 
-FString FHlslNiagaraTranslator::GetHlslDefaultForType(FNiagaraTypeDefinition Type)
+FString FHlslNiagaraTranslator::GetHlslDefaultForType(const FNiagaraTypeDefinition& Type)
 {
 	if (Type == FNiagaraTypeDefinition::GetFloatDef())
 	{
@@ -7071,7 +7075,7 @@ FString FHlslNiagaraTranslator::GetHlslDefaultForType(FNiagaraTypeDefinition Typ
 	}
 }
 
-bool FHlslNiagaraTranslator::IsBuiltInHlslType(FNiagaraTypeDefinition Type)
+bool FHlslNiagaraTranslator::IsBuiltInHlslType(const FNiagaraTypeDefinition& Type)
 {
 	return
 		Type == FNiagaraTypeDefinition::GetFloatDef() ||
@@ -7086,7 +7090,7 @@ bool FHlslNiagaraTranslator::IsBuiltInHlslType(FNiagaraTypeDefinition Type)
 		Type == FNiagaraTypeDefinition::GetBoolDef();
 }
 
-FString FHlslNiagaraTranslator::GetStructHlslTypeName(FNiagaraTypeDefinition Type)
+FString FHlslNiagaraTranslator::GetStructHlslTypeName(const FNiagaraTypeDefinition& Type)
 {
 	if (Type.IsValid() == false)
 	{
@@ -7167,7 +7171,7 @@ FString FHlslNiagaraTranslator::GetPropertyHlslTypeName(const FProperty* Propert
 	}
 }
 
-FString FHlslNiagaraTranslator::BuildHLSLStructDecl(FNiagaraTypeDefinition Type, FText& OutErrorMessage)
+FString FHlslNiagaraTranslator::BuildHLSLStructDecl(const FNiagaraTypeDefinition& Type, FText& OutErrorMessage)
 {
 	if (!IsBuiltInHlslType(Type))
 	{
@@ -7193,7 +7197,7 @@ FString FHlslNiagaraTranslator::BuildHLSLStructDecl(FNiagaraTypeDefinition Type,
 	return TEXT("");
 }
 
-bool FHlslNiagaraTranslator::IsHlslBuiltinVector(FNiagaraTypeDefinition Type)
+bool FHlslNiagaraTranslator::IsHlslBuiltinVector(const FNiagaraTypeDefinition& Type)
 {
 	if ((Type == FNiagaraTypeDefinition::GetVec2Def()) ||
 		(Type == FNiagaraTypeDefinition::GetVec3Def()) ||
