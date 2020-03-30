@@ -58,8 +58,6 @@ struct FNiagaraSystemScalabilitySettings
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullMaxInstanceCount : 1;
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bCullByMaxOwnerLOD : 1;
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullByMaxTimeWithoutRender : 1;
 
 	/** Effects of this type are culled beyond this distance. */
@@ -69,11 +67,7 @@ struct FNiagaraSystemScalabilitySettings
 	/** Effects of this type will fail to spawn when total active instance count exceeds this number. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullMaxInstanceCount"))
 	float MaxInstances;
-
-	/** The effect is culled beyond this LOD level. Useful for FX that are linked to a specific actor with an LOD level driven be some other system. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByMaxOwnerLOD"))
-	int32 MaxOwnerLOD;
-
+	
 	//TODO:
 	/** The effect is culled when it's bounds take up less that this fraction of the total screen area. Only usable with fixed bounds. */
 	//float ScreenFraction;
@@ -109,8 +103,6 @@ struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySetti
 	uint32 bOverrideDistanceSettings : 1;
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideInstanceCountSettings : 1;
-	UPROPERTY(EditAnywhere, Category = "Override")
-	uint32 bOverrideOwnerLODSettings : 1;
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideTimeSinceRendererSettings : 1;
 };
