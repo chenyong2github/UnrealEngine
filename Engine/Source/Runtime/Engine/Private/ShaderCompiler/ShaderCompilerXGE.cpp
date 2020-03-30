@@ -76,7 +76,9 @@ namespace XGEShaderCompilerVariables
 			{
 				XGEShaderCompilerVariables::Enabled = 1;
 			}
-			if (FParse::Param(FCommandLine::Get(), TEXT("noxgeshadercompile")) || FParse::Param(FCommandLine::Get(), TEXT("noshaderworker")))
+
+			static const IConsoleVariable* CVarAllowCompilingThroughWorkers = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.AllowCompilingThroughWorkers"), false);
+			if (FParse::Param(FCommandLine::Get(), TEXT("noxgeshadercompile")) || FParse::Param(FCommandLine::Get(), TEXT("noshaderworker")) || (CVarAllowCompilingThroughWorkers && CVarAllowCompilingThroughWorkers->GetInt() == 0))
 			{
 				XGEShaderCompilerVariables::Enabled = 0;
 			}
