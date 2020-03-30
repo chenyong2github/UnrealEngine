@@ -38,6 +38,7 @@ struct FTileCacheAllocator;
 struct FTileGenerationContext;
 class dtNavMesh;
 class FNavRegenTimeSliceManager;
+class UNavigationSystemV1;
 
 #define MAX_VERTS_PER_POLY	6
 
@@ -337,7 +338,7 @@ protected:
 	/** Gather geometry from the prefetched sources time sliced version */
 	ETimeSliceWorkResult GatherGeometryFromSourcesTimeSliced();
 	/** Gather geometry from a specified Navigation Data */
-	void GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, FNavigationOctree* NavigationOctree, const FNavDataConfig& OwnerNavDataConfig, bool bGeometryChanged);
+	void GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, UNavigationSystemV1& NavSys, const FNavDataConfig& OwnerNavDataConfig, bool bGeometryChanged);
 
 	/** Start functions used by GenerateCompressedLayersTimeSliced / GenerateCompressedLayers */
 	bool CreateHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
@@ -462,7 +463,7 @@ protected:
 	TWeakPtr<FNavDataGenerator, ESPMode::ThreadSafe> ParentGeneratorWeakPtr;
 
 	TNavStatArray<TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> > NavigationRelevantData;
-	TSharedPtr<FNavigationOctree, ESPMode::ThreadSafe> NavOctree; 
+	TWeakObjectPtr<UNavigationSystemV1> NavSystem; 
 	FNavDataConfig NavDataConfig;
 
 #if RECAST_INTERNAL_DEBUG_DATA
