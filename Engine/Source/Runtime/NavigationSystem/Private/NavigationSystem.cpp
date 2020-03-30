@@ -2703,6 +2703,11 @@ void UNavigationSystemV1::RemoveNavOctreeElementId(const FOctreeElementId& Eleme
 	FNavigationDataHandler(DefaultOctreeController, DefaultDirtyAreasController).RemoveNavOctreeElementId(ElementId, UpdateFlags);
 }
 
+void UNavigationSystemV1::DemandLazyDataGathering(FNavigationRelevantData& ElementData)
+{
+	FNavigationDataHandler(DefaultOctreeController, DefaultDirtyAreasController).DemandLazyDataGathering(ElementData);
+}
+
 const FNavigationRelevantData* UNavigationSystemV1::GetDataForObject(const UObject& Object) const
 {
 	return DefaultOctreeController.GetDataForObject(Object);
