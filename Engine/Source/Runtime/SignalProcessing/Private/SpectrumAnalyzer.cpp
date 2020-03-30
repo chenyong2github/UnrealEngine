@@ -120,7 +120,7 @@ namespace Audio
 
 						default:
 							// Should not get here. Means that a window type is not covered.
-							check(false);
+							UE_LOG(LogSignalProcessing, Warning, TEXT("Invalid window type enum encountered, %d"), (int32)InSettings.WindowType);
 							WindowScale = 1.f / FloatFFTSize;
 							break;
 

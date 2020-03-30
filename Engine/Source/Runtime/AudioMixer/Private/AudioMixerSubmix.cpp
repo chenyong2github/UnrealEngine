@@ -49,6 +49,7 @@ namespace Audio
 		, NumSubmixEffects(0)
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
+		, bIsSpectrumAnalyzing(false)
 		, OwningSubmixObject(nullptr)
 	{
 		EnvelopeFollowers.Reset();
@@ -1674,10 +1675,12 @@ namespace Audio
 					{
 						Audio::FSpectrumAnalyzerScopeLock AnalyzerLock(SpectrumAnalyzer.Get());
 
-						check(DelegateInfo.SpectrumBandExtractor.IsValid());
-						ISpectrumBandExtractor* Extractor = DelegateInfo.SpectrumBandExtractor.Get();
+						if (ensure(DelegateInfo.SpectrumBandExtractor.IsValid()))
+						{
+							ISpectrumBandExtractor* Extractor = DelegateInfo.SpectrumBandExtractor.Get();
 
-						SpectrumAnalyzer->GetBands(*Extractor, SpectralResults);
+							SpectrumAnalyzer->GetBands(*Extractor, SpectralResults);
+						}
 					}
 
 					// Feed the results through the band envelope followers
