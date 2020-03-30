@@ -422,6 +422,13 @@ public:
 	TRotation<T, d>& R() { return GeometryParticles->R(ParticleIdx); }
 	void SetR(const TRotation<T, d>& InR) { GeometryParticles->R(ParticleIdx) = InR; }
 
+	void SetXR(const FParticlePositionRotation& XR)
+	{
+		SetX(XR.X());
+		SetR(XR.R());
+	}
+
+
 	TSerializablePtr<FImplicitObject> Geometry() const { return GeometryParticles->Geometry(ParticleIdx); }
 	void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry) { GeometryParticles->SetGeometry(ParticleIdx, InGeometry); }
 
@@ -563,6 +570,7 @@ public:
 	using TGeometryParticleHandleImp<T, d, bPersistent>::CastToRigidParticle;
 	using TTransientHandle = TTransientKinematicGeometryParticleHandle<T, d>;
 	using TSOAType = TKinematicGeometryParticles<T, d>;
+	using TGeometryParticleHandleImp<T, d, bPersistent>::SetXR;
 	
 protected:
 	friend class TGeometryParticleHandleImp<T, d, bPersistent>;
@@ -654,6 +662,13 @@ public:
 		TSerializablePtr<TPBDRigidParticleHandleImp<T, d, bPersistent>> Serializable;
 		Serializable.SetFromRawLowLevel(this);	//this is safe because CreateParticleHandle gives back a TUniquePtr
 		return Serializable;
+	}
+
+	void SetXR(const FParticlePositionRotation& InXR)
+	{
+		TKinematicGeometryParticleHandleImp<T, d, bPersistent>::SetXR(InXR);
+		SetP(InXR.X());
+		SetQ(InXR.R());
 	}
 
 	operator TPBDRigidParticleHandleImp<T, d, false>& () { return reinterpret_cast<TPBDRigidParticleHandleImp<T, d, false>&>(*this); }
@@ -1399,7 +1414,7 @@ public:
 
 	static TGeometryParticle<T, d>* SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable);
 
-	const TVector<T, d>& X() const { return MXR.Read().X; }
+	const TVector<T, d>& X() const { return MXR.Read().X(); }
 	void SetX(const TVector<T, d>& InX, bool bInvalidate = true);
 
 	FUniqueIdx UniqueIdx() const { return MNonFrequentData.Read().UniqueIdx; }
@@ -1408,9 +1423,14 @@ public:
 		MNonFrequentData.Modify(bInvalidate,MDirtyFlags,Proxy,[UniqueIdx](auto& Data){ Data.UniqueIdx = UniqueIdx;});
 	}
 
-	const TRotation<T, d>& R() const { return MXR.Read().R; }
+	const TRotation<T, d>& R() const { return MXR.Read().R(); }
 	void SetR(const TRotation<T, d>& InR, bool bInvalidate = true);
 
+	void SetXR(const FParticlePositionRotation& InXR, bool bInvalidate = true)
+	{
+		MXR.Write(InXR,bInvalidate,MDirtyFlags,Proxy);
+	}
+	
 	//todo: geometry should not be owned by particle
 	void SetGeometry(TUniquePtr<FImplicitObject>&& UniqueGeometry)
 	{
@@ -2329,7 +2349,7 @@ void TGeometryParticle<T, d>::SetX(const TVector<T, d>& InX, bool bInvalidate)
 			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
 		}
 	}
-	MXR.Modify(bInvalidate, MDirtyFlags, Proxy, [&InX](auto& Data) { Data.X = InX; });
+	MXR.Modify(bInvalidate, MDirtyFlags, Proxy, [&InX](auto& Data) { Data.SetX(InX); });
 }
 
 template <typename T, int d>
@@ -2343,7 +2363,7 @@ void TGeometryParticle<T, d>::SetR(const TRotation<T, d>& InR, bool bInvalidate)
 			Dyn->SetObjectState(EObjectStateType::Dynamic, true);
 		}
 	}
-	MXR.Modify(bInvalidate, MDirtyFlags, Proxy, [&InR](auto& Data) { Data.R = InR; });
+	MXR.Modify(bInvalidate, MDirtyFlags, Proxy, [&InR](auto& Data) { Data.SetR(InR); });
 }
 
 template <typename T, int d>
