@@ -830,6 +830,11 @@ TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::GetCompilationResult(
 	
 	Results.Data->ErrorMsg = OutGraphLevelErrorMessages;
 	Results.Data->LastCompileStatus = (FNiagaraCompileResults::CompileResultsToSummary(&Results));
+	if (Results.Data->LastCompileStatus != ENiagaraScriptCompileStatus::NCS_Error)
+	{
+		// When there are no errors the compile events get emptied, so add them back here.
+		Results.Data->LastCompileEvents.Append(Results.CompileEvents);
+	}
 	return CompileResult->Data;
 }
 
