@@ -8,6 +8,7 @@
 
 class IMeshPaintComponentAdapter;
 class AActor;
+class UMeshComponent;
 
 /**
  * Builder for UVertexAdapterClickTool
