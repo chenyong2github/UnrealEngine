@@ -110,6 +110,8 @@ public:
 	}
 };
 
+#define TRACK_SHADER_PRELOADS STATS
+
 class FShaderCodeArchive : public FRHIShaderLibrary
 {
 public:
@@ -122,7 +124,6 @@ public:
 	uint32 GetSizeBytes() const
 	{
 		return sizeof(*this) +
-			SerializedShaders.GetAllocatedSize() +
 			SerializedShaders.GetAllocatedSize();
 	}
 
@@ -150,6 +151,8 @@ public:
 
 	virtual FGraphEventRef PreloadShaderMap(int32 ShaderMapIndex) override;
 
+	virtual void ReleasePreloadedShaderMap(int32 ShaderMapIndex) override;
+
 	virtual TRefCountPtr<FRHIShader> CreateShader(int32 Index) override;
 	virtual void Teardown() override;
 
@@ -173,4 +176,8 @@ protected:
 
 	// The shader code present in the library
 	FSerializedShaderArchive SerializedShaders;
+
+#if TRACK_SHADER_PRELOADS
+	TArray<uint32> ShaderFramePreloaded;
+#endif
 };

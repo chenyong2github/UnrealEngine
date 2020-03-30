@@ -196,6 +196,14 @@ FShaderCodeArchive* FShaderCodeArchive::Create(EShaderPlatform InPlatform, FArch
 	Ar << Library->SerializedShaders;
 	Library->LibraryCodeOffset = Ar.Tell();
 
+#if TRACK_SHADER_PRELOADS
+	Library->ShaderFramePreloaded.SetNumUninitialized(Library->SerializedShaders.GetNumShaders());
+	for (uint32& Frame : Library->ShaderFramePreloaded)
+	{
+		Frame = ~0u;
+	}
+#endif // TRACK_SHADER_PRELOADS
+
 	// Open library for async reads
 	Library->FileCacheHandle = IFileCacheHandle::CreateFileCacheHandle(*InDestFilePath);
 
@@ -229,16 +237,22 @@ void FShaderCodeArchive::Teardown()
 	}
 }
 
-IMemoryReadStreamRef FShaderCodeArchive::ReadShaderCode(int32 Index)
+IMemoryReadStreamRef FShaderCodeArchive::ReadShaderCode(int32 ShaderIndex)
 {
 	SCOPED_LOADTIMER(FShaderCodeArchive_ReadShaderCode);
 
-	const FShaderCodeEntry& Entry = SerializedShaders.ShaderEntries[Index];
+	const FShaderCodeEntry& Entry = SerializedShaders.ShaderEntries[ShaderIndex];
 
 	FGraphEventArray ReadCompleteEvents;
 	IMemoryReadStreamRef LoadedCode = FileCacheHandle->ReadData(ReadCompleteEvents, LibraryCodeOffset + Entry.Offset, Entry.Size, AIOP_CriticalPath);
 	if (ReadCompleteEvents.Num() > 0)
 	{
+#if TRACK_SHADER_PRELOADS
+		if (ShaderFramePreloaded[ShaderIndex] < 0xffffffff)
+		{
+			UE_LOG(LogShaderLibrary, Warning, TEXT("** ShaderCode was preloaded on frame %d, unloaded by frame %d"), ShaderFramePreloaded[ShaderIndex], GFrameNumber);
+		}
+#endif // TRACK_SHADER_PRELOADS
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(ReadCompleteEvents);
 	}
 
@@ -248,18 +262,40 @@ IMemoryReadStreamRef FShaderCodeArchive::ReadShaderCode(int32 Index)
 FGraphEventRef FShaderCodeArchive::PreloadShader(int32 ShaderIndex)
 {
 	const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
-
+#if TRACK_SHADER_PRELOADS
+	ShaderFramePreloaded[ShaderIndex] = FMath::Min(ShaderFramePreloaded[ShaderIndex], GFrameNumber);
+#endif // TRACK_SHADER_PRELOADS
 	const EAsyncIOPriorityAndFlags IOPriority = (EAsyncIOPriorityAndFlags)GShaderCodeLibraryAsyncLoadingPriority;
 	const FFileCachePreloadEntry PreloadEntry(ShaderEntry.Offset, ShaderEntry.Size);
-	return FileCacheHandle->PreloadData(&PreloadEntry, 1, IOPriority);
+	return FileCacheHandle->PreloadData(&PreloadEntry, 1, LibraryCodeOffset, IOPriority);
 }
 
 FGraphEventRef FShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex)
 {
 	const FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
-
+#if TRACK_SHADER_PRELOADS
+	const uint32 FrameNumber = GFrameNumber;
+	for (uint32 i = 0u; i < ShaderMapEntry.NumShaders; ++i)
+	{
+		const uint32 ShaderIndex = SerializedShaders.ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
+		ShaderFramePreloaded[ShaderIndex] = FMath::Min(ShaderFramePreloaded[ShaderIndex], FrameNumber);
+	}
+#endif // TRACK_SHADER_PRELOADS
 	const EAsyncIOPriorityAndFlags IOPriority = (EAsyncIOPriorityAndFlags)GShaderCodeLibraryAsyncLoadingPriority;
-	return FileCacheHandle->PreloadData(&SerializedShaders.PreloadEntries[ShaderMapEntry.FirstPreloadIndex], ShaderMapEntry.NumPreloadEntries, IOPriority);
+	return FileCacheHandle->PreloadData(&SerializedShaders.PreloadEntries[ShaderMapEntry.FirstPreloadIndex], ShaderMapEntry.NumPreloadEntries, LibraryCodeOffset, IOPriority);
+}
+
+void FShaderCodeArchive::ReleasePreloadedShaderMap(int32 ShaderMapIndex)
+{
+	const FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
+#if TRACK_SHADER_PRELOADS
+	for (uint32 i = 0u; i < ShaderMapEntry.NumShaders; ++i)
+	{
+		const uint32 ShaderIndex = SerializedShaders.ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
+		ShaderFramePreloaded[ShaderIndex] = ~0u;
+	}
+#endif // TRACK_SHADER_PRELOADS
+	FileCacheHandle->ReleasePreloadedData(&SerializedShaders.PreloadEntries[ShaderMapEntry.FirstPreloadIndex], ShaderMapEntry.NumPreloadEntries, LibraryCodeOffset);
 }
 
 TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
