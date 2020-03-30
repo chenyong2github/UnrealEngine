@@ -690,8 +690,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 
 			// Water is assumed to have zero roughness and is not currently denoised.
 			//int32 DenoiserMode = GetReflectionsDenoiserMode();
+			//bool bDenoise = DenoiserMode != 0;
 			int DenoiserMode = 0;
-			bool bDenoise = DenoiserMode != 0;
+			bool bDenoise = false;
 
 			if (!bDenoise)
 			{
