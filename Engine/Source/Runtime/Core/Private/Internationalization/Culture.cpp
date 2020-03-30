@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/Culture.h"
+#include "Containers/ArrayView.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
 
@@ -10,9 +11,16 @@
 #include "Internationalization/LegacyCulture.h"
 #endif
 
-void ApplyCultureDisplayNameSubstitutes(FString& InOutDisplayName)
+void ApplyCultureDisplayNameSubstitutes(TArrayView<const FString> InPrioritizedCultureNames, FString& InOutDisplayName)
 {
-	static TArray<TTuple<FString, FString>> CultureDisplayNameSubstitutes;
+	struct FDisplayNameSubstitute
+	{
+		FString Culture;
+		FString OldString;
+		FString NewString;
+	};
+
+	static TArray<FDisplayNameSubstitute> CultureDisplayNameSubstitutes;
 
 	// Conditionally load the required config data
 	{
@@ -43,23 +51,38 @@ void ApplyCultureDisplayNameSubstitutes(FString& InOutDisplayName)
 				}
 			}
 
-			// Each substitute should be a semi-colon separated pair of data: Old;New
+			// Each substitute should be a semi-colon separated set of data: [Culture;]Old;New
 			CultureDisplayNameSubstitutes.Reserve(CultureDisplayNameSubstitutesStrArray.Num());
 			for (const FString& CultureDisplayNameSubstituteStr : CultureDisplayNameSubstitutesStrArray)
 			{
-				FString OldDisplayFragment;
-				FString NewDisplayFragment;
-				if (CultureDisplayNameSubstituteStr.Split(TEXT(";"), &OldDisplayFragment, &NewDisplayFragment, ESearchCase::CaseSensitive))
+				TArray<FString> DisplayFragments;
+				CultureDisplayNameSubstituteStr.ParseIntoArray(DisplayFragments, TEXT(";"));
+
+				if (DisplayFragments.Num() == 2)
 				{
-					CultureDisplayNameSubstitutes.Add(MakeTuple(MoveTemp(OldDisplayFragment), MoveTemp(NewDisplayFragment)));
+					CultureDisplayNameSubstitutes.Add(FDisplayNameSubstitute{ FString(), MoveTemp(DisplayFragments[0]), MoveTemp(DisplayFragments[1]) });
+				}
+				else if (DisplayFragments.Num() == 3)
+				{
+					CultureDisplayNameSubstitutes.Add(FDisplayNameSubstitute{ MoveTemp(DisplayFragments[0]), MoveTemp(DisplayFragments[1]), MoveTemp(DisplayFragments[2]) });
 				}
 			}
+
+			// Sort by culture name length, so that more specific cultures get first refusal at a replacement
+			CultureDisplayNameSubstitutes.StableSort([](const FDisplayNameSubstitute& InOne, const FDisplayNameSubstitute& InTwo)
+			{
+				return InOne.Culture.Len() > InTwo.Culture.Len();
+			});
 		}
 	}
 
-	for (const auto& CultureDisplayNameSubstitutePair : CultureDisplayNameSubstitutes)
+	for (const FDisplayNameSubstitute& CultureDisplayNameSubstitute : CultureDisplayNameSubstitutes)
 	{
-		InOutDisplayName.ReplaceInline(*CultureDisplayNameSubstitutePair.Key, *CultureDisplayNameSubstitutePair.Value, ESearchCase::CaseSensitive);
+		const bool bValidForCulture = CultureDisplayNameSubstitute.Culture.IsEmpty() || InPrioritizedCultureNames.Contains(CultureDisplayNameSubstitute.Culture);
+		if (bValidForCulture)
+		{
+			InOutDisplayName.ReplaceInline(*CultureDisplayNameSubstitute.OldString, *CultureDisplayNameSubstitute.NewString, ESearchCase::CaseSensitive);
+		}
 	}
 }
 
@@ -80,7 +103,7 @@ FCulture::FCulture(TUniquePtr<FCultureImplementation>&& InImplementation)
 	, CachedVariant(Implementation->GetVariant())
 	, CachedIsRightToLeft(Implementation->IsRightToLeft())
 {
-	RefreshCultureDisplayNames();
+	RefreshCultureDisplayNames(TArray<FString>()); // The display name for the current language will be updated by a post-construct call to RefreshCultureDisplayNames with the correct language data
 }
 
 FCulture::~FCulture()
@@ -290,23 +313,30 @@ const TArray<ETextPluralForm>& FCulture::GetValidPluralForms(const ETextPluralTy
 	return Implementation->GetValidPluralForms(PluralType);
 }
 
-void FCulture::RefreshCultureDisplayNames(const bool bFullRefresh)
+void FCulture::RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames, const bool bFullRefresh)
 {
 	CachedDisplayName = Implementation->GetDisplayName();
-	ApplyCultureDisplayNameSubstitutes(CachedDisplayName);
+	ApplyCultureDisplayNameSubstitutes(InPrioritizedDisplayCultureNames, CachedDisplayName);
 
 	if (bFullRefresh)
 	{
-		CachedEnglishName = Implementation->GetEnglishName();
-		ApplyCultureDisplayNameSubstitutes(CachedEnglishName);
+		{
+			static const FString EnglishCultureName = TEXT("en");
+			CachedEnglishName = Implementation->GetEnglishName();
+			ApplyCultureDisplayNameSubstitutes(MakeArrayView(&EnglishCultureName, 1), CachedEnglishName);
+		}
 
-		CachedNativeName = Implementation->GetNativeName();
-		ApplyCultureDisplayNameSubstitutes(CachedNativeName);
+		{
+			const TArray<FString> PrioritizedNativeCultureNames = GetPrioritizedParentCultureNames();
 
-		CachedNativeLanguage = Implementation->GetNativeLanguage();
-		ApplyCultureDisplayNameSubstitutes(CachedNativeLanguage);
+			CachedNativeName = Implementation->GetNativeName();
+			ApplyCultureDisplayNameSubstitutes(PrioritizedNativeCultureNames, CachedNativeName);
 
-		CachedNativeRegion = Implementation->GetNativeRegion();
-		ApplyCultureDisplayNameSubstitutes(CachedNativeRegion);
+			CachedNativeLanguage = Implementation->GetNativeLanguage();
+			ApplyCultureDisplayNameSubstitutes(PrioritizedNativeCultureNames, CachedNativeLanguage);
+
+			CachedNativeRegion = Implementation->GetNativeRegion();
+			ApplyCultureDisplayNameSubstitutes(PrioritizedNativeCultureNames, CachedNativeRegion);
+		}
 	}
 }
