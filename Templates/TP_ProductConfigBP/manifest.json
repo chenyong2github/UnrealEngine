@@ -1,0 +1,31 @@
+{
+	"Version": 1,
+	"Name":
+	[
+		{
+			"Language": "en",
+			"Text": "Product Configurator"
+		}
+	],
+	"Description":
+	[
+		{
+			"Language": "en",
+			"Text": "This project template uses the Variant Manager, UMG and Blueprint to build a generic product configurator. The user interface is dynamically created from the 3d model and the variants present in the level. This allows for users to swap the provided model for user-made assets and have the configurator's UI adapting to the new data."
+		}
+	],
+	"AssetTypes": [],
+	"SearchTags": [],
+	"ClassTypes": "",
+	"Category": "BlueprintFeature",
+	"FocusAsset": "",
+	"Thumbnail": "TP_ProductConfigBP.png",
+	"Screenshots":
+	[
+		"TP_ProductConfigBP_Preview.png"
+	],
+	"SortKey": "TP_ProductConfigBP",
+	"AdditionalFeaturePacks":
+	[
+	]
+}
