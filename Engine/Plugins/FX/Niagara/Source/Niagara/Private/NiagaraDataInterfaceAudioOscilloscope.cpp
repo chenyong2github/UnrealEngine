@@ -124,7 +124,7 @@ UNiagaraDataInterfaceAudioOscilloscope::UNiagaraDataInterfaceAudioOscilloscope(F
 {
 	Proxy = TUniquePtr<FNiagaraDataInterfaceProxyOscilloscope>(new FNiagaraDataInterfaceProxyOscilloscope(Resolution, ScopeInMilliseconds));
 }
-PRAGMA_DISABLE_OPTIMIZATION
+
 float FNiagaraDataInterfaceProxyOscilloscope::SampleAudio(float NormalizedPositionInBuffer, int32 ChannelIndex, int32 NumFramesInBuffer, int32 NumChannelsInBuffer)
 {
 	if (NumFramesInBuffer == 0 || NumChannelsInBuffer == 0)
@@ -180,8 +180,6 @@ void UNiagaraDataInterfaceAudioOscilloscope::GetNumChannels(FVectorVMContext& Co
 		*OutChannel.GetDestAndAdvance() = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->GetNumChannels();
 	}
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 void UNiagaraDataInterfaceAudioOscilloscope::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
