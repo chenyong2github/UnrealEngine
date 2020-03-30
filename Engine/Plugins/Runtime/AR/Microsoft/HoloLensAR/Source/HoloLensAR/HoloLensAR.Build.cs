@@ -36,7 +36,6 @@ public class HoloLensAR : ModuleRules
 		{
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
-        PrivateIncludePathModuleNames.Add("WindowsMixedRealityHMD");
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.QR.dll"));
