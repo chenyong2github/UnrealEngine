@@ -215,7 +215,7 @@ FSubmixEffectConvolutionReverbSettings::FSubmixEffectConvolutionReverbSettings()
 ,	SurroundRearChannelBleedDb(-60.f)
 ,	bInvertRearChannelBleedPhase(false)
 ,	bSurroundRearChannelFlip(false)
-,	SurroundRearChannelBleedAmount_DEPRECATED(NAN)
+,	SurroundRearChannelBleedAmount_DEPRECATED(0.0f)
 ,	ImpulseResponse_DEPRECATED(nullptr)
 ,	AllowHardwareAcceleration_DEPRECATED(true)
 {
@@ -666,22 +666,30 @@ void USubmixEffectConvolutionReverbPreset::PostLoad()
 	Super::PostLoad();
 
 	// This handles previous version 
-	if (FMath::IsFinite(Settings.SurroundRearChannelBleedAmount_DEPRECATED))
+	if (Settings.SurroundRearChannelBleedAmount_DEPRECATED != 0.f)
 	{
 		Settings.SurroundRearChannelBleedDb = Audio::ConvertToDecibels(FMath::Abs(Settings.SurroundRearChannelBleedAmount_DEPRECATED));
 		Settings.bInvertRearChannelBleedPhase = Settings.SurroundRearChannelBleedAmount_DEPRECATED < 0.f;
+
+		Settings.SurroundRearChannelBleedAmount_DEPRECATED = 0.f;
+		Modify();
 	}
 
 	if (nullptr != Settings.ImpulseResponse_DEPRECATED)
 	{
 		ImpulseResponse = Settings.ImpulseResponse_DEPRECATED;
+		
+		Settings.ImpulseResponse_DEPRECATED = nullptr;
+		Modify();
 	}
 
 	if (!Settings.AllowHardwareAcceleration_DEPRECATED)
 	{
 		bEnableHardwareAcceleration = false;
-	}
 
+		Settings.AllowHardwareAcceleration_DEPRECATED = true;
+		Modify();
+	}
 
 	BindToImpulseResponseObjectChange();
 }
