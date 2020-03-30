@@ -501,6 +501,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 		//-TODO: Exclude setting up these arrays if we don't sample from them
 		NumFilteredBones = InstData->NumFilteredBones;
 		NumUnfilteredBones = InstData->NumUnfilteredBones;
+		ExcludedBoneIndex = InstData->ExcludedBoneIndex;
 
 		FilteredAndUnfilteredBonesArray.Reserve(InstData->FilteredAndUnfilteredBones.Num());
 		for (uint16 v : InstData->FilteredAndUnfilteredBones)
@@ -957,6 +958,8 @@ struct FNDISkeletalMeshParametersName
 	FString NumBonesName;
 	FString NumFilteredBonesName;
 	FString NumUnfilteredBonesName;
+	FString RandomMaxBoneName;
+	FString ExcludeBoneIndexName;
 	FString FilteredAndUnfilteredBonesName;
 	FString NumFilteredSocketsName;
 	FString FilteredSocketBoneOffsetName;
@@ -997,6 +1000,8 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 	Names.NumBonesName = UNiagaraDataInterfaceSkeletalMesh::NumBonesName + Suffix;
 	Names.NumFilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::NumFilteredBonesName + Suffix;
 	Names.NumUnfilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::NumUnfilteredBonesName + Suffix;
+	Names.RandomMaxBoneName = UNiagaraDataInterfaceSkeletalMesh::RandomMaxBoneName + Suffix;
+	Names.ExcludeBoneIndexName = UNiagaraDataInterfaceSkeletalMesh::ExcludeBoneIndexName + Suffix;
 	Names.FilteredAndUnfilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::FilteredAndUnfilteredBonesName + Suffix;
 	Names.NumFilteredSocketsName = UNiagaraDataInterfaceSkeletalMesh::NumFilteredSocketsName + Suffix;
 	Names.FilteredSocketBoneOffsetName = UNiagaraDataInterfaceSkeletalMesh::FilteredSocketBoneOffsetName + Suffix;
@@ -1044,6 +1049,8 @@ public:
 		NumBones.Bind(ParameterMap, *ParamNames.NumBonesName);
 		NumFilteredBones.Bind(ParameterMap, *ParamNames.NumFilteredBonesName);
 		NumUnfilteredBones.Bind(ParameterMap, *ParamNames.NumUnfilteredBonesName);
+		RandomMaxBone.Bind(ParameterMap, *ParamNames.RandomMaxBoneName);
+		ExcludeBoneIndex.Bind(ParameterMap, *ParamNames.ExcludeBoneIndexName);
 		FilteredAndUnfilteredBones.Bind(ParameterMap, *ParamNames.FilteredAndUnfilteredBonesName);
 		NumFilteredSockets.Bind(ParameterMap, *ParamNames.NumFilteredSocketsName);
 		FilteredSocketBoneOffset.Bind(ParameterMap, *ParamNames.FilteredSocketBoneOffsetName);
@@ -1153,6 +1160,8 @@ public:
 			FRHIShaderResourceView* FilteredAndUnfilteredBonesSRV = StaticBuffers->GetNumFilteredBones() > 0 ? StaticBuffers->GetFilteredAndUnfilteredBonesSRV() : FNiagaraRenderer::GetDummyUIntBuffer();
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredBones, StaticBuffers->GetNumFilteredBones());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumUnfilteredBones, StaticBuffers->GetNumUnfilteredBones());
+			SetShaderValue(RHICmdList, ComputeShaderRHI, RandomMaxBone, StaticBuffers->GetExcludedBoneIndex() >= 0 ? DynamicBuffers->GetNumBones() - 2 : DynamicBuffers->GetNumBones() - 1);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, ExcludeBoneIndex, StaticBuffers->GetExcludedBoneIndex());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredAndUnfilteredBones, FilteredAndUnfilteredBonesSRV);
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredSockets, StaticBuffers->GetNumFilteredSockets());
@@ -1204,6 +1213,8 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumBones, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredBones, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumUnfilteredBones, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, RandomMaxBone, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, ExcludeBoneIndex, 0);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredAndUnfilteredBones, FNiagaraRenderer::GetDummyUIntBuffer());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredSockets, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, FilteredSocketBoneOffset, 0);
@@ -1246,6 +1257,8 @@ private:
 	LAYOUT_FIELD(FShaderParameter, NumBones);
 	LAYOUT_FIELD(FShaderParameter, NumFilteredBones);
 	LAYOUT_FIELD(FShaderParameter, NumUnfilteredBones);
+	LAYOUT_FIELD(FShaderParameter, RandomMaxBone);
+	LAYOUT_FIELD(FShaderParameter, ExcludeBoneIndex);
 	LAYOUT_FIELD(FShaderResourceParameter, FilteredAndUnfilteredBones);
 	LAYOUT_FIELD(FShaderParameter, NumFilteredSockets);
 	LAYOUT_FIELD(FShaderParameter, FilteredSocketBoneOffset);
@@ -2373,6 +2386,8 @@ const FString UNiagaraDataInterfaceSkeletalMesh::MeshNumWeightsName(TEXT("MeshNu
 const FString UNiagaraDataInterfaceSkeletalMesh::NumBonesName(TEXT("NumBones_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::NumFilteredBonesName(TEXT("NumFilteredBones_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::NumUnfilteredBonesName(TEXT("NumUnfilteredBones_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::RandomMaxBoneName(TEXT("RandomMaxBone_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::ExcludeBoneIndexName(TEXT("ExcludeBoneIndex_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::FilteredAndUnfilteredBonesName(TEXT("FilteredAndUnfilteredBones_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::NumFilteredSocketsName(TEXT("NumFilteredSockets_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::FilteredSocketBoneOffsetName(TEXT("FilteredSocketBoneOffset_"));
