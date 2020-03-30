@@ -339,6 +339,7 @@ public:
 
 	int32 GetNumFilteredBones() const { return NumFilteredBones; }
 	int32 GetNumUnfilteredBones() const { return NumUnfilteredBones;  }
+	int32 GetExcludedBoneIndex() const { return ExcludedBoneIndex; }
 	FRHIShaderResourceView* GetFilteredAndUnfilteredBonesSRV() const { return FilteredAndUnfilteredBonesSRV; }
 
 	int32 GetNumFilteredSockets() const { return NumFilteredSockets; }
@@ -372,6 +373,7 @@ protected:
 
 	int32 NumFilteredBones = 0;
 	int32 NumUnfilteredBones = 0;
+	int32 ExcludedBoneIndex = INDEX_NONE;
 	TResourceArray<uint16> FilteredAndUnfilteredBonesArray;
 	FVertexBufferRHIRef FilteredAndUnfilteredBonesBuffer;
 	FShaderResourceViewRHIRef FilteredAndUnfilteredBonesSRV;
@@ -702,6 +704,8 @@ public:
 	static const FString NumBonesName;
 	static const FString NumFilteredBonesName;
 	static const FString NumUnfilteredBonesName;
+	static const FString RandomMaxBoneName;
+	static const FString ExcludeBoneIndexName;
 	static const FString FilteredAndUnfilteredBonesName;
 	static const FString NumFilteredSocketsName;
 	static const FString FilteredSocketBoneOffsetName;
