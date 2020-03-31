@@ -63,8 +63,6 @@ void KinematicGeometryParticleDefaultConstruct(FConcrete& Concrete, const TKinem
 {
 	Concrete.SetV(TVector<T, d>(0));
 	Concrete.SetW(TVector<T, d>(0));
-	Concrete.SetCenterOfMass(TVector<T, d>(0));
-	Concrete.SetRotationOfMass(TRotation<T, d>(FQuat(EForceInit::ForceInit)));
 }
 
 template <typename T, int d, bool bPersistent>
@@ -83,6 +81,8 @@ void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, 
 	Concrete.SetAngularImpulse(TVector<T, d>(0));
 	Concrete.SetM(1);
 	Concrete.SetInvM(1);
+	Concrete.SetCenterOfMass(TVector<T,d>(0));
+	Concrete.SetRotationOfMass(TRotation<T,d>::FromIdentity());
 	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetLinearEtherDrag(0.f);
@@ -102,6 +102,8 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetAngularImpulse(TVector<T, d>(0));
 	Concrete.SetM(1);
 	Concrete.SetInvM(1);
+	Concrete.SetCenterOfMass(TVector<T,d>(0));
+	Concrete.SetRotationOfMass(TRotation<T,d>(FQuat(EForceInit::ForceInit)));
 	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetLinearEtherDrag(0.f);
@@ -616,12 +618,6 @@ public:
 	const TKinematicTarget<T, d>& KinematicTarget() const { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
 	TKinematicTarget<T, d>& KinematicTarget() { return KinematicGeometryParticles->KinematicTarget(ParticleIdx); }
 
-	const TVector<T, d>& CenterOfMass() const { return KinematicGeometryParticles->CenterOfMass(ParticleIdx); }
-	void SetCenterOfMass(const TVector<T, d>& InCenterOfMass) { KinematicGeometryParticles->CenterOfMass(ParticleIdx) = InCenterOfMass; }
-	
-	const TRotation<T, d>& RotationOfMass() const { return KinematicGeometryParticles->RotationOfMass(ParticleIdx); }
-	void SetRotationOfMass(const TRotation<T, d>& InRotationOfMass) { KinematicGeometryParticles->RotationOfMass(ParticleIdx) = InRotationOfMass; }
-
 	//Really only useful when using a transient handle
 	const TKinematicGeometryParticleHandleImp<T, d, true>* Handle() const { return KinematicGeometryParticles->Handle(ParticleIdx); }
 	TKinematicGeometryParticleHandleImp<T, d, true>* Handle() { return KinematicGeometryParticles->Handle(ParticleIdx); }
@@ -752,6 +748,13 @@ public:
 	T InvM() const { return PBDRigidParticles->InvM(ParticleIdx); }
 	T& InvM() { return PBDRigidParticles->InvM(ParticleIdx); }
 	void SetInvM(const T& InInvM) { PBDRigidParticles->InvM(ParticleIdx) = InInvM; }
+
+	const TVector<T,d>& CenterOfMass() const { return PBDRigidParticles->CenterOfMass(ParticleIdx); }
+	void SetCenterOfMass(const TVector<T,d>& InCenterOfMass) { PBDRigidParticles->CenterOfMass(ParticleIdx) = InCenterOfMass; }
+
+	const TRotation<T,d>& RotationOfMass() const { return PBDRigidParticles->RotationOfMass(ParticleIdx); }
+	void SetRotationOfMass(const TRotation<T,d>& InRotationOfMass) { PBDRigidParticles->RotationOfMass(ParticleIdx) = InRotationOfMass; }
+
 
 	T LinearEtherDrag() const { return PBDRigidParticles->LinearEtherDrag(ParticleIdx); }
 	T& LinearEtherDrag() { return PBDRigidParticles->LinearEtherDrag(ParticleIdx); }
@@ -1189,9 +1192,9 @@ public:
 
 	TVector<T, d> CenterOfMass() const
 	{
-		if (auto KinematicHandle = Handle->CastToKinematicParticle())
+		if (auto RigidHandle = Handle->CastToRigidParticle())
 		{
-			return KinematicHandle->CenterOfMass();
+			return RigidHandle->CenterOfMass();
 		}
 
 		return TVector<T, d>(0);
@@ -1199,9 +1202,9 @@ public:
 
 	TRotation<T, d> RotationOfMass() const
 	{
-		if (auto KinematicHandle = Handle->CastToKinematicParticle())
+		if (auto RigidHandle = Handle->CastToRigidParticle())
 		{
-			return KinematicHandle->RotationOfMass();
+			return RigidHandle->RotationOfMass();
 		}
 
 		return TRotation<T, d>::FromIdentity();
@@ -1876,33 +1879,16 @@ public:
 		MVelocities.Write(InVelocities,bInvalidate,MDirtyFlags,Proxy);
 	}
 
-	const TVector<T, d>& CenterOfMass() const { return MMassProps.Read().CenterOfMass; }
-	void SetCenterOfMass(const TVector<T, d>& InCenterOfMass, bool bInvalidate = true)
-	{
-		MMassProps.Modify(bInvalidate,MDirtyFlags,Proxy,[&InCenterOfMass](auto& Data){ Data.CenterOfMass = InCenterOfMass;});
-	}
-	
-	const TRotation<T, d>& RotationOfMass() const { return MMassProps.Read().RotationOfMass; }
-	void SetRotationOfMass(const TRotation<T, d>& InRotationOfMass, bool bInvalidate = true)
-	{
-		MMassProps.Modify(bInvalidate,MDirtyFlags,Proxy,[&InRotationOfMass](auto& Data){ Data.RotationOfMass = InRotationOfMass;});
-	}
-
 	EObjectStateType ObjectState() const;
 
 private:
 	TParticleProperty<FParticleVelocities, EParticleProperty::Velocities> MVelocities;
 
 protected:
-	//todo: move this into pbdrigid
-	TParticleProperty<FParticleMassProps,EParticleProperty::MassProps> MMassProps;
-
-protected:
 	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& RemoteData) const
 	{
 		Base::SyncRemoteDataImp(Manager, DataIdx, RemoteData);
 		MVelocities.SyncRemote(Manager, DataIdx, RemoteData);
-		MMassProps.SyncRemote(Manager, DataIdx, RemoteData);
 	}
 };
 
@@ -1917,16 +1903,12 @@ public:
 	TKinematicGeometryParticleData(EParticleType InType = EParticleType::Kinematic)
 		: Base(InType)
 		, MV(TVector<T, d>(0))
-		, MW(TVector<T, d>(0))
-		, MCenterOfMass(TVector<T, d>(0))
-		, MRotationOfMass(TRotation<T, d>(FQuat(EForceInit::ForceInit))) {}
+		, MW(TVector<T, d>(0)){}
 
 	TKinematicGeometryParticleData(const TKinematicGeometryParticle<T, d>& InParticle)
 		: Base(InParticle)
 		, MV(InParticle.V())
 		, MW(InParticle.W()) 
-		, MCenterOfMass(InParticle.CenterOfMass()) 
-		, MRotationOfMass(InParticle.RotationOfMass()) 
 	{
 		Type = EParticleType::Kinematic;
 	}
@@ -1937,22 +1919,16 @@ public:
 		Type = EParticleType::Kinematic;
 		MV = TVector<T, d>(0);
 		MW = TVector<T, d>(0);
-		MCenterOfMass = TVector<T, d>(0);
-		MRotationOfMass = TRotation<T, d>(FQuat(EForceInit::ForceInit));
 	}
 
 	void Init(const TKinematicGeometryParticle<T, d>& InParticle) {
 			Base::Init(InParticle);
 			MV = InParticle.V();
 			MW = InParticle.W();
-			MCenterOfMass = InParticle.CenterOfMass();
-			MRotationOfMass = InParticle.RotationOfMass();
 			Type = EParticleType::Kinematic;
 	}
 	TVector<T, d> MV;
 	TVector<T, d> MW;
-	TVector<T, d> MCenterOfMass;
-	TRotation<T, d> MRotationOfMass;
 };
 
 
@@ -1968,7 +1944,6 @@ public:
 
 	using Base::MDirtyFlags;
 	using Base::MMiscData;
-	using Base::MMassProps;
 
 
 protected:
@@ -2094,6 +2069,19 @@ public:
 		MMassProps.Modify(true,MDirtyFlags,Proxy,[InInvM](auto& Data){ Data.InvM = InInvM;});
 	}
 
+	const TVector<T,d>& CenterOfMass() const { return MMassProps.Read().CenterOfMass; }
+	void SetCenterOfMass(const TVector<T,d>& InCenterOfMass,bool bInvalidate = true)
+	{
+		MMassProps.Modify(bInvalidate,MDirtyFlags,Proxy,[&InCenterOfMass](auto& Data){ Data.CenterOfMass = InCenterOfMass;});
+	}
+
+	const TRotation<T,d>& RotationOfMass() const { return MMassProps.Read().RotationOfMass; }
+	void SetRotationOfMass(const TRotation<T,d>& InRotationOfMass,bool bInvalidate = true)
+	{
+		MMassProps.Modify(bInvalidate,MDirtyFlags,Proxy,[&InRotationOfMass](auto& Data){ Data.RotationOfMass = InRotationOfMass;});
+	}
+
+
 	T LinearEtherDrag() const { return this->MNonFrequentData.Read().LinearEtherDrag; }
 	void SetLinearEtherDrag(const T& InLinearEtherDrag)
 	{
@@ -2150,6 +2138,7 @@ public:
 	bool HasAwakeEvent() { return MAwakeEvent; }
 
 private:
+	TParticleProperty<FParticleMassProps,EParticleProperty::MassProps> MMassProps;
 	TParticleProperty<FParticleDynamics, EParticleProperty::Dynamics> MDynamics;
 	TUniquePtr<TBVHParticles<T, d>> MCollisionParticles;
 	int32 MIsland;
@@ -2161,6 +2150,7 @@ protected:
 	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& RemoteData) const
 	{
 		Base::SyncRemoteDataImp(Manager,DataIdx,RemoteData);
+		MMassProps.SyncRemote(Manager,DataIdx,RemoteData);
 		MDynamics.SyncRemote(Manager,DataIdx,RemoteData);
 	}
 };
@@ -2205,6 +2195,8 @@ public:
 		, MCollisionParticles(nullptr)
 		, MM(T(0))
 		, MInvM(T(0))
+		, MCenterOfMass(TVector<T, d>(0))
+		, MRotationOfMass(TRotation<T, d>(FQuat(EForceInit::ForceInit)))
 		, MLinearEtherDrag(T(0))
 		, MAngularEtherDrag(T(0))
 		, MIsland(INDEX_NONE)
@@ -2227,6 +2219,8 @@ public:
 		, MCollisionParticles(nullptr)
 		, MM(InParticle.M())
 		, MInvM(InParticle.InvM())
+		, MCenterOfMass(InParticle.CenterOfMass())
+		, MRotationOfMass(InParticle.RotationOfMass())
 		, MLinearEtherDrag(InParticle.LinearEtherDrag())
 		, MAngularEtherDrag(InParticle.AngularEtherDrag())
 		, MIsland(InParticle.Island())
@@ -2250,6 +2244,8 @@ public:
 	const TBVHParticles<T, d> * MCollisionParticles;
 	T MM;
 	T MInvM;
+	TVector<T,d> MCenterOfMass;
+	TRotation<T,d> MRotationOfMass;
 	T MLinearEtherDrag;
 	T MAngularEtherDrag;
 	int32 MIsland;
@@ -2272,6 +2268,8 @@ public:
 		MCollisionParticles = nullptr;
 		MM = T(0);
 		MInvM = T(0);
+		MCenterOfMass = TVector<T,d>(0);
+		MRotationOfMass = TRotation<T,d>::FromIdentity();
 		MLinearEtherDrag = T(0);
 		MAngularEtherDrag = T(0);
 		MIsland = INDEX_NONE;

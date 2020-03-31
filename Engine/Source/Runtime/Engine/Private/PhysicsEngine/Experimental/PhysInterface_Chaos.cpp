@@ -724,7 +724,8 @@ FVector FPhysInterface_Chaos::GetWorldVelocityAtPoint_AssumesLocked(const FPhysi
 		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
-			const Chaos::FVec3 COM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Kinematic);
+			const Chaos::TPBDRigidParticle<float,3>* Rigid = Kinematic->CastToRigidParticle();
+			const Chaos::FVec3 COM = Rigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Rigid).GetTranslation();
 			const Chaos::FVec3 Diff = InPoint - COM;
 			return Kinematic->V() - Chaos::FVec3::CrossProduct(Diff, Kinematic->W());
 		}
@@ -736,9 +737,9 @@ FTransform FPhysInterface_Chaos::GetComTransform_AssumesLocked(const FPhysicsAct
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		if (const Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
+		if (const auto* Rigid = InActorReference->CastToRigidParticle())
 		{
-			return Chaos::FParticleUtilitiesGT::GetCoMWorldTransform(Kinematic);
+			return Chaos::FParticleUtilitiesGT::GetCoMWorldTransform(Rigid);
 		}
 	}
 	return FTransform();
@@ -748,9 +749,9 @@ FTransform FPhysInterface_Chaos::GetComTransformLocal_AssumesLocked(const FPhysi
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		if (Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
+		if (auto* Rigid = InActorReference->CastToRigidParticle())
 		{
-			return FTransform(Kinematic->RotationOfMass(), Kinematic->CenterOfMass());
+			return FTransform(Rigid->RotationOfMass(), Rigid->CenterOfMass());
 		}
 	}
 	return FTransform();
@@ -930,10 +931,10 @@ void FPhysInterface_Chaos::SetComLocalPose_AssumesLocked(const FPhysicsActorHand
 {
     //@todo(mlentine): What is InComLocalPose? If the center of an object is not the local pose then many things break including the three vector represtnation of inertia.
 
-	if (Chaos::TKinematicGeometryParticle<float, 3>* KinematicParticle = InHandle->CastToKinematicParticle())
+	if (auto Rigid = InHandle->CastToRigidParticle())
 	{
-		KinematicParticle->SetCenterOfMass(InComLocalPose.GetLocation());
-		KinematicParticle->SetRotationOfMass(InComLocalPose.GetRotation());
+		Rigid->SetCenterOfMass(InComLocalPose.GetLocation());
+		Rigid->SetRotationOfMass(InComLocalPose.GetRotation());
 	}
 }
 
