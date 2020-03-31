@@ -19,7 +19,6 @@
 #include "Logging/MessageLog.h"
 #include "TargetReceipt.h"
 #include "DesktopPlatformModule.h"
-#include "TargetPlatform.h"
 #include "PlatformInfo.h"
 
 #define LOCTEXT_NAMESPACE "PlayLevel"
