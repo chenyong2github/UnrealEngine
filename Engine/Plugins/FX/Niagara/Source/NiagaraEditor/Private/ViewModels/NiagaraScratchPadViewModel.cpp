@@ -121,7 +121,8 @@ void UNiagaraScratchPadViewModel::RefreshScriptViewModels()
 	bool bEditViewModelsChanged = false;
 	if (ActiveScriptViewModel.IsValid() && ScriptViewModels.Contains(ActiveScriptViewModel.ToSharedRef()) == false)
 	{
-		ActiveScriptViewModel.Reset();
+		bool bRefreshEditScriptViewModels = false;
+		ResetActiveScriptViewModelInternal(bRefreshEditScriptViewModels);
 		bEditViewModelsChanged = true;
 	}
 
@@ -167,6 +168,16 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::GetVi
 	if (ViewModelForScript != nullptr)
 	{
 		return *ViewModelForScript;
+	}
+	return TSharedPtr<FNiagaraScratchPadScriptViewModel>();
+}
+
+TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::GetViewModelForEditScript(UNiagaraScript* InEditScript)
+{
+	TSharedRef<FNiagaraScratchPadScriptViewModel>* ViewModelForEditScript = ScriptViewModels.FindByPredicate([InEditScript](TSharedRef<FNiagaraScratchPadScriptViewModel>& ScriptViewModel) { return ScriptViewModel->GetEditScript() == InEditScript; });
+	if (ViewModelForEditScript != nullptr)
+	{
+		return *ViewModelForEditScript;
 	}
 	return TSharedPtr<FNiagaraScratchPadScriptViewModel>();
 }
@@ -223,11 +234,22 @@ void UNiagaraScratchPadViewModel::FocusScratchPadScriptViewModel(TSharedRef<FNia
 
 void UNiagaraScratchPadViewModel::ResetActiveScriptViewModel()
 {
+	bool bRefreshEditScriptViewModels = true;
+	ResetActiveScriptViewModelInternal(bRefreshEditScriptViewModels);
+}
+
+void UNiagaraScratchPadViewModel::ResetActiveScriptViewModelInternal(bool bRefreshEditScriptViewModels)
+{
 	if (ActiveScriptViewModel.IsValid())
 	{
 		ActiveScriptViewModel.Reset();
 		ObjectSelection->ClearSelectedObjects();
-		RefreshEditScriptViewModels();
+
+		if (bRefreshEditScriptViewModels)
+		{
+			RefreshEditScriptViewModels();
+		}
+
 		OnActiveScriptChangedDelegate.Broadcast();
 	}
 }
