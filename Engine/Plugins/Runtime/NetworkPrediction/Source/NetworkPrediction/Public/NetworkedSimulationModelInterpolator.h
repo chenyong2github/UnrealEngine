@@ -88,8 +88,8 @@ struct TNetSimInterpolator
 			const int32 HeadFrame = State.GetPendingTickFrame();
 			if (HeadFrame >= 0)
 			{
-				const TFrameState* FrameState = State.GetFrameState(HeadFrame);
-				const TAuxState* AuxState = State.GetAuxState(HeadFrame);
+				const TFrameState* FrameState = State.ReadFrame(HeadFrame);
+				const TAuxState* AuxState = State.ReadAux(HeadFrame);
 				check(FrameState && AuxState);
 				Driver->FinalizeFrame(FrameState->SyncState, *AuxState);
 			}
@@ -97,8 +97,8 @@ struct TNetSimInterpolator
 			return State.GetTotalProcessedSimulationTime().ToRealTimeSeconds();
 		}
 
-		const TFrameState* HeadFrameState = State.GetFrameState(State.GetPendingTickFrame());
-		const TFrameState* TailFrameState = State.GetFrameState(State.GetConfirmedFrame());
+		const TFrameState* HeadFrameState = State.ReadFrame(State.GetPendingTickFrame());
+		const TFrameState* TailFrameState = State.ReadFrame(State.GetConfirmedFrame());
 
 		FRealTime HeadRealTimeSeconds = HeadFrameState->TotalSimTime.ToRealTimeSeconds();
 		FRealTime TailRealTimeSeconds = TailFrameState->TotalSimTime.ToRealTimeSeconds();
@@ -110,8 +110,8 @@ struct TNetSimInterpolator
 			InterpolationFrame = State.GetConfirmedFrame();
 
 			auto& FromState = GetFromInterpolationState();
-			FromState.Sync = State.GetFrameState(InterpolationFrame)->SyncState;
-			FromState.Aux = *State.GetAuxState(InterpolationFrame);
+			FromState.Sync = State.ReadFrame(InterpolationFrame)->SyncState;
+			FromState.Aux = *State.ReadAux(InterpolationFrame);
 		}
 
 		EVisualLoggingContext LoggingContext = EVisualLoggingContext::InterpolationLatest;
@@ -192,13 +192,13 @@ struct TNetSimInterpolator
 
 		for (int32 Frame = State.GetConfirmedFrame(); Frame <= State.GetPendingTickFrame(); ++Frame)
 		{
-			FRealTime FrameRealTime = State.GetFrameState(Frame)->TotalSimTime.ToRealTimeSeconds();
+			FRealTime FrameRealTime = State.ReadFrame(Frame)->TotalSimTime.ToRealTimeSeconds();
 			if (NewInterpolationTime <= FrameRealTime)
 			{
 				InterpolationFrame = Frame;
 				ToTime = FrameRealTime;
-				ToState = &State.GetFrameState(Frame)->SyncState;
-				ToAuxState = State.GetAuxState(Frame);
+				ToState = &State.ReadFrame(Frame)->SyncState;
+				ToAuxState = State.ReadAux(Frame);
 				break;
 			}
 		}
@@ -251,9 +251,9 @@ struct TNetSimInterpolator
 				auto VLogHelper = [&](int32 Frame, EVisualLoggingContext Context, const FString& DebugStr)
 				{
 					FVisualLoggingParameters VLogParams(Context, Frame, EVisualLoggingLifetime::Transient, DebugStr);
-					const TFrameState* FrameState = State.GetFrameState(Frame);
+					const TFrameState* FrameState = State.ReadFrame(Frame);
 
-					Driver->InvokeVisualLog(&FrameState->InputCmd, &FrameState->SyncState, State.GetAuxState(Frame), VLogParams);
+					Driver->InvokeVisualLog(&FrameState->InputCmd, &FrameState->SyncState, State.ReadAux(Frame), VLogParams);
 				};
 
 				VLogHelper(State.GetConfirmedFrame(), EVisualLoggingContext::InterpolationBufferTail, LexToString(TailFrameState->TotalSimTime.ToRealTimeMS()));
@@ -261,17 +261,17 @@ struct TNetSimInterpolator
 
 				{
 					FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationFrom, InterpolationFrame-1, EVisualLoggingLifetime::Transient, LexToString(FromRealTime));
-					Driver->InvokeVisualLog(&State.GetFrameState(InterpolationFrame-1)->InputCmd, &FromState.Sync, &FromState.Aux, VLogParams);
+					Driver->InvokeVisualLog(&State.ReadFrame(InterpolationFrame-1)->InputCmd, &FromState.Sync, &FromState.Aux, VLogParams);
 				}
 
 				{
 					FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationTo, InterpolationFrame, EVisualLoggingLifetime::Transient, LexToString(ToRealTime));
-					Driver->InvokeVisualLog(&State.GetFrameState(InterpolationFrame)->InputCmd, ToState, ToAuxState, VLogParams);
+					Driver->InvokeVisualLog(&State.ReadFrame(InterpolationFrame)->InputCmd, ToState, ToAuxState, VLogParams);
 				}
 
 				{
 					FVisualLoggingParameters VLogParams(LoggingContext, InterpolationFrame, EVisualLoggingLifetime::Transient, LexToString(NewInterpolationTime));
-					Driver->InvokeVisualLog(&State.GetFrameState(InterpolationFrame)->InputCmd, &OutputState.Sync, &OutputState.Aux, VLogParams);
+					Driver->InvokeVisualLog(&State.ReadFrame(InterpolationFrame)->InputCmd, &OutputState.Sync, &OutputState.Aux, VLogParams);
 				}
 			}
 				

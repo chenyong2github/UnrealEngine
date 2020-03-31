@@ -364,7 +364,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 			for (int32 PredFrame = LastSerializedFrame+1; PredFrame <= NetworkSim->State.GetPendingTickFrame(); ++PredFrame)
 			{
-				if (auto* Cmd = NetworkSim->State.GetFrameState(PredFrame))
+				if (auto* Cmd = NetworkSim->State.ReadFrame(PredFrame))
 				{
 					PredictedMS += Cmd->FrameDeltaTime.Get();
 				}
@@ -406,11 +406,11 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 		{
 			const int32 HeadFrame = NetworkSim->State.GetPendingTickFrame();
-			if (auto* LatestFrameState = NetworkSim->State.GetFrameState(HeadFrame))
+			if (auto* LatestFrameState = NetworkSim->State.ReadFrame(HeadFrame))
 			{
 				auto* LatestSync = &LatestFrameState->SyncState;
 				FVisualLoggingParameters VLogParams(EVisualLoggingContext::LastPredicted, HeadFrame, EVisualLoggingLifetime::Transient);
-				NetworkSim->Driver->InvokeVisualLog(&LatestFrameState->InputCmd, LatestSync, NetworkSim->State.GetAuxState(HeadFrame), VLogParams);
+				NetworkSim->Driver->InvokeVisualLog(&LatestFrameState->InputCmd, LatestSync, NetworkSim->State.ReadAux(HeadFrame), VLogParams);
 			}
 		}
 
@@ -419,10 +419,10 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			if (ServerPIEStuff.NetworkSim)
 			{
 				const int32 HeadFrame = ServerPIEStuff.NetworkSim->State.GetPendingTickFrame();
-				if (auto* LatestFrameState = NetworkSim->State.GetFrameState(HeadFrame))
+				if (auto* LatestFrameState = NetworkSim->State.ReadFrame(HeadFrame))
 				{
 					FVisualLoggingParameters VLogParams(EVisualLoggingContext::CurrentServerPIE, HeadFrame, EVisualLoggingLifetime::Transient);
-					NetworkSim->Driver->InvokeVisualLog(&LatestFrameState->InputCmd, &LatestFrameState->SyncState, ServerPIEStuff.NetworkSim->State.GetAuxState(HeadFrame), VLogParams);
+					NetworkSim->Driver->InvokeVisualLog(&LatestFrameState->InputCmd, &LatestFrameState->SyncState, ServerPIEStuff.NetworkSim->State.ReadAux(HeadFrame), VLogParams);
 				}
 			}
 		}
@@ -431,11 +431,11 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 		{
 			for (int32 Frame = NetworkSim->RepProxy_Autonomous.GetLastSerializedFrame(); Frame < NetworkSim->State.GetPendingTickFrame(); ++Frame)
 			{
-				if (auto* FrameState = NetworkSim->State.GetFrameState(Frame))
+				if (auto* FrameState = NetworkSim->State.ReadFrame(Frame))
 				{
 					const EVisualLoggingContext Context = (Frame == NetworkSim->RepProxy_Autonomous.GetLastSerializedFrame()) ? EVisualLoggingContext::LastConfirmed : EVisualLoggingContext::OtherPredicted;
 					FVisualLoggingParameters VLogParams(Context, Frame, EVisualLoggingLifetime::Transient);
-					NetworkSim->Driver->InvokeVisualLog(&FrameState->InputCmd, &FrameState->SyncState, NetworkSim->State.GetAuxState(Frame), VLogParams);
+					NetworkSim->Driver->InvokeVisualLog(&FrameState->InputCmd, &FrameState->SyncState, NetworkSim->State.ReadAux(Frame), VLogParams);
 				}
 			}
 		}
@@ -444,8 +444,8 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			{
 				int32 HeadFrame = NetworkSim->State.GetPendingTickFrame();
 				FVisualLoggingParameters VLogParams(EVisualLoggingContext::LastPredicted, HeadFrame, EVisualLoggingLifetime::Transient);
-				auto* FrameState = NetworkSim->State.GetFrameState(HeadFrame);
-				NetworkSim->Driver->InvokeVisualLog(&FrameState->InputCmd, &FrameState->SyncState, NetworkSim->State.GetAuxState(HeadFrame), VLogParams);
+				auto* FrameState = NetworkSim->State.ReadFrame(HeadFrame);
+				NetworkSim->Driver->InvokeVisualLog(&FrameState->InputCmd, &FrameState->SyncState, NetworkSim->State.ReadAux(HeadFrame), VLogParams);
 			}
 
 			{
