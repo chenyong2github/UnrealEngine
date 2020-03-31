@@ -7,17 +7,19 @@ setlocal
 set PATH_TO_CMAKE_FILE=%CD%\..\
 
 REM Temporary build directories (used as working directories when running CMake)
-set ANDROID_BUILD_PATH="%PATH_TO_CMAKE_FILE%..\Android\Build"
-set ANDROID_LIB_PATH="%PATH_TO_CMAKE_FILE%..\Android"
+set CMAKE_EXE="%ANDROID_HOME%\cmake\3.10.2.4988404\bin\cmake.exe"
+set ANDROID_TOOLCHAIN_FILE="%PATH_TO_CMAKE_FILE%\Android\Android.cmake"
+set ANDROID_BUILD_PATH="%PATH_TO_CMAKE_FILE%\..\Android\Build"
+set ANDROID_LIB_PATH="%PATH_TO_CMAKE_FILE%\..\Android"
 set MAKE="%NDKROOT%\prebuilt\windows-x86_64\bin\make.exe"
 
 echo Generating vivoxclientapi makefile for Android (64-bit)...
 if exist "%ANDROID_BUILD_PATH%" (rmdir "%ANDROID_BUILD_PATH%" /s/q)
 
-echo Building for Android (64-bit) Release
+echo Building for Android (ARM 64-bit) Release
 mkdir "%ANDROID_BUILD_PATH%"
 pushd "%ANDROID_BUILD_PATH%" 
-..\..\..\..\..\..\Extras\ThirdPartyNotUE\CMake\bin\cmake.exe -G "MinGW Makefiles" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_TOOLCHAIN_FILE="%PATH_TO_CMAKE_FILE%\Android\Android.cmake" -DANDROID_NDK="%NDKROOT%" -DCMAKE_MAKE_PROGRAM=%MAKE% -DCMAKE_BUILD_TYPE=RelWithDebInfo -DANDROID_NATIVE_API_LEVEL=android-21 -DANDROID_ABI=arm64-v8a -DANDROID_STL=gnustl_shared -DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1 -DVALIDATE_AUDIO_DEVICE_SELECTION=1 %PATH_TO_CMAKE_FILE%
+%CMAKE_EXE% -G "MinGW Makefiles" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_TOOLCHAIN_FILE="%ANDROID_TOOLCHAIN_FILE%" -DANDROID_NDK="%NDKROOT%" -DCMAKE_MAKE_PROGRAM=%MAKE% -DCMAKE_BUILD_TYPE=RelWithDebInfo -DANDROID_NATIVE_API_LEVEL=android-21 -DANDROID_ABI=arm64-v8a -DANDROID_STL=c++_shared -DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1 -DVALIDATE_AUDIO_DEVICE_SELECTION=1 %PATH_TO_CMAKE_FILE%
 
 REM Now compile it
 %MAKE%
@@ -26,10 +28,10 @@ move /y %ANDROID_BUILD_PATH%\..\libvivoxclientapi.a %ANDROID_LIB_PATH%\Release\a
 popd
 rmdir "%ANDROID_BUILD_PATH%" /s/q
 
-echo Building for Android (64-bit) Debug
+echo Building for Android (ARM 64-bit) Debug
 mkdir "%ANDROID_BUILD_PATH%"
 pushd "%ANDROID_BUILD_PATH%" 
-..\..\..\..\..\..\Extras\ThirdPartyNotUE\CMake\bin\cmake.exe -G "MinGW Makefiles" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_TOOLCHAIN_FILE="%PATH_TO_CMAKE_FILE%\Android\Android.cmake" -DANDROID_NDK="%NDKROOT%" -DCMAKE_MAKE_PROGRAM=%MAKE% -DCMAKE_BUILD_TYPE=Debug -DANDROID_NATIVE_API_LEVEL=android-21 -DANDROID_ABI=arm64-v8a -DANDROID_STL=gnustl_shared -DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1 -DVALIDATE_AUDIO_DEVICE_SELECTION=1 %PATH_TO_CMAKE_FILE%
+%CMAKE_EXE% -G "MinGW Makefiles" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_TOOLCHAIN_FILE="%ANDROID_TOOLCHAIN_FILE%" -DANDROID_NDK="%NDKROOT%" -DCMAKE_MAKE_PROGRAM=%MAKE% -DCMAKE_BUILD_TYPE=Debug -DANDROID_NATIVE_API_LEVEL=android-21 -DANDROID_ABI=arm64-v8a -DANDROID_STL=c++_shared -DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1 -DVALIDATE_AUDIO_DEVICE_SELECTION=1 %PATH_TO_CMAKE_FILE%
 
 REM Now compile it
 %MAKE%
@@ -38,10 +40,10 @@ move /y %ANDROID_BUILD_PATH%\..\libvivoxclientapi.a %ANDROID_LIB_PATH%\Debug\arm
 popd
 rmdir "%ANDROID_BUILD_PATH%" /s/q
 
-echo Building for Android (32-bit) Release
+echo Building for Android (ARM 32-bit) Release
 mkdir "%ANDROID_BUILD_PATH%"
 pushd "%ANDROID_BUILD_PATH%" 
-..\..\..\..\..\..\Extras\ThirdPartyNotUE\CMake\bin\cmake.exe -G "MinGW Makefiles" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_TOOLCHAIN_FILE="%PATH_TO_CMAKE_FILE%\Android\Android.cmake" -DANDROID_NDK="%NDKROOT%" -DCMAKE_MAKE_PROGRAM=%MAKE% -DCMAKE_BUILD_TYPE=RelWithDebInfo -DANDROID_NATIVE_API_LEVEL=android-19 -DANDROID_ABI=armeabi-v7a -DANDROID_STL=gnustl_shared -DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1 -DVALIDATE_AUDIO_DEVICE_SELECTION=1 %PATH_TO_CMAKE_FILE%
+%CMAKE_EXE% -G "MinGW Makefiles" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_TOOLCHAIN_FILE="%ANDROID_TOOLCHAIN_FILE%" -DANDROID_NDK="%NDKROOT%" -DCMAKE_MAKE_PROGRAM=%MAKE% -DCMAKE_BUILD_TYPE=RelWithDebInfo -DANDROID_NATIVE_API_LEVEL=android-19 -DANDROID_ABI=armeabi-v7a -DANDROID_STL=c++_shared -DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1 -DVALIDATE_AUDIO_DEVICE_SELECTION=1 %PATH_TO_CMAKE_FILE%
 
 REM Now compile it
 %MAKE%
@@ -50,10 +52,10 @@ move /y %ANDROID_BUILD_PATH%\..\libvivoxclientapi.a %ANDROID_LIB_PATH%\Release\a
 popd
 rmdir "%ANDROID_BUILD_PATH%" /s/q
 
-echo Building for Android (32-bit) Debug
+echo Building for Android (ARM 32-bit) Debug
 mkdir "%ANDROID_BUILD_PATH%"
 pushd "%ANDROID_BUILD_PATH%" 
-..\..\..\..\..\..\Extras\ThirdPartyNotUE\CMake\bin\cmake.exe -G "MinGW Makefiles" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_TOOLCHAIN_FILE="%PATH_TO_CMAKE_FILE%\Android\Android.cmake" -DANDROID_NDK="%NDKROOT%" -DCMAKE_MAKE_PROGRAM=%MAKE% -DCMAKE_BUILD_TYPE=Debug -DANDROID_NATIVE_API_LEVEL=android-19 -DANDROID_ABI=armeabi-v7a -DANDROID_STL=gnustl_shared -DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1 -DVALIDATE_AUDIO_DEVICE_SELECTION=1 %PATH_TO_CMAKE_FILE%
+%CMAKE_EXE% -G "MinGW Makefiles" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_TOOLCHAIN_FILE="%ANDROID_TOOLCHAIN_FILE%" -DANDROID_NDK="%NDKROOT%" -DCMAKE_MAKE_PROGRAM=%MAKE% -DCMAKE_BUILD_TYPE=Debug -DANDROID_NATIVE_API_LEVEL=android-19 -DANDROID_ABI=armeabi-v7a -DANDROID_STL=c++_shared -DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1 -DVALIDATE_AUDIO_DEVICE_SELECTION=1 %PATH_TO_CMAKE_FILE%
 
 REM Now compile it
 %MAKE%
