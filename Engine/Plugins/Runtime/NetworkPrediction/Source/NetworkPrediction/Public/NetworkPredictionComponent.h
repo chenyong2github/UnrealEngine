@@ -75,9 +75,6 @@ private:
 	UPROPERTY(Replicated, transient)
 	FReplicationProxy ReplicationProxy_Replay;
 
-	UPROPERTY(Replicated, transient)
-	FReplicationProxy ReplicationProxy_Debug;
-
 protected:
 
 	// Called via ServerRPCDelegate, ticks serverRPC timing and decides whether to send the RPC or not

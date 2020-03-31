@@ -2,9 +2,20 @@
 #pragma once
 #include "NetworkedSimulationModelBufferTypes.h"
 
-/** This is the "system driver", it has functions that the TNetworkedSimulationModel needs to call internally, that are specific to the types but not specific to the simulation itself. */
+// This is the "system driver", it has functions that the TNetworkedSimulationModel needs to call internally, 
+// that are specific to the types but not specific to the simulation itself. This is main:
+//	Finalize Frame: how to push the sync/aux state to the UE4 side.
+//	Produce Input: how to produce the InputCmd when necessary.
+//
+// The driver is templatized on the BufferTypes. This is so that the driver (UE4 actor/component) just has to know about
+// the underlying user structure types, and not about the networking model or simulation class.
+//
+// If we templatized the driver on the Model def, we would need separate UE4 actor/component for fixed vs non fixed tick simulations.
+// This way, we can define a single UE4 piece that just handles the user input/sync/aux state and doesn't care about the other stuff
+// defined in the Model def.
+
 template<typename TBufferTypes>
-class TNetworkedSimulationModelDriver
+class TNetworkedSimulationModelDriverBase
 {
 public:
 	using TInputCmd = typename TBufferTypes::TInputCmd;
@@ -57,19 +68,9 @@ protected:
 
 	// Called to visual log the given states. Note that not all 3 will always be present and you should check for nullptrs.
 	virtual void VisualLog(const TInputCmd* Input, const TSyncState* Sync, const TAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const = 0;
-
 };
 
-// Internal traits that are derived from the user settings (E.g, these can't go in FNetSimModelDefBase because they are dependent on the user types)
-// These can be overridden as well via template specialization but we don't expect this to be common.
-template<typename T>
-struct TNetSimModelTraitsBase
-{
-	// Internal buffer types: the model may wrap the user structs (e.g, input cmds + frame time) for internal usage
-	using InternalBufferTypes = TInternalBufferTypes< typename T::BufferTypes, typename T::TickSettings>;
-	
-	// Driver class: interface that the NetSimModel needs user code to implement in order to function
-	using Driver = TNetworkedSimulationModelDriver<typename T::BufferTypes>;
-};
-
-template<typename T> struct TNetSimModelTraits : public TNetSimModelTraitsBase<T> { };
+// Outward facing class. This allows user simulations to extend the driver interface if necessary.
+// Use case would be if writing custom RepControllers that required special communication with the driver.
+template<typename TBufferTypes>
+class TNetworkedSimulationModelDriver : public TNetworkedSimulationModelDriverBase<TBufferTypes> { };
