@@ -1834,7 +1834,8 @@ public:
 	FOpenGLUnorderedAccessView():
 		Resource(0),
 		BufferResource(0),
-		Format(0)
+		Format(0),
+		UnrealFormat(0)
 	{
 
 	}
@@ -1842,6 +1843,7 @@ public:
 	GLuint	Resource;
 	GLuint	BufferResource;
 	GLenum	Format;
+	uint8	UnrealFormat;
 
 	virtual uint32 GetBufferSize()
 	{
