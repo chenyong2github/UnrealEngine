@@ -136,7 +136,7 @@ public:
 	template<typename Model>
 	static void TraceSimulationEOF(const TNetworkedSimulationState<Model>& State)
 	{
-		TraceEOF_Internal(State.Max(), State.GetPendingTickFrame(), State.GetLatestInputFrame(), State.GetMaxTickFrame(), State.GetTotalProcessedSimulationTime(), State.GetTotalAllowedSimulationTime());
+		TraceEOF_Internal(State.Capacity(), State.GetPendingTickFrame(), State.GetLatestInputFrame(), State.GetMaxTickFrame(), State.GetTotalProcessedSimulationTime(), State.GetTotalAllowedSimulationTime());
 	}
 
 private:

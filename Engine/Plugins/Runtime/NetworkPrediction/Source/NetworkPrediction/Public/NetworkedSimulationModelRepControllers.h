@@ -130,7 +130,7 @@ void TryGenerateLocalInput(TNetworkedSimulationModelDriver<typename Model::Buffe
 		FrameState->SetFlag(ESimulationFrameStateFlags::InputWritten);
 		State.SetLatestInputFrame(InputFrame);
 
-		npEnsureMsgfSlow(State.GetTotalAllowedSimulationTime() >= State.GetTotalInputSimulationTime(), TEXT("Overflowed input %s"), *State.GetBasicDebugStr());
+		npEnsureMsgfSlow(State.GetTotalAllowedSimulationTime() >= State.GetTotalInputSimulationTime(), TEXT("Overflowed input %s"), *State.DebugString());
 		MissingInputTime -= FrameState->FrameDeltaTime.Get();
 
 		if (bProduceInputViaDriver)
@@ -149,7 +149,7 @@ void TryGenerateLocalInput(TNetworkedSimulationModelDriver<typename Model::Buffe
 	// Advance MaxTickFrame
 	for (int32 Frame = State.GetLatestInputFrame(); Frame > State.GetMaxTickFrame(); --Frame)
 	{
-		auto* FrameState = State.GetFrameState(Frame);
+		auto* FrameState = State.ReadFrame(Frame);
 		if (npEnsure(FrameState) && FrameState->HasFlag(ESimulationFrameStateFlags::InputWritten) && FrameState->TotalSimTime <= AllowedSimTime)
 		{
 			State.SetMaxTickFrame(Frame);
@@ -169,7 +169,7 @@ void DoSimulationTicks(typename Model::Simulation& Simulation, TNetworkedSimulat
 			
 		// Find InputFrame. We want it to be PendingFrame but if no input was written at this frame, it can be skipped if there are valid inputs at later frames (gaps in network recvs)
 		int32 InputFrame = InputSyncFrame;
-		TFrameState* InputFrameState = State.GetFrameState(InputFrame);
+		TFrameState* InputFrameState = State.ReadFrame(InputFrame);
 		while (InputFrameState && !InputFrameState->HasFlag(ESimulationFrameStateFlags::InputWritten))
 		{
 			if (++InputFrame > State.GetMaxTickFrame())
@@ -177,7 +177,7 @@ void DoSimulationTicks(typename Model::Simulation& Simulation, TNetworkedSimulat
 				InputFrameState = nullptr;
 				break;
 			}
-			InputFrameState = State.GetFrameState(InputFrame);
+			InputFrameState = State.ReadFrame(InputFrame);
 		}
 
 		// No valid input to be processed between PendingFrame -> MaxAllowedFrame
@@ -189,7 +189,7 @@ void DoSimulationTicks(typename Model::Simulation& Simulation, TNetworkedSimulat
 		// If we skipped frames due to lack of input, we need to copy the sync state over and set PendingTickFrame
 		if (InputFrame > InputSyncFrame)
 		{
-			TSimulationFrameState<Model>* InputSyncState = State.GetFrameState(InputSyncFrame);
+			TSimulationFrameState<Model>* InputSyncState = State.ReadFrame(InputSyncFrame);
 			InputFrameState->SyncState = InputSyncState->SyncState;
 			InputFrameState->TotalSimTime = InputSyncState->TotalSimTime;
 			State.SetPendingTickFrame(InputFrame);
@@ -242,8 +242,10 @@ struct TRepController_Server : public TBase
 	using typename TBase::TSimulation;
 	using typename TBase::TTickSettings;
 	using typename TBase::TDriver;
-	using typename TBase::TInputCmd;
 	using typename TBase::TFrameState;
+	using typename TBase::TInputCmd;
+	using typename TBase::TSyncState;
+	using typename TBase::TAuxState;
 	
 	// -------------------------------------------------------------------------------------------------
 	// TRepController_Server::NetSerialize
@@ -278,7 +280,7 @@ struct TRepController_Server : public TBase
 
 			for (int32 Frame = StartInputFrame; Frame <= HeadInputFrame; ++Frame)
 			{
-				TFrameState* FrameState = State.GetFrameState(Frame);
+				TFrameState* FrameState = State.ReadFrame(Frame);
 				if (FrameState && FrameState->HasFlag(ESimulationFrameStateFlags::InputWritten))
 				{
 					SerializedNumElements++;
@@ -316,7 +318,7 @@ struct TRepController_Server : public TBase
 			const int32 StartInputFrame = FMath::Max(ReceivedHeadInputFrame - SerializedNumElements + 1, 0);
 
 			const int32 MinAcceptableFrame = State.GetNextInputFrame();
-			const int32 MaxAcceptableFrame = State.GetPendingTickFrame() + State.Max() - 1;
+			const int32 MaxAcceptableFrame = State.GetPendingTickFrame() + State.Capacity() - 1;
 
 			for (int32 Frame = StartInputFrame; Frame <= ReceivedHeadInputFrame; ++Frame)
 			{
@@ -334,7 +336,7 @@ struct TRepController_Server : public TBase
 					LastSerializedFrame = Frame;
 				}
 
-				if (TFrameState* ExistingFrame = State.GetFrameState(Frame))
+				if (TFrameState* ExistingFrame = State.ReadFrame(Frame))
 				{
 					if (npEnsure(!ExistingFrame->HasFlag(ESimulationFrameStateFlags::InputWritten)))
 					{
@@ -397,7 +399,7 @@ struct TRepController_Server : public TBase
 
 		// Sync to latest frame if there is any
 		const int32 PendingFrame = State.GetPendingTickFrame();
-		Driver->FinalizeFrame(State.GetFrameState(PendingFrame)->SyncState, *State.GetAuxState(PendingFrame));
+		Driver->FinalizeFrame(State.ReadFrame(PendingFrame)->SyncState, *State.ReadAux(PendingFrame));
 	}
 
 	int32 GetLastSerializedFrame() const { return LastSerializedFrame; }
@@ -418,12 +420,10 @@ struct TRepController_Autonomous: public TBase
 	using typename TBase::TSimulation;
 	using typename TBase::TTickSettings;
 	using typename TBase::TDriver;
-	using typename TBase::TBufferTypes;
+	using typename TBase::TFrameState;
 	using typename TBase::TInputCmd;
 	using typename TBase::TSyncState;
 	using typename TBase::TAuxState;
-
-	using TFrameState = TSimulationFrameState<Model>;
 
 	int32 GetLastSerializedFrame() const { return SerializedFrame; }
 	bool IsReconcileFaultDetected() const { return bReconcileFaultDetected; }
@@ -448,8 +448,8 @@ struct TRepController_Autonomous: public TBase
 		if (Ar.IsSaving())
 		{
 			// Server serialize the latest state
-			State.GetFrameState(SerializedFrame)->SyncState.NetSerialize(Ar);
-			State.GetAuxState(SerializedFrame)->NetSerialize(Ar);
+			State.ReadFrame(SerializedFrame)->SyncState.NetSerialize(Ar);
+			State.ReadAux(SerializedFrame)->NetSerialize(Ar);
 			State.CueDispatcher.NetSerializeSavedCues(Ar, ENetSimCueReplicationTarget::AutoProxy);
 		}
 		else
@@ -464,8 +464,8 @@ struct TRepController_Autonomous: public TBase
 			
 			bPendingReconciliation = false;
 
-			TFrameState* ClientFrameState = State.GetFrameState(SerializedFrame);
-			TAuxState* ClientAuxState = State.GetAuxState(SerializedFrame);
+			TFrameState* ClientFrameState = State.ReadFrame(SerializedFrame);
+			TAuxState* ClientAuxState = State.ReadAux(SerializedFrame);
 
 			// The state the client predicted that corresponds to the state the server just serialized to us
 			if (ClientFrameState && ClientAuxState)
@@ -503,12 +503,12 @@ struct TRepController_Autonomous: public TBase
 		bPendingReconciliation = false;
 		bDependentSimulationNeedsReconcile = false;
 
-		TFrameState* ClientFrameState = State.GetFrameState(SerializedFrame);
+		TFrameState* ClientFrameState = State.ReadFrame(SerializedFrame);
 		if (!ClientFrameState)
 		{
 			// We received state that we don't have in our local buffer.
 			// We can't resimulate here, just reset to the serialized state
-			UE_NP_TRACE_SYSTEM_FAULT("Could not reconcile SerializedFrame %d with local state. %s", SerializedFrame, *State.GetBasicDebugStr());
+			UE_NP_TRACE_SYSTEM_FAULT("Could not reconcile SerializedFrame %d with local state. %s", SerializedFrame, *State.DebugString());
 			ResetToSerializedState(State);
 			return;
 		}
@@ -577,26 +577,26 @@ struct TRepController_Autonomous: public TBase
 			NetworkSimulationModelCVars::SetForceAutonomousFrameJump(0);
 			
 			// Copy pending state to jumped frame
-			TFrameState PendingFrameState = *State.GetFrameState(State.GetPendingTickFrame());
+			TFrameState PendingFrameState = *State.ReadFrame(State.GetPendingTickFrame());
 			const int32 NewFrame = State.GetPendingTickFrame() + FrameJump;
 			TFrameState* NewFrameState =  State.WriteFrameSequential(NewFrame);
 			*NewFrameState = PendingFrameState;
 
 			State.Reset(NewFrame);
 
-			UE_NP_TRACE_SYSTEM_FAULT("NetworkSimulationModelCVars::ForceAutonomousFrameJump invoked. Jumped to: %d. Prev: %s", FrameJump, *State.GetBasicDebugStr());
+			UE_NP_TRACE_SYSTEM_FAULT("NetworkSimulationModelCVars::ForceAutonomousFrameJump invoked. Jumped to: %d. Prev: %s", FrameJump, *State.DebugString());
 		}
 
 		// The MaxInputFrame we can write without getting too far ahead of server
 		// We pass this into TryGenerateLocalInput to ensure that it doesn't.
 		// If we some how get in a state where we are past MaxInputFrame, we need to reset
-		const int32 MaxInputFrame = (SerializedFrame + State.Max() - 1);
+		const int32 MaxInputFrame = (SerializedFrame + State.Capacity() - 1);
 
 		if (State.GetNextInputFrame() > MaxInputFrame)
 		{
 			// We somehow went over the limit and must reset.
 			ResetToSerializedState(State);
-			UE_NP_TRACE_SYSTEM_FAULT("TRepController_Autonomous::PreSimTick input overrun. MaxInputFrame: %d. %s", MaxInputFrame, *State.GetBasicDebugStr());
+			UE_NP_TRACE_SYSTEM_FAULT("TRepController_Autonomous::PreSimTick input overrun. MaxInputFrame: %d. %s", MaxInputFrame, *State.DebugString());
 			return;
 		}
 
@@ -604,7 +604,7 @@ struct TRepController_Autonomous: public TBase
 		{
 			// We are at the limit but not over it. We are essentially pausing the simulation until we recover. Set this bool to reflect this.
 			bReconcileFaultDetected = true;
-			UE_NP_TRACE_SYSTEM_FAULT("TRepController_Autonomous::PreSimTick Input Buffer Maxed. Not processing local time. MaxInputFrame: %d. %s", MaxInputFrame, *State.GetBasicDebugStr());
+			UE_NP_TRACE_SYSTEM_FAULT("TRepController_Autonomous::PreSimTick Input Buffer Maxed. Not processing local time. MaxInputFrame: %d. %s", MaxInputFrame, *State.DebugString());
 			return;
 		}
 
@@ -638,7 +638,7 @@ struct TRepController_Autonomous: public TBase
 		State.CueDispatcher.SetConfirmedTime(SerializedTime);
 
 		const int32 PendingFrame = State.GetPendingTickFrame();
-		Driver->FinalizeFrame(State.GetFrameState(PendingFrame)->SyncState, *State.GetAuxState(PendingFrame));
+		Driver->FinalizeFrame(State.ReadFrame(PendingFrame)->SyncState, *State.ReadAux(PendingFrame));
 	}
 
 private:
@@ -660,11 +660,11 @@ private:
 		{
 			for (int32 Frame = StartFrame; Frame <= EndFrame; ++Frame)
 			{
-				TFrameState* FrameState = State.GetFrameState(Frame);
-				if (npEnsureMsgf(FrameState, TEXT("Invalid Frame %d. %s"), Frame, *State.GetBasicDebugStr()))
+				TFrameState* FrameState = State.ReadFrame(Frame);
+				if (npEnsureMsgf(FrameState, TEXT("Invalid Frame %d. %s"), Frame, *State.DebugString()))
 				{
 					FVisualLoggingParameters VLogParameters(Context, Frame, EVisualLoggingLifetime::Persistent, Str);
-					Driver->InvokeVisualLog(&FrameState->InputCmd, &FrameState->SyncState, State.GetAuxState(Frame), VLogParameters);
+					Driver->InvokeVisualLog(&FrameState->InputCmd, &FrameState->SyncState, State.ReadAux(Frame), VLogParameters);
 				}
 			}
 		}
@@ -695,12 +695,10 @@ struct TRepController_Simulated : public TBase
 	using typename TBase::TSimulation;
 	using typename TBase::TTickSettings;
 	using typename TBase::TDriver;
-	using typename TBase::TBufferTypes;
+	using typename TBase::TFrameState;
 	using typename TBase::TInputCmd;
 	using typename TBase::TSyncState;
 	using typename TBase::TAuxState;
-
-	using TFrameState = TSimulationFrameState<Model>;
 
 	// Parent Simulation. If this is set, this simulation will forward predict in sync with this parent sim. The parent sim should be an autonomous proxy driven simulation
 	INetworkedSimulationModel* ParentSimulation = nullptr;
@@ -744,13 +742,13 @@ struct TRepController_Simulated : public TBase
 		{
 			LastSerializedKeyframe = State.GetPendingTickFrame();
 			
-			TFrameState* FrameState = State.GetFrameState(LastSerializedKeyframe);
+			TFrameState* FrameState = State.ReadFrame(LastSerializedKeyframe);
 			npCheckSlow(FrameState);
 
-			TFrameState* InputFrameState = State.GetFrameState(State.GetLatestInputFrame());
-			npCheckfSlow(InputFrameState, TEXT("Invalid InputFrame. %s"), *State.GetBasicDebugStr());
+			TFrameState* InputFrameState = State.ReadFrame(State.GetLatestInputFrame());
+			npCheckfSlow(InputFrameState, TEXT("Invalid InputFrame. %s"), *State.DebugString());
 
-			TAuxState* AuxState = State.GetAuxState(LastSerializedKeyframe);
+			TAuxState* AuxState = State.ReadAux(LastSerializedKeyframe);
 			npCheckSlow(AuxState);
 			
 			FrameState->TotalSimTime.NetSerialize(P.Ar);	// 1. Time
@@ -880,7 +878,7 @@ struct TRepController_Simulated : public TBase
 			const int32 PendingFrame = State.GetPendingTickFrame();
 			if (PendingFrame >= 0)
 			{
-				Driver->FinalizeFrame(State.GetFrameState(PendingFrame)->SyncState, *State.GetAuxState(PendingFrame));
+				Driver->FinalizeFrame(State.ReadFrame(PendingFrame)->SyncState, *State.ReadAux(PendingFrame));
 			}
 
 			State.CueDispatcher.ClearMaxDispatchTime();
@@ -924,7 +922,7 @@ private:
 		const int32 OutputFrame = InputFrame + 1;
 
 		// Override the FrameDeltaTime
-		TFrameState* InputFrameState = State.GetFrameState(InputFrame);
+		TFrameState* InputFrameState = State.ReadFrame(InputFrame);
 		npCheckSlow(InputFrameState);
 		npEnsureSlow(InputFrameState->HasFlag(ESimulationFrameStateFlags::InputWritten));
 		InputFrameState->FrameDeltaTime.Set(DeltaSimTime);
