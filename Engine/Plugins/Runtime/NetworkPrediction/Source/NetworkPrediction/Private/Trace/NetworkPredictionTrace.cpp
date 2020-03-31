@@ -30,7 +30,6 @@ UE_TRACE_EVENT_END()
 
 // Trace a simulation's local netrole, which can change during the sim's liftetime.
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SimulationNetRole)
-	UE_TRACE_EVENT_FIELD(uint64, EngineFrameNumber)
 	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
 	UE_TRACE_EVENT_FIELD(uint8, NetRole)
 UE_TRACE_EVENT_END()
@@ -44,7 +43,6 @@ UE_TRACE_EVENT_END()
 // Traces a simulation tick in any context
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SimulationTick)
 	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
-	UE_TRACE_EVENT_FIELD(uint64, EngineFrameNumber)
 	UE_TRACE_EVENT_FIELD(int32, StartMS)
 	UE_TRACE_EVENT_FIELD(int32, EndMS)
 	UE_TRACE_EVENT_FIELD(int32, OutputFrame)	
@@ -53,7 +51,6 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SimulationEOF)
 	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
-	UE_TRACE_EVENT_FIELD(uint64, EngineFrameNumber)
 	UE_TRACE_EVENT_FIELD(float, EngineFrameDeltaTime)
 	UE_TRACE_EVENT_FIELD(int32, BufferSize)
 	UE_TRACE_EVENT_FIELD(int32, PendingTickFrame)
@@ -65,7 +62,6 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, NetSerializeRecv)
 	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
-	UE_TRACE_EVENT_FIELD(uint64, EngineFrameNumber)
 	UE_TRACE_EVENT_FIELD(int32, ReceivedSimTimeMS)
 	UE_TRACE_EVENT_FIELD(int32, ReceivedFrame)
 UE_TRACE_EVENT_END()
@@ -73,19 +69,16 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, InputCmd)
 	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
 	UE_TRACE_EVENT_FIELD(int32, SimulationFrame)
-	UE_TRACE_EVENT_FIELD(uint64, EngineFrameNumber)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SyncState)
 	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
 	UE_TRACE_EVENT_FIELD(int32, SimulationFrame)
-	UE_TRACE_EVENT_FIELD(uint64, EngineFrameNumber)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, AuxState)
 	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
 	UE_TRACE_EVENT_FIELD(int32, SimulationFrame)
-	UE_TRACE_EVENT_FIELD(uint64, EngineFrameNumber)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, NetSerializeCommit)
@@ -95,7 +88,6 @@ UE_TRACE_EVENT_END()
 // General system fault. Log message is in attachment
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SystemFault)
 	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
-	UE_TRACE_EVENT_FIELD(uint64, EngineFrameNumber)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, OOBStateMod)
@@ -112,6 +104,11 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, PieBegin)
 	UE_TRACE_EVENT_FIELD(uint32, DummyData)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(NetworkPrediction, WorldFrameStart)
+	UE_TRACE_EVENT_FIELD(uint64, EngineFrameNumber)
+	UE_TRACE_EVENT_FIELD(float, DeltaSeconds)
 UE_TRACE_EVENT_END()
 
 
@@ -197,7 +194,6 @@ void FNetworkPredictionTrace::TraceSimulationCreated(const AActor* OwningActor, 
 void FNetworkPredictionTrace::TraceSimulationNetRole(uint32 SimulationId, ENetRole NetRole)
 {
 	UE_TRACE_LOG(NetworkPrediction, SimulationNetRole, NetworkPredictionChannel)
-		<< SimulationNetRole.EngineFrameNumber(GFrameNumber)
 		<< SimulationNetRole.SimulationId(SimulationId)
 		<< SimulationNetRole.NetRole((uint8)NetRole);
 }
@@ -206,7 +202,6 @@ void FNetworkPredictionTrace::TraceSimulationTick(int32 OutputFrame, const FNetw
 {
 	UE_TRACE_LOG(NetworkPrediction, SimulationTick, NetworkPredictionChannel)
 		<< SimulationTick.SimulationId(PeakSimulationIdChecked())
-		<< SimulationTick.EngineFrameNumber(GFrameNumber)
 		<< SimulationTick.StartMS(TimeStep.TotalSimulationTime)
 		<< SimulationTick.EndMS(TimeStep.TotalSimulationTime + TimeStep.StepMS)
 		<< SimulationTick.OutputFrame(OutputFrame);
@@ -218,7 +213,6 @@ void FNetworkPredictionTrace::TraceEOF_Internal(int32 BufferSize, int32 PendingT
 
 	UE_TRACE_LOG(NetworkPrediction, SimulationEOF, NetworkPredictionChannel)
 		<< SimulationEOF.SimulationId(SimulationId)
-		<< SimulationEOF.EngineFrameNumber(GFrameNumber)
 		<< SimulationEOF.EngineFrameDeltaTime(FApp::GetDeltaTime())
 		<< SimulationEOF.BufferSize(BufferSize)
 		<< SimulationEOF.PendingTickFrame(PendingTickFrame)
@@ -261,7 +255,6 @@ void FNetworkPredictionTrace::TraceNetSerializeRecv(const FNetworkSimTime& Recei
 
 	UE_TRACE_LOG(NetworkPrediction, NetSerializeRecv, NetworkPredictionChannel)
 		<< NetSerializeRecv.SimulationId(SimulationId)
-		<< NetSerializeRecv.EngineFrameNumber(GFrameNumber)
 		<< NetSerializeRecv.ReceivedSimTimeMS(ReceivedTime)
 		<< NetSerializeRecv.ReceivedFrame(ReceivedFrame);
 }
@@ -310,7 +303,6 @@ void FNetworkPredictionTrace::TraceUserState_Internal(int32 Frame, ETraceUserSta
 			UE_TRACE_LOG(NetworkPrediction, InputCmd, NetworkPredictionChannel, AttachmentSize)
 				<< InputCmd.SimulationId(SimulationId)
 				<< InputCmd.SimulationFrame(Frame)
-				<< InputCmd.EngineFrameNumber(GFrameNumber)
 				<< InputCmd.Attachment(*StrOut, AttachmentSize);
 			break;
 		}
@@ -319,7 +311,6 @@ void FNetworkPredictionTrace::TraceUserState_Internal(int32 Frame, ETraceUserSta
 			UE_TRACE_LOG(NetworkPrediction, SyncState, NetworkPredictionChannel, AttachmentSize)
 				<< SyncState.SimulationId(SimulationId)
 				<< SyncState.SimulationFrame(Frame)
-				<< SyncState.EngineFrameNumber(GFrameNumber)
 				<< SyncState.Attachment(*StrOut, AttachmentSize);
 			break;
 		}
@@ -328,7 +319,6 @@ void FNetworkPredictionTrace::TraceUserState_Internal(int32 Frame, ETraceUserSta
 			UE_TRACE_LOG(NetworkPrediction, AuxState, NetworkPredictionChannel, AttachmentSize)
 				<< AuxState.SimulationId(SimulationId)
 				<< AuxState.SimulationFrame(Frame)
-				<< AuxState.EngineFrameNumber(GFrameNumber)
 				<< AuxState.Attachment(*StrOut, AttachmentSize);
 			break;
 		}
@@ -339,6 +329,13 @@ void FNetworkPredictionTrace::TracePIEStart()
 {
 	UE_TRACE_LOG(NetworkPrediction, PieBegin, NetworkPredictionChannel)
 		<< PieBegin.DummyData(0); // temp to quiet clang
+}
+
+void FNetworkPredictionTrace::TraceWorldFrameStart(float DeltaSeconds)
+{
+	UE_TRACE_LOG(NetworkPrediction, WorldFrameStart, NetworkPredictionChannel)
+		<< WorldFrameStart.EngineFrameNumber(GFrameNumber)
+		<< WorldFrameStart.DeltaSeconds(DeltaSeconds);
 }
 
 #include "CoreTypes.h"
@@ -390,7 +387,6 @@ void FNetworkPredictionTrace::TraceSystemFault(const TCHAR* Fmt, ...)
 
 		UE_TRACE_LOG(NetworkPrediction, SystemFault, NetworkPredictionChannel, AttachmentSize)
 			<< SystemFault.SimulationId(SimulationId)
-			<< SystemFault.EngineFrameNumber(GFrameNumber)
 			<< SystemFault.Attachment(Buffer, AttachmentSize);
 
 		UE_LOG(LogNetworkSim, Warning, TEXT("SystemFault: %s"), Buffer);
