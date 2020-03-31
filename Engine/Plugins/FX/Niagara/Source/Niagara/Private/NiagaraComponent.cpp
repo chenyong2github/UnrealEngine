@@ -1197,6 +1197,11 @@ void UNiagaraComponent::OnRegister()
 	Super::OnRegister();
 }
 
+bool UNiagaraComponent::IsReadyForOwnerToAutoDestroy() const
+{
+	return !IsActive();
+}
+
 void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	//UE_LOG(LogNiagara, Log, TEXT("OnComponentDestroyed %p %p"), this, SystemInstance.Get());
