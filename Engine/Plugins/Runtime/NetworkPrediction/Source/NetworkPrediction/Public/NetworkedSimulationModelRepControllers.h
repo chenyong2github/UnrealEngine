@@ -255,9 +255,6 @@ struct TRepController_Server : public TBase
 	{
 		NETSIM_CHECKSUM(P.Ar);
 
-		TSimulationFrameState<Model> Test;
-		
-
 		FArchive& Ar = P.Ar;
 
 		// Serialize Input Cmds redundantly. This could be better:
