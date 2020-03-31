@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "Misc/EngineVersion.h"
 
 class FJsonObject;
 
@@ -67,6 +68,24 @@ public:
 	 * Default constructor. Initializes the structure to empty.
 	 */
 	FBuildVersion();
+
+	/// <summary>
+	/// Gets the compatible changelist if set, otherwise the default compatible changelist
+	/// </summary>
+	/// <returns>The compatible changelist</returns>
+	int GetEffectiveCompatibleChangelist() const;
+
+	/// <summary>
+	/// Get an engine version object for this build version
+	/// </summary>
+	/// <returns>New engine version object</returns>
+	FEngineVersion GetEngineVersion() const;
+
+	/// <summary>
+	/// Get a compatible engine version object for this build version
+	/// </summary>
+	/// <returns>New engine version object</returns>
+	FEngineVersion GetCompatibleEngineVersion() const;
 
 	/// <summary>
 	/// Get the default path to the build.version file on disk
