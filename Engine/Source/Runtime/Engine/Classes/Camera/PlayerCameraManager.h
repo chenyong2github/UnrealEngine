@@ -786,9 +786,12 @@ public:
 	 * Plays a camera shake on this camera.
 	 * @param Shake - The class of camera shake to play.
 	 * @param SourceComponent - The source from which the camera shake originates.
+	 * @param Scale - Applies an additional constant scale on top of the dynamic scale computed with the distance to the source
+	 * @param PlaySpace - Which coordinate system to play the shake in (affects oscillations and camera anims)
+	 * @param UserPlaySpaceRot - Coordinate system to play shake when PlaySpace == CAPS_UserDefined.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual class UCameraShake* PlayCameraShakeFromSource(TSubclassOf<class UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent);
+	virtual class UCameraShake* PlayCameraShakeFromSource(TSubclassOf<class UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent, float Scale=1.f, enum ECameraAnimPlaySpace::Type PlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 	
 	/** Immediately stops the given shake instance and invalidates it. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
