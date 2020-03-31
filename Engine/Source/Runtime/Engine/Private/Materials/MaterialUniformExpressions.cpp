@@ -735,7 +735,8 @@ static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshade
 	{
 		const uint32 SizeX = Texture->Resource->GetSizeX();
 		const uint32 SizeY = Texture->Resource->GetSizeY();
-		Stack.Add(FLinearColor((float)SizeX, (float)SizeY, 0.0f, 0.0f));
+		const uint32 SizeZ = Texture->Resource->GetSizeZ();
+		Stack.Add(FLinearColor((float)SizeX, (float)SizeY, (float)SizeZ, 0.0f));
 	}
 }
 
@@ -746,7 +747,8 @@ static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderS
 	{
 		const uint32 SizeX = Texture->Resource->GetSizeX();
 		const uint32 SizeY = Texture->Resource->GetSizeY();
-		Stack.Add(FLinearColor(1.0f / (float)SizeX, 1.0f / (float)SizeY, 0.0f, 0.0f));
+		const uint32 SizeZ = Texture->Resource->GetSizeZ();
+		Stack.Add(FLinearColor(1.0f / (float)SizeX, 1.0f / (float)SizeY, (SizeZ > 0 ? 1.0f / (float)SizeZ : 0.0f), 0.0f));
 	}
 }
 
