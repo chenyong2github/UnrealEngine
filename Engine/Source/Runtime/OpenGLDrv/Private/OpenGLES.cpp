@@ -85,6 +85,7 @@ PFNGLCLEARBUFFERIVPROC					glClearBufferiv = NULL;
 PFNGLCLEARBUFFERUIVPROC					glClearBufferuiv = NULL;
 PFNGLREADBUFFERPROC						glReadBuffer = NULL;
 PFNGLDRAWBUFFERSPROC					glDrawBuffers = NULL;
+PFNGLCOLORMASKIEXTPROC					glColorMaskiEXT = NULL;
 PFNGLTEXBUFFEREXTPROC					glTexBufferEXT = NULL;
 PFNGLTEXBUFFERRANGEEXTPROC				glTexBufferRangeEXT = NULL;
 PFNGLCOPYIMAGESUBDATAPROC				glCopyImageSubData = nullptr;
@@ -537,6 +538,13 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 		glDispatchCompute = (PFNGLDISPATCHCOMPUTEPROC)((void*)eglGetProcAddress("glDispatchCompute"));
 		glDispatchComputeIndirect = (PFNGLDISPATCHCOMPUTEINDIRECTPROC)((void*)eglGetProcAddress("glDispatchComputeIndirect"));
 		glBindImageTexture = (PFNGLBINDIMAGETEXTUREPROC)((void*)eglGetProcAddress("glBindImageTexture"));
+
+		// ES 3.2
+		glColorMaskiEXT = (PFNGLCOLORMASKIEXTPROC)((void*)eglGetProcAddress("glColorMaski"));
+		if (glColorMaskiEXT == nullptr)
+		{
+			glColorMaskiEXT = (PFNGLCOLORMASKIEXTPROC)((void*)eglGetProcAddress("glColorMaskiEXT"));
+		}
 	}
 
 	// test for glCopyImageSubData functionality
