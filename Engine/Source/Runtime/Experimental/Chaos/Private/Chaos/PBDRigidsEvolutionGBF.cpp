@@ -258,8 +258,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt, const FReal Step
 #endif
 
 	{
-		// #TODO re-enable when larger groups of collections can successfully resolve groups
-		//Clustering.UnionClusterGroups();
+		Clustering.UnionClusterGroups();
 	}
 
 	{
@@ -469,6 +468,7 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParti
 
 	AddConstraintRule(&CollisionRule);
 
+	SetInternalParticleInitilizationFunction([](const TGeometryParticleHandle<float, 3>*, const TGeometryParticleHandle<float, 3>*) {});
 	NarrowPhase.GetContext().bFilteringEnabled = true;
 	NarrowPhase.GetContext().bDeferUpdate = true;
 	NarrowPhase.GetContext().bAllowManifolds = false;
