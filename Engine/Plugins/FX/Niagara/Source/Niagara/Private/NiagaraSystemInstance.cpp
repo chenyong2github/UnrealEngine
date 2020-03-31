@@ -667,6 +667,41 @@ void FNiagaraSystemInstance::FindDataInterfaceDependencies(const TArray<UNiagara
 	}
 }
 
+void FNiagaraSystemInstance::FindEventDependencies(FNiagaraEmitterInstance& EmitterInst, TArray<FNiagaraEmitterInstance*>& Dependencies)
+{
+	UNiagaraEmitter* Emitter = EmitterInst.GetCachedEmitter();
+	if (!Emitter)
+	{
+		return;
+	}
+
+	const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetSystem()->GetEmitterHandles();
+
+	const TArray<FNiagaraEventScriptProperties>& EventHandlers = Emitter->GetEventHandlers();
+	for (const FNiagaraEventScriptProperties& Handler : EventHandlers)
+	{
+		// An empty ID means the event reads from the same emitter, so we don't need to record a dependency.
+		if (!Handler.SourceEmitterID.IsValid())
+		{
+			continue;
+		}
+
+		// Look for the ID in the list of emitter handles from the system object.
+		FString SourceEmitterIDName = Handler.SourceEmitterID.ToString();
+		for (int EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
+		{
+			FName EmitterIDName = EmitterHandles[EmitterIdx].GetIdName();
+			if (EmitterIDName.ToString() == SourceEmitterIDName)
+			{
+				// The Emitters array is in the same order as the EmitterHandles array.
+				FNiagaraEmitterInstance* Sender = &Emitters[EmitterIdx].Get();
+				Dependencies.Add(Sender);
+				break;
+			}
+		}
+	}
+}
+
 void FNiagaraSystemInstance::ComputeEmittersExecutionOrder()
 {
 	const int32 NumEmitters = Emitters.Num();
@@ -692,12 +727,16 @@ void FNiagaraSystemInstance::ComputeEmittersExecutionOrder()
 
 		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext())
 		{
+			// GPU emitters have a combined execution context for spawn and update.
 			FindDataInterfaceDependencies(Inst.GetGPUContext()->GetDataInterfaces(), EmitterDependencies);
 		}
 		else
 		{
+			// CPU emitters have separate contexts for spawn and update, so we need to gather DIs from both. They also support events,
+			// so we need to look at the event sources for extra dependencies.
 			FindDataInterfaceDependencies(Inst.GetSpawnExecutionContext().GetDataInterfaces(), EmitterDependencies);
 			FindDataInterfaceDependencies(Inst.GetUpdateExecutionContext().GetDataInterfaces(), EmitterDependencies);
+			FindEventDependencies(Inst, EmitterDependencies);
 		}
 
 		// Map the pointers returned by the emitter to indices inside the Emitters array. This is O(N^2), but we expect
