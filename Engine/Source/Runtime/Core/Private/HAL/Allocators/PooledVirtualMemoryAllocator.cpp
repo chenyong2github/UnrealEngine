@@ -41,7 +41,7 @@ FPooledVirtualMemoryAllocator::FPooledVirtualMemoryAllocator()
 	}
 }
 
-void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size)
+void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 /*AllocationHint = 0*/)
 {
 	if (Size > Limits::MaxAllocationSizeToPool)
 	{
