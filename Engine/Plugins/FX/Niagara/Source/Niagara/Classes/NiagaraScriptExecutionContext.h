@@ -209,7 +209,7 @@ struct FNiagaraComputeExecutionContext
 
 	void Reset(NiagaraEmitterInstanceBatcher* Batcher);
 
-	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const uint32 InDefaultSimulationStageIndex, int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
+	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
 	void DirtyDataInterfaces();
 	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 
@@ -226,6 +226,14 @@ struct FNiagaraComputeExecutionContext
 		uint32 CPUCount = 0;
 	}  EmitterInstanceReadback;
 	
+#if !UE_BUILD_SHIPPING
+	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
+	void SetDebugName(FString InDebugName) { DebugSimName = InDebugName; }
+#else
+	const TCHAR* GetDebugSimName() const { return TEXT(""); }
+	void SetDebugName(FString InDebugName) { }
+#endif
+
 private:
 	void ResetInternal(NiagaraEmitterInstanceBatcher* Batcher);
 
@@ -233,11 +241,7 @@ public:
 	static uint32 TickCounter;
 
 #if !UE_BUILD_SHIPPING
-	//Persistent state 
 	FString DebugSimName;
-	FORCEINLINE const TCHAR* GetDebugSimName() const { return *DebugSimName; }
-#else
-	FORCEINLINE const TCHAR* GetDebugSimName() const { return TEXT(""); }
 #endif
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return CombinedParamStore.GetDataInterfaces(); }
