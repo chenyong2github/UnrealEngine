@@ -22,7 +22,7 @@ bool UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(ECon
 
 		if (bSuccess)
 		{
-			OutTransform = KeyPointTransform * UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld);
+			OutTransform = KeyPointTransform;
 			HandTracking->GetKeypointRadius(Hand, Keypoint, OutRadius);
 			return true;
 		}
