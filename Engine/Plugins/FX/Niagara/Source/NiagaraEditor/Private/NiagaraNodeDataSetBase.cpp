@@ -85,7 +85,11 @@ void UNiagaraNodeDataSetBase::PostLoad()
 		UE_LOG(LogNiagaraEditor, Display, TEXT("Niagara script '%s' references struct asset '%s'"), *GetFullName(), *ExternalStructAsset->GetFullName());
 	}*/
 	
-	IsSynchronizedWithStruct(true, nullptr, true);
+	if (!IsSynchronizedWithStruct(true, nullptr, true))
+	{
+		SynchronizeWithStruct();
+		ReallocatePins();
+	}
 
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
