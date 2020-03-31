@@ -727,6 +727,11 @@ namespace UnrealBuildTool
 		public List<string> WhitelistRestrictedFolders = new List<string>();
 
 		/// <summary>
+		/// Set of aliased restricted folder references
+		/// </summary>
+		public Dictionary<string, string> AliasRestrictedFolders = new Dictionary<string, string>();
+
+		/// <summary>
 		/// Enforce "include what you use" rules when PCHUsage is set to ExplicitOrSharedPCH; warns when monolithic headers (Engine.h, UnrealEd.h, etc...) 
 		/// are used, and checks that source files include their matching header first.
 		/// </summary>

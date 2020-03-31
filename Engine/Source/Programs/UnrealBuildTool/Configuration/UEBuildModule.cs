@@ -162,6 +162,11 @@ namespace UnrealBuildTool
 		private readonly HashSet<DirectoryReference> WhitelistRestrictedFolders;
 
 		/// <summary>
+		/// Set of aliased restricted folder references
+		/// </summary>
+		public readonly Dictionary<string, string> AliasRestrictedFolders;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Rules">Rules for this module</param>
@@ -224,6 +229,7 @@ namespace UnrealBuildTool
 			}
 
 			WhitelistRestrictedFolders = new HashSet<DirectoryReference>(Rules.WhitelistRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
+			AliasRestrictedFolders = new Dictionary<string, string>(Rules.AliasRestrictedFolders);
 
 			// merge the main directory and any others set in the Rules
 			List<DirectoryReference> MergedDirectories = new List<DirectoryReference> { ModuleDirectory };
