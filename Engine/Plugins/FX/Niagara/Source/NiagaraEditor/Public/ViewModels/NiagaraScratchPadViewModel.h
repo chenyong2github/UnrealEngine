@@ -35,6 +35,8 @@ public:
 
 	TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModelForScript(UNiagaraScript* InScript);
 
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModelForEditScript(UNiagaraScript* InEditScript);
+
 	const TArray<ENiagaraScriptUsage>& GetAvailableUsages() const;
 
 	FText GetDisplayNameForUsage(ENiagaraScriptUsage InUsage) const;
@@ -83,6 +85,8 @@ private:
 	TSharedRef<FNiagaraScratchPadScriptViewModel> CreateAndSetupScriptviewModel(UNiagaraScript* ScratchPadScript);
 
 	void TearDownScriptViewModel(TSharedRef<FNiagaraScratchPadScriptViewModel> InScriptViewModel);
+
+	void ResetActiveScriptViewModelInternal(bool bRefreshEditScriptViewModels);
 
 	void RefreshEditScriptViewModels();
 
