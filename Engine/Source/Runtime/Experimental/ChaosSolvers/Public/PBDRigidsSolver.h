@@ -340,7 +340,7 @@ namespace Chaos
 		template<typename ParticleType>
 		void FlipBuffer(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
-			if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(Handle))
+			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(Handle))
 			{
 				for (IPhysicsProxyBase* Proxy : *Proxies)
 				{
@@ -352,7 +352,7 @@ namespace Chaos
 		template<typename ParticleType>
 		void PullFromPhysicsState(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
-			if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(Handle))
+			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(Handle))
 			{
 				for (IPhysicsProxyBase* Proxy : *Proxies)
 				{
@@ -364,7 +364,7 @@ namespace Chaos
 		template<typename ParticleType>
 		void BufferPhysicsResults(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
-			if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(Handle))
+			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(Handle))
 			{
 				for (IPhysicsProxyBase* Proxy : *Proxies)
 				{
