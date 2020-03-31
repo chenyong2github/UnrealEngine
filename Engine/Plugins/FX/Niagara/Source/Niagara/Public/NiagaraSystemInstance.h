@@ -309,6 +309,9 @@ private:
 	/** Queries all the data interfaces in the array for emitter dependencies. */
 	void FindDataInterfaceDependencies(const TArray<UNiagaraDataInterface*>& DataInterfaces, TArray<FNiagaraEmitterInstance*>& Dependencies);
 
+	/** Looks at all the event handlers in the emitter to determine which other emitters it depends on. */
+	void FindEventDependencies(FNiagaraEmitterInstance& EmitterInst, TArray<FNiagaraEmitterInstance*>& Dependencies);
+
 	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
 	void ComputeEmittersExecutionOrder();
 
