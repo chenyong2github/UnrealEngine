@@ -8,7 +8,7 @@
 
 #include "WindowsMixedRealityFunctionLibrary.Generated.h"
 
-UENUM()
+UENUM(BlueprintType, Category = "WindowsMixedRealityHMD")
 enum class EHMDSpatialLocatability : uint8 
 {
 	Unavailable = 0,
@@ -18,7 +18,7 @@ enum class EHMDSpatialLocatability : uint8
 	PositionalTrackingInhibited = 4,
 };
 
-UENUM()
+UENUM(BlueprintType, Category = "WindowsMixedRealityHMD")
 enum class EHMDInputControllerButtons : uint8
 {
 	Select,
@@ -30,7 +30,7 @@ enum class EHMDInputControllerButtons : uint8
 	Count UMETA(Hidden)
 };
 
-UENUM()
+UENUM(BlueprintType, Category = "WindowsMixedRealityHMD")
 enum class EHMDTrackingStatus : uint8
 {
 	NotTracked,
@@ -38,7 +38,7 @@ enum class EHMDTrackingStatus : uint8
 	Tracked
 };
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, Category = "WindowsMixedRealityHMD")
 struct FPointerPoseInfo
 {
 	GENERATED_USTRUCT_BODY()
