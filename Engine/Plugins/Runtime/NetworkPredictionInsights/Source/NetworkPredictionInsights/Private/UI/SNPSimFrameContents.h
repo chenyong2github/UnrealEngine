@@ -27,6 +27,7 @@ public:
 	void NotifyContentClicked(const FSimContentsView& InView);
 
 	TSharedPtr<SHorizontalBox> ContentsHBoxPtr;
+	TSharedPtr<SVerticalBox> SystemFaultsVBoxPtr;
 
 	TSharedPtr<STextBlock> SimInfoTextBlock;
 	TSharedPtr<STextBlock> SimTickTextBlock;
