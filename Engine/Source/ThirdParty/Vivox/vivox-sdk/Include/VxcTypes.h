@@ -152,6 +152,11 @@ typedef void (*pf_on_audio_unit_before_recv_audio_rendered_t)(void *callback_han
 typedef void (*pf_on_audio_unit_capture_device_status_changed_t)(int);
 
 /**
+ * Called when unexpected situation is encountered inside SDK
+ */
+typedef void (*pf_on_assert_t)(int fatal);
+
+/**
  * Configuration Options passed to vx_initialize3()
  * \ingroup initialization
  */
@@ -431,21 +436,7 @@ typedef struct vx_sdk_config {
     pf_on_thread_exit_t pf_on_thread_exit;
 
     /**
-     * If set, this callback is called by the SDK before certain socket
-     * operations are attempted if the network is currently unavailable, in
-     * order to perform a network use request to attempt to reestablish network
-     * connectivity.  The callback should perform a network use request and
-     * wait for the to complete.  It should return a non-zero value if network
-     * connectivity was successfully restored, or 0 if the network remains
-     * unavailable.  It must be thread-safe with respect to itself and any
-     * other application code that performs network use requests.
-     *
-     * If unset, a default internal handler that performs the above operations
-     * is used.  This should only be used if the application does not otherwise
-     * make any network use requests.
-     *
-     * This function is only called on specific platforms. Please contact Vivox
-     * for more information.
+     * @deprecated This function pointer is unused and never called
      */
     int (*pf_request_permission_for_network)(void);
 
@@ -471,6 +462,11 @@ typedef struct vx_sdk_config {
      * Number of millseconds to wait before disconnecting audio due to RTP timeout after the call has been established. Zero or negative value turns off the guard (not recommended).
      */
     int lost_rtp_timeout_ms;
+
+    /**
+     * This callback is called when unexpected situation in SDK is encountered
+     */
+    pf_on_assert_t pf_on_assert;
 } vx_sdk_config_t;
 
 #ifdef __cplusplus
