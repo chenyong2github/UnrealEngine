@@ -107,11 +107,10 @@ struct FSkeletalMeshSkinningData
 
 	FORCEINLINE int32 GetBoneCount(bool RequiresPrevious) const
 	{
-		int32 BoneCount = FMath::Min(CurrBoneRefToLocals().Num(), CurrComponentTransforms().Num());
-
+		int32 BoneCount = CurrComponentTransforms().Num();
 		if (RequiresPrevious)
 		{
-			BoneCount = FMath::Min3(BoneCount, PrevBoneRefToLocals().Num(), PrevComponentTransforms().Num());
+			BoneCount = FMath::Min(BoneCount, PrevComponentTransforms().Num());
 		}
 
 		return BoneCount;
