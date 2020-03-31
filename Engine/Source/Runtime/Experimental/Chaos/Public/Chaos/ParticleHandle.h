@@ -733,6 +733,16 @@ public:
 		SetAngularImpulse(Dynamics.AngularImpulse());
 	}
 
+	void SetMassProps(const FParticleMassProps& Props)
+	{
+		SetCenterOfMass(Props.CenterOfMass());
+		SetRotationOfMass(Props.RotationOfMass());
+		SetI(Props.I());
+		SetInvI(Props.InvI());
+		SetM(Props.M());
+		SetInvM(Props.InvM());
+	}
+
 	const PMatrix<T, d, d>& I() const { return PBDRigidParticles->I(ParticleIdx); }
 	PMatrix<T, d, d>& I() { return PBDRigidParticles->I(ParticleIdx); }
 	void SetI(const PMatrix<T, d, d>& InI) { PBDRigidParticles->I(ParticleIdx) = InI; }
@@ -2045,42 +2055,46 @@ public:
 		MDynamics.Write(InDynamics,bInvalidate,MDirtyFlags,Proxy);
 	}
 
-	const PMatrix<T, d, d>& I() const { return MMassProps.Read().I; }
+	const PMatrix<T, d, d>& I() const { return MMassProps.Read().I(); }
 	void SetI(const PMatrix<T, d, d>& InI)
 	{
-		MMassProps.Modify(true,MDirtyFlags,Proxy,[&InI](auto& Data){ Data.I = InI;});
+		MMassProps.Modify(true,MDirtyFlags,Proxy,[&InI](auto& Data){ Data.SetI(InI);});
 	}
 
-	const PMatrix<T, d, d>& InvI() const { return MMassProps.Read().InvI; }
+	const PMatrix<T, d, d>& InvI() const { return MMassProps.Read().InvI(); }
 	void SetInvI(const PMatrix<T, d, d>& InInvI)
 	{
-		MMassProps.Modify(true,MDirtyFlags,Proxy,[&InInvI](auto& Data){ Data.InvI = InInvI;});
+		MMassProps.Modify(true,MDirtyFlags,Proxy,[&InInvI](auto& Data){ Data.SetInvI(InInvI);});
 	}
 
-	T M() const { return MMassProps.Read().M; }
+	T M() const { return MMassProps.Read().M(); }
 	void SetM(const T& InM)
 	{
-		MMassProps.Modify(true,MDirtyFlags,Proxy,[InM](auto& Data){ Data.M = InM;});
+		MMassProps.Modify(true,MDirtyFlags,Proxy,[InM](auto& Data){ Data.SetM(InM);});
 	}
 
-	T InvM() const { return MMassProps.Read().InvM; }
+	T InvM() const { return MMassProps.Read().InvM(); }
 	void SetInvM(const T& InInvM)
 	{
-		MMassProps.Modify(true,MDirtyFlags,Proxy,[InInvM](auto& Data){ Data.InvM = InInvM;});
+		MMassProps.Modify(true,MDirtyFlags,Proxy,[InInvM](auto& Data){ Data.SetInvM(InInvM);});
 	}
-
-	const TVector<T,d>& CenterOfMass() const { return MMassProps.Read().CenterOfMass; }
+	
+	const TVector<T,d>& CenterOfMass() const { return MMassProps.Read().CenterOfMass(); }
 	void SetCenterOfMass(const TVector<T,d>& InCenterOfMass,bool bInvalidate = true)
 	{
-		MMassProps.Modify(bInvalidate,MDirtyFlags,Proxy,[&InCenterOfMass](auto& Data){ Data.CenterOfMass = InCenterOfMass;});
+		MMassProps.Modify(bInvalidate,MDirtyFlags,Proxy,[&InCenterOfMass](auto& Data){ Data.SetCenterOfMass(InCenterOfMass);});
 	}
 
-	const TRotation<T,d>& RotationOfMass() const { return MMassProps.Read().RotationOfMass; }
+	const TRotation<T,d>& RotationOfMass() const { return MMassProps.Read().RotationOfMass(); }
 	void SetRotationOfMass(const TRotation<T,d>& InRotationOfMass,bool bInvalidate = true)
 	{
-		MMassProps.Modify(bInvalidate,MDirtyFlags,Proxy,[&InRotationOfMass](auto& Data){ Data.RotationOfMass = InRotationOfMass;});
+		MMassProps.Modify(bInvalidate,MDirtyFlags,Proxy,[&InRotationOfMass](auto& Data){ Data.SetRotationOfMass(InRotationOfMass);});
 	}
 
+	void SetMassProps(const FParticleMassProps& InProps)
+	{
+		MMassProps.Write(InProps,true,MDirtyFlags,Proxy);
+	}
 
 	T LinearEtherDrag() const { return this->MNonFrequentData.Read().LinearEtherDrag; }
 	void SetLinearEtherDrag(const T& InLinearEtherDrag)
