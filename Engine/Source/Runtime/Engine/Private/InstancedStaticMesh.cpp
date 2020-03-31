@@ -1708,6 +1708,11 @@ void UInstancedStaticMeshComponent::OnCreatePhysicsState()
 	CreateAllInstanceBodies();
 
 	USceneComponent::OnCreatePhysicsState();
+
+	// Since StaticMeshComponent was not called
+	// Navigation relevancy needs to be handled here
+	bNavigationRelevant = IsNavigationRelevant();
+	FNavigationSystem::UpdateComponentData(*this);
 }
 
 void UInstancedStaticMeshComponent::OnDestroyPhysicsState()
@@ -1716,6 +1721,11 @@ void UInstancedStaticMeshComponent::OnDestroyPhysicsState()
 
 	// Release all physics representations
 	ClearAllInstanceBodies();
+
+	// Since StaticMeshComponent was not called
+	// Navigation relevancy needs to be handled here
+	bNavigationRelevant = IsNavigationRelevant();
+	FNavigationSystem::UpdateComponentData(*this);
 }
 
 bool UInstancedStaticMeshComponent::CanEditSimulatePhysics()
