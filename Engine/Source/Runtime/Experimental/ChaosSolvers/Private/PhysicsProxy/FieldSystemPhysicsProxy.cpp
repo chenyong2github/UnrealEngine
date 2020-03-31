@@ -386,12 +386,13 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 
 								for(TPBDRigidParticleHandle<FReal, 3>* Handle : Activated)
 								{
-									if(!CurrentSolver->GetProxy(Handle))
+									if(!CurrentSolver->GetProxies(Handle))
 									{
-										IPhysicsProxyBase* ParentProxy = CurrentSolver->GetProxy(Iter.Key);
-										if(ensure(ParentProxy))
+										const TSet<IPhysicsProxyBase*> * ParentProxies = CurrentSolver->GetProxies(Iter.Key);
+										if(ensure(ParentProxies))
 										{
-											CurrentSolver->AddParticleToProxy(Handle, ParentProxy);
+											for( IPhysicsProxyBase* ParentProxy : *ParentProxies)
+												CurrentSolver->AddParticleToProxy(Handle, ParentProxy);
 										}
 									}
 								}
