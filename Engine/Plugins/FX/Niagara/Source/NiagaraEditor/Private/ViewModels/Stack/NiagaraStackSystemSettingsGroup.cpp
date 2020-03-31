@@ -16,6 +16,8 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackSystemPropertiesItem.h"
 #include "NiagaraConstants.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "NiagaraSystem.h"
 
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackParameterStoreGroup"
@@ -139,6 +141,36 @@ void UNiagaraStackSystemSettingsGroup::RefreshChildrenInternal(const TArray<UNia
 		SystemPropertiesItem->Initialize(CreateDefaultChildRequiredData());
 	}
 	NewChildren.Add(SystemPropertiesItem);
+
+	//Check if we're trying to override scalability settings without an EffectType. Ideally we can allow this but it's somewhat awkward so for now we just post a warning and ignore this.
+	UNiagaraSystem* System = &GetSystemViewModel()->GetSystem();
+	TWeakPtr<FNiagaraSystemViewModel> WeakSysViewModel = GetSystemViewModel();
+	if(System && System->GetOverrideScalabilitySettings() && System->GetEffectType())
+	{
+		FText FixDescription = LOCTEXT("FixOverridesWithNoEffectType", "Disable Overrides");
+		FStackIssueFix FixIssue(
+			FixDescription,
+			FStackIssueFixDelegate::CreateLambda([=]()
+				{
+					if (auto Pinned = WeakSysViewModel.Pin())
+					{
+						FScopedTransaction ScopedTransaction(FixDescription);
+						Pinned->GetSystem().Modify();
+						Pinned->GetSystem().SetOverrideScalabilitySettings(false);
+						Pinned->RefreshAll();
+					}
+				}));
+
+		FStackIssue OverridesWithNoEffectTypeWarning(
+			EStackIssueSeverity::Warning,
+			LOCTEXT("FixOverridesWithNoEffectTypeSummaryText", "Scalability overrides with no Effect Type."),
+			LOCTEXT("FixOverridesWithNoEffectTypeErrorText", "Scalability settings cannot be overriden if the System has no Effect Type."),
+			GetStackEditorDataKey(),
+			false,
+			FixIssue);
+
+		NewIssues.Add(OverridesWithNoEffectTypeWarning);
+	}
 
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }

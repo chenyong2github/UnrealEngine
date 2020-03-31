@@ -183,6 +183,7 @@ class NIAGARA_API UNiagaraSystem : public UFXSystemAsset
 public:
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemCompiled, UNiagaraSystem*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemPostEditChange, UNiagaraSystem*);
 #endif
 	//TestChange
 
@@ -289,6 +290,9 @@ public:
 	/** Delegate called when the system's dependencies have all been compiled.*/
 	FOnSystemCompiled& OnSystemCompiled();
 
+	/** Delegate called on PostEditChange.*/
+	FOnSystemPostEditChange& OnSystemPostEditChange();
+
 	/** Gets editor specific data stored with this system. */
 	UNiagaraEditorDataBase* GetEditorData();
 
@@ -371,6 +375,9 @@ public:
 
 #if WITH_EDITOR
 	void SetEffectType(UNiagaraEffectType* EffectType);
+
+	FORCEINLINE bool GetOverrideScalabilitySettings()const { return bOverrideScalabilitySettings; }
+	FORCEINLINE void SetOverrideScalabilitySettings(bool bOverride) { bOverrideScalabilitySettings = bOverride; }
 #endif
 	UNiagaraEffectType* GetEffectType()const;
 	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings() { return CurrentScalabilitySettings; }
@@ -472,6 +479,9 @@ protected:
 
 	/** A multicast delegate which is called whenever the script has been compiled (successfully or not). */
 	FOnSystemCompiled OnSystemCompiledDelegate;
+
+	/** A multicast delegate which is called whenever this system's properties are changed. */
+	FOnSystemPostEditChange OnSystemPostEditChangeDelegate;
 #endif
 
 	/** The fixed bounding box value. bFixedBounds is the condition whether the fixed bounds can be edited. */

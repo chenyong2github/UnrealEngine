@@ -295,6 +295,8 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 	ResolveScalabilitySettings();
 
 	UpdateContext.CommitUpdate();
+	
+	OnSystemPostEditChangeDelegate.Broadcast(this);
 }
 #endif 
 
@@ -792,6 +794,11 @@ void UNiagaraSystem::SetIsolateEnabled(bool bIsolate)
 UNiagaraSystem::FOnSystemCompiled& UNiagaraSystem::OnSystemCompiled()
 {
 	return OnSystemCompiledDelegate;
+}
+
+UNiagaraSystem::FOnSystemPostEditChange& UNiagaraSystem::OnSystemPostEditChange()
+{
+	return OnSystemPostEditChangeDelegate;
 }
 
 void UNiagaraSystem::ForceGraphToRecompileOnNextCheck()
