@@ -494,14 +494,19 @@ public:
 	{
 		return FMath::Max<uint32>(SizeY >> CurrentFirstMip, 1);
 	}
+	/** Returns the depth of the texture in pixels. */
+	uint32 GetSizeZ() const override
+	{
+		return FMath::Max<uint32>(SizeZ >> CurrentFirstMip, 1);
+	}
 
 private:
 
-	/** The UTexture2D which this resource represents.														*/
+	/** The UVolumeTexture which this resource represents */
 	UVolumeTexture*	Owner;
 
 #if STATS
-	/** The FName of the LODGroup-specific stat	*/
+	/** The FName of the LODGroup-specific stat */
 	FName LODGroupStatName;
 #endif
 	/** The FName of the texture asset */
