@@ -5,6 +5,7 @@
 #include "RenderUtils.h"
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
+#include "ClearReplacementShaders.h"
 
 FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHIVertexBuffer* VertexBufferRHI, uint32 Stride, uint8 Format)
 {
@@ -211,6 +212,7 @@ FOpenGLTextureUnorderedAccessView::FOpenGLTextureUnorderedAccessView(FRHITexture
 
 	this->Resource = Texture->Resource;
 	this->Format = GLFormat.InternalFormat[0];
+	this->UnrealFormat = TextureRHI->GetFormat();
 	this->bLayered = (Texture->Target == GL_TEXTURE_3D);
 }
 
@@ -239,6 +241,8 @@ FOpenGLVertexBufferUnorderedAccessView::FOpenGLVertexBufferUnorderedAccessView(	
 	this->Resource = TextureID;
 	this->BufferResource = InVertexBuffer->Resource;
 	this->Format = GLFormat.InternalFormat[0];
+	this->UnrealFormat = Format;
+	
 }
 
 uint32 FOpenGLVertexBufferUnorderedAccessView::GetBufferSize()
@@ -279,25 +283,68 @@ void FOpenGLDynamicRHI::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAcces
 	FOpenGLUnorderedAccessView* Texture = ResourceCast(UnorderedAccessViewRHI);
 
 #if OPENGL_GL4 || PLATFORM_LUMINGL4
-	glBindBuffer(GL_TEXTURE_BUFFER, Texture->BufferResource);
-	FOpenGL::ClearBufferData(GL_TEXTURE_BUFFER, Texture->Format, GL_RGBA_INTEGER, GL_FLOAT, reinterpret_cast<const uint32*>(&Values));
-	GPUProfilingData.RegisterGPUWork(1);
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Only OpenGL4 supports RHIClearUAVFloat."));
+	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
+	{
+		glBindBuffer(GL_TEXTURE_BUFFER, Texture->BufferResource);
+		FOpenGL::ClearBufferData(GL_TEXTURE_BUFFER, Texture->Format, GL_RGBA_INTEGER, GL_FLOAT, reinterpret_cast<const uint32*>(&Values));
+		GPUProfilingData.RegisterGPUWork(1);
+		return;
+	}
 #endif
+	// Use compute on ES3.1
+	check(Texture->BufferResource);
+	{
+		TRHICommandList_RecursiveHazardous<FOpenGLDynamicRHI> RHICmdList(this);
+		
+		int32 NumComponents = GPixelFormats[Texture->UnrealFormat].NumComponents;
+		uint32 NumElements = Texture->GetBufferSize() / GPixelFormats[Texture->UnrealFormat].BlockBytes;
+					
+		switch (NumComponents)
+		{
+		case 1:
+			ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Float, 1, false>(RHICmdList, UnorderedAccessViewRHI, 1, 1, 1, *reinterpret_cast<const float(*)[1]>(&Values));
+			break;
+		case 4:
+			ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Float, 4, false>(RHICmdList, UnorderedAccessViewRHI, 4, 1, 1, *reinterpret_cast<const float(*)[4]>(&Values));
+			break;
+		default:
+			check(false);
+		};
+	}
 }
 
 void FOpenGLDynamicRHI::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values)
 {
 	FOpenGLUnorderedAccessView* Texture = ResourceCast(UnorderedAccessViewRHI);
-
 #if OPENGL_GL4 || PLATFORM_LUMINGL4
-	glBindBuffer(GL_TEXTURE_BUFFER, Texture->BufferResource);
-	FOpenGL::ClearBufferData(GL_TEXTURE_BUFFER, Texture->Format, GL_RGBA_INTEGER, GL_UNSIGNED_INT, reinterpret_cast<const uint32*>(&Values));
-	GPUProfilingData.RegisterGPUWork(1);
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Only OpenGL4 supports RHIClearUAVUint."));
+	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
+	{
+		glBindBuffer(GL_TEXTURE_BUFFER, Texture->BufferResource);
+		FOpenGL::ClearBufferData(GL_TEXTURE_BUFFER, Texture->Format, GL_RGBA_INTEGER, GL_UNSIGNED_INT, reinterpret_cast<const uint32*>(&Values));
+		GPUProfilingData.RegisterGPUWork(1);
+		return;
+	}
 #endif
+	// Use compute on ES3.1
+	check(Texture->BufferResource);
+	{
+		TRHICommandList_RecursiveHazardous<FOpenGLDynamicRHI> RHICmdList(this);
+
+		int32 NumComponents = GPixelFormats[Texture->UnrealFormat].NumComponents;
+		uint32 NumElements = Texture->GetBufferSize() / GPixelFormats[Texture->UnrealFormat].BlockBytes;
+				
+		switch (NumComponents)
+		{
+		case 1:
+			ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Uint32, 1, false>(RHICmdList, UnorderedAccessViewRHI, 1, 1, 1, *reinterpret_cast<const uint32(*)[1]>(&Values));
+			break;
+		case 4:
+			ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Uint32, 4, false>(RHICmdList, UnorderedAccessViewRHI, 4, 1, 1, *reinterpret_cast<const uint32(*)[4]>(&Values));
+			break;
+		default:
+			check(false);
+		};
+	}
 }
 
 FOpenGLStructuredBufferUnorderedAccessView::FOpenGLStructuredBufferUnorderedAccessView(FOpenGLDynamicRHI* InOpenGLRHI, FRHIStructuredBuffer* InStructuredBufferRHI, uint8 InFormat)
@@ -322,6 +369,7 @@ FOpenGLStructuredBufferUnorderedAccessView::FOpenGLStructuredBufferUnorderedAcce
 	this->Resource = TextureID;
 	this->BufferResource = InStructuredBuffer->Resource;
 	this->Format = GLFormat.InternalFormat[0];
+	this->UnrealFormat = Format;
 }
 
 uint32 FOpenGLStructuredBufferUnorderedAccessView::GetBufferSize()
