@@ -54,7 +54,31 @@ namespace AudioConvReverbIntrinsics
 			return ConvolutionAlgorithm;
 		}
 
-		int32 NumFrames = InInitData.Samples.Num() / AlgoSettings.NumImpulseResponses;
+
+		const TArray<float>* TargetImpulseSamples = &InInitData.Samples;
+
+		TArray<float> ResampledImpulseSamples;
+		// Prepare impulse samples by converting samplerate and deinterleaving.
+		if (InInitData.ImpulseSampleRate != InInitData.TargetSampleRate)
+		{
+			// convert sample rate of impulse 
+			float SampleRateRatio = InInitData.ImpulseSampleRate / InInitData.TargetSampleRate;
+
+			TUniquePtr<Audio::ISampleRateConverter> Converter(Audio::ISampleRateConverter::CreateSampleRateConverter());
+
+			if (!Converter.IsValid())
+			{
+				UE_LOG(LogSynthesis, Error, TEXT("Audio::ISampleRateConverter failed to create a sample rate converter"));
+				return FConvAlgoUniquePtr();
+			}
+
+			Converter->Init(SampleRateRatio, AlgoSettings.NumImpulseResponses);
+			Converter->ProcessFullbuffer(InInitData.Samples.GetData(), InInitData.Samples.Num(), ResampledImpulseSamples);
+
+			TargetImpulseSamples = &ResampledImpulseSamples;
+		}
+
+		const int32 NumFrames = TargetImpulseSamples->Num() / AlgoSettings.NumImpulseResponses;
 
 		// Prepare deinterleave pointers
 		TArray<Audio::AlignedFloatBuffer> DeinterleaveSamples;
@@ -67,32 +91,8 @@ namespace AudioConvReverbIntrinsics
 			}
 		}
 
-		// Prepare impulse samples by converting samplerate and deinterleaving.
-		if (InInitData.ImpulseSampleRate == InInitData.TargetSampleRate)
-		{
-			// Deinterleave impulse samples
-			Audio::FConvolutionReverb::DeinterleaveBuffer(DeinterleaveSamples, InInitData.Samples, AlgoSettings.NumImpulseResponses);
-		}
-		else	
-		{
-			// convert sample rate of impulse 
-			TArray<float> TargetImpulseSamples;
-			float SampleRateRatio = InInitData.TargetSampleRate / InInitData.ImpulseSampleRate;
-
-			TUniquePtr<Audio::ISampleRateConverter> Converter(Audio::ISampleRateConverter::CreateSampleRateConverter());
-
-			if (!Converter.IsValid())
-			{
-				UE_LOG(LogSynthesis, Error, TEXT("Audio::ISampleRateConverter failed to create a sample rate converter"));
-				return FConvAlgoUniquePtr();
-			}
-
-			Converter->Init(SampleRateRatio, AlgoSettings.NumImpulseResponses);
-			Converter->ProcessFullbuffer(InInitData.Samples.GetData(), InInitData.Samples.Num(), TargetImpulseSamples);
-
-			// Deinterleave impulse samples
-			Audio::FConvolutionReverb::DeinterleaveBuffer(DeinterleaveSamples, TargetImpulseSamples, AlgoSettings.NumImpulseResponses);
-		}
+		// Deinterleave impulse samples
+		Audio::FConvolutionReverb::DeinterleaveBuffer(DeinterleaveSamples, *TargetImpulseSamples, AlgoSettings.NumImpulseResponses);
 
 		// Set impulse responses in algorithm
 		for (int32 i = 0; i < DeinterleaveSamples.Num(); i++)
@@ -315,7 +315,12 @@ FSubmixEffectConvolutionReverb::FConvolutionAlgorithmInitData FSubmixEffectConvo
 
 	if (IRAssetData.NumChannels > 0)
 	{
-		CreateConvolutionSettings.AlgorithmSettings.MaxNumImpulseResponseSamples = (IRAssetData.Samples.Num() / IRAssetData.NumChannels) + 1;
+		float SampleRateRatio = 1.f;
+		if (IRAssetData.SampleRate > 0.f)
+		{
+			SampleRateRatio = SampleRate / IRAssetData.SampleRate;
+		}
+		CreateConvolutionSettings.AlgorithmSettings.MaxNumImpulseResponseSamples = FMath::CeilToInt(SampleRateRatio * IRAssetData.Samples.Num() / IRAssetData.NumChannels) + 256;
 	}
 
 	// Sample rate conversion settings
