@@ -1279,10 +1279,12 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 		SimulationStageIndex);
 		*/
 
-	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUSimulationCS, TEXT("Niagara Gpu Sim - %s - NumInstances: %u - StageNumber: %u"),
+	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUSimulationCS, TEXT("Niagara Gpu Sim - %s - NumInstances: %u - StageNumber: %u - NumInstructions %u"),
 		Context->GetDebugSimName(),
 		TotalNumInstances,
-		SimulationStageIndex);
+		SimulationStageIndex,
+		Shader->GetNumInstructions()
+	);
 
 	//UE_LOG(LogNiagara, Warning, TEXT("Run"));
 	
