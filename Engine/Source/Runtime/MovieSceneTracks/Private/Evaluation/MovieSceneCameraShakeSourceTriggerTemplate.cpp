@@ -44,7 +44,7 @@ struct FCameraShakeSourceTriggerExecutionToken : IMovieSceneExecutionToken
 						if (ShakeClass.Get() != nullptr)
 						{
 							// Start playing the shake.
-							ShakeSourceComponent->PlayCameraShake(ShakeClass);
+							ShakeSourceComponent->PlayCameraShake(ShakeClass, Trigger.PlayScale, Trigger.PlaySpace, Trigger.UserDefinedPlaySpace);
 
 #if WITH_EDITOR
 							// Also start playing the shake in our editor preview.
@@ -52,6 +52,9 @@ struct FCameraShakeSourceTriggerExecutionToken : IMovieSceneExecutionToken
 
 							FAddCameraShakeParams Params;
 							Params.SourceComponent = ShakeSourceComponent;
+							Params.Scale = Trigger.PlayScale;
+							Params.PlaySpace = Trigger.PlaySpace;
+							Params.UserPlaySpaceRot = Trigger.UserDefinedPlaySpace;
 							PreviewCameraShake->AddCameraShake(ShakeClass, Params);
 #endif
 						}
