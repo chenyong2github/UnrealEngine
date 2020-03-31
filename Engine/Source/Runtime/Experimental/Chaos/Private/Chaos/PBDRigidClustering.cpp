@@ -21,6 +21,7 @@
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
+#include "CoreMinimal.h"
 
 namespace Chaos
 {
@@ -599,22 +600,36 @@ namespace Chaos
 	void TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::UnionClusterGroups()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UnionClusterGroups);
-
-
-		for (TTuple<int32, TArray<TPBDRigidClusteredParticleHandle<T, 3>* >>& Group : ClusterUnionMap)
+		if (ClusterUnionMap.Num())
 		{
-			uint32 ClusterGroupID = Group.Key;
-			TArray<TPBDRigidClusteredParticleHandle<T, 3>* > Handles = Group.Value;
-
-
-			TArray<TPBDRigidParticleHandle<T, 3>*> ClusterBodies;
-			for (TPBDRigidClusteredParticleHandle<T, 3>* ActiveCluster : Handles)
+			TMap < TPBDRigidParticleHandle<T, 3>*, TPBDRigidParticleHandle<T, 3>*> ClusterParents;
+			TMap < int32, TArray< TPBDRigidParticleHandle<T, 3>*>> NewClusterGroups;
+			for (TTuple<int32, TArray<TPBDRigidClusteredParticleHandle<T, 3>* >>& Group : ClusterUnionMap)
 			{
-				ClusterBodies.Append(ReleaseClusterParticles(ActiveCluster, nullptr, true).Array());
+				int32 ClusterGroupID = Group.Key;
+				TArray<TPBDRigidClusteredParticleHandle<T, 3>* > Handles = Group.Value;
+
+				if (!NewClusterGroups.Contains(ClusterGroupID))
+					NewClusterGroups.Add(ClusterGroupID, TArray < TPBDRigidParticleHandle<T, 3>*>());
+
+				TArray<TPBDRigidParticleHandle<T, 3>*> ClusterBodies;
+				for (TPBDRigidClusteredParticleHandle<T, 3>* ActiveCluster : Handles)
+				{
+					TSet<TPBDRigidParticleHandle<T, 3>*> Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
+					NewClusterGroups[ClusterGroupID].Append(Children.Array());
+					for (auto& Child : Children) ClusterParents.Add(Child, ActiveCluster);
+				}
 			}
-			CreateClusterParticle(-Group.Key, MoveTemp(ClusterBodies));
+
+			for (TTuple<int32, TArray<TPBDRigidParticleHandle<T, 3>* >>& Group : NewClusterGroups)
+			{
+				int32 ClusterGroupID = Group.Key;
+				TArray< TPBDRigidParticleHandle<T, 3> *> ActiveCluster = Group.Value;
+				TPBDRigidParticleHandle<T, 3>* NewCluster = CreateClusterParticle(-FMath::Abs(ClusterGroupID), MoveTemp(Group.Value));
+				for (auto& Constituent : ActiveCluster) MEvolution.DoInternalParticleInitilization( ClusterParents[Constituent], NewCluster);
+			}
+			ClusterUnionMap.Empty();
 		}
-		ClusterUnionMap.Empty();
 	}
 
 
