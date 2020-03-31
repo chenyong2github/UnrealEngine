@@ -90,6 +90,8 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	OnGetSequencerAddMenuContent = InOptions.OnGetSequencerAddMenuContent;
 	SystemMessageLogGuidKey = InOptions.MessageLogGuid;	
 	
+	SystemChangedDelegateHandle = System->OnSystemPostEditChange().AddSP(this, &FNiagaraSystemViewModel::SystemChanged);
+
 	SelectionViewModel = NewObject<UNiagaraSystemSelectionViewModel>(GetTransientPackage());
 	SelectionViewModel->Initialize(this->AsShared());
 	SelectionViewModel->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemViewModel::SystemSelectionChanged);
@@ -143,6 +145,11 @@ void FNiagaraSystemViewModel::Cleanup()
 	CurveOwner.EmptyCurves();
 
 	GEditor->UnregisterForUndo(this);
+
+	if (System)
+	{
+		System->OnSystemPostEditChange().Remove(SystemChangedDelegateHandle);
+	}
 
 	// Make sure that we clear out all of our event handlers
 	UnregisterViewModelWithMap(RegisteredHandle);
@@ -2053,6 +2060,12 @@ void FNiagaraSystemViewModel::BuildStackModuleData(UNiagaraScript* Script, FGuid
 		}
 	}
 
+}
+
+void FNiagaraSystemViewModel::SystemChanged(UNiagaraSystem* ChangedSystem)
+{
+	check(System == ChangedSystem);
+	RefreshAll();
 }
 
 void FNiagaraSystemViewModel::StackViewModelStructureChanged()
