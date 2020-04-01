@@ -133,7 +133,7 @@ void FPBDRigidsEvolutionGBF::Advance(const FReal Dt, const FReal MaxStepDt, cons
 		
 			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 
-			AdvanceOneTimeStep(StepDt, StepFraction);
+			AdvanceOneTimeStepImpl(StepDt, StepFraction);
 		}
 
 		UnprepareTick();
@@ -249,8 +249,16 @@ void CCDHack(const FReal Dt, TParticleView<TPBDRigidParticles<FReal, 3>>& Partic
 //
 //
 
-
 void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction)
+{
+	PrepareTick();
+
+	AdvanceOneTimeStepImpl(Dt, StepFraction);
+
+	UnprepareTick();
+}
+
+void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FReal StepFraction)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Evolution_AdvanceOneTimeStep);
 
