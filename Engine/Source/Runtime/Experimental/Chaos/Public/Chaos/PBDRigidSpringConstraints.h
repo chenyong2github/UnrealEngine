@@ -147,17 +147,15 @@ namespace Chaos
 		// Island Rule API
 		//
 
-		void PrepareConstraints(FReal Dt)
-		{
-		}
+		void PrepareTick() {}
 
-		void UnprepareConstraints(FReal Dt)
-		{
-		}
+		void UnprepareTick() {}
 
-		void UpdatePositionBasedState(const FReal Dt)
-		{
-		}
+		void PrepareIteration(FReal Dt) {}
+
+		void UnprepareIteration(FReal Dt) {}
+
+		void UpdatePositionBasedState(const FReal Dt) {}
 
 		bool Apply(const FReal Dt, const int32 It, const int32 NumIts);
 

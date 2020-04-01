@@ -275,8 +275,16 @@ namespace ImmediatePhysics_Chaos
 	// Actor Handle
 	//
 
-	FActorHandle::FActorHandle(Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles, EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform)
+	FActorHandle::FActorHandle(
+		Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles, 
+		Chaos::TArrayCollectionArray<Chaos::FVec3>& InParticlePrevXs, 
+		Chaos::TArrayCollectionArray<Chaos::FRotation3>& InParticlePrevRs, 
+		EActorType ActorType, 
+		FBodyInstance* BodyInstance, 
+		const FTransform& Transform)
 		: Particles(InParticles)
+		, ParticlePrevXs(InParticlePrevXs)
+		, ParticlePrevRs(InParticlePrevRs)
 		, ParticleHandle(nullptr)
 	{
 		using namespace Chaos;
@@ -386,6 +394,8 @@ namespace ImmediatePhysics_Chaos
 		{
 			Dynamic->X() = Dynamic->P();
 			Dynamic->R() = Dynamic->Q();
+			Dynamic->AuxilaryValue(ParticlePrevXs) = Dynamic->P();
+			Dynamic->AuxilaryValue(ParticlePrevRs) = Dynamic->Q();
 		}
 	}
 

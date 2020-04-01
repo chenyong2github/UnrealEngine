@@ -22,11 +22,12 @@
 #define LOCTEXT_NAMESPACE "PhysicsAsset"
 
 FSolverIterations::FSolverIterations()
-	: SolverIterations(3)
+	: FixedTimeStep(0)
+	, SolverIterations(3)
 	, JointIterations(2)
 	, CollisionIterations(2)
-	, SolverPushOutIterations(0)
-	, JointPushOutIterations(0)
+	, SolverPushOutIterations(1)
+	, JointPushOutIterations(1)
 	, CollisionPushOutIterations(0)
 {
 }

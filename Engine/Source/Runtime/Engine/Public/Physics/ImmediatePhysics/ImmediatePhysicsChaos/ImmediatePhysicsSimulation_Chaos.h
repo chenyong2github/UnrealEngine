@@ -69,7 +69,7 @@ namespace ImmediatePhysics_Chaos
 		void SetSimulationSpaceTransform(const FTransform& Transform);
 
 		/** Set new iteration counts. A negative value with leave that iteration count unchanged */
-		void SetSolverIterations(const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts);
+		void SetSolverIterations(const FReal FixedDt, const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts);
 
 	private:
 		void UpdateActivePotentiallyCollidingPairs();
@@ -90,6 +90,8 @@ namespace ImmediatePhysics_Chaos
 		Chaos::TArrayCollectionArray<bool> CollidedParticles;
 		Chaos::TArrayCollectionArray<Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial>> ParticleMaterials;
 		Chaos::TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
+		Chaos::TArrayCollectionArray<Chaos::FVec3> ParticlePrevXs;
+		Chaos::TArrayCollectionArray<Chaos::FRotation3> ParticlePrevRs;
 
 		FRigidParticleSOAs Particles;
 		Chaos::FPBDJointConstraints Joints;
@@ -118,6 +120,7 @@ namespace ImmediatePhysics_Chaos
 
 		FTransform SimulationSpaceTransform;
 
+		FReal FixedStepTime;
 		FReal RollingAverageStepTime;
 		int32 NumRollingAverageStepTimes;
 		int32 MaxNumRollingAverageStepTimes;
