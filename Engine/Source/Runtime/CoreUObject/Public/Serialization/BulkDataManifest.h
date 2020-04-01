@@ -11,7 +11,8 @@ public:
 	enum class EBulkdataType : uint8
 	{
 		Normal = 0,
-		Optional
+		Optional,
+		MemoryMapped
 	};
 
 	COREUOBJECT_API FPackageStoreBulkDataManifest(const FString& ProjectPath);
