@@ -68,6 +68,8 @@ namespace Chaos
 			LLM_SCOPE(ELLMTag::Chaos);
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 
+			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
+
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
 				Chaos::TPBDPositionConstraints<float, 3> PositionTarget; // Dummy for now
@@ -385,7 +387,7 @@ namespace Chaos
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("FPBDRigidsSolver::UnregisterObject() ~ Dequeue"));
 
 				// Generally need to remove stale events for particles that no longer exist
-				Solver->GetEventManager()->ClearEvents<FCollisionEventData>([InProxy]
+				Solver->GetEventManager()->ClearEvents<FCollisionEventData>(EEventType::Collision, [InProxy]
 				(FCollisionEventData& EventDataInOut)
 				{
 					Chaos::FCollisionDataArray const& CollisionData = EventDataInOut.CollisionData.AllCollisionsArray;
