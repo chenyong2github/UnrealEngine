@@ -11,7 +11,7 @@ struct FGeometryAddParams;
 
 namespace Chaos
 {
-	enum EChaosCollisionTraceFlag;
+	enum EChaosCollisionTraceFlag : int;
 }
 
 namespace ChaosInterface
