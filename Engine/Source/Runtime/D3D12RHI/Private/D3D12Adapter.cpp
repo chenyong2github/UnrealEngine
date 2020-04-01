@@ -243,22 +243,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			UE_LOG(LogD3D12RHI, Fatal, TEXT("The debug interface requires the D3D12 SDK Layers. Please install the Graphics Tools for Windows. See: https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features"));
 		}
 	}
-
-	// Two ways to enable GPU crash debugging, command line or the r.GPUCrashDebugging variable
-	// Note: If intending to change this please alert game teams who use this for user support.
-	// GPU crash debugging will enable DRED and Aftermath if available
-	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
-	{
-		bGPUCrashDebugging = true;
-	}
-	else
-	{
-		static IConsoleVariable* GPUCrashDebugging = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
-		if (GPUCrashDebugging)
-		{
-			bGPUCrashDebugging = GPUCrashDebugging->GetInt() > 0;
-		}
-	}
 	
 	// Setup DRED if requested
 	if (bGPUCrashDebugging || FParse::Param(FCommandLine::Get(), TEXT("dred")))
