@@ -41,6 +41,8 @@ $ bLegalToDistributeObjectCode (Boolean): Whether the output from this module ca
 
 $ WhitelistRestrictedFolders (List&lt;String&gt;): List of folders which are whitelisted to be referenced when compiling this binary, without propagating restricted folder names
 
+$ AliasRestrictedFolders (Dictionary&lt;String, String&gt;): Set of aliased restricted folder references
+
 $ bEnforceIWYU (Boolean): Enforce "include what you use" rules when PCHUsage is set to ExplicitOrSharedPCH; warns when monolithic headers (Engine.h, UnrealEd.h, etc...) are used, and checks that source files include their matching header first.
 
 $ bAddDefaultIncludePaths (Boolean): Whether to add all the default include paths to the module (eg. the Source/Classes folder, subfolders under Source/Public).
