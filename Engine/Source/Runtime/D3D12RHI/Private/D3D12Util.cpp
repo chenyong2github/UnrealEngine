@@ -9,6 +9,8 @@ D3D12Util.h: D3D RHI utility implementation.
 #include "RendererInterface.h"
 #include "CoreGlobals.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Windows/WindowsPlatformCrashContext.h"
+#include "HAL/ExceptionHandling.h"
 
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
@@ -437,68 +439,21 @@ static void LogDREDData(ID3D12Device* Device)
 #endif  // PLATFORM_WINDOWS
 
 extern CORE_API bool GIsGPUCrashed;
-static void TerminateOnDeviceRemoved(HRESULT D3DResult, ID3D12Device* Device)
-{
-	static FCriticalSection cs;
-	FScopeLock scope_lock(&cs);
-
-	// already handled the gpu crash?
-	if (GIsGPUCrashed)
-		return;
-
-	if (GDynamicRHI)
-	{
-		GDynamicRHI->CheckGpuHeartbeat();
-	}
-
-	if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
-	{
-		GIsCriticalError = true;
-		GIsGPUCrashed = true;
-
-		LogBreadcrumbData(Device);
-
-#if PLATFORM_WINDOWS
-		if (Device)
-		{
-			LogDREDData(Device);
-		}
-#endif  // PLATFORM_WINDOWS
-		
-		// Make sure the log is flushed!
-		GLog->PanicFlushThreadedLogs();
-		GLog->Flush();
-
-		if (!FApp::IsUnattended())
-		{
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("DeviceRemoved", "Video driver crashed and was reset!  Make sure your video drivers are up to date.  Exiting...").ToString(), TEXT("Error"));
-		}
-		else
-		{
-			UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *LOCTEXT("DeviceRemoved", "Video driver crashed and was reset!  Make sure your video drivers are up to date.  Exiting...").ToString());
-		}
-		FPlatformMisc::RequestExit(true);
-	}
-}
-
 
 static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 {
-	if (D3DResult == E_OUTOFMEMORY)
+	if (bCreatingTextures)
 	{
-		if (bCreatingTextures)
-		{
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("OutOfVideoMemoryTextures", "Out of video memory trying to allocate a texture! Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
-		}
-		else
-		{
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *NSLOCTEXT("D3D12RHI", "OutOfMemory", "Out of video memory trying to allocate a rendering resource. Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
-		}
-#if STATS
-		GetRendererModule().DebugLogOnCrash();
-#endif
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("OutOfVideoMemoryTextures", "Out of video memory trying to allocate a texture! Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
 	}
+	else
+	{
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *NSLOCTEXT("D3D12RHI", "OutOfMemory", "Out of video memory trying to allocate a rendering resource. Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
+	}
+#if STATS
+	GetRendererModule().DebugLogOnCrash();
+#endif
+	FPlatformMisc::RequestExit(true);
 }
 
 #ifndef MAKE_D3DHRESULT
@@ -508,6 +463,102 @@ static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 
 namespace D3D12RHI
 {
+	void TerminateOnGPUCrash(ID3D12Device* InDevice, const void* InGPUCrashDump, const size_t InGPUCrashDumpSize)
+	{		
+		// Lock the cs, and never unlock - don't want another thread processing the same GPU crash
+		// This call will force a request exit
+		static FCriticalSection cs;
+		cs.Lock();
+
+		// Mark critical and gpu crash
+		GIsCriticalError = true;
+		GIsGPUCrashed = true;
+
+		// Check GPU heartbeat - will trace Aftermath state
+		if (GDynamicRHI)
+		{
+			GDynamicRHI->CheckGpuHeartbeat();
+		}
+
+		// Log RHI independent breadcrumbing data
+		LogBreadcrumbData(InDevice);
+
+		FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+#if PLATFORM_WINDOWS
+		// If no device provided then try and log the DRED status of each device
+		D3D12RHI->ForEachDevice(InDevice, [&](FD3D12Device* IterationDevice)
+			{
+				if (InDevice == nullptr || InDevice == IterationDevice->GetDevice())
+				{
+					LogDREDData(IterationDevice->GetDevice());
+				}
+			});
+#endif  // PLATFORM_WINDOWS
+		
+		// Build the error message
+		FTextBuilder ErrorMessage;
+		ErrorMessage.AppendLine(LOCTEXT("GPU Crashed", "GPU Crashed or D3D Device Removed.\n"));
+		if (!D3D12RHI->GetAdapter().IsDebugDevice())
+		{
+			ErrorMessage.AppendLine(LOCTEXT("D3D Debug Device", "Use -d3ddebug to enable the D3D debug device."));
+		}
+		if (D3D12RHI->GetAdapter().IsGPUCrashDebugging())
+		{
+			ErrorMessage.AppendLine(LOCTEXT("GPU Crash Debugging enabled", "Check log for GPU state information."));
+		}
+		else
+		{
+			ErrorMessage.AppendLine(LOCTEXT("GPU Crash Debugging disabled", "Use -gpucrashdebugging to track current GPU state."));
+		}
+
+		// And info on gpu crash dump as well
+		if (InGPUCrashDump)
+		{
+			ErrorMessage.AppendLine(LOCTEXT("GPU CrashDump", "\nA GPU mini dump will be saved in the Crashes folder."));
+		}
+		
+		// Make sure the log is flushed!
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
+
+		// Show message box or trace information
+		if (!FApp::IsUnattended())
+		{
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMessage.ToText().ToString(), TEXT("Error"));
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *ErrorMessage.ToText().ToString());
+		}
+
+		// If we have crash dump data then dump to disc
+		if (InGPUCrashDump != nullptr)
+		{
+			// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
+			const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+
+			// Just use raw windows file routines for the GPU minidump (TODO: refactor to our own functions?)
+			HANDLE FileHandle = CreateFileW(*GPUMiniDumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (FileHandle != INVALID_HANDLE_VALUE)
+			{
+				WriteFile(FileHandle, InGPUCrashDump, InGPUCrashDumpSize, nullptr, nullptr);
+			}
+			CloseHandle(FileHandle);
+
+			// Report the GPU crash which will raise the exception (only interesting if we have a GPU dump)
+			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
+		}
+		else
+		{
+			// Make sure the log is flushed!
+			GLog->PanicFlushThreadedLogs();
+			GLog->Flush();
+		}
+
+		// Force shutdown, we can't do anything useful anymore.
+		FPlatformMisc::RequestExit(true);
+	}
+
 	void VerifyD3D12Result(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D12Device* Device, FString Message)
 	{
 		check(FAILED(D3DResult));
@@ -515,8 +566,15 @@ namespace D3D12RHI
 		const FString& ErrorString = GetD3D12ErrorString(D3DResult, Device);
 		UE_LOG(LogD3D12RHI, Error, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
 
-		TerminateOnDeviceRemoved(D3DResult, Device);
-		TerminateOnOutOfMemory(D3DResult, false);
+		// Terminate with device removed but we don't have any GPU crash dump information
+		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
+		{	 
+			TerminateOnGPUCrash(Device, nullptr, 0);
+		}
+		else if (D3DResult == E_OUTOFMEMORY)
+		{
+			TerminateOnOutOfMemory(D3DResult, false);
+		}
 
 		UE_LOG(LogD3D12RHI, Fatal, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
 	}
@@ -542,12 +600,15 @@ namespace D3D12RHI
 			TextureDesc.MipLevels,
 			*GetD3D12TextureFlagString(TextureDesc.Flags));
 
-		TerminateOnDeviceRemoved(D3DResult, Device);
-		TerminateOnOutOfMemory(D3DResult, true);
-
-		// this is to track down a rarely happening crash
-		if (D3DResult == E_OUTOFMEMORY)
+		// Terminate with device removed but we don't have any GPU crash dump information
+		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
 		{
+			TerminateOnGPUCrash(Device, nullptr, 0);
+		}
+		else if (D3DResult == E_OUTOFMEMORY)
+		{
+			TerminateOnOutOfMemory(D3DResult, true);
+
 #if STATS
 			GetRendererModule().DebugLogOnCrash();
 #endif // STATS

@@ -93,6 +93,7 @@ public:
 #endif // D3D12_RHI_RAYTRACING
 	FORCEINLINE void SetDeviceRemoved(bool value) { bDeviceRemoved = value; }
 	FORCEINLINE const bool IsDeviceRemoved() const { return bDeviceRemoved; }
+	FORCEINLINE const bool IsDebugDevice() const { return bDebugDevice; }
 	FORCEINLINE const bool IsGPUCrashDebugging() const { return bGPUCrashDebugging; }
 	FORCEINLINE FD3D12DynamicRHI* GetOwningRHI() { return OwningRHI; }
 	FORCEINLINE const D3D12_RESOURCE_HEAP_TIER GetResourceHeapTier() const { return ResourceHeapTier; }
@@ -319,6 +320,9 @@ protected:
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;
 	bool bDepthBoundsTestSupported;
+
+	/** Running with debug device */
+	bool bDebugDevice;
 
 	/** GPU Crash debugging requested */
 	bool bGPUCrashDebugging;
