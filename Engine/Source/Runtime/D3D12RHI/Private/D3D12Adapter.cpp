@@ -101,6 +101,7 @@ static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	: OwningRHI(nullptr)
 	, bDepthBoundsTestSupported(false)
+	, bGPUCrashDebugging(false)
 	, bDeviceRemoved(false)
 	, Desc(DescIn)
 	, RootSignatureManager(this)
@@ -185,7 +186,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	// Two ways to enable GPU crash debugging, command line or the r.GPUCrashDebugging variable
 	// Note: If intending to change this please alert game teams who use this for user support.
 	// GPU crash debugging will enable DRED and Aftermath if available
-	bool bGPUCrashDebugging = false;
 	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
 	{
 		bGPUCrashDebugging = true;

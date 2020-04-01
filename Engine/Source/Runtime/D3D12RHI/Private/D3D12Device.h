@@ -99,7 +99,8 @@ public:
 		FreeCommandContexts.Add(CmdContext);
 	}
 
-	ID3D12CommandQueue* GetD3DCommandQueue(ED3D12CommandQueueType InQueueType = ED3D12CommandQueueType::Default) const;
+	FD3D12CommandListManager* GetCommandListManager(ED3D12CommandQueueType inQueueType) const;
+	ID3D12CommandQueue* GetD3DCommandQueue(ED3D12CommandQueueType InQueueType = ED3D12CommandQueueType::Default) { return GetCommandListManager(InQueueType)->GetD3DCommandQueue(); }
 
 	inline FD3D12CommandContext& GetDefaultCommandContext() const { return GetCommandContext(0); }
 	inline FD3D12CommandContext& GetDefaultAsyncComputeContext() const { return GetAsyncComputeContext(0); }
@@ -111,13 +112,7 @@ public:
 
 	void RegisterGPUWork(uint32 NumPrimitives = 0, uint32 NumVertices = 0);
 	void RegisterGPUDispatch(FIntVector GroupCount);
-	void PushGPUEvent(const TCHAR* Name, FColor Color);
-	void PopGPUEvent();
-
-#if NV_AFTERMATH
-	void PushGPUEvent(const TCHAR* Name, FColor Color, GFSDK_Aftermath_ContextHandle Context);
-#endif
-
+	
 	FD3D12SamplerState* CreateSampler(const FSamplerStateInitializerRHI& Initializer);
 	void CreateSamplerInternal(const D3D12_SAMPLER_DESC& Desc, D3D12_CPU_DESCRIPTOR_HANDLE Descriptor);
 
