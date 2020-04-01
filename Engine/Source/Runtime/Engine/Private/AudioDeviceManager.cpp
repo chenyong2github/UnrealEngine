@@ -629,22 +629,6 @@ void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
 		SyncFence.Wait();
 	}
 
-	if (!bOnlyToggleAudioMixerOnce || (bOnlyToggleAudioMixerOnce && !bToggledAudioMixer))
-	{
-		if (bUsingAudioMixer && !GCvarIsUsingAudioMixer)
-		{
-			ToggleAudioMixer();
-			bToggledAudioMixer = true;
-			bUsingAudioMixer = false;
-		}
-		else if (!bUsingAudioMixer && GCvarIsUsingAudioMixer)
-		{
-			ToggleAudioMixer();
-			bToggledAudioMixer = true;
-			bUsingAudioMixer = true;
-		}
-	}
-
 
 	for (auto& DeviceContainer : Devices)
 	{
