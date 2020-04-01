@@ -551,7 +551,16 @@ public:
 	FMetalTexture MSAAResolveTexture;
 	uint32 SizeX, SizeY, SizeZ;
 	bool bIsCubemap;
-	int32 volatile Written;
+	int16 volatile Written;
+	int16 GPUReadback = 0;
+	enum EMetalGPUReadbackFlags : int16
+	{
+		ReadbackRequestedShift 			= 0,
+		ReadbackFenceCompleteShift  	= 1,
+		ReadbackRequested 				= 1 << ReadbackRequestedShift,
+		ReadbackFenceComplete 			= 1 << ReadbackFenceCompleteShift,
+		ReadbackRequestedAndComplete 	= ReadbackRequested | ReadbackFenceComplete
+	};
 	
 	uint32 Flags;
 	// one per mip
