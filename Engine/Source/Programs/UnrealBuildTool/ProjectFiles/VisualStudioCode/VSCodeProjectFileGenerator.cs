@@ -1305,7 +1305,7 @@ namespace UnrealBuildTool
 				WorkspaceFile.BeginArray("recommendations");
 				{
 					WorkspaceFile.AddUnnamedField("ms-vscode.cpptools");
-					WorkspaceFile.AddUnnamedField("ms-vscode.csharp");
+					WorkspaceFile.AddUnnamedField("ms-dotnettools.csharp");
 
 					// If the platform we run the generator on uses mono, there are additional debugging extensions to add.
 					if (Utils.IsRunningOnMono)
