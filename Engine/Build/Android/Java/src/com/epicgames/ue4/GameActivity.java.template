@@ -6198,9 +6198,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	static
 	{
-		System.loadLibrary("c++_shared");
 //$${soLoadLibrary}$$
 		System.loadLibrary("UE4");
+		System.loadLibrary("c++_shared");
 	}
 
 	public native void nativeHandleSensorEvents(float[] tilt, float[] rotation_rate, float[] gravity, float[] acceleration);
