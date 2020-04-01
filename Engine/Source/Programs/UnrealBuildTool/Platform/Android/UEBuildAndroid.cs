@@ -401,13 +401,13 @@ namespace UnrealBuildTool
 
 			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment);
 
-			LinkEnvironment.AdditionalLibraries.Add("libc++_shared");
-			LinkEnvironment.AdditionalLibraries.Add("gcc");
-			LinkEnvironment.AdditionalLibraries.Add("z");
+//			LinkEnvironment.AdditionalLibraries.Add("libc++_shared");
 			LinkEnvironment.AdditionalLibraries.Add("c");
-			LinkEnvironment.AdditionalLibraries.Add("m");
-			LinkEnvironment.AdditionalLibraries.Add("log");
 			LinkEnvironment.AdditionalLibraries.Add("dl");
+			LinkEnvironment.AdditionalLibraries.Add("log");
+			LinkEnvironment.AdditionalLibraries.Add("m");
+//			LinkEnvironment.AdditionalLibraries.Add("stdc++");
+			LinkEnvironment.AdditionalLibraries.Add("z");
 			LinkEnvironment.AdditionalLibraries.Add("atomic");
 		}
 
