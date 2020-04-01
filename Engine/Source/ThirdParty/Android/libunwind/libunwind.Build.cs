@@ -19,10 +19,11 @@ public class libunwind : ModuleRules
 				Path.Combine(libunwindLibraryPath, "armeabi-v7a", "libunwindbacktrace.a"),
 				Path.Combine(libunwindLibraryPath, "arm64-v8a", "libunwind.a"),
 				Path.Combine(libunwindLibraryPath, "arm64-v8a", "libunwindbacktrace.a"),
+				/*
 				Path.Combine(libunwindLibraryPath, "x86", "libunwind.a"),
 				Path.Combine(libunwindLibraryPath, "x86", "libunwindbacktrace.a"),
 				Path.Combine(libunwindLibraryPath, "x64", "libunwind.a"),
-				Path.Combine(libunwindLibraryPath, "x64", "libunwindbacktrace.a"),
+				Path.Combine(libunwindLibraryPath, "x64", "libunwindbacktrace.a"), */
 			});
 		}
     }
