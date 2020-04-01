@@ -266,9 +266,7 @@ namespace Chaos
 		void SetGenerateBreakingData(bool bDoGenerate)
 		{
 			GetEventFilters()->SetGenerateBreakingEvents(bDoGenerate);
-#if TODO_REIMPLEMENT_RIGID_CLUSTERING
-			GetRigidClustering().SetGenerateClusterBreaking(GenerateBreakingEventsEnabled);
-#endif
+			GetEvolution()->GetRigidClustering().SetGenerateClusterBreaking(bDoGenerate);
 		}
 		void SetGenerateTrailingData(bool bDoGenerate) { GetEventFilters()->SetGenerateTrailingEvents(bDoGenerate); }
 		void SetCollisionFilterSettings(const FSolverCollisionFilterSettings& InCollisionFilterSettings) { GetEventFilters()->GetCollisionFilter()->UpdateFilterSettings(InCollisionFilterSettings); }
