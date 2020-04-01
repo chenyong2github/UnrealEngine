@@ -86,7 +86,7 @@ struct FSolverData
 		: Solver(nullptr)
 	{}
 
-	TSharedPtr<FPhysScene_Chaos> PhysScene;
+	FPhysScene* PhysScene;
 	Chaos::FPhysicsSolver* Solver;
 };
 
@@ -679,6 +679,9 @@ public:
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 protected:
+#if INCLUDE_CHAOS
+	void RegisterWithSolverEventManager(Chaos::FPhysicsSolver* Solver);
+#endif
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	void ResetInstData(FNDIChaosDestruction_InstanceData* InstData);
