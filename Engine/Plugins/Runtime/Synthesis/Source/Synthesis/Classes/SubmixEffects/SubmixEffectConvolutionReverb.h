@@ -54,6 +54,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, meta = (ClamMin = "-60.0", ClampMax = "15.0"))
 	float NormalizationVolumeDb;
 
+	UPROPERTY(meta = ( DeprecatedProperty ) )
+	TArray<float> IRData_DEPRECATED;
+
 #if WITH_EDITORONLY_DATA
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
@@ -280,15 +283,18 @@ public:
 
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostLoad() override;
 
 	// Called when a property changes on teh ImpulseResponse object
 	void PostEditChangeImpulseProperty(FPropertyChangedEvent& PropertyChangedEvent);
 #endif
 
+	virtual void PostLoad() override;
+
 private:
 
 	void UpdateSettings();
+
+	void UpdateDeprecatedProperties();
 
 	// This method requires that the submix effect is registered with a preset.  If this 
 	// submix effect is not registered with a preset, then this will not update the convolution
@@ -299,6 +305,7 @@ private:
 	FSubmixEffectConvolutionReverbSettings SettingsCopy; 
 
 #if WITH_EDITORONLY_DATA
+
 	TMap<UObject*, FDelegateHandle> DelegateHandles;
 #endif
 };
