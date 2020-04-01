@@ -910,11 +910,11 @@ public:
 	This can be a UClass, UStruct or UEnum.  Pointing to something like the struct for an FVector, etc.
 	In occasional situations this may be a UClass when we're dealing with DataInterface etc.
 	*/
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Type)
 	UObject* ClassStructOrEnum;
 
 	// See enumeration FUnderlyingType for possible values
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Type)
 	uint16 UnderlyingType;
 
 	bool Serialize(FArchive& Ar);
@@ -1229,6 +1229,11 @@ protected:
 	FNiagaraTypeDefinition TypeDef;
 };
 
+FORCEINLINE uint32 GetTypeHash(const FNiagaraVariableBase& Var)
+{
+	return HashCombine(GetTypeHash(Var.GetType()), GetTypeHash(Var.GetName()));
+}
+
 USTRUCT()
 struct FNiagaraVariable : public FNiagaraVariableBase
 {
@@ -1410,11 +1415,6 @@ private:
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	TArray<uint8> VarData;
 };
-
-FORCEINLINE uint32 GetTypeHash(const FNiagaraVariable& Var)
-{
-	return HashCombine(GetTypeHash(Var.GetType()), GetTypeHash(Var.GetName()));
-}
 
 template<>
 inline bool FNiagaraVariable::GetValue<bool>() const
