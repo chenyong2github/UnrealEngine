@@ -114,6 +114,9 @@ public:
 	// Does the platform require resolve attachments in its MSAA renderpasses
 	static bool RequiresRenderPassResolveAttachments() { return false; }
 
+	// Does the platform require depth to be written on stencil clear
+	static bool RequiresDepthWriteOnStencilClear() { return false; }
+
 	// Checks if the PSO cache matches the expected vulkan device properties
 	static bool PSOBinaryCacheMatches(FVulkanDevice* Device, const TArray<uint8>& DeviceCache);
 
