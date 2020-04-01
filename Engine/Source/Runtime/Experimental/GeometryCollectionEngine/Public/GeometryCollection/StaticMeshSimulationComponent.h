@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Components/MeshComponent.h"
 #include "Chaos/ChaosSolverActor.h"
 #include "GameFramework/Actor.h"

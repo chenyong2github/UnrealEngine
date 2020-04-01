@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Misc/Build.h"
 
 #ifndef CHAOS_DEBUG_SUBSTEP

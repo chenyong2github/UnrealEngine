@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Modules/ModuleInterface.h"
 
 class CHAOS_API FChaosEngineModule : public IModuleInterface

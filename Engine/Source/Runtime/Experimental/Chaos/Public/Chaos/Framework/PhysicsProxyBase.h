@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/Declares.h"
 #include "UObject/GCObject.h"
 
