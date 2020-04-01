@@ -52,7 +52,7 @@
 #define UE_NP_TRACE_SYNTH_INPUT() FNetworkPredictionTrace::TraceSynthInput()
 
 // Called to indicate we are about to write state to the buffers outside of the normal simulation tick/netrecive. TODO: add char* identifier to debug where the mod came from
-#define UE_NP_TRACE_OOB_STATE_MOD() FNetworkPredictionTrace::TraceOOBStateMod()
+#define UE_NP_TRACE_OOB_STATE_MOD(SimulationId) FNetworkPredictionTrace::TraceOOBStateMod(SimulationId)
 
 // Called when a PIE session is started. This is so we can keep our *sets* of worlds/simulations seperate.
 #define UE_NP_TRACE_PIE_START() FNetworkPredictionTrace::TracePIEStart()
@@ -60,6 +60,9 @@
 #define UE_NP_TRACE_SYSTEM_FAULT(Format, ...) FNetworkPredictionTrace::TraceSystemFault(TEXT(Format), ##__VA_ARGS__)
 
 #define UE_NP_TRACE_WORLD_FRAME_START(DeltaSeconds) FNetworkPredictionTrace::TraceWorldFrameStart(DeltaSeconds)
+
+#define UE_NP_TRACE_OOB_STR_SYNC(SimulationId, Str) FNetworkPredictionTrace::TraceOOBStr(SimulationId, FNetworkPredictionTrace::ETraceUserState::Sync, Str);
+#define UE_NP_TRACE_OOB_STR_AUX(SimulationId, Str) FNetworkPredictionTrace::TraceOOBStr(SimulationId, FNetworkPredictionTrace::ETraceUserState::Aux, Str);
 
 #else
 
@@ -81,6 +84,8 @@
 #define UE_NP_TRACE_PIE_START(...)
 #define UE_NP_TRACE_SYSTEM_FAULT(Format, ...) UE_LOG(LogNetworkSim, Warning, TEXT(Format), ##__VA_ARGS__);
 #define UE_NP_TRACE_WORLD_FRAME_START(...)
+#define UE_NP_TRACE_OOB_STR_SYNC(...)
+#define UE_NP_TRACE_OOB_STR_AUX(...)
 
 #endif // UE_NP_TRACE_ENABLED
 
@@ -91,7 +96,6 @@ class AActor;
 template<typename Model>
 struct TNetworkedSimulationState;
 
-// Trace is what the system+user code calls to do traces (could still be wrapped around [my own] macros, etc. This will call into the generic UE_TRACE_LOG macros)
 class NETWORKPREDICTION_API FNetworkPredictionTrace
 {
 public:
@@ -108,10 +112,9 @@ public:
 	static void TraceNetSerializeCommit();
 	static void TraceProduceInput();
 	static void TraceSynthInput();
-	static void TraceOOBStateMod();
+	static void TraceOOBStateMod(int32 SimulationId);
 	static void TracePIEStart();
 	static void TraceSystemFault(const TCHAR* Fmt, ...);
-
 	static void TraceWorldFrameStart(float DeltaSeconds);
 
 	enum ETraceUserState
@@ -120,6 +123,14 @@ public:
 		Sync,
 		Aux
 	};
+
+	static void TraceOOBStr(int32 SimulationId, ETraceUserState StateType, const TCHAR* Fmt)
+	{
+		if (Fmt)
+		{
+			TraceOOBStrInternal(SimulationId, StateType, Fmt);
+		}
+	}
 	
 	template<typename TUserState>
 	static void TraceUserState(const TUserState& State, int32 Frame, ETraceUserState StateType)
@@ -151,6 +162,7 @@ private:
 
 	static void TraceUserState_Internal(int32 Frame, ETraceUserState StateType);
 	static void TraceEOF_Internal(int32 BufferSize, int32 PendingTickFrame, int32 LatestInputFrame, int32 MaxTickFrame, FNetworkSimTime TotalSimTime, FNetworkSimTime AllowedSimTime);
+	static void TraceOOBStrInternal(int32 SimulationId, ETraceUserState StateType, const TCHAR* Fmt);
 
 	static FStringOutputDevice StrOut;
 

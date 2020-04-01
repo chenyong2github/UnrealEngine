@@ -256,9 +256,21 @@ void FNetworkPredictionProvider::WriteSystemFault(uint32 SimulationId, uint64 En
 
 void FNetworkPredictionProvider::WriteOOBStateMod(uint32 SimulationId)
 {
+	// Signals that the next user states traced will be OOB mods
 	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
 	SimulationData.Analysis.PendingCommitUserStates.Reset();
 	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::OOB;
+}
+
+void FNetworkPredictionProvider::WriteOOBStateModStrSync(uint32 SimulationId, const TCHAR* Fmt)
+{
+	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
+	SimulationData.Analysis.PendingOOBSyncStr = Fmt;
+}
+void FNetworkPredictionProvider::WriteOOBStateModStrAux(uint32 SimulationId, const TCHAR* Fmt)
+{
+	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
+	SimulationData.Analysis.PendingOOBAuxStr = Fmt;
 }
 
 void FNetworkPredictionProvider::WriteProduceInput(uint32 SimulationId)
@@ -297,6 +309,19 @@ void FNetworkPredictionProvider::WriteUserState(uint32 SimulationId, int32 Frame
 	if (SimulationData.Analysis.PendingUserStateSource == ENP_UserStateSource::NetRecv)
 	{
 		SimulationData.Analysis.PendingCommitUserStates.Add(&NewUserState);
+	}
+	else if (SimulationData.Analysis.PendingUserStateSource == ENP_UserStateSource::OOB)
+	{
+		if (Type == ENP_UserState::Sync)
+		{
+			NewUserState.OOBStr = SimulationData.Analysis.PendingOOBSyncStr;
+			SimulationData.Analysis.PendingOOBSyncStr = nullptr;
+		}
+		else if (Type == ENP_UserState::Aux)
+		{
+			NewUserState.OOBStr = SimulationData.Analysis.PendingOOBAuxStr;
+			SimulationData.Analysis.PendingOOBAuxStr = nullptr;
+		}
 	}
 }
 

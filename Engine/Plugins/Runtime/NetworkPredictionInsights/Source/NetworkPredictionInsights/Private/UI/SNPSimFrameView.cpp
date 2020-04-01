@@ -113,7 +113,7 @@ void FSimFrameViewDrawHelper::DrawCached(const FSimulationFrameView& View, float
 	const FLinearColor SelectedColor(1.0f, 0.5f, 0.0f);
 	const FLinearColor SelectedPulseColor(1.0f * PulseFactor, 0.5f * PulseFactor, 0.0f);
 
-	const FLinearColor SearchHighlightColor(1.0f, 1.0f, 0.25f);
+	const FLinearColor SearchHighlightColor(1.0f, 1.0f, 0.15f);
 	const FLinearColor SearchHighlightPulseColor(1.0f * PulseFactor, 1.0f * PulseFactor, 0.25f);
 
 	auto SelectBorderColor = [&](const bool bPulse, const bool bSelected, const bool bSearchHighlighted, const FLinearColor& ColorFill)
@@ -144,7 +144,7 @@ void FSimFrameViewDrawHelper::DrawCached(const FSimulationFrameView& View, float
 			DrawContext.DrawBox(X + 1.0f, Y + 1.0f, W - 2.0f, H - 2.0f, WhiteBrush, ColorFill);
 
 			// Draw border.
-			const float B = (Source.bPulse || Source.bSelected) ? 4.f : 2.f;
+			const float B = Source.bSearchHighlighted ? 6.f : ((Source.bPulse || Source.bSelected) ? 4.f : 2.f);
 			const float B2 = B/2.f;
 						
 			DrawContext.DrawBox(X, Y, B2, H, WhiteBrush, ColorBorder);
