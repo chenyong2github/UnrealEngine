@@ -6,13 +6,9 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Templates/UniquePtr.h"
 #include "PhysicsEngine/BodySetupEnums.h"
+#include "Chaos/GeometryParticles.h"
 
 struct FGeometryAddParams;
-
-namespace Chaos
-{
-	enum EChaosCollisionTraceFlag : int;
-}
 
 namespace ChaosInterface
 {
