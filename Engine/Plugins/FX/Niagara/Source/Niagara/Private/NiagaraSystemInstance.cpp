@@ -14,6 +14,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "GameFramework/PlayerController.h"
 #include "NiagaraCrashReporterHandler.h"
+#include "Async/Async.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -1915,6 +1916,7 @@ void FNiagaraSystemInstance::ComponentTick(float DeltaSeconds, const FGraphEvent
 	check(Component);
 
 	SystemSim->Tick_GameThread(DeltaSeconds, MyCompletionGraphEvent);
+
 }
 
 void FNiagaraSystemInstance::WaitForAsyncTickDoNotFinalize(bool bEnsureComplete)
@@ -2186,6 +2188,23 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 		}
 	}
 }
+
+#if WITH_EDITOR
+void FNiagaraSystemInstance::RaiseNeedsUIResync()
+{
+	AsyncTask(
+		ENamedThreads::GameThread,
+		[WeakComponent = TWeakObjectPtr<UNiagaraComponent>(Component)]() mutable
+	{
+		UNiagaraComponent* NiagaraComponent = WeakComponent.Get();
+		if (NiagaraComponent != nullptr )
+		{
+			NiagaraComponent->OnSynchronizedWithAssetParameters().Broadcast();
+		}
+	}
+	);
+}
+#endif
 
 #if WITH_EDITORONLY_DATA
 bool FNiagaraSystemInstance::GetIsolateEnabled() const
