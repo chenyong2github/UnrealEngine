@@ -63,8 +63,9 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	INC_DWORD_STAT(STAT_D3D12NumCommandLists);
 
 #if PLATFORM_WINDOWS
-	// Optionally obtain the ID3D12GraphicsCommandList1 interface, we don't check the HRESULT.
+	// Optionally obtain the ID3D12GraphicsCommandList1 & ID3D12GraphicsCommandList2 interface, we don't check the HRESULT.
 	CommandList->QueryInterface(IID_PPV_ARGS(CommandList1.GetInitReference()));
+	CommandList->QueryInterface(IID_PPV_ARGS(CommandList2.GetInitReference()));
 #endif
 
 #if D3D12_RHI_RAYTRACING

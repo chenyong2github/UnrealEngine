@@ -319,14 +319,16 @@ namespace D3D12RHI
 			return EventNode;
 		}
 
-		virtual void PushEvent(const TCHAR* Name, FColor Color) override;
-		virtual void PopEvent() override;
-
 		void BeginFrame(class FD3D12DynamicRHI* InRHI);
-
 		void EndFrame(class FD3D12DynamicRHI* InRHI);
 
 		bool CheckGpuHeartbeat() const;
+		
+		static FString EventDeepString;
+		static const uint32 EventDeepCRC;
+
+		uint32 GetOrAddEventStringHash(const TCHAR* Name);
+		const FString* FindEventString(uint32 CRC);
 
 		/**
 		 * Calculate the amount of GPU idle time between two timestamps
@@ -337,16 +339,11 @@ namespace D3D12RHI
 		uint64 CalculateIdleTime(uint64 StartTime, uint64 EndTime);
 
 #if NV_AFTERMATH
-		virtual void PushEvent(const TCHAR* Name, FColor Color, GFSDK_Aftermath_ContextHandle Context);
-
 		void RegisterCommandList(GFSDK_Aftermath_ContextHandle context);
 		void UnregisterCommandList(GFSDK_Aftermath_ContextHandle context);
 
 		TArray<GFSDK_Aftermath_ContextHandle> AftermathContexts;
 		FCriticalSection AftermathLock;
-
-		TArray<uint32> PushPopStack;
-		TMap<uint32, FString> CachedStrings;
 #endif
 
 		/** Used to measure GPU time per frame. */
@@ -367,5 +364,9 @@ namespace D3D12RHI
 		TArray<uint64> CmdListEndTimestamps;
 		/** Accumulated idle GPU ticks before each corresponding command list */
 		TArray<uint64> IdleTimeCDF;
+
+		/** Map containing all the currently hashed event strings */
+		FRWLock	CacheEventStringsRWLock;
+		TMap<uint32, FString> CachedEventStrings;
 	};
 }
