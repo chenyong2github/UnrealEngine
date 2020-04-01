@@ -482,6 +482,14 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Returns platform specific command line options for the IoStore cmdlet
+		/// </summary>
+		public virtual string GetPlatformIoStoreCommandLine(ProjectParams Params, DeploymentContext SC)
+		{
+			return "";
+		}
+
+		/// <summary>
 		/// True if this platform is supported.
 		/// </summary>
 		public virtual bool SupportsMultiDeviceDeploy
@@ -619,6 +627,11 @@ namespace AutomationTool
 		public virtual UnrealTargetPlatform[] GetStagePlatforms()
 		{
 			return new UnrealTargetPlatform[] { PlatformType };
+		}
+
+		public virtual DirectoryReference GetProjectRootForStage(DirectoryReference RuntimeRoot, StagedDirectoryReference RelativeProjectRootForStage)
+		{
+			return DirectoryReference.Combine(RuntimeRoot, RelativeProjectRootForStage.Name);
 		}
 
 		// let the platform set the exe extension if it chooses (otherwise, use

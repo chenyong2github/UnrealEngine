@@ -84,6 +84,22 @@ FIoBuffer::BufCore::MakeOwned()
 	SetIsOwned(true);
 }
 
+TIoStatusOr<uint8*>	FIoBuffer::BufCore::ReleaseMemory()
+{
+	if (IsMemoryOwned())
+	{
+		uint8* BufferPtr = Data();
+		SetDataAndSize(nullptr, 0);
+		ClearFlags();
+
+		return BufferPtr;
+	}
+	else
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Cannot call release on a FIoBuffer unless it owns it's memory"));
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 FIoBuffer::FIoBuffer()
@@ -120,4 +136,10 @@ void
 FIoBuffer::MakeOwned() const
 {
 	CorePtr->MakeOwned();
+}
+ 
+TIoStatusOr<uint8*>
+FIoBuffer::Release()
+{
+	return CorePtr->ReleaseMemory();
 }
