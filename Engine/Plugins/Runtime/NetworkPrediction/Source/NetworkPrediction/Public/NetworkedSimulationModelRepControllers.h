@@ -350,7 +350,7 @@ struct TRepController_Server : public TBase
 				else
 				{
 					// Brand new frame
-					auto* NewFrameState = State.WriteFrameSequential(Frame);
+					TFrameState* NewFrameState = State.WriteFrameSequential(Frame);
 					
 					NewFrameState->FrameDeltaTime.NetSerialize(P.Ar);
 					NewFrameState->InputCmd.NetSerialize(P);
@@ -481,7 +481,14 @@ struct TRepController_Autonomous: public TBase
 				bPendingReconciliation =  true;
 			}
 
-			State.SetConfirmedFrame(SerializedFrame);
+			if (State.GetPendingTickFrame() < SerializedFrame)
+			{
+				State.Reset(SerializedFrame);
+			}
+			else
+			{
+				State.SetConfirmedFrame(SerializedFrame);
+			}
 		}
 		NETSIM_CHECKSUM(P.Ar);
 	}

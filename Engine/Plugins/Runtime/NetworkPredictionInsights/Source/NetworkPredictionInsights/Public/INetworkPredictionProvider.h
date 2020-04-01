@@ -374,7 +374,6 @@ struct FSimulationData
 	};
 
 	// End of (Engine) Frame state of the simulation
-	// FIXME: it would be much nicer if we had a single global emission of GFrameNumber and EngineFrameDeltaTime
 	// It may be better to eventually just trace the events that change this simulation specific state (NetSerialize, Tick, etc)
 	struct FEngineFrame
 	{
@@ -418,6 +417,7 @@ struct FSimulationData
 		FUserState* Prev = nullptr; // Previously written user state at this SimFrame number. Prev->EngineFrame < this->EngineFrame.
 		const TCHAR* UserStr = nullptr; // stable pointer to traced string representation of user state
 		ENP_UserStateSource Source = ENP_UserStateSource::Unknown; // Analyzed source of this user state
+		const TCHAR* OOBStr = nullptr; // if OOB mod, this is the user traced string (telling us who did it)
 	};
 
 	struct FUserStateStore
@@ -590,6 +590,8 @@ struct FSimulationData
 		ENP_UserStateSource PendingUserStateSource = ENP_UserStateSource::Unknown;
 		TArray<FUserState*> PendingCommitUserStates; // NetRecv'd state that hasn't been commited
 		TArray<FSystemFault> PendingSystemFaults;
+		const TCHAR* PendingOOBSyncStr = nullptr;
+		const TCHAR* PendingOOBAuxStr = nullptr;
 
 	} Analysis;
 };

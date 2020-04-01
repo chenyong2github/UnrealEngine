@@ -111,6 +111,15 @@ UE_TRACE_EVENT_BEGIN(NetworkPrediction, WorldFrameStart)
 	UE_TRACE_EVENT_FIELD(float, DeltaSeconds)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(NetworkPrediction, OOBStateModStrSync)
+	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(NetworkPrediction, OOBStateModStrAux)
+	UE_TRACE_EVENT_FIELD(uint32, SimulationId)
+UE_TRACE_EVENT_END()
+
+
 
 // ----------------------------------------------------------------------------
 //	Internal stack to track which simulation is active. 
@@ -283,10 +292,8 @@ void FNetworkPredictionTrace::TraceSynthInput()
 		<< SynthInput.SimulationId(SimulationId);
 }
 
-void FNetworkPredictionTrace::TraceOOBStateMod()
+void FNetworkPredictionTrace::TraceOOBStateMod(int32 SimulationId)
 {
-	const uint32 SimulationId = PeakSimulationIdChecked();
-
 	UE_TRACE_LOG(NetworkPrediction, OOBStateMod, NetworkPredictionChannel)
 		<< OOBStateMod.SimulationId(SimulationId);
 }
@@ -336,6 +343,33 @@ void FNetworkPredictionTrace::TraceWorldFrameStart(float DeltaSeconds)
 	UE_TRACE_LOG(NetworkPrediction, WorldFrameStart, NetworkPredictionChannel)
 		<< WorldFrameStart.EngineFrameNumber(GFrameNumber)
 		<< WorldFrameStart.DeltaSeconds(DeltaSeconds);
+}
+
+void FNetworkPredictionTrace::TraceOOBStrInternal(int32 SimulationId, ETraceUserState StateType, const TCHAR* Fmt)
+{
+	const uint16 AttachmentSize = (FCString::Strlen(Fmt)+1) * sizeof(TCHAR);
+	switch(StateType)
+	{
+		case ETraceUserState::Input:
+		{
+			ensure(false); // unexpected. We don't do OOB mods to input state
+			break;
+		}
+		case ETraceUserState::Sync:
+		{
+			UE_TRACE_LOG(NetworkPrediction, OOBStateModStrSync, NetworkPredictionChannel, AttachmentSize)
+				<< OOBStateModStrSync.SimulationId(SimulationId)	
+				<< OOBStateModStrSync.Attachment(Fmt, AttachmentSize);
+			break;
+		}
+		case ETraceUserState::Aux:
+		{
+			UE_TRACE_LOG(NetworkPrediction, OOBStateModStrAux, NetworkPredictionChannel, AttachmentSize)
+				<< OOBStateModStrAux.SimulationId(SimulationId)	
+				<< OOBStateModStrAux.Attachment(Fmt, AttachmentSize);
+			break;
+		}
+	}
 }
 
 #include "CoreTypes.h"

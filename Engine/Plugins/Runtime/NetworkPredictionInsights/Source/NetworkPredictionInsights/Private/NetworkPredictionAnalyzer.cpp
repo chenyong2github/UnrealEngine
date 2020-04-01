@@ -21,6 +21,8 @@ void FNetworkPredictionAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 	Builder.RouteEvent(RouteId_SimulationTick, "NetworkPrediction", "SimulationTick");
 	Builder.RouteEvent(RouteId_WorldFrameStart, "NetworkPrediction", "WorldFrameStart");
 	Builder.RouteEvent(RouteId_OOBStateMod, "NetworkPrediction", "OOBStateMod");
+	Builder.RouteEvent(RouteId_OOBStateModStrSync, "NetworkPrediction", "OOBStateModStrSync");
+	Builder.RouteEvent(RouteId_OOBStateModStrAux, "NetworkPrediction", "OOBStateModStrAux");
 	Builder.RouteEvent(RouteId_ProduceInput, "NetworkPrediction", "ProduceInput");
 	Builder.RouteEvent(RouteId_SynthInput, "NetworkPrediction", "SynthInput");
 	Builder.RouteEvent(RouteId_SimulationEOF, "NetworkPrediction", "SimulationEOF");
@@ -188,6 +190,18 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 				EngineFrameNumber,
 				Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()))
 			);
+			break;
+		}
+
+		case RouteId_OOBStateModStrSync:
+		{
+			NetworkPredictionProvider.WriteOOBStateModStrSync(EventData.GetValue<uint32>("SimulationId"),Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+			break;
+		}
+
+		case RouteId_OOBStateModStrAux:
+		{
+			NetworkPredictionProvider.WriteOOBStateModStrAux(EventData.GetValue<uint32>("SimulationId"),Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
 			break;
 		}
 
