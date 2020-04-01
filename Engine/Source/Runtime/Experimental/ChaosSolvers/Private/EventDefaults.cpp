@@ -320,13 +320,10 @@ namespace Chaos
 				return;
 
 			FBreakingDataArray& AllBreakingDataArray = BreakingEventData.BreakingData.AllBreakingsArray;
-			TMap<IPhysicsProxyBase*, TArray<int32>>& AllBreakingIndicesByPhysicsProxy = BreakingEventData.PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap;
 
 			AllBreakingDataArray.Reset();
-			AllBreakingIndicesByPhysicsProxy.Reset();
 
 			BreakingEventData.BreakingData.TimeCreated = Solver->MTime;
-			BreakingEventData.PhysicsProxyToBreakingIndices.TimeCreated = Solver->MTime;
 
 			const FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
 			const TPBDRigidParticles<float, 3>& Particles = Evolution->GetParticles().GetDynamicParticles();
@@ -343,21 +340,25 @@ namespace Chaos
 				{
 					// Since Clustered GCs can be unioned the particleIndex representing the union 
 					// is not associated with a PhysicsProxy
-					if(AllBreakingsArray[Idx].Particle->Proxy != nullptr)
+					TPBDRigidParticleHandle<float, 3>* PBDRigid = AllBreakingsArray[Idx].Particle->CastToRigidParticle();
+					if(PBDRigid)
 					{
 						if(ensure(!AllBreakingsArray[Idx].Location.ContainsNaN() &&
-							!Particles.V(AllBreakingsArray[Idx].ParticleIndex).ContainsNaN() &&
-							!Particles.W(AllBreakingsArray[Idx].ParticleIndex).ContainsNaN()))
+							!PBDRigid->V().ContainsNaN() &&
+							!PBDRigid->W().ContainsNaN()))
 						{
 							TBreakingData<float, 3> BreakingData;
 							BreakingData.Location = AllBreakingsArray[Idx].Location;
-							BreakingData.Velocity = Particles.V(AllBreakingsArray[Idx].ParticleIndex);
-							BreakingData.AngularVelocity = Particles.W(AllBreakingsArray[Idx].ParticleIndex);
-							BreakingData.Mass = Particles.M(AllBreakingsArray[Idx].ParticleIndex);
-							BreakingData.ParticleIndex = AllBreakingsArray[Idx].ParticleIndex;
-							if(Particles.Geometry(Idx)->HasBoundingBox())
+							BreakingData.Velocity = PBDRigid->V();
+							BreakingData.AngularVelocity = PBDRigid->W();
+							BreakingData.Mass = PBDRigid->M();
+							BreakingData.Particle = PBDRigid;
+							BreakingData.ParticleProxy = Solver->GetProxies(PBDRigid->Handle()) && Solver->GetProxies(PBDRigid->Handle())->Array().Num() ?
+								Solver->GetProxies(PBDRigid->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
+							
+							if(PBDRigid->Geometry()->HasBoundingBox())
 							{
-								BreakingData.BoundingBox = Particles.Geometry(Idx)->BoundingBox();;
+								BreakingData.BoundingBox = PBDRigid->Geometry()->BoundingBox();
 							}
 
 							const FSolverBreakingEventFilter* SolverBreakingEventFilter = Solver->GetEventFilters()->GetBreakingFilter();
@@ -367,19 +368,15 @@ namespace Chaos
 								TBreakingData<float, 3>& BreakingDataArrayItem = AllBreakingDataArray[NewIdx];
 								BreakingDataArrayItem = BreakingData;
 
+#if 0 // #todo
 								// If AllBreakingsArray[Idx].ParticleIndex is a cluster store an index for a mesh in this cluster
 								if(ClusterIdsArray[AllBreakingsArray[Idx].ParticleIndex].NumChildren > 0)
 								{
-#if 0 // #todo
 									int32 ParticleIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, AllBreakingsArray[Idx].ParticleIndex);
 									ensure(ParticleIndexMesh != INDEX_NONE);
 									BreakingDataArrayItem.ParticleIndexMesh = ParticleIndexMesh;
-#endif
 								}
-
-								// Add to AllBreakingsIndicesByPhysicsProxy
-								IPhysicsProxyBase* PhysicsProxy = AllBreakingsArray[Idx].Particle->Proxy;
-								AllBreakingIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(NewIdx);
+#endif
 							}
 						}
 					}
@@ -406,13 +403,10 @@ namespace Chaos
 			const TMap<uint32, TUniquePtr<TArray<uint32>>>& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
 #endif
 			auto& AllTrailingsDataArray = TrailingEventData.TrailingData.AllTrailingsArray;
-			auto& AllTrailingsIndicesByPhysicsProxy = TrailingEventData.PhysicsProxyToTrailingIndices.PhysicsProxyToIndicesMap;
 
 			AllTrailingsDataArray.Reset();
-			AllTrailingsIndicesByPhysicsProxy.Reset();
 
 			TrailingEventData.TrailingData.TimeCreated = Solver->MTime;
-			TrailingEventData.PhysicsProxyToTrailingIndices.TimeCreated = Solver->MTime;
 
 			for (auto& ActiveParticle : Evolution->GetParticles().GetActiveParticlesView())
 			{
@@ -455,18 +449,6 @@ namespace Chaos
 									TrailingDataArrayItem.ParticleIndexMesh = ParticleIndexMesh;
 								}
 #endif
-
-								// Add to AllTrailingsIndicesByPhysicsProxy
-								if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(ActiveParticle.Handle()))
-								{
-									for (IPhysicsProxyBase* Proxy : *Proxies)
-									{
-										if (Proxy != nullptr)
-										{
-											AllTrailingsIndicesByPhysicsProxy.FindOrAdd(Proxy).Add(NewIdx);
-										}
-									}
-								}
 							}
 						}
 					}
@@ -486,9 +468,7 @@ namespace Chaos
 			const FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
 
 			FSleepingDataArray& EventSleepDataArray = SleepingEventData.SleepingData;
-			TMap<IPhysicsProxyBase*, TArray<int32>>& AllSleepIndicesByPhysicsProxy = SleepingEventData.PhysicsProxyToSleepingIndices.PhysicsProxyToIndicesMap;
 			EventSleepDataArray.Reset();
-			AllSleepIndicesByPhysicsProxy.Reset();
 
 			Chaos::FPBDRigidsSolver* NonConstSolver = (Chaos::FPBDRigidsSolver*)(Solver);
 
@@ -509,8 +489,6 @@ namespace Chaos
 								TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
 								SleepingDataArrayItem.Particle = Particle;
 								SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
-
-								AllSleepIndicesByPhysicsProxy.FindOrAdd(Proxy).Add(NewIdx);
 							}
 						}
 					}
