@@ -156,7 +156,7 @@ protected:
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	FGuid CachedChangeId;
 
-	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	UPROPERTY()
 	FString FunctionDisplayName;
 
 	FOnInputsChanged OnInputsChangedDelegate;
