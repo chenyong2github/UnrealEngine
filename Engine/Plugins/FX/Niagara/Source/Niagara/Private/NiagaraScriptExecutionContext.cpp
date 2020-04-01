@@ -126,6 +126,13 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 				}
 			}
 
+#if WITH_EDITOR	
+			// We may now have new errors that we need to broadcast about, so flush the asset parameters delegate..
+			if (ParentSystemInstance)
+			{
+				ParentSystemInstance->RaiseNeedsUIResync();
+			}
+#endif
 			if (!bSuccessfullyMapped)
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Error building data interface function table!"));
