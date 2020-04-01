@@ -320,6 +320,7 @@ FD3D12CommandListManager::FD3D12CommandListManager(FD3D12Device* InParent, D3D12
 	, CommandListFence(nullptr)
 	, CommandListType(InCommandListType)
 	, QueueType(InQueueType)
+	, BreadCrumbResourceAddress(nullptr)
 #if WITH_PROFILEGPU
 	, bShouldTrackCmdListTime(false)
 #endif
@@ -348,6 +349,15 @@ void FD3D12CommandListManager::Destroy()
 	{
 		CommandListFence->Destroy();
 		CommandListFence.SafeRelease();
+	}
+
+	if (BreadCrumbResource)
+	{
+		BreadCrumbResource.SafeRelease();
+		BreadCrumbHeap.SafeRelease();
+
+		VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
+		BreadCrumbResourceAddress = nullptr;
 	}
 }
 
@@ -379,6 +389,62 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 		{
 			FD3D12CommandListHandle hList = CreateCommandListHandle(TempCommandAllocator);
 			ReadyLists.Enqueue(hList);
+		}
+	}
+
+	// setup the bread crumb data to track GPU progress on this command queue when GPU crash debugging is enabled
+	if (Adapter->IsGPUCrashDebugging())
+	{		
+		// QI for the ID3DDevice3 - manual buffer write from command line only supported on 1709+
+		TRefCountPtr<ID3D12Device3> D3D12Device3;
+		HRESULT hr = Device->GetDevice()->QueryInterface(IID_PPV_ARGS(D3D12Device3.GetInitReference()));
+		if (SUCCEEDED(hr))
+		{
+			// find out how many entries we can much push in a single event (limit to MAX_GPU_BREADCRUMB_DEPTH)
+			int32 GPUCrashDataDepth = GetParentDevice()->GetParentAdapter()->GetGPUProfiler().GPUCrashDataDepth;
+			int32 MaxEventCount = GPUCrashDataDepth > 0 ? FMath::Min(GPUCrashDataDepth, MAX_GPU_BREADCRUMB_DEPTH) : MAX_GPU_BREADCRUMB_DEPTH;			
+
+			// Allocate persistent CPU reabable memory which will still be valid after a device lost and wrap this data in a placed resource
+			// so the GPU command list can write to it
+			BreadCrumbResourceAddress = VirtualAlloc(nullptr, MaxEventCount, MEM_COMMIT, PAGE_READWRITE);
+
+			TRefCountPtr<ID3D12Heap> D3D12Heap;
+			hr = D3D12Device3->OpenExistingHeapFromAddress(BreadCrumbResourceAddress, IID_PPV_ARGS(D3D12Heap.GetInitReference()));
+			if (SUCCEEDED(hr))
+			{
+				BreadCrumbHeap = new FD3D12Heap(Device, GetVisibilityMask());
+				BreadCrumbHeap->SetHeap(D3D12Heap);							
+
+				TCHAR TempStr[MAX_SPRINTF] = TEXT("");
+				FCString::Sprintf(TempStr, TEXT("BreadCrumbResource_%s"), Name);
+
+				const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(MaxEventCount * sizeof(uint32), D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER);
+				hr = Adapter->CreatePlacedResource(BufferDesc, BreadCrumbHeap.GetReference(), 0, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, BreadCrumbResource.GetInitReference(), TempStr, false);
+				if (SUCCEEDED(hr))
+				{
+					UE_LOG(LogD3D12RHI, Log, TEXT("[GPUBreadCrumb] Successfully setup breadcrumb resource for %s"), Name);
+				}
+				else
+				{
+					BreadCrumbHeap.SafeRelease();
+
+					VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
+					BreadCrumbResourceAddress = nullptr;
+
+					UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to CreatePlacedResource, error: %x"), hr);
+				}
+			}
+			else
+			{
+				VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
+				BreadCrumbResourceAddress = nullptr;
+
+				UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to OpenExistingHeapFromAddress, error: %x"), hr);
+			}
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] ID3D12Device3 not available (only available on Windows 10 1709+), error: %x"), hr);
 		}
 	}
 }
