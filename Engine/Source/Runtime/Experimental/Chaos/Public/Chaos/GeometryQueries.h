@@ -83,7 +83,7 @@ namespace Chaos
 			{
 				case ImplicitObjectType::HeightField:
 				{
-					const THeightField<FReal>& AHeightField = static_cast<const THeightField<FReal>&>(A);
+					const FHeightField& AHeightField = static_cast<const FHeightField&>(A);
 					return AHeightField.OverlapGeom(B, BToATM, Thickness, OutMTD);
 				}
 				case ImplicitObjectType::TriangleMesh:
@@ -197,7 +197,7 @@ namespace Chaos
 			{
 				case ImplicitObjectType::HeightField:
 				{
-					const THeightField<FReal>& AHeightField = static_cast<const THeightField<FReal>&>(A);
+					const FHeightField& AHeightField = static_cast<const FHeightField&>(A);
 					bResult = AHeightField.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
 					break;
 				}

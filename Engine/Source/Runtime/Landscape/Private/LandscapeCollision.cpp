@@ -983,8 +983,8 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 		}
 	}
 
-	TUniquePtr<Chaos::THeightField<float>> Heightfield = nullptr;
-	TUniquePtr<Chaos::THeightField<float>> HeightfieldSimple = nullptr;
+	TUniquePtr<Chaos::FHeightField> Heightfield = nullptr;
+	TUniquePtr<Chaos::FHeightField> HeightfieldSimple = nullptr;
 
 	FMemoryWriter Writer(OutData);
 	Chaos::FChaosArchive Ar(Writer);
@@ -993,13 +993,13 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 	Ar << bSerializeGenerateSimpleCollision;
 
 	TArrayView<const uint16> ComplexHeightView(Heights, NumSamples);
-	Heightfield = MakeUnique<Chaos::THeightField<float>>(ComplexHeightView, MakeArrayView(MaterialIndices), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
+	Heightfield = MakeUnique<Chaos::FHeightField>(ComplexHeightView, MakeArrayView(MaterialIndices), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
 	Ar << Heightfield;
 	if(bGenerateSimpleCollision)
 	{
 		// #BGTODO Materials for simple geometry, currently just passing in the default
 		TArrayView<const uint16> SimpleHeightView(Heights + NumSamples, NumSimpleSamples);
-		HeightfieldSimple = MakeUnique<Chaos::THeightField<float>>(SimpleHeightView, MakeArrayView(MaterialIndices.GetData(), 1), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
+		HeightfieldSimple = MakeUnique<Chaos::FHeightField>(SimpleHeightView, MakeArrayView(MaterialIndices.GetData(), 1), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
 		Ar << HeightfieldSimple;
 	}
 

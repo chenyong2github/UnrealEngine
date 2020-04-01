@@ -126,7 +126,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 
 		ShapeTM = U2PTransform(FTransform(LandscapeComponentMatrix));
 
-		InnerObj = MakeUnique<THeightField<float>>(MoveTemp(Height), MoveTemp(MaterialIndices), NumRows, NumCols, TVector<float, 3>(HeightFieldGeom.columnScale, HeightFieldGeom.rowScale, HeightFieldGeom.heightScale));
+		InnerObj = MakeUnique<FHeightField>(MoveTemp(Height), MoveTemp(MaterialIndices), NumRows, NumCols, TVector<float, 3>(HeightFieldGeom.columnScale, HeightFieldGeom.rowScale, HeightFieldGeom.heightScale));
 		break;
 	}
 	case PxGeometryType::eTRIANGLEMESH:

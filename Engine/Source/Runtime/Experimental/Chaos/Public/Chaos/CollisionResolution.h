@@ -21,11 +21,9 @@ namespace Chaos
 	template <typename T, int d>
 	class TPlane;
 
-	template <typename T>
-	class THeightField;
-
 	class FCollisionContext;
 	class FCollisionConstraintBase;
+	class FHeightField;
 	class FImplicitObject;
 	class FRigidBodyPointContactConstraint;
 	class FRigidBodyMultiPointContactConstraint;
