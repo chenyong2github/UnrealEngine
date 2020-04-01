@@ -95,7 +95,7 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 {
 	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
 	Concrete.SetCollisionGroup(0);
-	Concrete.SetDisabled(Params.bDisabled);
+	//Concrete.SetDisabled(Params.bDisabled);
 	Concrete.SetF(TVector<T, d>(0));
 	Concrete.SetTorque(TVector<T, d>(0));
 	Concrete.SetLinearImpulse(TVector<T, d>(0));
@@ -430,6 +430,17 @@ public:
 		SetR(XR.R());
 	}
 
+	void SetNonFrequentData(const FParticleNonFrequentData& InData)
+	{
+		SetSharedGeometry(InData.Geometry());
+		SetUserData(InData.UserData());
+		SetUniqueIdx(InData.UniqueIdx());
+		SetSpatialIdx(InData.SpatialIdx());
+
+#if CHAOS_CHECKED
+		SetDebugName(InData.DebugName());
+#endif
+	}
 
 	TSerializablePtr<FImplicitObject> Geometry() const { return GeometryParticles->Geometry(ParticleIdx); }
 	void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry) { GeometryParticles->SetGeometry(ParticleIdx, InGeometry); }
@@ -741,6 +752,13 @@ public:
 		SetInvI(Props.InvI());
 		SetM(Props.M());
 		SetInvM(Props.InvM());
+	}
+
+	void SetDynamicMisc(const FParticleDynamicMisc& DynamicMisc)
+	{
+		SetLinearEtherDrag(DynamicMisc.LinearEtherDrag());
+		SetAngularEtherDrag(DynamicMisc.AngularEtherDrag());
+		SetCollisionGroup(DynamicMisc.CollisionGroup());
 	}
 
 	const PMatrix<T, d, d>& I() const { return PBDRigidParticles->I(ParticleIdx); }
@@ -1435,7 +1453,7 @@ public:
 
 	virtual bool IsParticleValid() const
 	{
-		auto& Geometry = MNonFrequentData.Read().Geometry;
+		auto& Geometry = MNonFrequentData.Read().Geometry();
 		return Geometry && Geometry->IsValidGeometry();	//todo: if we want support for sample particles without geometry we need to adjust this
 	}
 
@@ -1444,10 +1462,10 @@ public:
 	const TVector<T, d>& X() const { return MXR.Read().X(); }
 	void SetX(const TVector<T, d>& InX, bool bInvalidate = true);
 
-	FUniqueIdx UniqueIdx() const { return MNonFrequentData.Read().UniqueIdx; }
+	FUniqueIdx UniqueIdx() const { return MNonFrequentData.Read().UniqueIdx(); }
 	void SetUniqueIdx(const FUniqueIdx UniqueIdx, bool bInvalidate = true)
 	{
-		MNonFrequentData.Modify(bInvalidate,MDirtyFlags,Proxy,[UniqueIdx](auto& Data){ Data.UniqueIdx = UniqueIdx;});
+		MNonFrequentData.Modify(bInvalidate,MDirtyFlags,Proxy,[UniqueIdx](auto& Data){ Data.SetUniqueIdx(UniqueIdx);});
 	}
 
 	const TRotation<T, d>& R() const { return MXR.Read().R(); }
@@ -1473,7 +1491,7 @@ public:
 	//       We should replace this with a method for supporting SetGeometry(RawGeometry).
 	void SetGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> SharedGeometry)
 	{
-		MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[&SharedGeometry](auto& Data){ Data.Geometry = SharedGeometry;});
+		MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[&SharedGeometry](auto& Data){ Data.SetGeometry(SharedGeometry);});
 		UpdateShapesArray();
 	}
 
@@ -1484,12 +1502,12 @@ public:
 		check(false);
 	}
 
-	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MNonFrequentData.Read().Geometry; }
+	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MNonFrequentData.Read().Geometry(); }
 
-	void* UserData() const { return MNonFrequentData.Read().UserData; }
+	void* UserData() const { return MNonFrequentData.Read().UserData(); }
 	void SetUserData(void* InUserData)
 	{
-		MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[InUserData](auto& Data){ Data.UserData = InUserData;});
+		MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[InUserData](auto& Data){ Data.SetUserData(InUserData);});
 	}
 
 	void UpdateShapeBounds()
@@ -1499,7 +1517,7 @@ public:
 
 	void UpdateShapeBounds(const FTransform& Transform)
 	{
-		if (MNonFrequentData.Read().Geometry->HasBoundingBox())
+		if (MNonFrequentData.Read().Geometry()->HasBoundingBox())
 		{
 			for (auto& Shape : MShapesArray)
 			{
@@ -1536,10 +1554,10 @@ public:
 	}
 
 #if CHAOS_CHECKED
-	const FName& DebugName() const { return MNonFrequentData.Read().DebugName; }
+	const FName& DebugName() const { return MNonFrequentData.Read().DebugName(); }
 	void SetDebugName(const FName& InDebugName)
 	{
-		MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[&InDebugName](auto& Data){ Data.DebugName = InDebugName;});
+		MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[&InDebugName](auto& Data){ Data.SetDebugName(InDebugName);});
 	}
 #endif
 
@@ -1551,7 +1569,7 @@ public:
 		MapImplicitShapes();
 	}
 
-	TSerializablePtr<FImplicitObject> Geometry() const { return MakeSerializable(MNonFrequentData.Read().Geometry); }
+	TSerializablePtr<FImplicitObject> Geometry() const { return MakeSerializable(MNonFrequentData.Read().Geometry()); }
 
 	const FShapesArray& ShapesArray() const { return MShapesArray; }
 
@@ -1570,10 +1588,15 @@ public:
 	const TPBDRigidParticle<T, d>* CastToRigidParticle() const;
 	TPBDRigidParticle<T, d>* CastToRigidParticle();
 
-	FSpatialAccelerationIdx SpatialIdx() const { return MMiscData.Read().SpatialIdx; }
+	FSpatialAccelerationIdx SpatialIdx() const { return MNonFrequentData.Read().SpatialIdx(); }
 	void SetSpatialIdx(FSpatialAccelerationIdx Idx)
 	{
-		MMiscData.Modify(true,MDirtyFlags,Proxy,[Idx](auto& Data){ Data.SpatialIdx = Idx;});
+		MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[Idx](auto& Data){ Data.SetSpatialIdx(Idx);});
+	}
+
+	void SetNonFrequentData(const FParticleNonFrequentData& InData)
+	{
+		MNonFrequentData.Write(InData,true,MDirtyFlags,Proxy);
 	}
 
 	bool IsDirty() const
@@ -1670,11 +1693,7 @@ protected:
 private:
 
 	TParticleProperty<FParticlePositionRotation, EParticleProperty::XR> MXR;
-
-protected:
 	TParticleProperty<FParticleNonFrequentData,EParticleProperty::NonFrequentData> MNonFrequentData;
-	TParticleProperty<FParticleMisc,EParticleProperty::Misc> MMiscData;
-private:
 
 	FShapesArray MShapesArray;
 	TMap<const FImplicitObject*, int32> ImplicitShapeMap;
@@ -1690,7 +1709,7 @@ public:
 	// when the geometry is being copied from GT to PT.
 	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> GeometrySharedLowLevel() const
 	{
-		return MNonFrequentData.Read().Geometry;
+		return MNonFrequentData.Read().Geometry();
 	}
 private:
 
@@ -1703,7 +1722,7 @@ protected:
 
 	void UpdateShapesArray()
 	{
-		UpdateShapesArrayFromGeometry(MShapesArray, MakeSerializable(MNonFrequentData.Read().Geometry), FRigidTransform3(X(), R()), Proxy);
+		UpdateShapesArrayFromGeometry(MShapesArray, MakeSerializable(MNonFrequentData.Read().Geometry()), FRigidTransform3(X(), R()), Proxy);
 		MapImplicitShapes();
 	}
 
@@ -1711,7 +1730,6 @@ protected:
 	{
 		MXR.SyncRemote(Manager, DataIdx, RemoteData);
 		MNonFrequentData.SyncRemote(Manager, DataIdx, RemoteData);
-		MMiscData.SyncRemote(Manager, DataIdx, RemoteData);
 	}
 
 	void MapImplicitShapes();
@@ -1854,7 +1872,6 @@ public:
 	using TGeometryParticle<T, d>::CastToRigidParticle;
 	using Base = TGeometryParticle<T,d>;
 	using Base::MDirtyFlags;
-	using Base::MMiscData;
 
 protected:
 	using Base::Proxy;
@@ -1953,8 +1970,6 @@ public:
 	using Base = TKinematicGeometryParticle<T,d>;
 
 	using Base::MDirtyFlags;
-	using Base::MMiscData;
-
 
 protected:
 	using Base::Proxy;
@@ -1985,24 +2000,25 @@ public:
 
 	const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles() const { return MCollisionParticles; }
 
-	int32 CollisionGroup() const { return MMiscData.Read().CollisionGroup; }
+	int32 CollisionGroup() const { return MMiscData.Read().CollisionGroup(); }
 	void SetCollisionGroup(const int32 InCollisionGroup)
 	{
-		MMiscData.Modify(true,MDirtyFlags,Proxy,[InCollisionGroup](auto& Data){ Data.CollisionGroup = InCollisionGroup;});
+		MMiscData.Modify(true,MDirtyFlags,Proxy,[InCollisionGroup](auto& Data){ Data.SetCollisionGroup(InCollisionGroup);});
 	}
 
+	/*
 	bool Disabled() const { return MMiscData.Read().bDisabled; }
 	void SetDisabled(const bool InDisabled)
 	{
 		MMiscData.Modify(true,MDirtyFlags,Proxy,[InDisabled](auto& Data){ Data.bDisabled = InDisabled;});
-	}
+	}*/
 
-	bool IsGravityEnabled() const { return MMiscData.Read().bGravityEnabled; }
+	bool IsGravityEnabled() const { return MMiscData.Read().GravityEnabled(); }
 	void SetGravityEnabled(const bool InGravityEnabled)
 	{
-		MMiscData.Modify(true,MDirtyFlags,Proxy,[InGravityEnabled](auto& Data){ Data.bGravityEnabled = InGravityEnabled;});
+		MMiscData.Modify(true,MDirtyFlags,Proxy,[InGravityEnabled](auto& Data){ Data.SetGravityEnabled (InGravityEnabled);});
 	}
-
+	
 	//todo: remove this
 	bool IsInitialized() const { return MInitialized; }
 	void SetInitialized(const bool InInitialized)
@@ -2096,16 +2112,21 @@ public:
 		MMassProps.Write(InProps,true,MDirtyFlags,Proxy);
 	}
 
-	T LinearEtherDrag() const { return this->MNonFrequentData.Read().LinearEtherDrag; }
-	void SetLinearEtherDrag(const T& InLinearEtherDrag)
+	void SetDynamicMisc(const FParticleDynamicMisc& DynamicMisc)
 	{
-		this->MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[&InLinearEtherDrag](auto& Data){ Data.LinearEtherDrag = InLinearEtherDrag;});
+		MMiscData.Write(DynamicMisc,true,MDirtyFlags,Proxy);
 	}
 
-	T AngularEtherDrag() const { return this->MNonFrequentData.Read().AngularEtherDrag; }
+	T LinearEtherDrag() const { return MMiscData.Read().LinearEtherDrag(); }
+	void SetLinearEtherDrag(const T& InLinearEtherDrag)
+	{
+		MMiscData.Modify(true,MDirtyFlags,Proxy,[&InLinearEtherDrag](auto& Data){ Data.SetLinearEtherDrag(InLinearEtherDrag);});
+	}
+
+	T AngularEtherDrag() const { return MMiscData.Read().AngularEtherDrag(); }
 	void SetAngularEtherDrag(const T& InAngularEtherDrag)
 	{
-		this->MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[&InAngularEtherDrag](auto& Data){ Data.AngularEtherDrag = InAngularEtherDrag;});
+		MMiscData.Modify(true,MDirtyFlags,Proxy,[&InAngularEtherDrag](auto& Data){ Data.SetAngularEtherDrag(InAngularEtherDrag);});
 	}
 
 	int32 Island() const { return MIsland; }
@@ -2122,7 +2143,7 @@ public:
 		this->MToBeRemovedOnFracture = bToBeRemovedOnFracture;
 	}
 
-	EObjectStateType ObjectState() const { return MMiscData.Read().ObjectState; }
+	EObjectStateType ObjectState() const { return MMiscData.Read().ObjectState(); }
 	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false)
 	{
 		if (bAllowEvents && ObjectState() != EObjectStateType::Dynamic && InState == EObjectStateType::Dynamic)
@@ -2144,7 +2165,7 @@ public:
 			MDirtyFlags.MarkClean(ParticlePropToFlag(EParticleProperty::Dynamics));
 		}
 
-		MMiscData.Modify(true,MDirtyFlags,Proxy,[&InState](auto& Data){ Data.ObjectState = InState;});
+		MMiscData.Modify(true,MDirtyFlags,Proxy,[&InState](auto& Data){ Data.SetObjectState(InState);});
 
 	}
 
@@ -2154,6 +2175,8 @@ public:
 private:
 	TParticleProperty<FParticleMassProps,EParticleProperty::MassProps> MMassProps;
 	TParticleProperty<FParticleDynamics, EParticleProperty::Dynamics> MDynamics;
+	TParticleProperty<FParticleDynamicMisc,EParticleProperty::DynamicMisc> MMiscData;
+
 	TUniquePtr<TBVHParticles<T, d>> MCollisionParticles;
 	int32 MIsland;
 	bool MToBeRemovedOnFracture;
@@ -2166,6 +2189,7 @@ protected:
 		Base::SyncRemoteDataImp(Manager,DataIdx,RemoteData);
 		MMassProps.SyncRemote(Manager,DataIdx,RemoteData);
 		MDynamics.SyncRemote(Manager,DataIdx,RemoteData);
+		MMiscData.SyncRemote(Manager,DataIdx,RemoteData);
 	}
 };
 
@@ -2216,7 +2240,7 @@ public:
 		, MIsland(INDEX_NONE)
 		, MCollisionGroup(0)
 		, MObjectState(EObjectStateType::Uninitialized)
-		, MDisabled(false)
+		//, MDisabled(false)
 		, MToBeRemovedOnFracture(false)
 		, MGravityEnabled(false)
 		, MInitialized(false)
@@ -2240,7 +2264,7 @@ public:
 		, MIsland(InParticle.Island())
 		, MCollisionGroup(InParticle.CollisionGroup())
 		, MObjectState(InParticle.ObjectState())
-		, MDisabled(InParticle.Disabled())
+		//, MDisabled(InParticle.Disabled())
 		, MToBeRemovedOnFracture(InParticle.ToBeRemovedOnFracture())
 		, MGravityEnabled(InParticle.IsGravityEnabled())
 		, MInitialized(InParticle.IsInitialized())
@@ -2265,7 +2289,7 @@ public:
 	int32 MIsland;
 	int32 MCollisionGroup;
 	EObjectStateType MObjectState;
-	bool MDisabled;
+	//bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
 	bool MInitialized;
@@ -2289,7 +2313,7 @@ public:
 		MIsland = INDEX_NONE;
 		MCollisionGroup = 0;
 		MObjectState = EObjectStateType::Uninitialized;
-		MDisabled = false;
+		//MDisabled = false;
 		MToBeRemovedOnFracture = false;
 		MGravityEnabled = false;
 		MInitialized = false;
@@ -2310,7 +2334,7 @@ public:
 			MIsland = InParticle.Island();
 			MCollisionGroup = InParticle.CollisionGroup();
 			MObjectState = InParticle.ObjectState();
-			MDisabled = InParticle.Disabled();
+			//MDisabled = InParticle.Disabled();
 			MToBeRemovedOnFracture = InParticle.ToBeRemovedOnFracture();
 			MGravityEnabled = InParticle.IsGravityEnabled();
 			MInitialized = InParticle.IsInitialized();

@@ -239,79 +239,143 @@ inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleMassProps& Data)
 	return Ar;
 }
 
-struct FParticleMisc
+class FParticleDynamicMisc
 {
-	int32 CollisionGroup;
-	EObjectStateType ObjectState;
-	FSpatialAccelerationIdx SpatialIdx;
-
-	uint8 bDisabled : 1;
-	uint8 bGravityEnabled : 1;
-
+public:
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << CollisionGroup;
-		Ar << ObjectState;
-		bool Disabled = bDisabled;
-		Ar << Disabled;
-		bDisabled = Disabled;
-
-		bool GravityEnabled = bGravityEnabled;
-		Ar << GravityEnabled;
-		bGravityEnabled = GravityEnabled;
+		Ar << MLinearEtherDrag;
+		Ar << MAngularEtherDrag;
+		Ar << MObjectState;
+		Ar << MGravityEnabled;
 	}
 
-	bool operator==(const FParticleMisc& Other) const
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
 	{
-		return CollisionGroup == Other.CollisionGroup
-			&& ObjectState == Other.ObjectState
-			&& SpatialIdx == Other.SpatialIdx
-			&& bDisabled == Other.bDisabled
-			&& bGravityEnabled == Other.bGravityEnabled;
+		SetLinearEtherDrag(Other.LinearEtherDrag());
+		SetAngularEtherDrag(Other.AngularEtherDrag());
+		SetObjectState(Other.ObjectState());
+		SetGravityEnabled(Other.GravityEnabled());
+		SetCollisionGroup(Other.CollisionGroup());
 	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return ObjectState() == Other.ObjectState()
+			&& LinearEtherDrag() == Other.LinearEtherDrag()
+			&& AngularEtherDrag() == Other.AngularEtherDrag()
+			&& GravityEnabled() == Other.GravityEnabled()
+			&& CollisionGroup() == Other.CollisionGroup();
+	}
+
+	bool operator==(const FParticleDynamicMisc& Other) const
+	{
+		return IsEqual(Other);
+	}
+
+	FReal LinearEtherDrag() const { return MLinearEtherDrag; }
+	void SetLinearEtherDrag(FReal InLinearEtherDrag) { MLinearEtherDrag = InLinearEtherDrag; }
+
+	FReal AngularEtherDrag() const { return MAngularEtherDrag; }
+	void SetAngularEtherDrag(FReal InAngularEtherDrag) { MAngularEtherDrag = InAngularEtherDrag; }
+
+	EObjectStateType ObjectState() const { return MObjectState; }
+	void SetObjectState(EObjectStateType InState){ MObjectState = InState; }
+
+	bool GravityEnabled() const { return MGravityEnabled; }
+	void SetGravityEnabled(bool InGravity){ MGravityEnabled = InGravity; }
+
+	int32 CollisionGroup() const { return MCollisionGroup; }
+	void SetCollisionGroup(int32 InGroup){ MCollisionGroup = InGroup; }
+
+
+private:
+	FReal MLinearEtherDrag;
+	FReal MAngularEtherDrag;
+	int32 MCollisionGroup;
+
+	EObjectStateType MObjectState;
+	bool MGravityEnabled;
 };
 
-inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleMisc& Data)
+inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleDynamicMisc& Data)
 {
 	Data.Serialize(Ar);
 	return Ar;
 }
 
-struct FParticleNonFrequentData
+class FParticleNonFrequentData
 {
+public:
 	FParticleNonFrequentData()
-		: UserData(nullptr)
+	: MUserData(nullptr)
 	{
 
 	}
 
-	TSharedPtr<FImplicitObject,ESPMode::ThreadSafe> Geometry;
-	void* UserData;
-	FUniqueIdx UniqueIdx;
-	FReal LinearEtherDrag;
-	FReal AngularEtherDrag;
-
-#if CHAOS_CHECKED
-	FName DebugName;
-#endif
-
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << Geometry;
+		Ar << MGeometry;
+	}
+
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
+	{
+		SetGeometry(Other.SharedGeometryLowLevel());
+		SetUserData(Other.UserData());
+		SetUniqueIdx(Other.UniqueIdx());
+		SetSpatialIdx(Other.SpatialIdx());
+#if CHAOS_CHECKED
+		SetDebugName(Other.DebugName());
+#endif
+	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return Geometry() == Other.SharedGeometryLowLevel()
+			&& UserData() == Other.UserData()
+			&& UniqueIdx() == Other.UniqueIdx()
+			&& SpatialIdx() == Other.SpatialIdx()
+#if CHAOS_CHECKED
+			&& DebugName() == Other.DebugName()
+#endif
+			;
 	}
 
 	bool operator==(const FParticleNonFrequentData& Other) const
 	{
-		return Geometry == Other.Geometry
-			&& UserData == Other.UserData
-			&& UniqueIdx == Other.UniqueIdx
-			&& LinearEtherDrag == Other.LinearEtherDrag
-			&& AngularEtherDrag == Other.AngularEtherDrag
-#if CHAOS_CHECKED
-			&& DebugName == Other.DebugName
-#endif
-			;
+		return IsEqual(Other);
 	}
+
+	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& Geometry() const { return MGeometry;}
+	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MGeometry;}
+	void SetGeometry(const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& InGeometry) { MGeometry = InGeometry;}
+
+	void* UserData() const { return MUserData; }
+	void SetUserData(void* InData){ MUserData = InData;}
+
+	const FUniqueIdx& UniqueIdx() const { return MUniqueIdx; }
+	void SetUniqueIdx(FUniqueIdx InIdx){ MUniqueIdx = InIdx; }
+
+	FSpatialAccelerationIdx SpatialIdx() const { return MSpatialIdx; }
+	void SetSpatialIdx(FSpatialAccelerationIdx InIdx){ MSpatialIdx = InIdx; }
+
+#if CHAOS_CHECKED
+	FName DebugName() const { return MDebugName; }
+	void SetDebugName(FName InName) { MDebugName = InName; }
+#endif
+private:
+	TSharedPtr<FImplicitObject,ESPMode::ThreadSafe> MGeometry;
+	void* MUserData;
+	FUniqueIdx MUniqueIdx;
+	FSpatialAccelerationIdx MSpatialIdx;
+
+#if CHAOS_CHECKED
+	FName MDebugName;
+#endif
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleNonFrequentData& Data)
