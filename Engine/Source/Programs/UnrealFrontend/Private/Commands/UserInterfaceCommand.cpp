@@ -114,6 +114,8 @@ void FUserInterfaceCommand::Run(  )
 void FUserInterfaceCommand::InitializeSlateApplication( const FString& LayoutIni )
 {
 	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
+	FSlateApplication::InitHighDPI(true);
+
 	FGlobalTabmanager::Get()->SetApplicationTitle(NSLOCTEXT("UnrealFrontend", "AppTitle", "Unreal Frontend"));
 
 	// load widget reflector
@@ -158,7 +160,6 @@ void FUserInterfaceCommand::InitializeSlateApplication( const FString& LayoutIni
 	UserInterfaceCommand::ApplicationLayout = FLayoutSaveRestore::LoadFromConfig(LayoutIni, NewLayout);
 	FGlobalTabmanager::Get()->RestoreFrom(UserInterfaceCommand::ApplicationLayout.ToSharedRef(), TSharedPtr<SWindow>());
 }
-
 
 void FUserInterfaceCommand::ShutdownSlateApplication( const FString& LayoutIni )
 {
