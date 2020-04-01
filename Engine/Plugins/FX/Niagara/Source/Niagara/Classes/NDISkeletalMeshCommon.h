@@ -393,7 +393,7 @@ struct FSkelMeshVertexAccessor
 	FORCEINLINE FLinearColor GetVertexColor(FSkeletalMeshLODRenderData* LODData, int32 VertexIdx)const
 	{
 		check(LODData);
-		return LODData.StaticVertexBuffers.ColorVertexBuffer.VertexColor(VertexIdx);
+		return LODData->StaticVertexBuffers.ColorVertexBuffer.VertexColor(VertexIdx);
 	}
 };
 
