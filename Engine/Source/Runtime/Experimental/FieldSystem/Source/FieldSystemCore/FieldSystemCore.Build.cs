@@ -16,6 +16,8 @@ namespace UnrealBuildTool.Rules
 					"Chaos"
                 }
             );
-        }
+
+			PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
+		}
     }
 }
