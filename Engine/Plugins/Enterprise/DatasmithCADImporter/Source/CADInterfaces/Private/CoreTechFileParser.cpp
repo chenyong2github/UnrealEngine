@@ -978,6 +978,7 @@ bool FCoreTechFileParser::ReadComponent(CT_OBJECT_ID ComponentId, uint32 Default
 			}
 		}
 		GetInstancesAndBodies(ComponentId, Instances, Bodies);
+		SetCoreTechTessellationState(ImportParameters);
 	}
 
 	for (CT_OBJECT_ID InstanceId : Instances)
