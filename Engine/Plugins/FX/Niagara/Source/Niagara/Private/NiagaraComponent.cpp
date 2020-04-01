@@ -1934,7 +1934,7 @@ void UNiagaraComponent::ApplyOverridesToParameterStore()
 		}
 	}
 
-	EnsureRenderDataConsistent();
+	EnsureOverrideParametersConsistent();
 }
 
 #endif
