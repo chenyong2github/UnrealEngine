@@ -474,14 +474,7 @@ namespace D3D12RHI
 		GIsCriticalError = true;
 		GIsGPUCrashed = true;
 
-		// Check GPU heartbeat - will trace Aftermath state
-		if (GDynamicRHI)
-		{
-			GDynamicRHI->CheckGpuHeartbeat();
-		}
-
-		// Log RHI independent breadcrumbing data
-		LogBreadcrumbData(InDevice);
+		LogBreadcrumbData(Device);
 
 		FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
 #if PLATFORM_WINDOWS
