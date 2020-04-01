@@ -32,12 +32,6 @@ class DATAPREPCORE_API UDataprepAsset : public UDataprepAssetInterface
 	GENERATED_BODY()
 
 public:
-	UDataprepAsset()
-		: ActionCountBeforeUndoRedo(INDEX_NONE)
-	{
-	}
-
-
 	virtual ~UDataprepAsset() = default;
 
 	// UObject interface
@@ -243,6 +237,6 @@ private:
 
 	FOnStepObjectsAboutToBeRemoved OnStepObjectsAboutToBeRemoved;
 
-	/** Used to identify addition/removal of actions on undo/redo */
-	int32 ActionCountBeforeUndoRedo;
+	/** Used on undo/redo to detect addition/removal compared to change in execution order of actions */
+	FString SignatureBeforeUndoRedo;
 };
