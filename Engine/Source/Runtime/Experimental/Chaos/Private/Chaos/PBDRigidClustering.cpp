@@ -851,8 +851,8 @@ namespace Chaos
 							NewCluster->SetW(ClusteredParticle->W());
 							NewCluster->SetPreV(ClusteredParticle->PreV());
 							NewCluster->SetPreW(ClusteredParticle->PreW());
-							NewCluster->SetP(ClusteredParticle->X());
-							NewCluster->SetQ(ClusteredParticle->R());
+							NewCluster->SetP(NewCluster->X());
+							NewCluster->SetQ(NewCluster->R());
 
 							ActivatedChildren.Add(NewCluster);
 						}
