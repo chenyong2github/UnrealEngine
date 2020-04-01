@@ -1290,7 +1290,15 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 			USCS_Node* ParentSCSNode = nullptr;
 			if (FirstAttachParent)
 			{
-				ParentSCSNode = InstanceComponentToNodeMap.FindChecked(FirstAttachParent);
+				// If we are using the root template then it will not be in the component node map, the scene component will be
+				if(SceneComponent && (SceneComponent->GetAttachParent() == nullptr || FirstAttachParent == RootTemplate))
+				{
+					ParentSCSNode = InstanceComponentToNodeMap.FindChecked(SceneComponent);
+				}
+				else
+				{
+					ParentSCSNode = InstanceComponentToNodeMap.FindChecked(FirstAttachParent);
+				}
 			}
 			else
 			{
