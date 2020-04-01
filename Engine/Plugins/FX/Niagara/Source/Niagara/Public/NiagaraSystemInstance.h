@@ -279,6 +279,11 @@ public:
 	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
 
 	const FString& GetCrashReporterTag()const;
+
+#if WITH_EDITOR
+	void RaiseNeedsUIResync();
+#endif
+
 private:
 
 	void DestroyDataInterfaceInstanceData();

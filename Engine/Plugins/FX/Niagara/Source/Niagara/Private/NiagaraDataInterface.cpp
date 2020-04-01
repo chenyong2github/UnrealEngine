@@ -7,6 +7,7 @@
 #include "NiagaraTypes.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraShader.h"
+#include "NiagaraComponent.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterface"
 
@@ -40,6 +41,14 @@ void UNiagaraDataInterface::PostLoad()
 	Super::PostLoad();
 	SetFlags(RF_Public);
 }
+
+#if WITH_EDITOR
+void UNiagaraDataInterface::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	RefreshErrors();
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
 
 bool UNiagaraDataInterface::CopyTo(UNiagaraDataInterface* Destination) const 
 {
@@ -79,6 +88,44 @@ bool UNiagaraDataInterface::CopyToInternal(UNiagaraDataInterface* Destination) c
 }
 
 #if WITH_EDITOR
+void UNiagaraDataInterface::GetFeedback(UNiagaraSystem* InAsset, UNiagaraComponent* InComponent, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
+{
+	OutErrors = GetErrors();
+	OutWarnings.Empty();
+	OutInfo.Empty();
+}
+
+void UNiagaraDataInterface::GetFeedback(UNiagaraDataInterface* DataInterface, TArray<FNiagaraDataInterfaceError>& Errors, TArray<FNiagaraDataInterfaceFeedback>& Warnings,
+	TArray<FNiagaraDataInterfaceFeedback>& Info)
+{
+	if (!DataInterface)
+		return;
+
+	UNiagaraSystem* Asset = nullptr;
+	UNiagaraComponent* Component = nullptr;
+
+	// Walk the hierarchy to attempt to get the system and/or component
+	UObject* Curr = DataInterface->GetOuter();
+	while (Curr)
+	{
+		Asset = Cast<UNiagaraSystem>(Curr);
+		if (Asset)
+		{
+			break;
+		}
+
+		Component = Cast<UNiagaraComponent>(Curr);
+		if (Component)
+		{
+			Asset = Component->GetAsset();
+			break;
+		}
+
+		Curr = Curr->GetOuter();
+	}
+
+	DataInterface->GetFeedback(Asset, Component, Errors, Warnings, Info);
+}
 
 void UNiagaraDataInterface::ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors)
 {
@@ -99,6 +146,16 @@ void UNiagaraDataInterface::ValidateFunction(const FNiagaraFunctionSignature& Fu
 			OutValidationErrors.Add(FText::Format(LOCTEXT("Unknown DI Function", "Unknown Data Interface function called!\nThe API for this data interface has likely changed and you need to update your graphs.\nInterface: {0}\nFunction: {1}\n"), FText::FromString(GetClass()->GetName()), FText::FromString(Function.GetName())));
 		}
 	}
+}
+
+void UNiagaraDataInterface::RefreshErrors()
+{
+	OnErrorsRefreshedDelegate.Broadcast();
+}
+
+FSimpleMulticastDelegate& UNiagaraDataInterface::OnErrorsRefreshed()
+{
+	return OnErrorsRefreshedDelegate;
 }
 
 #endif
