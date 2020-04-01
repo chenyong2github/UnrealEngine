@@ -79,6 +79,7 @@ bool FPhysicsAssetEditorAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Outpu
 	if (Simulation != nullptr)
 	{
 		Simulation->SetSolverIterations(
+			SolverIterations.FixedTimeStep,
 			SolverIterations.SolverIterations,
 			SolverIterations.JointIterations,
 			SolverIterations.CollisionIterations,

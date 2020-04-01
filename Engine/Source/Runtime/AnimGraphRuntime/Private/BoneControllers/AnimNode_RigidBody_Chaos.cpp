@@ -470,6 +470,7 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 			const FVector SimSpaceGravity = WorldVectorToSpaceNoScaleChaos(SimulationSpace, WorldSpaceGravity, CompWorldSpaceTM, BaseBoneTM);
 
 			PhysicsSimulation->SetSolverIterations(
+				SolverIterations.FixedTimeStep,
 				SolverIterations.SolverIterations,
 				SolverIterations.JointIterations,
 				SolverIterations.CollisionIterations,
@@ -478,6 +479,7 @@ void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpac
 				SolverIterations.CollisionPushOutIterations
 			);
 			PhysicsSimulation->SetSolverIterations(
+				SolverIterations.FixedTimeStep,
 				OverrideSolverIterations.SolverIterations,
 				OverrideSolverIterations.JointIterations,
 				OverrideSolverIterations.CollisionIterations,
@@ -819,6 +821,7 @@ void FAnimNode_RigidBody_Chaos::InitPhysics(const UAnimInstance* InAnimInstance)
 
 		SolverIterations = UsePhysicsAsset->SolverIterations;
 		PhysicsSimulation->SetSolverIterations(
+			SolverIterations.FixedTimeStep,
 			SolverIterations.SolverIterations,
 			SolverIterations.JointIterations,
 			SolverIterations.CollisionIterations,

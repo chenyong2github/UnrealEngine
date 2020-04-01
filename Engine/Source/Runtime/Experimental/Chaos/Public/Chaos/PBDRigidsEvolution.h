@@ -467,19 +467,35 @@ class FPBDRigidsEvolutionBase
 		}
 	}
 
-	void PrepareConstraints(const FReal Dt)
+	void PrepareTick()
 	{
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->PrepareConstraints(Dt);
+			ConstraintRule->PrepareTick();
 		}
 	}
 
-	void UnprepareConstraints(const FReal Dt)
+	void UnprepareTick()
 	{
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->UnprepareConstraints(Dt);
+			ConstraintRule->UnprepareTick();
+		}
+	}
+
+	void PrepareIteration(const FReal Dt)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->PrepareIteration(Dt);
+		}
+	}
+
+	void UnprepareIteration(const FReal Dt)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->UnprepareIteration(Dt);
 		}
 	}
 
