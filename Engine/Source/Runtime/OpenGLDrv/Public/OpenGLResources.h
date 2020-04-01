@@ -420,6 +420,19 @@ public:
 	/** Needed on OS X to force a rebind of the texture buffer to the texture name to workaround radr://18379338 */
 	uint64 ModificationCount;
 
+	TOpenGLBuffer()
+		: Resource(0)
+		, ModificationCount(0)
+		, bIsLocked(false)
+		, bIsLockReadOnly(false)
+		, bStreamDraw(false)
+		, bLockBufferWasAllocated(false)
+		, LockSize(0)
+		, LockOffset(0)
+		, LockBuffer(NULL)
+		, RealSize(0)
+	{ }
+
 	TOpenGLBuffer(uint32 InStride,uint32 InSize,uint32 InUsage,
 		const void *InData = NULL, bool bStreamedDraw = false, GLuint ResourceToUse = 0, uint32 ResourceSize = 0)
 	: BaseType(InStride,InSize,InUsage)
@@ -883,6 +896,9 @@ private:
 class FOpenGLBaseVertexBuffer : public FRHIVertexBuffer
 {
 public:
+	FOpenGLBaseVertexBuffer() : ZeroStrideVertexBuffer(0)
+	{}
+
 	FOpenGLBaseVertexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIVertexBuffer(InSize,InUsage), ZeroStrideVertexBuffer(0)
 	{
 		if(!(FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) && InUsage & BUF_ZeroStride )
@@ -1003,6 +1019,9 @@ public:
 class FOpenGLBaseIndexBuffer : public FRHIIndexBuffer
 {
 public:
+	FOpenGLBaseIndexBuffer()
+	{}
+
 	FOpenGLBaseIndexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIIndexBuffer(InStride,InSize,InUsage)
 	{
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
@@ -1943,6 +1962,7 @@ public:
 
 	/** Needed on OS X to force a rebind of the texture buffer to the texture name to workaround radr://18379338 */
 	FVertexBufferRHIRef VertexBuffer;
+	FIndexBufferRHIRef IndexBuffer;
 	uint64 ModificationVersion;
 	uint8 Format;
 
@@ -1955,6 +1975,23 @@ public:
 	,	OpenGLRHI(InOpenGLRHI)
 	,	OwnsResource(true)
 	{}
+
+	FOpenGLShaderResourceView(FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIIndexBuffer* InIndexBuffer)
+		: Resource(InResource)
+		, Target(InTarget)
+		, LimitMip(-1)
+		, IndexBuffer(InIndexBuffer)
+		, ModificationVersion(0)
+		, Format(0)
+		, OpenGLRHI(InOpenGLRHI)
+		, OwnsResource(true)
+	{
+		if (IndexBuffer)
+		{
+			FOpenGLIndexBuffer* IB = (FOpenGLIndexBuffer*)IndexBuffer.GetReference();
+			ModificationVersion = IB->ModificationCount;
+		}
+	}
 
 	FOpenGLShaderResourceView( FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIVertexBuffer* InVertexBuffer, uint8 InFormat )
 	:	Resource(InResource)
@@ -1984,12 +2021,6 @@ public:
 	{}
 
 	virtual ~FOpenGLShaderResourceView( void );
-
-	void SetGLParameters(GLuint InResource, GLenum InTarget)
-	{
-		Target = InTarget;
-		Resource = InResource;
-	}
 
 protected:
 	FOpenGLDynamicRHI* OpenGLRHI;
