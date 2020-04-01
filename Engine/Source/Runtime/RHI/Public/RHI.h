@@ -426,6 +426,9 @@ extern RHI_API TRHIGlobal<int64> GMaxBufferDimensions;
 /** The maximum size allowed for 3D textures in all three dimensions. */
 extern RHI_API TRHIGlobal<int32> GMaxVolumeTextureDimensions;
 
+/** Whether RW texture buffers are supported */
+extern RHI_API bool GRHISupportsRWTextureBuffers;
+
 FORCEINLINE uint64 GetMaxBufferDimension()
 {
 	return GMaxBufferDimensions;

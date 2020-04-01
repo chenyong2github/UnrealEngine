@@ -750,7 +750,8 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		InstanceGPUTransformsBuffer.Initialize(3*4*sizeof(float), CPUInstancesCount, BUF_Static);
 		RayTracingInstance.InstanceGPUTransformsSRV = InstanceGPUTransformsBuffer.SRV;
 
-		FNiagaraDrawIndirectArgsGenCS::FPermutationDomain PermutationVector;
+		FNiagaraGPURayTracingTransformsCS::FPermutationDomain PermutationVector;
+
 		TShaderMapRef<FNiagaraGPURayTracingTransformsCS> GPURayTracingTransformsCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 		RHICmdList.SetComputeShader(GPURayTracingTransformsCS.GetComputeShader());
 
