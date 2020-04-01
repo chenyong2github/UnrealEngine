@@ -44,7 +44,7 @@ namespace ChaosTest {
 			auto AlongZTest = [&](const TVec3<T>& Scale)
 			{
 				TArray<T> HeightsCopy = Heights;
-				THeightField<T> Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
+				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
 				//test straight down raycast
@@ -92,7 +92,7 @@ namespace ChaosTest {
 			auto AlongXTest = [&](const TVec3<T>& Scale)
 			{
 				TArray<T> HeightsCopy = Heights;
-				THeightField<T> Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
+				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
 				//test along x axis
@@ -134,7 +134,7 @@ namespace ChaosTest {
 			auto AlongYTest = [&](const TVec3<T>& Scale)
 			{
 				TArray<T> HeightsCopy = Heights;
-				THeightField<T> Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
+				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
 				//test along y axis
@@ -199,7 +199,7 @@ namespace ChaosTest {
 			auto AlongXYTest = [&](const TVec3<T>& Scale)
 			{
 				TArray<T> HeightsCopy = Heights2;
-				THeightField<T> Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
+				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
 				//test along x-y axis
@@ -236,7 +236,7 @@ namespace ChaosTest {
 				//Pick cells and shoot ray at them
 				//This should always succeed because 0,0 is the lowest and n,n is the heighest
 				TArray<T> HeightsCopy = Heights2;
-				THeightField<T> Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
+				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
 				T TOI;
