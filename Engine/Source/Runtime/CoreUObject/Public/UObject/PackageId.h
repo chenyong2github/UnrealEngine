@@ -38,6 +38,11 @@ public:
 		return Id;
 	}
 
+	inline bool operator<(FPackageId Other) const
+	{
+		return Id < Other.Id;
+	}
+
 	inline bool operator==(FPackageId Other) const
 	{
 		return Id == Other.Id;
