@@ -459,6 +459,13 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 
 #if WER_CUSTOM_REPORTS
 
+/** Implement platform specific static cleanup function */
+void FGenericCrashContext::CleanupPlatformSpecificFiles()
+{
+	FString CrashVideoPath = FPaths::GameLogDir() / TEXT("CrashVideo.avi");
+	IFileManager::Get().Delete(*CrashVideoPath);
+}
+
 static FCriticalSection EnsureLock;
 static bool bReentranceGuard = false;
 

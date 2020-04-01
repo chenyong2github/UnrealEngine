@@ -1622,12 +1622,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	{
 		GetDerivedDataCacheRef().NotifyBootComplete();
 	}
-
-	// Manually delete any potential leftover crash videos in case we can't access the module
-	// because the crash reporter will upload any leftover crash video from last session
-	FString CrashVideoPath = FPaths::ProjectLogDir() + TEXT("CrashVideo.avi");
-	IFileManager::Get().Delete(*CrashVideoPath);
-
+	
 	// register the engine with the travel and network failure broadcasts
 	// games can override these to provide proper behavior in each error case
 	OnTravelFailure().AddUObject(this, &UEngine::HandleTravelFailure);
