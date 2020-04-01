@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "CoreMinimal.h"
 #include "Misc/Crc.h"
 #include "GeometryCollection/ManagedArray.h"

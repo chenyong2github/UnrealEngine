@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "CoreMinimal.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 

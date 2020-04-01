@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/ParticleHandle.h"
 

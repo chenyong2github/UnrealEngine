@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/ParticleHandle.h"
 
 // @todo(ccaulfield): move level/shock system out of coloring
