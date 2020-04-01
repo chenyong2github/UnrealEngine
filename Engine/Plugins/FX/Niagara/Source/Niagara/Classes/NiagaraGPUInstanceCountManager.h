@@ -21,7 +21,7 @@ public:
 	int32 Value = 0;
 };
 
-FORCEINLINE uint32 GetTypeHash(const FNiagaraDrawIndirectArgsGenCS::FArgGenTaskInfo& Info)
+FORCEINLINE uint32 GetTypeHash(const FNiagaraDrawIndirectArgGenTaskInfo& Info)
 {
 	return HashCombine(Info.InstanceCountBufferOffset, HashCombine(Info.NumIndicesPerInstance, Info.StartIndexLocation));
 }
@@ -96,7 +96,7 @@ protected:
 	int32 AllocatedDrawIndirectArgs = 0;
 
 	/** The list of all draw indirected tasks that are to be run in UpdateDrawIndirectBuffer() */
-	typedef FNiagaraDrawIndirectArgsGenCS::FArgGenTaskInfo FArgGenTaskInfo;
+	typedef FNiagaraDrawIndirectArgGenTaskInfo FArgGenTaskInfo;
 
 	TArray<FArgGenTaskInfo> DrawIndirectArgGenTasks;
 	/** The map between each task FArgGenTaskInfo and entry offset from DrawIndirectArgGenTasks. Used to reuse entries. */
