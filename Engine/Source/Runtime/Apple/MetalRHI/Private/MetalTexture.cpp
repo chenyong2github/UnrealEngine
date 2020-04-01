@@ -1361,10 +1361,12 @@ void* FMetalSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode 
 			else
 			{
 #if PLATFORM_MAC
-				GetMetalDeviceContext().SynchronizeTexture(Texture, ArrayIndex, MipIndex);
-				
-				//kick the current command buffer.
-				GetMetalDeviceContext().SubmitCommandBufferAndWait();
+				if((GPUReadback & EMetalGPUReadbackFlags::ReadbackRequestedAndComplete) != EMetalGPUReadbackFlags::ReadbackRequestedAndComplete)
+				{
+					// A previous texture sync has not been done, need the data now, request texture sync and kick the current command buffer.
+					GetMetalDeviceContext().SynchronizeTexture(Texture, ArrayIndex, MipIndex);
+					GetMetalDeviceContext().SubmitCommandBufferAndWait();
+				}
 #endif
 				
 				// This block breaks the texture atlas system in Ocean, which depends on nonzero strides coming back from compressed textures. Turning off.
