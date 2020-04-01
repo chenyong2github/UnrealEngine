@@ -205,6 +205,7 @@ private:
 		TRefCountPtr<ID3D12GraphicsCommandList>	CommandList;		// Raw D3D command list pointer
 #if PLATFORM_WINDOWS
 		TRefCountPtr<ID3D12GraphicsCommandList1> CommandList1;
+		TRefCountPtr<ID3D12GraphicsCommandList2> CommandList2;
 #endif
 #if D3D12_RHI_RAYTRACING
 		TRefCountPtr<ID3D12GraphicsCommandList4> RayTracingCommandList;
@@ -406,6 +407,17 @@ public:
 	{
 		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE));
 		return CommandListData->CommandList1.GetReference();
+	}
+
+	ID3D12GraphicsCommandList2* GraphicsCommandList2() const
+	{
+		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE));
+		return CommandListData->CommandList2.GetReference();
+	}
+
+	FD3D12CommandListManager* GetCommandListManager() const
+	{
+		return CommandListData->CommandListManager;
 	}
 #endif
 
