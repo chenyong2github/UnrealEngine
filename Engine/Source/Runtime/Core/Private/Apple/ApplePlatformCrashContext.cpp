@@ -7,6 +7,8 @@
 #include "Apple/ApplePlatformCrashContext.h"
 #include "Apple/ApplePlatformSymbolication.h"
 #include "Containers/StringConv.h"
+#include "HAL/FileManager.h"
+#include "Misc/Paths.h"
 #include "CoreGlobals.h"
 
 /** Implement platform specific static cleanup function */
