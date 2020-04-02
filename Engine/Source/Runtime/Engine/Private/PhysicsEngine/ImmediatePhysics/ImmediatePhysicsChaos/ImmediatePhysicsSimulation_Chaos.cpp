@@ -200,7 +200,7 @@ namespace ImmediatePhysics_Chaos
 				DebugDrawConstraints(3, 3, 1.0f);
 			});
 		Collisions.SetPostApplyCallback(
-			[this](const float Dt, const TArray<TPBDCollisionConstraintHandle<float, 3>*>& InConstraintHandles)
+			[this](const float Dt, const TArray<FPBDCollisionConstraintHandle*>& InConstraintHandles)
 			{
 				if (ChaosImmediate_DebugDrawCollisions == 4)
 				{
@@ -209,7 +209,7 @@ namespace ImmediatePhysics_Chaos
 				DebugDrawDynamicParticles(4, 4, FColor(128, 128, 0));
 			});
 		Collisions.SetPostApplyPushOutCallback(
-			[this](const float Dt, const TArray<TPBDCollisionConstraintHandle<float, 3>*>& InConstraintHandles, bool bRequiresAnotherIteration)
+			[this](const float Dt, const TArray<FPBDCollisionConstraintHandle*>& InConstraintHandles, bool bRequiresAnotherIteration)
 			{
 				if (ChaosImmediate_DebugDrawCollisions == 4)
 				{

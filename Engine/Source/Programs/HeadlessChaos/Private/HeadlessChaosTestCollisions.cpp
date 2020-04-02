@@ -17,9 +17,9 @@
 #define SMALL_THRESHOLD 1e-4
 
 #define RESET_PQ(Particle) Particle->P() = Particle->X(); Particle->Q() = Particle->R()
-#define INVARIANT_XR_START(Particle) TVector<T,3> InvariantPreX_##Particle = Particle->X(); TRotation<T,3> InvariantPreR_##Particle = Particle->R()
+#define INVARIANT_XR_START(Particle) TVector<T, 3> InvariantPreX_##Particle = Particle->X(); TRotation<T, 3> InvariantPreR_##Particle = Particle->R()
 #define INVARIANT_XR_END(Particle) EXPECT_TRUE(InvariantPreX_##Particle.Equals(Particle->X())); EXPECT_TRUE(InvariantPreR_##Particle.Equals(Particle->R()))
-#define INVARIANT_VW_START(Particle) TVector<T,3> InvariantPreV_##Particle = Particle->V(); TVector<T,3> InvariantPreW_##Particle = Particle->W()
+#define INVARIANT_VW_START(Particle) TVector<T, 3> InvariantPreV_##Particle = Particle->V(); TVector<T, 3> InvariantPreW_##Particle = Particle->W()
 #define INVARIANT_VW_END(Particle) EXPECT_TRUE(InvariantPreV_##Particle.Equals(Particle->V())); EXPECT_TRUE(InvariantPreW_##Particle.Equals(Particle->W()))
 
 namespace ChaosTest {
@@ -55,17 +55,17 @@ namespace ChaosTest {
 		Box2->Q() = Box2->R();
 		Box2->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
-		TPBDCollisionConstraintAccessor<T, 3> Collisions(Particles, Collided, PhysicsMaterials, 1, 1, T(0));
+		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, 1, 1, T(0));
 		Collisions.ComputeConstraints(0.f);
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
-		TPBDCollisionConstraints<T, 3>::FConstraintBase& Constraint = Collisions.GetConstraint(0);
+		FCollisionConstraintBase& Constraint = Collisions.GetConstraint(0);
 		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
 		{
 			//Question: non dynamics don't have collision particles, seems wrong if the levelset is dynamic and the static is something like a box
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
-		Collisions.UpdateLevelsetConstraint(*Constraint.template As<TPBDCollisionConstraints<T,3>::FPointContactConstraint>());
+		Collisions.UpdateLevelsetConstraint(*Constraint.template As<FPBDCollisionConstraints::FPointContactConstraint>());
 
 		EXPECT_EQ(Constraint.Particle[0], Box2);
 		EXPECT_EQ(Constraint.Particle[1], Box1);
@@ -88,7 +88,7 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&Collided);
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 
-		auto Box1 = AppendDynamicParticleConvexBox<T>(Particles, TVector<T,3>(1.f) );
+		auto Box1 = AppendDynamicParticleConvexBox<T>(Particles, TVector<T, 3>(1.f) );
 		Box1->X() = TVector<T, 3>(0.f);
 		Box1->R() = TRotation<T, 3>(FQuat::Identity);
 		Box1->P() = Box1->X();
@@ -102,12 +102,12 @@ namespace ChaosTest {
 		Box2->Q() = Box2->R();
 		Box2->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
-		TPBDCollisionConstraintAccessor<T, 3> Collisions(Particles, Collided, PhysicsMaterials, 1, 1, T(0));
+		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, 1, 1, T(0));
 		Collisions.ComputeConstraints(0.f);
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
-		TPBDCollisionConstraints<T, 3>::FConstraintBase & Constraint = Collisions.GetConstraint(0);
-		Collisions.UpdateLevelsetConstraint(*Constraint.template As<TPBDCollisionConstraints<T,3>::FPointContactConstraint>());
+		FCollisionConstraintBase & Constraint = Collisions.GetConstraint(0);
+		Collisions.UpdateLevelsetConstraint(*Constraint.template As<FPBDCollisionConstraints::FPointContactConstraint>());
 		
 		EXPECT_EQ(Constraint.Particle[0], Box2);
 		EXPECT_EQ(Constraint.Particle[1], Box1);
@@ -141,17 +141,17 @@ namespace ChaosTest {
 
 		const float Dt = 1 / 24.;
 
-		TPBDCollisionConstraintAccessor<T, 3> Collisions(Particles, Collided, PhysicsMaterials, 2, 5, T(0));
+		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, 2, 5, T(0));
 
 		Collisions.ComputeConstraints(Dt);
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
-		TPBDCollisionConstraints<T, 3>::FConstraintBase & Constraint = Collisions.GetConstraint(0);
+		FCollisionConstraintBase & Constraint = Collisions.GetConstraint(0);
 		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
 		{
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
-		Collisions.UpdateLevelsetConstraint(*Constraint.template As<TPBDCollisionConstraints<T, 3>::FPointContactConstraint>());
+		Collisions.UpdateLevelsetConstraint(*Constraint.template As<FPBDCollisionConstraints::FPointContactConstraint>());
 
 		EXPECT_EQ(Constraint.Particle[0], Box);
 		EXPECT_EQ(Constraint.Particle[1], Floor);
@@ -174,7 +174,7 @@ namespace ChaosTest {
 			{
 				INVARIANT_XR_START(Box);
 				INVARIANT_VW_START(Box);
-				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T,3>*>(), 0, 1);
+				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), 0, 1);
 				INVARIANT_XR_END(Box);
 				INVARIANT_VW_END(Box);
 			}
@@ -211,20 +211,21 @@ namespace ChaosTest {
 
 		const float Dt = 1 / 24.;
 
-		TPBDCollisionConstraintAccessor<T, 3> Collisions(Particles, Collided, PhysicsMaterials, 2, 5, T(0));
+		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, 2, 5, T(0));
 
 		Collisions.ComputeConstraints(Dt);
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
-		TPBDCollisionConstraints<T, 3>::FMultiPointContactConstraint * Constraint = Collisions.GetConstraint(0).template As<TPBDCollisionConstraints<T, 3>::FMultiPointContactConstraint>();
+		FRigidBodyMultiPointContactConstraint * Constraint = Collisions.GetConstraint(0).template As<FRigidBodyMultiPointContactConstraint>();
 		EXPECT_TRUE(Constraint != nullptr);
 
-		Collisions.UpdateManifold(*Constraint);
+		//Collisions.UpdateManifold(*Constraint);
+		Collisions.Update(*Constraint);
 
 		EXPECT_EQ(Constraint->Particle[0], Box);
 		EXPECT_EQ(Constraint->Particle[1], Floor);
 		EXPECT_TRUE(Constraint->GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
-		EXPECT_TRUE(FMath::Abs( Constraint->GetLocation().Z - TVector<T,3>(0,0,-1).Z ) < SMALL_THRESHOLD);
+		EXPECT_TRUE(FMath::Abs( Constraint->GetLocation().Z - TVector<T, 3>(0,0,-1).Z ) < SMALL_THRESHOLD);
 		EXPECT_TRUE(FMath::Abs(Constraint->GetPhi() - T(-1.0)) < SMALL_THRESHOLD);
 
 		{
@@ -280,17 +281,17 @@ namespace ChaosTest {
 
 		const float Dt = 1 / 24.;
 
-		TPBDCollisionConstraintAccessor<T, 3> Collisions(Particles, Collided, PhysicsMaterials, 2, 5, T(0));
+		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, 2, 5, T(0));
 
 		Collisions.ComputeConstraints(Dt);
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
-		TPBDCollisionConstraints<T, 3>::FConstraintBase & Constraint = Collisions.GetConstraint(0);
+		FCollisionConstraintBase & Constraint = Collisions.GetConstraint(0);
 		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
 		{
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
-		Collisions.UpdateLevelsetConstraint(*Constraint.template As<TPBDCollisionConstraints<T,3>::FPointContactConstraint>());
+		Collisions.UpdateLevelsetConstraint(*Constraint.template As<FPBDCollisionConstraints::FPointContactConstraint>());
 
 		EXPECT_EQ(Constraint.Particle[0], Box);
 		EXPECT_EQ(Constraint.Particle[1], Floor);
@@ -313,7 +314,7 @@ namespace ChaosTest {
 			{
 				INVARIANT_XR_START(Box);
 				INVARIANT_VW_START(Box);
-				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T,3>*>(), 0, 1);
+				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), 0, 1);
 				INVARIANT_XR_END(Box);
 				INVARIANT_VW_END(Box);
 			}
@@ -348,17 +349,17 @@ namespace ChaosTest {
 
 		const float Dt = 1 / 24.;
 
-		TPBDCollisionConstraintAccessor<T, 3> Collisions(Particles, Collided, PhysicsMaterials, 2, 5, T(0));
+		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, 2, 5, T(0));
 
 		Collisions.ComputeConstraints(Dt);
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
-		TPBDCollisionConstraints<T, 3>::FConstraintBase & Constraint = Collisions.GetConstraint(0);
+		FCollisionConstraintBase & Constraint = Collisions.GetConstraint(0);
 		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
 		{
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
-		Collisions.UpdateLevelsetConstraint(*Constraint.template As<TPBDCollisionConstraints<T,3>::FPointContactConstraint>());
+		Collisions.UpdateLevelsetConstraint(*Constraint.template As<FPBDCollisionConstraints::FPointContactConstraint>());
 		EXPECT_EQ(Constraint.Particle[0], Box);
 		EXPECT_EQ(Constraint.Particle[1], Floor);
 		EXPECT_TRUE(Constraint.GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
@@ -383,7 +384,7 @@ namespace ChaosTest {
 			{
 				INVARIANT_XR_START(Box);
 				INVARIANT_VW_START(Box);
-				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T,3>*>(), 0, 1);
+				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), 0, 1);
 				INVARIANT_XR_END(Box);
 				INVARIANT_VW_END(Box);
 			}
@@ -424,11 +425,12 @@ namespace ChaosTest {
 
 		float Dt = 1 / 24.;
 
-		TPBDCollisionConstraintAccessor<T, 3> Collisions(Particles, Collided, PhysicsMaterials, 1, 1, T(0));
+		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, 1, 1, T(0));
 		Collisions.ComputeConstraints(Dt);
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
-		TPBDCollisionConstraints<T, 3>::FConstraintBase & Constraint = Collisions.GetConstraint(0);
+		FCollisionConstraintBase & Constraint = Collisions.GetConstraint(0);
+		Collisions.Update(Constraint, 100.0f);
 
 		//Collisions.UpdateLevelsetConstraintGJK(Particles, Constraint);
 		//EXPECT_EQ(Constraint.ParticleIndex, 1);
