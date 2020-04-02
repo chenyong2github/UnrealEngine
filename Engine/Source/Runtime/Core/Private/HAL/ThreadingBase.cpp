@@ -7,6 +7,7 @@
 #include "Misc/CoreStats.h"
 #include "Misc/EventPool.h"
 #include "Misc/LazySingleton.h"
+#include "Misc/Fork.h"
 #include "Templates/Atomic.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformStackWalk.h"
@@ -102,18 +103,20 @@ class FFakeThread : public FRunnableThread
 	/** Thread Id pool */
 	static uint32 ThreadIdCounter;
 
+protected:
+
 	/** Thread is suspended. */
 	bool bIsSuspended;
 
 	/** Runnable object associated with this thread. */
-	FSingleThreadRunnable* Runnable;
+	FSingleThreadRunnable* SingleThreadRunnable;
 
 public:
 
 	/** Constructor. */
 	FFakeThread()
 		: bIsSuspended(false)
-		, Runnable(nullptr)
+		, SingleThreadRunnable(nullptr)
 	{
 		ThreadID = ThreadIdCounter++;
 		// Auto register with single thread manager.
@@ -130,9 +133,9 @@ public:
 	/** Tick one time per frame. */
 	virtual void Tick() override
 	{
-		if (Runnable && !bIsSuspended)
+		if (SingleThreadRunnable && !bIsSuspended)
 		{
-			Runnable->Tick();
+			SingleThreadRunnable->Tick();
 		}
 	}
 
@@ -167,12 +170,24 @@ public:
 		EThreadCreateFlags InCreateFlags = EThreadCreateFlags::None) override
 
 	{
-		Runnable = InRunnable->GetSingleThreadInterface();
-		if (Runnable)
+		ThreadName = InThreadName;
+		ThreadAffinityMask = InThreadAffinityMask;
+
+		SingleThreadRunnable = InRunnable->GetSingleThreadInterface();
+		if (SingleThreadRunnable)
 		{
 			InRunnable->Init();
-		}		
-		return Runnable != nullptr;
+
+			Runnable = InRunnable;
+		}
+		return SingleThreadRunnable != nullptr;
+	}
+
+protected:
+
+	virtual FRunnableThread::ThreadType GetThreadType() const override
+	{
+		return ThreadType::Fake;
 	}
 };
 uint32 FFakeThread::ThreadIdCounter = 0xffff;
@@ -200,16 +215,21 @@ void FThreadManager::RemoveThread(FRunnableThread* Thread)
 
 void FThreadManager::Tick()
 {	
-	if (!FPlatformProcess::SupportsMultithreading())
+	const bool bIsSingleThreadEnvironment = FPlatformProcess::SupportsMultithreading() == false;
+	if (bIsSingleThreadEnvironment)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSingleThreadManager_Tick);
 
 		FScopeLock ThreadsLock(&ThreadsCritical);
 
-		// Tick all registered threads.
+		// Tick all registered fake threads.
 		for (TPair<uint32, FRunnableThread*>& ThreadPair : Threads)
 		{
-			ThreadPair.Value->Tick();
+			// Only fake and forkable threads are ticked by the ThreadManager
+			if( ThreadPair.Value->GetThreadType() != FRunnableThread::ThreadType::Real )
+			{
+				ThreadPair.Value->Tick();
+			}
 		}
 	}
 }
@@ -282,6 +302,21 @@ FThreadManager& FThreadManager::Get()
 	static FThreadManager Singleton;
 	FThreadManager::bIsInitialized = true;
 	return Singleton;
+}
+
+TArray<FRunnableThread*> FThreadManager::GetForkableThreads()
+{
+	TArray<FRunnableThread*> ForkableThreads;
+	FScopeLock Lock(&ThreadsCritical);
+	for (const TPair<uint32, FRunnableThread*>& Pair : Threads)
+	{
+		if (Pair.Value->GetThreadType() == FRunnableThread::ThreadType::Forkable)
+		{
+			ForkableThreads.Add(Pair.Value);
+		}
+	}
+
+	return ForkableThreads;
 }
 
 bool FThreadManager::bIsInitialized = false;
@@ -406,47 +441,55 @@ FRunnableThread* FRunnableThread::Create(
 	uint64 InThreadAffinityMask,
 	EThreadCreateFlags InCreateFlags)
 {
+	bool bCreateRealThread = FPlatformProcess::SupportsMultithreading();
+
 	FRunnableThread* NewThread = nullptr;
-	if (FPlatformProcess::SupportsMultithreading())
+
+	if (bCreateRealThread)
 	{
 		check(InRunnable);
 		// Create a new thread object
 		NewThread = FPlatformProcess::CreateRunnableThread();
-		if (NewThread)
-		{
-			// Call the thread's create method
-			if (NewThread->CreateInternal(InRunnable,ThreadName,InStackSize,InThreadPri,InThreadAffinityMask,InCreateFlags) == false)
-			{
-				// We failed to start the thread correctly so clean up
-				delete NewThread;
-				NewThread = nullptr;
-			}
-		}
 	}
 	else if (InRunnable->GetSingleThreadInterface())
 	{
 		// Create a fake thread when multithreading is disabled.
 		NewThread = new FFakeThread();
-		if (NewThread->CreateInternal(InRunnable,ThreadName,InStackSize,InThreadPri) == false)
-		{
-			// We failed to start the thread correctly so clean up
-			delete NewThread;
-			NewThread = nullptr;
-		}
 	}
 
 	if (NewThread)
 	{
-		TRACE_CREATE_THREAD(NewThread->GetThreadID(), *NewThread->GetThreadName(), InThreadPri);
+		SetupCreatedThread(NewThread, InRunnable, ThreadName, InStackSize, InThreadPri, InThreadAffinityMask, InCreateFlags);
 	}
-#if	STATS
-	if( NewThread )
-	{
-		FStartupMessages::Get().AddThreadMetadata( FName( *NewThread->GetThreadName() ), NewThread->GetThreadID() );
-	}
-#endif // STATS
 
 	return NewThread;
+}
+
+void FRunnableThread::SetupCreatedThread(FRunnableThread*& NewThread, class FRunnable* InRunnable,  const TCHAR* ThreadName, uint32 InStackSize, EThreadPriority InThreadPri, uint64 InThreadAffinityMask, EThreadCreateFlags InCreateFlags)
+{
+	// Call the thread's create method
+	bool bIsValid = NewThread->CreateInternal(InRunnable, ThreadName, InStackSize, InThreadPri, InThreadAffinityMask, InCreateFlags);
+
+	if( bIsValid )
+	{
+		check(NewThread->Runnable);
+		NewThread->PostCreate(InThreadPri);
+	}
+	else
+	{
+		// We failed to start the thread correctly so clean up
+		delete NewThread;
+		NewThread = nullptr;
+	}
+}
+
+void FRunnableThread::PostCreate(EThreadPriority InThreadPriority)
+{
+	TRACE_CREATE_THREAD(GetThreadID(), *GetThreadName(), InThreadPriority);
+
+#if	STATS
+	FStartupMessages::Get().AddThreadMetadata( FName( *GetThreadName() ), GetThreadID() );
+#endif // STATS
 }
 
 void FRunnableThread::SetTls()
@@ -902,4 +945,215 @@ void FTlsAutoCleanup::Register()
 	{
 		RunnableThread->TlsInstances.Add( this );
 	}
+}
+
+//-------------------------------------------------------------------------------
+// FForkableThread
+//-------------------------------------------------------------------------------
+
+/**
+ * This thread starts as a fake thread and gets ticked like it was in a single-threaded environment.
+ * Once it receives the OnPostFork event it creates and holds a real thread that
+ * will cause the RunnableObject to be executed in it's own thread.
+ */
+class FForkableThread : public FFakeThread
+{
+	typedef FFakeThread Super;
+
+private:
+
+	/** Real thread that gets created right after forking */
+	FRunnableThread* RealThread = nullptr;
+
+	/** Cached values to use when the real thread is created post-fork */
+	EThreadPriority CachedPriority = TPri_Normal;
+	uint32 CachedStackSize = 0;
+
+public:
+
+	virtual void Tick() override
+	{
+		// Tick in single-thread mode when the real thread isn't created yet
+		if(RealThread == nullptr)
+		{
+			Super::Tick();
+		}
+	}
+
+	virtual void SetThreadPriority(EThreadPriority NewPriority) override
+	{
+		CachedPriority = NewPriority;
+		
+		if (RealThread)
+		{
+			RealThread->SetThreadPriority(NewPriority);
+		}
+	}
+
+	virtual void Suspend(bool bShouldPause) override
+	{
+		Super::Suspend(bShouldPause);
+
+		if (RealThread)
+		{
+			RealThread->Suspend(bShouldPause);
+		}
+	}
+
+	virtual bool Kill(bool bShouldWait) override
+	{
+		bool bExitedCorrectly = true;
+
+		if (RealThread)
+		{
+			bExitedCorrectly = RealThread->Kill(bShouldWait);
+		}
+
+		Super::Kill(bShouldWait);
+
+		return bExitedCorrectly;
+	}
+
+	virtual void WaitForCompletion() override
+	{
+		if (RealThread)
+		{
+			RealThread->WaitForCompletion();
+		}
+
+		Super::WaitForCompletion();
+	}
+
+	virtual bool CreateInternal(FRunnable* InRunnable, const TCHAR* InThreadName, uint32 InStackSize, EThreadPriority InThreadPri, uint64 InThreadAffinityMask, EThreadCreateFlags InCreateFlags) override
+	{
+		checkf(FForkProcessHelper::SupportsMultithreadingPostFork(), TEXT("ForkableThreads should only be created when -PostForkThreading is enabled"));
+		checkf(FForkProcessHelper::IsForkedMultithreadInstance() == false, TEXT("Once forked we create a real runnable thread instead of a ForkableThread"));
+
+		// Call the fake thread creator
+		bool bCreated = Super::CreateInternal(InRunnable, InThreadName, InStackSize, InThreadPri, InThreadAffinityMask, InCreateFlags);
+
+		// Cache the target values until we create the real thread
+		CachedStackSize = InStackSize;
+		CachedPriority = InThreadPri;
+
+		return bCreated;
+	}
+
+protected:
+
+	virtual void OnPostFork() override
+	{
+		check(FForkProcessHelper::IsForkedMultithreadInstance());
+
+		check(RealThread == nullptr);
+		RealThread = FPlatformProcess::CreateRunnableThread();
+		bool bCreated = RealThread->CreateInternal(Runnable, *GetThreadName(), CachedStackSize, CachedPriority, ThreadAffinityMask, EThreadCreateFlags::None);
+
+		if (bCreated)
+		{
+			RealThread->PostCreate(CachedPriority);
+
+			// Suspend the thread if the fake thread was suspended too
+			//TODO: this lets the thread run for a few cycles before hitting the suspend call...
+			if (bIsSuspended)
+			{
+				RealThread->Suspend(bIsSuspended);
+			}
+		}
+		else
+		{
+			delete RealThread;
+			RealThread = nullptr;
+		}
+	}
+
+	virtual FRunnableThread::ThreadType GetThreadType() const override
+	{
+		return ThreadType::Forkable;
+	}
+};
+
+//-------------------------------------------------------------------------------
+// ForkableThreadHelper
+//-------------------------------------------------------------------------------
+
+bool FForkProcessHelper::bIsForkedMultithreadInstance = false;
+
+void FForkProcessHelper::OnForkingOccured()
+{
+	if( SupportsMultithreadingPostFork() )
+	{
+		bIsForkedMultithreadInstance = true;
+
+		// Use a local list of forkable threads so we don't keep a lock on the global list during thread creation
+		auto ForkableThreads = FThreadManager::Get().GetForkableThreads();
+		for (FRunnableThread* ForkableThread : ForkableThreads)
+		{
+			ForkableThread->OnPostFork();
+		}
+	}
+}
+
+bool FForkProcessHelper::IsForkedMultithreadInstance()
+{
+	return bIsForkedMultithreadInstance;
+}
+
+bool FForkProcessHelper::SupportsMultithreadingPostFork()
+{
+	static bool bSupportsMultithreadingPostFork = FCommandLine::IsInitialized() ? FParse::Param(FCommandLine::Get(), TEXT("PostForkThreading")) : false;
+	return bSupportsMultithreadingPostFork;
+}
+
+FRunnableThread* FForkProcessHelper::CreateForkableThread(class FRunnable* InRunnable, const TCHAR* InThreadName, uint32 InStackSize, EThreadPriority InThreadPri, uint64 InThreadAffinityMask, EThreadCreateFlags InCreateFlags)
+{
+	bool bCreateRealThread = FPlatformProcess::SupportsMultithreading();
+	bool bCreateForkableThread(false);
+
+	// Look for conditions allowing real threads in a non-multithread environment
+	if (bCreateRealThread == false)
+	{
+		if( SupportsMultithreadingPostFork() )
+		{
+			if( IsForkedMultithreadInstance() )
+			{
+				// Already forked, create a real thread immediately
+				bCreateRealThread = true;
+			}
+			else
+			{
+				// We have yet to fork the process, create a forkable thread to handle the fork event
+				bCreateForkableThread = true;
+			}
+		
+		}
+	}
+
+	FRunnableThread* NewThread(nullptr);
+	if (bCreateRealThread)
+	{
+		check(InRunnable);
+		NewThread = FPlatformProcess::CreateRunnableThread();
+	}
+	else if (bCreateForkableThread)
+	{
+		if( InRunnable->GetSingleThreadInterface() )
+		{
+			NewThread = new FForkableThread();
+		}
+	}
+	else
+	{
+		if (InRunnable->GetSingleThreadInterface())
+		{
+			NewThread = new FFakeThread();
+		}
+	}
+
+	if (NewThread)
+	{
+		FRunnableThread::SetupCreatedThread(NewThread, InRunnable, InThreadName, InStackSize, InThreadPri, InThreadAffinityMask, InCreateFlags);
+	}
+
+	return NewThread;
 }
