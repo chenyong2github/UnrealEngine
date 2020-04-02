@@ -86,7 +86,10 @@ FIOSTargetSettingsCustomization::FIOSTargetSettingsCustomization()
 	new (IconNames)FPlatformIconInfo(TEXT("Icon83.5@2x.png"), LOCTEXT("AppIcon_iPadProRetina_iOS9", "iPad Pro Retina iOS9 App Icon"), FText::GetEmpty(), 167, 167, FPlatformIconInfo::Required);
 	new (IconNames)FPlatformIconInfo(TEXT("Icon1024.png"), LOCTEXT("AppIcon_Marketing", "Marketing Icon"), FText::GetEmpty(), 1024, 1024, FPlatformIconInfo::Required);
 
-	new (LaunchImageNames)FPlatformIconInfo(TEXT("LaunchScreenIOS.png"), LOCTEXT("LaunchImageIOS", "Image to be used in as Launch Screen"), FText::GetEmpty(), -1, -1, FPlatformIconInfo::Required);
+	new (LaunchImageNames)FPlatformIconInfo(TEXT("LaunchScreenIOS.png"), LOCTEXT("LaunchImageIOS", "Launch Screen Image"), LOCTEXT("LaunchImageIOSDesc", 
+		"This image is used for the Launch Screen when custom launch screen storyboards are not in use. "
+		"The image is used in both portait and landscape modes and will be uniformly scaled to occupy the full width or height as necessary for of all devices, "
+		"so if your app supports both a square image is recommended. The png file supplied must not have an alpha channel."), -1, -1, FPlatformIconInfo::Required);
 
 	bShowAllProvisions = false;
 	bShowAllCertificates = false;
@@ -1070,7 +1073,7 @@ void FIOSTargetSettingsCustomization::BuildIconSection(IDetailLayoutBuilder& Det
 	}
 
 	// Add the launch images
-	IDetailCategoryBuilder& LaunchImageCategory = DetailLayout.EditCategory(TEXT("Launch Image"));
+	IDetailCategoryBuilder& LaunchImageCategory = DetailLayout.EditCategory(FName("LaunchScreen"));
 	const FVector2D LaunchImageMaxSize(150.0f, 150.0f);
 	for (const FPlatformIconInfo& Info : LaunchImageNames)
 	{
@@ -1136,6 +1139,8 @@ void FIOSTargetSettingsCustomization::BuildImageRow(IDetailLayoutBuilder& Detail
 				SNew(STextBlock)
 				.Text(Info.IconName)
 				.Font(DetailLayout.GetDetailFont())
+				// IconDescription is not used, repurpose for tooltip
+				.ToolTipText(Info.IconDescription)
 			]
 		]
 		.ValueContent()
@@ -1148,7 +1153,6 @@ void FIOSTargetSettingsCustomization::BuildImageRow(IDetailLayoutBuilder& Detail
 			.VAlign(VAlign_Center)
 			[
 				SNew(SExternalImageReference, AutomaticImagePath, TargetImagePath)
-				.FileDescription(Info.IconDescription)
 				.RequiredSize(Info.IconRequiredSize)
 				.MaxDisplaySize(MaxDisplaySize)
 				.DeleteTargetWhenDefaultChosen(true)
