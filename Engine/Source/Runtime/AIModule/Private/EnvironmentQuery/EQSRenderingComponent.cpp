@@ -289,8 +289,15 @@ FPrimitiveSceneProxy* UEQSRenderingComponent::CreateSceneProxy()
 #if  USE_EQS_DEBUGGER
 	if (NewSceneProxy)
 	{
-		EQSRenderingDebugDrawDelegateHelper.InitDelegateHelper(NewSceneProxy);
-		EQSRenderingDebugDrawDelegateHelper.ReregisterDebugDrawDelgate();
+		if (IsInGameThread())
+		{
+			EQSRenderingDebugDrawDelegateHelper.InitDelegateHelper(NewSceneProxy);
+			EQSRenderingDebugDrawDelegateHelper.ReregisterDebugDrawDelgate();
+		}
+		else
+		{
+			UE_LOG(LogEQS, Warning, TEXT("Couldn't register delegate helper on non-game thread"));
+		}
 	}
 #endif
 
