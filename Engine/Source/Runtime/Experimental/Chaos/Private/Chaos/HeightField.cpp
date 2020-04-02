@@ -1700,7 +1700,7 @@ namespace Chaos
 		FlatGrid = TUniformGrid<T, 2>(MinCorner, MaxCorner, Cells);
 	}
 
+	template class THeightField<float>;
 }
 
-template class Chaos::THeightField<float>;
 
