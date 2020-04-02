@@ -20,13 +20,6 @@ public:
 	 * @param InInnerArchive The inner archive to proxy.
 	 */
 	CORE_API FArchiveProxy(FArchive& InInnerArchive);
-	CORE_API ~FArchiveProxy();
-
-	// Non-copyable
-	FArchiveProxy(FArchiveProxy&&) = delete;
-	FArchiveProxy(const FArchiveProxy&) = delete;
-	FArchiveProxy& operator=(FArchiveProxy&&) = delete;
-	FArchiveProxy& operator=(const FArchiveProxy&) = delete;
 
 	virtual FArchive& operator<<(FName& Value) override
 	{
@@ -168,6 +161,11 @@ public:
 		return InnerArchive.Close();
 	}
 
+	virtual bool GetError() override
+	{
+		return InnerArchive.GetError();
+	}
+
 	virtual void MarkScriptSerializationStart(const UObject* Obj) override
 	{
 		InnerArchive.MarkScriptSerializationStart(Obj);
@@ -286,9 +284,9 @@ public:
 		return InnerArchive.GetCacheableArchive();
 	}
 
-	virtual ::FArchiveState& GetInnermostState() override
+	virtual void SetArchiveState(const ::FArchiveState& InState) override
 	{
-		return InnerArchive.GetInnermostState();
+		return InnerArchive.SetArchiveState(InState);
 	}
 
 protected:
