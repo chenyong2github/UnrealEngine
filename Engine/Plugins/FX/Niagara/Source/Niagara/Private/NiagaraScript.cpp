@@ -283,7 +283,7 @@ UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 	, Usage(ENiagaraScriptUsage::Function)
 #if WITH_EDITORONLY_DATA
 	, UsageIndex_DEPRECATED(0)
-	, ModuleUsageBitmask( (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScript) | (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScriptInterpolated) | (1 << (int32)ENiagaraScriptUsage::ParticleUpdateScript) | (1 << (int32)ENiagaraScriptUsage::ParticleEventScript) )
+	, ModuleUsageBitmask( (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScript) | (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScriptInterpolated) | (1 << (int32)ENiagaraScriptUsage::ParticleUpdateScript) | (1 << (int32)ENiagaraScriptUsage::ParticleEventScript) | (1 << (int32)ENiagaraScriptUsage::ParticleSimulationStageScript))
 	, NumericOutputTypeSelectionMode(ENiagaraNumericOutputTypeSelectionMode::Largest)
 #endif
 {
@@ -1009,8 +1009,19 @@ void UNiagaraScript::PostLoad()
 				ModuleUsageBitmask &= ~(1 << CurrentIndex);
 			}
 		}
-		// Clear the shader stage bit.
+		// Clear the simulation stage bit.
 		ModuleUsageBitmask &= ~(1 << SimulationStageIndex);
+	}
+
+	if (NiagaraVer < FNiagaraCustomVersion::SimulationStageInUsageBitmask)
+	{
+		const TArray<ENiagaraScriptUsage> SupportedUsages = GetSupportedUsageContextsForBitmask(ModuleUsageBitmask);
+		if (SupportedUsages.Contains(ENiagaraScriptUsage::ParticleUpdateScript))
+		{
+			// Set the simulation stage bit by default to true for old assets if particle update is enabled as well
+			uint8 SimulationStageIndex = (uint8)ENiagaraScriptUsage::ParticleSimulationStageScript;
+			ModuleUsageBitmask |= (1 << SimulationStageIndex);
+		}
 	}
 
 	if (Source != nullptr)
