@@ -6186,17 +6186,26 @@ bool FPakFile::Check()
 /**
 * FThreadCheckingArchiveProxy - checks that inner archive is only used from the specified thread ID
 */
-class FThreadCheckingArchiveProxy : TUniquePtr<FArchive>, public FArchiveProxy
+class FThreadCheckingArchiveProxy : public FArchiveProxy
 {
 public:
 
 	const uint32 ThreadId;
+	FArchive* InnerArchivePtr;
 
 	FThreadCheckingArchiveProxy(FArchive* InReader, uint32 InThreadId)
-		: TUniquePtr(InReader) // Make sure proxy is destroyed before InReader
-		, FArchiveProxy(*InReader)
+		: FArchiveProxy(*InReader)
 		, ThreadId(InThreadId)
+		, InnerArchivePtr(InReader)
 	{}
+
+	virtual ~FThreadCheckingArchiveProxy()
+	{
+		if (InnerArchivePtr)
+		{
+			delete InnerArchivePtr;
+		}
+	}
 
 	//~ Begin FArchiveProxy Interface
 	virtual void Serialize(void* Data, int64 Length) override
