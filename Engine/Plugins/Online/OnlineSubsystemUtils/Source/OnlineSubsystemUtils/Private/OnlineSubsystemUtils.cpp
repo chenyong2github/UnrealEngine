@@ -600,7 +600,30 @@ static bool OnlineExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					else if (FParse::Command(&Cmd, TEXT("LEADERBOARDS")))
 					{
 						// This class deletes itself once done
-						(new FTestLeaderboardInterface(SubName))->Test(InWorld, FParse::Token(Cmd, false));
+						FString LeaderboardName, SortedColumn, UserId;
+						
+						if (!FParse::Token(Cmd, LeaderboardName, false) || !FParse::Token(Cmd, SortedColumn, false))
+						{
+							UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("Command parameters not found. Command syntax is 'LEADERBOARDS LeaderboardName SortedColumn ColumnNName ColumnNFormat ... UserID"));
+						}
+
+						TMap<FString, EOnlineKeyValuePairDataType::Type> Columns;
+						FString ColumnName;
+						while (FParse::Token(Cmd, ColumnName, false))
+						{
+							FString ColumnFormat;
+							if(FParse::Token(Cmd, ColumnFormat, false))
+							{
+								Columns.Add(ColumnName, EOnlineKeyValuePairDataType::FromString(ColumnFormat));
+							}
+							else
+							{
+								UE_LOG_ONLINE_LEADERBOARD(Log, TEXT("Setting %s as UserId for LEADERBOARDS TEST"), *ColumnName);
+								UserId = ColumnName;
+							}
+						}
+
+						(new FTestLeaderboardInterface(SubName))->Test(InWorld, LeaderboardName, SortedColumn, MoveTemp(Columns), UserId);
 						bWasHandled = true;
 					}
 					else if (FParse::Command(&Cmd, TEXT("PRESENCE")))
