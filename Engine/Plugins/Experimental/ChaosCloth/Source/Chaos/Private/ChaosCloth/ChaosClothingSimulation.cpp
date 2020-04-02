@@ -238,8 +238,8 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	UE_CLOG(Asset->GetNumLods() != 1,
 		LogChaosCloth, Warning, TEXT("More than one LOD with the current cloth asset %s in sim slot %d. Only LOD 0 is supported with Chaos Cloth for now."),
 		InOwnerComponent->GetOwner() ? *InOwnerComponent->GetOwner()->GetName() : TEXT("None"), InSimDataIndex);
-	const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
-	const FClothPhysicalMeshData& PhysMesh = AssetLodData->ClothPhysicalMeshData;
+	const FClothLODDataCommon& AssetLodData = Asset->LodData[0];
+	const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
 
 	// Add particles
 	TPBDParticles<float, 3>& Particles = Evolution->Particles();
@@ -326,7 +326,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	}
 
 	// Warn about legacy apex collisions
-	const FClothCollisionData& LodCollData = AssetLodData->CollisionData;
+	const FClothCollisionData& LodCollData = AssetLodData.CollisionData;
 	UE_CLOG(LodCollData.Spheres.Num() > 0 || LodCollData.SphereConnections.Num() > 0 || LodCollData.Convexes.Num() > 0,
 		LogChaosCloth, Warning, TEXT(
 			"Actor '%s' component '%s' has %d sphere, %d capsule, and %d "
@@ -1040,14 +1040,12 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(const UClothingAssetCommo
 
 void ClothingSimulation::ExtractLegacyAssetCollisions(const UClothingAssetCommon* Asset, int32 InSimDataIndex)
 {
-	if (const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0])
+	const FClothLODDataCommon& AssetLodData = Asset->LodData[0];
+	const FClothCollisionData& LodCollData = AssetLodData.CollisionData;
+	if (LodCollData.Spheres.Num() || LodCollData.SphereConnections.Num() || LodCollData.Convexes.Num())
 	{
-		const FClothCollisionData& LodCollData = AssetLodData->CollisionData;
-		if (LodCollData.Spheres.Num() || LodCollData.SphereConnections.Num() || LodCollData.Convexes.Num())
-		{
-			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Adding legacy cloth asset collisions..."));
-			AddCollisions(LodCollData, Asset->UsedBoneIndices, InSimDataIndex);
-		}
+		UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Adding legacy cloth asset collisions..."));
+		AddCollisions(LodCollData, Asset->UsedBoneIndices, InSimDataIndex);
 	}
 }
 
@@ -1350,7 +1348,7 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 			ClothingMeshUtils::SkinPhysicsMesh<true, false>(
 				Asset->UsedBoneIndices,
-				Asset->ClothLodData[0]->ClothPhysicalMeshData,
+				Asset->LodData[0].PhysicalMeshData,
 				ComponentToLocalSpace,
 				Context->RefToLocals.GetData(),
 				Context->RefToLocals.Num(),
@@ -1668,9 +1666,10 @@ void ClothingSimulation::GetCollisions(FClothCollisionData& OutCollisions, bool 
 	// Add internal asset collisions
 	for (const UClothingAssetCommon* Asset : Assets)
 	{
-		if (const UClothLODDataCommon* const ClothLodData = !Asset ? nullptr : Asset->ClothLodData[0])
+		if (Asset)
 		{
-			OutCollisions.Append(ClothLodData->CollisionData);
+			const FClothLODDataCommon& ClothLodData = Asset->LodData[0];
+			OutCollisions.Append(ClothLodData.CollisionData);
 		}
 	}
 
@@ -1698,7 +1697,7 @@ void ClothingSimulation::RefreshClothConfig()
 			if (const UChaosClothConfig* const ChaosClothConfig = Asset->GetClothConfig<UChaosClothConfig>())
 			{
 				check(Asset->GetNumLods() > 0);
-				const FClothPhysicalMeshData& PhysMesh = Asset->ClothLodData[0]->ClothPhysicalMeshData;
+				const FClothPhysicalMeshData& PhysMesh = Asset->LodData[0].PhysicalMeshData;
 
 				ResetParticles(SimDataIndex);
 
@@ -2246,9 +2245,8 @@ void ClothingSimulation::DebugDrawBackstops(USkeletalMeshComponent* /*OwnerCompo
 		if (!Asset) { continue; }
 
 		// Get Backstop Distances
-		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
-		check(AssetLodData);
-		const FClothPhysicalMeshData& PhysMesh = AssetLodData->ClothPhysicalMeshData;
+		const FClothLODDataCommon& AssetLodData = Asset->LodData[0];
+		const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
 		const FPointWeightMap& BackstopDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::BackstopDistance);
 		const FPointWeightMap& BackstopRadiuses = PhysMesh.GetWeightMap(EChaosWeightMapTarget::BackstopRadius);
 		if (BackstopDistances.Num() == 0 || BackstopRadiuses.Num() == 0)
@@ -2294,9 +2292,8 @@ void ClothingSimulation::DebugDrawMaxDistances(USkeletalMeshComponent* /*OwnerCo
 		if (!Asset) { continue; }
 
 		// Get Maximum Distances
-		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
-		check(AssetLodData);
-		const FClothPhysicalMeshData& PhysMesh = AssetLodData->ClothPhysicalMeshData;
+		const FClothLODDataCommon& AssetLodData = Asset->LodData[0];
+		const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
 		const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
 		if (MaxDistances.Num() == 0)
 		{
@@ -2331,9 +2328,8 @@ void ClothingSimulation::DebugDrawAnimDrive(USkeletalMeshComponent* /*OwnerCompo
 		if (!Asset) { continue; }
 
 		// Get anim drive multiplier
-		const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
-		check(AssetLodData);
-		const FClothPhysicalMeshData& PhysMesh = AssetLodData->ClothPhysicalMeshData;
+		const FClothLODDataCommon& AssetLodData = Asset->LodData[0];
+		const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
 		const FPointWeightMap& AnimDriveMultipliers = PhysMesh.GetWeightMap(EChaosWeightMapTarget::AnimDriveMultiplier);
 		if (AnimDriveMultipliers.Num() == 0)
 		{

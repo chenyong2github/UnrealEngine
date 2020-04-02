@@ -113,17 +113,17 @@ void FClothingSimulationNv::CreateActor(USkeletalMeshComponent* InOwnerComponent
 
 	// Need the current reftolocals so we can skin the ref pose for the sim mesh
 	TArray<FMatrix> RefToLocals;
-	InOwnerComponent->GetCurrentRefToLocalMatrices(RefToLocals, FMath::Min(InOwnerComponent->PredictedLODLevel, Asset->ClothLodData.Num() - 1));
+	InOwnerComponent->GetCurrentRefToLocalMatrices(RefToLocals, FMath::Min(InOwnerComponent->PredictedLODLevel, Asset->LodData.Num() - 1));
 
 	Actors.AddDefaulted();
 	FClothingActorNv& NewActor = Actors.Last();
 
 	NewActor.SimDataIndex = InSimDataIndex;
 
-	for(int32 LodIndex = 0; LodIndex < Asset->ClothLodData.Num(); ++LodIndex)
+	for(int32 LodIndex = 0; LodIndex < Asset->LodData.Num(); ++LodIndex)
 	{
-		UClothLODDataCommon& AssetLodData = *Asset->ClothLodData[LodIndex];
-		const FClothPhysicalMeshData& PhysMesh = AssetLodData.ClothPhysicalMeshData;
+		const FClothLODDataCommon& AssetLodData = Asset->LodData[LodIndex];
+		const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
 
 		NewActor.LodData.AddDefaulted();
 		FClothingActorNv::FActorLodData& ActorLodData = NewActor.LodData.Last();
@@ -563,7 +563,7 @@ void FClothingSimulationNv::Simulate(IClothingSimulationContext* InContext)
 
 		// To build motion constraints (max distances) we need to skin the entire physics mesh
 		// this call also updates our fixed particles to avoid iterating the particle list a second time
-		const FClothPhysicalMeshData& PhysMesh = Actor.AssetCreatedFrom->ClothLodData[Actor.CurrentLodIndex]->ClothPhysicalMeshData;
+		const FClothPhysicalMeshData& PhysMesh = Actor.AssetCreatedFrom->LodData[Actor.CurrentLodIndex].PhysicalMeshData;
 		ClothingMeshUtils::SkinPhysicsMesh(Actor.AssetCreatedFrom->UsedBoneIndices, PhysMesh, RootBoneTransform, NvContext->RefToLocals.GetData(), NvContext->RefToLocals.Num(), Actor.SkinnedPhysicsMeshPositions[Actor.CurrentSkinnedPositionIndex], Actor.SkinnedPhysicsMeshNormals);
 
 		nv::cloth::Cloth* CurrentCloth = Actor.LodData[Actor.CurrentLodIndex].Cloth;
@@ -751,7 +751,7 @@ void FClothingSimulationNv::ComputePhysicalMeshNormals(FClothingActorNv &Actor)
 
 	const uint32 NumParticles = Actor.LodData[CurrentClothingLod].Cloth->getNumParticles();
 	nv::cloth::MappedRange<physx::PxVec4> Particles = Actor.LodData[CurrentClothingLod].Cloth->getCurrentParticles();
-	const TArray<uint32>& Indices = Actor.AssetCreatedFrom->ClothLodData[CurrentClothingLod]->ClothPhysicalMeshData.Indices;
+	const TArray<uint32>& Indices = Actor.AssetCreatedFrom->LodData[CurrentClothingLod].PhysicalMeshData.Indices;
 	const uint32 NumIndices = Indices.Num();
 
 	// Using the face normals, calculate normals. These will not be normalized as we're adding together
@@ -911,7 +911,7 @@ void FClothingSimulationNv::GetCollisions(FClothCollisionData& OutCollisions, bo
 		else
 		{
 			check(Actor.AssetCreatedFrom);
-			OutCollisions.Append(Actor.AssetCreatedFrom->ClothLodData[Actor.CurrentLodIndex]->CollisionData);
+			OutCollisions.Append(Actor.AssetCreatedFrom->LodData[Actor.CurrentLodIndex].CollisionData);
 		}
 	}
 }
@@ -928,7 +928,7 @@ void FClothingSimulationNv::GatherStats() const
 			continue;
 		}
 
-		INC_DWORD_STAT_BY(STAT_NumClothVerts, Actor.AssetCreatedFrom->ClothLodData[Actor.CurrentLodIndex]->ClothPhysicalMeshData.Vertices.Num());
+		INC_DWORD_STAT_BY(STAT_NumClothVerts, Actor.AssetCreatedFrom->LodData[Actor.CurrentLodIndex].PhysicalMeshData.Vertices.Num());
 	}
 }
 
@@ -1107,14 +1107,14 @@ void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& Co
 				{
 					// Reposition particles skinned to outgoing LOD
 					bool bLodTransitionUp = OldClothingLod < PredictedClothingLod;
-					UClothLODDataCommon& NewLodAssetData = *Actor.AssetCreatedFrom->ClothLodData[PredictedClothingLod];
-					TArray<FMeshToMeshVertData>& SkinData = bLodTransitionUp ? NewLodAssetData.TransitionUpSkinData : NewLodAssetData.TransitionDownSkinData;
+					const FClothLODDataCommon& NewLodAssetData = Actor.AssetCreatedFrom->LodData[PredictedClothingLod];
+					const TArray<FMeshToMeshVertData>& SkinData = bLodTransitionUp ? NewLodAssetData.TransitionUpSkinData : NewLodAssetData.TransitionDownSkinData;
 
 					for(int32 ParticleIndex = 0; ParticleIndex < NumNewParticles; ++ParticleIndex)
 					{
 						// Do some simple skinning, we only care about positions for this as particles are just
 						// positions inside the solver.
-						FMeshToMeshVertData& VertData = SkinData[ParticleIndex];
+						const FMeshToMeshVertData& VertData = SkinData[ParticleIndex];
 
 						const FVector A = P2UVector(OldLodParticles[VertData.SourceMeshVertIndices[0]]);
 						const FVector B = P2UVector(OldLodParticles[VertData.SourceMeshVertIndices[1]]);
@@ -1178,7 +1178,7 @@ void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& Co
 					if(CSTransforms.Num() > Actor.AssetCreatedFrom->ReferenceBoneIndex)
 					{
 						// compute skinned positions to init sim mesh
-						const FClothPhysicalMeshData& PhysMesh = Actor.AssetCreatedFrom->ClothLodData[PredictedClothingLod]->ClothPhysicalMeshData;
+						const FClothPhysicalMeshData& PhysMesh = Actor.AssetCreatedFrom->LodData[PredictedClothingLod].PhysicalMeshData;
 						TArray<FVector> SkinnedPhysicsMeshPositions;
 						TArray<FVector> SkinnedPhysicsMeshNormals;
 						ClothingMeshUtils::SkinPhysicsMesh(
@@ -1266,7 +1266,7 @@ void FClothingSimulationNv::DebugDraw_PhysMesh(USkeletalMeshComponent* OwnerComp
 			Particles = NvClothSupport::CreateRange(ActorData.Px_RestPositions);
 		}
 
-		const FClothPhysicalMeshData& PhysMesh = Actor.AssetCreatedFrom->ClothLodData[CurrentClothLod]->ClothPhysicalMeshData;
+		const FClothPhysicalMeshData& PhysMesh = Actor.AssetCreatedFrom->LodData[CurrentClothLod].PhysicalMeshData;
 		const TArray<uint32>& Indices = PhysMesh.Indices;
 		const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EWeightMapTargetCommon::MaxDistance);
 
@@ -1419,7 +1419,7 @@ void FClothingSimulationNv::DebugDraw_Backstops(USkeletalMeshComponent* OwnerCom
 		{
 			continue;
 		}
-		const FClothPhysicalMeshData& PhysMesh = Asset->ClothLodData[Actor.CurrentLodIndex]->ClothPhysicalMeshData;
+		const FClothPhysicalMeshData& PhysMesh = Asset->LodData[Actor.CurrentLodIndex].PhysicalMeshData;
 		const FPointWeightMap* const BackstopDistances = PhysMesh.FindWeightMap(EWeightMapTargetCommon::BackstopDistance);
 		const FPointWeightMap* const BackstopRadiuses = PhysMesh.FindWeightMap(EWeightMapTargetCommon::BackstopRadius);
 		const FPointWeightMap* const MaxDistances = PhysMesh.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
@@ -1493,7 +1493,7 @@ void FClothingSimulationNv::DebugDraw_MaxDistances(USkeletalMeshComponent* Owner
 		{
 			continue;
 		}
-		const FClothPhysicalMeshData& PhysMesh = Asset->ClothLodData[Actor.CurrentLodIndex]->ClothPhysicalMeshData;
+		const FClothPhysicalMeshData& PhysMesh = Asset->LodData[Actor.CurrentLodIndex].PhysicalMeshData;
 		const FPointWeightMap* const MaxDistances = PhysMesh.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
 		if (!MaxDistances || !MaxDistances->Num())
 		{
@@ -1540,8 +1540,8 @@ void FClothingSimulationNv::DebugDraw_SelfCollision(USkeletalMeshComponent* Owne
 
 		const float SelfCollisionThickness = Config->SelfCollisionRadius;
 
-		const UClothLODDataCommon& LodData = *Asset->ClothLodData[Actor.CurrentLodIndex];
-		const FClothPhysicalMeshData& PhysMesh = LodData.ClothPhysicalMeshData;
+		const FClothLODDataCommon& LodData = Asset->LodData[Actor.CurrentLodIndex];
+		const FClothPhysicalMeshData& PhysMesh = LodData.PhysicalMeshData;
 
 		nv::cloth::Cloth* CurrentCloth = Actor.LodData[Actor.CurrentLodIndex].Cloth;
 		check(CurrentCloth);
@@ -1570,7 +1570,7 @@ void FClothingSimulationNv::DebugDraw_AnimDrive(USkeletalMeshComponent* OwnerCom
 		}
 
 		const UClothingAssetCommon* Asset = Actor.AssetCreatedFrom;
-		const FClothPhysicalMeshData& PhysMesh = Asset->ClothLodData[Actor.CurrentLodIndex]->ClothPhysicalMeshData;
+		const FClothPhysicalMeshData& PhysMesh = Asset->LodData[Actor.CurrentLodIndex].PhysicalMeshData;
 		const TArray<uint32>& Indices = PhysMesh.Indices;
 		FTransform RootBoneTransform = OwnerComponent->GetComponentSpaceTransforms()[Actor.AssetCreatedFrom->ReferenceBoneIndex];
 
@@ -1639,7 +1639,7 @@ FClothingActorNv::FClothingActorNv()
 
 void FClothingActorNv::SkinPhysicsMesh(FClothingSimulationContextNv* InContext)
 {
-	const FClothPhysicalMeshData& PhysMesh = AssetCreatedFrom->ClothLodData[CurrentLodIndex]->ClothPhysicalMeshData;
+	const FClothPhysicalMeshData& PhysMesh = AssetCreatedFrom->LodData[CurrentLodIndex].PhysicalMeshData;
 	FTransform RootBoneTransform = InContext->BoneTransforms[AssetCreatedFrom->ReferenceBoneIndex];
 	ClothingMeshUtils::SkinPhysicsMesh(AssetCreatedFrom->UsedBoneIndices, PhysMesh, RootBoneTransform, InContext->RefToLocals.GetData(), InContext->RefToLocals.Num(), SkinnedPhysicsMeshPositions[CurrentSkinnedPositionIndex], SkinnedPhysicsMeshNormals);
 }
@@ -1655,7 +1655,7 @@ void FClothingActorNv::UpdateMotionConstraints(FClothingSimulationContextNv* InC
 	nv::cloth::Cloth* const CurrentCloth = LodData[CurrentLodIndex].Cloth;
 	check(CurrentCloth);
 
-	const FClothPhysicalMeshData& PhysMesh = AssetCreatedFrom->ClothLodData[CurrentLodIndex]->ClothPhysicalMeshData;
+	const FClothPhysicalMeshData& PhysMesh = AssetCreatedFrom->LodData[CurrentLodIndex].PhysicalMeshData;
 
 	const FPointWeightMap* const MaxDistances = PhysMesh.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
 	if (MaxDistances && MaxDistances->Num())
@@ -1702,7 +1702,7 @@ void FClothingActorNv::UpdateWind(FClothingSimulationContextNv* InContext, const
 			TArray<FVector>& ParticleVelocities = Scratch.ParticleVelocities;
 			CalculateParticleVelocities(ParticleVelocities);
 
-			const FClothPhysicalMeshData& PhysMesh = AssetCreatedFrom->ClothLodData[CurrentLodIndex]->ClothPhysicalMeshData;
+			const FClothPhysicalMeshData& PhysMesh = AssetCreatedFrom->LodData[CurrentLodIndex].PhysicalMeshData;
 			const FPointWeightMap* const MaxDistances = PhysMesh.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
 			if (!MaxDistances || !MaxDistances->Num())
 			{
@@ -1757,7 +1757,7 @@ void FClothingActorNv::ConditionalRebuildCollisions()
 	AggregatedCollisions.Reset();
 
 	// Asset-embedded collisions (created during import)
-	AggregatedCollisions.Append(AssetCreatedFrom->ClothLodData[CurrentLodIndex]->CollisionData);
+	AggregatedCollisions.Append(AssetCreatedFrom->LodData[CurrentLodIndex].CollisionData);
 	// Extracted collisions from the physics asset selected by the user
 	AggregatedCollisions.Append(ExtractedCollisions);
 	// External collisions added from the world
@@ -1793,7 +1793,7 @@ void FClothingActorNv::UpdateAnimDrive(FClothingSimulationContextNv* InContext)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NvClothUpdateAnimDrive);
 
-	const FClothPhysicalMeshData& MeshDataBase = AssetCreatedFrom->ClothLodData[CurrentLodIndex]->ClothPhysicalMeshData;
+	const FClothPhysicalMeshData& MeshDataBase = AssetCreatedFrom->LodData[CurrentLodIndex].PhysicalMeshData;
 	const FPointWeightMap* const AnimDriveMultipliers = MeshDataBase.FindWeightMap(EWeightMapTargetCommon::AnimDriveMultiplier);
 	if(AnimDriveMultipliers && AnimDriveMultipliers->Num())
 	{
