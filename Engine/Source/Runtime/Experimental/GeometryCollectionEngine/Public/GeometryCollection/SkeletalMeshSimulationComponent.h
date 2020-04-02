@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Components/MeshComponent.h"
+#define TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/ChaosSolverActor.h"
+#include "Chaos/ChaosNotifyHandlerInterface.h"
+#undef TEMP_HEADER_CHAOS_LEVEL_1
 #include "GameFramework/Actor.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
-#include "Chaos/ChaosNotifyHandlerInterface.h"
 
 #include "SkeletalMeshSimulationComponent.generated.h"
 

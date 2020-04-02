@@ -15,8 +15,10 @@
 
 #elif WITH_CHAOS
 
+#define TEMP_HEADER_CHAOS_LEVEL_1 1
 #include "Physics/Experimental/PhysInterface_Chaos.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
+#undef TEMP_HEADER_CHAOS_LEVEL_1
 
 #else
 
