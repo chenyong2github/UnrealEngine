@@ -203,7 +203,7 @@ namespace Audio
 	TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe> FMixerSourceBuffer::GetNextBuffer()
 	{
 		FScopeTryLock Lock(&SoundWaveCritSec);
-		if(!Lock.IsLocked())
+		if (!Lock.IsLocked())
 		{
 			return nullptr;
 		}
@@ -485,7 +485,7 @@ namespace Audio
 		}
 	}
 
-	bool FMixerSourceBuffer::OnBeginDestroy(USoundWave * /*Wave*/)
+	bool FMixerSourceBuffer::OnBeginDestroy(USoundWave* /*Wave*/)
 	{
 		FScopeTryLock Lock(&SoundWaveCritSec);
 
@@ -501,12 +501,12 @@ namespace Audio
 		return false;
 	}
 
-	bool FMixerSourceBuffer::OnIsReadyForFinishDestroy(USoundWave * /*Wave*/) const
+	bool FMixerSourceBuffer::OnIsReadyForFinishDestroy(USoundWave* /*Wave*/) const
 	{
 		return false;
 	}
 
-	void FMixerSourceBuffer::OnFinishDestroy(USoundWave * /*Wave*/)
+	void FMixerSourceBuffer::OnFinishDestroy(USoundWave* /*Wave*/)
 	{
 		EnsureAsyncTaskFinishes();
 		FScopeTryLock Lock(&SoundWaveCritSec);
@@ -525,22 +525,22 @@ namespace Audio
 		return AsyncRealtimeAudioTask != nullptr;
 	}
 
-	bool FMixerSourceBuffer::IsAsyncTaskDone() const 
+	bool FMixerSourceBuffer::IsAsyncTaskDone() const
 	{
 		FScopeLock Lock(&DecodeTaskCritSec);
 		if (AsyncRealtimeAudioTask)
 		{
 			return AsyncRealtimeAudioTask->IsDone();
 		}
-		return true; 
+		return true;
 	}
-	
-	void FMixerSourceBuffer::EnsureAsyncTaskFinishes() 
+
+	void FMixerSourceBuffer::EnsureAsyncTaskFinishes()
 	{
 		FScopeLock Lock(&DecodeTaskCritSec);
-		if (AsyncRealtimeAudioTask) 
-		{ 
-			AsyncRealtimeAudioTask->CancelTask(); 
+		if (AsyncRealtimeAudioTask)
+		{
+			AsyncRealtimeAudioTask->CancelTask();
 
 			delete AsyncRealtimeAudioTask;
 			AsyncRealtimeAudioTask = nullptr;
@@ -559,7 +559,7 @@ namespace Audio
 	}
 
 	void FMixerSourceBuffer::OnEndGenerate()
-	{		
+	{
 		// Make sure the async task finishes!
 		EnsureAsyncTaskFinishes();
 
@@ -569,7 +569,7 @@ namespace Audio
 			return;
 		}
 
-						
+
 		// Only need to call OnEndGenerate and access SoundWave here if we successfully initialized
 		if (SoundWave && bInitialized && bProcedural)
 		{
