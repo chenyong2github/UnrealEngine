@@ -417,6 +417,28 @@ FVertexBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Async()
 	return CreateRHIBuffer_Internal<false>();
 }
 
+void FColorVertexBuffer::CopyRHIForStreaming(const FColorVertexBuffer& Other, bool InAllowCPUAccess)
+{
+	// Copy serialized properties.
+	Stride = Other.Stride;
+	NumVertices = Other.NumVertices;
+
+	// Handle CPU access.
+	if (InAllowCPUAccess)
+	{
+		NeedsCPUAccess = Other.NeedsCPUAccess;
+		AllocateData(NeedsCPUAccess);
+	}
+	else
+	{
+		NeedsCPUAccess = false;
+	}
+
+	// Copy resource references.
+	VertexBufferRHI = Other.VertexBufferRHI;
+	ColorComponentsSRV = Other.ColorComponentsSRV;
+}
+
 void FColorVertexBuffer::InitRHI()
 {
 	SCOPED_LOADTIMER(FColorVertexBuffer_InitRHI);

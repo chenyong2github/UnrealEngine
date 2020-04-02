@@ -645,10 +645,17 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 
 	if( !Other.IsDataMemoryMapped())
 	{
-		const int64 DataSize = Other.GetBulkDataSize();
+		if (Other.GetDataBufferReadOnly())
+		{
+			const int64 DataSize = Other.GetBulkDataSize();
 
-		void* Dst = AllocateData(DataSize);
-		FMemory::Memcpy(Dst, Other.GetDataBufferReadOnly(), DataSize);
+			void* Dst = AllocateData(DataSize);
+			FMemory::Memcpy(Dst, Other.GetDataBufferReadOnly(), DataSize);
+		}
+		else
+		{
+			Data.Fallback.BulkDataSize = Other.Data.Fallback.BulkDataSize;
+		}
 	}
 	else
 	{
