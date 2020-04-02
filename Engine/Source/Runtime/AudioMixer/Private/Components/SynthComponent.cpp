@@ -219,7 +219,7 @@ void USynthComponent::Initialize(int32 SampleRateOverride)
 
 		if (!Synth)
 		{
-			Synth = NewObject<USynthSound>(this, FName(TEXT("TimeSynth"), this->GetUniqueID()));
+			Synth = NewObject<USynthSound>(this, TEXT("Synth"));
 		}
 
 		// Copy sound base data to the sound
