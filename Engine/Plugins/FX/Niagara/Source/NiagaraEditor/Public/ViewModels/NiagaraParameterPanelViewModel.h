@@ -36,10 +36,6 @@ public:
 
 	virtual void Refresh() const = 0;
 
-	virtual void CollectStaticSections(TArray<int32>& StaticSectionIDs) const = 0;
-
-	virtual NiagaraParameterPanelSectionID::Type GetSectionForVarAndViewInfo(const FNiagaraScriptVariableAndViewInfo& VarAndViewInfo) const = 0;
-	
 	virtual const UNiagaraScriptVariable* AddParameter(FNiagaraVariable& InVariableToAdd, const FNiagaraVariableMetaData& InVariableMetaDataToAssign) = 0;
 
 	virtual void DeleteParameter(const FNiagaraVariable& TargetVariableToRemove, const FNiagaraVariableMetaData& TargetVariableMetaData) = 0;
@@ -58,7 +54,9 @@ public:
 
 	virtual FReply HandleActionDragged(const TSharedPtr<FEdGraphSchemaAction>& InAction, const FPointerEvent& MouseEvent) const = 0;
 
-	//virtual void HandleParameterDropped() {}; //@todo(ng) impl
+	virtual const TArray<TArray<ENiagaraParameterPanelCategory>>& GetDefaultCategoryPaths() const = 0;
+
+	virtual TArray<ENiagaraParameterPanelCategory> GetCategoriesForParameter(const FNiagaraScriptVariableAndViewInfo& ScriptVar) const = 0;
 
 	virtual bool CanDropParameter(const FNiagaraVariable& InTargetScriptVariableToDrop) const { return false; };
 
@@ -75,7 +73,7 @@ public:
 
 	virtual const TArray<FNiagaraScriptVariableAndViewInfo> GetViewedParameters() = 0;
 
-	TSharedRef<class SWidget> GetScriptParameterVisualWidget(FCreateWidgetForActionData* const InCreateData) const;
+	TSharedRef<class SWidget> GetScriptParameterVisualWidget(const FNiagaraScriptVariableAndViewInfo& ScriptVarAndViewInfo) const;
 
 	FOnParameterPanelViewModelRefreshed& GetOnRefreshed() { return OnParameterPanelViewModelRefreshed; };
 
@@ -85,7 +83,6 @@ protected:
 	FOnParameterPanelViewModelExternalSelectionChanged OnParameterPanelViewModelExternalSelectionChanged;
 	/** Cached list of parameters sent to SNiagarParameterPanel, updated whenever GetViewedParameters is called. */
 	TArray<FNiagaraScriptVariableAndViewInfo> CachedViewedParameters;
-
 };
 
 class FNiagaraSystemToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel, public FEditorUndoClient
@@ -100,10 +97,6 @@ public:
 	virtual void InitBindings() override;
 
 	virtual void Refresh() const override;
-
-	virtual void CollectStaticSections(TArray<int32>& StaticSectionIDs) const override;
-
-	virtual NiagaraParameterPanelSectionID::Type GetSectionForVarAndViewInfo(const FNiagaraScriptVariableAndViewInfo& VarAndViewInfo) const override;
 
 	virtual const UNiagaraScriptVariable* AddParameter(FNiagaraVariable& VariableToAdd, const FNiagaraVariableMetaData& VariableMetaDataToAssign) override;
 
@@ -120,6 +113,10 @@ public:
 	virtual bool GetCanRenameParameterAndToolTip(const FNiagaraVariable& TargetVariableToRename, const FNiagaraVariableMetaData& TargetVariableMetaData, TOptional<const FText> NewVariableNameText, FText& OutCanRenameParameterToolTip) const override;
 
 	virtual FReply HandleActionDragged(const TSharedPtr<FEdGraphSchemaAction>& InAction, const FPointerEvent& MouseEvent) const override;
+
+	virtual const TArray<TArray<ENiagaraParameterPanelCategory>>& GetDefaultCategoryPaths() const override;
+
+	virtual TArray<ENiagaraParameterPanelCategory> GetCategoriesForParameter(const FNiagaraScriptVariableAndViewInfo& ScriptVar) const override;
 
 	virtual TArray<TWeakObjectPtr<UNiagaraGraph>> GetEditableGraphs() const override;
 
@@ -143,6 +140,8 @@ private:
 
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel;
+
+	static const TArray<TArray<ENiagaraParameterPanelCategory>> DefaultCategoryPaths;
 };
 
 class FNiagaraScriptToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel
@@ -157,10 +156,6 @@ public:
 	virtual void InitBindings() override;
 
 	virtual void Refresh() const override;
-
-	virtual void CollectStaticSections(TArray<int32>& StaticSectionIDs) const override;
-
-	virtual NiagaraParameterPanelSectionID::Type GetSectionForVarAndViewInfo(const FNiagaraScriptVariableAndViewInfo& VarAndViewInfo) const override;
 
 	virtual const UNiagaraScriptVariable* AddParameter(FNiagaraVariable& VariableToAdd, const FNiagaraVariableMetaData& VariableMetaDataToAssign) override;
 
@@ -181,6 +176,10 @@ public:
 	void HandleGraphSubObjectSelectionChanged(const UObject* Obj);
 
 	virtual FReply HandleActionDragged(const TSharedPtr<FEdGraphSchemaAction>& InAction, const FPointerEvent& MouseEvent) const override;
+
+	virtual const TArray<TArray<ENiagaraParameterPanelCategory>>& GetDefaultCategoryPaths() const override;
+
+	virtual TArray<ENiagaraParameterPanelCategory> GetCategoriesForParameter(const FNiagaraScriptVariableAndViewInfo& ScriptVar) const override;
 
 	virtual TArray<TWeakObjectPtr<UNiagaraGraph>> GetEditableGraphs() const override;
 
@@ -205,4 +204,6 @@ private:
 	TSharedRef<class SWidget> GetScriptParameterVisualWidget(const UEdGraphPin* Pin) const;
 
 	TSharedPtr<FNiagaraObjectSelection> VariableObjectSelection;
+
+	static const TArray<TArray<ENiagaraParameterPanelCategory>> DefaultCategoryPaths;
 };

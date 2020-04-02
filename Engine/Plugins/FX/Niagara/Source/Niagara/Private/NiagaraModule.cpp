@@ -418,6 +418,7 @@ UEnum* FNiagaraTypeDefinition::ExecutionStateSourceEnum;
 UEnum* FNiagaraTypeDefinition::ScriptUsageEnum;
 
 UEnum* FNiagaraTypeDefinition::ParameterScopeEnum;
+UEnum* FNiagaraTypeDefinition::ParameterPanelCategoryEnum;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::ParameterMapDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::IDDef;
@@ -553,6 +554,7 @@ void FNiagaraTypeDefinition::Init()
 	ScriptUsageEnum = StaticEnum<ENiagaraScriptUsage>();
 
 	ParameterScopeEnum = StaticEnum<ENiagaraParameterScope>();
+	ParameterPanelCategoryEnum = StaticEnum<ENiagaraParameterPanelCategory>();
 	
 #if WITH_EDITOR
 	RecreateUserDefinedTypeRegistry();
