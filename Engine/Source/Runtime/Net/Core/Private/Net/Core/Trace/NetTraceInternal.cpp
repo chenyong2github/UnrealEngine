@@ -75,6 +75,7 @@ void FNetTrace::SetTraceVerbosity(uint32 Verbosity)
 	if (!GetTraceVerbosity() && NewVerbosity)
 	{
 		Trace::ToggleChannel(TEXT("NetChannel"), true);
+
 		FNetTraceInternal::Reporter::ReportInitEvent(FNetTraceInternal::NetTraceVersion);
 	}
 	else if (GetTraceVerbosity() && !NewVerbosity)
@@ -82,6 +83,7 @@ void FNetTrace::SetTraceVerbosity(uint32 Verbosity)
 		if (FNetTraceInternal::ThreadBuffer)
 		{
 			Trace::ToggleChannel(TEXT("NetChannel"), false);
+
 			delete FNetTraceInternal::ThreadBuffer;
 			FNetTraceInternal::ThreadBuffer = nullptr;
 		}		
