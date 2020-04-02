@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Styling/SlateTypes.h"
 #include "Framework/SlateDelegates.h"
+#include "Styling/SlateWidgetStyleAsset.h"
 
 class SInlineEditableTextBlock;
 class SBorder;
