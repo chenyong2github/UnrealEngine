@@ -145,6 +145,8 @@ public:
 	FMemoryStat<float> OnionMemoryMB;
 #endif //PLATFORM_PS4
 	float LLMTotalMemoryMB;
+	FMmaStat<uint64> PhysicalMemory; // more detailed physical memory stats obtained more frequently
+	FMmaStat<uint64> VirtualMemory;
 
 	/** Performance data */
 	double MeasuredPerfTime; // Duration of time the following performance values came from
