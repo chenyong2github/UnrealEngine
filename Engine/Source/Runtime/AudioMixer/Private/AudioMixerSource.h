@@ -61,9 +61,6 @@ namespace Audio
 
 	private:
 
-		/** Initializes the bus sends. */
-		void InitBusSends(FWaveInstance* InWaveInstance, FMixerSourceVoiceInitParams& InitParams);
-
 		/** Frees any resources for this sound source. */
 		void FreeResources();
 
@@ -119,7 +116,7 @@ namespace Audio
 
 		FMixerDevice* MixerDevice;
 		FMixerBuffer* MixerBuffer;
-		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
+		TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
 		FMixerSourceVoice* MixerSourceVoice;
 
 		// This holds data copied from FSoundSourceBusSendInfo when a new sound starts playing
