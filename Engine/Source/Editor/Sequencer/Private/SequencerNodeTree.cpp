@@ -20,6 +20,8 @@
 #include "SequencerNodeSortingMethods.h"
 #include "SequencerTrackFilters.h"
 #include "Channels/MovieSceneChannel.h"
+#include "SequencerUtilities.h"
+#include "SequencerLog.h"
 #include "ScopedTransaction.h"
 
 FSequencerNodeTree::~FSequencerNodeTree()
@@ -275,7 +277,11 @@ TSharedRef<FSequencerFolderNode> FSequencerNodeTree::CreateOrUpdateFolder(UMovie
 
 bool FSequencerNodeTree::HasActiveFilter() const
 {
-	return (!FilterString.IsEmpty() || TrackFilters->Num() > 0 || TrackFilterLevelFilter->IsActive() || Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly());
+	return (!FilterString.IsEmpty()
+		|| TrackFilters->Num() > 0
+		|| TrackFilterLevelFilter->IsActive()
+		|| Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly()
+		|| Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetNodeGroups().HasAnyActiveFilter());
 }
 
 TSharedPtr<FSequencerObjectBindingNode> FSequencerNodeTree::FindOrCreateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, TMap<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>>* OutChildToParentMap)
@@ -970,7 +976,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 		return bAnyChildPassed;
 	}
 
-	bool bPasssedAnyFilters = false;
+	bool bPassedAnyFilters = false;
 	bool bIsTrackOrObjectBinding = false;
 
 	switch(StartNode->GetType())
@@ -990,16 +996,16 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 					{
 						if (Filters->Num() == 0 || Filters->PassesAnyFilters(Channel))
 						{
-							bPasssedAnyFilters = true;
+							bPassedAnyFilters = true;
 							break;
 						}
 					}
 				}
 			}
 		
-			if (bPasssedAnyFilters || Filters->Num() == 0 || Filters->PassesAnyFilters(Track, StartNode->GetDisplayName()))
+			if (bPassedAnyFilters || Filters->Num() == 0 || Filters->PassesAnyFilters(Track, StartNode->GetDisplayName()))
 			{
-				bPasssedAnyFilters = true;
+				bPassedAnyFilters = true;
 
 				// Track nodes do not belong to a level, but might be a child of an objectbinding node that does
 				if (LevelTrackFilter->IsActive())
@@ -1010,7 +1016,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 						if (ParentNode->GetType() == ESequencerNode::Object)
 						{
 							// The track belongs to an objectbinding node, start by assuming it doesn't match the level filter
-							bPasssedAnyFilters = false;
+							bPassedAnyFilters = false;
 
 							const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
 							for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode->GetObjectBinding()))
@@ -1018,7 +1024,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 								if (Object.IsValid() && LevelTrackFilter->PassesFilter(Object.Get()))
 								{
 									// If at least one of the objects on the objectbinding node pass the level filter, show the track
-									bPasssedAnyFilters = true;
+									bPassedAnyFilters = true;
 									break;
 								}
 							}
@@ -1029,7 +1035,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 					}
 				}
 
-				if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
+				if (bPassedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
 				{
 					TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
 					while (ParentNode.IsValid())
@@ -1067,12 +1073,12 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 				if (Object.IsValid() && (Filters->Num() == 0 || Filters->PassesAnyFilters(Object.Get(), StartNode->GetDisplayName()))
 					&& LevelTrackFilter->PassesFilter(Object.Get()))
 				{
-					bPasssedAnyFilters = true;
+					bPassedAnyFilters = true;
 					break;
 				}
 			}
 
-			if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly() && !StartNode->IsPinned())
+			if (bPassedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly() && !StartNode->IsPinned())
 			{
 				UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
 				const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode.GetObjectBinding());
@@ -1090,10 +1096,10 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 				UMovieSceneTrack* Track = TrackNode->GetTrack();
 				if (Filters->Num() == 0 || Filters->PassesAnyFilters(Track, StartNode->GetDisplayName()))
 				{
-					bPasssedAnyFilters = true;
+					bPassedAnyFilters = true;
 				}
 			}
-			if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
+			if (bPassedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
 			{
 				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
 				while (ParentNode.IsValid())
@@ -1110,7 +1116,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 						const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
 						if (!(Binding && Sequencer.IsBindingVisible(*Binding)))
 						{
-							bPasssedAnyFilters = false;
+							bPassedAnyFilters = false;
 						}
 
 						break;
@@ -1130,12 +1136,12 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 				{
 					if (Filters->Num() == 0 || Filters->PassesAnyFilters(Channel))
 					{
-						bPasssedAnyFilters = true;
+						bPassedAnyFilters = true;
 						break;
 					}
 				}
 			}
-			if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
+			if (bPassedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
 			{
 				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
 				while (ParentNode.IsValid())
@@ -1152,7 +1158,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 						const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
 						if (!(Binding && Sequencer.IsBindingVisible(*Binding)))
 						{
-							bPasssedAnyFilters = false;
+							bPassedAnyFilters = false;
 						}
 
 						break;
@@ -1167,19 +1173,19 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 			// Special case: If we're pinned, then we should pass regardless
 			if (StartNode->IsPinned())
 			{
-				bPasssedAnyFilters = true;
+				bPassedAnyFilters = true;
 				break;
 			}
 
 			// Special case: If we're only filtering on text search, include folders and key areas in the search
 			if (Filters->Num() == 0 && FilterStrings.Num() > 0)
 			{
-				bPasssedAnyFilters = true;
+				bPassedAnyFilters = true;
 
 				// Special case: but don't include if only showing selected bindings and we don't have child that passed
 				if (Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly() && !bAnyChildPassed)
 				{
-					bPasssedAnyFilters = false;
+					bPassedAnyFilters = false;
 
 					// Special case: unless we're the child of a node that is a selected binding
 					TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
@@ -1188,6 +1194,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 						// Pinned tracks should be visible whether selected or not
 						if (ParentNode->IsPinned())
 						{
+							bPassedAnyFilters = true;
 							break;
 						}
 
@@ -1197,7 +1204,7 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 							const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
 							if (Binding && Sequencer.IsBindingVisible(*Binding))
 							{
-								bPasssedAnyFilters = true;
+								bPassedAnyFilters = true;
 							}
 
 							break;
@@ -1210,8 +1217,39 @@ static bool FilterNodesRecursive(FSequencer& Sequencer, const TSharedRef<FSequen
 		}
 	}
 
+	if (bPassedAnyFilters)
+	{
+		// If filtering on selection set is enabled, we need to run another pass to verify we're in an enabled node group
+		UMovieSceneNodeGroupCollection& NodeGroups = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetNodeGroups();
+		if (NodeGroups.HasAnyActiveFilter())
+		{
+			bPassedAnyFilters = false;
 
-	if (bPasssedAnyFilters)
+			TSharedPtr<const FSequencerDisplayNode> CurrentNode = StartNode;
+			while (CurrentNode.IsValid() && !bPassedAnyFilters)
+			{
+				// Special case: Pinned tracks should be visible whether in the node group or not
+				if (CurrentNode->IsPinned())
+				{
+					bPassedAnyFilters = true;
+					break;
+				}
+
+				for (const UMovieSceneNodeGroup* NodeGroup : NodeGroups)
+				{
+					if (NodeGroup->GetEnableFilter() && NodeGroup->ContainsNode(CurrentNode->GetPathName()))
+					{
+						bPassedAnyFilters = true;
+						break;
+					}
+				}
+
+				CurrentNode = CurrentNode->GetParent();
+			}
+		}
+	}
+
+	if (bPassedAnyFilters)
 	{
 		OutFilteredNodes.Add(StartNode);
 		AddParentNodes(StartNode, OutFilteredNodes);
@@ -1243,7 +1281,7 @@ void FSequencerNodeTree::UpdateFilters()
 	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
 	TrackFilterLevelFilter->UpdateWorld(World);
 
-	if (TrackFilters->Num() > 0 || !FilterString.IsEmpty() || TrackFilterLevelFilter->IsActive() || Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
+	if (HasActiveFilter())
 	{
 		// Build a list of strings that must be matched
 		TArray<FString> FilterStrings;
@@ -1259,6 +1297,7 @@ void FSequencerNodeTree::UpdateFilters()
 		}
 	}
 
+	bFilteringOnNodeGroups = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetNodeGroups().HasAnyActiveFilter();
 	bFilterUpdateRequested = false;
 }
 
@@ -1268,6 +1307,14 @@ void FSequencerNodeTree::FilterNodes(const FString& InFilter)
 	{
 		FilterString = InFilter;
 		bFilterUpdateRequested = true;
+	}
+}
+
+void FSequencerNodeTree::NodeGroupsCollectionChanged()
+{
+	if (Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetNodeGroups().HasAnyActiveFilter() || bFilteringOnNodeGroups)
+	{
+		RequestFilterUpdate();
 	}
 }
 
