@@ -573,7 +573,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	{
 		FNiagaraSharedObject::FlushDeletionList();
 
-#if PLATFORM_DESKTOP
+#if WITH_EDITOR //PLATFORM_DESKTOP
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_Niagara_IsThisApplicationForeground);
 			bAppHasFocus = FPlatformApplicationMisc::IsThisApplicationForeground();
