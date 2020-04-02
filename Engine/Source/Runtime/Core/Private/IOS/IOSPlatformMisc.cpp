@@ -1312,15 +1312,6 @@ FString FIOSPlatformMisc::GetProjectVersion()
 	return localVersionString;
 }
 
-bool FIOSPlatformMisc::IsSupportedIOSVersion()
-{
-#if defined(IOS_MIN_SUPPORTED_VERSION_MAJOR) && defined(IOS_MIN_SUPPORTED_VERSION_MINOR) && defined(IOS_MIN_SUPPORTED_VERSION_PATCH)
-	return IOSVersionCompare(IOS_MIN_SUPPORTED_VERSION_MAJOR, IOS_MIN_SUPPORTED_VERSION_MINOR, IOS_MIN_SUPPORTED_VERSION_PATCH) >= 0;
-#else
-	return true;
-#endif
-}
-
 bool FIOSPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc)
 {
 	DCDevice* DeviceCheckDevice = [DCDevice currentDevice];
