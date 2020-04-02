@@ -9,6 +9,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
 #include "ScopedTransaction.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapPalleteItem"
 
@@ -39,7 +40,22 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 	static const FName ItalicFontName = FName("Italic");
 	const FName FontType = ItalicFontName;
 	FSlateFontInfo Font = FCoreStyle::GetDefaultFontStyle(FontType, 10);
-	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget(Font, InCreateData, bIsReadOnly);
+
+	if (InCreateData->bHandleMouseButtonDown)
+	{
+		MouseButtonDownDelegate = InCreateData->MouseButtonDownDelegate;
+	}
+
+	ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
+		.ParameterText(this, &SNiagaraParameterMapPalleteItem::GetDisplayText)
+		//.HighlightText(InCreateData->HighlightText)
+		.ToolTipText(this, &SNiagaraParameterMapPalleteItem::GetItemTooltip)
+		.OnTextCommitted(this, &SNiagaraParameterMapPalleteItem::OnNameTextCommitted)
+		.OnVerifyTextChanged(this, &SNiagaraParameterMapPalleteItem::OnNameTextVerifyChanged)
+		.IsSelected(InCreateData->IsRowSelectedDelegate)
+		.IsReadOnly(InCreateData->bIsReadOnly);
+
+	InCreateData->OnRenameRequest->BindSP(ParameterNameTextBlock.ToSharedRef(), &SNiagaraParameterNameTextBlock::EnterEditingMode);
 
 	// now, create the actual widget
 	ChildSlot
@@ -57,11 +73,11 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 		+SHorizontalBox::Slot()
 		.FillWidth(1.f)
 		.VAlign(VAlign_Center)
-		.Padding(3,0)
+		.Padding(5,0)
 		[
-			NameSlotWidget
+			ParameterNameTextBlock.ToSharedRef()
 		]
-		// name slot
+		// reference count
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
@@ -83,6 +99,20 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 		]
 
 	];
+}
+
+void SNiagaraParameterMapPalleteItem::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SGraphPaletteItem::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	if (ParameterNameTextBlock.IsValid())
+	{
+		TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(ActionPtr.Pin());
+		if (ParameterAction.IsValid() && ParameterAction->bSubnamespaceRenamePending)
+		{
+			ParameterAction->bSubnamespaceRenamePending = false;
+			ParameterNameTextBlock->EnterSubnamespaceEditingMode();
+		}
+	}
 }
 
 void SNiagaraParameterMapPalleteItem::OnNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
