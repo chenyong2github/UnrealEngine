@@ -2,7 +2,9 @@
 
 #include "Engine/TextureLODSettings.h"
 #include "Engine/Texture2D.h"
-
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "PlatformInfo.h"
 
 int32 GUITextureLODBias = 0;
 FAutoConsoleVariableRef CVarUITextureLODBias(
@@ -268,6 +270,31 @@ void UTextureLODSettings::GetMipGenSettings(const UTexture& Texture, TextureMipG
 		bOutBorderColorBlack = true;
 	}
 }
+
+void UTextureLODSettings::GetDownscaleOptions(const UTexture& Texture, const ITargetPlatform& CurrentPlatform, float& Downscale, ETextureDownscaleOptions& DownscaleOptions) const
+{
+	float GroupDownscale = FMath::Clamp(TextureLODGroups[Texture.LODGroup].Downscale, 1.0f, 8.0f);
+	ETextureDownscaleOptions GroupDownscaleOptions = TextureLODGroups[Texture.LODGroup].DownscaleOptions;
+	if (GroupDownscaleOptions == ETextureDownscaleOptions::Default)
+	{
+		GroupDownscaleOptions = ETextureDownscaleOptions::SimpleAverage;
+	}
+		
+	const PlatformInfo::FPlatformInfo& Info = CurrentPlatform.GetPlatformInfo();
+	Downscale = Texture.Downscale.GetValueForPlatformIdentifiers(Info.PlatformGroupName, Info.VanillaPlatformName);;
+	if (Downscale < 1.f)
+	{
+		// value is not overriden for this texture
+		Downscale = GroupDownscale;
+	}
+
+	DownscaleOptions = Texture.DownscaleOptions;
+	if (DownscaleOptions == ETextureDownscaleOptions::Default)
+	{
+		DownscaleOptions = GroupDownscaleOptions;
+	}
+}
+
 #endif // #if WITH_EDITORONLY_DATA
 
 
