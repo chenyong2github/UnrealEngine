@@ -7408,6 +7408,12 @@ void UEdGraphSchema_K2::HandleParameterDefaultValueChanged(UK2Node* InTargetNode
 {
 	if (UK2Node_EditablePinBase* EditablePinNode = Cast<UK2Node_EditablePinBase>(InTargetNode))
 	{
+		// If this is happening during a save, it's not safe to trigger a compilation
+		if (GIsSavingPackage)
+		{
+			return;
+		}
+
 		FParamsChangedHelper ParamsChangedHelper;
 		ParamsChangedHelper.ModifiedBlueprints.Add(FBlueprintEditorUtils::FindBlueprintForNode(InTargetNode));
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(FBlueprintEditorUtils::FindBlueprintForNode(InTargetNode));
