@@ -57,6 +57,17 @@ TSharedPtr<SGraphNode> UNiagaraNodeWriteDataSet::CreateVisualWidget()
 	return SNew(SNiagaraGraphNodeWriteDataSet, this);
 }
 
+bool UNiagaraNodeWriteDataSet::SynchronizeWithStruct()
+{
+	bool bSynchronized = Super::SynchronizeWithStruct();
+	if (EventName.IsNone())
+	{
+		EventName = DataSet.Name;
+		VisualsChangedDelegate.Broadcast(this);
+	}
+	return bSynchronized;
+}
+
 FText UNiagaraNodeWriteDataSet::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	return FText::Format(LOCTEXT("NiagaraDataSetWriteFormat", "{0} Write"), FText::FromName(DataSet.Name));
@@ -88,6 +99,7 @@ void UNiagaraNodeWriteDataSet::Compile(class FHlslNiagaraTranslator* Translator,
 	if (EventName.IsNone())
 	{
 		EventName = DataSet.Name;
+		VisualsChangedDelegate.Broadcast(this);
 	}
 
 	FNiagaraDataSetID AlteredDataSet = DataSet;
