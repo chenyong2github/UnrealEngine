@@ -40,7 +40,7 @@ public:
 	using FParticleType = Concrete;
 
 	using FParticlesType = Chaos::TPBDRigidParticles<float, 3>;
-	using FCollisionConstraintsType = Chaos::TPBDCollisionConstraints<float, 3>;
+	using FCollisionConstraintsType = Chaos::FPBDCollisionConstraints;
 	using FIntArray = Chaos::TArrayCollectionArray<int32>;
 
 	TPhysicsProxy()

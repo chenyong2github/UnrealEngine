@@ -6,6 +6,5 @@
 #include "Chaos/Utilities.h"
 
 namespace Chaos {
-	template class TPBDCollisionConstraintAccessor<float, 3>;
 }
 

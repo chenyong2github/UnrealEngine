@@ -417,7 +417,7 @@ public:
 	ENGINE_API bool ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 	ENGINE_API bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 
-	ENGINE_API static Chaos::TCollisionModifierCallback<float, 3> CollisionModifierCallback;
+	ENGINE_API static Chaos::FCollisionModifierCallback CollisionModifierCallback;
 
 #if XGE_FIXED
 	template<typename PayloadType>

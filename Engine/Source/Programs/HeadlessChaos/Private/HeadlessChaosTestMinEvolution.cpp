@@ -23,7 +23,7 @@ namespace ChaosTest
 	GTEST_TEST(MinEvolutionTests, TestSpringConstraints)
 	{
 		// @todo(ccaulfield): remove template parameters on collisions and other constraints
-		using FCollisionConstraints = TPBDCollisionConstraints<FReal, 3>;
+		using FCollisionConstraints = FPBDCollisionConstraints;
 		using FCollisionDetector = TCollisionDetector<FParticlePairBroadPhase, FNarrowPhase, FSyncCollisionReceiver, FCollisionConstraints>;
 		using FRigidParticleSOAs = TPBDRigidsSOAs<FReal, 3>;
 		using FParticleHandle = TPBDRigidParticleHandle<FReal, 3>;
