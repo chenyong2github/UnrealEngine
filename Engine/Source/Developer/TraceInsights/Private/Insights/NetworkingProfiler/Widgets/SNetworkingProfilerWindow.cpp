@@ -979,8 +979,8 @@ void SNetworkingProfilerWindow::UpdateAggregatedNetStats()
 		if (SelectedGameInstance.IsValid() &&
 			SelectedConnection.IsValid() &&
 			SelectedConnectionMode.IsValid() &&
-			SelectedPacketStartIndex < SelectedPacketEndIndex &&
-			SelectionStartPosition < SelectionEndPosition)
+			(SelectedPacketStartIndex < SelectedPacketEndIndex) &&
+			(SelectedPacketStartIndex + 1 != SelectedPacketEndIndex || SelectionStartPosition < SelectionEndPosition))
 		{
 			NetStatsView->UpdateStats(SelectedGameInstance->GetIndex(),
 									  SelectedConnection->GetIndex(),
