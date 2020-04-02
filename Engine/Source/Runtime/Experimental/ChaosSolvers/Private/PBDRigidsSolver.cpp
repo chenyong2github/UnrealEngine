@@ -1039,8 +1039,9 @@ namespace Chaos
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(RecordRewindData);
 
-			int32 DataIdx = MRewindData->PrepareFrameForPTDirty(ActiveParticles.Num());
+			MRewindData->PrepareFrameForPTDirty(ActiveParticles.Num());
 			
+			int32 DataIdx = 0;
 			for(TPBDRigidParticleHandleImp<float,3,false>& ActiveObject : ActiveParticles)
 			{
 				const IPhysicsProxyBase* Proxy = GetProxy(ActiveObject.Handle());
