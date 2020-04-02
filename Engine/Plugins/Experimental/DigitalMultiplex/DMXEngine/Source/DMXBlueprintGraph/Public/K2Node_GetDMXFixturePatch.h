@@ -20,6 +20,10 @@ class DMXBLUEPRINTGRAPH_API UK2Node_GetDMXFixturePatch
 	GENERATED_BODY()
 
 public:
+	//~ Begin UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject interface
+
 	//~ Begin UEdGraphNode Interface
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetTooltipText() const override;
