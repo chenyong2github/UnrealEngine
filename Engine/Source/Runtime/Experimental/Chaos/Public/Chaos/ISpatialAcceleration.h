@@ -411,6 +411,11 @@ public:
 		return Entries[GetUniqueIdx(Key).Idx].Value;
 	}
 
+	const TValue& FindChecked(const TKey& Key) const
+	{
+		return Entries[GetUniqueIdx(Key).Idx].Value;
+	}
+
 	TValue& FindOrAdd(const TKey& Key)
 	{
 		if(TValue* Elem = Find(Key))
