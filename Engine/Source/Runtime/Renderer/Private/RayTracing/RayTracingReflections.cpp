@@ -33,6 +33,12 @@ static FAutoConsoleVariableRef CVarReflectionsMethod(
 	TEXT("1: use ray traced reflections\n")
 );
 
+static TAutoConsoleVariable<float> CVarReflectionScreenPercentage(
+	TEXT("r.RayTracing.Reflections.ScreenPercentage"),
+	100.0f,
+	TEXT("Screen percentage the reflections should be ray traced at (default = 100)."),
+	ECVF_RenderThreadSafe);
+
 static int32 GRayTracingReflectionsSamplesPerPixel = -1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsSamplesPerPixel(
 	TEXT("r.RayTracing.Reflections.SamplesPerPixel"),
@@ -351,12 +357,12 @@ class FSplitImaginaryReflectionGBufferCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FSplitImaginaryReflectionGBufferCS, "/Engine/Private/RayTracing/SplitImaginaryReflectionGBufferCS.usf", "MainCS", SF_Compute);
 
-int32 GetRayTracingReflectionsSamplesPerPixel(const FViewInfo& View)
+static int32 GetRayTracingReflectionsSamplesPerPixel(const FViewInfo& View)
 {
 	return GRayTracingReflectionsSamplesPerPixel >= 0 ? GRayTracingReflectionsSamplesPerPixel : View.FinalPostProcessSettings.RayTracingReflectionsSamplesPerPixel;
 }
 
-float GetRayTracingReflectionsMaxRoughness(const FViewInfo& View)
+static float GetRayTracingReflectionsMaxRoughness(const FViewInfo& View)
 {
 	return FMath::Clamp(GRayTracingReflectionsMaxRoughness >= 0 ? GRayTracingReflectionsMaxRoughness : View.FinalPostProcessSettings.RayTracingReflectionsMaxRoughness, 0.01f, 1.0f);
 }
@@ -372,26 +378,26 @@ bool ShouldRenderRayTracingReflections(const FViewInfo& View)
 	return IsRayTracingEnabled() && bReflectionPassEnabled;
 }
 
-bool ShouldRayTracedReflectionsUseHybridReflections()
+static bool ShouldRayTracedReflectionsUseHybridReflections()
 {
 	return CVarRayTracingReflectionsHybrid.GetValueOnRenderThread() != 0;
 }
 
-bool ShouldRayTracedReflectionsSortMaterials(const FViewInfo& View)
+static bool ShouldRayTracedReflectionsSortMaterials(const FViewInfo& View)
 {
 	const bool bIsMultiviewSecondary = View.ViewRect.Min.X > 0 || View.ViewRect.Min.Y > 0;
 
 	return (ShouldRayTracedReflectionsUseHybridReflections() || CVarRayTracingReflectionsSortMaterials.GetValueOnRenderThread() != 0) && !bIsMultiviewSecondary;
 }
 
-bool ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(const FViewInfo& View)
+static bool ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(const FViewInfo& View)
 {
 	const bool bIsMultiviewSecondary = View.ViewRect.Min.X > 0 || View.ViewRect.Min.Y > 0;
 
 	return (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread() != 0) && !bIsMultiviewSecondary;
 }
 
-bool ShouldRayTracedReflectionsRayTraceSkyLightContribution(const FScene& Scene)
+static bool ShouldRayTracedReflectionsRayTraceSkyLightContribution(const FScene& Scene)
 {
 	// Only ray trace sky light contribution when the ray traced sky light should be rendered in normal conditions (sky light exists, ray traced shadows enabled)
 	return CVarRayTracingReflectionsRayTraceSkyLightContribution.GetValueOnRenderThread() && ShouldRenderRayTracingSkyLight(Scene.SkyLight);
@@ -825,3 +831,38 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	check(0);
 }
 #endif
+
+FRayTracingReflectionOptions GetRayTracingReflectionOptions(const FViewInfo& View, const FScene& Scene)
+{
+	FRayTracingReflectionOptions Result;
+
+#if RHI_RAYTRACING
+
+	Result.bEnabled = ShouldRenderRayTracingReflections(View);
+
+	if (ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(View))
+	{
+		Result.Algorithm = FRayTracingReflectionOptions::SortedDeferred;
+	}
+	else if (ShouldRayTracedReflectionsSortMaterials(View))
+	{
+		Result.Algorithm = FRayTracingReflectionOptions::Sorted;
+	}
+	else
+	{
+		Result.Algorithm = FRayTracingReflectionOptions::EAlgorithm::BruteForce;
+	}
+
+	Result.SamplesPerPixel = GetRayTracingReflectionsSamplesPerPixel(View);
+	Result.ResolutionFraction = FMath::Clamp(CVarReflectionScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.25f, 1.0f);
+	Result.MaxRoughness = GetRayTracingReflectionsMaxRoughness(View);
+	Result.bSkyLight = ShouldRayTracedReflectionsRayTraceSkyLightContribution(Scene);
+
+#else // RHI_RAYTRACING
+
+	Result.bEnabled = false;
+
+#endif // RHI_RAYTRACING
+
+	return Result;
+}

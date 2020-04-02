@@ -16,38 +16,13 @@ struct FRayTracingReflectionOptions
 		SortedDeferred
 	};
 
+	bool bEnabled = true;
 	EAlgorithm Algorithm = EAlgorithm::Sorted;
-	int SamplesPerPixel = 1;
-	float ResolutionFraction = 1.0;
+	int32 SamplesPerPixel = 1;
+	float ResolutionFraction = 1.0f;
+	float MaxRoughness = 1.0f;
 	bool bReflectOnlyWater = false;
+	bool bSkyLight = true;
 };
 
-#if RHI_RAYTRACING
-
-int32 GetRayTracingReflectionsSamplesPerPixel(const FViewInfo& View);
-float GetRayTracingReflectionsMaxRoughness(const FViewInfo& View);
-
-bool ShouldRenderRayTracingReflections(const FViewInfo& View);
-bool ShouldRayTracedReflectionsUseHybridReflections();
-bool ShouldRayTracedReflectionsSortMaterials(const FViewInfo& View);
-bool ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(const FViewInfo& View);
-bool ShouldRayTracedReflectionsRayTraceSkyLightContribution(const FScene& Scene);
-
-#else
-
-FORCEINLINE int32 GetRayTracingReflectionsSamplesPerPixel(const FViewInfo& View)
-{
-	return 0;
-}
-
-FORCEINLINE bool ShouldRayTracedReflectionsSortMaterials(const FViewInfo& View)
-{
-	return false;
-}
-
-FORCEINLINE bool ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(const FViewInfo& View)
-{
-	return false;
-}
-
-#endif // RHI_RAYTRACING
+FRayTracingReflectionOptions GetRayTracingReflectionOptions(const FViewInfo& View, const FScene& Scene);

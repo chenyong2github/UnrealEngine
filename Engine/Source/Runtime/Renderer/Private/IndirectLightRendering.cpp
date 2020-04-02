@@ -22,12 +22,6 @@ static TAutoConsoleVariable<int32> CVarDiffuseIndirectDenoiser(
 	TEXT("Denoising options (default = 1)"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<float> CVarReflectionScreenPercentage(
-	TEXT("r.RayTracing.Reflections.ScreenPercentage"),
-	100.0f,
-	TEXT("Screen percentage the reflections should be ray traced at (default = 100)."),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarUseReflectionDenoiser(
 	TEXT("r.Reflections.Denoiser"),
 	2,
@@ -663,13 +657,14 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 	for (FViewInfo& View : Views)
 	{
 		const uint32 CurrentViewIndex = ViewIndex++;
-		const bool bRayTracedReflections = ShouldRenderRayTracingReflections(View);
-		const bool bScreenSpaceReflections = !bRayTracedReflections && ShouldRenderScreenSpaceReflections(View);
 
-		const bool bComposePlanarReflections = !bRayTracedReflections && HasDeferredPlanarReflections(View);
+		const FRayTracingReflectionOptions RayTracingReflectionOptions = GetRayTracingReflectionOptions(View, *Scene);
+
+		const bool bScreenSpaceReflections = !RayTracingReflectionOptions.bEnabled && ShouldRenderScreenSpaceReflections(View);
+		const bool bComposePlanarReflections = !RayTracingReflectionOptions.bEnabled && HasDeferredPlanarReflections(View);
 
 		FRDGTextureRef ReflectionsColor = nullptr;
-		if (bRayTracedReflections || bScreenSpaceReflections)
+		if (RayTracingReflectionOptions.bEnabled || bScreenSpaceReflections)
 		{
 			int32 DenoiserMode = GetReflectionsDenoiserMode();
 
@@ -678,44 +673,29 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 			// Traces the reflections, either using screen space reflection, or ray tracing.
 			IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
-			IScreenSpaceDenoiser::FReflectionsRayTracingConfig RayTracingConfig;
-			if (bRayTracedReflections)
+			IScreenSpaceDenoiser::FReflectionsRayTracingConfig DenoiserConfig;
+			if (RayTracingReflectionOptions.bEnabled)
 			{
 				RDG_EVENT_SCOPE(GraphBuilder, "RayTracingReflections");
 				RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingReflections);
 
 				bDenoise = DenoiserMode != 0;
 
-				RayTracingConfig.ResolutionFraction = FMath::Clamp(CVarReflectionScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.25f, 1.0f);
-#if RHI_RAYTRACING
-				RayTracingConfig.RayCountPerPixel = GetRayTracingReflectionsSamplesPerPixel(View);
-#else
-				RayTracingConfig.RayCountPerPixel = 0;
-#endif
+				DenoiserConfig.ResolutionFraction = RayTracingReflectionOptions.ResolutionFraction;
+				DenoiserConfig.RayCountPerPixel = RayTracingReflectionOptions.SamplesPerPixel;
 
 				if (!bDenoise)
 				{
-					RayTracingConfig.ResolutionFraction = 1.0f;
+					DenoiserConfig.ResolutionFraction = 1.0f;
 				}
 
-				FRayTracingReflectionOptions Options;
-				if (ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(View))
-				{
-					Options.Algorithm = FRayTracingReflectionOptions::SortedDeferred;
-				}
-				else if (ShouldRayTracedReflectionsSortMaterials(View))
-				{
-					Options.Algorithm = FRayTracingReflectionOptions::Sorted;
-				}
-				Options.SamplesPerPixel = RayTracingConfig.RayCountPerPixel;
-				Options.ResolutionFraction = RayTracingConfig.ResolutionFraction;
-				Options.bReflectOnlyWater = false;
+				check(RayTracingReflectionOptions.bReflectOnlyWater == false);
 
 				RenderRayTracingReflections(
 					GraphBuilder,
 					SceneTextures,
 					View,
-					Options,
+					RayTracingReflectionOptions,
 					&DenoiserInputs);
 			}
 			else if (bScreenSpaceReflections)
@@ -726,7 +706,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 				FRDGTextureRef CurrentSceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
 
 				ESSRQuality SSRQuality;
-				GetSSRQualityForView(View, &SSRQuality, &RayTracingConfig);
+				GetSSRQualityForView(View, &SSRQuality, &DenoiserConfig);
 
 				RDG_EVENT_SCOPE(GraphBuilder, "ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
 
@@ -755,7 +735,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 					&View.PrevViewInfo,
 					SceneTextures,
 					DenoiserInputs,
-					RayTracingConfig);
+					DenoiserConfig);
 
 				ReflectionsColor = DenoiserOutputs.Color;
 			}
@@ -779,7 +759,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 			}
 			else
 			{
-				if (bRayTracedReflections && DenoiserInputs.RayHitDistance)
+				if (RayTracingReflectionOptions.bEnabled && DenoiserInputs.RayHitDistance)
 				{
 					// The performance of ray tracing does not allow to run without a denoiser in real time.
 					// Multiple rays per pixel is unsupported by the denoiser that will most likely more bound by to
@@ -790,11 +770,11 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 				ReflectionsColor = DenoiserInputs.Color;
 			}
-		} // if (bRayTracedReflections || bScreenSpaceReflections)
+		} // if (RayTracingReflectionOptions.bEnabled || bScreenSpaceReflections)
 
 		if (bComposePlanarReflections)
 		{
-			check(!bRayTracedReflections);
+			check(!RayTracingReflectionOptions.bEnabled);
 			RenderDeferredPlanarReflections(GraphBuilder, SceneTextures, View, /* inout */ ReflectionsColor);
 		}
 
@@ -886,7 +866,9 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 			// Bind hair data
 			const bool bCheckerboardSubsurfaceRendering = IsSubsurfaceCheckerboardFormat(SceneContext.GetSceneColorFormat());
 			auto PermutationVector = FReflectionEnvironmentSkyLightingPS::BuildPermutationVector(
-				View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != NULL, bSkyLight, bDynamicSkyLight, bApplySkyShadowing, bRayTracedReflections);
+				View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != nullptr,
+				bSkyLight, bDynamicSkyLight, bApplySkyShadowing,
+				RayTracingReflectionOptions.bEnabled);
 
 			TShaderMapRef<FReflectionEnvironmentSkyLightingPS> PixelShader(View.ShaderMap, PermutationVector);
 			ClearUnusedGraphResources(PixelShader, PassParameters);
