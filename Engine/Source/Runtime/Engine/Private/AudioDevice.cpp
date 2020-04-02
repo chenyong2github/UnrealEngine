@@ -2283,12 +2283,13 @@ void FAudioDevice::RecursiveApplyAdjuster(const FSoundClassAdjuster& InAdjuster,
 	}
 }
 
-void FAudioDevice::CullSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound *>& ActiveSoundsCopy)
+void FAudioDevice::UpdateConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound *>& ActiveSoundsCopy)
 {
 	// Now stop any sounds that are active that are in concurrency resolution groups that resolve by stopping quietest
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioEvaluateConcurrency);
 		ConcurrencyManager.UpdateSoundsToCull();
+		ConcurrencyManager.UpdateVolumeScaleGenerations();
 	}
 
 	for (int32 i = ActiveSoundsCopy.Num() - 1; i >= 0; --i)
@@ -2322,6 +2323,17 @@ void FAudioDevice::CullSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveIns
 		if (WaveInstances[i]->ShouldStopDueToMaxConcurrency())
 		{
 			WaveInstances.RemoveAtSwap(i, 1, false);
+		}
+	}
+
+	// Must be completed after removing wave instances as it avoids an issue
+	// where quiet loops can wrongfully scale concurrency ducking improperly if they continue
+	// to attempt to be evaluated while being periodically realized to check volumes from virtualized.
+	for (int32 i = 0; i < ActiveSoundsCopy.Num(); ++i)
+	{
+		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
+		{
+			ActiveSound->UpdateConcurrencyVolumeScalars(GetGameDeltaTime());
 		}
 	}
 }
@@ -3717,18 +3729,7 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 
 	if (GetType != ESortedActiveWaveGetType::QueryOnly)
 	{
-		CullSoundsDueToMaxConcurrency(WaveInstances, ActiveSoundsCopy);
-	}
-
-	// Must be completed after StopQuietSoundsDueToMaxConcurrency as it avoids an issue
-	// where quiet loops can wrongfully scale concurrency ducking improperly if they continue
-	// to attempt to be evaluated while being periodically realized to check volumes from virtualized.
-	for (int32 i = 0; i < ActiveSoundsCopy.Num(); ++i)
-	{
-		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
-		{
-			ActiveSound->UpdateConcurrencyVolumeScalars(GetGameDeltaTime());
-		}
+		UpdateConcurrency(WaveInstances, ActiveSoundsCopy);
 	}
 
 	int32 FirstActiveIndex = 0;
@@ -5014,19 +5015,13 @@ bool FAudioDevice::LocationIsAudible(const FVector& Location, int32 ListenerInde
 
 float FAudioDevice::GetDistanceToNearestListener(const FVector& Location) const
 {
-	const bool bInAudioThread = IsInAudioThread();
-	const bool bInGameThread = IsInGameThread();
-
-	check(bInAudioThread || bInGameThread);
-
-	float DistSquared;
-	const bool bAllowAttenuationOverrides = true;
-	if (FindClosestListenerIndex(Location, DistSquared, bAllowAttenuationOverrides) == INDEX_NONE)
+	float DistSquared = 0.0f;
+	if (GetDistanceSquaredToNearestListener(Location, DistSquared))
 	{
-		return WORLD_MAX;
+		return FMath::Sqrt(DistSquared);
 	}
 
-	return FMath::Sqrt(DistSquared);
+	return WORLD_MAX;
 }
 
 float FAudioDevice::GetSquaredDistanceToListener(const FVector& Location, const FTransform& ListenerTransform) const
@@ -5054,6 +5049,26 @@ bool FAudioDevice::GetDistanceSquaredToListener(const FVector& Location, int32 L
 	}
 
 	OutSqDistance = (ListenerTranslation - Location).SizeSquared();
+	return true;
+}
+
+bool FAudioDevice::GetDistanceSquaredToNearestListener(const FVector& Location, float& OutSqDistance) const
+{
+	OutSqDistance = TNumericLimits<float>::Max();
+	const bool bInAudioThread = IsInAudioThread();
+	const bool bInGameThread = IsInGameThread();
+
+	check(bInAudioThread || bInGameThread);
+
+	float DistSquared;
+	const bool bAllowAttenuationOverrides = true;
+	if (FindClosestListenerIndex(Location, DistSquared, bAllowAttenuationOverrides) == INDEX_NONE)
+	{
+		OutSqDistance = WORLD_MAX;
+		return false;
+	}
+
+	OutSqDistance = DistSquared;
 	return true;
 }
 

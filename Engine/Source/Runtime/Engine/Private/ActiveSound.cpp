@@ -1458,12 +1458,11 @@ float FActiveSound::GetAttenuationFrequency(const FSoundAttenuationSettings* Set
 	return FMath::Clamp<float>(OutputFrequency, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
 }
 
-float FActiveSound::GetHighestPriority() const
-{ 
-	static constexpr float MaxPriority = TNumericLimits<float>::Max();
+bool FActiveSound::GetAlwaysPlay() const
+{
 	if (bAlwaysPlay)
 	{
-		return MaxPriority;
+		return true;
 	}
 
 	for (const TPair<UPTRINT, FWaveInstance*>& Pair : WaveInstances)
@@ -1474,8 +1473,22 @@ float FActiveSound::GetHighestPriority() const
 			check(SoundClassProperties);
 			if (SoundClassProperties->bAlwaysPlay)
 			{
-				return MaxPriority;
+				return true;
 			}
+		}
+	}
+
+	return false;
+}
+
+float FActiveSound::GetHighestPriority(bool bIgnoreAlwaysPlay) const
+{ 
+	if (!bIgnoreAlwaysPlay)
+	{
+		if (GetAlwaysPlay())
+		{
+			static constexpr float AlwaysPlayPriority = TNumericLimits<float>::Max();
+			return AlwaysPlayPriority;
 		}
 	}
 

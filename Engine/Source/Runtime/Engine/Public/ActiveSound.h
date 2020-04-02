@@ -668,8 +668,13 @@ public:
 	/** Applies the active sound's attenuation settings to the input parse params using the given listener */
 	void ParseAttenuation(FSoundParseParameters& OutParseParams, int32 ListenerIndex, const FSoundAttenuationSettings& InAttenuationSettings);
 
-	/** Returns the highest effective priority of the child wave instances */
-	float GetHighestPriority() const;
+	/** Returns whether or not sound or any active wave instances it manages are set to always play */
+	bool GetAlwaysPlay() const;
+
+	/** Returns the highest effective priority of the child wave instances. If bIgnoreAlwaysPlay set to true, gives highest
+	  * priority disregarding always play priority override.
+	  */
+	float GetHighestPriority(bool bIgnoreAlwaysPlay = false) const;
 
 	/** Sets the amount of audio from this active sound to send to the submix. */
 	void SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo);
