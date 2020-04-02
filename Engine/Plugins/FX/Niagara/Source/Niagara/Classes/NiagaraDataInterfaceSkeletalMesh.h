@@ -292,6 +292,14 @@ public:
 	uint32 GetTriangleCount() const { return TriangleCount; }
 	uint32 GetVertexCount() const { return VertexCount; }
 
+	bool IsSamplingRegionsAllAreaWeighted() const { return bSamplingRegionsAllAreaWeighted; }
+	int32 GetNumSamplingRegionTriangles() const { return NumSamplingRegionTriangles; }
+	int32 GetNumSamplingRegionVertices() const { return NumSamplingRegionVertices; }
+	FShaderResourceViewRHIRef GetSampleRegionsProbSRV() const { return SampleRegionsProbSRV; }
+	FShaderResourceViewRHIRef GetSampleRegionsAliasSRV() const { return SampleRegionsAliasSRV; }
+	FShaderResourceViewRHIRef GetSampleRegionsTriangleIndicesSRV() const { return SampleRegionsTriangleIndicesSRV; }
+	FShaderResourceViewRHIRef GetSampleRegionsVerticesSRV() const { return SampleRegionsVerticesSRV; }
+
 	FRHIShaderResourceView* GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
 	FRHIShaderResourceView* GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
 	FRHIShaderResourceView* GetBufferTangentSRV() const { return MeshTangentBufferSRV; }
@@ -316,6 +324,23 @@ protected:
 	FShaderResourceViewRHIRef BufferTriangleUniformSamplerAliasSRV = nullptr;
 	FVertexBufferRHIRef BufferTriangleMatricesOffsetRHI = nullptr;
 	FShaderResourceViewRHIRef BufferTriangleMatricesOffsetSRV = nullptr;
+
+	bool bSamplingRegionsAllAreaWeighted = false;
+	int32 NumSamplingRegionTriangles = 0;
+	int32 NumSamplingRegionVertices = 0;
+	TResourceArray<float> SampleRegionsProb;
+	TResourceArray<int32> SampleRegionsAlias;
+	TResourceArray<int32> SampleRegionsTriangleIndicies;
+	TResourceArray<int32> SampleRegionsVertices;
+
+	FVertexBufferRHIRef SampleRegionsProbBuffer;
+	FShaderResourceViewRHIRef SampleRegionsProbSRV;
+	FVertexBufferRHIRef SampleRegionsAliasBuffer;
+	FShaderResourceViewRHIRef SampleRegionsAliasSRV;
+	FVertexBufferRHIRef SampleRegionsTriangleIndicesBuffer;
+	FShaderResourceViewRHIRef SampleRegionsTriangleIndicesSRV;
+	FVertexBufferRHIRef SampleRegionsVerticesBuffer;
+	FShaderResourceViewRHIRef SampleRegionsVerticesSRV;
 
 	int32 NumFilteredBones = 0;
 	int32 NumUnfilteredBones = 0;
@@ -620,6 +645,12 @@ public:
 	static const FString MeshColorBufferName;
 	static const FString MeshTriangleSamplerProbaBufferName;
 	static const FString MeshTriangleSamplerAliasBufferName;
+	static const FString MeshNumSamplingRegionTrianglesName;
+	static const FString MeshNumSamplingRegionVerticesName;
+	static const FString MeshSamplingRegionsProbaBufferName;
+	static const FString MeshSamplingRegionsAliasBufferName;
+	static const FString MeshSampleRegionsTriangleIndicesName;
+	static const FString MeshSampleRegionsVerticesName;
 	static const FString MeshTriangleMatricesOffsetBufferName;
 	static const FString MeshTriangleCountName;
 	static const FString MeshVertexCountName;
@@ -678,6 +709,9 @@ private:
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE int32 RandomTriIndex(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex);
 
+	void RandomTriangle(FVectorVMContext& Context);
+	void GetTriangleCount(FVectorVMContext& Context);
+
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE int32 GetFilteredTriangleCount(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
 
@@ -694,17 +728,18 @@ public:
 	void GetVertexSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
 	void BindVertexSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
+	void IsValidVertex(FVectorVMContext& Context);
+	void RandomVertex(FVectorVMContext& Context);
+	void GetVertexCount(FVectorVMContext& Context);
+
+	template<typename FilterMode>
+	void IsValidFilteredVertex(FVectorVMContext& Context);
+	template<typename FilterMode>
+	void RandomFilteredVertex(FVectorVMContext& Context);
 	template<typename FilterMode>
 	void GetFilteredVertexCount(FVectorVMContext& Context);
-
 	template<typename FilterMode>
 	void GetFilteredVertexAt(FVectorVMContext& Context);
-
-	template<typename FilterMode>
-	void RandomVertex(FVectorVMContext& Context);
-
-	template<typename FilterMode>
-	void IsValidVertex(FVectorVMContext& Context);
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType>
 	void GetVertexSkinnedData(FVectorVMContext& Context);
@@ -718,7 +753,7 @@ public:
 
 private:
 	template<typename FilterMode>
-	FORCEINLINE int32 RandomVertIndex(FNDIRandomHelper& RandHelper, int32 Instance, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
+	FORCEINLINE int32 RandomFilteredVertIndex(FNDIRandomHelper& RandHelper, int32 Instance, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
 
 	template<typename FilterMode>
 	FORCEINLINE int32 GetFilteredVertexCount(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
@@ -776,9 +811,12 @@ public:
 	static const FName GetSkinnedTriangleDataWSInterpName;
 	static const FName GetTriColorName;
 	static const FName GetTriUVName;
-	static const FName GetTriangleCountName;
-	static const FName GetTriangleAtName;
 	static const FName GetTriCoordVerticesName;
+	static const FName RandomTriangleName;
+	static const FName GetTriangleCountName;
+	static const FName RandomFilteredTriangleName;
+	static const FName GetFilteredTriangleCountName;
+	static const FName GetFilteredTriangleAtName;
 
 	// Bone Sampling
 	static const FName GetSkinnedBoneDataName;
@@ -805,14 +843,19 @@ public:
 	static const FName RandomFilteredSocketOrBoneName;
 
 	// Vertex Sampling
-	static const FName IsValidVertexName;
-	static const FName RandomVertexName;
 	static const FName GetSkinnedVertexDataName;
 	static const FName GetSkinnedVertexDataWSName;
 	static const FName GetVertexColorName;
 	static const FName GetVertexUVName;
+
+	static const FName IsValidVertexName;
+	static const FName RandomVertexName;
 	static const FName GetVertexCountName;
-	static const FName GetVertexAtName;
+
+	static const FName IsValidFilteredVertexName;
+	static const FName RandomFilteredVertexName;
+	static const FName GetFilteredVertexCountName;
+	static const FName GetFilteredVertexAtName;
 };
 
 struct FNiagaraDISkeletalMeshPassedDataToRT
