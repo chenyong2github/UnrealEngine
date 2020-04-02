@@ -1134,6 +1134,9 @@ namespace WindowsMixedReality
 
 			FApp::SetUseVRFocus(true);
 			FApp::SetHasVRFocus(true);
+
+			// Start speech recognition if there are any commands we care to listen for
+			StartSpeechRecognition();
 		}
 		else
 		{
@@ -1141,6 +1144,8 @@ namespace WindowsMixedReality
 
 			FApp::SetUseVRFocus(false);
 			FApp::SetHasVRFocus(false);
+
+			StopSpeechRecognition();
 		}
 #endif
 		return bIsStereoDesired;
@@ -1815,6 +1820,11 @@ namespace WindowsMixedReality
 			FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(PauseHandle);
 			PauseHandle.Reset();
 		}
+		if (ResumeHandle.IsValid())
+		{
+			FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(ResumeHandle);
+			ResumeHandle.Reset();
+		}
 
 		bIsStereoDesired = false;
 		bIsStereoEnabled = false;
@@ -1906,6 +1916,11 @@ namespace WindowsMixedReality
 		{
 			PauseHandle = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FWindowsMixedRealityHMD::AppServicePause);
 		}
+
+		if (!ResumeHandle.IsValid())
+		{
+			ResumeHandle = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FWindowsMixedRealityHMD::AppServiceResume);
+		}
 #endif
 	}
 
@@ -1913,6 +1928,11 @@ namespace WindowsMixedReality
 	void FWindowsMixedRealityHMD::AppServicePause()
 	{
 		this->bRequestRestart = true;
+	}
+
+	void FWindowsMixedRealityHMD::AppServiceResume()
+	{
+		StartSpeechRecognition();
 	}
 
 	void CallSpeechCallback(FKey InKey, FName InActionName)
