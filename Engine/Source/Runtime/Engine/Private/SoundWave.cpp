@@ -683,6 +683,8 @@ void USoundWave::BeginGetCompressedData(FName Format, const FPlatformAudioCookOv
 	{
 		if (GetDerivedDataCache())
 		{
+			COOK_STAT(auto Timer = SoundWaveCookStats::UsageStats.TimeSyncWork());
+			COOK_STAT(Timer.TrackCyclesOnly());
 			FDerivedAudioDataCompressor* DeriveAudioData = new FDerivedAudioDataCompressor(this, Format, PlatformSpecificFormat, CompressionOverrides);
 			uint32 GetHandle = GetDerivedDataCacheRef().GetAsynchronous(DeriveAudioData);
 			AsyncLoadingDataFormats.Add(PlatformSpecificFormat, GetHandle);
@@ -716,9 +718,15 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 			bool bDataWasBuilt = false;
 			bool bGetSuccessful = false;
 
-			COOK_STAT(auto Timer = SoundWaveCookStats::UsageStats.TimeSyncWork());
 #if WITH_EDITOR
 			uint32* AsyncHandle = AsyncLoadingDataFormats.Find(PlatformSpecificFormat);
+#else
+			uint32* AsyncHandle = nullptr;
+#endif
+
+			COOK_STAT(auto Timer = AsyncHandle ? SoundWaveCookStats::UsageStats.TimeAsyncWait() : SoundWaveCookStats::UsageStats.TimeSyncWork());
+
+#if WITH_EDITOR
 			if (AsyncHandle)
 			{
 				GetDerivedDataCacheRef().WaitAsynchronousCompletion(*AsyncHandle);
