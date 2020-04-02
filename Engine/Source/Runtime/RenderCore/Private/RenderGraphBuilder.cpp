@@ -755,10 +755,6 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
 
 	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
-
-	// List all RDG texture being read and modified by the pass.
-	TSet<FRDGTextureRef, DefaultKeyFuncs<FRDGTextureRef>, SceneRenderingSetAllocator> ReadTextures;
-	TSet<FRDGTextureRef, DefaultKeyFuncs<FRDGTextureRef>, SceneRenderingSetAllocator> ModifiedTextures;
 	ReadTextures.Reserve(ParameterCount);
 	ModifiedTextures.Reserve(ParameterCount);
 
@@ -1056,6 +1052,8 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 	OutRPInfo->bGeneratingMips = Pass->IsGenerateMips();
 
 	BarrierBatcher->End(RHICmdList);
+	ReadTextures.Reset();
+	ModifiedTextures.Reset();
 }
 
 void FRDGBuilder::ReleaseRHITextureIfUnreferenced(FRDGTexture* Texture)
