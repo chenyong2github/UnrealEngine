@@ -31,12 +31,8 @@ class UNREALED_API UEditorSettings : public UObject
 	UPROPERTY(EditAnywhere, config, Category=DerivedData, meta = (ConfigRestartRequired = true))
 	FDirectoryPath SharedDerivedDataCache;
 
-	/** Whether to show the S3DDC settings. Needs to be enabled on a project-by-project basis. */
-	UPROPERTY(config)
-	bool bShowEnableS3DDC;
-
 	/** Whether to enable the S3 derived data cache backend */
-	UPROPERTY(EditAnywhere, config, Category=DerivedData, meta = (DisplayName = "Enable AWS S3 Cache", Tooltip = "Enables the experimental S3 derived data cache.", ConfigRestartRequired = true, EditCondition="bShowEnableS3DDC"))
+	UPROPERTY(EditAnywhere, config, Category=DerivedData, meta = (DisplayName = "Enable AWS S3 Cache", Tooltip = "Enables the experimental S3 derived data cache.", ConfigRestartRequired = true))
 	bool bEnableS3DDC = true;
 
 	// =====================================================================
