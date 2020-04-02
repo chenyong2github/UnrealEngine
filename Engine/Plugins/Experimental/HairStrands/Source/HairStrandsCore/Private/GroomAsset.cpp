@@ -813,6 +813,7 @@ FHairCollisionConstraint::FHairCollisionConstraint()
 	StaticFriction = 0.1;
 	StrandsViscosity = 1.0;
 	CollisionRadius = 0.1;
+	GridDimension = FIntVector(30,30,30);
 
 	RadiusScale.GetRichCurve()->SetKeyInterpMode(RadiusScale.GetRichCurve()->AddKey(0.f, 1.0f), ERichCurveInterpMode::RCIM_Cubic);
 	RadiusScale.GetRichCurve()->SetKeyInterpMode(RadiusScale.GetRichCurve()->AddKey(1.f, 0.1f), ERichCurveInterpMode::RCIM_Cubic);
