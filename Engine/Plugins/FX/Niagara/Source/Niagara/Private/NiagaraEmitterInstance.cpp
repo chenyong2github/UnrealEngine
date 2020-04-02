@@ -1347,6 +1347,9 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("%s has attempted to exceed the max CPU particle count! | Max: %d | Requested: %u"), *CachedEmitter->GetFullName(), GMaxNiagaraCPUParticlesPerEmitter, AllocationSize);
 
+		//We clear the emitters estimate otherwise we get stuck in this state forever.
+		CachedEmitter->ClearRuntimeAllocationEstimate();
+
 		//For now we completely bail out of spawning new particles. Possibly should improve this in future.
 		AllocationSize = OrigNumParticles;
 		SpawnTotal = 0;
@@ -1355,6 +1358,12 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		{
 			EventSpawnTotal = 0;
 			EventInstanceData->EventSpawnTotal = 0;
+
+			for (FNiagaraEventHandlingInfo& Info : EventInstanceData->EventHandlingInfo)
+			{
+				Info.SpawnCounts.Empty();
+				Info.TotalSpawnCount = 0;
+			}
 		}
 	}
 
@@ -1835,6 +1844,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 uint32 FNiagaraEmitterInstance::CalculateEventSpawnCount(const FNiagaraEventScriptProperties &EventHandlerProps, TArray<int32, TInlineAllocator<16>>& EventSpawnCounts, FNiagaraDataSet *EventSet)
 {
 	uint32 SpawnTotal = 0;
+	uint32 MaxSpawnCount = INT_MAX; //We could probably do to have a CVar for limiting the max event spawn directly but for now just keep the count from overflowing so it's caught by the overall partcle count checks later.
 	int32 NumEventsToProcess = 0;
 
 	if (EventSet)
@@ -1849,10 +1859,11 @@ uint32 FNiagaraEmitterInstance::CalculateEventSpawnCount(const FNiagaraEventScri
 		for (int32 i = 0; i < NumEventsToProcess; i++)
 		{
 			const uint32 SpawnNumber = bUseRandom ? FMath::RandRange((int32)EventHandlerProps.MinSpawnNumber, (int32)EventHandlerProps.SpawnNumber) : EventHandlerProps.SpawnNumber;
-			if (ExecutionState == ENiagaraExecutionState::Active && SpawnNumber > 0)
+			uint32 NewSpawnTotal = SpawnTotal + SpawnNumber;
+			if (ExecutionState == ENiagaraExecutionState::Active && SpawnNumber > 0 && NewSpawnTotal < MaxSpawnCount)
 			{
 				EventSpawnCounts.Add(SpawnNumber);
-				SpawnTotal += SpawnNumber;
+				SpawnTotal = NewSpawnTotal;
 			}
 		}
 	}

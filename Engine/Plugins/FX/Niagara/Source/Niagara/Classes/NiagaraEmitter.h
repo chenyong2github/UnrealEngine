@@ -487,6 +487,7 @@ public:
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent) const;
 
+	void ClearRuntimeAllocationEstimate(uint64 ReportHandle = INDEX_NONE);
 	/* This is used by the emitter instances to report runtime allocations to reduce reallocation in future simulation runs. */
 	int32 AddRuntimeAllocation(uint64 ReporterHandle, int32 AllocationCount);
 
