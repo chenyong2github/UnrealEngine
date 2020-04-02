@@ -1121,7 +1121,7 @@ bool FS3DerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 		return true;
 	}
 
-	return true;
+	return false;
 }
 
 #endif
