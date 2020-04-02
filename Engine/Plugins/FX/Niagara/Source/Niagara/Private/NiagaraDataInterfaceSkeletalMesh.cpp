@@ -1638,8 +1638,19 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		}
 	}
 
-	// Gather filtered bones information
+	// Generate excluded root bone index (if any)
 	FReferenceSkeleton& RefSkel = Mesh->RefSkeleton;
+	ExcludedBoneIndex = INDEX_NONE;
+	if (Interface->bExcludeBone && !Interface->ExcludeBoneName.IsNone())
+	{
+		ExcludedBoneIndex = RefSkel.FindBoneIndex(Interface->ExcludeBoneName);
+		if (ExcludedBoneIndex == INDEX_NONE)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface '%s' is missing bone '%s' this is ok but may not exclude what you want Mesh '%s' Component '%s'"), *Interface->GetFullName(), *Interface->ExcludeBoneName.ToString(), *Mesh->GetFullName(), *Component->GetFullName());
+		}
+	}
+
+	// Gather filtered bones information
 	if (Interface->FilteredBones.Num() > 0)
 	{
 		if (RefSkel.GetNum() > TNumericLimits<uint16>::Max())
@@ -1672,6 +1683,12 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		// Append unfiltered bones to the array
 		for (int32 i=0; i < RefSkel.GetNum(); ++i)
 		{
+			// Don't append excluded bone
+			if (i == ExcludedBoneIndex)
+			{
+				continue;
+			}
+
 			bool bExists = false;
 			for (int32 j=0; j < NumFilteredBones; ++j)
 			{
@@ -1962,6 +1979,10 @@ UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInit
 #endif
 	, ChangeId(0)
 {
+	static const FName NAME_Root("root");
+	ExcludeBoneName = NAME_Root;
+	bExcludeBone = false;
+
 	Proxy.Reset(new FNiagaraDataInterfaceProxySkeletalMesh());
 }
 
@@ -2081,6 +2102,8 @@ bool UNiagaraDataInterfaceSkeletalMesh::CopyToInternal(UNiagaraDataInterface* De
 	OtherTyped->WholeMeshLOD = WholeMeshLOD;
 	OtherTyped->FilteredBones = FilteredBones;
 	OtherTyped->FilteredSockets = FilteredSockets;
+	OtherTyped->bExcludeBone = bExcludeBone;
+	OtherTyped->ExcludeBoneName = ExcludeBoneName;
 #if WITH_EDITORONLY_DATA
 	OtherTyped->PreviewMesh = PreviewMesh;
 	OtherTyped->bRequiresCPUAccess = bRequiresCPUAccess;
@@ -2104,7 +2127,9 @@ bool UNiagaraDataInterfaceSkeletalMesh::Equals(const UNiagaraDataInterface* Othe
 		OtherTyped->SamplingRegions == SamplingRegions &&
 		OtherTyped->WholeMeshLOD == WholeMeshLOD &&
 		OtherTyped->FilteredBones == FilteredBones &&
-		OtherTyped->FilteredSockets == FilteredSockets;
+		OtherTyped->FilteredSockets == FilteredSockets &&
+		OtherTyped->bExcludeBone == bExcludeBone &&
+		OtherTyped->ExcludeBoneName == ExcludeBoneName;
 }
 
 bool UNiagaraDataInterfaceSkeletalMesh::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
