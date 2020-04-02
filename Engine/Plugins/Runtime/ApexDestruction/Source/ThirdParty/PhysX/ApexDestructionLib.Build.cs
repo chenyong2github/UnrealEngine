@@ -125,6 +125,7 @@ public class ApexDestructionLib : ModuleRules
 				string LibraryPath = PhysXBinariesDir + String.Format("/libAPEX_Destructible{0}.so", LibrarySuffix);
 				PublicAdditionalLibraries.Add(LibraryPath);
 				RuntimeDependencies.Add(LibraryPath);
+				RuntimeDependencies.Add(Path.ChangeExtension(LibraryPath, ".debug"), StagedFileType.DebugNonUFS);
 			}
         }
         else if (Target.Platform == UnrealTargetPlatform.XboxOne)
