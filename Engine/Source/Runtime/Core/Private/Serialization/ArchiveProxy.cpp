@@ -10,5 +10,10 @@ FArchiveProxy::FArchiveProxy(FArchive& InInnerArchive)
 : FArchive    (InInnerArchive)
 , InnerArchive(InInnerArchive)
 {
+	LinkProxy(InnerArchive.GetArchiveState(), GetArchiveState());
 }
 
+FArchiveProxy::~FArchiveProxy()
+{
+	UnlinkProxy(InnerArchive.GetArchiveState(), GetArchiveState());
+}
