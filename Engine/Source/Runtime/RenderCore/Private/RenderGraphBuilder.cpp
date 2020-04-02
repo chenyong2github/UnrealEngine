@@ -164,13 +164,22 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList)
 	, MemStack(FMemStack::Get())
 	, EventScopeStack(RHICmdList)
 	, StatScopeStack(RHICmdList)
-{}
+	, BarrierBatcher(MakeUnique<FRDGBarrierBatcher>())
+{
+	AllocatedTextures.Reserve(16);
+	AllocatedBuffers.Reserve(16);
+}
+
+FRDGBuilder::~FRDGBuilder() {}
 
 void FRDGBuilder::Execute()
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FRDGBuilder_Execute);
+	SCOPED_NAMED_EVENT(FRDGBuilder_Execute, FColor::Emerald);
 
 	IF_RDG_ENABLE_DEBUG(Validation.ValidateExecuteBegin());
+	AllocatedBuffers.Reserve(BufferCount);
+	AllocatedTextures.Reserve(TextureCount);
 
 	EventScopeStack.BeginExecute();
 	StatScopeStack.BeginExecute();
@@ -737,10 +746,10 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 	const bool bIsCompute = Pass->IsCompute();
 
-	FRDGBarrierBatcher BarrierBatcher(RHICmdList, Pass);
+	BarrierBatcher->Begin(Pass);
 
 #if WITH_MGPU
-	BarrierBatcher.SetNameForTemporalEffect(NameForTemporalEffect);
+	BarrierBatcher->SetNameForTemporalEffect(NameForTemporalEffect);
 #endif
 
 	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
@@ -750,6 +759,9 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 	// List all RDG texture being read and modified by the pass.
 	TSet<FRDGTextureRef, DefaultKeyFuncs<FRDGTextureRef>, SceneRenderingSetAllocator> ReadTextures;
 	TSet<FRDGTextureRef, DefaultKeyFuncs<FRDGTextureRef>, SceneRenderingSetAllocator> ModifiedTextures;
+	ReadTextures.Reserve(ParameterCount);
+	ModifiedTextures.Reserve(ParameterCount);
+
 	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
 	{
 		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
@@ -832,7 +844,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				check(Texture->ResourceRHI);
 
 				check(!ModifiedTextures.Contains(Texture));
-				BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
+				BarrierBatcher->QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
 			}
 		}
 		break;
@@ -851,7 +863,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				}
 				else
 				{
-					BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
+					BarrierBatcher->QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
 				}
 			}
 		}
@@ -868,7 +880,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 				bool bGeneratingMips = ReadTextures.Contains(Texture);
 
-				BarrierBatcher.QueueTransitionUAV(UAVRHI, Texture, FRDGResourceState::EAccess::Write, bGeneratingMips);
+				BarrierBatcher->QueueTransitionUAV(UAVRHI, Texture, FRDGResourceState::EAccess::Write, bGeneratingMips);
 			}
 		}
 		break;
@@ -879,7 +891,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				AllocateRHITextureIfNeeded(Texture);
 
 				check(!ReadTextures.Contains(Texture));
-				BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Write);
+				BarrierBatcher->QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Write);
 			}
 		}
 		break;
@@ -892,7 +904,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				check(Buffer->PooledBuffer->UAVs.Num() == 1);
 				FRHIUnorderedAccessView* UAVRHI = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
 
-				BarrierBatcher.QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Read);
+				BarrierBatcher->QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Read);
 			}
 		}
 		break;
@@ -912,7 +924,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 					check(Buffer->PooledBuffer->UAVs.Num() == 1);
 					FRHIUnorderedAccessView* UAVRHI = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
 
-					BarrierBatcher.QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Read);
+					BarrierBatcher->QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Read);
 				}
 			}
 		}
@@ -927,7 +939,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
 
-				BarrierBatcher.QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Write);
+				BarrierBatcher->QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Write);
 			}
 		}
 		break;
@@ -993,7 +1005,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 					OutRenderTarget.MipIndex = RenderTarget.GetMipIndex();
 					OutRenderTarget.Action = MakeRenderTargetActions(RenderTarget.GetLoadAction(), StoreAction);
 
-					BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Write);
+					BarrierBatcher->QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Write);
 
 					SampleCount |= OutRenderTarget.RenderTarget->GetNumSamples();
 					ValidRenderTargetCount++;
@@ -1024,7 +1036,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 					MakeRenderTargetActions(DepthStencil.GetStencilLoadAction(), StencilStoreAction));
 				OutDepthStencil.ExclusiveDepthStencil = ExclusiveDepthStencil;
 
-				BarrierBatcher.QueueTransitionTexture(Texture,
+				BarrierBatcher->QueueTransitionTexture(Texture,
 					ExclusiveDepthStencil.IsAnyWrite() ?
 					FRDGResourceState::EAccess::Write :
 					FRDGResourceState::EAccess::Read);
@@ -1042,6 +1054,8 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 	}
 
 	OutRPInfo->bGeneratingMips = Pass->IsGenerateMips();
+
+	BarrierBatcher->End(RHICmdList);
 }
 
 void FRDGBuilder::ReleaseRHITextureIfUnreferenced(FRDGTexture* Texture)
@@ -1167,10 +1181,10 @@ void FRDGBuilder::ReleaseUnreferencedResources(const FRDGPass* Pass)
 
 void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 {
-	FRDGBarrierBatcher BarrierBatcher(RHICmdList, nullptr);
+	BarrierBatcher->Begin(nullptr);
 
 #if WITH_MGPU
-	BarrierBatcher.SetNameForTemporalEffect(NameForTemporalEffect);
+	BarrierBatcher->SetNameForTemporalEffect(NameForTemporalEffect);
 #endif
 
 	for (const auto& Query : DeferredInternalTextureQueries)
@@ -1179,7 +1193,7 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 
 		if (Query.bTransitionToRead)
 		{
-			BarrierBatcher.QueueTransitionTexture(Query.Texture, FRDGResourceState::EAccess::Read);
+			BarrierBatcher->QueueTransitionTexture(Query.Texture, FRDGResourceState::EAccess::Read);
 		}
 
 		*Query.OutTexturePtr = AllocatedTextures.FindChecked(Query.Texture);
@@ -1195,7 +1209,7 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 
 		for (TMap<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef, FDefaultSetAllocator, TMapRDGBufferUAVFuncs<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef>>::TIterator It(Query.Buffer->PooledBuffer->UAVs); It; ++It)
 		{
-			BarrierBatcher.QueueTransitionUAV(It.Value(), Query.Buffer, Query.DestinationAccess, /* bGeneratingMips = */ false, Query.DestinationPipeline);
+			BarrierBatcher->QueueTransitionUAV(It.Value(), Query.Buffer, Query.DestinationAccess, /* bGeneratingMips = */ false, Query.DestinationPipeline);
 		}
 
 		*Query.OutBufferPtr = AllocatedBuffers.FindChecked(Query.Buffer);
@@ -1206,6 +1220,8 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 			ReleaseRHIBufferIfUnreferenced(Query.Buffer);
 		}
 	}
+
+	BarrierBatcher->End(RHICmdList);
 }
 
 void FRDGBuilder::DestructPasses()

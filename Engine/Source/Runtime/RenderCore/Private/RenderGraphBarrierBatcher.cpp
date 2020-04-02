@@ -107,17 +107,17 @@ namespace
 	}
 } //! namespace
 
-FRDGBarrierBatcher::FRDGBarrierBatcher(FRHICommandList& InRHICmdList, const FRDGPass* InPass)
-	: RHICmdList(InRHICmdList)
-	, Pass(InPass)
+void FRDGBarrierBatcher::Begin(const FRDGPass* InPass)
 {
+	Pass = InPass;
+
 	if (Pass)
 	{
 		Pipeline = Pass->IsCompute() ? FRDGResourceState::EPipeline::Compute : FRDGResourceState::EPipeline::Graphics;
 	}
 }
 
-FRDGBarrierBatcher::~FRDGBarrierBatcher()
+void FRDGBarrierBatcher::End(FRHICommandList& RHICmdList)
 {
 #if WITH_MGPU
 	// Wait for the temporal effect before executing the first pass in the graph. This
@@ -133,17 +133,20 @@ FRDGBarrierBatcher::~FRDGBarrierBatcher()
 	{
 		RHICmdList.BeginUpdateMultiFrameResource(RHITexture);
 	}
+	TextureUpdateMultiFrameBegins.Reset();
 
 	for (FRHIUnorderedAccessView* RHIUAV : UAVUpdateMultiFrameBegins)
 	{
 		RHICmdList.BeginUpdateMultiFrameResource(RHIUAV);
 	}
+	UAVUpdateMultiFrameBegins.Reset();
 
 	for (auto& Element : TextureBatchMap)
 	{
 		FTransitionParameters TransitionParameters = Element.Key;
 		FTextureBatch& Batch = Element.Value;
 		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, TransitionParameters.TransitionPipeline, Batch.GetData(), Batch.Num());
+		Batch.Reset();
 	}
 
 	for (auto& Element : UAVBatchMap)
@@ -151,17 +154,20 @@ FRDGBarrierBatcher::~FRDGBarrierBatcher()
 		FTransitionParameters TransitionParameters = Element.Key;
 		FUAVBatch& Batch = Element.Value;
 		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, TransitionParameters.TransitionPipeline, Batch.GetData(), Batch.Num());
+		Batch.Reset();
 	}
 
 	for (FRHITexture* RHITexture : TextureUpdateMultiFrameEnds)
 	{
 		RHICmdList.EndUpdateMultiFrameResource(RHITexture);
 	}
+	TextureUpdateMultiFrameEnds.Reset();
 
 	for (FRHIUnorderedAccessView* RHIUAV : UAVUpdateMultiFrameEnds)
 	{
 		RHICmdList.EndUpdateMultiFrameResource(RHIUAV);
 	}
+	UAVUpdateMultiFrameEnds.Reset();
 
 #if WITH_MGPU
 	// Broadcast all multi-frame resources when processing deferred resource queries.
@@ -169,7 +175,11 @@ FRDGBarrierBatcher::~FRDGBarrierBatcher()
 	{
 		RHICmdList.BroadcastTemporalEffect(NameForTemporalEffect, TexturesToCopyForTemporalEffect);
 	}
+	TexturesToCopyForTemporalEffect.Reset();
+	NameForTemporalEffect = NAME_None;
 #endif
+
+	Pass = nullptr;
 }
 
 void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResourceState::EAccess AccessAfter)
