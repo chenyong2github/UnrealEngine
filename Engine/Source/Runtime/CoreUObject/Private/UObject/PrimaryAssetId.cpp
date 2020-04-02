@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/PrimaryAssetId.h"
+#include "Misc/StringBuilder.h"
+#include "UObject/ObjectRedirector.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
-#include "UObject/ObjectRedirector.h"
-
-	
 
 bool FPrimaryAssetType::ExportTextItem(FString& ValueStr, FPrimaryAssetType const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
@@ -139,3 +138,7 @@ bool FPrimaryAssetId::SerializeFromMismatchedTag(struct FPropertyTag const& Tag,
 	return false;
 }
 
+FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FPrimaryAssetId& Id)
+{
+	return Builder << Id.PrimaryAssetType.GetName() << ":" << Id.PrimaryAssetName;
+}

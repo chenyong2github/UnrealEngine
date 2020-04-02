@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/StringBuilder.h"
 
 /**
  * A primary asset type, represented as an FName internally and implicitly convertible back and forth
@@ -165,7 +164,4 @@ struct FPrimaryAssetId
 	friend struct Z_Construct_UScriptStruct_FPrimaryAssetId_Statics;
 };
 
-inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FPrimaryAssetId& Id)
-{
-	return Builder << Id.PrimaryAssetType.GetName() << ":" << Id.PrimaryAssetName;
-}
+COREUOBJECT_API FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FPrimaryAssetId& Id);
