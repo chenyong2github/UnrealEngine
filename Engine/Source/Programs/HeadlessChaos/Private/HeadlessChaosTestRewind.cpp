@@ -85,7 +85,7 @@ namespace ChaosTest {
 		//check state at every step except latest
 		for(int Step = 0; Step < 10; ++Step)
 		{
-			const auto ParticleState = RewindData->GetStateAtFrame(*Particle,Step);
+			const auto ParticleState = RewindData->GetPastStateAtFrame(*Particle,Step);
 			EXPECT_EQ(ParticleState.X()[2],100 - Step);
 
 			if(Step < 3)
@@ -146,7 +146,7 @@ namespace ChaosTest {
 		//check state at every step except latest
 		for(int Step = 0; Step < 10; ++Step)
 		{
-			const auto ParticleState = RewindData->GetStateAtFrame(*Particle,Step);
+			const auto ParticleState = RewindData->GetPastStateAtFrame(*Particle,Step);
 			EXPECT_EQ(ParticleState.F()[2],Step+1);
 		}
 
@@ -197,7 +197,7 @@ namespace ChaosTest {
 		//check state at every step except latest
 		for(int Step = 0; Step < 10; ++Step)
 		{
-			const auto ParticleState = RewindData->GetStateAtFrame(*Particle,Step);
+			const auto ParticleState = RewindData->GetPastStateAtFrame(*Particle,Step);
 
 			if(Step == 3)
 			{
@@ -267,7 +267,7 @@ namespace ChaosTest {
 		//check state at every step except latest
 		for(int Step = 0; Step < 10; ++Step)
 		{
-			const auto ParticleState = RewindData->GetStateAtFrame(*Particle,Step);
+			const auto ParticleState = RewindData->GetPastStateAtFrame(*Particle,Step);
 
 			
 			if(Step < 3)
@@ -337,7 +337,7 @@ namespace ChaosTest {
 
 		for(int Step = 0; Step < 9; ++Step)
 		{
-			const auto ParticleState = RewindData->GetStateAtFrame(*Particle,Step);
+			const auto ParticleState = RewindData->GetPastStateAtFrame(*Particle,Step);
 			
 			EXPECT_EQ(ParticleState.X()[2],X[Step][2]);
 			EXPECT_EQ(ParticleState.V()[2],V[Step][2]);
@@ -396,7 +396,9 @@ namespace ChaosTest {
 		//make sure recorded data is still valid even at head
 		for(int Step = 0; Step < 11; ++Step)
 		{
-			const FGeometryParticleState State = RewindData->GetStateAtFrame(*Particle,Step);
+			FGeometryParticleState State(*Particle);
+			const EFutureQueryResult Status = RewindData->GetFutureStateAtFrame(State,Step);
+			EXPECT_EQ(Status,EFutureQueryResult::Ok);
 			EXPECT_EQ(State.X()[2],X[Step][2]);
 			EXPECT_EQ(State.V()[2],V[Step][2]);
 		}
@@ -453,7 +455,7 @@ namespace ChaosTest {
 		FRewindData* RewindData = Solver->GetRewindData();
 
 		{
-			const FGeometryParticleState State = RewindData->GetStateAtFrame(*Particle,5);
+			const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Particle,5);
 			EXPECT_EQ(State.X(),X[5]);
 		}
 
@@ -462,7 +464,7 @@ namespace ChaosTest {
 
 		// State should be the same as being at head because we removed it from solver
 		{
-			const FGeometryParticleState State = RewindData->GetStateAtFrame(*Particle,5);
+			const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Particle,5);
 			EXPECT_EQ(Particle->X(), State.X());
 		}
 
@@ -619,14 +621,20 @@ namespace ChaosTest {
 		Kinematic->SetX(FVec3(2,2,2));
 
 		TArray<FVec3> X;
+		const int32 LastStep = 12;
 
-		for(int Step = 0; Step < 10; ++Step)
+		for(int Step = 0; Step <= LastStep; ++Step)
 		{
 			X.Add(Particle->X());
 
-			if(Step == 9)
+			if(Step == 8)
 			{
 				Kinematic->SetX(FVec3(50,50,50));
+			}
+
+			if(Step == 10)
+			{
+				Kinematic->SetX(FVec3(60,60,60));
 			}
 
 			TickSolverHelper(Module,Solver);
@@ -639,23 +647,55 @@ namespace ChaosTest {
 
 		//Move particle and rerun
 		Particle->SetX(FVec3(0,0,100));
-		for(int Step = RewindStep; Step < 10; ++Step)
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
 		{
+			if(Step == 8)
+			{
+				Kinematic->SetX(FVec3(50));
+			}
+
 			X[Step] = Particle->X();
 			TickSolverHelper(Module,Solver);
+
+			//see that particle has desynced
+			if(Step < LastStep)
+			{
+				//If we're still in the past make sure future has been marked as desync
+				FGeometryParticleState State(*Particle);
+				EXPECT_EQ(EFutureQueryResult::Desync,RewindData->GetFutureStateAtFrame(State,Step));
+
+				FGeometryParticleState KinState(*Kinematic);
+				const EFutureQueryResult KinFutureStatus = RewindData->GetFutureStateAtFrame(KinState,Step);
+				if(Step < 10)
+				{
+					EXPECT_EQ(KinFutureStatus,EFutureQueryResult::Ok);
+				}
+				else
+				{
+					//todo: desync from lack of input
+					//EXPECT_EQ(KinFutureStatus,EFutureQueryResult::Desync);
+				}
+			}
 		}
 
-		EXPECT_EQ(Kinematic->X()[2],2);	//Rewound kinematic and never updated it so back to original value
+		EXPECT_EQ(Kinematic->X()[2],50);	//Rewound kinematic and only did one update, so use that first update
 
 		//Make sure we recorded the new data
-		for(int Step = RewindStep; Step < 10; ++Step)
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
 		{
-			const FGeometryParticleState State = RewindData->GetStateAtFrame(*Particle,Step);
+			const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Particle,Step);
 			EXPECT_EQ(State.X()[2],X[Step][2]);
 
-			const FGeometryParticleState KinState = RewindData->GetStateAtFrame(*Kinematic,Step);
-			//TODO: this is a form of desync, need support for that still
-			//EXPECT_EQ(KinState.X()[2],2);	//even though not dirty, data is properly stored as not moving
+			const FGeometryParticleState KinState = RewindData->GetPastStateAtFrame(*Kinematic,Step);
+			if(Step < 8)
+			{
+				EXPECT_EQ(KinState.X()[2],2);
+			}
+			else
+			{
+				//todo: desync from lack of input
+				//EXPECT_EQ(KinState.X()[2],50);	//in resim we didn't do second move, so recorded data must be updated
+			}
 		}
 
 

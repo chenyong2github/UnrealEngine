@@ -804,7 +804,15 @@ namespace Chaos
 
 				if(RewindData)
 				{
-					RewindData->PushGTDirtyData(*Manager,DataIdx,Dirty);
+					//may want to remove branch by templatizing lambda
+					if(RewindData->IsResim())
+					{
+						RewindData->PushGTDirtyData<true>(*Manager,DataIdx,Dirty);
+					}
+					else
+					{
+						RewindData->PushGTDirtyData<false>(*Manager,DataIdx,Dirty);
+					}
 				}
 
 				Proxy->PushToPhysicsState(*Manager, DataIdx, Dirty, ShapeDirtyData);
@@ -1056,7 +1064,15 @@ namespace Chaos
 				{
 					if(ActiveObject.GetParticleType() == EParticleType::Rigid)
 					{
-						MRewindData->PushPTDirtyData(*static_cast<const FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(), DataIdx++);
+						//may want to remove branch using templates outside loop
+						if(MRewindData->IsResim())
+						{
+							MRewindData->PushPTDirtyData<true>(*static_cast<const FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(),DataIdx++);
+						}
+						else
+						{
+							MRewindData->PushPTDirtyData<false>(*static_cast<const FRigidParticlePhysicsProxy*>(Proxy)->GetHandle(),DataIdx++);
+						}
 					}
 				}
 			}
