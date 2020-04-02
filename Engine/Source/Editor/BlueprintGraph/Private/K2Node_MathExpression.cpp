@@ -1219,7 +1219,7 @@ public:
 		bool bSuccess = true;//K2Schema->ArePinTypesCompatible(GetOutputType(), InputPin->PinType);
 		if (bSuccess)
 		{
-			InputPin->DefaultValue = DefaultValue;
+			K2Schema->TrySetDefaultValue(*InputPin, DefaultValue, false);
 		}
 		else 
 		{
