@@ -308,6 +308,8 @@ protected:
 	TRefCountPtr<ID3D12Device1> RootDevice1;
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	TRefCountPtr<ID3D12Device2> RootDevice2;
+
+	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
 #endif
 #if D3D12_RHI_RAYTRACING
 	TRefCountPtr<ID3D12Device5> RootRayTracingDevice;
