@@ -109,30 +109,33 @@ void FD3D12CommandContext::WriteGPUEventStackToBreadCrumbData(bool bBeginEvent)
 		const bool bAllocateOnStack = (MemSize < 4096);
 		void* Mem = bAllocateOnStack ? FMemory_Alloca(MemSize) : FMemory::Malloc(MemSize);
 
-		D3D12_WRITEBUFFERIMMEDIATE_PARAMETER* Parameters = (D3D12_WRITEBUFFERIMMEDIATE_PARAMETER*)Mem;
-		D3D12_WRITEBUFFERIMMEDIATE_MODE* Modes = (D3D12_WRITEBUFFERIMMEDIATE_MODE*)(Parameters + ParameterCount);
-		for (int i = 0; i < ParameterCount; ++i)
+		if (Mem)
 		{
-			Parameters[i].Dest = BreadCrumbResource->GetGPUVirtualAddress() + 4 * i;
-			Modes[i] = D3D12_WRITEBUFFERIMMEDIATE_MODE_MARKER_IN;
+			D3D12_WRITEBUFFERIMMEDIATE_PARAMETER* Parameters = (D3D12_WRITEBUFFERIMMEDIATE_PARAMETER*)Mem;
+			D3D12_WRITEBUFFERIMMEDIATE_MODE* Modes = (D3D12_WRITEBUFFERIMMEDIATE_MODE*)(Parameters + ParameterCount);
+			for (int i = 0; i < ParameterCount; ++i)
+			{
+				Parameters[i].Dest = BreadCrumbResource->GetGPUVirtualAddress() + 4 * i;
+				Modes[i] = D3D12_WRITEBUFFERIMMEDIATE_MODE_MARKER_IN;
 
-			// Write event stack count first
-			if (i == 0)
-			{
-				Parameters[i].Value = GPUEventStack.Num();
+				// Write event stack count first
+				if (i == 0)
+				{
+					Parameters[i].Value = GPUEventStack.Num();
+				}
+				// Then if it's the begin or end event
+				else if (i == 1)
+				{
+					Parameters[i].Value = bBeginEvent ? 1 : 0;
+				}
+				// Otherwise the actual stack value
+				else
+				{
+					Parameters[i].Value = GPUEventStack[i - 2];
+				}
 			}
-			// Then if it's the begin or end event
-			else if (i == 1)
-			{
-				Parameters[i].Value = bBeginEvent ? 1 : 0;
-			}
-			// Otherwise the actual stack value
-			else
-			{
-				Parameters[i].Value = GPUEventStack[i - 2];
-			}
+			CommandList2->WriteBufferImmediate(Paramet	erCount, Parameters, Modes);
 		}
-		CommandList2->WriteBufferImmediate(ParameterCount, Parameters, Modes);
 
 		if (!bAllocateOnStack)
 		{
