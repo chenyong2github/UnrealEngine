@@ -310,20 +310,24 @@ namespace Audio
 				PluginInitializationParams.BufferLength = OpenStreamParams.NumFrames;
 				PluginInitializationParams.AudioDevicePtr = this;
 
-				// Initialize any plugins if they exist
-				if (SpatializationPluginInterface.IsValid())
 				{
-					SpatializationPluginInterface->Initialize(PluginInitializationParams);
-				}
+					LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 
-				if (OcclusionInterface.IsValid())
-				{
-					OcclusionInterface->Initialize(PluginInitializationParams);
-				}
+					// Initialize any plugins if they exist
+					if (SpatializationPluginInterface.IsValid())
+					{
+						SpatializationPluginInterface->Initialize(PluginInitializationParams);
+					}
 
-				if (ReverbPluginInterface.IsValid())
-				{
-					ReverbPluginInterface->Initialize(PluginInitializationParams);
+					if (OcclusionInterface.IsValid())
+					{
+						OcclusionInterface->Initialize(PluginInitializationParams);
+					}
+
+					if (ReverbPluginInterface.IsValid())
+					{
+						ReverbPluginInterface->Initialize(PluginInitializationParams);
+					}
 				}
 
 				// Need to set these up before we start the audio stream.
@@ -753,6 +757,7 @@ namespace Audio
 
 		if (IsReverbPluginEnabled() && ReverbPluginInterface)
 		{
+			LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 			USoundSubmix* ReverbPluginSubmix = ReverbPluginInterface->GetSubmix();
 			check(ReverbPluginSubmix);
 			ReverbPluginSubmix->AddToRoot();
