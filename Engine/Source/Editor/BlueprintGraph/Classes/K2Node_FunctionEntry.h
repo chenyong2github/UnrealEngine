@@ -58,7 +58,7 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	virtual void ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
 	virtual void PostReconstructNode() override;
 	virtual void ClearCachedBlueprintData(UBlueprint* Blueprint) override;
-	virtual void FixupPinStringDataReferences(FArchive* SavingArchive) override;
+	virtual void FixupPinStringDataReferences(FArchive& Ar) override;
 	//~ End UK2Node Interface
 
 	//~ Begin UK2Node_EditablePinBase Interface
