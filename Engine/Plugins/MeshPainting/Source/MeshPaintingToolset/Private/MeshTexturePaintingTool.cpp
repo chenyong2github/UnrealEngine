@@ -203,25 +203,27 @@ double UMeshTexturePaintingTool::EstimateMaximumTargetDimension()
 	FBoxSphereBounds Bounds = FBoxSphereBounds(0.0);
 	if (MeshToolManager)
 	{
-		// Preferentially use paintable components
-		for (UMeshComponent* PaintableComponent : MeshToolManager->GetPaintableMeshComponents())
+		bool bFirstItem = true;
+
+		FBoxSphereBounds Extents;
+		for (UMeshComponent* SelectedComponent : MeshToolManager->GetSelectedMeshComponents())
 		{
-			bFoundComponentToUse = true;
-			Bounds = Bounds + PaintableComponent->Bounds;
-		}
-		// Otherwise use selected components
-		if (!bFoundComponentToUse)
-		{
-			for (UMeshComponent* SelectedComponent : MeshToolManager->GetSelectedMeshComponents())
+			if (bFirstItem)
 			{
-				bFoundComponentToUse = true;
-				Bounds = Bounds + SelectedComponent->Bounds;
+				Extents = SelectedComponent->Bounds;
 			}
+			else
+			{
+				Extents = Extents + SelectedComponent->Bounds;
+			}
+
+			bFirstItem = false;
 		}
 
+		return Extents.BoxExtent.GetAbsMax();
 	}
 
-	return bFoundComponentToUse ? Bounds.GetBox().GetExtent().GetAbsMax() : Super::EstimateMaximumTargetDimension();
+	return Super::EstimateMaximumTargetDimension();
 }
 
 double UMeshTexturePaintingTool::CalculateTargetEdgeLength(int TargetTriCount)
@@ -526,8 +528,9 @@ bool UMeshTexturePaintingTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 	bool bUsed = false;
 	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
 	{
-		bUsed = MeshToolManager->FindHitResult(Ray, OutHit);
+		MeshToolManager->FindHitResult(Ray, OutHit);
 		LastBestHitResult = OutHit;
+		bUsed = OutHit.bBlockingHit;
 	}
 	return bUsed;
 }
