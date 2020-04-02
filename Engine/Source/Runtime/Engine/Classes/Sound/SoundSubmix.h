@@ -11,6 +11,7 @@
 #include "SoundSubmixSend.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "DSP/SpectrumAnalyzer.h"
 
 #include "SoundSubmix.generated.h"
 
@@ -33,6 +34,72 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmixRecordedFileDone, const USo
 * Called when a new submix envelope value is generated on the given audio device id (different for multiple PIE). Array is an envelope value for each channel.
 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmixEnvelope, const TArray<float>&, Envelope);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmixSpectralAnalysis, const TArray<float>&, Magnitudes);
+
+UENUM(BlueprintType)
+enum class EFFTSize : uint8
+{
+	// 512
+	DefaultSize,
+
+	// 64
+	Min,
+
+	// 256
+	Small,
+
+	// 512
+	Medium,
+
+	// 1024
+	Large,
+
+	// 2048
+	VeryLarge, 
+
+	// 4096
+	Max
+};
+
+UENUM()
+enum class EFFTPeakInterpolationMethod : uint8
+{
+	NearestNeighbor,
+	Linear,
+	Quadratic,
+	ConstantQ,
+};
+
+UENUM()
+enum class EFFTWindowType : uint8
+{
+	// No window is applied. Technically a boxcar window.
+	None,
+
+	// Mainlobe width of -3 dB and sidelove attenuation of ~-40 dB. Good for COLA.
+	Hamming,
+
+	// Mainlobe width of -3 dB and sidelobe attenuation of ~-30dB. Good for COLA.
+	Hann,
+
+	// Mainlobe width of -3 dB and sidelobe attenuation of ~-60db. Tricky for COLA.
+	Blackman
+};
+
+UENUM(BlueprintType)
+enum class EAudioSpectrumType : uint8
+{
+	// Spectrum frequency values are equal to magnitude of frequency.
+	MagnitudeSpectrum,
+
+	// Spectrum frequency values are equal to magnitude squared.
+	PowerSpectrum,
+
+	// Returns decibels (0.0 dB is 1.0)
+	Decibel,
+};
+
 
 
 #if WITH_EDITOR
@@ -138,7 +205,7 @@ enum class EGainParamMode : uint8
 /**
  * Sound Submix class meant for applying an effect to the downmixed sum of multiple audio sources.
  */
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta=(DisplayName="Effect Submix"))
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType)
 class ENGINE_API USoundSubmix : public USoundSubmixWithParentBase
 {
 	GENERATED_UCLASS_BODY()
@@ -222,13 +289,39 @@ public:
 
 	void StopEnvelopeFollowing(FAudioDevice* InDevice);
 
+	/**
+	 *	Adds an envelope follower delegate to the submix when envelope following is enabled on this submix.
+	 *	@param	OnSubmixEnvelopeBP	Event to fire when new envelope data is available.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|EnvelopeFollowing", meta = (WorldContext = "WorldContextObject"))
 	void AddEnvelopeFollowerDelegate(const UObject* WorldContextObject, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP);
+
+	/**
+	 *	Adds a spectral envelope delegate to receive notifications when this submix has spectrum analysis enabled.
+	 *	@param	InBandsettings					The frequency bands to analyze and their envelope-following settings.
+	 *  @param  OnSubmixSpectralAnalysisBP		Event to fire when new spectral data is available.
+	 *	@param	UpdateRate						How often to retrieve the data from the spectral analyzer and broadcast the event. Max is 30 times per second.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Spectrum", meta = (WorldContext = "WorldContextObject"))
+	void AddSpectralAnalysisDelegate(const UObject* WorldContextObject, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, float UpdateRate);
+
+	/** Start spectrum analysis of the audio output. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Analysis", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
+	void StartSpectralAnalysis(const UObject* WorldContextObject, EFFTSize FFTSize = EFFTSize::DefaultSize, EFFTPeakInterpolationMethod InterpolationMethod = EFFTPeakInterpolationMethod::Linear, EFFTWindowType WindowType = EFFTWindowType::Hann, float HopSize = 0, EAudioSpectrumType SpectrumType = EAudioSpectrumType::MagnitudeSpectrum);
+
+	void StartSpectralAnalysis(FAudioDevice* InDevice, EFFTSize FFTSize = EFFTSize::DefaultSize, EFFTPeakInterpolationMethod InterpolationMethod = EFFTPeakInterpolationMethod::Linear, EFFTWindowType WindowType = EFFTWindowType::Hann, float HopSize = 0, EAudioSpectrumType SpectrumType = EAudioSpectrumType::MagnitudeSpectrum);
+
+	/** Start spectrum analysis of the audio output. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Analysis", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
+	void StopSpectralAnalysis(const UObject* WorldContextObject);
+
+	void StopSpectralAnalysis(FAudioDevice* InDevice);
 
 	/** Sets the output volume of the submix. This dynamic volume scales with the OutputVolume property of this submix. */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	void SetSubmixOutputVolume(const UObject* WorldContextObject, float InOutputVolume);
 
+	static Audio::FSpectrumAnalyzerSettings GetSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, EAudioSpectrumType AudioSpectrumType);
 protected:
 
 	virtual void PostLoad() override;
@@ -244,7 +337,7 @@ protected:
 /**
  * Sound Submix class meant for use with soundfield formats, such as Ambisonics.
  */
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Soundfield Submix"))
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Sound Submix Soundfield"))
 class ENGINE_API USoundfieldSubmix : public USoundSubmixWithParentBase
 {
 	GENERATED_UCLASS_BODY()
@@ -291,7 +384,7 @@ protected:
 /**
  * Sound Submix class meant for sending audio to an external endpoint, such as controller haptics or an additional audio device.
  */
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Audio Endpoint Submix"))
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Sound Submix Endpoint"))
 class ENGINE_API UEndpointSubmix : public USoundSubmixBase
 {
 	GENERATED_UCLASS_BODY()
@@ -318,7 +411,7 @@ public:
 /**
  * Sound Submix class meant for sending soundfield-encoded audio to an external endpoint, such as a hardware binaural renderer that supports ambisonics.
  */
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Soundfield Endpoint Submix"))
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Sound Submix Soundfield Endpoint"))
 class ENGINE_API USoundfieldEndpointSubmix : public USoundSubmixBase
 {
 	GENERATED_UCLASS_BODY()

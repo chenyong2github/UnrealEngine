@@ -52,4 +52,35 @@ namespace Audio
 	 */
 	SIGNALPROCESSING_API TUniquePtr<FContiguousSparse2DKernelTransform> NewPseudoConstantQKernelTransform(const FPseudoConstantQKernelSettings& InSettings, const int32 InFFTSize, const float InSampleRate);
 
+	/** Settings for a single constant q band. */
+	struct SIGNALPROCESSING_API FPseudoConstantQBandSettings
+	{
+		/** Center frequency of band in Hz. */
+		float CenterFreq;
+
+		/** Width of band in Hz. */
+		float BandWidth; 
+
+		/** Size of FFT used. */
+		int32 FFTSize; 
+
+		/** Samplerate of audio. */
+		float SampleRate; 
+
+		/** Desired normalization. */
+		EPseudoConstantQNormalization Normalization;
+	};
+
+	struct SIGNALPROCESSING_API FPseudoConstantQ
+	{
+		// Returns the center frequency of a given CQT band.
+		static float GetConstantQCenterFrequency(const int32 InBandIndex, const float InBaseFrequency, const float InBandsPerOctave);
+
+		// Returns the bandwidth for a given CQT band.
+		static float GetConstantQBandWidth(const float InBandCenter, const float InBandsPerOctave, const float InBandWidthStretch);
+
+		// Fills an array with the spectrum weights to apply to an FFT magnitude or power spectrum output.
+		static void FillArrayWithConstantQBand(const FPseudoConstantQBandSettings& InSettings, AlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex);
+
+	};
 }
