@@ -150,26 +150,11 @@ namespace Chaos
 			});
 		}
 
-		bool GetQueryEnabled() const { return CollisionData.Read().bQueryCollision; }
-		void SetQueryEnabled(const bool bEnable)
-		{
-			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bEnable](FCollisionData& Data){ Data.bQueryCollision = bEnable; });
-		}
-
-		bool GetSimEnabled() const { return CollisionData.Read().bSimCollision; }
-		void SetSimEnabled(const bool bEnable)
-		{
-			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bEnable](FCollisionData& Data){ Data.bSimCollision = bEnable; });
-		}
-
-		/*
-		// TODO: Deprecate GetDisable() and SetDisable()!
-		bool GetDisable() const { return !CollisionData.Read().bSimCollision; }
+		bool GetDisable() const { return CollisionData.Read().bDisable; }
 		void SetDisable(const bool bDisable)
 		{
-			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bDisable](FCollisionData& Data){ Data.bSimCollision = !bDisable; });
+			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bDisable](FCollisionData& Data){ Data.bDisable = bDisable; });
 		}
-		*/
 
 		bool GetSimulate() const { return CollisionData.Read().bSimulate; }
 		void SetSimulate(const bool bSimulate)
