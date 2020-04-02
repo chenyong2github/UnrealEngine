@@ -242,12 +242,12 @@ namespace Audio
 
 	void FVolumeFader::Update(float InDeltaTime)
 	{
+		Elapsed += InDeltaTime;
+
 		if (!IsFading() || !IsActive())
 		{
 			return;
 		}
-
-		Elapsed += InDeltaTime;
 
 		// Keep stepping towards target & clamp until fade duration has expired
 		// Choose min/max bound and clamp dt to prevent unwanted spikes in volume
