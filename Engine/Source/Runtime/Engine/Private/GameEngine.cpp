@@ -710,8 +710,6 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 
 	SelectionHighlightIntensityBillboards = 0.25f;
 
-	bUseSound = true;
-
 	bHardwareSurveyEnabled_DEPRECATED = false;
 	bIsInitialized = false;
 
