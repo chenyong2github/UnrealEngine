@@ -2949,12 +2949,12 @@ struct FLODMask
 	//LodFade value within the BVH based on the LodFadeMask in the GBuffer
 	bool ContainsRayTracedLOD(int32 LODIndex) const
 	{
-		return DitheredLODIndices[0] == LODIndex;
+		return DitheredLODIndices[1] == LODIndex;
 	}
 
 	int8 GetRayTracedLOD()
 	{
-		return DitheredLODIndices[0];
+		return DitheredLODIndices[1];
 	}
 
 	bool IsDithered() const
