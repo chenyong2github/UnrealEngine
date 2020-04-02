@@ -28,10 +28,11 @@ public:
 	 * @param  InBaseUrl            Base URL for the bucket, with trailing slash (eg. https://foo.s3.us-east-1.amazonaws.com/)
 	 * @param  InRegion	            Name of the AWS region (eg. us-east-1)
 	 * @param  InCanaryObjectKey    Key for a canary object used to test whether this backend is usable
+	 * @param  InCachePath          Path to cache the DDC files
 	 * @param  InAccessKey          The AWS access key
 	 * @param  InSecretKey          The AWS secret key
 	 */
-	FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InAccessKey, const TCHAR* InSecretKey);
+	FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath, const TCHAR* InAccessKey, const TCHAR* InSecretKey);
 	~FS3DerivedDataBackend();
 
 	/**
