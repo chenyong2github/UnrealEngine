@@ -36,7 +36,7 @@ namespace ImmediatePhysics_Chaos
 	float ChaosImmediate_SoftAngularDampingScale = 1000;
 
 	float ChaosImmediate_JointMinLinearProjection = 0.0f;
-	float ChaosImmediate_JointMaxLinearProjection = 0.8f;
+	float ChaosImmediate_JointMaxLinearProjection = 1.0f;
 	float ChaosImmediate_JointMinAngularProjection = 0.0f;
 	float ChaosImmediate_JointMaxAngularProjection = 0.1f;
 
