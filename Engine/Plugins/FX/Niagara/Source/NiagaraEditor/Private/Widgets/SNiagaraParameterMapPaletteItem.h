@@ -10,6 +10,8 @@
 #include "NiagaraActions.h"
 #include "EdGraph/EdGraphNodeUtils.h"
 
+class SNiagaraParameterNameTextBlock;
+
 class SNiagaraParameterMapPalleteItem : public SGraphPaletteItem
 {
 public:
@@ -23,11 +25,15 @@ public:
 
 	void Construct(const FArguments& InArgs, FCreateWidgetForActionData* const InCreateData);
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
 protected:
 	/** Callback when rename text is committed */
 	virtual void OnNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit) override;
 
 	FText GetReferenceCount() const;
+
 private:
 	FOnItemRenamed OnItemRenamed;
+	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterNameTextBlock;
 };

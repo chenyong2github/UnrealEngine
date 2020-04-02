@@ -154,6 +154,11 @@ struct NIAGARA_API FNiagaraConstants
 	static const FName EmitterNamespace;
 	static const FName ParticleAttributeNamespace;
 	static const FName ModuleNamespace;
+	static const FName OutputNamespace;
+	static const FName TransientNamespace;
+	static const FName DataInstanceNamespace;
+	static const FName StaticSwitchNamespace;
+	static const FName ArrayNamespace;
 	static const FName ParameterCollectionNamespace;
 	static const FString InitialPrefix;
 	static const FName LocalNamespace;

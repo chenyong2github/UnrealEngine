@@ -53,11 +53,17 @@ public:
 
 	bool IsModuleHandle() const;
 
+	bool IsOutputHandle() const;
+
+	bool IsLocalHandle() const;
+
 	bool IsParameterCollectionHandle() const;
 
 	bool IsReadOnlyHandle() const;
 
 	bool IsTransientHandle() const;
+
+	bool IsDataInstanceHandle() const;
 
 private:
 	FName ParameterHandleName;

@@ -55,7 +55,11 @@ struct NIAGARAEDITOR_API FNiagaraScriptVarAndViewInfoAction : public FEdGraphSch
 
 struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 {
-	FNiagaraParameterAction() {}
+	FNiagaraParameterAction()
+		: bSubnamespaceRenamePending(false)
+	{
+	}
+
 	FNiagaraParameterAction(const FNiagaraVariable& InParameter,
 		const TArray<FNiagaraGraphParameterReferenceCollection>& InReferenceCollection,
 		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID = 0);
@@ -67,6 +71,8 @@ struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 	FNiagaraVariable Parameter;
 
 	TArray<FNiagaraGraphParameterReferenceCollection> ReferenceCollection;
+
+	bool bSubnamespaceRenamePending;
 };
 
 struct NIAGARAEDITOR_API FNiagaraScriptParameterAction : public FEdGraphSchemaAction
