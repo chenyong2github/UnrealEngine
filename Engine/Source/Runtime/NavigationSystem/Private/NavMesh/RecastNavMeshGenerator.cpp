@@ -35,6 +35,7 @@
 #if RECAST_INTERNAL_DEBUG_DATA
 #include "DebugUtils/DebugDraw.h"
 #include "DebugUtils/RecastDebugDraw.h"
+#include "DebugUtils/DetourDebugDraw.h"
 #endif //RECAST_INTERNAL_DEBUG_DATA
 
 #ifndef OUTPUT_NAV_TILE_LAYER_COMPRESSION_DATA
@@ -3636,6 +3637,13 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 		}
 	}
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (GNavmeshDisplayStep == 100 && IsTileToDebug())
+	{
+		duDebugDrawTileCacheLayerRegions(&BuildContext.InternalDebugData, *GenerationContext.Layer, TileConfig.cs, TileConfig.ch);
+	}
+#endif
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastBuildContours);
 		// Build contour set
@@ -3669,6 +3677,14 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 		}
 	}
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (GNavmeshDisplayStep == 110 && IsTileToDebug())
+	{
+		duDebugDrawTileCacheContours(&BuildContext.InternalDebugData, *GenerationContext.ContourSet, GenerationContext.Layer->header->bmin, TileConfig.cs, TileConfig.ch);
+	}
+#endif
+
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastBuildPolyMesh);
 		// Build poly mesh
@@ -3694,6 +3710,13 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 		}
 	}
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (GNavmeshDisplayStep == 120 && IsTileToDebug())
+	{
+		duDebugDrawTileCachePolyMesh(&BuildContext.InternalDebugData, *GenerationContext.PolyMesh, GenerationContext.Layer->header->bmin, TileConfig.cs, TileConfig.ch);
+	}
+#endif
+
 	// Build detail mesh
 	if (TileConfig.bGenerateDetailedMesh)
 	{
@@ -3714,6 +3737,13 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 			BuildContext.log(RC_LOG_ERROR, "GenerateNavigationData: Failed to generate poly detail mesh.");
 			return false;
 		}
+
+#if RECAST_INTERNAL_DEBUG_DATA
+		if (GNavmeshDisplayStep == 130 && IsTileToDebug())
+		{
+			duDebugDrawTileCacheDetailMesh(&BuildContext.InternalDebugData, *GenerationContext.DetailMesh);
+		}
+#endif
 	}
 
 	unsigned char* NavData = nullptr;
