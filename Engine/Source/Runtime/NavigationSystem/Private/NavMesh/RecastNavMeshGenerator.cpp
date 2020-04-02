@@ -1932,7 +1932,7 @@ FRecastTileGenerator::FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenera
 
 	RasterizeGeomRecastState = ERasterizeGeomRecastTimeSlicedState::MarkWalkableTriangles;
 	RasterizeGeomState = ERasterizeGeomTimeSlicedState::RasterizeGeometryTransformCoords;
-	DoWorkTimeSlicedState = EDoWorkTimeSlicedState::DoAsyncGeometryGathering;
+	DoWorkTimeSlicedState = EDoWorkTimeSlicedState::GatherGeometryFromSources;
 	GenerateTileTimeSlicedState = EGenerateTileTimeSlicedState::GenerateCompressedLayers;
 
 	GenerateNavDataTimeSlicedState = EGenerateNavDataTimeSlicedState::Init;
@@ -2014,7 +2014,15 @@ void FRecastTileGenerator::Setup(const FRecastNavMeshGenerator& ParentGenerator,
 			}
 		}
 		
-		if (ParentGenerator.GatherGeometryOnGameThread())
+		bool bGatherGeometryNow = ParentGenerator.GatherGeometryOnGameThread();
+#if !RECAST_ASYNC_REBUILDING
+		if (ParentGenerator.IsTimeSliceRegenActive())
+		{
+			bGatherGeometryNow = false;
+		}
+#endif // !RECAST_ASYNC_REBUILDING
+
+		if (bGatherGeometryNow)
 		{
 			GatherGeometry(ParentGenerator, bRegenerateCompressedLayers);
 		}
@@ -2055,20 +2063,18 @@ ETimeSliceWorkResult FRecastTileGenerator::DoWorkTimeSliced()
 			return ETimeSliceWorkResult::Failed;
 		}
 		break;
-		case EDoWorkTimeSlicedState::DoAsyncGeometryGathering:
+		case EDoWorkTimeSlicedState::GatherGeometryFromSources:
 		{
-			DoWorkTimeSlicedState = EDoWorkTimeSlicedState::GenerateTile;
-
 			if (InclusionBounds.Num())
 			{
-				const bool bHadNavigationRelevantData = DoAsyncGeometryGathering();
+				WorkResult = GatherGeometryFromSourcesTimeSliced();
 
-				//check bHadNavigationRelevantData as an optimization so we don't call TestTimeSliceFinished when its unnecessary 
-				if (bHadNavigationRelevantData && TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
+				if (WorkResult == ETimeSliceWorkResult::CallAgainNextTimeSlice)
 				{
-					return ETimeSliceWorkResult::CallAgainNextTimeSlice;
+					break;
 				}
 			}
+			DoWorkTimeSlicedState = EDoWorkTimeSlicedState::GenerateTile;
 		} //fall through to next state
 		case EDoWorkTimeSlicedState::GenerateTile:
 		{
@@ -2103,7 +2109,7 @@ bool FRecastTileGenerator::DoWork()
 	{
 		if (InclusionBounds.Num())
 		{
-			DoAsyncGeometryGathering();
+			GatherGeometryFromSources();
 		}
 
 		bSucceess = GenerateTile();
@@ -2124,97 +2130,44 @@ void FRecastTileGenerator::DumpAsyncData()
 	NavOctree = nullptr;
 }
 
-bool FRecastTileGenerator::DoAsyncGeometryGathering()
+void FRecastTileGenerator::GatherGeometryFromSources()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_PrepareGeometrySources);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_GatherGeometryFromSources);
 
-	const bool bRetVal = NavigationRelevantData.Num() > 0;
-
-	for (auto& ElementData : NavigationRelevantData)
+	for (TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData : NavigationRelevantData)
 	{
 		if (ElementData->GetOwner() == nullptr)
 		{
-			UE_LOG(LogNavigation, Warning, TEXT("DoAsyncGeometryGathering: skipping an element with no longer valid Owner"));
+			UE_LOG(LogNavigation, Warning, TEXT(__FUNCTION__": skipping an element with no longer valid Owner"));
 			continue;
 		}
 
-		bool bDumpGeometryData = false;
-		if (ElementData->IsPendingLazyGeometryGathering() && ElementData->SupportsGatheringGeometrySlices())
+		GatherNavigationDataGeometry(ElementData, NavOctree.Get(), NavDataConfig, bUpdateGeometry);
+	}
+}
+
+ETimeSliceWorkResult FRecastTileGenerator::GatherGeometryFromSourcesTimeSliced()
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_GatherGeometryFromSources);
+
+	while(NavigationRelevantData.Num())
+	{
+		TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> ElementData = NavigationRelevantData.Pop(false/*bAllowShrinking*/);
+		if (ElementData->GetOwner() == nullptr)
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_LandscapeSlicesExporting);
-
-			FRecastGeometryExport GeomExport(*ElementData);
-
-			INavRelevantInterface* NavRelevant = Cast<INavRelevantInterface>(ElementData->GetOwner());
-			if(NavRelevant)
-			{
-				NavRelevant->PrepareGeometryExportSync();
-				// adding a small bump to avoid special case of zero-expansion when tile bounds
-				// overlap landscape's tile bounds
-				NavRelevant->GatherGeometrySlice(GeomExport, TileBBExpandedForAgent);
-
-				RecastGeometryExport::CovertCoordDataToRecast(GeomExport.VertexBuffer);
-				RecastGeometryExport::StoreCollisionCache(GeomExport);
-				bDumpGeometryData = true;
-			}
-			else
-			{
-				UE_LOG(LogNavigation, Error, TEXT("DoAsyncGeometryGathering: got an invalid NavRelevant instance!"));
-			}
+			UE_LOG(LogNavigation, Warning, TEXT(__FUNCTION__": skipping an element with no longer valid Owner"));
+			continue;
 		}
 
-		if (ElementData->IsPendingLazyGeometryGathering() || ElementData->IsPendingLazyModifiersGathering())
+		GatherNavigationDataGeometry(ElementData, NavOctree.Get(), NavDataConfig, bUpdateGeometry);
+		
+		if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 		{
-			NavOctree->DemandLazyDataGathering(*ElementData);
-		}
-
-		const FCompositeNavModifier ModifierInstance = ElementData->Modifiers.HasMetaAreas() ? ElementData->Modifiers.GetInstantiatedMetaModifier(&NavDataConfig, ElementData->SourceObject) : ElementData->Modifiers;
-
-		const bool bExportGeometry = bUpdateGeometry && ElementData->HasGeometry();
-		if (bExportGeometry)
-		{
-			if (ARecastNavMesh::IsVoxelCacheEnabled())
-			{
-				TNavStatArray<rcSpanCache> SpanData;
-				rcSpanCache* CachedVoxels = 0;
-				int32 NumCachedVoxels = 0;
-
-				DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Rasterization: prepare voxel cache"), Stat_RecastRasterCachePrep, STATGROUP_Navigation);
-
-				if (!HasVoxelCache(ElementData->VoxelData, CachedVoxels, NumCachedVoxels))
-				{
-					// rasterize
-					PrepareVoxelCache(ElementData->CollisionData, ModifierInstance, SpanData);
-					CachedVoxels = SpanData.GetData();
-					NumCachedVoxels = SpanData.Num();
-
-					// encode
-					const int32 PrevElementMemory = ElementData->GetAllocatedSize();
-					FNavigationRelevantData* ModData = (FNavigationRelevantData*)&ElementData;
-					AddVoxelCache(ModData->VoxelData, CachedVoxels, NumCachedVoxels);
-
-					const int32 NewElementMemory = ElementData->GetAllocatedSize();
-					const int32 ElementMemoryDelta = NewElementMemory - PrevElementMemory;
-					INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, ElementMemoryDelta);
-				}
-			}
-			else
-			{
-				ValidateAndAppendGeometry(ElementData, ModifierInstance);
-			}
-
-			if (bDumpGeometryData)
-			{
-				const_cast<FNavigationRelevantData&>(*ElementData).CollisionData.Empty();
-			}
-		}
-
-		if (ModifierInstance.IsEmpty() == false)
-		{
-			AppendModifier(ModifierInstance, ElementData->NavDataPerInstanceTransformDelegate);
+			return ETimeSliceWorkResult::CallAgainNextTimeSlice;
 		}
 	}
-	return bRetVal;
+
+	return ETimeSliceWorkResult::Succeeded;
 }
 
 void FRecastTileGenerator::PrepareGeometrySources(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged)
@@ -2237,8 +2190,10 @@ void FRecastTileGenerator::PrepareGeometrySources(const FRecastNavMeshGenerator&
 		if (bShouldUse)
 		{
 			const bool bExportGeometry = bGeometryChanged && (Element.Data->HasGeometry() || Element.Data->IsPendingLazyGeometryGathering());
-			if (bExportGeometry
-				|| (Element.Data->IsPendingLazyModifiersGathering() || Element.Data->Modifiers.HasMetaAreas() == true || Element.Data->Modifiers.IsEmpty() == false))
+			if (bExportGeometry || 
+				Element.Data->IsPendingLazyModifiersGathering() || 
+				Element.Data->Modifiers.HasMetaAreas() == true || 
+				Element.Data->Modifiers.IsEmpty() == false)
 			{
 				NavigationRelevantData.Add(Element.Data);
 			}
@@ -2266,87 +2221,88 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 		const bool bShouldUse = Element.ShouldUseGeometry(OwnerNavDataConfig);
 		if (bShouldUse)
 		{
-			bool bDumpGeometryData = false;
-			if (Element.Data->IsPendingLazyGeometryGathering() || Element.Data->IsPendingLazyModifiersGathering())
-			{
-				const bool bSupportsSlices = Element.Data->SupportsGatheringGeometrySlices();
-				if (bSupportsSlices == false || Element.Data->IsPendingLazyModifiersGathering() == true)
-				{
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_LazyGeometryExport);
-					NavigationOctree->DemandLazyDataGathering(Element);
-				}
+			GatherNavigationDataGeometry(Element.Data, NavigationOctree, OwnerNavDataConfig, bGeometryChanged);
+		}
+	}
+}
+
+void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, FNavigationOctree* NavigationOctree, const FNavDataConfig& OwnerNavDataConfig, const bool bGeometryChanged)
+{
+	bool bDumpGeometryData = false;
+	if (ElementData->IsPendingLazyGeometryGathering() || ElementData->IsPendingLazyModifiersGathering())
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_LazyGeometryExport);
+		NavigationOctree->DemandLazyDataGathering(*ElementData);
+	}
 				
-				if (bSupportsSlices == true)
-				{
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_LandscapeSlicesExporting);
+	if (ElementData->IsPendingLazyGeometryGathering() && ElementData->SupportsGatheringGeometrySlices())
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_LandscapeSlicesExporting);
 
-					FRecastGeometryExport GeomExport(const_cast<FNavigationRelevantData&>(*Element.Data));
+		FRecastGeometryExport GeomExport(const_cast<FNavigationRelevantData&>(*ElementData));
 
-					INavRelevantInterface* NavRelevant = const_cast<INavRelevantInterface*>(Cast<const INavRelevantInterface>(Element.GetOwner()));
-					if (NavRelevant)
-					{
-						NavRelevant->PrepareGeometryExportSync();
-						// adding a small bump to avoid special case of zero-expansion when tile bounds
-						// overlap landscape's tile bounds
-						NavRelevant->GatherGeometrySlice(GeomExport, TileBBExpandedForAgent);
+		INavRelevantInterface* NavRelevant = const_cast<INavRelevantInterface*>(Cast<const INavRelevantInterface>(ElementData->GetOwner()));
+		if (NavRelevant)
+		{
+			NavRelevant->PrepareGeometryExportSync();
+			// adding a small bump to avoid special case of zero-expansion when tile bounds
+			// overlap landscape's tile bounds
+			NavRelevant->GatherGeometrySlice(GeomExport, TileBBExpandedForAgent);
 
-						RecastGeometryExport::CovertCoordDataToRecast(GeomExport.VertexBuffer);
-						RecastGeometryExport::StoreCollisionCache(GeomExport);
-						bDumpGeometryData = true;
-					}
-					else
-					{
-						UE_LOG(LogNavigation, Error, TEXT("GatherGeometry: got an invalid NavRelevant instance!"));
-					}
-				}
-			}
+			RecastGeometryExport::CovertCoordDataToRecast(GeomExport.VertexBuffer);
+			RecastGeometryExport::StoreCollisionCache(GeomExport);
+			bDumpGeometryData = true;
+		}
+		else
+		{
+			UE_LOG(LogNavigation, Error, TEXT("GatherGeometry: got an invalid NavRelevant instance!"));
+		}
+	}
 
-			const FCompositeNavModifier ModifierInstance = Element.GetModifierForAgent(&OwnerNavDataConfig);
+	const FCompositeNavModifier ModifierInstance = ElementData->GetModifierForAgent(&OwnerNavDataConfig);
 
-			const bool bExportGeometry = bGeometryChanged && Element.Data->HasGeometry();
-			if (bExportGeometry)
+	const bool bExportGeometry = bGeometryChanged && ElementData->HasGeometry();
+	if (bExportGeometry)
+	{
+		if (ARecastNavMesh::IsVoxelCacheEnabled())
+		{
+			TNavStatArray<rcSpanCache> SpanData;
+			rcSpanCache* CachedVoxels = 0;
+			int32 NumCachedVoxels = 0;
+
+			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Rasterization: prepare voxel cache"), Stat_RecastRasterCachePrep, STATGROUP_Navigation);
+
+			if (!HasVoxelCache(ElementData->VoxelData, CachedVoxels, NumCachedVoxels))
 			{
-				if (ARecastNavMesh::IsVoxelCacheEnabled())
-				{
-					TNavStatArray<rcSpanCache> SpanData;
-					rcSpanCache* CachedVoxels = 0;
-					int32 NumCachedVoxels = 0;
-
-					DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Rasterization: prepare voxel cache"), Stat_RecastRasterCachePrep, STATGROUP_Navigation);
-
-					if (!HasVoxelCache(Element.Data->VoxelData, CachedVoxels, NumCachedVoxels))
-					{
 						// rasterize
-						PrepareVoxelCache(Element.Data->CollisionData, ModifierInstance, SpanData);
-						CachedVoxels = SpanData.GetData();
-						NumCachedVoxels = SpanData.Num();
+				PrepareVoxelCache(ElementData->CollisionData, ModifierInstance, SpanData);
+				CachedVoxels = SpanData.GetData();
+				NumCachedVoxels = SpanData.Num();
 
 						// encode
-						const int32 PrevElementMemory = Element.Data->GetAllocatedSize();
-						FNavigationRelevantData* ModData = (FNavigationRelevantData*)&Element.Data;
-						AddVoxelCache(ModData->VoxelData, CachedVoxels, NumCachedVoxels);
+				const int32 PrevElementMemory = ElementData->GetAllocatedSize();
+				FNavigationRelevantData* ModData = (FNavigationRelevantData*)&ElementData;
+				AddVoxelCache(ModData->VoxelData, CachedVoxels, NumCachedVoxels);
 
-						const int32 NewElementMemory = Element.Data->GetAllocatedSize();
-						const int32 ElementMemoryDelta = NewElementMemory - PrevElementMemory;
-						INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, ElementMemoryDelta);
-					}
-				}
-				else
-				{
-					ValidateAndAppendGeometry(Element.Data, ModifierInstance);
-				}
-
-				if (bDumpGeometryData)
-				{
-					const_cast<FNavigationRelevantData&>(*Element.Data).CollisionData.Empty();
-				}
-			}
-						
-			if (ModifierInstance.IsEmpty() == false)
-			{
-				AppendModifier(ModifierInstance, Element.Data->NavDataPerInstanceTransformDelegate);
+				const int32 NewElementMemory = ElementData->GetAllocatedSize();
+				const int32 ElementMemoryDelta = NewElementMemory - PrevElementMemory;
+				INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, ElementMemoryDelta);
 			}
 		}
+		else
+		{
+			ValidateAndAppendGeometry(ElementData, ModifierInstance);
+		}
+
+		if (bDumpGeometryData)
+		{
+			const_cast<FNavigationRelevantData&>(*ElementData).CollisionData.Empty();
+		}
+	}
+				
+	if (ModifierInstance.IsEmpty() == false)
+	{
+		AppendModifier(ModifierInstance, ElementData->NavDataPerInstanceTransformDelegate);
 	}
 }
 
@@ -2596,7 +2552,7 @@ void FRecastTileGenerator::AppendModifier(const FCompositeNavModifier& Modifier,
 	Modifiers.Add(MoveTemp(ModifierElement));
 }
 
-void FRecastTileGenerator::ValidateAndAppendGeometry(TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> ElementData, const FCompositeNavModifier& InModifier)
+void FRecastTileGenerator::ValidateAndAppendGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, const FCompositeNavModifier& InModifier)
 {
 	const FNavigationRelevantData& DataRef = ElementData.Get();
 	if (DataRef.IsCollisionDataValid())
@@ -6316,6 +6272,11 @@ int32 FRecastNavMeshGenerator::GetNumRunningBuildTasks() const
 bool FRecastNavMeshGenerator::GatherGeometryOnGameThread() const 
 { 
 	return DestNavMesh == nullptr || DestNavMesh->ShouldGatherDataOnGameThread() == true;
+}
+
+bool FRecastNavMeshGenerator::IsTimeSliceRegenActive() const
+{
+	return SyncTimeSlicedData.bTimeSliceRegenActive;
 }
 
 bool FRecastNavMeshGenerator::IsTileChanged(int32 TileIdx) const
