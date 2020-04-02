@@ -172,7 +172,6 @@ namespace WindowsMixedReality
 	// Variables used from event handlers must be declared inside of the cpp.
 	// Camera resources.
 	float nearPlaneDistance = 0.001f;
-	float farPlaneDistance = 650.0f;
 	float ScreenScaleFactor = 1.0f;
 	std::shared_ptr<HolographicCameraResources> CameraResources = nullptr;
 	std::shared_ptr<HolographicCameraResources> PVCameraResources = nullptr;
@@ -736,11 +735,6 @@ namespace WindowsMixedReality
 
 		bool CommitDepthTexture(Microsoft::WRL::ComPtr<ID3D11Texture2D> depthTexture, HolographicCameraRenderingParameters RenderingParameters)
 		{
-			if (isRemoteHolographicSpace)
-			{
-				return false;
-			}
-
 			if (!isDepthBasedReprojectionSupported || depthTexture == nullptr)
 			{
 				return false;
@@ -1215,10 +1209,9 @@ namespace WindowsMixedReality
 		Log(stream.str().c_str());
 	}
 
-	void MixedRealityInterop::Initialize(ID3D11Device* device, float nearPlane, float farPlane)
+	void MixedRealityInterop::Initialize(ID3D11Device* device, float nearPlane)
 	{
 		nearPlaneDistance = nearPlane;
-		farPlaneDistance = farPlane;
 
 		LastKnownProjection.Left = winrt::Windows::Foundation::Numerics::float4x4::identity();
 		LastKnownProjection.Right = winrt::Windows::Foundation::Numerics::float4x4::identity();
@@ -1937,25 +1930,6 @@ namespace WindowsMixedReality
 			}
 
 			HolographicStereoTransform CameraProjectionTransform = pose.ProjectionTransform();
-
-			// Override the projection transform so we have correct matrices to unproject depth to.
-			// IHolographicCameraPose2 is not supported when remoting.
-			if (!isRemoteHolographicSpace)
-			{
-				CameraProjectionTransform.Left.m33 = 0;
-				CameraProjectionTransform.Left.m43 = nearPlaneDistance;
-
-				CameraProjectionTransform.Right.m33 = 0;
-				CameraProjectionTransform.Right.m43 = nearPlaneDistance;
-
-				IHolographicCameraPose2 pose2 = CameraResources->Pose;
-				if (eye == HMDEye::ThirdCamera)
-				{
-					pose2 = PVCameraResources->Pose;
-				}
-
-				pose2.OverrideProjectionTransform(CameraProjectionTransform);
-			}
 
 			projection = (eye == HMDEye::Left || eye == HMDEye::ThirdCamera)
 				? CameraProjectionTransform.Left
@@ -3765,7 +3739,7 @@ namespace WindowsMixedReality
 			
 			// Do not use WMR api's before this call when remoting or you may get access to local machine WMR instead.
 			std::lock_guard<std::mutex> remoteLock(remoteContextLock);
-			m_remoteContext = winrt::Microsoft::Holographic::AppRemoting::RemoteContext::Create(bitrate);
+			m_remoteContext = winrt::Microsoft::Holographic::AppRemoting::RemoteContext::Create(bitrate, true, winrt::Microsoft::Holographic::AppRemoting::PreferredVideoCodec::Any);
 			{
 				holographicSpace = HolographicSpace::CreateForCoreWindow(nullptr);
 				isRemoteHolographicSpace = true;

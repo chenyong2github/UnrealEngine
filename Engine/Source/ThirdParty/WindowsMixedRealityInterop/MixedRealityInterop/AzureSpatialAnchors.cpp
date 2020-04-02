@@ -51,7 +51,7 @@ public:
 
 	virtual bool HasEnoughDataForSaving() override;
 	const wchar_t* GetCloudSpatialAnchorIdentifier(CloudAnchorID cloudAnchorID) override;
-	virtual bool CreateCloudAnchor(LocalAnchorID localAnchorId, CloudAnchorID& outCloudAnchorID) override;
+	virtual bool CreateCloudAnchor(const LocalAnchorID& localAnchorId, CloudAnchorID& outCloudAnchorID) override;
 	virtual bool SetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float lifetime) override;
 	virtual bool GetCloudAnchorExpiration(CloudAnchorID cloudAnchorID, float& lifetime) override;
 	virtual bool SetCloudAnchorAppProperties(CloudAnchorID cloudAnchorID, const std::vector<std::pair<std::wstring, std::wstring>>& AppProperties) override;
@@ -64,7 +64,7 @@ public:
 	virtual bool GetCloudAnchorProperties(GetCloudAnchorPropertiesAsyncDataPtr Data) override;
 	virtual bool CreateWatcher(CreateWatcherData& Data) override;
 	virtual bool StopWatcher(int32 WatcherIdentifier) override;
-	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(LocalAnchorID localAnchorId, CloudAnchorID cloudAnchorID) override;
+	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(const LocalAnchorID& localAnchorId, CloudAnchorID cloudAnchorID) override;
 
 
 protected:
@@ -412,7 +412,7 @@ const wchar_t* AzureSpatialAnchorsInteropImpl::GetCloudSpatialAnchorIdentifier(C
 }
 
 
-bool AzureSpatialAnchorsInteropImpl::CreateCloudAnchor(LocalAnchorID localAnchorId, CloudAnchorID& outCloudAnchorID)
+bool AzureSpatialAnchorsInteropImpl::CreateCloudAnchor(const LocalAnchorID& localAnchorId, CloudAnchorID& outCloudAnchorID)
 {
 	if (localAnchorId.length() == 0)
 	{
@@ -996,7 +996,7 @@ bool AzureSpatialAnchorsInteropImpl::StopWatcher(int32 WatcherIdentifier)
 	}
 }
 
-bool AzureSpatialAnchorsInteropImpl::CreateARPinAroundAzureCloudSpatialAnchor(LocalAnchorID localAnchorId, CloudAnchorID cloudAnchorID)
+bool AzureSpatialAnchorsInteropImpl::CreateARPinAroundAzureCloudSpatialAnchor(const LocalAnchorID& localAnchorId, CloudAnchorID cloudAnchorID)
 {
 	winrt::Microsoft::Azure::SpatialAnchors::CloudSpatialAnchor* cloudAnchor = GetCloudAnchor(cloudAnchorID);
 	if (!cloudAnchor)

@@ -434,7 +434,7 @@ namespace WindowsMixedReality
 		{
 			D3D11Device = InternalGetD3D11Device();
 			HMD->Initialize(D3D11Device.GetReference(),
-				GNearClippingPlane / GetWorldToMetersScale(), farPlaneDistance);
+				GNearClippingPlane / GetWorldToMetersScale());
 			return true;
 		}
 		else
@@ -852,10 +852,6 @@ namespace WindowsMixedReality
 		result.M[2][2] *= -1;
 		result.M[2][3] *= -1;
 
-		// Switch to reverse-z, replace near and far distance
-		result.M[2][2] = 0.0f;  // Must be 0 for reverse-z.
-		result.M[3][2] = GNearClippingPlane;
-
 		return result;
 #else
 		return FMatrix::Identity;
@@ -910,6 +906,9 @@ namespace WindowsMixedReality
 
 					Frame_RenderThread.ThirdCameraTransform = FTransform(ThirdCamRotation, ThirdCamPosition, FVector::OneVector);
 					Frame_RenderThread.ProjectionMatrixThirdCamera = FetchProjectionMatrix((EStereoscopicPass)eSSP_THIRD_CAMERA_EYE, HMD);
+
+					// Rescale depth projection range from meters to world units
+					Frame_RenderThread.ProjectionMatrixThirdCamera.M[3][2] *= GetWorldToMetersScale();
 				}
 			}
 
@@ -961,6 +960,10 @@ namespace WindowsMixedReality
 
 				Frame_RenderThread.ProjectionMatrixL = FetchProjectionMatrix(eSSP_LEFT_EYE, HMD);
 				Frame_RenderThread.ProjectionMatrixR = FetchProjectionMatrix(eSSP_RIGHT_EYE, HMD);
+
+				// Rescale depth projection range from meters to world units
+				Frame_RenderThread.ProjectionMatrixL.M[3][2] *= GetWorldToMetersScale();
+				Frame_RenderThread.ProjectionMatrixR.M[3][2] *= GetWorldToMetersScale();
 
 				{
 					FScopeLock Lock(&Frame_NextGameThreadLock);
