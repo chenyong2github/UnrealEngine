@@ -37,7 +37,10 @@ void FLiveLinkSubject::Initialize(FLiveLinkSubjectKey InSubjectKey, TSubclassOf<
 	Role = InRole;
 
 	FrameData.Reset();
+	ReceivedOrderedFrames.Empty();
 	ResetBufferStats();
+	EngineTimeClockOffset.Reset();
+	TimecodeClockOffset.Reset();
 
 	if (TSharedPtr<FLiveLinkTimedDataInput> TimedDataGroupPin = TimedDataGroup.Pin())
 	{
@@ -63,10 +66,7 @@ void FLiveLinkSubject::Update()
 	{
 		const int32 NumberOfFrameToRemove = FrameData.Num() - CachedSettings.BufferSettings.MaxNumberOfFrameToBuffered;
 		const int32 Count = CachedSettings.BufferSettings.bKeepAtLeastOneFrame && FrameData.Num() == NumberOfFrameToRemove ? NumberOfFrameToRemove-1 : NumberOfFrameToRemove;
-		if (Count > 0)
-		{
-			FrameData.RemoveAt(0, Count, false);
-		}
+		RemoveFrames(Count);
 	}
 
 	if (GetMode() == ELiveLinkSourceMode::EngineTime)
@@ -89,10 +89,7 @@ void FLiveLinkSubject::Update()
 			if (FrameIndex - 1 >= 0)
 			{
 				const int32 Count = CachedSettings.BufferSettings.bKeepAtLeastOneFrame && FrameData.Num() == FrameIndex ? FrameIndex - 1 : FrameIndex;
-				if (Count > 0)
-				{
-					FrameData.RemoveAt(0, Count, false);
-				}
+				RemoveFrames(Count);
 			}
 		}
 	}
@@ -102,14 +99,22 @@ void FLiveLinkSubject::Update()
 		{
 			if (FApp::GetCurrentFrameTime().IsSet())
 			{
+				//Take the current Engine Timecode and substract all the offset in subject's frame space (clock offset if any, frame offset and the desired frame distance threshold)
 				const FQualifiedFrameTime CurrentSyncTime = FApp::GetCurrentFrameTime().GetValue();
+
+				FFrameTime ClockOffset;
+				if (CachedSettings.BufferSettings.bUseTimecodeSmoothLatest)
+				{
+					ClockOffset = CachedSettings.BufferSettings.TimecodeFrameRate.AsFrameTime(TimecodeClockOffset.GetEstimatedOffset());
+				}
+
 				const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(CachedSettings.BufferSettings.TimecodeFrameRate);
+				const FFrameTime FrameTimeThresholdFrameSpace = CurrentFrameTimeInFrameSpace - (ClockOffset + FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset) + CachedSettings.BufferSettings.ValidTimecodeFrame);
 				int32 FrameIndex = 0;
 				for (const FLiveLinkFrameDataStruct& SourceFrameData : FrameData)
 				{
-					FFrameTime UsedFrameTime = CurrentFrameTimeInFrameSpace - FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset) - CachedSettings.BufferSettings.ValidTimecodeFrame;
-					FFrameTime FrameTime = SourceFrameData.GetBaseData()->MetaData.SceneTime.Time;
-					if (FrameTime > UsedFrameTime)
+					const FFrameTime FrameTime = SourceFrameData.GetBaseData()->MetaData.SceneTime.Time;
+					if (FrameTime > FrameTimeThresholdFrameSpace)
 					{
 						break;
 					}
@@ -119,10 +124,7 @@ void FLiveLinkSubject::Update()
 				if (FrameIndex - 1 >= 0)
 				{
 					const int32 Count = CachedSettings.BufferSettings.bKeepAtLeastOneFrame && FrameData.Num() == FrameIndex ? FrameIndex - 1 : FrameIndex;
-					if (Count > 0)
-					{
-						FrameData.RemoveAt(0, Count, false);
-					}
+					RemoveFrames(Count);
 				}
 			}
 		}
@@ -140,19 +142,33 @@ void FLiveLinkSubject::Update()
 		{
 			if (FApp::GetCurrentFrameTime().IsSet())
 			{
-				bSnapshotIsValid = GetFrameAtSceneTime(FApp::GetCurrentFrameTime().GetValue(), FrameSnapshot);
+				//If Timecode smooth latest is enabled, use the clock offset to adjust read time. 
+				//@note For now, snapshot created will have the source time. We are not overriding its time with the read time. If a use case arise for this, we'll adjust.
+				const FQualifiedFrameTime EngineTimecode = FApp::GetCurrentFrameTime().GetValue();
+				
+				FFrameTime ClockOffset;
+				if (CachedSettings.BufferSettings.bUseTimecodeSmoothLatest)
+				{
+					ClockOffset = EngineTimecode.Rate.AsFrameTime(TimecodeClockOffset.GetEstimatedOffset());
+				}
+
+				const FFrameTime FrameOffset = FQualifiedFrameTime(FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset), CachedSettings.BufferSettings.TimecodeFrameRate).ConvertTo(EngineTimecode.Rate);
+				const FFrameTime ReadTime = EngineTimecode.Time - (ClockOffset + FrameOffset);
+				const FQualifiedFrameTime LookupQFrameTime = FQualifiedFrameTime(ReadTime, EngineTimecode.Rate);
+				bSnapshotIsValid = GetFrameAtSceneTime(LookupQFrameTime, FrameSnapshot);
 			}
 			else
 			{
-				static const FName NAME_InvalidRole = "LiveLinkSubject_NoCurrentFrameTime";
-				FLiveLinkLog::WarningOnce(NAME_InvalidRole, SubjectKey, TEXT("Can't evaluate frame for subject '%s'. The engine doesn't have a timecode value set."), *SubjectKey.SubjectName.ToString());
+				static const FName NAME_InvalidTime = "LiveLinkSubject_NoCurrentFrameTime";
+				FLiveLinkLog::WarningOnce(NAME_InvalidTime, SubjectKey, TEXT("Can't evaluate frame for subject '%s'. The engine doesn't have a timecode value set."), *SubjectKey.SubjectName.ToString());
 			}
 		}
 		break;
 
 		case ELiveLinkSourceMode::EngineTime:
 		{
-			bSnapshotIsValid = GetFrameAtWorldTime(FApp::GetCurrentTime(), FrameSnapshot);
+			const double ReadTime = FApp::GetCurrentTime() - CachedSettings.BufferSettings.EngineTimeOffset;
+			bSnapshotIsValid = GetFrameAtWorldTime(ReadTime, FrameSnapshot);
 			break;
 		}
 
@@ -167,6 +183,12 @@ void FLiveLinkSubject::Update()
 		// Invalidate the snapshot
 		FrameSnapshot.FrameData.Reset();
 	}
+	else
+	{
+		//Extra verbose logging about snapshot just created
+		const FTimecode FrameTC = FTimecode::FromFrameNumber(FrameSnapshot.FrameData.GetBaseData()->MetaData.SceneTime.Time.GetFrame(), FrameSnapshot.FrameData.GetBaseData()->MetaData.SceneTime.Rate);
+		UE_LOG(LogLiveLink, VeryVerbose, TEXT("Subject '%s' created snapshot with frame ID %d - Timecode:[%s.%0.3f] - SourceTime: %0.4f, Offset: %0.6f, CorrectedTime: %0.4f"), *SubjectKey.SubjectName.ToString(), FrameSnapshot.FrameData.GetBaseData()->FrameId, *FrameTC.ToString(), FrameSnapshot.FrameData.GetBaseData()->MetaData.SceneTime.Time.GetSubFrame(), FrameSnapshot.FrameData.GetBaseData()->WorldTime.GetSourceTime(), FrameSnapshot.FrameData.GetBaseData()->WorldTime.GetOffset(), FrameSnapshot.FrameData.GetBaseData()->WorldTime.GetOffsettedTime());
+	}
 }
 
 void FLiveLinkSubject::ClearFrames()
@@ -174,6 +196,7 @@ void FLiveLinkSubject::ClearFrames()
 	FrameSnapshot.StaticData.Reset();
 	FrameSnapshot.FrameData.Reset();
 	FrameData.Reset();
+	ReceivedOrderedFrames.Empty();
 }
 
 bool FLiveLinkSubject::HasValidFrameSnapshot() const
@@ -218,15 +241,17 @@ bool FLiveLinkSubject::EvaluateFrameAtWorldTime(double InWorldTime, TSubclassOf<
 	bool bSuccess = false;
 	if (FrameData.Num() != 0)
 	{
+		// Adjust desired read time based on offset settings
+		const double ReadTime = InWorldTime - CachedSettings.BufferSettings.EngineTimeOffset;
 		if (Role == InDesiredRole || Role->IsChildOf(InDesiredRole))
 		{
-			GetFrameAtWorldTime(InWorldTime, OutFrame);
+			GetFrameAtWorldTime(ReadTime, OutFrame);
 			bSuccess = true;
 		}
 		else if (SupportsRole(InDesiredRole))
 		{
 			FLiveLinkSubjectFrameData TmpFrameData;
-			GetFrameAtWorldTime(InWorldTime, TmpFrameData);
+			GetFrameAtWorldTime(ReadTime, TmpFrameData);
 			bSuccess = Translate(this, InDesiredRole, TmpFrameData.StaticData, TmpFrameData.FrameData, OutFrame);
 		}
 		else
@@ -265,15 +290,25 @@ bool FLiveLinkSubject::EvaluateFrameAtSceneTime(const FQualifiedFrameTime& InSce
 	bool bSuccess = false;
 	if (FrameData.Num() != 0)
 	{
+		// Adjust desired read time based on offset settings and clock offset if any
+		FFrameTime ClockOffset;
+		if (CachedSettings.BufferSettings.bUseTimecodeSmoothLatest)
+		{
+			ClockOffset = InSceneTime.Rate.AsFrameTime(TimecodeClockOffset.GetEstimatedOffset());
+		}
+
+		const FFrameTime FrameOffset = FQualifiedFrameTime(FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset), CachedSettings.BufferSettings.TimecodeFrameRate).ConvertTo(InSceneTime.Rate);
+		const FFrameTime ReadTime = InSceneTime.Time - (ClockOffset + FrameOffset);
+		const FQualifiedFrameTime LookupQFrameTime = FQualifiedFrameTime(ReadTime, InSceneTime.Rate);
 		if (Role == InDesiredRole || Role->IsChildOf(InDesiredRole))
 		{
-			GetFrameAtSceneTime(InSceneTime, OutFrame);
+			GetFrameAtSceneTime(LookupQFrameTime, OutFrame);
 			bSuccess = true;
 		}
 		else if (SupportsRole(InDesiredRole))
 		{
 			FLiveLinkSubjectFrameData TmpFrameData;
-			GetFrameAtSceneTime(InSceneTime, TmpFrameData);
+			GetFrameAtSceneTime(LookupQFrameTime, TmpFrameData);
 			bSuccess = Translate(this, InDesiredRole, TmpFrameData.StaticData, TmpFrameData.FrameData, OutFrame);
 		}
 		else
@@ -320,6 +355,20 @@ void FLiveLinkSubject::AddFrameData(FLiveLinkFrameDataStruct&& InFrameData)
 		return;
 	}
 
+	// Before adding the new frame, test to see if we are going to increase the buffer size
+	const bool bRemoveFrame = FrameData.Num() >= CachedSettings.BufferSettings.MaxNumberOfFrameToBuffered;
+	if (bRemoveFrame)
+	{
+		RemoveFrames(1);
+	}
+
+	//Update clock trackers
+	UpdateClockTracker(*InFrameData.GetBaseData());
+
+	//Update this frame clock offset with the newly updated one. This will make it transparent everywhere we used the offsetted time.
+	//Done before selecting a frame offset to have the most accurate offset
+	InFrameData.GetBaseData()->WorldTime.SetClockOffset(EngineTimeClockOffset.GetEstimatedOffset());
+	
 	int32 FrameIndex = INDEX_NONE;
 	switch (CachedSettings.SourceMode)
 	{
@@ -334,34 +383,29 @@ void FLiveLinkSubject::AddFrameData(FLiveLinkFrameDataStruct&& InFrameData)
 		FrameIndex = FindNewFrame_Latest(InFrameData.GetBaseData()->WorldTime);
 		break;
 	}
-	
-	if (FrameIndex >= 0)
+
+	//Make sure frame should be inserted. 
+	if(FrameIndex >= 0)
 	{
-		// Before adding the new frame, test to see if we are going to increase the buffer size
-		const bool bRemoveFrame = FrameData.Num() >= CachedSettings.BufferSettings.MaxNumberOfFrameToBuffered;
-		if (bRemoveFrame)
+		for (ULiveLinkFramePreProcessor::FWorkerSharedPtr PreProcessor : FramePreProcessors)
 		{
-			--FrameIndex;
+			PreProcessor->PreProcessFrame(InFrameData);
 		}
+		
+		//Assign identifier to incoming frame and insert it where it belongs
+		const FLiveLinkFrameIdentifier ThisFrameIdentifier = NextIdentifier++;
+		ReceivedOrderedFrames.Enqueue(ThisFrameIdentifier);
+		InFrameData.GetBaseData()->FrameId = ThisFrameIdentifier;
+		
+		//Extra verbose logging about new frame being added
+		const FTimecode FrameTC = FTimecode::FromFrameNumber(InFrameData.GetBaseData()->MetaData.SceneTime.Time.GetFrame(), InFrameData.GetBaseData()->MetaData.SceneTime.Rate);
+		UE_LOG(LogLiveLink, VeryVerbose, TEXT("Subject '%s' adding frame ID %d at index %d - Timecode:[%s.%0.3f] - SourceTime: %0.4f, Offset: %0.6f, CorrectedTime: %0.4f"), *SubjectKey.SubjectName.ToString(), ThisFrameIdentifier, FrameIndex, *FrameTC.ToString(), InFrameData.GetBaseData()->MetaData.SceneTime.Time.GetSubFrame(), InFrameData.GetBaseData()->WorldTime.GetSourceTime(), InFrameData.GetBaseData()->WorldTime.GetOffset(), InFrameData.GetBaseData()->WorldTime.GetOffsettedTime());
+		
+		FrameData.Insert(MoveTemp(InFrameData), FrameIndex);
 
-		// It's possible the new frame is the frame we want to remove
-		if (FrameIndex >= 0)
+		if (CachedSettings.BufferSettings.bGenerateSubFrame && CachedSettings.SourceMode == ELiveLinkSourceMode::Timecode)
 		{
-			for (ULiveLinkFramePreProcessor::FWorkerSharedPtr PreProcessor : FramePreProcessors)
-			{
-				PreProcessor->PreProcessFrame(InFrameData);
-			}
-
-			if (bRemoveFrame)
-			{
-				FrameData.RemoveAt(0);
-			}
-			FrameData.Insert(MoveTemp(InFrameData), FrameIndex);
-
-			if (CachedSettings.BufferSettings.bGenerateSubFrame && CachedSettings.SourceMode == ELiveLinkSourceMode::Timecode)
-			{
-				AdjustSubFrame_SceneTime(FrameIndex);
-			}
+			AdjustSubFrame_SceneTime(FrameIndex);
 		}
 	}
 	else 
@@ -618,11 +662,10 @@ bool FLiveLinkSubject::GetFrameAtWorldTime_Closest(const double InSeconds, FLive
 	bool bOverflowDetected = false;
 	bool bUnderflowDetected = false;
 	bool bBuiltFrame = false;
-	const double ReadTime = (InSeconds) - CachedSettings.BufferSettings.EngineTimeOffset;
 	for (int32 FrameIndex = FrameData.Num() - 1; FrameIndex >= 0; --FrameIndex)
 	{
 		const double Time = FrameData[FrameIndex].GetBaseData()->WorldTime.GetOffsettedTime();
-		if (Time <= ReadTime)
+		if (Time <= InSeconds)
 		{
 			if (FrameIndex == FrameData.Num() - 1)
 			{
@@ -631,13 +674,13 @@ bool FLiveLinkSubject::GetFrameAtWorldTime_Closest(const double InSeconds, FLive
 				bBuiltFrame = true;
 
 				//If we tried to read above our buffer, stamp an overflow
-				bUnderflowDetected = !FMath::IsNearlyEqual(Time, ReadTime);
+				bUnderflowDetected = !FMath::IsNearlyEqual(Time, InSeconds);
 				break;
 			}
 			else
 			{
 				const double NextTime = FrameData[FrameIndex + 1].GetBaseData()->WorldTime.GetOffsettedTime();
-				const float BlendWeight = (ReadTime - NextTime) / (NextTime - Time);
+				const float BlendWeight = (InSeconds - NextTime) / (NextTime - Time);
 				int32 CopyIndex = (BlendWeight > 0.5f) ? FrameIndex : FrameIndex + 1;
 				OutFrame.FrameData.InitializeWith(FrameData[CopyIndex].GetStruct(), FrameData[CopyIndex].GetBaseData());
 				bBuiltFrame = true;
@@ -666,8 +709,8 @@ bool FLiveLinkSubject::GetFrameAtWorldTime_Closest(const double InSeconds, FLive
 		}
 
 		FTimedDataInputEvaluationData EvaluationData;
-		EvaluationData.DistanceToNewestSampleSeconds = FrameData[FrameData.Num()-1].GetBaseData()->WorldTime.GetOffsettedTime() - ReadTime;
-		EvaluationData.DistanceToOldestSampleSeconds = ReadTime - FrameData[0].GetBaseData()->WorldTime.GetOffsettedTime();
+		EvaluationData.DistanceToNewestSampleSeconds = FrameData[FrameData.Num()-1].GetBaseData()->WorldTime.GetOffsettedTime() - InSeconds;
+		EvaluationData.DistanceToOldestSampleSeconds = InSeconds - FrameData[0].GetBaseData()->WorldTime.GetOffsettedTime();
 		UpdateEvaluationData(EvaluationData);
 	}
 
@@ -679,8 +722,7 @@ bool FLiveLinkSubject::GetFrameAtWorldTime_Interpolated(const double InSeconds, 
 	check(FrameData.Num() != 0);
 
 	FLiveLinkInterpolationInfo InterpolationInfo;
-	const double ReadTime = InSeconds - CachedSettings.BufferSettings.EngineTimeOffset;
-	FrameInterpolationProcessor->Interpolate(ReadTime, StaticData, FrameData, OutFrame, InterpolationInfo);
+	FrameInterpolationProcessor->Interpolate(InSeconds, StaticData, FrameData, OutFrame, InterpolationInfo);
 
 	VerifyInterpolationInfo(InterpolationInfo);
 
@@ -721,10 +763,7 @@ bool FLiveLinkSubject::GetFrameAtSceneTime_Closest(const FQualifiedFrameTime& In
 	bool bOverflowDetected = false;
 	bool bBuiltFrame = false;
 
-	const FFrameTime FrameOffset = FQualifiedFrameTime(FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset), CachedSettings.BufferSettings.TimecodeFrameRate).ConvertTo(InTimeInEngineFrameRate.Rate);
-	const FFrameTime ReadTime = InTimeInEngineFrameRate.Time - FrameOffset;
-	const FQualifiedFrameTime LookupQFrameTime = FQualifiedFrameTime(ReadTime, InTimeInEngineFrameRate.Rate);
-	const double TimeInSeconds = LookupQFrameTime.AsSeconds();
+	const double TimeInSeconds = InTimeInEngineFrameRate.AsSeconds();
 	for (int32 FrameIndex = FrameData.Num() - 1; FrameIndex >= 0; --FrameIndex)
 	{
 		const double FrameASeconds = FrameData[FrameIndex].GetBaseData()->MetaData.SceneTime.AsSeconds();
@@ -786,10 +825,7 @@ bool FLiveLinkSubject::GetFrameAtSceneTime_Interpolated(const FQualifiedFrameTim
 	check(FrameData.Num() != 0);
 
 	FLiveLinkInterpolationInfo InterpolationInfo;
-	const FFrameTime FrameOffset = FQualifiedFrameTime(FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset), CachedSettings.BufferSettings.TimecodeFrameRate).ConvertTo(InTimeInEngineFrameRate.Rate);
-	const FFrameTime ReadTime = InTimeInEngineFrameRate.Time - FrameOffset;
-	const FQualifiedFrameTime LookupQFrameTime = FQualifiedFrameTime(ReadTime, InTimeInEngineFrameRate.Rate);
-	FrameInterpolationProcessor->Interpolate(LookupQFrameTime, StaticData, FrameData, OutFrame, InterpolationInfo);
+	FrameInterpolationProcessor->Interpolate(InTimeInEngineFrameRate, StaticData, FrameData, OutFrame, InterpolationInfo);
 
 	if (IsBufferStatsEnabled())
 	{
@@ -894,6 +930,34 @@ void FLiveLinkSubject::UpdateEvaluationData(const FTimedDataInputEvaluationData&
 	EvaluationStatistics.LastEvaluationData = EvaluationData;
 }
 
+void FLiveLinkSubject::UpdateClockTracker(const FLiveLinkBaseFrameData& NewFrame)
+{
+	EngineTimeClockOffset.UpdateEstimation(NewFrame.WorldTime.GetSourceTime(), NewFrame.ArrivalTime.WorldTime);
+	TimecodeClockOffset.UpdateEstimation(NewFrame.MetaData.SceneTime.AsSeconds(), NewFrame.ArrivalTime.SceneTime.AsSeconds());
+}
+
+void FLiveLinkSubject::RemoveFrames(int32 InCount)
+{
+	for (int32 i = 0; i < InCount; ++i)
+	{
+		FLiveLinkFrameIdentifier FrameToRemove = INDEX_NONE;
+		ReceivedOrderedFrames.Dequeue(FrameToRemove);
+		const int32 FrameToRemoveIndex = FrameData.IndexOfByPredicate([FrameToRemove](const FLiveLinkFrameDataStruct& Other) { return Other.GetBaseData()->FrameId == FrameToRemove; });
+		if (FrameToRemoveIndex != INDEX_NONE)
+		{
+			const int32 Count = 1;
+			const bool bAllowShrinking = false;
+			FrameData.RemoveAt(FrameToRemoveIndex, Count, bAllowShrinking);
+		}
+		else
+		{
+			FLiveLinkLog::Error(TEXT("Subject '%s': Could not find frame with identifier %d. Buffers are out of sync, resetting them."), *SubjectKey.SubjectName.ToString(), FrameToRemove);
+			ReceivedOrderedFrames.Empty();
+			FrameData.Reset();
+		}
+	}
+}
+
 void FLiveLinkSubject::SetStaticData(TSubclassOf<ULiveLinkRole> InRole, FLiveLinkStaticDataStruct&& InStaticData)
 {
 	check(IsInGameThread());
@@ -909,6 +973,7 @@ void FLiveLinkSubject::SetStaticData(TSubclassOf<ULiveLinkRole> InRole, FLiveLin
 	{
 		//Set initial blending processor to the role's default one. User will be able to modify it afterwards.
 		FrameData.Reset();
+		ReceivedOrderedFrames.Empty();
 		StaticData = MoveTemp(InStaticData);
 	}
 	else
@@ -927,9 +992,11 @@ void FLiveLinkSubject::CacheSettings(ULiveLinkSourceSettings* SourceSetting, ULi
 		const bool bSourceModeChanged = SourceSetting->Mode != CachedSettings.SourceMode;
 		const bool bTimecodeFrameRateChanged = SourceSetting->Mode == ELiveLinkSourceMode::Timecode && SourceSetting->BufferSettings.TimecodeFrameRate != CachedSettings.BufferSettings.TimecodeFrameRate;
 		const bool bGenerateSubFrameChanged = SourceSetting->Mode == ELiveLinkSourceMode::Timecode && SourceSetting->BufferSettings.bGenerateSubFrame != CachedSettings.BufferSettings.bGenerateSubFrame;
-		if (bSourceModeChanged || bTimecodeFrameRateChanged || bGenerateSubFrameChanged)
+		const bool bTimecodeModeChanged = SourceSetting->Mode == ELiveLinkSourceMode::Timecode && SourceSetting->BufferSettings.bUseTimecodeSmoothLatest != CachedSettings.BufferSettings.bUseTimecodeSmoothLatest;
+		if (bSourceModeChanged || bTimecodeFrameRateChanged || bGenerateSubFrameChanged || bTimecodeModeChanged)
 		{
 			FrameData.Reset();
+			ReceivedOrderedFrames.Empty();
 		}
 
 		CachedSettings.SourceMode = SourceSetting->Mode;
@@ -1039,7 +1106,15 @@ FTimedDataChannelSampleTime FLiveLinkSubject::GetOldestDataTime() const
 {
 	if (FrameData.Num() > 0)
 	{
-		return FTimedDataChannelSampleTime(FrameData[0].GetBaseData()->WorldTime.GetOffsettedTime(), FrameData[0].GetBaseData()->MetaData.SceneTime);
+		//For timed data, adjust frame timings to match with clock offset to have valid timing diagrams
+		FFrameTime TimecodeClockOffsetTime;
+		if (CachedSettings.BufferSettings.bUseTimecodeSmoothLatest)
+		{
+			TimecodeClockOffsetTime = FrameData[0].GetBaseData()->MetaData.SceneTime.Rate.AsFrameTime(TimecodeClockOffset.GetEstimatedOffset());
+		}
+
+		const FQualifiedFrameTime OldestSceneTime = FQualifiedFrameTime(FrameData[0].GetBaseData()->MetaData.SceneTime.Time + TimecodeClockOffsetTime, FrameData[0].GetBaseData()->MetaData.SceneTime.Rate);
+		return FTimedDataChannelSampleTime(FrameData[0].GetBaseData()->WorldTime.GetOffsettedTime(), OldestSceneTime);
 	}
 	return FTimedDataChannelSampleTime();
 }
@@ -1048,18 +1123,34 @@ FTimedDataChannelSampleTime FLiveLinkSubject::GetNewestDataTime() const
 {
 	if (FrameData.Num() > 0)
 	{
-		return FTimedDataChannelSampleTime(FrameData.Last().GetBaseData()->WorldTime.GetOffsettedTime(), FrameData.Last().GetBaseData()->MetaData.SceneTime);
+		//For timed data, adjust frame timings to match with clock offset to have valid timing diagrams
+		FFrameTime TimecodeClockOffsetTime;
+		if (CachedSettings.BufferSettings.bUseTimecodeSmoothLatest)
+		{
+			TimecodeClockOffsetTime = FrameData.Last().GetBaseData()->MetaData.SceneTime.Rate.AsFrameTime(TimecodeClockOffset.GetEstimatedOffset());
+		}
+
+		const FQualifiedFrameTime NewestSceneTime = FQualifiedFrameTime(FrameData.Last().GetBaseData()->MetaData.SceneTime.Time + TimecodeClockOffsetTime, FrameData.Last().GetBaseData()->MetaData.SceneTime.Rate);
+		return FTimedDataChannelSampleTime(FrameData.Last().GetBaseData()->WorldTime.GetOffsettedTime(), NewestSceneTime);
 	}
 	return FTimedDataChannelSampleTime();
 }
 
 TArray<FTimedDataChannelSampleTime> FLiveLinkSubject::GetDataTimes() const
 {
+	//For timed data, adjust frame timings to match with clock offset to have valid timing diagrams
+	FFrameTime TimecodeClockOffsetTime;
+	if (CachedSettings.BufferSettings.bUseTimecodeSmoothLatest)
+	{
+		TimecodeClockOffsetTime = FrameData[0].GetBaseData()->MetaData.SceneTime.Rate.AsFrameTime(TimecodeClockOffset.GetEstimatedOffset());;
+	}
+	
 	TArray<FTimedDataChannelSampleTime> Result;
 	Result.Reset(FrameData.Num());
 	for (const FLiveLinkFrameDataStruct& Data : FrameData)
 	{
-		Result.Emplace(Data.GetBaseData()->WorldTime.GetOffsettedTime(), Data.GetBaseData()->MetaData.SceneTime);
+		const FQualifiedFrameTime AdjustedSceneTime = FQualifiedFrameTime(Data.GetBaseData()->MetaData.SceneTime.Time + TimecodeClockOffsetTime, Data.GetBaseData()->MetaData.SceneTime.Rate);
+		Result.Emplace(Data.GetBaseData()->WorldTime.GetOffsettedTime(), AdjustedSceneTime);
 	}
 	return Result;
 }

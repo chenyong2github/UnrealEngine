@@ -73,7 +73,7 @@ private:
 	FLiveLinkSubjectKey SubjectKey;
 
 	/** How to evaluate the timecode. */
-	UPROPERTY(EditAnywhere, Category = Timecode, meta = (EditCondition = "!bUseLatest"))
+	UPROPERTY(EditAnywhere, Category = Timecode)
 	ELiveLinkTimecodeProviderEvaluationType Evaluation;
 
 	UPROPERTY(EditAnywhere, Category = Timecode, meta=(InlineEditConditionToggle))
