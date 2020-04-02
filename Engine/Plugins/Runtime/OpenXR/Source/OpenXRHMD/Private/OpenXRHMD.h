@@ -206,7 +206,8 @@ private:
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;
 	bool					bNeedReAllocatedDepth;
-	
+	bool					bIsMobileMultiViewEnabled;
+
 	XrSessionState			CurrentSessionState;
 
 	FTransform				BaseTransform;
