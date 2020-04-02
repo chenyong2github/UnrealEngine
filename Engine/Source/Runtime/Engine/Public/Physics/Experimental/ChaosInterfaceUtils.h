@@ -10,6 +10,8 @@ struct FGeometryAddParams;
 
 namespace ChaosInterface
 {
+	Chaos::EChaosCollisionTraceFlag ConvertCollisionTraceFlag(ECollisionTraceFlag Flag);
+	
 	/**
 	 * Create the Chaos Geometry based on the geometry parameters.
 	 */
