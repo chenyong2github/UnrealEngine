@@ -127,22 +127,36 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 
 	FORCEINLINE_DEBUGGABLE FVector GetSkinnedBonePosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).GetOrigin();
+		const int32 NumRealBones = Accessor.Mesh->RefSkeleton.GetRawBoneNum();
+		if (BoneIndex < NumRealBones)
+		{
+			return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).GetOrigin();
+		}
+
+		const FTransform& RefTransform = Accessor.Mesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+		return RefTransform.GetLocation();
 	}
 
 	FORCEINLINE_DEBUGGABLE FVector GetSkinnedBonePreviousPosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).GetOrigin();
+		return GetSkinnedBonePosition(Accessor, BoneIndex);
 	}
 
 	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).ToQuat();
+		const int32 NumRealBones = Accessor.Mesh->RefSkeleton.GetRawBoneNum();
+		if (BoneIndex < NumRealBones)
+		{
+			return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).ToQuat();
+		}
+
+		const FTransform& RefTransform = Accessor.Mesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+		return RefTransform.GetRotation();
 	}
 
 	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).ToQuat();
+		return GetSkinnedBoneRotation(Accessor, BoneIndex);
 	}
 };
 
