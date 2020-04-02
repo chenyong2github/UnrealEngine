@@ -91,6 +91,11 @@ public:
 		return InnerBackend->WouldCache(CacheKey, InData);
 	}
 
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override 
+	{ 
+		return InnerBackend->ApplyDebugOptions(InOptions);
+	}
+
 	/**
 	 * Synchronous retrieve of a cache item
 	 *

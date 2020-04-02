@@ -815,6 +815,12 @@ bool FS3DerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	const FBundle* Bundle;
 	const FBundleEntry* BundleEntry;
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
+
 	if (!FindBundleEntry(CacheKey, Bundle, BundleEntry))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("S3DerivedDataBackend: Cache miss on %s (probably)"), CacheKey);
@@ -828,6 +834,11 @@ bool FS3DerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& 
 	TRACE_CPUPROFILER_EVENT_SCOPE(S3DDC_Get);
 	TRACE_COUNTER_ADD(S3DDC_Get, int64(1));
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
 
 	const FBundle* Bundle;
 	const FBundleEntry* BundleEntry;
@@ -1076,6 +1087,41 @@ bool FS3DerivedDataBackend::FindBundleEntry(const TCHAR* CacheKey, const FBundle
 	}
 
 	return false;
+}
+
+bool FS3DerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+{
+	DebugOptions = InOptions;
+	return true;
+}
+
+bool FS3DerivedDataBackend::DidSimulateMiss(const TCHAR* InKey)
+{
+	if (DebugOptions.RandomMissRate == 0 || DebugOptions.SimulateMissTypes.Num() == 0)
+	{
+		return false;
+	}
+	FScopeLock Lock(&MissedKeysCS);
+	return DebugMissedKeys.Contains(FName(InKey));
+}
+
+bool FS3DerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
+{
+	// once missed, always missed
+	if (DidSimulateMiss(InKey))
+	{
+		return true;
+	}
+
+	if (DebugOptions.ShouldSimulateMiss(InKey))
+	{
+		FScopeLock Lock(&MissedKeysCS);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
+		DebugMissedKeys.Add(FName(InKey));
+		return true;
+	}
+
+	return true;
 }
 
 #endif

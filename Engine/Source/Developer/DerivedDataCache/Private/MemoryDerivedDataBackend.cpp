@@ -31,12 +31,18 @@ FDerivedDataBackendInterface::ESpeedClass FMemoryDerivedDataBackend::GetSpeedCla
 bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
-	FScopeLock ScopeLock(&SynchronizationObject);
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
+
 	if (bDisabled)
 	{
 		return false;
 	}
 
+	FScopeLock ScopeLock(&SynchronizationObject);
 	bool Result = CacheItems.Contains(FString(CacheKey));
 	if (Result)
 	{
@@ -48,9 +54,16 @@ bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
-	FScopeLock ScopeLock(&SynchronizationObject);
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
+	
 	if (!bDisabled)
 	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+
 		FCacheValue* Item = CacheItems.FindRef(FString(CacheKey));
 		if (Item)
 		{
@@ -84,6 +97,11 @@ void FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<
 {
 	COOK_STAT(auto Timer = UsageStats.TimePut());
 	FScopeLock ScopeLock(&SynchronizationObject);
+
+	if (DidSimulateMiss(CacheKey))
+	{
+		return;
+	}
 	
 	// Should never hit this as higher level code should be checking..
 	if (!WouldCache(CacheKey, InData))
@@ -305,4 +323,39 @@ void FMemoryDerivedDataBackend::Disable()
 void FMemoryDerivedDataBackend::GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath)
 {
 	COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s.%s"), *GraphPath, TEXT("MemoryBackend"), *CacheFilename), UsageStats));
+}
+
+bool FMemoryDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+{
+	DebugOptions = InOptions;
+	return true;
+}
+
+bool FMemoryDerivedDataBackend::DidSimulateMiss(const TCHAR* InKey)
+{
+	if (DebugOptions.RandomMissRate == 0 || DebugOptions.SimulateMissTypes.Num() == 0)
+	{
+		return false;
+	}
+	FScopeLock Lock(&MissedKeysCS);
+	return DebugMissedKeys.Contains(FName(InKey));
+}
+
+bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
+{
+	// once missed, always missed
+	if (DidSimulateMiss(InKey))
+	{
+		return true;
+	}
+
+	if (DebugOptions.ShouldSimulateMiss(InKey))
+	{
+		FScopeLock Lock(&MissedKeysCS);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
+		DebugMissedKeys.Add(FName(InKey));
+		return true;
+	}
+
+	return true;
 }

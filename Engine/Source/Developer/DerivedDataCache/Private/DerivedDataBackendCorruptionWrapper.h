@@ -222,6 +222,11 @@ public:
 		return InnerBackend->WouldCache(CacheKey, InData);
 	}
 
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) 
+	{ 
+		return InnerBackend->ApplyDebugOptions(InOptions);
+	}
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 
