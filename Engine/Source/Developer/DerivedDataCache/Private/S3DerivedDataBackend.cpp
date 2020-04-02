@@ -33,6 +33,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/Runnable.h"
 #include "DesktopPlatformModule.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define S3DDC_BACKEND_WAIT_INTERVAL 0.01f
 #define S3DDC_HTTP_REQUEST_TIMEOUT_SECONDS 30L
@@ -282,7 +283,10 @@ public:
 		}
 		if (CurlResult != CURLE_OK)
 		{
-			Log->Logf(ELogVerbosity::Error, TEXT("Error while connecting to %s: %s"), ANSI_TO_TCHAR(Url), ANSI_TO_TCHAR(curl_easy_strerror(CurlResult)));
+			if (CurlResult != CURLE_ABORTED_BY_CALLBACK)
+			{
+				Log->Logf(ELogVerbosity::Error, TEXT("Error while connecting to %s: %d (%s)"), ANSI_TO_TCHAR(Url), CurlResult, ANSI_TO_TCHAR(curl_easy_strerror(CurlResult)));
+			}
 			return 500;
 		}
 
@@ -651,7 +655,10 @@ struct FS3DerivedDataBackend::FBundleDownload : IRequestCallback
 		long ResponseCode = RequestPool.Download(*BundleUrl, this, CompressedData, Context);
 		if(!IsSuccessfulHttpResponse(ResponseCode))
 		{
-			Context->Logf(ELogVerbosity::Warning, TEXT("Unable to download bundle %s (%d)"), *BundleUrl, ResponseCode);
+			if (!Context->ReceivedUserCancel())
+			{
+				Context->Logf(ELogVerbosity::Warning, TEXT("Unable to download bundle %s (%d)"), *BundleUrl, ResponseCode);
+			}
 			return;
 		}
 
@@ -704,6 +711,14 @@ FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, co
 	{
 		TArray<uint8> Data;
 		bCanaryValid = IsSuccessfulHttpResponse(RequestPool->Download(*(BaseUrl / CanaryObjectKey), nullptr, Data, GLog));
+	}
+
+	// Allow the user to override it from the editor
+	bool bSetting;
+	if (GConfig->GetBool(TEXT("/Script/UnrealEd.EditorSettings"), TEXT("bEnableS3DDC"), bSetting, GEditorSettingsIni) && !bSetting)
+	{
+		UE_LOG(LogDerivedDataCache, Display, TEXT("S3DerivedDataBackend: Disabling due to config setting"));
+		bCanaryValid = false;
 	}
 
 	// Try to read the bundles
