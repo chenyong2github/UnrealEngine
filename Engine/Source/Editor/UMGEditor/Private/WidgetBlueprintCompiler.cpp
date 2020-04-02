@@ -815,7 +815,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 					}
 				}
 
-				if (!WidgetAnimProperty->HasAnyPropertyFlags(RF_Transient))
+				if (!WidgetAnimProperty->HasAnyPropertyFlags(CPF_Transient))
 				{
 					const FText BindWidgetAnimTransientError = LOCTEXT("BindWidgetAnimTransient", "The property @@ uses BindWidgetAnim, but isn't Transient!");
 					MessageLog.Error(*BindWidgetAnimTransientError.ToString(), WidgetAnimProperty);
