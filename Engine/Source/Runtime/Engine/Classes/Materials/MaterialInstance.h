@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "RenderCommandFence.h"
+#include "HAL/ThreadSafeBool.h"
 #include "Materials/MaterialInterface.h"
 #include "StaticParameterSet.h"
 #include "MaterialShared.h"
@@ -470,8 +471,8 @@ private:
 	/** Material resources being cached for cooking. */
 	TMap<const class ITargetPlatform*, TArray<FMaterialResource*>> CachedMaterialResourcesForCooking;
 #endif
-	/** Fence used to guarantee that the RT is finished using various resources in this UMaterial before cleanup. */
-	FRenderCommandFence ReleaseFence;
+	/** Flag used to guarantee that the RT is finished using various resources in this UMaterial before cleanup. */
+	FThreadSafeBool ReleasedByRT;
 
 public:
 	// Begin UMaterialInterface interface.
