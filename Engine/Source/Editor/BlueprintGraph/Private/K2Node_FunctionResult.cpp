@@ -194,11 +194,10 @@ UEdGraphPin* UK2Node_FunctionResult::CreatePinFromUserDefinition(const TSharedPt
 	return Pin;
 }
 
-void UK2Node_FunctionResult::FixupPinStringDataReferences(FArchive& Ar)
+void UK2Node_FunctionResult::FixupPinStringDataReferences(FArchive* SavingArchive)
 {
-	Super::FixupPinStringDataReferences(Ar);
-	
-	if (Ar.IsSaving())
+	Super::FixupPinStringDataReferences(SavingArchive);
+	if (SavingArchive)
 	{
 		UpdateUserDefinedPinDefaultValues();
 	}

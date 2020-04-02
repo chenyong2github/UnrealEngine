@@ -34,7 +34,7 @@ class UK2Node_FunctionResult : public UK2Node_FunctionTerminator
 	virtual bool CanDuplicateNode() const { return true; }
 	virtual void PostPasteNode() override;
 	virtual bool CanUserDeleteNode() const override;
-	virtual void FixupPinStringDataReferences(FArchive& Ar) override;
+	virtual void FixupPinStringDataReferences(FArchive* SavingArchive) override;
 	//~ End UK2Node Interface
 
 	//~ Begin UK2Node_EditablePinBase Interface
