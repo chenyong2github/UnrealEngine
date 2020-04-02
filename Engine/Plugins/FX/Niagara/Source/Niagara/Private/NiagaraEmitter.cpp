@@ -1552,9 +1552,25 @@ TStatId UNiagaraEmitter::GetStatID(bool bGameThread, bool bConcurrent)const
 	return TStatId();
 }
 
+void UNiagaraEmitter::ClearRuntimeAllocationEstimate(uint64 ReportHandle)
+{
+	FScopeLock Lock(&EstimationCriticalSection);
+	if (ReportHandle == INDEX_NONE)
+	{
+		RuntimeEstimation.AllocationEstimate = 0;
+		RuntimeEstimation.RuntimeAllocations.Empty();
+		RuntimeEstimation.IsEstimationDirty = true;
+	}
+	else
+	{
+		RuntimeEstimation.RuntimeAllocations.Remove(ReportHandle);
+		RuntimeEstimation.IsEstimationDirty = true;
+	}
+}
+
 int32 UNiagaraEmitter::AddRuntimeAllocation(uint64 ReporterHandle, int32 AllocationCount)
 {
-	FScopeLock lock(&EstimationCriticalSection);
+	FScopeLock Lock(&EstimationCriticalSection);
 	int32* Estimate = RuntimeEstimation.RuntimeAllocations.Find(ReporterHandle);
 	if (!Estimate || *Estimate < AllocationCount)
 	{
@@ -1583,6 +1599,7 @@ int32 UNiagaraEmitter::GetMaxParticleCountEstimate()
 	{
 		FScopeLock lock(&EstimationCriticalSection);
 		int32 EstimationCount = RuntimeEstimation.RuntimeAllocations.Num();
+		RuntimeEstimation.AllocationEstimate = 0;
 		if (EstimationCount > 0)
 		{
 			RuntimeEstimation.RuntimeAllocations.ValueSort(TGreater<int32>());
