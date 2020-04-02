@@ -17,6 +17,7 @@
 #include "CanvasItem.h"
 #include "ScopedTransaction.h"
 #include "BaseGizmos/BrushStampIndicator.h"
+#include "MeshPaintAdapterFactory.h"
 
 #define LOCTEXT_NAMESPACE "MeshTextureBrush"
 
@@ -29,7 +30,19 @@
 bool UMeshTexturePaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, UMeshPaintingToolset::HasPaintableMesh);
-	return ActorComponent != nullptr;
+	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(SceneState.ToolManager);
+	TArray<FPaintableTexture> PaintableTextures;
+	if (ActorComponent && MeshToolManager)
+	{
+		UMeshComponent* MeshComponent = Cast<UMeshComponent>(ActorComponent);
+		if (MeshComponent)
+		{
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
+			UTexturePaintToolset::RetrieveTexturesForComponent(MeshComponent, MeshAdapter.Get(), PaintableTextures);
+		}
+	}
+
+	return PaintableTextures.Num() > 0;
 }
 
 UInteractiveTool* UMeshTexturePaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
