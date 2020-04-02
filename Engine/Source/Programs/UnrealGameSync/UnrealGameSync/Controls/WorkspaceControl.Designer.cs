@@ -145,6 +145,7 @@ namespace UnrealGameSync
 			this.BuildHealthContextMenu_MaxSeparator = new System.Windows.Forms.ToolStripSeparator();
 			this.BuildHealthContextMenu_Settings = new System.Windows.Forms.ToolStripMenuItem();
 			this.EditorConfigWatcher = new System.IO.FileSystemWatcher();
+			this.BuildListContextMenu_ViewInSwarm = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu.SuspendLayout();
 			this.BuildListContextMenu.SuspendLayout();
 			this.flowLayoutPanel1.SuspendLayout();
@@ -186,7 +187,7 @@ namespace UnrealGameSync
             this.toolStripSeparator6,
             this.OptionsContextMenu_Diagnostics});
 			this.OptionsContextMenu.Name = "ToolsMenuStrip";
-			this.OptionsContextMenu.Size = new System.Drawing.Size(262, 336);
+			this.OptionsContextMenu.Size = new System.Drawing.Size(262, 314);
 			// 
 			// OptionsContextMenu_ApplicationSettings
 			// 
@@ -461,39 +462,40 @@ namespace UnrealGameSync
 			// BuildListContextMenu
 			// 
 			this.BuildListContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.BuildListContextMenu_LaunchEditor,
-            this.BuildListContextMenu_Sync,
-            this.BuildListContextMenu_SyncContentOnly,
-            this.BuildListContextMenu_SyncOnlyThisChange,
-            this.BuildListContextMenu_Build,
-            this.BuildListContextMenu_Rebuild,
-            this.BuildListContextMenu_GenerateProjectFiles,
-            this.BuildListContextMenu_Cancel,
-            this.BuildListContextMenu_OpenVisualStudio,
-            this.BuildListContextMenu_Bisect_Separator,
-            this.BuildListContextMenu_Bisect_Pass,
-            this.BuildListContextMenu_Bisect_Fail,
-            this.BuildListContextMenu_Bisect_Include,
-            this.BuildListContextMenu_Bisect_Exclude,
-            this.toolStripSeparator4,
-            this.BuildListContextMenu_MarkGood,
-            this.BuildListContextMenu_MarkBad,
-            this.BuildListContextMenu_WithdrawReview,
-            this.BuildListContextMenu_LeaveComment,
-            this.BuildListContextMenu_EditComment,
-            this.BuildListContextMenu_StartInvestigating,
-            this.BuildListContextMenu_FinishInvestigating,
-            this.toolStripSeparator1,
-            this.BuildListContextMenu_AddStar,
-            this.BuildListContextMenu_RemoveStar,
-            this.BuildListContextMenu_TimeZoneSeparator,
-            this.BuildListContextMenu_ShowServerTimes,
-            this.BuildListContextMenu_ShowLocalTimes,
-            this.BuildListContextMenu_CustomTool_Start,
-            this.BuildListContextMenu_CustomTool_End,
-            this.BuildListContextMenu_MoreInfo});
+			this.BuildListContextMenu_LaunchEditor,
+			this.BuildListContextMenu_Sync,
+			this.BuildListContextMenu_SyncContentOnly,
+			this.BuildListContextMenu_SyncOnlyThisChange,
+			this.BuildListContextMenu_Build,
+			this.BuildListContextMenu_Rebuild,
+			this.BuildListContextMenu_GenerateProjectFiles,
+			this.BuildListContextMenu_Cancel,
+			this.BuildListContextMenu_OpenVisualStudio,
+			this.BuildListContextMenu_Bisect_Separator,
+			this.BuildListContextMenu_Bisect_Pass,
+			this.BuildListContextMenu_Bisect_Fail,
+			this.BuildListContextMenu_Bisect_Include,
+			this.BuildListContextMenu_Bisect_Exclude,
+			this.toolStripSeparator4,
+			this.BuildListContextMenu_MarkGood,
+			this.BuildListContextMenu_MarkBad,
+			this.BuildListContextMenu_WithdrawReview,
+			this.BuildListContextMenu_LeaveComment,
+			this.BuildListContextMenu_EditComment,
+			this.BuildListContextMenu_StartInvestigating,
+			this.BuildListContextMenu_FinishInvestigating,
+			this.toolStripSeparator1,
+			this.BuildListContextMenu_AddStar,
+			this.BuildListContextMenu_RemoveStar,
+			this.BuildListContextMenu_TimeZoneSeparator,
+			this.BuildListContextMenu_ShowServerTimes,
+			this.BuildListContextMenu_ShowLocalTimes,
+			this.BuildListContextMenu_CustomTool_Start,
+			this.BuildListContextMenu_CustomTool_End,
+			this.BuildListContextMenu_MoreInfo,
+			this.BuildListContextMenu_ViewInSwarm});
 			this.BuildListContextMenu.Name = "BuildListContextMenu";
-			this.BuildListContextMenu.Size = new System.Drawing.Size(200, 590);
+			this.BuildListContextMenu.Size = new System.Drawing.Size(200, 612);
 			// 
 			// BuildListContextMenu_LaunchEditor
 			// 
@@ -1217,6 +1219,13 @@ namespace UnrealGameSync
 			this.EditorConfigWatcher.Deleted += new System.IO.FileSystemEventHandler(this.EditorConfigWatcher_Changed);
 			this.EditorConfigWatcher.Renamed += new System.IO.RenamedEventHandler(this.EditorConfigWatcher_Renamed);
 			// 
+			// BuildListContextMenu_ViewInSwarm
+			// 
+			this.BuildListContextMenu_ViewInSwarm.Name = "BuildListContextMenu_ViewInSwarm";
+			this.BuildListContextMenu_ViewInSwarm.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_ViewInSwarm.Text = "View in Swarm...";
+			this.BuildListContextMenu_ViewInSwarm.Click += new System.EventHandler(this.BuildListContextMenu_ViewInSwarm_Click);
+			// 
 			// WorkspaceControl
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
@@ -1385,5 +1394,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripMenuItem editorPhysXToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem pS4ToolStripMenuItem;
 		private System.IO.FileSystemWatcher EditorConfigWatcher;
+		private System.Windows.Forms.ToolStripMenuItem BuildListContextMenu_ViewInSwarm;
 	}
 }
