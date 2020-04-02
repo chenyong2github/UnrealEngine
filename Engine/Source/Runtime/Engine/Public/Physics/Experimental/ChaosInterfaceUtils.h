@@ -5,8 +5,14 @@
 #include "Containers/ContainersFwd.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Templates/UniquePtr.h"
+#include "PhysicsEngine/BodySetupEnums.h"
 
 struct FGeometryAddParams;
+
+namespace Chaos
+{
+	enum EChaosCollisionTraceFlag;
+}
 
 namespace ChaosInterface
 {
