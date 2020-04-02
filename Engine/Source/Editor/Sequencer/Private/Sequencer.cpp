@@ -444,6 +444,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		.SelectionRange( this, &FSequencer::GetSelectionRange )
 		.VerticalFrames(this, &FSequencer::GetVerticalFrames)
 		.MarkedFrames(this, &FSequencer::GetMarkedFrames)
+		.GlobalMarkedFrames(this, &FSequencer::GetGlobalMarkedFrames)
 		.OnSetMarkedFrame(this, &FSequencer::SetMarkedFrame)
 		.OnAddMarkedFrame(this, &FSequencer::AddMarkedFrame)
 		.OnDeleteMarkedFrame(this, &FSequencer::DeleteMarkedFrame)
@@ -798,6 +799,11 @@ void FSequencer::Tick(float InDeltaTime)
 		}
 		PrePossessionViewTargets.Reset();
 	}
+
+	if (!bGlobalMarkedFramesCached)
+	{
+		UpdateGlobalMarkedFramesCache();
+	}
 }
 
 
@@ -944,6 +950,7 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 	OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs.Top());
 
 	bNeedsEvaluate = true;
+	bGlobalMarkedFramesCached = false;
 }
 
 
@@ -1105,6 +1112,7 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 		OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs.Top());
 
 		bNeedsEvaluate = true;
+		bGlobalMarkedFramesCached = false;
 	}
 }
 
@@ -2233,6 +2241,7 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 		}
 	}
 
+	bGlobalMarkedFramesCached = false;
 	bNeedsEvaluate = true;
 	State.ClearObjectCaches(*this);
 
@@ -9794,6 +9803,117 @@ TArray<FMovieSceneMarkedFrame> FSequencer::GetMarkedFrames() const
 	}
 
 	return TArray<FMovieSceneMarkedFrame>();
+}
+
+void FindGlobalMarkedFrames(TArray<FMovieSceneMarkedFrame>& GlobalMarkedFrames, const UMovieScene* MovieScene, const FFrameNumber FrameOffset, const UMovieScene* FocusedMovieScene)
+{
+	if (MovieScene == nullptr)
+	{
+		return;
+	}
+
+	if (MovieScene != FocusedMovieScene && MovieScene->GetGloballyShowMarkedFrames())
+	{
+		TArray<FMovieSceneMarkedFrame> MarkedFrames = MovieScene->GetMarkedFrames();
+		for (FMovieSceneMarkedFrame MarkedFrame : MarkedFrames)
+		{
+			MarkedFrame.FrameNumber += FrameOffset;
+			GlobalMarkedFrames.Add(MarkedFrame);
+		}
+	}
+
+	const TArray<UMovieSceneTrack*>& Tracks = MovieScene->GetMasterTracks();
+	for (const UMovieSceneTrack* Track : Tracks)
+	{
+		if (Track->SupportsType(UMovieSceneSubSection::StaticClass()))
+		{
+			for (const UMovieSceneSection* Section : Track->GetAllSections())
+			{
+				const UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section);
+				if (SubSection != nullptr)
+				{
+					const UMovieSceneSequence* SubSequence = SubSection->GetSequence();
+					if (SubSequence != nullptr)
+					{
+						const UMovieScene* SubSequenceScene = SubSequence->GetMovieScene();
+						if (SubSequenceScene != nullptr)
+						{
+							FindGlobalMarkedFrames(GlobalMarkedFrames, SubSequenceScene, SubSection->GetInclusiveStartFrame() + FrameOffset, FocusedMovieScene);
+						}
+					}
+				}
+			}
+		}
+		else if(Track->SupportsType(UMovieSceneCinematicShotSection::StaticClass()))
+		{
+			for (const UMovieSceneSection* Section : Track->GetAllSections())
+			{
+				const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(Section);
+				if (ShotSection != nullptr)
+				{
+					const UMovieSceneSequence* SubSequence = ShotSection->GetSequence();
+					if (SubSequence != nullptr)
+					{
+						const UMovieScene* SubSequenceScene = SubSequence->GetMovieScene();
+						if (SubSequenceScene != nullptr)
+						{
+							FindGlobalMarkedFrames(GlobalMarkedFrames, SubSequenceScene, ShotSection->GetInclusiveStartFrame() + FrameOffset, FocusedMovieScene);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+TArray<FMovieSceneMarkedFrame> FSequencer::GetGlobalMarkedFrames() const
+{
+	return GlobalMarkedFramesCache;
+}
+
+void FSequencer::UpdateGlobalMarkedFramesCache()
+{
+	GlobalMarkedFramesCache.Empty();
+
+	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* FocusedMovieScene = nullptr;
+	if (FocusedMovieSequence != nullptr)
+	{
+		FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+	}
+
+	UMovieSceneSequence* RootMovieSequence = GetRootMovieSceneSequence();
+	if (RootMovieSequence != nullptr)
+	{
+		UMovieScene* RootMovieScene = RootMovieSequence->GetMovieScene();
+		if (RootMovieScene != nullptr)
+		{
+
+			TRange<FFrameTime> Range(0,0);
+			Range = RootToLocalTransform.TransformRangeUnwarped(Range);
+			FFrameNumber FocusedMovieSceneFrameOffset = Range.GetLowerBoundValue().FrameNumber;
+
+			FindGlobalMarkedFrames(GlobalMarkedFramesCache, RootMovieScene, FocusedMovieSceneFrameOffset, FocusedMovieScene);
+		}
+	}
+	
+	bGlobalMarkedFramesCached = true;
+}
+
+void FSequencer::ClearGlobalMarkedFrames()
+{
+	bGlobalMarkedFramesCached = false;
+
+	for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : RootTemplateInstance.GetHierarchy().AllSubSequenceData())
+	{
+		if (UMovieSceneSequence* Sequence = Pair.Value.GetSequence())
+		{
+			if (UMovieScene* MovieScene = Sequence->GetMovieScene())
+			{
+				MovieScene->SetGloballyShowMarkedFrames(false);
+			}
+		}
+	}
 }
 
 void FSequencer::ToggleMarkAtPlayPosition()
