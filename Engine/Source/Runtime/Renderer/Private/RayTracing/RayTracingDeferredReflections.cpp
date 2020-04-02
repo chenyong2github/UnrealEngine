@@ -149,6 +149,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1); // Always using 1D dispatches
+		OutEnvironment.SetDefine(TEXT("ENABLE_TWO_SIDED_GEOMETRY"), 1); // Always using double-sided ray tracing for shadow rays
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredReflectionsRGS, "/Engine/Private/RayTracing/RayTracingDeferredReflections.usf", "RayTracingDeferredReflectionsRGS", SF_RayGen);
@@ -213,9 +214,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 		TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV,
 		false);
 
-	OutDenoiserInputs->Color          = GraphBuilder.CreateTexture(OutputDesc, TEXT("RTDReflections"));
+	OutDenoiserInputs->Color          = GraphBuilder.CreateTexture(OutputDesc, TEXT("RayTracingReflections"));
 	OutputDesc.Format                 = PF_R16F;
-	OutDenoiserInputs->RayHitDistance = GraphBuilder.CreateTexture(OutputDesc, TEXT("RTDReflectionsHitDistance"));
+	OutDenoiserInputs->RayHitDistance = GraphBuilder.CreateTexture(OutputDesc, TEXT("RayTracingReflectionsHitDistance"));
 
 	const FIntPoint RayTracingResolution = View.ViewRect.Size();
 
