@@ -26,6 +26,11 @@ struct FParticlePositionRotation
 	{
 		Ar << X << R;
 	}
+
+	bool operator==(const FParticlePositionRotation& Other) const
+	{
+		return X == Other.X && R == Other.R;
+	}
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticlePositionRotation& Data)
@@ -39,6 +44,11 @@ struct FParticleVelocities
 	void Serialize(FChaosArchive& Ar)
 	{
 		Ar << V << W;
+	}
+
+	bool operator==(const FParticleVelocities& Other) const
+	{
+		return V == Other.V && W == Other.W;
 	}
 
 	FVec3 V;
@@ -65,6 +75,14 @@ struct FParticleDynamics
 		Ar << LinearImpulse;
 		Ar << AngularImpulse;	
 	}
+
+	bool operator==(const FParticleDynamics& Other) const
+	{
+		return F == Other.F
+			&& Torque == Other.Torque
+			&& LinearImpulse == Other.LinearImpulse
+			&& AngularImpulse == Other.AngularImpulse;
+	}
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar, FParticleDynamics& Data)
@@ -90,6 +108,16 @@ struct FParticleMassProps
 		Ar << InvI;
 		Ar << M;
 		Ar << InvM;
+	}
+
+	bool operator==(const FParticleMassProps& Other) const
+	{
+		return CenterOfMass == Other.CenterOfMass
+			&& RotationOfMass == Other.RotationOfMass
+			&& I == Other.I
+			&& InvI == Other.InvI
+			&& M == Other.M
+			&& InvM == Other.InvM;
 	}
 };
 
@@ -120,6 +148,15 @@ struct FParticleMisc
 		Ar << GravityEnabled;
 		bGravityEnabled = GravityEnabled;
 	}
+
+	bool operator==(const FParticleMisc& Other) const
+	{
+		return CollisionGroup == Other.CollisionGroup
+			&& ObjectState == Other.ObjectState
+			&& SpatialIdx == Other.SpatialIdx
+			&& bDisabled == Other.bDisabled
+			&& bGravityEnabled == Other.bGravityEnabled;
+	}
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleMisc& Data)
@@ -149,6 +186,19 @@ struct FParticleNonFrequentData
 	void Serialize(FChaosArchive& Ar)
 	{
 		Ar << Geometry;
+	}
+
+	bool operator==(const FParticleNonFrequentData& Other) const
+	{
+		return Geometry == Other.Geometry
+			&& UserData == Other.UserData
+			&& UniqueIdx == Other.UniqueIdx
+			&& LinearEtherDrag == Other.LinearEtherDrag
+			&& AngularEtherDrag == Other.AngularEtherDrag
+#if CHAOS_CHECKED
+			&& DebugName == Other.DebugName
+#endif
+			;
 	}
 };
 
