@@ -70,7 +70,7 @@ void FGoogleVRSplash::AllocateSplashScreenRenderTarget()
 {
 	if (!GVRCustomPresent->TextureSet.IsValid())
 	{
-		const uint32 NumLayers = (GVRHMD->IsMobileMultiViewDirect()) ? 2 : 1;
+		const uint32 NumLayers = (GVRHMD->IsMobileMultiView()) ? 2 : 1;
 		GVRCustomPresent->AllocateRenderTargetTexture(0, GVRHMD->GVRRenderTargetSize.X, GVRHMD->GVRRenderTargetSize.Y, PF_B8G8R8A8, NumLayers, 1, TexCreate_None, TexCreate_RenderTargetable);
 	}
 }
