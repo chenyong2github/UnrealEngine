@@ -8,6 +8,12 @@
 #include "DistortionCommon.ush"
 #include "SingleLayerWaterCommon.ush"
 
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	// We need the water base pass to be allowed to use masking (if blend mode is Masked) because it doesn't rely on a depth pre-pass (where clipping would normally occur)
+	#undef EARLY_Z_PASS_ONLY_MATERIAL_MASKING
+	#define EARLY_Z_PASS_ONLY_MATERIAL_MASKING 0
+#endif
+
 struct WaterVolumeLightingOutput
 {
 	float3 Luminance;
