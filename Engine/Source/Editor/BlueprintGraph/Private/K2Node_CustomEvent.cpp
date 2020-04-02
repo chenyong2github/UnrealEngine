@@ -343,11 +343,10 @@ void UK2Node_CustomEvent::GetMenuActions(FBlueprintActionDatabaseRegistrar& Acti
 	}
 }
 
-void UK2Node_CustomEvent::FixupPinStringDataReferences(FArchive& Ar)
+void UK2Node_CustomEvent::FixupPinStringDataReferences(FArchive* SavingArchive)
 {
-	Super::FixupPinStringDataReferences(Ar);
-	
-	if (Ar.IsSaving())
+	Super::FixupPinStringDataReferences(SavingArchive);
+	if (SavingArchive)
 	{ 
 		UpdateUserDefinedPinDefaultValues();
 	}
