@@ -35,6 +35,7 @@ class ONLINESUBSYSTEMUTILS_API UIpConnection : public UNetConnection
     GENERATED_UCLASS_BODY()
 	// Variables.
 
+	/** This is a non-owning pointer to a socket owned elsewhere, IpConnection will not destroy the socket through this pointer. */
 	class FSocket*				Socket;
 	UE_DEPRECATED(4.25, "Address resolution is now handled in the IpNetDriver and no longer done entirely in the IpConnection")
 	class FResolveInfo*			ResolveInfo;
@@ -106,7 +107,10 @@ private:
 	void HandleSocketRecvError(class UNetDriver* NetDriver, const FString& ErrorString);
 
 	/** An array of sockets tied to every binding address. */
-	TArray<FSocket*> BindSockets;
+	TArray<TSharedPtr<FSocket>> BindSockets;
+
+	/** Holds a refcount to the actual socket to be used from BindSockets. */
+	TSharedPtr<FSocket> ResolutionSocket;
 
 	/** An array containing the address results GAI returns for the current host value. Given to us from the netdriver. */
 	TArray<TSharedRef<FInternetAddr>> ResolverResults;
