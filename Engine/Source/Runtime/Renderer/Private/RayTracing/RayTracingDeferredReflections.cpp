@@ -26,6 +26,7 @@
 
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracing/RayTracingDeferredMaterials.h"
+#include "RayTracing/RayTracingReflections.h"
 #include "RendererPrivate.h"
 #include "GlobalShader.h"
 #include "DeferredShadingRenderer.h"
@@ -62,6 +63,7 @@ class FGenerateReflectionRaysCS : public FGlobalShader
 	SHADER_PARAMETER(FIntPoint, RayTracingResolution)
 	SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
 	SHADER_PARAMETER(float, ReflectionMaxNormalBias)
+	SHADER_PARAMETER(float, ReflectionMaxRoughness)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FSortedReflectionRay>, RayBuffer)
@@ -111,6 +113,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, RayTracingResolution)
 		SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
 		SHADER_PARAMETER(float, ReflectionMaxNormalBias)
+		SHADER_PARAMETER(float, ReflectionMaxRoughness)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FSortedReflectionRay>, RayBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRayIntersectionBookmark>, BookmarkBuffer)
@@ -177,6 +180,7 @@ static void AddGenerateReflectionRaysPass(
 	PassParameters->RayTracingResolution    = CommonParameters.RayTracingResolution;
 	PassParameters->TileAlignedResolution   = CommonParameters.TileAlignedResolution;
 	PassParameters->ReflectionMaxNormalBias = CommonParameters.ReflectionMaxNormalBias;
+	PassParameters->ReflectionMaxRoughness  = CommonParameters.ReflectionMaxRoughness;
 	PassParameters->ViewUniformBuffer       = CommonParameters.ViewUniformBuffer;
 	PassParameters->SceneTextures           = CommonParameters.SceneTextures;
 	PassParameters->RayBuffer               = GraphBuilder.CreateUAV(RayBuffer);
@@ -221,6 +225,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	FRayTracingDeferredReflectionsRGS::FParameters CommonParameters;
 	CommonParameters.RayTracingResolution    = RayTracingResolution;
 	CommonParameters.TileAlignedResolution   = TileAlignedResolution;
+	CommonParameters.ReflectionMaxRoughness  = GetRayTracingReflectionsMaxRoughness(View);
 	CommonParameters.TLAS                    = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	CommonParameters.SceneTextures           = SceneTextures;
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
