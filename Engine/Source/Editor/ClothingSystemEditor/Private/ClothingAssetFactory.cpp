@@ -388,6 +388,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::Clo
 #if WITH_APEX_CLOTHING
 	UClothingAssetCommon* NewClothingAsset = NewObject<UClothingAssetCommon>(TargetMesh, InName);
 	NewClothingAsset->SetFlags(RF_Transactional);
+	NewClothingAsset->PostUpdateAllAssets();  // Ensure that the required configs, including shared configs, are created
 
 	const NvParameterized::Interface* AssetParams = InApexAsset->getAssetNvParameterized();
 	NvParameterized::Handle GraphicalLodArrayHandle(*AssetParams, "graphicalLods");
