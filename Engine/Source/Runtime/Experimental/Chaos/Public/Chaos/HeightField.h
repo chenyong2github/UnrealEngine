@@ -557,5 +557,8 @@ namespace Chaos
 		bool GJKContactPointImp(const GeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
 
 	};
-}
 
+#if PLATFORM_MAC || PLATFORM_LINUX
+	extern template class CHAOS_API THeightField<float>;
+#endif
+}
