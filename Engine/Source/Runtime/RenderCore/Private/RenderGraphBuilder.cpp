@@ -162,9 +162,9 @@ void FRDGBuilder::TickPoolElements()
 FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList)
 	: RHICmdList(InRHICmdList)
 	, MemStack(FMemStack::Get())
+	, BarrierBatcher(MakeUnique<FRDGBarrierBatcher>())
 	, EventScopeStack(RHICmdList)
 	, StatScopeStack(RHICmdList)
-	, BarrierBatcher(MakeUnique<FRDGBarrierBatcher>())
 {
 	AllocatedTextures.Reserve(16);
 	AllocatedBuffers.Reserve(16);
