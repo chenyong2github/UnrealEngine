@@ -1001,15 +1001,16 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		RefreshChildren();
 
 		FunctionCallNode->SuggestName(FString());
-
 		const FString NewName = FunctionCallNode->GetFunctionName();
-		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
-		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
-		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
-		FunctionCallNode->RefreshFromExternalChanges();
-		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
-		RefreshChildren();
-		
+		if (NewName != OldName)
+		{
+			UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+			UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+			FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
+			FunctionCallNode->RefreshFromExternalChanges();
+			FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
+			RefreshChildren();
+		}
 		
 		if (ModuleScript->ConversionUtility != nullptr && OldClipboardContent != nullptr)
 		{
