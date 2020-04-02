@@ -84,6 +84,11 @@ public:
 	 *  Determines if we would cache the provided data
 	 */
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
+
+	/**
+	 * Apply debug options
+	 */
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
 	
 
 private:
@@ -136,5 +141,18 @@ private:
 									  + sizeof(int64)	// Size
 									  + sizeof(uint32), // CRC
 	};
+
+protected:
+
+	/* Debug helpers */
+	bool DidSimulateMiss(const TCHAR* InKey);
+	bool ShouldSimulateMiss(const TCHAR* InKey);
+
+	/** Debug Options */
+	FBackendDebugOptions DebugOptions;
+
+	/** Keys we ignored due to miss rate settings */
+	FCriticalSection MissedKeysCS;
+	TSet<FName> DebugMissedKeys;
 };
 

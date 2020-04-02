@@ -71,7 +71,7 @@ public:
 	 * @param InCacheDirectory	directory to store the cache in
 	 * @param bForceReadOnly	if true, do not attempt to write to this cache
 	*/
-	FFileSystemDerivedDataBackend(const TCHAR* InCacheDirectory, const TCHAR* InParams, const int InMissRate, const TCHAR* InAccessLogFileName)
+	FFileSystemDerivedDataBackend(const TCHAR* InCacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName)
 		: CachePath(InCacheDirectory)
 		, SpeedClass(ESpeedClass::Unknown)
 		, bReadOnly(false)
@@ -80,7 +80,6 @@ public:
 		, DaysToDeleteUnusedFiles(15)
 		, bDisabled(false)
 		, TotalEstimatedBuildTime(0)
-		, DebugMissRate(0)
 	{
 		// If we find a platform that has more stingent limits, this needs to be rethought.
 		checkf(MAX_BACKEND_KEY_LENGTH + MAX_CACHE_DIR_LEN + MAX_BACKEND_NUMBERED_SUBFOLDER_LENGTH + MAX_CACHE_EXTENTION_LEN < FPlatformMisc::GetMaxPathLength(),
@@ -272,10 +271,6 @@ public:
 			{
 				MissingFiles.Add(KV.Key);
 			}
-			else if (!bReadOnly)
-			{
-				IFileManager::Get().SetTimeStamp(*KV.Key, CurrentTime);
-			}
 		}
 
 		// save total stat time
@@ -287,7 +282,7 @@ public:
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Stat tests to %s took %.02f seconds"), *CachePath, TotalSeekTime);
 
 		// if seek times are very slow do a single read/write test just to confirm access
-		if (OutSeekTimeMS >= InSkipTestsIfSeeksExceedMS)
+		/*if (OutSeekTimeMS >= InSkipTestsIfSeeksExceedMS)
 		{
 			UE_LOG(LogDerivedDataCache, Warning, TEXT("Limiting read/write speed tests due to seek times of %.02f exceeding %.02fms. Values will be inaccurate."), OutSeekTimeMS, InSkipTestsIfSeeksExceedMS);
 
@@ -296,7 +291,7 @@ public:
 
 			TestFileEntries.Reset();
 			TestFileEntries.Add(Path, Size);		
-		}
+		}*/
 	
 		// create any files that were missing
 		if (!bReadOnly)
@@ -488,6 +483,11 @@ public:
 		}
 		*/
 
+		if (ShouldSimulateMiss(CacheKey))
+		{
+			return false;
+		}
+
 		FString Filename = BuildFilename(CacheKey);
 
 		FFileStatData FileStat = IFileManager::Get().GetStatData(*Filename);
@@ -523,7 +523,8 @@ public:
 		}
 
 		return FileStat.bIsValid;
-	}
+	}	
+
 	/**
 	 * Synchronous retrieve of a cache item
 	 *
@@ -538,17 +539,12 @@ public:
 		FString Filename = BuildFilename(CacheKey);
 		double StartTime = FPlatformTime::Seconds();
 
-		if (DebugMissRate > 0)
+		if (ShouldSimulateMiss(CacheKey))
 		{
-			bool Miss = FMath::RandHelper(100) < DebugMissRate;
-
-			if (Miss)
-			{
-				FScopeLock Lock(&MissedKeysCS);
-				UE_LOG(LogDerivedDataCache, Log, TEXT("%s Pretending key didn't exist: %s"), *GetName(), CacheKey);
-				DebugMissedKeys.Add(FName(CacheKey));
-				return false;
-			}
+			FScopeLock Lock(&MissedKeysCS);
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), CacheKey);
+			DebugMissedKeys.Add(FName(CacheKey));
+			return false;
 		}
 
 		if (FFileHelper::LoadFileToArray(Data,*Filename,FILEREAD_Silent))
@@ -616,7 +612,7 @@ public:
 			}
 
 			// don't put anything we pretended didn't exist
-			if (DebugMissRate > 0 && WasDebugMissed(CacheKey))
+			if ((CacheKey))
 			{
 				return;
 			}
@@ -743,16 +739,10 @@ public:
 		return false;
 	}
 
-	void SetDebugMissRate(int InMissRate)
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override
 	{
-		UE_LOG(LogDerivedDataCache, Log, TEXT("Setting DebugMissRate to %d for cache %s"), InMissRate, *GetName());
-		DebugMissRate = InMissRate;
-	}
-
-	bool WasDebugMissed(const TCHAR* InKey)
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		return DebugMissedKeys.Contains(FName(InKey));
+		DebugOptions = InOptions;
+		return true;
 	}
 
 private:
@@ -797,26 +787,50 @@ private:
 	/** The total estimated build time accumulated from cache miss/put deltas */
 	double TotalEstimatedBuildTime;
 
-	/** Miss rate that can be set for profiling */
-	int DebugMissRate;
-
 	/** Access log to write to */
 	TUniquePtr<FAccessLogWriter> AccessLogWriter;
+
+	/** Debug Options */
+	FBackendDebugOptions DebugOptions;
 
 	/** Keys we ignored due to miss rate settings */
 	FCriticalSection MissedKeysCS;
 	TSet<FName> DebugMissedKeys;
 
+	bool DidSimulateMiss(const TCHAR* InKey)
+	{
+		if (DebugOptions.RandomMissRate == 0 || DebugOptions.SimulateMissTypes.Num() == 0)
+		{
+			return false;
+		}
+		FScopeLock Lock(&MissedKeysCS);
+		return DebugMissedKeys.Contains(FName(InKey));
+	}
+
+	bool ShouldSimulateMiss(const TCHAR* InKey)
+	{
+		// once missed, always missed
+		if (DidSimulateMiss(InKey))
+		{
+			return true;
+		}
+
+		if (DebugOptions.ShouldSimulateMiss(InKey))
+		{
+			FScopeLock Lock(&MissedKeysCS);
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
+			DebugMissedKeys.Add(FName(InKey));
+			return true;
+		}
+
+		return true;
+	}
+
 };
 
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const int InMissRate, const TCHAR* InAccessLogFileName /*= nullptr*/)
+FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName /*= nullptr*/)
 {
-	FFileSystemDerivedDataBackend* FileDDB = new FFileSystemDerivedDataBackend( CacheDirectory, InParams, InMissRate, InAccessLogFileName);
-
-	if (InMissRate > 0)
-	{
-		FileDDB->SetDebugMissRate(InMissRate);
-	}
+	FFileSystemDerivedDataBackend* FileDDB = new FFileSystemDerivedDataBackend( CacheDirectory, InParams, InAccessLogFileName);
 
 	if (!FileDDB->IsUsable())
 	{

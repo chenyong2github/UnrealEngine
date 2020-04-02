@@ -51,6 +51,8 @@ public:
 	bool TryToPrefetch(const TCHAR* CacheKey) override;
 	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
+
 private:
 	struct FBundle;
 	struct FBundleEntry;
@@ -73,6 +75,17 @@ private:
 	void RemoveUnusedBundles();
 	void ReadBundle(FBundle& Bundle);
 	bool FindBundleEntry(const TCHAR* CacheKey, const FBundle*& OutBundle, const FBundleEntry*& OutBundleEntry) const;
+
+	/* Debug helpers */
+	bool DidSimulateMiss(const TCHAR* InKey);
+	bool ShouldSimulateMiss(const TCHAR* InKey);
+
+	/** Debug Options */
+	FBackendDebugOptions DebugOptions;
+
+	/** Keys we ignored due to miss rate settings */
+	FCriticalSection MissedKeysCS;
+	TSet<FName> DebugMissedKeys;
 };
 
 #endif

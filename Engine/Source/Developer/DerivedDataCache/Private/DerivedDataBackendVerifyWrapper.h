@@ -157,6 +157,11 @@ public:
 		return InnerBackend->WouldCache(CacheKey, InData);
 	}
 
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override
+	{
+		return InnerBackend->ApplyDebugOptions(InOptions);
+	}
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 
