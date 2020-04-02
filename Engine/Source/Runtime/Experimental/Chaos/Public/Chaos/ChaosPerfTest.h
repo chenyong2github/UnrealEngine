@@ -16,7 +16,7 @@ enum class EChaosPerfUnits
 	Num
 };
 
-class FChaosScopedDurationTimeLogger
+class CHAOS_API FChaosScopedDurationTimeLogger
 {
 public:
 	explicit FChaosScopedDurationTimeLogger(const TCHAR* InLabel)

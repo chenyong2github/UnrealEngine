@@ -47,12 +47,16 @@ int32 ChaosImmediate_Collision_PushOutPairIterations = -1;
 int32 ChaosImmediate_Collision_Priority = 1;
 float ChaosImmediate_Collision_CullDistance = 1.0f;
 float ChaosImmediate_Collision_ShapePadding = 0;
+int32 ChaosImmediate_Collision_DeferNarrowPhase = 1;
+int32 ChaosImmediate_Collision_UseManifolds = 0;
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionDisable(TEXT("p.Chaos.ImmPhys.Collision.Enabled"), ChaosImmediate_Collision_Enabled, TEXT("Enable/Disable collisions in Immediate Physics."));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionPairIterations(TEXT("p.Chaos.ImmPhys.Collision.PairIterations"), ChaosImmediate_Collision_PairIterations, TEXT("Override collision pair iterations (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionPushOutPairIterations(TEXT("p.Chaos.ImmPhys.Collision.PushOutPairIterations"), ChaosImmediate_Collision_PushOutPairIterations, TEXT("Override collision push-out pair iterations (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionPriority(TEXT("p.Chaos.ImmPhys.Collision.Priority"), ChaosImmediate_Collision_Priority, TEXT("Set the Collision constraint sort order (Joints have priority 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionCullDistance(TEXT("p.Chaos.ImmPhys.Collision.CullDistance"), ChaosImmediate_Collision_CullDistance, TEXT("CullDistance"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionShapePadding(TEXT("p.Chaos.ImmPhys.Collision.ShapePadding"), ChaosImmediate_Collision_ShapePadding, TEXT("ShapePadding"));
+FAutoConsoleVariableRef CVarChaosImmPhysCollisionDeferNarrowPhase(TEXT("p.Chaos.ImmPhys.Collision.DeferNarrowPhase"), ChaosImmediate_Collision_DeferNarrowPhase, TEXT("Create contacts for all broadphase pairs, perform NarrowPhase later."));
+FAutoConsoleVariableRef CVarChaosImmPhysCollisionUseManifolds(TEXT("p.Chaos.ImmPhys.Collision.UseManifolds"), ChaosImmediate_Collision_UseManifolds, TEXT("Enable/Disable use of manifoldes in collision."));
 
 int32 ChaosImmediate_Joint_PairIterations = -1;
 int32 ChaosImmediate_Joint_PushOutPairIterations = -1;
@@ -156,7 +160,8 @@ namespace ImmediatePhysics_Chaos
 		, Joints()
 		, Collisions(Particles, CollidedParticles, ParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance, ChaosImmediate_Collision_ShapePadding)
 		, BroadPhase(ActivePotentiallyCollidingPairs, ChaosImmediate_Collision_CullDistance)
-		, CollisionDetector(BroadPhase, Collisions)
+		, NarrowPhase()
+		, CollisionDetector(BroadPhase, NarrowPhase, Collisions)
 		, JointsRule(0, Joints)
 		, CollisionsRule(1, Collisions)
 		, Evolution(Particles, CollisionDetector, ChaosImmediate_Evolution_BoundsExtension)
@@ -178,7 +183,9 @@ namespace ImmediatePhysics_Chaos
 		// RBAN collision customization
 		Collisions.DisableHandles();
 		Collisions.SetApplyType(ECollisionApplyType::Position);
-		CollisionDetector.GetContext().bFilteringEnabled = false;
+		NarrowPhase.GetContext().bFilteringEnabled = false;
+		NarrowPhase.GetContext().bDeferUpdate = true;
+		NarrowPhase.GetContext().bAllowManifolds = false;
 
 #if CHAOS_DEBUG_DRAW
 		Evolution.SetPostIntegrateCallback(
@@ -449,7 +456,7 @@ namespace ImmediatePhysics_Chaos
 	void FSimulation::SetSimulationSpaceTransform(const FTransform& Transform)
 	{ 
 		SimulationSpaceTransform = Transform;
-		CollisionDetector.GetContext().SpaceTransform = Transform;
+		NarrowPhase.GetContext().SpaceTransform = Transform;	// @todo(chaos): remove when manifolds are fixed or removed
 	}
 
 
@@ -518,6 +525,9 @@ namespace ImmediatePhysics_Chaos
 			Collisions.SetCullDistance(ChaosImmediate_Collision_CullDistance);
 			BroadPhase.SetCullDustance(ChaosImmediate_Collision_CullDistance);
 			Evolution.SetBoundsExtension(ChaosImmediate_Evolution_BoundsExtension);
+
+			NarrowPhase.GetContext().bDeferUpdate = (ChaosImmediate_Collision_DeferNarrowPhase != 0);
+			NarrowPhase.GetContext().bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);
 
 			if (ChaosImmediate_UsePositionSolver)
 			{
