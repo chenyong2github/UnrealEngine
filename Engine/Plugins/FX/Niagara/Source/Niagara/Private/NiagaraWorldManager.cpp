@@ -862,7 +862,7 @@ void FNiagaraWorldManager::SignificanceCull(UNiagaraEffectType* EffectType, cons
 void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
 {
 	float TimeSinceRendered = Component->GetSafeTimeSinceRendered(World->TimeSeconds);
-	bool bCull = ScalabilitySettings.bCullByMaxTimeWithoutRender && TimeSinceRendered > ScalabilitySettings.MaxTimeWithoutRender;
+	bool bCull = Component->GetLastRenderTime() >= 0.0f && ScalabilitySettings.bCullByMaxTimeWithoutRender && TimeSinceRendered > ScalabilitySettings.MaxTimeWithoutRender;
 
 	OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
