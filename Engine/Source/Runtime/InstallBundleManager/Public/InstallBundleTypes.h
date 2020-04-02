@@ -189,7 +189,22 @@ struct FInstallBundleSourceInitInfo
 
 struct FInstallBundleSourceAsyncInitInfo : public FInstallBundleSourceInitInfo
 {
-	TMap<FName, bool> BundleUpToDate;
+	// Reserved for future use
+};
+
+struct FInstallBundleSourceBundleInfo
+{
+	FName BundleName;
+	FString BundleNameString;
+	EInstallBundlePriority Priority = EInstallBundlePriority::Low;
+	bool bIsStartup = false; // Only one startup bundle allowed.  All sources must agree on this.
+	bool bDoPatchCheck = false; // This bundle should do a patch check and fail if it doesn't pass
+	bool bBundleUpToDate = false; // Whether this bundle is up to date
+};
+
+struct FInstallBundleSourceBundleInfoQueryResultInfo
+{
+	TMap<FName, FInstallBundleSourceBundleInfo> SourceBundleInfoMap;
 };
 
 struct FInstallBundleSourceRequestResultInfo
