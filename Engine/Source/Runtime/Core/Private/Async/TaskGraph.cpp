@@ -61,6 +61,20 @@ namespace ENamedThreads
 	CORE_API int32 bHasHighPriorityThreads = CREATE_HIPRI_TASK_THREADS;
 }
 
+static bool GDoRenderThreadWakeupTrigger = false;
+static FAutoConsoleVariableRef CVarDoRenderThreadWakeupTrigger(
+	TEXT("TaskGraph.DoRenderThreadWakeupTrigger"),
+	GDoRenderThreadWakeupTrigger,
+	TEXT("If true, task graph tasks sent to the render thread trigger a wakeup. See TaskGraph.RenderThreadPollPeriodMs.")
+);
+
+static int32 GRenderThreadPollPeriodMs = 1;
+static FAutoConsoleVariableRef CVarRenderThreadPollPeriodMs(
+	TEXT("TaskGraph.RenderThreadPollPeriodMs"),
+	GRenderThreadPollPeriodMs,
+	TEXT("Render thread polling period in milliseconds.")
+);
+
 static int32 GIgnoreThreadToDoGatherOn = 0;
 static FAutoConsoleVariableRef CVarIgnoreThreadToDoGatherOn(
 	TEXT("TaskGraph.IgnoreThreadToDoGatherOn"),
@@ -683,7 +697,7 @@ public:
 				{
 					{
 						FScopeCycleCounter Scope(StallStatId);
-						Queue(QueueIndex).StallRestartEvent->Wait(MAX_uint32, bCountAsStall);
+						Queue(QueueIndex).StallRestartEvent->Wait(IsInRenderingThread() ? GRenderThreadPollPeriodMs : MAX_uint32, bCountAsStall);
 						if (Queue(QueueIndex).QuitForShutdown)
 						{
 							return ProcessedTasks;
@@ -762,10 +776,13 @@ public:
 
 		if (ThreadToStart >= 0)
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
 			checkThreadGraph(ThreadToStart == 0);
-			TASKGRAPH_SCOPE_CYCLE_COUNTER(1, STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
-			Queue(QueueIndex).StallRestartEvent->Trigger();
+			if ((ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) != ENamedThreads::GetRenderThread()) || GDoRenderThreadWakeupTrigger)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
+				TASKGRAPH_SCOPE_CYCLE_COUNTER(1, STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
+				Queue(QueueIndex).StallRestartEvent->Trigger();
+			}
 			return true;
 		}
 		return false;
