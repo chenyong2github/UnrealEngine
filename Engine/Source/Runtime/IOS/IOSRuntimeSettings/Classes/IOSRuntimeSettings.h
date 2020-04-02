@@ -425,8 +425,9 @@ public:
 	FString AdditionalPlistData;
 
 	/**
-	 * Choose whether to use a custom LaunchScreen.Storyboard as a Launchscreen. If True, the LaunchScreen.storyboard in Build/IOS/Resources/Interface
-	 * in the Engine folder will be copied to the bundle app and the Launchscreen defined in iOS Project Settings WILL NOT be included.
+	 * Choose whether to use a custom LaunchScreen.Storyboard as a Launchscreen. To use this option, create a storyboard in Xcode and 
+	 * copy it named LaunchScreen.storyboard in Build/IOS/Resources/Interface under your Project folder. This will be compiled and 
+	 * copied to the bundle app and the Launch screen image above will not be included in the app.
 	 * When using assets in your custom LaunchScreen.storyboard, add them in Build/IOS/Resources/Interface/Assets and they will be included.
 	 */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = LaunchScreen)
