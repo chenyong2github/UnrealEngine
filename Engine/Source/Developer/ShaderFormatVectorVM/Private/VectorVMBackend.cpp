@@ -180,6 +180,10 @@ char* FVectorVMCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* 
 
 	FlattenUniformBufferStructures(ir, state);
 
+	// The vector VM doesn't support dynamic loops, and the codegen panics if it sees loops. We'll just set the unroll threshold
+	// to a very large value, to make sure loops are always unrolled.
+	state->maxunrollcount = 16384;
+
 	state->conservative_propagation = false;
 	{
 		SCOPE_CYCLE_COUNTER(STAT_VVMInitMisc);
