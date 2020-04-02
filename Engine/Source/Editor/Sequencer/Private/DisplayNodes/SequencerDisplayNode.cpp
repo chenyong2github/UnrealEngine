@@ -1032,9 +1032,9 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	ESequencerNode::Type BaseNodeType = BaseNode->GetType();
 
-	bool bCanSolo = (BaseNodeType == ESequencerNode::Track || BaseNodeType == ESequencerNode::Object || BaseNodeType == ESequencerNode::Folder);
-	bool bIsReadOnly = !GetSequencer().IsReadOnly();
-	FCanExecuteAction CanExecute = FCanExecuteAction::CreateLambda([bIsReadOnly]{ return bIsReadOnly; });
+	bool bFilterableNode = (BaseNodeType == ESequencerNode::Track || BaseNodeType == ESequencerNode::Object || BaseNodeType == ESequencerNode::Folder);
+	bool bIsReadOnly = GetSequencer().IsReadOnly();
+	FCanExecuteAction CanExecute = FCanExecuteAction::CreateLambda([bIsReadOnly]{ return !bIsReadOnly; });
 
 	MenuBuilder.BeginSection("Edit", LOCTEXT("EditContextMenuSectionName", "Edit"));
 	{
@@ -1068,7 +1068,7 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 
-		if (bCanSolo)
+		if (bFilterableNode)
 		{
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ToggleNodeSolo", "Solo"),
@@ -1163,6 +1163,15 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected tracks to a new folder."),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
 				FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::MoveSelectedNodesToNewFolder)));
+		}
+
+		if (bFilterableNode && !bIsReadOnly)
+		{
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("AddNodesToNodeGroup", "Add to Group"),
+				LOCTEXT("AddNodesToNodeGroupTooltip", "Add selected nodes to a group"),
+				FNewMenuDelegate::CreateSP(&GetSequencer(), &FSequencer::BuildAddSelectedToNodeGroupMenu));
+
 		}
 	}
 	MenuBuilder.EndSection();
