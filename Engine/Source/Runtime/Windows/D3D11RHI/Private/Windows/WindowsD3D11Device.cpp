@@ -20,7 +20,9 @@
 #include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+THIRD_PARTY_INCLUDES_START
 #include "dxgi1_6.h"
+THIRD_PARTY_INCLUDES_END
 #include "RHIValidation.h"
 
 #if NV_AFTERMATH
