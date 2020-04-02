@@ -314,10 +314,15 @@ public:
 		UpdateOnPaletteChange();
 	};
 
+	FName GetCurrentPaletteName() const
+	{
+		return CurrentPaletteName;
+	}
+
 protected:
 	virtual void CreateToolkit();
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {};
-	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) { bCheckIfDefaultToolNeeded = true; };
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {};
 	virtual void ActivateDefaultTool() {};
 	virtual void UpdateOnPaletteChange() {};
 
@@ -349,6 +354,5 @@ protected:
 	FOnModeToolNotification OnToolWarningMessage;
 
 	FName CurrentPaletteName;
-	bool bCheckIfDefaultToolNeeded;
 };
 
