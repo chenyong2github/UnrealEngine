@@ -40,7 +40,7 @@ public:
 	{
 		if (OtherPayload->PayloadType == PayloadType)
 		{
-			return this->DocumentID == FTabPayload_UObject::CastChecked<UObject>(OtherPayload);
+			return this->DocumentID.HasSameIndexAndSerialNumber(StaticCastSharedRef<FTabPayload_UObject>(OtherPayload)->DocumentID);
 		}
 
 		return false;
