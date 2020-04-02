@@ -98,51 +98,59 @@ bool FEditorSessionSummarySender::FindCurrentSession(FEditorAnalyticsSession& Ou
 
 void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendCurrentSession) const
 {
+	// Load the list of sessions to process. Expect contention on the analytic session lock between the Editor and CrashReportClientEditor (on windows) or between Editor instances (on mac/linux)
+	//   - Try every 'n' seconds if bForceSendCurrentSession is true.
+	//   - Don't block and don't loop if bForceSendCurrentSession is false.
 	TArray<FEditorAnalyticsSession> SessionsToReport;
-
-	if (FEditorAnalyticsSession::Lock(FTimespan::FromMilliseconds(100)))
+	FTimespan Timemout(bForceSendCurrentSession ? FTimespan::FromSeconds(0.5) : FTimespan::Zero());
+	bool bSessionsLoaded = false;
+	do
 	{
-		// Get list of sessions in storage
-		TArray<FEditorAnalyticsSession> ExistingSessions;
-		FEditorAnalyticsSession::LoadAllStoredSessions(ExistingSessions);
-
-		TArray<FEditorAnalyticsSession> SessionsToDelete;
-
-		// Check each stored session to see if they should be sent or not
-		for (FEditorAnalyticsSession& Session : ExistingSessions)
+		if (FEditorAnalyticsSession::Lock(Timemout))
 		{
-			const bool bForceSendSession = bForceSendCurrentSession && (Session.PlatformProcessID == CurrentSessionProcessId);
-			if (!bForceSendSession && FPlatformProcess::IsApplicationRunning(Session.PlatformProcessID))
-			{
-				// Skip processes that are still running
-				continue;
-			}
+			// Get list of sessions in storage
+			TArray<FEditorAnalyticsSession> ExistingSessions;
+			FEditorAnalyticsSession::LoadAllStoredSessions(ExistingSessions);
 
-			const FTimespan SessionAge = FDateTime::UtcNow() - Session.Timestamp;
-			if (SessionAge < EditorSessionSenderDefs::SessionExpiration)
-			{
-				SessionsToReport.Add(Session);
-			}
-			SessionsToDelete.Add(Session);
-		}
+			TArray<FEditorAnalyticsSession> SessionsToDelete;
 
-		for (const FEditorAnalyticsSession& ToDelete : SessionsToDelete)
-		{
-			ToDelete.Delete();
-			ExistingSessions.RemoveAll([&ToDelete](const FEditorAnalyticsSession& Session)
+			// Check each stored session to see if they should be sent or not
+			for (FEditorAnalyticsSession& Session : ExistingSessions)
+			{
+				const bool bForceSendSession = bForceSendCurrentSession && (Session.PlatformProcessID == CurrentSessionProcessId);
+				if (!bForceSendSession && FPlatformProcess::IsApplicationRunning(Session.PlatformProcessID))
 				{
-					return Session.SessionId == ToDelete.SessionId;
-				});
+					// Skip processes that are still running
+					continue;
+				}
+
+				const FTimespan SessionAge = FDateTime::UtcNow() - Session.Timestamp;
+				if (SessionAge < EditorSessionSenderDefs::SessionExpiration)
+				{
+					SessionsToReport.Add(Session);
+				}
+				SessionsToDelete.Add(Session);
+			}
+
+			for (const FEditorAnalyticsSession& ToDelete : SessionsToDelete)
+			{
+				ToDelete.Delete();
+				ExistingSessions.RemoveAll([&ToDelete](const FEditorAnalyticsSession& Session)
+					{
+						return Session.SessionId == ToDelete.SessionId;
+					});
+			}
+
+			TArray<FString> SessionIDs;
+			SessionIDs.Reserve(ExistingSessions.Num());
+			Algo::Transform(ExistingSessions, SessionIDs, &FEditorAnalyticsSession::SessionId);
+
+			FEditorAnalyticsSession::SaveStoredSessionIDs(SessionIDs);
+
+			FEditorAnalyticsSession::Unlock();
+			bSessionsLoaded = true;
 		}
-
-		TArray<FString> SessionIDs;
-		SessionIDs.Reserve(ExistingSessions.Num());
-		Algo::Transform(ExistingSessions, SessionIDs, &FEditorAnalyticsSession::SessionId);
-
-		FEditorAnalyticsSession::SaveStoredSessionIDs(SessionIDs);
-
-		FEditorAnalyticsSession::Unlock();
-	}
+	} while (bForceSendCurrentSession && !bSessionsLoaded); // Retry until session are loaded if the sender is forced to send the current session.
 
 	for (const FEditorAnalyticsSession& Session : SessionsToReport)
 	{
