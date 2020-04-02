@@ -263,6 +263,15 @@ public:
 	/** @return The set of marked frames */
 	TArray<FMovieSceneMarkedFrame> GetMarkedFrames() const;
 
+	TArray<FMovieSceneMarkedFrame> GetGlobalMarkedFrames() const;
+	void InvalidateGlobalMarkedFramesCache() { bGlobalMarkedFramesCached = false; }
+	void UpdateGlobalMarkedFramesCache();
+
+	/** 
+	  * Disables all global marked frames from all sub-sequences
+	  */
+	void ClearGlobalMarkedFrames();
+
 protected:
 
 	/** Set/Clear a Mark at the current time */
@@ -1287,6 +1296,9 @@ private:
 	bool bNeedsEvaluate;
 
 	FAcquiredResources AcquiredResources;
+
+	bool bGlobalMarkedFramesCached;
+	TArray<FMovieSceneMarkedFrame> GlobalMarkedFramesCache;
 
 	/** The range of the currently displayed sub sequence in relation to its parent section, in the resolution of the current sub sequence */
 	TRange<FFrameNumber> SubSequenceRange;

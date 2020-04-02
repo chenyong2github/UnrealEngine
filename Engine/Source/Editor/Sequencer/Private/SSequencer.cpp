@@ -394,6 +394,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.SubSequenceRange = InArgs._SubSequenceRange;
 		TimeSliderArgs.VerticalFrames = InArgs._VerticalFrames;
 		TimeSliderArgs.MarkedFrames = InArgs._MarkedFrames;
+		TimeSliderArgs.GlobalMarkedFrames = InArgs._GlobalMarkedFrames;
 		TimeSliderArgs.OnSetMarkedFrame = InArgs._OnSetMarkedFrame;
 		TimeSliderArgs.OnAddMarkedFrame = InArgs._OnAddMarkedFrame;
 		TimeSliderArgs.OnDeleteMarkedFrame = InArgs._OnDeleteMarkedFrame;
@@ -1901,6 +1902,47 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ExpandAllNodesAndDescendants);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().CollapseAllNodesAndDescendants);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SortAllNodesAndDescendants);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("MarkedFrames", LOCTEXT("MarkedFramesHeader", "Marked Frames"));
+	{
+		UMovieSceneSequence* FocusedMovieSequence = Sequencer->GetFocusedMovieSceneSequence();
+		UMovieScene* FocusedMovieScene = nullptr;
+		if (FocusedMovieSequence != nullptr)
+		{
+			FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+		}
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleShowMarkedFrameGlobal", "Show Marked Frames Globally"),
+			LOCTEXT("ToggleShowMarkedFrameGlobalTooltip", "Makes marked frames in this sub-sequence visible in parent/sibling sequences for the current editor session"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([FocusedMovieScene, this]() {
+					if (FocusedMovieScene != nullptr)
+					{
+						FocusedMovieScene->ToggleGloballyShowMarkedFrames();
+						SequencerPtr.Pin()->InvalidateGlobalMarkedFramesCache();
+					}
+				}),
+				FCanExecuteAction::CreateLambda([FocusedMovieScene]() { return FocusedMovieScene != nullptr; }),
+				FIsActionChecked::CreateLambda([FocusedMovieScene]() {
+					if (FocusedMovieScene != nullptr)
+					{
+						return FocusedMovieScene->GetGloballyShowMarkedFrames();
+					}
+					return false;
+				})),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ClearMarkedFramesGlobal", "Clear Global Marked Frames"),
+			LOCTEXT("ClearMarkedFramesGlobalTooltip", "Set all marked frames in all sub-sequences to not be globally displayed."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([this]() { SequencerPtr.Pin()->ClearGlobalMarkedFrames(); }))
+		);
 	}
 	MenuBuilder.EndSection();
 
