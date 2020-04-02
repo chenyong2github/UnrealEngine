@@ -2456,8 +2456,8 @@ namespace Chaos
 			//
 			// Disabled shapes do not collide
 			//
-			if (Shape0 && (Shape0->GetDisable() || !IsValid(Shape0->GetSimData()) ) ) return false;
-			if (Shape1 && (Shape1->GetDisable ()|| !IsValid(Shape1->GetSimData()) ) ) return false;
+			if (Shape0 && (!Shape0->GetSimEnabled() || !IsValid(Shape0->GetSimData()) ) ) return false;
+			if (Shape1 && (!Shape1->GetSimEnabled() || !IsValid(Shape1->GetSimData()) ) ) return false;
 
 			//
 			// Triangle Mesh geometry is only used if the shape specifies UseComplexAsSimple
