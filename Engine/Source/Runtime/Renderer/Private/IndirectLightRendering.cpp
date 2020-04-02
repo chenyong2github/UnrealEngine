@@ -698,14 +698,24 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 					RayTracingConfig.ResolutionFraction = 1.0f;
 				}
 
-				bool bReflectOnlyWater = false;
+				FRayTracingReflectionOptions Options;
+				if (ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(View))
+				{
+					Options.Algorithm = FRayTracingReflectionOptions::SortedDeferred;
+				}
+				else if (ShouldRayTracedReflectionsSortMaterials(View))
+				{
+					Options.Algorithm = FRayTracingReflectionOptions::Sorted;
+				}
+				Options.SamplesPerPixel = RayTracingConfig.RayCountPerPixel;
+				Options.ResolutionFraction = RayTracingConfig.ResolutionFraction;
+				Options.bReflectOnlyWater = false;
+
 				RenderRayTracingReflections(
 					GraphBuilder,
 					SceneTextures,
 					View,
-					RayTracingConfig.RayCountPerPixel,
-					bReflectOnlyWater,
-					RayTracingConfig.ResolutionFraction,
+					Options,
 					&DenoiserInputs);
 			}
 			else if (bScreenSpaceReflections)
