@@ -471,6 +471,8 @@ private:
 	uint32 NumShaderCompilingThreadsDuringGame;
 	/** Largest number of jobs that can be put in the same batch. */
 	int32 MaxShaderJobBatchSize;
+	/** Number of runs through single-threaded compiling before we can retry to compile through workers. -1 if not used. */
+	int32 NumSingleThreadedRunsBeforeRetry;
 	/** Process Id of UE4. */
 	uint32 ProcessId;
 	/** Whether to allow compiling shaders through the worker application, which allows multiple cores to be used. */
