@@ -260,7 +260,8 @@ private:
 	virtual void TerminateActiveToolsOnPIEStart();
 
 	// default behavior is to accept active tool
-	virtual void TerminateActiveToolsOnSaveWorld();
+	virtual void TerminateActiveToolsOnOnMapChanged(uint32 MapChangeFlags);
+
 
 	FRay GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY);
 	
@@ -334,8 +335,8 @@ protected:
 
 	// called when PIE is about to start, shuts down active tools
 	FDelegateHandle BeginPIEDelegateHandle;
-	// called before a Save starts. This currently shuts down active tools.
-	FDelegateHandle PreSaveWorldDelegateHandle;
+	// called before a map changes. This currently shuts down active tools.
+	FDelegateHandle MapChangeDelegateHandle;
 
 	UPROPERTY()
 	TSoftClassPtr<UObject> SettingsClass;
