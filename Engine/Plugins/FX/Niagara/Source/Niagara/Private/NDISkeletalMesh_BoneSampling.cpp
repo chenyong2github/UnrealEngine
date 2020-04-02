@@ -426,8 +426,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredBoneAt(FVectorVMContext& Cont
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutBone(Context);
 
-	const int32 Max = InstData->NumFilteredBones;
-	if (Max != INDEX_NONE)
+	const int32 Max = InstData->NumFilteredBones - 1;
+	if (Max >= 0)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
@@ -449,7 +449,7 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomFilteredBone(FVectorVMContext& Con
 	VectorVM::FExternalFuncRegisterHandler<int32> OutBone(Context);
 
 	const int32 Max = InstData->NumFilteredBones - 1;
-	if (Max != INDEX_NONE)
+	if (Max >= 0)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
@@ -485,13 +485,24 @@ void UNiagaraDataInterfaceSkeletalMesh::GetUnfilteredBoneAt(FVectorVMContext& Co
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutBone(Context);
 
-	const int32 Max = InstData->NumUnfilteredBones;
-	if (Max != INDEX_NONE)
+	const int32 Max = InstData->NumUnfilteredBones - 1;
+	if (Max >= 0)
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		if (InstData->NumFilteredBones == 0)
 		{
-			const int32 BoneIndex = FMath::Clamp(BoneParam.GetAndAdvance(), 0, Max);
-			*OutBone.GetDestAndAdvance() = InstData->FilteredAndUnfilteredBones[BoneIndex + InstData->NumFilteredBones];
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				const int32 BoneIndex = FMath::Clamp(BoneParam.GetAndAdvance(), 0, Max);
+				*OutBone.GetDestAndAdvance() = BoneIndex;
+			}
+		}
+		else
+		{
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				const int32 BoneIndex = FMath::Clamp(BoneParam.GetAndAdvance(), 0, Max);
+				*OutBone.GetDestAndAdvance() = InstData->FilteredAndUnfilteredBones[BoneIndex + InstData->NumFilteredBones];
+			}
 		}
 	}
 	else
@@ -507,13 +518,25 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomUnfilteredBone(FVectorVMContext& C
 	VectorVM::FExternalFuncRegisterHandler<int32> OutBone(Context);
 
 	const int32 Max = InstData->NumUnfilteredBones - 1;
-	if (Max != INDEX_NONE)
+	if (Max >= 0)
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		if (InstData->NumFilteredBones == 0)
 		{
-			RandHelper.GetAndAdvance();
-			const int32 BoneIndex = RandHelper.RandRange(i, 0, Max);
-			*OutBone.GetDestAndAdvance() = InstData->FilteredAndUnfilteredBones[BoneIndex + InstData->NumFilteredBones];
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				RandHelper.GetAndAdvance();
+				const int32 BoneIndex = RandHelper.RandRange(i, 0, Max);
+				*OutBone.GetDestAndAdvance() = BoneIndex;
+			}
+		}
+		else
+		{
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				RandHelper.GetAndAdvance();
+				const int32 BoneIndex = RandHelper.RandRange(i, 0, Max);
+				*OutBone.GetDestAndAdvance() = InstData->FilteredAndUnfilteredBones[BoneIndex + InstData->NumFilteredBones];
+			}
 		}
 	}
 	else
