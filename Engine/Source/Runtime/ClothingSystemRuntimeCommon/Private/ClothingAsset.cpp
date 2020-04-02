@@ -772,9 +772,9 @@ void UClothingAssetCommon::PostLoad()
 		SetFlags(RF_Transactional);
 	}
 
+	const int32 ClothingCustomVersion = GetLinkerCustomVersion(FClothingAssetCustomVersion::GUID);
 #if WITH_EDITORONLY_DATA
 	// Fix content imported before we kept vertex colors
-	const int32 ClothingCustomVersion = GetLinkerCustomVersion(FClothingAssetCustomVersion::GUID);
 	if (ClothingCustomVersion < FClothingAssetCustomVersion::AddVertexColorsToPhysicalMesh)
 	{
 		for (FClothLODDataCommon& Lod : LodData)
