@@ -1307,7 +1307,7 @@ TFuture<FConcertAdmin_GetSessionActivitiesResponse> FConcertServer::HandleGetSes
 	else // The only reason to get here is when the session is not found.
 	{
 		ResponseData.ResponseCode = EConcertResponseCode::Failed;
-		ResponseData.Reason = LOCTEXT("Error_SessionActivities_SessionDoesNotExist", "Session does not exist.");
+		ResponseData.Reason = LOCTEXT("Error_SessionActivities_SessionDoesNotExist", "Session does not exist or its database is corrupted.");
 		UE_LOG(LogConcert, Display, TEXT("Failed to fetch activities from session (Id: %s, Reason: %s)"), *Message->SessionId.ToString(), *ResponseData.Reason.ToString());
 	}
 
@@ -1373,11 +1373,14 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConce
 		InRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId)
 		);
 
-	LiveSessions.Add(LiveSessionInfo.SessionId, LiveSession);
-	EventSink->OnLiveSessionCreated(*this, LiveSession.ToSharedRef());
-	LiveSession->Startup();
+	if (EventSink->OnLiveSessionCreated(*this, LiveSession.ToSharedRef())) // EventSync could complete the session initialization?
+	{
+		LiveSessions.Add(LiveSessionInfo.SessionId, LiveSession);
+		LiveSession->Startup();
+		return LiveSession;
+	}
 
-	return LiveSession;
+	return nullptr;
 }
 
 bool FConcertServer::DestroyLiveSession(const FGuid& LiveSessionId, const bool bDeleteSessionData)
@@ -1440,9 +1443,7 @@ bool FConcertServer::CreateArchivedSession(const FConcertSessionInfo& SessionInf
 	check(!ArchivedSessions.Contains(SessionInfo.SessionId) && !GetArchivedSessionIdByName(SessionInfo.SessionName).IsValid());
 
 	ArchivedSessions.Add(SessionInfo.SessionId, SessionInfo);
-	EventSink->OnArchivedSessionCreated(*this, GetSessionSavedDir(SessionInfo.SessionId), SessionInfo);
-
-	return true;
+	return EventSink->OnArchivedSessionCreated(*this, GetSessionSavedDir(SessionInfo.SessionId), SessionInfo);
 }
 
 bool FConcertServer::DestroyArchivedSession(const FGuid& ArchivedSessionId, const bool bDeleteSessionData)
