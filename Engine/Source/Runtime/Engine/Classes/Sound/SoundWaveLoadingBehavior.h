@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+#include "CoreMinimal.h"
 
 /**
  * Only used when stream caching is enabled. Determines how we are going to load or retain a given audio asset.
