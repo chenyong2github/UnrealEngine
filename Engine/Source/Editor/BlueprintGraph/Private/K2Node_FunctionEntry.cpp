@@ -863,11 +863,10 @@ void UK2Node_FunctionEntry::PostReconstructNode()
 	Super::PostReconstructNode();
 }
 
-void UK2Node_FunctionEntry::FixupPinStringDataReferences(FArchive& Ar)
+void UK2Node_FunctionEntry::FixupPinStringDataReferences(FArchive* SavingArchive)
 {
-	Super::FixupPinStringDataReferences(Ar);
-	
-	if (Ar.IsSaving())
+	Super::FixupPinStringDataReferences(SavingArchive);
+	if (SavingArchive)
 	{
 		UpdateUserDefinedPinDefaultValues();
 	}
