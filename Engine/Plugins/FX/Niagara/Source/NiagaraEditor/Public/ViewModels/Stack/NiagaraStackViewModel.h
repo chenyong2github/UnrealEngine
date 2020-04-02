@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Templates/SharedPointer.h"
-#include "EditorUndoClient.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "UObject/ObjectKey.h"
 #include "NiagaraStackViewModel.generated.h"
@@ -36,7 +35,7 @@ private:
 };
 
 UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackViewModel : public UObject, public FEditorUndoClient
+class NIAGARAEDITOR_API UNiagaraStackViewModel : public UObject
 {
 	GENERATED_BODY()
 
@@ -108,10 +107,6 @@ public:
 	void SetLastScrollPosition(double InLastScrollPosition);
 
 	void NotifyStructureChanged();
-
-	//~ FEditorUndoClient Interface
-	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
 	virtual void Tick();
 	//~ stack search stuff
