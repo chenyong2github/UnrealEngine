@@ -308,6 +308,8 @@ void MeshUpdateObserver::StartMeshObserver(
 
 void MeshUpdateObserver::UpdateBoundingVolume(SpatialCoordinateSystem InCoordinateSystem, float3 Position)
 {
+	std::lock_guard<std::mutex> lock(MeshRefsLock);
+
 	if (InCoordinateSystem == nullptr)
 	{
 		return;
