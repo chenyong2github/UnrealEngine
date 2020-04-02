@@ -12,6 +12,7 @@
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "PostProcessTemporalAA.h"
+#include "RayTracing/RayTracingOptions.h"
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingReflections.h"
 #include "RenderGraph.h"
@@ -24,7 +25,6 @@
 
 DECLARE_GPU_STAT(SingleLayerWater);
 DECLARE_GPU_STAT_NAMED(RayTracingWaterReflections, TEXT("Ray Tracing Water Reflections"));
-
 
 
 static TAutoConsoleVariable<int32> CVarWaterSingleLayer(
@@ -769,10 +769,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 					SceneTextures, 
 					View,
 					TAASettings,
-					//View.PrevViewInfo.WaterSSRHistory,
-					//&View.ViewState->PrevFrameViewInfo.WaterSSRHistory);
-					View.PrevViewInfo.SSRHistory,
-					&View.ViewState->PrevFrameViewInfo.SSRHistory);
+					View.PrevViewInfo.WaterSSRHistory,
+					&View.ViewState->PrevFrameViewInfo.WaterSSRHistory);
 
 				ReflectionsColor = TAAOutputs.SceneColor;
 			}
