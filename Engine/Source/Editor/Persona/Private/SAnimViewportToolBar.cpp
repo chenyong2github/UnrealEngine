@@ -5,6 +5,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "EngineGlobals.h"
 #include "AssetData.h"
 #include "Engine/Engine.h"
@@ -808,54 +809,60 @@ void SAnimViewportToolBar::FillCharacterClothingMenu(FMenuBuilder& MenuBuilder)
 
 TSharedRef<SWidget> SAnimViewportToolBar::GenerateShowMenu() const
 {
+	static const FName MenuName("Persona.AnimViewportToolBar");
+
+	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(MenuName);
+		Menu->AddDynamicSection("AnimSection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			// Only include helpful show flags.
+			static const FShowFlagFilter ShowFlagFilter = FShowFlagFilter(FShowFlagFilter::ExcludeAllFlagsByDefault)
+				// General
+				.IncludeFlag(FEngineShowFlags::SF_AntiAliasing)
+				.IncludeFlag(FEngineShowFlags::SF_Collision)
+				.IncludeFlag(FEngineShowFlags::SF_Grid)
+				.IncludeFlag(FEngineShowFlags::SF_Particles)
+				.IncludeFlag(FEngineShowFlags::SF_Translucency)
+				// Post Processing
+				.IncludeFlag(FEngineShowFlags::SF_Bloom)
+				.IncludeFlag(FEngineShowFlags::SF_DepthOfField)
+				.IncludeFlag(FEngineShowFlags::SF_EyeAdaptation)
+				.IncludeFlag(FEngineShowFlags::SF_HMDDistortion)
+				.IncludeFlag(FEngineShowFlags::SF_MotionBlur)
+				.IncludeFlag(FEngineShowFlags::SF_Tonemapper)
+				// Lighting Components
+				.IncludeGroup(SFG_LightingComponents)
+				// Lighting Features
+				.IncludeFlag(FEngineShowFlags::SF_AmbientCubemap)
+				.IncludeFlag(FEngineShowFlags::SF_DistanceFieldAO)
+				.IncludeFlag(FEngineShowFlags::SF_IndirectLightingCache)
+				.IncludeFlag(FEngineShowFlags::SF_LightFunctions)
+				.IncludeFlag(FEngineShowFlags::SF_LightShafts)
+				.IncludeFlag(FEngineShowFlags::SF_ReflectionEnvironment)
+				.IncludeFlag(FEngineShowFlags::SF_ScreenSpaceAO)
+				.IncludeFlag(FEngineShowFlags::SF_ContactShadows)
+				.IncludeFlag(FEngineShowFlags::SF_ScreenSpaceReflections)
+				.IncludeFlag(FEngineShowFlags::SF_SubsurfaceScattering)
+				.IncludeFlag(FEngineShowFlags::SF_TexturedLightProfiles)
+				// Developer
+				.IncludeFlag(FEngineShowFlags::SF_Refraction)
+				// Advanced
+				.IncludeFlag(FEngineShowFlags::SF_DeferredLighting)
+				.IncludeFlag(FEngineShowFlags::SF_Selection)
+				.IncludeFlag(FEngineShowFlags::SF_SeparateTranslucency)
+				.IncludeFlag(FEngineShowFlags::SF_TemporalAA)
+				.IncludeFlag(FEngineShowFlags::SF_Tessellation)
+				.IncludeFlag(FEngineShowFlags::SF_VertexColors)
+				;
+
+			FShowFlagMenuCommands::Get().BuildShowFlagsMenu(InMenu, ShowFlagFilter);
+		}));
+	}
+
 	TSharedPtr<FExtender> MenuExtender = FExtender::Combine(Extenders);
-
-	const bool bInShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder InMenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList, MenuExtender);
-
-	// Only include helpful show flags.
-	static const FShowFlagFilter ShowFlagFilter = FShowFlagFilter(FShowFlagFilter::ExcludeAllFlagsByDefault)
-		// General
-		.IncludeFlag(FEngineShowFlags::SF_AntiAliasing)
-		.IncludeFlag(FEngineShowFlags::SF_Collision)
-		.IncludeFlag(FEngineShowFlags::SF_Grid)
-		.IncludeFlag(FEngineShowFlags::SF_Particles)
-		.IncludeFlag(FEngineShowFlags::SF_Translucency)
-		// Post Processing
-		.IncludeFlag(FEngineShowFlags::SF_Bloom)
-		.IncludeFlag(FEngineShowFlags::SF_DepthOfField)
-		.IncludeFlag(FEngineShowFlags::SF_EyeAdaptation)
-		.IncludeFlag(FEngineShowFlags::SF_HMDDistortion)
-		.IncludeFlag(FEngineShowFlags::SF_MotionBlur)
-		.IncludeFlag(FEngineShowFlags::SF_Tonemapper)
-		// Lighting Components
-		.IncludeGroup(SFG_LightingComponents)
-		// Lighting Features
-		.IncludeFlag(FEngineShowFlags::SF_AmbientCubemap)
-		.IncludeFlag(FEngineShowFlags::SF_DistanceFieldAO)
-		.IncludeFlag(FEngineShowFlags::SF_IndirectLightingCache)
-		.IncludeFlag(FEngineShowFlags::SF_LightFunctions)
-		.IncludeFlag(FEngineShowFlags::SF_LightShafts)
-		.IncludeFlag(FEngineShowFlags::SF_ReflectionEnvironment)
-		.IncludeFlag(FEngineShowFlags::SF_ScreenSpaceAO)
-		.IncludeFlag(FEngineShowFlags::SF_ContactShadows)
-		.IncludeFlag(FEngineShowFlags::SF_ScreenSpaceReflections)
-		.IncludeFlag(FEngineShowFlags::SF_SubsurfaceScattering)
-		.IncludeFlag(FEngineShowFlags::SF_TexturedLightProfiles)
-		// Developer
-		.IncludeFlag(FEngineShowFlags::SF_Refraction)
-		// Advanced
-		.IncludeFlag(FEngineShowFlags::SF_DeferredLighting)
-		.IncludeFlag(FEngineShowFlags::SF_Selection)
-		.IncludeFlag(FEngineShowFlags::SF_SeparateTranslucency)
-		.IncludeFlag(FEngineShowFlags::SF_TemporalAA)
-		.IncludeFlag(FEngineShowFlags::SF_Tessellation)
-		.IncludeFlag(FEngineShowFlags::SF_VertexColors)		
-		;
-
-	FShowFlagMenuCommands::Get().BuildShowFlagsMenu(InMenuBuilder, ShowFlagFilter);
-
-	return InMenuBuilder.MakeWidget();
+	FToolMenuContext MenuContext(CommandList, MenuExtender);
+	return UToolMenus::Get()->GenerateWidget(MenuName, MenuContext);
 }
 
 FText SAnimViewportToolBar::GetLODMenuLabel() const
