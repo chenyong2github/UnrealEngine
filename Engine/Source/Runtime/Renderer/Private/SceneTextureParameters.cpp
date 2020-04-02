@@ -20,6 +20,7 @@ void SetupSceneTextureParameters(
 
 	// Should always have a depth buffer around allocated, since early z-pass is first.
 	OutTextures->SceneDepthBuffer = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ, TEXT("SceneDepthZ"));
+	OutTextures->SceneStencilBuffer = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(OutTextures->SceneDepthBuffer, PF_X24_G8));
 
 	// Registers all the scene texture from the scene context. No fallback is provided to catch mistake at shader parameter validation time
 	// when a pass is trying to access a resource before any other pass actually created it.
