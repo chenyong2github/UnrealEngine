@@ -189,7 +189,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 		.SetFont(DEFAULT_FONT("Bold", 8))
 		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.9f))
 		.SetShadowOffset(FVector2D(1, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)));
+		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.7f)));
 
 	// Code View
 	{
