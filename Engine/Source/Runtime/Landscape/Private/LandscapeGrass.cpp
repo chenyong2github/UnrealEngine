@@ -521,7 +521,7 @@ public:
 					View,
 					DynamicMeshPassContext);
 
-				const uint64 DefaultBatchElementMask = ~0ul;
+				const uint64 DefaultBatchElementMask = 1 << 0; // LOD 0 only
 
 				for (auto& ComponentInfo : ComponentInfos)
 				{
