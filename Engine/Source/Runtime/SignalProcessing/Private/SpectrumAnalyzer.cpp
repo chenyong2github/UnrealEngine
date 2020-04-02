@@ -536,7 +536,6 @@ namespace Audio
 
 					case ISpectrumBandExtractor::EMetric::Power:
 					default:
-						OutValue = OutValue;
 						break;
 				}
 
