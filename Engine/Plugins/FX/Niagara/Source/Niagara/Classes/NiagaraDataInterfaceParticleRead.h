@@ -38,6 +38,7 @@ public:
 	void GetNumSpawnedParticles(FVectorVMContext& Context);
 	void GetSpawnedIDAtIndex(FVectorVMContext& Context);
 	void GetNumParticles(FVectorVMContext& Context);
+	void GetParticleIndex(FVectorVMContext& Context);
 	void ReadInt(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadBool(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadFloat(FVectorVMContext& Context, FName AttributeToRead);
@@ -46,6 +47,7 @@ public:
 	void ReadVector4(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadColor(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadQuat(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadID(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadIntByIndex(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadBoolByIndex(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadFloatByIndex(FVectorVMContext& Context, FName AttributeToRead);
@@ -54,6 +56,7 @@ public:
 	void ReadVector4ByIndex(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadColorByIndex(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadQuatByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadIDByIndex(FVectorVMContext& Context, FName AttributeToRead);
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
