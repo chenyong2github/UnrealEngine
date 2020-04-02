@@ -258,7 +258,8 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt, const FReal Step
 #endif
 
 	{
-		Clustering.UnionClusterGroups();
+		// #TODO re-enable when larger groups of collections can successfully resolve groups
+		//Clustering.UnionClusterGroups();
 	}
 
 	{
