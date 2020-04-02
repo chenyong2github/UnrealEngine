@@ -5738,8 +5738,31 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 
 						if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
 						{
-							//This interface requires per instance data via a user ptr so place the index to it at the end of the inputs.
-							Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")));
+							//This interface requires per instance data via a user ptr so place the index as the first input.
+							Sig.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")), 0);
+
+							// Look for the opening parenthesis.
+							while (TokenIndex < Tokens.Num() && Tokens[TokenIndex] != TEXT("("))
+							{
+								++TokenIndex;
+							}
+
+							if (TokenIndex < Tokens.Num())
+							{
+								// Skip the parenthesis.
+								++TokenIndex;
+
+								// Insert the instance index as the first argument. We don't need to do range checking because even if
+								// the tokens end after the parenthesis, we'll be inserting at the end of the array.
+								Tokens.Insert(LexToString(Info.UserPtrIdx), TokenIndex++);
+
+								if (Sig.Inputs.Num() > 1 || Sig.Outputs.Num() > 0)
+								{
+									// If there are other arguments, insert a comma and a space. These are separators, so they need to be different tokens.
+									Tokens.Insert(TEXT(","), TokenIndex++);
+									Tokens.Insert(TEXT(" "), TokenIndex++);
+								}
+							}
 						}
 
 						Info.RegisteredFunctions.Add(Sig);
@@ -6264,9 +6287,9 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 
 				if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
 				{
-					//This interface requires per instance data via a user ptr so place the index to it at the end of the inputs.
-					Inputs.Add(AddSourceChunk(LexToString(Info.UserPtrIdx), FNiagaraTypeDefinition::GetIntDef(), false));
-					OutSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")));
+					//This interface requires per instance data via a user ptr so place the index as the first input.
+					Inputs.Insert(AddSourceChunk(LexToString(Info.UserPtrIdx), FNiagaraTypeDefinition::GetIntDef(), false), 0);
+					OutSignature.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")), 0);
 				}
 			}
 
