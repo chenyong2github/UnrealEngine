@@ -27,7 +27,6 @@ static const int MAX_VERTS_PER_POLY = 6;	// TODO: use the DT_VERTS_PER_POLYGON
 static const int MAX_REM_EDGES = 48;		// TODO: make this an expression.
 
 
-
 dtTileCacheContourSet* dtAllocTileCacheContourSet(dtTileCacheAlloc* alloc)
 {
 	dtAssert(alloc);
@@ -198,7 +197,7 @@ static bool appendVertex(dtTempContour& cont, const int x, const int y, const in
 
 static void getNeighbourRegAndArea(dtTileCacheLayer& layer,
 	const int ax, const int ay, const int dir,
-	unsigned short& neiReg, unsigned char& neiArea)
+	unsigned short& neiReg, unsigned char& neiArea, unsigned char& cornerNeiArea)
 {
 	const int w = (int)layer.header->width;
 	const int ia = ax + ay*w;
@@ -206,6 +205,8 @@ static void getNeighbourRegAndArea(dtTileCacheLayer& layer,
 	const unsigned char con = layer.cons[ia] & 0xf;
 	const unsigned char portal = layer.cons[ia] >> 4;
 	const unsigned char mask = (unsigned char)(1<<dir);
+
+	cornerNeiArea = 0;
 
 	if ((con & mask) == 0)
 	{
@@ -229,6 +230,27 @@ static void getNeighbourRegAndArea(dtTileCacheLayer& layer,
 
 		neiReg = layer.regs[ib];
 		neiArea = layer.areas[ib];
+
+		// Get area type of the cell diagonal [c] to current cell [a]. Where [b] is direct neighbour in the direction of 'dir'.
+		//   ^
+		//  [b][c]
+		//  [a]
+		const int cdir = (dir + 1) & 0x3;
+		const unsigned char bcon = layer.cons[ib] & 0xf;
+		const unsigned char bportal = layer.cons[ib] >> 4;
+		const unsigned char bmask = (unsigned char)(1 << cdir);
+		if ((bcon & bmask) == 0)
+		{
+			cornerNeiArea = 0;
+		}
+		else
+		{
+			const int cx = bx + getDirOffsetX(cdir);
+			const int cy = by + getDirOffsetY(cdir);
+			const int ic = cx + cy * w;
+			cornerNeiArea = layer.areas[ic];
+		}
+
 	}
 }
 
@@ -247,20 +269,40 @@ static bool walkContour(dtTileCacheLayer& layer, int x, int y, int idx, unsigned
 
 	unsigned short neiReg = 0xffff;
 	unsigned char neiArea = 0;
+	unsigned char cornerNeiArea = 0;
+	unsigned short prevNeiArea = 0;
+	unsigned short prevCornerNeiArea = 0;
+	bool checkForPinning = false;
 
 	const int maxIter = w * h * 2;
 	int iter = 0;
 	while (iter < maxIter)
 	{
-		getNeighbourRegAndArea(layer, x, y, dir, neiReg, neiArea);
-
 		int nx = x;
 		int ny = y;
 		unsigned char ndir = dir;
 
+		getNeighbourRegAndArea(layer, x, y, dir, neiReg, neiArea, cornerNeiArea);
+
 		if (neiReg != layer.regs[x+y*w])
 		{
 			// Solid edge.
+			if (checkForPinning)
+			{
+				// Detect if there was 8-connected area type change during the turn.
+				// If it did, we need to make sure the vertex adde during turn does not get simplified.
+				// AB
+				// xC
+				// x = current location, A = prevNeiArea, B = prevCornerNeiArea, C = neiArea.
+				const bool shouldPinVertex = prevNeiArea == neiArea && prevCornerNeiArea != neiArea;
+				if (shouldPinVertex && cont.nverts > 0)
+				{
+					unsigned short* v = &cont.verts[(cont.nverts - 1) * 5];
+					v[4] |= 0x8000; // Use high bits in the area type to flag pinning of the vertex, will be removed in the contour simplification.
+				}
+			}
+
+			// Get corner vertex
 			int px = x;
 			int pz = y;
 			switch(dir)
@@ -276,6 +318,7 @@ static bool walkContour(dtTileCacheLayer& layer, int x, int y, int idx, unsigned
 
 			flags[idx] &= ~(1 << dir); // Remove visited edges
 			ndir = (dir+1) & 0x3;  // Rotate CW
+			checkForPinning = true;
 		}
 		else
 		{
@@ -283,10 +326,14 @@ static bool walkContour(dtTileCacheLayer& layer, int x, int y, int idx, unsigned
 			nx = x + getDirOffsetX(dir);
 			ny = y + getDirOffsetY(dir);
 			ndir = (dir+3) & 0x3;	// Rotate CCW
+			checkForPinning = false;
 		}
 
 		if (iter > 0 && idx == startIdx && dir == startDir)
 			break;
+
+		prevNeiArea = neiArea;
+		prevCornerNeiArea = cornerNeiArea;
 
 		x = nx;
 		y = ny;
@@ -343,10 +390,11 @@ static void simplifyContour(unsigned char area, dtTempContour& cont, const float
 	for (int i = 0; i < cont.nverts; ++i)
 	{
 		int j = (i+1) % cont.nverts;
-		// Check for start of a wall segment.
-		unsigned short ra = cont.verts[j*5+3];
-		unsigned short rb = cont.verts[i*5+3];
-		if (ra != rb)
+		// Check for start of a wall segment or pinned vertices.
+		const unsigned short ra = cont.verts[j*5+3];
+		const unsigned short rb = cont.verts[i*5+3];
+		const bool pinnedVertex = (cont.verts[i*5+4] & 0x8000) != 0;
+		if (ra != rb || pinnedVertex)
 			cont.poly[cont.npoly++] = (unsigned short)i;
 	}
 	if (cont.npoly < 2)
@@ -476,7 +524,7 @@ static void simplifyContour(unsigned char area, dtTempContour& cont, const float
 		dst[1] = src[1];
 		dst[2] = src[2];
 		dst[3] = src[3];
-		dst[4] = src[4];
+		dst[4] = src[4] & 0xff; // Mask out pinned vertex flag.
 		cont.nverts++;
 	}
 }

@@ -7,17 +7,18 @@
 
 struct FRecastInternalDebugData : public duDebugDraw
 {
-	struct Command
-	{
-		duDebugDrawPrimitives Prim;
-		int Offset; // Index offset
-		int Count;  // Index count
-	};
+	duDebugDrawPrimitives CurrentPrim;
+	int32 FirstVertexIndex;
 
-	TArray<Command> Commands;
-	TArray<uint32> Indices;
-	TArray<FVector> Vertices;
-	TArray<uint32>  VertexColors;
+	TArray<uint32> TriangleIndices;
+	TArray<FVector> TriangleVertices;
+	TArray<uint32> TriangleColors;
+
+	TArray<FVector> LineVertices;
+	TArray<uint32>  LineColors;
+
+	TArray<FVector> PointVertices;
+	TArray<uint32>  PointColors;
 
 	FRecastInternalDebugData() {}
 	virtual ~FRecastInternalDebugData() override {}
@@ -27,11 +28,8 @@ struct FRecastInternalDebugData : public duDebugDraw
 
 	virtual void begin(duDebugDrawPrimitives prim, float size = 1.0f) override
 	{
-		Command Cmd;
-		Cmd.Prim = prim;
-		Cmd.Offset = Vertices.Num();    // Misuse to store initial state.
-		Cmd.Count = 0;
-		Commands.Push(Cmd);
+		CurrentPrim = prim;
+		FirstVertexIndex = TriangleVertices.Num();
 	}
 
 	virtual void vertex(const float* pos, unsigned int color) override
