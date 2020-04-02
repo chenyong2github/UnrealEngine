@@ -1109,7 +1109,7 @@ void UNiagaraSystem::InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData&
 }
 #endif
 
-bool UNiagaraSystem::RequestCompile(bool bForce)
+bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* OptionalUpdateContext)
 {
 	if (bForce)
 	{
@@ -1234,7 +1234,14 @@ bool UNiagaraSystem::RequestCompile(bool bForce)
 		}
 	}
 
-	FNiagaraSystemUpdateContext UpdateCtx(this, true);
+	if (OptionalUpdateContext)
+	{
+		OptionalUpdateContext->Add(this, true);
+	}
+	else
+	{
+		FNiagaraSystemUpdateContext UpdateCtx(this, true);
+	}
 
 	return bAnyCompiled;
 }
