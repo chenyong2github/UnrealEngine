@@ -551,6 +551,42 @@ bool UMovieSceneNodeGroup::ContainsNode(const FString& Path) const
 	return Nodes.Contains(Path);
 }
 
+void UMovieSceneNodeGroup::UpdateNodePath(const FString& OldPath, const FString& NewPath)
+{
+	if (!OldPath.Equals(NewPath))
+	{
+		// If the node is in this group, replace it with it's new path
+		if (Nodes.Remove(OldPath))
+		{
+			Nodes.Add(NewPath);
+		}
+
+		// Find any nodes with a path that is a child of the changed node, and rename their paths as well
+		FString PathPrefix = OldPath + '.';
+
+		TArray<FString> PathsToRename;
+		for (const FString& NodePath : Nodes)
+		{
+			if (NodePath.StartsWith(PathPrefix))
+			{
+				PathsToRename.Add(NodePath);
+			}
+		}
+
+		for (const FString& NodePath : PathsToRename)
+		{
+			FString NewNodePath = NodePath;
+			if (NewNodePath.RemoveFromStart(PathPrefix))
+			{
+				NewNodePath = NewPath + '.' + NewNodePath;
+				Nodes.Remove(NodePath);
+				Nodes.Add(NewNodePath);
+			}
+		}
+
+	}
+}
+
 void UMovieSceneNodeGroup::SetName(const FName& InName)
 {
 	Name = InName;
@@ -600,6 +636,14 @@ void UMovieSceneNodeGroupCollection::RemoveNodeGroup(UMovieSceneNodeGroup* NodeG
 	if (NodeGroups.RemoveSingle(NodeGroup))
 	{
 		OnNodeGroupCollectionChangedEvent.Broadcast();
+	}
+}
+
+void UMovieSceneNodeGroupCollection::UpdateNodePath(const FString& OldPath, const FString& NewPath)
+{
+	for (UMovieSceneNodeGroup* NodeGroup : NodeGroups)
+	{
+		NodeGroup->UpdateNodePath(OldPath, NewPath);
 	}
 }
 

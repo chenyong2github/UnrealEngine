@@ -6365,6 +6365,77 @@ bool FSequencer::IsTrackVisible(const UMovieSceneTrack* InTrack)
 	return true;
 }
 
+void FSequencer::OnNodePathChanged(const FString& OldPath, const FString& NewPath)
+{
+	if (!OldPath.Equals(NewPath))
+	{
+		UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+
+		if (!MovieScene->IsReadOnly())
+		{
+			MovieScene->Modify();
+
+			MovieScene->GetNodeGroups().UpdateNodePath(OldPath, NewPath);
+
+			// If the node is in the solo list, replace it with it's new path
+			if (MovieScene->GetSoloNodes().Remove(OldPath))
+			{
+				MovieScene->GetSoloNodes().Add(NewPath);
+			}
+
+			// If the node is in the mute list, replace it with it's new path
+			if (MovieScene->GetMuteNodes().Remove(OldPath))
+			{
+				MovieScene->GetMuteNodes().Add(NewPath);
+			}
+
+			// Find any solo/muted nodes with a path that is a child of the renamed node, and rename their paths as well
+			FString PathPrefix = OldPath + '.';
+
+			TArray<FString> PathsToRename;
+			for (const FString& NodePath : MovieScene->GetSoloNodes())
+			{
+				if (NodePath.StartsWith(PathPrefix))
+				{
+					PathsToRename.Add(NodePath);
+				}
+			}
+
+			for (const FString& NodePath : PathsToRename)
+			{
+				FString NewNodePath = NodePath;
+				if (NewNodePath.RemoveFromStart(PathPrefix))
+				{
+					NewNodePath = NewPath + '.' + NewNodePath;
+					MovieScene->GetSoloNodes().Remove(NodePath);
+					MovieScene->GetSoloNodes().Add(NewNodePath);
+				}
+			}
+
+			PathsToRename.Empty();
+			for (const FString& NodePath : MovieScene->GetMuteNodes())
+			{
+				if (NodePath.StartsWith(PathPrefix))
+				{
+					PathsToRename.Add(NodePath);
+				}
+			}
+
+			for (const FString& NodePath : PathsToRename)
+			{
+				FString NewNodePath = NodePath;
+				if (NewNodePath.RemoveFromStart(PathPrefix))
+				{
+					NewNodePath = NewPath + '.' + NewNodePath;
+					MovieScene->GetMuteNodes().Remove(NodePath);
+					MovieScene->GetMuteNodes().Add(NewNodePath);
+				}
+			}
+
+		}
+	}
+}
+
 void FSequencer::OnSelectedNodesOnlyChanged()
 {
 	RefreshTree();

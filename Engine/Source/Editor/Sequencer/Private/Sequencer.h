@@ -570,6 +570,9 @@ public:
 	/** Whether the track is visible in the tree view */
 	bool IsTrackVisible(const UMovieSceneTrack* InTrack);
 
+	/** Call when the path to a display node changes, to update anything tracking the node via path */
+	void OnNodePathChanged(const FString& OldPath, const FString& NewPath);
+
 	void OnSelectedNodesOnlyChanged();
 
 	TSharedPtr<FCurveEditor> GetCurveEditor() const
