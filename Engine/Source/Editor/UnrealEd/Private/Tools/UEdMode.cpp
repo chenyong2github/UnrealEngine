@@ -33,7 +33,7 @@ public:
 	UInteractiveToolsContext* ToolsContext;
 	UEdMode* EdMode;
 	FViewCameraState CachedViewState;
-
+	FEditorViewportClient* CachedViewportClient;
 	FEdModeQueriesImpl(UInteractiveToolsContext* Context, UEdMode* InEdMode)
 	{
 		ToolsContext = Context;
@@ -42,6 +42,7 @@ public:
 
 	void CacheCurrentViewState(FEditorViewportClient* ViewportClient)
 	{
+		CachedViewportClient = ViewportClient;
 		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
 		CachedViewState.bIsOrthographic = ViewportClient->IsOrtho();
 		CachedViewState.Position = ViewTransform.GetLocation();
@@ -263,6 +264,15 @@ public:
 			return EdMode->StandardVertexColorMaterial;
 		}
 		check(false);
+		return nullptr;
+	}
+
+	virtual HHitProxy* GetHitProxy(int32 X, int32 Y) const
+	{
+		if (CachedViewportClient && CachedViewportClient->Viewport)
+		{
+			return CachedViewportClient->Viewport->GetHitProxy(X, Y);
+		}
 		return nullptr;
 	}
 
