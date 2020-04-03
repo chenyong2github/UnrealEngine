@@ -356,6 +356,18 @@ void FSlateDrawElement::MakeShapedText(FSlateWindowElementList& ElementList, uin
 		return;
 	}
 
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
+	if (const UObject* FontMaterial = InShapedGlyphSequence->GetFontMaterial())
+	{
+		ensureMsgf(!FontMaterial->IsPendingKill(), TEXT("Font Material %s Is Marked Pending Kill"), *FontMaterial->GetName());
+	}
+
+	if (const UObject* OutlineMaterial = InShapedGlyphSequence->GetFontOutlineSettings().OutlineMaterial)
+	{
+		ensureMsgf(!OutlineMaterial->IsPendingKill(), TEXT("Outline Material %s Is Marked Pending Kill"), *OutlineMaterial->GetName());
+	}
+#endif
+
 	FSlateDrawElement& Element = ElementList.AddUninitialized();
 
 	FSlateShapedTextPayload& DataPayload = ElementList.CreatePayload<FSlateShapedTextPayload>(Element);
