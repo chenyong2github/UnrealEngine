@@ -106,12 +106,16 @@ namespace AutomationTool
 
 			if (!string.IsNullOrEmpty(ProjectName))
 			{
-				ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
+				// find the project
+				ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);				
 
 				if (ProjectFile == null)
 				{
 					throw new AutomationException("Unable to find uproject file for {0}", ProjectName);
 				}
+
+				// user may have passed a full path, we just want the name
+				ProjectName = ProjectFile.GetFileNameWithoutAnyExtensions();
 
 				ProjectProperties Properties = ProjectUtils.GetProjectProperties(ProjectFile);
 
@@ -142,7 +146,7 @@ namespace AutomationTool
 
 							string ProjectTarget;
 
-							if (MatchingTargetTypes.Count() == 0)
+							if (MatchingTargetTypes.Count() == 1)
 							{
 								ProjectTarget = MatchingTargetTypes.First();
 							}
@@ -150,6 +154,11 @@ namespace AutomationTool
 							{
 								// if multiple targets, pick the one with our name (FN specific!)
 								ProjectTarget = MatchingTargetTypes.Where(T => string.CompareOrdinal(T, 0, ProjectName, 0, 1) == 0).FirstOrDefault();
+							}
+
+							if (ProjectTarget == null)
+							{
+								throw new AutomationException("Unable to find project target for {0}", Target);
 							}
 
 							ActualTargets.Add(ProjectTarget);
