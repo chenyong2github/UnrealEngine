@@ -39,6 +39,8 @@ namespace EditorAnalyticsDefs
 	static const FString ProjectVersionStoreKey(TEXT("ProjectVersion"));
 	static const FString EngineVersionStoreKey(TEXT("EngineVersion"));
 	static const FString PlatformProcessIDStoreKey(TEXT("PlatformProcessID"));
+	static const FString MonitorProcessIDStoreKey(TEXT("MonitorProcessID"));
+	static const FString ExitCodeStoreKey(TEXT("ExitCode"));
 
 	// timestamps
 	static const FString StartupTimestampStoreKey(TEXT("StartupTimestamp"));
@@ -245,8 +247,16 @@ namespace EditorAnalyticsUtils
 		GET_STORED_STRING(ProjectDescription);
 		GET_STORED_STRING(ProjectVersion);
 		GET_STORED_STRING(EngineVersion);
-
 		GET_STORED_INT(PlatformProcessID);
+		GET_STORED_INT(MonitorProcessID);
+
+		{
+			FString ExitCodeString;
+			if (FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ExitCodeStoreKey, ExitCodeString))
+			{
+				Session.ExitCode.Emplace(FCString::Atoi(*ExitCodeString));
+			}
+		}
 
 		// scope is just to isolate the temporary value
 		{
@@ -346,6 +356,7 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 
 	ProjectName = EditorAnalyticsDefs::UnknownProjectValueString;
 	PlatformProcessID = 0;
+	MonitorProcessID = 0;
 	StartupTimestamp = FDateTime::MinValue();
 	Timestamp = FDateTime::MinValue();
 	Idle1Min = 0;
@@ -427,6 +438,7 @@ bool FEditorAnalyticsSession::Save()
 		TMap<FString, FString> KeyValues = {
 			{EditorAnalyticsDefs::EngineVersionStoreKey,       EngineVersion},
 			{EditorAnalyticsDefs::PlatformProcessIDStoreKey,   FString::FromInt(PlatformProcessID)},
+			{EditorAnalyticsDefs::MonitorProcessIDStoreKey,    FString::FromInt(MonitorProcessID)},
 			{EditorAnalyticsDefs::DesktopGPUAdapterStoreKey,   DesktopGPUAdapter},
 			{EditorAnalyticsDefs::RenderingGPUAdapterStoreKey, RenderingGPUAdapter},
 			{EditorAnalyticsDefs::GPUVendorIDStoreKey,         FString::FromInt(GPUVendorID)},
@@ -476,6 +488,11 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::IsInVRModeStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bIsInVRMode)},
 		};
 
+		if (ExitCode.IsSet())
+		{
+			KeyValues.Emplace(EditorAnalyticsDefs::ExitCodeStoreKey, FString::FromInt(ExitCode.GetValue()));
+		}
+
 		FPlatformMisc::SetStoredValues(EditorAnalyticsDefs::StoreId, StorageLocation, KeyValues);
 	}
 
@@ -514,6 +531,8 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ProjectVersionStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::EngineVersionStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::PlatformProcessIDStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorProcessIDStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ExitCodeStoreKey);
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::StartupTimestampStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TimestampStoreKey);
@@ -619,4 +638,42 @@ bool FEditorAnalyticsSession::SaveStoredSessionIDs(const TArray<FString>& InSess
 void FEditorAnalyticsSession::LogEvent(EEventType InEventType, const FDateTime& InTimestamp)
 {
 	EditorAnalyticsUtils::LogSessionEvent(*this, InEventType, InTimestamp);
+}
+
+bool FEditorAnalyticsSession::FindSession(const uint32 InSessionProcessId, FEditorAnalyticsSession& OutSession)
+{
+	if (!ensure(IsLocked()))
+	{
+		return false;
+	}
+
+	TArray<FString> SessionIDs = EditorAnalyticsUtils::GetSessionList();
+
+	// Retrieve all the sessions in the list from storage
+	for (const FString& Id : SessionIDs)
+	{
+		FEditorAnalyticsSession Session;
+		EditorAnalyticsUtils::LoadInternal(Session, Id);
+		if (Session.PlatformProcessID == InSessionProcessId)
+		{
+			OutSession = MoveTemp(Session);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FEditorAnalyticsSession::SaveExitCode(int32 InExitCode)
+{
+	if (!ensure(IsLocked()))
+	{
+		return;
+	}
+
+	ExitCode.Emplace(InExitCode);
+	FString ExitCodeStr = FString::Printf(TFormatSpecifier<decltype(InExitCode)>::GetFormatSpecifier(), InExitCode);
+
+	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::ExitCodeStoreKey, ExitCodeStr);
 }
