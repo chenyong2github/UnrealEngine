@@ -612,7 +612,7 @@ public:
 			}
 
 			// don't put anything we pretended didn't exist
-			if ((CacheKey))
+			if (ShouldSimulateMiss(CacheKey))
 			{
 				return;
 			}
