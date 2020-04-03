@@ -1045,31 +1045,6 @@ void FNiagaraEmitterInstance::PreTick()
 		bResetPending = false;
 	}
 
-	if (EventInstanceData.IsValid())
-	{
-		//Gather events we're going to be reading from / handling this frame.
-		//We must do this in pre-tick so we can gather (and mark in use) all sets from other emitters.
-		const int32 NumEventHandlers = CachedEmitter->GetEventHandlers().Num();
-		EventInstanceData->EventSpawnTotal = 0;
-		for (int32 i = 0; i < NumEventHandlers; i++)
-		{
-			const FNiagaraEventScriptProperties& EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
-			FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[i];
-
-			Info.TotalSpawnCount = 0;//This was being done every frame but should be done in init?
-			Info.SpawnCounts.Reset();
-
-			//TODO: We can move this lookup into the init and just store a ptr to the other set?
-			if (FNiagaraDataSet* EventSet = ParentSystemInstance->GetEventDataSet(Info.SourceEmitterName, EventHandlerProps.SourceEventName))
-			{
-				Info.SetEventData(&EventSet->GetCurrentDataChecked());
-				uint32 EventSpawnNum = CalculateEventSpawnCount(EventHandlerProps, Info.SpawnCounts, EventSet);
-				Info.TotalSpawnCount += EventSpawnNum;
-				EventInstanceData->EventSpawnTotal += EventSpawnNum;
-			}
-		}
-	}
-
 	++TickCount;
 	ParticleDataSet->SetIDAcquireTag(TickCount);
 }
@@ -1161,8 +1136,31 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	checkSlow(CachedEmitter->SpawnScriptProps.Script);
 	checkSlow(CachedEmitter->UpdateScriptProps.Script);
 	
-	//TickEvents(DeltaSeconds);
-	
+	if (EventInstanceData.IsValid())
+	{
+		// Set up the spawn counts and source datasets for the events. The system ensures that we will run after any emitters
+		// we're receiving from, so we can use the data buffers that our sources have computed this tick.
+		const int32 NumEventHandlers = CachedEmitter->GetEventHandlers().Num();
+		EventInstanceData->EventSpawnTotal = 0;
+		for (int32 i = 0; i < NumEventHandlers; i++)
+		{
+			const FNiagaraEventScriptProperties& EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
+			FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[i];
+
+			Info.TotalSpawnCount = 0;//This was being done every frame but should be done in init?
+			Info.SpawnCounts.Reset();
+
+			//TODO: We can move this lookup into the init and just store a ptr to the other set?
+			if (FNiagaraDataSet* EventSet = ParentSystemInstance->GetEventDataSet(Info.SourceEmitterName, EventHandlerProps.SourceEventName))
+			{
+				Info.SetEventData(&EventSet->GetCurrentDataChecked());
+				uint32 EventSpawnNum = CalculateEventSpawnCount(EventHandlerProps, Info.SpawnCounts, EventSet);
+				Info.TotalSpawnCount += EventSpawnNum;
+				EventInstanceData->EventSpawnTotal += EventSpawnNum;
+			}
+		}
+	}
+
 	// Calculate number of new particles from regular spawning 
 	uint32 SpawnTotal = 0;
 	if (ExecutionState == ENiagaraExecutionState::Active)
