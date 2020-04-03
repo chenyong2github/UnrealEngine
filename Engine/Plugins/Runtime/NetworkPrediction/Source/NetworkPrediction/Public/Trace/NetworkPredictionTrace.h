@@ -59,6 +59,8 @@
 
 #define UE_NP_TRACE_SYSTEM_FAULT(Format, ...) FNetworkPredictionTrace::TraceSystemFault(TEXT(Format), ##__VA_ARGS__)
 
+#define UE_NP_TRACE_WORLD_FRAME_START(DeltaSeconds) FNetworkPredictionTrace::TraceWorldFrameStart(DeltaSeconds)
+
 #else
 
 // Compiled out
@@ -78,6 +80,7 @@
 #define UE_NP_TRACE_OOB_STATE_MOD(...)
 #define UE_NP_TRACE_PIE_START(...)
 #define UE_NP_TRACE_SYSTEM_FAULT(Format, ...) UE_LOG(LogNetworkSim, Warning, TEXT(Format), ##__VA_ARGS__);
+#define UE_NP_TRACE_WORLD_FRAME_START(...)
 
 #endif // UE_NP_TRACE_ENABLED
 
@@ -108,6 +111,8 @@ public:
 	static void TraceOOBStateMod();
 	static void TracePIEStart();
 	static void TraceSystemFault(const TCHAR* Fmt, ...);
+
+	static void TraceWorldFrameStart(float DeltaSeconds);
 
 	enum ETraceUserState
 	{

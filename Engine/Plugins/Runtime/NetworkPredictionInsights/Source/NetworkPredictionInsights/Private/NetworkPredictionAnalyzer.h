@@ -30,6 +30,7 @@ private:
 	enum : uint16
 	{
 		RouteId_GameInstanceRegister,
+		RouteId_WorldFrameStart,
 		RouteId_SimulationCreated,
 		RouteId_SimulationNetRole,
 		RouteId_SimulationNetGUID,
@@ -50,4 +51,7 @@ private:
 
 	Trace::IAnalysisSession& Session;
 	FNetworkPredictionProvider& NetworkPredictionProvider;
+
+	uint64 EngineFrameNumber;
+	float DeltaTimeSeconds;
 };

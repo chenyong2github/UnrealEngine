@@ -13,7 +13,6 @@
 
 inline IConsoleVariable* FindConsoleVarHelper(const TCHAR* VarName)
 {
-	UE_LOG(LogTemp, Warning, TEXT("RATTI Finding... %s"), VarName);
 	return IConsoleManager::Get().FindConsoleVariable(VarName, false);
 }
 
@@ -26,20 +25,16 @@ struct FConditionalAutoConsoleRegister
 {
 	FConditionalAutoConsoleRegister(const TCHAR* VarName, int32 Value, const TCHAR* Help)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("RATTI FConditionalAutoConsoleRegister() %s"), VarName);
 		if (!IConsoleManager::Get().FindConsoleVariable(VarName, false))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("RATTI RegisterConsoleVariable() %s"), VarName);
 			IConsoleManager::Get().RegisterConsoleVariable(VarName, Value, Help, ECVF_Cheat);
 		}
 	}
 
 	FConditionalAutoConsoleRegister(const TCHAR* VarName, float Value, const TCHAR* Help)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("RATTI FConditionalAutoConsoleRegister() %s"), VarName);
 		if (!IConsoleManager::Get().FindConsoleVariable(VarName, false))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("RATTI RegisterConsoleVariable() %s"), VarName);
 			IConsoleManager::Get().RegisterConsoleVariable(VarName, Value, Help, ECVF_Cheat);
 		}
 	}
