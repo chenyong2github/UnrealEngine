@@ -703,4 +703,79 @@ namespace ChaosTest {
 
 		Module->DestroySolver(Solver);
 	}
+
+	GTEST_TEST(RewindTest,ResimDesyncAfterMissingTeleport)
+	{
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+
+		Solver->EnableRewindCapture(7);
+
+		// Make particles
+		auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
+
+		Particle->SetGeometry(Sphere);
+		Solver->RegisterObject(Particle.Get());
+		Particle->SetGravityEnabled(true);
+
+		const int LastStep = 11;
+		TArray<FVec3> X;
+
+		for(int Step = 0; Step <= LastStep; ++Step)
+		{
+			if(Step == 7)
+			{
+				Particle->SetX(FVec3(0,0,5));
+			}
+
+			if(Step == 9)
+			{
+				Particle->SetX(FVec3(0,0,1));
+			}
+			X.Add(Particle->X());
+			TickSolverHelper(Module,Solver);
+		}
+		X.Add(Particle->X());
+
+		const int RewindStep = 5;
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
+		{
+			FGeometryParticleState FutureState(*Particle);
+			EXPECT_EQ(RewindData->GetFutureStateAtFrame(FutureState,Step+1), Step < 10 ? EFutureQueryResult::Ok : EFutureQueryResult::Desync);
+			if(Step < 10)
+			{
+				EXPECT_EQ(X[Step+1][2],FutureState.X()[2]);
+			}
+
+			if(Step == 7)
+			{
+				Particle->SetX(FVec3(0,0,5));
+			}
+
+			//skip step 9 SetX to trigger a desync
+
+			TickSolverHelper(Module,Solver);
+
+			//can't compare future with end of frame because we overwrite the result
+			if(Step != 6 && Step != 8 && Step < 9)
+			{
+				EXPECT_EQ(Particle->X()[2],FutureState.X()[2]);
+			}
+		}
+
+		// Throw out the proxy
+		Solver->UnregisterObject(Particle.Get());
+
+		Module->DestroySolver(Solver);
+	}
 }
