@@ -146,6 +146,11 @@ bool FDMXProtocolUniverseSACN::ReceiveDMXBuffer()
 
 void FDMXProtocolUniverseSACN::Tick(float DeltaTime)
 {
+	if (!bIsTicking)
+	{
+		return;
+	}
+
 	if (TimeWithoutInputBufferRequestStart > TimeWithoutInputBufferRequestEnd)
 	{
 		// Stop listening and destroy the socket
@@ -160,16 +165,6 @@ void FDMXProtocolUniverseSACN::Tick(float DeltaTime)
 
 		TimeWithoutInputBufferRequestStart = FPlatformTime::Seconds();
 	}
-}
-
-bool FDMXProtocolUniverseSACN::IsTickable() const
-{
-	return bIsTicking;
-}
-
-TStatId FDMXProtocolUniverseSACN::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(FDMXProtocolUniverseSACN, STATGROUP_Tickables);
 }
 
 void FDMXProtocolUniverseSACN::OnNetworkInterfaceChanged(const FString& InInterfaceIPAddress)
