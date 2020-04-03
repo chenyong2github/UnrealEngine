@@ -13,11 +13,11 @@ struct FNDIStaticMeshSectionFilter;
 struct FStaticMeshFilteredAreaWeightedSectionSampler : FStaticMeshAreaWeightedSectionSampler
 {
 	FStaticMeshFilteredAreaWeightedSectionSampler();
-	void Init(FStaticMeshLODResources* InRes, FNDIStaticMesh_InstanceData* InOwner);
+	void Init(const FStaticMeshLODResources* InRes, FNDIStaticMesh_InstanceData* InOwner);
 	virtual float GetWeights(TArray<float>& OutWeights)override;
 
 protected:
-	FStaticMeshLODResources* Res;
+	TRefCountPtr<const FStaticMeshLODResources> Res;
 	FNDIStaticMesh_InstanceData* Owner;
 };
 
@@ -46,7 +46,7 @@ public:
 
 	virtual ~FStaticMeshGpuSpawnBuffer();
 
-	void Initialise(const FStaticMeshLODResources& Res, const UNiagaraDataInterfaceStaticMesh& Interface,
+	void Initialise(const FStaticMeshLODResources* Res, const UNiagaraDataInterfaceStaticMesh& Interface,
 		bool bIsGpuUniformlyDistributedSampling, const TArray<int32>& ValidSection, const FStaticMeshFilteredAreaWeightedSectionSampler& SectionSampler);
 
 	virtual void InitRHI() override;
@@ -79,7 +79,7 @@ protected:
 	};
 
 	// Cached pointer to Section render data used for initialization only.
-	const FStaticMeshLODResources* SectionRenderData = nullptr;
+	TRefCountPtr<const FStaticMeshLODResources> SectionRenderData = nullptr;
 
 	TArray<SectionInfo> ValidSections;					// Only the section we want to spawn from
 
@@ -139,6 +139,11 @@ struct FNDIStaticMesh_InstanceData
 	/** Cached change id off of the data interface.*/
 	uint32 ChangeId;
 
+	/** The MinLOD, see UStaticMesh::MinLOD which is platform specific.*/
+	int32 MinLOD = 0;
+	/** The cached LODIdx used to initialize the FNDIStaticMesh_InstanceData.*/
+	int32 CachedLODIdx = 0;
+
 	FORCEINLINE UStaticMesh* GetActualMesh()const { return Mesh; }
 	FORCEINLINE bool UsesCpuUniformlyDistributedSampling() const { return bIsCpuUniformlyDistributedSampling; }
 	FORCEINLINE bool MeshHasPositions()const { return Mesh && Mesh->RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer.GetNumVertices() > 0; }
@@ -155,6 +160,11 @@ struct FNDIStaticMesh_InstanceData
 	FORCEINLINE_DEBUGGABLE bool Init(UNiagaraDataInterfaceStaticMesh* Interface, FNiagaraSystemInstance* SystemInstance);
 	FORCEINLINE_DEBUGGABLE bool Tick(UNiagaraDataInterfaceStaticMesh* Interface, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds);
 	FORCEINLINE_DEBUGGABLE void Release();
+
+	FORCEINLINE const FStaticMeshLODResources* GetCurrentFirstLOD()
+	{
+		return Mesh->RenderData->GetCurrentFirstLOD(MinLOD);
+	}
 };
 
 /** Data Interface allowing sampling of static meshes. */
@@ -298,13 +308,13 @@ protected:
 private:
 	
 	template<typename TSampleMode, bool bFiltered>
-	FORCEINLINE_DEBUGGABLE int32 RandomSection(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData);
+	FORCEINLINE_DEBUGGABLE int32 RandomSection(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData);
 
 	template<typename TSampleMode, bool bFiltered>
-	FORCEINLINE_DEBUGGABLE int32 RandomTriIndex(FRandomStream& RandStream, FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData);
+	FORCEINLINE_DEBUGGABLE int32 RandomTriIndex(FRandomStream& RandStream, const FStaticMeshLODResources& Res, FNDIStaticMesh_InstanceData* InstData);
 
 	template<typename TSampleMode>
-	FORCEINLINE_DEBUGGABLE int32 RandomTriIndexOnSection(FRandomStream& RandStream, FStaticMeshLODResources& Res, int32 SectionIdx, FNDIStaticMesh_InstanceData* InstData);
+	FORCEINLINE_DEBUGGABLE int32 RandomTriIndexOnSection(FRandomStream& RandStream, const FStaticMeshLODResources& Res, int32 SectionIdx, FNDIStaticMesh_InstanceData* InstData);
 
 	void WriteTransform(const FMatrix& ToWrite, FVectorVMContext& Context);
 };

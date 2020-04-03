@@ -353,6 +353,22 @@ FIndexBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Async()
 	return CreateRHIBuffer_Internal<false>();
 }
 
+void FRawStaticIndexBuffer::CopyRHIForStreaming(const FRawStaticIndexBuffer& Other, bool InAllowCPUAccess)
+{
+	// Copy serialized properties.
+	CachedNumIndices = Other.CachedNumIndices;
+	b32Bit = Other.b32Bit;
+
+	// Handle CPU access.
+	if (InAllowCPUAccess)
+	{
+		IndexStorage = Other.IndexStorage;
+	}
+
+	// Copy resource references.
+	IndexBufferRHI = Other.IndexBufferRHI;
+}
+
 void FRawStaticIndexBuffer::InitRHI()
 {
 	IndexBufferRHI = CreateRHIBuffer_RenderThread();
