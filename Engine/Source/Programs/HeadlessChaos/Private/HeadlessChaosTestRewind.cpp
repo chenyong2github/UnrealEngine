@@ -672,8 +672,7 @@ namespace ChaosTest {
 				}
 				else
 				{
-					//todo: desync from lack of input
-					//EXPECT_EQ(KinFutureStatus,EFutureQueryResult::Desync);
+					EXPECT_EQ(KinFutureStatus,EFutureQueryResult::Desync);
 				}
 			}
 		}
@@ -693,8 +692,7 @@ namespace ChaosTest {
 			}
 			else
 			{
-				//todo: desync from lack of input
-				//EXPECT_EQ(KinState.X()[2],50);	//in resim we didn't do second move, so recorded data must be updated
+				EXPECT_EQ(KinState.X()[2],50);	//in resim we didn't do second move, so recorded data must be updated
 			}
 		}
 
