@@ -291,14 +291,14 @@ void FEngineAnalytics::Initialize()
 		// Create the session manager singleton
 		if (!SessionManager.IsValid())
 		{
-			SessionManager = MakeShareable(new FEngineSessionManager(EEngineSessionManagerMode::Editor));
+			SessionManager = MakeShared<FEngineSessionManager>(EEngineSessionManagerMode::Editor);
 			SessionManager->Initialize();
 		}
 
 #if WITH_EDITOR
 		if (!SessionSummaryWriter.IsValid())
 		{
-			SessionSummaryWriter = MakeShareable(new FEditorSessionSummaryWriter());
+			SessionSummaryWriter = MakeShared<FEditorSessionSummaryWriter>(FGenericCrashContext::GetOutOfProcessCrashReporterProcessId());
 			SessionSummaryWriter->Initialize();
 		}
 

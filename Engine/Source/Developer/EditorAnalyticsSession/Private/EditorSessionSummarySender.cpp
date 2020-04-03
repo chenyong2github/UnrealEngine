@@ -27,7 +27,7 @@ namespace EditorSessionSenderDefs
 	static const FString AbnormalSessionToken(TEXT("AbnormalShutdown"));
 }
 
-FEditorSessionSummarySender::FEditorSessionSummarySender(IAnalyticsProviderET& InAnalyticsProvider, const FString& InSenderName, const int32 InCurrentSessionProcessId)
+FEditorSessionSummarySender::FEditorSessionSummarySender(IAnalyticsProviderET& InAnalyticsProvider, const FString& InSenderName, const uint32 InCurrentSessionProcessId)
 	: HeartbeatTimeElapsed(0.0f)
 	, AnalyticsProvider(InAnalyticsProvider)
 	, Sender(InSenderName)
@@ -56,53 +56,13 @@ void FEditorSessionSummarySender::Shutdown()
 	SendStoredSessions(/*bForceSendCurrentSession*/true);
 }
 
-void FEditorSessionSummarySender::SetCurrentSessionExitCode(const int32 InCurrentSessionProcessId, const int32 InExitCode)
-{
-	check(CurrentSessionProcessId == InCurrentSessionProcessId);
-	CurrentSessionExitCode = InExitCode;
-}
-
-bool FEditorSessionSummarySender::FindCurrentSession(FEditorAnalyticsSession& OutSession) const
-{
-	if (FPlatformProcess::IsApplicationRunning(CurrentSessionProcessId))
-	{
-		// still running, can't be abnormal termination
-		return false;
-	}
-
-	bool bFound = false;
-
-	if (FEditorAnalyticsSession::Lock(FTimespan::FromMilliseconds(100)))
-	{
-		TArray<FEditorAnalyticsSession> ExistingSessions;
-		FEditorAnalyticsSession::LoadAllStoredSessions(ExistingSessions);
-
-		const int32 ProcessID = CurrentSessionProcessId;
-		FEditorAnalyticsSession* CurrentSession = ExistingSessions.FindByPredicate(
-			[ProcessID](const FEditorAnalyticsSession& Session)
-			{
-				return Session.PlatformProcessID == ProcessID;
-			});
-
-		if (CurrentSession != nullptr)
-		{
-			OutSession = *CurrentSession;
-			bFound = true;
-		}
-
-		FEditorAnalyticsSession::Unlock();
-	}
-
-	return bFound;
-}
-
-void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendCurrentSession) const
+void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendOwnedSession) const
 {
 	// Load the list of sessions to process. Expect contention on the analytic session lock between the Editor and CrashReportClientEditor (on windows) or between Editor instances (on mac/linux)
 	//   - Try every 'n' seconds if bForceSendCurrentSession is true.
 	//   - Don't block and don't loop if bForceSendCurrentSession is false.
 	TArray<FEditorAnalyticsSession> SessionsToReport;
-	FTimespan Timemout(bForceSendCurrentSession ? FTimespan::FromSeconds(0.5) : FTimespan::Zero());
+	FTimespan Timemout(bForceSendOwnedSession ? FTimespan::FromSeconds(5) : FTimespan::Zero());
 	bool bSessionsLoaded = false;
 	do
 	{
@@ -114,14 +74,25 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendCurren
 
 			TArray<FEditorAnalyticsSession> SessionsToDelete;
 
+			// Whether this summary sender instance was tasked to send the specified session.
+			auto HasOwnershipOf = [this](const FEditorAnalyticsSession& InSession) { return InSession.PlatformProcessID == CurrentSessionProcessId; };
+
+			// Whether the process(es) writing and/or sending the specified session are all dead (and cannot write or send the session anymore).
+			auto IsOrphan = [](const FEditorAnalyticsSession& InSession) { return !FPlatformProcess::IsApplicationRunning(InSession.PlatformProcessID) && (InSession.MonitorProcessID == 0 || !FPlatformProcess::IsApplicationRunning(InSession.MonitorProcessID)); };
+
 			// Check each stored session to see if they should be sent or not
 			for (FEditorAnalyticsSession& Session : ExistingSessions)
 			{
-				const bool bForceSendSession = bForceSendCurrentSession && (Session.PlatformProcessID == CurrentSessionProcessId);
-				if (!bForceSendSession && FPlatformProcess::IsApplicationRunning(Session.PlatformProcessID))
+				if (HasOwnershipOf(Session)) // This process was configured to send this session.
 				{
-					// Skip processes that are still running
-					continue;
+					if (!bForceSendOwnedSession) // Don't send until forced to (on shutdown).
+					{
+						continue;
+					}
+				}
+				else if (!IsOrphan(Session))
+				{
+					continue; // Skip, another process is in charge of sending this session.
 				}
 
 				const FTimespan SessionAge = FDateTime::UtcNow() - Session.Timestamp;
@@ -132,6 +103,8 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendCurren
 				SessionsToDelete.Add(Session);
 			}
 
+			// NOTE: The sessions are deleted before sending (while holding the lock) to prevent another process from finding and sending the same orphan sessions twice.
+			//       This also ensures a session will never be sent twice in case a crash occurs while sending, but all sessions loaded in memory for sending will also be lost.
 			for (const FEditorAnalyticsSession& ToDelete : SessionsToDelete)
 			{
 				ToDelete.Delete();
@@ -150,8 +123,9 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendCurren
 			FEditorAnalyticsSession::Unlock();
 			bSessionsLoaded = true;
 		}
-	} while (bForceSendCurrentSession && !bSessionsLoaded); // Retry until session are loaded if the sender is forced to send the current session.
+	} while (bForceSendOwnedSession && !bSessionsLoaded); // Retry until session are loaded if the sender is forced to send the current session.
 
+	// Send the sessions (without holding the lock).
 	for (const FEditorAnalyticsSession& Session : SessionsToReport)
 	{
 		SendSessionSummaryEvent(Session);
@@ -227,13 +201,14 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("IsLowDriveSpace"), Session.bIsLowDriveSpace);
 	AnalyticsAttributes.Emplace(TEXT("SentFrom"), Sender);
 
-	// was this sent from some other process than itself or the out-of-process monitor for that run?
-	AnalyticsAttributes.Emplace(TEXT("DelayedSend"), Session.PlatformProcessID != CurrentSessionProcessId);
-
-	if (Session.PlatformProcessID == CurrentSessionProcessId && CurrentSessionExitCode.IsSet())
+	// Add the exit code to the report if it was set by out-of-process monitor (CrashReportClientEditor).
+	if (Session.ExitCode.IsSet())
 	{
-		AnalyticsAttributes.Emplace(TEXT("ExitCode"), CurrentSessionExitCode.GetValue());
+		AnalyticsAttributes.Emplace(TEXT("ExitCode"), Session.ExitCode.GetValue());
 	}
+
+	// Was this summary produced by another process than itself or the out-of-process monitor for that run?
+	AnalyticsAttributes.Emplace(TEXT("DelayedSend"), Session.PlatformProcessID != CurrentSessionProcessId);
 
 	// Sending the summary event of the current process analytic session?
 	if (AnalyticsProvider.GetSessionID().Contains(Session.SessionId)) // The string (GUID) returned by GetSessionID() is surrounded with braces like "{3FEA3232-...}" while Session.SessionId is not -> "3FEA3232-..."
