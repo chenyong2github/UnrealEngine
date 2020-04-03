@@ -272,12 +272,14 @@ private:
 	FName AudioComponentName;
 	FName OwnerName;
 
+	uint32 PlayOrder;
 
 public:
 	// ISoundModulatable Implementation
 	USoundModulationPluginSourceSettingsBase* FindModulationSettings() const override;
 	uint32 GetObjectId() const override { return Sound ? Sound->GetUniqueID() : INDEX_NONE; }
 	int32 GetPlayCount() const override;
+	uint32 GetPlayOrder() const { return PlayOrder; }
 	bool IsPreviewSound() const override { return bIsPreviewSound; }
 	void Stop() override;
 

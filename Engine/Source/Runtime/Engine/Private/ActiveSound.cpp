@@ -99,6 +99,9 @@ FActiveSound::FActiveSound()
 	, DebugColor(FColor::Black)
 #endif // ENABLE_AUDIO_DEBUG
 {
+	static uint32 TotalPlayOrder = 0;
+	PlayOrder = TotalPlayOrder++;
+
 	if (!ActiveSoundTraceDelegate.IsBound())
 	{
 		ActiveSoundTraceDelegate.BindStatic(&OcclusionTraceDone);
@@ -1492,7 +1495,7 @@ float FActiveSound::GetHighestPriority(bool bIgnoreAlwaysPlay) const
 		}
 	}
 
-	const float HighestPriority = Priority * FocusData.PriorityHighest * FocusData.PriorityScale;
+	const float HighestPriority = FocusData.PriorityHighest * FocusData.PriorityScale;
 	return FMath::Clamp(HighestPriority, 0.0f, 100.0f);
 }
 
