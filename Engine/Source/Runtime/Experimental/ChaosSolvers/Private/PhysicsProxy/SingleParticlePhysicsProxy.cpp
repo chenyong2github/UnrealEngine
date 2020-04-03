@@ -75,8 +75,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 		auto NewVelocities = bHasKinematicData ? ParticleData.FindVelocities(Manager, DataIdx) : nullptr;
 		if(NewVelocities)
 		{
-			KinematicHandle->SetV(NewVelocities->V);
-			KinematicHandle->SetW(NewVelocities->W);
+			KinematicHandle->SetVelocities(*NewVelocities);
 		}
 
 		if(NewXR || NewNonFrequentData || NewVelocities)
@@ -129,10 +128,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 		{
 			if(auto NewData = ParticleData.FindDynamics(Manager, DataIdx))
 			{
-				RigidHandle->SetF(NewData->F);
-				RigidHandle->SetTorque(NewData->Torque);
-				RigidHandle->SetLinearImpulse(NewData->LinearImpulse);
-				RigidHandle->SetAngularImpulse(NewData->AngularImpulse);
+				RigidHandle->SetDynamics(*NewData);
 			}
 		}
 
