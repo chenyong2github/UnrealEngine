@@ -374,6 +374,9 @@ public:
 
 	FORCEINLINE int32* GetCycleCounter(bool bGameThread, bool bConcurrent);
 
+#if WITH_EDITOR
+	void SetEffectType(UNiagaraEffectType* EffectType);
+#endif
 	UNiagaraEffectType* GetEffectType()const;
 	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings() { return CurrentScalabilitySettings; }
 	
