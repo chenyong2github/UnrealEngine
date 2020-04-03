@@ -555,16 +555,25 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomUnfilteredBone(FVectorVMContext& C
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutBone(Context);
 
-	const int32 Max = InstData->NumUnfilteredBones - 1;
-	if (Max >= 0)
+	const int32 UnfilteredMax = InstData->NumUnfilteredBones - 1;
+	if (UnfilteredMax >= 0)
 	{
 		if (InstData->NumFilteredBones == 0)
 		{
-			for (int32 i = 0; i < Context.NumInstances; ++i)
+			const int32 ExcludedBoneIndex = InstData->ExcludedBoneIndex;
+			const int32 NumBones = InstData->NumUnfilteredBones - (ExcludedBoneIndex >= 0 ? 2 : 1);
+			if (NumBones >= 0)
 			{
-				RandHelper.GetAndAdvance();
-				const int32 BoneIndex = RandHelper.RandRange(i, 0, Max);
-				*OutBone.GetDestAndAdvance() = BoneIndex;
+				for (int32 i = 0; i < Context.NumInstances; ++i)
+				{
+					RandHelper.GetAndAdvance();
+					const int32 BoneIndex = RandHelper.RandRange(i, 0, NumBones);
+					*OutBone.GetDestAndAdvance() = BoneIndex != ExcludedBoneIndex ? BoneIndex : BoneIndex + 1;
+				}
+			}
+			else
+			{
+				FMemory::Memset(OutBone.GetDest(), 0xFF, Context.NumInstances * sizeof(int32));
 			}
 		}
 		else
@@ -572,7 +581,7 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomUnfilteredBone(FVectorVMContext& C
 			for (int32 i = 0; i < Context.NumInstances; ++i)
 			{
 				RandHelper.GetAndAdvance();
-				const int32 BoneIndex = RandHelper.RandRange(i, 0, Max);
+				const int32 BoneIndex = RandHelper.RandRange(i, 0, UnfilteredMax);
 				*OutBone.GetDestAndAdvance() = InstData->FilteredAndUnfilteredBones[BoneIndex + InstData->NumFilteredBones];
 			}
 		}
@@ -616,13 +625,15 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomBone(FVectorVMContext& Context)
 	FSkeletalMeshAccessorHelper MeshAccessor;
 	MeshAccessor.Init<TIntegralConstant<int32, 0>, TIntegralConstant<int32, 0>>(InstData);
 	const FReferenceSkeleton& RefSkeleton = MeshAccessor.Mesh->RefSkeleton;
-	const int32 NumBones = RefSkeleton.GetNum() - 1;
+	const int32 ExcludedBoneIndex = InstData->ExcludedBoneIndex;
+	const int32 NumBones = RefSkeleton.GetNum() - (ExcludedBoneIndex >= 0 ? 2 : 1);
 	if (NumBones >= 0)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
 			RandHelper.GetAndAdvance();
-			*OutBone.GetDestAndAdvance() = RandHelper.RandRange(i, 0, NumBones);
+			const int32 BoneIndex = RandHelper.RandRange(i, 0, NumBones);
+			*OutBone.GetDestAndAdvance() = BoneIndex != ExcludedBoneIndex ? BoneIndex : BoneIndex + 1;
 		}
 	}
 	else

@@ -470,6 +470,9 @@ struct FNDISkeletalMesh_InstanceData
 	/** Time separating Transform and PrevTransform. */
 	float DeltaSeconds;
 
+	/* Excluded bone for some specific functions, generally the root bone which you don't want to include when picking a random bone. */
+	int32 ExcludedBoneIndex = INDEX_NONE;
+
 	/* Number of filtered bones in the array. */
 	int32 NumFilteredBones = 0;
 	/* Number of unfiltered bones in the array. */
@@ -598,6 +601,16 @@ public:
 	/** Set of filtered sockets that can be used for sampling. Select from these with GetFilteredSocketAt and RandomFilteredSocket. */
 	UPROPERTY(EditAnywhere, Category = "Skeleton")
 	TArray<FName> FilteredSockets;
+
+	/**
+	Optionally remove a single bone from Random / Random Unfiltered access.
+	You can still include this bone in filtered list and access using the direct index functionality.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Skeleton", meta=(EditCondition="bExcludeBone"))
+	FName ExcludeBoneName;
+
+	UPROPERTY(EditAnywhere, Category = "Skeleton", meta = (InlineEditConditionToggle))
+	uint8 bExcludeBone : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** Do we require CPU access to the data, this is set during GetVMExternalFunction. */
