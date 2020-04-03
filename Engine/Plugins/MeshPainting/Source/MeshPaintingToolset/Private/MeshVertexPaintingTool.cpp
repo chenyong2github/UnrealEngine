@@ -100,6 +100,11 @@ void UMeshVertexPaintingTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	FinishPainting();
 	BrushProperties->SaveProperties(this);
+	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
+	if (MeshToolManager)
+	{
+		MeshToolManager->Refresh();
+	}
 	Super::Shutdown(ShutdownType);
 }
 
@@ -551,6 +556,14 @@ void UMeshColorPaintingTool::Setup()
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartColorPaintTool", "Paint vertex colors on selected meshes.  Use the Color View Mode to preview your applied changes."),
 		EToolMessageLevel::UserNotification);
+}
+
+void UMeshColorPaintingTool::Shutdown(EToolShutdownType ShutdownType)
+{
+	//If we're painting vertex colors then propagate the painting done on LOD0 to all lower LODs. 
+	//Then stop forcing the LOD level of the mesh to LOD0.
+	ApplyForcedLODIndex(-1);
+	Super::Shutdown(ShutdownType);
 }
 
 void UMeshColorPaintingTool::CacheSelectionData()
