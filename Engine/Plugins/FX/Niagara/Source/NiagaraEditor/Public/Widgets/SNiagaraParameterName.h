@@ -28,6 +28,7 @@ public:
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, ReadOnlyTextStyle)
 		SLATE_ATTRIBUTE(FName, ParameterName)
 		SLATE_ARGUMENT(bool, IsReadOnly)
+		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_EVENT(FOnVerifyNameChange, OnVerifyNameChange)
 		SLATE_EVENT(FOnNameChanged, OnNameChanged)
 		SLATE_EVENT(FIsSelected, IsSelected)
@@ -68,6 +69,7 @@ private:
 	const FTextBlockStyle* ReadOnlyTextStyle;
 	TAttribute<FName> ParameterName;
 	bool bIsReadOnly;
+	TAttribute<FText> HighlightText;
 	FOnVerifyNameChange OnVerifyNameChangeDelegate;
 	FOnNameChanged OnNameChangedDelegate;
 	FPointerEventHandler OnDoubleClickedDelegate;
@@ -89,6 +91,7 @@ public:
 		SLATE_ATTRIBUTE(FText, ParameterText)
 		SLATE_STYLE_ARGUMENT(FInlineEditableTextBlockStyle, EditableTextStyle)
 		SLATE_ARGUMENT(bool, IsReadOnly)
+		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_EVENT(FOnVerifyTextChanged, OnVerifyTextChanged)
 		SLATE_EVENT(FOnTextCommitted, OnTextCommitted)
 		SLATE_EVENT(FIsSelected, IsSelected)
