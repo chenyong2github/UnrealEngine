@@ -208,7 +208,7 @@ public:
 	static const FOpenColorIOShaderMap* GetShaderMapBeingCompiled(const FOpenColorIOTransformResource* InColorTransform);
 
 	/** Serializes the shader map. */
-	void Serialize(FArchive& Ar, bool bInlineShaderResources = true);
+	bool Serialize(FArchive& Ar, bool bInlineShaderResources = true);
 
 	/** Saves this shader map to the derived data cache. */
 	void SaveToDerivedDataCache();
