@@ -224,7 +224,7 @@ class ENGINE_API USoundClass : public UObject
 	FSoundModulation Modulation;
 
 public:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = General)
 	USoundClass* ParentClass;
 
 #if WITH_EDITORONLY_DATA
