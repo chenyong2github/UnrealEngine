@@ -1481,7 +1481,10 @@ void FSlateApplication::TickApplication(ESlateTickType TickType, float DeltaTime
 		bIsSlateAsleep = true;
 		if	(!AllowSlateToSleep.GetValueOnGameThread() || bAnyActiveTimersPending || !bIsUserIdle || bSynthesizedCursorMove || FApp::UseVRFocus())
 		{
-			ForEachUser([](FSlateUser& User) { User.QueueSyntheticCursorMove(); });
+			if (!bSynthesizedCursorMove)
+			{
+				ForEachUser([](FSlateUser& User) { User.QueueSyntheticCursorMove(); });
+			}
 
 			bIsSlateAsleep = false; // if we get here, then Slate is not sleeping
 
