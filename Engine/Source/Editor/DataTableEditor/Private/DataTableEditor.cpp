@@ -145,8 +145,6 @@ FDataTableEditor::~FDataTableEditor()
 	if (Table)
 	{
 		SaveLayoutData();
-
-		Table->OnDataTableImported().RemoveAll(this);
 	}
 }
 
@@ -207,8 +205,8 @@ void FDataTableEditor::PostChange(const UDataTable* Changed, FDataTableEditorUti
 	UDataTable* Table = GetEditableDataTable();
 	if (Changed == Table)
 	{
+		// Don't need to notify the DataTable about changes, that's handled before this
 		HandlePostChange();
-		Table->OnDataTableChanged().Broadcast();
 	}
 }
 
@@ -283,9 +281,6 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 	ToolkitCommands->MapAction(FGenericCommands::Get().Duplicate, FExecuteAction::CreateSP(this, &FDataTableEditor::DuplicateSelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Rename, FExecuteAction::CreateSP(this, &FDataTableEditor::RenameSelectedRowCommand));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Delete, FExecuteAction::CreateSP(this, &FDataTableEditor::DeleteSelectedRow));
-
-	Table->OnDataTableImported().AddSP(this, &FDataTableEditor::ImportDataTableUpdate);
-
 }
 
 FName FDataTableEditor::GetToolkitFName() const
@@ -848,6 +843,9 @@ void FDataTableEditor::PasteOnSelectedRow()
 
 	const TCHAR* Result = TablePtr->RowStruct->ImportText(*ClipboardValue, RowPtr, TablePtr, PPF_Copy, GWarn, GetPathNameSafe(TablePtr->RowStruct));
 
+	TablePtr->HandleDataTableChanged(HighlightedRowName);
+	TablePtr->MarkPackageDirty();
+
 	FDataTableEditorUtils::BroadcastPostChange(TablePtr, FDataTableEditorUtils::EDataTableChangeInfo::RowData);
 
 	if (Result == nullptr)
@@ -1152,16 +1150,6 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 	if (PropertyView.IsValid())
 	{
 		PropertyView->SetObject(Table);
-	}
-}
-
-void FDataTableEditor::ImportDataTableUpdate()
-{
-	UDataTable* Table = GetEditableDataTable();
-
-	if (Table)
-	{
-		FDataTableEditorUtils::FDataTableEditorManager::Get().PostChange(Table, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 	}
 }
 

@@ -48,7 +48,7 @@ namespace
 			--Count;
 			if (Count == 0)
 			{
-				Table->OnDataTableChanged().Broadcast();
+				Table->HandleDataTableChanged();
 				ScopeCount.Remove(Table);
 			}
 		}
@@ -84,7 +84,7 @@ void UDataTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 #if WITH_EDITORONLY_DATA
-	OnDataTableChanged().Broadcast();
+	HandleDataTableChanged();
 #endif
 }
 #endif
@@ -182,9 +182,9 @@ void UDataTable::OnPostDataImported(TArray<FString>& OutCollectedImportProblems)
 		{
 			if (bIsNativeRowStruct)
 			{
-			FTableRowBase* CurRow = reinterpret_cast<FTableRowBase*>(TableRowPair.Value);
-			CurRow->OnPostDataImport(this, TableRowPair.Key, OutCollectedImportProblems);
-		}
+				FTableRowBase* CurRow = reinterpret_cast<FTableRowBase*>(TableRowPair.Value);
+				CurRow->OnPostDataImport(this, TableRowPair.Key, OutCollectedImportProblems);
+			}
 
 #if WITH_EDITOR
 			// Perform automatic fix-up on any text properties that have been imported from a raw string to assign them deterministic keys
@@ -193,8 +193,39 @@ void UDataTable::OnPostDataImported(TArray<FString>& OutCollectedImportProblems)
 #endif
 		}
 	}
+	
+	// Don't need to call HandleDataTableChanged because it gets called by the scope and post edit callbacks
+	// If you need to handle an import-specific problem, register with FDataTableEditorUtils
+}
 
-	OnDataTableImported().Broadcast();
+void UDataTable::HandleDataTableChanged(FName ChangedRowName)
+{
+	if (IsPendingKillOrUnreachable() || HasAnyFlags(RF_BeginDestroyed))
+	{
+		// This gets called during destruction, don't broadcast callbacks
+		return;
+	}
+
+	// Do the row fixup before global callback
+	if (RowStruct)
+	{
+		const bool bIsNativeRowStruct = RowStruct->IsChildOf(FTableRowBase::StaticStruct());
+
+		if (bIsNativeRowStruct)
+		{
+			for (const TPair<FName, uint8*>& TableRowPair : RowMap)
+			{
+				if (ChangedRowName != NAME_None && ChangedRowName != TableRowPair.Key)
+				{
+					continue;
+				}
+
+				FTableRowBase* CurRow = reinterpret_cast<FTableRowBase*>(TableRowPair.Value);
+				CurRow->OnDataTableChanged(this, TableRowPair.Key);
+			}
+		}
+	}
+
 	OnDataTableChanged().Broadcast();
 }
 
@@ -761,8 +792,6 @@ TArray<FString> UDataTable::CreateTableFromOtherTable(const UDataTable* InTable)
 		EmptyUsingStruct.CopyScriptStruct(NewRawRowData, RowMapIter.Value());
 		RowMap.Add(RowMapIter.Key(), NewRawRowData);
 	}
-
-	OnDataTableChanged().Broadcast();
 
 	return OutProblems;
 }
