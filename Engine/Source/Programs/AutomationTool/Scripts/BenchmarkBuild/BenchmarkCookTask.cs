@@ -81,12 +81,16 @@ namespace AutomationTool.Benchmark
 			if (TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
 			{
 				ExtraArgsList.Add("noshaderddc");
-				//ExtraArgs.Add("noxgeshadercompile");
 			}
 
 			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
 			{
 				ExtraArgsList.Add("ddc=noshared");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoXGE))
+			{
+				ExtraArgsList.Add("noxgeshadercompile");
 			}
 
 			string ExtraArgs = "";
