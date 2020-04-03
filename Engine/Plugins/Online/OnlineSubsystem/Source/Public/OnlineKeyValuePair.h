@@ -64,6 +64,59 @@ namespace EOnlineKeyValuePairDataType
 			return TEXT("");
 		}		
 	}
+
+	/** @return the correspondent enum for the stringified version passed in */
+	inline EOnlineKeyValuePairDataType::Type FromString(const FString& EnumStr)
+	{
+		if (EnumStr.Equals(TEXT("Empty"),ESearchCase::IgnoreCase))
+		{
+			return Empty;
+		}
+		else if (EnumStr.Equals(TEXT("Int32"),ESearchCase::IgnoreCase))
+		{
+			return Int32;
+		}
+		else if (EnumStr.Equals(TEXT("UInt32"),ESearchCase::IgnoreCase))
+		{
+			return UInt32;
+		}
+		else if (EnumStr.Equals(TEXT("Int64"),ESearchCase::IgnoreCase))
+		{
+			return Int64;
+		}
+		else if (EnumStr.Equals(TEXT("UInt64"),ESearchCase::IgnoreCase))
+		{
+			return UInt64;
+		}
+		else if (EnumStr.Equals(TEXT("Double"),ESearchCase::IgnoreCase))
+		{
+			return Double;
+		}
+		else if (EnumStr.Equals(TEXT("String"),ESearchCase::IgnoreCase))
+		{
+			return String;
+		}
+		else if (EnumStr.Equals(TEXT("Float"),ESearchCase::IgnoreCase))
+		{
+			return Float;
+		}
+		else if (EnumStr.Equals(TEXT("Blob"),ESearchCase::IgnoreCase))
+		{
+			return Blob;
+		}
+		else if (EnumStr.Equals(TEXT("Bool"),ESearchCase::IgnoreCase))
+		{
+			return Bool;
+		}
+		else if (EnumStr.Equals(TEXT("Json"),ESearchCase::IgnoreCase))
+		{
+			return Json;
+		}
+		else
+		{
+			return MAX;
+		}
+	}
 }
 
 /**
