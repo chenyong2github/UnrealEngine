@@ -1747,14 +1747,14 @@ void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, const UObje
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
 		}
 		else if (Prop->IsA(FArrayProperty::StaticClass()) || Prop->IsA(FMapProperty::StaticClass()) || Prop->IsA(FSetProperty::StaticClass())
-			|| Prop->IsA(FStructProperty::StaticClass()) || Prop->IsA(FObjectPropertyBase::StaticClass()))
+			|| Prop->IsA(FStructProperty::StaticClass()))
 		{
-			// Arrays/maps/sets/structs/objects are hidden, it is often too much information to display and sort
+			// Arrays/maps/sets/structs are hidden, it is often too much information to display and sort
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Hidden;
 		}
 		else
 		{
-			// All other types are alphabetical
+			// All other types are alphabetical, there are special UI parsers for object properties
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
 		}
 	}
