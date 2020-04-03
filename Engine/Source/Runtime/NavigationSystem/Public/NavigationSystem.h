@@ -1089,6 +1089,9 @@ protected:
 
 	virtual void SpawnMissingNavigationData();
 
+public:
+	void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
+
 protected:
 	virtual void RebuildDirtyAreas(float DeltaSeconds);
 

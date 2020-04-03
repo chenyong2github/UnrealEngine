@@ -152,10 +152,10 @@ public:
 
 	void SetDataGatheringMode(ENavDataGatheringModeConfig Mode);
 	
-	// @hack! TO BE FIXED
-	void DemandLazyDataGathering(const FNavigationOctreeElement& Element);
+	// Lazy data gathering methods
+	bool IsLazyGathering(const INavRelevantInterface& ChildNavInterface) const;
 	void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
-
+	void DemandChildLazyDataGathering(FNavigationRelevantData& ElementData, INavRelevantInterface& ChildNavInterface);
 
 	FORCEINLINE static uint32 HashObject(const UObject& Object)
 	{

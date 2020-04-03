@@ -82,10 +82,22 @@ void FNavigationOctree::DemandLazyDataGathering(FNavigationRelevantData& Element
 	INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, ElementMemoryChange);
 }
 
-void FNavigationOctree::DemandLazyDataGathering(const FNavigationOctreeElement& Element)
+void FNavigationOctree::DemandChildLazyDataGathering(FNavigationRelevantData& ElementData, INavRelevantInterface& ChildNavInterface)
 {
-	FNavigationRelevantData& MutableData = const_cast<FNavigationRelevantData&>(*Element.Data);
-	DemandLazyDataGathering(MutableData);
+	if (IsLazyGathering(ChildNavInterface))
+	{
+		ChildNavInterface.GetNavigationData(ElementData);
+		ElementData.ValidateAndShrink();
+	}
+}
+
+bool FNavigationOctree::IsLazyGathering(const INavRelevantInterface& ChildNavInterface) const
+{
+	const ENavDataGatheringMode GatheringMode = ChildNavInterface.GetGeometryGatheringMode();
+	const bool bDoInstantGathering = ((GatheringMode == ENavDataGatheringMode::Default && DefaultGeometryGatheringMode == ENavDataGatheringMode::Instant)
+		|| GatheringMode == ENavDataGatheringMode::Instant);
+
+	return !bDoInstantGathering;
 }
 
 void FNavigationOctree::AddNode(UObject* ElementOb, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Element)
@@ -95,9 +107,7 @@ void FNavigationOctree::AddNode(UObject* ElementOb, INavRelevantInterface* NavEl
 
 	if (NavElement)
 	{
-		const ENavDataGatheringMode GatheringMode = NavElement->GetGeometryGatheringMode();
-		bool bDoInstantGathering = ((GatheringMode == ENavDataGatheringMode::Default && DefaultGeometryGatheringMode == ENavDataGatheringMode::Instant) 
-			|| GatheringMode == ENavDataGatheringMode::Instant);
+		const bool bDoInstantGathering = !IsLazyGathering(*NavElement);
 
 		if (bGatherGeometry)
 		{
@@ -149,7 +159,16 @@ void FNavigationOctree::AppendToNode(const FOctreeElementId& Id, INavRelevantInt
 	if (NavElement)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Navigation_GatheringNavigationModifiersSync);
-		NavElement->GetNavigationData(*Element.Data);
+		const bool bDoInstantGathering = !IsLazyGathering(*NavElement);
+
+		if (bDoInstantGathering)
+		{
+			NavElement->GetNavigationData(*Element.Data);
+		}
+		else
+		{
+			Element.Data->bPendingChildLazyModifiersGathering = true;
+		}
 	}
 
 	// validate exported data
