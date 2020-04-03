@@ -610,9 +610,9 @@ namespace WindowsMixedReality
 	void FWindowsMixedRealityHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
 	{
 #if WITH_WINDOWS_MIXED_REALITY
+		HMD->BlockUntilNextFrame();
 		HMD->UpdateRenderThreadFrame();
 		InitTrackingFrame();
-		HMD->BlockUntilNextFrame();
 
 		if (SpectatorScreenController)
 		{
