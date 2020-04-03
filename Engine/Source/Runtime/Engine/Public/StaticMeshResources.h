@@ -561,7 +561,7 @@ private:
 	friend class FStaticMeshRenderData;
 	friend class FStaticMeshStreamIn;
 	friend class FStaticMeshStreamIn_IO;
-	friend class FStaticMeshStreamOut_DDC;
+	friend class FStaticMeshStreamOut;
 };
 
 struct ENGINE_API FStaticMeshVertexFactories

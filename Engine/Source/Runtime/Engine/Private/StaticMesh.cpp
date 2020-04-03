@@ -5615,15 +5615,13 @@ bool UStaticMesh::StreamOut(int32 NewMipCount)
 	check(IsInGameThread());
 	if (bIsStreamable && !PendingUpdate && RenderData.IsValid() && RenderData->bReadyForStreaming && NewMipCount < GetNumResidentMips())
 	{
-#if WITH_EDITOR
-		if (FPlatformProperties::HasEditorOnlyData())
+		if (FPlatformProperties::HasEditorOnlyData() || true) // Temporary disabling the Swap path.
 		{
-			PendingUpdate = new FStaticMeshStreamOut_DDC(this, NewMipCount);
+			PendingUpdate = new FStaticMeshStreamOut(this, NewMipCount);
 		}
 		else
-#endif
 		{
-			PendingUpdate = new FStaticMeshStreamOut_IO(this, NewMipCount);
+			PendingUpdate = new FStaticMeshStreamOut_Swap(this, NewMipCount);
 		}
 		return !PendingUpdate->IsCancelled();
 	}
