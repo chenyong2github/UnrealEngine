@@ -1030,8 +1030,6 @@ void UWorld::SendAllEndOfFrameUpdates()
 			{
 				if (NextComponent->IsRegistered() && !NextComponent->IsTemplate() && !NextComponent->IsPendingKill())
 				{
-					FScopeCycleCounterUObject ComponentScope(NextComponent);
-					FScopeCycleCounterUObject AdditionalScope(STATS ? NextComponent->AdditionalStatObject() : nullptr);
 					NextComponent->DoDeferredRenderUpdates_Concurrent();
 				}
 				check(NextComponent->IsPendingKill() || NextComponent->GetMarkedForEndOfFrameUpdateState() == EComponentMarkedForEndOfFrameUpdateState::Marked);
@@ -1048,8 +1046,6 @@ void UWorld::SendAllEndOfFrameUpdates()
 				{
 					if (Component->IsRegistered() && !Component->IsTemplate() && !Component->IsPendingKill())
 					{
-						FScopeCycleCounterUObject ComponentScope(Component);
-						FScopeCycleCounterUObject AdditionalScope(STATS ? Component->AdditionalStatObject() : nullptr);
 						Component->DoDeferredRenderUpdates_Concurrent();
 					}
 
