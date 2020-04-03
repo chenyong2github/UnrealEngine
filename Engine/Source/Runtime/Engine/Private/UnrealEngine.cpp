@@ -395,6 +395,11 @@ ENGINE_API FString GPlayInEditorContextString(TEXT("invalid"));
 ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldContext)
 {
 #if WITH_EDITOR
+	if (!GIsEditor)
+	{
+		return;
+	}
+
 	if (WorldContext == nullptr)
 	{
 		ensure(GPlayInEditorID == INDEX_NONE);
