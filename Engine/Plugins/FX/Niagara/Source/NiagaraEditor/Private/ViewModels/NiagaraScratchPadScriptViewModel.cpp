@@ -8,6 +8,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraEditorModule.h"
 
 #include "ObjectTools.h"
 #include "ScopedTransaction.h"
@@ -47,8 +48,11 @@ void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script)
 	OnGraphNeedsRecompileHandle = EditScriptSource->NodeGraph->AddOnGraphNeedsRecompileHandler(FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptGraphChanged));
 	EditScript->OnPropertyChanged().AddSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged);
 	ParameterPanelCommands = MakeShared<FUICommandList>();
-	ParameterPaneViewModel = MakeShared<FNiagaraScriptToolkitParameterPanelViewModel>(this->AsShared());
-	ParameterPaneViewModel->InitBindings();
+	if (GbShowNiagaraDeveloperWindows)
+	{
+		ParameterPaneViewModel = MakeShared<FNiagaraScriptToolkitParameterPanelViewModel>(this->AsShared());
+		ParameterPaneViewModel->InitBindings();
+	}
 }
 
 void FNiagaraScratchPadScriptViewModel::Finalize()

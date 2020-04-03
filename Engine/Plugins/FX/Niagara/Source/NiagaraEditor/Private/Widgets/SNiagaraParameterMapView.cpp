@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SNiagaraParameterMapView.h"
+#include "Widgets/SNiagaraParameterMapView.h"
 #include "SNiagaraParameterMapPaletteItem.h"
 #include "NiagaraObjectSelection.h"
 #include "Widgets/Images/SImage.h"
@@ -472,7 +472,10 @@ void SNiagaraParameterMapView::OnActionSelected(const TArray< TSharedPtr<FEdGrap
 	
 	// If a variable wasn't selected just clear the current selection
 	// TODO: Get proper clearing to work. Current there's no way to clear while clicking on an empty location in the graph area
-	SelectedVariableObjects->ClearSelectedObjects();
+	if (SelectedVariableObjects.IsValid())
+	{
+		SelectedVariableObjects->ClearSelectedObjects();
+	}
 }
 
 void SNiagaraParameterMapView::OnActionDoubleClicked(const TArray< TSharedPtr<FEdGraphSchemaAction> >& InActions)
