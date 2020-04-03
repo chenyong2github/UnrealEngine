@@ -76,4 +76,6 @@ void FRDGPass::Execute(FRHICommandListImmediate& RHICmdList) const
 	{
 		RHICmdList.SetGlobalUniformBuffers({});
 	}
+
+	ParameterStruct.ClearUniformBuffers();
 }
