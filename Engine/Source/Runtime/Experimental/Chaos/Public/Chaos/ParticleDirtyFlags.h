@@ -19,18 +19,47 @@ namespace Chaos
 
 struct FParticlePositionRotation
 {
-	FVec3 X;
-	FRotation3 R;
-
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << X << R;
+		Ar << MX << MR;
+	}
+
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
+	{
+		MX = Other.X();
+		MR = Other.R();
+	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return MX == Other.X() && MR == Other.R();
 	}
 
 	bool operator==(const FParticlePositionRotation& Other) const
 	{
-		return X == Other.X && R == Other.R;
+		return IsEqual(Other);
 	}
+
+	//API for templated code
+	const FVec3& X() const { return MX; }
+	const FRotation3& R() const { return MR; }
+
+	void SetX(const FVec3& InX)
+	{
+		MX = InX;
+	}
+
+	void SetR(const FRotation3& InR)
+	{
+		MR = InR;
+	}
+
+private:
+	FVec3 MX;
+	FRotation3 MR;
+
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticlePositionRotation& Data)
