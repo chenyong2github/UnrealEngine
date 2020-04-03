@@ -38,10 +38,14 @@
 #include "Widgets/Layout/SBox.h"
 #include "NiagaraSystemEditorData.h"
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "SNiagaraGraphActionWidget.h"
 #include "NiagaraEditorSettings.h"
 #include "Classes/EditorStyleSettings.h"
 #include "NiagaraEditorStyle.h"
+#include "NiagaraParameterMapHistory.h"
+#include "NiagaraNodeOutput.h"
+#include "NiagaraNodeEmitter.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapView"
 
@@ -210,6 +214,11 @@ SNiagaraParameterMapView::~SNiagaraParameterMapView()
 	}
 
 	EmptyGraphs();
+	if (CachedSystem.IsValid())
+	{
+		CachedSystem->GetExposedParameters().RemoveOnChangedHandler(UserParameterStoreChangedHandle);
+		CachedSystem.Reset();
+	}
 
 	SelectedScriptObjects->OnSelectedObjectsChanged().RemoveAll(this);
 	if (SelectedVariableObjects)
@@ -493,50 +502,16 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 	}
 
 	TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>> ParameterEntries;
-	for (auto& GraphWeakPtr : Graphs)
+	if (ToolkitType == SCRIPT)
 	{
-		if (!GraphWeakPtr.IsValid())
-		{
-			continue;
-		}
-		UNiagaraGraph* Graph = GraphWeakPtr.Get();
-		for (const auto& ParameterElement : Graph->GetParameterReferenceMap())
-		{
-			TArray<FNiagaraGraphParameterReferenceCollection>* Found = ParameterEntries.Find(ParameterElement.Key);
-			if (Found)
-			{
-				Found->Add(ParameterElement.Value);
-			}
-			else
-			{
-				TArray<FNiagaraGraphParameterReferenceCollection> Collection;
-				Collection.Add(ParameterElement.Value);
-				ParameterEntries.Add(ParameterElement.Key, Collection);
-			}
-		}
+		CollectAllActionsForScriptToolkit(ParameterEntries);
 	}
-
-	TSet<UObject*> Objects = SelectedScriptObjects->GetSelectedObjects();
-	for (UObject* Object : Objects)
+	else if (ToolkitType == SYSTEM)
 	{
-		if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Object))
-		{
-			TArray<FNiagaraVariable> ExposedVars;
-			System->GetExposedParameters().GetParameters(ExposedVars);
-			for (const FNiagaraVariable& ExposedVar : ExposedVars)
-			{
-				TArray<FNiagaraGraphParameterReferenceCollection>* Found = ParameterEntries.Find(ExposedVar);
-				if (!Found)
-				{
-					TArray<FNiagaraGraphParameterReferenceCollection> Collection;
-					ParameterEntries.Add(ExposedVar, Collection);
-				}
-			}
-		}
+		CollectAllActionsForSystemToolkit(ParameterEntries);
 	}
 
 	ParameterEntries.KeySort([](const FNiagaraVariable& A, const FNiagaraVariable& B) { return A.GetName().LexicalLess(B.GetName()); });
-
 	const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}");
 	for (const auto& ParameterEntry : ParameterEntries)
 	{
@@ -547,36 +522,167 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 		{
 			continue;
 		}
-		if (!IsSystemToolkit() || (IsSystemToolkit() && Section != NiagaraParameterMapSectionID::MODULE_INPUT && Section != NiagaraParameterMapSectionID::MODULE_LOCAL))
+		TArray<NiagaraParameterMapSectionID::Type> ExcludedSystemIds = {
+			NiagaraParameterMapSectionID::MODULE_INPUT,
+			NiagaraParameterMapSectionID::MODULE_LOCAL,
+			NiagaraParameterMapSectionID::DATA_INSTANCE };
+
+		if ((IsSystemToolkit() == false || ExcludedSystemIds.Contains(Section) == false) &&
+			(bDisplayAdvancedCategories || NiagaraParameterMapSectionID::GetSectionIsAdvanced(Section) == false))
 		{
-			if (bDisplayAdvancedCategories == false && NiagaraParameterMapSectionID::GetSectionIsAdvanced(Section))
-			{
-				continue;
-			}
 			const FText Name = FText::FromName(Parameter.GetName());
 			const FText Tooltip = FText::Format(TooltipFormat, FText::FromName(Parameter.GetName()), Parameter.GetType().GetNameText());
 			TSharedPtr<FNiagaraParameterAction> ParameterAction(new FNiagaraParameterAction(Parameter, ParameterEntry.Value, FText::GetEmpty(), Name, Tooltip, 0, FText(), Section));
 			OutAllActions.AddAction(ParameterAction);
 		}
 	}
+}
 
+void SNiagaraParameterMapView::CollectAllActionsForScriptToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& OutParameterEntries)
+{
+	// For scripts we use the reference maps cached in the graph to collect parameters.
+	for (auto& GraphWeakPtr : Graphs)
+	{
+		if (!GraphWeakPtr.IsValid())
+		{
+			continue;
+		}
+		UNiagaraGraph* Graph = GraphWeakPtr.Get();
+		for (const TPair<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& ParameterElement : Graph->GetParameterReferenceMap())
+		{
+			TArray<FNiagaraGraphParameterReferenceCollection>* Found = OutParameterEntries.Find(ParameterElement.Key);
+			if (Found)
+			{
+				Found->Add(ParameterElement.Value);
+			}
+			else
+			{
+				TArray<FNiagaraGraphParameterReferenceCollection> Collection;
+				Collection.Add(ParameterElement.Value);
+				OutParameterEntries.Add(ParameterElement.Key, Collection);
+			}
+		}
+	}
+}
 
+void SNiagaraParameterMapView::CollectAllActionsForSystemToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& OutParameterEntries)
+{
+	// For systems we need to collect the user parameters if a system is selected, and then we use parameter map traversal
+	// to find the compile time parameters.
+	UNiagaraSystem* System = CachedSystem.Get();
+	if (System != nullptr)
+	{
+		// Collect user parameters.
+		TArray<FNiagaraVariable> ExposedVars;
+		System->GetExposedParameters().GetParameters(ExposedVars);
+		for (const FNiagaraVariable& ExposedVar : ExposedVars)
+		{
+			TArray<FNiagaraGraphParameterReferenceCollection>* Found = OutParameterEntries.Find(ExposedVar);
+			if (!Found)
+			{
+				TArray<FNiagaraGraphParameterReferenceCollection> Collection;
+				OutParameterEntries.Add(ExposedVar, Collection);
+			}
+		}
+	}
+
+	for (TWeakObjectPtr<UNiagaraGraph> GraphWeak : Graphs)
+	{
+		UNiagaraGraph* Graph = GraphWeak.Get();
+		if (Graph == nullptr)
+		{
+			continue;
+		}
+
+		TArray<UNiagaraNodeOutput*> OutputNodes;
+		Graph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
+		for (UNiagaraNodeOutput* OutputNode : OutputNodes)
+		{
+			UNiagaraNode* NodeToTraverse = OutputNode;
+			if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemSpawnScript || OutputNode->GetUsage() == ENiagaraScriptUsage::SystemUpdateScript)
+			{
+				// Traverse past the emitter nodes, otherwise the system scripts will pick up all of the emitter and particle script parameters.
+				UEdGraphPin* InputPin = FNiagaraStackGraphUtilities::GetParameterMapInputPin(*NodeToTraverse);
+				while (NodeToTraverse != nullptr && InputPin != nullptr && InputPin->LinkedTo.Num() == 1 &&
+					(NodeToTraverse->IsA<UNiagaraNodeOutput>() || NodeToTraverse->IsA<UNiagaraNodeEmitter>()))
+				{
+					NodeToTraverse = Cast<UNiagaraNode>(InputPin->LinkedTo[0]->GetOwningNode());
+					InputPin = NodeToTraverse != nullptr ? FNiagaraStackGraphUtilities::GetParameterMapInputPin(*NodeToTraverse) : nullptr;
+				}
+			}
+
+			if (NodeToTraverse == nullptr)
+			{
+				continue;
+			}
+
+			bool bIgnoreDisabled = true;
+			FNiagaraParameterMapHistoryBuilder Builder;
+			UNiagaraEmitter* GraphOwningEmitter = Graph->GetTypedOuter<UNiagaraEmitter>();
+			FCompileConstantResolver ConstantResolver = GraphOwningEmitter != nullptr
+				? FCompileConstantResolver(GraphOwningEmitter)
+				: FCompileConstantResolver();
+
+			Builder.SetIgnoreDisabled(bIgnoreDisabled);
+			Builder.ConstantResolver = ConstantResolver;
+			NodeToTraverse->BuildParameterMapHistory(Builder, true, false);
+			
+			TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection> ReferenceCollectionsForTraversedNode;
+			if (Builder.Histories.Num() == 1)
+			{
+				for (int32 VariableIndex = 0; VariableIndex < Builder.Histories[0].Variables.Num(); VariableIndex++)
+				{
+					FNiagaraVariable& HistoryVariable = Builder.Histories[0].Variables[VariableIndex];
+					FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ReferenceCollectionsForTraversedNode.Find(HistoryVariable);
+					if (ReferenceCollection == nullptr)
+					{
+						FNiagaraGraphParameterReferenceCollection NewReferenceCollection(false);
+						NewReferenceCollection.Graph = Graph;
+						ReferenceCollection = &ReferenceCollectionsForTraversedNode.Add(HistoryVariable, NewReferenceCollection);
+					}
+
+					TArray<TTuple<const UEdGraphPin*, const UEdGraphPin*>>& ReadHistory = Builder.Histories[0].PerVariableReadHistory[VariableIndex];
+					for (const TTuple<const UEdGraphPin*, const UEdGraphPin*>& Read : ReadHistory)
+					{
+						if (Read.Key->GetOwningNode() != nullptr)
+						{
+							ReferenceCollection->ParameterReferences.Add(FNiagaraGraphParameterReference(Read.Key->PersistentGuid, Read.Key->GetOwningNode()));
+						}
+					}
+
+					TArray<const UEdGraphPin*>& WriteHistory = Builder.Histories[0].PerVariableWriteHistory[VariableIndex];
+					for (const UEdGraphPin* Write : WriteHistory)
+					{
+						if (Write->GetOwningNode() != nullptr)
+						{
+							ReferenceCollection->ParameterReferences.Add(FNiagaraGraphParameterReference(Write->PersistentGuid, Write->GetOwningNode()));
+						}
+					}
+				}
+			}
+
+			for (const TPair<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& ReferenceCollectionForOutputNode : ReferenceCollectionsForTraversedNode)
+			{
+				OutParameterEntries.FindOrAdd(ReferenceCollectionForOutputNode.Key).Add(ReferenceCollectionForOutputNode.Value);
+			}
+		}
+	}
 }
 
 void SNiagaraParameterMapView::CollectStaticSections(TArray<int32>& StaticSectionIDs)
 {
-	if (!IsSystemToolkit())
-	{
-		StaticSectionIDs.Add(NiagaraParameterMapSectionID::MODULE_INPUT);
-		StaticSectionIDs.Add(NiagaraParameterMapSectionID::MODULE_OUTPUT);
-		StaticSectionIDs.Add(NiagaraParameterMapSectionID::MODULE_LOCAL);
-		StaticSectionIDs.Add(NiagaraParameterMapSectionID::DATA_INSTANCE);
-	}
-	else
+	if (IsSystemToolkit())
 	{
 		StaticSectionIDs.Add(NiagaraParameterMapSectionID::USER);
 	}
-	StaticSectionIDs.Add(NiagaraParameterMapSectionID::STATIC_SWITCH);
+	else
+	{
+		StaticSectionIDs.Add(NiagaraParameterMapSectionID::MODULE_INPUT);
+		StaticSectionIDs.Add(NiagaraParameterMapSectionID::MODULE_LOCAL);
+		StaticSectionIDs.Add(NiagaraParameterMapSectionID::STATIC_SWITCH);
+		StaticSectionIDs.Add(NiagaraParameterMapSectionID::DATA_INSTANCE);
+	}
+	StaticSectionIDs.Add(NiagaraParameterMapSectionID::MODULE_OUTPUT);
 	StaticSectionIDs.Add(NiagaraParameterMapSectionID::ENGINE);
 	StaticSectionIDs.Add(NiagaraParameterMapSectionID::PARAMETERCOLLECTION);
 	StaticSectionIDs.Add(NiagaraParameterMapSectionID::SYSTEM);
@@ -682,28 +788,28 @@ TSharedPtr<SWidget> SNiagaraParameterMapView::OnContextMenuOpening()
 			TSharedPtr<FNiagaraParameterAction> SelectedNiagaraAction = StaticCastSharedPtr<FNiagaraParameterAction>(SelectedActions[0]);
 			if (SelectedNiagaraAction.IsValid())
 			{
-				MenuBuilder.BeginSection("Subnamespace", LOCTEXT("SubnamespaceMenuSection", "Parameter Modifiers"));
+				MenuBuilder.BeginSection("NamespaceModifier", LOCTEXT("NamespaceModifierMenuSection", "Parameter Modifiers"));
 				{
 					MenuBuilder.AddMenuEntry(
-						LOCTEXT("AddSubnamespace", "Add a modifier to this parameter."),
+						LOCTEXT("AddNamespaceModifier", "Add a modifier to this parameter."),
 						FText(),
 						FSlateIcon(),
 						FUIAction(
-							FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnAddSubnamespace),
+							FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnAddNamespaceModifier),
 							FCanExecuteAction()));
 					MenuBuilder.AddMenuEntry(
-						LOCTEXT("RemoveSubnamespace", "Remove the modifier from this parameter."),
+						LOCTEXT("RemoveNamespaceModifier", "Remove the modifier from this parameter."),
 						FText(),
 						FSlateIcon(),
 						FUIAction(
-							FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnRemoveSubnamespace),
+							FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnRemoveNamespaceModifier),
 							FCanExecuteAction()));
 					MenuBuilder.AddMenuEntry(
-						LOCTEXT("EditSubnamespace", "Edit the modifier for this parameter."),
+						LOCTEXT("EditNamespaceModifier", "Edit the modifier for this parameter."),
 						FText(),
 						FSlateIcon(),
 						FUIAction(
-							FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnEditSubnamespace),
+							FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnEditNamespaceModifier),
 							FCanExecuteAction()));
 				}
 				MenuBuilder.EndSection();
@@ -816,6 +922,11 @@ EVisibility SNiagaraParameterMapView::OnAddButtonTextVisibility(TWeakPtr<SWidget
 void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 {
 	EmptyGraphs();
+	if (CachedSystem.IsValid())
+	{
+		CachedSystem->GetExposedParameters().RemoveOnChangedHandler(UserParameterStoreChangedHandle);
+		CachedSystem.Reset();
+	}
 
 	TSet<UObject*> Objects = SelectedScriptObjects->GetSelectedObjects();
 	for (UObject* Object : Objects)
@@ -832,6 +943,8 @@ void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 		else if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Object))
 		{
 			AddGraph(System->GetSystemSpawnScript()->GetSource());
+			UserParameterStoreChangedHandle = System->GetExposedParameters().AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP(this, &SNiagaraParameterMapView::OnUserParameterStoreChanged));
 		}
 	}
 
@@ -889,6 +1002,14 @@ void SNiagaraParameterMapView::AddGraph(UNiagaraScriptSourceBase* SourceBase)
 void SNiagaraParameterMapView::OnGraphChanged(const FEdGraphEditAction& InAction)
 {
 	RefreshActions();
+}
+
+void SNiagaraParameterMapView::OnUserParameterStoreChanged()
+{
+	if (CachedSystem.IsValid())
+	{
+		RefreshActions();
+	}
 }
 
 void SNiagaraParameterMapView::OnDeleteEntry()
@@ -992,7 +1113,7 @@ void SNiagaraParameterMapView::OnPostRenameActionNode(const FText& InText, FNiag
 	}
 }
 
-void SNiagaraParameterMapView::OnAddSubnamespace()
+void SNiagaraParameterMapView::OnAddNamespaceModifier()
 {
 	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
 	GraphActionMenu->GetSelectedActions(SelectedActions);
@@ -1023,7 +1144,7 @@ void SNiagaraParameterMapView::OnAddSubnamespace()
 	}
 }
 
-void SNiagaraParameterMapView::OnRemoveSubnamespace()
+void SNiagaraParameterMapView::OnRemoveNamespaceModifier()
 {
 	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
 	GraphActionMenu->GetSelectedActions(SelectedActions);
@@ -1054,7 +1175,7 @@ void SNiagaraParameterMapView::OnRemoveSubnamespace()
 	}
 }
 
-void SNiagaraParameterMapView::OnEditSubnamespace()
+void SNiagaraParameterMapView::OnEditNamespaceModifier()
 {
 	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
 	GraphActionMenu->GetSelectedActions(SelectedActions);
@@ -1063,7 +1184,7 @@ void SNiagaraParameterMapView::OnEditSubnamespace()
 		TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(SelectedActions[0]);
 		if (ParameterAction.IsValid())
 		{
-			ParameterAction->bSubnamespaceRenamePending = true;
+			ParameterAction->bNamespaceModifierRenamePending = true;
 		}
 	}
 }

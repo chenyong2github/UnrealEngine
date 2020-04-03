@@ -11,6 +11,7 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
+#include "NiagaraGraph.h"
 #include "NiagaraActions.h"
 #include "EditorStyleSet.h"
 
@@ -23,6 +24,7 @@ class FNiagaraObjectSelection;
 class UNiagaraGraph;
 struct FEdGraphSchemaAction;
 struct FSlateBrush;
+class UNiagaraSystem;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NiagaraParameterMapSectionID
@@ -30,21 +32,22 @@ namespace NiagaraParameterMapSectionID
 	enum Type
 	{
 		NONE,
-		MODULE_INPUT,
-		MODULE_OUTPUT,
-		MODULE_LOCAL,
-		TRANSIENT,
-		DATA_INSTANCE,
-		STATIC_SWITCH,
-		ENGINE,
-		PARAMETERCOLLECTION,
+
 		USER,
+
 		SYSTEM,
-		SYSTEM_MODULE,
 		EMITTER,
-		EMITTER_MODULE,
 		PARTICLE,
-		PARTICLE_MODULE,
+
+		MODULE_INPUT,
+		STATIC_SWITCH,
+		MODULE_LOCAL,
+		MODULE_OUTPUT,
+
+		ENGINE,
+		TRANSIENT,
+		PARAMETERCOLLECTION,
+		DATA_INSTANCE,
 
 		Num
 	};
@@ -131,6 +134,9 @@ private:
 	TSharedRef<SWidget> OnGetSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID);
 	TSharedRef<SWidget> CreateAddToSectionButton(const NiagaraParameterMapSectionID::Type InSection, TWeakPtr<SWidget> WeakRowWidget, FText AddNewText, FName MetaDataTag);
 	
+	void CollectAllActionsForScriptToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& ParameterEntries);
+	void CollectAllActionsForSystemToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& ParameterEntries);
+
 	/** Checks if the selected action has context menu */
 	bool SelectionHasContextMenu() const;
 	
@@ -142,6 +148,7 @@ private:
 	void AddGraph(UNiagaraGraph* Graph);
 	void AddGraph(class UNiagaraScriptSourceBase* SourceBase);
 	void OnGraphChanged(const struct FEdGraphEditAction& InAction);
+	void OnUserParameterStoreChanged();
 
 	//Callbacks
 	void OnDeleteEntry();
@@ -150,9 +157,9 @@ private:
 	bool CanRequestRenameOnActionNode(TWeakPtr<struct FGraphActionNode> InSelectedNode) const;
 	bool CanRequestRenameOnActionNode() const;
 	void OnPostRenameActionNode(const FText& InText, FNiagaraParameterAction& InAction);
-	void OnAddSubnamespace();
-	void OnRemoveSubnamespace();
-	void OnEditSubnamespace();
+	void OnAddNamespaceModifier();
+	void OnRemoveNamespaceModifier();
+	void OnEditNamespaceModifier();
 
 	bool IsSystemToolkit();
 	bool IsScriptToolkit();
@@ -179,6 +186,8 @@ private:
 	TSharedPtr<FNiagaraObjectSelection> SelectedVariableObjects;
 
 	TArray<TWeakObjectPtr<UNiagaraGraph>> Graphs;
+	TWeakObjectPtr<UNiagaraSystem> CachedSystem;
+	FDelegateHandle UserParameterStoreChangedHandle;
 
 	/** The handle to the graph changed delegate. */
 	TArray<FDelegateHandle> OnGraphChangedHandles;
