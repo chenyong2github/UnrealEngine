@@ -4,7 +4,7 @@
 #include "Containers/UnrealString.h"
 #include "Containers/ArrayView.h"
 
-// Helper struct to encapsulate optional, delayed writing of new element to buffer
+// Helper struct to encapsulate optional, delayed writing of new element to TNetworkSimAuxBuffer buffer
 template<typename ElementType>
 struct TNetSimLazyWriterFunc
 {
@@ -39,9 +39,7 @@ struct TNetSimLazyWriter
 	TFunctionRef<void*()> GetFunc;
 };
 
-
-// ---------------------------------------------------------------------------------------
-// ---------------------------------------------------------------------------------------
+// Sparse buffer: each element has explicit Frame value
 template<typename ElementType> 
 struct TNetworkSimAuxBuffer
 {
@@ -133,9 +131,7 @@ private:
 	TArray<TInternal> Elements;
 };
 
-// ---------------------------------------------------------------------------------------
-// ---------------------------------------------------------------------------------------
-
+// Circular buffer for storing continuous frame data
 template<typename ElementType> 
 struct TNetworkSimFrameBuffer
 {

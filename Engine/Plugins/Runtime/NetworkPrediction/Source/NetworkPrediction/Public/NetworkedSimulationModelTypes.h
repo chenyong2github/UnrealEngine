@@ -47,9 +47,9 @@ struct TNetworkedSimulationState
 	{
 	}
 
-	int32 Max() const { return FrameBuffer.Capacity(); }
-	FString GetBasicDebugStr() const { return FString::Printf(TEXT("PendingTick: %d MaxTick: %d LatestInput: %d NextIntput: %d Size: %d. PT: %s. IT: %s. MT: %s"), 
-		PendingTickFrame, MaxTickFrame, LatestInputFrame, NextInputFrame, Max(), *GetTotalProcessedSimulationTime().ToString(), *GetTotalInputSimulationTime().ToString(), *GetTotalAllowedSimulationTime().ToString()); }
+	int32 Capacity() const { return FrameBuffer.Capacity(); }
+	FString DebugString() const { return FString::Printf(TEXT("PendingTick: %d MaxTick: %d LatestInput: %d NextIntput: %d Size: %d. PT: %s. IT: %s. MT: %s"), 
+		PendingTickFrame, MaxTickFrame, LatestInputFrame, NextInputFrame, Capacity(), *GetTotalProcessedSimulationTime().ToString(), *GetTotalInputSimulationTime().ToString(), *GetTotalAllowedSimulationTime().ToString()); }
 	
 	// ---------------------------------------------------------------------
 	// Frame State
@@ -66,10 +66,10 @@ struct TNetworkedSimulationState
 		}
 		
 		const int32 Delta = NewFrame - PendingTickFrame;
-		if (Delta >= Max())
+		if (Delta >= Capacity())
 		{
 			// PendingTickFrame must always be preserved
-			UE_NP_TRACE_SYSTEM_FAULT("WriteFrameWithTime frame %d outside of buffer range. Reseting contents. %s", PendingTickFrame, *GetBasicDebugStr());
+			UE_NP_TRACE_SYSTEM_FAULT("WriteFrameWithTime frame %d outside of buffer range. Reseting contents. %s", PendingTickFrame, *DebugString());
 				
 			TSimulationFrameState<Model>& NewFrameState = FrameBuffer[NewFrame];
 			NewFrameState = FrameBuffer[PendingTickFrame]; // Init with previous state
@@ -111,10 +111,10 @@ struct TNetworkedSimulationState
 		}
 				
 		const int32 Delta = NewFrame - PendingTickFrame;
-		if (Delta >= Max())
+		if (Delta >= Capacity())
 		{
 			// PendingTickFrame must always be preserved
-			UE_NP_TRACE_SYSTEM_FAULT("WriteFrameSequential frame %d outside of buffer range. Reseting contents. %s", PendingTickFrame, *GetBasicDebugStr());
+			UE_NP_TRACE_SYSTEM_FAULT("WriteFrameSequential frame %d outside of buffer range. Reseting contents. %s", PendingTickFrame, *DebugString());
 
 			TSimulationFrameState<Model>& NewFrameState = FrameBuffer[NewFrame];
 			NewFrameState = FrameBuffer[PendingTickFrame]; // Init with previous state
@@ -168,15 +168,15 @@ struct TNetworkedSimulationState
 		return &FrameBuffer[0];
 	}
 
-	TSimulationFrameState<Model>* GetFrameState(int32 Frame) { return GetValidFrame(Frame); }
-	const TSimulationFrameState<Model>* GetFrameState(int32 Frame) const { return GetValidFrame(Frame); }
+	TSimulationFrameState<Model>* ReadFrame(int32 Frame) { return GetValidFrame(Frame); }
+	const TSimulationFrameState<Model>* ReadFrame(int32 Frame) const { return GetValidFrame(Frame); }
 
 	// ---------------------------------------------------------------------
 	// Aux State
 	// ---------------------------------------------------------------------
 	
-	TAuxState* GetAuxState(int32 Frame) { return AuxBuffer[Frame]; }
-	const TAuxState* GetAuxState(int32 Frame) const { return AuxBuffer[Frame]; }
+	TAuxState* ReadAux(int32 Frame) { return AuxBuffer[Frame]; }
+	const TAuxState* ReadAux(int32 Frame) const { return AuxBuffer[Frame]; }
 
 	TNetSimLazyWriterFunc<TAuxState> GetAuxStateLazyWriter(int32 Frame) { return AuxBuffer.LazyWriter(Frame); }
 	TAuxState* WriteAuxState(int32 Frame) { return AuxBuffer.WriteAtFrame(Frame); }
@@ -259,7 +259,7 @@ struct TNetworkedSimulationState
 
 	void CheckInvariants()
 	{
-		npEnsureMsgf(IsValidFrame(PendingTickFrame), TEXT("PendingTickFrame not valid. %s"), *GetBasicDebugStr());
+		npEnsureMsgf(IsValidFrame(PendingTickFrame), TEXT("PendingTickFrame not valid. %s"), *DebugString());
 		npEnsureMsgf(ConfirmedFrame <= PendingTickFrame, TEXT("ConfirmedFrame %d <= PendingTickFrame"), ConfirmedFrame, PendingTickFrame);
 
 		if (LatestInputFrame != INDEX_NONE)
@@ -267,7 +267,7 @@ struct TNetworkedSimulationState
 			npEnsureMsgf(MaxTickFrame <= LatestInputFrame, TEXT("MaxTickFrame %d <= LatestInputFrame %d"), MaxTickFrame, LatestInputFrame);
 			npEnsureMsgf(PendingTickFrame <= LatestInputFrame+1, TEXT("PendingTickFrame %d <= (LatestInputFrame+1) %d"), PendingTickFrame, LatestInputFrame+1);
 			npEnsureMsgf(LatestInputFrame == NextInputFrame-1, TEXT("LatestInputFrame %d != (NextInputFrame+1) %d"),  LatestInputFrame, NextInputFrame+1);			
-			npEnsureMsgf(IsValidFrame(LatestInputFrame) && FrameBuffer[LatestInputFrame].HasFlag(ESimulationFrameStateFlags::InputWritten), TEXT("LatestInputFrame not valid. %s"), *GetBasicDebugStr());
+			npEnsureMsgf(IsValidFrame(LatestInputFrame) && FrameBuffer[LatestInputFrame].HasFlag(ESimulationFrameStateFlags::InputWritten), TEXT("LatestInputFrame not valid. %s"), *DebugString());
 		}
 
 		if (MaxTickFrame != INDEX_NONE)
@@ -356,7 +356,7 @@ struct TNetSimAccessorHelper
 	{
 		TAccessFunc Func = [NetSimModel](bool bForWrite, TState*& OutState, bool& OutSafe)
 		{
-			OutState = &NetSimModel->State.GetFrameState(NetSimModel->State.GetPendingTickFrame())->SyncState;
+			OutState = &NetSimModel->State.ReadFrame(NetSimModel->State.GetPendingTickFrame())->SyncState;
 			OutSafe = NetSimModel->State.GetTickInProgress();
 		};
 		return Func;
@@ -371,7 +371,7 @@ struct TNetSimAccessorHelper<TNetworkSimModel, TState, false>
 	{
 		TAccessFunc Func = [NetSimModel](bool bForWrite, TState*& OutState, bool& OutSafe)
 		{
-			OutState = NetSimModel->State.GetAuxState(NetSimModel->State.GetPendingTickFrame());
+			OutState = NetSimModel->State.ReadAux(NetSimModel->State.GetPendingTickFrame());
 			OutSafe = NetSimModel->State.GetTickInProgress();
 		};
 		return Func;
@@ -483,8 +483,8 @@ struct TSimulationDoTickFunc
 		const int32 OutputFrame = State.GetPendingTickFrame()+1;
 
 		// Get inputs. These all need to be present to tick (caller's responsibility)
-		TFrameState* InFrameState = State.GetFrameState(InputFrame);
-		const TAuxState* InAuxState = State.GetAuxState(InputFrame);
+		TFrameState* InFrameState = State.ReadFrame(InputFrame);
+		const TAuxState* InAuxState = State.ReadAux(InputFrame);
 		
 		check(InFrameState);
 		check(InAuxState);
@@ -510,7 +510,7 @@ struct TSimulationDoTickFunc
 
 		// Post
 		UE_NP_TRACE_USER_STATE_SYNC(OutFrameState->SyncState, OutputFrame);
-		const TAuxState* AuxHead = State.GetAuxState(OutputFrame);
+		const TAuxState* AuxHead = State.ReadAux(OutputFrame);
 		if (AuxHead != InAuxState)
 		{
 			UE_NP_TRACE_USER_STATE_AUX(*AuxHead, OutputFrame);
