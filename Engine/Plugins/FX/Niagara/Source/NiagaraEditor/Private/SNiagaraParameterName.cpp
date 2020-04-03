@@ -74,81 +74,78 @@ void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName)
 	}
 
 	TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
-	auto AddNamespaceSlot = [](TSharedRef<SHorizontalBox> ContentBox, FText NamespaceDisplayName, FText NamespaceDescription, FLinearColor NamespaceBorderColor)
-	{
-		ContentBox->AddSlot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(0.0f, 0.0f, 5.0f, 0.0f)
-		[
 
-				SNew(SBorder)
-				.BorderImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.ParameterName.NamespaceBorder"))
-				.BorderBackgroundColor(NamespaceBorderColor)
-				.ToolTipText(NamespaceDescription)
-				.VAlign(VAlign_Center)
-				.Padding(FMargin(4.0f, 1.0f, 4.0f, 1.0f))
-				[
-					SNew(STextBlock)
-					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterName.NamespaceText")
-					.Text(NamespaceDisplayName)
-				]
-		];
-	};
+	FNiagaraNamespaceMetadata DefaultNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({ NAME_None });
 
+	// Add the namespace widget.
 	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(Namespaces);
+	TSharedPtr<SWidget> NamespaceWidget;
 	if (NamespaceMetadata.IsValid())
 	{
 		Namespaces.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
-		ContentBox->AddSlot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(0.0f, 0.0f, 5.0f, 0.0f)
-		[
-			CreateNamespaceWidget(NamespaceMetadata.DisplayName.ToUpper(), NamespaceMetadata.Description, NamespaceMetadata.BackgroundColor)
-		];
+		NamespaceWidget = CreateNamespaceWidget(NamespaceMetadata.DisplayName.ToUpper(), NamespaceMetadata.Description, NamespaceMetadata.BackgroundColor);
 	}
-
-	FNiagaraNamespaceMetadata DefaultNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({NAME_None});
-	if (Namespaces.Num() > 0)
+	else
 	{
-		DisplayedSubnamespace = Namespaces[0];
+		FText NamespaceDisplayName = FText::FromString(FName::NameToDisplayString(Namespaces[0].ToString(), false).ToUpper());
 		Namespaces.RemoveAt(0);
-		SubnamespaceBorder = CreateNamespaceWidget(
-			FText::FromString(FName::NameToDisplayString(DisplayedSubnamespace.ToString(), false).ToUpper()),
+		CreateNamespaceWidget(
+			NamespaceDisplayName,
 			DefaultNamespaceMetadata.Description,
 			DefaultNamespaceMetadata.BackgroundColor);
+	}
+
+	ContentBox->AddSlot()
+	.VAlign(VAlign_Center)
+	.AutoWidth()
+	.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+	[
+		NamespaceWidget.ToSharedRef()
+	];
+
+	// Next the namespace modifier widget is there is a namespace modifier.
+	if (Namespaces.Num() > 0)
+	{
+		DisplayedNamespaceModifier = Namespaces[0];
+		FNiagaraNamespaceMetadata DisplayedNamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(DisplayedNamespaceModifier);
+		if (DisplayedNamespaceModifierMetadata.IsValid() == false)
+		{
+			DisplayedNamespaceModifierMetadata = DefaultNamespaceMetadata;
+		}
+
+		Namespaces.RemoveAt(0);
+		NamespaceModifierBorder = CreateNamespaceWidget(
+			FText::FromString(FName::NameToDisplayString(DisplayedNamespaceModifier.ToString(), false).ToUpper()),
+			DisplayedNamespaceModifierMetadata.Description,
+			DisplayedNamespaceModifierMetadata.BackgroundColor);
 
 		ContentBox->AddSlot()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		.Padding(0.0f, 0.0f, 5.0f, 0.0f)
 		[
-			SubnamespaceBorder.ToSharedRef()
+			NamespaceModifierBorder.ToSharedRef()
 		];
 	}
 	else
 	{
-		DisplayedSubnamespace = NAME_None;
-		SubnamespaceBorder.Reset();
+		DisplayedNamespaceModifier = NAME_None;
+		NamespaceModifierBorder.Reset();
 	}
 
-	if (ensureMsgf(Namespaces.Num() == 0, TEXT("Extra namespaces in parameter.")) == false)
+	// If there are extra namespaces found, add them to the UI without metadata.
+	for (FName Namespace : Namespaces)
 	{
-		// If there are extra namespaces found, add them to the UI.
-		for (FName Namespace : Namespaces)
-		{
-			ContentBox->AddSlot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(0.0f, 0.0f, 5.0f, 0.0f)
-			[
-				CreateNamespaceWidget(
-					FText::FromString(FName::NameToDisplayString(Namespace.ToString(), false).ToUpper()),
-					DefaultNamespaceMetadata.Description,
-					DefaultNamespaceMetadata.BackgroundColor)
-			];
-		}
+		ContentBox->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+		[
+			CreateNamespaceWidget(
+				FText::FromString(FName::NameToDisplayString(Namespace.ToString(), false).ToUpper()),
+				DefaultNamespaceMetadata.Description,
+				DefaultNamespaceMetadata.BackgroundColor)
+		];
 	}
 
 	TSharedPtr<SWidget> NameWidget;
@@ -192,7 +189,7 @@ FName SNiagaraParameterName::ReconstructNameFromEditText(const FText& InEditText
 	return *NewParameterNameString;
 }
 
-FName SNiagaraParameterName::ReconstructNameFromSubnamespaceEditText(const FText& InEditText)
+FName SNiagaraParameterName::ReconstructNameFromNamespaceModifierEditText(const FText& InEditText)
 {
 	FString CurrentParameterNameString = ParameterName.Get().ToString();
 	TArray<FString> NameParts;
@@ -206,7 +203,7 @@ FName SNiagaraParameterName::ReconstructNameFromSubnamespaceEditText(const FText
 	return *NewParameterNameString;
 }
 
-FText SNiagaraParameterName::GetSubnamespaceText()
+FText SNiagaraParameterName::GetNamespaceModifierText()
 {
 	FString CurrentParameterNameString = ParameterName.Get().ToString();
 	TArray<FString> NameParts;
@@ -235,9 +232,9 @@ void SNiagaraParameterName::NameTextCommitted(const FText& InNewNameText, ETextC
 	}
 }
 
-bool SNiagaraParameterName::VerifySubnamespaceTextChange(const FText& InNewNameText, FText& OutErrorMessage)
+bool SNiagaraParameterName::VerifyNamespaceModifierTextChange(const FText& InNewNameText, FText& OutErrorMessage)
 {
-	FName NewParameterName = ReconstructNameFromSubnamespaceEditText(InNewNameText);
+	FName NewParameterName = ReconstructNameFromNamespaceModifierEditText(InNewNameText);
 	if (OnVerifyNameChangeDelegate.IsBound())
 	{
 		return OnVerifyNameChangeDelegate.Execute(NewParameterName, OutErrorMessage);
@@ -245,19 +242,19 @@ bool SNiagaraParameterName::VerifySubnamespaceTextChange(const FText& InNewNameT
 	return true;
 }
 
-void SNiagaraParameterName::SubnamespaceTextCommitted(const FText& InNewNameText, ETextCommit::Type CommitType)
+void SNiagaraParameterName::NamespaceModifierTextCommitted(const FText& InNewNameText, ETextCommit::Type CommitType)
 {
 	if (CommitType == ETextCommit::OnEnter)
 	{
-		FName NewParameterName = ReconstructNameFromSubnamespaceEditText(InNewNameText);
+		FName NewParameterName = ReconstructNameFromNamespaceModifierEditText(InNewNameText);
 		OnNameChangedDelegate.ExecuteIfBound(NewParameterName);
 	}
 
-	if (SubnamespaceBorder.IsValid())
+	if (NamespaceModifierBorder.IsValid())
 	{
-		SubnamespaceBorder->SetContent(SNew(STextBlock)
+		NamespaceModifierBorder->SetContent(SNew(STextBlock)
 			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterName.NamespaceText")
-			.Text(GetSubnamespaceText()));
+			.Text(GetNamespaceModifierText()));
 	}
 }
 
@@ -269,18 +266,18 @@ void SNiagaraParameterName::EnterEditingMode()
 	}
 }
 
-void SNiagaraParameterName::EnterSubnamespaceEditingMode()
+void SNiagaraParameterName::EnterNamespaceModifierEditingMode()
 {
-	if (SubnamespaceBorder.IsValid())
+	if (NamespaceModifierBorder.IsValid())
 	{
-		TSharedRef<SInlineEditableTextBlock> SubnamespaceEditableTextBlock = SNew(SInlineEditableTextBlock)
+		TSharedRef<SInlineEditableTextBlock> NamespaceModifierEditableTextBlock = SNew(SInlineEditableTextBlock)
 			.Style(EditableTextStyle)
-			.Text(GetSubnamespaceText())
+			.Text(GetNamespaceModifierText())
 			.IsSelected(IsSelected)
-			.OnVerifyTextChanged(this, &SNiagaraParameterName::VerifySubnamespaceTextChange)
-			.OnTextCommitted(this, &SNiagaraParameterName::SubnamespaceTextCommitted);
-		SubnamespaceEditableTextBlock->EnterEditingMode();
-		SubnamespaceBorder->SetContent(SubnamespaceEditableTextBlock);
+			.OnVerifyTextChanged(this, &SNiagaraParameterName::VerifyNamespaceModifierTextChange)
+			.OnTextCommitted(this, &SNiagaraParameterName::NamespaceModifierTextCommitted);
+		NamespaceModifierBorder->SetContent(NamespaceModifierEditableTextBlock);
+		NamespaceModifierEditableTextBlock->EnterEditingMode();
 	}
 }
 
@@ -335,7 +332,7 @@ void SNiagaraParameterNameTextBlock::EnterEditingMode()
 	ParameterName->EnterEditingMode();
 }
 
-void SNiagaraParameterNameTextBlock::EnterSubnamespaceEditingMode()
+void SNiagaraParameterNameTextBlock::EnterNamespaceModifierEditingMode()
 {
-	ParameterName->EnterSubnamespaceEditingMode();
+	ParameterName->EnterNamespaceModifierEditingMode();
 }
