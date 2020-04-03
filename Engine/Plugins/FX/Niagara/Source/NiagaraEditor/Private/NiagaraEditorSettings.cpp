@@ -166,6 +166,20 @@ void UNiagaraEditorSettings::SetResetDependentSystemsWhenEditingEmitters(bool bI
 	}
 }
 
+bool UNiagaraEditorSettings::GetDisplayAdvancedParameterPanelCategories() const
+{
+	return bDisplayAdvancedParameterPanelCategories;
+}
+
+void UNiagaraEditorSettings::SetDisplayAdvancedParameterPanelCategories(bool bInDisplayAdvancedParameterPanelCategories)
+{
+	if (bDisplayAdvancedParameterPanelCategories != bInDisplayAdvancedParameterPanelCategories)
+	{
+		bDisplayAdvancedParameterPanelCategories = bInDisplayAdvancedParameterPanelCategories;
+		SaveConfig();
+	}
+}
+
 FNiagaraNewAssetDialogConfig UNiagaraEditorSettings::GetNewAssetDailogConfig(FName InDialogConfigKey) const
 {
 	const FNiagaraNewAssetDialogConfig* Config = NewAssetDialogConfigMap.Find(InDialogConfigKey);
