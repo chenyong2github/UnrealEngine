@@ -113,7 +113,6 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	SetupSequencer();
 	RefreshAll();
 	AddSystemEventHandlers();
-	SendLastCompileMessageJobs();
 }
 
 void FNiagaraSystemViewModel::DumpToText(FString& ExportText)
@@ -898,6 +897,8 @@ void FNiagaraSystemViewModel::RefreshAll()
 	RefreshEmitterHandleViewModels();
 	RefreshSequencerTracks();
 	ResetCurveData();
+	InvalidateCachedCompileStatus();
+	SendLastCompileMessageJobs();
 	ScriptScratchPadViewModel->RefreshScriptViewModels();
 	SystemStackViewModel->GetRootEntry()->RefreshChildren();
 	SelectionViewModel->Refresh();
