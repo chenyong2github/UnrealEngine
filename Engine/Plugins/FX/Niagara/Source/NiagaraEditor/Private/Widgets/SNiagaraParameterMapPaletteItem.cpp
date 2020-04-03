@@ -48,7 +48,7 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 
 	ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
 		.ParameterText(this, &SNiagaraParameterMapPalleteItem::GetDisplayText)
-		//.HighlightText(InCreateData->HighlightText)
+		.HighlightText(InCreateData->HighlightText)
 		.ToolTipText(this, &SNiagaraParameterMapPalleteItem::GetItemTooltip)
 		.OnTextCommitted(this, &SNiagaraParameterMapPalleteItem::OnNameTextCommitted)
 		.OnVerifyTextChanged(this, &SNiagaraParameterMapPalleteItem::OnNameTextVerifyChanged)

@@ -15,6 +15,7 @@ void SNiagaraParameterName::Construct(const FArguments& InArgs)
 	ReadOnlyTextStyle = InArgs._ReadOnlyTextStyle;
 	ParameterName = InArgs._ParameterName;
 	bIsReadOnly = InArgs._IsReadOnly;
+	HighlightText = InArgs._HighlightText;
 	OnVerifyNameChangeDelegate = InArgs._OnVerifyNameChange;
 	OnNameChangedDelegate = InArgs._OnNameChanged;
 	OnDoubleClickedDelegate = InArgs._OnDoubleClicked;
@@ -51,11 +52,12 @@ TSharedRef<SBorder> SNiagaraParameterName::CreateNamespaceWidget(FText Namespace
 	.BorderBackgroundColor(NamespaceBorderColor)
 	.ToolTipText(NamespaceDescription)
 	.VAlign(VAlign_Center)
-	.Padding(FMargin(4.0f, 1.0f, 4.0f, 1.0f))
+	.Padding(FMargin(5.0f, 1.0f, 5.0f, 1.0f))
 	[
 		SNew(STextBlock)
 		.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterName.NamespaceText")
 		.Text(NamespaceDisplayName)
+		.HighlightText(HighlightText)
 	];
 }
 
@@ -153,7 +155,8 @@ void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName)
 	{
 		NameWidget = SNew(STextBlock)
 			.TextStyle(ReadOnlyTextStyle)
-			.Text(FText::FromString(NameParts.Last()));
+			.Text(FText::FromString(NameParts.Last()))
+			.HighlightText(HighlightText);
 	}
 	else
 	{
@@ -162,7 +165,8 @@ void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName)
 		.Text(FText::FromString(NameParts.Last()))
 		.IsSelected(IsSelected)
 		.OnVerifyTextChanged(this, &SNiagaraParameterName::VerifyNameTextChange)
-		.OnTextCommitted(this, &SNiagaraParameterName::NameTextCommitted);
+		.OnTextCommitted(this, &SNiagaraParameterName::NameTextCommitted)
+		.HighlightText(HighlightText);
 	}
 
 	ContentBox->AddSlot()
@@ -293,6 +297,7 @@ void SNiagaraParameterNameTextBlock::Construct(const FArguments& InArgs)
 		.EditableTextStyle(InArgs._EditableTextStyle)
 		.ParameterName(this, &SNiagaraParameterNameTextBlock::GetParameterName)
 		.IsReadOnly(InArgs._IsReadOnly)
+		.HighlightText(InArgs._HighlightText)
 		.IsSelected(InArgs._IsSelected)
 		.OnVerifyNameChange(this, &SNiagaraParameterNameTextBlock::VerifyNameChange)
 		.OnNameChanged(this, &SNiagaraParameterNameTextBlock::NameChanged)
