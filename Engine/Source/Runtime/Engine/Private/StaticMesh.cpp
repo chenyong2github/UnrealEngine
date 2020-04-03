@@ -932,16 +932,23 @@ void FStaticMeshAreaWeightedSectionSampler::Init(const FStaticMeshLODResources* 
 
 float FStaticMeshAreaWeightedSectionSampler::GetWeights(TArray<float>& OutWeights)
 {
-	//If this hits, you're trying to get weights on a sampler that's not been initialized.
-	check(Owner);
 	float Total = 0.0f;
-	OutWeights.Empty(Owner->Sections.Num());
-	for (int32 i = 0; i < Owner->Sections.Num(); ++i)
+
+	if (Owner)
 	{
-		float T = Owner->AreaWeightedSectionSamplers[i].GetTotalWeight();
-		OutWeights.Add(T);
-		Total += T;
+		//If this hits, you're trying to get weights on a sampler that's not been initialized.
+		OutWeights.Empty(Owner->Sections.Num());
+		for (int32 i = 0; i < Owner->Sections.Num(); ++i)
+		{
+			float T = Owner->AreaWeightedSectionSamplers[i].GetTotalWeight();
+			OutWeights.Add(T);
+			Total += T;
+		}
+
+		// Release the reference to the LODresource to avoid blocking stream out operations.
+		Owner.SafeRelease();
 	}
+
 	return Total;
 }
 
@@ -1096,22 +1103,7 @@ void FStaticMeshVertexBuffers::InitFromDynamicVertex(FLocalVertexFactory* Vertex
 		});
 };
 
-void FStaticMeshVertexBuffers::CopyRHIForStreaming(const FStaticMeshVertexBuffers& Other, bool InAllowCPUAccess)
-{
-	StaticMeshVertexBuffer.CopyRHIForStreaming(Other.StaticMeshVertexBuffer, InAllowCPUAccess);
-	PositionVertexBuffer.CopyRHIForStreaming(Other.PositionVertexBuffer, InAllowCPUAccess);
-	ColorVertexBuffer.CopyRHIForStreaming(Other.ColorVertexBuffer, InAllowCPUAccess);
-}
-
-void FAdditionalStaticMeshIndexBuffers::CopyRHIForStreaming(const FAdditionalStaticMeshIndexBuffers& Other, bool InAllowCPUAccess)
-{
-	ReversedIndexBuffer.CopyRHIForStreaming(Other.ReversedIndexBuffer, InAllowCPUAccess);
-	ReversedDepthOnlyIndexBuffer.CopyRHIForStreaming(Other.ReversedDepthOnlyIndexBuffer, InAllowCPUAccess);
-	WireframeIndexBuffer.CopyRHIForStreaming(Other.WireframeIndexBuffer, InAllowCPUAccess);
-	AdjacencyIndexBuffer.CopyRHIForStreaming(Other.AdjacencyIndexBuffer, InAllowCPUAccess);
-}
-
-FStaticMeshLODData::FStaticMeshLODData()
+FStaticMeshLODResources::FStaticMeshLODResources(bool bAddRef)
 	: MaxDeviation(0.0f)
 	, bHasAdjacencyInfo(false)
 	, bHasDepthOnlyIndices(false)
@@ -1128,6 +1120,10 @@ FStaticMeshLODData::FStaticMeshLODData()
 	, StaticMeshIndexMemory(0)
 #endif
 {
+	if (bAddRef)
+	{
+		AddRef();
+	}
 }
 
 FStaticMeshLODResources::~FStaticMeshLODResources()
@@ -1135,26 +1131,6 @@ FStaticMeshLODResources::~FStaticMeshLODResources()
 	check(GetRefCount() == 0);
 	delete DistanceFieldData;
 	delete AdditionalIndexBuffers;
-}
-
-void FStaticMeshLODResources::CopyRHIForStreaming(const FStaticMeshLODResources& Other, bool InAllowCPUAccess)
-{
-	VertexBuffers.CopyRHIForStreaming(Other.VertexBuffers, InAllowCPUAccess);
-	IndexBuffer.CopyRHIForStreaming(Other.IndexBuffer, InAllowCPUAccess);
-	DepthOnlyIndexBuffer.CopyRHIForStreaming(Other.DepthOnlyIndexBuffer, InAllowCPUAccess);
-	if (Other.AdditionalIndexBuffers)
-	{
-		if (!AdditionalIndexBuffers)
-		{
-			AdditionalIndexBuffers = new FAdditionalStaticMeshIndexBuffers;
-		}
-		AdditionalIndexBuffers->CopyRHIForStreaming(*Other.AdditionalIndexBuffers, InAllowCPUAccess);
-	}
-	else if (AdditionalIndexBuffers)
-	{
-		delete AdditionalIndexBuffers;
-		AdditionalIndexBuffers = nullptr;
-	}
 }
 
 template <bool bIncrement>
@@ -5615,14 +5591,8 @@ bool UStaticMesh::StreamOut(int32 NewMipCount)
 	check(IsInGameThread());
 	if (bIsStreamable && !PendingUpdate && RenderData.IsValid() && RenderData->bReadyForStreaming && NewMipCount < GetNumResidentMips())
 	{
-		if (FPlatformProperties::HasEditorOnlyData() || true) // Temporary disabling the Swap path.
-		{
-			PendingUpdate = new FStaticMeshStreamOut(this, NewMipCount);
-		}
-		else
-		{
-			PendingUpdate = new FStaticMeshStreamOut_Swap(this, NewMipCount);
-		}
+		// We need to keep the CPU data in non cook in order to be able for tools to work correctly.
+		PendingUpdate = new FStaticMeshStreamOut(this, NewMipCount, bAllowCPUAccess && !FPlatformProperties::HasEditorOnlyData());
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
