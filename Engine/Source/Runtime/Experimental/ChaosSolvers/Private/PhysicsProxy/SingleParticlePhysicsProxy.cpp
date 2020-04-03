@@ -111,17 +111,9 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 		{
 			if(auto NewData = ParticleData.FindMassProps(Manager,DataIdx))
 			{
-				RigidHandle->SetM(NewData->M);
-				RigidHandle->SetInvM(NewData->InvM);
-				RigidHandle->SetI(NewData->I);
-				RigidHandle->SetInvI(NewData->InvI);
-				RigidHandle->SetCenterOfMass(NewData->CenterOfMass);
-				RigidHandle->SetRotationOfMass(NewData->RotationOfMass);
+				RigidHandle->SetMassProps(*NewData);
 			}
-		}
 
-		if(bHasDynamicData)
-		{
 			if(auto NewData = ParticleData.FindDynamics(Manager, DataIdx))
 			{
 				RigidHandle->SetDynamics(*NewData);

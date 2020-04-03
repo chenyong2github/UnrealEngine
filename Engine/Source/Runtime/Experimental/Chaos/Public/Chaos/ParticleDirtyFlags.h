@@ -164,34 +164,73 @@ inline FChaosArchive& operator<<(FChaosArchive& Ar, FParticleDynamics& Data)
 	return Ar;
 }
 
-struct FParticleMassProps
+class FParticleMassProps
 {
-	FVec3 CenterOfMass;
-	FRotation3 RotationOfMass;
-	FMatrix33 I;
-	FMatrix33 InvI;
-	FReal M;
-	FReal InvM;
-
+public:
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << CenterOfMass;
-		Ar << RotationOfMass;
-		Ar << I;
-		Ar << InvI;
-		Ar << M;
-		Ar << InvM;
+		Ar << MCenterOfMass;
+		Ar << MRotationOfMass;
+		Ar << MI;
+		Ar << MInvI;
+		Ar << MM;
+		Ar << MInvM;
+	}
+
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
+	{
+		MCenterOfMass = Other.CenterOfMass();
+		MRotationOfMass = Other.RotationOfMass();
+		MI = Other.I();
+		MInvI = Other.InvI();
+		MM = Other.M();
+		MInvM = Other.InvM();
+	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return CenterOfMass() == Other.CenterOfMass()
+			&& RotationOfMass() == Other.RotationOfMass()
+			&& I() == Other.I()
+			&& InvI() == Other.InvI()
+			&& M() == Other.M()
+			&& InvM() == Other.InvM();
 	}
 
 	bool operator==(const FParticleMassProps& Other) const
 	{
-		return CenterOfMass == Other.CenterOfMass
-			&& RotationOfMass == Other.RotationOfMass
-			&& I == Other.I
-			&& InvI == Other.InvI
-			&& M == Other.M
-			&& InvM == Other.InvM;
+		return IsEqual(Other);
 	}
+
+	const FVec3& CenterOfMass() const { return MCenterOfMass; }
+	void SetCenterOfMass(const FVec3& InCenterOfMass){ MCenterOfMass = InCenterOfMass; }
+
+	const FRotation3& RotationOfMass() const { return MRotationOfMass; }
+	void SetRotationOfMass(const FRotation3& InRotationOfMass){ MRotationOfMass = InRotationOfMass; }
+
+	const FMatrix33& I() const { return MI; }
+	void SetI(const FMatrix33& InI){ MI = InI; }
+
+	const FMatrix33& InvI() const { return MInvI; }
+	void SetInvI(const FMatrix33& InInvI){ MInvI = InInvI; }
+
+	FReal M() const { return MM; }
+	void SetM(FReal InM){ MM = InM; }
+
+	FReal InvM() const { return MInvM; }
+	void SetInvM(FReal InInvM){ MInvM = InInvM; }
+
+private:
+	FVec3 MCenterOfMass;
+	FRotation3 MRotationOfMass;
+	FMatrix33 MI;
+	FMatrix33 MInvI;
+	FReal MM;
+	FReal MInvM;
+
+
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleMassProps& Data)
