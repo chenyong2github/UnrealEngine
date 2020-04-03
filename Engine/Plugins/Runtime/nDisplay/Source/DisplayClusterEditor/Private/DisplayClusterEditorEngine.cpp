@@ -136,6 +136,31 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 	}
 }
 
+bool UDisplayClusterEditorEngine::LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error)
+{
+	 
+	if (bIsNDisplayPIE)
+	{
+		// Finish previous scene
+		DisplayClusterModule->EndScene();
+
+		// Perform map loading
+		if (!Super::LoadMap(WorldContext, URL, Pending, Error))
+		{
+			return false;
+		}
+
+		// Start new scene
+		DisplayClusterModule->StartScene(WorldContext.World());
+	}
+	else
+	{
+		return Super::LoadMap(WorldContext, URL, Pending, Error);
+	}
+
+	return true;
+}
+
 void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)
 {
 	if (DisplayClusterModule && bIsActivePIE && bIsNDisplayPIE)
