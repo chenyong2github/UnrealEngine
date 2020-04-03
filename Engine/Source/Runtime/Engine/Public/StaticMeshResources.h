@@ -244,9 +244,11 @@ struct ENGINE_API FStaticMeshAreaWeightedSectionSampler : FWeightedRandomSampler
 {
 	FStaticMeshAreaWeightedSectionSampler();
 	void Init(const FStaticMeshLODResources* InOwner);
-	virtual float GetWeights(TArray<float>& OutWeights)override;
 
 protected:
+
+	virtual float GetWeights(TArray<float>& OutWeights)override;
+
 	TRefCountPtr<const FStaticMeshLODResources> Owner;
 };
 
@@ -308,9 +310,6 @@ struct FStaticMeshVertexBuffers
 
 	/* This is a temporary function to refactor and convert old code, do not copy this as is and try to build your data as SoA from the beginning.*/
 	void ENGINE_API InitModelVF(FLocalVertexFactory* VertexFactory);
-
-	/** Copy everything, keeping reference to the same RHI resources. */
-	void CopyRHIForStreaming(const FStaticMeshVertexBuffers& Other, bool InAllowCPUAccess);
 };
 
 struct FAdditionalStaticMeshIndexBuffers
@@ -323,15 +322,16 @@ struct FAdditionalStaticMeshIndexBuffers
 	FRawStaticIndexBuffer WireframeIndexBuffer;
 	/** Index buffer containing adjacency information required by tessellation. */
 	FRawStaticIndexBuffer AdjacencyIndexBuffer;
-
-	/** Copy everything, keeping reference to the same RHI resources. */
-	void CopyRHIForStreaming(const FAdditionalStaticMeshIndexBuffers& Other, bool InAllowCPUAccess);
 };
 
-/** The part of FStaticMeshLODResources which is not streamable. */
-struct FStaticMeshLODData
+/** 
+ * Rendering resources needed to render an individual static mesh LOD.
+ * This structure is ref counted to allow the LOD streamer to evaluate the number of readers to it (readers that could access the CPU data).
+ * Because the stream out clears the CPU readable data, CPU code that samples it must ensure to only reference LODs above CurrentFirstLODIdx.
+ */
+struct FStaticMeshLODResources : public FRefCountBase
 {
-	FStaticMeshLODData();
+public:
 
 	/** Sections for this LOD. */
 	using FStaticMeshSectionArray = TArray<FStaticMeshSection, TInlineAllocator<1>>;
@@ -387,22 +387,6 @@ struct FStaticMeshLODData
 	/** Map of wedge index to vertex index. Each LOD need one*/
 	TArray<int32> WedgeMap;
 #endif
-};
-
-/** 
- * Rendering resources needed to render an individual static mesh LOD.
- * They are ref counted to prevent streaming out LODs while they are being accessed for read.
- * The stream out implies swapping the LODResoures entry by a dummy empty one. This is always executed within a render command.
- * This means that any direct reference to a LODResources is safe within the scope of any render commands.
- * If the reference is required on the gamethread, async threads or RHI threads (not synchronized at the end of the render command that created the tasks),
- * then the ref count must be incremented / decremented through the use of a TRefCountPtr. 
- * The stream out logic in FStaticMeshStreamOut will postpone the operation if the ref count is not 1.
- * "1" accounting for the reference in the FStaticMeshRenderData::LODResources. In order to prevent postponing indefinitely the streamout, 
- * it is required that anyone using a TRefCountPtr also check for CurrentFirstLODIdx for things that may run every frame.
- */
-struct FStaticMeshLODResources : public FRefCountBase, public FStaticMeshLODData
-{
-public:
 
 	FStaticMeshVertexBuffers VertexBuffers;
 
@@ -425,18 +409,9 @@ public:
 	FStaticMeshSectionAreaWeightedTriangleSamplerBuffer AreaWeightedSectionSamplersBuffer;
 	
 	/** Default constructor. Add a reference if not stored with a TRefCountPtr */
-	FORCEINLINE FStaticMeshLODResources(bool bAddRef = true)
-	{
-		if (bAddRef)
-		{
-			AddRef();
-		}
-	}
+	ENGINE_API FStaticMeshLODResources(bool bAddRef = true);
 
 	ENGINE_API ~FStaticMeshLODResources();
-
-	/** Copy everything, keeping reference to the same RHI resources. */
-	void CopyRHIForStreaming(const FStaticMeshLODResources& Other, bool InAllowCPUAccess);
 
 	template <typename TBatcher>
 	void ReleaseRHIForStreaming(TBatcher& Batcher)

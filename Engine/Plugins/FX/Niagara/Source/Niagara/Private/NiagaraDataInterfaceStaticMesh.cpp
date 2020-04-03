@@ -54,34 +54,38 @@ void FStaticMeshFilteredAreaWeightedSectionSampler::Init(const FStaticMeshLODRes
 	Res = InRes;
 	Owner = InOwner;
 
-	FStaticMeshAreaWeightedSectionSampler::Init(Res);
+	Initialize();
 }
 
 float FStaticMeshFilteredAreaWeightedSectionSampler::GetWeights(TArray<float>& OutWeights)
 {
-	check(Owner && Owner->Mesh);
 	float Total = 0.0f;
-	OutWeights.Empty(Owner->GetValidSections().Num());
-	if (Owner->Mesh->bSupportUniformlyDistributedSampling && Res->AreaWeightedSectionSamplers.Num() > 0)
+	if (Owner && Owner->Mesh)
 	{
-		for (int32 i = 0; i < Owner->GetValidSections().Num(); ++i)
+		OutWeights.Empty(Owner->GetValidSections().Num());
+		if (Owner->Mesh->bSupportUniformlyDistributedSampling && Res->AreaWeightedSectionSamplers.Num() > 0)
 		{
-			int32 SecIdx = Owner->GetValidSections()[i];
-			float T = Res->AreaWeightedSectionSamplers[SecIdx].GetTotalWeight();
-			OutWeights.Add(T);
-			Total += T;
+			for (int32 i = 0; i < Owner->GetValidSections().Num(); ++i)
+			{
+				int32 SecIdx = Owner->GetValidSections()[i];
+				float T = Res->AreaWeightedSectionSamplers[SecIdx].GetTotalWeight();
+				OutWeights.Add(T);
+				Total += T;
+			}
 		}
-	}
-	else
-	{
-		for (int32 i = 0; i < Owner->GetValidSections().Num(); ++i)
+		else
 		{
-			int32 SecIdx = Owner->GetValidSections()[i];
-			float T = 1.0f;
-			OutWeights.Add(T);
-			Total += T;
+			for (int32 i = 0; i < Owner->GetValidSections().Num(); ++i)
+			{
+				int32 SecIdx = Owner->GetValidSections()[i];
+				float T = 1.0f;
+				OutWeights.Add(T);
+				Total += T;
+			}
 		}
 
+		// Release the reference to the LODresource to avoid blocking stream out operations.
+		Res.SafeRelease();
 	}
 	return Total;
 }
@@ -117,7 +121,9 @@ void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources* Res, c
 	}
 
 	if (bIsGpuUniformlyDistributedSampling)
+	{
 		BufferUniformTriangleSamplingSRV = Res->AreaWeightedSectionSamplersBuffer.GetBufferSRV(); // Cache that SRV for later
+	}
 }
 
 void FStaticMeshGpuSpawnBuffer::InitRHI()
@@ -1230,7 +1236,7 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 	if (bSuccess)
 	{
 		FStaticMeshGpuSpawnBuffer* MeshGpuSpawnBuffer = nullptr;
-		if (Inst->Mesh)
+		if (Inst->Mesh && SystemInstance->HasGPUEmitters())
 		{
 			// Always allocate when bAllowCPUAccess (index buffer can only have SRV created in this case as of today)
 			// We do not know if this interface is allocated for CPU or GPU so we allocate for both case... TODO: have some cached data created in case a GPU version is needed?
