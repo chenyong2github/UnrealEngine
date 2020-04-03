@@ -531,12 +531,12 @@ public:
 		return CompilationTarget;
 	}
 
-	static bool IsBuiltInHlslType(FNiagaraTypeDefinition Type);
-	static FString GetStructHlslTypeName(FNiagaraTypeDefinition Type);
+	static bool IsBuiltInHlslType(const FNiagaraTypeDefinition& Type);
+	static FString GetStructHlslTypeName(const FNiagaraTypeDefinition& Type);
 	static FString GetPropertyHlslTypeName(const FProperty* Property);
-	static FString BuildHLSLStructDecl(FNiagaraTypeDefinition Type, FText& OutErrorMessage);
-	static FString GetHlslDefaultForType(FNiagaraTypeDefinition Type);
-	static bool IsHlslBuiltinVector(FNiagaraTypeDefinition Type);
+	static FString BuildHLSLStructDecl(const FNiagaraTypeDefinition& Type, FText& OutErrorMessage);
+	static FString GetHlslDefaultForType(const FNiagaraTypeDefinition& Type);
+	static bool IsHlslBuiltinVector(const FNiagaraTypeDefinition& Type);
 	static TArray<FName> ConditionPropertyPath(const FNiagaraTypeDefinition& Type, const TArray<FName>& InPath);
 
 
