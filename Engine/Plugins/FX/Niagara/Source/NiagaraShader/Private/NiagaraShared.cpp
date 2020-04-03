@@ -79,10 +79,14 @@ NIAGARASHADER_API void FNiagaraShaderScript::CancelCompilation()
 {
 #if WITH_EDITOR
 	check(IsInGameThread());
-	FNiagaraShaderMap::RemovePendingScript(this);
+	bool bWasPending = FNiagaraShaderMap::RemovePendingScript(this);
 	FNiagaraCompilationQueue::Get()->RemovePending(this);
 
-	UE_LOG(LogShaders, Log, TEXT("CancelCompilation %p."), this);
+	// don't spam the log if no cancelling actually happened : 
+	if (bWasPending)
+	{
+		UE_LOG(LogShaders, Log, TEXT("CancelCompilation %p."), this);
+	}
 	OutstandingCompileShaderMapIds.Empty();
 #endif
 }

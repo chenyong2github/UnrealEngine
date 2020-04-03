@@ -454,8 +454,10 @@ public:
 	*/
 	void FlushShadersByShaderType(const FShaderType* ShaderType);
 
-	/** Removes a Script from NiagaraShaderMapsBeingCompiled. */
-	NIAGARASHADER_API static void RemovePendingScript(FNiagaraShaderScript* Script);
+	/** Removes a Script from NiagaraShaderMapsBeingCompiled. 
+	* @return true if something was actually removed.
+	*/
+	NIAGARASHADER_API static bool RemovePendingScript(FNiagaraShaderScript* Script);
 	NIAGARASHADER_API static void RemovePendingMap(FNiagaraShaderMap* Map);
 
 	/** Finds a shader map currently being compiled that was enqueued for the given script. */
