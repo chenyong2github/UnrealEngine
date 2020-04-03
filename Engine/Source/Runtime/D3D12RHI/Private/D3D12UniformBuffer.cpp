@@ -57,7 +57,7 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 			FMemory::Memcpy(MappedData, Contents, NumBytesActualData);
 
 #if USE_STATIC_ROOT_SIGNATURE
-			NewUniformBuffer->View->Create(NewUniformBuffer->ResourceLocation.GetGPUVirtualAddress(), NumBytes);
+			NewUniformBuffer->View->Create(NewUniformBuffer->ResourceLocation.GetGPUVirtualAddress(), NumBytesActualData);
 #endif
 		}
 
