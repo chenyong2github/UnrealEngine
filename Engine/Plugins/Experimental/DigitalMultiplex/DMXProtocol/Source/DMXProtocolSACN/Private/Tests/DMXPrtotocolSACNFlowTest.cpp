@@ -11,6 +11,8 @@
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolUniverseSACN.h"
 
+#if WITH_DEV_AUTOMATION_TESTS
+
 struct DMXPrtotocolSACNHelper
 {
 	DMXPrtotocolSACNHelper(uint16 InUniverseID, FAutomationTestBase* InTest)
@@ -198,3 +200,5 @@ bool FDMXPrtotocolSACNConsoleCommandsTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+#endif // WITH_DEV_AUTOMATION_TESTS
