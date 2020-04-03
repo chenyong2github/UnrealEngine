@@ -2582,7 +2582,7 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bReinitPose)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SetSkeletalMesh);
-	SCOPE_CYCLE_UOBJECT(This, this);
+	SCOPE_CYCLE_UOBJECT(NewSkelMesh, InSkelMesh);
 
 	if (InSkelMesh == SkeletalMesh)
 	{
