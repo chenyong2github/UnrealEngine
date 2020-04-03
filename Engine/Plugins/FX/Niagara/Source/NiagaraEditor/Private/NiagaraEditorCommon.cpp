@@ -1362,3 +1362,8 @@ INiagaraScriptGraphFocusInfo::~INiagaraScriptGraphFocusInfo()
 {
 	//Stand-in definition for abstract INiagaraScriptGraphFocusInfo's pure virtual dtor
 }
+
+bool FNiagaraScriptVariableAndViewInfo::operator==(const FNiagaraScriptVariableAndViewInfo& Other) const
+{
+	return ScriptVariable == Other.ScriptVariable && MetaData.GetUsage() == Other.MetaData.GetUsage();
+}
