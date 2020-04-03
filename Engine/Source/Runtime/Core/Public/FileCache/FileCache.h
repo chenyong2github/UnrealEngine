@@ -7,7 +7,6 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/MemoryReadStream.h"
 
-//
 struct FFileCachePreloadEntry
 {
 	FFileCachePreloadEntry() : Offset(0), Size(0) {}
@@ -60,7 +59,9 @@ public:
 	 */
 	virtual IMemoryReadStreamRef ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority) = 0;
 
-	virtual FGraphEventRef PreloadData(const FFileCachePreloadEntry* PreloadEntries, int32 NumEntries, EAsyncIOPriorityAndFlags Priority) = 0;
+	virtual FGraphEventRef PreloadData(const FFileCachePreloadEntry* PreloadEntries, int32 NumEntries, int64 InOffset, EAsyncIOPriorityAndFlags Priority) = 0;
+
+	virtual void ReleasePreloadedData(const FFileCachePreloadEntry* PreloadEntries, int32 NumEntries, int64 InOffset) = 0;
 
 	/**
 	 * Wait until all outstanding read requests complete. 
