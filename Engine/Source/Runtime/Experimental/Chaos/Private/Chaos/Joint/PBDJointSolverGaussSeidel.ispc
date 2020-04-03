@@ -222,6 +222,18 @@ static inline void ApplyVelocityDelta(
 	M->Ws[1] = M->Ws[1] + Stiffness * DW1;
 }
 
+
+static inline void ApplyVelocityDelta(
+	uniform FJointSolverGaussSeidel * uniform M,
+	const uniform int Index,
+	const uniform float Stiffness,
+	const uniform FVector& DV,
+	const uniform FVector& DW)
+{
+	M->Vs[Index] = M->Vs[Index] + Stiffness * DV;
+	M->Ws[Index] = M->Ws[Index] + Stiffness * DW;
+}
+
 export void ApplyPositionConstraintSoft(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform float Dt,
@@ -392,46 +404,57 @@ export void ApplyPointPositionConstraintDD(
 	ApplyRotationDelta(M, LinearStiffness, DR0, DR1);
 }
 
-export void ApplyPositionProjection(
+export void ApplyPointPositionProjection(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform FVector &CX,
-	const uniform float CXLen,
-	const uniform float ParentMassScale,
-	const uniform float Stiffness)
+	const uniform float LinearProjection)
 {
-	const uniform FVector CXDir = CX / CXLen;
-	const uniform FVector V0 = M->Vs[0] + VectorCross(M->Ws[0], M->Xs[0] - M->Ps[0]);
-	const uniform FVector V1 = M->Vs[1] + VectorCross(M->Ws[1], M->Xs[1] - M->Ps[1]);
-	const uniform FVector CV = VectorDot(V1 - V0, CXDir) * CXDir;
-
-	const uniform float IM0 = ParentMassScale * M->InvMs[0];
-	const uniform float IM1 = M->InvMs[1];
-	const uniform FVector IIL0 = ParentMassScale * M->InvILs[0];
-	const uniform FVector& IIL1 = M->InvILs[1];
-	uniform FMatrix33 J0 = Matrix33Zero;
-	if(IM0 > 0)
+	// Apply a position correction with the parent body set to infinite mass
 	{
-		J0 = ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], M->InvIs[0], IM0);
+		const uniform FMatrix33 J = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]);
+		const uniform FMatrix33 IJ = MatrixInverse(J);
+		const uniform FVector DX = VectorNegate(Multiply(IJ, CX));
+		const uniform FVector DP1 = M->InvMs[1] * DX;
+		const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], DX));
+		ApplyDelta(M, 1, LinearProjection, DP1, DR1);
 	}
-	const uniform FMatrix33 J1 = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], IM1);
-	const uniform FMatrix33 IJ = MatrixInverse(AddAB(J0, J1));
 
-	const uniform FVector DX = Multiply(IJ, CX);
-	const uniform FVector DV = Multiply(IJ, CV);
+	// Apply a velocity correction to set the relative velocity at the joint to zero
+	// NOTE: No parent mass scale here - velocity correction is shared between bodies normally
+	// (if we don't do this, velocity tends to accumulate down chains leading to whip-like behaviour)
+	{
+		// Calculate joint-space mass
+		uniform FMatrix33 J = SetMatrix33(0, 0, 0);
+		if (M->InvMs[0] > 0)
+		{
+			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], M->InvIs[0], M->InvMs[0]));
+		}
+		if (M->InvMs[1] > 0)
+		{
+			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]));
+		}
+		const uniform FMatrix33 IJ = MatrixInverse(J);
 
-	const uniform FVector DP0 = IM0 * DX;
-	const uniform FVector DP1 = -IM1 * DX;
-	const uniform FVector DR0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DX));
-	const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DX)));
+		// Velocity correction
+		const uniform FVector V0 = M->Vs[0] + VectorCross(M->Ws[0], M->Xs[0] - M->Ps[0]);
+		const uniform FVector V1 = M->Vs[1] + VectorCross(M->Ws[1], M->Xs[1] - M->Ps[1]);
+		const uniform FVector CV = V1 - V0;
+		const uniform FVector DV = Multiply(IJ, CV);
 
-	const uniform FVector DV0 = IM0 * DV;
-	const uniform FVector DV1 = -IM1 * DV;
-	const uniform FVector DW0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DV));
-	const uniform FVector DW1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DV)));
+		if (M->InvMs[0] > 0)
+		{
+			const uniform FVector DV0 = M->InvMs[0] * DV;
+			const uniform FVector DW0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DV));
+			ApplyVelocityDelta(M, 0, LinearProjection, DV0, DW0);
+		}
+		if (M->InvMs[1] > 0)
+		{
+			const uniform FVector DV1 = M->InvMs[1] * VectorNegate(DV);
+			const uniform FVector DW1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DV)));
+			ApplyVelocityDelta(M, 1, LinearProjection, DV1, DW1);
+		}
+	}
 
-	ApplyPositionDelta(M, Stiffness, DP0, DP1);
-	ApplyRotationDelta(M, Stiffness, DR0, DR1);
-	ApplyVelocityDelta(M, Stiffness, DV0, DW0, DV1, DW1);
 }
 
 //
