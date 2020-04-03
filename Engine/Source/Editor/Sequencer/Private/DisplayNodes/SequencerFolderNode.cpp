@@ -97,6 +97,8 @@ void FSequencerFolderNode::SetDisplayName( const FText& NewDisplayName )
 
 		const FScopedTransaction Transaction( NSLOCTEXT( "SequencerFolderNode", "RenameFolder", "Rename folder." ) );
 		MovieSceneFolder.SetFolderName( UniqueName );
+
+		SetNodeName( UniqueName );
 	}
 }
 
