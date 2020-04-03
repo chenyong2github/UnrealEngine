@@ -31,6 +31,10 @@ namespace Chaos
 
 	using FPBDRigidsEvolutionIslandCallback = TFunction<void(int32 Island)>;
 
+	using FPBDRigidsEvolutionInternalHandleCallback = TFunction<void(
+		const TGeometryParticleHandle<float, 3> * OldParticle,
+		const TGeometryParticleHandle<float, 3> * NewParticle)>;
+	
 	class FPBDRigidsEvolutionGBF : public FPBDRigidsEvolutionBase
 	{
 	public:
@@ -79,6 +83,17 @@ namespace Chaos
 		{
 			PostApplyPushOutCallback = Cb;
 		}
+
+		void SetInternalParticleInitilizationFunction(const FPBDRigidsEvolutionInternalHandleCallback& Cb)
+		{ 
+			InternalParticleInitilization = Cb;
+		}
+
+		void DoInternalParticleInitilization(const TGeometryParticleHandle<float, 3>* OldParticle, const TGeometryParticleHandle<float, 3>* NewParticle) 
+		{ 
+			if (InternalParticleInitilization) InternalParticleInitilization(OldParticle, NewParticle); 
+		}
+
 
 		CHAOS_API void Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps);
 		CHAOS_API void AdvanceOneTimeStep(const FReal dt, const FReal StepFraction = (FReal)1.0);
@@ -196,5 +211,6 @@ namespace Chaos
 		FPBDRigidsEvolutionCallback PreApplyCallback;
 		FPBDRigidsEvolutionIslandCallback PostApplyCallback;
 		FPBDRigidsEvolutionIslandCallback PostApplyPushOutCallback;
+		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
 	};
 }
