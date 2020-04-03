@@ -19,7 +19,7 @@ endif (USE_LOGIN_SESSION_AUDIO_SETTINGS)
 
 option(VALIDATE_AUDIO_DEVICE_SELECTION "Validate that audio devices exist before setting them" ON)
 if (VALIDATE_AUDIO_DEVICE_SELECTION)
-	add_definitions(-VALIDATE_AUDIO_DEVICE_SELECTION=1)
+	add_definitions(-DVALIDATE_AUDIO_DEVICE_SELECTION=1)
 endif (VALIDATE_AUDIO_DEVICE_SELECTION)
 
 set(VIVOXSDK_PATH "" CACHE STRING "Path to Vivox sdk headers")
