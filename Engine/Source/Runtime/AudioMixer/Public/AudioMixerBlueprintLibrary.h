@@ -15,62 +15,6 @@
 
 class USoundSubmix;
 
-UENUM(BlueprintType)
-enum class EFFTSize : uint8
-{
-	// 512
-	DefaultSize, 
-
-	// 64
-	Min,
-
-	// 256
-	Small,
-
-	// 512
-	Medium, 
-
-	// 1024
-	Large, 
-
-	// 4096
-	Max, 
-};
-
-UENUM()
-enum class EFFTPeakInterpolationMethod : uint8
-{
-	NearestNeighbor,
-	Linear,
-	Quadratic
-};
-
-UENUM()
-enum class EFFTWindowType : uint8
-{
-	// No window is applied. Technically a boxcar window.
-	None, 
-
-	// Mainlobe width of -3 dB and sidelove attenuation of ~-40 dB. Good for COLA.
-	Hamming,
-
-	// Mainlobe width of -3 dB and sidelobe attenuation of ~-30dB. Good for COLA.
-	Hann,
-
-	// Mainlobe width of -3 dB and sidelobe attenuation of ~-60db. Tricky for COLA.
-	Blackman
-};
-
-UENUM(BlueprintType)
-enum class EAudioSpectrumType : uint8
-{
-	// Spectrum frequency values are equal to magnitude of frequency.
-	MagnitudeSpectrum,
-
-	// Spectrum frequency values are equal to magnitude squared.
-	PowerSpectrum
-};
-
 /** 
 * Called when a load request for a sound has completed.
 */
@@ -134,7 +78,7 @@ public:
 
 	/** Start spectrum analysis of the audio output. By leaving the Submix To Analyze blank, you can analyze the master output of the game. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Analysis", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
-	static void StartAnalyzingOutput(const UObject* WorldContextObject, USoundSubmix* SubmixToAnalyze = nullptr, EFFTSize FFTSize = EFFTSize::DefaultSize, EFFTPeakInterpolationMethod InterpolationMethod = EFFTPeakInterpolationMethod::Linear, EFFTWindowType WindowType = EFFTWindowType::Hann, float HopSize = 0);
+	static void StartAnalyzingOutput(const UObject* WorldContextObject, USoundSubmix* SubmixToAnalyze = nullptr, EFFTSize FFTSize = EFFTSize::DefaultSize, EFFTPeakInterpolationMethod InterpolationMethod = EFFTPeakInterpolationMethod::Linear, EFFTWindowType WindowType = EFFTWindowType::Hann, float HopSize = 0, EAudioSpectrumType SpectrumType = EAudioSpectrumType::MagnitudeSpectrum);
 
 	/** Start spectrum analysis of the audio output. By leaving the Submix To Stop Analyzing blank, you can analyze the master output of the game. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Analysis", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
@@ -187,8 +131,4 @@ public:
 	/** Queries if the given audio bus is active (and audio can be mixed to it). */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Bus", meta = (WorldContext = "WorldContextObject"))
 	static bool IsAudioBusActive(const UObject* WorldContextObject, UAudioBus* AudioBus);
-
-
-private:
-	static void PopulateSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, Audio::FSpectrumAnalyzerSettings &OutSettings);
 };
