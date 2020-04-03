@@ -22,6 +22,7 @@ class SComboButton;
 class FNiagaraObjectSelection;
 class UNiagaraGraph;
 struct FEdGraphSchemaAction;
+struct FSlateBrush;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NiagaraParameterMapSectionID
@@ -51,6 +52,7 @@ namespace NiagaraParameterMapSectionID
 	static FText OnGetSectionTitle(const NiagaraParameterMapSectionID::Type InSection);
 	static void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
 	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
+	static bool GetSectionIsAdvanced(const NiagaraParameterMapSectionID::Type InSection);
 };
 
 class FNiagaraParameterMapViewCommands : public TCommands<FNiagaraParameterMapViewCommands>
@@ -103,6 +105,10 @@ public:
 	static bool IsStaticSwitchParameter(const FNiagaraVariable& Variable, const TArray<TWeakObjectPtr<UNiagaraGraph>>& Graphs);
 
 private:
+	
+	TSharedRef<SWidget> GetViewOptionsMenu();
+	static const FSlateBrush* GetViewOptionsBorderBrush();
+
 	/** Function to bind to SNiagaraAddParameterMenus to filter types we allow creating in generic parameters*/
 	bool AllowMakeTypeGeneric(const FNiagaraTypeDefinition& InType) const;
 
