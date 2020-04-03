@@ -41,9 +41,6 @@ void UNetworkPredictionComponent::InitializeComponent()
 		ReplicationProxy_Autonomous.Init(NewNetworkSim, EReplicationProxyTarget::AutonomousProxy);
 		ReplicationProxy_Simulated.Init(NewNetworkSim, EReplicationProxyTarget::SimulatedProxy);
 		ReplicationProxy_Replay.Init(NewNetworkSim, EReplicationProxyTarget::Replay);
-	#if NETSIM_MODEL_DEBUG
-		ReplicationProxy_Debug.Init(NewNetworkSim, EReplicationProxyTarget::Debug);
-	#endif
 
 		// Register with GlobalManager			
 		NetworkSimGlobalManager->RegisterModel(NewNetworkSim, GetOwner());
@@ -81,9 +78,6 @@ void UNetworkPredictionComponent::PreReplication(IRepChangedPropertyTracker & Ch
 		ReplicationProxy_Autonomous.OnPreReplication();
 		ReplicationProxy_Simulated.OnPreReplication();
 		ReplicationProxy_Replay.OnPreReplication();
-#if NETSIM_MODEL_DEBUG
-		ReplicationProxy_Debug.OnPreReplication();
-#endif
 	}
 }
 
@@ -100,10 +94,6 @@ void UNetworkPredictionComponent::GetLifetimeReplicatedProps(TArray< FLifetimePr
 	DOREPLIFETIME_CONDITION( UNetworkPredictionComponent, ReplicationProxy_Autonomous, COND_AutonomousOnly);
 	DOREPLIFETIME_CONDITION( UNetworkPredictionComponent, ReplicationProxy_Simulated, COND_SimulatedOnly);
 	DOREPLIFETIME_CONDITION( UNetworkPredictionComponent, ReplicationProxy_Replay, COND_ReplayOnly);
-
-#if NETSIM_MODEL_DEBUG
-	DOREPLIFETIME_CONDITION( UNetworkPredictionComponent, ReplicationProxy_Debug, COND_ReplayOrOwner);
-#endif
 }
 
 void UNetworkPredictionComponent::InitializeForNetworkRole(ENetRole Role)

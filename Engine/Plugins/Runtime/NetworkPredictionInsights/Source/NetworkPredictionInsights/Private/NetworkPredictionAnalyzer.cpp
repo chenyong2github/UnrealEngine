@@ -25,11 +25,11 @@ void FNetworkPredictionAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 	Builder.RouteEvent(RouteId_SimulationEOF, "NetworkPrediction", "SimulationEOF");
 	Builder.RouteEvent(RouteId_NetSerializeRecv, "NetworkPrediction", "NetSerializeRecv");
 	Builder.RouteEvent(RouteId_NetSerializeCommit, "NetworkPrediction", "NetSerializeCommit");
-	Builder.RouteEvent(RouteId_NetSerializeFault, "NetworkPrediction", "NetSerializeFault");
 	Builder.RouteEvent(RouteId_InputCmd, "NetworkPrediction", "InputCmd");
 	Builder.RouteEvent(RouteId_SyncState, "NetworkPrediction", "SyncState");
 	Builder.RouteEvent(RouteId_AuxState, "NetworkPrediction", "AuxState");
 	Builder.RouteEvent(RouteId_PieBegin, "NetworkPrediction", "PieBegin");
+	Builder.RouteEvent(RouteId_SystemFault, "NetworkPrediction", "SystemFault");
 }
 
 void FNetworkPredictionAnalyzer::OnAnalysisEnd()
@@ -101,14 +101,15 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		{
 			FSimulationData::FEngineFrame& FrameData = NetworkPredictionProvider.WriteSimulationEOF(EventData.GetValue<uint32>("SimulationId"));
 			FrameData.EngineFrame = EventData.GetValue<uint64>("EngineFrameNumber");
-			FrameData.EngineFrameDeltaTime = EventData.GetValue<double>("EngineFrameDeltaTime");
-			FrameData.EngineCurrentTime = EventData.GetValue<double>("EngineCurrentTime");
+			FrameData.EngineFrameDeltaTime = EventData.GetValue<float>("EngineFrameDeltaTime");
+			
 
-			FrameData.TotalProcessedSimTimeMS = EventData.GetValue<int32>("TotalProcessedMS");
-			FrameData.TotalAllowedSimTimeMS = EventData.GetValue<int32>("TotalAllowedMS");
-		
-			FrameData.LastSentKeyframe = EventData.GetValue<int32>("LastSentKeyframe");
-			FrameData.LastReceivedKeyframe = EventData.GetValue<int32>("LastReceivedKeyframe");
+			FrameData.BufferSize = EventData.GetValue<int32>("BufferSize");
+			FrameData.PendingTickFrame = EventData.GetValue<int32>("PendingTickFrame");
+			FrameData.LatestInputFrame = EventData.GetValue<int32>("LatestInputFrame");
+			FrameData.MaxTickFrame = EventData.GetValue<int32>("MaxTickFrame");
+			FrameData.TotalSimTime = EventData.GetValue<int32>("TotalSimTime");
+			FrameData.AllowedSimTime = EventData.GetValue<int32>("AllowedSimTime");	
 			break;
 		}
 
@@ -116,8 +117,8 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		{
 			FSimulationData::FNetSerializeRecv NetRecv;
 			NetRecv.EngineFrame = EventData.GetValue<uint64>("EngineFrameNumber");
-			NetRecv.SimTimeMS = EventData.GetValue<uint64>("ReceivedSimTimeMS");
-			NetRecv.Frame = EventData.GetValue<uint64>("ReceivedFrame");
+			NetRecv.SimTimeMS = EventData.GetValue<int32>("ReceivedSimTimeMS");
+			NetRecv.Frame = EventData.GetValue<int32>("ReceivedFrame");
 			
 			NetworkPredictionProvider.WriteNetRecv(EventData.GetValue<uint32>("SimulationId"), MoveTemp(NetRecv));
 			break;
@@ -126,12 +127,6 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		case RouteId_NetSerializeCommit:
 		{
 			NetworkPredictionProvider.WriteNetCommit(EventData.GetValue<uint32>("SimulationId"));
-			break;
-		}
-
-		case RouteId_NetSerializeFault:
-		{
-			NetworkPredictionProvider.WriteNetFault(EventData.GetValue<uint32>("SimulationId"));
 			break;
 		}
 
@@ -174,6 +169,16 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		case RouteId_PieBegin:
 		{
 			NetworkPredictionProvider.WritePIEStart();
+			break;
+		}
+
+		case RouteId_SystemFault:
+		{
+			NetworkPredictionProvider.WriteSystemFault(
+				EventData.GetValue<uint32>("SimulationId"),
+				EventData.GetValue<uint64>("EngineFrameNumber"),
+				Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()))
+			);
 			break;
 		}
 

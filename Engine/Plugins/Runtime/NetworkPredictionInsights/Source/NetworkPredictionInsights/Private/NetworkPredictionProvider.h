@@ -32,7 +32,7 @@ public:
 	FSimulationData::FEngineFrame& WriteSimulationEOF(uint32 SimulationId);
 	void WriteNetRecv(uint32 SimulationId, FSimulationData::FNetSerializeRecv&& InNetRecv);
 	void WriteNetCommit(uint32 SimulationId);
-	void WriteNetFault(uint32 SimulationId);
+	void WriteSystemFault(uint32 SimulationId, uint64 EngineFrameNumber, const TCHAR* Fmt);
 	void WriteOOBStateMod(uint32 SimulationId);
 	void WriteProduceInput(uint32 SimulationId);
 	void WriteSynthInput(uint32 SimulationId);

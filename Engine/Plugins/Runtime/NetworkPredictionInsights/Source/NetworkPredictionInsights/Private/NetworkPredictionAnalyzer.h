@@ -40,11 +40,11 @@ private:
 		RouteId_SimulationEOF,
 		RouteId_NetSerializeRecv,
 		RouteId_NetSerializeCommit,
-		RouteId_NetSerializeFault,
 		RouteId_InputCmd,
 		RouteId_SyncState,
 		RouteId_AuxState,
-		RouteId_PieBegin
+		RouteId_PieBegin,
+		RouteId_SystemFault
 	};
 
 
