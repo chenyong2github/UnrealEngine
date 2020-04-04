@@ -391,13 +391,15 @@ struct FCollisionData
 	FCollisionFilterData SimData;
 	void* UserData;
 	EChaosCollisionTraceFlag CollisionTraceType;
-	uint8 bDisable : 1;
+	uint8 bSimCollision : 1;
+	uint8 bQueryCollision : 1;
 	uint8 bSimulate : 1;
 
 	FCollisionData()
 	: UserData(nullptr)
 	, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
-	, bDisable(false)
+	, bSimCollision(true)
+	, bQueryCollision(true)
 	, bSimulate(true)
 	{
 	}
@@ -410,11 +412,20 @@ struct FCollisionData
 		Ar << QueryData;
 		Ar << SimData;
 
-		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeCollisionDisable)
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeSimAndQueryCollisionEnabled)
 		{
-			bool Disable = bDisable;
+			int8 EnableSim = bSimCollision;
+			int8 EnableQuery = bQueryCollision;
+			Ar << EnableSim;
+			Ar << EnableQuery;
+			bSimCollision = EnableSim;
+			bQueryCollision = EnableQuery;
+		}
+		else if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeCollisionDisable)
+		{
+			bool Disable = !bSimCollision;
 			Ar << Disable;
-			bDisable = Disable;
+			bSimCollision = !Disable;
 		}
 
 		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializePerShapeDataSimulateFlag)
