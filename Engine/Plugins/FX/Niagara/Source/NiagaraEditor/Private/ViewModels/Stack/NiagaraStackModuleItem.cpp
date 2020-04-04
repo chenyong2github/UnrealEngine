@@ -251,6 +251,21 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 			InputCollection->SetShouldShowInStack(false);
 
 			NewChildren.Add(InputCollection);
+
+			UNiagaraNodeAssignment* AssignmentNode = CastChecked<UNiagaraNodeAssignment>(FunctionCallNode);
+			if (AssignmentNode->GetAssignmentTargets().Num() == 0)
+			{
+				FText EmptyAssignmentNodeMessageText = LOCTEXT("EmptyAssignmentNodeMessage", "No variables\n\nTo add a variable use the add button in the header, or drag a parameter from the parameters tab to the header.");
+				UNiagaraStackItemTextContent* EmptyAssignmentNodeMessage = FindCurrentChildOfTypeByPredicate<UNiagaraStackItemTextContent>(NewChildren,
+					[&](UNiagaraStackItemTextContent* CurrentStackItemTextContent) { return CurrentStackItemTextContent->GetDisplayName().IdenticalTo(EmptyAssignmentNodeMessageText); });
+
+				if (EmptyAssignmentNodeMessage == nullptr)
+				{
+					EmptyAssignmentNodeMessage = NewObject<UNiagaraStackItemTextContent>(this);
+					EmptyAssignmentNodeMessage->Initialize(CreateDefaultChildRequiredData(), EmptyAssignmentNodeMessageText, false, GetStackEditorDataKey());
+				}
+				NewChildren.Add(EmptyAssignmentNodeMessage);
+			}
 		}
 	}
 

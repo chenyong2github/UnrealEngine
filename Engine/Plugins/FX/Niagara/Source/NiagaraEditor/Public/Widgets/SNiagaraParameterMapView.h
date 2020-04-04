@@ -229,7 +229,16 @@ public:
 
 	TSharedRef<SEditableTextBox> GetSearchBox();
 
-	void AddParameterGroup(FGraphActionListBuilderBase& OutActions, TArray<FNiagaraVariable>& Variables, const NiagaraParameterMapSectionID::Type InSection = NiagaraParameterMapSectionID::NONE, const FText& Category = FText::GetEmpty(), const FString& RootCategory = FString(), const bool bSort = true, const bool bCustomName = true);
+	void AddParameterGroup(
+		FGraphActionListBuilderBase& OutActions,
+		TArray<FNiagaraVariable>& Variables,
+		const NiagaraParameterMapSectionID::Type InSection = NiagaraParameterMapSectionID::NONE,
+		const FText& Category = FText::GetEmpty(),
+		const FString& RootCategory = FString(),
+		const bool bSort = true,
+		const bool bCustomName = true,
+		bool bForMakeNew = false);
+	
 	void CollectParameterCollectionsActions(FGraphActionListBuilderBase& OutActions);
 	void CollectMakeNew(FGraphActionListBuilderBase& OutActions, const NiagaraParameterMapSectionID::Type InSection = NiagaraParameterMapSectionID::NONE);
 

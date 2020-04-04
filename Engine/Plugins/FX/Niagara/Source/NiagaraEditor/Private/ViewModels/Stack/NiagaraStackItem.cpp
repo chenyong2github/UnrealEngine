@@ -172,3 +172,15 @@ bool UNiagaraStackItemContent::FilterAdvancedChildren(const UNiagaraStackEntry& 
 		return GetStackEditorData().GetShowAllAdvanced() || GetStackEditorData().GetStackItemShowAdvanced(OwningStackItemEditorDataKey, false);
 	}
 }
+
+void UNiagaraStackItemTextContent::Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayText, bool bInIsAdvanced, FString InOwningStackItemEditorDataKey)
+{
+	Super::Initialize(InRequiredEntryData, bInIsAdvanced, InOwningStackItemEditorDataKey, InOwningStackItemEditorDataKey + InDisplayText.ToString());
+	DisplayText = InDisplayText;
+}
+
+FText UNiagaraStackItemTextContent::GetDisplayName() const
+{
+	return DisplayText;
+}
+
