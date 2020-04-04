@@ -69,6 +69,11 @@ void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName)
 	TArray<FString> NameParts;
 	DisplayedParameterNameString.ParseIntoArray(NameParts, TEXT("."));
 
+	if (NameParts.Num() == 0)
+	{
+		return;
+	}
+
 	TArray<FName> Namespaces;
 	for (int32 i = 0; i < NameParts.Num() - 1; i++)
 	{
@@ -79,31 +84,34 @@ void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName)
 
 	FNiagaraNamespaceMetadata DefaultNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({ NAME_None });
 
-	// Add the namespace widget.
-	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(Namespaces);
-	TSharedPtr<SWidget> NamespaceWidget;
-	if (NamespaceMetadata.IsValid())
+	if (Namespaces.Num() > 0)
 	{
-		Namespaces.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
-		NamespaceWidget = CreateNamespaceWidget(NamespaceMetadata.DisplayName.ToUpper(), NamespaceMetadata.Description, NamespaceMetadata.BackgroundColor);
-	}
-	else
-	{
-		FText NamespaceDisplayName = FText::FromString(FName::NameToDisplayString(Namespaces[0].ToString(), false).ToUpper());
-		Namespaces.RemoveAt(0);
-		CreateNamespaceWidget(
-			NamespaceDisplayName,
-			DefaultNamespaceMetadata.Description,
-			DefaultNamespaceMetadata.BackgroundColor);
-	}
+		// Add the namespace widget.
+		FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(Namespaces);
+		TSharedPtr<SWidget> NamespaceWidget;
+		if (NamespaceMetadata.IsValid())
+		{
+			Namespaces.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
+			NamespaceWidget = CreateNamespaceWidget(NamespaceMetadata.DisplayName.ToUpper(), NamespaceMetadata.Description, NamespaceMetadata.BackgroundColor);
+		}
+		else
+		{
+			FText NamespaceDisplayName = FText::FromString(FName::NameToDisplayString(Namespaces[0].ToString(), false).ToUpper());
+			Namespaces.RemoveAt(0);
+			CreateNamespaceWidget(
+				NamespaceDisplayName,
+				DefaultNamespaceMetadata.Description,
+				DefaultNamespaceMetadata.BackgroundColor);
+		}
 
-	ContentBox->AddSlot()
-	.VAlign(VAlign_Center)
-	.AutoWidth()
-	.Padding(0.0f, 0.0f, 5.0f, 0.0f)
-	[
-		NamespaceWidget.ToSharedRef()
-	];
+		ContentBox->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+		[
+			NamespaceWidget.ToSharedRef()
+		];
+	}
 
 	// Next the namespace modifier widget is there is a namespace modifier.
 	if (Namespaces.Num() > 0)

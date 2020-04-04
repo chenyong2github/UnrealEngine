@@ -27,6 +27,8 @@ public:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+	virtual FText GetItemTooltip() const override;
+
 protected:
 	/** Callback when rename text is committed */
 	virtual void OnNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit) override;
@@ -36,4 +38,7 @@ protected:
 private:
 	FOnItemRenamed OnItemRenamed;
 	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterNameTextBlock;
+	bool bWasCreated;
+	mutable FText ToolTipCache;
+	mutable FText CreatedToolTipCache;
 };

@@ -320,6 +320,9 @@ public:
 	UPROPERTY()
 	TArray<UNiagaraScript*> ScratchPadScripts;
 
+	UPROPERTY(transient)
+	FNiagaraParameterStore EditorOnlyAddedParameters;
+
 	bool GetIsolateEnabled() const;
 	void SetIsolateEnabled(bool bIsolate);
 	
