@@ -37,7 +37,7 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 			for (const FDMXImportGDTFDMXChannel& ModeChannel : AssetMode.DMXChannels)
 			{
 				FDMXFixtureFunction& Function = Mode.Functions[Mode.Functions.Emplace()];
-				Function.FunctionName = ModeChannel.LogicalChannel.ChannelFunction.Name.ToString();
+				Function.FunctionName = ModeChannel.LogicalChannel.Attribute.Name.ToString();
 				Function.DefaultValue = ModeChannel.Default.Value;
 
 				if (ModeChannel.Offset.Num() > 0)
