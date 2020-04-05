@@ -2020,7 +2020,7 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 	if (NormalmapTexture)
 	{
 		LandscapeParams.NormalmapTexture = NormalmapTexture->TextureReference.TextureReferenceRHI;
-		LandscapeParams.NormalmapTextureSampler = NormalmapTexture->Resource->SamplerStateRHI;
+		LandscapeParams.NormalmapTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	}
 	else
 	{
