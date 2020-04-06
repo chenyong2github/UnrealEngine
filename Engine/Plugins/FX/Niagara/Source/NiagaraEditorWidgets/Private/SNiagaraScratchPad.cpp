@@ -14,6 +14,7 @@
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraScratchPadCommandContext.h"
 #include "Widgets/SNiagaraParameterPanel.h"
+#include "Widgets/SNiagaraParameterMapView.h"
 
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Input/SButton.h"
@@ -468,28 +469,8 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(2, 0, 2, 0)
 				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.EditorHeaderText")
-					.Text(this, &SNiagaraScratchPadScriptEditor::GetNameText)
-					.ToolTipText(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetToolTip)
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(1)
-				[
-					SNew(SNiagaraPinButton)
-					.IsPinned(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetIsPinned)
-					.OnPinnedChanged(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::SetIsPinned)
-					.PinItemDisplayName(LOCTEXT("PinItem", "script"))
-					.PinTargetDisplayName(LOCTEXT("PinTarget", "edit list"))
-				]
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
-				.Padding(0.0f, 2.0f, 1.0f, 4.0f)
+				.Padding(2.0f, 3.0f, 5.0f, 3.0f)
 				[
 					SNew(SButton)
 					.OnClicked(this, &SNiagaraScratchPadScriptEditor::OnApplyButtonClicked)
@@ -516,6 +497,26 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 							.Text(LOCTEXT("ApplyButtonLabel", "Apply"))
 						]
 					]
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(5, 0, 2, 0)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.EditorHeaderText")
+					.Text(this, &SNiagaraScratchPadScriptEditor::GetNameText)
+					.ToolTipText(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetToolTip)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(1)
+				[
+					SNew(SNiagaraPinButton)
+					.IsPinned(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetIsPinned)
+					.OnPinnedChanged(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::SetIsPinned)
+					.PinItemDisplayName(LOCTEXT("PinItem", "script"))
+					.PinTargetDisplayName(LOCTEXT("PinTarget", "edit list"))
 				]
 			]
 			+ SVerticalBox::Slot()
@@ -562,6 +563,11 @@ class SNiagaraScratchPadScriptEditorList : public SCompoundWidget
 		ViewModel->OnActiveScriptChanged().AddSP(this, &SNiagaraScratchPadScriptEditorList::ActiveScriptChanged);
 		bIsUpdatingSelection = false;
 
+		ChildSlot
+		[
+			SAssignNew(ContentBorder, SBorder)
+			.BorderImage(FEditorStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
+		];
 		UpdateContentFromEditScriptViewModels();
 	}
 
@@ -603,7 +609,13 @@ private:
 		TSharedPtr<SWidget> NewContent;
 		if (ViewModel->GetEditScriptViewModels().Num() == 0)
 		{
-			NewContent = SNullWidget::NullWidget;
+			NewContent = SNew(SBox)
+				.HAlign(HAlign_Center)
+				.Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("NoScriptToEdit", "No script selected"))
+				];
 			ScriptEditorList.Reset();
 		}
 		else if(ViewModel->GetEditScriptViewModels().Num() == 1)
@@ -627,10 +639,7 @@ private:
 			NewContent = ScriptEditorList;
 		}
 
-		ChildSlot
-		[
-			NewContent.ToSharedRef()
-		];
+		ContentBorder->SetContent(NewContent.ToSharedRef());
 	}
 
 	void ActiveScriptChanged()
@@ -689,6 +698,7 @@ private:
 	};
 
 	UNiagaraScratchPadViewModel* ViewModel;
+	TSharedPtr<SBorder> ContentBorder;
 	TSharedPtr<SListView<TSharedRef<FNiagaraScratchPadScriptViewModel>>> ScriptEditorList;
 	TArray<FScriptViewModelWidgetPair> ScriptViewModelWidgetPairs;
 	bool bIsUpdatingSelection;
@@ -703,7 +713,8 @@ class SNiagaraScratchPadParameterPanel : public SCompoundWidget
 	{
 		ViewModel = InViewModel;
 		ViewModel->OnActiveScriptChanged().AddSP(this, &SNiagaraScratchPadParameterPanel::ActiveScriptChanged);
-		UpdateContent();
+		bool bForce = true;
+		UpdateContent(bForce);
 	}
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
@@ -717,30 +728,72 @@ class SNiagaraScratchPadParameterPanel : public SCompoundWidget
 	}
 
 private:
-	void UpdateContent()
+	void UpdateContent(bool bForce)
 	{
-		TSharedPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModel = ScriptViewModelWeak.Pin();
+		TSharedPtr<FNiagaraScratchPadScriptViewModel> OldScriptViewModel = ScriptViewModelWeak.Pin();
 		TSharedPtr<FNiagaraScratchPadScriptViewModel> NewScriptViewModel = ViewModel->GetActiveScriptViewModel();
-		if (NewScriptViewModel != ScriptViewModel)
+		if (NewScriptViewModel != OldScriptViewModel || bForce)
 		{
+			ScriptViewModelWeak = NewScriptViewModel;
 			if (NewScriptViewModel.IsValid())
 			{
+				TSharedPtr<SWidget> ParameterPanelWidget;
+				if (NewScriptViewModel->GetParameterPanelViewModel().IsValid())
+				{
+					ParameterPanelWidget = SNew(SNiagaraParameterPanel, NewScriptViewModel->GetParameterPanelViewModel(), NewScriptViewModel->GetParameterPanelCommands());
+				}
+				else
+				{
+					TSharedRef<FNiagaraObjectSelection> ScriptSelection = MakeShared<FNiagaraObjectSelection>();
+					ScriptSelection->SetSelectedObject(NewScriptViewModel->GetEditScript());
+					TArray<TSharedRef<FNiagaraObjectSelection>> ParameterSelections;
+					ParameterSelections.Add(ScriptSelection);
+					ParameterSelections.Add(NewScriptViewModel->GetVariableSelection());
+					ParameterPanelWidget = SNew(SNiagaraParameterMapView, ParameterSelections, SNiagaraParameterMapView::EToolkitType::SCRIPT, NewScriptViewModel->GetParameterPanelCommands());
+				}
 				ChildSlot
 				[
-					SNew(SNiagaraParameterPanel, NewScriptViewModel->GetParameterPanelViewModel(), NewScriptViewModel->GetParameterPanelCommands())
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2.0f, 2.0f, 2.0f, 5.0f)
+					[
+						SNew(STextBlock)
+						.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.SubSectionHeaderText")
+						.Text(this, &SNiagaraScratchPadParameterPanel::GetSubHeaderText)
+					]
+					+ SVerticalBox::Slot()
+					[
+						ParameterPanelWidget.ToSharedRef()
+					]
 				];
-				ScriptViewModelWeak = NewScriptViewModel;
 			}
 			else
 			{
-				ChildSlot[SNullWidget::NullWidget];
+				ChildSlot
+				[
+					SNew(SBox)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("NoScriptForParameters", "No script selected"))
+					]
+				];
 			}
 		}
 	}
 
 	void ActiveScriptChanged()
 	{
-		UpdateContent();
+		bool bForce = false;
+		UpdateContent(bForce);
+	}
+
+	FText GetSubHeaderText() const
+	{
+		TSharedPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModel = ScriptViewModelWeak.Pin();
+		return ScriptViewModel.IsValid() ? ScriptViewModel->GetDisplayName() : FText();
 	}
 
 private:
@@ -780,6 +833,8 @@ class SNiagaraScratchPadSectionBox : public SCompoundWidget
 void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadViewModel* InViewModel)
 {
 	ViewModel = InViewModel;
+	ViewModel->GetObjectSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraScratchPad::ObjectSelectionChanged);
+
 	CommandContext = MakeShared<FNiagaraScratchPadCommandContext>(InViewModel);
 
 	ChildSlot
@@ -839,11 +894,7 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 				+ SSplitter::Slot()
 				.Value(0.6f)
 				[
-					SNew(SBox)
-					.Padding(FMargin(3.0f, 0.0f))
-					[
-						InNamedWidgetProvider.GetNamedWidget(ScriptEditorName)
-					]
+					InNamedWidgetProvider.GetNamedWidget(ScriptEditorName)
 				]
 				+ SSplitter::Slot()
 				.Value(0.25f)
@@ -884,11 +935,7 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 				+ SSplitter::Slot()
 				.Value(0.7f)
 				[
-					SNew(SBox)
-					.Padding(FMargin(3.0f, 0.0f, 0.0f, 0.0f))
-					[
-						InNamedWidgetProvider.GetNamedWidget(ScriptEditorName)
-					]
+					InNamedWidgetProvider.GetNamedWidget(ScriptEditorName)
 				];
 			}
 			else
@@ -909,6 +956,46 @@ void SNiagaraScratchPad::Construct(const FArguments& InArgs, UNiagaraScratchPadV
 			}
 		})
 	];
+}
+
+void SNiagaraScratchPad::ObjectSelectionChanged()
+{
+	int32 SelectionCount = ViewModel->GetObjectSelection()->GetSelectedObjects().Num();
+	if (SelectionCount == 0)
+	{
+		ObjectSelectionSubHeaderText = FText();
+	}
+	else if (SelectionCount == 1)
+	{
+		UObject* SelectedObject = ViewModel->GetObjectSelection()->GetSelectedObjects().Array()[0];
+		if (SelectedObject->IsA<UEdGraphNode>())
+		{
+			UEdGraphNode* SelectedGraphNode = CastChecked<UEdGraphNode>(SelectedObject);
+			ObjectSelectionSubHeaderText = SelectedGraphNode->GetNodeTitle(ENodeTitleType::ListView);
+		}
+		else if (SelectedObject->IsA<UNiagaraScript>())
+		{
+			UNiagaraScript* SelectedScript = CastChecked<UNiagaraScript>(SelectedObject);
+			TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = ViewModel->GetViewModelForEditScript(SelectedScript);
+			if (ScratchPadScriptViewModel.IsValid())
+			{
+				ObjectSelectionSubHeaderText = ScratchPadScriptViewModel->GetDisplayName();
+			}
+			else
+			{
+				ObjectSelectionSubHeaderText = FText::FromString(SelectedScript->GetName());
+			}
+		}
+		else
+		{
+			ObjectSelectionSubHeaderText = FText::FromString(SelectedObject->GetName());
+		}
+	}
+	else
+	{
+		ObjectSelectionSubHeaderText = FText::Format(LOCTEXT("MultipleSelectionFormat", "{0} Objects Selected..."),
+			FText::AsNumber(SelectionCount));
+	}
 }
 
 TSharedRef<SWidget> SNiagaraScratchPad::ConstructScriptSelector()
@@ -939,8 +1026,45 @@ TSharedRef<SWidget> SNiagaraScratchPad::ConstructSelectionEditor()
 	return SNew(SNiagaraScratchPadSectionBox)
 	.HeaderText(LOCTEXT("ScratchPadSelection", "Scratch Pad Selection"))
 	[
-		SNew(SNiagaraSelectedObjectsDetails, ViewModel->GetObjectSelection())
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f, 2.0f, 2.0f, 5.0f)
+		[
+			SNew(STextBlock)
+			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.ScratchPad.SubSectionHeaderText")
+			.Visibility(this, &SNiagaraScratchPad::GetObjectSelectionSubHeaderTextVisibility)
+			.Text(this, &SNiagaraScratchPad::GetObjectSelectionSubHeaderText)
+		]
+		+ SVerticalBox::Slot()
+		.HAlign(HAlign_Center)
+		.AutoHeight()
+		.Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
+		[
+			SNew(STextBlock)
+			.Visibility(this, &SNiagaraScratchPad::GetObjectSelectionNoSelectionTextVisibility)
+			.Text(LOCTEXT("NoObjectSelection", "No object selected"))
+		]
+		+ SVerticalBox::Slot()
+		[
+			SNew(SNiagaraSelectedObjectsDetails, ViewModel->GetObjectSelection())
+		]
 	];
+}
+
+EVisibility SNiagaraScratchPad::GetObjectSelectionSubHeaderTextVisibility() const
+{
+	return ViewModel->GetObjectSelection()->GetSelectedObjects().Num() != 0 ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FText SNiagaraScratchPad::GetObjectSelectionSubHeaderText() const
+{
+	return ObjectSelectionSubHeaderText;
+}
+
+EVisibility SNiagaraScratchPad::GetObjectSelectionNoSelectionTextVisibility() const
+{
+	return ViewModel->GetObjectSelection()->GetSelectedObjects().Num() == 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

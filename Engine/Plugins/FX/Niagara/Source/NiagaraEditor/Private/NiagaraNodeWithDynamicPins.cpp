@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
-#include "SNiagaraParameterMapView.h"
+#include "Widgets/SNiagaraParameterMapView.h"
 #include "Framework/Application/SlateApplication.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraScriptVariable.h"
