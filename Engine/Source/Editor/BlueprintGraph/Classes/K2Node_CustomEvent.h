@@ -57,7 +57,7 @@ class UK2Node_CustomEvent : public UK2Node_Event
 	//~ Begin UK2Node Interface
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
-	virtual void FixupPinStringDataReferences(FArchive& Ar) override;
+	virtual void FixupPinStringDataReferences(FArchive* SavingArchive) override;
 	virtual bool NodeCausesStructuralBlueprintChange() const override { return true; }
 	//~ End UK2Node Interface
 

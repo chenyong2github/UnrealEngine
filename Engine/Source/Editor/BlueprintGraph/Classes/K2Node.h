@@ -478,7 +478,7 @@ protected:
 	BLUEPRINTGRAPH_API virtual void FixupPinDefaultValues();
 
 	/** Fixes up structure/soft object ref pins, on both save and load */
-	BLUEPRINTGRAPH_API virtual void FixupPinStringDataReferences(FArchive& Ar);
+	BLUEPRINTGRAPH_API virtual void FixupPinStringDataReferences(FArchive* SavingArchive);
 
 private:
 

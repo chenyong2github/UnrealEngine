@@ -107,7 +107,7 @@ void UK2Node::Serialize(FArchive& Ar)
 		if (GIsEditor)
 		{
 			// We need to serialize string data references on load in editor builds so the cooker knows about them
-			FixupPinStringDataReferences(Ar);
+			FixupPinStringDataReferences(nullptr);
 		}
 	}
 }
@@ -170,10 +170,17 @@ void UK2Node::FixupPinDefaultValues()
 	}
 }
 
-void UK2Node::FixupPinStringDataReferences(FArchive& Ar)
+void UK2Node::FixupPinStringDataReferences(FArchive* SavingArchive)
 {
 	// This code expands some pin types into their real representation, optionally serializes them, and then writes them out as strings again
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	FLinkerLoad* LinkerLoad = GetLinker();
+
+	// Can't do any fixups without an archive of some sort
+	if (!SavingArchive && !LinkerLoad)
+	{
+		return;
+	}
 
 	for (UEdGraphPin* Pin : Pins)
 	{
@@ -186,9 +193,9 @@ void UK2Node::FixupPinStringDataReferences(FArchive& Ar)
 				if (Struct)
 				{
 					// While loading, our user struct may not have been linked yet
-					if (Ar.IsLoading() && Struct->HasAnyFlags(RF_NeedLoad))
+					if (Struct->HasAnyFlags(RF_NeedLoad) && LinkerLoad)
 					{
-						Ar.Preload(Struct);
+						LinkerLoad->Preload(Struct);
 					}
 					
 					FSoftObjectPathSerializationScope SetPackage(GetOutermost()->GetFName(), NAME_None, ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::SkipSerializeIfArchiveHasSize);
@@ -200,10 +207,10 @@ void UK2Node::FixupPinStringDataReferences(FArchive& Ar)
 					FOutputDeviceNull NullOutput;
 					Struct->ImportText(*Pin->DefaultValue, StructData->GetStructMemory(), this, PPF_SerializedAsImportText, &NullOutput, Pin->PinName.ToString());
 
-					if (Ar.IsSaving())
+					if (SavingArchive)
 					{
 						// If we're saving, use the archive to do any replacements
-						Struct->SerializeItem(Ar, StructData->GetStructMemory(), nullptr);
+						Struct->SerializeItem(*SavingArchive, StructData->GetStructMemory(), nullptr);
 					}
 					
 					// Convert back to the default value string as we might have changed
@@ -223,15 +230,15 @@ void UK2Node::FixupPinStringDataReferences(FArchive& Ar)
 
 				FSoftObjectPath TempRef(Pin->DefaultValue);
 
-				if (Ar.IsSaving())
+				if (SavingArchive)
 				{
 					// Serialize it directly, this won't do anything if it's a real archive like LinkerSave
-					Ar << TempRef;
+					*SavingArchive << TempRef;
 				}
-				else if (Ar.IsLoading())
+				else
 				{
 					// Transform it as strings
-					TempRef.PostLoadPath(&Ar);
+					TempRef.PostLoadPath(LinkerLoad);
 					TempRef.PreSavePath();
 				}
 				
