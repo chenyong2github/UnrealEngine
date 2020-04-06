@@ -4,7 +4,6 @@
 
 /** This class represents an GeometryCollection Actor. */
 
-#include "Chaos/IncludeLvl1.inl"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GeometryCollection/GeometryCollection.h"
