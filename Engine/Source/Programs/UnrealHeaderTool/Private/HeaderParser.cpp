@@ -3184,7 +3184,7 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 	if (SparseClassDataTypes.Num() == 0)
 	{
 		FError::Throwf(TEXT("Class %s has sparse class metadata but does not specify a type."), *ClassToCheck->GetName());
-		return
+		return;
 	}
 
 	for (const FString& SparseClassDataTypeName : SparseClassDataTypes)
