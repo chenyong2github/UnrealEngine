@@ -311,6 +311,11 @@ namespace UnrealBuildTool
 		public bool bUseBundledDbgHelp = true;
 
 		/// <summary>
+		/// Settings for PVS studio
+		/// </summary>
+		public PVSTargetSettings PVS = new PVSTargetSettings();
+
+		/// <summary>
 		/// The Visual C++ environment to use for this target. Only initialized after all the target settings are finalized, in ValidateTarget().
 		/// </summary>
 		internal VCEnvironment Environment;
@@ -396,6 +401,7 @@ namespace UnrealBuildTool
 		public ReadOnlyWindowsTargetRules(WindowsTargetRules Inner)
 		{
 			this.Inner = Inner;
+			this.PVS = new ReadOnlyPVSTargetSettings(Inner.PVS);
 		}
 
 		/// <summary>
@@ -410,6 +416,7 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.Compiler; }
 		}
+		
 		public WindowsArchitecture Architecture
 		{
 			get { return Inner.Architecture; }
@@ -553,6 +560,11 @@ namespace UnrealBuildTool
 		public bool bUseBundledDbgHelp
 		{
 			get { return Inner.bUseBundledDbgHelp; }
+		}
+
+		public ReadOnlyPVSTargetSettings PVS
+		{
+			get; private set;
 		}
 
 		internal VCEnvironment Environment
