@@ -46,10 +46,13 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 		MouseButtonDownDelegate = InCreateData->MouseButtonDownDelegate;
 	}
 
+	TAttribute<FText> ParameterToolTipText;
+	ParameterToolTipText.Bind(this, &SNiagaraParameterMapPalleteItem::GetItemTooltip);
+	SetToolTipText(ParameterToolTipText);
+
 	ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
 		.ParameterText(this, &SNiagaraParameterMapPalleteItem::GetDisplayText)
 		.HighlightText(InCreateData->HighlightText)
-		.ToolTipText(this, &SNiagaraParameterMapPalleteItem::GetItemTooltip)
 		.OnTextCommitted(this, &SNiagaraParameterMapPalleteItem::OnNameTextCommitted)
 		.OnVerifyTextChanged(this, &SNiagaraParameterMapPalleteItem::OnNameTextVerifyChanged)
 		.IsSelected(InCreateData->IsRowSelectedDelegate)
@@ -57,12 +60,13 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 
 	InCreateData->OnRenameRequest->BindSP(ParameterNameTextBlock.ToSharedRef(), &SNiagaraParameterNameTextBlock::EnterEditingMode);
 
+	bWasCreated = ParameterAction->ReferenceCollection.ContainsByPredicate([](const FNiagaraGraphParameterReferenceCollection& ReferenceCollection) { return ReferenceCollection.WasCreated(); });
+
 	// now, create the actual widget
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
 		.AddMetaData<FTutorialMetaData>(TagMeta)
-		.ToolTipText(ParameterAction->GetTooltipDescription())
 		// icon slot
 		+SHorizontalBox::Slot()
 		.AutoWidth()
@@ -71,16 +75,24 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 		]
 		// name slot
 		+SHorizontalBox::Slot()
-		.FillWidth(1.f)
+		.AutoWidth()
 		.VAlign(VAlign_Center)
 		.Padding(5,0)
 		[
 			ParameterNameTextBlock.ToSharedRef()
 		]
-		// reference count
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Visibility(bWasCreated ? EVisibility::Visible : EVisibility::Collapsed)
+			.Text(LOCTEXT("AddedText", "*"))
+		]
+		// reference count
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
 		.Padding(3, 0)
 		[
 			SNew(SComboButton)
@@ -112,6 +124,24 @@ void SNiagaraParameterMapPalleteItem::Tick(const FGeometry& AllottedGeometry, co
 			ParameterAction->bNamespaceModifierRenamePending = false;
 			ParameterNameTextBlock->EnterNamespaceModifierEditingMode();
 		}
+	}
+}
+
+FText SNiagaraParameterMapPalleteItem::GetItemTooltip() const
+{
+	if (bWasCreated)
+	{
+		FText CurrentToolTip = SGraphPaletteItem::GetItemTooltip();
+		if (CurrentToolTip.IdenticalTo(ToolTipCache) == false)
+		{
+			ToolTipCache = CurrentToolTip;
+			CreatedToolTipCache = FText::Format(LOCTEXT("CreatedToolTipFormat", "{0}\n* Created through this panel."), ToolTipCache);
+		}
+		return CreatedToolTipCache;
+	}
+	else
+	{
+		return SGraphPaletteItem::GetItemTooltip();
 	}
 }
 

@@ -1040,6 +1040,16 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
 		return FRowWidgets(SNew(SNiagaraStackItem, *StackItem, StackViewModel));
 	}
+	else if (Item->IsA<UNiagaraStackItemTextContent>())
+	{
+		Container->SetContentPadding(FMargin(5));
+		UNiagaraStackItemTextContent* ItemTextContent = CastChecked<UNiagaraStackItemTextContent>(Item);
+		return FRowWidgets(SNew(STextBlock)
+			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.TextContentText")
+			.Text(ItemTextContent->GetDisplayName())
+			.AutoWrapText(true)
+			.Justification(ETextJustify::Center));
+	}
 	else
 	{
 		return FRowWidgets(SNullWidget::NullWidget);
