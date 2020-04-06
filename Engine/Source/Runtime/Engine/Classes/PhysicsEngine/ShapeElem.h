@@ -7,6 +7,7 @@
 #include "EngineDefines.h"
 #include "PhysxUserData.h"
 #include "PhysicsCore/Public/PhysicsInterfaceTypesCore.h"
+#include "Engine/EngineTypes.h"
 #include "ShapeElem.generated.h"
 
 namespace EAggCollisionShape
