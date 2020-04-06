@@ -59,6 +59,9 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , bHasSystemScriptDIsWithPerInstanceData(false)
 {
 	ExposedParameters.SetOwner(this);
+#if WITH_EDITORONLY_DATA
+	EditorOnlyAddedParameters.SetOwner(this);
+#endif
 	MaxPoolSize = 32;
 
 	EffectType = nullptr;
