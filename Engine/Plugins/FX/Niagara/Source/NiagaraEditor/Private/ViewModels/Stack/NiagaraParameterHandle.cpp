@@ -122,6 +122,16 @@ bool FNiagaraParameterHandle::IsModuleHandle() const
 	return Namespace == FNiagaraConstants::ModuleNamespace;
 }
 
+bool FNiagaraParameterHandle::IsOutputHandle() const
+{
+	return Namespace == FNiagaraConstants::OutputNamespace;
+}
+
+bool FNiagaraParameterHandle::IsLocalHandle() const
+{
+	return Namespace == FNiagaraConstants::LocalNamespace;
+}
+
 bool FNiagaraParameterHandle::IsParameterCollectionHandle() const
 {
 	return Namespace == FNiagaraConstants::ParameterCollectionNamespace;
@@ -138,12 +148,11 @@ bool FNiagaraParameterHandle::IsReadOnlyHandle() const
 
 bool FNiagaraParameterHandle::IsTransientHandle() const
 {
-	return
-		Namespace != FNiagaraConstants::UserNamespace &&
-		Namespace != FNiagaraConstants::EngineNamespace &&
-		Namespace != FNiagaraConstants::SystemNamespace &&
-		Namespace != FNiagaraConstants::EmitterNamespace &&
-		Namespace != FNiagaraConstants::ParticleAttributeNamespace &&
-		Namespace != FNiagaraConstants::ModuleNamespace &&
-		Namespace != FNiagaraConstants::ParameterCollectionNamespace;
+	return Namespace == FNiagaraConstants::TransientNamespace;
 }
+
+bool FNiagaraParameterHandle::IsDataInstanceHandle() const
+{
+	return Namespace == FNiagaraConstants::DataInstanceNamespace;
+}
+

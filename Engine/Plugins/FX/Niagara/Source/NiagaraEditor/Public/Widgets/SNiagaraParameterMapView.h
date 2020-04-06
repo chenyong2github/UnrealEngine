@@ -28,19 +28,28 @@ namespace NiagaraParameterMapSectionID
 {
 	enum Type
 	{
-		NONE = 0,
-		MODULE,
+		NONE,
+		MODULE_INPUT,
+		MODULE_OUTPUT,
+		MODULE_LOCAL,
+		TRANSIENT,
+		DATA_INSTANCE,
 		STATIC_SWITCH,
 		ENGINE,
 		PARAMETERCOLLECTION,
 		USER,
 		SYSTEM,
+		SYSTEM_MODULE,
 		EMITTER,
+		EMITTER_MODULE,
 		PARTICLE,
-		OTHER,
+		PARTICLE_MODULE,
+
+		Num
 	};
 
 	static FText OnGetSectionTitle(const NiagaraParameterMapSectionID::Type InSection);
+	static void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
 	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
 };
 
@@ -135,6 +144,9 @@ private:
 	bool CanRequestRenameOnActionNode(TWeakPtr<struct FGraphActionNode> InSelectedNode) const;
 	bool CanRequestRenameOnActionNode() const;
 	void OnPostRenameActionNode(const FText& InText, FNiagaraParameterAction& InAction);
+	void OnAddSubnamespace();
+	void OnRemoveSubnamespace();
+	void OnEditSubnamespace();
 
 	bool IsSystemToolkit();
 	bool IsScriptToolkit();

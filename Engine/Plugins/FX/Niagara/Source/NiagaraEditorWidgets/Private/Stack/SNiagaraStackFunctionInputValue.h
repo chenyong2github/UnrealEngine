@@ -45,7 +45,7 @@ private:
 
 	void ParameterPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 
-	FText GetLinkedValueHandleText() const;
+	FName GetLinkedValueHandleName() const;
 
 	FText GetDataValueText() const;
 

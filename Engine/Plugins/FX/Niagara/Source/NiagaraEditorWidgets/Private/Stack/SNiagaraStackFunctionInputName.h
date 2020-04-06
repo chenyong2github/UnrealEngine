@@ -8,6 +8,7 @@
 
 class UNiagaraStackFunctionInput;
 class SInlineEditableTextBlock;
+class SNiagaraParameterNameTextBlock;
 
 class SNiagaraStackFunctionInputName: public SNiagaraStackEntryWidget
 {
@@ -44,6 +45,8 @@ private:
 	UNiagaraStackFunctionInput* FunctionInput;
 
 	TSharedPtr<SInlineEditableTextBlock> NameTextBlock;
+
+	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterTextBlock;
 
 	TAttribute<bool> IsSelected;
 };
