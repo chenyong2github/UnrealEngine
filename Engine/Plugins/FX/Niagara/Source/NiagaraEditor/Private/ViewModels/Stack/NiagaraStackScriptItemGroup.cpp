@@ -569,16 +569,41 @@ void UNiagaraStackScriptItemGroup::RefreshIssues(TArray<FStackIssue>& NewIssues)
 		ENiagaraScriptCompileStatus Status = ScriptViewModelPinned->GetScriptCompileStatus(GetScriptUsage(), GetScriptUsageId());
 		if (!bForcedError)
 		{
+
 			if (Status == ENiagaraScriptCompileStatus::NCS_Error)
 			{
 				FStackIssue CompileError(
 					EStackIssueSeverity::Error,
-					LOCTEXT("ConpileErrorSummary", "The stack has compile errors."),
-					ScriptViewModelPinned->GetScriptErrors(GetScriptUsage(), GetScriptUsageId()),
+					LOCTEXT("ConpileErrorSummary", "This stage has compile errors."),
+					LOCTEXT("CompileErrorLong", "Errors were generated while compiling this stage. Check for modules showing errors or check the niagara log for details."),
 					GetStackEditorDataKey(),
-					false);
+					false,
+					FStackIssueFix(
+						LOCTEXT("ShowLogForErrorsFix", "Show the errors in the Niagara Log"), 
+						FStackIssueFixDelegate::CreateLambda([this]()
+						{
+							GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::MessageLogTabID);
+						}),
+						EStackIssueFixStyle::Link));
 
 				NewIssues.Add(CompileError);
+			}
+			else if (Status == ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings || Status == ENiagaraScriptCompileStatus::NCS_ComputeUpToDateWithWarnings)
+			{
+				FStackIssue CompileWarning(
+					EStackIssueSeverity::Warning,
+					LOCTEXT("CompileWarningSummary", "This stage has compile warnings."),
+					LOCTEXT("CompileWarningLong", "Warnings were generated while compiling this stage. Check for modules showing warnings or check the niagara log for details."),
+					GetStackEditorDataKey(),
+					false,
+					FStackIssueFix(
+						LOCTEXT("ShowLogForWarningsFix", "Show the warnings in the Niagara Log"),
+						FStackIssueFixDelegate::CreateLambda([this]()
+							{
+								GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::MessageLogTabID);
+							}),
+						EStackIssueFixStyle::Link));
+				NewIssues.Add(CompileWarning);
 			}
 		}
 	}
