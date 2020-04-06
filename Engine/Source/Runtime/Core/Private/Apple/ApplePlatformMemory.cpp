@@ -190,6 +190,7 @@ void FApplePlatformMemory::Init()
 {
 	FGenericPlatformMemory::Init();
     
+	LLM(AppleLLM::Initialise());
 
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
 	UE_LOG(LogInit, Log, TEXT("Memory total: Physical=%.1fGB (%dGB approx) Pagefile=%.1fGB Virtual=%.1fGB"),
@@ -208,7 +209,6 @@ FMalloc* FApplePlatformMemory::BaseAllocator()
 	FPlatformMemoryStats MemStats = FApplePlatformMemory::GetStats();
 	FLowLevelMemTracker::Get().SetProgramSize(MemStats.UsedPhysical);
 #endif
-	LLM(AppleLLM::Initialise());
 
 	if (FORCE_ANSI_ALLOCATOR)
 	{
