@@ -756,7 +756,7 @@ void AccumulateResults(
 	if (ShouldDoEmissiveAndIndirectLighting)
 	{
 		// Emissive & indirect contribution
-		Radiance += Payload.GetRadiance();
+		Radiance += Payload.GetRadiance() * Payload.GetOpacity();
 
 		// Indirect contribution
 		const float3 IndirectLighting = ComputeIndirectLighting(
