@@ -298,17 +298,17 @@ public:
 	const FSimulationStageMetaData* GetSimStageMetaData(uint32 SimulationStageIndex) const;
 
 #if WITH_EDITORONLY_DATA
-	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackFloat;
-	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackInt;
-	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackHalf;
-	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackCounts;
-	mutable uint32 GPUDebugDataFloatSize;
-	mutable uint32 GPUDebugDataIntSize;
-	mutable uint32 GPUDebugDataHalfSize;
-	mutable uint32 GPUDebugDataFloatStride;
-	mutable uint32 GPUDebugDataIntStride;
-	mutable uint32 GPUDebugDataHalfStride;
-	mutable uint32 GPUDebugDataCountOffset;
+	mutable TUniquePtr<FRHIGPUMemoryReadback> GPUDebugDataReadbackFloat;
+	mutable TUniquePtr<FRHIGPUMemoryReadback> GPUDebugDataReadbackInt;
+	mutable TUniquePtr<FRHIGPUMemoryReadback> GPUDebugDataReadbackHalf;
+	mutable TUniquePtr<FRHIGPUMemoryReadback> GPUDebugDataReadbackCounts;
+	mutable uint32 GPUDebugDataFloatSize = 0;
+	mutable uint32 GPUDebugDataIntSize = 0;
+	mutable uint32 GPUDebugDataHalfSize = 0;
+	mutable uint32 GPUDebugDataFloatStride = 0;
+	mutable uint32 GPUDebugDataIntStride = 0;
+	mutable uint32 GPUDebugDataHalfStride = 0;
+	mutable uint32 GPUDebugDataCountOffset = INDEX_NONE;
 	mutable TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo;
 #endif
 
