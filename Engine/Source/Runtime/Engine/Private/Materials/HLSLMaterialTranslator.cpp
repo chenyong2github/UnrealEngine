@@ -890,9 +890,9 @@ bool FHLSLMaterialTranslator::Translate()
 
 		if (MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
 		{
-			if (BlendMode != BLEND_Opaque)
+			if (BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked)
 			{
-				Errorf(TEXT("SingleLayerWater materials must be opaque."));
+				Errorf(TEXT("SingleLayerWater materials must be opaque or masked."));
 			}
 			if (!MaterialShadingModels.HasOnlyShadingModel(MSM_SingleLayerWater))
 			{
