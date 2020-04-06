@@ -26,6 +26,9 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(const FStrin
 {
 	UE_LOG(LogDisplayClusterProjection, Log, TEXT("Looking for an origin component '%s'..."), *OriginCompId);
 
+	// Reset previous one
+	PolicyOriginComp = nullptr;
+
 	IDisplayClusterGameManager* const GameMgr = IDisplayCluster::Get().GetGameMgr();
 	if (!GameMgr)
 	{
