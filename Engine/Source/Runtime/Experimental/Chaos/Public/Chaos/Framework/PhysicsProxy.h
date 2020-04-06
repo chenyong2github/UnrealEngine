@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Declares.h"
 #include "Chaos/Framework/PhysicsSolverBase.h"

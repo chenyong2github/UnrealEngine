@@ -2,6 +2,7 @@
 #pragma once
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
+#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/Array.h"
 #include "Chaos/PBDCollisionSpringConstraintsBase.h"
 #include "Chaos/PBDParticles.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Matrix.h"
 #include "Misc/ScopeLock.h"

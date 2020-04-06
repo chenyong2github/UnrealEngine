@@ -3,6 +3,7 @@
 #pragma once
 
 
+#include "Chaos/IncludeLvl1.inl"
 #include "UObject/ObjectMacros.h"
 #include "GeometryCollectionProxyData.h"
 #include "GeometryCollection/GeometryCollection.h"

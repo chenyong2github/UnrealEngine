@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Misc/Build.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

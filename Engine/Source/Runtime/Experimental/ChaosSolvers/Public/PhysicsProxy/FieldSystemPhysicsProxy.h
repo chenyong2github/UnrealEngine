@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Field/FieldSystem.h"
 #include "Chaos/PBDPositionConstraints.h"
