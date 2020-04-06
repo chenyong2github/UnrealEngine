@@ -609,15 +609,18 @@ namespace Chaos
 				int32 ClusterGroupID = Group.Key;
 				TArray<TPBDRigidClusteredParticleHandle<T, 3>* > Handles = Group.Value;
 
-				if (!NewClusterGroups.Contains(ClusterGroupID))
-					NewClusterGroups.Add(ClusterGroupID, TArray < TPBDRigidParticleHandle<T, 3>*>());
-
-				TArray<TPBDRigidParticleHandle<T, 3>*> ClusterBodies;
-				for (TPBDRigidClusteredParticleHandle<T, 3>* ActiveCluster : Handles)
+				if (Handles.Num() > 1)
 				{
-					TSet<TPBDRigidParticleHandle<T, 3>*> Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
-					NewClusterGroups[ClusterGroupID].Append(Children.Array());
-					for (auto& Child : Children) ClusterParents.Add(Child, ActiveCluster);
+					if (!NewClusterGroups.Contains(ClusterGroupID))
+						NewClusterGroups.Add(ClusterGroupID, TArray < TPBDRigidParticleHandle<T, 3>*>());
+
+					TArray<TPBDRigidParticleHandle<T, 3>*> ClusterBodies;
+					for (TPBDRigidClusteredParticleHandle<T, 3>* ActiveCluster : Handles)
+					{
+						TSet<TPBDRigidParticleHandle<T, 3>*> Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
+						NewClusterGroups[ClusterGroupID].Append(Children.Array());
+						for (auto& Child : Children) ClusterParents.Add(Child, ActiveCluster);
+					}
 				}
 			}
 
@@ -625,7 +628,8 @@ namespace Chaos
 			{
 				int32 ClusterGroupID = Group.Key;
 				TArray< TPBDRigidParticleHandle<T, 3> *> ActiveCluster = Group.Value;
-				TPBDRigidParticleHandle<T, 3>* NewCluster = CreateClusterParticle(-FMath::Abs(ClusterGroupID), MoveTemp(Group.Value));
+				TPBDRigidClusteredParticleHandle<T, 3>* NewCluster = CreateClusterParticle(-FMath::Abs(ClusterGroupID), MoveTemp(Group.Value));
+				NewCluster->SetInternalCluster(true);
 				for (auto& Constituent : ActiveCluster) MEvolution.DoInternalParticleInitilization( ClusterParents[Constituent], NewCluster);
 			}
 			ClusterUnionMap.Empty();
