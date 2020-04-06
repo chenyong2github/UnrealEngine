@@ -1071,6 +1071,12 @@ void UNiagaraStackScriptItemGroup::ChildRequestDeprecatedRecommendation(UNiagara
 
 	// Step 1: Make a copy of the existing node so that we can perform surgery on it to update.
 	UNiagaraScript* TargetScript = TargetChild->GetModuleNode().FunctionScript->DeprecationRecommendation;
+	if (TargetScript->GetUsage() != ENiagaraScriptUsage::Module)
+	{
+		// Early out if the deprecation recommendation asset is not module script usage.
+		FNiagaraEditorUtilities::WarnWithToastAndLog(LOCTEXT("DeprecationAssetReplacementFail","Failed to insert recommended deprecation asset as it is not a module script!"));
+		return;
+	}
 	TargetChild->Copy(ClipboardContent);
 
 	// Step 2: Disable the old master so that end users can use it as reference and inheritance isn't wiped out.
