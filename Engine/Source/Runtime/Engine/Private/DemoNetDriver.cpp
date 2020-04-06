@@ -3067,7 +3067,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 	LastReplayFrameFidelity = ReplicatedPercent;
 }
 
-bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriority, const class FRepActorsParams& Params)
+bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriority, const FRepActorsParams& Params)
 {
 	FNetworkObjectInfo* ActorInfo = ActorPriority.ActorInfo;
 	FActorDestructionInfo* DestructionInfo = ActorPriority.DestructionInfo;
@@ -3088,10 +3088,12 @@ bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriori
 			UE_LOG(LogDemo, Verbose, TEXT("TickDemoRecord creating destroy channel for NetGUID <%s,%s> Priority: %d"), *DestructionInfo->NetGUID.ToString(), *DestructionInfo->PathName, ActorPriority.Priority);
 
 			// Send a close bunch on the new channel
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Channel->SetChannelActorForDestroy(DestructionInfo);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// Remove from connection's to-be-destroyed list (close bunch is reliable, so it will make it there)
-			Connection->GetDestroyedStartupOrDormantActorGUIDs().Remove(DestructionInfo->NetGUID);
+			Connection->RemoveDestructionInfo(DestructionInfo);
 		}
 	}
 	else if (ActorInfo != nullptr && DestructionInfo == nullptr)
