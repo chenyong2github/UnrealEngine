@@ -1644,14 +1644,15 @@ void FMediaPlayerFacade::ReceiveMediaEvent(EMediaEvent Event)
 				// Player asks to attempt to purge older samples in the video output queue it maintains
 				// (ask goes via facade as the player does not have accurate timing info)
 				//
+				TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer = Player;
 
-				// We only support this for V2 timing players
-				check(Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2));
-
-				if (!Player.IsValid())
+				if (!CurrentPlayer.IsValid())
 					return;
 
-				float Rate = Player->GetControls().GetRate();
+				// We only support this for V2 timing players
+				check(CurrentPlayer->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2));
+
+				float Rate = CurrentPlayer->GetControls().GetRate();
 				if (Rate == 0.0f)
 				{
 					return;
@@ -1666,7 +1667,7 @@ void FMediaPlayerFacade::ReceiveMediaEvent(EMediaEvent Event)
 				}
 
 				bool bReverse = (Rate < 0.0f);
-				uint32 NumPurged = Player->GetSamples().PurgeOutdatedVideoSamples(TimeRange.GetLowerBoundValue() + (bReverse ? kOutdatedVideoSamplesTollerance : -kOutdatedVideoSamplesTollerance), bReverse);
+				uint32 NumPurged = CurrentPlayer->GetSamples().PurgeOutdatedVideoSamples(TimeRange.GetLowerBoundValue() + (bReverse ? kOutdatedVideoSamplesTollerance : -kOutdatedVideoSamplesTollerance), bReverse);
 				
 				SET_DWORD_STAT(STAT_MediaUtils_FacadeNumPurgedVideoSamples, NumPurged);
 				INC_DWORD_STAT_BY(STAT_MediaUtils_FacadeTotalPurgedVideoSamples, NumPurged);
