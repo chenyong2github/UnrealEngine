@@ -288,6 +288,13 @@ public:
 	/** Ensures that all component class overrides are legal overrides of the parent class */
 	void ValidateComponentClassOverrides();
 
+	/**
+	* Ensures that all class reference Properties are legal overrides of the parent class
+	* by checking the default value set on any PC_Class variable types. Requires a 
+	* valid CDO in order to do this validation. Called in Stage V: Validate 
+	*/
+	void ValidateClassPropertyDefaults();
+
 	/** Creates a class variable for each entry in the Blueprint NewVars array */
 	virtual void CreateClassVariablesFromBlueprint();
 
