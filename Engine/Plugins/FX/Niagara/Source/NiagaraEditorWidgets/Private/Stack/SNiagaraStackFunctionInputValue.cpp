@@ -539,11 +539,12 @@ void SNiagaraStackFunctionInputValue::OnActionSelected(const TArray<TSharedPtr<F
 
 void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
+	bool bIsDataInterfaceOrObject = FunctionInput->GetInputType().IsDataInterface() || FunctionInput->GetInputType().IsUObject();
+
 	// Set a local value
+	if(bIsDataInterfaceOrObject == false)
 	{
-		bool bCanSetLocalValue =
-			FunctionInput->GetValueMode() != UNiagaraStackFunctionInput::EValueMode::Local &&
-			FunctionInput->GetInputType().IsDataInterface() == false;
+		bool bCanSetLocalValue = FunctionInput->GetValueMode() != UNiagaraStackFunctionInput::EValueMode::Local;
 
 		const FText NameText = LOCTEXT("LocalValue", "New Local Value");
 		const FText Tooltip = FText::Format(LOCTEXT("LocalValueToolTip", "Set a local editable value for this input."), NameText);
@@ -608,7 +609,7 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		{
 			InputNames.Add(FunctionInput->GetInputParameterHandlePath()[i].GetName().ToString());
 		}
-		FName InputName = *FString::Join(InputNames, TEXT("."));
+		FName InputName = *FString::Join(InputNames, TEXT("_"));
 
 		for (const FName AvailableNamespace : AvailableNamespaces)
 		{
@@ -628,19 +629,29 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		}
 	}
 
+	if (bIsDataInterfaceOrObject == false)
 	{
+		// Leaving the internal usage of bIsDataInterfaceObject that the tooltip and disabling will work properly when they're moved out of a graph action menu.
 		const FText DisplayName = LOCTEXT("ExpressionLabel", "New Expression");
-		const FText Tooltip = LOCTEXT("ExpressionToolTipl", "Resolve this variable with a custom expression.");
+		const FText Tooltip = bIsDataInterfaceOrObject
+			? LOCTEXT("NoExpresionsForObjects", "Expressions can not be used to set object or data interface parameters.")
+			: LOCTEXT("ExpressionToolTipl", "Resolve this variable with a custom expression.");
 		TSharedPtr<FNiagaraMenuAction> ExpressionAction(new FNiagaraMenuAction(FText(), DisplayName, Tooltip, 0, FText(),
-			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::CustomExpressionSelected)));
+			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::CustomExpressionSelected),
+			FNiagaraMenuAction::FCanExecuteStackAction::CreateLambda([bIsDataInterfaceOrObject]() { return bIsDataInterfaceOrObject == false; })));
 		OutAllActions.AddAction(ExpressionAction);
 	}
 
+	if (bIsDataInterfaceOrObject == false)
 	{
+		// Leaving the internal usage of bIsDataInterfaceObject that the tooltip and disabling will work properly when they're moved out of a graph action menu.
 		const FText CreateDisplayName = LOCTEXT("ScratchLabel", "New Scratch Dynamic Input");
-		const FText CreateTooltip = LOCTEXT("ScratchToolTipl", "Create a new dynamic input in the scratch pad.");
+		const FText CreateTooltip = bIsDataInterfaceOrObject
+			? LOCTEXT("NoScratchForObjects", "Dynamic inputs can not be used to set object or data interface parameters.")
+			: LOCTEXT("ScratchToolTipl", "Create a new dynamic input in the scratch pad.");
 		TSharedPtr<FNiagaraMenuAction> CreateScratchAction(new FNiagaraMenuAction(FText(), CreateDisplayName, CreateTooltip, 0, FText(),
-			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::CreateScratchSelected)));
+			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::CreateScratchSelected),
+			FNiagaraMenuAction::FCanExecuteStackAction::CreateLambda([bIsDataInterfaceOrObject]() { return bIsDataInterfaceOrObject == false; })));
 		OutAllActions.AddAction(CreateScratchAction);
 	}
 

@@ -1656,7 +1656,7 @@ bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(const UNiagar
 	return true;
 }
 
-bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariable, FNiagaraParameterStore& TargetParameterStore, UObject& ParameterStoreOwner, UNiagaraStackEditorData& StackEditorData)
+bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariable, FNiagaraParameterStore& TargetParameterStore, UObject& ParameterStoreOwner, UNiagaraStackEditorData* StackEditorData)
 {
 	FScopedTransaction AddTransaction(LOCTEXT("AddParameter", "Add Parameter"));
 	ParameterStoreOwner.Modify();
@@ -1673,9 +1673,9 @@ bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariabl
 	NewParameterVariable.SetName(FNiagaraUtilities::GetUniqueName(NewParameterVariable.GetName(), ExistingParameterStoreNames));
 
 	bool bSuccess = TargetParameterStore.AddParameter(NewParameterVariable);
-	if (bSuccess)
+	if (bSuccess && StackEditorData != nullptr)
 	{
-		StackEditorData.SetStackEntryIsRenamePending(NewParameterVariable.GetName().ToString(), true);
+		StackEditorData->SetStackEntryIsRenamePending(NewParameterVariable.GetName().ToString(), true);
 	}
 	return bSuccess;
 }

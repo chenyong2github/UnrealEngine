@@ -213,6 +213,7 @@ private:
 	TSharedPtr<FUICommandList> ToolkitCommands;
 
 	bool bNeedsRefresh;
+	bool bIsAddingParameter;
 };
 
 class SNiagaraAddParameterMenu : public SCompoundWidget

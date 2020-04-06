@@ -59,7 +59,9 @@ FText NiagaraParameterMapSectionID::OnGetSectionTitle(const NiagaraParameterMapS
 	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(SectionNamespaces);
 	if (NamespaceMetadata.IsValid())
 	{
-		return NamespaceMetadata.DisplayName;
+		return NamespaceMetadata.DisplayNameLong.IsEmptyOrWhitespace() == false
+			? NamespaceMetadata.DisplayNameLong
+			: NamespaceMetadata.DisplayName;
 	}
 	else if (SectionNamespaces.Num() == 1)
 	{
@@ -238,6 +240,7 @@ const FSlateBrush* SNiagaraParameterMapView::GetViewOptionsBorderBrush()
 void SNiagaraParameterMapView::Construct(const FArguments& InArgs, const TArray<TSharedRef<FNiagaraObjectSelection>>& InSelectedObjects, const EToolkitType InToolkitType, const TSharedPtr<FUICommandList>& InToolkitCommands)
 {
 	bNeedsRefresh = false;
+	bIsAddingParameter = false;
 	ToolkitType = InToolkitType;
 	ToolkitCommands = InToolkitCommands;
 	AddParameterButtons.SetNum(NiagaraParameterMapSectionID::Num);
@@ -388,6 +391,7 @@ bool SNiagaraParameterMapView::ParameterAddEnabled() const
 
 void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable)
 {
+	TGuardValue<bool> AddParameterRefreshGuard(bIsAddingParameter, true);
 	FNiagaraParameterHandle ParameterHandle;
 	bool bSuccess = false;
 
@@ -432,25 +436,11 @@ void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable)
 			System->Modify();
 			if (NiagaraParameterMapSectionID::OnGetSectionFromVariable(NewVariable, IsStaticSwitchParameter(NewVariable, Graphs), ParameterHandle) == NiagaraParameterMapSectionID::USER)
 			{
-				UNiagaraSystemEditorData* SystemEditorData = CastChecked<UNiagaraSystemEditorData>(System->GetEditorData(), ECastCheckedType::NullChecked);
-				bSuccess = FNiagaraEditorUtilities::AddParameter(NewVariable, System->GetExposedParameters(), *System, SystemEditorData->GetStackEditorData());
+				bSuccess = FNiagaraEditorUtilities::AddParameter(NewVariable, System->GetExposedParameters(), *System, nullptr);
 			}
 			else
 			{
-				FNiagaraVariable VariableToAdd = NewVariable;
-				if (System->EditorOnlyAddedParameters.IndexOf(VariableToAdd) != INDEX_NONE)
-				{
-					TSet<FName> ParameterNames;
-					TArray<FNiagaraVariable> AddedParameterVariables;
-					System->EditorOnlyAddedParameters.GetParameters(AddedParameterVariables);
-					for (const FNiagaraVariable& AddedParameterVariable : AddedParameterVariables)
-					{
-						ParameterNames.Add(AddedParameterVariable.GetName());
-					}
-					FName UniqueName = FNiagaraUtilities::GetUniqueName(VariableToAdd.GetName(), ParameterNames);
-					VariableToAdd.SetName(UniqueName);
-				}
-				bSuccess = System->EditorOnlyAddedParameters.AddParameter(VariableToAdd, false, false);
+				bSuccess = FNiagaraEditorUtilities::AddParameter(NewVariable, System->EditorOnlyAddedParameters, *System, nullptr);
 			}
 		}
 	}
@@ -1090,7 +1080,7 @@ void SNiagaraParameterMapView::OnGraphChanged(const FEdGraphEditAction& InAction
 
 void SNiagaraParameterMapView::OnSystemParameterStoreChanged()
 {
-	if (CachedSystem.IsValid())
+	if (bIsAddingParameter == false && CachedSystem.IsValid())
 	{
 		RefreshActions();
 	}
@@ -1949,7 +1939,23 @@ void SNiagaraAddParameterMenu::AddParameterSelected(FNiagaraVariable NewVariable
 {
 	if (bCreateCustomName)
 	{
-		const static FString NewVariableDefaultName = FString("NewVariable");
+		FString TypeDisplayName;
+		if (NewVariable.GetType().GetEnum() != nullptr)
+		{
+			TypeDisplayName = ((UField*)NewVariable.GetType().GetEnum())->GetDisplayNameText().ToString();
+		}
+		else if (NewVariable.GetType().GetStruct() != nullptr)
+		{
+			TypeDisplayName = NewVariable.GetType().GetStruct()->GetDisplayNameText().ToString();
+		}
+		else if (NewVariable.GetType().GetClass() != nullptr)
+		{
+			TypeDisplayName = NewVariable.GetType().GetClass()->GetDisplayNameText().ToString();
+		}
+		FString NewVariableDefaultName = TypeDisplayName.IsEmpty() 
+			? TEXT("New Variable")
+			: TEXT("New ") + TypeDisplayName;
+
 		TArray<FName> SectionNamespaces;
 		NiagaraParameterMapSectionID::OnGetSectionNamespaces(InSection, SectionNamespaces);
 		TArray<FString> NameParts;
