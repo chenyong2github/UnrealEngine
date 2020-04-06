@@ -8,6 +8,7 @@
 #include "GraphEditorDragDropAction.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "NiagaraEditorCommon.h"
+#include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "NiagaraActions.generated.h"
 
 USTRUCT()
@@ -38,7 +39,11 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
 
 	bool IsExperimental = false;
 
+	TOptional<FNiagaraParameterHandle> GetParameterHandle() const;
+	void SetParamterHandle(const FNiagaraParameterHandle& InParameterHandle);
+
 private:
+	TOptional<FNiagaraParameterHandle> ParameterHandle;
 	FOnExecuteStackAction Action;
 	FCanExecuteStackAction CanPerformAction;
 };

@@ -7,6 +7,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraGraphActionWidget"
 
@@ -17,6 +18,22 @@ void SNiagaraGraphActionWidget::Construct(const FArguments& InArgs, const FCreat
 
 	TSharedPtr<FNiagaraMenuAction> NiagaraAction = StaticCastSharedPtr<FNiagaraMenuAction>(InCreateData->Action);
 
+	TSharedPtr<SWidget> NameWidget;
+	if (NiagaraAction->GetParameterHandle().IsSet())
+	{
+		NameWidget = SNew(SNiagaraParameterName)
+			.ParameterName(NiagaraAction->GetParameterHandle()->GetParameterHandleString())
+			.IsReadOnly(true)
+			.HighlightText(InArgs._HighlightText);
+	}
+	else
+	{
+		NameWidget = SNew(STextBlock)
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
+			.Text(InCreateData->Action->GetMenuDescription())
+			.HighlightText(InArgs._HighlightText);
+	}
+
 	this->ChildSlot
 	[
 		SNew(SHorizontalBox)
@@ -25,10 +42,7 @@ void SNiagaraGraphActionWidget::Construct(const FArguments& InArgs, const FCreat
 		.FillWidth(1)
 		.VAlign(VAlign_Center)
 		[
-			SNew(STextBlock)
-			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
-			.Text(InCreateData->Action->GetMenuDescription())
-			.HighlightText(InArgs._HighlightText)
+			NameWidget.ToSharedRef()
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()

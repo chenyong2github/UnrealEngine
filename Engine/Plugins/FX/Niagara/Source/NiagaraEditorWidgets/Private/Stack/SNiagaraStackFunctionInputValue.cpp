@@ -35,6 +35,7 @@
 #include "EditorFontGlyphs.h"
 #include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
 #include "Widgets/SNiagaraParameterName.h"
+#include "NiagaraEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -544,11 +545,10 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 			FunctionInput->GetValueMode() != UNiagaraStackFunctionInput::EValueMode::Local &&
 			FunctionInput->GetInputType().IsDataInterface() == false;
 
-		const FText NameText = LOCTEXT("LocalValue", "Set a local value");
+		const FText NameText = LOCTEXT("LocalValue", "New Local Value");
 		const FText Tooltip = FText::Format(LOCTEXT("LocalValueToolTip", "Set a local editable value for this input."), NameText);
-		const FText CategoryName = LOCTEXT("LocalValueCategory", "Local");
 		TSharedPtr<FNiagaraMenuAction> SetLocalValueAction(
-			new FNiagaraMenuAction(CategoryName, NameText, Tooltip, 0, FText(),
+			new FNiagaraMenuAction(FText(), NameText, Tooltip, 0, FText(),
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::SetToLocalValue),
 				FNiagaraMenuAction::FCanExecuteStackAction::CreateLambda([=]() { return bCanSetLocalValue; })));
 		OutAllActions.AddAction(SetLocalValueAction);
@@ -576,67 +576,24 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 	TArray<FNiagaraParameterHandle> AvailableHandles;
 	FunctionInput->GetAvailableParameterHandles(AvailableHandles);
 
-	TArray<FNiagaraParameterHandle> ParameterCollectionHandles;
-	TArray<FNiagaraParameterHandle> UserHandles;
-	TArray<FNiagaraParameterHandle> EngineHandles;
-	TArray<FNiagaraParameterHandle> SystemHandles;
-	TArray<FNiagaraParameterHandle> EmitterHandles;
-	TArray<FNiagaraParameterHandle> ParticleAttributeHandles;
-	TArray<FNiagaraParameterHandle> OtherHandles;
-	for (const FNiagaraParameterHandle AvailableHandle : AvailableHandles)
+	const FString RootCategoryName = FString("Link Inputs");
+	const FText MapInputFormat = LOCTEXT("LinkInputFormat", "Link this input to {0}");
+	for (const FNiagaraParameterHandle& AvailableHandle : AvailableHandles)
 	{
-		 if (AvailableHandle.IsParameterCollectionHandle())
+		TArray<FName> HandleParts = AvailableHandle.GetHandleParts();
+		FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(HandleParts);
+		if (NamespaceMetadata.IsValid())
 		{
-			ParameterCollectionHandles.Add(AvailableHandle);
+			// Only add handles which are in known namespaces to prevent collecting parameter handles
+			// which are being used to configure modules and dynamic inputs in the stack graphs.
+			const FText Category = NamespaceMetadata.DisplayName;
+			const FText DisplayName = FText::FromName(AvailableHandle.GetParameterHandleString());
+			const FText Tooltip = FText::Format(MapInputFormat, FText::FromName(AvailableHandle.GetParameterHandleString()));
+			TSharedPtr<FNiagaraMenuAction> LinkAction(new FNiagaraMenuAction(Category, DisplayName, Tooltip, 0, FText(),
+				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::ParameterHandleSelected, AvailableHandle)));
+			LinkAction->SetParamterHandle(AvailableHandle);
+			OutAllActions.AddAction(LinkAction, RootCategoryName);
 		}
-		else if (AvailableHandle.IsUserHandle())
-		{
-			UserHandles.Add(AvailableHandle);
-		}
-		else if (AvailableHandle.IsEngineHandle())
-		{
-			EngineHandles.Add(AvailableHandle);
-		}
-		else if (AvailableHandle.IsSystemHandle())
-		{
-			SystemHandles.Add(AvailableHandle);
-		}
-		else if (AvailableHandle.IsEmitterHandle())
-		{
-			EmitterHandles.Add(AvailableHandle);
-		}
-		else if (AvailableHandle.IsParticleAttributeHandle())
-		{
-			ParticleAttributeHandles.Add(AvailableHandle);
-		}
-		else
-		{
-			OtherHandles.Add(AvailableHandle);
-		}
-	}
-
-	{
-		const FString RootCategoryName = FString("Link Inputs");
-		auto AddMenuItemsForHandleList = [&](const TArray<FNiagaraParameterHandle>& Handles, const FText& SectionDisplay)
-		{
-			const FText MapInputFormat = LOCTEXT("LinkInputFormat", "Link this input to {0}");
-			for (const FNiagaraParameterHandle& Handle : Handles)
-			{
-				const FText DisplayName = FText::FromName(Handle.GetParameterHandleString());
-				const FText Tooltip = FText::Format(MapInputFormat, FText::FromName(Handle.GetParameterHandleString()));
-				TSharedPtr<FNiagaraMenuAction> LinkAction(new FNiagaraMenuAction(SectionDisplay, DisplayName, Tooltip, 0, FText(),
-					FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::ParameterHandleSelected, Handle)));
-				OutAllActions.AddAction(LinkAction, RootCategoryName);
-			}
-		};
-
-		AddMenuItemsForHandleList(ParameterCollectionHandles, LOCTEXT("NPC", "Parameter Collections"));
-		AddMenuItemsForHandleList(UserHandles, LOCTEXT("UserSection", "User Exposed"));
-		AddMenuItemsForHandleList(EngineHandles, LOCTEXT("EngineSection", "Engine"));
-		AddMenuItemsForHandleList(SystemHandles, LOCTEXT("SystemSection", "System"));
-		AddMenuItemsForHandleList(EmitterHandles, LOCTEXT("EmitterSection", "Emitter"));
-		AddMenuItemsForHandleList(ParticleAttributeHandles, LOCTEXT("ParticleAttributeSection", "Particle Attribute"));
-		AddMenuItemsForHandleList(OtherHandles, LOCTEXT("OtherSection", "Other"));
 	}
 
 	// Read from new attribute
@@ -672,26 +629,24 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 	}
 
 	{
-		const FText CategoryName = LOCTEXT("ExpressionCategory", "Expression");
-		const FText DisplayName = LOCTEXT("ExpressionLabel", "Make new expression");
+		const FText DisplayName = LOCTEXT("ExpressionLabel", "New Expression");
 		const FText Tooltip = LOCTEXT("ExpressionToolTipl", "Resolve this variable with a custom expression.");
-		TSharedPtr<FNiagaraMenuAction> ExpressionAction(new FNiagaraMenuAction(CategoryName, DisplayName, Tooltip, 0, FText(),
+		TSharedPtr<FNiagaraMenuAction> ExpressionAction(new FNiagaraMenuAction(FText(), DisplayName, Tooltip, 0, FText(),
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::CustomExpressionSelected)));
 		OutAllActions.AddAction(ExpressionAction);
 	}
 
 	{
-		const FText CategoryName = LOCTEXT("ScratchCategory", "Scratch");
-		const FText CreateDisplayName = LOCTEXT("ScratchLabel", "Make New Scratch Dynamic Input");
+		const FText CreateDisplayName = LOCTEXT("ScratchLabel", "New Scratch Dynamic Input");
 		const FText CreateTooltip = LOCTEXT("ScratchToolTipl", "Create a new dynamic input in the scratch pad.");
-		TSharedPtr<FNiagaraMenuAction> CreateScratchAction(new FNiagaraMenuAction(CategoryName, CreateDisplayName, CreateTooltip, 0, FText(),
+		TSharedPtr<FNiagaraMenuAction> CreateScratchAction(new FNiagaraMenuAction(FText(), CreateDisplayName, CreateTooltip, 0, FText(),
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::CreateScratchSelected)));
 		OutAllActions.AddAction(CreateScratchAction);
 	}
 
 	if (FunctionInput->CanDeleteInput())
 	{
-		const FText NameText = LOCTEXT("DeleteInput", "Remove");
+		const FText NameText = LOCTEXT("DeleteInput", "Remove this input");
 		const FText Tooltip = FText::Format(LOCTEXT("DeleteInputTooltip", "Remove input from module."), NameText);
 		TSharedPtr<FNiagaraMenuAction> SetLocalValueAction(
 			new FNiagaraMenuAction(FText::GetEmpty(), NameText, Tooltip, 0, FText::GetEmpty(),

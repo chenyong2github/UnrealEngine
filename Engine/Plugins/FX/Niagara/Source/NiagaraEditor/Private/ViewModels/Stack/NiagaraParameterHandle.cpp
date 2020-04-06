@@ -92,6 +92,21 @@ const FName FNiagaraParameterHandle::GetNamespace() const
 	return Namespace;
 }
 
+const TArray<FName> FNiagaraParameterHandle::GetHandleParts() const
+{
+	if (HandlePartsCache.Num() == 0)
+	{
+		FString HandleString = ParameterHandleName.ToString();
+		TArray<FString> HandlePartStrings;
+		HandleString.ParseIntoArray(HandlePartStrings, TEXT("."));
+		for (const FString& HandlePartString : HandlePartStrings)
+		{
+			HandlePartsCache.Add(*HandlePartString);
+		}
+	}
+	return HandlePartsCache;
+}
+
 bool FNiagaraParameterHandle::IsUserHandle() const
 {
 	return Namespace == FNiagaraConstants::UserNamespace;
