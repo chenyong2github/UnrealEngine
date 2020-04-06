@@ -186,9 +186,10 @@ public:
 	*
 	* @param InCallable any object that can be called with no parameters, usually a lambda
 	*/
-	explicit FOnlineAsyncTaskThreadedGenericCallable(const CallableType& InCallable)
+	explicit FOnlineAsyncTaskThreadedGenericCallable(const FString& InCallableName, const CallableType& InCallable)
 		: bHasTicked(false)
 		, CallableObject(InCallable)
+		, CallableName(InCallableName)
 	{
 	}
 
@@ -198,7 +199,7 @@ public:
 		bHasTicked = true;
 	}
 
-	virtual FString ToString() const override { return FString("FOnlineAsyncTaskThreadedGenericCallable"); }
+	virtual FString ToString() const override { return FString::Printf(TEXT("FOnlineAsyncTaskThreadedGenericCallable (%s)"), *CallableName); }
 
 	virtual bool IsDone() const override { return bHasTicked; }
 	virtual bool WasSuccessful() const override { return true; }
@@ -208,6 +209,8 @@ private:
 	bool bHasTicked;
 	/** Stored copy of the object to invoke on the game thread. */
 	CallableType CallableObject;
+	/** Name of the task to help logging */
+	FString CallableName;
 };
 
 template<class T>
@@ -431,9 +434,9 @@ public:
 	* @param InCallable the callable object to execute on the game thread.
 	*/
 	template<class CallableType>
-	void AddGenericToInQueueOnlineThread(const CallableType& InCallable)
+	void AddGenericToInQueueOnlineThread(const FString& CallableName, const CallableType& InCallable)
 	{
-		AddToInQueue(new FOnlineAsyncTaskThreadedGenericCallable<CallableType>(InCallable));
+		AddToInQueue(new FOnlineAsyncTaskThreadedGenericCallable<CallableType>(CallableName, InCallable));
 	}
 
 	/**
