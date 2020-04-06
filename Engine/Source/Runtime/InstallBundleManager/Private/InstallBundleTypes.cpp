@@ -14,6 +14,7 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 		TEXT("BuildPatchServices"),
 		TEXT("PlayGo"),
 		TEXT("IntelligentDelivery"),
+		TEXT("GameCustom"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleSourceType::Count) == UE_ARRAY_COUNT(Strings), "");

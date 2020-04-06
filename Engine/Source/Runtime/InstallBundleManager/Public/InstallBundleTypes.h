@@ -11,7 +11,8 @@ enum class EInstallBundleSourceType : int
 	BuildPatchServices,
 	PlayGo,
 	IntelligentDelivery,
-	Count
+	GameCustom,
+	Count,
 };
 ENUM_RANGE_BY_COUNT(EInstallBundleSourceType, EInstallBundleSourceType::Count);
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleSourceType Type);
