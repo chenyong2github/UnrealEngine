@@ -122,6 +122,12 @@ public:
 	/** Sets whether or not to reset all components that include the system that is currently being reset */
 	void SetResetDependentSystemsWhenEditingEmitters(bool bInResetDependentSystemsWhenEditingEmitters);
 
+	/** Gets whether or not to display advanced categories for the parameter panel. */
+	bool GetDisplayAdvancedParameterPanelCategories() const;
+
+	/** Sets whether or not to display advanced categories for the parameter panel. */
+	void SetDisplayAdvancedParameterPanelCategories(bool bInDisplayAdvancedParameterPanelCategories);
+
 	FNiagaraNewAssetDialogConfig GetNewAssetDailogConfig(FName InDialogConfigKey) const;
 
 	void SetNewAssetDialogConfig(FName InDialogConfigKey, const FNiagaraNewAssetDialogConfig& InNewAssetDialogConfig);
@@ -164,7 +170,11 @@ private:
 
 	/** Whether or not to reset all components that include the system currently being reset. */
 	UPROPERTY(config, EditAnywhere, Category = SimulationOptions)
-		bool bResetDependentSystemsWhenEditingEmitters;
+	bool bResetDependentSystemsWhenEditingEmitters;
+
+	/** Whether or not to display advanced categories for the parameter panel. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	bool bDisplayAdvancedParameterPanelCategories;
 
 	UPROPERTY(config)
 	TMap<FName, FNiagaraNewAssetDialogConfig> NewAssetDialogConfigMap;
