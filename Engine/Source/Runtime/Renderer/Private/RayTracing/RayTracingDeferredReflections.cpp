@@ -226,7 +226,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	FRayTracingDeferredReflectionsRGS::FParameters CommonParameters;
 	CommonParameters.RayTracingResolution    = RayTracingResolution;
 	CommonParameters.TileAlignedResolution   = TileAlignedResolution;
-	CommonParameters.ReflectionMaxRoughness  = GetRayTracingReflectionsMaxRoughness(View);
+	CommonParameters.ReflectionMaxRoughness  = Options.MaxRoughness;
 	CommonParameters.TLAS                    = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	CommonParameters.SceneTextures           = SceneTextures;
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
