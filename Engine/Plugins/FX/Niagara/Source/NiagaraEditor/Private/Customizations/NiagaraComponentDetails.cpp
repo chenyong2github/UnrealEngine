@@ -48,30 +48,221 @@
 #include "Widgets/Layout/SBox.h"
 #include "UObject/WeakObjectPtr.h"
 #include "NiagaraUserRedirectionParameterStore.h"
+
 #define LOCTEXT_NAMESPACE "NiagaraComponentDetails"
+
+static FNiagaraVariant GetParameterValueFromAsset(const FNiagaraVariableBase& Parameter, const UNiagaraComponent* Component)
+{
+	FNiagaraUserRedirectionParameterStore& UserParameterStore = Component->GetAsset()->GetExposedParameters();
+	if (Parameter.IsDataInterface())
+	{
+		int32 Index = UserParameterStore.IndexOf(Parameter);
+		if (Index != INDEX_NONE)
+		{
+			return FNiagaraVariant(UserParameterStore.GetDataInterfaces()[Index]);
+		}
+	}
+	
+	if (Parameter.IsUObject())
+	{
+		int32 Index = UserParameterStore.IndexOf(Parameter);
+		if (Index != INDEX_NONE)
+		{
+			return FNiagaraVariant(UserParameterStore.GetUObjects()[Index]);
+		}
+	}
+
+	const uint8* ParameterData = UserParameterStore.GetParameterData(Parameter);
+	if (ParameterData == nullptr)
+	{
+		return FNiagaraVariant();
+	}
+	
+	return FNiagaraVariant(ParameterData, Parameter.GetSizeInBytes());
+}
+
+static FNiagaraVariant GetCurrentParameterValue(const FNiagaraVariableBase& Parameter, const UNiagaraComponent* Component)
+{
+	FNiagaraVariant OverriddenValue = Component->FindParameterOverride(Parameter);
+	if (OverriddenValue.IsValid())
+	{
+		return OverriddenValue;
+	}
+	
+	return GetParameterValueFromAsset(Parameter, Component);
+}
+
+// Proxy class to allow us to override values on the component that are not yet overridden.
+class FNiagaraParameterProxy
+{
+public:
+	FNiagaraParameterProxy(TWeakObjectPtr<UNiagaraComponent> InComponent, const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue, const FSimpleDelegate& InOnRebuild, TArray<TSharedPtr<IPropertyHandle>> InPropertyHandles)
+	{
+		bResettingToDefault = false;
+		Component = InComponent;
+		ParameterKey = InKey;
+		ParameterValue = InValue;
+		OnRebuild = InOnRebuild;
+		PropertyHandles = InPropertyHandles;
+	}
+
+	FReply OnResetToDefaultClicked()
+	{
+		OnResetToDefault();
+		return FReply::Handled();
+	}
+
+	void OnResetToDefault()
+	{
+		UNiagaraComponent* RawComponent = Component.Get();
+		if (RawComponent != nullptr)
+		{
+			FScopedTransaction ScopedTransaction(NSLOCTEXT("UnrealEd", "PropertyWindowResetToDefault", "Reset to Default"));
+			RawComponent->Modify();
+
+			bResettingToDefault = true;
+
+			for (TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
+			{
+				PropertyHandle->NotifyPreChange();
+			}
+
+			RawComponent->RemoveParameterOverride(ParameterKey);
+
+			for (TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
+			{
+				PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+			}
+
+			OnRebuild.ExecuteIfBound();
+			bResettingToDefault = false;
+		}
+	}
+
+	EVisibility GetResetToDefaultVisibility() const 
+	{
+		UNiagaraComponent* RawComponent = Component.Get();
+		if (RawComponent != nullptr)
+		{
+			return RawComponent->HasParameterOverride(ParameterKey) ? EVisibility::Visible : EVisibility::Hidden;
+		}
+		return EVisibility::Hidden;
+	}
+
+	FNiagaraVariant FindExistingOverride() const
+	{
+		UNiagaraComponent* RawComponent = Component.Get();
+		if (RawComponent != nullptr)
+		{
+			return RawComponent->FindParameterOverride(ParameterKey);
+		}
+		return FNiagaraVariant();
+	}
+
+	void OnParameterPreChange()
+	{
+		UNiagaraComponent* RawComponent = Component.Get();
+		if (RawComponent != nullptr)
+		{
+			RawComponent->Modify();
+
+			for (TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
+			{
+				PropertyHandle->NotifyPreChange();
+			}
+		}
+	}
+
+	void OnParameterChanged()
+	{
+		if (bResettingToDefault)
+		{
+			return;
+		}
+
+		UNiagaraComponent* RawComponent = Component.Get();
+		if (RawComponent != nullptr)
+		{
+			RawComponent->SetParameterOverride(ParameterKey, ParameterValue);
+
+			for (TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
+			{
+				PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+			}
+		}
+	}
+
+	void OnAssetSelectedFromPicker(const FAssetData& InAssetData)
+	{
+		UNiagaraComponent* RawComponent = Component.Get();
+		if (RawComponent != nullptr)
+		{
+			UObject* Asset = InAssetData.GetAsset();
+			if (Asset == nullptr || Asset->GetClass()->IsChildOf(ParameterKey.GetType().GetClass()))
+			{
+				FScopedTransaction ScopedTransaction(LOCTEXT("ChangeAsset", "Change asset"));
+				RawComponent->Modify();
+				RawComponent->SetParameterOverride(ParameterKey, FNiagaraVariant(Asset));
+
+				for (TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
+				{
+					PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+				}
+			}
+		}
+	}
+
+	FString GetCurrentAssetPath() const
+	{
+		UObject* CurrentObject = nullptr;
+
+		UNiagaraComponent* RawComponent = Component.Get();
+		if (RawComponent != nullptr)
+		{
+			FNiagaraVariant CurrentValue = FindExistingOverride();
+			if (CurrentValue.IsValid())
+			{
+				CurrentObject = CurrentValue.GetUObject();
+			}
+			else
+			{
+				// fetch from asset
+				UNiagaraSystem* System = RawComponent->GetAsset();
+				if (System != nullptr)
+				{
+					FNiagaraUserRedirectionParameterStore& AssetParamStore = System->GetExposedParameters();
+					CurrentObject = AssetParamStore.GetUObject(ParameterKey);
+				}
+			}
+		}
+
+		return CurrentObject != nullptr ? CurrentObject->GetPathName() : FString();
+	}
+
+
+	const FNiagaraVariableBase& Key() const { return ParameterKey; }
+	FNiagaraVariant& Value() { return ParameterValue; }
+
+
+private:
+	TWeakObjectPtr<UNiagaraComponent> Component;
+	TArray<TSharedPtr<IPropertyHandle>> PropertyHandles;
+	FNiagaraVariableBase ParameterKey;
+	FNiagaraVariant ParameterValue;
+	FSimpleDelegate OnRebuild;
+	bool bResettingToDefault;
+};
 
 class FNiagaraComponentNodeBuilder : public IDetailCustomNodeBuilder
 {
 public:
-	FNiagaraComponentNodeBuilder(UNiagaraComponent* InComponent)						   
+	FNiagaraComponentNodeBuilder(UNiagaraComponent* InComponent, TArray<TSharedPtr<IPropertyHandle>> InOverridePropertyHandles) 
 	{
+		OverridePropertyHandles = InOverridePropertyHandles;
+
 		Component = InComponent;
 		Component->OnSynchronizedWithAssetParameters().AddRaw(this, &FNiagaraComponentNodeBuilder::ComponentSynchronizedWithAssetParameters);
 
-		if (InComponent->GetAsset() != nullptr)
-		{
-			UNiagaraScript* ScriptSpawn = InComponent->GetAsset()->GetSystemSpawnScript();
-			if (ScriptSpawn != nullptr)
-			{
-				OriginalScripts.Add(ScriptSpawn);
-			}
-
-			UNiagaraScript* ScriptUpdate = InComponent->GetAsset()->GetSystemUpdateScript();
-			if (ScriptUpdate != nullptr)
-			{
-				OriginalScripts.Add(ScriptUpdate);
-			}
-		}
 		//UE_LOG(LogNiagaraEditor, Log, TEXT("FNiagaraComponentNodeBuilder %p Component %p"), this, Component.Get());
 	}
 
@@ -81,6 +272,7 @@ public:
 		{
 			Component->OnSynchronizedWithAssetParameters().RemoveAll(this);
 		}
+
 		//UE_LOG(LogNiagaraEditor, Log, TEXT("~FNiagaraComponentNodeBuilder %p Component %p"), this, Component.Get());
 	}
 
@@ -99,43 +291,26 @@ public:
 		return NiagaraComponentNodeBuilder;
 	}
 
-
-	void OnAssetSelectedFromPicker(const FAssetData& InAssetData, FNiagaraVariable InVar)
-	{
-		FScopedTransaction ScopedTransaction(LOCTEXT("ChangeAsset", "Change asset"));
-
-		UObject* Asset = InAssetData.GetAsset();
-		if (Asset == nullptr || Asset->GetClass()->IsChildOf(InVar.GetType().GetClass()))
-		{
-			check(Component.IsValid());
-			Component->Modify();
-			Component->OverrideUObjectParameter(InVar, Asset);
-		}
-	}
-
-	FString GetCurrentAssetPath(FNiagaraVariable InVar) const
-	{
-		check(Component.IsValid());
-		TArray<FNiagaraVariable> Parameters;
-		FNiagaraUserRedirectionParameterStore& ParamStore = Component->GetOverrideParameters();
-		UObject* Obj = ParamStore.GetUObject(InVar);
-		if (Obj)
-		{
-			return Obj->GetPathName();
-		}
-		return FString();
-	}
-
 	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override
 	{
 		check(Component.IsValid());
-		TArray<FNiagaraVariable> Parameters;
-		FNiagaraUserRedirectionParameterStore& ParamStore = Component->GetOverrideParameters();
-		ParamStore.GetUserParameters(Parameters);
+
+		ParameterProxies.Reset();
 
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-		
-		for (const FNiagaraVariable& Parameter : Parameters)
+
+		UNiagaraSystem* SystemAsset = Component->GetAsset();
+		if (SystemAsset == nullptr)
+		{
+			return;
+		}
+
+		TArray<FNiagaraVariable> UserParameters;
+		SystemAsset->GetExposedParameters().GetUserParameters(UserParameters);
+
+		ParameterProxies.Reserve(UserParameters.Num());
+
+		for (const FNiagaraVariable& Parameter : UserParameters)
 		{
 			TSharedPtr<SWidget> NameWidget;
 
@@ -143,18 +318,29 @@ public:
 				SNew(STextBlock)
 				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 				.Text(FText::FromName(Parameter.GetName()));
-			
+
 			IDetailPropertyRow* Row = nullptr;
 
 			TSharedPtr<SWidget> CustomValueWidget;
+			
+			FNiagaraVariant ParameterValue = GetCurrentParameterValue(Parameter, Component.Get());
+			if (!ParameterValue.IsValid())
+			{
+				continue;
+			}
 
 			if (Parameter.IsDataInterface())
 			{
-				int32 DataInterfaceOffset = ParamStore.IndexOf(Parameter);
-				UObject* DefaultValueObject = ParamStore.GetDataInterfaces()[DataInterfaceOffset];
+				ParameterValue = FNiagaraVariant(DuplicateObject(ParameterValue.GetDataInterface(), Component.Get()));
+			}
 
-				TArray<UObject*> Objects;
-				Objects.Add(DefaultValueObject);
+			TSharedPtr<FNiagaraParameterProxy> ParameterProxy = ParameterProxies.Add_GetRef(MakeShareable(new FNiagaraParameterProxy(Component, Parameter, ParameterValue, OnRebuildChildren, OverridePropertyHandles)));
+				
+			if (Parameter.IsDataInterface())
+			{
+				// duplicate the DI here so that if it is changed, the component's SetParameterOverride will override the value
+				// if no changes are made, then it'll just be the same as the asset
+				TArray<UObject*> Objects { ParameterProxy->Value().GetDataInterface() };
 
 				FAddPropertyParams Params = FAddPropertyParams()
 					.UniqueId(Parameter.GetName())
@@ -166,226 +352,107 @@ public:
 				CustomValueWidget =
 					SNew(STextBlock)
 					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-					.Text(FText::FromString(FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false)));
+					.Text(FText::FromString(FName::NameToDisplayString(Parameter.GetType().GetClass()->GetName(), false)));
 			}
 			else if (Parameter.IsUObject())
 			{
-				int32 ObjectOffst = ParamStore.IndexOf(Parameter);
-				UObject* DefaultValueObject = ParamStore.GetUObjects()[ObjectOffst];
+				TArray<UObject*> Objects { ParameterProxy->Value().GetUObject() };
 
-				TArray<UObject*> Objects;
-				Objects.Add(DefaultValueObject);
-
-				//How do I set this up so I can have this pick actors from the level?
+				// How do I set this up so I can have this pick actors from the level?
 
 				FAddPropertyParams Params = FAddPropertyParams()
 					.UniqueId(Parameter.GetName())
-					.AllowChildren(false) //Don't show the material's properties
+					.AllowChildren(false) // Don't show the material's properties
 					.CreateCategoryNodes(false);
 
 				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
 
-				//How do I make this an object picker from the level editor?
-				//Neither of these seem to work well.
-// 				CustomValueWidget = PropertyCustomizationHelpers::MakeActorPickerWithMenu(nullptr,
-// 					true,
-// 					FOnShouldFilterActor::CreateRaw(this, &FNiagaraComponentNodeBuilder::IsFilteredActor),
-// 					FOnActorSelected::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnActorSelected),
-// 					FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::CloseComboButton),
-// 					FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUse));
-				
-// 				CustomValueWidget = PropertyCustomizationHelpers::MakeActorPickerAnchorButton(
-// 					FOnGetActorFilters::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnGetActorFiltersForSceneOutliner),
-// 					FOnActorSelected::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnActorSelected));
-
-				if (Parameter.GetType().GetClass() == UMaterialInterface::StaticClass())
-				{
-									
-					CustomValueWidget = SNew(SObjectPropertyEntryBox)
-						.ObjectPath_Raw(this, &FNiagaraComponentNodeBuilder::GetCurrentAssetPath, Parameter )
-						.AllowedClass(UMaterialInterface::StaticClass())
-						.OnObjectChanged_Raw(this, &FNiagaraComponentNodeBuilder::OnAssetSelectedFromPicker, Parameter)
-						.AllowClear(false)
-						.DisplayUseSelected(true)
-						.DisplayBrowse(true)
-						.DisplayThumbnail(true)
-						.NewAssetFactories(TArray<UFactory*>());
-				}
-				else
-				{
-					FString ValueName = DefaultValueObject ? FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false) : TEXT("null");
-					CustomValueWidget =
-						SNew(STextBlock)
-						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-						.Text(FText::FromString(ValueName));
-				}
+				CustomValueWidget = SNew(SObjectPropertyEntryBox)
+					.ObjectPath(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::GetCurrentAssetPath)
+					.AllowedClass(Parameter.GetType().GetClass())
+					.OnObjectChanged(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnAssetSelectedFromPicker)
+					.AllowClear(false)
+					.DisplayUseSelected(true)
+					.DisplayBrowse(true)
+					.DisplayThumbnail(true)
+					.NewAssetFactories(TArray<UFactory*>());
 			}
 			else
 			{
-				TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Parameter.GetType().GetStruct(), (uint8*)ParamStore.GetParameterData(Parameter)));
+				TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Parameter.GetType().GetStruct(), ParameterProxy->Value().GetBytes()));
 
-				Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, FAddPropertyParams().UniqueId(Parameter.GetName()));
+				FAddPropertyParams Params = FAddPropertyParams()
+					.UniqueId(Parameter.GetName());
 
+				Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, Params);
 			}
 
-			if (Row)
+			check(Row && ParameterProxy.IsValid() && ParameterProxy->Value().IsValid());
+
+			TSharedPtr<SWidget> DefaultNameWidget;
+			TSharedPtr<SWidget> DefaultValueWidget;
+
+			Row->DisplayName(FText::FromName(Parameter.GetName()));
+
+			FDetailWidgetRow& CustomWidget = Row->CustomWidget(true);
+
+			Row->GetDefaultWidgets(DefaultNameWidget, DefaultValueWidget, CustomWidget);
+
+			Row->GetPropertyHandle()->SetOnPropertyValuePreChange(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterPreChange));
+			Row->GetPropertyHandle()->SetOnChildPropertyValuePreChange(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterPreChange));
+			Row->GetPropertyHandle()->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterChanged));
+			Row->GetPropertyHandle()->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterChanged));
+			Row->GetPropertyHandle()->SetOnPropertyResetToDefault(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnResetToDefault));
+
+			CustomWidget
+				.NameContent()
+				[
+					SNew(SBox)
+					.Padding(FMargin(0.0f, 2.0f))
+					[
+						NameWidget.ToSharedRef()
+					]
+				];
+
+			TSharedPtr<SWidget> ValueWidget = DefaultValueWidget;
+			if (CustomValueWidget.IsValid())
 			{
-				TSharedPtr<SWidget> DefaultNameWidget;
-				TSharedPtr<SWidget> DefaultValueWidget;
-
-				Row->DisplayName(FText::FromName(Parameter.GetName()));
-
-				TSharedPtr<IPropertyHandle> PropertyHandle = Row->GetPropertyHandle();
-
-				FDetailWidgetRow& CustomWidget = Row->CustomWidget(true);
-
-				TArray<UObject*> Objects;
-				Row->GetPropertyHandle()->GetOuterObjects(Objects);
-
-				Row->GetDefaultWidgets(DefaultNameWidget, DefaultValueWidget, CustomWidget);
-
-				if (Parameter.IsDataInterface())
-				{
-					PropertyHandle->SetOnPropertyValuePreChange(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnDataInterfacePreChange, Parameter));
-					PropertyHandle->SetOnChildPropertyValuePreChange(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnDataInterfacePreChange, Parameter));
-					PropertyHandle->SetOnPropertyValueChanged(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnDataInterfaceChanged, Parameter));
-					PropertyHandle->SetOnChildPropertyValueChanged(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnDataInterfaceChanged, Parameter));
-				}
-				else if (Parameter.IsUObject())
-				{
-					PropertyHandle->SetOnPropertyValuePreChange(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUObjectPreChange, Parameter));
-					PropertyHandle->SetOnChildPropertyValuePreChange(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUObjectPreChange, Parameter));
-					PropertyHandle->SetOnPropertyValueChanged(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUObjectChanged, Parameter));
-					PropertyHandle->SetOnChildPropertyValueChanged(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUObjectChanged, Parameter));
-				}
-				else
-				{
-					PropertyHandle->SetOnPropertyValuePreChange(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnParameterPreChange, Parameter));
-					PropertyHandle->SetOnChildPropertyValuePreChange(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnParameterPreChange, Parameter));
-					PropertyHandle->SetOnPropertyValueChanged(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnParameterChanged, Parameter));
-					PropertyHandle->SetOnChildPropertyValueChanged(
-						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnParameterChanged, Parameter));
-				}
-
-				CustomWidget
-					.NameContent()
-					[
-						SNew(SBox)
-						.Padding(FMargin(0.0f, 2.0f))
-						[
-							NameWidget.ToSharedRef()
-						]
-					];
-
-				TSharedPtr<SWidget> ValueWidget = DefaultValueWidget;
-				if (CustomValueWidget.IsValid())
-				{
-					ValueWidget = CustomValueWidget;
-				}
-
-				CustomWidget
-					.ValueContent()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Fill)
-						.Padding(4.0f)
-						[
-							// Add in the parameter editor factoried above.
-							ValueWidget.ToSharedRef()
-						]
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							// Add in the "reset to default" buttons
-							SNew(SButton)
-							.OnClicked_Raw(this, &FNiagaraComponentNodeBuilder::OnLocationResetClicked, Parameter)
-							.Visibility_Raw(this, &FNiagaraComponentNodeBuilder::GetLocationResetVisibility, Parameter)
-							.ContentPadding(FMargin(5.f, 0.f))
-							.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-							.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-							.Content()
-							[
-								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
-							]
-						]
-					];
+				ValueWidget = CustomValueWidget;
 			}
+
+			CustomWidget
+				.ValueContent()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Fill)
+					.Padding(4.0f)
+					[
+						// Add in the parameter editor factoried above.
+						ValueWidget.ToSharedRef()
+					]
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						// Add in the "reset to default" buttons
+						SNew(SButton)
+						.OnClicked(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnResetToDefaultClicked)
+						.Visibility(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::GetResetToDefaultVisibility)
+						.ContentPadding(FMargin(5.f, 0.f))
+						.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
+						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+						.Content()
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+						]
+					]
+				];
 		}
 	}
 
 private:
-	void OnParameterPreChange(FNiagaraVariable Var)
-	{
-		check(Component.IsValid());
-		Component->Modify();
-	}
-
-	void OnDataInterfacePreChange(FNiagaraVariable Var)
-	{
-		check(Component.IsValid());
-		Component->Modify();
-	}
-	
-	void OnUObjectPreChange(FNiagaraVariable Var)
-	{
-		check(Component.IsValid());
-		Component->Modify();
-	}
-
-	void OnParameterChanged(FNiagaraVariable Var)
-	{
-		check(Component.IsValid());
-		Component->GetOverrideParameters().OnParameterChange();
-		Component->SetParameterValueOverriddenLocally(Var, true, true);
-	}
-
-	void OnDataInterfaceChanged(FNiagaraVariable Var)
-	{
-		Component->GetOverrideParameters().OnInterfaceChange();
-		check(Component.IsValid());
-		Component->SetParameterValueOverriddenLocally(Var, true, true);
-	}
-
-	void OnUObjectChanged(FNiagaraVariable Var)
-	{
-		Component->GetOverrideParameters().OnUObjectChange();
-		check(Component.IsValid());
-		Component->SetParameterValueOverriddenLocally(Var, true, true);
-	}
-
-	bool DoesParameterDifferFromDefault(const FNiagaraVariable& Var)
-	{
-		check(Component.IsValid());
-		return Component->IsParameterValueOverriddenLocally(Var.GetName());
-	}
-
-	FReply OnLocationResetClicked(FNiagaraVariable Parameter)
-	{
-		check(Component.IsValid());
-		FScopedTransaction ScopedTransaction(LOCTEXT("ResetParameterValue", "Reset parameter value to system defaults."));
-		Component->Modify();
-		Component->SetParameterValueOverriddenLocally(Parameter, false, true);
-		return FReply::Handled();
-	}
-
-	EVisibility GetLocationResetVisibility(FNiagaraVariable Parameter) const
-	{
-		return Component.IsValid() && Component->IsParameterValueOverriddenLocally(Parameter.GetName()) ? EVisibility::Visible : EVisibility::Collapsed;
-	}
 
 	void ComponentSynchronizedWithAssetParameters()
 	{
@@ -394,9 +461,9 @@ private:
 
 private:
 	TWeakObjectPtr<UNiagaraComponent> Component;
+	TArray<TSharedPtr<IPropertyHandle>> OverridePropertyHandles;
 	FSimpleDelegate OnRebuildChildren;
-	TArray<TSharedRef<FStructOnScope>> CreatedStructOnScopes;
-	TArray<UNiagaraScript*> OriginalScripts;
+	TArray<TSharedPtr<FNiagaraParameterProxy>> ParameterProxies;
 };
 
 TSharedRef<IDetailCustomization> FNiagaraComponentDetails::MakeInstance()
@@ -456,11 +523,19 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	static const FName ParamCategoryName = TEXT("NiagaraComponent_Parameters");
 	static const FName ScriptCategoryName = TEXT("Parameters");
 
-	TSharedPtr<IPropertyHandle> LocalOverridesPropertyHandle = DetailBuilder.GetProperty(TEXT("OverrideParameters"));
+	TSharedPtr<IPropertyHandle> LocalOverridesPropertyHandle = DetailBuilder.GetProperty("OverrideParameters");
 	if (LocalOverridesPropertyHandle.IsValid())
 	{
 		LocalOverridesPropertyHandle->MarkHiddenByCustomization();
 	}
+
+	TSharedPtr<IPropertyHandle> TemplateParameterOverridesPropertyHandle = DetailBuilder.GetProperty("TemplateParameterOverrides");
+	TemplateParameterOverridesPropertyHandle->MarkHiddenByCustomization();
+
+	TSharedPtr<IPropertyHandle> InstanceParameterOverridesPropertyHandle = DetailBuilder.GetProperty("InstanceParameterOverrides");
+	InstanceParameterOverridesPropertyHandle->MarkHiddenByCustomization();
+
+	TArray<TSharedPtr<IPropertyHandle>> PropertyHandles { TemplateParameterOverridesPropertyHandle, InstanceParameterOverridesPropertyHandle };
 
 	TArray<TWeakObjectPtr<UObject>> ObjectsCustomized;
 	DetailBuilder.GetObjectsBeingCustomized(ObjectsCustomized);
@@ -477,7 +552,7 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 		FGameDelegates::Get().GetEndPlayMapDelegate().AddRaw(this, &FNiagaraComponentDetails::OnPiEEnd);
 			
 		IDetailCategoryBuilder& InputParamCategory = DetailBuilder.EditCategory(ParamCategoryName, LOCTEXT("ParamCategoryName", "Override Parameters"));
-		InputParamCategory.AddCustomBuilder(MakeShared<FNiagaraComponentNodeBuilder>(Component.Get()));
+		InputParamCategory.AddCustomBuilder(MakeShared<FNiagaraComponentNodeBuilder>(Component.Get(), PropertyHandles));
 	}
 	else if (ObjectsCustomized.Num() > 1)
 	{
