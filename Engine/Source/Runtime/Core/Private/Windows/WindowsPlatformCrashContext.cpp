@@ -415,7 +415,7 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 /**
  * Launches crash reporter client and creates the pipes for communication.
  */
-FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe)
+FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uint32* CrashReportClientProcessId)
 {
 	TCHAR CrashReporterClientPath[CR_CLIENT_MAX_PATH_LEN] = { 0 };
 	TCHAR CrashReporterClientArgs[CR_CLIENT_MAX_ARGS_LEN] = { 0 };
@@ -486,7 +486,7 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe)
 			CrashReporterClientPath,
 			CrashReporterClientArgs,
 			true, false, false,
-			nullptr, 0,
+			CrashReportClientProcessId, 0,
 			nullptr,
 			nullptr,
 			nullptr
@@ -968,6 +968,8 @@ private:
 	void* CrashMonitorWritePipe;
 	/** Pipe for reading from the monitor process. */
 	void* CrashMonitorReadPipe;
+	/** The crash report client process ID. */
+	uint32 CrashMonitorPid;
 	/** Memory allocated for crash context. */
 	FSharedCrashContext SharedContext;
 	
@@ -1024,6 +1026,7 @@ public:
 		, VectoredExceptionHandle(INVALID_HANDLE_VALUE)
 		, CrashMonitorWritePipe(nullptr)
 		, CrashMonitorReadPipe(nullptr)
+		, CrashMonitorPid(0)
 	{
 		// Synchronization objects
 		CrashEvent = CreateEvent(nullptr, true, 0, nullptr);
@@ -1041,7 +1044,7 @@ public:
 #if USE_CRASH_REPORTER_MONITOR
 		if (!FPlatformProperties::IsServerOnly())
 		{
-			CrashClientHandle = LaunchCrashReportClient(&CrashMonitorWritePipe, &CrashMonitorReadPipe);
+			CrashClientHandle = LaunchCrashReportClient(&CrashMonitorWritePipe, &CrashMonitorReadPipe, &CrashMonitorPid);
 			FMemory::Memzero(SharedContext);
 		}
 #endif
@@ -1053,7 +1056,10 @@ public:
 			SetThreadPriority(Thread, THREAD_PRIORITY_BELOW_NORMAL);
 		}
 
-		FGenericCrashContext::SetIsOutOfProcessCrashReporter(CrashClientHandle.IsValid());
+		if (CrashClientHandle.IsValid())
+		{
+			FGenericCrashContext::SetOutOfProcessCrashReporterPid(CrashMonitorPid);
+		}
 	}
 
 	FORCENOINLINE ~FCrashReportingThread()

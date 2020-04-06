@@ -275,13 +275,21 @@ public:
 	 */
 	static bool IsOutOfProcessCrashReporter()
 	{
-		return bIsOutOfProcess;
+		return OutOfProcessCrashReporterPid != 0;
+	}
+
+	/**
+	 * @return a non-zero value if crash reporter process is used to monitor the session or zero for in-process reporting.
+	 */
+	static uint32 GetOutOfProcessCrashReporterProcessId()
+	{
+		return OutOfProcessCrashReporterPid;
 	}
 
 	/** Set whether or not the out-of-process crash reporter is running. */
-	static void SetIsOutOfProcessCrashReporter(bool bInValue)
+	static void SetOutOfProcessCrashReporterPid(uint32 ProcessId)
 	{
-		bIsOutOfProcess = bInValue;
+		OutOfProcessCrashReporterPid = ProcessId;
 	}
 
 	/** Default constructor. Optionally pass a process handle if building a crash context for a process other then current. */
@@ -483,8 +491,8 @@ private:
 	/**	Whether the Initialize() has been called */
 	static bool bIsInitialized;
 
-	/** Whether or not crash reporting is being handled out-of-process. */
-	static bool bIsOutOfProcess;
+	/** The ID of the external process reporting crashes if the platform supports it and was configured to use it, zero otherwise (0 is a reserved system process ID, invalid for the out of process reporter). */
+	static uint32 OutOfProcessCrashReporterPid;
 
 	/**	Static counter records how many crash contexts have been constructed */
 	static int32 StaticCrashContextIndex;
