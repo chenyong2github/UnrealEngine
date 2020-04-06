@@ -49,8 +49,10 @@ FAutoConsoleVariableRef CVarChaosImmPhysIterations(TEXT("p.Chaos.ImmPhys.Iterati
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutIterations(TEXT("p.Chaos.ImmPhys.PushOutIterations"), ChaosImmediate_Evolution_PushOutIterations, TEXT("Override number of solver push-out loops (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysBoundsExtension(TEXT("p.Chaos.ImmPhys.BoundsExtension"), ChaosImmediate_Evolution_BoundsExtension, TEXT("Bounds are grown by this fraction of their size (should be >= 0.0)"));
 
+float ChaosImmediate_Evolution_MinStepTime = 0.01f;
 float ChaosImmediate_Evolution_FixedStepTime = -1.0f;
 float ChaosImmediate_Evolution_FixedStepTolerance = 0.05f;
+FAutoConsoleVariableRef CVarChaosImmPhysMinStepTime(TEXT("p.Chaos.ImmPhys.MinStepTime"), ChaosImmediate_Evolution_MinStepTime, TEXT("If non-zero, then if step time is lower than this, go into fixed step mode with this timestep."));
 FAutoConsoleVariableRef CVarChaosImmPhysFixedStepTime(TEXT("p.Chaos.ImmPhys.FixedStepTime"), ChaosImmediate_Evolution_FixedStepTime, TEXT("Override fixed step time mode: fixed step time (if positive); variable time mode (if zero); asset defined (if negative)"));
 FAutoConsoleVariableRef CVarChaosImmPhysFixedStepTolerance(TEXT("p.Chaos.ImmPhys.FixedStepTolerance"), ChaosImmediate_Evolution_FixedStepTolerance, TEXT("Tiem remainder required to add a new step (fraction of FixedStepTime)"));
 
@@ -642,12 +644,21 @@ namespace ImmediatePhysics_Chaos
 		DebugDrawDynamicParticles(2, 2, FColor(192, 192, 0));
 		DebugDrawConstraints(2, 2, 0.7f);
 
-		// Fixed timestep mode
-		// @todo(ccaulfield): integrate this better with the non-fixed step calculate above
-		FReal RewindTime = 0.0f;
-		if (Implementation->FixedStepTime > 0)
+		// Fixed timestep mode DT (Only used if > 0.0f)
+		FReal FixedStepTime = Implementation->FixedStepTime;
+
+		// Use fixed step mode anyway if StepTime is too low
+		// This can prevent collision push resolution introducing large velocities at small DTs
+		if ((FixedStepTime <= 0.0f) && (StepTime < ChaosImmediate_Evolution_MinStepTime))
 		{
-			StepTime = Implementation->FixedStepTime;
+			FixedStepTime = ChaosImmediate_Evolution_MinStepTime;
+		}
+
+		// If using FixedStep mode, calculate the number of steps and how far to rewind (if at all)
+		FReal RewindTime = 0.0f;
+		if (FixedStepTime > 0)
+		{
+			StepTime = FixedStepTime;
 			NumSteps = FMath::FloorToInt(DeltaTime / StepTime);
 			FReal RemainderTime = DeltaTime - NumSteps * StepTime;
 			if (RemainderTime > ChaosImmediate_Evolution_FixedStepTolerance* StepTime)
