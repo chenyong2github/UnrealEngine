@@ -1391,6 +1391,7 @@ IMPLEMENT_CONTROL_CHANNEL_MESSAGE(BeaconJoin);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(BeaconAssignGUID);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(BeaconNetGUIDAck);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(EncryptionAck);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(DestructionInfo);
 
 void UControlChannel::Init( UNetConnection* InConnection, int32 InChannelIndex, EChannelCreateFlags CreateFlags )
 {
@@ -1550,7 +1551,7 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 				}
 			}
 		}
-		else if(MessageType == NMT_SecurityViolation)
+		else if (MessageType == NMT_SecurityViolation)
 		{
 			FString DebugMessage;
 			if (FNetControlMessage<NMT_SecurityViolation>::Receive(Bunch, DebugMessage))
@@ -1558,6 +1559,10 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 				UE_SECURITY_LOG(Connection, ESecurityEvent::Closed, TEXT("%s"), *DebugMessage);
 				break;
 			}
+		}
+		else if (MessageType == NMT_DestructionInfo)
+		{
+			ReceiveDestructionInfo(Bunch);
 		}
 		else
 		{
@@ -1782,6 +1787,121 @@ FString UControlChannel::Describe()
 	return UChannel::Describe();
 }
 
+int64 UControlChannel::SendDestructionInfo(FActorDestructionInfo* DestructionInfo)
+{
+	int64 NumBits = 0;
+
+	checkf(Connection && Connection->PackageMap, TEXT("SendDestructionInfo requires a valid connection and package map: %s"), *Describe());
+	checkf(DestructionInfo, TEXT("SendDestructionInfo was passed an invalid desctruction info: %s"), *Describe());
+
+	if (!Closing && (Connection->State == USOCK_Open || Connection->State == USOCK_Pending))
+	{
+		// Outer must be valid to call PackageMap->WriteObject. In the case of streaming out levels, this can go null out of from underneath us. In that case, just skip the destruct info.
+		// We assume that if server unloads a level that clients will to and this will implicitly destroy all actors in it, so not worried about leaking actors client side here.
+		if (UObject* ObjOuter = DestructionInfo->ObjOuter.Get())
+		{
+			FOutBunch InfoBunch(Connection->PackageMap, false);
+			check(!InfoBunch.IsError());
+			InfoBunch.bReliable = 1;
+
+			uint8 MessageType = NMT_DestructionInfo;
+			InfoBunch << MessageType;
+
+			EChannelCloseReason Reason = DestructionInfo->Reason;
+			InfoBunch << Reason;
+
+			Connection->PackageMap->WriteObject(InfoBunch, ObjOuter, DestructionInfo->NetGUID, DestructionInfo->PathName);
+
+			UE_LOG(LogNetTraffic, Log, TEXT("SendDestructionInfo: NetGUID <%s> Path: %s. Bits: %d"), *DestructionInfo->NetGUID.ToString(), *DestructionInfo->PathName, InfoBunch.GetNumBits());
+			UE_LOG(LogNetDormancy, Verbose, TEXT("SendDestructionInfo: NetGUID <%s> Path: %s. Bits: %d"), *DestructionInfo->NetGUID.ToString(), *DestructionInfo->PathName, InfoBunch.GetNumBits());
+
+			SendBunch(&InfoBunch, false);
+
+			NumBits = InfoBunch.GetNumBits();
+		}
+	}
+
+	return NumBits;
+}
+
+void UControlChannel::ReceiveDestructionInfo(FInBunch& Bunch)
+{
+	checkf(Connection && Connection->PackageMap && Connection->Driver, TEXT("UControlChannel::ReceiveDestructionInfo requires a valid connection, package map, and driver: %s"), *Describe());
+
+	EChannelCloseReason CloseReason = EChannelCloseReason::Destroyed;
+	Bunch << CloseReason;
+
+	FNetworkGUID NetGUID;
+	UObject* Object = nullptr;
+
+	if (Connection->PackageMap->SerializeObject(Bunch, UObject::StaticClass(), Object, &NetGUID))
+	{
+		if (AActor* TheActor = Cast<AActor>(Object))
+		{
+			// If we're the client, destroy this actor.
+			if (!Connection->Driver->IsServer())
+			{
+				checkf(TheActor->IsValidLowLevel(), TEXT("ReceiveDestructionInfo serialized an invalid actor: %s"), *Describe());
+				checkSlow(Connection->IsValidLowLevel());
+				checkSlow(Connection->Driver->IsValidLowLevel());
+
+				if (TheActor->GetTearOff() && !Connection->Driver->ShouldClientDestroyTearOffActors())
+				{
+					if (!bTornOff)
+					{
+						TheActor->SetRole(ROLE_Authority);
+						TheActor->SetReplicates(false);
+						bTornOff = true;
+						if (TheActor->GetWorld() != nullptr && !IsEngineExitRequested())
+						{
+							TheActor->TornOff();
+						}
+
+						Connection->Driver->NotifyActorTornOff(TheActor);
+					}
+				}
+				else if (Dormant && (CloseReason == EChannelCloseReason::Dormancy) && !TheActor->GetTearOff())
+				{
+					TheActor->NetDormancy = DORM_DormantAll;
+
+					Connection->Driver->NotifyActorFullyDormantForConnection(TheActor, Connection);
+				}
+				else if (!TheActor->bNetTemporary && TheActor->GetWorld() != nullptr && !IsEngineExitRequested() && Connection->Driver->ShouldClientDestroyActor(TheActor))
+				{
+					// Destroy the actor
+
+					// Unmap any components in this actor. This will make sure that once the Actor is remapped
+					// any references to components will be remapped as well.
+					for (UActorComponent* Component : TheActor->GetComponents())
+					{
+						Connection->Driver->MoveMappedObjectToUnmapped(Component);
+					}
+
+					// Unmap this object so we can remap it if it becomes relevant again in the future
+					Connection->Driver->MoveMappedObjectToUnmapped(TheActor);
+
+					TheActor->PreDestroyFromReplication();
+					TheActor->Destroy(true);
+
+					if (CVarFilterGuidRemapping.GetValueOnAnyThread() > 0)
+					{
+						// Remove this actor's NetGUID from the list of unmapped values, it will be added back if it replicates again
+						if (NetGUID.IsValid() && Connection != nullptr && Connection->Driver != nullptr && Connection->Driver->GuidCache.IsValid())
+						{
+							Connection->Driver->GuidCache->ImportedNetGuids.Remove(NetGUID);
+						}
+					}
+
+					if (UPackageMapClient* PackageMapClient = Cast<UPackageMapClient>(Connection->PackageMap))
+					{
+						PackageMapClient->SetHasQueuedBunches(NetGUID, false);
+					}
+				}
+			}
+		}
+	}
+}
+
 /*-----------------------------------------------------------------------------
 	UActorChannel.
 -----------------------------------------------------------------------------*/
@@ -1877,49 +1997,11 @@ void UActorChannel::CleanupReplicators( const bool bKeepReplicators )
 	ActorReplicator.Reset();
 }
 
-static TAutoConsoleVariable<int32> CVarRelinkMappedReferences( TEXT( "net.RelinkMappedReferences" ), 1, TEXT( "" ) );
-
-void UActorChannel::MoveMappedObjectToUnmapped( const UObject* Object )
+void UActorChannel::MoveMappedObjectToUnmapped(const UObject* Object)
 {
-	if ( !Object )
+	if (Connection && Connection->Driver)
 	{
-		return;
-	}
-
-	if ( !CVarRelinkMappedReferences.GetValueOnGameThread() )
-	{
-		return;
-	}
-
-	UNetDriver* Driver = Connection ? Connection->Driver : nullptr;
-
-	if ( !Driver || Driver->IsServer() )
-	{
-		return;
-	}
-
-	// Find all replicators that are referencing this object, and make sure to mark the references as unmapped
-	// This is so when/if this object is instantiated again (using same network guid), we can re-establish the old references
-	FNetworkGUID NetGuid = Driver->GuidCache->NetGUIDLookup.FindRef( const_cast<UObject*>(Object) );
-
-	if ( NetGuid.IsValid() )
-	{
-		TSet< FObjectReplicator* >* Replicators = Driver->GuidToReplicatorMap.Find( NetGuid );
-
-		if ( Replicators != nullptr )
-		{
-			for ( FObjectReplicator* Replicator : *Replicators )
-			{
-				if ( Replicator->MoveMappedObjectToUnmapped( NetGuid ) )
-				{
-					Driver->UnmappedReplicators.Add( Replicator );
-				}
-				else if ( !Driver->UnmappedReplicators.Contains( Replicator ) )
-				{
-					UE_LOG( LogNet, Warning, TEXT( "UActorChannel::MoveMappedObjectToUnmapped: MoveMappedObjectToUnmapped didn't find object: %s" ), *GetPathNameSafe( Replicator->GetObject() ) );
-				}
-			}
-		}
+		Connection->Driver->MoveMappedObjectToUnmapped(Object);
 	}
 }
 

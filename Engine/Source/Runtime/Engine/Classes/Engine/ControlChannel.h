@@ -12,6 +12,7 @@
 class FInBunch;
 class FOutBunch;
 class UNetConnection;
+struct FActorDestructionInfo;
 
 /**
  * A queued control channel message
@@ -105,4 +106,10 @@ class ENGINE_API UControlChannel
 
 	/** Describe the text channel. */
 	virtual FString Describe() override;
+
+	/** Sends a message to destroy a specific actor without creating an actor channel. */
+	int64 SendDestructionInfo(FActorDestructionInfo* DestructionInfo);
+
+	/** Handle receiving a destruction message for an actor outside of an actor channel. */
+	void ReceiveDestructionInfo(FInBunch& Bunch);
 };
