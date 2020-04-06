@@ -392,10 +392,6 @@ protected:
 	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, const TArray<UNiagaraNode*>& InTraversal) const;
 
 private:
-
-	/** The const is a lie! Public implementation AddParameter interacts with mutable members only. Private implementation is provided to handle adding parameters in RefreshParameterReferences(). */
-	void MutableAddParameter(FNiagaraVariable& Parameter, const FAddParameterOptions Options) const;
-
 	virtual void NotifyGraphChanged(const FEdGraphEditAction& InAction) override;
 
 	/** Find parameters in the graph. */

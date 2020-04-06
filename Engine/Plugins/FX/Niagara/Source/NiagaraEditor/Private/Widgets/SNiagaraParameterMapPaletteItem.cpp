@@ -148,7 +148,6 @@ FText SNiagaraParameterMapPalleteItem::GetItemTooltip() const
 void SNiagaraParameterMapPalleteItem::OnNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
 {
 	TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(ActionPtr.Pin());
-	FScopedTransaction RenameParametersWithPins(LOCTEXT("RenameParameter", "Rename parameter, referenced pins and metadata"));
 	OnItemRenamed.ExecuteIfBound(NewText, *ParameterAction.Get());
 }
 
