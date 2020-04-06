@@ -2127,12 +2127,18 @@ void FRecastTileGenerator::DumpAsyncData()
 	OffmeshLinks.Empty();
 
 	NavigationRelevantData.Empty();
-	NavOctree = nullptr;
+	NavSystem = nullptr;
 }
 
 void FRecastTileGenerator::GatherGeometryFromSources()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_GatherGeometryFromSources);
+
+	UNavigationSystemV1* NavSys = NavSystem.Get();
+	if (NavSys == nullptr)
+	{
+		return;
+	}
 
 	for (TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData : NavigationRelevantData)
 	{
@@ -2142,13 +2148,19 @@ void FRecastTileGenerator::GatherGeometryFromSources()
 			continue;
 		}
 
-		GatherNavigationDataGeometry(ElementData, NavOctree.Get(), NavDataConfig, bUpdateGeometry);
+		GatherNavigationDataGeometry(ElementData, *NavSys, NavDataConfig, bUpdateGeometry);
 	}
 }
 
 ETimeSliceWorkResult FRecastTileGenerator::GatherGeometryFromSourcesTimeSliced()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_GatherGeometryFromSources);
+
+	UNavigationSystemV1* NavSys = NavSystem.Get();
+	if (NavSys == nullptr)
+	{
+		return ETimeSliceWorkResult::Failed;
+	}
 
 	while(NavigationRelevantData.Num())
 	{
@@ -2159,7 +2171,7 @@ ETimeSliceWorkResult FRecastTileGenerator::GatherGeometryFromSourcesTimeSliced()
 			continue;
 		}
 
-		GatherNavigationDataGeometry(ElementData, NavOctree.Get(), NavDataConfig, bUpdateGeometry);
+		GatherNavigationDataGeometry(ElementData, *NavSys, NavDataConfig, bUpdateGeometry);
 		
 		if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 		{
@@ -2178,7 +2190,7 @@ void FRecastTileGenerator::PrepareGeometrySources(const FRecastNavMeshGenerator&
 	FNavigationOctree* NavOctreeInstance = NavSys ? NavSys->GetMutableNavOctree() : nullptr;
 	check(NavOctreeInstance);
 	NavigationRelevantData.Reset();
-	NavOctree = NavOctreeInstance->AsShared();
+	NavSystem = NavSys;
 	bUpdateGeometry = bGeometryChanged;
 
 	for (FNavigationOctree::TConstElementBoxIterator<FNavigationOctree::DefaultStackAllocator> It(*NavOctreeInstance, ParentGenerator.GrowBoundingBox(TileBB, /*bIncludeAgentHeight*/ false));
@@ -2191,7 +2203,7 @@ void FRecastTileGenerator::PrepareGeometrySources(const FRecastNavMeshGenerator&
 		{
 			const bool bExportGeometry = bGeometryChanged && (Element.Data->HasGeometry() || Element.Data->IsPendingLazyGeometryGathering());
 			if (bExportGeometry || 
-				Element.Data->IsPendingLazyModifiersGathering() || 
+				Element.Data->NeedAnyPendingLazyModifiersGathering() ||
 				Element.Data->Modifiers.HasMetaAreas() == true || 
 				Element.Data->Modifiers.IsEmpty() == false)
 			{
@@ -2221,18 +2233,18 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 		const bool bShouldUse = Element.ShouldUseGeometry(OwnerNavDataConfig);
 		if (bShouldUse)
 		{
-			GatherNavigationDataGeometry(Element.Data, NavigationOctree, OwnerNavDataConfig, bGeometryChanged);
+			GatherNavigationDataGeometry(Element.Data, *NavSys, OwnerNavDataConfig, bGeometryChanged);
 		}
 	}
 }
 
-void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, FNavigationOctree* NavigationOctree, const FNavDataConfig& OwnerNavDataConfig, const bool bGeometryChanged)
+void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, UNavigationSystemV1& NavSys, const FNavDataConfig& OwnerNavDataConfig, const bool bGeometryChanged)
 {
 	bool bDumpGeometryData = false;
-	if (ElementData->IsPendingLazyGeometryGathering() || ElementData->IsPendingLazyModifiersGathering())
+	if (ElementData->IsPendingLazyGeometryGathering() || ElementData->NeedAnyPendingLazyModifiersGathering())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_LazyGeometryExport);
-		NavigationOctree->DemandLazyDataGathering(*ElementData);
+		NavSys.DemandLazyDataGathering(*ElementData);
 	}
 				
 	if (ElementData->IsPendingLazyGeometryGathering() && ElementData->SupportsGatheringGeometrySlices())
