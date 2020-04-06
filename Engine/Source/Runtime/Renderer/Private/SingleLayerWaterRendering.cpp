@@ -548,10 +548,6 @@ void FDeferredShadingSceneRenderer::BeginRenderingWaterGBuffer(FRHICommandList& 
 	// Set other UAVs
 	const bool bClearQuadOverdrawBuffers = false;
 	SceneContext.SetQuadOverdrawUAV(RHICmdList, bBindQuadOverdrawBuffers, bClearQuadOverdrawBuffers, RPInfo);
-	if (UseVirtualTexturing(CurrentFeatureLevel) && !bBindQuadOverdrawBuffers)
-	{
-		SceneContext.BindVirtualTextureFeedbackUAV(RPInfo);
-	}
 
 	// Make the render targets writable
 	FRHITexture* TransitionRTs[MaxSimultaneousRenderTargets];

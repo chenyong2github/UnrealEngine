@@ -28,6 +28,7 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "RendererModule.h"
+#include "VT/VirtualTextureFeedback.h"
 #include "VT/VirtualTextureSystem.h"
 #include "GPUScene.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
@@ -1431,6 +1432,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
 			FVirtualTextureSystem::Get().Update(RHICmdList, FeatureLevel, Scene);
+
+			// Clear virtual texture feedback to default value
+			FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
+			RHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EGfxToGfx, FeedbackUAV);
 		}
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -2655,14 +2661,21 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bUseVirtualTexturing)
 	{
 		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-		// No pass after this can make VT page requests
-		TArray<FIntRect, TInlineAllocator<FVirtualTextureFeedback::MaxRectPerTarget>> ViewRects;
+		
+		// No pass after this should make VT page requests
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, SceneContext.VirtualTextureFeedbackUAV);
+
+		TArray<FIntRect, TInlineAllocator<4>> ViewRects;
 		ViewRects.AddUninitialized(Views.Num());
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
 			ViewRects[ViewIndex] = Views[ViewIndex].ViewRect;
 		}
-		SceneContext.VirtualTextureFeedback.TransferGPUToCPU(RHICmdList, ViewRects);
+
+		FVirtualTextureFeedback::FBufferDesc Desc;
+		Desc.Init2D(SceneContext.GetBufferSizeXY(), ViewRects, SceneContext.GetVirtualTextureFeedbackScale());
+
+		GVirtualTextureFeedback.TransferGPUToCPU(RHICmdList, SceneContext.VirtualTextureFeedback, Desc);
 	}
 
 #if RHI_RAYTRACING
