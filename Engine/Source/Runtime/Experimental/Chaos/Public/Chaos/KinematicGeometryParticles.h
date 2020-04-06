@@ -70,8 +70,6 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 		TArrayCollection::AddArray(&MV);
 		TArrayCollection::AddArray(&MW);
 		TArrayCollection::AddArray(&KinematicTargets);
-		TArrayCollection::AddArray(&MCenterOfMass);
-		TArrayCollection::AddArray(&MRotationOfMass);
 	}
 	TKinematicGeometryParticlesImp(const TKinematicGeometryParticlesImp<T, d, SimType>& Other) = delete;
 	CHAOS_API TKinematicGeometryParticlesImp(TKinematicGeometryParticlesImp<T, d, SimType>&& Other)
@@ -81,8 +79,6 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 		TArrayCollection::AddArray(&MV);
 		TArrayCollection::AddArray(&MW);
 		TArrayCollection::AddArray(&KinematicTargets);
-		TArrayCollection::AddArray(&MCenterOfMass);
-		TArrayCollection::AddArray(&MRotationOfMass);
 	}
 	CHAOS_API virtual ~TKinematicGeometryParticlesImp();
 
@@ -94,12 +90,6 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 
 	const TKinematicTarget<T, d>& KinematicTarget(const int32 Index) const { return KinematicTargets[Index]; }
 	TKinematicTarget<T, d>& KinematicTarget(const int32 Index) { return KinematicTargets[Index]; }
-
-	const TVector<T, d>& CenterOfMass(const int32 Index) const { return MCenterOfMass[Index]; }
-	TVector<T, d>& CenterOfMass(const int32 Index) { return MCenterOfMass[Index]; }
-
-	const TRotation<T, d>& RotationOfMass(const int32 Index) const { return MRotationOfMass[Index]; }
-	TRotation<T, d>& RotationOfMass(const int32 Index) { return MRotationOfMass[Index]; }
 
 	FString ToString(int32 index) const
 	{
@@ -117,16 +107,11 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 	{
 		TGeometryParticlesImp<T, d, SimType>::Serialize(Ar);
 		Ar << MV << MW;
-		
+
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
-		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::KinematicTargets)
+		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::KinematicTargets)
 		{
 			Ar << KinematicTargets;
-		}
-		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::KinematicCentersOfMass)
-		{
-			Ar << MCenterOfMass;
-			Ar << MRotationOfMass;
 		}
 	}
 
@@ -134,8 +119,6 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 	TArrayCollectionArray<TVector<T, d>> MV;
 	TArrayCollectionArray<TVector<T, d>> MW;
 	TArrayCollectionArray<TKinematicTarget<T, d>> KinematicTargets;
-	TArrayCollectionArray<TVector<T, d>> MCenterOfMass;
-	TArrayCollectionArray<TRotation<T, d>> MRotationOfMass;
 };
 
 template <typename T, int d, EGeometryParticlesSimType SimType>

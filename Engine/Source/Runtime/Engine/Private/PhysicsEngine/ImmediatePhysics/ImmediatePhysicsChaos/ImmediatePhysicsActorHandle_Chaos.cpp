@@ -317,8 +317,6 @@ namespace ImmediatePhysics_Chaos
 				{
 					Kinematic->SetV(FVector::ZeroVector);
 					Kinematic->SetW(FVector::ZeroVector);
-					Kinematic->SetCenterOfMass(CoMTransform.GetTranslation());
-					Kinematic->SetRotationOfMass(CoMTransform.GetRotation());
 				}
 
 				auto* Dynamic = ParticleHandle->CastToRigidParticle();
@@ -328,6 +326,8 @@ namespace ImmediatePhysics_Chaos
 					FVector InertiaInv = (Mass > 0.0f) ? Inertia.Reciprocal() : FVector::ZeroVector;
 					Dynamic->SetM(Mass);
 					Dynamic->SetInvM(MassInv);
+					Dynamic->SetCenterOfMass(CoMTransform.GetTranslation());
+					Dynamic->SetRotationOfMass(CoMTransform.GetRotation());
 					Dynamic->SetI({ Inertia.X, Inertia.Y, Inertia.Z });
 					Dynamic->SetInvI({ InertiaInv.X, InertiaInv.Y, InertiaInv.Z });
 					if (BodyInstance != nullptr)
