@@ -7105,23 +7105,23 @@ FString FHlslNiagaraTranslator::GetHlslDefaultForType(const FNiagaraTypeDefiniti
 	}
 	else if (Type == FNiagaraTypeDefinition::GetVec2Def())
 	{
-		return "float2(0.0,0.0)";
+		return "float2(0.0, 0.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetVec3Def())
 	{
-		return "float3(0.0,0.0,0.0)";
+		return "float3(0.0, 0.0, 0.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetVec4Def())
 	{
-		return "float4(0.0,0.0,0.0,0.0)";
+		return "float4(0.0, 0.0, 0.0, 0.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetQuatDef())
 	{
-		return "float4(0.0,0.0,0.0,1.0)";
+		return "float4(0.0, 0.0, 0.0, 1.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetColorDef())
 	{
-		return "float4(1.0,1.0,1.0,1.0)";
+		return "float4(1.0, 1.0, 1.0, 1.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetIntDef())
 	{
