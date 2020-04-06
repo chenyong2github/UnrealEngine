@@ -130,6 +130,7 @@ void FNiagaraScratchPadScriptViewModel::SetScriptName(FText InScriptName)
 			if (System != nullptr)
 			{
 				FNiagaraStackGraphUtilities::RenameReferencingParameters(*System, Emitter, *ReferencingFunctionCallNode, OldFunctionName, NewFunctionName);
+				ReferencingFunctionCallNode->MarkNodeRequiresSynchronization(TEXT("ScratchPad script renamed"), true);
 			}
 		}
 
