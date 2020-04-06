@@ -16,6 +16,9 @@
 float Chaos_Joint_DegenerateRotationLimit = -0.998f;	// Cos(176deg)
 FAutoConsoleVariableRef CVarChaosJointDegenerateRotationLimit(TEXT("p.Chaos.Joint.DegenerateRotationLimit"), Chaos_Joint_DegenerateRotationLimit, TEXT("Cosine of the swing angle that is considered degerenerate (default Cos(176deg))"));
 
+bool bChaos_Joint_EllipticalFix = true;
+FAutoConsoleVariableRef CVarChaosJointEllipticalFix(TEXT("p.Chaos.Joint.EllipticalFix"), bChaos_Joint_EllipticalFix, TEXT("Enable the proper elliptical joint axis/error calculation"));
+
 namespace Chaos
 {
 
@@ -1103,25 +1106,38 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings,
 		const bool bUseSoftLimit)
 	{
-		// Calculate swing angle and axis
-		FReal SwingAngle;
 		FVec3 SwingAxisLocal;
-		FPBDJointUtilities::GetConeAxisAngleLocal(Rs[0], Rs[1], SolverSettings.SwingTwistAngleTolerance, SwingAxisLocal, SwingAngle);
-		const FVec3 SwingAxis = Rs[0] * SwingAxisLocal;
-
-		// Calculate swing angle error
-		FReal SwingAngleMax = FPBDJointUtilities::GetConeAngleLimit(JointSettings, SwingAxisLocal, SwingAngle) + AngleTolerance;
 		FReal DSwingAngle = 0.0f;
-		if (SwingAngle > SwingAngleMax)
+
+		if (!bChaos_Joint_EllipticalFix)
 		{
-			DSwingAngle = SwingAngle - SwingAngleMax;
+			// Calculate swing angle and axis
+			FReal SwingAngle;
+			FPBDJointUtilities::GetConeAxisAngleLocal(Rs[0], Rs[1], SolverSettings.SwingTwistAngleTolerance, SwingAxisLocal, SwingAngle);
+
+			// Calculate swing angle error
+			FReal SwingAngleMax = FPBDJointUtilities::GetConeAngleLimit(JointSettings, SwingAxisLocal, SwingAngle) + AngleTolerance;
+			if (SwingAngle > SwingAngleMax)
+			{
+				DSwingAngle = SwingAngle - SwingAngleMax;
+			}
+			else if (SwingAngle < -SwingAngleMax)
+			{
+				DSwingAngle = SwingAngle + SwingAngleMax;
+			}
+
+			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    Cone Angle %f [Limit %f]"), FMath::RadiansToDegrees(SwingAngle), FMath::RadiansToDegrees(SwingAngleMax));
 		}
-		else if (SwingAngle < -SwingAngleMax)
+		else
 		{
-			DSwingAngle = SwingAngle + SwingAngleMax;
+			const FReal Swing1Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
+			const FReal Swing2Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
+			FPBDJointUtilities::GetEllipticalConeAxisErrorLocal(Rs[0], Rs[1], Swing2Limit, Swing1Limit, SwingAxisLocal, DSwingAngle);
+
+			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    Cone Error %f [Limits %f %f]"), FMath::RadiansToDegrees(DSwingAngle), FMath::RadiansToDegrees(Swing2Limit), FMath::RadiansToDegrees(Swing1Limit));
 		}
 
-		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    Cone Angle %f [Limit %f]"), FMath::RadiansToDegrees(SwingAngle), FMath::RadiansToDegrees(SwingAngleMax));
+		const FVec3 SwingAxis = Rs[0] * SwingAxisLocal;
 
 		// Apply swing correction to each body
 		if (FMath::Abs(DSwingAngle) > 0)
