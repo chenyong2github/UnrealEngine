@@ -667,7 +667,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 
 			// Code offset for NULL expressions.
 			CodeSkipSizeType SkipCount = ReadSkipCount(ScriptIndex);
-			Ar.Logf(TEXT("%s Skip Bytes: 0x%X"), *Indents, SkipCount);
+			Ar.Logf(TEXT("%s Skip 0x%X bytes to offset 0x%X"), *Indents, SkipCount, ScriptIndex + sizeof(FField*) + SkipCount);
 
 			// Property corresponding to the r-value data, in case the l-value needs to be mem-zero'd
 			FField* Field = ReadPointer<FField>(ScriptIndex);
@@ -684,6 +684,18 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 		{
 			int32 ConstValue = ReadINT(ScriptIndex);
 			Ar.Logf(TEXT("%s $%X: literal int32 %d"), *Indents, (int32)Opcode, ConstValue);
+			break;
+		}
+	case EX_Int64Const:
+		{
+			int64 ConstValue = ReadQWORD(ScriptIndex);
+			Ar.Logf(TEXT("%s $%X: literal int64 0x%" INT64_X_FMT), *Indents, (int32)Opcode, ConstValue);
+			break;
+		}
+	case EX_UInt64Const:
+		{
+			uint64 ConstValue = ReadQWORD(ScriptIndex);
+			Ar.Logf(TEXT("%s $%X: literal uint64 0x%" UINT64_X_FMT), *Indents, (int32)Opcode, ConstValue);
 			break;
 		}
 	case EX_SkipOffsetConst:
@@ -761,10 +773,16 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			}
 			break;
 		}
+	case EX_PropertyConst:
+		{
+			FProperty* Pointer = ReadPointer<FProperty>(ScriptIndex);
+			Ar.Logf(TEXT("%s $%X: EX_PropertyConst (%p:%s)"), *Indents, (int32)Opcode, Pointer, Pointer ? *Pointer->GetName() : TEXT("(null)"));
+			break;
+		}
 	case EX_ObjectConst:
 		{
 			UObject* Pointer = ReadPointer<UObject>(ScriptIndex);
-			Ar.Logf(TEXT("%s $%X: EX_ObjectConst (%p:%s)"), *Indents, (int32)Opcode, Pointer, *Pointer->GetFullName());
+			Ar.Logf(TEXT("%s $%X: EX_ObjectConst (%p:%s)"), *Indents, (int32)Opcode, Pointer, Pointer ? (Pointer->IsValidLowLevel() ? *Pointer->GetFullName() : TEXT("(not a valid object)")) : TEXT("(null)"));
 			break;
 		}
 	case EX_SoftObjectConst:
@@ -774,11 +792,11 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			break;
 		}
 	case EX_FieldPathConst:
-	{
-		Ar.Logf(TEXT("%s $%X: EX_FieldPathConst"), *Indents, (int32)Opcode);
-		SerializeExpr(ScriptIndex);
-		break;
-	}
+		{
+			Ar.Logf(TEXT("%s $%X: EX_FieldPathConst"), *Indents, (int32)Opcode);
+			SerializeExpr(ScriptIndex);
+			break;
+		}
 	case EX_NameConst:
 		{
 			FString ConstValue = ReadName(ScriptIndex);
