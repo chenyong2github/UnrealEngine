@@ -32,7 +32,8 @@ enum class ENiagaraNamespaceMetadataOptions
 {
 	Advanced,
 	PreventRenaming,
-	SupportsNamespaceModifier,
+	CanChangeNamespaceModifier,
+	PreventCreatingInSystemEditor
 };
 
 USTRUCT()
