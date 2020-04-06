@@ -908,7 +908,7 @@ void FBodyInstance::UpdatePhysicsFilterData()
 
 #if WITH_CHAOS
 				// If this shape shouldn't collide in the sim we disable it here until we have more support.
-				Shape.Shape->SetSimEnabled(CollisionEnabledHasPhysics(GetCollisionEnabled()));
+				Shape.Shape->SetDisable(!CollisionEnabledHasPhysics(GetCollisionEnabled()));
 #endif
 
 				// Apply new collision settings to this shape
@@ -1238,7 +1238,7 @@ void FInitBodiesHelperBase::InitBodies()
 							{
 								for(int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 								{
-									ActorHandle->SetShapeSimCollisionEnabled(ShapeIndex, false);
+									ActorHandle->SetShapeCollisionDisable(ShapeIndex, true);
 								}
 							}
 							if (BI->BodySetup.IsValid())
