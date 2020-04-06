@@ -10,6 +10,6 @@
 PARTICLE_PROPERTY(XR, FParticlePositionRotation)
 PARTICLE_PROPERTY(Velocities, FParticleVelocities)
 PARTICLE_PROPERTY(Dynamics, FParticleDynamics)
-PARTICLE_PROPERTY(Misc, FParticleMisc)
+PARTICLE_PROPERTY(DynamicMisc, FParticleDynamicMisc)
 PARTICLE_PROPERTY(NonFrequentData, FParticleNonFrequentData)
 PARTICLE_PROPERTY(MassProps, FParticleMassProps)

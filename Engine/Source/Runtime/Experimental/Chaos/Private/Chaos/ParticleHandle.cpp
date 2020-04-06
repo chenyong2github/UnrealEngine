@@ -26,7 +26,7 @@ namespace Chaos
 			}
 		}
 
-		auto& Geometry = MNonFrequentData.Read().Geometry;
+		auto& Geometry = MNonFrequentData.Read().Geometry();
 		if (Geometry)
 		{
 			int32 CurrentShapeIndex = INDEX_NONE;

@@ -807,7 +807,7 @@ namespace Chaos
 				if(!bIsSingleThreaded && bIsNew)
 				{
 					const auto* NonFrequentData = Dirty.ParticleData.FindNonFrequentData(*Manager,DataIdx);
-					const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx : nullptr;
+					const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx() : nullptr;
 					Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
 				}
 
