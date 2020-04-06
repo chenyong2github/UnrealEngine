@@ -2574,13 +2574,6 @@ void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 			UE_LOG(LogMaterial, Fatal, TEXT("FMaterialRenderProxy deleted and GC mark was: %i"), MaterialProxy->IsMarkedForGarbageCollection());
 		}
 
-		// @todo fnhack
-		if (MaterialProxy->GetFriendlyName() == TEXT("FootSplash_Particle"))
-		{
-			continue;
-		}
-
-
 		UMaterialInterface::IterateOverActiveFeatureLevels([&](ERHIFeatureLevel::Type InFeatureLevel)
 		{
 			const FMaterialRenderProxy* FallbackMaterialProxy = nullptr;
