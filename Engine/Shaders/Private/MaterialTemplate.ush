@@ -157,8 +157,11 @@ struct FMaterialParticleParameters
 	half4 DynamicParameter3;
 #endif
 
-	/** mesh particle orientation */
-	float4x4 LocalToWorld;
+	/** mesh particle transform */
+	float4x4 ParticleToWorld;
+
+	/** Inverse mesh particle transform */
+	float4x4 WorldToParticle;
 
 #if USE_PARTICLE_SUBUVS
 	/** SubUV texture coordinates*/
