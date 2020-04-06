@@ -566,7 +566,7 @@ FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f;
 /**
 * Scene proxy for drawing niagara particle simulations.
 */
-class FNiagaraSceneProxy final : public FPrimitiveSceneProxy
+class NIAGARA_API FNiagaraSceneProxy : public FPrimitiveSceneProxy
 {
 public:
 	SIZE_T GetTypeHash() const override;
@@ -597,6 +597,8 @@ public:
 
 	FRHIUniformBuffer* GetUniformBufferNoVelocity() const;
 
+	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
+
 private:
 	void ReleaseRenderThreadResources();
 
@@ -607,8 +609,6 @@ private:
 	virtual void OnTransformChanged() override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
 	/*
 	virtual bool CanBeOccluded() const override
