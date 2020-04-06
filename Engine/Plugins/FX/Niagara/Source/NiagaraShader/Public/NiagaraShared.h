@@ -583,8 +583,8 @@ public:
 	 * Caches the shaders for this script with no static parameters on the given platform.
 	 * This is used by FNiagaraShaderScript
 	 */
-	NIAGARASHADER_API  bool CacheShaders(EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
-	bool CacheShaders(const FNiagaraShaderMapId& ShaderMapId, EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
+	NIAGARASHADER_API  bool CacheShaders(bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
+	bool CacheShaders(const FNiagaraShaderMapId& ShaderMapId, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
 
 
 	NIAGARASHADER_API uint32 GetUseSimStagesDefine() const;
@@ -652,6 +652,7 @@ public:
 	void SetCompileErrors(const TArray<FString>& InCompileErrors) { CompileErrors = InCompileErrors; }
 
 	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
+	EShaderPlatform GetShaderPlatform() const { return ShaderPlatform; }
 
 	class FNiagaraShaderMap* GetGameThreadShaderMap() const
 	{
@@ -713,11 +714,11 @@ public:
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
 
-	NIAGARASHADER_API void SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
+	NIAGARASHADER_API void SetScript(UNiagaraScript* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, FString InFriendlyName);
 #if WITH_EDITOR
-	NIAGARASHADER_API bool MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, const FNiagaraVMExecutableDataId& ScriptId) const;
+	NIAGARASHADER_API bool MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FNiagaraVMExecutableDataId& ScriptId) const;
 #endif
 
 	UNiagaraScript *GetBaseVMScript()
@@ -813,8 +814,9 @@ private:
 	 */
 	TArray<int32, TInlineAllocator<1> > OutstandingCompileShaderMapIds;
 
-	/** Feature level that this script is representing. */
+	/** Feature level and shader platform that this script is representing. */
 	ERHIFeatureLevel::Type FeatureLevel;
+	EShaderPlatform ShaderPlatform;
 
 	uint32 bLoadedCookedShaderMapId : 1;
 	uint32 bLoadedFromCookedMaterial : 1;
@@ -828,7 +830,6 @@ private:
 	*/
 	bool BeginCompileShaderMap(
 		const FNiagaraShaderMapId& ShaderMapId,
-		EShaderPlatform Platform, 
 		TRefCountPtr<class FNiagaraShaderMap>& OutShaderMap, 
 		bool bApplyCompletedShaderMapForRendering,
 		bool bSynchronous = false);
