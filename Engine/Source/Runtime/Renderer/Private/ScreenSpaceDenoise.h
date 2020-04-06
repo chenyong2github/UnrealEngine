@@ -281,3 +281,5 @@ public:
 
 // The interface for the renderer to denoise what it needs, Plugins can come and point this to custom interface.
 extern RENDERER_API const IScreenSpaceDenoiser* GScreenSpaceDenoiser;
+
+extern int GetReflectionsDenoiserMode();
