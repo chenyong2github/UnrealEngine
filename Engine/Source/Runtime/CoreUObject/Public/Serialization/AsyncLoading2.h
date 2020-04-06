@@ -80,7 +80,7 @@ public:
 
 	inline bool IsImport() const
 	{
-		return IsScriptImport() | IsPackageImport();
+		return IsScriptImport() || IsPackageImport();
 	}
 
 	inline bool IsScriptImport() const
