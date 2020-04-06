@@ -861,36 +861,42 @@ TSharedPtr<SWidget> FNiagaraEditorUtilities::CreateInlineErrorText(TAttribute<FT
 
 void FNiagaraEditorUtilities::CompileExistingEmitters(const TArray<UNiagaraEmitter*>& AffectedEmitters)
 {
-	TSet<UNiagaraEmitter*> CompiledEmitters;
-	for (UNiagaraEmitter* Emitter : AffectedEmitters)
+	TArray<TSharedPtr<FNiagaraSystemViewModel>> ExistingSystemViewModels;
+
 	{
-		// If we've already compiled this emitter, or it's invalid skip it.
-		if (Emitter == nullptr || CompiledEmitters.Contains(Emitter) || Emitter->IsPendingKillOrUnreachable())
-		{
-			continue;
-		}
+		FNiagaraSystemUpdateContext UpdateCtx;
 
-		// We only need to compile emitters referenced directly as instances by systems since emitters can now only be used in the context 
-		// of a system.
-		for (TObjectIterator<UNiagaraSystem> SystemIterator; SystemIterator; ++SystemIterator)
+		TSet<UNiagaraEmitter*> CompiledEmitters;
+		for (UNiagaraEmitter* Emitter : AffectedEmitters)
 		{
-			if (SystemIterator->ReferencesInstanceEmitter(*Emitter))
+			// If we've already compiled this emitter, or it's invalid skip it.
+			if (Emitter == nullptr || CompiledEmitters.Contains(Emitter) || Emitter->IsPendingKillOrUnreachable())
 			{
-				SystemIterator->RequestCompile(false);
+				continue;
+			}
 
-				TArray<TSharedPtr<FNiagaraSystemViewModel>> ExistingSystemViewModels;
-				FNiagaraSystemViewModel::GetAllViewModelsForObject(*SystemIterator, ExistingSystemViewModels);
-				for (TSharedPtr<FNiagaraSystemViewModel> SystemViewModel : ExistingSystemViewModels)
+			// We only need to compile emitters referenced directly as instances by systems since emitters can now only be used in the context 
+			// of a system.
+			for (TObjectIterator<UNiagaraSystem> SystemIterator; SystemIterator; ++SystemIterator)
+			{
+				if (SystemIterator->ReferencesInstanceEmitter(*Emitter))
 				{
-					SystemViewModel->RefreshAll();
-				}
+					SystemIterator->RequestCompile(false, &UpdateCtx);
 
-				for (const FNiagaraEmitterHandle& EmitterHandle : SystemIterator->GetEmitterHandles())
-				{
-					CompiledEmitters.Add(EmitterHandle.GetInstance());
+					FNiagaraSystemViewModel::GetAllViewModelsForObject(*SystemIterator, ExistingSystemViewModels);
+
+					for (const FNiagaraEmitterHandle& EmitterHandle : SystemIterator->GetEmitterHandles())
+					{
+						CompiledEmitters.Add(EmitterHandle.GetInstance());
+					}
 				}
 			}
 		}
+	}
+
+	for (TSharedPtr<FNiagaraSystemViewModel> SystemViewModel : ExistingSystemViewModels)
+	{
+		SystemViewModel->RefreshAll();
 	}
 }
 
