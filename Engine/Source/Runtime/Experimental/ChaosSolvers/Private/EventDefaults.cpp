@@ -72,29 +72,33 @@ namespace Chaos
 
 						// Since Clustered GCs can be unioned the particleIndex representing the union 
 						// is not associated with a PhysicsProxy
-						IPhysicsProxyBase* Proxy = Solver->GetProxy(Constraint.Particle[0]->Handle());
-						if (Proxy != nullptr)
-
+						if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(Constraint.Particle[0]->Handle()))
 						{
-							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
+							for (IPhysicsProxyBase* Proxy : *Proxies)
 							{
-								TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
-								TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
-								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
-
-								// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
-
-								if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
+								if (Proxy != nullptr)
 								{
-									if (ensure(!Constraint.GetLocation().ContainsNaN() &&
-										!Constraint.GetNormal().ContainsNaN()) &&
-										!Body0->V().ContainsNaN() &&
-										!Body0->W().ContainsNaN() &&
-										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
+									if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 									{
-										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-										NumValidCollisions++;
+										TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+										TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
+										TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
+
+										// presently when a rigidbody or kinematic hits static geometry then Body1 is null
+										TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
+
+										if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
+										{
+											if (ensure(!Constraint.GetLocation().ContainsNaN() &&
+												!Constraint.GetNormal().ContainsNaN()) &&
+												!Body0->V().ContainsNaN() &&
+												!Body0->W().ContainsNaN() &&
+												(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
+											{
+												ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+												NumValidCollisions++;
+											}
+										}
 									}
 								}
 							}
@@ -106,28 +110,33 @@ namespace Chaos
 
 						// Since Clustered GCs can be unioned the particleIndex representing the union 
 						// is not associated with a PhysicsProxy
-						IPhysicsProxyBase* Proxy = Solver->GetProxy(Constraint.Particle[0]->Handle());
-						if (Proxy != nullptr)
+						if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(Constraint.Particle[0]->Handle()))
 						{
-							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
+							for (IPhysicsProxyBase* Proxy : *Proxies)
 							{
-								TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
-								TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
-								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
-
-								// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
-
-								if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
+								if (Proxy != nullptr)
 								{
-									if (ensure(!Constraint.GetLocation().ContainsNaN() &&
-										!Constraint.GetNormal().ContainsNaN()) &&
-										!Body0->V().ContainsNaN() &&
-										!Body0->W().ContainsNaN() &&
-										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
+									if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 									{
-										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-										NumValidCollisions++;
+										TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+										TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
+										TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
+
+										// presently when a rigidbody or kinematic hits static geometry then Body1 is null
+										TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
+
+										if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
+										{
+											if (ensure(!Constraint.GetLocation().ContainsNaN() &&
+												!Constraint.GetNormal().ContainsNaN()) &&
+												!Body0->V().ContainsNaN() &&
+												!Body0->W().ContainsNaN() &&
+												(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
+											{
+												ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+												NumValidCollisions++;
+											}
+										}
 									}
 								}
 							}
@@ -153,8 +162,10 @@ namespace Chaos
 							Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
 							Data.Normal = Constraint.GetNormal();
 							Data.PenetrationDepth = Constraint.GetPhi();
-							Data.ParticleProxy = Solver->GetProxy(Particle0->Handle());
-							Data.LevelsetProxy = Solver->GetProxy(Particle1->Handle());
+							Data.ParticleProxy = Solver->GetProxies(Particle0->Handle()) && Solver->GetProxies(Particle0->Handle())->Array().Num() ? 
+								Solver->GetProxies(Particle0->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
+							Data.LevelsetProxy = Solver->GetProxies(Particle1->Handle()) && Solver->GetProxies(Particle0->Handle())->Array().Num() ? 
+								Solver->GetProxies(Particle1->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
 
 							// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
 							// do we still need these now we have pointers to particles returned?
@@ -227,8 +238,10 @@ namespace Chaos
 							Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
 							Data.Normal = Constraint.GetNormal();
 							Data.PenetrationDepth = Constraint.GetPhi();
-							Data.ParticleProxy = Solver->GetProxy(Particle0->Handle());
-							Data.LevelsetProxy = Solver->GetProxy(Particle1->Handle());
+							Data.ParticleProxy = Solver->GetProxies(Particle0->Handle()) && Solver->GetProxies(Particle0->Handle())->Array().Num() ?
+								Solver->GetProxies(Particle0->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
+							Data.LevelsetProxy = Solver->GetProxies(Particle1->Handle()) && Solver->GetProxies(Particle0->Handle())->Array().Num() ?
+								Solver->GetProxies(Particle1->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
 
 							// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
 							// do we still need these now we have pointers to particles returned?
@@ -444,8 +457,16 @@ namespace Chaos
 #endif
 
 								// Add to AllTrailingsIndicesByPhysicsProxy
-								IPhysicsProxyBase* PhysicsProxy = Solver->GetProxy(ActiveParticle.Handle());
-								AllTrailingsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(NewIdx);
+								if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(ActiveParticle.Handle()))
+								{
+									for (IPhysicsProxyBase* Proxy : *Proxies)
+									{
+										if (Proxy != nullptr)
+										{
+											AllTrailingsIndicesByPhysicsProxy.FindOrAdd(Proxy).Add(NewIdx);
+										}
+									}
+								}
 							}
 						}
 					}
@@ -477,17 +498,21 @@ namespace Chaos
 			{
 				if(SleepData.Particle)
 				{
-					IPhysicsProxyBase* PhysicsProxy = NonConstSolver->GetProxy(SleepData.Particle);
-
-					TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
-					if(Particle != nullptr && PhysicsProxy != nullptr)
+					if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(SleepData.Particle))
 					{
-						int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
-						TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
-						SleepingDataArrayItem.Particle = Particle;
-						SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
+						for (IPhysicsProxyBase* Proxy : *Proxies)
+						{
+							TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
+							if (Particle != nullptr && Proxy != nullptr)
+							{
+								int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
+								TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
+								SleepingDataArrayItem.Particle = Particle;
+								SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
 
-						AllSleepIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(NewIdx);
+								AllSleepIndicesByPhysicsProxy.FindOrAdd(Proxy).Add(NewIdx);
+							}
+						}
 					}
 				}
 			}
