@@ -4,6 +4,7 @@
 #include "NiagaraConstants.h"
 
 FNiagaraNamespaceMetadata::FNiagaraNamespaceMetadata()
+	: BackgroundColor(FLinearColor::Black)
 {
 }
 
@@ -42,31 +43,31 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			NSLOCTEXT("NamespaceMetadata", "SystemDisplayName", "System"),
 			NSLOCTEXT("NamespaceMetadata", "SystemDescription", "Persistent attribute in the system which is written in a system\n stage and can be read anywhere."),
 			FLinearColor(FColor(49, 113, 142)),
-			{ENiagaraNamespaceMetadataOptions::SupportsNamespaceModifier}),
+			{ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier}),
 		FNiagaraNamespaceMetadata(
 			{FNiagaraConstants::EmitterNamespace},
 			NSLOCTEXT("NamespaceMetadata", "EmitterDisplayName", "Emitter"),
 			NSLOCTEXT("NamespaceMetadata", "EmitterDescription", "Persistent attribute which is written in a emitter\n stage and can be read in emitter and particle stages."),
 			FLinearColor(FColor(145, 99, 56)),
-			{ENiagaraNamespaceMetadataOptions::SupportsNamespaceModifier}),
+			{ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier}),
 		FNiagaraNamespaceMetadata(
 			{FNiagaraConstants::ParticleAttributeNamespace},
 			NSLOCTEXT("NamespaceMetadata", "ParticleDisplayName", "Particles"),
 			NSLOCTEXT("NamespaceMetadata", "ParticleDescription", "Persistent attribute which is written in a particle\n stage and can be read in particle stages."),
 			FLinearColor(FColor(72, 130, 71)),
-			{ENiagaraNamespaceMetadataOptions::SupportsNamespaceModifier}),
+			{ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier}),
 		FNiagaraNamespaceMetadata(
 			{FNiagaraConstants::ModuleNamespace},
 			NSLOCTEXT("NamespaceMetadata", "ModuleDisplayName", "Input"),
 			NSLOCTEXT("NamespaceMetadata", "ModuleDescription", "A transient value which exposes a module input to the system and emitter editor."),
 			FLinearColor(FColor(136, 66, 65)),
-			{ENiagaraNamespaceMetadataOptions::SupportsNamespaceModifier}),
+			{ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier}),
 		FNiagaraNamespaceMetadata(
 			{FNiagaraConstants::OutputNamespace, FNiagaraConstants::ModuleNamespace},
 			NSLOCTEXT("NamespaceMetadata", "ModuleOutputDisplayName", "Output"),
 			NSLOCTEXT("NamespaceMetadata", "ModuleOutputDescription", "A transient value which is unique to the module that wrote it and can be read from any other module.\nTransient values do not persist from frame to frame, or between stages, e.g. emitter to particle, or spawn to update."),
 			FLinearColor(FColor(109, 95, 124)),
-			{ENiagaraNamespaceMetadataOptions::Advanced}),
+			{ENiagaraNamespaceMetadataOptions::Advanced, ENiagaraNamespaceMetadataOptions::PreventCreatingInSystemEditor}),
 		FNiagaraNamespaceMetadata(
 			{FNiagaraConstants::OutputNamespace},
 			NSLOCTEXT("NamespaceMetadata", "OutputDisplayName", "Output"),
@@ -102,13 +103,13 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			NSLOCTEXT("NamespaceMetadata", "NiagaraParameterCollectionDisplayName", "Niagara Parameter Collection"),
 			NSLOCTEXT("NamespaceMetadata", "NiagaraParameterCollectionDescription", "Values read from a niagara parameter collection asset.\nRead only in a niagara system."),
 			FLinearColor(FColor(45, 45, 45)),
-			{ENiagaraNamespaceMetadataOptions::Advanced}),
+			{ENiagaraNamespaceMetadataOptions::Advanced, ENiagaraNamespaceMetadataOptions::PreventRenaming}),
 		FNiagaraNamespaceMetadata(
 			{FNiagaraConstants::DataInstanceNamespace},
 			NSLOCTEXT("NamespaceMetadata", "DataInstanceDisplayName", "Data Instance"),
 			NSLOCTEXT("NamespaceMetadata", "DataInstanceDescription", "A special transient value which has a single bool IsAlive value, which determines if a particle is alive or not."),
 			FLinearColor(FColor(45, 45, 45)),
-			{ENiagaraNamespaceMetadataOptions::Advanced}),
+			{ENiagaraNamespaceMetadataOptions::Advanced, ENiagaraNamespaceMetadataOptions::PreventRenaming}),
 	};
 
 	NamespaceModifierMetadata =

@@ -98,7 +98,7 @@ void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName)
 		{
 			FText NamespaceDisplayName = FText::FromString(FName::NameToDisplayString(Namespaces[0].ToString(), false).ToUpper());
 			Namespaces.RemoveAt(0);
-			CreateNamespaceWidget(
+			NamespaceWidget = CreateNamespaceWidget(
 				NamespaceDisplayName,
 				DefaultNamespaceMetadata.Description,
 				DefaultNamespaceMetadata.BackgroundColor);
