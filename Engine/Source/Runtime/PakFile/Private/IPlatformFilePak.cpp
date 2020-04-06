@@ -5738,9 +5738,10 @@ void FPakFile::AddEntryToIndex(const FString& Filename, const FPakEntryLocation&
 	else
 	{
 		check(IsPathInDirectoryFormat(MountPoint));
-		check(Filename.StartsWith(MountPoint));
+		RelativePathFromMount = Filename;
 		check(Filename.Len() > MountPoint.Len());
-		RelativePathFromMount = Filename.Mid(MountPoint.Len());
+		bool bSucceeded = GetRelativePathFromMountInline(RelativePathFromMount, MountPoint);
+		check(bSucceeded);
 	}
 
 	if (DirectoryIndex)
@@ -6377,11 +6378,11 @@ FArchive* FPakFile::GetSharedReader(IPlatformFile* LowerLevel)
 
 const FPakEntryLocation* FPakFile::FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FPathHashIndex& PathHashIndex, uint64 PathHashSeed)
 {
-	if (!FullPath.StartsWith(MountPoint))
+	const TCHAR* RelativePathFromMount = GetRelativeFilePathFromMountPointer(FullPath, MountPoint);
+	if (!RelativePathFromMount)
 	{
 		return nullptr;
 	}
-	const TCHAR* RelativePathFromMount = (*FullPath) + MountPoint.Len();
 	uint64 PathHash = HashPath(RelativePathFromMount, PathHashSeed);
 	return PathHashIndex.Find(PathHash);
 }
