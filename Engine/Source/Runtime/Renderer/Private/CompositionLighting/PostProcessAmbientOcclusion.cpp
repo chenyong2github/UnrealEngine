@@ -694,7 +694,9 @@ void FRCPassPostProcessAmbientOcclusionSmooth::Process(FRenderingCompositePassCo
 {
 	SCOPED_GPU_STAT(Context.RHICmdList, SSAOSmooth);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UnbindRenderTargets(Context.RHICmdList);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Context.SetViewportAndCallRHI(Context.View.ViewRect);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
@@ -984,8 +986,9 @@ void FRCPassPostProcessAmbientOcclusion::ProcessCS(FRenderingCompositePassContex
 	} \
 	break
 
-	// #todo-renderpasses remove once everything is renderpasses
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UnbindRenderTargets(Context.RHICmdList);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Context.SetViewportAndCallRHI(ViewRect, 0.0f, 1.0f);
 
 	//for async compute we need to set up a fence to make sure the resource is ready before we start.
@@ -1831,7 +1834,9 @@ void FRCPassPostProcessAmbientOcclusion_GTAOHorizonSearchIntegrate::Process(FRen
 	if (1) //CVarCompute->GetValueOnRenderThread() >= 1)
 	{
 		// Compute  Version
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(Context.RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #define SET_SHADER_CASE_CS(RHICmdList,ShaderQualityCase) \
 		case ShaderQualityCase: \
@@ -1994,7 +1999,9 @@ void FRCPassPostProcessAmbientOcclusion_GTAOInnerIntegrate::Process(FRenderingCo
 		// Compute  Version
 		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV, nullptr);
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(Context.RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		TShaderMapRef<FPostProcessGTAOInnerIntegratePSandCS<true>> ComputeShader(Context.GetShaderMap());
 		Context.RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
@@ -2149,7 +2156,9 @@ void FRCPassPostProcessAmbientOcclusion_HorizonSearch::Process(FRenderingComposi
 		RHICmdListComputeImmediate.WaitComputeFence(AsyncStartFence);
 
 		// Compute  Version
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(Context.RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// 0..4, 0:low 4:high
 		switch (ShaderQuality)
@@ -2521,7 +2530,9 @@ void FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::Process(FRenderingC
 	if (1)
 	{
 		// Compute  Version
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(Context.RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TShaderMapRef<FPostProcessGTAOTemporalFilterPSandCS<true>> ComputeShader(Context.GetShaderMap());
 		uint32 GroupSizeX = FMath::DivideAndRoundUp(OutputViewRect.Width(), 8);
 		uint32 GroupSizeY = FMath::DivideAndRoundUp(OutputViewRect.Height(), 8);
@@ -2758,7 +2769,9 @@ void FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter::Process(FRenderingCo
 	FIntRect OutputViewRect = InputViewRect;
 
 	// Compute  Version
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UnbindRenderTargets(Context.RHICmdList);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Get filter size
 	uint32 FilterWidth = CVarGTAOFilterWidth.GetValueOnRenderThread();
@@ -2966,7 +2979,9 @@ void FRCPassPostProcessAmbientOcclusion_GTAO_Upsample::Process(FRenderingComposi
 
 	if (0)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(Context.RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TShaderMapRef<FPostProcessGTAOUpsamplePSandCS<true>> ComputeShader(Context.GetShaderMap());
 
 		uint32 GroupSizeX = FMath::DivideAndRoundUp(View.ViewRect.Width(), 8);
