@@ -814,6 +814,12 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 						MessageLog.Error(*RequiredWidgetAnimNotBoundError.ToString(), WidgetAnimProperty);
 					}
 				}
+
+				if (!WidgetAnimProperty->HasAnyPropertyFlags(RF_Transient))
+				{
+					const FText BindWidgetAnimTransientError = LOCTEXT("BindWidgetAnimTransient", "The property @@ uses BindWidgetAnim, but isn't Transient!");
+					MessageLog.Error(*BindWidgetAnimTransientError.ToString(), WidgetAnimProperty);
+				}
 			}
 		}
 	}
