@@ -41,6 +41,8 @@ struct FDISkelMeshContext
 	int				NumBones;
 	int				NumFilteredBones;
 	int				NumUnfilteredBones;
+	int				RandomMaxBone;
+	int				ExcludeBoneIndex;
 	Buffer<uint>	FilteredAndUnfilteredBones;
 	int				NumFilteredSockets;
 	int				FilteredSocketBoneOffset;
@@ -578,7 +580,8 @@ void DISkelMesh_IsValidBone(in FDISkelMeshContext DIContext, in int BoneIndex, o
 void DISkelMesh_RandomBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
 {
 	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
-    Bone = min(int(RandT0 * float(DIContext.NumBones)), DIContext.NumBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+	Bone = min(int(RandT0 * float(DIContext.RandomMaxBone)), DIContext.RandomMaxBone);
+	Bone = Bone != DIContext.ExcludeBoneIndex ? Bone : Bone + 1;
 }
 
 void DISkelMesh_GetBoneCount(in FDISkelMeshContext DIContext, out int Count)
@@ -618,8 +621,16 @@ void DISkelMesh_GetUnfilteredBoneAt(in FDISkelMeshContext DIContext, in int InBo
 void DISkelMesh_RandomUnfilteredBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
 {
 	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
-    int UnfilteredBone = min(int(RandT0 * float(DIContext.NumUnfilteredBones)), DIContext.NumUnfilteredBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
-    Bone = DIContext.NumFilteredBones > 0 ? (int)DIContext.FilteredAndUnfilteredBones[UnfilteredBone + DIContext.NumFilteredBones] : UnfilteredBone;
+	if ( DIContext.NumFilteredBones == 0 )
+	{
+		Bone = min(int(RandT0 * float(DIContext.RandomMaxBone)), DIContext.RandomMaxBone);
+		Bone = Bone != DIContext.ExcludeBoneIndex ? Bone : Bone + 1;
+	}
+	else
+	{
+		int UnfilteredBone = min(int(RandT0 * float(DIContext.NumUnfilteredBones)), DIContext.NumUnfilteredBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+		Bone = DIContext.NumFilteredBones > 0 ? (int)DIContext.FilteredAndUnfilteredBones[UnfilteredBone + DIContext.NumFilteredBones] : UnfilteredBone;
+	}
 }
 
 void DISkelMesh_GetFilteredSocketCount(in FDISkelMeshContext DIContext, out int Count)
@@ -704,6 +715,8 @@ void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int F
 	int				NumBones_ ## NAME; \
 	int				NumFilteredBones_ ## NAME; \
 	int				NumUnfilteredBones_ ## NAME; \
+	int				RandomMaxBone_ ## NAME; \
+	int				ExcludeBoneIndex_ ## NAME; \
 	Buffer<uint>	FilteredAndUnfilteredBones_ ## NAME; \
 	int				NumFilteredSockets_ ## NAME; \
 	int				FilteredSocketBoneOffset_ ## NAME; \
@@ -741,6 +754,8 @@ void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int F
 	DIContext.NumBones = NumBones_ ## NAME; \
 	DIContext.NumFilteredBones	= NumFilteredBones_ ## NAME; \
 	DIContext.NumUnfilteredBones = NumUnfilteredBones_ ## NAME; \
+	DIContext.RandomMaxBone = RandomMaxBone_ ## NAME; \
+	DIContext.ExcludeBoneIndex = ExcludeBoneIndex_ ## NAME; \
 	DIContext.FilteredAndUnfilteredBones	= FilteredAndUnfilteredBones_ ## NAME; \
 	DIContext.NumFilteredSockets = NumFilteredSockets_ ## NAME; \
 	DIContext.FilteredSocketBoneOffset = FilteredSocketBoneOffset_ ## NAME; \
