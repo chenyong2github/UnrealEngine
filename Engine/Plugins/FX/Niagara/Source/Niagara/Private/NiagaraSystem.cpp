@@ -60,6 +60,9 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 {
 	ExposedParameters.SetOwner(this);
 	MaxPoolSize = 32;
+
+	EffectType = nullptr;
+	bOverrideScalabilitySettings = false;
 }
 
 UNiagaraSystem::UNiagaraSystem(FVTableHelper& Helper)
@@ -1440,15 +1443,22 @@ void UNiagaraSystem::GenerateStatID()const
 
 UNiagaraEffectType* UNiagaraSystem::GetEffectType()const
 {
-	if (EffectType)
-	{
-		return EffectType;
-	}
-	
-	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-	check(Settings);
-	return Settings->GetDefaultEffectType();
+	return EffectType;
 }
+
+#if WITH_EDITOR
+void UNiagaraSystem::SetEffectType(UNiagaraEffectType* InEffectType)
+{
+	if (InEffectType != EffectType)
+	{
+		Modify();
+		EffectType = InEffectType;
+		ResolveScalabilitySettings();
+		FNiagaraSystemUpdateContext UpdateCtx;
+		UpdateCtx.Add(this, true);
+	}	
+}
+#endif
 
 void UNiagaraSystem::ResolveScalabilitySettings()
 {
