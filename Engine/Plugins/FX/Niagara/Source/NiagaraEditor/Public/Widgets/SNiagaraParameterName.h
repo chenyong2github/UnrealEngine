@@ -42,7 +42,7 @@ public:
 
 	void EnterEditingMode();
 
-	void EnterSubnamespaceEditingMode();
+	void EnterNamespaceModifierEditingMode();
 
 private:
 	TSharedRef<SBorder> CreateNamespaceWidget(FText NamespaceDisplayName, FText NamespaceDescription, FLinearColor NamespaceBorderColor);
@@ -51,17 +51,17 @@ private:
 
 	FName ReconstructNameFromEditText(const FText& InEditText);
 
-	FName ReconstructNameFromSubnamespaceEditText(const FText& InEditText);
+	FName ReconstructNameFromNamespaceModifierEditText(const FText& InEditText);
 
-	FText GetSubnamespaceText();
+	FText GetNamespaceModifierText();
 
 	bool VerifyNameTextChange(const FText& InNewNameText, FText& OutErrorMessage);
 
 	void NameTextCommitted(const FText& InNewNameText, ETextCommit::Type CommitType);
 
-	bool VerifySubnamespaceTextChange(const FText& InNewNameText, FText& OutErrorMessage);
+	bool VerifyNamespaceModifierTextChange(const FText& InNewNameText, FText& OutErrorMessage);
 
-	void SubnamespaceTextCommitted(const FText& InNewNameText, ETextCommit::Type CommitType);
+	void NamespaceModifierTextCommitted(const FText& InNewNameText, ETextCommit::Type CommitType);
 
 private:
 	const FInlineEditableTextBlockStyle* EditableTextStyle;
@@ -73,9 +73,9 @@ private:
 	FPointerEventHandler OnDoubleClickedDelegate;
 	FIsSelected IsSelected;
 	FName DisplayedParameterName;
-	FName DisplayedSubnamespace;
+	FName DisplayedNamespaceModifier;
 	TSharedPtr<SInlineEditableTextBlock> EditableTextBlock;
-	TSharedPtr<SBorder> SubnamespaceBorder;
+	TSharedPtr<SBorder> NamespaceModifierBorder;
 };
 
 class NIAGARAEDITOR_API SNiagaraParameterNameTextBlock : public SCompoundWidget
@@ -83,7 +83,9 @@ class NIAGARAEDITOR_API SNiagaraParameterNameTextBlock : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterNameTextBlock)
 		: _EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
-	{}
+	{
+		_Clipping = EWidgetClipping::OnDemand;
+	}
 		SLATE_ATTRIBUTE(FText, ParameterText)
 		SLATE_STYLE_ARGUMENT(FInlineEditableTextBlockStyle, EditableTextStyle)
 		SLATE_ARGUMENT(bool, IsReadOnly)
@@ -96,7 +98,7 @@ public:
 
 	void EnterEditingMode();
 
-	void EnterSubnamespaceEditingMode();
+	void EnterNamespaceModifierEditingMode();
 
 private:
 	FName GetParameterName() const;
