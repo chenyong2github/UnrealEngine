@@ -32,7 +32,7 @@ enum class ENiagaraNamespaceMetadataOptions
 {
 	Advanced,
 	PreventRenaming,
-	SupportsSubnamespace
+	SupportsNamespaceModifier,
 };
 
 USTRUCT()
@@ -133,6 +133,7 @@ public:
 	void SetNewAssetDialogConfig(FName InDialogConfigKey, const FNiagaraNewAssetDialogConfig& InNewAssetDialogConfig);
 
 	FNiagaraNamespaceMetadata GetMetaDataForNamespaces(TArray<FName> Namespaces) const;
+	FNiagaraNamespaceMetadata GetMetaDataForNamespaceModifier(FName NamespaceModifier) const;
 	
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
@@ -147,6 +148,9 @@ public:
 	static FOnNiagaraEditorSettingsChanged& OnSettingsChanged();
 
 	const TMap<FString, FString>& GetHLSLKeywordReplacementsMap()const { return HLSLKeywordReplacements; }
+
+private:
+	void SetupNamespaceMetadata();
 
 protected:
 	static FOnNiagaraEditorSettingsChanged SettingsChangedDelegate;
@@ -184,4 +188,7 @@ private:
 
 	UPROPERTY()
 	TArray<FNiagaraNamespaceMetadata> NamespaceMetadata;
+
+	UPROPERTY()
+	TArray<FNiagaraNamespaceMetadata> NamespaceModifierMetadata;
 };
