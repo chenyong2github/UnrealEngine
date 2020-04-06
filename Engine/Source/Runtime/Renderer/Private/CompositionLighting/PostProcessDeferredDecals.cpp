@@ -1071,11 +1071,6 @@ void FDecalRenderTargetManager::SetRenderTargetMode(FDecalRenderingCommon::ERend
 	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(DepthTargetActions, ERenderTargetActions::Load_Store);
 	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencilAccess;
 
-	if (UseVirtualTexturing(FeatureLevel))
-	{
-		SceneContext.BindVirtualTextureFeedbackUAV(RPInfo);
-	}
-
 	if (TargetsToTransitionWritable[CurrentRenderTargetMode])
 	{
 		TransitionRenderPassTargets(RHICmdList, RPInfo);

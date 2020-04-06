@@ -15,7 +15,6 @@
 #include "SceneInterface.h"
 #include "SceneView.h"
 #include "RendererInterface.h"
-#include "../VT/VirtualTextureFeedback.h"
 
 class FViewInfo;
 class FRDGBuilder;
@@ -228,10 +227,11 @@ public:
 #endif
 
 	void SetQuadOverdrawUAV(FRHICommandList& RHICmdList, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers, FRHIRenderPassInfo& Info);
-
 	FUnorderedAccessViewRHIRef GetQuadOverdrawBufferUAV();
+	
 	FUnorderedAccessViewRHIRef GetVirtualTextureFeedbackUAV();
-	void BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPInfo);
+	int32 GetVirtualTextureFeedbackScale();
+	FIntPoint GetVirtualTextureFeedbackBufferSize();
 
 	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers = false, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1), bool bIsWireframe=false);
 	void FinishGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil DepthStencilAccess);
@@ -527,6 +527,8 @@ public:
 
 	void AllocateLightingChannelTexture(FRHICommandList& RHICmdList);
 
+	void AllocateVirtualTextureFeedbackBuffer(FRHICommandList& RHICmdList);
+
 	void AllocateDebugViewModeTargets(FRHICommandList& RHICmdList);
 
 	void AllocateScreenShadowMask(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture, bool bCreateShaderResourceView = false);
@@ -632,14 +634,15 @@ public:
 	/** Texture to control variable resolution rendering */
 	TRefCountPtr<IPooledRenderTarget> FoveationTexture;
 
+	/** Virtual Texture feedback buffer bound as UAV during the base pass */
+	FVertexBufferRHIRef VirtualTextureFeedback;
+	FUnorderedAccessViewRHIRef VirtualTextureFeedbackUAV;
+
 	// todo: free ScreenSpaceAO so pool can reuse
 	bool bScreenSpaceAOIsValid;
 
 	// todo: free ScreenSpaceAO so pool can reuse
 	bool bCustomDepthIsValid;
-
-	/**	Virtual texture feedback buffer bound as UAV during basepass*/
-	FVirtualTextureFeedback VirtualTextureFeedback;
 
 private:
 	/** used by AdjustGBufferRefCount */
