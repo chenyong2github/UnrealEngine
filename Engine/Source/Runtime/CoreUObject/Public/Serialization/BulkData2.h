@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BulkDataCommon.h"
 #include "BulkDataBuffer.h"
 #include "Async/AsyncFileHandle.h"
 #include "IO/IoDispatcher.h"
@@ -10,6 +11,7 @@
 struct FOwnedBulkDataPtr;
 class IMappedFileHandle;
 class IMappedFileRegion;
+class FBulkDataBase;
 
 /**
  * Represents an IO request from the BulkData streaming API.
@@ -31,9 +33,10 @@ public:
 	virtual void Cancel() = 0;
 };
 
-using FileToken = int32;
 struct FBulkDataOrId
 {
+	using FileToken = int32;
+
 	union
 	{
 		// Inline data or fallback path
@@ -50,6 +53,9 @@ struct FBulkDataOrId
 };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FBulkDataOrId);
 
+// Declare this here rather than BulkDataCommon.h
+DECLARE_INTRINSIC_TYPE_LAYOUT(EBulkDataFlags);
+
 /**
  * This is a wrapper for the BulkData memory allocation so we can use a single pointer to either
  * reference a straight memory allocation or in the case that the BulkData object represents a 
@@ -62,7 +68,6 @@ DECLARE_INTRINSIC_TYPE_LAYOUT(FBulkDataOrId);
  * Note: We use a flag set in the owning BulkData object to tell us what storage type we are using 
  * so all accessors require that a pointer to the parent object be passed in.
  */
-class FBulkDataBase;
 class FBulkDataAllocation
 {
 public:
@@ -104,21 +109,29 @@ public:
 	using BulkDataRangeArray = TArray<FBulkDataBase*, TInlineAllocator<8>>;
 
 	static void				SetIoDispatcher(FIoDispatcher* InIoDispatcher) { IoDispatcher = InIoDispatcher; }
-	static FIoDispatcher* GetIoDispatcher() { return IoDispatcher; }
+	static FIoDispatcher*	GetIoDispatcher() { return IoDispatcher; }
 public:
-	static constexpr FileToken InvalidToken = INDEX_NONE;
-
-	FBulkDataBase(const FBulkDataBase& Other) { *this = Other; }
-	FBulkDataBase(FBulkDataBase&& Other);
-	FBulkDataBase& operator=(const FBulkDataBase& Other);
+	static constexpr FBulkDataOrId::FileToken InvalidToken = INDEX_NONE;
 
 	FBulkDataBase()
 	{ 
 		Data.Fallback.BulkDataSize = 0;
 		Data.Fallback.Token = InvalidToken;
 	}
-	~FBulkDataBase();
+	
+	FBulkDataBase(const FBulkDataBase& Other)
+	{
+		// Need some partial initialization of operator= will try to release the token!
+		Data.Fallback.BulkDataSize = 0;
+		Data.Fallback.Token = InvalidToken;
 
+		*this = Other;
+	}
+
+	FBulkDataBase(FBulkDataBase&& Other);
+	FBulkDataBase& operator=(const FBulkDataBase& Other);
+
+	~FBulkDataBase();
 protected:
 
 	void Serialize(FArchive& Ar, UObject* Owner, int32 Index, bool bAttemptFileMapping, int32 ElementSize);
@@ -165,10 +178,12 @@ public:
 	bool IsOptional() const;
 	bool IsInlined() const;
 	UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
-		FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
+	FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
 	bool IsInSeperateFile() const;
 	bool IsSingleUse() const;
-	bool IsMemoryMapped() const;
+	UE_DEPRECATED(4.26, "Use ::IsFileMemoryMapped() instead")
+	bool IsMemoryMapped() const { return IsFileMemoryMapped(); }
+	bool IsFileMemoryMapped() const;
 	bool IsDataMemoryMapped() const;
 	bool IsUsingIODispatcher() const;
 
@@ -181,7 +196,16 @@ public:
 
 	void RemoveBulkData();
 
-	bool IsAsyncLoadingComplete() const { return true; }
+	/**
+	* Initiates a new asynchronous operation to load the dulkdata from disk assuming that it is not already
+	* loaded.
+	* Note that a new asynchronous loading operation will not be created if one is already in progress.
+	*
+	* @return True if an asynchronous loading operation is in progress by the time that the method returns
+	* and false if the data is already loaded or cannot be loaded from disk.
+	*/
+	bool StartAsyncLoading();
+	bool IsAsyncLoadingComplete() const;
 
 	// Added for compatibility with the older BulkData system
 	int64 GetBulkDataOffsetInFile() const;
@@ -205,10 +229,8 @@ private:
 	 */
 	bool CanDiscardInternalData() const;
 
-	void LoadDataDirectly(void** DstBuffer);
-
 	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutSizeOnDisk, int64& InOutOffsetInFile);
-	void SerializeDuplicateData(FArchive& Ar, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
+	void SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 
 	bool MemoryMapBulkData(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead);
@@ -219,15 +241,27 @@ private:
 	FORCEINLINE void* GetDataBufferForWrite() const { return DataAllocation.GetAllocationForWrite(this); }
 	FORCEINLINE const void* GetDataBufferReadOnly() const { return DataAllocation.GetAllocationReadOnly(this); }
 
+	/** Blocking call that waits until any pending async load finishes */
+	void FlushAsyncLoading();
+	
 	FString ConvertFilenameFromFlags(const FString& Filename) const;
 
 private:
+	using AsyncCallback = TFunction<void(TIoStatusOr<FIoBuffer>)>;
+
+	void LoadDataDirectly(void** DstBuffer);
+	void LoadDataAsynchronously(AsyncCallback&& Callback);
+
+	// Used by LoadDataDirectly/LoadDataAsynchronously
+	void InternalLoadFromFileSystem(void** DstBuffer);
+	void InternalLoadFromIoStore(void** DstBuffer);
+	void InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback&& Callback);
 
 	static FIoDispatcher* IoDispatcher;
 
 	LAYOUT_FIELD(FBulkDataOrId, Data);
 	LAYOUT_FIELD(FBulkDataAllocation, DataAllocation);
-	LAYOUT_FIELD_INITIALIZED(uint32, BulkDataFlags, 0);
+	LAYOUT_FIELD_INITIALIZED(EBulkDataFlags, BulkDataFlags, EBulkDataFlags::BULKDATA_None);
 	LAYOUT_MUTABLE_FIELD_INITIALIZED(uint8, LockStatus, 0); // Mutable so that the read only lock can be const
 };
 
