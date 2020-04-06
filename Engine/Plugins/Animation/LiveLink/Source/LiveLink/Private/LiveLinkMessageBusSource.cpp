@@ -28,7 +28,6 @@ FLiveLinkMessageBusSource::FLiveLinkMessageBusSource(const FText& InSourceType, 
 
 void FLiveLinkMessageBusSource::InitializeSettings(ULiveLinkSourceSettings* Settings)
 {
-	Settings->Mode = GetDefault<ULiveLinkSettings>()->DefaultMessageBusSourceMode;
 }
 
 void FLiveLinkMessageBusSource::ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid)

@@ -318,7 +318,20 @@ bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 	}
 
 	Data.Source = Source;
-	Setting = Data.Setting = DuplicateObject<ULiveLinkSourceSettings>(InSourcePreset.Settings, GetTransientPackage());
+
+	//In case a source has changed its source settings class, instead of duplicating, create the right one and copy previous properties
+	UClass* SourceSettingsClass = Source->GetSettingsClass().Get();
+	if (SourceSettingsClass && SourceSettingsClass != InSourcePreset.Settings->GetClass())
+	{
+		FLiveLinkLog::Info(TEXT("Creating Source '%s' from Preset: Settings class '%s' is not what is expected ('%s'). Updating to new class."), *InSourcePreset.SourceType.ToString(), *InSourcePreset.Settings->GetClass()->GetName(), *SourceSettingsClass->GetName());
+		Setting = NewObject<ULiveLinkSourceSettings>(GetTransientPackage(), SourceSettingsClass);
+		UEngine::CopyPropertiesForUnrelatedObjects(InSourcePreset.Settings, Setting);
+		Data.Setting = Setting;
+	}
+	else
+	{
+		Setting = Data.Setting = DuplicateObject<ULiveLinkSourceSettings>(InSourcePreset.Settings, GetTransientPackage());
+	}
 
 	Collection->AddSource(MoveTemp(Data));
 	Source->ReceiveClient(this, InSourcePreset.Guid);
