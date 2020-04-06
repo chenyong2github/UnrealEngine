@@ -563,7 +563,7 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
 	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, Transitions, TransitionIndex);
 }
 
-// Will soon be deprecated as well...
+UE_DEPRECATED(4.25, "UnbindRenderTargets API is deprecated; EndRenderPass implies UnbindRenderTargets.")
 inline void UnbindRenderTargets(FRHICommandList& RHICmdList)
 {
 	check(RHICmdList.IsOutsideRenderPass());

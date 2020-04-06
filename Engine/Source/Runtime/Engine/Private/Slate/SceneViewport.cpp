@@ -1735,7 +1735,9 @@ void FSceneViewport::EndRenderFrame(FRHICommandListImmediate& RHICmdList, bool b
 		if (bShouldUnsetTargets)
 		{
 			// Set the active render target(s) to nothing to release references in the case that the viewport is resized by slate before we draw again
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			UnbindRenderTargets(RHICmdList);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		// Note: this releases our reference but does not release the resource as it is owned by slate (this is intended)
 		RenderTargetTextureRenderThreadRHI.SafeRelease();
