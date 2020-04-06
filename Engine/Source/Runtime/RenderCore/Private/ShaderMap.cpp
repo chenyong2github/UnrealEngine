@@ -250,7 +250,10 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 			Resource = FShaderCodeLibrary::LoadResource(ResourceHash, &Ar);
 			if (!Resource)
 			{
-				UE_LOG(LogShaders, Error, TEXT("Missing shader resource for hash '%s' in the shader library"), *ResourceHash.ToString());
+				if (FApp::CanEverRender())	// when running -nullrhi, the resource may not be created
+				{
+					UE_LOG(LogShaders, Error, TEXT("Missing shader resource for hash '%s' in the shader library"), *ResourceHash.ToString());
+				}
 				bContentValid = false;
 			}
 		}
