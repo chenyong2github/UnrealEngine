@@ -137,6 +137,8 @@ struct FAssertInfo
 	}
 };
 
+const TCHAR* const FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName = TEXT("UE4AftermathD3D12.nv-gpudmp");
+
 /**
 * Implement platform specific static cleanup function
 */
@@ -145,6 +147,9 @@ void FGenericCrashContext::CleanupPlatformSpecificFiles()
 	// Manually delete any potential leftover gpu dumps because the crash reporter will upload any leftover crash data from last session
 	const FString CrashVideoPath = FPaths::ProjectLogDir() + TEXT("CrashVideo.avi");
 	IFileManager::Get().Delete(*CrashVideoPath);
+
+	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+	IFileManager::Get().Delete(*GPUMiniDumpPath);
 }
 
 
@@ -316,6 +321,15 @@ void FWindowsPlatformCrashContext::CopyPlatformSpecificFiles(const TCHAR* Output
 		FString CrashVideoFilename = FPaths::GetCleanFilename(CrashVideoPath);
 		const FString CrashVideoDstAbsolute = FPaths::Combine(OutputDirectory, *CrashVideoFilename);
 		static_cast<void>(IFileManager::Get().Copy(*CrashVideoDstAbsolute, *CrashVideoPath));	// best effort, so don't care about result: couldn't copy -> tough, no video
+	}
+
+	// If present, include the gpu crash minidump
+	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+	if (IFileManager::Get().FileExists(*GPUMiniDumpPath))
+	{
+		FString GPUMiniDumpFilename = FPaths::GetCleanFilename(GPUMiniDumpPath);
+		const FString GPUMiniDumpDstAbsolute = FPaths::Combine(OutputDirectory, *GPUMiniDumpFilename);
+		static_cast<void>(IFileManager::Get().Copy(*GPUMiniDumpDstAbsolute, *GPUMiniDumpPath));	// best effort, so don't care about result: couldn't copy -> tough, no video
 	}
 }
 
