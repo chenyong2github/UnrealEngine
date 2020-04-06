@@ -5,17 +5,13 @@
 =============================================================================*/
 #include "IOS/IOSPlatformCrashContext.h"
 
+#include "IOS/IOSPlatformPLCrashReporterIncludes.h"
+
 #include "HAL/ExceptionHandling.h"
 #include "HAL/PlatformOutputDevices.h"
 
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
-
-#if !PLATFORM_TVOS
-#include "PLCrashReporter.h"
-#include "PLCrashReport.h"
-#include "PLCrashReportTextFormatter.h"
-#endif
 
 
 FIOSApplicationInfo GIOSAppInfo;

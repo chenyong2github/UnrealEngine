@@ -21,11 +21,7 @@
 #include "Misc/ScopeExit.h"
 #include "Apple/ApplePlatformCrashContext.h"
 #include "IOS/IOSPlatformCrashContext.h"
-#if !PLATFORM_TVOS
-#include "PLCrashReporter.h"
-#include "PLCrashReport.h"
-#include "PLCrashReportTextFormatter.h"
-#endif
+#include "IOS/IOSPlatformPLCrashReporterIncludes.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformOutputDevices.h"
 #include "Misc/OutputDeviceError.h"
