@@ -93,7 +93,7 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 			SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
 			.OnClicked(this, &SNiagaraStackModuleItem::ScratchButtonPressed)
-			.ToolTipText(LOCTEXT("OpenInScratchToolTip", "Open this dynamic input in the scratch pad."))
+			.ToolTipText(LOCTEXT("OpenInScratchToolTip", "Open this module in the scratch pad."))
 			.ContentPadding(FMargin(1.0f, 0.0f))
 			.Content()
 			[
