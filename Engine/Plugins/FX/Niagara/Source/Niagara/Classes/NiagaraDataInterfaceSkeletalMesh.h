@@ -238,8 +238,10 @@ public:
 UENUM()
 enum class ENDISkeletalMesh_SkinningMode : uint8
 {
+	Invalid = (uint8)-1 UMETA(Hidden),
+
 	/** No skinning. */
-	None,
+	None = 0,
 	/** Skin vertex locations as you need them. Use if you have a high poly mesh or you are sampling the interface a small number of times. */
 	SkinOnTheFly,
 	/**
@@ -514,27 +516,34 @@ struct FNDISkeletalMesh_InstanceData
 	FSkeletalMeshGpuSpawnStaticBuffers* MeshGpuSpawnStaticBuffers;
 	FSkeletalMeshGpuDynamicBufferProxy* MeshGpuSpawnDynamicBuffers;
 
-	/** Temporary flag to deny binding VM functions that rely on mesh data being accessible on the CPU */
+	/** Flag to stub VM functions that rely on mesh data being accessible on the CPU */
 	bool bAllowCPUMeshDataAccess;
 
 	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceSkeletalMesh* Interface)const;
 
 	bool Init(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance);
-	FORCEINLINE_DEBUGGABLE bool Cleanup(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance);
 	FORCEINLINE_DEBUGGABLE bool Tick(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds);
 	FORCEINLINE_DEBUGGABLE void Release();
 	FORCEINLINE int32 GetLODIndex()const { return SkinningData.Usage.GetLODIndex(); }
 
-	FORCEINLINE_DEBUGGABLE FSkeletalMeshLODRenderData& GetLODRenderDataAndSkinWeights(FSkinWeightVertexBuffer*& OutSkinWeightBuffer)
+	FORCEINLINE_DEBUGGABLE FSkeletalMeshLODRenderData* GetLODRenderDataAndSkinWeights(FSkinWeightVertexBuffer*& OutSkinWeightBuffer)
 	{
-		FSkeletalMeshLODRenderData& Ret = Mesh->GetResourceForRendering()->LODRenderData[GetLODIndex()];
-		if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get()))
+		FSkeletalMeshLODRenderData* Ret = nullptr;
+		OutSkinWeightBuffer = nullptr;
+		if (Mesh)
 		{
-			OutSkinWeightBuffer = SkelComp->GetSkinWeightBuffer(GetLODIndex());
-		}
-		else
-		{
-			OutSkinWeightBuffer = &Ret.SkinWeightVertexBuffer; // Todo @sckime fix this when main comes in for real
+			Ret = &Mesh->GetResourceForRendering()->LODRenderData[GetLODIndex()];
+			if (bAllowCPUMeshDataAccess)
+			{
+				if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get()))
+				{
+					OutSkinWeightBuffer = SkelComp->GetSkinWeightBuffer(GetLODIndex());
+				}
+				else
+				{
+					OutSkinWeightBuffer = &Ret->SkinWeightVertexBuffer; // Todo @sckime fix this when main comes in for real
+				}
+			}
 		}
 		return Ret;
 	}
@@ -613,12 +622,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Skeleton", meta = (InlineEditConditionToggle))
 	uint8 bExcludeBone : 1;
 
-#if WITH_EDITORONLY_DATA
-	/** Do we require CPU access to the data, this is set during GetVMExternalFunction. */
-	UPROPERTY(transient)
-	bool bRequiresCPUAccess;
-#endif
-
 	/** Cached change id off of the data interface.*/
 	uint32 ChangeId;
 
@@ -641,7 +644,8 @@ public:
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
 #if WITH_EDITOR	
-	virtual TArray<FNiagaraDataInterfaceError> GetErrors() override;
+	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
+		TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
 	virtual bool HasTickGroupPrereqs() const override { return true; }
@@ -725,6 +729,9 @@ public:
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType, typename bInterpolated>
 	void GetTriCoordSkinnedData(FVectorVMContext& Context);
 
+	template<typename TransformHandlerType, typename bInterpolated>
+	void GetTriCoordSkinnedDataFallback(FVectorVMContext& Context);
+
 	void GetTriCoordColor(FVectorVMContext& Context);
 
 	void GetTriCoordColorFallback(FVectorVMContext& Context);
@@ -802,8 +809,10 @@ public:
 	void BindSkeletonSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename bInterpolated>
-	void GetSkinnedBoneData(FVectorVMContext& Context);
-
+	void GetSkinnedBoneData(FVectorVMContext& Context);	
+	template<typename TransformHandlerType, typename bInterpolated>
+	void GetSkinnedBoneDataFallback(FVectorVMContext& Context);
+	
 	void IsValidBone(FVectorVMContext& Context);
 	void RandomBone(FVectorVMContext& Context);
 	void GetBoneCount(FVectorVMContext& Context);
@@ -820,7 +829,7 @@ public:
 	void GetFilteredSocketBoneAt(FVectorVMContext& Context);
 	void GetFilteredSocketTransform(FVectorVMContext& Context);
 	void RandomFilteredSocket(FVectorVMContext& Context);
-
+		
 	void RandomFilteredSocketOrBone(FVectorVMContext& Context);
 	void GetFilteredSocketOrBoneCount(FVectorVMContext& Context);
 	void GetFilteredSocketOrBoneBoneAt(FVectorVMContext& Context);
