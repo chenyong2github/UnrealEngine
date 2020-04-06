@@ -3523,6 +3523,7 @@ public:
 		IncrementSubpass();
 	}
 
+	UE_DEPRECATED(4.25, "BeginComputePass API is deprecated. Use SetComputeShader() instead.")
 	FORCEINLINE_DEBUGGABLE void BeginComputePass(const TCHAR* Name)
 	{
 		check(!IsInsideRenderPass());
@@ -3540,6 +3541,7 @@ public:
 		Data.bInsideComputePass = true;
 	}
 
+	UE_DEPRECATED(4.25, "EndComputePass API is deprecated. BeginRenderPass() or SetComputeShader() instead.")
 	void EndComputePass()
 	{
 		check(IsInsideComputePass());
