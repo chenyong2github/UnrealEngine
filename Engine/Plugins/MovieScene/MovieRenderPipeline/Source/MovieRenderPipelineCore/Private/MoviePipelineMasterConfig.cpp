@@ -86,12 +86,6 @@ UMoviePipelineShotConfig* UMoviePipelineMasterConfig::GetConfigForShot(const FSt
 {
 	UMoviePipelineShotConfig* OutConfig = PerShotConfigMapping.FindRef(ShotName);
 
-	// They didn't customize this shot, return the global pipeline default
-	if (!OutConfig)
-	{
-		OutConfig = DefaultShotConfig;
-	}
-
 	return OutConfig;
 }
 
@@ -255,8 +249,6 @@ TRange<FFrameNumber> UMoviePipelineMasterConfig::GetEffectivePlaybackRange(const
 
 UMoviePipelineMasterConfig::UMoviePipelineMasterConfig()
 {
-	DefaultShotConfig = CreateDefaultSubobject<UMoviePipelineShotConfig>("DefaultShotConfig");
-	
 	// Always add at least the output settings block since having a framerate/directory/etc. is critical.
 	OutputSetting = CreateDefaultSubobject<UMoviePipelineOutputSetting>("DefaultOutputSetting");
 }
