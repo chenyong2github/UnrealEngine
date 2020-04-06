@@ -13,6 +13,7 @@
 #include "HAL/RunnableThread.h"
 #include "Containers/CircularQueue.h"
 #include "SocketTypes.h"
+#include "SocketSubsystem.h"
 #include "IpNetDriver.generated.h"
 
 
@@ -110,6 +111,9 @@ private:
 	 */
 	UNetConnection* ProcessConnectionlessPacket(FReceivedPacketView& PacketRef, const FPacketBufferView& WorkingBuffer);
 
+	/** Clears all references to sockets held by this net driver. */
+	void ClearSockets();
+
 public:
 	//~ Begin UIpNetDriver Interface.
 
@@ -118,6 +122,7 @@ public:
 	 *
 	 * @return an FSocket if creation succeeded, nullptr if creation failed.
 	 */
+	UE_DEPRECATED(4.25, "Socket creation is now restricted to subclasses and done through CreateSocketForProtocol or CreateAndBindSocket")
 	virtual FSocket* CreateSocket();
 	
 	/**
@@ -129,12 +134,22 @@ public:
 	virtual FSocket* GetSocket();
 
 	/**
-	 * Set the current NetDriver's socket to the given socket. This is typically done after resolution completes successfully. 
+	 * Set the current NetDriver's socket to the given socket and takes ownership of it (the driver will handle destroying it).
+	 * This is typically done after resolution completes successfully. 
 	 * This will also set the LocalAddr for the netdriver automatically.
 	 *
 	 * @param NewSocket the socket pointer to set this netdriver's socket to
 	 */
-	virtual void SetSocketAndLocalAddress(FSocket* NewSocket);
+	void SetSocketAndLocalAddress(FSocket* NewSocket);
+
+	/**
+	* Set the current NetDriver's socket to the given socket.
+	* This is typically done after resolution completes successfully. 
+	* This will also set the LocalAddr for the netdriver automatically.
+	*
+	* @param NewSocket the socket pointer to set this netdriver's socket to
+	*/
+	void SetSocketAndLocalAddress(const TSharedPtr<FSocket>& SharedSocket);
 
 	/**
 	 * Returns the port number to use when a client is creating a socket.
@@ -152,7 +167,7 @@ protected:
 	 * @param ProtocolType	an FName that represents the protocol to allocate the new socket under. Typically set to None or a value in FNetworkProtocolTypes
 	 * @return				an FSocket if creation succeeded, nullptr if creation failed.
 	 */
-	virtual FSocket* CreateSocketForProtocol(const FName& ProtocolType);
+	virtual FUniqueSocket CreateSocketForProtocol(const FName& ProtocolType);
 
 	/**
 	 * Creates, initializes and binds a socket using the given bind address information.
@@ -166,7 +181,7 @@ protected:
 	 *
 	 * @return if the socket could be created and bound with all the appropriate options, a pointer to the new socket is given, otherwise null
 	 */
-	virtual FSocket* CreateAndBindSocket(TSharedRef<FInternetAddr> BindAddr, int32 Port, bool bReuseAddressAndPort, int32 DesiredRecvSize, int32 DesiredSendSize, FString& Error);
+	virtual FUniqueSocket CreateAndBindSocket(TSharedRef<FInternetAddr> BindAddr, int32 Port, bool bReuseAddressAndPort, int32 DesiredRecvSize, int32 DesiredSendSize, FString& Error);
 	//~ End UIpNetDriver Interface.
 
 public:
@@ -299,5 +314,8 @@ private:
 	 * An array sockets created for every binding address a machine has in use for performing address resolution. 
 	 * This array empties after connections have been spun up.
 	 */
-	TArray<FSocket*> BoundSockets;
+	TArray<TSharedPtr<FSocket>> BoundSockets;
+
+	/** Underlying socket communication */
+	TSharedPtr<FSocket> SocketPrivate;
 };
