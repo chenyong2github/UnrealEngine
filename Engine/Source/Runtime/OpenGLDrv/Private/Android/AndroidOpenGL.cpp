@@ -410,7 +410,7 @@ void FPlatformOpenGLDevice::SetupCurrentContext()
 		return;
 	}
 	
-	if (*DefaultVao == 0)
+	if (*DefaultVao == 0 && !AndroidThunkCpp_IsOculusMobileApplication())
 	{
 		glGenVertexArrays(1, DefaultVao);
 		glBindVertexArray(*DefaultVao);
