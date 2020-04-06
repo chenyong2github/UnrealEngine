@@ -61,6 +61,7 @@ public:
 
 private:
 
+	void OnWorldPreTick(UWorld* InWorld, ELevelTick InLevelTick, float InDeltaSeconds);
 	void ReconcileSimulationsPostNetworkUpdate();
 	void BeginNewSimulationFrame(UWorld* InWorld, ELevelTick InLevelTick, float InDeltaSeconds);
 	
@@ -82,6 +83,7 @@ private:
 
 	TSortedMap<FName, FSimulationGroup, FDefaultAllocator, FNameFastLess> SimulationGroupMap;
 
+	FDelegateHandle PreTickDispatchHandle;
 	FDelegateHandle PostTickDispatchHandle;
 	FDelegateHandle PreWorldActorTickHandle;
 };
