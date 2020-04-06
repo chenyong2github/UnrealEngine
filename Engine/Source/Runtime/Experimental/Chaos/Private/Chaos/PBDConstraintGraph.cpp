@@ -65,7 +65,8 @@ int32 FPBDConstraintGraph::ReserveParticles(const int32 Num)
 
 void FPBDConstraintGraph::ParticleAdd(TGeometryParticleHandle<FReal, 3>* AddedParticle)
 {
-	if (ensure(!ParticleToNodeIndex.Contains(AddedParticle)))
+	// GC Code creates particle then enables particle so end up calling this twice triggering ensure
+	if (/*ensure*/ (!ParticleToNodeIndex.Contains(AddedParticle)))
 	{
 		const int32 NewNodeIndex = GetNextNodeIndex();
 		FGraphNode& Node = Nodes[NewNodeIndex];
@@ -907,4 +908,3 @@ bool FPBDConstraintGraph::CheckIslands(const TArray<TGeometryParticleHandle<FRea
 
 	return bIsValid;
 }
-
