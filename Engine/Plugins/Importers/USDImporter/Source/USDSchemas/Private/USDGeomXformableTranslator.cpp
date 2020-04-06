@@ -307,7 +307,7 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 
 bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingType ) const
 {
-	bool bIsCollapsableKind = false;
+	bool bCollapsesChildren = false;
 
 	FScopedUsdAllocs UsdAllocs;
 
@@ -315,15 +315,15 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 
 	if ( Model )
 	{
-		bIsCollapsableKind = Model.IsKind( pxr::KindTokens->component );
+		bCollapsesChildren = Model.IsKind( pxr::KindTokens->component );
 
-		if ( !bIsCollapsableKind )
+		if ( !bCollapsesChildren )
 		{
 			// Temp support for the prop kind
-			bIsCollapsableKind = Model.IsKind( pxr::TfToken( "prop" ), pxr::UsdModelAPI::KindValidationNone );
+			bCollapsesChildren = Model.IsKind( pxr::TfToken( "prop" ), pxr::UsdModelAPI::KindValidationNone );
 		}
 
-		if ( bIsCollapsableKind )
+		if ( bCollapsesChildren )
 		{
 			IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
@@ -342,7 +342,42 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 		}
 	}
 
-	return bIsCollapsableKind;
+	if ( bCollapsesChildren )
+	{
+		TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshes = UsdUtils::GetAllPrimsOfType( Schema.Get().GetPrim(), pxr::TfType::Find< pxr::UsdGeomMesh >() );
+
+		// We only support collapsing GeomMeshes for now and we only want to do it when there are multiple meshes as the resulting mesh is considered unique
+		if ( ChildGeomMeshes.Num() < 2 )
+		{
+			bCollapsesChildren = false;
+		}
+		else
+		{
+			const int32 MaxVertices = 500000;
+			int32 NumVertices = 0;
+
+			for ( const TUsdStore< pxr::UsdPrim >& ChildPrim : ChildGeomMeshes )
+			{
+				pxr::UsdGeomMesh ChildGeomMesh( ChildPrim.Get() );
+
+				if ( pxr::UsdAttribute Points = ChildGeomMesh.GetPointsAttr() )
+				{
+					pxr::VtArray< pxr::GfVec3f > PointsArray;
+					Points.Get( &PointsArray, pxr::UsdTimeCode( Context->Time ) );
+
+					NumVertices += PointsArray.size();
+
+					if ( NumVertices > MaxVertices )
+					{
+						bCollapsesChildren = false;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	return bCollapsesChildren;
 }
 
 #endif // #if USE_USD_SDK
