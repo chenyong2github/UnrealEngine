@@ -198,14 +198,6 @@ protected:
 		const TArray<int32>& ChildTransformGroupIndices,
 		const Chaos::FClusterCreationParameters<float> & Parameters);
 
-	/** 
-	 * Copy \p Results into \p TargetCollection, or \c Parameters.DynamicCollection 
-	 * if \c nullptr.
-	 */
-	void UpdateGeometryCollection(
-		const FGeometryCollectionResults& Results,
-		FGeometryDynamicCollection* TargetCollection=nullptr);
-
 	/**
 	 */
 	void GetRelevantHandles(
@@ -253,7 +245,6 @@ private:
 	FCollisionFilterData SimFilter;
 	FCollisionFilterData QueryFilter;
 
-	TArray<int32> EndFrameUnparentingBuffer;
 	// This is a subset of the geometry group that are used in the transform hierarchy to represent geometry
 	TArray<FBox> ValidGeometryBoundingBoxes;
 	TArray<int32> ValidGeometryTransformIndices;
