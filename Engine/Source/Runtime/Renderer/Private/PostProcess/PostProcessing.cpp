@@ -1470,6 +1470,17 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 							PostProcessDofBlur = FRenderingCompositeOutputRef(Pass);
 							DofOutput = PostProcessDofBlur;
 						}
+
+						if (bUseTonemapperFilm)
+						{
+							FRenderingCompositeOutputRef PostProcessIntegrateDof;
+							{
+								FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassIntegrateDofES2(FinalOutputViewRect.Size()));
+								Pass->SetInput(ePId_Input0, Context.FinalOutput);
+								Pass->SetInput(ePId_Input1, DofOutput);
+								Context.FinalOutput = FRenderingCompositeOutputRef(Pass);
+							}
+						}
 					}
 					else
 					{
