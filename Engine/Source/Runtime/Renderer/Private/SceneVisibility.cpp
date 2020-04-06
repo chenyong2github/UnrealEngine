@@ -2275,6 +2275,16 @@ struct FRelevancePacket
 							if ((StaticMeshRelevance.bUseForDepthPass && bDrawDepthOnly && ShadingPath != EShadingPath::Mobile) || bMobileIsInDepthPassMaskedMesh)
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DepthPass);
+
+#if RHI_RAYTRACING
+								if (IsRayTracingEnabled())
+								{
+									if (MarkMask & EMarkMaskBits::StaticMeshFadeOutDitheredLODMapMask)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DitheredLODFadingOutMaskPass);
+									}
+								}
+#endif
 							}
 
 							// Mark static mesh as visible for rendering
