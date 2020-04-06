@@ -165,6 +165,21 @@ namespace Audio
 		}
 	}
 
+	void BufferSetToConstantInplace(AlignedFloatBuffer& InBuffer, float InConstant)
+	{
+		BufferSetToConstantInplace(InBuffer.GetData(), InBuffer.Num(), InConstant);
+	}
+
+	void BufferSetToConstantInplace(float* RESTRICT InBuffer, int32 NumSamples, float InConstant)
+	{
+		const VectorRegister Constant = VectorLoadFloat1(&InConstant);
+
+		for (int32 i = 0; i < NumSamples; i += 4)
+		{
+			VectorStoreAligned(Constant, &InBuffer[i]);
+		}
+	}
+
 	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + (InBuffer2 x InGain2) */
 	void BufferWeightedSumFast(const AlignedFloatBuffer& InBuffer1, float InGain1, const AlignedFloatBuffer& InBuffer2, float InGain2, AlignedFloatBuffer& OutBuffer)
 	{
