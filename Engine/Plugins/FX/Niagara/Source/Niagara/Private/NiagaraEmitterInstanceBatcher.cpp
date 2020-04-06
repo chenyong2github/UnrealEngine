@@ -1125,9 +1125,9 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList
 			// Do nothing.., handled in Run
 		}
 		// We may not have floats or ints, but we should have at least one of the two
-		else if ((Context->GPUDebugDataReadbackFloat == nullptr || Context->GPUDebugDataReadbackFloat->IsReady()) 
-				&& (Context->GPUDebugDataReadbackInt == nullptr || Context->GPUDebugDataReadbackInt->IsReady())
-				&& (Context->GPUDebugDataReadbackHalf == nullptr || Context->GPUDebugDataReadbackHalf->IsReady())
+		else if (  (!Context->GPUDebugDataReadbackFloat || Context->GPUDebugDataReadbackFloat->IsReady())
+				&& (!Context->GPUDebugDataReadbackInt || Context->GPUDebugDataReadbackInt->IsReady())
+				&& (!Context->GPUDebugDataReadbackHalf || Context->GPUDebugDataReadbackHalf->IsReady())
 				&& Context->GPUDebugDataReadbackCounts->IsReady()
 			)
 		{
@@ -1172,25 +1172,14 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList
 			{
 				// The following code seems to take significant time on d3d12
 				// Clear out the readback buffers...
-				if (Context->GPUDebugDataReadbackFloat)
-				{
-					delete Context->GPUDebugDataReadbackFloat;
-					Context->GPUDebugDataReadbackFloat = nullptr;
-				}
-				if (Context->GPUDebugDataReadbackInt)
-				{
-					delete Context->GPUDebugDataReadbackInt;
-					Context->GPUDebugDataReadbackInt = nullptr;
-				}
-				if (Context->GPUDebugDataReadbackInt)
-				{
-					delete Context->GPUDebugDataReadbackHalf;
-					Context->GPUDebugDataReadbackHalf = nullptr;
-				}
-				delete Context->GPUDebugDataReadbackCounts;
-				Context->GPUDebugDataReadbackCounts = nullptr;	
+				Context->GPUDebugDataReadbackFloat.Reset();
+				Context->GPUDebugDataReadbackInt.Reset();
+				Context->GPUDebugDataReadbackHalf.Reset();
+				Context->GPUDebugDataReadbackCounts.Reset();
+
 				Context->GPUDebugDataFloatSize = 0;
 				Context->GPUDebugDataIntSize = 0;
+				Context->GPUDebugDataHalfSize = 0;
 				Context->GPUDebugDataFloatStride = 0;
 				Context->GPUDebugDataIntStride = 0;
 				Context->GPUDebugDataHalfStride = 0;
@@ -1455,7 +1444,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 			if (DestinationData.GetGPUBufferFloat().NumBytes > 0)
 			{
 				static const FName ReadbackFloatName(TEXT("Niagara GPU Debug Info Float Emitter Readback"));
-				Context->GPUDebugDataReadbackFloat = new FRHIGPUBufferReadback(ReadbackFloatName);
+				Context->GPUDebugDataReadbackFloat.Reset(new FRHIGPUBufferReadback(ReadbackFloatName));
 				Context->GPUDebugDataReadbackFloat->EnqueueCopy(RHICmdList, DestinationData.GetGPUBufferFloat().Buffer);
 				Context->GPUDebugDataFloatSize = DestinationData.GetGPUBufferFloat().NumBytes;
 				Context->GPUDebugDataFloatStride = DestinationData.GetFloatStride();
@@ -1464,7 +1453,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 			if (DestinationData.GetGPUBufferInt().NumBytes > 0)
 			{
 				static const FName ReadbackIntName(TEXT("Niagara GPU Debug Info Int Emitter Readback"));
-				Context->GPUDebugDataReadbackInt = new FRHIGPUBufferReadback(ReadbackIntName);
+				Context->GPUDebugDataReadbackInt.Reset(new FRHIGPUBufferReadback(ReadbackIntName));
 				Context->GPUDebugDataReadbackInt->EnqueueCopy(RHICmdList, DestinationData.GetGPUBufferInt().Buffer);
 				Context->GPUDebugDataIntSize = DestinationData.GetGPUBufferInt().NumBytes;
 				Context->GPUDebugDataIntStride = DestinationData.GetInt32Stride();
@@ -1473,14 +1462,14 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 			if (DestinationData.GetGPUBufferHalf().NumBytes > 0)
 			{
 				static const FName ReadbackHalfName(TEXT("Niagara GPU Debug Info Half Emitter Readback"));
-				Context->GPUDebugDataReadbackHalf = new FRHIGPUBufferReadback(ReadbackHalfName);
+				Context->GPUDebugDataReadbackHalf.Reset(new FRHIGPUBufferReadback(ReadbackHalfName));
 				Context->GPUDebugDataReadbackHalf->EnqueueCopy(RHICmdList, DestinationData.GetGPUBufferHalf().Buffer);
 				Context->GPUDebugDataHalfSize = DestinationData.GetGPUBufferHalf().NumBytes;
 				Context->GPUDebugDataHalfStride = DestinationData.GetHalfStride();
 			}
 
 			static const FName ReadbackCountsName(TEXT("Niagara GPU Emitter Readback"));
-			Context->GPUDebugDataReadbackCounts = new FRHIGPUBufferReadback(ReadbackCountsName);
+			Context->GPUDebugDataReadbackCounts.Reset(new FRHIGPUBufferReadback(ReadbackCountsName));
 			Context->GPUDebugDataReadbackCounts->EnqueueCopy(RHICmdList, GPUInstanceCounterManager.GetInstanceCountBuffer().Buffer);
 			Context->GPUDebugDataCountOffset = DestinationData.GetGPUInstanceCountBufferOffset();
 		}

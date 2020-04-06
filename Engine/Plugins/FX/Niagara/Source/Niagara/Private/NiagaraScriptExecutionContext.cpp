@@ -498,16 +498,7 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	, EmitterCBufferLayout(TEXT("Niagara GPU Emitter CBuffer"))
 	, ExternalCBufferLayout(TEXT("Niagara GPU External CBuffer"))
 	, DataToRender(nullptr)
-#if WITH_EDITORONLY_DATA
-	, GPUDebugDataReadbackFloat(nullptr)
-	, GPUDebugDataReadbackInt(nullptr)
-	, GPUDebugDataReadbackCounts(nullptr)
-	, GPUDebugDataFloatSize(0)
-	, GPUDebugDataIntSize(0)
-	, GPUDebugDataFloatStride(0)
-	, GPUDebugDataIntStride(0)
-	, GPUDebugDataCountOffset(INDEX_NONE)
-#endif	  
+
 {
 	GlobalCBufferLayout.ConstantBufferSize = sizeof(FNiagaraGlobalParameters);
 	GlobalCBufferLayout.ComputeHash();
@@ -529,21 +520,10 @@ FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 	// check(EmitterInstanceReadback.GPUCountOffset == INDEX_NONE);
 
 #if WITH_EDITORONLY_DATA
-	if (GPUDebugDataReadbackFloat)
-	{
-		delete GPUDebugDataReadbackFloat;
-		GPUDebugDataReadbackFloat = nullptr;
-	}
-	if (GPUDebugDataReadbackInt)
-	{
-		delete GPUDebugDataReadbackInt;
-		GPUDebugDataReadbackInt = nullptr;
-	}
-	if (GPUDebugDataReadbackCounts)
-	{
-		delete GPUDebugDataReadbackCounts;
-		GPUDebugDataReadbackCounts = nullptr;
-	}
+	GPUDebugDataReadbackFloat.Reset();
+	GPUDebugDataReadbackInt.Reset();
+	GPUDebugDataReadbackHalf.Reset();
+	GPUDebugDataReadbackCounts.Reset();
 #endif
 
 	SetDataToRender(nullptr);
@@ -841,21 +821,10 @@ void FNiagaraComputeExecutionContext::ResetInternal(NiagaraEmitterInstanceBatche
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (GPUDebugDataReadbackFloat)
-	{
-		delete GPUDebugDataReadbackFloat;
-		GPUDebugDataReadbackFloat = nullptr;
-	}
-	if (GPUDebugDataReadbackInt)
-	{
-		delete GPUDebugDataReadbackInt;
-		GPUDebugDataReadbackInt = nullptr;
-	}
-	if (GPUDebugDataReadbackCounts)
-	{
-		delete GPUDebugDataReadbackCounts;
-		GPUDebugDataReadbackCounts = nullptr;
-	}
+	GPUDebugDataReadbackFloat.Reset();
+	GPUDebugDataReadbackInt.Reset();
+	GPUDebugDataReadbackHalf.Reset();
+	GPUDebugDataReadbackCounts.Reset();
 #endif
 
 	SetDataToRender(nullptr);
