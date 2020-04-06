@@ -343,9 +343,14 @@ void FNiagaraScriptToolkit::OnEditedScriptPropertyFinishedChanging(const FProper
 void FNiagaraScriptToolkit::OnVMScriptCompiled(UNiagaraScript* InScript)
 {
 	UpdateModuleStats();
-	ParameterPanelViewModel->Refresh();
+	if (ParameterPanelViewModel.IsValid())
+	{
+		ParameterPanelViewModel->Refresh();
+	}
 	if (SelectedDetailsWidget.IsValid())
+	{
 		SelectedDetailsWidget->SelectedObjectsChanged();
+	}
 }
 
 TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptDetails(const FSpawnTabArgs& Args)
