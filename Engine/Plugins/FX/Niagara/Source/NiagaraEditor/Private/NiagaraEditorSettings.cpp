@@ -85,7 +85,7 @@ UNiagaraEditorSettings::UNiagaraEditorSettings(const FObjectInitializer& ObjectI
 			{FNiagaraConstants::UserNamespace},
 			NSLOCTEXT("NamespaceMetadata", "UserDisplayName", "User"),
 			NSLOCTEXT("NamespaceMetadata", "UserDescription", "A read only value which can be initialized per system and\nmodified externally in the level, by blueprint, or by c++."),
-			FLinearColor(FColor(49, 113, 142)),
+			FLinearColor(FColor(91, 161, 194)),
 			{ }),
 		FNiagaraNamespaceMetadata(
 			{FNiagaraConstants::DataInstanceNamespace},
