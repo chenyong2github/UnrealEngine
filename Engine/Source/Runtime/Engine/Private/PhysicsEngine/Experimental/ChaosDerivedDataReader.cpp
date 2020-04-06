@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/Experimental/ChaosDerivedDataReader.h"
+
+#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/ChaosArchive.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Convex.h"
+#undef CHAOS_INCLUDE_LEVEL_1
 
 template<typename T, int d>
 FChaosDerivedDataReader<T, d>::FChaosDerivedDataReader(FBulkDataInterface* InBulkData)

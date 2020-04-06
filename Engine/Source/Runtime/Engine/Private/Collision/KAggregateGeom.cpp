@@ -20,7 +20,9 @@
 #endif
 
 #if WITH_CHAOS
+#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/ImplicitObject.h"
+#undef CHAOS_INCLUDE_LEVEL_1
 #endif
 
 
