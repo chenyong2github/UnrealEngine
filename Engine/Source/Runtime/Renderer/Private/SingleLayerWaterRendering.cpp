@@ -690,7 +690,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 			// Water is assumed to have zero roughness and is not currently denoised.
 			//int32 DenoiserMode = GetReflectionsDenoiserMode();
 			//bool bDenoise = DenoiserMode != 0;
-			int DenoiserMode = 0;
+			int32 DenoiserMode = 0;
 			bool bDenoise = false;
 
 			if (!bDenoise)
@@ -698,14 +698,35 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 				RayTracingConfig.ResolutionFraction = 1.0f;
 			}
 
+			FRayTracingReflectionOptions Options;
+			Options.Algorithm = FRayTracingReflectionOptions::BruteForce;
+			Options.SamplesPerPixel = 1;
+			Options.ResolutionFraction = 1.0;
+			Options.bReflectOnlyWater = true;
+
+			{
+				float UpscaleFactor = 1.0;
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+					SceneTextures.SceneDepthBuffer->Desc.Extent / UpscaleFactor,
+					PF_FloatRGBA,
+					FClearValueBinding::None,
+					/* InFlags = */ TexCreate_None,
+					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+					/* bInForceSeparateTargetAndShaderResource = */ false);
+
+				DenoiserInputs.Color = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflections"));
+
+				Desc.Format = PF_R16F;
+				DenoiserInputs.RayHitDistance = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflectionsHitDistance"));
+				DenoiserInputs.RayImaginaryDepth = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflectionsImaginaryDepth"));
+			}
+
 			bool bReflectOnlyWater = true;
 			RenderRayTracingReflections(
 				GraphBuilder,
 				SceneTextures,
 				View,
-				RayTracingConfig.RayCountPerPixel,
-				bReflectOnlyWater,
-				RayTracingConfig.ResolutionFraction,
+				Options,
 				&DenoiserInputs);
 
 			if (bDenoise)

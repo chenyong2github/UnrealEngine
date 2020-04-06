@@ -200,6 +200,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	const FRayTracingReflectionOptions& Options,
 	IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs)
 {
 	FRDGTextureDesc OutputDesc = FPooledRenderTargetDesc::Create2DDesc(
@@ -315,6 +316,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	const FRayTracingReflectionOptions& Options,
 	IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs)
 {
 	checkNoEntry();
