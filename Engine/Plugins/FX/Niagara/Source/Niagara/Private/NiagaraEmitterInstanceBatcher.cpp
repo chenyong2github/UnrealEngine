@@ -846,7 +846,9 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 	// Note: We can not encapsulate the whole Niagara pass as some DI's may not be compatable (i.e. use CopyTexture function), we need to fix this with future RDG conversion
 	if (SimPasses.Num() > 0)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RHICmdList.BeginComputePass(TEXT("NiagaraCompute"));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.BeginUAVOverlap();
 
 		FEmitterInstanceList InstancesWithPersistentIDs;
@@ -899,7 +901,9 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, OutputGraphicsBuffers.GetData(), OutputGraphicsBuffers.Num());
 
 		RHICmdList.EndUAVOverlap();
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RHICmdList.EndComputePass();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
