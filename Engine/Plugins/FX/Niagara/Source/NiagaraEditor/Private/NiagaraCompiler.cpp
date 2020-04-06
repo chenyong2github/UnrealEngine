@@ -1233,6 +1233,12 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 	}
 	DumpDebugInfo(CompileResults, false);
 
+	//Seems like Results is a bit of a cobbled together mess at this point.
+	//Ideally we can tidy this up in future.
+	//Doing this as a minimal risk free fix for not having errors passed through into the compile results.
+	Results.NumErrors = CompileResults.NumErrors;
+	Results.CompileEvents = CompileResults.CompileEvents;
+
 	CompilationJob.Reset();
 	return Results;
 }
