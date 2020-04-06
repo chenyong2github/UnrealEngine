@@ -134,7 +134,7 @@ void FD3D12CommandContext::WriteGPUEventStackToBreadCrumbData(bool bBeginEvent)
 					Parameters[i].Value = GPUEventStack[i - 2];
 				}
 			}
-			CommandList2->WriteBufferImmediate(Paramet	erCount, Parameters, Modes);
+			CommandList2->WriteBufferImmediate(ParameterCount, Parameters, Modes);
 		}
 
 		if (!bAllocateOnStack)
