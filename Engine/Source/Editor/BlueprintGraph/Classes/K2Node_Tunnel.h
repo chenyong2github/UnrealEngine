@@ -56,7 +56,7 @@ class BLUEPRINTGRAPH_API UK2Node_Tunnel : public UK2Node_EditablePinBase
 	virtual bool NodeCausesStructuralBlueprintChange() const override { return true; }
 	virtual void ClearCachedBlueprintData(UBlueprint* Blueprint) override;
 	virtual void ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) const override;
-	virtual void FixupPinStringDataReferences(FArchive& Ar) override;
+	virtual void FixupPinStringDataReferences(FArchive* SavingArchive) override;
 	//~ End UK2Node Interface
 
 	//~ Begin UK2Node_EditablePinBase Interface.

@@ -208,11 +208,10 @@ void UK2Node_Tunnel::ValidateNodeDuringCompilation(FCompilerResultsLog& MessageL
 	}
 }
 
-void UK2Node_Tunnel::FixupPinStringDataReferences(FArchive& Ar)
+void UK2Node_Tunnel::FixupPinStringDataReferences(FArchive* SavingArchive)
 {
-	Super::FixupPinStringDataReferences(Ar);
-
-	if (Ar.IsSaving())
+	Super::FixupPinStringDataReferences(SavingArchive);
+	if (SavingArchive)
 	{
 		UpdateUserDefinedPinDefaultValues();
 	}
