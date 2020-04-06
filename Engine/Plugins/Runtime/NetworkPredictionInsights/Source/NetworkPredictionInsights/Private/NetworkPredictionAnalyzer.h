@@ -36,6 +36,8 @@ private:
 		RouteId_SimulationNetGUID,
 		RouteId_SimulationTick,
 		RouteId_OOBStateMod,
+		RouteId_OOBStateModStrSync,
+		RouteId_OOBStateModStrAux,
 		RouteId_ProduceInput,
 		RouteId_SynthInput,
 		RouteId_SimulationEOF,

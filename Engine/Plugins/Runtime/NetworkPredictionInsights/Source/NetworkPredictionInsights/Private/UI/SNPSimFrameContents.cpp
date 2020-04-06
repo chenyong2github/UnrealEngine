@@ -65,13 +65,18 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 	auto MakeUserStateWidget = [&](const FUserStateWidgetInfo& Info)
 	{
 		FString HeaderText;
-		const TCHAR* UserStr = nullptr;
+		FString UserStr;
 		uint64 EngineFrameHyperLink = 0;
 		if (Info.State)
 		{
 			// style=\"Hyperlink\"
 			HeaderText = FString::Printf(TEXT("%s [Sim: %d. <a id=\"engine\">Engine: %d</>. %s]"), Info.Heading, Info.State->SimFrame, Info.State->EngineFrame, LexToString(Info.State->Source));
 			UserStr = Info.State->UserStr;
+			if (Info.State->OOBStr)
+			{
+				UserStr += FString::Printf(TEXT("\nOOB Mod:\n%s"), Info.State->OOBStr);
+			}
+
 			EngineFrameHyperLink = Info.State->EngineFrame;
 		}
 		else

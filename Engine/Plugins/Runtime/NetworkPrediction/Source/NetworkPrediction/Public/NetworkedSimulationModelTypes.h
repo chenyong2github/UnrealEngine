@@ -163,9 +163,9 @@ struct TNetworkedSimulationState
 		return &NewFrameState;
 	}
 
-	TSimulationFrameState<Model>* WriteFrameInitial()
+	TSimulationFrameState<Model>* WriteFramePending()
 	{
-		return &FrameBuffer[0];
+		return &FrameBuffer[PendingTickFrame];
 	}
 
 	TSimulationFrameState<Model>* ReadFrame(int32 Frame) { return GetValidFrame(Frame); }
@@ -347,16 +347,25 @@ private:
 //	you may roll back the predicted change to then later receive the authority change.
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+// Helper to specialize on Sync vs Aux state access
 template<typename TNetworkSimModel, typename TState, bool IsSyncState=TIsDerivedFrom<typename TNetworkSimModel::TSyncState, TState>::Value>
 struct TNetSimAccessorHelper
 {
-	using TAccessFunc = TUniqueFunction<void(bool bForWrite, TState*& OutState, bool& OutSafe)>;
-	
+	// Sync State
+	using TAccessFunc = TUniqueFunction<void(bool bForWrite, TState*& OutState, bool& OutSafe, const TCHAR* TraceStr)>;
 	static TAccessFunc GetStateFunc(TNetworkSimModel* NetSimModel)
 	{
-		TAccessFunc Func = [NetSimModel](bool bForWrite, TState*& OutState, bool& OutSafe)
+		TAccessFunc Func = [NetSimModel](bool bForWrite, TState*& OutState, bool& OutSafe, const TCHAR* TraceStr)
 		{
-			OutState = &NetSimModel->State.ReadFrame(NetSimModel->State.GetPendingTickFrame())->SyncState;
+			if (bForWrite)
+			{
+				OutState = NetSimModel->WriteSyncState(TraceStr);
+			}
+			else
+			{
+				OutState = const_cast<TState*>((TState*)NetSimModel->ReadSyncState());
+			}
+			
 			OutSafe = NetSimModel->State.GetTickInProgress();
 		};
 		return Func;
@@ -366,18 +375,25 @@ struct TNetSimAccessorHelper
 template<typename TNetworkSimModel, typename TState>
 struct TNetSimAccessorHelper<TNetworkSimModel, TState, false>
 {
-	using TAccessFunc = TUniqueFunction<void(bool bForWrite, TState*& OutState, bool& OutSafe)>;
+	// Aux State
+	using TAccessFunc = TUniqueFunction<void(bool bForWrite, TState*& OutState, bool& OutSafe, const TCHAR* TraceStr)>;
 	static TAccessFunc GetStateFunc(TNetworkSimModel* NetSimModel)
 	{
-		TAccessFunc Func = [NetSimModel](bool bForWrite, TState*& OutState, bool& OutSafe)
+		TAccessFunc Func = [NetSimModel](bool bForWrite, TState*& OutState, bool& OutSafe, const TCHAR* TraceStr)
 		{
-			OutState = NetSimModel->State.ReadAux(NetSimModel->State.GetPendingTickFrame());
+			if (bForWrite)
+			{
+				OutState = NetSimModel->WriteAuxState(TraceStr);
+			}
+			else
+			{
+				OutState = const_cast<TState*>((TState*)NetSimModel->ReadAuxState());
+			}
 			OutSafe = NetSimModel->State.GetTickInProgress();
 		};
 		return Func;
 	}
 };
-
 
 template<typename TState>
 struct TNetSimStateAccessor
@@ -402,27 +418,28 @@ struct TNetSimStateAccessor
 		bool bSafe = false;
 		if (GetStateFunc)
 		{
-			GetStateFunc(false, State, bSafe);
+			GetStateFunc(false, State, bSafe, nullptr);
 		}
 		return State;
 	}
 
 	/** Gets the current (PendingFrame) state for writing. This is expected to fail outside of the core update loop when bHasAuthority=false. (E.g, it is not safe to predict writes) */
-	TState* GetStateWrite(bool bHasAuthority) const
+	TState* GetStateWrite(bool bHasAuthority, const TCHAR* TraceStr=nullptr) const
 	{
 		TState* State = nullptr;
 		bool bSafe = false;
 		if (GetStateFunc)
 		{
-			GetStateFunc(true, State, bSafe);
+			GetStateFunc(true, State, bSafe, TraceStr);
 		}
 		return (bHasAuthority || bSafe) ? State : nullptr;
 	}
 
 private:
 
-	TUniqueFunction<void(bool bForWrite, TState*& OutState, bool& OutSafe)> GetStateFunc;
+	TUniqueFunction<void(bool bForWrite, TState*& OutState, bool& OutSafe, const TCHAR* TraceStr)> GetStateFunc;
 };
+
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 //	Simulation Input/Output parameters. These are the data structures passed into the simulation code each frame

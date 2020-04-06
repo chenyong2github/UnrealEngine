@@ -76,14 +76,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Gameplay")
 	void AddMaxMoveSpeed(float AdditiveMaxMoveSpeed);
 
-	// Only intended for debugging in test map examples. Not really intended to be useful for general game code use.
-	UFUNCTION(BlueprintCallable, Category="Gameplay")
-	int32 GetPendingFrame() const;
-
 protected:
 
 	const FFlyingMovementAuxState* GetAuxStateRead() const;
-	FFlyingMovementAuxState* GetAuxStateWrite();
+	FFlyingMovementAuxState* GetAuxStateWrite(const TCHAR* TraceStr=nullptr);
 
 	void ProduceInput(const FNetworkSimTime SimTime, FFlyingMovementInputCmd& Cmd);
 

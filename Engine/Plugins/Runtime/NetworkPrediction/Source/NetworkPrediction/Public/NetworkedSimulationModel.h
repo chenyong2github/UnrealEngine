@@ -127,7 +127,7 @@ public:
 	{
 		check(Simulation.IsValid() && InDriver);
 		Driver = InDriver;
-		State.WriteFrameInitial()->SyncState = InitialSyncState;
+		State.WriteFramePending()->SyncState = InitialSyncState;
 		*State.WriteAuxState(0) = InitialAuxState;
 		DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(this, Driver->GetVLogOwner()));
 
@@ -141,9 +141,12 @@ public:
 		SimulationId = this->GetNextSimulationId();
 		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
 		UE_NP_TRACE_SIM_CREATED(Driver->GetVLogOwner(), GetSimulationGroupName());
-		UE_NP_TRACE_OOB_STATE_MOD();
+		UE_NP_TRACE_OOB_STATE_MOD(SimulationId);
 		UE_NP_TRACE_USER_STATE_SYNC(InitialSyncState, 0);
 		UE_NP_TRACE_USER_STATE_AUX(InitialAuxState, 0);
+
+		bPendingOOBAuxWrite = false;
+		bPendingOOBSyncWrite = false;
 	}
 
 	virtual ~TNetworkedSimulationModel()
@@ -152,31 +155,34 @@ public:
 		ClearAllDependentSimulations();
 	}
 
-	void Tick(const FNetSimTickParameters& Parameters) final override
+	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params) final override
 	{
 		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
-		
-		switch (Parameters.Role)
+		FlushPendingOOBWrites();
+
+		switch(Target)
 		{
-			case ROLE_Authority:
-				RepProxy_ServerRPC.Tick(Driver, Simulation.Get(), State, Parameters);
+		case EReplicationProxyTarget::ServerRPC:
+			RepProxy_ServerRPC.NetSerialize(Params, State);
 			break;
-
-			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.Tick(Driver, Simulation.Get(), State, Parameters);
+		case EReplicationProxyTarget::AutonomousProxy:
+			RepProxy_Autonomous.NetSerialize(Params, State);
 			break;
-
-			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.Tick(Driver, Simulation.Get(), State, Parameters);
+		case EReplicationProxyTarget::SimulatedProxy:
+			RepProxy_Simulated.NetSerialize(Params, State);
 			break;
-		}		
-
-		UE_NP_TRACE_SIM_EOF(State);
+		case EReplicationProxyTarget::Replay:
+			RepProxy_Replay.NetSerialize(Params, State);
+			break;
+		default:
+			checkf(false, TEXT("Unknown: %d"), (int32)Target);
+		};
 	}
 
 	virtual void Reconcile(const ENetRole Role) final override
 	{
 		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
+		FlushPendingOOBWrites();
 
 		// --------------------------------------------------------------------------------------------------------------------------
 		//	Reconcile
@@ -198,6 +204,29 @@ public:
 			break;
 		}
 	}
+
+	void Tick(const FNetSimTickParameters& Parameters) final override
+	{
+		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
+		FlushPendingOOBWrites();
+		
+		switch (Parameters.Role)
+		{
+			case ROLE_Authority:
+				RepProxy_ServerRPC.Tick(Driver, Simulation.Get(), State, Parameters);
+			break;
+
+			case ROLE_AutonomousProxy:
+				RepProxy_Autonomous.Tick(Driver, Simulation.Get(), State, Parameters);
+			break;
+
+			case ROLE_SimulatedProxy:
+				RepProxy_Simulated.Tick(Driver, Simulation.Get(), State, Parameters);
+			break;
+		}		
+
+		UE_NP_TRACE_SIM_EOF(State);
+	}
 	
 	void InitializeForNetworkRole(const ENetRole Role, const FNetworkSimulationModelInitParameters& Parameters) final override
 	{
@@ -208,30 +237,7 @@ public:
 		//Buffers.Input.SetBufferSize(Parameters.InputBufferSize);
 		//Buffers.Sync.SetBufferSize(Parameters.SyncedBufferSize);
 		//Buffers.Aux.SetBufferSize(Parameters.AuxBufferSize);
-	}
-
-	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params) final override
-	{
-		UE_NP_TRACE_SET_SCOPE_SIM(SimulationId);
-
-		switch(Target)
-		{
-		case EReplicationProxyTarget::ServerRPC:
-			RepProxy_ServerRPC.NetSerialize(Params, State);
-			break;
-		case EReplicationProxyTarget::AutonomousProxy:
-			RepProxy_Autonomous.NetSerialize(Params, State);
-			break;
-		case EReplicationProxyTarget::SimulatedProxy:
-			RepProxy_Simulated.NetSerialize(Params, State);
-			break;
-		case EReplicationProxyTarget::Replay:
-			RepProxy_Replay.NetSerialize(Params, State);
-			break;
-		default:
-			checkf(false, TEXT("Unknown: %d"), (int32)Target);
-		};
-	}
+	}	
 
 	int32 GetProxyDirtyCount(EReplicationProxyTarget Target) final override
 	{
@@ -248,6 +254,49 @@ public:
 	void SetEnableSimulationExtrapolation(bool bNewValue) final override
 	{
 		RepProxy_Simulated.bAllowSimulatedExtrapolation = bNewValue;
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+	//	OOB State access
+	//		This is for outside game code to read/write to the sync&aux states.
+	//		(Input should only be written via the ProduceInput driver callback)
+	//		These accessors always operate on the PendingTickFrame's state: the 
+	//		next frame that will be processed in a ::SimulationTick.
+	// ------------------------------------------------------------------------------------------------------
+
+	const TAuxState* ReadAuxState() const
+	{
+		const TAuxState* PendingAux = State.ReadAux(State.GetPendingTickFrame());
+		npCheckSlow(PendingAux);
+		return PendingAux; 
+	}
+	const TSyncState* ReadSyncState() const
+	{
+		const TFrameState* PendingFrameState = State.ReadFrame(State.GetPendingTickFrame());
+		npCheckSlow(PendingFrameState);
+		return &PendingFrameState->SyncState; 
+	}
+
+	// Returns Aux State for writing. TraceStr is an optional debug message that will traced.
+	TAuxState* WriteAuxState(const TCHAR* TraceStr=nullptr)
+	{
+		FlushPendingOOBWriteAux();
+		TAuxState* PendingAux = State.WriteAuxState(State.GetPendingTickFrame());
+		npCheckSlow(PendingAux);
+		bPendingOOBAuxWrite = true;
+		UE_NP_TRACE_OOB_STR_AUX(SimulationId, TraceStr);
+		return PendingAux; 
+	}
+
+	// Returns Sync State for writing. TraceStr is an optional debug message that will traced.
+	TSyncState* WriteSyncState(const TCHAR* TraceStr=nullptr)
+	{
+		FlushPendingOOBWriteSync();
+		TFrameState* PendingFrameState = State.WriteFramePending();
+		npCheckSlow(PendingFrameState);
+		bPendingOOBSyncWrite = true;
+		UE_NP_TRACE_OOB_STR_SYNC(SimulationId, TraceStr);
+		return &PendingFrameState->SyncState; 
 	}
 
 	// ------------------------------------------------------------------------------------------------------
@@ -351,7 +400,38 @@ public:
 	// Unique, global, per process Id of simulation. Used for trace debugging purposes only. Not replicated.
 	uint32 GetSimulationId() const final override { return SimulationId; }
 
-private:
+private:	
+
+	void FlushPendingOOBWrites()
+	{
+		FlushPendingOOBWriteSync();
+		FlushPendingOOBWriteAux();
+	}
+
+	void FlushPendingOOBWriteSync()
+	{
+		if (bPendingOOBSyncWrite)
+		{
+			UE_NP_TRACE_OOB_STATE_MOD(SimulationId);
+			UE_NP_TRACE_USER_STATE_SYNC(*ReadSyncState(), State.GetPendingTickFrame());
+			bPendingOOBSyncWrite = false;
+		}
+	}
+
+	void FlushPendingOOBWriteAux()
+	{
+		if (bPendingOOBAuxWrite)
+		{
+			UE_NP_TRACE_OOB_STATE_MOD(SimulationId);
+			UE_NP_TRACE_USER_STATE_AUX(*ReadAuxState(), State.GetPendingTickFrame());
+			bPendingOOBAuxWrite = false;
+		}
+		
+	}
+
+	bool bPendingOOBAuxWrite:1;
+	bool bPendingOOBSyncWrite:1;
+
 	float ServerRPCAccumulatedTimeSeconds = 0.f;
 	float ServerRPCThresholdTimeSeconds = 1.f / 999.f; // Default is to send at a max of 999hz. This part of the system needs to be build out more (better handling of super high FPS clients and fixed rate servers)
 
