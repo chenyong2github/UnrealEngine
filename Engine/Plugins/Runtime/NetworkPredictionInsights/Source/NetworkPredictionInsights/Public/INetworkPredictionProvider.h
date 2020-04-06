@@ -332,6 +332,11 @@ struct FSimulationData
 
 	struct FTick;
 
+	struct FSystemFault
+	{
+		const TCHAR* Str; // Traced Fmt string of fault
+	};
+
 	struct FNetSerializeRecv
 	{
 		// Traced Data:
@@ -344,6 +349,7 @@ struct FSimulationData
 		bool bOrphan = true; // Hasn't been attached to FTick::StartNetRecv
 
 		FSimulationData::FTick* NextTick = nullptr;
+		TArray<FSystemFault> SystemFaults; // System faults encountered during recv
 	};
 
 	// Data for a single simulation tick
@@ -373,14 +379,16 @@ struct FSimulationData
 	struct FEngineFrame
 	{
 		uint64 EngineFrame;
-		double EngineFrameDeltaTime;
-		double EngineCurrentTime;
+		float EngineFrameDeltaTime;
 
-		FSimTime	TotalProcessedSimTimeMS;
-		FSimTime	TotalAllowedSimTimeMS;
-		
-		int32		LastSentKeyframe;
-		int32		LastReceivedKeyframe;
+		int32 BufferSize;
+		int32 PendingTickFrame;
+		int32 LatestInputFrame;
+		int32 MaxTickFrame;
+		FSimTime TotalSimTime;
+		FSimTime AllowedSimTime;
+
+		TArray<FSystemFault> SystemFaults;	// System faults encountered during this tick
 	};
 
 	// Data that changes rarely over time about the simulation
@@ -402,8 +410,6 @@ struct FSimulationData
 		FName GroupName;
 		FString DebugName;
 	};
-
-	// -----------------------------------------------------------
 
 	struct FUserState
 	{
@@ -583,6 +589,7 @@ struct FSimulationData
 
 		ENP_UserStateSource PendingUserStateSource = ENP_UserStateSource::Unknown;
 		TArray<FUserState*> PendingCommitUserStates; // NetRecv'd state that hasn't been commited
+		TArray<FSystemFault> PendingSystemFaults;
 
 	} Analysis;
 };

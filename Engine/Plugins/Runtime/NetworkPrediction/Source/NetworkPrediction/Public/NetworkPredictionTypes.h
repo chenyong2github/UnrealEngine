@@ -26,7 +26,6 @@ enum class EReplicationProxyTarget: uint8
 	AutonomousProxy,	// Owning/Controlling client
 	SimulatedProxy,		// Non owning client
 	Replay,				// Replay net driver
-	Debug,				// Replication target that is disabled in shipping
 };
 
 inline FString LexToString(EReplicationProxyTarget A)
@@ -63,54 +62,6 @@ struct FNetworkSimulationModelInitParameters
 	int32 AuxBufferSize=0;
 	int32 DebugBufferSize=0;
 	int32 HistoricBufferSize=0;
-};
-
-struct FNetSimProcessedFrameDebugInfo
-{
-	int32 LocalGFrameNumber; // Local GFrame number
-	float LocalDeltaTimeSeconds; // Local frame time
-	TArray<int32> ProcessedFrames; // Which frames were processed this frame
-	int32 PendingFrame; // What PendingFrame was at the end of the frame. Does NOT mean we processed it this frame!
-	int32 HeadFrame; // Head frame of the inputbuffer when the frame ended
-
-	float RemainingAllowedSimulationTimeSeconds;
-	
-	int32 LastSentInputFrame;
-	int32 LastReceivedInputFrame;
-
-	void NetSerialize(const FNetSerializeParams& P)
-	{	
-		P.Ar << LocalGFrameNumber;
-		P.Ar << LocalDeltaTimeSeconds;
-		P.Ar << PendingFrame;
-		P.Ar << HeadFrame;
-		P.Ar << RemainingAllowedSimulationTimeSeconds;
-
-		P.Ar << LastSentInputFrame;
-		P.Ar << LastReceivedInputFrame;
-
-		SafeNetSerializeTArray_Default<31>(P.Ar, ProcessedFrames);
-	}
-	void Log(FStandardLoggingParameters& P) const
-	{
-		P.Ar->Logf(TEXT("LocalGFrameNumber: %d"), LocalGFrameNumber);
-		P.Ar->Logf(TEXT("LocalDeltaTimeSeconds: %.4f"), LocalDeltaTimeSeconds);
-		P.Ar->Logf(TEXT("PendingFrame: %d"), PendingFrame);
-		P.Ar->Logf(TEXT("HeadFrame: %d"), HeadFrame);
-		P.Ar->Logf(TEXT("RemainingAllowedSimulationTimeSeconds: %.4f"), RemainingAllowedSimulationTimeSeconds);
-
-		P.Ar->Logf(TEXT("LastSentInputFrame: %d"), LastSentInputFrame);
-		P.Ar->Logf(TEXT("LastReceivedInputFrame: %d"), LastReceivedInputFrame);
-
-		FString ProcessedFramesStr;
-		for (int32 k : ProcessedFrames)
-		{
-			ProcessedFramesStr += LexToString(k);
-			ProcessedFramesStr += TEXT(" ");
-		}
-		ProcessedFramesStr.TrimEndInline();
-		P.Ar->Logf(TEXT("ProcessedFrames: [%s]"), *ProcessedFramesStr);
-	}
 };
 
 UENUM()

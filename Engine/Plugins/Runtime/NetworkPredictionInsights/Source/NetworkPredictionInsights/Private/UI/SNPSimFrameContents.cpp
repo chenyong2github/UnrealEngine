@@ -35,59 +35,22 @@ void SNPSimFrameContents::Construct(const FArguments& InArgs, TSharedPtr<SNPWind
 		.VAlign(VAlign_Top)
 		.Padding(FMargin(0, 0, 0, 0))
 		[
-			SAssignNew(ContentsHBoxPtr, SHorizontalBox)
-		]
-	];
-
-	/*
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Top)
-			.HAlign(HAlign_Left)
-			.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.Padding(2.0f)
+			.AutoHeight()
 			[
-				SAssignNew(SimInfoTextBlock, STextBlock)
-			]
-			
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Top)
-			.HAlign(HAlign_Left)
-			.Padding(4.0f, 4.0f, 4.0f, 4.0f)
-			[
-				SAssignNew(SimTickTextBlock, STextBlock)
+				SAssignNew(ContentsHBoxPtr, SHorizontalBox)
 			]
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Top)
-			.HAlign(HAlign_Left)
-			.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+			+SVerticalBox::Slot()
+			.Padding(2.0f)
+			.AutoHeight()
 			[
-				SAssignNew(InputCmdTextBlock, STextBlock)
-			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Top)
-			.HAlign(HAlign_Left)
-			.Padding(4.0f, 4.0f, 4.0f, 4.0f)
-			[
-				SAssignNew(SyncStateTextBlock, STextBlock)
-			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Top)
-			.HAlign(HAlign_Left)
-			.Padding(4.0f, 4.0f, 4.0f, 4.0f)
-			[
-				SAssignNew(AuxStateTextBlock, STextBlock)
+				SAssignNew(SystemFaultsVBoxPtr, SVerticalBox)
 			]
 		]
 	];
-	*/
 }
 
 void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent)
@@ -181,6 +144,7 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 		}
 	};
 
+	
 	ContentsHBoxPtr->ClearChildren();
 	
 	// -------------------------------------------------------------
@@ -223,6 +187,64 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 	];
 
 	// -------------------------------------------------------------
+	//	End of Frame
+	// -------------------------------------------------------------
+	uint64 EngineFrame = (InContent.SimTick ? InContent.SimTick->EngineFrame : (InContent.NetRecv ? InContent.NetRecv->EngineFrame : 0));
+	const FSimulationData::FEngineFrame* EOFState = nullptr;
+	if (EngineFrame > 0)
+	{
+		for (auto It = InContent.SimView->EOFState.GetIteratorFromEnd(); It; --It)
+		{
+			if (It->EngineFrame == EngineFrame)
+			{
+				EOFState = &*It;
+				break;
+			}
+		}
+
+		if (EOFState)
+		{
+			FString EOFText = FString::Format(TEXT(
+			"EngineFrame {0}\n"
+			"EngineFrameDeltaTime: {1}\n"
+			"BufferSize: {2}\n"
+			"PendingTickFrame: {3}\n"
+			"LatestInputFrame: {4}\n"
+			"MaxTickFrame: {5}\n"
+			"TotalSimTime: {6}\n"
+			"AllowedSimTime: {7}"),
+			{
+				EOFState->EngineFrame,
+				EOFState->EngineFrameDeltaTime,
+				EOFState->BufferSize,
+				EOFState->PendingTickFrame,
+				EOFState->LatestInputFrame,
+				EOFState->MaxTickFrame,
+				EOFState->TotalSimTime,
+				EOFState->AllowedSimTime
+			});
+
+			/*
+			for (const FSimulationData::FSystemFault& Fault : EOFState->SystemFaults)
+			{
+				EOFText.Append(Fault.Str);
+				EOFText.Append(TEXT("\n"));
+			}
+			*/
+
+			VertBox->AddSlot()
+			.AutoHeight()
+			.VAlign(VAlign_Top)
+			.HAlign(HAlign_Left)
+			.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(EOFText))
+			];
+		}
+	}
+
+	// -------------------------------------------------------------
 	//	Simulation Tick
 	// -------------------------------------------------------------
 	if (InContent.SimTick)
@@ -260,7 +282,10 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(TickText))
-		];		
+		];
+
+
+		// Input/Output states
 		
 		const int32 InputFrame = SimTick.OutputFrame - 1;
 
@@ -305,7 +330,7 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 			NetRecv.SimTimeMS,
 			LexToString(NetRecv.Status),
 			NetRecv.EngineFrame
-		});
+		});		
 
 		ContentsHBoxPtr->AddSlot()
 		.AutoWidth()
@@ -325,7 +350,6 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 			]
 		];
 
-
 		uint8 Mask = ~((uint8)ENP_UserStateSource::NetRecv | (uint8)ENP_UserStateSource::NetRecvCommit);
 		const FSimulationData::FUserState* RecvInputCmd = InContent.SimView->UserData.Get(ENP_UserState::Input, InContent.NetRecv->Frame, InContent.NetRecv->EngineFrame, Mask);
 		const FSimulationData::FUserState* RecvSyncState = InContent.SimView->UserData.Get(ENP_UserState::Sync, InContent.NetRecv->Frame, InContent.NetRecv->EngineFrame, Mask);
@@ -341,6 +365,57 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 			FUserStateWidgetInfo{ RecvSyncState, TEXT("Recv Sync"), SelectColor(RecvSyncState) }, 
 			FUserStateWidgetInfo{ RecvAuxState, TEXT("Recv Aux"), SelectColor(RecvAuxState) } } 
 		);
+	}
+
+
+	// -------------------------------------
+	// System Faults
+	// -------------------------------------
+
+	SystemFaultsVBoxPtr->ClearChildren();
+
+	if (InContent.NetRecv && InContent.NetRecv->SystemFaults.Num() > 0)
+	{
+		FString FaultString = TEXT("NetRecv Faults:\n");
+
+		for (const FSimulationData::FSystemFault& Fault : InContent.NetRecv->SystemFaults)
+		{
+			FaultString.Append(Fault.Str);
+			FaultString.Append(TEXT("\n"));
+		}
+
+		SystemFaultsVBoxPtr->AddSlot()
+		.AutoHeight()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+		[
+			SNew(SEditableText)
+			.IsReadOnly(true)
+			.Text(FText::FromString(FaultString))
+		];
+	}
+
+	if (EOFState && EOFState->SystemFaults.Num() > 0)
+	{
+		FString FaultString = TEXT("Engine Frame Faults:\n");
+
+		for (const FSimulationData::FSystemFault& Fault : EOFState->SystemFaults)
+		{
+			FaultString.Append(Fault.Str);
+			FaultString.Append(TEXT("\n"));
+		}
+
+		SystemFaultsVBoxPtr->AddSlot()
+		.AutoHeight()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+		[
+			SNew(SEditableText)
+			.IsReadOnly(true)
+			.Text(FText::FromString(FaultString))
+		];
 	}
 
 }
