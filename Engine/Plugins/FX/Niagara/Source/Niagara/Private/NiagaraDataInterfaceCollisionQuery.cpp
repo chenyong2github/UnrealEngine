@@ -287,6 +287,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 		}\
 		\n}\n\n");
 		OutHLSL += TEXT("void ") + DistanceFieldFunction + TEXT("(in float3 InPosition, in float3 In_TraceEndPos, out bool OutCollisionValid, out float3 Out_CollisionPos, out float3 Out_CollisionNormal)\n{\n\
+		#if PLATFORM_SUPPORTS_DISTANCE_FIELDS\n\
 		float DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(InPosition);\n\
 		if (DistanceToNearestSurface < length(In_TraceEndPos - InPosition))\n\
 		{\n\
@@ -295,6 +296,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 			Out_CollisionPos = InPosition - Out_CollisionNormal * DistanceToNearestSurface;\n\
 		}\n\
 		else\n\
+		#endif\n\
 		{\n\
 			OutCollisionValid = false;\n\
 			Out_CollisionNormal = float3(0.0, 0.0, 1.0);\n\
@@ -347,9 +349,14 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 	{
 		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient) \n{\n");
 		OutHLSL += TEXT("\
+			#if PLATFORM_SUPPORTS_DISTANCE_FIELDS\n\
 			Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);\n\
-			Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);\
-			\n}\n\n");
+			Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);\n\
+			#else\n\
+			Out_DistanceToNearestSurface = 0;\n\
+			Out_FieldGradient = (float3)0;\n\
+			#endif\n\
+			}\n\n");
 		return true;
 	}
 
