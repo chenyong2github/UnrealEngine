@@ -272,7 +272,9 @@ void FRCPassPostProcessDOFSetup::Process(FRenderingCompositePassContext& Context
 
 	// #todo-rco: needed to avoid multiple resolves clearing the RT with VK.
 	// #todo mattc this is probably busted now since the resolves previously happened after this SetRenderTarget.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UnbindRenderTargets(Context.RHICmdList);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FPooledRenderTargetDesc FRCPassPostProcessDOFSetup::ComputeOutputDesc(EPassOutputId InPassOutputId) const

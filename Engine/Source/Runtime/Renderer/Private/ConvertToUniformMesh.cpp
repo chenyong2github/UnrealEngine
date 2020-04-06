@@ -259,7 +259,9 @@ int32 FUniformMeshConverter::Convert(
 			GUniformMeshTemporaryBuffers.Initialize();
 		}
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		uint32 Offsets[1] = {0};
 		FRHIVertexBuffer* const StreamOutTargets[1] = {GUniformMeshTemporaryBuffers.TriangleData.GetReference()};

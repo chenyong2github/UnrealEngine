@@ -719,7 +719,9 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 	}
 	else
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 
 	Pass->Execute(RHICmdList);
