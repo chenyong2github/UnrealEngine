@@ -22,4 +22,4 @@ static FAutoConsoleCommand CFramePace(
 		UE_LOG(LogFramePacer, Display, TEXT("r.FramePace : current frame pace is %d"), FPlatformRHIFramePacer::GetFramePace());
 	}
 }),
-ECVF_Cheat);
+ECVF_Default);
