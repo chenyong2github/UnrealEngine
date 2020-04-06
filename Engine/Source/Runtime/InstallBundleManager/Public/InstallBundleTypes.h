@@ -165,20 +165,21 @@ enum class EInstallBundleManagerPatchCheckResult : uint32
 	PatchCheckFailure,
 	Count,
 };
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleManagerPatchCheckResult EnumVal);
 
-inline const TCHAR* LexToString(EInstallBundleManagerPatchCheckResult EnumVal)
+/**
+ * Enum used to describe download priority. Higher priorities will be downloaded first.
+ * Note: Should always be kept in High -> Low priority order if adding more Priorities!
+ */
+enum class EInstallBundlePriority : uint8
 {
-	static_assert((int32)EInstallBundleManagerPatchCheckResult::Count == 5, "Please add support for the extra values to the function below.");
-	switch (EnumVal)
-	{
-		case EInstallBundleManagerPatchCheckResult::NoPatchRequired: return TEXT("EInstallBundleManagerPatchCheckResult::NoPatchRequired");
-		case EInstallBundleManagerPatchCheckResult::ClientPatchRequired: return TEXT("EInstallBundleManagerPatchCheckResult::ClientPatchRequired");
-		case EInstallBundleManagerPatchCheckResult::ContentPatchRequired: return TEXT("EInstallBundleManagerPatchCheckResult::ContentPatchRequired");
-		case EInstallBundleManagerPatchCheckResult::NoLoggedInUser: return TEXT("EInstallBundleManagerPatchCheckResult::NoLoggedInUser");
-		case EInstallBundleManagerPatchCheckResult::PatchCheckFailure: return TEXT("EInstallBundleManagerPatchCheckResult::PatchCheckFailure");
-		default: return TEXT("EInstallBundleManagerPatchCheckResult::Unknown");
-	}
+	High,
+	Normal,
+	Low,
+	Count
 };
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundlePriority Priority);
+INSTALLBUNDLEMANAGER_API bool LexTryParseString(EInstallBundlePriority& OutMode, const TCHAR* InBuffer);
 
 struct FInstallBundleSourceInitInfo
 {
