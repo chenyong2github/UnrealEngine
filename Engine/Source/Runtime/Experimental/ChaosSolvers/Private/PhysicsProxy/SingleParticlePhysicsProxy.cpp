@@ -57,19 +57,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 
 		if(NewNonFrequentData)
 		{
-			Handle->SetSharedGeometry(NewNonFrequentData->Geometry);
-			Handle->SetUniqueIdx(NewNonFrequentData->UniqueIdx);
-			Handle->SetUserData(NewNonFrequentData->UserData);
-
-			if(bHasDynamicData)
-			{
-				RigidHandle->SetLinearEtherDrag(NewNonFrequentData->LinearEtherDrag);
-				RigidHandle->SetAngularEtherDrag(NewNonFrequentData->AngularEtherDrag);
-			}
-			
-#if CHAOS_CHECKED
-			Handle->SetDebugName(NewNonFrequentData->DebugName);
-#endif
+			Handle->SetNonFrequentData(*NewNonFrequentData);
 		}
 
 		auto NewVelocities = bHasKinematicData ? ParticleData.FindVelocities(Manager, DataIdx) : nullptr;
@@ -96,17 +84,6 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 			Solver->GetEvolution()->DirtyParticle(*Handle);
 		}
 
-		if(auto NewData = ParticleData.FindMisc(Manager, DataIdx))
-		{
-			Handle->SetSpatialIdx(NewData->SpatialIdx);
-
-			if(bHasDynamicData)
-			{
-				Solver->GetEvolution()->SetParticleObjectState(RigidHandle,NewData->ObjectState);
-				Solver->GetEvolution()->GetGravityForces().SetEnabled(*RigidHandle,NewData->bGravityEnabled);
-			}
-		}
-
 		if(bHasDynamicData)
 		{
 			if(auto NewData = ParticleData.FindMassProps(Manager,DataIdx))
@@ -117,6 +94,14 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 			if(auto NewData = ParticleData.FindDynamics(Manager, DataIdx))
 			{
 				RigidHandle->SetDynamics(*NewData);
+			}
+
+			if(auto NewData = ParticleData.FindDynamicMisc(Manager,DataIdx))
+			{
+				Solver->GetEvolution()->SetParticleObjectState(RigidHandle,NewData->ObjectState());
+				Solver->GetEvolution()->GetGravityForces().SetEnabled(*RigidHandle,NewData->GravityEnabled());
+
+				RigidHandle->SetDynamicMisc(*NewData);
 			}
 		}
 
@@ -573,7 +558,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPh
 		Particle->UpdateShapeBounds();
 		//if (!Particle->IsDirty(Chaos::EParticleFlags::ObjectState))
 		//question: is it ok to call this when it was one of the other properties that changed?
-		if (!Particle->IsDirty(Chaos::EParticleFlags::Misc))
+		if (!Particle->IsDirty(Chaos::EParticleFlags::DynamicMisc))
 		{
 			Particle->SetObjectState(Buffer->MObjectState, true);
 		}
