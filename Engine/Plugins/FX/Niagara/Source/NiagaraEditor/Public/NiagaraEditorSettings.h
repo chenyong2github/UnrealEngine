@@ -27,6 +27,41 @@ struct FNiagaraNewAssetDialogConfig
 	}
 };
 
+UENUM()
+enum class ENiagaraNamespaceMetadataOptions
+{
+	Advanced,
+	PreventRenaming,
+	SupportsSubnamespace
+};
+
+USTRUCT()
+struct FNiagaraNamespaceMetadata
+{
+	GENERATED_BODY()
+
+	FNiagaraNamespaceMetadata();
+
+	FNiagaraNamespaceMetadata(TArray<FName> InNamespaces, FText InDisplayName, FText InDescription, FLinearColor InBackgroundColor, TArray<ENiagaraNamespaceMetadataOptions> InOptions);
+
+	UPROPERTY()
+	TArray<FName> Namespaces;
+
+	UPROPERTY()
+	FText DisplayName;
+
+	UPROPERTY()
+	FText Description;
+
+	UPROPERTY()
+	FLinearColor BackgroundColor;
+
+	UPROPERTY()
+	TArray<ENiagaraNamespaceMetadataOptions> Options;
+
+	bool IsValid() const { return Namespaces.Num() > 0; }
+};
+
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
 class UNiagaraEditorSettings : public UDeveloperSettings
 {
@@ -90,6 +125,8 @@ public:
 	FNiagaraNewAssetDialogConfig GetNewAssetDailogConfig(FName InDialogConfigKey) const;
 
 	void SetNewAssetDialogConfig(FName InDialogConfigKey, const FNiagaraNewAssetDialogConfig& InNewAssetDialogConfig);
+
+	FNiagaraNamespaceMetadata GetMetaDataForNamespaces(TArray<FName> Namespaces) const;
 	
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
@@ -104,6 +141,7 @@ public:
 	static FOnNiagaraEditorSettingsChanged& OnSettingsChanged();
 
 	const TMap<FString, FString>& GetHLSLKeywordReplacementsMap()const { return HLSLKeywordReplacements; }
+
 protected:
 	static FOnNiagaraEditorSettingsChanged SettingsChangedDelegate;
 
@@ -133,4 +171,7 @@ private:
 
 	UPROPERTY(config)
 	TMap<FString, FString> HLSLKeywordReplacements;
+
+	UPROPERTY()
+	TArray<FNiagaraNamespaceMetadata> NamespaceMetadata;
 };

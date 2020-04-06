@@ -34,6 +34,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "EditorFontGlyphs.h"
 #include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -177,9 +178,9 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 	}
 	case UNiagaraStackFunctionInput::EValueMode::Linked:
 	{
-		return SNew(STextBlock)
-			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-			.Text(this, &SNiagaraStackFunctionInputValue::GetLinkedValueHandleText)
+		return SNew(SNiagaraParameterName)
+			.ReadOnlyTextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.ParameterName(this, &SNiagaraStackFunctionInputValue::GetLinkedValueHandleName)
 			.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked);
 	}
 	case UNiagaraStackFunctionInput::EValueMode::Data:
@@ -368,9 +369,9 @@ void SNiagaraStackFunctionInputValue::ParameterPropertyValueChanged(const FPrope
 	FunctionInput->SetLocalValue(DisplayedLocalValueStruct.ToSharedRef());
 }
 
-FText SNiagaraStackFunctionInputValue::GetLinkedValueHandleText() const
+FName SNiagaraStackFunctionInputValue::GetLinkedValueHandleName() const
 {
-	return FText::FromName(FunctionInput->GetLinkedValueHandle().GetParameterHandleString());
+	return FunctionInput->GetLinkedValueHandle().GetParameterHandleString();
 }
 
 FText SNiagaraStackFunctionInputValue::GetDataValueText() const

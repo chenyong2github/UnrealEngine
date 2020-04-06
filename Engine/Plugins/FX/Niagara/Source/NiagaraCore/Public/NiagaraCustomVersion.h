@@ -150,6 +150,8 @@ struct FNiagaraCustomVersion
 
 		SimulationStageInUsageBitmask, // Enable the simulation stage flag by default in the usage bitmask of modules and functions
 
+		StandardizeParameterNames, // Fix graph parameter map parameters on post load so that they all have a consisten parsable format and update the UI to show and filter based on these formats.
+
 		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
 		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,
