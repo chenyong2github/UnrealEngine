@@ -2644,7 +2644,8 @@ void FRCPassPostProcessAaES2::Process(FRenderingCompositePassContext& Context)
 
 	ERenderTargetActions LoadStoreAction = ERenderTargetActions::Load_Store;
 	//#todo-rv-vr
-	if (!IStereoRendering::IsASecondaryView(Context.View))
+	if ((!IStereoRendering::IsASecondaryView(Context.View) && IStereoRendering::IsStereoEyeView(Context.View)) ||
+		Context.View.Family->Views.Num() == 1)
 	{
 		// Full clear to avoid restore
 		LoadStoreAction = ERenderTargetActions::Clear_Store;
