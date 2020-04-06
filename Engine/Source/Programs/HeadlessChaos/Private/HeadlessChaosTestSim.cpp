@@ -13,8 +13,7 @@ namespace ChaosTest {
 
 	using namespace Chaos;
 
-	// Todo: Fix this
-	GTEST_TEST(SimTests, DISABLED_SphereSphereSimTest)
+	GTEST_TEST(SimTests, SphereSphereSimTest)
 	{
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
