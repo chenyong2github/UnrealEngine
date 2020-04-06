@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
             ); 
 
             PublicDefinitions.Add("COMPILE_WITHOUT_UNREAL_SUPPORT=0");
-        }
+			PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
+		}
     }
 }
