@@ -6,7 +6,6 @@
 #define GEOMETRYCOLLECTION_DEBUG_DRAW !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #endif
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Components/MeshComponent.h"
 
 #include "GeometryCollectionDebugDrawComponent.generated.h"
