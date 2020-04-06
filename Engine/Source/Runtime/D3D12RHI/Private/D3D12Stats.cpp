@@ -370,7 +370,7 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 			if (Status != GFSDK_Aftermath_Device_Status_Active)
 			{
 				GIsGPUCrashed = true;
-				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Unknown") };
+				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Stopped"), TEXT("Reset"), TEXT("Unknown"), TEXT("DmaFault") };
 				check(Status < ARRAYSIZE(AftermathReason));
 				UE_LOG(LogRHI, Error, TEXT("[Aftermath] Status: %s"), AftermathReason[Status]);
 
@@ -382,7 +382,7 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Scanning %d command lists for dumps"), ContextDataOut.Num());
 					for (GFSDK_Aftermath_ContextData& ContextData : ContextDataOut)
 					{
-						if (ContextData.status == GFSDK_Aftermath_Context_Status_Executing)
+						if (ContextData.status == GFSDK_Aftermath_Context_Status_Executing || Status == GFSDK_Aftermath_Device_Status_PageFault)
 						{
 							UE_LOG(LogRHI, Error, TEXT("[Aftermath] GPU Stack Dump"));
 							uint32 NumCRCs = ContextData.markerSize / sizeof(uint32);
