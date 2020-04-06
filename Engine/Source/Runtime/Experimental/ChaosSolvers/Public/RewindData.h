@@ -73,27 +73,48 @@ public:
 		return Manager != nullptr;
 	}
 
-	EDesyncResult DesyncQuery(const FDirtyPropertiesManager& SrcManager, const int32 DataIdxIn, const FParticleDirtyFlags Flags) const
+	template <typename TParticleHandle>
+	bool IsInSync(const FDirtyPropertiesManager& SrcManager, const int32 DataIdxIn, const FParticleDirtyFlags Flags, const TParticleHandle& Handle) const
 	{
-		if(Flags.IsDirty(ParticlePropToFlag(PropName)))
+		const T* RecordedEntry = Manager ? &GetValue(*Manager,Idx) : nullptr;
+		const T* NewEntry = Flags.IsDirty(ParticlePropToFlag(PropName)) ? &GetValue(SrcManager,DataIdxIn) : nullptr;
+
+		if(NewEntry)
 		{
-			if(Manager)
+			if(RecordedEntry)
 			{
-				//both dirty, if value differs we're desynced
-				return (SrcManager.GetParticlePool<T,PropName>().GetElement(DataIdxIn) == Manager->GetParticlePool<T,PropName>().GetElement(Idx)) ? EDesyncResult::InSync : EDesyncResult::Desync;
+				//We have an entry from current run and previous run, so check that they are equal
+				return NewEntry->IsEqual(*RecordedEntry);
+			}
+			else
+			{
+				//Previous run had no entry. If the current PT data matches the new data, then this is a harmless idnetical write and we are still in sync
+				return NewEntry->IsEqual(Handle);
 			}
 		}
-		else if(Manager == nullptr)
+		else
 		{
-			return EDesyncResult::InSync;	//Both have no entry so in sync
+			if(RecordedEntry)
+			{
+				//We have an entry from previous run, but not anymore. It's possible this will get written out by PT and hasn't yet, so check if the values are the same
+				return RecordedEntry->IsEqual(Handle);
+			}
+			else
+			{
+				//Both current run and recorded run have no entry, so both pointed at head and saw no change
+				return true;
+			}
 		}
-
-		return EDesyncResult::NeedInfo;	//entry is missing in one or the other but not both, so we don't know if it's desynced
 	}
 
 private:
 	FDirtyPropertiesManager* Manager;
 	int32 Idx;
+
+	static const T& GetValue(const FDirtyPropertiesManager& InManager, const int32 InIdx)
+	{
+		return InManager.GetParticlePool<T,PropName>().GetElement(InIdx);
+	}
 };
 
 inline bool SimWritablePropsMayChange(const TGeometryParticleHandle<FReal,3>& Handle)
@@ -112,15 +133,15 @@ public:
 	template <typename TParticle>
 	const FVec3& X(const TParticle& Particle) const
 	{
-		return ParticlePositionRotation.IsSet() ? ParticlePositionRotation.Read().X : Particle.X();
+		return ParticlePositionRotation.IsSet() ? ParticlePositionRotation.Read().X() : Particle.X();
 	}
 
 	template <typename TParticle>
 	const FRotation3& R(const TParticle& Particle) const
 	{
-		return ParticlePositionRotation.IsSet() ? ParticlePositionRotation.Read().R : Particle.R();
+		return ParticlePositionRotation.IsSet() ? ParticlePositionRotation.Read().R() : Particle.R();
 	}
-
+	
 	template <typename TParticle>
 	const FVec3& V(const TParticle& Particle) const
 	{
@@ -155,8 +176,7 @@ public:
 
 		ParticlePositionRotation.SyncRemoteData(Manager,Idx,Dirty,[&Rigid](auto& Data)
 		{
-			Data.X = Rigid.X();
-			Data.R = Rigid.R();
+			Data.CopyFrom(Rigid);
 		});
 
 		Velocities.SyncRemoteData(Manager,Idx,Dirty,[&Rigid](auto& Data)
@@ -183,8 +203,7 @@ public:
 
 		ParticlePositionRotation.SyncToParticle([&Particle](const auto& Data)
 		{
-			Particle.SetX(Data.X);
-			Particle.SetR(Data.R);
+			Particle.SetXR(Data);
 		});
 
 		if(auto Kinematic = Particle.CastToKinematicParticle())
@@ -241,8 +260,7 @@ public:
 		{
 			ParticlePositionRotation.SyncRemoteData(Manager,Idx,Dirty.ParticleData,[Handle](FParticlePositionRotation& Data)
 			{
-				Data.X = Handle->X();
-				Data.R = Handle->R();
+				Data.CopyFrom(*Handle);
 			});
 
 			if(auto Kinematic = Handle->CastToKinematicParticle())
@@ -284,8 +302,7 @@ public:
 		{
 			ParticlePositionRotation.SyncRemoteDataForced(Manager,Idx,[Particle](FParticlePositionRotation& Data)
 			{
-				Data.X = Particle->X();
-				Data.R = Particle->R();
+				Data.CopyFrom(*Particle);
 			});
 		}
 		
@@ -354,22 +371,9 @@ public:
 	{
 		bool Desynced = false;
 		{
-			EDesyncResult Status = ParticlePositionRotation.DesyncQuery(SrcManager, DataIdxIn, Flags);
-			if(Status == EDesyncResult::Desync)
+			if(!ParticlePositionRotation.IsInSync(SrcManager,DataIdxIn,Flags,Handle))
 			{
 				return true;
-			}
-			else if(Status == EDesyncResult::NeedInfo)
-			{
-				if(Handle.X() != X(Handle))
-				{
-					return true;
-				}
-
-				if(Handle.R() != R(Handle))
-				{
-					return true;
-				}
 			}
 		}
 
