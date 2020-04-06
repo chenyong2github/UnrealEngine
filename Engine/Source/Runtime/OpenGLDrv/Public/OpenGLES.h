@@ -498,6 +498,7 @@ typedef void (GL_APIENTRYP PFNGLPOPGROUPMARKEREXTPROC) (void);
 typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEEXTPROC) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLsizei samples);
 typedef void (GL_APIENTRYP PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC) (GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height);
 typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERTEXTURELAYERPROC) (GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer);
+typedef void (GL_APIENTRYP PFNGLCOLORMASKIEXTPROC) (GLuint index, GLboolean r, GLboolean g, GLboolean b, GLboolean a);
 
 /** from ES 3.0 but can be called on certain Adreno devices */
 typedef void (GL_APIENTRYP PFNGLTEXSTORAGE2DPROC) (GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
@@ -560,6 +561,7 @@ extern PFNGLCLEARBUFFERIVPROC			glClearBufferiv;
 extern PFNGLCLEARBUFFERUIVPROC			glClearBufferuiv;
 extern PFNGLREADBUFFERPROC				glReadBuffer;
 extern PFNGLDRAWBUFFERSPROC				glDrawBuffers;
+extern PFNGLCOLORMASKIEXTPROC			glColorMaskiEXT;
 extern PFNGLTEXIMAGE3DPROC				glTexImage3D;
 extern PFNGLTEXSUBIMAGE3DPROC			glTexSubImage3D;
 extern PFNGLCOMPRESSEDTEXIMAGE3DPROC    glCompressedTexImage3D;
@@ -882,8 +884,15 @@ struct FOpenGLES : public FOpenGLBase
 
 	static FORCEINLINE void ColorMaskIndexed(GLuint Index, GLboolean Red, GLboolean Green, GLboolean Blue, GLboolean Alpha)
 	{
-		check(Index == 0 || SupportsMultipleRenderTargets());
-		glColorMask(Red, Green, Blue, Alpha);
+		if (Index > 0 && glColorMaskiEXT)
+		{
+			// ext or OpenGL ES 3.2
+			glColorMaskiEXT(Index, Red, Green, Blue, Alpha);
+		}
+		else
+		{
+			glColorMask(Red, Green, Blue, Alpha);
+		}
 	}
 
 	static FORCEINLINE void TexBuffer(GLenum Target, GLenum InternalFormat, GLuint Buffer)

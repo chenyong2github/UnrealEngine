@@ -253,7 +253,8 @@ typedef TClearReplacementBase<EClearReplacementValueType::Float , 4, true , fals
 typedef TClearReplacementBase<EClearReplacementValueType::Float , 4, true , true > FClearReplacementBase_Float4_Zero_Bounds;
 typedef TClearReplacementBase<EClearReplacementValueType::Uint32, 1, false, true > FClearReplacementBase_Uint_Bounds;
 typedef TClearReplacementBase<EClearReplacementValueType::Uint32, 4, false, true > FClearReplacementBase_Uint4_Bounds;
-typedef TClearReplacementBase<EClearReplacementValueType:: Int32, 4, false, true > FClearReplacementBase_Sint4_Bounds;
+typedef TClearReplacementBase<EClearReplacementValueType::Int32,  4, false, true > FClearReplacementBase_Sint4_Bounds;
+typedef TClearReplacementBase<EClearReplacementValueType::Float , 1, false, true > FClearReplacementBase_Float_Bounds;
 typedef TClearReplacementBase<EClearReplacementValueType::Float , 4, false, true > FClearReplacementBase_Float4_Bounds;
 
 // Simple vertex shaders for generating screen quads. Optionally with a min/max bounds in NDC space, and depth value.
@@ -269,6 +270,7 @@ typedef TClearReplacementPS<false, FClearReplacementBase_Float4_Zero>        FCl
 	
 // Compute shaders for clearing each resource type, with a min/max bounds enabled.
 typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Uint_Bounds>   FClearReplacementCS_Buffer_Uint_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Float_Bounds> FClearReplacementCS_Buffer_Float_Bounds;
 typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Float4_Bounds> FClearReplacementCS_Buffer_Float4_Bounds;
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture3D,      FClearReplacementBase_Float4_Bounds> FClearReplacementCS_Texture3D_Float4_Bounds;
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2D,      FClearReplacementBase_Float4_Bounds> FClearReplacementCS_Texture2D_Float4_Bounds;
