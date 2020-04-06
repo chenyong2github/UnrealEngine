@@ -56,7 +56,7 @@ bool FClothMeshPaintAdapter::Initialize()
 
 	UClothingAssetCommon* ClothingAsset = Cast<UClothingAssetCommon>(SelectedAsset);
 
-	bHaveAsset = ClothingAsset && ClothingAsset->ClothLodData.IsValidIndex(PaintingClothLODIndex);
+	bHaveAsset = ClothingAsset && ClothingAsset->LodData.IsValidIndex(PaintingClothLODIndex);
 	bBaseInit = FBaseMeshPaintGeometryAdapter::Initialize();
 
 	return bHaveAsset && bBaseInit;
@@ -182,9 +182,9 @@ void FClothMeshPaintAdapter::SetSelectedClothingAsset(const FGuid& InAssetGuid, 
 			{
 				if(ConcreteAsset->IsValidLod(InAssetLod))
 				{
-					UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[InAssetLod];
+					FClothLODDataCommon& LodData = ConcreteAsset->LodData[InAssetLod];
 
-					if(LodData->ParameterMasks.IsValidIndex(InMaskIndex))
+					if(LodData.PointWeightMaps.IsValidIndex(InMaskIndex))
 					{
 						PaintingClothLODIndex = InAssetLod;
 						PaintingClothMaskIndex = InMaskIndex;
@@ -233,8 +233,8 @@ bool FClothMeshPaintAdapter::InitializeVertexData()
 			if(DebugComponent->SkinnedSelectedClothingPositions.Num() > 0)
 			{
 				UClothingAssetCommon* ConcreteAsset = CastChecked<UClothingAssetCommon>(SelectedAsset);
-				const UClothLODDataCommon* LODData = ConcreteAsset->ClothLodData[PaintingClothLODIndex];
-				const FClothPhysicalMeshData& MeshData = LODData->ClothPhysicalMeshData;
+				const FClothLODDataCommon& LODData = ConcreteAsset->LodData[PaintingClothLODIndex];
+				const FClothPhysicalMeshData& MeshData = LODData.PhysicalMeshData;
 
 				MeshVertices.Append(DebugComponent->SkinnedSelectedClothingPositions);
 				MeshIndices.Append(MeshData.Indices);
@@ -296,7 +296,7 @@ FPointWeightMap* FClothMeshPaintAdapter::GetCurrentMask() const
 	{
 		UClothingAssetCommon* ConcreteAsset = CastChecked<UClothingAssetCommon>(SelectedAsset);
 
-		return &ConcreteAsset->ClothLodData[PaintingClothLODIndex]->ParameterMasks[PaintingClothMaskIndex];
+		return &ConcreteAsset->LodData[PaintingClothLODIndex].PointWeightMaps[PaintingClothMaskIndex];
 	}
 
 	return nullptr;
@@ -309,8 +309,8 @@ bool FClothMeshPaintAdapter::HasValidSelection() const
 		UClothingAssetCommon* ConcreteAsset = Cast<UClothingAssetCommon>(SelectedAsset);
 
 		// Only valid selection if we have a valid asset, asset LOD and a mask
-		if(ConcreteAsset->ClothLodData.IsValidIndex(PaintingClothLODIndex) &&
-			ConcreteAsset->ClothLodData[PaintingClothLODIndex]->ParameterMasks.IsValidIndex(PaintingClothMaskIndex))
+		if(ConcreteAsset->LodData.IsValidIndex(PaintingClothLODIndex) &&
+			ConcreteAsset->LodData[PaintingClothLODIndex].PointWeightMaps.IsValidIndex(PaintingClothMaskIndex))
 		{
 			return true;
 		}
