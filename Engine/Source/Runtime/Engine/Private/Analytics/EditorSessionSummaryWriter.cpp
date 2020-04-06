@@ -234,7 +234,7 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 
 	Session->PlatformProcessID = FPlatformProcess::GetCurrentProcessId();
 	Session->MonitorProcessID = OutOfProcessMonitorProcessId;
-	Session->ProjectName = ProjectSettings.ProjectName;
+	Session->ProjectName = ProjectSettings.ProjectName.Len() ? ProjectSettings.ProjectName : FApp::GetProjectName();
 	Session->ProjectID = ProjectSettings.ProjectID.ToString(EGuidFormats::DigitsWithHyphens);
 	Session->ProjectDescription = ProjectSettings.Description;
 	Session->ProjectVersion = ProjectSettings.ProjectVersion;
