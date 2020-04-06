@@ -108,7 +108,6 @@
 #include "Factories/SoundCueFactoryNew.h"
 #include "Factories/ReimportSoundFactory.h"
 #include "Factories/SoundMixFactory.h"
-#include "Factories/ReimportSoundSurroundFactory.h"
 #include "Factories/StructureFactory.h"
 #include "Factories/StringTableFactory.h"
 #include "Factories/SubsurfaceProfileFactory.h"
