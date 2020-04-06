@@ -40,4 +40,14 @@ FORCEINLINE int32 GetRayTracingReflectionsSamplesPerPixel(const FViewInfo& View)
 	return 0;
 }
 
+FORCEINLINE bool ShouldRayTracedReflectionsSortMaterials(const FViewInfo& View)
+{
+	return false;
+}
+
+FORCEINLINE bool ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(const FViewInfo& View)
+{
+	return false;
+}
+
 #endif // RHI_RAYTRACING
