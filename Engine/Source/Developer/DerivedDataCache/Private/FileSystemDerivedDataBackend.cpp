@@ -304,13 +304,18 @@ public:
 
 				if (!FFileHelper::SaveArrayToFile(Data, *File))
 				{
-					uint32 ErrorCode = FPlatformMisc::GetLastError();
-					TCHAR ErrorBuffer[1024];
-					FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
-					UE_LOG(LogDerivedDataCache, Warning, TEXT("Fail to write to %s, derived data cache to this directory will be read only. WriteError: %u (%s)"), *File, ErrorCode, ErrorBuffer);
-					bTestDataExists = false;
-					bWriteTestPassed = false;
-					break;
+					// handle the case where something else may have created the path at the same time. This is less about multiple users
+					// and more about things like SCW's / UnrealPak that can spin up multiple instances at once
+					if (!IFileManager::Get().FileExists(*File))
+					{
+						uint32 ErrorCode = FPlatformMisc::GetLastError();
+						TCHAR ErrorBuffer[1024];
+						FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+						UE_LOG(LogDerivedDataCache, Warning, TEXT("Fail to create %s, derived data cache to this directory will be read only. WriteError: %u (%s)"), *File, ErrorCode, ErrorBuffer);
+						bTestDataExists = false;
+						bWriteTestPassed = false;
+						break;
+					}
 				}
 			}
 		}
@@ -349,8 +354,8 @@ public:
 		// do write tests if or read tests passed and our seeks were below the cut-off 
 		if (bReadTestPassed && !bReadOnly)
 		{
-			// do write tests but use a machine specific folder
-			FString CustomPath = FPaths::Combine(CachePath, TEXT("TestData"), FPlatformMisc::GetLoginId());
+			// do write tests but use a unique folder that is cleaned up afterwards
+			FString CustomPath = FPaths::Combine(CachePath, TEXT("TestData"), *FGuid::NewGuid().ToString());
 
 			const int ArraySize = UE_ARRAY_COUNT(FileSizes);
 			TArray<uint8> TempData;
@@ -384,7 +389,7 @@ public:
 
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("write tests %s on %s and took %.02f seconds"), bWriteTestPassed ? TEXT("passed") : TEXT("failed"), *CachePath, TotalReadTime)
 
-			// remove the custom path but do it async as this can be slow on
+			// remove the custom path but do it async as this can be slow on remote drives
 			AsyncTask(ENamedThreads::AnyThread, [CustomPath]() {
 				IFileManager::Get().DeleteDirectory(*CustomPath, false, true);
 			});
@@ -522,6 +527,8 @@ public:
 			}
 		}
 
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s CachedDataProbablyExists=%d for %s"), *GetName(), FileStat.bIsValid, *CacheKey);
+
 		return FileStat.bIsValid;
 	}	
 
@@ -567,6 +574,7 @@ public:
 			COOK_STAT(Timer.AddHit(Data.Num()));
 			return true;
 		}
+
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss on %s"), *GetName(), CacheKey);
 		Data.Empty();
 
@@ -643,17 +651,17 @@ public:
 						{
 							if (!IFileManager::Get().Move(*Filename, *TempFilename, true, true, false, true))
 							{
-								UE_LOG(LogDerivedDataCache, Log, TEXT("FFileSystemDerivedDataBackend: Move collision, attempt at redundant update, OK %s."),*Filename);
+								UE_LOG(LogDerivedDataCache, Log, TEXT("%s: Move collision, attempt at redundant update, OK %s."), *GetName(),*Filename);
 							}
 							else
 							{
-								UE_LOG(LogDerivedDataCache, Verbose, TEXT("FFileSystemDerivedDataBackend: Successful cache put to %s"),*Filename);
+								UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Successful cache put to %s"),*GetName(), *Filename);
 							}
 						}
 					}
 					else
 					{
-						UE_LOG(LogDerivedDataCache, Warning, TEXT("FFileSystemDerivedDataBackend: Temp file is short %s!"),*TempFilename);
+						UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Temp file is short %s!"), *GetName(), *TempFilename);
 					}
 				}
 				else
