@@ -273,14 +273,13 @@ void FStaticMeshStreamIn::DoCancel(const FContext& Context)
 	DoFinishUpdate(Context);
 }
 
-#if WITH_EDITOR
-FStaticMeshStreamOut_DDC::FStaticMeshStreamOut_DDC(UStaticMesh* InMesh, int32 InRequestedMips)
+FStaticMeshStreamOut::FStaticMeshStreamOut(UStaticMesh* InMesh, int32 InRequestedMips)
 	: FStaticMeshUpdate(InMesh, InRequestedMips)
 {
 	PushTask(FContext(InMesh, TT_None), TT_Render, SRA_UPDATE_CALLBACK(DoReleaseBuffers), TT_None, nullptr);
 }
 
-void FStaticMeshStreamOut_DDC ::DoReleaseBuffers(const FContext& Context)
+void FStaticMeshStreamOut ::DoReleaseBuffers(const FContext& Context)
 {
 	check(Context.CurrentThread == TT_Render);
 	UStaticMesh* Mesh = Context.Mesh;
@@ -308,16 +307,15 @@ void FStaticMeshStreamOut_DDC ::DoReleaseBuffers(const FContext& Context)
 		}
 	}
 }
-#endif // WITH_EDITOR
 
 
-FStaticMeshStreamOut_IO::FStaticMeshStreamOut_IO(UStaticMesh* InMesh, int32 InRequestedMips)
+FStaticMeshStreamOut_Swap::FStaticMeshStreamOut_Swap(UStaticMesh* InMesh, int32 InRequestedMips)
 	: FStaticMeshUpdate(InMesh, InRequestedMips)
 {
 	PushTask(FContext(InMesh, TT_None), TT_Render, SRA_UPDATE_CALLBACK(DoReleaseBuffers), TT_None, nullptr);
 }
 
-void FStaticMeshStreamOut_IO::DoReleaseBuffers(const FContext& Context)
+void FStaticMeshStreamOut_Swap::DoReleaseBuffers(const FContext& Context)
 {
 	check(Context.CurrentThread == TT_Render);
 	UStaticMesh* Mesh = Context.Mesh;
@@ -345,7 +343,7 @@ void FStaticMeshStreamOut_IO::DoReleaseBuffers(const FContext& Context)
 	}
 }
 
-void FStaticMeshStreamOut_IO::DoReleaseLODResources(const FContext& Context)
+void FStaticMeshStreamOut_Swap::DoReleaseLODResources(const FContext& Context)
 {
 	check(Context.CurrentThread == TT_Render);
 
@@ -373,7 +371,7 @@ void FStaticMeshStreamOut_IO::DoReleaseLODResources(const FContext& Context)
 	}
 }
 
-void FStaticMeshStreamOut_IO::ReleaseLODResources()
+void FStaticMeshStreamOut_Swap::ReleaseLODResources()
 {
 	if (LODResourcesToRelease.Num())
 	{
