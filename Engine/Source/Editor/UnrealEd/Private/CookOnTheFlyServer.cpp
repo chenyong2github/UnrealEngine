@@ -6907,6 +6907,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 
 				if (IsCookingDLC())
 				{
+					TSet<FName> CookedPackagesSet(CookedPackagesFilenames);
 					bForceNoFilterAssetsFromAssetRegistry = true;
 					// remove the previous release cooked packages from the new asset registry, add to ignore list
 					SCOPE_TIMER(RemovingOldManifestEntries);
@@ -6916,10 +6917,11 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					{
 						for (FName PreviousReleaseCookedPackage : *PreviousReleaseCookedPackages)
 						{
-							CookedPackagesFilenames.Remove(PreviousReleaseCookedPackage);
+							CookedPackagesSet.Remove(PreviousReleaseCookedPackage);
 							IgnorePackageFilenames.Add(PreviousReleaseCookedPackage);
 						}
 					}
+					CookedPackagesFilenames = CookedPackagesSet.Array();
 				}
 
 				// convert from filenames to package names
