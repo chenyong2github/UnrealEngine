@@ -1577,7 +1577,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 		}
 
 		// check the ddc first
-		if (!GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(), OutData, GetPathName()))
+		if (GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(), OutData, GetPathName()))
 		{
 			FNiagaraVMExecutableData ExeData;
 			if (BinaryToExecData(OutData, ExeData))
