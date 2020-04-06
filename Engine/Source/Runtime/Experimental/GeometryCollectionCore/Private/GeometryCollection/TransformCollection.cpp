@@ -119,6 +119,12 @@ void FTransformCollection::ParentTransforms(const int32 TransformIndex, const TA
 	GeometryCollectionAlgo::ParentTransforms(this, TransformIndex, SelectedBones);
 }
 
+void FTransformCollection::UnparentTransform(const int32 ChildIndex)
+{
+	GeometryCollectionAlgo::UnparentTransform(this, ChildIndex);
+}
+
+
 
 void FTransformCollection::RelativeTransformation(const int32& Index, const FTransform& LocalOffset)
 {
