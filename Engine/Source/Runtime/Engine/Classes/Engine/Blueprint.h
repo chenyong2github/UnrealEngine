@@ -532,6 +532,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=BlueprintOptions, meta=(MultiLine=true), DuplicateTransient)
 	FString BlueprintDescription;
 
+	/** The namespace of this blueprint (if set, the Blueprint will be treated differently for the context menu) */
+	UPROPERTY(EditAnywhere, Category = BlueprintOptions, AssetRegistrySearchable)
+	FString BlueprintNamespace;
+
 	/** The category of the Blueprint, used to organize this Blueprint class when displayed in palette windows */
 	UPROPERTY(EditAnywhere, Category=BlueprintOptions)
 	FString BlueprintCategory;
