@@ -319,6 +319,7 @@ namespace WindowsMixedReality
 		FDelegateHandle ResumeHandle;
 
 		void AppServicePause();
+		void AppServiceResume();
 
 		void StartSpeechRecognition();
 		void StopSpeechRecognition();
