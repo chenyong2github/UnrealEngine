@@ -63,7 +63,7 @@ struct FNiagaraNamespaceMetadata
 };
 
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
-class UNiagaraEditorSettings : public UDeveloperSettings
+class NIAGARAEDITOR_API UNiagaraEditorSettings : public UDeveloperSettings
 {
 public:
 	GENERATED_UCLASS_BODY()
