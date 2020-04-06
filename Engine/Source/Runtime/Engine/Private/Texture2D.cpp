@@ -1781,16 +1781,6 @@ void FTexture2DResource::InitRHI()
  */
 void FTexture2DResource::ReleaseRHI()
 {
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Owner->GetPlatformMips();
-
-	// It should be safe to release the texture.
-	check(!Owner->HasPendingUpdate());
-
-	if ( (Texture2DRHI->GetFlags() & TexCreate_Virtual) != TexCreate_Virtual )
-	{
-		check(OwnerMips[CurrentFirstMip].SizeX == Texture2DRHI->GetSizeX() && OwnerMips[CurrentFirstMip].SizeY == Texture2DRHI->GetSizeY());
-	}
-
 	DEC_DWORD_STAT_BY( STAT_TextureMemory, TextureSize );
 	DEC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
 
