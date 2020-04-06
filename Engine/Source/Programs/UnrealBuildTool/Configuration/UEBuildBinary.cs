@@ -607,6 +607,23 @@ namespace UnrealBuildTool
 				// Find the permitted restricted folder references under the base directory
 				List<RestrictedFolder> BinaryFolders = RestrictedFolders.FindPermittedRestrictedFolderReferences(BaseDir, OutputFilePath.Directory);
 
+				List<RestrictedFolder> AliasedBinaryFolders = new List<RestrictedFolder>();
+				foreach (RestrictedFolder BinaryFolder in BinaryFolders)
+				{
+					string Alias;
+					if (PrimaryModule.AliasRestrictedFolders.TryGetValue(BinaryFolder.ToString(), out Alias))
+					{
+						foreach(RestrictedFolder Folder in RestrictedFolder.GetValues())
+						{
+							if (Folder.ToString().Equals(Alias))
+							{
+								AliasedBinaryFolders.Add(Folder);
+							}
+						}
+					}
+				}
+				BinaryFolders.AddRange(AliasedBinaryFolders);
+
 				// Check all the dependent modules
 				foreach(UEBuildModule Module in ModuleReferencedBy.Keys)
 				{
