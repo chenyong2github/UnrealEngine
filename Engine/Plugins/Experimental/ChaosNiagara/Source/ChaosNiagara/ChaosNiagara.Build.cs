@@ -45,5 +45,7 @@ public class ChaosNiagara : ModuleRules
                 "GeometryCollectionCore"
             }
         );
-    }
+
+		PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
+	}
 }

@@ -2,10 +2,6 @@
 
 #include "Physics/Experimental/PhysScene_Chaos.h"
 
-#include "PhysicsSolver.h"
-#include "ChaosSolversModule.h"
-#include "ChaosLog.h"
-#include "ChaosStats.h"
 
 #include "CoreMinimal.h"
 #include "GameDelegates.h"
@@ -13,16 +9,27 @@
 #include "Async/AsyncWork.h"
 #include "Async/ParallelFor.h"
 #include "Engine/Engine.h"
-#include "Field/FieldSystem.h"
-#include "Framework/Dispatcher.h"
-#include "Framework/PersistentTask.h"
-#include "Framework/PhysicsTickTask.h"
+
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeLock.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "PhysicsReplication.h"
+#include "Physics/Experimental/PhysicsUserData_Chaos.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+#define CHAOS_INCLUDE_LEVEL_1
+#include "PhysicsSolver.h"
+#include "ChaosSolversModule.h"
+#include "ChaosLog.h"
+#include "ChaosStats.h"
+
+#include "Field/FieldSystem.h"
+#include "Framework/Dispatcher.h"
+#include "Framework/PersistentTask.h"
+#include "Framework/PhysicsTickTask.h"
 
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
@@ -37,11 +44,10 @@
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/Box.h"
-#include "PhysicsReplication.h"
 #include "ChaosSolvers/Public/EventsData.h"
 #include "ChaosSolvers/Public/EventManager.h"
-#include "Physics/Experimental/PhysicsUserData_Chaos.h"
-#include "ProfilingDebugging/CsvProfiler.h"
+#undef CHAOS_INCLUDE_LEVEL_1
+
 
 #if !UE_BUILD_SHIPPING
 #include "Engine/World.h"

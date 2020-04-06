@@ -7,7 +7,10 @@
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsEngine/AggregateGeom.h"
+#include "Templates/UniquePtr.h"
 
+#define CHAOS_INCLUDE_LEVEL_1
+#include "PhysicsSolver.h"
 #include "Chaos/Box.h"
 #include "Chaos/Cylinder.h"
 #include "Chaos/TaperedCylinder.h"
@@ -20,17 +23,16 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/MassProperties.h"
-#include "PhysicsSolver.h"
-#include "Templates/UniquePtr.h"
 #include "ChaosSolversModule.h"
 #include "Chaos/ErrorReporter.h"
 #include "Chaos/ImplicitObjectScaled.h"
-#include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Convex.h"
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/Plane.h"
 #include "ChaosCheck.h"
 #include "Chaos/Particle/ParticleUtilities.h"
+#undef CHAOS_INCLUDE_LEVEL_1
+
 #include "Async/ParallelFor.h"
 #include "Components/PrimitiveComponent.h"
 #include "Physics/PhysicsFiltering.h"
