@@ -8,6 +8,11 @@
 
 bool UNiagaraSimulationStageGeneric::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const 
 {
+#if WITH_EDITORONLY_DATA
+	int32 Index = InVisitor->Values.AddDefaulted();
+	InVisitor->Values[Index].Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *GetClass()->GetName(), *GetName());
+#endif
+
 	InVisitor->UpdatePOD(TEXT("Iterations"), Iterations);
 	InVisitor->UpdatePOD(TEXT("IterationSource"), (int32)IterationSource);
 	InVisitor->UpdatePOD(TEXT("bSpawnOnly"), bSpawnOnly ? 1 : 0);
