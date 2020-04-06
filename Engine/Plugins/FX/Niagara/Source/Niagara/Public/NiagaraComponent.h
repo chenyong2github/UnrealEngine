@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "NiagaraCommon.h"
-#include "PrimitiveViewRelevance.h"
-#include "PrimitiveSceneProxy.h"
-#include "Particles/ParticleSystemComponent.h"
-#include "NiagaraUserRedirectionParameterStore.h"
-#include "NiagaraSystemInstance.h"
 #include "NiagaraComponentPool.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraUserRedirectionParameterStore.h"
+#include "NiagaraVariant.h"
+#include "PrimitiveSceneProxy.h"
+#include "PrimitiveViewRelevance.h"
 #include "Particles/ParticlePerfStats.h"
+#include "Particles/ParticleSystemComponent.h"
 
 #include "NiagaraComponent.generated.h"
 
@@ -68,16 +69,18 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "Niagara Tick Behavior"))
 	ENiagaraTickBehavior TickBehavior = ENiagaraTickBehavior::UsePrereqs;
 
-	/** Initial values for parameter overrides. 
-	TODO: This should be a minimal set of explicitly override parameters similar to how parameter collection instances override their collections store. 
-	Should expose anything in the "User" namespace.
-	*/
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	UPROPERTY()
 	FNiagaraUserRedirectionParameterStore OverrideParameters;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TMap<FName, bool> EditorOverridesValue;
+	TMap<FName, bool> EditorOverridesValue_DEPRECATED;
+
+	UPROPERTY(EditAnywhere, Category="Niagara")
+	TMap<FNiagaraVariableBase, FNiagaraVariant> TemplateParameterOverrides;
+
+	UPROPERTY(EditAnywhere, Category="Niagara")
+	TMap<FNiagaraVariableBase, FNiagaraVariant> InstanceParameterOverrides;
 
 	FOnSystemInstanceChanged OnSystemInstanceChangedDelegate;
 
@@ -394,18 +397,32 @@ public:
 	void SetPaused(bool bInPaused);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	bool IsPaused()const;
+	bool IsPaused() const;
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	UNiagaraDataInterface * GetDataInterface(const FString &Name);
+	UNiagaraDataInterface* GetDataInterface(const FString &Name);
 
 	//~ Begin UObject Interface.
-	virtual void PostLoad();
+	virtual void PostLoad() override;
+
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	void OverrideUObjectParameter(const FNiagaraVariable& InVar, UObject* InObj);
 
+	/** 
+	  * Find the value of an overridden parameter. 
+	  * Returns null if the parameter isn't overridden by this component.
+	  */
+	FNiagaraVariant FindParameterOverride(const FNiagaraVariableBase& InKey) const;
+
+	bool HasParameterOverride(const FNiagaraVariableBase& InKey) const;
+	void SetParameterOverride(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);
+
+	/** Remove an override for a given parameter if one exists. */
+	void RemoveParameterOverride(const FNiagaraVariableBase& InKey);
+
+	void UpgradeDeprecatedParameterOverrides();
+	void EnsureOverrideParametersConsistent() const;
 #endif
 	//~ End UObject Interface
 
@@ -423,8 +440,11 @@ public:
 
 #if WITH_EDITOR
 	void PostLoadNormalizeOverrideNames();
-	bool IsParameterValueOverriddenLocally(const FName& InParamName);
-	void SetParameterValueOverriddenLocally(const FNiagaraVariable& InParam, bool bInOverridden, bool bRequiresSystemInstanceReset);
+	UE_DEPRECATED(4.25, "This function is replaced by HasParameterOverride().")
+	bool IsParameterValueOverriddenLocally(const FName& InParamName) { return false; }
+
+	UE_DEPRECATED(4.25, "This function is replaced by SetParameterOverride().")
+	void SetParameterValueOverriddenLocally(const FNiagaraVariable& InParam, bool bInOverridden, bool bRequiresSystemInstanceReset) {}
 	
 	FOnSystemInstanceChanged& OnSystemInstanceChanged() { return OnSystemInstanceChangedDelegate; }
 
@@ -451,6 +471,13 @@ private:
 	void SynchronizeWithSourceSystem();
 
 	void AssetExposedParametersChanged();
+
+	void CopyParametersFromAsset();
+	
+#if WITH_EDITOR
+	void SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);
+	void ApplyOverridesToParameterStore();
+#endif
 
 public:
 	/**
@@ -558,10 +585,6 @@ FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return bEnab
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return false; }
 FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f; }
 #endif
-
-
-
-
 
 
 /**
