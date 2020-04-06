@@ -25,6 +25,8 @@ class UNiagaraGraph;
 struct FEdGraphSchemaAction;
 struct FSlateBrush;
 class UNiagaraSystem;
+struct FNiagaraNamespaceMetadata;
+class IToolTip;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NiagaraParameterMapSectionID
@@ -56,22 +58,6 @@ namespace NiagaraParameterMapSectionID
 	static void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
 	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
 	static bool GetSectionIsAdvanced(const NiagaraParameterMapSectionID::Type InSection);
-};
-
-class FNiagaraParameterMapViewCommands : public TCommands<FNiagaraParameterMapViewCommands>
-{
-public:
-	/** Constructor */
-	FNiagaraParameterMapViewCommands()
-		: TCommands<FNiagaraParameterMapViewCommands>(TEXT("NiagaraParameterMapViewCommands"), NSLOCTEXT("Contexts", "NiagaraParameterMap", "NiagaraParameterMap"), NAME_None, FEditorStyle::GetStyleSetName())
-	{
-	}
-
-	// Basic operations
-	TSharedPtr<FUICommandInfo> DeleteEntry;
-
-	/** Initialize commands */
-	virtual void RegisterCommands() override;
 };
 
 /** A widget for viewing and editing a set of selected objects with a details panel. */
@@ -131,6 +117,7 @@ private:
 	void OnActionDoubleClicked(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions);
 	TSharedPtr<SWidget> OnContextMenuOpening();
 	FText OnGetSectionTitle(int32 InSectionID);
+	TSharedPtr<IToolTip> OnGetSectionToolTip(int32 InSectionID);
 	TSharedRef<SWidget> OnGetSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID);
 	TSharedRef<SWidget> CreateAddToSectionButton(const NiagaraParameterMapSectionID::Type InSection, TWeakPtr<SWidget> WeakRowWidget, FText AddNewText, FName MetaDataTag);
 	
@@ -148,18 +135,46 @@ private:
 	void AddGraph(UNiagaraGraph* Graph);
 	void AddGraph(class UNiagaraScriptSourceBase* SourceBase);
 	void OnGraphChanged(const struct FEdGraphEditAction& InAction);
-	void OnUserParameterStoreChanged();
+	void OnSystemParameterStoreChanged();
 
 	//Callbacks
+	FText GetDeleteEntryToolTip() const;
 	void OnDeleteEntry();
 	bool CanDeleteEntry() const;
+	FText GetRenameOnActionNodeToolTip() const;
 	void OnRequestRenameOnActionNode();
-	bool CanRequestRenameOnActionNode(TWeakPtr<struct FGraphActionNode> InSelectedNode) const;
 	bool CanRequestRenameOnActionNode() const;
 	void OnPostRenameActionNode(const FText& InText, FNiagaraParameterAction& InAction);
+
+	bool GetNamespaceEditDataForSelection(
+		TSharedPtr<FNiagaraParameterAction>& OutParameterAction,
+		FNiagaraParameterHandle& OutParameterHandle,
+		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
+		FText& OutErrorMessage) const;
+
+	bool GetNamespaceModifierEditDataForSelection(
+		TSharedPtr<FNiagaraParameterAction>& OutParameterAction,
+		FNiagaraParameterHandle& OutParameterHandle,
+		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
+		FText& OutErrorMessage) const;
+
+	FText GetAddNamespaceModifierToolTip() const;
+	bool CanAddNamespaceModifier() const;
 	void OnAddNamespaceModifier();
+
+	FText GetRemoveNamespaceModifierToolTip() const;
+	bool CanRemoveNamespaceModifier() const;
 	void OnRemoveNamespaceModifier();
+
+	FText GetEditNamespaceModifierToolTip() const;
+	bool CanEditNamespaceModifier() const;
 	void OnEditNamespaceModifier();
+
+	FText GetCopyParameterReferenceToolTip() const;
+	bool CanCopyParameterReference() const;
+	void OnCopyParameterReference();
+
+	void RenameParameter(FNiagaraVariable& Parameter, FName NewName);
 
 	bool IsSystemToolkit();
 	bool IsScriptToolkit();
@@ -188,6 +203,7 @@ private:
 	TArray<TWeakObjectPtr<UNiagaraGraph>> Graphs;
 	TWeakObjectPtr<UNiagaraSystem> CachedSystem;
 	FDelegateHandle UserParameterStoreChangedHandle;
+	FDelegateHandle AddedParameterStoreChangedHandle;
 
 	/** The handle to the graph changed delegate. */
 	TArray<FDelegateHandle> OnGraphChangedHandles;
