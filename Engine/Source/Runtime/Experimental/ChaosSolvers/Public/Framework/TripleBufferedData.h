@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Templates/Atomic.h"
 #include "Templates/SharedPointer.h"
 

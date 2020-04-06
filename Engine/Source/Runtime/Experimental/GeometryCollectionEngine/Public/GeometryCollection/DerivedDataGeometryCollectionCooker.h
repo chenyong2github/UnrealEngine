@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "CoreMinimal.h"
 #if WITH_EDITOR
 	#include "DerivedDataPluginInterface.h"

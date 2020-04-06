@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/Framework/DebugSubstep.h"
 #include "Templates/Function.h"
 #include "Chaos/Declares.h"

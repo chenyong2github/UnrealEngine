@@ -3,6 +3,7 @@
 
 
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
+#include "Chaos/IncludeLvl1.inl"
 #include "SQAccelerator.h"
 
 class UGeometryCollectionComponent;
