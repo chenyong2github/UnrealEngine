@@ -1114,9 +1114,9 @@ void FChaosSolversModule::OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHan
 
 void FChaosSolversModule::DispatchGlobalCommands()
 {
-	if(Dispatcher->GetMode() == Chaos::EThreadingMode::SingleThread)
+	if(Dispatcher && Dispatcher->GetMode() == Chaos::EThreadingMode::SingleThread)
 	{
-		// Single thread commands run as they are enqueued so no need to proceed here
+		// Single threaded dispatchers fire commands immediately so we don't need to process any commands here
 		return;
 	}
 

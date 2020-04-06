@@ -150,7 +150,6 @@ void FPhysicsCommandsTask::DoTask(ENamedThreads::Type CurrentThread, const FGrap
 	check(Dispatcher);
 
 	Dispatcher = Module->GetDispatcher();
-	check(Dispatcher->GetMode() == EChaosThreadingMode::TaskGraph);
 
 	//static FCriticalSection DispatcherExecutionSection;
 	//DispatcherExecutionSection.Lock();
