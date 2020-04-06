@@ -194,6 +194,9 @@ namespace Chaos
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
 	protected:
+
+		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FReal StepFraction);
+
 		TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints, FReal, 3> Clustering;
 
 		FGravityForces GravityForces;
