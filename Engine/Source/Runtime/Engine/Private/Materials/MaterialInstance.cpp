@@ -4008,6 +4008,12 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 
 void UMaterialInstance::UpdateCachedLayerParameters()
 {
+	if (!GIsClient)
+	{
+		// Expressions may not be loaded on server, so only rebuild the data if we're the client
+		return;
+	}
+
 	FMaterialCachedExpressionData CachedExpressionData;
 	CachedExpressionData.Reset();
 	if (Parent)
