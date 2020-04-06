@@ -570,6 +570,7 @@ public:
 		, GameThreadShaderMap(nullptr)
 		, RenderingThreadShaderMap(nullptr)
 		, FeatureLevel(GMaxRHIFeatureLevel)
+		, ShaderPlatform(SP_NumPlatforms)
 		, bLoadedCookedShaderMapId(false)
 		, bLoadedFromCookedMaterial(false)
 	{}
