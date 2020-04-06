@@ -26,6 +26,12 @@ void UMoviePipelineWidgetRenderer::GatherOutputPassesImpl(TArray<FMoviePipelineP
 
 void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
 {
+	// If this was transiently added, don't make a burn-in.
+	if (!GetIsUserCustomized() || !IsEnabled())
+	{
+		return;
+	}
+
 	if (InSampleState.bDiscardResult)
 	{
 		return;

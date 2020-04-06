@@ -226,7 +226,10 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	// Construct a debug UI and bind it to this instance.
 	LoadDebugWidget();
 	
-	GetWorld()->GetGameViewport()->bDisableWorldRendering = true;
+	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
+	{
+		Viewport->bDisableWorldRendering = true;
+	}
 
 	SetupAudioRendering();
 
@@ -440,7 +443,11 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			TeardownAudioRendering();
 			RestoreTargetSequenceToOriginalState();
 
-			GetWorld()->GetGameViewport()->bDisableWorldRendering = false;
+			if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
+			{
+				Viewport->bDisableWorldRendering = false;
+			}
+
 			GAreScreenMessagesEnabled = bPrevGScreenMessagesEnabled;
 
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Movie Pipeline completed. Duration: %s"), *(FDateTime::UtcNow() - InitializationTime).ToString());
