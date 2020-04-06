@@ -311,9 +311,9 @@ class FPBDRigidsEvolutionBase
 
 	CHAOS_API void EnableParticle(TGeometryParticleHandle<FReal, 3>* Particle, const TGeometryParticleHandle<FReal, 3>* ParentParticle)
 	{
-		DirtyParticle(*Particle);
 		Particles.EnableParticle(Particle);
 		ConstraintGraph.EnableParticle(Particle, ParentParticle);
+		DirtyParticle(*Particle);
 	}
 
 	CHAOS_API void DisableParticle(TGeometryParticleHandle<FReal, 3>* Particle)
