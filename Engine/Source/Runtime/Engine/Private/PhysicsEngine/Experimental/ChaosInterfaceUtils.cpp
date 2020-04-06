@@ -2,6 +2,7 @@
 
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
 
+#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/GeometryParticles.h"
@@ -13,6 +14,7 @@
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/UniformGrid.h"
 #include "Chaos/Convex.h"
+#undef CHAOS_INCLUDE_LEVEL_1
 
 #include "PhysicsEngine/BoxElem.h"
 #include "PhysicsEngine/ConvexElem.h"
