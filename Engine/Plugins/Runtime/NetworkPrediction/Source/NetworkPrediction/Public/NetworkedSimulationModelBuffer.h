@@ -89,6 +89,22 @@ struct TNetworkSimAuxBuffer
 		return TNetSimLazyWriterFunc<ElementType>(*this, Frame);
 	}
 
+	// Resizes while preserving contents from head position
+	void Resize(int32 NewSize)
+	{
+		check(NewSize > 0);
+		TArray<TInternal> PrevElements = MoveTemp(Elements);
+		int32 PrevMask = IndexMask;
+
+		Init(NewSize);
+
+		int32 StartCopyFrom = HeadPosition - FMath::Min(PrevElements.Num(), NewSize) + 1;
+		for (int32 i=StartCopyFrom; i <= HeadPosition; ++i)
+		{
+			Elements[i & IndexMask] = PrevElements[i & PrevMask];
+		}
+	}
+
 private:
 
 	struct TInternal
@@ -115,7 +131,6 @@ private:
 			{
 				return &Data.Element;
 			}
-			Pos--;
 		} while(--Pos >= TailPos);
 
 		return nullptr;
@@ -157,7 +172,6 @@ struct TNetworkSimFrameBuffer
 	}
 
 	// Resizes while preserving contents from head position
-	// Could be faster but doesn't really matter, this will be rare
 	void Resize(int32 NewSize, int32 PrevHead)
 	{
 		check(NewSize > 0);
@@ -166,7 +180,7 @@ struct TNetworkSimFrameBuffer
 
 		Init(NewSize);
 
-		int32 StartCopyFrom = PrevHead - FMath::Min(PrevElements.Num(), NewSize);
+		int32 StartCopyFrom = PrevHead - FMath::Min(PrevElements.Num(), NewSize) + 1;
 		for (int32 i=StartCopyFrom; i <= PrevHead; ++i)
 		{
 			Elements[i & IndexMask] = PrevElements[i & PrevMask];

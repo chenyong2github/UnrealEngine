@@ -383,7 +383,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 				*NetworkSim->RepProxy_Autonomous.GetLastSerializedSimTime().ToString(), *(NetworkSim->State.GetTotalProcessedSimulationTime() - NetworkSim->RepProxy_Autonomous.GetLastSerializedSimTime()).ToString());
 			Out.Emit(MoveTemp(SimulationTimeString), Color);
 
-			FString AllowedSimulationTimeString = FString::Printf(TEXT("Frame: %d/%d/%d"), NetworkSim->State.GetMaxTickFrame(), NetworkSim->State.GetPendingTickFrame(), NetworkSim->State.GetLatestInputFrame());
+			FString AllowedSimulationTimeString = FString::Printf(TEXT("%s"), *NetworkSim->State.DebugString());
 			Out.Emit(MoveTemp(AllowedSimulationTimeString), Color);
 		}
 		else if (Owner->GetLocalRole() == ROLE_SimulatedProxy)
