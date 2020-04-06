@@ -20,6 +20,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSceneTextureParameters, )
 	SHADER_PARAMETER(uint32, bIsSceneLightingChannelsValid)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthBuffer)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint2>, SceneStencilBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneVelocityBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneGBufferA)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneGBufferB)

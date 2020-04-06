@@ -533,6 +533,8 @@ private:
 		const FRayTracingReflectionOptions& Options,
 		IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs);
 
+	void RenderDitheredLODFadingOutMask(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+
 	void RenderRayTracingShadows(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextureParameters& SceneTextures,
