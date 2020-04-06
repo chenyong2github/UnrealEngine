@@ -37,7 +37,7 @@ namespace AutomationTool.Benchmark
 	[Help("hotddc", "Cook / PIE with a hot local DDC (an untimed pre-run is performed)")]
 	[Help("coldddc", "Cook / PIE with a cold local DDC (a temporary folder is used)")]
 	[Help("noshaderddc", "Cook / PIE with no shaders in the DDC")]
-	[Help("nosharedddc", "Cook / PIE with no shared ddc")]
+	[Help("ddc=", "Type of DDC to use. E.g. ddc=noshared, ddc=noshared+shared")]
 	[Help("iterations=<n>", "How many times to perform each test)")]
 	[Help("wait=<n>", "How many seconds to wait between each test)")]
 	[Help("filename", "Name/path of file to write CSV results to. If empty the local machine name will be used")]
@@ -70,17 +70,19 @@ namespace AutomationTool.Benchmark
 			// editor startup tests
 			public bool DoPIETests = false;
 
-			public string MapName = "";
+			public IEnumerable<string> MapList = Enumerable.Empty<string>();
 
 			// misc
 			public int Iterations = 1;
 			public bool NoClean = false;
 			public int TimeBetweenTasks = 0;
+			
 			public string CookArgs = "";
 			public string PIEArgs = "";
 			public string FileName = string.Format("{0}_Results.csv", Environment.MachineName);
 
 			public DDCTaskOptions DDCOptions = DDCTaskOptions.None;
+			public IEnumerable<string> DCCTypes = Enumerable.Empty<string>();
 
 			public void ParseParams(string[] InParams)
 			{
@@ -105,14 +107,13 @@ namespace AutomationTool.Benchmark
 
 				// editor startup tests
 				DoPIETests = AllThings | ParseParam("pie");
-				MapName = ParseParamValue("map", "");
-
+				
 				// DDC options
 				DDCOptions |= ParseParam("warmddc") ? DDCTaskOptions.WarmDDC : DDCTaskOptions.None;
 				DDCOptions |= ParseParam("hotddc") ? DDCTaskOptions.HotDDC : DDCTaskOptions.None;
 				DDCOptions |= ParseParam("coldddc") ? DDCTaskOptions.ColdDDC : DDCTaskOptions.None;
-				DDCOptions |= ParseParam("nosharedddc") ? DDCTaskOptions.NoSharedDDC : DDCTaskOptions.None;
 				DDCOptions |= ParseParam("noshaderddc") ? DDCTaskOptions.NoShaderDDC : DDCTaskOptions.None;
+				DDCOptions |= ParseParam("noxge") ? DDCTaskOptions.NoXGE : DDCTaskOptions.None;
 
 				// sanity
 				DoAcceleratedCompileTests = DoAcceleratedCompileTests && BenchmarkBuildTask.SupportsAcceleration;
@@ -177,6 +178,26 @@ namespace AutomationTool.Benchmark
 						var ProcessorList = ProcessorArg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
 
 						CoresForLocalJobs = ProcessorList.Select(P => Convert.ToInt32(P));
+					}
+				}
+
+				// parse ddc args
+				{
+					string Arg = ParseParamValue("ddc", "");
+
+					if (!string.IsNullOrEmpty(Arg))
+					{
+						DCCTypes = Arg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
+					}
+				}
+
+				// parse map args
+				{
+					string Arg = ParseParamValue("map", "");
+
+					if (!string.IsNullOrEmpty(Arg))
+					{
+						MapList = Arg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
 					}
 				}
 			}
@@ -407,7 +428,7 @@ namespace AutomationTool.Benchmark
 
 		IEnumerable<BenchmarkTaskBase> AddPIETests(FileReference InProjectFile, BenchmarkOptions InOptions)
 		{
-			if (InProjectFile == null)
+			if (InProjectFile == null || !InOptions.DoPIETests)
 			{
 				return Enumerable.Empty<BenchmarkTaskBase>();
 			}
@@ -416,44 +437,68 @@ namespace AutomationTool.Benchmark
 
 			string DefaultExtraArgs = InOptions.PIEArgs;
 
-			if (!string.IsNullOrEmpty(InOptions.MapName))
+			List<string> MapsToTest = InOptions.MapList.ToList();
+
+			if (!MapsToTest.Any())
 			{
-				DefaultExtraArgs += " -map=" + InOptions.MapName;
+				MapsToTest.Add("");
 			}
 
-			if (InOptions.DoPIETests)
+			List<string> BackendsToTest = InOptions.DCCTypes.ToList();
+
+			if (!BackendsToTest.Any())
 			{
-				// if no options assume warm
-				if (InOptions.DDCOptions == DDCTaskOptions.None || InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC))
+				BackendsToTest.Add("");
+			}
+		
+			foreach (var Map in MapsToTest)
+			{
+				foreach (string Backend in BackendsToTest)
 				{
-					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.WarmDDC, DefaultExtraArgs));
-				}
+					string FinalArgs = DefaultExtraArgs;
 
-				// hot ddc
-				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.HotDDC))
-				{
-					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.HotDDC, DefaultExtraArgs));
-				}
+					if (!string.IsNullOrEmpty(Map))
+					{
+						FinalArgs += " -map=" + Map;
+					}
 
-				// cold ddc
-				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
-				{
-					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.ColdDDC, DefaultExtraArgs));
-				}
+					if (!string.IsNullOrEmpty(Backend))
+					{
+						FinalArgs += string.Format(" -ddc={0}", Backend);
+					}
 
-				// no shaders in the ddc
-				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
-				{
-					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoShaderDDC, DefaultExtraArgs));
-				}
+					// if no options assume warm
+					if (InOptions.DDCOptions == DDCTaskOptions.None || InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC))
+					{
+						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.WarmDDC, FinalArgs));
+					}
 
-				// no ddc!
-				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
-				{
-					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoSharedDDC, DefaultExtraArgs));
+					// hot ddc
+					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.HotDDC))
+					{
+						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.HotDDC, FinalArgs));
+					}
+
+					// cold ddc
+					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
+					{
+						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.ColdDDC, FinalArgs));
+					}
+
+					// no shaders in the ddc
+					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
+					{
+						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoShaderDDC, FinalArgs));
+					}
+
+					// no ddc!
+					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
+					{
+						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoSharedDDC, FinalArgs));
+					}
 				}
 			}
-
+		
 			return NewTasks;
 		}
 
