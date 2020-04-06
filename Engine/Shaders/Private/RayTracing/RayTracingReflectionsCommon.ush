@@ -41,3 +41,8 @@ uint2 UnpackPixelCoordinates(uint PixelCoordinates)
 		PixelCoordinates >> 16);
 }
 
+float GetRoughnessFade(float Roughness, float MaxRoughness)
+{
+	float RoughnessMaskScale = -2.0 / MaxRoughness;
+	return saturate(Roughness * RoughnessMaskScale + 2.0);
+}

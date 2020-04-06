@@ -356,6 +356,11 @@ int32 GetRayTracingReflectionsSamplesPerPixel(const FViewInfo& View)
 	return GRayTracingReflectionsSamplesPerPixel >= 0 ? GRayTracingReflectionsSamplesPerPixel : View.FinalPostProcessSettings.RayTracingReflectionsSamplesPerPixel;
 }
 
+float GetRayTracingReflectionsMaxRoughness(const FViewInfo& View)
+{
+	return FMath::Clamp(GRayTracingReflectionsMaxRoughness >= 0 ? GRayTracingReflectionsMaxRoughness : View.FinalPostProcessSettings.RayTracingReflectionsMaxRoughness, 0.01f, 1.0f);
+}
+
 bool ShouldRenderRayTracingReflections(const FViewInfo& View)
 {
 	bool bThisViewHasRaytracingReflections = View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing;
@@ -579,7 +584,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.UpscaleFactor = UpscaleFactor;
 	CommonParameters.ReflectionMinRayDistance = FMath::Min(GRayTracingReflectionsMinRayDistance, GRayTracingReflectionsMaxRayDistance);
 	CommonParameters.ReflectionMaxRayDistance = GRayTracingReflectionsMaxRayDistance;
-	CommonParameters.ReflectionMaxRoughness = FMath::Clamp(GRayTracingReflectionsMaxRoughness >= 0 ? GRayTracingReflectionsMaxRoughness : View.FinalPostProcessSettings.RayTracingReflectionsMaxRoughness, 0.01f, 1.0f);
+	CommonParameters.ReflectionMaxRoughness = GetRayTracingReflectionsMaxRoughness(View);
 	CommonParameters.ReflectionMaxNormalBias = GetRaytracingMaxNormalBias();
 	CommonParameters.RayTracingResolution = RayTracingResolution;
 	CommonParameters.TileAlignedResolution = TileAlignedResolution;

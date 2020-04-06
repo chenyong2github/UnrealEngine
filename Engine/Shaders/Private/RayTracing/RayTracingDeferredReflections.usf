@@ -41,6 +41,7 @@
 uint2 RayTracingResolution;
 uint2 TileAlignedResolution;
 float ReflectionMaxNormalBias;
+float ReflectionMaxRoughness;
 
 RWStructuredBuffer<FSortedReflectionRay>        RayBuffer;
 RWStructuredBuffer<FDeferredMaterialPayload>    MaterialBuffer;
@@ -75,13 +76,19 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 		FRayIntersectionBookmark Bookmark = (FRayIntersectionBookmark)0;
 
-		TraceDeferredMaterialGatherRay(TLAS,
-			RAY_FLAG_FORCE_OPAQUE, // Masked and transparent materials are currently not supported
-			RAY_TRACING_MASK_OPAQUE,
-			Ray,
-			Bookmark,
-			DeferredMaterialPayload
-		);
+		FGBufferData GBuffer = GetGBufferDataFromSceneTexturesLoad(PixelPos);
+		float RoughnessFade = GetRoughnessFade(GBuffer.Roughness, ReflectionMaxRoughness);
+		bool bIsValidPixel = RoughnessFade > 0;
+		if (bIsValidPixel)
+		{
+			TraceDeferredMaterialGatherRay(TLAS,
+				RAY_FLAG_FORCE_OPAQUE, // Masked and transparent materials are currently not supported
+				RAY_TRACING_MASK_OPAQUE,
+				Ray,
+				Bookmark,
+				DeferredMaterialPayload
+			);
+		}
 
 		BookmarkBuffer[DispatchThreadId] = Bookmark;
 	}
