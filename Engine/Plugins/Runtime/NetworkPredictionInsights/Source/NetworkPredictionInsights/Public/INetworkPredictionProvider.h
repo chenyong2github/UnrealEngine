@@ -383,7 +383,6 @@ struct FSimulationData
 		int32 BufferSize;
 		int32 PendingTickFrame;
 		int32 LatestInputFrame;
-		int32 MaxTickFrame;
 		FSimTime TotalSimTime;
 		FSimTime AllowedSimTime;
 

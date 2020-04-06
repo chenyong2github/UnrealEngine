@@ -18,21 +18,76 @@
 //		-FrameBuffer:	frame-to-frame state
 //		-AuxBuffer:		sparse frame based state
 //		-CueDispatcher: non simulation affecting event history, mappings
-//		-TimingInfo:	time keeper for advancing simulation ticks
+//		-TotalAllowedSimulationTime : time keeper for advancing simulation ticks
 //	
 //	-Frame Markers
 //		-Pending		Next frame that will be ticked. Latest data.
-//		-LatestInput	Latest frame to have input written to it.
-//		-NextInput		Where next input should be written to.
-//		-MaxTick		Max frame that is allowed to be ticked. To facilitate input buffering when necessary.
+//		-LatestInput	Latest frame to have input written to it. Can be ahead of pending (input buffering), equal to, or 1 frame behind.
 //		-Confirmed		Last valid frame. Frames prior to confirmed frame do not need to be kept around.
 //
+//	The head frame of the SimulationState is Max(LatestInput, PendingTickFrame). LatestInput will be higher if you are buffering input.
+//	Otherwise, PendingTickFrame will be up to one frame ahead of LatestInputFrame. They will be equal prior to running SimulatinTick.
+//
+//	This structure supports resizing up to a MaxCapacity size. It will resize in order to preserve the 3 frame markers (when valid).
+//	E.g, if ConfirmedFrame=1 and we try to write Frame(1+BufferSize), the buffer will be resized so that ConfirmedFrame is preserved.
+//	We cannot resize, we will crash! It is the calling code (RepController's) responsibility to handle this by checking with 
+//	::GetMaxWritableFrame prior to calling a WriteFrame function.
+//
+//
+//
+// Examples
+// Note that this is how the rep controllers currently work. But ultimately they are what drives the simulation forward
+// and can set their own rules and own internal frame markers. 
+//
+
+//  Autonomous Proxy prior to running SimulationTick
+//
+//	Flags   TotalSimTime   DeltaTime   InputCmd   SyncState
+// |------|--------------|-----------|----------|-----------|
+// |   In |            X |        16 |        1 |         1 |	<-- Confirmed
+// |   In |         X+16 |        20 |        1 |         1 |   
+// |   In |         X+36 |        14 |        1 |         1 |	
+// |   In |         X+50 |        17 |        1 |         1 |   <-- PendingTick + LatestInput
+// |------|--------------|-----------|----------|-----------|
+
+
+//	Autonomous Proxy after running SimulationTick:
+//
+//	Flags   TotalSimTime   DeltaTime   InputCmd   SyncState
+// |------|--------------|-----------|----------|-----------|
+// |   In |            X |        16 |        1 |         1 |	<-- Confirmed
+// |   In |         X+16 |        20 |        1 |         1 |   
+// |   In |         X+36 |        14 |        1 |         1 |
+// |   In |         X+50 |        17 |        1 |         1 |   <-- LatestInput
+// |    0 |         X+67 |         0 |        0 |         1 |   <-- PendingTick
+// |------|--------------|-----------|----------|-----------|
+
+
+// Authority w/ buffered input
+//
+//	Flags   TotalSimTime   DeltaTime   InputCmd   SyncState
+// |------|--------------|-----------|----------|-----------|
+// |   In |            X |        16 |        1 |         1 |	<-- PendingTick
+// |   In |         X+16 |        20 |        1 |         0 |   
+// |   In |         X+36 |        14 |        1 |         0 |	
+// |    0 |            0 |         0 |        0 |         0 |   (Note gap frames! High packet loss caused these inputs to be missed)
+// |    0 |            0 |         0 |        0 |         0 |  
+// |   In |         X+50 |        17 |        1 |         0 |   <-- LatestInput
+// |------|--------------|-----------|----------|-----------|
+
 // ---------------------------------------------------------------------------------------------------------------------
+
+// Specialize-able struct for setting initial/max size of frame buffer. This should be tied into network role eventually.
+template<typename Model>
+struct TNetworkedSimStateBufferSizes
+{
+	static constexpr int32 InitialSize() { return 16; }
+	static constexpr int32 MaxSize() { return 128; }
+};
 
 template<typename Model>
 struct TNetworkedSimulationState
 {
-	// Collection of types we were assigned
 	using TBufferTypes = typename Model::BufferTypes;
 	using TickSettings = typename Model::TickSettings;
 
@@ -43,56 +98,82 @@ struct TNetworkedSimulationState
 	TNetSimCueDispatcher<Model> CueDispatcher;
 
 	TNetworkedSimulationState()
-		: FrameBuffer(64), AuxBuffer(64)
+		: FrameBuffer(InitialCapactiy()), AuxBuffer(InitialCapactiy())
 	{
 	}
 
-	int32 Capacity() const { return FrameBuffer.Capacity(); }
-	FString DebugString() const { return FString::Printf(TEXT("PendingTick: %d MaxTick: %d LatestInput: %d NextIntput: %d Size: %d. PT: %s. IT: %s. MT: %s"), 
-		PendingTickFrame, MaxTickFrame, LatestInputFrame, NextInputFrame, Capacity(), *GetTotalProcessedSimulationTime().ToString(), *GetTotalInputSimulationTime().ToString(), *GetTotalAllowedSimulationTime().ToString()); }
+	int32 InitialCapactiy() const { return TNetworkedSimStateBufferSizes<Model>::InitialSize(); }
+	int32 MaxCapacity() const { return TNetworkedSimStateBufferSizes<Model>::MaxSize(); }
+
+	int32 GetCapacity() const { return FrameBuffer.Capacity(); }
+	
+	FString DebugString() const { return FString::Printf(TEXT("PendingTick: %d LatestInput: %d Size: %d. PT: %s. IT: %s. MT: %s"), 
+		PendingTickFrame, LatestInputFrame, FrameBuffer.Capacity(), *GetTotalProcessedSimulationTime().ToString(), *GetTotalInputSimulationTime().ToString(), *GetTotalAllowedSimulationTime().ToString()); }
+
+	// Highest frame that can be written without causing a system fault
+	int32 GetMaxWritableFrame() const
+	{
+		return GetMaxWritableFrame(GetMinFrameMarker());
+	}
+
+	int32 GetMaxWritableFrame(const int32 MinFrameMarker) const
+	{
+		return MinFrameMarker + MaxCapacity() - 1;
+	}
+	
+	int32 GetMinFrameMarker() const
+	{
+		// Calculate the lowest frame marker. Do this as uint32 to make INDEX_NONE values max
+		return (int32)(FMath::Min<uint32>(FMath::Min<uint32>(ConfirmedFrame, PendingTickFrame), LatestInputFrame));
+	}
+
+	// Resets the FrameMarkers to NewPendingTickFrame. 
+	void ResetToFrame(int32 NewPendingTickFrame, bool bHasInput)
+	{
+		PendingTickFrame = NewPendingTickFrame;
+		ConfirmedFrame = NewPendingTickFrame;
+		LatestInputFrame = bHasInput ? NewPendingTickFrame : INDEX_NONE;		
+	}
+
+	// Returns a frame for writing. This will always return a valid frame. Expected to be used with ResetToFrame when reseting the system.
+	TSimulationFrameState<Model>* WriteFrameDirect(int32 Frame)
+	{
+		return &FrameBuffer[Frame];
+	}
 	
 	// ---------------------------------------------------------------------
 	// Frame State
 	// ---------------------------------------------------------------------
-
-	// Writes a new frame to the buffer, with the given explicit TotalSimTime.
-	// This is used in places where we might break sim time continuity (NetRecvs) or are possibly resimulating over a frame and want to explicitly set the TotalSimTime.
-	TSimulationFrameState<Model>* WriteFrameWithTime(int32 NewFrame, FNetworkSimTime TotalSimTime)
+	
+	// Called to create the next frame for simulation ticking
+	// Will return PendingTickFrame+1. Does not update frame markers.
+	TSimulationFrameState<Model>* WriteNextTickFrame()
 	{
-		if (TSimulationFrameState<Model>* ExistingFrame = GetValidFrame(NewFrame))
+		npEnsureMsgf(LatestInputFrame >= PendingTickFrame, TEXT("WriteNextTickFrame called with no input. %s"), *DebugString());
+		const int32 NewFrame = PendingTickFrame+1;
+
+		// Its possible the frame was already created (input buffering or resimulating)
+		if (LatestInputFrame >= NewFrame)
 		{
-			ExistingFrame->TotalSimTime = TotalSimTime;
-			return ExistingFrame;
+			return &FrameBuffer[NewFrame];
 		}
 		
-		const int32 Delta = NewFrame - PendingTickFrame;
-		if (Delta >= Capacity())
-		{
-			// PendingTickFrame must always be preserved
-			UE_NP_TRACE_SYSTEM_FAULT("WriteFrameWithTime frame %d outside of buffer range. Reseting contents. %s", PendingTickFrame, *DebugString());
-				
-			TSimulationFrameState<Model>& NewFrameState = FrameBuffer[NewFrame];
-			NewFrameState = FrameBuffer[PendingTickFrame]; // Init with previous state
-			NewFrameState.TotalSimTime = TotalSimTime;
-			NewFrameState.ClearFlags();
-				
-			PendingTickFrame = NewFrame;
-			MaxTickFrame = NewFrame-1;
-			LatestInputFrame = INDEX_NONE;
-			NextInputFrame = NewFrame;
-			CheckInvariants();
+		// It is the caller's responsibility to not write to an invalid frame. Use GetMaxWritableFrame() prior to calling.
+		// The caller should then decide to either A) not write the frame or B) call ResetToFrame.
+		const int32 MinFrameMarker = GetMinFrameMarker();
+		npCheckf(NewFrame <= GetMaxWritableFrame(MinFrameMarker), TEXT("Invalid Frame Write. NewFrame: %d. %s"), NewFrame, *DebugString());		
+		
+		// Resize: we may need to resize the buffer to keep everything in the window.
+		const int32 Delta = NewFrame - MinFrameMarker;
 
-			return &NewFrameState;
+		if (Delta >= FrameBuffer.Capacity())
+		{
+			const int32 NewSize = Delta + 2; // will be rounded to next pow(2) in resize
+			Resize(NewSize);
 		}
-			
+		
 		TSimulationFrameState<Model>& NewFrameState = FrameBuffer[NewFrame];
-		NewFrameState.TotalSimTime = TotalSimTime;
-
-		for (int32 Frame = LatestInputFrame+1; Frame <= NewFrame; ++Frame)
-		{
-			FrameBuffer[Frame].ClearFlags();
-		}
-		
+		NewFrameState.ClearFlags();
 		return &NewFrameState;
 	}
 
@@ -102,55 +183,45 @@ struct TNetworkedSimulationState
 	// If the frame already exists, will just return the frame
 	// If this causes a new frame to be created, its flags will be cleared and TotalSimTime will be set for you. But contents will otherwise be stale
 	// If a gap is created, those frames will also have flags cleared
-	TSimulationFrameState<Model>* WriteFrameSequential(int32 NewFrame)
+
+	// Writes a new frame for input. 
+
+	TSimulationFrameState<Model>* WriteInputFrame(int32 NewFrame)
 	{
-		if (TSimulationFrameState<Model>* ExistingFrame = GetValidFrame(NewFrame))
-		{
-			CheckInvariants();
-			return ExistingFrame;
-		}
-				
-		const int32 Delta = NewFrame - PendingTickFrame;
-		if (Delta >= Capacity())
-		{
-			// PendingTickFrame must always be preserved
-			UE_NP_TRACE_SYSTEM_FAULT("WriteFrameSequential frame %d outside of buffer range. Reseting contents. %s", PendingTickFrame, *DebugString());
-
-			TSimulationFrameState<Model>& NewFrameState = FrameBuffer[NewFrame];
-			NewFrameState = FrameBuffer[PendingTickFrame]; // Init with previous state
-
-			PendingTickFrame = NewFrame;
-			MaxTickFrame = NewFrame-1;
-
-			if (NewFrameState.HasFlag(ESimulationFrameStateFlags::InputWritten))
-			{
-				LatestInputFrame = NewFrame;
-				NextInputFrame = NewFrame+1;
-			}
-			else
-			{
-				LatestInputFrame = INDEX_NONE;
-				NextInputFrame = NewFrame;
-			}
-			
-			CheckInvariants();
-			return &NewFrameState;
-		}
-
-		// Create the new frame
-		TSimulationFrameState<Model>& NewFrameState = FrameBuffer[NewFrame];
-		NewFrameState.ClearFlags();
-
-		// Clear gap frame flags so they don't get processed
+		npEnsureMsgf(NewFrame >= PendingTickFrame, TEXT("Input Frame write prior to PendingTickFrame. NewFrame: %d. %s"), NewFrame, *DebugString());
+		npEnsureMsgf(NewFrame > LatestInputFrame, TEXT("Input Frame write prior to LatestInputFrame. NewFrame: %d. %s"), NewFrame, *DebugString());
+		
 		const int32 PrevFrame = FMath::Max(PendingTickFrame, LatestInputFrame);
-		for (int32 Frame = PrevFrame+1; Frame < NewFrame; ++Frame)
+
+		if (NewFrame > PendingTickFrame)
 		{
-			FrameBuffer[Frame].ClearFlags();
+			// It is the caller's responsibility to not write to an invalid frame. Use GetMaxWritableFrame() prior to calling.
+			// The caller should then decide to either A) not write the frame or B) call ResetToFrame. We can't recover this deep so this is a check.
+			const int32 MinFrameMarker = GetMinFrameMarker();
+			npCheckf(NewFrame <= GetMaxWritableFrame(MinFrameMarker), TEXT("Invalid Frame Write. NewFrame: %d. %s"), NewFrame, *DebugString());	
+
+			// Resize: we may need to resize the buffer to keep everything in the window.
+			const int32 Delta = NewFrame - MinFrameMarker;
+			if (Delta >= FrameBuffer.Capacity())
+			{
+				const int32 NewSize = Delta + 2; // will be rounded to next pow(2) in resize
+				Resize(NewSize);
+			}
+
+			// Clear gap frame flags so they don't get processed
+			for (int32 Frame = PrevFrame+1; Frame < NewFrame; ++Frame)
+			{
+				FrameBuffer[Frame].ClearFlags();
+			}
+
+			// We are creating a new frame so clear the flags
+			FrameBuffer[NewFrame].ClearFlags();
 		}
 
 		// Look at the previous frame sequential frame and calculate the new Frame's TotalSimTime
 		TSimulationFrameState<Model>& PrevFrameState = FrameBuffer[PrevFrame];
-		
+		TSimulationFrameState<Model>& NewFrameState = FrameBuffer[NewFrame];
+
 		if (PrevFrameState.HasFlag(ESimulationFrameStateFlags::InputWritten))
 		{
 			NewFrameState.TotalSimTime = PrevFrameState.FrameDeltaTime.Get() + PrevFrameState.TotalSimTime;
@@ -159,10 +230,14 @@ struct TNetworkedSimulationState
 		{
 			NewFrameState.TotalSimTime = PrevFrameState.TotalSimTime;
 		}
-		CheckInvariants();
+
+		npEnsureMsgf(!NewFrameState.HasFlag(ESimulationFrameStateFlags::InputWritten), TEXT("Input already written to Frame %d. %s"), NewFrame, *DebugString());
+		NewFrameState.SetFlag(ESimulationFrameStateFlags::InputWritten);
+		LatestInputFrame = NewFrame;
+		
 		return &NewFrameState;
 	}
-
+	
 	TSimulationFrameState<Model>* WriteFramePending()
 	{
 		return &FrameBuffer[PendingTickFrame];
@@ -227,58 +302,31 @@ struct TNetworkedSimulationState
 	// On server, it is the tail frame of the buffer: the oldest valid frame.
 	int32 GetConfirmedFrame() const { return ConfirmedFrame == INDEX_NONE ? TailFrame() : ConfirmedFrame; }
 	void SetConfirmedFrame(int32 Frame) { ConfirmedFrame = Frame; CheckInvariants(); }
-
-	// Max frame we are allowed to process. This is how local buffer can be done.
-	int32 GetMaxTickFrame() const { return MaxTickFrame; }
-	void SetMaxTickFrame(int32 Frame) { MaxTickFrame = Frame; CheckInvariants(); }
-
+	
 	// The last frame that had input written to it. This can be ahead of PendingTickFrame but never more than 1 frame behind.
 	int32 GetLatestInputFrame() const { return LatestInputFrame; }
 	void SetLatestInputFrame(int32 Frame)
 	{
 		LatestInputFrame = Frame;
-		NextInputFrame = Frame == INDEX_NONE ? PendingTickFrame : (Frame+1);
 		CheckInvariants(); 
 	}
 
 	// Where input is expected to be written to next. Gaps in NetSerialization can cause this to not be the case though.
-	int32 GetNextInputFrame() const { return NextInputFrame; }
-
-	// Resets the system to the existing NewPendingTickFrame. This is used when we need to hard reset things to a given authoritative state
-	void Reset(int32 NewPendingTickFrame)
-	{
-		PendingTickFrame = NewPendingTickFrame;
-		ConfirmedFrame = NewPendingTickFrame;
-		MaxTickFrame = INDEX_NONE;
-		LatestInputFrame = INDEX_NONE;
-		NextInputFrame = NewPendingTickFrame;
-
-		TotalAllowedSimulationTime = FrameBuffer[PendingTickFrame].TotalSimTime;
-		CheckInvariants();
-	}
+	int32 GetNextInputFrame() const { return LatestInputFrame != INDEX_NONE ? LatestInputFrame+1 : PendingTickFrame; }
 
 	void CheckInvariants()
 	{
-		npEnsureMsgf(IsValidFrame(PendingTickFrame), TEXT("PendingTickFrame not valid. %s"), *DebugString());
 		npEnsureMsgf(ConfirmedFrame <= PendingTickFrame, TEXT("ConfirmedFrame %d <= PendingTickFrame"), ConfirmedFrame, PendingTickFrame);
-
 		if (LatestInputFrame != INDEX_NONE)
 		{
-			npEnsureMsgf(MaxTickFrame <= LatestInputFrame, TEXT("MaxTickFrame %d <= LatestInputFrame %d"), MaxTickFrame, LatestInputFrame);
 			npEnsureMsgf(PendingTickFrame <= LatestInputFrame+1, TEXT("PendingTickFrame %d <= (LatestInputFrame+1) %d"), PendingTickFrame, LatestInputFrame+1);
-			npEnsureMsgf(LatestInputFrame == NextInputFrame-1, TEXT("LatestInputFrame %d != (NextInputFrame+1) %d"),  LatestInputFrame, NextInputFrame+1);			
-			npEnsureMsgf(IsValidFrame(LatestInputFrame) && FrameBuffer[LatestInputFrame].HasFlag(ESimulationFrameStateFlags::InputWritten), TEXT("LatestInputFrame not valid. %s"), *DebugString());
-		}
-
-		if (MaxTickFrame != INDEX_NONE)
-		{
-			npEnsureMsgf(PendingTickFrame <= MaxTickFrame+1, TEXT("PendingTickFrame %d <= (MaxTickFrame+1) %d"), PendingTickFrame, MaxTickFrame+1);
+			npEnsureMsgf(IsValidFrame(LatestInputFrame), TEXT("LatestInputFrame not valid. %s"), *DebugString());
+			npEnsureMsgf(FrameBuffer[LatestInputFrame].HasFlag(ESimulationFrameStateFlags::InputWritten), TEXT("LatestInputFrame doesnt actually have input %s"), *DebugString());
 		}
 
 #if NP_CHECKS_AND_ENSURES_SLOW
 		// If PendingTickFrame is ahead of input, ensure that calculated TotalSimTime is what we expected.
-		// (If this fires, its likely LatestInputFrame is wrong. If we took a frame from a NetSerialize for example,
-		// latest InputFrame should be reset.
+		// If this fires, its likely LatestInputFrame is wrong. If we took a frame from a NetSerialize for example, latest InputFrame should be reset.
 		if (LatestInputFrame != INDEX_NONE)
 		{
 			if (LatestInputFrame < PendingTickFrame)
@@ -298,8 +346,14 @@ struct TNetworkedSimulationState
 private:
 
 	int32 HeadFrame() const { return FMath::Max(PendingTickFrame, LatestInputFrame); }
-	int32 TailFrame() const { return FMath::Max(ConfirmedFrame, HeadFrame() - FrameBuffer.Capacity() + 1); }
-	bool IsValidFrame(int32 Frame) const { return Frame >= TailFrame() && Frame <= HeadFrame(); }
+	int32 TailFrame() const { return HeadFrame() - FrameBuffer.Capacity() + 1; }
+	
+	bool IsValidFrame(int32 Frame) const
+	{
+		const int32 Head = FMath::Max(PendingTickFrame, LatestInputFrame);
+		const int32 Tail = Head - FrameBuffer.Capacity() + 1;
+		return Frame >= TailFrame() && Frame <= HeadFrame();
+	}
 
 	const TSimulationFrameState<Model>* GetValidFrame(int32 Frame) const
 	{
@@ -311,12 +365,15 @@ private:
 		return IsValidFrame(Frame) ? &FrameBuffer[Frame] : nullptr;
 	}
 
+	void Resize(int32 NewSize)
+	{
+		FrameBuffer.Resize(NewSize, HeadFrame());
+		AuxBuffer.Resize(NewSize);
+	}
+
 	bool bTickInProgress = false;
 
 	int32 PendingTickFrame = 0;
-	int32 NextInputFrame = 0;
-
-	int32 MaxTickFrame = INDEX_NONE;
 	int32 LatestInputFrame = INDEX_NONE;
 	int32 ConfirmedFrame = INDEX_NONE;
 	
@@ -475,8 +532,9 @@ struct TNetSimOutput
 };
 
 // Helper to actual tick a simulation. This does all the setup, runs ::SimulationTick, and finalizes the frame.
-// Caller is responsible to have the input buffers in the correct state: Input/Sync/Aux buffers must have valid data in OutputFrame-1.
-// DeltaTime comes from the InputCmd->GetFrameDeltaTime().
+// Caller is responsible for ensuring State.PendingTickFrame() has valid input and that State.PendingTickFrame()+1 <= State.GetMaxWritableFrame()
+//		(E.g, don't call this is it would age out ConfirmedFrame!)
+//
 // Important to note that this advances the PendingFrame to the output Frame. So that any writes that occur to the buffers during this scope will go to the output frame.
 template<typename Model>
 struct TSimulationDoTickFunc
@@ -499,19 +557,22 @@ struct TSimulationDoTickFunc
 		const int32 InputFrame = State.GetPendingTickFrame();
 		const int32 OutputFrame = State.GetPendingTickFrame()+1;
 
+		// Write the output frame (important to do before caching internal data since the write could cause a resize)
+		TFrameState* OutFrameState = State.WriteNextTickFrame();
+
 		// Get inputs. These all need to be present to tick (caller's responsibility)
 		TFrameState* InFrameState = State.ReadFrame(InputFrame);
 		const TAuxState* InAuxState = State.ReadAux(InputFrame);
 		
 		check(InFrameState);
 		check(InAuxState);
-		ensure(InFrameState->HasFlag(ESimulationFrameStateFlags::InputWritten));
+		npEnsureMsgf(InFrameState->HasFlag(ESimulationFrameStateFlags::InputWritten), TEXT("DoTick called with invalid InputFrame: %d. %s"), InputFrame, *State.DebugString());
 
 		const FNetworkSimTime DeltaSimTime = InFrameState->FrameDeltaTime.Get();
 		const FNetSimTimeStep SimTimeStep { DeltaSimTime, InFrameState->TotalSimTime, OutputFrame };
-		const FNetworkSimTime OutSimTime = InFrameState->TotalSimTime + DeltaSimTime;
-
-		TFrameState* OutFrameState = State.WriteFrameWithTime(OutputFrame, OutSimTime);
+		OutFrameState->TotalSimTime = InFrameState->TotalSimTime + DeltaSimTime;
+		
+		npCheckf(OutputFrame <= State.GetMaxWritableFrame(), TEXT("DoTick called on invalid OutputFrame: %d. %s"), OutputFrame, *State.DebugString());
 
 		// PreTick
 		State.SetPendingTickFrame(OutputFrame);

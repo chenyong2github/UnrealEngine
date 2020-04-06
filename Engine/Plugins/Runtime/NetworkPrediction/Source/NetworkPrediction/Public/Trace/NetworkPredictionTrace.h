@@ -152,7 +152,7 @@ public:
 	template<typename Model>
 	static void TraceSimulationEOF(const TNetworkedSimulationState<Model>& State)
 	{
-		TraceEOF_Internal(State.Capacity(), State.GetPendingTickFrame(), State.GetLatestInputFrame(), State.GetMaxTickFrame(), State.GetTotalProcessedSimulationTime(), State.GetTotalAllowedSimulationTime());
+		TraceEOF_Internal(State.GetCapacity(), State.GetPendingTickFrame(), State.GetLatestInputFrame(), State.GetTotalProcessedSimulationTime(), State.GetTotalAllowedSimulationTime());
 	}
 
 private:
@@ -161,7 +161,7 @@ private:
 	static void PopSimulationId();
 
 	static void TraceUserState_Internal(int32 Frame, ETraceUserState StateType);
-	static void TraceEOF_Internal(int32 BufferSize, int32 PendingTickFrame, int32 LatestInputFrame, int32 MaxTickFrame, FNetworkSimTime TotalSimTime, FNetworkSimTime AllowedSimTime);
+	static void TraceEOF_Internal(int32 BufferSize, int32 PendingTickFrame, int32 LatestInputFrame, FNetworkSimTime TotalSimTime, FNetworkSimTime AllowedSimTime);
 	static void TraceOOBStrInternal(int32 SimulationId, ETraceUserState StateType, const TCHAR* Fmt);
 
 	static FStringOutputDevice StrOut;
