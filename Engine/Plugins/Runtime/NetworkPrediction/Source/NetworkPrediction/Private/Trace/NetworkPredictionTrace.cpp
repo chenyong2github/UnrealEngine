@@ -55,7 +55,6 @@ UE_TRACE_EVENT_BEGIN(NetworkPrediction, SimulationEOF)
 	UE_TRACE_EVENT_FIELD(int32, BufferSize)
 	UE_TRACE_EVENT_FIELD(int32, PendingTickFrame)
 	UE_TRACE_EVENT_FIELD(int32, LatestInputFrame)
-	UE_TRACE_EVENT_FIELD(int32, MaxTickFrame)
 	UE_TRACE_EVENT_FIELD(int32, TotalSimTime)
 	UE_TRACE_EVENT_FIELD(int32, AllowedSimTime)
 UE_TRACE_EVENT_END()
@@ -216,7 +215,7 @@ void FNetworkPredictionTrace::TraceSimulationTick(int32 OutputFrame, const FNetw
 		<< SimulationTick.OutputFrame(OutputFrame);
 }
 
-void FNetworkPredictionTrace::TraceEOF_Internal(int32 BufferSize, int32 PendingTickFrame, int32 LatestInputFrame, int32 MaxTickFrame, FNetworkSimTime TotalSimTime, FNetworkSimTime AllowedSimTime)
+void FNetworkPredictionTrace::TraceEOF_Internal(int32 BufferSize, int32 PendingTickFrame, int32 LatestInputFrame, FNetworkSimTime TotalSimTime, FNetworkSimTime AllowedSimTime)
 {
 	const uint32 SimulationId = PeakSimulationIdChecked();
 
@@ -226,7 +225,6 @@ void FNetworkPredictionTrace::TraceEOF_Internal(int32 BufferSize, int32 PendingT
 		<< SimulationEOF.BufferSize(BufferSize)
 		<< SimulationEOF.PendingTickFrame(PendingTickFrame)
 		<< SimulationEOF.LatestInputFrame(LatestInputFrame)
-		<< SimulationEOF.MaxTickFrame(MaxTickFrame)
 		<< SimulationEOF.TotalSimTime(TotalSimTime)
 		<< SimulationEOF.AllowedSimTime(AllowedSimTime);
 

@@ -118,7 +118,6 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 			FrameData.BufferSize = EventData.GetValue<int32>("BufferSize");
 			FrameData.PendingTickFrame = EventData.GetValue<int32>("PendingTickFrame");
 			FrameData.LatestInputFrame = EventData.GetValue<int32>("LatestInputFrame");
-			FrameData.MaxTickFrame = EventData.GetValue<int32>("MaxTickFrame");
 			FrameData.TotalSimTime = EventData.GetValue<int32>("TotalSimTime");
 			FrameData.AllowedSimTime = EventData.GetValue<int32>("AllowedSimTime");	
 			break;
