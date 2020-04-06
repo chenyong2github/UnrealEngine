@@ -115,6 +115,8 @@ void FPBDRigidsEvolutionGBF::Advance(const FReal Dt, const FReal MaxStepDt, cons
 	int32 NumSteps = FMath::CeilToInt(Dt / MaxStepDt);
 	if (NumSteps > 0)
 	{
+		PrepareTick();
+
 		// Determine the step time
 		const FReal StepDt = Dt / (FReal)NumSteps;
 
@@ -133,6 +135,8 @@ void FPBDRigidsEvolutionGBF::Advance(const FReal Dt, const FReal MaxStepDt, cons
 
 			AdvanceOneTimeStep(StepDt, StepFraction);
 		}
+
+		UnprepareTick();
 	}
 }
 
@@ -309,7 +313,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt, const FReal Step
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_PrepareConstraints);
-		PrepareConstraints(Dt);
+		PrepareIteration(Dt);
 	}
 
 	{
@@ -402,7 +406,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt, const FReal Step
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_UnprepareConstraints);
-		UnprepareConstraints(Dt);
+		UnprepareIteration(Dt);
 	}
 
 	{

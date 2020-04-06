@@ -51,6 +51,9 @@ namespace Chaos
 		static constexpr int32 DefaultNumPushOutIterations = 5;
 		static constexpr int32 DefaultNumPushOutPairIterations = 2;
 
+		// @todo(chaos): Required by clustering - clean up
+		using Base::ApplyPushOut;
+
 		CHAOS_API FPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, int32 InNumIterations = DefaultNumIterations, int32 InNumPushoutIterations = DefaultNumPushOutIterations, bool InIsSingleThreaded = false);
 		CHAOS_API ~FPBDRigidsEvolutionGBF() {}
 
@@ -97,11 +100,6 @@ namespace Chaos
 
 		CHAOS_API void Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps);
 		CHAOS_API void AdvanceOneTimeStep(const FReal dt, const FReal StepFraction = (FReal)1.0);
-
-		using Base::PrepareConstraints;
-		using Base::UnprepareConstraints;
-		using Base::ApplyConstraints;
-		using Base::ApplyPushOut;
 
 		FCollisionConstraints& GetCollisionConstraints() { return CollisionConstraints; }
 		const FCollisionConstraints& GetCollisionConstraints() const { return CollisionConstraints; }

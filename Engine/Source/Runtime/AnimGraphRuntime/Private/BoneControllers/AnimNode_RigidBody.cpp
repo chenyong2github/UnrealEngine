@@ -501,6 +501,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			}
 #else
 			PhysicsSimulation->SetSolverIterations(
+				SolverIterations.FixedTimeStep,
 				SolverIterations.SolverIterations,
 				SolverIterations.JointIterations,
 				SolverIterations.CollisionIterations,
@@ -509,7 +510,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				SolverIterations.CollisionPushOutIterations
 			);
 			PhysicsSimulation->SetSolverIterations(
-				OverrideSolverIterations.SolverIterations, 
+				SolverIterations.FixedTimeStep,
+				OverrideSolverIterations.SolverIterations,
 				OverrideSolverIterations.JointIterations, 
 				OverrideSolverIterations.CollisionIterations, 
 				OverrideSolverIterations.SolverPushOutIterations, 
@@ -875,6 +877,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 #if WITH_CHAOS
 		SolverIterations = UsePhysicsAsset->SolverIterations;
 		PhysicsSimulation->SetSolverIterations(
+			SolverIterations.FixedTimeStep,
 			SolverIterations.SolverIterations,
 			SolverIterations.JointIterations,
 			SolverIterations.CollisionIterations,

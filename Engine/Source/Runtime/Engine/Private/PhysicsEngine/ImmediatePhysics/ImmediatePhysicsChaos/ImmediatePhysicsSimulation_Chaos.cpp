@@ -41,6 +41,11 @@ FAutoConsoleVariableRef CVarChaosImmPhysIterations(TEXT("p.Chaos.ImmPhys.Iterati
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutIterations(TEXT("p.Chaos.ImmPhys.PushOutIterations"), ChaosImmediate_Evolution_PushOutIterations, TEXT("Override number of solver push-out loops (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysBoundsExtension(TEXT("p.Chaos.ImmPhys.BoundsExtension"), ChaosImmediate_Evolution_BoundsExtension, TEXT("Bounds are grown by this fraction of their size (should be >= 0.0)"));
 
+float ChaosImmediate_Evolution_FixedStepTime = -1.0f;
+float ChaosImmediate_Evolution_FixedStepTolerance = 0.05f;
+FAutoConsoleVariableRef CVarChaosImmPhysFixedStepTime(TEXT("p.Chaos.ImmPhys.FixedStepTime"), ChaosImmediate_Evolution_FixedStepTime, TEXT("Override fixed step time mode: fixed step time (if positive); variable time mode (if zero); asset defined (if negative)"));
+FAutoConsoleVariableRef CVarChaosImmPhysFixedStepTolerance(TEXT("p.Chaos.ImmPhys.FixedStepTolerance"), ChaosImmediate_Evolution_FixedStepTolerance, TEXT("Tiem remainder required to add a new step (fraction of FixedStepTime)"));
+
 int32 ChaosImmediate_Collision_Enabled = 1;
 int32 ChaosImmediate_Collision_PairIterations = -1;
 int32 ChaosImmediate_Collision_PushOutPairIterations = -1;
@@ -156,6 +161,8 @@ namespace ImmediatePhysics_Chaos
 		, CollidedParticles()
 		, ParticleMaterials()
 		, PerParticleMaterials()
+		, ParticlePrevXs()
+		, ParticlePrevRs()
 		, Particles()
 		, Joints()
 		, Collisions(Particles, CollidedParticles, ParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance, ChaosImmediate_Collision_ShapePadding)
@@ -164,7 +171,7 @@ namespace ImmediatePhysics_Chaos
 		, CollisionDetector(BroadPhase, NarrowPhase, Collisions)
 		, JointsRule(0, Joints)
 		, CollisionsRule(1, Collisions)
-		, Evolution(Particles, CollisionDetector, ChaosImmediate_Evolution_BoundsExtension)
+		, Evolution(Particles, ParticlePrevXs, ParticlePrevRs, CollisionDetector, ChaosImmediate_Evolution_BoundsExtension)
 		, NumActiveDynamicActorHandles(0)
 		, SimulationSpaceTransform(FTransform::Identity)
 		, RollingAverageStepTime(ChaosImmediate_Evolution_InitialStepTime)
@@ -176,6 +183,8 @@ namespace ImmediatePhysics_Chaos
 
 		Particles.GetParticleHandles().AddArray(&ParticleMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticleMaterials);
+		Particles.GetParticleHandles().AddArray(&ParticlePrevXs);
+		Particles.GetParticleHandles().AddArray(&ParticlePrevRs);
 
 		Evolution.AddConstraintRule(&CollisionsRule);
 		Evolution.AddConstraintRule(&JointsRule);
@@ -291,7 +300,7 @@ namespace ImmediatePhysics_Chaos
 
 		using namespace Chaos;
 
-		FActorHandle* ActorHandle = new FActorHandle(Particles, ActorType, BodyInstance, Transform);
+		FActorHandle* ActorHandle = new FActorHandle(Particles, ParticlePrevXs, ParticlePrevRs, ActorType, BodyInstance, Transform);
 		int ActorIndex = ActorHandles.Add(ActorHandle);
 
 		TUniquePtr<FChaosPhysicsMaterial> Material = MakeUnique<FChaosPhysicsMaterial>();
@@ -308,6 +317,8 @@ namespace ImmediatePhysics_Chaos
 		ParticleMaterials.Add(MakeSerializable(Material));
 		PerParticleMaterials.Add(MoveTemp(Material));
 		CollidedParticles.Add(false);
+		ParticlePrevXs.Add(ActorHandle->GetParticle()->X());
+		ParticlePrevRs.Add(ActorHandle->GetParticle()->R());
 
 		bActorsDirty = true;
 
@@ -325,6 +336,8 @@ namespace ImmediatePhysics_Chaos
 		ParticleMaterials.RemoveAt(Index, 1);
 		PerParticleMaterials.RemoveAt(Index, 1);
 		CollidedParticles.RemoveAt(Index, 1);
+		ParticlePrevXs.RemoveAt(Index, 1);
+		ParticlePrevRs.RemoveAt(Index, 1);
 
 		bActorsDirty = true;
 	}
@@ -485,15 +498,6 @@ namespace ImmediatePhysics_Chaos
 
 		// TEMP: overrides
 		{
-			if (ChaosImmediate_Evolution_StepTime > 0)
-			{
-				StepTime = ChaosImmediate_Evolution_StepTime;
-			}
-			if (ChaosImmediate_Evolution_NumSteps > 0)
-			{
-				NumSteps = ChaosImmediate_Evolution_NumSteps;
-			}
-
 			FPBDJointSolverSettings JointsSettings = Joints.GetSettings();
 			JointsSettings.SwingTwistAngleTolerance = ChaosImmediate_Joint_SwingTwistAngleTolerance;
 			JointsSettings.PositionTolerance = ChaosImmediate_Joint_PositionTolerance;
@@ -538,7 +542,17 @@ namespace ImmediatePhysics_Chaos
 				Collisions.SetApplyType(ECollisionApplyType::Velocity);
 			}
 
+			if (ChaosImmediate_Evolution_StepTime > 0)
+			{
+				StepTime = ChaosImmediate_Evolution_StepTime;
+			}
+			if (ChaosImmediate_Evolution_NumSteps > 0)
+			{
+				NumSteps = ChaosImmediate_Evolution_NumSteps;
+			}
+
 			SetSolverIterations(
+				ChaosImmediate_Evolution_FixedStepTime,
 				ChaosImmediate_Evolution_Iterations,
 				ChaosImmediate_Joint_PairIterations,
 				ChaosImmediate_Collision_PairIterations,
@@ -546,29 +560,50 @@ namespace ImmediatePhysics_Chaos
 				ChaosImmediate_Joint_PushOutPairIterations,
 				ChaosImmediate_Collision_PushOutPairIterations);
 		}
-		UE_LOG(LogChaosJoint, Verbose, TEXT("Simulate Dt = %f Steps %d x %f"), DeltaTime, NumSteps, StepTime);
 
 		DebugDrawKinematicParticles(2, 2, FColor(128, 0, 0));
 		DebugDrawDynamicParticles(2, 2, FColor(192, 192, 0));
 		DebugDrawConstraints(2, 2, 0.7f);
 
+		// Fixed timestep mode
+		// @todo(ccaulfield): integrate this better with the non-fixed step calculate above
+		FReal RewindTime = 0.0f;
+		if (FixedStepTime > 0)
+		{
+			StepTime = FixedStepTime;
+			NumSteps = FMath::FloorToInt(DeltaTime / StepTime);
+			FReal RemainderTime = DeltaTime - NumSteps * StepTime;
+			if (RemainderTime > ChaosImmediate_Evolution_FixedStepTolerance* StepTime)
+			{
+				++NumSteps;
+				RewindTime = StepTime - RemainderTime;
+			}
+			NumSteps = FMath::Max(1, NumSteps);
+		}
+
+		// Handle new or deleted particles
 		if (bActorsDirty)
 		{
 			UpdateActivePotentiallyCollidingPairs();
 			bActorsDirty = false;
 		}
 
+		UE_LOG(LogChaosJoint, Verbose, TEXT("Simulate Dt = %f Steps %d x %f (Rewind %f)"), DeltaTime, NumSteps, StepTime, RewindTime);
 		Evolution.SetGravity(InGravity);
-		
-		Evolution.Advance(StepTime, NumSteps);
+		Evolution.Advance(StepTime, NumSteps, RewindTime);
 
 		DebugDrawKinematicParticles(1, 4, FColor(128, 0, 0));
 		DebugDrawDynamicParticles(1, 3, FColor(255, 255, 0));
 		DebugDrawConstraints(1, 2, 1.0f);
 	}
 
-	void FSimulation::SetSolverIterations(const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts)
+	void FSimulation::SetSolverIterations(const FReal InFixedDt, const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts)
 	{
+		if (InFixedDt >= 0.0f)
+		{
+			FixedStepTime = InFixedDt;
+		}
+
 		if (SolverIts >= 0)
 		{
 			Evolution.SetNumIterations(SolverIts);

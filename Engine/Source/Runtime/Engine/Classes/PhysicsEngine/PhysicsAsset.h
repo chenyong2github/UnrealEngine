@@ -27,6 +27,14 @@ struct ENGINE_API FSolverIterations
 
 	/**
 	 * [Chaos Only]
+	 * The recommended fixed timestep for the solver if supported (e.g., in RigidBody Anim Node). 0 to run with variable timestep.
+	 * NOTE: If this value is non-zero and less than the current frame time, physics will step multiple times.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMin = 0))
+		float FixedTimeStep;
+
+	/**
+	 * [Chaos Only]
 	 * The recommended number of solver iterations. Increase this if collision and joints are fighting, or joint chains are stretching.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))

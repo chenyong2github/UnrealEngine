@@ -3,6 +3,7 @@
 
 #include "Chaos/Core.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/ArrayCollectionArray.h"
 
 
 namespace Chaos
@@ -31,11 +32,11 @@ namespace Chaos
 		using FEvolutionCallback = TFunction<void()>;
 		using FRigidParticleSOAs = TPBDRigidsSOAs<FReal, 3>;
 
-		FPBDMinEvolution(FRigidParticleSOAs& InParticles, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension);
+		FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension);
 
 		void AddConstraintRule(FSimpleConstraintRule* Rule);
 
-		void Advance(const FReal StepDt, const int32 NumSteps);
+		void Advance(const FReal StepDt, const int32 NumSteps, const FReal RewindDt);
 		void AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction);
 
 		void SetNumIterations(const int32 NumIts)
@@ -79,11 +80,14 @@ namespace Chaos
 		}
 
 	private:
+		void PrepareTick();
+		void UnprepareTick();
+		void Rewind(FReal Dt, FReal RewindDt);
 		void Integrate(FReal Dt);
 		void ApplyKinematicTargets(FReal Dt, FReal StepFraction);
 		void DetectCollisions(FReal Dt);
-		void PrepareConstraints(FReal Dt);
-		void UnprepareConstraints(FReal Dt);
+		void PrepareIteration(FReal Dt);
+		void UnprepareIteration(FReal Dt);
 		void ApplyConstraints(FReal Dt);
 		void UpdateVelocities(FReal Dt);
 		void ApplyPushOutConstraints(FReal Dt);
@@ -91,6 +95,9 @@ namespace Chaos
 
 		FRigidParticleSOAs& Particles;
 		FCollisionDetector& CollisionDetector;
+
+		TArrayCollectionArray<FVec3>& ParticlePrevXs;
+		TArrayCollectionArray<FRotation3>& ParticlePrevRs;
 
 		TArray<FSimpleConstraintRule*> ConstraintRules;
 		TArray<FSimpleConstraintRule*> PrioritizedConstraintRules;
