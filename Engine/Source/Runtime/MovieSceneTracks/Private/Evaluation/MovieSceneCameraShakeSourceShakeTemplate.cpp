@@ -107,7 +107,7 @@ struct FCameraShakeSourceShakeStartExecutionToken : IMovieSceneExecutionToken
 						}
 
 						// Start playing the shake.
-						ShakeSourceComponent->PlayCameraShake(ShakeClass);
+						ShakeSourceComponent->PlayCameraShake(ShakeClass, SourceData.PlayScale, SourceData.PlaySpace, SourceData.UserDefinedPlaySpace);
 
 #if WITH_EDITOR
 						// Also start playing the shake in our editor preview.
@@ -115,6 +115,9 @@ struct FCameraShakeSourceShakeStartExecutionToken : IMovieSceneExecutionToken
 
 						FAddCameraShakeParams Params;
 						Params.SourceComponent = ShakeSourceComponent;
+						Params.Scale = SourceData.PlayScale;
+						Params.PlaySpace = SourceData.PlaySpace;
+						Params.UserPlaySpaceRot = SourceData.UserDefinedPlaySpace;
 						PreviewCameraShake->AddCameraShake(ShakeClass, Params);
 #endif
 					}
