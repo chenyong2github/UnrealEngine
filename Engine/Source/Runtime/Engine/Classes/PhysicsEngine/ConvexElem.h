@@ -5,13 +5,17 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "PhysicsEngine/ShapeElem.h"
+
+#define TEMP_HEADER_CHAOS_LEVEL_1 1
 #include "Chaos/Convex.h"
+#undef TEMP_HEADER_CHAOS_LEVEL_1
 
 #if WITH_CHAOS
 #include "Chaos/Serializable.h"
 #endif
 
 #include "ConvexElem.generated.h"
+
 
 struct FDynamicMeshVertex;
 struct FKBoxElem;
