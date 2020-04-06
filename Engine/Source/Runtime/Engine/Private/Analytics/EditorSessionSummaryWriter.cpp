@@ -37,9 +37,10 @@ namespace EditorSessionWriterDefs
 	static const float HeartbeatPeriodSeconds = 60;
 }
 
-FEditorSessionSummaryWriter::FEditorSessionSummaryWriter()
+FEditorSessionSummaryWriter::FEditorSessionSummaryWriter(uint32 InOutOfProcessMonitorProcessId)
 	: HeartbeatTimeElapsed(0.0f)
 	, bShutdown(false)
+	, OutOfProcessMonitorProcessId(InOutOfProcessMonitorProcessId)
 {
 }
 
@@ -60,7 +61,7 @@ void FEditorSessionSummaryWriter::Initialize()
 	if (FEditorAnalyticsSession::TryLock()) // System wide lock to write the session file/registry. Don't block if already taken, delay initialisation to the next Tick().
 	{
 		// Create a session Session for this session
-		CurrentSession = CreateCurrentSession();
+		CurrentSession = CreateCurrentSession(OutOfProcessMonitorProcessId);
 		CurrentSession->Save();
 
 		UE_LOG(LogEditorSessionSummary, Log, TEXT("EditorSessionSummaryWriter initialized"));
@@ -206,7 +207,7 @@ void FEditorSessionSummaryWriter::Shutdown()
 	bShutdown = true;
 }
 
-TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSession()
+TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSession(uint32 OutOfProcessMonitorProcessId)
 {
 	check(FEngineAnalytics::IsAvailable()); // The function assumes the caller checked it before calling.
 
@@ -232,6 +233,7 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 	Session->UserId = AnalyticProvider.GetUserID();
 
 	Session->PlatformProcessID = FPlatformProcess::GetCurrentProcessId();
+	Session->MonitorProcessID = OutOfProcessMonitorProcessId;
 	Session->ProjectName = ProjectSettings.ProjectName;
 	Session->ProjectID = ProjectSettings.ProjectID.ToString(EGuidFormats::DigitsWithHyphens);
 	Session->ProjectDescription = ProjectSettings.Description;

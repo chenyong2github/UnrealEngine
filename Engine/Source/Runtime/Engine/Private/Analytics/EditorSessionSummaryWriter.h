@@ -13,7 +13,7 @@ struct FEditorAnalyticsSession;
 class FEditorSessionSummaryWriter
 {
 public:
-	FEditorSessionSummaryWriter();
+	FEditorSessionSummaryWriter(uint32 OutOfProcessMonitorProcessId);
 	~FEditorSessionSummaryWriter();
 
 	void Initialize();
@@ -27,7 +27,7 @@ private:
 	void OnUserActivity(const FUserActivity& UserActivity);
 	void OnVanillaStateChanged(bool bIsVanilla);
 
-	static TUniquePtr<FEditorAnalyticsSession> CreateCurrentSession();
+	static TUniquePtr<FEditorAnalyticsSession> CreateCurrentSession(uint32 OutOfProcessMonitorProcessId);
 	static FString GetUserActivityString();
 	void UpdateTimestamps();
 	void UpdateIdleTimes();
@@ -39,6 +39,7 @@ private:
 	FCriticalSection SaveSessionLock;
 	float HeartbeatTimeElapsed;
 	bool bShutdown;
+	const uint32 OutOfProcessMonitorProcessId; // Non-zero if out-of process monitoring is set. To ensure one CrashReportClient(CRC) doesn't report the session of another CRC instance (race condition).
 };
 
 #endif

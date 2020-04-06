@@ -28,7 +28,9 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	FString ProjectDescription;
 	FString ProjectVersion;
 	FString EngineVersion;
-	int32 PlatformProcessID;
+	uint32 PlatformProcessID;
+	uint32 MonitorProcessID; // Set to the CrashReportClientEditor PID when out-of-process reporting is used.
+	TOptional<int32> ExitCode; // Set by CrashReportClientEditor after the Editor process exit when out-of-process reporting is used and reading the exit code is supported.
 
 	FDateTime StartupTimestamp;
 	FDateTime Timestamp;
@@ -141,6 +143,20 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	 *       concurrent writes will likely corrupt the file.
 	 */
 	void LogEvent(EEventType EventTpe, const FDateTime& Timestamp);
+
+	/**
+	 * Find the sessions for which the PlatformProcessID matches the specified session process id.
+	 * @param InSessionProcessId The session with this process ID.
+	 * @param[out] The found session if any (undefined if not found)
+	 * @return True if a session for the specified process id was found, false otherwise.
+	 */
+	static bool FindSession(const uint32 InSessionProcessId, FEditorAnalyticsSession& OutSession);
+
+	/**
+	 * Persist the Editor exit code corresponding of this session in the key-store value.
+	 * @node This function should only be called by the out of process monitor when the process exit value is known.
+	 */
+	void SaveExitCode(int32 ExitCode);
 
 private:
 	static FSystemWideCriticalSection* StoredValuesLock;
