@@ -433,7 +433,7 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 		ensure(Ar.IsLoading() && (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ScaledGeometryIsConcrete));
 		return new TImplicitObjectScaledGeneric<FReal, 3>();
 	}
-	case ImplicitObjectType::HeightField: if (Ar.IsLoading()) { return new THeightField<FReal>(); } break;
+	case ImplicitObjectType::HeightField: if (Ar.IsLoading()) { return new FHeightField(); } break;
 	case ImplicitObjectType::Cylinder: if (Ar.IsLoading()) { return new TCylinder<FReal>(); } break;
 	default:
 		check(false);
