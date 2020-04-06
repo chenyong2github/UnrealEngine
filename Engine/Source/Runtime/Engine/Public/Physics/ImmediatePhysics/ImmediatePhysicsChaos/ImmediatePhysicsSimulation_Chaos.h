@@ -4,6 +4,7 @@
 
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsCore_Chaos.h"
 
+#define TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/ChaosDebugDrawDeclares.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/ParticlePairBroadPhase.h"
@@ -12,6 +13,7 @@
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDJointConstraints.h"
+#undef TEMP_HEADER_CHAOS_LEVEL_1
 
 #include "Engine/EngineTypes.h"
 #include "Templates/UniquePtr.h"
