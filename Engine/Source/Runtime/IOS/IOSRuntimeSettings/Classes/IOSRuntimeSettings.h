@@ -423,14 +423,14 @@ public:
 	// Any additional plist key/value data utilizing \n for a new line
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = ExtraData)
 	FString AdditionalPlistData;
-	
+
 	/**
-	 * Choose whether to use a storyboard as a Launchscreen or not. If True, LaunchScreen.storyboard in Build/IOS/Resources/Interface
-	 * in the Engine folder will be copied to the bundle app and the Launchscreen images WILL NOT be included.
-	 * When using assets in your LaunchScreen.Storyboard, add them in Build/IOS/Resources/Interface/Assets and they will be included.
+	 * Choose whether to use a custom LaunchScreen.Storyboard as a Launchscreen. If True, the LaunchScreen.storyboard in Build/IOS/Resources/Interface
+	 * in the Engine folder will be copied to the bundle app and the Launchscreen defined in iOS Project Settings WILL NOT be included.
+	 * When using assets in your custom LaunchScreen.storyboard, add them in Build/IOS/Resources/Interface/Assets and they will be included.
 	 */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = LaunchScreen)
-	bool bLaunchscreenStoryboard;
+	bool bCustomLaunchscreenStoryboard;
 
 	// Whether the app supports Facebook
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online)
