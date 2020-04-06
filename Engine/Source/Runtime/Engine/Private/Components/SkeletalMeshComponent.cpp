@@ -1395,7 +1395,6 @@ void USkeletalMeshComponent::FillComponentSpaceTransforms(const USkeletalMesh* I
 #endif
 	}
 
-#if 0 		 // temporarily disabling ISPC code due to negative scale issue
 	if (INTEL_ISPC)
 	{
 #if INTEL_ISPC
@@ -1410,7 +1409,6 @@ void USkeletalMeshComponent::FillComponentSpaceTransforms(const USkeletalMesh* I
 #endif
 	}
 	else
-#endif // 0
 	{
 		for (int32 i = 1; i < FillComponentSpaceTransformsRequiredBones.Num(); i++)
 		{
