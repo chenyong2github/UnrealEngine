@@ -251,9 +251,9 @@ void UNiagaraDataInterfaceSkeletalMesh::IsValidVertex(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutValid(Context);
 
 	FSkeletalMeshAccessorHelper MeshAccessor;
-	MeshAccessor.Init<TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::None>, TIntegralConstant<ENDISkelMesh_AreaWeightingMode, ENDISkelMesh_AreaWeightingMode::None>>(InstData);
+	MeshAccessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstData);
 
-	const int32 MaxVertex = MeshAccessor.LODData->GetNumVertices();
+	const int32 MaxVertex = MeshAccessor.IsSkinAccessible() ? MeshAccessor.LODData->GetNumVertices() : 0;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		const int32 VertexIndex = VertexParam.GetAndAdvance();
@@ -273,9 +273,9 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomVertex(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<int32> OutVertex(Context);
 
 	FSkeletalMeshAccessorHelper MeshAccessor;
-	MeshAccessor.Init<TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::None>, TIntegralConstant<ENDISkelMesh_AreaWeightingMode, ENDISkelMesh_AreaWeightingMode::None>>(InstData);
+	MeshAccessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstData);
 
-	const int32 MaxVertex = MeshAccessor.LODData->GetNumVertices() - 1;
+	const int32 MaxVertex = MeshAccessor.IsSkinAccessible() ? MeshAccessor.LODData->GetNumVertices() - 1 : -1;
 	if (MaxVertex >= 0)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -298,9 +298,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexCount(FVectorVMContext& Context
 	VectorVM::FExternalFuncRegisterHandler<int32> OutVertexCount(Context);
 
 	FSkeletalMeshAccessorHelper MeshAccessor;
-	MeshAccessor.Init<TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::None>, TIntegralConstant<ENDISkelMesh_AreaWeightingMode, ENDISkelMesh_AreaWeightingMode::None>>(InstData);
+	MeshAccessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstData);
 
-	const int32 MaxVertex = MeshAccessor.LODData->GetNumVertices();
+	const int32 MaxVertex = MeshAccessor.IsSkinAccessible() ? MeshAccessor.LODData->GetNumVertices() : 0;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		*OutVertexCount.GetDestAndAdvance() = MaxVertex;
@@ -349,18 +349,27 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomFilteredVertex(FVectorVMContext& C
 
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 	FNDIRandomHelper RandHelper(Context);
-	checkfSlow(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
-	checkfSlow(InstData->Mesh, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
+	checkfSlow(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());	
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutVert(Context);
 
 	FSkeletalMeshAccessorHelper MeshAccessor;
 	MeshAccessor.Init<FilterMode, TIntegralConstant<ENDISkelMesh_AreaWeightingMode, ENDISkelMesh_AreaWeightingMode::None>>(InstData);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	if (MeshAccessor.IsSkinAccessible())
 	{
-		RandHelper.GetAndAdvance();
-		*OutVert.GetDestAndAdvance() = RandomFilteredVertIndex<FilterMode>(RandHelper, i, MeshAccessor, InstData);
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			RandHelper.GetAndAdvance();
+			*OutVert.GetDestAndAdvance() = RandomFilteredVertIndex<FilterMode>(RandHelper, i, MeshAccessor, InstData);
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			*OutVert.GetDestAndAdvance() = -1;
+		}
 	}
 }
 
@@ -373,19 +382,18 @@ void UNiagaraDataInterfaceSkeletalMesh::IsValidFilteredVertex(FVectorVMContext& 
 	VectorVM::FExternalFuncInputHandler<int32> VertexParam(Context);
 
 	checkfSlow(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
-	checkfSlow(InstData->Mesh, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
 
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutValid(Context);
 
 	FSkeletalMeshAccessorHelper MeshAccessor;
-	MeshAccessor.Init<FilterMode, TIntegralConstant<ENDISkelMesh_AreaWeightingMode, ENDISkelMesh_AreaWeightingMode::None>>(InstData);
+	MeshAccessor.Init<FilterMode, TNDISkelMesh_AreaWeightingOff>(InstData);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		int32 RequestedIndex = VertexParam.Get();
 
 		FNiagaraBool Value;
-		Value.SetValue((int32)MeshAccessor.LODData->GetNumVertices() > RequestedIndex);
+		Value.SetValue(MeshAccessor.IsSkinAccessible() && (int32)MeshAccessor.LODData->GetNumVertices() > RequestedIndex);
 		*OutValid.GetDest() = Value;
 
 		OutValid.Advance();
@@ -403,21 +411,21 @@ FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount(FSke
 }
 
 template<>
-FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount<TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::None>>
+FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount<TNDISkelMesh_FilterModeNone>
 	(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData)
 {
 	return  Accessor.LODData->GetNumVertices();;
 }
 
 template<>
-FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount<TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::SingleRegion>>
+FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount<TNDISkelMesh_FilterModeSingle>
 	(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData)
 {
 	return Accessor.SamplingRegionBuiltData->Vertices.Num();
 }
 
 template<>
-FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount<TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::MultiRegion>>
+FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount<TNDISkelMesh_FilterModeMulti>
 	(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData)
 {
 	int32 NumVerts = 0;
@@ -437,17 +445,26 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount(FVectorVMContext&
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 	checkfSlow(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
-	checkfSlow(InstData->Mesh, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutVert(Context);
 
 	FSkeletalMeshAccessorHelper MeshAccessor;
-	MeshAccessor.Init<FilterMode, TIntegralConstant<ENDISkelMesh_AreaWeightingMode, ENDISkelMesh_AreaWeightingMode::None>>(InstData);
+	MeshAccessor.Init<FilterMode, TNDISkelMesh_AreaWeightingOff>(InstData);
 
-	int32 Count = GetFilteredVertexCount<FilterMode>(MeshAccessor, InstData);
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	if (MeshAccessor.IsSkinAccessible())
 	{
-		*OutVert.GetDestAndAdvance() = Count;
+		int32 Count = GetFilteredVertexCount<FilterMode>(MeshAccessor, InstData);
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			*OutVert.GetDestAndAdvance() = Count;
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			*OutVert.GetDestAndAdvance() = 0;
+		}
 	}
 }
 
@@ -461,14 +478,14 @@ FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt(FSkelet
 }
 
 template<>
-FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt<TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::None>>
+FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt<TNDISkelMesh_FilterModeNone>
 	(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 FilteredIndex)
 {
 	return FilteredIndex;
 }
 
 template<>
-FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt<TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::SingleRegion>>
+FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt<TNDISkelMesh_FilterModeSingle>
 	(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 FilteredIndex)
 {
 	int32 MaxIdx = Accessor.SamplingRegionBuiltData->Vertices.Num() - 1;
@@ -477,7 +494,7 @@ FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVerte
 }
 
 template<>
-FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt<TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::MultiRegion>>
+FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt<TNDISkelMesh_FilterModeMulti>
 	(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 FilteredIndex)
 {
 	for (int32 RegionIdx = 0; RegionIdx < InstData->SamplingRegionIndices.Num(); RegionIdx++)
@@ -503,21 +520,28 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt(FVectorVMContext& Co
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncInputHandler<int32> FilteredVertexParam(Context);
 	checkfSlow(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
-	checkfSlow(InstData->Mesh, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
+
 	VectorVM::FExternalFuncRegisterHandler<int32> OutVert(Context);
 
 	FSkeletalMeshAccessorHelper Accessor;
-	Accessor.Init<FilterMode, TIntegralConstant<ENDISkelMesh_AreaWeightingMode, ENDISkelMesh_AreaWeightingMode::None>>(InstData);
+	Accessor.Init<FilterMode, TNDISkelMesh_AreaWeightingOff>(InstData);
 
-	int32 VertMax = Accessor.LODData->GetNumVertices();
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	if (Accessor.IsSkinAccessible())
 	{
-		int32 FilteredVert = FilteredVertexParam.GetAndAdvance();
-		int32 RealIdx = 0;
-		RealIdx = GetFilteredVertexAt<FilterMode>(Accessor, InstData, FilteredVert);
-		RealIdx = FMath::Min(RealIdx, VertMax);
-
-		*OutVert.GetDestAndAdvance() = RealIdx;
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			int32 FilteredVert = FilteredVertexParam.GetAndAdvance();
+			int32 RealIdx = 0;
+			RealIdx = GetFilteredVertexAt<FilterMode>(Accessor, InstData, FilteredVert);
+			*OutVert.GetDestAndAdvance() = RealIdx;
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			*OutVert.GetDestAndAdvance() = -1;
+		}
 	}
 }
 
@@ -536,13 +560,14 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexColor(FVectorVMContext& Context
 
 	USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(InstData->Component.Get());
 	FSkinWeightVertexBuffer* SkinWeightBuffer;
-	FSkeletalMeshLODRenderData& LODData = InstData->GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
-	const FColorVertexBuffer& Colors = LODData.StaticVertexBuffers.ColorVertexBuffer;
+	FSkeletalMeshLODRenderData* LODData = InstData->GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
+	check(LODData);
+	const FColorVertexBuffer& Colors = LODData->StaticVertexBuffers.ColorVertexBuffer;
 	checkfSlow(Colors.GetNumVertices() != 0, TEXT("Trying to access vertex colors from mesh without any."));
 
-	FMultiSizeIndexContainer& Indices = LODData.MultiSizeIndexContainer;
+	FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
 	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
-	int32 VertMax = LODData.GetNumVertices();
+	int32 VertMax = LODData->GetNumVertices();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		int32 Vertex = VertParam.GetAndAdvance();
@@ -592,11 +617,12 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMContext& Context)
 
 	USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(InstData->Component.Get());
 	FSkinWeightVertexBuffer* SkinWeightBuffer;
-	FSkeletalMeshLODRenderData& LODData = InstData->GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
+	FSkeletalMeshLODRenderData* LODData = InstData->GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
+	check(LODData);
 
-	FMultiSizeIndexContainer& Indices = LODData.MultiSizeIndexContainer;
+	FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
 	FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
-	const int32 VertMax = LODData.GetNumVertices() - 1;
+	const int32 VertMax = LODData->GetNumVertices() - 1;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		int32 Vert = VertParam.GetAndAdvance();
@@ -607,6 +633,24 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMContext& Context)
 		
 		*OutUVX.GetDestAndAdvance() = UV.X;
 		*OutUVY.GetDestAndAdvance() = UV.Y;
+	}
+}
+
+// Stub specialization for no valid mesh data on the data interface
+template<>
+void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV<FSkelMeshVertexAccessorNoop>(FVectorVMContext& Context)
+{
+	VectorVM::FExternalFuncInputHandler<int32> VertParam(Context);
+	VectorVM::FExternalFuncInputHandler<int32> UVSetParam(Context);
+	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
+
+	VectorVM::FExternalFuncRegisterHandler<float> OutUVX(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutUVY(Context);
+
+	for (int32 i = 0; i < Context.NumInstances; ++i)
+	{
+		*OutUVX.GetDestAndAdvance() = 0.0f;
+		*OutUVY.GetDestAndAdvance() = 0.0f;
 	}
 }
 
@@ -685,22 +729,18 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& C
 	VectorVM::FExternalFuncInputHandler<int32> VertParam(Context);
 
 	checkfSlow(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
-	checkfSlow(InstData->Mesh, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
 
 	const FMatrix& Transform = InstData->Transform;
 	const FMatrix& PrevTransform = InstData->PrevTransform;
 
 	FGetVertexSkinnedDataOutputHandler Output(Context);
 
-	FSkinWeightVertexBuffer* SkinWeightBuffer;
-	FSkeletalMeshLODRenderData& LODData = InstData->GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
-
 	FSkeletalMeshAccessorHelper Accessor;
-	Accessor.Init<TIntegralConstant<int32, 0>, TIntegralConstant<int32, 0>>(InstData);
-	const int32 VertMax = Accessor.LODData->GetNumVertices() - 1;
+	Accessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstData);
+	const int32 VertMax = Accessor.IsSkinAccessible() ? Accessor.LODData->GetNumVertices() : 0;
 	const float InvDt = 1.0f / InstData->DeltaSeconds;
-
 	const bool bNeedsTangentBasis = Output.bNeedsTangentX || Output.bNeedsTangentY || Output.bNeedsTangentZ;
+
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		const int32 Vertex = FMath::Min(VertParam.GetAndAdvance(), VertMax);
