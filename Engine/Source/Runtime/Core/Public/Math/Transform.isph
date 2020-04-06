@@ -100,15 +100,12 @@ inline uniform FMatrix ToMatrixWithScale(const uniform FTransform &T)
 
 static inline uniform bool AnyHasNegativeScale(const uniform FVector4 &InScale3D, const uniform FVector4 &InOtherScale3D)
 {
-	varying bool b = false;
 	varying float S0 = 0.0f;
 	varying float S1 = 0.0f;
 	*((uniform FVector4 *uniform)&S0) = *((uniform FVector4 *uniform)&InScale3D);
 	*((uniform FVector4 *uniform)&S1) = *((uniform FVector4 *uniform)&InOtherScale3D);
 
-	b = intbits(min(S0, S1)) & SIGN_BIT ? true : false;
-
-	return any(b);
+	return any(S0 < 0 || S1 < 0);
 }
 
 static inline void ConstructTransformFromMatrixWithDesiredScale(const uniform FMatrix& AMatrix, const uniform FMatrix& BMatrix, const uniform FVector4& DesiredScale, uniform FTransform& OutTransform)
