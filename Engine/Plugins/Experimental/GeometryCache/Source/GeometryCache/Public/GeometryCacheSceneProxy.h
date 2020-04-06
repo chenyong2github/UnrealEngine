@@ -27,7 +27,7 @@ public:
 	void Init(int32 InSizeInBytes)
 	{
 		check(this->IsInitialized() == false);
-		SizeInBytes = InSizeInBytes;		
+		SizeInBytes = InSizeInBytes;
 	}
 
 	/* Create on rhi thread. Uninitialized with NumVertices space.*/
@@ -36,20 +36,20 @@ public:
 	/**
 	 * Sugar function to update from a typed array.
 	 */
-	template<class DataType> void Update(const TArray<DataType> &Vertices)
+	template<class DataType> void Update(const TArray<DataType>& Vertices)
 	{
 		int32 InSize = Vertices.Num() * sizeof(DataType);
 		UpdateRaw(Vertices.GetData(), InSize, 1, 1);
 	}
 
-	void UpdatePositionsOnly(const TArray<FDynamicMeshVertex> &Vertices)
+	void UpdatePositionsOnly(const TArray<FDynamicMeshVertex>& Vertices)
 	{
 		const uint32 PositionOffset = STRUCT_OFFSET(FDynamicMeshVertex, Position);
 		const uint32 PositionSize = sizeof(((FDynamicMeshVertex*)nullptr)->Position);
 		UpdateRaw(Vertices.GetData() + PositionOffset, Vertices.Num(), PositionSize, sizeof(FDynamicMeshVertex));
 	}
 
-	void UpdateExceptPositions(const TArray<FDynamicMeshVertex> &Vertices)
+	void UpdateExceptPositions(const TArray<FDynamicMeshVertex>& Vertices)
 	{
 		const uint32 PositionSize = sizeof(((FDynamicMeshVertex*)nullptr)->Position);
 		const uint32 PositionOffset = STRUCT_OFFSET(FDynamicMeshVertex, Position);
@@ -57,13 +57,13 @@ public:
 		static_assert(PositionOffset == 0, "Expecting position to be the first struct member");
 		static_assert(PositionSize == STRUCT_OFFSET(FDynamicMeshVertex, TextureCoordinate), "Expecting the texture coordinate to immediately follow the Position");
 
-		UpdateRaw( (int8 *)Vertices.GetData() + PositionSize, Vertices.Num(), sizeof(FDynamicMeshVertex) - PositionSize, sizeof(FDynamicMeshVertex));
+		UpdateRaw((int8*)Vertices.GetData() + PositionSize, Vertices.Num(), sizeof(FDynamicMeshVertex) - PositionSize, sizeof(FDynamicMeshVertex));
 	}
 
 	/**
 	 * Update the raw contents of the buffer, possibly reallocate if needed.
 	 */
-	void UpdateRaw(const void *Data, int32 NumItems, int32 ItemSizeBytes, int32 ItemStrideBytes);
+	void UpdateRaw(const void* Data, int32 NumItems, int32 ItemSizeBytes, int32 ItemStrideBytes);
 
 	/**
 	 * Resize the buffer but don't initialize it with any data.
@@ -101,7 +101,7 @@ public:
 	/**
 		Update the data and possibly reallocate if needed.
 	*/
-	void Update(const TArray<uint32> &Indices);
+	void Update(const TArray<uint32>& Indices);
 
 	void UpdateSizeOnly(int32 NewNumIndices);
 
@@ -192,11 +192,11 @@ public:
 	 * @param OutNextFrameIndex - The frame index that follows OutFrameIndex
 	 * @param InterpolationFactor - The interpolation value between the two frame times
 	 */
-	virtual void FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InInterpolationFactor);
+	virtual void FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32& OutFrameIndex, int32& OutNextFrameIndex, float& InInterpolationFactor);
 
 	/** MeshData storing information used for rendering this Track */
-	FGeometryCacheMeshData *MeshData;
-	FGeometryCacheMeshData *NextFrameMeshData;
+	FGeometryCacheMeshData* MeshData;
+	FGeometryCacheMeshData* NextFrameMeshData;
 
 	/** Frame numbers corresponding to MeshData, NextFrameMeshData */
 	int32 FrameIndex;
@@ -205,7 +205,7 @@ public:
 
 	/** Material applied to this Track */
 	TArray<UMaterialInterface*> Materials;
-	
+
 	/** Vertex buffers for this Track. There are two position buffers which we double buffer between, current frame and last frame*/
 	FGeomCacheVertexBuffer PositionBuffers[2];
 	uint32 PositionBufferFrameIndices[2]; // Frame indexes of the positions in the position buffer 
@@ -222,7 +222,7 @@ public:
 
 	/** Vertex factory for this Track */
 	FGeomCacheVertexFactory VertexFactory;
-	
+
 	/** World Matrix for this Track */
 	FMatrix WorldMatrix;
 
@@ -262,7 +262,7 @@ public:
 	/** Update world matrix for specific section */
 	void UpdateSectionWorldMatrix(const int32 SectionIndex, const FMatrix& WorldMatrix);
 	/** Update vertex buffer for specific section */
-	void UpdateSectionVertexBuffer(const int32 SectionIndex, FGeometryCacheMeshData* MeshData );
+	void UpdateSectionVertexBuffer(const int32 SectionIndex, FGeometryCacheMeshData* MeshData);
 	/** Update index buffer for specific section */
 	void UpdateSectionIndexBuffer(const int32 SectionIndex, const TArray<uint32>& Indices);
 
@@ -273,18 +273,8 @@ public:
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override final;
 	virtual bool IsRayTracingRelevant() const override { return true; }
 #endif
-	
-private:	
-	FMaterialRelevance MaterialRelevance;
-	float Time;
-	bool bLooping;
-	bool bIsPlayingBackwards;
-	float PlaybackSpeed;
-	uint32 UpdatedFrameNum;
 
-	/** Array of Track Proxies */
-	TArray<FGeomCacheTrackProxy*> Tracks;
-
+private:
 	void FrameUpdate() const;
 
 	void CreateMeshBatch(
@@ -293,6 +283,71 @@ private:
 		class FGeometryCacheVertexFactoryUserDataWrapper& UserDataWrapper,
 		FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer,
 		FMeshBatch& Mesh) const;
+
+private:
+	/** Array of Track Proxies */
+	TArray<FGeomCacheTrackProxy*> Tracks;
+
+	/** Scratch memory for frame update - do not use directly. */
+	struct FScratchMemory
+	{
+		TArray<FVector> InterpolatedPositions;
+		TArray<FPackedNormal> InterpolatedTangentX;
+		TArray<FPackedNormal> InterpolatedTangentZ;
+		TArray<FVector2D> InterpolatedUVs;
+		TArray<FColor> InterpolatedColors;
+		TArray<FVector> InterpolatedMotionVectors;
+
+		void Prepare(SIZE_T NumVertices, bool bHasMotionVectors)
+		{
+			// Clear entries but keep allocations.
+			InterpolatedPositions.Reset();
+			InterpolatedTangentX.Reset();
+			InterpolatedTangentZ.Reset();
+			InterpolatedUVs.Reset();
+			InterpolatedColors.Reset();
+			InterpolatedMotionVectors.Reset();
+
+			// Make sure our capacity fits the requested vertex count
+			InterpolatedPositions.Reserve(NumVertices);
+			InterpolatedTangentX.Reserve(NumVertices);
+			InterpolatedTangentZ.Reserve(NumVertices);
+			InterpolatedUVs.Reserve(NumVertices);
+			InterpolatedColors.Reserve(NumVertices);
+
+			InterpolatedPositions.AddUninitialized(NumVertices);
+			InterpolatedTangentX.AddUninitialized(NumVertices);
+			InterpolatedTangentZ.AddUninitialized(NumVertices);
+			InterpolatedUVs.AddUninitialized(NumVertices);
+			InterpolatedColors.AddUninitialized(NumVertices);
+
+			if (bHasMotionVectors)
+			{
+				InterpolatedMotionVectors.Reserve(NumVertices);
+				InterpolatedMotionVectors.AddUninitialized(NumVertices);
+			}
+		}
+
+		void Empty()
+		{
+			// Clear entries but and release memory.
+			InterpolatedPositions.Empty();
+			InterpolatedTangentX.Empty();
+			InterpolatedTangentZ.Empty();
+			InterpolatedUVs.Empty();
+			InterpolatedColors.Empty();
+			InterpolatedMotionVectors.Empty();
+		}
+	}
+	mutable Scratch;
+
+	uint32 UpdatedFrameNum;
+	float Time;
+	float PlaybackSpeed;
+
+	FMaterialRelevance MaterialRelevance;
+	uint32 bLooping : 1;
+	uint32 bIsPlayingBackwards : 1;
 
 	/** Function used to create a new track proxy at construction */
 	TFunction<FGeomCacheTrackProxy*()> CreateTrackProxy;
