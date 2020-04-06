@@ -26,6 +26,7 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 	Builder.RouteEvent(RouteId_EventSpec, "CpuProfiler", "EventSpec");
 	Builder.RouteEvent(RouteId_EventBatch, "CpuProfiler", "EventBatch");
+	Builder.RouteEvent(RouteId_EndThread, "CpuProfiler", "EndThread");
 	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
 	Builder.RouteEvent(RouteId_ChannelAnnounce, "$Trace", "ChannelAnnounce");
 	Builder.RouteEvent(RouteId_ChannelToggle, "$Trace", "ChannelToggle");
@@ -51,6 +52,19 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 			DefineScope(Id, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
 		}
 		break;
+	}
+	case RouteId_EndThread:
+	{
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
+		FThreadState& ThreadState = GetThreadState(ThreadId);
+		const double Timestamp = Context.SessionContext.TimestampFromCycle(ThreadState.LastCycle);
+		Session.UpdateDurationSeconds(Timestamp);
+		while (ThreadState.ScopeStack.Num())
+		{
+			ThreadState.ScopeStack.Pop();
+			ThreadState.Timeline->AppendEndEvent(Timestamp);
+		}
+		ThreadStatesMap.Remove(ThreadId);
 	}
 	case RouteId_EventBatch:
 	case RouteId_EndCapture:
