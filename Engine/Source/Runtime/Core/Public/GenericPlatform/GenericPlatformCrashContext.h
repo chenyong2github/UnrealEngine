@@ -402,6 +402,9 @@ public:
 	/** Allows platform implementations to copy files to report directory. */
 	virtual void CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context);
 
+	/** Cleanup platform specific files - called on startup, implemented per platform */
+	static void CleanupPlatformSpecificFiles();
+
 	/**
 	 * @return whether this crash is a non-crash event
 	 */

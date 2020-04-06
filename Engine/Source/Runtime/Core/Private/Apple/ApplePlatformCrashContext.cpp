@@ -9,6 +9,14 @@
 #include "Containers/StringConv.h"
 #include "CoreGlobals.h"
 
+/** Implement platform specific static cleanup function */
+void FGenericCrashContext::CleanupPlatformSpecificFiles()
+{
+	// Is this the correct way to cleanup on Apple?
+	FString CrashVideoPath = FPaths::ProjectLogDir() + TEXT("CrashVideo.avi");
+	IFileManager::Get().Delete(*CrashVideoPath);
+}
+
 FApplePlatformCrashContext::FApplePlatformCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
 :	FGenericCrashContext(InType, InErrorMessage)
 ,	Signal(0)

@@ -242,6 +242,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SerializeTempCrashContextToFile();
 
+	CleanupPlatformSpecificFiles();
+
 	bIsInitialized = true;
 #endif	// !NOINITCRASHREPORTER
 }

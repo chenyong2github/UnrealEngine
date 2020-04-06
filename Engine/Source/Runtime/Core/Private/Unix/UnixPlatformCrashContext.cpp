@@ -84,6 +84,11 @@ FString DescribeSignal(int32 Signal, siginfo_t* Info, ucontext_t *Context)
 #undef HANDLE_CASE
 }
 
+/** Implement platform specific static cleanup function */
+void FGenericCrashContext::CleanupPlatformSpecificFiles()
+{
+}
+
 __thread siginfo_t FUnixCrashContext::FakeSiginfoForEnsures;
 
 FUnixCrashContext::~FUnixCrashContext()
