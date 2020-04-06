@@ -24,6 +24,9 @@ public:
 	/** Clears the object. */
 	void Empty();
 
+	/** Checks whether this engine version is an exact match for another engine version */
+	bool ExactMatch(const FEngineVersion& Other) const;
+
 	/** Checks compatibility with another version object. */
 	bool IsCompatibleWith(const FEngineVersionBase &Other) const;
 
