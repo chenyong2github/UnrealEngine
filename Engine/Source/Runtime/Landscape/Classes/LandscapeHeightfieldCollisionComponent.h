@@ -96,10 +96,10 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 
 #if WITH_CHAOS
 		TArray<Chaos::FMaterialHandle> UsedChaosMaterials;
-		TUniquePtr<Chaos::THeightField<float>> Heightfield = nullptr;
-	    TUniquePtr<Chaos::THeightField<float>> HeightfieldSimple = nullptr;
+		TUniquePtr<Chaos::FHeightField> Heightfield = nullptr;
+	    TUniquePtr<Chaos::FHeightField> HeightfieldSimple = nullptr;
 #if WITH_EDITOR
-		TUniquePtr<Chaos::THeightField<float>> EditorHeightfield = nullptr;
+		TUniquePtr<Chaos::FHeightField> EditorHeightfield = nullptr;
 #endif
 #endif
 
