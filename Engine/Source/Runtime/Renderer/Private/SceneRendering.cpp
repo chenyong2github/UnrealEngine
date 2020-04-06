@@ -1611,7 +1611,7 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
 
-	ViewUniformShaderParameters.VirtualTextureFeedbackStride = SceneContext.VirtualTextureFeedback.GetFeedbackStride();
+	ViewUniformShaderParameters.VirtualTextureFeedbackStride = SceneContext.GetVirtualTextureFeedbackBufferSize().X;
 	ViewUniformShaderParameters.RuntimeVirtualTextureMipLevel = FVector4(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTexturePackHeight = FVector2D(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTextureDebugParams = FVector4(ForceInitToZero);
