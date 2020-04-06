@@ -99,7 +99,6 @@ namespace StringConstants
 	static FString Boolean(TEXT("boolean"));
 	static FString Properties(TEXT("properties"));
 	static FString Type(TEXT("type"));
-	static FString Nil(TEXT("nil"));
 }
 
 inline void WriteSimpleSchemaField(FStructuredArchiveRecord Record, const TCHAR* FieldName, FString& Type, FSimpleSchemaFieldPropertyGenerator PropertiesCallback = FSimpleSchemaFieldPropertyGenerator())
