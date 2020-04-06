@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "GameFramework/Actor.h"
 #include "Components/BillboardComponent.h"
 

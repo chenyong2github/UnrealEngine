@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "GeometryCollection/ManagedArray.h"
 #include "GeometryCollection/ManagedArrayTypes.h"
 #include "UObject/Object.h"
