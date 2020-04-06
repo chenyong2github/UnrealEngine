@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DeferredShadingRenderer.h"
+#include "SceneRenderTargets.h"
 
 #if RHI_RAYTRACING
 
 #include "ClearQuad.h"
 #include "PathTracingUniformBuffers.h"
 #include "SceneRendering.h"
-#include "SceneRenderTargets.h"
 #include "RenderGraphBuilder.h"
 #include "RenderTargetPool.h"
 #include "RHIResources.h"
