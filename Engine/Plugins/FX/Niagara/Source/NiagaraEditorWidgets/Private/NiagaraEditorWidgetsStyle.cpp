@@ -99,10 +99,10 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 		.SetFont(ParameterFont);
 	Style->Set("NiagaraEditor.Stack.ParameterText", ParameterText);
 
-	FSlateFontInfo ParameterCollectionFont = DEFAULT_FONT("Regular", 9);
-	FTextBlockStyle ParameterCollectionText = FTextBlockStyle(NormalText)
-		.SetFont(ParameterCollectionFont);
-	Style->Set("NiagaraEditor.Stack.ParameterCollectionText", ParameterCollectionText);
+	FSlateFontInfo TextContentFont = DEFAULT_FONT("Regular", 9);
+	FTextBlockStyle TextContentText = FTextBlockStyle(NormalText)
+		.SetFont(TextContentFont);
+	Style->Set("NiagaraEditor.Stack.TextContentText", TextContentText);
 
 	FSlateFontInfo StackItemFont = DEFAULT_FONT("Regular", 11);
 	FTextBlockStyle StackItemText = FTextBlockStyle(NormalText)

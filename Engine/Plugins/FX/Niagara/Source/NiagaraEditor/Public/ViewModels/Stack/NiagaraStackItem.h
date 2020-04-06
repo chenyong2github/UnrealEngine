@@ -92,3 +92,17 @@ private:
 	FString OwningStackItemEditorDataKey;
 	bool bIsAdvanced;
 };
+
+UCLASS()
+class NIAGARAEDITOR_API UNiagaraStackItemTextContent : public UNiagaraStackItemContent
+{
+	GENERATED_BODY()
+
+public:
+	void Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayText, bool bInIsAdvanced, FString InOwningStackItemEditorDataKey);
+
+	virtual FText GetDisplayName() const override;
+
+private:
+	FText DisplayText;
+};

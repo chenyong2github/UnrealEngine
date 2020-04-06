@@ -388,41 +388,67 @@ void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable)
 {
 	FNiagaraParameterHandle ParameterHandle;
 	bool bSuccess = false;
-	if (NiagaraParameterMapSectionID::OnGetSectionFromVariable(NewVariable, IsStaticSwitchParameter(NewVariable, Graphs), ParameterHandle) == NiagaraParameterMapSectionID::USER)
+
+	if (ToolkitType == SCRIPT)
 	{
-		for (UObject* Object : SelectedScriptObjects->GetSelectedObjects())
+		if (Graphs.Num() > 0)
 		{
-			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Object))
+			TSet<FName> Names;
+			for (const TWeakObjectPtr<UNiagaraGraph>& GraphWeakPtr : Graphs)
+			{
+				if (GraphWeakPtr.IsValid())
+				{
+					UNiagaraGraph* Graph = GraphWeakPtr.Get();
+					for (const auto& ParameterElement : Graph->GetParameterReferenceMap())
+					{
+						Names.Add(ParameterElement.Key.GetName());
+					}
+				}
+			}
+			const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names);
+			NewVariable.SetName(NewUniqueName);
+
+			FScopedTransaction AddTransaction(LOCTEXT("AddScriptParameterTransaction", "Add parameter to script."));
+			for (const TWeakObjectPtr<UNiagaraGraph>& GraphWeakPtr : Graphs)
+			{
+				if (GraphWeakPtr.IsValid())
+				{
+					UNiagaraGraph* Graph = GraphWeakPtr.Get();
+					Graph->Modify();
+					Graph->AddParameter(NewVariable);
+					bSuccess = true;
+				}
+			}
+		}
+	}
+	else if (ToolkitType == SYSTEM)
+	{
+		UNiagaraSystem* System = CachedSystem.Get();
+		if (System != nullptr)
+		{
+			FScopedTransaction AddTransaction(LOCTEXT("AddSystemParameterTransaction", "Add parameter to system."));
+			System->Modify();
+			if (NiagaraParameterMapSectionID::OnGetSectionFromVariable(NewVariable, IsStaticSwitchParameter(NewVariable, Graphs), ParameterHandle) == NiagaraParameterMapSectionID::USER)
 			{
 				UNiagaraSystemEditorData* SystemEditorData = CastChecked<UNiagaraSystemEditorData>(System->GetEditorData(), ECastCheckedType::NullChecked);
 				bSuccess = FNiagaraEditorUtilities::AddParameter(NewVariable, System->GetExposedParameters(), *System, SystemEditorData->GetStackEditorData());
 			}
-		}
-	}
-	else if (Graphs.Num() > 0)
-	{
-		TSet<FName> Names;
-		for (const TWeakObjectPtr<UNiagaraGraph>& GraphWeakPtr : Graphs)
-		{
-			if (GraphWeakPtr.IsValid())
+			else
 			{
-				UNiagaraGraph* Graph = GraphWeakPtr.Get();
-				for (const auto& ParameterElement : Graph->GetParameterReferenceMap())
+				FNiagaraVariable VariableToAdd = NewVariable;
+				if (System->EditorOnlyAddedParameters.IndexOf(VariableToAdd) != INDEX_NONE)
 				{
-					Names.Add(ParameterElement.Key.GetName());
+					TSet<FName> ParameterNames;
+					TArray<FNiagaraVariable> AddedParameterVariables;
+					System->EditorOnlyAddedParameters.GetParameters(AddedParameterVariables);
+					for (const FNiagaraVariable& AddedParameterVariable : AddedParameterVariables)
+					{
+						ParameterNames.Add(AddedParameterVariable.GetName());
+					}
+					FName UniqueName = FNiagaraUtilities::GetUniqueName(VariableToAdd.GetName(), ParameterNames);
+					VariableToAdd.SetName(UniqueName);
 				}
-			}
-		}
-		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names);
-		NewVariable.SetName(NewUniqueName);
-
-		for (const TWeakObjectPtr<UNiagaraGraph>& GraphWeakPtr : Graphs)
-		{
-			if (GraphWeakPtr.IsValid())
-			{
-				UNiagaraGraph* Graph = GraphWeakPtr.Get();
-				Graph->AddParameter(NewVariable);
-				bSuccess = true;
+				bSuccess = System->EditorOnlyAddedParameters.AddParameter(VariableToAdd, false, false);
 			}
 		}
 	}
@@ -580,8 +606,21 @@ void SNiagaraParameterMapView::CollectAllActionsForSystemToolkit(TMap<FNiagaraVa
 			TArray<FNiagaraGraphParameterReferenceCollection>* Found = OutParameterEntries.Find(ExposedVar);
 			if (!Found)
 			{
-				TArray<FNiagaraGraphParameterReferenceCollection> Collection;
+				TArray<FNiagaraGraphParameterReferenceCollection> Collection = { FNiagaraGraphParameterReferenceCollection(true) };
 				OutParameterEntries.Add(ExposedVar, Collection);
+			}
+		}
+
+		// Collect manually added parameters.
+		TArray<FNiagaraVariable> AddedVars;
+		System->EditorOnlyAddedParameters.GetParameters(AddedVars);
+		for (const FNiagaraVariable& AddedVar : AddedVars)
+		{
+			TArray<FNiagaraGraphParameterReferenceCollection>* Found = OutParameterEntries.Find(AddedVar);
+			if (!Found)
+			{
+				TArray<FNiagaraGraphParameterReferenceCollection> Collection = { FNiagaraGraphParameterReferenceCollection(true) };
+				OutParameterEntries.Add(AddedVar, Collection);
 			}
 		}
 	}
@@ -942,6 +981,7 @@ void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 		}
 		else if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Object))
 		{
+			CachedSystem = System;
 			AddGraph(System->GetSystemSpawnScript()->GetSource());
 			UserParameterStoreChangedHandle = System->GetExposedParameters().AddOnChangedHandler(
 				FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP(this, &SNiagaraParameterMapView::OnUserParameterStoreChanged));
@@ -1357,7 +1397,7 @@ void SNiagaraAddParameterMenu::CollectAllActions(FGraphActionListBuilderBase& Ou
 	// Particle
 	if (CanCollectSection(NiagaraParameterMapSectionID::PARTICLE) && !IDsExcluded.Contains(NiagaraParameterMapSectionID::PARTICLE))
 	{
-		const FText Category = ShowNamespaceCategory.Get() ? NiagaraParameterMapSectionID::OnGetSectionTitle(NiagaraParameterMapSectionID::PARTICLE) : FText::GetEmpty();
+		const FText Category = ShowNamespaceCategory.Get() ? NiagaraParameterMapSectionID::OnGetSectionTitle(NiagaraParameterMapSectionID::PARTICLE) : LOCTEXT("UseExistingParticleAttribute", "Use Existing");
 		TArray<FNiagaraVariable> Variables;
 		Variables = FNiagaraConstants::GetCommonParticleAttributes();
 		AddParameterGroup(OutAllActions, Variables, NiagaraParameterMapSectionID::PARTICLE, Category, FString(), true, false);
@@ -1483,7 +1523,15 @@ void SNiagaraAddParameterMenu::CollectAllActions(FGraphActionListBuilderBase& Ou
 	}
 }
 
-void SNiagaraAddParameterMenu::AddParameterGroup(FGraphActionListBuilderBase& OutActions, TArray<FNiagaraVariable>& Variables, const NiagaraParameterMapSectionID::Type InSection, const FText& Category, const FString& RootCategory, const bool bSort, const bool bCustomName)
+void SNiagaraAddParameterMenu::AddParameterGroup(
+	FGraphActionListBuilderBase& OutActions,
+	TArray<FNiagaraVariable>& Variables,
+	const NiagaraParameterMapSectionID::Type InSection,
+	const FText& Category,
+	const FString& RootCategory,
+	const bool bSort,
+	const bool bCustomName,
+	bool bForMakeNew)
 {
 	if (bSort)
 	{
@@ -1502,6 +1550,10 @@ void SNiagaraAddParameterMenu::AddParameterGroup(FGraphActionListBuilderBase& Ou
 
 		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(Category, DisplayName, Tooltip, 0, FText(),
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu::AddParameterSelected, Variable, bCustomName, InSection)));
+		if (bForMakeNew == false)
+		{
+			Action->SetParamterHandle(FNiagaraParameterHandle(Variable.GetName()));
+		}
 
 		if (Variable.IsDataInterface())
 		{
@@ -1561,7 +1613,7 @@ void SNiagaraAddParameterMenu::CollectMakeNew(FGraphActionListBuilderBase& OutAc
 	AddParameterGroup(OutActions, Variables, InSection,
 		LOCTEXT("MakeNewCat", "Make New"), 
 		ShowNamespaceCategory.Get() ? NiagaraParameterMapSectionID::OnGetSectionTitle(InSection).ToString() : FString(), 
-		true, true);
+		true, true, true);
 }
 
 void SNiagaraAddParameterMenu::AddParameterSelected(FNiagaraVariable NewVariable, const bool bCreateCustomName, const NiagaraParameterMapSectionID::Type InSection)

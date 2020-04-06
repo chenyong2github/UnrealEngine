@@ -21,6 +21,8 @@
 #include "ScopedTransaction.h"
 #include "ViewModels/Stack/INiagaraStackItemGroupAddUtilities.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeAssigment"
 
@@ -255,12 +257,16 @@ void UNiagaraNodeAssignment::BuildAddParameterMenu(FMenuBuilder& MenuBuilder, EN
 		bool bCanExecute = AssignmentTargets.Contains(AvailableParameter) == false; 
 
 		MenuBuilder.AddMenuEntry(
-			NameText,
-			TooltipDesc,
-			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, AvailableParameter, VarDefaultValue),
-				FCanExecuteAction::CreateLambda([bCanExecute] { return bCanExecute; })));
+				FCanExecuteAction::CreateLambda([bCanExecute] { return bCanExecute; })),
+			SNew(SBox)
+			.Padding(FMargin(5, 1, 5, 1))
+			[
+				SNew(SNiagaraParameterName)
+				.ParameterName(AvailableParameter.GetName())
+				.IsReadOnly(true)
+			]);
 	}
 
 }
