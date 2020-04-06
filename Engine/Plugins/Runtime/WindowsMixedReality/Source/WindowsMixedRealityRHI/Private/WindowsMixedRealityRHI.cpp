@@ -173,6 +173,14 @@ FViewportRHIRef FWindowsMixedRealityDynamicRHI::RHICreateViewport(void* WindowHa
 		PreferredPixelFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
 	}
 
+	if (GIsEditor)
+	{
+		// DXGI device maximum frame latency counts the total number of presents enqueued rather than logical engine frames in flight. Inside the editor we can easily
+		// run into the default limit of 3 presents for different HWNDs when a VR preview window is active, causing frame rate to be throttled by the local monitor.
+		// Increase the limit so that the HMD can properly take ownership of frame pacing instead.
+		IConsoleManager::Get().FindConsoleVariable(TEXT("RHI.MaximumFrameLatency"))->Set(16);
+	}
+
 	return new FWindowsMixedRealityViewport(this, (HWND)WindowHandle, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
 }
 
