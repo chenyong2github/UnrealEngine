@@ -215,16 +215,14 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 			"BufferSize: {2}\n"
 			"PendingTickFrame: {3}\n"
 			"LatestInputFrame: {4}\n"
-			"MaxTickFrame: {5}\n"
-			"TotalSimTime: {6}\n"
-			"AllowedSimTime: {7}"),
+			"TotalSimTime: {5}\n"
+			"AllowedSimTime: {6}"),
 			{
 				EOFState->EngineFrame,
 				EOFState->EngineFrameDeltaTime,
 				EOFState->BufferSize,
 				EOFState->PendingTickFrame,
 				EOFState->LatestInputFrame,
-				EOFState->MaxTickFrame,
 				EOFState->TotalSimTime,
 				EOFState->AllowedSimTime
 			});
