@@ -703,12 +703,12 @@ void FOpenColorIOShaderMap::FlushShadersByShaderType(const FShaderType* InShader
 }
 
 
-void FOpenColorIOShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources)
+bool FOpenColorIOShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources)
 {
 	// Note: This is saved to the DDC, not into packages (except when cooked)
 	// Backwards compatibility therefore will not work based on the version of Ar
 	// Instead, just bump OPENCOLORIO_DERIVEDDATA_VER
-	Super::Serialize(Ar, bInlineShaderResources, false);
+	return Super::Serialize(Ar, bInlineShaderResources, false);
 }
 
 void FOpenColorIOShaderMap::RemovePendingColorTransform(FOpenColorIOTransformResource* InColorTransform)
