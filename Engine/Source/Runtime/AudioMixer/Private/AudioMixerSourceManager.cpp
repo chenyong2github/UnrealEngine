@@ -655,6 +655,14 @@ namespace Audio
 			MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, *InitParams.ModulationPluginSettings);
 		}
 
+		FSoundEffectSourceInitData InitData;
+		InitData.SampleRate = MixerDevice->SampleRate;
+		InitData.NumSourceChannels = InitParams.NumInputChannels;
+		InitData.AudioClock = MixerDevice->GetAudioTime();
+		InitData.AudioDeviceId = MixerDevice->DeviceID;
+
+		BuildSourceEffectChain(SourceId, InitData, InitParams.SourceEffectChain);
+
 		AudioMixerThreadCommand([this, SourceId, InitParams]()
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
@@ -724,15 +732,7 @@ namespace Audio
 				// If we're told to care about effect chain tails, then we're not allowed
 				// to stop playing until the effect chain tails are finished
 				SourceInfo.bEffectTailsDone = !InitParams.bPlayEffectChainTails;
-
-				FSoundEffectSourceInitData InitData;
-				InitData.SampleRate = MixerDevice->SampleRate;
-				InitData.NumSourceChannels = InitParams.NumInputChannels;
-				InitData.AudioClock = MixerDevice->GetAudioTime();
-				InitData.AudioDeviceId = MixerDevice->DeviceID;
-
 				SourceInfo.SourceEffectChainId = InitParams.SourceEffectChainId;
-				BuildSourceEffectChain(SourceId, InitData, InitParams.SourceEffectChain);
 
 				// Whether or not to output to bus only
 				SourceInfo.bOutputToBusOnly = InitParams.bOutputToBusOnly;
