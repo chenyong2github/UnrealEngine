@@ -283,9 +283,9 @@ namespace ImmediatePhysics_Chaos
 		FBodyInstance* BodyInstance, 
 		const FTransform& Transform)
 		: Particles(InParticles)
+		, ParticleHandle(nullptr)
 		, ParticlePrevXs(InParticlePrevXs)
 		, ParticlePrevRs(InParticlePrevRs)
-		, ParticleHandle(nullptr)
 	{
 		using namespace Chaos;
 
