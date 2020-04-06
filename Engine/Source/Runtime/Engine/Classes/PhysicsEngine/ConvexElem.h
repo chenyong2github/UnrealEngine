@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "PhysicsEngine/ShapeElem.h"
 
-#define TEMP_HEADER_CHAOS_LEVEL_1 1
+#define TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/Convex.h"
 #undef TEMP_HEADER_CHAOS_LEVEL_1
 
