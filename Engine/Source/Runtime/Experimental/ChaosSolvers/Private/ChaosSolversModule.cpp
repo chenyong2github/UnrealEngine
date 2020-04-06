@@ -969,7 +969,7 @@ void FChaosSolversModule::ChangeBufferMode(Chaos::EMultiBufferMode BufferMode)
 
 Chaos::EThreadingMode FChaosSolversModule::GetDesiredThreadingMode() const
 {
-	const bool bForceSingleThread = !FApp::ShouldUseThreadingForPerformance();
+	const bool bForceSingleThread = !(FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::SupportsMultithreadingPostFork());
 
 	// If the platform isn't using threads for perf - force Chaos to
 	// run single threaded no matter the selected mode.
