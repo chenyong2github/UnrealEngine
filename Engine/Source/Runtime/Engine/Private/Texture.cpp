@@ -112,12 +112,9 @@ void UTexture::ReleaseResource()
 		check( !Texture2D  || !Texture2D->HasPendingUpdate() );
 
 		// Free the resource.
-		BeginReleaseResource(Resource);
-		ENQUEUE_RENDER_COMMAND(DeleteResource)([ToDelete = Resource](FRHICommandListImmediate& RHICmdList)
-		{
-			delete ToDelete;
-		});
-		Resource = nullptr;
+		ReleaseResourceAndFlush(Resource);
+		delete Resource;
+		Resource = NULL;
 	}
 }
 
