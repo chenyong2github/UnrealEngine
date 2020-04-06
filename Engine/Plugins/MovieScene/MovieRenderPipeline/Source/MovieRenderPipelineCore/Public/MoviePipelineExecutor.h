@@ -45,6 +45,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void Execute(UMoviePipelineQueue* InPipelineQueue)
 	{
+		if (!InPipelineQueue)
+		{
+			FFrame::KismetExecutionMessage(TEXT("Cannot execute movie render queue with null queue object."), ELogVerbosity::Error);
+			return;
+		}
 		ExecuteImpl(InPipelineQueue);
 	}
 

@@ -75,15 +75,11 @@ protected:
 
 	virtual void OnSettingAdded(UMoviePipelineSetting* InSetting) override;
 	virtual void OnSettingRemoved(UMoviePipelineSetting* InSetting) override;
+
 	void AddTransientSettingByClass(const UClass* InSettingClass);
-public:
-	
-	/** The default shot-setup to use for any shot that doesn't a specific implementation. This is required! */
-	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Movie Render Pipeline")
-	UMoviePipelineShotConfig* DefaultShotConfig;
-	
+public:	
 	/** A mapping of Shot Name -> Shot Config to use for rendering specific shots with specific configs. */
-	UPROPERTY(VisibleAnywhere, Instanced, BlueprintReadOnly, Category = "Movie Render Pipeline")
+	UPROPERTY(Instanced)
 	TMap<FString, UMoviePipelineShotConfig*> PerShotConfigMapping;
 
 private:
