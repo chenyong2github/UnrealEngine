@@ -10,13 +10,15 @@ struct FNDIStaticMesh_InstanceData;
 struct FNDIStaticMeshSectionFilter;
 
 /** Allows uniform random sampling of a number of mesh sections filtered by an FNDIStaticMeshSectionFilter */
-struct FStaticMeshFilteredAreaWeightedSectionSampler : FStaticMeshAreaWeightedSectionSampler
+struct FStaticMeshFilteredAreaWeightedSectionSampler : FWeightedRandomSampler
 {
 	FStaticMeshFilteredAreaWeightedSectionSampler();
 	void Init(const FStaticMeshLODResources* InRes, FNDIStaticMesh_InstanceData* InOwner);
-	virtual float GetWeights(TArray<float>& OutWeights)override;
 
 protected:
+
+	virtual float GetWeights(TArray<float>& OutWeights)override;
+
 	TRefCountPtr<const FStaticMeshLODResources> Res;
 	FNDIStaticMesh_InstanceData* Owner;
 };
@@ -78,8 +80,8 @@ protected:
 		uint32 Alias;
 	};
 
-	// Cached pointer to Section render data used for initialization only.
-	TRefCountPtr<const FStaticMeshLODResources> SectionRenderData = nullptr;
+	// Cached pointer to Section render data used for initialization only. This doesn't need to be ref counted since it doesn't reference CPU data.
+	const FStaticMeshLODResources* SectionRenderData = nullptr;
 
 	TArray<SectionInfo> ValidSections;					// Only the section we want to spawn from
 
@@ -153,7 +155,7 @@ struct FNDIStaticMesh_InstanceData
 	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceStaticMesh* Interface)const;
 
 	FORCEINLINE const TArray<int32>& GetValidSections()const { return ValidSections; }
-	FORCEINLINE const FStaticMeshAreaWeightedSectionSampler& GetAreaWeightedSampler() const { return Sampler; }
+	FORCEINLINE const FWeightedRandomSampler& GetAreaWeightedSampler() const { return Sampler; }
 
 	void InitVertexColorFiltering();
 

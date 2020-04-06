@@ -12,11 +12,11 @@ StaticMeshUpdate.cpp: Helpers to stream in and out static mesh LODs.
 #include "Serialization/MemoryReader.h"
 #include "Streaming/RenderAssetUpdate.inl"
 
-int32 GStreamingMaxReferenceChecks = 3;
+int32 GStreamingMaxReferenceChecks = 2;
 static FAutoConsoleVariableRef CVarStreamingMaxReferenceChecksBeforeStreamOut(
 	TEXT("r.Streaming.MaxReferenceChecksBeforeStreamOut"),
 	GStreamingMaxReferenceChecks,
-	TEXT("Number of times the engine wait for references to be released before forcing streamout. (default=3)"),
+	TEXT("Number of times the engine wait for references to be released before forcing streamout. (default=2)"),
 	ECVF_Default
 );
 
@@ -273,31 +273,94 @@ void FStaticMeshStreamIn::DoCancel(const FContext& Context)
 	DoFinishUpdate(Context);
 }
 
-FStaticMeshStreamOut::FStaticMeshStreamOut(UStaticMesh* InMesh, int32 InRequestedMips)
+FStaticMeshStreamOut::FStaticMeshStreamOut(UStaticMesh* InMesh, int32 InRequestedMips, bool InDiscardCPUData)
 	: FStaticMeshUpdate(InMesh, InRequestedMips)
+	, bDiscardCPUData(InDiscardCPUData)
 {
-	PushTask(FContext(InMesh, TT_None), TT_Render, SRA_UPDATE_CALLBACK(DoReleaseBuffers), TT_None, nullptr);
+	check(InMesh);
+
+	// Immediately change CurrentFirstLOdIdx to prevent new references from being made to streamed out lods.
+	FStaticMeshRenderData* RenderData = InMesh->RenderData.Get();
+	if (RenderData)
+	{
+		InitialFirstLOD = RenderData->CurrentFirstLODIdx;
+		RenderData->CurrentFirstLODIdx = PendingFirstMip;
+		InMesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - PendingFirstMip));
+	}
+
+	if (InDiscardCPUData)
+	{
+		PushTask(FContext(InMesh, TT_None), TT_Async, SRA_UPDATE_CALLBACK(CheckReferencesAndDiscardCPUData), TT_Async, SRA_UPDATE_CALLBACK(Cancel));
+	}
+	else
+	{
+		PushTask(FContext(InMesh, TT_None), TT_Render, SRA_UPDATE_CALLBACK(ReleaseRHIBuffers), TT_Async, SRA_UPDATE_CALLBACK(Cancel));
+	}
 }
 
-void FStaticMeshStreamOut ::DoReleaseBuffers(const FContext& Context)
+void FStaticMeshStreamOut::CheckReferencesAndDiscardCPUData(const FContext& Context)
 {
-	check(Context.CurrentThread == TT_Render);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshStreamOut::CheckReferencesAndDiscardCPUData"), STAT_StaticMeshStreamOut_CheckReferencesAndDiscardCPUData, STATGROUP_StreamingDetails);
+	check(Context.CurrentThread == TT_Async);
+
 	UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
-	if (!IsCancelled() && Mesh && RenderData)
+	uint32 NumExternalReferences = 0;
+
+	if (Mesh && RenderData)
 	{
-		check(CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx && PendingFirstMip > CurrentFirstLODIdx);
-		check(Mesh->GetCachedNumResidentLODs() == RenderData->LODResources.Num() - RenderData->CurrentFirstLODIdx);
+		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
+		{
+			// Minus 1 since the LODResources reference is not considered external
+			NumExternalReferences += RenderData->LODResources[LODIdx].GetRefCount() - 1;
+		}
 
-		RenderData->CurrentFirstLODIdx = PendingFirstMip;
-		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - PendingFirstMip));
+		if (NumExternalReferences > PreviousNumberOfExternalReferences && NumReferenceChecks > 0)
+		{
+			PreviousNumberOfExternalReferences = NumExternalReferences;
+			UE_LOG(LogStaticMesh, Warning, TEXT("[%s] Streamed out LODResources got referenced while in pending stream out."), *Mesh->GetName());
+		}
+	}
 
+	if (!NumExternalReferences || NumReferenceChecks >= GStreamingMaxReferenceChecks)
+	{
+		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
+		{
+			RenderData->LODResources[LODIdx].DiscardCPUData();
+		}
+
+		// Because we discarded the CPU data, the stream out can not be cancelled anymore.
+		PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(ReleaseRHIBuffers), TT_Render, SRA_UPDATE_CALLBACK(ReleaseRHIBuffers));
+	}
+	else
+	{
+		++NumReferenceChecks;
+		if (NumReferenceChecks >= GStreamingMaxReferenceChecks)
+		{
+			UE_LOG(LogStaticMesh, Log, TEXT("[%s] Streamed out LODResources references are not getting released."), *Mesh->GetName());
+		}
+
+		bDeferExecution = true;
+		PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(CheckReferencesAndDiscardCPUData), TT_Async, SRA_UPDATE_CALLBACK(Cancel));
+	}
+}
+
+void FStaticMeshStreamOut::ReleaseRHIBuffers(const FContext& Context)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshStreamOut::ReleaseRHIBuffers"), STAT_StaticMeshStreamOut_ReleaseRHIBuffers, STATGROUP_StreamingDetails);
+	check(Context.CurrentThread == TT_Render);
+
+	UStaticMesh* Mesh = Context.Mesh;
+	FStaticMeshRenderData* RenderData = Context.RenderData;
+	if (Mesh && RenderData)
+	{
 		TRHIResourceUpdateBatcher<GStaticMeshMaxNumResourceUpdatesPerBatch> Batcher;
 		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
 		{
 			FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
 			LODResource.DecrementMemoryStats();
 			LODResource.ReleaseRHIForStreaming(Batcher);
+			
 #if RHI_RAYTRACING
 			if (IsRayTracingEnabled())
 			{
@@ -308,86 +371,19 @@ void FStaticMeshStreamOut ::DoReleaseBuffers(const FContext& Context)
 	}
 }
 
-
-FStaticMeshStreamOut_Swap::FStaticMeshStreamOut_Swap(UStaticMesh* InMesh, int32 InRequestedMips)
-	: FStaticMeshUpdate(InMesh, InRequestedMips)
+void FStaticMeshStreamOut::Cancel(const FContext& Context)
 {
-	PushTask(FContext(InMesh, TT_None), TT_Render, SRA_UPDATE_CALLBACK(DoReleaseBuffers), TT_None, nullptr);
-}
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshStreamOut::Cancel"), STAT_StaticMeshStreamOut_Cancel, STATGROUP_StreamingDetails);
+	check(Context.CurrentThread == TT_Async);
 
-void FStaticMeshStreamOut_Swap::DoReleaseBuffers(const FContext& Context)
-{
-	check(Context.CurrentThread == TT_Render);
 	UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
-	if (!IsCancelled() && Mesh && RenderData)
+	if (Mesh && RenderData)
 	{
-		RenderData->CurrentFirstLODIdx = PendingFirstMip;
-		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - PendingFirstMip));
-
-		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
-		{
-			FStaticMeshLODResources* PreviousLODResources = RenderData->LODResources.GetData()[LODIdx];
-			FStaticMeshLODResources* NextLODResources = new FStaticMeshLODResources;
-
-			// Copy everything but the CPU data.
-			static_cast<FStaticMeshLODData&>(*NextLODResources) = static_cast<FStaticMeshLODData&>(*PreviousLODResources);
-			NextLODResources->CopyRHIForStreaming(*PreviousLODResources, false);
-
-			// Change which LODResource the static mesh render data points to.
-			// This will prevent new references from being made.
-			RenderData->LODResources.GetData()[LODIdx] = NextLODResources; 
-			LODResourcesToRelease.Add(PreviousLODResources);
-		}
-		DoReleaseLODResources(Context);
-	}
-}
-
-void FStaticMeshStreamOut_Swap::DoReleaseLODResources(const FContext& Context)
-{
-	check(Context.CurrentThread == TT_Render);
-
-	bool bHasExternalReferences = false;
-	for (FStaticMeshLODResources& LODResource : LODResourcesToRelease)
-	{
-		if (LODResource.GetRefCount() != 1)
-		{
-			bHasExternalReferences = true;
-			++NumReferenceChecks;
-			break;
-		}
+		RenderData->CurrentFirstLODIdx = InitialFirstLOD;
+		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - InitialFirstLOD));
 	}
 
-	// It is expected that systems that keep a persistent reference to streamed out LODs will detect the streamout
-	// and recache their loddata. This is why we still streamout here after X attemps, assuming there is no active access on the loddata.
-	if (!bHasExternalReferences || NumReferenceChecks >= GStreamingMaxReferenceChecks)
-	{
-		ReleaseLODResources();
-	}
-	else
-	{
-		bDeferExecution = true;
-		PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(DoReleaseLODResources), TT_Render, SRA_UPDATE_CALLBACK(DoReleaseLODResources));
-	}
-}
-
-void FStaticMeshStreamOut_Swap::ReleaseLODResources()
-{
-	if (LODResourcesToRelease.Num())
-	{
-	    TRHIResourceUpdateBatcher<GStaticMeshMaxNumResourceUpdatesPerBatch> Batcher;
-	    FStaticMeshLODResources** LODResourcesArray = LODResourcesToRelease.GetData();
-	    for (int32 LODIndex = 0; LODIndex < LODResourcesToRelease.Num(); ++LODIndex)
-	    {
-		    FStaticMeshLODResources* LODResources = LODResourcesArray[LODIndex];
-		    LODResourcesArray[LODIndex] = nullptr;
-    
-		    LODResources->ReleaseRHIForStreaming(Batcher);
-		    LODResources->ReleaseResources(); // Also decrement memory stats.
-		    LODResources->Release();
-	    }
-	    LODResourcesToRelease.Empty();
-	}
 }
 
 void FStaticMeshStreamIn_IO::FCancelIORequestsTask::DoWork()

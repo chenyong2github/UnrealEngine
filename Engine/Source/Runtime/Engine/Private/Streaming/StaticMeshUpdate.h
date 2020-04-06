@@ -126,35 +126,19 @@ private:
 class FStaticMeshStreamOut : public FStaticMeshUpdate
 {
 public:
-	FStaticMeshStreamOut(UStaticMesh* InMesh, int32 InRequestedMips);
-
-private:
-	/** Release RHI buffers and update SRVs */
-	void DoReleaseBuffers(const FContext& Context);
-};
-
-class FStaticMeshStreamOut_Swap : public FStaticMeshUpdate
-{
-public:
-	FStaticMeshStreamOut_Swap(UStaticMesh* InMesh, int32 InRequestedMips);
-
-	virtual ~FStaticMeshStreamOut_Swap() { ReleaseLODResources(); }
+	FStaticMeshStreamOut(UStaticMesh* InMesh, int32 InRequestedMips, bool InDiscardCPUData);
 
 private:
 
+	void CheckReferencesAndDiscardCPUData(const FContext& Context);
+	void ReleaseRHIBuffers(const FContext& Context);
+	/** Restore */
+	void Cancel(const FContext& Context);
+
+	uint8 InitialFirstLOD = 0;
+	bool bDiscardCPUData = false;
 	int32 NumReferenceChecks = 0;
-	TIndirectArray<FStaticMeshLODResources>  LODResourcesToRelease;
-
-	/** Release RHI buffers and update SRVs */
-	void DoReleaseBuffers(const FContext& Context);
-
-	/** Check reference and possibly release LODResourcesToRelease */
-	void DoReleaseLODResources(const FContext& Context);
-
-	/** Release all LODs in LODResourcesToRelease */
-	void ReleaseLODResources();
-
-
+	uint32 PreviousNumberOfExternalReferences = 0;
 };
 
 class FStaticMeshStreamIn_IO : public FStaticMeshStreamIn
