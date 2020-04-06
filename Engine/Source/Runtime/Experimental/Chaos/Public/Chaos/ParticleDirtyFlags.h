@@ -144,11 +144,11 @@ public:
 	const FVec3& Torque() const { return MTorque; }
 	void SetTorque(const FVec3& Torque){ MTorque = Torque; }
 
-	const FVec3& LinearImpulse() const { return MF; }
-	void SetLinearImpulse(const FVec3& LinearImpulse){ MF = LinearImpulse; }
+	const FVec3& LinearImpulse() const { return MLinearImpulse; }
+	void SetLinearImpulse(const FVec3& LinearImpulse){ MLinearImpulse = LinearImpulse; }
 
-	const FVec3& AngularImpulse() const { return MF; }
-	void SetAngularImpulse(const FVec3& AngularImpulse){ MF = AngularImpulse; }
+	const FVec3& AngularImpulse() const { return MAngularImpulse; }
+	void SetAngularImpulse(const FVec3& AngularImpulse){ MAngularImpulse = AngularImpulse; }
 
 private:
 	FVec3 MF;
