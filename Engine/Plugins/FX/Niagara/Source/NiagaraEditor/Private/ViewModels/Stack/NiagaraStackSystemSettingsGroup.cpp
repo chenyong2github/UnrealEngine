@@ -88,7 +88,7 @@ public:
 	{
 		TSharedRef<FParameterStoreGroupAddAction> ParameterAddAction = StaticCastSharedRef<FParameterStoreGroupAddAction>(AddAction);
 		FNiagaraVariable NewParameterVariable = ParameterAddAction->GetNewParameterVariable();
-		bool bSuccess = FNiagaraEditorUtilities::AddParameter(NewParameterVariable, ParameterStore, ParameterStoreOwner, StackEditorData);
+		bool bSuccess = FNiagaraEditorUtilities::AddParameter(NewParameterVariable, ParameterStore, ParameterStoreOwner, &StackEditorData);
 		if (bSuccess)
 		{
 			OnItemAdded.ExecuteIfBound(NewParameterVariable);

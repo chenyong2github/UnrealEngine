@@ -43,13 +43,16 @@ struct FNiagaraNamespaceMetadata
 
 	FNiagaraNamespaceMetadata();
 
-	FNiagaraNamespaceMetadata(TArray<FName> InNamespaces, FText InDisplayName, FText InDescription, FLinearColor InBackgroundColor, TArray<ENiagaraNamespaceMetadataOptions> InOptions);
+	FNiagaraNamespaceMetadata(TArray<FName> InNamespaces);
 
 	UPROPERTY()
 	TArray<FName> Namespaces;
 
 	UPROPERTY()
 	FText DisplayName;
+
+	UPROPERTY()
+	FText DisplayNameLong;
 
 	UPROPERTY()
 	FText Description;
@@ -59,6 +62,36 @@ struct FNiagaraNamespaceMetadata
 
 	UPROPERTY()
 	TArray<ENiagaraNamespaceMetadataOptions> Options;
+
+	FNiagaraNamespaceMetadata& SetDisplayName(FText InDisplayName)
+	{
+		DisplayName = InDisplayName;
+		return *this;
+	}
+
+	FNiagaraNamespaceMetadata& SetDisplayNameLong(FText InDisplayNameLong)
+	{
+		DisplayNameLong = InDisplayNameLong;
+		return *this;
+	}
+
+	FNiagaraNamespaceMetadata& SetDescription(FText InDescription)
+	{
+		Description = InDescription;
+		return *this;
+	}
+
+	FNiagaraNamespaceMetadata& SetBackgroundColor(FLinearColor InBackgroundColor)
+	{
+		BackgroundColor = InBackgroundColor;
+		return *this;
+	}
+
+	FNiagaraNamespaceMetadata& AddOption(ENiagaraNamespaceMetadataOptions Option)
+	{
+		Options.Add(Option);
+		return *this;
+	}
 
 	bool IsValid() const { return Namespaces.Num() > 0; }
 };
