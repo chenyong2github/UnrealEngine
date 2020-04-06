@@ -213,9 +213,13 @@ public:
 	UPROPERTY()
 	UClothConfigBase* ChaosClothSimConfig_DEPRECATED;
 
+	// Deprecated. Use LodData instead
+	UPROPERTY()
+	TArray<UClothLODDataCommon_Legacy*> ClothLodData_DEPRECATED;
+
 	// The actual asset data, listed by LOD.
 	UPROPERTY()
-	TArray<UClothLODDataCommon*> ClothLodData;
+	TArray<FClothLODDataCommon> LodData;
 
 	// Tracks which clothing LOD each skel mesh LOD corresponds to (LodMap[SkelLod]=ClothingLod).
 	UPROPERTY()
@@ -243,13 +247,6 @@ public:
 	 */
 	UPROPERTY()
 	FClothConfig_Legacy ClothConfig_DEPRECATED;
-
-	/** 
-	 * Deprecated property for transitioning \c FClothLODData struct to the 
-	 * \c UClothLODDataCommon class, in a new property called \c ClothLodData.
-	 */
-	UPROPERTY()
-	TArray<FClothLODData_Legacy> LodData_DEPRECATED;
 
 private:
 

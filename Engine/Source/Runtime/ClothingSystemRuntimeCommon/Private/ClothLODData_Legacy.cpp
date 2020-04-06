@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClothLODData_Legacy.h"
-#include "PointWeightMap.h"
 #include "ClothLODData.h"
+#include "ClothPhysicalMeshDataBase_Legacy.h"
 
 FClothParameterMask_Legacy::FClothParameterMask_Legacy()
 	: MaskName(NAME_None)
@@ -12,51 +12,73 @@ FClothParameterMask_Legacy::FClothParameterMask_Legacy()
 	, bEnabled(false)
 {}
 
-void FClothParameterMask_Legacy::MigrateTo(FPointWeightMap* Weights) const
+void FClothParameterMask_Legacy::MigrateTo(FPointWeightMap& PointWeightMap)
 {
-	Weights->Values = Values;
+	PointWeightMap.Values = MoveTemp(Values);
 #if WITH_EDITORONLY_DATA
-	Weights->Name = MaskName;
-	Weights->CurrentTarget = static_cast<uint8>(CurrentTarget);
-	Weights->bEnabled = bEnabled;
+	PointWeightMap.Name = MaskName;
+	PointWeightMap.CurrentTarget = static_cast<uint8>(CurrentTarget);
+	PointWeightMap.bEnabled = bEnabled;
 #endif
 }
 
-bool FClothLODData_Legacy::Serialize(FArchive& Ar)
+UClothLODDataCommon_Legacy::UClothLODDataCommon_Legacy(const FObjectInitializer& Init)
+	: Super(Init)
+	, PhysicalMeshData_DEPRECATED(nullptr)
 {
-	// Serialize normal tagged data
-	if (!Ar.IsCountingMemory())
-	{
-		UScriptStruct* Struct = FClothLODData_Legacy::StaticStruct();
-		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
-	}
-	// Serialize the mesh to mesh data (not a USTRUCT)
-	Ar	<< TransitionUpSkinData
-		<< TransitionDownSkinData;
-	return true;
 }
 
-void FClothLODData_Legacy::MigrateTo(UClothLODDataCommon* LodData) const
+UClothLODDataCommon_Legacy::~UClothLODDataCommon_Legacy()
+{}
+
+void UClothLODDataCommon_Legacy::Serialize(FArchive& Ar)
 {
-	PhysicalMeshData.MigrateTo(LodData->ClothPhysicalMeshData);
-	LodData->CollisionData = CollisionData;
-#if WITH_CHAOS
-	// Rebuild surface points so that the legacy Apex convex collision data can also be used with Chaos
-	for (auto& Convex : LodData->CollisionData.Convexes)
+	Super::Serialize(Ar);
+
+	// Serialize the mesh to mesh data (not a USTRUCT)
+	Ar << TransitionUpSkinData
+	   << TransitionDownSkinData;
+}
+
+void UClothLODDataCommon_Legacy::PostLoad()
+{
+	Super::PostLoad();
+
+	if (PhysicalMeshData_DEPRECATED)
 	{
-		if (!Convex.SurfacePoints.Num())
-		{
-			Convex.RebuildSurfacePoints();
-		}
+		PhysicalMeshData_DEPRECATED->ConditionalPostLoad();  // Makes sure the UObject has finished loading
+		ClothPhysicalMeshData.MigrateFrom(PhysicalMeshData_DEPRECATED);
+		PhysicalMeshData_DEPRECATED = nullptr;
 	}
-#endif // #if WITH_CHAOS
+}
+
+void UClothLODDataCommon_Legacy::MigrateTo(FClothLODDataCommon& LodData)
+{
+	// Migrate mesh data
+	if (PhysicalMeshData_DEPRECATED)
+	{
+		// Migrate PhysicalMeshData from when it was a UObject
+		PhysicalMeshData_DEPRECATED->ConditionalPostLoad();  // Makes sure the UObject has finished loading
+		LodData.PhysicalMeshData.MigrateFrom(PhysicalMeshData_DEPRECATED);
+	}
+	else
+	{
+		// Migrate PhysicalMeshData from when it was a UStruct
+		LodData.PhysicalMeshData.MigrateFrom(ClothPhysicalMeshData);
+	}
+
+	// Migrate collision
+	LodData.CollisionData.Spheres = MoveTemp(CollisionData.Spheres);
+	LodData.CollisionData.SphereConnections = MoveTemp(CollisionData.SphereConnections);
+	LodData.CollisionData.Convexes = MoveTemp(CollisionData.Convexes);
+	LodData.CollisionData.Boxes = MoveTemp(CollisionData.Boxes);
+
 #if WITH_EDITORONLY_DATA
-	LodData->ParameterMasks.SetNum(ParameterMasks.Num());
-	for (int i = 0; i < ParameterMasks.Num(); i++)
-	{
-		ParameterMasks[i].MigrateTo(&LodData->ParameterMasks[i]);
-	}
+	// Migrate editor maps
+	LodData.PointWeightMaps = MoveTemp(ParameterMasks);
 #endif // WITH_EDITORONLY_DATA
-	LodData->TransitionUpSkinData = TransitionUpSkinData;
-	LodData->TransitionDownSkinData = TransitionDownSkinData;
+
+	// Migrate skinning data
+	LodData.TransitionUpSkinData = MoveTemp(TransitionUpSkinData);
+	LodData.TransitionDownSkinData = MoveTemp(TransitionDownSkinData);
 }

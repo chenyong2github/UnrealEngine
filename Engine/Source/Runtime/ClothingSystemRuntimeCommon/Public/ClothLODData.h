@@ -2,38 +2,30 @@
 #pragma once
 
 #include "ClothPhysicalMeshData.h"
-#include "ClothPhysicalMeshDataBase_Legacy.h"
-#include "ClothCollisionData.h"
-#include "PointWeightMap.h"
-#include "SkeletalMeshTypes.h"
-
+#include "ClothLODData_Legacy.h"
 #include "ClothLODData.generated.h"
 
 /** Common Cloth LOD representation for all clothing assets. */
-UCLASS()
-class CLOTHINGSYSTEMRUNTIMECOMMON_API UClothLODDataCommon : public UObject
+USTRUCT()
+struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothLODDataCommon
 {
 	GENERATED_BODY()
-public:
-	UClothLODDataCommon(const FObjectInitializer& Init);
-	virtual ~UClothLODDataCommon();
-
-	// Deprecated, use ClothPhysicalMeshData instead
-	UPROPERTY()
-	UClothPhysicalMeshDataBase_Legacy* PhysicalMeshData_DEPRECATED;
 
 	// Raw phys mesh data
 	UPROPERTY(EditAnywhere, Category = SimMesh)
-	FClothPhysicalMeshData ClothPhysicalMeshData;
+	FClothPhysicalMeshData PhysicalMeshData;
 
-	// Collision primitive and covex data for clothing collisions
+	// Collision primitive and convex data for clothing collisions
 	UPROPERTY(EditAnywhere, Category = Collision)
 	FClothCollisionData CollisionData;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<FClothParameterMask_Legacy> ParameterMasks_DEPRECATED;
+
 	// Parameter masks defining the physics mesh masked data
 	UPROPERTY(EditAnywhere, Category = Masks)
-	TArray<FPointWeightMap> ParameterMasks;
+	TArray<FPointWeightMap> PointWeightMaps;
 
 	// Get all available parameter masks for the specified target
 	void GetParameterMasksForTarget(const uint8 InTarget, TArray<FPointWeightMap*>& OutMasks);
@@ -42,6 +34,7 @@ public:
 	/** Copy \c ParameterMasks to corresponding targets in \c ClothPhysicalMeshData. */
 	void PushWeightsToMesh();
 #endif
+
 	// Skinning data for transitioning from a higher detail LOD to this one
 	TArray<FMeshToMeshVertData> TransitionUpSkinData;
 
@@ -49,8 +42,14 @@ public:
 	TArray<FMeshToMeshVertData> TransitionDownSkinData;
 
 	// Custom serialize for transition
-	virtual void Serialize(FArchive& Ar) override;
+	bool Serialize(FArchive& Ar);
+};
 
-	// Migrate deprecated properties
-	virtual void PostLoad() override;
+template<>
+struct TStructOpsTypeTraits<FClothLODDataCommon> : public TStructOpsTypeTraitsBase2<FClothLODDataCommon>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
 };
