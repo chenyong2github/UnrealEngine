@@ -128,6 +128,19 @@ static FString GetD3D12ErrorString(HRESULT ErrorCode, ID3D12Device* Device)
 	return ErrorCodeText;
 }
 
+/** Build string name of command queue type */
+static const TCHAR* GetD3DCommandQueueTypeName(ED3D12CommandQueueType QueueType)
+{
+	switch (QueueType)
+	{
+	case ED3D12CommandQueueType::Default:	 return TEXT("3D");
+	case ED3D12CommandQueueType::Async:		 return TEXT("Compute");
+	case ED3D12CommandQueueType::Copy:		 return TEXT("Copy");
+	}
+
+	return nullptr;
+}
+
 #undef D3DERR
 
 namespace D3D12RHI
@@ -204,9 +217,72 @@ static FString GetD3D12TextureFlagString(uint32 TextureFlags)
 	return TextureFormatText;
 }
 
+/** Log the GPU progress of the given CommandListManager to the Error log if breadcrumb data is available */
+static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12CommandListManager& CommandListManager)
+{
+	uint32* BreadCrumbData = (uint32*)CommandListManager.GetBreadCrumbResourceAddress();
+	if (BreadCrumbData == nullptr)
+	{
+		return false;
+	}
+
+	uint32 EventCount = BreadCrumbData[0];
+	bool bBeginEvent = BreadCrumbData[1] > 0;
+	check(EventCount >= 0 && EventCount < (MAX_GPU_BREADCRUMB_DEPTH - 2));
+
+	FString gpu_progress = FString::Printf(TEXT("[GPUBreadCrumb]\t%s Queue %d - %s"), GetD3DCommandQueueTypeName(CommandListManager.GetQueueType()), 
+		CommandListManager.GetGPUIndex(), EventCount == 0 ? TEXT("No Data") : (bBeginEvent ? TEXT("Begin: ") : TEXT("End: ")));
+	for (uint32 EventIndex = 0; EventIndex < EventCount; ++EventIndex)
+	{
+		if (EventIndex > 0)
+		{
+			gpu_progress.Append(TEXT(" - "));
+		}
+
+		// get the crc and try and translate back into a string
+		uint32 event_crc = BreadCrumbData[EventIndex + 2];
+		const FString* event_name = GPUProfiler.FindEventString(event_crc);
+		if (event_name)
+		{
+			gpu_progress.Append(*event_name);
+		}
+		else
+		{
+			gpu_progress.Append(TEXT("Unknown Event"));
+		}
+	}
+
+	UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *gpu_progress);
+
+	return true;
+}
+
+/** Log the GPU progress of the given Device to the Error log if breadcrumb data is available */
+static void LogBreadcrumbData(ID3D12Device* Device)
+{
+	UE_LOG(LogD3D12RHI, Error, TEXT("[GPUBreadCrumb] Last tracked GPU operations:"));
+
+	bool bValidData = true;
+
+	// Check all the devices
+	FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+	D3D12RHI->ForEachDevice(Device, [&](FD3D12Device* Device)
+		{
+			bValidData = bValidData && LogBreadcrumbData(Device->GetParentAdapter()->GetGPUProfiler(), Device->GetCommandListManager());
+			bValidData = bValidData && LogBreadcrumbData(Device->GetParentAdapter()->GetGPUProfiler(), Device->GetAsyncCommandListManager());
+			bValidData = bValidData && LogBreadcrumbData(Device->GetParentAdapter()->GetGPUProfiler(), Device->GetCopyCommandListManager());
+		});
+
+	if (!bValidData)
+	{
+		UE_LOG(LogD3D12RHI, Error, TEXT("No Valid GPU Breadcrumb data found. Use -gpucrashdebugging to collect GPU progress when debugging GPU crashes."));
+	}
+}
 
 #if PLATFORM_WINDOWS
 
+
+/** Log the DRED data to Error log if available */
 static void LogDREDData(ID3D12Device* Device)
 {
 	// Should match all values from D3D12_AUTO_BREADCRUMB_OP
@@ -379,6 +455,8 @@ static void TerminateOnDeviceRemoved(HRESULT D3DResult, ID3D12Device* Device)
 	{
 		GIsCriticalError = true;
 		GIsGPUCrashed = true;
+
+		LogBreadcrumbData(Device);
 
 #if PLATFORM_WINDOWS
 		if (Device)
