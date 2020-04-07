@@ -1956,11 +1956,6 @@ bool URigVMController::SetPinExpansion(const FString& InPinPath, bool bIsExpande
 
 bool URigVMController::SetPinExpansion(URigVMPin* InPin, bool bIsExpanded, bool bUndo)
 {
-	if (!IsValidPinForGraph(InPin))
-	{
-		return false;
-	}
-
 	if (InPin->GetSubPins().Num() == 0)
 	{
 		return false;

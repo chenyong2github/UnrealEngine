@@ -508,4 +508,8 @@ struct FRigUnit_MathQuaternionRotationOrder : public FRigUnit_MathBase
 
 	UPROPERTY(meta = (Input, Output))
 	EControlRigRotationOrder RotationOrder;
+
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
