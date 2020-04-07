@@ -545,9 +545,18 @@ FName StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool bIsGet, bool b
 			}
 			else
 			{
-				// When reading they can be from the module namespace, or a more specific namespace from a different module.
-				Namespace = *(NameParts[0].ToString() + TEXT(".") + NameParts[1].ToString());
-				NameParts.RemoveAt(0, 2);
+				// When reading they can be from the module namespace, or a more specific namespace from a different module, we also need
+				// to handle the case where they are reading from the output of a nested module, so allow an additional namespace too.
+				if (NameParts.Num() > 3)
+				{
+					Namespace = *(NameParts[0].ToString() + TEXT(".") + NameParts[1].ToString() + TEXT(".") + NameParts[2].ToString());
+					NameParts.RemoveAt(0, 3);
+				}
+				else
+				{
+					Namespace = *(NameParts[0].ToString() + TEXT(".") + NameParts[1].ToString());
+					NameParts.RemoveAt(0, 2);
+				}
 			}
 		}
 		else
