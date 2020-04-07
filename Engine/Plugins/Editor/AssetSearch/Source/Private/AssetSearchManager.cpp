@@ -49,11 +49,11 @@ FAutoConsoleVariableRef CVarDisableUniversalSearch(
 	TEXT("Enable universal search")
 );
 
-static bool bIndexUnindexAssetsOnLoad = false;
-FAutoConsoleVariableRef CVarIndexUnindexAssetsOnLoad(
-	TEXT("Search.IndexUnindexAssetsOnLoad"),
-	bIndexUnindexAssetsOnLoad,
-	TEXT("Index Unindex Assets On Load")
+static bool bTryIndexAssetsOnLoad = true;
+FAutoConsoleVariableRef CVarTryIndexAssetsOnLoad(
+	TEXT("Search.TryIndexAssetsOnLoad"),
+	bTryIndexAssetsOnLoad,
+	TEXT("Tries to index assets on load.")
 );
 
 class FUnloadPackageScope
@@ -284,7 +284,7 @@ FSearchStats FAssetSearchManager::GetStats() const
 {
 	FSearchStats Stats;
 	Stats.Scanning = ProcessAssetQueue.Num();
-	Stats.Processing = IsAssetUpToDateCount + DownloadQueueCount;
+	Stats.Processing = IsAssetUpToDateCount + DownloadQueueCount + ActiveDownloads;
 	Stats.Updating = PendingDatabaseUpdates;
 	Stats.TotalRecords = TotalSearchRecords;
 	Stats.AssetsMissingIndex = FailedDDCRequests.Num();
@@ -400,7 +400,7 @@ void FAssetSearchManager::OnAssetLoaded(UObject* InObject)
 {
 	check(IsInGameThread());
 
-	if (bIndexUnindexAssetsOnLoad)
+	if (bTryIndexAssetsOnLoad)
 	{
 		RequestIndexAsset(InObject);
 	}
@@ -410,7 +410,7 @@ bool FAssetSearchManager::RequestIndexAsset(UObject* InAsset)
 {
 	check(IsInGameThread());
 
-	if (GEditor->IsAutosaving())
+	if (GEditor == nullptr || GEditor->IsAutosaving())
 	{
 		return false;
 	}
@@ -680,13 +680,15 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 		check(bSuccess);
 
 		DownloadQueueCount--;
+		ActiveDownloads++;
 
 		DDCRequest.DDCHandle = GetDerivedDataCacheRef().GetAsynchronous(*DDCRequest.DDCKey, DDCRequest.AssetData.ObjectPath.ToString());
 		ProcessDDCQueue.Enqueue(DDCRequest);
 	}
 
+	int32 MaxQueueProcesses = 1000;
 	int32 DownloadProcessLimit = PerformanceLimits.DownloadProcessRate;
-	while (!ProcessDDCQueue.IsEmpty() && DownloadProcessLimit > 0)
+	while (!ProcessDDCQueue.IsEmpty() && DownloadProcessLimit > 0 && MaxQueueProcesses > 0)
 	{
 		const FAssetDDCRequest* PendingRequest = ProcessDDCQueue.Peek();
 		if (GetDerivedDataCacheRef().PollAsynchronousCompletion(PendingRequest->DDCHandle))
@@ -698,6 +700,7 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 			if (bGetSuccessful)
 			{
 				LoadDDCContentIntoDatabase(PendingRequest->AssetData, OutContent, PendingRequest->DDCKey);
+				DownloadProcessLimit--;
 			}
 			else if (UserSettings->bShowMissingAssets)
 			{
@@ -706,7 +709,7 @@ bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 
 			ProcessDDCQueue.Pop();
 			ActiveDownloads--;
-			DownloadProcessLimit--;
+			MaxQueueProcesses--;
 			continue;
 		}
 		break;
