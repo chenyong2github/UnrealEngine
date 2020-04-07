@@ -310,10 +310,6 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 
 		Graph->Modify();
 		Graph->AddParameter(Parameter, AddParameterOptions);
-
-		// Add the Parameter Reference 
-		FNiagaraGraphParameterReference NewParameterReference = FNiagaraGraphParameterReference(Pin->PersistentGuid, this);
-		Graph->AddParameterReference(Parameter, NewParameterReference);
 	}
 	else
 	{
@@ -336,9 +332,7 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 		Graph->AddParameter(Parameter, AddParameterOptions);
 
 		Modify();
-		UEdGraphPin* Pin = RequestNewTypedPin(NewPinDirection, Parameter.GetType(), Parameter.GetName());
-		FNiagaraGraphParameterReference NewParameterReference = FNiagaraGraphParameterReference(Pin->PersistentGuid, this);
-		Graph->AddParameterReference(Parameter, NewParameterReference);
+		RequestNewTypedPin(NewPinDirection, Parameter.GetType(), Parameter.GetName());
 	}
 	else
 	{
