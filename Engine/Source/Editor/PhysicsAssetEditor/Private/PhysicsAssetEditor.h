@@ -233,6 +233,9 @@ private:
 	bool CanSetCollision(bool bEnable) const;
 	void OnSetCollisionAll(bool bEnable);
 	bool CanSetCollisionAll(bool bEnable) const;
+	void OnSetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled);
+	bool CanSetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled) const;
+	bool IsPrimitiveCollisionChecked(ECollisionEnabled::Type CollisionEnabled) const;
 	void OnWeldToBody();
 	bool CanWeldToBody();
 	void OnAddSphere();
