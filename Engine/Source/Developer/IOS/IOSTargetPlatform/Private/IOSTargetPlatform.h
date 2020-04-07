@@ -105,7 +105,7 @@ public:
 
 
 #if WITH_ENGINE
-	virtual void GetReflectionCaptureFormats(TArray<FName>& OutFormats) const override;
+	virtual void GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const override;
 
 	virtual void GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const override;
 
