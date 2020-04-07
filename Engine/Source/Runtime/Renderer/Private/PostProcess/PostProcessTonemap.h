@@ -114,7 +114,7 @@ private:
 // ePId_Input0: SceneColor
 // ePId_Input1: BloomCombined (not needed for bDoGammaOnly)
 // ePId_Input2: Dof (not needed for bDoGammaOnly)
-class FRCPassPostProcessTonemapES2 : public TRenderingCompositePassBase<4, 1>
+class FRCPassPostProcessTonemapES2 : public TRenderingCompositePassBase<5, 1>
 {
 public:
 	FRCPassPostProcessTonemapES2(const FViewInfo& View, bool bInUsedFramebufferFetch, bool bInSRGBAwareTarget, bool bInDoEyeAdaptation, bool bMetalMSAAHDRDecode);
