@@ -29,7 +29,6 @@ FHttpThread::~FHttpThread()
 
 void FHttpThread::StartThread()
 {
-	//Thread = FForkProcessHelper::CreateForkableThread(this, TEXT("HttpManagerThread"), 128 * 1024, TPri_Normal);
 	Thread = FRunnableThread::Create(this, TEXT("HttpManagerThread"), 128 * 1024, TPri_Normal);
 }
 

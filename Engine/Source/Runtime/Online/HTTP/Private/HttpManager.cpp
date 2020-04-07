@@ -168,7 +168,7 @@ void FHttpManager::Flush(bool bShutdown)
 		LastTime = AppTime;
 		if (Requests.Num() > 0)
 		{
-			if (FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::IsForkedMultithreadInstance())
+			if (FPlatformProcess::SupportsMultithreading())
 			{
 				UE_LOG(LogHttp, Display, TEXT("Sleeping 0.5s to wait for %d outstanding Http requests."), Requests.Num());
 				FPlatformProcess::Sleep(0.5f);
