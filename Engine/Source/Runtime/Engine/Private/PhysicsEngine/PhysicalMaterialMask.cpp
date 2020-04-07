@@ -93,6 +93,8 @@ UPhysicalMaterialMask::UPhysicalMaterialMask(const FObjectInitializer& ObjectIni
 {
 }
 
+UPhysicalMaterialMask::~UPhysicalMaterialMask() = default;
+
 #if WITH_EDITOR
 
 void UPhysicalMaterialMask::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
