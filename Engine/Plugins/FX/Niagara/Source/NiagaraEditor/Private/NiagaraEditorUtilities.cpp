@@ -2058,15 +2058,15 @@ void FNiagaraEditorUtilities::WarnWithToastAndLog(FText WarningMessage)
 	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *WarningMessage.ToString());
 }
 
-void FNiagaraEditorUtilities::InfoWithToastAndLog(FText InfoMessage)
+void FNiagaraEditorUtilities::InfoWithToastAndLog(FText InfoMessage, float ToastDuration)
 {
 	FNotificationInfo WarningNotification(InfoMessage);
-	WarningNotification.ExpireDuration = 5.0f;
+	WarningNotification.ExpireDuration = ToastDuration;
 	WarningNotification.bFireAndForget = true;
 	WarningNotification.bUseLargeFont = false;
 	WarningNotification.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
 	FSlateNotificationManager::Get().AddNotification(WarningNotification);
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *InfoMessage.ToString());
+	UE_LOG(LogNiagaraEditor, Log, TEXT("%s"), *InfoMessage.ToString());
 }
 
 FName FNiagaraEditorUtilities::GetUniqueObjectName(UObject* Outer, UClass* ObjectClass, const FString& CandidateName)
@@ -2430,6 +2430,19 @@ void FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(UNiagaraScript* Sc
 			OutReferencingFunctionCallNodes.Add(FunctionCallNode);
 		}
 	}
+}
+
+FText FNiagaraEditorUtilities::FormatParameterNameForTextDisplay(FName ParameterName)
+{
+	FNiagaraParameterHandle ParameterHandle(ParameterName);
+	TArray<FName> HandleParts = ParameterHandle.GetHandleParts();
+	FString DisplayString;
+	for (int32 HandlePartIndex = 0; HandlePartIndex < HandleParts.Num() - 1; HandlePartIndex++)
+	{
+		DisplayString += TEXT("(") + HandleParts[HandlePartIndex].ToString().ToUpper() + TEXT(") ");
+	}
+	DisplayString += HandleParts[HandleParts.Num() - 1].ToString();
+	return FText::FromString(DisplayString);
 }
 
 #undef LOCTEXT_NAMESPACE

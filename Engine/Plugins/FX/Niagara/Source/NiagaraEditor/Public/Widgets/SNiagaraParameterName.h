@@ -33,6 +33,7 @@ public:
 		SLATE_EVENT(FOnNameChanged, OnNameChanged)
 		SLATE_EVENT(FIsSelected, IsSelected)
 		SLATE_EVENT(FPointerEventHandler, OnDoubleClicked)
+		SLATE_NAMED_SLOT(FArguments, Decorator)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -46,7 +47,7 @@ public:
 	void EnterNamespaceModifierEditingMode();
 
 private:
-	TSharedRef<SBorder> CreateNamespaceWidget(FText NamespaceDisplayName, FText NamespaceDescription, FLinearColor NamespaceBorderColor);
+	TSharedRef<SBorder> CreateNamespaceWidget(FText NamespaceDisplayName, FText NamespaceDescription, FLinearColor NamespaceBorderColor, FName NamespaceForegroundStyle);
 
 	void UpdateContent(FName InDisplayedParameterName);
 
@@ -78,6 +79,7 @@ private:
 	FName DisplayedNamespaceModifier;
 	TSharedPtr<SInlineEditableTextBlock> EditableTextBlock;
 	TSharedPtr<SBorder> NamespaceModifierBorder;
+	TSharedPtr<SWidget> Decorator;
 };
 
 class NIAGARAEDITOR_API SNiagaraParameterNameTextBlock : public SCompoundWidget
@@ -95,6 +97,8 @@ public:
 		SLATE_EVENT(FOnVerifyTextChanged, OnVerifyTextChanged)
 		SLATE_EVENT(FOnTextCommitted, OnTextCommitted)
 		SLATE_EVENT(FIsSelected, IsSelected)
+		SLATE_NAMED_SLOT(FArguments, Decorator)
+		
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
