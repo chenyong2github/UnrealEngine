@@ -60,8 +60,14 @@ static DXGI_FORMAT GetRenderTargetFormat(EPixelFormat PixelFormat)
 class D3D11RHI_API FD3D11Viewport : public FRHIViewport
 {
 public:
+	enum ED3DViewportValidFlags : uint32
+	{
+		VIEWPORT_INVALID = 0x1,
+		VIEWPORT_FULLSCREEN_LOST = 0x2,
 
-	FD3D11Viewport(class FD3D11DynamicRHI* InD3DRHI) : D3DRHI(InD3DRHI), bFullscreenLost(false), FrameSyncEvent(InD3DRHI) {}
+	};
+
+	FD3D11Viewport(class FD3D11DynamicRHI* InD3DRHI) : D3DRHI(InD3DRHI), PresentFailCount(0), ValidState (0), FrameSyncEvent(InD3DRHI) {}
 	FD3D11Viewport(class FD3D11DynamicRHI* InD3DRHI, HWND InWindowHandle, uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat);
 	~FD3D11Viewport();
 
@@ -119,6 +125,7 @@ public:
 	virtual void* GetNativeWindow(void** AddParam = nullptr) const override { return (void*)WindowHandle; }
 	static FD3D11Texture2D* GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain);
 
+
 protected:
 
 	void ResetSwapChainInternal(bool bIgnoreFocus);
@@ -143,11 +150,12 @@ protected:
 	uint32 SizeX;
 	uint32 SizeY;
 	uint32 BackBufferCount;
-	bool bIsFullscreen : 1;
-	bool bFullscreenLost : 1;
+	uint32 PresentFailCount;
+	TAtomic<uint32> ValidState;
 	EPixelFormat PixelFormat;
 	EColorSpaceAndEOTF PixelColorSpace;
-	bool bIsValid;
+	bool bIsFullscreen;
+
 #if PLATFORM_HOLOLENS
 	TRefCountPtr<IDXGISwapChain1> SwapChain;
 #else

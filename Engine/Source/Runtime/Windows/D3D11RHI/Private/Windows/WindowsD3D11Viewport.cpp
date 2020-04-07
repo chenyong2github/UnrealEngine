@@ -48,11 +48,11 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	MaximumFrameLatency(3),
 	SizeX(InSizeX),
 	SizeY(InSizeY),
-	bIsFullscreen(bInIsFullscreen),
-	bFullscreenLost(false),
+	PresentFailCount(0),
+	ValidState(0),
 	PixelFormat(InPreferredPixelFormat),
 	PixelColorSpace(EColorSpaceAndEOTF::ERec709_sRGB),
-	bIsValid(true),
+	bIsFullscreen(bInIsFullscreen),
 	FrameSyncEvent(InD3DRHI)
 {
 	check(IsInGameThread());
@@ -285,12 +285,13 @@ void FD3D11Viewport::CheckHDRMonitorStatus()
 
 void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 {
-	if (!bIsValid)
+	uint32 Valid = ValidState;
+	if(0 != (Valid & VIEWPORT_INVALID))
 	{
-		if (bFullscreenLost)
+		if(0 != (Valid & VIEWPORT_FULLSCREEN_LOST))
 		{
 			FlushRenderingCommands();
-			bFullscreenLost = false;
+			ValidState &= ~(VIEWPORT_FULLSCREEN_LOST);
 			Resize(SizeX, SizeY, false, PixelFormat);
 		}
 		else
@@ -302,7 +303,7 @@ void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 
 void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 {
-	if (!bIsValid)
+	if (0 != (ValidState & VIEWPORT_INVALID))
 	{
 		// Check if the viewport's window is focused before resetting the swap chain's fullscreen state.
 		HWND FocusWindow = ::GetFocus();
@@ -318,7 +319,7 @@ void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 
 			if (SUCCEEDED(Result))
 			{
-				bIsValid = true;
+				ValidState &= ~(VIEWPORT_INVALID);
 			}
 			else if (Result != DXGI_ERROR_NOT_CURRENTLY_AVAILABLE && Result != DXGI_STATUS_MODE_CHANGE_IN_PROGRESS)
 			{
