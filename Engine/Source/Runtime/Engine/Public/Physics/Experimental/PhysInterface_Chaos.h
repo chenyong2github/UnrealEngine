@@ -13,7 +13,6 @@
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "Physics/GenericPhysicsInterface.h"
 #include "Physics/Experimental/PhysicsUserData_Chaos.h"
-#include "Chaos/PhysicalMaterials.h"
 
 //NOTE: Do not include Chaos headers directly as it means recompiling all of engine. This should be reworked to avoid allocations
 

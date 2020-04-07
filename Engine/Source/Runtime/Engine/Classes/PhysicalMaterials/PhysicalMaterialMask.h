@@ -72,7 +72,7 @@ public:
 #endif // WITH_EDITOR
 
 #if WITH_CHAOS
-	FPhysicsMaterialMaskHandle MaterialMaskHandle;
+	TUniquePtr<FPhysicsMaterialMaskHandle> MaterialMaskHandle;
 
 	/** Get the physics-interface derived version of this material */
 	FPhysicsMaterialMaskHandle& GetPhysicsMaterialMask();
