@@ -9,6 +9,7 @@
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "Templates/UniquePtr.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
 
 /** 
  * A backend wrapper that implements a cache hierarchy of backends. 
@@ -179,6 +180,8 @@ public:
 		return bSuccess;
 	}
 
+
+
 	/**
 	 * Synchronous retrieve of a cache item
 	 *
@@ -233,9 +236,8 @@ public:
 									break; //do not write things that are already in the read only pak file
 								}
 							}
-							else if (PutBackend->GetSpeedClass() >= FDerivedDataBackendInterface::ESpeedClass::Ok && PutBackend->WouldCache(CacheKey, OutData))
-							{
-								
+							else if (PutBackend->GetSpeedClass() >= FDerivedDataBackendInterface::ESpeedClass::Fast && PutBackend->WouldCache(CacheKey, OutData))
+							{								
 								AsyncPutInnerBackends[PutCacheIndex]->PutCachedData(CacheKey, OutData, false); // we do not need to force a put here
 								UE_LOG(LogDerivedDataCache, Verbose, TEXT("Back-filling cache %s with: %s (%d bytes) (force=%d)"), *PutBackend->GetName(), CacheKey, OutData.Num(), false);
 							}
@@ -322,6 +324,8 @@ public:
 		});
 	}
 
+
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 
@@ -332,3 +336,5 @@ private:
 	/** As an optimization, we check our writable status at contruction **/
 	bool bIsWritable;
 };
+
+PRAGMA_ENABLE_OPTIMIZATION
