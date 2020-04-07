@@ -9,9 +9,11 @@
 #include "EngineDefines.h"
 #include "PhysicsPublic.h"
 #include "PhysXIncludes.h"
-#define TEMP_HEADER_CHAOS_LEVEL_1
-#include "Chaos/ImplicitObject.h"
-#undef TEMP_HEADER_CHAOS_LEVEL_1
+
+namespace Chaos
+{
+	class FImplicitObject;
+}
 
 #if PHYSICS_INTERFACE_PHYSX
 /** Draw PhysX geom with overlaps */
