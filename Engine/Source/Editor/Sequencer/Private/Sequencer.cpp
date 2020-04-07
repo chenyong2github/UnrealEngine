@@ -2001,6 +2001,8 @@ void FSequencer::BakeTransform()
 
 					if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Parent))
 					{
+						SkeletalMeshComponent->TickAnimation(0.f, false);
+
 						SkeletalMeshComponent->RefreshBoneTransforms();
 						SkeletalMeshComponent->RefreshSlaveComponents();
 						SkeletalMeshComponent->UpdateComponentToWorld();
