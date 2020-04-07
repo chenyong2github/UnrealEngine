@@ -795,7 +795,10 @@ void UDebugSkelMeshComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 	bCachedMaterialParameterIndicesAreDirty = true;
 	
 	// Force retargeting data to be re-cached to take into account skeleton edits.
-	bRequiredBonesUpToDate = false;
+	if (bRequiredBonesUpToDateDuringTick)
+	{
+		bRequiredBonesUpToDate = false;
+	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
