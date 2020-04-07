@@ -210,7 +210,7 @@
 		Shaders/...
 	</Property>
 	<ForEach Name="Filter" Values="$(CopyEditorEngineOrPlatformFilter)">
-		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/$(Filter)"/>
+		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/$(Filter);Engine/Platforms/*/$(Filter)"/>
 	</ForEach>
 	<!-- Optional target files -->
 	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Source/UE4Client.Target.cs" If="$(WithClient)"/>
@@ -233,6 +233,7 @@
 		<!-- Plugins -->
 		Engine/Plugins/Runtime/TwitchLiveStreaming/...
 		Engine/Plugins/Runtime/PacketHandlers/CompressionComponents/Oodle/...
+		Engine/Platforms/*/Plugins/Runtime/PacketHandlers/CompressionComponents/Oodle/...
 
 		<!-- Source code -->
 		Engine/Source/Runtime/SQLiteSupport/...
