@@ -55,5 +55,8 @@ private:
 	TUniquePtr<FHighlightRecorder> Recorder;
 
 	bool bAudioFormatChecked = false;
+
+	class FWindowsScreenRecording;
+	TUniquePtr<FWindowsScreenRecording>	ScreenshotAndRecorderHandler;
 };
 
