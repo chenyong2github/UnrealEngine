@@ -59,6 +59,9 @@ namespace Chaos
 	float DefaultCollisionRestitution = 0;
 	FAutoConsoleVariableRef CVarDefaultCollisionRestitution(TEXT("p.DefaultCollisionRestitution"), DefaultCollisionRestitution, TEXT("Collision restitution default value if no materials are found."));
 
+	int32 Chaos_Collision_UseAccumulatedImpulseClipSolve = 0; // Experimental: This requires multiple contact points per iteration per pair, and making sure the contact points don't move too much in body space
+	FAutoConsoleVariableRef CVarChaosCollisionOriginalSolve(TEXT("p.Chaos.Collision.UseAccumulatedImpulseClipSolve"), Chaos_Collision_UseAccumulatedImpulseClipSolve, TEXT("Use experimental Accumulated impulse clipped contact solve"));
+
 #if INTEL_ISPC
 	bool bChaos_Collision_ISPC_Enabled = false;
 	FAutoConsoleVariableRef CVarChaosCollisionISPCEnabled(TEXT("p.Chaos.Collision.ISPC"), bChaos_Collision_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Collision Solver"));
@@ -432,6 +435,13 @@ namespace Chaos
 	void FPBDCollisionConstraints::UpdateConstraints(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdatePointConstraints);
+
+		// Make sure the cull distance is enough if we switched to Accumulated Impulse clipping		
+		const int MinCullDistanceForImpulseClipping = 5;
+		if (Chaos_Collision_UseAccumulatedImpulseClipSolve && MCullDistance < MinCullDistanceForImpulseClipping)
+		{
+			MCullDistance = MinCullDistanceForImpulseClipping;
+		}
 
 		// @todo(chaos): parallelism needs to be optional
 
