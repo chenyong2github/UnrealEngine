@@ -200,7 +200,11 @@ void UControlRig::Execute(const EControlRigState InState)
 	if (bRequiresInitExecution)
 	{
 		bRequiresInitExecution = false;
-		Execute(EControlRigState::Init);
+
+		if (InState != EControlRigState::Init)
+		{
+			Execute(EControlRigState::Init);
+		}
 	}
 
 	FRigUnitContext Context;
