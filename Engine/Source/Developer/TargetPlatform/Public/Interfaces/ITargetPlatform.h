@@ -602,6 +602,12 @@ public:
 	 * Returns wheter or not this 16bit index buffer should be promoted to 32bit
 	 */
 	virtual bool ShouldExpandTo32Bit(const uint16* Indices, const int32 NumIndices) const = 0;
+
+	/**
+	 * Copy a file to the target
+	 */
+	virtual bool CopyFileToTarget(const FString& DeviceId, const FString& HostFilename, const FString& TargetFilename, const TMap<FString,FString>& CustomPlatformData) = 0;
+
 public:
 
 	/**
