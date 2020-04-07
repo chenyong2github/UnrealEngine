@@ -174,27 +174,20 @@ NiagaraParameterMapSectionID::Type NiagaraParameterMapSectionID::OnGetSectionFro
 	return SectionID;
 }
 
-bool NiagaraParameterMapSectionID::GetSectionIsAdvanced(const Type InSection)
+bool NiagaraParameterMapSectionID::GetSectionIsAdvancedForScript(const Type InSection)
 {
 	TArray<FName> SectionNamespaces;
 	OnGetSectionNamespaces(InSection, SectionNamespaces);
 	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(SectionNamespaces);
-	if (NamespaceMetadata.IsValid())
-	{
-		bool bIsAdvanced = false;
-		for (const ENiagaraNamespaceMetadataOptions& Option : NamespaceMetadata.Options)
-		{
-			if (Option == ENiagaraNamespaceMetadataOptions::Advanced)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-	else
-	{
-		return false;
-	}
+	return NamespaceMetadata.IsValid() && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::AdvancedInScript);
+}
+
+bool NiagaraParameterMapSectionID::GetSectionIsAdvancedForSystem(const Type InSection)
+{
+	TArray<FName> SectionNamespaces;
+	OnGetSectionNamespaces(InSection, SectionNamespaces);
+	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(SectionNamespaces);
+	return NamespaceMetadata.IsValid() && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::AdvancedInSystem);
 }
 
 SNiagaraParameterMapView::~SNiagaraParameterMapView()
@@ -549,19 +542,27 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 		{
 			continue;
 		}
-		TArray<NiagaraParameterMapSectionID::Type> ExcludedSystemIds = {
+
+		static const TArray<NiagaraParameterMapSectionID::Type> ExcludedSystemIds = {
 			NiagaraParameterMapSectionID::MODULE_INPUT,
 			NiagaraParameterMapSectionID::MODULE_LOCAL,
 			NiagaraParameterMapSectionID::DATA_INSTANCE };
-
-		if ((IsSystemToolkit() == false || ExcludedSystemIds.Contains(Section) == false) &&
-			(bDisplayAdvancedCategories || NiagaraParameterMapSectionID::GetSectionIsAdvanced(Section) == false))
+		if (IsSystemToolkit() && ExcludedSystemIds.Contains(Section))
 		{
-			const FText Name = FText::FromName(Parameter.GetName());
-			const FText Tooltip = FText::Format(TooltipFormat, FText::FromName(Parameter.GetName()), Parameter.GetType().GetNameText());
-			TSharedPtr<FNiagaraParameterAction> ParameterAction(new FNiagaraParameterAction(Parameter, ParameterEntry.Value, FText::GetEmpty(), Name, Tooltip, 0, FText(), Section));
-			OutAllActions.AddAction(ParameterAction);
+			continue;
 		}
+
+		if (bDisplayAdvancedCategories == false &&
+			((IsScriptToolkit() && NiagaraParameterMapSectionID::GetSectionIsAdvancedForScript(Section)) ||
+			(IsSystemToolkit() && NiagaraParameterMapSectionID::GetSectionIsAdvancedForSystem(Section))))
+		{
+			continue;
+		}
+
+		const FText Name = FText::FromName(Parameter.GetName());
+		const FText Tooltip = FText::Format(TooltipFormat, FText::FromName(Parameter.GetName()), Parameter.GetType().GetNameText());
+		TSharedPtr<FNiagaraParameterAction> ParameterAction(new FNiagaraParameterAction(Parameter, ParameterEntry.Value, FText::GetEmpty(), Name, Tooltip, 0, FText(), Section));
+		OutAllActions.AddAction(ParameterAction);
 	}
 }
 
@@ -735,7 +736,18 @@ void SNiagaraParameterMapView::CollectStaticSections(TArray<int32>& StaticSectio
 	{
 		for (int i = StaticSectionIDs.Num() - 1; i > 0; --i)
 		{
-			if (NiagaraParameterMapSectionID::GetSectionIsAdvanced(NiagaraParameterMapSectionID::Type(StaticSectionIDs[i])))
+			bool bIsAdvanced = false;
+			NiagaraParameterMapSectionID::Type SectionID = NiagaraParameterMapSectionID::Type(StaticSectionIDs[i]);
+			if (IsScriptToolkit())
+			{
+				bIsAdvanced = NiagaraParameterMapSectionID::GetSectionIsAdvancedForScript(SectionID);
+			}
+			else if (IsSystemToolkit())
+			{
+				bIsAdvanced = NiagaraParameterMapSectionID::GetSectionIsAdvancedForSystem(SectionID);
+			}
+
+			if (bIsAdvanced)
 			{
 				StaticSectionIDs.RemoveAt(i);
 			}

@@ -30,7 +30,8 @@ struct FNiagaraNewAssetDialogConfig
 UENUM()
 enum class ENiagaraNamespaceMetadataOptions
 {
-	Advanced,
+	AdvancedInScript,
+	AdvancedInSystem,
 	PreventRenaming,
 	CanChangeNamespaceModifier,
 	PreventCreatingInSystemEditor
