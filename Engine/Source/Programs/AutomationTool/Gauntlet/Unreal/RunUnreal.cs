@@ -397,7 +397,14 @@ namespace Gauntlet
 				// This will throw if the test cannot be created
 				ITestNode NewTest = Utils.TestConstructor.ConstructTest<ITestNode, UnrealTestContext>(Test.TestName, TestContext, Namespaces);
 
-				NodeList.Add(NewTest);
+				if (CombinedParams.ParseParam("listargs") || CombinedParams.ParseParam("listallargs"))
+				{
+					NewTest.DisplayCommandlineHelp();
+				}
+				else
+				{
+					NodeList.Add(NewTest);
+				}
 			}
 
 			return NodeList;
