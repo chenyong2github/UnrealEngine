@@ -158,7 +158,7 @@ void FVulkanGPUTiming::Initialize()
  */
 void FVulkanGPUTiming::Release()
 {
-	if (FVulkanPlatform::SupportsTimestampRenderQueries())
+	if (FVulkanPlatform::SupportsTimestampRenderQueries() && GIsSupported)
 	{
 		check(Pool);
 		Device->GetStagingManager().ReleaseBuffer(nullptr, Pool->ResultsBuffer);
