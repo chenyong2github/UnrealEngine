@@ -10,7 +10,6 @@
 #include "ContentStreaming.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "Async/Async.h"
-#include "Sound/SoundSubmix.h"
 #include "Sound/SoundEffectPreset.h"
 
 // This is our global recording task:
