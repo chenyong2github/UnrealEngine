@@ -212,7 +212,7 @@ FWindowsMixedRealityViewport::FWindowsMixedRealityViewport(FD3D11DynamicRHI* InD
 	SizeY = InSizeY;
 	bIsFullscreen = bInIsFullscreen;
 	PixelFormat  = InPreferredPixelFormat;
-	bIsValid = true;
+	ValidState = 0;
 
 	D3DRHI->Viewports.Add(this);
 
@@ -320,7 +320,7 @@ void FWindowsMixedRealityViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool b
 	if (bIsFullscreen != bInIsFullscreen)
 	{
 		bIsFullscreen = bInIsFullscreen;
-		bIsValid = false;
+		ValidState = VIEWPORT_INVALID;
 	}
 
 	// Float RGBA backbuffers are requested whenever HDR mode is desired
