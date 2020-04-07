@@ -1356,8 +1356,8 @@ static void DenoiseSignalAtConstantPixelDensity(
 			{
 				InjestDescs[BatchedSignalId / 2].Format = (BatchedSignalId % 2) ? PF_R32G32_UINT : PF_R32_UINT;
 				InjestTextureCount = BatchedSignalId / 2 + 1;
-				ReconstructionDescs[BatchedSignalId].Format = PF_R32G32_UINT;
-				HistoryDescs[BatchedSignalId].Format = PF_R32G32_UINT;
+				ReconstructionDescs[BatchedSignalId].Format = PF_FloatRGBA;
+				HistoryDescs[BatchedSignalId].Format = PF_FloatRGBA;
 			}
 
 			HistoryTextureCountPerSignal = 1;
@@ -1789,7 +1789,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 				{
 					for (int32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 					{
-						RejectionSignalProcessingDescs[BatchedSignalId].Format = PF_R32G32_UINT;
+						RejectionSignalProcessingDescs[BatchedSignalId].Format = PF_FloatRGBA;
 					}
 					RejectionTextureCount = Settings.SignalBatchSize;
 				}
