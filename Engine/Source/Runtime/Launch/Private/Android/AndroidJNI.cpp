@@ -118,6 +118,11 @@ void FJavaWrapper::FindClassesAndMethods(JNIEnv* Env)
 	AndroidThunkJava_GetIntentExtrasString = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_GetIntentExtrasString", "(Ljava/lang/String;)Ljava/lang/String;", bIsOptional);
 	AndroidThunkJava_PushSensorEvents = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_PushSensorEvents", "()V", bIsOptional);
 
+	// Screen capture/recording permission
+	AndroidThunkJava_IsScreenCaptureDisabled = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_IsScreenCaptureDisabled", "()Z", bIsOptional);
+	AndroidThunkJava_DisableScreenCapture = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_DisableScreenCapture", "(Z)V", bIsOptional);
+
+
 	// this is optional - only inserted if Oculus Mobile plugin enabled
 	AndroidThunkJava_IsOculusMobileApplication = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_IsOculusMobileApplication", "()Z", true);
 
@@ -398,6 +403,8 @@ jmethodID FJavaWrapper::AndroidThunkJava_GetIntentExtrasInt;
 jmethodID FJavaWrapper::AndroidThunkJava_GetIntentExtrasString;
 jmethodID FJavaWrapper::AndroidThunkJava_SetSustainedPerformanceMode;
 jmethodID FJavaWrapper::AndroidThunkJava_PushSensorEvents;
+jmethodID FJavaWrapper::AndroidThunkJava_IsScreenCaptureDisabled;
+jmethodID FJavaWrapper::AndroidThunkJava_DisableScreenCapture;
 
 jclass FJavaWrapper::InputDeviceInfoClass;
 jfieldID FJavaWrapper::InputDeviceInfo_VendorId;
@@ -750,6 +757,25 @@ void AndroidThunkCpp_PushSensorEvents()
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_PushSensorEvents);
+	}
+}
+
+bool AndroidThunkCpp_IsScreenCaptureDisabled()
+{
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		// call the java side
+		return FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_IsScreenCaptureDisabled);
+	}
+	return true;
+}
+
+void AndroidThunkCpp_DisableScreenCapture(bool bDisable)
+{
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		// call the java side
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_DisableScreenCapture, bDisable);
 	}
 }
 
