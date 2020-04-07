@@ -5006,7 +5006,7 @@ static inline FShader* ProcessCompiledJob(FShaderCompileJob* SingleJob, const FS
 		EShaderPlatform Platform = (EShaderPlatform)SingleJob->Input.Target.Platform;
 		if (!Pipeline || !Pipeline->ShouldOptimizeUnusedOutputs(Platform))
 		{
-			Shader = GGlobalShaderMap[Platform]->FindOrAddShader(GlobalShaderType, Shader);
+			Shader = GGlobalShaderMap[Platform]->FindOrAddShader(GlobalShaderType, SingleJob->PermutationId, Shader);
 			// Add this shared pipeline to the list
 			if (!Pipeline)
 			{
@@ -5052,21 +5052,19 @@ void ProcessCompiledGlobalShaders(const TArray<TSharedRef<FShaderCommonCompileJo
 		{
 			const auto* PipelineJob = CurrentJob.GetShaderPipelineJob();
 			check(PipelineJob);
-			TArray<FShader*> ShaderStages;
+
+			FShaderPipeline* ShaderPipeline = new FShaderPipeline(PipelineJob->ShaderPipeline);
 			for (int32 Index = 0; Index < PipelineJob->StageJobs.Num(); ++Index)
 			{
 				SingleJob = PipelineJob->StageJobs[Index]->GetSingleShaderJob();
 				FShader* Shader = ProcessCompiledJob(SingleJob, PipelineJob->ShaderPipeline, ShaderPlatformsProcessed, SharedPipelines);
-				ShaderStages.Add(Shader);
+				ShaderPipeline->AddShader(Shader, SingleJob->PermutationId);
 			}
+			ShaderPipeline->Validate(PipelineJob->ShaderPipeline);
 
-			FShaderPipeline* ShaderPipeline = new FShaderPipeline(PipelineJob->ShaderPipeline, ShaderStages);
-			if (ShaderPipeline)
-			{
-				EShaderPlatform Platform = (EShaderPlatform)PipelineJob->StageJobs[0]->GetSingleShaderJob()->Input.Target.Platform;
-				check(ShaderPipeline && !GGlobalShaderMap[Platform]->HasShaderPipeline(PipelineJob->ShaderPipeline));
-				GGlobalShaderMap[Platform]->FindOrAddShaderPipeline(PipelineJob->ShaderPipeline, ShaderPipeline);
-			}
+			EShaderPlatform Platform = (EShaderPlatform)PipelineJob->StageJobs[0]->GetSingleShaderJob()->Input.Target.Platform;
+			check(ShaderPipeline && !GGlobalShaderMap[Platform]->HasShaderPipeline(PipelineJob->ShaderPipeline));
+			GGlobalShaderMap[Platform]->FindOrAddShaderPipeline(PipelineJob->ShaderPipeline, ShaderPipeline);
 		}
 	}
 
@@ -5082,7 +5080,8 @@ void ProcessCompiledGlobalShaders(const TArray<TSharedRef<FShaderCommonCompileJo
 				if (!GlobalShaderMap->HasShaderPipeline(ShaderPipelineType))
 				{
 					auto& StageTypes = ShaderPipelineType->GetStages();
-					TArray<FShader*> ShaderStages;
+
+					FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType);
 					for (int32 Index = 0; Index < StageTypes.Num(); ++Index)
 					{
 						FGlobalShaderType* GlobalShaderType = ((FShaderType*)(StageTypes[Index]))->GetGlobalShaderType();
@@ -5090,16 +5089,14 @@ void ProcessCompiledGlobalShaders(const TArray<TSharedRef<FShaderCommonCompileJo
 						{
 							TShaderRef<FShader> Shader = GlobalShaderMap->GetShader(GlobalShaderType, kUniqueShaderPermutationId);
 							check(Shader.IsValid());
-							ShaderStages.Add(Shader.GetShader());
+							ShaderPipeline->AddShader(Shader.GetShader(), kUniqueShaderPermutationId);
 						}
 						else
 						{
 							break;
 						}
 					}
-
-					checkf(StageTypes.Num() == ShaderStages.Num(), TEXT("Internal Error adding Global ShaderPipeline %s"), ShaderPipelineType->GetName());
-					FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType, ShaderStages);
+					ShaderPipeline->Validate(ShaderPipelineType);
 					GlobalShaderMap->FindOrAddShaderPipeline(ShaderPipelineType, ShaderPipeline);
 				}
 			}

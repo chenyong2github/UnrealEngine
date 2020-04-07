@@ -503,37 +503,23 @@ void FStableShaderKeyAndValue::SetPipelineHash(const FShaderPipeline* Pipeline)
 void FShaderCodeLibraryPipeline::Initialize(const FShaderPipeline* Pipeline)
 {
 	check(Pipeline != nullptr);
-
-	if (Pipeline->VertexShader.IsValid())
+	for (uint32 Frequency = 0u; Frequency < SF_NumGraphicsFrequencies; ++Frequency)
 	{
-		VertexShader = Pipeline->VertexShader->GetOutputHash();
-	}
-	if (Pipeline->GeometryShader.IsValid())
-	{
-		GeometryShader = Pipeline->GeometryShader->GetOutputHash();
-	}
-	if (Pipeline->HullShader.IsValid())
-	{
-		HullShader = Pipeline->HullShader->GetOutputHash();
-	}
-	if (Pipeline->DomainShader.IsValid())
-	{
-		DomainShader = Pipeline->DomainShader->GetOutputHash();
-	}
-	if (Pipeline->PixelShader.IsValid())
-	{
-		PixelShader = Pipeline->PixelShader->GetOutputHash();
+		if (Pipeline->Shaders[Frequency].IsValid())
+		{
+			Shaders[Frequency] = Pipeline->Shaders[Frequency]->GetOutputHash();
+		}
 	}
 }
 
 void FShaderCodeLibraryPipeline::GetPipelineHash(FSHAHash& Output)
 {
 	FSHA1 Hasher;
-	Hasher.Update(&VertexShader.Hash[0], sizeof(VertexShader.Hash));
-	Hasher.Update(&PixelShader.Hash[0], sizeof(PixelShader.Hash));
-	Hasher.Update(&GeometryShader.Hash[0], sizeof(GeometryShader.Hash));
-	Hasher.Update(&HullShader.Hash[0], sizeof(HullShader.Hash));
-	Hasher.Update(&DomainShader.Hash[0], sizeof(DomainShader.Hash));
+	Hasher.Update(&Shaders[SF_Vertex].Hash[0], sizeof(FSHAHash));
+	Hasher.Update(&Shaders[SF_Pixel].Hash[0], sizeof(FSHAHash));
+	Hasher.Update(&Shaders[SF_Geometry].Hash[0], sizeof(FSHAHash));
+	Hasher.Update(&Shaders[SF_Hull].Hash[0], sizeof(FSHAHash));
+	Hasher.Update(&Shaders[SF_Domain].Hash[0], sizeof(FSHAHash));
 
 	Hasher.Final();
 	Hasher.GetHash(&Output.Hash[0]);

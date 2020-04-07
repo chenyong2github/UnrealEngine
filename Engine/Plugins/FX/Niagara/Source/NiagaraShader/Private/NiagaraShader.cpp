@@ -796,7 +796,7 @@ FShader* FNiagaraShaderMap::ProcessCompilationResultsForSingleJob(TSharedRef<FSh
 	// UE-67395 - we had a case where we polluted the DDC with a shader containing no bytecode.
 	check(Shader && Shader->GetCodeSize() > 0);
 	check(!GetContent()->HasShader(NiagaraShaderType, /* PermutationId = */ 0));
-	return GetMutableContent()->FindOrAddShader(Shader);
+	return GetMutableContent()->FindOrAddShader(NiagaraShaderType->GetHashedName(), 0, Shader);
 }
 
 bool FNiagaraShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutJobIndex, float& TimeBudget)
