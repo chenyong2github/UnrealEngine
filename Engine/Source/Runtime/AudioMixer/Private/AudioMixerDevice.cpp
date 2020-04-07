@@ -1919,29 +1919,59 @@ namespace Audio
 	{
 		if (!IsInAudioThread())
 		{
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AddFFTDelegate"), STAT_AddFFTDelegate, STATGROUP_AudioThreadCommands);
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AddSpectralAnalysisDelegate"), STAT_AddSpectralAnalysisDelegate, STATGROUP_AudioThreadCommands);
 
 			FAudioThread::RunCommandOnAudioThread([this, InSubmix, InBandSettings, OnSubmixSpectralAnalysisBP, UpdateRate]()
 			{
-				CSV_SCOPED_TIMING_STAT(Audio, AddEnvelopeFollowerDelegate);
+				CSV_SCOPED_TIMING_STAT(Audio, AddSpectralAnalysisDelegate);
 				AddSpectralAnalysisDelegate(InSubmix, InBandSettings, OnSubmixSpectralAnalysisBP, UpdateRate);
-			}, GET_STATID(STAT_AddFFTDelegate));
+			}, GET_STATID(STAT_AddSpectralAnalysisDelegate));
 			return;
 		}
 
-		// if we can find the submix here, record that submix. Otherwise, just record the master submix.
+		// get submix if it is available.
 		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
-		if (FoundSubmix.IsValid())
+
+		if (!FoundSubmix.IsValid())
+		{
+			// If can't find the submix isntance, use master submix.
+			FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
+			FoundSubmix = MasterSubmix.Pin();
+		}
+
+		if (ensure(FoundSubmix.IsValid()))
 		{
 			FoundSubmix->AddSpectralAnalysisDelegate(OnSubmixSpectralAnalysisBP, InBandSettings, UpdateRate);
 		}
-		else
-		{
-			FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
-			FMixerSubmixPtr MasterSubmixPtr = MasterSubmix.Pin();
-			check(MasterSubmixPtr.IsValid());
+	}
 
-			MasterSubmixPtr->AddSpectralAnalysisDelegate(OnSubmixSpectralAnalysisBP, InBandSettings, UpdateRate);
+	void FMixerDevice::RemoveSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FOnSubmixSpectralAnalysisBP& InDelegate)
+	{
+		if (!IsInAudioThread())
+		{
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.RemoveSpectralAnalysisDelegate"), STAT_RemoveSpectralAnalysisDelegate, STATGROUP_AudioThreadCommands);
+
+			FAudioThread::RunCommandOnAudioThread([this, InSubmix, InDelegate]()
+			{
+				CSV_SCOPED_TIMING_STAT(Audio, RemoveSpectralAnalysisDelegate);
+				RemoveSpectralAnalysisDelegate(InSubmix, InDelegate);
+			}, GET_STATID(STAT_RemoveSpectralAnalysisDelegate));
+			return;
+		}
+
+		// get submix if it is available.
+		FMixerSubmixPtr FoundSubmix = GetSubmixInstance(InSubmix).Pin();
+
+		if (!FoundSubmix.IsValid())
+		{
+			// If can't find the submix isntance, use master submix.
+			FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
+			FoundSubmix = MasterSubmix.Pin();
+		}
+
+		if (ensure(FoundSubmix.IsValid()))
+		{
+			FoundSubmix->RemoveSpectralAnalysisDelegate(InDelegate);
 		}
 	}
 
