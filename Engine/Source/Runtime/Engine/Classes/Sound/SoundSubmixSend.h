@@ -13,6 +13,22 @@
 // Forward Declarations
 class USoundSubmixBase;
 
+UENUM(BlueprintType)
+enum class EAudioSpectrumBandPresetType: uint8
+{
+	/** Band which contains frequencies generally related to kick drums. */
+	KickDrum,
+
+	/** Band which contains frequencies generally related to snare drums. */
+	SnareDrum,
+
+	/** Band which contains frequencies generally related to vocals. */
+	Voice,
+
+	/** Band which contains frequencies generally related to cymbals. */
+	Cymbals	
+};
+
 USTRUCT(BlueprintType)
 struct ENGINE_API FSoundSubmixSpectralAnalysisBandSettings
 {
@@ -29,12 +45,15 @@ struct ENGINE_API FSoundSubmixSpectralAnalysisBandSettings
 	// The release time for the FFT band interpolation for delegate callback
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixSpectralAnalysis, meta = (ClampMin = "0.0", UIMin = "10.0", UIMax = "10000.0"))
 	int32 ReleaseTimeMsec = 500;
+
+	// The ratio of the bandwidth divided by the center frequency. Only used when the spectral analysis type is set to Constant Q.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = SubmixSpectralAnalysis, meta = (ClampMin = "0.001", UIMin = "0.1", UIMax = "100.0"))
+	float QFactor = 10.0f;
 };
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSubmixEnvelopeBP, const TArray<float>&, Envelope);
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSubmixSpectralAnalysisBP, const TArray<float>&, Magnitude);
-
 
 UENUM(BlueprintType)
 enum class EAudioRecordingExportType : uint8

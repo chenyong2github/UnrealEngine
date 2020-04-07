@@ -1498,6 +1498,7 @@ namespace Audio
 		{
 			FSpectralAnalysisBandInfo NewBand;
 			NewBand.BandFrequency = BandSettings.BandFrequency;
+			NewBand.QFactor = BandSettings.QFactor;
 			NewBand.EnvelopeFollower.Init(UpdateRate, BandSettings.AttackTimeMsec, BandSettings.ReleaseTimeMsec);
 		
 			NewDelegateInfo.SpectralBands.Add(NewBand);
@@ -1505,6 +1506,21 @@ namespace Audio
 
 		NewDelegateInfo.OnSubmixSpectralAnalysis.AddUnique(OnSubmixSpectralAnalysisBP);
 
+	}
+
+	void FMixerSubmix::RemoveSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP)
+	{
+		for (FSpectrumAnalysisDelegateInfo& Info : SpectralAnalysisDelegates)
+		{
+			if (Info.OnSubmixSpectralAnalysis.Contains(OnSubmixSpectralAnalysisBP))
+			{
+				Info.OnSubmixSpectralAnalysis.Remove(OnSubmixSpectralAnalysisBP);
+			}
+		}
+
+		SpectralAnalysisDelegates.RemoveAllSwap([](FSpectrumAnalysisDelegateInfo& Info) {
+			return !Info.OnSubmixSpectralAnalysis.IsBound();
+		});
 	}
 
 	void FMixerSubmix::StartSpectrumAnalysis(const FSpectrumAnalyzerSettings& InSettings)
@@ -1538,8 +1554,6 @@ namespace Audio
 				break;
 			}
 			
-			// TODO: @phil -- feels like maybe we can pass in the enum to AddBand vs 4 different Add Band functions?  Maybe not because of the Q-factor?
-
 			// Loop through each band and add them to the extractor
 			for (FSpectralAnalysisBandInfo& BandInfo : DelegateInfo.SpectralBands)
 			{
@@ -1555,8 +1569,7 @@ namespace Audio
 						DelegateInfo.SpectrumBandExtractor->AddQuadraticBand(BandInfo.BandFrequency, Metric);
 						break;
 					case FSpectrumAnalyzerSettings::EPeakInterpolationMethod::ConstantQ:
-						// TODO: @phil -- how to compute q-factor?? I assume some math around bands?
-						DelegateInfo.SpectrumBandExtractor->AddConstantQBand(BandInfo.BandFrequency, 20.0f, Metric);
+						DelegateInfo.SpectrumBandExtractor->AddConstantQBand(BandInfo.BandFrequency, BandInfo.QFactor, Metric);
 						break;
 				}
 			}
