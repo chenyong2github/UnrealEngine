@@ -113,9 +113,10 @@ FRHIUniformBuffer* FMaterialShader::GetParameterCollectionBuffer(const FGuid& Id
 void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial& Material, const FUniformExpressionCache* UniformExpressionCache) const
 {
 	// Validate that the shader is being used for a material that matches the uniform expression set the shader was compiled for.
-	const FUniformExpressionSet& MaterialUniformExpressionSet = Material.GetRenderingThreadShaderMap()->GetUniformExpressionSet();
+	FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
+	const FUniformExpressionSet& MaterialUniformExpressionSet = ShaderMap->GetUniformExpressionSet();
 	bool bUniformExpressionSetMismatch = !DebugUniformExpressionSet.Matches(MaterialUniformExpressionSet)
-		|| UniformExpressionCache->CachedUniformExpressionShaderMap != Material.GetRenderingThreadShaderMap();
+		|| UniformExpressionCache->CachedUniformExpressionShaderMap != ShaderMap;
 	if (!bUniformExpressionSetMismatch)
 	{
 		auto DumpUB = [](const FRHIUniformBufferLayout& Layout)
@@ -164,10 +165,10 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 	}
 	if (bUniformExpressionSetMismatch)
 	{
-		const FShaderType* ShaderType = FindShaderTypeByName(GetTypeName());
+		const FShaderType* ShaderType = GetType(ShaderMap->GetPointerTable());
 		const FString ProxyName = *MaterialRenderProxy->GetFriendlyName();
 		const FString MaterialName = *Material.GetFriendlyName();
-		const TCHAR* ShaderMapDesc = Material.GetRenderingThreadShaderMap()->GetDebugDescription();
+		const TCHAR* ShaderMapDesc = ShaderMap->GetDebugDescription();
 		UE_LOG(
 			LogShaders,
 			Fatal,
@@ -196,7 +197,7 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 			MaterialUniformExpressionSet.UniformTextureParameters[(uint32)EMaterialTextureParameterType::Array2D].Num(),
 			MaterialUniformExpressionSet.UniformTextureParameters[(uint32)EMaterialTextureParameterType::Volume].Num(),
 			MaterialUniformExpressionSet.UniformTextureParameters[(uint32)EMaterialTextureParameterType::Virtual].Num(),
-			Material.GetRenderingThreadShaderMap()
+			ShaderMap
 		);
 	}
 }
@@ -224,10 +225,11 @@ void FMaterialShader::SetParametersInner(
 		// UE-46061 - Workaround for a rare crash with an outdated cached shader map
 		if (UniformExpressionCache->CachedUniformExpressionShaderMap != Material.GetRenderingThreadShaderMap())
 		{
+			FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
 			UMaterialInterface* MtlInterface = Material.GetMaterialInterface();
 			UMaterialInterface* ProxyInterface = MaterialRenderProxy->GetMaterialInterface();
 
-			const FShaderType* ShaderType = FindShaderTypeByName(GetTypeName());
+			const FShaderType* ShaderType = GetType(ShaderMap->GetPointerTable());
 			ensureMsgf(false,
 				TEXT("%s shader uniform expression set mismatched shader map for material %s/%s, forcing expression cache evaluation.\n")
 				TEXT("Material:  %s\n")

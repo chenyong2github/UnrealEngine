@@ -29,7 +29,10 @@ enum EShaderFrequency : uint8
 	SF_Geometry			= 4,
 	SF_Compute			= 5,
 
-	// Number of standard SM5-style graphics pipeline shader frequencies
+	// Number of standard SM5-style shader frequencies for graphics pipeline (excluding compute)
+	SF_NumGraphicsFrequencies = 5,
+
+	// Number of standard SM5-style shader frequencies (including compute)
 	SF_NumStandardFrequencies = 6,
 
 	SF_RayGen			= 6,

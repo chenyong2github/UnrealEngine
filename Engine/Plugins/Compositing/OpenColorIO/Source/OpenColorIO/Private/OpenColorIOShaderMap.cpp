@@ -490,7 +490,7 @@ FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(FShaderCom
 	FOpenColorIOPixelShader *OpenColorIOShader = static_cast<FOpenColorIOPixelShader*>(Shader);
 	check(Shader);
 	check(!GetContent()->HasShader(OpenColorIOShaderType, /* PermutationId = */ 0));
-	return GetMutableContent()->FindOrAddShader(Shader);
+	return GetMutableContent()->FindOrAddShader(OpenColorIOShaderType->GetHashedName(), 0, Shader);
 }
 
 bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutJobIndex, float& InOutTimeBudget)
