@@ -1551,7 +1551,7 @@ void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(FRHIC
 
 						PRAGMA_DISABLE_DEPRECATION_WARNINGS
 						UnbindRenderTargets(RHICmdList);
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 						FIntRect ScissorRect = View.ViewRect;
 
