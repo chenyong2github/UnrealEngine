@@ -6,6 +6,7 @@
 
 #include "HAL/ThreadSafeBool.h"
 #include "IMessageContext.h"
+#include "LiveLinkMessageBusSourceSettings.h"
 #include "LiveLinkRole.h"
 #include "MessageEndpoint.h"
 
@@ -34,6 +35,8 @@ public:
 	virtual FText GetSourceType() const override { return SourceType; }
 	virtual FText GetSourceMachineName() const override { return SourceMachineName; }
 	virtual FText GetSourceStatus() const override;
+
+	virtual TSubclassOf<ULiveLinkSourceSettings> GetSettingsClass() const override { return ULiveLinkMessageBusSourceSettings::StaticClass(); }
 	//~ End ILiveLinkSource interface
 
 private:
