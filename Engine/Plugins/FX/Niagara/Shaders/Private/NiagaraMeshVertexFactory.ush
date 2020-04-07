@@ -322,11 +322,19 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 #endif
 
 #if USE_PARTICLE_LOCAL_TO_WORLD
-	Result.Particle.ParticleToWorld = transpose(float4x4(Interpolants.ParticleToWorld, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	Result.Particle.ParticleToWorld = transpose(float4x4(
+		Interpolants.ParticleToWorld[0],
+		Interpolants.ParticleToWorld[1],
+		Interpolants.ParticleToWorld[2],
+		float4(0.0f, 0.0f, 0.0f, 1.0f)));
 #endif
 
 #if USE_PARTICLE_WORLD_TO_LOCAL
-	Result.Particle.WorldToParticle = transpose(float4x4(Interpolants.WorldToParticle, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	Result.Particle.WorldToParticle = transpose(float4x4(
+		Interpolants.WorldToParticle[0],
+		Interpolants.WorldToParticle[1],
+		Interpolants.WorldToParticle[2],
+		float4(0.0f, 0.0f, 0.0f, 1.0f)));
 #endif
 
 	Result.Particle.MotionBlurFade = 1.0f;
