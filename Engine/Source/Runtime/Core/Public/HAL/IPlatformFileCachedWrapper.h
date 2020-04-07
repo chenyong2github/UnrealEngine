@@ -313,9 +313,17 @@ public:
 	{
 		return LowerLevel->FileExists(Filename);
 	}
+	virtual bool		FileExists(const TCHAR* Filename, bool bUseWriteLocation) override
+	{
+		return LowerLevel->FileExists(Filename, bUseWriteLocation);
+	}
 	virtual int64		FileSize(const TCHAR* Filename) override
 	{
 		return LowerLevel->FileSize(Filename);
+	}
+	virtual int64		FileSize(const TCHAR* Filename, bool bUseWriteLocation) override
+	{
+		return LowerLevel->FileSize(Filename, bUseWriteLocation);
 	}
 	virtual bool		DeleteFile(const TCHAR* Filename) override
 	{
