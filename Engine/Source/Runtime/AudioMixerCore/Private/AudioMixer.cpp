@@ -353,7 +353,7 @@ namespace Audio
 	{
 		// Non Realtime isn't ticked when fade out is called, and the user can't hear
 		// the output anyways so there's no need to make it pleasant for their ears.
-		if (IsNonRealtime())
+		if (!FPlatformProcess::SupportsMultithreading() || IsNonRealtime())
 		{
 			bFadedOut = true;
 			FadeVolume = 0.f;
