@@ -5,9 +5,11 @@
 #include "HelperUtil.h"
 #include "AnimationCoreLibrary.h"
 
-void FRigUnit_AimConstraint::Execute(const FRigUnitContext& Context)
+FRigUnit_AimConstraint_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	TArray<FConstraintData>& ConstraintData = WorkData.ConstraintData;
 
 	if (Context.State == EControlRigState::Init)
 	{
