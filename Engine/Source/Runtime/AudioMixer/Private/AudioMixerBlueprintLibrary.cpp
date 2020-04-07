@@ -5,6 +5,7 @@
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 #include "CoreMinimal.h"
+#include "DSP/ConstantQ.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "ContentStreaming.h"
 #include "AudioCompressionSettingsUtils.h"
@@ -285,6 +286,112 @@ void UAudioMixerBlueprintLibrary::StopAnalyzingOutput(const UObject* WorldContex
 	{
 		UE_LOG(LogAudioMixer, Error, TEXT("Spectrum Analysis is an audio mixer only feature."));
 	}
+}
+
+TArray<FSoundSubmixSpectralAnalysisBandSettings> UAudioMixerBlueprintLibrary::MakeMusicalSpectralAnalysisBandSettings(int32 InNumNotes, EMusicalNoteName InStartingMusicalNote, int32 InStartingOctave, int32 InAttackTimeMsec, int32 InReleaseTimeMsec)
+{
+	// Make values sane.
+	InNumNotes = FMath::Clamp(InNumNotes, 0, 10000);
+	InStartingOctave = FMath::Clamp(InStartingOctave, -1, 10);
+	InAttackTimeMsec = FMath::Clamp(InAttackTimeMsec, 0, 10000);
+	InReleaseTimeMsec = FMath::Clamp(InReleaseTimeMsec, 0, 10000);
+
+	// Some assumptions here on what constitutes "music". 12 notes, equal temperament.
+	const float BandsPerOctave = 12.f;
+	// This QFactor makes the bandwidth equal to the difference in frequency between adjacent notes.
+	const float QFactor = 1.f / (FMath::Pow(2.f, 1.f / BandsPerOctave) - 1.f);
+
+	// Base note index off of A4 which we know to be 440 hz.
+	// Make note relative to A
+	int32 NoteIndex = static_cast<int32>(InStartingMusicalNote) - static_cast<int32>(EMusicalNoteName::A);
+	// Make relative to 4th octave of A
+	NoteIndex += 12 * (InStartingOctave - 4);
+
+	const float StartingFrequency = 440.f * FMath::Pow(2.f, static_cast<float>(NoteIndex) / 12.f);
+
+
+	TArray<FSoundSubmixSpectralAnalysisBandSettings> BandSettingsArray;
+	for (int32 i = 0; i < InNumNotes; i++)
+	{
+		FSoundSubmixSpectralAnalysisBandSettings BandSettings;
+
+		BandSettings.BandFrequency = Audio::FPseudoConstantQ::GetConstantQCenterFrequency(i, StartingFrequency, BandsPerOctave);
+
+		BandSettings.QFactor = QFactor;
+		BandSettings.AttackTimeMsec = InAttackTimeMsec;
+		BandSettings.ReleaseTimeMsec = InReleaseTimeMsec;
+
+		BandSettingsArray.Add(BandSettings);
+	}
+
+	return BandSettingsArray;
+}
+
+TArray<FSoundSubmixSpectralAnalysisBandSettings> UAudioMixerBlueprintLibrary::MakeFullSpectrumSpectralAnalysisBandSettings(int32 InNumBands, float InMinimumFrequency, float InMaximumFrequency, int32 InAttackTimeMsec, int32 InReleaseTimeMsec)
+{
+	// Make inputs sane.
+	InNumBands = FMath::Clamp(InNumBands, 0, 10000);
+	InMinimumFrequency = FMath::Clamp(InMinimumFrequency, 20.0f, 20000.0f);
+	InMaximumFrequency = FMath::Clamp(InMaximumFrequency, InMinimumFrequency, 20000.0f);
+	InAttackTimeMsec = FMath::Clamp(InAttackTimeMsec, 0, 10000);
+	InReleaseTimeMsec = FMath::Clamp(InReleaseTimeMsec, 0, 10000);
+
+	// Calculate CQT settings needed to space bands.
+	const float NumOctaves = FMath::Loge(InMaximumFrequency / InMinimumFrequency) / FMath::Loge(2.f);
+	const float BandsPerOctave = static_cast<float>(InNumBands) / FMath::Max(NumOctaves, 0.01f);
+	const float QFactor = 1.f / (FMath::Pow(2.f, 1.f / FMath::Max(BandsPerOctave, 0.01f)) - 1.f);
+
+	TArray<FSoundSubmixSpectralAnalysisBandSettings> BandSettingsArray;
+	for (int32 i = 0; i < InNumBands; i++)
+	{
+		FSoundSubmixSpectralAnalysisBandSettings BandSettings;
+
+		BandSettings.BandFrequency = Audio::FPseudoConstantQ::GetConstantQCenterFrequency(i, InMinimumFrequency, BandsPerOctave);
+
+		BandSettings.QFactor = QFactor;
+		BandSettings.AttackTimeMsec = InAttackTimeMsec;
+		BandSettings.ReleaseTimeMsec = InReleaseTimeMsec;
+
+		BandSettingsArray.Add(BandSettings);
+	}
+
+	return BandSettingsArray;
+}
+
+TArray<FSoundSubmixSpectralAnalysisBandSettings> UAudioMixerBlueprintLibrary::MakePresetSpectralAnalysisBandSettings(EAudioSpectrumBandPresetType InBandPresetType, int32 InNumBands, int32 InAttackTimeMsec, int32 InReleaseTimeMsec)
+{
+	float MinimumFrequency = 20.f;
+	float MaximumFrequency = 20000.f;
+
+	// Likely all these are debatable. What we are shooting for is the most active frequency
+	// ranges, so when an instrument plays a significant amount of spectral energy from that
+	// instrument will show up in the frequency range. 
+	switch (InBandPresetType)
+	{
+		case EAudioSpectrumBandPresetType::KickDrum:
+			MinimumFrequency = 40.f;
+			MaximumFrequency = 100.f;
+			break;
+
+		case EAudioSpectrumBandPresetType::SnareDrum:
+			MinimumFrequency = 150.f;
+			MaximumFrequency = 4500.f;
+			break;
+
+		case EAudioSpectrumBandPresetType::Voice:
+			MinimumFrequency = 300.f;
+			MaximumFrequency = 3000.f;
+			break;
+
+		case EAudioSpectrumBandPresetType::Cymbals:
+			MinimumFrequency = 6000.f;
+			MaximumFrequency = 16000.f;
+			break;
+
+		// More presets can be added. The possibilities are endless.
+	}
+
+	return MakeFullSpectrumSpectralAnalysisBandSettings(InNumBands, MinimumFrequency, MaximumFrequency, InAttackTimeMsec, InReleaseTimeMsec);
 }
 
 void UAudioMixerBlueprintLibrary::GetMagnitudeForFrequencies(const UObject* WorldContextObject, const TArray<float>& Frequencies, TArray<float>& Magnitudes, USoundSubmix* SubmixToAnalyze /*= nullptr*/)
