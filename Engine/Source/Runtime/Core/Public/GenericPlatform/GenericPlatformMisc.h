@@ -1436,6 +1436,13 @@ public:
 		return false;
 	}
 
+	/**
+	 * Returns any platform-specific key-value data that needs to be sent to the network file server
+	 */
+	FORCEINLINE static void GetNetworkFileCustomData(TMap<FString,FString>& OutCustomPlatformData)
+	{
+	}
+
 #if !UE_BUILD_SHIPPING
 	/**
 	 * Returns any platform specific warning messages we want printed on screen
