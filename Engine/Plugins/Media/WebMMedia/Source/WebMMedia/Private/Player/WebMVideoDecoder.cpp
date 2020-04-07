@@ -101,17 +101,25 @@ bool FWebMVideoDecoder::Initialize(const char* CodecName)
 
 void FWebMVideoDecoder::DecodeVideoFramesAsync(const TArray<TSharedPtr<FWebMFrame>>& VideoFrames)
 {
-	FGraphEventRef PreviousDecodingTask = VideoDecodingTask;
-
-	VideoDecodingTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, PreviousDecodingTask, VideoFrames]()
+	static bool bUseRenderThread = FPlatformMisc::UseRenderThread();
+	if (bUseRenderThread)
 	{
-		if(PreviousDecodingTask && !PreviousDecodingTask->IsComplete())
-		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(PreviousDecodingTask);
-		}
+		FGraphEventRef PreviousDecodingTask = VideoDecodingTask;
 
+		VideoDecodingTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, PreviousDecodingTask, VideoFrames]()
+		{
+			if(PreviousDecodingTask && !PreviousDecodingTask->IsComplete())
+			{
+				FTaskGraphInterface::Get().WaitUntilTaskCompletes(PreviousDecodingTask);
+			}
+
+			DoDecodeVideoFrames(VideoFrames);
+		}, TStatId(), nullptr, ENamedThreads::AnyThread);
+	}
+	else
+	{
 		DoDecodeVideoFrames(VideoFrames);
-	}, TStatId(), nullptr, ENamedThreads::AnyThread);
+	}
 }
 
 bool FWebMVideoDecoder::IsBusy() const
