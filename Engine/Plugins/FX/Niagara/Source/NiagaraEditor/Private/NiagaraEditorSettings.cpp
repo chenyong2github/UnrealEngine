@@ -59,12 +59,13 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetDescription(LOCTEXT("ModuleOutputDescription", "A transient value which is unique to the module that wrote it and can be read from any other module.\nTransient values do not persist from frame to frame, or between stages, e.g. emitter to particle, or spawn to update."))
 			.SetBackgroundColor(FLinearColor(FColor(109, 95, 124)))
 			.AddOption(ENiagaraNamespaceMetadataOptions::Advanced)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventCreatingInSystemEditor),
+			.AddOption(ENiagaraNamespaceMetadataOptions::PreventCreatingInSystemEditor)
+			.AddOption(ENiagaraNamespaceMetadataOptions::CanChangeNamespaceModifier),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::OutputNamespace})
 			.SetDisplayName(LOCTEXT("OutputDisplayName", "Output"))
 			.SetDescription(LOCTEXT("OutputDescription", "A transient value which is unique to the module that wrote it and can be read from any other module.\nTransient values do not persist from frame to frame, or between stages, e.g. emitter to particle, or spawn to update."))
 			.SetBackgroundColor(FLinearColor(FColor(109, 95, 124)))
-			.AddOption({ENiagaraNamespaceMetadataOptions::Advanced}),
+			.AddOption(ENiagaraNamespaceMetadataOptions::Advanced),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::LocalNamespace, FNiagaraConstants::ModuleNamespace})
 			.SetDisplayName(LOCTEXT("ModuleLocalDisplayName", "Local"))
 			.SetDescription(LOCTEXT("ModuleLocalDescription", "A transient value which can be written to and read from within a single module.\nTransient values do not persist from frame to frame, or between stages, e.g. emitter to particle, or spawn to update."))
