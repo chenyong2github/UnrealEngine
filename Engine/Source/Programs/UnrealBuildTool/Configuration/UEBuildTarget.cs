@@ -1242,6 +1242,15 @@ namespace UnrealBuildTool
 				// Add the rules file itself
 				Files.Add(Rules.File);
 
+				// Add the subclass rules
+				if (Rules.SubclassRules != null)
+				{
+					foreach (string SubclassRule in Rules.SubclassRules)
+					{
+						Files.Add(new FileReference(SubclassRule));
+					}
+				}
+
 				// Get a list of all the library paths
 				List<string> LibraryPaths = new List<string>();
 				LibraryPaths.Add(Directory.GetCurrentDirectory());
