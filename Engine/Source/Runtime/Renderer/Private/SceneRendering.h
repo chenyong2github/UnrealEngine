@@ -858,6 +858,22 @@ public:
 
 typedef TArray<FViewCommands, TInlineAllocator<4>> FViewVisibleCommandsPerView;
 
+#if RHI_RAYTRACING
+struct FRayTracingMeshBatchWorkItem
+{
+	FRayTracingMeshBatchWorkItem(TArray<FMeshBatch>& InBatches, FPrimitiveSceneProxy* InSceneProxy, uint32 InInstanceIndex) :
+		SceneProxy(InSceneProxy),
+		InstanceIndex(InInstanceIndex)
+	{
+		Swap(MeshBatches, InBatches);
+	}
+
+	TArray<FMeshBatch> MeshBatches;
+	FPrimitiveSceneProxy* SceneProxy;
+	uint32 InstanceIndex;
+};
+#endif
+
 /** A FSceneView with additional state used by the scene renderer. */
 class FViewInfo : public FSceneView
 {
@@ -998,10 +1014,14 @@ public:
 	
 #if RHI_RAYTRACING
 	TUniquePtr<FRayTracingMeshResourceCollector> RayTracingMeshResourceCollector;
-
 	FRayTracingMeshCommandOneFrameArray VisibleRayTracingMeshCommands;
-
 	FDynamicRayTracingMeshCommandStorage DynamicRayTracingMeshCommandStorage;
+
+	FGraphEventArray AddRayTracingMeshBatchTaskList;
+	TArray<FRayTracingMeshBatchWorkItem> AddRayTracingMeshBatchData;
+
+	TArray<FRayTracingMeshCommandOneFrameArray> VisibleRayTracingMeshCommandsParallel;
+	TArray<FDynamicRayTracingMeshCommandStorage> DynamicRayTracingMeshCommandStorageParallel;
 #endif
 
 	// Used by mobile renderer to determine whether static meshes will be rendered with CSM shaders or not.
