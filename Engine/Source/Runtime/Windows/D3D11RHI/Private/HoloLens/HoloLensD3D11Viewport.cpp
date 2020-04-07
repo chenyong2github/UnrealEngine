@@ -54,9 +54,10 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	WindowHandle(InWindowHandle),
 	SizeX(InSizeX),
 	SizeY(InSizeY),
-	bIsFullscreen(bInIsFullscreen),
+	PresentFailCount(0),
+	ValidState(0),
 	PixelFormat(InPreferredPixelFormat),
-	bIsValid(true),
+	bIsFullscreen(bInIsFullscreen),
 	FrameSyncEvent(InD3DRHI)
 {
 	D3DRHI->Viewports.Add(this);
@@ -202,12 +203,13 @@ void FD3D11Viewport::CheckHDRMonitorStatus()
 
 void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 {
-	if (!bIsValid)
+	uint32 Valid = ValidState;
+	if (0 != (Valid & VIEWPORT_INVALID))
 	{
-		if (bFullscreenLost)
+		if (0 != (Valid & VIEWPORT_FULLSCREEN_LOST))
 		{
 			FlushRenderingCommands();
-			bFullscreenLost = false;
+			ValidState &= ~(VIEWPORT_FULLSCREEN_LOST);
 			Resize(SizeX, SizeY, false, PixelFormat);
 		}
 		else
@@ -219,7 +221,7 @@ void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 
 void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 {
-	if(!bIsValid)
+	if (0 != (ValidState & VIEWPORT_INVALID))
 	{
 		const bool bIsFocused = true;
 		const bool bIsIconic = false;
@@ -230,7 +232,7 @@ void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 			HRESULT Result = SwapChain->SetFullscreenState(bIsFullscreen,NULL);
 			if(SUCCEEDED(Result))
 			{
-				bIsValid = true;
+				ValidState &= ~(VIEWPORT_INVALID);
 			}
 			else
 			{

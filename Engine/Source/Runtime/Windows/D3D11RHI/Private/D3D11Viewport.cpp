@@ -288,7 +288,7 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 	if(bIsFullscreen != bInIsFullscreen)
 	{
 		bIsFullscreen = bInIsFullscreen;
-		bIsValid = false;
+		ValidState = VIEWPORT_INVALID;
 
 		if (bNeedSwapChain)
 		{
@@ -349,7 +349,6 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 			{
 				Flags |= DXGI_PRESENT_ALLOW_TEARING;
 			}
-
 			Result = SwapChain->Present(SyncInterval, Flags);
 		}
 
@@ -360,9 +359,10 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 	}
 
 	FThreadHeartBeat::Get().PresentFrame();
-
 	if (FAILED(Result))
 	{
+		PresentFailCount++;
+		UE_LOG(LogRHI, Error, TEXT("Present Fail Count %i"), PresentFailCount);
 		DXGI_SWAP_CHAIN_DESC Desc;
 		UE_LOG(LogRHI, Error, TEXT("SyncInterval %i"), SyncInterval);
 		if (!FAILED(SwapChain->GetDesc(&Desc)))
@@ -383,10 +383,22 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 			UE_LOG(LogRHI, Error, TEXT("SwapChainDesc.SwapEffect %u"), Desc.SwapEffect);
 			UE_LOG(LogRHI, Error, TEXT("SwapChainDesc.Flags %u"), Desc.Flags);
 		}
+		if (PresentFailCount > 10)
+		{
+			VERIFYD3D11RESULT_EX(Result, D3DRHI->GetDevice());
+		}
+		else
+		{
+			ValidState = (VIEWPORT_INVALID | VIEWPORT_FULLSCREEN_LOST);
+		}
 	}
+	else
+	{
+		PresentFailCount = 0;
+	}
+
 	FThreadHeartBeat::Get().PresentFrame();
 
-	VERIFYD3D11RESULT_EX(Result, D3DRHI->GetDevice());
 	D3DRHI->GetDeviceContext()->OMSetRenderTargets(0,0,0);
 
 	return bNeedNativePresent;
@@ -530,7 +542,7 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 #if	D3D11_WITH_DWMAPI
 #if !PLATFORM_HOLOLENS
 	// We can't call Present if !bIsValid, as it waits a window message to be processed, but the main thread may not be pumping the message handler.
-	if(bIsValid && SwapChain.IsValid())
+	if(ValidState != 0 && SwapChain.IsValid())
 	{
 		// Check if the viewport's swap chain has been invalidated by DXGI.
 		BOOL bSwapChainFullscreenState;
@@ -539,7 +551,7 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 		// Can't compare BOOL with bool...
 		if ( (!!bSwapChainFullscreenState)  != bIsFullscreen )
 		{
-			bIsValid = false;
+			ValidState = VIEWPORT_INVALID;
 		}
 	}
 #endif
@@ -551,7 +563,7 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 		DXGIDevice->SetMaximumFrameLatency(MaximumFrameLatency);
 	}
 
-	if (!bIsValid)
+	if(0 != (ValidState & VIEWPORT_INVALID))
 	{
 		return false;
 	}
