@@ -1642,14 +1642,16 @@ void AActor::SetAutoDestroyWhenFinished(bool bVal)
 	bAutoDestroyWhenFinished = bVal;
 	if (UWorld* MyWorld = GetWorld())
 	{
-		UAutoDestroySubsystem* AutoDestroySub = MyWorld->GetSubsystem<UAutoDestroySubsystem>();
-		if (bAutoDestroyWhenFinished && (HasActorBegunPlay() || IsActorBeginningPlay()))
+		if(UAutoDestroySubsystem* AutoDestroySub = MyWorld->GetSubsystem<UAutoDestroySubsystem>())
 		{
-			AutoDestroySub->RegisterActor(this);
-		}
-		else
-		{
-			AutoDestroySub->UnregisterActor(this);
+			if (bAutoDestroyWhenFinished && (HasActorBegunPlay() || IsActorBeginningPlay()))
+			{
+				AutoDestroySub->RegisterActor(this);
+			}
+			else
+			{
+				AutoDestroySub->UnregisterActor(this);
+			}
 		}
 	}
 }
