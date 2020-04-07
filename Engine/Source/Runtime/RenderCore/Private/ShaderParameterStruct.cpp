@@ -25,6 +25,9 @@ struct FShaderParameterStructBindingContext
 	// C++ name of the render target binding slot.
 	FString RenderTargetBindingSlotCppName;
 
+	// Shader PermutationId
+	int32 PermutationId;
+
 	// Whether this is for legacy shader parameter settings, or root shader parameter structures/
 	bool bUseRootShaderParameters;
 
@@ -178,7 +181,7 @@ struct FShaderParameterStructBindingContext
 					if (uint32(BoundSize) > ByteSize)
 					{
 						UE_LOG(LogShaders, Fatal, TEXT("The size required to bind shader %s's (Permutation Id %d) struct %s parameter %s is %i bytes, smaller than %s's %i bytes."),
-							Shader->GetTypeUnfrozen()->GetName(), Shader->GetPermutationId(), StructMetaData.GetStructTypeName(),
+							Shader->GetTypeUnfrozen()->GetName(), PermutationId, StructMetaData.GetStructTypeName(),
 							*ElementShaderBindingName, BoundSize, *CppName, ByteSize);
 					}
 
@@ -213,7 +216,7 @@ struct FShaderParameterStructBindingContext
 								TEXT("Error with shader %s's (Permutation Id %d) parameter %s is %i bytes, cpp name = %s.")
 								TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
 								TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."),
-								Shader->GetTypeUnfrozen()->GetName(), Shader->GetPermutationId(),
+								Shader->GetTypeUnfrozen()->GetName(), PermutationId,
 								*ElementShaderBindingName, BoundSize, *CppName);
 						}
 					}
@@ -229,7 +232,7 @@ struct FShaderParameterStructBindingContext
 	} // void Bind()
 }; // struct FShaderParameterStructBindingContext
 
-void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shader, const FShaderParameterMap& ParametersMap, const FShaderParametersMetadata& StructMetaData, bool bShouldBindEverything)
+void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shader, int32 PermutationId, const FShaderParameterMap& ParametersMap, const FShaderParametersMetadata& StructMetaData, bool bShouldBindEverything)
 {
 	const FShaderType* Type = Shader->GetTypeUnfrozen();
 	checkf(StructMetaData.GetSize() < (1 << (sizeof(uint16) * 8)), TEXT("Shader parameter structure can only have a size < 65536 bytes."));
@@ -251,6 +254,7 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 
 	FShaderParameterStructBindingContext BindingContext;
 	BindingContext.Shader = Shader;
+	BindingContext.PermutationId = PermutationId;
 	BindingContext.Bindings = this;
 	BindingContext.ParametersMap = &ParametersMap;
 	BindingContext.bUseRootShaderParameters = false;
@@ -281,7 +285,7 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 	}
 }
 
-void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader, const FShaderParameterMap& ParametersMap)
+void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader, int32 PermutationId, const FShaderParameterMap& ParametersMap)
 {
 	const FShaderType* Type = Shader->GetTypeUnfrozen();
 	check(this == &Shader->Bindings);
@@ -304,6 +308,7 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 
 	FShaderParameterStructBindingContext BindingContext;
 	BindingContext.Shader = Shader;
+	BindingContext.PermutationId = PermutationId;
 	BindingContext.Bindings = this;
 	BindingContext.ParametersMap = &ParametersMap;
 	BindingContext.bUseRootShaderParameters = true;

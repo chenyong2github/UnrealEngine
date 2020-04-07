@@ -356,7 +356,7 @@ void FGlobalShaderMap::Empty()
 	}
 }
 
-FShader* FGlobalShaderMap::FindOrAddShader(const FShaderType* ShaderType, FShader* Shader)
+FShader* FGlobalShaderMap::FindOrAddShader(const FShaderType* ShaderType, int32 PermutationId, FShader* Shader)
 {
 	const FHashedName HashedFilename(ShaderType->GetHashedShaderFilename());
 	FGlobalShaderMapSection*& Section = SectionMap.FindOrAdd(HashedFilename);
@@ -364,7 +364,7 @@ FShader* FGlobalShaderMap::FindOrAddShader(const FShaderType* ShaderType, FShade
 	{
 		Section = new FGlobalShaderMapSection(Platform, HashedFilename);
 	}
-	return Section->GetMutableContent()->FindOrAddShader(Shader);
+	return Section->GetMutableContent()->FindOrAddShader(ShaderType->GetHashedName(), PermutationId, Shader);
 }
 
 FShaderPipeline* FGlobalShaderMap::FindOrAddShaderPipeline(const FShaderPipelineType* ShaderPipelineType, FShaderPipeline* ShaderPipeline)
@@ -382,7 +382,7 @@ void FGlobalShaderMap::RemoveShaderTypePermutaion(const FShaderType* Type, int32
 	FGlobalShaderMapSection** Section = SectionMap.Find(Type->GetHashedShaderFilename());
 	if (Section)
 	{
-		(*Section)->GetMutableContent()->RemoveShaderTypePermutaion(Type, PermutationId);
+		(*Section)->GetMutableContent()->RemoveShaderTypePermutaion(Type->GetHashedName(), PermutationId);
 	}
 }
 
