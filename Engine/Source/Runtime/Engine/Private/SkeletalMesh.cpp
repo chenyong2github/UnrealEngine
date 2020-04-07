@@ -2325,10 +2325,9 @@ void USkeletalMesh::PostLoadValidateClothingData()
 	for (int32 LodIndex = 0; LodIndex < GetLODNum(); LodIndex++)
 	{
 		FSkeletalMeshLODModel& ThisLODModel = ImportedModel->LODModels[LodIndex];
-
-		if (ThisLODModel.RawSkeletalMeshBulkData.IsEmpty() || !ThisLODModel.RawSkeletalMeshBulkData.IsBuildDataAvailable())
+		if (IsLODImportedDataEmpty(LodIndex) || !IsLODImportedDataBuildAvailable(LodIndex))
 		{
-			//Invalid clothing asset will not be unbind
+			//Invalid clothing asset will not be unbind in case we do not build the asset
 			continue;
 		}
 
