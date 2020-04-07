@@ -105,6 +105,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "UObject/MetaData.h"
+#include "ChaosCheck.h"
 
 namespace UnFbx
 {

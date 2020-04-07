@@ -63,7 +63,8 @@ public:
 	virtual void FinishDestroy() override;
 	//~ End UObject Interface
 
-	~UPhysicalMaterialMask();
+	virtual ~UPhysicalMaterialMask();
+	UPhysicalMaterialMask(FVTableHelper& Helper);
 
 #if WITH_EDITOR
 	// Helper method to set mask texture

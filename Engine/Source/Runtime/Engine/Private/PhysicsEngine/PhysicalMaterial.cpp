@@ -42,6 +42,13 @@ UPhysicalMaterial::UPhysicalMaterial(const FObjectInitializer& ObjectInitializer
 	UserData = FChaosUserData(this);
 }
 
+UPhysicalMaterial::UPhysicalMaterial(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
+UPhysicalMaterial::~UPhysicalMaterial() = default;
+
 #if WITH_EDITOR
 void UPhysicalMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
