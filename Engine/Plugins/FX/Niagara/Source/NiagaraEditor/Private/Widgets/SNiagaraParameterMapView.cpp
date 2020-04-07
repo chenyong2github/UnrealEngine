@@ -391,6 +391,12 @@ bool SNiagaraParameterMapView::ParameterAddEnabled() const
 
 void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable)
 {
+	bool bEnterRenameModeOnAdd = true;
+	AddParameter(NewVariable, bEnterRenameModeOnAdd);
+}
+
+void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable, bool bEnterRenameModeOnAdd)
+{
 	TGuardValue<bool> AddParameterRefreshGuard(bIsAddingParameter, true);
 	FNiagaraParameterHandle ParameterHandle;
 	bool bSuccess = false;
@@ -449,7 +455,10 @@ void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable)
 	{
 		GraphActionMenu->RefreshAllActions(true);
 		GraphActionMenu->SelectItemByName(NewVariable.GetName());
-		GraphActionMenu->OnRequestRenameOnActionNode();
+		if (bEnterRenameModeOnAdd)
+		{
+			GraphActionMenu->OnRequestRenameOnActionNode();
+		}
 	}
 }
 
@@ -1264,18 +1273,6 @@ bool SNiagaraParameterMapView::GetNamespaceEditDataForSelection(
 		return false;
 	}
 
-	if (ToolkitType == SYSTEM)
-	{
-		bool bWasCreated = OutParameterAction->ReferenceCollection.ContainsByPredicate([](FNiagaraGraphParameterReferenceCollection& ReferenceCollecion) { return ReferenceCollecion.WasCreated(); });
-		if (bWasCreated == false)
-		{
-			// Can only modify parameters in the system toolkit if they were added there.
-			OutParameterAction.Reset();
-			OutErrorMessage = LOCTEXT("NonAddedSystem", "Can only edit system parameteters which were added directly.");
-			return false;
-		}
-	}
-
 	OutParameterHandle = FNiagaraParameterHandle(OutParameterAction->Parameter.GetName());
 	TArray<FName> NameParts = OutParameterHandle.GetHandleParts();
 	OutNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(NameParts);
@@ -1504,12 +1501,58 @@ void SNiagaraParameterMapView::RenameParameter(FNiagaraVariable& Parameter, FNam
 	{
 		if (Graphs.Num() > 0)
 		{
-			for (const TWeakObjectPtr<UNiagaraGraph>& Graph : Graphs)
+			for (const TWeakObjectPtr<UNiagaraGraph>& GraphWeak : Graphs)
 			{
-				if (Graph.IsValid())
+				UNiagaraGraph* Graph = GraphWeak.Get();
+				if (Graph == nullptr)
 				{
-					Graph.Get()->RenameParameter(Parameter, NewName);
+					// Ignore invalid graphs.
+					continue;
 				}
+
+				const FNiagaraGraphParameterReferenceCollection* ReferenceCollection = Graph->GetParameterReferenceMap().Find(Parameter);
+				if (ensureMsgf(ReferenceCollection != nullptr, TEXT("Parameter in view which wasn't in the reference collection.")) == false)
+				{
+					// Can't handle parameters with no reference collections.
+					continue;
+				}
+
+				if (ReferenceCollection->WasCreated())
+				{
+					// If the parameter was created directly by the user just rename it.
+					Graph->RenameParameter(Parameter, NewName);
+				}
+				else
+				{
+					// Otherwise see if it has local graph references.  If so it can be renamed, if not than we have to
+					// create a new parameter with the new name since we can't rename parameters from nested graphs.
+					bool bHasLocalGraphReference = false;
+					for (const FNiagaraGraphParameterReference& Reference : ReferenceCollection->ParameterReferences)
+					{
+						UNiagaraNode* ReferencingNode = Cast<UNiagaraNode>(Reference.Value.Get());
+						if (ReferencingNode != nullptr && ReferencingNode->GetGraph() == Graph)
+						{
+							bHasLocalGraphReference = true;
+							break;
+						}
+					}
+
+					if (bHasLocalGraphReference)
+					{
+						Graph->RenameParameter(Parameter, NewName);
+					}
+					else
+					{
+						FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(
+							LOCTEXT("AddInsteadOfRenameInScriptFormat", "The parameter {0} was not added directly\n or was discovered in a nested graph and can't be renamed.\nA new parameter {1} has been added instead."),
+							FNiagaraEditorUtilities::FormatParameterNameForTextDisplay(Parameter.GetName()),
+							FNiagaraEditorUtilities::FormatParameterNameForTextDisplay(NewName)), 7.0f);
+
+						FNiagaraVariable NewVariable(Parameter.GetType(), NewName);
+						bool bEnterRenameModeOnAdd = false;
+						AddParameter(NewVariable, bEnterRenameModeOnAdd);
+					}
+				}		
 			}
 		}
 	}
@@ -1519,8 +1562,23 @@ void SNiagaraParameterMapView::RenameParameter(FNiagaraVariable& Parameter, FNam
 		if (System != nullptr)
 		{
 			System->Modify();
-			System->GetExposedParameters().RenameParameter(Parameter, NewName);
-			System->EditorOnlyAddedParameters.RenameParameter(Parameter, NewName);
+			if (System->GetExposedParameters().IndexOf(Parameter) == INDEX_NONE && System->EditorOnlyAddedParameters.IndexOf(Parameter) == INDEX_NONE)
+			{
+				// If the parameter isn't in one of the existing collections than it's a discovered parameter and instead of renaming it needs to be added.
+				FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(
+					LOCTEXT("AddInsteadOfRenameInSystemFormat", "The parameter {0}\n was not added directly and can't be renamed.\nA new parameter {1} has been added instead."),
+					FNiagaraEditorUtilities::FormatParameterNameForTextDisplay(Parameter.GetName()),
+					FNiagaraEditorUtilities::FormatParameterNameForTextDisplay(NewName)), 7.0f);
+
+				FNiagaraVariable NewVariable(Parameter.GetType(), NewName);
+				bool bEnterRenameModeOnAdd = false;
+				AddParameter(NewVariable, bEnterRenameModeOnAdd);
+			}
+			else
+			{
+				System->GetExposedParameters().RenameParameter(Parameter, NewName);
+				System->EditorOnlyAddedParameters.RenameParameter(Parameter, NewName);
+			}
 		}
 	}
 }

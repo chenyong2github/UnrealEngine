@@ -50,17 +50,24 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 	ParameterToolTipText.Bind(this, &SNiagaraParameterMapPalleteItem::GetItemTooltip);
 	SetToolTipText(ParameterToolTipText);
 
+	bWasCreated = ParameterAction->ReferenceCollection.ContainsByPredicate(
+		[](const FNiagaraGraphParameterReferenceCollection& ReferenceCollection) { return ReferenceCollection.WasCreated(); });
+
 	ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
 		.ParameterText(this, &SNiagaraParameterMapPalleteItem::GetDisplayText)
 		.HighlightText(InCreateData->HighlightText)
 		.OnTextCommitted(this, &SNiagaraParameterMapPalleteItem::OnNameTextCommitted)
 		.OnVerifyTextChanged(this, &SNiagaraParameterMapPalleteItem::OnNameTextVerifyChanged)
 		.IsSelected(InCreateData->IsRowSelectedDelegate)
-		.IsReadOnly(InCreateData->bIsReadOnly);
+		.IsReadOnly(InCreateData->bIsReadOnly)
+		.Decorator()
+		[
+			SNew(STextBlock)
+			.Visibility(bWasCreated ? EVisibility::Visible : EVisibility::Collapsed)
+			.Text(LOCTEXT("AddedText", "*"))
+		];
 
 	InCreateData->OnRenameRequest->BindSP(ParameterNameTextBlock.ToSharedRef(), &SNiagaraParameterNameTextBlock::EnterEditingMode);
-
-	bWasCreated = ParameterAction->ReferenceCollection.ContainsByPredicate([](const FNiagaraGraphParameterReferenceCollection& ReferenceCollection) { return ReferenceCollection.WasCreated(); });
 
 	// now, create the actual widget
 	ChildSlot
@@ -75,24 +82,15 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 		]
 		// name slot
 		+SHorizontalBox::Slot()
-		.AutoWidth()
 		.VAlign(VAlign_Center)
 		.Padding(5,0)
 		[
 			ParameterNameTextBlock.ToSharedRef()
 		]
+		// reference count
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Visibility(bWasCreated ? EVisibility::Visible : EVisibility::Collapsed)
-			.Text(LOCTEXT("AddedText", "*"))
-		]
-		// reference count
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Right)
 		.Padding(3, 0)
 		[
 			SNew(SComboButton)

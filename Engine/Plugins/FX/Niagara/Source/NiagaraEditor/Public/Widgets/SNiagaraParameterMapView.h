@@ -85,6 +85,7 @@ public:
 
 	/** Adds parameter to the graph parameter store and refreshes the menu. */
 	void AddParameter(FNiagaraVariable NewVariable);
+	void AddParameter(FNiagaraVariable NewVariable, bool bEnterRenameModeOnAdd);
 
 	/** Refreshes the graphs used for this menu. */
 	void Refresh(bool bRefreshMenu = true);

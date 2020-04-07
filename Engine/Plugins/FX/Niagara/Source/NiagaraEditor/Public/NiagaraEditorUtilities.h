@@ -243,7 +243,7 @@ namespace FNiagaraEditorUtilities
 	void CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
 
 	NIAGARAEDITOR_API void WarnWithToastAndLog(FText WarningMessage);
-	NIAGARAEDITOR_API void InfoWithToastAndLog(FText WarningMessage);
+	NIAGARAEDITOR_API void InfoWithToastAndLog(FText WarningMessage, float ToastDuration = 5.0f);
 
 	void GetScriptRunAndExecutionIndexFromUsage(const ENiagaraScriptUsage& InUsage, int32& OutRunIndex, int32&OutExecutionIndex);
 
@@ -291,4 +291,6 @@ namespace FNiagaraEditorUtilities
 	FString GetNamespacelessVariableNameString(const FName& InVarName);
 
 	void GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes);
+
+	FText FormatParameterNameForTextDisplay(FName ParameterName);
 };
