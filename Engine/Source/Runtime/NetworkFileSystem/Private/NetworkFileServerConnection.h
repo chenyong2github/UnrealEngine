@@ -135,7 +135,7 @@ protected:
 		return OpenFile ? *OpenFile : NULL;
 	}
 
-	bool PackageFile( FString& Filename, FArchive& Out);
+	bool PackageFile( FString& Filename, FString& TargetFilename, FArchive& Out);
 
 	/**
 	 * Processes a RecompileShaders message.
@@ -190,6 +190,9 @@ private:
 
 	// Hold the name of the currently connected platform.
 	FString ConnectedPlatformName;
+
+	// Hold the ip address of the currently connected platform.
+	FString ConnectedIPAddress;
 
 	// Hold the engine directory from the connected platform.
 	FString ConnectedEngineDir;
@@ -255,6 +258,12 @@ private:
 
 	// cached copy of the active target platforms (if any)
 	const TArray<ITargetPlatform*>& ActiveTargetPlatforms;
+
+	// connected TargetPlatform object, if ActiveTargetPlatforms existed
+	ITargetPlatform* ConnectedTargetPlatform;
+
+	// custom key-value pair data for the curently connected target platform
+	TMap<FString,FString> ConnectedTargetCustomData;
 
 
 	//////////////////////////////////////////////////////////////////////////
