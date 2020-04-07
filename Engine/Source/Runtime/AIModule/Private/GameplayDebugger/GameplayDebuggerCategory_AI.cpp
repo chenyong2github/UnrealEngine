@@ -28,12 +28,14 @@
 namespace FGameplayDebuggerCategoryTweakables
 {
 	int32 bDrawOverheadIcons = 1;
+	bool bDrawPaths = false;
 }
 
 namespace
 {
 	FAutoConsoleVariableRef CVars_GameplayDebuggerCategory_AI[] = {
-		FAutoConsoleVariableRef(TEXT("ai.debug.DrawOverheadIcons"), FGameplayDebuggerCategoryTweakables::bDrawOverheadIcons, TEXT("Should default AI overhead icons be drawn"), ECVF_Default)
+		FAutoConsoleVariableRef(TEXT("ai.debug.DrawOverheadIcons"), FGameplayDebuggerCategoryTweakables::bDrawOverheadIcons, TEXT("Should default AI overhead icons be drawn"), ECVF_Default),
+		FAutoConsoleVariableRef(TEXT("ai.debug.DrawPaths"), FGameplayDebuggerCategoryTweakables::bDrawPaths, TEXT("Should AI paths be drawn"), ECVF_Default)
 	};
 }
 
@@ -313,6 +315,11 @@ void FGameplayDebuggerCategory_AI::DrawData(APlayerController* OwnerPC, FGamepla
 	if (SelectedActor)
 	{
 		DrawOverheadInfo(*SelectedActor, CanvasContext);
+	}
+
+	if (FGameplayDebuggerCategoryTweakables::bDrawPaths && DataPack.bIsUsingPathFollowing)
+	{
+		DrawPath(MyWorld);
 	}
 
 	if (DataPack.bHasController)
