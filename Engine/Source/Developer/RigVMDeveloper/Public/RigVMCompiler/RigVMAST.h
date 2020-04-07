@@ -990,5 +990,6 @@ private:
 	TArray<ETraverseRelationShip> CycleCheckFlags;
 
 	friend class FRigVMExprAST;
+	friend class URigVMCompiler;
 };
 
