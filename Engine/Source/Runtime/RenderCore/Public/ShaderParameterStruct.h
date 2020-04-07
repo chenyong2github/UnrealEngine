@@ -12,9 +12,9 @@
 #include "RenderGraphResources.h"
 
 template <typename FParameterStruct>
-void BindForLegacyShaderParameters(FShader* Shader, const FShaderParameterMap& ParameterMap, bool bShouldBindEverything = false)
+void BindForLegacyShaderParameters(FShader* Shader, int32 PermutationId, const FShaderParameterMap& ParameterMap, bool bShouldBindEverything = false)
 {
-	Shader->Bindings.BindForLegacyShaderParameters(Shader, ParameterMap, *FParameterStruct::FTypeInfo::GetStructMetadata(), bShouldBindEverything);
+	Shader->Bindings.BindForLegacyShaderParameters(Shader, PermutationId, ParameterMap, *FParameterStruct::FTypeInfo::GetStructMetadata(), bShouldBindEverything);
 }
 
 /** Tag a shader class to use the structured shader parameters API.
@@ -37,7 +37,7 @@ void BindForLegacyShaderParameters(FShader* Shader, const FShaderParameterMap& P
 	ShaderClass(const ShaderMetaType::CompiledShaderInitializerType& Initializer) \
 		: ShaderParentClass(Initializer) \
 	{ \
-		BindForLegacyShaderParameters<FParameters>(this, Initializer.ParameterMap, bShouldBindEverything); \
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, bShouldBindEverything); \
 	} \
 	\
 	ShaderClass() \
@@ -61,7 +61,7 @@ void BindForLegacyShaderParameters(FShader* Shader, const FShaderParameterMap& P
 	ShaderClass(const ShaderMetaType::CompiledShaderInitializerType& Initializer) \
 		: ShaderParentClass(Initializer) \
 	{ \
-		this->Bindings.BindForRootShaderParameters(this, Initializer.ParameterMap); \
+		this->Bindings.BindForRootShaderParameters(this, Initializer.PermutationId, Initializer.ParameterMap); \
 	} \
 	\
 	ShaderClass() \
