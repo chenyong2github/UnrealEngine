@@ -80,7 +80,7 @@ private:
 	FIntPoint PrePostSourceViewportSize;
 };
 
-class FRCPassIntegrateDofES2 : public TRenderingCompositePassBase<2, 1>
+class FRCPassIntegrateDofES2 : public TRenderingCompositePassBase<3, 1>
 {
 public:
 	FRCPassIntegrateDofES2(FIntPoint InPrePostSourceViewportSize) : PrePostSourceViewportSize(InPrePostSourceViewportSize) { }
