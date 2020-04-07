@@ -1239,6 +1239,11 @@ void FControlRigEditor::OnActiveTabChanged( TSharedPtr<SDockTab> PreviouslyActiv
 void FControlRigEditor::OnAnimInitialized()
 {
 	UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+	if (EditorSkelComp)
+	{
+		EditorSkelComp->bRequiredBonesUpToDateDuringTick = 0;
+	}
+
 	UControlRigLayerInstance* AnimInstance = Cast<UControlRigLayerInstance>(EditorSkelComp->GetAnimInstance());
 	if (AnimInstance && ControlRig)
 	{
