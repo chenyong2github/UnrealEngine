@@ -54,6 +54,7 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Vector.h"
 #include "Chaos/Core.h"
+#include "Chaos/HeightField.h"
 #endif
 
 using namespace PhysicsInterfaceTypes;

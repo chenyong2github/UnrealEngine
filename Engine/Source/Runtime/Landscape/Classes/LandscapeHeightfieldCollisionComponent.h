@@ -12,10 +12,6 @@
 #include "Components/PrimitiveComponent.h"
 #include "Serialization/BulkData.h"
 
-#define TEMP_HEADER_CHAOS_LEVEL_1
-#include "Chaos/HeightField.h"
-#undef TEMP_HEADER_CHAOS_LEVEL_1
-
 #include "LandscapeHeightfieldCollisionComponent.generated.h"
 
 class ALandscapeProxy;
@@ -27,6 +23,11 @@ class UPhysicalMaterial;
 struct FConvexVolume;
 struct FEngineShowFlags;
 struct FNavigableGeometryExport;
+
+namespace Chaos
+{
+class FHeightField;
+}
 
 #if WITH_PHYSX
 namespace physx
