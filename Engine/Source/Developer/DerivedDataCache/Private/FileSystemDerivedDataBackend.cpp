@@ -527,7 +527,7 @@ public:
 			}
 		}
 
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s CachedDataProbablyExists=%d for %s"), *GetName(), FileStat.bIsValid, *CacheKey);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s CachedDataProbablyExists=%d for %s"), *GetName(), FileStat.bIsValid, CacheKey);
 
 		return FileStat.bIsValid;
 	}	
