@@ -185,6 +185,11 @@ public:
 	void SetCollisionBetweenSelectedAndAll(bool bEnableCollision);
 	bool CanSetCollisionBetweenSelectedAndAll(bool bEnableCollision) const;
 
+	/** Helpers to set primitive-level collision filtering on selected bodies */
+	void SetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled);
+	bool CanSetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled) const;
+	bool GetIsPrimitiveCollisionEnabled(ECollisionEnabled::Type CollisionEnabled) const;
+
 	/** Prevents GC from collecting our objects */
 	void AddReferencedObjects(FReferenceCollector& Collector);
 

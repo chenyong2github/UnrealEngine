@@ -807,6 +807,46 @@ void FPhysicsAssetEditorSharedData::SetCollisionBetween(int32 Body1Index, int32 
 	PreviewChangedEvent.Broadcast();
 }
 
+void FPhysicsAssetEditorSharedData::SetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled)
+{
+	if (bRunningSimulation)
+	{
+		return;
+	}
+
+	PhysicsAsset->Modify();
+
+	for (FSelection SelectedBody : SelectedBodies)
+	{
+		PhysicsAsset->SetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveIndex, CollisionEnabled);
+	}
+
+	PreviewChangedEvent.Broadcast();
+}
+
+bool FPhysicsAssetEditorSharedData::CanSetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled) const
+{
+	if (bRunningSimulation || SelectedBodies.Num() == 0)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool FPhysicsAssetEditorSharedData::GetIsPrimitiveCollisionEnabled(ECollisionEnabled::Type CollisionEnabled) const
+{
+	for (const FSelection SelectedBody : SelectedBodies)
+	{
+		if (PhysicsAsset->GetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveIndex) == CollisionEnabled)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FPhysicsAssetEditorSharedData::CopyBody()
 {
 	check(SelectedBodies.Num() == 1);
