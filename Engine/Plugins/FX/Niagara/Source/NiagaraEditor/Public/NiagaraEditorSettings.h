@@ -61,6 +61,9 @@ struct FNiagaraNamespaceMetadata
 	FLinearColor BackgroundColor;
 
 	UPROPERTY()
+	FName ForegroundStyle;
+
+	UPROPERTY()
 	TArray<ENiagaraNamespaceMetadataOptions> Options;
 
 	FNiagaraNamespaceMetadata& SetDisplayName(FText InDisplayName)
@@ -84,6 +87,12 @@ struct FNiagaraNamespaceMetadata
 	FNiagaraNamespaceMetadata& SetBackgroundColor(FLinearColor InBackgroundColor)
 	{
 		BackgroundColor = InBackgroundColor;
+		return *this;
+	}
+
+	FNiagaraNamespaceMetadata& SetForegroundStyle(FName InForegroundStyle)
+	{
+		ForegroundStyle = InForegroundStyle;
 		return *this;
 	}
 

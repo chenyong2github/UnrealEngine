@@ -5,11 +5,14 @@
 
 FNiagaraNamespaceMetadata::FNiagaraNamespaceMetadata()
 	: BackgroundColor(FLinearColor::Black)
+	, ForegroundStyle("NiagaraEditor.ParameterName.NamespaceText")
 {
 }
 
 FNiagaraNamespaceMetadata::FNiagaraNamespaceMetadata(TArray<FName> InNamespaces)
 	: Namespaces(InNamespaces)
+	, BackgroundColor(FLinearColor::Black)
+	, ForegroundStyle("NiagaraEditor.ParameterName.NamespaceText")
 {
 }
 
@@ -79,7 +82,8 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 		FNiagaraNamespaceMetadata({FNiagaraConstants::EngineNamespace})
 			.SetDisplayName(LOCTEXT("EngineDisplayName", "Engine"))
 			.SetDescription(LOCTEXT("EngineDescription", "A read only value which is provided by the engine.\nThis value's source can be the simulation itsef\ne.g. ExecutionCount, or the owner of the simulation e.g. (Owner) Scale."))
-			.SetBackgroundColor(FLinearColor(FColor(45, 45, 45)))
+			.SetBackgroundColor(FLinearColor(FColor(170, 170, 170)))
+			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark")
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventRenaming),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::UserNamespace})
 			.SetDisplayName(LOCTEXT("UserDisplayName", "User"))
@@ -89,13 +93,15 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetDisplayName(LOCTEXT("NiagaraParameterCollectionDisplayName", "NPC"))
 			.SetDisplayNameLong(LOCTEXT("NiagaraParameterCollectionDisplayNameLong", "Niagara Parameter Collection"))
 			.SetDescription(LOCTEXT("NiagaraParameterCollectionDescription", "Values read from a niagara parameter collection asset.\nRead only in a niagara system."))
-			.SetBackgroundColor(FLinearColor(FColor(45, 45, 45)))
+			.SetBackgroundColor(FLinearColor(FColor(170, 170, 170)))
+			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark")
 			.AddOption(ENiagaraNamespaceMetadataOptions::Advanced)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventRenaming),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::DataInstanceNamespace})
 			.SetDisplayName(LOCTEXT("DataInstanceDisplayName", "Data Instance"))
 			.SetDescription(LOCTEXT("DataInstanceDescription", "A special transient value which has a single bool IsAlive value, which determines if a particle is alive or not."))
-			.SetBackgroundColor(FLinearColor(FColor(45, 45, 45)))
+			.SetBackgroundColor(FLinearColor(FColor(170, 170, 170)))
+			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark")
 			.AddOption(ENiagaraNamespaceMetadataOptions::Advanced)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventRenaming),
 	};
@@ -121,7 +127,8 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 		FNiagaraNamespaceMetadata({FNiagaraConstants::OwnerNamespace})
 			.SetDisplayName(LOCTEXT("OwnerDisplayName", "Owner"))
 			.SetDescription(LOCTEXT("OwnerDescription", "A namespace modifier which specifies that an engine provided parameter comes from the owner, or component."))
-			.SetBackgroundColor(FLinearColor(FColor(45, 45, 45))),
+			.SetBackgroundColor(FLinearColor(FColor(170, 170, 170)))
+			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark"),
 	};
 }
 
