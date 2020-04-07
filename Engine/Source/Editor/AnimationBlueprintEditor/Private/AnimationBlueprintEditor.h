@@ -177,7 +177,6 @@ protected:
 	virtual bool CanAddPosePin() const override;
 	virtual void OnRemovePosePin() override;
 	virtual bool CanRemovePosePin() const override;
-	virtual void Compile() override;
 	virtual void OnGraphEditorFocused(const TSharedRef<class SGraphEditor>& InGraphEditor) override;
 	virtual void OnGraphEditorBackgrounded(const TSharedRef<SGraphEditor>& InGraphEditor) override;
 	virtual void OnConvertToSequenceEvaluator() override;
@@ -264,6 +263,9 @@ private:
 	/** Called immediately prior to a blueprint compilation */
 	void OnBlueprintPreCompile(UBlueprint* BlueprintToCompile);
 
+	/** Called immediately after to a blueprint compilation */
+	void OnBlueprintPostCompile(UBlueprint* InBlueprint);
+
 	/** Called post compile to copy node data */
 	void OnPostCompile();
 
@@ -323,4 +325,7 @@ private:
 
     /** Configuration class used to store editor settings across sessions. */
 	UAnimationBlueprintEditorOptions* EditorOptions;
+
+	/** Cached mesh component held during compilation, used to reconnect debugger */
+	USkeletalMeshComponent* DebuggedMeshComponent;
 };
