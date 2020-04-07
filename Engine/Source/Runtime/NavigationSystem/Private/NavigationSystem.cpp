@@ -2202,12 +2202,12 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 		}
 		else
 		{
-		// check if this kind of agent has already its navigation implemented
-		TWeakObjectPtr<ANavigationData>* NavDataForAgent = AgentToNavDataMap.Find(NavConfig);
-		ANavigationData* NavDataInstanceForAgent = NavDataForAgent ? NavDataForAgent->Get() : nullptr;
+			// check if this kind of agent has already its navigation implemented
+			TWeakObjectPtr<ANavigationData>* NavDataForAgent = AgentToNavDataMap.Find(NavConfig);
+			ANavigationData* NavDataInstanceForAgent = NavDataForAgent ? NavDataForAgent->Get() : nullptr;
 
-		if (NavDataInstanceForAgent == nullptr)
-		{
+			if (NavDataInstanceForAgent == nullptr)
+			{
 				// ok, so this navigation agent doesn't have its navmesh registered yet, but do we want to support it?
 				bool bAgentSupported = false;
 
@@ -2235,18 +2235,18 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 				}
 				Result = bAgentSupported == true ? RegistrationSuccessful : RegistrationFailed_AgentNotValid;
 			}
-		else if (NavDataInstanceForAgent == NavData)
-		{
-			ensure(NavDataSet.Find(NavData) != INDEX_NONE);
-			// let's treat double registration of the same nav data with the same agent as a success
-			Result = RegistrationSuccessful;
+			else if (NavDataInstanceForAgent == NavData)
+			{
+				ensure(NavDataSet.Find(NavData) != INDEX_NONE);
+				// let's treat double registration of the same nav data with the same agent as a success
+				Result = RegistrationSuccessful;
+			}
+			else
+			{
+				// otherwise specified agent type already has its navmesh implemented, fail redundant instance
+				Result = RegistrationFailed_AgentAlreadySupported;
+			}
 		}
-		else
-		{
-			// otherwise specified agent type already has its navmesh implemented, fail redundant instance
-			Result = RegistrationFailed_AgentAlreadySupported;
-		}
-	}
 	}
 	else
 	{
@@ -3366,78 +3366,116 @@ void UNavigationSystemV1::SpawnMissingNavigationData()
 	}
 	
 	// Bit array might be a bit of an overkill here, but this function will be called very rarely
-	TBitArray<> AlreadyInstantiated(false, AllSupportedAgentsCount);
+	TBitArray<> AlreadyInstantiated;
 	uint8 NumberFound = 0;
-	UWorld* NavWorld = GetWorld();
 
 	// 1. check whether any of required navigation data has already been instantiated
-	for (TActorIterator<ANavigationData> It(NavWorld); It && NumberFound < AllSupportedAgentsCount; ++It)
-	{
-		ANavigationData* Nav = (*It);
-		if (Nav != nullptr 
-			&& Nav->IsPendingKill() == false
-			// mz@todo the 'is level in' condition is temporary
-			&& (Nav->GetTypedOuter<UWorld>() == NavWorld || NavWorld->GetLevels().Contains(Nav->GetLevel())))
-		{
-			// find out which one it is
-			for (int32 AgentIndex = 0; AgentIndex < AllSupportedAgentsCount; ++AgentIndex)
-			{
-				if (AlreadyInstantiated[AgentIndex] == false
-					&& Nav->GetClass() == SupportedAgents[AgentIndex].GetNavDataClass<ANavigationData>()
-					&& Nav->DoesSupportAgent(SupportedAgents[AgentIndex]) == true)
-				{
-					AlreadyInstantiated[AgentIndex] = true;
-					++NumberFound;
-					break;
-				}
-			}				
-		}
-	}
+	NumberFound = FillInstantiatedDataMask(AlreadyInstantiated);
 
 	// 2. for any not already instantiated navigation data call creator functions
 	if (NumberFound < ValidSupportedAgentsCount)
 	{
+		SpawnMissingNavigationDataInLevel(AlreadyInstantiated);
+	}
+
+	if (MainNavData == nullptr || MainNavData->IsPendingKillPending())
+	{
+		MainNavData = GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
+	}
+}
+
+uint8 UNavigationSystemV1::FillInstantiatedDataMask(TBitArray<>& OutInstantiatedMask, ULevel* InLevel /*= nullptr*/)
+{
+	int32 AllSupportedAgentsCount = SupportedAgents.Num();
+	OutInstantiatedMask.Init(false, AllSupportedAgentsCount);
+	uint8 NumberFound = 0;
+
+	auto SetMatchingAgentIndexFunc = [&](ANavigationData* Nav) {
 		for (int32 AgentIndex = 0; AgentIndex < AllSupportedAgentsCount; ++AgentIndex)
 		{
-			const FNavDataConfig& NavConfig = SupportedAgents[AgentIndex];
-			if (AlreadyInstantiated[AgentIndex] == false 
-				&& SupportedAgentsMask.Contains(AgentIndex)
-				&& NavConfig.GetNavDataClass<ANavigationData>() != nullptr)
+			if (OutInstantiatedMask[AgentIndex] == false
+				&& Nav->GetClass() == SupportedAgents[AgentIndex].GetNavDataClass<ANavigationData>()
+				&& Nav->DoesSupportAgent(SupportedAgents[AgentIndex]) == true)
 			{
-				bool bHandled = false;
+				OutInstantiatedMask[AgentIndex] = true;
+				++NumberFound;
+				break;
+			}
+		}
+	};
 
-				const ANavigationData* NavDataCDO = NavConfig.GetNavDataClass<ANavigationData>()->GetDefaultObject<ANavigationData>();
-				if (NavDataCDO == nullptr || !NavDataCDO->CanSpawnOnRebuild())
+	if (InLevel != nullptr)
+	{
+		for (AActor* Actor: InLevel->Actors)
+		{
+			if (ANavigationData* NavData = Cast<ANavigationData>(Actor))
+			{
+				SetMatchingAgentIndexFunc(NavData);
+				if (NumberFound >= AllSupportedAgentsCount)
 				{
-					continue;
-				}
-
-				if (NavWorld->WorldType != EWorldType::Editor && NavDataCDO->GetRuntimeGenerationMode() == ERuntimeGenerationType::Static)
-				{
-					// if we're not in the editor, and specified navigation class is configured 
-					// to be static, then we don't want to create an instance					
-					UE_LOG(LogNavigation, Log, TEXT("Not spawning navigation data for %s since indivated NavigationData type is not configured for dynamic generation")
-						, *NavConfig.Name.ToString());
-					continue;
-				}
-
-				ANavigationData* Instance = CreateNavigationDataInstanceInLevel(NavConfig, nullptr);
-				if (Instance)
-				{
-					RequestRegistrationDeferred(*Instance);
-				}
-				else
-				{
-					UE_LOG(LogNavigation, Warning, TEXT("Was not able to create navigation data for SupportedAgent[%d]: %s"), AgentIndex, *NavConfig.Name.ToString());
+					break;
 				}
 			}
 		}
-	}
-	
-	if (MainNavData == nullptr || MainNavData->IsPendingKillPending())
+	} 
+	else
 	{
-		// update 
-		MainNavData = GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
+		UWorld* NavWorld = GetWorld();	
+		for (TActorIterator<ANavigationData> It(NavWorld); It && NumberFound < AllSupportedAgentsCount; ++It)
+		{
+			ANavigationData* Nav = (*It);
+			if (IsValid(Nav)
+				// mz@todo the 'is level in' condition is temporary
+				&& (Nav->GetTypedOuter<UWorld>() == NavWorld || NavWorld->GetLevels().Contains(Nav->GetLevel())))
+			{
+				// find out which one it is
+				SetMatchingAgentIndexFunc(Nav);
+			}
+		}
+	}
+
+	return NumberFound;
+}
+
+void UNavigationSystemV1::SpawnMissingNavigationDataInLevel(const TBitArray<>& InInstantiatedMask, ULevel* InLevel/*=nullptr*/)
+{
+	UWorld* NavWorld = GetWorld();
+
+	ensure(SupportedAgents.Num() == InInstantiatedMask.Num());
+	int32 AllSupportedAgentsCount = InInstantiatedMask.Num();
+
+	for (int32 AgentIndex = 0; AgentIndex < AllSupportedAgentsCount; ++AgentIndex)
+	{
+		const FNavDataConfig& NavConfig = SupportedAgents[AgentIndex];
+		if (InInstantiatedMask[AgentIndex] == false
+			&& SupportedAgentsMask.Contains(AgentIndex)
+			&& NavConfig.GetNavDataClass<ANavigationData>() != nullptr)
+		{
+			const ANavigationData* NavDataCDO = NavConfig.GetNavDataClass<ANavigationData>()->GetDefaultObject<ANavigationData>();
+			if (NavDataCDO == nullptr || !NavDataCDO->CanSpawnOnRebuild())
+			{
+				continue;
+			}
+
+			if (NavWorld->WorldType != EWorldType::Editor && NavDataCDO->GetRuntimeGenerationMode() == ERuntimeGenerationType::Static)
+			{
+				// if we're not in the editor, and specified navigation class is configured 
+				// to be static, then we don't want to create an instance					
+				UE_LOG(LogNavigation, Log, TEXT("Not spawning navigation data for %s since indicated NavigationData type is not configured for dynamic generation")
+					, *NavConfig.Name.ToString());
+				continue;
+			}
+
+			ANavigationData* Instance = CreateNavigationDataInstanceInLevel(NavConfig, InLevel);
+			if (Instance)
+			{
+				RequestRegistrationDeferred(*Instance);
+			}
+			else
+			{
+				UE_LOG(LogNavigation, Warning, TEXT("Was not able to create navigation data for SupportedAgent[%d]: %s"), AgentIndex, *NavConfig.Name.ToString());
+			}
+		}
 	}
 }
 
