@@ -37,6 +37,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmixEnvelope, const TArray<floa
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmixSpectralAnalysis, const TArray<float>&, Magnitudes);
 
+
 UENUM(BlueprintType)
 enum class EFFTSize : uint8
 {
@@ -297,13 +298,20 @@ public:
 	void AddEnvelopeFollowerDelegate(const UObject* WorldContextObject, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP);
 
 	/**
-	 *	Adds a spectral envelope delegate to receive notifications when this submix has spectrum analysis enabled.
+	 *	Adds a spectral analysis delegate to receive notifications when this submix has spectrum analysis enabled.
 	 *	@param	InBandsettings					The frequency bands to analyze and their envelope-following settings.
 	 *  @param  OnSubmixSpectralAnalysisBP		Event to fire when new spectral data is available.
 	 *	@param	UpdateRate						How often to retrieve the data from the spectral analyzer and broadcast the event. Max is 30 times per second.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Spectrum", meta = (WorldContext = "WorldContextObject"))
 	void AddSpectralAnalysisDelegate(const UObject* WorldContextObject, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, float UpdateRate);
+
+	/**
+	 *	Remove a spectral analysis delegate.
+	 *  @param  OnSubmixSpectralAnalysisBP		The event delegate to remove.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Spectrum", meta = (WorldContext = "WorldContextObject"))
+	void RemoveSpectralAnalysisDelegate(const UObject* WorldContextObject, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
 
 	/** Start spectrum analysis of the audio output. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Analysis", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))

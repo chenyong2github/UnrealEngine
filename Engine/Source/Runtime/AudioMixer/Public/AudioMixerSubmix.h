@@ -200,8 +200,11 @@ namespace Audio
 		// Terminates whatever FFT Analyzer is being used for this submix.
 		void StopSpectrumAnalysis();
 
-		// Adds an envelope follower delegate
+		// Adds an spectral analysis delegate
 		void AddSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, float UpdateRate);
+
+		// Removes an existing spectral analysis delegate
+		void RemoveSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
 
 		// Gets the most recent magnitude values for each corresponding value in InFrequencies (in Hz).
 		// This requires StartSpectrumAnalysis to be called first.
@@ -488,6 +491,7 @@ namespace Audio
 		{
 			FEnvelopeFollower EnvelopeFollower;
 			float BandFrequency = 0.0f;
+			float QFactor = 1.f;
 		};
 
 		struct FSpectrumAnalysisDelegateInfo

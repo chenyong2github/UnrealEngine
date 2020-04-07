@@ -20,6 +20,23 @@ class USoundSubmix;
 */
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnSoundLoadComplete, const class USoundWave*, LoadedSoundWave, const bool, WasCancelled);
 
+UENUM(BlueprintType)
+enum class EMusicalNoteName : uint8
+{
+	C  = 0,
+	Db = 1,
+	D  = 2,
+	Eb = 3,
+	E  = 4,
+	F  = 5,
+	Gb = 6,
+	G  = 7,
+	Ab = 8,
+	A  = 9,
+	Bb = 10,
+	B  = 11,
+};
+
 
 UCLASS(meta=(ScriptName="AudioMixerLibrary"))
 class AUDIOMIXER_API UAudioMixerBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -83,6 +100,38 @@ public:
 	/** Start spectrum analysis of the audio output. By leaving the Submix To Stop Analyzing blank, you can analyze the master output of the game. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Analysis", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
 	static void StopAnalyzingOutput(const UObject* WorldContextObject, USoundSubmix* SubmixToStopAnalyzing = nullptr);
+
+	/** Make an array of musically spaced bands with ascending frequency.
+	 *
+	 *  @param InNumSemitones - The number of semitones to represent.
+	 *  @param InStartingMuiscalNote - The name of the first note in the array.
+	 *  @param InStartingOctave - The octave of the first note in the arrya.
+	 *  @param InAttackTimeMsec - The attack time (in milliseconds) to apply to each band's envelope tracker.
+	 *  @param InReleaseTimeMsec - The release time (in milliseconds) to apply to each band's envelope tracker.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Audio|Analysis")
+	static TArray<FSoundSubmixSpectralAnalysisBandSettings> MakeMusicalSpectralAnalysisBandSettings(int32 InNumSemitones=60, EMusicalNoteName InStartingMusicalNote = EMusicalNoteName::C, int32 InStartingOctave = 2, int32 InAttackTimeMsec = 10, int32 InReleaseTimeMsec = 10);
+
+	/** Make an array of logarithmically spaced bands. 
+	 *
+	 *  @param InNumBands - The number of bands to used to represent the spectrum.
+	 *  @param InMinimumFrequency - The center frequency of the first band.
+	 *  @param InMaximumFrequency - The center frequency of the last band.
+	 *  @param InAttackTimeMsec - The attack time (in milliseconds) to apply to each band's envelope tracker.
+	 *  @param InReleaseTimeMsec - The release time (in milliseconds) to apply to each band's envelope tracker.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Audio|Analysis")
+	static TArray<FSoundSubmixSpectralAnalysisBandSettings> MakeFullSpectrumSpectralAnalysisBandSettings(int32 InNumBands, float InMinimumFrequency=40.f, float InMaximumFrequency=16000.f, int32 InAttackTimeMsec = 10, int32 InReleaseTimeMsec = 10);
+
+	/** Make an array of bands which span the frequency range of a given EAudioSpectrumBandPresetType. 
+	 *
+	 *  @param InBandPresetType - The type audio content which the bands encompass.
+	 *  @param InNumBands - The number of bands used to represent the spectrum.
+	 *  @param InAttackTimeMsec - The attack time (in milliseconds) to apply to each band's envelope tracker.
+	 *  @param InReleaseTimeMsec - The release time (in milliseconds) to apply to each band's envelope tracker.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Audio|Analysis")
+	static TArray<FSoundSubmixSpectralAnalysisBandSettings> MakePresetSpectralAnalysisBandSettings(EAudioSpectrumBandPresetType InBandPresetType, int32 InNumBands, int32 InAttackTimeMsec = 10, int32 InReleaseTimeMsec = 10);
 
 	/** Start spectrum analysis of the audio output. By leaving the Submix To Analyze blank, you can analyze the master output of the game. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Analysis", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 3))
