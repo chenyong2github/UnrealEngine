@@ -61,6 +61,28 @@ struct ENGINE_API FKAggregateGeom
 
 	int32 GetElementCount(EAggCollisionShape::Type Type) const;
 
+	FKShapeElem* GetElement(const int32 Index)
+	{
+		ensure(Index < GetElementCount());
+		if (Index < SphereElems.Num()) { return &SphereElems[Index]; }
+		if (Index < BoxElems.Num()) { return &BoxElems[Index]; }
+		if (Index < SphylElems.Num()) { return &SphylElems[Index]; }
+		if (Index < ConvexElems.Num()) { return &ConvexElems[Index]; }
+		if (Index < TaperedCapsuleElems.Num()) { return &TaperedCapsuleElems[Index]; }
+		return nullptr;
+	}
+
+	const FKShapeElem* GetElement(const int32 Index) const
+	{
+		ensure(Index < GetElementCount());
+		if (Index < SphereElems.Num()) { return &SphereElems[Index]; }
+		if (Index < BoxElems.Num()) { return &BoxElems[Index]; }
+		if (Index < SphylElems.Num()) { return &SphylElems[Index]; }
+		if (Index < ConvexElems.Num()) { return &ConvexElems[Index]; }
+		if (Index < TaperedCapsuleElems.Num()) { return &TaperedCapsuleElems[Index]; }
+		return nullptr;
+	}
+
 	void EmptyElements()
 	{
 		BoxElems.Empty();
