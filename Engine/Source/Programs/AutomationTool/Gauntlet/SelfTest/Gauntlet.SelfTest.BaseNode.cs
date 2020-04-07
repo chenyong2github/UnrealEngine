@@ -138,6 +138,14 @@ namespace Gauntlet.SelfTest
 			MarkComplete(TestFailures.Count == 0 ? TestResult.Passed : TestResult.Failed);
 		}
 
+		/// <summary>
+		/// Output all defined commandline information for this test to the gauntlet window and exit test early.
+		/// </summary>
+		public virtual void DisplayCommandlineHelp()
+		{
+
+		}
+
 		// Self test interface
 		public abstract void TickTest();
 
