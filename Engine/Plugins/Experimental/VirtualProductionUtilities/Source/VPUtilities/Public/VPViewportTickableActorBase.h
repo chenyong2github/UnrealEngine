@@ -37,7 +37,7 @@ public:
 
 	/** Sets the LockLocation variable to disable movement from the translation gizmo */
 	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Editor")
-	void LockLocation(bool bSetLockLocation);
+	void EditorLockLocation(bool bSetLockLocation);
 
 	/**
 	 * Where the actor should be ticked.
