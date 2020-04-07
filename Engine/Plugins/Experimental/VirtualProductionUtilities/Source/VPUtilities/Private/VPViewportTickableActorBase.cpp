@@ -66,9 +66,11 @@ void AVPViewportTickableActorBase::Destroyed()
 	Super::Destroyed();
 }
 
-void AVPViewportTickableActorBase::LockLocation(bool bSetLockLocation)
+void AVPViewportTickableActorBase::EditorLockLocation(bool bSetLockLocation)
 {
+#if WITH_EDITOR
 	bLockLocation = bSetLockLocation;
+#endif
 }
 
 void AVPViewportTickableActorBase::EditorTick_Implementation(float DeltaSeconds)
