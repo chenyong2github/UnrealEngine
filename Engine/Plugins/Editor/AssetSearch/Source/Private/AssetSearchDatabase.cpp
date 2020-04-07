@@ -171,11 +171,14 @@ public:
 	private: FAddAssetPropertiesFromJson Statement_AddAssetProperty;
 	public: bool AddSearchRecord(const FAssetData& InAssetData, const FString& IndexedJson, const FString& IndexedJsonHash)
 	{
-		if (Statement_AddAssetToAssetTable.BindAndExecute(InAssetData.AssetName.ToString(), InAssetData.AssetClass.ToString(), InAssetData.ObjectPath.ToString(), IndexedJsonHash))
+		FString AssetObjectPath = InAssetData.ObjectPath.ToString();
+		if (Statement_AddAssetToAssetTable.BindAndExecute(InAssetData.AssetName.ToString(), InAssetData.AssetClass.ToString(), AssetObjectPath, IndexedJsonHash))
 		{
 			int64 AssetId = Database.GetLastInsertRowId();
 
-			BeginTransaction();
+			int32 EntriesAdded = 0;
+
+			ensure(BeginTransaction());
 
 			TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(IndexedJson);
 
@@ -259,7 +262,11 @@ public:
 
 									if (!Statement_AddAssetProperty.BindAndExecute(AssetId, object_name, object_path, object_native_class, property_name, property_field, property_class, value_text, value_hidden))
 									{
-										//Log error?
+										UE_LOG(LogAssetSearch, Error, TEXT("Failed to add entry for asset '%s': %s"), *AssetObjectPath, *Database.GetLastError());
+									}
+									else
+									{
+										EntriesAdded++;
 									}
 								}
 							}
@@ -270,7 +277,16 @@ public:
 				}
 			}
 
-			CommitTransaction();
+			if (!CommitTransaction())
+			{
+				UE_LOG(LogAssetSearch, Error, TEXT("Failed commit entries for asset '%s': %s"), *AssetObjectPath, *Database.GetLastError());
+				EntriesAdded = 0;
+			}
+
+			if (EntriesAdded > 0)
+			{
+				//UE_LOG(LogAssetSearch, Log, TEXT("Adding '%s': %s"), *AssetObjectPath, *Database.GetLastError());
+			}
 
 			return true;
 		}
