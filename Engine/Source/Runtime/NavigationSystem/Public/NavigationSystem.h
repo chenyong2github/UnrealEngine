@@ -1089,6 +1089,21 @@ protected:
 
 	virtual void SpawnMissingNavigationData();
 
+	/** 
+	 * Fills a mask indicating which navigation data associated to the supported agent mask are already instantiated.
+	 * @param OutInstantiatedMask The mask that will represent already instantiated navigation data.
+	 * @param InLevel If specified will be used to search for navigation data; will use the owning world otherwise.
+	 * @return Number of instantiated navigation data.
+	 */
+	uint8 FillInstantiatedDataMask(TBitArray<>& OutInstantiatedMask, ULevel* InLevel = nullptr);
+
+	/**
+	 * Spawns missing navigation data.
+	 * @param InInstantiatedMask The mask representing already instantiated navigation data.
+	 * @param InLevel Level in which the new data must be added. See CreateNavigationDataInstanceInLevel doc.
+	 */
+	void SpawnMissingNavigationDataInLevel(const TBitArray<>& InInstantiatedMask, ULevel* InLevel = nullptr);
+
 public:
 	void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
 
