@@ -303,19 +303,6 @@ public:
 	/** For case insensitive filesystems, returns the full path of the file with the same case as in the filesystem */
 	virtual FString GetFilenameOnDisk(const TCHAR* Filename) = 0;
 
-	/** Return the size of the file, or -1 if it doesn't exist. **/
-	virtual int64		FileSize(const TCHAR* Filename, bool bUseWriteLocation)
-	{
-		return FileSize(Filename);
-	}
-
-	/** Check if a file exists in a location suitable for writing at runtime */
-	virtual bool		FileExists(const TCHAR* Filename, bool bUseWriteLocation)
-	{
-		return FileSize(Filename, bUseWriteLocation) >= 0;
-	}
-
-
 	/** Attempt to open a file for reading.
 	 *
 	 * @param Filename file to be opened
