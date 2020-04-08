@@ -1067,11 +1067,7 @@ uint32 FMeshDrawShaderBindings::GetDynamicInstancingHash() const
 		if (SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers.Num())
 		{
 			const uint8* LooseBindings = SingleShaderBindings.GetLooseDataStart();
-			uint32 Length = 0;
-			for (const FShaderLooseParameterBufferInfo& ParamInfo : SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers)
-			{
-				Length = FMath::Max<uint32>(Length, ParamInfo.BaseIndex + ParamInfo.Size);
-			}
+			uint32 Length = SingleShaderBindings.GetLooseDataSizeBytes();
 			HashKey.LooseParametersHash = uint32(CityHash64((const char*)LooseBindings, Length));
 		}
 
