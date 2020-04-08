@@ -1153,6 +1153,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		Results.Data->InternalParameters.Empty();
 		for (int32 i = 0; i < CompilationOutput.InternalConstantOffsets.Num(); ++i)
 		{
+			const FName ConstantName(TEXT("InternalConstant"), i);
 			EVectorVMBaseTypes Type = CompilationOutput.InternalConstantTypes[i];
 			int32 Offset = CompilationOutput.InternalConstantOffsets[i];
 			switch (Type)
@@ -1160,19 +1161,19 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			case EVectorVMBaseTypes::Float:
 			{
 				float Val = *(float*)(CompilationOutput.InternalConstantData.GetData() + Offset);
-				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *LexToString(Val)))->SetValue(Val);
+				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), ConstantName))->SetValue(Val);
 			}
 			break;
 			case EVectorVMBaseTypes::Int:
 			{
 				int32 Val = *(int32*)(CompilationOutput.InternalConstantData.GetData() + Offset);
-				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), *LexToString(Val)))->SetValue(Val);
+				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), ConstantName))->SetValue(Val);
 			}
 			break;
 			case EVectorVMBaseTypes::Bool:
 			{
 				int32 Val = *(int32*)(CompilationOutput.InternalConstantData.GetData() + Offset);
-				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), Val == 0 ? TEXT("FALSE") : TEXT("TRUE")))->SetValue(Val);
+				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), ConstantName))->SetValue(Val);
 			}
 			break;
 			}
