@@ -537,6 +537,7 @@ namespace Chaos
 		TopLevelClusterParents.Add(NewParticle);
 		NewParticle->SetInternalCluster(true);
 		NewParticle->SetClusterId(ClusterId(Parent, Children.Num()));
+		for (auto& Constituent : Children) MEvolution.DoInternalParticleInitilization(Constituent, NewParticle);
 
 		//
 		// Update clustering data structures.
