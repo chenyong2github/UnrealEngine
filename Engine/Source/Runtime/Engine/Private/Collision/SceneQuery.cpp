@@ -25,9 +25,7 @@ float DebugLineLifetime = 2.f;
 #include "PhysicsEngine/PhysXSupport.h"
 #include "PhysicsEngine/CollisionAnalyzerCapture.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "ChaosSolversModule.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
 
 CSV_DEFINE_CATEGORY(SceneQuery, false);

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/ExternalCollisionData.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/CollisionResolutionTypes.h"

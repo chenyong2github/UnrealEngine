@@ -4,7 +4,6 @@
 
 /** This class represents an FieldSystem Actor. */
 
-#include "Chaos/IncludeLvl1.inl"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Field/FieldSystem.h"

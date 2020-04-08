@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Framework/PhysicsProxy.h"

@@ -16,13 +16,11 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "PhysXSupportCore.h"
-#define CHAOS_INCLUDE_LEVEL_1
 #include "PhysicsSolver.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/ChaosArchive.h"
 #include "Chaos/TrackedGeometryManager.h"
 #include "RewindData.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 /** Returns false if ModelToHulls operation should halt because of vertex count overflow. */
 static bool AddConvexPrim(FKAggregateGeom* OutGeom, TArray<FPlane> &Planes, UModel* InModel)

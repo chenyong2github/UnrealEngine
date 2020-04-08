@@ -17,10 +17,8 @@
 	#include "PhysXPublic.h"
 #endif
 #if WITH_CHAOS
-#define CHAOS_INCLUDE_LEVEL_1
 	#include "Chaos/HeightField.h"
 	#include "Chaos/TriangleMeshImplicitObject.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 #endif
 #include "NavMesh/PImplRecastNavMesh.h"
 

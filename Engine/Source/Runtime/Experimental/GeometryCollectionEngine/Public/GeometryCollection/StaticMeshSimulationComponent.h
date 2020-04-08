@@ -3,9 +3,7 @@
 #pragma once
 
 #include "Components/MeshComponent.h"
-#define TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/ChaosSolverActor.h"
-#undef TEMP_HEADER_CHAOS_LEVEL_1
 #include "GameFramework/Actor.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
