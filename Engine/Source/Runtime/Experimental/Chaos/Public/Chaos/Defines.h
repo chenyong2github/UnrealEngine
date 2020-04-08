@@ -2,7 +2,6 @@
 #pragma once
 
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
-#include "Chaos/IncludeLvl1.inl"
 	#include <stdint.h>
 #else
 	#include "CoreTypes.h"

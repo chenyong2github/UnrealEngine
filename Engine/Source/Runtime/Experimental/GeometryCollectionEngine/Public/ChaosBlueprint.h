@@ -4,10 +4,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Chaos/Declares.h"
-#define TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/ChaosSolver.h"
 #include "Chaos/ChaosSolverActor.h"
-#undef TEMP_HEADER_CHAOS_LEVEL_1
 #include "EventManager.h"
 #include "EventsData.h"
 #include "HAL/ThreadSafeBool.h"

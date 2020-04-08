@@ -2,7 +2,6 @@
 
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsActorHandle_Chaos.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Evolution/PBDMinEvolution.h"
@@ -13,7 +12,6 @@
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Utilities.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
 

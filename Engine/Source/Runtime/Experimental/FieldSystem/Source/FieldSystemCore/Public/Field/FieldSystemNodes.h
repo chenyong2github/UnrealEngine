@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Field/FieldSystem.h"
 #include "Math/Vector.h"
 #include "Chaos/Box.h"

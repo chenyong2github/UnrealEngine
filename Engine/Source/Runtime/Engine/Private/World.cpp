@@ -126,9 +126,7 @@
 #include "ObjectTrace.h"
 
 #if INCLUDE_CHAOS
-#define CHAOS_INCLUDE_LEVEL_1
 #include "ChaosSolversModule.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorld, Log, All);

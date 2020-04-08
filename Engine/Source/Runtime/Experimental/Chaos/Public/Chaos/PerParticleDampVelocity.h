@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/Matrix.h"
 #include "Chaos/PerParticleRule.h"
 #include "GenericPlatform/GenericPlatformMath.h"

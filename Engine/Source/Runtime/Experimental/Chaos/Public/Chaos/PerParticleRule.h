@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/ParticleRule.h"

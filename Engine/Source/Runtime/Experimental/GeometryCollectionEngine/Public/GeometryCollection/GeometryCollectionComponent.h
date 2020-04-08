@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Components/MeshComponent.h"
-#define TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/ChaosSolverActor.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Defines.h"
@@ -25,7 +24,6 @@
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Chaos/ChaosNotifyHandlerInterface.h"
 #include "Chaos/ChaosSolverComponentTypes.h"
-#undef TEMP_HEADER_CHAOS_LEVEL_1
 
 #include "GeometryCollectionComponent.generated.h"
 

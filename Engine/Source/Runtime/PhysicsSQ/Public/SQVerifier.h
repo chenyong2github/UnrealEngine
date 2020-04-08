@@ -5,8 +5,6 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 
 #if WITH_PHYSX
-#include "Chaos/IncludeLvl1.inl"
-CHAOS_LEVEL_CHECK
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "PhysicsCore/Public/PhysicsInterfaceUtilsCore.h"
 #include "PhysTestSerializer.h"

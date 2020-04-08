@@ -3,13 +3,11 @@
 
 #include "ClothingSimulation.h"
 #include "ClothingAsset.h"
-#define TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/PBDEvolution.h"
 #include "Chaos/Transform.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/ChaosDebugDrawDeclares.h"
-#undef TEMP_HEADER_CHAOS_LEVEL_1
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "Components/SkeletalMeshComponent.h"
 

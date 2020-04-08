@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "ChaosEventListenerComponent.h"
 #include "PhysicsPublic.h"
 #include "ChaosNotifyHandlerInterface.h"
