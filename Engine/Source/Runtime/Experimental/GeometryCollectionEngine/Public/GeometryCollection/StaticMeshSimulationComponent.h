@@ -11,6 +11,7 @@
 class FStaticMeshPhysicsProxy;
 class AChaosSolverActor;
 class UChaosPhysicalMaterial;
+class FPhysScene_Chaos;
 
 namespace Chaos
 {
