@@ -36,6 +36,16 @@ public:
 		return ParameterMapInfo == Rhs.ParameterMapInfo;
 	}
 
+	inline uint32 GetLooseDataSizeBytes() const
+	{
+		uint32 DataSize = 0;
+		for (int32 LooseBufferIndex = 0; LooseBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseBufferIndex++)
+		{
+			DataSize += ParameterMapInfo.LooseParameterBuffers[LooseBufferIndex].Size;
+		}
+		return DataSize;
+	}
+
 	inline uint32 GetDataSizeBytes() const
 	{
 		uint32 DataSize = sizeof(void*) * 
@@ -46,10 +56,7 @@ public:
 		// Allocate a bit for each SRV tracking whether it is a FRHITexture* or FRHIShaderResourceView*
 		DataSize += FMath::DivideAndRoundUp(ParameterMapInfo.SRVs.Num(), 8);
 
-		for (int32 LooseBufferIndex = 0; LooseBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseBufferIndex++)
-		{
-			DataSize += ParameterMapInfo.LooseParameterBuffers[LooseBufferIndex].Size;
-		}
+		DataSize += GetLooseDataSizeBytes();
 
 		// Align to pointer size so subsequent packed shader bindings will have their pointers aligned
 		return Align(DataSize, sizeof(void*));
@@ -96,6 +103,7 @@ public:
 		FMeshDrawShaderBindingsLayout(InLayout)
 	{
 		Data = InData;
+		memset(GetLooseDataStart(), 0, GetLooseDataSizeBytes());
 	}
 
 	template<typename UniformBufferStructType>
