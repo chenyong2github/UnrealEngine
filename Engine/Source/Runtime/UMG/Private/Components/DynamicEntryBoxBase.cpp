@@ -2,6 +2,8 @@
 
 #include "Components/DynamicEntryBoxBase.h"
 #include "UMGPrivate.h"
+#include "Blueprint/WidgetTree.h"
+#include "Blueprint/UserWidget.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Editor/WidgetCompilerLog.h"
@@ -240,6 +242,26 @@ void UDynamicEntryBoxBase::SynchronizeProperties()
 		SetEntrySpacing(EntrySpacing);
 	}
 #endif
+}
+
+bool UDynamicEntryBoxBase::IsEntryClassValid(TSubclassOf<UUserWidget> InEntryClass) const
+{
+	if (InEntryClass)
+	{
+		// Would InEntryClass create an instance of the same DynamicEntryBox
+		if (UWidgetTree* WidgetTree = Cast<UWidgetTree>(GetOuter()))
+		{
+			if (UUserWidget* UserWidget = Cast<UUserWidget>(WidgetTree->GetOuter()))
+			{
+				if (InEntryClass->IsChildOf(UserWidget->GetClass()))
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
 }
 
 UUserWidget* UDynamicEntryBoxBase::CreateEntryInternal(TSubclassOf<UUserWidget> InEntryClass)
