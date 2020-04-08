@@ -588,8 +588,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 	FRayTracingInstance RayTracingInstance;
 	RayTracingInstance.Geometry = &Geometry;
 
-	int32 SectionCount = SimTarget == ENiagaraSimTarget::GPUComputeSim ? 1 : LODModel.Sections.Num();
-	for (int32 SectionIndex = 0; SectionIndex < SectionCount; SectionIndex++)
+	for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 	{
 		const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
 		FMaterialRenderProxy* MaterialProxy = DynamicDataMesh->Materials[SectionIndex];
