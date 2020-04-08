@@ -401,12 +401,11 @@ namespace UnrealBuildTool
 
 			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment);
 
-//			LinkEnvironment.AdditionalLibraries.Add("libc++_shared");
+			// deliberately not linking stl or stdc++ here (c++_shared is default)
 			LinkEnvironment.AdditionalLibraries.Add("c");
 			LinkEnvironment.AdditionalLibraries.Add("dl");
 			LinkEnvironment.AdditionalLibraries.Add("log");
 			LinkEnvironment.AdditionalLibraries.Add("m");
-//			LinkEnvironment.AdditionalLibraries.Add("stdc++");
 			LinkEnvironment.AdditionalLibraries.Add("z");
 			LinkEnvironment.AdditionalLibraries.Add("atomic");
 		}
