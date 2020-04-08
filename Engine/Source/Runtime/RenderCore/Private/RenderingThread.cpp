@@ -462,7 +462,8 @@ public:
 		FPlatformProcess::SetupRenderThread();
 
 #if PLATFORM_WINDOWS
-		if ( !FPlatformMisc::IsDebuggerPresent() || GAlwaysReportCrash )
+		bool bNoExceptionHandler = FParse::Param(FCommandLine::Get(), TEXT("noexceptionhandler"));
+		if ( !bNoExceptionHandler && (!FPlatformMisc::IsDebuggerPresent() || GAlwaysReportCrash))
 		{
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 			__try
