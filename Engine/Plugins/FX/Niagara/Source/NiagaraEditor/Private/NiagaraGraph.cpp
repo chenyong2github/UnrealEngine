@@ -605,7 +605,14 @@ FName StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool bIsGet, bool b
 	else
 	{
 		// Namespace was unknown.
-		if (bIsScriptUsage || bIsGet)
+		if (bIsScriptUsage && NameParts.Contains(FNiagaraConstants::ModuleNamespace))
+		{
+			// If we're in a script check for a misplaced module namespace and if it has one, force it to be a 
+			// module output to help with fixing up usages.
+			static const FName OutputScriptNamespace = *(FNiagaraConstants::OutputNamespace.ToString() + TEXT(".") + FNiagaraConstants::ModuleNamespace.ToString());
+			Namespace = OutputScriptNamespace;
+		}
+		else if(bIsScriptUsage || bIsGet)
 		{
 			// If it's in a get node or it's in a script, force it into the transient namespace.
 			Namespace = FNiagaraConstants::TransientNamespace;
@@ -629,9 +636,7 @@ FName StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool bIsGet, bool b
 
 	checkf(Namespace != NAME_None, TEXT("No namespace picked."));
 
-	// Remove any module or emitter namespaces which weren't handled above since they'll no longer be aliased anyway.
 	NameParts.Remove(FNiagaraConstants::ModuleNamespace);
-	NameParts.Remove(FNiagaraConstants::EmitterNamespace);
 	if (NameParts.Num() == 0)
 	{
 		NameParts.Add(NAME_None);
@@ -650,7 +655,7 @@ FName StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool bIsGet, bool b
 		{
 			RemainingNamePartStrings.Add(NamePart.ToString());
 		}
-		ParameterName = FString::Join(RemainingNamePartStrings, TEXT("_"));
+		ParameterName = FString::Join(RemainingNamePartStrings, TEXT(""));
 	}
 
 	// Last, combine it with the namespace(s) chosen above.
