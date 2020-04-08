@@ -64,6 +64,17 @@ enum class EPlatformFileWrite : uint8
 
 ENUM_CLASS_FLAGS(EPlatformFileWrite);
 
+/**
+ * Enum for the DirectoryVisitor flags
+ */
+enum class EDirectoryVisitorFlags : uint8
+{
+	None = 0x0,
+	ThreadSafe = 0x01	// should be set when the Visit function can be called from multiple threads at once.
+};
+
+ENUM_CLASS_FLAGS(EDirectoryVisitorFlags);
+
 /** 
  * File handle interface. 
 **/
@@ -337,6 +348,11 @@ public:
 	class FDirectoryVisitor
 	{
 	public:
+		FDirectoryVisitor(EDirectoryVisitorFlags InDirectoryVisitorFlags = EDirectoryVisitorFlags::None)
+			: DirectoryVisitorFlags(InDirectoryVisitorFlags)
+		{
+		}
+
 		virtual ~FDirectoryVisitor() { }
 
 		/** 
@@ -346,6 +362,14 @@ public:
 		 * @return							true if the iteration should continue.
 		**/
 		virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory) = 0;
+
+		/** True if the Visit function can be called from multiple threads at once. **/
+		FORCEINLINE bool IsThreadSafe() const
+		{
+			return (DirectoryVisitorFlags & EDirectoryVisitorFlags::ThreadSafe) != EDirectoryVisitorFlags::None;
+		}
+
+		EDirectoryVisitorFlags DirectoryVisitorFlags;
 	};
 
 	/** File and directory visitor function that takes only the name */
