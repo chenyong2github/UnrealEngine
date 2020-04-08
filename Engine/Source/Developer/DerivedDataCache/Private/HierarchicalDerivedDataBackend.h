@@ -9,8 +9,6 @@
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "Templates/UniquePtr.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 /** 
  * A backend wrapper that implements a cache hierarchy of backends. 
 **/
@@ -337,4 +335,3 @@ private:
 	bool bIsWritable;
 };
 
-PRAGMA_ENABLE_OPTIMIZATION
