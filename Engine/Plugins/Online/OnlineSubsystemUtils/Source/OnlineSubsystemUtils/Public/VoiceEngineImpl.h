@@ -134,7 +134,7 @@ private:
 /**
  * Generic implementation of voice engine, using Voice module for capture/codec
  */
-class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FSelfRegisteringExec, public IDeviceChangedListener
+class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FSelfRegisteringExec
 {
 	class FVoiceSerializeHelper : public FGCObject
 	{
@@ -393,17 +393,10 @@ protected:
 #if PLATFORM_WINDOWS
 	virtual void RegisterDeviceChangedListener();
 	virtual void UnregisterDeviceChangedListener();
-	virtual void HandleDeviceChange();
-
-	//~ Begin IDeviceChangedListener
-	virtual void OnDefaultDeviceChanged() override;
-
+	virtual void HandleDeviceChange();	
+	void OnDefaultDeviceChanged(const FString& DeviceId);
 	bool bDeviceChangeListenerRegistered;
-#else
-	virtual void OnDefaultDeviceChanged() override {}
 #endif
-	virtual void OnDeviceRemoved(FString DeviceID) override {}
-	//~ End IDeviceChangedListener
 };
 
 typedef TSharedPtr<FVoiceEngineImpl, ESPMode::ThreadSafe> FVoiceEngineImplPtr;

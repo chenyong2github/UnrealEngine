@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS && WITH_XAUDIO2
 
 #include "OVR_Audio.h"
 #include "AudioEffect.h"
@@ -63,4 +63,4 @@ private:
 	FCriticalSection ParamCriticalSection;
 };
 
-#endif // #if PLATFORM_WINDOWS
+#endif // #if PLATFORM_WINDOWS && WITH_XAUDIO2
