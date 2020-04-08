@@ -22,7 +22,7 @@ void UAbilityTask_WaitGameplayEffectApplied::OnApplyGameplayEffectCallback(UAbil
 {
 	bool PassedComparison = false;
 
-	AActor* AvatarActor = Target ? Target->AvatarActor : nullptr;
+	AActor* AvatarActor = Target ? Target->GetAvatarActor_Direct() : nullptr;
 
 	if (!Filter.FilterPassesForActor(AvatarActor))
 	{
