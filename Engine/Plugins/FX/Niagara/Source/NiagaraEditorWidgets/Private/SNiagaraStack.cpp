@@ -57,6 +57,7 @@
 #include "EditorFontGlyphs.h"
 #include "Framework/Commands/UICommandList.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraStack"
@@ -567,8 +568,8 @@ TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
 		NAME_None, EUserInterfaceActionType::Check);
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ShowLinkedInputsLabel", "Show Linked Script Inputs"),
-		LOCTEXT("ShowLinkedInputsToolTip", "Whether or not to show internal module linked inputs in the stack."),
+		LOCTEXT("ShowParameterReadsLabel", "Show Parameter Reads"),
+		LOCTEXT("ShowParameterReadsToolTip", "Whether or not to show the parameters that a module reads from."),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([=]() { StackViewModel->SetShowLinkedInputs(!StackViewModel->GetShowLinkedInputs()); }),
@@ -577,8 +578,8 @@ TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
 		NAME_None, EUserInterfaceActionType::Check);
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ShowOutputsLabel", "Show Outputs"),
-		LOCTEXT("ShowOutputsToolTip", "Whether or not to show module outputs in the stack."),
+		LOCTEXT("ShowParameterWritesLabel", "Show Parameter Writes"),
+		LOCTEXT("ShowParameterWritesToolTip", "Whether or not to show parameters that a module writes to."),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([=]() { StackViewModel->SetShowOutputs(!StackViewModel->GetShowOutputs()); }),
@@ -983,19 +984,14 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		UNiagaraStackModuleItemOutput* ModuleItemOutput = CastChecked<UNiagaraStackModuleItemOutput>(Item);
 		return FRowWidgets(
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.DefaultText")
-			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
-			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
-			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled),
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ParameterText")
-			.Text_UObject(ModuleItemOutput, &UNiagaraStackModuleItemOutput::GetOutputParameterHandleText)
-			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled));
+			SNew(SNiagaraParameterName)
+				.ReadOnlyTextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.DefaultText")
+				.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
+				.ParameterName(ModuleItemOutput->GetOutputParameterHandle().GetParameterHandleString())
+				.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled)
+				.IsReadOnly(true)
+			);
 	}
 	else if (Item->IsA<UNiagaraStackFunctionInputCollection>() ||
 		Item->IsA<UNiagaraStackModuleItemOutputCollection>() ||
