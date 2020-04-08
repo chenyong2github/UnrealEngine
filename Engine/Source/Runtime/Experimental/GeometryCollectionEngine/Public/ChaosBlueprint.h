@@ -9,13 +9,12 @@
 #include "EventManager.h"
 #include "EventsData.h"
 #include "HAL/ThreadSafeBool.h"
-#include "GeometryCollection/GeometryCollectionActor.h"
 #include "ChaosCollisionEventFilter.h"
 #include "ChaosBreakingEventFilter.h"
 #include "ChaosTrailingEventFilter.h"
 #include "ChaosBlueprint.generated.h"
 
-
+class AGeometryCollectionActor;
 
 /**
 * Called when new destruction events are available for collisions. Collision listening must be enabled to get callbacks on this delegate.

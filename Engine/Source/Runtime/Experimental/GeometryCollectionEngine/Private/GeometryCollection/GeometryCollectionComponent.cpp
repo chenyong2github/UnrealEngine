@@ -21,6 +21,7 @@
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsSolver.h"
 #include "Physics/PhysicsFiltering.h"
+#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
 
 #if WITH_EDITOR
 #include "AssetToolsModule.h"
