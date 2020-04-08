@@ -269,10 +269,8 @@ void FLevelEditorActionCallbacks::OpenRecentFile( int32 RecentFileIndex )
 	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
 	FMainMRUFavoritesList* RecentsAndFavorites = MainFrameModule.GetMRUFavoritesList();
 
-	// Save the name of the file we are attempting to load as VerifyFile/AskSaveChanges might rearrange the MRU list on us
-	const FString NewPackageName = RecentsAndFavorites->GetMRUItem( RecentFileIndex );
-	
-	if( RecentsAndFavorites->VerifyMRUFile( RecentFileIndex ) )
+	FString NewPackageName;
+	if( RecentsAndFavorites->VerifyMRUFile( RecentFileIndex, NewPackageName ) )
 	{
 		// Prompt the user to save any outstanding changes.
 		if( FEditorFileUtils::SaveDirtyPackages(true, true, false) )
