@@ -2,7 +2,6 @@
 #pragma once
 
 #include "UObject/ObjectMacros.h"
-#include "Chaos/PBDRigidParticles.h"
 
 #include "GeometryCollectionSimulationTypes.generated.h"
 

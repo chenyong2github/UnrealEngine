@@ -3,8 +3,6 @@
 #pragma once
 
 #include "Components/MeshComponent.h"
-#include "Chaos/ChaosSolverActor.h"
-#include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Defines.h"
 #include "Field/FieldSystem.h"
 #include "Field/FieldSystemActor.h"
@@ -20,7 +18,6 @@
 #include "GeometryCollectionEditorSelection.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
 #include "Templates/UniquePtr.h"
-#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Chaos/ChaosNotifyHandlerInterface.h"
 #include "Chaos/ChaosSolverComponentTypes.h"
@@ -33,6 +30,8 @@ class FGeometryCollectionPhysicsProxy;
 class UGeometryCollectionComponent;
 class UBoxComponent;
 class UGeometryCollectionCache;
+class UChaosPhysicalMaterial;
+class AChaosSolverActor;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FChaosBreakEvent&, BreakEvent);
 

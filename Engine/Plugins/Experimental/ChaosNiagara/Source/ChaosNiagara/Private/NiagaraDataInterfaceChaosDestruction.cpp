@@ -15,6 +15,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 
 #include <memory>
+#include "GeometryCollection/GeometryCollectionComponent.h"
 
 #define LOCTEXT_NAMESPACE "ChaosNiagaraDestructionDataInterface"
 //#pragma optimize("", off)
