@@ -69,6 +69,15 @@ public:
 	*/
 	ENGINE_API int32 GetMaxBonesPerSection() const;
 
+	/** Return first valid LOD index starting at MinLODIdx. */
+	ENGINE_API int32 GetFirstValidLODIdx(int32 MinLODIdx) const;
+
+	/** Return the current first LODIdx that can be used. */
+	FORCEINLINE int32 GetCurrentFirstLODIdx(int32 MinLODIdx) const
+	{
+		return GetFirstValidLODIdx(FMath::Max<int32>(CurrentFirstLODIdx, MinLODIdx));
+	}
+
 private:
 	/** True if the resource has been initialized. */
 	bool bInitialized = false;
