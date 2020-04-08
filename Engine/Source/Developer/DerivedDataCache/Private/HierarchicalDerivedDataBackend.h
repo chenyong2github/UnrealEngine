@@ -190,36 +190,46 @@ public:
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
+
 		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
 		{
 			FDerivedDataBackendInterface* GetInterface = InnerBackends[CacheIndex];
 
-			if (GetInterface->CachedDataProbablyExists(CacheKey) && GetInterface->GetCachedData(CacheKey, OutData))
+			// just try and get the cached data. It's faster to try and fail than it is to check and succeed. 			
+			if (GetInterface->GetCachedData(CacheKey, OutData))
 			{
+				// if this hierarchy is writable..
 				if (bIsWritable)
 				{
-					// fill in the higher level caches
-					for (int32 PutCacheIndex = CacheIndex - 1; PutCacheIndex >= 0; PutCacheIndex--)
+					// fill in the higher level caches (start with the highest level as that should be the biggest 
+					// !/$ if any of our puts get interrupted or fail)
+					for (int32 MissedCacheIndex = 0; MissedCacheIndex < CacheIndex; MissedCacheIndex++)
 					{
-						FDerivedDataBackendInterface* PutBackend = InnerBackends[PutCacheIndex];
+						FDerivedDataBackendInterface* MissedCache = InnerBackends[MissedCacheIndex];
 
-						if (PutBackend->IsWritable() && PutBackend->WouldCache(CacheKey, OutData))
+						if (MissedCache->IsWritable())
 						{
-							if (PutBackend->BackfillLowerCacheLevels() &&
-								PutBackend->CachedDataProbablyExists(CacheKey))
+							// We want to make sure that the relationship between ProbablyExists and GetCachedData is valid but
+							// only if we have a fast cache. Mismatches are edge cases caused by failed writes or corruption. 
+							// They get handled, so can be left to eventually be rectified by a faster machine
+							bool bFastCache = MissedCache->GetSpeedClass() >= ESpeedClass::Fast;
+							bool bDidExist = bFastCache ? MissedCache->CachedDataProbablyExists(CacheKey) : false;
+							bool bForcePut = false;
+
+							// the cache failed to return data it thinks it has, so clean it up. (todo - can it just be stomped?)
+							if (bDidExist)
 							{
-								PutBackend->RemoveCachedData(CacheKey, /*bTransient=*/ false); // it apparently failed, so lets delete what is there
-								AsyncPutInnerBackends[PutCacheIndex]->PutCachedData(CacheKey, OutData, true); // we force a put here because it must have failed
-								UE_LOG(LogDerivedDataCache, Verbose, TEXT("Forward-filling cache %s with: %s (%d bytes) (force=%d)"), *PutBackend->GetName(), CacheKey, OutData.Num(), true);
+								MissedCache->RemoveCachedData(CacheKey, /*bTransient=*/ false); // it apparently failed, so lets delete what is there				
+								bForcePut = true;
 							}
-							else
-							{
-								UE_LOG(LogDerivedDataCache, Verbose, TEXT("Forward-filling cache %s with: %s (%d bytes) (force=%d)"), *PutBackend->GetName(), CacheKey, OutData.Num(), false);
-								PutBackend->PutCachedData(CacheKey, OutData, false);
-							}
+
+							// use the async interface to perform the put
+							AsyncPutInnerBackends[MissedCacheIndex]->PutCachedData(CacheKey, OutData, bForcePut);
+							UE_LOG(LogDerivedDataCache, Verbose, TEXT("Forward-filling cache %s with: %s (%d bytes) (force=%d)"), *MissedCache->GetName(), CacheKey, OutData.Num(), bForcePut);
 						}
 					}
 
+					// cascade this data to any lower level back ends that may be missing the data
 					if (InnerBackends[CacheIndex]->BackfillLowerCacheLevels())
 					{
 						// fill in the lower level caches
@@ -227,14 +237,13 @@ public:
 						{
 							FDerivedDataBackendInterface* PutBackend = InnerBackends[PutCacheIndex];
 
-							if (!PutBackend->IsWritable())
-							{
-								if (!PutBackend->BackfillLowerCacheLevels() && PutBackend->CachedDataProbablyExists(CacheKey))
-								{
-									break; //do not write things that are already in the read only pak file
-								}
-							}
-							else if (PutBackend->GetSpeedClass() >= FDerivedDataBackendInterface::ESpeedClass::Fast && PutBackend->WouldCache(CacheKey, OutData))
+							// If the key is in a distributed cache (e.g. Pak or S3) then don't backfill any further. 
+							bool IsInDistributedCache = !PutBackend->IsWritable() && !PutBackend->BackfillLowerCacheLevels() && PutBackend->CachedDataProbablyExists(CacheKey);
+
+							// only backfill to fast caches (todo - need a way to put data that was created locally into the cache for other people)
+							bool bFastCache = PutBackend->GetSpeedClass() >= ESpeedClass::Fast;
+
+							if (bFastCache && PutBackend->IsWritable() && !PutBackend->CachedDataProbablyExists(CacheKey))
 							{								
 								AsyncPutInnerBackends[PutCacheIndex]->PutCachedData(CacheKey, OutData, false); // we do not need to force a put here
 								UE_LOG(LogDerivedDataCache, Verbose, TEXT("Back-filling cache %s with: %s (%d bytes) (force=%d)"), *PutBackend->GetName(), CacheKey, OutData.Num(), false);
