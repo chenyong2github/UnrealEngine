@@ -197,7 +197,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 		.SetFont(DEFAULT_FONT("Bold", 8))
 		.SetColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.9f))
 		.SetShadowOffset(FVector2D(1, 1))
-		.SetShadowColorAndOpacity(FLinearColor(1.0, 1.0, 1.0, 0.5f)));
+		.SetShadowColorAndOpacity(FLinearColor(1.0, 1.0, 1.0, 0.25f)));
 
 	Style->Set("NiagaraEditor.Stack.HighlightedButtonBrush", new BOX_CORE_BRUSH("Common/ButtonHoverHint", FMargin(4 / 16.0f), GetDefault<UEditorStyleSettings>()->SelectionColor));
 
