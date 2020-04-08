@@ -182,8 +182,6 @@ public class Core : ModuleRules
 			PublicDefinitions.Add("WITH_VS_PERF_PROFILER=0");
 		}
 
-		WhitelistRestrictedFolders.Add("Private/NoRedist");
-
         if (Target.bWithDirectXMath && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32))
         {
             PublicDefinitions.Add("WITH_DIRECTXMATH=1");
