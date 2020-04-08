@@ -54,6 +54,25 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 {
 	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
 	MaterialUserParamBinding.Parameter.SetType(MaterialDef);
+
+	AttributeBindings.Reserve(17);
+	AttributeBindings.Add(&PositionBinding);
+	AttributeBindings.Add(&ColorBinding);
+	AttributeBindings.Add(&VelocityBinding);
+	AttributeBindings.Add(&SpriteRotationBinding);
+	AttributeBindings.Add(&SpriteSizeBinding);
+	AttributeBindings.Add(&SpriteFacingBinding);
+	AttributeBindings.Add(&SpriteAlignmentBinding);
+	AttributeBindings.Add(&SubImageIndexBinding);
+	AttributeBindings.Add(&DynamicMaterialBinding);
+	AttributeBindings.Add(&DynamicMaterial1Binding);
+	AttributeBindings.Add(&DynamicMaterial2Binding);
+	AttributeBindings.Add(&DynamicMaterial3Binding);
+	AttributeBindings.Add(&CameraOffsetBinding);
+	AttributeBindings.Add(&UVScaleBinding);
+	AttributeBindings.Add(&MaterialRandomBinding);
+	AttributeBindings.Add(&CustomSortingBinding);
+	AttributeBindings.Add(&NormalizedAgeBinding);
 }
 
 FNiagaraRenderer* UNiagaraSpriteRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
@@ -214,59 +233,6 @@ void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyCh
 	
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-}
-
-const TArray<FNiagaraVariable>& UNiagaraSpriteRendererProperties::GetBoundAttributes()
-{
-	CurrentAttributeBindings.Reset();
-
-	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&ColorBinding);
-	AttributeBindings.Add(&VelocityBinding);
-	AttributeBindings.Add(&SpriteRotationBinding);
-	AttributeBindings.Add(&SpriteSizeBinding);
-	AttributeBindings.Add(&SpriteFacingBinding);
-	AttributeBindings.Add(&SpriteAlignmentBinding);
-	AttributeBindings.Add(&SubImageIndexBinding);
-	AttributeBindings.Add(&DynamicMaterialBinding);
-	AttributeBindings.Add(&DynamicMaterial1Binding);
-	AttributeBindings.Add(&DynamicMaterial2Binding);
-	AttributeBindings.Add(&DynamicMaterial3Binding);
-	AttributeBindings.Add(&CameraOffsetBinding);
-	AttributeBindings.Add(&UVScaleBinding);
-	AttributeBindings.Add(&MaterialRandomBinding);
-	AttributeBindings.Add(&CustomSortingBinding);
-	AttributeBindings.Add(&NormalizedAgeBinding);
-
-	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
-	{
-		if (AttributeBinding->BoundVariable.IsValid())
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->BoundVariable);
-		}
-		else if (AttributeBinding->DataSetVariable.IsValid())
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->DataSetVariable);
-		}
-		else
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->DefaultValueIfNonExistent);
-		}
-	}
-
-	return CurrentAttributeBindings;
-}
-
-const TArray<FNiagaraVariable>& UNiagaraSpriteRendererProperties::GetRequiredAttributes()
-{
-	static TArray<FNiagaraVariable> Attrs;
-
-	if (Attrs.Num() == 0)
-	{
-	}
-
-	return Attrs;
 }
 
 const TArray<FNiagaraVariable>& UNiagaraSpriteRendererProperties::GetOptionalAttributes()

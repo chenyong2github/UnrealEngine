@@ -25,6 +25,7 @@ class UMaterialInterface;
 class FNiagaraEmitterInstance;
 class SWidget;
 class FAssetThumbnailPool;
+class FNiagaraDataSet;
 
 UCLASS(ABSTRACT)
 class NIAGARA_API UNiagaraRendererProperties : public UNiagaraMergeable
@@ -45,13 +46,16 @@ public:
 
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const { return false; };
 
+	const TArray<const FNiagaraVariableAttributeBinding*>& GetAttributeBindings() const { return AttributeBindings; }
+	uint32 ComputeMaxUsedComponents(const FNiagaraDataSet& DataSet) const;
+
 #if WITH_EDITORONLY_DATA
 
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) { return true; }
 
 	virtual void FixMaterial(UMaterial* Material) { }
 
-	virtual const TArray<FNiagaraVariable>& GetBoundAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
+	virtual const TArray<FNiagaraVariable>& GetBoundAttributes();
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() { static TArray<FNiagaraVariable> Vars; return Vars; };
 
@@ -86,7 +90,9 @@ public:
 	bool bMotionBlurEnabled;
 
 protected:
-	// Copy of variables in the attribute binding, updated when GetRequiredAttributes() is called.
-	TArray<FNiagaraVariable> CurrentAttributeBindings;
+	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
+
+	// Copy of variables in the attribute binding, updated when GetBoundAttributes() is called.
+	TArray<FNiagaraVariable> CurrentBoundAttributes;
 
 };

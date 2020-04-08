@@ -38,6 +38,22 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 {
 	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
 	MaterialUserParamBinding.Parameter.SetType(MaterialDef);
+
+	AttributeBindings.Reserve(14);
+	AttributeBindings.Add(&PositionBinding);
+	AttributeBindings.Add(&ColorBinding);
+	AttributeBindings.Add(&VelocityBinding);
+	AttributeBindings.Add(&NormalizedAgeBinding);
+	AttributeBindings.Add(&RibbonTwistBinding);
+	AttributeBindings.Add(&RibbonWidthBinding);
+	AttributeBindings.Add(&RibbonFacingBinding);
+	AttributeBindings.Add(&RibbonIdBinding);
+	AttributeBindings.Add(&RibbonLinkOrderBinding);
+	AttributeBindings.Add(&MaterialRandomBinding);
+	AttributeBindings.Add(&DynamicMaterialBinding);
+	AttributeBindings.Add(&DynamicMaterial1Binding);
+	AttributeBindings.Add(&DynamicMaterial2Binding);
+	AttributeBindings.Add(&DynamicMaterial3Binding);
 }
 
 FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
@@ -148,18 +164,6 @@ void UNiagaraRibbonRendererProperties::PostEditChangeProperty(struct FPropertyCh
 	}
 }
 
-const TArray<FNiagaraVariable>& UNiagaraRibbonRendererProperties::GetRequiredAttributes()
-{
-	static TArray<FNiagaraVariable> Attrs;
-
-	if (Attrs.Num() == 0)
-	{
-	}
-
-	return Attrs;
-}
-
-
 const TArray<FNiagaraVariable>& UNiagaraRibbonRendererProperties::GetOptionalAttributes()
 {
 	static TArray<FNiagaraVariable> Attrs;
@@ -242,45 +246,6 @@ void UNiagaraRibbonRendererProperties::FixMaterial(UMaterial* InMaterial)
 	InMaterial->Modify();
 	InMaterial->bUsedWithNiagaraRibbons = true;
 	InMaterial->ForceRecompileForRendering();
-}
-
-const TArray<FNiagaraVariable>& UNiagaraRibbonRendererProperties::GetBoundAttributes()
-{
-	CurrentAttributeBindings.Reset();
-
-	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&ColorBinding);
-	AttributeBindings.Add(&VelocityBinding);
-	AttributeBindings.Add(&NormalizedAgeBinding);
-	AttributeBindings.Add(&RibbonTwistBinding);
-	AttributeBindings.Add(&RibbonWidthBinding);
-	AttributeBindings.Add(&RibbonFacingBinding);
-	AttributeBindings.Add(&RibbonIdBinding);
-	AttributeBindings.Add(&RibbonLinkOrderBinding);
-	AttributeBindings.Add(&MaterialRandomBinding);
-	AttributeBindings.Add(&DynamicMaterialBinding);
-	AttributeBindings.Add(&DynamicMaterial1Binding);
-	AttributeBindings.Add(&DynamicMaterial2Binding);
-	AttributeBindings.Add(&DynamicMaterial3Binding);
-
-	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
-	{
-		if (AttributeBinding->BoundVariable.IsValid())
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->BoundVariable);
-		}
-		else if (AttributeBinding->DataSetVariable.IsValid())
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->DataSetVariable);
-		}
-		else
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->DefaultValueIfNonExistent);
-		}
-	}
-
-	return CurrentAttributeBindings;
 }
 
 bool UNiagaraRibbonRendererProperties::CanEditChange(const FProperty* InProperty) const
