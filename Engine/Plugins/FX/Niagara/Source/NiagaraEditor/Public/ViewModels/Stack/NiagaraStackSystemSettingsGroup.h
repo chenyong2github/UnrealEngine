@@ -50,7 +50,6 @@ protected:
 
 private:
 	void ParameterStoreChanged();
-	void ParameterDeleted();
 
 private:
 	TWeakObjectPtr<UObject> Owner;
