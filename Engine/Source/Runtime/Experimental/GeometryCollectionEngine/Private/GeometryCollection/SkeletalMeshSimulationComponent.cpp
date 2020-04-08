@@ -28,6 +28,10 @@
 #include "Modules/ModuleManager.h"
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 
+#include "Chaos/ChaosSolverActor.h"
+#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
+
 
 //DEFINE_LOG_CATEGORY_STATIC(USkeletalMeshSimulationComponentLogging, NoLogging, All);
 
@@ -67,6 +71,14 @@ USkeletalMeshSimulationComponent::USkeletalMeshSimulationComponent(const FObject
 	UActorComponent::PrimaryComponentTick.bCanEverTick = true;	
 	ChaosMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 }
+
+USkeletalMeshSimulationComponent::USkeletalMeshSimulationComponent(FVTableHelper& Helper)
+	: Super(Helper)
+{
+
+}
+
+USkeletalMeshSimulationComponent::~USkeletalMeshSimulationComponent() = default;
 
 Chaos::FPhysicsSolver* GetSolver(const USkeletalMeshSimulationComponent& SkeletalMeshSimulationComponent)
 {
