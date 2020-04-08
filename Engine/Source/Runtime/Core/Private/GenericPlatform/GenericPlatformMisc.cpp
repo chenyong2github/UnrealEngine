@@ -1065,12 +1065,7 @@ const TCHAR* FGenericPlatformMisc::GamePersistentDownloadDir()
 
 	if (GamePersistentDownloadDir.Len() == 0)
 	{
-		FString BaseProjectDir = ProjectDir();
-
-		if (BaseProjectDir.Len() > 0)
-		{
-			GamePersistentDownloadDir = BaseProjectDir / TEXT("PersistentDownloadDir");
-		}
+		GamePersistentDownloadDir = Paths::ProjectSavedDir() / TEXT("PersistentDownloadDir");
 	}
 	return *GamePersistentDownloadDir;
 }
