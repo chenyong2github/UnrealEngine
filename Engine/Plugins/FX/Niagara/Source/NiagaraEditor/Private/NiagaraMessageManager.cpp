@@ -11,6 +11,7 @@
 #include "NiagaraScriptToolkit.h"
 #include "../Public/NiagaraEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "NiagaraEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraMessageManager"
 
@@ -591,7 +592,8 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*InScriptAssetPath);
 	if (AssetData.IsValid())
 	{
-		if (UNiagaraScript* ScriptAsset = Cast<UNiagaraScript>(AssetData.GetAsset()))
+		UNiagaraScript* ScriptAsset = Cast<UNiagaraScript>(AssetData.GetAsset());
+		if (ScriptAsset != nullptr && ScriptAsset->IsAsset())
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ScriptAsset, EToolkitMode::Standalone);
 			FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -611,7 +613,9 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 		}
 		else
 		{
-			checkf(false, TEXT("CompileEventJob referenced asset was not a UNiagaraScript!"));
+			FNiagaraEditorUtilities::WarnWithToastAndLog(FText::Format(
+				LOCTEXT("CantNavigateWarning", "Could not navigate to script {0}\nIt was either was not a valid script, or isn't an asset which can be opened directly."),
+				FText::FromString(InScriptAssetPath)));
 		}
 	}
 }
