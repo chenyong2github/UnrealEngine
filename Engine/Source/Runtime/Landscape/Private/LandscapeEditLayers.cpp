@@ -41,6 +41,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Misc/UObjectToken.h"
 #include "Misc/ScopedSlowTask.h"
 #endif
+#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
