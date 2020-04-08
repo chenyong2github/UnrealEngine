@@ -779,6 +779,12 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	bool bReadNodeSucceed = ReadNode(MainId, DefaultMaterialHash);
 	// End of parsing
 
+	CT_STR KernelIO_Version = CT_KERNEL_IO::AskVersion();
+	if (!KernelIO_Version.IsEmpty())
+	{
+		SceneGraphArchive.ComponentSet[0].MetaData.Add(TEXT("KernelIOVersion"), AsFString(KernelIO_Version));
+	}
+
 	if (bNeedSaveCTFile)
 	{
 		CT_LIST_IO ObjectList;
