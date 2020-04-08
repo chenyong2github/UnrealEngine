@@ -199,6 +199,14 @@ public:
 	// and there is no guarantee on the lifespan of both the UWorld and the Audio Device registered in this callback.
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWorldRegisteredToAudioDevice, const UWorld* /*InWorld */, Audio::FDeviceId /* AudioDeviceId*/);
 	static FOnWorldRegisteredToAudioDevice OnWorldRegisteredToAudioDevice;
+	
+	// Delegate to be called if the Default Render Device Changes. (called on the Game-thread).
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDefaultRenderDeviceChanged, const FString&);
+	static FOnDefaultRenderDeviceChanged OnDefaultRenderDeviceChanged;
+
+	// Delegate to be called if a Render Device is Removed (called on the Game-thread).
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderDeviceRemoved, const FString&);
+	static FOnRenderDeviceRemoved OnRenderDeviceRemoved;
 };
 
 /**

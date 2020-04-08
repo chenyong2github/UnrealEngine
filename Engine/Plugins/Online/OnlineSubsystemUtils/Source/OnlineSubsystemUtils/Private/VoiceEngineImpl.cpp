@@ -13,13 +13,6 @@
 /** Largest size allowed to carry over into next buffer */
 #define MAX_VOICE_REMAINDER_SIZE 4 * 1024
 
-#if PLATFORM_WINDOWS
-#include "XAudio2Support.h"
-namespace NotificationClient
-{
-	TSharedPtr<FMMNotificationClient> WindowsNotificationClient;
-}
-#endif 
 
 namespace VoiceEngineUtilities
 {
@@ -960,23 +953,13 @@ void FVoiceEngineImpl::CreateSerializeHelper()
 #if PLATFORM_WINDOWS
 void FVoiceEngineImpl::RegisterDeviceChangedListener()
 {
-	if (!NotificationClient::WindowsNotificationClient.IsValid())
-	{
-		NotificationClient::WindowsNotificationClient = TSharedPtr<FMMNotificationClient>(new FMMNotificationClient);
-	}
-
-	NotificationClient::WindowsNotificationClient->RegisterDeviceChangedListener(this);
-
+	FAudioDeviceManagerDelegates::OnDefaultRenderDeviceChanged.AddRaw(this, &FVoiceEngineImpl::OnDefaultDeviceChanged);
 	bDeviceChangeListenerRegistered = true;
 }
 
 void FVoiceEngineImpl::UnregisterDeviceChangedListener()
 {
-	if (NotificationClient::WindowsNotificationClient.IsValid())
-	{
-		NotificationClient::WindowsNotificationClient->UnRegisterDeviceDeviceChangedListener(this);
-	}
-
+	FAudioDeviceManagerDelegates::OnDefaultRenderDeviceChanged.RemoveAll(this);
 	bDeviceChangeListenerRegistered = false;
 }
 
@@ -1001,7 +984,7 @@ void FVoiceEngineImpl::HandleDeviceChange()
 	}
 }
 
-void FVoiceEngineImpl::OnDefaultDeviceChanged()
+void FVoiceEngineImpl::OnDefaultDeviceChanged(const FString& DeviceId)
 {
 	bAudioDeviceChanged = true;
 	TimeDeviceChaned = FPlatformTime::Seconds();
