@@ -577,21 +577,19 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					{
 						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
 						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-						FFieldContext Context(
-							SampleIndicesView,
-							SamplePointsView,
-							Command.MetaData);
+
+						FFieldContext Context(SampleIndicesView, SamplePointsView, Command.MetaData);
 
 						TArray<float> LocalResults;
 						LocalResults.AddUninitialized(Handles.Num());
-						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
-						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(
-							Context, ResultsView);
 
-						int32 i = 0;
-						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
+						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
+						
+						static_cast<const FFieldNode<float> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+
+						for(const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
-							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
 							
 							if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic && ResultsView.Num() > 0)
 							{						
@@ -600,9 +598,8 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 								{
 
 									TUniquePtr<Chaos::FChaosPhysicsMaterial> NewMaterial = MakeUnique< Chaos::FChaosPhysicsMaterial>();
-									NewMaterial->DisabledLinearThreshold = ResultsView[i];
-									NewMaterial->DisabledAngularThreshold = ResultsView[i];
-
+									NewMaterial->DisabledLinearThreshold = ResultsView[Index.Result];
+									NewMaterial->DisabledAngularThreshold = ResultsView[Index.Result];
 
 									CurrentSolver->GetEvolution()->SetPhysicsMaterial(RigidHandle, MakeSerializable(NewMaterial));
 									CurrentSolver->GetEvolution()->SetPerParticlePhysicsMaterial(RigidHandle, NewMaterial);
@@ -611,14 +608,13 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 								{
 									const TUniquePtr<FChaosPhysicsMaterial> &InstanceMaterial = CurrentSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle);
 		
-									if (ResultsView[i] != InstanceMaterial->DisabledLinearThreshold)
+									if (ResultsView[Index.Result] != InstanceMaterial->DisabledLinearThreshold)
 									{
-										InstanceMaterial->DisabledLinearThreshold = ResultsView[i];
-										InstanceMaterial->DisabledAngularThreshold = ResultsView[i];
+										InstanceMaterial->DisabledLinearThreshold = ResultsView[Index.Result];
+										InstanceMaterial->DisabledAngularThreshold = ResultsView[Index.Result];
 									}
 								}
 							}
-							++i;
 						}
 					}									
 				}
