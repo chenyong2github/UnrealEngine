@@ -1927,7 +1927,10 @@ namespace WindowsMixedReality
 	// Prevent crashes if computer goes to sleep.
 	void FWindowsMixedRealityHMD::AppServicePause()
 	{
+		// We support sleep on hololens.
+#if !PLATFORM_HOLOLENS
 		this->bRequestRestart = true;
+#endif
 	}
 
 	void FWindowsMixedRealityHMD::AppServiceResume()
