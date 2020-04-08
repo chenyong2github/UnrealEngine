@@ -139,6 +139,13 @@ public:
 	static FString ProjectPlatformExtensionsDir();
 
 	/**
+	 * Returns platform and restricted extensions that are present and valid (for platforms, it uses FDataDrivePlatformInfo to determine valid platforms, it doesn't just use what's present)
+	 *
+	 * @return BaseDir and usable extension directories under BaseDir (either Engine or Project)
+	 */
+	static TArray<FString> GetExtensionDirs(const FString& BaseDir, const FString& SubDir=FString());
+
+	/**
 	 * Returns the root directory of the engine directory tree
 	 *
 	 * @return Root directory.

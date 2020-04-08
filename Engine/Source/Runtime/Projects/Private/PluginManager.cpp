@@ -223,7 +223,7 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename)
 	{
 		// Determine the plugin type
 		EPluginType PluginType = EPluginType::External;
-		if (PluginFilename.StartsWith(FPaths::EngineDir()) || PluginFilename.StartsWith(FPaths::EnginePlatformExtensionsDir()))
+		if (PluginFilename.StartsWith(FPaths::EngineDir()))
 		{
 			PluginType = EPluginType::Engine;
 		}
@@ -294,29 +294,18 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 	if (ManifestFileNames.Num() == 0)
 	{
 		// Find "built-in" plugins.  That is, plugins situated right within the Engine directory.
-		ReadPluginsInDirectory(FPaths::EnginePluginsDir(), EPluginType::Engine, Plugins, ChildPlugins);
-		for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+		for (const FString& EnginePluginDir : FPaths::GetExtensionDirs(FPaths::EngineDir(), TEXT("Plugins")))
 		{
-			for (auto const& AdditionalFolder : Platform.Value.AdditionalRestrictedFolders)
-			{
-				ReadPluginsInDirectory(FPaths::EnginePlatformExtensionsDir() / AdditionalFolder / TEXT("Plugins"), EPluginType::Engine, Plugins, ChildPlugins);
-			}
-			ReadPluginsInDirectory(FPaths::EnginePlatformExtensionsDir() / Platform.Key / TEXT("Plugins"), EPluginType::Engine, Plugins, ChildPlugins);
+			ReadPluginsInDirectory(EnginePluginDir, EPluginType::Engine, Plugins, ChildPlugins);
 		}
 
 		// Find plugins in the game project directory (<MyGameProject>/Plugins). If there are any engine plugins matching the name of a game plugin,
 		// assume that the game plugin version is preferred.
 		if (Project != nullptr)
 		{
-			FString Root = FPaths::GetPath(FPaths::GetProjectFilePath());
-			ReadPluginsInDirectory(Root / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
-			for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+			for (const FString& ProjectPluginDir : FPaths::GetExtensionDirs(FPaths::GetPath(FPaths::GetProjectFilePath()), TEXT("Plugins")))
 			{
-				for (auto const& AdditionalFolder : Platform.Value.AdditionalRestrictedFolders)
-				{
-					ReadPluginsInDirectory(Root / TEXT("Platforms") / AdditionalFolder / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
-				}
-				ReadPluginsInDirectory(Root / TEXT("Platforms") / Platform.Key / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
+				ReadPluginsInDirectory(ProjectPluginDir, EPluginType::Project, Plugins, ChildPlugins);
 			}
 		}
 	}
