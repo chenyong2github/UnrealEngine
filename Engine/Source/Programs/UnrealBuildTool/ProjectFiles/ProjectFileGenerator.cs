@@ -477,7 +477,7 @@ namespace UnrealBuildTool
 			DirectoryReference EngineExtras = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Extras");
 			DiscoverCSharpProgramProjectsRecursively(EngineExtras, FoundProjects);
 
-			DirectoryReference[] AllEngineDirectories = UnrealBuildTool.GetAllEngineDirectories("Source/Programs");
+			List<DirectoryReference> AllEngineDirectories = UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, "Source/Programs");
 			foreach (DirectoryReference EngineDir in AllEngineDirectories)
 			{
 				DiscoverCSharpProgramProjectsRecursively(EngineDir, FoundProjects);
@@ -1261,12 +1261,9 @@ namespace UnrealBuildTool
 				{
 					// @todo projectfiles: We have engine localization files, but should we also add GAME localization files?
 
-					GameProject.AddFilesToProject( SourceFileSearch.FindFiles( GameProjectDirectory, SearchSubdirectories: false ), GameProjectDirectory );
-
-					DirectoryReference GamePlatformsDirectory = UnrealBuildTool.ProjectPlatformExtensionsDirectory(GameProjectDirectory);
-					if (DirectoryReference.Exists(GamePlatformsDirectory))
+					foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(GameProjectDirectory))
 					{
-						GameProject.AddFilesToProject(SourceFileSearch.FindFiles(GamePlatformsDirectory), GameProjectDirectory);
+						GameProject.AddFilesToProject(SourceFileSearch.FindFiles(ExtensionDir, SearchSubdirectories: false), ExtensionDir);
 					}
 
 					// Game config files
@@ -1347,15 +1344,17 @@ namespace UnrealBuildTool
 		{
 			// @todo: this will add the same files to the solution (like the UBT source files that also get added to UnrealBuildTool project).
 			// not sure of a good filtering method here
-			DirectoryReference PlatformExtensionsDirectory = UnrealBuildTool.EnginePlatformExtensionsDirectory;
-			if (DirectoryReference.Exists(PlatformExtensionsDirectory))
+			foreach(DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory))
 			{
-				List<string> SubdirectoryNamesToExclude = new List<string>();
-				SubdirectoryNamesToExclude.Add("AutomationTool"); //automation files are added separately to the AutomationTool project
-				SubdirectoryNamesToExclude.Add("Binaries");
-				SubdirectoryNamesToExclude.Add("Content");
+				if (ExtensionDir != UnrealBuildTool.EngineDirectory)
+				{
+					List<string> SubdirectoryNamesToExclude = new List<string>();
+					SubdirectoryNamesToExclude.Add("AutomationTool"); //automation files are added separately to the AutomationTool project
+					SubdirectoryNamesToExclude.Add("Binaries");
+					SubdirectoryNamesToExclude.Add("Content");
 
-				EngineProject.AddFilesToProject(SourceFileSearch.FindFiles(PlatformExtensionsDirectory, SubdirectoryNamesToExclude), UnrealBuildTool.EngineDirectory);
+					EngineProject.AddFilesToProject(SourceFileSearch.FindFiles(ExtensionDir, SubdirectoryNamesToExclude), UnrealBuildTool.EngineDirectory);
+				}
 			}
 		}
 
@@ -2031,14 +2030,11 @@ namespace UnrealBuildTool
 				// check for engine, or platform extension engine folders
 				if( !bIncludeEngineSource )
 				{
-					foreach (DirectoryReference EngineDirectory in UnrealBuildTool.GetAllEngineDirectories())
+					if (CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 					{
-						if (CurModuleFile.IsUnderDirectory(EngineDirectory))
-						{
-							// We were asked to exclude engine modules from the generated projects
-							WantProjectFileForModule = false;
-							break;
-						}
+						// We were asked to exclude engine modules from the generated projects
+						WantProjectFileForModule = false;
+						break;
 					}
 				}
 
@@ -2076,8 +2072,7 @@ namespace UnrealBuildTool
 					// Check if there's a plugin directory here
 					if(!ProjectsWithPlugins.Contains(ProjectFile))
 					{
-						DirectoryReference PluginFolder = DirectoryReference.Combine(BaseFolder, "Plugins");
-						if(DirectoryReference.Exists(PluginFolder))
+						foreach (DirectoryReference PluginFolder in UnrealBuildTool.GetExtensionDirs(BaseFolder, "Plugins"))
 						{
 							// Add all the plugin files for this project
 							foreach(FileReference PluginFileName in Plugins.EnumeratePlugins(PluginFolder))
@@ -2176,15 +2171,13 @@ namespace UnrealBuildTool
 				}
 
 				// check for engine, or platform extension engine folders
-				if (Path == UnrealBuildTool.EngineDirectory)
+				foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory))
 				{
-					BaseFolder = UnrealBuildTool.EngineDirectory;
-					return FindOrAddProjectHelper(EngineProjectFileNameBase, BaseFolder);
-				}
-				if (Path == UnrealBuildTool.EnginePlatformExtensionsDirectory)
-				{
-					BaseFolder = UnrealBuildTool.EngineDirectory;
-					return FindOrAddProjectHelper(EngineProjectFileNameBase, BaseFolder);
+					if (Path == ExtensionDir)
+					{
+						BaseFolder = UnrealBuildTool.EngineDirectory;
+						return FindOrAddProjectHelper(EngineProjectFileNameBase, BaseFolder);
+					}
 				}
 				if (Path == UnrealBuildTool.EnterpriseDirectory)
 				{
@@ -2238,16 +2231,16 @@ namespace UnrealBuildTool
 				bool IsEngineTarget = false;
 				bool IsEnterpriseTarget = false;
 				bool WantProjectFileForTarget = true;
-				if(UnrealBuildTool.GetAllEngineDirectories().Any(x => TargetFilePath.IsUnderDirectory(x)))
+				if(TargetFilePath.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 				{
 					// This is an engine target
 					IsEngineTarget = true;
 
-					if(UnrealBuildTool.GetAllEngineDirectories("Source/Programs").Any(x => TargetFilePath.IsUnderDirectory(x)))
+					if(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, "Source/Programs").Any(x => TargetFilePath.IsUnderDirectory(x)))
 					{
 						WantProjectFileForTarget = IncludeEnginePrograms;
 					}
-					else if(UnrealBuildTool.GetAllEngineDirectories("Source").Any(x => TargetFilePath.IsUnderDirectory(x)))
+					else if(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, "Source").Any(x => TargetFilePath.IsUnderDirectory(x)))
 					{
 						WantProjectFileForTarget = bIncludeEngineSource;
 					}

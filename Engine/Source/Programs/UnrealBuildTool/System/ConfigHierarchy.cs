@@ -826,8 +826,8 @@ namespace UnrealBuildTool
 			out bool bHasPlatformTag, out bool bHasProjectTag, out bool bHasExpansionTag)
 		{
 			// cache some platform extension information that can be used inside the loops
-			string PlatformExtensionEngineConfigDir = DirectoryReference.Combine(UnrealBuildTool.EnginePlatformExtensionsDirectory, PlatformExtensionName, "Config").FullName;
-			string PlatformExtensionProjectConfigDir = ProjectDir != null ? DirectoryReference.Combine(UnrealBuildTool.ProjectPlatformExtensionsDirectory(ProjectDir), PlatformExtensionName, "Config").FullName : null;
+			string PlatformExtensionEngineConfigDir = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Platforms", PlatformExtensionName, "Config").FullName;
+			string PlatformExtensionProjectConfigDir = ProjectDir != null ? DirectoryReference.Combine(ProjectDir, "Platforms", PlatformExtensionName, "Config").FullName : null;
 			bool bHasPlatformExtensionEngineConfigDir = Directory.Exists(PlatformExtensionEngineConfigDir);
 			bool bHasPlatformExtensionProjectConfigDir = PlatformExtensionProjectConfigDir != null && Directory.Exists(PlatformExtensionProjectConfigDir);
 
