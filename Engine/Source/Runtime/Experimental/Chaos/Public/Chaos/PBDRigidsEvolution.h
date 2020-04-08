@@ -18,7 +18,8 @@
 
 extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
 extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
-
+extern int32 ChaosNumPushOutIterationsOverride;
+extern int32 ChaosNumContactIterationsOverride;
 
 // Declaring so it can be friended for tests.
 namespace ChaosTest { void TestPendingSpatialDataHandlePointerConflict(); } 
@@ -512,13 +513,14 @@ class FPBDRigidsEvolutionBase
 	{
 		UpdateAccelerationStructures(Island);
 
+		int32 LocalNumIterations = ChaosNumContactIterationsOverride >= 0 ? ChaosNumContactIterationsOverride : NumIterations;
 		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
-		for (int i = 0; i < NumIterations; ++i)
+		for (int i = 0; i < LocalNumIterations; ++i)
 		{
 			bool bNeedsAnotherIteration = false;
 			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, Island, i, NumIterations);
+				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, Island, i, LocalNumIterations);
 			}
 
 			if (ChaosRigidsEvolutionApplyAllowEarlyOutCVar && !bNeedsAnotherIteration)
@@ -689,13 +691,14 @@ protected:
 
 	void ApplyPushOut(const FReal Dt, int32 Island)
 	{
+		int32 LocalNumPushOutIterations = ChaosNumPushOutIterationsOverride >= 0 ? ChaosNumPushOutIterationsOverride : NumPushOutIterations;
 		bool bNeedsAnotherIteration = true;
-		for (int32 It = 0; It < NumPushOutIterations; ++It)
+		for (int32 It = 0; It < LocalNumPushOutIterations; ++It)
 		{
 			bNeedsAnotherIteration = false;
 			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, Island, It, NumPushOutIterations);
+				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, Island, It, LocalNumPushOutIterations);
 			}
 
 			if (ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar && !bNeedsAnotherIteration)
