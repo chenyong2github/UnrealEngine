@@ -286,7 +286,7 @@ void FMainMenu::RegisterWindowMenu()
 		// Enable Fullscreen section
 #if !PLATFORM_MAC && !PLATFORM_LINUX // On Mac/Linux windowed fullscreen mode in the editor is currently unavailable
 		// Separator
-		Section.AddMenuSeparator("FullscreenSeparator");
+		Section.AddSeparator("FullscreenSeparator");
 		// Fullscreen
 		Section.AddMenuEntry(FMainFrameCommands::Get().ToggleFullscreen);
 #endif
@@ -317,10 +317,10 @@ void FMainMenu::RegisterHelpMenu()
 
 		const FText SupportWebSiteLabel = NSLOCTEXT("MainHelpMenu", "VisitUnrealEngineSupportWebSite", "Unreal Engine Support Web Site...");
 
-		HelpOnlineSection.AddMenuSeparator("EpicGamesHelp");
+		HelpOnlineSection.AddSeparator("EpicGamesHelp");
 		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitEpicGamesDotCom);
 
-		HelpOnlineSection.AddMenuSeparator("Credits");
+		HelpOnlineSection.AddSeparator("Credits");
 		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().CreditsUnrealEd);
 	}
 

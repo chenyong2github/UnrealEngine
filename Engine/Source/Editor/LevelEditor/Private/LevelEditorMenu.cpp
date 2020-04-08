@@ -98,7 +98,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 								ToggleFavoriteLabel.BindStatic(&Local::GetToggleFavoriteLabelText);
 								Section.AddMenuEntry(FLevelEditorCommands::Get().ToggleFavorite, ToggleFavoriteLabel);
 							}
-							Section.AddMenuSeparator("LevelEditorToggleFavorite");
+							Section.AddSeparator("LevelEditorToggleFavorite");
 						}
 						const FMainMRUFavoritesList& MRUFavorites = *FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame").GetMRUFavoritesList();
 						const int32 NumFavorites = MRUFavorites.GetNumFavorites();
@@ -209,7 +209,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 				Section.AddMenuEntry( FLevelEditorCommands::Get().BrowseCVars );
 
-				Section.AddMenuSeparator( "HelpBrowse" );
+				Section.AddSeparator( "HelpBrowse" );
 
 				Section.AddMenuEntry( FLevelEditorCommands::Get().BrowseViewportControls );
 			}
