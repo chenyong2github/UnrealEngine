@@ -51,7 +51,7 @@ void UNiagaraNodeParameterMapFor::Compile(FHlslNiagaraTranslator* Translator, TA
 		else
 		{
 			UNiagaraNodeParameterMapSet::Compile(Translator, Outputs);
-			Translator->Warning(LOCTEXT("UnsupportedParamMapFor", "Parameter map for is not yet supported on cpu."), this, nullptr);
+			Translator->Message(FNiagaraCompileEventSeverity::Log,LOCTEXT("UnsupportedParamMapFor", "Parameter map for is not yet supported on cpu."), this, nullptr);
 		}
 	}
 }
