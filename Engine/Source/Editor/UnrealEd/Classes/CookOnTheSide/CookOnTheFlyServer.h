@@ -600,6 +600,9 @@ private:
 	*/
 	void CookByTheBookFinished();
 
+	/** Print some stats when finishing or cancelling CookByTheBook */
+	void PrintFinishStats();
+
 	/**
 	* Get all the packages which are listed in asset registry passed in.  
 	*
