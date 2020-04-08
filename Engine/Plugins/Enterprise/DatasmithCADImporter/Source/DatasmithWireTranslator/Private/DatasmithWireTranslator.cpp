@@ -141,9 +141,14 @@ public:
 		, FileLength(0)
 		, NumCRCErrors(0)
 	{
+		// Set ProductName, ProductVersion in DatasmithScene for Analytics purpose
+		// application_name is something like "Catia V5"
 		DatasmithScene->SetHost(TEXT("Alias"));
 		DatasmithScene->SetVendor(TEXT("Autodesk"));
 		DatasmithScene->SetExporterSDKVersion(TEXT("2019"));
+		DatasmithScene->SetProductName(TEXT("Alias Tools"));
+		DatasmithScene->SetProductVersion(TEXT("Alias 2019"));
+
 #ifdef CAD_LIBRARY
 		LocalSession = FAliasCoretechWrapper::GetSharedSession();
 #endif
