@@ -367,8 +367,8 @@ namespace UE4PushModelPrivate
 #define IS_PROPERTY_REPLICATED(Property) (0 != (EPropertyFlags::CPF_Net & Property->PropertyFlags))
 
 #define CONDITIONAL_ON_OBJECT_NET_ID(Object, Work) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushId(); if (INDEX_NONE != PrivatePushId) { Work; } }
-#define CONDITIONAL_ON_OBJECT_NET_ID_DYNAMIC(Object, Work) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = FObjectNetPushIdHelper::GetNetPushIdDynamic(Object); if (INDEX_NONE != PrivatePushId) { Work; } }
-#define CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, Work) if (IS_PROPERTY_REPLICATED(Property)) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = FObjectNetPushIdHelper::GetNetPushIdDynamic(Object); if (PrivatePushId != INDEX_NONE) { Work; } }
+#define CONDITIONAL_ON_OBJECT_NET_ID_DYNAMIC(Object, Work) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic(); if (INDEX_NONE != PrivatePushId) { Work; } }
+#define CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, Work) if (IS_PROPERTY_REPLICATED(Property)) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic(); if (PrivatePushId != INDEX_NONE) { Work; } }
 
 //~ For these macros, we won't bother checking if Push Model is enabled. Instead, we'll just check to see whether or not the Custom ID is valid.
 
