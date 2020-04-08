@@ -1672,6 +1672,8 @@ FSpatializationHelper::FSpatializationHelper( void )
 
 void FSpatializationHelper::Init()
 {
+#if WITH_XAUDIO3D
+
 	// Initialize X3DAudio
 	//
 	//  Speaker geometry configuration on the final mix, specifies assignment of channels
@@ -1752,10 +1754,13 @@ void FSpatializationHelper::Init()
 	DSPSettings.DstChannelCount = SPEAKER_COUNT;
 	DSPSettings.pMatrixCoefficients = MatrixCoefficients;
 	DSPSettings.pDelayTimes = nullptr;
+
+#endif //WITH_XAUDIO3D
 }
 
 void FSpatializationHelper::DumpSpatializationState() const
 {
+#if WITH_XAUDIO3D
 	struct FLocal
 	{
 		static void DumpChannelArray(const FString& Indent, const FString& ArrayName, int32 NumChannels, const float* pChannelArray)
@@ -1905,10 +1910,14 @@ void FSpatializationHelper::DumpSpatializationState() const
 
 	// MatrixCoefficients
 	FLocal::DumpChannelArray(TEXT("  "), TEXT("MatrixCoefficients"), UE_ARRAY_COUNT(MatrixCoefficients), MatrixCoefficients);
+
+#endif //WITH_XAUDIO3D
 }
 
 void FSpatializationHelper::CalculateDolbySurroundRate( const FVector& OrientFront, const FVector& ListenerPosition, const FVector& EmitterPosition, float OmniRadius, float* OutVolumes  )
 {
+#if WITH_XAUDIO3D
+
 #if ENABLE_NAN_DIAGNOSTIC
 	OrientFront.DiagnosticCheckNaN(TEXT("FSpatializationHelper: OrientFront"));
 	ListenerPosition.DiagnosticCheckNaN(TEXT("FSpatializationHelper: ListenerPosition"));
@@ -1965,6 +1974,8 @@ void FSpatializationHelper::CalculateDolbySurroundRate( const FVector& OrientFro
 	}
 
 	OutVolumes[CHANNELOUT_REVERB] *= DSPSettings.ReverbLevel;
+
+#endif //WITH_XAUDIO3D
 }
 
 /*------------------------------------------------------------------------------------
