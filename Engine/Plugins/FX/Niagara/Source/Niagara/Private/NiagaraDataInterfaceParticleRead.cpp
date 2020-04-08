@@ -1792,6 +1792,12 @@ Type UNiagaraDataInterfaceParticleRead::RetrieveValueByIndexWithCheck(FNiagaraEm
 		return Value;
 	}
 
+	//-TODO: Investigate removing this in favor of making GetSafe really a safe call and handle GPU buffers with no CPU side data
+	if (EmitterInstance->GetGPUContext() != nullptr)
+	{
+		return Value;
+	}
+
 	FNiagaraDataSetAccessor<AccessorType> ValueData(EmitterInstance->GetData(), Attr);
 
 	if (ParticleIndex >= 0 && ParticleIndex < (int32)CurrentData->GetNumInstances())
