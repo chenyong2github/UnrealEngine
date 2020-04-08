@@ -65,6 +65,7 @@ protected:
 	virtual void SynchronizeProperties() override;
 	virtual void AddEntryChild(UUserWidget& ChildWidget);
 
+	bool IsEntryClassValid(TSubclassOf<UUserWidget> InEntryClass) const;
 	UUserWidget* CreateEntryInternal(TSubclassOf<UUserWidget> InEntryClass);
 	void RemoveEntryInternal(UUserWidget* EntryWidget);
 	FMargin BuildEntryPadding(const FVector2D& DesiredSpacing);
