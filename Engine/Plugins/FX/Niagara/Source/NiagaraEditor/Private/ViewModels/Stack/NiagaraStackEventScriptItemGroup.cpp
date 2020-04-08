@@ -262,6 +262,11 @@ void UNiagaraStackEventScriptItemGroup::Delete()
 		return;
 	}
 
+	//Need to tear down existing systems now.
+	FNiagaraSystemUpdateContext UpdateCtx;
+	UpdateCtx.SetDestroyOnAdd(true);
+	UpdateCtx.Add(Emitter, true);
+
 	FScopedTransaction Transaction(FText::Format(LOCTEXT("DeleteEventHandler", "Deleted {0}"), GetDisplayName()));
 	Emitter->Modify();
 	Source->NodeGraph->Modify();
