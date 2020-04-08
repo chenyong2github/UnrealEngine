@@ -784,6 +784,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, InstanceGPUTransformsBuffer.UAV);
 	}
 
+	RayTracingInstance.BuildInstanceMaskAndFlags();
 	OutRayTracingInstances.Add(RayTracingInstance);
 }
 #endif
