@@ -2230,9 +2230,10 @@ void FActiveGameplayEffectsContainer::OnMagnitudeDependencyChange(FActiveGamepla
 					if (!bMarkedDirty)
 					{
 						bMarkedDirty = true;
-						if (Owner && Owner->OwnerActor && IsNetAuthority())
+						AActor* OwnerActor = Owner ? Owner->GetOwnerActor() : nullptr;
+						if (IsNetAuthority() && OwnerActor)
 						{
-							Owner->OwnerActor->FlushNetDormancy();
+							OwnerActor->FlushNetDormancy();
 						}
 						MarkItemDirty(*ActiveEffect);
 					}
@@ -2751,9 +2752,10 @@ FActiveGameplayEffect* FActiveGameplayEffectsContainer::ApplyGameplayEffectSpec(
 
 	bFoundExistingStackableGE = false;
 
-	if (Owner && Owner->OwnerActor && IsNetAuthority())
+	AActor* OwnerActor = Owner ? Owner->GetOwnerActor() : nullptr;
+	if (IsNetAuthority() && OwnerActor)
 	{
-		Owner->OwnerActor->FlushNetDormancy();
+		OwnerActor->FlushNetDormancy();
 	}
 
 	FActiveGameplayEffect* AppliedActiveGE = nullptr;
@@ -3047,7 +3049,8 @@ void FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectAdded(FActiv
 	SCOPE_CYCLE_UOBJECT(EffectDef, EffectDef);
 
 	GAMEPLAYEFFECT_SCOPE_LOCK();
-	UE_VLOG(Owner->OwnerActor ? Owner->OwnerActor : Owner->GetOuter(), LogGameplayEffects, Log, TEXT("Added: %s"), *GetNameSafe(EffectDef->GetClass()));
+	AActor* OwnerActor = Owner->GetOwnerActor();
+	UE_VLOG(OwnerActor ? OwnerActor : Owner->GetOuter(), LogGameplayEffects, Log, TEXT("Added: %s"), *GetNameSafe(EffectDef->GetClass()));
 
 	// Add our ongoing tag requirements to the dependency map. We will actually check for these tags below.
 	for (const FGameplayTag& Tag : EffectDef->OngoingTagRequirements.IgnoreTags)
@@ -3217,15 +3220,16 @@ bool FActiveGameplayEffectsContainer::RemoveActiveGameplayEffect(FActiveGameplay
 		FActiveGameplayEffect& Effect = *GetActiveGameplayEffect(ActiveGEIdx);
 		if (Effect.Handle == Handle && Effect.IsPendingRemove == false)
 		{
-			UE_VLOG(Owner->OwnerActor, LogGameplayEffects, Log, TEXT("Removed: %s"), *GetNameSafe(Effect.Spec.Def->GetClass()));
+			AActor* OwnerActor = Owner->GetOwnerActor();
+			UE_VLOG(OwnerActor, LogGameplayEffects, Log, TEXT("Removed: %s"), *GetNameSafe(Effect.Spec.Def->GetClass()));
 			if (UE_LOG_ACTIVE(VLogAbilitySystem, Log))
 			{
-				ABILITY_VLOG(Owner->OwnerActor, Log, TEXT("Removed %s"), *Effect.Spec.Def->GetFName().ToString());
+				ABILITY_VLOG(OwnerActor, Log, TEXT("Removed %s"), *Effect.Spec.Def->GetFName().ToString());
 				for (FGameplayModifierInfo Modifier : Effect.Spec.Def->Modifiers)
 				{
 					float Magnitude = 0.f;
 					Modifier.ModifierMagnitude.AttemptCalculateMagnitude(Effect.Spec, Magnitude);
-					ABILITY_VLOG(Owner->OwnerActor, Log, TEXT("         %s: %s %f"), *Modifier.Attribute.GetName(), *EGameplayModOpToString(Modifier.ModifierOp), Magnitude);
+					ABILITY_VLOG(OwnerActor, Log, TEXT("         %s: %s %f"), *Modifier.Attribute.GetName(), *EGameplayModOpToString(Modifier.ModifierOp), Magnitude);
 				}
 			}
 
@@ -3246,12 +3250,13 @@ void FActiveGameplayEffectsContainer::InternalExecutePeriodicGameplayEffect(FAct
 
 		if (UE_LOG_ACTIVE(VLogAbilitySystem, Log))
 		{
-			ABILITY_VLOG(Owner->OwnerActor, Log, TEXT("Executed Periodic Effect %s"), *ActiveEffect.Spec.Def->GetFName().ToString());
+			AActor* OwnerActor = Owner->GetOwnerActor();
+			ABILITY_VLOG(OwnerActor, Log, TEXT("Executed Periodic Effect %s"), *ActiveEffect.Spec.Def->GetFName().ToString());
 			for (FGameplayModifierInfo Modifier : ActiveEffect.Spec.Def->Modifiers)
 			{
 				float Magnitude = 0.f;
 				Modifier.ModifierMagnitude.AttemptCalculateMagnitude(ActiveEffect.Spec, Magnitude);
-				ABILITY_VLOG(Owner->OwnerActor, Log, TEXT("         %s: %s %f"), *Modifier.Attribute.GetName(), *EGameplayModOpToString(Modifier.ModifierOp), Magnitude);
+				ABILITY_VLOG(OwnerActor, Log, TEXT("         %s: %s %f"), *Modifier.Attribute.GetName(), *EGameplayModOpToString(Modifier.ModifierOp), Magnitude);
 			}
 		}
 
@@ -3331,9 +3336,10 @@ bool FActiveGameplayEffectsContainer::InternalRemoveActiveGameplayEffect(int32 I
 			Owner->GetWorld()->GetTimerManager().ClearTimer(Effect.PeriodHandle);
 		}
 
-		if (bIsNetAuthority && Owner->OwnerActor)
+		AActor* OwnerActor = Owner->GetOwnerActor();
+		if (bIsNetAuthority && OwnerActor)
 		{
-			Owner->OwnerActor->FlushNetDormancy();
+			OwnerActor->FlushNetDormancy();
 		}
 
 		// Remove this handle from the global map
@@ -3627,9 +3633,10 @@ void FActiveGameplayEffectsContainer::OnCustomMagnitudeExternalDependencyFired(T
 					{
 						// By default, a dormancy flush should be required here. If a calculation class has requested that
 						// non-net authorities can respond to external dependencies, the dormancy flush is skipped as a desired optimization
-						if (bRequiresDormancyFlush && Owner && Owner->OwnerActor)
+						AActor* OwnerActor = Owner ? Owner->GetOwnerActor() : nullptr;
+						if (bRequiresDormancyFlush && OwnerActor)
 						{
-							Owner->OwnerActor->FlushNetDormancy();
+							OwnerActor->FlushNetDormancy();
 						}
 
 						MarkItemDirty(Effect);
