@@ -2,6 +2,7 @@
 
 #include "AudioMixerBus.h"
 #include "AudioMixerSourceManager.h"
+#include "DSP/BufferVectorOperations.h"
 
 namespace Audio
 {
@@ -180,6 +181,65 @@ namespace Audio
 		}
 	}
 
+	void FMixerAudioBus::CopyCurrentBuffer(Audio::AlignedFloatBuffer& OutBuffer, int32 InNumFrames, int32 InNumOutputChannels, EMonoChannelUpmixMethod InMixMethod) const
+	{
+		const float* RESTRICT CurrentBuffer = GetCurrentBusBuffer();
+
+		if (InNumOutputChannels == 2 && NumChannels == 1)
+		{
+			switch (InMixMethod)
+			{
+			case EMonoChannelUpmixMethod::EqualPower:
+			{
+				static constexpr float Sqrt2Over2Gains[2] = { 0.707106781f, 0.707106781f };
+				MixMonoTo2ChannelsFast(CurrentBuffer, OutBuffer.GetData(), InNumFrames, Sqrt2Over2Gains);
+			}
+			break;
+
+			case EMonoChannelUpmixMethod::Linear:
+			{
+				static constexpr float HalfGains[2] = { 0.5f, 0.5f };
+				MixMonoTo2ChannelsFast(CurrentBuffer, OutBuffer.GetData(), InNumFrames, HalfGains);
+			}
+			break;
+
+			case EMonoChannelUpmixMethod::FullVolume:
+			default:
+				MixMonoTo2ChannelsFast(CurrentBuffer, OutBuffer.GetData(), InNumFrames);
+				break;
+			}
+		}
+		else if (InNumOutputChannels == 1 && NumChannels == 2)
+		{
+			BufferSum2ChannelToMonoFast(CurrentBuffer, OutBuffer.GetData(), InNumFrames);
+			switch (InMixMethod)
+			{
+			case EMonoChannelUpmixMethod::EqualPower:
+			{
+				static constexpr float Sqrt2Gain = 1.41421356f;
+				MultiplyBufferByConstantInPlace(OutBuffer, Sqrt2Gain);
+			}
+			break;
+
+			case EMonoChannelUpmixMethod::Linear:
+			{
+				static constexpr float DoubleGain = 2.0f;
+				MultiplyBufferByConstantInPlace(OutBuffer, DoubleGain);
+			}
+			break;
+
+			case EMonoChannelUpmixMethod::FullVolume:
+			default:
+				break;
+			}
+		}
+		// Copy into the pre-distance attenuation buffer ptr as channel count should match
+		else
+		{
+			check(InNumOutputChannels == NumChannels);
+			FMemory::Memcpy(OutBuffer.GetData(), CurrentBuffer, sizeof(float) * InNumFrames * InNumOutputChannels);
+		}
+	}
 
 	const float* FMixerAudioBus::GetCurrentBusBuffer() const
 	{

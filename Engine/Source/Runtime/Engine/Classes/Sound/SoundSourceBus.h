@@ -42,7 +42,7 @@ public:
 	UAudioBus* AudioBus;
 
 	/** Stop the source bus when the volume goes to zero. */
-	UPROPERTY(EditAnywhere, Category = BusProperties)
+	UPROPERTY(meta = (DeprecatedProperty))
 	uint32 bAutoDeactivateWhenSilent:1;
 
 	//~ Begin UObject Interface.
@@ -59,7 +59,4 @@ public:
 
 protected:
 	void Init();
-
-	uint32 DurationSamples;
-	bool bInitialized;
 };

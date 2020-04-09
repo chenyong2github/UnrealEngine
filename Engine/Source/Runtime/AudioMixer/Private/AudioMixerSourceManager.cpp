@@ -1582,11 +1582,9 @@ namespace Audio
 			if (bIsSourceBus)
 			{
 				// Get the source's rendered and mixed audio bus data
-				const TSharedPtr<FMixerAudioBus>* AudioBusPtr = AudioBuses.Find(SourceInfo.AudioBusId);
-				if (ensure(AudioBusPtr != nullptr))
+				const TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(SourceInfo.AudioBusId);
+				if (ensure(AudioBusPtr.IsValid()))
 				{
-					const float* RESTRICT BusBufferPtr = (*AudioBusPtr)->GetCurrentBusBuffer();
-
 					int32 NumFramesPlayed = NumOutputFrames;
 					if (SourceInfo.SourceBusDurationFrames != INDEX_NONE)
 					{
@@ -1599,9 +1597,7 @@ namespace Audio
 					}
 
 					SourceInfo.NumFramesPlayed += NumFramesPlayed;
-
-					// Simply copy into the pre distance attenuation buffer ptr
-					FMemory::Memcpy(PreDistanceAttenBufferPtr, BusBufferPtr, sizeof(float) * NumFramesPlayed * SourceInfo.NumInputChannels);
+					AudioBusPtr->CopyCurrentBuffer(SourceInfo.PreDistanceAttenuationBuffer, NumFramesPlayed, SourceInfo.NumInputChannels);
 				}
 			}
 			else
