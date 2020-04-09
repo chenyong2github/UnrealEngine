@@ -9202,6 +9202,23 @@ TArray<FMovieSceneSpawnable*> FSequencer::ConvertToSpawnableInternal(FGuid Posse
 			SpawnRegister->HandleConvertPossessableToSpawnable(FoundObject, *this, TransformData);
 			SpawnRegister->SetupDefaultsForSpawnable(nullptr, Spawnable->GetGuid(), TransformData, AsShared(), Settings);
 
+			TMap<FGuid, FGuid> OldGuidToNewGuidMap;
+			OldGuidToNewGuidMap.Add(PossessableGuid, Spawnable->GetGuid());
+			
+			// Fixup any section bindings
+			TArray<UMovieScene*> MovieScenesToUpdate;
+			MovieSceneHelpers::GetDescendantMovieScenes(GetRootMovieSceneSequence(), MovieScenesToUpdate);
+			for (UMovieScene* MovieSceneToUpdate : MovieScenesToUpdate)
+			{
+				for (UMovieSceneSection* Section : MovieSceneToUpdate->GetAllSections())
+				{
+					if (Section)
+					{
+						Section->OnBindingsUpdated(OldGuidToNewGuidMap);
+					}
+				}
+			}
+
 			ForceEvaluate();
 
 			NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
@@ -9403,6 +9420,23 @@ FMovieScenePossessable* FSequencer::ConvertToPossessableInternal(FGuid Spawnable
 
 		static const FName SequencerActorTag(TEXT("SequencerActor"));
 		PossessedActor->Tags.Remove(SequencerActorTag);
+
+		TMap<FGuid, FGuid> OldGuidToNewGuidMap;
+		OldGuidToNewGuidMap.Add(OldSpawnableGuid, NewPossessableGuid);
+		
+		// Fixup any section bindings
+		TArray<UMovieScene*> MovieScenesToUpdate;
+		MovieSceneHelpers::GetDescendantMovieScenes(GetRootMovieSceneSequence(), MovieScenesToUpdate);
+		for (UMovieScene* MovieSceneToUpdate : MovieScenesToUpdate)
+		{
+			for (UMovieSceneSection* Section : MovieSceneToUpdate->GetAllSections())
+			{
+				if (Section)
+				{
+					Section->OnBindingsUpdated(OldGuidToNewGuidMap);
+				}
+			}
+		}
 
 		GEditor->SelectActor(PossessedActor, false, true);
 
@@ -10767,9 +10801,17 @@ void FSequencer::FixActorReferences()
 	}
 
 	// Fixup any section bindings
-	for (UMovieSceneSection* Section : FocusedMovieScene->GetAllSections())
+	TArray<UMovieScene*> MovieScenesToUpdate;
+	MovieSceneHelpers::GetDescendantMovieScenes(GetRootMovieSceneSequence(), MovieScenesToUpdate);
+	for (UMovieScene* MovieSceneToUpdate : MovieScenesToUpdate)
 	{
-		Section->OnBindingsUpdated(OldGuidToNewGuidMap);
+		for (UMovieSceneSection* Section : MovieSceneToUpdate->GetAllSections())
+		{
+			if (Section)
+			{
+				Section->OnBindingsUpdated(OldGuidToNewGuidMap);
+			}
+		}
 	}
 }
 

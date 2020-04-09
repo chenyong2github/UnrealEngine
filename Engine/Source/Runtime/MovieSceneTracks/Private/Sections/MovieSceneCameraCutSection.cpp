@@ -68,6 +68,8 @@ void UMovieSceneCameraCutSection::OnBindingsUpdated(const TMap<FGuid, FGuid>& Ol
 {
 	if (OldGuidToNewGuidMap.Contains(CameraBindingID.GetGuid()))
 	{
+		Modify();
+
 		CameraBindingID.SetGuid(OldGuidToNewGuidMap[CameraBindingID.GetGuid()]);
 	}
 }

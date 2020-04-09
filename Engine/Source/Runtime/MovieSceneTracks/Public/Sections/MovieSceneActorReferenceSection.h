@@ -167,6 +167,9 @@ public:
 	//~ UObject interface
 	virtual void PostLoad() override;
 
+	//~ UMovieSceneSection interface
+	virtual void OnBindingsUpdated(const TMap<FGuid, FGuid>& OldGuidToNewGuidMap) override;
+
 	const FMovieSceneActorReferenceData& GetActorReferenceData() const { return ActorReferenceData; }
 
 private:
