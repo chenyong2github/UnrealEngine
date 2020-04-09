@@ -32,13 +32,13 @@ public class OodleHandlerComponent : ModuleRules
 			});
 		}
 
-		string OodleNotForLicenseesNetBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory,
-			"NotForLicensees/RadGames/OodleNet/OodleNet.Build.cs");
+		string OodleNotForLicenseesNetBuildFile = System.IO.Path.Combine(EngineDirectory,
+			"Restricted/NotForLicensees/Source/ThirdParty/RadGames/OodleNet/OodleNet.Build.cs");
 		string OodleLicenseesNetBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory,
 			"RadGames/OodleNet/OodleNet.Build.cs");
 
-		string OodleNotForLicenseesDataBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory,
-			"NotForLicensees/RadGames/OodleData/OodleData.Build.cs");
+		string OodleNotForLicenseesDataBuildFile = System.IO.Path.Combine(EngineDirectory,
+			"Restricted/NotForLicensees/Source/ThirdParty/RadGames/OodleData/OodleData.Build.cs");
 		string OodleLicenseesDataBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory,
 			"RadGames/OodleData/OodleData.Build.cs");
 

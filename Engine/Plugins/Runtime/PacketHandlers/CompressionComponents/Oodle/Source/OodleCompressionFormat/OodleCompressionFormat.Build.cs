@@ -30,8 +30,8 @@ public class OodleCompressionFormat : ModuleRules
 		}
 
 		// Check the NotForLicensees folder first
-		string OodleNotForLicenseesBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory, 
-			"NotForLicensees/RadGames/OodleData/OodleData.Build.cs");
+		string OodleNotForLicenseesBuildFile = System.IO.Path.Combine(EngineDirectory, 
+			"Restricted/NotForLicensees/Source/ThirdParty/RadGames/OodleData/OodleData.Build.cs");
 		string OodleLicenseesBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory,
 			"RadGames/OodleData/OodleData.Build.cs");
 
