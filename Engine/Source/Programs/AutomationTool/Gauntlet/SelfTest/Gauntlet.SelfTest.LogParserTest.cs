@@ -36,7 +36,7 @@ namespace Gauntlet.SelfTest
 
 	class LogParserTestBase : BaseNode
 	{
-		protected string BaseDataPath = Path.Combine(Environment.CurrentDirectory, @"Engine\Source\Programs\AutomationTool\NotForLicensees\Gauntlet\SelfTest\TestData");
+		protected string BaseDataPath = Path.Combine(Environment.CurrentDirectory, @"Engine\Restricted\NotForLicensees\Source\Programs\AutomationTool\Gauntlet\SelfTest\TestData");
 
 		protected string WindowsServerLogContent;
 		protected string WindowsClientLogContent;
