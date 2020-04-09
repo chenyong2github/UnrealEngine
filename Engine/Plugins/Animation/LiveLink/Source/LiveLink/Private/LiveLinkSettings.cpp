@@ -11,7 +11,8 @@ FLiveLinkRoleProjectSetting::FLiveLinkRoleProjectSetting()
 
 
 ULiveLinkSettings::ULiveLinkSettings()
-	: DefaultMessageBusSourceMode(ELiveLinkSourceMode::EngineTime)
+	: ClockOffsetCorrectionStep(100e-6)
+	, DefaultMessageBusSourceMode(ELiveLinkSourceMode::EngineTime)
 	, MessageBusPingRequestFrequency(1.0)
 	, MessageBusHeartbeatFrequency(1.0)
 	, MessageBusHeartbeatTimeout(2.0)
