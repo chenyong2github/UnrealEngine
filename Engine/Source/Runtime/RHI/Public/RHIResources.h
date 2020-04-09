@@ -1953,7 +1953,10 @@ public:
 	using TRenderTargetFlags		= TStaticArray<uint32, MaxSimultaneousRenderTargets>;
 
 	FGraphicsPipelineStateInitializer()
-		: RenderTargetsEnabled(0)
+		: BlendState(nullptr)
+		, RasterizerState(nullptr)
+		, DepthStencilState(nullptr)
+		, RenderTargetsEnabled(0)
 		, RenderTargetFormats(PF_Unknown)
 		, RenderTargetFlags(0)
 		, DepthStencilTargetFormat(PF_Unknown)
