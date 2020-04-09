@@ -183,7 +183,7 @@ void SafeReleaseMetalRenderPassDescriptor(mtlpp::RenderPassDescriptor& Desc);
 // Access the underlying surface object from any kind of texture
 FMetalSurface* GetMetalSurfaceFromRHITexture(FRHITexture* Texture);
 
-#define NOT_SUPPORTED(Func) UE_LOG(LogMetal, Fatal, TEXT("'%s' is not supported"), L##Func);
+#define NOT_SUPPORTED(Func) UE_LOG(LogMetal, Fatal, TEXT("'%s' is not supported"), TEXT(Func));
 
 // Verifies we are on the correct thread to mutate internal MetalRHI resources.
 FORCEINLINE void CheckMetalThread()
