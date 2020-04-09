@@ -25,6 +25,18 @@ static TAutoConsoleVariable<int32> CVarResidencyManagement(
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
+static int32 GD3D12GPUCrashDebuggingMode = 0;
+static TAutoConsoleVariable<int32> CVarD3D12GPUCrashDebuggingMode(
+	TEXT("r.D3D12.GPUCrashDebuggingMode"),
+	GD3D12GPUCrashDebuggingMode,
+	TEXT("Enable GPU crash debugging: tracks the current GPU state and logs information what operations the GPU executed last.\n")
+	TEXT("Optionally generate a GPU crash dump as well (on nVidia hardware only)):\n")
+	TEXT(" 0: GPU crash debugging enabled (default)\n")
+	TEXT(" 1: Minimal overhead GPU crash debugging\n")
+	TEXT(" 2: Enable all available GPU crash debugging options (DRED, Aftermath, ...)\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
 /** Handle d3d messages and write them to the log file **/
 static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 {
@@ -102,7 +114,7 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	: OwningRHI(nullptr)
 	, bDepthBoundsTestSupported(false)
 	, bDebugDevice(false)
-	, bGPUCrashDebugging(false)
+	, GPUCrashDebuggingMode(ED3D12GPUCrashDebugginMode::Disabled)
 	, bDeviceRemoved(false)
 	, Desc(DescIn)
 	, RootSignatureManager(this)
@@ -176,15 +188,23 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	// GPU crash debugging will enable DRED and Aftermath if available
 	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
 	{
-		bGPUCrashDebugging = true;
+		GPUCrashDebuggingMode = ED3D12GPUCrashDebugginMode::Full;
 	}
 	else
 	{
 		static IConsoleVariable* GPUCrashDebugging = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
 		if (GPUCrashDebugging)
 		{
+			GPUCrashDebuggingMode = (GPUCrashDebugging->GetInt() > 0) ? ED3D12GPUCrashDebugginMode::Full : ED3D12GPUCrashDebugginMode::Disabled;
+		}
 
-			bGPUCrashDebugging = GPUCrashDebugging->GetInt() > 0;
+		// Still disabled then check the D3D specific cvar for minimal tracking
+		if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Disabled)
+		{
+			auto* GPUCrashDebuggingModeVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.D3D12.GPUCrashDebuggingMode"));
+			int32 GPUCrashDebuggingModeValue = GPUCrashDebuggingModeVar ? GPUCrashDebuggingModeVar->GetValueOnAnyThread() : -1;
+			if (GPUCrashDebuggingModeValue >= 0 && GPUCrashDebuggingModeValue <= (int)ED3D12GPUCrashDebugginMode::Full)
+				GPUCrashDebuggingMode = (ED3D12GPUCrashDebugginMode)GPUCrashDebuggingModeValue;
 		}
 	}
 
@@ -193,7 +213,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	{
 		// GPUcrash dump handler must be attached prior to device creation
 		static IConsoleVariable* GPUCrashDump = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDump"));
-		if (bGPUCrashDebugging || FParse::Param(FCommandLine::Get(), TEXT("gpucrashdump")) || (GPUCrashDump && GPUCrashDump->GetInt()))
+		if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("gpucrashdump")) || (GPUCrashDump && GPUCrashDump->GetInt()))
 		{
 			HANDLE CurrentThread = ::GetCurrentThread();
 
@@ -215,6 +235,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			else
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping failed to initialize (%x)"), Result);
+
+				GDX12NVAfterMathEnabled = 0;
 			}
 		}
 	}
@@ -245,7 +267,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 	
 	// Setup DRED if requested
-	if (bGPUCrashDebugging || FParse::Param(FCommandLine::Get(), TEXT("dred")))
+	if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("dred")))
 	{
 		ID3D12DeviceRemovedExtendedDataSettings* DredSettings = nullptr;
 		HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&DredSettings));
@@ -392,7 +414,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 #if NV_AFTERMATH
 	// Enable aftermath when GPU crash debugging is enabled
-	if (bGPUCrashDebugging || GDX12NVAfterMathEnabled)
+	if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full && GDX12NVAfterMathEnabled)
 	{
 		if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 		{
@@ -441,6 +463,10 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			GDX12NVAfterMathEnabled = 0;
 			UE_LOG(LogD3D12RHI, Warning, TEXT("[Aftermath] Skipping aftermath initialization on non-Nvidia device"));
 		}
+	}
+	else
+	{
+		GDX12NVAfterMathEnabled = 0;
 	}
 #endif
 

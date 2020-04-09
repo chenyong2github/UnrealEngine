@@ -393,7 +393,7 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 	}
 
 	// setup the bread crumb data to track GPU progress on this command queue when GPU crash debugging is enabled
-	if (Adapter->IsGPUCrashDebugging())
+	if (Adapter->GetGPUCrashDebuggingMode() != ED3D12GPUCrashDebugginMode::Disabled)
 	{		
 		// QI for the ID3DDevice3 - manual buffer write from command line only supported on 1709+
 		TRefCountPtr<ID3D12Device3> D3D12Device3;
