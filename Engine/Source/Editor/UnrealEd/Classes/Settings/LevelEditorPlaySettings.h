@@ -365,7 +365,27 @@ private:
 	UPROPERTY(config)
 	FString AdditionalLaunchOptions;
 
+	/** Controls the default value of the show flag ServerDrawDebug */
+	UPROPERTY(config, EditAnywhere, Category = MultiplayerOptions)
+	bool bShowServerDebugDrawingByDefault;
+
+	/** How strongly debug drawing originating from the server will be biased towards the tint color */
+	UPROPERTY(config, EditAnywhere, Category=MultiplayerOptions, meta=(ClampMin=0, ClampMax=1, UIMin=0, UIMax=1))
+	float ServerDebugDrawingColorTintStrength;
+
+	/** Debug drawing originating from the server will be biased towards this color */
+	UPROPERTY(config, EditAnywhere, Category=MultiplayerOptions)
+	FLinearColor ServerDebugDrawingColorTint;
+
+private:
+	void PushDebugDrawingSettings();
+
 public:
+	bool ShowServerDebugDrawingByDefault() const
+	{
+		return bShowServerDebugDrawingByDefault;
+	}
+
 	/** Additional options that will be passed to the server as arguments, for example -debug. Only works with separate process servers. */
 	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server")
 	FString AdditionalServerLaunchParameters;

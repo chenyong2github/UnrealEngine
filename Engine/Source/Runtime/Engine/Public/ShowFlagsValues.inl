@@ -334,6 +334,8 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, RequiredTextureResolution, SFG_Hidden, NSLOCTEXT("
 SHOWFLAG_ALWAYS_ACCESSIBLE(WidgetComponents, SFG_Normal, NSLOCTEXT("UnrealEd", "WidgetComponentsSF", "Widget Components"))
 /** Draw the bones of all skeletal meshes */
 SHOWFLAG_FIXED_IN_SHIPPING(0, Bones, SFG_Developer, NSLOCTEXT("UnrealEd", "BoneSF", "Bones"))
+/** Draw debug rendering from the Dedicated Server during Play In Editor (with Use Dedicated Server checked) in this client viewport */
+SHOWFLAG_FIXED_IN_SHIPPING(0, ServerDrawDebug, SFG_Developer, NSLOCTEXT("UnrealEd", "ServerDrawDebugSF", "Dedicated Server Debug Drawing"))
 /** If media planes should be shown */
 SHOWFLAG_ALWAYS_ACCESSIBLE(MediaPlanes, SFG_Normal, NSLOCTEXT("UnrealEd", "MediaPlanesSF", "Media Planes"))
 /** if this is a vr editing viewport, needed? */

@@ -38,6 +38,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DesktopPlatformModule.h"
 #include "InstalledPlatformInfo.h"
+#include "DrawDebugHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SettingsClasses"
 
@@ -478,6 +479,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	CenterNewWindow = true;
 
 	EnablePIEEnterAndExitSounds = false;
+
+	bShowServerDebugDrawingByDefault = true;
+	ServerDebugDrawingColorTintStrength = 0.0f;
+	ServerDebugDrawingColorTint = FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+void ULevelEditorPlaySettings::PushDebugDrawingSettings()
+{
+#if ENABLE_DRAW_DEBUG
+	extern ENGINE_API float GServerDrawDebugColorTintStrength;
+	extern ENGINE_API FLinearColor GServerDrawDebugColorTint;
+
+	GServerDrawDebugColorTintStrength = ServerDebugDrawingColorTintStrength;
+	GServerDrawDebugColorTint = ServerDebugDrawingColorTint;
+#endif
 }
 
 void ULevelEditorPlaySettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -500,6 +516,22 @@ void ULevelEditorPlaySettings::PostEditChangeProperty(struct FPropertyChangedEve
 		NetworkEmulationSettings.OnPostEditChange(PropertyChangedEvent);
 	}
 
+	PushDebugDrawingSettings();
+	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ULevelEditorPlaySettings, bShowServerDebugDrawingByDefault))
+	{
+		// If the show option is turned on or off, force it on or off in any active PIE instances too as a QOL aid so they don't have to stop and restart PIE again for it to take effect
+		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+		{
+			if ((WorldContext.WorldType == EWorldType::PIE) &&
+				(WorldContext.World() != nullptr) &&
+				(WorldContext.World()->GetNetMode() == NM_Client) &&
+				(WorldContext.GameViewport != nullptr))
+			{
+				WorldContext.GameViewport->EngineShowFlags.SetServerDrawDebug(bShowServerDebugDrawingByDefault);
+			}
+		}
+	}
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
@@ -515,6 +547,8 @@ void ULevelEditorPlaySettings::PostInitProperties()
 #if WITH_EDITOR
 	FCoreDelegates::OnSafeFrameChangedEvent.AddUObject(this, &ULevelEditorPlaySettings::UpdateCustomSafeZones);
 #endif
+
+	PushDebugDrawingSettings();
 }
 
 bool ULevelEditorPlaySettings::CanEditChange(const FProperty* InProperty) const
