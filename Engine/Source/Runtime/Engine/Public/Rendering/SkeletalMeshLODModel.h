@@ -363,6 +363,8 @@ public:
 		, bIsRawSkeletalMeshBulkDataEmpty(true)
 		, BuildStringID(TEXT(""))
 	{
+		//Sice this ID is part of the DDC Key, we have to set it to an empty GUID not an empty string
+		RawSkeletalMeshBulkDataID = FGuid().ToString();
 		//Allocate the private mutex
 		BulkDataReadMutex = new FCriticalSection();
 	}
