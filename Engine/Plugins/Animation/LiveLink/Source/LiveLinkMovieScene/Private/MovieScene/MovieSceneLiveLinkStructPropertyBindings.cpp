@@ -104,7 +104,7 @@ void FLiveLinkStructPropertyBindings::SetCurrentValueForEnumAt(int32 InIndex, co
 			if (FEnumProperty* EnumProperty = CastFieldChecked<FEnumProperty>(Property))
 			{
 				FNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty();
-				void* ValueAddr = EnumProperty->ContainerPtrToValuePtr<void>(InSourceAddress);
+				void* ValueAddr = FoundProperty.GetPropertyAddress<void>(InSourceAddress, InIndex);	
 				UnderlyingProperty->SetIntPropertyValue(ValueAddr, InValue);
 			}
 			else
