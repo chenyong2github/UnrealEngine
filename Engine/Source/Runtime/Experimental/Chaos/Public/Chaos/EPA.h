@@ -305,7 +305,10 @@ void EPAComputeVisibilityBorder(TArray<TEPAEntry<T>>& Entries, int32 EntryIdx, c
 		}
 	}
 
-	while (ToVisitStack.Num())
+	int32 Iteration = 0;
+	const int32 MaxIteration = 10000;
+
+	while (ToVisitStack.Num() && Iteration++ < MaxIteration)
 	{
 		const FEPAFloodEntry FloodEntry = ToVisitStack.Pop(false);
 		TEPAEntry<T>& Entry = Entries[FloodEntry.EntryIdx];
@@ -327,6 +330,11 @@ void EPAComputeVisibilityBorder(TArray<TEPAEntry<T>>& Entries, int32 EntryIdx, c
 				ToVisitStack.Add({ Entry.AdjFaces[Idx2], Entry.AdjEdges[Idx2] });
 			}
 		}
+	}
+
+	if(Iteration >= MaxIteration)
+	{
+		UE_LOG(LogChaos,Warning,TEXT("EPAComputeVisibilityBorder reached max iteration - something is wrong"));
 	}
 }
 
