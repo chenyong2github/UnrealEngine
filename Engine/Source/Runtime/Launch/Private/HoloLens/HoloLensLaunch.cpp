@@ -24,13 +24,13 @@
 #include "HoloLens/HoloLensWindow.h"
 #include <stdio.h>
 
-#include "HoloLens/AllowWindowsPlatformAtomics.h"
+//#include "HoloLens/AllowWindowsPlatformAtomics.h"
 #include "HoloLens/AllowWindowsPlatformTypes.h"
 #include <collection.h>
 #include <ppltasks.h>
 #include <concurrent_queue.h>
 #include "HoloLens/HideWindowsPlatformTypes.h"
-#include "HoloLens/HideWindowsPlatformAtomics.h"
+//#include "HoloLens/HideWindowsPlatformAtomics.h"
 
 // @MIXEDREALITY_CHANGE : BEGIN - Enable Stereo rendering for suspended apps
 #include "IHeadMountedDisplay.h"
