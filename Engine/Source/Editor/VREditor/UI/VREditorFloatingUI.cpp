@@ -200,6 +200,16 @@ void AVREditorFloatingUI::TickManually(float DeltaTime)
 	}
 }
 
+void AVREditorFloatingUI::Destroyed()
+{
+	if (!IsPendingKill())
+	{
+		CleanupWidgetReferences();
+	}
+
+	Super::Destroyed();
+}
+
 void AVREditorFloatingUI::CleanupWidgetReferences()
 {
 	if (WidgetComponent != nullptr)
