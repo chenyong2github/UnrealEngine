@@ -186,7 +186,7 @@ void FCollisionStructureManager::UpdateImplicitFlags(
 
 FCollisionStructureManager::FImplicit* 
 FCollisionStructureManager::NewImplicit(
-	Chaos::FErrorReporter& ErrorReporter,
+	Chaos::FErrorReporter ErrorReporter,
 	const Chaos::TParticles<float, 3>& MeshParticles,
 	const Chaos::TTriangleMesh<float>& TriMesh,
 	const FBox& CollisionBounds,
@@ -239,7 +239,7 @@ FCollisionStructureManager::NewImplicitSphere(
 
 FCollisionStructureManager::FImplicit*
 FCollisionStructureManager::NewImplicitLevelset(
-	Chaos::FErrorReporter& ErrorReporter,
+	Chaos::FErrorReporter ErrorReporter,
 	const Chaos::TParticles<float, 3>& MeshParticles,
 	const Chaos::TTriangleMesh<float>& TriMesh,
 	const FBox& CollisionBounds,
@@ -284,7 +284,7 @@ FCollisionStructureManager::NewImplicitLevelset(
 }
 
 Chaos::TLevelSet<float, 3>* FCollisionStructureManager::NewLevelset(
-	Chaos::FErrorReporter& ErrorReporter,
+	Chaos::FErrorReporter ErrorReporter,
 	const Chaos::TParticles<float, 3>& MeshParticles,
 	const Chaos::TTriangleMesh<float>& TriMesh,
 	const FBox& CollisionBounds,
