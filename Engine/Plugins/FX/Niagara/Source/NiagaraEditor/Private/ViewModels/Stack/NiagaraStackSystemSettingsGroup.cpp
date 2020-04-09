@@ -193,7 +193,6 @@ void UNiagaraStackParameterStoreItem::RefreshChildrenInternal(const TArray<UNiag
 			{
 				ValueObjectEntry = NewObject<UNiagaraStackParameterStoreEntry>(this);
 				ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), Owner.Get(), ParameterStore, Var.GetName().ToString(), Var.GetType(), GetStackEditorDataKey());
-				ValueObjectEntry->OnParameterDeleted().AddUObject(this, &UNiagaraStackParameterStoreItem::ParameterDeleted);
 			}
 
 			NewChildren.Add(ValueObjectEntry);
@@ -219,11 +218,6 @@ void UNiagaraStackParameterStoreItem::ParameterStoreChanged()
 	{
 		RefreshChildren();
 	}
-}
-
-void UNiagaraStackParameterStoreItem::ParameterDeleted()
-{
-	RefreshChildren();
 }
 
 #undef LOCTEXT_NAMESPACE
