@@ -1049,6 +1049,11 @@ private:
 	//This function should be call only in the PostLoad
 	void CreateUserSectionsDataForLegacyAssets();
 
+	/*
+	 * This function unbind any incorrect cloth asset that is bind.
+	 */
+	void PostLoadValidateClothingData();
+
 public:
 	//We want to avoid calling post edit change multiple time during import and build process.
 
