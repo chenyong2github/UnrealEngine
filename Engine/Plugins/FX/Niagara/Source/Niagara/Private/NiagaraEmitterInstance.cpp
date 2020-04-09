@@ -84,6 +84,15 @@ static FAutoConsoleVariableRef CVarMaxNiagaraGPUParticlesSpawnPerFrame(
 	TEXT("The max number of GPU particles we expect to spawn in a single frame.\n"),
 	ECVF_Default
 );
+
+static int32 GDebugForcedMaxGPUBufferElements = 0;
+static FAutoConsoleVariableRef CVarNiagaraDebugForcedMaxGPUBufferElements(
+	TEXT("fx.NiagaraDebugForcedMaxGPUBufferElements"),
+	GDebugForcedMaxGPUBufferElements,
+	TEXT("Force the maximum buffer size supported by the GPU to this value, for debugging purposes."),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 
 template<bool bAccumulate>
@@ -478,6 +487,39 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			}
 		}
 	}	
+
+	// Prevent division by 0 in case there are no renderers.
+	uint32 MaxGPUBufferComponents = 1;
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim)
+	{
+		// CPU emitters only upload the data needed by the renderers to the GPU. Compute the maximum number of components per particle
+		// among all the enabled renderers, since this will decide how many particles we can upload.
+		for (UNiagaraRendererProperties* RendererProperty : CachedEmitter->GetEnabledRenderers())
+		{
+			uint32 RendererMaxNumComponents = RendererProperty->ComputeMaxUsedComponents(*ParticleDataSet);
+			MaxGPUBufferComponents = FMath::Max(MaxGPUBufferComponents, RendererMaxNumComponents);
+		}
+	}
+	else
+	{
+		// GPU emitters must store the entire particle payload on GPU buffers, so get the maximum component count from the dataset.
+		MaxGPUBufferComponents = FMath::Max(ParticleDataSet->GetNumFloatComponents(), ParticleDataSet->GetNumInt32Components());
+	}
+
+	// See how many particles we can fit in a GPU buffer. This number can be quite small on some platforms.
+	uint64 MaxBufferElements = (GDebugForcedMaxGPUBufferElements > 0) ? (uint64)GDebugForcedMaxGPUBufferElements : GetMaxBufferDimension();
+	// Don't just cast the result of the division to 32-bit, since that will produce garbage if MaxNumInstances is larger than UINT_MAX. Saturate instead.
+	MaxInstanceCount = (uint32)FMath::Min(MaxBufferElements / MaxGPUBufferComponents, (uint64)UINT_MAX);
+
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		// On GPU, the size of the allocated buffers must be a multiple of NIAGARA_COMPUTE_THREADGROUP_SIZE, so round down.
+		MaxInstanceCount = (MaxInstanceCount / NIAGARA_COMPUTE_THREADGROUP_SIZE) * NIAGARA_COMPUTE_THREADGROUP_SIZE;
+		// We will need an extra scratch instance, so the maximum number of usable instances is one less than the value we computed.
+		MaxInstanceCount -= 1;
+	}
+
+	ParticleDataSet->SetMaxInstanceCount(MaxInstanceCount);
 }
 
 void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
@@ -1189,6 +1231,8 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	}
 
 	int32 AllocationSize = FMath::Max<int32>(AllocationEstimate, RequiredSize);
+	AllocationSize = (int32)FMath::Min((uint32)AllocationSize, MaxInstanceCount);
+
 	if (AllocationSize > MaxAllocationCount)
 	{
 		ReallocationCount++;
@@ -1257,9 +1301,13 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			{
 				for (int32 SpawnInfoIdx = 0; SpawnInfoIdx < SpawnInfos.Num(); SpawnInfoIdx++)
 				{
-					FNiagaraSpawnInfo& Info = SpawnInfos[SpawnInfoIdx];
+					const FNiagaraSpawnInfo& Info = SpawnInfos[SpawnInfoIdx];
 					if (Info.Count > 0 && (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS))
 					{
+						// Ideally, we should clamp the spawn count here, to make sure that we don't exceed the maximum number of particles. However, the value returned by
+						// GetNumParticles() can lag behind the real number, so we can't actually determine on the game thread how many particles we're still allowed to
+						// spawn. Therefore, we'll send the spawn requests to the render thread as if there was no limit, and we'll clamp the values there, when we prepare
+						// the destination dataset for simulation.
 						NumSpawnedOnGPUThisFrame += Info.Count;
 						if (NumSpawnedOnGPUThisFrame > GMaxNiagaraGPUParticlesSpawnPerFrame)
 						{
@@ -1283,7 +1331,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 						break;
 					}
 
-					// NOTE(mv): Separate particle count path for GPU emitters, as they early out..
+					// Warning: this will be be inaccurate if the render thread clamps the spawn count to keep the total particle count below the limit.
 					TotalSpawnedParticles += Info.Count;
 				}
 			}
@@ -1455,6 +1503,8 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 	Data.GetSpawnedIDsTable().SetNum(0, false);
 
+	int32 SpawnCountRemaining = AllocationSize - OrigNumParticles;
+
 	//Init new particles with the spawn script.
 	if (SpawnTotal + EventSpawnTotal > 0)
 	{
@@ -1520,16 +1570,18 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		};
 
 		//Perform all our regular spawning that's driven by our emitter script.
-		for (FNiagaraSpawnInfo& Info : SpawnInfos)
+		for (const FNiagaraSpawnInfo& Info : SpawnInfos)
 		{
-			if ( Info.Count > 0 )
+			const int32 AdjustedSpawnCount = FMath::Min(Info.Count, SpawnCountRemaining);
+			if ( AdjustedSpawnCount > 0 )
 			{
 				auto& EmitterParameters = ParentSystemInstance->EditEmitterParameters(EmitterIdx);
 				SpawnIntervalBinding.SetValue(Info.IntervalDt);
 				InterpSpawnStartBinding.SetValue(Info.InterpStartDt);
 				SpawnGroupBinding.SetValue(Info.SpawnGroup);
-				SpawnParticles(Info.Count, TEXT("Regular Spawn"));
+				SpawnParticles(AdjustedSpawnCount, TEXT("Regular Spawn"));
 			}
+			SpawnCountRemaining -= AdjustedSpawnCount;
 		}
 
 		EventSpawnStart = Data.GetDestinationDataChecked().GetNumInstances();
@@ -1542,7 +1594,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 				//Spawn particles coming from events.
 				for (int32 i = 0; i < Info.SpawnCounts.Num(); i++)
 				{
-					const int32 EventNumToSpawn = Info.SpawnCounts[i];
+					const int32 EventNumToSpawn = FMath::Min(Info.SpawnCounts[i], SpawnCountRemaining);
 					if (EventNumToSpawn > 0)
 					{
 						const int32 CurrNumParticles = Data.GetDestinationDataChecked().GetNumInstances();
@@ -1555,9 +1607,10 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 						SpawnParticles(EventNumToSpawn, TEXT("Event Spawn"));
 
 						//Update EventSpawnCounts to the number actually spawned.
-						int32 NumActuallySpawned = Data.GetDestinationDataChecked().GetNumInstances() - CurrNumParticles;
+						const int32 NumActuallySpawned = Data.GetDestinationDataChecked().GetNumInstances() - CurrNumParticles;
 						TotalActualEventSpawns += NumActuallySpawned;
 						Info.SpawnCounts[i] = NumActuallySpawned;
+						SpawnCountRemaining -= NumActuallySpawned;
 					}
 				}
 			}

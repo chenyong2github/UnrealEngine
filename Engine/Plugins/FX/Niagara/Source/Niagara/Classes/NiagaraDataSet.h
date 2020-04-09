@@ -216,8 +216,8 @@ private:
 	// GPU Data
 	/** The buffer offset where the instance count is accumulated. */
 	uint32 GPUInstanceCountBufferOffset;
-	/** The num of allocated chunks, each being of size ALLOC_CHUNKSIZE */
-	uint32 NumChunksAllocatedForGPU;
+	/** The num of allocated instances, which is aligned to ALLOC_CHUNKSIZE and usually larger than the needed number to amortize allocation cost. */
+	uint32 NumInstancesAllocatedForGPU;
 	/** GPU Buffer containing floating point values for GPU simulations. */
 	FRWBuffer GPUBufferFloat;
 	/** GPU Buffer containing integer values for GPU simulations. */
@@ -384,6 +384,9 @@ public:
 
 	void AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
 
+	void SetMaxInstanceCount(uint32 InInstanceCount) { MaxInstanceCount = InInstanceCount; }
+	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
+
 private:
 
 	void Reset();
@@ -442,6 +445,8 @@ private:
 	Additional buffers may be in here if they are currently being used by the render thread.
 	*/
 	TArray<FNiagaraDataBuffer*, TInlineAllocator<2>> Data;
+
+	uint32 MaxInstanceCount;
 
 	bool bInitialized;
 };
