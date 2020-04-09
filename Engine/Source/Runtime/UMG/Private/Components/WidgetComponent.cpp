@@ -1537,6 +1537,7 @@ void UWidgetComponent::UpdateWidget()
 				{
 					CurrentSlateWidget = NewSlateWidget;
 					SlateWindow->SetContent(NewSlateWidget.ToSharedRef());
+					bRenderCleared = false;
 					bWidgetChanged = true;
 				}
 			}
@@ -1546,6 +1547,7 @@ void UWidgetComponent::UpdateWidget()
 				{
 					CurrentSlateWidget = SlateWidget;
 					SlateWindow->SetContent(SlateWidget.ToSharedRef());
+					bRenderCleared = false;
 					bWidgetChanged = true;
 				}
 			}
