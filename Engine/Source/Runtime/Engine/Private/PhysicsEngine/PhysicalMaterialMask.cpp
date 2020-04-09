@@ -27,6 +27,10 @@
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
 
+#if WITH_CHAOS
+#include "Chaos/PhysicalMaterials.h"
+#endif
+
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogPhysicalMaterialMask, Log, All);
@@ -90,6 +94,11 @@ UPhysicalMaterialMask::UPhysicalMaterialMask(const FObjectInitializer& ObjectIni
 	,MaskTexture(nullptr)
 #endif
 	,UVChannelIndex(0)
+{
+}
+
+UPhysicalMaterialMask::UPhysicalMaterialMask(FVTableHelper& Helper)
+	: Super(Helper)
 {
 }
 

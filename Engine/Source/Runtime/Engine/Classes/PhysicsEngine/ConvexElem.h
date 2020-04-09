@@ -6,10 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "PhysicsEngine/ShapeElem.h"
 
-#define TEMP_HEADER_CHAOS_LEVEL_1
-#include "Chaos/Convex.h"
-#undef TEMP_HEADER_CHAOS_LEVEL_1
-
 #if WITH_CHAOS
 #include "Chaos/Serializable.h"
 #endif
@@ -29,8 +25,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 
-	template <typename T, int d>
-	class TConvex;
+	class FConvex;
 }
 
 /** One convex hull, used for simplified collision. */
