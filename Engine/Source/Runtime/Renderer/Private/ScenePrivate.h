@@ -1632,7 +1632,7 @@ class FVolumetricLightmapSceneData
 public:
 
 	FVolumetricLightmapSceneData() { GlobalVolumetricLightmap.Data = &GlobalVolumetricLightmapData; }
-	bool HasData() const { return LevelVolumetricLightmaps.Num() > 0; }
+	bool HasData() const { return GlobalVolumetricLightmapData.IndirectionTexture.Data.Num() && LevelVolumetricLightmaps.Num() > 0; }
 	void AddLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume, EShadingPath ShadingPath, bool bIsPersistentLevel);
 	void RemoveLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume);
 	const FPrecomputedVolumetricLightmap* GetLevelVolumetricLightmap() const 
