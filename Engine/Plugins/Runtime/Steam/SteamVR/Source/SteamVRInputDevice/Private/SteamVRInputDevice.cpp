@@ -2886,13 +2886,17 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 		}
 	}
 
-#if WITH_EDITOR
+// Jira UE-86396 - Motion Controllers fail to track during Launch On
+// Currently, due to UE-87371 "SteamVR Bindings packaged incorrectly on content - only projects" there are no bindings copied for launch
+// That is the root cause, but fix for UE-87371 is too big of a change for 4.25
+// Instead, for 4.25 generate bindings even if this is not in the editor.
+//#if WITH_EDITOR
 	// If we're running in the editor, build the controller bindings if they don't exist yet
 	if (GenerateBindings)
 	{
 		GenerateControllerBindings(ControllerBindingsPath, ControllerTypes, ControllerBindings, Actions, InputMappings, DeleteIfExists);
 	}
-#endif
+//#endif
 
 	// Add the default bindings object to the action manifest
 	if (ControllerBindings.Num() == 0)
