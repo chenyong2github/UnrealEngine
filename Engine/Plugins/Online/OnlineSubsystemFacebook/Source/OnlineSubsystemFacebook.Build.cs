@@ -38,7 +38,7 @@ public class OnlineSubsystemFacebook : ModuleRules
 			string FacebookNFLDir = "";
 			try
 			{
-				FacebookNFLDir = System.IO.Path.Combine(ModuleDirectory, "ThirdParty", "Android", "NotForLicensees", "FacebookSDK");
+				FacebookNFLDir = System.IO.Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Plugins/Online/OnlineSubsystemFacebook/Source/ThirdParty/Android/FacebookSDK");
 				bHasFacebookSDK = System.IO.Directory.Exists(FacebookNFLDir);
 			}
 			catch (System.Exception)
