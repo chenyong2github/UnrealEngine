@@ -289,6 +289,9 @@ public:
 #if WITH_EDITOR
 	/** One bit per instance if the instance is selected. */
 	TBitArray<> SelectedInstances;
+
+	/** Indicates that the user has purposedly chosen to show the instance list in the details panel, despite the performance warning. */
+	bool bForceShowAllInstancesDetails = false;
 #endif
 	/** Physics representation of the instance bodies. */
 	TArray<FBodyInstance*> InstanceBodies;
