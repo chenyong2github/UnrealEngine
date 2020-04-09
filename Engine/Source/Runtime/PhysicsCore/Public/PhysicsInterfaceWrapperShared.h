@@ -7,7 +7,8 @@ enum class EQueryFlags : uint16
 	None = 0,
 	PreFilter = (1 << 2),
 	PostFilter = (1 << 3),
-	AnyHit = (1 << 4)
+	AnyHit = (1 << 4),
+	SkipNarrowPhase = (1 << 5)
 };
 
 inline EQueryFlags operator| (EQueryFlags lhs, EQueryFlags rhs)
