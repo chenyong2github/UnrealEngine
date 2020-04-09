@@ -781,7 +781,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 				{
 					GPUBufferHalf.Release();
 				}
-				GPUBufferHalf.Initialize(sizeof(FFloat16), NumElementsToAlloc * Owner->GetNumHalfComponents(), EPixelFormat::PF_R16F, BUF_Static);
+				GPUBufferHalf.Initialize(sizeof(FFloat16), NumInstancesAllocatedForGPU * Owner->GetNumHalfComponents(), EPixelFormat::PF_R16F, BUF_Static);
 			}
 		}
 
