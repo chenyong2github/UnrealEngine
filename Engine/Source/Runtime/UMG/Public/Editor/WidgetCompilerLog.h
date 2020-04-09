@@ -9,6 +9,8 @@
 
 #if WITH_EDITOR
 
+class UUserWidget;
+
 class IWidgetCompilerLog
 {
 public:
@@ -35,6 +37,8 @@ public:
 		InternalLogMessage(Line);
 		return Line;
 	}
+
+	virtual TSubclassOf<UUserWidget> GetContextClass() const = 0;
 	
 protected:
 	virtual void InternalLogMessage(TSharedRef<FTokenizedMessage>& Message) = 0;

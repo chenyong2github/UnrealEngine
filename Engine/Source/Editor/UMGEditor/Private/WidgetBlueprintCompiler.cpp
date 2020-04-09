@@ -831,9 +831,15 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 class FBlueprintCompilerLog : public IWidgetCompilerLog
 {
 public:
-	FBlueprintCompilerLog(FCompilerResultsLog& InMessageLog)
+	FBlueprintCompilerLog(FCompilerResultsLog& InMessageLog, TSubclassOf<UUserWidget> InClassContext)
 		: MessageLog(InMessageLog)
+		, ClassContext(InClassContext)
 	{
+	}
+
+	virtual TSubclassOf<UUserWidget> GetContextClass() const override
+	{
+		return ClassContext;
 	}
 
 	virtual void InternalLogMessage(TSharedRef<FTokenizedMessage>& InMessage) override
@@ -844,6 +850,7 @@ public:
 private:
 	// Compiler message log (errors, warnings, notes)
 	FCompilerResultsLog& MessageLog;
+	TSubclassOf<UUserWidget> ClassContext;
 };
 
 
@@ -870,7 +877,7 @@ void FWidgetBlueprintCompilerContext::OnPostCDOCompiled()
 
 	if (!Blueprint->bIsRegeneratingOnLoad && bIsFullCompile)
 	{
-		FBlueprintCompilerLog BlueprintLog(MessageLog);
+		FBlueprintCompilerLog BlueprintLog(MessageLog, WidgetClass);
 		WidgetClass->GetDefaultObject<UUserWidget>()->ValidateBlueprint(*WidgetBP->WidgetTree, BlueprintLog);
 
 		if (MessageLog.NumErrors == 0 && WidgetClass->bAllowTemplate)
