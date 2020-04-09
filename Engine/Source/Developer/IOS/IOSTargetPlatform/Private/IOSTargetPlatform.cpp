@@ -37,6 +37,7 @@ FIOSTargetPlatform::FIOSTargetPlatform(bool bInIsTVOS, bool bInIsClientOnly)
 	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName());
 	TextureLODSettings = nullptr; // TextureLODSettings are registered by the device profile.
 	StaticMeshLODSettings.Initialize(EngineSettings);
+	SkeletalMeshDefaultLODStreamingSettings.Initialize(EngineSettings);
 #endif // #if WITH_ENGINE
 
 	// Initialize Ticker for device discovery

@@ -69,6 +69,7 @@
 
 #include "IMeshReductionManagerModule.h"
 #include "SkeletalMeshReductionSettings.h"
+#include "SkeletalMeshDefaultLODStreamingSettings.h"
 
 #endif // #if WITH_EDITOR
 
@@ -4054,6 +4055,53 @@ void USkeletalMesh::ResetLODInfo()
 {
 	LODInfo.Reset();
 }
+
+#if WITH_EDITOR
+bool USkeletalMesh::GetSupportsLODStreaming(const ITargetPlatform* TargetPlatform) const
+{
+	check(TargetPlatform);
+	if (bOverrideLODStreamingSettings)
+	{
+		return bSupportLODStreaming.GetValueForPlatformIdentifiers(
+			TargetPlatform->GetPlatformInfo().PlatformGroupName,
+			TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+	}
+	else
+	{
+		return TargetPlatform->GetSkeletalMeshDefaultLODStreamingSettings().IsLODStreamingEnabled();
+	}
+}
+
+int32 USkeletalMesh::GetMaxNumStreamedLODs(const ITargetPlatform* TargetPlatform) const
+{
+	check(TargetPlatform);
+	if (bOverrideLODStreamingSettings)
+	{
+		return MaxNumStreamedLODs.GetValueForPlatformIdentifiers(
+			TargetPlatform->GetPlatformInfo().PlatformGroupName,
+			TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+	}
+	else
+	{
+		return TargetPlatform->GetSkeletalMeshDefaultLODStreamingSettings().GetMaxNumStreamedLODs();
+	}
+}
+
+int32 USkeletalMesh::GetMaxNumOptionalLODs(const ITargetPlatform* TargetPlatform) const
+{
+	check(TargetPlatform);
+	if (bOverrideLODStreamingSettings)
+	{
+		return MaxNumOptionalLODs.GetValueForPlatformIdentifiers(
+			TargetPlatform->GetPlatformInfo().PlatformGroupName,
+			TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+	}
+	else
+	{
+		return TargetPlatform->GetSkeletalMeshDefaultLODStreamingSettings().GetMaxNumOptionalLODs();
+	}
+}
+#endif
 
 void USkeletalMesh::SetLODSettings(USkeletalMeshLODSettings* InLODSettings)
 {
