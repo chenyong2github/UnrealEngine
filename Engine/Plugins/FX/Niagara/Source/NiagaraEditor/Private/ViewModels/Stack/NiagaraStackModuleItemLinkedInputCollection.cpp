@@ -9,6 +9,8 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 #include "EdGraph/EdGraphPin.h"
+#include "NiagaraEditorSettings.h"
+#include "NiagaraEditorUtilities.h"
 
 UNiagaraStackModuleItemLinkedInputCollection::UNiagaraStackModuleItemLinkedInputCollection()
 	: FunctionCallNode(nullptr)
@@ -25,7 +27,7 @@ void UNiagaraStackModuleItemLinkedInputCollection::Initialize(FRequiredEntryData
  
 FText UNiagaraStackModuleItemLinkedInputCollection::GetDisplayName() const
 {
-	return NSLOCTEXT("StackModuleItemLinkedInputCollection", "LinkedInputsLabel", "Linked Script Inputs");
+	return NSLOCTEXT("StackModuleItemLinkedInputCollection", "ParameterReadsLabel", "Parameter Reads");
 }
 
 bool UNiagaraStackModuleItemLinkedInputCollection::IsExpandedByDefault() const
@@ -71,26 +73,41 @@ void UNiagaraStackModuleItemLinkedInputCollection::RefreshChildrenInternal(const
 			for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); i++)
 			{
 				FNiagaraVariable& Variable = Builder.Histories[0].Variables[i];
-				TArray<const UEdGraphPin*>& WriteHistory = Builder.Histories[0].PerVariableWriteHistory[i];
-
-				for (const UEdGraphPin* WritePin : WriteHistory)
+				const TArray<TTuple<const UEdGraphPin*, const UEdGraphPin*>>& ReadHistory = Builder.Histories[0].PerVariableReadHistory[i];
+				if (ReadHistory.Num() > 0)
 				{
-					if (Cast<UNiagaraNodeParameterMapGet>(WritePin->GetOwningNode()) != nullptr)
+					const FNiagaraNamespaceMetadata NamespaceMetadata = FNiagaraEditorUtilities::GetNamespaceMetaDataForVariableName(Variable.GetName());
+					if ((NamespaceMetadata.IsValid()) && (NamespaceMetadata.Namespaces.Contains(FNiagaraConstants::LocalNamespace) == false))
 					{
-						UNiagaraStackModuleItemOutput* Output = FindCurrentChildOfTypeByPredicate<UNiagaraStackModuleItemOutput>(CurrentChildren,
-							[&](UNiagaraStackModuleItemOutput* CurrentOutput) { return CurrentOutput->GetOutputParameterHandle().GetParameterHandleString() == Variable.GetName(); });
-
-						if (Output == nullptr)
+						for (const TTuple<const UEdGraphPin*, const UEdGraphPin*>& ReadPair : ReadHistory)
 						{
-							Output = NewObject<UNiagaraStackModuleItemOutput>(this);
-							Output->Initialize(CreateDefaultChildRequiredData(), *FunctionCallNode, Variable.GetName(), Variable.GetType());
-						}
+							const UEdGraphPin* ReadPin = ReadPair.Key;
+							if (Cast<UNiagaraNodeParameterMapGet>(ReadPin->GetOwningNode()) != nullptr)
+							{
+								UNiagaraStackModuleItemOutput* Output = FindCurrentChildOfTypeByPredicate<UNiagaraStackModuleItemOutput>(CurrentChildren,
+									[&](UNiagaraStackModuleItemOutput* CurrentOutput) { return CurrentOutput->GetOutputParameterHandle().GetParameterHandleString() == Variable.GetName(); });
 
-						NewChildren.Add(Output);
-						break;
+								if (Output == nullptr)
+								{
+									Output = NewObject<UNiagaraStackModuleItemOutput>(this);
+									Output->Initialize(CreateDefaultChildRequiredData(), *FunctionCallNode, Variable.GetName(), Variable.GetType());
+								}
+
+								NewChildren.Add(Output);
+								break;
+							}
+						}
 					}
 				}
 			}
 		}
+
+		auto SortNewChildrenPred = [](const UNiagaraStackEntry& EntryA, const UNiagaraStackEntry& EntryB) {
+			const UNiagaraStackModuleItemOutput* ModuleItemA = static_cast<const UNiagaraStackModuleItemOutput*>(&EntryA);
+			const UNiagaraStackModuleItemOutput* ModuleItemB = static_cast<const UNiagaraStackModuleItemOutput*>(&EntryB);
+			return FNiagaraEditorUtilities::GetVariableSortPriority(ModuleItemA->GetOutputParameterHandle().GetParameterHandleString(), ModuleItemB->GetOutputParameterHandle().GetParameterHandleString());
+		};
+
+		NewChildren.Sort(SortNewChildrenPred);
 	}
 }

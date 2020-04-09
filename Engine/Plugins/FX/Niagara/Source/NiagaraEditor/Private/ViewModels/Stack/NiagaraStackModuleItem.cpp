@@ -240,8 +240,8 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 
 			InputCollection->SetShouldShowInStack(GetStackEditorData().GetShowOutputs() || GetStackEditorData().GetShowLinkedInputs());
 
-			NewChildren.Add(LinkedInputCollection);
 			NewChildren.Add(InputCollection);
+			NewChildren.Add(LinkedInputCollection);
 			NewChildren.Add(OutputCollection);
 		
 		}

@@ -57,6 +57,7 @@
 #include "Styling/CoreStyle.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -2443,6 +2444,84 @@ FText FNiagaraEditorUtilities::FormatParameterNameForTextDisplay(FName Parameter
 	}
 	DisplayString += HandleParts[HandleParts.Num() - 1].ToString();
 	return FText::FromString(DisplayString);
+}
+
+bool FNiagaraEditorUtilities::GetVariableSortPriority(const FName& VarNameA, const FName& VarNameB)
+{
+	const FNiagaraNamespaceMetadata& NamespaceMetaDataA = GetNamespaceMetaDataForVariableName(VarNameA);
+	if (NamespaceMetaDataA.IsValid() == false)
+	{
+		return false;
+	}
+
+	const FNiagaraNamespaceMetadata& NamespaceMetaDataB = GetNamespaceMetaDataForVariableName(VarNameB);
+	const int32 NamespaceAPriority = GetNamespaceMetaDataSortPriority(NamespaceMetaDataA, NamespaceMetaDataB);
+	if (NamespaceAPriority == 0)
+	{
+		return VarNameA.LexicalLess(VarNameB);
+	}
+	return NamespaceAPriority > 0;
+}
+
+int32 FNiagaraEditorUtilities::GetNamespaceMetaDataSortPriority(const FNiagaraNamespaceMetadata& A, const FNiagaraNamespaceMetadata& B)
+{
+	if (A.IsValid() == false)
+	{
+		return false;
+	}
+	else if (B.IsValid() == false)
+	{
+		return true;
+	}
+
+	const int32 ANum = A.Namespaces.Num();
+	const int32 BNum = B.Namespaces.Num();
+	for (int32 i = 0; i < FMath::Min(ANum, BNum); ++i)
+	{
+		const int32 ANamespacePriority = GetNamespaceSortPriority(A.Namespaces[i]);
+		const int32 BNamespacePriority = GetNamespaceSortPriority(B.Namespaces[i]);
+		if (ANamespacePriority != BNamespacePriority)
+			return ANamespacePriority < BNamespacePriority ? 1 : -1;
+	}
+	if (ANum == BNum)
+		return 0;
+
+	return ANum < BNum ? 1 : -1;
+}
+
+int32 FNiagaraEditorUtilities::GetNamespaceSortPriority(const FName& Namespace)
+{
+	if (Namespace == FNiagaraConstants::UserNamespace)
+		return 0;
+	else if (Namespace == FNiagaraConstants::ModuleNamespace)
+		return 1;
+	else if (Namespace == FNiagaraConstants::StaticSwitchNamespace)
+		return 2;
+	else if (Namespace == FNiagaraConstants::DataInstanceNamespace)
+		return 3;
+	else if (Namespace == FNiagaraConstants::OutputNamespace)
+		return 4;
+	else if (Namespace == FNiagaraConstants::EngineNamespace)
+		return 5;
+	else if (Namespace == FNiagaraConstants::ParameterCollectionNamespace)
+		return 6;
+	else if (Namespace == FNiagaraConstants::SystemNamespace)
+		return 7;
+	else if (Namespace == FNiagaraConstants::EmitterNamespace)
+		return 8;
+	else if (Namespace == FNiagaraConstants::ParticleAttributeNamespace)
+		return 9;
+	else if (Namespace == FNiagaraConstants::TransientNamespace)
+		return 10;
+
+	return 11;
+}
+
+const FNiagaraNamespaceMetadata FNiagaraEditorUtilities::GetNamespaceMetaDataForVariableName(const FName& VarName)
+{
+	const FNiagaraParameterHandle VarHandle = FNiagaraParameterHandle(VarName);
+	const TArray<FName> VarHandleNameParts = VarHandle.GetHandleParts();
+	return GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(VarHandleNameParts);
 }
 
 #undef LOCTEXT_NAMESPACE
