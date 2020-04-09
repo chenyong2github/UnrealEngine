@@ -2612,6 +2612,14 @@ ULandscapeHeightfieldCollisionComponent::ULandscapeHeightfieldCollisionComponent
 	SetNetAddressable();
 }
 
+ULandscapeHeightfieldCollisionComponent::ULandscapeHeightfieldCollisionComponent(FVTableHelper& Helper)
+	: Super(Helper)
+{
+
+}
+
+ULandscapeHeightfieldCollisionComponent::~ULandscapeHeightfieldCollisionComponent() = default;
+
 ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent() const
 {
 	return RenderComponent.Get();

@@ -52,6 +52,8 @@ class ENGINE_API UPhysicalMaterial : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+	virtual ~UPhysicalMaterial();
+	UPhysicalMaterial(FVTableHelper& Helper);
 	//
 	// Surface properties.
 	//

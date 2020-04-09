@@ -42,6 +42,9 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 
+	ULandscapeHeightfieldCollisionComponent(FVTableHelper& Helper);
+	virtual ~ULandscapeHeightfieldCollisionComponent();
+
 	/** List of layers painted on this component. Matches the WeightmapLayerAllocations array in the LandscapeComponent. */
 	UPROPERTY()
 	TArray<ULandscapeLayerInfoObject*> ComponentLayerInfos;
