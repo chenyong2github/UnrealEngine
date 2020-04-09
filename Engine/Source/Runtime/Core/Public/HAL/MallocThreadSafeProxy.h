@@ -119,4 +119,9 @@ public:
 		check(UsedMalloc);
 		UsedMalloc->Trim(bTrimThreadCaches);
 	}
+
+	virtual bool IsInternallyThreadSafe() const override
+	{ 
+		return true; 
+	}
 };
