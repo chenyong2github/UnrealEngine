@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
@@ -35,3 +37,4 @@ private:
 	/** The detail builder for this customization */
 	TWeakPtr<IDetailLayoutBuilder> CachedDetailBuilder;
 };
+
