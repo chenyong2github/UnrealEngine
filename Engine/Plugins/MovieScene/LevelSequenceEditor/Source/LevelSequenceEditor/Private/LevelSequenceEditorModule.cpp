@@ -370,6 +370,11 @@ protected:
 		return OnMasterSequenceCreatedEvent;
 	}
 
+	FAllowPlaybackContext& OnComputePlaybackContext() override
+	{
+		return OnComputePlaybackContextDelegate;
+	}
+
 	static TSharedRef<ISequencerEditorObjectBinding> OnCreateActorBinding(TSharedRef<ISequencer> InSequencer)
 	{
 		return MakeShareable(new FLevelSequenceEditorActorBinding(InSequencer));
@@ -400,6 +405,8 @@ private:
 	TSharedPtr<FUICommandList> CommandList;
 
 	FOnMasterSequenceCreated OnMasterSequenceCreatedEvent;
+
+	FAllowPlaybackContext OnComputePlaybackContextDelegate;
 
 	FDelegateHandle ActorBindingDelegateHandle;
 
