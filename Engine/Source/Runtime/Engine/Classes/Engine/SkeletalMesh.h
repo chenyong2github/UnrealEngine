@@ -1068,6 +1068,11 @@ private:
 	 */
 	void PostLoadValidateClothingData();
 
+	/*
+	 * This function will enforce the user section data is coherent with the sections.
+	 */
+	void PostLoadValidateUserSectionData();
+
 public:
 	//We want to avoid calling post edit change multiple time during import and build process.
 
