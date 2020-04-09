@@ -42,7 +42,7 @@ THIRD_PARTY_INCLUDES_END
 
 DEFINE_LOG_CATEGORY(LogXAudio2);
 
-class UE_DEPRECATED(4.26, "XAudio2 Module has been depricated.") FXAudio2DeviceModule : public IAudioDeviceModule
+class FXAudio2DeviceModule : public IAudioDeviceModule
 {
 public:
 
