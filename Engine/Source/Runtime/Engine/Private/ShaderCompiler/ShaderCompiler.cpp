@@ -3458,15 +3458,8 @@ void GlobalBeginCompileShader(
 		bool bIsMobileMultiview = bUsingMobileRenderer && bIsMobileMultiViewCVar;
 		if (bIsMobileMultiview && !RHISupportsMobileMultiView(ShaderPlatform))
 		{
-			// Native mobile multi-view is not supported, attempt to fall back to instancing
-			if (GRHISupportsArrayIndexFromAnyShader)
-			{
-				bIsInstancedStereo = true;
-			}
-			else
-			{
-				bIsMobileMultiview = false;
-			}
+			// Native mobile multi-view is not supported, fall back to instancing if available
+			bIsInstancedStereo = RHISupportsInstancedStereo(ShaderPlatform);
 		}
 
 		Input.Environment.SetDefine(TEXT("INSTANCED_STEREO"), bIsInstancedStereo);

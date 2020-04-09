@@ -267,10 +267,11 @@ void FWindowsMixedRealityViewport::UpdateBackBuffer()
 	BackBuffer = nullptr;
 	if (GEngine && GEngine->StereoRenderingDevice && GEngine->StereoRenderingDevice->GetRenderTargetManager())
 	{
+        // HACK: Allocate with index 16 to avoid layered RTs from being allocated for viewports that don't need it
 		if (GEngine
 			->StereoRenderingDevice
 			->GetRenderTargetManager()
-			->AllocateRenderTargetTexture(0, SizeX, SizeY, PixelFormat, 1, TexCreate_None, TexCreate_RenderTargetable, OutTargetableTexture, OutShaderResourceTexture))
+			->AllocateRenderTargetTexture(16, SizeX, SizeY, PixelFormat, 1, TexCreate_None, TexCreate_RenderTargetable, OutTargetableTexture, OutShaderResourceTexture))
 		{
 			BackBuffer = (FD3D11Texture2D*)(OutTargetableTexture.GetReference());
 		}
