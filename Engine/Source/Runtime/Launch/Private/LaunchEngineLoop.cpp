@@ -1394,6 +1394,10 @@ namespace AppLifetimeEventCapture
 }
 #endif //WITH_ENGINE
 
+static void UpdateGInputTime()
+{
+	GInputTime = FPlatformTime::Cycles64();
+}
 
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPreStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats, STATGROUP_LoadTime);
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats, STATGROUP_LoadTime);
@@ -1537,6 +1541,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #if WITH_ENGINE
 	FCoreUObjectDelegates::PostGarbageCollectConditionalBeginDestroy.AddStatic(DeferredPhysResourceCleanup);
 #endif
+	FCoreDelegates::OnSamplingInput.AddStatic(UpdateGInputTime);
 
 #if defined(WITH_LAUNCHERCHECK) && WITH_LAUNCHERCHECK
 	if (ILauncherCheckModule::Get().WasRanFromLauncher() == false)
@@ -4846,7 +4851,7 @@ void FEngineLoop::Tick()
 		FPlatformFileManager::Get().TickActivePlatformFile();
 
 		// Roughly track the time when the input was sampled
-		GInputTime = FPlatformTime::Cycles64();
+		FCoreDelegates::OnSamplingInput.Broadcast();
 
 		// process accumulated Slate input
 		if (FSlateApplication::IsInitialized() && !bIdleMode)
