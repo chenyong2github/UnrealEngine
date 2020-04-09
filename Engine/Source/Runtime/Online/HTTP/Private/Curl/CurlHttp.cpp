@@ -323,12 +323,12 @@ void FCurlHttpRequest::SetContentAsString(const FString& ContentString)
 		return;
 	}
 
-	FTCHARToUTF8 Converter(*ContentString);
+	int32 Utf8Length = FTCHARToUTF8_Convert::ConvertedLength(*ContentString, ContentString.Len());
 	TArray<uint8> Buffer;
-	Buffer.SetNum(Converter.Length());
-	FMemory::Memcpy(Buffer.GetData(), Converter.Get(), Buffer.Num());
-	bIsRequestPayloadSeekable = true;
+	Buffer.SetNumUninitialized(Utf8Length);
+	FTCHARToUTF8_Convert::Convert((ANSICHAR*)Buffer.GetData(), Buffer.Num(), *ContentString, ContentString.Len());
 	RequestPayload = MakeUnique<FRequestPayloadInMemory>(MoveTemp(Buffer));
+	bIsRequestPayloadSeekable = true;
 }
 
 bool FCurlHttpRequest::SetContentAsStreamedFile(const FString& Filename)
