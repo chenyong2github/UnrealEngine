@@ -10,6 +10,40 @@
 #include "Math/Vector.h"
 
 /**
+* FFieldContext
+*   The Context is passed into the field evaluation pipeline during evaluation. The Nodes
+*   will have access to the samples and indices for evaluation. The MetaData is a optional
+*   data package that the nodes will use during evaluation, the context does not assume
+*   ownership of the metadata but assumes it will remain in scope during evaluation.
+*/
+struct FIELDSYSTEMCORE_API ContextIndex
+{
+	ContextIndex(int32 InSample = INDEX_NONE, int32 InResult = INDEX_NONE)
+		: Sample(InSample)
+		, Result(InResult)
+	{}
+
+	static void ContiguousIndices(
+		TArray<ContextIndex>& Array,
+		const int NumParticles,
+		const bool bForce = true)
+	{
+		if(bForce)
+		{
+			Array.SetNum(NumParticles);
+			for(int32 i = 0; i < Array.Num(); ++i)
+			{
+				Array[i].Result = i;
+				Array[i].Sample = i;
+			}
+		}
+	}
+
+	int32 Sample;
+	int32 Result;
+};
+
+/**
 * MetaData
 *
 * Metadata is used to attach state based information to the field evaluation 
@@ -26,7 +60,8 @@ public:
 		ECommandData_None = 0,
 		ECommandData_ProcessingResolution,
 		ECommandData_Results,
-		ECommandData_Iteration
+		ECommandData_Iteration,
+		ECommandData_Culling
 	};
 
 
@@ -67,39 +102,30 @@ public:
 	int32 Iterations;
 };
 
-
-/**
-* FFieldContext
-*   The Context is passed into the field evaluation pipeline during evaluation. The Nodes
-*   will have access to the samples and indices for evaluation. The MetaData is a optional
-*   data package that the nodes will use during evaluation, the context does not assume 
-*   ownership of the metadata but assumes it will remain in scope during evaluation. 
-*/
-struct FIELDSYSTEMCORE_API ContextIndex 
+class FIELDSYSTEMCORE_API FFieldSystemMetaDataCulling : public FFieldSystemMetaData
 {
-	ContextIndex(int32 InSample=INDEX_NONE, int32 InResult=INDEX_NONE)
-		: Sample(InSample)
-		, Result(InResult) 
-	{}
-
-	static void ContiguousIndices(
-		TArray<ContextIndex>& Array, 
-		const int NumParticles, 
-		const bool bForce = true)
+public:
+	explicit FFieldSystemMetaDataCulling(const int32 PotentialSize)
+		: bCullingActive(false)
+		, MaxSize(PotentialSize)
 	{
-		if (bForce)
-		{
-			Array.SetNum(NumParticles);
-			for (int32 i = 0; i < Array.Num(); ++i)
-			{
-				Array[i].Result = i;
-				Array[i].Sample = i;
-			}
-		}
+		EvaluatedIndexBuffer.Reserve(MaxSize);
+	};
+
+	virtual ~FFieldSystemMetaDataCulling() = default;
+
+	virtual EMetaType Type() const
+	{
+		return EMetaType::ECommandData_Culling;
+	}
+	virtual FFieldSystemMetaData* NewCopy() const
+	{
+		return new FFieldSystemMetaDataCulling(MaxSize);
 	}
 
-	int32 Sample;
-	int32 Result;
+	bool bCullingActive;
+	int32 MaxSize;
+	TArray<ContextIndex> EvaluatedIndexBuffer;
 };
 
 struct FIELDSYSTEMCORE_API FFieldContext
@@ -108,22 +134,47 @@ struct FIELDSYSTEMCORE_API FFieldContext
 	typedef  TMap<FFieldSystemMetaData::EMetaType, FFieldSystemMetaData * > PointerMap;
 
 	FFieldContext() = delete;
+
+	FFieldContext(const FFieldContext&) = delete;
+	FFieldContext(FFieldContext&&) = delete;
+	FFieldContext& operator =(const FFieldContext&) = delete;
+	FFieldContext & operator =(FFieldContext&&) = delete;
+
 	FFieldContext(const TArrayView< ContextIndex >& SampleIndicesIn, const TArrayView<FVector>& SamplesIn,
 		const UniquePointerMap & MetaDataIn )
 		: SampleIndices(SampleIndicesIn)
 		, Samples(SamplesIn)
+
 	{
 		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : MetaDataIn)
 		{
 			MetaData.Add(Meta.Key) = Meta.Value.Get();
 		}
+
+		CullingData = MakeUnique<FFieldSystemMetaDataCulling>(SampleIndices.Num());
+		MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Culling, CullingData.Get());
 	}
 	FFieldContext(const TArrayView< ContextIndex >& SampleIndicesIn, const TArrayView<FVector>& SamplesIn,
 		const PointerMap & MetaDataIn)
 		: SampleIndices(SampleIndicesIn)
 		, Samples(SamplesIn)
 		, MetaData(MetaDataIn)
-	{}
+	{
+		CullingData = MakeUnique<FFieldSystemMetaDataCulling>(SampleIndices.Num());
+		MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Culling, CullingData.Get());
+	}
+
+	TArrayView<ContextIndex> GetEvaluatedSamples()
+	{
+		if(!CullingData->bCullingActive)
+		{
+			// No culling took place
+			return SampleIndices;
+		}
+
+		// Culling fields created an evaluation set
+		return MakeArrayView(CullingData->EvaluatedIndexBuffer);
+	}
 
 	//
 	// Ryan - TODO: This concept of having discreet sample data needs to change.  
@@ -132,12 +183,44 @@ struct FIELDSYSTEMCORE_API FFieldContext
 	// traversed also needs to change; possibly to some load balanced threaded iterator 
 	// or task based paradigm.
 
-	//const TArrayView<THandle::TTransientHandle*>& Handles;
 	const TArrayView<ContextIndex>& SampleIndices;
 	const TArrayView<FVector>& Samples;
 	PointerMap MetaData;
+	TUniquePtr<FFieldSystemMetaDataCulling> CullingData;
 };
 
+/** 
+ * Limits the application of a meta data object to a single scope.
+ * This has the effect of exposing metadata to downstream nodes but making sure
+ * upstream nodes cannot see it.
+ */
+class FIELDSYSTEMCORE_API FScopedFieldContextMetaData
+{
+	FScopedFieldContextMetaData() = delete;
+	FScopedFieldContextMetaData(const FScopedFieldContextMetaData&) = delete;
+	FScopedFieldContextMetaData(FScopedFieldContextMetaData&&) = delete;
+	FScopedFieldContextMetaData& operator=(const FScopedFieldContextMetaData&) = delete;
+	FScopedFieldContextMetaData& operator=(FScopedFieldContextMetaData&&) = delete;
+
+public:
+
+	explicit FScopedFieldContextMetaData(FFieldContext& InContext, FFieldSystemMetaData* InMetaData)
+		: TargetContext(InContext)
+	{
+		check(InMetaData);
+		MetaType = InMetaData->Type();
+		TargetContext.MetaData.Add(MetaType, InMetaData);
+	}
+
+	~FScopedFieldContextMetaData()
+	{
+		TargetContext.MetaData.Remove(MetaType);
+	}
+
+private:
+	FFieldSystemMetaData::EMetaType MetaType;
+	FFieldContext& TargetContext;
+};
 
 /**
 * FFieldNodeBase
@@ -210,7 +293,7 @@ public:
 	
 	virtual ~FFieldNode() {}
 
-	virtual void Evaluate(const FFieldContext &, TArrayView<T> & Results) const = 0;
+	virtual void Evaluate(FFieldContext&, TArrayView<T>& Results) const = 0;
 
 	static EFieldType StaticType();
 	virtual EFieldType Type() const { return StaticType(); }
@@ -245,7 +328,7 @@ public:
 
 	// Commands are copied when moved from the one thread to 
 	// another. This requires a full copy of all associated data. 
-	FFieldSystemCommand(const FFieldSystemCommand & Other)
+	FFieldSystemCommand(const FFieldSystemCommand& Other)
 		: TargetAttribute(Other.RootNode ? Other.TargetAttribute:"")
 		, RootNode(Other.RootNode?Other.RootNode->NewCopy():nullptr)
 	{
