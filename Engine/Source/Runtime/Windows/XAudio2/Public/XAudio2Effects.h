@@ -12,7 +12,7 @@
 /** 
  * XAudio2 effects manager
  */
-class UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FXAudio2EffectsManager : public FAudioEffectsManager
+class FXAudio2EffectsManager : public FAudioEffectsManager
 {
 public:
 	FXAudio2EffectsManager( FXAudio2Device* InDevice );
