@@ -50,7 +50,7 @@ DECLARE_CYCLE_STAT(TEXT("Resolve compiled statements"), EKismetCompilerStats_Res
 //////////////////////////////////////////////////////////////////////////
 // FKismetCompilerUtilities
 
-static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphPinType& OwningType, const FEdGraphTerminalType& TerminalType, FProperty* TestProperty, FCompilerResultsLog& MessageLog, UClass* SelfClass)
+static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinType& OwningType, const FEdGraphTerminalType& TerminalType, FProperty* TestProperty, FCompilerResultsLog& MessageLog, UClass* SelfClass)
 {
 	check(SourcePin);
 	const EEdGraphPinDirection Direction = SourcePin->Direction; 
@@ -77,6 +77,10 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 	else if ((PinCategory == UEdGraphSchema_K2::PC_Class) || (PinCategory == UEdGraphSchema_K2::PC_SoftClass))
 	{
 		const UClass* ClassType = (PinSubCategory == UEdGraphSchema_K2::PSC_Self) ? SelfClass : Cast<const UClass>(PinSubCategoryObject);
+		if (ClassType)
+		{
+			ClassType = ClassType->GetAuthoritativeClass();
+		}
 
 		if (ClassType == NULL)
 		{
@@ -98,6 +102,9 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 			{
 				const UClass* OutputClass = (Direction == EGPD_Output) ? ClassType :  MetaClass;
 				const UClass* InputClass = (Direction == EGPD_Output) ? MetaClass : ClassType;
+
+				OutputClass = OutputClass->GetAuthoritativeClass();
+				InputClass = InputClass->GetAuthoritativeClass();
 
 				// It matches if it's an exact match or if the output class is more derived than the input class
 				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass->IsChildOf(InputClass)));
@@ -263,7 +270,7 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 		MessageLog.Error(*FText::Format(LOCTEXT("UnsupportedTypeForPinFmt", "Unsupported type ({0}) on @@"), UEdGraphSchema_K2::TypeToText(OwningType)).ToString(), SourcePin);
 	}
 
-	return false;
+	return bTypeMismatch || bSubtypeMismatch;
 }
 
 /** Tests to see if a pin is schema compatible with a property */
@@ -313,7 +320,7 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				}
 			}
 			
-			bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), ArrayProp->Inner, MessageLog, SelfClass);
+			bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), ArrayProp->Inner, MessageLog, SelfClass);
 		}
 		else
 		{
@@ -330,7 +337,7 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				return true;
 			}
 
-			bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), SetProperty->ElementProp, MessageLog, SelfClass);
+			bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), SetProperty->ElementProp, MessageLog, SelfClass);
 		}
 		else
 		{
@@ -347,8 +354,8 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				return true;
 			}
 
-			bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), MapProperty->KeyProp, MessageLog, SelfClass);
-			bTypeMismatch = bTypeMismatch && ::IsTypeCompatibleWithProperty(SourcePin, Type, Type.PinValueType, MapProperty->ValueProp, MessageLog, SelfClass);
+			bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), MapProperty->KeyProp, MessageLog, SelfClass);
+			bTypeMismatch = bTypeMismatch || ::DoesTypeNotMatchProperty(SourcePin, Type, Type.PinValueType, MapProperty->ValueProp, MessageLog, SelfClass);
 		}
 		else
 		{
@@ -359,7 +366,7 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 	else
 	{
 		// For scalars, we just take the passed in property
-		bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), Property, MessageLog, SelfClass);
+		bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), Property, MessageLog, SelfClass);
 	}
 
 	// Check for the early out...if this is a type dependent parameter in an array function
