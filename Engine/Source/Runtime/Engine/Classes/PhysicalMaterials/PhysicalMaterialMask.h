@@ -63,6 +63,8 @@ public:
 	virtual void FinishDestroy() override;
 	//~ End UObject Interface
 
+	~UPhysicalMaterialMask();
+
 #if WITH_EDITOR
 	// Helper method to set mask texture
 	void SetMaskTexture(UTexture* InMaskTexture, const FString& InTextureFilename);

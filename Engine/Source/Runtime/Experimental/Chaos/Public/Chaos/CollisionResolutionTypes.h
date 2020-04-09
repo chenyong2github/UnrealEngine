@@ -68,4 +68,8 @@ namespace Chaos
 		FVec3 AccumulatedImpulse;
 	};
 
+
+	//TODO: move into a better forward declare location
+	class FPBDCollisionConstraintHandle;
+	using FCollisionModifierCallback = TFunction<ECollisionModifierResult(FPBDCollisionConstraintHandle*)>;
 }
