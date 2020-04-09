@@ -15,6 +15,7 @@
 #if WITH_ENGINE
 #include "AudioCompressionSettings.h"
 #include "StaticMeshResources.h"
+#include "SkeletalMeshDefaultLODStreamingSettings.h"
 #endif // WITH_ENGINE
 
 class UTextureLODSettings;
@@ -133,6 +134,11 @@ public:
 		return StaticMeshLODSettings;
 	}
 
+	virtual const FSkeletalMeshDefaultLODStreamingSettings& GetSkeletalMeshDefaultLODStreamingSettings() const override
+	{
+		return SkeletalMeshDefaultLODStreamingSettings;
+	}
+
 	virtual void GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const override;
 
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
@@ -177,6 +183,8 @@ private:
 
 	// Holds the static mesh LOD settings.
 	FStaticMeshLODSettings StaticMeshLODSettings;
+
+	FSkeletalMeshDefaultLODStreamingSettings SkeletalMeshDefaultLODStreamingSettings;
 #endif // WITH_ENGINE
 
 	// Holds an event delegate that is executed when a new target device has been discovered.
