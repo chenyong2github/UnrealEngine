@@ -292,7 +292,11 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 #endif
 
 #if NEEDS_PARTICLE_LOCAL_TO_WORLD || NEEDS_PARTICLE_WORLD_TO_LOCAL
-	float4x4 ParticleTransform = transpose(float4x4(Interpolants.LocalToWorld, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	float4x4 ParticleTransform = transpose(float4x4(
+		Interpolants.LocalToWorld[0],
+		Interpolants.LocalToWorld[1],
+		Interpolants.LocalToWorld[2],
+		float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
 	#if NEEDS_PARTICLE_LOCAL_TO_WORLD
 		Result.Particle.ParticleToWorld = ParticleTransform;
