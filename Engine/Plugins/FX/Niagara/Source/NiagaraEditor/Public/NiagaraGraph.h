@@ -384,6 +384,8 @@ class UNiagaraGraph : public UEdGraph
 
 	static FName MakeUniqueParameterNameAcrossGraphs(const FName& InName, TArray<TWeakObjectPtr<UNiagaraGraph>>& InGraphs);
 
+	static FName StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool bIsGet, bool bIsSet);
+
 protected:
 	void RebuildNumericCache();
 	bool bNeedNumericCacheRebuilt;
