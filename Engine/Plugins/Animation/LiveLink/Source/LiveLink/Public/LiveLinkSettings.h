@@ -77,6 +77,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="LiveLink", meta=(DisplayName="Preset Save Location"))
 	FDirectoryPath PresetSaveDir;
 
+	/** Continuous clock offset correction step */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "LiveLink")
+	float ClockOffsetCorrectionStep;
+
 	/** The default evaluation mode a source connected via the message bus should start with. */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "LiveLink")
 	ELiveLinkSourceMode DefaultMessageBusSourceMode;

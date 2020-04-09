@@ -42,7 +42,7 @@ protected:
 	double MaxAllowedEstimationError = 0.25;
 
 	/** Correction step to apply, positive or negative depending on error sign */
-	double CorrectionStep = 250e-6;
+	double CorrectionStep = 100e-6;
 
 	/** Consecutive time a too big estimation error is required before clamping */
 	int32 ConsecutiveTooBigErrorRequired = 5;

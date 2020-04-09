@@ -622,17 +622,7 @@ void FLiveLinkClient::PushSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& 
 		}
 		else
 		{
-			//Stamp arrival time of each packet to track clock difference
-			if (SubjectFrame.FrameData.GetBaseData())
-			{
-				SubjectFrame.FrameData.GetBaseData()->ArrivalTime.WorldTime = FPlatformTime::Seconds();
-				const TOptional<FQualifiedFrameTime>& CurrentTime = FApp::GetCurrentFrameTime();
-				if (CurrentTime.IsSet())
-				{
-					SubjectFrame.FrameData.GetBaseData()->ArrivalTime.SceneTime = *CurrentTime;
-				}
-			}
-			
+
 			{
 				FScopeLock BroadcastLock(&SubjectFrameReceivedHandleseCriticalSection);
 				if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(InSubjectKey))
@@ -658,7 +648,7 @@ void FLiveLinkClient::PushSubjectFrameData_Internal(FPendingSubjectFrame&& Subje
 
 	check(Collection);
 
-	const FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(SubjectFrameData.SubjectKey.Source);
+	FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(SubjectFrameData.SubjectKey.Source);
 	if (SourceItem == nullptr || SourceItem->bPendingKill)
 	{
 		return;
@@ -707,11 +697,29 @@ void FLiveLinkClient::PushSubjectFrameData_Internal(FPendingSubjectFrame&& Subje
 		return;
 	}
 
+	//Stamp arrival time of each packet to track clock difference when it is effectively added to the stash. 
+	//Doing it in the Add_AnyThread would mean that we stamp it up to 1 frame time behind, causing the offset to always be 1 frame behind
+	//and requiring 2.5 frames or so to have a valid smooth offset
+	if (SubjectFrameData.FrameData.GetBaseData())
+	{
+		SubjectFrameData.FrameData.GetBaseData()->ArrivalTime.WorldTime = FPlatformTime::Seconds();
+		const TOptional<FQualifiedFrameTime>& CurrentTime = FApp::GetCurrentFrameTime();
+		if (CurrentTime.IsSet())
+		{
+			SubjectFrameData.FrameData.GetBaseData()->ArrivalTime.SceneTime = *CurrentTime;
+		}
+	}
+	
+	//Let source data know about this new frame to get latest clock offset
+	SourceItem->TimedData->ProcessNewFrameTimingInfo(*SubjectFrameData.FrameData.GetBaseData());
+
 	if (const FSubjectFramesAddedHandles* Handles = SubjectFrameAddedHandles.Find(SubjectFrameData.SubjectKey.SubjectName))
 	{
 		Handles->OnFrameDataAdded.Broadcast(SubjectItem->Key, Role, SubjectFrameData.FrameData);
 	}
 
+
+	//Finally, add the new frame to the subject. After this point, the frame data is unusable, it has been moved!
 	LinkSubject->AddFrameData(MoveTemp(SubjectFrameData.FrameData));
 }
 
