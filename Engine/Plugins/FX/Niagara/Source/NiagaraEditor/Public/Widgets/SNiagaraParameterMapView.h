@@ -57,7 +57,8 @@ namespace NiagaraParameterMapSectionID
 	static FText OnGetSectionTitle(const NiagaraParameterMapSectionID::Type InSection);
 	static void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
 	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
-	static bool GetSectionIsAdvanced(const NiagaraParameterMapSectionID::Type InSection);
+	static bool GetSectionIsAdvancedForScript(const NiagaraParameterMapSectionID::Type InSection);
+	static bool GetSectionIsAdvancedForSystem(const NiagaraParameterMapSectionID::Type InSection);
 };
 
 /** A widget for viewing and editing a set of selected objects with a details panel. */
