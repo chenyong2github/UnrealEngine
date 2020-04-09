@@ -317,9 +317,12 @@ bool FStaticMeshLODResources::IsLODCookedOut(const ITargetPlatform* TargetPlatfo
 	}
 	check(TargetPlatform);
 
+	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
+	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
+
 	// If LOD streaming is supported, LODs below MinLOD are stored to optional paks and thus never cooked out
 	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
-	return !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !LODGroupSettings.IsLODStreamingSupported();
+	return !bMeshStreamingEnabled || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || StaticMesh->NeverStream || !LODGroupSettings.IsLODStreamingSupported();
 #else
 	return false;
 #endif
@@ -335,8 +338,11 @@ bool FStaticMeshLODResources::IsLODInlined(const ITargetPlatform* TargetPlatform
 	}
 	check(TargetPlatform);
 
+	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
+	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
+
 	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
-	if (!TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !LODGroupSettings.IsLODStreamingSupported())
+	if (!bMeshStreamingEnabled || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || StaticMesh->NeverStream || !LODGroupSettings.IsLODStreamingSupported())
 	{
 		return true;
 	}
@@ -2671,10 +2677,7 @@ void UStaticMesh::InitResources()
 	// Determine whether or not this mesh can be streamed.
 	const int32 NumLODs = GetNumLODs();
 
-	// Most tools assume that LOD0 is available and wouldn't work correctly if not. For example lighting build.
-	// Because of this, mesh streaming is in game mode (cooked or not).
-	bIsStreamable = !GIsEditor 
-		&& !NeverStream
+	bIsStreamable = !NeverStream
 		&& NumLODs > 1
 		&& !RenderData->LODResources[0].bBuffersInlined;
 		//&& !bTemporarilyDisableStreaming;
@@ -2695,7 +2698,9 @@ void UStaticMesh::InitResources()
 	{
 		LinkStreaming();
 	}
-	else if (GIsEditor && RenderData)
+	
+	// Make sure the first LOD is actually the lowest LOD.
+	if (RenderData)
 	{
 		RenderData->CurrentFirstLODIdx = RenderData->GetFirstValidLODIdx(0);
 		SetCachedNumResidentLODs(RenderData->LODResources.Num() - RenderData->CurrentFirstLODIdx);
@@ -5618,7 +5623,8 @@ bool UStaticMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
 		else
 #endif
 		{
-			if (GRHISupportsAsyncTextureCreation)
+			// When not using threaded rendering, rendercommands get executed on async thread which create issues on some RHI. See EnqueueUniqueRenderCommand() and IsInRenderingThread().
+			if (GRHISupportsAsyncTextureCreation && GIsThreadedRendering)
 			{
 				PendingUpdate = new FStaticMeshStreamIn_IO_Async(this, NewMipCount, bHighPrio);
 			}
@@ -5696,7 +5702,7 @@ bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 
 void UStaticMesh::LinkStreaming()
 {
-	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled() && IsStreamingRenderAsset(this))
+	if (!IsTemplate() && IStreamingManager::Get().IsMeshStreamingEnabled() && IsStreamingRenderAsset(this))
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingRenderAsset(this);
 	}
@@ -5708,7 +5714,7 @@ void UStaticMesh::LinkStreaming()
 
 void UStaticMesh::UnlinkStreaming()
 {
-	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled())
+	if (!IsTemplate() && StreamingIndex != INDEX_NONE)
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
 	}
