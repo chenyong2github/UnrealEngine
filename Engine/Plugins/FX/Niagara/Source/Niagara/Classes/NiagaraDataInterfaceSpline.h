@@ -49,6 +49,8 @@ public:
 	template<typename TransformHandlerType, typename SplineSampleType>
 	void SampleSplinePositionByUnitDistance(FVectorVMContext& Context);
 	template<typename TransformHandlerType, typename SplineSampleType>
+	void SampleSplineRotationByUnitDistance(FVectorVMContext& Context);
+	template<typename TransformHandlerType, typename SplineSampleType>
 	void SampleSplineUpVectorByUnitDistance(FVectorVMContext& Context);
 	template<typename TransformHandlerType, typename SplineSampleType>
 	void SampleSplineRightVectorByUnitDistance(FVectorVMContext& Context);
