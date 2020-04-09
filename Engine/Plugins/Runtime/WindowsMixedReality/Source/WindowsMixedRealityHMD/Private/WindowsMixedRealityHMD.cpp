@@ -1368,7 +1368,8 @@ namespace WindowsMixedReality
 		FRHIResourceCreateInfo CreateInfo;
 
 #if PLATFORM_HOLOLENS
-		if (bIsMobileMultiViewEnabled)
+        // TODO: Remove index < 16 condition once FWindowsMixedRealityViewport has been removed
+		if (index < 16 && bIsMobileMultiViewEnabled)
 		{
 			FTexture2DArrayRHIRef texture, resource;
 			RHICreateTargetableShaderResource2DArray(
@@ -1384,6 +1385,8 @@ namespace WindowsMixedReality
 				resource);
 			outTargetableTexture = texture;
 			outShaderResourceTexture = resource;
+
+			CurrentBackBuffer = outTargetableTexture;
 		}
 		else
 #endif
@@ -1401,7 +1404,6 @@ namespace WindowsMixedReality
 				outShaderResourceTexture);
 		}
 
-		CurrentBackBuffer = outTargetableTexture;
 		bNeedReallocateDepthTexture = true;
 
 		return true;
@@ -1774,10 +1776,12 @@ namespace WindowsMixedReality
 		static const FName RendererModuleName("Renderer");
 		RendererModule = FModuleManager::GetModulePtr<IRendererModule>(RendererModuleName);
 
+#if PLATFORM_HOLOLENS
 		static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 		static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 		const bool bMobileHDR = (CVarMobileHDR && CVarMobileHDR->GetValueOnAnyThread() != 0);
-		bIsMobileMultiViewEnabled = (GSupportsMobileMultiView && !bMobileHDR) && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
+		bIsMobileMultiViewEnabled = (GRHISupportsArrayIndexFromAnyShader && !bMobileHDR) && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
+#endif
 
 		HiddenAreaMesh.SetNum(2);
 		VisibleAreaMesh.SetNum(2);

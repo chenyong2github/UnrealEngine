@@ -28,6 +28,7 @@
 #include "RenderUtils.h"
 
 DEFINE_LOG_CATEGORY(LogBufferVisualization);
+DEFINE_LOG_CATEGORY(LogMultiView);
 
 DECLARE_CYCLE_STAT(TEXT("StartFinalPostprocessSettings"), STAT_StartFinalPostprocessSettings, STATGROUP_Engine);
 DECLARE_CYCLE_STAT(TEXT("OverridePostProcessSettings"), STAT_OverridePostProcessSettings, STATGROUP_Engine);
@@ -764,15 +765,12 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	bIsMobileMultiViewEnabled = bUsingMobileRenderer && bSkipPostprocessing && (MobileMultiViewCVar && MobileMultiViewCVar->GetValueOnAnyThread() != 0);
 	if (bIsMobileMultiViewEnabled && !RHISupportsMobileMultiView(ShaderPlatform))
 	{
-		// Native mobile multi-view is not supported, attempt to fall back to instancing
-		if (GRHISupportsArrayIndexFromAnyShader)
+		// Native mobile multi-view is not supported, attempt to fall back to instancing on compatible RHIs
+		if (RHISupportsInstancedStereo(ShaderPlatform) && !GRHISupportsArrayIndexFromAnyShader)
 		{
-			bIsInstancedStereoEnabled = true;
+			UE_LOG(LogMultiView, Fatal, TEXT("Mobile Multi-View not supported by the RHI and no fallback is available."));
 		}
-		else
-		{
-			bIsMobileMultiViewEnabled = false;
-		}
+		bIsInstancedStereoEnabled = RHISupportsInstancedStereo(ShaderPlatform);
 	}
 
 	// If the plugin uses separate render targets it is required to support mobile multi-view direct
