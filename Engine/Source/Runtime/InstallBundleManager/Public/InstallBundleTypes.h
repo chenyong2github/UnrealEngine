@@ -208,6 +208,15 @@ struct FInstallBundleSourceBundleInfoQueryResultInfo
 	TMap<FName, FInstallBundleSourceBundleInfo> SourceBundleInfoMap;
 };
 
+enum class EInstallBundleSourceUpdateBundleInfoResult : uint32
+{
+	OK,
+	AlreadyMounted,
+	AlreadyRequested,
+	IllegalStartupBundle,
+	Count,
+};
+
 struct FInstallBundleSourceRequestResultInfo
 {
 	FName BundleName;
