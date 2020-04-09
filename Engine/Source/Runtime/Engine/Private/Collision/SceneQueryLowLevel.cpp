@@ -15,13 +15,11 @@
 
 #include "SQAccelerator.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "SQVerifier.h"
 #include "PhysTestSerializer.h"
 
 #include "PBDRigidsSolver.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 int32 ForceStandardSQ = 0;
 FAutoConsoleVariableRef CVarForceStandardSQ(TEXT("p.ForceStandardSQ"), ForceStandardSQ, TEXT("If enabled, we force the standard scene query even if custom SQ structure is enabled"));

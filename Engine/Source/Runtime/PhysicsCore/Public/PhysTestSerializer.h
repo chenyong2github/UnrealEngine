@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
-CHAOS_LEVEL_CHECK
-
 #include "CoreMinimal.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 

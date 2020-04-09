@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "PhysicsCoreTypes.h"

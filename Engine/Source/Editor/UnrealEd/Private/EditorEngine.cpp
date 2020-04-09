@@ -222,9 +222,7 @@
 #include "UObject/UnrealType.h"
 
 #if WITH_CHAOS
-#define CHAOS_INCLUDE_LEVEL_1
 #include "ChaosSolversModule.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 #endif
 
 

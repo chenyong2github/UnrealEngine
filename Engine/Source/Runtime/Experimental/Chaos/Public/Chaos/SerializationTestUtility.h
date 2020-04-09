@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/ChaosArchive.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"

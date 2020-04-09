@@ -6,14 +6,12 @@
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Containers/StaticBitArray.h"
-#define TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/PBDRigidClusteredParticles.h"
 #include "Chaos/UniformGrid.h"
 #include "Chaos/Framework/BufferedData.h"
-#undef TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/Declares.h"
 
 class FChaosSolversModule;

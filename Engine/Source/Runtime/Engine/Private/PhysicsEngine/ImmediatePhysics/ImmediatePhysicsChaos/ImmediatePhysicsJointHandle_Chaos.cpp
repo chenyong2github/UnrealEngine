@@ -3,10 +3,8 @@
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsJointHandle_Chaos.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsActorHandle_Chaos.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDJointConstraints.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 #include "PhysicsEngine/ConstraintInstance.h"
 

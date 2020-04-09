@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "EngineGlobals.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"

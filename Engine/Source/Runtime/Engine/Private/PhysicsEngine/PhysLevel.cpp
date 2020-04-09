@@ -16,9 +16,7 @@
 #include "PhysicsInitialization.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "ChaosSolversModule.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 #if PHYSICS_INTERFACE_PHYSX
 	#include "PhysicsEngine/PhysXSupport.h"

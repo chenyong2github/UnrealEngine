@@ -11,12 +11,10 @@
 #include "Math/Vector2D.h"
 #include "Math/Box.h"
 
-#define TEMP_HEADER_CHAOS_LEVEL_1
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/BVHParticles.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/ParticleHandleFwd.h"
-#undef TEMP_HEADER_CHAOS_LEVEL_1
 
 inline FArchive& operator<<(FArchive& Ar, TArray<FVector>*& ValueIn)
 {

@@ -4,7 +4,6 @@
 
 /** This class represents an ChaosSolver Actor. */
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/ChaosSolver.h"
 #include "Chaos/ChaosSolverComponentTypes.h"
 #include "Chaos/ClusterCreationParameters.h"

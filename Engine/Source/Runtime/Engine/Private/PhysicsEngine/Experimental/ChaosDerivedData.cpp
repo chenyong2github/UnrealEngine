@@ -4,7 +4,6 @@
 
 #if WITH_CHAOS
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/Core.h"
 #include "Chaos/CollisionConvexMesh.h"
 #include "Chaos/ChaosArchive.h"
@@ -12,7 +11,6 @@
 #include "Chaos/Particles.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Convex.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 #include "Serialization/Archive.h"
 #include "PhysicsEngine/BodySetup.h"
