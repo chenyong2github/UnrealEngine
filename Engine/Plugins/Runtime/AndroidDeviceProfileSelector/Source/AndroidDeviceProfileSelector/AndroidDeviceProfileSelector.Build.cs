@@ -1,41 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 using Tools.DotNETCommon;
 using System.IO;
+using UnrealBuildTool;
 
-namespace UnrealBuildTool.Rules
+public class AndroidDeviceProfileSelector : ModuleRules
 {
-    public class AndroidDeviceProfileSelector : ModuleRules
+	public AndroidDeviceProfileSelector(ReadOnlyTargetRules Target) : base(Target)
 	{
-        public AndroidDeviceProfileSelector(ReadOnlyTargetRules Target) : base(Target)
-		{
-			ShortName = "AndroidDPS";
+		ShortName = "AndroidDPS";
 
-            string SecretFile = Path.Combine(ModuleDirectory, "Private", "NoRedist", "AndroidDeviceProfileSelectorSecrets.h");
-			if (File.Exists(SecretFile))
-            {
-                PrivateDefinitions.Add("ANDROIDDEVICEPROFILESELECTORSECRETS_H=1");
-            }
-            else
-            {
-                PrivateDefinitions.Add("ANDROIDDEVICEPROFILESELECTORSECRETS_H=0");
-            }
-
-            PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"Core",
-				    "CoreUObject",
-				}
-				);
-
-			PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-				    "Core",
-				    "CoreUObject",
-				    "Engine",
-				}
-				);
+		// get a value from .ini (ConfigFile attribute doesn't work in Build.cs files it seems)
+		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Target.ProjectFile != null ? Target.ProjectFile.Directory : null, Target.Platform);
+		string SecretGuid;
+		Ini.GetString("AndroidDPSBuildSettings", "SecretGuid", out SecretGuid);
+		if (!string.IsNullOrEmpty(SecretGuid))
+        {
+			PrivateDefinitions.Add("HASH_PEPPER_SECRET_GUID="+ SecretGuid);
 		}
+
+        PublicDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"CoreUObject",
+			}
+			);
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"CoreUObject",
+				"Engine",
+			}
+			);
 	}
 }

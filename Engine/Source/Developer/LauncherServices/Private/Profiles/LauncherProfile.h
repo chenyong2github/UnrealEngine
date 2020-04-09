@@ -205,8 +205,12 @@ public:
 	*
 	* @return The folder path.
 	*/
-	static FString GetProfileFolder()
+	static FString GetProfileFolder(bool bNotForLicensees)
 	{
+		if (bNotForLicensees)
+		{
+			return FPaths::EngineDir() / TEXT("Restricted/NotForLicensees/Programs/UnrealFrontend/Profiles");
+		}
 		return FPaths::EngineDir() / TEXT("Programs/UnrealFrontend/Profiles");
 	}
 
@@ -529,11 +533,7 @@ public:
 
 	virtual FString GetFilePath() const override
 	{
-		if (bNotForLicensees)
-		{
-			return GetProfileFolder() / "NotForLicensees" / GetFileName();			
-		}
-		return GetProfileFolder() / GetFileName();
+		return GetProfileFolder(bNotForLicensees) / GetFileName();
 	}
 
 	virtual ELauncherProfileLaunchModes::Type GetLaunchMode( ) const override
