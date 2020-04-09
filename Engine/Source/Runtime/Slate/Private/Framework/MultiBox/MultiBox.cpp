@@ -822,7 +822,7 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 					bSectionContainsIcons = true;
 				}
 
-				if (TestBlock.GetType() == EMultiBlockType::MenuSeparator)
+				if (TestBlock.GetType() == EMultiBlockType::Separator)
 				{
 					break;
 				}

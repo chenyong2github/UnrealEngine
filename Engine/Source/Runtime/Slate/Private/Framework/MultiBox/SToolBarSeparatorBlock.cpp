@@ -10,7 +10,7 @@
  * Constructor
  */
 FToolBarSeparatorBlock::FToolBarSeparatorBlock(const FName& InExtensionHook)
-	: FMultiBlock( nullptr, nullptr, InExtensionHook, EMultiBlockType::ToolBarSeparator )
+	: FMultiBlock( nullptr, nullptr, InExtensionHook, EMultiBlockType::Separator )
 {
 }
 
@@ -18,7 +18,7 @@ FToolBarSeparatorBlock::FToolBarSeparatorBlock(const FName& InExtensionHook)
 
 void FToolBarSeparatorBlock::CreateMenuEntry(FMenuBuilder& MenuBuilder) const
 {
-	MenuBuilder.AddMenuSeparator();
+	MenuBuilder.AddSeparator();
 }
 
 

@@ -1061,7 +1061,7 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 					}
 				}
 			}
-			else if (Block.Type == EMultiBlockType::MenuSeparator)
+			else if (Block.Type == EMultiBlockType::Separator)
 			{
 				MenuBuilder.AddMenuSeparator(Block.Name);
 			}
@@ -1186,7 +1186,7 @@ void UToolMenus::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilder, UToolMe
 					ToolBarBuilder.AddComboButton(UIAction, Delegate, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBarData.bSimpleComboBox, Block.TutorialHighlightName);
 				}
 			}
-			else if (Block.Type == EMultiBlockType::ToolBarSeparator)
+			else if (Block.Type == EMultiBlockType::Separator)
 			{
 				ToolBarBuilder.AddSeparator(Block.Name);
 			}
@@ -1756,10 +1756,6 @@ void UToolMenus::ModifyEntryForEditDialog(FToolMenuEntry& Entry)
 		{
 			Entry.SubMenuData.bIsSubMenu = true;
 		}
-	}
-	else if (Entry.Type == EMultiBlockType::ToolBarSeparator)
-	{
-		Entry.Type = EMultiBlockType::MenuSeparator;
 	}
 }
 

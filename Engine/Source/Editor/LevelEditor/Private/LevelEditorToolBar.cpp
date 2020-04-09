@@ -2183,7 +2183,7 @@ void FLevelEditorToolBar::RegisterSourceControlMenu()
 		}
 	}));
 
-	Section.AddMenuSeparator("SourceControlConnectionSeparator");
+	Section.AddSeparator("SourceControlConnectionSeparator");
 
 	Section.AddMenuEntry(
 		FLevelEditorCommands::Get().CheckOutModifiedFiles,
@@ -2521,7 +2521,7 @@ void FLevelEditorToolBar::RegisterEditorModesMenu()
 		// Build Default Modes first
 		BuildEditorModes(MakeArrayView(DefaultModes));
 
-		InSection.AddMenuSeparator(NAME_None);
+		InSection.AddSeparator(NAME_None);
 			
 		// Build non-default modes second
 		BuildEditorModes(MakeArrayView(NonDefaultModes));
