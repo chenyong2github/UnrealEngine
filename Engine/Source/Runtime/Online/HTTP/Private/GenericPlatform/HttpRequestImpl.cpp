@@ -43,6 +43,8 @@ void FHttpRequestImpl::BroadcastResponseHeadersReceived()
 				if (Header.Split(TEXT(":"), &HeaderName, &HeaderValue))
 				{
 					HeaderValue.TrimStartInline();
+
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpRequestImpl_BroadcastResponseHeadersReceived_OnHeaderReceived);
 					OnHeaderReceived().ExecuteIfBound(ThisPtr, HeaderName, HeaderValue);
 				}
 			}
