@@ -1246,6 +1246,7 @@ class BuildPhysX_XboxOne : BuildPhysX.MSBuildTargetPlatform
 	public override bool IsPlatformExtension => false;
 	public override bool UseResponseFiles => false;
 	public override string TargetBuildPlatform => "xboxone";
+	public override bool UseMsBuild => true;
 	public override string GetToolchainName(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration) => "XboxOneToolchain.txt";
 	public override string GetAdditionalCMakeArguments(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration) => " -DCMAKE_GENERATOR_PLATFORM=DURANGO";
 
