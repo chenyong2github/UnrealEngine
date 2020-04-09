@@ -28,9 +28,7 @@
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Stats/StatsMisc.h"
-#include "GameplayTagReferenceHelperDetails.h"
 #include "UObject/UObjectHash.h"
-#include "GameplayTagReferenceHelperDetails.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 
@@ -57,11 +55,9 @@ public:
 			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagContainer", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagContainerCustomization::MakeInstance));
 			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTag", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagCustomizationPublic::MakeInstance));
 			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagQuery", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagQueryCustomization::MakeInstance));
+			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagCreationWidgetHelper", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagCreationWidgetHelperDetails::MakeInstance));
 
 			PropertyModule.RegisterCustomClassLayout(UGameplayTagsSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FGameplayTagsSettingsCustomization::MakeInstance));
-
-			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagReferenceHelper", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagReferenceHelperDetails::MakeInstance));
-			PropertyModule.RegisterCustomPropertyTypeLayout("GameplayTagCreationWidgetHelper", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayTagCreationWidgetHelperDetails::MakeInstance));
 
 			PropertyModule.NotifyCustomizationModuleChanged();
 		}
