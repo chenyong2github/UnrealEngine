@@ -11,7 +11,7 @@ namespace UnrealBuildTool.Rules
     {
         private string ThirdPartyPath
         {
-            get { return Path.GetFullPath(Path.Combine(ModuleDirectory, "../ThirdParty/NotForLicensees/")); }
+            get { return Path.GetFullPath(Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Plugins/Enterprise/MDLImporter/Source/ThirdParty/")); }
         }
 
         public MDLImporter(ReadOnlyTargetRules Target) : base(Target)
