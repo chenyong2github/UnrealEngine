@@ -343,8 +343,29 @@ class FPBDRigidsEvolutionBase
 		const TPBDRigidParticleHandleImp<FReal, 3, bPersistent>* AsRigid = Particle.CastToRigidParticle();
 		if(AsRigid && AsRigid->Disabled())
 		{
-			// Disabled particles take no immediate part in sim or query so shouldn't be added to the acceleration
-			return;
+			TPBDRigidClusteredParticleHandleImp<FReal, 3, bPersistent>* AsClustered = Particle.CastToClustered();
+
+			if(AsClustered)
+			{
+				// For clustered particles, they may appear disabled but they're being driven by an internal (solver-owned) cluster parent.
+				// If this is the case we let the spatial data update with those particles, otherwise skip.
+				// #BGTODO consider converting MDisabled into a bitfield for multiple disable types (Disabled, DisabledDriven, etc.)
+				if(TPBDRigidParticleHandle<float, 3>* ClusterParentBase = AsClustered->ClusterIds().Id)
+				{
+					if(Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ClusterParent = ClusterParentBase->CastToClustered())
+					{
+						if(!ClusterParent->InternalCluster())
+						{
+							return;
+						}
+					}
+				}
+			}
+			else
+			{
+				// Disabled particles take no immediate part in sim or query so shouldn't be added to the acceleration
+				return;
+			}
 		}
 
 		//TODO: distinguish between new particles and dirty particles
