@@ -1478,7 +1478,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		CommonParameters.EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
 
 		// Remove dependency of the velocity buffer on camera cut, given it's going to be ignored by the shaders.
-		if (View.bCameraCut)
+		if (View.bCameraCut || !CommonParameters.SceneTextures.SceneVelocityBuffer)
 		{
 			CommonParameters.SceneTextures.SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 		}
