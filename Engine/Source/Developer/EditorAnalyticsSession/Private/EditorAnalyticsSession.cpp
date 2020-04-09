@@ -359,6 +359,7 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	MonitorProcessID = 0;
 	StartupTimestamp = FDateTime::MinValue();
 	Timestamp = FDateTime::MinValue();
+	IdleSeconds = 0;
 	Idle1Min = 0;
 	Idle5Min = 0;
 	Idle30Min = 0;
