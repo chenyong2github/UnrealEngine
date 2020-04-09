@@ -423,7 +423,13 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			GetSystemViewModel()->GetMessageLogGuid(), FObjectKey(FunctionCallNode));
 		for (TSharedRef<const INiagaraMessage> Message : Messages)
 		{
-			NewIssues.Add(FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey()));
+			// Sometimes compile errors with the same info are generated, so guard against duplicates here.
+			FStackIssue Issue = FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey());
+			if (NewIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
+				{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
+			{
+				NewIssues.Add(Issue);
+			}
 		}
 
 		if (FunctionCallNode->FunctionScript == nullptr && FunctionCallNode->GetClass() == UNiagaraNodeFunctionCall::StaticClass())
