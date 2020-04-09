@@ -20,6 +20,7 @@
 #include "HAL/IConsoleManager.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicsSolver.h"  // #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
+#include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDrawActor, Log, All);
 

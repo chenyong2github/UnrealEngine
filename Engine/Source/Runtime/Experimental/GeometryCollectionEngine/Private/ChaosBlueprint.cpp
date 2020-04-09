@@ -4,6 +4,8 @@
 #include "PhysicsSolver.h"
 #include "Async/Async.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
+#include "GeometryCollection/GeometryCollectionActor.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 
 #define DISPATCH_BLUEPRINTS_IMMEDIATE 1
 
