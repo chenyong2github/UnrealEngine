@@ -450,6 +450,12 @@
       Replace() fail then RecursiveDir is still an agreeable value -->
       <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(Compile.RecursiveDir), [\\/].+$, ``))/_</Link>
     </Compile>
+    <Compile Include="../../../Restricted/*/Source/Programs/UnrealBuildTool/**/*.cs">
+      <!-- Similar logic to above for restricted folders, but just remove the first four parts of the
+	  path (eg. NoRedist/Source/Programs/UnrealBuildTool) and allow the files to be based anywhere in the
+	  project from there -->
+      <Link>$([System.Text.RegularExpressions.Regex]::Replace(%(Compile.RecursiveDir), ^([^\\/]+[\\/]){4}, ``))/_</Link>
+    </Compile>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
