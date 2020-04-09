@@ -54,7 +54,7 @@ static int32 GNiagaraDataBufferMinSize = 512;
 static FAutoConsoleVariableRef CVarRenderDataBlockSize(
 	TEXT("fx.NiagaraDataBufferMinSize"),
 	GNiagaraDataBufferMinSize,
-	TEXT("Niagara data buffer minimum allocation size in bytes (Default=512). \n"),
+	TEXT("Niagara data buffer minimum allocation size in bytes (Default=512)."),
 	ECVF_Default
 );
 
@@ -63,7 +63,7 @@ static FAutoConsoleVariableRef CVarNiagaraRenderBufferShrinkFactor(
 	TEXT("fx.NiagaraDataBufferShrinkFactor"),
 	GNiagaraDataBufferShrinkFactor,
 	TEXT("Niagara data buffer size threshold for shrinking. (Default=3) \n")
-	TEXT("The buffer will be reallocated when the used size becomes 1/F of the allocated size. \n"),
+	TEXT("The buffer will be reallocated when the used size becomes 1/F of the allocated size."),
 	ECVF_Default
 );
 
@@ -71,7 +71,7 @@ static float GNiagaraGPUDataBufferBufferSlack = 1.1;
 static FAutoConsoleVariableRef CVarNiagaraGPUDataBufferBufferSlack(
 	TEXT("fx.NiagaraGPUDataBufferBufferSlack"),
 	GNiagaraGPUDataBufferBufferSlack,
-	TEXT("Niagara GPU data buffer size threshold for resizing. <= 1 to disable shrinking. (Default=1.1) \n"),
+	TEXT("Niagara GPU data buffer size threshold for resizing. <= 1 to disable shrinking. (Default=1.1)"),
 	ECVF_Default
 );
 
@@ -82,6 +82,7 @@ FNiagaraDataSet::FNiagaraDataSet()
 	, GPUNumAllocatedIDs(0)
 	, CurrentData(nullptr)
 	, DestinationData(nullptr)
+	, MaxInstanceCount(UINT_MAX)
 	, bInitialized(false)
 {
 	CompiledData.Init(&FNiagaraDataSetCompiledData::DummyCompiledData);
@@ -488,7 +489,7 @@ void FNiagaraDataSet::CopyFromGPUReadback(const float* GPUReadBackFloat, const i
 FNiagaraDataBuffer::FNiagaraDataBuffer(FNiagaraDataSet* InOwner)
 	: Owner(InOwner)
 	, GPUInstanceCountBufferOffset(INDEX_NONE)
-	, NumChunksAllocatedForGPU(0)
+	, NumInstancesAllocatedForGPU(0)
 	, NumInstances(0)
 	, NumInstancesAllocated(0)
 	, FloatStride(0)
@@ -703,8 +704,14 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 
 	NumInstancesAllocated = InNumInstances;
 
-	// Round the count up to the nearest threadgroup size
+	// GetMaxInstanceCount() returns the maximum number of usable instances, but it's computed in such a way as to allow fitting an extra
+	// scratch instance in the buffer. Our allocation maximum is therefore one more than what this function returns.
+	const uint32 MaxAllocatedInstances = Owner->GetMaxInstanceCount() + 1;
+
+	// Round the count up to the nearest threadgroup size. GetMaxNumInstances() ensures that the returned value is aligned to NIAGARA_COMPUTE_THREADGROUP_SIZE, so if the calling
+	// code clamps the instance count correctly, this operation should never exceed the max instance count.
 	const uint32 PaddedNumInstances = FMath::DivideAndRoundUp(NumInstancesAllocated, NIAGARA_COMPUTE_THREADGROUP_SIZE) * NIAGARA_COMPUTE_THREADGROUP_SIZE;
+	check(PaddedNumInstances <= MaxAllocatedInstances);
 
 	// Pack the data so that the space between elements is the padded thread group size
 	FloatStride = PaddedNumInstances * sizeof(float);
@@ -713,7 +720,6 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 
 	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUParticleMemory, GPUBufferFloat.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes);
 
-	// This never seems to happen because of the +1 in NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources()
 	if (PaddedNumInstances == 0)
 	{
 		if (GPUBufferFloat.Buffer)
@@ -734,15 +740,18 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			GPUIDToIndexTable.Release();
 		}
 
-		NumChunksAllocatedForGPU = 0;
+		NumInstancesAllocatedForGPU = 0;
 	}
 	else // Otherwise check for growing and possibly shrinking (if GNiagaraGPUDataBufferBufferSlack > 1) .
 	{
-		const uint32 RecommendedNumChunks = FMath::DivideAndRoundUp<uint32>((uint32)(PaddedNumInstances * FMath::Max<float>(GNiagaraGPUDataBufferBufferSlack, 1.f)), ALLOC_CHUNKSIZE); 
-		if (PaddedNumInstances > NumChunksAllocatedForGPU * ALLOC_CHUNKSIZE || (GNiagaraGPUDataBufferBufferSlack > 1.f && (uint32)(RecommendedNumChunks * GNiagaraGPUDataBufferBufferSlack) < NumChunksAllocatedForGPU))
+		const uint32 NumInstancesWithSlack = (uint32)(PaddedNumInstances * FMath::Max<float>(GNiagaraGPUDataBufferBufferSlack, 1.0f));
+		uint32 NumInstancesChunkAligned = FMath::DivideAndRoundUp<uint32>(NumInstancesWithSlack, ALLOC_CHUNKSIZE) * ALLOC_CHUNKSIZE;
+		// Make sure we don't exceed the instance limit by aligning to the chunk size.
+		NumInstancesChunkAligned = FMath::Min(NumInstancesChunkAligned, MaxAllocatedInstances);
+
+		if (PaddedNumInstances > NumInstancesAllocatedForGPU || (GNiagaraGPUDataBufferBufferSlack > 1.f && (uint32)(NumInstancesChunkAligned * GNiagaraGPUDataBufferBufferSlack) < NumInstancesAllocatedForGPU))
 		{
-			NumChunksAllocatedForGPU = RecommendedNumChunks; 
-			const uint32 NumElementsToAlloc = NumChunksAllocatedForGPU * ALLOC_CHUNKSIZE;
+			NumInstancesAllocatedForGPU = NumInstancesChunkAligned;
 
 			uint32 DataBufferFlags = BUF_Static;
 #if WITH_EDITORONLY_DATA
@@ -756,7 +765,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 				{
 					GPUBufferFloat.Release();
 				}
-				GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, DataBufferFlags, TEXT("NiagaraFloatDataBuffer"));
+				GPUBufferFloat.Initialize(sizeof(float), NumInstancesAllocatedForGPU * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, DataBufferFlags, TEXT("NiagaraFloatDataBuffer"));
 			}
 			if (Owner->GetNumInt32Components())
 			{
@@ -764,7 +773,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 				{
 					GPUBufferInt.Release();
 				}
-				GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, DataBufferFlags, TEXT("NiagaraIntDataBuffer"));
+				GPUBufferInt.Initialize(sizeof(int32), NumInstancesAllocatedForGPU * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, DataBufferFlags, TEXT("NiagaraIntDataBuffer"));
 			}
 			if (Owner->GetNumHalfComponents())
 			{
