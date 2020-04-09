@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/HttpRequestImpl.h"
+#include "Stats/Stats.h"
 #include "Http.h"
 
 FHttpRequestCompleteDelegate& FHttpRequestImpl::OnProcessRequestComplete()
