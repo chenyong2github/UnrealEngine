@@ -274,22 +274,11 @@ public:
 	inline int32 Num() const { return Data.Num(); }
 
 	void WriteData(const void* Value, uint32 Size);
-	void ReadData(void* Result, uint32 Offset, uint32 Size) const;
 
 	template<typename T>
 	FMaterialPreshaderData& Write(const T& Value) { WriteData(&Value, sizeof(T)); return *this; }
 
-	template<typename T>
-	T Read(uint32& Offset) const
-	{
-		T Result;
-		ReadData(&Result, Offset, sizeof(T));
-		Offset += sizeof(T);
-		return Result;
-	}
-
 	inline FMaterialPreshaderData& WriteOpcode(EMaterialPreshaderOpcode Op) { return Write<uint8>((uint8)Op); }
-	inline EMaterialPreshaderOpcode ReadOpcode(uint32& Offset) const { return (EMaterialPreshaderOpcode)Read<uint8>(Offset); }
 
 	LAYOUT_FIELD(TMemoryImageArray<uint8>, Data);
 };
