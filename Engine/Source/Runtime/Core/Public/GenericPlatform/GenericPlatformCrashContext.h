@@ -9,6 +9,23 @@
 
 struct FProgramCounterSymbolInfo;
 
+/** Defines special exit codes used to diagnose abnormal terminations. The code values are arbitrary, but easily recongnizable in decimal. They are meant to be
+    used with the out-of-process monitoring/analytics in order to figure out unexpected cases. */
+enum ECrashExitCodes : int32
+{
+	/** Used by out-of-process monitor in analytics report, the application is still running, but out-of-process monitor was requested to exit before the application exit code could be read. */
+	MonitoredApplicationStillRunning = 777001,
+
+	/** Used by out-of-process monitor in analytics report, the application is not running anymore, but the out-of-process monitor could not read the Editor exit code (either is is not supported by the OS or is not available). */
+	MonitoredApplicationExitCodeNotAvailable = 777002,
+
+	/** Used by the application when the crash reporter crashed itself while reporting a crash.*/
+	CrashReporterCrashed = 777003,
+
+	/** Used by the application when the crash handler crashed itself (crash in the __except() clause for example).*/
+	CrashHandlerCrashed = 777004,
+};
+
 /** 
  * Symbol information associated with a program counter. 
  * FString version.

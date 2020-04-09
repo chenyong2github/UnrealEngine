@@ -984,26 +984,40 @@ private:
 	/** Main loop that waits for a crash to trigger the report generation */
 	FORCENOINLINE uint32 Run()
 	{
-		// Removed vectored exception handler, we are now guaranteed to
-		// be able to catch unhandled exception in the main try/catch block.
-#if _WIN32_WINNT >= 0x0500
-		if (!FPlatformMisc::IsDebuggerPresent())
-		{
-			RemoveVectoredExceptionHandler(VectoredExceptionHandle);
-		}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__try
 #endif
-		while (StopTaskCounter.GetValue() == 0)
 		{
-			if (WaitForSingleObject(CrashEvent, 500) == WAIT_OBJECT_0)
+			// Removed vectored exception handler, we are now guaranteed to
+			// be able to catch unhandled exception in the main try/catch block.
+#if _WIN32_WINNT >= 0x0500
+			if (!FPlatformMisc::IsDebuggerPresent())
 			{
-				ResetEvent(CrashHandledEvent);
-				HandleCrashInternal();
-				ResetEvent(CrashEvent);
-				// Let the thread that crashed know we're done.				
-				SetEvent(CrashHandledEvent);
-				break;
+				RemoveVectoredExceptionHandler(VectoredExceptionHandle);
+			}
+#endif
+			while (StopTaskCounter.GetValue() == 0)
+			{
+				if (WaitForSingleObject(CrashEvent, 500) == WAIT_OBJECT_0)
+				{
+					ResetEvent(CrashHandledEvent);
+					HandleCrashInternal();
+
+					ResetEvent(CrashEvent);
+					// Let the thread that crashed know we're done.
+					SetEvent(CrashHandledEvent);
+
+					break;
+				}
 			}
 		}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__except(EXCEPTION_EXECUTE_HANDLER)
+		{
+			// The crash reporting thread crashed itself. Exit with a code that the out-of-process monitor will be able to pick up and report into analytics.
+			::exit(ECrashExitCodes::CrashReporterCrashed);
+		}
+#endif
 		return 0;
 	}
 
@@ -1343,12 +1357,20 @@ LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
  * Fallback for catching exceptions which aren't caught elsewhere. This allows catching exceptions on threads created outside the engine.
  * Note that Windows does not call this handler if a debugger is attached, separately to our internal logic around crash handling.
  */
-LONG WINAPI UnhandledException(EXCEPTION_POINTERS *ExceptionInfo)
+LONG WINAPI UnhandledException(EXCEPTION_POINTERS* ExceptionInfo)
 {
-	ReportCrash(ExceptionInfo);
-	GIsCriticalError = true;
-	FPlatformMisc::RequestExit(true);
-	return EXCEPTION_CONTINUE_SEARCH;
+	__try
+	{
+		ReportCrash(ExceptionInfo);
+		GIsCriticalError = true;
+		FPlatformMisc::RequestExit(true);
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER)
+	{
+		// The crash handler crashed itself, exit with a code that the out-of-process monitor will be able to pick up and report into analytics.
+		::exit(ECrashExitCodes::CrashHandlerCrashed);
+	}
 }
 
 // #CrashReport: 2015-05-28 This should be named EngineCrashHandler
