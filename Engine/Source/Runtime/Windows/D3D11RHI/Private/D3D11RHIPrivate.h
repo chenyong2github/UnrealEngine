@@ -380,6 +380,11 @@ public:
 	virtual void PostInit() override;
 	virtual void Shutdown() override;
 	virtual const TCHAR* GetName() override { return TEXT("D3D11"); }
+	
+#if PLATFORM_HOLOLENS
+	virtual void RHISuspendRendering() override;
+	virtual void RHIResumeRendering() override;
+#endif
 
 	// HDR display output
 	virtual void EnableHDR();
