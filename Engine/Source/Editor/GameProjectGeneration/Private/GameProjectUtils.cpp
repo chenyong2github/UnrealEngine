@@ -3747,44 +3747,90 @@ FString GameProjectUtils::GetDefaultProjectTemplateFilename()
 	return TEXT("");
 }
 
-void FindCodeFiles(const TCHAR* BaseDirectory, TArray<FString>& FileNames, int32 MaxNumFileNames)
+void FindCodeFiles(const TCHAR* BaseDirectory, TFunctionRef<bool(const TCHAR* FileName)> SourceFoundThreadSafeCallback)
 {
+	// Can't use IterateDirectoryRecursive here as we rely on some directory filtering without aborting whole enumeration
 	struct FDirectoryVisitor : public IPlatformFile::FDirectoryVisitor
 	{
-		TArray<FString>& FileNames;
-		int32 MaxNumFileNames;
+		TFunctionRef<bool(const TCHAR* FileName)> SourceFoundThreadSafeCallback;
+		FRWLock          DirectoriesLock;
+		TArray<FString>& Directories;
 
-		FDirectoryVisitor(TArray<FString>& InFileNames, int32 InMaxNumFileNames)
-			: FileNames(InFileNames)
-			, MaxNumFileNames(InMaxNumFileNames)
+		FDirectoryVisitor(TFunctionRef<bool(const TCHAR* FileName)> InSourceFoundThreadSafeCallback, TArray<FString>& InDirectories)
+			: IPlatformFile::FDirectoryVisitor(EDirectoryVisitorFlags::ThreadSafe)
+			, SourceFoundThreadSafeCallback(InSourceFoundThreadSafeCallback)
+			, Directories(InDirectories)
 		{
 		}
 
 		virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory) override
 		{
-			if(bIsDirectory)
+			if (bIsDirectory)
 			{
 				FString CleanDirectoryName(FPaths::GetCleanFilename(FilenameOrDirectory));
-				if(!CleanDirectoryName.StartsWith(TEXT(".")))
+				// Skip directories like (i.e. .git) when finding code files to improve performance.
+				if (!CleanDirectoryName.StartsWith(TEXT(".")))
 				{
-					FindCodeFiles(FilenameOrDirectory, FileNames, MaxNumFileNames);
+					FString Directory(FilenameOrDirectory);
+					FRWScopeLock ScopeLock(DirectoriesLock, SLT_Write);
+					Directories.Emplace(MoveTemp(Directory));
 				}
 			}
 			else
 			{
-				FString FileName(FilenameOrDirectory);
-				if(FileName.EndsWith(TEXT(".h")) || FileName.EndsWith(".cpp"))
+				FStringView FileName(FilenameOrDirectory);
+				if (FileName.EndsWith(TEXT(".h")) || FileName.EndsWith(TEXT(".cpp")))
 				{
-					FileNames.Add(FileName);
+					return SourceFoundThreadSafeCallback(FilenameOrDirectory);
 				}
 			}
-			return (FileNames.Num() < MaxNumFileNames);
+			return true;
 		}
 	};
 
-	// Enumerate the contents of the current directory
-	FDirectoryVisitor Visitor(FileNames, MaxNumFileNames);
-	FPlatformFileManager::Get().GetPlatformFile().IterateDirectory(BaseDirectory, Visitor);
+	TArray<FString> DirectoriesToVisitNext;
+	DirectoriesToVisitNext.Add(BaseDirectory);
+	
+	TAtomic<bool> bResult(true);
+	FDirectoryVisitor Visitor(SourceFoundThreadSafeCallback, DirectoriesToVisitNext);
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	while (bResult && DirectoriesToVisitNext.Num() > 0)
+	{
+		TArray<FString> DirectoriesToVisit = MoveTemp(DirectoriesToVisitNext);
+		ParallelFor(
+			DirectoriesToVisit.Num(),
+			[&PlatformFile , &DirectoriesToVisit, &Visitor, &bResult](int32 Index)
+			{
+				if (bResult && !PlatformFile.IterateDirectory(*DirectoriesToVisit[Index], Visitor))
+				{
+					bResult = false;
+				}
+			},
+			EParallelForFlags::Unbalanced
+		);
+	}
+}
+
+void FindCodeFiles(const TCHAR* BaseDirectory, TArray<FString>& FileNames, int32 MaxNumFileNames)
+{
+	FRWLock FileNamesLock;
+	auto SourceFoundThreadSafeCallback =
+		[&FileNamesLock, &FileNames, MaxNumFileNames](const TCHAR* FileName) -> bool
+		{
+			// Prepare the string out of the lock
+			FString SourceFile(FileName);
+
+			FRWScopeLock ScopeLock(FileNamesLock, SLT_Write);
+			// Make sure we don't go over the requested MaxNumFileNames even
+			// when multiple threads are reaching this at the same time
+			if (FileNames.Num() < MaxNumFileNames)
+			{
+				FileNames.Emplace(MoveTemp(SourceFile));
+			}
+			return FileNames.Num() < MaxNumFileNames;
+		};
+
+	FindCodeFiles(BaseDirectory, SourceFoundThreadSafeCallback);
 }
 
 void GameProjectUtils::GetProjectCodeFilenames(TArray<FString>& OutProjectCodeFilenames)
@@ -3801,15 +3847,21 @@ int32 GameProjectUtils::GetProjectCodeFileCount()
 
 void GameProjectUtils::GetProjectSourceDirectoryInfo(int32& OutNumCodeFiles, int64& OutDirectorySize)
 {
-	TArray<FString> Filenames;
-	GetProjectCodeFilenames(Filenames);
-	OutNumCodeFiles = Filenames.Num();
+	TRACE_CPUPROFILER_EVENT_SCOPE(GameProjectUtils::GetProjectSourceDirectoryInfo)
 
-	OutDirectorySize = 0;
-	for (const auto& filename : Filenames)
-	{
-		OutDirectorySize += IFileManager::Get().FileSize(*filename);
-	}
+	TAtomic<int32> NumCodeFiles(0);
+	TAtomic<int64> DirectorySize(0);
+	auto SourceFoundThreadSafeCallback =
+		[&DirectorySize, &NumCodeFiles](const TCHAR* FileName) -> bool
+		{
+			NumCodeFiles++;
+			DirectorySize += IFileManager::Get().FileSize(FileName);
+			return true;
+		};
+
+	FindCodeFiles(*FPaths::GameSourceDir(), SourceFoundThreadSafeCallback);
+	OutDirectorySize = DirectorySize;
+	OutNumCodeFiles = NumCodeFiles;
 }
 
 bool GameProjectUtils::ProjectHasCodeFiles()
