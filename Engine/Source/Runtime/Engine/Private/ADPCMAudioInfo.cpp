@@ -745,12 +745,16 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 
 				bSeekPending = false;
 			}
-
+			
 			uint32 DecompressedSamplesToCopy = FMath::Min<uint32>(
 				(CurrentChunkDataSize - CurrentChunkBufferOffset) / ChannelSampleSize,
 				BufferSize / ChannelSampleSize);
 
-			check(DecompressedSamplesToCopy > 0);
+			if (DecompressedSamplesToCopy == 0)
+			{
+				CurrentChunkBufferOffset = CurrentChunkDataSize;
+				continue;
+			}
 
 			// Ensure we don't go over the number of samples left in the audio data
 			if(DecompressedSamplesToCopy > TotalSamplesPerChannel - TotalSamplesStreamed)
