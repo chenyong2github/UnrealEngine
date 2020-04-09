@@ -770,14 +770,14 @@ private:
 	bool bOutputIsPersistent;
 
 	/** Namespace-less name for associated FNiagaraVariable. Edited directly by user and then used to generate full Name of associated FNiagaraVariable. */
-	UPROPERTY(VisibleAnywhere, Category = "Variable", DisplayName = "Property Name", meta = (SkipForCompileHash = "true"))
+	UPROPERTY(DisplayName = "Property Name", meta = (SkipForCompileHash = "true"))
 	FName CachedNamespacelessVariableName;
 
 	/** Track if the associated parameter was created in the Emitter/System editor. Used to determine whether the associated parameter can be deleted from the Emitter/System editor. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	bool bCreatedInSystemEditor;
 
-	UPROPERTY(EditAnywhere, Category = "Custom Name", meta = (ToolTip = "Enable using a legacy custom name string.", SkipForCompileHash = "true"))
+	UPROPERTY(meta = (ToolTip = "Enable using a legacy custom name string.", SkipForCompileHash = "true"))
 	bool bUseLegacyNameString;
 
 public:
