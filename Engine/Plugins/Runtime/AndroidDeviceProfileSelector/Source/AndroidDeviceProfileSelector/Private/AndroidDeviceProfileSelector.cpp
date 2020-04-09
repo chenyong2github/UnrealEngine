@@ -9,10 +9,6 @@
 #include "Misc/SecureHash.h"
 #include "Containers/StringConv.h"
 
-#if ANDROIDDEVICEPROFILESELECTORSECRETS_H
-#include "NoRedist/AndroidDeviceProfileSelectorSecrets.h"
-#endif
-
 UAndroidDeviceProfileMatchingRules::UAndroidDeviceProfileMatchingRules(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -217,7 +213,7 @@ FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& GPUFam
 						MatchHashString = Item.MatchString;
 					}
 					FString HashInputString = *SourceString + SaltString
-#if ANDROIDDEVICEPROFILESELECTORSECRETS_H
+#ifdef HASH_PEPPER_SECRET_GUID
 						+ HASH_PEPPER_SECRET_GUID.ToString()
 #endif
 						;
