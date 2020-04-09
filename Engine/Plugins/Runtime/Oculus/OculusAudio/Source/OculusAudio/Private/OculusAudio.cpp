@@ -18,13 +18,12 @@ TAudioSpatializationPtr FOculusSpatializationPluginFactory::CreateNewSpatializat
 	{
 		return TAudioSpatializationPtr(new OculusAudioSpatializationAudioMixer());
 	}
-#if PLATFORM_WINDOWS && WITH_XAUDIO2
+#if PLATFORM_WINDOWS
 	else
 	{
 		return TAudioSpatializationPtr(new OculusAudioLegacySpatialization());
 	}
 #endif
-	return nullptr;
 }
 
 

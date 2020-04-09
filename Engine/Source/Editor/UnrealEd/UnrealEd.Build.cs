@@ -304,7 +304,7 @@ public class UnrealEd : ModuleRules
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.Platform == UnrealTargetPlatform.Win32))
 		{
-		
+			PublicDependencyModuleNames.Add("XAudio2");
 			PublicDependencyModuleNames.Add("AudioMixerXAudio2");
 
 			PrivateDependencyModuleNames.Add("WindowsPlatformFeatures");

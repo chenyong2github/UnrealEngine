@@ -37,7 +37,7 @@ public class DX11Audio : ModuleRules
 			new string[] 
 			{
 				LibDir + "dxguid.lib",
-			
+				LibDir + "X3DAudio.lib",
 				LibDir + "xapobase.lib",
 				LibDir + "XAPOFX.lib"
 			}
