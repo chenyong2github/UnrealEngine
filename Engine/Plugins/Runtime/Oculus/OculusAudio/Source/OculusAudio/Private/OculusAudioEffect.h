@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 
-#if PLATFORM_WINDOWS && WITH_XAUDIO2
+#if PLATFORM_WINDOWS
 
 #include "XAudio2Device.h"
 #include "AudioEffect.h"
@@ -50,4 +50,4 @@ private:
 	bool									bPassThrough;
 };
 
-#endif // #if PLATFORM_WINDOWS && WITH_XAUDIO2
+#endif // #if PLATFORM_WINDOWS

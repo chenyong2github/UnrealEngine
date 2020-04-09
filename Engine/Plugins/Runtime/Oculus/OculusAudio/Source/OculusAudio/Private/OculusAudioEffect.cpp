@@ -2,7 +2,7 @@
 
 #include "OculusAudioEffect.h"
 
-#if PLATFORM_WINDOWS && WITH_XAUDIO2
+#if PLATFORM_WINDOWS
 
 #include "OculusAudio.h"
 #include "OVR_Audio.h"
@@ -161,4 +161,4 @@ XAPO_REGISTRATION_PROPERTIES FXAudio2HRTFEffect::Registration =
 	1, 1, 1, 1															// all buffer counts are the same
 };
 
-#endif //PLATFORM_WINDOW && WITH_XAUDIO2
+#endif //PLATFORM_WINDOWS

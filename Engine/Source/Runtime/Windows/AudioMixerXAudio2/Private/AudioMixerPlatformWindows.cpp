@@ -8,7 +8,6 @@
 
 #include "AudioMixerPlatformXAudio2.h"
 #include "AudioMixer.h"
-#include "AudioDeviceManager.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -270,11 +269,7 @@ namespace Audio
 	}
 
 	void FMixerPlatformXAudio2::OnDefaultRenderDeviceChanged(const EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId)
-	{		
-		AsyncTask( ENamedThreads::GameThread,[DeviceId]() {
-			FAudioDeviceManagerDelegates::OnDefaultRenderDeviceChanged.Broadcast(DeviceId);
-		});
-
+	{
 		if (!AllowDeviceSwap())
 		{
 			return;
@@ -312,12 +307,8 @@ namespace Audio
 
 	void FMixerPlatformXAudio2::OnDeviceRemoved(const FString& DeviceId)
 	{
-		AsyncTask(ENamedThreads::GameThread, [DeviceId]() {
-			FAudioDeviceManagerDelegates::OnRenderDeviceRemoved.Broadcast(DeviceId);
-		});
-
 		if (AudioDeviceSwapCriticalSection.TryLock())
-		{			
+		{
 			// If the device we're currently using was removed... then switch to the new default audio device.
 			if (AudioStreamInfo.DeviceInfo.DeviceId == DeviceId)
 			{
