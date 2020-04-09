@@ -15,11 +15,17 @@ namespace Gauntlet
 		public string Project;
 		public string GameMap;
 		private Dictionary<string, object> Params;
+		/// <summary>
+		/// String containing extra commandline args that do not conform to UE commandline arg specs.
+		/// Please do not use this for for standard flags.
+		/// </summary>
+		public string AdditionalExplicitCommandLineArgs;
 
 		public GauntletCommandLine()
 		{
 			Project = string.Empty;
 			GameMap = string.Empty;
+			AdditionalExplicitCommandLineArgs = string.Empty;
 			Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 		}
 
@@ -210,6 +216,10 @@ namespace Gauntlet
 					CurrentArgument = string.Format("-{0}", Key);
 				}
 				FinalCommandline = string.Format("{0} {1} ", FinalCommandline, CurrentArgument);
+			}
+			if (!string.IsNullOrEmpty(AdditionalExplicitCommandLineArgs))
+			{
+				FinalCommandline = string.Format("{0} {1}", FinalCommandline, AdditionalExplicitCommandLineArgs);
 			}
 			return FinalCommandline;
 		}
