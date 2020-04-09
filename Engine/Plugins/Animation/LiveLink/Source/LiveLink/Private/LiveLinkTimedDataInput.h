@@ -10,6 +10,8 @@
 
 class FLiveLinkClient;
 enum class ELiveLinkSourceMode : uint8;
+struct FLiveLinkBaseFrameData;
+
 
 class FLiveLinkTimedDataInput : public ITimedDataInput
 {
