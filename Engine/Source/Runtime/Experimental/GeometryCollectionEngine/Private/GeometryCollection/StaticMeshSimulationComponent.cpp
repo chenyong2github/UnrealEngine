@@ -17,6 +17,8 @@
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
 #include "PhysicsSolver.h"
 #include "Chaos/ChaosGameplayEventDispatcher.h"
+#include "Chaos/ChaosSolverActor.h"
+#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(UStaticMeshSimulationComponentLogging, NoLogging, All);
@@ -40,6 +42,14 @@ UStaticMeshSimulationComponent::UStaticMeshSimulationComponent(const FObjectInit
 	PrimaryComponentTick.SetTickFunctionEnable(true);
 	ChaosMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 }
+
+UStaticMeshSimulationComponent::UStaticMeshSimulationComponent(FVTableHelper& Helper)
+	: Super(Helper)
+{
+
+}
+
+UStaticMeshSimulationComponent::~UStaticMeshSimulationComponent() = default;
 
 // We tick to detect components that unreal has moved, so we can update the solver.
 // The better solution long-term is to tie into UPrimitiveComponent::OnUpdateTransform() like we do for physx
