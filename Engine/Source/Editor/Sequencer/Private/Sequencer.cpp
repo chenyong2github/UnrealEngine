@@ -1058,10 +1058,20 @@ void FSequencer::GetKeysFromSelection(TUniquePtr<FSequencerKeyCollection>& KeyCo
 		SelectedNodes.Add(&Node.Get());
 	}
 
+	int64 TotalMaxSeconds = static_cast<int64>(TNumericLimits<int32>::Max() / GetFocusedTickResolution().AsDecimal());
+
 	FFrameNumber ThresholdFrames = (DuplicateThresholdSeconds * GetFocusedTickResolution()).FloorToFrame();
+	if (ThresholdFrames.Value < -TotalMaxSeconds)
+	{
+		ThresholdFrames.Value = TotalMaxSeconds;
+	}
+	else if (ThresholdFrames.Value > TotalMaxSeconds)
+	{
+		ThresholdFrames.Value = TotalMaxSeconds;
+	}
+
 	KeyCollection->Update(FSequencerKeyCollectionSignature::FromNodesRecursive(SelectedNodes, ThresholdFrames));
 }
-
 
 void FSequencer::GetAllKeys(TUniquePtr<FSequencerKeyCollection>& KeyCollection, float DuplicateThresholdSeconds)
 {
