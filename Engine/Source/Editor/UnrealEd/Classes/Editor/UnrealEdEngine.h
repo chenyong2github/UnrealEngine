@@ -240,6 +240,7 @@ public:
 
 	//~ Begin UEngine Interface.
 	virtual void Init(IEngineLoop* InEngineLoop) override;
+
 	virtual void PreExit() override;
 	virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
 	//~ End UEngine Interface.
@@ -861,4 +862,10 @@ private:
 	* @return	Returns the number of dirty packages that require checkout. If bCheckIfAny is true, returns 1 if any packages will require checkout.
 	*/
 	int32 InternalGetNumDirtyPackagesThatNeedCheckout(bool bCheckIfAny) const;
+
+	/**
+	* Internal function to validate free space on drives used by Unreal Engine
+	* The intent is to notify the user of situations where stability maybe impacted.
+	*/
+	void ValidateFreeDiskSpace() const;
 };
