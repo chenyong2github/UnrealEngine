@@ -90,16 +90,6 @@ enum SubmitCrashReportResult {
 	SuccessContinue		// Succeeded sending report, continue running (if monitor mode).
 };
 
-/** Defines special exit codes for the Editor to use in the summary report when the real exit code could not be determined, to diagnose unexpected situations. */
-enum EditorSpecialExitCodes
-{
-	/** Editor is still running, but CRC was requested to exit. (ex. The user clicked the 'Close Without Sending' but the Editor is not exited yet) */
-	StillRunning = 777001,
-
-	/** Editor is not running anymore, but CRC could not read the Editor exit code. */
-	NotAvailable = 777002,
-};
-
 /**
  * Look for the report to upload, either in the command line or in the platform's report queue
  */
@@ -961,12 +951,12 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					else if (!bMonitoredProcessExited)
 					{
 						// Persist a custom exit code - Editor is still running, but CRC was requested to exit. (ex. The user clicked the 'Close Without Sending' but the Editor is not exited yet)
-						MonitoredSession.SaveExitCode(EditorSpecialExitCodes::StillRunning);
+						MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationStillRunning);
 					}
 					else
 					{
 						// Persist the custom exit code - Editor is not running anymore, but CRC could not read it.
-						MonitoredSession.SaveExitCode(EditorSpecialExitCodes::NotAvailable);
+						MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable);
 					}
 				}
 				else
