@@ -541,7 +541,7 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 
 #if WITH_ENGINE
 
-void FIOSTargetPlatform::GetReflectionCaptureFormats(TArray<FName>& OutFormats) const
+void FIOSTargetPlatform::GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const
 {
 	if (SupportsMetalMRT())
 	{
