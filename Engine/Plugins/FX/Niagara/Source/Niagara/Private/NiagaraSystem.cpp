@@ -21,6 +21,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSettings.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "ProfilingDebugging/CookStats.h"
 
 
 #if WITH_EDITOR
@@ -30,6 +31,13 @@
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - Precompile"), STAT_Niagara_System_Precompile, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript"), STAT_Niagara_System_CompileScript, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript_ResetAfter"), STAT_Niagara_System_CompileScriptResetAfter, STATGROUP_Niagara);
+
+#if ENABLE_COOK_STATS
+namespace NiagaraScriptCookStats
+{
+	extern FCookStats::FDDCResourceUsageStats UsageStats;
+}
+#endif
 
 //Disable for now until we can spend more time on a good method of applying the data gathered.
 int32 GEnableNiagaraRuntimeCycleCounts = 0;
@@ -1033,11 +1041,14 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 bool UNiagaraSystem::ProcessCompilationResult(FEmitterCompiledScriptPair& ScriptPair, bool bWait, bool bDoNotApply)
 {
+	COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeAsyncWait());
+
 	INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
 	TSharedPtr<FNiagaraVMExecutableData> ExeData = NiagaraModule.GetCompileJobResult(ScriptPair.PendingJobID, bWait);
 
 	if (!bWait && !ExeData.IsValid())
 	{
+		COOK_STAT(Timer.TrackCyclesOnly());
 		return false;
 	}
 	check(ExeData.IsValid());
@@ -1045,20 +1056,24 @@ bool UNiagaraSystem::ProcessCompilationResult(FEmitterCompiledScriptPair& Script
 	{
 		ScriptPair.CompileResults = ExeData;
 	}
-	
+
 	// save result to the ddc
 	TArray<uint8> OutData;
 	if (UNiagaraScript::ExecToBinaryData(OutData, *ExeData))
 	{
+		COOK_STAT(Timer.AddMiss(OutData.Num()));
 		GetDerivedDataCacheRef().Put(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), OutData, GetPathName());
 		return true;
 	}
-	
+
+	COOK_STAT(Timer.TrackCyclesOnly());
 	return false;
 }
 
 bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 {
+	COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeSyncWork());
+
 	FNiagaraVMExecutableDataId NewID;
 	ScriptPair.CompiledScript->ComputeVMCompilationId(NewID);
 	ScriptPair.CompileId = NewID;
@@ -1069,12 +1084,15 @@ bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 		TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
 		if (ScriptPair.CompiledScript->BinaryToExecData(Data, *ExeData))
 		{
+			COOK_STAT(Timer.AddHit(Data.Num()));
 			ExeData->CompileTime = 0; // since we didn't actually compile anything
 			ScriptPair.CompileResults = ExeData;
 			ScriptPair.bResultsReady = true;
 			return true;
 		}
 	}
+
+	COOK_STAT(Timer.TrackCyclesOnly());
 	return false;
 }
 
@@ -1134,29 +1152,36 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 	TArray<FNiagaraVariable> OriginalExposedParams;
 	GetExposedParameters().GetParameters(OriginalExposedParams);
 
-	INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
-	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData = NiagaraModule.Precompile(this);
+	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData;
 
-	if (SystemPrecompiledData.IsValid() == false)
+	// Time this block as sync work as it is a prerequisite to generating the key for DDC.
 	{
-		UE_LOG(LogNiagara, Error, TEXT("Failed to precompile %s.  This is due to unexpected invalid or broken data.  Additional details should be in the log."), *GetPathName());
-		return false;
+		COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeSyncWork());
+		COOK_STAT(Timer.TrackCyclesOnly());
+
+		INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
+		SystemPrecompiledData = NiagaraModule.Precompile(this);
+
+		if (SystemPrecompiledData.IsValid() == false)
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Failed to precompile %s.  This is due to unexpected invalid or broken data.  Additional details should be in the log."), *GetPathName());
+			return false;
+		}
+
+		SystemPrecompiledData->GetReferencedObjects(ActiveCompilations[ActiveCompileIdx].RootObjects);
+
+		//Compile all emitters
+		ActiveCompilations[ActiveCompileIdx].MappedData.Add(SystemSpawnScript, SystemPrecompiledData);
+		ActiveCompilations[ActiveCompileIdx].MappedData.Add(SystemUpdateScript, SystemPrecompiledData);
+
+		check(EmitterHandles.Num() == SystemPrecompiledData->GetDependentRequestCount());
 	}
-
-	SystemPrecompiledData->GetReferencedObjects(ActiveCompilations[ActiveCompileIdx].RootObjects);
-
-	//Compile all emitters
-	bool bTrulyAsync = true;
-	bool bAnyUnsynchronized = false;	
-
-	ActiveCompilations[ActiveCompileIdx].MappedData.Add(SystemSpawnScript, SystemPrecompiledData);
-	ActiveCompilations[ActiveCompileIdx].MappedData.Add(SystemUpdateScript, SystemPrecompiledData);
-
-	check(EmitterHandles.Num() == SystemPrecompiledData->GetDependentRequestCount());
 
 	// Grab the list of user variables that were actually encountered so that we can add to them later.
 	TArray<FNiagaraVariable> EncounteredExposedVars;
 	SystemPrecompiledData->GatherPreCompiledVariables(TEXT("User"), EncounteredExposedVars);
+
+	bool bAnyUnsynchronized = false;
 
 	for (int32 i = 0; i < EmitterHandles.Num(); i++)
 	{
