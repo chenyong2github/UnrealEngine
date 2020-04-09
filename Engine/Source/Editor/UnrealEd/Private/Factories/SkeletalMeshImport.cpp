@@ -247,6 +247,7 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 	ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = SkeletalMeshIsUsingMaterialSlotNameWorkflow(ExistingSkelMesh->AssetImportData);
 	ExistingMeshDataPtr->MinLOD = ExistingSkelMesh->MinLod;
 	ExistingMeshDataPtr->DisableBelowMinLodStripping = ExistingSkelMesh->DisableBelowMinLodStripping;
+	ExistingMeshDataPtr->bOverrideLODStreamingSettings = ExistingSkelMesh->bOverrideLODStreamingSettings;
 	ExistingMeshDataPtr->bSupportLODStreaming = ExistingSkelMesh->bSupportLODStreaming;
 	ExistingMeshDataPtr->MaxNumStreamedLODs = ExistingSkelMesh->MaxNumStreamedLODs;
 	ExistingMeshDataPtr->MaxNumOptionalLODs = ExistingSkelMesh->MaxNumOptionalLODs;
@@ -652,6 +653,7 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 	int32 SafeReimportLODIndex = ReimportLODIndex < 0 ? 0 : ReimportLODIndex;
 	SkeletalMesh->MinLod = MeshData->MinLOD;
 	SkeletalMesh->DisableBelowMinLodStripping = MeshData->DisableBelowMinLodStripping;
+	SkeletalMesh->bOverrideLODStreamingSettings = MeshData->bOverrideLODStreamingSettings;
 	SkeletalMesh->bSupportLODStreaming = MeshData->bSupportLODStreaming;
 	SkeletalMesh->MaxNumStreamedLODs = MeshData->MaxNumStreamedLODs;
 	SkeletalMesh->MaxNumOptionalLODs = MeshData->MaxNumOptionalLODs;

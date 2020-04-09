@@ -714,22 +714,36 @@ public:
 	FPerPlatformBool DisableBelowMinLodStripping;
 
 #if WITH_EDITORONLY_DATA
+	/** Whether this skeletal mesh overrides default LOD streaming settings. */
+	UPROPERTY(EditAnywhere, Category=LODSettings)
+	bool bOverrideLODStreamingSettings;
+
 	/** Whether we can stream the LODs of this mesh */
-	UPROPERTY(EditAnywhere, Category=LODSettings, meta=(DisplayName="Stream LODs"))
+	UPROPERTY(EditAnywhere, Category=LODSettings, meta=(DisplayName="Stream LODs", EditCondition="bOverrideLODStreamingSettings"))
 	FPerPlatformBool bSupportLODStreaming;
 
 	/** Maximum number of LODs that can be streamed */
-	UPROPERTY(EditAnywhere, Category=LODSettings)
+	UPROPERTY(EditAnywhere, Category=LODSettings, meta=(EditCondition="bOverrideLODStreamingSettings"))
 	FPerPlatformInt MaxNumStreamedLODs;
 
 	/** Maximum number of LODs below min LOD level that can be saved to optional pak (currently, need to be either 0 or > num of LODs below MinLod) */
-	UPROPERTY(EditAnywhere, Category=LODSettings)
+	UPROPERTY(EditAnywhere, Category=LODSettings, meta=(EditCondition="bOverrideLODStreamingSettings"))
 	FPerPlatformInt MaxNumOptionalLODs;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AssetRegistrySearchable, BlueprintSetter = SetLODSettings, Category = LODSettings)
 	USkeletalMeshLODSettings* LODSettings;
-
 #endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
+	/** Get whether this mesh use LOD streaming. Do not use bSupportLODStreaming directly. Call this method instead. */
+	bool GetSupportsLODStreaming(const class ITargetPlatform* TargetPlatform) const;
+
+	/** Get the maximum number of LODs that can be streamed. Do not use MaxNumStreamedLODs directly. Call this method instead. */
+	int32 GetMaxNumStreamedLODs(const class ITargetPlatform* TargetPlatform) const;
+
+	/** Get the maximum number of optional LODs. Do not use MaxNumOptionalLODs directly. Call this method instead. */
+	int32 GetMaxNumOptionalLODs(const class ITargetPlatform* TargetPlatform) const;
+#endif
 
 	UFUNCTION(BlueprintSetter)
 	void SetLODSettings(USkeletalMeshLODSettings* InLODSettings);
@@ -1451,14 +1465,8 @@ public:
 	 * Returns total number of LOD
 	 */
 	int32 GetLODNum() const 
-	{ 
-#if WITH_EDITOR
-		if (bSupportLODStreaming.Default || bSupportLODStreaming.PerPlatform.FindKey(true))
-		{
-			check(LODInfo.Num() <= MAX_MESH_LOD_COUNT); 
-		}
-#endif
-		return LODInfo.Num();  
+	{
+		return LODInfo.Num();
 	}
 
 public:
