@@ -251,8 +251,10 @@ void ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolation
 	}
 
 	// Interpolate Time data
-	OutBlendedFrameData.GetBaseData()->WorldTime = FLiveLinkWorldTime(FMath::Lerp(FrameDataA.GetBaseData()->WorldTime.GetOffsettedTime(), FrameDataB.GetBaseData()->WorldTime.GetOffsettedTime(), InBlendWeight), 0.0);
+	OutBlendedFrameData.GetBaseData()->WorldTime = FLiveLinkWorldTime(FMath::Lerp(FrameDataA.GetBaseData()->WorldTime.GetSourceTime(), FrameDataB.GetBaseData()->WorldTime.GetSourceTime(), InBlendWeight), 0.0);
 	OutBlendedFrameData.GetBaseData()->MetaData.SceneTime.Time = FFrameTime(FMath::Lerp(FrameDataA.GetBaseData()->MetaData.SceneTime.Time, FrameDataB.GetBaseData()->MetaData.SceneTime.Time, InBlendWeight));
+	OutBlendedFrameData.GetBaseData()->ArrivalTime.WorldTime = FMath::Lerp(FrameDataA.GetBaseData()->ArrivalTime.WorldTime, FrameDataB.GetBaseData()->ArrivalTime.WorldTime, InBlendWeight);
+	OutBlendedFrameData.GetBaseData()->ArrivalTime.SceneTime.Time = FFrameTime(FMath::Lerp(FrameDataA.GetBaseData()->ArrivalTime.SceneTime.Time, FrameDataB.GetBaseData()->ArrivalTime.SceneTime.Time, InBlendWeight));
 
 	// Interpolate Property Values
 	if (Options.bInterpolatePropertyValues)
@@ -284,16 +286,34 @@ void ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolation
 
 double ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolationProcessorWorker::GetBlendFactor(double InTime, const FLiveLinkFrameDataStruct& FrameDataA, const FLiveLinkFrameDataStruct& FrameDataB)
 {
-	const double FrameATime = FrameDataA.GetBaseData()->WorldTime.GetOffsettedTime();
-	const double FrameBTime = FrameDataB.GetBaseData()->WorldTime.GetOffsettedTime();
-	return (InTime - FrameATime) / (FrameBTime - FrameATime);
+	const double FrameATime = FrameDataA.GetBaseData()->WorldTime.GetSourceTime();
+	const double FrameBTime = FrameDataB.GetBaseData()->WorldTime.GetSourceTime();
+	
+	const double Divider = FrameBTime - FrameATime;
+	if (!FMath::IsNearlyZero(Divider))
+	{
+		return (InTime - FrameATime) / Divider;
+	}
+	else
+	{
+		return 1.0;
+	}
 }
 
 double ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolationProcessorWorker::GetBlendFactor(FQualifiedFrameTime InTime, const FLiveLinkFrameDataStruct& FrameDataA, const FLiveLinkFrameDataStruct& FrameDataB)
 {
 	const double FrameASeconds = FrameDataA.GetBaseData()->MetaData.SceneTime.AsSeconds();
 	const double FrameBSeconds = FrameDataB.GetBaseData()->MetaData.SceneTime.AsSeconds();
-	return (InTime.AsSeconds() - FrameASeconds) / (FrameBSeconds - FrameASeconds);
+
+	const double Divider = FrameBSeconds - FrameASeconds;
+	if (!FMath::IsNearlyZero(Divider))
+	{
+		return (InTime.AsSeconds() - FrameASeconds) / Divider;
+	}
+	else
+	{
+		return 1.0;
+	}
 }
 
  bool ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolationProcessorWorker::FindInterpolateIndex(double InTime, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, int32& OutFrameIndexA, int32& OutFrameIndexB, FLiveLinkInterpolationInfo& OutInterpolationInfo)
@@ -303,19 +323,19 @@ double ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolati
 		return false;
 	}
 
-	OutInterpolationInfo.ExpectedEvaluationDistanceFromNewestSeconds = InSourceFrames.Last().GetBaseData()->WorldTime.GetOffsettedTime() - InTime;
-	OutInterpolationInfo.ExpectedEvaluationDistanceFromOldestSeconds = InTime - InSourceFrames[0].GetBaseData()->WorldTime.GetOffsettedTime();
+	OutInterpolationInfo.ExpectedEvaluationDistanceFromNewestSeconds = InSourceFrames.Last().GetBaseData()->WorldTime.GetSourceTime() - InTime;
+	OutInterpolationInfo.ExpectedEvaluationDistanceFromOldestSeconds = InTime - InSourceFrames[0].GetBaseData()->WorldTime.GetSourceTime();
 
 	for (int32 FrameIndex = InSourceFrames.Num() - 1; FrameIndex >= 0; --FrameIndex)
 	{
 		const FLiveLinkFrameDataStruct& SourceFrameData = InSourceFrames[FrameIndex];
-		if (SourceFrameData.GetBaseData()->WorldTime.GetOffsettedTime() <= InTime)
+		if (SourceFrameData.GetBaseData()->WorldTime.GetSourceTime() <= InTime)
 		{
 			if (FrameIndex == InSourceFrames.Num() - 1)
 			{
 				OutFrameIndexA = FrameIndex;
 				OutFrameIndexB = FrameIndex;
-				OutInterpolationInfo.bOverflowDetected = !FMath::IsNearlyEqual(InTime, SourceFrameData.GetBaseData()->WorldTime.GetOffsettedTime());
+				OutInterpolationInfo.bOverflowDetected = !FMath::IsNearlyEqual(InTime, SourceFrameData.GetBaseData()->WorldTime.GetSourceTime());
 				return true;
 			}
 			else

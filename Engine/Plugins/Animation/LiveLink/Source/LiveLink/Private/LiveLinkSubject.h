@@ -4,7 +4,6 @@
 
 #include "ILiveLinkSubject.h"
 
-#include "ClockOffsetEstimatorRamp.h"
 #include "Containers/Queue.h"
 #include "ILiveLinkSource.h"
 #include "ITimedDataInput.h"
@@ -143,9 +142,6 @@ private:
 	void IncreaseBufferOverFlowStat();
 	void UpdateEvaluationData(const FTimedDataInputEvaluationData& EvaluationData);
 
-	//Tracks clock difference between subject time and engine time.
-	void UpdateClockTracker(const FLiveLinkBaseFrameData& NewFrame);
-
 	//Remove frames from our buffer - based on receiving order
 	void RemoveFrames(int32 Count);
 
@@ -211,10 +207,6 @@ private:
 
 	// Some stats compiled by the subject.
 	FSubjectEvaluationStatistics EvaluationStatistics;
-
-	// Keep track of offsets between subject time and engine time
-	FClockOffsetEstimatorRamp EngineTimeClockOffset;
-	FClockOffsetEstimatorRamp TimecodeClockOffset;
 
 	/** 
 	 * Evaluation can be done on any thread so we need to protect statistic logging 

@@ -33,6 +33,13 @@ namespace LiveLinkTimedDataInput
 		ECVF_Default
 	);
 
+	TAutoConsoleVariable<bool> CVarLiveLinkUpdateContinuousClockOffset(
+		TEXT("LiveLink.TimedDataInput.UpdateClockOffset"),
+		true,
+		TEXT("By default, clock offset is continuously updated for each source. You can pause it if desired with this cvar and offset will be fixed to its value."),
+		ECVF_Default
+	);
+
 
 	ETimedDataInputEvaluationType ToTimedDataInputEvaluationType(ELiveLinkSourceMode SourceMode)
 	{
@@ -71,6 +78,9 @@ FLiveLinkTimedDataInput::FLiveLinkTimedDataInput(FLiveLinkClient* InClient, FGui
 	, Source(InSource)
 {
 	ITimeManagementModule::Get().GetTimedDataInputCollection().Add(this);
+
+	EngineClockOffset.SetCorrectionStep(GetDefault<ULiveLinkSettings>()->ClockOffsetCorrectionStep);
+	TimecodeClockOffset.SetCorrectionStep(GetDefault<ULiveLinkSettings>()->ClockOffsetCorrectionStep);
 }
 
 FLiveLinkTimedDataInput::~FLiveLinkTimedDataInput()
@@ -183,5 +193,36 @@ const FSlateBrush* FLiveLinkTimedDataInput::GetDisplayIcon() const
 	return ILiveLinkModule::Get().GetStyle()->GetBrush("LiveLinkIcon");
 }
 #endif
+
+void FLiveLinkTimedDataInput::ProcessNewFrameTimingInfo(FLiveLinkBaseFrameData& NewFrameData)
+{
+	if (LiveLinkTimedDataInput::CVarLiveLinkUpdateContinuousClockOffset.GetValueOnGameThread())
+	{
+		//Update both clock offsets for each frame received for our subjects
+		//We mark the last source/frame time that we used to update our offset to only update once per source frame
+		if (!FMath::IsNearlyEqual(NewFrameData.WorldTime.GetSourceTime(), LastWorldSourceTime))
+		{
+			LastWorldSourceTime = NewFrameData.WorldTime.GetSourceTime();
+			EngineClockOffset.UpdateEstimation(NewFrameData.WorldTime.GetSourceTime(), NewFrameData.ArrivalTime.WorldTime);
+		}
+
+		const double NewFrameSceneTime = NewFrameData.MetaData.SceneTime.AsSeconds();
+		if(!FMath::IsNearlyEqual(NewFrameSceneTime, LastSceneTime))
+		{
+			LastSceneTime = NewFrameSceneTime;
+			TimecodeClockOffset.UpdateEstimation(NewFrameSceneTime, NewFrameData.ArrivalTime.SceneTime.AsSeconds());
+		}
+	}
+
+	if (ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Source))
+	{
+		Settings->BufferSettings.EngineTimeClockOffset = EngineClockOffset.GetEstimatedOffset();
+		Settings->BufferSettings.TimecodeClockOffset = TimecodeClockOffset.GetEstimatedOffset();
+	}
+
+	//Update frame world time offset based on our latest clock offset
+	NewFrameData.WorldTime.SetClockOffset(EngineClockOffset.GetEstimatedOffset());
+}
+
 
 #undef LOCTEXT_NAMESPACE

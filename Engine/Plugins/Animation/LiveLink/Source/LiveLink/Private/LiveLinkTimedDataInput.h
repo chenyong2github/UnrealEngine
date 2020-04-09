@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ITimedDataInput.h"
+
+#include "CoreMinimal.h"
+#include "ClockOffsetEstimatorRamp.h"
+
 
 class FLiveLinkClient;
 enum class ELiveLinkSourceMode : uint8;
@@ -34,9 +37,21 @@ public:
 #endif
 	//~ End ITimedDataInput API
 
+public:
+	//Tracks clock difference between each frame received and arrival time in engine referential.
+	void ProcessNewFrameTimingInfo(FLiveLinkBaseFrameData& NewFrameData);
+
 
 private:
 	FLiveLinkClient* LiveLinkClient;
 	TArray<ITimedDataInputChannel*> Channels;
 	FGuid Source;
+
+	//Continuous clock offset estimator for engine time and timecode
+	FClockOffsetEstimatorRamp EngineClockOffset;
+	FClockOffsetEstimatorRamp TimecodeClockOffset;
+
+	// We will receive each frame for each subject of this source. Stamp last source time/timecode to only update our offset estimation once per "source frame"
+	double LastWorldSourceTime = 0.0;
+	double LastSceneTime = 0.0;
 };

@@ -50,6 +50,10 @@ struct FLiveLinkSourceBufferManagementSettings
 	/** When evaluating with time: how far back from current time should we read the buffer (in seconds) */
 	UPROPERTY(EditAnywhere, Category = "Settings", meta=(ForceUnits=s))
 	float EngineTimeOffset = 0.0f;
+	
+	/** Continuously updated clock offset estimator between source clock and engine clock (in seconds) */
+	UPROPERTY(VisibleAnywhere, Category = "Settings", AdvancedDisplay, meta = (ForceUnits = s))
+	double EngineTimeClockOffset = 0.0;
 
 	/** When evaluating with timecode: what is the expected frame rate of the timecode */
 	UPROPERTY(EditAnywhere, Category = "Settings")
@@ -86,6 +90,10 @@ struct FLiveLinkSourceBufferManagementSettings
 	/** When evaluating with timecode: how far back from current timecode should we read the buffer (in TimecodeFrameRate). */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	float TimecodeFrameOffset = 0.f;
+
+	/** Continuously updated clock offset estimator between source timecode clock and engine timecode provider clock (in seconds) */
+	UPROPERTY(VisibleAnywhere, Category = "Settings", AdvancedDisplay, meta = (ForceUnits = s))
+	double TimecodeClockOffset = 0.0;
 
 	/** When evaluating with latest: how far back from latest frame should we read the buffer */
 	UPROPERTY(EditAnywhere, Category = "Settings")
