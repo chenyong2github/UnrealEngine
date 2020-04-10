@@ -24,7 +24,7 @@ namespace UnrealGameSync
 		GenerateProjectFiles = 0x08,
 		SyncArchives = 0x10,
 		Build = 0x20,
-		UseIncrementalBuilds = 0x40,
+		Clean = 0x40,
 		ScheduledBuild = 0x80,
 		RunAfterSync = 0x100,
 		OpenSolutionAfterSync = 0x200,
@@ -1073,7 +1073,7 @@ namespace UnrealGameSync
 										StepStopwatch.AddData(new { Target = Step.Target });
 
 										string CommandLine = String.Format("{0} {1} {2} {3} -NoHotReloadFromIDE", Step.Target, Step.Platform, Step.Configuration, Utility.ExpandVariables(Step.Arguments ?? "", Context.Variables));
-										if(!Context.Options.HasFlag(WorkspaceUpdateOptions.UseIncrementalBuilds) || bForceClean)
+										if(Context.Options.HasFlag(WorkspaceUpdateOptions.Clean) || bForceClean)
 										{
 											Log.WriteLine("ubt> Running {0} {1} -clean", UnrealBuildToolPath, CommandLine);
 											Utility.ExecuteProcess(UnrealBuildToolPath, null, CommandLine + " -clean", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));

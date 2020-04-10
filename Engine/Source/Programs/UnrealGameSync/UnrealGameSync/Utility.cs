@@ -269,7 +269,7 @@ namespace UnrealGameSync
 
 		/******/
 
-		private static void AddLocalConfigPaths_PlatformFolders(DirectoryInfo BaseDir, string FileName, List<FileInfo> Files)
+		private static void AddLocalConfigPaths_WithSubFolders(DirectoryInfo BaseDir, string FileName, List<FileInfo> Files)
 		{
 			if(BaseDir.Exists)
 			{
@@ -290,18 +290,27 @@ namespace UnrealGameSync
 			}
 		}
 
-		private static void AddLocalConfigPaths_PlatformExtensions(DirectoryInfo BaseDir, string RelativePath, string FileName, List<FileInfo> Files)
+		private static void AddLocalConfigPaths_WithExtensionDirs(DirectoryInfo BaseDir, string RelativePath, string FileName, List<FileInfo> Files)
 		{
 			if (BaseDir.Exists)
 			{
-				AddLocalConfigPaths_PlatformFolders(new DirectoryInfo(Path.Combine(BaseDir.FullName, RelativePath)), FileName, Files);
+				AddLocalConfigPaths_WithSubFolders(new DirectoryInfo(Path.Combine(BaseDir.FullName, RelativePath)), FileName, Files);
 
 				DirectoryInfo PlatformExtensionsDir = new DirectoryInfo(Path.Combine(BaseDir.FullName, "Platforms"));
 				if (PlatformExtensionsDir.Exists)
 				{
 					foreach (DirectoryInfo PlatformExtensionDir in PlatformExtensionsDir.EnumerateDirectories())
 					{
-						AddLocalConfigPaths_PlatformFolders(new DirectoryInfo(Path.Combine(PlatformExtensionDir.FullName, RelativePath)), FileName, Files);
+						AddLocalConfigPaths_WithSubFolders(new DirectoryInfo(Path.Combine(PlatformExtensionDir.FullName, RelativePath)), FileName, Files);
+					}
+				}
+
+				DirectoryInfo RestrictedBaseDir = new DirectoryInfo(Path.Combine(BaseDir.FullName, "Restricted"));
+				if (RestrictedBaseDir.Exists)
+				{
+					foreach (DirectoryInfo RestrictedDir in RestrictedBaseDir.EnumerateDirectories())
+					{
+						AddLocalConfigPaths_WithSubFolders(new DirectoryInfo(Path.Combine(RestrictedDir.FullName, RelativePath)), FileName, Files);
 					}
 				}
 			}
@@ -310,15 +319,15 @@ namespace UnrealGameSync
 		public static List<FileInfo> GetLocalConfigPaths(DirectoryInfo EngineDir, FileInfo ProjectFile)
 		{
 			List<FileInfo> SearchPaths = new List<FileInfo>();
-			AddLocalConfigPaths_PlatformExtensions(EngineDir, "Programs/UnrealGameSync", "UnrealGameSync.ini", SearchPaths);
+			AddLocalConfigPaths_WithExtensionDirs(EngineDir, "Programs/UnrealGameSync", "UnrealGameSync.ini", SearchPaths);
 
 			if (ProjectFile.Name.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
 			{
-				AddLocalConfigPaths_PlatformExtensions(ProjectFile.Directory, "Build", "UnrealGameSync.ini", SearchPaths);
+				AddLocalConfigPaths_WithExtensionDirs(ProjectFile.Directory, "Build", "UnrealGameSync.ini", SearchPaths);
 			}
 			else
 			{
-				AddLocalConfigPaths_PlatformExtensions(EngineDir, "Programs/UnrealGameSync", "DefaultEngine.ini", SearchPaths);
+				AddLocalConfigPaths_WithExtensionDirs(EngineDir, "Programs/UnrealGameSync", "DefaultEngine.ini", SearchPaths);
 			}
 			return SearchPaths;
 		}
@@ -335,6 +344,7 @@ namespace UnrealGameSync
 		{
 			AddDepotConfigPaths_PlatformFolders(BasePath + RelativePath, FileName, SearchPaths);
 			AddDepotConfigPaths_PlatformFolders(BasePath + "/Platforms/*" + RelativePath, FileName, SearchPaths);
+			AddDepotConfigPaths_PlatformFolders(BasePath + "/Restricted/*" + RelativePath, FileName, SearchPaths);
 		}
 
 		public static List<string> GetDepotConfigPaths(string EnginePath, string ProjectPath)
