@@ -169,7 +169,7 @@ private:
 
 #define UE4_XAUDIO3D_INPUTCHANNELS 1
 
-struct FPCMBufferInfo
+struct UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FPCMBufferInfo
 {
 	/** Format of the source PCM data */
 	WAVEFORMATEX				PCMFormat;
@@ -180,7 +180,7 @@ struct FPCMBufferInfo
 };
 
 #if XAUDIO_SUPPORTS_XMA2WAVEFORMATEX
-struct FXMA2BufferInfo
+struct UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FXMA2BufferInfo
 {
 	/** Format of the source XMA2 data */
 	XMA2WAVEFORMATEX			XMA2Format;
@@ -191,7 +191,7 @@ struct FXMA2BufferInfo
 };
 #endif	//XAUDIO_SUPPORTS_XMA2WAVEFORMATEX
 
-struct FXWMABufferInfo
+struct UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.")  FXWMABufferInfo
 {
 	/** Format of the source XWMA data */
 	WAVEFORMATEXTENSIBLE		XWMAFormat;
@@ -229,7 +229,7 @@ struct FPendingAsyncTaskInfo
 /**
  * XAudio2 implementation of FSoundBuffer, containing the wave data and format information.
  */
-class FXAudio2SoundBuffer : public FSoundBuffer
+class UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FXAudio2SoundBuffer : public FSoundBuffer
 {
 public:
 	/** 
@@ -374,7 +374,7 @@ public:
 /**
  * Source callback class for handling loops
  */
-class FXAudio2SoundSourceCallback : public IXAudio2VoiceCallback
+class UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FXAudio2SoundSourceCallback : public IXAudio2VoiceCallback
 {
 public:
 	FXAudio2SoundSourceCallback() {}
@@ -402,7 +402,7 @@ public:
 /**
  * XAudio2 implementation of FSoundSource, the interface used to play, stop and update sources
  */
-class FXAudio2SoundSource : public FSoundSource
+class  UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FXAudio2SoundSource : public FSoundSource
 {
 public:
 	/**
@@ -672,8 +672,11 @@ protected:
 /**
  * Helper class for 5.1 spatialization.
  */
-class FSpatializationHelper
+
+class UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FSpatializationHelper
 {
+#if WITH_XAUDIO3D
+
 	/** Instance of X3D used to calculate volume multipliers.	*/
 	X3DAUDIO_HANDLE		          X3DInstance;
 	
@@ -687,6 +690,8 @@ class FSpatializationHelper
 	
 	X3DAUDIO_DISTANCE_CURVE_POINT ReverbVolumeCurvePoint[2];
 	X3DAUDIO_DISTANCE_CURVE       ReverbVolumeCurve;
+
+#endif //WITH_XAUDIO3D
 
 	float                         EmitterAzimuths[UE4_XAUDIO3D_INPUTCHANNELS];
 
@@ -722,7 +727,7 @@ public:
 };
 
 /** A pool entry for related IXAudio2SourceVoices */
-struct FSourceVoicePoolEntry
+struct UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FSourceVoicePoolEntry
 {
 	/** The format for all voices in this entry */
 	WAVEFORMATEX Format;
@@ -752,7 +757,7 @@ FORCEINLINE bool operator==(const WAVEFORMATEX& FormatA, const WAVEFORMATEX& For
 
 
 /** This structure holds any singleton XAudio2 resources which need to be used, not just "properties" of the device. */
-struct FXAudioDeviceProperties final : public IDeviceChangedListener
+struct UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FXAudioDeviceProperties final : public IDeviceChangedListener
 {
 	// These variables are non-static to support multiple audio device instances
 	struct IXAudio2*					XAudio2;

@@ -86,7 +86,7 @@ class FSpatializationHelper;
 /**
  * XAudio2 implementation of an Unreal audio device. Neither use XACT nor X3DAudio.
  */
-class FXAudio2Device : public FAudioDevice
+class UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FXAudio2Device : public FAudioDevice
 {
 public:
 	FXAudio2Device() : FAudioDevice()
@@ -221,7 +221,7 @@ private:
 #endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 };
 
-class FXMPHelper
+class UE_DEPRECATED(4.26, "XAudio2 Module has been deprecated.") FXMPHelper
 {
 private:
 	/** Count of current cinematic audio clips playing (used to turn on/off XMP background music, allowing for overlap) */
