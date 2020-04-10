@@ -306,3 +306,8 @@ namespace FNiagaraEditorUtilities
 
 	const FNiagaraNamespaceMetadata GetNamespaceMetaDataForVariableName(const FName& VarName);
 };
+
+namespace FNiagaraParameterUtilities
+{
+	bool DoesParameterNameMatchSearchText(FName ParameterName, const FString& SearchTextString);
+};

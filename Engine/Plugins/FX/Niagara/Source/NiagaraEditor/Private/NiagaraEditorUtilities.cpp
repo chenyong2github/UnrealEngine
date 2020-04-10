@@ -2524,4 +2524,53 @@ const FNiagaraNamespaceMetadata FNiagaraEditorUtilities::GetNamespaceMetaDataFor
 	return GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(VarHandleNameParts);
 }
 
+bool FNiagaraParameterUtilities::DoesParameterNameMatchSearchText(FName ParameterName, const FString& SearchTextString)
+{
+	FNiagaraParameterHandle ParameterHandle(ParameterName);
+	TArray<FName> HandleParts = ParameterHandle.GetHandleParts();
+	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(HandleParts);
+	if (NamespaceMetadata.IsValid())
+	{
+		// If it's a registered namespace, check the display name of the namespace.
+		if (NamespaceMetadata.DisplayName.ToString().Contains(SearchTextString))
+		{
+			return true;
+		}
+
+		// Check the namespace modifier if it has one
+		if (HandleParts.Num() - NamespaceMetadata.Namespaces.Num() > 1)
+		{
+			FNiagaraNamespaceMetadata NamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(HandleParts[NamespaceMetadata.Namespaces.Num()]);
+			if (NamespaceModifierMetadata.IsValid())
+			{
+				// Check first by modifier metadata display name.
+				if (NamespaceModifierMetadata.DisplayName.ToString().Contains(SearchTextString))
+				{
+					return true;
+				}
+			}
+			else
+			{
+				// Otherwise just check the string.
+				if (HandleParts[NamespaceMetadata.Namespaces.Num()].ToString().Contains(SearchTextString))
+				{
+					return true;
+				}
+			}
+		}
+
+		// Last check the variable name.
+		if (HandleParts.Last().ToString().Contains(SearchTextString))
+		{
+			return true;
+		}
+	}
+	else if (HandleParts.ContainsByPredicate([&SearchTextString](FName NamePart) { return NamePart.ToString().Contains(SearchTextString); }))
+	{
+		// Otherwise if it's not in a valid namespace, just check all name parts.
+		return true;
+	}
+	return false;
+}
+
 #undef LOCTEXT_NAMESPACE
