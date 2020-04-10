@@ -252,9 +252,9 @@ void FNetworkPlatformFile::ProcessServerCachedFilesResponse(FArrayReader& Respon
 	// Check the stored cooked version
 	FString CookedVersionFile = FPaths::GeneratedConfigDir() / TEXT("CookedVersion.txt");
 
-	if (InnerPlatformFile->FileExists(*CookedVersionFile, true) == true)
+	if (InnerPlatformFile->FileExists(*CookedVersionFile) == true)
 	{
-		IFileHandle* FileHandle = InnerPlatformFile->OpenRead(*CookedVersionFile, true);
+		IFileHandle* FileHandle = InnerPlatformFile->OpenRead(*CookedVersionFile);
 		if (FileHandle != NULL)
 		{
 			int32 StoredPackageCookedVersion;
