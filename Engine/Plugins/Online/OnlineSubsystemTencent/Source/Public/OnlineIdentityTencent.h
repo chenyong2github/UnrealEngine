@@ -75,12 +75,7 @@ public:
 	/**
 	 * Init/default constructor
 	 */
-#if WITH_TENCENT_TCLS
-	FUserOnlineAccountTencent(const FString& InUserId=TEXT("")) 
-		: UserId(new FUniqueNetIdTCLS(InUserId))
-		, QQId(0)
-	{ }
-#elif WITH_TENCENT_RAIL_SDK
+#if WITH_TENCENT_RAIL_SDK
 	FUserOnlineAccountTencent(const TSharedRef<const FUniqueNetId> InUserId)
 		: UserId(InUserId)
 	{ }
@@ -94,12 +89,6 @@ public:
 	TSharedRef<const FUniqueNetId> UserId;
 	/** Any addition account data associated with the user */
 	FJsonSerializableKeyValueMap AccountData;
-#if WITH_TENCENT_TCLS
-	/** id of the QQ account. Used for UserId as well */
-	uint32 QQId;
-	/** Game signature code which can be used to verify identity in Tencent environment */
-	FString GameSignature;
-#endif
 	/** Full auth code which can be exchanged for access */
 	FString AuthToken;
 };
