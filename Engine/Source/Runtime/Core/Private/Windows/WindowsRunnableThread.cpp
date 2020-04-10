@@ -15,11 +15,12 @@ uint32 FRunnableThreadWin::GuardedRun()
 	FPlatformProcess::SetThreadAffinityMask(ThreadAffinityMask);
 
 	FPlatformProcess::SetThreadName(*ThreadName);
-
+	const TCHAR* CmdLine = ::GetCommandLineW();
+	bool bNoExceptionHandler = FParse::Param(::GetCommandLineW(), TEXT("noexceptionhandler"));
 #if UE_BUILD_DEBUG
 	if (true && !GAlwaysReportCrash)
 #else
-	if (FPlatformMisc::IsDebuggerPresent() && !GAlwaysReportCrash)
+	if (bNoExceptionHandler || (FPlatformMisc::IsDebuggerPresent() && !GAlwaysReportCrash))
 #endif // UE_BUILD_DEBUG
 	{
 		ExitCode = Run();
