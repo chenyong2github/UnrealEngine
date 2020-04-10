@@ -321,7 +321,6 @@ void UNiagaraDataInterfaceAudioSubmix::BeginDestroy()
 void UNiagaraDataInterfaceAudioSubmix::PostLoad()
 {
 	Super::PostLoad();
-	GetProxyAs<FNiagaraDataInterfaceProxySubmix>()->OnUpdateSubmix(Submix);
 }
 
 bool UNiagaraDataInterfaceAudioSubmix::CopyToInternal(UNiagaraDataInterface* Destination) const
