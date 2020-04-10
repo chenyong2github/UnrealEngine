@@ -180,10 +180,6 @@ public:
 
 #endif // WITH_TENCENT_RAIL_SDK
 
-#if WITH_TENCENT_TCLS
-	TEMP_UNIQUENETIDSTRING_SUBCLASS(FUniqueNetIdTCLS, TENCENT_SUBSYSTEM);
-#endif // WITH_TENCENT_TCLS
-
 class FOnlineSessionInfoTencent : public FOnlineSessionInfo
 {
 private:
