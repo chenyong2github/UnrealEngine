@@ -226,6 +226,8 @@ namespace Audio
 		double GetAudioRenderThreadTime() const { return AudioThreadTimingData.AudioRenderThreadTime; }
 		double GetAudioClockDelta() const { return AudioClockDelta; }
 
+		EMonoChannelUpmixMethod GetMonoChannelUpmixMethod() const { return MonoChannelUpmixMethod; }
+
 		TArray<Audio::FChannelPositionInfo>* GetDefaultPositionMap(int32 NumChannels);
 
 		static bool IsEndpointSubmix(const USoundSubmixBase* InSubmix);
