@@ -122,6 +122,9 @@ namespace Chaos
 		{
 		}
 
+		// Reset state that persists over all iterations, but must be cleared at start of each tick.
+		FORCEINLINE void TickReset();
+
 		// Reset calculated values ready for next iteration. Note: Lambda is not reset here,
 		// it accumulates over the whole timestep.
 		FORCEINLINE void IterationReset();

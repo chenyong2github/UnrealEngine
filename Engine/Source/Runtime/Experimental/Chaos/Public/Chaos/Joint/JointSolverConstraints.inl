@@ -147,6 +147,11 @@ namespace Chaos
 	///////////////////////////////////////////////////////////////////////
 	//
 
+	FORCEINLINE void FJointSolverConstraintRowState::TickReset()
+	{
+		Lambda = 0.0f;
+	}
+
 	// Reset calculated values ready for next iteration. Note: Lambda is not reset here,
 	// it accumulates over the whole timestep.
 	FORCEINLINE void FJointSolverConstraintRowState::IterationReset()
