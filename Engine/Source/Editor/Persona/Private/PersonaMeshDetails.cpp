@@ -3115,6 +3115,11 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 	DisableBelowMinLodStrippingRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
 	DetailLayout.HideProperty(DisableBelowMinLodStrippingPropertyHandle);
 
+	TSharedPtr<IPropertyHandle> bOverrideLODStreamingSettingsHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, bOverrideLODStreamingSettings), USkeletalMesh::StaticClass());
+	IDetailPropertyRow& bOverrideLODStreamingSettingsRow = LODSettingsCategory.AddProperty(bOverrideLODStreamingSettingsHandle);
+	bOverrideLODStreamingSettingsRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
+	DetailLayout.HideProperty(bOverrideLODStreamingSettingsHandle);
+
 	TSharedPtr<IPropertyHandle> bSupportLODStreamingPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, bSupportLODStreaming), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& bSupportLODStreamingRow = LODSettingsCategory.AddProperty(bSupportLODStreamingPropertyHandle);
 	bSupportLODStreamingRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));

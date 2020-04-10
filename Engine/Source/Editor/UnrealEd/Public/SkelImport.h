@@ -84,6 +84,7 @@ struct ExistingSkelMeshData
 	FSkeletalMeshSamplingInfo				ExistingSamplingInfo;
 	FPerPlatformInt							MinLOD;
 	FPerPlatformBool						DisableBelowMinLodStripping;
+	bool									bOverrideLODStreamingSettings;
 	FPerPlatformBool						bSupportLODStreaming;
 	FPerPlatformInt							MaxNumStreamedLODs;
 	FPerPlatformInt							MaxNumOptionalLODs;

@@ -22,6 +22,7 @@ FAllDesktopTargetPlatform::FAllDesktopTargetPlatform()
 	// use non-platform specific settings
 	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, NULL);
 	StaticMeshLODSettings.Initialize(EngineSettings);
+	SkeletalMeshDefaultLODStreamingSettings.Initialize(EngineSettings);
 #endif // #if WITH_ENGINE
 
 }

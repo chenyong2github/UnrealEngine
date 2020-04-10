@@ -18,6 +18,7 @@
 #include "AudioCompressionSettings.h"
 #include "Sound/SoundWave.h"
 #include "StaticMeshResources.h"
+#include "SkeletalMeshDefaultLODStreamingSettings.h"
 #endif // WITH_ENGINE
 #include "Interfaces/IProjectManager.h"
 #include "InstalledPlatformInfo.h"
@@ -59,6 +60,7 @@ public:
 		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *this->PlatformName());
 		TextureLODSettings = nullptr;
 		StaticMeshLODSettings.Initialize(EngineSettings);
+		SkeletalMeshDefaultLODStreamingSettings.Initialize(EngineSettings);
 
 		InitDevicesFromConfig();
 
@@ -291,6 +293,10 @@ public:
 		return StaticMeshLODSettings;
 	}
 
+	virtual const FSkeletalMeshDefaultLODStreamingSettings& GetSkeletalMeshDefaultLODStreamingSettings() const override
+	{
+		return SkeletalMeshDefaultLODStreamingSettings;
+	}
 
 	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override
 	{
@@ -516,6 +522,8 @@ protected:
 
 	// Holds static mesh LOD settings.
 	FStaticMeshLODSettings StaticMeshLODSettings;
+
+	FSkeletalMeshDefaultLODStreamingSettings SkeletalMeshDefaultLODStreamingSettings;
 
 	// True if the project requires encoded HDR reflection captures
 	bool bRequiresEncodedHDRReflectionCaptures;

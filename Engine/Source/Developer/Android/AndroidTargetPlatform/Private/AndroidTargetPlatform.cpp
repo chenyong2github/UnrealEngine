@@ -199,6 +199,7 @@ FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient )
 		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *IniPlatformName());
 			TextureLODSettings = nullptr; // These are registered by the device profile system.
 		StaticMeshLODSettings.Initialize(EngineSettings);
+		SkeletalMeshDefaultLODStreamingSettings.Initialize(EngineSettings);
 	#endif
 
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FAndroidTargetPlatform::HandleTicker);
@@ -423,6 +424,12 @@ void FAndroidTargetPlatform::GetAllTargetedShaderFormats( TArray<FName>& OutForm
 const FStaticMeshLODSettings& FAndroidTargetPlatform::GetStaticMeshLODSettings( ) const
 {
 	return StaticMeshLODSettings;
+}
+
+
+const FSkeletalMeshDefaultLODStreamingSettings& FAndroidTargetPlatform::GetSkeletalMeshDefaultLODStreamingSettings() const
+{
+	return SkeletalMeshDefaultLODStreamingSettings;
 }
 
 

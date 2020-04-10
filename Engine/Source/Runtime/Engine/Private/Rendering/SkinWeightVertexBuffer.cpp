@@ -137,9 +137,9 @@ void FSkinWeightLookupVertexBuffer::InitRHI()
 		// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
 		bSRV |= GetNeedsCPUAccess();
 
-		if (bSRV && LookupData && VertexBufferRHI)
+		if (bSRV)
 		{
-			SRVValue = RHICreateShaderResourceView(VertexBufferRHI, PixelFormatStride, PixelFormat);
+			SRVValue = RHICreateShaderResourceView(FShaderResourceViewInitializer(LookupData ? VertexBufferRHI : nullptr, PixelFormat));
 		}
 	}
 }
@@ -439,9 +439,9 @@ void FSkinWeightDataVertexBuffer::InitRHI()
 	// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
 	bSRV |= GetNeedsCPUAccess();
 
-	if (bSRV && WeightData && VertexBufferRHI)
+	if (bSRV)
 	{
-		SRVValue = RHICreateShaderResourceView(VertexBufferRHI, GetPixelFormatStride(), GetPixelFormat());
+		SRVValue = RHICreateShaderResourceView(FShaderResourceViewInitializer(WeightData ? VertexBufferRHI : nullptr, GetPixelFormat()));
 	}
 }
 
