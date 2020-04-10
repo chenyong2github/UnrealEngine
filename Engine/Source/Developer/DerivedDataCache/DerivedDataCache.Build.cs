@@ -16,7 +16,7 @@ public class DerivedDataCache : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
 
 		// Internal (NotForLicensees) module
-		var DDCUtilsModule = Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Engine/Source/Developer/DDCUtils/DDCUtils.Build.cs");
+		var DDCUtilsModule = Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Source/Developer/DDCUtils/DDCUtils.Build.cs");
 		if (File.Exists(DDCUtilsModule))
 		{
 			DynamicallyLoadedModuleNames.Add("DDCUtils");
