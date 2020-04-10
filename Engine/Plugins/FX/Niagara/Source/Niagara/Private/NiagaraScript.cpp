@@ -13,6 +13,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Misc/SecureHash.h"
 
+#include "ProfilingDebugging/CookStats.h"
 #include "Stats/Stats.h"
 #include "UObject/Linker.h"
 #include "HAL/PlatformFilemanager.h"
@@ -42,6 +43,17 @@
 #include "Async/Async.h"
 
 DECLARE_STATS_GROUP(TEXT("Niagara Detailed"), STATGROUP_NiagaraDetailed, STATCAT_Advanced);
+
+#if ENABLE_COOK_STATS
+namespace NiagaraScriptCookStats
+{
+	FCookStats::FDDCResourceUsageStats UsageStats;
+	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+	{
+		UsageStats.LogStats(AddStat, TEXT("NiagaraScript.Usage"), TEXT(""));
+	});
+}
+#endif
 
 int32 GNiagaraDumpKeyGen = 0;
 static FAutoConsoleVariableRef CVarNiagaraDumpKeyGen(
@@ -1562,6 +1574,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 			return;
 		}
 
+		COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeSyncWork());
 
 		CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_BeingCreated;
 
@@ -1572,6 +1585,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 
 		if (RequestData.IsValid() == false)
 		{
+			COOK_STAT(Timer.TrackCyclesOnly());
 			UE_LOG(LogNiagara, Error, TEXT("Failed to precompile %s.  This is due to unexpected invalid or broken data.  Additional details should be in the log."), *GetPathName());
 			return;
 		}
@@ -1582,6 +1596,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 			FNiagaraVMExecutableData ExeData;
 			if (BinaryToExecData(OutData, ExeData))
 			{
+				COOK_STAT(Timer.AddHit(OutData.Num()));
 				SetVMCompilationResults(LastGeneratedVMId, ExeData, RequestData.Get());
 				return;
 			}
@@ -1599,6 +1614,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 			// save result to the ddc
 			if (ExecToBinaryData(OutData, *ExeData))
 			{
+				COOK_STAT(Timer.AddMiss(OutData.Num()));
 				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(), OutData, GetPathName());
 			}
 		}
@@ -1612,6 +1628,9 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 
 bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle)
 {
+	COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeSyncWork());
+	COOK_STAT(Timer.TrackCyclesOnly());
+
 	OutCompileId = LastGeneratedVMId;
 
 	if (!AreScriptAndSourceSynchronized())
