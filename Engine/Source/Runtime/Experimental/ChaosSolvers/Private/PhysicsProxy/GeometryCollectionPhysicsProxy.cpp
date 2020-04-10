@@ -1575,6 +1575,10 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
 							// Indicate that this object needs to be updated and the proxy is active.
 							TargetResults.DisabledStates[TransformGroupIndex] = false;
 							IsObjectDynamic = true;
+
+							ProxyElementHandle->X() = ClusterChildToWorld.GetTranslation();
+							ProxyElementHandle->R() = ClusterChildToWorld.GetRotation();
+							GetSolver()->GetEvolution()->DirtyParticle(*ProxyElementHandle);
 						}
 					}
 				}
