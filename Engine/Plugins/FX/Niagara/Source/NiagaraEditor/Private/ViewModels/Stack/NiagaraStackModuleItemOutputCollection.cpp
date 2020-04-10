@@ -9,6 +9,8 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 #include "EdGraph/EdGraphPin.h"
+#include "NiagaraEditorSettings.h"
+#include "NiagaraEditorUtilities.h"
 
 UNiagaraStackModuleItemOutputCollection::UNiagaraStackModuleItemOutputCollection()
 	: FunctionCallNode(nullptr)
@@ -25,7 +27,7 @@ void UNiagaraStackModuleItemOutputCollection::Initialize(FRequiredEntryData InRe
 
 FText UNiagaraStackModuleItemOutputCollection::GetDisplayName() const
 {
-	return NSLOCTEXT("StackModuleItemOutputCollection", "OutputsLabel", "Outputs");
+	return NSLOCTEXT("StackModuleItemOutputCollection", "ParameterWritesLabel", "Parameter Writes");
 }
 
 bool UNiagaraStackModuleItemOutputCollection::IsExpandedByDefault() const
@@ -53,23 +55,32 @@ void UNiagaraStackModuleItemOutputCollection::RefreshChildrenInternal(const TArr
 		FCompileConstantResolver ConstantResolver = GetEmitterViewModel().IsValid()
 			? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter())
 			: FCompileConstantResolver();
-		FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(*FunctionCallNode, ConstantResolver, OutputVariables, Unused);
+		FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(*FunctionCallNode, ConstantResolver, Unused, OutputVariables);
 		
 		for(int32 OutputIndex = 0; OutputIndex < OutputVariables.Num(); OutputIndex++)
 		{
 			FNiagaraVariable& Variable = OutputVariables[OutputIndex];
-
-			UNiagaraStackModuleItemOutput* Output = FindCurrentChildOfTypeByPredicate<UNiagaraStackModuleItemOutput>(CurrentChildren,
-				[&](UNiagaraStackModuleItemOutput* CurrentOutput) { return CurrentOutput->GetOutputParameterHandle().GetParameterHandleString() == Variable.GetName(); });
-
-			if (Output == nullptr)
+			const FNiagaraNamespaceMetadata NamespaceMetadata = FNiagaraEditorUtilities::GetNamespaceMetaDataForVariableName(Variable.GetName());
+			if ((NamespaceMetadata.IsValid()) && (NamespaceMetadata.Namespaces.Contains(FNiagaraConstants::LocalNamespace) == false))
 			{
-				Output = NewObject<UNiagaraStackModuleItemOutput>(this);
-				Output->Initialize(CreateDefaultChildRequiredData(), *FunctionCallNode, Variable.GetName(), Variable.GetType());
-			}
+				UNiagaraStackModuleItemOutput* Output = FindCurrentChildOfTypeByPredicate<UNiagaraStackModuleItemOutput>(CurrentChildren,
+					[&](UNiagaraStackModuleItemOutput* CurrentOutput) { return CurrentOutput->GetOutputParameterHandle().GetParameterHandleString() == Variable.GetName(); });
 
-			NewChildren.Add(Output);
-			break;
+				if (Output == nullptr)
+				{
+					Output = NewObject<UNiagaraStackModuleItemOutput>(this);
+					Output->Initialize(CreateDefaultChildRequiredData(), *FunctionCallNode, Variable.GetName(), Variable.GetType());
+				}
+
+				NewChildren.Add(Output);
+			}
 		}
+		auto SortNewChildrenPred = [](const UNiagaraStackEntry& EntryA, const UNiagaraStackEntry& EntryB) {
+			const UNiagaraStackModuleItemOutput* ModuleItemA = static_cast<const UNiagaraStackModuleItemOutput*>(&EntryA);
+			const UNiagaraStackModuleItemOutput* ModuleItemB = static_cast<const UNiagaraStackModuleItemOutput*>(&EntryB);
+			return FNiagaraEditorUtilities::GetVariableSortPriority(ModuleItemA->GetOutputParameterHandle().GetParameterHandleString(), ModuleItemB->GetOutputParameterHandle().GetParameterHandleString());
+		};
+
+		NewChildren.Sort(SortNewChildrenPred);
 	}
 }
