@@ -77,7 +77,7 @@ public:
 	 *	\p ImplicitType - type of implicit shape to build.
 	 */
 	static FImplicit * NewImplicit(
-		Chaos::FErrorReporter& ErrorReporter,
+		Chaos::FErrorReporter ErrorReporter,
 		const Chaos::TParticles<float, 3>& MeshParticles,
 		const Chaos::TTriangleMesh<float>& TriMesh,
 		const FBox& CollisionBounds,
@@ -99,7 +99,7 @@ public:
 		const ECollisionTypeEnum CollisionType);
 
 	static FImplicit* NewImplicitLevelset(
-		Chaos::FErrorReporter& ErrorReporter,
+		Chaos::FErrorReporter ErrorReporter,
 		const Chaos::TParticles<float, 3>& MeshParticles,
 		const Chaos::TTriangleMesh<float>& TriMesh,
 		const FBox& CollisionBounds,
@@ -109,7 +109,7 @@ public:
 		const ECollisionTypeEnum CollisionType);
 
 	static Chaos::TLevelSet<float, 3>* NewLevelset(
-		Chaos::FErrorReporter& ErrorReporter,
+		Chaos::FErrorReporter ErrorReporter,
 		const Chaos::TParticles<float, 3>& MeshParticles,
 		const Chaos::TTriangleMesh<float>& TriMesh,
 		const FBox& CollisionBounds,

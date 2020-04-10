@@ -283,9 +283,7 @@ T TLevelSet<T, d>::ComputeLevelSetError(const TParticles<T, d>& InParticles, con
 
 			for (int j = 0; j < d; ++j)
 			{
-				TVector<T, 3> UnusedGridNormal;
-
-				DistErrorValues[i] += FMath::Abs(PhiWithNormal(InParticles.X(CurrMeshFace[j]), UnusedGridNormal));
+				DistErrorValues[i] += FMath::Abs(SignedDistance(InParticles.X(CurrMeshFace[j])));
 			}
 
 			// per triangle error average of 3 corners and center distance to surface according to MPhi
