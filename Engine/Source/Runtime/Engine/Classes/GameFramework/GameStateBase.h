@@ -79,6 +79,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category=GameState)
 	virtual bool HasMatchStarted() const;
 
+	/** Returns true if the match can be considered ended. Defaults to false. */
+	UFUNCTION(BlueprintCallable, Category = Game)
+	virtual bool HasMatchEnded() const;
+
 	/** Returns the time that should be used as when a player started */
 	UFUNCTION(BlueprintCallable, Category=GameState)
 	virtual float GetPlayerStartTime(AController* Controller) const;
