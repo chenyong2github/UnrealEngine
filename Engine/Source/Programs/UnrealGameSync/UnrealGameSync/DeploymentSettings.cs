@@ -14,6 +14,7 @@ namespace UnrealGameSync
 	/// </summary>
 	static partial class DeploymentSettings
 	{
+#if WITH_TELEMETRY
 		/// <summary>
 		/// Delegate used to create a telemetry sink
 		/// </summary>
@@ -22,6 +23,7 @@ namespace UnrealGameSync
 		/// <param name="Log">Log writer</param>
 		/// <returns>New telemetry sink instance</returns>
 		public delegate ITelemetrySink CreateTelemetrySinkDelegate(string UserName, string SessionId, TextWriter Log);
+#endif
 
 		/// <summary>
 		/// SQL connection string used to connect to the database for telemetry and review data. The 'Program' class is a partial class, to allow an
@@ -35,9 +37,11 @@ namespace UnrealGameSync
 		/// </summary>
 		public static readonly string DefaultDepotPath = null;
 
+#if WITH_TELEMETRY
 		/// <summary>
 		/// Delegate used to create a new telemetry sink
 		/// </summary>
 		public static readonly CreateTelemetrySinkDelegate CreateTelemetrySink = (UserName, SessionId, Log) => new NullTelemetrySink();
+#endif
 	}
 }

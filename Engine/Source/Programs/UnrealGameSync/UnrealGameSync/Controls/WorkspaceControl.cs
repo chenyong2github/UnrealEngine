@@ -978,10 +978,6 @@ namespace UnrealGameSync
 			{
 				Context.Options |= WorkspaceUpdateOptions.AutoResolveChanges;
 			}
-			if (Settings.bUseIncrementalBuilds)
-			{
-				Context.Options |= WorkspaceUpdateOptions.UseIncrementalBuilds;
-			}
 			if (WorkspaceSettings.bSyncAllProjects ?? Settings.bSyncAllProjects)
 			{
 				Context.Options |= WorkspaceUpdateOptions.SyncAllProjects | WorkspaceUpdateOptions.IncludeAllProjectsInSolution;
@@ -2855,11 +2851,6 @@ namespace UnrealGameSync
 						Owner.ShowAndActivate();
 
 						WorkspaceUpdateOptions Options = WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.RunAfterSync;
-						if (Settings.bUseIncrementalBuilds)
-						{
-							Options |= WorkspaceUpdateOptions.UseIncrementalBuilds;
-						}
-
 						WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, Options, null, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, null, GetWorkspaceVariables(Workspace.CurrentChangeNumber));
 						StartWorkspaceUpdate(Context, null);
 					}
@@ -3804,7 +3795,7 @@ namespace UnrealGameSync
 						BuildListContextMenu_Sync.Font = new Font(SystemFonts.MenuFont, bIsCurrentChange ? FontStyle.Regular : FontStyle.Bold);
 						BuildListContextMenu_SyncContentOnly.Visible = !bIsBusy && ShouldSyncPrecompiledEditor;
 						BuildListContextMenu_SyncOnlyThisChange.Visible = !bIsBusy && !bIsCurrentChange && ContextMenuChange.Number > Workspace.CurrentChangeNumber && Workspace.CurrentChangeNumber != -1;
-						BuildListContextMenu_Build.Visible = !bIsBusy && bIsCurrentChange && !ShouldSyncPrecompiledEditor && Settings.bUseIncrementalBuilds;
+						BuildListContextMenu_Build.Visible = !bIsBusy && bIsCurrentChange && !ShouldSyncPrecompiledEditor;
 						BuildListContextMenu_Rebuild.Visible = !bIsBusy && bIsCurrentChange && !ShouldSyncPrecompiledEditor;
 						BuildListContextMenu_GenerateProjectFiles.Visible = !bIsBusy && bIsCurrentChange;
 						BuildListContextMenu_LaunchEditor.Visible = !bIsBusy && ContextMenuChange.Number == Workspace.CurrentChangeNumber;
@@ -4093,8 +4084,6 @@ namespace UnrealGameSync
 
 			OptionsContextMenu_EditorBuildConfiguration.Enabled = !ShouldSyncPrecompiledEditor;
 			UpdateCheckedBuildConfig();
-			OptionsContextMenu_UseIncrementalBuilds.Enabled = !ShouldSyncPrecompiledEditor;
-			OptionsContextMenu_UseIncrementalBuilds.Checked = Settings.bUseIncrementalBuilds;
 			OptionsContextMenu_CustomizeBuildSteps.Enabled = (Workspace != null);
 			OptionsContextMenu_EditorArguments.Checked = Settings.EditorArguments.Any(x => x.Item2);
 			OptionsContextMenu_ScheduledSync.Checked = Settings.bScheduleEnabled;
@@ -4235,12 +4224,12 @@ namespace UnrealGameSync
 
 		private void BuildListContextMenu_Build_Click(object sender, EventArgs e)
 		{
-			StartWorkspaceUpdate(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.SyncArchives | WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.UseIncrementalBuilds);
+			StartWorkspaceUpdate(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.SyncArchives | WorkspaceUpdateOptions.Build);
 		}
 
 		private void BuildListContextMenu_Rebuild_Click(object sender, EventArgs e)
 		{
-			StartWorkspaceUpdate(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.SyncArchives | WorkspaceUpdateOptions.Build);
+			StartWorkspaceUpdate(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.SyncArchives | WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.Clean);
 		}
 
 		private void BuildListContextMenu_GenerateProjectFiles_Click(object sender, EventArgs e)
@@ -4560,13 +4549,6 @@ namespace UnrealGameSync
 			OptionsContextMenu_BuildConfig_Development.Enabled = (!ShouldSyncPrecompiledEditor || EditorBuildConfig == BuildConfig.Development);
 		}
 
-		private void OptionsContextMenu_UseIncrementalBuilds_Click(object sender, EventArgs e)
-		{
-			OptionsContextMenu_UseIncrementalBuilds.Checked ^= true;
-			Settings.bUseIncrementalBuilds = OptionsContextMenu_UseIncrementalBuilds.Checked;
-			Settings.Save();
-		}
-
 		private void OptionsContextMenu_ScheduleSync_Click(object sender, EventArgs e)
 		{
 			Owner.SetupScheduledSync();
@@ -4801,7 +4783,7 @@ namespace UnrealGameSync
 			Variables.Add("UE4EditorCmdExe", GetEditorExePath(EditorBuildConfig).Replace(".exe", "-Cmd.exe"));
 			Variables.Add("UE4EditorConfig", EditorBuildConfig.ToString());
 			Variables.Add("UE4EditorDebugArg", (EditorBuildConfig == BuildConfig.Debug || EditorBuildConfig == BuildConfig.DebugGame) ? " -debug" : "");
-			Variables.Add("UseIncrementalBuilds", Settings.bUseIncrementalBuilds ? "1" : "0");
+			Variables.Add("UseIncrementalBuilds", "1");
 			if (!String.IsNullOrEmpty(SdkInstallerDir))
 			{
 				Variables.Add("SdkInstallerDir", SdkInstallerDir);
