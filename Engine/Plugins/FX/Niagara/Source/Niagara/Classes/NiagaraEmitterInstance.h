@@ -211,6 +211,8 @@ private:
 	int32 MinOverallocation = -1;
 	int32 ReallocationCount = 0;
 
+	uint32 MaxInstanceCount = 0;
+
 	/* Emitter tick state */
 	ENiagaraExecutionState ExecutionState = ENiagaraExecutionState::Inactive;
 
