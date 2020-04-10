@@ -52,7 +52,7 @@ public class OnlineSubsystemTencent : ModuleRules
 			PublicDefinitions.Add("WITH_TENCENTSDK=0");
 		}
 
-		if (System.IO.Directory.Exists(System.IO.Path.Combine(Target.UEThirdPartySourceDirectory, "NotForLicensees", "Tencent")))
+		if (System.IO.Directory.Exists(System.IO.Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Source/ThirdParty/Tencent")))
 		{
 			AddEngineThirdPartyPrivateDynamicDependencies(Target, "Tencent");
 			PublicIncludePathModuleNames.Add("Tencent");
