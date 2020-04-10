@@ -2280,8 +2280,12 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 
 		if(bGloballyRemapUVs)
 		{
+			// We must keep vertex data in order to properly generate unique UVs
+			FMeshMergingSettings RemapUVMergeSettings = InSettings;
+			RemapUVMergeSettings.bBakeVertexDataToMesh = true;
+
 			TArray<FMeshDescription> MergedRawMeshes;
-			CreateMergedRawMeshes(DataTracker, InSettings, StaticMeshComponentsToMerge, UniqueMaterials, CollapsedMaterialMap, OutputMaterialsMap, false, false, MergedAssetPivot, MergedRawMeshes);
+			CreateMergedRawMeshes(DataTracker, RemapUVMergeSettings, StaticMeshComponentsToMerge, UniqueMaterials, CollapsedMaterialMap, OutputMaterialsMap, false, false, MergedAssetPivot, MergedRawMeshes);
 
 			// Create texture coords for the merged mesh
 			TArray<FVector2D> GlobalTextureCoordinates;
@@ -2534,8 +2538,15 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		}
 	}
 
+	// Create the merged mesh
 	TArray<FMeshDescription> MergedRawMeshes;
 	CreateMergedRawMeshes(DataTracker, InSettings, StaticMeshComponentsToMerge, UniqueMaterials, CollapsedMaterialMap, OutputMaterialsMap, bMergeAllLODs, bMergeMaterialData && !InSettings.bCreateMergedMaterial, MergedAssetPivot, MergedRawMeshes);
+
+	// Notify listeners that our merged mesh was created
+	for (IMeshMergeExtension* Extension : MeshMergeExtensions)
+	{
+		Extension->OnCreatedMergedRawMeshes(StaticMeshComponentsToMerge, DataTracker, MergedRawMeshes);
+	}
 
 	// Populate mesh section map
 	FMeshSectionInfoMap SectionInfoMap;	
@@ -3046,11 +3057,6 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 				FStaticMeshOperations::AppendMeshDescription(*RawMeshPtr, MergedMesh, AppendSettings);
 			}
 		}
-	}
-
-	for (IMeshMergeExtension* Extension : MeshMergeExtensions)
-	{
-		Extension->OnCreatedMergedRawMeshes(InStaticMeshComponentsToMerge, InDataTracker, OutMergedRawMeshes);
 	}
 }
 
