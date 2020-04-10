@@ -132,7 +132,7 @@ public:
 
 	~FGlobalShaderMapSection() { ReleaseResourceBuilder(); }
 
-	void Serialize(FArchive& Ar);
+	bool Serialize(FArchive& Ar);
 
 	FShaderMapResourceBuilder& GetResourceBuilder()
 	{
