@@ -254,7 +254,6 @@ namespace UnrealGameSync
 		public bool bOpenSolutionAfterSync;
 		public bool bShowLogWindow;
 		public bool bAutoResolveConflicts;
-		public bool bUseIncrementalBuilds;
 		public bool bShowUnreviewedChanges;
 		public bool bShowAutomatedChanges;
 		public bool bShowLocalTimes;
@@ -352,7 +351,6 @@ namespace UnrealGameSync
 			bOpenSolutionAfterSync = (ConfigFile.GetValue("General.OpenSolutionAfterSync", "0") != "0");
 			bShowLogWindow = (ConfigFile.GetValue("General.ShowLogWindow", false));
 			bAutoResolveConflicts = (ConfigFile.GetValue("General.AutoResolveConflicts", "1") != "0");
-			bUseIncrementalBuilds = ConfigFile.GetValue("General.IncrementalBuilds", true);
 			bShowUnreviewedChanges = ConfigFile.GetValue("General.ShowUnreviewed", true);
 			bShowAutomatedChanges = ConfigFile.GetValue("General.ShowAutomated", false);
 			bShowLocalTimes = ConfigFile.GetValue("General.ShowLocalTimes", false);
@@ -698,7 +696,6 @@ namespace UnrealGameSync
 			GeneralSection.SetValue("OpenSolutionAfterSync", bOpenSolutionAfterSync);
 			GeneralSection.SetValue("ShowLogWindow", bShowLogWindow);
 			GeneralSection.SetValue("AutoResolveConflicts", bAutoResolveConflicts);
-			GeneralSection.SetValue("IncrementalBuilds", bUseIncrementalBuilds);
 			GeneralSection.SetValue("ShowUnreviewed", bShowUnreviewedChanges);
 			GeneralSection.SetValue("ShowAutomated", bShowAutomatedChanges);
 			GeneralSection.SetValue("ShowLocalTimes", bShowLocalTimes);
