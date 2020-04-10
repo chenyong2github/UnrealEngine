@@ -25,7 +25,7 @@ public:
 	WidgetT* CreateEntry(const TSubclassOf<WidgetT>& ExplicitEntryClass = nullptr)
 	{
 		TSubclassOf<UUserWidget> EntryClass = ExplicitEntryClass ? ExplicitEntryClass : EntryWidgetClass;
-		if (EntryClass && EntryClass->IsChildOf(WidgetT::StaticClass()))
+		if (EntryClass && EntryClass->IsChildOf(WidgetT::StaticClass()) && IsEntryClassValid(EntryClass))
 		{
 			return Cast<WidgetT>(CreateEntryInternal(EntryClass));
 		}
