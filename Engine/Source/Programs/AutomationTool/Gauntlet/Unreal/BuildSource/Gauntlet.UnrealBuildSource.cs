@@ -447,7 +447,6 @@ namespace Gauntlet
 					ProjectParam = string.Format("../../../{0}/{0}.uproject", ProjectName);
 				}
 				Config.CommandLineParams.Project = ProjectParam;
-				Config.CommandLine = Config.CommandLineParams.GenerateFullCommandLine();
 			}
 
             if (Role.FilesToCopy != null)
