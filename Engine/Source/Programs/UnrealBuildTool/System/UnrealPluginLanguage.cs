@@ -3236,7 +3236,7 @@ namespace UnrealBuildTool
 			yield return FileReference.Combine(EngineDirectory, "Config", "Base" + BaseIniName + ".ini");
 
 			// Engine/Config/NotForLicensees/Base* ini
-			yield return FileReference.Combine(EngineDirectory, "Config", "NotForLicensees", "Base" + BaseIniName + ".ini");
+			yield return FileReference.Combine(EngineDirectory, "Restricted", "NotForLicensees", "Config", "Base" + BaseIniName + ".ini");
 		}
 
 
@@ -3254,10 +3254,10 @@ namespace UnrealBuildTool
 				yield return FileReference.Combine(EngineDirectory, "Config", "Base" + BaseIniName + ".ini");
 
 				// Engine/Config/NotForLicensees/Base* ini
-				yield return FileReference.Combine(EngineDirectory, "Config", "NotForLicensees", "Base" + BaseIniName + ".ini");
+				yield return FileReference.Combine(EngineDirectory, "Restricted", "NotForLicensees", "Config", "Base" + BaseIniName + ".ini");
 
 				// Engine/Config/NoRedist/Base* ini
-				yield return FileReference.Combine(EngineDirectory, "Config", "NoRedist", "Base" + BaseIniName + ".ini");
+				yield return FileReference.Combine(EngineDirectory, "Restricted", "NoRedist", "Config", "Base" + BaseIniName + ".ini");
 			}
 
 			if (ProjectDirectory != null)
@@ -3266,10 +3266,10 @@ namespace UnrealBuildTool
 				yield return FileReference.Combine(ProjectDirectory, "Config", "Default" + BaseIniName + ".ini");
 
 				// Game/Config/NotForLicensees/Default* ini
-				yield return FileReference.Combine(ProjectDirectory, "Config", "NotForLicensees", "Default" + BaseIniName + ".ini");
+				yield return FileReference.Combine(ProjectDirectory, "Restricted", "NotForLicensees", "Config", "Default" + BaseIniName + ".ini");
 
 				// Game/Config/NoRedist/Default* ini
-				yield return FileReference.Combine(ProjectDirectory, "Config", "NoRedist", "Default" + BaseIniName + ".ini");
+				yield return FileReference.Combine(ProjectDirectory, "Restricted", "NoRedist", "Config", "Default" + BaseIniName + ".ini");
 			}
 
 			string PlatformName = GetIniPlatformName(Platform);
