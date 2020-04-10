@@ -55,22 +55,24 @@ void UAbilitySystemComponent::InitializeComponent()
 	InitAbilityActorInfo(Owner, Owner);	// Default init to our outer owner
 
 	// cleanup any bad data that may have gotten into SpawnedAttributes
-	for (int32 Idx = SpawnedAttributes.Num()-1; Idx >= 0; --Idx)
+	TArray<UAttributeSet*>& SpawnedAttributesRef = GetSpawnedAttributes_Mutable();
+	for (int32 Idx = SpawnedAttributesRef.Num()-1; Idx >= 0; --Idx)
 	{
-		if (SpawnedAttributes[Idx] == nullptr)
+		if (SpawnedAttributesRef[Idx] == nullptr)
 		{
-			SpawnedAttributes.RemoveAt(Idx);
+			SpawnedAttributesRef.RemoveAt(Idx);
 		}
 	}
 
 	TArray<UObject*> ChildObjects;
 	GetObjectsWithOuter(Owner, ChildObjects, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
+
 	for (UObject* Obj : ChildObjects)
 	{
 		UAttributeSet* Set = Cast<UAttributeSet>(Obj);
 		if (Set)  
 		{
-			SpawnedAttributes.AddUnique(Set);
+			SpawnedAttributesRef.AddUnique(Set);
 			bIsNetDirty = true;
 		}
 	}
@@ -93,7 +95,7 @@ void UAbilitySystemComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	// in this case. This can happen when the owning actor's level is removed and later re-added
 	// to the world, since EndPlay (and therefore UninitializeComponents) will be called on
 	// the owning actor when its level is removed.
-	for (UAttributeSet* Set : SpawnedAttributes)
+	for (UAttributeSet* Set : GetSpawnedAttributes())
 	{
 		if (Set)
 		{
@@ -117,7 +119,7 @@ void UAbilitySystemComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	for (UAttributeSet* AttributeSet : SpawnedAttributes)
+	for (UAttributeSet* AttributeSet : GetSpawnedAttributes())
 	{
 		ITickableAttributeSetInterface* TickableSet = Cast<ITickableAttributeSetInterface>(AttributeSet);
 		if (TickableSet)
@@ -135,11 +137,11 @@ void UAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActor*
 
 	AbilityActorInfo->InitFromActor(InOwnerActor, InAvatarActor, this);
 
-	OwnerActor = InOwnerActor;
+	SetOwnerActor(InOwnerActor);
 
 	// caching the previous value of the actor so we can check against it but then setting the value to the new because it may get used
-	const AActor* PrevAvatarActor = AvatarActor;
-	AvatarActor = InAvatarActor;
+	const AActor* PrevAvatarActor = GetAvatarActor_Direct();
+	SetAvatarActor_Direct(InAvatarActor);
 
 	// if the avatar actor was null but won't be after this, we want to run the deferred gameplaycues that may not have run in NetDeltaSerialize
 	// Conversely, if the ability actor was previously null, then the effects would not run in the NetDeltaSerialize. As such we want to run them now.
@@ -168,7 +170,7 @@ void UAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActor*
 	LocalAnimMontageInfo = FGameplayAbilityLocalAnimMontage();
 	if (IsOwnerActorAuthoritative())
 	{
-		RepAnimMontageInfo = FGameplayAbilityRepAnimMontage();
+		SetRepAnimMontageInfo(FGameplayAbilityRepAnimMontage());
 	}
 
 	if (bPendingMontageRep)
@@ -179,7 +181,7 @@ void UAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActor*
 
 bool UAbilitySystemComponent::GetShouldTick() const 
 {
-	const bool bHasReplicatedMontageInfoToUpdate = (IsOwnerActorAuthoritative() && RepAnimMontageInfo.IsStopped == false);
+	const bool bHasReplicatedMontageInfoToUpdate = (IsOwnerActorAuthoritative() && GetRepAnimMontageInfo().IsStopped == false);
 	
 	if (bHasReplicatedMontageInfoToUpdate)
 	{
@@ -189,7 +191,7 @@ bool UAbilitySystemComponent::GetShouldTick() const
 	bool bResult = Super::GetShouldTick();	
 	if (bResult == false)
 	{
-		for (const UAttributeSet* AttributeSet : SpawnedAttributes)
+		for (const UAttributeSet* AttributeSet : GetSpawnedAttributes())
 		{
 			const ITickableAttributeSetInterface* TickableAttributeSet = Cast<const ITickableAttributeSetInterface>(AttributeSet);
 			if (TickableAttributeSet && TickableAttributeSet->ShouldTick())
@@ -206,26 +208,29 @@ bool UAbilitySystemComponent::GetShouldTick() const
 void UAbilitySystemComponent::SetAvatarActor(AActor* InAvatarActor)
 {
 	check(AbilityActorInfo.IsValid());
-	InitAbilityActorInfo(OwnerActor, InAvatarActor);
+	InitAbilityActorInfo(GetOwnerActor(), InAvatarActor);
 }
 
 void UAbilitySystemComponent::ClearActorInfo()
 {
 	check(AbilityActorInfo.IsValid());
 	AbilityActorInfo->ClearActorInfo();
-	OwnerActor = nullptr;
-	AvatarActor = nullptr;
+	SetOwnerActor(nullptr);
+	SetAvatarActor_Direct(nullptr);
 }
 
 void UAbilitySystemComponent::OnRep_OwningActor()
 {
 	check(AbilityActorInfo.IsValid());
 
-	if (OwnerActor != AbilityActorInfo->OwnerActor || AvatarActor != AbilityActorInfo->AvatarActor)
+	AActor* LocalOwnerActor = GetOwnerActor();
+	AActor* LocalAvatarActor = GetAvatarActor_Direct();
+
+	if (LocalOwnerActor != AbilityActorInfo->OwnerActor || LocalAvatarActor != AbilityActorInfo->AvatarActor)
 	{
-		if (OwnerActor != nullptr)
+		if (LocalOwnerActor != nullptr)
 		{
-			InitAbilityActorInfo(OwnerActor, AvatarActor);
+			InitAbilityActorInfo(LocalOwnerActor, LocalAvatarActor);
 		}
 		else
 		{
@@ -953,18 +958,20 @@ void UAbilitySystemComponent::UnBlockAbilitiesWithTags(const FGameplayTagContain
 void UAbilitySystemComponent::BlockAbilityByInputID(int32 InputID)
 {
 	bIsNetDirty = true;
-	if (InputID >= 0 && InputID < BlockedAbilityBindings.Num())
+	const TArray<uint8>& ConstBlockedAbilityBindings = GetBlockedAbilityBindings();
+	if (InputID >= 0 && InputID < ConstBlockedAbilityBindings.Num())
 	{
-		++BlockedAbilityBindings[InputID];
+		++GetBlockedAbilityBindings_Mutable()[InputID];
 	}
 }
 
 void UAbilitySystemComponent::UnBlockAbilityByInputID(int32 InputID)
 {
 	bIsNetDirty = true;
-	if (InputID >= 0 && InputID < BlockedAbilityBindings.Num() && BlockedAbilityBindings[InputID] > 0)
+	const TArray<uint8>& ConstBlockedAbilityBindings = GetBlockedAbilityBindings();
+	if (InputID >= 0 && InputID < ConstBlockedAbilityBindings.Num() && ConstBlockedAbilityBindings[InputID] > 0)
 	{
-		--BlockedAbilityBindings[InputID];
+		--GetBlockedAbilityBindings_Mutable()[InputID];
 	}
 }
 
@@ -1142,7 +1149,8 @@ bool UAbilitySystemComponent::TryActivateAbility(FGameplayAbilitySpecHandle Abil
 bool UAbilitySystemComponent::IsAbilityInputBlocked(int32 InputID) const
 {
 	// Check if this ability's input binding is currently blocked
-	if (InputID >= 0 && InputID < BlockedAbilityBindings.Num() && BlockedAbilityBindings[InputID] > 0)
+	const TArray<uint8>& ConstBlockedAbilityBindings = GetBlockedAbilityBindings();
+	if (InputID >= 0 && InputID < ConstBlockedAbilityBindings.Num() && ConstBlockedAbilityBindings[InputID] > 0)
 	{
 		return true;
 	}
@@ -1165,14 +1173,14 @@ bool UAbilitySystemComponent::InternalTryActivateAbility(FGameplayAbilitySpecHan
 
 	if (Handle.IsValid() == false)
 	{
-		ABILITY_LOG(Warning, TEXT("InternalTryActivateAbility called with invalid Handle! ASC: %s. AvatarActor: %s"), *GetPathName(), *GetNameSafe(AvatarActor));
+		ABILITY_LOG(Warning, TEXT("InternalTryActivateAbility called with invalid Handle! ASC: %s. AvatarActor: %s"), *GetPathName(), *GetNameSafe(GetAvatarActor_Direct()));
 		return false;
 	}
 
 	FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle);
 	if (!Spec)
 	{
-		ABILITY_LOG(Warning, TEXT("InternalTryActivateAbility called with a valid handle but no matching ability was found. Handle: %s ASC: %s. AvatarActor: %s"), *Handle.ToString(), *GetPathName(), *GetNameSafe(AvatarActor));
+		ABILITY_LOG(Warning, TEXT("InternalTryActivateAbility called with a valid handle but no matching ability was found. Handle: %s ASC: %s. AvatarActor: %s"), *Handle.ToString(), *GetPathName(), *GetNameSafe(GetAvatarActor_Direct()));
 		return false;
 	}
 
@@ -1196,9 +1204,9 @@ bool UAbilitySystemComponent::InternalTryActivateAbility(FGameplayAbilitySpecHan
 		NetMode = PC->GetLocalRole();
 	}
 	// Fallback to avataractor otherwise. Edge case: avatar "dies" and becomes torn off and ROLE_Authority. We don't want to use this case (use PC role instead).
-	else if (AvatarActor)
+	else if (AActor* LocalAvatarActor = GetAvatarActor_Direct())
 	{
-		NetMode = AvatarActor->GetLocalRole();
+		NetMode = LocalAvatarActor->GetLocalRole();
 	}
 
 	if (NetMode == ROLE_SimulatedProxy)
@@ -2029,8 +2037,8 @@ void UAbilitySystemComponent::MonitoredTagChanged(const FGameplayTag Tag, int32 
 							FGameplayEventData EventData;
 							EventData.EventMagnitude = NewCount;
 							EventData.EventTag = EventTag;
-							EventData.Instigator = OwnerActor;
-							EventData.Target = OwnerActor;
+							EventData.Instigator = GetOwnerActor();
+							EventData.Target = EventData.Instigator;
 							// Try to activate it
 							InternalTryActivateAbility(Spec->Handle, FPredictionKey(), nullptr, nullptr, &EventData);
 
@@ -2140,7 +2148,7 @@ void UAbilitySystemComponent::SetBlockAbilityBindingsArray(FGameplayAbilityInput
 {
 	UEnum* EnumBinds = BindInfo.GetBindEnum();
 	bIsNetDirty = true;
-	BlockedAbilityBindings.SetNumZeroed(EnumBinds->NumEnums());
+	GetBlockedAbilityBindings_Mutable().SetNumZeroed(EnumBinds->NumEnums());
 }
 
 void UAbilitySystemComponent::AbilityLocalInputPressed(int32 InputID)
@@ -2393,15 +2401,17 @@ float UAbilitySystemComponent::PlayMontage(UGameplayAbility* InAnimatingAbility,
 			// Replicate to non owners
 			if (IsOwnerActorAuthoritative())
 			{
-				// Those are static parameters, they are only set when the montage is played. They are not changed after that.
-				RepAnimMontageInfo.AnimMontage = NewAnimMontage;
-				RepAnimMontageInfo.ForcePlayBit = !bool(RepAnimMontageInfo.ForcePlayBit);
+				FGameplayAbilityRepAnimMontage& MutableRepAnimMontageInfo = GetRepAnimMontageInfo_Mutable();
 
-				RepAnimMontageInfo.SectionIdToPlay = 0;
-				if (RepAnimMontageInfo.AnimMontage && StartSectionName != NAME_None)
+				// Those are static parameters, they are only set when the montage is played. They are not changed after that.
+				MutableRepAnimMontageInfo.AnimMontage = NewAnimMontage;
+				MutableRepAnimMontageInfo.ForcePlayBit = !bool(MutableRepAnimMontageInfo.ForcePlayBit);
+
+				MutableRepAnimMontageInfo.SectionIdToPlay = 0;
+				if (MutableRepAnimMontageInfo.AnimMontage && StartSectionName != NAME_None)
 				{
 					// we add one so INDEX_NONE can be used in the on rep
-					RepAnimMontageInfo.SectionIdToPlay = RepAnimMontageInfo.AnimMontage->GetSectionIndex(StartSectionName) + 1;
+					MutableRepAnimMontageInfo.SectionIdToPlay = MutableRepAnimMontageInfo.AnimMontage->GetSectionIndex(StartSectionName) + 1;
 				}
 
 				// Update parameters that change during Montage life time.
@@ -2448,7 +2458,7 @@ void UAbilitySystemComponent::AnimMontage_UpdateReplicatedData()
 {
 	check(IsOwnerActorAuthoritative());
 
-	AnimMontage_UpdateReplicatedData(RepAnimMontageInfo);
+	AnimMontage_UpdateReplicatedData(GetRepAnimMontageInfo_Mutable());
 }
 
 void UAbilitySystemComponent::AnimMontage_UpdateReplicatedData(FGameplayAbilityRepAnimMontage& OutRepAnimMontageInfo)
@@ -2535,9 +2545,11 @@ void UAbilitySystemComponent::OnRep_ReplicatedAnimMontage()
 {
 	UWorld* World = GetWorld();
 
-	if (RepAnimMontageInfo.bSkipPlayRate)
+	const FGameplayAbilityRepAnimMontage& ConstRepAnimMontageInfo = GetRepAnimMontageInfo_Mutable();
+
+	if (ConstRepAnimMontageInfo.bSkipPlayRate)
 	{
-		RepAnimMontageInfo.PlayRate = 1.f;
+		GetRepAnimMontageInfo_Mutable().PlayRate = 1.f;
 	}
 
 	const bool bIsPlayingReplay = World && World->IsPlayingReplay();
@@ -2561,40 +2573,40 @@ void UAbilitySystemComponent::OnRep_ReplicatedAnimMontage()
 		{
 			ABILITY_LOG( Warning, TEXT("\n\nOnRep_ReplicatedAnimMontage, %s"), *GetNameSafe(this));
 			ABILITY_LOG( Warning, TEXT("\tAnimMontage: %s\n\tPlayRate: %f\n\tPosition: %f\n\tBlendTime: %f\n\tNextSectionID: %d\n\tIsStopped: %d\n\tForcePlayBit: %d"),
-				*GetNameSafe(RepAnimMontageInfo.AnimMontage), 
-				RepAnimMontageInfo.PlayRate, 
-				RepAnimMontageInfo.Position,
-				RepAnimMontageInfo.BlendTime,
-				RepAnimMontageInfo.NextSectionID, 
-				RepAnimMontageInfo.IsStopped, 
-				RepAnimMontageInfo.ForcePlayBit);
+				*GetNameSafe(ConstRepAnimMontageInfo.AnimMontage),
+				ConstRepAnimMontageInfo.PlayRate,
+				ConstRepAnimMontageInfo.Position,
+				ConstRepAnimMontageInfo.BlendTime,
+				ConstRepAnimMontageInfo.NextSectionID,
+				ConstRepAnimMontageInfo.IsStopped,
+				ConstRepAnimMontageInfo.ForcePlayBit);
 			ABILITY_LOG( Warning, TEXT("\tLocalAnimMontageInfo.AnimMontage: %s\n\tPosition: %f"),
 				*GetNameSafe(LocalAnimMontageInfo.AnimMontage), AnimInstance->Montage_GetPosition(LocalAnimMontageInfo.AnimMontage));
 		}
 
-		if( RepAnimMontageInfo.AnimMontage )
+		if(ConstRepAnimMontageInfo.AnimMontage )
 		{
 			// New Montage to play
-			const bool ReplicatedPlayBit = bool(RepAnimMontageInfo.ForcePlayBit);
-			if ((LocalAnimMontageInfo.AnimMontage != RepAnimMontageInfo.AnimMontage) || (LocalAnimMontageInfo.PlayBit != ReplicatedPlayBit))
+			const bool ReplicatedPlayBit = bool(ConstRepAnimMontageInfo.ForcePlayBit);
+			if ((LocalAnimMontageInfo.AnimMontage != ConstRepAnimMontageInfo.AnimMontage) || (LocalAnimMontageInfo.PlayBit != ReplicatedPlayBit))
 			{
 				LocalAnimMontageInfo.PlayBit = ReplicatedPlayBit;
-				PlayMontageSimulated(RepAnimMontageInfo.AnimMontage, RepAnimMontageInfo.PlayRate);
+				PlayMontageSimulated(ConstRepAnimMontageInfo.AnimMontage, ConstRepAnimMontageInfo.PlayRate);
 			}
 
 			if (LocalAnimMontageInfo.AnimMontage == nullptr)
 			{ 
-				ABILITY_LOG(Warning, TEXT("OnRep_ReplicatedAnimMontage: PlayMontageSimulated failed. Name: %s, AnimMontage: %s"), *GetNameSafe(this), *GetNameSafe(RepAnimMontageInfo.AnimMontage));
+				ABILITY_LOG(Warning, TEXT("OnRep_ReplicatedAnimMontage: PlayMontageSimulated failed. Name: %s, AnimMontage: %s"), *GetNameSafe(this), *GetNameSafe(ConstRepAnimMontageInfo.AnimMontage));
 				return;
 			}
 
 			// Play Rate has changed
-			if (AnimInstance->Montage_GetPlayRate(LocalAnimMontageInfo.AnimMontage) != RepAnimMontageInfo.PlayRate)
+			if (AnimInstance->Montage_GetPlayRate(LocalAnimMontageInfo.AnimMontage) != ConstRepAnimMontageInfo.PlayRate)
 			{
-				AnimInstance->Montage_SetPlayRate(LocalAnimMontageInfo.AnimMontage, RepAnimMontageInfo.PlayRate);
+				AnimInstance->Montage_SetPlayRate(LocalAnimMontageInfo.AnimMontage, ConstRepAnimMontageInfo.PlayRate);
 			}
 
-			const int32 SectionIdToPlay = (static_cast<int32>(RepAnimMontageInfo.SectionIdToPlay) - 1);
+			const int32 SectionIdToPlay = (static_cast<int32>(ConstRepAnimMontageInfo.SectionIdToPlay) - 1);
 			if (SectionIdToPlay != INDEX_NONE)
 			{
 				FName SectionNameToJumpTo = LocalAnimMontageInfo.AnimMontage->GetSectionName(SectionIdToPlay);
@@ -2606,20 +2618,20 @@ void UAbilitySystemComponent::OnRep_ReplicatedAnimMontage()
 
 			// Compressed Flags
 			const bool bIsStopped = AnimInstance->Montage_GetIsStopped(LocalAnimMontageInfo.AnimMontage);
-			const bool bReplicatedIsStopped = bool(RepAnimMontageInfo.IsStopped);
+			const bool bReplicatedIsStopped = bool(ConstRepAnimMontageInfo.IsStopped);
 
 			// Process stopping first, so we don't change sections and cause blending to pop.
 			if (bReplicatedIsStopped)
 			{
 				if (!bIsStopped)
 				{
-					CurrentMontageStop(RepAnimMontageInfo.BlendTime);
+					CurrentMontageStop(ConstRepAnimMontageInfo.BlendTime);
 				}
 			}
-			else if (!RepAnimMontageInfo.SkipPositionCorrection)
+			else if (!ConstRepAnimMontageInfo.SkipPositionCorrection)
 			{
-				const int32 RepSectionID = LocalAnimMontageInfo.AnimMontage->GetSectionIndexFromPosition(RepAnimMontageInfo.Position);
-				const int32 RepNextSectionID = int32(RepAnimMontageInfo.NextSectionID) - 1;
+				const int32 RepSectionID = LocalAnimMontageInfo.AnimMontage->GetSectionIndexFromPosition(ConstRepAnimMontageInfo.Position);
+				const int32 RepNextSectionID = int32(ConstRepAnimMontageInfo.NextSectionID) - 1;
 		
 				// And NextSectionID for the replicated SectionID.
 				if( RepSectionID != INDEX_NONE )
@@ -2645,25 +2657,25 @@ void UAbilitySystemComponent::OnRep_ReplicatedAnimMontage()
 				// Update Position. If error is too great, jump to replicated position.
 				const float CurrentPosition = AnimInstance->Montage_GetPosition(LocalAnimMontageInfo.AnimMontage);
 				const int32 CurrentSectionID = LocalAnimMontageInfo.AnimMontage->GetSectionIndexFromPosition(CurrentPosition);
-				const float DeltaPosition = RepAnimMontageInfo.Position - CurrentPosition;
+				const float DeltaPosition = ConstRepAnimMontageInfo.Position - CurrentPosition;
 
 				// Only check threshold if we are located in the same section. Different sections require a bit more work as we could be jumping around the timeline.
 				// And therefore DeltaPosition is not as trivial to determine.
-				if ((CurrentSectionID == RepSectionID) && (FMath::Abs(DeltaPosition) > MONTAGE_REP_POS_ERR_THRESH) && (RepAnimMontageInfo.IsStopped == 0))
+				if ((CurrentSectionID == RepSectionID) && (FMath::Abs(DeltaPosition) > MONTAGE_REP_POS_ERR_THRESH) && (ConstRepAnimMontageInfo.IsStopped == 0))
 				{
 					// fast forward to server position and trigger notifies
-					if (FAnimMontageInstance* MontageInstance = AnimInstance->GetActiveInstanceForMontage(RepAnimMontageInfo.AnimMontage))
+					if (FAnimMontageInstance* MontageInstance = AnimInstance->GetActiveInstanceForMontage(ConstRepAnimMontageInfo.AnimMontage))
 					{
 						// Skip triggering notifies if we're going backwards in time, we've already triggered them.
-						const float DeltaTime = !FMath::IsNearlyZero(RepAnimMontageInfo.PlayRate) ? (DeltaPosition / RepAnimMontageInfo.PlayRate) : 0.f;
+						const float DeltaTime = !FMath::IsNearlyZero(ConstRepAnimMontageInfo.PlayRate) ? (DeltaPosition / ConstRepAnimMontageInfo.PlayRate) : 0.f;
 						if (DeltaTime >= 0.f)
 						{
 							MontageInstance->UpdateWeight(DeltaTime);
-							MontageInstance->HandleEvents(CurrentPosition, RepAnimMontageInfo.Position, nullptr);
+							MontageInstance->HandleEvents(CurrentPosition, ConstRepAnimMontageInfo.Position, nullptr);
 							AnimInstance->TriggerAnimNotifies(DeltaTime);
 						}
 					}
-					AnimInstance->Montage_SetPosition(LocalAnimMontageInfo.AnimMontage, RepAnimMontageInfo.Position);
+					AnimInstance->Montage_SetPosition(LocalAnimMontageInfo.AnimMontage, ConstRepAnimMontageInfo.Position);
 				}
 			}
 		}
@@ -2714,11 +2726,13 @@ void UAbilitySystemComponent::CurrentMontageJumpToSection(FName SectionName)
 		AnimInstance->Montage_JumpToSection(SectionName, LocalAnimMontageInfo.AnimMontage);
 		if (IsOwnerActorAuthoritative())
 		{
-			RepAnimMontageInfo.SectionIdToPlay = 0;
-			if (RepAnimMontageInfo.AnimMontage)
+			FGameplayAbilityRepAnimMontage& MutableRepAnimMontageInfo = GetRepAnimMontageInfo_Mutable();
+
+			MutableRepAnimMontageInfo.SectionIdToPlay = 0;
+			if (MutableRepAnimMontageInfo.AnimMontage)
 			{
 				// we add one so INDEX_NONE can be used in the on rep
-				RepAnimMontageInfo.SectionIdToPlay = RepAnimMontageInfo.AnimMontage->GetSectionIndex(SectionName) + 1;
+				MutableRepAnimMontageInfo.SectionIdToPlay = MutableRepAnimMontageInfo.AnimMontage->GetSectionIndex(SectionName) + 1;
 			}
 
 			AnimMontage_UpdateReplicatedData();
@@ -2828,11 +2842,13 @@ void UAbilitySystemComponent::ServerCurrentMontageJumpToSectionName_Implementati
 			// Update replicated version for Simulated Proxies if we are on the server.
 			if (IsOwnerActorAuthoritative())
 			{
-				RepAnimMontageInfo.SectionIdToPlay = 0;
-				if (RepAnimMontageInfo.AnimMontage && SectionName != NAME_None)
+				FGameplayAbilityRepAnimMontage& MutableRepAnimMontageInfo = GetRepAnimMontageInfo_Mutable();
+
+				MutableRepAnimMontageInfo.SectionIdToPlay = 0;
+				if (MutableRepAnimMontageInfo.AnimMontage && SectionName != NAME_None)
 				{
 					// we add one so INDEX_NONE can be used in the on rep
-					RepAnimMontageInfo.SectionIdToPlay = RepAnimMontageInfo.AnimMontage->GetSectionIndex(SectionName) + 1;
+					MutableRepAnimMontageInfo.SectionIdToPlay = MutableRepAnimMontageInfo.AnimMontage->GetSectionIndex(SectionName) + 1;
 				}
 
 				AnimMontage_UpdateReplicatedData();
@@ -2952,7 +2968,7 @@ float UAbilitySystemComponent::GetCurrentMontageSectionTimeLeft() const
 
 void UAbilitySystemComponent::SetMontageRepAnimPositionMethod(ERepAnimPositionMethod InMethod)
 {
-	RepAnimMontageInfo.SetRepAnimPositionMethod(InMethod);
+	GetRepAnimMontageInfo_Mutable().SetRepAnimPositionMethod(InMethod);
 }
 
 bool UAbilitySystemComponent::IsAnimatingAbility(UGameplayAbility* InAbility) const
