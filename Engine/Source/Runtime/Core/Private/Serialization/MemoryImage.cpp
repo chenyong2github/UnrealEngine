@@ -740,6 +740,10 @@ FHashedName::FHashedName(const FName& InName)
 		{
 			WIDECHAR WideNameBuffer[NAME_SIZE];
 			Entry->GetWideName(WideNameBuffer);
+			for (int32 i = 0; i < Entry->GetNameLength(); ++i)
+			{
+				WideNameBuffer[i] = FCharWide::ToUpper(WideNameBuffer[i]);
+			}
 			const FTCHARToUTF8 NameUTF8(WCHAR_TO_TCHAR(WideNameBuffer));
 			Hash = CityHash64WithSeed(NameUTF8.Get(), NameUTF8.Length(), InternalNumber);
 		}
@@ -747,6 +751,10 @@ FHashedName::FHashedName(const FName& InName)
 		{
 			ANSICHAR AnsiNameBuffer[NAME_SIZE];
 			Entry->GetAnsiName(AnsiNameBuffer);
+			for (int32 i = 0; i < Entry->GetNameLength(); ++i)
+			{
+				AnsiNameBuffer[i] = FCharAnsi::ToUpper(AnsiNameBuffer[i]);
+			}
 			Hash = CityHash64WithSeed(AnsiNameBuffer, Entry->GetNameLength(), InternalNumber);
 		}
 	}
