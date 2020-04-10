@@ -67,38 +67,45 @@ namespace BuildAgent.Run
 
 		public bool TryGetLine(int Offset, out string NextLine)
 		{
-			NextLine = this[Offset];
-			return NextLine != null;
+			if (Offset >= 0)
+			{
+				// Add new lines to the buffer
+				while (Offset >= NextLines.Count)
+				{
+					NextLines.Add(ReadLine());
+				}
+				NextLine = NextLines[Offset];
+				return true;
+			}
+			else if (Offset >= -HistoryCount)
+			{
+				// Retrieve a line from the history buffer
+				int Idx = HistoryIdx + 1 + Offset;
+				if (Idx < 0)
+				{
+					Idx += History.Length;
+				}
+				NextLine = History[Idx];
+				return true;
+			}
+			else
+			{
+				// Invalid index
+				NextLine = null;
+				return false;
+			}
 		}
 
 		public string this[int Offset]
 		{
 			get
 			{
-				if (Offset >= 0)
+				string Line;
+				if (!TryGetLine(Offset, out Line))
 				{
-					// Add new lines to the buffer
-					while (Offset >= NextLines.Count)
-					{
-						NextLines.Add(ReadLine());
-					}
-					return NextLines[Offset];
-				}
-				else if (Offset >= -HistoryCount)
-				{
-					// Retrieve a line from the history buffer
-					int Idx = HistoryIdx + 1 + Offset;
-					if (Idx < 0)
-					{
-						Idx += History.Length;
-					}
-					return History[Idx];
-				}
-				else
-				{
-					// Invalid index
 					throw new ArgumentException(String.Format("Invalid line buffer offset ({0})", Offset));
 				}
+				return Line;
 			}
 		}
 

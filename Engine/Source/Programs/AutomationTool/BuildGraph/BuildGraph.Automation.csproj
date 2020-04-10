@@ -67,6 +67,7 @@
     <Compile Include="Agent.cs" />
     <Compile Include="Badge.cs" />
     <Compile Include="BuildGraph.cs" />
+    <Compile Include="Label.cs" />
     <Compile Include="Graph.cs" />
     <Compile Include="Node.cs" />
     <Compile Include="Report.cs" />

@@ -1684,8 +1684,10 @@ namespace UnrealBuildTool
 
 			// Start with the configured LibraryPaths and also add paths to any libraries that
 			// we depend on (libraries that we've build ourselves).
-			List<DirectoryReference> AllLibraryPaths = LinkEnvironment.LibraryPaths;
-			foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
+			List<DirectoryReference> AllLibraryPaths = LinkEnvironment.SystemLibraryPaths;
+
+			IEnumerable<string> AdditionalLibraries = Enumerable.Concat(LinkEnvironment.SystemLibraries, LinkEnvironment.Libraries.Select(x => x.FullName));
+			foreach (string AdditionalLibrary in AdditionalLibraries)
 			{
 				string PathToLib = Path.GetDirectoryName(AdditionalLibrary);
 				if (!String.IsNullOrEmpty(PathToLib))
@@ -1794,7 +1796,7 @@ namespace UnrealBuildTool
 			// add libraries in a library group
 			ResponseLines.Add(string.Format(" --start-group"));
 
-			foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
+			foreach (string AdditionalLibrary in AdditionalLibraries)
 			{
 				if (String.IsNullOrEmpty(Path.GetDirectoryName(AdditionalLibrary)))
 				{

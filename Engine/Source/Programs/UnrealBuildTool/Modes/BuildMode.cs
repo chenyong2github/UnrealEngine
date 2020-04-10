@@ -306,26 +306,88 @@ namespace UnrealBuildTool
 					ActionGraph.CheckPathLengths(BuildConfiguration, Makefiles.SelectMany(x => x.Actions));
 				}
 
-				// Find all the actions to be executed
-				HashSet<Action>[] ActionsToExecute = new HashSet<Action>[TargetDescriptors.Count];
-				for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
+				// Clean up any previous hot reload runs, and reapply the current state if it's already active
+				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 				{
-					ActionsToExecute[TargetIdx] = GetActionsForTarget(BuildConfiguration, TargetDescriptors[TargetIdx], Makefiles[TargetIdx]);
+					HotReload.Setup(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], BuildConfiguration);
 				}
 
-				// If there are multiple targets being built, merge the actions together
-				List<Action> MergedActionsToExecute;
-				if(TargetDescriptors.Count == 1)
+				// Merge the action graphs together
+				List<Action> MergedActions;
+				if (TargetDescriptors.Count == 1)
 				{
-					MergedActionsToExecute = new List<Action>(ActionsToExecute[0]);
+					MergedActions = new List<Action>(Makefiles[0].Actions);
 				}
 				else
 				{
-					MergedActionsToExecute = MergeActionGraphs(TargetDescriptors, ActionsToExecute);
+					MergedActions = MergeActionGraphs(TargetDescriptors, Makefiles);
+				}
+
+				// Gather all the prerequisite actions that are part of the targets
+				HashSet<FileItem> MergedOutputItems = new HashSet<FileItem>();
+				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
+				{
+					GatherOutputItems(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], MergedOutputItems);
 				}
 
 				// Link all the actions together
+				ActionGraph.Link(MergedActions);
+
+				// Get all the actions that are prerequisites for these targets. This forms the list of actions that we want executed.
+				List<Action> PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(MergedActions, MergedOutputItems);
+
+				// Figure out which actions need to be built
+				Dictionary<Action, bool> ActionToOutdatedFlag = new Dictionary<Action, bool>();
+				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
+				{
+					TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
+
+					// Create the dependencies cache
+					CppDependencyCache CppDependencies;
+					using (Timeline.ScopeEvent("Reading dependency cache"))
+					{
+						CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture);
+					}
+
+					// Create the action history
+					ActionHistory History;
+					using (Timeline.ScopeEvent("Reading action history"))
+					{
+						History = ActionHistory.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture);
+					}
+
+					// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.
+					if (TargetDescriptor.SingleFileToCompile == null)
+					{
+						ActionGraph.GatherAllOutdatedActions(PrerequisiteActions, History, ActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+					}
+					else
+					{
+						ActionToOutdatedFlag[PrerequisiteActions.FirstOrDefault(x => x.PrerequisiteItems.Any(y => y.Location == TargetDescriptor.SingleFileToCompile))] = true;
+					}
+				}
+
+				// Link the action graph again to sort it
+				List<Action> MergedActionsToExecute = ActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
 				ActionGraph.Link(MergedActionsToExecute);
+
+				// Allow hot reload to override the actions
+				int HotReloadTargetIdx = -1;
+				for(int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
+				{
+					if (TargetDescriptors[Idx].HotReloadMode != HotReloadMode.Disabled)
+					{
+						if (HotReloadTargetIdx != -1)
+						{
+							throw new BuildException("Unable to perform hot reload with multiple targets.");
+						}
+						else
+						{
+							MergedActionsToExecute = HotReload.PatchActionsForTarget(BuildConfiguration, TargetDescriptors[Idx], Makefiles[Idx], PrerequisiteActions, MergedActionsToExecute);
+						}
+						HotReloadTargetIdx = Idx;
+					}
+				}
 
 				// Make sure we're not modifying any engine files
 				if ((Options & BuildOptions.NoEngineChanges) != 0)
@@ -583,292 +645,23 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Determine what needs to be built for a target
-		/// </summary>
-		/// <param name="BuildConfiguration">The build configuration</param>
-		/// <param name="TargetDescriptor">Target being built</param>
-		/// <param name="Makefile">Makefile generated for this target</param>
-		/// <returns>Set of actions to execute</returns>
-		static HashSet<Action> GetActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile)
-		{
-			// Create the action graph
-			ActionGraph.Link(Makefile.Actions);
-
-			// Get the hot-reload mode
-			HotReloadMode HotReloadMode = TargetDescriptor.HotReloadMode;
-			if(HotReloadMode == HotReloadMode.Default)
-			{
-				if (TargetDescriptor.HotReloadModuleNameToSuffix.Count > 0 && TargetDescriptor.ForeignPlugin == null)
-				{
-					HotReloadMode = HotReloadMode.FromEditor;
-				}
-				else if (BuildConfiguration.bAllowHotReloadFromIDE && HotReload.ShouldDoHotReloadFromIDE(BuildConfiguration, TargetDescriptor))
-				{
-					HotReloadMode = HotReloadMode.FromIDE;
-				}
-				else
-				{
-					HotReloadMode = HotReloadMode.Disabled;
-				}
-			}
-
-			// Guard against a live coding session for this target being active
-			if (BuildConfiguration.bAllowHotReloadFromIDE && HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile))
-			{
-				throw new BuildException("Unable to start regular build while Live Coding is active. Press Ctrl+Alt+F11 to trigger a Live Coding compile.");
-			}
-
-			// Get the root prerequisite actions
-			List<Action> PrerequisiteActions = GatherPrerequisiteActions(TargetDescriptor, Makefile);
-
-			// Get the path to the hot reload state file for this target
-			FileReference HotReloadStateFile = global::UnrealBuildTool.HotReloadState.GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, TargetDescriptor.Architecture);
-
-			// Apply the previous hot reload state
-			HotReloadState HotReloadState = null;
-			if(HotReloadMode == HotReloadMode.Disabled)
-			{
-				// Make sure we're not doing a partial build from the editor (eg. compiling a new plugin)
-				if(TargetDescriptor.ForeignPlugin == null && TargetDescriptor.SingleFileToCompile == null)
-				{
-					// Delete the previous state file
-					HotReload.DeleteTemporaryFiles(HotReloadStateFile);
-				}
-			}
-			else
-			{
-				// Read the previous state file and apply it to the action graph
-				if(FileReference.Exists(HotReloadStateFile))
-				{
-					HotReloadState = HotReloadState.Load(HotReloadStateFile);
-				}
-				else
-				{
-					HotReloadState = new HotReloadState();
-				}
-
-				// Apply the old state to the makefile
-				HotReload.ApplyState(HotReloadState, Makefile);
-
-				// If we want a specific suffix on any modules, apply that now. We'll track the outputs later, but the suffix has to be forced (and is always out of date if it doesn't exist).
-				HotReload.PatchActionGraphWithNames(PrerequisiteActions, TargetDescriptor.HotReloadModuleNameToSuffix, Makefile);
-
-				// Re-link the action graph
-				ActionGraph.Link(PrerequisiteActions);
-			}
-
-			// Create the dependencies cache
-			CppDependencyCache CppDependencies;
-			using(Timeline.ScopeEvent("Reading dependency cache"))
-			{
-				CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture);
-			}
-
-			// Create the action history
-			ActionHistory History;
-			using(Timeline.ScopeEvent("Reading action history"))
-			{
-				History = ActionHistory.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, Makefile.TargetType, TargetDescriptor.Architecture);
-			}
-
-			// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.
-			HashSet<Action> TargetActionsToExecute;
-			if (TargetDescriptor.SingleFileToCompile == null)
-			{
-				TargetActionsToExecute = ActionGraph.GetActionsToExecute(Makefile.Actions, PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
-			}
-			else
-			{
-				TargetActionsToExecute = new HashSet<Action>(PrerequisiteActions);
-			}
-			
-			// Additional processing for hot reload
-			if (HotReloadMode == HotReloadMode.LiveCoding)
-			{
-				// Make sure we're not overwriting any lazy-loaded modules
-				if(TargetDescriptor.LiveCodingModules != null)
-				{
-					// Read the list of modules that we're allowed to build
-					string[] Lines = FileReference.ReadAllLines(TargetDescriptor.LiveCodingModules);
-
-					// Parse it out into a set of filenames
-					HashSet<string> AllowedOutputFileNames = new HashSet<string>(FileReference.Comparer);
-					foreach (string Line in Lines)
-					{
-						string TrimLine = Line.Trim();
-						if (TrimLine.Length > 0)
-						{
-							AllowedOutputFileNames.Add(Path.GetFileName(TrimLine));
-						}
-					}
-
-					// Find all the binaries that we're actually going to build
-					HashSet<FileReference> OutputFiles = new HashSet<FileReference>();
-					foreach (Action Action in TargetActionsToExecute)
-					{
-						if (Action.ActionType == ActionType.Link)
-						{
-							OutputFiles.UnionWith(Action.ProducedItems.Where(x => x.HasExtension(".exe") || x.HasExtension(".dll")).Select(x => x.Location));
-						}
-					}
-
-					// Find all the files that will be built that aren't allowed
-					List<FileReference> ProtectedOutputFiles = OutputFiles.Where(x => !AllowedOutputFileNames.Contains(x.GetFileName())).ToList();
-					if (ProtectedOutputFiles.Count > 0)
-					{
-						FileReference.WriteAllLines(new FileReference(TargetDescriptor.LiveCodingModules.FullName + ".out"), ProtectedOutputFiles.Select(x => x.ToString()));
-						foreach(FileReference ProtectedOutputFile in ProtectedOutputFiles)
-						{
-							Log.TraceInformation("Module {0} is not currently enabled for Live Coding", ProtectedOutputFile);
-						}
-						throw new CompilationResultException(CompilationResult.Canceled);
-					}
-				}
-
-				// Filter the prerequisite actions down to just the compile actions, then recompute all the actions to execute
-				PrerequisiteActions = new List<Action>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
-				TargetActionsToExecute = ActionGraph.GetActionsToExecute(Makefile.Actions, PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
-
-				// Update the action graph with these new paths
-				Dictionary<FileReference, FileReference> OriginalFileToPatchedFile = new Dictionary<FileReference, FileReference>();
-				HotReload.PatchActionGraphForLiveCoding(PrerequisiteActions, OriginalFileToPatchedFile);
-
-				// Get a new list of actions to execute now that the graph has been modified
-				TargetActionsToExecute = ActionGraph.GetActionsToExecute(Makefile.Actions, PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
-
-				// Output the Live Coding manifest
-				if(TargetDescriptor.LiveCodingManifest != null)
-				{
-					HotReload.WriteLiveCodingManifest(TargetDescriptor.LiveCodingManifest, Makefile.Actions, OriginalFileToPatchedFile);
-				}
-			}
-			else if (HotReloadMode == HotReloadMode.FromEditor || HotReloadMode == HotReloadMode.FromIDE)
-			{
-				// Patch action history for hot reload when running in assembler mode.  In assembler mode, the suffix on the output file will be
-				// the same for every invocation on that makefile, but we need a new suffix each time.
-
-				// For all the hot-reloadable modules that may need a unique suffix appended, build a mapping from output item to all the output items in that module. We can't 
-				// apply a suffix to one without applying a suffix to all of them.
-				Dictionary<FileItem, FileItem[]> HotReloadItemToDependentItems = new Dictionary<FileItem, FileItem[]>();
-				foreach(string HotReloadModuleName in Makefile.HotReloadModuleNames)
-				{
-					int ModuleSuffix;
-					if(!TargetDescriptor.HotReloadModuleNameToSuffix.TryGetValue(HotReloadModuleName, out ModuleSuffix) || ModuleSuffix == -1)
-					{
-						FileItem[] ModuleOutputItems;
-						if(Makefile.ModuleNameToOutputItems.TryGetValue(HotReloadModuleName, out ModuleOutputItems))
-						{
-							foreach(FileItem ModuleOutputItem in ModuleOutputItems)
-							{
-								HotReloadItemToDependentItems[ModuleOutputItem] = ModuleOutputItems;
-							}
-						}
-					} 
-				}
-
-				// Expand the list of actions to execute to include everything that references any files with a new suffix. Unlike a regular build, we can't ignore
-				// dependencies on import libraries under the assumption that a header would change if the API changes, because the dependency will be on a different DLL.
-				HashSet<FileItem> FilesRequiringSuffix = new HashSet<FileItem>(TargetActionsToExecute.SelectMany(x => x.ProducedItems).Where(x => HotReloadItemToDependentItems.ContainsKey(x)));
-				for(int LastNumFilesWithNewSuffix = 0; FilesRequiringSuffix.Count > LastNumFilesWithNewSuffix;)
-				{
-					LastNumFilesWithNewSuffix = FilesRequiringSuffix.Count;
-					foreach(Action PrerequisiteAction in PrerequisiteActions)
-					{
-						if(!TargetActionsToExecute.Contains(PrerequisiteAction))
-						{
-							foreach(FileItem ProducedItem in PrerequisiteAction.ProducedItems)
-							{
-								FileItem[] DependentItems;
-								if(HotReloadItemToDependentItems.TryGetValue(ProducedItem, out DependentItems))
-								{
-									TargetActionsToExecute.Add(PrerequisiteAction);
-									FilesRequiringSuffix.UnionWith(DependentItems);
-								}
-							}
-						}
-					}
-				}
-
-				// Build a list of file mappings
-				Dictionary<FileReference, FileReference> OldLocationToNewLocation = new Dictionary<FileReference, FileReference>();
-				foreach(FileItem FileRequiringSuffix in FilesRequiringSuffix)
-				{
-					FileReference OldLocation = FileRequiringSuffix.Location;
-					FileReference NewLocation = HotReload.ReplaceSuffix(OldLocation, HotReloadState.NextSuffix);
-					OldLocationToNewLocation[OldLocation] = NewLocation;
-				}
-
-				// Update the action graph with these new paths
-				HotReload.PatchActionGraph(PrerequisiteActions, OldLocationToNewLocation);
-
-				// Get a new list of actions to execute now that the graph has been modified
-				TargetActionsToExecute = ActionGraph.GetActionsToExecute(Makefile.Actions, PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
-
-				// Build a mapping of all file items to their original
-				Dictionary<FileReference, FileReference> HotReloadFileToOriginalFile = new Dictionary<FileReference, FileReference>();
-				foreach(KeyValuePair<FileReference, FileReference> Pair in HotReloadState.OriginalFileToHotReloadFile)
-				{
-					HotReloadFileToOriginalFile[Pair.Value] = Pair.Key;
-				}
-				foreach(KeyValuePair<FileReference, FileReference> Pair in OldLocationToNewLocation)
-				{
-					FileReference OriginalLocation;
-					if(!HotReloadFileToOriginalFile.TryGetValue(Pair.Key, out OriginalLocation))
-					{
-						OriginalLocation = Pair.Key;
-					}
-					HotReloadFileToOriginalFile[Pair.Value] = OriginalLocation;
-				}
-
-				// Now filter out all the hot reload files and update the state
-				foreach(Action Action in TargetActionsToExecute)
-				{
-					foreach(FileItem ProducedItem in Action.ProducedItems)
-					{
-						FileReference OriginalLocation;
-						if(HotReloadFileToOriginalFile.TryGetValue(ProducedItem.Location, out OriginalLocation))
-						{
-							HotReloadState.OriginalFileToHotReloadFile[OriginalLocation] = ProducedItem.Location;
-							HotReloadState.TemporaryFiles.Add(ProducedItem.Location);
-						}
-					}
-				}
-
-				// Increment the suffix for the next iteration
-				if(TargetActionsToExecute.Count > 0)
-				{
-					HotReloadState.NextSuffix++;
-				}
-
-				// Save the new state
-				HotReloadState.Save(HotReloadStateFile);
-
-				// Prevent this target from deploying
-				Makefile.bDeployAfterCompile = false;
-			}
-
-			return TargetActionsToExecute;
-		}
-
-		/// <summary>
 		/// Determines all the actions that should be executed for a target (filtering for single module/file, etc..)
 		/// </summary>
 		/// <param name="TargetDescriptor">The target being built</param>
 		/// <param name="Makefile">Makefile for the target</param>
+		/// <param name="OutputItems">Set of all output items</param>
 		/// <returns>List of actions that need to be executed</returns>
-		static List<Action> GatherPrerequisiteActions(TargetDescriptor TargetDescriptor, TargetMakefile Makefile)
+		static void GatherOutputItems(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, HashSet<FileItem> OutputItems)
 		{
-			List<Action> PrerequisiteActions;
 			if(TargetDescriptor.SingleFileToCompile != null)
 			{
 				// If we're just compiling a single file, set the target items to be all the derived items
 				FileItem FileToCompile = FileItem.GetItemByFileReference(TargetDescriptor.SingleFileToCompile);
-				PrerequisiteActions = Makefile.Actions.Where(x => x.PrerequisiteItems.Contains(FileToCompile)).ToList();
+				OutputItems.UnionWith(Makefile.Actions.Where(x => x.PrerequisiteItems.Contains(FileToCompile)).SelectMany(x => x.ProducedItems));
 			}
 			else if(TargetDescriptor.OnlyModuleNames.Count > 0)
 			{
 				// Find the output items for this module
-				HashSet<FileItem> ModuleOutputItems = new HashSet<FileItem>();
 				foreach(string OnlyModuleName in TargetDescriptor.OnlyModuleNames)
 				{
 					FileItem[] OutputItemsForModule;
@@ -876,32 +669,30 @@ namespace UnrealBuildTool
 					{
 						throw new BuildException("Unable to find output items for module '{0}'", OnlyModuleName);
 					}
-					ModuleOutputItems.UnionWith(OutputItemsForModule);
+					OutputItems.UnionWith(OutputItemsForModule);
 				}
-				PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(Makefile.Actions, ModuleOutputItems);
 			}
 			else
 			{
 				// Use all the output items from the target
-				PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(Makefile.Actions, new HashSet<FileItem>(Makefile.OutputItems));
+				OutputItems.UnionWith(Makefile.OutputItems);
 			}
-			return PrerequisiteActions;
 		}
 
 		/// <summary>
 		/// Merge action graphs for multiple targets into a single set of actions. Sets group names on merged actions to indicate which target they belong to.
 		/// </summary>
 		/// <param name="TargetDescriptors">List of target descriptors</param>
-		/// <param name="ActionsToExecute">Set of actions to execute for each target</param>
+		/// <param name="Makefiles">The makefiles being built</param>
 		/// <returns>List of merged actions</returns>
-		static List<Action> MergeActionGraphs(List<TargetDescriptor> TargetDescriptors, HashSet<Action>[] ActionsToExecute)
+		static List<Action> MergeActionGraphs(List<TargetDescriptor> TargetDescriptors, TargetMakefile[] Makefiles)
 		{
 			// Set of all output items. Knowing that there are no conflicts in produced items, we use this to eliminate duplicate actions.
 			Dictionary<FileItem, Action> OutputItemToProducingAction = new Dictionary<FileItem, Action>();
 			for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 			{
 				string GroupPrefix = String.Format("{0}-{1}-{2}", TargetDescriptors[TargetIdx].Name, TargetDescriptors[TargetIdx].Platform, TargetDescriptors[TargetIdx].Configuration);
-				foreach(Action Action in ActionsToExecute[TargetIdx])
+				foreach(Action Action in Makefiles[TargetIdx].Actions)
 				{
 					Action ExistingAction;
 					if(!OutputItemToProducingAction.TryGetValue(Action.ProducedItems[0], out ExistingAction))

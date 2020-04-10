@@ -3567,7 +3567,7 @@ namespace AutomationTool
 		public List<int> StreamInterchanges(string StreamName, bool bReverse)
 		{
 			string Output;
-			if(!P4Output(out Output, String.Format("interchanges {0}-S {1}", bReverse? "-r " : "", StreamName), Input:null, AllowSpew:false))
+			if(!P4Output(out Output, String.Format("interchanges {0}-S {1} -F", bReverse? "-r " : "", StreamName), Input:null, AllowSpew:false))
 			{
 				throw new AutomationException("Couldn't get unintegrated stream changes from {0}", StreamName);
 			}

@@ -591,8 +591,8 @@ namespace UnrealBuildTool
 			// Library paths
 			// @MIXEDREALITY_CHANGE : BEGIN TODO: change to arm.
 			string LibArchitecture = WindowsExports.GetArchitectureSubpath(Target.HoloLensPlatform.Architecture);
-			LinkEnvironment.LibraryPaths.Add(new DirectoryReference(string.Format(@"{0}\Lib\{1}\ucrt\{2}", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion, LibArchitecture)));
-			LinkEnvironment.LibraryPaths.Add(new DirectoryReference(string.Format(@"{0}\Lib\{1}\um\{2}", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion, LibArchitecture)));
+			LinkEnvironment.SystemLibraryPaths.Add(new DirectoryReference(string.Format(@"{0}\Lib\{1}\ucrt\{2}", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion, LibArchitecture)));
+			LinkEnvironment.SystemLibraryPaths.Add(new DirectoryReference(string.Format(@"{0}\Lib\{1}\um\{2}", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion, LibArchitecture)));
 
 			// Reference (WinMD) paths
 			// Only Foundation and Universal are referenced by default.  
@@ -636,31 +636,31 @@ namespace UnrealBuildTool
 			LinkEnvironment.AdditionalArguments += "/NODEFAULTLIB";
 			//CompileEnvironment.AdditionalArguments += " /showIncludes";
 
-			LinkEnvironment.AdditionalLibraries.Add("windowsapp.lib");
+			LinkEnvironment.SystemLibraries.Add("windowsapp.lib");
 
 			CompileEnvironment.Definitions.Add(string.Format("WIN10_SDK_VERSION={0}", Target.HoloLensPlatform.Win10SDKVersion.Build));
 
-			LinkEnvironment.AdditionalLibraries.Add("dloadhelper.lib");
-			LinkEnvironment.AdditionalLibraries.Add("ws2_32.lib");
+			LinkEnvironment.SystemLibraries.Add("dloadhelper.lib");
+			LinkEnvironment.SystemLibraries.Add("ws2_32.lib");
 
 			if (CompileEnvironment.bUseDebugCRT)
 			{
-				LinkEnvironment.AdditionalLibraries.Add("vccorlibd.lib");
-				LinkEnvironment.AdditionalLibraries.Add("ucrtd.lib");
-				LinkEnvironment.AdditionalLibraries.Add("vcruntimed.lib");
-				LinkEnvironment.AdditionalLibraries.Add("msvcrtd.lib");
-				LinkEnvironment.AdditionalLibraries.Add("msvcprtd.lib");
+				LinkEnvironment.SystemLibraries.Add("vccorlibd.lib");
+				LinkEnvironment.SystemLibraries.Add("ucrtd.lib");
+				LinkEnvironment.SystemLibraries.Add("vcruntimed.lib");
+				LinkEnvironment.SystemLibraries.Add("msvcrtd.lib");
+				LinkEnvironment.SystemLibraries.Add("msvcprtd.lib");
 			}
 			else
 			{
-				LinkEnvironment.AdditionalLibraries.Add("vccorlib.lib");
-				LinkEnvironment.AdditionalLibraries.Add("ucrt.lib");
-				LinkEnvironment.AdditionalLibraries.Add("vcruntime.lib");
-				LinkEnvironment.AdditionalLibraries.Add("msvcrt.lib");
-				LinkEnvironment.AdditionalLibraries.Add("msvcprt.lib");
+				LinkEnvironment.SystemLibraries.Add("vccorlib.lib");
+				LinkEnvironment.SystemLibraries.Add("ucrt.lib");
+				LinkEnvironment.SystemLibraries.Add("vcruntime.lib");
+				LinkEnvironment.SystemLibraries.Add("msvcrt.lib");
+				LinkEnvironment.SystemLibraries.Add("msvcprt.lib");
 			}
-			LinkEnvironment.AdditionalLibraries.Add("legacy_stdio_wide_specifiers.lib");
-			LinkEnvironment.AdditionalLibraries.Add("uuid.lib"); 
+			LinkEnvironment.SystemLibraries.Add("legacy_stdio_wide_specifiers.lib");
+			LinkEnvironment.SystemLibraries.Add("uuid.lib"); 
 		}
 
 		/// <summary>

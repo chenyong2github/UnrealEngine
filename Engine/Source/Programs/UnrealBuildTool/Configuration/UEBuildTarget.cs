@@ -2600,7 +2600,7 @@ namespace UnrealBuildTool
 		private HashSet<string> GetHotReloadModuleNames()
 		{
 			HashSet<string> HotReloadModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			if (!ShouldCompileMonolithic())
+			if (Rules.bAllowHotReload && !ShouldCompileMonolithic())
 			{
 				foreach (UEBuildBinary Binary in Binaries)
 				{

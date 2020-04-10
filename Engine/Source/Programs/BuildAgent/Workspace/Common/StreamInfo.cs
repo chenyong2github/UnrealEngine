@@ -235,8 +235,13 @@ namespace BuildAgent.Workspace.Common
 		/// Saves the contents of this object to disk
 		/// </summary>
 		/// <param name="OutputFile">The output file to write to</param>
-		public void Save(FileReference OutputFile)
+		public void Save(FileReference OutputFile, bool Overwrite = false)
 		{
+			if (Overwrite && FileReference.Exists(OutputFile))
+			{
+				FileReference.Delete(OutputFile);
+			}
+
 			using(FileStream Stream = File.Open(OutputFile.FullName, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
 			{
 				Stream.Write(CurrentSignature, 0, CurrentSignature.Length);
