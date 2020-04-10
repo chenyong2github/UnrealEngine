@@ -954,18 +954,28 @@ const TCHAR* FGenericPlatformMisc::ProjectDir()
 	bool bIsIniReady = GConfig && GConfig->IsReadyForUse();
 	if (bWasIniReady != bIsIniReady)
 	{
-		ProjectDir = TEXT("");
+		ProjectDir.Reset();
 		bWasIniReady = bIsIniReady;
+	}
+
+	// track if last time we called this function the project file path was set
+	static bool bWasProjectFilePathReady = false;
+	if (!bWasProjectFilePathReady && FPaths::IsProjectFilePathSet())
+	{
+		ProjectDir.Reset();
+		bWasProjectFilePathReady = true;
 	}
 
 	// try using the override game dir if it exists, which will override all below logic
 	if (ProjectDir.Len() == 0)
 	{
+		ProjectDir.Reserve(FPlatformMisc::GetMaxPathLength());
 		ProjectDir = OverrideProjectDir;
 	}
 
 	if (ProjectDir.Len() == 0)
 	{
+		ProjectDir.Reserve(FPlatformMisc::GetMaxPathLength());
 		if (FPlatformProperties::IsProgram())
 		{
 			// monolithic, game-agnostic executables, the ini is in Engine/Config/Platform
