@@ -286,19 +286,19 @@ void UNiagaraStackParameterStoreEntry::Delete()
 	TArray<UEdGraphPin*> OwningPins = GetOwningPins();
 	RemovePins(OwningPins);
 
+	// Cache these here since the entry will be finalized when the owning parameter store changes.
+	TSharedPtr<FNiagaraSystemViewModel> CachedSystemViewModel = GetSystemViewModel();
+	UNiagaraDataInterface* DataInterface = Cast<UNiagaraDataInterface>(ValueObject.Get());
+
 	//remove from store
 	Owner->Modify();
 	ParameterStore->RemoveParameter(FNiagaraVariable(InputType, ParameterName));
-	if (InputType.IsDataInterface())
-	{
-		UNiagaraDataInterface* DataInterface = NewObject<UNiagaraDataInterface>(this, const_cast<UClass*>(InputType.GetClass()));
-		if (DataInterface != nullptr)
-		{
-			GetSystemViewModel()->NotifyDataObjectChanged(DataInterface);
-		}
-	}
 
-	ParameterDeletedDelegate.Broadcast();
+	// Notify the system view model that the DI has been modifier.
+	if (CachedSystemViewModel.IsValid() && DataInterface != nullptr)
+	{
+		CachedSystemViewModel->NotifyDataObjectChanged(DataInterface);
+	}
 }
 
 void UNiagaraStackParameterStoreEntry::RemovePins(TArray<UEdGraphPin*> OwningPins /*, bool bSetPreviousValue*/)
@@ -348,11 +348,6 @@ void UNiagaraStackParameterStoreEntry::RemovePins(TArray<UEdGraphPin*> OwningPin
 UNiagaraStackParameterStoreEntry::FOnValueChanged& UNiagaraStackParameterStoreEntry::OnValueChanged()
 {
 	return ValueChangedDelegate;
-}
-
-UNiagaraStackParameterStoreEntry::FOnParameterDeleted& UNiagaraStackParameterStoreEntry::OnParameterDeleted()
-{
-	return ParameterDeletedDelegate;
 }
 
 TSharedPtr<FNiagaraVariable> UNiagaraStackParameterStoreEntry::GetCurrentValueVariable()
