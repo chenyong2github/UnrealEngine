@@ -9,7 +9,6 @@
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
 #include "PropertyHandle.h"
-#include "SoundModulationControlComboBox.h"
 
 
 // Forward Declarations
@@ -90,16 +89,3 @@ public:
 	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder) override;
 };
 
-class FSoundControlModulationPatchLayoutCustomization : public FSoundModulationPatchLayoutCustomization
-{
-public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-	{
-		return MakeShared<FSoundControlModulationPatchLayoutCustomization>();
-	}
-
-	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder) override;
-
-protected:
-	TSharedPtr<SSearchableComboBox> ControlComboBox;
-};

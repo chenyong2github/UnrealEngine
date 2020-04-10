@@ -2,7 +2,7 @@
 #include "AssetTypeActions_SoundModulationSettings.h"
 
 #include "Editors/ModulationSettingsEditor.h"
-#include "SoundModulationPatch.h"
+#include "SoundModulationSettings.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"

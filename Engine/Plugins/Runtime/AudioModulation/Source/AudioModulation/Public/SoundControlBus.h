@@ -1,31 +1,53 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioDeviceManager.h"
+#include "AudioDevice.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-
-#include "SoundModulatorLFO.h"
+#include "IAudioModulation.h"
 #include "SoundModulationValue.h"
+#include "SoundModulatorLFO.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
 #include "SoundControlBus.generated.h"
 
 
-UENUM()
-enum class ESoundModulatorOperator : uint8
+// Forward Declarations
+class USoundModulatorBase;
+
+struct FPropertyChangedEvent;
+
+
+#if WITH_EDITOR
+namespace AudioModulation
 {
-	/** Multiply all mix values together */
-	Multiply,
+	static void OnEditModulator(FPropertyChangedEvent& InPropertyChangedEvent, USoundModulatorBase& InModulator)
+	{
+		check(InPropertyChangedEvent.Property);
 
-	/** Take the lowest mix value */
-	Min,
+		if (!GEngine)
+		{
+			return;
+		}
 
-	/** Take the highest mix value */
-	Max,
+		FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+		if (!DeviceManager)
+		{
+			return;
+		}
 
-	Count UMETA(Hidden),
-};
-
+		const TArray<FAudioDevice*>& Devices = DeviceManager->GetAudioDevices();
+		for (FAudioDevice* Device : Devices)
+		{
+			if (Device && Device->IsModulationPluginEnabled() && Device->ModulationInterface.IsValid())
+			{
+				Device->ModulationInterface->UpdateModulator(InModulator);
+			}
+		}
+	}
+} // namespace AudioModulation
+#endif // WITH_EDITOR
 
 UCLASS(BlueprintType, hidecategories = Object, abstract, MinimalAPI)
 class USoundControlBusBase : public USoundModulatorBase
@@ -64,7 +86,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
 	virtual void PostInitProperties() override;
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 #endif // WITH_EDITOR

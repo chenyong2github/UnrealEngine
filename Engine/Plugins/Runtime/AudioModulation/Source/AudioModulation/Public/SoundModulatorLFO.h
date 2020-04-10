@@ -3,13 +3,13 @@
 
 #include "CoreMinimal.h"
 #include "DSP/LFO.h"
+#include "IAudioModulation.h"
+#include "SoundModulationValue.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
-#include "SoundModulatorBase.h"
-#include "SoundModulationValue.h"
-
 #include "SoundModulatorLFO.generated.h"
+
 
 UENUM(BlueprintType)
 enum class ESoundModulatorLFOShape : uint8
@@ -23,6 +23,19 @@ enum class ESoundModulatorLFOShape : uint8
 	RandomSampleHold  UMETA(DisplayName = "Random"),
 
 	COUNT UMETA(Hidden)
+};
+
+/**
+ * Base class for modulators that manipulate control bus values
+ */
+UCLASS(hideCategories = Object, abstract, MinimalAPI)
+class USoundBusModulatorBase : public USoundModulatorBase
+{
+	GENERATED_UCLASS_BODY()
+
+#if WITH_EDITOR
+		virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
+#endif // WITH_EDITOR
 };
 
 UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)

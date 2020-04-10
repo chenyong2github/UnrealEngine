@@ -15,7 +15,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "IDetailsView.h"
-#include "ModulationSettingsEditor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "RichCurveEditorModel.h"
@@ -30,6 +29,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SFrameRatePicker.h"
 #include "ModulationSettingsCurveEditorViewStacked.h"
+#include "SoundModulationSettings.h"
 
 
 #define LOCTEXT_NAMESPACE "ModulationSettingsEditor"
@@ -236,64 +236,9 @@ void FModulationSettingsEditor::SetCurveAtOrderIndex(int32 InCurveIndex, FRichCu
 			TUniquePtr<FModCurveEditorModel> NewCurve = MakeUnique<FModCurveEditorModel>(InRichCurve, GetEditingObject(), CurveOutput, InSource, InSharedCurve);
 			CurveModels[InCurveIndex] = CurveEditor->AddCurve(MoveTemp(NewCurve));
 		}
-		else
-		{
-			const USoundModulationSettings* ModSettings = CastChecked<USoundModulationSettings>(GetEditingObject());
-			const int32 ControlIndex = GetControlIndex(InCurveIndex);
-			const FName Name = ModSettings->Controls[ControlIndex].Control;
-			TUniquePtr<FModCurveEditorModel> NewCurve = MakeUnique<FModCurveEditorModel>(InRichCurve, GetEditingObject(), Name, InSource, InSharedCurve);
-			CurveModels[InCurveIndex] = CurveEditor->AddCurve(MoveTemp(NewCurve));
-		}
 	}
 
 	CurveEditor->PinCurve(CurveModels[InCurveIndex]);
-}
-
-int32 FModulationSettingsEditor::GetControlModulationCount() const
-{
-	USoundModulationSettings* Settings = Cast<USoundModulationSettings>(GetEditingObject());
-	if (!Settings)
-	{
-		return 0;
-	}
-
-	return Settings->Controls.Num();
-}
-
-int32 FModulationSettingsEditor::GetCurveCount() const
-{
-	USoundModulationSettings* Settings = Cast<USoundModulationSettings>(GetEditingObject());
-	if (!Settings)
-	{
-		return 0;
-	}
-
-	return static_cast<int32>(EModSettingsEditorCurveOutput::Count) - 1 + Settings->Controls.Num();
-}
-
-int32 FModulationSettingsEditor::GetCurveOrderIndex(EModSettingsEditorCurveOutput InCurveOutput, int32 InControlIndex) const
-{
-	switch (InCurveOutput)
-	{
-	case EModSettingsEditorCurveOutput::Volume:
-	case EModSettingsEditorCurveOutput::Pitch:
-	case EModSettingsEditorCurveOutput::Highpass:
-	case EModSettingsEditorCurveOutput::Lowpass:
-	{
-		return static_cast<int32>(InCurveOutput);
-	}
-	break;
-
-	case EModSettingsEditorCurveOutput::Control:
-	{
-		return static_cast<int32>(InCurveOutput) + InControlIndex;
-	}
-	break;
-
-	default:
-		static_assert(static_cast<int32>(EModSettingsEditorCurveOutput::Count) == 5, "Possible missing case coverage for enum EModSettingsEditorCurveOutput");
-		return -1;
-	}
 }
 
 int32 FModulationSettingsEditor::GetControlIndex(int32 InCurveIndex) const
@@ -305,24 +250,6 @@ int32 FModulationSettingsEditor::GetControlIndex(int32 InCurveIndex) const
 	}
 
 	return InCurveIndex - ControlIndexOffset;
-}
-
-FName FModulationSettingsEditor::GetControlName(int32 InCurveIndex) const
-{
-	const int32 ControlIndexOffset = static_cast<int32>(EModSettingsEditorCurveOutput::Control);
-	if (InCurveIndex < ControlIndexOffset)
-	{
-		return NAME_None;
-	}
-
-	USoundModulationSettings* Settings = Cast<USoundModulationSettings>(GetEditingObject());
-	if (!Settings)
-	{
-		return NAME_None;
-	}
-
-	const int32 ControlIndex = InCurveIndex - static_cast<int32>(EModSettingsEditorCurveOutput::Control);
-	return Settings->Controls[ControlIndex].Control;
 }
 
 bool FModulationSettingsEditor::GetIsBypassed(int32 InCurveIndex) const
@@ -379,8 +306,7 @@ FSoundModulationOutputBase* FModulationSettingsEditor::FindModulationOutput(int3
 
 	if (InCurveIndex >= static_cast<int32>(EModSettingsEditorCurveOutput::Control))
 	{
-		const int32 ControlIndex = InCurveIndex - static_cast<int32>(EModSettingsEditorCurveOutput::Control);
-		return &Settings->Controls[ControlIndex].Output;
+		return nullptr;
 	}
 
 	const EModSettingsEditorCurveOutput CurveOutput = static_cast<EModSettingsEditorCurveOutput>(InCurveIndex);
@@ -566,17 +492,10 @@ void FModulationSettingsEditor::UpdateCurves()
 
 	CurveEditor->RemoveAllCurves();
 
-	int32 CurveCount = GetCurveCount();
+	const int32 CurveCount = static_cast<int32>(EModSettingsEditorCurveOutput::Count) - 1;
 	for (int32 i = 0; i < CurveCount; ++i)
 	{
 		UpdateCurve(i);
-	}
-
-	// Remove old curves from editor
-	CurveCount = GetCurveCount();
-	for (int32 i = CurveCount; i < CurveModels.Num(); ++i)
-	{
-		CurveEditor->RemoveCurve(CurveModels[i]);
 	}
 }
 
