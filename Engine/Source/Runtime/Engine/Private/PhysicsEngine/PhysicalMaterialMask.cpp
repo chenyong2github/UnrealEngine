@@ -27,11 +27,12 @@
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
 
+#endif
+
 #if WITH_CHAOS
 #include "Chaos/PhysicalMaterials.h"
 #endif
 
-#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogPhysicalMaterialMask, Log, All);
 
