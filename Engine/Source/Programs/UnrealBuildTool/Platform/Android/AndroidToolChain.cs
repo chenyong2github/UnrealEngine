@@ -847,7 +847,8 @@ namespace UnrealBuildTool
 
 			//Result += " -nostdlib";
 			Result += " -no-canonical-prefixes";
-			Result += " -Wl,-shared,-Bsymbolic";
+			Result += " -shared";
+			Result += " -Wl,-Bsymbolic";
 			Result += " -Wl,--no-undefined";
 			if (bEnableGcSections)
 			{
