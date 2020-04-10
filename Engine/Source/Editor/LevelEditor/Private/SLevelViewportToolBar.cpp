@@ -92,7 +92,7 @@ static void FillShowMenuStatic(UToolMenu* Menu, TArray< FLevelViewportCommands::
 
 		if (EntryIndex == EntryOffset - 1)
 		{
-			Section.AddMenuSeparator(NAME_None);
+			Section.AddSeparator(NAME_None);
 		}
 	}
 }
@@ -664,7 +664,7 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 					FSlateIcon(),
 					Action);
 
-				Section.AddMenuSeparator("DisableRealtimeOverrideSeparator");
+				Section.AddSeparator("DisableRealtimeOverrideSeparator");
 					
 			}
 
@@ -1522,7 +1522,7 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 						EUserInterfaceActionType::RadioButton
 					);
 
-					SubMenuSection.AddMenuSeparator("LandscapeLODSeparator");
+					SubMenuSection.AddSeparator("LandscapeLODSeparator");
 
 					static const FText FormatString = LOCTEXT("LandscapeLODFixed", "Fixed at {0}");
 					for (int32 i = 0; i < 8; ++i)

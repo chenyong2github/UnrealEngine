@@ -119,7 +119,7 @@ void FShowFlagMenuCommands::CreateShowFlagsSubMenu(UToolMenu* Menu, TArray<uint3
 
 		if (ArrayIndex == EntryOffset - 1)
 		{
-			Section.AddMenuSeparator(NAME_None);
+			Section.AddSeparator(NAME_None);
 		}
 	}
 }

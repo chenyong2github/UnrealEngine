@@ -792,7 +792,7 @@ void FLayoutsMenuLoad::MakeLoadLayoutsMenu(UToolMenu* InToolMenu)
 		// Separator
 		if (FLayoutsMenuBase::IsThereUserLayouts())
 		{
-			Section.AddMenuSeparator("AdditionalSectionsSeparator");
+			Section.AddSeparator("AdditionalSectionsSeparator");
 		}
 
 		// Import...
@@ -980,7 +980,7 @@ void FLayoutsMenuSave::MakeSaveLayoutsMenu(UToolMenu* InToolMenu)
 			// Separator
 			if (FLayoutsMenuBase::IsThereUserLayouts())
 			{
-				Section.AddMenuSeparator("AdditionalSectionsSeparator");
+				Section.AddSeparator("AdditionalSectionsSeparator");
 			}
 
 			// Save as...
@@ -1090,7 +1090,7 @@ void FLayoutsMenuRemove::MakeRemoveLayoutsMenu(UToolMenu* InToolMenu)
 			// Separator
 			if (FLayoutsMenuBase::IsThereUserLayouts())
 			{
-				Section.AddMenuSeparator("AdditionalSectionsSeparator");
+				Section.AddSeparator("AdditionalSectionsSeparator");
 			}
 
 			// Remove all

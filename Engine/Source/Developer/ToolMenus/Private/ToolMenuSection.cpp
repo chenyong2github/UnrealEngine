@@ -117,7 +117,12 @@ FToolMenuEntry& FToolMenuSection::AddDynamicEntry(const FName InName, const FNew
 
 FToolMenuEntry& FToolMenuSection::AddMenuSeparator(const FName InName)
 {
-	return AddEntry(FToolMenuEntry::InitMenuSeparator(InName));
+	return AddSeparator(InName);
+}
+
+FToolMenuEntry& FToolMenuSection::AddSeparator(const FName InName)
+{
+	return AddEntry(FToolMenuEntry::InitSeparator(InName));
 }
 
 FToolMenuEntry& FToolMenuSection::AddSubMenu(const FName InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FNewToolMenuChoice& InMakeMenu, const FToolUIActionChoice& InAction, const EUserInterfaceActionType InUserInterfaceActionType, bool bInOpenSubMenuOnClick, const TAttribute<FSlateIcon>& InIcon, const bool bInShouldCloseWindowAfterMenuSelection)

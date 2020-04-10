@@ -187,15 +187,11 @@ FToolMenuEntry FToolMenuEntry::InitComboButton(const FName InName, const FToolUI
 	return Entry;
 }
 
-FToolMenuEntry FToolMenuEntry::InitMenuSeparator(const FName InName)
+FToolMenuEntry FToolMenuEntry::InitSeparator(const FName InName)
 {
-	return FToolMenuEntry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::MenuSeparator);
+	return FToolMenuEntry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::Separator);
 }
 
-FToolMenuEntry FToolMenuEntry::InitToolBarSeparator(const FName InName)
-{
-	return FToolMenuEntry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::ToolBarSeparator);
-}
 
 FToolMenuEntry FToolMenuEntry::InitWidget(const FName InName, const TSharedRef<SWidget>& InWidget, const FText& Label, bool bNoIndent, bool bSearchable)
 {

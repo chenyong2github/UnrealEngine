@@ -242,11 +242,11 @@ public:
 	virtual TSharedRef< class SWidget > MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride = nullptr, uint32 MaxHeight = 1000) override;
 
 	/**
-	 * Adds a menu separator
+	 * Adds a separator
 	 */
 	void AddMenuSeparator(FName InExtensionHook = NAME_None);
+	void AddSeparator(FName InExtensionHook = NAME_None);
 	
-
 	/**
 	 * Starts a section on to the extender section hook stack
 	 * 
