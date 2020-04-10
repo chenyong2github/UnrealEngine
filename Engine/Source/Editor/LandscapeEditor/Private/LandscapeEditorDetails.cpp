@@ -340,6 +340,7 @@ FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 		LOCTEXT("BrushSet_Component", "Component");
 		LOCTEXT("BrushSet_Gizmo", "Gizmo");
 		LOCTEXT("BrushSet_Dummy", "NoBrush");
+		LOCTEXT("BrushSet_Splines", "Splines");
 
 		LOCTEXT("Circle_Smooth", "Smooth");
 		LOCTEXT("Circle_Linear", "Linear");
