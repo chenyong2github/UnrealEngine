@@ -23,6 +23,7 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SNiagaraParameterName.h"
+#include "NiagaraCustomVersion.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeAssigment"
 
@@ -208,6 +209,18 @@ void UNiagaraNodeAssignment::PostLoad()
 				UpdateUsageBitmaskFromOwningScript();
 			}
 		}
+	}
+
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (NiagaraVer < FNiagaraCustomVersion::StandardizeParameterNames)
+	{
+		for (FNiagaraVariable& AssignmentTarget : AssignmentTargets)
+		{
+			FName CurrentName = AssignmentTarget.GetName();
+			FName NewName = UNiagaraGraph::StandardizeName(CurrentName, ENiagaraScriptUsage::Module, false, true);
+			AssignmentTarget.SetName(NewName);
+		}
+		RefreshFromExternalChanges();
 	}
 
 	RefreshTitle();
