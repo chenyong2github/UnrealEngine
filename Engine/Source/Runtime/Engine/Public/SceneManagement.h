@@ -53,6 +53,7 @@ struct FDynamicMeshVertex;
 class ULightMapVirtualTexture2D;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBufferVisualization, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogMultiView, Log, All);
 
 // -----------------------------------------------------------------------------
 
