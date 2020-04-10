@@ -7,8 +7,6 @@
 #include "Animation/AnimSequence.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
-#include "SkeletalMeshDefaultLODStreamingSettings.h"
-#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshLODSettings, Warning, All)
 
@@ -294,33 +292,4 @@ FSkeletalMeshOptimizationSettings FSkeletalMeshLODGroupSettings::GetReductionSet
 const float FSkeletalMeshLODGroupSettings::GetScreenSize() const
 {
 	return ScreenSize.Default;
-}
-
-/////////////////////////////////////////////////////////////
-// FSkeletalMeshDefaultLODStreamingSettings 
-/////////////////////////////////////////////////////////////
-FSkeletalMeshDefaultLODStreamingSettings::FSkeletalMeshDefaultLODStreamingSettings()
-	: bSupportLODStreaming(false)
-	, MaxNumStreamedLODs(0)
-	, MaxNumOptionalLODs(0)
-{}
-
-void FSkeletalMeshDefaultLODStreamingSettings::Initialize(const FConfigFile& IniFile)
-{
-	const TCHAR* IniSection = TEXT("SkeletalMeshDefaultLODStreamingSettings");
-	
-	if (!IniFile.GetBool(IniSection, TEXT("bSupportLODStreaming"), bSupportLODStreaming))
-	{
-		bSupportLODStreaming = false;
-	}
-
-	if (!IniFile.GetInt(IniSection, TEXT("MaxNumStreamedLODs"), MaxNumStreamedLODs))
-	{
-		MaxNumStreamedLODs = 0;
-	}
-
-	if (!IniFile.GetInt(IniSection, TEXT("MaxNumOptionalLODs"), MaxNumOptionalLODs))
-	{
-		MaxNumOptionalLODs = 0;
-	}
 }
