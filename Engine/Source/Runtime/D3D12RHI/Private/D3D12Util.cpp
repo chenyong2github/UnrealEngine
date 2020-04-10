@@ -502,7 +502,7 @@ namespace D3D12RHI
 		{
 			ErrorMessage.AppendLine(LOCTEXT("D3D Debug Device", "Use -d3ddebug to enable the D3D debug device."));
 		}
-		if (D3D12RHI->GetAdapter().IsGPUCrashDebugging())
+		if (D3D12RHI->GetAdapter().GetGPUCrashDebuggingMode() != ED3D12GPUCrashDebugginMode::Disabled)
 		{
 			ErrorMessage.AppendLine(LOCTEXT("GPU Crash Debugging enabled", "Check log for GPU state information."));
 		}
@@ -579,6 +579,10 @@ namespace D3D12RHI
 		}
 
 		UE_LOG(LogD3D12RHI, Fatal, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
+
+		// Make sure the log is flushed!
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
 	}
 
 	void VerifyD3D12CreateTextureResult(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, const D3D12_RESOURCE_DESC& TextureDesc, ID3D12Device* Device)
@@ -629,6 +633,10 @@ namespace D3D12RHI
 			TextureDesc.Format,
 			TextureDesc.MipLevels,
 			*GetD3D12TextureFlagString(TextureDesc.Flags));
+
+		// Make sure the log is flushed!
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
 	}
 
 	void VerifyComRefCount(IUnknown* Object, int32 ExpectedRefs, const TCHAR* Code, const TCHAR* Filename, int32 Line)
