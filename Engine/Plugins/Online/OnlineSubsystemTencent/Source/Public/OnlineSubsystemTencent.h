@@ -99,7 +99,6 @@ public:
 	// FOnlineSubsystemTencent
 
 	virtual ~FOnlineSubsystemTencent();
-	virtual FOnlineDirectoryTencentPtr GetDirectoryTencent() { return TencentDirectory; }	
 
 	/**
 	 * Delegate called when Anti Addiction dialog should be displayed
@@ -137,7 +136,6 @@ PACKAGE_SCOPE:
 private:
 
 	bool HandleAuthExecCommands(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
-	bool HandleCrossVoiceCommands(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleSessionExecCommands(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandlePresenceExecCommands(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleUsersExecCommands(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
@@ -171,10 +169,6 @@ private:
 	FOnlineIdentityTencentPtr TencentIdentity;
 	/** Interface to the session services (needed for TSS anticheat handling) */
 	FOnlineSessionTencentPtr TencentSession;
-#if WITH_TENCENTSDK
-	/** Interface to the directory service (TCLS proxy TDIR info) */
-	FOnlineDirectoryTencentPtr TencentDirectory;
-#endif // WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
 	/** Interface to the friends services */
 	FOnlineFriendsTencentPtr TencentFriends;
