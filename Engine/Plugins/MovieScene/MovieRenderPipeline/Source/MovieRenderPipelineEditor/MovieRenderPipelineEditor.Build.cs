@@ -51,7 +51,8 @@ public class MovieRenderPipelineEditor : ModuleRules
                 "LevelSequence",
                 "UnrealEd",
                 "WorkspaceMenuStructure",
-				"EditorStyle"
+				"EditorStyle",
+				"LevelSequenceEditor"
             }
         );
 
