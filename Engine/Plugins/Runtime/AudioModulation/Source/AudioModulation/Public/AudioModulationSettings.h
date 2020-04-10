@@ -10,7 +10,7 @@
 #include "AudioModulationSettings.generated.h"
 
 
-UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Sound Modulation"))
+UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Audio Modulation"))
 class AUDIOMODULATION_API UAudioModulationSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()

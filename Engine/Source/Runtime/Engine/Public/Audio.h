@@ -16,6 +16,7 @@
 #include "Sound/SoundSubmixSend.h"
 #include "Sound/SoundSourceBusSend.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioModulation.h"
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudio, Display, All);
 

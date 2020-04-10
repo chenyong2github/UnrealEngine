@@ -2,12 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-
+#include "IAudioModulation.h"
 #include "SoundControlBus.h"
-#include "SoundModulatorBase.h"
 #include "SoundModulationValue.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
 #include "SoundControlBusMix.generated.h"
 
@@ -34,7 +33,7 @@ struct FSoundControlBusMixChannel
 };
 
 UCLASS(config = Engine, autoexpandcategories = (Channel, Mix), editinlinenew, BlueprintType, MinimalAPI)
-class USoundControlBusMix : public USoundModulatorBase
+class USoundControlBusMix : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -54,6 +53,10 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	virtual void BeginDestroy() override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 
 	/* Array of channels controlled by mix. */
 	UPROPERTY(EditAnywhere, Category = Mix, BlueprintReadOnly)

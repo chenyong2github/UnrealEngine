@@ -1,40 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IAudioExtensionPlugin.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-
 #include "AudioModulationLogging.h"
-#include "SoundControlBus.h"
-#include "SoundControlBusMix.h"
+#include "CoreMinimal.h"
 #include "SoundModulationPatch.h"
-#include "SoundModulationTransform.h"
-#include "SoundModulatorLFO.h"
 
 
 namespace AudioModulation
 {
 	// Forward Declarations
-	class FAudioModulationImpl;
-	struct FReferencedProxies;
-
-	// Modulator Ids
-	using FBusMixId = uint32;
-	extern const FBusMixId InvalidBusMixId;
-
-	using FBusId = uint32;
-	extern const FBusId InvalidBusId;
-
-	using FLFOId = uint32;
-	extern const FBusId InvalidLFOId;
+	class FAudioModulationSystem;
 
 	/*
 	 * Handle for all ref-counted proxy types, to be used only on the audio thread (not thread safe). 
 	 */
-	template<typename IdType, typename ProxyType, typename ProxyUObjType>
+	template<typename IdType, typename ProxyType, typename ProxiedObject>
 	class TProxyHandle
 	{
 		IdType Id;
@@ -67,7 +47,7 @@ namespace AudioModulation
 			return ProxyMap->FindChecked(Id);
 		}
 
-		friend FORCEINLINE uint32 GetTypeHash(const TProxyHandle<IdType, ProxyType, ProxyUObjType>& InHandle)
+		friend FORCEINLINE uint32 GetTypeHash(const TProxyHandle<IdType, ProxyType, ProxiedObject>& InHandle)
 		{
 			return static_cast<uint32>(InHandle.Id);
 		}
@@ -132,22 +112,21 @@ namespace AudioModulation
 		/*
 		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap if it exists, otherwise returns invalid handle.
 		 */
-		static TProxyHandle<IdType, ProxyType, ProxyUObjType> Get(const IdType ObjectId, TMap<IdType, ProxyType>& InProxyMap)
+		static TProxyHandle<IdType, ProxyType, ProxiedObject> Get(const IdType ObjectId, TMap<IdType, ProxyType>& InProxyMap)
 		{
 			if (ProxyType* Proxy = InProxyMap.Find(ObjectId))
 			{
-				check(Proxy->ModulationImpl);
-				TProxyHandle<IdType, ProxyType, ProxyUObjType> NewHandle(ObjectId, InProxyMap);
-				return MoveTemp(NewHandle);
+				check(Proxy->ModSystem);
+				return TProxyHandle<IdType, ProxyType, ProxiedObject>(ObjectId, InProxyMap);
 			} 
 
-			return TProxyHandle<IdType, ProxyType, ProxyUObjType>();
+			return TProxyHandle<IdType, ProxyType, ProxiedObject>();
 		}
 
 		/*
 		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap if it exists, otherwise returns invalid handle.
 		 */
-		static TProxyHandle<IdType, ProxyType, ProxyUObjType> Get(const ProxyUObjType& InObject, TMap<IdType, ProxyType>& InProxyMap)
+		static TProxyHandle<IdType, ProxyType, ProxiedObject> Get(const ProxiedObject& InObject, TMap<IdType, ProxyType>& InProxyMap)
 		{
 			const IdType ObjectId = static_cast<IdType>(InObject.GetUniqueID());
 			return Get(ObjectId, InProxyMap);
@@ -156,42 +135,42 @@ namespace AudioModulation
 		/*
 		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap.  Creates new proxy if it doesn't exist.
 		 */
-		static TProxyHandle<IdType, ProxyType, ProxyUObjType> Create(const ProxyUObjType& InObject, TMap<IdType, ProxyType>& InProxyMap, FAudioModulationImpl& InModulationImpl)
+		static TProxyHandle<IdType, ProxyType, ProxiedObject> Create(const ProxiedObject& InObject, TMap<IdType, ProxyType>& InProxyMap, FAudioModulationSystem& InModSystem)
 		{
 			const IdType ObjectId = static_cast<IdType>(InObject.GetUniqueID());
 
-			TProxyHandle<IdType, ProxyType, ProxyUObjType> NewHandle = Get(InObject, InProxyMap);
+			TProxyHandle<IdType, ProxyType, ProxiedObject> NewHandle = Get(InObject, InProxyMap);
 			if (!NewHandle.IsValid())
 			{
 				UE_LOG(LogAudioModulation, Verbose, TEXT("Proxy created: Id '%u' for object '%s'."), NewHandle.Id, *InObject.GetName());
-				InProxyMap.Add(ObjectId, ProxyType(InObject, InModulationImpl));
-				NewHandle = TProxyHandle<IdType, ProxyType, ProxyUObjType>(ObjectId, InProxyMap);
+				InProxyMap.Add(ObjectId, ProxyType(InObject, InModSystem));
+				NewHandle = TProxyHandle<IdType, ProxyType, ProxiedObject>(ObjectId, InProxyMap);
 			}
 
 			return NewHandle;
 		}
 
-		static TProxyHandle<IdType, ProxyType, ProxyUObjType> Create(const ProxyUObjType& InObject, TMap<IdType, ProxyType>& InProxyMap, FAudioModulationImpl& InModulationImpl, TFunction<void(ProxyType&)> OnCreateProxy)
+		static TProxyHandle<IdType, ProxyType, ProxiedObject> Create(const ProxiedObject& InObject, TMap<IdType, ProxyType>& InProxyMap, FAudioModulationSystem& InModSystem, TFunction<void(ProxyType&)> OnCreateProxy)
 		{
 			const IdType ObjectId = static_cast<IdType>(InObject.GetUniqueID());
-			TProxyHandle<IdType, ProxyType, ProxyUObjType> NewHandle = Get(InObject, InProxyMap);
+			TProxyHandle<IdType, ProxyType, ProxiedObject> NewHandle = Get(InObject, InProxyMap);
 			if (!NewHandle.IsValid())
 			{
 				UE_LOG(LogAudioModulation, Verbose, TEXT("Proxy created: Id '%u' for object '%s'."), NewHandle.Id, *InObject.GetName());
-				InProxyMap.Add(ObjectId, ProxyType(InObject, InModulationImpl));
-				NewHandle = TProxyHandle<IdType, ProxyType, ProxyUObjType>(ObjectId, InProxyMap);
+				InProxyMap.Add(ObjectId, ProxyType(InObject, InModSystem));
+				NewHandle = TProxyHandle<IdType, ProxyType, ProxiedObject>(ObjectId, InProxyMap);
 				OnCreateProxy(NewHandle.FindProxy());
 			}
 
 			return NewHandle;
 		}
 
-		FORCEINLINE bool operator ==(const TProxyHandle<IdType, ProxyType, ProxyUObjType>& InHandle) const
+		FORCEINLINE bool operator ==(const TProxyHandle<IdType, ProxyType, ProxiedObject>& InHandle) const
 		{
 			return InHandle.Id == Id;
 		}
 
-		FORCEINLINE TProxyHandle<IdType, ProxyType, ProxyUObjType>& operator =(const TProxyHandle<IdType, ProxyType, ProxyUObjType>& InHandle)
+		FORCEINLINE TProxyHandle<IdType, ProxyType, ProxiedObject>& operator =(const TProxyHandle<IdType, ProxyType, ProxiedObject>& InHandle)
 		{
 			// 1. If local proxy valid prior to move, cache to DecRef
 			ProxyType* ProxyToDecRef = nullptr;
@@ -220,7 +199,7 @@ namespace AudioModulation
 			return *this;
 		}
 
-		FORCEINLINE TProxyHandle<IdType, ProxyType, ProxyUObjType>& operator =(TProxyHandle<IdType, ProxyType, ProxyUObjType>&& InHandle)
+		FORCEINLINE TProxyHandle<IdType, ProxyType, ProxiedObject>& operator =(TProxyHandle<IdType, ProxyType, ProxiedObject>&& InHandle)
 		{
 			// 1. If local proxy valid prior to move, cache to DecRef
 			ProxyType* ProxyToDecRef = nullptr;
@@ -303,63 +282,58 @@ namespace AudioModulation
 		}
 	};
 
-	class FModulatorLFOProxy;
-
-	using FLFOProxyMap = TMap<FLFOId, FModulatorLFOProxy>;
-	using FLFOHandle = TProxyHandle<FLFOId, FModulatorLFOProxy, USoundBusModulatorLFO>;
-
-	template<typename IdType, typename ProxyType, typename ProxyUObjType>
+	template<typename IdType, typename ProxyType, typename ProxiedObject>
 	class TModulatorProxyRefType : public TModulatorProxyBase<IdType>
 	{
 	protected:
 		uint32 RefCount;
-		FAudioModulationImpl* ModulationImpl;
+		FAudioModulationSystem* ModSystem;
 
 	public:
 		TModulatorProxyRefType()
 			: TModulatorProxyBase<IdType>()
 			, RefCount(0)
-			, ModulationImpl(nullptr)
+			, ModSystem(nullptr)
 		{
 		}
 
-		TModulatorProxyRefType(const FString& InName, const uint32 InId, FAudioModulationImpl& InModulationImpl)
+		TModulatorProxyRefType(const FString& InName, const uint32 InId, FAudioModulationSystem& InModSystem)
 			: TModulatorProxyBase<IdType>(InName, InId)
 			, RefCount(0)
-			, ModulationImpl(&InModulationImpl)
+			, ModSystem(&InModSystem)
 		{
 		}
 
 		TModulatorProxyRefType(const TModulatorProxyRefType& InProxyRef)
 			: TModulatorProxyBase<IdType>(InProxyRef.GetName(), InProxyRef.GetId())
 			, RefCount(InProxyRef.RefCount)
-			, ModulationImpl(InProxyRef.ModulationImpl)
+			, ModSystem(InProxyRef.ModSystem)
 		{
 		}
 
 		TModulatorProxyRefType(TModulatorProxyRefType&& InProxyRef)
 			: TModulatorProxyBase<IdType>(InProxyRef.GetName(), InProxyRef.GetId())
 			, RefCount(InProxyRef.RefCount)
-			, ModulationImpl(InProxyRef.ModulationImpl)
+			, ModSystem(InProxyRef.ModSystem)
 		{
 			InProxyRef.RefCount = 0;
-			InProxyRef.ModulationImpl = nullptr;
+			InProxyRef.ModSystem = nullptr;
 		}
 
 		TModulatorProxyRefType& operator=(const TModulatorProxyRefType& InOther)
 		{
 			RefCount = InOther.RefCount;
-			ModulationImpl = InOther.ModulationImpl;
+			ModSystem = InOther.ModSystem;
 			return *this;
 		}
 
-		TModulatorProxyRefType& operator=(const TModulatorProxyRefType&& InOther)
+		TModulatorProxyRefType& operator=(TModulatorProxyRefType&& InOther)
 		{
 			RefCount = InOther.RefCount;
-			ModulationImpl = InOther.ModulationImpl;
+			ModSystem = InOther.ModSystem;
 
 			InOther.RefCount = 0;
-			InOther.ModulationImpl = nullptr;
+			InOther.ModSystem = nullptr;
 
 			return *this;
 		}
@@ -389,181 +363,6 @@ namespace AudioModulation
 		}
 
 	private:
-		friend class TProxyHandle<IdType, ProxyType, ProxyUObjType>;
-	};
-
-	class FModulatorLFOProxy : public TModulatorProxyRefType<FLFOId, FModulatorLFOProxy, USoundBusModulatorLFO>
-	{
-	public:
-		FModulatorLFOProxy();
-		FModulatorLFOProxy(const USoundBusModulatorLFO& InLFO, FAudioModulationImpl& InModulationImpl);
-
-		FModulatorLFOProxy& operator =(const USoundBusModulatorLFO& InLFO);
-
-		float GetValue() const;
-		bool IsBypassed() const;
-		void Update(float InElapsed);
-
-	private:
-		void Init(const USoundBusModulatorLFO& InLFO);
-
-		Audio::FLFO LFO;
-		float Offset;
-		float Value;
-		uint8 bBypass : 1;
-	};
-
-	class FControlBusProxy : public TModulatorProxyRefType<FBusId, FControlBusProxy, USoundControlBusBase>
-	{
-	public:
-		FControlBusProxy();
-		FControlBusProxy(const USoundControlBusBase& Bus, FAudioModulationImpl& InModulationImpl);
-
-		FControlBusProxy& operator =(const USoundControlBusBase& InLFO);
-
-		float GetDefaultValue() const;
-		const TArray<FLFOHandle>& GetLFOHandles() const;
-		float GetLFOValue() const;
-		float GetMixValue() const;
-		FVector2D GetRange() const;
-		float GetValue() const;
-		void InitLFOs(const USoundControlBusBase& InBus, FLFOProxyMap& OutActiveLFOs);
-		bool IsBypassed() const;
-		void MixIn(const float InValue);
-		void MixLFO();
-		void Reset();
-
-	private:
-		void Init(const USoundControlBusBase& InBus);
-		float Mix(float ValueA) const;
-		float Mix(float ValueA, float ValueB) const;
-
-		float DefaultValue;
-
-		// Cached values
-		float LFOValue;
-		float MixValue;
-
-		bool bBypass;
-
-		TArray<FLFOHandle> LFOHandles;
-		ESoundModulatorOperator Operator;
-		FVector2D Range;
-	};
-
-	using FBusProxyMap = TMap<FBusId, FControlBusProxy>;
-	using FBusHandle = TProxyHandle<FBusId, FControlBusProxy, USoundControlBusBase>;
-
-	struct FModulatorBusMixChannelProxy : public TModulatorProxyBase<FBusId>
-	{
-		FModulatorBusMixChannelProxy(const FSoundControlBusMixChannel& Channel, FAudioModulationImpl& ModulationImpl);
-		FString Address;
-		uint32 ClassId;
-		FSoundModulationValue Value;
-		FBusHandle BusHandle;
-	};
-
-	class FModulatorBusMixProxy : public TModulatorProxyRefType<FBusMixId, FModulatorBusMixProxy, USoundControlBusMix>
-	{
-	public:
-		enum class EStatus : uint8
-		{
-			Enabled,
-			Stopping,
-			Stopped
-		};
-
-		FModulatorBusMixProxy(const USoundControlBusMix& InMix, FAudioModulationImpl& InModulationImpl);
-
-		FModulatorBusMixProxy& operator =(const USoundControlBusMix& InBusMix);
-
-		EStatus GetStatus() const;
-
-		// Resets channel map
-		void Reset();
-
-		void SetEnabled(const USoundControlBusMix& InBusMix);
-		void SetMix(const TArray<FSoundControlBusMixChannel>& InChannels);
-		void SetMixByFilter(const FString& InAddressFilter, uint32 InFilterClassId, const FSoundModulationValue& InValue);
-		void SetStopping();
-
-		void Update(const float Elapsed, FBusProxyMap& ProxyMap);
-
-		using FChannelMap = TMap<FBusId, FModulatorBusMixChannelProxy>;
-		FChannelMap Channels;
-
-	private:
-		EStatus Status;
-	};
-
-	using FBusMixProxyMap = TMap<FBusMixId, FModulatorBusMixProxy>;
-	using FBusMixHandle = TProxyHandle<FBusMixId, FModulatorBusMixProxy, USoundControlBusMix>;
-
-	/** Modulation input instance */
-	struct FModulationInputProxy
-	{
-		FModulationInputProxy();
-		FModulationInputProxy(const FSoundModulationInputBase& Patch, FReferencedProxies& OutRefProxies, FAudioModulationImpl& ModulationImpl);
-
-		FBusHandle BusHandle;
-		FSoundModulationInputTransform Transform;
-		uint8 bSampleAndHold : 1;
-	};
-
-	/** Patch applied as the final stage of a modulation chain prior to output on the sound level (Always active, never removed) */
-	struct FModulationOutputProxy
-	{
-		FModulationOutputProxy();
-		FModulationOutputProxy(const FSoundModulationOutputBase& Patch);
-
-		/** Whether patch has been initialized or not */
-		uint8 bInitialized : 1;
-
-		/** Operator used to calculate the output proxy value */
-		ESoundModulatorOperator Operator;
-
-		/** Cached value of sample-and-hold input values */
-		float SampleAndHoldValue;
-
-		/** Final transform before passing to output */
-		FSoundModulationOutputTransform Transform;
-	};
-
-	struct FModulationPatchProxy
-	{
-		FModulationPatchProxy();
-		FModulationPatchProxy(const FSoundModulationPatchBase& Patch, FReferencedProxies& OutRefProxies, FAudioModulationImpl& InModulationImpl);
-
-		/** Default value of patch (Value mixed when inputs are provided or not, regardless of active state)*/
-		float DefaultInputValue;
-
-		/** Bypasses the patch and doesn't update modulation value */
-		uint8 bBypass : 1;
-
-		/** Optional modulation inputs */
-		TArray<FModulationInputProxy> InputProxies;
-
-		/** Final output modulation post input combination */
-		FModulationOutputProxy OutputProxy;
-	};
-
-	struct FModulationSettingsProxy : public TModulatorProxyBase<uint32>
-	{
-		FModulationSettingsProxy();
-		FModulationSettingsProxy(const USoundModulationSettings& Settings, FReferencedProxies& OutRefProxies, FAudioModulationImpl& InModulationImpl);
-
-		FModulationPatchProxy Volume;
-		FModulationPatchProxy Pitch;
-		FModulationPatchProxy Lowpass;
-		FModulationPatchProxy Highpass;
-
-		TMap<FName, FModulationPatchProxy> Controls;
-	};
-
-	struct FReferencedProxies
-	{
-		FBusMixProxyMap BusMixes;
-		FBusProxyMap    Buses;
-		FLFOProxyMap    LFOs;
+		friend class TProxyHandle<IdType, ProxyType, ProxiedObject>;
 	};
 } // namespace AudioModulation

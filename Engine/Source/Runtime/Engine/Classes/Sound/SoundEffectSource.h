@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioModulation.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectBase.h"
 #include "Templates/SharedPointer.h"

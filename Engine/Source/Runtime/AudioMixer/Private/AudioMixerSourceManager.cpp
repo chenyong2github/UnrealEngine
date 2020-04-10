@@ -2648,6 +2648,12 @@ namespace Audio
 			PumpCommandQueue();
 		}
 
+		// Notify modulation interface that we are beginning to update
+		if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+		{
+			MixerDevice->ModulationInterface->OnBeginAudioRenderThreadUpdate();
+		}
+
 		// Update pending tasks and release them if they're finished
 		UpdatePendingReleaseData();
 

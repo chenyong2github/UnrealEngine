@@ -7,6 +7,7 @@
 #include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SoundControlBusMix.h"
+#include "SoundModulationValue.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
