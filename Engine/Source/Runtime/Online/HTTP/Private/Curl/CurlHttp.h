@@ -161,6 +161,13 @@ public:
 	//~ End IHttpRequestThreaded Interface
 
 	/**
+	 * Perform the http-thread setup of the request
+	 *
+	 * @return true if the request was successfully setup
+	 */
+	bool SetupRequestHttpThread();
+
+	/**
 	 * Returns libcurl's easy handle - needed for HTTP manager.
 	 *
 	 * @return libcurl's easy handle
@@ -312,7 +319,7 @@ private:
 	size_t DebugCallback(CURL * Handle, curl_infotype DebugInfoType, char * DebugInfo, size_t DebugInfoSize);
 
 	/**
-	 * Setup the request
+	 * Perform the game-thread setup of the request
 	 *
 	 * @return true if the request was successfully setup
 	 */
