@@ -1890,6 +1890,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	};
 
 	FString BackupLodModelBuildStringID = TEXT("");
+	FString BackupRawSkeletalMeshBulkDataID = TEXT("");
 
 	// Unbind any existing clothing assets before we reimport the geometry
 	TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
@@ -1899,6 +1900,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		FLODUtilities::UnbindClothingAndBackup(&SkeletalMesh, ClothingBindings, LODIndex);
 		//We have to put back the exact UserSectionsData to not invalidate the DDC key
 		BackupLodModelBuildStringID = SkeletalMeshResource.LODModels[LODIndex].BuildStringID;
+		BackupRawSkeletalMeshBulkDataID = SkeletalMeshResource.LODModels[LODIndex].RawSkeletalMeshBulkDataID;
 	}
 
 	bool bReducingSourceModel = false;
@@ -2093,6 +2095,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 				ImportedModelLOD.SyncronizeUserSectionsDataArray();
 				//If its an existing LOD put back the buildStringID
 				ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
+				ImportedModelLOD.RawSkeletalMeshBulkDataID = BackupRawSkeletalMeshBulkDataID;
 			}
 		}
 	}

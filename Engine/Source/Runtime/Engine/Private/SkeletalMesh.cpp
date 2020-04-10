@@ -2349,6 +2349,79 @@ void USkeletalMesh::PostLoadValidateClothingData()
 	}
 }
 
+void USkeletalMesh::PostLoadValidateUserSectionData()
+{
+	for (int32 LodIndex = 0; LodIndex < GetLODNum(); LodIndex++)
+	{
+		const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LodIndex);
+		if (!LODInfoPtr || !LODInfoPtr->bHasBeenSimplified)
+		{
+			//We validate only generated LOD from a base LOD
+			continue;
+		}
+
+		FSkeletalMeshLODModel& ThisLODModel = ImportedModel->LODModels[LodIndex];
+		const int32 SectionNum = ThisLODModel.Sections.Num();
+		//See if more then one section use the same UserSectionData
+		bool bLODHaveSectionIssue = false;
+		TBitArray<> AvailableUserSectionData;
+		AvailableUserSectionData.Init(true, ThisLODModel.UserSectionsData.Num());
+		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+		{
+			FSkelMeshSection& Section = ThisLODModel.Sections[SectionIndex];
+			if (Section.ChunkedParentSectionIndex != INDEX_NONE)
+			{
+				continue;
+			}
+			if(!AvailableUserSectionData.IsValidIndex(Section.OriginalDataSectionIndex) || !AvailableUserSectionData[Section.OriginalDataSectionIndex])
+			{
+				bLODHaveSectionIssue = true;
+				break;
+			}
+			AvailableUserSectionData[Section.OriginalDataSectionIndex] = false;
+		}
+		if(!bLODHaveSectionIssue)
+		{
+			//Everything is good nothing to fix
+			continue;
+		}
+
+		//Force the source UserSectionData, then restore the UserSectionData value each section was using
+		//We use the source section user data entry in case we do not have any override
+		const FSkeletalMeshLODModel& BaseLODModel = ImportedModel->LODModels[LODInfoPtr->ReductionSettings.BaseLOD];
+		TMap<int32, FSkelMeshSourceSectionUserData> NewUserSectionsData;
+
+		int32 CurrentOriginalSectionIndex = 0;
+		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+		{
+			FSkelMeshSection& Section = ThisLODModel.Sections[SectionIndex];
+			if (Section.ChunkedParentSectionIndex != INDEX_NONE)
+			{
+				//We do not restore user section data for chunked section, the parent has already fix it
+				Section.OriginalDataSectionIndex = CurrentOriginalSectionIndex;
+				continue;
+			}
+
+			FSkelMeshSourceSectionUserData& SectionUserData = NewUserSectionsData.FindOrAdd(CurrentOriginalSectionIndex);
+			if(const FSkelMeshSourceSectionUserData* BackupSectionUserData = ThisLODModel.UserSectionsData.Find(Section.OriginalDataSectionIndex))
+			{
+				SectionUserData = *BackupSectionUserData;
+			}
+			else if(const FSkelMeshSourceSectionUserData* BaseSectionUserData = BaseLODModel.UserSectionsData.Find(CurrentOriginalSectionIndex))
+			{
+				SectionUserData = *BaseSectionUserData;
+			}
+
+			Section.OriginalDataSectionIndex = CurrentOriginalSectionIndex;
+			//Parent (non chunked) section must increment the index
+			CurrentOriginalSectionIndex++;
+		}
+		ThisLODModel.UserSectionsData = NewUserSectionsData;
+
+		UE_ASSET_LOG(LogSkeletalMesh, Display, this, TEXT("Fix some section data of this asset for lod %d. Verify all sections of this mesh are ok and save the asset to fix this issue."), LodIndex);
+	}
+}
+
 #endif // WITH_EDITOR
 
 void USkeletalMesh::PostLoad()
@@ -2507,6 +2580,7 @@ void USkeletalMesh::PostLoad()
 		//We must unbind incorrect cloth data before computing the ddc key (CacheDerivedData)
 		//Incorrect cloth data will not be rebind after the build, which will change the DDC key, this situation lead to a corrupted DDC cache
 		PostLoadValidateClothingData();
+		PostLoadValidateUserSectionData();
 
 		if (GetResourceForRendering() == nullptr)
 		{
