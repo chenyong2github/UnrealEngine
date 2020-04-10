@@ -6,6 +6,7 @@
 #include "AudioDefines.h"
 #include "AudioDynamicParameter.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioModulation.h"
 #include "Sound/AudioOutputTarget.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
