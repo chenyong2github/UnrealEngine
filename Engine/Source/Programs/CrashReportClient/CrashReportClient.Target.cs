@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using UnrealBuildTool;
 
 [SupportedPlatforms("Win32", "Win64", "Mac", "Linux")]
 [SupportedConfigurations(UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping)]
 public class CrashReportClientTarget : TargetRules
 {
+	[ConfigFile(ConfigHierarchyType.Engine, "CrashReportClientBuildSettings", "TelemetryUrl")]
+	public string TelemetryUrl;
+
+	[ConfigFile(ConfigHierarchyType.Engine, "CrashReportClientBuildSettings", "TelemetryKey_Dev")]
+	public string TelemetryKey_Dev;
+
+	[ConfigFile(ConfigHierarchyType.Engine, "CrashReportClientBuildSettings", "TelemetryKey_Release")]
+	public string TelemetryKey_Release;
+
 	public CrashReportClientTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Program;
@@ -41,6 +52,19 @@ public class CrashReportClientTarget : TargetRules
 		// Need to disable the bundled version of dbghelp so that CrashDebugHelper can load dbgeng.dll.
 		WindowsPlatform.bUseBundledDbgHelp = false;
 
+		// Add the definitions from config files
+		AddConfigMacro("CRC_TELEMETRY_URL=", TelemetryUrl);
+		AddConfigMacro("CRC_TELEMETRY_KEY_DEV=", TelemetryKey_Dev);
+		AddConfigMacro("CRC_TELEMETRY_KEY_RELEASE=", TelemetryKey_Release);
+
 		GlobalDefinitions.Add("NOINITCRASHREPORTER=1");
+	}
+
+	void AddConfigMacro(string Prefix, string Value)
+	{
+		if (!string.IsNullOrEmpty(Value) && !GlobalDefinitions.Any(x => x.StartsWith(Prefix, StringComparison.Ordinal)))
+		{
+			GlobalDefinitions.Add(Prefix + Value);
+		}
 	}
 }
