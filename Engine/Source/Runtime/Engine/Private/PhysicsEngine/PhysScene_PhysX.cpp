@@ -41,9 +41,7 @@
 #include "PhysicsReplication.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "PhysTestSerializer.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 /** Physics stats **/
 

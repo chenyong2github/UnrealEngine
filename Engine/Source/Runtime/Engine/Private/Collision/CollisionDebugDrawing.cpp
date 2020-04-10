@@ -6,12 +6,10 @@
 #include "DrawDebugHelpers.h"
 #include "PhysXPublic.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Sphere.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 
 #if ENABLE_DRAW_DEBUG

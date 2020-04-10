@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/Simplex.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Box.h"

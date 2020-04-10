@@ -73,9 +73,7 @@
 #endif
 
 #if WITH_CHAOS
-#define CHAOS_INCLUDE_LEVEL_1
 #include "ChaosSolversModule.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 #endif
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);

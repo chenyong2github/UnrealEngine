@@ -20,7 +20,6 @@
 #include "Physics/Experimental/PhysicsUserData_Chaos.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "PhysicsSolver.h"
 #include "ChaosSolversModule.h"
 #include "ChaosLog.h"
@@ -46,7 +45,6 @@
 #include "Chaos/Box.h"
 #include "ChaosSolvers/Public/EventsData.h"
 #include "ChaosSolvers/Public/EventManager.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 
 #if !UE_BUILD_SHIPPING

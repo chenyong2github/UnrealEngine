@@ -9,7 +9,6 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "Templates/UniquePtr.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "PhysicsSolver.h"
 #include "Chaos/Box.h"
 #include "Chaos/Cylinder.h"
@@ -31,7 +30,6 @@
 #include "Chaos/Plane.h"
 #include "ChaosCheck.h"
 #include "Chaos/Particle/ParticleUtilities.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 #include "Async/ParallelFor.h"
 #include "Components/PrimitiveComponent.h"

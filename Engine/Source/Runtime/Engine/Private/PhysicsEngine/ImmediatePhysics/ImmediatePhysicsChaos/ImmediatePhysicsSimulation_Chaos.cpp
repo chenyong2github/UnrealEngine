@@ -9,7 +9,6 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/ChaosDebugDraw.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/ParticlePairBroadPhase.h"
@@ -24,7 +23,6 @@
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "ChaosLog.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 
 //PRAGMA_DISABLE_OPTIMIZATION

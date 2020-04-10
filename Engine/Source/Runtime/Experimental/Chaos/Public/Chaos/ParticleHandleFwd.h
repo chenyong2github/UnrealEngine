@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "Chaos/IncludeLvl1.inl"
 
 // Use to define out code blocks that need to be adapted to use Particle Handles in a searchable way (better than #if 0)
 #define CHAOS_PARTICLEHANDLE_TODO 0

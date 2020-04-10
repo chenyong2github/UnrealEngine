@@ -22,10 +22,8 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Components/SplineMeshComponent.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "ChaosCheck.h"
 #include "Chaos/Convex.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 #include "PhysXCookHelper.h"
 
@@ -47,16 +45,12 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/AnimPhysObjectVersion.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/TriangleMeshImplicitObject.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 #if WITH_CHAOS
 	#include "Experimental/ChaosDerivedData.h"
 	#include "Physics/Experimental/ChaosDerivedDataReader.h"
-#define CHAOS_INCLUDE_LEVEL_1
 	#include "Chaos/CollisionConvexMesh.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 #endif
 
 /** Helper for enum output... */

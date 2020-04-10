@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/Collision/BroadPhase.h"
 #include "Chaos/Collision/CollisionReceiver.h"
 #include "Chaos/Collision/StatsData.h"

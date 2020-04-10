@@ -29,7 +29,6 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "ChaosCheck.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
@@ -45,7 +44,6 @@
 #if WITH_CHAOS
 #include "Chaos/ParticleHandle.h"
 #endif // WITH_CHAOS
-#undef CHAOS_INCLUDE_LEVEL_1
 
 #if PHYSICS_INTERFACE_PHYSX
 	#include "PhysXPublic.h"

@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "Chaos/IncludeLvl1.inl"
 #include "Chaos/ISpatialAcceleration.h"
 #include "Chaos/Box.h"
 #include "Chaos/Collision/StatsData.h"

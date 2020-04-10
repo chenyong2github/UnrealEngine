@@ -130,9 +130,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "HAL/PlatformApplicationMisc.h"
 #include "DynamicResolutionState.h"
 
-#define CHAOS_INCLUDE_LEVEL_1
 #include "Chaos/TriangleMeshImplicitObject.h"
-#undef CHAOS_INCLUDE_LEVEL_1
 
 #include "Particles/Spawn/ParticleModuleSpawn.h"
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
