@@ -6248,8 +6248,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	static
 	{
-//$${soLoadLibrary}$$
 		System.loadLibrary("UE4");
+//$${soLoadLibrary}$$
 		System.loadLibrary("c++_shared");
 	}
 
