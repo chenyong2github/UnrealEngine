@@ -241,7 +241,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 	{
 		return SNew(STextBlock)
 			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-			.Text(LOCTEXT("InvalidOverrideText", "Invalid Scirpt Value"));
+			.Text(LOCTEXT("InvalidOverrideText", "Invalid Script Value"));
 	}
 	case UNiagaraStackFunctionInput::EValueMode::UnsupportedDefault:
 	{
