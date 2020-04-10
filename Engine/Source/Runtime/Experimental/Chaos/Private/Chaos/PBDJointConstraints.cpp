@@ -498,6 +498,12 @@ namespace Chaos
 
 	void FPBDJointConstraints::UpdatePositionBasedState(const FReal Dt)
 	{
+	}
+
+	void FPBDJointConstraints::PrepareTick()
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Joints_PrepareTick);
+
 		if (bJointsDirty || (bIsBatched != bChaos_Joint_Batching))
 		{
 			DeinitSolverJointData();
@@ -509,16 +515,16 @@ namespace Chaos
 			bIsBatched = bChaos_Joint_Batching;
 			bJointsDirty = false;
 		}
-	}
-
-	void FPBDJointConstraints::PrepareTick()
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Joints_PrepareTick);
 
 		if (bChaos_Joint_Batching)
 		{
 			SolverConstraintRowStates.SetNum(SolverConstraintRowDatas.Num());
 			SolverConstraintStates.SetNum(NumConstraints());
+
+			for (FJointSolverConstraintRowState RowState : SolverConstraintRowStates)
+			{
+				RowState.TickReset();
+			}
 		}
 		else
 		{
@@ -931,10 +937,24 @@ namespace Chaos
 			}
 
 			// Solve and apply the position constraints for all Joints in the batch
-			if (JointIndexEnd > JointIndexBegin)
+			const int32 LinearRowIndexBegin = SolverConstraints[JointIndexBegin].GetLinearRowIndexBegin();
+			const int32 LinearRowIndexEnd = SolverConstraints[JointIndexEnd - 1].GetLinearRowIndexEnd();
+			if (bChaos_Joint_ISPC_Enabled)
 			{
-				const int32 RowIndexBegin = SolverConstraints[JointIndexBegin].GetLinearRowIndexBegin();
-				const int32 RowIndexEnd = SolverConstraints[JointIndexEnd - 1].GetLinearRowIndexEnd();
+#if INTEL_ISPC
+				ispc::BatchApplyPositionConstraints(
+					Dt,
+					(ispc::FJointSolverJointState*)SolverConstraintStates.GetData(),
+					(ispc::FJointSolverConstraintRowData*)SolverConstraintRowDatas.GetData(),
+					(ispc::FJointSolverConstraintRowState*)SolverConstraintRowStates.GetData(),
+					JointIndexBegin,
+					JointIndexEnd,
+					LinearRowIndexBegin,
+					LinearRowIndexEnd);
+#endif
+			}
+			else
+			{
 				NumActive += FJointSolver::ApplyPositionConstraints(
 					Dt, 
 					SolverConstraintStates, 
@@ -942,8 +962,8 @@ namespace Chaos
 					SolverConstraintRowStates, 
 					JointIndexBegin,
 					JointIndexEnd,
-					RowIndexBegin,
-					RowIndexEnd);
+					LinearRowIndexBegin,
+					LinearRowIndexEnd);
 			}
 
 			// Reset accumulators and update derived state
@@ -975,8 +995,8 @@ namespace Chaos
 			}
 
 			// Solve and apply the rotation constraints for all Joints in the batch
-			const int32 RowIndexBegin = SolverConstraints[JointIndexBegin].GetAngularRowIndexBegin();
-			const int32 RowIndexEnd = SolverConstraints[JointIndexEnd - 1].GetAngularRowIndexEnd();
+			const int32 AngularRowIndexBegin = SolverConstraints[JointIndexBegin].GetAngularRowIndexBegin();
+			const int32 AngularRowIndexEnd = SolverConstraints[JointIndexEnd - 1].GetAngularRowIndexEnd();
 			if (bChaos_Joint_ISPC_Enabled)
 			{
 #if INTEL_ISPC
@@ -987,8 +1007,8 @@ namespace Chaos
 					(ispc::FJointSolverConstraintRowState*)SolverConstraintRowStates.GetData(),
 					JointIndexBegin,
 					JointIndexEnd,
-					RowIndexBegin,
-					RowIndexEnd);
+					AngularRowIndexBegin,
+					AngularRowIndexEnd);
 #endif
 			}
 			else
@@ -1000,8 +1020,8 @@ namespace Chaos
 					SolverConstraintRowStates, 
 					JointIndexBegin,
 					JointIndexEnd,
-					RowIndexBegin,
-					RowIndexEnd);
+					AngularRowIndexBegin,
+					AngularRowIndexEnd);
 			}
 		}
 
