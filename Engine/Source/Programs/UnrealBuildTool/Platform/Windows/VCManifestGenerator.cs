@@ -292,7 +292,7 @@ namespace UnrealBuildTool
 					// look in Platform extensions too
 					if (!bFileExists)
 					{
-						SourcePath = Path.Combine(UnrealBuildTool.EnginePlatformExtensionsDirectory.FullName, Platform.ToString(), "Build", EngineResourceSubPath);
+						SourcePath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Platforms", Platform.ToString(), "Build", EngineResourceSubPath);
 						bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 					}
 				}

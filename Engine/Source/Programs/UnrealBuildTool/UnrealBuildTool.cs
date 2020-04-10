@@ -73,32 +73,32 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Full path to the Engine/Source/Runtime directory
 		/// </summary>
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/Runtime\") instead.")]
 		public static readonly DirectoryReference EngineSourceRuntimeDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Runtime");
 
 		/// <summary>
 		/// Full path to the Engine/Source/Developer directory
 		/// </summary>
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/Developer\") instead.")]
 		public static readonly DirectoryReference EngineSourceDeveloperDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Developer");
 
 		/// <summary>
 		/// Full path to the Engine/Source/Editor directory
 		/// </summary>
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/Editor\") instead.")]
 		public static readonly DirectoryReference EngineSourceEditorDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Editor");
 
 		/// <summary>
 		/// Full path to the Engine/Source/Programs directory
 		/// </summary>
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/Programs\") instead.")]
 		public static readonly DirectoryReference EngineSourceProgramsDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Programs");
 
 		/// <summary>
 		/// Full path to the Engine/Source/ThirdParty directory
 		/// </summary>
+		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/ThirdParty\") instead.")]
 		public static readonly DirectoryReference EngineSourceThirdPartyDirectory = DirectoryReference.Combine(EngineSourceDirectory, "ThirdParty");
-
-		/// <summary>
-		/// The full name of the Engine's PlatformExtensions directory
-		/// </summary>
-		public static readonly DirectoryReference EnginePlatformExtensionsDirectory = DirectoryReference.Combine(EngineDirectory, "Platforms");
 
 		/// <summary>
 		/// The full name of the Enterprise directory
@@ -143,79 +143,63 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns the root location of platform extensions within the given project
+		/// Finds all the extension directories for the given base directory. This includes platform extensions and restricted folders.
 		/// </summary>
-		/// <param name="ProjectDirectory">Location of the project on disk</param>
-		/// <returns>the root location of platform extensions within the given project</returns>
-		public static DirectoryReference ProjectPlatformExtensionsDirectory(DirectoryReference ProjectDirectory)
+		/// <param name="BaseDir">Location of the base directory</param>
+		/// <param name="bIncludePlatformDirectories">If true, platform subdirectories are included (will return platform directories under Restricted dirs, even if bIncludeRestrictedDirectories is false)</param>
+		/// <param name="bIncludeRestrictedDirectories">If true, restricted (NotForLicensees, NoRedist) subdirectories are included</param>
+		/// <returns>List of extension directories, including the given base directory</returns>
+		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, bool bIncludePlatformDirectories=true, bool bIncludeRestrictedDirectories=true)
 		{
-			return DirectoryReference.Combine(ProjectDirectory, "Platforms");
-		}
+			List<DirectoryReference> ExtensionDirs = new List<DirectoryReference>();
+			ExtensionDirs.Add(BaseDir);
 
-		/// <summary>
-		/// Returns the root location of platform extensions within the given project
-		/// </summary>
-		/// <param name="ProjectFile">Location of the .uproject file on disk</param>
-		/// <returns>the root location of platform extensions within the given project</returns>
-		public static DirectoryReference ProjectPlatformExtensionsDirectory(FileReference ProjectFile)
-		{
-			return ProjectPlatformExtensionsDirectory(ProjectFile.Directory);
-		}
-
-		/// <summary>
-		/// The main engine directory and all found platform extension engine directories
-		/// </summary>
-		public static DirectoryReference[] GetAllEngineDirectories(string Suffix="")
-		{
-			List<DirectoryReference> EngineDirectories = new List<DirectoryReference>() { DirectoryReference.Combine(EngineDirectory, Suffix) };
-			if (DirectoryReference.Exists(EnginePlatformExtensionsDirectory))
+			if (bIncludePlatformDirectories)
 			{
-				foreach (DirectoryReference PlatformDirectory in DirectoryReference.EnumerateDirectories(EnginePlatformExtensionsDirectory))
+				DirectoryReference PlatformExtensionBaseDir = DirectoryReference.Combine(BaseDir, "Platforms");
+				if (DirectoryReference.Exists(PlatformExtensionBaseDir))
 				{
-					DirectoryReference PlatformEngineDirectory = DirectoryReference.Combine(PlatformDirectory, Suffix);
-					if (DirectoryReference.Exists(PlatformEngineDirectory))
+					ExtensionDirs.AddRange(DirectoryReference.EnumerateDirectories(PlatformExtensionBaseDir));
+				}
+			}
+
+			DirectoryReference RestrictedBaseDir = DirectoryReference.Combine(BaseDir, "Restricted");
+			if (DirectoryReference.Exists(RestrictedBaseDir))
+			{
+				IEnumerable<DirectoryReference> RestrictedDirs = DirectoryReference.EnumerateDirectories(RestrictedBaseDir);
+				if (bIncludeRestrictedDirectories)
+				{
+					ExtensionDirs.AddRange(RestrictedDirs);
+				}
+
+				if (bIncludePlatformDirectories)
+				{
+					// also look for nested platforms in the restricted 
+					foreach (DirectoryReference RestrictedDir in RestrictedDirs)
 					{
-						EngineDirectories.Add(PlatformEngineDirectory);
+						DirectoryReference RestrictedPlatformExtensionBaseDir = DirectoryReference.Combine(RestrictedBaseDir, "Platforms");
+						if (DirectoryReference.Exists(RestrictedPlatformExtensionBaseDir))
+						{
+							ExtensionDirs.AddRange(DirectoryReference.EnumerateDirectories(RestrictedPlatformExtensionBaseDir));
+						}
 					}
 				}
 			}
-			return EngineDirectories.ToArray();
+
+			return ExtensionDirs;
 		}
 
 		/// <summary>
-		/// Returns the main project directory and all found platform extension project directories, with
-		/// an optional subdirectory to look for within each location (ie, "Config" or "Source/Runtime")
+		/// Finds all the extension directories for the given base directory. This includes platform extensions and restricted folders.
 		/// </summary>
-		/// <param name="ProjectDirectory">Location of the project on disk</param>
-		/// <param name="Suffix">Optional subdirectory to look in for each location</param>
-		/// <returns>the main project directory and all found platform extension project directories</returns>
-		public static DirectoryReference[] GetAllProjectDirectories(DirectoryReference ProjectDirectory, string Suffix = "")
+		/// <param name="BaseDir">Location of the base directory</param>
+		/// <param name="SubDir">The subdirectory to find</param>
+		/// <param name="bIncludePlatformDirectories">If true, platform subdirectories are included (will return platform directories under Restricted dirs, even if bIncludeRestrictedDirectories is false)</param>
+		/// <param name="bIncludeRestrictedDirectories">If true, restricted (NotForLicensees, NoRedist) subdirectories are included</param>
+		/// <returns>List of extension directories, including the given base directory</returns>
+		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, string SubDir, bool bIncludePlatformDirectories = true, bool bIncludeRestrictedDirectories = true)
 		{
-			List<DirectoryReference> ProjectDirectories = new List<DirectoryReference>() { DirectoryReference.Combine(ProjectDirectory, Suffix) };
-			if (DirectoryReference.Exists(ProjectPlatformExtensionsDirectory(ProjectDirectory)))
-			{
-				foreach (DirectoryReference PlatformDirectory in DirectoryReference.EnumerateDirectories(ProjectPlatformExtensionsDirectory(ProjectDirectory), "*", SearchOption.TopDirectoryOnly))
-				{
-					DirectoryReference PlatformEngineDirectory = DirectoryReference.Combine(PlatformDirectory, Suffix);
-					if (DirectoryReference.Exists(PlatformEngineDirectory))
-					{
-						ProjectDirectories.Add(PlatformEngineDirectory);
-					}
-				}
-			}
-			return ProjectDirectories.ToArray();
-		}
-
-		/// <summary>
-		/// Returns the main project directory and all found platform extension project directories, with
-		/// an optional subdirectory to look for within each location (ie, "Config" or "Source/Runtime")
-		/// </summary>
-		/// <param name="ProjectFile">Location of the .uproject file on disk</param>
-		/// <param name="Suffix">Optional subdirectory to look in for each location</param>
-		/// <returns>the main project directory and all found platform extension project directories</returns>
-		public static DirectoryReference[] GetAllProjectDirectories(FileReference ProjectFile, string Suffix = "")
-		{
-			return GetAllProjectDirectories(ProjectFile.Directory, Suffix);
+			return GetExtensionDirs(BaseDir, bIncludePlatformDirectories, bIncludeRestrictedDirectories).Select(x => DirectoryReference.Combine(x, SubDir)).Where(x => DirectoryReference.Exists(x)).ToList();
 		}
 
 		/// <summary>

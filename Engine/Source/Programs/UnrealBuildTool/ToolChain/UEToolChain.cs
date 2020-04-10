@@ -240,7 +240,7 @@ namespace UnrealBuildTool
 		/// <returns>Path to ISPC compiler</returns>
 		public virtual string GetISPCHostCompilerPath(UnrealTargetPlatform Platform)
 		{
-			string ISPCCompilerPathCommon = Path.Combine(UnrealBuildTool.EngineSourceThirdPartyDirectory.FullName, "IntelISPC", "bin");
+			string ISPCCompilerPathCommon = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Source", "ThirdParty", "IntelISPC", "bin");
 			string ISPCArchitecturePath = "";
 			string ExeExtension = ".exe";
 

@@ -486,18 +486,8 @@ namespace UnrealBuildTool
 		/// <returns>Sequence of the found PluginInfo object.</returns>
 		public static IReadOnlyList<PluginInfo> ReadPluginsFromDirectory(DirectoryReference RootDirectory, string Subdirectory, PluginType Type)
 		{
-			// look for directories in RootDirectory and and Platform directories under RootDirectory
-			List<DirectoryReference> RootDirectories = new List<DirectoryReference>() { DirectoryReference.Combine(RootDirectory, Subdirectory) };
-
-			// now look for platform subdirectories with the Subdirectory
-			DirectoryReference PlatformDirectory = DirectoryReference.Combine(RootDirectory, "Platforms");
-			if (DirectoryReference.Exists(PlatformDirectory))
-			{
-				foreach (DirectoryReference Dir in DirectoryReference.EnumerateDirectories(PlatformDirectory))
-				{
-					RootDirectories.Add(DirectoryReference.Combine(Dir, Subdirectory));
-				}
-			}
+			// look for directories in RootDirectory and and extension directories under RootDirectory
+			List<DirectoryReference> RootDirectories = UnrealBuildTool.GetExtensionDirs(RootDirectory, Subdirectory);
 
 			Dictionary<PluginInfo, FileReference> ChildPlugins = new Dictionary<PluginInfo, FileReference>();
 			List<PluginInfo> AllParentPlugins = new List<PluginInfo>();

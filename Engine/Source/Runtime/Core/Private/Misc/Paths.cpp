@@ -248,6 +248,46 @@ FString FPaths::ProjectPlatformExtensionsDir()
 	return FPaths::ProjectDir() + TEXT("Platforms/");
 }
 
+
+static void AddIfDirectoryExists(TArray<FString>& ExtensionDirs, FString&& Dir)
+{
+	if (FPaths::DirectoryExists(Dir))
+	{
+		ExtensionDirs.Add(Dir);
+	}
+}
+
+TArray<FString> FPaths::GetExtensionDirs(const FString& BaseDir, const FString& SubDir)
+{
+	TArray<FString> ExtensionDirs;
+	AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(BaseDir, SubDir));
+
+	FString PlatformExtensionBaseDir = FPaths::Combine(BaseDir, TEXT("Platforms"));
+	for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+	{
+		for (auto const& AdditionalFolder : Platform.Value.AdditionalRestrictedFolders)
+		{
+			AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(PlatformExtensionBaseDir, AdditionalFolder, SubDir));
+		}
+		AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(PlatformExtensionBaseDir, Platform.Key, SubDir));
+	}
+
+	FString RestrictedBaseDir = FPaths::Combine(BaseDir, TEXT("Restricted"));
+	IFileManager::Get().IterateDirectory(*RestrictedBaseDir, [&ExtensionDirs, SubDir](const TCHAR* FilenameOrDirectory, bool bIsDirectory)  -> bool
+	{
+		if (bIsDirectory)
+		{
+			AddIfDirectoryExists(ExtensionDirs, FPaths::Combine(FilenameOrDirectory, SubDir));
+
+			// now look for platforms under it
+			ExtensionDirs.Append(GetExtensionDirs(FilenameOrDirectory, SubDir));
+		}
+		return true;
+	});
+
+	return ExtensionDirs;
+}
+
 FString FPaths::RootDir()
 {
 	return FString(FPlatformMisc::RootDir());
