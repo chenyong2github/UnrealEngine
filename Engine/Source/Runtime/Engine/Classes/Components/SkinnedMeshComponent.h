@@ -457,7 +457,7 @@ public:
 	 *  You can change this default value in the INI file 
 	 * Mostly related with performance
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Config, Category=Optimization)
+	UPROPERTY(Interp, EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Config, Category=Optimization)
 	EVisibilityBasedAnimTickOption VisibilityBasedAnimTickOption;
 
 #if WITH_EDITOR
