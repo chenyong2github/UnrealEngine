@@ -271,6 +271,8 @@ struct FChaosQueryFlag
 		eNO_BLOCK = (1 << 5),	//!< All hits are reported as touching. Overrides eBLOCK returned from user filters with eTOUCH.
 								//!< This is also an optimization hint that may improve query performance.
 
+		eSKIPNARROWPHASE = (1 << 6), //!< Skip narrow phase check for the query
+
 		eRESERVED = (1 << 15)	//!< Reserved for internal use
 	};
 };
@@ -353,6 +355,11 @@ inline FChaosQueryFlags U2CQueryFlags(FQueryFlags Flags)
 		Result |= FChaosQueryFlag::eANY_HIT;
 	}
 
+	if (Flags & EQueryFlags::SkipNarrowPhase)
+	{
+		Result |= FChaosQueryFlag::eSKIPNARROWPHASE;
+	}
+	
 	return (FChaosQueryFlags)Result;
 }
 
