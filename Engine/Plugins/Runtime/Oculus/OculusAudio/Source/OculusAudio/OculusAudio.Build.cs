@@ -42,13 +42,10 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				PrivateIncludePathModuleNames.Add("XAudio2");
-				PrivateDependencyModuleNames.AddRange(new string[] { "XAudio2" });
+                PrivateDefinitions.Add("WITH_XAUDIO2=0");
 
 				// Automatically copy DLL to packaged builds
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Oculus/Audio/Win64/ovraudio64.dll");
-
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
 			}
 
 			if (Target.Platform == UnrealTargetPlatform.Android)
