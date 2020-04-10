@@ -22,6 +22,13 @@ TArray<TWeakObjectPtr<UNiagaraLightRendererProperties>> UNiagaraLightRendererPro
 UNiagaraLightRendererProperties::UNiagaraLightRendererProperties()
 	: bUseInverseSquaredFalloff(1), bAffectsTranslucency(0), bOverrideRenderingEnabled(0), RadiusScale(1.0f), ColorAdd(FVector(0.0f, 0.0f, 0.0f))
 {
+	AttributeBindings.Reserve(6);
+	AttributeBindings.Add(&LightRenderingEnabledBinding);
+	AttributeBindings.Add(&LightExponentBinding);
+	AttributeBindings.Add(&PositionBinding);
+	AttributeBindings.Add(&ColorBinding);
+	AttributeBindings.Add(&RadiusBinding);
+	AttributeBindings.Add(&VolumetricScatteringBinding);
 }
 
 void UNiagaraLightRendererProperties::PostInitProperties()
@@ -91,12 +98,6 @@ void UNiagaraLightRendererProperties::GetUsedMaterials(const FNiagaraEmitterInst
 
 #if WITH_EDITORONLY_DATA
 
-const TArray<FNiagaraVariable>& UNiagaraLightRendererProperties::GetRequiredAttributes()
-{
-	static TArray<FNiagaraVariable> Attrs;
-	return Attrs;
-}
-
 const TArray<FNiagaraVariable>& UNiagaraLightRendererProperties::GetOptionalAttributes()
 {
 	static TArray<FNiagaraVariable> Attrs;
@@ -138,37 +139,6 @@ bool UNiagaraLightRendererProperties::IsMaterialValidForRenderer(UMaterial* Mate
 
 void UNiagaraLightRendererProperties::FixMaterial(UMaterial* Material)
 {
-}
-
-const TArray<FNiagaraVariable>& UNiagaraLightRendererProperties::GetBoundAttributes()
-{
-	CurrentAttributeBindings.Reset();
-
-	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
-	AttributeBindings.Add(&LightRenderingEnabledBinding);
-	AttributeBindings.Add(&LightExponentBinding);
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&ColorBinding);
-	AttributeBindings.Add(&RadiusBinding);
-	AttributeBindings.Add(&VolumetricScatteringBinding);
-
-	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
-	{
-		if (AttributeBinding->BoundVariable.IsValid())
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->BoundVariable);
-		}
-		else if (AttributeBinding->DataSetVariable.IsValid())
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->DataSetVariable);
-		}
-		else
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->DefaultValueIfNonExistent);
-		}
-	}
-
-	return CurrentAttributeBindings;
 }
 
 #endif // WITH_EDITORONLY_DATA
