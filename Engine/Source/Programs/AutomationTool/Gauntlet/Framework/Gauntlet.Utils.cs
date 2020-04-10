@@ -1147,7 +1147,7 @@ namespace Gauntlet
 									Copied = true;
 
 									// Filter out some known unneeded files which can cause this warning, and log the message instead
-									string[] Blacklist = new string[]{ "UE4CC-XboxOne" };
+									string[] Blacklist = new string[]{ "UE4CC-XboxOne", "PersistentDownloadDir" };
 									string Message = string.Format("Long path file copy failed with {0}.  Please verify that this file is not required.", ex.Message);
 									if ( Blacklist.FirstOrDefault(B => { return SourcePath.IndexOf(B, StringComparison.OrdinalIgnoreCase) >= 0; }) == null)
 									{
