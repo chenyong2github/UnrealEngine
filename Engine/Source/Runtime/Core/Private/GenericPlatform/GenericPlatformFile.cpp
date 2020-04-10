@@ -13,6 +13,8 @@
 
 #include "Async/AsyncFileHandle.h"
 #include "Async/MappedFileHandle.h"
+#include "Async/ParallelFor.h"
+#include "Misc/ScopeRWLock.h"
 
 class FGenericBaseRequest;
 class FGenericAsyncReadFileHandle;
@@ -532,25 +534,52 @@ bool IPlatformFile::IterateDirectoryRecursively(const TCHAR* Directory, FDirecto
 	class FRecurse : public FDirectoryVisitor
 	{
 	public:
-		IPlatformFile&		PlatformFile;
-		FDirectoryVisitor&	Visitor;
-		FRecurse(IPlatformFile&	InPlatformFile, FDirectoryVisitor& InVisitor)
-			: PlatformFile(InPlatformFile)
+		IPlatformFile&      PlatformFile;
+		FDirectoryVisitor&  Visitor;
+		FRWLock             DirectoriesLock;
+		TArray<FString>&    Directories;
+		FRecurse(IPlatformFile&	InPlatformFile, FDirectoryVisitor& InVisitor, TArray<FString>& InDirectories)
+			: FDirectoryVisitor(InVisitor.DirectoryVisitorFlags)
+			, PlatformFile(InPlatformFile)
 			, Visitor(InVisitor)
+			, Directories(InDirectories)
 		{
 		}
 		virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory) override
 		{
-			bool Result = Visitor.Visit(FilenameOrDirectory, bIsDirectory);
-			if (Result && bIsDirectory)
+			bool bResult = Visitor.Visit(FilenameOrDirectory, bIsDirectory);
+			if (bResult && bIsDirectory)
 			{
-				Result = PlatformFile.IterateDirectory(FilenameOrDirectory, *this);
+				FString Directory(FilenameOrDirectory);
+				FRWScopeLock ScopeLock(DirectoriesLock, SLT_Write);
+				Directories.Emplace(MoveTemp(Directory));
 			}
-			return Result;
+			return bResult;
 		}
 	};
-	FRecurse Recurse(*this, Visitor);
-	return IterateDirectory(Directory, Recurse);
+
+	TArray<FString> DirectoriesToVisitNext;
+	DirectoriesToVisitNext.Add(Directory);
+
+	TAtomic<bool> bResult(true);
+	FRecurse Recurse(*this, Visitor, DirectoriesToVisitNext);
+	while (bResult && DirectoriesToVisitNext.Num() > 0)
+	{
+		TArray<FString> DirectoriesToVisit = MoveTemp(DirectoriesToVisitNext);
+		ParallelFor(
+			DirectoriesToVisit.Num(),
+			[this, &DirectoriesToVisit, &Recurse, &bResult](int32 Index)
+			{
+				if (bResult && !IterateDirectory(*DirectoriesToVisit[Index], Recurse))
+				{
+					bResult = false;
+				}
+			},
+			Visitor.IsThreadSafe() ? EParallelForFlags::Unbalanced : EParallelForFlags::ForceSingleThread
+		);
+	}
+
+	return bResult;
 }
 
 bool IPlatformFile::IterateDirectoryStatRecursively(const TCHAR* Directory, FDirectoryStatVisitor& Visitor)
@@ -567,12 +596,12 @@ bool IPlatformFile::IterateDirectoryStatRecursively(const TCHAR* Directory, FDir
 		}
 		virtual bool Visit(const TCHAR* FilenameOrDirectory, const FFileStatData& StatData) override
 		{
-			bool Result = Visitor.Visit(FilenameOrDirectory, StatData);
-			if (Result && StatData.bIsDirectory)
+			bool bResult = Visitor.Visit(FilenameOrDirectory, StatData);
+			if (bResult && StatData.bIsDirectory)
 			{
-				Result = PlatformFile.IterateDirectoryStat(FilenameOrDirectory, *this);
+				bResult = PlatformFile.IterateDirectoryStat(FilenameOrDirectory, *this);
 			}
-			return Result;
+			return bResult;
 		}
 	};
 	FStatRecurse Recurse(*this, Visitor);
@@ -594,12 +623,14 @@ bool IPlatformFile::IterateDirectoryStatRecursively(const TCHAR* Directory, FDir
 class FFindFilesVisitor : public IPlatformFile::FDirectoryVisitor
 {
 public:
-	IPlatformFile&		PlatformFile;
-	TArray<FString>&	FoundFiles;
-	const TCHAR*		FileExtension;
-	int32				FileExtensionLen;
+	IPlatformFile&   PlatformFile;
+	FRWLock          FoundFilesLock;
+	TArray<FString>& FoundFiles;
+	const TCHAR*     FileExtension;
+	int32            FileExtensionLen;
 	FFindFilesVisitor(IPlatformFile& InPlatformFile, TArray<FString>& InFoundFiles, const TCHAR* InFileExtension)
-		: PlatformFile(InPlatformFile)
+		: IPlatformFile::FDirectoryVisitor(EDirectoryVisitorFlags::ThreadSafe)
+		, PlatformFile(InPlatformFile)
 		, FoundFiles(InFoundFiles)
 		, FileExtension(InFileExtension)
 		, FileExtensionLen(InFileExtension ? FCString::Strlen(InFileExtension) : 0)
@@ -618,8 +649,10 @@ public:
 					return true;
 				}
 			}
-				
-			FoundFiles.Emplace(FString(FilenameOrDirectory));
+			
+			FString FileName(FilenameOrDirectory);
+			FRWScopeLock ScopeLock(FoundFilesLock, SLT_Write);
+			FoundFiles.Emplace(MoveTemp(FileName));
 		}
 		return true;
 	}
