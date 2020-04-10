@@ -68,9 +68,9 @@ then
 	fi
 	chmod 755 "$python_bin_dest_dir"/libpython2.7.dylib
 	install_name_tool -id @rpath/libpython2.7.dylib "$python_bin_dest_dir"/libpython2.7.dylib
-	if [ -f "$python_src_dest_dir"/../NoRedist/TPS/PythonMacBin.tps ]
+	if [ -f "$python_src_dest_dir"/../../../../Restricted/NoRedist/Source/ThirdParty/Python/TPS/PythonMacBin.tps ]
 	then
-	cp -R "$python_src_dest_dir"/../NoRedist/TPS/PythonMacBin.tps "$python_bin_dest_dir"/
+	cp -R "$python_src_dest_dir"/../../../../Restricted/NoRedist/Source/ThirdParty/Python/TPS/PythonMacBin.tps "$python_bin_dest_dir"/
 	fi
 
 
@@ -181,7 +181,7 @@ else
 	echo "Python Source Directory Missing: $python_src_dir"
 fi
 
-if [ ! -f "$python_src_dest_dir"/../NoRedist/TPS/PythonMacBin.tps ]
+if [ ! -f "$python_src_dest_dir"/../../../../Restricted/NoRedist/Source/ThirdParty/Python/TPS/PythonMacBin.tps ]
 then
 	echo "."
 	echo "WARNING: restore (i.e. revert) deleted $python_bin_dest_dir/PythonMacBin.tps before checking in"
