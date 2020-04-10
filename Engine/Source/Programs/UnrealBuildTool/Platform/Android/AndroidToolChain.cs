@@ -939,8 +939,8 @@ namespace UnrealBuildTool
 				string NDKRoot = Environment.GetEnvironmentVariable("NDKROOT").Replace("\\", "/");
 				if (File.Exists(Path.Combine(NDKRoot, "source.properties")))
 				{
-					LinkEnvironment.AdditionalLibraries.Add(Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Build/Android/Prebuilt/bsdsignal/lib/armeabi-v7a/libbsdsignal.a"));
-					LinkEnvironment.AdditionalLibraries.Add(Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Build/Android/Prebuilt/bsdsignal/lib/x86/libbsdsignal.a"));
+					LinkEnvironment.Libraries.Add(FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build/Android/Prebuilt/bsdsignal/lib/armeabi-v7a/libbsdsignal.a"));
+					LinkEnvironment.Libraries.Add(FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build/Android/Prebuilt/bsdsignal/lib/x86/libbsdsignal.a"));
 				}
 			}
 		}
@@ -2068,7 +2068,7 @@ namespace UnrealBuildTool
 						List<string> AdditionalLibraries = new List<string>();
 
 						// Add the library paths to the additional path list
-						foreach (DirectoryReference LibraryPath in LinkEnvironment.LibraryPaths)
+						foreach (DirectoryReference LibraryPath in LinkEnvironment.SystemLibraryPaths)
 						{
 							// LinkerPaths could be relative or absolute
 							string AbsoluteLibraryPath = Utils.ExpandVariables(LibraryPath.FullName);
@@ -2088,39 +2088,42 @@ namespace UnrealBuildTool
 						}
 
 						// discover additional libraries and their paths
-						foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
+						foreach (string SystemLibrary in LinkEnvironment.SystemLibraries)
 						{
-							if (!ShouldSkipLib(AdditionalLibrary, Arch, GPUArchitecture))
+							if (!ShouldSkipLib(SystemLibrary, Arch, GPUArchitecture))
 							{
-								if (String.IsNullOrEmpty(Path.GetDirectoryName(AdditionalLibrary)))
+								if (String.IsNullOrEmpty(Path.GetDirectoryName(SystemLibrary)))
 								{
-									if (AdditionalLibrary.StartsWith("lib"))
+									if (SystemLibrary.StartsWith("lib"))
 									{
-										AdditionalLibraries.Add(AdditionalLibrary);
+										AdditionalLibraries.Add(SystemLibrary);
 									}
 									else
 									{
-										AdditionalLibraries.Add("lib" + AdditionalLibrary);
+										AdditionalLibraries.Add("lib" + SystemLibrary);
+									}
+								}
+							}
+						}
+						foreach (FileReference Library in LinkEnvironment.Libraries)
+						{
+							if (!ShouldSkipLib(Library.FullName, Arch, GPUArchitecture))
+							{
+								string AbsoluteLibraryPath = Path.GetDirectoryName(Library.FullName);
+								LinkAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(Library));
+
+								string Lib = Path.GetFileNameWithoutExtension(Library.FullName);
+								if (Lib.StartsWith("lib"))
+								{
+									AdditionalLibraries.Add(Lib);
+									if (!AdditionalLibraryPaths.Contains(AbsoluteLibraryPath))
+									{
+										AdditionalLibraryPaths.Add(AbsoluteLibraryPath);
 									}
 								}
 								else
 								{
-									string AbsoluteLibraryPath = Path.GetDirectoryName(Path.GetFullPath(AdditionalLibrary));
-									LinkAction.PrerequisiteItems.Add(FileItem.GetItemByPath(AdditionalLibrary));
-
-									string Lib = Path.GetFileNameWithoutExtension(AdditionalLibrary);
-									if (Lib.StartsWith("lib"))
-									{
-										AdditionalLibraries.Add(Lib);
-										if (!AdditionalLibraryPaths.Contains(AbsoluteLibraryPath))
-										{
-											AdditionalLibraryPaths.Add(AbsoluteLibraryPath);
-										}
-									}
-									else
-									{
-										AdditionalLibraries.Add(AbsoluteLibraryPath);
-									}
+									AdditionalLibraries.Add(AbsoluteLibraryPath);
 								}
 							}
 						}
@@ -2254,11 +2257,11 @@ namespace UnrealBuildTool
 			{
 				ObjectFileDirectories.Add(InputFile.Location.Directory);
 			}
-			foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries.Where(x => Path.IsPathRooted(x)))
+			foreach (FileReference Library in LinkEnvironment.Libraries)
 			{
-				ObjectFileDirectories.Add(new FileReference(AdditionalLibrary).Directory);
+				ObjectFileDirectories.Add(Library.Directory);
 			}
-			foreach (DirectoryReference LibraryPath in LinkEnvironment.LibraryPaths)
+			foreach (DirectoryReference LibraryPath in LinkEnvironment.SystemLibraryPaths)
 			{
 				ObjectFileDirectories.Add(LibraryPath);
 			}

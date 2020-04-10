@@ -507,7 +507,7 @@ namespace UnrealBuildTool
 			}
 
 			// link with Linux libraries.
-			LinkEnvironment.AdditionalLibraries.Add("pthread");
+			LinkEnvironment.SystemLibraries.Add("pthread");
 
 			// let this class or a sub class do settings specific to that class
 			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment);

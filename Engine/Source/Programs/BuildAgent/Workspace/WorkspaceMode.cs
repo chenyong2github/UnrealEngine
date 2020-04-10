@@ -213,7 +213,13 @@ namespace BuildAgent.Workspace
 				{
 					throw new FatalErrorException("Expected -ClientAndStream=<ClientName>:<StreamName>");
 				}
-				ClientAndStreams.Add(new KeyValuePair<string, string>(ClientAndStreamParam.Substring(0, Idx), ClientAndStreamParam.Substring(Idx + 1)));
+
+				string ClientName = ClientAndStreamParam.Substring(0, Idx);
+				string StreamName = ClientAndStreamParam.Substring(Idx + 1);
+				if (!ClientAndStreams.Any(cas => cas.Key == ClientName && cas.Value == StreamName))
+				{
+					ClientAndStreams.Add(new KeyValuePair<string, string>(ClientName, StreamName));
+				}
 			}
 			return ClientAndStreams;
 		}

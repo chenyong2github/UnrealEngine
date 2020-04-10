@@ -551,9 +551,7 @@ namespace BuildAgent.Workspace.Common
 
 						RevertInternal(Client, ClientName);
 						ClearClientHaveTable(Client, ClientName);
-						UpdateClientHaveTable(Client, ClientName, ChangeNumber, Filters);
-
-						StreamDirectoryInfo Contents = FindClientContents(Client, ClientName, ChangeNumber, false);
+						StreamDirectoryInfo Contents = UpdateClientHaveTable(Client, ClientName, ChangeNumber, Filters);
 						StreamState[Idx] = Tuple.Create(ChangeNumber, Contents);
 
 						GC.Collect();
@@ -700,7 +698,8 @@ namespace BuildAgent.Workspace.Common
 				RevertInternal(Client, ClientName);
 
 				// Force the P4 metadata to match up
-				UpdateClientHaveTable(Client, ClientName, ChangeNumber, Filters);
+				bool bFindClientContents = CacheFile == null;
+				UpdateClientHaveTable(Client, ClientName, ChangeNumber, Filters, bSkipFindClientContents: true);
 
 				// Clean the current workspace
 				CleanInternal();
@@ -732,6 +731,88 @@ namespace BuildAgent.Workspace.Common
 		}
 
 		/// <summary>
+		/// Attempts to remove dead files from the cache using known information.
+		/// </summary>
+		public void RemoveDeadFilesFromCache(IEnumerable<string> ClientNames)
+		{
+			// Find all .content files to process.
+			List<FileReference> ContentsFiles = new List<FileReference>();
+			foreach (string ClientName in ClientNames)
+			{
+				FileReference ContentsFile = FileReference.Combine(BaseDir, string.Format("{0}.contents", ClientName));
+				if (!FileReference.Exists(ContentsFile))
+				{
+					Log.TraceInformation("No contents file found for {0}, it may not have been synced yet.", ClientName);
+				}
+				else
+				{
+					ContentsFiles.Add(ContentsFile);
+				}
+			}
+
+			if (!ContentsFiles.Any())
+			{
+				Log.TraceInformation("No contents files were found, cache cannot be pruned.");
+				return;
+			}
+
+			// Shrink the contents of the cache
+			using (LogStatusScope Status = new LogStatusScope("Pruning cache..."))
+			{
+				Log.TraceInformation("Loading {0} StreamDirectoryInfo object{1} from disk...", ContentsFiles.Count(), ContentsFiles.Count() > 1 ? "s" : "");
+				StreamDirectoryInfo[] Streams = ContentsFiles.Select(ContentsFile => StreamDirectoryInfo.Load(ContentsFile)).ToArray();
+
+				Log.TraceInformation("Updating cache...");
+				UpdateCacheResult Result = UpdateCache(Streams);
+				Log.TraceInformation("Pruned cache size is {0:n1}mb, {1:n1}mb removed.", Result.TotalCacheBytes / (1024.0f * 1024.0f), Result.RemovedBytes / (1024.0f * 1024.0f));
+			}
+		}
+
+		
+
+		/// <summary>
+		/// Updates the cache based on a collection of <see cref="StreamDirectoryInfo"/> definitions.
+		/// </summary>
+		private UpdateCacheResult UpdateCache(StreamDirectoryInfo[] StreamDirectories)
+		{
+			UpdateCacheResult Result = new UpdateCacheResult();
+			HashSet<FileContentId> CommonContentIds = new HashSet<FileContentId>();
+			Dictionary<FileContentId, long> ContentIdToLength = new Dictionary<FileContentId, long>();
+			for (int Idx = 0; Idx < StreamDirectories.Length; Idx++)
+			{
+				List<StreamFileInfo> Files = StreamDirectories[Idx].GetFiles();
+				foreach (StreamFileInfo File in Files)
+				{
+					ContentIdToLength[File.ContentId] = File.Length;
+				}
+
+				if (Idx == 0)
+				{
+					CommonContentIds.UnionWith(Files.Select(x => x.ContentId));
+				}
+				else
+				{
+					CommonContentIds.IntersectWith(Files.Select(x => x.ContentId));
+				}
+			}
+
+			List<TrackedFileInfo> TrackedFiles = ContentIdToTrackedFile.Values.ToList();
+			Result.RemovedBytes = ContentIdToLength.Sum(Content => Content.Value);
+			foreach (TrackedFileInfo TrackedFile in TrackedFiles)
+			{
+				if (!ContentIdToLength.ContainsKey(TrackedFile.ContentId))
+				{
+					RemoveTrackedFile(TrackedFile);
+				}
+			}
+
+			Result.TotalCacheBytes = ContentIdToLength.Sum(Content => Content.Value);
+			Result.RemovedBytes -= Result.TotalCacheBytes;
+			Result.CacheDifferenceBytes = Result.TotalCacheBytes - CommonContentIds.Sum(ContentId => ContentIdToLength[ContentId]);
+			return Result;
+		}
+
+		/// <summary>
 		/// Populates the cache with the head revision of the given streams.
 		/// </summary>
 		public void Populate(List<KeyValuePair<string, string>> ClientAndStreamNames, List<string> Filters, bool bFakeSync)
@@ -759,11 +840,8 @@ namespace BuildAgent.Workspace.Common
 
 						RevertInternal(Client, ClientName);
 						ClearClientHaveTable(Client, ClientName);
-						UpdateClientHaveTable(Client, ClientName, ChangeNumber, Filters);
-
-						StreamDirectoryInfo Contents = FindClientContents(Client, ClientName, ChangeNumber, bFakeSync);
+						StreamDirectoryInfo Contents =  UpdateClientHaveTable(Client, ClientName, ChangeNumber, Filters);
 						StreamState[Idx] = Tuple.Create(ChangeNumber, Contents);
-
 						GC.Collect();
 					}
 				}
@@ -778,40 +856,16 @@ namespace BuildAgent.Workspace.Common
 				using(LogStatusScope Status = new LogStatusScope("Updating cache..."))
 				{
 					Stopwatch Timer = Stopwatch.StartNew();
-
-					HashSet<FileContentId> CommonContentIds = new HashSet<FileContentId>();
-					Dictionary<FileContentId, long> ContentIdToLength = new Dictionary<FileContentId, long>();
-					for(int Idx = 0; Idx < ClientAndStreamNames.Count; Idx++)
-					{
-						List<StreamFileInfo> Files = StreamState[Idx].Item2.GetFiles();
-						foreach(StreamFileInfo File in Files)
-						{
-							ContentIdToLength[File.ContentId] = File.Length;
-						}
-
-						if(Idx == 0)
-						{
-							CommonContentIds.UnionWith(Files.Select(x => x.ContentId));
-						}
-						else
-						{
-							CommonContentIds.IntersectWith(Files.Select(x => x.ContentId));
-						}
-					}
-
-					List<TrackedFileInfo> TrackedFiles = ContentIdToTrackedFile.Values.ToList();
-					foreach(TrackedFileInfo TrackedFile in TrackedFiles)
-					{
-						if(!ContentIdToLength.ContainsKey(TrackedFile.ContentId))
-						{
-							RemoveTrackedFile(TrackedFile);
-						}
-					}
-
+					StreamDirectoryInfo[] Streams = StreamState.Select(Stream => Stream.Item2).ToArray();
+					UpdateCacheResult Result = UpdateCache(Streams);
 					GC.Collect();
 
-					double TotalSize = ContentIdToLength.Sum(x => x.Value) / (1024.0 * 1024.0);
-					Status.SetProgress("{0:n1}mb total, {1:n1}mb differences ({2:0.0}s)", TotalSize, TotalSize - CommonContentIds.Sum(x => ContentIdToLength[x]) / (1024.0 * 1024.0), Timer.Elapsed.TotalSeconds);
+					Status.SetProgress(
+						"{0:n1}mb total, {1:n1}mb differences ({2:0.0}s), {3:n1}mb removed.",
+						Result.TotalCacheBytes / (1024 * 1024),
+						Result.CacheDifferenceBytes / (1024 * 1024),
+						Timer.Elapsed.TotalSeconds,
+						Result.RemovedBytes / (1024 * 1024));
 				}
 
 				// Sync all the new files
@@ -826,7 +880,7 @@ namespace BuildAgent.Workspace.Common
 						PerforceConnection Client = UpdateClient(ClientName, StreamName);
 
 						int ChangeNumber = StreamState[Idx].Item1;
-						UpdateClientHaveTable(Client, ClientName, ChangeNumber, Filters);
+						UpdateClientHaveTable(Client, ClientName, ChangeNumber, Filters, bSkipFindClientContents: true);
 
 						StreamDirectoryInfo Contents = StreamState[Idx].Item2;
 						RemoveFilesFromWorkspace(Contents);
@@ -980,7 +1034,7 @@ namespace BuildAgent.Workspace.Common
 		/// <param name="ClientName">Name of the current client</param>
 		/// <param name="ChangeNumber">The change number to sync. May be -1, for latest.</param>
 		/// <param name="Filters">List of filters to apply to the workspace. Each entry should be a path relative to the stream root, with an optional '-'prefix.</param>
-		private void UpdateClientHaveTable(PerforceConnection Client, string ClientName, int ChangeNumber, List<string> Filters)
+		private StreamDirectoryInfo UpdateClientHaveTable(PerforceConnection Client, string ClientName, int ChangeNumber, List<string> Filters, bool bSkipFindClientContents = false, bool bFakeSync = false)
 		{
 			using(LogStatusScope Scope = new LogStatusScope("Updating have table..."))
 			{
@@ -1012,6 +1066,16 @@ namespace BuildAgent.Workspace.Common
 				}
 
 				Scope.SetProgress("({0:0.0}s)", Timer.Elapsed.TotalSeconds);
+
+				if (bSkipFindClientContents)
+				{
+					return null;
+				}
+
+				StreamDirectoryInfo Contents = FindClientContents(Client, ClientName, ChangeNumber, bFakeSync);
+				FileReference ContentsFile = FileReference.Combine(BaseDir, string.Format("{0}.contents", ClientName));
+				Contents.Save(ContentsFile, true);
+				return Contents;
 			}
 		}
 
@@ -1548,5 +1612,15 @@ namespace BuildAgent.Workspace.Common
 		}
 
 		#endregion
+
+		/// <summary>
+		/// Helper class for passing back results of updating the cache.
+		/// </summary>
+		private class UpdateCacheResult
+		{
+			public long TotalCacheBytes { get; set; }
+			public long CacheDifferenceBytes { get; set; }
+			public long RemovedBytes { get; set; }
+		}
 	}
 }

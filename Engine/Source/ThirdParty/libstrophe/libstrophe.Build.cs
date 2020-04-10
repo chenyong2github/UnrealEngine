@@ -59,7 +59,7 @@ public class libstrophe : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
 			string LibrayPath = Path.Combine(StrophePackagePath, Target.Platform.ToString(), ConfigName) + "/";
-			PublicSystemLibraries.Add(LibrayPath + "libstrophe.a");
+			PublicAdditionalLibraries.Add(LibrayPath + "libstrophe.a");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{

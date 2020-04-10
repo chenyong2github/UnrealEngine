@@ -86,6 +86,16 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the location of the hot-reload state file for a particular target
 		/// </summary>
+		/// <param name="TargetDescriptor">Descriptor for the target</param>
+		/// <returns>Location of the hot reload state file</returns>
+		public static FileReference GetLocation(TargetDescriptor TargetDescriptor)
+		{
+			return GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, TargetDescriptor.Architecture);
+		}
+
+		/// <summary>
+		/// Gets the location of the hot-reload state file for a particular target
+		/// </summary>
 		/// <param name="ProjectFile">Project containing the target</param>
 		/// <param name="TargetName">Name of the target</param>
 		/// <param name="Platform">Platform being built</param>
@@ -122,11 +132,86 @@ namespace UnrealBuildTool
 	static class HotReload
 	{
 		/// <summary>
+		/// Getts the default hot reload mode for the given target
+		/// </summary>
+		/// <param name="TargetDescriptor">The target being built</param>
+		/// <param name="BuildConfiguration">Global build configuration</param>
+		/// <returns>Default hotreload mode</returns>
+		public static HotReloadMode GetDefaultMode(TargetDescriptor TargetDescriptor, BuildConfiguration BuildConfiguration)
+		{
+			if (TargetDescriptor.HotReloadModuleNameToSuffix.Count > 0 && TargetDescriptor.ForeignPlugin == null)
+			{
+				return HotReloadMode.FromEditor;
+			}
+			else if (BuildConfiguration.bAllowHotReloadFromIDE && HotReload.ShouldDoHotReloadFromIDE(BuildConfiguration, TargetDescriptor))
+			{
+				return HotReloadMode.FromIDE;
+			}
+			else
+			{
+				return HotReloadMode.Disabled;
+			}
+		}
+
+		/// <summary>
+		/// Sets the appropriate hot reload mode for a target, and cleans up old state.
+		/// </summary>
+		/// <param name="TargetDescriptor">The target being built</param>
+		/// <param name="Makefile">Makefile for the targe</param>
+		/// <param name="BuildConfiguration">Global build configuration</param>
+		public static void Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, BuildConfiguration BuildConfiguration)
+		{
+			// Get the hot-reload mode
+			if (Makefile.HotReloadModuleNames.Count == 0)
+			{
+				TargetDescriptor.HotReloadMode = HotReloadMode.Disabled;
+			}
+			else if (TargetDescriptor.HotReloadMode == HotReloadMode.Default)
+			{
+				TargetDescriptor.HotReloadMode = GetDefaultMode(TargetDescriptor, BuildConfiguration);
+			}
+
+			// Guard against a live coding session for this target being active
+			if (BuildConfiguration.bAllowHotReloadFromIDE && TargetDescriptor.HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile))
+			{
+				throw new BuildException("Unable to start regular build while Live Coding is active. Press Ctrl+Alt+F11 to trigger a Live Coding compile.");
+			}
+
+			// Apply the previous hot reload state
+			if (TargetDescriptor.HotReloadMode == HotReloadMode.Disabled)
+			{
+				// Make sure we're not doing a partial build from the editor (eg. compiling a new plugin)
+				if (TargetDescriptor.ForeignPlugin == null && TargetDescriptor.SingleFileToCompile == null)
+				{
+					// Delete the previous state file
+					FileReference StateFile = HotReloadState.GetLocation(TargetDescriptor);
+					HotReload.DeleteTemporaryFiles(StateFile);
+				}
+			}
+			else
+			{
+				// Reapply the previous state
+				FileReference StateFile = HotReloadState.GetLocation(TargetDescriptor);
+				if (FileReference.Exists(StateFile))
+				{
+					// Read the previous state file and apply it to the action graph
+					HotReloadState HotReloadState = HotReloadState.Load(StateFile);
+
+					// Apply the old state to the makefile
+					HotReload.ApplyState(HotReloadState, Makefile);
+				}
+
+				// If we want a specific suffix on any modules, apply that now. We'll track the outputs later, but the suffix has to be forced (and is always out of date if it doesn't exist).
+				HotReload.PatchActionGraphWithNames(TargetDescriptor.HotReloadModuleNameToSuffix, Makefile);
+			}
+		}
+
+		/// <summary>
 		/// Checks whether a live coding session is currently active for a target. If so, we don't want to allow modifying any object files before they're loaded.
 		/// </summary>
 		/// <param name="Makefile">Makefile for the target being built</param>
 		/// <returns>True if a live coding session is active, false otherwise</returns>
-		public static bool IsLiveCodingSessionActive(TargetMakefile Makefile)
+		static bool IsLiveCodingSessionActive(TargetMakefile Makefile)
 		{
 			// Find the first output executable
 			FileReference Executable = Makefile.ExecutableFile;
@@ -162,7 +247,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Checks if the editor is currently running and this is a hot-reload
 		/// </summary>
-		public static bool ShouldDoHotReloadFromIDE(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDesc)
+		static bool ShouldDoHotReloadFromIDE(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDesc)
 		{
 			// Check if Hot-reload is disabled globally for this project
 			ConfigHierarchy Hierarchy = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(TargetDesc.ProjectFile), TargetDesc.Platform);
@@ -350,7 +435,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="HotReloadState">The hot-reload state</param>
 		/// <param name="Makefile">Makefile to apply the state</param>
-		public static void ApplyState(HotReloadState HotReloadState, TargetMakefile Makefile)
+		static void ApplyState(HotReloadState HotReloadState, TargetMakefile Makefile)
 		{
 			// Update the action graph to produce these new files
 			HotReload.PatchActionGraph(Makefile.Actions, HotReloadState.OriginalFileToHotReloadFile);
@@ -368,6 +453,202 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+		}
+
+		/// <summary>
+		/// Determine what needs to be built for a target
+		/// </summary>
+		/// <param name="BuildConfiguration">The build configuration</param>
+		/// <param name="TargetDescriptor">Target being built</param>
+		/// <param name="Makefile">Makefile generated for this target</param>
+		/// <param name="PrerequisiteActions">The actions to execute</param>
+		/// <param name="TargetActionsToExecute">Actions to execute for this target</param>
+		/// <returns>Set of actions to execute</returns>
+		public static List<Action> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<Action> PrerequisiteActions, List<Action> TargetActionsToExecute)
+		{
+			// Get the dependency history
+			CppDependencyCache CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture);
+			ActionHistory History = ActionHistory.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, Makefile.TargetType, TargetDescriptor.Architecture);
+
+			if (TargetDescriptor.HotReloadMode == HotReloadMode.LiveCoding)
+			{
+				// Make sure we're not overwriting any lazy-loaded modules
+				if (TargetDescriptor.LiveCodingModules != null)
+				{
+					// Read the list of modules that we're allowed to build
+					string[] Lines = FileReference.ReadAllLines(TargetDescriptor.LiveCodingModules);
+
+					// Parse it out into a set of filenames
+					HashSet<string> AllowedOutputFileNames = new HashSet<string>(FileReference.Comparer);
+					foreach (string Line in Lines)
+					{
+						string TrimLine = Line.Trim();
+						if (TrimLine.Length > 0)
+						{
+							AllowedOutputFileNames.Add(Path.GetFileName(TrimLine));
+						}
+					}
+
+					// Find all the binaries that we're actually going to build
+					HashSet<FileReference> OutputFiles = new HashSet<FileReference>();
+					foreach (Action Action in TargetActionsToExecute)
+					{
+						if (Action.ActionType == ActionType.Link)
+						{
+							OutputFiles.UnionWith(Action.ProducedItems.Where(x => x.HasExtension(".exe") || x.HasExtension(".dll")).Select(x => x.Location));
+						}
+					}
+
+					// Find all the files that will be built that aren't allowed
+					List<FileReference> ProtectedOutputFiles = OutputFiles.Where(x => !AllowedOutputFileNames.Contains(x.GetFileName())).ToList();
+					if (ProtectedOutputFiles.Count > 0)
+					{
+						FileReference.WriteAllLines(new FileReference(TargetDescriptor.LiveCodingModules.FullName + ".out"), ProtectedOutputFiles.Select(x => x.ToString()));
+						foreach (FileReference ProtectedOutputFile in ProtectedOutputFiles)
+						{
+							Log.TraceInformation("Module {0} is not currently enabled for Live Coding", ProtectedOutputFile);
+						}
+						throw new CompilationResultException(CompilationResult.Canceled);
+					}
+				}
+
+				// Filter the prerequisite actions down to just the compile actions, then recompute all the actions to execute
+				PrerequisiteActions = new List<Action>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
+				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+
+				// Update the action graph with these new paths
+				Dictionary<FileReference, FileReference> OriginalFileToPatchedFile = new Dictionary<FileReference, FileReference>();
+				HotReload.PatchActionGraphForLiveCoding(PrerequisiteActions, OriginalFileToPatchedFile);
+
+				// Get a new list of actions to execute now that the graph has been modified
+				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+
+				// Output the Live Coding manifest
+				if (TargetDescriptor.LiveCodingManifest != null)
+				{
+					HotReload.WriteLiveCodingManifest(TargetDescriptor.LiveCodingManifest, Makefile.Actions, OriginalFileToPatchedFile);
+				}
+			}
+			else if (TargetDescriptor.HotReloadMode == HotReloadMode.FromEditor || TargetDescriptor.HotReloadMode == HotReloadMode.FromIDE)
+			{
+				// Get the path to the state file
+				FileReference HotReloadStateFile = global::UnrealBuildTool.HotReloadState.GetLocation(TargetDescriptor);
+
+				// Read the previous state file and apply it to the action graph
+				HotReloadState HotReloadState;
+				if (FileReference.Exists(HotReloadStateFile))
+				{
+					HotReloadState = HotReloadState.Load(HotReloadStateFile);
+				}
+				else
+				{
+					HotReloadState = new HotReloadState();
+				}
+
+				// Patch action history for hot reload when running in assembler mode.  In assembler mode, the suffix on the output file will be
+				// the same for every invocation on that makefile, but we need a new suffix each time.
+
+				// For all the hot-reloadable modules that may need a unique suffix appended, build a mapping from output item to all the output items in that module. We can't 
+				// apply a suffix to one without applying a suffix to all of them.
+				Dictionary<FileItem, FileItem[]> HotReloadItemToDependentItems = new Dictionary<FileItem, FileItem[]>();
+				foreach (string HotReloadModuleName in Makefile.HotReloadModuleNames)
+				{
+					int ModuleSuffix;
+					if (!TargetDescriptor.HotReloadModuleNameToSuffix.TryGetValue(HotReloadModuleName, out ModuleSuffix) || ModuleSuffix == -1)
+					{
+						FileItem[] ModuleOutputItems;
+						if (Makefile.ModuleNameToOutputItems.TryGetValue(HotReloadModuleName, out ModuleOutputItems))
+						{
+							foreach (FileItem ModuleOutputItem in ModuleOutputItems)
+							{
+								HotReloadItemToDependentItems[ModuleOutputItem] = ModuleOutputItems;
+							}
+						}
+					}
+				}
+
+				// Expand the list of actions to execute to include everything that references any files with a new suffix. Unlike a regular build, we can't ignore
+				// dependencies on import libraries under the assumption that a header would change if the API changes, because the dependency will be on a different DLL.
+				HashSet<FileItem> FilesRequiringSuffix = new HashSet<FileItem>(TargetActionsToExecute.SelectMany(x => x.ProducedItems).Where(x => HotReloadItemToDependentItems.ContainsKey(x)));
+				for (int LastNumFilesWithNewSuffix = 0; FilesRequiringSuffix.Count > LastNumFilesWithNewSuffix;)
+				{
+					LastNumFilesWithNewSuffix = FilesRequiringSuffix.Count;
+					foreach (Action PrerequisiteAction in PrerequisiteActions)
+					{
+						if (!TargetActionsToExecute.Contains(PrerequisiteAction))
+						{
+							foreach (FileItem ProducedItem in PrerequisiteAction.ProducedItems)
+							{
+								FileItem[] DependentItems;
+								if (HotReloadItemToDependentItems.TryGetValue(ProducedItem, out DependentItems))
+								{
+									TargetActionsToExecute.Add(PrerequisiteAction);
+									FilesRequiringSuffix.UnionWith(DependentItems);
+								}
+							}
+						}
+					}
+				}
+
+				// Build a list of file mappings
+				Dictionary<FileReference, FileReference> OldLocationToNewLocation = new Dictionary<FileReference, FileReference>();
+				foreach (FileItem FileRequiringSuffix in FilesRequiringSuffix)
+				{
+					FileReference OldLocation = FileRequiringSuffix.Location;
+					FileReference NewLocation = HotReload.ReplaceSuffix(OldLocation, HotReloadState.NextSuffix);
+					OldLocationToNewLocation[OldLocation] = NewLocation;
+				}
+
+				// Update the action graph with these new paths
+				HotReload.PatchActionGraph(PrerequisiteActions, OldLocationToNewLocation);
+
+				// Get a new list of actions to execute now that the graph has been modified
+				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+
+				// Build a mapping of all file items to their original
+				Dictionary<FileReference, FileReference> HotReloadFileToOriginalFile = new Dictionary<FileReference, FileReference>();
+				foreach (KeyValuePair<FileReference, FileReference> Pair in HotReloadState.OriginalFileToHotReloadFile)
+				{
+					HotReloadFileToOriginalFile[Pair.Value] = Pair.Key;
+				}
+				foreach (KeyValuePair<FileReference, FileReference> Pair in OldLocationToNewLocation)
+				{
+					FileReference OriginalLocation;
+					if (!HotReloadFileToOriginalFile.TryGetValue(Pair.Key, out OriginalLocation))
+					{
+						OriginalLocation = Pair.Key;
+					}
+					HotReloadFileToOriginalFile[Pair.Value] = OriginalLocation;
+				}
+
+				// Now filter out all the hot reload files and update the state
+				foreach (Action Action in TargetActionsToExecute)
+				{
+					foreach (FileItem ProducedItem in Action.ProducedItems)
+					{
+						FileReference OriginalLocation;
+						if (HotReloadFileToOriginalFile.TryGetValue(ProducedItem.Location, out OriginalLocation))
+						{
+							HotReloadState.OriginalFileToHotReloadFile[OriginalLocation] = ProducedItem.Location;
+							HotReloadState.TemporaryFiles.Add(ProducedItem.Location);
+						}
+					}
+				}
+
+				// Increment the suffix for the next iteration
+				if (TargetActionsToExecute.Count > 0)
+				{
+					HotReloadState.NextSuffix++;
+				}
+
+				// Save the new state
+				HotReloadState.Save(HotReloadStateFile);
+
+				// Prevent this target from deploying
+				Makefile.bDeployAfterCompile = false;
+			}
+
+			return TargetActionsToExecute;
 		}
 
 		/// <summary>
@@ -813,9 +1094,10 @@ namespace UnrealBuildTool
 					{
 						throw new Exception(String.Format("Unable to find metadata file to patch action graph ({0})", TargetInfoFile));
 					}
+					WriteMetadataTargetInfo TargetInfo = BinaryFormatterUtils.Load<WriteMetadataTargetInfo>(TargetInfoFile);
 
 					// Update the module names
-					WriteMetadataTargetInfo TargetInfo = BinaryFormatterUtils.Load<WriteMetadataTargetInfo>(TargetInfoFile);
+					bool bHasUpdatedModuleNames = false;
 					foreach (KeyValuePair<FileReference, ModuleManifest> FileNameToVersionManifest in TargetInfo.FileToManifest)
 					{
 						KeyValuePair<string, string>[] ManifestEntries = FileNameToVersionManifest.Value.ModuleNameToFileName.ToArray();
@@ -827,18 +1109,22 @@ namespace UnrealBuildTool
 							if(OriginalFileToHotReloadFile.TryGetValue(OriginalFile, out HotReloadFile))
 							{
 								FileNameToVersionManifest.Value.ModuleNameToFileName[Manifest.Key] = HotReloadFile.GetFileName();
+								bHasUpdatedModuleNames = true;
 							}
 						}
 					}
 
 					// Write the hot-reload metadata file and update the argument list
-					FileReference HotReloadTargetInfoFile = FileReference.Combine(TargetInfoFile.Directory, "Metadata-HotReload.dat");
-					BinaryFormatterUtils.SaveIfDifferent(HotReloadTargetInfoFile, TargetInfo);
+					if (bHasUpdatedModuleNames)
+					{
+						FileReference HotReloadTargetInfoFile = FileReference.Combine(TargetInfoFile.Directory, "Metadata-HotReload.dat");
+						BinaryFormatterUtils.SaveIfDifferent(HotReloadTargetInfoFile, TargetInfo);
 
-					Action.PrerequisiteItems.RemoveAll(x => x.Location == TargetInfoFile);
-					Action.PrerequisiteItems.Add(FileItem.GetItemByFileReference(HotReloadTargetInfoFile));
+						Action.PrerequisiteItems.RemoveAll(x => x.Location == TargetInfoFile);
+						Action.PrerequisiteItems.Add(FileItem.GetItemByFileReference(HotReloadTargetInfoFile));
 
-					Action.CommandArguments = Arguments.Substring(0, FileNameIdx) + HotReloadTargetInfoFile + Arguments.Substring(FileNameEndIdx);
+						Action.CommandArguments = Arguments.Substring(0, FileNameIdx) + HotReloadTargetInfoFile + Arguments.Substring(FileNameEndIdx);
+					}
 				}
 			}
 		}
@@ -846,10 +1132,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Patches a set of actions to use a specific list of suffixes for each module name
 		/// </summary>
-		/// <param name="PrerequisiteActions">Actions in the target being built</param>
 		/// <param name="ModuleNameToSuffix">Map of module name to suffix</param>
 		/// <param name="Makefile">Makefile for the target being built</param>
-		public static void PatchActionGraphWithNames(List<Action> PrerequisiteActions, Dictionary<string, int> ModuleNameToSuffix, TargetMakefile Makefile)
+		public static void PatchActionGraphWithNames(Dictionary<string, int> ModuleNameToSuffix, TargetMakefile Makefile)
 		{
 			if(ModuleNameToSuffix.Count > 0)
 			{
@@ -868,7 +1153,7 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-				HotReload.PatchActionGraph(PrerequisiteActions, OldLocationToNewLocation);
+				HotReload.PatchActionGraph(Makefile.Actions, OldLocationToNewLocation);
 			}
 		}
 
