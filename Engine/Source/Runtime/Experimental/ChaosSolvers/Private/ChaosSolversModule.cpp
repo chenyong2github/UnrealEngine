@@ -177,7 +177,7 @@ FChaosSolversModule::FChaosSolversModule()
 	, bModuleInitialized(false)
 {
 #if WITH_EDITOR
-	if(!IsRunningGame())
+	if(!(IsRunningDedicatedServer() || IsRunningGame()))
 	{
 		// In the editor we begin with everything paused so we don't needlessly tick
 		// the physics solvers until PIE begins. Delegates are bound in FPhysScene_ChaosPauseHandler
