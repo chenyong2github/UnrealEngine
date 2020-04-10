@@ -33,7 +33,6 @@ namespace UnrealGameSync
 			this.OptionsContextMenu_BuildConfig_Debug = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu_BuildConfig_DebugGame = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu_BuildConfig_Development = new System.Windows.Forms.ToolStripMenuItem();
-			this.OptionsContextMenu_UseIncrementalBuilds = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu_CustomizeBuildSteps = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu_EditorArguments = new System.Windows.Forms.ToolStripMenuItem();
 			this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
@@ -177,7 +176,6 @@ namespace UnrealGameSync
             this.OptionsContextMenu_SyncFilter,
             this.toolStripSeparator3,
             this.OptionsContextMenu_EditorBuildConfiguration,
-            this.OptionsContextMenu_UseIncrementalBuilds,
             this.OptionsContextMenu_CustomizeBuildSteps,
             this.OptionsContextMenu_EditorArguments,
             this.toolStripSeparator5,
@@ -301,13 +299,6 @@ namespace UnrealGameSync
 			this.OptionsContextMenu_BuildConfig_Development.Size = new System.Drawing.Size(145, 22);
 			this.OptionsContextMenu_BuildConfig_Development.Text = "Development";
 			this.OptionsContextMenu_BuildConfig_Development.Click += new System.EventHandler(this.OptionsContextMenu_BuildConfig_Development_Click);
-			// 
-			// OptionsContextMenu_UseIncrementalBuilds
-			// 
-			this.OptionsContextMenu_UseIncrementalBuilds.Name = "OptionsContextMenu_UseIncrementalBuilds";
-			this.OptionsContextMenu_UseIncrementalBuilds.Size = new System.Drawing.Size(261, 22);
-			this.OptionsContextMenu_UseIncrementalBuilds.Text = "Use Incremental Builds";
-			this.OptionsContextMenu_UseIncrementalBuilds.Click += new System.EventHandler(this.OptionsContextMenu_UseIncrementalBuilds_Click);
 			// 
 			// OptionsContextMenu_CustomizeBuildSteps
 			// 
@@ -1305,7 +1296,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_BuildConfig_Debug;
 		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_BuildConfig_DebugGame;
 		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_BuildConfig_Development;
-		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_UseIncrementalBuilds;
 		private System.Windows.Forms.ToolStripMenuItem BuildListContextMenu_Rebuild;
 		private System.Windows.Forms.ToolStripMenuItem BuildListContextMenu_WithdrawReview;
 		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_ScheduledSync;
