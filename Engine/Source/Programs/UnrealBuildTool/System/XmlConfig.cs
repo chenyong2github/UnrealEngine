@@ -204,14 +204,15 @@ namespace UnrealBuildTool
 			// Skip all the config files under the Engine folder if it's an installed build
 			if(!UnrealBuildTool.IsEngineInstalled())
 			{
-				// Check for the config file under /Engine/Programs/NotForLicensees/UnrealBuildTool
-				FileReference NotForLicenseesConfigLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Programs", "NotForLicensees", "UnrealBuildTool", "BuildConfiguration.xml");
-				if(FileReference.Exists(NotForLicenseesConfigLocation))
-				{
-					InputFiles.Add(new InputFile { Location = NotForLicenseesConfigLocation, FolderName = "NotForLicensees" });
-				}
+				// @todo benm: This file is getting added again when we scan Programs - easiest to just not add it here, but it will put it under Programs, not Engine
+// 				// Check for the config file under /Engine/Programs/NotForLicensees/UnrealBuildTool
+// 				FileReference NotForLicenseesConfigLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Restricted", "NotForLicensees", "Programs", "UnrealBuildTool", "BuildConfiguration.xml");
+// 				if(FileReference.Exists(NotForLicenseesConfigLocation))
+// 				{
+// 					InputFiles.Add(new InputFile { Location = NotForLicenseesConfigLocation, FolderName = "NotForLicensees" });
+// 				}
 
-				// Check for the user config file under /Engine/Programs/NotForLicensees/UnrealBuildTool
+				// Check for the user config file under /Engine/Saved/UnrealBuildTool
 				FileReference UserConfigLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
 				if(!FileReference.Exists(UserConfigLocation))
 				{

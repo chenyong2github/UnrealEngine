@@ -28,7 +28,7 @@ namespace ChaosTest
 
 	FString GetSerializedBinaryPath()
 	{
-		return FPaths::EngineDir() / TEXT("Source/Programs/NotForLicensees/HeadlessChaos/SerializedBinaries");
+		return FPaths::EngineDir() / TEXT("Source/Programs/HeadlessChaos/SerializedBinaries");
 	}
 
 	template<class T>
@@ -438,7 +438,7 @@ namespace ChaosTest
 	void EvolutionPerfHarness()
 	{
 		//Load evolutions and step them over and over (with rewind) to measure perf of different components in the system
-		//EvolutionPerfHelper(FPaths::EngineDir() / TEXT("Source/Programs/NotForLicensees/HeadlessPhysicsSQ/Captures/ChaosEvolution_76.bin"));
+		//EvolutionPerfHelper(FPaths::EngineDir() / TEXT("Restricted/NotForLicensees/Source/Programs/HeadlessPhysicsSQ/Captures/ChaosEvolution_76.bin"));
 	}
 	
 

@@ -281,13 +281,6 @@
       </ItemGroup>
     </When>
   </Choose>
-  <Choose>
-    <When Condition="Exists('Platform\Android\NoRedist\AndroidToolChainInternal.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\Android\NoRedist\AndroidToolChainInternal.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
   <ItemGroup>
     <Compile Include="ToolChain\RemoteMac.cs" />
     <Compile Include="UnrealBuildTool.cs" />
@@ -307,10 +300,7 @@
     </When>
   </Choose>
   <Choose>
-    <When Condition="Exists('Executors\NotForLicensees\FASTBuild.cs')">
-      <ItemGroup>
-        <Compile Include="Executors\NotForLicensees\FASTBuild.cs" />
-      </ItemGroup>
+    <When Condition="Exists('..\..\..\Restricted\NotForLicensees\Source\Programs\UnrealBuildTool\Executors\FASTBuild.cs')">
       <PropertyGroup>
         <DefineConstants>$(DefineConstants);__FASTBUILD_AVAILABLE__</DefineConstants>
       </PropertyGroup>
@@ -343,13 +333,6 @@
     </When>
   </Choose>
   <Choose>
-    <When Condition="Exists('Platform\IOS\NoRedist\IOSToolChainInternal.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\IOS\NoRedist\IOSToolChainInternal.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
     <When Condition="Exists('Platform\Linux\UEBuildLinux.cs')">
       <ItemGroup>
         <Compile Include="Platform\Linux\LinuxCommon.cs" />
@@ -369,9 +352,6 @@
         <Compile Include="Platform\Lumin\UEBuildLumin.cs" />
       </ItemGroup>
     </When>
-  </Choose>
-  <Choose>
-    <When Condition="Exists('System\NotForLicensees\TelemetryProviderET.cs')" />
   </Choose>
   <ItemGroup>
     <Compile Include="..\DotNETCommon\MetaData.cs">

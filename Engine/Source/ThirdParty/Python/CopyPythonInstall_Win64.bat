@@ -28,9 +28,9 @@ XCOPY /s /i /q "%python_src_dir%" "%python_bin_dest_name%"
 RMDIR "%python_bin_dest_name%\Doc" /s /q
 DEL "%python_bin_dest_name%\Lib\*.pyc" /s /q
 DEL "%python_bin_dest_name%\w9xpopen.exe"
-XCOPY /s /i /q "NoRedist\%python_arch_name%\Microsoft.VC90.CRT" "%python_bin_dest_name%"
-XCOPY /q /y "NoRedist\TPS\PythonWinBin.tps" "%python_bin_dest_name%"
-XCOPY /q /y "NoRedist\TPS\VisualStudio2008.tps" "%python_bin_dest_name%"
+XCOPY /s /i /q "..\..\..\Restricted\NoRedist\Source\ThirdParty\Python\%python_arch_name%\Microsoft.VC90.CRT" "%python_bin_dest_name%"
+XCOPY /q /y "..\..\..\Restricted\NoRedist\Source\ThirdParty\Python\TPS\PythonWinBin.tps" "%python_bin_dest_name%"
+XCOPY /q /y "..\..\..\Restricted\NoRedist\Source\ThirdParty\Python\TPS\VisualStudio2008.tps" "%python_bin_dest_name%"
 XCOPY /q /y "%WINDIR%\System32\python27.dll" "%python_bin_dest_name%"
 XCOPY /q /y "Python.tps" "%python_bin_dest_name%\..\"
 XCOPY /s /i /q "%python_bin_dest_name%\include" "%python_lib_dest_name%\include"
