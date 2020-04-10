@@ -32,10 +32,6 @@ void USoundSourceBus::Init()
 	// This sound wave is looping if the source bus duration is 0.0f
 	bLooping = (SourceBusDuration == 0.0f);
 
-	// Keep playing this bus when the volume is 0
-	// Note source buses can't ever be truly virtual as they are procedurally generated.
-	VirtualizationMode = bAutoDeactivateWhenSilent ? EVirtualizationMode::Disabled : EVirtualizationMode::PlayWhenSilent;
-
 	// Set the channels equal to the users channel count choice
 	switch (SourceBusChannels)
 	{
