@@ -132,3 +132,24 @@ void UMovieSceneActorReferenceSection::PostLoad()
 		}
 	}
 }
+
+void UMovieSceneActorReferenceSection::OnBindingsUpdated(const TMap<FGuid, FGuid>& OldGuidToNewGuidMap)
+{
+	if (OldGuidToNewGuidMap.Contains(ActorReferenceData.GetDefault().Object.GetGuid()))
+	{
+		Modify();
+
+		ActorReferenceData.GetDefault().Object.SetGuid(OldGuidToNewGuidMap[ActorReferenceData.GetDefault().Object.GetGuid()]);
+	}
+
+	for (FMovieSceneActorReferenceKey Key : ActorReferenceData.GetData().GetValues())
+	{
+		if (OldGuidToNewGuidMap.Contains(Key.Object.GetGuid()))
+		{
+			Modify();
+			
+			Key.Object.SetGuid(OldGuidToNewGuidMap[Key.Object.GetGuid()]);
+		}	
+	}
+}
+

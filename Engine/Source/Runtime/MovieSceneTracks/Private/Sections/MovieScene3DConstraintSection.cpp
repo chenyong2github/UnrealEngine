@@ -30,6 +30,8 @@ void UMovieScene3DConstraintSection::OnBindingsUpdated(const TMap<FGuid, FGuid>&
 {
 	if (OldGuidToNewGuidMap.Contains(ConstraintBindingID.GetGuid()))
 	{
+		Modify();
+
 		ConstraintBindingID.SetGuid(OldGuidToNewGuidMap[ConstraintBindingID.GetGuid()]);
 	}
 }
