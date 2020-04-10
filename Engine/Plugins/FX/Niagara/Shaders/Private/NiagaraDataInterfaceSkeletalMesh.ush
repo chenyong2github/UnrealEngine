@@ -48,6 +48,8 @@ struct FDISkelMeshContext
 	int				FilteredSocketBoneOffset;
 	float4x4		InstanceTransform;
 	float4x4		InstancePrevTransform;
+	float4			InstanceRotation;
+	float4			InstancePrevRotation;
 	float			InstanceInvDeltaTime;
 	bool			UniformTriangleSamplingEnable;
 	bool			UniformSamplingRegionEnabled;
@@ -407,7 +409,7 @@ void DISKelMesh_GetFilteredTriangleAt(in FDISkelMeshContext DIContext, int Filte
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Bone Sampling
 
-float4 QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
+float4 DISKelMesh_QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
 {
     const float RawCosom = dot(Quat1, Quat2);
     const float Cosom = abs(RawCosom);
@@ -432,6 +434,16 @@ float4 QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
     return (Scale0 * Quat1) + (Scale1 * Quat2);
 }
 
+float4 DISKelMesh_QuatMul(float4 Q1, float4 Q2)
+{
+	float4 QOut;
+	QOut.x = Q1.w*Q2.x + Q1.x*Q2.w + Q1.y*Q2.z - Q1.z*Q2.y;
+	QOut.y = Q1.w*Q2.y - Q1.x*Q2.z + Q1.y*Q2.w + Q1.z*Q2.x;
+	QOut.z = Q1.w*Q2.z + Q1.x*Q2.y - Q1.y*Q2.x + Q1.z*Q2.w;
+	QOut.w = Q1.w*Q2.w - Q1.x*Q2.x - Q1.y*Q2.y - Q1.z*Q2.z;
+	return QOut;
+}
+
 void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bone, in float Interp, in bool bWorldSpace, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
 {
     float3 PrevPosition = DIContext.MeshPrevSamplingBonesBuffer[Bone * 2].xyz;
@@ -443,11 +455,13 @@ void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bon
     {
         PrevPosition = mul(float4(PrevPosition, 1), DIContext.InstancePrevTransform).xyz;
         CurrPosition = mul(float4(CurrPosition, 1), DIContext.InstanceTransform).xyz;
+		PrevRotation = DISKelMesh_QuatMul(DIContext.InstancePrevRotation, PrevRotation);
+		CurrRotation = DISKelMesh_QuatMul(DIContext.InstanceRotation, CurrRotation);
     }
     CurrPosition = lerp(PrevPosition, CurrPosition, Interp);
 
     OutPosition = CurrPosition;
-    OutRotation = QuatSlerp(PrevRotation, CurrRotation, Interp);
+    OutRotation = DISKelMesh_QuatSlerp(PrevRotation, CurrRotation, Interp);
     OutVelocity = (CurrPosition - PrevPosition) * DIContext.InstanceInvDeltaTime;
 }
 
@@ -722,6 +736,8 @@ void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int F
 	int				FilteredSocketBoneOffset_ ## NAME; \
 	float4x4		InstanceTransform_ ## NAME; \
 	float4x4		InstancePrevTransform_ ## NAME; \
+	float4			InstanceRotation_ ## NAME; \
+	float4			InstancePrevRotation_ ## NAME; \
 	float			InstanceInvDeltaTime_ ## NAME; \
 	uint			EnabledFeatures_ ## NAME; \
 
@@ -763,6 +779,8 @@ void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int F
 	DIContext.MeshSkinWeightIndexSize = MeshSkinWeightIndexSize_ ## NAME; \
 	DIContext.InstanceTransform = InstanceTransform_ ## NAME; \
 	DIContext.InstancePrevTransform = InstancePrevTransform_ ## NAME; \
+	DIContext.InstanceRotation = InstanceRotation_ ## NAME; \
+	DIContext.InstancePrevRotation = InstancePrevRotation_ ## NAME; \
 	DIContext.InstanceInvDeltaTime = InstanceInvDeltaTime_ ## NAME; \
 	DIContext.UniformTriangleSamplingEnable = EnabledFeatures_ ## NAME & 0x1; \
 	DIContext.UniformSamplingRegionEnabled = EnabledFeatures_ ## NAME & 0x2; \
