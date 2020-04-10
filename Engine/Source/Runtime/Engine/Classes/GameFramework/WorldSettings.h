@@ -764,7 +764,14 @@ public:
 	 *	no navigation system will be created*/
 	UNavigationSystemConfig* const GetNavigationSystemConfig() const { return NavigationSystemConfigOverride ? NavigationSystemConfigOverride : NavigationSystemConfig; }
 
+	/** 
+	 * Sets a configuration override for NavigationSystem's creation. 
+	 * If set, GetNavigationSystemConfig will return this configuration instead NavigationSystemConfig. 
+	 */
 	void SetNavigationSystemConfigOverride(UNavigationSystemConfig* NewConfig);
+
+	/** @return current configuration override for NavigationSystem's creation, if any. */
+	const UNavigationSystemConfig* GetNavigationSystemConfigOverride() const { return NavigationSystemConfigOverride; }
 
 	/** @return whether given world is configured to host any NavigationSystem */
 	bool IsNavigationSystemEnabled() const;
