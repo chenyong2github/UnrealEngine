@@ -313,7 +313,7 @@ public:
 private:
 	int32 GenerateDynamicKey();
 
-	int32 AddStaticLayer(FIniFilename Filename, int32 LayerIndex, int32 LayerExpansionIndex = 0, int32 PlatformIndex = 0);
+	int32 AddStaticLayer(FIniFilename Filename, int32 LayerIndex, int32 ExpansionIndex=0, int32 PlatformIndex=0);
 	int32 AddDynamicLayer(FIniFilename Filename);
 
 	friend class FConfigFile;
