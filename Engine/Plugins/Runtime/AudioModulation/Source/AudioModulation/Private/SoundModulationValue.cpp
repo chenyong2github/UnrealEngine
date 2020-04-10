@@ -4,13 +4,6 @@
 #include "SoundModulationProxy.h"
 
 
-namespace AudioModulation
-{
-	const FBusMixId InvalidBusMixId = INDEX_NONE;
-	const FBusId    InvalidBusId    = INDEX_NONE;
-	const FBusId    InvalidLFOId    = INDEX_NONE;
-} // namespace AudioModulation
-
 FSoundModulationValue::FSoundModulationValue()
 	: TargetValue(1.0f)
 	, AttackTime(0.1f)

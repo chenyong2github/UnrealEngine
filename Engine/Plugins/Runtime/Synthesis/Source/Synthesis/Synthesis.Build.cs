@@ -4,22 +4,30 @@ namespace UnrealBuildTool.Rules
 {
 	public class Synthesis : ModuleRules
 	{
-        public Synthesis(ReadOnlyTargetRules Target) : base(Target)
+		public Synthesis(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PrivateDependencyModuleNames.AddRange(
+			OptimizeCode = CodeOptimization.Never;
+
+			PublicDependencyModuleNames.AddRange(
 				new string[] {
-                    "Core",
+					"Core",
 					"CoreUObject",
 					"Engine",
+					"AudioExtensions",
+				}
+			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
 					"AudioMixer",
 					"SignalProcessing",
-                    "UMG",
-                    "Slate",
-                    "SlateCore",
-                    "InputCore",
-                    "Projects"
-                }
-            );
+					"UMG",
+					"Slate",
+					"SlateCore",
+					"InputCore",
+					"Projects"
+				}
+			);
 		}
 	}
 }

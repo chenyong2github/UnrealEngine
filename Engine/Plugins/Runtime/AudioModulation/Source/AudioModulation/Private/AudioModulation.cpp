@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioModulation.h"
 
-#include "AudioModulationInternal.h"
+#include "AudioModulationSystem.h"
 #include "AudioModulationLogging.h"
 #include "CanvasTypes.h"
 #include "Features/IModularFeatures.h"
-#include "IAudioExtensionPlugin.h"
+#include "IAudioModulation.h"
 #include "Modules/ModuleManager.h"
+#include "SoundControlBusMix.h"
 #include "SoundModulationPatch.h"
 #include "UnrealClient.h"
 
@@ -18,78 +19,108 @@ namespace AudioModulation
 {
 	FAudioModulation::FAudioModulation()
 	{
-		Impl = TUniquePtr<FAudioModulationImpl>(new FAudioModulationImpl());
+		ModSystem = TUniquePtr<FAudioModulationSystem>(new FAudioModulationSystem());
 	}
 
-	FAudioModulationImpl* FAudioModulation::GetImpl()
+	FAudioModulationSystem* FAudioModulation::GetModulationSystem()
 	{
-		return Impl.Get();
+		return ModSystem.Get();
 	}
 
 	float FAudioModulation::CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& Settings)
 	{
-		return Impl->CalculateInitialVolume(Settings);
+		return ModSystem->CalculateInitialVolume(Settings);
 	}
 
 	void FAudioModulation::Initialize(const FAudioPluginInitializationParams& InitializationParams)
 	{
-		Impl->Initialize(InitializationParams);
+		ModSystem->Initialize(InitializationParams);
+	}
+
+	void FAudioModulation::OnBeginAudioRenderThreadUpdate()
+	{
+		ModSystem->OnBeginAudioRenderThreadUpdate();
 	}
 
 #if WITH_EDITOR
 	void FAudioModulation::OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings)
 	{
-		Impl->OnEditPluginSettings(Settings);
+		ModSystem->OnEditPluginSettings(Settings);
 	}
 #endif // WITH_EDITOR
 
 	void FAudioModulation::OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings)
 	{
-		Impl->OnInitSound(Sound, Settings);
+		ModSystem->OnInitSound(Sound, Settings);
 	}
 
 	void FAudioModulation::OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings)
 	{
-		Impl->OnInitSource(SourceId, AudioComponentUserId, NumChannels, Settings);
+		ModSystem->OnInitSource(SourceId, AudioComponentUserId, NumChannels, Settings);
 	}
 
 	void FAudioModulation::OnReleaseSound(ISoundModulatable& Sound)
 	{
-		Impl->OnReleaseSound(Sound);
+		ModSystem->OnReleaseSound(Sound);
 	}
 
 	void FAudioModulation::OnReleaseSource(const uint32 SourceId)
 	{
-		Impl->OnReleaseSource(SourceId);
+		ModSystem->OnReleaseSource(SourceId);
 	}
 
 #if !UE_BUILD_SHIPPING
 	bool FAudioModulation::OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
-		return Impl->OnPostHelp(ViewportClient, Stream);
+		return ModSystem->OnPostHelp(ViewportClient, Stream);
 	}
 
 	int32 FAudioModulation::OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation)
 	{
-		return Impl->OnRenderStat(Viewport, Canvas, X, Y, Font, ViewLocation, ViewRotation);
+		return ModSystem->OnRenderStat(Viewport, Canvas, X, Y, Font, ViewLocation, ViewRotation);
 	}
 
 	bool FAudioModulation::OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
-		return Impl->OnToggleStat(ViewportClient, Stream);
+		return ModSystem->OnToggleStat(ViewportClient, Stream);
 	}
 #endif // !UE_BUILD_SHIPPING
 
 	bool FAudioModulation::ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioModulationProcessControls);
-		return Impl->ProcessControls(InSourceId, OutControls);
+		return ModSystem->ProcessControls(InSourceId, OutControls);
 	}
 
 	void FAudioModulation::ProcessModulators(const float Elapsed)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioModulationProcessModulators);
-		Impl->ProcessModulators(Elapsed);
+		ModSystem->ProcessModulators(Elapsed);
+	}
+
+	bool FAudioModulation::RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase)
+	{
+		return ModSystem->RegisterModulator(InParentId, InModulatorBase);
+	}
+
+	bool FAudioModulation::RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId)
+	{
+		return ModSystem->RegisterModulator(InParentId, InModulatorId);
+	}
+
+	bool FAudioModulation::GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue)
+	{
+		return ModSystem->GetModulatorValue(ModulatorHandle, OutValue);
+	}
+
+	void FAudioModulation::UnregisterModulator(const Audio::FModulatorHandle& InHandle)
+	{
+		ModSystem->UnregisterModulator(InHandle);
+	}
+
+	void FAudioModulation::UpdateModulator(const USoundModulatorBase& InModulator)
+	{
+		ModSystem->UpdateModulator(InModulator);
 	}
 } // namespace AudioModulation
 

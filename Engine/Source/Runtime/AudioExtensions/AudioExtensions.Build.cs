@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public AudioExtensions(ReadOnlyTargetRules Target) : base(Target)
 		{
+			OptimizeCode = CodeOptimization.Never;
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -15,14 +17,6 @@ namespace UnrealBuildTool.Rules
 					"AudioMixerCore"
 				}
 			);
-
-            PrivateDependencyModuleNames.AddRange(
-                new string[]
-                {
-					// This is needed for SoundfieldStatics::GetDefaultPositionMap.
-                    //"AudioMixer"
-                }
-            );
-        }
+		}
 	}
 }
