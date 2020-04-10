@@ -17,6 +17,8 @@
 
 #define LOCTEXT_NAMESPACE "CompositeDataTables"
 
+#define DATATABLE_CHANGE_SCOPE()	UDataTable::FScopedDataTableChange ActiveScope(this);
+
 UCompositeDataTable::UCompositeDataTable(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -80,6 +82,8 @@ void UCompositeDataTable::UpdateCachedRowMap(bool bWarnOnInvalidChildren)
 			return;
 		}
 	}
+
+	DATATABLE_CHANGE_SCOPE();
 
 #if WITH_EDITOR
 	FDataTableEditorUtils::BroadcastPreChange(this, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
