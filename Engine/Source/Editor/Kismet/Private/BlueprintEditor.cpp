@@ -2765,7 +2765,8 @@ void FBlueprintEditor::CreateDefaultCommands()
 		FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes,
 		FExecuteAction::CreateSP(this, &FBlueprintEditor::ToggleHideUnrelatedNodes),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked)
+		FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked),
+		FIsActionButtonVisible::CreateSP(this, &FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes, true)
 	);
 }
 
@@ -7268,6 +7269,16 @@ bool FBlueprintEditor::IsToggleHideUnrelatedNodesChecked() const
 	return bHideUnrelatedNodes == true;
 }
 
+bool FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes(bool bIsToolbar) const
+{
+	// Only show the toolbar button when not actively debugging, otherwise the debug buttons won't fit
+	if (bIsToolbar)
+	{
+		return !GIntraFrameDebuggingGameThread;
+	}
+	return GIntraFrameDebuggingGameThread;
+}
+
 TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -7281,7 +7292,7 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 			+SHorizontalBox::Slot()
 			[
 				SNew(STextBlock)
-					.Text(LOCTEXT("FocusRelatedOptions", "Focus Related Options"))
+					.Text(LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"))
 					.TextStyle(FEditorStyle::Get(), "Menu.Heading")
 			]
 		];
@@ -7307,6 +7318,23 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 		];
 
 	MenuBuilder.AddWidget(OptionsHeading, FText::GetEmpty(), true);
+
+	TSharedPtr<FUICommandInfo> ToggleCmd = FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes;
+
+	// Add a menu version of toggle, when we can't show the full one
+	MenuBuilder.AddMenuEntry
+	(
+		ToggleCmd->GetLabel(),
+		ToggleCmd->GetDescription(),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FBlueprintEditor::ToggleHideUnrelatedNodes),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked),
+			FIsActionButtonVisible::CreateSP(this, &FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes, false)),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
 
 	MenuBuilder.AddMenuEntry(FUIAction(), LockNodeStateCheckBox);
 
