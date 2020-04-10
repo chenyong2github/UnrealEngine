@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Audio.h"
 #include "DSP/MultithreadedPatching.h"
+#include "Sound/AudioSettings.h"
 
 namespace Audio
 {
@@ -66,6 +67,9 @@ namespace Audio
 
 		// Compute the mixed buffer
 		void MixBuffer();
+
+		// Copies the current internal buffer to a provided output buffer. Only supports mono or stereo input/output formats.
+		void CopyCurrentBuffer(AlignedFloatBuffer& OutBuffer, int32 InNumFrames, int32 InNumOutputChannels, EMonoChannelUpmixMethod InMixMethod = EMonoChannelUpmixMethod::EqualPower) const;
 
 		// If this bus was constructed before
 		void SetNumOutputChannels(int32 InNumOutputChannels);
