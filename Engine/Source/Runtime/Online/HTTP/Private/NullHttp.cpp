@@ -74,9 +74,9 @@ void FNullHttpRequest::SetContent(const TArray<uint8>& ContentPayload)
 
 void FNullHttpRequest::SetContentAsString(const FString& ContentString)
 {
-	FTCHARToUTF8 Converter(*ContentString);
-	Payload.SetNum(Converter.Length());
-	FMemory::Memcpy(Payload.GetData(), (uint8*)(ANSICHAR*)Converter.Get(), Payload.Num());
+	int32 Utf8Length = FTCHARToUTF8_Convert::ConvertedLength(*ContentString, ContentString.Len());
+	Payload.SetNumUninitialized(Utf8Length);
+	FTCHARToUTF8_Convert::Convert((ANSICHAR*)Payload.GetData(), Payload.Num(), *ContentString, ContentString.Len());
 }
 
 bool FNullHttpRequest::SetContentAsStreamedFile(const FString& Filename)

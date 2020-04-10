@@ -129,11 +129,11 @@ void FHttpRequestIXML::SetContentAsString(const FString& ContentString)
 {
 	if ( ContentString.Len() )
 	{
-		FTCHARToUTF8 Converter(*ContentString);
+		int32 Utf8Length = FTCHARToUTF8_Convert::ConvertedLength(*ContentString, ContentString.Len());
 		TArray<uint8> Buffer;
-		Buffer.SetNum(Converter.Length());
-		FMemory::Memcpy(Buffer.GetData(), Converter.Get(), Buffer.Num());
-		Payload = MakeUnique<FRequestPayloadInMemory>(Buffer);
+		Buffer.SetNumUninitialized(Utf8Length);
+		FTCHARToUTF8_Convert::Convert((ANSICHAR*)Buffer.GetData(), Buffer.Num(), *ContentString, ContentString.Len());
+		Payload = MakeUnique<FRequestPayloadInMemory>(MoveTemp(Buffer));
 	}
 }
 
