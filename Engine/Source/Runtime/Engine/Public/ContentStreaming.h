@@ -669,12 +669,17 @@ struct FStreamingManagerCollection : public IStreamingManager
 	ENGINE_API bool IsStreamingEnabled() const;
 
 	/**
-	 * Checks whether texture streaming is active
+	 * Checks whether texture streaming is enabled
 	 */
 	ENGINE_API bool IsTextureStreamingEnabled() const;
 
 	/**
-	 * Checks whether texture/mesh streaming is active
+	 * Checks whether mesh streaming is enabled
+	 */
+	ENGINE_API bool IsMeshStreamingEnabled() const;
+
+	/**
+	 * Checks whether texture/mesh streaming is enabled
 	 */
 	virtual bool IsRenderAssetStreamingEnabled() const;
 
