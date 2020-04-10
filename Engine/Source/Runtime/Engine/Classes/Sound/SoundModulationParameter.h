@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Audio.h"
 #include "CoreMinimal.h"
 #include "DSP/BufferVectorOperations.h"
 #include "IAudioModulation.h"
