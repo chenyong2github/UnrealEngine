@@ -4,8 +4,10 @@
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeBool.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioModulation.h"
 #include "Modules/ModuleInterface.h"
 #include "SoundModulationPatch.h"
+#include "SoundModulationSettings.h"
 #include "Stats/Stats.h"
 
 
@@ -18,7 +20,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Process Controls"), STAT_AudioModulationProcessC
 
 namespace AudioModulation
 {
-	class FAudioModulationImpl;
+	class FAudioModulationSystem;
 
 	class AUDIOMODULATION_API FAudioModulation : public IAudioModulation
 	{
@@ -30,6 +32,7 @@ namespace AudioModulation
 		virtual float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) override;
 
 		virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) override;
+		virtual void OnBeginAudioRenderThreadUpdate() override;
 		virtual void OnInitSound(ISoundModulatable& Sound, const USoundModulationPluginSourceSettingsBase& Settings) override;
 		virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) override;
 
@@ -43,16 +46,24 @@ namespace AudioModulation
 		virtual void OnReleaseSource(const uint32 SourceId) override;
 		virtual bool ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) override;
 		virtual void ProcessModulators(const float Elapsed) override;
+
+		virtual void UpdateModulator(const USoundModulatorBase& InModulator) override;
 		//~ End IAudioModulation implementation
 
 #if WITH_EDITOR
 		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings);
 #endif // WITH_EDITOR
 
-		FAudioModulationImpl* GetImpl();
+		FAudioModulationSystem* GetModulationSystem();
+
+	protected:
+		virtual bool RegisterModulator(uint32 InParentId, const USoundModulatorBase& InModulatorBase) override;
+		virtual bool RegisterModulator(uint32 InParentId, Audio::FModulatorId InModulatorId) override;
+		virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) override;
+		virtual void UnregisterModulator(const Audio::FModulatorHandle& InHandle) override;
 
 	private:
-		TUniquePtr<FAudioModulationImpl> Impl;
+		TUniquePtr<FAudioModulationSystem> ModSystem;
 	};
 } // namespace AudioModulation
 

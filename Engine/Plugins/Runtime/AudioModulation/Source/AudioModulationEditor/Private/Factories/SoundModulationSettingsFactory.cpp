@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SoundModulationSettingsFactory.h"
-#include "SoundModulationPatch.h"
+
+#include "SoundModulationSettings.h"
 
 
 USoundModulationSettingsFactory::USoundModulationSettingsFactory(const FObjectInitializer& ObjectInitializer)

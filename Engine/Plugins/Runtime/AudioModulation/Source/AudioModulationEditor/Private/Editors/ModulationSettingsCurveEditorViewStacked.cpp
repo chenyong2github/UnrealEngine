@@ -10,6 +10,7 @@
 #include "Fonts/FontMeasure.h"
 #include "SCurveEditorPanel.h"
 #include "SoundModulationPatch.h"
+#include "SoundModulationSettings.h"
 #include "Widgets/Text/STextBlock.h"
 
 
