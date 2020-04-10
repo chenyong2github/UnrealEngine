@@ -40,7 +40,7 @@ namespace AutomationTool
 			}
 
 			FileReference OutputFile = FileReference.Combine(ProjectPath.Directory, "Config", "DefaultCrypto.ini");
-			FileReference NoRedistOutputFile = FileReference.Combine(ProjectPath.Directory, "Config", "NoRedist", "DefaultCrypto.ini");
+			FileReference NoRedistOutputFile = FileReference.Combine(ProjectPath.Directory, "Restricted", "NoRedist", "Config", "DefaultCrypto.ini");
 			FileReference DestinationFile = OutputFile;
 
 			// If the project has a DefaultCrypto.ini in a NoRedist folder, we want to copy the newly generated file into that location
