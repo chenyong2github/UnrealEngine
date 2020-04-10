@@ -85,27 +85,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Builds a list of actions that need to be executed to produce the specified output items.
 		/// </summary>
-		public static HashSet<Action> GetActionsToExecute(List<Action> Actions, List<Action> PrerequisiteActions, CppDependencyCache CppDependencies, ActionHistory History, bool bIgnoreOutdatedImportLibraries)
+		public static List<Action> GetActionsToExecute(List<Action> Actions, CppDependencyCache CppDependencies, ActionHistory History, bool bIgnoreOutdatedImportLibraries)
 		{
-			ITimelineEvent GetActionsToExecuteTimer = Timeline.ScopeEvent("ActionGraph.GetActionsToExecute()");
-
-			// Build a set of all actions needed for this target.
-			Dictionary<Action, bool> IsActionOutdatedMap = new Dictionary<Action, bool>();
-			foreach (Action Action in PrerequisiteActions)
+			using (Timeline.ScopeEvent("ActionGraph.GetActionsToExecute()"))
 			{
-				IsActionOutdatedMap.Add(Action, true);
+				// For all targets, build a set of all actions that are outdated.
+				Dictionary<Action, bool> OutdatedActionDictionary = new Dictionary<Action, bool>();
+				GatherAllOutdatedActions(Actions, History, OutdatedActionDictionary, CppDependencies, bIgnoreOutdatedImportLibraries);
+
+				// Build a list of actions that are both needed for this target and outdated.
+				return Actions.Where(Action => Action.CommandPath != null && OutdatedActionDictionary[Action]).ToList();
 			}
-
-			// For all targets, build a set of all actions that are outdated.
-			Dictionary<Action, bool> OutdatedActionDictionary = new Dictionary<Action, bool>();
-			GatherAllOutdatedActions(Actions, History, OutdatedActionDictionary, CppDependencies, bIgnoreOutdatedImportLibraries);
-
-			// Build a list of actions that are both needed for this target and outdated.
-			HashSet<Action> ActionsToExecute = new HashSet<Action>(Actions.Where(Action => Action.CommandPath != null && IsActionOutdatedMap.ContainsKey(Action) && OutdatedActionDictionary[Action]));
-
-			GetActionsToExecuteTimer.Finish();
-
-			return ActionsToExecute;
 		}
 
 		/// <summary>
@@ -623,7 +613,7 @@ namespace UnrealBuildTool
 		/// Builds a dictionary containing the actions from AllActions that are outdated by calling
 		/// IsActionOutdated.
 		/// </summary>
-		static void GatherAllOutdatedActions(List<Action> Actions, ActionHistory ActionHistory, Dictionary<Action, bool> OutdatedActions, CppDependencyCache CppDependencies, bool bIgnoreOutdatedImportLibraries)
+		public static void GatherAllOutdatedActions(IEnumerable<Action> Actions, ActionHistory ActionHistory, Dictionary<Action, bool> OutdatedActions, CppDependencyCache CppDependencies, bool bIgnoreOutdatedImportLibraries)
 		{
 			using(Timeline.ScopeEvent("Prefetching include dependencies"))
 			{

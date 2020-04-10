@@ -117,7 +117,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Cached list of dependent link libraries.
 		/// </summary>
-		private List<string> DependentLinkLibraries;
+		private List<FileReference> DependentLinkLibraries;
 
 		/// <summary>
 		/// Create an instance of the class with the given configuration data
@@ -322,7 +322,7 @@ namespace UnrealBuildTool
 			// Cache the list of libraries in the dependent link environment between calls. We typically run this code path many times for each module.
 			if (DependentLinkLibraries == null)
 			{
-				DependentLinkLibraries = new List<string>();
+				DependentLinkLibraries = new List<FileReference>();
 				foreach (FileReference OutputFilePath in OutputFilePaths)
 				{
 					FileReference LibraryFileName;
@@ -337,10 +337,10 @@ namespace UnrealBuildTool
 					{
 						LibraryFileName = FileReference.Combine(IntermediateDirectory, OutputFilePath.GetFileNameWithoutExtension() + ".lib");
 					}
-					DependentLinkLibraries.Add(LibraryFileName.FullName);
+					DependentLinkLibraries.Add(LibraryFileName);
 				}
 			}
-			DependentLinkEnvironment.AdditionalLibraries.AddRange(DependentLinkLibraries);
+			DependentLinkEnvironment.Libraries.AddRange(DependentLinkLibraries);
 		}
 
 		/// <summary>

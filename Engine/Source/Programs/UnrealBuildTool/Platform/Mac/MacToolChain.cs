@@ -710,7 +710,8 @@ namespace UnrealBuildTool
 			if (!bIsBuildingLibrary)
 			{
 				// Add the additional libraries to the argument list.
-				foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
+				IEnumerable<string> AdditionalLibraries = Enumerable.Concat(LinkEnvironment.SystemLibraries, LinkEnvironment.Libraries.Select(x => x.FullName));
+				foreach (string AdditionalLibrary in AdditionalLibraries)
 				{
 					// Can't link dynamic libraries when creating a static one
 					if (bIsBuildingLibrary && (Path.GetExtension(AdditionalLibrary) == ".dylib" || AdditionalLibrary == "z"))

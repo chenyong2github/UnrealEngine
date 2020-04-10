@@ -199,7 +199,7 @@ namespace UnrealBuildTool
 			
 			ExportJsonStringArray(Writer, "PrivateIncludePaths", Module.PrivateIncludePaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PublicLibraryPaths", Module.PublicSystemLibraryPaths.Select(x => x.FullName));
-			ExportJsonStringArray(Writer, "PublicAdditionalLibraries", Module.PublicAdditionalLibraries);
+			ExportJsonStringArray(Writer, "PublicAdditionalLibraries", Enumerable.Concat(Module.PublicSystemLibraries, Module.PublicLibraries.Select(x => x.FullName)));
 			ExportJsonStringArray(Writer, "PublicFrameworks", Module.PublicFrameworks);
 			ExportJsonStringArray(Writer, "PublicWeakFrameworks", Module.PublicWeakFrameworks);
 			ExportJsonStringArray(Writer, "PublicDelayLoadDLLs", Module.PublicDelayLoadDLLs);

@@ -1424,8 +1424,20 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Source"></param>
 		/// <param name="Dest"></param>
-        /// <param name="bQuiet">When true, logging is suppressed.</param>
-        /// <returns>True if the operation was successful, false otherwise.</returns>
+		/// <param name="bQuiet">When true, logging is suppressed.</param>
+		/// <returns>True if the operation was successful, false otherwise.</returns>
+		public static bool CopyDirectory_NoExceptions(DirectoryReference Source, DirectoryReference Dest, bool bQuiet = false)
+		{
+			return CopyDirectory_NoExceptions(Source.FullName, Dest.FullName, bQuiet);
+		}
+
+		/// <summary>
+		/// Copies a directory and all of it's contents recursively. Does not throw exceptions.
+		/// </summary>
+		/// <param name="Source"></param>
+		/// <param name="Dest"></param>
+		/// <param name="bQuiet">When true, logging is suppressed.</param>
+		/// <returns>True if the operation was successful, false otherwise.</returns>
 		public static bool CopyDirectory_NoExceptions(string Source, string Dest, bool bQuiet = false)
 		{
 			Source = ConvertSeparators(PathSeparator.Default, Source);

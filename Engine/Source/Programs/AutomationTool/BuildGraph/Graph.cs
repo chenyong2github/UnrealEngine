@@ -166,6 +166,11 @@ namespace AutomationTool
 		public List<Badge> Badges = new List<Badge>();
 
 		/// <summary>
+		/// List of labels that can be displayed for this build
+		/// </summary>
+		public List<Label> Labels = new List<Label>();
+
+		/// <summary>
 		/// Diagnostic messages for this graph
 		/// </summary>
 		public List<GraphDiagnostic> Diagnostics = new List<GraphDiagnostic>();
@@ -598,14 +603,18 @@ namespace AutomationTool
 				foreach (Agent Agent in Agents)
 				{
 					JsonWriter.WriteObjectStart();
+					JsonWriter.WriteArrayStart("Types");
+					foreach(string PossibleType in Agent.PossibleTypes)
+					{
+						JsonWriter.WriteValue(PossibleType);
+					}
+					JsonWriter.WriteArrayEnd();
 					JsonWriter.WriteArrayStart("Nodes");
 					foreach (Node Node in Agent.Nodes)
 					{
 						JsonWriter.WriteObjectStart();
 						JsonWriter.WriteValue("Name", Node.Name);
-						JsonWriter.WriteValue("Group", Agent.Name);
 						JsonWriter.WriteValue("RunEarly", Node.bRunEarly);
-						JsonWriter.WriteValue("Exclusive", true);
 
 						JsonWriter.WriteArrayStart("InputDependencies");
 						foreach (string InputDependency in Node.GetDirectInputDependencies().Select(x => x.Name))
@@ -627,6 +636,35 @@ namespace AutomationTool
 					JsonWriter.WriteObjectEnd();
 				}
 				JsonWriter.WriteArrayEnd();
+
+				JsonWriter.WriteArrayStart("Labels");
+				foreach (Label Label in Labels)
+				{
+					JsonWriter.WriteObjectStart();
+					if (Label.Category != null)
+					{
+						JsonWriter.WriteValue("Category", Label.Category);
+					}
+					JsonWriter.WriteValue("Name", Label.Name);
+					JsonWriter.WriteArrayStart("RequiredNodes");
+					foreach (Node RequiredNode in Label.RequiredNodes.OrderBy(x => x.Name))
+					{
+						JsonWriter.WriteValue(RequiredNode.Name);
+					}
+					JsonWriter.WriteArrayEnd();
+					if (Label.IncludedNodes.Count > 0)
+					{
+						JsonWriter.WriteArrayStart("IncludedNodes");
+						foreach (Node IncludedNode in Label.IncludedNodes.OrderBy(x => x.Name))
+						{
+							JsonWriter.WriteValue(IncludedNode.Name);
+						}
+						JsonWriter.WriteArrayEnd();
+					}
+					JsonWriter.WriteObjectEnd();
+				}
+				JsonWriter.WriteArrayEnd();
+
 				JsonWriter.WriteObjectEnd();
 			}
 		}

@@ -23,6 +23,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <NoWarn>CS0649</NoWarn>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Development|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -86,6 +87,7 @@
     <Compile Include="Run\Interfaces\IErrorMatcher.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ProgramModeAttribute.cs" />
+    <Compile Include="Workspace\PruneCacheMode.cs" />
     <Compile Include="Workspace\WorkspaceMode.cs" />
     <Compile Include="Workspace\CleanMode.cs" />
     <Compile Include="Workspace\ClearMode.cs" />
