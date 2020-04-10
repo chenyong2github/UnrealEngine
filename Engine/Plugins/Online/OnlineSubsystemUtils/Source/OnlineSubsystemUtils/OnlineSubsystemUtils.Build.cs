@@ -17,7 +17,13 @@ public class OnlineSubsystemUtils : ModuleRules
 
         bool bIsWindowsPlatformBuild = Target.Platform.IsInGroup(UnrealPlatformGroup.Windows);
 
-       
+        if (bIsWindowsPlatformBuild)
+        {
+            AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
+            PrivateIncludePaths.Add(RuntimePath + "Windows/XAudio2/Public");
+            PrivateIncludePaths.Add(RuntimePath + "Windows/XAudio2/Private");
+        }
+
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

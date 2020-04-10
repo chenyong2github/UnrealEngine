@@ -2,7 +2,7 @@
 
 #include "OculusAudioLegacy.h"
 
-#if PLATFORM_WINDOWS && WITH_XAUDIO2
+#if PLATFORM_WINDOWS
 
 #include "OculusAudioSourceSettings.h"
 
@@ -209,4 +209,4 @@ void OculusAudioLegacySpatialization::ApplyOculusAudioSettings(const UOculusAudi
 	OVR_AUDIO_CHECK(Result, "Failed to set room parameters");
 }
 
-#endif //PLATFORM_WINDOWS && WITH_XAUDIO2
+#endif // #if PLATFORM_WINDOWS
