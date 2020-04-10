@@ -77,6 +77,7 @@
 #include "PlatformInfo.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Settings/ProjectPackagingSettings.h"
+#include "Async/ParallelFor.h"
 
 #if WITH_LIVE_CODING
 #include "ILiveCodingModule.h"
