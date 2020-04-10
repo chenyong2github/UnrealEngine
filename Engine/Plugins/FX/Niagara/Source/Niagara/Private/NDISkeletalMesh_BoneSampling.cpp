@@ -1008,7 +1008,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMCont
 {
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncInputHandler<int32> SocketParam(Context);
-	VectorVM::FExternalFuncInputHandler<int32> ApplyWorldTransform(Context);
+	VectorVM::FExternalFuncInputHandler<FNiagaraBool> ApplyWorldTransform(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> OutSocketTranslateX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSocketTranslateY(Context);
@@ -1022,51 +1022,61 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMCont
 	VectorVM::FExternalFuncRegisterHandler<float> OutSocketScaleX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSocketScaleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSocketScaleZ(Context);
- 
- 	//USkeletalMesh* Mesh = InstData->Mesh;
-	USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(InstData->Component.Get());
-	// UE_LOG(LogNiagara, Warning, TEXT("SkelComp: %p, Mesh: %p, Num: %d"), SkelComp, InstData->Mesh, Context.NumInstances);
-
-	FTransform ComponentToWorld;
-	if (SkelComp != nullptr) {
-		ComponentToWorld = SkelComp->GetComponentToWorld();
-	}
 
 	const TArray<FTransform>& CurrentFilteredSockets = InstData->GetFilteredSocketsCurrBuffer();
+	const int32 SocketMax = CurrentFilteredSockets.Num() - 1;
+	if (SocketMax >= 0)
+	{
+		const bool bNeedsRotation = OutSocketRotationX.IsValid() || OutSocketRotationY.IsValid() || OutSocketRotationZ.IsValid() || OutSocketRotationW.IsValid();
+		const FMatrix InstanceTransform = InstData->Transform;
+		const FQuat InstanceRotation = bNeedsRotation ? InstanceTransform.ToQuat() : FQuat::Identity;
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
-	{//
-		const int32 SocketIndex = FMath::Clamp(SocketParam.GetAndAdvance(), 0, CurrentFilteredSockets.Num()-1);
-		const int32 ShouldApplyWorldTransform = ApplyWorldTransform.GetAndAdvance();
-		
-		FTransform CurrentTransform = CurrentFilteredSockets[SocketIndex];
-		if (ShouldApplyWorldTransform == -1)
+		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
-			CurrentTransform = CurrentTransform * ComponentToWorld;
+			const int32 SocketIndex = FMath::Clamp(SocketParam.GetAndAdvance(), 0, SocketMax);
+			FVector SocketTranslation = CurrentFilteredSockets[SocketIndex].GetTranslation();
+			FQuat SocketRotation = CurrentFilteredSockets[SocketIndex].GetRotation();
+			FVector SocketScale = CurrentFilteredSockets[SocketIndex].GetScale3D();
+
+			const bool bApplyTransform = ApplyWorldTransform.GetAndAdvance().GetValue();
+			if (bApplyTransform)
+			{
+				SocketTranslation = InstanceTransform.TransformPosition(SocketTranslation);
+				SocketRotation = InstanceRotation * SocketRotation;
+				SocketScale = InstanceTransform.TransformVector(SocketScale);
+			}
+
+			*OutSocketTranslateX.GetDestAndAdvance() = SocketTranslation.X;
+			*OutSocketTranslateY.GetDestAndAdvance() = SocketTranslation.Y;
+			*OutSocketTranslateZ.GetDestAndAdvance() = SocketTranslation.Z;
+
+			*OutSocketRotationX.GetDestAndAdvance() = SocketRotation.X;
+			*OutSocketRotationY.GetDestAndAdvance() = SocketRotation.Y;
+			*OutSocketRotationZ.GetDestAndAdvance() = SocketRotation.Z;
+			*OutSocketRotationW.GetDestAndAdvance() = SocketRotation.W;
+
+			*OutSocketScaleX.GetDestAndAdvance() = SocketScale.X;
+			*OutSocketScaleY.GetDestAndAdvance() = SocketScale.Y;
+			*OutSocketScaleZ.GetDestAndAdvance() = SocketScale.Z;
 		}
+	}
+	else
+	{
+		for (int32 i=0; i < Context.NumInstances; ++i)
+		{
+			*OutSocketTranslateX.GetDestAndAdvance() = 0.0f;
+			*OutSocketTranslateY.GetDestAndAdvance() = 0.0f;
+			*OutSocketTranslateZ.GetDestAndAdvance() = 0.0f;
 
-		FQuat Rotation = CurrentTransform.GetRotation();
-		FVector Translation = CurrentTransform.GetTranslation();
-		FVector Scale = CurrentTransform.GetScale3D();
+			*OutSocketRotationX.GetDestAndAdvance() = FQuat::Identity.X;
+			*OutSocketRotationY.GetDestAndAdvance() = FQuat::Identity.Y;
+			*OutSocketRotationZ.GetDestAndAdvance() = FQuat::Identity.Z;
+			*OutSocketRotationW.GetDestAndAdvance() = FQuat::Identity.W;
 
-		*OutSocketTranslateX.GetDestAndAdvance() = Translation.X;
-		*OutSocketTranslateY.GetDestAndAdvance() = Translation.Y;
-		*OutSocketTranslateZ.GetDestAndAdvance() = Translation.Z;
-
-		*OutSocketRotationX.GetDestAndAdvance() = Rotation.X;
-		*OutSocketRotationY.GetDestAndAdvance() = Rotation.Y;
-		*OutSocketRotationZ.GetDestAndAdvance() = Rotation.Z;
-		*OutSocketRotationW.GetDestAndAdvance() = Rotation.W;
-
-		*OutSocketScaleX.GetDestAndAdvance() = Scale.X;
-		*OutSocketScaleY.GetDestAndAdvance() = Scale.Y;
-		*OutSocketScaleZ.GetDestAndAdvance() = Scale.Z;
-			
-		// UE_LOG(LogNiagara, Warning, TEXT("Enum: %d, translation: %f %f %f, Rotation: %f %f %f %f, scale: %f %f %f"), 
-		// 		  ShouldApplyWorldTransform,
-		// 		  Translation.X, Translation.Y, Translation.Z,
-		// 		  Rotation.X, Rotation.Y, Rotation.Z, Rotation.W,
-		// 		  Scale.X, Scale.Y, Scale.Z);
+			*OutSocketScaleX.GetDestAndAdvance() = 1.0f;
+			*OutSocketScaleY.GetDestAndAdvance() = 1.0f;
+			*OutSocketScaleZ.GetDestAndAdvance() = 1.0f;
+		}
 	}
 }
 
