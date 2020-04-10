@@ -13,10 +13,17 @@ public:
 		All,
 	};
 
+	enum class EGroupType
+	{
+		Root,
+		Explicit
+	};
+
 	struct FGroup
 	{
 		TSet<FName> PackageNames;
-		bool bStageTimeOnly = false;
+		TSet<FString> NonAssetFiles;
+		EGroupType GroupType = EGroupType::Root;
 		EAllowedReferences AllowedReferences = EAllowedReferences::None;
 	};
 
@@ -27,9 +34,14 @@ public:
 		PackageGroups.FindOrAdd(InGroupName).PackageNames.Add(InPackageName);
 	}
 
-	void SetGroupAsStageTimeOnly(FName InGroupName, bool bInStageTimeOnly)
+	void AddNonAssetFile(FName InGroupName, const FString& InFilename)
 	{
-		PackageGroups.FindOrAdd(InGroupName).bStageTimeOnly = bInStageTimeOnly;
+		PackageGroups.FindOrAdd(InGroupName).NonAssetFiles.Add(InFilename);
+	}
+
+	void SetGroupType(FName InGroupName, EGroupType InGroupType)
+	{
+		PackageGroups.FindOrAdd(InGroupName).GroupType = InGroupType;
 	}
 
 	void SetAllowedReferences(FName InGroupName, EAllowedReferences InAllowedReferences)
