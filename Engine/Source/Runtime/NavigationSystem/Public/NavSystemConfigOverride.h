@@ -46,6 +46,7 @@ public:
 	ANavSystemConfigOverride(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	//~ Begin UObject Interface
+	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -54,10 +55,6 @@ public:
 
 	//~ Begin AActor Interface
 	virtual void BeginPlay() override;
-#if WITH_EDITOR
-	virtual void PostRegisterAllComponents() override;
-	virtual void PostUnregisterAllComponents() override;
-#endif
 	//~ End AActor Interface
 
 #if WITH_EDITOR
