@@ -184,7 +184,7 @@ FCollisionQueryParams::FCollisionQueryParams(FName InTraceTag, const TStatId& In
 	IgnoreMask = 0;
 	bIgnoreBlocks = false;
 	bIgnoreTouches = false;
-
+	bSkipNarrowPhase = false;
 	AddIgnoredActor(InIgnoreActor);
 	if (InIgnoreActor != NULL)
 	{
