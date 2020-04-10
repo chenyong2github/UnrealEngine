@@ -2234,12 +2234,21 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 							{
 								FString RegisterName = VarName;
 								const FString AttribStr = PARAM_MAP_ATTRIBUTE_STR;
+
+								//-TODO: If a simulation stage ends in the name "Particles." (i.e. ResolveParticles) a single search can fail so we must loop to find the correct namespace
+								//       Ideally we replace this with some more robust namespace functionality.
 								int32 ParticlesIdx = RegisterName.Find(AttribStr);
-								if (ParticlesIdx != -1 && (ParticlesIdx == 0 || (ParticlesIdx > 0 && RegisterName[ParticlesIdx - 1] == '.')))
+								while (ParticlesIdx != INDEX_NONE)
 								{
-									RegisterName.RemoveAt(ParticlesIdx, AttribStr.Len());
-									RegisterName.InsertAt(ParticlesIdx, PARAM_MAP_INDICES_STR);
+									if ( (ParticlesIdx == 0 || (ParticlesIdx > 0 && RegisterName[ParticlesIdx - 1] == '.')) )
+									{
+										RegisterName.RemoveAt(ParticlesIdx, AttribStr.Len());
+										RegisterName.InsertAt(ParticlesIdx, PARAM_MAP_INDICES_STR);
+										break;
+									}
+									ParticlesIdx = RegisterName.Find(AttribStr, ESearchCase::IgnoreCase, ESearchDir::FromStart, ParticlesIdx + AttribStr.Len());
 								}
+
 								const int32 RegisterValue = Var.GetType().IsFloatPrimitive() ? FloatCounter : IntCounter;
 								HlslOutput += RegisterName + FString::Printf(TEXT(" = %d;\n"), RegisterValue);
 							}
