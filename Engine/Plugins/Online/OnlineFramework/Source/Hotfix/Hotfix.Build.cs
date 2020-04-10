@@ -27,7 +27,7 @@ public class Hotfix : ModuleRules
 			}
 			);
 
-		bool bHasOnlineTracing = Directory.Exists(Path.Combine(EngineDirectory, "Plugins", "Online", "NotForLicensees", "OnlineTracing"));
+		bool bHasOnlineTracing = Directory.Exists(Path.Combine(EngineDirectory, "Restricted", "NotForLicensees", "Plugins", "Online", "OnlineTracing"));
 		if (bHasOnlineTracing)
 		{
 			PublicDefinitions.Add("WITH_ONLINETRACING=1");
