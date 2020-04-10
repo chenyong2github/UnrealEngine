@@ -1396,6 +1396,9 @@ bool FDatasmithPlmXmlImporter::LoadStaticMesh(const TSharedRef<IDatasmithMeshEle
 
 void FDatasmithPlmXmlImporter::UnloadScene()
 {
-	MeshLoader->UnloadScene();
+	if (MeshLoader.IsValid())
+	{
+		MeshLoader->UnloadScene();
+	}
 }
 #undef LOCTEXT_NAMESPACE
