@@ -75,8 +75,7 @@ int32 FRigVMCompilerWorkData::DecRefRegister(int32 InRegister, int32 InDecrement
 	if (int32* RefCountPtr = RegisterRefCount.Find(InRegister))
 	{
 		int32& RefCount = *RefCountPtr;
-		RefCount -= InDecrement;
-		ensure(RefCount >= 0);
+		RefCount = FMath::Max<int32>(0, RefCount - InDecrement);
 		return RefCount;
 	}
 	return 0;

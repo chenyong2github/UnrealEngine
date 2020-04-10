@@ -842,13 +842,13 @@ void FRigVMParserAST::FoldEntries()
 					{
 						if (ChildExpr->To<FRigVMVarExprAST>()->IsExecuteContext())
 						{
-							ExpressionsToRemove.Add(ChildExpr);
+							ExpressionsToRemove.AddUnique(ChildExpr);
 							continue;
 						}
 					}
 					ChildExpr->AddParent(FoldEntry);
 				}
-				ExpressionsToRemove.Add(Entry);
+				ExpressionsToRemove.AddUnique(Entry);
 			}
 			else
 			{
@@ -996,10 +996,10 @@ void FRigVMParserAST::FoldAssignments()
 			}
 		}
 
-		ExpressionsToRemove.Add(AssignExpr);
+		ExpressionsToRemove.AddUnique(AssignExpr);
 		if (Parent->Parents.Num() == 0)
 		{
-			ExpressionsToRemove.Add(Parent);
+			ExpressionsToRemove.AddUnique(Parent);
 		}
 	}
 
@@ -1036,7 +1036,7 @@ void FRigVMParserAST::FoldLiterals()
 				{
 					Parent->ReplaceChild(Expression, *MappedExpr);
 				}
-				ExpressionsToRemove.Add(Expression);
+				ExpressionsToRemove.AddUnique(Expression);
 			}
 			else
 			{
