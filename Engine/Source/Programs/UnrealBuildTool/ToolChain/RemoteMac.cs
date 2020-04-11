@@ -310,12 +310,12 @@ namespace UnrealBuildTool
 			Locations.Add(DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.Personal), "Unreal Engine", "UnrealBuildTool"));
 			if (ProjectFile != null)
 			{
-				Locations.Add(DirectoryReference.Combine(ProjectFile.Directory, "Build", "NotForLicensees"));
-				Locations.Add(DirectoryReference.Combine(ProjectFile.Directory, "Build", "NoRedist"));
+				Locations.Add(DirectoryReference.Combine(ProjectFile.Directory, "Restricted", "NotForLicensees", "Build"));
+				Locations.Add(DirectoryReference.Combine(ProjectFile.Directory, "Restricted", "NoRedist", "Build"));
 				Locations.Add(DirectoryReference.Combine(ProjectFile.Directory, "Build"));
 			}
-			Locations.Add(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "NotForLicensees"));
-			Locations.Add(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "NoRedist"));
+			Locations.Add(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Restricted", "NotForLicensees", "Build"));
+			Locations.Add(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Restricted", "NoRedist", "Build"));
 			Locations.Add(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Build"));
 
 			// Find the first that exists

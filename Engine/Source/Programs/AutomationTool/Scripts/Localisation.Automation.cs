@@ -233,7 +233,7 @@ class Localize : BuildCommand
 		if (P4Enabled)
 		{
 			var ChangeListCommitMessage = String.Format("Localization Automation using CL {0}", P4Env.Changelist);
-			if (File.Exists(CombinePaths(CmdEnv.LocalRoot, @"Engine/Build/NotForLicensees/EpicInternal.txt")))
+			if (File.Exists(CombinePaths(CmdEnv.LocalRoot, @"Engine/Restricted/NotForLicensees/Build/EpicInternal.txt")))
 			{
 				ChangeListCommitMessage += "\n#okforgithub ignore";
 			}

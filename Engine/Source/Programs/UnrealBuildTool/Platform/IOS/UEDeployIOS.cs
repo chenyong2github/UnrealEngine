@@ -901,6 +901,7 @@ namespace UnrealBuildTool
 			string AppDirectory = PayloadDirectory + "/" + GameName + ".app";
 			string CookedContentDirectory = AppDirectory + "/cookeddata";
 			string BuildDirectory = InProjectDirectory + "/Build/" + SubDir;
+			string BuildDirectory_NFL = InProjectDirectory + "/Restricted/NotForLicensees/Build/" + SubDir;
 			string IntermediateDirectory = (bIsUE4Game ? InEngineDir : InProjectDirectory) + "/Intermediate/" + SubDir;
 
 			Directory.CreateDirectory(BinaryPath);
@@ -932,31 +933,33 @@ namespace UnrealBuildTool
 			FileInfo DestFileInfo;
 			// always look for provisions in the IOS dir, even for TVOS
 			string ProvisionWithPrefix = InEngineDir + "/Build/IOS/UE4Game.mobileprovision";
-			if (File.Exists(BuildDirectory + "/" + InProjectName + ".mobileprovision"))
+
+			string ProjectProvision = InProjectName + ".mobileprovision";
+			if (File.Exists(Path.Combine(BuildDirectory, ProjectProvision)))
 			{
-				ProvisionWithPrefix = BuildDirectory + "/" + InProjectName + ".mobileprovision";
+				ProvisionWithPrefix = Path.Combine(BuildDirectory, ProjectProvision);
 			}
 			else
 			{
-				if (File.Exists(BuildDirectory + "/NotForLicensees/" + InProjectName + ".mobileprovision"))
+				if (File.Exists(Path.Combine(BuildDirectory_NFL, ProjectProvision)))
 				{
-					ProvisionWithPrefix = BuildDirectory + "/NotForLicensees/" + InProjectName + ".mobileprovision";
+					ProvisionWithPrefix = Path.Combine(BuildDirectory_NFL, BuildDirectory, ProjectProvision);
 				}
 				else if (!File.Exists(ProvisionWithPrefix))
 				{
-					ProvisionWithPrefix = InEngineDir + "/Build/" + SubDir + "/NotForLicensees/UE4Game.mobileprovision";
+					ProvisionWithPrefix = Path.Combine(InEngineDir, "Restricted/NotForLicensees/Build", SubDir, "UE4Game.mobileprovision");
 				}
 			}
 			if (File.Exists(ProvisionWithPrefix))
 			{
 				Directory.CreateDirectory(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/");
-				if (File.Exists(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + InProjectName + ".mobileprovision"))
+				if (File.Exists(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + ProjectProvision))
 				{
-					DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + InProjectName + ".mobileprovision");
+					DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + ProjectProvision);
 					DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
 				}
-				File.Copy(ProvisionWithPrefix, Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + InProjectName + ".mobileprovision", true);
-				DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + InProjectName + ".mobileprovision");
+				File.Copy(ProvisionWithPrefix, Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + ProjectProvision, true);
+				DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + ProjectProvision);
 				DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
 			}
 			if (!File.Exists(ProvisionWithPrefix) || Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
@@ -1008,19 +1011,20 @@ namespace UnrealBuildTool
 
 			// install the distribution provision
 			ProvisionWithPrefix = InEngineDir + "/Build/IOS/UE4Game_Distro.mobileprovision";
-			if (File.Exists(BuildDirectory + "/" + InProjectName + "_Distro.mobileprovision"))
+			string ProjectDistroProvision = InProjectName + "_Distro.mobileprovision";
+			if (File.Exists(Path.Combine(BuildDirectory, ProjectDistroProvision )))
 			{
-				ProvisionWithPrefix = BuildDirectory + "/" + InProjectName + "_Distro.mobileprovision";
+				ProvisionWithPrefix = Path.Combine(BuildDirectory, ProjectDistroProvision);
 			}
 			else
 			{
-				if (File.Exists(BuildDirectory + "/NotForLicensees/" + InProjectName + "_Distro.mobileprovision"))
+				if (File.Exists(Path.Combine(BuildDirectory_NFL, ProjectDistroProvision)))
 				{
-					ProvisionWithPrefix = BuildDirectory + "/NotForLicensees/" + InProjectName + "_Distro.mobileprovision";
+					ProvisionWithPrefix = Path.Combine(BuildDirectory_NFL, ProjectDistroProvision);
 				}
 				else if (!File.Exists(ProvisionWithPrefix))
 				{
-					ProvisionWithPrefix = InEngineDir + "/Build/IOS/NotForLicensees/UE4Game_Distro.mobileprovision";
+					ProvisionWithPrefix = Path.Combine(InEngineDir, "Restricted/NotForLicensees/Build", SubDir, "UE4Game_Distro.mobileprovision");
 				}
 			}
 			if (File.Exists(ProvisionWithPrefix))

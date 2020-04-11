@@ -625,7 +625,7 @@ namespace AutomationTool
 			this.SignedPak = !String.IsNullOrEmpty(this.SignPak) || GetParamValueIfNotSpecified(Command, SignedPak, this.SignedPak, "signedpak");
 			if (string.IsNullOrEmpty(this.SignPak))
 			{
-				this.SignPak = Path.Combine(RawProjectPath.Directory.FullName, @"Build\NoRedist\Keys.txt");
+				this.SignPak = Path.Combine(RawProjectPath.Directory.FullName, @"Restricted\NoRedist\Build\Keys.txt");
 				if (!File.Exists(this.SignPak))
 				{
 					this.SignPak = null;
