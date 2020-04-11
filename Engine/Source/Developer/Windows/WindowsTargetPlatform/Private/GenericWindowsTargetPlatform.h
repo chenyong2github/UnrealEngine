@@ -15,6 +15,7 @@
 	#include "StaticMeshResources.h"
 	#include "RHI.h"
 	#include "AudioCompressionSettings.h"
+	#include "SkeletalMeshDefaultLODStreamingSettings.h"
 #endif // WITH_ENGINE
 
 
@@ -45,7 +46,7 @@ public:
 		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *this->PlatformName());
 		TextureLODSettings = nullptr; // These are registered by the device profile system.
 		StaticMeshLODSettings.Initialize(EngineSettings);
-
+		SkeletalMeshDefaultLODStreamingSettings.Initialize(EngineSettings);
 
 		// Get the Target RHIs for this platform, we do not always want all those that are supported.
 		TArray<FName> TargetedShaderFormats;
@@ -245,6 +246,11 @@ public:
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings( ) const override
 	{
 		return StaticMeshLODSettings;
+	}
+
+	virtual const FSkeletalMeshDefaultLODStreamingSettings& GetSkeletalMeshDefaultLODStreamingSettings() const override
+	{
+		return SkeletalMeshDefaultLODStreamingSettings;
 	}
 
 	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override
@@ -504,6 +510,8 @@ private:
 
 	// Holds static mesh LOD settings.
 	FStaticMeshLODSettings StaticMeshLODSettings;
+
+	FSkeletalMeshDefaultLODStreamingSettings SkeletalMeshDefaultLODStreamingSettings;
 
 	// True if the project supports non-DX11 texture formats.
 	bool bSupportDX11TextureFormats;

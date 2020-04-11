@@ -24,6 +24,7 @@
 #if WITH_ENGINE
 #include "Internationalization/Text.h"
 #include "StaticMeshResources.h"
+#include "SkeletalMeshDefaultLODStreamingSettings.h"
 #endif // WITH_ENGINE
 
 #define LOCTEXT_NAMESPACE "FAndroidTargetPlatform" 
@@ -196,6 +197,8 @@ public:
 	
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings() const override;
 
+	virtual const FSkeletalMeshDefaultLODStreamingSettings& GetSkeletalMeshDefaultLODStreamingSettings() const override;
+
 	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override;
 
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
@@ -307,6 +310,8 @@ protected:
 
 	// Holds the static mesh LOD settings.
 	FStaticMeshLODSettings StaticMeshLODSettings;
+
+	FSkeletalMeshDefaultLODStreamingSettings SkeletalMeshDefaultLODStreamingSettings;
 
 	ITargetDevicePtr DefaultDevice;
 #endif //WITH_ENGINE

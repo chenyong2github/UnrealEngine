@@ -517,6 +517,13 @@ public:
 	 */
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings() const = 0;
 
+	/**
+	 * Gets the skeletal mesh default LOD streaming settings used by this platform.
+	 *
+	 * @return A skeletal mesh default LOD streaming settings structure.
+	 */
+	virtual const class FSkeletalMeshDefaultLODStreamingSettings& GetSkeletalMeshDefaultLODStreamingSettings() const = 0;
+
 	/** 
 	 * Gets the name of the mesh builder module that is responsible for 
 	 * building static and skeletal mesh derived data for this platform.
