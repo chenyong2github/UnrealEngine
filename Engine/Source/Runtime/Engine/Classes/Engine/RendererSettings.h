@@ -810,6 +810,16 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bLPV : 1;
 
+	UPROPERTY(config, EditAnywhere, Category="Experimental|LOD Streaming|Skeletal Mesh", meta=(
+		DisplayName="Stream LODs by default",
+		ToolTip="Whether to stream skeletal mesh LODs by default."))
+	FPerPlatformBool bStreamSkeletalMeshLODs;
+
+	UPROPERTY(config, EditAnywhere, Category="Experimental|LOD Streaming|Skeletal Mesh", meta=(
+		DisplayName="Discard optional LODs",
+		ToolTip="Whether to discard skeletal mesh LODs below minimum LOD levels at cook time."))
+	FPerPlatformBool bDiscardSkeletalMeshOptionalLODs;
+
 public:
 
 	//~ Begin UObject Interface
