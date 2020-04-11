@@ -69,7 +69,7 @@
 
 #include "IMeshReductionManagerModule.h"
 #include "SkeletalMeshReductionSettings.h"
-#include "Engine/RendererSettings.h"
+#include "SkeletalMeshDefaultLODStreamingSettings.h"
 
 #endif // #if WITH_EDITOR
 
@@ -4101,15 +4101,15 @@ void USkeletalMesh::ResetLODInfo()
 bool USkeletalMesh::GetSupportsLODStreaming(const ITargetPlatform* TargetPlatform) const
 {
 	check(TargetPlatform);
-	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
-	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
 	if (bOverrideLODStreamingSettings)
 	{
-		return bSupportLODStreaming.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+		return bSupportLODStreaming.GetValueForPlatformIdentifiers(
+			TargetPlatform->GetPlatformInfo().PlatformGroupName,
+			TargetPlatform->GetPlatformInfo().VanillaPlatformName);
 	}
 	else
 	{
-		return GetDefault<URendererSettings>()->bStreamSkeletalMeshLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+		return TargetPlatform->GetSkeletalMeshDefaultLODStreamingSettings().IsLODStreamingEnabled();
 	}
 }
 
@@ -4124,22 +4124,22 @@ int32 USkeletalMesh::GetMaxNumStreamedLODs(const ITargetPlatform* TargetPlatform
 	}
 	else
 	{
-		return MAX_MESH_LOD_COUNT;
+		return TargetPlatform->GetSkeletalMeshDefaultLODStreamingSettings().GetMaxNumStreamedLODs();
 	}
 }
 
 int32 USkeletalMesh::GetMaxNumOptionalLODs(const ITargetPlatform* TargetPlatform) const
 {
 	check(TargetPlatform);
-	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
-	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
 	if (bOverrideLODStreamingSettings)
 	{
-		return MaxNumOptionalLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName) <= 0 ? 0 : MAX_MESH_LOD_COUNT;
+		return MaxNumOptionalLODs.GetValueForPlatformIdentifiers(
+			TargetPlatform->GetPlatformInfo().PlatformGroupName,
+			TargetPlatform->GetPlatformInfo().VanillaPlatformName);
 	}
 	else
 	{
-		return GetDefault<URendererSettings>()->bDiscardSkeletalMeshOptionalLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName) ? 0 : MAX_MESH_LOD_COUNT;
+		return TargetPlatform->GetSkeletalMeshDefaultLODStreamingSettings().GetMaxNumOptionalLODs();
 	}
 }
 #endif

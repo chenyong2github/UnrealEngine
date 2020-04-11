@@ -35,6 +35,7 @@ FXXXTargetPlatform::FXXXTargetPlatform()
 	// load up texture settings from the config file
 	XXXLODSettings = nullptr; // These are registered by the device profile system.
 	StaticMeshLODSettings.Initialize(XXXEngineSettings);
+	SkeletalMeshDefaultLODStreamingSettings.Initialize(XXXEngineSettings);
 #endif
 }
 
@@ -147,6 +148,12 @@ void FXXXTargetPlatform::GetAllTargetedShaderFormats( TArray<FName>& OutFormats 
 const class FStaticMeshLODSettings& FXXXTargetPlatform::GetStaticMeshLODSettings( ) const
 {
 	return StaticMeshLODSettings;
+}
+
+
+const FSkeletalMeshDefaultLODStreamingSettings& FXXXTargetPlatform::GetSkeletalMeshDefaultLODStreamingSettings() const
+{
+	return SkeletalMeshDefaultLODStreamingSettings;
 }
 
 
