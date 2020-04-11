@@ -16,6 +16,7 @@
 
 #if WITH_ENGINE
 #include "StaticMeshResources.h"
+#include "SkeletalMeshDefaultLODStreamingSettings.h"
 #endif // WITH_ENGINE
 
 /**
@@ -63,6 +64,8 @@ public:
 
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings() const override;
 
+	virtual const FSkeletalMeshDefaultLODStreamingSettings& GetSkeletalMeshDefaultLODStreamingSettings() const override;
+
 	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats ) const override;
 
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
@@ -109,6 +112,8 @@ private:
 
 	// Holds the static mesh LOD settings.
 	FStaticMeshLODSettings StaticMeshLODSettings;
+
+	FSkeletalMeshDefaultLODStreamingSettings SkeletalMeshDefaultLODStreamingSettings;
 #endif
 
 private:
