@@ -7,7 +7,7 @@
 #include "GPUProfiler.h"
 
 #if METAL_STATISTICS
-#include "NotForLicensees/MetalStatistics.h"
+#include "../../../../../Restricted/NotForLicensees/Plugins/MetalStatistics/Source/MetalStatistics/Public/MetalStatistics.h"
 #endif
 
 // Stats
