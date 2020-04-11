@@ -233,7 +233,7 @@ namespace UnrealBuildTool
 			// if the installed one is too old, use a fixed up one if it can
 			if (bUseInstalledDsymutil == false)
 			{
-				FileReference PatchedDsymutilLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries/Mac/NotForLicensees/LLVM/bin/dsymutil");
+				FileReference PatchedDsymutilLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Restricted/NotForLicensees/Binaries/Mac/LLVM/bin/dsymutil");
 
 				if (File.Exists(PatchedDsymutilLocation.FullName))
 				{
