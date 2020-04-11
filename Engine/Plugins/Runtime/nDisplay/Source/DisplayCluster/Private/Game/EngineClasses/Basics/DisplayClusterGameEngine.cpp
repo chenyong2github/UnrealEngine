@@ -133,7 +133,7 @@ bool UDisplayClusterGameEngine::InitializeInternals()
 		if (!LocalClusterNode.SoundEnabled)
 		{
 			AudioDeviceManager = nullptr;
-			FAudioDeviceManager::Shutdown();
+			//FAudioDeviceManager::Shutdown();
 		}
 	}
 
