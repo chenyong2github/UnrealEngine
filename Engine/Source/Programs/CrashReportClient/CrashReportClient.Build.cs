@@ -55,7 +55,5 @@ public class CrashReportClient : ModuleRules
 		}
 
 		PrivateIncludePaths.Add("Runtime/Launch/Private");		// For LaunchEngineLoop.cpp include
-
-		WhitelistRestrictedFolders.Add("Private/NotForLicensees");
 	}
 }
