@@ -13,6 +13,7 @@ namespace Audio
 {
 	class IFFTAlgorithm;
 	class FSpectrumAnalyzer;
+
 	struct SIGNALPROCESSING_API FSpectrumAnalyzerSettings
 	{
 		// Actual FFT size used. For FSpectrumAnalyzer, we never zero pad the input buffer.
@@ -28,27 +29,8 @@ namespace Audio
 			TestLarge_4096 = 4096
 		};
 
-		// Peak interpolation method. If the EFFTSize is small but will be densely sampled,
-		// it's worth using a linear or quadratic interpolation method.
-		enum class EPeakInterpolationMethod : uint8
-		{
-			NearestNeighbor,
-			Linear,
-			Quadratic,
-			ConstantQ,
-		};
-
-		enum class ESpectrumAnalyzerType : uint8
-		{
-			Magnitude,
-			Power,
-			Decibel,
-		};
-
 		EWindowType WindowType;
 		EFFTSize FFTSize;
-		EPeakInterpolationMethod InterpolationMethod;
-		ESpectrumAnalyzerType  SpectrumType;
 
 		/**
 			* Hop size as a percentage of FFTSize.
@@ -61,14 +43,58 @@ namespace Audio
 		FSpectrumAnalyzerSettings()
 			: WindowType(EWindowType::Hann)
 			, FFTSize(EFFTSize::Default)
-			, InterpolationMethod(EPeakInterpolationMethod::Linear)
-			, SpectrumType(ESpectrumAnalyzerType::Magnitude)
 			, HopSize(0.0f)
 		{}
 	};
 
+
 	/** Settings for band extractor. */
 	struct SIGNALPROCESSING_API FSpectrumBandExtractorSettings
+	{
+		/** Metric for output band values. */
+		enum class EMetric : uint8
+		{
+			/** Return the magnitude spectrum value. */
+			Magnitude,
+
+			/** Return the power spectrum value. */
+			Power,
+
+			/** Return the decibel spectrum value. Decibels are calculated
+			 * with 0dB equal to 1.f magnitude.  */
+			Decibel
+		};
+
+		/** Metric used to calculate return value. */
+		EMetric Metric = EMetric::Decibel;
+
+
+		/** If the metric is Decibel, this is the minimum decibel value allowed. */
+		float DecibelNoiseFloor = -40.f; 
+
+		/** 
+		 * If true, all values are scaled and clamped between 0.0 and 1.f. In the 
+		 * case of Decibels, 0.0 corresponds to the decibel noise floor and 1.f to 0dB.
+		 * If bDoAutoRange is true, then values are relatively to recent maximum and minimums
+		 * regardless of the metric used.
+		 */
+		bool bDoNormalize = true;
+
+		/** 
+		 * If true and bDoNormalize is true, then values will be scaled between 0 and 1
+		 * based upon relatively recent minimum and maximum values. 
+		 */
+		bool bDoAutoRange = true;
+
+		/** Time in seconds for autorange to reach 99% of a smaller range. */
+		float AutoRangeReleaseTimeInSeconds = 30.f;
+
+		/** Time in seconds for autorange to reach 99% of a larger range. */
+		float AutoRangeAttackTimeInSeconds = 1.f;
+	};
+
+	/** Settings describing the spectrum used for in the band extractor. */
+	struct SIGNALPROCESSING_API FSpectrumBandExtractorSpectrumSettings
 	{
 		/** Sample rate of audio */
 		float SampleRate; 
@@ -82,7 +108,7 @@ namespace Audio
 		/** Window used when perform FFT */
 		EWindowType WindowType;
 
-		FSpectrumBandExtractorSettings()
+		FSpectrumBandExtractorSpectrumSettings()
 		:	SampleRate(48000.f)
 		,	FFTSize(1024)
 		,	FFTScaling(EFFTScaling::None)
@@ -90,7 +116,7 @@ namespace Audio
 		{}
 
 		/** Compare whether two settings structures are equal. */
-		bool operator==(const FSpectrumBandExtractorSettings& Other) const
+		bool operator==(const FSpectrumBandExtractorSpectrumSettings& Other) const
 		{
 			bool bIsEqual = ((SampleRate == Other.SampleRate)
 					&& (FFTSize == Other.FFTSize)
@@ -100,7 +126,7 @@ namespace Audio
 		}
 
 		/** Compare whether two settings structures are not equal. */
-		bool operator!=(const FSpectrumBandExtractorSettings& Other) const
+		bool operator!=(const FSpectrumBandExtractorSpectrumSettings& Other) const
 		{
 			return !(*this == Other);
 		}
@@ -116,24 +142,45 @@ namespace Audio
 	class SIGNALPROCESSING_API ISpectrumBandExtractor
 	{
 		public:
-			/** Metric for output band values. */
-			enum class EMetric : uint8
+
+			enum class EBandType : uint8
 			{
-				/** Return the magnitude spectrum value. */
-				Magnitude,
+				/** Look up band value via nearest FFT band. */
+				NearestNeighbor,
 
-				/** Return the power spectrum value. */
-				Power,
+				/** Band value is calculated by lerping between FFT bands adjacent to center frequency. */
+				Lerp,
 
-				/** Return the decibel spectrum value. Decibels are calculated
-				 * with 0dB equal to 1.f magnitude.  */
-				Decibel
+				/** Band value is calculated by fitting quadratic to 3 adjancent FFT bands and solving for center frequency. */
+				Quadratic,
+
+				/** Band value is calculated by a weighted sum of a window of fft bands around center frequency. The window size is determined by the QFactor of the band. */
+				ConstantQ
+			};
+
+			/** Settings for a single band */
+			struct FBandSettings
+			{
+			 	/** Type of band to extract. */
+				EBandType Type = EBandType::ConstantQ;
+
+			 	/**  Frequency of interest in hz. */
+				float CenterFrequency = 0.f;
+
+			 	/** 
+				 * QFactor is only applicable for the ConstantQ band type. 
+				 * QFactor = CenterFreq / BandWidth. Eg. A small QFactor results in a wide band.
+				 */
+				float QFactor = 10.0f;
 			};
 
 			virtual ~ISpectrumBandExtractor() {}
 
-			/** Set the settings and update cached internal values if needed */
+			/** Sets and updates the settings for the band extractor */
 			virtual void SetSettings(const FSpectrumBandExtractorSettings& InSettings) = 0;
+
+			/** Set the settings and update cached internal values if needed */
+			virtual void SetSpectrumSettings(const FSpectrumBandExtractorSpectrumSettings& InSettings) = 0;
 			
 			/** Removes all added bands. */
 			virtual void RemoveAllBands() = 0;
@@ -141,56 +188,16 @@ namespace Audio
 			/** Returns the total number of bands. */
 			virtual int32 GetNumBands() const = 0;
 
-			/** Adds a band which calculates the band value as the value of the FFT bin nearest to the center frequency.
-			 *
-			 * @param InCenterFrequency - Frequency of interest in hz .
-			 * @param InMetric - Metric used to calculate return value.
-			 * @param InDecibelNoiseFloor - If the metric is Decibel, this is the minimum decibel value allowed.
-			 * @param bInDoNormalize - If true, all values are scaled and clamped between 0.0 and 1.f. In the 
-			 *                         case of Decibels, 0.0 corresponds to the decibel noise floor and 1.f to 0dB.
-			 */
-			virtual void AddNearestNeighborBand(float InCenterFrequency, EMetric InMetric = EMetric::Decibel, float InDecibelNoiseFloor=-40.f, bool bInDoNormalize=true) = 0;
-
-			/** Adds a band which calculates the band value as a linear interpolation of the values of the FFT 
-			 *  bins adjacent to the center frequency.
-			 *
-			 * @param InCenterFrequency - Frequency of interest in hz .
-			 * @param InMetric - Metric used to calculate return value.
-			 * @param InDecibelNoiseFloor - If the metric is Decibel, this is the minimum decibel value allowed.
-			 * @param bInDoNormalize - If true, all values are scaled and clamped between 0.0 and 1.f. In the 
-			 *                         case of Decibels, 0.0 corresponds to the decibel noise floor and 1.f to 0dB.
-			 */
-			virtual void AddLerpBand(float InCenterFrequency, EMetric InMetric = EMetric::Decibel, float InDecibelNoiseFloor=-40.f, bool bInDoNormalize=true) = 0;
-
-			/** Adds a band which calculates the band value as a quadratic interpolation of the values of the FFT 
-			 *  bins adjacent to the center frequency.
-			 *
-			 * @param InCenterFrequency - Frequency of interest in hz .
-			 * @param InMetric - Metric used to calculate return value.
-			 * @param InDecibelNoiseFloor - If the metric is Decibel, this is the minimum decibel value allowed.
-			 * @param bInDoNormalize - If true, all values are scaled and clamped between 0.0 and 1.f. In the 
-			 *                         case of Decibels, 0.0 corresponds to the decibel noise floor and 1.f to 0dB.
-			 */
-			virtual void AddQuadraticBand(float InCenterFrequency, EMetric InMetric = EMetric::Decibel, float InDecibelNoiseFloor=-40.f, bool bInDoNormalize=true) = 0;
-
-
-			/** Adds a band which calculates the band value as a pesudo constant q band derived from an FFT power spectrum.
-			 *
-			 * @param InCenterFrequency - Frequency of interest in hz.
-			 * @param InQFactor - QFactor used in band calculation. QFactor = CenterFreq / BandWidth. A small QFactor results in a wide band.
-			 * @param InMetric - Metric used to calculate return value.
-			 * @param InDecibelNoiseFloor - If the metric is Decibel, this is the minimum decibel value allowed.
-			 * @param bInDoNormalize - If true, all values are scaled and clamped between 0.0 and 1.f. In the 
-			 *                         case of Decibels, 0.0 corresponds to the decibel noise floor and 1.f to 0dB.
-			 */
-			virtual void AddConstantQBand(float InCenterFrequency, float InQFactor, EMetric InMetric = EMetric::Decibel, float InDecibelNoiseFloor=-40.f, bool bInDoNormalize=true) = 0;
+			/** Adds a band to extract based on the given settings. */
+			virtual void AddBand(const FBandSettings& InSettings) = 0;
 
 			/** Extract the bands from a complex frequency buffer.
 			 *
 			 * @param InComplexBuffer - Buffer of complex frequency data from a FFT.
+			 * @param InTimestamp - A timestamp associated with the input complex buffer.
 			 * @param OutValues - Array to store output bands.
 			 */
-			virtual void ExtractBands(const AlignedFloatBuffer& InComplexBuffer, TArray<float>& OutValues) = 0;
+			virtual void ExtractBands(const AlignedFloatBuffer& InComplexBuffer, double InTimestamp, TArray<float>& OutValues) = 0;
 
 			/** Creates a ISpectrumBandExtractor. */
 			static TUniquePtr<ISpectrumBandExtractor> CreateSpectrumBandExtractor(const FSpectrumBandExtractorSettings& InSettings);
@@ -210,14 +217,21 @@ namespace Audio
 
 		// Input. Used on analysis thread to lock a buffer to write to.
 		AlignedFloatBuffer& StartWorkOnBuffer();
-		void StopWorkOnBuffer();
+
+		// When calling stop work on buffer, also set timestmap associated with buffer.
+		void StopWorkOnBuffer(double InTimestamp);
 		
 		// Output. Used to lock the most recent buffer we analyzed.
 		const AlignedFloatBuffer& LockMostRecentBuffer() const;
+
+		// Output. Used to lock the most recent buffer we analyzed.
+		// OutTimestamp is populated with the timestamp associated with the buffer wehn StopWorkOnBuffer is called.
+		const AlignedFloatBuffer& LockMostRecentBuffer(double& OutTimestamp) const;
 		void UnlockBuffer();
 
 	private:
 		TArray<AlignedFloatBuffer> ComplexBuffers;
+		TArray<double> Timestamps;
 
 		// Private functions. Either increments or decrements the respective counter,
 		// based on which index is currently in use. Mutually locked.
@@ -265,6 +279,15 @@ namespace Audio
 	class SIGNALPROCESSING_API FSpectrumAnalyzer
 	{
 	public:
+		// Peak interpolation method. If the EFFTSize is small but will be densely sampled,
+		// it's worth using a linear or quadratic interpolation method.
+		enum class EPeakInterpolationMethod : uint8
+		{
+			NearestNeighbor,
+			Linear,
+			Quadratic
+		};
+
 		// If an instance is created using the default constructor, Init() must be called before it is used.
 		FSpectrumAnalyzer();
 
@@ -285,10 +308,10 @@ namespace Audio
 		void GetSettings(FSpectrumAnalyzerSettings& OutSettings);
 
 		// Samples magnitude (linearly) for a given frequency, in Hz.
-		float GetMagnitudeForFrequency(float InFrequency);
+		float GetMagnitudeForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
 
 		// Samples phase for a given frequency, in Hz.
-		float GetPhaseForFrequency(float InFrequency);
+		float GetPhaseForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
 
 		// Return array of bands using spectrum band extractor.
 		void GetBands(ISpectrumBandExtractor& InExtractor, TArray<float>& OutValues);
@@ -320,7 +343,7 @@ namespace Audio
 		void ResetSettings();
 
 		// Called in GetMagnitudeForFrequency and GetPhaseForFrequency.
-		void PerformInterpolation(const AlignedFloatBuffer& InComplexBuffer, FSpectrumAnalyzerSettings::EPeakInterpolationMethod InMethod, const float InFreq, float& OutReal, float& OutImag);
+		void PerformInterpolation(const AlignedFloatBuffer& InComplexBuffer, EPeakInterpolationMethod InMethod, const float InFreq, float& OutReal, float& OutImag);
 
 		// Cached current settings. Only actually used in ResetSettings().
 		FSpectrumAnalyzerSettings CurrentSettings;
@@ -337,10 +360,12 @@ namespace Audio
 		EFFTScaling FFTScaling;
 
 		AlignedFloatBuffer AnalysisTimeDomainBuffer;
+		FThreadSafeCounter SampleCounter; 
 		TCircularAudioBuffer<float> InputQueue;
 		FSpectrumAnalyzerBuffer FrequencyBuffer;
 
 		// if non-null, owns pointer to locked frequency vector we're using.
+		double LockedBufferTimestamp;
 		const AlignedFloatBuffer* LockedFrequencyVector;
 
 		// This is used if PerformAnalysisIfPossible is called
