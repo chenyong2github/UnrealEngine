@@ -1606,7 +1606,10 @@ private:
 		TSet<FNetworkGUID>& OutReferencedGuids,
 		int32& OutTrackedGuidMemoryBytes) const;
 
-	bool MoveMappedObjectToUnmapped_r(FGuidReferencesMap* GuidReferencesMap, const FNetworkGUID& GUID) const;
+	bool MoveMappedObjectToUnmapped_r(
+		FGuidReferencesMap* GuidReferencesMap,
+		const FNetworkGUID& GUID,
+		const UObject* const OwningObject) const;
 
 	void UpdateUnmappedObjects_r(
 		FReceivingRepState* RESTRICT RepState, 
