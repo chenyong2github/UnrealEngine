@@ -26,7 +26,7 @@ protected:
 };
 
 UCLASS()
-class URuntimeVirtualTextureExporterBMP : public UTextureExporterBMP
+class UVirtualTextureBuilderExporterBMP : public UTextureExporterBMP
 {
 	GENERATED_UCLASS_BODY()
 };
