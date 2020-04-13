@@ -25,6 +25,7 @@ typedef TSharedPtr<class FOnlineIdentityNull, ESPMode::ThreadSafe> FOnlineIdenti
 typedef TSharedPtr<class FOnlineAchievementsNull, ESPMode::ThreadSafe> FOnlineAchievementsNullPtr;
 typedef TSharedPtr<class FOnlineStoreV2Null, ESPMode::ThreadSafe> FOnlineStoreV2NullPtr;
 typedef TSharedPtr<class FOnlinePurchaseNull, ESPMode::ThreadSafe> FOnlinePurchaseNullPtr;
+typedef TSharedPtr<class FMessageSanitizerNull, ESPMode::ThreadSafe> FMessageSanitizerNullPtr;
 
 /**
  *	OnlineSubsystemNull - Implementation of the online subsystem for Null services
@@ -64,6 +65,7 @@ public:
 	virtual IOnlineStatsPtr GetStatsInterface() const override;
 	virtual IOnlineTurnBasedPtr GetTurnBasedInterface() const override;
 	virtual IOnlineTournamentPtr GetTournamentInterface() const override;
+	virtual IMessageSanitizerPtr GetMessageSanitizer(int32 LocalUserNum, FString& OutAuthTypeToExclude) const override;
 
 	virtual bool Init() override;
 	virtual bool Shutdown() override;
@@ -90,6 +92,7 @@ PACKAGE_SCOPE:
 		IdentityInterface(nullptr),
 		AchievementsInterface(nullptr),
 		StoreV2Interface(nullptr),
+		MessageSanitizerInterface(nullptr),
 		OnlineAsyncTaskThreadRunnable(nullptr),
 		OnlineAsyncTaskThread(nullptr)
 	{}
@@ -119,6 +122,9 @@ private:
 
 	/** Interface for purchases */
 	FOnlinePurchaseNullPtr PurchaseInterface;
+
+	/** Interface for message sanitizing */
+	FMessageSanitizerNullPtr MessageSanitizerInterface;
 
 	/** Online async task runnable */
 	class FOnlineAsyncTaskManagerNull* OnlineAsyncTaskThreadRunnable;
