@@ -4,6 +4,8 @@
 #include "DSP/FFTAlgorithm.h"
 #include "DSP/ConstantQ.h"
 #include "SignalProcessingModule.h"
+#include "Algo/MinElement.h"
+#include "Algo/MaxElement.h"
 
 namespace Audio
 {
@@ -20,48 +22,34 @@ namespace Audio
 	// Implementation of spectrum band extractor
 	class FSpectrumBandExtractor : public ISpectrumBandExtractor
 	{
+		using FBandSettings = ISpectrumBandExtractor::FBandSettings;
 			// FBandSpec describes specifications for a single band.
-			struct FBandSpec
+			struct FBandSpec : public FBandSettings
 			{
 				// Location in output array where band value should be stored.
 				int32 OutIndex;
 
-				// Center frequency of the band.
-				float CenterFrequency;
-
-				// The metric used for the band value.
-				EMetric Metric;
-
-				// The noisefloor in decibels, used when the metric is decibels. 
-				float DbNoiseFloor;
-
 				// The scaling parameter to apply to the power spectrum.
 				float PowerSpectrumScale;
 
-				// If true, all values are scaled and clamped between 0.0 and 1.0.
-				bool bDoNormalize;
-
-				FBandSpec(const FSpectrumBandExtractorSettings& InSettings, int32 InOutIndex, float InCenterFrequency, EMetric InMetric, float InDecibelNoiseFloor, bool bInDoNormalize)
-				:	OutIndex(InOutIndex)
-				,	CenterFrequency(InCenterFrequency)
-				,	Metric(InMetric)
-				,	DbNoiseFloor(InDecibelNoiseFloor)
+				FBandSpec(const FBandSettings& InBandSettings, const FSpectrumBandExtractorSettings& InSettings, const FSpectrumBandExtractorSpectrumSettings& InSpectrumSettings, int32 InOutIndex)
+				:	FBandSettings(InBandSettings)
+				,	OutIndex(InOutIndex)
 				,	PowerSpectrumScale(1.f)
-				,	bDoNormalize(bInDoNormalize)
 				{
-					Update(InSettings);
+					Update(InSettings, InSpectrumSettings);
 				}
 
 				virtual ~FBandSpec() {}
 
 				// Update calculates parameters that are specific to FFT implementation
 				// and sample rate.
-				virtual void Update(const FSpectrumBandExtractorSettings& InSettings)
+				virtual void Update(const FSpectrumBandExtractorSettings& InSettings, const FSpectrumBandExtractorSpectrumSettings& InSpectrumSettings)
 				{
 					PowerSpectrumScale = 1.f;
-					float FloatFFTSize = FMath::Max(static_cast<float>(InSettings.FFTSize), 1.f);
+					float FloatFFTSize = FMath::Max(static_cast<float>(InSpectrumSettings.FFTSize), 1.f);
 
-					switch (InSettings.FFTScaling)
+					switch (InSpectrumSettings.FFTScaling)
 					{
 						case EFFTScaling::MultipliedByFFTSize:
 							PowerSpectrumScale = 1.f / (FloatFFTSize * FloatFFTSize);
@@ -84,52 +72,18 @@ namespace Audio
 							PowerSpectrumScale = 1.f;
 							break;
 					}
-
-					/*
-					float WindowScale = 1.f;
-
-
-					switch (InSettings.WindowType)
-					{
-						case EWindowType::None:
-							WindowScale = 1.f / FloatFFTSize;
-							break;
-
-						case EWindowType::Hamming:
-							// General form of scaling for generalized cosine on powers spectrum is
-							// 1 / ((1.5 * alpha^2 - alpha + 0.5) * FFTSize)
-
-							// For hamming, alpha = 0.54
-							WindowScale = 1.f / (0.3974 * FloatFFTSize);
-							break;
-
-						case EWindowType::Hann:
-							// General form of scaling for generalized cosine on powers spectrum is
-							// 1 / ((1.5 * alpha^2 - alpha + 0.5) * FFTSize)
-
-							// For hann, alpha = 0.5
-							WindowScale = 1.f / (0.375f * FloatFFTSize);
-							break;
-
-						case EWindowType::Blackman:
-							// General form of scaling for blackman windows is
-							// 1 / ((alpha_0^2 + alpha_1^2 / 2 + alpha_2^2 / 2) * FFTSize
-							//
-							// For this window alpha_0 = 0.42, alpha_1 = 0.5 and alph_2 = 0.08
-							WindowScale = 1.f / (0.3046f * FloatFFTSize);
-							break;
-
-						default:
-							// Should not get here. Means that a window type is not covered.
-							UE_LOG(LogSignalProcessing, Warning, TEXT("Invalid window type enum encountered, %d"), (int32)InSettings.WindowType);
-							WindowScale = 1.f / FloatFFTSize;
-							break;
-
-					}
-
-					PowerSpectrumScale *= WindowScale;
-					*/
 				}
+
+				
+				void UpdateOutputFromPowerSpectrum(const float* InputBuffer, int32 InNum, float* OutputBuffer, int32 OutNum) const
+				{
+					check(OutIndex >= 0);
+					check(OutIndex < OutNum);
+
+					OutputBuffer[OutIndex] = ExtractFromPowerSpectrum(InputBuffer, InNum) * PowerSpectrumScale;
+				}
+
+				virtual float ExtractFromPowerSpectrum(const float* InputBuffer, int32 InNum) const = 0;
 			};
 
 			// Specification for a nearest neighbor band.
@@ -141,16 +95,23 @@ namespace Audio
 				// Index in power spectrum to lookup band.
 				int32 Index;
 
-				virtual void Update(const FSpectrumBandExtractorSettings& InSettings) override
+				virtual void Update(const FSpectrumBandExtractorSettings& InSettings, const FSpectrumBandExtractorSpectrumSettings& InSpectrumSettings) override
 				{
 					// Call parent class update.
-					FBandSpec::Update(InSettings);
+					FBandSpec::Update(InSettings, InSpectrumSettings);
 
 					// Update the index
-					const int32 MaxSpectrumIndex = InSettings.FFTSize / 2;
-					const float Position = CenterFrequency / FMath::Max(InSettings.SampleRate, 1.f) * InSettings.FFTSize;
+					const int32 MaxSpectrumIndex = InSpectrumSettings.FFTSize / 2;
+					const float Position = CenterFrequency / FMath::Max(InSpectrumSettings.SampleRate, 1.f) * InSpectrumSettings.FFTSize;
 					Index = FMath::RoundToInt(Position);
 					Index = FMath::Clamp(Index, 0, MaxSpectrumIndex);
+				}
+
+				virtual float ExtractFromPowerSpectrum(const float* InputBuffer, int32 InNum) const override
+				{
+					int32 SafeIndex = FMath::Clamp(Index, 0, InNum);
+
+					return InputBuffer[SafeIndex];
 				}
 			};
 
@@ -169,14 +130,14 @@ namespace Audio
 				// Value used for lerping between lower and upper band values.
 				float Alpha;
 
-				virtual void Update(const FSpectrumBandExtractorSettings& InSettings) override
+				virtual void Update(const FSpectrumBandExtractorSettings& InSettings, const FSpectrumBandExtractorSpectrumSettings& InSpectrumSettings) override
 				{
 					// Call parent class update.
-					FBandSpec::Update(InSettings);
+					FBandSpec::Update(InSettings, InSpectrumSettings);
 
 					// Update lower index, upper index and alpha.
-					const int32 MaxSpectrumIndex = InSettings.FFTSize / 2;
-					const float Position = CenterFrequency / FMath::Max(InSettings.SampleRate, 1.f) * InSettings.FFTSize;
+					const int32 MaxSpectrumIndex = InSpectrumSettings.FFTSize / 2;
+					const float Position = CenterFrequency / FMath::Max(InSpectrumSettings.SampleRate, 1.f) * InSpectrumSettings.FFTSize;
 
 					LowerIndex = FMath::FloorToInt(Position);
 					UpperIndex = LowerIndex + 1;
@@ -185,6 +146,14 @@ namespace Audio
 					LowerIndex = FMath::Clamp(LowerIndex, 0, MaxSpectrumIndex);
 					UpperIndex = FMath::Clamp(UpperIndex, 0, MaxSpectrumIndex);
 					Alpha = FMath::Clamp(Alpha, 0.f, 1.f);
+				}
+
+				virtual float ExtractFromPowerSpectrum(const float* InputBuffer, int32 InNum) const override
+				{
+					int32 SafeLowerIndex = FMath::Clamp(LowerIndex, 0, InNum);
+					int32 SafeUpperIndex = FMath::Clamp(UpperIndex, 0, InNum);
+
+					return FMath::Lerp<float>(InputBuffer[SafeLowerIndex], InputBuffer[SafeUpperIndex], Alpha);
 				}
 			};
 
@@ -212,14 +181,16 @@ namespace Audio
 				// Weight for upper value.
 				float UpperWeight;
 
-				virtual void Update(const FSpectrumBandExtractorSettings& InSettings) override
+				virtual void Update(const FSpectrumBandExtractorSettings& InSettings, const FSpectrumBandExtractorSpectrumSettings& InSpectrumSettings) override
 				{
 					// Call parent class update.
-					FBandSpec::Update(InSettings);
+					FBandSpec::Update(InSettings, InSpectrumSettings);
+
+					QFactor = FMath::Clamp(QFactor, 0.0001f, 10000.f);
 
 					// Update indices and weights.
-					const int32 MaxSpectrumIndex = InSettings.FFTSize / 2;
-					const float Position = CenterFrequency / FMath::Max(InSettings.SampleRate, 1.f) * InSettings.FFTSize;
+					const int32 MaxSpectrumIndex = InSpectrumSettings.FFTSize / 2;
+					const float Position = CenterFrequency / FMath::Max(InSpectrumSettings.SampleRate, 1.f) * InSpectrumSettings.FFTSize;
 
 					MidIndex = FMath::RoundToInt(Position);
 					LowerIndex = MidIndex - 1;
@@ -236,6 +207,19 @@ namespace Audio
 					MidIndex = FMath::Clamp(MidIndex, 0, MaxSpectrumIndex);
 					UpperIndex = FMath::Clamp(UpperIndex, 0, MaxSpectrumIndex);
 				}
+
+				virtual float ExtractFromPowerSpectrum(const float* InputBuffer, int32 InNum) const override
+				{
+					int32 SafeLowerIndex = FMath::Clamp(LowerIndex, 0, InNum);
+					int32 SafeMidIndex = FMath::Clamp(MidIndex, 0, InNum);
+					int32 SafeUpperIndex = FMath::Clamp(UpperIndex, 0, InNum);
+
+					const float LowerValue = InputBuffer[SafeLowerIndex];
+					const float MidValue = InputBuffer[SafeMidIndex];
+					const float UpperValue = InputBuffer[SafeUpperIndex];
+					
+					return (LowerValue * LowerWeight) + (MidValue * MidWeight) + (UpperValue * UpperWeight);
+				}
 			};
 
 			// Specification for band using CQT band.
@@ -244,9 +228,6 @@ namespace Audio
 				// Use parent constructor
 				using FBandSpec::FBandSpec;
 
-				// QFactor controls the band width.
-				float QFactor;
-				
 				// Start index in power spectrum 
 				int32 StartIndex;
 
@@ -256,19 +237,19 @@ namespace Audio
 				// Internal buffer used when calculating band.
 				mutable AlignedFloatBuffer WorkBuffer;
 
-				virtual void Update(const FSpectrumBandExtractorSettings& InSettings) override
+				virtual void Update(const FSpectrumBandExtractorSettings& InSettings, const FSpectrumBandExtractorSpectrumSettings& InSpectrumSettings) override
 				{
 					// Call parent class update.
-					FBandSpec::Update(InSettings);
+					FBandSpec::Update(InSettings, InSpectrumSettings);
 
 					// Update band weights and offset index.
-					const int32 MaxSpectrumIndex = InSettings.FFTSize / 2;
-					const float Position = CenterFrequency / FMath::Max(InSettings.SampleRate, 1.f) * InSettings.FFTSize;
+					const int32 MaxSpectrumIndex = InSpectrumSettings.FFTSize / 2;
+					const float Position = CenterFrequency / FMath::Max(InSpectrumSettings.SampleRate, 1.f) * InSpectrumSettings.FFTSize;
 					FPseudoConstantQBandSettings CQTBandSettings;
 					CQTBandSettings.CenterFreq = CenterFrequency;
 					CQTBandSettings.BandWidth = FMath::Max(SMALL_NUMBER, CenterFrequency / FMath::Max(SMALL_NUMBER, QFactor));
-					CQTBandSettings.FFTSize = InSettings.FFTSize;
-					CQTBandSettings.SampleRate = FMath::Max(1.f, InSettings.SampleRate);
+					CQTBandSettings.FFTSize = InSpectrumSettings.FFTSize;
+					CQTBandSettings.SampleRate = FMath::Max(1.f, InSpectrumSettings.SampleRate);
 					CQTBandSettings.Normalization = EPseudoConstantQNormalization::EqualEnergy;
 
 					StartIndex = 0;
@@ -282,21 +263,156 @@ namespace Audio
 						WorkBuffer.AddUninitialized(Weights.Num());
 					}
 				}
+
+				virtual float ExtractFromPowerSpectrum(const float* InputBuffer, int32 InNum) const override
+				{
+					int32 SafeStartIndex = FMath::Clamp(StartIndex, 0, InNum);
+
+					if (ensure((SafeStartIndex + Weights.Num()) <= InNum))
+					{
+
+						float Value = 0.f;
+						int32 NumWeights = Weights.Num();
+
+						if (NumWeights > 0)
+						{
+							check(NumWeights == WorkBuffer.Num());
+							FMemory::Memcpy(WorkBuffer.GetData(), &InputBuffer[SafeStartIndex], NumWeights * sizeof(float));
+
+							ArrayMultiplyInPlace(Weights, WorkBuffer);
+							ArraySum(WorkBuffer, Value);
+						}
+
+						return Value;
+					}
+
+					return 0.f;
+				}
+			};
+
+			// Tracks minimum/maximum values given an attack/release time.
+			class FAutoRange 
+			{
+				float CurrentMinimum;
+				float CurrentMaximum;
+				float AttackTimeConstant;
+				float ReleaseTimeConstant;
+
+				bool bAreCurrentValuesValid;
+
+				public:
+
+					FAutoRange(float InAttackTime = 0.5f, float InReleaseTime = 30.f)
+					:	CurrentMinimum(0.f)
+					,	CurrentMaximum(0.f)
+					,	AttackTimeConstant(1.f)
+					,	ReleaseTimeConstant(1.f)
+					,	bAreCurrentValuesValid(false)
+					{
+						SetAttackTime(InAttackTime);
+						SetReleaseTime(InReleaseTime);
+					}	
+
+					void Set(float InMinimum, float InMaximum)
+					{
+						CurrentMinimum = InMinimum;
+						CurrentMaximum = InMaximum;
+						bAreCurrentValuesValid = true;
+					}
+
+					
+					void Update(float InMinimumValue, float InMaximumValue, float InTimeDelta)
+					{
+						if (bAreCurrentValuesValid)
+						{
+							InTimeDelta = FMath::Max(0.f, InTimeDelta);
+
+							// The time delta isn't constant between updates, so we need to determine
+							// how much the value will change.
+							const float AttackCoef = InTimeDelta * AttackTimeConstant;
+							const float ReleaseCoef = InTimeDelta * ReleaseTimeConstant;
+
+							const float MaxDiff = InMaximumValue - CurrentMaximum;
+
+							if (MaxDiff > 0.f)
+							{
+								CurrentMaximum += MaxDiff * AttackCoef;
+							}
+							else
+							{
+								CurrentMaximum += MaxDiff * ReleaseCoef;
+							}
+
+							const float MinDiff = InMinimumValue - CurrentMinimum;
+
+							if (MinDiff < 0.f)
+							{
+								CurrentMinimum += MinDiff * AttackCoef;
+							}
+							else
+							{
+								CurrentMinimum += MinDiff * ReleaseCoef;
+							}
+
+						}
+						else
+						{
+							// On first time around, initialize to given min/max values.
+							Set(InMinimumValue, InMaximumValue);
+
+						}
+					}
+
+					// Normalize input values to the min/max range. 
+					void Normalize(TArrayView<float> InValues) const
+					{
+						
+						ArrayClampInPlace(InValues, CurrentMinimum, CurrentMaximum);
+
+						ArraySubtractByConstantInPlace(InValues, CurrentMinimum);
+
+						float Range = FMath::Max(SMALL_NUMBER, CurrentMaximum - CurrentMinimum);
+
+						ArrayMultiplyByConstantInPlace(InValues, 1.f / Range);
+					}
+
+					void SetAttackTime(float InAttackTime)
+					{
+						// Factor set to achieve 90% of value by attack time.
+						AttackTimeConstant = 0.9f / FMath::Max(0.001f, InAttackTime);
+					}
+					
+					void SetReleaseTime(float InReleaseTime)
+					{
+						// Factor set to achieve 90% of value by release time.
+						ReleaseTimeConstant = 0.9f / FMath::Max(0.001f, InReleaseTime);
+					}
+
 			};
 
 
 		public:
 			FSpectrumBandExtractor(const FSpectrumBandExtractorSettings& InSettings)
 			:	Settings(InSettings)
+			,	LastTimestamp(0)
 			{
+				AutoRange.SetAttackTime(Settings.AutoRangeAttackTimeInSeconds);
+				AutoRange.SetReleaseTime(Settings.AutoRangeReleaseTimeInSeconds);
 			}
 
 			virtual void SetSettings(const FSpectrumBandExtractorSettings& InSettings) override
 			{
-				bool bSettingsChanged = (Settings != InSettings);
 				Settings = InSettings;
+				AutoRange.SetAttackTime(Settings.AutoRangeAttackTimeInSeconds);
+				AutoRange.SetReleaseTime(Settings.AutoRangeReleaseTimeInSeconds);
+			}
 
-				if (bSettingsChanged)
+			virtual void SetSpectrumSettings(const FSpectrumBandExtractorSpectrumSettings& InSpectrumSettings) override
+			{
+				bool bSpectrumSettingsChanged = (SpectrumSettings != InSpectrumSettings);
+				SpectrumSettings = InSpectrumSettings;
+
+				if (bSpectrumSettingsChanged)
 				{
 
 					// If the settings have changed from the previous call, the band specs
@@ -325,37 +441,39 @@ namespace Audio
 				return Num;
 			}
 
-			// Add a nearest neighbor band
-			virtual void AddNearestNeighborBand(float InCenterFrequency, EMetric InMetric, float InDecibelNoiseFloor, bool bInDoNormalize) override
+			virtual void AddBand(const FBandSettings& InBandSettings) override
 			{
-				AddBand<FNNBandSpec>(NNBandSpecs, InCenterFrequency, InMetric, InDecibelNoiseFloor, bInDoNormalize);
+				switch (InBandSettings.Type)
+				{
+					case EBandType::NearestNeighbor:
+						AddBand<FNNBandSpec>(NNBandSpecs, InBandSettings);
+						break;
+
+					case EBandType::Lerp:
+						AddBand<FLerpBandSpec>(LerpBandSpecs, InBandSettings);
+						break;
+
+					case EBandType::Quadratic:
+						AddBand<FQuadraticBandSpec>(QuadraticBandSpecs, InBandSettings);
+						break;
+
+					case EBandType::ConstantQ:
+					default:
+						AddBand<FCQTBandSpec>(CQTBandSpecs, InBandSettings);
+						break;
+				}
 			}
 
-			// Add a linear interpolated band.
-			virtual void AddLerpBand(float InCenterFrequency, EMetric InMetric, float InDecibelNoiseFloor, bool bInDoNormalize) override
-			{
-				AddBand<FLerpBandSpec>(LerpBandSpecs, InCenterFrequency, InMetric, InDecibelNoiseFloor, bInDoNormalize);
-			}
-
-			// Add a quadratic interplated band.
-			virtual void AddQuadraticBand(float InCenterFrequency, EMetric InMetric, float InDecibelNoiseFloor, bool bInDoNormalize) override
-			{
-				AddBand<FQuadraticBandSpec>(QuadraticBandSpecs, InCenterFrequency, InMetric, InDecibelNoiseFloor, bInDoNormalize);
-			}
-
-			// Add a constant Q band
-			virtual void AddConstantQBand(float InCenterFrequency, float InQFactor, EMetric InMetric, float InDecibelNoiseFloor, bool bInDoNormalize) override
-			{
-				FCQTBandSpec& Band = AddBand<FCQTBandSpec>(CQTBandSpecs, InCenterFrequency, InMetric, InDecibelNoiseFloor, bInDoNormalize);
-				Band.QFactor = FMath::Clamp(InQFactor, 0.001f, 100.f);
-			}
 
 			// Extract band from input.
-			virtual void ExtractBands(const AlignedFloatBuffer& InComplexBuffer, TArray<float>& OutValues) override
+			virtual void ExtractBands(const AlignedFloatBuffer& InComplexBuffer, double InTimestamp, TArray<float>& OutValues) override
 			{
 				const int32 NumComplex = InComplexBuffer.Num();
 
-				check(NumComplex == (Settings.FFTSize + 2));
+				float TimeDelta = FMath::Max(0.0f, static_cast<float>(InTimestamp - LastTimestamp));
+				LastTimestamp = InTimestamp;
+
+				check(NumComplex == (SpectrumSettings.FFTSize + 2));
 
 				OutValues.Reset();
 				OutValues.AddZeroed(GetNumBands());
@@ -373,17 +491,40 @@ namespace Audio
 				ExtractBands(PowerSpectrum, LerpBandSpecs, OutValues);
 				ExtractBands(PowerSpectrum, QuadraticBandSpecs, OutValues);
 				ExtractBands(PowerSpectrum, CQTBandSpecs, OutValues);
+
+				ApplyMetric(OutValues);
+
+				if (Settings.bDoAutoRange)
+				{
+					Normalize(OutValues);
+
+					float* MinimumValuePtr = Algo::MinElement(OutValues);
+					float* MaximumValuePtr = Algo::MaxElement(OutValues);
+
+					float MinimumValue = MinimumValuePtr == nullptr ? 0.f : *MinimumValuePtr;
+					float MaximumValue = MaximumValuePtr == nullptr ? 0.f : *MaximumValuePtr;
+
+					AutoRange.Update(MinimumValue, MaximumValue, TimeDelta);
+
+					AutoRange.Normalize(OutValues);
+				}
+				else if (Settings.bDoNormalize)
+				{
+					Normalize(OutValues);
+
+					ArrayClampInPlace(OutValues, 0.f, 1.f);
+				}
 			}
 
 		private:
 
 			// Adds a band spec and returns a reference to the added spec.
 			template<typename T> 
-			T& AddBand(TArray<T>& InBandSpecs, float InCenterFrequency, EMetric InMetric, float InDecibelNoiseFloor, bool bInDoNormalize)
+			T& AddBand(TArray<T>& InBandSpecs, const FBandSettings& InBandSettings)
 			{
 				int32 OutIndex = GetNumBands();
 
-				T BandSpec(Settings, OutIndex, InCenterFrequency, InMetric, InDecibelNoiseFloor, bInDoNormalize);
+				T BandSpec(InBandSettings, Settings, SpectrumSettings, OutIndex);
 
 				return InBandSpecs.Add_GetRef(BandSpec);
 			}
@@ -394,7 +535,7 @@ namespace Audio
 			{
 				for (T& BandSpec : InSpecs)
 				{
-					BandSpec.Update(Settings);
+					BandSpec.Update(Settings, SpectrumSettings);
 				}
 			}
 
@@ -407,153 +548,75 @@ namespace Audio
 				UpdateBandSpecs<FCQTBandSpec>(CQTBandSpecs);
 			}
 
-
-			// Extract nearest neighbor bands
-			void ExtractBands(const AlignedFloatBuffer& InPowerSpectrum, const TArray<FNNBandSpec>& InNNBandSpecs, TArray<float>& OutValues) const
+			template<typename T>
+			void ExtractBands(const AlignedFloatBuffer& InPowerSpectrum, const TArray<T>& InBandSpecs, TArray<float>& OutValues) const
 			{
 				float* OutData = OutValues.GetData();
+				int32 OutNum = OutValues.Num();
 				const float* InData = InPowerSpectrum.GetData();
 				int32 InNum = InPowerSpectrum.Num();
 
-				for (const FNNBandSpec& Spec : InNNBandSpecs)
+				for (const T& Spec : InBandSpecs)
 				{
-					check(Spec.OutIndex >= 0);
-					check(Spec.OutIndex < OutValues.Num());
-					check(Spec.Index < InNum);
-					check(Spec.Index >= 0);
-					OutData[Spec.OutIndex] = ApplyScaleAndMetric(Spec, InData[Spec.Index]);
-				};
-			}
-
-			// Extract linearly interpolated bands
-			void ExtractBands(const AlignedFloatBuffer& InPowerSpectrum, const TArray<FLerpBandSpec>& InLerpBandSpecs, TArray<float>& OutValues) const
-			{
-				float* OutData = OutValues.GetData();
-				const float* InData = InPowerSpectrum.GetData();
-				int32 InNum = InPowerSpectrum.Num();
-
-				for (const FLerpBandSpec& Spec : InLerpBandSpecs)
-				{
-					check(Spec.OutIndex >= 0);
-					check(Spec.OutIndex < OutValues.Num());
-					check(Spec.LowerIndex < InNum);
-					check(Spec.LowerIndex >= 0);
-					check(Spec.UpperIndex < InNum);
-					check(Spec.UpperIndex >= 0);
-
-					float Value = FMath::Lerp<float>(InData[Spec.LowerIndex], InData[Spec.UpperIndex], Spec.Alpha);
-					OutData[Spec.OutIndex] = ApplyScaleAndMetric(Spec, Value);
-				};
-			}
-
-			// Extract quadratically interpolated bands.
-			void ExtractBands(const AlignedFloatBuffer& InPowerSpectrum, const TArray<FQuadraticBandSpec>& InQuadraticBandSpecs, TArray<float>& OutValues) const
-			{
-				float* OutData = OutValues.GetData();
-				const float* InData = InPowerSpectrum.GetData();
-				int32 InNum = InPowerSpectrum.Num();
-
-				for (const FQuadraticBandSpec& Spec : InQuadraticBandSpecs)
-				{
-					check(Spec.OutIndex >= 0);
-					check(Spec.OutIndex < OutValues.Num());
-					check(Spec.LowerIndex < InNum);
-					check(Spec.LowerIndex >= 0);
-					check(Spec.MidIndex < InNum);
-					check(Spec.MidIndex >= 0);
-					check(Spec.UpperIndex < InNum);
-					check(Spec.UpperIndex >= 0);
-
-					const float LowerValue = InData[Spec.LowerIndex];
-					const float MidValue = InData[Spec.MidIndex];
-					const float UpperValue = InData[Spec.UpperIndex];
-					
-					float Value = (LowerValue * Spec.LowerWeight) + (MidValue * Spec.MidWeight) + (UpperValue * Spec.UpperWeight);
-
-					OutData[Spec.OutIndex] = ApplyScaleAndMetric(Spec, Value);
+					Spec.UpdateOutputFromPowerSpectrum(InData, InNum, OutData, OutNum);
 				}
 			}
 
-			// Extract constant q bands.
-			void ExtractBands(const AlignedFloatBuffer& InPowerSpectrum, const TArray<FCQTBandSpec>& InCQTBandSpecs, TArray<float>& OutValues) const
+			// apply metric to a band value
+			void ApplyMetric(TArray<float>& InValues) const
 			{
-				float* OutData = OutValues.GetData();
-				const float* InData = InPowerSpectrum.GetData();
-				int32 InNum = InPowerSpectrum.Num();
 
-				for (const FCQTBandSpec& Spec : InCQTBandSpecs)
+				switch (Settings.Metric)
 				{
-					check(Spec.OutIndex >= 0);
-					check(Spec.OutIndex < OutValues.Num());
-					check(Spec.StartIndex < InNum);
-					check(Spec.StartIndex >= 0);
-					check((Spec.StartIndex + Spec.Weights.Num()) <= InNum);
-
-					float Value = 0.f;
-					int32 NumWeights = Spec.Weights.Num();
-
-					if (NumWeights > 0)
-					{
-						check(NumWeights == Spec.WorkBuffer.Num());
-						FMemory::Memcpy(Spec.WorkBuffer.GetData(), &InData[Spec.StartIndex], NumWeights * sizeof(float));
-
-						ArrayMultiplyInPlace(Spec.Weights, Spec.WorkBuffer);
-						ArraySum(Spec.WorkBuffer, Value);
-					}
-
-					OutData[Spec.OutIndex] = ApplyScaleAndMetric(Spec, Value);
-				}
-				
-			}
-
-			// Scale and apply metric to a band value
-			float ApplyScaleAndMetric(const FBandSpec& InBandSpec, float InValue) const
-			{
-				float OutValue = InValue * InBandSpec.PowerSpectrumScale;
-
-				switch (InBandSpec.Metric)
-				{
-					case ISpectrumBandExtractor::EMetric::Magnitude:
-						OutValue = FMath::Sqrt(OutValue);
+					case FSpectrumBandExtractorSettings::EMetric::Magnitude:
+						ArraySqrtInPlace(InValues);
 						break;
 
-					case ISpectrumBandExtractor::EMetric::Decibel:
-						OutValue = 10.f * FMath::Loge(OutValue) / SpectrumAnalyzerIntrinsics::Loge10;
-						if (!FMath::IsFinite(OutValue) || (OutValue < InBandSpec.DbNoiseFloor))
-						{
-							OutValue = InBandSpec.DbNoiseFloor;
-						}
-
-						if (InBandSpec.bDoNormalize)
-						{
-							OutValue -= InBandSpec.DbNoiseFloor;
-							if (InBandSpec.DbNoiseFloor < 0.f)
-							{
-								OutValue /= (-InBandSpec.DbNoiseFloor);
-							}
-						}
+					case FSpectrumBandExtractorSettings::EMetric::Decibel:
+						ArrayPowerToDecibelInPlace(InValues, Settings.DecibelNoiseFloor);
 						break;
 
-					case ISpectrumBandExtractor::EMetric::Power:
+					case FSpectrumBandExtractorSettings::EMetric::Power:
 					default:
 						break;
 				}
+			}
 
-				if (InBandSpec.bDoNormalize)
+			void Normalize(TArray<float>& InValues) const
+			{
+				// Only decibel values need to be normalized. 
+				if (FSpectrumBandExtractorSettings::EMetric::Decibel == Settings.Metric)
 				{
-					OutValue = FMath::Clamp(OutValue, 0.f, 1.f);
-				}
+					for (float& Value : InValues)
+					{
+						if (!FMath::IsFinite(Value))
+						{
+							Value = Settings.DecibelNoiseFloor;
+						}
+					}
 
-				return OutValue;
+					ArrayClampMinInPlace(InValues, Settings.DecibelNoiseFloor);
+
+					ArraySubtractByConstantInPlace(InValues, Settings.DecibelNoiseFloor);
+
+					float Range = FMath::Max(0.01f, -Settings.DecibelNoiseFloor);
+
+					ArrayMultiplyByConstantInPlace(InValues, 1.f / Range);
+				}
 			}
 
 			FSpectrumBandExtractorSettings Settings;
+			FSpectrumBandExtractorSpectrumSettings SpectrumSettings;
+			double LastTimestamp;
 
 			AlignedFloatBuffer PowerSpectrum;
+
 			TArray<FNNBandSpec> NNBandSpecs;
 			TArray<FLerpBandSpec> LerpBandSpecs;
 			TArray<FQuadraticBandSpec> QuadraticBandSpecs;
 			TArray<FCQTBandSpec> CQTBandSpecs;
+
+			FAutoRange AutoRange;
 	};
 
 
@@ -569,8 +632,10 @@ namespace Audio
 		, bIsInitialized(false)
 		, SampleRate(0.0f)
 		, Window(CurrentSettings.WindowType, (int32)CurrentSettings.FFTSize, 1, false)
+		, SampleCounter(0)
 		, InputQueue(FMath::Max((int32)CurrentSettings.FFTSize * 4, 4096))
 		, FrequencyBuffer((int32)CurrentSettings.FFTSize)
+		, LockedBufferTimestamp(0)
 		, LockedFrequencyVector(nullptr)
 	{
 	}
@@ -581,8 +646,10 @@ namespace Audio
 		, bIsInitialized(true)
 		, SampleRate(InSampleRate)
 		, Window(InSettings.WindowType, (int32)InSettings.FFTSize, 1, false)
+		, SampleCounter(0)
 		, InputQueue(FMath::Max((int32)CurrentSettings.FFTSize * 4, 4096))
 		, FrequencyBuffer((int32)InSettings.FFTSize)
+		, LockedBufferTimestamp(0)
 		, LockedFrequencyVector(nullptr)
 	{
 		ResetSettings();
@@ -594,8 +661,10 @@ namespace Audio
 		, bIsInitialized(true)
 		, SampleRate(InSampleRate)
 		, Window(CurrentSettings.WindowType, (int32)CurrentSettings.FFTSize, 1, false)
+		, SampleCounter(0)
 		, InputQueue(FMath::Max((int32)CurrentSettings.FFTSize * 4, 4096))
 		, FrequencyBuffer((int32)CurrentSettings.FFTSize)
+		, LockedBufferTimestamp(0)
 		, LockedFrequencyVector(nullptr)
 	{
 		ResetSettings();
@@ -620,6 +689,7 @@ namespace Audio
 		CurrentSettings = InSettings;
 		bSettingsWereUpdated = false;
 		SampleRate = InSampleRate;
+		SampleCounter.Set(0);
 		InputQueue.SetCapacity(FMath::Max((int32)CurrentSettings.FFTSize * 4, 4096));
 		FrequencyBuffer.Reset((int32)CurrentSettings.FFTSize);
 		ResetSettings();
@@ -700,7 +770,7 @@ namespace Audio
 		bSettingsWereUpdated = false;
 	}
 
-	void FSpectrumAnalyzer::PerformInterpolation(const AlignedFloatBuffer& InComplexBuffer, FSpectrumAnalyzerSettings::EPeakInterpolationMethod InMethod, const float InFreq, float& OutReal, float& OutImag)
+	void FSpectrumAnalyzer::PerformInterpolation(const AlignedFloatBuffer& InComplexBuffer, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod, const float InFreq, float& OutReal, float& OutImag)
 	{
 		const float* InComplexData = InComplexBuffer.GetData();
 		const int32 VectorLength = InComplexBuffer.Num();
@@ -715,7 +785,7 @@ namespace Audio
 		
 		switch (InMethod)
 		{
-		case Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::NearestNeighbor:
+		case Audio::FSpectrumAnalyzer::EPeakInterpolationMethod::NearestNeighbor:
 		{
 			int32 Index = FMath::RoundToInt(Position) & SpectrumAnalyzerIntrinsics::EvenNumberMask;
 
@@ -727,7 +797,7 @@ namespace Audio
 			break;
 		}
 			
-		case Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::Linear:
+		case Audio::FSpectrumAnalyzer::EPeakInterpolationMethod::Linear:
 		{
 			int32 LowerIndex = FMath::FloorToInt(Position) & SpectrumAnalyzerIntrinsics::EvenNumberMask;
 			int32 UpperIndex = LowerIndex + 2;
@@ -748,7 +818,7 @@ namespace Audio
 			OutImag = FMath::Lerp<float>(y1Imag, y2Imag, PositionFraction);
 			break;
 		}	
-		case Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::Quadratic:
+		case Audio::FSpectrumAnalyzer::EPeakInterpolationMethod::Quadratic:
 		{
 			// Note: math here does not interpolate quadratically. 
 			const int32 MidIndex = FMath::Clamp(FMath::RoundToInt(Position) & SpectrumAnalyzerIntrinsics::EvenNumberMask, 0, NyquistPosition);
@@ -788,7 +858,7 @@ namespace Audio
 		OutSettings = CurrentSettings;
 	}
 
-	float FSpectrumAnalyzer::GetMagnitudeForFrequency(float InFrequency)
+	float FSpectrumAnalyzer::GetMagnitudeForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod)
 	{
 		if (!bIsInitialized)
 		{
@@ -814,13 +884,14 @@ namespace Audio
 			float OutMagnitude = 0.0f;
 
 			float InterpolatedReal, InterpolatedImag;
-			PerformInterpolation(*OutVector, CurrentSettings.InterpolationMethod, InFrequency, InterpolatedReal, InterpolatedImag);
+			PerformInterpolation(*OutVector, InMethod, InFrequency, InterpolatedReal, InterpolatedImag);
 
 			OutMagnitude = FMath::Sqrt((InterpolatedReal * InterpolatedReal) + (InterpolatedImag * InterpolatedImag));
 
 			if (bShouldUnlockBuffer)
 			{
 				FrequencyBuffer.UnlockBuffer();
+				LockedBufferTimestamp = 0.0;
 			}
 
 			return OutMagnitude;
@@ -830,7 +901,7 @@ namespace Audio
 		return 0.0f;
 	}
 
-	float FSpectrumAnalyzer::GetPhaseForFrequency(float InFrequency)
+	float FSpectrumAnalyzer::GetPhaseForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod)
 	{
 		if (!bIsInitialized)
 		{
@@ -856,13 +927,14 @@ namespace Audio
 			float OutPhase = 0.0f;
 
 			float InterpolatedReal, InterpolatedImag;
-			PerformInterpolation(*OutVector, CurrentSettings.InterpolationMethod, InFrequency, InterpolatedReal, InterpolatedImag);
+			PerformInterpolation(*OutVector, InMethod, InFrequency, InterpolatedReal, InterpolatedImag);
 
 			OutPhase = FMath::Atan2(InterpolatedImag, InterpolatedReal);
 
 			if (bShouldUnlockBuffer)
 			{
 				FrequencyBuffer.UnlockBuffer();
+				LockedBufferTimestamp = 0.0;
 			}
 
 			return OutPhase;
@@ -882,36 +954,37 @@ namespace Audio
 			return;
 		}
 
-		const AlignedFloatBuffer* OutVector = nullptr;
+		const AlignedFloatBuffer* AnalysisBuffer = nullptr;
 		bool bShouldUnlockBuffer = true;
 
-		FSpectrumBandExtractorSettings ExtractorSettings;
+		FSpectrumBandExtractorSpectrumSettings ExtractorSettings;
 		ExtractorSettings.SampleRate = SampleRate;
 		ExtractorSettings.FFTSize = FFTSize;
 		ExtractorSettings.FFTScaling = FFTScaling;
 		ExtractorSettings.WindowType = Window.GetWindowType();
 
 		// This should have minimal cost if settings have not changed between calls.
-		InExtractor.SetSettings(ExtractorSettings);
+		InExtractor.SetSpectrumSettings(ExtractorSettings);
 
 		if (LockedFrequencyVector)
 		{
-			OutVector = LockedFrequencyVector;
+			AnalysisBuffer = LockedFrequencyVector;
 			bShouldUnlockBuffer = false;
 		}
 		else
 		{
-			OutVector = &FrequencyBuffer.LockMostRecentBuffer();
+			AnalysisBuffer = &FrequencyBuffer.LockMostRecentBuffer(LockedBufferTimestamp);
 		}
 
 		// Perform work.
-		if (OutVector)
+		if (AnalysisBuffer)
 		{
-			InExtractor.ExtractBands(*OutVector, OutValues);
+			InExtractor.ExtractBands(*AnalysisBuffer, LockedBufferTimestamp, OutValues);
 
 			if (bShouldUnlockBuffer)
 			{
 				FrequencyBuffer.UnlockBuffer();
+				LockedBufferTimestamp = 0.0;
 			}
 		}
 	}
@@ -926,9 +999,10 @@ namespace Audio
 		if (LockedFrequencyVector != nullptr)
 		{
 			FrequencyBuffer.UnlockBuffer();
+			LockedBufferTimestamp = 0.0;
 		}
 
-		LockedFrequencyVector = &FrequencyBuffer.LockMostRecentBuffer();
+		LockedFrequencyVector = &FrequencyBuffer.LockMostRecentBuffer(LockedBufferTimestamp);
 	}
 
 	void FSpectrumAnalyzer::UnlockOutputBuffer()
@@ -942,6 +1016,7 @@ namespace Audio
 		{
 			FrequencyBuffer.UnlockBuffer();
 			LockedFrequencyVector = nullptr;
+			LockedBufferTimestamp = 0.0;
 		}
 	}
 
@@ -953,6 +1028,8 @@ namespace Audio
 
 	bool FSpectrumAnalyzer::PushAudio(const float* InBuffer, int32 NumSamples)
 	{
+		SampleCounter.Add(NumSamples);
+
 		return InputQueue.Push(InBuffer, NumSamples) == NumSamples;
 	}
 
@@ -985,12 +1062,15 @@ namespace Audio
 			ResetSettings();
 		}
 
+
 		AlignedFloatBuffer& FFTOutput = FrequencyBuffer.StartWorkOnBuffer();
 
 		// If we have enough audio pushed to the spectrum analyzer and we have an available buffer to work in,
 		// we can start analyzing.
 		if (InputQueue.Num() >= ((uint32)FFTSize))
 		{
+			int64 WindowSampleCenterIndex = 0;
+
 			float* TimeDomainBuffer = AnalysisTimeDomainBuffer.GetData();
 
 			if (bUseLatestAudio)
@@ -998,6 +1078,8 @@ namespace Audio
 				// If we are only using the latest audio, scrap the oldest audio in the InputQueue:
 				InputQueue.SetNum((uint32)FFTSize);
 			}
+			WindowSampleCenterIndex = SampleCounter.GetValue() - InputQueue.Num() + FFTSize / 2;
+			double Timestamp = static_cast<double>(WindowSampleCenterIndex) / FMath::Max(SampleRate, 1.f);
 
 			// Perform pop/peek here based on FFT size and hop amount.
 			const int32 PeekAmount = FFTSize - HopInSamples;
@@ -1024,7 +1106,7 @@ namespace Audio
 			}
 
 			// We're done, so unlock this vector.
-			FrequencyBuffer.StopWorkOnBuffer();
+			FrequencyBuffer.StopWorkOnBuffer(Timestamp);
 
 			return true;
 		}
@@ -1070,6 +1152,9 @@ namespace Audio
 			}
 		}
 
+		Timestamps.Reset();
+		Timestamps.AddZeroed(SpectrumAnalyzerBufferSize);
+
 		InputIndex = 0;
 		OutputIndex = 0;
 	}
@@ -1105,9 +1190,16 @@ namespace Audio
 		return ComplexBuffers[InputIndex];
 	}
 
-	void FSpectrumAnalyzerBuffer::StopWorkOnBuffer()
+	void FSpectrumAnalyzerBuffer::StopWorkOnBuffer(double InTimestamp)
 	{
+		Timestamps[InputIndex] = InTimestamp;
 		IncrementInputIndex();
+	}
+
+	const AlignedFloatBuffer& FSpectrumAnalyzerBuffer::LockMostRecentBuffer(double& OutTimestamp) const
+	{
+		OutTimestamp = Timestamps[OutputIndex];
+		return ComplexBuffers[OutputIndex];
 	}
 
 	const AlignedFloatBuffer& FSpectrumAnalyzerBuffer::LockMostRecentBuffer() const

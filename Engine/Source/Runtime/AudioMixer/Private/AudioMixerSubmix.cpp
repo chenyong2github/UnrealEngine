@@ -30,6 +30,120 @@ FAutoConsoleVariableRef CVarBypassAllSubmixEffects(
 
 namespace Audio
 {
+	namespace MixerSubmixIntrinsics
+	{
+
+		FSpectrumAnalyzerSettings::EFFTSize GetSpectrumAnalyzerFFTSize(EFFTSize InFFTSize)
+		{
+			switch (InFFTSize)
+			{
+				case EFFTSize::DefaultSize:
+					return FSpectrumAnalyzerSettings::EFFTSize::Default;
+					break;
+
+				case EFFTSize::Min:
+					return FSpectrumAnalyzerSettings::EFFTSize::Min_64;
+					break;
+
+				case EFFTSize::Small:
+					return FSpectrumAnalyzerSettings::EFFTSize::Small_256;
+					break;
+
+				case EFFTSize::Medium:
+					return FSpectrumAnalyzerSettings::EFFTSize::Medium_512;
+					break;
+
+				case EFFTSize::Large:
+					return FSpectrumAnalyzerSettings::EFFTSize::Large_1024;
+					break;
+
+				case EFFTSize::VeryLarge:
+					return FSpectrumAnalyzerSettings::EFFTSize::VeryLarge_2048;
+					break;
+
+				case EFFTSize::Max:
+					return FSpectrumAnalyzerSettings::EFFTSize::TestLarge_4096;
+					break;
+
+				default:
+					return FSpectrumAnalyzerSettings::EFFTSize::Default;
+					break;
+			}
+		}
+
+		EWindowType GetWindowType(EFFTWindowType InWindowType)
+		{
+			switch (InWindowType)
+			{
+				case EFFTWindowType::None:
+					return EWindowType::None;
+					break;
+
+				case EFFTWindowType::Hamming:
+					return EWindowType::Hamming;
+					break;
+
+				case EFFTWindowType::Hann:
+					return EWindowType::Hann;
+					break;
+
+				case EFFTWindowType::Blackman:
+					return EWindowType::Blackman;
+					break;
+
+				default:
+					return EWindowType::None;
+					break;
+			}
+		}
+
+		FSpectrumBandExtractorSettings::EMetric GetExtractorMetric(EAudioSpectrumType InSpectrumType)
+		{
+			using EMetric = FSpectrumBandExtractorSettings::EMetric;
+
+			switch (InSpectrumType)
+			{
+				case EAudioSpectrumType::MagnitudeSpectrum:
+					return EMetric::Magnitude;
+					break;
+
+				case EAudioSpectrumType::PowerSpectrum:
+					return EMetric::Power;
+					break;
+
+				case EAudioSpectrumType::Decibel:
+				default:
+					return EMetric::Decibel;
+					break;
+			}
+		}
+
+		ISpectrumBandExtractor::EBandType GetExtractorBandType(EFFTPeakInterpolationMethod InMethod)
+		{
+			using EBandType = ISpectrumBandExtractor::EBandType;
+
+			switch (InMethod)
+			{
+				case EFFTPeakInterpolationMethod::NearestNeighbor:
+					return EBandType::NearestNeighbor;
+					break;
+
+				case EFFTPeakInterpolationMethod::Linear:
+					return EBandType::Lerp;
+					break;
+
+				case EFFTPeakInterpolationMethod::Quadratic:
+					return EBandType::Quadratic;
+					break;
+
+				case EFFTPeakInterpolationMethod::ConstantQ:
+				default:
+					return EBandType::ConstantQ;
+					break;
+			}
+		}
+	}
+
 	// Unique IDs for mixer submixes
 	static uint32 GSubmixMixerIDs = 0;
 
@@ -1478,26 +1592,16 @@ namespace Audio
 		OnSubmixEnvelope.AddUnique(OnSubmixEnvelopeBP);
 	}
 
-	void FMixerSubmix::AddSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, float UpdateRate)
+	void FMixerSubmix::AddSpectralAnalysisDelegate(const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP)
 	{
 		FSpectrumAnalysisDelegateInfo& NewDelegateInfo = SpectralAnalysisDelegates.AddDefaulted_GetRef();
-		
+	
 		NewDelegateInfo.LastUpdateTime = -1.0f;
-		UpdateRate = FMath::Clamp(UpdateRate, 1.0f, 30.0f);
-		NewDelegateInfo.UpdateDelta = 1.0f / UpdateRate;
-
-		for (const FSoundSubmixSpectralAnalysisBandSettings& BandSettings : InBandSettings)
-		{
-			FSpectralAnalysisBandInfo NewBand;
-			NewBand.BandFrequency = BandSettings.BandFrequency;
-			NewBand.QFactor = BandSettings.QFactor;
-			NewBand.EnvelopeFollower.Init(UpdateRate, BandSettings.AttackTimeMsec, BandSettings.ReleaseTimeMsec);
-		
-			NewDelegateInfo.SpectralBands.Add(NewBand);
-		}
+		NewDelegateInfo.DelegateSettings = InDelegateSettings;
+		NewDelegateInfo.DelegateSettings.UpdateRate = FMath::Clamp(NewDelegateInfo.DelegateSettings.UpdateRate, 1.0f, 30.0f);
+		NewDelegateInfo.UpdateDelta = 1.0f / NewDelegateInfo.DelegateSettings.UpdateRate;
 
 		NewDelegateInfo.OnSubmixSpectralAnalysis.AddUnique(OnSubmixSpectralAnalysisBP);
-
 	}
 
 	void FMixerSubmix::RemoveSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP)
@@ -1515,59 +1619,58 @@ namespace Audio
 		});
 	}
 
-	void FMixerSubmix::StartSpectrumAnalysis(const FSpectrumAnalyzerSettings& InSettings)
+	void FMixerSubmix::StartSpectrumAnalysis(const FSoundSpectrumAnalyzerSettings& InSettings)
 	{
+		using namespace MixerSubmixIntrinsics;
+		using EMetric = FSpectrumBandExtractorSettings::EMetric;
+		using EBandType = ISpectrumBandExtractor::EBandType;
+
 		bIsSpectrumAnalyzing = true;
 
-		// Construct a band extractor for each delegate listening to FFT results
+		SpectrumAnalyzerSettings = InSettings;
+
+		FSpectrumAnalyzerSettings AudioSpectrumAnalyzerSettings;
+
+		AudioSpectrumAnalyzerSettings.FFTSize = GetSpectrumAnalyzerFFTSize(SpectrumAnalyzerSettings.FFTSize);
+		AudioSpectrumAnalyzerSettings.WindowType = GetWindowType(SpectrumAnalyzerSettings.WindowType);
+		AudioSpectrumAnalyzerSettings.HopSize = SpectrumAnalyzerSettings.HopSize;
+
+		SpectrumAnalyzer.Reset(new FSpectrumAnalyzer(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate()));
+
+		EMetric Metric = GetExtractorMetric(SpectrumAnalyzerSettings.SpectrumType);
+		EBandType BandType = GetExtractorBandType(SpectrumAnalyzerSettings.InterpolationMethod);
+
 		for (FSpectrumAnalysisDelegateInfo& DelegateInfo : SpectralAnalysisDelegates)
 		{
-			// Build the band extractor here since we are given the FFT settings to use at this point
-			FSpectrumBandExtractorSettings BandExtractorSettings;
+			FSpectrumBandExtractorSettings ExtractorSettings;
 
-			BandExtractorSettings.FFTSize = (int32)InSettings.FFTSize;
-			BandExtractorSettings.SampleRate = MixerDevice->GetSampleRate();
+			ExtractorSettings.Metric = Metric;
+			ExtractorSettings.DecibelNoiseFloor = DelegateInfo.DelegateSettings.DecibelNoiseFloor;
+			ExtractorSettings.bDoNormalize = DelegateInfo.DelegateSettings.bDoNormalize;
+			ExtractorSettings.bDoAutoRange = DelegateInfo.DelegateSettings.bDoAutoRange;
+			ExtractorSettings.AutoRangeReleaseTimeInSeconds = DelegateInfo.DelegateSettings.AutoRangeReleaseTime;
+			ExtractorSettings.AutoRangeAttackTimeInSeconds = DelegateInfo.DelegateSettings.AutoRangeAttackTime;
 
-			DelegateInfo.SpectrumBandExtractor = ISpectrumBandExtractor::CreateSpectrumBandExtractor(BandExtractorSettings);
+			DelegateInfo.SpectrumBandExtractor = ISpectrumBandExtractor::CreateSpectrumBandExtractor(ExtractorSettings);
 
-			// Determine the band extractor metric (i.e. spectrum type). This is the same for all bands in a given extractor.
-			ISpectrumBandExtractor::EMetric Metric = ISpectrumBandExtractor::EMetric::Magnitude;
-			switch (InSettings.SpectrumType)
+			if (DelegateInfo.SpectrumBandExtractor.IsValid())
 			{
-			case FSpectrumAnalyzerSettings::ESpectrumAnalyzerType::Power:
-				Metric = ISpectrumBandExtractor::EMetric::Power;
-				break;
-
-			case FSpectrumAnalyzerSettings::ESpectrumAnalyzerType::Decibel:
-				Metric = ISpectrumBandExtractor::EMetric::Decibel;
-				break;
-
-			default:
-				break;
-			}
-			
-			// Loop through each band and add them to the extractor
-			for (FSpectralAnalysisBandInfo& BandInfo : DelegateInfo.SpectralBands)
-			{
-				switch (InSettings.InterpolationMethod)
+				for (const FSoundSubmixSpectralAnalysisBandSettings& BandSettings : DelegateInfo.DelegateSettings.BandSettings)
 				{
-					case FSpectrumAnalyzerSettings::EPeakInterpolationMethod::NearestNeighbor:
-						DelegateInfo.SpectrumBandExtractor->AddNearestNeighborBand(BandInfo.BandFrequency, Metric);
-						break;
-					case FSpectrumAnalyzerSettings::EPeakInterpolationMethod::Linear:
-						DelegateInfo.SpectrumBandExtractor->AddLerpBand(BandInfo.BandFrequency, Metric);
-						break;
-					case FSpectrumAnalyzerSettings::EPeakInterpolationMethod::Quadratic:
-						DelegateInfo.SpectrumBandExtractor->AddQuadraticBand(BandInfo.BandFrequency, Metric);
-						break;
-					case FSpectrumAnalyzerSettings::EPeakInterpolationMethod::ConstantQ:
-						DelegateInfo.SpectrumBandExtractor->AddConstantQBand(BandInfo.BandFrequency, BandInfo.QFactor, Metric);
-						break;
-				}
-			}
-		}
+					ISpectrumBandExtractor::FBandSettings NewExtractorBandSettings;
+					NewExtractorBandSettings.Type = BandType;
+					NewExtractorBandSettings.CenterFrequency = BandSettings.BandFrequency;
+					NewExtractorBandSettings.QFactor = BandSettings.QFactor;
 
-		SpectrumAnalyzer.Reset(new FSpectrumAnalyzer(InSettings, MixerDevice->GetSampleRate()));
+					DelegateInfo.SpectrumBandExtractor->AddBand(NewExtractorBandSettings);
+
+					FSpectralAnalysisBandInfo NewBand;
+					NewBand.EnvelopeFollower.Init(DelegateInfo.DelegateSettings.UpdateRate, BandSettings.AttackTimeMsec, BandSettings.ReleaseTimeMsec);
+				
+					DelegateInfo.SpectralBands.Add(NewBand);
+				}
+			} 
+		}
 	}
 
 	void FMixerSubmix::StopSpectrumAnalysis()
@@ -1580,13 +1683,36 @@ namespace Audio
 	{
 		if (SpectrumAnalyzer.IsValid())
 		{
+			using EMethod = FSpectrumAnalyzer::EPeakInterpolationMethod;
+
+			EMethod Method;	
+
+			switch (SpectrumAnalyzerSettings.InterpolationMethod)
+			{
+				case EFFTPeakInterpolationMethod::NearestNeighbor:
+					Method = EMethod::NearestNeighbor;
+					break;
+
+				case EFFTPeakInterpolationMethod::Linear:
+					Method = EMethod::Linear;
+					break;
+
+				case EFFTPeakInterpolationMethod::Quadratic:
+					Method = EMethod::Quadratic;
+					break;
+
+				default:
+					Method = EMethod::Linear;
+					break;
+			}
+
 			OutMagnitudes.Reset();
 			OutMagnitudes.AddUninitialized(InFrequencies.Num());
 
 			SpectrumAnalyzer->LockOutputBuffer();
 			for (int32 Index = 0; Index < InFrequencies.Num(); Index++)
 			{
-				OutMagnitudes[Index] = SpectrumAnalyzer->GetMagnitudeForFrequency(InFrequencies[Index]);
+				OutMagnitudes[Index] = SpectrumAnalyzer->GetMagnitudeForFrequency(InFrequencies[Index], Method);
 			}
 			SpectrumAnalyzer->UnlockOutputBuffer();
 		}
@@ -1600,13 +1726,36 @@ namespace Audio
 	{
 		if (SpectrumAnalyzer.IsValid())
 		{
+			using EMethod = FSpectrumAnalyzer::EPeakInterpolationMethod;
+
+			EMethod Method;	
+
+			switch (SpectrumAnalyzerSettings.InterpolationMethod)
+			{
+				case EFFTPeakInterpolationMethod::NearestNeighbor:
+					Method = EMethod::NearestNeighbor;
+					break;
+
+				case EFFTPeakInterpolationMethod::Linear:
+					Method = EMethod::Linear;
+					break;
+
+				case EFFTPeakInterpolationMethod::Quadratic:
+					Method = EMethod::Quadratic;
+					break;
+
+				default:
+					Method = EMethod::Linear;
+					break;
+			}
+
 			OutPhases.Reset();
 			OutPhases.AddUninitialized(InFrequencies.Num());
 
 			SpectrumAnalyzer->LockOutputBuffer();
 			for (int32 Index = 0; Index < InFrequencies.Num(); Index++)
 			{
-				OutPhases[Index] = SpectrumAnalyzer->GetPhaseForFrequency(InFrequencies[Index]);
+				OutPhases[Index] = SpectrumAnalyzer->GetPhaseForFrequency(InFrequencies[Index], Method);
 			}
 			SpectrumAnalyzer->UnlockOutputBuffer();
 		}

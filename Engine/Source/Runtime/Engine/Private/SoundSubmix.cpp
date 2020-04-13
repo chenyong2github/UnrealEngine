@@ -259,8 +259,9 @@ void USoundSubmix::AddEnvelopeFollowerDelegate(const UObject* WorldContextObject
 	}
 }
 
-void USoundSubmix::AddSpectralAnalysisDelegate(const UObject* WorldContextObject, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, float UpdateRate)
+void USoundSubmix::AddSpectralAnalysisDelegate(const UObject* WorldContextObject, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, float UpdateRate,  float DecibelNoiseFloor, bool bDoNormalize, bool bDoAutoRange, float AutoRangeAttackTime, float AutoRangeReleaseTime)
 {
+
 	if (!GEngine)
 	{
 		return;
@@ -271,7 +272,10 @@ void USoundSubmix::AddSpectralAnalysisDelegate(const UObject* WorldContextObject
 	{
 		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
 		{
-			AudioDevice->AddSpectralAnalysisDelegate(this, InBandSettings, OnSubmixSpectralAnalysisBP, UpdateRate);
+			FSoundSpectrumAnalyzerDelegateSettings DelegateSettings = USoundSubmix::GetSpectrumAnalysisDelegateSettings(InBandSettings, UpdateRate, DecibelNoiseFloor, bDoNormalize, bDoAutoRange, AutoRangeAttackTime, AutoRangeReleaseTime);
+
+
+			AudioDevice->AddSpectralAnalysisDelegate(this, DelegateSettings, OnSubmixSpectralAnalysisBP);
 		}
 	}
 }
@@ -319,7 +323,7 @@ void USoundSubmix::StartSpectralAnalysis(FAudioDevice* InAudioDevice, EFFTSize F
 
 	if (InAudioDevice)
 	{
-		Audio::FSpectrumAnalyzerSettings Settings = USoundSubmix::GetSpectrumAnalyzerSettings(FFTSize, InterpolationMethod, WindowType, HopSize, SpectrumType);
+		FSoundSpectrumAnalyzerSettings Settings = USoundSubmix::GetSpectrumAnalyzerSettings(FFTSize, InterpolationMethod, WindowType, HopSize, SpectrumType);
 		InAudioDevice->StartSpectrumAnalysis(this, Settings);
 	}
 }
@@ -885,88 +889,32 @@ TArray<USoundfieldEffectBase*> USoundfieldEndpointSubmix::GetSoundfieldProcessor
 }
 
 
-Audio::FSpectrumAnalyzerSettings USoundSubmix::GetSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, EAudioSpectrumType AudioSpectrumType)
+FSoundSpectrumAnalyzerSettings USoundSubmix::GetSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, EAudioSpectrumType SpectrumType)
 {
-	Audio::FSpectrumAnalyzerSettings OutSettings;
+	FSoundSpectrumAnalyzerSettings OutSettings;
 
-	switch (FFTSize)
-	{
-	case EFFTSize::DefaultSize:
-		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Default;
-		break;
-	case EFFTSize::Min:
-		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Min_64;
-		break;
-	case EFFTSize::Small:
-		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Small_256;
-		break;
-	case EFFTSize::Medium:
-		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Medium_512;
-		break;
-	case EFFTSize::Large:
-		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Large_1024;
-		break;
-	case EFFTSize::VeryLarge:
-		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::VeryLarge_2048;
-		break;
-	case EFFTSize::Max:
-		OutSettings.FFTSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::TestLarge_4096;
-		break;
-	default:
-		break;
-	}
-
-	switch (InterpolationMethod)
-	{
-	case EFFTPeakInterpolationMethod::NearestNeighbor:
-		OutSettings.InterpolationMethod = Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::NearestNeighbor;
-		break;
-	case EFFTPeakInterpolationMethod::Linear:
-		OutSettings.InterpolationMethod = Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::Linear;
-		break;
-	case EFFTPeakInterpolationMethod::Quadratic:
-		OutSettings.InterpolationMethod = Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::Quadratic;
-		break;
-	case EFFTPeakInterpolationMethod::ConstantQ:
-		OutSettings.InterpolationMethod = Audio::FSpectrumAnalyzerSettings::EPeakInterpolationMethod::ConstantQ;
-	default:
-		break;
-	}
-
-	switch (WindowType)
-	{
-	case EFFTWindowType::None:
-		OutSettings.WindowType = Audio::EWindowType::None;
-		break;
-	case EFFTWindowType::Hamming:
-		OutSettings.WindowType = Audio::EWindowType::Hamming;
-		break;
-	case EFFTWindowType::Hann:
-		OutSettings.WindowType = Audio::EWindowType::Hann;
-		break;
-	case EFFTWindowType::Blackman:
-		OutSettings.WindowType = Audio::EWindowType::Blackman;
-		break;
-	default:
-		break;
-	}
-
-	switch (AudioSpectrumType)
-	{
-	case EAudioSpectrumType::MagnitudeSpectrum:
-		OutSettings.SpectrumType = Audio::FSpectrumAnalyzerSettings::ESpectrumAnalyzerType::Magnitude;
-		break;
-	case EAudioSpectrumType::PowerSpectrum:
-		OutSettings.SpectrumType = Audio::FSpectrumAnalyzerSettings::ESpectrumAnalyzerType::Power;
-		break;
-	case EAudioSpectrumType::Decibel:
-		OutSettings.SpectrumType = Audio::FSpectrumAnalyzerSettings::ESpectrumAnalyzerType::Decibel;
-		break;
-	}
-
+	OutSettings.FFTSize = FFTSize;
+	OutSettings.WindowType = WindowType;
+	OutSettings.InterpolationMethod = InterpolationMethod;
 	OutSettings.HopSize = HopSize;
+	OutSettings.SpectrumType = SpectrumType;
 
 	return OutSettings;
+}
+
+FSoundSpectrumAnalyzerDelegateSettings USoundSubmix::GetSpectrumAnalysisDelegateSettings(const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, float UpdateRate, float DecibelNoiseFloor, bool bDoNormalize, bool bDoAutoRange, float AutoRangeAttackTime, float AutoRangeReleaseTime)
+{
+	FSoundSpectrumAnalyzerDelegateSettings DelegateSettings;
+
+	DelegateSettings.BandSettings = InBandSettings;
+	DelegateSettings.UpdateRate = UpdateRate;
+	DelegateSettings.DecibelNoiseFloor = DecibelNoiseFloor;
+	DelegateSettings.bDoNormalize = bDoNormalize;
+	DelegateSettings.bDoAutoRange = bDoAutoRange;
+	DelegateSettings.AutoRangeAttackTime = AutoRangeAttackTime;
+	DelegateSettings.AutoRangeReleaseTime = AutoRangeReleaseTime;
+
+	return DelegateSettings;
 }
 
 void USoundfieldEndpointSubmix::SanitizeLinks()
