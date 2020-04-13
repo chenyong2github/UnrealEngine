@@ -4,7 +4,6 @@
 
 #include "VirtualTextureDataBuilder.h"
 #include "Modules/ModuleManager.h"
-#include "VT/VirtualTexture.h"
 #include "Modules/ModuleManager.h"
 #include "CrunchCompression.h"
 #include "Async/TaskGraphInterfaces.h"

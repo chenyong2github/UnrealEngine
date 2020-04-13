@@ -1,25 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VT/VirtualTexture.h"
-#include "VT/VirtualTextureBuiltData.h"
-#include "Serialization/MemoryWriter.h"
-#include "LightMap.h"
+
 #include "EngineModule.h"
-#include "RendererInterface.h"
 #include "FileCache/FileCache.h"
+#include "RendererInterface.h"
+#include "Serialization/Archive.h"
+#include "VT/VirtualTextureBuiltData.h"
 #include "EngineModule.h"
 
 static FAutoConsoleCommand GVTFlushAndEvictFileCacheCommand(
 	TEXT("r.VT.FlushAndEvictFileCache"),
-	TEXT("Flush both the virtual texture physcial page cache and disk file cachje"),
+	TEXT("Flush both the virtual texture physcial page cache and disk file cache"),
 	FConsoleCommandDelegate::CreateStatic(
 		[]()
-{
-	IFileCacheHandle::EvictAll();
-	GetRendererModule().FlushVirtualTextureCache();
-})
+	{
+		IFileCacheHandle::EvictAll();
+		GetRendererModule().FlushVirtualTextureCache();
+	})
 );
 
+// Deprecated serialization code
 namespace
 {
 	// Version used to serialize dummy data for UVirtualTexture
@@ -73,7 +74,10 @@ namespace
 	};
 }
 
-UVirtualTexture::UVirtualTexture(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
+UVirtualTexture::UVirtualTexture(const FObjectInitializer& ObjectInitializer) 
+	: Super(ObjectInitializer) 
+{
+}
 
 void UVirtualTexture::Serialize(FArchive& Ar)
 {
@@ -164,28 +168,7 @@ void UVirtualTexture::Serialize(FArchive& Ar)
 	}
 }
 
-ULightMapVirtualTexture::ULightMapVirtualTexture(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
-
-ULightMapVirtualTexture2D::ULightMapVirtualTexture2D(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+ULightMapVirtualTexture::ULightMapVirtualTexture(const FObjectInitializer& ObjectInitializer) 
+	: Super(ObjectInitializer) 
 {
-	VirtualTextureStreaming = true;
-	SetLayerForType(ELightMapVirtualTextureType::HqLayer0, 0u);
-	SetLayerForType(ELightMapVirtualTextureType::HqLayer1, 1u);
-}
-
-void ULightMapVirtualTexture2D::SetLayerForType(ELightMapVirtualTextureType InType, uint8 InLayer)
-{
-	const int TypeIndex = (int)InType;
-	while (TypeIndex >= TypeToLayer.Num())
-	{
-		TypeToLayer.Add(-1);
-	}
-	TypeToLayer[TypeIndex] = InLayer;
-}
-
-uint32 ULightMapVirtualTexture2D::GetLayerForType(ELightMapVirtualTextureType InType) const
-{
-	const int TypeIndex = (int)InType;
-	return (TypeIndex >= TypeToLayer.Num()) ? ~0u : (uint32)TypeToLayer[TypeIndex];
 }
