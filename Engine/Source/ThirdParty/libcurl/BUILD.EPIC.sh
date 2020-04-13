@@ -611,6 +611,7 @@ patch_libcurl()
 	CURL_PATCHES_PATH="$CUR_PATH/patches/$CURL_VERSION"
 	cd libcurl/$CURL_VERSION
 	find "$CURL_PATCHES_PATH" -type f -print0 | xargs -0 -n1 patch -p1 -i 
+	cd -
 }
 build_libcurl()
 {
