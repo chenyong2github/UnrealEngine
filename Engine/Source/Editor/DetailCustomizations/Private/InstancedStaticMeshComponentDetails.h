@@ -7,6 +7,7 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
 
+class FReply; 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class IDetailLayoutBuilder;
