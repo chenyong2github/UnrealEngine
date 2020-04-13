@@ -535,6 +535,11 @@ void UReplicationGraph::AddNetworkActor(AActor* Actor)
 		return;
 	}
 
+	if (NetDriver && !NetDriver->ShouldReplicateActor(Actor))
+	{
+		return;
+	}
+
 	bool bWasAlreadyThere = false;
 	ActiveNetworkActors.Add(Actor, &bWasAlreadyThere);
 	if (bWasAlreadyThere)
