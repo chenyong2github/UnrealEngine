@@ -523,6 +523,17 @@ namespace Audio
 		}
 	}
 
+	void ArraySqrtInPlace(TArrayView<float> InValues)
+	{
+		const int32 Num = InValues.Num();
+		float* InValuesData = InValues.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			InValues[i] = FMath::Sqrt(InValues[i]);
+		}
+	}
+
 	void ArrayMagnitudeToDecibelInPlace(TArrayView<float> InValues, float InMinimumDb)
 	{
 		const int32 Num = InValues.Num();
