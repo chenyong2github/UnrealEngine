@@ -704,7 +704,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		GeneratedData.TilePayload.Empty();
 		GeneratedData.CodecPayload.Empty();
 		GeneratedData.Codec = EVirtualTextureCodec::Max;
-		UE_LOG(LogVirtualTexturingModule, Fatal, TEXT("Failed build tile"));
+		UE_LOG(LogVirtualTexturing, Fatal, TEXT("Failed build tile"));
 	}
 }
 

@@ -11,8 +11,6 @@
 #include "VirtualTexturing.h"
 #include "VirtualTexture.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogVirtualTexturingModule, Log, All);
-
 UCLASS(ClassGroup = Rendering)
 class ENGINE_API UVirtualTexture : public UObject
 {
