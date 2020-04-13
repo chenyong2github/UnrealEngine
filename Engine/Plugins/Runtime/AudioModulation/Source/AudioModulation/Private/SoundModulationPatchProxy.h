@@ -2,7 +2,6 @@
 #pragma once
 
 #include "SoundControlBusProxy.h"
-#include "SoundControlBusMixProxy.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulatorLFOProxy.h"
 
