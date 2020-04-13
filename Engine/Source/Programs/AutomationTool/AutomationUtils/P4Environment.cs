@@ -368,9 +368,26 @@ namespace AutomationTool
 		{
 			CommandUtils.LogVerbose("uebp_CLIENT not set, detecting current client...");
 
-			var MatchingClients = new List<P4ClientInfo>();
+			// Check the default client. If it matches we can save any guess work.
+			IProcessResult Result = CommandUtils.Run(HostPlatform.Current.P4Exe, "set -q P4CLIENT", null, CommandUtils.ERunOptions.NoLoggingOfRunCommand);
+			if (Result.ExitCode == 0)
+			{
+				const string KeyName = "P4CLIENT=";
+				if (Result.Output.StartsWith(KeyName))
+				{
+					string ClientName = Result.Output.Substring(KeyName.Length).Trim();
+					P4ClientInfo ClientInfo = Connection.GetClientInfo(ClientName, true);
+					if (Connection.IsValidClientForFile(ClientInfo, UATLocation))
+					{
+						return ClientInfo;
+					}
+				}
+			}
+
+			// Otherwise search for all clients that match
+			List<P4ClientInfo> MatchingClients = new List<P4ClientInfo>();
 			P4ClientInfo[] P4Clients = Connection.GetClientsForUser(UserName, UATLocation);
-			foreach (var Client in P4Clients)
+			foreach (P4ClientInfo Client in P4Clients)
 			{
 				if (!String.IsNullOrEmpty(Client.Host) && String.Compare(Client.Host, HostName, true) != 0)
 				{
@@ -393,7 +410,7 @@ namespace AutomationTool
 			else
 			{
 				// We may have empty host clients here, so pick the first non-empty one if possible
-				foreach (var Client in MatchingClients)
+				foreach (P4ClientInfo Client in MatchingClients)
 				{
 					if (!String.IsNullOrEmpty(Client.Host) && String.Compare(Client.Host, HostName, true) == 0)
 					{
