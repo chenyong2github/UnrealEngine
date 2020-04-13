@@ -192,10 +192,6 @@ namespace UE4PushModelPrivate
 				// The macros will take care of filtering out invalid objects, so we don't need to check here.
 				PerObjectStates[ObjectIndex].MarkPropertyDirty(RepIndex);
 			}
-			else
-			{
-				ensure(false);
-			}
 		}
 
 		void MarkPropertyDirty(const FNetPushObjectId ObjectId, const int32 StartRepIndex, const int32 EndRepIndex)
@@ -208,10 +204,6 @@ namespace UE4PushModelPrivate
 				{
 					ObjectState.MarkPropertyDirty(RepIndex);
 				}
-			}
-			else
-			{
-				ensure(false);
 			}
 		}
 
