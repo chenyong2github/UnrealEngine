@@ -81,7 +81,7 @@
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/DemoNetDriver.h"
 #include "Modules/ModuleManager.h"
-#include "VT/VirtualTexture.h" 
+#include "VT/LightmapVirtualTexture.h" 
 #include "Interfaces/Interface_PostProcessVolume.h"
 
 #include "Materials/MaterialParameterCollectionInstance.h"
