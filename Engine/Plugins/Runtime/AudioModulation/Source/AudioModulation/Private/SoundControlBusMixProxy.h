@@ -2,7 +2,7 @@
 #pragma once
 
 #include "IAudioModulation.h"
-#include "SoundModulationPatchProxy.h"
+#include "SoundControlBusProxy.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulationValue.h"
 #include "SoundModulatorLFOProxy.h"
