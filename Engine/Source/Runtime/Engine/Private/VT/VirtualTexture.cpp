@@ -9,8 +9,6 @@
 #include "FileCache/FileCache.h"
 #include "EngineModule.h"
 
-DEFINE_LOG_CATEGORY(LogVirtualTexturingModule);
-
 static FAutoConsoleCommand GVTFlushAndEvictFileCacheCommand(
 	TEXT("r.VT.FlushAndEvictFileCache"),
 	TEXT("Flush both the virtual texture physcial page cache and disk file cachje"),
