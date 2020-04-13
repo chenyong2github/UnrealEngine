@@ -53,7 +53,7 @@ public:
     mtlpp::PurgeableState SetPurgeableState(mtlpp::PurgeableState state);
 	void FreeRange(ns::Range const& Range);
 
-    void SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owner);
+    void SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owner, bool bIsSwap);
 
 private:
     struct Allocation

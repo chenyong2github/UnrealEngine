@@ -156,11 +156,11 @@ void FMetalBuffer::Release()
 	}
 }
 
-void FMetalBuffer::SetOwner(class FMetalRHIBuffer* Owner)
+void FMetalBuffer::SetOwner(class FMetalRHIBuffer* Owner, bool bIsSwap)
 {
 	if (Heap)
 	{
-		Heap->SetOwner(ns::Range(GetOffset(), GetLength()), Owner);
+		Heap->SetOwner(ns::Range(GetOffset(), GetLength()), Owner, bIsSwap);
 	}
 }
 
@@ -219,7 +219,7 @@ FMetalSubBufferHeap::~FMetalSubBufferHeap()
 	}
 }
 
-void FMetalSubBufferHeap::SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owner)
+void FMetalSubBufferHeap::SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owner, bool bIsSwap)
 {
 	FScopeLock Lock(&PoolMutex);
 	for (uint32 i = 0; i < AllocRanges.Num(); i++)
@@ -227,7 +227,7 @@ void FMetalSubBufferHeap::SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owne
 		if (AllocRanges[i].Range.Location == Range.Location)
 		{
 			check(AllocRanges[i].Range.Length == Range.Length);
-			check(AllocRanges[i].Owner == nullptr || Owner == nullptr);
+			check(AllocRanges[i].Owner == nullptr || Owner == nullptr || bIsSwap);
 			AllocRanges[i].Owner = Owner;
 			break;
 		}

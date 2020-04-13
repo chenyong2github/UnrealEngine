@@ -42,7 +42,7 @@ void SafeReleaseMetalBuffer(FMetalBuffer& Buffer)
 {
 	if(GIsMetalInitialized && GDynamicRHI && Buffer)
 	{
-		Buffer.SetOwner(nullptr);
+		Buffer.SetOwner(nullptr, false);
 		FMetalRHICommandContext* Context = static_cast<FMetalRHICommandContext*>(RHIGetDefaultContext());
 		if(Context)
 		{

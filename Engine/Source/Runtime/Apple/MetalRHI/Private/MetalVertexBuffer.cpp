@@ -95,8 +95,8 @@ void FMetalVertexBuffer::Swap(FMetalVertexBuffer& Other)
 void FMetalRHIBuffer::Swap(FMetalRHIBuffer& Other)
 {
 	::Swap(*this, Other);
-	Other.Buffer.SetOwner(&Other);
-	Buffer.SetOwner(this);
+	Other.Buffer.SetOwner(&Other, true);
+	Buffer.SetOwner(this, true);
 }
 
 static bool CanUsePrivateMemory()
@@ -245,7 +245,7 @@ void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode)
 		Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
 		METAL_FATAL_ASSERT(Buffer, TEXT("Failed to create buffer of size %u and storage mode %u"), InSize, (uint32)Mode);
 
-        Buffer.SetOwner(this);
+        Buffer.SetOwner(this, false);
 
         METAL_INC_DWORD_STAT_BY(Type, MemAlloc, InSize);
         
@@ -269,7 +269,7 @@ void FMetalRHIBuffer::AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, ERes
 	{
 		FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), InSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
         CPUBuffer = GetMetalDeviceContext().CreatePooledBuffer(ArgsCPU);
-		CPUBuffer.SetOwner(this);
+		CPUBuffer.SetOwner(this, false);
         check(CPUBuffer && CPUBuffer.GetPtr());
         METAL_INC_DWORD_STAT_BY(Type, MemAlloc, InSize);
         METAL_FATAL_ASSERT(CPUBuffer, TEXT("Failed to create buffer of size %u and storage mode %u"), InSize, (uint32)mtlpp::StorageMode::Shared);
