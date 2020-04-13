@@ -26,10 +26,6 @@ TAutoConsoleVariable<int32> CVarAboveNormalAudioThreadPri(TEXT("AudioThread.Abov
 int32 GCVarEnableAudioCommandLogging = 0;
 TAutoConsoleVariable<int32> CVarEnableAudioCommandLogging(TEXT("AudioThread.EnableAudioCommandLogging"), GCVarEnableAudioCommandLogging, TEXT("0=Disbaled, 1=Enabled"), ECVF_Default);
 
-int32 GCVarAudioThreadWaitWarningThresholdMs = 33;
-TAutoConsoleVariable<int32> CVarAudioThreadWaitWarningThresholdMs(TEXT("AudioThread.WaitWarningThresholdMs"), GCVarAudioThreadWaitWarningThresholdMs, TEXT("Sets number of ms to wait before logging audio thread stall."), ECVF_Default);
-
-
 static int32 GCVarEnableBatchProcessing = 1;
 TAutoConsoleVariable<int32> CVarEnableBatchProcessing(
 	TEXT("AudioThread.EnableBatchProcessing"),
