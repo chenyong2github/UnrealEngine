@@ -31,11 +31,11 @@ class UVirtualTexture2D : public UTexture2D
 {
 	GENERATED_UCLASS_BODY()
 
-		UPROPERTY()
-		FVirtualTextureBuildSettings Settings;
+	UPROPERTY()
+	FVirtualTextureBuildSettings Settings;
 
 	UPROPERTY()
-		bool bSinglePhysicalSpace;
+	bool bSinglePhysicalSpace;
 
 	//~ Begin UTexture Interface.
 	virtual void GetVirtualTextureBuildSettings(FVirtualTextureBuildSettings& OutSettings) const override { OutSettings = Settings; }
