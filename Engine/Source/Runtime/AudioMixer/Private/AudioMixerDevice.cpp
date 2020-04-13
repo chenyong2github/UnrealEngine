@@ -1818,7 +1818,7 @@ namespace Audio
 	}
 
 
-	void FMixerDevice::StartSpectrumAnalysis(USoundSubmix* InSubmix, const Audio::FSpectrumAnalyzerSettings& InSettings)
+	void FMixerDevice::StartSpectrumAnalysis(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerSettings& InSettings)
 	{
 		if (!IsInAudioThread())
 		{
@@ -1915,16 +1915,17 @@ namespace Audio
 		}
 	}
 
-	void FMixerDevice::AddSpectralAnalysisDelegate(USoundSubmix* InSubmix, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, float UpdateRate)
+	void FMixerDevice::AddSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP)
 	{
+
 		if (!IsInAudioThread())
 		{
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AddSpectralAnalysisDelegate"), STAT_AddSpectralAnalysisDelegate, STATGROUP_AudioThreadCommands);
 
-			FAudioThread::RunCommandOnAudioThread([this, InSubmix, InBandSettings, OnSubmixSpectralAnalysisBP, UpdateRate]()
+			FAudioThread::RunCommandOnAudioThread([this, InSubmix, InDelegateSettings, OnSubmixSpectralAnalysisBP]()
 			{
 				CSV_SCOPED_TIMING_STAT(Audio, AddSpectralAnalysisDelegate);
-				AddSpectralAnalysisDelegate(InSubmix, InBandSettings, OnSubmixSpectralAnalysisBP, UpdateRate);
+				AddSpectralAnalysisDelegate(InSubmix, InDelegateSettings, OnSubmixSpectralAnalysisBP);
 			}, GET_STATID(STAT_AddSpectralAnalysisDelegate));
 			return;
 		}
@@ -1941,7 +1942,7 @@ namespace Audio
 
 		if (ensure(FoundSubmix.IsValid()))
 		{
-			FoundSubmix->AddSpectralAnalysisDelegate(OnSubmixSpectralAnalysisBP, InBandSettings, UpdateRate);
+			FoundSubmix->AddSpectralAnalysisDelegate(InDelegateSettings, OnSubmixSpectralAnalysisBP);
 		}
 	}
 

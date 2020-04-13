@@ -195,13 +195,13 @@ namespace Audio
 		void AddEnvelopeFollowerDelegate(const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP);
 
 		// Initializes a new FFT analyzer for this submix and immediately begins feeding audio to it.
-		void StartSpectrumAnalysis(const FSpectrumAnalyzerSettings& InSettings);
+		void StartSpectrumAnalysis(const FSoundSpectrumAnalyzerSettings& InSettings);
 
 		// Terminates whatever FFT Analyzer is being used for this submix.
 		void StopSpectrumAnalysis();
 
 		// Adds an spectral analysis delegate
-		void AddSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, float UpdateRate);
+		void AddSpectralAnalysisDelegate(const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
 
 		// Removes an existing spectral analysis delegate
 		void RemoveSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
@@ -452,6 +452,7 @@ namespace Audio
 		FCriticalSection EnvelopeCriticalSection;
 
 		// Spectrum analyzer:
+		FSoundSpectrumAnalyzerSettings SpectrumAnalyzerSettings;
 		TUniquePtr<FSpectrumAnalyzer> SpectrumAnalyzer;
 		
 		// This buffer is used to downmix the submix output to mono before submitting it to the SpectrumAnalyzer.
@@ -490,13 +491,14 @@ namespace Audio
 		struct FSpectralAnalysisBandInfo
 		{
 			FEnvelopeFollower EnvelopeFollower;
-			float BandFrequency = 0.0f;
-			float QFactor = 1.f;
 		};
 
 		struct FSpectrumAnalysisDelegateInfo
 		{
+			FSoundSpectrumAnalyzerDelegateSettings DelegateSettings;
+
 			FOnSubmixSpectralAnalysis OnSubmixSpectralAnalysis;
+
 			TUniquePtr<ISpectrumBandExtractor> SpectrumBandExtractor;
 			TArray<FSpectralAnalysisBandInfo> SpectralBands;
 
@@ -511,6 +513,7 @@ namespace Audio
 			{
 				OnSubmixSpectralAnalysis = Other.OnSubmixSpectralAnalysis;
 				SpectrumBandExtractor.Reset(Other.SpectrumBandExtractor.Release());
+				DelegateSettings = Other.DelegateSettings;
 				SpectralBands = Other.SpectralBands;
 			}
 
