@@ -3,7 +3,7 @@
 #include "LightmapUniformShaderParameters.h"
 #include "SceneManagement.h"
 #include "LightMap.h"
-#include "VT/VirtualTexture.h"
+#include "VT/LightmapVirtualTexture.h"
 #include "UnrealEngine.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPrecomputedLightingUniformParameters, "PrecomputedLightingBuffer");

@@ -19,6 +19,7 @@
 #include "UObject/Package.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "VT/LightmapVirtualTexture.h"
 #include "VT/VirtualTexture.h"
 #include "EngineModule.h"
 #include "Misc/PackageName.h"

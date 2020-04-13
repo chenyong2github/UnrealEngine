@@ -5,7 +5,6 @@
 #include "RHI.h"
 #include "ScreenRendering.h"
 #include "UploadingVirtualTexture.h"
-#include "VT/VirtualTexture.h"
 #include "VirtualTextureBuiltData.h"
 #include "BlockCodingHelpers.h"
 #include "CrunchCompression.h"

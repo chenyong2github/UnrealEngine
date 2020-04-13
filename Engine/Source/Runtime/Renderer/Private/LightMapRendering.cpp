@@ -8,10 +8,6 @@ LightMapRendering.cpp: Light map rendering implementations.
 #include "ScenePrivate.h"
 #include "PrecomputedVolumetricLightmap.h"
 
-#include "Runtime/Engine/Classes/VT/VirtualTexture.h"
-#include "Runtime/Renderer/Private/VT/VirtualTextureSpace.h"
-#include "VT/VirtualTextureSpace.h"
-
 IMPLEMENT_TYPE_LAYOUT(FUniformLightMapPolicyShaderParametersType);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FIndirectLightingCacheUniformParameters, "IndirectLightingCache");
