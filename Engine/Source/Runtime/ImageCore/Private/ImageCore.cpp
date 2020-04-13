@@ -120,24 +120,43 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::RGBA16:
 			{
 				uint16* DestColors = DestImage.AsRGBA16();
-				for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
 				{
-					int64 DestIndex = TexelIndex * 4;
-					DestColors[DestIndex + 0] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].R * 65535.999f), 0, 65535);
-					DestColors[DestIndex + 1] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].G * 65535.999f), 0, 65535);
-					DestColors[DestIndex + 2] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].B * 65535.999f), 0, 65535);
-					DestColors[DestIndex + 3] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].A * 65535.999f), 0, 65535);
-				}
+					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+					{
+						int64 DestIndex = TexelIndex * 4;
+						DestColors[DestIndex + 0] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].R * 65535.999f), 0, 65535);
+						DestColors[DestIndex + 1] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].G * 65535.999f), 0, 65535);
+						DestColors[DestIndex + 2] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].B * 65535.999f), 0, 65535);
+						DestColors[DestIndex + 3] = FMath::Clamp(FMath::FloorToInt(SrcColors[TexelIndex].A * 65535.999f), 0, 65535);
+					}
+				});
 			}
 			break;
 		
 		case ERawImageFormat::RGBA16F:
 			{
 				FFloat16Color* DestColors = DestImage.AsRGBA16F();
-				for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
 				{
-					DestColors[TexelIndex] = FFloat16Color(SrcColors[TexelIndex]);
-				}
+					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+					{
+						DestColors[TexelIndex] = FFloat16Color(SrcColors[TexelIndex]);
+					}
+				});
+			}
+			break;
+
+		case ERawImageFormat::R16F:
+			{
+				FFloat16* DestColors = DestImage.AsR16F();
+				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
+				{
+					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+					{
+						DestColors[TexelIndex] = FFloat16(SrcColors[TexelIndex].R);
+					}
+				});
 			}
 			break;
 		}
@@ -253,6 +272,16 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 				}
 			}
 			break;
+
+		case ERawImageFormat::R16F:
+		{
+			const FFloat16* SrcColors = SrcImage.AsR16F();
+			for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+			{
+				DestColors[TexelIndex] = FLinearColor(SrcColors[TexelIndex].GetFloat(), 0, 0, 1);
+			}
+		}
+		break;
 		}
 	}
 	else
@@ -414,6 +443,7 @@ int32 FImage::GetBytesPerPixel() const
 		break;
 	
 	case ERawImageFormat::G16:
+	case ERawImageFormat::R16F:
 		BytesPerPixel = 2;
 		break;
 

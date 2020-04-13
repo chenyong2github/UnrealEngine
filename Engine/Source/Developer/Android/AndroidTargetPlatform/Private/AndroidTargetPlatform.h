@@ -64,6 +64,7 @@ namespace AndroidTexFormat
 	static FName NameG8(TEXT("G8"));
 	static FName NameVU8(TEXT("VU8"));
 	static FName NameRGBA16F(TEXT("RGBA16F"));
+	static FName NameR16F(TEXT("R16F"));
 
 	// Error "formats" (uncompressed)
 	static FName NamePOTERROR(TEXT("POTERROR"));
