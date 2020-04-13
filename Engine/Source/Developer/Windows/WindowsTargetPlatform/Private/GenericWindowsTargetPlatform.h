@@ -280,6 +280,7 @@ public:
 		static FName NameG16(TEXT("G16"));
 		static FName NameVU8(TEXT("VU8"));
 		static FName NameRGBA16F(TEXT("RGBA16F"));
+		static FName NameR16F(TEXT("R16F"));
 		static FName NameBC6H(TEXT("BC6H"));
 		static FName NameBC7(TEXT("BC7"));
 
@@ -353,6 +354,10 @@ public:
 		else if (Settings == TC_BC7)
 		{
 			TextureFormatName = NameBC7;
+		}
+		else if (Settings == TC_HalfFloat)
+		{
+			TextureFormatName = NameR16F;
 		}
 		else if (bNoAlpha)
 		{
