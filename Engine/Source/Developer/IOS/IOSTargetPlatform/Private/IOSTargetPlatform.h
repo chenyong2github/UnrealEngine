@@ -20,7 +20,6 @@
 #if WITH_ENGINE
 #include "AudioCompressionSettings.h"
 #include "StaticMeshResources.h"
-#include "SkeletalMeshDefaultLODStreamingSettings.h"
 #endif // WITH_ENGINE
 
 /**
@@ -114,11 +113,6 @@ public:
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings( ) const override
 	{
 		return StaticMeshLODSettings;
-	}
-
-	virtual const FSkeletalMeshDefaultLODStreamingSettings& GetSkeletalMeshDefaultLODStreamingSettings() const override
-	{
-		return SkeletalMeshDefaultLODStreamingSettings;
 	}
 
 	virtual void GetTextureFormats( const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const override;
@@ -218,8 +212,6 @@ private:
 
 	// Holds the static mesh LOD settings.
 	FStaticMeshLODSettings StaticMeshLODSettings;
-
-	FSkeletalMeshDefaultLODStreamingSettings SkeletalMeshDefaultLODStreamingSettings;
 #endif // WITH_ENGINE
 
     // holds usb device helper

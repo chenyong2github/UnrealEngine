@@ -19,7 +19,6 @@
 
 #if WITH_ENGINE
 #include "StaticMeshResources.h"
-#include "SkeletalMeshDefaultLODStreamingSettings.h"
 #endif // WITH_ENGINE
 
 #define LOCTEXT_NAMESPACE "HoloLensTargetPlatform"
@@ -70,8 +69,6 @@ public:
 	virtual void GetReflectionCaptureFormats(TArray<FName>& OutFormats) const override;
 
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings() const override { return StaticMeshLODSettings; }
-
-	virtual const FSkeletalMeshDefaultLODStreamingSettings& GetSkeletalMeshDefaultLODStreamingSettings() const override { return SkeletalMeshDefaultLODStreamingSettings; }
 
 	virtual void GetTextureFormats(const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override;
 
@@ -173,8 +170,6 @@ private:
 
 	// Holds the static mesh LOD settings.
 	FStaticMeshLODSettings StaticMeshLODSettings;
-
-	FSkeletalMeshDefaultLODStreamingSettings SkeletalMeshDefaultLODStreamingSettings;
 #endif //WITH_ENGINE
 
 private:
