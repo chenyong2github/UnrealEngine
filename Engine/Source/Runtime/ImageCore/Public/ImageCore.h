@@ -24,7 +24,8 @@ namespace ERawImageFormat
 		RGBA16,
 		RGBA16F,
 		RGBA32F,
-		G16
+		G16,
+		R16F,
 	};
 };
 
@@ -179,6 +180,12 @@ public:
 		return (struct FLinearColor*)RawData.GetData();
 	}
 
+	class FFloat16* AsR16F()
+	{
+		check(Format == ERawImageFormat::R16F);
+		return (class FFloat16*)RawData.GetData();
+	}
+
 	// Convenience accessors to const raw data
 
 	const uint8* AsG8() const
@@ -221,6 +228,12 @@ public:
 	{
 		check(Format == ERawImageFormat::RGBA32F);
 		return (struct FLinearColor*)RawData.GetData();
+	}
+
+	const class FFloat16* AsR16F() const
+	{
+		check(Format == ERawImageFormat::R16F);
+		return (const class FFloat16*)RawData.GetData();
 	}
 
 	FORCEINLINE bool IsGammaCorrected() const
