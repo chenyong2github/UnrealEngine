@@ -393,7 +393,7 @@ public:
 	inline bool IsPooled() const { return bPooled; }
 	inline bool IsSingleUse() const { return bSingleUse; }
 	inline void MarkSingleUse() { bSingleUse = true; }
-    void SetOwner(class FMetalRHIBuffer* Owner);
+    void SetOwner(class FMetalRHIBuffer* Owner, bool bIsSwap);
 	void Release();
 	
 	friend uint32 GetTypeHash(FMetalBuffer const& Hash)
