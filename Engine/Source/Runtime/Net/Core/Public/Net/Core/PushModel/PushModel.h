@@ -340,12 +340,7 @@ namespace UE4PushModelPrivate
 	 */
 	NETCORE_API void MarkPropertyDirty(const FNetPushObjectId ObjectId, const int32 StartRepIndex, const int32 EndRepIndex);
 
-	/**
-	 * This method is called by all NetDriver's PostGarbageCollection.
-	 * It's required in order to give PushModel a chance to do any cleanup work.
-	 */
-	NETCORE_API void PostGarbageCollect();
-	
+
 	NETCORE_API const FPushModelPerNetDriverHandle AddPushModelObject(const FNetPushObjectId ObjectId, const uint16 NumberOfReplicatedProperties);
 	NETCORE_API void RemovePushModelObject(const FPushModelPerNetDriverHandle Handle);
 
@@ -354,8 +349,6 @@ namespace UE4PushModelPrivate
 
 
 #define CONDITIONAL_ON_PUSH_MODEL(Work) if (UE4PushModelPrivate::IsPushModelEnabled()) { Work; }
-#define CALL_PUSH_MODEL_PREREPLICATION() CONDITIONAL_ON_PUSH_MODEL(UE4PushModelPrivate::PreReplication();)
-#define CALL_PUSH_MODEL_POSTGARBAGECOLLECT() CONDITIONAL_ON_PUSH_MODEL(UE4PushModelPrivate::PostGarbageCollect();)
 #define IS_PUSH_MODEL_ENABLED() UE4PushModelPrivate::IsPushModelEnabled()
 #define PUSH_MAKE_BP_PROPERTIES_PUSH_MODEL() (UE4PushModelPrivate::IsPushModelEnabled() && UE4PushModelPrivate::MakeBpPropertiesPushModel())
 
@@ -366,9 +359,9 @@ namespace UE4PushModelPrivate
 
 #define IS_PROPERTY_REPLICATED(Property) (0 != (EPropertyFlags::CPF_Net & Property->PropertyFlags))
 
-#define CONDITIONAL_ON_OBJECT_NET_ID(Object, Work) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushId(); if (INDEX_NONE != PrivatePushId) { Work; } }
-#define CONDITIONAL_ON_OBJECT_NET_ID_DYNAMIC(Object, Work) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic(); if (INDEX_NONE != PrivatePushId) { Work; } }
-#define CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, Work) if (IS_PROPERTY_REPLICATED(Property)) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic(); if (PrivatePushId != INDEX_NONE) { Work; } }
+#define CONDITIONAL_ON_OBJECT_NET_ID(Object, Work) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushId(); Work; }
+#define CONDITIONAL_ON_OBJECT_NET_ID_DYNAMIC(Object, Work) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic(); Work; }
+#define CONDITIONAL_ON_REP_INDEX_AND_OBJECT_NET_ID(Object, Property, Work) if (IS_PROPERTY_REPLICATED(Property)) { const UE4PushModelPrivate::FNetPushObjectId PrivatePushId = Object->GetNetPushIdDynamic();  Work; }
 
 //~ For these macros, we won't bother checking if Push Model is enabled. Instead, we'll just check to see whether or not the Custom ID is valid.
 
@@ -412,8 +405,5 @@ namespace UE4PushModelPrivate
 
 #define IS_PUSH_MODEL_ENABLED() false
 #define PUSH_MAKE_BP_PROPERTIES_PUSH_MODEL() false
-
-#define CALL_PUSH_MODEL_PREREPLICATION() 
-#define CALL_PUSH_MODEL_POSTGARBAGECOLLECT() 
 
 #endif
