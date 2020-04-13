@@ -24,7 +24,6 @@ FHoloLensTargetPlatform::FHoloLensTargetPlatform()
 	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName());
 	TextureLODSettings = nullptr; // These are registered by the device profile system.
 	StaticMeshLODSettings.Initialize(EngineSettings);
-	SkeletalMeshDefaultLODStreamingSettings.Initialize(EngineSettings);
 #endif
 
 	DeviceDetector = IHoloLensDeviceDetector::Create();
