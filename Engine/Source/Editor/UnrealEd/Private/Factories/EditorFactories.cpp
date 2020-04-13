@@ -217,8 +217,8 @@
 
 #include "Animation/DebugSkelMeshComponent.h"
 
-#include "VT/RuntimeVirtualTexture.h"
-#include "VT/RuntimeVirtualTextureStreamingProxy.h"
+#include "VT/VirtualTexture.h"
+#include "VT/VirtualTextureBuilder.h"
 
 #if PLATFORM_WINDOWS
 	// Needed for DDS support.
@@ -4897,10 +4897,10 @@ UTextureExporterBMP::UTextureExporterBMP(const FObjectInitializer& ObjectInitial
 
 UTexture2D* UTextureExporterBMP::GetExportTexture(UObject* Object) const
 {
-	URuntimeVirtualTexture* RuntimeVirtualTexture = Cast<URuntimeVirtualTexture>(Object);
-	if (RuntimeVirtualTexture != nullptr && RuntimeVirtualTexture->GetStreamingTexture() != nullptr)
+	UVirtualTextureBuilder* VirtualTextureBuilder = Cast<UVirtualTextureBuilder>(Object);
+	if (VirtualTextureBuilder != nullptr)
 	{
-		return RuntimeVirtualTexture->GetStreamingTexture();
+		return VirtualTextureBuilder->Texture;
 	}
 	return Cast<UTexture2D>(Object);
 }
@@ -4957,7 +4957,7 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 	int32 SizeX = Texture->Source.GetSizeX();
 	int32 SizeY = Texture->Source.GetSizeY();
 	TArray64<uint8> RawData;
-	Texture->Source.GetMipData(RawData, LayerIndex, 0);
+	Texture->Source.GetMipData(RawData, 0, LayerIndex, 0);
 
 	FBitmapFileHeader bmf;
 	FBitmapInfoHeader bmhdr;
@@ -5019,14 +5019,13 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 	return true;
 }
 
-URuntimeVirtualTextureExporterBMP::URuntimeVirtualTextureExporterBMP(const FObjectInitializer& ObjectInitializer)
+UVirtualTextureBuilderExporterBMP::UVirtualTextureBuilderExporterBMP(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = URuntimeVirtualTexture::StaticClass();
+	SupportedClass = UVirtualTextureBuilder::StaticClass();
 	PreferredFormatIndex = 0;
 	FormatExtension.Add(TEXT("BMP"));
 	FormatDescription.Add(TEXT("Windows Bitmap"));
-
 }
 
 /*------------------------------------------------------------------------------
