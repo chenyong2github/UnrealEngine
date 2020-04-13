@@ -23,7 +23,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatUncompressed, Log, All);
 	op(RGBA16F) \
 	op(XGXR8) \
 	op(RGBA8) \
-	op(POTERROR)
+	op(POTERROR) \
+	op(R16F)
 
 #define DECL_FORMAT_NAME(FormatName) static FName GTextureFormatName##FormatName = FName(TEXT(#FormatName));
 ENUM_SUPPORTED_FORMATS(DECL_FORMAT_NAME);
@@ -205,6 +206,19 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = PF_FloatRGBA;
+			OutCompressedImage.RawData = Image.RawData;
+
+			return true;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameR16F)
+		{
+			FImage Image;
+			InImage.CopyTo(Image, ERawImageFormat::R16F, EGammaSpace::Linear);
+
+			OutCompressedImage.SizeX = Image.SizeX;
+			OutCompressedImage.SizeY = Image.SizeY;
+			OutCompressedImage.SizeZ = BuildSettings.bVolume ? Image.NumSlices : 1;
+			OutCompressedImage.PixelFormat = PF_R16F;
 			OutCompressedImage.RawData = Image.RawData;
 
 			return true;

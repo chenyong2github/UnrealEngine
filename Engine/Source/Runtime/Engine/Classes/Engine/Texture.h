@@ -39,6 +39,7 @@ enum TextureCompressionSettings
 	TC_DistanceFieldFont		UMETA(DisplayName="DistanceFieldFont (R8)"),
 	TC_HDR_Compressed			UMETA(DisplayName="HDRCompressed (RGB, BC6H, DX11)"),
 	TC_BC7						UMETA(DisplayName="BC7 (DX11, optional A)"),
+	TC_HalfFloat				UMETA(DisplayName="Half Float (R16F)"),
 	TC_MAX,
 };
 
