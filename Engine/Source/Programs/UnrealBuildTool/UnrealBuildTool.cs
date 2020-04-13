@@ -144,15 +144,16 @@ namespace UnrealBuildTool
 
 		// cached dictionary of BaseDir to extension directories
 		private static Dictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>> CachedExtensionDirectories = new Dictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>>();
-		
+
 		/// <summary>
 		/// Finds all the extension directories for the given base directory. This includes platform extensions and restricted folders.
 		/// </summary>
 		/// <param name="BaseDir">Location of the base directory</param>
 		/// <param name="bIncludePlatformDirectories">If true, platform subdirectories are included (will return platform directories under Restricted dirs, even if bIncludeRestrictedDirectories is false)</param>
 		/// <param name="bIncludeRestrictedDirectories">If true, restricted (NotForLicensees, NoRedist) subdirectories are included</param>
+		/// <param name="bIncludeBaseDirectory">If true, BaseDir is included</param>
 		/// <returns>List of extension directories, including the given base directory</returns>
-		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, bool bIncludePlatformDirectories=true, bool bIncludeRestrictedDirectories=true)
+		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, bool bIncludePlatformDirectories=true, bool bIncludeRestrictedDirectories=true, bool bIncludeBaseDirectory=true)
 		{
 			Tuple<List<DirectoryReference>, List<DirectoryReference>> CachedDirs;
 			if (!CachedExtensionDirectories.TryGetValue(BaseDir, out CachedDirs))
@@ -186,7 +187,11 @@ namespace UnrealBuildTool
 			}
 
 			// now return what the caller wanted (always include BaseDir)
-			List<DirectoryReference> ExtensionDirs = new List<DirectoryReference> { BaseDir };
+			List<DirectoryReference> ExtensionDirs = new List<DirectoryReference>();
+			if (bIncludeBaseDirectory)
+			{
+				ExtensionDirs.Add(BaseDir);
+			}
 			if (bIncludePlatformDirectories)
 			{
 				ExtensionDirs.AddRange(CachedDirs.Item1);
@@ -205,10 +210,11 @@ namespace UnrealBuildTool
 		/// <param name="SubDir">The subdirectory to find</param>
 		/// <param name="bIncludePlatformDirectories">If true, platform subdirectories are included (will return platform directories under Restricted dirs, even if bIncludeRestrictedDirectories is false)</param>
 		/// <param name="bIncludeRestrictedDirectories">If true, restricted (NotForLicensees, NoRedist) subdirectories are included</param>
+		/// <param name="bIncludeBaseDirectory">If true, BaseDir is included</param>
 		/// <returns>List of extension directories, including the given base directory</returns>
-		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, string SubDir, bool bIncludePlatformDirectories = true, bool bIncludeRestrictedDirectories = true)
+		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, string SubDir, bool bIncludePlatformDirectories=true, bool bIncludeRestrictedDirectories=true, bool bIncludeBaseDirectory=true)
 		{
-			return GetExtensionDirs(BaseDir, bIncludePlatformDirectories, bIncludeRestrictedDirectories).Select(x => DirectoryReference.Combine(x, SubDir)).Where(x => DirectoryReference.Exists(x)).ToList();
+			return GetExtensionDirs(BaseDir, bIncludePlatformDirectories, bIncludeRestrictedDirectories, bIncludeBaseDirectory).Select(x => DirectoryReference.Combine(x, SubDir)).Where(x => DirectoryReference.Exists(x)).ToList();
 		}
 
 		/// <summary>

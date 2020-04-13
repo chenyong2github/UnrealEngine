@@ -241,16 +241,8 @@ namespace UnrealBuildTool
 			WhitelistRestrictedFolders = new HashSet<DirectoryReference>(Rules.WhitelistRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
 			AliasRestrictedFolders = new Dictionary<string, string>(Rules.AliasRestrictedFolders);
 
-			// merge the main directory and any others set in the Rules
-			List<DirectoryReference> MergedDirectories = new List<DirectoryReference> { ModuleDirectory };
-			DirectoryReference[] ExtraModuleDirectories = Rules.GetModuleDirectoriesForAllSubClasses();
-			if (ExtraModuleDirectories != null)
-			{
-				MergedDirectories.AddRange(ExtraModuleDirectories);
-			}
-
-			// cache the results (it will always at least have the ModuleDirectory)
-			ModuleDirectories = MergedDirectories.ToArray();
+			// get the module directories from the module
+			ModuleDirectories = Rules.GetAllModuleDirectories();
 		}
 
 		/// <summary>
