@@ -223,6 +223,16 @@ IMessageSanitizerPtr FOnlineSubsystemImpl::GetMessageSanitizer(int32 LocalUserNu
 	{
 		MessageSanitizer = SanitizerSubsystem->GetMessageSanitizer(LocalUserNum, OutAuthTypeToExclude);
 	}
+
+	if (!MessageSanitizer && FParse::Param(FCommandLine::Get(), TEXT("testsanitizer")))
+	{
+		SanitizerSubsystem = IOnlineSubsystem::Get(NULL_SUBSYSTEM);
+		if (SanitizerSubsystem)
+		{
+			return SanitizerSubsystem->GetMessageSanitizer(LocalUserNum, OutAuthTypeToExclude);
+		}
+	}
+
 	return MessageSanitizer;
 }
 
