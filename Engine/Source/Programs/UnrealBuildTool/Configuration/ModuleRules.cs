@@ -484,6 +484,11 @@ namespace UnrealBuildTool
 		internal Dictionary<Type, DirectoryReference> DirectoriesForModuleSubClasses;
 
 		/// <summary>
+		/// Additional directories that contribute to this module but are not based on a subclass (NotForLicensees, etc)
+		/// </summary>
+		private List<DirectoryReference> AdditionalModuleDirectories = new List<DirectoryReference>();
+
+		/// <summary>
 		/// Plugin containing this module
 		/// </summary>
 		internal PluginInfo Plugin;
@@ -1350,12 +1355,32 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns the directories for all subclasses of this module
+		/// Returns the directories for all subclasses of this module, as well as any additional directories specified by the rules
 		/// </summary>
 		/// <returns>List of directories, or null if none were added</returns>
-		public DirectoryReference[] GetModuleDirectoriesForAllSubClasses()
+		public DirectoryReference[] GetAllModuleDirectories()
 		{
-			return DirectoriesForModuleSubClasses == null ? null : DirectoriesForModuleSubClasses.Values.ToArray();
+			List<DirectoryReference> AllDirectories = new List<DirectoryReference> { Directory };
+			AllDirectories.AddRange(AdditionalModuleDirectories);
+
+			if (DirectoriesForModuleSubClasses != null)
+			{
+				AllDirectories.AddRange(DirectoriesForModuleSubClasses.Values);
+			}
+
+			return AllDirectories.ToArray();
+		}
+
+		/// <summary>
+		/// Adds an additional module directory, if it exists (useful for NotForLicensees/NoRedist)
+		/// </summary>
+		/// <param name="Directory"></param>
+		protected void ConditionalAddModuleDirectory(DirectoryReference Directory)
+		{
+			if (DirectoryReference.Exists(Directory))
+			{
+				AdditionalModuleDirectories.Add(Directory);
+			}
 		}
 	}
 }
