@@ -3334,8 +3334,6 @@ void UNetDriver::PostGarbageCollect()
 			It.RemoveCurrent();
 		}
 	}
-	
-	CALL_PUSH_MODEL_POSTGARBAGECOLLECT();
 }
 
 void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
