@@ -19,8 +19,8 @@
 //------------------------------------------------------- PASSES.
 
 uint4 ViewportRect;
-uint SampleOffsetMultipler = 1;
-float fSampleOffsetMultipler = 1;
+uint SampleOffsetMultipler;
+float fSampleOffsetMultipler;
 
 // Multiplier to compare CocRadius and bucket distance.
 float CocRadiusToBucketDistanceUpperBound;
