@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Agents/4MLAgentElement.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 #include "Agents/4MLAgent.h"
 
 

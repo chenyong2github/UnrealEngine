@@ -77,9 +77,6 @@ namespace
 			ManagerInstance->AddToRoot();
 
 			U4MLManager::OnPostInit.Broadcast();
-
-			// hack to make livecoding work with this plugin
-			FModuleManager::Get().LoadModule("UE4ML");
 		}
 	};
 
