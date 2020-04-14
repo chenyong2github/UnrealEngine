@@ -65,9 +65,9 @@ void FPreLoadSlateWidgetRenderer::DrawWindow(float DeltaTime)
         return;
     }
 
-    FVector2D DrawSize = VirtualRenderWindow->GetClientSizeInScreen();
+    const FVector2D DrawSize = VirtualRenderWindow->GetClientSizeInScreen();
 
-    FSlateApplication::Get().Tick(ESlateTickType::TimeOnly);
+    FSlateApplication::Get().Tick(ESlateTickType::Time);
 
     const float Scale = 1.0f;
     FGeometry WindowGeometry = FGeometry::MakeRoot(DrawSize, FSlateLayoutTransform(Scale));

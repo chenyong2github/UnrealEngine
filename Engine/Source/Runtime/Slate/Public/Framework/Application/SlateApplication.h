@@ -133,11 +133,22 @@ public:
 enum class ESlateTickType : uint8
 {
 	/** Tick time only */
-	TimeOnly,
+	Time = 1 << 0,
+
+	/** Only process input for the platform, and additional input tasks by Slate. */
+	PlatformAndInput = 1 << 1,
+
+	/** Only Tick and Paint Widgets */
+	Widgets = 1 << 2,
+
+	/** Time and Widgets */
+	TimeAndWidgets = Time | Widgets,
 
 	/** Update time, tick and paint widgets, and process input */
-	All,
+	All = Time | PlatformAndInput | Widgets,
 };
+
+ENUM_CLASS_FLAGS(ESlateTickType);
 
 class SLATE_API FSlateApplication
 	: public FSlateApplicationBase
@@ -957,6 +968,9 @@ protected:
 
 	TSharedRef<FNavigationConfig> GetRelevantNavConfig(int32 UserIndex) const;
 
+	/** Advances time for the application. */
+	void TickTime();
+
 	/**
 	 * Pumps and ticks the platform.
 	 */
@@ -965,7 +979,7 @@ protected:
 	/**
 	 * Ticks and paints the actual Slate portion of the application.
 	 */
-	void TickApplication(ESlateTickType TickType, float DeltaTime);
+	void TickAndDrawWidgets(float DeltaTime);
 
 	/** Draws Slate windows. Should only be called by the application's main loop or renderer. */
 	void DrawWindows();
@@ -1822,6 +1836,8 @@ private:
 	/** Are we currently processing input in slate?  If so this value will be greater than 0. */
 	int32 ProcessingInput;
 
+	/** Did we synthesize cursor input this frame? */
+	bool bSynthesizedCursorMove = false;
 		
 	/**
 	 * A helper class to wrap the list of input pre-processors. 
