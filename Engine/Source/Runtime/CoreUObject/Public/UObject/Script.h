@@ -213,7 +213,7 @@ enum EExprToken
 	EX_EndStructConst		= 0x30, // End of UStruct constant
 	EX_SetArray				= 0x31, // Set the value of arbitrary array
 	EX_EndArray				= 0x32,
-	//						= 0x33,
+	EX_PropertyConst		= 0x33, // FProperty constant.
 	EX_UnicodeStringConst   = 0x34, // Unicode string constant.
 	EX_Int64Const			= 0x35,	// 64-bit integer constant.
 	EX_UInt64Const			= 0x36,	// 64-bit unsigned integer constant.

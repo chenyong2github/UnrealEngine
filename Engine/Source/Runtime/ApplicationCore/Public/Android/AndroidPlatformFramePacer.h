@@ -6,6 +6,7 @@
 
 #pragma once
 #include "GenericPlatform/GenericPlatformFramePacer.h"
+#include "HAL/IConsoleManager.h"
 
 /**
  * Android implementation of FGenericPlatformRHIFramePacer

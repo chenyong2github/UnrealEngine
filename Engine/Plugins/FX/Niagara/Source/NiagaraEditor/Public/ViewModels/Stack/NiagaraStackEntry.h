@@ -18,7 +18,8 @@ enum class EStackIssueSeverity : uint8
 {
 	Error = 0,
 	Warning, 
-	Info
+	Info,
+	None
 };
 
 class FNiagaraStackEntryDragDropOp : public FDecoratedDragDropOp
@@ -356,6 +357,8 @@ public:
 	int32 GetTotalNumberOfWarningIssues() const;
 
 	int32 GetTotalNumberOfErrorIssues() const;
+
+	virtual EStackIssueSeverity GetIssueSeverity() const { return EStackIssueSeverity::None; }
 
 	const TArray<FStackIssue>& GetIssues() const;
 

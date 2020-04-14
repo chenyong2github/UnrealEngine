@@ -29,21 +29,22 @@ public:
 class TestLeaderboardRead : public FOnlineLeaderboardRead
 {
 public:
-	TestLeaderboardRead()
+	TestLeaderboardRead(const FString& InLeaderboardName, const FString& InSortedColumn, const TMap<FString, EOnlineKeyValuePairDataType::Type>& InColumns)
 	{
-		// Default properties
-		LeaderboardName = FName(TEXT("TestLeaderboard"));
-		SortedColumn = "TestIntStat1";
+		LeaderboardName = FName(InLeaderboardName);
+		SortedColumn = FName(InSortedColumn);
 
-		// Define default columns
-		new (ColumnMetadata) FColumnMetaData("TestIntStat1", EOnlineKeyValuePairDataType::Int32);
-		new (ColumnMetadata) FColumnMetaData("TestFloatStat1", EOnlineKeyValuePairDataType::Float);
+		for (TPair<FString, EOnlineKeyValuePairDataType::Type> Column : InColumns)
+		{
+			new (ColumnMetadata) FColumnMetaData(FName(Column.Key), Column.Value);
+		}
 	}
 };
 
 FTestLeaderboardInterface::FTestLeaderboardInterface(const FString& InSubsystem) :
 	Subsystem(InSubsystem),
 	bOverallSuccess(true),
+	bReadLeaderboardAttempted(false),
 	Leaderboards(NULL),
 	TestPhase(0),
 	LastTestPhase(-1)
@@ -68,7 +69,7 @@ FTestLeaderboardInterface::~FTestLeaderboardInterface()
 	Leaderboards = NULL;
 }
 
-void FTestLeaderboardInterface::Test(UWorld* InWorld, const FString& InUserId)
+void FTestLeaderboardInterface::Test(UWorld* InWorld, const FString& InLeaderboardName, const FString& InColumnName, TMap<FString, EOnlineKeyValuePairDataType::Type>&& InColumns, const FString& InUserId)
 {
 	FindRankUserId = InUserId;
 	OnlineSub = Online::GetSubsystem(InWorld, FName(*Subsystem));
@@ -94,6 +95,10 @@ void FTestLeaderboardInterface::Test(UWorld* InWorld, const FString& InUserId)
 		bOverallSuccess = false;
 		return;
 	}
+
+	LeaderboardName = InLeaderboardName;
+	SortedColumn = InColumnName;
+	Columns = MoveTemp(InColumns);
 }
 
 void FTestLeaderboardInterface::WriteLeaderboards()
@@ -141,58 +146,55 @@ void FTestLeaderboardInterface::PrintLeaderboards()
 void FTestLeaderboardInterface::OnLeaderboardReadComplete(bool bWasSuccessful)
 {
 	UE_LOG_ONLINE_LEADERBOARD(Verbose, TEXT("OnLeaderboardReadComplete bWasSuccessful: %d"), bWasSuccessful);
-	bOverallSuccess = bOverallSuccess && bWasSuccessful;
+	bOverallSuccess = bOverallSuccess && (bReadLeaderboardAttempted == bWasSuccessful);
 
 	PrintLeaderboards();
 
 	Leaderboards->ClearOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadCompleteDelegateHandle);
+	bReadLeaderboardAttempted = false;
 	TestPhase++;
 }
 
 void FTestLeaderboardInterface::OnLeaderboardRankReadComplete(bool bWasSuccessful)
 {
 	UE_LOG_ONLINE_LEADERBOARD(Verbose, TEXT("OnLeaderboardRankReadComplete bWasSuccessful: %d"), bWasSuccessful);
-	bOverallSuccess = bOverallSuccess && bWasSuccessful;
+	bOverallSuccess = bOverallSuccess && (bReadLeaderboardAttempted == bWasSuccessful);
 
 	PrintLeaderboards();
 
 	Leaderboards->ClearOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadRankCompleteDelegateHandle);
+	bReadLeaderboardAttempted = false;
 	TestPhase++;
 }
 
 void FTestLeaderboardInterface::OnLeaderboardUserRankReadComplete(bool bWasSuccessful)
 {
 	UE_LOG_ONLINE_LEADERBOARD(Verbose, TEXT("OnLeaderboardUserRankReadComplete bWasSuccessful: %d"), bWasSuccessful);
-	bOverallSuccess = bOverallSuccess && bWasSuccessful;
+	bOverallSuccess = bOverallSuccess && (bReadLeaderboardAttempted == bWasSuccessful);
 
 	PrintLeaderboards();
 
 	Leaderboards->ClearOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadRankUserCompleteDelegateHandle);
+	bReadLeaderboardAttempted = false;
 	TestPhase++;
 }
 
 void FTestLeaderboardInterface::ReadLeaderboards()
 {
-	ReadObject = MakeShareable(new TestLeaderboardRead());
+	ReadObject = MakeShareable(new TestLeaderboardRead(LeaderboardName, SortedColumn, Columns));
 	FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
 
 	LeaderboardReadCompleteDelegateHandle = Leaderboards->AddOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadCompleteDelegate);
-	Leaderboards->ReadLeaderboardsForFriends(0, ReadObjectRef);
+	bReadLeaderboardAttempted = Leaderboards->ReadLeaderboardsForFriends(0, ReadObjectRef);
 }
 
 void FTestLeaderboardInterface::ReadLeaderboardsRank(int32 Rank, int32 Range)
 {
-	ReadObject = MakeShareable(new TestLeaderboardRead());
+	ReadObject = MakeShareable(new TestLeaderboardRead(LeaderboardName, SortedColumn, Columns));
 	FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
 
 	LeaderboardReadRankCompleteDelegateHandle = Leaderboards->AddOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadRankCompleteDelegate);
-	if (!Leaderboards->ReadLeaderboardsAroundRank(Rank, Range, ReadObjectRef))
-	{
-		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Cannot run the leaderboards around rank test as it failed to start"));
-		bOverallSuccess = false;
-		Leaderboards->ClearOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadRankCompleteDelegateHandle);
-		++TestPhase;
-	}
+	bReadLeaderboardAttempted = Leaderboards->ReadLeaderboardsAroundRank(Rank, Range, ReadObjectRef);
 }
 
 void FTestLeaderboardInterface::ReadLeaderboardsUser(const FUniqueNetId& InUserId, int32 Range)
@@ -204,16 +206,20 @@ void FTestLeaderboardInterface::ReadLeaderboardsUser(const FUniqueNetId& InUserI
 		return;
 	}
 
-	ReadObject = MakeShareable(new TestLeaderboardRead());
+	ReadObject = MakeShareable(new TestLeaderboardRead(LeaderboardName, SortedColumn, Columns));
 	FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
 
 	// Need to get a shared reference for ReadLeaderboardsAroundUser
 	TSharedPtr<const FUniqueNetId> ArbitraryId = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InUserId.ToString());
 
-	LeaderboardReadRankUserCompleteDelegateHandle = Leaderboards->AddOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadRankUserCompleteDelegate);
-	if (!ArbitraryId.IsValid() || !Leaderboards->ReadLeaderboardsAroundUser(ArbitraryId.ToSharedRef(), Range, ReadObjectRef))
+	if (ArbitraryId.IsValid())
 	{
-		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Cannot run the leaderboards around user test as it failed to start"));
+		LeaderboardReadRankUserCompleteDelegateHandle = Leaderboards->AddOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadRankUserCompleteDelegate);
+		bReadLeaderboardAttempted = Leaderboards->ReadLeaderboardsAroundUser(ArbitraryId.ToSharedRef(), Range, ReadObjectRef);
+	}
+	else
+	{
+		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Cannot run the leaderboards around user test as it failed to start. UserId not valid"));
 		bOverallSuccess = false;
 		Leaderboards->ClearOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadRankUserCompleteDelegateHandle);
 		++TestPhase;

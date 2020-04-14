@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <type_traits>
 #include "LC_Event.h"
 #include "LC_Thread.h"
 

@@ -19,11 +19,7 @@ class FShaderMapResourceCode;
 
 struct RENDERCORE_API FShaderCodeLibraryPipeline
 {
-	FSHAHash VertexShader;
-	FSHAHash PixelShader;
-	FSHAHash GeometryShader;
-	FSHAHash HullShader;
-	FSHAHash DomainShader;
+	FSHAHash Shaders[SF_NumGraphicsFrequencies];
 	mutable uint32 Hash;
 	
 	/** Fills the hashes from the pipeline stage shaders */
@@ -33,18 +29,24 @@ struct RENDERCORE_API FShaderCodeLibraryPipeline
 	
 	friend bool operator ==(const FShaderCodeLibraryPipeline& A,const FShaderCodeLibraryPipeline& B)
 	{
-		return A.VertexShader == B.VertexShader && A.PixelShader == B.PixelShader && A.GeometryShader == B.GeometryShader && A.HullShader == B.HullShader && A.DomainShader == B.DomainShader;
+		for (uint32 Frequency = 0u; Frequency < SF_NumGraphicsFrequencies; ++Frequency)
+		{
+			if (A.Shaders[Frequency] != B.Shaders[Frequency])
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 	
 	friend uint32 GetTypeHash(const FShaderCodeLibraryPipeline &Key)
 	{
 		if(!Key.Hash)
 		{
-			Key.Hash = FCrc::MemCrc32(Key.VertexShader.Hash, sizeof(Key.VertexShader.Hash));
-			Key.Hash = FCrc::MemCrc32(Key.PixelShader.Hash, sizeof(Key.PixelShader.Hash), Key.Hash);
-			Key.Hash = FCrc::MemCrc32(Key.GeometryShader.Hash, sizeof(Key.GeometryShader.Hash), Key.Hash);
-			Key.Hash = FCrc::MemCrc32(Key.HullShader.Hash, sizeof(Key.HullShader.Hash), Key.Hash);
-			Key.Hash = FCrc::MemCrc32(Key.DomainShader.Hash, sizeof(Key.DomainShader.Hash), Key.Hash);
+			for (uint32 Frequency = 0u; Frequency < SF_NumGraphicsFrequencies; ++Frequency)
+			{
+				Key.Hash = FCrc::MemCrc32(Key.Shaders[Frequency].Hash, sizeof(FSHAHash), Key.Hash);
+			}
 		}
 		return Key.Hash;
 	}
@@ -54,7 +56,11 @@ struct RENDERCORE_API FShaderCodeLibraryPipeline
 	
 	friend FArchive& operator<<( FArchive& Ar, FShaderCodeLibraryPipeline& Info )
 	{
-		return Ar << Info.VertexShader << Info.PixelShader << Info.GeometryShader << Info.HullShader << Info.DomainShader << Info.Hash;
+		for (uint32 Frequency = 0u; Frequency < SF_NumGraphicsFrequencies; ++Frequency)
+		{
+			Ar << Info.Shaders[Frequency];
+		}
+		return Ar << Info.Hash;
 	}
 };
 

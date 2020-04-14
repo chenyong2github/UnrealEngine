@@ -148,6 +148,14 @@ TArray<TPair<FName, FNiagaraParameterScopeInfo>> FNiagaraEditorModule::Registere
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
 
+int32 GbShowNiagaraDeveloperWindows = 0;
+static FAutoConsoleVariableRef CVarShowNiagaraDeveloperWindows(
+	TEXT("fx.ShowNiagaraDeveloperWindows"),
+	GbShowNiagaraDeveloperWindows,
+	TEXT("If > 0 the niagara system, emitter, and script editors will show additional developer windows.\nThese windows are for niagara tool development and debugging and editing the data\n directly in these windows can cause instability.\n"),
+	ECVF_Default
+	);
+
 const FNiagaraParameterScopeInfo* FNiagaraEditorModule::FindParameterScopeInfo(const FName& ParameterScopeInfoName)
 {
 	auto FindPredicate = [ParameterScopeInfoName](const TPair<FName, FNiagaraParameterScopeInfo>& ScopeInfoPair) {return ScopeInfoPair.Key == ParameterScopeInfoName; };

@@ -162,7 +162,7 @@ void FNiagaraScriptExecutionParameterStore::CoalescePaddingInfo()
 		const FNiagaraScriptExecutionPaddingInfo& CurrentEntry = PaddingInfo[PaddingIt];
 
 		if (((PreviousEntry.SrcOffset + PreviousEntry.SrcSize) == CurrentEntry.SrcOffset)
-			&& ((PreviousEntry.DestOffset + PreviousEntry.DestSize) == CurrentEntry.DestOffset)
+			&& ((PreviousEntry.DestOffset + PreviousEntry.SrcSize) == CurrentEntry.DestOffset)
 			&& ((TNumericLimits<uint16>::Max() - PreviousEntry.SrcSize) >= CurrentEntry.SrcSize))
 		{
 			PreviousEntry.SrcSize += CurrentEntry.SrcSize;

@@ -227,7 +227,7 @@ void FAssetTypeActions_RuntimeVirtualTexture::GetActions(TArray<UObject*> const&
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("RuntimeVirtualTexture_FindMaterials", "Find Materials Using This"),
-			LOCTEXT("RuntimeVirtualTexture_FindMaterialsTooltip", "Finds all materials that use this material in the content browser."),
+			LOCTEXT("RuntimeVirtualTexture_FindMaterialsTooltip", "Finds all materials that use this texture in the content browser."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_RuntimeVirtualTexture::ExecuteFindMaterials, RuntimeVirtualTextures[0]),

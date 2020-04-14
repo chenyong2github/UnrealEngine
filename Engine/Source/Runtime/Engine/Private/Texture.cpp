@@ -94,7 +94,8 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	ChromaKeyThreshold = 1.0f / 255.0f;
 	VirtualTextureStreaming = 0;
 	CompressionYCoCg = 0;
-	
+	Downscale = 0.f;
+	DownscaleOptions = ETextureDownscaleOptions::Default;
 #endif // #if WITH_EDITORONLY_DATA
 
 	if (FApp::CanEverRender() && !IsTemplate())
@@ -111,9 +112,12 @@ void UTexture::ReleaseResource()
 		check( !Texture2D  || !Texture2D->HasPendingUpdate() );
 
 		// Free the resource.
-		ReleaseResourceAndFlush(Resource);
-		delete Resource;
-		Resource = NULL;
+		BeginReleaseResource(Resource);
+		ENQUEUE_RENDER_COMMAND(DeleteResource)([ToDelete = Resource](FRHICommandListImmediate& RHICmdList)
+		{
+			delete ToDelete;
+		});
+		Resource = nullptr;
 	}
 }
 
@@ -238,7 +242,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		}
 #endif //WITH_EDITORONLY_DATA
 
-		bool bPreventSRGB = (CompressionSettings == TC_Alpha || CompressionSettings == TC_Normalmap || CompressionSettings == TC_Masks || CompressionSettings == TC_HDR || CompressionSettings == TC_HDR_Compressed);
+		bool bPreventSRGB = (CompressionSettings == TC_Alpha || CompressionSettings == TC_Normalmap || CompressionSettings == TC_Masks || CompressionSettings == TC_HDR || CompressionSettings == TC_HDR_Compressed || CompressionSettings == TC_HalfFloat);
 		if(bPreventSRGB && SRGB == true)
 		{
 			SRGB = false;
@@ -1304,7 +1308,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	FName TextureFormatName = NAME_None;
 
 	/**
-	 * IF you add a format to this function don't forget to update GetAllDefaultTextureFormats 
+	 * IF you add a format to this function don't forget to update GetAllDefaultTextureFormatNames 
 	 */
 
 #if WITH_EDITOR
@@ -1322,6 +1326,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	static FName NameG16(TEXT("G16"));
 	static FName NameVU8(TEXT("VU8"));
 	static FName NameRGBA16F(TEXT("RGBA16F"));
+	static FName NameR16F(TEXT("R16F"));
 	static FName NameBC6H(TEXT("BC6H"));
 	static FName NameBC7(TEXT("BC7"));
 
@@ -1426,6 +1431,10 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	{
 		TextureFormatName = NameBC7;
 	}
+	else if (FormatSettings.CompressionSettings == TC_HalfFloat)
+	{
+		TextureFormatName = NameR16F;
+	}
 	else if (FormatSettings.CompressionNoAlpha)
 	{
 		TextureFormatName = NameDXT1;
@@ -1491,6 +1500,7 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	static FName NameG16(TEXT("G16"));
 	static FName NameVU8(TEXT("VU8"));
 	static FName NameRGBA16F(TEXT("RGBA16F"));
+	static FName NameR16F(TEXT("R16F"));
 	static FName NameBC6H(TEXT("BC6H"));
 	static FName NameBC7(TEXT("BC7"));
 
@@ -1507,6 +1517,7 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	OutFormats.Add(NameG16);
 	OutFormats.Add(NameVU8);
 	OutFormats.Add(NameRGBA16F);
+	OutFormats.Add(NameR16F);
 	if (bSupportDX11TextureFormats)
 	{
 		OutFormats.Add(NameBC6H);

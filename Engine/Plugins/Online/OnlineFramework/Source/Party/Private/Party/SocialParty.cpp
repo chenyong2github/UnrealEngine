@@ -593,6 +593,16 @@ void USocialParty::OnLocalPlayerIsLeaderChanged(bool bIsLeader)
 				AllMemberPlatformSubsystems.AddUnique(PlatformOssName);
 			}
 		}
+		for (const FPartyPlatformSessionInfo& PlatformSessionInfo : GetRepData().GetPlatformSessions())
+		{
+			// Not using AddUnique so we can log if we are catching OSSs to remove
+			// TODO: Remove logging when we are sure this is fixed
+			if (!AllMemberPlatformSubsystems.Contains(PlatformSessionInfo.OssName))
+			{
+				UE_LOG(LogParty, Verbose, TEXT("OnLocalPlayerIsLeaderChanged: Adding existing platform OSS [%s] which has no members"), *PlatformSessionInfo.OssName.ToString());
+				AllMemberPlatformSubsystems.Add(PlatformSessionInfo.OssName);
+			}
+		}
 		for (FName PlatformOssName : AllMemberPlatformSubsystems)
 		{
 			UpdatePlatformSessionLeader(PlatformOssName);
@@ -924,18 +934,24 @@ void USocialParty::HandleMemberInitialized(UPartyMember* Member)
 {
 	if (IsLocalPlayerPartyLeader())
 	{
+		Member->GetRepData().OnPlatformUniqueIdChanged().AddUObject(this, &USocialParty::HandleMemberPlatformUniqueIdChanged, Member);
 		Member->GetRepData().OnPlatformSessionIdChanged().AddUObject(this, &USocialParty::HandleMemberSessionIdChanged, Member);
 
-		const FName MemberPlatformOssName = Member->GetPlatformOssName();
-		if (FPartyPlatformSessionManager::DoesOssNeedPartySession(MemberPlatformOssName) && !GetRepData().FindSessionInfo(MemberPlatformOssName))
-		{
-			// We don't have session info yet for this platform, so make it now and establish this member as the owner
-			FPartyPlatformSessionInfo NewSessionInfo;
-			NewSessionInfo.OssName = MemberPlatformOssName;
-			NewSessionInfo.OwnerPrimaryId = Member->GetPrimaryNetId();
+		HandleMemberPlatformUniqueIdChanged(Member->GetRepData().GetPlatformUniqueId(), Member);
+	}
+}
 
-			GetMutableRepData().UpdatePlatformSessionInfo(NewSessionInfo);
-		}
+void USocialParty::HandleMemberPlatformUniqueIdChanged(const FUniqueNetIdRepl& NewPlatformUniqueId, UPartyMember* Member)
+{
+	const FName MemberPlatformOssName = NewPlatformUniqueId.GetType();
+	if (FPartyPlatformSessionManager::DoesOssNeedPartySession(MemberPlatformOssName) && !GetRepData().FindSessionInfo(MemberPlatformOssName))
+	{
+		// We don't have session info yet for this platform, so make it now and establish this member as the owner
+		FPartyPlatformSessionInfo NewSessionInfo;
+		NewSessionInfo.OssName = MemberPlatformOssName;
+		NewSessionInfo.OwnerPrimaryId = Member->GetPrimaryNetId();
+
+		GetMutableRepData().UpdatePlatformSessionInfo(NewSessionInfo);
 	}
 }
 

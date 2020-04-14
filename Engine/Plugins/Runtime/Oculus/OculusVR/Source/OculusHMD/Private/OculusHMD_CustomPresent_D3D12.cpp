@@ -51,7 +51,7 @@ bool FD3D12CustomPresent::IsUsingCorrectDisplayAdapter() const
 {
 	const void* luid;
 
-	if (OVRP_SUCCESS(ovrp_GetDisplayAdapterId2(&luid)) && luid)
+	if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetDisplayAdapterId2(&luid)) && luid)
 	{
 		TRefCountPtr<ID3D12Device> D3DDevice;
 

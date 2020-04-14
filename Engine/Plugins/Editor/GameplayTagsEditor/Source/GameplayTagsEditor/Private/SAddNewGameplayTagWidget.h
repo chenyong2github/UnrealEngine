@@ -78,6 +78,10 @@ private:
 	/** Creates the text displayed by the combo box when an option is selected */
 	FText CreateTagSourcesComboBoxContent() const;
 
+	EVisibility OnGetTagSourceFavoritesVisibility() const;
+	FReply OnToggleTagSourceFavoriteClicked();
+	const FSlateBrush* OnGetTagSourceFavoriteImage() const;
+
 private:
 
 	/** All potential INI files where a gameplay tag can be stored */

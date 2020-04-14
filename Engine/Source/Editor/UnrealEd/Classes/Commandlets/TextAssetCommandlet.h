@@ -18,7 +18,8 @@ enum class ETextAssetCommandletMode
 	RoundTrip,
 	LoadBinary,
 	LoadText,
-	FindMismatchedSerializers
+	FindMismatchedSerializers,
+	GenerateSchema
 };
 
 UCLASS(config=Editor)

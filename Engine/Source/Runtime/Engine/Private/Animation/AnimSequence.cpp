@@ -44,12 +44,24 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Animation/AnimStreamable.h"
 #include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/CookStats.h"
 
 #define USE_SLERP 0
 #define LOCTEXT_NAMESPACE "AnimSequence"
 
 DECLARE_CYCLE_STAT(TEXT("AnimSeq GetBonePose"), STAT_AnimSeq_GetBonePose, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("AnimSeq EvalCurveData"), STAT_AnimSeq_EvalCurveData, STATGROUP_Anim);
+
+#if ENABLE_COOK_STATS
+namespace AnimSequenceCookStats
+{
+	static FCookStats::FDDCResourceUsageStats UsageStats;
+	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+	{
+		UsageStats.LogStats(AddStat, TEXT("AnimSequence.Usage"), TEXT(""));
+	});
+}
+#endif
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
@@ -538,6 +550,35 @@ float GetIntervalPerKey(int32 NumFrames, float SequenceLength)
 {
 	return (NumFrames > 1) ? (SequenceLength / (NumFrames-1)) : MINIMUM_ANIMATION_LENGTH;
 }
+
+#if WITH_EDITOR
+// Handles keeping source raw data in sync when modifying raw data
+struct FModifyRawDataSourceGuard
+{
+private:
+	UAnimSequence* ModifyingSequence;
+
+public:
+	FModifyRawDataSourceGuard(UAnimSequence* AnimToModify)
+		: ModifyingSequence(nullptr)
+	{
+		check(AnimToModify)
+		if (AnimToModify->HasBakedTransformCurves())
+		{
+			ModifyingSequence = AnimToModify;
+			ModifyingSequence->RestoreSourceData();
+		}
+	}
+
+	~FModifyRawDataSourceGuard()
+	{
+		if (ModifyingSequence)
+		{
+			ModifyingSequence->BakeTrackCurvesToRawAnimation();
+		}
+	}
+};
+#endif
 
 /////////////////////////////////////////////////////
 // UAnimSequence
@@ -1948,6 +1989,10 @@ bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame,
 	int32 NumFramesToInsert = EndFrame-StartFrame;
 	if ((CopyFrame>=0 && CopyFrame<NumFrames) && (StartFrame >= 0 && StartFrame <=NumFrames) && NumFramesToInsert > 0)
 	{
+#if WITH_EDITOR
+		FModifyRawDataSourceGuard Modify(this);
+#endif
+
 		for (auto& RawData : RawAnimationData)
 		{
 			if (RawData.PosKeys.Num() > 1 && RawData.PosKeys.IsValidIndex(CopyFrame))
@@ -2154,8 +2199,10 @@ void UAnimSequence::WaitOnExistingCompression(const bool bWantResults)
 	check(IsInGameThread());
 	if (bCompressionInProgress)
 	{
+		COOK_STAT(auto Timer = AnimSequenceCookStats::UsageStats.TimeAsyncWait());
 		FAsyncCompressedAnimationsManagement::Get().WaitOnExistingCompression(this, bWantResults);
 		bCompressionInProgress = false;
+		COOK_STAT(Timer.TrackCyclesOnly()); // Need to get hit/miss and size from WaitOnExistingCompression!
 	}
 #endif
 }
@@ -2216,6 +2263,8 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 
 	TArray<uint8> OutData;
 	{
+		COOK_STAT(auto Timer = AnimSequenceCookStats::UsageStats.TimeSyncWork());
+
 		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(TEXT("AnimSeq"), AssetDDCKey, Params.CompressContext);
 
 		const FString FinalDDCKey = FDerivedDataCacheInterface::BuildCacheKey(AnimCompressor->GetPluginName(), AnimCompressor->GetVersionString(), *AnimCompressor->GetPluginSpecificCacheKeySuffix());
@@ -2223,7 +2272,12 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		// For debugging DDC/Compression issues		
 		const bool bSkipDDC = false;
 
-		if (bSkipDDC || !GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData, AnimCompressor->GetDebugContextString()))
+		if (!bSkipDDC && GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData, AnimCompressor->GetDebugContextString()))
+		{
+			COOK_STAT(Timer.AddHit(OutData.Num()));
+			bCompressedDataFromDDC = true;
+		}
+		else
 		{
 			// Data does not exist, need to build it.
 			// Filter RAW data to get rid of mismatched tracks (translation/rotation data with a different number of keys than there are frames)
@@ -2236,23 +2290,27 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 			if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))
 			{
 				AnimCompressor->Build(OutData);
+				COOK_STAT(Timer.AddMiss(OutData.Num()));
 			}
 			else if (AnimCompressor->CanBuild())
 			{
 				if (Params.bAsyncCompression)
 				{
 					FAsyncCompressedAnimationsManagement::Get().RequestAsyncCompression(*AnimCompressor, this, bPerformStripping, OutData);
+					COOK_STAT(Timer.TrackCyclesOnly());
 				}
 				else
 				{
-					GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData);
+					bool bBuilt = false;
+					const bool bSuccess = GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData, &bBuilt);
+					COOK_STAT(Timer.AddHitOrMiss(!bSuccess || bBuilt ? FCookStats::CallStats::EHitOrMiss::Miss : FCookStats::CallStats::EHitOrMiss::Hit, OutData.Num()));
 				}
 				AnimCompressor = nullptr;
 			}
-		}
-		else
-		{
-			bCompressedDataFromDDC = true;
+			else
+			{
+				COOK_STAT(Timer.TrackCyclesOnly());
+			}
 		}
 
 		if (AnimCompressor)
@@ -3654,6 +3712,10 @@ int32 FindFirstChildTrack(const USkeleton* MySkeleton, const FReferenceSkeleton&
 
 int32 UAnimSequence::InsertTrack(const FName& BoneName)
 {
+#if WITH_EDITOR
+	FModifyRawDataSourceGuard Modify(this);
+#endif
+
 	// first verify if it doesn't exists, if it does, return
 	int32 CurrentTrackIndex = AnimationTrackNames.Find(BoneName);
 	if (CurrentTrackIndex != INDEX_NONE)
@@ -4393,6 +4455,22 @@ bool UAnimSequence::DoesContainTransformCurves() const
 {
 	return (RawCurveData.TransformCurves.Num() > 0);
 }
+
+#if WITH_EDITOR
+bool  UAnimSequence::HasBakedTransformCurves() const
+{
+	return DoesContainTransformCurves() && SourceRawAnimationData.Num() > 0;
+}
+
+void  UAnimSequence::RestoreSourceData() 
+{
+	if (HasBakedTransformCurves())
+	{
+		RawAnimationData = MoveTemp(SourceRawAnimationData);
+		bNeedsRebake = true;
+	}
+}
+#endif
 
 void UAnimSequence::AddKeyToSequence(float Time, const FName& BoneName, const FTransform& AdditiveTransform)
 {

@@ -30,22 +30,22 @@ void UOculusMRFunctionLibrary::GetAllTrackedCamera(TArray<FTrackedCamera>& Track
 		return;
 	}
 
-	if (ovrp_GetInitialized() == ovrpBool_False)
+	if (FOculusHMDModule::GetPluginWrapper().GetInitialized() == ovrpBool_False)
 	{
 		UE_LOG(LogMR, Error, TEXT("OVRPlugin not initialized"));
 		return;
 	}
 
-	if (OVRP_FAILURE(ovrp_UpdateExternalCamera()))
+	if (OVRP_FAILURE(FOculusHMDModule::GetPluginWrapper().UpdateExternalCamera()))
 	{
-		UE_LOG(LogMR, Error, TEXT("ovrp_UpdateExternalCamera failure"));
+		UE_LOG(LogMR, Error, TEXT("FOculusHMDModule::GetPluginWrapper().UpdateExternalCamera failure"));
 		return;
 	}
 
 	int cameraCount = 0;
-	if (OVRP_FAILURE(ovrp_GetExternalCameraCount(&cameraCount)))
+	if (OVRP_FAILURE(FOculusHMDModule::GetPluginWrapper().GetExternalCameraCount(&cameraCount)))
 	{
-		UE_LOG(LogMR, Log, TEXT("ovrp_GetExternalCameraCount failure"));
+		UE_LOG(LogMR, Log, TEXT("FOculusHMDModule::GetPluginWrapper().GetExternalCameraCount failure"));
 		return;
 	}
 
@@ -54,9 +54,9 @@ void UOculusMRFunctionLibrary::GetAllTrackedCamera(TArray<FTrackedCamera>& Track
 		char cameraName[OVRP_EXTERNAL_CAMERA_NAME_SIZE];
 		ovrpCameraIntrinsics cameraIntrinsics;
 		ovrpCameraExtrinsics cameraExtrinsics;
-		ovrp_GetExternalCameraName(i, cameraName);
-		ovrp_GetExternalCameraIntrinsics(i, &cameraIntrinsics);
-		ovrp_GetExternalCameraExtrinsics(i, &cameraExtrinsics);
+		FOculusHMDModule::GetPluginWrapper().GetExternalCameraName(i, cameraName);
+		FOculusHMDModule::GetPluginWrapper().GetExternalCameraIntrinsics(i, &cameraIntrinsics);
+		FOculusHMDModule::GetPluginWrapper().GetExternalCameraExtrinsics(i, &cameraExtrinsics);
 		if ((bCalibratedOnly == false || cameraExtrinsics.CameraStatus == ovrpCameraStatus_Calibrated) && cameraIntrinsics.IsValid && cameraExtrinsics.IsValid)
 		{
 			FTrackedCamera camera;
@@ -74,7 +74,7 @@ void UOculusMRFunctionLibrary::GetAllTrackedCamera(TArray<FTrackedCamera>& Track
 			camera.UserOffset = FVector::ZeroVector;
 #if PLATFORM_ANDROID
 			ovrpPosef cameraRawPose;
-			ovrp_GetExternalCameraCalibrationRawPose(i, &cameraRawPose);
+			FOculusHMDModule::GetPluginWrapper().GetExternalCameraCalibrationRawPose(i, &cameraRawPose);
 			OculusHMD::FPose RawPose;
 			GetOculusHMD()->ConvertPose(cameraRawPose, RawPose);
 			camera.RawRotation = RawPose.Orientation.Rotator();

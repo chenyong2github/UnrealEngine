@@ -2656,7 +2656,8 @@ void UPrimitiveComponent::BeginComponentOverlap(const FOverlapInfo& OtherOverlap
 			AddUniqueOverlapFast(OtherComp->OverlappingComponents, FOverlapInfo(this, INDEX_NONE));	// uniqueness unverified, so addunique
 			
 			const UWorld* World = GetWorld();
-			if (bDoNotifies && World && World->HasBegunPlay())
+			const bool bLevelStreamingOverlap = (bDoNotifies && MyActor->bGenerateOverlapEventsDuringLevelStreaming && MyActor->IsActorBeginningPlayFromLevelStreaming());
+			if (bDoNotifies && ((World && World->HasBegunPlay()) || bLevelStreamingOverlap))
 			{
 				// first execute component delegates
 				if (!IsPendingKill())

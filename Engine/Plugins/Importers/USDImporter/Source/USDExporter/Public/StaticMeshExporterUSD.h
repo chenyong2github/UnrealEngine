@@ -12,6 +12,10 @@ class UStaticMeshExporterUsd : public UExporter
 	GENERATED_BODY()
 
 public:
+	UFUNCTION(BlueprintCallable, Category = "USD")
+	static bool IsUsdAvailable();
+
+public:
 	UStaticMeshExporterUsd();
 	
 	//~ Begin UExporter Interface

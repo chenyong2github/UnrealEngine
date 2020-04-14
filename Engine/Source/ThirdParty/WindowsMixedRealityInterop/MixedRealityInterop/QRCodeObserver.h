@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include <Windows.Perception.Spatial.h>
-#include <Windows.Perception.Spatial.Surfaces.h>
+#include <winrt/base.h>
+#include <winrt/Windows.Perception.Spatial.h>
+#include <winrt/Windows.Perception.Spatial.Surfaces.h>
+#include <winrt/Microsoft.MixedReality.QR.h>
 
-using namespace Windows::Perception::Spatial;
-using namespace Windows::Perception::Spatial::Surfaces;
-using namespace Platform;
-using namespace Microsoft::MixedReality::QR;
+using namespace winrt::Windows::Perception::Spatial;
+using namespace winrt::Windows::Perception::Spatial::Surfaces;
+using namespace winrt::Microsoft::MixedReality::QR;
 
 /**
  * The QR code observer singleton that notifies UE4 of changes
@@ -23,7 +24,7 @@ public:
 	void SetOnLog(void(*FunctionPointer)(const wchar_t* LogMsg));
 
 	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
-	void UpdateCoordinateSystem(Windows::Perception::Spatial::SpatialCoordinateSystem^ InCoordinateSystem);
+	void UpdateCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem);
 	void StopQRCodeObserver();
 
 	void Log(const wchar_t* LogMsg);
@@ -45,9 +46,9 @@ private:
 	static QRCodeUpdateObserver* ObserverInstance;
 
 	// WinRT handlers
-	static void OnAdded(QRCodeWatcher ^sender, QRCodeAddedEventArgs^ args);
-	static void OnUpdated(QRCodeWatcher ^sender, QRCodeUpdatedEventArgs^ args);
-	static void OnRemoved(QRCodeWatcher ^sender, QRCodeRemovedEventArgs^ args);
+	static void OnAdded(QRCodeWatcher sender, QRCodeAddedEventArgs args);
+	static void OnUpdated(QRCodeWatcher sender, QRCodeUpdatedEventArgs args);
+	static void OnRemoved(QRCodeWatcher sender, QRCodeRemovedEventArgs args);
 
-	Microsoft::MixedReality::QR::QRCodeWatcher^ QRTrackerInstance;
+	QRCodeWatcher QRTrackerInstance = nullptr;
 };

@@ -56,9 +56,9 @@ public:
 	 *	If it does then retrieves a copy with meta areas substituted with
 	 *	appropriate non-meta areas, depending on NavAgent
 	 */
-	FORCEINLINE FCompositeNavModifier GetModifierForAgent(const struct FNavAgentProperties* NavAgent = NULL) const 
+	FORCEINLINE FCompositeNavModifier GetModifierForAgent(const struct FNavAgentProperties* NavAgent = nullptr) const 
 	{ 
-		return Data->Modifiers.HasMetaAreas() ? Data->Modifiers.GetInstantiatedMetaModifier(NavAgent, Data->SourceObject) : Data->Modifiers;
+		return Data->GetModifierForAgent(NavAgent);
 	}
 
 	FORCEINLINE bool ShouldUseGeometry(const FNavDataConfig& NavConfig) const
@@ -152,10 +152,10 @@ public:
 
 	void SetDataGatheringMode(ENavDataGatheringModeConfig Mode);
 	
-	// @hack! TO BE FIXED
-	void DemandLazyDataGathering(const FNavigationOctreeElement& Element);
+	// Lazy data gathering methods
+	bool IsLazyGathering(const INavRelevantInterface& ChildNavInterface) const;
 	void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
-
+	void DemandChildLazyDataGathering(FNavigationRelevantData& ElementData, INavRelevantInterface& ChildNavInterface);
 
 	FORCEINLINE static uint32 HashObject(const UObject& Object)
 	{

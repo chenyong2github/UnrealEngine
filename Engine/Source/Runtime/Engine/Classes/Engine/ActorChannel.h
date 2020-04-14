@@ -162,6 +162,7 @@ public:
 
 	virtual void NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch);
 
+	UE_DEPRECATED(4.26, "Use UNetworkDriver::SendDestructionInfo instead.")
 	int64 SetChannelActorForDestroy( struct FActorDestructionInfo *DestructInfo );
 
 	/** Append any export bunches */
@@ -317,7 +318,7 @@ protected:
 	bool ObjectHasReplicator(const TWeakObjectPtr<UObject>& Obj) const;	// returns whether we have already created a replicator for this object or not
 
 	/** Unmap all references to this object, so that if later we receive this object again, we can remap the original references */
-	void MoveMappedObjectToUnmapped( const UObject* Object );
+	void MoveMappedObjectToUnmapped(const UObject* Object);
 
 	void DestroyActorAndComponents();
 

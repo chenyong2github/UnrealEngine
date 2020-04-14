@@ -35,6 +35,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent, CallInEditor, BlueprintCallable, Category = "Utilities")
 	void EditorDestroyed();
 
+	/** Sets the LockLocation variable to disable movement from the translation gizmo */
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Editor")
+	void EditorLockLocation(bool bSetLockLocation);
+
 	/**
 	 * Where the actor should be ticked.
 	 * Editor = Tick in the editor viewport. Use the event EditorTick.

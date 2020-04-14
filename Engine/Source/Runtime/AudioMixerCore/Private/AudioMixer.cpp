@@ -3,11 +3,12 @@
 #include "AudioMixer.h"
 #include "DSP/BufferVectorOperations.h"
 #include "HAL/RunnableThread.h"
-#include "Misc/ConfigCacheIni.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/Event.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/ScopeTryLock.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
 // Defines the "Audio" category in the CSV profiler.
@@ -352,7 +353,7 @@ namespace Audio
 	{
 		// Non Realtime isn't ticked when fade out is called, and the user can't hear
 		// the output anyways so there's no need to make it pleasant for their ears.
-		if (IsNonRealtime())
+		if (!FPlatformProcess::SupportsMultithreading() || IsNonRealtime())
 		{
 			bFadedOut = true;
 			FadeVolume = 0.f;
@@ -529,85 +530,85 @@ namespace Audio
 			return;
 		}
 
-		// If we are currently swapping devices and OnBufferEnd is being triggered in an XAudio2Thread,
-		// early exit.
-		if (!DeviceSwapCriticalSection.TryLock())
 		{
-			return;
-		}
+			FScopeTryLock DeviceSwapLock(&DeviceSwapCriticalSection);
 
-		// Don't read any more audio if we're not running or changing device
-		if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Running)
-		{
-			DeviceSwapCriticalSection.Unlock();
-			return;
-		}
-
-		// AudioRenderThread hasn't executed yet, return silence
-		if (CurrentBufferReadIndex == INDEX_NONE || CurrentBufferWriteIndex == INDEX_NONE)
-		{
-			SubmitBuffer(UnderrunBuffer.GetBufferData());
-			DeviceSwapCriticalSection.Unlock();
-			return;
-		}
-
-		// Reset the ready state of the buffer which was just finished playing
-		FOutputBuffer& CurrentReadBuffer = OutputBuffers[CurrentBufferReadIndex];
-		CurrentReadBuffer.ResetReadyState();
-
-		// Get the next index that we want to read
-		int32 NextReadIndex = (CurrentBufferReadIndex + 1) % NumOutputBuffers;
-
-		// If it's not ready, warn, and then wait here. This will cause underruns but is preferable than getting out-of-order buffer state.
-		static int32 UnderrunCount = 0;
-		static int32 CurrentUnderrunCount = 0;
-
-		bool bSubmittingUnderrunBuffer = false;
-
-		if (!OutputBuffers[NextReadIndex].IsReady())
-		{
-			// try to wait for the buffer to be ready
-			FEvent* BufferReadyEvent = OutputBuffers[NextReadIndex].IsReadyEvent;
-			if (!BufferReadyEvent || !BufferReadyEvent->Wait(static_cast<uint32>(UnderrunTimeoutCVar)))
+			// If we are currently swapping devices and OnBufferEnd is being triggered in an XAudio2Thread,
+			// early exit.
+			if (!DeviceSwapLock.IsLocked())
 			{
-				bSubmittingUnderrunBuffer = true; // Event didn't fire in time
+				return;
 			}
-		}
-		
-		if (bSubmittingUnderrunBuffer)
-		{
-			UnderrunCount++;
-			CurrentUnderrunCount++;
-			
-			if (!bWarnedBufferUnderrun)
-			{						
-				UE_LOG(LogAudioMixer, Display, TEXT("Audio Buffer Underrun detected."));
-				bWarnedBufferUnderrun = true;
-			}
-		
-			SubmitBuffer(UnderrunBuffer.GetBufferData());
-		}
-		else
-		{
-			ApplyMasterAttenuation();
 
-			// As soon as a valid buffer goes through, allow more warning
-			if (bWarnedBufferUnderrun)
+			// Don't read any more audio if we're not running or changing device
+			if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Running)
 			{
-				UE_LOG(LogAudioMixerDebug, Log, TEXT("Audio had %d underruns [Total: %d]."), CurrentUnderrunCount, UnderrunCount);
+				return;
 			}
-			CurrentUnderrunCount = 0;
-			bWarnedBufferUnderrun = false;
 
-			// Submit the buffer at the next read index, but don't set the read index value yet
-			SubmitBuffer(OutputBuffers[NextReadIndex].GetBufferData());
+			// AudioRenderThread hasn't executed yet, return silence
+			if (CurrentBufferReadIndex == INDEX_NONE || CurrentBufferWriteIndex == INDEX_NONE)
+			{
+				SubmitBuffer(UnderrunBuffer.GetBufferData());
+				return;
+			}
 
-			// Update the current read index to the next read index
-			CurrentBufferReadIndex = NextReadIndex;
-			OutputBuffers[NextReadIndex].IsReadyEvent->Reset();
+			// Reset the ready state of the buffer which was just finished playing
+			FOutputBuffer& CurrentReadBuffer = OutputBuffers[CurrentBufferReadIndex];
+			CurrentReadBuffer.ResetReadyState();
+
+			// Get the next index that we want to read
+			int32 NextReadIndex = (CurrentBufferReadIndex + 1) % NumOutputBuffers;
+
+			// If it's not ready, warn, and then wait here. This will cause underruns but is preferable than getting out-of-order buffer state.
+			static int32 UnderrunCount = 0;
+			static int32 CurrentUnderrunCount = 0;
+
+			bool bSubmittingUnderrunBuffer = false;
+
+			if (!OutputBuffers[NextReadIndex].IsReady())
+			{
+				// try to wait for the buffer to be ready
+				FEvent* BufferReadyEvent = OutputBuffers[NextReadIndex].IsReadyEvent;
+				if (!BufferReadyEvent || !BufferReadyEvent->Wait(static_cast<uint32>(UnderrunTimeoutCVar)))
+				{
+					bSubmittingUnderrunBuffer = true; // Event didn't fire in time
+				}
+			}
+
+			if (bSubmittingUnderrunBuffer)
+			{
+				UnderrunCount++;
+				CurrentUnderrunCount++;
+
+				if (!bWarnedBufferUnderrun)
+				{
+					UE_LOG(LogAudioMixer, Display, TEXT("Audio Buffer Underrun detected."));
+					bWarnedBufferUnderrun = true;
+				}
+
+				SubmitBuffer(UnderrunBuffer.GetBufferData());
+			}
+			else
+			{
+				ApplyMasterAttenuation();
+
+				// As soon as a valid buffer goes through, allow more warning
+				if (bWarnedBufferUnderrun)
+				{
+					UE_LOG(LogAudioMixerDebug, Log, TEXT("Audio had %d underruns [Total: %d]."), CurrentUnderrunCount, UnderrunCount);
+				}
+				CurrentUnderrunCount = 0;
+				bWarnedBufferUnderrun = false;
+
+				// Submit the buffer at the next read index, but don't set the read index value yet
+				SubmitBuffer(OutputBuffers[NextReadIndex].GetBufferData());
+
+				// Update the current read index to the next read index
+				CurrentBufferReadIndex = NextReadIndex;
+				OutputBuffers[NextReadIndex].IsReadyEvent->Reset();
+			}
 		}
-
-		DeviceSwapCriticalSection.Unlock();
 
 		// Kick off rendering of the next set of buffers
 		if (AudioRenderEvent)

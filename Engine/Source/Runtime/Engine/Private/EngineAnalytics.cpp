@@ -33,31 +33,137 @@ static TSharedPtr<FEditorSessionSummaryWriter> SessionSummaryWriter;
 static TSharedPtr<FEditorSessionSummarySender> SessionSummarySender;
 #endif
 
-/**
-* Default config func.
-*/
-FAnalyticsET::Config DefaultEngineAnalyticsConfigFunc()
+class FStudioAnalyticsShimProvider : public IAnalyticsProviderET
 {
-	return FAnalyticsET::Config();
-}
+public:
+	FStudioAnalyticsShimProvider(TSharedPtr<IAnalyticsProviderET> InAnalytics)
+		: Analytics(InAnalytics)
+	{
+	}
 
-/**
-* Engine analytics config to initialize the analytics provider.
-* External code should bind this delegate if engine analytics are desired,
-* preferably in private code that won't be redistributed.
-*/
-TFunction<FAnalyticsET::Config()>& GetEngineAnalyticsConfigFunc()
-{
-	static TFunction<FAnalyticsET::Config()> Config = &DefaultEngineAnalyticsConfigFunc;
-	return Config;
-}
+	virtual void SetAppID(FString&& AppID) override
+	{
+		Analytics.Pin()->SetAppID(MoveTemp(AppID));
+	}
+
+	virtual const FString& GetAppID() const override
+	{
+		return Analytics.Pin()->GetAppID();
+	}
+
+	virtual void SetAppVersion(FString&& AppVersion) override
+	{
+		Analytics.Pin()->SetAppVersion(MoveTemp(AppVersion));
+	}
+
+	virtual const FString& GetAppVersion() const override
+	{
+		return Analytics.Pin()->GetAppVersion();
+	}
+
+	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes) override
+	{
+		return Analytics.Pin()->StartSession(MoveTemp(Attributes));
+	}
+
+	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) override
+	{
+		return Analytics.Pin()->StartSession(MoveTemp(InSessionID), MoveTemp(Attributes));
+	}
+
+	virtual void SetDefaultEventAttributes(TArray<FAnalyticsEventAttribute>&& Attributes) override
+	{
+		Analytics.Pin()->SetDefaultEventAttributes(MoveTemp(Attributes));
+	}
+
+	virtual const TArray<FAnalyticsEventAttribute>& GetDefaultEventAttributes() const override
+	{
+		return Analytics.Pin()->GetDefaultEventAttributes();
+	}
+
+	virtual void SetURLEndpoint(const FString& UrlEndpoint, const TArray<FString>& AltDomains) override
+	{
+		Analytics.Pin()->SetURLEndpoint(UrlEndpoint, AltDomains);
+	}
+
+	virtual void SetEventCallback(const OnEventRecorded& Callback) override
+	{
+		Analytics.Pin()->SetEventCallback(Callback);
+	}
+
+	virtual void BlockUntilFlushed(float InTimeoutSec) override
+	{
+		Analytics.Pin()->BlockUntilFlushed(InTimeoutSec);
+	}
+
+	virtual const FAnalyticsET::Config& GetConfig() const override
+	{
+		return Analytics.Pin()->GetConfig();
+	}
+
+	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) override
+	{
+		return Analytics.Pin()->StartSession(Attributes);
+	}
+
+	virtual void EndSession() override
+	{
+		Analytics.Pin()->EndSession();
+	}
+	
+	virtual FString GetSessionID() const override
+	{
+		return Analytics.Pin()->GetSessionID();
+	}
+
+	virtual bool SetSessionID(const FString& InSessionID) override
+	{
+		return Analytics.Pin()->SetSessionID(InSessionID);
+	}
+
+	virtual void FlushEvents() override
+	{
+		Analytics.Pin()->FlushEvents();
+	}
+
+	virtual void SetUserID(const FString& InUserID) override
+	{
+		Analytics.Pin()->SetUserID(InUserID);
+	}
+
+	virtual FString GetUserID() const override
+	{
+		return Analytics.Pin()->GetUserID();
+	}
+
+	virtual void RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) override
+	{
+		FStudioAnalytics::RecordEvent(EventName, Attributes);
+
+		Analytics.Pin()->RecordEvent(EventName, Attributes);
+	}
+
+	virtual void RecordEvent(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes) override
+	{
+		FStudioAnalytics::RecordEvent(EventName, MoveTemp(Attributes));
+
+		Analytics.Pin()->RecordEvent(EventName, MoveTemp(Attributes));
+	}
+
+	virtual void RecordEventJson(FString EventName, TArray<FAnalyticsEventAttribute>&& AttributesJson) override
+	{
+		FStudioAnalytics::RecordEventJson(EventName, MoveTemp(AttributesJson));
+
+		Analytics.Pin()->RecordEventJson(EventName, MoveTemp(AttributesJson));
+	}
+
+private:
+	TWeakPtr<IAnalyticsProviderET> Analytics;
+};
 
 static TSharedPtr<IAnalyticsProviderET> CreateEpicAnalyticsProvider()
 {
-	// Get the default config.
-	FAnalyticsET::Config Config = GetEngineAnalyticsConfigFunc()();
-	// Set any fields that weren't set by default.
-	if (Config.APIKeyET.IsEmpty())
+	FAnalyticsET::Config Config;
 	{
 		// We always use the "Release" analytics account unless we're running in analytics test mode (usually with
 		// a command-line parameter), or we're an internal Epic build
@@ -72,18 +178,9 @@ static TSharedPtr<IAnalyticsProviderET> CreateEpicAnalyticsProvider()
 		const TCHAR* UE4TypeStr = bHasOverride ? *UE4TypeOverride : FEngineBuildSettings::IsPerforceBuild() ? TEXT("Perforce") : TEXT("UnrealEngine");
 		Config.APIKeyET = FString::Printf(TEXT("UEEditor.%s.%s"), UE4TypeStr, BuildTypeStr);
 	}
-	if (Config.APIServerET.IsEmpty())
-	{
-		Config.APIServerET = TEXT("https://datarouter.ol.epicgames.com/");
-	}
-	if (Config.AppEnvironment.IsEmpty())
-	{
-		Config.AppEnvironment = TEXT("datacollector-source");
-	}
-	if (Config.AppVersionET.IsEmpty())
-	{
-		Config.AppVersionET = FEngineVersion::Current().ToString();
-	}
+	Config.APIServerET = TEXT("https://datarouter.ol.epicgames.com/");
+	Config.AppEnvironment = TEXT("datacollector-binary");
+	Config.AppVersionET = FEngineVersion::Current().ToString();
 
 	// Connect the engine analytics provider (if there is a configuration delegate installed)
 	return FAnalyticsET::Get().CreateAnalyticsProvider(Config);
@@ -93,7 +190,8 @@ IAnalyticsProviderET& FEngineAnalytics::GetProvider()
 {
 	checkf(bIsInitialized && IsAvailable(), TEXT("FEngineAnalytics::GetProvider called outside of Initialize/Shutdown."));
 
-	return *Analytics.Get();
+	static FStudioAnalyticsShimProvider StudioAnalyticsShim(Analytics);
+	return StudioAnalyticsShim;
 }
 
 void FEngineAnalytics::Initialize()
@@ -162,14 +260,14 @@ void FEngineAnalytics::Initialize()
 		// Create the session manager singleton
 		if (!SessionManager.IsValid())
 		{
-			SessionManager = MakeShareable(new FEngineSessionManager(EEngineSessionManagerMode::Editor));
+			SessionManager = MakeShared<FEngineSessionManager>(EEngineSessionManagerMode::Editor);
 			SessionManager->Initialize();
 		}
 
 #if WITH_EDITOR
 		if (!SessionSummaryWriter.IsValid())
 		{
-			SessionSummaryWriter = MakeShareable(new FEditorSessionSummaryWriter());
+			SessionSummaryWriter = MakeShared<FEditorSessionSummaryWriter>(FGenericCrashContext::GetOutOfProcessCrashReporterProcessId());
 			SessionSummaryWriter->Initialize();
 		}
 
@@ -234,16 +332,6 @@ void FEngineAnalytics::Tick(float DeltaTime)
 		SessionSummarySender->Tick(DeltaTime);
 	}
 #endif
-}
-
-void FEngineAnalytics::ReportEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
-{
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(EventName, Attributes);
-	}
-
-	FStudioAnalytics::ReportEvent(EventName, Attributes);
 }
 
 void FEngineAnalytics::LowDriveSpaceDetected()

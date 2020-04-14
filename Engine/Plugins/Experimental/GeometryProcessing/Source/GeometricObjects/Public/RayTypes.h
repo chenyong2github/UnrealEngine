@@ -62,7 +62,7 @@ public:
 	}
 
 	/**
-	 * @return smallest squared distance from line to QueryPoint
+	 * @return smallest squared distance from ray to QueryPoint
 	 */
 	inline RealType DistanceSquared(const FVector3<RealType>& QueryPoint) const
 	{
@@ -76,6 +76,14 @@ public:
 			FVector3<RealType> NearestPt = Origin + LineParam * Direction;
 			return NearestPt.DistanceSquared(QueryPoint);
 		}
+	}
+
+	/**
+	 * @return smallest squared distance from ray to QueryPoint
+	 */
+	inline RealType Distance(const FVector3<RealType>& QueryPoint) const
+	{
+		return TMathUtil<RealType>::Sqrt(DistanceSquared(QueryPoint));
 	}
 
 	/**

@@ -51,9 +51,13 @@ uint				bUseHairVoxel;
 Texture2D<uint4>	HairCategorizationTexture;
 Texture2D<uint>		HairLightChannelMaskTexture;
 
-float TraverseHair(uint2 PixelCoord, inout RandomSequence RandSequence, float3 RayOrigin, float3 RayDirection, float InMinT)
+float TraverseHair(uint2 PixelCoord, float DeviceZ, inout RandomSequence RandSequence, float3 RayOrigin, float3 RayDirection, float InMinT)
 {
 	float HitT = InMinT;
+
+
+	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+	const float PixelRadius = VirtualVoxel.HairCoveragePixelRadiusAtDepth1 * SceneDepth;
 
 	// Depth bias
 	// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
@@ -103,6 +107,7 @@ float TraverseHair(uint2 PixelCoord, inout RandomSequence RandSequence, float3 R
 		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
 		TraversalSettings.Random = VoxelRandom;
 		TraversalSettings.bUseOpaqueVisibility = false;
+		TraversalSettings.PixelRadius = PixelRadius;
 
 		Result = ComputeHairCountVirtualVoxel(
 			P0,
@@ -408,7 +413,12 @@ FOcclusionResult ComputeOcclusion(
 			/* out */ Ray.Direction,
 			/* out */ Ray.TMin,
 			/* out */ Ray.TMax);
-		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, NormalBias);
+			
+
+		uint Stencil = SceneStencilBuffer.Load(int3(PixelCoord, 0)) STENCIL_COMPONENT_SWIZZLE;
+		bool bDitheredLODFadingOut = Stencil & 1;
+		
+		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, NormalBias + (bDitheredLODFadingOut ? 0.8f : 0.0f));
 
 		BRANCH
 		if (!bIsValidRay)
@@ -452,7 +462,7 @@ FOcclusionResult ComputeOcclusion(
 		#if USE_HAIR_LIGHTING
 		if (ShadingModelID != SHADINGMODELID_HAIR && bUseHairVoxel)
 		{
-			MinimalPayload.HitT = TraverseHair(PixelCoord, RandSequence, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
+			MinimalPayload.HitT = TraverseHair(PixelCoord, DeviceZ, RandSequence, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
 		}
 		#endif
 

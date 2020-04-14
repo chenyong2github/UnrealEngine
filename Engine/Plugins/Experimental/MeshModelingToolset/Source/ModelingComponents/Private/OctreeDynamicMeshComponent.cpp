@@ -125,14 +125,13 @@ void UOctreeDynamicMeshComponent::ApplyTransform(const FTransform3d& Transform, 
 
 void UOctreeDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
 {
-	if (bHaveModifiedTopology == false && Mesh.Get()->VertexCount() == MeshDescription->Vertices().Num())
+	FDynamicMeshToMeshDescription Converter(ConversionOptions);
+	if (bHaveModifiedTopology == false && Converter.HaveMatchingElementCounts(Mesh.Get(), MeshDescription))
 	{
-		FDynamicMeshToMeshDescription Converter(ConversionOptions);
 		Converter.Update(Mesh.Get(), *MeshDescription);
 	}
 	else
 	{
-		FDynamicMeshToMeshDescription Converter(ConversionOptions);
 		Converter.Convert(Mesh.Get(), *MeshDescription);
 
 		//UE_LOG(LogTemp, Warning, TEXT("MeshDescription has %d instances"), MeshDescription->VertexInstances().Num());

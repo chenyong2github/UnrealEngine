@@ -135,7 +135,48 @@ public:
 		}
 	}
 
+	/**
+	 * Constructor to create FString with specified number of characters from another string with additional character zero
+	 *
+	 * @param Other the other string to create a new copy from
+	 * @param ExtraSlack number of extra characters to add to the end of the other string in this string
+	 */
+	template <
+		typename CharType,
+		typename = typename TEnableIf<TIsCharType<CharType>::Value>::Type // This TEnableIf is to ensure we don't instantiate this constructor for non-char types, like id* in Obj-C
+	>
+		FORCEINLINE FString(const CharType* Src, int32 ExtraSlack)
+	{
+		if (Src && *Src)
+		{
+			int32 SrcLen = TCString<CharType>::Strlen(Src) + 1;
+			int32 DestLen = FPlatformString::ConvertedLength<TCHAR>(Src, SrcLen);
+			Data.Reserve(DestLen + ExtraSlack);
+			Data.AddUninitialized(DestLen);
+
+			FPlatformString::Convert(Data.GetData(), DestLen, Src, SrcLen);
+		}
+		else
+		{
+			Reserve(ExtraSlack); 
+		}
+	}
+
+	/**
+	 * Create an FString from a FStringView
+	 *
+	 * @param Other The string view to create a new copy from
+	 */
 	explicit FString(const FStringView& Other);
+
+	/**
+	 * Create an FString from a FStringView with extra space for characters at the end of the string
+	 *
+	 * @param Other The string view to create a new copy from
+	 * @param ExtraSlack number of extra characters to add to the end of the other string in this string
+	 */
+	explicit FString(const FStringView& Other, int32 ExtraSlack);
+	
 
 #ifdef __OBJC__
 	/** Convert Objective-C NSString* to FString */
@@ -1758,7 +1799,10 @@ public:
 	FORCEINLINE void Reserve(int32 CharacterCount)
 	{
 		checkSlow(CharacterCount >= 0 && CharacterCount < MAX_int32);
-		Data.Reserve(CharacterCount + 1);
+		if (CharacterCount > 0)
+		{
+			Data.Reserve(CharacterCount + 1);
+		}	
 	}
 
 	/**
@@ -1936,7 +1980,8 @@ inline int32 GetNum(const FString& String)
 /** Case insensitive string hash function. */
 FORCEINLINE uint32 GetTypeHash(const FString& S)
 {
-	return FCrc::Strihash_DEPRECATED(*S);
+	// This must match the GetTypeHash behavior of FStringView
+	return FCrc::Strihash_DEPRECATED(S.Len(), *S);
 }
 
 /** 

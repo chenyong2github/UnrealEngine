@@ -52,17 +52,17 @@ namespace Chaos
 		return Constraints.NumConstraints(); 
 	}
 
-	template class TSimpleConstraintRule<TPBDCollisionConstraints<float, 3>>;
+	template class TSimpleConstraintRule<FPBDCollisionConstraints>;
 	template class TSimpleConstraintRule<FPBDJointConstraints>;
 	template class TSimpleConstraintRule<FPBDRigidSpringConstraints>;
 
-	template class TPBDConstraintGraphRuleImpl<TPBDCollisionConstraints<float, 3>>;
+	template class TPBDConstraintGraphRuleImpl<FPBDCollisionConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDJointConstraints>;
 	template class TPBDConstraintGraphRuleImpl<TPBDPositionConstraints<float, 3>>;
 	template class TPBDConstraintGraphRuleImpl<TPBDRigidDynamicSpringConstraints<float, 3>>;
 	template class TPBDConstraintGraphRuleImpl<FPBDRigidSpringConstraints>;
 
-	template class TPBDConstraintColorRule<TPBDCollisionConstraints<float, 3>>;
+	template class TPBDConstraintColorRule<FPBDCollisionConstraints>;
 	template class TPBDConstraintIslandRule<FPBDJointConstraints>;
 	template class TPBDConstraintIslandRule<TPBDPositionConstraints<float, 3>>;
 	template class TPBDConstraintIslandRule<TPBDRigidDynamicSpringConstraints<float, 3>>;

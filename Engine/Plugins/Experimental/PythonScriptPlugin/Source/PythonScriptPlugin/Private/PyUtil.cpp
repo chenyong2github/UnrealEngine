@@ -239,6 +239,30 @@ FPropertyDef::FPropertyDef(const FProperty* InProperty)
 
 bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 {
+	// It is a common error for a user to pass the container type directly
+	// rather than an instance of it that defines the sub-types
+	// eg) To pass "unreal.Map" rather than "unreal.Map(int, str)"
+	// This tests for that case and emits a suitable error
+	{
+		if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperArrayType) == 1)
+		{
+			SetPythonError(PyExc_TypeError, InPyType, TEXT("Cannot create a property definition from 'Array' directly! It must be an instance specifying the element type, eg) 'Array(int)'."));
+			return false;
+		}
+
+		if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperSetType) == 1)
+		{
+			SetPythonError(PyExc_TypeError, InPyType, TEXT("Cannot create a property definition from 'Set' directly! It must be an instance specifying the element type, eg) 'Set(int)'."));
+			return false;
+		}
+
+		if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperMapType) == 1)
+		{
+			SetPythonError(PyExc_TypeError, InPyType, TEXT("Cannot create a property definition from 'Map' directly! It must be an instance specifying the key and value types, eg) 'Map(int, str)'."));
+			return false;
+		}
+	}
+
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperObjectType) == 1)
 	{
 		OutPropertyDef.PropertyClass = FObjectProperty::StaticClass();
@@ -335,31 +359,6 @@ bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 
 bool CalculatePropertyDef(PyObject* InPyObj, FPropertyDef& OutPropertyDef)
 {
-	// It is a common error for a user to pass the container type directly
-	// rather than an instance of it that defines the sub-types
-	// eg) To pass "unreal.Map" rather than "unreal.Map(int, str)"
-	// This tests for that case and emits a suitable error
-	if (PyType_Check(InPyObj))
-	{
-		if (PyObject_IsSubclass(InPyObj, (PyObject*)&PyWrapperArrayType) == 1)
-		{
-			SetPythonError(PyExc_TypeError, InPyObj, TEXT("Cannot create a property definition from 'Array' directly! It must be an instance specifying the element type, eg) 'Array(int)'."));
-			return false;
-		}
-
-		if (PyObject_IsSubclass(InPyObj, (PyObject*)&PyWrapperSetType) == 1)
-		{
-			SetPythonError(PyExc_TypeError, InPyObj, TEXT("Cannot create a property definition from 'Set' directly! It must be an instance specifying the element type, eg) 'Set(int)'."));
-			return false;
-		}
-
-		if (PyObject_IsSubclass(InPyObj, (PyObject*)&PyWrapperMapType) == 1)
-		{
-			SetPythonError(PyExc_TypeError, InPyObj, TEXT("Cannot create a property definition from 'Map' directly! It must be an instance specifying the key and value types, eg) 'Map(int, str)'."));
-			return false;
-		}
-	}
-
 	if (PyObject_IsInstance(InPyObj, (PyObject*)&PyWrapperArrayType) == 1)
 	{
 		FPyWrapperArray* PyArray = (FPyWrapperArray*)InPyObj;
@@ -642,7 +641,16 @@ bool InspectFunctionArgs(PyObject* InFunc, TArray<FString>& OutArgNames, TArray<
 
 int ValidateContainerTypeParam(PyObject* InPyObj, FPropertyDef& OutPropDef, const char* InPythonArgName, const TCHAR* InErrorCtxt)
 {
-	if (PyObject_IsInstance(InPyObj, (PyObject*)&PyType_Type) != 1)
+	if (PyObject_IsInstance(InPyObj, (PyObject*)&PyWrapperArrayType) == 1 ||
+		PyObject_IsInstance(InPyObj, (PyObject*)&PyWrapperSetType) == 1 ||
+		PyObject_IsInstance(InPyObj, (PyObject*)&PyWrapperMapType) == 1
+		)
+	{
+		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("'%s' (%s) cannot be a container element type (directly nested containers are not supported - consider using an intermediary struct instead)"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj)));
+		return -1;
+	}
+
+	if (PyType_Check(InPyObj) != 1)
 	{
 		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("'%s' (%s) must be a type"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj)));
 		return -1;
@@ -650,19 +658,19 @@ int ValidateContainerTypeParam(PyObject* InPyObj, FPropertyDef& OutPropDef, cons
 
 	if (!CalculatePropertyDef((PyTypeObject*)InPyObj, OutPropDef))
 	{
-		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Failed to convert '%s' (%s) to a 'FProperty' class"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj)));
+		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Failed to convert '%s' (%s) to a 'Property' class"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj)));
 		return -1;
 	}
 
 	if (OutPropDef.KeyDef.IsValid() || OutPropDef.ValueDef.IsValid())
 	{
-		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("'%s' (%s) cannot be a container type"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj)));
+		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("'%s' (%s) cannot be a container element type"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj)));
 		return -1;
 	}
 
 	if (OutPropDef.PropertyClass->HasAnyClassFlags(CLASS_Abstract))
 	{
-		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("'%s' (%s) converted to '%s' which is an abstract 'FProperty' class"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj), *OutPropDef.PropertyClass->GetName()));
+		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("'%s' (%s) converted to '%s' which is an abstract 'Property' class"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj), *OutPropDef.PropertyClass->GetName()));
 		return -1;
 	}
 

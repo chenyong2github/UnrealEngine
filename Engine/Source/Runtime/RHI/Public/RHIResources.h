@@ -1953,7 +1953,10 @@ public:
 	using TRenderTargetFlags		= TStaticArray<uint32, MaxSimultaneousRenderTargets>;
 
 	FGraphicsPipelineStateInitializer()
-		: RenderTargetsEnabled(0)
+		: BlendState(nullptr)
+		, RasterizerState(nullptr)
+		, DepthStencilState(nullptr)
+		, RenderTargetsEnabled(0)
 		, RenderTargetFormats(PF_Unknown)
 		, RenderTargetFlags(0)
 		, DepthStencilTargetFormat(PF_Unknown)
@@ -2282,6 +2285,7 @@ public:
 	virtual int32 FindShaderIndex(const FSHAHash& Hash) = 0;
 	virtual FGraphEventRef PreloadShader(int32 ShaderIndex) { return FGraphEventRef(); }
 	virtual FGraphEventRef PreloadShaderMap(int32 ShaderMapIndex) { return FGraphEventRef(); }
+	virtual void ReleasePreloadedShaderMap(int32 ShaderMapIndex) {}
 
 	virtual TRefCountPtr<FRHIShader> CreateShader(int32 ShaderIndex) { return nullptr; }
 	virtual void Teardown() {};
@@ -2363,6 +2367,7 @@ enum class EDepthStencilTargetActions : uint8
 	ClearDepthStencil_StoreStencilNotDepth =	RTACTION_MAKE_MASK(Clear_DontStore, Clear_Store),
 	ClearDepthStencil_ResolveDepthNotStencil =	RTACTION_MAKE_MASK(Clear_Resolve, Clear_DontStore),
 	ClearDepthStencil_ResolveStencilNotDepth =	RTACTION_MAKE_MASK(Clear_DontStore, Clear_Resolve),
+	LoadDepthClearStencil_StoreDepthStencil  =  RTACTION_MAKE_MASK(Load_Store, Clear_Store),
 
 	ClearStencilDontLoadDepth_StoreStencilNotDepth = RTACTION_MAKE_MASK(DontLoad_DontStore, Clear_Store),
 

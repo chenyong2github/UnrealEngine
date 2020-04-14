@@ -9,11 +9,6 @@
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
-namespace
-{
-	// Use a full multichannel frame as a scratch processing buffer
-	static const int32 ProcessorScratchNumChannels = 8;
-} // namespace <>
 
 FSubmixEffectDynamicsProcessor::FSubmixEffectDynamicsProcessor()
 	: DeviceId(INDEX_NONE)
@@ -22,23 +17,33 @@ FSubmixEffectDynamicsProcessor::FSubmixEffectDynamicsProcessor()
 
 FSubmixEffectDynamicsProcessor::~FSubmixEffectDynamicsProcessor()
 {
-	if (ExternalSubmix.IsValid())
-	{
-		Audio::FMixerDevice* MixerDevice = nullptr;
-		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-		{
-			MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceManager->GetAudioDeviceRaw(DeviceId));
-		}
+	FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
 
-		if (MixerDevice)
+	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+	{
+		FAudioDeviceHandle DeviceHandle = DeviceManager->GetAudioDevice(DeviceId);
+		if (DeviceHandle.IsValid())
 		{
-			MixerDevice->UnregisterSubmixBufferListener(this, ExternalSubmix.Get());
+			Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceHandle.GetAudioDevice());
+			check(MixerDevice);
+
+			if (ExternalSubmix.IsValid())
+			{
+				MixerDevice->UnregisterSubmixBufferListener(this, ExternalSubmix.Get());
+			}
 		}
 	}
 }
 
+Audio::FDeviceId FSubmixEffectDynamicsProcessor::GetDeviceId() const
+{
+	return DeviceId;
+}
+
 void FSubmixEffectDynamicsProcessor::Init(const FSoundEffectSubmixInitData& InitData)
 {
+	static const int32 ProcessorScratchNumChannels = 8;
+
 	DynamicsProcessor.Init(InitData.SampleRate, ProcessorScratchNumChannels);
 
 	AudioKeyFrame.Reset();
@@ -51,6 +56,11 @@ void FSubmixEffectDynamicsProcessor::Init(const FSoundEffectSubmixInitData& Init
 	AudioOutputFrame.AddZeroed(ProcessorScratchNumChannels);
 
 	DeviceId = InitData.DeviceID;
+
+	if (USubmixEffectDynamicsProcessorPreset* ProcPreset = Cast<USubmixEffectDynamicsProcessorPreset>(Preset.Get()))
+	{
+		SetExternalSubmix(ProcPreset->Settings.ExternalSubmix);
+	}
 }
 
 void FSubmixEffectDynamicsProcessor::OnNewSubmixBuffer(
@@ -126,30 +136,6 @@ void FSubmixEffectDynamicsProcessor::OnPresetChanged()
 
 	static_assert(static_cast<int32>(ESubmixEffectDynamicsChannelLinkMode::Count) == static_cast<int32>(Audio::EDynamicsProcessorChannelLinkMode::Count), "Enumerations must match");
 	DynamicsProcessor.SetChannelLinkMode(static_cast<Audio::EDynamicsProcessorChannelLinkMode>(Settings.LinkMode));
-
-	Audio::FMixerDevice* MixerDevice = nullptr;
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-	{
-		MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceManager->GetAudioDeviceRaw(DeviceId));
-	}
-
-	if (MixerDevice)
-	{
-		if (ExternalSubmix.Get() != Settings.ExternalSubmix)
-		{
-			if (ExternalSubmix.IsValid())
-			{
-				MixerDevice->UnregisterSubmixBufferListener(this, ExternalSubmix.Get());
-			}
-
-			ExternalSubmix = Settings.ExternalSubmix;
-
-			if (ExternalSubmix.IsValid())
-			{
-				MixerDevice->RegisterSubmixBufferListener(this, ExternalSubmix.Get());
-			}
-		}
-	}
 }
 
 void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
@@ -167,7 +153,7 @@ void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInpu
 		{
 			const int32 SampleIndex = SampleIndexOfFrame + Channel;
 			AudioInputFrame[Channel] = InBuffer[SampleIndex];
-			if (ExternalSubmix.IsValid())
+			if (bUseExternalSubmix)
 			{
 				AudioKeyFrame[Channel] = AudioExternal.Num() > SampleIndex ? AudioExternal[SampleIndex] : 0;
 			}
@@ -189,6 +175,61 @@ void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInpu
 	}
 }
 
+void FSubmixEffectDynamicsProcessor::SetExternalSubmix(USoundSubmix* InSoundSubmix)
+{
+	FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
+	if (!DeviceManager)
+	{
+		return;
+	}
+
+	FAudioDeviceHandle DeviceHandle = DeviceManager->GetAudioDevice(DeviceId);
+	if (DeviceHandle.IsValid())
+	{
+		Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(DeviceHandle.GetAudioDevice());
+		check(MixerDevice);
+
+		if (ExternalSubmix.Get() != InSoundSubmix)
+		{
+			if (ExternalSubmix.IsValid())
+			{
+				MixerDevice->UnregisterSubmixBufferListener(this, ExternalSubmix.Get());
+			}
+
+			ExternalSubmix = InSoundSubmix;
+
+			bUseExternalSubmix = ExternalSubmix.IsValid();
+			if (bUseExternalSubmix)
+			{
+				MixerDevice->RegisterSubmixBufferListener(this, ExternalSubmix.Get());
+			}
+		}
+
+	}
+	else
+	{
+		DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FSubmixEffectDynamicsProcessor::OnNewDeviceCreated);
+		bUseExternalSubmix = true;
+	}
+}
+
+void FSubmixEffectDynamicsProcessor::OnNewDeviceCreated(Audio::FDeviceId InDeviceId)
+{
+	if (InDeviceId == DeviceId)
+	{
+		FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
+
+		GET_EFFECT_SETTINGS(SubmixEffectDynamicsProcessor);
+		SetExternalSubmix(Settings.ExternalSubmix);
+
+	}
+}
+
+void USubmixEffectDynamicsProcessorPreset::OnInit()
+{
+	SetExternalSubmix(Settings.ExternalSubmix);
+}
+
 void USubmixEffectDynamicsProcessorPreset::Serialize(FStructuredArchive::FRecord Record)
 {
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
@@ -204,7 +245,16 @@ void USubmixEffectDynamicsProcessorPreset::Serialize(FStructuredArchive::FRecord
 	Super::Serialize(Record);
 }
 
+void USubmixEffectDynamicsProcessorPreset::SetExternalSubmix(USoundSubmix* InSubmix)
+{
+	IterateEffects<FSubmixEffectDynamicsProcessor>([this, InSubmix](FSubmixEffectDynamicsProcessor& Instance)
+	{
+		Instance.SetExternalSubmix(InSubmix);
+	});
+}
+
 void USubmixEffectDynamicsProcessorPreset::SetSettings(const FSubmixEffectDynamicsProcessorSettings& InSettings)
 {
 	UpdateSettings(InSettings);
+	SetExternalSubmix(InSettings.ExternalSubmix);
 }

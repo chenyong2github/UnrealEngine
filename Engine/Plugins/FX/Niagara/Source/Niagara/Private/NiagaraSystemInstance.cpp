@@ -14,6 +14,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "GameFramework/PlayerController.h"
 #include "NiagaraCrashReporterHandler.h"
+#include "Async/Async.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -88,6 +89,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, CachedDeltaSeconds(0.0f)
 	, RequestedExecutionState(ENiagaraExecutionState::Complete)
 	, ActualExecutionState(ENiagaraExecutionState::Complete)
+	, FeatureLevel(GMaxRHIFeatureLevel)
 {
 	static TAtomic<uint64> IDCounter(1);
 	ID = IDCounter.IncrementExchange();
@@ -107,6 +109,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 			{
 				Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name));
 			}
+			FeatureLevel = World->FeatureLevel;
 		}
 	}
 }
@@ -669,6 +672,41 @@ void FNiagaraSystemInstance::FindDataInterfaceDependencies(const TArray<UNiagara
 	}
 }
 
+void FNiagaraSystemInstance::FindEventDependencies(FNiagaraEmitterInstance& EmitterInst, TArray<FNiagaraEmitterInstance*>& Dependencies)
+{
+	UNiagaraEmitter* Emitter = EmitterInst.GetCachedEmitter();
+	if (!Emitter)
+	{
+		return;
+	}
+
+	const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetSystem()->GetEmitterHandles();
+
+	const TArray<FNiagaraEventScriptProperties>& EventHandlers = Emitter->GetEventHandlers();
+	for (const FNiagaraEventScriptProperties& Handler : EventHandlers)
+	{
+		// An empty ID means the event reads from the same emitter, so we don't need to record a dependency.
+		if (!Handler.SourceEmitterID.IsValid())
+		{
+			continue;
+		}
+
+		// Look for the ID in the list of emitter handles from the system object.
+		FString SourceEmitterIDName = Handler.SourceEmitterID.ToString();
+		for (int EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
+		{
+			FName EmitterIDName = EmitterHandles[EmitterIdx].GetIdName();
+			if (EmitterIDName.ToString() == SourceEmitterIDName)
+			{
+				// The Emitters array is in the same order as the EmitterHandles array.
+				FNiagaraEmitterInstance* Sender = &Emitters[EmitterIdx].Get();
+				Dependencies.Add(Sender);
+				break;
+			}
+		}
+	}
+}
+
 void FNiagaraSystemInstance::ComputeEmittersExecutionOrder()
 {
 	const int32 NumEmitters = Emitters.Num();
@@ -691,8 +729,20 @@ void FNiagaraSystemInstance::ComputeEmittersExecutionOrder()
 		EmitterPriorities[EmitterIdx] = -1;
 
 		EmitterDependencies.SetNum(0, false);
-		FindDataInterfaceDependencies(Inst.GetSpawnExecutionContext().GetDataInterfaces(), EmitterDependencies);
-		FindDataInterfaceDependencies(Inst.GetUpdateExecutionContext().GetDataInterfaces(), EmitterDependencies);
+
+		if (Inst.GetCachedEmitter() && Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Inst.GetGPUContext())
+		{
+			// GPU emitters have a combined execution context for spawn and update.
+			FindDataInterfaceDependencies(Inst.GetGPUContext()->GetDataInterfaces(), EmitterDependencies);
+		}
+		else
+		{
+			// CPU emitters have separate contexts for spawn and update, so we need to gather DIs from both. They also support events,
+			// so we need to look at the event sources for extra dependencies.
+			FindDataInterfaceDependencies(Inst.GetSpawnExecutionContext().GetDataInterfaces(), EmitterDependencies);
+			FindDataInterfaceDependencies(Inst.GetUpdateExecutionContext().GetDataInterfaces(), EmitterDependencies);
+			FindEventDependencies(Inst, EmitterDependencies);
+		}
 
 		// Map the pointers returned by the emitter to indices inside the Emitters array. This is O(N^2), but we expect
 		// to have few dependencies, so in practice it should be faster than a TMap. If it gets out of hand, we can also
@@ -1866,6 +1916,7 @@ void FNiagaraSystemInstance::ComponentTick(float DeltaSeconds, const FGraphEvent
 	check(Component);
 
 	SystemSim->Tick_GameThread(DeltaSeconds, MyCompletionGraphEvent);
+
 }
 
 void FNiagaraSystemInstance::WaitForAsyncTickDoNotFinalize(bool bEnsureComplete)
@@ -2138,6 +2189,23 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread()
 	}
 }
 
+#if WITH_EDITOR
+void FNiagaraSystemInstance::RaiseNeedsUIResync()
+{
+	AsyncTask(
+		ENamedThreads::GameThread,
+		[WeakComponent = TWeakObjectPtr<UNiagaraComponent>(Component)]() mutable
+	{
+		UNiagaraComponent* NiagaraComponent = WeakComponent.Get();
+		if (NiagaraComponent != nullptr )
+		{
+			NiagaraComponent->OnSynchronizedWithAssetParameters().Broadcast();
+		}
+	}
+	);
+}
+#endif
+
 #if WITH_EDITORONLY_DATA
 bool FNiagaraSystemInstance::GetIsolateEnabled() const
 {
@@ -2152,6 +2220,19 @@ bool FNiagaraSystemInstance::GetIsolateEnabled() const
 
 void FNiagaraSystemInstance::DestroyDataInterfaceInstanceData()
 {
+	NiagaraEmitterInstanceBatcher* InstanceBatcher = GetBatcher();
+	if (bHasGPUEmitters && FNiagaraUtilities::AllowGPUParticles(InstanceBatcher->GetShaderPlatform()))
+	{
+		ENQUEUE_RENDER_COMMAND(NiagaraRemoveGPUSystem)
+		(
+			[InstanceBatcher, InstanceID=GetId()](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				InstanceBatcher->InstanceDeallocated_RenderThread(InstanceID);
+			}
+		);
+	}
+
+	//
 	for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair : DataInterfaceInstanceDataOffsets)
 	{
 		if (UNiagaraDataInterface* Interface = Pair.Key.Get())

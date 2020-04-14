@@ -10,6 +10,8 @@
 
 namespace Chaos
 {
+	template<class T, int d> class TAABB;
+
 	/**
 	 * Common data types for the Chaos physics engine. Unless a specific
 	 * precision of type is required most code should use these existing types
@@ -17,11 +19,12 @@ namespace Chaos
 	 */
 	using FReal = float;
 
+	using FVec2 = TVector<FReal, 2>;
 	using FVec3 = TVector<FReal, 3>;
 	using FMatrix33 = PMatrix<FReal, 3, 3>;
 	using FRigidTransform3 = TRigidTransform<FReal, 3>;
 	using FRotation3 = TRotation<FReal, 3>;
-
+	using FAABB3 = TAABB<FReal, 3>;
 
 	template <typename T>
 	using TVec3 = TVector<T, 3>;

@@ -9,7 +9,11 @@
 #include "EngineDefines.h"
 #include "PhysicsPublic.h"
 #include "PhysXIncludes.h"
-#include "Chaos/ImplicitObject.h"
+
+namespace Chaos
+{
+	class FImplicitObject;
+}
 
 #if PHYSICS_INTERFACE_PHYSX
 /** Draw PhysX geom with overlaps */

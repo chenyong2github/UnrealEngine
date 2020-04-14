@@ -36,6 +36,7 @@ class SDockTab;
 class SWindow;
 class USequencerSettings;
 class FSequencerTrackFilter;
+class SSequencerGroupManager;
 struct FPaintPlaybackRangeArgs;
 struct FSequencerCustomizationInfo;
 struct FSequencerSelectionCurveFilter;
@@ -149,6 +150,9 @@ public:
 
 		/** The Marked Frames */
 		SLATE_ATTRIBUTE(TArray<FMovieSceneMarkedFrame>, MarkedFrames)
+
+		/** The Global Marked Frames */
+		SLATE_ATTRIBUTE(TArray<FMovieSceneMarkedFrame>, GlobalMarkedFrames)
 
 		/** The current sub sequence range */
 		SLATE_ATTRIBUTE( TOptional<TRange<FFrameNumber>>, SubSequenceRange)
@@ -409,6 +413,10 @@ public:
 	/** Makes the time display format menu for the toolbar and the play rate menu. */
 	void FillTimeDisplayFormatMenu(FMenuBuilder& MenuBuilder);
 
+	void OpenNodeGroupsManager();
+
+	TSharedPtr<SSequencerGroupManager> GetNodeGroupsManager() const { return NodeGroupManager; }
+
 public:	
 	/** Makes a time range widget with the specified inner content */
 	TSharedRef<SWidget> MakeTimeRange(const TSharedRef<SWidget>& InnerContent, bool bShowWorkingRange, bool bShowViewRange, bool bShowPlaybackRange);
@@ -428,6 +436,10 @@ private:
 	bool IsTrackLevelFilterActive(const FString LevelName) const;
 
 	void FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder);
+	void FillNodeGroupsFilterMenu(FMenuBuilder& InMenuBarBuilder);
+
+	void OnResetNodeGroupFilters();
+	void OnNodeGroupFilterClicked(UMovieSceneNodeGroup* NodeGroup);
 
 	/**
 	* Called when the time snap interval changes.
@@ -716,6 +728,10 @@ private:
 	TArray< TSharedRef<FSequencerTrackFilter> > AllTrackFilters;
 
 	TWeakPtr<SWindow> WeakExposedBindingsWindow;
+
+	TWeakPtr<SWindow> WeakNodeGroupWindow;
+
+	TSharedPtr<SSequencerGroupManager> NodeGroupManager;
 
 public:
 	static const FName CurveEditorTabName;

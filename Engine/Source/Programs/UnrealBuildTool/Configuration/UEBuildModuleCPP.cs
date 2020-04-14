@@ -692,6 +692,10 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
+			if (ModuleCompileEnvironment.CppStandard != CompileEnvironment.CppStandard)
+			{
+				return false;
+			}
 			return true;
 		}
 
@@ -780,6 +784,12 @@ namespace UnrealBuildTool
 					Variant += ".NoUndef";
 				}
 			}
+
+			if (CompileEnvironment.CppStandard != BaseCompileEnvironment.CppStandard)
+			{
+				Variant += String.Format(".{0}", CompileEnvironment.CppStandard);
+			}
+
 			return Variant;
 		}
 
@@ -796,6 +806,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.ShadowVariableWarningLevel = ModuleCompileEnvironment.ShadowVariableWarningLevel;
 			CompileEnvironment.UnsafeTypeCastWarningLevel = ModuleCompileEnvironment.UnsafeTypeCastWarningLevel;
 			CompileEnvironment.bEnableUndefinedIdentifierWarnings = ModuleCompileEnvironment.bEnableUndefinedIdentifierWarnings;
+			CompileEnvironment.CppStandard = ModuleCompileEnvironment.CppStandard;
 		}
 
 		/// <summary>

@@ -27,6 +27,11 @@ extern FString AndroidThunkCpp_GetMetaDataString(const FString& Key);
 
 extern FString AndroidRelativeToAbsolutePath(bool bUseInternalBasePath, FString RelPath);
 
+/** Implement platform specific static cleanup function */
+void FGenericCrashContext::CleanupPlatformSpecificFiles()
+{
+}
+
 struct FAndroidCrashInfo
 {
 	FAndroidCrashInfo()

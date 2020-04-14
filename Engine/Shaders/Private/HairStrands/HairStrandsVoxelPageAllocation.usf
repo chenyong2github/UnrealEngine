@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 #include "../Matrices.ush"
 #include "HairStrandsVoxelPageCommon.ush"
@@ -610,10 +611,9 @@ void VoxelIndPageClearBufferGenCS(uint GroupIndex : SV_GroupIndex, uint3 Dispatc
 
 #if SHADER_INDPAGECLEAR
 
-uint				VirtualVoxel_PageResolution;
-int3				VirtualVoxel_PageCountResolution;
-
-Buffer<uint4>		VirtualVoxel_PageIndexCoordBuffer;
+uint				VirtualVoxelParams_PageResolution;
+int3				VirtualVoxelParams_PageCountResolution;
+Buffer<uint4>		VirtualVoxelParams_PageIndexCoordBuffer;
 
 RWTexture3D<uint>	OutPageTexture;
 
@@ -622,18 +622,18 @@ void VoxelIndPageClearCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 Gro
 {
 	const uint  LinearVoxelCoord = DispatchThreadId.z;
 
-	const uint VoxelCountPerPage = VirtualVoxel_PageResolution.x * VirtualVoxel_PageResolution.x * VirtualVoxel_PageResolution.x;
+	const uint VoxelCountPerPage = VirtualVoxelParams_PageResolution * VirtualVoxelParams_PageResolution * VirtualVoxelParams_PageResolution;
 	//	if (AllocatedPageIndex < TotalAllocatedPageCount)		// Not needed today because the XY size exactly matches the range (page count) we need to clear.
 	if(LinearVoxelCoord < VoxelCountPerPage)
 	{
 		const uint  MaxDispatchCountPerDim = 65535u;
 		const uint  AllocatedPageIndex = DispatchThreadId.x + DispatchThreadId.y * MaxDispatchCountPerDim;
-		const uint3 VoxelCoordOffset = IndexToCoord(LinearVoxelCoord, VirtualVoxel_PageResolution.xxx);
+		const uint3 VoxelCoordOffset = IndexToCoord(LinearVoxelCoord, VirtualVoxelParams_PageResolution.xxx);
 
 		const uint PageIndex = AllocatedPageIndex; // PageIndexBuffer is not needed, we already know those tiles are allocated linearly in 3D within OutPageTexture.
 
-		const uint3 PageCoord = IndexToCoord(PageIndex, VirtualVoxel_PageCountResolution);
-		const int3 VoxelPageBase = PageCoord * VirtualVoxel_PageResolution;
+		const uint3 PageCoord = IndexToCoord(PageIndex, VirtualVoxelParams_PageCountResolution);
+		const int3 VoxelPageBase = PageCoord * VirtualVoxelParams_PageResolution;
 		const int3 VoxelCoord = VoxelPageBase + VoxelCoordOffset;
 
 		OutPageTexture[VoxelCoord] = 0;

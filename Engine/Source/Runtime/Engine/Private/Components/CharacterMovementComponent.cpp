@@ -3585,14 +3585,29 @@ FVector UCharacterMovementComponent::GetVelocityForRVOConsideration()
 	return Velocity;
 }
 
+void UCharacterMovementComponent::SetAvoidanceGroupMask(int32 GroupFlags)
+{
+	AvoidanceGroup.SetFlagsDirectly(GroupFlags);
+}
+
 int32 UCharacterMovementComponent::GetAvoidanceGroupMask()
 {
 	return AvoidanceGroup.Packed;
 }
 
+void UCharacterMovementComponent::SetGroupsToAvoidMask(int32 GroupFlags)
+{
+	GroupsToAvoid.SetFlagsDirectly(GroupFlags);
+}
+
 int32 UCharacterMovementComponent::GetGroupsToAvoidMask()
 {
 	return GroupsToAvoid.Packed;
+}
+
+void UCharacterMovementComponent::SetGroupsToIgnoreMask(int32 GroupFlags)
+{
+	GroupsToIgnore.SetFlagsDirectly(GroupFlags);
 }
 
 int32 UCharacterMovementComponent::GetGroupsToIgnoreMask()
@@ -9654,32 +9669,32 @@ void UCharacterMovementComponent::CapsuleTouched(UPrimitiveComponent* Overlapped
 
 void UCharacterMovementComponent::SetAvoidanceGroup(int32 GroupFlags)
 {
-	AvoidanceGroup.SetFlagsDirectly(GroupFlags);
+	SetAvoidanceGroupMask(GroupFlags);
 }
 
 void UCharacterMovementComponent::SetAvoidanceGroupMask(const FNavAvoidanceMask& GroupMask)
 {
-	AvoidanceGroup.SetFlagsDirectly(GroupMask.Packed);
+	SetAvoidanceGroupMask(GroupMask.Packed);
 }
 
 void UCharacterMovementComponent::SetGroupsToAvoid(int32 GroupFlags)
 {
-	GroupsToAvoid.SetFlagsDirectly(GroupFlags);
+	SetGroupsToAvoidMask(GroupFlags);
 }
 
 void UCharacterMovementComponent::SetGroupsToAvoidMask(const FNavAvoidanceMask& GroupMask)
 {
-	GroupsToAvoid.SetFlagsDirectly(GroupMask.Packed);
+	SetGroupsToAvoidMask(GroupMask.Packed);
 }
 
 void UCharacterMovementComponent::SetGroupsToIgnore(int32 GroupFlags)
 {
-	GroupsToIgnore.SetFlagsDirectly(GroupFlags);
+	SetGroupsToIgnoreMask(GroupFlags);
 }
 
 void UCharacterMovementComponent::SetGroupsToIgnoreMask(const FNavAvoidanceMask& GroupMask)
 {
-	GroupsToIgnore.SetFlagsDirectly(GroupMask.Packed);
+	SetGroupsToIgnoreMask(GroupMask.Packed);
 }
 
 void UCharacterMovementComponent::SetAvoidanceEnabled(bool bEnable)

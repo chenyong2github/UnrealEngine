@@ -56,7 +56,7 @@
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "NiagaraScriptSourceBase.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -83,14 +83,6 @@ static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
 	TEXT("fx.LogNiagaraSystemChanges"),
 	GbLogNiagaraSystemChanges,
 	TEXT("If > 0 Niagara Systems will be written to a text format when opened and closed in the editor. \n"),
-	ECVF_Default
-);
-
-static int32 GbShowNiagaraDeveloperWindows = 0;
-static FAutoConsoleVariableRef CVarShowNiagaraDeveloperWindows(
-	TEXT("fx.ShowNiagaraDeveloperWindows"),
-	GbShowNiagaraDeveloperWindows,
-	TEXT("If > 0 the niagara system and emitter editors will show additional developer windows.\nThese windows are for niagara tool development and debugging and editing the data\n directly in these windows can cause instability.\n"),
 	ECVF_Default
 );
 
@@ -125,12 +117,10 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("SystemParameters", "Parameters"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 
-	if (FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 > 0)
-	{
-		InTabManager->RegisterTabSpawner(SystemParametersTabID2, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameters2))
-			.SetDisplayName(LOCTEXT("SystemParameters2", "Parameters2"))
-			.SetGroup(WorkspaceMenuCategory.ToSharedRef());
-	}
+	InTabManager->RegisterTabSpawner(SystemParametersTabID2, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameters2))
+		.SetDisplayName(LOCTEXT("SystemParameters2", "Parameters2"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
+		.SetAutoGenerateMenuEntry(GbShowNiagaraDeveloperWindows != 0);
 
 	InTabManager->RegisterTabSpawner(SelectedEmitterStackTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SelectedEmitterStack))
 		.SetDisplayName(LOCTEXT("SelectedEmitterStacks", "Selected Emitters"))
@@ -332,7 +322,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	const float InTime = -0.02f;
 	const float OutTime = 3.2f;
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v22")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v24")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)

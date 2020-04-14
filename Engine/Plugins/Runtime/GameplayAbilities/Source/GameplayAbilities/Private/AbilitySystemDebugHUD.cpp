@@ -96,7 +96,7 @@ void AAbilitySystemDebugHUD::DrawDebugAbilitySystemComponent(UAbilitySystemCompo
 	DrawWithBackground(Font, String, Color, EAlignHorizontal::Left, X, EAlignVertical::Top, Y);
 
 
-	for (const UAttributeSet* Set : Component->SpawnedAttributes)
+	for (const UAttributeSet* Set : Component->GetSpawnedAttributes())
 	{
 		if (!Set)
 		{

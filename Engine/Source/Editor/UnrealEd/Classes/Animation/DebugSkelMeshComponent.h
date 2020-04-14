@@ -229,6 +229,9 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	UPROPERTY(transient)
 	bool bClothCullBackface;
 
+	UPROPERTY(transient)
+	uint32 bRequiredBonesUpToDateDuringTick : 1;
+
 	/* Bounds computed from cloth. */
 	FBoxSphereBounds CachedClothBounds;
 

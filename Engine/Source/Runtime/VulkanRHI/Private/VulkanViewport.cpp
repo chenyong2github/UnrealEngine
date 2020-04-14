@@ -382,7 +382,9 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 
 		++NumColorAttachments;
 
-		if (InRTInfo.bHasResolveAttachments)
+		// Check the RTLayout as well to make sure the resolve attachment is needed (Vulkan and Feature level specific)
+		// See: FVulkanRenderTargetLayout constructor with FRHIRenderPassInfo
+		if (InRTInfo.bHasResolveAttachments && RTLayout.GetHasResolveAttachments() && RTLayout.GetResolveAttachmentReferences()[Index].layout != VK_IMAGE_LAYOUT_UNDEFINED)
 		{
 			FRHITexture* ResolveRHITexture = InRTInfo.ColorResolveRenderTarget[Index].Texture;
 			FVulkanTextureBase* ResolveTexture = FVulkanTextureBase::Cast(ResolveRHITexture);
@@ -880,8 +882,8 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	}
 	else
 	{
-		// submit through the CommandBufferManager as it will add the proper semaphore
-		ImmediateCmdBufMgr->SubmitActiveCmdBufferFromPresent(RenderingDoneSemaphores[AcquiredImageIndex]);
+		// Submit active command buffer if not supporting standard swapchain (e.g. XR devices).
+		ImmediateCmdBufMgr->SubmitActiveCmdBufferFromPresent(nullptr);
 	}
 
 	//Flush all commands

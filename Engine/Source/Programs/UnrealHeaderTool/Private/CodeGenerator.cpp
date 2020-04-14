@@ -6346,7 +6346,7 @@ void ResolveSuperClasses(UPackage* Package)
 
 	for (UObject* Object : Objects)
 	{
-		if (!Object->IsA<UClass>())
+		if (!Object->IsA<UClass>() || Object->HasAnyFlags(RF_ClassDefaultObject))
 		{
 			continue;
 		}

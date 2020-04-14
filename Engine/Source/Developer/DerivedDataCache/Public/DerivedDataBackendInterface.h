@@ -27,9 +27,54 @@ DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Exists Time"),STAT_DDC_ExistTime,STA
 class FDerivedDataBackendInterface
 {
 public:
+
+	/*
+		Speed classes. Higher values are faster so > / < comparisons make sense.
+	*/
+	enum class ESpeedClass
+	{
+		Unknown,		/* Don't know yet*/
+		Slow,			/* Slow, likely a remote drive. Some benefit but handle with care */
+		Ok,				/* Ok but not great.  */
+		Fast,			/* Fast but seek times still have an impact */
+		Local			/* Little to no impact from seek times and extremly fast reads */
+	};
+
+	/* Debug options that can be applied to backends to simulate different behavior */
+	struct FBackendDebugOptions
+	{
+		/* Percentage of requests that should result in random misses */
+		int					RandomMissRate;
+
+		/* Apply behavior of this speed class */
+		ESpeedClass			SpeedClass;		
+
+		/* Types of DDC entries that should always be a miss */
+		TArray<FString>		SimulateMissTypes;
+
+		FBackendDebugOptions()
+			: RandomMissRate(0)
+			, SpeedClass(ESpeedClass::Unknown)
+		{
+		}
+
+		/* Fill in the provided structure based on the name of the node (e.g. 'shared') and the provided token stream */
+		static bool ParseFromTokens(FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InTokens);
+
+		/* 
+			Returns true if, according to the properties of this struct, the provided key should be treated as a miss.
+			Implementing that miss and accounting for any behaviour impact (e.g. skipping a subsequent put) is left to
+			each backend.
+		*/
+		bool ShouldSimulateMiss(const TCHAR* InCacheKey);
+	};
+
 	virtual ~FDerivedDataBackendInterface()
 	{
 	}
+
+	/** Return a name for this interface */
+	virtual FString GetName() const = 0;
 
 	/** return true if this cache is writable **/
 	virtual bool IsWritable()=0;
@@ -42,6 +87,11 @@ public:
 	{
 		return true;
 	}
+
+	/**
+	 * Returns a class of speed for this interface
+	 **/
+	virtual ESpeedClass GetSpeedClass() = 0;
 
 	/**
 	 * Synchronous test for the existence of a cache item
@@ -82,6 +132,26 @@ public:
 	 *								This will create a path such as "0. 1. 0. 2", which can uniquely identify this node.
 	 */
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) = 0;
+
+	/**
+	 * Synchronous attempt to make sure the cached data will be available as optimally as possible. This is left up to the implementation 
+	 * to implement or just skip.
+	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
+	 * @return				true if any steps were performed to optimize future retrieval
+	 */
+	virtual bool TryToPrefetch(const TCHAR* CacheKey) = 0;
+
+	/**
+	 * Allows the DDC backend to determine if it wants to cache the provided data. Reasons for returning false could be a slow connection,
+	 * a file size limit, etc.
+	 */
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) = 0;
+
+	/**
+	 *  Ask a backend to apply debug behavior to simulate different conditions. Backends that don't support these options should return 
+		false which will result in a warning if an attempt is made to apply these options.
+	 */
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) = 0;
 };
 
 class FDerivedDataBackend
@@ -127,3 +197,7 @@ public:
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStats) = 0;
 
 };
+
+/* Lexical conversions from and to enums */
+const TCHAR* LexToString(FDerivedDataBackendInterface::ESpeedClass SpeedClass);
+void LexFromString(FDerivedDataBackendInterface::ESpeedClass& OutValue, const TCHAR* Buffer);

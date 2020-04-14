@@ -11,7 +11,7 @@
 #include "AI/Navigation/NavigationTypes.h"
 #include "Components/PrimitiveComponent.h"
 #include "Serialization/BulkData.h"
-#include "Chaos/HeightField.h"
+
 #include "LandscapeHeightfieldCollisionComponent.generated.h"
 
 class ALandscapeProxy;
@@ -23,6 +23,11 @@ class UPhysicalMaterial;
 struct FConvexVolume;
 struct FEngineShowFlags;
 struct FNavigableGeometryExport;
+
+namespace Chaos
+{
+class FHeightField;
+}
 
 #if WITH_PHYSX
 namespace physx
@@ -36,6 +41,9 @@ UCLASS(MinimalAPI, Within=LandscapeProxy)
 class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
+
+	ULandscapeHeightfieldCollisionComponent(FVTableHelper& Helper);
+	virtual ~ULandscapeHeightfieldCollisionComponent();
 
 	/** List of layers painted on this component. Matches the WeightmapLayerAllocations array in the LandscapeComponent. */
 	UPROPERTY()
@@ -96,10 +104,10 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 
 #if WITH_CHAOS
 		TArray<Chaos::FMaterialHandle> UsedChaosMaterials;
-		TUniquePtr<Chaos::THeightField<float>> Heightfield = nullptr;
-	    TUniquePtr<Chaos::THeightField<float>> HeightfieldSimple = nullptr;
+		TUniquePtr<Chaos::FHeightField> Heightfield;
+	    TUniquePtr<Chaos::FHeightField> HeightfieldSimple;
 #if WITH_EDITOR
-		TUniquePtr<Chaos::THeightField<float>> EditorHeightfield = nullptr;
+		TUniquePtr<Chaos::FHeightField> EditorHeightfield;
 #endif
 #endif
 

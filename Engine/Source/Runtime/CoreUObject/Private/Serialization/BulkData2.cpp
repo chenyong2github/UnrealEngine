@@ -6,12 +6,14 @@
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Serialization/BulkData.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/Object.h"
 #include "UObject/Package.h"
 #include "IO/IoDispatcher.h"
+#include "Async/Async.h"
 #include "Async/MappedFileHandle.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBulkDataRuntime, Log, All);
@@ -24,14 +26,20 @@ IMPLEMENT_TYPE_LAYOUT(FBulkDataBase);
 // If set to 0 then we will pretend that optional data does not exist, useful for testing.
 #define ALLOW_OPTIONAL_DATA 1
 
-namespace
+// Handy macro to validate FIoStatus return values
+#define CHECK_IOSTATUS( InIoStatus, InMethodName ) checkf(InIoStatus.IsOk(), TEXT("%s failed: %s"), InMethodName, *InIoStatus.ToString());
+
+namespace BulkDataExt
 {
 	// TODO: Maybe expose this and start using everywhere?
-	static const FString InlinedExt = TEXT(".uexp");			// Stored in the export data
-	static const FString DefaultExt = TEXT(".ubulk");			// Stored in a separate file
-	static const FString MemoryMappedExt = TEXT(".m.ubulk");	// Stored in a separate file aligned for memory mapping
-	static const FString OptionalExt = TEXT(".uptnl");			// Stored in a separate file that is optional
+	const FString Export		= TEXT(".uexp");	// Stored in the export data
+	const FString Default		= TEXT(".ubulk");	// Stored in a separate file
+	const FString MemoryMapped	= TEXT(".m.ubulk");	// Stored in a separate file aligned for memory mapping
+	const FString Optional		= TEXT(".uptnl");	// Stored in a separate file that is optional
+}
 
+namespace
+{
 	const uint16 InvalidBulkDataIndex = ~uint16(0);
 
 	FORCEINLINE bool IsIoDispatcherEnabled()
@@ -132,7 +140,7 @@ namespace FileTokenSystem
 
 	FRWLock TokenLock;
 
-	FileToken RegisterFileToken( const FName& PackageName, const FString& Filename, uint64 BulkDataOffsetInFile )
+	FBulkDataOrId::FileToken RegisterFileToken( const FName& PackageName, const FString& Filename, uint64 BulkDataOffsetInFile )
 	{
 		FWriteScopeLock LockForScope(TokenLock);
 
@@ -142,11 +150,10 @@ namespace FileTokenSystem
 		Data.PackageName = PackageName;
 		Data.BulkDataOffsetInFile = BulkDataOffsetInFile;
 
-		FileToken FileToken  = TokenData.Add(Data);
-		return FileToken;
+		return TokenData.Add(Data);
 	}
 
-	void UnregisterFileToken(FileToken ID)
+	void UnregisterFileToken(FBulkDataOrId::FileToken ID)
 	{
 		if (ID != FBulkDataBase::InvalidToken)
 		{
@@ -159,7 +166,7 @@ namespace FileTokenSystem
 		}
 	}
 
-	FileToken CopyFileToken(FileToken ID)
+	FBulkDataOrId::FileToken CopyFileToken(FBulkDataOrId::FileToken ID)
 	{
 		if (ID != FBulkDataBase::InvalidToken)
 		{
@@ -183,7 +190,7 @@ namespace FileTokenSystem
 		}
 	}
 
-	Data GetFileData(FileToken ID)
+	Data GetFileData(FBulkDataOrId::FileToken ID)
 	{
 		if (ID == FBulkDataBase::InvalidToken)
 		{
@@ -200,7 +207,7 @@ namespace FileTokenSystem
 		return Output;
 	}
 
-	FString GetFilename(FileToken ID)
+	FString GetFilename(FBulkDataOrId::FileToken ID)
 	{
 		if (ID == FBulkDataBase::InvalidToken)
 		{
@@ -211,7 +218,7 @@ namespace FileTokenSystem
 		return StringTable.Resolve(TokenData[ID].PackageName);
 	}
 
-	uint64 GetBulkDataOffset(FileToken ID)
+	uint64 GetBulkDataOffset(FBulkDataOrId::FileToken ID)
 	{
 		if (ID == FBulkDataBase::InvalidToken)
 		{
@@ -255,6 +262,11 @@ private:
 	}
 };
 
+// TODO: Currently shared between all FReadChunkIdRequest as the PS4/Pak implementation do but it would be
+// worth profiling on some different platforms to see if we lose more perf from the potential increase in 
+// locks vs the gain we get from not creating so many CriticalSections.
+static FCriticalSection FReadChunkIdRequestEvent;
+
 class FReadChunkIdRequest : public IAsyncReadRequest
 {
 public:
@@ -268,17 +280,25 @@ public:
 		{
 			Memory = (uint8*)FMemory::Malloc(InBytesToRead);
 		}
-
-		DoneEvent = FPlatformProcess::GetSynchEventFromPool(true);
-		DoneEvent->Reset();
 		
 		FIoReadOptions Options(InOffset, InBytesToRead);
 		Options.SetTargetVa(Memory);
 
 		auto OnRequestLoaded = [this](TIoStatusOr<FIoBuffer> Result)
 		{
-			SetComplete();
-			ReleaseEvent(true);
+			SetDataComplete();
+			
+			{
+				FScopeLock Lock(&FReadChunkIdRequestEvent);
+				bRequestOutstanding = false;
+
+				if (DoneEvent != nullptr)
+				{
+					DoneEvent->Trigger();
+				}
+
+				SetAllComplete();
+			}
 		};
 
 		FBulkDataBase::GetIoDispatcher()->ReadWithCallback(InChunkId, Options, OnRequestLoaded);
@@ -286,7 +306,8 @@ public:
 
 	virtual ~FReadChunkIdRequest()
 	{
-		ReleaseEvent(false);
+		// Make sure no other thread is waiting on this request
+		checkf(DoneEvent == nullptr, TEXT("A thread is still waiting on a FReadChunkIdRequest that is being destroyed!")); 
 
 		// Free memory if the request allocated it (although if the user accessed the memory after
 		// reading then they will have taken ownership of it anyway, and if they didn't access the
@@ -304,38 +325,56 @@ protected:
 
 	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
 	{
-		if (!PollCompletion())
+		// Make sure no other thread is waiting on this request
+		checkf(DoneEvent == nullptr, TEXT("Multiple threads attempting to wait on the same FReadChunkIdRequest"));
+
 		{
-			uint32 TimeLimitMilliseconds = TimeLimitSeconds <= 0.0f ? (uint32)(TimeLimitSeconds * 1000.0f) : MAX_uint32;
-			DoneEvent->Wait(TimeLimitMilliseconds);
+			FScopeLock Lock(&FReadChunkIdRequestEvent);
+			if (bRequestOutstanding)
+			{
+				check(DoneEvent == nullptr);
+				DoneEvent = FPlatformProcess::GetSynchEventFromPool(true);
+			}
 		}
+
+		if (DoneEvent != nullptr)
+		{
+			uint32 TimeLimitMilliseconds = TimeLimitSeconds <= 0.0f ? MAX_uint32 : (uint32)(TimeLimitSeconds * 1000.0f);
+			DoneEvent->Wait(TimeLimitMilliseconds);
+
+			FScopeLock Lock(&FReadChunkIdRequestEvent);
+			FPlatformProcess::ReturnSynchEventToPool(DoneEvent);
+			DoneEvent = nullptr;
+		}
+
+		// Make sure everything has completed
+		check(bRequestOutstanding == false);
+		check(PollCompletion() == true);
 	}
 
 	virtual void CancelImpl() override
 	{
 		bCanceled = true;
-		SetComplete();
 
-		DoneEvent->Trigger();
-		ReleaseEvent(true);
-	}
-
-	void ReleaseEvent(bool bShouldTrigger)
-	{
-		if (DoneEvent != nullptr)
 		{
-			if (bShouldTrigger)
+			FScopeLock Lock(&FReadChunkIdRequestEvent);
+			bRequestOutstanding = false;
+
+			if (DoneEvent != nullptr)
 			{
 				DoneEvent->Trigger();
 			}
 
-			FPlatformProcess::ReturnSynchEventToPool(DoneEvent);
-			DoneEvent = nullptr;
+			SetComplete();
 		}
 	}
 
+	/** The ChunkId that is being read. */
 	FIoChunkId ChunkId;
-	FEvent* DoneEvent;
+	/** Only actually gets created if WaitCompletion is called. */
+	FEvent* DoneEvent = nullptr;
+	/** True while the request is pending, true once it has either been completed or canceled. */
+	bool bRequestOutstanding = true;
 };
 
 class FAsyncReadChunkIdHandle : public IAsyncReadFileHandle
@@ -384,7 +423,8 @@ public:
 	{
 		for (const FIoChunkId& ChunkId : ChunkIDs)
 		{
-			RequestArray.Push({ChunkId, 0, (uint64)INDEX_NONE});
+			const uint64 Size = FBulkDataBase::GetIoDispatcher()->GetSizeForChunk(ChunkId).ConsumeValueOrDie();
+			RequestArray.Push({ChunkId, 0, Size });
 		}
 
 		if (InCompleteCallback != nullptr)
@@ -395,11 +435,7 @@ public:
 
 	virtual ~FBulkDataIoDispatcherRequest()
 	{
-		if (Task != nullptr)
-		{
-			Task->EnsureCompletion();
-			delete Task;
-		}
+		WaitCompletion(0.0f); // Wait for ever as we cannot leave outstanding requests
 
 		// Free the data is no caller has taken ownership of it and it was allocated by FBulkDataIoDispatcherRequest
 		if (UserSuppliedMemory == nullptr)
@@ -407,25 +443,57 @@ public:
 			FMemory::Free(DataResult);
 			DataResult = nullptr;
 		}
+
+		check(!IoBatch.IsValid()); // Should be freed by the callback!
 	}
 
 	void StartAsyncWork()
-	{
-		check(Task == nullptr);
+	{		
+		check(RequestArray.Num() > 0);
+		check(!IoBatch.IsValid());
 
-		bIsCompleted = false;
-		FPlatformMisc::MemoryBarrier();
+		auto Callback = [this](TIoStatusOr<FIoBuffer> Result)
+		{
+			CHECK_IOSTATUS(Result.Status(), TEXT("FIoBatch::IssueWithCallback"));
+			FIoBuffer IoBuffer = Result.ConsumeValueOrDie();
 
-		if (FPlatformProcess::SupportsMultithreading())
+			SizeResult = IoBuffer.DataSize();
+
+			if (IoBuffer.IsMemoryOwned())
+			{
+				DataResult = IoBuffer.Release().ConsumeValueOrDie();
+			}
+			else
+			{
+				DataResult = IoBuffer.Data();
+			}
+
+			check(DataResult);
+
+			bIsCompleted = true;
+
+			FPlatformMisc::MemoryBarrier();
+
+			if (CompleteCallback)
+			{
+				CompleteCallback(bIsCanceled, this);
+			}
+
+			FBulkDataBase::GetIoDispatcher()->FreeBatch(IoBatch);
+		};
+
+		IoBatch = FBulkDataBase::GetIoDispatcher()->NewBatch();
+
+		for (Request& Request : RequestArray)
 		{
-			Task = new FAsyncTask<FBulkDataIoDispatcherRequestWorker>(*this);
-			Task->StartBackgroundTask(GBackgroundPriorityThreadPool);
+			IoBatch.Read(Request.ChunkId, FIoReadOptions(Request.OffsetInBulkData, Request.BytesToRead));
 		}
-		else
-		{
-			// No multi threading support so just process immediately
-			DoWork();
-		}
+
+		FIoBatchReadOptions BatchReadOptions;
+		BatchReadOptions.SetTargetVa(UserSuppliedMemory);
+
+		FIoStatus Status = IoBatch.IssueWithCallback(BatchReadOptions, Callback);
+		CHECK_IOSTATUS(Status, TEXT("FIoBatch::IssueWithCallback"));
 	}
 
 	virtual bool PollCompletion() const override
@@ -496,110 +564,12 @@ public:
 	}
 
 private:
-
-	void DoWork()
-	{
-		FIoReadOptions IoOptions;
-
-		// TODO: FIoReadOptions is ignored at the moment
-		//IoOptions.SetRange(OffsetInBulkData, BytesToRead);
-		//IoOptions.SetTargetVa((uint64)UserSuppliedMemory);
-
-		FIoBatch NewBatch = FBulkDataBase::GetIoDispatcher()->NewBatch();
-		for (Request& Request : RequestArray)
-		{
-			Request.IoRequest = NewBatch.Read(Request.ChunkId, IoOptions);
-		}
-		NewBatch.Issue();
-
-		// Wait until the request is completed
-		while (!AreRequestsCompleted())
-		{
-			FPlatformProcess::Sleep(0.0f);
-		}
-
-		SizeResult = GetTotalBufferSize();
-
-		uint8* DstBuffer = UserSuppliedMemory != nullptr ? UserSuppliedMemory : (uint8*)FMemory::Malloc(SizeResult);
-		DataResult = DstBuffer;
-
-		for (const Request& Request : RequestArray)
-		{
-			TIoStatusOr<FIoBuffer> Result = Request.IoRequest.GetResult();
-			check(Result.IsOk());
-
-			const FIoBuffer& IoBuffer = Result.ValueOrDie();
-			uint64 BytesToRead = Request.BytesToRead == INDEX_NONE ? IoBuffer.DataSize() : Request.BytesToRead;
-		
-			FMemory::Memcpy(DstBuffer, IoBuffer.Data() + Request.OffsetInBulkData, BytesToRead);
-			DstBuffer += BytesToRead;
-		}
-		
-		FBulkDataBase::GetIoDispatcher()->FreeBatch(NewBatch);
-
-		bIsCompleted = true;
-		FPlatformMisc::MemoryBarrier();
-
-		if (CompleteCallback)
-		{
-			CompleteCallback(bIsCanceled, this);
-		}	
-	}
-
-	class FBulkDataIoDispatcherRequestWorker : public FNonAbandonableTask
-	{
-		FBulkDataIoDispatcherRequest& IoRequest;
-	public:
-		FBulkDataIoDispatcherRequestWorker(FBulkDataIoDispatcherRequest& InIoRequest)
-			: IoRequest(InIoRequest)
-		{
-		}
-
-		void DoWork()
-		{
-			IoRequest.DoWork();
-		}
-
-		FORCEINLINE TStatId GetStatId() const
-		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FBulkDataIoDispatcherRequestWorker, STATGROUP_ThreadPoolAsyncTasks);
-		}
-	};
-
-private:
 	struct Request
 	{
 		FIoChunkId ChunkId;
 		uint64 OffsetInBulkData;
 		uint64 BytesToRead;
-
-		FIoRequest IoRequest;
 	};
-
-	bool AreRequestsCompleted() const
-	{
-		for (const Request& Req : RequestArray)
-		{
-			if (!Req.IoRequest.Status().IsCompleted())
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	int64 GetTotalBufferSize()  
-	{
-		uint64 Size = 0;
-		for (Request& Req : RequestArray)
-		{
-			TIoStatusOr<FIoBuffer> Result = Req.IoRequest.GetResult();
-			Size += Result.ValueOrDie().DataSize();
-		}
-
-		return Size;
-	}
 
 	TArray<Request, TInlineAllocator<8>> RequestArray;
 
@@ -609,10 +579,10 @@ private:
 	uint8* DataResult = nullptr;
 	int64 SizeResult = 0;
 
-	// Task related members
-	FAsyncTask<FBulkDataIoDispatcherRequestWorker>* Task = nullptr;
 	bool bIsCompleted = false;
 	bool bIsCanceled = false;
+
+	FIoBatch IoBatch;
 };
 
 FBulkDataBase::FBulkDataBase(FBulkDataBase&& Other)
@@ -638,24 +608,50 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 
 	RemoveBulkData();
 
-	Data.Fallback.Token = FileTokenSystem::CopyFileToken(Other.Data.Fallback.Token);
+	if (Other.IsUsingIODispatcher())
+	{
+		Data.ChunkID = Other.Data.ChunkID;
+	}
+	else
+	{
+		Data.Fallback.BulkDataSize = Other.Data.Fallback.BulkDataSize;
+		Data.Fallback.Token = FileTokenSystem::CopyFileToken(Other.Data.Fallback.Token);
+	}
 
 	// Copy token
 	BulkDataFlags = Other.BulkDataFlags;
 
 	if( !Other.IsDataMemoryMapped())
 	{
-		const int64 DataSize = Other.GetBulkDataSize();
+		if (Other.GetDataBufferReadOnly())
+		{
+			const int64 DataSize = Other.GetBulkDataSize();
 
-		void* Dst = AllocateData(DataSize);
-		FMemory::Memcpy(Dst, Other.GetDataBufferReadOnly(), DataSize);
+			void* Dst = AllocateData(DataSize);
+			FMemory::Memcpy(Dst, Other.GetDataBufferReadOnly(), DataSize);
+		}
+		else
+		{
+			Data.Fallback.BulkDataSize = Other.Data.Fallback.BulkDataSize;
+		}
 	}
 	else
 	{
-		const int64 BulkDataSize = GetBulkDataSize();
-		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Data.Fallback.Token);
-		const FString MemoryMappedFilename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
-		MemoryMapBulkData(MemoryMappedFilename, FileData.BulkDataOffsetInFile, BulkDataSize);
+		// Note we don't need a fallback since thge original already managed the load, if we fail now then it
+		// is an actual error.
+		if (Other.IsUsingIODispatcher())
+		{
+			TIoStatusOr<FIoMappedRegion> Status = IoDispatcher->OpenMapped(Data.ChunkID, FIoReadOptions());
+			FIoMappedRegion MappedRegion = Status.ConsumeValueOrDie();
+			DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);		
+		}
+		else
+		{
+			const int64 BulkDataSize = GetBulkDataSize();
+			FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Data.Fallback.Token);
+			const FString MemoryMappedFilename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
+			MemoryMapBulkData(MemoryMappedFilename, FileData.BulkDataOffsetInFile, BulkDataSize);
+		}
 	}
 
 	return *this;
@@ -663,6 +659,8 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 
 FBulkDataBase::~FBulkDataBase()
 {
+	FlushAsyncLoading();
+	
 	check(LockStatus == LOCKSTATUS_Unlocked);
 
 	FreeData();
@@ -729,12 +727,14 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		if (!IsInlined() && bUseIoDispatcher)
 		{
-			const EIoChunkType Type = IsOptional() ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
+			const EIoChunkType Type =	IsOptional() ? EIoChunkType::OptionalBulkData : 
+										IsFileMemoryMapped() ? EIoChunkType::MemoryMappedBulkData : 
+										EIoChunkType::BulkData;
 
 			const int64 BulkDataID = BulkDataSize > 0 ? BulkDataOffsetInFile : TNumericLimits<uint64>::Max();
 			Data.ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, Type);
 
-			BulkDataFlags |= BULKDATA_UsesIoDispatcher; // Indicates that this BulkData should use the FIoChunkId rather than a filename
+			SetRuntimeBulkDataFlags(BULKDATA_UsesIoDispatcher); // Indicates that this BulkData should use the FIoChunkId rather than a filename
 		}
 		else
 		{
@@ -784,11 +784,27 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 			if (bAttemptFileMapping)
 			{
-				check(Filename != nullptr);
-				FString MemoryMappedFilename = ConvertFilenameFromFlags(*Filename);
-				if (!MemoryMapBulkData(MemoryMappedFilename, BulkDataOffsetInFile, BulkDataSize))
+				if (bUseIoDispatcher)
 				{
-					bShouldForceLoad = true; // Signal we want to force the BulkData to load
+					TIoStatusOr<FIoMappedRegion> Status = IoDispatcher->OpenMapped(Data.ChunkID, FIoReadOptions());
+					if (Status.IsOk())
+					{
+						FIoMappedRegion MappedRegion = Status.ConsumeValueOrDie();
+						DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);
+					}
+					else
+					{
+						bShouldForceLoad = true; // Signal we want to force the BulkData to load
+					}
+				}
+				else
+				{
+					check(Filename != nullptr);
+					FString MemoryMappedFilename = ConvertFilenameFromFlags(*Filename);
+					if (!MemoryMapBulkData(MemoryMappedFilename, BulkDataOffsetInFile, BulkDataSize))
+					{
+						bShouldForceLoad = true; // Signal we want to force the BulkData to load
+					}
 				}
 			}
 			else if (!Ar.IsAllowingLazyLoading() && !IsInSeperateFile())
@@ -827,7 +843,7 @@ void* FBulkDataBase::Lock(uint32 LockFlags)
 {
 	check(LockStatus == LOCKSTATUS_Unlocked);
 	
-	ForceBulkDataResident(); // Will load 
+	ForceBulkDataResident(); 	// If nothing is currently loaded then load from disk
 
 	if (LockFlags & LOCK_READ_WRITE)
 	{
@@ -898,6 +914,9 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 	check(LockStatus == LOCKSTATUS_Unlocked);
 	check(DstBuffer);
 
+	// Wait for anything that might be currently loading
+	FlushAsyncLoading();
+
 	UE_CLOG(IsDataMemoryMapped(), LogSerialization, Warning, TEXT("FBulkDataBase::GetCopy being called on a memory mapped BulkData object, call ::StealFileMapping instead!"));
 
 	if (*DstBuffer != nullptr)
@@ -947,7 +966,7 @@ void FBulkDataBase::SetBulkDataFlags(uint32 BulkDataFlagsToSet)
 	check(!CanLoadFromDisk());	// We only want to allow the editing of flags if the BulkData
 								// was dynamically created at runtime, not loaded off disk
 
-	BulkDataFlags |= BulkDataFlagsToSet;
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags | BulkDataFlagsToSet);
 }
 
 void FBulkDataBase::ResetBulkDataFlags(uint32 BulkDataFlagsToSet)
@@ -955,7 +974,7 @@ void FBulkDataBase::ResetBulkDataFlags(uint32 BulkDataFlagsToSet)
 	check(!CanLoadFromDisk());	// We only want to allow the editing of flags if the BulkData
 								// was dynamically created at runtime, not loaded off disk
 
-	BulkDataFlags = BulkDataFlagsToSet;
+	BulkDataFlags = (EBulkDataFlags)BulkDataFlagsToSet;
 }
 
 void FBulkDataBase::ClearBulkDataFlags(uint32 BulkDataFlagsToClear)
@@ -963,19 +982,25 @@ void FBulkDataBase::ClearBulkDataFlags(uint32 BulkDataFlagsToClear)
 	check(!CanLoadFromDisk());	// We only want to allow the editing of flags if the BulkData
 								// was dynamically created at runtime, not loaded off disk
 
-	BulkDataFlags &= ~BulkDataFlagsToClear;
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags & ~BulkDataFlagsToClear);
 }
 
 void FBulkDataBase::SetRuntimeBulkDataFlags(uint32 BulkDataFlagsToSet)
 {
-	check(BulkDataFlagsToSet == BULKDATA_UsesIoDispatcher || BulkDataFlagsToSet == BULKDATA_DataIsMemoryMapped);
-	BulkDataFlags |= BulkDataFlagsToSet;
+	check(	BulkDataFlagsToSet == BULKDATA_UsesIoDispatcher || 
+			BulkDataFlagsToSet == BULKDATA_DataIsMemoryMapped || 
+			BulkDataFlagsToSet == BULKDATA_HasAsyncReadPending);
+			
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags | BulkDataFlagsToSet);
 }
 
 void FBulkDataBase::ClearRuntimeBulkDataFlags(uint32 BulkDataFlagsToClear)
 {
-	check(BulkDataFlagsToClear == BULKDATA_UsesIoDispatcher || BulkDataFlagsToClear == BULKDATA_DataIsMemoryMapped);
-	BulkDataFlags &= ~BulkDataFlagsToClear;
+	check(	BulkDataFlagsToClear == BULKDATA_UsesIoDispatcher ||
+			BulkDataFlagsToClear == BULKDATA_DataIsMemoryMapped ||
+			BulkDataFlagsToClear == BULKDATA_HasAsyncReadPending);
+
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags & ~BulkDataFlagsToClear);
 }
 
 int64 FBulkDataBase::GetBulkDataSize() const
@@ -1067,7 +1092,7 @@ bool FBulkDataBase::IsSingleUse() const
 	return (BulkDataFlags & BULKDATA_SingleUse) != 0;
 }
 
-bool FBulkDataBase::IsMemoryMapped() const
+bool FBulkDataBase::IsFileMemoryMapped() const
 {
 	return (BulkDataFlags & BULKDATA_MemoryMappedPayload) != 0;
 }
@@ -1183,6 +1208,10 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkData
 
 void FBulkDataBase::ForceBulkDataResident()
 {
+	// First wait for any async load requests to finish
+	FlushAsyncLoading();
+
+	// Then check if we actually need to load or not
 	if (!IsBulkDataLoaded())
 	{
 		void* DataBuffer = nullptr;
@@ -1211,8 +1240,59 @@ void FBulkDataBase::RemoveBulkData()
 		Data.Fallback.Token = InvalidToken;
 	}
 
-	BulkDataFlags = 0;
+	BulkDataFlags = BULKDATA_None;
 
+}
+
+bool FBulkDataBase::StartAsyncLoading()
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::StartAsyncLoading"), STAT_UBD_StartSerializingBulkData, STATGROUP_Memory);
+
+	if (!IsAsyncLoadingComplete())
+	{
+		return true; // Early out if an asynchronous load is already in progress.
+	}
+
+	if (IsBulkDataLoaded())
+	{
+		return false; // Early out if we do not need to actually load any data
+	}
+
+	if (!CanLoadFromDisk())
+	{
+		return false; // Early out if we cannot load from disk
+	}
+
+	check(LockStatus == LOCKSTATUS_Unlocked)
+
+	LockStatus = LOCKSTATUS_ReadWriteLock; // Bulkdata is effectively locked while streaming!
+
+	// Indicate that we have an async read in flight
+	SetRuntimeBulkDataFlags(BULKDATA_HasAsyncReadPending);
+	FPlatformMisc::MemoryBarrier();
+
+	AsyncCallback Callback = [this](TIoStatusOr<FIoBuffer> Result)
+	{
+		check(Result.IsOk());
+		FIoBuffer IoBuffer = Result.ConsumeValueOrDie();
+
+		check(!IoBuffer.IsMemoryOwned());
+		DataAllocation.SetData(this, IoBuffer.Data());
+
+		FPlatformMisc::MemoryBarrier();
+
+		ClearRuntimeBulkDataFlags(BULKDATA_HasAsyncReadPending);
+		LockStatus = LOCKSTATUS_Unlocked;
+	};
+
+	LoadDataAsynchronously(MoveTemp(Callback));
+
+	return true;
+}
+
+bool FBulkDataBase::IsAsyncLoadingComplete() const
+{
+	return (GetBulkDataFlags() & BULKDATA_HasAsyncReadPending) == 0;
 }
 
 int64 FBulkDataBase::GetBulkDataOffsetInFile() const
@@ -1261,7 +1341,6 @@ bool FBulkDataBase::CanDiscardInternalData() const
 void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::LoadDataDirectly"), STAT_UBD_LoadDataDirectly, STATGROUP_Memory);
-	
 	if (!CanLoadFromDisk())
 	{
 		UE_LOG(LogSerialization, Warning, TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
@@ -1270,63 +1349,12 @@ void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 
 	if (!IsIoDispatcherEnabled())
 	{
-		const int64 BulkDataSize = GetBulkDataSize();
-		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Data.Fallback.Token);
-
-		FString Filename; 
-		int64 Offset = FileData.BulkDataOffsetInFile;
-
-		// Fix up the Filename/Offset to work with streaming if EDL is enabled and the filename is still referencing a uasset or umap
-		if (IsInlined() && (FileData.PackageHeaderFilename.EndsWith(TEXT(".uasset")) || FileData.PackageHeaderFilename.EndsWith(TEXT(".umap"))))
-		{
-			Offset -= IFileManager::Get().FileSize(*FileData.PackageHeaderFilename);
-			Filename = FPaths::GetBaseFilename(FileData.PackageHeaderFilename, false) + TEXT(".uexp");
-		}
-		else
-		{
-			Filename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
-		}
-
-		// If the data is inlined then we already loaded is during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
-		// Disabled at the moment
-		UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, this is detrimental to loading performance. Filename: '%s'."), *Filename);
-
-		FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
-		checkf(Ar != nullptr, TEXT("Failed to open the file to load bulk data from. Filename: '%s'."), *Filename);
-
-		// Seek to the beginning of the bulk data in the file.
-		Ar->Seek(Offset);
-
-		if (*DstBuffer == nullptr)
-		{
-			*DstBuffer = FMemory::Malloc(BulkDataSize, 0);
-		}
-
-		SerializeBulkData(*Ar, *DstBuffer, BulkDataSize);
-
-		delete Ar;
+		InternalLoadFromFileSystem(DstBuffer);
 	}
 	else if (IsUsingIODispatcher())
 	{
-		// Allocate the buffer if needed
-		if (*DstBuffer == nullptr)
-		{
-			*DstBuffer = FMemory::Malloc(GetBulkDataSize(), 0);
-		}
 
-		// Set up our options (we only need to set the target)
-		FIoReadOptions Options;
-		Options.SetTargetVa(*DstBuffer);
-		
-		FIoBatch NewBatch = GetIoDispatcher()->NewBatch();
-		FIoRequest Request = NewBatch.Read(Data.ChunkID, Options);
-
-		NewBatch.Issue();
-		NewBatch.Wait(); // Blocking wait until all requests in the batch are done
-
-		check(Request.IsOk());
-
-		FBulkDataBase::GetIoDispatcher()->FreeBatch(NewBatch);
+		InternalLoadFromIoStore(DstBuffer);
 	}
 	else
 	{
@@ -1335,14 +1363,126 @@ void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 	}
 }
 
+void FBulkDataBase::LoadDataAsynchronously(AsyncCallback&& Callback)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::LoadDataDirectly"), STAT_UBD_LoadDataDirectly, STATGROUP_Memory);
+	if (!CanLoadFromDisk())
+	{
+		UE_LOG(LogSerialization, Warning, TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
+		return; // Early out if there is nothing to load anyway
+	}
+
+	if (!IsIoDispatcherEnabled())
+	{
+		Async(EAsyncExecution::ThreadPool, [this, Callback]()
+			{
+				void* DataPtr = nullptr;
+				InternalLoadFromFileSystem(&DataPtr);
+
+				FIoBuffer Buffer(FIoBuffer::Wrap, DataPtr, GetBulkDataSize());
+				TIoStatusOr<FIoBuffer> Status(Buffer);
+
+				Callback(Status);
+			});
+	}
+	else if (IsUsingIODispatcher())
+	{
+		void* DummyPointer = nullptr;
+		InternalLoadFromIoStoreAsync(&DummyPointer, MoveTemp(Callback));
+	}
+	else
+	{
+		// Note that currently this shouldn't be reachable as we should early out due to the ::CanLoadFromDisk check at the start of the method
+		UE_LOG(LogSerialization, Error, TEXT("Attempting to reload inline BulkData when the IoDispatcher is enabled, this operation is not supported!"));
+	}
+}
+
+void FBulkDataBase::InternalLoadFromFileSystem(void** DstBuffer)
+{
+	const int64 BulkDataSize = GetBulkDataSize();
+	FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Data.Fallback.Token);
+
+	FString Filename;
+	int64 Offset = FileData.BulkDataOffsetInFile;
+
+	// Fix up the Filename/Offset to work with streaming if EDL is enabled and the filename is still referencing a uasset or umap
+	if (IsInlined() && (FileData.PackageHeaderFilename.EndsWith(TEXT(".uasset")) || FileData.PackageHeaderFilename.EndsWith(TEXT(".umap"))))
+	{
+		Offset -= IFileManager::Get().FileSize(*FileData.PackageHeaderFilename);
+		Filename = FPaths::GetBaseFilename(FileData.PackageHeaderFilename, false) + BulkDataExt::Export;
+	}
+	else
+	{
+		Filename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
+	}
+
+	// If the data is inlined then we already loaded is during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
+	// Disabled at the moment
+	UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, this is detrimental to loading performance. Filename: '%s'."), *Filename);
+
+	FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
+	checkf(Ar != nullptr, TEXT("Failed to open the file to load bulk data from. Filename: '%s'."), *Filename);
+
+	// Seek to the beginning of the bulk data in the file.
+	Ar->Seek(Offset);
+
+	if (*DstBuffer == nullptr)
+	{
+		*DstBuffer = FMemory::Malloc(BulkDataSize, 0);
+	}
+
+	SerializeBulkData(*Ar, *DstBuffer, BulkDataSize);
+
+	delete Ar;
+}
+
+void FBulkDataBase::InternalLoadFromIoStore(void** DstBuffer)
+{
+	// Allocate the buffer if needed
+	if (*DstBuffer == nullptr)
+	{
+		*DstBuffer = FMemory::Malloc(GetBulkDataSize(), 0);
+	}
+
+	// Set up our options (we only need to set the target)
+	FIoReadOptions Options;
+	Options.SetTargetVa(*DstBuffer);
+
+	FIoBatch NewBatch = GetIoDispatcher()->NewBatch();
+	FIoRequest Request = NewBatch.Read(Data.ChunkID, Options);
+
+	NewBatch.Issue();
+	NewBatch.Wait(); // Blocking wait until all requests in the batch are done
+
+	check(Request.IsOk());
+
+	FBulkDataBase::GetIoDispatcher()->FreeBatch(NewBatch);
+}
+
+void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback&& Callback)
+{
+	// Allocate the buffer if needed
+	if (*DstBuffer == nullptr)
+	{
+		*DstBuffer = FMemory::Malloc(GetBulkDataSize(), 0);
+	}
+
+	// Set up our options (we only need to set the target)
+	FIoReadOptions Options;
+	Options.SetTargetVa(*DstBuffer);
+
+	GetIoDispatcher()->ReadWithCallback(Data.ChunkID, Options, MoveTemp(Callback));
+}
+
 void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutSizeOnDisk, int64& InOutOffsetInFile)
 {
 	// We need to load the optional bulkdata info as we might need to create a FIoChunkId based on it!
-	uint32 NewFlags;
+	EBulkDataFlags NewFlags;
 	int64 NewSizeOnDisk;
 	int64 NewOffset;
 
 	SerializeDuplicateData(Ar, NewFlags, NewSizeOnDisk, NewOffset);
+
 
 #if ALLOW_OPTIONAL_DATA
 	if (IsUsingIODispatcher())
@@ -1352,7 +1492,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 
 		if (IoDispatcher->DoesChunkExist(OptionalChunkId))
 		{
-			BulkDataFlags = NewFlags | BULKDATA_UsesIoDispatcher;
+			BulkDataFlags = EBulkDataFlags(NewFlags | BULKDATA_UsesIoDispatcher);
 			InOutSizeOnDisk = NewSizeOnDisk;
 			InOutOffsetInFile = NewOffset;
 
@@ -1378,7 +1518,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 #endif
 }
 
-void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile)
+void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile)
 {
 	Ar << OutBulkDataFlags;
 
@@ -1461,6 +1601,33 @@ bool FBulkDataBase::MemoryMapBulkData(const FString& Filename, int64 OffsetInBul
 	return true;
 }
 
+void FBulkDataBase::FlushAsyncLoading()
+{
+	if (!IsAsyncLoadingComplete())
+	{
+		DECLARE_SCOPE_CYCLE_COUNTER(TEXT(" FBulkDataBase::FlushAsyncLoading"), STAT_UBD_WaitForAsyncLoading, STATGROUP_Memory);
+
+#if NO_LOGGING
+		while (IsAsyncLoadingComplete() == false)
+		{
+			FPlatformProcess::Sleep(0);
+		}
+#else
+		uint64 StartTime = FPlatformTime::Cycles64();
+		while (IsAsyncLoadingComplete() == false)
+		{
+			if (FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime))
+			{
+				UE_LOG(LogSerialization, Warning, TEXT("Waiting for %s bulk data (%lld) to be loaded longer than 1000ms"), *GetFilename(), GetBulkDataSize());
+				StartTime = FPlatformTime::Cycles64(); // Reset so we spam the log every second or so that we are stalled!
+			}
+
+			FPlatformProcess::Sleep(0);
+		}
+#endif
+	}	
+}
+
 FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 {	
 	if (IsOptional())
@@ -1468,7 +1635,7 @@ FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 		// Optional data should be tested for first as we in theory can have data that would
 		// be marked as inline, also marked as optional and in this case we should treat it as
 		// optional data first.
-		return FPaths::ChangeExtension(Filename, OptionalExt);
+		return FPathViews::ChangeExtension(Filename, BulkDataExt::Optional);
 	}
 	else if (!IsInSeperateFile())
 	{
@@ -1476,15 +1643,15 @@ FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 	}
 	else if (IsInlined())
 	{
-		return FPaths::ChangeExtension(Filename, InlinedExt);
+		return FPathViews::ChangeExtension(Filename, BulkDataExt::Export);
 	}
-	else if (IsMemoryMapped())
+	else if (IsFileMemoryMapped())
 	{
-		return FPaths::ChangeExtension(Filename, MemoryMappedExt);
+		return FPathViews::ChangeExtension(Filename, BulkDataExt::MemoryMapped);
 	}
 	else
 	{
-		return FPaths::ChangeExtension(Filename, DefaultExt);
+		return FPathViews::ChangeExtension(Filename, BulkDataExt::Default);
 	}
 }
 
@@ -1597,3 +1764,5 @@ void FBulkDataAllocation::Swap(FBulkDataBase* Owner, void** DstBuffer)
 		Owner->ClearRuntimeBulkDataFlags(BULKDATA_DataIsMemoryMapped);
 	}	
 }
+
+#undef CHECK_IOSTATUS

@@ -41,6 +41,7 @@ private:
 	{
 		RouteId_EventSpec,
 		RouteId_EventBatch,
+		RouteId_EndThread,
 		RouteId_EndCapture,
 		RouteId_ChannelAnnounce,
 		RouteId_ChannelToggle,

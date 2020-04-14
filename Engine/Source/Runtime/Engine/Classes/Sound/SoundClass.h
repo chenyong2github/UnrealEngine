@@ -6,6 +6,7 @@
 #include "AudioDefines.h"
 #include "AudioDynamicParameter.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioModulation.h"
 #include "Sound/AudioOutputTarget.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -224,7 +225,7 @@ class ENGINE_API USoundClass : public UObject
 	FSoundModulation Modulation;
 
 public:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = General)
 	USoundClass* ParentClass;
 
 #if WITH_EDITORONLY_DATA

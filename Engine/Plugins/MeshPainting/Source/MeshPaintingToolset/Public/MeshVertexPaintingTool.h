@@ -247,6 +247,7 @@ class MESHPAINTINGTOOLSET_API UMeshColorPaintingTool : public UMeshVertexPaintin
 public:
 	UMeshColorPaintingTool();
 	virtual void Setup() override;
+	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	void LODPaintStateChanged(const bool bLODPaintingEnabled);
 	int32 GetMaxLODIndexToPaint() const;
 	void PaintLODChanged();

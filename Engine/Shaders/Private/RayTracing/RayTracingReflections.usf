@@ -37,11 +37,11 @@
 #define USE_SOURCE_TEXTURE_ARRAY	1
 
 #define LTCMatTexture				RaytracingLightsDataPacked.LTCMatTexture
-#define LTCMatSampler				RaytracingLightsDataPacked.LTCMatSampler
+#define LTCMatSampler				GlobalBilinearClampedSampler
 #define LTCAmpTexture				RaytracingLightsDataPacked.LTCAmpTexture
-#define LTCAmpSampler				RaytracingLightsDataPacked.LTCAmpSampler
-#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF			
-#define PreIntegratedGFSampler		ReflectionStruct.PreIntegratedGFSampler	
+#define LTCAmpSampler				GlobalBilinearClampedSampler
+#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF
+#define PreIntegratedGFSampler		GlobalBilinearClampedSampler
 
 #include "../DeferredShadingCommon.ush"
 #include "../DeferredLightingCommon.ush"
@@ -93,6 +93,7 @@ uint UseReflectionCaptures;
 uint ReflectedShadowsType;
 uint ShouldDoDirectLighting;
 uint ShouldDoEmissiveAndIndirectLighting;
+uint ShouldReflectOnlyWater;
 uint UpscaleFactor;
 uint SortTileSize;
 uint2 RayTracingResolution;
@@ -330,7 +331,12 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	// Cutoff
 	// * Roughness value
 	// * Hair material is not for RT reflection at the moment. Their indirect contributuion is based on diffuse SH evaluation in ReflectionEnvironemenPixelShader.usf
-    const bool bIsValidPixel = (RoughnessFade > 0 || ClearCoatRoughnessFade > 0) && GBufferData.ShadingModelID != SHADINGMODELID_HAIR;
+	// * Unlit materials do not participate in lighting computations, results are unused.
+	bool bIsValidPixel = (RoughnessFade > 0 || ClearCoatRoughnessFade > 0) && GBufferData.ShadingModelID != SHADINGMODELID_HAIR && GBufferData.ShadingModelID != SHADINGMODELID_UNLIT;
+	if (ShouldReflectOnlyWater)
+	{
+		bIsValidPixel = bIsValidPixel && (GBufferData.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER);
+	}
 
     const uint LocalMaxBounces = DIM_HYBRID ? 1 : MaxBounces;
 

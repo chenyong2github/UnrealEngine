@@ -138,7 +138,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	out float3 OutSubsurfaceLighting,
 	out float OutIndirectIrradiance)
 {
-	OutIndirectIrradiance = float3(0,0,0);
+	OutIndirectIrradiance = 0;
 	OutDiffuseLighting = float3(0,0,0);
 	OutSubsurfaceLighting = 0;
 	float2 SkyOcclusionUV = 0;
@@ -360,6 +360,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.Ior = Refraction.x;
 	Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
 	
+	// Override custom data if sub-surface material
+	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE)
+	{
+		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+	}
+
 	#if CLEAR_COAT_BOTTOM_NORMAL
 	{
 		float2 oct2 = UnitVectorToOctahedron(Payload.WorldNormal);

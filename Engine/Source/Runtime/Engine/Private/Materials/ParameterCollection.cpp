@@ -24,6 +24,7 @@ TMultiMap<FGuid, FMaterialParameterCollectionInstanceResource*> GDefaultMaterial
 
 UMaterialParameterCollection::UMaterialParameterCollection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, ReleasedByRT(true)
 {
 	DefaultResource = nullptr;
 }
@@ -63,24 +64,27 @@ void UMaterialParameterCollection::BeginDestroy()
 {
 	if (DefaultResource)
 	{
+		ReleasedByRT = false;
+
 		FMaterialParameterCollectionInstanceResource* Resource = DefaultResource;
 		FGuid Id = StateId;
+		FThreadSafeBool* Released = &ReleasedByRT;
 		ENQUEUE_RENDER_COMMAND(RemoveDefaultResourceCommand)(
-			[Resource, Id](FRHICommandListImmediate& RHICmdList)
+			[Resource, Id, Released](FRHICommandListImmediate& RHICmdList)
 			{	
 				GDefaultMaterialParameterCollectionInstances.RemoveSingle(Id, Resource);
+				*Released = true;
 			}
 		);
 	}
 
-	ReleaseFence.BeginFence();
 	Super::BeginDestroy();
 }
 
 bool UMaterialParameterCollection::IsReadyForFinishDestroy()
 {
 	bool bIsReady = Super::IsReadyForFinishDestroy();
-	return bIsReady && ReleaseFence.IsFenceComplete();
+	return bIsReady && ReleasedByRT;
 }
 
 void UMaterialParameterCollection::FinishDestroy()

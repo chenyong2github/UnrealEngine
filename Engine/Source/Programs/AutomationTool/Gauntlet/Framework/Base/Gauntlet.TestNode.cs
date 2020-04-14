@@ -147,7 +147,11 @@ namespace Gauntlet
 		/// </summary>
 		/// <param name="Node"></param>
 		/// <returns></returns>
-		void CleanupTest();	
-		
+		void CleanupTest();
+
+		/// <summary>
+		/// Output all defined commandline information for this test to the gauntlet window and exit test early.
+		/// </summary>
+		void DisplayCommandlineHelp();
 	}
 }

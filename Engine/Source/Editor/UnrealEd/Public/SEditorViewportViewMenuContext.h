@@ -14,5 +14,5 @@ class UNREALED_API UEditorViewportViewMenuContext : public UObject
 	GENERATED_BODY()
 public:
 
-	TWeakPtr<const SEditorViewportViewMenu> Widget;
+	TWeakPtr<const SEditorViewportViewMenu> EditorViewportViewMenu;
 };

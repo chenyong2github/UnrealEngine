@@ -173,6 +173,11 @@ void BeginFrame_VertexBufferCleanup()
 
 FVertexBufferRHIRef FOpenGLDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FOpenGLVertexBuffer();
+	}
+
 	const void *Data = NULL;
 
 	// If a resource array was provided for the resource, create the resource pre-populated
@@ -244,12 +249,13 @@ void FOpenGLDynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, F
 
 void FOpenGLDynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer)
 {
+	VERIFY_GL_SCOPE();
 	check(DestVertexBuffer);
 	FOpenGLVertexBuffer* Dest = ResourceCast(DestVertexBuffer);
 	if (!SrcVertexBuffer)
 	{
-		// Not implemented yet
-		checkNoEntry();
+		TRefCountPtr<FOpenGLVertexBuffer> Src = new FOpenGLVertexBuffer();
+		Dest->Swap(*Src);
 	}
 	else
 	{

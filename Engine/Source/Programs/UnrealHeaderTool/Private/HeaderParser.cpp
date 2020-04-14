@@ -2779,6 +2779,9 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 		FError::Throwf(TEXT("Expected a GENERATED_BODY() at the start of struct"));
 	}
 
+	// Validate sparse class data
+	CheckSparseClassData(Struct);
+
 	// Link the properties within the struct
 	Struct->StaticLink(true);
 
@@ -3159,7 +3162,7 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 		// make sure we don't try to have sparse class data inside of a struct instead of a class
 		if (StructToCheck->HasMetaData(FHeaderParserNames::NAME_SparseClassDataTypes))
 		{
-			UE_LOG_ERROR_UHT(TEXT("%s contains sparse class data but is not a class."), *StructToCheck->GetName());
+			FError::Throwf(TEXT("%s contains sparse class data but is not a class."), *StructToCheck->GetName());
 		}
 		return;
 	}
@@ -3175,12 +3178,12 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 	// for now we only support one sparse class data structure per class
 	if (SparseClassDataTypes.Num() > 1)
 	{
-		UE_LOG_ERROR_UHT(TEXT("Class %s contains multiple sparse class data types."), *ClassToCheck->GetName());
+		FError::Throwf(TEXT("Class %s contains multiple sparse class data types."), *ClassToCheck->GetName());
 		return;
 	}
 	if (SparseClassDataTypes.Num() == 0)
 	{
-		UE_LOG_ERROR_UHT(TEXT("Class %s has sparse class metadata but does not specify a type."), *ClassToCheck->GetName());
+		FError::Throwf(TEXT("Class %s has sparse class metadata but does not specify a type."), *ClassToCheck->GetName());
 		return;
 	}
 
@@ -3191,7 +3194,7 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 		// make sure the sparse class data struct actually exists
 		if (!SparseClassDataStruct)
 		{
-			UE_LOG_ERROR_UHT(TEXT("Unable to find sparse data type %s for class %s."), *SparseClassDataTypeName, *ClassToCheck->GetName());
+			FError::Throwf(TEXT("Unable to find sparse data type %s for class %s."), *SparseClassDataTypeName, *ClassToCheck->GetName());
 			return;
 		}
 
@@ -3200,19 +3203,19 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 		{
 			if (Property->HasAnyPropertyFlags(CPF_BlueprintAssignable))
 			{
-				UE_LOG_ERROR_UHT(TEXT("Sparse class data types can not contain blueprint assignable delegates. Type '%s' Delegate '%s'"), *SparseClassDataStruct->GetName(), *Property->GetName());
+				FError::Throwf(TEXT("Sparse class data types can not contain blueprint assignable delegates. Type '%s' Delegate '%s'"), *SparseClassDataStruct->GetName(), *Property->GetName());
 			}
 
 			// all sparse properties should have EditDefaultsOnly
 			if (!Property->HasAllPropertyFlags(CPF_Edit | CPF_DisableEditOnInstance))
 			{
-				UE_LOG_ERROR_UHT(TEXT("Sparse class data types must be EditDefaultsOnly. Type '%s' Property '%s'"), *SparseClassDataStruct->GetName(), *Property->GetName());
+				FError::Throwf(TEXT("Sparse class data types must be EditDefaultsOnly. Type '%s' Property '%s'"), *SparseClassDataStruct->GetName(), *Property->GetName());
 			}
 
 			// no sparse properties should have BlueprintReadWrite
 			if (Property->HasAllPropertyFlags(CPF_BlueprintVisible) && !Property->HasAllPropertyFlags(CPF_BlueprintReadOnly))
 			{
-				UE_LOG_ERROR_UHT(TEXT("Sparse class data types must not be BlueprintReadWrite. Type '%s' Property '%s'"), *SparseClassDataStruct->GetName(), *Property->GetName());
+				FError::Throwf(TEXT("Sparse class data types must not be BlueprintReadWrite. Type '%s' Property '%s'"), *SparseClassDataStruct->GetName(), *Property->GetName());
 			}
 		}
 
@@ -3225,7 +3228,7 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 			UScriptStruct* ParentSparseClassDataStruct = FindObjectSafe<UScriptStruct>(ANY_PACKAGE, *ParentSparseClassDataTypeName);
 			if (ParentSparseClassDataStruct && !SparseClassDataStruct->IsChildOf(ParentSparseClassDataStruct))
 			{
-				UE_LOG_ERROR_UHT(TEXT("Class %s is a child of %s but its sparse class data struct, %s, does not inherit from %s."), *ClassToCheck->GetName(), *ParentClass->GetName(), *SparseClassDataStruct->GetName(), *ParentSparseClassDataStruct->GetName());
+				FError::Throwf(TEXT("Class %s is a child of %s but its sparse class data struct, %s, does not inherit from %s."), *ClassToCheck->GetName(), *ParentClass->GetName(), *SparseClassDataStruct->GetName(), *ParentSparseClassDataStruct->GetName());
 			}
 		}
 	}
@@ -6385,6 +6388,9 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 		}
 	}
 
+	// Validate sparse class data
+	CheckSparseClassData(Class);
+
 	return Class;
 }
 
@@ -7914,6 +7920,7 @@ struct FExposeOnSpawnValidator
 		switch (Property.Type)
 		{
 		case CPT_Int:
+		case CPT_Int64:
 		case CPT_Byte:
 		case CPT_Float:
 		case CPT_Bool:

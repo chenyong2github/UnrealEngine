@@ -80,6 +80,11 @@ namespace Audio
 			MultiplyBuffersInPlace(WindowBuffer.GetData(), InBuffer, NumSamples);
 		}
 
+		EWindowType GetWindowType() const
+		{
+			return WindowType;
+		}
+
 	private:
 		EWindowType WindowType;
 		AlignedFloatBuffer WindowBuffer;

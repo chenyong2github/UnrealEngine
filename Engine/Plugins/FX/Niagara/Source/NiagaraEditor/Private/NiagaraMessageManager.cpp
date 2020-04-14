@@ -11,6 +11,7 @@
 #include "NiagaraScriptToolkit.h"
 #include "../Public/NiagaraEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "NiagaraEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraMessageManager"
 
@@ -174,7 +175,7 @@ void FNiagaraMessageManager::DoMessageJobsInQueueTick()
 			}
 			OnRequestRefresh.Broadcast(CurrentMessageJobBatch.MessageJobsAssetKey, GeneratedMessagesForCurrentMessageJobBatch);
 			GeneratedMessagesForCurrentMessageJobBatch.Reset();
-			MessageJobBatchArr.Pop();
+			MessageJobBatchArr.RemoveAt(0);
 		} 
 	}
 }
@@ -370,7 +371,7 @@ TSharedRef<const INiagaraMessage> FNiagaraMessageJobCompileEvent::GenerateNiagar
 		TOptional<const FText> ScriptNameAndPathsGetterFailureReason;
 		TOptional<const FString> OwningScriptNameStringCopy = OwningScriptNameString;
 		TArray<FObjectKey> ContextObjectKeys;
-		bool bSuccessfullyFoundScripts = RecursiveGetScriptNamesAndAssetPathsFromContextStack(ContextStackGuids, ScriptGraph, ContextScriptNamesAndPaths, OwningScriptNameStringCopy, ScriptNameAndPathsGetterFailureReason, ContextObjectKeys);
+		bool bSuccessfullyFoundScripts = RecursiveGetScriptNamesAndAssetPathsFromContextStack(ContextStackGuids, CompileEvent.NodeGuid, ScriptGraph, ContextScriptNamesAndPaths, OwningScriptNameStringCopy, ScriptNameAndPathsGetterFailureReason, ContextObjectKeys);
 
 		if (bSuccessfullyFoundScripts == false)
 		{
@@ -407,6 +408,7 @@ TSharedRef<const INiagaraMessage> FNiagaraMessageJobCompileEvent::GenerateNiagar
 
 bool FNiagaraMessageJobCompileEvent::RecursiveGetScriptNamesAndAssetPathsFromContextStack(
 	  TArray<FGuid>& InContextStackNodeGuids
+	, FGuid NodeGuid
 	, const UNiagaraGraph* InGraphToSearch
 	, TArray<FNiagaraScriptNameAndAssetPath>& OutContextScriptNamesAndAssetPaths
 	, TOptional<const FString>& OutEmitterName
@@ -416,7 +418,16 @@ bool FNiagaraMessageJobCompileEvent::RecursiveGetScriptNamesAndAssetPathsFromCon
 {
 	checkf(InGraphToSearch, TEXT("Failed to get a node graph to search!"));
 
-	if (InGraphToSearch && InContextStackNodeGuids.Num() == 0)
+	if (NodeGuid.IsValid())
+	{
+		UEdGraphNode*const* EventNodePtr = InGraphToSearch->Nodes.FindByPredicate([NodeGuid](UEdGraphNode* Node) { return Node->NodeGuid == NodeGuid; });
+		if (EventNodePtr != nullptr)
+		{
+			OutContextNodeObjectKeys.AddUnique(FObjectKey(*EventNodePtr));
+		}
+	}
+
+	if (InContextStackNodeGuids.Num() == 0)
 	{
 		//StackGuids arr has been cleared out which means we have walked the entire context stack.
 		return true;
@@ -473,7 +484,7 @@ bool FNiagaraMessageJobCompileEvent::RecursiveGetScriptNamesAndAssetPathsFromCon
 				return false;
 			}
 			OutContextScriptNamesAndAssetPaths.Add(FNiagaraScriptNameAndAssetPath(FunctionCallNodeAssignedScript->GetName(), FunctionCallNodeAssignedScript->GetPathName()));
-			return RecursiveGetScriptNamesAndAssetPathsFromContextStack(InContextStackNodeGuids, FunctionScriptGraph, OutContextScriptNamesAndAssetPaths, OutEmitterName, OutFailureReason, OutContextNodeObjectKeys);
+			return RecursiveGetScriptNamesAndAssetPathsFromContextStack(InContextStackNodeGuids, NodeGuid, FunctionScriptGraph, OutContextScriptNamesAndAssetPaths, OutEmitterName, OutFailureReason, OutContextNodeObjectKeys);
 		}
 
 		UNiagaraNodeEmitter* EmitterNode = Cast<UNiagaraNodeEmitter>(ContextNode.GetValue());
@@ -486,7 +497,7 @@ bool FNiagaraMessageJobCompileEvent::RecursiveGetScriptNamesAndAssetPathsFromCon
 			checkf(EmitterScriptGraph, TEXT("Emitter Script Source does not have a UNiagaraGraph!"));
 
 			OutEmitterName = EmitterNode->GetEmitterUniqueName();
-			return RecursiveGetScriptNamesAndAssetPathsFromContextStack(InContextStackNodeGuids, EmitterScriptGraph, OutContextScriptNamesAndAssetPaths, OutEmitterName, OutFailureReason, OutContextNodeObjectKeys);
+			return RecursiveGetScriptNamesAndAssetPathsFromContextStack(InContextStackNodeGuids, NodeGuid, EmitterScriptGraph, OutContextScriptNamesAndAssetPaths, OutEmitterName, OutFailureReason, OutContextNodeObjectKeys);
 		}
 		checkf(false, TEXT("Matching node is not a function call or emitter node!"));
 	}
@@ -581,7 +592,8 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*InScriptAssetPath);
 	if (AssetData.IsValid())
 	{
-		if (UNiagaraScript* ScriptAsset = Cast<UNiagaraScript>(AssetData.GetAsset()))
+		UNiagaraScript* ScriptAsset = Cast<UNiagaraScript>(AssetData.GetAsset());
+		if (ScriptAsset != nullptr && ScriptAsset->IsAsset())
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ScriptAsset, EToolkitMode::Standalone);
 			FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -601,7 +613,9 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 		}
 		else
 		{
-			checkf(false, TEXT("CompileEventJob referenced asset was not a UNiagaraScript!"));
+			FNiagaraEditorUtilities::WarnWithToastAndLog(FText::Format(
+				LOCTEXT("CantNavigateWarning", "Could not navigate to script {0}\nIt was either was not a valid script, or isn't an asset which can be opened directly."),
+				FText::FromString(InScriptAssetPath)));
 		}
 	}
 }

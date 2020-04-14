@@ -47,6 +47,7 @@ void UNiagaraDataInterfaceCollisionQuery::PostInitProperties()
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
+		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(TraceChannelEnum), true, false, false);
 	}
 }
 
@@ -286,6 +287,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 		}\
 		\n}\n\n");
 		OutHLSL += TEXT("void ") + DistanceFieldFunction + TEXT("(in float3 InPosition, in float3 In_TraceEndPos, out bool OutCollisionValid, out float3 Out_CollisionPos, out float3 Out_CollisionNormal)\n{\n\
+		#if PLATFORM_SUPPORTS_DISTANCE_FIELDS\n\
 		float DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(InPosition);\n\
 		if (DistanceToNearestSurface < length(In_TraceEndPos - InPosition))\n\
 		{\n\
@@ -294,6 +296,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 			Out_CollisionPos = InPosition - Out_CollisionNormal * DistanceToNearestSurface;\n\
 		}\n\
 		else\n\
+		#endif\n\
 		{\n\
 			OutCollisionValid = false;\n\
 			Out_CollisionNormal = float3(0.0, 0.0, 1.0);\n\
@@ -346,9 +349,14 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 	{
 		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient) \n{\n");
 		OutHLSL += TEXT("\
+			#if PLATFORM_SUPPORTS_DISTANCE_FIELDS\n\
 			Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);\n\
-			Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);\
-			\n}\n\n");
+			Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);\n\
+			#else\n\
+			Out_DistanceToNearestSurface = 0;\n\
+			Out_FieldGradient = (float3)0;\n\
+			#endif\n\
+			}\n\n");
 		return true;
 	}
 
@@ -413,6 +421,8 @@ void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExterna
 
 void UNiagaraDataInterfaceCollisionQuery::PerformQuery(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
+
 	//PerformType PerformParam(Context);
 	VectorVM::FExternalFuncInputHandler<int32> InIDParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> PosParamX(Context);
@@ -426,8 +436,6 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuery(FVectorVMContext& Context
 	VectorVM::FExternalFuncInputHandler<float> DTParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> SizeParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> DepthBoundsParam(Context);
-
-	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutQueryID(Context);
 
@@ -512,6 +520,8 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuery(FVectorVMContext& Context
 
 void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext & Context)
 {
+	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
+
 	VectorVM::FExternalFuncInputHandler<float> StartPosParamX(Context);
 	VectorVM::FExternalFuncInputHandler<float> StartPosParamY(Context);
 	VectorVM::FExternalFuncInputHandler<float> StartPosParamZ(Context);
@@ -521,8 +531,6 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 	VectorVM::FExternalFuncInputHandler<float> EndPosParamZ(Context);
 
 	VectorVM::FExternalFuncInputHandler<ECollisionChannel> TraceChannelParam(Context);
-
-	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutQueryValid(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutInsideMesh(Context);
@@ -575,6 +583,8 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 
 void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext & Context)
 {
+	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
+
 	VectorVM::FExternalFuncInputHandler<int32> InIDParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> StartPosParamX(Context);
 	VectorVM::FExternalFuncInputHandler<float> StartPosParamY(Context);
@@ -585,8 +595,6 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 	VectorVM::FExternalFuncInputHandler<float> EndPosParamZ(Context);
 
 	VectorVM::FExternalFuncInputHandler<ECollisionChannel> TraceChannelParam(Context);
-
-	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutQueryID(Context);
 
@@ -649,6 +657,8 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryGPU(FVectorVMContext& Cont
 {
 	UE_LOG(LogNiagara, Error, TEXT("GPU only function 'PerformQueryGPU' called on CPU VM, check your module code to fix."));
 
+	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
+
 	VectorVM::FExternalFuncInputHandler<float> StartPosParamX(Context);
 	VectorVM::FExternalFuncInputHandler<float> StartPosParamY(Context);
 	VectorVM::FExternalFuncInputHandler<float> StartPosParamZ(Context);
@@ -658,8 +668,6 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryGPU(FVectorVMContext& Cont
 	VectorVM::FExternalFuncInputHandler<float> SceneDepthBoundsParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> ParticleRadiusParam(Context);
 	VectorVM::FExternalFuncInputHandler<int32> UseDistanceFieldParam(Context);
-
-	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutQueryValid(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosX(Context);
@@ -686,12 +694,12 @@ void UNiagaraDataInterfaceCollisionQuery::QuerySceneDepth(FVectorVMContext & Con
 {
 	UE_LOG(LogNiagara, Error, TEXT("GPU only function 'QuerySceneDepthGPU' called on CPU VM, check your module code to fix."));
 
+	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
+
 	VectorVM::FExternalFuncInputHandler<float> SamplePosParamX(Context);
 	VectorVM::FExternalFuncInputHandler<float> SamplePosParamY(Context);
 	VectorVM::FExternalFuncInputHandler<float> SamplePosParamZ(Context);
 	
-	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
-
 	VectorVM::FExternalFuncRegisterHandler<float> OutSceneDepth(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCameraPosX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCameraPosY(Context);
@@ -725,11 +733,11 @@ void UNiagaraDataInterfaceCollisionQuery::QueryMeshDistanceField(FVectorVMContex
 {
 	UE_LOG(LogNiagara, Error, TEXT("GPU only function 'QueryMeshDistanceFieldGPU' called on CPU VM, check your module code to fix."));
 
+	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
+
 	VectorVM::FExternalFuncInputHandler<float> SamplePosParamX(Context);
 	VectorVM::FExternalFuncInputHandler<float> SamplePosParamY(Context);
 	VectorVM::FExternalFuncInputHandler<float> SamplePosParamZ(Context);
-
-	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceDistance(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutFieldGradientX(Context);
@@ -748,6 +756,8 @@ void UNiagaraDataInterfaceCollisionQuery::QueryMeshDistanceField(FVectorVMContex
 
 void UNiagaraDataInterfaceCollisionQuery::SubmitQuery(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
+
 	VectorVM::FExternalFuncInputHandler<float> PosParamX(Context);
 	VectorVM::FExternalFuncInputHandler<float> PosParamY(Context);
 	VectorVM::FExternalFuncInputHandler<float> PosParamZ(Context);
@@ -756,7 +766,6 @@ void UNiagaraDataInterfaceCollisionQuery::SubmitQuery(FVectorVMContext& Context)
 	VectorVM::FExternalFuncInputHandler<float> VelParamZ(Context);
 
 	VectorVM::FExternalFuncInputHandler<float> DTParam(Context);
-	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
 	FScopeLock ScopeLock(&CriticalSection);
 
@@ -785,8 +794,8 @@ void UNiagaraDataInterfaceCollisionQuery::SubmitQuery(FVectorVMContext& Context)
 
 void UNiagaraDataInterfaceCollisionQuery::ReadQuery(FVectorVMContext& Context)
 {	
-	VectorVM::FExternalFuncInputHandler<int32> IDParam(Context);
 	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
+	VectorVM::FExternalFuncInputHandler<int32> IDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutQueryValid(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosY(Context);

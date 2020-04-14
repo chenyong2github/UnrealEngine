@@ -10,60 +10,45 @@ FClothPhysicalMeshData::FClothPhysicalMeshData()
 	ClearWeightMaps();
 }
 
-void FClothPhysicalMeshData::MigrateTo(FClothPhysicalMeshData& ClothPhysicalMeshData) const
+void FClothPhysicalMeshData::MigrateFrom(FClothPhysicalMeshData& ClothPhysicalMeshData)
 {
-	// Migrate properties
-	ClothPhysicalMeshData.Vertices = Vertices;
-	ClothPhysicalMeshData.Normals = Normals;
+	if (this != &ClothPhysicalMeshData)
+	{
+		Vertices = MoveTemp(ClothPhysicalMeshData.Vertices);
+		Normals = MoveTemp(ClothPhysicalMeshData.Normals);
 #if WITH_EDITORONLY_DATA
-	ClothPhysicalMeshData.VertexColors = VertexColors;
+		VertexColors = MoveTemp(ClothPhysicalMeshData.VertexColors);
 #endif
-	ClothPhysicalMeshData.Indices = Indices;
-	ClothPhysicalMeshData.InverseMasses = InverseMasses;
-	ClothPhysicalMeshData.BoneData = BoneData;
-	ClothPhysicalMeshData.NumFixedVerts = NumFixedVerts;
-	ClothPhysicalMeshData.MaxBoneWeights = MaxBoneWeights;
-	ClothPhysicalMeshData.SelfCollisionIndices = SelfCollisionIndices;
-
-	// Migrate maps
-	if (MaxDistances_DEPRECATED.Num())
-	{
-		ClothPhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::MaxDistance).Values = MaxDistances_DEPRECATED;
-	}
-	if (BackstopDistances_DEPRECATED.Num())
-	{
-		ClothPhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::BackstopDistance).Values = BackstopDistances_DEPRECATED;
-	}
-	if (BackstopRadiuses_DEPRECATED.Num())
-	{
-		ClothPhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::BackstopRadius).Values = BackstopRadiuses_DEPRECATED;
-	}
-	if (AnimDriveMultipliers_DEPRECATED.Num())
-	{
-		ClothPhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::AnimDriveMultiplier).Values = AnimDriveMultipliers_DEPRECATED;
+		Indices = MoveTemp(ClothPhysicalMeshData.Indices);
+		WeightMaps = MoveTemp(ClothPhysicalMeshData.WeightMaps);
+		InverseMasses = MoveTemp(ClothPhysicalMeshData.InverseMasses);
+		BoneData = MoveTemp(ClothPhysicalMeshData.BoneData);
+		NumFixedVerts = ClothPhysicalMeshData.NumFixedVerts;
+		MaxBoneWeights = ClothPhysicalMeshData.MaxBoneWeights;
+		SelfCollisionIndices = MoveTemp(ClothPhysicalMeshData.SelfCollisionIndices);
 	}
 }
 
-void FClothPhysicalMeshData::MigrateFrom(const UClothPhysicalMeshDataBase_Legacy* ClothPhysicalMeshDataBase)
+void FClothPhysicalMeshData::MigrateFrom(UClothPhysicalMeshDataBase_Legacy* ClothPhysicalMeshDataBase)
 {
-	Vertices = ClothPhysicalMeshDataBase->Vertices;
-	Normals = ClothPhysicalMeshDataBase->Normals;
+	Vertices = MoveTemp(ClothPhysicalMeshDataBase->Vertices);
+	Normals = MoveTemp(ClothPhysicalMeshDataBase->Normals);
 #if WITH_EDITORONLY_DATA
-	VertexColors = ClothPhysicalMeshDataBase->VertexColors;
+	VertexColors = MoveTemp(ClothPhysicalMeshDataBase->VertexColors);
 #endif
-	Indices = ClothPhysicalMeshDataBase->Indices;
-	InverseMasses = ClothPhysicalMeshDataBase->InverseMasses;
-	BoneData = ClothPhysicalMeshDataBase->BoneData;
+	Indices = MoveTemp(ClothPhysicalMeshDataBase->Indices);
+	InverseMasses = MoveTemp(ClothPhysicalMeshDataBase->InverseMasses);
+	BoneData = MoveTemp(ClothPhysicalMeshDataBase->BoneData);
 	NumFixedVerts = ClothPhysicalMeshDataBase->NumFixedVerts;
 	MaxBoneWeights = ClothPhysicalMeshDataBase->MaxBoneWeights;
-	SelfCollisionIndices = ClothPhysicalMeshDataBase->SelfCollisionIndices;
+	SelfCollisionIndices = MoveTemp(ClothPhysicalMeshDataBase->SelfCollisionIndices);
 
 	const TArray<uint32> FloatArrayIds = ClothPhysicalMeshDataBase->GetFloatArrayIds();
 	for (uint32 FloatArrayId : FloatArrayIds)
 	{
-		if (const TArray<float>* const FloatArray = ClothPhysicalMeshDataBase->GetFloatArray(FloatArrayId))
+		if (TArray<float>* const FloatArray = ClothPhysicalMeshDataBase->GetFloatArray(FloatArrayId))
 		{
-			FindOrAddWeightMap(FloatArrayId).Values = *FloatArray;
+			FindOrAddWeightMap(FloatArrayId).Values = MoveTemp(*FloatArray);
 		}
 	}
 }

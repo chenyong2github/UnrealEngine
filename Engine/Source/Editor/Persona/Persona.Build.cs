@@ -67,6 +67,7 @@ public class Persona : ModuleRules
                 "PinnedCommandList",
                 "RenderCore",
 				"SkeletalMeshUtilitiesCommon",
+				"ToolMenus",
                 "CurveEditor",
 				"SequencerWidgets",
 				"TimeManagement",

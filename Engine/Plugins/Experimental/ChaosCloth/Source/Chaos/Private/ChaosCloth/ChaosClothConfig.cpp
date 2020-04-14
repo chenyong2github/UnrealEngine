@@ -64,11 +64,30 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 	DragCoefficient = (ClothConfig.WindMethod == EClothingWindMethod_Legacy::Accurate) ? ClothConfig.WindDragCoefficient: 0.07f;  // Only Accurate wind uses the WindDragCoefficient
 
 	const float Damping = (ClothConfig.Damping.X + ClothConfig.Damping.Y + ClothConfig.Damping.Z) / 3.f;
-	DampingCoefficient = FMath::Clamp(Damping * Damping * 0.95f, 0.f, 1.f);  // Nv Cloth seems to have a different damping formulation.
+	DampingCoefficient = FMath::Clamp(Damping * Damping * 0.7f, 0.f, 1.f);  // Nv Cloth seems to have a different damping formulation.
 
-	LinearVelocityScale = ClothConfig.LinearInertiaScale;
-	const FVector AngularInertiaScale = ClothConfig.AngularInertiaScale * ClothConfig.CentrifugalInertiaScale;
+	CollisionThickness = FMath::Clamp(ClothConfig.CollisionThickness, 0.f, 1000.f);
+
+	LinearVelocityScale = ClothConfig.LinearInertiaScale * 0.75f;
+	const FVector AngularInertiaScale = ClothConfig.AngularInertiaScale * ClothConfig.CentrifugalInertiaScale * 0.75f;
 	AngularVelocityScale = (AngularInertiaScale.X + AngularInertiaScale.Y + AngularInertiaScale.Z) / 3.f;
+}
+
+void UChaosClothConfig::MigrateFrom(const UClothSharedConfigCommon* ClothSharedConfig)
+{
+	if (const UChaosClothSharedSimConfig* const ChaosClothSharedSimConfig = Cast<UChaosClothSharedSimConfig>(ClothSharedConfig))
+	{
+		const int32 ChaosClothConfigCustomVersion = GetLinkerCustomVersion(FChaosClothConfigCustomVersion::GUID);
+
+		if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::AddDampingThicknessMigration)
+		{
+			if (ChaosClothSharedSimConfig->bUseDampingOverride_DEPRECATED)
+			{
+				DampingCoefficient = ChaosClothSharedSimConfig->Damping_DEPRECATED;
+			}
+			CollisionThickness = ChaosClothSharedSimConfig->CollisionThickness_DEPRECATED;
+		}
+	}
 }
 
 void UChaosClothConfig::Serialize(FArchive& Ar)
@@ -100,15 +119,13 @@ void UChaosClothSharedSimConfig::MigrateFrom(const FClothConfig_Legacy& ClothCon
 
 	SelfCollisionThickness = FMath::Clamp(ClothConfig.SelfCollisionRadius, 0.f, 1000.f);
 
-	CollisionThickness = FMath::Clamp(ClothConfig.CollisionThickness, 0.f, 1000.f);
-
 	bUseGravityOverride = ClothConfig.bUseGravityOverride;
 
 	GravityScale = ClothConfig.GravityScale;
 
 	Gravity = ClothConfig.GravityOverride;
 
-	bUseDampingOverride = false;  // Damping is migrated to per cloth configs
+	bUseDampingOverride_DEPRECATED = false;  // Damping is migrated to per cloth configs
 }
 
 void UChaosClothSharedSimConfig::Serialize(FArchive& Ar)

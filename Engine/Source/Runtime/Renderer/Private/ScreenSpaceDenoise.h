@@ -208,6 +208,15 @@ public:
 		const FSceneTextureParameters& SceneTextures,
 		const FReflectionsInputs& ReflectionInputs,
 		const FReflectionsRayTracingConfig RayTracingConfig) const = 0;
+
+	/** Entry point to denoise water reflections. */
+	virtual FReflectionsOutputs DenoiseWaterReflections(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FReflectionsInputs& ReflectionInputs,
+		const FReflectionsRayTracingConfig RayTracingConfig) const = 0;
 	
 	/** Entry point to denoise reflections. */
 	virtual FAmbientOcclusionOutputs DenoiseAmbientOcclusion(
@@ -272,3 +281,5 @@ public:
 
 // The interface for the renderer to denoise what it needs, Plugins can come and point this to custom interface.
 extern RENDERER_API const IScreenSpaceDenoiser* GScreenSpaceDenoiser;
+
+extern int GetReflectionsDenoiserMode();

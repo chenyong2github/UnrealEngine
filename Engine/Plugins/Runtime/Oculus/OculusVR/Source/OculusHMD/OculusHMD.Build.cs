@@ -96,9 +96,9 @@ namespace UnrealBuildTool.Rules
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectSound");
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-                    AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+					AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-                }
+				}
 
 				// Vulkan
 				{
@@ -107,7 +107,7 @@ namespace UnrealBuildTool.Rules
 
 				// OVRPlugin
 				{
-					PublicDelayLoadDLLs.Add("OVRPlugin.dll");
+					//PublicDelayLoadDLLs.Add("OVRPlugin.dll");
 					RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Oculus/OVRPlugin/OVRPlugin/" + Target.Platform.ToString() + "/OVRPlugin.dll");
 				}
 			}

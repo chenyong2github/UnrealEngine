@@ -117,7 +117,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Cached list of dependent link libraries.
 		/// </summary>
-		private List<string> DependentLinkLibraries;
+		private List<FileReference> DependentLinkLibraries;
 
 		/// <summary>
 		/// Create an instance of the class with the given configuration data
@@ -177,7 +177,7 @@ namespace UnrealBuildTool
 		public List<FileItem> Build(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment, FileReference SingleFileToCompile, ISourceFileWorkingSet WorkingSet, DirectoryReference ExeDir, IActionGraphBuilder Graph)
 		{
 			// Return nothing if we're using precompiled binaries. If we're not linking, we might want just one module to be compiled (eg. a foreign plugin), so allow any actions to run.
-			if (bUsePrecompiled && !Target.bDisableLinking)
+			if (bUsePrecompiled && !(Target.LinkType == TargetLinkType.Monolithic && Target.bDisableLinking))
 			{
 				return new List<FileItem>();
 			}
@@ -322,7 +322,7 @@ namespace UnrealBuildTool
 			// Cache the list of libraries in the dependent link environment between calls. We typically run this code path many times for each module.
 			if (DependentLinkLibraries == null)
 			{
-				DependentLinkLibraries = new List<string>();
+				DependentLinkLibraries = new List<FileReference>();
 				foreach (FileReference OutputFilePath in OutputFilePaths)
 				{
 					FileReference LibraryFileName;
@@ -337,10 +337,10 @@ namespace UnrealBuildTool
 					{
 						LibraryFileName = FileReference.Combine(IntermediateDirectory, OutputFilePath.GetFileNameWithoutExtension() + ".lib");
 					}
-					DependentLinkLibraries.Add(LibraryFileName.FullName);
+					DependentLinkLibraries.Add(LibraryFileName);
 				}
 			}
-			DependentLinkEnvironment.AdditionalLibraries.AddRange(DependentLinkLibraries);
+			DependentLinkEnvironment.Libraries.AddRange(DependentLinkLibraries);
 		}
 
 		/// <summary>
@@ -606,6 +606,23 @@ namespace UnrealBuildTool
 
 				// Find the permitted restricted folder references under the base directory
 				List<RestrictedFolder> BinaryFolders = RestrictedFolders.FindPermittedRestrictedFolderReferences(BaseDir, OutputFilePath.Directory);
+
+				List<RestrictedFolder> AliasedBinaryFolders = new List<RestrictedFolder>();
+				foreach (RestrictedFolder BinaryFolder in BinaryFolders)
+				{
+					string Alias;
+					if (PrimaryModule.AliasRestrictedFolders.TryGetValue(BinaryFolder.ToString(), out Alias))
+					{
+						foreach(RestrictedFolder Folder in RestrictedFolder.GetValues())
+						{
+							if (Folder.ToString().Equals(Alias))
+							{
+								AliasedBinaryFolders.Add(Folder);
+							}
+						}
+					}
+				}
+				BinaryFolders.AddRange(AliasedBinaryFolders);
 
 				// Check all the dependent modules
 				foreach(UEBuildModule Module in ModuleReferencedBy.Keys)

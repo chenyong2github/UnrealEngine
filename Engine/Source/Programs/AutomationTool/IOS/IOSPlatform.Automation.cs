@@ -950,52 +950,15 @@ public class IOSPlatform : Platform
 	private void StageImageAndIconFiles(ProjectParams Params, DirectoryReference GraphicsDataPath, bool bSupportsPortrait, bool bSupportsLandscape, DeploymentContext SC, bool bSkipIcons)
 	{
 
-		bool bLaunchscreenStoryboard = false;
+		bool bCustomLaunchscreenStoryboard = false;
 		ConfigHierarchy PlatformGameConfig;
 		if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformGameConfig))
 		{
-			PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bLaunchscreenStoryboard", out bLaunchscreenStoryboard);
+			PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bCustomLaunchscreenStoryboard", out bCustomLaunchscreenStoryboard);
 		}
 
-		if (DirectoryReference.Exists(GraphicsDataPath) && !bLaunchscreenStoryboard)
+		if (DirectoryReference.Exists(GraphicsDataPath))
 		{
-			List<string> ImageFileNames = new List<string>();
-			if (bSupportsPortrait)
-			{
-				ImageFileNames.Add("Default-IPhone6.png");
-				ImageFileNames.Add("Default-IPhone6Plus-Portrait.png");
-				ImageFileNames.Add("Default-Portrait@2x.png");
-				ImageFileNames.Add("Default-Portrait-1112@2x.png");
-				ImageFileNames.Add("Default-Portrait-1194@2x.png");
-				ImageFileNames.Add("Default-Portrait-1336@2x.png");
-				ImageFileNames.Add("Default-IPhoneXS-Portrait.png");
-				ImageFileNames.Add("Default-IPhoneXSMax-Portrait.png");
-				ImageFileNames.Add("Default-IPhoneXR-Portrait.png");
-			}
-			if (bSupportsLandscape)
-			{
-				ImageFileNames.Add("Default-IPhone6-Landscape.png");
-				ImageFileNames.Add("Default-IPhone6Plus-Landscape.png");
-				ImageFileNames.Add("Default-Landscape@2x.png");
-				ImageFileNames.Add("Default-Landscape-1112@2x.png");
-				ImageFileNames.Add("Default-Landscape-1194@2x.png");
-				ImageFileNames.Add("Default-Landscape-1336@2x.png");
-				ImageFileNames.Add("Default-IPhoneXS-Landscape.png");
-				ImageFileNames.Add("Default-IPhoneXSMax-Landscape.png");
-				ImageFileNames.Add("Default-IPhoneXR-Landscape.png");
-			}
-			ImageFileNames.Add("Default@2x.png");
-			ImageFileNames.Add("Default-568h@2x.png");
-
-			foreach (string ImageFileName in ImageFileNames)
-			{
-				FileReference ImageFile = FileReference.Combine(GraphicsDataPath, ImageFileName);
-				if (FileReference.Exists(ImageFile))
-				{
-					SC.StageFile(StagedFileType.SystemNonUFS, ImageFile, new StagedFileReference(ImageFileName));
-				}
-			}
-
 			if (!bSkipIcons)
 			{
 				SC.StageFiles(StagedFileType.SystemNonUFS, GraphicsDataPath, "Icon*.png", StageFilesSearch.TopDirectoryOnly, StagedDirectoryReference.Root);
@@ -1799,4 +1762,9 @@ public class IOSPlatform : Platform
 	}
 
 	#endregion
+
+	public override DirectoryReference GetProjectRootForStage(DirectoryReference RuntimeRoot, StagedDirectoryReference RelativeProjectRootForStage)
+	{
+		return DirectoryReference.Combine(RuntimeRoot, "cookeddata/" + RelativeProjectRootForStage.Name);
+	}
 }

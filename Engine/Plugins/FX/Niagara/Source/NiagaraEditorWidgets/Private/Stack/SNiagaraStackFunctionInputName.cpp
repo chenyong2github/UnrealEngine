@@ -8,6 +8,9 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SNiagaraParameterName.h"
+#include "NiagaraNodeAssignment.h"
+#include "NiagaraNodeFunctionCall.h"
 
 void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagaraStackFunctionInput* InFunctionInput, UNiagaraStackViewModel* InStackViewModel)
 {
@@ -16,24 +19,44 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 	StackEntryItem = InFunctionInput;
 	IsSelected = InArgs._IsSelected;
 
+	TSharedPtr<SHorizontalBox> NameBox;
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
+		SAssignNew(NameBox, SHorizontalBox)
 		.IsEnabled_UObject(FunctionInput, &UNiagaraStackEntry::GetOwnerIsEnabled)
+	];
 
-		// Edit condition checkbox
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(0, 0, 3, 0)
+	// Edit condition checkbox
+	NameBox->AddSlot()
+	.AutoWidth()
+	.Padding(0, 0, 3, 0)
+	[
+		SNew(SCheckBox)
+		.Visibility(this, &SNiagaraStackFunctionInputName::GetEditConditionCheckBoxVisibility)
+		.IsChecked(this, &SNiagaraStackFunctionInputName::GetEditConditionCheckState)
+		.OnCheckStateChanged(this, &SNiagaraStackFunctionInputName::OnEditConditionCheckStateChanged)
+	];
+	
+	// Name Label
+	if(FunctionInput->GetInputFunctionCallNode().IsA<UNiagaraNodeAssignment>())
+	{
+		NameBox->AddSlot()
+		.VAlign(VAlign_Center)
 		[
-			SNew(SCheckBox)
-			.Visibility(this, &SNiagaraStackFunctionInputName::GetEditConditionCheckBoxVisibility)
-			.IsChecked(this, &SNiagaraStackFunctionInputName::GetEditConditionCheckState)
-			.OnCheckStateChanged(this, &SNiagaraStackFunctionInputName::OnEditConditionCheckStateChanged)
-		]
-
-		// Name Label
-		+ SHorizontalBox::Slot()
+			SAssignNew(ParameterTextBlock, SNiagaraParameterNameTextBlock)
+			.EditableTextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterInlineEditableText")
+			.ParameterText_UObject(FunctionInput, &UNiagaraStackEntry::GetDisplayName)
+			.IsReadOnly(FunctionInput->SupportsRename() == false)
+			.IsEnabled(this, &SNiagaraStackFunctionInputName::GetIsEnabled)
+			.IsSelected(this, &SNiagaraStackFunctionInputName::GetIsNameWidgetSelected)
+			.OnTextCommitted(this, &SNiagaraStackFunctionInputName::OnNameTextCommitted)
+			//.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			.ToolTipText(this, &SNiagaraStackFunctionInputName::GetToolTipText)
+		];
+	}
+	else
+	{
+		NameBox->AddSlot()
 		.VAlign(VAlign_Center)
 		[
 			SAssignNew(NameTextBlock, SInlineEditableTextBlock)
@@ -45,15 +68,22 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 			.OnTextCommitted(this, &SNiagaraStackFunctionInputName::OnNameTextCommitted)
 			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 			.ToolTipText(this, &SNiagaraStackFunctionInputName::GetToolTipText)
-		]
-	];
+		];
+	}
 }
 
 void SNiagaraStackFunctionInputName::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	if (FunctionInput->GetIsRenamePending() && NameTextBlock.IsValid())
+	if (FunctionInput->GetIsRenamePending())
 	{
-		NameTextBlock->EnterEditingMode();
+		if (NameTextBlock.IsValid())
+		{
+			NameTextBlock->EnterEditingMode();
+		}
+		else if (ParameterTextBlock.IsValid())
+		{
+			ParameterTextBlock->EnterEditingMode();
+		}
 		FunctionInput->SetIsRenamePending(false);
 	}
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);

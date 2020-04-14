@@ -84,7 +84,7 @@ enum class EGameplayTagSelectionType : uint8
 
 /** Struct defining where gameplay tags are loaded/saved from. Mostly for the editor */
 USTRUCT()
-struct FGameplayTagSource
+struct GAMEPLAYTAGS_API FGameplayTagSource
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -114,24 +114,16 @@ struct FGameplayTagSource
 	{
 	}
 
-	static FName GetNativeName()
-	{
-		static FName NativeName = FName(TEXT("Native"));
-		return NativeName;
-	}
+	static FName GetNativeName();
 
-	static FName GetDefaultName()
-	{
-		static FName DefaultName = FName(TEXT("DefaultGameplayTags.ini"));
-		return DefaultName;
-	}
+	static FName GetDefaultName();
 
 #if WITH_EDITOR
-	static FName GetTransientEditorName()
-	{
-		static FName TransientEditorName = FName(TEXT("TransientEditor"));
-		return TransientEditorName;
-	}
+	static FName GetFavoriteName();
+
+	static void SetFavoriteName(FName TagSourceToFavorite);
+
+	static FName GetTransientEditorName();
 #endif
 };
 

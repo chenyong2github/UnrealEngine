@@ -20,7 +20,7 @@
 #include "Async/AsyncWork.h"
 #include "HAL/Event.h"
 #include "HAL/ThreadSafeBool.h"
-#include "OVR_Plugin.h"
+#include "OculusPluginWrapper.h"
 
 class SOculusPlatformToolWidget;
 

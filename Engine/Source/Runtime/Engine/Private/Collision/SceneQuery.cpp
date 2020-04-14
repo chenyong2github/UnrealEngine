@@ -558,8 +558,11 @@ bool GeomOverlapMultiImp(const UWorld* World, const FPhysicsGeometry& Geom, cons
 		QueryCallback.bIgnoreTouches |= (InfoType == EQueryInfo::IsBlocking); // pre-filter to ignore touches and only get blocking hits, if that's what we're after.
 		QueryCallback.bIsOverlapQuery = true;
 
-		const EQueryFlags QueryFlags = InfoType == EQueryInfo::GatherAll ? EQueryFlags::PreFilter : (EQueryFlags::PreFilter | EQueryFlags::AnyHit);
-		
+		EQueryFlags QueryFlags = InfoType == EQueryInfo::GatherAll ? EQueryFlags::PreFilter : (EQueryFlags::PreFilter | EQueryFlags::AnyHit);
+		if (Params.bSkipNarrowPhase)
+		{
+			QueryFlags = QueryFlags | EQueryFlags::SkipNarrowPhase;
+		}
 		FDynamicHitBuffer<FHitOverlap> OverlapBuffer;
 
 		// Enable scene locks, in case they are required

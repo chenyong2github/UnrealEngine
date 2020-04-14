@@ -30,6 +30,7 @@ static const FName BuildGridTopologyName(TEXT("BuildGridTopology"));
 static const FName UpdateGridTransformName(TEXT("UpdateGridTransform"));
 static const FName AddGridVelocityName(TEXT("AddGridVelocity"));
 static const FName GetGridVelocityName(TEXT("GetGridVelocity"));
+static const FName SetGridDimensionName(TEXT("SetGridDimension"));
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -123,6 +124,24 @@ void FNDIPressureGridData::Release()
 	}
 }
 
+void FNDIPressureGridData::Resize()
+{
+	if (NeedResize)
+	{
+		if (CurrentGridBuffer)
+		{
+			CurrentGridBuffer->Initialize(GridSize);
+			BeginInitResource(CurrentGridBuffer);
+		}
+		if (DestinationGridBuffer)
+		{
+			DestinationGridBuffer->Initialize(GridSize);
+			BeginInitResource(DestinationGridBuffer);
+		}
+		NeedResize = false;
+	}
+}
+
 bool FNDIPressureGridData::Init(UNiagaraDataInterfacePressureGrid* Interface, FNiagaraSystemInstance* SystemInstance)
 {
 	CurrentGridBuffer = nullptr;
@@ -130,6 +149,7 @@ bool FNDIPressureGridData::Init(UNiagaraDataInterfacePressureGrid* Interface, FN
 
 	GridOrigin = FVector4(0, 0, 0, 0);
 	GridSize = FIntVector(1, 1, 1);
+	NeedResize = true;
 	WorldTransform = WorldInverse = FMatrix::Identity;
 
 	if (Interface != nullptr)
@@ -137,12 +157,9 @@ bool FNDIPressureGridData::Init(UNiagaraDataInterfacePressureGrid* Interface, FN
 		GridSize = Interface->GridSize;
 
 		CurrentGridBuffer = new FNDIPressureGridBuffer();
-		CurrentGridBuffer->Initialize(Interface->GridSize);
-		BeginInitResource(CurrentGridBuffer);
-
 		DestinationGridBuffer = new FNDIPressureGridBuffer();
-		DestinationGridBuffer->Initialize(Interface->GridSize);
-		BeginInitResource(DestinationGridBuffer);
+
+		Resize();
 	}
 
 	return true;
@@ -281,8 +298,6 @@ bool UNiagaraDataInterfacePressureGrid::InitPerInstanceData(void* PerInstanceDat
 		ThisProxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
 		ThisProxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 		ThisProxy->SetElementCount(ElementCount);
-
-		//ThisProxy->InitializePerInstanceData(InstanceID);
 	}
 	);
 
@@ -301,7 +316,6 @@ void UNiagaraDataInterfacePressureGrid::DestroyPerInstanceData(void* PerInstance
 		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 	{
 		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
-		//ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
 	}
 	);
 }
@@ -314,8 +328,22 @@ bool UNiagaraDataInterfacePressureGrid::PerInstanceTick(void* PerInstanceData, F
 	if (InstanceData)
 	{
 		InstanceData->WorldTransform = SystemInstance->GetComponent()->GetComponentToWorld().ToMatrixWithScale();
-	}
 
+		if (InstanceData->NeedResize)
+		{
+			const int32 ElementCount = (InstanceData->GridSize.X + 1) * (InstanceData->GridSize.Y + 1) * (InstanceData->GridSize.Z + 1);
+
+			FNDIPressureGridProxy* ThisProxy = GetProxyAs<FNDIPressureGridProxy>();
+			ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
+				[ThisProxy, InstanceID = SystemInstance->GetId(), ElementCount](FRHICommandListImmediate& CmdList)
+			{
+				ThisProxy->SetElementCount(ElementCount);
+			}
+			);
+
+			InstanceData->Resize();
+		}
+	}
 	return RequireReset;
 }
 
@@ -503,6 +531,17 @@ void UNiagaraDataInterfacePressureGrid::GetFunctions(TArray<FNiagaraFunctionSign
 
 		OutFunctions.Add(Sig);
 	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = SetGridDimensionName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Pressure Grid")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Grid Dimension")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Function Status")));
+
+		OutFunctions.Add(Sig);
+	}
 }
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, BuildVelocityField);
@@ -516,6 +555,7 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, BuildGridTopolo
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, UpdateGridTransform);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, AddGridVelocity);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, GetGridVelocity);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, SetGridDimension);
 
 void UNiagaraDataInterfacePressureGrid::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
@@ -574,6 +614,11 @@ void UNiagaraDataInterfacePressureGrid::GetVMExternalFunction(const FVMExternalF
 		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, GetGridVelocity)::Bind(this, OutFunc);
 	}
+	else if (BindingInfo.Name == SetGridDimensionName)
+	{
+		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, SetGridDimension)::Bind(this, OutFunc);
+	}
 }
 
 void UNiagaraDataInterfacePressureGrid::BuildVelocityField(FVectorVMContext& Context)
@@ -621,8 +666,33 @@ void UNiagaraDataInterfacePressureGrid::GetGridVelocity(FVectorVMContext& Contex
 	// @todo : implement function for cpu 
 }
 
+void UNiagaraDataInterfacePressureGrid::SetGridDimension(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
+	VectorVM::FExternalFuncInputHandler<float> GridDimensionX(Context);
+	VectorVM::FExternalFuncInputHandler<float> GridDimensionY(Context);
+	VectorVM::FExternalFuncInputHandler<float> GridDimensionZ(Context);
+
+	VectorVM::FExternalFuncRegisterHandler<bool> OutFunctionStatus(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		FIntVector GridDimension;
+		GridDimension.X = *GridDimensionX.GetDestAndAdvance();
+		GridDimension.Y = *GridDimensionY.GetDestAndAdvance();
+		GridDimension.Z = *GridDimensionZ.GetDestAndAdvance();
+
+		InstData->GridSize = GridDimension;
+		InstData->NeedResize = true;
+
+		*OutFunctionStatus.GetDestAndAdvance() = true;
+	}
+}
+
 void UNiagaraDataInterfacePressureGrid::BuildGridTopology(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
+
 	VectorVM::FExternalFuncInputHandler<float> CenterXParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> CenterYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> CenterZParam(Context);
@@ -630,7 +700,6 @@ void UNiagaraDataInterfacePressureGrid::BuildGridTopology(FVectorVMContext& Cont
 	VectorVM::FExternalFuncInputHandler<float> ExtentYParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> ExtentZParam(Context);
 
-	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGridOriginX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGridOriginY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGridOriginZ(Context);
@@ -664,6 +733,8 @@ void UNiagaraDataInterfacePressureGrid::BuildGridTopology(FVectorVMContext& Cont
 
 void UNiagaraDataInterfacePressureGrid::UpdateGridTransform(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
+
 	VectorVM::FExternalFuncInputHandler<float> Out00(Context);
 	VectorVM::FExternalFuncInputHandler<float> Out01(Context);
 	VectorVM::FExternalFuncInputHandler<float> Out02(Context);
@@ -684,7 +755,6 @@ void UNiagaraDataInterfacePressureGrid::UpdateGridTransform(FVectorVMContext& Co
 	VectorVM::FExternalFuncInputHandler<float> Out32(Context);
 	VectorVM::FExternalFuncInputHandler<float> Out33(Context);
 
-	VectorVM::FUserPtrHandler<FNDIPressureGridData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<bool> OutTransformStatus(Context);
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
@@ -931,7 +1001,7 @@ static void AddClearPressureGridPass(
 		FIntVector(DispatchCount, 1, 1));
 }
 
-inline void ClearBuffer(FNDIPressureGridBuffer* CurrentGridBuffer, FNDIPressureGridBuffer* DestinationGridBuffer, const FIntVector& GridSize, const bool CopyPressure)
+inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIPressureGridBuffer* CurrentGridBuffer, FNDIPressureGridBuffer* DestinationGridBuffer, const FIntVector& GridSize, const bool CopyPressure)
 {
 	FRHIUnorderedAccessView* DestinationGridBufferUAV = DestinationGridBuffer->GridDataBuffer.UAV;
 	FRHIShaderResourceView* CurrentGridBufferSRV = CurrentGridBuffer->GridDataBuffer.SRV;
@@ -942,23 +1012,25 @@ inline void ClearBuffer(FNDIPressureGridBuffer* CurrentGridBuffer, FNDIPressureG
 		const FIntVector LocalGridSize = GridSize;
 		const bool LocalCopyPressure = CopyPressure;
 
-		ENQUEUE_RENDER_COMMAND(ClearPressureGrid)(
-			[DestinationGridBufferUAV, CurrentGridBufferSRV, CurrentGridBufferUAV, LocalGridSize, LocalCopyPressure]
-		(FRHICommandListImmediate& RHICmdListImm)
-		{
-			RHICmdListImm.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, DestinationGridBufferUAV);
-			RHICmdListImm.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CurrentGridBufferUAV);
+		RHICmdList.ClearUAVUint(DestinationGridBufferUAV, FUintVector4(0, 0, 0, 0));
 
-			RHICmdListImm.ClearUAVUint(DestinationGridBufferUAV, FUintVector4(0,0,0,0));
+		//ENQUEUE_RENDER_COMMAND(ClearPressureGrid)(
+		//	[DestinationGridBufferUAV, CurrentGridBufferSRV, CurrentGridBufferUAV, LocalGridSize, LocalCopyPressure]
+		//(FRHICommandListImmediate& RHICmdListImm)
+		//{
+		//	RHICmdListImm.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, DestinationGridBufferUAV);
+		//	RHICmdListImm.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CurrentGridBufferUAV);
 
-		/*	FRDGBuilder GraphBuilder(RHICmdListImm);
+		//	RHICmdListImm.ClearUAVUint(DestinationGridBufferUAV, FUintVector4(0,0,0,0));
 
-			AddClearPressureGridPass(
-				GraphBuilder,
-				CurrentGridBufferSRV, DestinationGridBufferUAV, LocalGridSize, LocalCopyPressure);
+		//	/*FRDGBuilder GraphBuilder(RHICmdListImm);
 
-			GraphBuilder.Execute();*/
-		});
+		//	AddClearPressureGridPass(
+		//		GraphBuilder,
+		//		CurrentGridBufferSRV, DestinationGridBufferUAV, LocalGridSize, LocalCopyPressure);
+
+		//	GraphBuilder.Execute();*/
+		//});
 	}
 }
 
@@ -1008,17 +1080,20 @@ void FNDIPressureGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 	{
 		if (!Context.IsIterationStage)
 		{
-			ClearBuffer(ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, true);
+			ClearBuffer(RHICmdList, ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, true);
 		}
 		else
 		{
-			ENQUEUE_RENDER_COMMAND(CopyPressureGrid)(
+			FRHICopyTextureInfo CopyInfo;
+			RHICmdList.CopyTexture(ProxyData->CurrentGridBuffer->GridDataBuffer.Buffer,
+				ProxyData->DestinationGridBuffer->GridDataBuffer.Buffer, CopyInfo);
+			/*ENQUEUE_RENDER_COMMAND(CopyPressureGrid)(
 				[ProxyData](FRHICommandListImmediate& RHICmdList)
 			{
 				FRHICopyTextureInfo CopyInfo;
 				RHICmdList.CopyTexture(ProxyData->CurrentGridBuffer->GridDataBuffer.Buffer,
 					ProxyData->DestinationGridBuffer->GridDataBuffer.Buffer, CopyInfo);
-			});
+			});*/
 		}
 	}
 }
@@ -1032,13 +1107,16 @@ void FNDIPressureGridProxy::PostStage(FRHICommandList& RHICmdList, const FNiagar
 	{
 		if (ProxyData != nullptr)
 		{
-			ENQUEUE_RENDER_COMMAND(CopyPressureGrid)(
+			FRHICopyTextureInfo CopyInfo;
+			RHICmdList.CopyTexture(ProxyData->DestinationGridBuffer->GridDataBuffer.Buffer,
+				ProxyData->CurrentGridBuffer->GridDataBuffer.Buffer, CopyInfo);
+			/*ENQUEUE_RENDER_COMMAND(CopyPressureGrid)(
 				[ProxyData](FRHICommandListImmediate& RHICmdList)
 			{
 				FRHICopyTextureInfo CopyInfo;
 				RHICmdList.CopyTexture(ProxyData->DestinationGridBuffer->GridDataBuffer.Buffer,
 					ProxyData->CurrentGridBuffer->GridDataBuffer.Buffer, CopyInfo);
-			});
+			});*/
 		}
 	}
 }
@@ -1049,8 +1127,8 @@ void FNDIPressureGridProxy::ResetData(FRHICommandList& RHICmdList, const FNiagar
 
 	if (ProxyData != nullptr && ProxyData->DestinationGridBuffer != nullptr && ProxyData->CurrentGridBuffer != nullptr)
 	{
-		ClearBuffer(ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, false);
-		ClearBuffer(ProxyData->DestinationGridBuffer, ProxyData->CurrentGridBuffer, ProxyData->GridSize, false);
+		ClearBuffer(RHICmdList, ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, false);
+		ClearBuffer(RHICmdList, ProxyData->DestinationGridBuffer, ProxyData->CurrentGridBuffer, ProxyData->GridSize, false);
 	}
 }
 

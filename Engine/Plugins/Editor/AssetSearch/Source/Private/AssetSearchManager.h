@@ -104,7 +104,7 @@ private:
 
 	FDelegateHandle TickerHandle;
 
-	TQueue<TFunction<void()>> GT_Tasks;
+	TQueue<TFunction<void()>, EQueueMode::Mpsc> GT_Tasks;
 
 private:
 	bool bDatabaseOpen = false;
@@ -113,7 +113,7 @@ private:
 	TAtomic<bool> RunThread;
 	FRunnableThread* DatabaseThread = nullptr;
 
-	TQueue<TFunction<void()>> ImmediateOperations;
-	TQueue<TFunction<void()>> FeedOperations;
-	TQueue<TFunction<void()>> UpdateOperations;
+	TQueue<TFunction<void()>, EQueueMode::Mpsc> ImmediateOperations;
+	TQueue<TFunction<void()>, EQueueMode::Mpsc> FeedOperations;
+	TQueue<TFunction<void()>, EQueueMode::Mpsc> UpdateOperations;
 };

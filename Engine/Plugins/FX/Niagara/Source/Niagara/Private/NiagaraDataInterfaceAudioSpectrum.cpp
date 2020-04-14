@@ -48,7 +48,7 @@ float FNiagaraDataInterfaceProxySpectrum::GetSpectrumValue(float InNormalizedPos
 	check(InChannelIndex >= 0);
 
 	// Check if channel index is within channel spectrum buffers
-	if (ChannelSpectrumBuffers.Num() >= InChannelIndex)
+	if (InChannelIndex >= ChannelSpectrumBuffers.Num())
 	{
 		return 0.f;
 	}
@@ -197,8 +197,6 @@ void FNiagaraDataInterfaceProxySpectrum::PostDataToGPU()
 
 void FNiagaraDataInterfaceProxySpectrum::UpdateSpectrum()
 {
-	check(IsInRenderingThread());
-
 	FScopeLock ScopeLock(&BufferLock);
 
 	int32 SourceNumChannels = GetNumChannels();
@@ -565,6 +563,36 @@ UNiagaraDataInterfaceAudioSpectrum::UNiagaraDataInterfaceAudioSpectrum(FObjectIn
 	}
 }
 
+
+void UNiagaraDataInterfaceAudioSpectrum::GetSpectrumValue(FVectorVMContext& Context)
+{
+	GetProxyAs<FNiagaraDataInterfaceProxySpectrum>()->UpdateSpectrum();
+
+	VectorVM::FExternalFuncInputHandler<float> InNormalizedPos(Context);
+	VectorVM::FExternalFuncInputHandler<int32> InChannel(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		float Position = InNormalizedPos.Get();
+		int32 Channel = InChannel.Get();
+		*OutValue.GetDest() = GetProxyAs<FNiagaraDataInterfaceProxySpectrum>()->GetSpectrumValue(Position, Channel);
+
+		InNormalizedPos.Advance();
+		InChannel.Advance();
+		OutValue.Advance();
+	}
+}
+
+void UNiagaraDataInterfaceAudioSpectrum::GetNumChannels(FVectorVMContext& Context)
+{
+	VectorVM::FExternalFuncRegisterHandler<int32> OutChannel(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		*OutChannel.GetDestAndAdvance() = GetProxyAs<FNiagaraDataInterfaceProxySpectrum>()->GetNumChannels();
+	}
+}
 
 void UNiagaraDataInterfaceAudioSpectrum::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {

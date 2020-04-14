@@ -79,7 +79,7 @@ public:
 	virtual void Tick( const FGeometry& AllotedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
 	/** Creates a new folder for the hierarchy. If ParentPath is defined, the folder will be created relative to that path. */
-	void CreateFolder(TSharedPtr<FLevelModel> InModel, FName ParentPath = NAME_None);
+	void CreateFolder(TSharedPtr<FLevelModel> InModel, FName ParentPath = NAME_None, const bool bMoveSelected = true);
 
 	/** Moves the current selection to the specified path */
 	void MoveItemsTo(TSharedPtr<FLevelModel> InModel, FName Path);

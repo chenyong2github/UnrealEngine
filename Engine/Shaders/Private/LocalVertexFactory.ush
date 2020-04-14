@@ -409,7 +409,7 @@ float GetInstanceRandom(FVertexFactoryIntermediates Intermediates)
 
 float3 GetInstanceOrigin(FVertexFactoryIntermediates Intermediates)
 {
-	return Intermediates.InstanceOrigin.xyz + InstancingOffset;
+	return Intermediates.InstanceOrigin.xyz + InstancingOffset.xyz;
 }
 
 #endif	// USE_INSTANCING
@@ -464,6 +464,14 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 	Result.TwoSidedSign = 1;
 	Result.PrimitiveId = GetPrimitiveId(Interpolants);
+
+#if NEEDS_PARTICLE_LOCAL_TO_WORLD
+	Result.Particle.ParticleToWorld = GetPrimitiveData(Result.PrimitiveId).LocalToWorld;
+#endif
+
+#if NEEDS_PARTICLE_WORLD_TO_LOCAL
+	Result.Particle.WorldToParticle = GetPrimitiveData(Result.PrimitiveId).WorldToLocal;
+#endif
 
 	return Result;
 }

@@ -51,6 +51,7 @@ DECLARE_DELEGATE_ThreeParams(FOnGetPropertyComboBoxStrings, TArray< TSharedPtr<F
 DECLARE_DELEGATE_RetVal(FString, FOnGetPropertyComboBoxValue);
 DECLARE_DELEGATE_OneParam(FOnPropertyComboBoxValueSelected, const FString&);
 DECLARE_DELEGATE_ThreeParams(FOnInstancedPropertyIteration, IDetailCategoryBuilder&, IDetailGroup*, TSharedRef<IPropertyHandle>&);
+DECLARE_DELEGATE_RetVal(bool, FOnIsEnabled);
 
 namespace PropertyCustomizationHelpers
 {
@@ -150,6 +151,8 @@ public:
 		SLATE_EVENT(FOnSetObject, OnObjectChanged)
 		/** Called to check if an asset is valid to use */
 		SLATE_EVENT(FOnShouldFilterAsset, OnShouldFilterAsset)
+		/** Called to check if the asset should be enabled. */
+		SLATE_EVENT(FOnIsEnabled, OnIsEnabled)
 		/** Whether the asset can be 'None' */
 		SLATE_ARGUMENT(bool, AllowClear)
 		/** Whether to show the 'Use Selected' button */
@@ -181,11 +184,16 @@ private:
 
 	/** @return the object path for the object we are viewing */
 	FString OnGetObjectPath() const;
+
+	bool IsEnabled() const;
+
 private:
 	/** Delegate to call to determine whether the asset should be set */
 	FOnShouldSetAsset OnShouldSetAsset;
 	/** Delegate to call when the object changes */
 	FOnSetObject OnObjectChanged;
+	/** Delegate to call to check if this widget should be enabled. */
+	FOnIsEnabled OnIsEnabled;
 	/** Path to the object */
 	TAttribute<FString> ObjectPath;
 	/** Handle to a property we modify (if any)*/

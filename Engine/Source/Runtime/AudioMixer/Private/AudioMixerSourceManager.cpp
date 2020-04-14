@@ -472,6 +472,7 @@ namespace Audio
 		if (SourceInfo.bUseHRTFSpatializer)
 		{
 			AUDIO_MIXER_CHECK(bUsingSpatializationPlugin);
+			LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 			SpatializationPlugin->OnReleaseSource(SourceId);
 		}
 
@@ -654,6 +655,14 @@ namespace Audio
 			MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, *InitParams.ModulationPluginSettings);
 		}
 
+		FSoundEffectSourceInitData InitData;
+		InitData.SampleRate = MixerDevice->SampleRate;
+		InitData.NumSourceChannels = InitParams.NumInputChannels;
+		InitData.AudioClock = MixerDevice->GetAudioTime();
+		InitData.AudioDeviceId = MixerDevice->DeviceID;
+
+		BuildSourceEffectChain(SourceId, InitData, InitParams.SourceEffectChain);
+
 		AudioMixerThreadCommand([this, SourceId, InitParams]()
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
@@ -676,7 +685,6 @@ namespace Audio
 			SourceInfo.bUseHRTFSpatializer = InitParams.bUseHRTFSpatialization;
 			SourceInfo.bIsExternalSend = InitParams.bIsExternalSend;
 			SourceInfo.bIsVorbis = InitParams.bIsVorbis;
-			SourceInfo.bIsAmbisonics = InitParams.bIsAmbisonics;
 			SourceInfo.AudioComponentID = InitParams.AudioComponentID;
 			SourceInfo.bIsAmbisonics = InitParams.bIsAmbisonics;
 
@@ -697,6 +705,7 @@ namespace Audio
 			if (InitParams.bUseHRTFSpatialization)
 			{
 				AUDIO_MIXER_CHECK(bUsingSpatializationPlugin);
+				LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 				SpatializationPlugin->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.SpatializationPluginSettings);
 			}
 
@@ -723,15 +732,7 @@ namespace Audio
 				// If we're told to care about effect chain tails, then we're not allowed
 				// to stop playing until the effect chain tails are finished
 				SourceInfo.bEffectTailsDone = !InitParams.bPlayEffectChainTails;
-
-				FSoundEffectSourceInitData InitData;
-				InitData.SampleRate = MixerDevice->SampleRate;
-				InitData.NumSourceChannels = InitParams.NumInputChannels;
-				InitData.AudioClock = MixerDevice->GetAudioTime();
-				InitData.AudioDeviceId = MixerDevice->DeviceID;
-
 				SourceInfo.SourceEffectChainId = InitParams.SourceEffectChainId;
-				BuildSourceEffectChain(SourceId, InitData, InitParams.SourceEffectChain);
 
 				// Whether or not to output to bus only
 				SourceInfo.bOutputToBusOnly = InitParams.bOutputToBusOnly;
@@ -870,8 +871,7 @@ namespace Audio
 					}
 					else
 					{
-						// Flag this source as needing to downmix its audio.
-						DownmixData.bIsSourceBeingSentToDeviceSubmix = true;
+						FSubmixChannelData& SubmixChannelInfo = GetChannelInfoForDevice(DownmixData);
 					}
 				}
 			}
@@ -1582,11 +1582,9 @@ namespace Audio
 			if (bIsSourceBus)
 			{
 				// Get the source's rendered and mixed audio bus data
-				const TSharedPtr<FMixerAudioBus>* AudioBusPtr = AudioBuses.Find(SourceInfo.AudioBusId);
-				if (ensure(AudioBusPtr != nullptr))
+				const TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(SourceInfo.AudioBusId);
+				if (ensure(AudioBusPtr.IsValid()))
 				{
-					const float* RESTRICT BusBufferPtr = (*AudioBusPtr)->GetCurrentBusBuffer();
-
 					int32 NumFramesPlayed = NumOutputFrames;
 					if (SourceInfo.SourceBusDurationFrames != INDEX_NONE)
 					{
@@ -1599,9 +1597,7 @@ namespace Audio
 					}
 
 					SourceInfo.NumFramesPlayed += NumFramesPlayed;
-
-					// Simply copy into the pre distance attenuation buffer ptr
-					FMemory::Memcpy(PreDistanceAttenBufferPtr, BusBufferPtr, sizeof(float) * NumFramesPlayed * SourceInfo.NumInputChannels);
+					AudioBusPtr->CopyCurrentBuffer(SourceInfo.PreDistanceAttenuationBuffer, NumFramesPlayed, SourceInfo.NumInputChannels);
 				}
 			}
 			else
@@ -1829,7 +1825,10 @@ namespace Audio
 				SourceInfo.AudioPluginOutputData.AudioBuffer.AddZeroed(2 * NumOutputFrames);
 			}
 
-			SpatializationPlugin->ProcessAudio(AudioPluginInputData, SourceInfo.AudioPluginOutputData);
+			{
+				LLM_SCOPE(ELLMTag::AudioMixerPlugins);
+				SpatializationPlugin->ProcessAudio(AudioPluginInputData, SourceInfo.AudioPluginOutputData);
+			}
 
 			// If this is an external send, we treat this source audio as if it was still a mono source
 			// This will allow it to traditionally pan in the ComputeOutputBuffers function and be
@@ -2016,6 +2015,7 @@ namespace Audio
 
 		// First, build our SoundfieldSpeakerPositionalData out of our SpatializationParams.
 		DownmixData.PositionalData.NumChannels = DownmixData.NumInputChannels;
+		DownmixData.PositionalData.Rotation = InSource.SpatParams.EmitterWorldRotation;
 		
 		// Build our input channel positions from the Spatialization params if this is a 3D source, otherwise use the default channel positions.
 		DownmixData.InputChannelPositions.Reset();
@@ -2068,8 +2068,7 @@ namespace Audio
 
 			SoundfieldData.EncodedPacket->Reset();
 
-			// If this is an ambisonics source, transcode it, or if this is going to an ambisonics submix, simply forward the buffer. Otherwise, encode the source 
-			// to whatever soundfield format the destination submix is.
+			// If this is an ambisonics source, transcode it. Otherwise, encode the source.
 			if (SoundfieldData.AmbiTranscoder)
 			{
 				FAmbisonicsSoundfieldBuffer AmbiBuffer;
@@ -2098,7 +2097,7 @@ namespace Audio
 				ensure(InSource.bIsAmbisonics);
 
 				FAmbisonicsSoundfieldBuffer& OutputPacket = DowncastSoundfieldRef<FAmbisonicsSoundfieldBuffer>(*SoundfieldData.EncodedPacket);
-				// Fixme: This is an array copy. Can we serve DownmixData.PostEffectBuffers directly to this soundfield, then return it back at the end of the render loop?
+				// Fixme: This is an array copy. Can we serve DownmixData.PostEffectBuffers directly to this soundfield?
 				OutputPacket.AudioBuffer = *DownmixData.PostEffectBuffers;
 				OutputPacket.NumChannels = DownmixData.NumInputChannels;
 				OutputPacket.PreviousRotation = OutputPacket.Rotation;
@@ -2379,18 +2378,14 @@ namespace Audio
 			DownmixData.PositionalData.Rotation = SourceInfo.SpatParams.ListenerOrientation;
 			DownmixData.SourceRotation = SourceInfo.SpatParams.EmitterWorldRotation;
 
-			// If we are sending audio to a non-soundfield submix, we downmix audio to the device configuration here.
-			if (DownmixData.bIsSourceBeingSentToDeviceSubmix)
+			if (SourceInfo.bIs3D && !DownmixData.bIsInitialDownmix)
 			{
-				if (SourceInfo.bIs3D && !DownmixData.bIsInitialDownmix)
-				{
-					ComputeDownmix3D(DownmixData, MixerDevice);
-				}
-				else
-				{
-					ComputeDownmix2D(DownmixData, MixerDevice);
-					DownmixData.bIsInitialDownmix = false;
-				}
+				ComputeDownmix3D(DownmixData, MixerDevice);
+			}
+			else
+			{
+				ComputeDownmix2D(DownmixData, MixerDevice);
+				DownmixData.bIsInitialDownmix = false;
 			}
 
 			if (DownmixData.EncodedSoundfieldDownmixes.Num())
@@ -2449,11 +2444,11 @@ namespace Audio
 		if (SendLevel > 0.0f)
 		{
 			const FSourceInfo& SourceInfo = SourceInfos[SourceId];
-			const FSourceDownmixData& DownmixData = DownmixDataArray[SourceId];
 
 			// Don't need to mix into submixes if the source is paused
-			if (!SourceInfo.bIsPaused && !SourceInfo.bIsDone && SourceInfo.bIsPlaying && DownmixData.bIsSourceBeingSentToDeviceSubmix)
+			if (!SourceInfo.bIsPaused && !SourceInfo.bIsDone && SourceInfo.bIsPlaying)
 			{
+				const FSourceDownmixData& DownmixData = DownmixDataArray[SourceId];
 				const FSubmixChannelData& ChannelInfo = GetChannelInfoForDevice(DownmixData);
 
 				const float* RESTRICT SourceOutputBufferPtr = ChannelInfo.OutputBuffer.GetData();
@@ -2653,6 +2648,12 @@ namespace Audio
 			PumpCommandQueue();
 		}
 
+		// Notify modulation interface that we are beginning to update
+		if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+		{
+			MixerDevice->ModulationInterface->OnBeginAudioRenderThreadUpdate();
+		}
+
 		// Update pending tasks and release them if they're finished
 		UpdatePendingReleaseData();
 
@@ -2672,6 +2673,7 @@ namespace Audio
 		if (bUsingSpatializationPlugin)
 		{
 			AUDIO_MIXER_CHECK(SpatializationPlugin.IsValid());
+			LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 			SpatializationPlugin->OnAllSourcesProcessed();
 		}
 

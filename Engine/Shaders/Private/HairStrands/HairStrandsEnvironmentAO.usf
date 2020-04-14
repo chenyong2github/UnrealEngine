@@ -25,7 +25,7 @@ float AO_Intensity;
 uint  AO_SampleCount;
 float AO_DistanceThreshold;
 
-float TraceAO(float3 WorldPosition, float3 WorldNormal, float4 SvPosition)
+float TraceAO(float3 WorldPosition, float3 WorldNormal, float4 SvPosition, float PixelRadius)
 {
 	const float3 VoxelOffset = VirtualVoxel.VoxelWorldSize * GetHairVoxelJitter(SvPosition.xy, View.StateFrameIndexMod8);
 
@@ -149,7 +149,8 @@ void MainPS(
 
 	if (bIsValid)
 	{
-		OutAO = TraceAO(WorldPosition, WorldNormal, SvPosition);
+		const float PixelRadius = GBuffer.Depth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
+		OutAO = TraceAO(WorldPosition, WorldNormal, SvPosition, PixelRadius);
 	}
 	else
 	{

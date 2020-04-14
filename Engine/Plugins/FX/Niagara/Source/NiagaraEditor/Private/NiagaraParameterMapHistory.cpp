@@ -37,9 +37,9 @@ static FAutoConsoleVariableRef CVarNiagaraLogNamespaceFixup(
 
 static int32 GNiagaraForcePrecompilerCullDataset = 0;
 static FAutoConsoleVariableRef CVarNiagaraForcePrecompilerCullDataset(
-	TEXT("fx.NiagaraForcePrecompilerCullDataset"),
+	TEXT("fx.NiagaraEnablePrecompilerNamespaceDatasetCulling"),
 	GNiagaraForcePrecompilerCullDataset,
-	TEXT("Force the precompiler process to cull unused Dataset parameters. \n"),
+	TEXT("Force the namespace fixup precompiler process to cull unused Dataset parameters. Only enabled if fx.NiagaraEnablePrecompilerNamespaceFixup is also enabled. \n"),
 	ECVF_Default
 );
 
@@ -1444,11 +1444,6 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 
 void FNiagaraParameterMapHistoryWithMetaDataBuilder::FixupHistoryVariableNamespaces(TArray<FNiagaraParameterMapHistoryHandle>& InHistoryHandles, bool bCullDatasetOutputs)
 {
-	if (FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 == 0)
-	{
-		return;
-	}
-
 	struct FMatchedVariableInfo
 	{
 	public:

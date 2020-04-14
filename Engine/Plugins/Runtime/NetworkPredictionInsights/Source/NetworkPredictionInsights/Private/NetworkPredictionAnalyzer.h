@@ -30,24 +30,30 @@ private:
 	enum : uint16
 	{
 		RouteId_GameInstanceRegister,
+		RouteId_WorldFrameStart,
 		RouteId_SimulationCreated,
 		RouteId_SimulationNetRole,
 		RouteId_SimulationNetGUID,
 		RouteId_SimulationTick,
 		RouteId_OOBStateMod,
+		RouteId_OOBStateModStrSync,
+		RouteId_OOBStateModStrAux,
 		RouteId_ProduceInput,
 		RouteId_SynthInput,
 		RouteId_SimulationEOF,
 		RouteId_NetSerializeRecv,
 		RouteId_NetSerializeCommit,
-		RouteId_NetSerializeFault,
 		RouteId_InputCmd,
 		RouteId_SyncState,
 		RouteId_AuxState,
-		RouteId_PieBegin
+		RouteId_PieBegin,
+		RouteId_SystemFault
 	};
 
 
 	Trace::IAnalysisSession& Session;
 	FNetworkPredictionProvider& NetworkPredictionProvider;
+
+	uint64 EngineFrameNumber;
+	float DeltaTimeSeconds;
 };

@@ -3162,6 +3162,12 @@ DEFINE_FUNCTION(UObject::execTextConst)
 }
 IMPLEMENT_VM_FUNCTION( EX_TextConst, execTextConst );
 
+DEFINE_FUNCTION(UObject::execPropertyConst)
+{
+	*(FProperty**)RESULT_PARAM = (FProperty*)Stack.ReadObject();
+}
+IMPLEMENT_VM_FUNCTION(EX_PropertyConst, execPropertyConst);
+
 DEFINE_FUNCTION(UObject::execObjectConst)
 {
 	*(UObject**)RESULT_PARAM = (UObject*)Stack.ReadObject();

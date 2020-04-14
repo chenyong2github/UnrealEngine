@@ -1428,10 +1428,7 @@ class DumpBranch : BuildCommand
 	{
 		LogInformation("************************* DumpBranch");
 
-		var HostPlatforms = new List<UnrealTargetPlatform>();
-		HostPlatforms.Add(UnrealTargetPlatform.Win64);
-		HostPlatforms.Add(UnrealTargetPlatform.Mac);
-		new BranchInfo(HostPlatforms);
+		new BranchInfo();
 	}
 }
 

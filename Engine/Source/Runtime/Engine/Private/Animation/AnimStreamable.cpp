@@ -18,10 +18,22 @@
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "BonePose.h"
 #include "ContentStreaming.h"
+#include "ProfilingDebugging/CookStats.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
 DECLARE_CYCLE_STAT(TEXT("AnimStreamable GetAnimationPose"), STAT_AnimStreamable_GetAnimationPose, STATGROUP_Anim);
+
+#if ENABLE_COOK_STATS
+namespace AnimStreamableCookStats
+{
+	static FCookStats::FDDCResourceUsageStats UsageStats;
+	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+	{
+		UsageStats.LogStats(AddStat, TEXT("AnimStreamable.Usage"), TEXT(""));
+	});
+}
+#endif
 
 // This is a version string for the streaming anim chunk logic
 // If you want to bump this version, generate a new guid using VS->Tools->Create GUID and
@@ -597,6 +609,8 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 
 	TArray<uint8> OutData;
 	{
+		COOK_STAT(auto Timer = AnimStreamableCookStats::UsageStats.TimeSyncWork());
+
 		bool bNeedToCleanUpAnimCompressor = true;
 		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(TEXT("StreamAnim"), ChunkDDCKey, CompressContext);
 
@@ -610,7 +624,11 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 		Chunk.StartTime = FrameStart * FrameLength;
 		Chunk.SequenceLength = ChunkNumFrames * FrameLength;
 
-		if (bSkipDDC || !GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData, GetPathName()))
+		if (!bSkipDDC && GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData, GetPathName()))
+		{
+			COOK_STAT(Timer.AddHit(OutData.Num()));
+		}
+		else
 		{
 			FCompressibleAnimRef CompressibleData = MakeShared<FCompressibleAnimData, ESPMode::ThreadSafe>(BoneCompressionSettings, CurveCompressionSettings, GetSkeleton(), Interpolation, Chunk.SequenceLength, ChunkNumFrames+1);
 
@@ -654,11 +672,18 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 			if (bSkipDDC)
 			{
 				AnimCompressor->Build(OutData);
+				COOK_STAT(Timer.AddMiss(OutData.Num()));
 			}
 			else if (AnimCompressor->CanBuild())
 			{
 				bNeedToCleanUpAnimCompressor = false; // GetSynchronous will handle this
-				GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData);
+				bool bBuilt = false;
+				const bool bSuccess = GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData, &bBuilt);
+				COOK_STAT(Timer.AddHitOrMiss(!bSuccess || bBuilt ? FCookStats::CallStats::EHitOrMiss::Miss : FCookStats::CallStats::EHitOrMiss::Hit, OutData.Num()));
+			}
+			else
+			{
+				COOK_STAT(Timer.TrackCyclesOnly());
 			}
 		}
 

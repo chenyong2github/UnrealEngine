@@ -164,8 +164,9 @@ namespace AutomationTool.Benchmark
 		NoSharedDDC = 1 << 2,
 		NoShaderDDC = 1 << 3,
 		HotDDC = 1 << 4,
+		NoXGE = 1 << 5,			// don't use XGE for shader compilation
 
-		KeepMemoryDDC = 1 << 5,
+		KeepMemoryDDC = 1 << 6,
 	}
 
 	abstract class BenchmarkEditorTaskBase : BenchmarkTaskBase
@@ -276,7 +277,15 @@ namespace AutomationTool.Benchmark
 					// save this dir and set it as the env var
 					CachePaths.Add(Dir);
 					Environment.SetEnvironmentVariable(Key, Dir.FullName);
-				}				
+				}
+
+				// remove project files
+				DirectoryReference ProjectDDC = DirectoryReference.Combine(ProjectFile.Directory, "DerivedDataCache");
+				CommandUtils.DeleteDirectory_NoExceptions(ProjectDDC.FullName);
+
+				// remove S3 files
+				DirectoryReference S3DDC = DirectoryReference.Combine(ProjectFile.Directory, "Saved", "S3DDC");
+				CommandUtils.DeleteDirectory_NoExceptions(S3DDC.FullName);
 			}
 
 			return base.PerformPrequisites();

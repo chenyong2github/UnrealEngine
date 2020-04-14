@@ -507,7 +507,7 @@ namespace UnrealBuildTool
 			}
 
 			// link with Linux libraries.
-			LinkEnvironment.AdditionalLibraries.Add("pthread");
+			LinkEnvironment.SystemLibraries.Add("pthread");
 
 			// let this class or a sub class do settings specific to that class
 			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment);
@@ -536,21 +536,26 @@ namespace UnrealBuildTool
 			List<FileReference> FinalBinaryPath = new List<FileReference>();
 
 			string SanitizerSuffix = null;
-			if(Target.LinuxPlatform.bEnableAddressSanitizer)
+
+			// Only append these for monolithic builds. non-monolithic runs into issues dealing with target/modules files
+			if (Target.LinkType == TargetLinkType.Monolithic)
 			{
-				SanitizerSuffix = "ASan";
-			}
-			else if(Target.LinuxPlatform.bEnableThreadSanitizer)
-			{
-				SanitizerSuffix = "TSan";
-			}
-			else if(Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
-			{
-				SanitizerSuffix = "UBSan";
-			}
-			else if(Target.LinuxPlatform.bEnableMemorySanitizer)
-			{
-				SanitizerSuffix = "MSan";
+				if(Target.LinuxPlatform.bEnableAddressSanitizer)
+				{
+					SanitizerSuffix = "ASan";
+				}
+				else if(Target.LinuxPlatform.bEnableThreadSanitizer)
+				{
+					SanitizerSuffix = "TSan";
+				}
+				else if(Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
+				{
+					SanitizerSuffix = "UBSan";
+				}
+				else if(Target.LinuxPlatform.bEnableMemorySanitizer)
+				{
+					SanitizerSuffix = "MSan";
+				}
 			}
 
 			if (String.IsNullOrEmpty(SanitizerSuffix))

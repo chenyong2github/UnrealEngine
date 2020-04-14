@@ -147,8 +147,13 @@ namespace Chaos
 		// General Rule API
 		//
 
-		void PrepareConstraints(FReal Dt);
-		void UnprepareConstraints(FReal Dt);
+		void PrepareTick();
+
+		void UnprepareTick();
+
+		void PrepareIteration(FReal Dt);
+
+		void UnprepareIteration(FReal Dt);
 
 		void UpdatePositionBasedState(const FReal Dt);
 
@@ -181,8 +186,6 @@ namespace Chaos
 		
 		void InitSolverJointData();
 		void DeinitSolverJointData();
-		void InitSolverJointState();
-		void DeinitSolverJointState();
 		void GatherSolverJointState(int32 ConstraintIndex);
 		void ScatterSolverJointState(const FReal Dt, int32 ConstraintIndex);
 

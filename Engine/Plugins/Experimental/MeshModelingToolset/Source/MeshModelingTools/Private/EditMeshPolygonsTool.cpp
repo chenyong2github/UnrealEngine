@@ -1617,7 +1617,7 @@ void UEditMeshPolygonsTool::ApplyStraightenEdges()
 		int32 NumV = EdgeVerts.Num();
 		if ( NumV > 2 )
 		{
-			ChangeTracker.SaveVertices(EdgeVerts);
+			ChangeTracker.SaveVertexOneRingTriangles(EdgeVerts, true);
 			FVector3d A(Mesh->GetVertex(EdgeVerts[0])), B(Mesh->GetVertex(EdgeVerts[NumV-1]));
 			TArray<double> VtxArcLengths;
 			double EdgeArcLen = Topology->GetEdgeArcLength(Edge.EdgeTopoID, &VtxArcLengths);

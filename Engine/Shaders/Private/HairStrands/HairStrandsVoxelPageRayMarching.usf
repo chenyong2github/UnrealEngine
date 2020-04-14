@@ -12,6 +12,14 @@
 #include "HairStrandsVoxelPageCommon.ush"
 #include "HairStrandsDebugCommon.ush" 
 
+#define VOXEL_TRAVERSAL_DEBUG 0
+#if PERMUTATION_TRAVERSAL == 1
+	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
+#else
+	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR
+#endif
+#include "HairStrandsVoxelPageTraversal.ush"
+
 float2 OutputResolution; 
 uint bDrawPage;
 uint MacroGroupId;
@@ -46,10 +54,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const float2 PixelCoord = DispatchThreadId.xy + 0.5f;
 	const float2 UV = PixelCoord / float2(OutputResolution);
 
-	// Reverse-Z
-	const float3 O = View.WorldCameraOrigin;
-	const float3 E = ReconstructWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
-	const float3 D = (E - O);
 
 	float  WorldDepth = 0;
 	float  ClipDepth = 0;
@@ -493,28 +497,34 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		}
 	}
 
-	const float2 HitT = LineBoxIntersect(O, E, NodeDesc.MinAABB, NodeDesc.MaxAABB);
-	float3 HitColor = float3(0,0,0);
-	float AccDensity = 0;
 	bool bIsValid = false;
-	if (HitT.x < HitT.y)
+	float3 HitColor = 0;
+	if (bDrawPage)
 	{
-		// Use different offseting to see either: 
-		// * Individual voxel (for debugging mainly)
-		// * Smoothed voxel (as used for transmittance computation)
-	#if VOXEL_FILTERING == VOXEL_BLOCK
-		const float3 Offset = 0;
-		const float Dither = InterleavedGradientNoise(PixelCoord.xy, 1);
-	#endif
-	#if VOXEL_FILTERING == VOXEL_SMOOTH
-		const float3 Offset = float3(InterleavedGradientNoise(PixelCoord.xy, 1), InterleavedGradientNoise(PixelCoord.xy, 2), InterleavedGradientNoise(PixelCoord.xy, 3));
-		const float Dither = 0;
-	#endif
+		// Reverse-Z
+		const float3 O = View.WorldCameraOrigin;
+		const float3 E = ReconstructWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
+		const float3 D = (E - O);
 
-
-		// Intersect the indirection table to see if a brick is empty or not
-		if (bDrawPage)
+		float PixelRadius = -1;
+		const float2 HitT = LineBoxIntersect(O, E, NodeDesc.MinAABB, NodeDesc.MaxAABB);
+		float AccDensity = 0;
+		if (HitT.x < HitT.y)
 		{
+			// Use different offseting to see either: 
+			// * Individual voxel (for debugging mainly)
+			// * Smoothed voxel (as used for transmittance computation)
+		#if VOXEL_FILTERING == VOXEL_BLOCK
+			const float3 Offset = 0;
+			const float Dither = InterleavedGradientNoise(PixelCoord.xy, 1);
+		#endif
+		#if VOXEL_FILTERING == VOXEL_SMOOTH
+			const float3 Offset = float3(InterleavedGradientNoise(PixelCoord.xy, 1), InterleavedGradientNoise(PixelCoord.xy, 2), InterleavedGradientNoise(PixelCoord.xy, 3));
+			const float Dither = 0;
+		#endif
+
+
+			// Intersect the indirection table to see if a brick is empty or not
 			const uint MaxStep = 256;
 			const float Delta = (HitT.y-HitT.x)/float(MaxStep);
 			for (uint StepIt=0; StepIt<MaxStep; ++StepIt)
@@ -533,44 +543,94 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 				}
 			}
 		}
-		else
-		{
-			const uint MipLevel = 0; //clamp(View.GeneralPurposeTweak, 0, 6);
-			const uint MaxStep = 256;
-			const float Delta = (HitT.y - HitT.x) / float(MaxStep);
-			for (uint StepIt = 0; StepIt < MaxStep; ++StepIt)
-			{
-				const float3 HitP = Offset + O + ((Dither + StepIt)*Delta + HitT.x) * D;
-				const int3 VolumeCoord = PositionToCoord(HitP, NodeDesc.MinAABB, NodeDesc.MaxAABB, NodeDesc.VirtualResolution);
-				const int3 PageIndexCoord = VolumeCoord / VirtualVoxel.PageResolution;
-				const uint PageIndex = GetVoxelPageIndex(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
-				if (PageIndex != INVALID_VOXEL_PAGE_INDEX)
-				{
-					const uint3 PageCoord		= IndexToCoord(PageIndex, VirtualVoxel.PageCountResolution);
-					const int3 VoxelPageBase	= PageCoord * VirtualVoxel.PageResolution;
-					const int3 VoxelPageOffset	= VolumeCoord - PageIndexCoord * VirtualVoxel.PageResolution;
-					const int3 VoxelPageCoord	= VoxelPageBase + VoxelPageOffset;
-
-					const FHairTraversalResult Result = GetHairVirtualVoxelDensity(VoxelPageCoord, VirtualVoxel.PageTexture, MipLevel, VirtualVoxel.DensityScale);
-					const float Density = Result.HairCount + (Result.Visibility > 0 ? 0 : 1000000000);
-					if (Density > 0)
-					{
-						AccDensity = max(AccDensity, float(Density));
-						bIsValid = true;
-					}
-
-				}
-			}
-		}
 	}
-
-	if (!bDrawPage)
+	else 
 	{
-		HitColor = GetColorCode(saturate(AccDensity));
+		FHairTraversalResult TraversalResult = (FHairTraversalResult)0;
+
+		const float DistanceThreshold = 10000;
+		const bool bDebugEnabled = false;
+		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8);
+
+		const float3 WP0 = View.WorldCameraOrigin;
+		const float3 E = ReconstructWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
+		const float3 WP1 = normalize(E - WP0) * DistanceThreshold + WP0;
+
+		FVirtualVoxelCommonDesc CommonDesc;
+		CommonDesc.PageCountResolution	= VirtualVoxel.PageCountResolution;
+		CommonDesc.VoxelWorldSize		= VirtualVoxel.VoxelWorldSize;
+		CommonDesc.PageTextureResolution= VirtualVoxel.PageTextureResolution;
+		CommonDesc.PageResolution		= VirtualVoxel.PageResolution;
+
+		const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
+		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+
+		FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
+		TraversalSettings.DensityScale		= VirtualVoxel.DensityScale;
+		TraversalSettings.CountThreshold	= GetOpaqueVoxelValue();
+		TraversalSettings.DistanceThreshold = DistanceThreshold;
+		TraversalSettings.bDebugEnabled		= bDebugEnabled;
+		TraversalSettings.SteppingScale		= VirtualVoxel.SteppingScale;
+		TraversalSettings.Random			= SampleRandom;
+		TraversalSettings.TanConeAngle		= 0;
+		TraversalSettings.bIsPrimaryRay		= true;
+		TraversalSettings.PixelRadius		= -1;
+
+		TraversalResult = ComputeHairCountVirtualVoxel(
+			WP0,
+			WP1,
+			CommonDesc,
+			NodeDesc,
+			VirtualVoxel.PageIndexBuffer,
+			VirtualVoxel.PageTexture,
+			TraversalSettings);
+
+		HitColor = GetColorCode(saturate(TraversalResult.HairCount / 16));
+		bIsValid = TraversalResult.HairCount > 0;
+
+		const bool bIsPixelEnable = all(int2(PixelCoord) == GetCursorPos());
+		if (bIsPixelEnable && bIsValid)
+		{
+			float2 StartPos = float2(50.0f, 50.0f) / OutputResolution;
+			float2 Pos = StartPos;
+
+			Pos = ShaderPrintSymbol(Pos, _X_);
+			Pos = ShaderPrintSymbol(Pos, _Y_);
+			Pos = ShaderPrintSymbol(Pos, _SPC_);
+			Pos = ShaderPrint(Pos, GetCursorPos());
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrintSymbol(Pos, _T_);
+			Pos = ShaderPrintSymbol(Pos, _DOT_);
+			Pos = ShaderPrintSymbol(Pos, _C_);
+			Pos = ShaderPrintSymbol(Pos, _O_);
+			Pos = ShaderPrintSymbol(Pos, _U_);
+			Pos = ShaderPrintSymbol(Pos, _N_);
+			Pos = ShaderPrintSymbol(Pos, _T_);
+			Pos = ShaderPrintSymbol(Pos, _SPC_);
+			Pos = ShaderPrint(Pos, TraversalResult.HairCount);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			
+			Pos = ShaderPrintSymbol(Pos, _T_);
+			Pos = ShaderPrintSymbol(Pos, _DOT_);
+			Pos = ShaderPrintSymbol(Pos, _V_);
+			Pos = ShaderPrintSymbol(Pos, _I_);
+			Pos = ShaderPrintSymbol(Pos, _S_);
+			Pos = ShaderPrintSymbol(Pos, _I_);
+			Pos = ShaderPrintSymbol(Pos, _B_);
+			Pos = ShaderPrintSymbol(Pos, _I_);
+			Pos = ShaderPrintSymbol(Pos, _L_);
+			Pos = ShaderPrintSymbol(Pos, _I_);
+			Pos = ShaderPrintSymbol(Pos, _T_);
+			Pos = ShaderPrintSymbol(Pos, _Y_);
+			Pos = ShaderPrintSymbol(Pos, _SPC_);
+			Pos = ShaderPrint(Pos, TraversalResult.Visibility);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+		}
 	}
 
 	if (bIsValid)
 	{
-		OutputTexture[DispatchThreadId.xy] = float4(HitColor,1);
+		OutputTexture[DispatchThreadId.xy] = float4(HitColor, 1);
 	}
 }

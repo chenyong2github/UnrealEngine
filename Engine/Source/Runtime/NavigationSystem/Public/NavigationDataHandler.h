@@ -34,4 +34,5 @@ struct NAVIGATIONSYSTEM_API FNavigationDataHandler
 	void RemoveLevelCollisionFromOctree(ULevel& Level);
 	void UpdateActorAndComponentsInNavOctree(AActor& Actor);
 	void ProcessPendingOctreeUpdates();
+	void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
 };

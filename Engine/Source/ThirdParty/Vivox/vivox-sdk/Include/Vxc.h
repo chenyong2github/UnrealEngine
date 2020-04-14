@@ -154,6 +154,8 @@ typedef enum {
 
     /**
      * Log to the native configured logfile
+     *
+     * @deprecated File logging is not supported. Equivalent log_to_none
      */
     log_to_file = 1,
 
@@ -164,6 +166,8 @@ typedef enum {
 
     /**
      * Log to the native configured log file and the client applicaiton via the registered callback method
+     *
+     * @deprecated File logging is not supported. Equivalent log_to_callback
      */
     log_to_file_and_callback = 3
 } vx_log_type;
@@ -290,10 +294,14 @@ typedef enum {
      * user has blocked the issuing user as well.
      */
     vx_control_communications_operation_unblock = 1,
-
     vx_control_communications_operation_list = 2,
-
-    vx_control_communications_operation_clear = 3
+    vx_control_communications_operation_block_list = 2, // alias for vx_control_communications_operation_list
+    vx_control_communications_operation_clear = 3,
+    vx_control_communications_operation_clear_block_list = 3, // alias vx_control_communications_operation_clear
+    vx_control_communications_operation_mute = 4,
+    vx_control_communications_operation_unmute = 5,
+    vx_control_communications_operation_mute_list = 6,
+    vx_control_communications_operation_clear_mute_list = 7
 } vx_control_communications_operation;
 
 typedef enum {
@@ -1877,6 +1885,8 @@ VIVOXSDK_DLLEXPORT int vx_register_logging_initialization(
 /**
  * Get the SDK log file path
  * \ingroup diagnostics
+ *
+ * @deprecated file logging is not supported.
  */
 VIVOXSDK_DLLEXPORT char *vx_get_log_file_path(void);
 
@@ -1960,6 +1970,12 @@ VIVOXSDK_DLLEXPORT int vx_on_application_exit(void);
  * \ingroup diagnostics
  */
 VIVOXSDK_DLLEXPORT const char *vx_get_sdk_version_info(void);
+
+/**
+ * Get the SDK extended version info
+ * \ingroup diagnostics
+ */
+VIVOXSDK_DLLEXPORT const char *vx_get_sdk_version_info_ex(void);
 
 /**
  * Apply a vivox voice font to a wav file

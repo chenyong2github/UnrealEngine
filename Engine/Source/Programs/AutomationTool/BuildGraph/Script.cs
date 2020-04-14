@@ -3,17 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml;
-using System.Xml.Linq;
-using UnrealBuildTool;
-using AutomationTool;
 using System.Reflection;
-using System.Diagnostics;
-using System.Xml.Schema;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Schema;
 using Tools.DotNETCommon;
+using UnrealBuildTool;
 
 namespace AutomationTool
 {
@@ -380,6 +376,9 @@ namespace AutomationTool
 						break;
 					case "Badge":
 						ReadBadge(ChildElement);
+						break;
+					case "Label":
+						ReadLabel(ChildElement);
 						break;
 					case "Notify":
 						ReadNotifier(ChildElement);
@@ -1001,6 +1000,42 @@ namespace AutomationTool
 					NewBadge.Nodes.UnionWith(ReferencedNode.OrderDependencies);
 				}
 				Graph.Badges.Add(NewBadge);
+			}
+		}
+
+		/// <summary>
+		/// Reads the definition for a label
+		/// </summary>
+		/// <param name="Element">Xml element to read the definition from</param>
+		void ReadLabel(ScriptElement Element)
+		{
+			string Name;
+			if (EvaluateCondition(Element) && TryReadObjectName(Element, out Name))
+			{
+				string Category = ReadAttribute(Element, "Category");
+
+				string[] RequiredNames = ReadListAttribute(Element, "Requires");
+				string[] IncludedNames = ReadListAttribute(Element, "Include");
+				string[] ExcludedNames = ReadListAttribute(Element, "Exclude");
+
+				Label NewLabel = new Label(Name, Category);
+				foreach (Node ReferencedNode in ResolveReferences(Element, RequiredNames))
+				{
+					NewLabel.RequiredNodes.Add(ReferencedNode);
+					NewLabel.IncludedNodes.Add(ReferencedNode);
+					NewLabel.IncludedNodes.UnionWith(ReferencedNode.OrderDependencies);
+				}
+				foreach (Node IncludedNode in ResolveReferences(Element, IncludedNames))
+				{
+					NewLabel.IncludedNodes.Add(IncludedNode);
+					NewLabel.IncludedNodes.UnionWith(IncludedNode.OrderDependencies);
+				}
+				foreach (Node ExcludedNode in ResolveReferences(Element, ExcludedNames))
+				{
+					NewLabel.IncludedNodes.Remove(ExcludedNode);
+					NewLabel.IncludedNodes.ExceptWith(ExcludedNode.OrderDependencies);
+				}
+				Graph.Labels.Add(NewLabel);
 			}
 		}
 

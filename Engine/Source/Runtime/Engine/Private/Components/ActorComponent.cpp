@@ -1568,6 +1568,7 @@ void UActorComponent::DoDeferredRenderUpdates_Concurrent()
 	checkf(!IsPendingKill(), TEXT("%s"), *GetFullName());
 
 	FScopeCycleCounterUObject ContextScope(this);
+	FScopeCycleCounterUObject AdditionalScope(STATS ? AdditionalStatObject() : nullptr);
 
 	if(!IsRegistered())
 	{

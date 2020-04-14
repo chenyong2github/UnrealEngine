@@ -33,7 +33,7 @@ public:
 	UInteractiveToolsContext* ToolsContext;
 	UEdMode* EdMode;
 	FViewCameraState CachedViewState;
-
+	FEditorViewportClient* CachedViewportClient;
 	FEdModeQueriesImpl(UInteractiveToolsContext* Context, UEdMode* InEdMode)
 	{
 		ToolsContext = Context;
@@ -42,6 +42,7 @@ public:
 
 	void CacheCurrentViewState(FEditorViewportClient* ViewportClient)
 	{
+		CachedViewportClient = ViewportClient;
 		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
 		CachedViewState.bIsOrthographic = ViewportClient->IsOrtho();
 		CachedViewState.Position = ViewTransform.GetLocation();
@@ -266,6 +267,15 @@ public:
 		return nullptr;
 	}
 
+	virtual HHitProxy* GetHitProxy(int32 X, int32 Y) const
+	{
+		if (CachedViewportClient && CachedViewportClient->Viewport)
+		{
+			return CachedViewportClient->Viewport->GetHitProxy(X, Y);
+		}
+		return nullptr;
+	}
+
 };
 
 
@@ -396,7 +406,6 @@ UEdMode::UEdMode()
 	ToolsContext = nullptr;
 	ToolsContextClass = UInteractiveToolsContext::StaticClass();
 	ToolCommandList = MakeShareable(new FUICommandList);
-	bCheckIfDefaultToolNeeded = false;
 }
 
 
@@ -413,7 +422,7 @@ void UEdMode::TerminateActiveToolsOnPIEStart()
 {
 	DeactivateAllActiveTools();
 }
-void UEdMode::TerminateActiveToolsOnSaveWorld()
+void UEdMode::TerminateActiveToolsOnOnMapChanged(uint32 MapChangeFlags)
 {
 	DeactivateAllActiveTools();
 }
@@ -715,11 +724,6 @@ void UEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 		ToolsContext->ToolManager->Tick(DeltaTime);
 		ToolsContext->GizmoManager->Tick(DeltaTime);
 
-		if(bCheckIfDefaultToolNeeded && ToolsContext->ToolManager->GetActiveTool(EToolSide::Left) == nullptr)
-		{
-			ActivateDefaultTool();
-		}
-
 		if (bInvalidationPending)
 		{
 			ViewportClient->Invalidate();
@@ -788,9 +792,9 @@ void UEdMode::Enter()
 	{
 		TerminateActiveToolsOnPIEStart();
 	});
-	PreSaveWorldDelegateHandle = FEditorDelegates::PreSaveWorld.AddLambda([this](uint32 SaveFlags, UWorld* World)
+	MapChangeDelegateHandle = FEditorDelegates::MapChange.AddLambda([this](uint32 ChangeFlags)
 	{
-		TerminateActiveToolsOnSaveWorld();
+		TerminateActiveToolsOnOnMapChanged(ChangeFlags);
 	});
 	bInvalidationPending = false;
 
@@ -811,7 +815,7 @@ void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIde
 void UEdMode::Exit()
 {
 	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
-	FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
+	FEditorDelegates::MapChange.Remove(MapChangeDelegateHandle);
 	GetToolManager()->OnToolStarted.RemoveAll(this);
 	GetToolManager()->OnToolEnded.RemoveAll(this);
 	// auto-accept any in-progress tools

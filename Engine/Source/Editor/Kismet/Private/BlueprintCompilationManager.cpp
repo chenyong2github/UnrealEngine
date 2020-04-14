@@ -440,7 +440,7 @@ struct FCompilerData
 	bool IsCppCompileType() const { return InternalOptions.CompileType == EKismetCompileType::Cpp; }
 	bool ShouldSetTemporaryBlueprintFlags() const { return JobType != ECompilationManagerJobType::RelinkOnly; }
 	bool ShouldResetErrorState() const { return JobType == ECompilationManagerJobType::Normal && InternalOptions.CompileType != EKismetCompileType::BytecodeOnly; }
-	bool ShouldValidateVariableNames() const { return JobType == ECompilationManagerJobType::Normal; }
+	bool ShouldValidate() const { return JobType == ECompilationManagerJobType::Normal; }
 	bool ShouldRegenerateSkeleton() const { return JobType != ECompilationManagerJobType::RelinkOnly; }
 	bool ShouldMarkUpToDateAfterSkeletonStage() const { return IsSkeletonOnly(); }
 	bool ShouldReconstructNodes() const { return JobType == ECompilationManagerJobType::Normal; }
@@ -836,15 +836,16 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			}
 		}
 
-		// STAGE V: Validate Variable Names
+		// STAGE V: Validate
 		for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
 		{
-			if(!CompilerData.ShouldValidateVariableNames())
+			if(!CompilerData.ShouldValidate())
 			{
 				continue;
 			}
 
 			CompilerData.Compiler->ValidateVariableNames();
+			CompilerData.Compiler->ValidateClassPropertyDefaults();
 		}
 
 		// STAGE VI: Purge null graphs, misc. data fixup

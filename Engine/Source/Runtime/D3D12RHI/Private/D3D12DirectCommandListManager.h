@@ -226,6 +226,12 @@ public:
 
 	FORCEINLINE FD3D12Fence& GetFence() { check(CommandListFence); return *CommandListFence; }
 
+	/** Get the breadcrumb resource which is written during command context recording */
+	FD3D12Resource* GetBreadCrumbResource() { return BreadCrumbResource.GetReference(); }
+
+	/** Get the CPU readable data from the breadcrumb data - this data is still valid after the Device is Lost */
+	const void* GetBreadCrumbResourceAddress() const { return BreadCrumbResourceAddress; }
+
 	void WaitForCommandQueueFlush();
 
 	void ReleaseResourceBarrierCommandListAllocator();
@@ -281,6 +287,11 @@ protected:
 	FCriticalSection						ResourceStateCS;
 	FCriticalSection						FenceCS;
 
+	// Helper data used to track GPU progress on this command queue
+	void* BreadCrumbResourceAddress;
+	TRefCountPtr<FD3D12Heap> BreadCrumbHeap;
+	TRefCountPtr<FD3D12Resource> BreadCrumbResource;
+	
 #if WITH_PROFILEGPU
 	bool bShouldTrackCmdListTime;
 	FCriticalSection CmdListTimingCS;

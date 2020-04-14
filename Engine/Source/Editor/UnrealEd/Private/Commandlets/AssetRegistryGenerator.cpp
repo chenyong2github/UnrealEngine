@@ -313,29 +313,22 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 		}
 	}
 
-	// Add manifests for any staging-time only groups
+	// Update manifests for any encryption groups that contain non-asset files files
 	if (bUseAssetManager && !TargetPlatform->HasSecurePackageFormat())
 	{
-		UE_LOG(LogAssetRegistryGenerator, Log, TEXT("Updating stage-only encryption manifests for platform %s"), *TargetPlatform->IniPlatformName());
 		FContentEncryptionConfig ContentEncryptionConfig;
 		UAssetManager::Get().GetContentEncryptionConfig(ContentEncryptionConfig);
-		const FContentEncryptionConfig::TGroupMap& EncryptedNonUFSFileGroups = ContentEncryptionConfig.GetPackageGroupMap();
+		const FContentEncryptionConfig::TGroupMap& EncryptionGroups = ContentEncryptionConfig.GetPackageGroupMap();
 		
-		for (const FContentEncryptionConfig::TGroupMap::ElementType& Element : EncryptedNonUFSFileGroups)
+		for (const FContentEncryptionConfig::TGroupMap::ElementType& GroupElement : EncryptionGroups)
 		{
-			if (Element.Value.bStageTimeOnly)
+			const FName GroupName = GroupElement.Key;
+			const FContentEncryptionConfig::FGroup& EncryptionGroup = GroupElement.Value;
+
+			if (EncryptionGroup.NonAssetFiles.Num() > 0)
 			{
-				UE_LOG(LogAssetRegistryGenerator, Log, TEXT("Adding stage-time only manifest for group '%s'"), *Element.Key.ToString());
-
-				FName GroupName = Element.Key;
-				const TSet<FName>& PackageNames = Element.Value.PackageNames;
+				UE_LOG(LogAssetRegistryGenerator, Log, TEXT("Updating non-asset files in manifest for group '%s'"), *GroupName.ToString());
 				
-				FChunkPackageSet* NewManifest = new FChunkPackageSet();
-				for (FName PackageName : PackageNames)
-				{
-					NewManifest->Add(PackageName, FPackageName::LongPackageNameToFilename(PackageName.ToString()));
-				}
-
 				int32 ChunkID = UAssetManager::Get().GetContentEncryptionGroupChunkID(GroupName);
 				int32 PakchunkIndex = GetPakchunkIndex(ChunkID);
 				if (PakchunkIndex >= FinalChunkManifests.Num())
@@ -346,14 +339,18 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 					FinalChunkManifests.AddZeroed(PakchunkIndex - FinalChunkManifests.Num() + 1);
 				}
 				checkf(PakchunkIndex < FinalChunkManifests.Num(), TEXT("Chunk %i out of range. %i manifests available"), PakchunkIndex, FinalChunkManifests.Num() - 1);
-				checkf(FinalChunkManifests[PakchunkIndex] == nullptr || FinalChunkManifests[PakchunkIndex]->Num() == 0, TEXT("Manifest already exists for chunk %i"), PakchunkIndex);
 
-				if (FinalChunkManifests[PakchunkIndex])
+				FChunkPackageSet* Manifest = FinalChunkManifests[PakchunkIndex];
+				if (Manifest == nullptr)
 				{
-					delete FinalChunkManifests[PakchunkIndex];
+					Manifest = new FChunkPackageSet();
+					FinalChunkManifests[PakchunkIndex] = Manifest;
 				}
 
-				FinalChunkManifests[PakchunkIndex] = NewManifest;
+				for (const FString& NonAssetFile : EncryptionGroup.NonAssetFiles)
+				{
+					Manifest->Add(*NonAssetFile, FPaths::RootDir() / NonAssetFile); // Paths added as relative to the root. The staging code will need to map this onto the target path of all staged assets
+				}
 			}
 		}
 	}
@@ -1237,7 +1234,10 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 				FAssetRegistryState NewState;
 				NewState.InitializeFromExistingAndPrune(State, CookedPackages, TSet<FName>(), ChunkBucketElement.Value, SaveOptions);
 
-				InjectEncryptionData(NewState);
+				if (!TargetPlatform->HasSecurePackageFormat())
+				{
+					InjectEncryptionData(NewState);
+				}
 
 				// Create runtime registry data
 				FArrayWriter SerializedAssetRegistry;

@@ -59,6 +59,10 @@ public:
 	TSharedPtr<FUICommandInfo> DisableCollisionAll;
 	TSharedPtr<FUICommandInfo> EnableCollision;
 	TSharedPtr<FUICommandInfo> EnableCollisionAll;
+	TSharedPtr<FUICommandInfo> PrimitiveQueryAndPhysics;
+	TSharedPtr<FUICommandInfo> PrimitiveQueryOnly;
+	TSharedPtr<FUICommandInfo> PrimitivePhysicsOnly;
+	TSharedPtr<FUICommandInfo> PrimitiveNoCollision;
 	TSharedPtr<FUICommandInfo> WeldToBody;
 	TSharedPtr<FUICommandInfo> AddSphere;
 	TSharedPtr<FUICommandInfo> AddSphyl;

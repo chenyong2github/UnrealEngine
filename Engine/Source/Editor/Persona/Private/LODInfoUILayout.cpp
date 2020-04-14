@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "SkeletalMeshTypes.h"
 
 ULODInfoUILayout::ULODInfoUILayout(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -34,4 +35,5 @@ void ULODInfoUILayout::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	SkeletalMesh->Modify();
 	//Copy the LODInfo into the real skeletal mesh LODInfo data
 	*SkeletalMeshLODInfo = LODInfo;
+	FScopedSkeletalMeshPostEditChange ScopeSkeletalmeshPostEdit(SkeletalMesh);
 }

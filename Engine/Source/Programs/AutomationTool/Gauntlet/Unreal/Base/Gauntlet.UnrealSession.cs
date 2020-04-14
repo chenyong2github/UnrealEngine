@@ -57,7 +57,35 @@ namespace Gauntlet
 		/// <summary>
 		/// Command line that this role will use
 		/// </summary>
-		public string CommandLine;
+		public string CommandLine
+		{
+			get
+			{
+				if (CommandLineParams == null)
+				{
+					CommandLineParams = new GauntletCommandLine();
+				}
+				return CommandLineParams.GenerateFullCommandLine();
+			}
+			set
+			{
+				if (CommandLineParams == null)
+				{
+					CommandLineParams = new GauntletCommandLine();
+				}
+
+				CommandLineParams.ClearCommandLine();
+
+				CommandLineParams.AddRawCommandline(value, false);
+			}
+		}
+		/// <summary>
+		/// Dictionary of commandline arguments that are turned into a commandline at the end.
+		/// For flags, leave the value set to null. Generated from the Test Role's commandline object
+		/// and modified as needed. Then passed through to the AppConfig in UnrealBuildSource.cs
+		/// </summary>
+		public GauntletCommandLine CommandLineParams { get; set; }
+
 
 		/// <summary>
 		/// Map override to use on a server in case we don't want them all running the same map.
@@ -165,6 +193,7 @@ namespace Gauntlet
 
 			Options = InOptions;
             FilesToCopy = new List<UnrealFileToCopy>();
+			CommandLineParams = new GauntletCommandLine();
 			RoleModifier = ERoleModifier.None;
         }
 

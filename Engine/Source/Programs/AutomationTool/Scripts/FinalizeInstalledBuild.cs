@@ -16,6 +16,7 @@ namespace AutomationTool
 	[Help("Command to perform additional steps to prepare an installed build.")]
 	[Help("OutputDir=<RootDirectory>", "Root Directory of the installed build data (required)")]
 	[Help("ContentOnlyPlatforms=<PlatformNameList>", "List of platforms that should be marked as only supporting content projects (optional)")]
+	[Help("Platforms=<PlatformList>)", "List of platforms to add")]
 	[Help("<Platform>Architectures=<ArchitectureList>)", "List of architectures that are used for a given platform (optional)")]
 	[Help("<Platform>GPUArchitectures=<GPUArchitectureList>)", "List of GPU architectures that are used for a given platform (optional)")]
 	[Help("AnalyticsTypeOverride=<TypeName>", "Name to give this build for analytics purposes (optional)")]
@@ -26,13 +27,9 @@ namespace AutomationTool
 		/// </summary>
 		public override void ExecuteBuild()
 		{
-			string OutputDir = ParseParamValue("OutputDir");
-			string ContentOnlyPlatformsString = ParseParamValue("ContentOnlyPlatforms");
-			IEnumerable<UnrealTargetPlatform> ContentOnlyPlatforms = Enumerable.Empty<UnrealTargetPlatform>();
-			if (!String.IsNullOrWhiteSpace(ContentOnlyPlatformsString))
-			{
-				ContentOnlyPlatforms = ContentOnlyPlatformsString.Split(';').Where(x => !String.IsNullOrWhiteSpace(x)).Select(x => UnrealTargetPlatform.Parse(x));
-			}
+			string OutputDir = ParseRequiredStringParam("OutputDir");
+			List<UnrealTargetPlatform> Platforms = ParsePlatformsParamValue("Platforms");
+			List<UnrealTargetPlatform> ContentOnlyPlatforms = ParsePlatformsParamValue("ContentOnlyPlatforms");
 			string AnalyticsTypeOverride = ParseParamValue("AnalyticsTypeOverride");
 
 			// Write InstalledBuild.txt to indicate Engine is installed
@@ -75,90 +72,87 @@ namespace AutomationTool
 			InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(UnrealTargetConfiguration.Development, HostPlatform.Current.HostEditorPlatform, TargetRules.TargetType.Editor, EditorArchitecture, "", EProjectType.Unknown, false));
 			InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(UnrealTargetConfiguration.DebugGame, HostPlatform.Current.HostEditorPlatform, TargetRules.TargetType.Editor, EditorArchitecture, "", EProjectType.Unknown, false));
 
-			foreach (UnrealTargetPlatform CodeTargetPlatform in UnrealTargetPlatform.GetValidPlatforms())
+			foreach (UnrealTargetPlatform CodeTargetPlatform in Platforms)
 			{
-				if (PlatformExports.IsPlatformAvailable(CodeTargetPlatform))
+				string Architecture = PlatformExports.GetDefaultArchitecture(CodeTargetPlatform, null);
+
+				// Try to parse additional Architectures from the command line
+				string Architectures = ParseParamValue(CodeTargetPlatform.ToString() + "Architectures");
+				string GPUArchitectures = ParseParamValue(CodeTargetPlatform.ToString() + "GPUArchitectures");
+
+				// Build a list of pre-compiled architecture combinations for this platform if any
+				List<string> AllArchNames;
+
+				if (!String.IsNullOrWhiteSpace(Architectures) && !String.IsNullOrWhiteSpace(GPUArchitectures))
 				{
-					string Architecture = PlatformExports.GetDefaultArchitecture(CodeTargetPlatform, null);
+					AllArchNames = (from Arch in Architectures.Split('+')
+									from GPUArch in GPUArchitectures.Split('+')
+									select "-" + Arch + "-" + GPUArch).ToList();
+				}
+				else if (!String.IsNullOrWhiteSpace(Architectures))
+				{
+					AllArchNames = Architectures.Split('+').ToList();
+				}
+				// if there aren't any, use the default
+				else
+				{
+					AllArchNames = new List<string>() { Architecture };
+				}
 
-					// Try to parse additional Architectures from the command line
-					string Architectures = ParseParamValue(CodeTargetPlatform.ToString() + "Architectures");
-					string GPUArchitectures = ParseParamValue(CodeTargetPlatform.ToString() + "GPUArchitectures");
+				// Check whether this platform should only be used for content based projects
+				EProjectType ProjectType = ContentOnlyPlatforms.Contains(CodeTargetPlatform) ? EProjectType.Content : EProjectType.Any;
 
-					// Build a list of pre-compiled architecture combinations for this platform if any
-					List<string> AllArchNames;
-
-					if (!String.IsNullOrWhiteSpace(Architectures) && !String.IsNullOrWhiteSpace(GPUArchitectures))
+				// Allow Content only platforms to be shown as options in all projects
+				bool bCanBeDisplayed = ProjectType == EProjectType.Content;
+				foreach (UnrealTargetConfiguration CodeTargetConfiguration in Enum.GetValues(typeof(UnrealTargetConfiguration)))
+				{
+					Dictionary<String, TargetType> Targets = new Dictionary<string, TargetType>() {
+						{ "UE4Game", TargetType.Game },
+						{ "UE4Client", TargetType.Client },
+						{ "UE4Server", TargetType.Server }
+					};
+					foreach (KeyValuePair<string, TargetType> Target in Targets)
 					{
-						AllArchNames = (from Arch in Architectures.Split('+')
-										from GPUArch in GPUArchitectures.Split('+')
-										select "-" + Arch + "-" + GPUArch).ToList();
-					}
-					else if (!String.IsNullOrWhiteSpace(Architectures))
-					{
-						AllArchNames = Architectures.Split('+').ToList();
-					}
-					// if there aren't any, use the default
-					else
-					{
-						AllArchNames = new List<string>() { Architecture };
-					}
+						string CurrentTargetName = Target.Key;
+						TargetType CurrentTargetType = Target.Value;
 
-					// Check whether this platform should only be used for content based projects
-					EProjectType ProjectType = ContentOnlyPlatforms.Contains(CodeTargetPlatform) ? EProjectType.Content : EProjectType.Any;
+						// Need to check for development receipt as we use that for the Engine code in DebugGame
+						UnrealTargetConfiguration EngineConfiguration = (CodeTargetConfiguration == UnrealTargetConfiguration.DebugGame) ? UnrealTargetConfiguration.Development : CodeTargetConfiguration;
 
-					// Allow Content only platforms to be shown as options in all projects
-					bool bCanBeDisplayed = ProjectType == EProjectType.Content;
-					foreach (UnrealTargetConfiguration CodeTargetConfiguration in Enum.GetValues(typeof(UnrealTargetConfiguration)))
-					{
-						Dictionary<String, TargetType> Targets = new Dictionary<string, TargetType>() {
-							{ "UE4Game", TargetType.Game },
-							{ "UE4Client", TargetType.Client },
-							{ "UE4Server", TargetType.Server }
-						};
-						foreach (KeyValuePair<string, TargetType> Target in Targets)
+						// Android has multiple architecture flavors built without receipts, so use the default arch target instead
+						if (CodeTargetPlatform == UnrealTargetPlatform.Android)
 						{
-							string CurrentTargetName = Target.Key;
-							TargetType CurrentTargetType = Target.Value;
-
-							// Need to check for development receipt as we use that for the Engine code in DebugGame
-							UnrealTargetConfiguration EngineConfiguration = (CodeTargetConfiguration == UnrealTargetConfiguration.DebugGame) ? UnrealTargetConfiguration.Development : CodeTargetConfiguration;
-
-							// Android has multiple architecture flavors built without receipts, so use the default arch target instead
-							if (CodeTargetPlatform == UnrealTargetPlatform.Android)
+							FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), CurrentTargetName, CodeTargetPlatform, EngineConfiguration, Architecture);
+							if (FileReference.Exists(ReceiptFileName))
 							{
-								FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), CurrentTargetName, CodeTargetPlatform, EngineConfiguration, Architecture);
-								if (FileReference.Exists(ReceiptFileName))
-								{
-									// Strip the output folder so that this can be used on any machine
-									string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
+								// Strip the output folder so that this can be used on any machine
+								string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
 
-									// Blindly append all of the architecture names
-									if (AllArchNames.Count > 0)
-									{
-										foreach (string Arch in AllArchNames)
-										{
-											InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, CurrentTargetType, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
-										}
-									}
-									// if for some reason we didn't specify any flavors, just add the default one.
-									else
-									{
-										InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, CurrentTargetType, Architecture, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
-									}
-								}
-							}
-							// If we're not Android, check the existence of the target receipts for each architecture specified.
-							else
-							{
-								foreach (string Arch in AllArchNames)
+								// Blindly append all of the architecture names
+								if (AllArchNames.Count > 0)
 								{
-									FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), CurrentTargetName, CodeTargetPlatform, EngineConfiguration, Arch);
-									if (FileReference.Exists(ReceiptFileName))
+									foreach (string Arch in AllArchNames)
 									{
-										string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
 										InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, CurrentTargetType, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
 									}
+								}
+								// if for some reason we didn't specify any flavors, just add the default one.
+								else
+								{
+									InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, CurrentTargetType, Architecture, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+								}
+							}
+						}
+						// If we're not Android, check the existence of the target receipts for each architecture specified.
+						else
+						{
+							foreach (string Arch in AllArchNames)
+							{
+								FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), CurrentTargetName, CodeTargetPlatform, EngineConfiguration, Arch);
+								if (FileReference.Exists(ReceiptFileName))
+								{
+									string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
+									InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, CurrentTargetType, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
 								}
 							}
 						}
@@ -180,6 +174,24 @@ namespace AutomationTool
 			File.SetAttributes(OutputBaseEnginePath, OutputAttributes & ~FileAttributes.ReadOnly);
 			File.AppendAllLines(OutputBaseEnginePath, IniLines);
 			File.SetAttributes(OutputBaseEnginePath, OutputAttributes);
+		}
+
+		/// <summary>
+		/// Parse an argument containing a list of platforms
+		/// </summary>
+		/// <param name="Name">Name of the argument</param>
+		/// <returns>List of platforms</returns>
+		List<UnrealTargetPlatform> ParsePlatformsParamValue(string Name)
+		{
+			string PlatformsString = ParseParamValue(Name);
+			if (String.IsNullOrWhiteSpace(PlatformsString))
+			{
+				return new List<UnrealTargetPlatform>();
+			}
+			else
+			{
+				return PlatformsString.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => UnrealTargetPlatform.Parse(x)).ToList();
+			}
 		}
 	}
 }

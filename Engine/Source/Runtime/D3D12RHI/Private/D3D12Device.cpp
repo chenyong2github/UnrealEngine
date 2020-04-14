@@ -370,19 +370,19 @@ void FD3D12Device::Cleanup()
 	D3DX12Residency::DestroyResidencyManager(ResidencyManager);
 }
 
-ID3D12CommandQueue* FD3D12Device::GetD3DCommandQueue(ED3D12CommandQueueType InQueueType) const
+FD3D12CommandListManager* FD3D12Device::GetCommandListManager(ED3D12CommandQueueType InQueueType) const
 {
 	switch (InQueueType)
 	{
 	case ED3D12CommandQueueType::Default:
 		check(CommandListManager->GetQueueType() == InQueueType);
-		return CommandListManager->GetD3DCommandQueue();
+		return CommandListManager;
 	case ED3D12CommandQueueType::Async:
 		check(AsyncCommandListManager->GetQueueType() == InQueueType);
-		return AsyncCommandListManager->GetD3DCommandQueue();
+		return AsyncCommandListManager;
 	case ED3D12CommandQueueType::Copy:
 		check(CopyCommandListManager->GetQueueType() == InQueueType);
-		return CopyCommandListManager->GetD3DCommandQueue();
+		return CopyCommandListManager;
 	default:
 		check(false);
 		return nullptr;
@@ -397,23 +397,6 @@ void FD3D12Device::RegisterGPUWork(uint32 NumPrimitives, uint32 NumVertices)
 void FD3D12Device::RegisterGPUDispatch(FIntVector GroupCount)
 {
 	GetParentAdapter()->GetGPUProfiler().RegisterGPUDispatch(GroupCount);
-}
-
-void FD3D12Device::PushGPUEvent(const TCHAR* Name, FColor Color)
-{
-	GetParentAdapter()->GetGPUProfiler().PushEvent(Name, Color);
-}
-
-#if NV_AFTERMATH
-void FD3D12Device::PushGPUEvent(const TCHAR* Name, FColor Color, GFSDK_Aftermath_ContextHandle Context)
-{
-	GetParentAdapter()->GetGPUProfiler().PushEvent(Name, Color, Context);
-}
-#endif
-
-void FD3D12Device::PopGPUEvent()
-{
-	GetParentAdapter()->GetGPUProfiler().PopEvent();
 }
 
 void FD3D12Device::BlockUntilIdle()

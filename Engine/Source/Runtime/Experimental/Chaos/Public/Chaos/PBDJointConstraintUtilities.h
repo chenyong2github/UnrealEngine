@@ -65,6 +65,21 @@ namespace Chaos
 			FVec3& AxisLocal,
 			FReal& Angle);
 
+		static void GetCircularConeAxisErrorLocal(
+			const FRotation3& R0,
+			const FRotation3& R1,
+			const FReal SwingLimit,
+			FVec3& AxisLocal,
+			FReal& Error);
+
+		static void GetEllipticalConeAxisErrorLocal(
+			const FRotation3& R0,
+			const FRotation3& R1,
+			const FReal SwingLimitY,
+			const FReal SwingLimitZ,
+			FVec3& AxisLocal,
+			FReal& Error);
+
 		static void GetLockedSwingAxisAngle(
 			const FRotation3& R0,
 			const FRotation3& R1,

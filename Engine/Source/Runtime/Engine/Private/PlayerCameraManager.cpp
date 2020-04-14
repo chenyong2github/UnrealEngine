@@ -1293,11 +1293,11 @@ UCameraShake* APlayerCameraManager::PlayCameraShake(TSubclassOf<UCameraShake> Sh
 	return nullptr;
 }
 
-UCameraShake* APlayerCameraManager::PlayCameraShakeFromSource(TSubclassOf<class UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent)
+UCameraShake* APlayerCameraManager::PlayCameraShakeFromSource(TSubclassOf<class UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent, float Scale, enum ECameraAnimPlaySpace::Type PlaySpace, FRotator UserPlaySpaceRot)
 {
 	if (ShakeClass && CachedCameraShakeMod)
 	{
-		return CachedCameraShakeMod->AddCameraShake(ShakeClass, FAddCameraShakeParams(1.0f, ECameraAnimPlaySpace::CameraLocal, FRotator::ZeroRotator, SourceComponent));
+		return CachedCameraShakeMod->AddCameraShake(ShakeClass, FAddCameraShakeParams(Scale, PlaySpace, UserPlaySpaceRot, SourceComponent));
 	}
 
 	return nullptr;

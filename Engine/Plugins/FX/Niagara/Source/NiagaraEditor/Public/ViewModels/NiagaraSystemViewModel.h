@@ -436,6 +436,9 @@ private:
 	/** builds stack module data for use in module dependencies */
 	void BuildStackModuleData(UNiagaraScript* Script, FGuid InEmitterHandleId, TArray<FNiagaraStackModuleData>& OutStackModuleData);
 
+	/** Called when a property on the System is changed. */
+	void SystemChanged(UNiagaraSystem* ChangedSystem);
+
 	/** Called whenever one of the owned stack viewmodels structure changes. */
 	void StackViewModelStructureChanged();
 
@@ -583,4 +586,6 @@ private:
 	TArray<ENiagaraScriptCompileStatus> ScriptCompileStatuses;
 
 	TOptional<ENiagaraScriptCompileStatus> LatestCompileStatusCache;
+
+	FDelegateHandle SystemChangedDelegateHandle;
 };

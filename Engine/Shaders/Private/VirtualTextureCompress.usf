@@ -177,7 +177,7 @@ void CompressBaseColorCS(
 	OutCompressTexture0_u2[ThreadId.xy + DestRect.xy] = CompressBC1Block_SRGB(BlockBaseColor);
 }
 
-/** Simple copy used for thumbnails. */
+/** Simple copy of base color used for thumbnails. */
 void CopyBaseColorPS(
 	in float4 InPosition : SV_POSITION, 
 	in noperspective float2 InTexCoord : TEXCOORD0, 

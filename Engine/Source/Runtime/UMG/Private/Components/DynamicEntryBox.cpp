@@ -31,6 +31,10 @@ void UDynamicEntryBox::ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) 
 	{
 		CompileLog.Error(FText::Format(LOCTEXT("Error_DynamicEntryBox_MissingEntryClass", "{0} has no EntryWidgetClass specified - required for any Dynamic Entry Box to function."), FText::FromString(GetName())));
 	}
+	else if (CompileLog.GetContextClass() && EntryWidgetClass->IsChildOf(CompileLog.GetContextClass()))
+	{
+		CompileLog.Error(FText::Format(LOCTEXT("Error_DynamicEntryBox_RecursiveEntryClass", "{0} has a recursive EntryWidgetClass specified (reference itself)."), FText::FromString(GetName())));
+	}
 }
 #endif
 
@@ -42,7 +46,7 @@ void UDynamicEntryBox::SynchronizeProperties()
 #if WITH_EDITORONLY_DATA
 	if (IsDesignTime() && MyPanelWidget.IsValid())
 	{
-		if (!EntryWidgetClass)
+		if (!EntryWidgetClass || !IsEntryClassValid(EntryWidgetClass))
 		{
 			// We have no entry class, so clear everything out
 			Reset(true);
@@ -73,7 +77,7 @@ UUserWidget* UDynamicEntryBox::BP_CreateEntry()
 
 UUserWidget* UDynamicEntryBox::BP_CreateEntryOfClass(TSubclassOf<UUserWidget> EntryClass)
 {
-	if (EntryClass)
+	if (EntryClass && IsEntryClassValid(EntryClass))
 	{
 		return CreateEntryInternal(EntryClass);
 	}

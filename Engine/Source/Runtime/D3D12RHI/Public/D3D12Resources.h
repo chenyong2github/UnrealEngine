@@ -120,6 +120,10 @@ private:
 	void* ResourceBaseAddress;
 	FName DebugName;
 
+#if NV_AFTERMATH
+	GFSDK_Aftermath_ResourceHandle AftermathHandle;
+#endif
+
 #if UE_BUILD_DEBUG
 	static int64 TotalResourceCount;
 	static int64 NoStateTrackingResourceCount;

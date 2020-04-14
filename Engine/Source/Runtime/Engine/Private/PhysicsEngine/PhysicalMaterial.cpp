@@ -14,7 +14,12 @@
 
 #if PHYSICS_INTERFACE_PHYSX
 	#include "PhysicsEngine/PhysXSupport.h"
+	#include "Physics/PhysicsInterfacePhysX.h"
 #endif // WITH_PHYSX
+
+#if WITH_CHAOS
+	#include "Chaos/PhysicalMaterials.h"
+#endif
 
 UDEPRECATED_PhysicalMaterialPropertyBase::UDEPRECATED_PhysicalMaterialPropertyBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -37,11 +42,22 @@ UPhysicalMaterial::UPhysicalMaterial(const FObjectInitializer& ObjectInitializer
 	UserData = FChaosUserData(this);
 }
 
+UPhysicalMaterial::UPhysicalMaterial(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
+UPhysicalMaterial::~UPhysicalMaterial() = default;
+
 #if WITH_EDITOR
 void UPhysicalMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	if(!MaterialHandle)
+	{
+		MaterialHandle = MakeUnique<FPhysicsMaterialHandle>();
+	}
 	// Update PhysX material last so we have a valid Parent
-	FPhysicsInterface::UpdateMaterial(MaterialHandle, this);
+	FPhysicsInterface::UpdateMaterial(*MaterialHandle, this);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -53,7 +69,11 @@ void UPhysicalMaterial::RebuildPhysicalMaterials()
 	{
 		if (UPhysicalMaterial * PhysicalMaterial = Cast<UPhysicalMaterial>(*Iter))
 		{
-			FPhysicsInterface::UpdateMaterial(PhysicalMaterial->MaterialHandle, PhysicalMaterial);
+			if(!PhysicalMaterial->MaterialHandle)
+			{
+				PhysicalMaterial->MaterialHandle = MakeUnique<FPhysicsMaterialHandle>();
+			}
+			FPhysicsInterface::UpdateMaterial(*PhysicalMaterial->MaterialHandle, PhysicalMaterial);
 		}
 	}
 }
@@ -76,22 +96,29 @@ void UPhysicalMaterial::PostLoad()
 
 void UPhysicalMaterial::FinishDestroy()
 {
-	FPhysicsInterface::ReleaseMaterial(MaterialHandle);
+	if(MaterialHandle)
+	{
+		FPhysicsInterface::ReleaseMaterial(*MaterialHandle);
+	}
 	Super::FinishDestroy();
 }
 
 FPhysicsMaterialHandle& UPhysicalMaterial::GetPhysicsMaterial()
 {
-	if(!MaterialHandle.IsValid())
+	if(!MaterialHandle)
 	{
-		MaterialHandle = FPhysicsInterface::CreateMaterial(this);
-		check(MaterialHandle.IsValid());
+		MaterialHandle = MakeUnique<FPhysicsMaterialHandle>();
+	}
+	if(!MaterialHandle->IsValid())
+	{
+		*MaterialHandle = FPhysicsInterface::CreateMaterial(this);
+		check(MaterialHandle->IsValid());
 
-		FPhysicsInterface::SetUserData(MaterialHandle, &UserData);
-		FPhysicsInterface::UpdateMaterial(MaterialHandle, this);
+		FPhysicsInterface::SetUserData(*MaterialHandle, &UserData);
+		FPhysicsInterface::UpdateMaterial(*MaterialHandle, this);
 	}
 
-	return MaterialHandle;
+	return *MaterialHandle;
 }
 
 EPhysicalSurface UPhysicalMaterial::DetermineSurfaceType(UPhysicalMaterial const* PhysicalMaterial)

@@ -86,24 +86,10 @@ FIOSTargetSettingsCustomization::FIOSTargetSettingsCustomization()
 	new (IconNames)FPlatformIconInfo(TEXT("Icon83.5@2x.png"), LOCTEXT("AppIcon_iPadProRetina_iOS9", "iPad Pro Retina iOS9 App Icon"), FText::GetEmpty(), 167, 167, FPlatformIconInfo::Required);
 	new (IconNames)FPlatformIconInfo(TEXT("Icon1024.png"), LOCTEXT("AppIcon_Marketing", "Marketing Icon"), FText::GetEmpty(), 1024, 1024, FPlatformIconInfo::Required);
 
-	new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-IPhone5-Landscape.png"), LOCTEXT("LaunchImage_iPhone5_Landscape", "iPhone 5/5S/SE in Landscape"), FText::GetEmpty(), 1136, 640, FPlatformIconInfo::Required);
-    new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-568h@2x.png"), LOCTEXT("LaunchImage_iPhone5_Portrait", "iPhone 5/5S/SE in Portrait"), FText::GetEmpty(), 640, 1136, FPlatformIconInfo::Required);
-    new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-IPhone6-Landscape.png"), LOCTEXT("LaunchImage_iPhone6_Landscape", "iPhone 6/7/8 in Landscape"), FText::GetEmpty(), 1334, 750, FPlatformIconInfo::Required);
-    new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-IPhone6.png"), LOCTEXT("LaunchImage_iPhone6", "iPhone 6/7/8 in Portrait"), FText::GetEmpty(), 750, 1334, FPlatformIconInfo::Required);
-    new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-IPhone6Plus-Landscape.png"), LOCTEXT("LaunchImage_iPhone6Plus_Landscape", "iPhone 6+/7+/8+ in Landscape"), FText::GetEmpty(), 2208, 1242, FPlatformIconInfo::Required);
-    new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-IPhone6Plus-Portrait.png"), LOCTEXT("LaunchImage_iPhone6Plus_Portrait", "iPhone 6+/7+/8+ in Portrait"), FText::GetEmpty(), 1242, 2208, FPlatformIconInfo::Required);
-    new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-IPhoneXS-Landscape.png"), LOCTEXT("LaunchImage_iPhoneX_Landscape", "iPhone X/XS in Landscape"), FText::GetEmpty(), 2436, 1125, FPlatformIconInfo::Required);
-    new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-IPhoneXS-Portrait.png"), LOCTEXT("LaunchImage_iPhoneX_Portrait", "iPhone X/XS in Portrait"), FText::GetEmpty(), 1125, 2436, FPlatformIconInfo::Required);
-	new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-IPhoneXSMax-Landscape.png"), LOCTEXT("LaunchImage_iPhoneXSMax_Landscape", "iPhone XS Max in Landscape"), FText::GetEmpty(), 2688, 1242, FPlatformIconInfo::Required);
-	new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-IPhoneXSMax-Portrait.png"), LOCTEXT("LaunchImage_iPhoneXSMax_Portrait", "iPhone XS Max in Portrait"), FText::GetEmpty(), 1242, 2688, FPlatformIconInfo::Required);
-	new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-Landscape@2x.png"), LOCTEXT("LaunchImage_iPadRetina_Landscape", "iPad in Landscape"), FText::GetEmpty(), 2048, 1536, FPlatformIconInfo::Required);
-	new (LaunchImageNames) FPlatformIconInfo(TEXT("Default-Portrait@2x.png"), LOCTEXT("LaunchImage_iPadRetina_Portrait", "iPad in Portrait"), FText::GetEmpty(), 1536, 2048, FPlatformIconInfo::Required);
-	new (LaunchImageNames)FPlatformIconInfo(TEXT("Default-Landscape-1112@2x.png"), LOCTEXT("LaunchImage_iPadPro105Retina_Landscape", "iPad Pro 10.5 in Landscape"), FText::GetEmpty(), 2224, 1668, FPlatformIconInfo::Required);
-	new (LaunchImageNames)FPlatformIconInfo(TEXT("Default-Portrait-1112@2x.png"), LOCTEXT("LaunchImage_iPadPro105Retina_Portrait", "iPad Pro 10.5 in Portrait"), FText::GetEmpty(), 1668, 2224, FPlatformIconInfo::Required);
-	new (LaunchImageNames)FPlatformIconInfo(TEXT("Default-Landscape-1194@2x.png"), LOCTEXT("LaunchImage_iPadPro11Retina_Landscape", "iPad Pro 11 in Landscape"), FText::GetEmpty(), 2388, 1668, FPlatformIconInfo::Required);
-	new (LaunchImageNames)FPlatformIconInfo(TEXT("Default-Portrait-1194@2x.png"), LOCTEXT("LaunchImage_iPadPro11Retina_Portrait", "iPad Pro 11 in Portrait"), FText::GetEmpty(), 1668, 2388, FPlatformIconInfo::Required);
-	new (LaunchImageNames)FPlatformIconInfo(TEXT("Default-Landscape-1336@2x.png"), LOCTEXT("LaunchImage_iPadProRetina_Landscape", "iPad Pro 12.9 in Landscape"), FText::GetEmpty(), 2732, 2048, FPlatformIconInfo::Required);
-	new (LaunchImageNames)FPlatformIconInfo(TEXT("Default-Portrait-1336@2x.png"), LOCTEXT("LaunchImage_iPadProRetina_Portrait", "iPad Pro 12.9 in Portrait"), FText::GetEmpty(), 2048, 2732, FPlatformIconInfo::Required);
+	new (LaunchImageNames)FPlatformIconInfo(TEXT("LaunchScreenIOS.png"), LOCTEXT("LaunchImageIOS", "Launch Screen Image"), LOCTEXT("LaunchImageIOSDesc", 
+		"This image is used for the Launch Screen when custom launch screen storyboards are not in use. "
+		"The image is used in both portait and landscape modes and will be uniformly scaled to occupy the full width or height as necessary for of all devices, "
+		"so if your app supports both a square image is recommended. The png file supplied must not have an alpha channel."), -1, -1, FPlatformIconInfo::Required);
 
 	bShowAllProvisions = false;
 	bShowAllCertificates = false;
@@ -1087,7 +1073,7 @@ void FIOSTargetSettingsCustomization::BuildIconSection(IDetailLayoutBuilder& Det
 	}
 
 	// Add the launch images
-	IDetailCategoryBuilder& LaunchImageCategory = DetailLayout.EditCategory(TEXT("Launch Images"));
+	IDetailCategoryBuilder& LaunchImageCategory = DetailLayout.EditCategory(FName("LaunchScreen"));
 	const FVector2D LaunchImageMaxSize(150.0f, 150.0f);
 	for (const FPlatformIconInfo& Info : LaunchImageNames)
 	{
@@ -1153,6 +1139,8 @@ void FIOSTargetSettingsCustomization::BuildImageRow(IDetailLayoutBuilder& Detail
 				SNew(STextBlock)
 				.Text(Info.IconName)
 				.Font(DetailLayout.GetDetailFont())
+				// IconDescription is not used, repurpose for tooltip
+				.ToolTipText(Info.IconDescription)
 			]
 		]
 		.ValueContent()
@@ -1165,7 +1153,6 @@ void FIOSTargetSettingsCustomization::BuildImageRow(IDetailLayoutBuilder& Detail
 			.VAlign(VAlign_Center)
 			[
 				SNew(SExternalImageReference, AutomaticImagePath, TargetImagePath)
-				.FileDescription(Info.IconDescription)
 				.RequiredSize(Info.IconRequiredSize)
 				.MaxDisplaySize(MaxDisplaySize)
 				.DeleteTargetWhenDefaultChosen(true)

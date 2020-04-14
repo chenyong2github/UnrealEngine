@@ -58,15 +58,7 @@ private:
 	/**	Spawns the tab allowing for editing/viewing the output curve(s) */
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
 
-	int32 GetControlModulationCount() const;
-
-	int32 GetCurveOrderIndex(EModSettingsEditorCurveOutput InCurveOutput, int32 InControlIndex) const;
-
 	int32 GetControlIndex(int32 InCurveIndex) const;
-
-	FName GetControlName(int32 InCurveIndex) const;
-
-	int32 GetCurveCount() const;
 
 	bool GetIsBypassed(int32 InCurveIndex) const;
 

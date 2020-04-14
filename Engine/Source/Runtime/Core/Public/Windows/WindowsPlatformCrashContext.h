@@ -7,6 +7,8 @@
 
 struct CORE_API FWindowsPlatformCrashContext : public FGenericCrashContext
 {
+	static const TCHAR* const UE4GPUAftermathMinidumpName;
+	
 	FWindowsPlatformCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
 		: FGenericCrashContext(InType, InErrorMessage)
 	{

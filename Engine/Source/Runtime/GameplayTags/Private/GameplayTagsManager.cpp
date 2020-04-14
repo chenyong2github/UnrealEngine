@@ -34,6 +34,55 @@ const FName UGameplayTagsManager::NAME_GameplayTagFilter("GameplayTagFilter");
 
 #define LOCTEXT_NAMESPACE "GameplayTagManager"
 
+//////////////////////////////////////////////////////////////////////
+// FGameplayTagSource
+
+static const FName NAME_Native = FName(TEXT("Native"));
+static const FName NAME_DefaultGameplayTagsIni("DefaultGameplayTags.ini");
+
+FName FGameplayTagSource::GetNativeName()
+{
+	return NAME_Native;
+}
+
+FName FGameplayTagSource::GetDefaultName()
+{
+	return NAME_DefaultGameplayTagsIni;
+}
+
+#if WITH_EDITOR
+static const FName NAME_TransientEditor("TransientEditor");
+
+FName FGameplayTagSource::GetFavoriteName()
+{
+	return GetDefault<UGameplayTagsDeveloperSettings>()->FavoriteTagSource;
+}
+
+void FGameplayTagSource::SetFavoriteName(FName TagSourceToFavorite)
+{
+	UGameplayTagsDeveloperSettings* MutableSettings = GetMutableDefault<UGameplayTagsDeveloperSettings>();
+
+	if (MutableSettings->FavoriteTagSource != TagSourceToFavorite)
+	{
+		MutableSettings->Modify();
+		MutableSettings->FavoriteTagSource = TagSourceToFavorite;
+
+		FPropertyChangedEvent ChangeEvent(MutableSettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UGameplayTagsDeveloperSettings, FavoriteTagSource)), EPropertyChangeType::ValueSet);
+		MutableSettings->PostEditChangeProperty(ChangeEvent);
+		
+		MutableSettings->SaveConfig();
+	}
+}
+
+FName FGameplayTagSource::GetTransientEditorName()
+{
+	return NAME_TransientEditor;
+}
+#endif
+
+//////////////////////////////////////////////////////////////////////
+// UGameplayTagsManager
+
 UGameplayTagsManager* UGameplayTagsManager::SingletonManager = nullptr;
 
 UGameplayTagsManager::UGameplayTagsManager(const FObjectInitializer& ObjectInitializer)

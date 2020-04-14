@@ -11,15 +11,8 @@
 #include "SoundModulationPatch.generated.h"
 
 
-// Forward Declarations
-namespace AudioModulation
-{
-	struct FModulationInputProxy;
-} // namespace AudioModulation
-
-
 USTRUCT(BlueprintType)
-struct FSoundModulationOutputBase
+struct AUDIOMODULATION_API FSoundModulationOutputBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -33,7 +26,7 @@ struct FSoundModulationOutputBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundModulationOutputFixedOperator : public FSoundModulationOutputBase
+struct AUDIOMODULATION_API FSoundModulationOutputFixedOperator : public FSoundModulationOutputBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -50,7 +43,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct FSoundModulationOutput : public FSoundModulationOutputBase
+struct AUDIOMODULATION_API FSoundModulationOutput : public FSoundModulationOutputBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -67,7 +60,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct FSoundModulationInputBase
+struct AUDIOMODULATION_API FSoundModulationInputBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -86,7 +79,7 @@ struct FSoundModulationInputBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundVolumeModulationInput : public FSoundModulationInputBase
+struct AUDIOMODULATION_API FSoundVolumeModulationInput : public FSoundModulationInputBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -100,7 +93,7 @@ struct FSoundVolumeModulationInput : public FSoundModulationInputBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundPitchModulationInput : public FSoundModulationInputBase
+struct AUDIOMODULATION_API FSoundPitchModulationInput : public FSoundModulationInputBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -114,7 +107,7 @@ struct FSoundPitchModulationInput : public FSoundModulationInputBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundLPFModulationInput : public FSoundModulationInputBase
+struct AUDIOMODULATION_API FSoundLPFModulationInput : public FSoundModulationInputBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -128,7 +121,7 @@ struct FSoundLPFModulationInput : public FSoundModulationInputBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundHPFModulationInput : public FSoundModulationInputBase
+struct AUDIOMODULATION_API FSoundHPFModulationInput : public FSoundModulationInputBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -142,7 +135,7 @@ struct FSoundHPFModulationInput : public FSoundModulationInputBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundControlModulationInput : public FSoundModulationInputBase
+struct AUDIOMODULATION_API FSoundControlModulationInput : public FSoundModulationInputBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -156,7 +149,7 @@ struct FSoundControlModulationInput : public FSoundModulationInputBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundModulationPatchBase
+struct AUDIOMODULATION_API FSoundModulationPatchBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -182,7 +175,7 @@ struct FSoundModulationPatchBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundVolumeModulationPatch : public FSoundModulationPatchBase
+struct AUDIOMODULATION_API FSoundVolumeModulationPatch : public FSoundModulationPatchBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -204,7 +197,7 @@ struct FSoundVolumeModulationPatch : public FSoundModulationPatchBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundPitchModulationPatch : public FSoundModulationPatchBase
+struct AUDIOMODULATION_API FSoundPitchModulationPatch : public FSoundModulationPatchBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -226,7 +219,7 @@ struct FSoundPitchModulationPatch : public FSoundModulationPatchBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundLPFModulationPatch : public FSoundModulationPatchBase
+struct AUDIOMODULATION_API FSoundLPFModulationPatch : public FSoundModulationPatchBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -248,7 +241,7 @@ struct FSoundLPFModulationPatch : public FSoundModulationPatchBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundHPFModulationPatch : public FSoundModulationPatchBase
+struct AUDIOMODULATION_API FSoundHPFModulationPatch : public FSoundModulationPatchBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -270,7 +263,7 @@ struct FSoundHPFModulationPatch : public FSoundModulationPatchBase
 };
 
 USTRUCT(BlueprintType)
-struct FSoundControlModulationPatch : public FSoundModulationPatchBase
+struct AUDIOMODULATION_API FSoundControlModulationPatch : public FSoundModulationPatchBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -291,34 +284,15 @@ struct FSoundControlModulationPatch : public FSoundModulationPatchBase
 	virtual const FSoundModulationOutputBase* GetOutput() const override { return static_cast<const FSoundModulationOutputBase*>(&Output); }
 };
 
-UCLASS(config = Engine, editinlinenew, BlueprintType, MinimalAPI, autoExpandCategories = (Volume, Pitch, Highpass, Lowpass))
-class USoundModulationSettings : public USoundModulationPluginSourceSettingsBase
+UCLASS(config = Engine, editinlinenew, BlueprintType)
+class AUDIOMODULATION_API USoundModulationPatch : public USoundModulatorBase
 {
 	GENERATED_UCLASS_BODY()
 
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Volume)
-	FSoundVolumeModulationPatch Volume;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Pitch)
-	FSoundPitchModulationPatch Pitch;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Highpass)
-	FSoundHPFModulationPatch Highpass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lowpass)
-	FSoundLPFModulationPatch Lowpass;
-
-	// Array of named generic controls for use with modulateable parameters on source effects
-	// Properties hidden as Generic Control Modulation is still in development
-	UPROPERTY()
-	TArray<FSoundControlModulationPatch> Controls;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	FSoundControlModulationPatch PatchSettings;
 
 #if WITH_EDITOR
-	AUDIOMODULATION_API void OnPostEditChange(UWorld* World);
-
-	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
 #endif // WITH_EDITOR
 };

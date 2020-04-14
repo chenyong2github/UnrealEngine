@@ -151,6 +151,12 @@ bool FGenericWindow::IsForegroundWindow() const
 	return true;
 }
 
+bool FGenericWindow::IsFullscreenSupported() const
+{
+	// empty default functionality
+	return true;
+}
+
 void FGenericWindow::SetText(const TCHAR* const Text)
 {
 	// empty default functionality

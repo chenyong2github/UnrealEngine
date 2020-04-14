@@ -29,7 +29,10 @@ enum EShaderFrequency : uint8
 	SF_Geometry			= 4,
 	SF_Compute			= 5,
 
-	// Number of standard SM5-style graphics pipeline shader frequencies
+	// Number of standard SM5-style shader frequencies for graphics pipeline (excluding compute)
+	SF_NumGraphicsFrequencies = 5,
+
+	// Number of standard SM5-style shader frequencies (including compute)
 	SF_NumStandardFrequencies = 6,
 
 	SF_RayGen			= 6,
@@ -1469,7 +1472,7 @@ inline bool IsDeprecatedShaderPlatform(const FStaticShaderPlatform ShaderPlatfor
 	return ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4_REMOVED || ShaderPlatform == SP_OPENGL_ES2_IOS_REMOVED ||
 		ShaderPlatform == SP_PCD3D_ES2_REMOVED || ShaderPlatform == SP_METAL_MACES2_REMOVED || ShaderPlatform == SP_OPENGL_PCES2_REMOVED ||
 		ShaderPlatform == SP_OPENGL_ES2_ANDROID_REMOVED || ShaderPlatform == SP_OPENGL_ES2_WEBGL_REMOVED ||
-		ShaderPlatform == SP_VULKAN_SM4_REMOVED;
+		ShaderPlatform == SP_VULKAN_SM4_REMOVED || ShaderPlatform == SP_OPENGL_SM4_REMOVED;
 }
 
 inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatform InShaderPlatform)
@@ -1596,7 +1599,7 @@ inline bool RHIHasTiledGPU(const FStaticShaderPlatform Platform)
 inline bool RHISupportsMobileMultiView(const FStaticShaderPlatform Platform)
 {
 	return Platform == EShaderPlatform::SP_OPENGL_ES3_1_ANDROID || IsVulkanMobilePlatform(Platform)
-		|| Platform == EShaderPlatform::SP_PCD3D_ES3_1 || FDataDrivenShaderPlatformInfo::GetSupportsMobileMultiView(Platform);
+		|| FDataDrivenShaderPlatformInfo::GetSupportsMobileMultiView(Platform);
 }
 
 inline bool RHISupportsNativeShaderLibraries(const FStaticShaderPlatform Platform)

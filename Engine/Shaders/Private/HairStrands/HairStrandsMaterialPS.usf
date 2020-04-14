@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsVisibilityCommon.ush" 
+
+#define USE_FORCE_TEXTURE_MIP 1
+#define FORCED_TEXTURE_MIP 0.0f
 #include "../Common.ush"
+
 #include "../SceneTexturesCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 #include "../DeferredShadingCommon.ush"

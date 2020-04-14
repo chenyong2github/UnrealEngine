@@ -569,7 +569,6 @@ void FCoreTechFileParser::ReadMaterials()
 FCoreTechFileParser::FCoreTechFileParser(const FImportParameters& ImportParams, const FString& EnginePluginsPath, const FString& InCachePath)
 	: CachePath(InCachePath)
 	, ImportParameters(ImportParams)
-	, bFixTopoRequired(ImportParameters.StitchingTechnique != StitchingNone)
 {
 	CTKIO_InitializeKernel(ImportParameters.MetricUnit, *EnginePluginsPath);
 }
@@ -780,6 +779,12 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	bool bReadNodeSucceed = ReadNode(MainId, DefaultMaterialHash);
 	// End of parsing
 
+	CT_STR KernelIO_Version = CT_KERNEL_IO::AskVersion();
+	if (!KernelIO_Version.IsEmpty())
+	{
+		SceneGraphArchive.ComponentSet[0].MetaData.Add(TEXT("KernelIOVersion"), AsFString(KernelIO_Version));
+	}
+
 	if (bNeedSaveCTFile)
 	{
 		CT_LIST_IO ObjectList;
@@ -821,12 +826,8 @@ CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption(const FString& MainFileExt
 	// Ask Kernel IO to complete or create missing topology
 	if (MainFileExt == TEXT("igs") || MainFileExt == TEXT("iges"))
 	{
-		bFixTopoRequired = false;
 		Flags |= CT_LOAD_FLAG_COMPLETE_TOPOLOGY;
-		if (ImportParameters.StitchingTechnique == StitchingSew)
-		{
-			Flags |= CT_LOAD_FLAG_SEARCH_NEW_TOPOLOGY;
-		}
+		Flags |= CT_LOAD_FLAG_SEARCH_NEW_TOPOLOGY;
 	}
 
 	// 3dxml file is zipped files, it's full managed by Kernel_io. We cannot read it in sequential mode
@@ -871,13 +872,9 @@ bool FCoreTechFileParser::ReadNode(CT_OBJECT_ID NodeId, uint32 DefaultMaterialHa
 		return ReadUnloadedComponent(NodeId);
 
 	case CT_BODY_TYPE:
-		if (int32* Index = SceneGraphArchive.CADIdToBodyIndex.Find(NodeId))
-		{
-			return true;
-		}
-		return ReadBody(NodeId, DefaultMaterialHash);
+		break;
 
-		//Treat all CT_CURVE_TYPE :
+	//Treat all CT_CURVE_TYPE :
 	case CT_CURVE_TYPE:
 	case CT_C_NURBS_TYPE:
 	case CT_CONICAL_TYPE:
@@ -969,20 +966,25 @@ bool FCoreTechFileParser::ReadComponent(CT_OBJECT_ID ComponentId, uint32 Default
 	TArray<CT_OBJECT_ID> Instances, Bodies;
 	GetInstancesAndBodies(ComponentId, Instances, Bodies);
 
-	if (ImportParameters.StitchingTechnique != StitchingNone && bFixTopoRequired)
+
+	// Kernel_IO's Stitching action always ends by the split of the new bodies into a set of connected patches
+	// a CT_Component (reference in the concept of instance/reference) can have bodies and instances
+	// The SEW stitching rule in UE is:
+	//   - case 1 : the component has only a set of bodies: the bodies are merged, stitched and splitted into a new set of topologically correct bodies
+	//   - case 2 : the component has only one body or has bodies + instance, only a topology healing is done on the bodies 
+	//
+	// Case 1: Repair is done before processing bodies of a component
+	// Case 2: Repair is done before getting the mesh of the body. As the body is exploded, the new bodies have to be discovered by comparing parent's bodies before and after the repair action
+
+	bool bNeedRepair = true;
+	if (!Instances.Num() && Bodies.Num() > 1 && ImportParameters.StitchingTechnique == StitchingSew)
 	{
-		if (!Instances.Num() && Bodies.Num() > 1 && ImportParameters.StitchingTechnique == StitchingSew)
-		{
-			Repair(ComponentId, StitchingSew);
-		}
-		else
-		{
-			for (CT_OBJECT_ID Body : Bodies)
-			{
-				Repair(Body, StitchingHeal);
-			}
-		}
+		// Case 1: Repair is done before processing bodies of a component
+		// Bodies.Num() > 1 so merge all bodies, sew and split into connected bodies (Repair)
+		Repair(ComponentId, StitchingSew);
 		GetInstancesAndBodies(ComponentId, Instances, Bodies);
+		SetCoreTechTessellationState(ImportParameters);
+		bNeedRepair = false;
 	}
 
 	for (CT_OBJECT_ID InstanceId : Instances)
@@ -995,7 +997,7 @@ bool FCoreTechFileParser::ReadComponent(CT_OBJECT_ID ComponentId, uint32 Default
 
 	for (CT_OBJECT_ID BodyId : Bodies)
 	{
-		if (ReadBody(BodyId, DefaultMaterialHash))
+		if (ReadBody(BodyId, ComponentId, DefaultMaterialHash, bNeedRepair))
 		{
 			SceneGraphArchive.ComponentSet[Index].Children.Add(BodyId);
 		}
@@ -1073,45 +1075,89 @@ uint32 GetBodiesFaceSetNum(TArray<CT_OBJECT_ID>& BodySet)
 	return size;
 }
 
-void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash)
+void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, bool bNeedRepair)
 {
-	CT_LIST_IO FaceList;
-	CT_BODY_IO::AskFaces(BodyId, FaceList);
-
-	// Compute Body BBox based on CAD data
-	uint32 VerticesSize;
-	CT_BODY_IO::AskVerticesSizeArray(BodyId, VerticesSize);
-
-	TArray<CT_COORDINATE> VerticesArray;
-	VerticesArray.SetNum(VerticesSize);
-	CT_BODY_IO::AskVerticesArray(BodyId, VerticesArray.GetData());
-
-	FBox& BBox = OutBodyMesh.BBox;
-	for (const CT_COORDINATE& Point : VerticesArray)
+	TArray<CT_OBJECT_ID> BodyFaces;
 	{
-		BBox += FVector((float)Point.xyz[0], (float)Point.xyz[1], (float)Point.xyz[2]);
+		CT_LIST_IO FaceList;
+		CT_BODY_IO::AskFaces(BodyId, FaceList);
+		BodyFaces.Reserve((int32)(1.3 * FaceList.Count()));
 	}
 
-	uint32 FaceSize = FaceList.Count();
+	FObjectDisplayDataId BodyMaterial;
+	BodyMaterial.DefaultMaterialName = DefaultMaterialHash;
+	GetCTObjectDisplayDataIds(BodyId, BodyMaterial);
+
+	TArray<CT_OBJECT_ID> BodiesToProcess ;
+	if (bNeedRepair && ImportParameters.StitchingTechnique != StitchingNone)
+	{
+		// Case 2: Repair is done before getting the mesh of the body.
+		// Repair may have created new bodies including discarding initial body, so the list of bodies has to be retrieved by comparing parent's bodies before (InitialBodies) and after (AfterRepairBodies) the repair action
+
+		TArray<CT_OBJECT_ID> Instances;
+		TArray<CT_OBJECT_ID> InitialBodies;
+		GetInstancesAndBodies(ParentId, Instances, InitialBodies);
+
+		Repair(BodyId, ImportParameters.StitchingTechnique);
+		SetCoreTechTessellationState(ImportParameters);
+
+		TArray<CT_OBJECT_ID> AfterRepairBodies;
+		GetInstancesAndBodies(ParentId, Instances, AfterRepairBodies);
+
+		BodiesToProcess .Reserve(AfterRepairBodies.Num());
+		for (CT_OBJECT_ID Body : AfterRepairBodies)
+		{
+			if (Body == BodyId)
+			{
+				BodiesToProcess .Add(Body);
+			}
+			else if(InitialBodies.Find(Body) == INDEX_NONE)
+			{
+				BodiesToProcess .Add(Body);
+			}
+		}
+	}
+	else
+	{
+		BodiesToProcess .Add(BodyId);
+	}
+
+	FBox& BBox = OutBodyMesh.BBox;
+	for (CT_OBJECT_ID Body : BodiesToProcess )
+	{
+		CT_LIST_IO FaceList;
+		CT_BODY_IO::AskFaces(Body, FaceList);
+
+		// Compute Body BBox based on CAD data
+		uint32 VerticesSize;
+		CT_BODY_IO::AskVerticesSizeArray(Body, VerticesSize);
+
+		TArray<CT_COORDINATE> VerticesArray;
+		VerticesArray.SetNum(VerticesSize);
+		CT_BODY_IO::AskVerticesArray(Body, VerticesArray.GetData());
+
+		for (const CT_COORDINATE& Point : VerticesArray)
+		{
+			BBox += FVector((float)Point.xyz[0], (float)Point.xyz[1], (float)Point.xyz[2]);
+		}
+
+		CT_OBJECT_ID FaceID;
+		FaceList.IteratorInitialize();
+		while ((FaceID = FaceList.IteratorIter()) != 0)
+		{
+			BodyFaces.Add(FaceID);
+		}
+	}
+	uint32 FaceSize = BodyFaces.Num();
 
 	// Allocate memory space for tessellation data
 	OutBodyMesh.Faces.Reserve(FaceSize);
 	OutBodyMesh.ColorSet.Reserve(FaceSize);
 	OutBodyMesh.MaterialSet.Reserve(FaceSize);
 
-	CT_MATERIAL_ID BodyCtMaterialId = 0;
-
-	FObjectDisplayDataId BodyMaterial;
-	BodyMaterial.DefaultMaterialName = DefaultMaterialHash;
-	GetCTObjectDisplayDataIds(BodyId, BodyMaterial);
-
-	// Loop through the face of the first body and collect all tessellation data
-	FaceList.IteratorInitialize();
-
+	// Loop through the face of bodies and collect all tessellation data
 	int32 FaceIndex = 0;
-
-	CT_OBJECT_ID FaceID;
-	while ((FaceID = FaceList.IteratorIter()) != 0)
+	for(CT_OBJECT_ID FaceID : BodyFaces)
 	{
 		uint32 TriangleNum = GetFaceTessellation(FaceID, OutBodyMesh.Faces, ImportParameters);
 
@@ -1129,7 +1175,7 @@ void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& Ou
 	}
 }
 
-bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, uint32 DefaultMaterialHash)
+bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
 {
 	// Is this body a constructive geometry ?
 	CT_LIST_IO FaceList;
@@ -1161,16 +1207,16 @@ bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, uint32 DefaultMaterialHa
 	SceneGraphArchive.BodySet[Index].MeshActorName = GetStaticMeshUuid(*SceneGraphArchive.ArchiveFileName, BodyId);
 	BodyMeshes[BodyMeshIndex].MeshActorName = SceneGraphArchive.BodySet[Index].MeshActorName;
 
-	GetBodyTessellation(BodyId, BodyMeshes[BodyMeshIndex], DefaultMaterialHash);
-
-	SceneGraphArchive.BodySet[Index].ColorFaceSet = BodyMeshes[BodyMeshIndex].ColorSet;
-	SceneGraphArchive.BodySet[Index].MaterialFaceSet = BodyMeshes[BodyMeshIndex].MaterialSet;
-
-	// Save Body in CT file for re-tessellation
+	// Save Body in CT file for re-tessellation before getBody because GetBody can call repair and modify the body (delete and build a new one with a new Id)
 	CT_LIST_IO ObjectList;
 	ObjectList.PushBack(BodyId);
 	FString BodyFile = FString::Printf(TEXT("UEx%08x"), SceneGraphArchive.BodySet[Index].MeshActorName);
 	CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CachePath, TEXT("body"), BodyFile + TEXT(".ct")), L"Ct");
+
+	GetBodyTessellation(BodyId, ParentId, BodyMeshes[BodyMeshIndex], DefaultMaterialHash, bNeedRepair);
+
+	SceneGraphArchive.BodySet[Index].ColorFaceSet = BodyMeshes[BodyMeshIndex].ColorSet;
+	SceneGraphArchive.BodySet[Index].MaterialFaceSet = BodyMeshes[BodyMeshIndex].MaterialSet;
 
 	return true;
 }

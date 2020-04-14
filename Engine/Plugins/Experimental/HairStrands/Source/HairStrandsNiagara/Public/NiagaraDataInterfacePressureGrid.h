@@ -43,11 +43,17 @@ struct FNDIPressureGridData
 	/** Release the buffers */
 	void Release();
 
+	/** Resize the buffers */
+	void Resize();
+
 	/** Grid Origin */
 	FVector4 GridOrigin;
 
 	/** Grid Size */
 	FIntVector GridSize;
+
+	/** Need a resize */
+	bool NeedResize;
 
 	/** World Transform */
 	FMatrix WorldTransform;
@@ -143,6 +149,9 @@ public:
 
 	/** Add velocity to the grid */
 	void AddGridVelocity(FVectorVMContext& Context);
+
+	/** Set the grid dimension */
+	void SetGridDimension(FVectorVMContext& Context);
 
 	/** Name of the grid current buffer */
 	static const FString GridCurrentBufferName;

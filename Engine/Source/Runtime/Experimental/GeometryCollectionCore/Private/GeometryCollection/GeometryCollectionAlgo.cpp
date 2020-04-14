@@ -270,6 +270,33 @@ namespace GeometryCollectionAlgo
 		ensure(!HasCycle(Parents, SelectedBones));
 	}
 
+	void UnparentTransform(FManagedArrayCollection* Collection, const int32 ChildIndex)
+	{
+		if (Collection)
+		{
+			if (Collection->HasAttribute(FTransformCollection::ChildrenAttribute, FTransformCollection::TransformGroup))
+			{
+				if (Collection->HasAttribute(FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup))
+				{
+					int32 NumTransforms = Collection->NumElements(FTransformCollection::TransformGroup);
+
+					if (0 < ChildIndex && ChildIndex < NumTransforms)
+					{
+						TManagedArray<int32>& Parent = Collection->GetAttribute<int32>(FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup);
+						TManagedArray< TArray<int32> >& Children = Collection->GetAttribute< TArray<int32> >(FTransformCollection::ChildrenAttribute, FTransformCollection::TransformGroup);
+
+						int32 ParentIndex = Parent[ChildIndex];
+						if (0 <= ParentIndex && ParentIndex < NumTransforms)
+						{
+							Children[ParentIndex].Remove(ChildIndex);
+							Parent[ChildIndex] = INDEX_NONE;
+						}
+					}
+				}
+			}
+		}
+	}
+
 	void GlobalMatricesRecursive(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, TArray<FMatrix>& OutGlobalTransforms)
 	{
 		if (!IsTransformComputed[Index])

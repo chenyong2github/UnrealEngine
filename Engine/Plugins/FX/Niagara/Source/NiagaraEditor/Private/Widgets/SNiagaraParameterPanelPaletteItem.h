@@ -14,5 +14,5 @@ public:
 	{}
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, FCreateWidgetForActionData* const InCreateData, TSharedRef<SWidget> ParameterNameViewWidget);
+	void Construct(const FArguments& InArgs, TSharedRef<SWidget> ParameterNameViewWidget);
 };

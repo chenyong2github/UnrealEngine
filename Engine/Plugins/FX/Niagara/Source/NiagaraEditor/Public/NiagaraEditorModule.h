@@ -32,6 +32,8 @@ class FHlslNiagaraCompiler;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
+extern NIAGARAEDITOR_API int32 GbShowNiagaraDeveloperWindows;
+
 /* Defines methods for allowing external modules to supply widgets to the core editor module. */
 class NIAGARAEDITOR_API INiagaraEditorWidgetProvider
 {

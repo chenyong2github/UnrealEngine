@@ -6,9 +6,10 @@
 #include "DrawDebugHelpers.h"
 #include "PhysXPublic.h"
 
-#include "Chaos/Sphere.h"
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
+#include "Chaos/ImplicitObject.h"
+#include "Chaos/Sphere.h"
 
 
 #if ENABLE_DRAW_DEBUG

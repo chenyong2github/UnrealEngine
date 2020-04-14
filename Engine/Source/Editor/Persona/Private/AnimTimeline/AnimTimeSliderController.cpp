@@ -930,11 +930,13 @@ int32 FAnimTimeSliderController::OnPaintViewArea( const FGeometry& AllottedGeome
 		);
 	}
 
+	TSharedPtr<FAnimModel> AnimModel = WeakModel.Pin();
+	if (AnimModel.IsValid())
 	{
 		const FLinearColor LineColor = GetDefault<UPersonaOptions>()->SectionTimingNodeColor;
 
 		// Draw all the times that we can drag in the timeline
-		for(double Time : WeakModel.Pin()->GetEditableTimes())
+		for(double Time : AnimModel->GetEditableTimes())
 		{
 			const float LinePos = RangeToScreen.InputToLocalX(Time);
 

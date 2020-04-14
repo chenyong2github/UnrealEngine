@@ -287,16 +287,17 @@ void FTraceInsightsModule::CreateSessionViewer(bool bAllowDebugTools)
 {
 	RegisterTabSpawners();
 
+#if !WITH_EDITOR
 	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("UnrealInsightsLayout_v1.0");
 
 	AddAreaForSessionViewer(DefaultLayout);
-#if !WITH_EDITOR
+
 	AddAreaForWidgetReflector(DefaultLayout, bAllowDebugTools);
-#endif
 
 	// Restore application layout.
 	PersistentLayout = FLayoutSaveRestore::LoadFromConfig(UnrealInsightsLayoutIni, DefaultLayout);
 	FGlobalTabmanager::Get()->RestoreFrom(PersistentLayout.ToSharedRef(), TSharedPtr<SWindow>());
+#endif 
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

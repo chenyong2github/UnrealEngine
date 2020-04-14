@@ -954,18 +954,28 @@ const TCHAR* FGenericPlatformMisc::ProjectDir()
 	bool bIsIniReady = GConfig && GConfig->IsReadyForUse();
 	if (bWasIniReady != bIsIniReady)
 	{
-		ProjectDir = TEXT("");
+		ProjectDir.Reset();
 		bWasIniReady = bIsIniReady;
+	}
+
+	// track if last time we called this function the project file path was set
+	static bool bWasProjectFilePathReady = false;
+	if (!bWasProjectFilePathReady && FPaths::IsProjectFilePathSet())
+	{
+		ProjectDir.Reset();
+		bWasProjectFilePathReady = true;
 	}
 
 	// try using the override game dir if it exists, which will override all below logic
 	if (ProjectDir.Len() == 0)
 	{
+		ProjectDir.Reserve(FPlatformMisc::GetMaxPathLength());
 		ProjectDir = OverrideProjectDir;
 	}
 
 	if (ProjectDir.Len() == 0)
 	{
+		ProjectDir.Reserve(FPlatformMisc::GetMaxPathLength());
 		if (FPlatformProperties::IsProgram())
 		{
 			// monolithic, game-agnostic executables, the ini is in Engine/Config/Platform
@@ -1065,12 +1075,7 @@ const TCHAR* FGenericPlatformMisc::GamePersistentDownloadDir()
 
 	if (GamePersistentDownloadDir.Len() == 0)
 	{
-		FString BaseProjectDir = ProjectDir();
-
-		if (BaseProjectDir.Len() > 0)
-		{
-			GamePersistentDownloadDir = BaseProjectDir / TEXT("PersistentDownloadDir");
-		}
+		GamePersistentDownloadDir = FPaths::ProjectSavedDir() / TEXT("PersistentDownloadDir");
 	}
 	return *GamePersistentDownloadDir;
 }
@@ -1413,6 +1418,11 @@ bool FGenericPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<u
 {
 	// not implemented by default
 	return false;
+}
+
+TArray<FCustomChunk> FGenericPlatformMisc::GetOnDemandChunksForPakchunkIndices(const TArray<int32>& PakchunkIndices)
+{
+	return TArray<FCustomChunk>();
 }
 
 TArray<FCustomChunk> FGenericPlatformMisc::GetAllOnDemandChunks()

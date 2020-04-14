@@ -318,6 +318,7 @@ namespace AutomationTool
 			this.ServerCommandline = InParams.ServerCommandline;
             this.ClientCommandline = InParams.ClientCommandline;
             this.Package = InParams.Package;
+			this.SkipPackage = InParams.SkipPackage;
 			this.ForcePackageData = InParams.ForcePackageData;
 			this.Deploy = InParams.Deploy;
 			this.DeployFolder = InParams.DeployFolder;
@@ -454,6 +455,7 @@ namespace AutomationTool
 			bool? SeparateDebugInfo = null,
 			bool? MapFile = null,
 			bool? NoXGE = null,
+			bool? SkipPackage = null,
 			bool? Package = null,
 			bool? Pak = null,
 			bool? IgnorePaksFromDifferentCookSource = null,
@@ -623,7 +625,7 @@ namespace AutomationTool
 			this.SignedPak = !String.IsNullOrEmpty(this.SignPak) || GetParamValueIfNotSpecified(Command, SignedPak, this.SignedPak, "signedpak");
 			if (string.IsNullOrEmpty(this.SignPak))
 			{
-				this.SignPak = Path.Combine(RawProjectPath.Directory.FullName, @"Build\NoRedist\Keys.txt");
+				this.SignPak = Path.Combine(RawProjectPath.Directory.FullName, @"Restricted\NoRedist\Build\Keys.txt");
 				if (!File.Exists(this.SignPak))
 				{
 					this.SignPak = null;
@@ -762,6 +764,7 @@ namespace AutomationTool
             this.ClientCommandline = ParseParamValueIfNotSpecified(Command, ClientCommandline, "clientcmdline");
             this.ClientCommandline = this.ClientCommandline.Replace('\'', '\"'); // replace any single quotes with double quotes
             this.Package = GetParamValueIfNotSpecified(Command, Package, this.Package, "package");
+			this.SkipPackage = GetParamValueIfNotSpecified(Command, SkipPackage, this.SkipPackage, "skippackage");
 			this.ForcePackageData = GetParamValueIfNotSpecified(Command, Package, this.ForcePackageData, "forcepackagedata");
 
 			this.Deploy = GetParamValueIfNotSpecified(Command, Deploy, this.Deploy, "deploy");
@@ -1940,7 +1943,10 @@ namespace AutomationTool
 
 		[Help("package", "package the project for the target platform")]
 		public bool Package { get; set; }
-
+		
+		[Help("skippackage", "Skips packaging the project for the target platform")]
+		public bool SkipPackage { get; set; }
+		
 		[Help("package", "Determine whether data is packaged. This can be an iteration optimization for platforms that require packages for deployment")]
 		public bool ForcePackageData { get; set; }
 
@@ -2835,6 +2841,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("IgnorePaksFromDifferentCookSource={0}", IgnorePaksFromDifferentCookSource);
 				CommandUtils.LogLog("IoStore={0}", IoStore);
 				CommandUtils.LogLog("SkipIoStore={0}", SkipIoStore);
+				CommandUtils.LogLog("SkipPackage={0}", SkipPackage);
 				CommandUtils.LogLog("Package={0}", Package);
 				CommandUtils.LogLog("ForcePackageData={0}", ForcePackageData);
 				CommandUtils.LogLog("NullRHI={0}", NullRHI);

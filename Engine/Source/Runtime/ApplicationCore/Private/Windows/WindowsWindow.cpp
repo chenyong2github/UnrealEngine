@@ -959,6 +959,12 @@ bool FWindowsWindow::IsForegroundWindow() const
 	return ::GetForegroundWindow() == HWnd;
 }
 
+bool FWindowsWindow::IsFullscreenSupported() const
+{
+	// fullscreen not supported when using remote desktop
+	return !::GetSystemMetrics(SM_REMOTESESSION);
+}
+
 void FWindowsWindow::SetText( const TCHAR* const Text )
 {
 	SetWindowText(HWnd, Text);

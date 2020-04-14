@@ -9,6 +9,8 @@
 #include "RenderGraphValidation.h"
 #include "ShaderParameterMacros.h"
 
+class FRDGBarrierBatcher;
+
 /** Builds the per-frame render graph.
  *  Resources must be created from the builder before they can be bound to Pass ResourceTables.
  *  These resources are descriptors only until the graph is executed, where RHI resources are allocated as needed.
@@ -19,6 +21,7 @@ public:
 	/** A RHI cmd list is required, if using the immediate mode. */
 	FRDGBuilder(FRHICommandListImmediate& InRHICmdList);
 	FRDGBuilder(const FRDGBuilder&) = delete;
+	~FRDGBuilder();
 
 	/** Register a external texture to be tracked by the render graph. */
 	FRDGTextureRef RegisterExternalTexture(
@@ -176,8 +179,10 @@ public:
 	FMemStackBase& MemStack;
 
 private:
+	TUniquePtr<FRDGBarrierBatcher> BarrierBatcher;
+
 	/** Array of all pass created */
-	TArray<FRDGPass*, SceneRenderingAllocator> Passes;
+	TArray<FRDGPass*, TInlineAllocator<8, SceneRenderingAllocator>> Passes;
 
 	/** Keep the references over the pooled render target, since FRDGTexture is allocated on MemStack. */
 	TMap<FRDGTexture*, TRefCountPtr<IPooledRenderTarget>, SceneRenderingSetAllocator> AllocatedTextures;
@@ -189,6 +194,12 @@ private:
 	TMap<const IPooledRenderTarget*, FRDGTexture*, SceneRenderingSetAllocator> ExternalTextures;
 	TMap<const FPooledRDGBuffer*, FRDGBuffer*, SceneRenderingSetAllocator> ExternalBuffers;
 
+	TSet<FRDGTextureRef, DefaultKeyFuncs<FRDGTextureRef>, SceneRenderingSetAllocator> ReadTextures;
+	TSet<FRDGTextureRef, DefaultKeyFuncs<FRDGTextureRef>, SceneRenderingSetAllocator> ModifiedTextures;
+
+	uint32 BufferCount = 0;
+	uint32 TextureCount = 0;
+
 	/** Array of all deferred access to internal textures. */
 	struct FDeferredInternalTextureQuery
 	{
@@ -196,7 +207,7 @@ private:
 		TRefCountPtr<IPooledRenderTarget>* OutTexturePtr;
 		bool bTransitionToRead;
 	};
-	TArray<FDeferredInternalTextureQuery, SceneRenderingAllocator> DeferredInternalTextureQueries;
+	TArray<FDeferredInternalTextureQuery, TInlineAllocator<4, SceneRenderingAllocator>> DeferredInternalTextureQueries;
 
 	/** Array of all deferred access to internal buffers. */
 	struct FDeferredInternalBufferQuery
@@ -206,7 +217,7 @@ private:
 		FRDGResourceState::EAccess DestinationAccess;
 		FRDGResourceState::EPipeline DestinationPipeline;
 	};
-	TArray<FDeferredInternalBufferQuery, SceneRenderingAllocator> DeferredInternalBufferQueries;
+	TArray<FDeferredInternalBufferQuery, TInlineAllocator<4, SceneRenderingAllocator>> DeferredInternalBufferQueries;
 
 	FRDGEventScopeStack EventScopeStack;
 	FRDGStatScopeStack StatScopeStack;

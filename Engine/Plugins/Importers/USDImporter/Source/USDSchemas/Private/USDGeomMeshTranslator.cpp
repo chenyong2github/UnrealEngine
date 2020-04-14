@@ -141,7 +141,7 @@ namespace UsdGeomMeshTranslatorImpl
 			UMaterialInterface* Material = nullptr;
 
 			// If there was a UE4 material stored in the the main prim for this polygon group, try fetching it
-			if ( MainPrimUEMaterialsAttribute.IsValidIndex( MaterialIndex ))
+			if ( MainPrimUEMaterialsAttribute.IsValidIndex( MaterialIndex ) )
 			{
 				Material = Cast< UMaterialInterface >( FSoftObjectPath( MainPrimUEMaterialsAttribute[ MaterialIndex ] ).TryLoad() );
 			}
@@ -157,7 +157,23 @@ namespace UsdGeomMeshTranslatorImpl
 				else
 				{
 					// We don't have a UE4 material stored, but we may have imported this material already, so check PrimPathsToAssets
-					TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( UnrealToUsd::ConvertPath( *ImportedMaterialSlotName.ToString() ).Get() );
+
+					FScopedUsdAllocs Allocs;
+
+					// We may have just a material slot index as the slot name (in case we have default displayColor materials) or a path to a valid
+					// material prim (in case we point to a shade material)
+					pxr::SdfPath MaterialPrimPath;
+					FString SlotNameString = ImportedMaterialSlotName.ToString();
+					if (!SlotNameString.IsNumeric() && pxr::SdfPath::IsValidPathString(UnrealToUsd::ConvertString(*SlotNameString).Get()))
+					{
+						MaterialPrimPath = UnrealToUsd::ConvertPath( *SlotNameString ).Get();
+					}
+					else
+					{
+						MaterialPrimPath = PolygonGroupPrim.Get().GetPrimPath();
+					}
+
+					TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( MaterialPrimPath );
 
 					if ( MaterialPrim.Get() )
 					{
@@ -173,14 +189,14 @@ namespace UsdGeomMeshTranslatorImpl
 					[&]()
 					{
 						UMaterialInstanceConstant* ExistingMaterialInstance = Cast< UMaterialInstanceConstant >( StaticMesh.GetMaterial( MaterialIndex ) );
-						const FString& SourcePrimPath = ImportedMaterialSlotName.ToString();
+						const FString& SourcePrimPath = UsdToUnreal::ConvertPath( PolygonGroupPrim.Get().GetPrimPath() );
 
 						// Assuming that we own the material instance and that we can change it as we wish, reuse it
 						if ( ExistingMaterialInstance && ExistingMaterialInstance->GetOuter() == GetTransientPackage() )
 						{
-							if (UAssetImportData* ImportData = Cast<UAssetImportData>(ExistingMaterialInstance->AssetImportData))
+							if ( ExistingMaterialInstance->AssetImportData )
 							{
-								if (ImportData->GetFirstFilename() == SourcePrimPath)
+								if ( ExistingMaterialInstance->AssetImportData->GetFirstFilename() == SourcePrimPath )
 								{
 									return ExistingMaterialInstance;
 								}
@@ -190,8 +206,8 @@ namespace UsdGeomMeshTranslatorImpl
 						// Create new material
 						UMaterialInstanceConstant* NewMaterialInstance = NewObject< UMaterialInstanceConstant >();
 
-						UAssetImportData* ImportData = NewObject< UAssetImportData >(NewMaterialInstance, TEXT("AssetImportData"));
-						ImportData->UpdateFilenameOnly(SourcePrimPath);
+						UAssetImportData* ImportData = NewObject< UAssetImportData >( NewMaterialInstance, TEXT("AssetImportData") );
+						ImportData->UpdateFilenameOnly( SourcePrimPath );
 						NewMaterialInstance->AssetImportData = ImportData;
 
 						return NewMaterialInstance;
@@ -339,6 +355,7 @@ namespace UsdGeomMeshTranslatorImpl
 		}
 
 		StaticMesh.CalculateExtendedBounds();
+		StaticMesh.ClearMeshDescriptions(); // Clear mesh descriptions to reduce memory usage, they are kept only in bulk data form
 	}
 }
 
@@ -371,15 +388,28 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 				bool bIsNew = true;
 				StaticMesh = UsdGeomMeshTranslatorImpl::CreateStaticMesh( MoveTemp( MeshDescription ), *Context, bIsNew );
 
+				const FString PrimPath = UsdToUnreal::ConvertPath( Schema.Get().GetPath() );
+
 				FScopeLock Lock( &Context->CriticalSection );
 				{
-					Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPrim().GetPrimPath() ), StaticMesh );
+					Context->PrimPathsToAssets.Add( PrimPath, StaticMesh );
+				}
+
+				if ( bIsNew && StaticMesh )
+				{
+					UAssetImportData* ImportData = NewObject< UAssetImportData >( StaticMesh, TEXT("AssetImportData") );
+					ImportData->UpdateFilenameOnly( PrimPath );
+					StaticMesh->AssetImportData = ImportData;
 				}
 
 				bool bMaterialsHaveChanged = false;
-				if ( StaticMesh )
+				if ( StaticMesh && StaticMesh->AssetImportData )
 				{
-					bMaterialsHaveChanged = UsdGeomMeshTranslatorImpl::ProcessMaterials( Schema.Get().GetPrim(), *StaticMesh, Context->PrimPathsToAssets, Context->Time );
+					// Only process the materials if we have own the mesh
+					if ( StaticMesh->AssetImportData->GetFirstFilename() == PrimPath )
+					{
+						bMaterialsHaveChanged = UsdGeomMeshTranslatorImpl::ProcessMaterials( Schema.Get().GetPrim(), *StaticMesh, Context->PrimPathsToAssets, Context->Time );
+					}
 				}
 
 				const bool bContinueTaskChain = ( bIsNew || bMaterialsHaveChanged );

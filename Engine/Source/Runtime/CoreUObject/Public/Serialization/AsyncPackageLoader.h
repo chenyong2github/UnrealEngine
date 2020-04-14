@@ -46,7 +46,7 @@ class IEDLBootNotificationManager
 public:
 	virtual ~IEDLBootNotificationManager() = default;
 
-	virtual bool AddWaitingPackage(void* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) = 0;
+	virtual bool AddWaitingPackage(void* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import, bool bIgnoreMissingPackage) = 0;
 	virtual bool ConstructWaitingBootObjects() = 0;
 	virtual bool FireCompletedCompiledInImports(bool bFinalRun = false) = 0;
 	virtual bool IsWaitingForSomething() = 0;
@@ -197,3 +197,17 @@ extern COREUOBJECT_API uint32 GFlushAsyncLoadingCount;
 extern COREUOBJECT_API uint32 GSyncLoadCount;
 
 extern COREUOBJECT_API void ResetAsyncLoadingStats();
+
+// Time limit
+extern COREUOBJECT_API int32 GWarnIfTimeLimitExceeded;
+extern COREUOBJECT_API float GTimeLimitExceededMultiplier;
+extern COREUOBJECT_API float GTimeLimitExceededMinTime;
+
+void IsTimeLimitExceededPrint(
+	double InTickStartTime,
+	double CurrentTime,
+	double LastTestTime,
+	float InTimeLimit,
+	const TCHAR* InLastTypeOfWorkPerformed = nullptr,
+	UObject* InLastObjectWorkWasPerformedOn = nullptr);
+

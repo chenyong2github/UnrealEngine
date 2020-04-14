@@ -160,8 +160,7 @@ const FPlatformUserId PLATFORMUSERID_NONE = INDEX_NONE;
  *		UE_DEPRECATED(4.xx, "Message")
  *		typedef FThing MyType;
  *
- *		UE_DEPRECATED(4.xx, "Message")
- *		using MyAlias = FThing;
+ *		using MyAlias UE_DEPRECATED(4.xx, "Message") = FThing;
  *
  *		UE_DEPRECATED(4.xx, "Message")
  *		int32 MyVariable;

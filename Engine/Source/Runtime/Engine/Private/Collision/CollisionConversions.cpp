@@ -134,6 +134,12 @@ static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const F
 static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const FPhysicsActor& Actor, const uint32 FaceIndex, const FVector& HitLocation, FHitResult& OutResult, bool bReturnPhysMat)
 {
 	SCOPE_CYCLE_COUNTER(STAT_CollisionSetHitResultFromShapeAndFaceIndex);
+
+#if WITH_CHAOS
+		const int32 ShapeIndex = Shape.GetShapeIndex();
+		CHAOS_CHECK(ShapeIndex < (int32)TNumericLimits<uint8>::Max()); // I could just write < 256, but this makes it more clear *why*
+		OutResult.ElementIndex = (uint8)ShapeIndex;
+#endif
 	
 	UPrimitiveComponent* OwningComponent = nullptr;
 	if(const FBodyInstance* BodyInst = GetUserData(Actor))

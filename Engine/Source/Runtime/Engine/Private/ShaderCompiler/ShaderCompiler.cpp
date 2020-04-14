@@ -95,6 +95,12 @@ uint32 FShaderCommonCompileJob::GetNextJobId()
 static float GRegularWorkerTimeToLive = 20.0f;
 static float GBuildWorkerTimeToLive = 600.0f;
 
+// Configuration to retry shader compile through wrokers after a worker has been abandoned
+static constexpr int32 GSingleThreadedRunsIdle = -1;
+static constexpr int32 GSingleThreadedRunsDisabled = -2;
+static constexpr int32 GSingleThreadedRunsIncreaseFactor = 8;
+static constexpr int32 GSingleThreadedRunsMaxCount = (1 << 24);
+
 static void ModalErrorOrLog(const FString& Text, int64 CurrentFilePos = 0, int64 ExpectedFileSize = 0)
 {
 	FString BadFile;
@@ -1354,7 +1360,7 @@ bool FShaderCompileThreadRunnable::LaunchWorkersIfNeeded()
 	for (int32 WorkerIndex = 0; WorkerIndex < WorkerInfos.Num(); WorkerIndex++)
 	{
 		FShaderCompileWorkerInfo& CurrentWorkerInfo = *WorkerInfos[WorkerIndex];
-		if (CurrentWorkerInfo.QueuedJobs.Num() == 0 )
+		if (CurrentWorkerInfo.QueuedJobs.Num() == 0)
 		{
 			// Skip if nothing to do
 			// Also, use the opportunity to free OS resources by cleaning up handles of no more running processes
@@ -1494,7 +1500,7 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 	auto* SingleJob = Job.GetSingleShaderJob();
 	if (SingleJob)
 	{
-		const FName Format = LegacyShaderPlatformToShaderFormat(EShaderPlatform(SingleJob->Input.Target.Platform));
+		const FName Format = SingleJob->Input.ShaderFormat != NAME_None ? SingleJob->Input.ShaderFormat : LegacyShaderPlatformToShaderFormat(EShaderPlatform(SingleJob->Input.Target.Platform));
 		const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
 
 		if (!Compiler)
@@ -1584,6 +1590,23 @@ int32 FShaderCompileThreadRunnable::CompilingLoop()
 			// Fall back to local compiles if the SCW crashed.
 			// This is nasty but needed to work around issues where message passing through files to SCW is unreliable on random PCs
 			Manager->bAllowCompilingThroughWorkers = false;
+
+			// Try to recover from abandoned workers after a certain amount of single-threaded compilations
+			if (Manager->NumSingleThreadedRunsBeforeRetry == GSingleThreadedRunsIdle)
+			{
+				// First try to recover, only run single-threaded approach once
+				Manager->NumSingleThreadedRunsBeforeRetry = 1;
+			}
+			else if (Manager->NumSingleThreadedRunsBeforeRetry > GSingleThreadedRunsMaxCount)
+			{
+				// Stop retry approach after too many retries have failed
+				Manager->NumSingleThreadedRunsBeforeRetry = GSingleThreadedRunsDisabled;
+			}
+			else
+			{
+				// Next time increase runs by factor X
+				Manager->NumSingleThreadedRunsBeforeRetry *= GSingleThreadedRunsIncreaseFactor;
+			}
 		}
 		else
 		{
@@ -1593,7 +1616,19 @@ int32 FShaderCompileThreadRunnable::CompilingLoop()
 	}
 	else
 	{
+		// Execute all pending worker tasks single-threaded
 		CompileDirectlyThroughDll();
+
+		// If single-threaded mode was enabled by an abandoned worker, try to recover after the given amount of runs
+		if (Manager->NumSingleThreadedRunsBeforeRetry > 0)
+		{
+			Manager->NumSingleThreadedRunsBeforeRetry--;
+			if (Manager->NumSingleThreadedRunsBeforeRetry == 0)
+			{
+				UE_LOG(LogShaderCompilers, Display, TEXT("Retry shader compiling through workers."));
+				Manager->bAllowCompilingThroughWorkers = true;
+			}
+		}
 	}
 
 	return NumActiveThreads;
@@ -1806,6 +1841,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	bCompilingDuringGame(false),
 	NumOutstandingJobs(0),
 	NumExternalJobs(0),
+	NumSingleThreadedRunsBeforeRetry(GSingleThreadedRunsIdle),
 #if PLATFORM_MAC
 	ShaderCompileWorkerName(FPaths::EngineDir() / TEXT("Binaries/Mac/ShaderCompileWorker")),
 #elif PLATFORM_LINUX
@@ -1825,7 +1861,8 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	verify(GConfig->GetBool( TEXT("DevOptions.Shaders"), TEXT("bAllowAsynchronousShaderCompiling"), bAllowAsynchronousShaderCompiling, GEngineIni ));
 
 	// override the use of workers, can be helpful for debugging shader compiler code
-	if (!FPlatformProcess::SupportsMultithreading() || FParse::Param(FCommandLine::Get(),TEXT("noshaderworker")))
+	static const IConsoleVariable* CVarAllowCompilingThroughWorkers = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.AllowCompilingThroughWorkers"), false);
+	if (!FPlatformProcess::SupportsMultithreading() || FParse::Param(FCommandLine::Get(), TEXT("noshaderworker")) || (CVarAllowCompilingThroughWorkers && CVarAllowCompilingThroughWorkers->GetInt() == 0))
 	{
 		bAllowCompilingThroughWorkers = false;
 	}
@@ -3397,7 +3434,8 @@ void GlobalBeginCompileShader(
 		Input.Environment.SetDefine(TEXT("SHADING_PATH_DEFERRED"), 1);
 	}
 
-	if (FSceneInterface::GetShadingPath(GetMaxSupportedFeatureLevel((EShaderPlatform)Target.Platform)) == EShadingPath::Mobile)
+	const bool bUsingMobileRenderer = FSceneInterface::GetShadingPath(GetMaxSupportedFeatureLevel((EShaderPlatform)Target.Platform)) == EShadingPath::Mobile;
+	if (bUsingMobileRenderer)
 	{
 		Input.Environment.SetDefine(TEXT("SHADING_PATH_MOBILE"), 1);
 	}
@@ -3405,23 +3443,28 @@ void GlobalBeginCompileShader(
 	// Set VR definitions
 	{
 		static const auto CVarInstancedStereo = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
-		static const auto CVarMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MultiView"));
 		static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 		static const auto CVarODSCapture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.ODSCapture"));
+		static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 
 		const bool bIsInstancedStereoCVar = CVarInstancedStereo ? (CVarInstancedStereo->GetValueOnGameThread() != 0) : false;
-		const bool bIsMultiViewCVar = CVarMultiView ? (CVarMultiView->GetValueOnGameThread() != 0) : false;
-		const bool bIsMobileMultiViewCVar = CVarMobileMultiView ? (CVarMobileMultiView->GetValueOnGameThread() != 0) : false;
+		const bool bIsMobileMultiViewCVar = CVarMobileMultiView && CVarMobileHDR ?
+			(CVarMobileMultiView->GetValueOnGameThread() != 0 && CVarMobileHDR->GetValueOnGameThread() == 0) : false;
 		const bool bIsODSCapture = CVarODSCapture && (CVarODSCapture->GetValueOnGameThread() != 0);
 
 		const EShaderPlatform ShaderPlatform = static_cast<EShaderPlatform>(Target.Platform);
-		
-		const bool bIsInstancedStereo = bIsInstancedStereoCVar && RHISupportsInstancedStereo(ShaderPlatform);
-		Input.Environment.SetDefine(TEXT("INSTANCED_STEREO"), bIsInstancedStereo);
-		Input.Environment.SetDefine(TEXT("MULTI_VIEW"), bIsInstancedStereo && bIsMultiViewCVar && RHISupportsMultiView(ShaderPlatform));
 
-		const bool bSupportsMobileMultiview = RHISupportsMobileMultiView(ShaderPlatform);
-		Input.Environment.SetDefine(TEXT("MOBILE_MULTI_VIEW"), bIsMobileMultiViewCVar && bSupportsMobileMultiview);
+		bool bIsInstancedStereo = !bUsingMobileRenderer && bIsInstancedStereoCVar && RHISupportsInstancedStereo(ShaderPlatform);
+		bool bIsMobileMultiview = bUsingMobileRenderer && bIsMobileMultiViewCVar;
+		if (bIsMobileMultiview && !RHISupportsMobileMultiView(ShaderPlatform))
+		{
+			// Native mobile multi-view is not supported, fall back to instancing if available
+			bIsInstancedStereo = RHISupportsInstancedStereo(ShaderPlatform);
+		}
+
+		Input.Environment.SetDefine(TEXT("INSTANCED_STEREO"), bIsInstancedStereo);
+		Input.Environment.SetDefine(TEXT("MULTI_VIEW"), bIsInstancedStereo && RHISupportsMultiView(ShaderPlatform));
+		Input.Environment.SetDefine(TEXT("MOBILE_MULTI_VIEW"), bIsMobileMultiview);
 
 		// Throw a warning if we are silently disabling ISR due to missing platform support.
 		if (bIsInstancedStereoCVar && !bIsInstancedStereo && !GShaderCompilingManager->AreWarningsSuppressed(ShaderPlatform))
@@ -4956,7 +4999,7 @@ static inline FShader* ProcessCompiledJob(FShaderCompileJob* SingleJob, const FS
 		EShaderPlatform Platform = (EShaderPlatform)SingleJob->Input.Target.Platform;
 		if (!Pipeline || !Pipeline->ShouldOptimizeUnusedOutputs(Platform))
 		{
-			Shader = GGlobalShaderMap[Platform]->FindOrAddShader(GlobalShaderType, Shader);
+			Shader = GGlobalShaderMap[Platform]->FindOrAddShader(GlobalShaderType, SingleJob->PermutationId, Shader);
 			// Add this shared pipeline to the list
 			if (!Pipeline)
 			{
@@ -5002,21 +5045,19 @@ void ProcessCompiledGlobalShaders(const TArray<TSharedRef<FShaderCommonCompileJo
 		{
 			const auto* PipelineJob = CurrentJob.GetShaderPipelineJob();
 			check(PipelineJob);
-			TArray<FShader*> ShaderStages;
+
+			FShaderPipeline* ShaderPipeline = new FShaderPipeline(PipelineJob->ShaderPipeline);
 			for (int32 Index = 0; Index < PipelineJob->StageJobs.Num(); ++Index)
 			{
 				SingleJob = PipelineJob->StageJobs[Index]->GetSingleShaderJob();
 				FShader* Shader = ProcessCompiledJob(SingleJob, PipelineJob->ShaderPipeline, ShaderPlatformsProcessed, SharedPipelines);
-				ShaderStages.Add(Shader);
+				ShaderPipeline->AddShader(Shader, SingleJob->PermutationId);
 			}
+			ShaderPipeline->Validate(PipelineJob->ShaderPipeline);
 
-			FShaderPipeline* ShaderPipeline = new FShaderPipeline(PipelineJob->ShaderPipeline, ShaderStages);
-			if (ShaderPipeline)
-			{
-				EShaderPlatform Platform = (EShaderPlatform)PipelineJob->StageJobs[0]->GetSingleShaderJob()->Input.Target.Platform;
-				check(ShaderPipeline && !GGlobalShaderMap[Platform]->HasShaderPipeline(PipelineJob->ShaderPipeline));
-				GGlobalShaderMap[Platform]->FindOrAddShaderPipeline(PipelineJob->ShaderPipeline, ShaderPipeline);
-			}
+			EShaderPlatform Platform = (EShaderPlatform)PipelineJob->StageJobs[0]->GetSingleShaderJob()->Input.Target.Platform;
+			check(ShaderPipeline && !GGlobalShaderMap[Platform]->HasShaderPipeline(PipelineJob->ShaderPipeline));
+			GGlobalShaderMap[Platform]->FindOrAddShaderPipeline(PipelineJob->ShaderPipeline, ShaderPipeline);
 		}
 	}
 
@@ -5032,7 +5073,8 @@ void ProcessCompiledGlobalShaders(const TArray<TSharedRef<FShaderCommonCompileJo
 				if (!GlobalShaderMap->HasShaderPipeline(ShaderPipelineType))
 				{
 					auto& StageTypes = ShaderPipelineType->GetStages();
-					TArray<FShader*> ShaderStages;
+
+					FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType);
 					for (int32 Index = 0; Index < StageTypes.Num(); ++Index)
 					{
 						FGlobalShaderType* GlobalShaderType = ((FShaderType*)(StageTypes[Index]))->GetGlobalShaderType();
@@ -5040,16 +5082,14 @@ void ProcessCompiledGlobalShaders(const TArray<TSharedRef<FShaderCommonCompileJo
 						{
 							TShaderRef<FShader> Shader = GlobalShaderMap->GetShader(GlobalShaderType, kUniqueShaderPermutationId);
 							check(Shader.IsValid());
-							ShaderStages.Add(Shader.GetShader());
+							ShaderPipeline->AddShader(Shader.GetShader(), kUniqueShaderPermutationId);
 						}
 						else
 						{
 							break;
 						}
 					}
-
-					checkf(StageTypes.Num() == ShaderStages.Num(), TEXT("Internal Error adding Global ShaderPipeline %s"), ShaderPipelineType->GetName());
-					FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType, ShaderStages);
+					ShaderPipeline->Validate(ShaderPipelineType);
 					GlobalShaderMap->FindOrAddShaderPipeline(ShaderPipelineType, ShaderPipeline);
 				}
 			}

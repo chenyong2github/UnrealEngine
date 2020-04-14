@@ -526,7 +526,7 @@ void UVREditorInteractor::Tick_Implementation( const float DeltaTime )
 		const bool bDraggingWorld = (InteractorData.DraggingMode == EViewportInteractionDraggingMode::World ||
 			(GetOtherInteractor() != nullptr && GetOtherInteractor()->GetInteractorData().DraggingMode == EViewportInteractionDraggingMode::World && InteractorData.DraggingMode == EViewportInteractionDraggingMode::AssistingDrag));
 
-		FVector LaserPointerStart, LaserPointerEnd;
+		FVector LaserPointerStart(0), LaserPointerEnd(0);
 		const bool bHasLaser = GetLaserPointer(/* Out */ LaserPointerStart, /* Out */ LaserPointerEnd, bEvenIfBlocked );
 		if (bForceShowLaser || (bHasLaser && !bDraggingWorld))
 		{
@@ -588,13 +588,16 @@ void UVREditorInteractor::Tick_Implementation( const float DeltaTime )
 			// Get the hand transform and forward vector.
 			FTransform InteractorTransform;
 			FVector InteractorForwardVector;
-			GetTransformAndForwardVector( /* Out */ InteractorTransform, /* Out */ InteractorForwardVector );
-			InteractorForwardVector.Normalize();
 
-			// Offset the start point of the laser.
-			LaserPointerStart = InteractorTransform.GetLocation() + (InteractorForwardVector * LaserPointerStartOffset);
+			if (GetTransformAndForwardVector( /* Out */ InteractorTransform, /* Out */ InteractorForwardVector))
+			{
+				InteractorForwardVector.Normalize();
 
-			UpdateSplineLaser( LaserPointerStart, LaserPointerEnd, InteractorForwardVector );
+				// Offset the start point of the laser.
+				LaserPointerStart = InteractorTransform.GetLocation() + (InteractorForwardVector * LaserPointerStartOffset);
+
+				UpdateSplineLaser(LaserPointerStart, LaserPointerEnd, InteractorForwardVector);
+			}
 		}
 
 		bForceShowLaser = false;
@@ -1032,26 +1035,29 @@ void UVREditorInteractor::HandleInputAxis( FEditorViewportClient& ViewportClient
 
 	if (!bOutWasHandled)
 	{
-		if (Action.ActionType == VRActionTypes::TrackpadPositionX)
+		if (Delta != 0)
 		{
-			LastTrackpadPosition.X = bIsTrackpadPositionValid[0] ? TrackpadPosition.X : Delta;
-			LastTrackpadPositionUpdateTime = FTimespan::FromSeconds( FPlatformTime::Seconds() );
-			TrackpadPosition.X = Delta;
-			bIsTrackpadPositionValid[0] = true;
-		}
-
-		if (Action.ActionType == VRActionTypes::TrackpadPositionY)
-		{
-			float DeltaAxis = Delta;
-			if (VREd::InvertTrackpadVertical->GetInt() != 0)
+			if (Action.ActionType == VRActionTypes::TrackpadPositionX)
 			{
-				DeltaAxis = -DeltaAxis;	// Y axis is inverted from HMD
+				LastTrackpadPosition.X = bIsTrackpadPositionValid[0] ? TrackpadPosition.X : Delta;
+				LastTrackpadPositionUpdateTime = FTimespan::FromSeconds(FPlatformTime::Seconds());
+				TrackpadPosition.X = Delta;
+				bIsTrackpadPositionValid[0] = true;
 			}
 
-			LastTrackpadPosition.Y = bIsTrackpadPositionValid[1] ? TrackpadPosition.Y : DeltaAxis;
-			LastTrackpadPositionUpdateTime = FTimespan::FromSeconds( FPlatformTime::Seconds() );
-			TrackpadPosition.Y = DeltaAxis;
-			bIsTrackpadPositionValid[1] = true;
+			if (Action.ActionType == VRActionTypes::TrackpadPositionY)
+			{
+				float DeltaAxis = Delta;
+				if (VREd::InvertTrackpadVertical->GetInt() != 0)
+				{
+					DeltaAxis = -DeltaAxis;	// Y axis is inverted from HMD
+				}
+
+				LastTrackpadPosition.Y = bIsTrackpadPositionValid[1] ? TrackpadPosition.Y : DeltaAxis;
+				LastTrackpadPositionUpdateTime = FTimespan::FromSeconds(FPlatformTime::Seconds());
+				TrackpadPosition.Y = DeltaAxis;
+				bIsTrackpadPositionValid[1] = true;
+			}
 		}
 	}
 

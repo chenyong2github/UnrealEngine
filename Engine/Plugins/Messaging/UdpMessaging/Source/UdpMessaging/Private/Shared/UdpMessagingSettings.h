@@ -65,6 +65,8 @@ public:
 	 * The format is IP_ADDRESS:PORT_NUMBER.
 	 * 0.0.0.0:0 will bind to the default network adapter on Windows,
 	 * and all available network adapters on other operating systems.
+	 * Specifying an interface IP here, will use that interface for multicasting and static endpoint *might* also reach this client through <unicast ip:multicast port>
+	 * Specifying both the IP and Port will allow usage of static endpoint to reach this client
 	 * Can be specified on the command line with `-UDPMESSAGING_TRANSPORT_UNICAST=`
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Transport)
@@ -91,7 +93,7 @@ public:
 	/**
 	 * The IP endpoints of static devices.
 	 *
-	 * Use this setting to list devices on other subnets, such as mobile phones on a WiFi network.
+	 * Use this setting to reach devices on other subnets, such as mobile phones on a WiFi network.
 	 * The format is IP_ADDRESS:PORT_NUMBER.
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)

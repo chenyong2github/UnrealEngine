@@ -101,14 +101,14 @@ static FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlat
 	KeySuffix += SkelMesh->bHasVertexColors ? "1" : "0";
 	KeySuffix += SkelMesh->VertexColorGuid.ToString(EGuidFormats::Digits);
 
-	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
-	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
-
-	const bool bSupportLODStreaming = SkelMesh->bSupportLODStreaming.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
-	if (bSupportLODStreaming)
+	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
+	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
+	const bool bSupportLODStreaming = !SkelMesh->NeverStream && SkelMesh->GetSupportsLODStreaming(TargetPlatform);
+	
+	if (bMeshStreamingEnabled && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) && bSupportLODStreaming)
 	{
-		const int32 MaxNumStreamedLODs = SkelMesh->MaxNumStreamedLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
-		const int32 MaxNumOptionalLODs = SkelMesh->MaxNumOptionalLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+		const int32 MaxNumStreamedLODs = SkelMesh->GetMaxNumStreamedLODs(TargetPlatform);
+		const int32 MaxNumOptionalLODs = SkelMesh->GetMaxNumOptionalLODs(TargetPlatform);
 		KeySuffix += *FString::Printf(TEXT("1%08x%08x"), MaxNumStreamedLODs, MaxNumOptionalLODs);
 	}
 	else
@@ -335,7 +335,20 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				const bool bNeedsCPUAccess = FSkeletalMeshLODRenderData::ShouldKeepCPUResources(Owner, LODIndex, bForceKeepCPUResources);
 				LODData.SerializeStreamedData(Ar, Owner, LODIndex, LODStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
 			}
-			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, Owner->GetPathName());
+
+			//Recompute the derived data key in case there was some data correction during the build process, this make sure the DDC key is always representing the correct build result.
+			//There should never be correction of the data during the build, the data has to be corrected in the post load before calling this function.
+			FString BuiltDerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
+			if(BuiltDerivedDataKey != DerivedDataKey)
+			{
+				//If we are in this case we should resave the asset so the source data will be the same and we can use this DDC. Reduction can change the number of sections and the user section data is in the DDC key.
+				//So if we change the reduction algorithm, its possible we fall in this situation.
+				//We save the real data key which force the asset to always rebuild when the editor is loading it until the user save it
+				UE_LOG(LogSkeletalMesh, Log, TEXT("Skeletal mesh [%s]: The derived data key is different after the build. Resave the asset to avoid rebuilding it everytime the editor load it."), *Owner->GetPathName());
+			}
+
+			//Store the data using the built key to avoid DDC corruption
+			GetDerivedDataCacheRef().Put(*BuiltDerivedDataKey, DerivedData, Owner->GetPathName());
 
 			int32 T1 = FPlatformTime::Cycles();
 			UE_LOG(LogSkeletalMesh, Log, TEXT("Built Skeletal Mesh [%.2fs] %s"), FPlatformTime::ToMilliseconds(T1 - T0) / 1000.0f, *Owner->GetPathName());
@@ -482,4 +495,15 @@ int32 FSkeletalMeshRenderData::GetMaxBonesPerSection() const
 		}
 	}
 	return MaxBonesPerSection;
+}
+
+int32 FSkeletalMeshRenderData::GetFirstValidLODIdx(int32 MinIdx) const
+{
+	const int32 LODCount = LODRenderData.Num();
+	int32 LODIndex = FMath::Clamp<int32>(MinIdx, 0, LODCount - 1);
+	while (LODIndex < LODCount && !LODRenderData[LODIndex].GetNumVertices())
+	{
+		++LODIndex;
+	}
+	return LODIndex;
 }

@@ -97,8 +97,8 @@ public:
 	 * @param PluralType The type of plural form to get (cardinal or ordinal)
 	 */
 	const TArray<ETextPluralForm>& GetValidPluralForms(const ETextPluralType PluralType) const;
-
-	void HandleCultureChanged();
+	
+	void RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames, const bool bFullRefresh = true);
 
 private:
 	explicit FCulture(TUniquePtr<FCultureImplementation>&& InImplementation);

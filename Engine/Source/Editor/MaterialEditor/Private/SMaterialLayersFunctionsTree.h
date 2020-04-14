@@ -254,7 +254,7 @@ public:
 	SLATE_ARGUMENT(UMaterialEditorPreviewParameters*, InMaterialEditorInstance)
 	SLATE_ARGUMENT(TSharedPtr<class IPropertyRowGenerator>, InGenerator)
 	SLATE_END_ARGS()
-	void Refresh(const bool bRegenerateArray = false);
+	void Refresh();
 	void Construct(const FArguments& InArgs);
 	void SetEditorInstance(UMaterialEditorPreviewParameters* InMaterialEditorInstance);
 	TSharedPtr<class IPropertyRowGenerator> GetGenerator();
@@ -298,7 +298,7 @@ public:
 		UMaterialEditorPreviewParameters* MaterialEditorInstance;
 
 		/** Builds the custom parameter groups category */
-		void CreateGroupsWidget(const bool bRegenerateArray);
+		void CreateGroupsWidget();
 
 		SMaterialLayersFunctionsMaterialWrapper* GetWrapper() { return Wrapper; }
 

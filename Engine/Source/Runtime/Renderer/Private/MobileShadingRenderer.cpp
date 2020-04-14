@@ -48,6 +48,7 @@
 #include "DebugViewModeRendering.h"
 #include "SkyAtmosphereRendering.h"
 #include "VisualizeTexture.h"
+#include "VT/VirtualTextureFeedback.h"
 #include "VT/VirtualTextureSystem.h"
 #include "GPUSortManager.h"
 
@@ -468,11 +469,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// Find the visible primitives.
 	InitViews(RHICmdList);
-
-	if (bUseVirtualTexturing)
-	{
-		FVirtualTextureSystem::Get().Update(RHICmdList, ViewFeatureLevel, Scene);
-	}
 	
 	if (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass())
 	{
@@ -494,11 +490,15 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneSim));
 
 	// Generate the Sky/Atmosphere look up tables
-	// Do compute work first, before any graphics work
 	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
 	if (bShouldRenderSkyAtmosphere)
 	{
 		RenderSkyAtmosphereLookUpTables(RHICmdList);
+	}
+
+	if (bUseVirtualTexturing)
+	{
+		FVirtualTextureSystem::Get().Update(RHICmdList, ViewFeatureLevel, Scene);
 	}
 
 	// Notify the FX system that the scene is about to be rendered.
@@ -602,12 +602,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	SceneColorRenderPassInfo.bOcclusionQueries = SceneColorRenderPassInfo.NumOcclusionQueries != 0;
 	SceneColorRenderPassInfo.bMultiviewPass = View.bIsMobileMultiViewEnabled;
 
-	// TODO: required only for DX11 ?
-	if (UseVirtualTexturing(ViewFeatureLevel) && !IsHlslccShaderPlatform(View.GetShaderPlatform()))
-	{
-		SceneContext.BindVirtualTextureFeedbackUAV(SceneColorRenderPassInfo);
-	}
-	
 	RHICmdList.BeginRenderPass(SceneColorRenderPassInfo, TEXT("SceneColorRendering"));
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_MobilePrePass));
@@ -788,15 +782,18 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bUseVirtualTexturing)
 	{	
-		// No pass after this can make VT page requests
-		TArray<FIntRect, TInlineAllocator<FVirtualTextureFeedback::MaxRectPerTarget>> ViewRects;
+		// No pass after this should make VT page requests
+		TArray<FIntRect, TInlineAllocator<4>> ViewRects;
 		ViewRects.AddUninitialized(Views.Num());
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
 			ViewRects[ViewIndex] = Views[ViewIndex].ViewRect;
 		}
 		
-		SceneContext.VirtualTextureFeedback.TransferGPUToCPU(RHICmdList, ViewRects);
+		FVirtualTextureFeedback::FBufferDesc Desc;
+		Desc.Init2D(SceneContext.GetBufferSizeXY(), ViewRects, SceneContext.GetVirtualTextureFeedbackScale());
+
+		GVirtualTextureFeedback.TransferGPUToCPU(RHICmdList, SceneContext.VirtualTextureFeedback, Desc);
 	}
 	
 	if (ViewFamily.bResolveScene)

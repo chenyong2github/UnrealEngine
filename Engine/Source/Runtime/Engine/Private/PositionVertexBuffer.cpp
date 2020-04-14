@@ -219,6 +219,29 @@ FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Async()
 	return CreateRHIBuffer_Internal<false>();
 }
 
+/** Copy everything, keeping reference to the same RHI resources. */
+void FPositionVertexBuffer::CopyRHIForStreaming(const FPositionVertexBuffer& Other, bool InAllowCPUAccess)
+{
+	// Copy serialized properties.
+	Stride = Other.Stride;
+	NumVertices = Other.NumVertices;
+
+	// Handle CPU access.
+	if (InAllowCPUAccess)
+	{
+		bNeedsCPUAccess = Other.bNeedsCPUAccess;
+		AllocateData(bNeedsCPUAccess);
+	}
+	else
+	{
+		bNeedsCPUAccess = false;
+	}
+
+	// Copy resource references.
+	VertexBufferRHI = Other.VertexBufferRHI;
+	PositionComponentSRV = Other.PositionComponentSRV;
+}
+
 void FPositionVertexBuffer::InitRHI()
 {
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();

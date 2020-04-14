@@ -16,9 +16,14 @@ void FControlRigLayerInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 
 void FControlRigLayerInstanceProxy::CacheBones()
 {
-	FAnimationCacheBonesContext Context(this);
-	check(CurrentRoot);
-	CurrentRoot->CacheBones_AnyThread(Context);
+	if (bBoneCachesInvalidated)
+	{
+		FAnimationCacheBonesContext Context(this);
+		check(CurrentRoot);
+		CurrentRoot->CacheBones_AnyThread(Context);
+
+		bBoneCachesInvalidated = false;
+	}
 }
 
 bool FControlRigLayerInstanceProxy::Evaluate(FPoseContext& Output)

@@ -113,7 +113,7 @@ void FSimFrameViewDrawHelper::DrawCached(const FSimulationFrameView& View, float
 	const FLinearColor SelectedColor(1.0f, 0.5f, 0.0f);
 	const FLinearColor SelectedPulseColor(1.0f * PulseFactor, 0.5f * PulseFactor, 0.0f);
 
-	const FLinearColor SearchHighlightColor(1.0f, 1.0f, 0.25f);
+	const FLinearColor SearchHighlightColor(1.0f, 1.0f, 0.15f);
 	const FLinearColor SearchHighlightPulseColor(1.0f * PulseFactor, 1.0f * PulseFactor, 0.25f);
 
 	auto SelectBorderColor = [&](const bool bPulse, const bool bSelected, const bool bSearchHighlighted, const FLinearColor& ColorFill)
@@ -144,7 +144,7 @@ void FSimFrameViewDrawHelper::DrawCached(const FSimulationFrameView& View, float
 			DrawContext.DrawBox(X + 1.0f, Y + 1.0f, W - 2.0f, H - 2.0f, WhiteBrush, ColorFill);
 
 			// Draw border.
-			const float B = (Source.bPulse || Source.bSelected) ? 4.f : 2.f;
+			const float B = Source.bSearchHighlighted ? 6.f : ((Source.bPulse || Source.bSelected) ? 4.f : 2.f);
 			const float B2 = B/2.f;
 						
 			DrawContext.DrawBox(X, Y, B2, H, WhiteBrush, ColorBorder);
@@ -428,7 +428,7 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 	auto InitTrack = [&](FSimulationActorGroup& Group, const TSharedRef<FSimulationData::FRestrictedView>& View)
 	{
 		Group.SimulationTracks.Emplace( FSimulationTrack{View});
-		Group.MaxAllowedSimTime = FMath::Max(Group.MaxAllowedSimTime, View->EOFState.GetLast().TotalAllowedSimTimeMS);
+		Group.MaxAllowedSimTime = FMath::Max(Group.MaxAllowedSimTime, View->EOFState.GetLast().AllowedSimTime);
 		Group.MaxEngineFrame = FMath::Max(Group.MaxEngineFrame, View->EOFState.GetLast().EngineFrame);
 
 		SimulationFrameView.HeadEngineFrame = FMath::Max(SimulationFrameView.HeadEngineFrame, Group.MaxEngineFrame);
@@ -634,8 +634,8 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 				check(BaseState && CurrentState);
 
 				// Compute difference in ProcessedSimulationTime at the end of this engine frame
-				const FSimTime BaseSimMS = BaseState->TotalProcessedSimTimeMS;
-				const FSimTime CurrentSimMS = CurrentState->TotalProcessedSimTimeMS;
+				const FSimTime BaseSimMS = BaseState->TotalSimTime;
+				const FSimTime CurrentSimMS = CurrentState->TotalSimTime;
 				const FSimTime Delta = BaseSimMS - CurrentSimMS;
 
 				// This is the final amount to offset this groups local sim time to align it properly with the primary simulation in this range
@@ -662,7 +662,7 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 			MinOffset = FMath::Min(MinOffset, View.Group.OffsetSimTimeMS);
 		}
 
-		PrevSimTime = Range.Views[0].View->EOFState.GetLast().TotalProcessedSimTimeMS + 1000;
+		PrevSimTime = Range.Views[0].View->EOFState.GetLast().TotalSimTime + 1000;
 		if (MinOffset < 0)
 		{
 			PrevSimTime += -MinOffset;
@@ -674,7 +674,7 @@ void SNPSimFrameView::BuildSimulationView_ActorGroups(const FFilteredDataCollect
 	// Set presentable line, this is where the gray/light gray line is drawn
 	if (ActorGroups.Num() > 0)
 	{
-		SimulationFrameView.PresentableTimeMS = ActorGroups[0].OffsetSimTimeMS + ActorGroups[0].SimulationTracks[0].View->EOFState.GetLast().TotalProcessedSimTimeMS;
+		SimulationFrameView.PresentableTimeMS = ActorGroups[0].OffsetSimTimeMS + ActorGroups[0].SimulationTracks[0].View->EOFState.GetLast().TotalSimTime;
 	}
 
 	// Calc ViewportMaxSimTimeMS
@@ -702,8 +702,8 @@ for (FSimulationActorGroup& Group : ActorGroups)
 	{
 		if (Track.View->ConstData.GameInstanceId == PresentableGameInstanceId)
 		{
-			FSimTime LastProcessedSimTimeMS = Track.View->EOFState.GetLast().TotalProcessedSimTimeMS;
-			Group.PresentableSimTimeMS = Track.View->EOFState.GetLast().TotalProcessedSimTimeMS;
+			FSimTime LastProcessedSimTimeMS = Track.View->EOFState.GetLast().TotalSimTime;
+			Group.PresentableSimTimeMS = Track.View->EOFState.GetLast().TotalSimTime;
 			SimulationFrameView.PresentableTimeMS = FMath::Max(SimulationFrameView.PresentableTimeMS, Group.PresentableSimTimeMS);
 			break;
 		}

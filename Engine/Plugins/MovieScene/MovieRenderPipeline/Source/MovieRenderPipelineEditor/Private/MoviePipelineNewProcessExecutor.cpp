@@ -15,6 +15,7 @@
 #include "UnrealEdMisc.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineNewProcessExecutor"
 
@@ -35,6 +36,28 @@ void UMoviePipelineNewProcessExecutor::ExecuteImpl(UMoviePipelineQueue* InPipeli
 		OnExecutorFinishedImpl();
 		return;
 	}
+
+	// Make sure all of the maps in the queue exist on disk somewhere, otherwise the remote process boots up and then fails.
+	bool bHasValidMap = true;
+	for (const UMoviePipelineExecutorJob* Job : InPipelineQueue->GetJobs())
+	{
+		FString PackageName = Job->Map.GetLongPackageName();
+		if (!FPackageName::IsValidLongPackageName(PackageName))
+		{
+			bHasValidMap = false;
+			break;
+		}
+	}
+
+	if (!bHasValidMap)
+	{
+		FText FailureReason = LOCTEXT("UnsavedMapFailureDialog", "One or more jobs in the queue have an unsaved map as their target map. These unsaved maps cannot be loaded by an external process, and the render has been aborted.");
+		FMessageDialog::Open(EAppMsgType::Ok, FailureReason);
+
+		OnExecutorFinishedImpl();
+		return;
+	}
+
 
 	if (!ensureMsgf(!ProcessHandle.IsValid(), TEXT("Attempted to start another New Process Executor without the last one quitting. Force killing. This executor only supports one at a time.")))
 	{

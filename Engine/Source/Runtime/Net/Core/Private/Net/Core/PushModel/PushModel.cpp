@@ -10,6 +10,7 @@
 #include "Types/PushModelUtils.h"
 #include "Types/PushModelPerObjectState.h"
 #include "Types/PushModelPerNetDriverState.h"
+#include "UObject/UObjectGlobals.h"
 
 
 namespace UE4PushModelPrivate
@@ -175,24 +176,34 @@ namespace UE4PushModelPrivate
 
 		FPushModelObjectManager_CustomId()
 		{
+			PostGarbageCollectHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FPushModelObjectManager_CustomId::PostGarbageCollect);
 		}
 
 		~FPushModelObjectManager_CustomId()
 		{
+			FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGarbageCollectHandle);
 		}
 
 		void MarkPropertyDirty(const FNetPushObjectId ObjectId, const int32 RepIndex)
 		{
-			// The macros will take care of filtering out invalid objects, so we don't need to check here.
-			PerObjectStates[ObjectId].MarkPropertyDirty(RepIndex);
+			const int32 ObjectIndex = ObjectId;
+			if (LIKELY(PerObjectStates.IsValidIndex(ObjectIndex)))
+			{
+				// The macros will take care of filtering out invalid objects, so we don't need to check here.
+				PerObjectStates[ObjectIndex].MarkPropertyDirty(RepIndex);
+			}
 		}
 
 		void MarkPropertyDirty(const FNetPushObjectId ObjectId, const int32 StartRepIndex, const int32 EndRepIndex)
 		{
-			FPushModelPerObjectState& ObjectState = PerObjectStates[ObjectId];
-			for (int RepIndex = StartRepIndex; RepIndex <= EndRepIndex; ++RepIndex)
+			const int32 ObjectIndex = ObjectId;
+			if (LIKELY(PerObjectStates.IsValidIndex(ObjectIndex)))
 			{
-				ObjectState.MarkPropertyDirty(RepIndex);
+				FPushModelPerObjectState& ObjectState = PerObjectStates[ObjectIndex];
+				for (int RepIndex = StartRepIndex; RepIndex <= EndRepIndex; ++RepIndex)
+				{
+					ObjectState.MarkPropertyDirty(RepIndex);
+				}
 			}
 		}
 
@@ -216,20 +227,11 @@ namespace UE4PushModelPrivate
 
 		void RemoveNetworkObject(const FPushModelPerNetDriverHandle Handle)
 		{
-			if (PerObjectStates.IsValidIndex(Handle.ObjectId))
+			const int32 ObjectIndex = Handle.ObjectId;
+			if (LIKELY(PerObjectStates.IsValidIndex(ObjectIndex)))
 			{
-				FPushModelPerObjectState& PerObjectState = PerObjectStates[Handle.ObjectId];
+				FPushModelPerObjectState& PerObjectState = PerObjectStates[ObjectIndex];
 				PerObjectState.RemovePerNetDriverState(Handle.NetDriverId);
-				if (!PerObjectState.HasAnyNetDriverStates())
-				{
-					ObjectIdToInternalId.Remove(PerObjectState.GetObjectId());
-					PerObjectStates.RemoveAt(Handle.ObjectId);
-
-					if (NewObjectLookupPosition > Handle.ObjectId)
-					{
-						NewObjectLookupPosition = Handle.ObjectId;
-					}
-				}
 			}
 		}
 
@@ -238,6 +240,31 @@ namespace UE4PushModelPrivate
 			// We can't compact PerObjectStates because we need ObjectIDs to be stable.
 			// But we can shrink it.
 
+			// Go ahead and remove any PerObjectStates that aren't being tracked by any NetDrivers.
+			// We have to wait until GC for this, because the NetDrivers will periodically remove
+			// Network Objects that are still alive (but marked Pending Kill) but we don't have a way
+			// to safely clear the Push Model Handles from those objects.
+			//
+			// That means if we tried to remove these items from Push Model tracking, we could end up
+			// with cases where we reassign the Push Model ID to a new object, and the old object could
+			// inadvertently dirty its state.
+			//
+			// In theory, this should never happen because once the object is marked Pending Kill none
+			// of its properties should change again, but it's also possible that calls like BeginDestroy
+			// could modify properties, etc.
+			//
+			// Currently, none of these objects are actually removed though unless the networking system
+			// detects they are PendingKill (their WeakObjectPtr can't be resolved anymore), so there shouldn't
+			// be any cases where we remove these for "still alive" objects.
+			for (auto It = PerObjectStates.CreateIterator(); It; ++It)
+			{
+				if (!It->HasAnyNetDriverStates())
+				{
+					ObjectIdToInternalId.Remove(It->GetObjectId());
+					It.RemoveCurrent();
+				}
+			}
+
 			PerObjectStates.Shrink();
 			ObjectIdToInternalId.Compact();
 			NewObjectLookupPosition = 0;
@@ -245,9 +272,10 @@ namespace UE4PushModelPrivate
 
 		FPushModelPerNetDriverState* GetPerNetDriverState(const FPushModelPerNetDriverHandle Handle)
 		{
-			if (PerObjectStates.IsValidIndex(Handle.ObjectId))
+			const int32 ObjectIndex = Handle.ObjectId;
+			if (LIKELY(PerObjectStates.IsValidIndex(ObjectIndex)))
 			{
-				FPushModelPerObjectState& ObjectState = PerObjectStates[Handle.ObjectId];
+				FPushModelPerObjectState& ObjectState = PerObjectStates[ObjectIndex];
 				ObjectState.PushDirtyStateToNetDrivers();
 				return &ObjectState.GetPerNetDriverState(Handle.NetDriverId);
 			}
@@ -260,6 +288,7 @@ namespace UE4PushModelPrivate
 		int32 NewObjectLookupPosition = 0;
 		TMap<FNetPushObjectId, FNetPushObjectId> ObjectIdToInternalId;
 		TSparseArray<FPushModelPerObjectState> PerObjectStates;
+		FDelegateHandle PostGarbageCollectHandle;
 	};
 
 	static FPushModelObjectManager_CustomId PushObjectManager;
@@ -286,11 +315,6 @@ namespace UE4PushModelPrivate
 	void MarkPropertyDirty(const FNetPushObjectId ObjectId, const int32 StartRepIndex, const int32 EndRepIndex)
 	{
 		PushObjectManager.MarkPropertyDirty(ObjectId, StartRepIndex, EndRepIndex);
-	}
-
-	void PostGarbageCollect()
-	{
-		PushObjectManager.PostGarbageCollect();
 	}
 
 	/**

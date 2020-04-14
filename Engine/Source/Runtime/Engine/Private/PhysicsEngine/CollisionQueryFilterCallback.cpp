@@ -14,6 +14,7 @@
 
 #include "ChaosInterfaceWrapperCore.h"
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
+#include "Chaos/GeometryParticles.h"
 
 ECollisionQueryHitType FCollisionQueryFilterCallback::CalcQueryHitType(const FCollisionFilterData& QueryFilter, const FCollisionFilterData& ShapeFilter, bool bPreFilter)
 {
@@ -111,6 +112,12 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollis
 ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const Chaos::FPerShapeData& Shape, const Chaos::TGeometryParticle<float,3>& Actor)
 {
 	//SCOPE_CYCLE_COUNTER(STAT_Collision_PreFilter);
+
+	if (!Shape.GetQueryEnabled())
+	{
+		return ECollisionQueryHitType::None;
+	}
+
 	FCollisionFilterData ShapeFilter = ChaosInterface::GetQueryFilterData(Shape);
 
 	// We usually don't have ignore components so we try to avoid the virtual getSimulationFilterData() call below. 'word2' of shape sim filter data is componentID.

@@ -4,15 +4,21 @@
 
 #include "CoreMinimal.h"
 
-#include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "DMXProtocolCommon.h"
+#include "Packets/DMXProtocolE131PDUPacket.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
 #include "Interfaces/IDMXNetworkInterface.h"
-#include "Packets/DMXProtocolE131PDUPacket.h"
 
-#include "HAL/CriticalSection.h"
+#include "Tickable.h"
 
+class FInternetAddr;
 class FSocket;
+class ISocketSubsystem;
 
+/**
+ * SACN universe implementation
+ * It holds the input and output buffer
+ */
 class DMXPROTOCOLSACN_API FDMXProtocolUniverseSACN
 	: public IDMXProtocolUniverse
 	, public IDMXNetworkInterface
@@ -30,6 +36,8 @@ public:
 	virtual uint32 GetUniverseID() const override;
 	virtual TSharedPtr<FJsonObject> GetSettings() const override;
 	virtual bool IsSupportRDM() const override;
+
+	virtual void Tick(float DeltaTime) override;
 	//~ End IDMXProtocolDevice implementation
 
 	//~ Begin IDMXNetworkInterface implementation
@@ -44,9 +52,20 @@ public:
 	const FDMXProtocolE131DMPLayerPacket& GetIncomingDMXDMPLayer() const { return IncomingDMXDMPLayer; }
 
 private:
-	void OnDataReceived(const FArrayReaderPtr & Buffer);
+	/** Called when new DMX packet is coming */
+	bool OnDataReceived(const FArrayReaderPtr& Buffer);
 
-	bool HandleReplyPacket(const FArrayReaderPtr & Buffer);
+	/** Handle and broadcasting incoming DMX packet */
+	bool HandleReplyPacket(const FArrayReaderPtr& Buffer);
+
+	/** Ask to read DMX from the Socket */
+	bool ReceiveDMXBuffer();
+
+	/** Parse incoming DMX packet into the SACN layers */
+	void SetLayerPackets(const FArrayReaderPtr& Buffer);
+
+	/** Checks if the socket exists, otherwise create a new one */
+	FSocket* GetOrCreateListeningSocket();
 
 private:
 	IDMXProtocolPtrWeak WeakDMXProtocol;
@@ -57,15 +76,36 @@ private:
 	bool bIsRDMSupport;
 	TSharedPtr<FJsonObject> Settings;
 
+	/** The universe listening socket */
 	FSocket* ListeningSocket;
-	TSharedPtr<IDMXProtocolReceiver> SACNReceiver;
+
+	/** The universe socket listening Addr */
+	TSharedPtr<FInternetAddr> ListenerInternetAddr;
+
+	/**
+	 * Current number of ticks without DMX input buffer request.
+	 * It the amount as same as MaxNumTicks the socket will be destroyed, which will save the resources.
+	 * If (NumTicksWithoutInputBufferRequest == 0) there is no socket reading
+	 * If (NumTicksWithoutInputBufferRequest > 0 && NumTicksWithoutInputBufferRequest < MaxNumTicksWithoutInputBufferRequest)
+	 *   the socket is reading each tick, if it new read request the new socket will be created.
+	 * If (NumTicksWithoutInputBufferRequest == MaxNumTicksWithoutInputBufferRequest) there is no socket will be destoyed
+	 */
+	mutable double TimeWithoutInputBufferRequestStart;
+
+	/** Max number of ticks without DMX input buffer request. The socket will be destroyed after this point */
+	mutable double TimeWithoutInputBufferRequestEnd;
+
+	mutable bool bIsTicking;
+
+	static const double TimeWithoutInputBufferRequest;
+
+
+	/** Pointer to the socket sub-system. */
+	ISocketSubsystem* SocketSubsystem;
 
 	FDMXProtocolE131RootLayerPacket IncomingDMXRootLayer;
 	FDMXProtocolE131FramingLayerPacket IncomingDMXFramingLayer;
 	FDMXProtocolE131DMPLayerPacket IncomingDMXDMPLayer;
-
-	/** Mutex protecting access to the sockets. */
-	mutable FCriticalSection ListeningSocketsCS;
 
 	FString InterfaceIPAddress;
 

@@ -4,6 +4,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
+#include "Misc/StringBuilder.h"
 
 /*-----------------------------------------------------------------------------
 	FNameProperty.

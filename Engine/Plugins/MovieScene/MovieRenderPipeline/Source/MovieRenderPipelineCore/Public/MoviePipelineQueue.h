@@ -56,6 +56,7 @@ public:
 		return LoadedSequence;
 	}
 	
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetPresetOrigin(UMoviePipelineMasterConfig* InPreset)
 	{
 		if (InPreset)
@@ -65,16 +66,19 @@ public:
 		}
 	}
 
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	UMoviePipelineMasterConfig* GetPresetOrigin() const
 	{
 		return PresetOrigin.Get();
 	}
 
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	UMoviePipelineMasterConfig* GetConfiguration() const
 	{
 		return Configuration;
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetConfiguration(UMoviePipelineMasterConfig* InPreset)
 	{
 		if (InPreset)

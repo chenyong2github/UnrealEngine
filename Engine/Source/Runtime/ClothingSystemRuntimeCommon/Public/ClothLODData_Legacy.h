@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+
+#include "PointWeightMap.h"
 #include "ClothCollisionData.h"
 #include "SkeletalMeshTypes.h"
-#include "ClothVertBoneData.h"
 #include "ClothPhysicalMeshData.h"
-
 #include "ClothLODData_Legacy.generated.h"
 
 class UClothLODDataCommon;
-struct FPointWeightMap;
+class UClothPhysicalMeshDataBase_Legacy;
 
 /**
  * Deprecated, legacy definition kept for backward compatibility only.
@@ -23,7 +23,7 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothParameterMask_Legacy
 
 	FClothParameterMask_Legacy();
 
-	void MigrateTo(FPointWeightMap* Weights) const;
+	void MigrateTo(FPointWeightMap& Weights);
 
 	/** Name of the mask, mainly for users to differentiate */
 	UPROPERTY()
@@ -52,26 +52,32 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothParameterMask_Legacy
 
 /**
  * Deprecated, legacy definition kept for backward compatibility only.
- * Use UClothLODDataCommon instead.
- * Redirected from the now defunct ClothingSystemRuntime module.
+ * Use FClothLODDataCommon instead.
  */
-USTRUCT()
-struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothLODData_Legacy
+UCLASS()
+class CLOTHINGSYSTEMRUNTIMECOMMON_API UClothLODDataCommon_Legacy : public UObject
 {
 	GENERATED_BODY()
+public:
+	UClothLODDataCommon_Legacy(const FObjectInitializer& Init);
+	virtual ~UClothLODDataCommon_Legacy();
+
+	// Deprecated, use ClothPhysicalMeshData instead
+	UPROPERTY()
+	UClothPhysicalMeshDataBase_Legacy* PhysicalMeshData_DEPRECATED;
 
 	// Raw phys mesh data
 	UPROPERTY()
-	FClothPhysicalMeshData PhysicalMeshData;
+	FClothPhysicalMeshData ClothPhysicalMeshData;
 
-	// Collision primitive and covex data for clothing collisions
+	// Collision primitive and convex data for clothing collisions
 	UPROPERTY()
 	FClothCollisionData CollisionData;
 
 #if WITH_EDITORONLY_DATA
 	// Parameter masks defining the physics mesh masked data
 	UPROPERTY()
-	TArray<FClothParameterMask_Legacy> ParameterMasks;
+	TArray<FPointWeightMap> ParameterMasks;
 #endif // WITH_EDITORONLY_DATA
 
 	// Skinning data for transitioning from a higher detail LOD to this one
@@ -80,17 +86,12 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothLODData_Legacy
 	// Skinning data for transitioning from a lower detail LOD to this one
 	TArray<FMeshToMeshVertData> TransitionDownSkinData;
 
-	bool Serialize(FArchive& Ar);
+	// Custom serialize for transition
+	virtual void Serialize(FArchive& Ar) override;
 
-	// Migrate this legacy Nv struct to the new class format (called by UClothingAssetCommon::Postload())
-	void MigrateTo(UClothLODDataCommon* LodData) const;
-};
+	// Migrate deprecated properties
+	virtual void PostLoad() override;
 
-template<>
-struct TStructOpsTypeTraits<FClothLODData_Legacy> : public TStructOpsTypeTraitsBase2<FClothLODData_Legacy>
-{
-	enum
-	{
-		WithSerializer = true,
-	};
+	// Migrate this deprecated UObject class to the structure format (called by UClothingAssetCommon::PostLoad())
+	void MigrateTo(struct FClothLODDataCommon& LodData);
 };

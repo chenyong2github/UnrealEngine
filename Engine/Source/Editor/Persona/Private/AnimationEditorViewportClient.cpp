@@ -839,7 +839,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 
 			// Calculate polys based on non clothing sections so we don't duplicate the counts.
 			uint32 NumTotalTriangles = 0;
-			int32 NumSections = LODData.NumNonClothingSections();
+			int32 NumSections = LODData.RenderSections.Num();
 			for(int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
 			{
 				NumTotalTriangles += LODData.RenderSections[SectionIndex].NumTriangles;
@@ -852,13 +852,14 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 				FText::AsNumber(NumTotalTriangles)));
 
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("ScreenSizeFOVFormat", "Current Screen Size: {0}, FOV: {1}"), FText::AsNumber(CachedScreenSize), FText::AsNumber(ViewFOV)));
-
 			for (int32 SectionIndex = 0; SectionIndex < LODData.RenderSections.Num(); SectionIndex++)
 			{
 				int32 SectionVerts = LODData.RenderSections[SectionIndex].GetNumVertices();
 
-				TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("SectionFormat", " [Section {0}] Verts: {1}, Bones: {2}, Max Influences: {3}"),
+				FText SectionDisabledText = LODData.RenderSections[SectionIndex].bDisabled ? LOCTEXT("SectionIsDisbable", " Disabled") : FText::GetEmpty();
+				TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("SectionFormat", " [Section {0}]{1} Verts: {2}, Bones: {3}, Max Influences: {4}"),
 					FText::AsNumber(SectionIndex),
+					SectionDisabledText,
 					FText::AsNumber(SectionVerts),
 					FText::AsNumber(LODData.RenderSections[SectionIndex].BoneMap.Num()),
 					FText::AsNumber(LODData.RenderSections[SectionIndex].MaxBoneInfluences)
@@ -931,11 +932,12 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 
 			// Triangles
 			uint32 NumTotalTriangles = 0;
-			int32 NumSections = LODData.NumNonClothingSections();
+			int32 NumSections = LODData.RenderSections.Num();
 			for (int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
 			{
 				NumTotalTriangles += LODData.RenderSections[SectionIndex].NumTriangles;
 			}
+
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("TrianglesFormat", "Triangles: {0}"), FText::AsNumber(NumTotalTriangles)));
 
 			// Vertices

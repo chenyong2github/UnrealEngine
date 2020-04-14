@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Misc/AsciiSet.h"
 #include "Misc/Guid.h"
+#include "Misc/StringBuilder.h"
 #include "Math/RandomStream.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "UObject/ObjectMacros.h"
@@ -378,7 +379,7 @@ FORCEINLINE constexpr bool IsValidTokenStart(TCHAR FirstChar, bool bDottedNames)
 
 FORCEINLINE constexpr FStringView ParsePropertyToken(const TCHAR* Str, bool DottedNames)
 {
-	constexpr FAsciiSet RegularTokenChars = AlphaNumericChars  + '_' + '-' + '"';
+	constexpr FAsciiSet RegularTokenChars = AlphaNumericChars  + '_' + '-' + '+';
 	constexpr FAsciiSet DottedTokenChars = RegularTokenChars + '.' + '/' + SUBOBJECT_DELIMITER_CHAR;
 	FAsciiSet CurrentTokenChars = DottedNames ? DottedTokenChars : RegularTokenChars;
 

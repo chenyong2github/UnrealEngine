@@ -45,6 +45,12 @@ static TAutoConsoleVariable<int32> CVarDisableEarlyFragmentTests(
 	TEXT("Whether to disable early_fragment_tests if any \n"),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarDisableFBFNonCoherent(
+	TEXT("r.Android.DisableFBFNonCoherent"),
+	0,
+	TEXT("Whether to disable usage of QCOM_shader_framebuffer_fetch_noncoherent extension\n"),
+	ECVF_ReadOnly);
+
 struct FPlatformOpenGLDevice
 {
 
@@ -754,7 +760,8 @@ extern FString AndroidThunkCpp_GetMetaDataString(const FString& Key);
 void FAndroidOpenGL::SetupDefaultGLContextState(const FString& ExtensionsString)
 {
 	// Enable QCOM non-coherent framebuffer fetch if supported
-	if (ExtensionsString.Contains(TEXT("GL_QCOM_shader_framebuffer_fetch_noncoherent")) && 
+	if (CVarDisableFBFNonCoherent.GetValueOnAnyThread() == 0 &&
+		ExtensionsString.Contains(TEXT("GL_QCOM_shader_framebuffer_fetch_noncoherent")) && 
 		ExtensionsString.Contains(TEXT("GL_EXT_shader_framebuffer_fetch")))
 	{
 		glEnable(GL_FRAMEBUFFER_FETCH_NONCOHERENT_QCOM);
@@ -997,7 +1004,8 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 	}
 
 	// Qualcomm non-coherent framebuffer_fetch
-	if (ExtensionsString.Contains(TEXT("GL_QCOM_shader_framebuffer_fetch_noncoherent")) && 
+	if (CVarDisableFBFNonCoherent.GetValueOnAnyThread() == 0 &&
+		ExtensionsString.Contains(TEXT("GL_QCOM_shader_framebuffer_fetch_noncoherent")) && 
 		ExtensionsString.Contains(TEXT("GL_EXT_shader_framebuffer_fetch")))
 	{
 		glFramebufferFetchBarrierQCOM = (PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC)((void*)eglGetProcAddress("glFramebufferFetchBarrierQCOM"));

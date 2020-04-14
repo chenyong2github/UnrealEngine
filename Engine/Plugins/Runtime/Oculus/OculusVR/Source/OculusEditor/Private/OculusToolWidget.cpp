@@ -219,9 +219,9 @@ void SOculusToolWidget::RebuildLayout()
 	AddSimpleSetting(box, SimpleSettings.Find(FName("SupportDash")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("ForwardShading")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AllowStaticLighting")));
-	AddSimpleSetting(box, SimpleSettings.Find(FName("InstancedStereo")));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("MultiView")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileMultiView")));
-	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileHDR")));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("MobilePostProcessing")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidManifest")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidPackaging")));
 
@@ -363,16 +363,16 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 		&SOculusToolWidget::ForwardShadingEnable }
 	);
 
-	SimpleSettings.Add(FName("InstancedStereo"), {
-		FName("InstancedStereo"),
-		LOCTEXT("InstancedStereoDescription", "Instanced stereo is not enabled for this project. Instanced stereo substantially reduces draw calls, and improves rendering performance."),
-		&SOculusToolWidget::InstancedStereoVisibility,
+	SimpleSettings.Add(FName("MultiView"), {
+		FName("MultiView"),
+		LOCTEXT("MultiViewDescription", "Multi-view is not enabled for this project. Instanced stereo substantially reduces draw calls, and improves rendering performance."),
+		&SOculusToolWidget::MultiViewVisibility,
 		TArray<SimpleSettingAction>(),
 		(int)SupportFlags::SupportPC
 	});
-	SimpleSettings.Find(FName("InstancedStereo"))->actions.Add(
-		{ LOCTEXT("InstancedStereoButtonText", "Enable Instanced Stereo"),
-		&SOculusToolWidget::InstancedStereoEnable }
+	SimpleSettings.Find(FName("MultiView"))->actions.Add(
+		{ LOCTEXT("MultiViewButtonText", "Enable Multi-View"),
+		&SOculusToolWidget::MultiViewEnable }
 	);
 
 	SimpleSettings.Add(FName("MobileMultiView"), {
@@ -387,16 +387,16 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 		&SOculusToolWidget::MobileMultiViewEnable }
 	);
 
-	SimpleSettings.Add(FName("MobileHDR"), {
-		FName("MobileHDR"),
-		LOCTEXT("MobileHDRDescription", "Mobile HDR has performance and stability issues in VR. We strongly recommend disabling it."),
-		&SOculusToolWidget::MobileHDRVisibility,
+	SimpleSettings.Add(FName("MobilePostProcessing"), {
+		FName("MobilePostProcessing"),
+		LOCTEXT("MobilePostProcessingDescription", "Mobile Post-Processing has performance and stability issues in VR. We strongly recommend disabling it."),
+		&SOculusToolWidget::MobilePostProcessingVisibility,
 		TArray<SimpleSettingAction>(),
 		(int)SupportFlags::SupportMobile
 	});
-	SimpleSettings.Find(FName("MobileHDR"))->actions.Add(
-		{ LOCTEXT("MobileHDRButton", "Disable Mobile HDR"),
-		&SOculusToolWidget::MobileHDRDisable }
+	SimpleSettings.Find(FName("MobilePostProcessing"))->actions.Add(
+		{ LOCTEXT("MobileHDRButton", "Disable Mobile Post-Processing"),
+		&SOculusToolWidget::MobilePostProcessingDisable }
 	);
 
 	SimpleSettings.Add(FName("AndroidManifest"), {
@@ -576,30 +576,28 @@ EVisibility SOculusToolWidget::ForwardShadingVisibility(FName tag) const
 	return UsingForwardShading() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
-FReply SOculusToolWidget::InstancedStereoEnable(bool text)
+FReply SOculusToolWidget::MultiViewEnable(bool text)
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	Settings->bInstancedStereo = 1;
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bInstancedStereo)), Settings->GetDefaultConfigFilename());
+	Settings->bMultiView = 1;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMultiView)), Settings->GetDefaultConfigFilename());
 	SuggestRestart();
 	return FReply::Handled();
 }
 
-EVisibility SOculusToolWidget::InstancedStereoVisibility(FName tag) const
+EVisibility SOculusToolWidget::MultiViewVisibility(FName tag) const
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	const bool bInstancedStereo = Settings->bInstancedStereo != 0;
+	const bool bMultiView = Settings->bMultiView != 0;
 
-	return bInstancedStereo ? EVisibility::Collapsed : EVisibility::Visible;
+	return bMultiView ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 FReply SOculusToolWidget::MobileMultiViewEnable(bool text)
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
 	Settings->bMobileMultiView = 1;
-	Settings->bMobileMultiViewDirect = 1;
 	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileMultiView)), Settings->GetDefaultConfigFilename());
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileMultiViewDirect)), Settings->GetDefaultConfigFilename());
 	SuggestRestart();
 	return FReply::Handled();
 }
@@ -608,24 +606,23 @@ EVisibility SOculusToolWidget::MobileMultiViewVisibility(FName tag) const
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
 	const bool bMMV = Settings->bMobileMultiView != 0;
-	const bool bMMVD = Settings->bMobileMultiViewDirect != 0;
 
-	return (bMMV && bMMVD) ? EVisibility::Collapsed : EVisibility::Visible;
+	return bMMV ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
-FReply SOculusToolWidget::MobileHDRDisable(bool text)
+FReply SOculusToolWidget::MobilePostProcessingDisable(bool text)
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	Settings->bMobileHDR = 0;
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileHDR)), Settings->GetDefaultConfigFilename());
+	Settings->bMobilePostProcessing = 0;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobilePostProcessing)), Settings->GetDefaultConfigFilename());
 	SuggestRestart();
 	return FReply::Handled();
 }
 
-EVisibility SOculusToolWidget::MobileHDRVisibility(FName tag) const
+EVisibility SOculusToolWidget::MobilePostProcessingVisibility(FName tag) const
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	return Settings->bMobileHDR == 0 ? EVisibility::Collapsed : EVisibility::Visible;
+	return Settings->bMobilePostProcessing == 0 ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 FString SOculusToolWidget::GetConfigPath() const

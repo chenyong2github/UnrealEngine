@@ -49,8 +49,11 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D12RHI, Log, All);
 #if NV_AFTERMATH
 #define GFSDK_Aftermath_WITH_DX12 1
 #include "GFSDK_Aftermath.h"
+#include "GFSDK_Aftermath_GpuCrashdump.h"
 #undef GFSDK_Aftermath_WITH_DX12
 extern int32 GDX12NVAfterMathEnabled;
+extern int32 GDX12NVAfterMathTrackResources;
+extern int32 GDX12NVAfterMathMarkers;
 #endif
 
 #include "D3D12Residency.h"
@@ -103,6 +106,8 @@ typedef FD3D12StateCacheBase FD3D12StateCache;
 #define DEFAULT_CONTEXT_UPLOAD_POOL_MAX_ALLOC_SIZE (4 * 1024 * 1024)
 #define DEFAULT_CONTEXT_UPLOAD_POOL_ALIGNMENT (D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
 #define TEXTURE_POOL_SIZE (8 * 1024 * 1024)
+
+#define MAX_GPU_BREADCRUMB_DEPTH 1024
 
 #if DEBUG_RESOURCE_STATES
 #define LOG_EXECUTE_COMMAND_LISTS 1
@@ -557,7 +562,11 @@ public:
 		// having exactly one bit set so we need to special case these
 		if (After == D3D12_RESOURCE_STATE_COMMON)
 		{
-			return true;
+			// The resource state tracking code in FD3D12CommandContext::RHITransitionResources forces all EReadable transitions
+			// to go through the COMMON state right now, so we can end up with some COMMON -> COMMON transitions which can be
+			// skipped. Once that is fixed or removed, we shouldn't get here anymore if we're already in the COMMON state,
+			// so we can simply return true and let the ensure in FD3D12CommandListHandle::AddTransitionBarrier catch bad usage.
+			return (Before != D3D12_RESOURCE_STATE_COMMON);
 		}
 
 		// We should avoid doing read-to-read state transitions. But when we do, we should avoid turning off already transitioned bits,
@@ -917,6 +926,23 @@ public:
 
 	FD3D12Adapter& GetAdapter(uint32_t Index = 0) { return *ChosenAdapters[Index]; }
 	int32 GetNumAdapters() const { return ChosenAdapters.Num(); }
+
+	template<typename PerDeviceFunction>
+	void ForEachDevice(ID3D12Device* inDevice, const PerDeviceFunction& pfPerDeviceFunction)
+	{
+		for (int AdapterIndex = 0; AdapterIndex < GetNumAdapters(); ++AdapterIndex)
+		{
+			FD3D12Adapter& D3D12Adapter = GetAdapter(AdapterIndex);
+			for (uint32 GPUIndex : FRHIGPUMask::All())
+			{
+				FD3D12Device* D3D12Device = D3D12Adapter.GetDevice(GPUIndex);
+				if (inDevice == nullptr || D3D12Device->GetDevice() == inDevice)
+				{
+					pfPerDeviceFunction(D3D12Device);
+				}
+			}
+		}
+	}
 
 	AGSContext* GetAmdAgsContext() { return AmdAgsContext; }
 	void SetAmdSupportedExtensionFlags(uint32 Flags) { AmdSupportedExtensionFlags = Flags; }

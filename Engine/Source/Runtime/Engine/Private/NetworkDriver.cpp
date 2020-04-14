@@ -241,6 +241,14 @@ static TAutoConsoleVariable<int32> CVarAllowReliableMulticastToNonRelevantChanne
 	1,
 	TEXT("Allow Reliable Server Multicasts to be sent to non-Relevant Actors, as long as their is an existing ActorChannel."));
 
+static int32 GNetControlChannelDestructionInfo = 0;
+static FAutoConsoleVariableRef CVarNetControlChannelDestructionInfo(
+	TEXT("net.ControlChannelDestructionInfo"),
+	GNetControlChannelDestructionInfo,
+	TEXT("If enabled, send destruction info updates via the control channel instead of creating a new actor channel.")
+	TEXT("0: Old behavior, use an actor channel. 1: New behavior, use the control channel"),
+	ECVF_Default);
+
 
 /*-----------------------------------------------------------------------------
 	UNetDriver implementation.
@@ -3326,8 +3334,6 @@ void UNetDriver::PostGarbageCollect()
 			It.RemoveCurrent();
 		}
 	}
-	
-	CALL_PUSH_MODEL_POSTGARBAGECOLLECT();
 }
 
 void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -3675,7 +3681,7 @@ FActorPriority::FActorPriority(UNetConnection* InConnection, UActorChannel* InCh
 	}
 }
 
-FActorPriority::FActorPriority(class UNetConnection* InConnection, struct FActorDestructionInfo * Info, const TArray<struct FNetViewer>& Viewers )
+FActorPriority::FActorPriority(UNetConnection* InConnection, FActorDestructionInfo * Info, const TArray<FNetViewer>& Viewers )
 	: ActorInfo(NULL), Channel(NULL), DestructionInfo(Info)
 {
 	
@@ -4197,15 +4203,12 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 				continue;
 			}
 
-			UActorChannel* Channel = (UActorChannel*)Connection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
-			if ( Channel )
-			{
-				FinalRelevantCount++;
-				UE_LOG( LogNetTraffic, Log, TEXT( "Server replicate actor creating destroy channel for NetGUID <%s,%s> Priority: %d" ), *PriorityActors[j]->DestructionInfo->NetGUID.ToString(), *PriorityActors[j]->DestructionInfo->PathName, PriorityActors[j]->Priority );
+			FinalRelevantCount++;
+			UE_LOG( LogNetTraffic, Log, TEXT( "Server replicate actor creating destroy channel for NetGUID <%s,%s> Priority: %d" ), *PriorityActors[j]->DestructionInfo->NetGUID.ToString(), *PriorityActors[j]->DestructionInfo->PathName, PriorityActors[j]->Priority );
 
-				Channel->SetChannelActorForDestroy( PriorityActors[j]->DestructionInfo );		// Send a close bunch on the new channel
-				Connection->RemoveDestructionInfo( PriorityActors[j]->DestructionInfo );		// Remove from connections to-be-destroyed list (close bunch of reliable, so it will make it there)
-			}
+			SendDestructionInfo(Connection, PriorityActors[j]->DestructionInfo);
+
+			Connection->RemoveDestructionInfo( PriorityActors[j]->DestructionInfo );		// Remove from connections to-be-destroyed list (close bunch of reliable, so it will make it there)
 			continue;
 		}
 
@@ -4374,6 +4377,38 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 	return FinalSortedCount;
 }
 #endif
+
+int64 UNetDriver::SendDestructionInfo(UNetConnection* Connection, FActorDestructionInfo* DestructionInfo)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetSendDestructionInfo);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(SendDestructionInfo);
+
+	int64 NumBits = 0;
+
+	checkf(Connection, TEXT("SendDestructionInfo called with invalid connection: %s"), *GetDescription());
+	checkf(DestructionInfo, TEXT("SendDestructionInfo called with invalid destruction info: %s"), *GetDescription());
+
+	if (GNetControlChannelDestructionInfo != 0)
+	{
+		if (UControlChannel* ControlChan = Cast<UControlChannel>(Connection->Channels[0]))
+		{
+			NumBits = ControlChan->SendDestructionInfo(DestructionInfo);
+		}
+	}
+	else
+	{
+		UActorChannel* Channel = (UActorChannel*)Connection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
+		if (Channel)
+		{
+			// Send a close bunch on the new channel
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				NumBits = Channel->SetChannelActorForDestroy(DestructionInfo);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+
+	return NumBits;
+}
 
 // -------------------------------------------------------------------------------------------------------------------------
 //	Replication profiling (server cpu) helpers.
@@ -5762,6 +5797,50 @@ bool UNetDriver::IsDormInitialStartupActor(AActor* Actor)
 ECreateReplicationChangelistMgrFlags UNetDriver::GetCreateReplicationChangelistMgrFlags() const
 {
 	return ECreateReplicationChangelistMgrFlags::None;
+}
+
+static TAutoConsoleVariable<int32> CVarRelinkMappedReferences(TEXT("net.RelinkMappedReferences"), 1, TEXT(""));
+
+void UNetDriver::MoveMappedObjectToUnmapped(const UObject* Object)
+{
+	if (!Object)
+	{
+		return;
+	}
+
+	if (!CVarRelinkMappedReferences.GetValueOnGameThread())
+	{
+		return;
+	}
+
+	if (IsServer())
+	{
+		return;
+	}
+
+	// Find all replicators that are referencing this object, and make sure to mark the references as unmapped
+	// This is so when/if this object is instantiated again (using same network guid), we can re-establish the old references
+	FNetworkGUID NetGuid = GuidCache->NetGUIDLookup.FindRef(const_cast<UObject*>(Object));
+
+	if (NetGuid.IsValid())
+	{
+		TSet<FObjectReplicator*>* Replicators = GuidToReplicatorMap.Find(NetGuid);
+
+		if (Replicators != nullptr)
+		{
+			for (FObjectReplicator* Replicator : *Replicators)
+			{
+				if (Replicator->MoveMappedObjectToUnmapped(NetGuid))
+				{
+					UnmappedReplicators.Add(Replicator);
+				}
+				else if (!UnmappedReplicators.Contains(Replicator))
+				{
+					UE_LOG(LogNet, Warning, TEXT("UActorChannel::MoveMappedObjectToUnmapped: MoveMappedObjectToUnmapped didn't find object: %s"), *GetPathNameSafe(Replicator->GetObject()));
+				}
+			}
+		}
+	}
 }
 
 FAutoConsoleCommandWithWorld	DumpRelevantActorsCommand(

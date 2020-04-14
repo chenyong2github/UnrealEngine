@@ -83,8 +83,19 @@ protected:
 	FGameplayResourceSet CurrentlyClaimedResources;
 
 	/** Tasks that run on simulated proxies */
+	UE_DEPRECATED(4.26, "This will be made private in future versions. Use GetSimulatedTasks, GetSimulatedTasks_Mutable, or SetSimulatedTasks instead.")
 	UPROPERTY(ReplicatedUsing = OnRep_SimulatedTasks)
 	TArray<UGameplayTask*> SimulatedTasks;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const TArray<UGameplayTask*>& GetSimulatedTasks()
+	{
+		return SimulatedTasks;
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	TArray<UGameplayTask*>& GetSimulatedTasks_Mutable();
+	void SetSimulatedTasks(const TArray<UGameplayTask*>& NewSimulatedTasks);
 
 	UPROPERTY()
 	TArray<UGameplayTask*> TaskPriorityQueue;

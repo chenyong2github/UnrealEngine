@@ -68,6 +68,12 @@ bool FPakFileDerivedDataBackend::IsWritable()
 	return bWriting && !bClosed;
 }
 
+/** Returns a class of speed for this interface **/
+FDerivedDataBackendInterface::ESpeedClass FPakFileDerivedDataBackend::GetSpeedClass() 
+{
+	return ESpeedClass::Local;
+}
+
 bool FPakFileDerivedDataBackend::BackfillLowerCacheLevels()
 {
 	return false;

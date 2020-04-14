@@ -1125,10 +1125,10 @@ void FMallocBinned::InitializeStatsMetadata()
 	GET_STATFNAME(STAT_Binned_SlackCurrent);
 	
 #if USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS && ENABLE_LOW_LEVEL_MEM_TRACKER
-	FLowLevelMemTracker::Get().RegisterPlatformTag((int32)ELLMTagNanoMallocGrabber::NanoMallocPagesCurrent, TEXT("Nano Malloc Pages Current"), GET_STATFNAME(STAT_Binned_NanoMallocPages_Current), GET_STATFNAME(STAT_EngineSummaryLLM));
-	FLowLevelMemTracker::Get().RegisterPlatformTag((int32)ELLMTagNanoMallocGrabber::NanoMallocPagesPeak, TEXT("Nano Malloc Pages Peak"), GET_STATFNAME(STAT_Binned_NanoMallocPages_Peak), GET_STATFNAME(STAT_EngineSummaryLLM));
-	FLowLevelMemTracker::Get().RegisterPlatformTag((int32)ELLMTagNanoMallocGrabber::NanoMallocPagesWasteCurrent, TEXT("Nano Malloc Pages Waste Current"), GET_STATFNAME(STAT_Binned_NanoMallocPages_WasteCurrent), GET_STATFNAME(STAT_EngineSummaryLLM));
-	FLowLevelMemTracker::Get().RegisterPlatformTag((int32)ELLMTagNanoMallocGrabber::NanoMallocPagesWastePeak, TEXT("Nano Malloc Pages Waste Peak"), GET_STATFNAME(STAT_Binned_NanoMallocPages_WastePeak), GET_STATFNAME(STAT_EngineSummaryLLM));
+	GET_STATFNAME(STAT_Binned_NanoMallocPages_Current);
+	GET_STATFNAME(STAT_Binned_NanoMallocPages_Peak);
+	GET_STATFNAME(STAT_Binned_NanoMallocPages_WasteCurrent);
+	GET_STATFNAME(STAT_Binned_NanoMallocPages_WastePeak);
 #endif //USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
 }
 

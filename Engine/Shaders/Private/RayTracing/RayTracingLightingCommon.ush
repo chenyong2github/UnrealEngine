@@ -180,12 +180,6 @@ FRectTexture GetRayTracingRectTextureData()
 	return RectTexture;
 }
 
-float GetRoughnessFade(float Roughness, float MaxRoughness)
-{
-	float RoughnessMaskScale = -2.0 / MaxRoughness;
-	return saturate(Roughness * RoughnessMaskScale + 2.0);
-}
-
 float3 GenerateReflectedRayDirection(
 	float3 IncidentDirection,
 	float3 WorldNormal,
@@ -756,7 +750,7 @@ void AccumulateResults(
 	if (ShouldDoEmissiveAndIndirectLighting)
 	{
 		// Emissive & indirect contribution
-		Radiance += Payload.GetRadiance();
+		Radiance += Payload.GetRadiance() * Payload.GetOpacity();
 
 		// Indirect contribution
 		const float3 IndirectLighting = ComputeIndirectLighting(

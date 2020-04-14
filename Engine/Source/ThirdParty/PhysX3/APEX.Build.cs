@@ -200,6 +200,7 @@ public class APEX : ModuleRules
 					string LibraryPath = PhysXBinariesDir + String.Format(RuntimeDependency, LibrarySuffix);
 					PublicAdditionalLibraries.Add(LibraryPath);
 					RuntimeDependencies.Add(LibraryPath);
+					RuntimeDependencies.Add(Path.ChangeExtension(LibraryPath, ".debug"), StagedFileType.DebugNonUFS);
 				}
 			}
 		}

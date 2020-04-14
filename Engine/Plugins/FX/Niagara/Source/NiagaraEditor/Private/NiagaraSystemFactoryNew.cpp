@@ -16,6 +16,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraSettings.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemFactory"
 
@@ -179,6 +180,10 @@ void UNiagaraSystemFactoryNew::InitializeSystem(UNiagaraSystem* System, bool bCr
 			FNiagaraStackGraphUtilities::RelayoutGraph(*SystemScriptSource->NodeGraph);
 		}
 	}
+
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	check(Settings);
+	System->SetEffectType(Settings->GetDefaultEffectType());
 }
 
 #undef LOCTEXT_NAMESPACE

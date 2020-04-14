@@ -15,6 +15,16 @@ UEditorSettings::UEditorSettings(const FObjectInitializer& ObjectInitializer)
 	bCopyStarterContentPreference = false;
 	bEditorAnalyticsEnabled_DEPRECATED = true;
 	AutoScalabilityWorkScaleAmount = 1;
+
+	FProperty* S3Property = StaticClass()->FindPropertyByName("bEnableS3DDC");
+	if (ensure(S3Property != nullptr))
+	{
+		bool bValue = false;
+		if (!GConfig->GetBool(TEXT("EditorSettings"), TEXT("bShowEnableS3DDC"), bValue, GEditorIni) || !bValue)
+		{
+			S3Property->ClearPropertyFlags(CPF_Edit);
+		}
+	}
 }
 
 void UEditorSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent)

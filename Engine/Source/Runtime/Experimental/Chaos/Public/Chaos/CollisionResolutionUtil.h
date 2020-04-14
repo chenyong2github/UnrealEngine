@@ -1,18 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
+
+#include "Chaos/Core.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Pair.h"
 
 namespace Chaos
 {
+	template<class T, int d>
+	class TBVHParticles;
+
 	class FImplicitObject;
-
-	template<typename T, int d>
-	class TRigidBodyPointContactConstraint;
-
-	template <typename T, int d>
-	class TRigidTransform;
+	class FRigidBodyPointContactConstraint;
 
 	namespace Collisions
 	{
@@ -20,43 +19,30 @@ namespace Chaos
 		// Utility
 		//
 
-		template<typename T = float, int d = 3>
-		TRigidTransform<T, d> 
-		GetTransform(const TGeometryParticleHandle<T, d>* Particle);
+		FRigidTransform3 
+		GetTransform(const TGeometryParticleHandle<FReal, 3>* Particle);
 
-		template<typename T>
-		PMatrix<T, 3, 3> 
-		ComputeFactorMatrix3(const TVector<T, 3>& V, const PMatrix<T, 3, 3>& M, const T& Im);
+		FMatrix33 
+		ComputeFactorMatrix3(const FVec3& V, const FMatrix33& M, const FReal Im);
 
-		template<typename T, int d>
-		TVector<T, d> 
-		GetEnergyClampedImpulse(const TPBDRigidParticleHandle<T, d>* PBDRigid0, const TPBDRigidParticleHandle<T, d>* PBDRigid1, const TVector<T, d>& Impulse, const TVector<T, d>& VectorToPoint1, const TVector<T, d>& VectorToPoint2, const TVector<T, d>& Velocity1, const TVector<T, d>& Velocity2);
+		FVec3
+		GetEnergyClampedImpulse(const TPBDRigidParticleHandle<FReal, 3>* PBDRigid0, const TPBDRigidParticleHandle<FReal, 3>* PBDRigid1, const FVec3& Impulse, const FVec3& VectorToPoint1, const FVec3& VectorToPoint2, const FVec3& Velocity1, const FVec3& Velocity2);
 
-		template <typename T, int d>
 		bool 
-		SampleObjectHelper(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
+		SampleObjectHelper(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FRigidTransform3& SampleToObjectTransform, const FVec3& SampleParticle, FReal Thickness, FRigidBodyPointContactConstraint& Constraint);
 
-		template <typename T, int d>
 		bool 
-		SampleObjectNoNormal(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
+		SampleObjectNoNormal(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FRigidTransform3& SampleToObjectTransform, const FVec3& SampleParticle, FReal Thickness, FRigidBodyPointContactConstraint& Constraint);
 
-		template <typename T, int d>
 		bool 
-		SampleObjectNormalAverageHelper(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, T& TotalThickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
+		SampleObjectNormalAverageHelper(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FRigidTransform3& SampleToObjectTransform, const FVec3& SampleParticle, FReal Thickness, FReal& TotalThickness, FRigidBodyPointContactConstraint& Constraint);
 
-#if INTEL_ISPC
-		template<ECollisionUpdateType UpdateType>
-		void 
-		SampleObject(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-#else
-		template <ECollisionUpdateType UpdateType, typename T, int d>
+		template <ECollisionUpdateType UpdateType>
 		void
-		SampleObject(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TBVHParticles<T, d>& SampleParticles, const TRigidTransform<T, d>& SampleParticlesTransform, T Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-#endif
+		SampleObject(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const TBVHParticles<FReal, 3>& SampleParticles, const FRigidTransform3& SampleParticlesTransform, FReal Thickness, FRigidBodyPointContactConstraint& Constraint);
 
-		template <typename T, int d>
-		TArray<Pair<const FImplicitObject*, TRigidTransform<T, d>>> 
-		FindRelevantShapes(const FImplicitObject* ParticleObj, const TRigidTransform<T, d>& ParticlesTM, const FImplicitObject& LevelsetObj, const TRigidTransform<T, d>& LevelsetTM, const T Thickness);
+		TArray<Pair<const FImplicitObject*, FRigidTransform3>> 
+		FindRelevantShapes(const FImplicitObject* ParticleObj, const FRigidTransform3& ParticlesTM, const FImplicitObject& LevelsetObj, const FRigidTransform3& LevelsetTM, const FReal Thickness);
 
 	}// Collisions
 

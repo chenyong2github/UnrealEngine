@@ -61,7 +61,7 @@ struct FPooledVirtualMemoryAllocator
 {
 	FPooledVirtualMemoryAllocator();
 
-	void* Allocate(SIZE_T Size);
+	void* Allocate(SIZE_T Size, uint32 AllocationHint = 0);
 	void Free(void* Ptr, SIZE_T Size);
 	void FreeAll();
 

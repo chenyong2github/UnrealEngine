@@ -613,8 +613,8 @@ void UStaticMeshComponent::OnDestroyPhysicsState()
 {
 	Super::OnDestroyPhysicsState();
 
-	FNavigationSystem::UpdateComponentData(*this);
 	bNavigationRelevant = IsNavigationRelevant();
+	FNavigationSystem::UpdateComponentData(*this);
 }
 
 #if WITH_EDITORONLY_DATA

@@ -151,5 +151,13 @@ namespace Gauntlet.SelfTest
 		{
 			SetNewStage(TestStages.CleanupTest);
 		}
+
+		/// <summary>
+		/// Output all defined commandline information for this test to the gauntlet window and exit test early.
+		/// </summary>
+		public virtual void DisplayCommandlineHelp()
+		{
+
+		}
 	}
 }

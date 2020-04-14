@@ -1354,6 +1354,7 @@ public:
 	DECLARE_FUNCTION(execStringConst);
 	DECLARE_FUNCTION(execUnicodeStringConst);
 	DECLARE_FUNCTION(execTextConst);
+	DECLARE_FUNCTION(execPropertyConst);
 	DECLARE_FUNCTION(execObjectConst);
 	DECLARE_FUNCTION(execSoftObjectConst);
 	DECLARE_FUNCTION(execFieldPathConst);
@@ -1480,7 +1481,10 @@ private:
 		// always have this implemented (by UHT).
 		check(false);
 	}
-	
+
+public:
+
+	/** Should only ever be used by internal systems. */
 	virtual int32 GetNetPushIdDynamic() const
 	{
 		return INDEX_NONE;
@@ -1491,17 +1495,10 @@ struct FObjectNetPushIdHelper
 {
 private:
 	friend struct FNetPrivatePushIdHelper;
-	friend class UNetPushModelHelpers;
-	friend class UKismetArrayLibrary;
 
 	static void SetNetPushIdDynamic(UObject* Object, const int32 NewNetPushId)
 	{
 		Object->SetNetPushIdDynamic(NewNetPushId);
-	}
-	
-	static int32 GetNetPushIdDynamic(const UObject* const Object)
-	{
-		return Object->GetNetPushIdDynamic();
 	}
 };
 

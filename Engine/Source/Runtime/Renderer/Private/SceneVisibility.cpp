@@ -2169,8 +2169,10 @@ struct FRelevancePacket
 
 			if (PrimitiveSceneInfo->bIsUsingCustomLODRules)
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				LODToRender = PrimitiveSceneInfo->Proxy->GetCustomLOD(View, View.LODDistanceFactor, ViewData.ForcedLODLevel, MeshScreenSizeSquared);
 				LODToRender.ClampToFirstLOD(CurFirstLODIdx);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 			else
 			{
@@ -2183,12 +2185,14 @@ struct FRelevancePacket
 
 			if (OutHasViewCustomDataMasks[PrimitiveIndex] != 0) // Has a relevance for this view
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				UserViewCustomData = PrimitiveSceneInfo->Proxy->InitViewCustomData(View, View.LODDistanceFactor, PrimitiveCustomDataMemStack, true, false, &LODToRender, MeshScreenSizeSquared);
 
 				if (UserViewCustomData != nullptr)
 				{
 					PrimitivesCustomData.AddPrim(FRelevancePacket::FViewCustomData(PrimitiveSceneInfo, UserViewCustomData));
 				}
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			const bool bIsHLODFading = HLODState ? HLODState->IsNodeFading(PrimitiveIndex) : false;
@@ -2271,6 +2275,16 @@ struct FRelevancePacket
 							if ((StaticMeshRelevance.bUseForDepthPass && bDrawDepthOnly && ShadingPath != EShadingPath::Mobile) || bMobileIsInDepthPassMaskedMesh)
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DepthPass);
+
+#if RHI_RAYTRACING
+								if (IsRayTracingEnabled())
+								{
+									if (MarkMask & EMarkMaskBits::StaticMeshFadeOutDitheredLODMapMask)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DitheredLODFadingOutMaskPass);
+									}
+								}
+#endif
 							}
 
 							// Mark static mesh as visible for rendering
@@ -2706,10 +2720,12 @@ static void SetDynamicMeshElementViewCustomData(TArray<FViewInfo>& InViews, cons
 		{
 			FViewInfo& ViewInfo = InViews[ViewIndex];
 
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (InHasViewCustomDataMasks[PrimitiveIndex] & (1 << ViewIndex) && ViewInfo.GetCustomData(InPrimitiveSceneInfo->GetIndex()) == nullptr)
 			{
 				ViewInfo.SetCustomData(InPrimitiveSceneInfo, InPrimitiveSceneInfo->Proxy->InitViewCustomData(ViewInfo, ViewInfo.LODDistanceFactor, ViewInfo.GetCustomDataGlobalMemStack(), false, false));
 			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 }
@@ -3551,10 +3567,11 @@ void UpdateReflectionSceneData(FScene* Scene)
 	ReflectionSceneData.NumSphereCaptures = 0;
 
 	const int32 MaxCubemaps = ReflectionSceneData.CubemapArray.GetMaxCubemaps();
+	int32_t PlatformMaxNumReflectionCaptures = FMath::Min(FMath::FloorToInt(GMaxTextureArrayLayers / 6.0f), GMaxNumReflectionCaptures);
 
 	// Pack visible reflection captures into the uniform buffer, each with an index to its cubemap array entry.
 	// GPUScene primitive data stores closest reflection capture as index into this buffer, so this index which must be invalidate every time OutSortData contents change.
-	for (int32 ReflectionProxyIndex = 0; ReflectionProxyIndex < ReflectionSceneData.RegisteredReflectionCaptures.Num() && ReflectionSceneData.SortedCaptures.Num() < GMaxNumReflectionCaptures; ReflectionProxyIndex++)
+	for (int32 ReflectionProxyIndex = 0; ReflectionProxyIndex < ReflectionSceneData.RegisteredReflectionCaptures.Num() && ReflectionSceneData.SortedCaptures.Num() < PlatformMaxNumReflectionCaptures; ReflectionProxyIndex++)
 	{
 		FReflectionCaptureProxy* CurrentCapture = ReflectionSceneData.RegisteredReflectionCaptures[ReflectionProxyIndex];
 

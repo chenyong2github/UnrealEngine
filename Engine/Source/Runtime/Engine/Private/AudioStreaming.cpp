@@ -920,7 +920,7 @@ FAudioChunkHandle FLegacyAudioStreamingManager::GetLoadedChunk(const USoundWave*
 				if (WaveData->LoadedChunks[Index].Index == ChunkIndex)
 				{
 					CriticalSection.Unlock();
-					return BuildChunkHandle(WaveData->LoadedChunks[Index].Data, WaveData->LoadedChunks[Index].AudioDataSize, SoundWave, SoundWave->GetFName(), ChunkIndex);
+					return BuildChunkHandle(WaveData->LoadedChunks[Index].Data, WaveData->LoadedChunks[Index].AudioDataSize, SoundWave, SoundWave->GetFName(), ChunkIndex, InvalidAudioStreamCacheLookupID);
 				}
 			}
 		}

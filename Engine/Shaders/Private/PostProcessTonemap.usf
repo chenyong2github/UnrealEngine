@@ -777,33 +777,6 @@ void MainVS_ES2(
 	}
 }
 
-// Constants for DOF blend in.
-half CocMaxRadiusInPixelsRcp() 
-{ 
-	half2 MaxOffset = half2(-2.125,-0.50)*2.0; 
-	return rcp(sqrt(dot(MaxOffset, MaxOffset))); 
-}
-
-half2 CocBlendScaleBias() 
-{
-	half Start = 0.25 * CocMaxRadiusInPixelsRcp();
-	half End = 1.0 * CocMaxRadiusInPixelsRcp();
-	half2 ScaleBias;
-	ScaleBias.x = 1.0/(End-Start);
-	ScaleBias.y = (-Start)*ScaleBias.x;
-	return ScaleBias;
-}
-
-half2 CocBlendScaleBiasFine() 
-{
-	half Start = 0.0 * CocMaxRadiusInPixelsRcp();
-	half End = 0.5 * CocMaxRadiusInPixelsRcp();
-	half2 ScaleBias;
-	ScaleBias.x = 1.0/(End-Start);
-	ScaleBias.y = (-Start)*ScaleBias.x;
-	return ScaleBias;
-}
-
 float4 OverlayColor;
 float SRGBAwareTarget;
 
@@ -863,8 +836,9 @@ void MainPS_ES2(
 		#if USE_DOF
 			half4 DofFine = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, FineDofGrain.xy);
 			half4 Dof = Texture2DSample(PostprocessInput2, PostprocessInput2Sampler, FullViewUV.zw);
+			half DofCoc = Texture2DSample(PostprocessInput4, PostprocessInput4Sampler, UV).r;
 			// Convert alpha back into circle of confusion.
-			SceneColor.a = max(Dof.a, abs(SceneColor.a * 2.0 - 1.0));
+			SceneColor.a = max(Dof.a, abs(DofCoc * 2.0 - 1.0));
 			// Convert circle of confusion into blend factors.		
 			half2 ScaleBias = CocBlendScaleBias(); // Constant.
 			half DofAmount = saturate(SceneColor.a * ScaleBias.x + ScaleBias.y);

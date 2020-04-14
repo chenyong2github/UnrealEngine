@@ -297,7 +297,7 @@ streamerServer.on('connection', function (ws, req) {
 		} else if (msg.type == 'iceCandidate') {
 			player.ws.send(JSON.stringify(msg));
 		} else if (msg.type == 'disconnectPlayer') {
-			player.ws.close(msg.reason);
+			player.ws.close(1011 /* internal error */, msg.reason);
 		} else {
 			console.error(`unsupported Streamer message type: ${msg.type}`);
 			streamer.close(1008, 'Unsupported message type');

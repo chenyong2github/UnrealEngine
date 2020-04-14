@@ -17,6 +17,7 @@
 #include "Misc/EventPool.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/LazySingleton.h"
+#include "Misc/Fork.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Async/TaskGraphInterfaces.h"
 
@@ -445,7 +446,13 @@ FEvent* FGenericPlatformProcess::CreateSynchEvent(bool bIsManualReset)
 {
 #if PLATFORM_USE_PTHREADS
 	FEvent* Event = NULL;
-	if (FPlatformProcess::SupportsMultithreading())
+	
+	// Create fake singlethread events in environments that don't support multithreading
+	// For processes that intend to fork: create real events even in the master process since the allocated mutex might get reused by the
+	//forked child process when he gets to run in multithread mode.
+	const bool bIsMultithread = FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::SupportsMultithreadingPostFork();
+
+	if (bIsMultithread)
 	{
 		// Allocate the new object
 		Event = new FPThreadEvent();
@@ -476,6 +483,11 @@ FEvent* FGenericPlatformProcess::GetSynchEventFromPool(bool bIsManualReset)
 		: TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().GetEventFromPool();
 }
 
+void FGenericPlatformProcess::FlushPoolSyncEvents()
+{
+	TLazySingleton<FEventPool<EEventPoolTypes::ManualReset>>::Get().EmptyPool();
+	TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().EmptyPool();
+}
 
 void FGenericPlatformProcess::ReturnSynchEventToPool(FEvent* Event)
 {

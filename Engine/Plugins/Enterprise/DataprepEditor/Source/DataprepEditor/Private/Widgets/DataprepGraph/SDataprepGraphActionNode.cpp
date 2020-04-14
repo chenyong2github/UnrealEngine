@@ -368,7 +368,7 @@ void SDataprepGraphActionNode::Construct(const FArguments& InArgs, UDataprepGrap
 	GraphNode = InActionNode;
 	DataprepEditor = InArgs._DataprepEditor;
 
-	SetCursor(EMouseCursor::ResizeLeftRight);
+	SetCursor(EMouseCursor::CardinalCross);
 	UpdateGraphNode();
 
 	ProxyNodePtr = SNew(SDataprepGraphActionProxyNode, SharedThis(this))
@@ -691,7 +691,7 @@ void SDataprepGraphActionNode::OnDragEnter(const FGeometry& MyGeometry, const FD
 FSlateColor SDataprepGraphActionNode::GetInsertColor(int32 Index)
 {
 	static const FSlateColor BackgroundColor = FDataprepEditorStyle::GetColor("DataprepActionStep.BackgroundColor");
-	static const FSlateColor DragAndDrop = FDataprepEditorStyle::GetColor("DataprepActionStep.Separator.Color")/*FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop")*/;
+	static const FSlateColor DragAndDrop = FDataprepEditorStyle::GetColor("DataprepActionStep.Separator.Color");
 
 
 	return Index == InsertIndex ? DragAndDrop : FLinearColor::Transparent;

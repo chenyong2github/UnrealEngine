@@ -2,6 +2,7 @@
 
 #include "SolverEventFilters.h"
 #include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/ExternalCollisionData.h"
 
 namespace Chaos
 {

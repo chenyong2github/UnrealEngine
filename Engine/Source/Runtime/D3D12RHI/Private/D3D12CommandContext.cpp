@@ -89,17 +89,89 @@ FD3D12CommandContext::~FD3D12CommandContext()
 	ClearState();
 }
 
+
+/** Write out the event stack to the bread crumb resource if available */
+void FD3D12CommandContext::WriteGPUEventStackToBreadCrumbData(bool bBeginEvent)
+{
+	// Only in Windows for now, could be made available on Xbox as well
+#if PLATFORM_WINDOWS
+	// Write directly to command list if breadcrumb resource is available
+	FD3D12Resource* BreadCrumbResource = CommandListHandle.GetCommandListManager()->GetBreadCrumbResource();
+	ID3D12GraphicsCommandList2* CommandList2 = CommandListHandle.GraphicsCommandList2();
+	if (BreadCrumbResource && CommandList2)
+	{
+		// Find the max parameter count from the resource
+		int MaxParameterCount = BreadCrumbResource->GetDesc().Width / sizeof(uint32);
+
+		// allocate the parameters on the stack if smaller than 4K
+		int ParameterCount = GPUEventStack.Num() < (MaxParameterCount - 2) ? GPUEventStack.Num() + 2 : MaxParameterCount;
+		size_t MemSize = ParameterCount * (sizeof(D3D12_WRITEBUFFERIMMEDIATE_PARAMETER) + sizeof(D3D12_WRITEBUFFERIMMEDIATE_PARAMETER));
+		const bool bAllocateOnStack = (MemSize < 4096);
+		void* Mem = bAllocateOnStack ? FMemory_Alloca(MemSize) : FMemory::Malloc(MemSize);
+
+		if (Mem)
+		{
+			D3D12_WRITEBUFFERIMMEDIATE_PARAMETER* Parameters = (D3D12_WRITEBUFFERIMMEDIATE_PARAMETER*)Mem;
+			D3D12_WRITEBUFFERIMMEDIATE_MODE* Modes = (D3D12_WRITEBUFFERIMMEDIATE_MODE*)(Parameters + ParameterCount);
+			for (int i = 0; i < ParameterCount; ++i)
+			{
+				Parameters[i].Dest = BreadCrumbResource->GetGPUVirtualAddress() + 4 * i;
+				Modes[i] = D3D12_WRITEBUFFERIMMEDIATE_MODE_MARKER_IN;
+
+				// Write event stack count first
+				if (i == 0)
+				{
+					Parameters[i].Value = GPUEventStack.Num();
+				}
+				// Then if it's the begin or end event
+				else if (i == 1)
+				{
+					Parameters[i].Value = bBeginEvent ? 1 : 0;
+				}
+				// Otherwise the actual stack value
+				else
+				{
+					Parameters[i].Value = GPUEventStack[i - 2];
+				}
+			}
+			CommandList2->WriteBufferImmediate(ParameterCount, Parameters, Modes);
+		}
+
+		if (!bAllocateOnStack)
+		{
+			FMemory::Free(Mem);
+		}
+	}
+#endif // PLATFORM_WINDOWS
+}
+
+
 void FD3D12CommandContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 {
+	D3D12RHI::FD3DGPUProfiler& GPUProfiler = GetParentDevice()->GetParentAdapter()->GetGPUProfiler();
+
+	// forward event to profiler if it's the default context
 	if (IsDefaultContext())
 	{
-#if NV_AFTERMATH
-		GetParentDevice()->PushGPUEvent(Name, Color, CommandListHandle.AftermathCommandContext());
-#else
-		GetParentDevice()->PushGPUEvent(Name, Color);
-#endif
+		GPUProfiler.PushEvent(Name, Color);
 	}
 
+	// If we are tracking GPU crashes then retrieve the hash of the name and track in the command list somewhere
+	if (GPUProfiler.bTrackingGPUCrashData)
+	{
+		// Get the CRC of the event (handle case when depth is too big)
+		const TCHAR* EventName = (GPUProfiler.GPUCrashDataDepth < 0 || GPUEventStack.Num() < GPUProfiler.GPUCrashDataDepth) ? Name : *D3D12RHI::FD3DGPUProfiler::EventDeepString;
+		uint32 CRC = GPUProfiler.GetOrAddEventStringHash(Name);
+
+		GPUEventStack.Push(CRC);
+		WriteGPUEventStackToBreadCrumbData(true);
+
+#if NV_AFTERMATH
+		// Only track aftermath for default context?
+		if (IsDefaultContext() && GDX12NVAfterMathEnabled && GDX12NVAfterMathMarkers)
+			GFSDK_Aftermath_SetEventMarker(CommandListHandle.AftermathCommandContext(), &GPUEventStack[0], GPUEventStack.Num() * sizeof(uint32));
+#endif // NV_AFTERMATH		
+	}
 
 #if PLATFORM_WINDOWS
 	AGSContext* const AmdAgsContext = OwningRHI.GetAmdAgsContext();
@@ -111,14 +183,27 @@ void FD3D12CommandContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 
 #if USE_PIX
 	PIXBeginEvent(CommandListHandle.GraphicsCommandList(), PIX_COLOR(Color.R, Color.G, Color.B), Name);
-#endif
+#endif // USE_PIX
 }
 
 void FD3D12CommandContext::RHIPopEvent()
 {
+	D3D12RHI::FD3DGPUProfiler& GPUProfiler = GetParentDevice()->GetParentAdapter()->GetGPUProfiler();
+	
 	if (IsDefaultContext())
 	{
-		GetParentDevice()->PopGPUEvent();
+		GPUProfiler.PopEvent();
+	}
+		
+	if (GPUProfiler.bTrackingGPUCrashData)
+	{
+		WriteGPUEventStackToBreadCrumbData(false);
+
+		// need to look for unbalanced push/pop
+		if (GPUEventStack.Num() > 0)
+		{
+			GPUEventStack.Pop(false);
+		}
 	}
 
 #if PLATFORM_WINDOWS

@@ -195,7 +195,7 @@ FReply SNiagaraGraphParameterMapGetNode::OnBorderMouseButtonDown(const FGeometry
 		}
 
 	}
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 FReply SNiagaraGraphParameterMapGetNode::OnDroppedOnTarget(TSharedPtr<FDragDropOperation> DropOperation)

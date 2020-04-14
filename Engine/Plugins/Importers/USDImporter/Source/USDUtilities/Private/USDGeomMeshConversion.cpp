@@ -226,20 +226,24 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 		TVertexInstanceAttributesRef< FVector4 > MeshDescriptionColors = StaticMeshAttributes.GetVertexInstanceColors();
 
 		UsdGeomPrimvar ColorPrimvar = UsdMesh.GetDisplayColorPrimvar();
+		pxr::TfToken ColorInterpolation = UsdGeomTokens->constant;
 		pxr::VtArray< pxr::GfVec3f > UsdColors;
 
 		if ( ColorPrimvar )
-		{	
+		{
 			ColorPrimvar.ComputeFlattened( &UsdColors, TimeCode );
+			ColorInterpolation = ColorPrimvar.GetInterpolation();
 		}
 
 		// Vertex opacity
 		UsdGeomPrimvar OpacityPrimvar = UsdMesh.GetDisplayOpacityPrimvar();
+		pxr::TfToken OpacityInterpolation = UsdGeomTokens->constant;
 		pxr::VtArray< float > UsdOpacities;
 
 		if ( OpacityPrimvar )
 		{
 			OpacityPrimvar.ComputeFlattened( &UsdOpacities );
+			OpacityInterpolation = OpacityPrimvar.GetInterpolation();
 		}
 
 		for ( int32 PolygonIndex = 0; PolygonIndex < FaceCounts.size(); ++PolygonIndex )
@@ -313,7 +317,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 						return FLinearColor( FLinearColor( UsdToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) );
 					};
 
-					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( ColorPrimvar.GetInterpolation(), ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
+					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( ColorInterpolation, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					GfVec3f UsdColor( 1.f, 1.f, 1.f );
 
@@ -327,7 +331,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 				// Vertex opacity
 				{
-					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( OpacityPrimvar.GetInterpolation(), ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
+					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( OpacityInterpolation, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					if ( !UsdOpacities.empty() && ensure( UsdOpacities.size() > ValueIndex ) )
 					{
@@ -351,7 +355,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 			if ( !PolygonGroupMapping.Contains( RealMaterialIndex ) )
 			{
-				FName ImportedMaterialSlotName = *UsdToUnreal::ConvertPath( UsdMesh.GetPath() );
+				FName ImportedMaterialSlotName = *LexToString( RealMaterialIndex );
 				if ( MaterialNames.IsValidIndex( MaterialIndex ) )
 				{
 					FString MaterialName = MaterialNames[MaterialIndex];

@@ -460,7 +460,6 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bIsCulledByScalability(false)
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
-	, OwnerLOD(0)
 {
 	OverrideParameters.SetOwner(this);
 
@@ -942,6 +941,10 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 			CancelAutoAttachment(true);
 		}
 	}
+	
+#if WITH_EDITOR
+	ApplyOverridesToParameterStore();
+#endif
 
 	FNiagaraSystemInstance::EResetMode ResetMode = FNiagaraSystemInstance::EResetMode::ResetSystem;
 	if (InitializeSystem())
@@ -1212,6 +1215,11 @@ void UNiagaraComponent::OnRegister()
 		SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 	}
 	Super::OnRegister();
+}
+
+bool UNiagaraComponent::IsReadyForOwnerToAutoDestroy() const
+{
+	return !IsActive();
 }
 
 void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
@@ -1512,7 +1520,7 @@ void UNiagaraComponent::SetVariableLinearColor(FName InVariableName, const FLine
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetColorDef(), InVariableName);
 	OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(FLinearColor)));
 #endif
 }
 
@@ -1526,7 +1534,7 @@ void UNiagaraComponent::SetVariableQuat(FName InVariableName, const FQuat& InVal
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetQuatDef(), InVariableName);
 	OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(FQuat)));
 #endif
 }
 
@@ -1540,7 +1548,7 @@ void UNiagaraComponent::SetVariableVec4(FName InVariableName, const FVector4& In
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec4Def(), InVariableName);
 	OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(FVector4)));
 #endif
 }
 
@@ -1554,7 +1562,7 @@ void UNiagaraComponent::SetVariableVec3(FName InVariableName, FVector InValue)
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec3Def(), InVariableName);
 	OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(FVector)));
 #endif
 }
 
@@ -1568,7 +1576,7 @@ void UNiagaraComponent::SetVariableVec2(FName InVariableName, FVector2D InValue)
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec2Def(), InVariableName);
 	OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(FVector2D)));
 #endif
 }
 
@@ -1582,7 +1590,7 @@ void UNiagaraComponent::SetVariableFloat(FName InVariableName, float InValue)
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetFloatDef(), InVariableName);
 	OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(float)));
 #endif
 }
 
@@ -1596,7 +1604,7 @@ void UNiagaraComponent::SetVariableInt(FName InVariableName, int32 InValue)
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetIntDef(), InVariableName);
 	OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(int32)));
 #endif
 }
 
@@ -1610,7 +1618,7 @@ void UNiagaraComponent::SetVariableBool(FName InVariableName, bool InValue)
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetBoolDef(), InVariableName);
 	OverrideParameters.SetParameterValue(InValue ? FNiagaraBool::True : FNiagaraBool::False, VariableDesc, true);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(bool)));
 #endif
 }
 
@@ -1634,7 +1642,7 @@ void UNiagaraComponent::SetVariableObject(FName InVariableName, UObject* InValue
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUObjectDef(), InVariableName);
 	OverrideParameters.SetUObject(InValue, VariableDesc);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(InValue));
 #endif
 }
 
@@ -1648,7 +1656,7 @@ void UNiagaraComponent::SetVariableMaterial(FName InVariableName, UMaterialInter
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUMaterialDef(), InVariableName);
 	OverrideParameters.SetUObject(InValue, VariableDesc);
 #if WITH_EDITOR
-	SetParameterValueOverriddenLocally(VariableDesc, true, false);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(InValue));
 #endif
 	MarkRenderStateDirty(); // Materials might be using this on the system, so invalidate the render state to re-gather them.
 }
@@ -1684,7 +1692,7 @@ TArray<FVector> UNiagaraComponent::GetNiagaraParticleValueVec3_DebugOnly(const F
 				}
 				else
 				{
-					UE_LOG(LogNiagara, Warning, TEXT("Unabled to find variable %s on %s per-particle data. Returning zeroes."), *InValueName, *GetPathName());
+					UE_LOG(LogNiagara, Warning, TEXT("Unable to find variable %s on %s per-particle data. Returning zeroes."), *InValueName, *GetPathName());
 					for (int32 i = 0; i < NumParticles; ++i)
 					{
 						Positions[i] = FVector::ZeroVector;
@@ -1729,49 +1737,55 @@ void UNiagaraComponent::PostLoad()
 
 	OverrideParameters.PostLoad();
 
-	if (Asset)
+#if WITH_EDITOR
+	if (Asset != nullptr)
 	{
 		Asset->ConditionalPostLoad();
-#if WITH_EDITOR
-		OverrideParameters.SanityCheckData();
-		PostLoadNormalizeOverrideNames();
+		
+		UpgradeDeprecatedParameterOverrides();
 		SynchronizeWithSourceSystem();
+
 		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
 			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
-#endif
 	}
+#endif
 }
 
-void UNiagaraComponent::SetUserParametersToDefaultValues()
+static FNiagaraVariant GetParameterValueFromStore(const FNiagaraVariableBase& Var, const FNiagaraParameterStore& Store)
 {
-	OverrideParameters.Empty();
-	if (Asset == nullptr)
+	if (Var.IsDataInterface())
 	{
-		return;
+		const int32 Index = Store.IndexOf(Var);
+		if (Index != INDEX_NONE)
+		{
+			return FNiagaraVariant(Store.GetDataInterfaces()[Index]);
+		}
+	}
+	else if (Var.IsUObject())
+	{
+		const int32 Index = Store.IndexOf(Var);
+		if (Index != INDEX_NONE)
+		{
+			return FNiagaraVariant(Store.GetUObjects()[Index]);
+		}
 	}
 
-	TArray<FNiagaraVariable> SourceVars;
-	Asset->GetExposedParameters().GetParameters(SourceVars);
-	for (FNiagaraVariable& Param : SourceVars)
+	const uint8* ParameterData = Store.GetParameterData(Var);
+	if (ParameterData == nullptr)
 	{
-		OverrideParameters.AddParameter(Param, true);
+		return FNiagaraVariant();
 	}
 
-	TArray<FNiagaraVariable> ExistingVars;
-	OverrideParameters.GetUserParameters(ExistingVars);
-	for (FNiagaraVariable ExistingVar : ExistingVars)
-	{
-		Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
-	}
-
-	OverrideParameters.Rebind();
+	return FNiagaraVariant(ParameterData, Var.GetSizeInBytes());
 }
 
 #if WITH_EDITOR
 
 void UNiagaraComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	if (PropertyAboutToChange != nullptr && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraComponent, Asset) && Asset != nullptr)
+	if (PropertyAboutToChange != nullptr && 
+		PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraComponent, Asset) && 
+		Asset != nullptr)
 	{
 		Asset->GetExposedParameters().RemoveOnChangedHandler(AssetExposedParametersChangedHandle);
 		DestroyInstance();
@@ -1799,17 +1813,171 @@ void UNiagaraComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	{
 		SynchronizeWithSourceSystem();
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraComponent, TemplateParameterOverrides) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraComponent, InstanceParameterOverrides))
+	{
+		ApplyOverridesToParameterStore();
+	}
 
 	ReinitializeSystem();
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-void UNiagaraComponent::OverrideUObjectParameter(const FNiagaraVariable& InVar, UObject* InObj)
+#endif
+
+void UNiagaraComponent::SetUserParametersToDefaultValues()
 {
-	FNiagaraUserRedirectionParameterStore& ParamStore = GetOverrideParameters();
-	ParamStore.SetUObject(InObj, InVar);
-	SetParameterValueOverriddenLocally(InVar, true, false);
+#if WITH_EDITORONLY_DATA
+	EditorOverridesValue_DEPRECATED.Empty();
+	TemplateParameterOverrides.Empty();
+	InstanceParameterOverrides.Empty();
+#endif
+
+	OverrideParameters.Empty();
+
+	if (Asset == nullptr)
+	{
+		return;
+	}
+
+	CopyParametersFromAsset();
+	OverrideParameters.Rebind();
+}
+
+#if WITH_EDITOR
+
+void UNiagaraComponent::UpgradeDeprecatedParameterOverrides()
+{
+	OverrideParameters.SanityCheckData();
+	PostLoadNormalizeOverrideNames();
+	
+	TArray<FNiagaraVariable> UserParameters;
+	OverrideParameters.GetUserParameters(UserParameters);
+
+	for (const TPair<FName, bool>& Pair : EditorOverridesValue_DEPRECATED)
+	{
+		FNiagaraVariable* Found = UserParameters.FindByPredicate([Pair](const FNiagaraVariable& Var)
+		{
+			return Var.GetName() == Pair.Key;
+		});
+
+		if (Found != nullptr)
+		{
+			FNiagaraVariant StoredValue = GetParameterValueFromStore(*Found, OverrideParameters);
+
+			if (StoredValue.IsValid())
+			{
+				SetParameterOverride(*Found, StoredValue);
+			}
+		}
+	}
+
+	EditorOverridesValue_DEPRECATED.Empty();
+}
+
+void UNiagaraComponent::EnsureOverrideParametersConsistent() const
+{
+	if (Asset == nullptr)
+	{
+		return;
+	}
+	
+	TArray<FNiagaraVariable> UserParameters;
+	Asset->GetExposedParameters().GetUserParameters(UserParameters);
+	
+	for (const FNiagaraVariable& Key : UserParameters)
+	{
+		FNiagaraVariant OverrideValue = FindParameterOverride(Key);
+		if (OverrideValue.IsValid())
+		{
+			if (Key.IsDataInterface())
+			{
+				const UNiagaraDataInterface* ActualDI = OverrideParameters.GetDataInterface(Key);
+				if (ActualDI != nullptr)
+				{
+					ensureAlways(OverrideValue.GetDataInterface()->Equals(ActualDI));
+				}
+			}
+			else if (Key.IsUObject())
+			{
+				const UObject* ActualObj = OverrideParameters.GetUObject(Key);
+				if (ActualObj != nullptr)
+				{
+					ensureAlways(OverrideValue.GetUObject() == ActualObj);
+				}
+			}
+			else
+			{
+				const uint8* ActualData = OverrideParameters.GetParameterData(Key);
+				if (ActualData != nullptr)
+				{
+					ensureAlways(FMemory::Memcmp(ActualData, OverrideValue.GetBytes(), Key.GetSizeInBytes()) == 0);
+				}
+			}
+		}
+	}
+}
+
+void UNiagaraComponent::ApplyOverridesToParameterStore()
+{
+	if (!IsTemplate())
+	{
+		if (UNiagaraComponent* Archetype = Cast<UNiagaraComponent>(GetArchetype()))
+		{
+			TemplateParameterOverrides = Archetype->TemplateParameterOverrides;
+		}
+	}
+
+	for (const auto& Pair : TemplateParameterOverrides)
+	{ 
+		const int32* ExistingParam = OverrideParameters.FindParameterOffset(Pair.Key);
+		if (ExistingParam != nullptr)
+		{
+			SetOverrideParameterStoreValue(Pair.Key, Pair.Value);
+		}
+	}
+
+	if (!IsTemplate())
+	{
+		for (const auto& Pair : InstanceParameterOverrides)
+		{ 
+			const int32* ExistingParam = OverrideParameters.FindParameterOffset(Pair.Key);
+			if (ExistingParam != nullptr)
+			{
+				SetOverrideParameterStoreValue(Pair.Key, Pair.Value);
+			}
+		}
+	}
+
+	EnsureOverrideParametersConsistent();
+}
+
+#endif
+
+void UNiagaraComponent::CopyParametersFromAsset()
+{
+	TArray<FNiagaraVariable> SourceVars;
+	Asset->GetExposedParameters().GetParameters(SourceVars);
+	for (FNiagaraVariable& Param : SourceVars)
+	{
+		OverrideParameters.AddParameter(Param, true);
+	}
+
+	TArray<FNiagaraVariable> ExistingVars;
+	OverrideParameters.GetParameters(ExistingVars);
+
+	for (FNiagaraVariable ExistingVar : ExistingVars)
+	{
+		if (SourceVars.Contains(ExistingVar))
+		{
+			Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+		}
+		else
+		{
+			OverrideParameters.RemoveParameter(ExistingVar);
+		}
+	}
 }
 
 void UNiagaraComponent::SynchronizeWithSourceSystem()
@@ -1822,43 +1990,19 @@ void UNiagaraComponent::SynchronizeWithSourceSystem()
 	//TODO: Look through params in system in "Owner" namespace and add to our parameters.
 	if (Asset == nullptr)
 	{
-		OverrideParameters.Empty();
-		EditorOverridesValue.Empty();
 #if WITH_EDITORONLY_DATA
+		OverrideParameters.Empty();
+		EditorOverridesValue_DEPRECATED.Empty();
+		
 		OnSynchronizedWithAssetParametersDelegate.Broadcast();
 #endif
 		return;
 	}
 
-	TArray<FNiagaraVariable> SourceVars;
-	Asset->GetExposedParameters().GetParameters(SourceVars);
-	for (FNiagaraVariable& Param : SourceVars)
-	{
-		OverrideParameters.AddParameter(Param, true);
-	}
-
-	TArray<FNiagaraVariable> ExistingVars;
-	OverrideParameters.GetUserParameters(ExistingVars);
-	Asset->GetExposedParameters().GetUserParameters(SourceVars);
-
-	for (FNiagaraVariable ExistingVar : ExistingVars)
-	{
-		if (!SourceVars.Contains(ExistingVar))
-		{
-			OverrideParameters.RemoveParameter(ExistingVar);
-			EditorOverridesValue.Remove(ExistingVar.GetName());
-		}
-	}
-
-	for (FNiagaraVariable ExistingVar : ExistingVars)
-	{
-		bool* FoundVar = EditorOverridesValue.Find(ExistingVar.GetName());
-
-		if (!IsParameterValueOverriddenLocally(ExistingVar.GetName()))
-		{
-			Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
-		}
-	}
+#if WITH_EDITOR
+	CopyParametersFromAsset();
+	ApplyOverridesToParameterStore();
+#endif
 
 	OverrideParameters.Rebind();
 
@@ -1872,6 +2016,143 @@ void UNiagaraComponent::AssetExposedParametersChanged()
 	SynchronizeWithSourceSystem();
 	ReinitializeSystem();
 }
+
+#if WITH_EDITOR
+
+bool UNiagaraComponent::HasParameterOverride(const FNiagaraVariableBase& InKey) const 
+{
+	if (IsTemplate())
+	{
+		const FNiagaraVariant* ThisValue = TemplateParameterOverrides.Find(InKey);
+
+		const FNiagaraVariant* ArchetypeValue = nullptr;
+		if (const UNiagaraComponent* Archetype = Cast<UNiagaraComponent>(GetArchetype()))
+		{
+			ArchetypeValue = Archetype->TemplateParameterOverrides.Find(InKey);
+		}
+
+		if (ThisValue != nullptr && ArchetypeValue != nullptr)
+		{
+			// exists in both, check values
+			return *ThisValue != *ArchetypeValue;
+		}
+		else if (ThisValue != nullptr || ArchetypeValue != nullptr)
+		{
+			// either added or removed in this
+			return true;
+		}
+	}
+	else
+	{
+		if (InstanceParameterOverrides.Contains(InKey))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FNiagaraVariant UNiagaraComponent::FindParameterOverride(const FNiagaraVariableBase& InKey) const
+{
+	if (Asset == nullptr)
+	{
+		return FNiagaraVariant();
+	}
+
+	if (Asset->GetExposedParameters().FindParameterOffset(InKey) == nullptr)
+	{
+		return FNiagaraVariant();
+	}
+
+	if (!IsTemplate())
+	{
+		const FNiagaraVariant* Value = InstanceParameterOverrides.Find(InKey);
+		if (Value != nullptr)
+		{
+			return *Value;
+		}
+	}
+
+	const FNiagaraVariant* Value = TemplateParameterOverrides.Find(InKey);
+	if (Value != nullptr)
+	{
+		return *Value;
+	}
+
+	return FNiagaraVariant();
+}
+
+void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue)
+{
+	if (InKey.IsDataInterface())
+	{
+		UNiagaraDataInterface* DuplicatedDI = DuplicateObject(InValue.GetDataInterface(), this);
+		OverrideParameters.SetDataInterface(DuplicatedDI, InKey);
+	}
+	else if (InKey.IsUObject())
+	{
+		OverrideParameters.SetUObject(InValue.GetUObject(), InKey);
+	}
+	else
+	{
+		OverrideParameters.SetParameterData(InValue.GetBytes(), InKey, true);
+	}
+}
+
+void UNiagaraComponent::SetParameterOverride(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue)
+{
+	if (!ensure(InValue.IsValid()))
+	{
+		return;
+	}
+
+	if (IsTemplate())
+	{
+		TemplateParameterOverrides.Add(InKey, InValue);
+	}
+	else
+	{
+		InstanceParameterOverrides.Add(InKey, InValue);
+	}
+
+	SetOverrideParameterStoreValue(InKey, InValue);
+}
+
+void UNiagaraComponent::RemoveParameterOverride(const FNiagaraVariableBase& InKey)
+{
+	if (!IsTemplate())
+	{
+		InstanceParameterOverrides.Remove(InKey);
+	}
+	else
+	{
+		TemplateParameterOverrides.Remove(InKey);
+
+		// we are an archetype, but check if we have an archetype and inherit the value from there
+		const UNiagaraComponent* Archetype = Cast<UNiagaraComponent>(GetArchetype());
+		if (Archetype != nullptr)
+		{
+			FNiagaraVariant ArchetypeValue = Archetype->FindParameterOverride(InKey);
+			if (ArchetypeValue.IsValid())
+			{
+				// defined in archetype, reset value to that
+				if (InKey.IsDataInterface())
+				{
+					UNiagaraDataInterface* DataInterface = DuplicateObject(ArchetypeValue.GetDataInterface(), this);
+					TemplateParameterOverrides.Add(InKey, FNiagaraVariant(DataInterface));
+				}
+				else
+				{
+					TemplateParameterOverrides.Add(InKey, ArchetypeValue);
+				}
+			}
+		}
+	}
+
+	SynchronizeWithSourceSystem();
+}
+
 #endif
 
 ENiagaraAgeUpdateMode UNiagaraComponent::GetAgeUpdateMode() const
@@ -1936,11 +2217,6 @@ void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, 
 void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance){}
 #endif
 
-void UNiagaraComponent::SetOwnerLOD(int32 InOwnerLOD)
-{
-	OwnerLOD = InOwnerLOD;  
-}
-
 void UNiagaraComponent::SetAllowScalability(bool bAllow)
 {
 	bAllowScalability = bAllow; 
@@ -1955,125 +2231,54 @@ void UNiagaraComponent::SetAllowScalability(bool bAllow)
 void UNiagaraComponent::PostLoadNormalizeOverrideNames()
 {
 	TMap<FName, bool> ValueMap;
-	for (TPair<FName, bool> Pair : EditorOverridesValue)
+	for (TPair<FName, bool> Pair : EditorOverridesValue_DEPRECATED)
 	{
-		bool IsOldUserParam = Pair.Key.ToString().StartsWith(TEXT("User."));
-		FName ValueName = IsOldUserParam ? (*Pair.Key.ToString().RightChop(5)) : Pair.Key;
-		ValueMap.Add(ValueName, Pair.Value);
-	}
-	EditorOverridesValue = ValueMap;
-}
-
-bool UNiagaraComponent::IsParameterValueOverriddenLocally(const FName& InParamName)
-{
-	bool* FoundVar = EditorOverridesValue.Find(InParamName);
-
-	if (FoundVar != nullptr && *(FoundVar))
-	{
-		return true;
-	}
-	return false;
-}
-
-void UNiagaraComponent::SetParameterValueOverriddenLocally(const FNiagaraVariable& InParam, bool bInOverriden, bool bRequiresSystemInstanceReset)
-{
-	FName ParameterName = InParam.GetName();
-	{
-		FString ParameterString = ParameterName.ToString();
-		if (ParameterString.RemoveFromStart(TEXT("User.")))
+		FString ValueNameString = Pair.Key.ToString();
+		if (ValueNameString.StartsWith(TEXT("User.")))
 		{
-			ParameterName = FName(*ParameterString);
+			 ValueNameString = ValueNameString.RightChop(5);
 		}
-	}
 
-	bool* FoundVar = EditorOverridesValue.Find(InParam.GetName());
-	if (FoundVar != nullptr && bInOverriden) 
-	{
-		*(FoundVar) = bInOverriden;
+		ValueMap.Add(FName(*ValueNameString), Pair.Value);
 	}
-	else if (FoundVar == nullptr && bInOverriden)			
-	{
-		EditorOverridesValue.Add(InParam.GetName(), true);
-	}
-	else
-	{
-		EditorOverridesValue.Remove(InParam.GetName());
-		Asset->GetExposedParameters().CopyParameterData(OverrideParameters, InParam);
-	}
-	
-	if (InParam.IsUObject() && InParam.GetType().GetClass()->IsChildOf(UMaterialInterface::StaticClass()))
-	{
-		MarkRenderStateDirty();
-	}
-
-	if (bRequiresSystemInstanceReset && SystemInstance)
-	{
-		SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-	}
-	
+	EditorOverridesValue_DEPRECATED = ValueMap;
 }
-
 
 #endif // WITH_EDITOR
 
-
-
 void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 {
-	if (Asset != InAsset)
+	if (Asset == InAsset)
 	{
-#if WITH_EDITOR
-		if (Asset != nullptr)
-		{
-			Asset->GetExposedParameters().RemoveOnChangedHandler(AssetExposedParametersChangedHandle);
-		}
-#endif
-		Asset = InAsset;
-
-#if WITH_EDITOR
-		SynchronizeWithSourceSystem();
-		if (Asset != nullptr)
-		{
-			AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
-		}
-		else
-		{
-			AssetExposedParametersChangedHandle.Reset();
-		}
-#else
-		// We need to populate the override parameters here
-		{
-			TArray<FNiagaraVariable> SourceVars;
-			Asset->GetExposedParameters().GetParameters(SourceVars);
-			for (FNiagaraVariable& Param : SourceVars)
-			{
-				OverrideParameters.AddParameter(Param, true);
-			}
-
-			TArray<FNiagaraVariable> ExistingVars;
-			OverrideParameters.GetUserParameters(ExistingVars);
-			Asset->GetExposedParameters().GetUserParameters(SourceVars);
-
-			for (FNiagaraVariable ExistingVar : ExistingVars)
-			{
-				if (SourceVars.Contains(ExistingVar))
-				{
-					Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
-				}
-				else
-				{
-					OverrideParameters.RemoveParameter(ExistingVar);
-				}
-			}
-
-			OverrideParameters.Rebind();
-		}
-#endif
-
-		//Force a reinit.
-		DestroyInstance();
+		return;
 	}
+
+#if WITH_EDITOR
+	if (Asset != nullptr)
+	{
+		Asset->GetExposedParameters().RemoveOnChangedHandler(AssetExposedParametersChangedHandle);
+	}
+#endif
+	Asset = InAsset;
+
+#if WITH_EDITOR
+	SynchronizeWithSourceSystem();
+	if (Asset != nullptr)
+	{
+		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
+	}
+	else
+	{
+		AssetExposedParametersChangedHandle.Reset();
+	}
+#else
+	CopyParametersFromAsset();
+	OverrideParameters.Rebind();
+#endif
+
+	//Force a reinit.
+	DestroyInstance();
 }
 
 void UNiagaraComponent::SetForceSolo(bool bInForceSolo) 

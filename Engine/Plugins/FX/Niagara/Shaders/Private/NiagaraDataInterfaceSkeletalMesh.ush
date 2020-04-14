@@ -25,6 +25,12 @@ struct FDISkelMeshContext
     Buffer<float4>	MeshColorBuffer;
 	Buffer<float>	MeshTriangleSamplerProbaBuffer;
 	Buffer<uint>	MeshTriangleSamplerAliasBuffer;
+	uint			MeshNumSamplingRegionTriangles;
+	uint			MeshNumSamplingRegionVertices;
+	Buffer<float>	MeshSamplingRegionsProbaBuffer;
+	Buffer<uint>	MeshSamplingRegionsAliasBuffer;
+	Buffer<uint>	MeshSampleRegionsTriangleIndices;
+	Buffer<uint>	MeshSampleRegionsVertices;
 	Buffer<uint>	MeshTriangleMatricesOffsetBuffer;
 	uint			MeshTriangleCount;
 	uint			MeshVertexCount;
@@ -32,19 +38,32 @@ struct FDISkelMeshContext
 	uint			MeshSkinWeightIndexSize;
 	uint			MeshNumTexCoord;
 	uint			MeshNumWeights;
-	uint			NumSpecificBones;
-	Buffer<uint>	SpecificBones;
-	uint			NumSpecificSockets;
-	uint			SpecificSocketBoneOffset;
+	int				NumBones;
+	int				NumFilteredBones;
+	int				NumUnfilteredBones;
+	int				RandomMaxBone;
+	int				ExcludeBoneIndex;
+	Buffer<uint>	FilteredAndUnfilteredBones;
+	int				NumFilteredSockets;
+	int				FilteredSocketBoneOffset;
 	float4x4		InstanceTransform;
 	float4x4		InstancePrevTransform;
+	float4			InstanceRotation;
+	float4			InstancePrevRotation;
 	float			InstanceInvDeltaTime;
 	bool			UniformTriangleSamplingEnable;
+	bool			UniformSamplingRegionEnabled;
 	bool			UnlimitedBoneInfluences;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Triangle Sampling
+
+//-TODO: We need to consolodate the random interface inside NiagaraEmitterInstanceShader.usf it's a bit messy at the moment but should follow what FNDIRandomHelper does
+float DISKelMesh_Random(uint S1, uint S2, uint S3)
+{
+	return S3 == 0xffffffff ? NiagaraInternalNoise(S1, S2, S3) : rand(1.0f, S1, S2, S3);
+}
 
 struct FDISkelMeshSkinnedVertex
 {
@@ -54,6 +73,15 @@ struct FDISkelMeshSkinnedVertex
 	float3	TangentY;
 	float3	TangentZ;
 };
+
+float3 DISKelMesh_RandomBarycentricCoord(uint Seed1, uint Seed2, uint Seed3)
+{
+	float r0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+	float r1 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+	float sqrt0 = sqrt(r0);
+	float sqrt1 = sqrt(r1);
+	return float3(1.0f - sqrt0, sqrt0 * (1.0 - r1), r1 * sqrt0);
+}
 
 float3x4 DISkelMesh_GetPrevBoneSkinningMatrix(in FDISkelMeshContext DIContext, uint Bone)
 {
@@ -223,7 +251,7 @@ FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedPointOnTriangleWS(in FDISkelMeshCo
 
 void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int OutTriangle, out float3 OutBaryCoord)
 {
-	float RandT0 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
 
 	[branch]
 	if ( !DIContext.UniformTriangleSamplingEnable )
@@ -238,7 +266,7 @@ void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, uint Seed1, uint
 		float TriangleProbability = DIContext.MeshTriangleSamplerProbaBuffer[TriangleIndex];
 
 		// Alias check
-		float RandT1 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
+		float RandT1 = DISKelMesh_Random(Seed1, Seed2, Seed3);
 		if( RandT1 > TriangleProbability )
 		{
 			TriangleIndex = DIContext.MeshTriangleSamplerAliasBuffer[TriangleIndex];
@@ -246,11 +274,7 @@ void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, uint Seed1, uint
 		OutTriangle = TriangleIndex;
 	}
 
-	float r0 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
-	float r1 = NiagaraInternalNoise(Seed1, Seed2, Seed3);
-	float sqrt0 = sqrt(r0);
-	float sqrt1 = sqrt(r1);
-	OutBaryCoord = float3(1.0f - sqrt0, sqrt0 * (1.0 - r1), r1 * sqrt0);
+	OutBaryCoord = DISKelMesh_RandomBarycentricCoord(Seed1, Seed2, Seed3);
 }
 
 void DISKelMesh_GetSkinnedTriangleDataWS(in FDISkelMeshContext DIContext, in uint TriangleIndex, in float3 BaryCoord, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent)
@@ -316,10 +340,76 @@ void DISKelMesh_GetTriUV(in FDISkelMeshContext DIContext, in uint TriangleIndex,
 	}
 }
 
+void DISKelMesh_RandomTriangle(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int OutTriangle, out float3 OutBaryCoord)
+{
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+	int TriangleIndex = min(int(RandT0 * float(DIContext.MeshTriangleCount)), (int)DIContext.MeshTriangleCount - 1); // avoid % by using mul/min to Tri = MeshTriangleCountName
+
+	[branch]
+	if ( DIContext.UniformTriangleSamplingEnable )
+	{
+		// Uniform area weighted position selection (using alias method from Alias method from FWeightedRandomSampler)
+		float TriangleProbability = DIContext.MeshTriangleSamplerProbaBuffer[TriangleIndex];
+
+		// Alias check
+		float RandT1 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+		if( RandT1 > TriangleProbability )
+		{
+			TriangleIndex = (int)DIContext.MeshTriangleSamplerAliasBuffer[TriangleIndex];
+		}
+	}
+
+	OutTriangle = TriangleIndex;
+	OutBaryCoord = DISKelMesh_RandomBarycentricCoord(Seed1, Seed2, Seed3);
+}
+
+void DISKelMesh_GetTriangleCount(in FDISkelMeshContext DIContext, out int OutCount)
+{
+	OutCount = DIContext.MeshTriangleCount;
+}
+
+void DISKelMesh_RandomFilteredTriangle(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int OutTriangle, out float3 OutBaryCoord)
+{
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+	uint RegionTriangle = min(uint(RandT0 * float(DIContext.MeshNumSamplingRegionTriangles)), DIContext.MeshNumSamplingRegionTriangles - 1); // avoid % by using mul/min to Tri = MeshTriangleCountName
+
+	[branch]
+	if ( DIContext.UniformSamplingRegionEnabled )
+	{
+		float TriangleProbability = DIContext.MeshSamplingRegionsProbaBuffer[RegionTriangle];
+		float RandT1 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+		if ( RandT1 > TriangleProbability )
+		{
+			RegionTriangle = (int)DIContext.MeshSamplingRegionsAliasBuffer[RegionTriangle];
+		}
+	}
+	OutTriangle = (int)DIContext.MeshSampleRegionsTriangleIndices[RegionTriangle];
+	OutBaryCoord = DISKelMesh_RandomBarycentricCoord(Seed1, Seed2, Seed3);
+}
+
+void DISKelMesh_GetFilteredTriangleCount(in FDISkelMeshContext DIContext, out int OutCount)
+{
+	OutCount = DIContext.MeshNumSamplingRegionTriangles;
+}
+
+void DISKelMesh_GetFilteredTriangleAt(in FDISkelMeshContext DIContext, int FilteredIndex, out int OutTriangle, out float3 OutBaryCoord)
+{
+	if ( DIContext.MeshNumSamplingRegionTriangles > 0 )
+	{
+		FilteredIndex = clamp(FilteredIndex, 0, (int)DIContext.MeshNumSamplingRegionTriangles - 1);
+		OutTriangle = (int)DIContext.MeshSampleRegionsTriangleIndices[FilteredIndex];
+	}
+	else
+	{
+		OutTriangle = 0;
+	}
+	OutBaryCoord = 1.0f / 3.0f;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Bone Sampling
 
-float4 QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
+float4 DISKelMesh_QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
 {
     const float RawCosom = dot(Quat1, Quat2);
     const float Cosom = abs(RawCosom);
@@ -344,6 +434,16 @@ float4 QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
     return (Scale0 * Quat1) + (Scale1 * Quat2);
 }
 
+float4 DISKelMesh_QuatMul(float4 Q1, float4 Q2)
+{
+	float4 QOut;
+	QOut.x = Q1.w*Q2.x + Q1.x*Q2.w + Q1.y*Q2.z - Q1.z*Q2.y;
+	QOut.y = Q1.w*Q2.y - Q1.x*Q2.z + Q1.y*Q2.w + Q1.z*Q2.x;
+	QOut.z = Q1.w*Q2.z + Q1.x*Q2.y - Q1.y*Q2.x + Q1.z*Q2.w;
+	QOut.w = Q1.w*Q2.w - Q1.x*Q2.x - Q1.y*Q2.y - Q1.z*Q2.z;
+	return QOut;
+}
+
 void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bone, in float Interp, in bool bWorldSpace, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
 {
     float3 PrevPosition = DIContext.MeshPrevSamplingBonesBuffer[Bone * 2].xyz;
@@ -355,11 +455,13 @@ void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bon
     {
         PrevPosition = mul(float4(PrevPosition, 1), DIContext.InstancePrevTransform).xyz;
         CurrPosition = mul(float4(CurrPosition, 1), DIContext.InstanceTransform).xyz;
+		PrevRotation = DISKelMesh_QuatMul(DIContext.InstancePrevRotation, PrevRotation);
+		CurrRotation = DISKelMesh_QuatMul(DIContext.InstanceRotation, CurrRotation);
     }
     CurrPosition = lerp(PrevPosition, CurrPosition, Interp);
 
     OutPosition = CurrPosition;
-    OutRotation = QuatSlerp(PrevRotation, CurrRotation, Interp);
+    OutRotation = DISKelMesh_QuatSlerp(PrevRotation, CurrRotation, Interp);
     OutVelocity = (CurrPosition - PrevPosition) * DIContext.InstanceInvDeltaTime;
 }
 
@@ -403,30 +505,25 @@ void DISkelMesh_GetTriColor(in FDISkelMeshContext DIContext, in uint TriangleInd
     OutColor = (DIContext.MeshColorBuffer[VertexIndex0] * BaryCoord.x) + (DIContext.MeshColorBuffer[VertexIndex1] * BaryCoord.y) + (DIContext.MeshColorBuffer[VertexIndex2] * BaryCoord.z);
 }
 
-void DISkelMesh_GetRandomVertex(in FDISkelMeshContext DIContext, out int OutVertex)
-{
-    float RandT0 = NiagaraInternalNoise(1, 2, 3);
-    OutVertex = min(uint(RandT0 * float(DIContext.MeshVertexCount)), DIContext.MeshVertexCount - 1); // avoid % by using mul/min to Tri = MeshVertexCount
-}
-
-void DISkelMesh_IsValidVertex(in FDISkelMeshContext DIContext, in int Vertex, out bool IsValid)
-{
-    IsValid = Vertex < (int)DIContext.MeshVertexCount;
-}
-
-void DISkelMesh_GetSkinnedVertex(in FDISkelMeshContext DIContext, in int VertexIndex, out float3 OutPosition, out float3 OutVelocity)
+void DISkelMesh_GetSkinnedVertex(in FDISkelMeshContext DIContext, in int VertexIndex, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent)
 {
     FDISkelMeshSkinnedVertex SkinnedVertex = DISkelMesh_GetSkinnedVertex(DIContext, VertexIndex);
     OutPosition = SkinnedVertex.Position;
     OutVelocity = (SkinnedVertex.Position - SkinnedVertex.PrevPosition) * DIContext.InstanceInvDeltaTime;
+	OutNormal = SkinnedVertex.TangentZ;
+	OutBinormal = SkinnedVertex.TangentY;
+	OutTangent = SkinnedVertex.TangentX;
 }
 
-void DISkelMesh_GetSkinnedVertexWS(in FDISkelMeshContext DIContext, in int VertexIndex, out float3 OutPosition, out float3 OutVelocity)
+void DISkelMesh_GetSkinnedVertexWS(in FDISkelMeshContext DIContext, in int VertexIndex, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent)
 {
     FDISkelMeshSkinnedVertex SkinnedVertex = DISkelMesh_GetSkinnedVertex(DIContext, VertexIndex);
     OutPosition = mul(float4(SkinnedVertex.Position, 1.0f), DIContext.InstanceTransform).xyz;
     float3 PrevPosition = mul(float4(SkinnedVertex.PrevPosition, 1.0f), DIContext.InstancePrevTransform).xyz;
-    OutVelocity = (OutPosition - PrevPosition) * DIContext.InstanceInvDeltaTime;
+    OutVelocity = (SkinnedVertex.Position - SkinnedVertex.PrevPosition) * DIContext.InstanceInvDeltaTime;
+	OutNormal = SkinnedVertex.TangentZ;
+	OutBinormal = SkinnedVertex.TangentY;
+	OutTangent = SkinnedVertex.TangentX;
 }
 
 void DISkelMesh_GetVertexColor(in FDISkelMeshContext DIContext, in int VertexIndex, out float4 OutColor)
@@ -448,39 +545,156 @@ void DISkelMesh_GetVertexUV(in FDISkelMeshContext DIContext, in int VertexIndex,
     }
 }
 
+void DISkelMesh_IsValidVertex(in FDISkelMeshContext DIContext, int Vertex, out bool IsValid)
+{
+    IsValid = Vertex < (int)DIContext.MeshVertexCount;
+}
+
+void DISkelMesh_GetRandomVertex(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int OutVertex)
+{
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+	OutVertex = (int)min(uint(RandT0 * float(DIContext.MeshVertexCount)), DIContext.MeshVertexCount - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+}
+
+void DISkelMesh_GetVertexCount(in FDISkelMeshContext DIContext, out int VertexCount)
+{
+	VertexCount = (int)DIContext.MeshVertexCount;
+}
+
+void DISkelMesh_IsValidFilteredVertex(in FDISkelMeshContext DIContext, int FilteredIndex, out bool IsValid)
+{
+	IsValid = FilteredIndex < (int)DIContext.MeshNumSamplingRegionVertices;
+}
+
+void DISkelMesh_GetRandomFilteredVertex(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int OutVertex)
+{
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+	int FilteredIndex = (int)min(uint(RandT0 * float(DIContext.MeshNumSamplingRegionVertices)), DIContext.MeshNumSamplingRegionVertices - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+	OutVertex = (int)DIContext.MeshSampleRegionsVertices[FilteredIndex];
+}
+
+void DISkelMesh_GetFilteredVertexCount(in FDISkelMeshContext DIContext, out int VertexCount)
+{
+	VertexCount = (int)DIContext.MeshNumSamplingRegionVertices;
+}
+
+void DISkelMesh_GetFilteredVertexAt(in FDISkelMeshContext DIContext, int FilteredIndex, out int VertexIndex)
+{
+	FilteredIndex = clamp(FilteredIndex, 0, (int)DIContext.MeshNumSamplingRegionVertices - 1);
+	VertexIndex = (int)DIContext.MeshSampleRegionsVertices[FilteredIndex];
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Specific Bones / Sockets
-void DISkelMesh_GetSpecificBoneCount(in FDISkelMeshContext DIContext, out int Count)
+// Filtered Bones / Sockets
+void DISkelMesh_IsValidBone(in FDISkelMeshContext DIContext, in int BoneIndex, out bool IsValid)
 {
-    Count = DIContext.NumSpecificBones;
+	IsValid = BoneIndex >= 0 && BoneIndex < DIContext.NumBones;
 }
 
-void DISkelMesh_GetSpecificBoneAt(in FDISkelMeshContext DIContext, in int InBoneIndex, out int Bone)
+void DISkelMesh_RandomBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
 {
-    int BoneIndex = min(InBoneIndex, int(DIContext.NumSpecificBones - 1));
-    Bone = (int)DIContext.SpecificBones[BoneIndex];
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+	Bone = min(int(RandT0 * float(DIContext.RandomMaxBone)), DIContext.RandomMaxBone);
+	Bone = Bone != DIContext.ExcludeBoneIndex ? Bone : Bone + 1;
 }
 
-void DISkelMesh_RandomSpecificBone(in FDISkelMeshContext DIContext, out int Bone)
+void DISkelMesh_GetBoneCount(in FDISkelMeshContext DIContext, out int Count)
 {
-    float RandT0 = NiagaraInternalNoise(1, 2, 3);
-    Bone = min(uint(RandT0 * float(DIContext.NumSpecificBones)), DIContext.NumSpecificBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+	Count = DIContext.NumBones;
 }
 
-void DISkelMesh_GetSpecificSocketCount(in FDISkelMeshContext DIContext, out int Count)
+void DISkelMesh_GetFilteredBoneCount(in FDISkelMeshContext DIContext, out int Count)
 {
-    Count = DIContext.NumSpecificSockets;
+    Count = DIContext.NumFilteredBones;
 }
 
-void DISkelMesh_GetSpecificSocketBoneAt(in FDISkelMeshContext DIContext, in int InSocketIndex, out int Bone)
+void DISkelMesh_GetFilteredBoneAt(in FDISkelMeshContext DIContext, in int InBoneIndex, out int Bone)
 {
-    Bone = (int)DIContext.SpecificSocketBoneOffset + clamp(InSocketIndex, 0, (int)DIContext.NumSpecificSockets);
+    int BoneIndex = min(InBoneIndex, DIContext.NumFilteredBones - 1);
+    Bone = (int)DIContext.FilteredAndUnfilteredBones[BoneIndex];
 }
 
-void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out int SocketBone)
+void DISkelMesh_RandomFilteredBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
 {
-    float RandT0 = NiagaraInternalNoise(1, 2, 3);
-    SocketBone = min(uint(RandT0 * float(DIContext.NumSpecificSockets)), DIContext.NumSpecificSockets - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+    int FilteredBone = min(int(RandT0 * float(DIContext.NumFilteredBones)), DIContext.NumFilteredBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+    Bone = (int)DIContext.FilteredAndUnfilteredBones[FilteredBone];
+}
+
+void DISkelMesh_GetUnfilteredBoneCount(in FDISkelMeshContext DIContext, out int Count)
+{
+    Count = DIContext.NumUnfilteredBones;
+}
+
+void DISkelMesh_GetUnfilteredBoneAt(in FDISkelMeshContext DIContext, in int InBoneIndex, out int Bone)
+{
+    int BoneIndex = min(InBoneIndex, DIContext.NumUnfilteredBones - 1);
+    Bone = DIContext.NumFilteredBones > 0 ? (int)DIContext.FilteredAndUnfilteredBones[BoneIndex + DIContext.NumFilteredBones] : BoneIndex;
+}
+
+void DISkelMesh_RandomUnfilteredBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
+{
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+	if ( DIContext.NumFilteredBones == 0 )
+	{
+		Bone = min(int(RandT0 * float(DIContext.RandomMaxBone)), DIContext.RandomMaxBone);
+		Bone = Bone != DIContext.ExcludeBoneIndex ? Bone : Bone + 1;
+	}
+	else
+	{
+		int UnfilteredBone = min(int(RandT0 * float(DIContext.NumUnfilteredBones)), DIContext.NumUnfilteredBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+		Bone = DIContext.NumFilteredBones > 0 ? (int)DIContext.FilteredAndUnfilteredBones[UnfilteredBone + DIContext.NumFilteredBones] : UnfilteredBone;
+	}
+}
+
+void DISkelMesh_GetFilteredSocketCount(in FDISkelMeshContext DIContext, out int Count)
+{
+    Count = DIContext.NumFilteredSockets;
+}
+
+void DISkelMesh_GetFilteredSocketBoneAt(in FDISkelMeshContext DIContext, in int InSocketIndex, out int Bone)
+{
+    Bone = DIContext.FilteredSocketBoneOffset + clamp(InSocketIndex, 0, DIContext.NumFilteredSockets - 1);
+}
+
+void DISkelMesh_RandomFilteredSocket(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int SocketBone)
+{
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+    SocketBone = DIContext.FilteredSocketBoneOffset + min(int(RandT0 * float(DIContext.NumFilteredSockets)), DIContext.NumFilteredSockets - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+}
+
+void DISkelMesh_RandomFilteredSocketOrBone(in FDISkelMeshContext DIContext, uint Seed1, uint Seed2, uint Seed3, out int Bone)
+{
+	float RandT0 = DISKelMesh_Random(Seed1, Seed2, Seed3);
+	int NumFilteredSocketsAndBones = DIContext.NumFilteredBones + DIContext.NumFilteredSockets;
+    int FilteredIndex = min(int(RandT0 * float(NumFilteredSocketsAndBones)), NumFilteredSocketsAndBones - 1);
+	if ( FilteredIndex < DIContext.NumFilteredBones )
+	{
+		Bone = (int)DIContext.FilteredAndUnfilteredBones[FilteredIndex];
+	}
+	else
+	{
+		Bone = DIContext.FilteredSocketBoneOffset + FilteredIndex - DIContext.NumFilteredBones;
+	}
+}
+
+void DISkelMesh_GetFilteredSocketOrBoneCount(in FDISkelMeshContext DIContext, out int Count)
+{
+	Count = DIContext.NumFilteredBones + DIContext.NumFilteredSockets;
+}
+
+void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int FilteredIndex, out int Bone)
+{
+	int NumFilteredSocketsAndBones = DIContext.NumFilteredBones + DIContext.NumFilteredSockets;
+	FilteredIndex = clamp(FilteredIndex, 0, NumFilteredSocketsAndBones - 1);
+	if ( FilteredIndex < DIContext.NumFilteredBones )
+	{
+		Bone = (int)DIContext.FilteredAndUnfilteredBones[FilteredIndex];
+	}
+	else
+	{
+		Bone = DIContext.FilteredSocketBoneOffset + FilteredIndex - DIContext.NumFilteredBones;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -499,6 +713,12 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	Buffer<float4>	MeshColorBuffer_ ## NAME; \
 	Buffer<float>	MeshTriangleSamplerProbaBuffer_ ## NAME; \
 	Buffer<uint>	MeshTriangleSamplerAliasBuffer_ ## NAME; \
+	uint			MeshNumSamplingRegionTriangles_ ## NAME; \
+	uint			MeshNumSamplingRegionVertices_ ## NAME; \
+	Buffer<float>	MeshSamplingRegionsProbaBuffer_ ## NAME; \
+	Buffer<uint>	MeshSamplingRegionsAliasBuffer_ ## NAME; \
+	Buffer<uint>	MeshSampleRegionsTriangleIndices_ ## NAME; \
+	Buffer<uint>	MeshSampleRegionsVertices_ ## NAME; \
 	Buffer<uint>	MeshTriangleMatricesOffsetBuffer_ ## NAME; \
 	uint			MeshTriangleCount_ ## NAME; \
 	uint			MeshVertexCount_ ## NAME; \
@@ -506,12 +726,18 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	uint			MeshSkinWeightIndexSize_ ## NAME; \
 	uint			MeshNumTexCoord_ ## NAME; \
 	uint			MeshNumWeights_ ## NAME; \
-	uint			NumSpecificBones_ ## NAME; \
-	Buffer<uint>	SpecificBones_ ## NAME; \
-	uint			NumSpecificSockets_ ## NAME; \
-	uint			SpecificSocketBoneOffset_ ## NAME; \
+	int				NumBones_ ## NAME; \
+	int				NumFilteredBones_ ## NAME; \
+	int				NumUnfilteredBones_ ## NAME; \
+	int				RandomMaxBone_ ## NAME; \
+	int				ExcludeBoneIndex_ ## NAME; \
+	Buffer<uint>	FilteredAndUnfilteredBones_ ## NAME; \
+	int				NumFilteredSockets_ ## NAME; \
+	int				FilteredSocketBoneOffset_ ## NAME; \
 	float4x4		InstanceTransform_ ## NAME; \
 	float4x4		InstancePrevTransform_ ## NAME; \
+	float4			InstanceRotation_ ## NAME; \
+	float4			InstancePrevRotation_ ## NAME; \
 	float			InstanceInvDeltaTime_ ## NAME; \
 	uint			EnabledFeatures_ ## NAME; \
 
@@ -530,19 +756,32 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	DIContext.MeshColorBuffer = MeshColorBuffer_ ## NAME; \
 	DIContext.MeshTriangleSamplerProbaBuffer = MeshTriangleSamplerProbaBuffer_ ## NAME; \
 	DIContext.MeshTriangleSamplerAliasBuffer = MeshTriangleSamplerAliasBuffer_ ## NAME; \
+	DIContext.MeshNumSamplingRegionTriangles = MeshNumSamplingRegionTriangles_ ## NAME; \
+	DIContext.MeshNumSamplingRegionVertices = MeshNumSamplingRegionVertices_ ## NAME; \
+	DIContext.MeshSamplingRegionsProbaBuffer = MeshSamplingRegionsProbaBuffer_ ## NAME; \
+	DIContext.MeshSamplingRegionsAliasBuffer = MeshSamplingRegionsAliasBuffer_ ## NAME; \
+	DIContext.MeshSampleRegionsTriangleIndices = MeshSampleRegionsTriangleIndices_ ## NAME; \
+	DIContext.MeshSampleRegionsVertices = MeshSampleRegionsVertices_ ## NAME; \
 	DIContext.MeshTriangleMatricesOffsetBuffer = MeshTriangleMatricesOffsetBuffer_ ## NAME; \
 	DIContext.MeshTriangleCount = MeshTriangleCount_ ## NAME; \
 	DIContext.MeshVertexCount = MeshVertexCount_ ## NAME; \
 	DIContext.MeshNumTexCoord = MeshNumTexCoord_ ## NAME; \
 	DIContext.MeshNumWeights = MeshNumWeights_ ## NAME; \
-	DIContext.NumSpecificBones	= NumSpecificBones_ ## NAME; \
-	DIContext.SpecificBones	= SpecificBones_ ## NAME; \
-	DIContext.NumSpecificSockets = NumSpecificSockets_ ## NAME; \
-	DIContext.SpecificSocketBoneOffset = SpecificSocketBoneOffset_ ## NAME; \
+	DIContext.NumBones = NumBones_ ## NAME; \
+	DIContext.NumFilteredBones	= NumFilteredBones_ ## NAME; \
+	DIContext.NumUnfilteredBones = NumUnfilteredBones_ ## NAME; \
+	DIContext.RandomMaxBone = RandomMaxBone_ ## NAME; \
+	DIContext.ExcludeBoneIndex = ExcludeBoneIndex_ ## NAME; \
+	DIContext.FilteredAndUnfilteredBones	= FilteredAndUnfilteredBones_ ## NAME; \
+	DIContext.NumFilteredSockets = NumFilteredSockets_ ## NAME; \
+	DIContext.FilteredSocketBoneOffset = FilteredSocketBoneOffset_ ## NAME; \
 	DIContext.MeshWeightStride = MeshWeightStride_ ## NAME; \
 	DIContext.MeshSkinWeightIndexSize = MeshSkinWeightIndexSize_ ## NAME; \
 	DIContext.InstanceTransform = InstanceTransform_ ## NAME; \
 	DIContext.InstancePrevTransform = InstancePrevTransform_ ## NAME; \
+	DIContext.InstanceRotation = InstanceRotation_ ## NAME; \
+	DIContext.InstancePrevRotation = InstancePrevRotation_ ## NAME; \
 	DIContext.InstanceInvDeltaTime = InstanceInvDeltaTime_ ## NAME; \
 	DIContext.UniformTriangleSamplingEnable = EnabledFeatures_ ## NAME & 0x1; \
-	DIContext.UnlimitedBoneInfluences = EnabledFeatures_ ## NAME & 0x2; \
+	DIContext.UniformSamplingRegionEnabled = EnabledFeatures_ ## NAME & 0x2; \
+	DIContext.UnlimitedBoneInfluences = EnabledFeatures_ ## NAME & 0x4; \

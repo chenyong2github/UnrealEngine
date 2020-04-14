@@ -2053,6 +2053,43 @@ void USkeletalMeshComponent::ComputeSkinnedPositions(USkeletalMeshComponent* Com
 	}
 }
 
+void USkeletalMeshComponent::GetSkinnedTangentBasis(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals, FVector& OutTangentX, FVector& OutTangentZ)
+{
+	int32 SectionIndex;
+	int32 VertIndexInChunk;
+	LODData.GetSectionFromVertexIndex(VertexIndex, SectionIndex, VertIndexInChunk);
+
+	check(SectionIndex < LODData.RenderSections.Num());
+	const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIndex];
+
+	return GetTypedSkinnedTangentBasis(Component, Section, LODData.StaticVertexBuffers, SkinWeightBuffer, VertIndexInChunk, CachedRefToLocals, OutTangentX, OutTangentZ);
+}
+
+void USkeletalMeshComponent::ComputeSkinnedTangentBasis(USkeletalMeshComponent* Component, TArray<FVector>& OutTangenXZ, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer)
+{
+	// Fail if no mesh
+	if (!Component->SkeletalMesh)
+	{
+		return;
+	}
+
+	OutTangenXZ.Empty();
+	OutTangenXZ.AddUninitialized(LODData.GetNumVertices() * 2);
+
+	for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
+	{
+		const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
+
+		const uint32 SoftOffset = Section.GetVertexBufferIndex();
+		const uint32 NumSoftVerts = Section.GetNumVertices();
+		for (uint32 SoftIdx = 0; SoftIdx < NumSoftVerts; ++SoftIdx)
+		{
+			const uint32 TangentOffset = SoftOffset + SoftIdx * 2;
+			GetTypedSkinnedTangentBasis(Component, Section, LODData.StaticVertexBuffers, SkinWeightBuffer, SoftIdx, CachedRefToLocals, OutTangenXZ[TangentOffset + 0], OutTangenXZ[TangentOffset + 1]);
+		}
+	}
+}
+
 void USkeletalMeshComponent::SetEnableBodyGravity(bool bEnableGravity, FName BoneName)
 {
 	if (FBodyInstance* BI = GetBodyInstance(BoneName))

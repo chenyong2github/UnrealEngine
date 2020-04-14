@@ -80,6 +80,17 @@ private:
 	FIntPoint PrePostSourceViewportSize;
 };
 
+class FRCPassIntegrateDofES2 : public TRenderingCompositePassBase<3, 1>
+{
+public:
+	FRCPassIntegrateDofES2(FIntPoint InPrePostSourceViewportSize) : PrePostSourceViewportSize(InPrePostSourceViewportSize) { }
+	virtual void Process(FRenderingCompositePassContext& Context) override;
+	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+	virtual void Release() override { delete this; }
+private:
+	FIntPoint PrePostSourceViewportSize;
+};
+
 class FRCPassPostProcessBloomDownES2 : public TRenderingCompositePassBase<1, 1>
 {
 public:

@@ -10,8 +10,13 @@ class IAnalyticsProviderET;
 
 DECLARE_DELEGATE_TwoParams(FInstallBundleSourceInitDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceAsyncInitInfo /*InitInfo*/);
 
+DECLARE_DELEGATE_TwoParams(FInstallBundleSourceQueryBundleInfoDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceBundleInfoQueryResultInfo /*Result*/);
+DECLARE_DELEGATE_RetVal_TwoParams(EInstallBundleSourceUpdateBundleInfoResult, FInstallBundleSourceUpdateBundleInfoDelegate, TSharedRef<IInstallBundleSource> /*Source*/, FInstallBundleSourceBundleInfoQueryResultInfo /*Result*/);
+
 DECLARE_DELEGATE_OneParam(FInstallBundleCompleteDelegate, FInstallBundleSourceRequestResultInfo /*Result*/);
 DECLARE_DELEGATE_OneParam(FInstallBundlePausedDelegate, FInstallBundleSourcePauseInfo /*PauseInfo*/);
+
+DECLARE_DELEGATE_TwoParams(FInstallBundleSourceContentPatchResultDelegate, TSharedRef<IInstallBundleSource> /*Source*/, bool /*bContentPatchRequired*/);
 
 class IInstallBundleSource : public TSharedFromThis<IInstallBundleSource>
 {
@@ -34,11 +39,21 @@ public:
 	// It will be retried indefinitely until init is successful.  
 	virtual void AsyncInit(FInstallBundleSourceInitDelegate Callback) = 0;
 
+	// Currently only called after AsyncInit initialization.
+	// Provides information about bundles this source knows about back to bundle manager.
+	virtual void AsyncInit_QueryBundleInfo(FInstallBundleSourceQueryBundleInfoDelegate OnCompleteCallback) = 0;
+
+	virtual void AsyncInit_SetUpdateBundleInfoCallback(FInstallBundleSourceUpdateBundleInfoDelegate UpdateCallback) {}
+
 	// Whether this source has been initialized or not
 	virtual EInstallBundleManagerInitState GetInitState() const = 0;
 
 	// Returns content version in a "<BuildVersion>-<Platform>" format
 	virtual FString GetContentVersion() const = 0;
+
+	// Finds all dependencies for InBundleName, including InBundleName
+	// Sets bSkippedUnknownBundles if information for InBundleName or a dependency can't be found
+	virtual TSet<FName> GetBundleDependencies(FName InBundleName, bool* bSkippedUnknownBundles /*= nullptr*/) const = 0;
 
 	// Gets the state of content on disk
 	// BundleNames contains all dependencies and has been deduped
@@ -83,6 +98,8 @@ public:
 
 	// Derived classes should implement this if their content install will take a significant amount of time
 	virtual TOptional<FInstallBundleSourceProgress> GetBundleProgress(FName BundleName) const { return TOptional<FInstallBundleSourceProgress>(); }
+
+	virtual void CheckForContentPatch(FInstallBundleSourceContentPatchResultDelegate Callback) { Callback.Execute(AsShared(), false); }
 
 	// Called by bundle manager to pass through command line options to simulate errors
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}

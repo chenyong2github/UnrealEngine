@@ -32,5 +32,7 @@ public class PhysicsCore: ModuleRules
                 PublicDependencyModuleNames.Add("APEX");
             }
         }
+
+		PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
 	}
 }

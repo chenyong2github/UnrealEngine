@@ -10,6 +10,7 @@
 #include "MetalRenderPass.h"
 #include "MetalCommandBuffer.h"
 #include "MetalProfiler.h"
+#include "MetalFrameAllocator.h"
 
 #pragma mark - Private Console Variables -
 
@@ -161,6 +162,21 @@ TRefCountPtr<FMetalFence> const& FMetalRenderPass::Submit(EMetalSubmitFlags Flag
 		{
 			PrologueEncoder.CommitCommandBuffer((Flags & EMetalSubmitFlagsAsyncCommandBuffer) ? Flags : EMetalSubmitFlagsNone);
         }
+    }
+
+    // Must be on the render thread if there's no RHI thread
+    // Must be on the RHI thread otherwise
+    CheckMetalThread();
+    
+    if (Flags & EMetalSubmitFlagsLastCommandBuffer)
+    {
+        check(CurrentEncoder.GetCommandBuffer());
+        id <MTLCommandBuffer> CommandBuffer = CurrentEncoder.GetCommandBuffer().GetPtr();
+        
+        FMetalDeviceContext& DeviceContext = (FMetalDeviceContext&)GetMetalDeviceContext();
+        FMetalFrameAllocator* UniformAllocator = DeviceContext.GetUniformAllocator();
+        
+        UniformAllocator->MarkEndOfFrame(DeviceContext.GetFrameNumberRHIThread(), CommandBuffer);
     }
     
     if (CurrentEncoder.GetCommandBuffer() && !(Flags & EMetalSubmitFlagsAsyncCommandBuffer))

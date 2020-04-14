@@ -177,7 +177,7 @@ FChaosSolversModule::FChaosSolversModule()
 	, bModuleInitialized(false)
 {
 #if WITH_EDITOR
-	if(!IsRunningGame())
+	if(!(IsRunningDedicatedServer() || IsRunningGame()))
 	{
 		// In the editor we begin with everything paused so we don't needlessly tick
 		// the physics solvers until PIE begins. Delegates are bound in FPhysScene_ChaosPauseHandler
@@ -969,7 +969,7 @@ void FChaosSolversModule::ChangeBufferMode(Chaos::EMultiBufferMode BufferMode)
 
 Chaos::EThreadingMode FChaosSolversModule::GetDesiredThreadingMode() const
 {
-	const bool bForceSingleThread = !FApp::ShouldUseThreadingForPerformance();
+	const bool bForceSingleThread = !(FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::SupportsMultithreadingPostFork());
 
 	// If the platform isn't using threads for perf - force Chaos to
 	// run single threaded no matter the selected mode.
@@ -1114,9 +1114,9 @@ void FChaosSolversModule::OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHan
 
 void FChaosSolversModule::DispatchGlobalCommands()
 {
-	if(Dispatcher->GetMode() == Chaos::EThreadingMode::SingleThread)
+	if(Dispatcher && Dispatcher->GetMode() == Chaos::EThreadingMode::SingleThread)
 	{
-		// Single thread commands run as they are enqueued so no need to proceed here
+		// Single threaded dispatchers fire commands immediately so we don't need to process any commands here
 		return;
 	}
 

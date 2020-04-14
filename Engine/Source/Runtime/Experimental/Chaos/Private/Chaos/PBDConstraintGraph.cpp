@@ -65,7 +65,8 @@ int32 FPBDConstraintGraph::ReserveParticles(const int32 Num)
 
 void FPBDConstraintGraph::ParticleAdd(TGeometryParticleHandle<FReal, 3>* AddedParticle)
 {
-	if (ensure(!ParticleToNodeIndex.Contains(AddedParticle)))
+	// GC Code creates particle then enables particle so end up calling this twice triggering ensure
+	if (/*ensure*/ (!ParticleToNodeIndex.Contains(AddedParticle)))
 	{
 		const int32 NewNodeIndex = GetNextNodeIndex();
 		FGraphNode& Node = Nodes[NewNodeIndex];
@@ -290,7 +291,9 @@ void FPBDConstraintGraph::UpdateIslands(const TParticleView<TPBDRigidParticles<F
 	for (auto& PBDRigid : PBDRigids)
 	{
 		PBDRigid.Island() = INDEX_NONE;
-		if (!ensure(ParticleToNodeIndex.Contains(PBDRigid.Handle())))
+		// When enabling particle from a break, if the object state is static, then when Enabled the paticle doesn't get added
+		// to the constraint graph however the particle appears in GetNonDisabledDynamicView() so this ensure fires
+		if (!/*ensure*/(ParticleToNodeIndex.Contains(PBDRigid.Handle())))
 		{
 			ParticleAdd(PBDRigid.Handle());
 		}
@@ -907,4 +910,3 @@ bool FPBDConstraintGraph::CheckIslands(const TArray<TGeometryParticleHandle<FRea
 
 	return bIsValid;
 }
-

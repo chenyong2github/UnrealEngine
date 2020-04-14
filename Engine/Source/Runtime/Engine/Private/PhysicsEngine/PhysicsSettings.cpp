@@ -6,6 +6,7 @@
 #include "UObject/Package.h"
 
 #include "Framework/Threading.h"
+
 #include "ChaosSolversModule.h"
 
 UPhysicsSettings::UPhysicsSettings(const FObjectInitializer& ObjectInitializer)

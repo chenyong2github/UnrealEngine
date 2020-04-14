@@ -72,16 +72,24 @@ public:
 		return FCookStats::FScopedStatsCounter(PutStats);
 	}
 
+	/** Call this at the top of the PutCachedData override. auto Timer = TimePut(); Use AddHit on the returned type to track a cache hit. */
+	FCookStats::FScopedStatsCounter TimePrefetch()
+	{
+		return FCookStats::FScopedStatsCounter(PrefetchStats);
+	}
+
 	void LogStats(FCookStatsManager::AddStatFuncRef AddStat, const FString& StatName, const FString& NodeName) const
 	{
 		GetStats.LogStats(AddStat, StatName, NodeName, TEXT("Get"));
 		PutStats.LogStats(AddStat, StatName, NodeName, TEXT("Put"));
 		ExistsStats.LogStats(AddStat, StatName, NodeName, TEXT("Exists"));
+		PrefetchStats.LogStats(AddStat, StatName, NodeName, TEXT("Prefetch"));
 	}
 
 	// expose these publicly for low level access. These should really never be accessed directly except when finished accumulating them.
 	FCookStats::CallStats GetStats;
 	FCookStats::CallStats PutStats;
 	FCookStats::CallStats ExistsStats;
+	FCookStats::CallStats PrefetchStats;
 #endif
 };

@@ -19,14 +19,15 @@ uint			HairStrandsVF_VertexCount;
 float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
 Buffer<uint4>	HairStrandsVF_PositionBuffer;
 
-uint			VirtualVoxel_PageIndexCount;
-uint			VirtualVoxel_PageResolution;
-float			VirtualVoxel_VoxelWorldSize;
-uint3			VirtualVoxel_PageCountResolution;
-uint3			VirtualVoxel_PageTextureResolution;
-Buffer<uint>	VirtualVoxel_PageIndexBuffer;
-Buffer<uint4>	VirtualVoxel_PageIndexCoordBuffer;
-StructuredBuffer<FPackedVirtualVoxelNodeDesc> VirtualVoxel_NodeDescBuffer;
+uint			VirtualVoxelParams_PageIndexCount;
+uint			VirtualVoxelParams_PageResolution;
+float			VirtualVoxelParams_VoxelWorldSize;
+uint3			VirtualVoxelParams_PageCountResolution;
+uint3			VirtualVoxelParams_PageTextureResolution;
+
+Buffer<uint>	VirtualVoxelParams_PageIndexBuffer;
+Buffer<uint4>	VirtualVoxelParams_PageIndexCoordBuffer;
+StructuredBuffer<FPackedVirtualVoxelNodeDesc> VirtualVoxelParams_NodeDescBuffer;
 
 RWTexture3D<uint> OutPageTexture;
 
@@ -66,22 +67,23 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		HairStrandsVF_Radius,
 		HairStrandsVF_Length);
 
+	const float DiameterToRadius = 0.5f;
 	const float3 WP0 = mul(float4(CP0.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
-	const float HairCoverage0 = CP0.WorldRadius / max(CP0.WorldRadius, VirtualVoxel_VoxelWorldSize) * HairStrandsVF_Density;
+	const float HairCoverage0 = CP0.WorldRadius / max(CP0.WorldRadius, DiameterToRadius * VirtualVoxelParams_VoxelWorldSize);
 
 	const float3 WP1 = mul(float4(CP1.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
-	const float HairCoverage1 = CP1.WorldRadius / max(CP1.WorldRadius, VirtualVoxel_VoxelWorldSize) * HairStrandsVF_Density;
+	const float HairCoverage1 = CP1.WorldRadius / max(CP1.WorldRadius, DiameterToRadius * VirtualVoxelParams_VoxelWorldSize);
 
-	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxel_NodeDescBuffer[MacroGroupId], VirtualVoxel_PageResolution);
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxelParams_NodeDescBuffer[MacroGroupId], VirtualVoxelParams_PageResolution);
 
 	// In order to reduce aliasing, we increase the number of steps. This makes the result more comparable to the raster pass.
 	const float LineStepMultiplier = 1.5f;
 
 	FVirtualVoxelCommonDesc CommonDesc;
-	CommonDesc.PageCountResolution		= VirtualVoxel_PageCountResolution;
-	CommonDesc.VoxelWorldSize			= VirtualVoxel_VoxelWorldSize / LineStepMultiplier;
-	CommonDesc.PageTextureResolution	= VirtualVoxel_PageTextureResolution;
-	CommonDesc.PageResolution			= VirtualVoxel_PageResolution;
+	CommonDesc.PageCountResolution		= VirtualVoxelParams_PageCountResolution;
+	CommonDesc.VoxelWorldSize			= VirtualVoxelParams_VoxelWorldSize / LineStepMultiplier;
+	CommonDesc.PageTextureResolution	= VirtualVoxelParams_PageTextureResolution;
+	CommonDesc.PageResolution			= VirtualVoxelParams_PageResolution;
 
 	// Count the number of fibers which are within a cylinder defined by the voxel size, 
 	// and the distance between the origin and the extent of the volume
@@ -107,6 +109,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 	const float fMaxStep = LineLength / CommonDesc.VoxelWorldSize;
 	const float MaxStep = float(min(ceil(fMaxStep), MaxRasterCount));
 
+	int3 PreviousCoord = -1;
 	for (float StepIt = 0.0f; StepIt < MaxStep; ++StepIt)
 	{
 		const float U = (StepIt + 0.5f) / float(MaxStep);
@@ -123,7 +126,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		{
 			CurrentPageIndexCoord = PageIndexCoord;
 			const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
-			const uint PageIndex = VirtualVoxel_PageIndexBuffer.Load(LinearPageIndexCoord);
+			const uint PageIndex = VirtualVoxelParams_PageIndexBuffer.Load(LinearPageIndexCoord);
 
 			bIsPageValid = PageIndex != INVALID_VOXEL_PAGE_INDEX;
 			if (bIsPageValid)
@@ -138,9 +141,17 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 			const int3 VoxelPageOffset = VolumeCoord - PageIndexCoord * CommonDesc.PageResolution;
 			const int3 VoxelPageCoord = VoxelPageBase + VoxelPageOffset;
 
-			const float VoxelFixPointScale = GetVoxelDensityFixPointScale();
+			// Insure we don't write multiple time within the same voxel.
+			// This can happen for small hair segment, where both start & end points could be writtent into the same voxel.
+			const bool bRasterize = any(VoxelPageCoord != PreviousCoord);
+
 			const float HairCoverage = lerp(HairCoverage0, HairCoverage1, U);
-			InterlockedAdd(OutPageTexture[VoxelPageCoord], HairCoverage * VoxelFixPointScale);
+			if (bRasterize)
+			{
+				const float VoxelFixPointScale = GetVoxelDensityFixPointScale();
+				InterlockedAdd(OutPageTexture[VoxelPageCoord], HairCoverage * VoxelFixPointScale * HairStrandsVF_Density);
+			}
+			PreviousCoord = VoxelPageCoord;
 		}
 	}
 }

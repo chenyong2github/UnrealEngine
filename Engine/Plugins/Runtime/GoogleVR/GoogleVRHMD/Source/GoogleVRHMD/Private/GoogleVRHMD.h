@@ -251,10 +251,10 @@ public:
 	/** Check if the application is running in Daydream mode*/
 	bool IsInDaydreamMode() const;
 
-	/** Check if mobile multi-view direct is enabled */
-	bool IsMobileMultiViewDirect() const
+	/** Check if mobile multi-view is enabled */
+	bool IsMobileMultiView() const
 	{
-		return bIsMobileMultiViewDirect;
+		return bIsMobileMultiView;
 	}
 
 	void SetSPMEnable(bool bEnable) const;
@@ -374,7 +374,7 @@ private:
 	bool		bUseOffscreenFramebuffers;
 	bool		bIsInDaydreamMode;
 	bool		bForceStopPresentScene;
-	bool		bIsMobileMultiViewDirect;
+	bool		bIsMobileMultiView;
 	float		NeckModelScale;
 	FQuat		BaseOrientation;
 
@@ -521,7 +521,7 @@ public:
 	// Begin FXRRenderTargetManager Interface //
 	////////////////////////////////////////////
 
-	/** 
+	/**
 	 * Returns an instance of the currently active render bridge (aka. custom present)
 	 */
 	virtual FXRRenderBridge* GetActiveRenderBridge_GameThread(bool bUseSeparateRenderTarget) override;
@@ -601,7 +601,7 @@ public:
 	// Begin IXRTrackingSystem Virtual Interface //
 	///////////////////////////////////////////////
 
-	/** 
+	/**
 	 * GoogleVR currently does not support late update
 	 */
 	virtual bool DoesSupportLateUpdate() const override

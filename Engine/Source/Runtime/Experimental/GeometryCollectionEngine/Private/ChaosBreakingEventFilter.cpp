@@ -37,7 +37,6 @@ void FChaosBreakingEventFilter::FilterEvents(const FTransform& ChaosComponentTra
 			NewData.Location = BreakingData.Location;
 			NewData.Velocity = BreakingData.Velocity;
 			NewData.Mass = BreakingData.Mass;
-			NewData.ParticleIndex = BreakingData.ParticleIndex;
 
 			FilteredDataArray.Add(NewData);
 

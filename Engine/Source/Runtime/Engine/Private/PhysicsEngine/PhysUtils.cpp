@@ -20,6 +20,7 @@
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/ChaosArchive.h"
 #include "Chaos/TrackedGeometryManager.h"
+#include "RewindData.h"
 
 /** Returns false if ModelToHulls operation should halt because of vertex count overflow. */
 static bool AddConvexPrim(FKAggregateGeom* OutGeom, TArray<FPlane> &Planes, UModel* InModel)
@@ -480,6 +481,12 @@ bool FPhysicsInterface::ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* Output
 	if (FParse::Command(&Cmd, TEXT("ChaosGeometryMemory")))
 	{
 		Chaos::FTrackedGeometryManager::Get().DumpMemoryUsage(OutputDevice);
+		return true;
+	}
+
+	if(FParse::Command(&Cmd,TEXT("ChaosRewind")))
+	{
+		InWorld->GetPhysicsScene()->GetSolver()->GetRewindData()->RewindToFrame(0);
 		return true;
 	}
 #if CHAOS_MEMORY_TRACKING

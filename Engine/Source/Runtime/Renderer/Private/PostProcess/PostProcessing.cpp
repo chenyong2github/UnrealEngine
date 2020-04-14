@@ -244,6 +244,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 	enum class EPass : uint32
 	{
+		MotionBlur,
 		Tonemap,
 		FXAA,
 		PostProcessMaterialAfterTonemapping,
@@ -267,6 +268,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 	const TCHAR* PassNames[] =
 	{
+		TEXT("MotionBlur"),
 		TEXT("Tonemap"),
 		TEXT("FXAA"),
 		TEXT("PostProcessMaterial (AfterTonemapping)"),
@@ -365,6 +367,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		const FPostProcessMaterialChain PostProcessMaterialAfterTonemappingChain = GetPostProcessMaterialChain(View, BL_AfterTonemapping);
 
+		PassSequence.SetEnabled(EPass::MotionBlur, bVisualizeMotionBlur || bMotionBlurEnabled);
 		PassSequence.SetEnabled(EPass::Tonemap, bTonemapEnabled);
 		PassSequence.SetEnabled(EPass::FXAA, AntiAliasingMethod == AAM_FXAA);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
@@ -467,16 +470,25 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 		}
 
-		// Motion blur visualization replaces motion blur when enabled.
-		if (bVisualizeMotionBlur)
+		if (PassSequence.IsEnabled(EPass::MotionBlur))
 		{
-			check(Velocity.ViewRect == SceneDepth.ViewRect);
-			SceneColor.Texture = AddVisualizeMotionBlurPass(GraphBuilder, View, SceneColor.ViewRect, SceneDepth.ViewRect, SceneColor.Texture, SceneDepth.Texture, Velocity.Texture);
-		}
-		else if (bMotionBlurEnabled)
-		{
-			check(Velocity.ViewRect == SceneDepth.ViewRect);
-			SceneColor.Texture = AddMotionBlurPass(GraphBuilder, View, SceneColor.ViewRect, SceneDepth.ViewRect, SceneColor.Texture, SceneDepth.Texture, Velocity.Texture);
+			FMotionBlurInputs PassInputs;
+			PassSequence.AcceptOverrideIfLastPass(EPass::MotionBlur, PassInputs.OverrideOutput);
+			PassInputs.SceneColor = SceneColor;
+			PassInputs.SceneDepth = SceneDepth;
+			PassInputs.SceneVelocity = Velocity;
+			PassInputs.Quality = GetMotionBlurQuality();
+			PassInputs.Filter = GetMotionBlurFilter();
+
+			// Motion blur visualization replaces motion blur when enabled.
+			if (bVisualizeMotionBlur)
+			{
+				SceneColor = AddVisualizeMotionBlurPass(GraphBuilder, View, PassInputs);
+			}
+			else
+			{
+				SceneColor = AddMotionBlurPass(GraphBuilder, View, PassInputs);
+			}
 		}
 
 		// If TAA didn't do it, downsample the scene color texture by half.
@@ -656,6 +668,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	// Minimal PostProcessing - Separate translucency composition and gamma-correction only.
 	else
 	{
+		PassSequence.SetEnabled(EPass::MotionBlur, false);
 		PassSequence.SetEnabled(EPass::Tonemap, true);
 		PassSequence.SetEnabled(EPass::FXAA, false);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, false);
@@ -1273,6 +1286,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 		FPostprocessContext Context(RHICmdList, CompositeContext.Graph, View);
 		FRenderingCompositeOutputRef BloomOutput;
 		FRenderingCompositeOutputRef DofOutput;
+		FRenderingCompositeOutputRef PostProcessSunShaftAndDof;
 
 		bool bUseAa = View.AntiAliasingMethod == AAM_TemporalAA;
 
@@ -1364,7 +1378,6 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			// Optional fixed pass processes
 			if (bUsePost && (bUseSun | bUseDof | bUseBloom | bUseVignette | bUseBasicEyeAdaptation | bUseHistogramEyeAdaptation))
 			{
-				FRenderingCompositeOutputRef PostProcessSunShaftAndDof;
 				if (bUseSun || bUseDof)
 				{
 					bool bUseDepthTexture = Context.FinalOutput.GetOutput()->RenderTargetDesc.Format == PF_FloatR11G11B10;
@@ -1456,6 +1469,18 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 							Pass->SetInput(ePId_Input1, PostProcessNear);
 							PostProcessDofBlur = FRenderingCompositeOutputRef(Pass);
 							DofOutput = PostProcessDofBlur;
+						}
+
+						if (bUseTonemapperFilm)
+						{
+							FRenderingCompositeOutputRef PostProcessIntegrateDof;
+							{
+								FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassIntegrateDofES2(FinalOutputViewRect.Size()));
+								Pass->SetInput(ePId_Input0, Context.FinalOutput);
+								Pass->SetInput(ePId_Input1, DofOutput);
+								Pass->SetInput(ePId_Input2, PostProcessSunShaftAndDof);
+								Context.FinalOutput = FRenderingCompositeOutputRef(Pass);
+							}
 						}
 					}
 					else
@@ -1683,6 +1708,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 				}
 				PostProcessTonemap->SetInput(ePId_Input2, DofOutput);
 				PostProcessTonemap->SetInput(ePId_Input3, PostProcessEyeAdaptation);
+				PostProcessTonemap->SetInput(ePId_Input4, PostProcessSunShaftAndDof);
 
 				Context.FinalOutput = FRenderingCompositeOutputRef(PostProcessTonemap);
 

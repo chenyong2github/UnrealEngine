@@ -52,6 +52,7 @@
 #include "UObject/FastReferenceCollector.h"
 #include "UObject/PropertyProxyArchive.h"
 #include "UObject/FieldPath.h"
+#include "HAL/ThreadSafeCounter.h"
 
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
@@ -622,6 +623,14 @@ public:
 	}
 };
 
+#if WITH_EDITORONLY_DATA
+static int32 GetNextFieldPathSerialNumber()
+{
+	static FThreadSafeCounter GlobalSerialNumberCounter;
+	return GlobalSerialNumberCounter.Increment();
+}
+#endif // WITH_EDITORONLY_DATA
+
 //
 // Constructors.
 //
@@ -638,6 +647,9 @@ UStruct::UStruct(EStaticConstructor, int32 InSize, int32 InMinAlignment, EObject
 	, PostConstructLink(nullptr)
 	, UnresolvedScriptProperties(nullptr)
 {
+#if WITH_EDITORONLY_DATA
+	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
+#endif // WITH_EDITORONLY_DATA
 }
 
 UStruct::UStruct(UStruct* InSuperStruct, SIZE_T ParamsSize, SIZE_T Alignment)
@@ -656,6 +668,9 @@ UStruct::UStruct(UStruct* InSuperStruct, SIZE_T ParamsSize, SIZE_T Alignment)
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	this->ReinitializeBaseChainArray();
 #endif
+#if WITH_EDITORONLY_DATA
+	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
+#endif // WITH_EDITORONLY_DATA
 }
 
 UStruct::UStruct(const FObjectInitializer& ObjectInitializer, UStruct* InSuperStruct, SIZE_T ParamsSize, SIZE_T Alignment)
@@ -674,6 +689,9 @@ UStruct::UStruct(const FObjectInitializer& ObjectInitializer, UStruct* InSuperSt
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	this->ReinitializeBaseChainArray();
 #endif
+#if WITH_EDITORONLY_DATA
+	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
+#endif // WITH_EDITORONLY_DATA
 }
 
 /**
@@ -1584,12 +1602,6 @@ void UStruct::FinishDestroy()
 {
 	DestroyUnversionedSchema(this);
 	Script.Empty();
-
-	if (ChildProperties)
-	{
-		FFieldPath::OnFieldDeleted();
-	}
-
 	Super::FinishDestroy();
 }
 
@@ -1612,6 +1624,9 @@ void UStruct::DestroyChildPropertiesAndResetPropertyLinks()
 	RefLink = nullptr;
 	DestructorLink = nullptr;
 	PostConstructLink = nullptr;
+#if WITH_EDITORONLY_DATA
+	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
+#endif // WITH_EDITORONLY_DATA
 }
 
 UStruct::~UStruct()
@@ -1620,7 +1635,7 @@ UStruct::~UStruct()
 	// This needs to happen after FinishDestroy which calls DestroyNonNativeProperties
 	// Also, Blueprint generated classes can have DestroyNonNativeProperties called on them after their FinishDestroy has been called
 	// so properties can only be deleted in the destructor
-	DestroyChildPropertiesAndResetPropertyLinks();
+	DestroyPropertyLinkedList(ChildProperties);
 	DeleteUnresolvedScriptProperties();
 }
 
@@ -4687,14 +4702,14 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 		PropertiesPendingDestruction = ChildProperties;
 		ChildProperties = nullptr;
 	}
+	// Update the serial number so that FFieldPaths that point to properties of this struct know they need to resolve themselves again
+	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
 #else
 	{
 		// Destroy all properties owned by this struct
 		DestroyPropertyLinkedList(ChildProperties);
 	}
 #endif // WITH_EDITORONLY_DATA
-
-	FFieldPath::OnFieldDeleted();
 
 	DestroyUnversionedSchema(this);
 }
@@ -4746,9 +4761,9 @@ bool UClass::HasProperty(FProperty* InProperty) const
 	{
 		UClass* PropertiesClass = InProperty->GetOwner<UClass>();
 		if (PropertiesClass)
-	{
-		return IsChildOf(PropertiesClass);
-	}
+		{
+			return IsChildOf(PropertiesClass);
+		}
 	}
 
 	return false;

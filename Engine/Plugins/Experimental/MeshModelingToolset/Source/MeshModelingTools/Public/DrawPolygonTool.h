@@ -211,9 +211,9 @@ public:
 
 	// polygon drawing functions
 	virtual void ResetPolygon();
-	virtual void UpdatePreviewVertex(const FVector& PreviewVertex);
-	virtual void AppendVertex(const FVector& Vertex);
-	virtual bool FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FVector& HitPosOut);
+	virtual void UpdatePreviewVertex(const FVector3d& PreviewVertex);
+	virtual void AppendVertex(const FVector3d& Vertex);
+	virtual bool FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FVector3d& HitPosOut);
 	virtual void EmitCurrentPolygon();
 
 	virtual void BeginInteractiveExtrude();
@@ -243,23 +243,19 @@ protected:
 	
 
 	/** Origin of plane we will draw polygon on */
-	UPROPERTY()
-	FVector DrawPlaneOrigin;
+	FVector3d DrawPlaneOrigin;
 
 	/** Orientation of plane we will draw polygon on */
-	UPROPERTY()
-	FQuat DrawPlaneOrientation;
+	FQuaterniond DrawPlaneOrientation;
 	
 	/** Vertices of current preview polygon */
-	UPROPERTY()
-	TArray<FVector> PolygonVertices;
+	TArray<FVector3d> PolygonVertices;
 
 	/** Vertices of holes in current preview polygon */
-	TArray<TArray<FVector>> PolygonHolesVertices;
+	TArray<TArray<FVector3d>> PolygonHolesVertices;
 
 	/** last vertex of polygon that is actively being updated as input device is moved */
-	UPROPERTY()
-	FVector PreviewVertex;
+	FVector3d PreviewVertex;
 
 protected:
 	UWorld* TargetWorld;
@@ -286,7 +282,7 @@ protected:
 	IClickBehaviorTarget* SetPointInWorldConnector = nullptr;
 
 	// updates plane and gizmo position
-	virtual void SetDrawPlaneFromWorldPos(const FVector& Position, const FVector& Normal);
+	virtual void SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal);
 
 	TValueWatcher<bool> ShowGizmoWatcher;
 	void UpdateShowGizmoState(bool bNewVisibility);
@@ -297,26 +293,26 @@ protected:
 	bool bAbortActivePolygonDraw;
 
 	bool bInFixedPolygonMode = false;
-	TArray<FVector> FixedPolygonClickPoints;
+	TArray<FVector3d> FixedPolygonClickPoints;
 
 	// can close poly if current segment intersects existing segment
 	bool UpdateSelfIntersection();
 	bool bHaveSelfIntersection;
 	int SelfIntersectSegmentIdx;
-	FVector3f SelfIntersectionPoint;
+	FVector3d SelfIntersectionPoint;
 
 	// only used when SnapSettings.bHitSceneObjects = true
 	bool bHaveSurfaceHit;
-	FVector3f SurfaceHitPoint;
-	FVector3f SurfaceOffsetPoint;
+	FVector3d SurfaceHitPoint;
+	FVector3d SurfaceOffsetPoint;
 
 	bool bIgnoreSnappingToggle = false;		// toggled by hotkey (shift)
 	FPointPlanarSnapSolver SnapEngine;
 	ToolSceneQueriesUtil::FSnapGeometry LastSnapGeometry;
 	FVector3d LastGridSnapPoint;
 
-	void GetPolygonParametersFromFixedPoints(const TArray<FVector>& FixedPoints, FVector2f& FirstReferencePt, FVector2f& BoxSize, float& YSign, float& AngleRad);
-	void GenerateFixedPolygon(const TArray<FVector>& FixedPoints, TArray<FVector>& VerticesOut, TArray<TArray<FVector>>& HolesVerticesOut);
+	void GetPolygonParametersFromFixedPoints(const TArray<FVector3d>& FixedPoints, FVector2d& FirstReferencePt, FVector2d& BoxSize, double& YSign, double& AngleRad);
+	void GenerateFixedPolygon(const TArray<FVector3d>& FixedPoints, TArray<FVector3d>& VerticesOut, TArray<TArray<FVector3d>>& HolesVerticesOut);
 
 
 	// extrusion control
@@ -333,7 +329,7 @@ protected:
 	FFrame3f HitPosFrameWorld;
 
 	/** Generate extruded meshes.  Returns true on success. */
-	bool GeneratePolygonMesh(const TArray<FVector>& Polygon, const TArray<TArray<FVector>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric);
+	bool GeneratePolygonMesh(const TArray<FVector3d>& Polygon, const TArray<TArray<FVector3d>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric);
 
 
 	// user feedback messages

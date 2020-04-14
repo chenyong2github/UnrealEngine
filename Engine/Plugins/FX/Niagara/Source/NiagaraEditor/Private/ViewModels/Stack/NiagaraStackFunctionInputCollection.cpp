@@ -430,7 +430,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(TArray<FName> Duplicate
 		if (InputFunctionCallNodePin->Direction == EEdGraphPinDirection::EGPD_Input && InputFunctionCallNodePin->bOrphanedPin)
 		{
 			FStackIssue InvalidInputError(
-				EStackIssueSeverity::Error,
+				EStackIssueSeverity::Warning,
 				FText::Format(LOCTEXT("InvalidInputSummaryFormat", "Invalid Input: {0}"), FText::FromString(InputFunctionCallNodePin->PinName.ToString())),
 				FText::Format(LOCTEXT("InvalidInputFormat", "The input {0} was previously set but is no longer exposed by the function {1}.\nPress the fix button to remove this unused input data,\nor check the function definition to see why this input is no longer exposed."),
 					FText::FromString(InputFunctionCallNodePin->PinName.ToString()), FText::FromString(InputFunctionCallNode->GetFunctionName())),

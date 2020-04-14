@@ -58,7 +58,7 @@ void UNiagaraEffectType::PostLoad()
 			FNiagaraSystemScalabilitySettings& DLSettings = DetailLevelScalabilitySettings_DEPRECATED[DL];
 			FNiagaraSystemScalabilitySettings& NewSettigns = SystemScalabilitySettings.Settings.AddDefaulted_GetRef();
 			NewSettigns = DLSettings;
-			NewSettigns.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(DL));
+			NewSettigns.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(DL));
 		}
 
 		//Ensure all types replicate the former global spawn count scales
@@ -70,7 +70,7 @@ void UNiagaraEffectType::PostLoad()
 				FNiagaraEmitterScalabilitySettings& EmitterSettings = EmitterScalabilitySettings.Settings.AddDefaulted_GetRef();
 				EmitterSettings.bScaleSpawnCount = true;
 				EmitterSettings.SpawnCountScale = LegacySpawnCountScales[DL];
-				EmitterSettings.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(DL));
+				EmitterSettings.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(DL));
 			}
 		}
 	}
@@ -120,7 +120,7 @@ void UNiagaraEffectType::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 		UNiagaraSystem* System = *It;
 		if (System->GetEffectType() == this)
 		{
-			System->OnEffectsQualityChanged();
+			System->OnQualityLevelChanged();
 			UpdateContext.Add(System, true);
 		}
 	}
@@ -171,7 +171,6 @@ void UNiagaraEffectType::ProcessLastFrameCycleCounts()
 FNiagaraSystemScalabilityOverride::FNiagaraSystemScalabilityOverride()
 	: bOverrideDistanceSettings(false)
 	, bOverrideInstanceCountSettings(false)
-	, bOverrideOwnerLODSettings(false)
 	, bOverrideTimeSinceRendererSettings(false)
 {
 }
@@ -185,12 +184,10 @@ void FNiagaraSystemScalabilitySettings::Clear()
 {
 	Platforms = FNiagaraPlatformSet();
 	bCullByDistance = false;
-	bCullByMaxOwnerLOD = false;
 	bCullByMaxTimeWithoutRender = false;
 	bCullMaxInstanceCount = false;
 	MaxDistance = 0.0f;
 	MaxInstances = 0;
-	MaxOwnerLOD = 0;
 	MaxTimeWithoutRender = 0.0f;
 }
 

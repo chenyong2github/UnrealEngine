@@ -216,3 +216,30 @@ bool IsComputeUVOutOfBounds(in float2 UV)
 	return (max(CenterDist.x, CenterDist.y) >= 0.5f);
 }
 
+// Constants for DOF blend in.
+half CocMaxRadiusInPixelsRcp()
+{
+	half2 MaxOffset = half2(-2.125, -0.50) * 2.0;
+	return rcp(sqrt(dot(MaxOffset, MaxOffset)));
+}
+
+half2 CocBlendScaleBias()
+{
+	half Start = 0.25 * CocMaxRadiusInPixelsRcp();
+	half End = 1.0 * CocMaxRadiusInPixelsRcp();
+	half2 ScaleBias;
+	ScaleBias.x = 1.0 / (End - Start);
+	ScaleBias.y = (-Start) * ScaleBias.x;
+	return ScaleBias;
+}
+
+half2 CocBlendScaleBiasFine()
+{
+	half Start = 0.0 * CocMaxRadiusInPixelsRcp();
+	half End = 0.5 * CocMaxRadiusInPixelsRcp();
+	half2 ScaleBias;
+	ScaleBias.x = 1.0 / (End - Start);
+	ScaleBias.y = (-Start) * ScaleBias.x;
+	return ScaleBias;
+}
+

@@ -21,26 +21,26 @@ struct FNiagaraDeviceProfileStateEntry
 	GENERATED_BODY();
 
 	FNiagaraDeviceProfileStateEntry()
-		: EffectsQualityMask(0)
-		, SetEffectsQualityMask(0)
+		: QualityLevelMask(0)
+		, SetQualityLevelMask(0)
 	{}
 
 	UPROPERTY(EditAnywhere, Category = Profile)
 	FName ProfileName;
 
-	/** The state of each set effects quality. */
+	/** The state of each set quality level. */
 	UPROPERTY(EditAnywhere, Category = Profile)
-	uint32 EffectsQualityMask;
+	uint32 QualityLevelMask;
 
 	/** Which Effects Qualities are set. */
 	UPROPERTY(EditAnywhere, Category = Profile)
-	uint32 SetEffectsQualityMask;
+	uint32 SetQualityLevelMask;
 
-	FORCEINLINE ENiagaraPlatformSelectionState GetState(int32 EffectsQuality)const;
+	FORCEINLINE ENiagaraPlatformSelectionState GetState(int32 QualityLevel)const;
 
-	FORCEINLINE void SetState(int32 EffectsQuality, ENiagaraPlatformSelectionState State);
+	FORCEINLINE void SetState(int32 QualityLevel, ENiagaraPlatformSelectionState State);
 
-	FORCEINLINE bool AllDefaulted()const { return SetEffectsQualityMask == 0; }
+	FORCEINLINE bool AllDefaulted()const { return SetQualityLevelMask == 0; }
 };
 
 UENUM()
@@ -61,7 +61,7 @@ struct FNiagaraPlatformSetConflictEntry
 
 	FNiagaraPlatformSetConflictEntry()
 		: ProfileName(NAME_None)
-		, EffectsQualityMask(0)
+		, QualityLevelMask(0)
 	{}
 
 	UPROPERTY()
@@ -69,7 +69,7 @@ struct FNiagaraPlatformSetConflictEntry
 
 	/** Mask of conflicting effects qualities for this profile. */
 	UPROPERTY()
-	int32 EffectsQualityMask;
+	int32 QualityLevelMask;
 };
 
 USTRUCT()
@@ -100,36 +100,39 @@ struct NIAGARA_API FNiagaraPlatformSet
 {
 	GENERATED_BODY();
 
-	static FORCEINLINE int32 EQFromMask(int32 EQMask);
-	static FORCEINLINE int32 CreateEQMask(int32 EQ);
-	static FText GetEffectsQualityText(int32 EffectsQuality);
-	static FText GetEffectsQualityMaskText(int32 EffectsQualityMask);
+	static FORCEINLINE int32 QualityLevelFromMask(int32 QLMask);
+	static FORCEINLINE int32 CreateQualityLevelMask(int32 QL);
+	static FText GetQualityLevelText(int32 QualityLevel);
+	static FText GetQualityLevelMaskText(int32 QualityLevelMask);
+
+	static void OnQualityLevelChanged(IConsoleVariable* Variable);
+	static int32 GetQualityLevel();
 public:
 
 	//Runtime public API
 
-	FNiagaraPlatformSet(int32 EQMask);
+	FNiagaraPlatformSet(int32 QLMask);
 	FNiagaraPlatformSet();
 
-	/** Is this set active right now. i.e. enabled for the current device profile and effects quality. */
+	/** Is this set active right now. i.e. enabled for the current device profile and quality level. */
 	bool IsActive()const;
 	
-	/** Is this platform set enabled on any effects quality for the passed device profile. Returns the EffectsQualityMask for all enabled effects qualities for this profile. */
+	/** Is this platform set enabled on any quality level for the passed device profile. Returns the QualityLevelMask for all enabled effects qualities for this profile. */
 	int32 IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile)const;
 
-	/** Is this platform set enabled at this effects quality on any device profile. */
-	bool IsEnabledForEffectsQuality(int32 EffectsQuality)const;
+	/** Is this platform set enabled at this quality level on any device profile. */
+	bool IsEnabledForQualityLevel(int32 QualityLevel)const;
 
-	/** Fill OutProfiles with all device proifles that have been overriden at the passed EffectsQuality. */
-	void GetOverridenDeviceProfiles(int32 EffectsQuality, TArray<UDeviceProfile*>& OutEnabledProfiles, TArray<UDeviceProfile*>& OutDisabledProfiles)const;
+	/** Fill OutProfiles with all device profiles that have been overridden at the passed QualityLevel. */
+	void GetOverridenDeviceProfiles(int32 QualityLevel, TArray<UDeviceProfile*>& OutEnabledProfiles, TArray<UDeviceProfile*>& OutDisabledProfiles)const;
 
 	/** Returns true if this set is enabled for any profiles on the specified platform. */
 	bool IsEnabledForPlatform(const FString& PlatformName)const;
 
-	/** Returns true if the current platform can modify it's niagara scalability settings at runtime. */
+	/** Returns true if the current platform can modify it's Niagara scalability settings at runtime. */
 	static bool CanChangeScalabilityAtRuntime();
 
-	/**Will force all platform sets to regenerate their cacehd data next time they are used.*/
+	/**Will force all platform sets to regenerate their cached data next time they are used.*/
 	static void InvalidateCachedData();
 
 	static int32 GetEffectQualityMaskForDeviceProfile(const UDeviceProfile* Profile);
@@ -143,14 +146,14 @@ public:
 	Does the enabled set of profiles in this set conflict with those in another set.
 	In some cases this is not allowed.
 	*/
-	//bool Conflicts(const FNiagaraPlatformSet& Other, TArray<const UDeviceProfile*>& OutConflictingProfiles, bool bIncludeProfilesWithVariableEffectsQuality=false)const;
+	//bool Conflicts(const FNiagaraPlatformSet& Other, TArray<const UDeviceProfile*>& OutConflictingProfiles, bool bIncludeProfilesWithVariableQualityLevel=false)const;
 
 
 	/** Direct state accessors for the UI. */
 	bool IsEffectQualityEnabled(int32 EffectQuality)const;
 	void SetEnabledForEffectQuality(int32 EffectQuality, bool bEnabled);
-	void SetDeviceProfileState(UDeviceProfile* Profile, int32 EffectsQuality, ENiagaraPlatformSelectionState NewState);
-	ENiagaraPlatformSelectionState GetDeviceProfileState(UDeviceProfile* Profile, int32 EffectsQuality)const;
+	void SetDeviceProfileState(UDeviceProfile* Profile, int32 QualityLevel, ENiagaraPlatformSelectionState NewState);
+	ENiagaraPlatformSelectionState GetDeviceProfileState(UDeviceProfile* Profile, int32 QualityLevel)const;
 	
 	/** Invalidates any cached data on this platform set when something has changed. */
 	void OnChanged();
@@ -167,12 +170,14 @@ public:
 
 	/** Mask defining which effects qualities this set matches. */
 	UPROPERTY(EditAnywhere, Category = Platforms)
-	int32 EffectsQualityMask;
+	int32 QualityLevelMask;
 
 	/** States of specific device profiles we've set. */
 	UPROPERTY(EditAnywhere, Category = Platforms)
 	TArray<FNiagaraDeviceProfileStateEntry> DeviceProfileStates;
 private:
+
+	static int32 CachedQualityLevel;
 
 	//Set from outside when we need to force all cached values to be regenerated. For example on CVar changes.
 	static uint32 LastDirtiedFrame;
@@ -182,28 +187,30 @@ private:
 
 	mutable bool bEnabledForCurrentProfileAndEffectQuality;
 
-	bool IsEnabled(const UDeviceProfile* Profile, int32 EffectsQuality)const;
+	bool IsEnabled(const UDeviceProfile* Profile, int32 QualityLevel)const;
 
 #if WITH_EDITOR
 	//Data we pull from platform ini files.
 	struct FPlatformIniSettings
 	{
 		FPlatformIniSettings()
-			:bCanChangeEffectsQualityAtRuntime(0), EffectsQualityMask(INDEX_NONE)
+			:bCanChangeQualityLevelAtRuntime(0), bPruneEmittersOnCook(false), EffectsQuality(0)
 		{}
-		FPlatformIniSettings(int32 InbCanChangeEffectsQualityAtRuntime, int32 InbPruneEmittersOnCook, int32 InEffectsQualityMask)
-			:bCanChangeEffectsQualityAtRuntime(InbCanChangeEffectsQualityAtRuntime), bPruneEmittersOnCook(InbPruneEmittersOnCook), EffectsQualityMask(InEffectsQualityMask)
+		FPlatformIniSettings(int32 InbCanChangeQualityLevelAtRuntime, int32 InbPruneEmittersOnCook, int32 InEffectsQuality)
+			:bCanChangeQualityLevelAtRuntime(InbCanChangeQualityLevelAtRuntime), bPruneEmittersOnCook(InbPruneEmittersOnCook), EffectsQuality(InEffectsQuality)
 		{}
-		int32 bCanChangeEffectsQualityAtRuntime;
+		int32 bCanChangeQualityLevelAtRuntime;
 		int32 bPruneEmittersOnCook;
-		int32 EffectsQualityMask;
+		int32 EffectsQuality;
+
+		TArray<int32> QualityLevelsPerEffectsQuality;
 	};
 
 	//Cached data read from platform ini files.
 	static TMap<FName, FPlatformIniSettings> CachedPlatformIniSettings;
 
-	//Cached final EffectsQuality setting for each device profile.
-	static TMap<const UDeviceProfile*, int32> CachedEQMasksPerDeviceProfile;
+	//Cached final QualityLevel setting for each device profile.
+	static TMap<const UDeviceProfile*, int32> CachedQLMasksPerDeviceProfile;
 
 	static FPlatformIniSettings GetPlatformIniSettings(const FString& PlatformName);
 
@@ -212,51 +219,53 @@ private:
 };
 
 
-FORCEINLINE int32 FNiagaraPlatformSet::EQFromMask(int32 EQMask)
+FORCEINLINE int32 FNiagaraPlatformSet::QualityLevelFromMask(int32 QLMask)
 {
 	//Iterate through bits in mask to find the first set quality level.
-	int32 EffectsQuality = 0;
-	while (EQMask != 0)
+	int32 QualityLevel = 0;
+	while (QLMask != 0)
 	{
-		if (EQMask & 0x1)
+		if (QLMask & 0x1)
 		{
-			return EffectsQuality;
+			return QualityLevel;
 		}
-		++EffectsQuality;
-		EQMask >>= 1;
+		++QualityLevel;
+		QLMask >>= 1;
 	}
 
 	return INDEX_NONE;
 }
 
-FORCEINLINE int32 FNiagaraPlatformSet::CreateEQMask(int32 EQ)
+FORCEINLINE int32 FNiagaraPlatformSet::CreateQualityLevelMask(int32 QL)
 {
-	return EQ == INDEX_NONE ? INDEX_NONE : (1 << EQ);
+	return QL == INDEX_NONE ? INDEX_NONE : (1 << QL);
 }
 
 
-FORCEINLINE ENiagaraPlatformSelectionState FNiagaraDeviceProfileStateEntry::GetState(int32 EffectsQuality)const
+FORCEINLINE ENiagaraPlatformSelectionState FNiagaraDeviceProfileStateEntry::GetState(int32 QualityLevel)const
 {
-	int32 EQMask = FNiagaraPlatformSet::CreateEQMask(EffectsQuality);
-	return (EQMask & SetEffectsQualityMask) == 0 ? ENiagaraPlatformSelectionState::Default : ((EQMask & EffectsQualityMask) != 0 ? ENiagaraPlatformSelectionState::Enabled : ENiagaraPlatformSelectionState::Disabled);
+	int32 QLMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
+	return (QLMask & SetQualityLevelMask) == 0 ? ENiagaraPlatformSelectionState::Default : ((QLMask & QualityLevelMask) != 0 ? ENiagaraPlatformSelectionState::Enabled : ENiagaraPlatformSelectionState::Disabled);
 }
 
-FORCEINLINE void FNiagaraDeviceProfileStateEntry::SetState(int32 EffectsQuality, ENiagaraPlatformSelectionState State)
+FORCEINLINE void FNiagaraDeviceProfileStateEntry::SetState(int32 QualityLevel, ENiagaraPlatformSelectionState State)
 {
-	int32 EQMask = FNiagaraPlatformSet::CreateEQMask(EffectsQuality);
+	int32 QLMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
 	if (State == ENiagaraPlatformSelectionState::Default)
 	{
-		SetEffectsQualityMask &= ~EQMask;
-		EffectsQualityMask &= ~EQMask;
+		SetQualityLevelMask &= ~QLMask;
+		QualityLevelMask &= ~QLMask;
 	}
 	else if (State == ENiagaraPlatformSelectionState::Enabled)
 	{
-		SetEffectsQualityMask |= EQMask;
-		EffectsQualityMask |= EQMask;
+		SetQualityLevelMask |= QLMask;
+		QualityLevelMask |= QLMask;
 	}
 	else //(State == ENiagaraPlatformSelectionState::Disabled)
 	{
-		SetEffectsQualityMask |= EQMask;
-		EffectsQualityMask &= ~EQMask;
+		SetQualityLevelMask |= QLMask;
+		QualityLevelMask &= ~QLMask;
 	}
 }
+
+extern int32 GNiagaraQualityLevel;

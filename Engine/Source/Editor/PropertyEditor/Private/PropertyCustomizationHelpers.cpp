@@ -453,6 +453,7 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 	ObjectPath = InArgs._ObjectPath;
 	OnObjectChanged = InArgs._OnObjectChanged;
 	OnShouldSetAsset = InArgs._OnShouldSetAsset;
+	OnIsEnabled = InArgs._OnIsEnabled;
 
 	const TArray<FAssetData>& OwnerAssetDataArray = InArgs._OwnerAssetDataArray;
 
@@ -462,7 +463,6 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 	{
 		ThumbnailSize = InArgs._ThumbnailSizeOverride.Get();
 	}
-
 
 	if( InArgs._PropertyHandle.IsValid() && InArgs._PropertyHandle->IsValidHandle() )
 	{
@@ -500,7 +500,7 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 	if (InArgs._CustomResetToDefault.IsSet() || (PropertyHandle.IsValid() && !PropertyHandle->HasMetaData(TEXT("NoResetToDefault")) && !PropertyHandle->IsResetToDefaultCustomized()))
 	{
 		SAssignNew(ResetButton, SResetToDefaultPropertyEditor, PropertyHandle)
-			.IsEnabled(true)
+			.IsEnabled(this, &SObjectPropertyEntryBox::IsEnabled)
 			.CustomResetToDefault(InArgs._CustomResetToDefault);		
 	};
 
@@ -517,6 +517,7 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 				.ObjectPath( this, &SObjectPropertyEntryBox::OnGetObjectPath )
 				.Class( InArgs._AllowedClass )
 				.NewAssetFactories( InArgs._NewAssetFactories )
+				.IsEnabled(this, &SObjectPropertyEntryBox::IsEnabled)
 				.OnSetObject(this, &SObjectPropertyEntryBox::OnSetObject)
 				.ThumbnailPool(InArgs._ThumbnailPool)
 				.DisplayThumbnail(bDisplayThumbnail)
@@ -572,6 +573,22 @@ void SObjectPropertyEntryBox::OnSetObject(const FAssetData& AssetData)
 		}
 	}
 	OnObjectChanged.ExecuteIfBound(AssetData);
+}
+
+bool SObjectPropertyEntryBox::IsEnabled() const
+{
+	bool IsEnabled = true;
+	if (PropertyHandle.IsValid())
+	{
+		IsEnabled &= PropertyHandle->IsEditable();
+	}
+
+	if (OnIsEnabled.IsBound())
+	{
+		IsEnabled &= OnIsEnabled.Execute();
+	}
+
+	return IsEnabled;
 }
 
 void SClassPropertyEntryBox::Construct(const FArguments& InArgs)

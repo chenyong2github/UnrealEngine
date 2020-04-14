@@ -6,8 +6,9 @@
 #include "HAL/CriticalSection.h"
 #include "Templates/Tuple.h"
 #include "HAL/Runnable.h"
+#include "Containers/Map.h"
 
-struct FFileIoStoreReadBlock;
+struct FFileIoStoreRawBlock;
 struct FFileIoStoreResolvedRequest;
 class IAsyncReadRequest;
 
@@ -18,38 +19,44 @@ public:
 	~FGenericIoDispatcherEventQueue();
 	void Notify();
 	void Wait();
-	void Poll() {};
+	void WaitForIo()
+	{
+		Wait();
+	}
 
 private:
 	FEvent* Event;
 };
 
 class FGenericFileIoStoreImpl
-	: public FRunnable
 {
 public:
-	FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue);
+	FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue, uint64 InReadBufferSize);
 	~FGenericFileIoStoreImpl();
 	bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize);
-	void BeginReadsForRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
-	void ReadBlockFromFile(FFileIoStoreReadBlock* Block);
-	void EndReadsForRequest();
-	FFileIoStoreReadBlock* GetNextCompletedBlock();
-	virtual bool Init() override;
-	virtual uint32 Run() override;
-	virtual void Stop() override;
+	void ReadBlockFromFile(uint8* Target, uint64 FileHandle, FFileIoStoreRawBlock* Block);
+	void FlushReads() {};
+	FFileIoStoreRawBlock* GetCompletedBlocks();
 
 private:
-	FGenericIoDispatcherEventQueue& EventQueue;
+	struct FCachedBlock
+	{
+		FCachedBlock* LruPrev = nullptr;
+		FCachedBlock* LruNext = nullptr;
+		uint64 Key;
+		uint8* Buffer;
+	};
 
-	FCriticalSection PendingBlocksCritical;
-	FFileIoStoreReadBlock* PendingBlocksHead = nullptr;
-	FFileIoStoreReadBlock* PendingBlocksTail = nullptr;
+	FGenericIoDispatcherEventQueue& EventQueue;
+	const uint64 ReadBufferSize;
+
 	FCriticalSection CompletedBlocksCritical;
-	FFileIoStoreReadBlock* CompletedBlocksHead = nullptr;
-	FFileIoStoreReadBlock* CompletedBlocksTail = nullptr;
-	FEvent* PendingBlockEvent;
-	FRunnableThread* Thread;
-	TAtomic<bool> bStopRequested{ false };
+	FFileIoStoreRawBlock* CompletedBlocksHead = nullptr;
+	FFileIoStoreRawBlock* CompletedBlocksTail = nullptr;
+	uint8* CacheMemory = nullptr;
+	TMap<uint64, FCachedBlock*> CachedBlocks;
+	FCachedBlock CacheLruHead;
+	FCachedBlock CacheLruTail;
+
 };
 

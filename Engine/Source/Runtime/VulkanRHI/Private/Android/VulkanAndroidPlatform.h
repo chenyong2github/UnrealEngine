@@ -116,6 +116,9 @@ public:
 
 	static bool RequiresRenderPassResolveAttachments() { return true; }
 
+	//#todo-rco: Detect Mali? Does the platform require depth to be written on stencil clear
+	static bool RequiresDepthWriteOnStencilClear() { return true; }
+
 protected:
 	static void* VulkanLib;
 	static bool bAttemptedLoad;

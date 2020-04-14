@@ -2702,29 +2702,32 @@ namespace UnrealBuildTool
 				return false;
 			}
 
-			FileStream SourceStream = new FileStream(SourceFilename, FileMode.Open, FileAccess.Read, FileShare.Read);
-			BinaryReader SourceReader = new BinaryReader(SourceStream);
-
-			FileStream DestStream = new FileStream(DestFilename, FileMode.Open, FileAccess.Read, FileShare.Read);
-			BinaryReader DestReader = new BinaryReader(DestStream);
-
-			bool bEOF = false;
-			while (!bEOF)
+			using (FileStream SourceStream = new FileStream(SourceFilename, FileMode.Open, FileAccess.Read, FileShare.Read))
+			using (FileStream DestStream = new FileStream(DestFilename, FileMode.Open, FileAccess.Read, FileShare.Read))
 			{
-				byte[] SourceData = SourceReader.ReadBytes(32768);
-				if (SourceData.Length == 0)
+				using(BinaryReader SourceReader = new BinaryReader(SourceStream))
+				using(BinaryReader DestReader = new BinaryReader(DestStream))
 				{
-					bEOF = true;
-					break;
-				}
+					bool bEOF = false;
+					while (!bEOF)
+					{
+						byte[] SourceData = SourceReader.ReadBytes(32768);
+						if (SourceData.Length == 0)
+						{
+							bEOF = true;
+							break;
+						}
 
-				byte[] DestData = DestReader.ReadBytes(32768);
-				if (!SourceData.SequenceEqual(DestData))
-				{
-					return false;
+						byte[] DestData = DestReader.ReadBytes(32768);
+						if (!SourceData.SequenceEqual(DestData))
+						{
+							return false;
+						}
+					}
+					return true;
 				}
 			}
-			return true;
+			
 		}
 
 		private bool RequiresOBB(bool bDisallowPackageInAPK, string OBBLocation)
@@ -3219,7 +3222,11 @@ namespace UnrealBuildTool
 			string IntermediateAndroidPath = Path.Combine(ProjectDirectory, "Intermediate", "Android");
 			string UE4JavaFilePath = Path.Combine(ProjectDirectory, "Build", "Android", GetUE4JavaSrcPath());
 			string UE4BuildFilesPath = GetUE4BuildFilePath(EngineDirectory);
+			string UE4BuildFilesPath_NFL = GetUE4BuildFilePath(Path.Combine(EngineDirectory, "Restricted/NotForLicensees"));
+			string UE4BuildFilesPath_NR = GetUE4BuildFilePath(Path.Combine(EngineDirectory, "Restricted/NoRedist"));
 			string GameBuildFilesPath = Path.Combine(ProjectDirectory, "Build", "Android");
+			string GameBuildFilesPath_NFL = Path.Combine(Path.Combine(ProjectDirectory, "Restricted/NotForLicensees"), "Build", "Android");
+			string GameBuildFilesPath_NR = Path.Combine(Path.Combine(ProjectDirectory, "Restricted/NoRedist"), "Build", "Android");
 
 			// get a list of unique NDK architectures enabled for build
 			List<string> NDKArches = new List<string>();
@@ -3551,11 +3558,11 @@ namespace UnrealBuildTool
 				//  - Game
 				//  - Game NoRedist (for Epic secret files)
 				CopyFileDirectory(UE4BuildFilesPath, UE4BuildPath, Replacements);
-				CopyFileDirectory(UE4BuildFilesPath + "/NotForLicensees", UE4BuildPath, Replacements);
-				CopyFileDirectory(UE4BuildFilesPath + "/NoRedist", UE4BuildPath, Replacements);
+				CopyFileDirectory(UE4BuildFilesPath_NFL, UE4BuildPath, Replacements);
+				CopyFileDirectory(UE4BuildFilesPath_NR, UE4BuildPath, Replacements);
 				CopyFileDirectory(GameBuildFilesPath, UE4BuildPath, Replacements);
-				CopyFileDirectory(GameBuildFilesPath + "/NotForLicensees", UE4BuildPath, Replacements);
-				CopyFileDirectory(GameBuildFilesPath + "/NoRedist", UE4BuildPath, Replacements);
+				CopyFileDirectory(GameBuildFilesPath_NFL, UE4BuildPath, Replacements);
+				CopyFileDirectory(GameBuildFilesPath_NR, UE4BuildPath, Replacements);
 
 				//Generate Gradle AAR dependencies
 				GenerateGradleAARImports(EngineDirectory, UE4BuildPath, NDKArches);

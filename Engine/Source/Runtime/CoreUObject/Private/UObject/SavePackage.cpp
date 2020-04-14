@@ -6255,9 +6255,22 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 
 			if (SavePackageContext != nullptr && SavePackageContext->BulkDataManifest != nullptr)
 			{
-				const bool bIsOptional = (BulkDataStorageInfo.BulkDataFlags & BULKDATA_OptionalPayload) != 0;
-				const FPackageStoreBulkDataManifest::EBulkdataType Type = !bIsOptional ? FPackageStoreBulkDataManifest::EBulkdataType::Normal :
-																						 FPackageStoreBulkDataManifest::EBulkdataType::Optional;
+				auto BulkDataTypeFromFlags = [](uint32 BulkDataFlags) 
+				{
+					if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
+					{
+						return FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped;
+					}
+
+					if (BulkDataFlags & BULKDATA_OptionalPayload)
+					{
+						return FPackageStoreBulkDataManifest::EBulkdataType::Optional;
+					}
+
+					return FPackageStoreBulkDataManifest::EBulkdataType::Normal;
+				};
+
+				const FPackageStoreBulkDataManifest::EBulkdataType Type = BulkDataTypeFromFlags(BulkDataStorageInfo.BulkDataFlags);
 
 				SavePackageContext->BulkDataManifest->AddFileAccess(Filename, Type, StoredBulkStartOffset, BulkStartOffset, SizeOnDisk);
 			}

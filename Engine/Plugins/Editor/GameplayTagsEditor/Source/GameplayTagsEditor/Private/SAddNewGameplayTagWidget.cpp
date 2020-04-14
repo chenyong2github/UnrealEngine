@@ -7,6 +7,7 @@
 #include "GameplayTagsModule.h"
 #include "Widgets/Input/SButton.h"
 #include "Misc/MessageDialog.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "AddNewGameplayTagWidget"
 
@@ -124,6 +125,22 @@ void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew( SButton )
+				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.Visibility(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoritesVisibility)
+				.OnClicked(this, &SAddNewGameplayTagWidget::OnToggleTagSourceFavoriteClicked)
+				.ToolTipText(LOCTEXT("ToggleFavoriteTooltip", "Toggle whether or not this tag source is your favorite source (new tags will go into your favorite source by default)"))
+				.ContentPadding(0)
+				[
+					SNew(SImage)
+					.Image(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoriteImage)
+				]
+			]
 		]
 
 		// Add Tag Button
@@ -145,6 +162,29 @@ void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 	];
 
 	Reset(EResetType::ResetAll);
+}
+
+EVisibility SAddNewGameplayTagWidget::OnGetTagSourceFavoritesVisibility() const
+{
+	return (TagSources.Num() > 1) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FReply SAddNewGameplayTagWidget::OnToggleTagSourceFavoriteClicked()
+{
+	const FName ActiveTagSource = *TagSourcesComboBox->GetSelectedItem().Get();
+	const bool bWasFavorite = FGameplayTagSource::GetFavoriteName() == ActiveTagSource;
+
+	FGameplayTagSource::SetFavoriteName(bWasFavorite ? NAME_None : ActiveTagSource);
+
+	return FReply::Handled();
+}
+
+const FSlateBrush* SAddNewGameplayTagWidget::OnGetTagSourceFavoriteImage() const
+{
+	const FName ActiveTagSource = *TagSourcesComboBox->GetSelectedItem().Get();
+	const bool bIsFavoriteTagSource = FGameplayTagSource::GetFavoriteName() == ActiveTagSource;
+
+	return FEditorStyle::GetBrush(bIsFavoriteTagSource ? TEXT("PropertyWindow.Favorites_Enabled") : TEXT("PropertyWindow.Favorites_Disabled"));
 }
 
 void SAddNewGameplayTagWidget::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
@@ -189,7 +229,7 @@ void SAddNewGameplayTagWidget::Reset(EResetType ResetType)
 	SetTagName();
 	if (ResetType != EResetType::DoNotResetSource)
 	{
-		SelectTagSource();
+		SelectTagSource(FGameplayTagSource::GetFavoriteName());
 	}
 	TagCommentTextBox->SetText(FText());
 }

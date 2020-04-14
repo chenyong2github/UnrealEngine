@@ -35,6 +35,8 @@ FAnimModel_AnimSequenceBase::FAnimModel_AnimSequenceBase(const TSharedRef<IPerso
 		bElementNodeDisplayFlag = false;
 	}
 
+	AnimSequenceBase->RegisterOnAnimTrackCurvesChanged(UAnimSequenceBase::FOnAnimTrackCurvesChanged::CreateRaw(this, &FAnimModel_AnimSequenceBase::RefreshTracks));
+	
 	if(GEditor)
 	{
 		GEditor->RegisterForUndo(this);
@@ -47,6 +49,8 @@ FAnimModel_AnimSequenceBase::~FAnimModel_AnimSequenceBase()
 	{
 		GEditor->UnregisterForUndo(this);
 	}
+
+	AnimSequenceBase->UnregisterOnAnimTrackCurvesChanged(this);
 }
 
 void FAnimModel_AnimSequenceBase::Initialize()

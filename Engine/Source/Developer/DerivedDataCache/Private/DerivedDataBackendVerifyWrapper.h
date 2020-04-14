@@ -32,9 +32,20 @@ public:
 		check(InnerBackend);
 	}
 
+	/** Return a name for this interface */
+	virtual FString GetName() const override
+	{
+		return FString::Printf(TEXT("VerifyWrapper (%s)"), *InnerBackend->GetName());
+	}
+
 	virtual bool IsWritable() override
 	{
 		return true;
+	}
+
+	virtual ESpeedClass GetSpeedClass() override
+	{
+		return ESpeedClass::Local;
 	}
 
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override
@@ -134,6 +145,21 @@ public:
 				InnerBackend->GatherUsageStats(UsageStatsMap, GraphPath + TEXT(". 0"));
 			}
 		});
+	}
+
+	virtual bool TryToPrefetch(const TCHAR* CacheKey) override
+	{
+		return InnerBackend->TryToPrefetch(CacheKey);
+	}
+
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override
+	{
+		return InnerBackend->WouldCache(CacheKey, InData);
+	}
+
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override
+	{
+		return InnerBackend->ApplyDebugOptions(InOptions);
 	}
 
 private:

@@ -289,10 +289,10 @@ void FConcertSyncServer::GetSessionsFromPath(const IConcertServer& InServer, con
 	});
 }
 
-void FConcertSyncServer::OnLiveSessionCreated(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InSession)
+bool FConcertSyncServer::OnLiveSessionCreated(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InSession)
 {
 	ConcertSyncServerUtils::WriteSessionInfoToDirectory(InSession->GetSessionWorkingDirectory(), InSession->GetSessionInfo());
-	CreateLiveSession(InSession);
+	return CreateLiveSession(InSession);
 }
 
 void FConcertSyncServer::OnLiveSessionDestroyed(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InSession)
@@ -300,10 +300,10 @@ void FConcertSyncServer::OnLiveSessionDestroyed(const IConcertServer& InServer, 
 	DestroyLiveSession(InSession);
 }
 
-void FConcertSyncServer::OnArchivedSessionCreated(const IConcertServer& InServer, const FString& InArchivedSessionRoot, const FConcertSessionInfo& InArchivedSessionInfo)
+bool FConcertSyncServer::OnArchivedSessionCreated(const IConcertServer& InServer, const FString& InArchivedSessionRoot, const FConcertSessionInfo& InArchivedSessionInfo)
 {
 	ConcertSyncServerUtils::WriteSessionInfoToDirectory(InArchivedSessionRoot, InArchivedSessionInfo);
-	CreateArchivedSession(InArchivedSessionRoot, InArchivedSessionInfo);
+	return CreateArchivedSession(InArchivedSessionRoot, InArchivedSessionInfo);
 }
 
 void FConcertSyncServer::OnArchivedSessionDestroyed(const IConcertServer& InServer, const FGuid& InArchivedSessionId)
@@ -490,7 +490,7 @@ void FConcertSyncServer::DestroySequencerManager(const TSharedRef<FConcertSyncSe
 	LiveSessionSequencerManagers.Remove(InLiveSession->GetSession().GetId());
 }
 
-void FConcertSyncServer::CreateLiveSession(const TSharedRef<IConcertServerSession>& InSession)
+bool FConcertSyncServer::CreateLiveSession(const TSharedRef<IConcertServerSession>& InSession)
 {
 	DestroyLiveSession(InSession);
 
@@ -503,7 +503,11 @@ void FConcertSyncServer::CreateLiveSession(const TSharedRef<IConcertServerSessio
 		{
 			CreateSequencerManager(LiveSession.ToSharedRef());
 		}
+
+		return true;
 	}
+
+	return false;
 }
 
 void FConcertSyncServer::DestroyLiveSession(const TSharedRef<IConcertServerSession>& InSession)
@@ -516,7 +520,7 @@ void FConcertSyncServer::DestroyLiveSession(const TSharedRef<IConcertServerSessi
 	}
 }
 
-void FConcertSyncServer::CreateArchivedSession(const FString& InArchivedSessionRoot, const FConcertSessionInfo& InArchivedSessionInfo)
+bool FConcertSyncServer::CreateArchivedSession(const FString& InArchivedSessionRoot, const FConcertSessionInfo& InArchivedSessionInfo)
 {
 	DestroyArchivedSession(InArchivedSessionInfo.SessionId);
 
@@ -524,7 +528,10 @@ void FConcertSyncServer::CreateArchivedSession(const FString& InArchivedSessionR
 	if (ArchivedSession->IsValidSession())
 	{
 		ArchivedSessions.Add(ArchivedSession->GetId(), ArchivedSession);
+		return true;
 	}
+
+	return false;
 }
 
 void FConcertSyncServer::DestroyArchivedSession(const FGuid& InArchivedSessionId)

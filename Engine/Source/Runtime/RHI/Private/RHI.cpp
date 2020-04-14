@@ -599,6 +599,40 @@ static TAutoConsoleVariable<int32> CVarGPUCrashDebugging(
 	ECVF_ReadOnly
 	);
 
+static TAutoConsoleVariable<int32> CVarGPUCrashDump(
+	TEXT("r.GPUCrashDump"),
+	0,
+	TEXT("Enable vendor specific GPU crash dumps"),
+	ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathMarkers(
+	TEXT("r.GPUCrashDebugging.Aftermath.Markers"),
+	0,
+	TEXT("Enable draw event markers in Aftermath dumps"),
+	ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathCallstack(
+	TEXT("r.GPUCrashDebugging.Aftermath.Callstack"),
+	0,
+	TEXT("Enable callstack capture in Aftermath dumps"),
+	ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathResourceTracking(
+	TEXT("r.GPUCrashDebugging.Aftermath.ResourceTracking"),
+	0,
+	TEXT("Enable resource tracking for Aftermath dumps"),
+	ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathTrackAll(
+	TEXT("r.GPUCrashDebugging.Aftermath.TrackAll"),
+	1,
+	TEXT("Enable maximum tracking for Aftermath dumps"),
+	ECVF_ReadOnly
+);
 
 namespace RHIConfig
 {
@@ -663,6 +697,7 @@ bool GSupportsTexture3D = true;
 bool GSupportsMobileMultiView = false;
 bool GSupportsImageExternal = false;
 bool GSupportsResourceView = true;
+bool GRHISupportsDrawIndirect = true;
 bool GRHISupportsMultithreading = false;
 TRHIGlobal<bool> GSupportsMultipleRenderTargets(true);
 bool GSupportsWideMRT = true;
@@ -679,6 +714,7 @@ TRHIGlobal<int32> GMaxTextureDimensions(2048);
 TRHIGlobal<int64> GMaxBufferDimensions(2<<27);
 TRHIGlobal<int32> GMaxVolumeTextureDimensions(2048);
 TRHIGlobal<int32> GMaxCubeTextureDimensions(2048);
+bool GRHISupportsRWTextureBuffers = true;
 int32 GMaxTextureArrayLayers = 256;
 int32 GMaxTextureSamplers = 16;
 bool GUsingNullRHI = false;

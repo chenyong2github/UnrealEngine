@@ -57,6 +57,7 @@
 #include "Styling/CoreStyle.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -861,36 +862,42 @@ TSharedPtr<SWidget> FNiagaraEditorUtilities::CreateInlineErrorText(TAttribute<FT
 
 void FNiagaraEditorUtilities::CompileExistingEmitters(const TArray<UNiagaraEmitter*>& AffectedEmitters)
 {
-	TSet<UNiagaraEmitter*> CompiledEmitters;
-	for (UNiagaraEmitter* Emitter : AffectedEmitters)
+	TArray<TSharedPtr<FNiagaraSystemViewModel>> ExistingSystemViewModels;
+
 	{
-		// If we've already compiled this emitter, or it's invalid skip it.
-		if (Emitter == nullptr || CompiledEmitters.Contains(Emitter) || Emitter->IsPendingKillOrUnreachable())
-		{
-			continue;
-		}
+		FNiagaraSystemUpdateContext UpdateCtx;
 
-		// We only need to compile emitters referenced directly as instances by systems since emitters can now only be used in the context 
-		// of a system.
-		for (TObjectIterator<UNiagaraSystem> SystemIterator; SystemIterator; ++SystemIterator)
+		TSet<UNiagaraEmitter*> CompiledEmitters;
+		for (UNiagaraEmitter* Emitter : AffectedEmitters)
 		{
-			if (SystemIterator->ReferencesInstanceEmitter(*Emitter))
+			// If we've already compiled this emitter, or it's invalid skip it.
+			if (Emitter == nullptr || CompiledEmitters.Contains(Emitter) || Emitter->IsPendingKillOrUnreachable())
 			{
-				SystemIterator->RequestCompile(false);
+				continue;
+			}
 
-				TArray<TSharedPtr<FNiagaraSystemViewModel>> ExistingSystemViewModels;
-				FNiagaraSystemViewModel::GetAllViewModelsForObject(*SystemIterator, ExistingSystemViewModels);
-				for (TSharedPtr<FNiagaraSystemViewModel> SystemViewModel : ExistingSystemViewModels)
+			// We only need to compile emitters referenced directly as instances by systems since emitters can now only be used in the context 
+			// of a system.
+			for (TObjectIterator<UNiagaraSystem> SystemIterator; SystemIterator; ++SystemIterator)
+			{
+				if (SystemIterator->ReferencesInstanceEmitter(*Emitter))
 				{
-					SystemViewModel->RefreshAll();
-				}
+					SystemIterator->RequestCompile(false, &UpdateCtx);
 
-				for (const FNiagaraEmitterHandle& EmitterHandle : SystemIterator->GetEmitterHandles())
-				{
-					CompiledEmitters.Add(EmitterHandle.GetInstance());
+					FNiagaraSystemViewModel::GetAllViewModelsForObject(*SystemIterator, ExistingSystemViewModels);
+
+					for (const FNiagaraEmitterHandle& EmitterHandle : SystemIterator->GetEmitterHandles())
+					{
+						CompiledEmitters.Add(EmitterHandle.GetInstance());
+					}
 				}
 			}
 		}
+	}
+
+	for (TSharedPtr<FNiagaraSystemViewModel> SystemViewModel : ExistingSystemViewModels)
+	{
+		SystemViewModel->RefreshAll();
 	}
 }
 
@@ -1462,7 +1469,7 @@ NIAGARAEDITOR_API FText FNiagaraEditorUtilities::FormatScriptName(FName Name, bo
 
 FText FNiagaraEditorUtilities::FormatScriptDescription(FText Description, FName Path, bool bIsInLibrary)
 {
-	FText LibrarySuffix = bIsInLibrary
+	FText LibrarySuffix = !bIsInLibrary
 		? LOCTEXT("LibrarySuffix", "\n* Script is not exposed to the library.")
 		: FText();
 
@@ -1650,7 +1657,7 @@ bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(const UNiagar
 	return true;
 }
 
-bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariable, FNiagaraParameterStore& TargetParameterStore, UObject& ParameterStoreOwner, UNiagaraStackEditorData& StackEditorData)
+bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariable, FNiagaraParameterStore& TargetParameterStore, UObject& ParameterStoreOwner, UNiagaraStackEditorData* StackEditorData)
 {
 	FScopedTransaction AddTransaction(LOCTEXT("AddParameter", "Add Parameter"));
 	ParameterStoreOwner.Modify();
@@ -1667,9 +1674,9 @@ bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariabl
 	NewParameterVariable.SetName(FNiagaraUtilities::GetUniqueName(NewParameterVariable.GetName(), ExistingParameterStoreNames));
 
 	bool bSuccess = TargetParameterStore.AddParameter(NewParameterVariable);
-	if (bSuccess)
+	if (bSuccess && StackEditorData != nullptr)
 	{
-		StackEditorData.SetStackEntryIsRenamePending(NewParameterVariable.GetName().ToString(), true);
+		StackEditorData->SetStackEntryIsRenamePending(NewParameterVariable.GetName().ToString(), true);
 	}
 	return bSuccess;
 }
@@ -2052,15 +2059,15 @@ void FNiagaraEditorUtilities::WarnWithToastAndLog(FText WarningMessage)
 	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *WarningMessage.ToString());
 }
 
-void FNiagaraEditorUtilities::InfoWithToastAndLog(FText InfoMessage)
+void FNiagaraEditorUtilities::InfoWithToastAndLog(FText InfoMessage, float ToastDuration)
 {
 	FNotificationInfo WarningNotification(InfoMessage);
-	WarningNotification.ExpireDuration = 5.0f;
+	WarningNotification.ExpireDuration = ToastDuration;
 	WarningNotification.bFireAndForget = true;
 	WarningNotification.bUseLargeFont = false;
 	WarningNotification.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Note"));
 	FSlateNotificationManager::Get().AddNotification(WarningNotification);
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *InfoMessage.ToString());
+	UE_LOG(LogNiagaraEditor, Log, TEXT("%s"), *InfoMessage.ToString());
 }
 
 FName FNiagaraEditorUtilities::GetUniqueObjectName(UObject* Outer, UClass* ObjectClass, const FString& CandidateName)
@@ -2424,6 +2431,146 @@ void FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(UNiagaraScript* Sc
 			OutReferencingFunctionCallNodes.Add(FunctionCallNode);
 		}
 	}
+}
+
+FText FNiagaraEditorUtilities::FormatParameterNameForTextDisplay(FName ParameterName)
+{
+	FNiagaraParameterHandle ParameterHandle(ParameterName);
+	TArray<FName> HandleParts = ParameterHandle.GetHandleParts();
+	FString DisplayString;
+	for (int32 HandlePartIndex = 0; HandlePartIndex < HandleParts.Num() - 1; HandlePartIndex++)
+	{
+		DisplayString += TEXT("(") + HandleParts[HandlePartIndex].ToString().ToUpper() + TEXT(") ");
+	}
+	DisplayString += HandleParts[HandleParts.Num() - 1].ToString();
+	return FText::FromString(DisplayString);
+}
+
+bool FNiagaraEditorUtilities::GetVariableSortPriority(const FName& VarNameA, const FName& VarNameB)
+{
+	const FNiagaraNamespaceMetadata& NamespaceMetaDataA = GetNamespaceMetaDataForVariableName(VarNameA);
+	if (NamespaceMetaDataA.IsValid() == false)
+	{
+		return false;
+	}
+
+	const FNiagaraNamespaceMetadata& NamespaceMetaDataB = GetNamespaceMetaDataForVariableName(VarNameB);
+	const int32 NamespaceAPriority = GetNamespaceMetaDataSortPriority(NamespaceMetaDataA, NamespaceMetaDataB);
+	if (NamespaceAPriority == 0)
+	{
+		return VarNameA.LexicalLess(VarNameB);
+	}
+	return NamespaceAPriority > 0;
+}
+
+int32 FNiagaraEditorUtilities::GetNamespaceMetaDataSortPriority(const FNiagaraNamespaceMetadata& A, const FNiagaraNamespaceMetadata& B)
+{
+	if (A.IsValid() == false)
+	{
+		return false;
+	}
+	else if (B.IsValid() == false)
+	{
+		return true;
+	}
+
+	const int32 ANum = A.Namespaces.Num();
+	const int32 BNum = B.Namespaces.Num();
+	for (int32 i = 0; i < FMath::Min(ANum, BNum); ++i)
+	{
+		const int32 ANamespacePriority = GetNamespaceSortPriority(A.Namespaces[i]);
+		const int32 BNamespacePriority = GetNamespaceSortPriority(B.Namespaces[i]);
+		if (ANamespacePriority != BNamespacePriority)
+			return ANamespacePriority < BNamespacePriority ? 1 : -1;
+	}
+	if (ANum == BNum)
+		return 0;
+
+	return ANum < BNum ? 1 : -1;
+}
+
+int32 FNiagaraEditorUtilities::GetNamespaceSortPriority(const FName& Namespace)
+{
+	if (Namespace == FNiagaraConstants::UserNamespace)
+		return 0;
+	else if (Namespace == FNiagaraConstants::ModuleNamespace)
+		return 1;
+	else if (Namespace == FNiagaraConstants::StaticSwitchNamespace)
+		return 2;
+	else if (Namespace == FNiagaraConstants::DataInstanceNamespace)
+		return 3;
+	else if (Namespace == FNiagaraConstants::OutputNamespace)
+		return 4;
+	else if (Namespace == FNiagaraConstants::EngineNamespace)
+		return 5;
+	else if (Namespace == FNiagaraConstants::ParameterCollectionNamespace)
+		return 6;
+	else if (Namespace == FNiagaraConstants::SystemNamespace)
+		return 7;
+	else if (Namespace == FNiagaraConstants::EmitterNamespace)
+		return 8;
+	else if (Namespace == FNiagaraConstants::ParticleAttributeNamespace)
+		return 9;
+	else if (Namespace == FNiagaraConstants::TransientNamespace)
+		return 10;
+
+	return 11;
+}
+
+const FNiagaraNamespaceMetadata FNiagaraEditorUtilities::GetNamespaceMetaDataForVariableName(const FName& VarName)
+{
+	const FNiagaraParameterHandle VarHandle = FNiagaraParameterHandle(VarName);
+	const TArray<FName> VarHandleNameParts = VarHandle.GetHandleParts();
+	return GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(VarHandleNameParts);
+}
+
+bool FNiagaraParameterUtilities::DoesParameterNameMatchSearchText(FName ParameterName, const FString& SearchTextString)
+{
+	FNiagaraParameterHandle ParameterHandle(ParameterName);
+	TArray<FName> HandleParts = ParameterHandle.GetHandleParts();
+	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(HandleParts);
+	if (NamespaceMetadata.IsValid())
+	{
+		// If it's a registered namespace, check the display name of the namespace.
+		if (NamespaceMetadata.DisplayName.ToString().Contains(SearchTextString))
+		{
+			return true;
+		}
+
+		// Check the namespace modifier if it has one
+		if (HandleParts.Num() - NamespaceMetadata.Namespaces.Num() > 1)
+		{
+			FNiagaraNamespaceMetadata NamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(HandleParts[NamespaceMetadata.Namespaces.Num()]);
+			if (NamespaceModifierMetadata.IsValid())
+			{
+				// Check first by modifier metadata display name.
+				if (NamespaceModifierMetadata.DisplayName.ToString().Contains(SearchTextString))
+				{
+					return true;
+				}
+			}
+			else
+			{
+				// Otherwise just check the string.
+				if (HandleParts[NamespaceMetadata.Namespaces.Num()].ToString().Contains(SearchTextString))
+				{
+					return true;
+				}
+			}
+		}
+
+		// Last check the variable name.
+		if (HandleParts.Last().ToString().Contains(SearchTextString))
+		{
+			return true;
+		}
+	}
+	else if (HandleParts.ContainsByPredicate([&SearchTextString](FName NamePart) { return NamePart.ToString().Contains(SearchTextString); }))
+	{
+		// Otherwise if it's not in a valid namespace, just check all name parts.
+		return true;
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

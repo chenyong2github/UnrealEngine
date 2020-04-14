@@ -45,6 +45,12 @@ UMovieSceneSection* UMovieScene3DAttachTrack::CreateNewSection()
 	return NewSection;
 }
 
+void UMovieScene3DAttachTrack::PostCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const
+{
+	// Set the evaluation priority to be higher than transforms so that attachments always happen first
+	Track.SetEvaluationPriority(1100);
+}
+
 #if WITH_EDITORONLY_DATA
 FText UMovieScene3DAttachTrack::GetDisplayName() const
 {

@@ -548,6 +548,11 @@ void UReplicationGraph::AddNetworkActor(AActor* Actor)
 		return;
 	}
 
+	if (NetDriver && !NetDriver->ShouldReplicateActor(Actor))
+	{
+		return;
+	}
+
 	bool bWasAlreadyThere = false;
 	ActiveNetworkActors.Add(Actor, &bWasAlreadyThere);
 	if (bWasAlreadyThere)
@@ -2605,14 +2610,13 @@ int64 UNetReplicationGraphConnection::ReplicateDestructionInfos(const FNetViewer
 
 		if (bSendDestructionInfo || DestructInfo->bIgnoreDistanceCulling)
 		{
-			UActorChannel* Channel = (UActorChannel*)NetConnection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
-			if (Channel)
+			if (NetConnection && NetConnection->Driver)
 			{
-				NumBits += Channel->SetChannelActorForDestroy(DestructInfo);
-			}
+				NumBits += NetConnection->Driver->SendDestructionInfo(NetConnection, DestructInfo);
 
-			PendingDestructInfoList.RemoveAtSwap(idx, 1, false);
-			TrackedDestructionInfoPtrs.Remove(DestructInfo);
+				PendingDestructInfoList.RemoveAtSwap(idx, 1, false);
+				TrackedDestructionInfoPtrs.Remove(DestructInfo);
+			}
 		}
 		else
 		{
@@ -2631,25 +2635,24 @@ int64 UNetReplicationGraphConnection::ReplicateDormantDestructionInfos()
 
 	int64 NumBits = 0;
 
-	for (const FCachedDormantDestructInfo& Info : PendingDormantDestructList)
+	if (NetConnection && NetConnection->Driver)
 	{
-		FActorDestructionInfo DestructInfo;
-		DestructInfo.DestroyedPosition = FVector::ZeroVector;
-		DestructInfo.NetGUID = Info.NetGUID;
-		DestructInfo.Level = Info.Level;
-		DestructInfo.ObjOuter = Info.ObjOuter;
-		DestructInfo.PathName = Info.PathName;
-		DestructInfo.StreamingLevelName = NAME_None;			// currently unused by SetChannelActorForDestroy
-		DestructInfo.Reason = EChannelCloseReason::Relevancy;
-
-		UActorChannel* Channel = (UActorChannel*)NetConnection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
-		if (Channel)
+		for (const FCachedDormantDestructInfo& Info : PendingDormantDestructList)
 		{
-			NumBits += Channel->SetChannelActorForDestroy(&DestructInfo);
-		}
-	}
+			FActorDestructionInfo DestructInfo;
+			DestructInfo.DestroyedPosition = FVector::ZeroVector;
+			DestructInfo.NetGUID = Info.NetGUID;
+			DestructInfo.Level = Info.Level;
+			DestructInfo.ObjOuter = Info.ObjOuter;
+			DestructInfo.PathName = Info.PathName;
+			DestructInfo.StreamingLevelName = NAME_None;			// currently unused by SetChannelActorForDestroy
+			DestructInfo.Reason = EChannelCloseReason::Relevancy;
 
-	PendingDormantDestructList.Empty();
+			NumBits += NetConnection->Driver->SendDestructionInfo(NetConnection, &DestructInfo);
+		}
+
+		PendingDormantDestructList.Empty();
+	}
 
 	return NumBits;
 }

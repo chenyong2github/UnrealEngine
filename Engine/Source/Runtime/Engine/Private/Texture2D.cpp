@@ -370,7 +370,7 @@ void FTexture2DMipMap::FCompactByteBulkData::GetCopy(void** Dest, bool bDiscardI
 	}
 }
 
-IBulkDataIORequest* FTexture2DMipMap::FCompactByteBulkData::CreateStreamingRequest(FString Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+IBulkDataIORequest* FTexture2DMipMap::FCompactByteBulkData::CreateStreamingRequest(FString Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	check(Filename.IsEmpty() == false);
 
@@ -396,14 +396,16 @@ IBulkDataIORequest* FTexture2DMipMap::FCompactByteBulkData::CreateStreamingReque
 
 	const int64 FinalOffsetInFile = GetBulkDataOffsetInFile() + OffsetInBulkData;
 
-	IAsyncReadRequest* ReadRequest = IORequestHandle->ReadRequest(FinalOffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory);
-	if (ReadRequest != nullptr)
+	FBulkDataIORequest* Request = new FBulkDataIORequest(IORequestHandle);
+	if (Request->MakeReadRequest(FinalOffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory))
 	{
-		return new FBulkDataIORequest(IORequestHandle, ReadRequest, BytesToRead);
+		return Request;
 	}
 	else
 	{
 		delete IORequestHandle;
+		delete Request;
+
 		return nullptr;
 	}
 }
@@ -1557,7 +1559,7 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 	MipFadeSetting = (Owner->LODGroup == TEXTUREGROUP_Lightmap || Owner->LODGroup == TEXTUREGROUP_Shadowmap) ? MipFade_Slow : MipFade_Normal;
 
 	// HDR images are stored in linear but still require gamma correction to display correctly.
-	bIgnoreGammaConversions = !Owner->SRGB && Owner->CompressionSettings != TC_HDR && Owner->CompressionSettings != TC_HDR_Compressed;
+	bIgnoreGammaConversions = !Owner->SRGB && Owner->CompressionSettings != TC_HDR && Owner->CompressionSettings != TC_HDR_Compressed && Owner->CompressionSettings != TC_HalfFloat;
 	bSRGB = InOwner->SRGB;
 
 	check(InitialMipCount>0);
@@ -1779,16 +1781,6 @@ void FTexture2DResource::InitRHI()
  */
 void FTexture2DResource::ReleaseRHI()
 {
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Owner->GetPlatformMips();
-
-	// It should be safe to release the texture.
-	check(!Owner->HasPendingUpdate());
-
-	if ( (Texture2DRHI->GetFlags() & TexCreate_Virtual) != TexCreate_Virtual )
-	{
-		check(OwnerMips[CurrentFirstMip].SizeX == Texture2DRHI->GetSizeX() && OwnerMips[CurrentFirstMip].SizeY == Texture2DRHI->GetSizeY());
-	}
-
 	DEC_DWORD_STAT_BY( STAT_TextureMemory, TextureSize );
 	DEC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
 
@@ -2112,7 +2104,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 		RHIBindDebugLabelName(TextureRHI, *TextureOwner->GetName());
 		RHIUpdateTextureReference(TextureOwner->TextureReference.TextureReferenceRHI, TextureRHI);
 
-		bIgnoreGammaConversions = !TextureOwner->SRGB && TextureOwner->CompressionSettings != TC_HDR;
+		bIgnoreGammaConversions = !TextureOwner->SRGB && TextureOwner->CompressionSettings != TC_HDR && TextureOwner->CompressionSettings != TC_HalfFloat;
 
 		// re factored to ensure this is set earlier...make sure it's correct
 		ensure(bSRGB == TextureOwner->SRGB);
@@ -2139,6 +2131,8 @@ class IAllocatedVirtualTexture* FVirtualTexture2DResource::AcquireAllocatedVT()
 		VTDesc.TileSize = VTData->TileSize;
 		VTDesc.TileBorderSize = VTData->TileBorderSize;
 		VTDesc.NumTextureLayers = VTData->GetNumLayers();
+		VTDesc.bShareDuplicateLayers = TextureOwner->IsVirtualTexturedWithSinglePhysicalSpace();
+
 		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumTextureLayers; ++LayerIndex)
 		{
 			VTDesc.ProducerHandle[LayerIndex] = ProducerHandle; // use the same producer for each layer

@@ -425,7 +425,7 @@ bool USequencerToolsFunctionLibrary::ImportFBX(UWorld* World, ULevelSequence* Se
 	ImportFBXCamera(FbxImporter, World, Sequence, MovieScene, Player, MovieSceneSequenceID::Root, ObjectBindingMap, bMatchByNameOnly,
 		ImportFBXSettings->bCreateCameras);
 
-	bool bValid = MovieSceneToolHelpers::ImportFBXIfReady(World, MovieScene, Player, ObjectBindingMap, ImportFBXSettings, InOutParams);
+	bool bValid = MovieSceneToolHelpers::ImportFBXIfReady(World, MovieScene, Player, MovieSceneSequenceID::Root, ObjectBindingMap, ImportFBXSettings, InOutParams);
 
 	return bValid;
 }

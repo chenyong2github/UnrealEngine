@@ -171,3 +171,36 @@ enum class ETextureMipLoadOptions : uint8
 	// Load only the first mip.
 	OnlyFirstMip,
 };
+
+UENUM()
+enum class ETextureDownscaleOptions : uint8
+{
+	/** Fallback to the "texture group" settings */
+	Default,
+	/** Unfiltered */
+	Unfiltered,
+	/** Average, default for the "texture group" */
+	SimpleAverage,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen0,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen1,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen2,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen3,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen4,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen5,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen6,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen7,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen8,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen9,
+	/** 8x8 with sharpening: 0=no sharpening but better quality which is softer, 1=little, 5=medium, 10=extreme. */
+	Sharpen10
+};

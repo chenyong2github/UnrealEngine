@@ -36,16 +36,22 @@ public class HoloLensAR : ModuleRules
 		{
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
-
-        if (Target.Platform == UnrealTargetPlatform.Win64 || (Target.Platform == UnrealTargetPlatform.HoloLens && Target.WindowsPlatform.Architecture == WindowsArchitecture.x64))
+        if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.QR.dll"));
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.QR.winmd"));
+            RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.SceneUnderstanding.dll"));
+            RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.SceneUnderstanding.winmd"));
+            PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
+            foreach (var Dll in Directory.EnumerateFiles(Path.Combine(Target.UEThirdPartyBinariesDirectory, "Windows/x64"), "*_app.dll"))
+            {
+                RuntimeDependencies.Add(Dll);
+            }
         }
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
-            RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "Microsoft.MixedReality.QR.dll"));
-            RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "Microsoft.MixedReality.QR.winmd"));
+            RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.QR.dll"));
+            RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.QR.winmd"));
 
             // Add a dependency to SceneUnderstanding.dll if present
             string SceneUnderstandingDllPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");

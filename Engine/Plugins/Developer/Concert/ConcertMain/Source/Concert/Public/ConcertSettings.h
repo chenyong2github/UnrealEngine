@@ -194,6 +194,7 @@ struct FConcertClientSettings
 		, AvatarColor(1.0f, 1.0f, 1.0f, 1.0f)
 		, DesktopAvatarActorClass(TEXT("/ConcertSyncClient/DesktopPresence.DesktopPresence_C"))
 		, VRAvatarActorClass(TEXT("/ConcertSyncClient/VRPresence.VRPresence_C"))
+		, ServerPort(0)
 		, DiscoveryTimeoutSeconds(5)
 		, SessionTickFrequencySeconds(1)
 		, LatencyCompensationMs(0)
@@ -218,7 +219,11 @@ struct FConcertClientSettings
 	UPROPERTY(config, EditAnywhere, NoClear, Category = "Client Settings", meta = (MetaClass = "ConcertClientVRPresenceActor", DisplayName = "VR Avatar Actor Class"))
 	FSoftClassPath VRAvatarActorClass;
 
-	/** The timespan at which discovered Concert server are considered stale if they haven't answered back */
+	/** The port to use to reach the server with static endpoints when launched through the editor. This port will be used over the unicast endpoint port in the UDP Messagging settings if non 0 when transferring the editor settings to the launched server. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Client Settings")
+	uint16 ServerPort;
+
+	/** The timespan at which discovered Multi-User server are considered stale if they haven't answered back */
 	UPROPERTY(config, EditAnywhere, DisplayName="Discovery Timeout", AdvancedDisplay, Category="Client Settings", meta=(ForceUnits=s))
 	int32 DiscoveryTimeoutSeconds;
 

@@ -428,7 +428,7 @@ void UTimecodeSynchronizer::Register()
 			}
 			PreviousFixedFrameRate = FApp::GetFixedDeltaTime();
 			bPreviousUseFixedFrameRate = FApp::UseFixedTimeStep();
-			FApp::SetFixedDeltaTime(FixedFrameRate.AsDecimal());
+			FApp::SetFixedDeltaTime(FixedFrameRate.AsInterval());
 			FApp::SetUseFixedTimeStep(true);
 		}
 

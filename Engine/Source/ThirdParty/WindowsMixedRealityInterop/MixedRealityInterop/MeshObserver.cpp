@@ -5,54 +5,41 @@
 
 #include "MeshObserver.h"
 #include "FastConversion.h"
-#include "CxDataFromBuffer.h"
 
 #include <streambuf>
 #include <robuffer.h>
 
 #include <WindowsNumerics.h>
-#include <windows.foundation.numerics.h>
-#include <ppltasks.h>
-#include <pplawait.h>
+#include <winrt/windows.foundation.numerics.h>
+#include <winrt/windows.foundation.Collections.h>
+#include <winrt/Windows.Graphics.DirectX.Direct3D11.h>
 
 #include <map>
 #include <string>
 #include <sstream>
+#include <mutex>
 
 #include <DirectXMath.h>
-#include <windows.graphics.directx.h>
 #include <DirectXPackedVector.h>
 
 
-using namespace Microsoft::WRL;
-using namespace Platform;
-using namespace Windows::Foundation;
-using namespace Windows::Foundation::Collections;
-using namespace Windows::Foundation::Numerics;
-using namespace Windows::UI::Input::Spatial;
-using namespace Windows::Graphics::DirectX;
-using namespace Windows::Graphics::DirectX::Direct3D11;
+using namespace winrt;
+using namespace winrt::Windows::Foundation;
+using namespace winrt::Windows::Foundation::Collections;
+using namespace winrt::Windows::Foundation::Numerics;
+using namespace winrt::Windows::Graphics::DirectX;
+using namespace winrt::Windows::Graphics::DirectX::Direct3D11;
 
-using namespace std::placeholders;
-using namespace concurrency;
 
 using namespace DirectX;
 
-// Winrt guid needs a comparison function to use in a std::map
-struct GUIDComparer
-{
-	bool operator()(const Guid& Left, const Guid& Right) const
-	{
-		return memcmp(&Left, &Right, sizeof(Right)) < 0;
-	}
-};
 
 /** Controls access to our references */
 std::mutex MeshRefsLock;
 bool bIsRunning = false;
-SpatialSurfaceObserver^ SurfaceObserver = nullptr;
-Windows::Foundation::EventRegistrationToken OnChangeEventToken;
-std::map<Guid, long long, GUIDComparer> LastGuidToLastUpdateMap;
+SpatialSurfaceObserver SurfaceObserver = nullptr;
+event_token OnChangeEventToken;
+std::map<guid, long long> LastGuidToLastUpdateMap;
 
 MeshUpdateObserver* MeshUpdateObserver::ObserverInstance = nullptr;
 
@@ -100,10 +87,10 @@ void MeshUpdateObserver::Log(const wchar_t* LogMsg)
 	}
 }
 
-void MeshUpdateObserver::CopyMeshData(MeshUpdate& DestMesh, SpatialSurfaceMesh^ SurfaceMesh)
+void MeshUpdateObserver::CopyMeshData(MeshUpdate& DestMesh, SpatialSurfaceMesh SurfaceMesh)
 {
-	PackedVector::XMSHORTN4* RawVertices = GetDataFromIBuffer<PackedVector::XMSHORTN4>(SurfaceMesh->VertexPositions->Data);
-	short* RawIndices = GetDataFromIBuffer<short>(SurfaceMesh->TriangleIndices->Data);
+	PackedVector::XMSHORTN4* RawVertices = reinterpret_cast<PackedVector::XMSHORTN4*>(SurfaceMesh.VertexPositions().Data().data());
+	short* RawIndices = reinterpret_cast<short*>(SurfaceMesh.TriangleIndices().Data().data());
 	int VertexCount = DestMesh.NumVertices;
 	float* DestVertices = (float*)DestMesh.Vertices;
 
@@ -125,7 +112,7 @@ void MeshUpdateObserver::CopyMeshData(MeshUpdate& DestMesh, SpatialSurfaceMesh^ 
 #if PLATFORM_HOLOLENS
 	short* DestIndices = (short*)DestMesh.Indices; 
 #else
-	uint32* DestIndices = (uint32*)DestMesh.Indices;
+	uint32_t* DestIndices = (uint32_t*)DestMesh.Indices;
 #endif
 	// Reverse triangle order
 	for (int Index = 0; Index < TriangleCount; Index++)
@@ -138,16 +125,16 @@ void MeshUpdateObserver::CopyMeshData(MeshUpdate& DestMesh, SpatialSurfaceMesh^ 
 	}
 }
 
-void MeshUpdateObserver::CopyTransform(MeshUpdate& DestMesh, SpatialSurfaceMesh^ SurfaceMesh)
+void MeshUpdateObserver::CopyTransform(MeshUpdate& DestMesh, SpatialSurfaceMesh SurfaceMesh)
 {
 	XMMATRIX ConvertTransform = XMMatrixIdentity();
-	auto MeshTransform = SurfaceMesh->CoordinateSystem->TryGetTransformTo(LastCoordinateSystem);
+	auto MeshTransform = SurfaceMesh.CoordinateSystem().TryGetTransformTo(LastCoordinateSystem);
 	if (MeshTransform != nullptr)
 	{
-		ConvertTransform = XMLoadFloat4x4(&MeshTransform->Value);
+		ConvertTransform = XMLoadFloat4x4(&MeshTransform.Value());
 	}
 
-	XMVECTOR MeshScale = XMLoadFloat3(&SurfaceMesh->VertexPositionScale);
+	XMVECTOR MeshScale = XMLoadFloat3(&SurfaceMesh.VertexPositionScale());
 
 	XMMATRIX ScaleMatrix = XMMatrixScalingFromVector(MeshScale);
 	ConvertTransform = ScaleMatrix * ConvertTransform;
@@ -175,23 +162,23 @@ void MeshUpdateObserver::CopyTransform(MeshUpdate& DestMesh, SpatialSurfaceMesh^
 	DestMesh.Rotation[3] = Rotation.w;
 }
 
-void MeshUpdateObserver::OnSurfacesChanged(SpatialSurfaceObserver^ Observer, Platform::Object^)
+void MeshUpdateObserver::OnSurfacesChanged(SpatialSurfaceObserver Observer, winrt::Windows::Foundation::IInspectable)
 {
 	// Serialize updates from this side
 	std::lock_guard<std::mutex> lock(MeshRefsLock);
 	if (bIsRunning)
 	{
 		OnStartMeshUpdates();
-		std::map<Guid, long long, GUIDComparer> CurrentGuidToLastUpdateMap;
+		std::map<guid, long long> CurrentGuidToLastUpdateMap;
 		// Get the set of meshes that changed
-		IMapView<Guid, SpatialSurfaceInfo^>^ const& SurfaceCollection = Observer->GetObservedSurfaces();
-		for (auto Iter = SurfaceCollection->First(); Iter->HasCurrent; Iter->MoveNext())
+		auto SurfaceCollection = Observer.GetObservedSurfaces();
+		for (auto Iter = SurfaceCollection.First(); Iter.HasCurrent(); Iter.MoveNext())
 		{
-			auto KVPair = Iter->Current;
+			auto KVPair = Iter.Current();
 
-			Guid Id = KVPair->Key;
-			SpatialSurfaceInfo^ SurfaceInfo = KVPair->Value;
-			long long UpdateTime = SurfaceInfo->UpdateTime.UniversalTime;
+			guid Id = KVPair.Key();
+			SpatialSurfaceInfo SurfaceInfo = KVPair.Value();
+			long long UpdateTime = SurfaceInfo.UpdateTime().time_since_epoch().count();
 			// Add the current map which we store in the last one once done iterating (keeps from having to manage removals)
 			CurrentGuidToLastUpdateMap.emplace(Id, UpdateTime);
 
@@ -204,11 +191,11 @@ void MeshUpdateObserver::OnSurfacesChanged(SpatialSurfaceObserver^ Observer, Pla
 			if (bIsAdd || LastGuidToLastUpdateMap.at(Id) != UpdateTime)
 			{
 				// We need to resolve the mesh so we can allocate the memory to copy the vertices/indices
-				SpatialSurfaceMesh^ SurfaceMesh = create_task(SurfaceInfo->TryComputeLatestMeshAsync(TriangleDensityPerCubicMeter, MeshOptions)).get();
+				auto SurfaceMesh = SurfaceInfo.TryComputeLatestMeshAsync(TriangleDensityPerCubicMeter, MeshOptions).get();
 				if (SurfaceMesh != nullptr)
 				{
-					CurrentMesh.NumVertices = SurfaceMesh->VertexPositions->ElementCount;
-					CurrentMesh.NumIndices = SurfaceMesh->TriangleIndices->ElementCount;
+					CurrentMesh.NumVertices = SurfaceMesh.VertexPositions().ElementCount();
+					CurrentMesh.NumIndices = SurfaceMesh.TriangleIndices().ElementCount();
 
 					// Copy the transform over so it can be copied in the allocate buffers
 					CopyTransform(CurrentMesh, SurfaceMesh);
@@ -231,7 +218,7 @@ void MeshUpdateObserver::OnSurfacesChanged(SpatialSurfaceObserver^ Observer, Pla
 		// Iterate through the last known guids to find ones that have been removed
 		for (const auto& [Key, Value] : LastGuidToLastUpdateMap)
 		{
-			Guid Id = Key;
+			guid Id = Key;
 			// If this one is not in the new set, then it was removed
 			if (CurrentGuidToLastUpdateMap.find(Id) == CurrentGuidToLastUpdateMap.end())
 			{
@@ -289,13 +276,14 @@ void MeshUpdateObserver::StartMeshObserver(
 	// If it's supported, request access
 	if (SpatialSurfaceObserver::IsSupported())
 	{
-		auto RequestTask = concurrency::create_task(SpatialSurfaceObserver::RequestAccessAsync());
-		RequestTask.then([this](SpatialPerceptionAccessStatus AccessStatus)
+		//auto RequestTask = concurrency::create_task(SpatialSurfaceObserver::RequestAccessAsync());
+		//RequestTask.then([this](SpatialPerceptionAccessStatus AccessStatus)
+		SpatialSurfaceObserver::RequestAccessAsync().Completed([=](auto&& asyncInfo, auto&&  asyncStatus)
 		{
-			if (AccessStatus == SpatialPerceptionAccessStatus::Allowed)
+			if (asyncInfo.GetResults() == SpatialPerceptionAccessStatus::Allowed)
 			{
 				std::lock_guard<std::mutex> lock(MeshRefsLock);
-				SurfaceObserver = ref new SpatialSurfaceObserver();
+				SurfaceObserver = SpatialSurfaceObserver();
 				if (SurfaceObserver != nullptr)
 				{
 					bIsRunning = true;
@@ -318,8 +306,10 @@ void MeshUpdateObserver::StartMeshObserver(
 	}
 }
 
-void MeshUpdateObserver::UpdateBoundingVolume(Windows::Perception::Spatial::SpatialCoordinateSystem^ InCoordinateSystem, float3 Position)
+void MeshUpdateObserver::UpdateBoundingVolume(SpatialCoordinateSystem InCoordinateSystem, float3 Position)
 {
+	std::lock_guard<std::mutex> lock(MeshRefsLock);
+
 	if (InCoordinateSystem == nullptr)
 	{
 		return;
@@ -337,15 +327,12 @@ void MeshUpdateObserver::UpdateBoundingVolume(Windows::Perception::Spatial::Spat
 		{ VolumeSize, VolumeSize, VolumeSize }
 	};
 
-	SpatialBoundingVolume^ BoundingVolume = SpatialBoundingVolume::FromBox(InCoordinateSystem, AABB);
-	SurfaceObserver->SetBoundingVolume(BoundingVolume);
-	if (OnChangeEventToken.Value == 0)
+	SpatialBoundingVolume BoundingVolume = SpatialBoundingVolume::FromBox(InCoordinateSystem, AABB);
+	SurfaceObserver.SetBoundingVolume(BoundingVolume);
+	if (!OnChangeEventToken)
 	{
 		// Subscribe to the changed mesh event now that we have a valid transform
-		OnChangeEventToken = SurfaceObserver->ObservedSurfacesChanged +=
-			ref new TypedEventHandler<SpatialSurfaceObserver^, Platform::Object^>(
-				bind(&MeshUpdateObserver::OnSurfacesChanged, this, _1, _2)
-				);
+		OnChangeEventToken = SurfaceObserver.ObservedSurfacesChanged([this](auto&& sender, auto&& obj) { OnSurfacesChanged(sender, obj); });
 	}
 	LastCoordinateSystem = InCoordinateSystem;
 }
@@ -357,8 +344,8 @@ void MeshUpdateObserver::StopMeshObserver()
 	{
 		// Stop our callback from doing any processing first
 		bIsRunning = false;
-		SurfaceObserver->ObservedSurfacesChanged -= OnChangeEventToken;
-		OnChangeEventToken = Windows::Foundation::EventRegistrationToken();
+		SurfaceObserver.ObservedSurfacesChanged(OnChangeEventToken);
+		OnChangeEventToken = event_token();
 
 		SurfaceObserver = nullptr;
 		LastGuidToLastUpdateMap.erase(LastGuidToLastUpdateMap.begin(), LastGuidToLastUpdateMap.end());
@@ -368,27 +355,27 @@ void MeshUpdateObserver::StopMeshObserver()
 /** Logs out the formats that the API supports so we can request the one that matches ours best */
 void MeshUpdateObserver::InitSupportedMeshFormats(void)
 {
-	MeshOptions = ref new SpatialSurfaceMeshOptions();
+	MeshOptions = SpatialSurfaceMeshOptions();
 	// We have to recalc normals anyway, so skip
-	MeshOptions->IncludeVertexNormals = false;
-	MeshOptions->VertexPositionFormat = DirectXPixelFormat::R16G16B16A16IntNormalized;
-	MeshOptions->TriangleIndexFormat = DirectXPixelFormat::R16UInt;
+	MeshOptions.IncludeVertexNormals(false);
+	MeshOptions.VertexPositionFormat(DirectXPixelFormat::R16G16B16A16IntNormalized);
+	MeshOptions.TriangleIndexFormat(DirectXPixelFormat::R16UInt);
 
-	IVectorView<DirectXPixelFormat>^ VertexFormats = MeshOptions->SupportedVertexPositionFormats;
-	const unsigned int VFormatCount = VertexFormats->Size;
+	auto VertexFormats = MeshOptions.SupportedVertexPositionFormats();
+	const unsigned int VFormatCount = VertexFormats.Size();
 	for (unsigned int Index = 0; Index < VFormatCount; Index++)
 	{
-		DirectXPixelFormat Format = VertexFormats->GetAt(Index);
+		DirectXPixelFormat Format = VertexFormats.GetAt(Index);
 		std::wstringstream LogString;
 		LogString << L"Vertex buffer supports DirectXPixelFormat[" << static_cast<int>(Format) << L"]";
 		Log(LogString.str().c_str());
 	}
 
-	IVectorView<DirectXPixelFormat>^ IndexFormats = MeshOptions->SupportedTriangleIndexFormats;
-	const unsigned int IFormatCount = IndexFormats->Size;
+	auto IndexFormats = MeshOptions.SupportedTriangleIndexFormats();
+	const unsigned int IFormatCount = IndexFormats.Size();
 	for (unsigned int Index = 0; Index < IFormatCount; Index++)
 	{
-		DirectXPixelFormat Format = IndexFormats->GetAt(Index);
+		DirectXPixelFormat Format = IndexFormats.GetAt(Index);
 		std::wstringstream LogString;
 		LogString << L"Index buffer supports DirectXPixelFormat[" << static_cast<int>(Format) << L"]";
 		Log(LogString.str().c_str());

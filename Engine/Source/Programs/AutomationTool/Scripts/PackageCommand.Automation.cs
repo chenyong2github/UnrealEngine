@@ -11,7 +11,7 @@ public partial class Project : CommandUtils
 {
 	public static void Package(ProjectParams Params, int WorkingCL=-1)
 	{
-		if (!Params.SkipStage || Params.Package)
+		if ((!Params.SkipStage || Params.Package) && !Params.SkipPackage)
 		{
 			Params.ValidateAndLog();
 			List<DeploymentContext> DeployContextList = new List<DeploymentContext>();

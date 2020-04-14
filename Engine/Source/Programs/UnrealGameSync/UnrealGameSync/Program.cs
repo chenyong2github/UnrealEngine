@@ -85,36 +85,50 @@ namespace UnrealGameSync
 			string DataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UnrealGameSync");
 			Directory.CreateDirectory(DataFolder);
 
-			using(TelemetryWriter Telemetry = new TelemetryWriter(DeploymentSettings.ApiUrl, Path.Combine(DataFolder, "Telemetry.log")))
+			// Create the log file
+			using (TimestampLogWriter Log = new TimestampLogWriter(new BoundedLogWriter(Path.Combine(DataFolder, "UnrealGameSync.log"))))
 			{
-				AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+				Log.WriteLine("Application version: {0}", Assembly.GetExecutingAssembly().GetName().Version);
+				Log.WriteLine("Started at {0}", DateTime.Now.ToString());
 
-				// Create the log file
-				using (TimestampLogWriter Log = new TimestampLogWriter(new BoundedLogWriter(Path.Combine(DataFolder, "UnrealGameSync.log"))))
+				string SessionId = Guid.NewGuid().ToString();
+				Log.WriteLine("SessionId: {0}", SessionId);
+
+				if (ServerAndPort == null || UserName == null)
 				{
-					Log.WriteLine("Application version: {0}", Assembly.GetExecutingAssembly().GetName().Version);
-					Log.WriteLine("Started at {0}", DateTime.Now.ToString());
+					Log.WriteLine("Missing server settings; finding defaults.");
+					GetDefaultServerSettings(ref ServerAndPort, ref UserName, Log);
+					Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
+				}
 
-					if (ServerAndPort == null || UserName == null)
+				using (BoundedLogWriter TelemetryLog = new BoundedLogWriter(Path.Combine(DataFolder, "Telemetry.log")))
+				{
+					TelemetryLog.WriteLine("Creating telemetry sink for session {0}", SessionId);
+
+					ITelemetrySink PrevTelemetrySink = Telemetry.ActiveSink;
+					using (ITelemetrySink TelemetrySink = DeploymentSettings.CreateTelemetrySink(UserName, SessionId, TelemetryLog))
 					{
-						Log.WriteLine("Missing server settings; finding defaults.");
-						GetDefaultServerSettings(ref ServerAndPort, ref UserName, Log);
-						Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
-					}
+						Telemetry.ActiveSink = TelemetrySink;
 
-					PerforceConnection DefaultConnection = new PerforceConnection(UserName, null, ServerAndPort);
-					using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultConnection, UpdatePath))
-					{
-						ProgramApplicationContext Context = new ProgramApplicationContext(DefaultConnection, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, Log);
-						Application.Run(Context);
+						Telemetry.SendEvent("Startup", new { User = Environment.UserName, Machine = Environment.MachineName });
 
-						if(UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)
+						AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
+						PerforceConnection DefaultConnection = new PerforceConnection(UserName, null, ServerAndPort);
+						using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultConnection, UpdatePath))
 						{
-							InstanceMutex.Close();
-							bool bLaunchUnstable = UpdateMonitor.RelaunchUnstable ?? bUnstable;
-							Utility.SpawnProcess(UpdateSpawn, "-restorestate" + (bLaunchUnstable? " -unstable" : ""));
+							ProgramApplicationContext Context = new ProgramApplicationContext(DefaultConnection, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, Log);
+							Application.Run(Context);
+
+							if (UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)
+							{
+								InstanceMutex.Close();
+								bool bLaunchUnstable = UpdateMonitor.RelaunchUnstable ?? bUnstable;
+								Utility.SpawnProcess(UpdateSpawn, "-restorestate" + (bLaunchUnstable ? " -unstable" : ""));
+							}
 						}
 					}
+					Telemetry.ActiveSink = PrevTelemetrySink;
 				}
 			}
 		}
@@ -165,7 +179,7 @@ namespace UnrealGameSync
 					ExceptionTrace.Append("\nInner Exception:\n");
 					ExceptionTrace.Append(InnerEx.ToString());
 				}
-				TelemetryWriter.Enqueue(TelemetryErrorType.Crash, ExceptionTrace.ToString(), null, DateTime.Now);
+				Telemetry.SendEvent("Crash", new { Exception = Ex });
 			}
 		}
 

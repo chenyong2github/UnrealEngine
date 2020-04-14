@@ -15,6 +15,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 
 #include <memory>
+#include "GeometryCollection/GeometryCollectionComponent.h"
 
 #define LOCTEXT_NAMESPACE "ChaosNiagaraDestructionDataInterface"
 //#pragma optimize("", off)
@@ -111,7 +112,6 @@ UNiagaraDataInterfaceChaosDestruction::UNiagaraDataInterfaceChaosDestruction(FOb
 	, FinalVelocityMagnitudeMinMax(FVector2D(-1.f, -1.f))
 	, MaxLatency(1.f)
 	, DebugType(EDebugTypeEnum::ChaosNiagara_DebugType_NoDebug)
-//	, ParticleIndexToProcess(-1)
 	, LastSpawnedPointID(-1)
 	, LastSpawnTime(-1.f)
 	, SolverTime(0.f)
@@ -170,20 +170,6 @@ void UNiagaraDataInterfaceChaosDestruction::PostLoad()
 	LastSpawnTime = -1.f;
 	TimeStampOfLastProcessedData = -1.f;
 
-#if WITH_CHAOS
-	if (GetWorld() && GetWorld()->GetPhysicsScene())
-	{
-		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
-		Chaos::FEventManager* EventManager = Scene->GetScene().GetSolver()->GetEventManager();
-		if (EventManager)
-		{
-			EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents);
-			EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents);
-			EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
-		}
-	}
-#endif
-
 	PushToRenderThread();
 }
 
@@ -192,10 +178,9 @@ void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_CHAOS
-	if (GetWorld() && GetWorld()->GetPhysicsScene())
+	for (FSolverData& SolverData : Solvers)
 	{
-		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
-		Chaos::FEventManager* EventManager = Scene->GetScene().GetSolver()->GetEventManager();
+		Chaos::FEventManager* EventManager = SolverData.Solver->GetEventManager();
 		if (EventManager)
 		{
 			EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
@@ -345,7 +330,6 @@ bool UNiagaraDataInterfaceChaosDestruction::CopyToInternal(UNiagaraDataInterface
 		DestinationChaosDestruction->FinalVelocityMagnitudeMinMax = FinalVelocityMagnitudeMinMax;
 		DestinationChaosDestruction->MaxLatency = MaxLatency;
 		DestinationChaosDestruction->DebugType = DebugType;
-		//DestinationChaosDestruction->ParticleIndexToProcess = ParticleIndexToProcess;
 		DestinationChaosDestruction->LastSpawnedPointID = LastSpawnedPointID;
 		DestinationChaosDestruction->LastSpawnTime = LastSpawnTime;
 		DestinationChaosDestruction->TimeStampOfLastProcessedData = TimeStampOfLastProcessedData;
@@ -427,13 +411,28 @@ bool UNiagaraDataInterfaceChaosDestruction::Equals(const UNiagaraDataInterface* 
 		&& OtherChaosDestruction->FinalVelocityMagnitudeMinMax == FinalVelocityMagnitudeMinMax
 		&& OtherChaosDestruction->MaxLatency == MaxLatency
 		&& OtherChaosDestruction->DebugType == DebugType;
-		//&& OtherChaosDestruction->ParticleIndexToProcess == ParticleIndexToProcess;
 }
 
 int32 UNiagaraDataInterfaceChaosDestruction::PerInstanceDataSize()const
 {
 	return sizeof(FNDIChaosDestruction_InstanceData);
 }
+
+#if INCLUDE_CHAOS
+void UNiagaraDataInterfaceChaosDestruction::RegisterWithSolverEventManager(Chaos::FPhysicsSolver* Solver)
+{
+	Chaos::FEventManager* EventManager = Solver->GetEventManager();
+	if (EventManager)
+	{
+		Solver->SetGenerateCollisionData(true);
+		Solver->SetGenerateBreakingData(true);
+		Solver->SetGenerateTrailingData(true);
+		EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents);
+		EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents);
+		EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
+	}
+}
+#endif
 
 bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
@@ -456,8 +455,10 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 					int32 NewIdx = Solvers.Add(FSolverData());
 
 					FSolverData& SolverData = Solvers[NewIdx];
-					SolverData.PhysScene = World->PhysicsScene_Chaos;
-					SolverData.Solver = World->PhysicsScene_Chaos->GetSolver();
+					SolverData.PhysScene = World->GetPhysicsScene();
+					SolverData.Solver = SolverData.PhysScene->GetScene().GetSolver();
+
+					RegisterWithSolverEventManager(SolverData.Solver);
 				}
 			}
 		}
@@ -465,20 +466,25 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 	}
 	else
 	{
-		for (AChaosSolverActor* SolverActor : ChaosSolverActorSet)
-		{
-			if (SolverActor)
-			{
-				if (Chaos::FPhysicsSolver* Solver = SolverActor->GetSolver())
-				{
-					int32 NewIdx = Solvers.Add(FSolverData());
-
-					FSolverData& SolverData = Solvers[NewIdx];
-					SolverData.PhysScene = SolverActor->GetPhysicsScene();
-					SolverData.Solver = Solver;
-				}
-			}
-		}
+//#todo : are solver actors going to exist going forwards?
+//		for (AChaosSolverActor* SolverActor : ChaosSolverActorSet)
+//		{
+//			if (SolverActor)
+//			{
+//				if (Chaos::FPhysicsSolver* Solver = SolverActor->GetSolver())
+//				{
+//					int32 NewIdx = Solvers.Add(FSolverData());
+//
+//					FSolverData& SolverData = Solvers[NewIdx];
+//					SolverData.PhysScene = SolverActor->GetPhysicsScene();
+//					SolverData.Solver = Solver;
+//
+//#if INCLUDE_CHAOS
+//					RegisterWithSolverEventManager(Solver);
+//#endif
+//				}
+//			}
+//		}
 	}
 
 	ResetInstData(InstData);
@@ -509,6 +515,7 @@ void UNiagaraDataInterfaceChaosDestruction::DestroyPerInstanceData(void* PerInst
 	);
 }
 
+#if CHAOS_PARTICLEHANDLE_TODO
 void GetMeshExtData(FSolverData SolverData,
 					const int32 ParticleIndex,
 					const TArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping,
@@ -685,19 +692,25 @@ void GetMesPhysicalData(FSolverData SolverData,
 		}
 	}
 }
+#endif
 
 void UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
 {
 	ensure(IsInGameThread());
-	
+	Chaos::FCollisionDataArray const& CollisionDataIn = Event.CollisionData.AllCollisionsArray;
+
+	CollisionEvents.Reset();
+
 	// Copy data from Event into AllCollisionsArray
 	// Also get Boundingbox related data and SurfaceType and save it as well
 	CollisionEvents.AddUninitialized(Event.CollisionData.AllCollisionsArray.Num());
 
 	int32 Idx = 0;
-	for (Chaos::TCollisionDataExt<float, 3>& Collision : CollisionEvents)
+	for (Chaos::TCollisionData<float, 3> const& DataIn : CollisionDataIn)
 	{
-		Collision = Event.CollisionData.AllCollisionsArray[Idx];
+		auto& CopyData = CollisionEvents[Idx];
+
+		CopyData = DataIn;
 
 		// #GM: Disable this for now for perf
 		/*
@@ -710,10 +723,11 @@ void UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents(const Chaos::F
 			AllCollisionsArray[Idx].BoundingboxExtentMax,
 			AllCollisionsArray[Idx].SurfaceType);
 		*/
-		CollisionEvents[Idx].BoundingboxVolume = 1000000.f;
-		CollisionEvents[Idx].BoundingboxExtentMin = 100.f;
-		CollisionEvents[Idx].BoundingboxExtentMax = 100.f;
-		CollisionEvents[Idx].SurfaceType = 0;
+
+		CopyData.BoundingboxVolume = 1000000.f;
+		CopyData.BoundingboxExtentMin = 100.f;
+		CopyData.BoundingboxExtentMax = 100.f;
+		CopyData.SurfaceType = 0;
 
 		Idx++;
 	}
@@ -1107,7 +1121,7 @@ bool UNiagaraDataInterfaceChaosDestruction::CollisionCallback(FNDIChaosDestructi
 		if (SolverData.Solver->GetEventFilters()->IsCollisionEventEnabled() && CollisionEvents.Num() > 0 && SolverData.Solver->GetSolverTime() > 0.f && MaxNumberOfDataEntriesToSpawn > 0)
 		{
 			TArray<Chaos::TCollisionDataExt<float, 3>>& AllCollisionsArray = CollisionEvents;
-			float TimeData_MapsCreated = 0.0f;
+			float TimeData_MapsCreated = SolverData.Solver->GetSolverTime();
 
 #if STATS
 			{
@@ -1185,45 +1199,61 @@ bool UNiagaraDataInterfaceChaosDestruction::CollisionCallback(FNDIChaosDestructi
 void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FBreakingEventData& Event)
 {
 	ensure(IsInGameThread());
+	Chaos::FBreakingDataArray const& BreakingDataIn = Event.BreakingData.AllBreakingsArray;
 
-	// Copy data from *AllBreakingData_Maps.AllBreakingData into AllBreakingsArray
-	// Also get Boundingbox related data and SurfaceType and save it as well
-	BreakingEvents.InsertZeroed(0, Event.BreakingData.AllBreakingsArray.Num());
-	//UE_LOG(LogScript, Warning, TEXT("(*AllBreakingData_Maps.AllBreakingData).AllBreakingsArray.Num() = %d"), (*AllBreakingData_Maps.AllBreakingData).AllBreakingsArray.Num());
+	BreakingEvents.Reset();
+
+	// Copy data from Event
+	BreakingEvents.InsertZeroed(0, BreakingDataIn.Num());
+
 	int32 Idx = 0;
-	for (Chaos::TBreakingDataExt<float, 3>& Breaking : BreakingEvents)
+	for (Chaos::TBreakingData<float, 3> const& DataIn : BreakingDataIn)
 	{
-		Breaking = Event.BreakingData.AllBreakingsArray[Idx];
-
-		// #GM: Disable this for now for perf
-		// TODO(mv): Temporarily re-enable this for Jon to get materials, transform and bounding box. Will optimize in the coming week. 
 		if (bGetExternalBreakingData)
 		{
-			//Chaos::TRigidTransform<float, 3> Transform;
-			//UPhysicalMaterial* Material = nullptr;
-			//GetMeshExtData(SolverData,
-			//	AllBreakingsArray[Idx].ParticleIndexMesh == INDEX_NONE ? AllBreakingsArray[Idx].ParticleIndex : AllBreakingsArray[Idx].ParticleIndexMesh,
-			//	PhysicsProxyReverseMappingArray,
-			//	ParticleIndexReverseMappingArray,
-			//	AllBreakingsArray[Idx].BoundingboxVolume,
-			//	AllBreakingsArray[Idx].BoundingboxExtentMin,
-			//	AllBreakingsArray[Idx].BoundingboxExtentMax,
-			//	AllBreakingsArray[Idx].BoundingBox,
-			//	AllBreakingsArray[Idx].SurfaceType,
-			//	Transform,
-			//	Material);
-			////UE_LOG(LogScript, Warning, TEXT("GetAllBreakingsAndMaps[%d]: SurfaceType = %d"), Idx, AllBreakingsArray[Idx].SurfaceType);
-			//AllBreakingsArray[Idx].TransformTranslation = Transform.GetTranslation();
-			//AllBreakingsArray[Idx].TransformRotation = Transform.GetRotation();
-			//AllBreakingsArray[Idx].TransformScale = Transform.GetScale3D();
-			//if (Material)
-			//{
-			//	AllBreakingsArray[Idx].PhysicalMaterialName = Material->GetFName();
-			//}
-			//else
-			//{
-			//	AllBreakingsArray[Idx].PhysicalMaterialName = FName();
-			//}
+			auto& CopyData = BreakingEvents[Idx];
+			CopyData = DataIn;
+
+			Chaos::TRigidTransform<float, 3> Transform;
+
+			// Ext Data..
+			CopyData.TransformTranslation = Transform.GetTranslation();
+			CopyData.TransformRotation = Transform.GetRotation();
+			CopyData.TransformScale = Transform.GetScale3D();
+
+			CopyData.BoundingBox = FBox(DataIn.BoundingBox.Min(), DataIn.BoundingBox.Max());
+			FVector Extents = CopyData.BoundingBox.GetSize();
+			CopyData.BoundingboxExtentMin = FMath::Min3(Extents[0], Extents[1], Extents[2]);
+			CopyData.BoundingboxExtentMax = FMath::Max3(Extents[0], Extents[1], Extents[2]);
+			CopyData.BoundingboxVolume = CopyData.BoundingBox.GetVolume();
+
+			UPhysicalMaterial* PhysicalMaterial = nullptr;
+			int32 MaterialID = DataIn.Particle->Geometry()->GetMaterialIndex(0);
+
+			UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
+			UMaterialInterface* Material = nullptr;
+#if INCLUDE_CHAOS
+			GeometryCollectionComponent = Solvers[0].PhysScene->GetScene().GetOwningComponent<UGeometryCollectionComponent>(DataIn.ParticleProxy);
+			Material = GeometryCollectionComponent->GetMaterial(MaterialID);
+#endif
+			if (Material)
+			{
+				PhysicalMaterial = Material->GetPhysicalMaterial();
+				ensure(PhysicalMaterial);
+				if (PhysicalMaterial)
+				{
+					CopyData.SurfaceType = PhysicalMaterial->SurfaceType;
+				}
+			}
+
+			if (Material)
+			{
+				CopyData.PhysicalMaterialName = Material->GetFName();
+			}
+			else
+			{
+				CopyData.PhysicalMaterialName = FName();
+			}
 		}
 		else
 		{
@@ -1246,7 +1276,6 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 void UNiagaraDataInterfaceChaosDestruction::FilterAllBreakings(TArray<Chaos::TBreakingDataExt<float, 3>>& AllBreakingsArray)
 {
 	if (bApplyMaterialsFilter || 
-	//	ParticleIndexToProcess != -1 ||
 		SpeedToSpawnMinMax.X > 0.f ||
 		SpeedToSpawnMinMax.Y > 0.f ||
 		MassToSpawnMinMax.X > 0.f ||
@@ -1299,7 +1328,6 @@ void UNiagaraDataInterfaceChaosDestruction::FilterAllBreakings(TArray<Chaos::TBr
 			float BreakingSpeedSquared = AllBreakingsArray[IdxBreaking].Velocity.SizeSquared();
 
 			if (!(bApplyMaterialsFilter && IsMaterialInFilter(AllBreakingsArray[IdxBreaking].PhysicalMaterialName)) ||
-				//(ParticleIndexToProcess != -1 && AllBreakingsArray[IdxBreaking].ParticleIndex != ParticleIndexToProcess) ||
 				(SpeedToSpawnMinMax.X > 0.f && SpeedToSpawnMinMax.Y < 0.f && BreakingSpeedSquared < MinSpeedToSpawnSquared) ||
 				(SpeedToSpawnMinMax.X < 0.f && SpeedToSpawnMinMax.Y > 0.f && BreakingSpeedSquared > MaxSpeedToSpawnSquared) ||
 				(SpeedToSpawnMinMax.X > 0.f && SpeedToSpawnMinMax.Y > 0.f && (BreakingSpeedSquared < MinSpeedToSpawnSquared || BreakingSpeedSquared > MaxSpeedToSpawnSquared)) ||
@@ -1592,7 +1620,7 @@ int32 UNiagaraDataInterfaceChaosDestruction::SpawnParticlesFromBreaking(FSolverD
 			}
 			else if (DebugType == EDebugTypeEnum::ChaosNiagara_DebugType_ColorByParticleIndex)
 			{
-				ParticleColor = ColorArray[Breaking.ParticleIndex % ColorArray.Num()];
+				//ParticleColor = ColorArray[Breaking.ParticleIndex % ColorArray.Num()]; #todo: ParticleIndex no longer exits
 			}
 
 			// Store principal data
@@ -1635,24 +1663,17 @@ bool UNiagaraDataInterfaceChaosDestruction::BreakingCallback(FNDIChaosDestructio
 		if (SolverData.Solver->GetEventFilters()->IsBreakingEventEnabled() && BreakingEvents.Num() > 0 && SolverData.Solver->GetSolverTime() > 0.f && MaxNumberOfDataEntriesToSpawn > 0)
 		{
 			TArray<Chaos::TBreakingDataExt<float, 3>>& AllBreakingsArray = BreakingEvents;
-			TArray<PhysicsProxyWrapper> PhysicsProxyReverseMappingArray;
-			TArray<int32> ParticleIndexReverseMappingArray;
 			TMap<IPhysicsProxyBase*, TArray<int32>> AllBreakingsIndicesByPhysicsProxyMap;
-			float TimeData_MapsCreated = 0.0f;
+			float TimeData_MapsCreated = SolverData.Solver->GetSolverTime();
 
 			{
 				size_t SizeOfAllBreakings = sizeof(Chaos::TBreakingData<float, 3>) * AllBreakingsArray.Num();
-				size_t SizeOfPhysicsProxyReverseMapping = sizeof(PhysicsProxyWrapper) * PhysicsProxyReverseMappingArray.Num();
-				size_t SizeOfParticleIndexReverseMapping = sizeof(int32) * ParticleIndexReverseMappingArray.Num();
-
 				size_t SizeOfAllBreakingsIndicesByPhysicsProxy = 0;
 				for (auto& Elem : AllBreakingsIndicesByPhysicsProxyMap)
 				{
 					SizeOfAllBreakingsIndicesByPhysicsProxy += sizeof(int32) * (Elem.Value).Num();
 				}
 				SET_MEMORY_STAT(STAT_AllBreakingsDataMemory, SizeOfAllBreakings);
-				SET_MEMORY_STAT(STAT_PhysicsProxyReverseMappingMemory, SizeOfPhysicsProxyReverseMapping);
-				SET_MEMORY_STAT(STAT_ParticleIndexReverseMappingMemory, SizeOfParticleIndexReverseMapping);
 				SET_MEMORY_STAT(STAT_AllBreakingsIndicesByPhysicsProxyMemory, SizeOfAllBreakingsIndicesByPhysicsProxy);
 			}
 
@@ -1681,7 +1702,6 @@ bool UNiagaraDataInterfaceChaosDestruction::BreakingCallback(FNDIChaosDestructio
 						TimeData_MapsCreated,
 						IdxSolver);
 
-					//UE_LOG(LogScript, Warning, TEXT("IdxBreaking = %d/%d, NumParticlesSpawned = %d"), IdxBreaking, BreakingsToSpawnArray.Num()-1, NumParticlesSpawned);
 					if (NumParticlesSpawned > 0)
 					{
 						// Get/Store Geometry/Physical Material data
@@ -1690,15 +1710,15 @@ bool UNiagaraDataInterfaceChaosDestruction::BreakingCallback(FNDIChaosDestructio
 						float Friction = 0.7f, Restitution = 0.3f, Density = 1.f;
 						if (bGetExternalBreakingData)
 						{
-							// #GM: Disable this for now for perf
+							/* #GM: Disable this for now for perf
 							GetMesPhysicalData(SolverData,
-											   BreakingsToSpawnArray[IdxBreaking].ParticleIndexMesh == INDEX_NONE ? BreakingsToSpawnArray[IdxBreaking].ParticleIndex : BreakingsToSpawnArray[IdxBreaking].ParticleIndexMesh,
+											   0, // #todo: BreakingsToSpawnArray[IdxBreaking].ParticleIndexMesh == INDEX_NONE ? BreakingsToSpawnArray[IdxBreaking].ParticleIndex : BreakingsToSpawnArray[IdxBreaking].ParticleIndexMesh,
 											   PhysicsProxyReverseMappingArray,
 											   ParticleIndexReverseMappingArray,
 											   Color,
 											   Friction,
 											   Restitution,
-											   Density);
+											   Density);*/
 						}
 						
 						for (int32 Idx = 0; Idx < NumParticlesSpawned; ++Idx)
@@ -1729,15 +1749,18 @@ bool UNiagaraDataInterfaceChaosDestruction::BreakingCallback(FNDIChaosDestructio
 void UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents(const Chaos::FTrailingEventData& Event)
 {
 	ensure(IsInGameThread());
+	Chaos::FTrailingDataArray const& TrailingDataIn = Event.TrailingData.AllTrailingsArray;
 
-	// Copy data from *AllTrailingData_Maps.AllTrailingData into AllTrailingsArray
-	// Also get Boundingbox related data and SurfaceType and save it as well
+	TrailingEvents.Reset();
+
+	// Copy data from Event
 	TrailingEvents.AddUninitialized(Event.TrailingData.AllTrailingsArray.Num());
 
 	int32 Idx = 0;
-	for (Chaos::TTrailingDataExt<float, 3>& Trailing : TrailingEvents)
+	for (Chaos::TTrailingData<float, 3> const& DataIn : TrailingDataIn)
 	{
-		Trailing = Event.TrailingData.AllTrailingsArray[Idx];
+		auto& CopyData = TrailingEvents[Idx];
+		CopyData = DataIn;
 
 		// #GM: Disable this for now for perf
 		/*
@@ -1750,10 +1773,11 @@ void UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents(const Chaos::FT
 			AllTrailingsArray[Idx].BoundingboxExtentMax,
 			AllTrailingsArray[Idx].SurfaceType);
 		*/
-		TrailingEvents[Idx].BoundingboxVolume = 1000000.f;
-		TrailingEvents[Idx].BoundingboxExtentMin = 100.f;
-		TrailingEvents[Idx].BoundingboxExtentMax = 100.f;
-		TrailingEvents[Idx].SurfaceType = 0;
+
+		CopyData.BoundingboxVolume = 1000000.f;
+		CopyData.BoundingboxExtentMin = 100.f;
+		CopyData.BoundingboxExtentMax = 100.f;
+		CopyData.SurfaceType = 0;
 
 		Idx++;
 	}
@@ -1761,8 +1785,7 @@ void UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents(const Chaos::FT
 
 void UNiagaraDataInterfaceChaosDestruction::FilterAllTrailings(TArray<Chaos::TTrailingDataExt<float, 3>>& AllTrailingsArray)
 {
-	if (/*ParticleIndexToProcess != -1 ||*/
-		SpeedToSpawnMinMax.X > 0.f ||
+	if (SpeedToSpawnMinMax.X > 0.f ||
 		SpeedToSpawnMinMax.Y > 0.f ||
 		MassToSpawnMinMax.X > 0.f ||
 		MassToSpawnMinMax.Y > 0.f ||
@@ -1791,8 +1814,7 @@ void UNiagaraDataInterfaceChaosDestruction::FilterAllTrailings(TArray<Chaos::TTr
 		{
 			float TrailingSpeedSquared = AllTrailingsArray[IdxTrailing].Velocity.SizeSquared();
 
-			if (/*(ParticleIndexToProcess != -1 && AllTrailingsArray[IdxTrailing].ParticleIndex != ParticleIndexToProcess) ||*/
-				(SpeedToSpawnMinMax.X > 0.f && SpeedToSpawnMinMax.Y < 0.f && TrailingSpeedSquared < MinSpeedToSpawnSquared) ||
+			if ((SpeedToSpawnMinMax.X > 0.f && SpeedToSpawnMinMax.Y < 0.f && TrailingSpeedSquared < MinSpeedToSpawnSquared) ||
 				(SpeedToSpawnMinMax.X < 0.f && SpeedToSpawnMinMax.Y > 0.f && TrailingSpeedSquared > MaxSpeedToSpawnSquared) ||
 				(SpeedToSpawnMinMax.X > 0.f && SpeedToSpawnMinMax.Y > 0.f && (TrailingSpeedSquared < MinSpeedToSpawnSquared || TrailingSpeedSquared > MaxSpeedToSpawnSquared)) ||
 				(MassToSpawnMinMax.X > 0.f && MassToSpawnMinMax.Y < 0.f && AllTrailingsArray[IdxTrailing].Mass < MassToSpawnMinMax.X) ||
@@ -1989,7 +2011,7 @@ int32 UNiagaraDataInterfaceChaosDestruction::SpawnParticlesFromTrailing(FSolverD
 			}
 			else if (DebugType == EDebugTypeEnum::ChaosNiagara_DebugType_ColorByParticleIndex)
 			{
-				//ParticleColor = ColorArray[Trailing.ParticleIndex % ColorArray.Num()];
+				//ParticleColor = ColorArray[Trailing.ParticleIndex % ColorArray.Num()]; #todo: ParticleIndex no longer exists
 			}
 
 			// Store principal data
@@ -2031,24 +2053,17 @@ bool UNiagaraDataInterfaceChaosDestruction::TrailingCallback(FNDIChaosDestructio
 		if (SolverData.Solver->GetEventFilters()->IsTrailingEventEnabled() && TrailingEvents.Num() > 0 && SolverData.Solver->GetSolverTime() > 0.f && MaxNumberOfDataEntriesToSpawn > 0)
 		{
 			TArray<Chaos::TTrailingDataExt<float, 3>>& AllTrailingsArray = TrailingEvents;
-			TArray<PhysicsProxyWrapper> PhysicsProxyReverseMappingArray;
-			TArray<int32> ParticleIndexReverseMappingArray;
 			TMap<IPhysicsProxyBase*, TArray<int32>> AllTrailingsIndicesByPhysicsProxyMap;
-			float TimeData_MapsCreated = 0.0f;
+			float TimeData_MapsCreated = SolverData.Solver->GetSolverTime();
 
 			{
 				size_t SizeOfAllTrailings = sizeof(Chaos::TTrailingData<float, 3>) * AllTrailingsArray.Num();
-				size_t SizeOfPhysicsProxyReverseMapping = sizeof(PhysicsProxyWrapper) * PhysicsProxyReverseMappingArray.Num();
-				size_t SizeOfParticleIndexReverseMapping = sizeof(int32) * ParticleIndexReverseMappingArray.Num();
-
 				size_t SizeOfAllTrailingsIndicesByPhysicsProxy = 0;
 				for (auto& Elem : AllTrailingsIndicesByPhysicsProxyMap)
 				{
 					SizeOfAllTrailingsIndicesByPhysicsProxy += sizeof(int32) * (Elem.Value).Num();
 				}
 				SET_MEMORY_STAT(STAT_AllTrailingsDataMemory, SizeOfAllTrailings);
-				SET_MEMORY_STAT(STAT_PhysicsProxyReverseMappingMemory, SizeOfPhysicsProxyReverseMapping);
-				SET_MEMORY_STAT(STAT_ParticleIndexReverseMappingMemory, SizeOfParticleIndexReverseMapping);
 				SET_MEMORY_STAT(STAT_AllTrailingsIndicesByPhysicsProxyMemory, SizeOfAllTrailingsIndicesByPhysicsProxy);
 			}
 
@@ -2563,83 +2578,83 @@ void UNiagaraDataInterfaceChaosDestruction::GetVMExternalFunction(const FVMExter
 {
 	if (BindingInfo.Name == GetPositionName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetPosition)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetPosition)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetNormalName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetNormal)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetNormal)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetVelocityName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetVelocity)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetVelocity)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetAngularVelocityName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetAngularVelocity)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetAngularVelocity)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetExtentMinName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetExtentMin)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetExtentMin)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetExtentMaxName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetExtentMax)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetExtentMax)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetVolumeName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetVolume)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetVolume)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetParticleIdsToSpawnAtTimeName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3)
 	{
-		TNDIParamBinder<0, float, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetParticleIdsToSpawnAtTime)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, float, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetParticleIdsToSpawnAtTime)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetPointTypeName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetPointType)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetPointType)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetColorName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 4)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetColor)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetColor)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetSolverTimeName && BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetSolverTime)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetSolverTime)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetDensityName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetDensity)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetDensity)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetFrictionName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetFriction)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetFriction)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetRestitutionName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetRestitution)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetRestitution)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetTransformName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 10)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetTransform)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetTransform)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetSizeName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetSize)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetSize)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetSurfaceTypeName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetSurfaceType)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetSurfaceType)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetCollisionDataName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 24)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetCollisionData)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetCollisionData)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetBreakingDataName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 11)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetBreakingData)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetBreakingData)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == GetTrailingDataName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 11)
 	{
-		TNDIParamBinder<0, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetTrailingData)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetTrailingData)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else
 	{
@@ -2653,8 +2668,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetVMExternalFunction(const FVMExter
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetPosition(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleZ(Context);
@@ -2684,8 +2699,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetPosition(FVectorVMContext& Contex
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetNormal(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleZ(Context);
@@ -2714,8 +2729,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetNormal(FVectorVMContext& Context)
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetVelocity(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleZ(Context);
@@ -2744,8 +2759,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetVelocity(FVectorVMContext& Contex
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetAngularVelocity(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleZ(Context);
@@ -2774,8 +2789,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetAngularVelocity(FVectorVMContext&
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetExtentMin(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -2798,8 +2813,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetExtentMin(FVectorVMContext& Conte
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetExtentMax(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -2822,8 +2837,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetExtentMax(FVectorVMContext& Conte
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetVolume(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -2846,8 +2861,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetVolume(FVectorVMContext& Context)
 template<typename TimeParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetParticleIdsToSpawnAtTime(FVectorVMContext& Context)
 {
-	TimeParamType TimeParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	TimeParamType TimeParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutMinValue(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutMaxValue(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutCountValue(Context);
@@ -2876,8 +2891,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetParticleIdsToSpawnAtTime(FVectorV
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetPointType(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutValue(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -2901,8 +2916,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetPointType(FVectorVMContext& Conte
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetColor(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleR(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleG(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleB(Context);
@@ -2945,8 +2960,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetSolverTime(FVectorVMContext& Cont
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetDensity(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -2969,8 +2984,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetDensity(FVectorVMContext& Context
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetFriction(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -2993,8 +3008,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetFriction(FVectorVMContext& Contex
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetRestitution(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -3017,8 +3032,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetRestitution(FVectorVMContext& Con
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetTransform(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutTranslationX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutTranslationY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutTranslationZ(Context);
@@ -3074,8 +3089,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetTransform(FVectorVMContext& Conte
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetSize(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeZ(Context);
@@ -3104,8 +3119,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetSize(FVectorVMContext& Context)
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetSurfaceType(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutValue(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -3128,8 +3143,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetSurfaceType(FVectorVMContext& Con
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetCollisionData(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutLocationX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutLocationY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutLocationZ(Context);
@@ -3242,8 +3257,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetCollisionData(FVectorVMContext& C
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetBreakingData(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutLocationX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutLocationY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutLocationZ(Context);
@@ -3307,8 +3322,8 @@ void UNiagaraDataInterfaceChaosDestruction::GetBreakingData(FVectorVMContext& Co
 template<typename ParticleIDParamType>
 void UNiagaraDataInterfaceChaosDestruction::GetTrailingData(FVectorVMContext& Context)
 {
-	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
+	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutLocationX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutLocationY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutLocationZ(Context);

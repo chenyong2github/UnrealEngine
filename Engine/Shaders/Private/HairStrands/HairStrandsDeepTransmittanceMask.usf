@@ -22,17 +22,15 @@
 #define PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL 1
 
 
-#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_DEEP_SHADOW
-	#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LEGACY
-#elif PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
+#if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
 	#if PERMUTATION_TRAVERSAL == 1
 		#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
 	#else
 		#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR
 	#endif
+	#define VOXEL_TRAVERSAL_DEBUG 0
+	#include "HairStrandsVoxelPageTraversal.ush"
 #endif
-#define VOXEL_TRAVERSAL_DEBUG 0
-#include "HairStrandsVoxelPageTraversal.ush"
 
 float3 ToWorldPosition(float2 UV, float Depth)
 {
@@ -201,6 +199,7 @@ void PrintInfo(uint Index, uint2 PixelCoord, FHairTransmittanceMask Transmittanc
 
 FHairTransmittanceMask ComputeTransmittanceVoxel(
 	const uint2 PixelCoord,
+	const float PixelRadius,
 	float3 WorldPosition,
 	uint MacroGroupId,
 	FGBufferData GBuffer,
@@ -217,10 +216,6 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	const float TanLightAngle = bIsDirectionalLight ? 0 : LightRadius / length(Settings.LightPosition.xyz - WorldPosition);
 	const float3 T = GBuffer.WorldNormal;
 	const float SinLightAngle = dot(LightDirection, T);
-
-	// Depth bias
-	// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
-	const float MaxVoxelSize = VirtualVoxel.VoxelWorldSize;
 
 	// Compute the number of hair count between light & shading point
 	const float DistanceThreshold = 100000;
@@ -239,7 +234,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8);
 		#endif
 		
-		const float3 DepthBias = MaxVoxelSize * (VirtualVoxel.DepthBiasScale*LightDirection + SampleRandom);
+		const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale*LightDirection + SampleRandom);
 		const float3 SampleWorldPosition = WorldPosition + DepthBias;
 
 		FVirtualVoxelCommonDesc CommonDesc;
@@ -259,6 +254,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
 		TraversalSettings.Random = SampleRandom;
 		TraversalSettings.TanConeAngle = 0; // TanLightAngle; // Area light transmission is disabled as it is too noisy for now
+		TraversalSettings.PixelRadius = PixelRadius;
 
 		const FHairTraversalResult Result = ComputeHairCountVirtualVoxel(
 			SampleWorldPosition, 
@@ -338,8 +334,10 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
 		const float3 WorldPosition = ToWorldPosition(UV, SceneDepth);
+
+		const float PixelRadius = SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
 	
-		const FHairTransmittanceMask TransmittanceMask = ComputeTransmittanceVoxel(PixelCoord, WorldPosition, MacroGroupIndex, GBuffer, Settings, HairLUTTexture, LinearSampler, bDebugEnabled);
+		const FHairTransmittanceMask TransmittanceMask = ComputeTransmittanceVoxel(PixelCoord, PixelRadius, WorldPosition, MacroGroupIndex, GBuffer, Settings, HairLUTTexture, LinearSampler, bDebugEnabled);
 
 		#if VOXEL_TRAVERSAL_DEBUG
 		if (bDebugEnabled)

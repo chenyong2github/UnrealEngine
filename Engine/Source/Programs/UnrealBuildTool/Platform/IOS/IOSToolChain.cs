@@ -809,28 +809,26 @@ namespace UnrealBuildTool
 			if (!LinkEnvironment.bIsBuildingLibrary)
 			{
 				// Add the library paths to the argument list.
-				foreach (DirectoryReference LibraryPath in LinkEnvironment.LibraryPaths)
+				foreach (DirectoryReference LibraryPath in LinkEnvironment.SystemLibraryPaths)
 				{
 					LinkCommandArguments += string.Format(" -L\"{0}\"", LibraryPath.FullName);
 				}
 
 				// Add the additional libraries to the argument list.
-				foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
+				foreach (string AdditionalLibrary in LinkEnvironment.SystemLibraries)
+				{
+					LinkCommandArguments += string.Format(" -l\"{0}\"", AdditionalLibrary);
+				}
+
+				foreach(FileReference Library in LinkEnvironment.Libraries)
 				{
 					// for absolute library paths, convert to remote filename
-					if (!String.IsNullOrEmpty(Path.GetDirectoryName(AdditionalLibrary)))
-					{
-						// add it to the prerequisites to make sure it's built first (this should be the case of non-system libraries)
-						FileItem LibFile = FileItem.GetItemByPath(AdditionalLibrary);
-						LinkAction.PrerequisiteItems.Add(LibFile);
+					// add it to the prerequisites to make sure it's built first (this should be the case of non-system libraries)
+					FileItem LibFile = FileItem.GetItemByFileReference(Library);
+					LinkAction.PrerequisiteItems.Add(LibFile);
 
-						// and add to the commandline
-						LinkCommandArguments += string.Format(" \"{0}\"", Path.GetFullPath(AdditionalLibrary));
-					}
-					else
-					{
-						LinkCommandArguments += string.Format(" -l\"{0}\"", AdditionalLibrary);
-					}
+					// and add to the commandline
+					LinkCommandArguments += string.Format(" \"{0}\"", Library.FullName);
 				}
 			}
 

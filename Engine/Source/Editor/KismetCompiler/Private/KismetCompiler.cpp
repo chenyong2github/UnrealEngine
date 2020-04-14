@@ -634,6 +634,53 @@ void FKismetCompilerContext::ValidateComponentClassOverrides()
 	}
 }
 
+void FKismetCompilerContext::ValidateClassPropertyDefaults()
+{
+	// We cannot check the default value if there is no generated class yet (i.e. opening a BP for the first time)
+	if (!Blueprint->GeneratedClass)
+	{
+		return;
+	}
+
+	UObject* CDO = Blueprint->GeneratedClass->GetDefaultObject(false);
+	if (!CDO)
+	{
+		return;
+	}
+
+	// Check the New Variables in case the user has changed a type since the last check and a newer
+	// CDO has not been generated yet
+	for (FBPVariableDescription& VarDesc : Blueprint->NewVariables)
+	{
+		if (VarDesc.VarType.PinCategory == UEdGraphSchema_K2::PC_Class)
+		{
+			const UObject* ExpectedObject = VarDesc.VarType.PinSubCategoryObject.Get();
+			const UClass* ExpectedClass = Cast<UClass>(ExpectedObject);
+
+			if (FClassProperty* AsClassProperty = FindFProperty<FClassProperty>(Blueprint->GeneratedClass, VarDesc.VarName))
+			{
+				if (UObject* SetDefaultProp = AsClassProperty->GetObjectPropertyValue_InContainer(CDO))
+				{
+					// Object may be of a type that is also being compiled and therefore REINST_, so get the real class
+					const UClass* SetDefaultClass = Cast<UClass>(SetDefaultProp);
+					const UClass* RealClass = SetDefaultClass ? SetDefaultClass->GetAuthoritativeClass() : nullptr;
+
+					if (RealClass && ExpectedClass && !RealClass->IsChildOf(ExpectedClass))
+					{
+						MessageLog.Error(
+							*FText::Format(
+								LOCTEXT("InvalidClassPropertyDefaultValue_ErrorFmt", "Invalid default type '{0}' on property '{1}' in @@"),
+								FText::FromString(RealClass->GetName()), FText::FromString(AsClassProperty->GetName())
+							).ToString(),
+							Blueprint
+						);
+					}
+				}
+			}
+		}
+	}
+}
+
 void FKismetCompilerContext::ValidateTimelineNames()
 {
 	TSharedPtr<FKismetNameValidator> ParentBPNameValidator;

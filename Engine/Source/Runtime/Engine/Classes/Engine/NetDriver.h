@@ -530,6 +530,31 @@ struct ENGINE_API FPacketSimulationSettings
 	bool ConfigHelperBool(const TCHAR* Name, bool& Value, const TCHAR* OptionalQualifier);
 };
 
+struct ENGINE_API FActorDestructionInfo
+{
+public:
+	FActorDestructionInfo()
+		: Reason(EChannelCloseReason::Destroyed)
+		, bIgnoreDistanceCulling(false) 
+	{}
+
+	TWeakObjectPtr<ULevel> Level; 
+	TWeakObjectPtr<UObject> ObjOuter;
+	FVector DestroyedPosition;
+	FNetworkGUID NetGUID;
+	FString PathName;
+	FName StreamingLevelName;
+	EChannelCloseReason Reason;
+
+	/** When true the destruction info data will be sent even if the viewers are not close to the actor */
+	bool bIgnoreDistanceCulling;
+
+	void CountBytes(FArchive& Ar)
+	{
+		PathName.CountBytes(Ar);
+	}
+};
+
 //
 // Priority sortable list.
 //
@@ -540,14 +565,14 @@ struct FActorPriority
 	FNetworkObjectInfo*			ActorInfo;	// Actor info.
 	class UActorChannel*		Channel;	// Actor channel.
 
-	struct FActorDestructionInfo *	DestructionInfo;	// Destroy an actor
+	FActorDestructionInfo *	DestructionInfo;	// Destroy an actor
 
 	FActorPriority() : 
 		Priority(0), ActorInfo(NULL), Channel(NULL), DestructionInfo(NULL)
 	{}
 
 	FActorPriority(class UNetConnection* InConnection, class UActorChannel* InChannel, FNetworkObjectInfo* InActorInfo, const TArray<struct FNetViewer>& Viewers, bool bLowBandwidth);
-	FActorPriority(class UNetConnection* InConnection, struct FActorDestructionInfo * DestructInfo, const TArray<struct FNetViewer>& Viewers );
+	FActorPriority(class UNetConnection* InConnection, FActorDestructionInfo * DestructInfo, const TArray<struct FNetViewer>& Viewers );
 };
 
 struct FCompareFActorPriority
@@ -555,28 +580,6 @@ struct FCompareFActorPriority
 	FORCEINLINE bool operator()( const FActorPriority& A, const FActorPriority& B ) const
 	{
 		return B.Priority < A.Priority;
-	}
-};
-
-struct FActorDestructionInfo
-{
-public:
-	FActorDestructionInfo() : Reason(EChannelCloseReason::Destroyed) {}
-
-	TWeakObjectPtr<ULevel>		Level;
-	TWeakObjectPtr<UObject>		ObjOuter;
-	FVector			DestroyedPosition;
-	FNetworkGUID	NetGUID;
-	FString			PathName;
-	FName			StreamingLevelName;
-	EChannelCloseReason Reason;
-
-	/** When true the destruction info data will be sent even if the viewers are not close to the actor */
-	bool bIgnoreDistanceCulling = false;
-
-	void CountBytes(FArchive& Ar)
-	{
-		PathName.CountBytes(Ar);
 	}
 };
 
@@ -1544,6 +1547,9 @@ public:
 	/** Returns identifier used for NetTrace */
 	inline uint32 GetNetTraceId() const { return NetTraceId; }
 
+	/** Sends a message to a client to destroy an actor to the client.  The actor may already be destroyed locally. */
+	ENGINE_API int64 SendDestructionInfo(UNetConnection* Connection, FActorDestructionInfo* DestructionInfo);
+
 protected:
 
 	/** Register all TickDispatch, TickFlush, PostTickFlush to tick in World */
@@ -1603,6 +1609,9 @@ public:
 	bool DidHitchLastFrame() const;
 
 	static bool IsDormInitialStartupActor(AActor* Actor);
+
+	/** Unmap all references to this object, so that if later we receive this object again, we can remap the original references */
+	void MoveMappedObjectToUnmapped(const UObject* Object);
 
 protected:
 

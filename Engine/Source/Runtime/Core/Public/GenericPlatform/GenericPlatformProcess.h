@@ -513,6 +513,11 @@ struct CORE_API FGenericPlatformProcess
 	static class FEvent* GetSynchEventFromPool(bool bIsManualReset = false);
 
 	/**
+	 * Deletes all the recycled sync events contained by the pools
+	 */
+	static void FlushPoolSyncEvents();
+
+	/**
 	 * Returns an event to the pool.
 	 *
 	 * @param Event The event to return.

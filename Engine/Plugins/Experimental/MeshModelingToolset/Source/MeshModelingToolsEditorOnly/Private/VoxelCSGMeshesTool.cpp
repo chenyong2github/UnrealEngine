@@ -101,8 +101,7 @@ void UVoxelCSGMeshesTool::Setup()
 	CreateLowQualityPreview();
 
 	Preview->ConfigureMaterials(
-		// TODO : Probably multi-select bug - MCD
-		ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTargets[0]->GetMaterial(0)),
+		ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager()),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
 	

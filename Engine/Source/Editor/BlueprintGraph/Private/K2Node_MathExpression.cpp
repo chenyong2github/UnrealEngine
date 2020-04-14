@@ -948,7 +948,12 @@ private:
 			ADD_ALIAS("POWER")
 			ADD_ALIAS("POW")
 		FUNC_ALIASES_END
-				
+		
+		FUNC_ALIASES_BEGIN("FCEIL")
+			ADD_ALIAS("FCEIL")
+			ADD_ALIAS("CEIL")
+		FUNC_ALIASES_END
+
 		FUNC_ALIASES_BEGIN("ASin")
 			// have to add "ASin" back, because this overwrites the function's
 			// name and we still want it as a viable option
@@ -1219,7 +1224,7 @@ public:
 		bool bSuccess = true;//K2Schema->ArePinTypesCompatible(GetOutputType(), InputPin->PinType);
 		if (bSuccess)
 		{
-			InputPin->DefaultValue = DefaultValue;
+			K2Schema->TrySetDefaultValue(*InputPin, DefaultValue, false);
 		}
 		else 
 		{

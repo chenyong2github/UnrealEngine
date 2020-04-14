@@ -42,6 +42,7 @@ namespace UnrealBuildTool.Rules
 				PublicSystemLibraries.Add("SceSha1");
 				PublicSystemLibraries.Add("SceAudioIn_stub_weak");
 				PublicSystemLibraries.Add("SceHmac");
+				PublicSystemLibraries.Add("SceSecure");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{

@@ -4,16 +4,6 @@
 
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsCore_Chaos.h"
 
-#include "Chaos/ChaosDebugDrawDeclares.h"
-#include "Chaos/Evolution/PBDMinEvolution.h"
-#include "Chaos/Collision/CollisionDetector.h"
-#include "Chaos/Collision/CollisionReceiver.h"
-#include "Chaos/Collision/NarrowPhase.h"
-#include "Chaos/Collision/ParticlePairBroadPhase.h"
-#include "Chaos/PBDCollisionConstraints.h"
-#include "Chaos/PBDConstraintRule.h"
-#include "Chaos/PBDJointConstraints.h"
-
 #include "Engine/EngineTypes.h"
 #include "Templates/UniquePtr.h"
 
@@ -26,10 +16,10 @@ namespace ImmediatePhysics_Chaos
 		FSimulation();
 		~FSimulation();
 
-		int32 NumActors() const { return ActorHandles.Num(); }
+		int32 NumActors() const;
 
-		FActorHandle* GetActorHandle(int32 ActorHandleIndex) { return ActorHandles[ActorHandleIndex]; }
-		const FActorHandle* GetActorHandle(int32 ActorHandleIndex) const { return ActorHandles[ActorHandleIndex]; }
+		FActorHandle* GetActorHandle(int32 ActorHandleIndex);
+		const FActorHandle* GetActorHandle(int32 ActorHandleIndex) const;
 
 		/** Create a static body and add it to the simulation */
 		FActorHandle* CreateStaticActor(FBodyInstance* BodyInstance);
@@ -70,7 +60,7 @@ namespace ImmediatePhysics_Chaos
 		void SetSimulationSpaceTransform(const FTransform& Transform);
 
 		/** Set new iteration counts. A negative value with leave that iteration count unchanged */
-		void SetSolverIterations(const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts);
+		void SetSolverIterations(const FReal FixedDt, const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts);
 
 	private:
 		void UpdateActivePotentiallyCollidingPairs();
@@ -80,49 +70,8 @@ namespace ImmediatePhysics_Chaos
 		void DebugDrawDynamicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawConstraints(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
 
-		using FCollisionConstraints = Chaos::TPBDCollisionConstraints<FReal, 3>;
-		using FCollisionDetector = Chaos::TCollisionDetector<Chaos::FParticlePairBroadPhase, Chaos::FNarrowPhase, Chaos::FSyncCollisionReceiver, FCollisionConstraints>;
-		using FRigidParticleSOAs = Chaos::TPBDRigidsSOAs<FReal, 3>;
-		using FParticleHandle = Chaos::TGeometryParticleHandle<FReal, Dimensions>;
-		using FParticlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*, 2>;
-
-		// @todo(ccaulfield): Look into these...
-		TArray<FParticlePair> ActivePotentiallyCollidingPairs;
-		Chaos::TArrayCollectionArray<bool> CollidedParticles;
-		Chaos::TArrayCollectionArray<Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial>> ParticleMaterials;
-		Chaos::TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
-
-		FRigidParticleSOAs Particles;
-		Chaos::FPBDJointConstraints Joints;
-		FCollisionConstraints Collisions;
-		Chaos::FParticlePairBroadPhase BroadPhase;
-		FCollisionDetector CollisionDetector;
-		Chaos::TSimpleConstraintRule<Chaos::FPBDJointConstraints> JointsRule;
-		Chaos::TSimpleConstraintRule<FCollisionConstraints> CollisionsRule;
-		Chaos::FPBDMinEvolution Evolution;
-
-
-		/** Mapping from entity index to handle */
-		// @todo(ccaulfield): we now have handles pointing to handles which is inefficient - we can do better than this, but don't want to change API yet
-		TArray<FActorHandle*> ActorHandles;
-		int32 NumActiveDynamicActorHandles;
-
-		/** Mapping from constraint index to handle */
-		TArray<FJointHandle*> JointHandles;
-
-		/** Slow to access. */
-		// @todo(ccaulfield): Optimize
-		TMap<const FParticleHandle*, TSet<const FParticleHandle*>> IgnoreCollisionParticlePairTable;
-
-		TArray<FParticlePair> PotentiallyCollidingPairs;
-
-		FTransform SimulationSpaceTransform;
-
-		FReal RollingAverageStepTime;
-		int32 NumRollingAverageStepTimes;
-		int32 MaxNumRollingAverageStepTimes;
-
-		bool bActorsDirty;
+		struct FImplementation;
+		TUniquePtr<FImplementation> Implementation;
 	};
 
 }

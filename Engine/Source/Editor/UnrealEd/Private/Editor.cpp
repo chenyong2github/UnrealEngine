@@ -16,7 +16,6 @@
 #include "Factories/ReimportFbxStaticMeshFactory.h"
 #include "Factories/ReimportFbxSceneFactory.h"
 #include "Factories/ReimportSoundFactory.h"
-#include "Factories/ReimportSoundSurroundFactory.h"
 #include "Factories/ReimportTextureFactory.h"
 #include "Factories/PhysicalMaterialMaskFactory.h"
 #include "Engine/BlueprintGeneratedClass.h"

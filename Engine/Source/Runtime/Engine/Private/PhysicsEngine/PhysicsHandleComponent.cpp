@@ -11,6 +11,8 @@
 	#include "PhysXPublic.h"
 #endif // WITH_PHYSX
 
+#include "ChaosCheck.h"
+
 UPhysicsHandleComponent::UPhysicsHandleComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

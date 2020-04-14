@@ -115,6 +115,7 @@ public sealed class BuildPhysX : BuildCommand
 		public abstract bool SeparateProjectPerConfig { get; }
 		public abstract string CMakeGeneratorName { get; }
 
+		public virtual string SymbolExtension => null;
 		public virtual string PlatformBuildSubdirectory => null;
 		public virtual string FriendlyName => Platform.ToString();
 
@@ -245,6 +246,11 @@ public sealed class BuildPhysX : BuildCommand
 				if (DebugDatabaseExtension != null)
 				{
 					Results = Results.Concat(EnumerateOutputFiles(OutputBinaryDirectory, SearchPrefix + DebugDatabaseExtension, TargetLib));
+				}
+
+				if (SymbolExtension != null)
+				{
+					Results = Results.Concat(EnumerateOutputFiles(OutputBinaryDirectory, SearchPrefix + SymbolExtension, TargetLib));
 				}
 			}
 
@@ -920,6 +926,7 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 	public BuildPhysX_Linux(string Architecture = "x86_64-unknown-linux-gnu")
 	{
 		this.Architecture = Architecture;
+		this.GeneratedDebugSymbols = new Dictionary<string, bool>();
 	}
 
 	private static DirectoryReference DumpSymsPath = DirectoryReference.Combine(RootDirectory, "Engine/Binaries/Linux/dump_syms");
@@ -930,13 +937,17 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Linux;
 	public override string PlatformBuildSubdirectory => Architecture;
 	public override bool HasBinaries => true;
-	public override string DebugDatabaseExtension => null;
+	public override string SymbolExtension => "sym";
+	public override string DebugDatabaseExtension => "debug";
 	public override string DynamicLibraryExtension => "so";
 	public override string StaticLibraryExtension => "a";
 	public override bool IsPlatformExtension => false;
 	public override bool UseResponseFiles => true;
 	public override string TargetBuildPlatform => "linux";
 	public override string FriendlyName => Platform.ToString() + "-" + Architecture;
+
+	// Only split debug symbols for *.so we have not already do so for
+	private Dictionary<string, bool> GeneratedDebugSymbols;
 
 	public override bool SupportsTargetLib(BuildPhysX.PhysXTargetLib Library)
 	{
@@ -952,11 +963,13 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 
 	private string GetBundledLinuxLibCxxFlags()
 	{
-		string CxxFlags = "\"-I " + ThirdPartySourceDirectory + "/Linux/LibCxx/include -I " + ThirdPartySourceDirectory + "/Linux/LibCxx/include/c++/v1\"";
+		string ThirdPartySourceDirectoryNormal = ThirdPartySourceDirectory.ToNormalizedPath();
+
+		string CxxFlags = "\"-I " + ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/include -I " + ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/include/c++/v1\"";
 		string CxxLinkerFlags = "\"-stdlib=libc++ -nodefaultlibs -Wl,--build-id -L " 
-			+ ThirdPartySourceDirectory + "/Linux/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/ " 
-			+ ThirdPartySourceDirectory + "/Linux/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++.a " 
-			+ ThirdPartySourceDirectory + "/Linux/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++abi.a -lm -lc -lgcc_s\"";
+			+ ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/ " 
+			+ ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++.a " 
+			+ ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++abi.a -lm -lc -lgcc_s\"";
 
 		return "-DCMAKE_CXX_FLAGS=" + CxxFlags + " -DCMAKE_EXE_LINKER_FLAGS=" + CxxLinkerFlags + " -DCAMKE_MODULE_LINKER_FLAGS=" + CxxLinkerFlags + " -DCMAKE_SHARED_LINKER_FLAGS=" + CxxLinkerFlags + " ";
 	}
@@ -995,7 +1008,7 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 		string OriginalToolchainPath = Environment.GetEnvironmentVariable("LINUX_MULTIARCH_ROOT");
 		if (!string.IsNullOrEmpty(OriginalToolchainPath))
 		{
-			string ToolchainPathToUse = OriginalToolchainPath.Replace("v15_clang-8.0.1-centos7", "v12_clang-6.0.1-centos7");
+			string ToolchainPathToUse = OriginalToolchainPath.Replace("v16_clang-9.0.1-centos7", "v12_clang-6.0.1-centos7");
 			LogInformation("Working around problems with newer clangs: {0} -> {1}", OriginalToolchainPath, ToolchainPathToUse);
 			Environment.SetEnvironmentVariable("LINUX_MULTIARCH_ROOT", ToolchainPathToUse);
 		}
@@ -1003,15 +1016,26 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 		{
 			LogWarning("LINUX_MULTIARCH_ROOT is not set!");
 		}
-			
+
 		base.SetupTargetLib(TargetLib, TargetConfiguration);
+	}
+
+	public FileReference GetObjCopyPath()
+	{
+		// Grab where we are getting clang++ from as we need to get objcopy from the same location
+		DirectoryReference LinuxToolchainPath = new DirectoryReference(Environment.GetEnvironmentVariable("LINUX_MULTIARCH_ROOT"));
+
+		return FileReference.Combine(LinuxToolchainPath, "x86_64-unknown-linux-gnu/bin/x86_64-unknown-linux-gnu-objcopy");
 	}
 
 	public override void BuildTargetLib(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration)
 	{
 		base.BuildTargetLib(TargetLib, TargetConfiguration);
 
-		foreach (FileReference SOFile in EnumerateOutputFiles(OutputBinaryDirectory, string.Format("*{0}.{1}", BuildSuffix[TargetConfiguration], DebugDatabaseExtension), TargetLib))
+		FileReference ObjcopyPath = GetObjCopyPath();
+
+		// Linux does not have a great way to split the debug file from the *.so so lets do it now as well as grab the sym file
+		foreach (FileReference SOFile in EnumerateOutputFiles(OutputBinaryDirectory, string.Format("*{0}.{1}", BuildSuffix[TargetConfiguration], DynamicLibraryExtension), TargetLib))
 		{
 			string ExeSuffix = "";
 			if (BuildHostPlatform.Current.Platform.IsInGroup(UnrealPlatformGroup.Windows))
@@ -1020,7 +1044,10 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 			}
 
 			FileReference PSymbolFile = FileReference.Combine(SOFile.Directory, SOFile.GetFileNameWithoutExtension() + ".psym");
-			FileReference SymbolFile = FileReference.Combine(SOFile.Directory, SOFile.GetFileNameWithoutExtension() + ".sym");
+			FileReference SymbolFile  = FileReference.Combine(SOFile.Directory, SOFile.GetFileNameWithoutExtension() + ".sym");
+
+			FileReference DebugFile    = FileReference.Combine(SOFile.Directory, SOFile.GetFileNameWithoutAnyExtensions() + ".debug");
+			FileReference StrippedFile = FileReference.Combine(SOFile.Directory, SOFile.GetFileNameWithoutAnyExtensions() + "_stripped");
 
 			// dump_syms
 			ProcessStartInfo StartInfo = new ProcessStartInfo();
@@ -1029,7 +1056,6 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 			StartInfo.RedirectStandardError = true;
 
 			LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
-
 			Utils.RunLocalProcessAndLogOutput(StartInfo);
 
 			// BreakpadSymbolEncoder
@@ -1037,11 +1063,46 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 			StartInfo.Arguments = PSymbolFile.FullName + " " + SymbolFile.FullName;
 
 			LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
-
 			Utils.RunLocalProcessAndLogOutput(StartInfo);
 
 			// Clean up the Temp *.psym file, as they are no longer needed
 			InternalUtils.SafeDeleteFile(PSymbolFile.FullName);
+
+			if (!GeneratedDebugSymbols.ContainsKey(SOFile.FullName))
+			{
+				// objcopy --strip-all sofile.so sofile_stripped
+				StartInfo.FileName = ObjcopyPath.FullName + ExeSuffix;
+				StartInfo.Arguments = "--strip-all " +
+					SOFile.FullName + " " +
+					StrippedFile.FullName;
+
+				LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
+				Utils.RunLocalProcessAndLogOutput(StartInfo);
+
+				// objcopy --only-keep-debug sofile.so sofile.debug
+				StartInfo.FileName = ObjcopyPath.FullName + ExeSuffix;
+				StartInfo.Arguments = "--only-keep-debug " +
+					SOFile.FullName + " " +
+					DebugFile.FullName;
+
+				LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
+				Utils.RunLocalProcessAndLogOutput(StartInfo);
+
+				// objcopy --add-gnu-debuglink=sofile.debug sofile_stripped sofile.so
+				StartInfo.FileName = ObjcopyPath.FullName + ExeSuffix;
+				StartInfo.Arguments = "--add-gnu-debuglink=" +
+					DebugFile.FullName + " " +
+					StrippedFile.FullName + " " +
+					SOFile.FullName;
+
+				LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
+				Utils.RunLocalProcessAndLogOutput(StartInfo);
+
+				GeneratedDebugSymbols.Add(SOFile.FullName, true);
+			}
+
+			// Clean up the Temp *_stripped file, as they are no longer needed
+			InternalUtils.SafeDeleteFile(StrippedFile.FullName);
 		}
 	}
 }
@@ -1185,6 +1246,7 @@ class BuildPhysX_XboxOne : BuildPhysX.MSBuildTargetPlatform
 	public override bool IsPlatformExtension => false;
 	public override bool UseResponseFiles => false;
 	public override string TargetBuildPlatform => "xboxone";
+	public override bool UseMsBuild => true;
 	public override string GetToolchainName(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration) => "XboxOneToolchain.txt";
 	public override string GetAdditionalCMakeArguments(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration) => " -DCMAKE_GENERATOR_PLATFORM=DURANGO";
 

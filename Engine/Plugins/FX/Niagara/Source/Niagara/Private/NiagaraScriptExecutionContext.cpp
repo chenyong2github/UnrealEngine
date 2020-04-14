@@ -160,6 +160,14 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 				FunctionTable[LocalFunctionTableIndices[LocalFunctionIt]] = &LocalFunctionTable[LocalFunctionIt];
 			}
 
+#if WITH_EDITOR	
+			// We may now have new errors that we need to broadcast about, so flush the asset parameters delegate..
+			if (ParentSystemInstance)
+			{
+				ParentSystemInstance->RaiseNeedsUIResync();
+			}
+#endif
+
 			if (!bSuccessfullyMapped)
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Error building data interface function table!"));
@@ -490,16 +498,7 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	, EmitterCBufferLayout(TEXT("Niagara GPU Emitter CBuffer"))
 	, ExternalCBufferLayout(TEXT("Niagara GPU External CBuffer"))
 	, DataToRender(nullptr)
-#if WITH_EDITORONLY_DATA
-	, GPUDebugDataReadbackFloat(nullptr)
-	, GPUDebugDataReadbackInt(nullptr)
-	, GPUDebugDataReadbackCounts(nullptr)
-	, GPUDebugDataFloatSize(0)
-	, GPUDebugDataIntSize(0)
-	, GPUDebugDataFloatStride(0)
-	, GPUDebugDataIntStride(0)
-	, GPUDebugDataCountOffset(INDEX_NONE)
-#endif	  
+
 {
 	GlobalCBufferLayout.ConstantBufferSize = sizeof(FNiagaraGlobalParameters);
 	GlobalCBufferLayout.ComputeHash();
@@ -521,21 +520,10 @@ FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 	// check(EmitterInstanceReadback.GPUCountOffset == INDEX_NONE);
 
 #if WITH_EDITORONLY_DATA
-	if (GPUDebugDataReadbackFloat)
-	{
-		delete GPUDebugDataReadbackFloat;
-		GPUDebugDataReadbackFloat = nullptr;
-	}
-	if (GPUDebugDataReadbackInt)
-	{
-		delete GPUDebugDataReadbackInt;
-		GPUDebugDataReadbackInt = nullptr;
-	}
-	if (GPUDebugDataReadbackCounts)
-	{
-		delete GPUDebugDataReadbackCounts;
-		GPUDebugDataReadbackCounts = nullptr;
-	}
+	GPUDebugDataReadbackFloat.Reset();
+	GPUDebugDataReadbackInt.Reset();
+	GPUDebugDataReadbackHalf.Reset();
+	GPUDebugDataReadbackCounts.Reset();
 #endif
 
 	SetDataToRender(nullptr);
@@ -553,11 +541,8 @@ void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batch
 	);
 }
 
-void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const uint32 InDefaultSimulationStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
+void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
 {
-#if !UE_BUILD_SHIPPING
-	DebugSimName = InDebugSimName;
-#endif
 	GPUScript = InGPUComputeScript;
 	CombinedParamStore.InitFromOwningContext(InGPUComputeScript, InSimTarget, true);
 	DefaultSimulationStageIndex = InDefaultSimulationStageIndex;
@@ -836,21 +821,10 @@ void FNiagaraComputeExecutionContext::ResetInternal(NiagaraEmitterInstanceBatche
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (GPUDebugDataReadbackFloat)
-	{
-		delete GPUDebugDataReadbackFloat;
-		GPUDebugDataReadbackFloat = nullptr;
-	}
-	if (GPUDebugDataReadbackInt)
-	{
-		delete GPUDebugDataReadbackInt;
-		GPUDebugDataReadbackInt = nullptr;
-	}
-	if (GPUDebugDataReadbackCounts)
-	{
-		delete GPUDebugDataReadbackCounts;
-		GPUDebugDataReadbackCounts = nullptr;
-	}
+	GPUDebugDataReadbackFloat.Reset();
+	GPUDebugDataReadbackInt.Reset();
+	GPUDebugDataReadbackHalf.Reset();
+	GPUDebugDataReadbackCounts.Reset();
 #endif
 
 	SetDataToRender(nullptr);

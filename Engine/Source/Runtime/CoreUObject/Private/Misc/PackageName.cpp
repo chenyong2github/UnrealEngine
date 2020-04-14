@@ -986,8 +986,11 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 
 	// Convert to filename (no extension yet).
 	FString Filename = LongPackageNameToFilename(PackageName, TEXT(""));
+
 	// Find the filename (with extension).
-	if (!WITH_EDITORONLY_DATA || !IsExtraPackage(PackageName))
+#if WITH_EDITORONLY_DATA
+	if (!IsExtraPackage(PackageName))
+#endif
 	{
 		bFoundFile = FindPackageFileWithoutExtension(Filename, Filename, InAllowTextFormats);
 	}
@@ -1015,7 +1018,11 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 		delete PackageReader;
 	}
 
-	if (OutFilename && (bFoundFile || (WITH_EDITORONLY_DATA && IsExtraPackage(PackageName))))
+#if WITH_EDITORONLY_DATA
+	if (OutFilename && (bFoundFile || IsExtraPackage(PackageName)))
+#else
+	if (OutFilename && bFoundFile)
+#endif
 	{
 		*OutFilename = Filename;
 	}

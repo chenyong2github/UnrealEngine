@@ -5,9 +5,225 @@ using System.Collections.Generic;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Gauntlet
 {
+
+	public class GauntletCommandLine
+	{
+		public string Project;
+		public string GameMap;
+		private Dictionary<string, object> Params;
+		/// <summary>
+		/// String containing extra commandline args that do not conform to UE commandline arg specs.
+		/// Please do not use this for for standard flags.
+		/// </summary>
+		public string AdditionalExplicitCommandLineArgs;
+
+		public GauntletCommandLine()
+		{
+			Project = string.Empty;
+			GameMap = string.Empty;
+			AdditionalExplicitCommandLineArgs = string.Empty;
+			Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+		}
+
+		/// <summary>
+		/// Breaks down a raw commandline and adds it to the commandline dictionary.
+		/// Will override current set values in the dictionary when conflicts arise.
+		/// </summary>
+		/// <param name="InRawCommandline"></param>
+		public void AddRawCommandline(string InRawCommandline, bool bOverrideExistingValues = true)
+		{
+			// turn Name(p1,etc) into a collection of Name|(p1,etc) groups
+			MatchCollection Matches = Regex.Matches(InRawCommandline, "-(?<option>\\-?[\\w\\d.:\\[\\]\\/\\\\]+)(=(?<value>(\"([^\"]*)\")|(\\S+)))?");
+
+			foreach (Match M in Matches)
+			{
+				if (M.Groups["option"] == null || string.IsNullOrWhiteSpace(M.Groups["option"].ToString()))
+				{
+					continue;
+				}
+				if (bOverrideExistingValues)
+				{
+					Add(M.Groups["option"].ToString().Trim(), string.IsNullOrWhiteSpace(M.Groups["value"].ToString()) ? null : M.Groups["value"]);
+				}
+				else
+				{
+					AddUnique(M.Groups["option"].ToString().Trim(), string.IsNullOrWhiteSpace(M.Groups["value"].ToString()) ? null : M.Groups["value"]);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Add a new value to the commandline, returning false if the value already exists on the commandline and would be set
+		/// to something other than what is passed in. Execcmds passed in here will still append to an existing value.
+		/// </summary>
+		/// <param name="ParamName"></param>
+		/// <param name="ParamVal"></param>
+		/// <returns>Whether the value passed in is now the expected value of the commandline. Returns false if we failed to set.</returns>
+		public bool AddUnique(string ParamName, object ParamVal = null)
+		{
+			if (Params.ContainsKey(ParamName))
+			{
+				if (ParamName.ToLower() == "execcmds" && ParamVal != null)
+				{
+					AddOrAppendParamValue(ParamName, ParamVal.ToString());
+					return true;
+				}
+
+				if (Params[ParamName] != null)
+				{
+					return (Params[ParamName] == ParamVal);
+				}
+				else
+				{
+					Params[ParamName] = ParamVal;
+					return true;
+				}
+			}
+			Params.Add(ParamName, ParamVal);
+			return true;	
+		}
+
+		/// <summary>
+		/// Add new param value (adding with a value of null makes it a flag instead of a param)
+		/// Overrides current value of the param if one exists.
+		/// Execcmds will be appended to instead of overridden.
+		/// </summary>
+		/// <param name="ParamName"></param>
+		/// <param name="ParamVal"></param>
+		public void Add(string ParamName, object ParamVal = null) 
+		{
+			if (Params.ContainsKey(ParamName))
+			{
+				if (ParamName.ToLower() == "execcmds" && ParamVal != null)
+				{
+					AddOrAppendParamValue(ParamName, ParamVal.ToString());
+					return;
+				}
+
+				if (ParamVal == null && Params[ParamName] != null)
+				{
+					Gauntlet.Log.Info(string.Format("Ignored attempt to convert param {0} from a param with value to a flag", ParamName));
+					return;
+				}
+				else if (ParamVal != null)
+				{
+					if (Params[ParamName] == null)
+					{
+						Gauntlet.Log.Info(string.Format("Converting param {0} from a flag to a param with value {1}.", ParamName, ParamVal));
+					}
+					else if (Params[ParamName] != null && ParamVal.ToString().Trim() != Params[ParamName].ToString().Trim())
+					{
+						Gauntlet.Log.Info(string.Format("Overriding value of param {0} from {1} to {2}", ParamName, Params[ParamName], ParamVal));
+					}
+					Params[ParamName] = ParamVal;
+				}
+			} 			
+			else
+			{
+				Params.Add(ParamName, ParamVal);
+			}
+		}
+		/// <summary>
+		/// Add a new param, or append passed in value to it if a value already exists,
+		/// delimited with the Delimiter passed in.
+		/// </summary>
+		/// <param name="ParamName"></param>
+		/// <param name="ParamVal"></param>
+		/// <param name="DelimiterToUse"></param>
+		public void AddOrAppendParamValue(string ParamName, string ParamVal, string DelimiterToUse = ",") 
+		{
+			if (Params.ContainsKey(ParamName))
+			{
+				if (Params[ParamName] == null)
+				{
+					Params[ParamName] = ParamVal;
+				}
+				else if (Params[ParamName].ToString() != ParamVal) 
+				{
+					Params[ParamName] = Params[ParamName].ToString() + DelimiterToUse + ParamVal;
+					Params[ParamName] = Params[ParamName].ToString().Replace("\"", "");
+				}
+			}
+			else
+			{
+				Params.Add(ParamName, ParamVal);
+			}
+		}
+		/// <summary>
+		/// Remove the param or flag by the passed-in name if it exists.
+		/// </summary>
+		/// <param name="ParamName"></param>
+		public void RemoveParam(string ParamName) 
+		{
+			if ( Params.ContainsKey(ParamName))
+			{
+				Params.Remove(ParamName);
+			}
+		}
+
+		/// <summary>
+		/// Returns the current value of the param if it has one. Flags and nonexistent 
+		/// entries will return null.
+		/// </summary>
+		/// <param name="ParamName"></param>
+		/// <returns></returns>
+		public object GetParamValue(string ParamName) 
+		{
+			if (!Params.ContainsKey(ParamName))
+			{
+				return null;
+			}
+			return Params[ParamName];
+		}
+
+		public bool HasParam(string ParamName)
+		{
+			return (Params != null && Params.ContainsKey(ParamName));
+		}
+
+		/// <summary>
+		/// Wipe out the entire set of passed in params.
+		/// </summary>
+		public void ClearCommandLine()
+		{
+			Params.Clear();
+		}
+
+		/// <summary>
+		/// Cobbles together the finalized commandline from the passed-in values. Wraps param values w/ spaces
+		/// in quotes etc.
+		/// This is the function we use, as well, when accessing the Role's commandline itself.
+		/// </summary>
+		/// <returns></returns>
+		public string GenerateFullCommandLine()
+		{
+			string FinalCommandline = string.Format("{0} {1} ", Project, GameMap);
+			foreach (string Key in Params.Keys)
+			{
+				string CurrentArgument;
+				if (Params[Key] != null && !string.IsNullOrWhiteSpace(Params[Key].ToString()))
+				{
+					CurrentArgument = string.Format("-{0}={1}", Key, 
+						(Params[Key].ToString().Contains(' ') && !Params[Key].ToString().Contains('\"'))
+						? string.Format("\"{0}\"", Params[Key]) : Params[Key]);
+				}
+				else
+				{
+					CurrentArgument = string.Format("-{0}", Key);
+				}
+				FinalCommandline = string.Format("{0} {1} ", FinalCommandline, CurrentArgument);
+			}
+			if (!string.IsNullOrEmpty(AdditionalExplicitCommandLineArgs))
+			{
+				FinalCommandline = string.Format("{0} {1}", FinalCommandline, AdditionalExplicitCommandLineArgs);
+			}
+			return FinalCommandline;
+		}
+	}
 
     public enum EWindowMode
     {
@@ -74,6 +290,7 @@ namespace Gauntlet
             FilesToCopy = new List<UnrealFileToCopy>();
 			AdditionalArtifactDirectories = new List<EIntendedBaseCopyDirectory>();
             RoleType = ERoleModifier.None;
+			CommandLineParams = new GauntletCommandLine();
 		}
 
         public ERoleModifier RoleType { get; set; }
@@ -91,7 +308,36 @@ namespace Gauntlet
 		/// <summary>
 		/// Command line or this role
 		/// </summary>
-		public string CommandLine { get; set; }
+		public string CommandLine
+		{
+			get
+			{
+				if (CommandLineParams == null)
+				{
+					CommandLineParams = new GauntletCommandLine();
+				}
+				return CommandLineParams.GenerateFullCommandLine();
+			}
+			set
+			{
+				if (CommandLineParams == null)
+				{
+					CommandLineParams = new GauntletCommandLine();
+				}
+
+				CommandLineParams.ClearCommandLine();
+
+				CommandLineParams.AddRawCommandline(value);
+			}
+		}
+
+
+		/// <summary>
+		/// Dictionary of commandline arguments that are turned into a commandline at the end.
+		/// For flags, leave the value set to null. Created and then passed through to the Session Role's Commandline Object
+		/// in UnrealTestNode.cs
+		/// </summary>
+		public GauntletCommandLine CommandLineParams { get; set; }
 
 		/// <summary>
 		/// Controllers for this role

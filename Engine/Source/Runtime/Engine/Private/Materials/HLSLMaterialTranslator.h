@@ -252,8 +252,10 @@ protected:
 	uint32 bUsesVertexColor : 1;
 	/** true if the material reads particle color in the pixel shader. */
 	uint32 bUsesParticleColor : 1;
-	/** true if the material reads mesh particle transform in the pixel shader. */
-	uint32 bUsesParticleTransform : 1;
+	/** true if the material reads mesh particle local to world in the pixel shader. */
+	uint32 bUsesParticleLocalToWorld : 1;
+	/** true if the material reads mesh particle world to local in the pixel shader. */
+	uint32 bUsesParticleWorldToLocal : 1;
 
 	/** true if the material uses any type of vertex position */
 	uint32 bUsesVertexPosition : 1;
@@ -709,6 +711,9 @@ protected:
 	virtual int32 SkyAtmosphereViewLuminance() override;
 	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) override;
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override;
+
+	// Water
+	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) override;
 
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override;
 

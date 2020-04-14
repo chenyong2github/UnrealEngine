@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/Evolution/PBDMinEvolution.h"
-#include "Chaos/Collision/CollisionDetector.h"
 #include "Chaos/Collision/NarrowPhase.h"
-#include "Chaos/Collision/ParticlePairBroadPhase.h"
+#include "Chaos/Collision/ParticlePairCollisionDetector.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDRigidsSOAs.h"
@@ -21,20 +20,37 @@
 
 namespace Chaos
 {
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::AdvanceOneTimeStep"), STAT_MinEvolution_AdvanceOneTimeStep, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Integrate"), STAT_MinEvolution_Integrate, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::KinematicTargets"), STAT_MinEvolution_KinematicTargets, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::PrepareConstraints"), STAT_MinEvolution_PrepareConstraints, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UnprepareConstraints"), STAT_MinEvolution_UnprepareConstraints, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraints"), STAT_MinEvolution_ApplyConstraints, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdateVelocities"), STAT_MinEvolution_UpdateVelocites, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyPushOut"), STAT_MinEvolution_ApplyPushOut, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdatePositions"), STAT_MinEvolution_UpdatePositions, STATGROUP_Chaos);
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+	CHAOS_API DECLARE_LOG_CATEGORY_EXTERN(LogChaosMinEvolution, Log, Warning);
+#else
+	CHAOS_API DECLARE_LOG_CATEGORY_EXTERN(LogChaosMinEvolution, Log, All);
+#endif
+	DEFINE_LOG_CATEGORY(LogChaosMinEvolution);
 
-	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Advance"), STAT_MinEvolution_Advance, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::PrepareTick"), STAT_MinEvolution_PrepareTick, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UnprepareTick"), STAT_MinEvolution_UnprepareTick, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Rewind"), STAT_MinEvolution_Rewind, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::AdvanceOneTimeStep"), STAT_MinEvolution_AdvanceOneTimeStep, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Integrate"), STAT_MinEvolution_Integrate, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::KinematicTargets"), STAT_MinEvolution_KinematicTargets, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::PrepareIteration"), STAT_MinEvolution_PrepareIteration, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UnprepareIteration"), STAT_MinEvolution_UnprepareIteration, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraints"), STAT_MinEvolution_ApplyConstraints, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdateVelocities"), STAT_MinEvolution_UpdateVelocites, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyPushOut"), STAT_MinEvolution_ApplyPushOut, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdatePositions"), STAT_MinEvolution_UpdatePositions, STATGROUP_ChaosMinEvolution);
+
+
+	bool bChaos_MinEvolution_RewindLerp = true;
+	FAutoConsoleVariableRef CVarChaosMinEvolutionRewindLerp(TEXT("p.Chaos.MinEvolution.RewindLerp"), bChaos_MinEvolution_RewindLerp, TEXT("If rewinding (fixed dt mode) use Backwards-Lerp as opposed to Backwards Velocity"));
+
+	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
 		: Particles(InParticles)
 		, CollisionDetector(InCollisionDetector)
+		, ParticlePrevXs(InPrevX)
+		, ParticlePrevRs(InPrevR)
 		, NumApplyIterations(0)
 		, NumApplyPushOutIterations(0)
 		, BoundsExtension(InBoundsExtension)
@@ -47,8 +63,17 @@ namespace Chaos
 		ConstraintRules.Add(Rule);
 	}
 
-	void FPBDMinEvolution::Advance(const FReal StepDt, const int32 NumSteps)
+	void FPBDMinEvolution::Advance(const FReal StepDt, const int32 NumSteps, const FReal RewindDt)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Advance);
+
+		PrepareTick();
+
+		if (RewindDt > SMALL_NUMBER)
+		{
+			Rewind(StepDt, RewindDt);
+		}
+
 		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
 		{
 			if (Particle.ObjectState() == EObjectStateType::Dynamic)
@@ -63,7 +88,7 @@ namespace Chaos
 			// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
 			const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
 
-			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
+			UE_LOG(LogChaosMinEvolution, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 
 			AdvanceOneTimeStep(StepDt, StepFraction);
 		}
@@ -76,6 +101,8 @@ namespace Chaos
 				Particle.Torque() = FVec3(0);
 			}
 		}
+
+		UnprepareTick();
 	}
 
 	void FPBDMinEvolution::AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction)
@@ -100,7 +127,7 @@ namespace Chaos
 
 		if (Dt > 0)
 		{
-			PrepareConstraints(Dt);
+			PrepareIteration(Dt);
 
 			ApplyConstraints(Dt);
 
@@ -118,9 +145,72 @@ namespace Chaos
 				PostApplyPushOutCallback();
 			}
 
-			UnprepareConstraints(Dt);
+			UnprepareIteration(Dt);
 
 			UpdatePositions(Dt);
+		}
+	}
+
+	// A opportunity for systems to allocate buffers for the duration of the tick, if they have enough info to do so
+	void FPBDMinEvolution::PrepareTick()
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareTick);
+
+		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->PrepareTick();
+		}
+	}
+
+	void FPBDMinEvolution::UnprepareTick()
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UnprepareTick);
+
+		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->UnprepareTick();
+		}
+	}
+
+	// Update X/R as if we started the next tick 'RewindDt' seconds ago.
+	void FPBDMinEvolution::Rewind(FReal Dt, FReal RewindDt)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Rewind);
+
+		if (bChaos_MinEvolution_RewindLerp)
+		{
+			const FReal T = (Dt - RewindDt) / Dt;
+			UE_LOG(LogChaosMinEvolution, Verbose, TEXT("Rewind dt = %f; rt = %f; T = %f"), Dt, RewindDt, T);
+			for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
+			{
+				if (Particle.ObjectState() == EObjectStateType::Dynamic)
+				{
+					Particle.X() = FVec3::Lerp(Particle.Handle()->AuxilaryValue(ParticlePrevXs), Particle.X(), T);
+					Particle.R() = FRotation3::Slerp(Particle.Handle()->AuxilaryValue(ParticlePrevRs), Particle.R(), T);
+				}
+			}
+		}
+		else
+		{
+			for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
+			{
+				if (Particle.ObjectState() == EObjectStateType::Dynamic)
+				{
+					const FVec3 XCoM = FParticleUtilitiesXR::GetCoMWorldPosition(&Particle);
+					const FRotation3 RCoM = FParticleUtilitiesXR::GetCoMWorldRotation(&Particle);
+
+					const FVec3 XCoM2 = XCoM - Particle.V() * RewindDt;
+					const FRotation3 RCoM2 = FRotation3::IntegrateRotationWithAngularVelocity(RCoM, -Particle.W(), RewindDt);
+
+					FParticleUtilitiesXR::SetCoMWorldTransform(&Particle, XCoM2, RCoM2);
+				}
+			}
+		}
+
+		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
+		{
+			Particle.X() = Particle.X() - Particle.V() * RewindDt;
+			Particle.R() = FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), -Particle.W(), RewindDt);
 		}
 	}
 
@@ -278,23 +368,23 @@ namespace Chaos
 		CollisionDetector.DetectCollisions(Dt);
 	}
 
-	void FPBDMinEvolution::PrepareConstraints(FReal Dt)
+	void FPBDMinEvolution::PrepareIteration(FReal Dt)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareConstraints);
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareIteration);
 
-		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
+		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->PrepareConstraints(Dt);
+			ConstraintRule->PrepareIteration(Dt);
 		}
 	}
 
-	void FPBDMinEvolution::UnprepareConstraints(FReal Dt)
+	void FPBDMinEvolution::UnprepareIteration(FReal Dt)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareConstraints);
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UnprepareIteration);
 
-		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
+		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->UnprepareConstraints(Dt);
+			ConstraintRule->UnprepareIteration(Dt);
 		}
 	}
 
@@ -352,6 +442,8 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UpdatePositions);
 		for (auto& Particle : Particles.GetActiveParticlesView())
 		{
+			Particle.Handle()->AuxilaryValue(ParticlePrevXs) = Particle.X();
+			Particle.Handle()->AuxilaryValue(ParticlePrevRs) = Particle.R();
 			Particle.X() = Particle.P();
 			Particle.R() = Particle.Q();
 		}

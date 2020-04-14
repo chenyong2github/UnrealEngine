@@ -10,6 +10,7 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Math/Box.h"
+
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/BVHParticles.h"
 #include "Chaos/ParticleHandle.h"

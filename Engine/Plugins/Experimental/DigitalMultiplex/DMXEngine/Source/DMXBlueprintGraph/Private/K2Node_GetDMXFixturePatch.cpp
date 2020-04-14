@@ -12,11 +12,42 @@
 #include "BlueprintNodeSpawner.h"
 #include "K2Node_CallFunction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "UObject/FrameworkObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "UK2Node_GetDMXFixturePatch"
 
 const FName UK2Node_GetDMXFixturePatch::InputDMXFixturePatchPinName(TEXT("InFixturePatch"));
 const FName UK2Node_GetDMXFixturePatch::OutputDMXFixturePatchPinName(TEXT("OutFixturePatch"));
+
+void UK2Node_GetDMXFixturePatch::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
+
+	// Check if it not SavingPackage
+	if (Ar.IsSaving() && !GIsSavingPackage)
+	{
+		if (Ar.IsObjectReferenceCollector() || Ar.Tell() < 0)
+		{
+			// When this is a reference collector/modifier, serialize some pins as structs
+			FixupPinStringDataReferences(&Ar);
+		}
+	}
+
+	// Do not call parent, but call grandparent
+	UEdGraphNode::Serialize(Ar);
+
+	if (Ar.IsLoading() && ((Ar.GetPortFlags() & PPF_Duplicate) == 0))
+	{
+		// Fix up pin default values, must be done before post load
+		FixupPinDefaultValues();
+
+		if (GIsEditor)
+		{
+			// We need to serialize string data references on load in editor builds so the cooker knows about them
+			FixupPinStringDataReferences(nullptr);
+		}
+	}
+}
 
 void UK2Node_GetDMXFixturePatch::AllocateDefaultPins()
 {

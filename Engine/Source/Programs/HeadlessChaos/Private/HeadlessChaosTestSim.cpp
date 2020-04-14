@@ -34,7 +34,7 @@ namespace ChaosTest {
 
 
 		const FReal Dt = 1 / 60.f;
-		for (int i = 0; i < 100; ++i)
+		for (int i = 0; i < 200; ++i)
 		{
 			Evolution.AdvanceOneTimeStep(1 / 60.f);
 			Evolution.EndFrame(Dt);

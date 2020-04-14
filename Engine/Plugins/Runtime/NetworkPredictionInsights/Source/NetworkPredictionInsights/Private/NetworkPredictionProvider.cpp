@@ -129,7 +129,10 @@ void FNetworkPredictionProvider::WriteSimulationTick(uint32 SimulationId, FSimul
 
 FSimulationData::FEngineFrame& FNetworkPredictionProvider::WriteSimulationEOF(uint32 SimulationId)
 {
-	return FindOrAdd(SimulationId)->EOFState.PushBack();
+	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
+	FSimulationData::FEngineFrame& NewEOF = SimulationData.EOFState.PushBack();
+	NewEOF.SystemFaults = MoveTemp(SimulationData.Analysis.PendingSystemFaults);
+	return NewEOF;
 }
 
 void FNetworkPredictionProvider::WriteNetRecv(uint32 SimulationId, FSimulationData::FNetSerializeRecv&& InNetRecv)
@@ -235,22 +238,39 @@ void FNetworkPredictionProvider::WriteNetCommit(uint32 SimulationId)
 	}
 }
 
-void FNetworkPredictionProvider::WriteNetFault(uint32 SimulationId)
+void FNetworkPredictionProvider::WriteSystemFault(uint32 SimulationId, uint64 EngineFrameNumber, const TCHAR* Fmt)
 {
 	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
 	
+	// This is akwward to trace. Should refactor some of this so it can be easily known if this happened within a
+	// NetRecv or SimTick scope.
+	
 	for (FSimulationData::FNetSerializeRecv* PendingRecv : SimulationData.Analysis.PendingNetSerializeRecv)
 	{
-		ensure(PendingRecv->Status == ENetSerializeRecvStatus::Unknown);
 		PendingRecv->Status = ENetSerializeRecvStatus::Fault;
+		PendingRecv->SystemFaults.Add({Fmt});
 	}
+
+	SimulationData.Analysis.PendingSystemFaults.Add({Fmt});
 }
 
 void FNetworkPredictionProvider::WriteOOBStateMod(uint32 SimulationId)
 {
+	// Signals that the next user states traced will be OOB mods
 	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
 	SimulationData.Analysis.PendingCommitUserStates.Reset();
 	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::OOB;
+}
+
+void FNetworkPredictionProvider::WriteOOBStateModStrSync(uint32 SimulationId, const TCHAR* Fmt)
+{
+	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
+	SimulationData.Analysis.PendingOOBSyncStr = Fmt;
+}
+void FNetworkPredictionProvider::WriteOOBStateModStrAux(uint32 SimulationId, const TCHAR* Fmt)
+{
+	FSimulationData& SimulationData = FindOrAdd(SimulationId).Get();
+	SimulationData.Analysis.PendingOOBAuxStr = Fmt;
 }
 
 void FNetworkPredictionProvider::WriteProduceInput(uint32 SimulationId)
@@ -289,6 +309,19 @@ void FNetworkPredictionProvider::WriteUserState(uint32 SimulationId, int32 Frame
 	if (SimulationData.Analysis.PendingUserStateSource == ENP_UserStateSource::NetRecv)
 	{
 		SimulationData.Analysis.PendingCommitUserStates.Add(&NewUserState);
+	}
+	else if (SimulationData.Analysis.PendingUserStateSource == ENP_UserStateSource::OOB)
+	{
+		if (Type == ENP_UserState::Sync)
+		{
+			NewUserState.OOBStr = SimulationData.Analysis.PendingOOBSyncStr;
+			SimulationData.Analysis.PendingOOBSyncStr = nullptr;
+		}
+		else if (Type == ENP_UserState::Aux)
+		{
+			NewUserState.OOBStr = SimulationData.Analysis.PendingOOBAuxStr;
+			SimulationData.Analysis.PendingOOBAuxStr = nullptr;
+		}
 	}
 }
 

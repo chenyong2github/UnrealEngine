@@ -35,6 +35,10 @@ SOCKETS_API DECLARE_LOG_CATEGORY_EXTERN(LogSockets, Log, All);
 	#endif
 #endif
 
+/** A unique pointer that will automatically call ISocketSubsystem::DestroySocket on its owned socket. */
+class FSocketDeleter;
+using FUniqueSocket = TUniquePtr<FSocket, FSocketDeleter>;
+
 /**
  * This is the base interface to abstract platform specific sockets API
  * differences.
@@ -110,6 +114,30 @@ public:
 	 * @return the new socket or NULL if failed
 	 */
 	virtual FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolName) = 0;
+
+	/**
+	 * Creates a socket wrapped in a unique pointer that will call DestroySocket automatically - do not call it explicitly!
+	 * This SocketSubsystem must also outlive the sockets it creates.
+	 *
+	 * @Param SocketType type of socket to create (DGram, Stream, etc)
+	 * @param SocketDescription debug description
+	 * @param bForceUDP overrides any platform specific protocol with UDP instead
+	 *
+	 * @return the new socket or NULL if failed
+	 */
+	FUniqueSocket CreateUniqueSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false);
+
+	/**
+	 * Creates a socket using the given protocol name,  wrapped in a unique pointer that will call DestroySocket automatically - do not call it explicitly!
+	 * This SocketSubsystem must also outlive the sockets it creates.
+	 *
+	 * @Param SocketType type of socket to create (DGram, Stream, etc)
+	 * @param SocketDescription debug description
+	 * @param ProtocolName the name of the internet protocol to use for this socket. None should be handled.
+	 *
+	 * @return the new socket or NULL if failed
+	 */
+	FUniqueSocket CreateUniqueSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolName);
 
 	/**
 	 * Creates a resolve info cached struct to hold the resolved address
@@ -467,6 +495,32 @@ private:
 
 	/** Stores a resolved IP address for a given host name */
 	TMap<FString, TSharedPtr<FInternetAddr> > HostNameCache;
+};
+
+/** Deleter object that can be used with unique & shared pointers that store FSockets. The SocketSubsystem must be valid when the call operator is invoked! */
+class FSocketDeleter
+{
+public:
+	FSocketDeleter()
+		: Subsystem(nullptr)
+	{
+	}
+
+	FSocketDeleter(ISocketSubsystem* InSubsystem)
+		: Subsystem(InSubsystem)
+	{
+	}
+
+	void operator()(FSocket* Socket) const
+	{
+		if (Subsystem && Socket)
+		{
+			Subsystem->DestroySocket(Socket);
+		}
+	}
+
+private:
+	ISocketSubsystem* Subsystem;
 };
 
 typedef TSharedPtr<ISocketSubsystem> IOnlineSocketPtr;

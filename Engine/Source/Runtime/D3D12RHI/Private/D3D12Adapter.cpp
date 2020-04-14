@@ -23,9 +23,104 @@ static TAutoConsoleVariable<int32> CVarResidencyManagement(
 );
 #endif // ENABLE_RESIDENCY_MANAGEMENT
 
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+
+// Enabled in debug and development mode while sorting out D3D12 stability issues
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+static int32 GD3D12GPUCrashDebuggingMode = 0;
+#else
+static int32 GD3D12GPUCrashDebuggingMode = 1;
+#endif // UE_BUILD_SHIPPING || UE_BUILD_TEST
+
+static TAutoConsoleVariable<int32> CVarD3D12GPUCrashDebuggingMode(
+	TEXT("r.D3D12.GPUCrashDebuggingMode"),
+	GD3D12GPUCrashDebuggingMode,
+	TEXT("Enable GPU crash debugging: tracks the current GPU state and logs information what operations the GPU executed last.\n")
+	TEXT("Optionally generate a GPU crash dump as well (on nVidia hardware only)):\n")
+	TEXT(" 0: GPU crash debugging disabled (default in shipping and test builds)\n")
+	TEXT(" 1: Minimal overhead GPU crash debugging (default in development builds)\n")
+	TEXT(" 2: Enable all available GPU crash debugging options (DRED, Aftermath, ...)\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
+/** Handle d3d messages and write them to the log file **/
+static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
+{
+	// Only handle D3D error codes here
+	if (InInfo->ExceptionRecord->ExceptionCode == _FACDXGI)
+	{
+		TRefCountPtr<ID3D12Debug> d3dDebug;
+		if (SUCCEEDED(D3D12GetDebugInterface(__uuidof(ID3D12Debug), (void**)d3dDebug.GetInitReference())))
+		{
+			FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+			TRefCountPtr<ID3D12InfoQueue> d3dInfoQueue;
+			if (SUCCEEDED(D3D12RHI->GetAdapter().GetD3DDevice()->QueryInterface(__uuidof(ID3D12InfoQueue), (void**)d3dInfoQueue.GetInitReference())))
+			{
+				D3D12_MESSAGE* d3dMessage = nullptr;
+				SIZE_T AllocateSize = 0;
+
+				int StoredMessageCount = d3dInfoQueue->GetNumStoredMessagesAllowedByRetrievalFilter();
+				for (int MessageIndex = 0; MessageIndex < StoredMessageCount; MessageIndex++)
+				{
+					SIZE_T MessageLength = 0;
+					HRESULT hr = d3dInfoQueue->GetMessage(MessageIndex, nullptr, &MessageLength);
+
+					// Ideally the exception handler should not allocate any memory because it could fail
+					// and can cause another exception to be triggered and possible even cause a deadlock.
+					// But for these D3D error message it should be fine right now because they are requested
+					// exceptions when making an error against the API.
+					// Not allocating memory for the messages is easy (cache memory in Adapter), but ANSI_TO_TCHAR
+					// and UE_LOG will also allocate memory and aren't that easy to fix.
+
+					// realloc the message
+					if (MessageLength > AllocateSize)
+					{
+						if (d3dMessage)
+						{
+							FMemory::Free(d3dMessage);
+							d3dMessage = nullptr;
+							AllocateSize = 0;
+						}
+
+						d3dMessage = (D3D12_MESSAGE*) FMemory::Malloc(MessageLength);
+						AllocateSize = MessageLength;
+					}
+
+					if (d3dMessage)
+					{
+						// get the actual message data from the queue
+						hr = d3dInfoQueue->GetMessage(MessageIndex, d3dMessage, &MessageLength);
+
+						UE_LOG(LogD3D12RHI, Error, TEXT("%s"), ANSI_TO_TCHAR(d3dMessage->pDescription));
+					}
+
+					// when we get here, then it means that BreakOnSeverity was set for this error message, so request the debug break here as well
+					UE_DEBUG_BREAK();
+				}
+
+				if (AllocateSize > 0)
+				{
+					FMemory::Free(d3dMessage);
+				}
+			}
+		}
+
+		// Handles the exception
+		return EXCEPTION_CONTINUE_EXECUTION;
+	}
+
+	// continue searching
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+
+#endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+
+
 FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	: OwningRHI(nullptr)
 	, bDepthBoundsTestSupported(false)
+	, bDebugDevice(false)
+	, GPUCrashDebuggingMode(ED3D12GPUCrashDebugginMode::Disabled)
 	, bDeviceRemoved(false)
 	, Desc(DescIn)
 	, RootSignatureManager(this)
@@ -72,6 +167,15 @@ void FD3D12Adapter::Initialize(FD3D12DynamicRHI* RHI)
 	OwningRHI = RHI;
 }
 
+
+/** Callback function called when the GPU crashes, when Aftermath is enabled */
+static void D3D12AftermathCrashCallback(const void* InGPUCrashDump, const size_t InGPUCrashDumpSize, void* InUserData)
+{
+	// Forward to shared function which is also called when DEVICE_LOST return value is given
+	D3D12RHI::TerminateOnGPUCrash(nullptr, InGPUCrashDump, InGPUCrashDumpSize);
+}
+
+
 void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 {
 	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
@@ -84,14 +188,74 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	VERIFYD3D12RESULT(TempAdapter->QueryInterface(IID_PPV_ARGS(DxgiAdapter.GetInitReference())));
 
 #if PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && D3D12_PROFILING_ENABLED)
-	bool bD3d12gpuvalidation = false;
+	
+	// Two ways to enable GPU crash debugging, command line or the r.GPUCrashDebugging variable
+	// Note: If intending to change this please alert game teams who use this for user support.
+	// GPU crash debugging will enable DRED and Aftermath if available
+	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
+	{
+		GPUCrashDebuggingMode = ED3D12GPUCrashDebugginMode::Full;
+	}
+	else
+	{
+		static IConsoleVariable* GPUCrashDebugging = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
+		if (GPUCrashDebugging)
+		{
+			GPUCrashDebuggingMode = (GPUCrashDebugging->GetInt() > 0) ? ED3D12GPUCrashDebugginMode::Full : ED3D12GPUCrashDebugginMode::Disabled;
+		}
 
+		// Still disabled then check the D3D specific cvar for minimal tracking
+		if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Disabled)
+		{
+			auto* GPUCrashDebuggingModeVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.D3D12.GPUCrashDebuggingMode"));
+			int32 GPUCrashDebuggingModeValue = GPUCrashDebuggingModeVar ? GPUCrashDebuggingModeVar->GetValueOnAnyThread() : -1;
+			if (GPUCrashDebuggingModeValue >= 0 && GPUCrashDebuggingModeValue <= (int)ED3D12GPUCrashDebugginMode::Full)
+				GPUCrashDebuggingMode = (ED3D12GPUCrashDebugginMode)GPUCrashDebuggingModeValue;
+		}
+	}
+
+#if NV_AFTERMATH
+	if (IsRHIDeviceNVIDIA())
+	{
+		// GPUcrash dump handler must be attached prior to device creation
+		static IConsoleVariable* GPUCrashDump = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDump"));
+		if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("gpucrashdump")) || (GPUCrashDump && GPUCrashDump->GetInt()))
+		{
+			HANDLE CurrentThread = ::GetCurrentThread();
+
+			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(
+				GFSDK_Aftermath_Version_API,
+				GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
+				D3D12AftermathCrashCallback,
+				nullptr, //Shader debug callback
+				nullptr, // description callback
+				CurrentThread); // user data
+
+			if (Result == GFSDK_Aftermath_Result_Success)
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping enabled"));
+
+				// enable core Aftermath to set the init flags
+				GDX12NVAfterMathEnabled = 1;
+			}
+			else
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping failed to initialize (%x)"), Result);
+
+				GDX12NVAfterMathEnabled = 0;
+			}
+		}
+	}
+#endif
+
+	bool bD3d12gpuvalidation = false;
 	if (bWithDebug)
 	{
 		TRefCountPtr<ID3D12Debug> DebugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(DebugController.GetInitReference()))))
 		{
 			DebugController->EnableDebugLayer();
+			bDebugDevice = true;
 
 			if (FParse::Param(FCommandLine::Get(), TEXT("d3d12gpuvalidation")) || FParse::Param(FCommandLine::Get(), TEXT("gpuvalidation")))
 			{
@@ -107,25 +271,9 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			UE_LOG(LogD3D12RHI, Fatal, TEXT("The debug interface requires the D3D12 SDK Layers. Please install the Graphics Tools for Windows. See: https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features"));
 		}
 	}
-	// Two ways to enable GPU crash debugging, command line or the r.GPUCrashDebugging variable
-	// Note: If intending to change this please alert game teams who use this for user support.
-	// GPU crash debugging will enable DRED and Aftermath if available
-	bool bGPUCrashDebugging = false;
-	if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
-	{
-		bGPUCrashDebugging = true;
-	}
-	else
-	{
-		static IConsoleVariable* GPUCrashDebugging = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
-		if (GPUCrashDebugging)
-		{
-			bGPUCrashDebugging = GPUCrashDebugging->GetInt() > 0;
-		}
-	}
 	
 	// Setup DRED if requested
-	if (bGPUCrashDebugging || FParse::Param(FCommandLine::Get(), TEXT("dred")))
+	if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full || FParse::Param(FCommandLine::Get(), TEXT("dred")))
 	{
 		ID3D12DeviceRemovedExtendedDataSettings* DredSettings = nullptr;
 		HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&DredSettings));
@@ -148,6 +296,11 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bD3d12gpuvalidation ? TEXT("on") : TEXT("off"));
 
 #endif // PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && D3D12_PROFILING_ENABLED)
+
+#if USE_PIX
+	UE_LOG(LogD3D12RHI, Log, TEXT("Emitting draw events for PIX profiling."));
+	SetEmitDrawEvents(true);
+#endif
 
 	bool bDeviceCreated = false;
 #if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
@@ -267,21 +420,48 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 #if NV_AFTERMATH
 	// Enable aftermath when GPU crash debugging is enabled
-	if (bGPUCrashDebugging || GDX12NVAfterMathEnabled)
+	if (GPUCrashDebuggingMode == ED3D12GPUCrashDebugginMode::Full && GDX12NVAfterMathEnabled)
 	{
 		if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 		{
-			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, GFSDK_Aftermath_FeatureFlags_Maximum, RootDevice);
+			static IConsoleVariable* MarkersCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Markers"));
+			static IConsoleVariable* CallstackCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Callstack"));
+			static IConsoleVariable* ResourcesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.ResourceTracking"));
+			static IConsoleVariable* TrackAllCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.TrackAll"));
+
+			const bool bEnableMarkers = FParse::Param(FCommandLine::Get(), TEXT("aftermathmarkers")) || (MarkersCVar && MarkersCVar->GetInt());
+			const bool bEnableCallstack = FParse::Param(FCommandLine::Get(), TEXT("aftermathcallstack")) || (CallstackCVar && CallstackCVar->GetInt());
+			const bool bEnableResources = FParse::Param(FCommandLine::Get(), TEXT("aftermathresources")) || (ResourcesCVar && ResourcesCVar->GetInt());
+			const bool bEnableAll = FParse::Param(FCommandLine::Get(), TEXT("aftermathall")) || (TrackAllCVar && TrackAllCVar->GetInt());
+
+			uint32 Flags = GFSDK_Aftermath_FeatureFlags_Minimum;
+
+			Flags |= bEnableMarkers ? GFSDK_Aftermath_FeatureFlags_EnableMarkers : 0;
+			Flags |= bEnableCallstack ? GFSDK_Aftermath_FeatureFlags_CallStackCapturing : 0;
+			Flags |= bEnableResources ? GFSDK_Aftermath_FeatureFlags_EnableResourceTracking : 0;
+			Flags |= bEnableAll ? GFSDK_Aftermath_FeatureFlags_Maximum : 0;
+
+			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, (GFSDK_Aftermath_FeatureFlags)Flags, RootDevice);
 			if (Result == GFSDK_Aftermath_Result_Success)
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath enabled and primed"));
-				SetEmitDrawEvents(true);
-				GDX12NVAfterMathEnabled = 1;
 			}
 			else
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath enabled but failed to initialize (%x)"), Result);
 				GDX12NVAfterMathEnabled = 0;
+			}
+
+			if (GDX12NVAfterMathEnabled && (bEnableMarkers || bEnableAll))
+			{
+				SetEmitDrawEvents(true);
+				GDX12NVAfterMathMarkers = 1;
+			}
+
+			GDX12NVAfterMathTrackResources = bEnableResources || bEnableAll;
+			if (GDX12NVAfterMathEnabled && GDX12NVAfterMathTrackResources)
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath resource tracking enabled"));
 			}
 		}
 		else
@@ -290,8 +470,19 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			UE_LOG(LogD3D12RHI, Warning, TEXT("[Aftermath] Skipping aftermath initialization on non-Nvidia device"));
 		}
 	}
+	else
+	{
+		GDX12NVAfterMathEnabled = 0;
+	}
 #endif
 
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+	if (bWithDebug)
+	{
+		// add vectored exception handler to write the debug device warning & error messages to the log
+		ExceptionHandlerHandle = AddVectoredExceptionHandler(1, D3DVectoredExceptionHandler);
+	}
+#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
 #if UE_BUILD_DEBUG	&& (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 	//break on debug
@@ -680,6 +871,13 @@ void FD3D12Adapter::Cleanup()
 		Effect.Value.Destroy();
 	}
 #endif
+
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+	if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
+	{
+		RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
+	}
+#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
 	// Ask all initialized FRenderResources to release their RHI resources.
 	FRenderResource::ReleaseRHIForAllResources();

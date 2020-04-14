@@ -233,7 +233,7 @@ namespace Audio
 		if (FadeCurve == EFaderCurve::Logarithmic)
 		{
 			Alpha = Audio::ConvertToLinear(Alpha);
-		} 
+		}
 		Target = Alpha;
 		FadeCurve = EFaderCurve::Linear;
 		Elapsed = ActiveDuration;
@@ -242,12 +242,17 @@ namespace Audio
 
 	void FVolumeFader::Update(float InDeltaTime)
 	{
-		if (!IsFading() || !IsActive())
+		// querying state before incrementing Elapsed time
+		// lets sounds with a fade-in time < InDeltaTime play
+		const bool bIsFading = IsFading();
+		const bool bIsActive = IsActive();
+
+		Elapsed += InDeltaTime;
+
+		if (!bIsFading || !bIsActive)
 		{
 			return;
 		}
-
-		Elapsed += InDeltaTime;
 
 		// Keep stepping towards target & clamp until fade duration has expired
 		// Choose min/max bound and clamp dt to prevent unwanted spikes in volume

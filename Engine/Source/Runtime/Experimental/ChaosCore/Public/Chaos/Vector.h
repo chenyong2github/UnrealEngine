@@ -504,10 +504,10 @@ namespace Chaos
 					return MakePair(max.Z, 2);
 			}
 		}
-		float SafeNormalize()
+		float SafeNormalize(float Epsilon = 1e-4)
 		{
 			float Size = SizeSquared();
-			if (Size < (float)1e-4)
+			if (Size < Epsilon)
 			{
 				*this = AxisVector(0);
 				return 0.f;

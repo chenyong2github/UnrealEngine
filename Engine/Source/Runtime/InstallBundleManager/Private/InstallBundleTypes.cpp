@@ -14,6 +14,7 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 		TEXT("BuildPatchServices"),
 		TEXT("PlayGo"),
 		TEXT("IntelligentDelivery"),
+		TEXT("GameCustom"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleSourceType::Count) == UE_ARRAY_COUNT(Strings), "");
@@ -101,6 +102,56 @@ const TCHAR* LexToString(EInstallBundleStatus Status)
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleStatus::Count) == UE_ARRAY_COUNT(Strings), "");
 	return Strings[InstallBundleUtil::CastToUnderlying(Status)];
 }
+
+const TCHAR* LexToString(EInstallBundleManagerPatchCheckResult EnumVal)
+{
+	// These are namespaced because PartyHub expects them that way :/
+	static const TCHAR* Strings[] =
+	{
+		TEXT("EInstallBundleManagerPatchCheckResult::NoPatchRequired"),
+		TEXT("EInstallBundleManagerPatchCheckResult::ClientPatchRequired"),
+		TEXT("EInstallBundleManagerPatchCheckResult::ContentPatchRequired"),
+		TEXT("EInstallBundleManagerPatchCheckResult::NoLoggedInUser"),
+		TEXT("EInstallBundleManagerPatchCheckResult::PatchCheckFailure"),
+	};
+
+	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleManagerPatchCheckResult::Count) == UE_ARRAY_COUNT(Strings), "");
+	return Strings[InstallBundleUtil::CastToUnderlying(EnumVal)];
+}
+
+const TCHAR* LexToString(EInstallBundlePriority Priority)
+{
+	static const TCHAR* Strings[] =
+	{
+		TEXT("High"),
+		TEXT("Normal"),
+		TEXT("Low"),
+	};
+
+	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundlePriority::Count) == UE_ARRAY_COUNT(Strings), "");
+	return Strings[InstallBundleUtil::CastToUnderlying(Priority)];
+}
+
+bool LexTryParseString(EInstallBundlePriority& OutMode, const TCHAR* InBuffer)
+{
+	if (FCString::Stricmp(InBuffer, TEXT("High")) == 0)
+	{
+		OutMode = EInstallBundlePriority::High;
+		return true;
+	}
+	if (FCString::Stricmp(InBuffer, TEXT("Normal")) == 0)
+	{
+		OutMode = EInstallBundlePriority::Normal;
+		return true;
+	}
+	if (FCString::Stricmp(InBuffer, TEXT("Low")) == 0)
+	{
+		OutMode = EInstallBundlePriority::Low;
+		return true;
+	}
+	return false;
+}
+
 
 bool FInstallBundleCombinedContentState::GetAllBundlesHaveState(EInstallBundleContentState State, TArrayView<const FName> ExcludedBundles /*= TArrayView<const FName>()*/) const
 {

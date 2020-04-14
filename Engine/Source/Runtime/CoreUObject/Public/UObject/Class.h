@@ -327,6 +327,8 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** List of wrapper UObjects for FProperties */
 	TArray<UPropertyWrapper*> PropertyWrappers;
+	/** Unique id incremented each time this class properties get destroyed */
+	int32 FieldPathSerialNumber;
 #endif
 
 	/** Cached schema for optimized unversioned property serialization, owned by this. */

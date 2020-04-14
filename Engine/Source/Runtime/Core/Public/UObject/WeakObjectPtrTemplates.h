@@ -29,6 +29,8 @@ struct TWeakObjectPtr;
 template<class T, class TWeakObjectPtrBase>
 struct TWeakObjectPtr : private TWeakObjectPtrBase
 {
+	friend struct FFieldPath;
+
 	// Although templated, these parameters are not intended to be anything other than the default,
 	// and are only templates for module organization reasons.
 	static_assert(TAreTypesEqual<TWeakObjectPtrBase, FWeakObjectPtr>::Value, "TWeakObjectPtrBase should not be overridden");

@@ -82,6 +82,9 @@ extern RHI_API EShaderPlatform GMaxRHIShaderPlatform;
 /** true if the RHI supports SRVs */
 extern RHI_API bool GSupportsResourceView;
 
+/** true if the RHI supports Draw Indirect */
+extern RHI_API bool GRHISupportsDrawIndirect;
+
 /** Whether the RHI can send commands to the device context from multiple threads. Used in the GPU readback to avoid stalling the RHI threads. */
 extern RHI_API bool GRHISupportsMultithreading;
 
@@ -425,6 +428,9 @@ extern RHI_API TRHIGlobal<int64> GMaxBufferDimensions;
 
 /** The maximum size allowed for 3D textures in all three dimensions. */
 extern RHI_API TRHIGlobal<int32> GMaxVolumeTextureDimensions;
+
+/** Whether RW texture buffers are supported */
+extern RHI_API bool GRHISupportsRWTextureBuffers;
 
 FORCEINLINE uint64 GetMaxBufferDimension()
 {

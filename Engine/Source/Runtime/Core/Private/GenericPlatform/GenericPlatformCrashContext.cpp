@@ -69,7 +69,7 @@ const TCHAR* const FGenericCrashContext::EngineModeExDirty = TEXT("Dirty");
 const TCHAR* const FGenericCrashContext::EngineModeExVanilla = TEXT("Vanilla");
 
 bool FGenericCrashContext::bIsInitialized = false;
-bool FGenericCrashContext::bIsOutOfProcess = false;
+uint32 FGenericCrashContext::OutOfProcessCrashReporterPid = 0;
 int32 FGenericCrashContext::StaticCrashContextIndex = 0;
 
 const FGuid FGenericCrashContext::ExecutionGuid = FGuid::NewGuid();
@@ -241,6 +241,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	NCached::UserSettings.bNoDialog = FApp::IsUnattended() || IsRunningDedicatedServer();
 
 	SerializeTempCrashContextToFile();
+
+	CleanupPlatformSpecificFiles();
 
 	bIsInitialized = true;
 #endif	// !NOINITCRASHREPORTER
@@ -888,6 +890,7 @@ const TCHAR* FGenericCrashContext::GetCrashConfigFilePath()
 	if (FCString::Strlen(NCached::Session.CrashConfigFilePath) == 0)
 	{
 		FString CrashConfigFilePath = FPaths::Combine(GetCrashConfigFolder(), NCached::Session.CrashGUIDRoot, FGenericCrashContext::CrashConfigFileNameW);
+		CrashConfigFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*CrashConfigFilePath);
 		NCached::Set(NCached::Session.CrashConfigFilePath, *CrashConfigFilePath);
 	}
 	return NCached::Session.CrashConfigFilePath;

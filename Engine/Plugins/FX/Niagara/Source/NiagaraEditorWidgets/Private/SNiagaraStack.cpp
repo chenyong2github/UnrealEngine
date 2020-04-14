@@ -57,6 +57,7 @@
 #include "EditorFontGlyphs.h"
 #include "Framework/Commands/UICommandList.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraStack"
@@ -567,8 +568,8 @@ TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
 		NAME_None, EUserInterfaceActionType::Check);
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ShowLinkedInputsLabel", "Show Linked Script Inputs"),
-		LOCTEXT("ShowLinkedInputsToolTip", "Whether or not to show internal module linked inputs in the stack."),
+		LOCTEXT("ShowParameterReadsLabel", "Show Parameter Reads"),
+		LOCTEXT("ShowParameterReadsToolTip", "Whether or not to show the parameters that a module reads from."),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([=]() { StackViewModel->SetShowLinkedInputs(!StackViewModel->GetShowLinkedInputs()); }),
@@ -577,8 +578,8 @@ TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
 		NAME_None, EUserInterfaceActionType::Check);
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ShowOutputsLabel", "Show Outputs"),
-		LOCTEXT("ShowOutputsToolTip", "Whether or not to show module outputs in the stack."),
+		LOCTEXT("ShowParameterWritesLabel", "Show Parameter Writes"),
+		LOCTEXT("ShowParameterWritesToolTip", "Whether or not to show parameters that a module writes to."),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([=]() { StackViewModel->SetShowOutputs(!StackViewModel->GetShowOutputs()); }),
@@ -850,8 +851,23 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 		bShowExecutionCategoryIcon = false;
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::StackIssue:
+
+		switch (Item->GetIssueSeverity())
+		{
+			case EStackIssueSeverity::Error:
+				ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.ErrorBackgroundColor");
+				break;
+			case EStackIssueSeverity::Warning:
+				ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.WarningBackgroundColor");
+				break;
+			case EStackIssueSeverity::Info:
+				ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.InfoBackgroundColor");
+				break;
+			default:
+				checkf(false, TEXT("Issue severity not set for stack issue."));
+		}
+
 		ContentPadding = FMargin(LeftContentPadding, 3, RightContentPadding, 3);
-		ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.IssueBackgroundColor");
 		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = false;
 		break;
@@ -949,7 +965,8 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		UNiagaraStackParameterStoreEntry* StackEntry = CastChecked<UNiagaraStackParameterStoreEntry>(Item);
 		return FRowWidgets(
-			SNew(SNiagaraStackParameterStoreEntryName, StackEntry, StackViewModel),
+			SNew(SNiagaraStackParameterStoreEntryName, StackEntry, StackViewModel)
+			.IsSelected(Container, &SNiagaraStackTableRow::IsSelected),
 			SNew(SNiagaraStackParameterStoreEntryValue, StackEntry));
 	}
 	else if (Item->IsA<UNiagaraStackInputCategory>())
@@ -967,19 +984,14 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		UNiagaraStackModuleItemOutput* ModuleItemOutput = CastChecked<UNiagaraStackModuleItemOutput>(Item);
 		return FRowWidgets(
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.DefaultText")
-			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
-			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
-			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled),
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ParameterText")
-			.Text_UObject(ModuleItemOutput, &UNiagaraStackModuleItemOutput::GetOutputParameterHandleText)
-			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled));
+			SNew(SNiagaraParameterName)
+				.ReadOnlyTextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.DefaultText")
+				.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
+				.ParameterName(ModuleItemOutput->GetOutputParameterHandle().GetParameterHandleString())
+				.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled)
+				.IsReadOnly(true)
+			);
 	}
 	else if (Item->IsA<UNiagaraStackFunctionInputCollection>() ||
 		Item->IsA<UNiagaraStackModuleItemOutputCollection>() ||
@@ -1023,6 +1035,16 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
 		return FRowWidgets(SNew(SNiagaraStackItem, *StackItem, StackViewModel));
+	}
+	else if (Item->IsA<UNiagaraStackItemTextContent>())
+	{
+		Container->SetContentPadding(FMargin(5));
+		UNiagaraStackItemTextContent* ItemTextContent = CastChecked<UNiagaraStackItemTextContent>(Item);
+		return FRowWidgets(SNew(STextBlock)
+			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.TextContentText")
+			.Text(ItemTextContent->GetDisplayName())
+			.AutoWrapText(true)
+			.Justification(ETextJustify::Center));
 	}
 	else
 	{

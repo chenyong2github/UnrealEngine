@@ -290,11 +290,11 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	float NonFocusDistanceScale;
 
 	/** Amount to scale the priority of sounds that are in focus. Can be used to boost the priority of sounds that are in focus. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationListenerFocus, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bEnableListenerFocus"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationListenerFocus, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", EditCondition = "bEnableListenerFocus"))
 	float FocusPriorityScale;
 
 	/** Amount to scale the priority of sounds that are not in-focus. Can be used to reduce the priority of sounds that are not in focus. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationListenerFocus, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bEnableListenerFocus"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationListenerFocus, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", EditCondition = "bEnableListenerFocus"))
 	float NonFocusPriorityScale;
 
 	/** Amount to attenuate sounds that are in focus. Can be overridden at the sound-level. */
@@ -361,24 +361,24 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSubmixSend)
 	TArray<FAttenuationSubmixSendSettings> SubmixSendSettings;
 
-	/** The priority attenuation to use when the sound is at the minimum priority attenuation distance. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Min Priority Attenuation"))
+	/** Interpolated value to scale priority against when the sound is at the minimum priority attenuation distance from the closest listener. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", DisplayName = "Priority Attenuation At Min Distance"))
 	float PriorityAttenuationMin;
 
-	/** The priority attenuation to use when the sound is at the maximum priority attenuation distance. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Max Priority Attenuation"))
+	/** Interpolated value to scale priority against when the sound is at the maximum priority attenuation distance from the closest listener. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", DisplayName = "Priority Attenuation At Max Distance"))
 	float PriorityAttenuationMax;
 
 	/** The min distance to attenuate priority. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Priority Attenuation Min Distance"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (ClampMin = "0.0", DisplayName = "Priority Attenuation Min Distance"))
 	float PriorityAttenuationDistanceMin;
 
 	/** The max distance to attenuate priority. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (DisplayName = "Priority Attenuation Max Distance"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (ClampMin = "0.0", DisplayName = "Priority Attenuation Max Distance"))
 	float PriorityAttenuationDistanceMax;
 
-	/* The manual priority attenuation to use. Doesn't change as a function of distance. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority)
+	/* Static priority scalar to use (doesn't change as a function of distance). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationPriority, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0", DisplayName = "Attenuation Priority"))
 	float ManualPriorityAttenuation;
 
 	/* The custom curve to use for distance-based priority attenuation. */

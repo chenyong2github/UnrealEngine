@@ -828,26 +828,20 @@ inline FIntVector SetIntVector(const FVector &A)
 
 inline uniform bool VectorIsAnyNearlyZero(const uniform FVector &V, const uniform float Tolerance)
 {
-	varying bool NearlyZero = false;
 	varying float S0 = FLT_MAX;
 
 	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&V);
 
-	NearlyZero = abs(S0) <= Tolerance ? true : false;
-
-	return any(NearlyZero);
+	return any(abs(S0) <= Tolerance);
 }
 
 inline uniform bool VectorIsAllNearlyZero(const uniform FVector &V, const uniform float Tolerance)
 {
-	varying bool NearlyZero = false;
 	varying float S0 = FLT_MIN;
 
 	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&V);
 
-	NearlyZero = abs(S0) <= Tolerance ? true : false;
-
-	return all(NearlyZero);
+	return all(abs(S0) <= Tolerance);
 }
 
 inline FVector VectorLerp(const FVector& A, const FVector& B, const float Alpha)

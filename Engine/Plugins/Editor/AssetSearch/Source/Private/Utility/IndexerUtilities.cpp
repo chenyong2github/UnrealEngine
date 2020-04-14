@@ -5,6 +5,7 @@
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "UObject/TextProperty.h"
+#include "UObject/SoftObjectPtr.h"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
@@ -79,6 +80,22 @@ void FIndexerUtilities::IterateIndexableProperties(const UStruct* InStruct, cons
 			FText DisplayName = EnumProperty->GetEnum()->GetDisplayNameTextByValue(Value);
 			Text = *FTextInspector::GetSourceString(DisplayName);
 		}
+		//else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+		//{
+		//	UObject* Object = ObjectProperty->GetPropertyValue(ValuePtr);
+		//	if (Object && Object->HasAnyFlags(RF_Public))
+		//	{
+		//		Text = Object->GetName();
+		//	}
+		//}
+		//else if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
+		//{
+		//	FSoftObjectPtr SoftObject = SoftObjectProperty->GetPropertyValue(ValuePtr);
+		//	if (!SoftObject.IsNull())
+		//	{
+		//		Text = SoftObject.GetAssetName();
+		//	}
+		//}
 		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			if (StructProperty->Struct == FGameplayTag::StaticStruct())

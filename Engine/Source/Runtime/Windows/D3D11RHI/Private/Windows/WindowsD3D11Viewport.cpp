@@ -11,13 +11,14 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <dwmapi.h>
 
+THIRD_PARTY_INCLUDES_START
 #include "dxgi1_6.h"
+THIRD_PARTY_INCLUDES_END
 
 #ifndef DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
 #define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
 #endif
 
-static bool GSwapFlagsInitialized = false;
 static DXGI_SWAP_EFFECT GSwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 static uint32 GSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 static uint32 GSwapChainBufferCount = 1;
@@ -47,11 +48,11 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	MaximumFrameLatency(3),
 	SizeX(InSizeX),
 	SizeY(InSizeY),
-	bIsFullscreen(bInIsFullscreen),
-	bFullscreenLost(false),
+	PresentFailCount(0),
+	ValidState(0),
 	PixelFormat(InPreferredPixelFormat),
 	PixelColorSpace(EColorSpaceAndEOTF::ERec709_sRGB),
-	bIsValid(true),
+	bIsFullscreen(bInIsFullscreen),
 	FrameSyncEvent(InD3DRHI)
 {
 	check(IsInGameThread());
@@ -64,8 +65,9 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	TRefCountPtr<IDXGIDevice> DXGIDevice;
 	VERIFYD3D11RESULT_EX(D3DRHI->GetDevice()->QueryInterface(IID_IDXGIDevice, (void**)DXGIDevice.GetInitReference()), D3DRHI->GetDevice());
 
-	if(!GSwapFlagsInitialized)
 	{
+		GSwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+		GSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 		IDXGIFactory1* Factory1 = D3DRHI->GetFactory();
 		TRefCountPtr<IDXGIFactory5> Factory5;
 
@@ -82,7 +84,6 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 				}
 			}
 		}
-		GSwapFlagsInitialized = true;
 	}
 	uint32 BufferCount = GSwapChainBufferCount;
 	// If requested, keep a handle to a DXGIOutput so we can force that display on fullscreen swap
@@ -284,12 +285,13 @@ void FD3D11Viewport::CheckHDRMonitorStatus()
 
 void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 {
-	if (!bIsValid)
+	uint32 Valid = ValidState;
+	if(0 != (Valid & VIEWPORT_INVALID))
 	{
-		if (bFullscreenLost)
+		if(0 != (Valid & VIEWPORT_FULLSCREEN_LOST))
 		{
 			FlushRenderingCommands();
-			bFullscreenLost = false;
+			ValidState &= ~(VIEWPORT_FULLSCREEN_LOST);
 			Resize(SizeX, SizeY, false, PixelFormat);
 		}
 		else
@@ -301,7 +303,7 @@ void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 
 void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 {
-	if (!bIsValid)
+	if (0 != (ValidState & VIEWPORT_INVALID))
 	{
 		// Check if the viewport's window is focused before resetting the swap chain's fullscreen state.
 		HWND FocusWindow = ::GetFocus();
@@ -317,7 +319,7 @@ void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 
 			if (SUCCEEDED(Result))
 			{
-				bIsValid = true;
+				ValidState &= ~(VIEWPORT_INVALID);
 			}
 			else if (Result != DXGI_ERROR_NOT_CURRENTLY_AVAILABLE && Result != DXGI_STATUS_MODE_CHANGE_IN_PROGRESS)
 			{

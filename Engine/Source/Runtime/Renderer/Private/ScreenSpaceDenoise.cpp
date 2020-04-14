@@ -40,6 +40,15 @@ static TAutoConsoleVariable<int32> CVarShadowHistoryConvolutionSampleCount(
 	TEXT("Number of samples to use to convolve the history over time."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarUseReflectionDenoiser(
+	TEXT("r.Reflections.Denoiser"),
+	2,
+	TEXT("Choose the denoising algorithm.\n")
+	TEXT(" 0: Disabled;\n")
+	TEXT(" 1: Forces the default denoiser of the renderer;\n")
+	TEXT(" 2: GScreenSpaceDenoiser which may be overriden by a third party plugin (default)."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarReflectionReconstructionSampleCount(
 	TEXT("r.Reflections.Denoiser.ReconstructionSamples"), 16,
 	TEXT("Maximum number of samples for the reconstruction pass (default = 16)."),
@@ -319,8 +328,8 @@ const TCHAR* const kInjestResourceNames[] = {
 	// ShadowVisibilityMask
 	TEXT("ShadowDenoiserInjest0"),
 	TEXT("ShadowDenoiserInjest1"),
-	TEXT("ShadowDenoiserInjest2"),
-	TEXT("ShadowDenoiserInjest3"),
+	nullptr,
+	nullptr,
 
 	// PolychromaticPenumbraHarmonic
 	nullptr,
@@ -1345,12 +1354,11 @@ static void DenoiseSignalAtConstantPixelDensity(
 			check(Settings.SignalBatchSize >= 1 && Settings.SignalBatchSize <= IScreenSpaceDenoiser::kMaxBatchSize);
 			for (int32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 			{
-				InjestDescs[BatchedSignalId].Format = PF_FloatRGBA;
-				InjestTextureCount = BatchedSignalId;
+				InjestDescs[BatchedSignalId / 2].Format = (BatchedSignalId % 2) ? PF_R32G32_UINT : PF_R32_UINT;
+				InjestTextureCount = BatchedSignalId / 2 + 1;
 				ReconstructionDescs[BatchedSignalId].Format = PF_FloatRGBA;
 				HistoryDescs[BatchedSignalId].Format = PF_FloatRGBA;
 			}
-			InjestTextureCount = Settings.SignalBatchSize;
 
 			HistoryTextureCountPerSignal = 1;
 			ReconstructionTextureCount = Settings.SignalBatchSize;
@@ -1470,7 +1478,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		CommonParameters.EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
 
 		// Remove dependency of the velocity buffer on camera cut, given it's going to be ignored by the shaders.
-		if (View.bCameraCut)
+		if (View.bCameraCut || !CommonParameters.SceneTextures.SceneVelocityBuffer)
 		{
 			CommonParameters.SceneTextures.SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 		}
@@ -2453,6 +2461,56 @@ public:
 		ReflectionsOutput.Color = SignalOutput.Textures[0];
 		return ReflectionsOutput;
 	}
+
+	FReflectionsOutputs DenoiseWaterReflections(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FReflectionsInputs& ReflectionInputs,
+		const FReflectionsRayTracingConfig RayTracingConfig) const override
+	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, ReflectionsDenoiser);
+
+		// Imaginary depth is only used for Nvidia denoiser.
+		// TODO: permutation to not generate it?
+		if (ReflectionInputs.RayImaginaryDepth)
+			GraphBuilder.RemoveUnusedTextureWarning(ReflectionInputs.RayImaginaryDepth);
+		
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
+		FSSDSignalTextures InputSignal;
+		InputSignal.Textures[0] = ReflectionInputs.Color;
+		InputSignal.Textures[1] = ReflectionInputs.RayHitDistance;
+
+		FSSDConstantPixelDensitySettings Settings;
+		Settings.FullResViewport = View.ViewRect;
+		Settings.SignalProcessing = ESignalProcessing::Reflections; // TODO: water reflection to denoise only water pixels
+		Settings.InputResolutionFraction = RayTracingConfig.ResolutionFraction;
+		Settings.ReconstructionSamples = CVarReflectionReconstructionSampleCount.GetValueOnRenderThread();
+		Settings.bUseTemporalAccumulation = CVarReflectionTemporalAccumulation.GetValueOnRenderThread() != 0;
+		Settings.HistoryConvolutionSampleCount = CVarReflectionHistoryConvolutionSampleCount.GetValueOnRenderThread();
+		Settings.MaxInputSPP = RayTracingConfig.RayCountPerPixel;
+
+		TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
+		TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
+		PrevHistories[0] = &PreviousViewInfos->WaterReflectionsHistory;
+		NewHistories[0] = View.ViewState ? &View.ViewState->PrevFrameViewInfo.WaterReflectionsHistory : nullptr;
+
+		FSSDSignalTextures SignalOutput;
+		DenoiseSignalAtConstantPixelDensity(
+			GraphBuilder, View, SceneTextures,
+			ViewInfoPooledRenderTargets,
+			InputSignal, Settings,
+			PrevHistories,
+			NewHistories,
+			&SignalOutput);
+
+		FReflectionsOutputs ReflectionsOutput;
+		ReflectionsOutput.Color = SignalOutput.Textures[0];
+		return ReflectionsOutput;
+	}
 	
 	FAmbientOcclusionOutputs DenoiseAmbientOcclusion(
 		FRDGBuilder& GraphBuilder,
@@ -2738,4 +2796,9 @@ const IScreenSpaceDenoiser* IScreenSpaceDenoiser::GetDefaultDenoiser()
 {
 	static IScreenSpaceDenoiser* GDefaultDenoiser = new FDefaultScreenSpaceDenoiser;
 	return GDefaultDenoiser;
+}
+
+int GetReflectionsDenoiserMode()
+{
+	return CVarUseReflectionDenoiser.GetValueOnRenderThread();
 }

@@ -1956,11 +1956,6 @@ bool URigVMController::SetPinExpansion(const FString& InPinPath, bool bIsExpande
 
 bool URigVMController::SetPinExpansion(URigVMPin* InPin, bool bIsExpanded, bool bUndo)
 {
-	if (!IsValidPinForGraph(InPin))
-	{
-		return false;
-	}
-
 	if (InPin->GetSubPins().Num() == 0)
 	{
 		return false;
@@ -3896,7 +3891,7 @@ void URigVMController::RewireLinks(URigVMPin* InOldPin, URigVMPin* InNewPin, boo
 			check(NewPin);
 
 			BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), false);
-			ensure(AddLink(Link->GetSourcePin(), NewPin, false));
+			AddLink(Link->GetSourcePin(), NewPin, false);
 		}
 	}
 	else
@@ -3914,7 +3909,7 @@ void URigVMController::RewireLinks(URigVMPin* InOldPin, URigVMPin* InNewPin, boo
 			check(NewPin);
 
 			BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), false);
-			ensure(AddLink(NewPin, Link->GetTargetPin(), false));
+			AddLink(NewPin, Link->GetTargetPin(), false);
 		}
 	}
 }

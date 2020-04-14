@@ -13,7 +13,7 @@
 	#pragma pack (push,8)
 #endif
 
-#include <OVR_Plugin.h>
+#include "OculusPluginWrapper.h"
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
 	#pragma pack (pop)

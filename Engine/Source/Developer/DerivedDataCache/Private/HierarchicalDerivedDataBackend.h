@@ -9,7 +9,6 @@
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "Templates/UniquePtr.h"
 
-
 /** 
  * A backend wrapper that implements a cache hierarchy of backends. 
 **/
@@ -27,6 +26,18 @@ public:
 	{
 		check(InnerBackends.Num() > 1); // if it is just one, then you don't need this wrapper
 		UpdateAsyncInnerBackends();
+	}
+
+	/** Return a name for this interface */
+	virtual FString GetName() const override
+	{
+		return TEXT("HierarchicalDerivedDataBackend");
+	}
+
+	/** Are we a remote cache? */
+	virtual ESpeedClass GetSpeedClass() override
+	{
+		return ESpeedClass::Local;
 	}
 
 	void UpdateAsyncInnerBackends()
@@ -91,6 +102,84 @@ public:
 		}
 		return false;
 	}
+
+	/**
+	 * Attempts to make sure the cached data will be available as optimally as possible. This is left up to the implementation to do
+	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
+	 * @return				true if any steps were performed to optimize future retrieval
+	 */
+	virtual bool TryToPrefetch(const TCHAR* CacheKey) override
+	{
+		COOK_STAT(auto Timer = UsageStats.TimePrefetch());
+
+		// Search all backends for this key. If it can be moved into a faster class then we'll do so.
+		bool WorthFetching = false;
+
+		FDerivedDataBackendInterface* LastMissedInterface = nullptr;
+
+		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
+		{
+			FDerivedDataBackendInterface* Interface = InnerBackends[CacheIndex];
+
+			if (!Interface->CachedDataProbablyExists(CacheKey) && Interface->IsWritable())
+			{
+				LastMissedInterface = Interface;
+			}
+			else
+			{
+				// if we have an interface that's writable and faster, lets get it
+				if (LastMissedInterface && LastMissedInterface->GetSpeedClass() > Interface->GetSpeedClass())
+				{
+					WorthFetching = true;
+				}
+			}
+		}
+		
+		// If it's remote then fetch it. We don't care about the data but we 
+		// Need to read a copy from the remote store anyway to fill the caches
+		if (WorthFetching)
+		{
+			TArray<uint8> DontCare;
+			GetCachedData(CacheKey, DontCare);
+			COOK_STAT(Timer.AddHit(0));
+		}			
+
+		// Return true if we did anything
+		return WorthFetching;
+	}
+
+	/*
+		Determine if we would cache this by asking all our inner layers
+	*/
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override
+	{
+		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
+		{
+			if (InnerBackends[CacheIndex]->WouldCache(CacheKey, InData))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override
+	{
+		bool bSuccess = true;
+		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
+		{
+			if (!InnerBackends[CacheIndex]->ApplyDebugOptions(InOptions))
+			{
+				bSuccess = false;
+			}
+		}
+
+		return bSuccess;
+	}
+
+
+
 	/**
 	 * Synchronous retrieve of a cache item
 	 *
@@ -101,41 +190,63 @@ public:
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
+
 		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
 		{
-			if (InnerBackends[CacheIndex]->CachedDataProbablyExists(CacheKey) && InnerBackends[CacheIndex]->GetCachedData(CacheKey, OutData))
+			FDerivedDataBackendInterface* GetInterface = InnerBackends[CacheIndex];
+
+			// just try and get the cached data. It's faster to try and fail than it is to check and succeed. 			
+			if (GetInterface->GetCachedData(CacheKey, OutData))
 			{
+				// if this hierarchy is writable..
 				if (bIsWritable)
 				{
-					// fill in the higher level caches
-					for (int32 PutCacheIndex = CacheIndex - 1; PutCacheIndex >= 0; PutCacheIndex--)
+					// fill in the higher level caches (start with the highest level as that should be the biggest 
+					// !/$ if any of our puts get interrupted or fail)
+					for (int32 MissedCacheIndex = 0; MissedCacheIndex < CacheIndex; MissedCacheIndex++)
 					{
-						if (InnerBackends[PutCacheIndex]->IsWritable())
+						FDerivedDataBackendInterface* MissedCache = InnerBackends[MissedCacheIndex];
+
+						if (MissedCache->IsWritable())
 						{
-							if (InnerBackends[PutCacheIndex]->BackfillLowerCacheLevels() &&
-								InnerBackends[PutCacheIndex]->CachedDataProbablyExists(CacheKey))
+							// We want to make sure that the relationship between ProbablyExists and GetCachedData is valid but
+							// only if we have a fast cache. Mismatches are edge cases caused by failed writes or corruption. 
+							// They get handled, so can be left to eventually be rectified by a faster machine
+							bool bFastCache = MissedCache->GetSpeedClass() >= ESpeedClass::Fast;
+							bool bDidExist = bFastCache ? MissedCache->CachedDataProbablyExists(CacheKey) : false;
+							bool bForcePut = false;
+
+							// the cache failed to return data it thinks it has, so clean it up. (todo - can it just be stomped?)
+							if (bDidExist)
 							{
-								InnerBackends[PutCacheIndex]->RemoveCachedData(CacheKey, /*bTransient=*/ false); // it apparently failed, so lets delete what is there
-								AsyncPutInnerBackends[PutCacheIndex]->PutCachedData(CacheKey, OutData, true); // we force a put here because it must have failed
+								MissedCache->RemoveCachedData(CacheKey, /*bTransient=*/ false); // it apparently failed, so lets delete what is there				
+								bForcePut = true;
 							}
-							else
-							{
-								AsyncPutInnerBackends[PutCacheIndex]->PutCachedData(CacheKey, OutData, false); 
-							}
+
+							// use the async interface to perform the put
+							AsyncPutInnerBackends[MissedCacheIndex]->PutCachedData(CacheKey, OutData, bForcePut);
+							UE_LOG(LogDerivedDataCache, Verbose, TEXT("Forward-filling cache %s with: %s (%d bytes) (force=%d)"), *MissedCache->GetName(), CacheKey, OutData.Num(), bForcePut);
 						}
 					}
+
+					// cascade this data to any lower level back ends that may be missing the data
 					if (InnerBackends[CacheIndex]->BackfillLowerCacheLevels())
 					{
 						// fill in the lower level caches
 						for (int32 PutCacheIndex = CacheIndex + 1; PutCacheIndex < AsyncPutInnerBackends.Num(); PutCacheIndex++)
 						{
-							if (!InnerBackends[PutCacheIndex]->IsWritable() && !InnerBackends[PutCacheIndex]->BackfillLowerCacheLevels() && InnerBackends[PutCacheIndex]->CachedDataProbablyExists(CacheKey))
-							{
-								break; //do not write things that are already in the read only pak file
-							}
-							if (InnerBackends[PutCacheIndex]->IsWritable())
-							{
+							FDerivedDataBackendInterface* PutBackend = InnerBackends[PutCacheIndex];
+
+							// If the key is in a distributed cache (e.g. Pak or S3) then don't backfill any further. 
+							bool IsInDistributedCache = !PutBackend->IsWritable() && !PutBackend->BackfillLowerCacheLevels() && PutBackend->CachedDataProbablyExists(CacheKey);
+
+							// only backfill to fast caches (todo - need a way to put data that was created locally into the cache for other people)
+							bool bFastCache = PutBackend->GetSpeedClass() >= ESpeedClass::Fast;
+
+							if (bFastCache && PutBackend->IsWritable() && !PutBackend->CachedDataProbablyExists(CacheKey))
+							{								
 								AsyncPutInnerBackends[PutCacheIndex]->PutCachedData(CacheKey, OutData, false); // we do not need to force a put here
+								UE_LOG(LogDerivedDataCache, Verbose, TEXT("Back-filling cache %s with: %s (%d bytes) (force=%d)"), *PutBackend->GetName(), CacheKey, OutData.Num(), false);
 							}
 						}
 					}
@@ -220,6 +331,8 @@ public:
 		});
 	}
 
+
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 
@@ -230,3 +343,4 @@ private:
 	/** As an optimization, we check our writable status at contruction **/
 	bool bIsWritable;
 };
+

@@ -17,4 +17,7 @@ public:
 	virtual uint32 GetUniverseID() const = 0;
 	virtual TSharedPtr<FJsonObject> GetSettings() const = 0;
 	virtual bool IsSupportRDM() const = 0;
+
+	/** Tick on the end of each frame */
+	virtual void Tick(float DeltaTime) {};
 };

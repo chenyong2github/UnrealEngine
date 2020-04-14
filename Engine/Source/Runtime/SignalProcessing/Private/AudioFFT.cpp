@@ -25,7 +25,7 @@ namespace Audio
 
 		for (int32 FrameIndex = 0; FrameIndex < NumFrames; FrameIndex++)
 		{
-			const float Value = 0.54 -  0.46f * (1 - FMath::Cos(Phase));
+			const float Value = 0.54 -  (0.46f * FMath::Cos(Phase));
 			Phase += PhaseDelta;
 
 			for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)

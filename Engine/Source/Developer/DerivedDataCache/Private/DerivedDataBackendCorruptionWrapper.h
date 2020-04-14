@@ -81,10 +81,22 @@ public:
 		check(InnerBackend);
 	}
 
+	/** Return a name for this interface */
+	virtual FString GetName() const override
+	{
+		return FString::Printf(TEXT("CorruptionWrapper (%s)"), *InnerBackend->GetName());
+	}
+
 	/** return true if this cache is writable **/
 	virtual bool IsWritable() override
 	{
 		return InnerBackend->IsWritable();
+	}
+
+	/** Returns a class of speed for this interface **/
+	virtual ESpeedClass GetSpeedClass() override
+	{
+		return InnerBackend->GetSpeedClass();
 	}
 
 	/**
@@ -129,7 +141,7 @@ public:
 				FDerivedDataTrailer RecomputedTrailer(OutData);
 				if (Trailer == RecomputedTrailer)
 				{
-					UE_LOG(LogDerivedDataCache, Verbose, TEXT("FDerivedDataBackendCorruptionWrapper: cache hit, footer is ok %s"),CacheKey);
+					UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("FDerivedDataBackendCorruptionWrapper: cache hit, footer is ok %s"),CacheKey);
 				}
 				else
 				{
@@ -198,6 +210,21 @@ public:
 				InnerBackend->GatherUsageStats(UsageStatsMap, GraphPath + TEXT(". 0"));
 			}
 		});
+	}
+
+	virtual bool TryToPrefetch(const TCHAR* CacheKey) override
+	{
+		return InnerBackend->TryToPrefetch(CacheKey);
+	}
+
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override
+	{
+		return InnerBackend->WouldCache(CacheKey, InData);
+	}
+
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) 
+	{ 
+		return InnerBackend->ApplyDebugOptions(InOptions);
 	}
 
 private:

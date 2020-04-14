@@ -55,6 +55,9 @@ namespace MoviePipeline
 		// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
 		TileRenderTarget->InitCustomFormat(InInitSettings.BackbufferResolution.X, InInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
 
+		GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
+
+
 		// Allocate 
 		ViewState.Allocate();
 
@@ -64,6 +67,8 @@ namespace MoviePipeline
 	void FDeferredRenderEnginePass::Teardown()
 	{
 		FMoviePipelineEnginePass::Teardown();
+
+		GetPipeline()->SetPreviewTexture(nullptr);
 
 		// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
 		SurfaceQueue->Shutdown();
@@ -553,9 +558,9 @@ namespace MoviePipeline
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AccumulateSample_RenderThread);
 
-		bool isWellFormed = InPixelData->IsDataWellFormed();
+		bool bIsWellFormed = InPixelData->IsDataWellFormed();
 
-		if (!isWellFormed)
+		if (!bIsWellFormed)
 		{
 			// figure out why it is not well formed, and print a warning.
 			int64 RawSize = InPixelData->GetRawDataSizeInBytes();
@@ -573,7 +578,7 @@ namespace MoviePipeline
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Actual size:   %lld"), ActualTotalSize);
 		}
 
-		check(isWellFormed);
+		check(bIsWellFormed);
 
 		// Writing tiles can be useful for debug reasons. These get passed onto the output every frame.
 		if (InParams.SampleState.bWriteSampleToDisk)
@@ -640,7 +645,7 @@ namespace MoviePipeline
 			if (InPixelData->GetType() == EImagePixelType::Float32)
 			{
 				// 32 bit FLinearColor
-				TUniquePtr<TImagePixelData<FLinearColor> > FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY));
+				TUniquePtr<TImagePixelData<FLinearColor> > FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY), InFrameData);
 				InParams.ImageAccumulator->FetchFinalPixelDataLinearColor(FinalPixelData->Pixels);
 
 				// Send the data to the Output Builder
@@ -649,7 +654,7 @@ namespace MoviePipeline
 			else if (InPixelData->GetType() == EImagePixelType::Float16)
 			{
 				// 32 bit FLinearColor
-				TUniquePtr<TImagePixelData<FFloat16Color> > FinalPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(FullSizeX, FullSizeY));
+				TUniquePtr<TImagePixelData<FFloat16Color> > FinalPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(FullSizeX, FullSizeY), InFrameData);
 				InParams.ImageAccumulator->FetchFinalPixelDataHalfFloat(FinalPixelData->Pixels);
 
 				// Send the data to the Output Builder
@@ -658,7 +663,7 @@ namespace MoviePipeline
 			else if (InPixelData->GetType() == EImagePixelType::Color)
 			{
 				// 8bit FColors
-				TUniquePtr<TImagePixelData<FColor>> FinalPixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(FullSizeX, FullSizeY));
+				TUniquePtr<TImagePixelData<FColor>> FinalPixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(FullSizeX, FullSizeY), InFrameData);
 				InParams.ImageAccumulator->FetchFinalPixelDataByte(FinalPixelData->Pixels);
 
 				// Send the data to the Output Builder

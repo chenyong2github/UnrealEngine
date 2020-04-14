@@ -102,6 +102,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Anim layer node names are now conformed by Guid
 		AnimLayerGuidConformation,
 
+		// Ocean collision component has become dynamic
+		MakeOceanCollisionTransient,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

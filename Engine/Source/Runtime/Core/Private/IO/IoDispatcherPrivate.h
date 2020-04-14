@@ -27,7 +27,12 @@ enum EIoStoreResolveResult
 class FIoBatchImpl
 {
 public:
-	FIoRequestImpl* FirstRequest = nullptr;
+	FIoRequestImpl* HeadRequest = nullptr;
+	FIoRequestImpl* TailRequest = nullptr;
+
+	// Used for contiguous reads
+	FIoBuffer IoBuffer;
+	FIoReadCallback Callback;
 };
 
 class FIoRequestImpl
@@ -40,7 +45,7 @@ public:
 	FIoChunkId ChunkId;
 	FIoReadOptions Options;
 	FIoBuffer IoBuffer;
-	uint32 UnfinishedReadsCount;
-	TFunction<void(TIoStatusOr<FIoBuffer>)> Callback;
+	TAtomic<uint32> UnfinishedReadsCount{ 0 };
+	FIoReadCallback Callback;
 };
 

@@ -395,6 +395,7 @@ namespace Gauntlet
 			Config.Platform = Role.Platform;
 			Config.Configuration = Role.Configuration;
 			Config.CommandLine = "";
+			Config.CommandLineParams = Role.CommandLineParams;
             Config.FilesToCopy = new List<UnrealFileToCopy>();
 
 			// new system of retrieving and encapsulating the info needed to install/launch. Android & Mac
@@ -416,7 +417,7 @@ namespace Gauntlet
 
 			if (string.IsNullOrEmpty(Role.CommandLine) == false)
 			{
-				Config.CommandLine += " " + Role.CommandLine;
+				Config.CommandLine += Role.CommandLine;
 			}
 
 			// Cleanup the commandline
@@ -431,11 +432,11 @@ namespace Gauntlet
 				// add in -game or -server
 				if (Role.RoleType.IsClient())
 				{
-					Config.CommandLine = "-game " + Config.CommandLine;
+					Config.CommandLineParams.Add("game");
 				}
 				else if (Role.RoleType.IsServer())
 				{
-					Config.CommandLine = "-server " + Config.CommandLine;
+					Config.CommandLineParams.Add("server");
 				}
 
 				string ProjectParam = ProjectPath.FullName;
@@ -445,16 +446,13 @@ namespace Gauntlet
 				{
 					ProjectParam = string.Format("../../../{0}/{0}.uproject", ProjectName);
 				}
-
-				// project must be first
-				Config.CommandLine = String.Format("\"{0}\"", ProjectParam) + " " + Config.CommandLine;
+				Config.CommandLineParams.Project = ProjectParam;
 			}
 
             if (Role.FilesToCopy != null)
             {
                 Config.FilesToCopy = Role.FilesToCopy;
             }
-			
 			return Config;
 		}
 

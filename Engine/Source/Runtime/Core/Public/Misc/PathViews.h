@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
+class FString;
 
 class CORE_API FPathViews
 {
@@ -133,4 +134,14 @@ public:
 	 * @param Suffix A possibly-empty suffix that does not start with a separator.
 	 */
 	static void Append(FStringBuilderBase& Builder, const FStringView& Suffix);
+
+	/** Replaces the pre-existing file extension of a filename. 
+	 *
+	 * @param InPath A valid file path with a pre-existing extension.
+	 * @param InNewExtension The new extension to use (prefixing with a '.' is optional)
+	 *
+	 * @return The new file path complete with the new extension unless InPath is not valid in which
+	 * case a copy of InPath will be returned instead.
+	 */
+	static FString ChangeExtension(const FStringView& InPath, const FStringView& InNewExtension);
 };

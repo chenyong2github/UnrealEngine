@@ -16,14 +16,11 @@ class IAnalyticsProviderET;
 class EDITORANALYTICSSESSION_API FEditorSessionSummarySender
 {
 public:
-	FEditorSessionSummarySender(IAnalyticsProviderET& InAnalyticsProvider, const FString& InSenderName, const int32 InCurrentSessionProcessId);
+	FEditorSessionSummarySender(IAnalyticsProviderET& InAnalyticsProvider, const FString& InSenderName, const uint32 InCurrentSessionProcessId);
 	~FEditorSessionSummarySender();
 
 	void Tick(float DeltaTime);
 	void Shutdown();
-
-	void SetCurrentSessionExitCode(const int32 InCurrentSessionProcessId, const int32 InExitCode);
-	bool FindCurrentSession(FEditorAnalyticsSession& OutSession) const;
 
 private:
 	/** Send any stored Sessions. */
@@ -34,7 +31,5 @@ private:
 	float HeartbeatTimeElapsed;
 	IAnalyticsProviderET& AnalyticsProvider;
 	FString Sender;
-
-	int32 CurrentSessionProcessId;
-	TOptional<int32> CurrentSessionExitCode;
+	uint32 CurrentSessionProcessId;
 };

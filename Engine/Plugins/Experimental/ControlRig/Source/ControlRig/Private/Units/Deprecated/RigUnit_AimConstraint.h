@@ -49,14 +49,23 @@ struct FAimTarget
 	FVector AlignVector;
 };
 
+USTRUCT()
+struct FRigUnit_AimConstraint_WorkData
+{
+	GENERATED_BODY()
+
+	// note that Targets.Num () != ConstraintData.Num()
+	UPROPERTY()
+	TArray<FConstraintData>	ConstraintData;
+};
+
 USTRUCT(meta=(DisplayName="Aim Constraint", Category="Transforms", Deprecated = "4.23.0"))
 struct FRigUnit_AimConstraint : public FRigUnitMutable
 {
 	GENERATED_BODY()
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
-
-private:
 
 	UPROPERTY(EditAnywhere, Category = FRigUnit_AimConstraint, meta = (Input))
 	FName Joint;
@@ -84,5 +93,6 @@ private:
 	TArray<FAimTarget> UpTargets;
 
 	// note that Targets.Num () != ConstraintData.Num()
-	TArray<FConstraintData>	ConstraintData;
+	UPROPERTY()
+	FRigUnit_AimConstraint_WorkData WorkData;
 };

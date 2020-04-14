@@ -16,13 +16,6 @@ DEFINE_LOG_CATEGORY(LogNiagaraEditor);
 TMap<FName, int32> FNiagaraOpInfo::OpInfoMap;
 TArray<FNiagaraOpInfo> FNiagaraOpInfo::OpInfos;
 
-int32 FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 = 1;
-FAutoConsoleVariableRef FNiagaraEditorCommonCVar::CVarEnableParameterPanel2(
-	TEXT("fx.NiagaraEnableParameterPanel2"),
-	FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2,
-	TEXT("If true, enable enhanced parameter panel features and dynamic parameter linking in precompiler."),
-	ECVF_Default);
-
 const FNiagaraOpInfo* FNiagaraOpInfo::GetOpInfo(FName OpName)
 {
 	const int32* Idx = OpInfoMap.Find(OpName);
@@ -1368,4 +1361,9 @@ void UActorFactoryNiagara::PostCreateBlueprint(UObject* Asset, AActor* CDO)
 INiagaraScriptGraphFocusInfo::~INiagaraScriptGraphFocusInfo()
 {
 	//Stand-in definition for abstract INiagaraScriptGraphFocusInfo's pure virtual dtor
+}
+
+bool FNiagaraScriptVariableAndViewInfo::operator==(const FNiagaraScriptVariableAndViewInfo& Other) const
+{
+	return ScriptVariable == Other.ScriptVariable && MetaData.GetUsage() == Other.MetaData.GetUsage();
 }

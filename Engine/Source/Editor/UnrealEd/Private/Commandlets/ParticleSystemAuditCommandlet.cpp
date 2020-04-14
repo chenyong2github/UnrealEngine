@@ -332,6 +332,11 @@ bool UParticleSystemAuditCommandlet::ProcessParticleSystems()
 				ParticleSystemsWithBoneLocationMismatches.Add(PSys->GetPathName());
 			}
 
+			if (PSys->WarmupTime > 0.0f)
+			{
+				ParticleSystemsWithWarmupTime.Add(PSys->GetPathName());
+			}
+
 			if ((PSys->LODMethod == PARTICLESYSTEMLODMETHOD_Automatic) &&
 				(bInvalidLOD == false) && (bSingleLOD == false) &&
 				(PSys->LODDistanceCheckTime == 0.0f))
@@ -389,6 +394,7 @@ void UParticleSystemAuditCommandlet::DumpResults()
 	DumpSimplePSysSet(ParticleSystemsWithHighSpawnRateOrBurst, TEXT("PSysHighSpawnRateOrBurst"));
 	DumpSimplePSysSet(ParticleSystemsWithFarLODDistance, TEXT("PSysFarLODDistance"));
 	DumpSimplePSysSet(ParticleSystemsWithBoneLocationMismatches, TEXT("PSysBoneLocationLODMismatches"));
+	DumpSimplePSysSet(ParticleSystemsWithWarmupTime, TEXT("PSysWithWarmupTime"));
 }
 
 /**

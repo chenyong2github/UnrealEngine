@@ -160,7 +160,9 @@ public:
 		return static_cast<const T_DERIVED&>(*this);
 	}
 
-	EImplicitObjectType GetType(bool bGetTrueType = false) const;
+	EImplicitObjectType GetType() const;
+	EImplicitObjectType GetCollisionType() const;
+	void SetCollsionType(EImplicitObjectType InCollsiionType) { CollisionType = InCollsiionType; }
 
 	virtual bool IsValidGeometry() const;
 
@@ -303,6 +305,7 @@ public:
 
 protected:
 	EImplicitObjectType Type;
+	EImplicitObjectType CollisionType;
 	bool bIsConvex;
 	bool bDoCollide;
 	bool bHasBoundingBox;

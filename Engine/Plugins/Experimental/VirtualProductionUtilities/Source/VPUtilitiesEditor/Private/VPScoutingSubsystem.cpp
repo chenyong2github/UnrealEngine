@@ -381,12 +381,22 @@ void UVPScoutingSubsystem::ExitVRMode()
 	}
 }
 
-bool UVPScoutingSubsystem::IsGridSnappingEnabled()
+bool UVPScoutingSubsystem::IsLocationGridSnappingEnabled()
 {
 	return FLevelEditorActionCallbacks::LocationGridSnap_IsChecked();
 }
 
-void UVPScoutingSubsystem::ToggleGridSnapping()
+void UVPScoutingSubsystem::ToggleLocationGridSnapping()
 {
 	FLevelEditorActionCallbacks::LocationGridSnap_Clicked();
+}
+
+bool UVPScoutingSubsystem::IsRotationGridSnappingEnabled()
+{
+	return FLevelEditorActionCallbacks::RotationGridSnap_IsChecked();
+}
+
+void UVPScoutingSubsystem::ToggleRotationGridSnapping()
+{
+	FLevelEditorActionCallbacks::RotationGridSnap_Clicked();
 }

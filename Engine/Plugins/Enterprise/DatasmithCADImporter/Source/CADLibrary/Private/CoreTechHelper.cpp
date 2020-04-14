@@ -591,7 +591,7 @@ CT_IO_ERROR Tessellate(CT_OBJECT_ID MainObjectId, const FImportParameters& Impor
 
 	while (CT_OBJECT_ID BodyId = Objects.IteratorIter())
 	{
-		Parser.GetBodyTessellation(BodyId, BodyMesh, 0);
+		Parser.GetBodyTessellation(BodyId, MainObjectId, BodyMesh, 0, /*bNeedRepair*/ true);
 	}
 
 	bool bTessellated = ConvertCTBodySetToMeshDescription(ImportParams, MeshParameters, BodyMesh, MeshDesc);

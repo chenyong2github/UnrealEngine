@@ -147,6 +147,9 @@ struct FTimeSliderArgs
 	/** Attribute for the current sequence's marked frames */
 	TAttribute<TArray<FMovieSceneMarkedFrame>> MarkedFrames;
 
+	/** Attribute for the marked frames that might need to be shown, but do not belong to the current sequence*/
+	TAttribute<TArray<FMovieSceneMarkedFrame>> GlobalMarkedFrames;
+
 	/** Called when the marked frame needs to be set */
 	FOnSetMarkedFrame OnSetMarkedFrame;
 

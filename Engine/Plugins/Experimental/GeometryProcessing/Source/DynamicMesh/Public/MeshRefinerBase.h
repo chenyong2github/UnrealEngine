@@ -8,6 +8,7 @@
 #include "MeshConstraints.h"
 #include "Util/ProgressCancel.h"
 
+class FDynamicMeshChangeTracker;
 
 /**
  * This is a base class that implements common functionality for various triangle mesh resampling strategies
@@ -24,7 +25,6 @@ protected:
 
 	/** Vertices can be projected onto this surface when they are modified */
 	IProjectionTarget* ProjTarget = nullptr;
-
 
 	FMeshRefinerBase(FDynamicMesh3* MeshIn)
 	{
@@ -255,8 +255,21 @@ protected:
 
 
 
+public:
+	//
+	// Mesh Change Tracking support
+	//
+
+	void SetMeshChangeTracker(FDynamicMeshChangeTracker* Tracker);
+
+protected:
+	FDynamicMeshChangeTracker* ActiveChangeTracker = nullptr;
+	virtual void SaveTriangleBeforeModify(int32 TriangleID);
+	virtual void SaveEdgeBeforeModify(int32 EdgeID);
+	virtual void SaveVertexTrianglesBeforeModify(int32 VertexID);
 
 
+protected:
 	/*
 	 * testing/debug/profiling stuff
 	 */

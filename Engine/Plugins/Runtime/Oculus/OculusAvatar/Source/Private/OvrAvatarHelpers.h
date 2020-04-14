@@ -5,8 +5,7 @@
 #include "OVR_Avatar.h"
 #include "Math/Vector.h"
 #include "Math/Quat.h"
-#include "OVR_Plugin.h"
-#include "OVR_Plugin_Types.h"
+#include "OculusPluginWrapper.h"
 #include "DrawDebugHelpers.h"
 #include "Components/SceneComponent.h"
 
@@ -159,8 +158,8 @@ namespace OvrAvatarHelpers
 	}
 
 	inline void OvrAvatarParseButtonsAndTouches(
-		const ovrpControllerState4& inputState, 
-		const ovrpHand hand, 
+		const ovrpControllerState4& inputState,
+		const ovrpHand hand,
 		ovrAvatarHandInputState& state)
 	{
 		state.buttonMask = 0;
@@ -179,9 +178,9 @@ namespace OvrAvatarHelpers
 			if (inputState.Touches & ovrpTouch_LThumbRest) state.touchMask |= ovrAvatarTouch_ThumbRest;
 			if (inputState.Touches & ovrpTouch_LIndexTrigger) state.touchMask |= ovrAvatarTouch_Index;
 
-			if (!((inputState.Touches & ovrpTouch_X) 
-				|| (inputState.Touches & ovrpTouch_Y) 
-				|| (inputState.Touches & ovrpTouch_LThumb) 
+			if (!((inputState.Touches & ovrpTouch_X)
+				|| (inputState.Touches & ovrpTouch_Y)
+				|| (inputState.Touches & ovrpTouch_LThumb)
 				|| (inputState.Touches & ovrpTouch_LThumbRest)))
 			{
 				state.touchMask |= ovrAvatarTouch_ThumbUp;

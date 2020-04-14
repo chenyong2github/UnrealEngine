@@ -11,6 +11,7 @@
 #include "EditorFontGlyphs.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionDebugDrawActor.h"
+#include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
 
 TSharedRef<IPropertyTypeCustomization> FWarningMessageCustomization::MakeInstance()
 {

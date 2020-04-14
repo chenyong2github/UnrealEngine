@@ -14,6 +14,37 @@ using Tools.DotNETCommon;
 namespace UnrealBuildTool
 {
 	/// <summary>
+	/// Flags for the PVS analyzer mode
+	/// </summary>
+	public enum PVSAnalysisModeFlags : uint
+	{
+		/// <summary>
+		/// Check for 64-bit portability issues
+		/// </summary>
+		Check64BitPortability = 1,
+
+		/// <summary>
+		/// Enable general analysis
+		/// </summary>
+		GeneralAnalysis = 4,
+
+		/// <summary>
+		/// Check for optimizations
+		/// </summary>
+		Optimizations = 8,
+
+		/// <summary>
+		/// Enable customer-specific rules
+		/// </summary>
+		CustomerSpecific = 16,
+
+		/// <summary>
+		/// Enable MISRA analysis
+		/// </summary>
+		MISRA = 32,
+	}
+
+	/// <summary>
 	/// Partial representation of PVS-Studio main settings file
 	/// </summary>
 	[XmlRoot("ApplicationSettings")]
@@ -33,6 +64,177 @@ namespace UnrealBuildTool
 		/// Registered serial number
 		/// </summary>
 		public string SerialNumber;
+
+		/// <summary>
+		/// Disable the 64-bit Analysis
+		/// </summary>
+		public bool Disable64BitAnalysis;
+
+		/// <summary>
+		/// Disable the General Analysis
+		/// </summary>
+		public bool DisableGAAnalysis;
+
+		/// <summary>
+		/// Disable the Optimization Analysis
+		/// </summary>
+		public bool DisableOPAnalysis;
+
+		/// <summary>
+		/// Disable the Customer's Specific diagnostic rules
+		/// </summary>
+		public bool DisableCSAnalysis;
+
+		/// <summary>
+		/// Disable the MISRA Analysis
+		/// </summary>
+		public bool DisableMISRAAnalysis;
+
+		/// <summary>
+		/// Gets the analysis mode flags from the settings
+		/// </summary>
+		/// <returns>Mode flags</returns>
+		public PVSAnalysisModeFlags GetModeFlags()
+		{
+			PVSAnalysisModeFlags Flags = 0;
+			if (!Disable64BitAnalysis)
+			{
+				Flags |= PVSAnalysisModeFlags.Check64BitPortability;
+			}
+			if (!DisableGAAnalysis)
+			{
+				Flags |= PVSAnalysisModeFlags.GeneralAnalysis;
+			}
+			if (!DisableOPAnalysis)
+			{
+				Flags |= PVSAnalysisModeFlags.Optimizations;
+			}
+			if (!DisableCSAnalysis)
+			{
+				Flags |= PVSAnalysisModeFlags.CustomerSpecific;
+			}
+			if (!DisableMISRAAnalysis)
+			{
+				Flags |= PVSAnalysisModeFlags.MISRA;
+			}
+			return Flags;
+		}
+
+		/// <summary>
+		/// Attempts to read the application settings from the default location
+		/// </summary>
+		/// <returns>Application settings instance, or null if no file was present</returns>
+		internal static PVSApplicationSettings Read()
+		{
+			FileReference SettingsPath = FileReference.Combine(new DirectoryReference(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)), "PVS-Studio", "Settings.xml");
+			if (FileReference.Exists(SettingsPath))
+			{
+				try
+				{
+					XmlSerializer Serializer = new XmlSerializer(typeof(PVSApplicationSettings));
+					using (FileStream Stream = new FileStream(SettingsPath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
+					{
+						return (PVSApplicationSettings)Serializer.Deserialize(Stream);
+					}
+				}
+				catch (Exception Ex)
+				{
+					throw new BuildException(Ex, "Unable to read PVS-Studio settings file from {0}", SettingsPath);
+				}
+			}
+			return null;
+		}
+	}
+
+	/// <summary>
+	/// Settings for the PVS Studio analyzer
+	/// </summary>
+	public class PVSTargetSettings
+	{
+		/// <summary>
+		/// Returns the application settings
+		/// </summary>
+		internal Lazy<PVSApplicationSettings> ApplicationSettings { get; } = new Lazy<PVSApplicationSettings>(() => PVSApplicationSettings.Read());
+
+		/// <summary>
+		/// Whether to use application settings to determine the analysis mode
+		/// </summary>
+		public bool UseApplicationSettings { get; set; }
+
+		/// <summary>
+		/// Override for the analysis mode to use
+		/// </summary>
+		public PVSAnalysisModeFlags ModeFlags
+		{
+			get
+ 			{
+				if (ModePrivate.HasValue)
+				{
+					return ModePrivate.Value;
+				}
+				else if (UseApplicationSettings && ApplicationSettings.Value != null)
+				{
+					return ApplicationSettings.Value.GetModeFlags();
+				}
+				else
+				{
+					return PVSAnalysisModeFlags.GeneralAnalysis;
+				}
+			}
+			set
+			{
+				ModePrivate = value;
+			}
+		}
+
+		/// <summary>
+		/// Private storage for the mode flags
+		/// </summary>
+		PVSAnalysisModeFlags? ModePrivate;
+	}
+
+	/// <summary>
+	/// Read-only version of the PVS toolchain settings
+	/// </summary>
+	public class ReadOnlyPVSTargetSettings
+	{
+		/// <summary>
+		/// Inner settings
+		/// </summary>
+		PVSTargetSettings Inner;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Inner">The inner object</param>
+		public ReadOnlyPVSTargetSettings(PVSTargetSettings Inner)
+		{
+			this.Inner = Inner;
+		}
+
+		/// <summary>
+		/// Accessor for the Application settings
+		/// </summary>
+		internal PVSApplicationSettings ApplicationSettings
+		{
+			get { return Inner.ApplicationSettings.Value; }
+		}
+
+		/// <summary>
+		/// Whether to use the application settings for the mode
+		/// </summary>
+		public bool UseApplicationSettings
+		{
+			get { return Inner.UseApplicationSettings; }
+		}
+
+		/// <summary>
+		/// Override for the analysis mode to use
+		/// </summary>
+		public PVSAnalysisModeFlags ModeFlags
+		{
+			get { return Inner.ModeFlags; }
+		}
 	}
 
 	/// <summary>
@@ -132,10 +334,11 @@ namespace UnrealBuildTool
 	class PVSToolChain : UEToolChain
 	{
 		ReadOnlyTargetRules Target;
+		ReadOnlyPVSTargetSettings Settings;
+		PVSApplicationSettings ApplicationSettings;
 		VCToolChain InnerToolChain;
 		FileReference AnalyzerFile;
 		FileReference LicenseFile;
-		PVSApplicationSettings ApplicationSettings;
 		UnrealTargetPlatform Platform;
 
 		public PVSToolChain(ReadOnlyTargetRules Target)
@@ -147,7 +350,7 @@ namespace UnrealBuildTool
 			AnalyzerFile = FileReference.Combine(new DirectoryReference(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)), "PVS-Studio", "x64", "PVS-Studio.exe");
 			if(!FileReference.Exists(AnalyzerFile))
 			{
-				FileReference EngineAnalyzerFile = FileReference.Combine(UnrealBuildTool.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "NoRedist", "PVS-Studio", "PVS-Studio.exe");
+				FileReference EngineAnalyzerFile = FileReference.Combine(UnrealBuildTool.RootDirectory, "Engine", "Restricted", "NoRedist", "Extras", "ThirdPartyNotUE", "PVS-Studio", "PVS-Studio.exe");
 				if (FileReference.Exists(EngineAnalyzerFile))
 				{
 					AnalyzerFile = EngineAnalyzerFile;
@@ -158,27 +361,21 @@ namespace UnrealBuildTool
 				}
 			}
 
-			FileReference SettingsPath = FileReference.Combine(new DirectoryReference(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)), "PVS-Studio", "Settings.xml");
-			if (FileReference.Exists(SettingsPath))
-			{
-				try
-				{
-					XmlSerializer Serializer = new XmlSerializer(typeof(PVSApplicationSettings));
-					using(FileStream Stream = new FileStream(SettingsPath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
-					{
-						ApplicationSettings = (PVSApplicationSettings)Serializer.Deserialize(Stream);
-					}
-				}
-				catch(Exception Ex)
-				{
-					throw new BuildException(Ex, "Unable to read PVS-Studio settings file from {0}", SettingsPath);
-				}
-			}
+			Settings = Target.WindowsPlatform.PVS;
+			ApplicationSettings = Settings.ApplicationSettings;
 
-			if(ApplicationSettings != null && !String.IsNullOrEmpty(ApplicationSettings.UserName) && !String.IsNullOrEmpty(ApplicationSettings.SerialNumber))
+			if(ApplicationSettings != null)
 			{
-				LicenseFile = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "PVS", "PVS-Studio.lic");
-				Utils.WriteFileIfChanged(LicenseFile, String.Format("{0}\n{1}\n", ApplicationSettings.UserName, ApplicationSettings.SerialNumber), StringComparison.Ordinal);
+				if (Settings.ModeFlags == 0)
+				{
+					throw new BuildException("All PVS-Studio analysis modes are disabled.");
+				}
+
+				if (!String.IsNullOrEmpty(ApplicationSettings.UserName) && !String.IsNullOrEmpty(ApplicationSettings.SerialNumber))
+				{
+					LicenseFile = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "PVS", "PVS-Studio.lic");
+					Utils.WriteFileIfChanged(LicenseFile, String.Format("{0}\n{1}\n", ApplicationSettings.UserName, ApplicationSettings.SerialNumber), StringComparison.Ordinal);
+				}
 			}
 			else
 			{
@@ -190,9 +387,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		static string GetFullIncludePath(string IncludePath)
+		public override void GetVersionInfo(List<string> Lines)
 		{
-			return Path.GetFullPath(Utils.ExpandVariables(IncludePath));
+			base.GetVersionInfo(Lines);
+
+			ReadOnlyPVSTargetSettings Settings = Target.WindowsPlatform.PVS;
+			Lines.Add(String.Format("Using PVS-Studio installation at {0} with analysis mode {1} ({2})", AnalyzerFile, (uint)Settings.ModeFlags, Settings.ModeFlags.ToString()));
 		}
 
 		class ActionGraphCapture : ForwardingActionGraphBuilder
@@ -307,7 +507,7 @@ namespace UnrealBuildTool
 				AnalyzeAction.StatusDescription = BaseFileName;
 				AnalyzeAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				AnalyzeAction.CommandPath = AnalyzerFile;
-				AnalyzeAction.CommandArguments = String.Format("--cl-params \"{0}\" --source-file \"{1}\" --output-file \"{2}\" --cfg \"{3}\" --analysis-mode 4", PreprocessAction.CommandArguments, SourceFileItem.AbsolutePath, OutputFileLocation, ConfigFileItem.AbsolutePath);
+				AnalyzeAction.CommandArguments = String.Format("--cl-params \"{0}\" --source-file \"{1}\" --output-file \"{2}\" --cfg \"{3}\" --analysis-mode {4}", PreprocessAction.CommandArguments, SourceFileItem.AbsolutePath, OutputFileLocation, ConfigFileItem.AbsolutePath, (uint)Settings.ModeFlags);
 				if (LicenseFile != null)
 				{
 					AnalyzeAction.CommandArguments += String.Format(" --lic-file \"{0}\"", LicenseFile);

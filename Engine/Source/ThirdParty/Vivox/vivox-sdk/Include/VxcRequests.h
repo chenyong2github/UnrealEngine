@@ -669,7 +669,7 @@ typedef struct vx_req_account_anonymous_login {
      * This must be allocated using vx_allocate().
      * This can be NULL.
      * This is non-null, the last item must be NULL.
-     * \note V5 only. In V4 always equal NULL.
+     * \note V5 only. In V4 should always equal NULL.
      */
     char **initial_blocked_uris;
 

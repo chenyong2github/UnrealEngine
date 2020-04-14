@@ -185,11 +185,12 @@ void UIpConnection::Tick()
 		RemoteAddr = ResolverResults[CurrentAddressIndex];
 		Socket = nullptr;
 
-		for (FSocket* BindSocket : BindSockets)
+		for (const TSharedPtr<FSocket>& BindSocket : BindSockets)
 		{
 			if (BindSocket->GetProtocol() == RemoteAddr->GetProtocolType())
 			{
-				Socket = BindSocket;
+				ResolutionSocket = BindSocket;
+				Socket = ResolutionSocket.Get();
 				break;
 			}
 		}
@@ -230,7 +231,7 @@ void UIpConnection::Tick()
 		UIpNetDriver* IpDriver = Cast<UIpNetDriver>(Driver);
 
 		// Set the right object now that we have a connection
-		IpDriver->SetSocketAndLocalAddress(Socket);
+		IpDriver->SetSocketAndLocalAddress(ResolutionSocket);
 
 		ResolutionState = EAddressResolutionState::Done;
 	}
@@ -596,22 +597,17 @@ void UIpConnection::CleanupResolutionSockets()
 		return;
 	}
 
-	if (BindSockets.Num() > 0)
+	if (bCleanAll)
 	{
-		ISocketSubsystem* const SocketSubsystem = Driver->GetSocketSubsystem();
-		UE_LOG(LogNet, Verbose, TEXT("Cleaned up the sockets used for resolving!"));
-		// Clean up other sockets.
-		for (FSocket*& CurSocket : BindSockets)
+		if(ResolutionSocket.Get() == Socket)
 		{
-			if (CurSocket != Socket || bCleanAll)
-			{
-				SocketSubsystem->DestroySocket(CurSocket);
-				CurSocket = nullptr;
-			}
+			Socket = nullptr;
 		}
-		BindSockets.Remove(nullptr);
+		
+		ResolutionSocket.Reset();
 	}
-
+	
+	BindSockets.Reset();
 	ResolverResults.Empty();
 }
 

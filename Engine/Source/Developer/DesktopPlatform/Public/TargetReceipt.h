@@ -67,6 +67,9 @@ struct DESKTOPPLATFORM_API FTargetReceipt
 	/** The type of the target */
 	EBuildTargetType TargetType;
 
+	/** The version information for this target */
+	FBuildVersion Version;
+
 	/** The exectuable to launch for this target */
 	FString Launch;
 

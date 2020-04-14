@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/BoundingVolumeUtilities.h"
-#include "Chaos/Collision/CollisionReceiver.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
@@ -43,8 +42,8 @@ namespace Chaos
 		 *
 		 */
 		void ProduceOverlaps(FReal Dt,
+			FCollisionConstraintsArray& ConstraintsArray,
 			FNarrowPhase& NarrowPhase,
-			FSyncCollisionReceiver& Receiver,
 			CollisionStats::FStatData& StatData)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_BroadPhase);
@@ -62,9 +61,7 @@ namespace Chaos
 					TGeometryParticleHandle<FReal, 3>* Particle0 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[0]);
 					TGeometryParticleHandle<FReal, 3>* Particle1 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[1]);
 
-					NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle0, Particle1, CullDistance, StatData);
-					Receiver.ReceiveCollisions(NewConstraints);
-					NewConstraints.Empty();
+					NarrowPhase.GenerateCollisions(ConstraintsArray, Dt, Particle0, Particle1, CullDistance, StatData);
 				}
 			}
 		}
@@ -72,6 +69,5 @@ namespace Chaos
 	private:
 		const TArray<FParticlePair>& ParticlePairs;
 		FReal CullDistance;
-		FCollisionConstraintsArray NewConstraints;
 	};
 }

@@ -117,6 +117,8 @@ static const uint32 ValidGamepadKeyCodesList[] =
 static TSet<uint32> ValidGamepadKeyCodes;
 
 // -nostdlib means no crtbegin_so.o, so we have to provide our own __dso_handle and atexit()
+// this is not needed now we are using stdlib (later NDK has more functionality we should keep)
+#if 0
 extern "C"
 {
 	int atexit(void (*func)(void)) { return 0; }
@@ -124,6 +126,7 @@ extern "C"
 	extern void *__dso_handle __attribute__((__visibility__ ("hidden")));
 	void *__dso_handle;
 }
+#endif
 
 int32 GAndroidEnableNativeResizeEvent = 0;
 static FAutoConsoleVariableRef CVarEnableResizeNativeEvent(

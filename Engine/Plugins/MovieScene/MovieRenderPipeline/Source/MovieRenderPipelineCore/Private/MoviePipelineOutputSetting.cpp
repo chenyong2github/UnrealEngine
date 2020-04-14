@@ -20,7 +20,6 @@ UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	, ZeroPadFrameNumbers(4)
 	, FrameNumberOffset(0)
 	, bDisableToneCurve(false)
-	, bHidePreview(true)
 {
 	FileNameFormat = TEXT("{sequence_name}.{frame_number}");
 	OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");

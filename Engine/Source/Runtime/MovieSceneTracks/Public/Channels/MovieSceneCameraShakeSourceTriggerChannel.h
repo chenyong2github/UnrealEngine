@@ -15,11 +15,33 @@ struct FMovieSceneCameraShakeSourceTrigger
 {
 	GENERATED_BODY()
 
-	FMovieSceneCameraShakeSourceTrigger() {}
-	FMovieSceneCameraShakeSourceTrigger(TSubclassOf<UCameraShake> InShakeClass) : ShakeClass(InShakeClass) {}
+	FMovieSceneCameraShakeSourceTrigger()
+		: ShakeClass(nullptr)
+		, PlayScale(1.f)
+		, PlaySpace(ECameraAnimPlaySpace::CameraLocal)
+		, UserDefinedPlaySpace(ForceInitToZero)
+	{}
 
+	FMovieSceneCameraShakeSourceTrigger(TSubclassOf<UCameraShake> InShakeClass)
+		: ShakeClass(InShakeClass)
+		, PlayScale(1.f)
+		, PlaySpace(ECameraAnimPlaySpace::CameraLocal)
+		, UserDefinedPlaySpace(ForceInitToZero)
+	{}
+
+	/** Class of the camera shake to play */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera Shake")
 	TSubclassOf<UCameraShake> ShakeClass;
+
+	/** Scalar that affects shake intensity */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera Shake")
+	float PlayScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera Shake")
+	TEnumAsByte<ECameraAnimPlaySpace::Type> PlaySpace;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera Shake")
+	FRotator UserDefinedPlaySpace;
 };
 
 USTRUCT()

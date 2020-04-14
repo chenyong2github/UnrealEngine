@@ -13,11 +13,13 @@
 #include "DataprepParameterizableObject.h"
 #include "Parameterization/DataprepParameterization.h"
 
+#include "Algo/Sort.h"
 #include "AssetRegistryModule.h"
 #include "BlueprintNodeBinder.h"
 #include "BlueprintNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Misc/SecureHash.h"
 #include "UObject/UObjectGlobals.h"
 
 #ifdef WITH_EDITOR
@@ -112,24 +114,33 @@ void UDataprepAsset::PreEditUndo()
 {
 	UDataprepAssetInterface::PreEditUndo();
 
-	// Cache number of actions to detect addition/removal
-	ActionCountBeforeUndoRedo = ActionAssets.Num();
+	// Cache signature of ordered array of actions before Undo/Redo
+	TArray<UDataprepActionAsset*> TempArray(ActionAssets);
+	Algo::Sort(TempArray);
+
+	SignatureBeforeUndoRedo = FMD5::HashBytes((uint8*)TempArray.GetData(), TempArray.Num() * sizeof(UDataprepActionAsset*));
 }
 
 void UDataprepAsset::PostEditUndo()
 {
 	UDataprepAssetInterface::PostEditUndo();
 
-	if(ActionCountBeforeUndoRedo != INDEX_NONE)
+	// Compute signature of ordered array of actions after Undo/Redo
+	TArray<UDataprepActionAsset*> TempArray(ActionAssets);
+	Algo::Sort(TempArray);
+
+	FString SignatureAfterUndoRedo = FMD5::HashBytes((uint8*)TempArray.GetData(), TempArray.Num() * sizeof(UDataprepActionAsset*));
+
+	if(!SignatureBeforeUndoRedo.IsEmpty())
 	{
-		OnActionChanged.Broadcast(nullptr, (ActionAssets.Num() == ActionCountBeforeUndoRedo) ? FDataprepAssetChangeType::ActionMoved : FDataprepAssetChangeType::ActionRemoved);
+		OnActionChanged.Broadcast(nullptr, (SignatureAfterUndoRedo == SignatureBeforeUndoRedo) ? FDataprepAssetChangeType::ActionMoved : FDataprepAssetChangeType::ActionRemoved);
 	}
 	else
 	{
 		ensure(false);
 	}
 
-	ActionCountBeforeUndoRedo = INDEX_NONE;
+	SignatureBeforeUndoRedo.Reset(0);
 }
 
 void UDataprepAsset::PostDuplicate(EDuplicateMode::Type DuplicateMode)
@@ -419,6 +430,8 @@ bool UDataprepAsset::InsertAction(int32 Index)
 {
 	if ( Index >= 0 && Index <= ActionAssets.Num() )
 	{
+		Modify();
+
 		UDataprepActionAsset* Action = NewObject<UDataprepActionAsset>( this, UDataprepActionAsset::StaticClass(), NAME_None, RF_Transactional );
 		Action->SetLabel( TEXT("New Action") );
 

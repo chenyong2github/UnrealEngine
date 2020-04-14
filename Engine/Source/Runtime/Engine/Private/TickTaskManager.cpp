@@ -405,6 +405,11 @@ public:
 	**/
 	FORCEINLINE static bool SingleThreadedMode()
 	{
+		if (FForkProcessHelper::IsForkedMultithreadInstance())
+		{
+			return false;
+		}
+
 		if (!FApp::ShouldUseThreadingForPerformance() || IsRunningDedicatedServer() || FPlatformMisc::NumberOfCores() < 3 || !FPlatformProcess::SupportsMultithreading())
 		{
 			return true;

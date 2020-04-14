@@ -150,6 +150,13 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempByte = Settings.LossyCompressionAmount; Ar << TempByte; // Lossy compression currently only used by VT
 		TempByte = Settings.bApplyYCoCgBlockScale; Ar << TempByte; // YCoCg currently only used by VT
 	}
+
+	// Avoid changing key if texture is not being downscaled
+	if (Settings.Downscale > 1.0)
+	{
+		TempFloat = Settings.Downscale; Ar << TempFloat;
+		TempByte = Settings.DownscaleOptions; Ar << TempByte;
+	}
 }
 
 /**
@@ -332,11 +339,13 @@ static void FinalizeBuildSettingsForLayer(const UTexture& Texture, int32 LayerIn
 static void GetTextureBuildSettings(
 	const UTexture& Texture,
 	const UTextureLODSettings& TextureLODSettings,
-	bool bPlatformSupportsTextureStreaming,
-	bool bPlatformSupportsVirtualTextureStreaming,
+	const ITargetPlatform& CurrentPlatform,
 	FTextureBuildSettings& OutBuildSettings
 	)
 {
+	const bool bPlatformSupportsTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
+	const bool bPlatformSupportsVirtualTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+		
 	OutBuildSettings.ColorAdjustment.AdjustBrightness = Texture.AdjustBrightness;
 	OutBuildSettings.ColorAdjustment.AdjustBrightnessCurve = Texture.AdjustBrightnessCurve;
 	OutBuildSettings.ColorAdjustment.AdjustVibrance = Texture.AdjustVibrance;
@@ -429,6 +438,13 @@ static void GetTextureBuildSettings(
 	// TODO - get default value from config/CVAR/LODGroup?
 	OutBuildSettings.LossyCompressionAmount = (Texture.LossyCompressionAmount == TLCA_Default) ? TLCA_Lowest : Texture.LossyCompressionAmount.GetValue();
 
+	OutBuildSettings.Downscale = 1.0f;
+	if (MipGenSettings == TMGS_NoMipmaps && 
+		Texture.IsA(UTexture2D::StaticClass()))	// TODO: support more texture types
+	{
+		TextureLODSettings.GetDownscaleOptions(Texture, CurrentPlatform, OutBuildSettings.Downscale, (ETextureDownscaleOptions&)OutBuildSettings.DownscaleOptions);
+	}
+	
 	// For virtual texturing we take the address mode into consideration
 	if (OutBuildSettings.bVirtualStreamable)
 	{
@@ -499,11 +515,8 @@ static void GetBuildSettingsForRunningPlatform(
 		check(CurrentPlatform != NULL);
 
 		const UTextureLODSettings* LODSettings = (UTextureLODSettings*)UDeviceProfileManager::Get().FindProfile(CurrentPlatform->PlatformName());
-		const bool bPlatformSupportsTextureStreaming = CurrentPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
-		const bool bPlatformSupportsVirtualTextureStreaming = CurrentPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-
 		FTextureBuildSettings SourceBuildSettings;
-		GetTextureBuildSettings(Texture, *LODSettings, bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, SourceBuildSettings);
+		GetTextureBuildSettings(Texture, *LODSettings, *CurrentPlatform, SourceBuildSettings);
 
 		TArray< TArray<FName> > PlatformFormats;
 		CurrentPlatform->GetTextureFormats(&Texture, PlatformFormats);
@@ -1626,10 +1639,7 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 		//TArray<FName> PlatformFormats;
 
 		FTextureBuildSettings BuildSettings;
-		const bool bPlatformSupportsTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
-		const bool bPlatformSupportsVirtualTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-
-		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
+		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, BuildSettings);
 		
 		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
 		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
@@ -1710,10 +1720,7 @@ void UTexture::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPlatf
 
 		// Retrieve formats to cache for targetplatform.
 		FTextureBuildSettings BuildSettings;
-		const bool bPlatformSupportsTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
-		const bool bPlatformSupportsVirtualTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-
-		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
+		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, BuildSettings);
 
 		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
 		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
@@ -1771,11 +1778,7 @@ bool UTexture::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPl
 
 	FTextureBuildSettings BuildSettings;
 	TArray<FTexturePlatformData*> PlatformDataToSerialize;
-
-	const bool bPlatformSupportsTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
-	const bool bPlatformSupportsVirtualTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-
-	GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
+	GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, BuildSettings);
 
 	TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
 	GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
@@ -1977,10 +1980,7 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 		if (!Ar.CookingTarget()->IsServerOnly())
 		{
 			FTextureBuildSettings BuildSettings;
-			const bool bPlatformSupportsTextureStreaming = Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
-			const bool bPlatformSupportsVirtualTextureStreaming = Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-
-			GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
+			GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), BuildSettings);
 
 			TArray<FTexturePlatformData*> PlatformDataToSerialize;
 

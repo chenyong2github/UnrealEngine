@@ -40,14 +40,9 @@ FUniformBufferStaticBindings FRDGPassParameterStruct::GetGlobalUniformBuffers() 
 
 			FRHIUniformBuffer* UniformBufferPtr = *reinterpret_cast<FUniformBufferRHIRef*>(Contents + MemberOffset);
 
-			if (UniformBufferPtr)
+			if (UniformBufferPtr && UniformBufferPtr->HasStaticSlot())
 			{
-				const FUniformBufferStaticSlot StaticSlot = UniformBufferPtr->GetLayout().StaticSlot;
-
-				if (IsUniformBufferStaticSlotValid(StaticSlot))
-				{
-					GlobalUniformBuffers.AddUniformBuffer(UniformBufferPtr);
-				}
+				GlobalUniformBuffers.AddUniformBuffer(UniformBufferPtr);
 			}
 		}
 	}
@@ -66,10 +61,21 @@ FRDGPass::FRDGPass(
 
 void FRDGPass::Execute(FRHICommandListImmediate& RHICmdList) const
 {
-	FUniformBufferStaticBindings GlobalUniformBuffers = ParameterStruct.GetGlobalUniformBuffers();
-	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+	SCOPED_NAMED_EVENT(FRDGPass_Execute, FColor::Emerald);
+
+	const FUniformBufferStaticBindings GlobalUniformBuffers = ParameterStruct.GetGlobalUniformBuffers();
+
+	if (GlobalUniformBuffers.GetUniformBufferCount())
+	{
+		RHICmdList.SetGlobalUniformBuffers(GlobalUniformBuffers);
+	}
 
 	ExecuteImpl(RHICmdList);
+
+	if (GlobalUniformBuffers.GetUniformBufferCount())
+	{
+		RHICmdList.SetGlobalUniformBuffers({});
+	}
 
 	ParameterStruct.ClearUniformBuffers();
 }

@@ -93,7 +93,7 @@ class FVirtualVoxelInjectOpaqueCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxel)
+		SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxelParams)
 		SHADER_PARAMETER(FIntVector, DispatchedPageIndexResolution)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(FVector2D, SceneDepthResolution)
@@ -137,7 +137,7 @@ static void AddVirtualVoxelInjectOpaquePass(
 
 	FVirtualVoxelInjectOpaqueCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVirtualVoxelInjectOpaqueCS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	Parameters->VirtualVoxel = VoxelResources.Parameters.Common;
+	Parameters->VirtualVoxelParams = VoxelResources.Parameters.Common;
 	Parameters->VoxelBiasCount = FMath::Max(0, GHairStransVoxelInjectOpaqueBiasCount);
 	Parameters->VoxelMarkCount = FMath::Max(0, GHairStransVoxelInjectOpaqueMarkCount);
 	Parameters->SceneDepthResolution = SceneTextures.SceneDepthBuffer->Desc.Extent;
@@ -400,7 +400,7 @@ class FVoxelIndPageClearCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVoxelIndPageClearCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxel)
+		SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxelParams)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture3D, OutPageTexture)
 		SHADER_PARAMETER_RDG_BUFFER(Buffer, IndirectDispatchBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -822,6 +822,10 @@ FVirtualVoxelResources AllocateVirtualVoxelResources(
 	Out.Parameters.Common.SteppingScale				= FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
 	Out.Parameters.Common.NodeDescCount				= MacroGroups.Datas.Num();
 	Out.Parameters.Common.IndirectDispatchGroupSize = 64;
+	
+	Out.Parameters.Common.HairCoveragePixelRadiusAtDepth1	= ComputeMinStrandRadiusAtDepth1(FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), View.FOV, 1/*SampleCount*/, 1/*RasterizationScale*/).Primary;
+	Out.Parameters.Common.HairCoverageLUT					= GetHairLUT(RHICmdList, View).Textures[HairLUTType_Coverage]->GetRenderTargetItem().TargetableTexture;
+	Out.Parameters.Common.HairCoverageSampler				= TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	AddAllocateVoxelPagesPass(
 		GraphBuilder, 
@@ -962,7 +966,7 @@ static FRDGBufferRef IndirectVoxelPageClear(
 		FRDGBufferRef IndirectDispatchArgsBuffer = GraphBuilder.RegisterExternalBuffer(VoxelResources.IndirectArgsBuffer, TEXT("HairVoxelIndirectDispatchArgs"));
 
 		FVoxelIndPageClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelIndPageClearCS::FParameters>();
-		Parameters->VirtualVoxel = VoxelResources.Parameters.Common;
+		Parameters->VirtualVoxelParams = VoxelResources.Parameters.Common;
 		Parameters->OutPageTexture = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutPageTexture));
 		Parameters->IndirectDispatchBuffer = ClearIndArgsBuffer;
 
@@ -987,7 +991,7 @@ class FVoxelRasterComputeCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVoxelRasterComputeCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxel)
+		SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxelParams)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(uint32, MaxRasterCount)
@@ -1041,7 +1045,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 		{
 			FVoxelRasterComputeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelRasterComputeCS::FParameters>();
 			PassParameters->MaxRasterCount = FMath::Clamp(GHairStrandsVoxelComputeRasterMaxVoxelCount, 1, 256);
-			PassParameters->VirtualVoxel = VoxelResources.Parameters.Common;
+			PassParameters->VirtualVoxelParams = VoxelResources.Parameters.Common;
 			PassParameters->MacroGroupId = MacroGroup.MacroGroupId;
 			PassParameters->VoxelizationViewInfoBuffer = VoxelizationViewInfoBufferSRV;
 			PassParameters->DispatchCountX = DispatchCountX;
@@ -1137,7 +1141,7 @@ static void AddVirtualVoxelizationRasterPass(
 	const FVector RasterAABBCenter = RasterAABB.GetCenter();
 	const FIntRect ViewportRect = FIntRect(0, 0, RasterResolution.X, RasterResolution.Y);
 
-	const float RadiusAtDepth1 = GStrandHairVoxelizationRasterizationScale * VoxelResources.Parameters.Common.VoxelWorldSize;
+	const float RadiusAtDepth1 = GStrandHairVoxelizationRasterizationScale * VoxelResources.Parameters.Common.VoxelWorldSize * 0.5f;
 	const bool bIsOrtho = true;
 	const FVector4 HairRenderInfo = PackHairRenderInfo(RadiusAtDepth1, RadiusAtDepth1, RadiusAtDepth1, 1);
 	const uint32 HairRenderInfoBits = PackHairRenderInfoBits(bIsOrtho, bIsGPUDriven);

@@ -10,6 +10,10 @@
 #include "GameFramework/GameModeBase.h"
 #include "Misc/ScopeLock.h"
 
+#if WITH_EDITOR
+#include "Editor/EditorEngine.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "WindowsMixedRealityInputSimulation"
 
 UWindowsMixedRealityInputSimulationEngineSubsystem* UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled()
@@ -38,16 +42,25 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnable
 		return false;
 	}
 
-	// Only if no HMD is connected
-	if (GEngine->XRSystem.Get()->GetHMDDevice()->IsHMDConnected())
+	// Only if playing inside the editor viewport
+	if (GIsEditor)
 	{
-		return false;
-	}
+		UEditorEngine* EdEngine = Cast<UEditorEngine>(GEngine);
 
-	return true;
-#else
-	return false;
+		if (EdEngine->GetPlayInEditorSessionInfo().IsSet())
+		{
+			// If we are in a VRPreview we are remoting or connected to wmr, and don't want simulated input.			
+			return EdEngine->GetPlayInEditorSessionInfo()->OriginalRequestParams.SessionPreviewTypeOverride != EPlaySessionPreviewType::VRPreview;
+		}
+		else
+		{
+			return false;
+		}
+
+	}
 #endif
+
+	return false;
 }
 
 bool UWindowsMixedRealityInputSimulationEngineSubsystem::HasPositionalTracking() const
@@ -156,6 +169,20 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetPressState(EControll
 	return false;
 }
 
+bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandPointerPose(EControllerHand Hand, FWindowsMixedRealityInputSimulationPointerPose& OutPointerPose) const
+{
+	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
+	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
+	{
+		if (handState->bHasPointerPose)
+		{
+			OutPointerPose = handState->PointerPose;
+			return true;
+		}
+	}
+	return false;
+}
+
 void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedData(
 	bool HasTracking,
 	const FQuat& NewHeadOrientation,
@@ -163,14 +190,17 @@ void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedData(
 	const FWindowsMixedRealityInputSimulationHandState& LeftHandState,
 	const FWindowsMixedRealityInputSimulationHandState& RightHandState)
 {
-	FRWScopeLock WriteLock(DataMutex, SLT_Write);
+	if (IsInputSimulationEnabled())
+	{
+		FRWScopeLock WriteLock(DataMutex, SLT_Write);
 
-	bHasPositionalTracking = HasTracking;
-	HeadOrientation = NewHeadOrientation;
-	HeadPosition = NewHeadPosition;
+		bHasPositionalTracking = HasTracking;
+		HeadOrientation = NewHeadOrientation;
+		HeadPosition = NewHeadPosition;
 
-	UpdateSimulatedHandState(EControllerHand::Left, LeftHandState);
-	UpdateSimulatedHandState(EControllerHand::Right, RightHandState);
+		UpdateSimulatedHandState(EControllerHand::Left, LeftHandState);
+		UpdateSimulatedHandState(EControllerHand::Right, RightHandState);
+	}
 }
 
 void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedHandState(
@@ -187,18 +217,8 @@ void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedHandStat
 
 bool UWindowsMixedRealityInputSimulationEngineSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
+	// Enable input simulation only in the editor
 #if WITH_EDITOR
-	// Only use input simulation when enabled
-	const UWindowsMixedRealityRuntimeSettings* WMRSettings = UWindowsMixedRealityRuntimeSettings::Get();
-	if (!WMRSettings->bEnableInputSimulation)
-	{
-		return false;
-	}
-
-	// Note: XRSystem is created later than engine subsystem,
-	// so cannot check if XRSystem exists or HMD is connected at this point.
-	// IsInputSimulationEnabled can be used at runtime to check these additional conditions.
-
 	return true;
 #else
 	return false;

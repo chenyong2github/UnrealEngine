@@ -316,7 +316,7 @@ bool FGoogleVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint3
 #if GOOGLEVRHMD_SUPPORTED_PLATFORMS
 	if(CustomPresent)
 	{
-		const uint32 NumLayers = (IsMobileMultiViewDirect()) ? 2 : 1;
+		const uint32 NumLayers = (IsMobileMultiView()) ? 2 : 1;
 		bool Success = CustomPresent->AllocateRenderTargetTexture(Index, SizeX, SizeY, Format, NumLayers, NumMips, InFlags, TargetableTextureFlags);
 		if (Success)
 		{
@@ -493,7 +493,7 @@ void FGoogleVRHMDCustomPresent::CreateGVRSwapChain()
 	gvr_buffer_spec_set_depth_stencil_format(BufferSpec, GVR_DEPTH_STENCIL_FORMAT_NONE);
 	// We are using the default color buffer format in GVRSDK, which is RGBA8, and that is also the format passed in.
 
-	if (HMD->IsMobileMultiViewDirect())
+	if (HMD->IsMobileMultiView())
 	{
 		gvr_sizei BufferSize = gvr_buffer_spec_get_size(BufferSpec);
 		BufferSize.width /= 2;

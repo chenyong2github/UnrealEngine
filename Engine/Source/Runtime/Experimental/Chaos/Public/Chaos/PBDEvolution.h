@@ -56,15 +56,14 @@ class CHAOS_API TPBDEvolution
 	T GetSelfCollisionThickness() const { return MSelfCollisionThickness; }
 	void SetSelfCollisionThickness(const T SelfCollisionThickness) { MSelfCollisionThickness = SelfCollisionThickness; }
 
-	T GetCollisionThickness() const { return MCollisionThickness; }
-	void SetCollisionThickness(const T CollisionThickness) { MCollisionThickness = CollisionThickness; }
+	T GetCollisionThickness(const uint32 GroupId = 0) const { return MPerGroupCollisionThickness[GroupId]; }
+	void SetCollisionThickness(const T CollisionThickness, const uint32 GroupId = 0) { MPerGroupCollisionThickness[GroupId] = CollisionThickness; }
 
-	T GetCoefficientOfFriction() const { return MCoefficientOfFriction; }
-	void SetCoefficientOfFriction(const T CoefficientOfFriction) { MCoefficientOfFriction = CoefficientOfFriction; }
+	T GetCoefficientOfFriction(const uint32 GroupId = 0) const { return MPerGroupCoefficientOfFriction[GroupId]; }
+	void SetCoefficientOfFriction(const T CoefficientOfFriction, const uint32 GroupId = 0) { MPerGroupCoefficientOfFriction[GroupId] = CoefficientOfFriction; }
 
-	T GetDamping() const { return MDamping; }
-	void SetDamping(const T Damping) { MDamping = Damping; }
-	void SetDamping(const uint32 GroupId, const T Damping) { MPerGroupDamping[GroupId] = Damping; }
+	T GetDamping(const uint32 GroupId = 0) const { return MPerGroupDamping[GroupId]; }
+	void SetDamping(const T Damping, const uint32 GroupId = 0) { MPerGroupDamping[GroupId] = Damping; }
 
 	T GetTime() const { return MTime; }
 
@@ -81,6 +80,8 @@ class CHAOS_API TPBDEvolution
 	TArrayCollectionArray<uint32> MCollisionParticleGroupIds;  // Used for per group parameters for collision particles
 	TArrayCollectionArray<uint32> MParticleGroupIds;  // Used for per group parameters for particles
 	TArray<T> MPerGroupDamping;
+	TArray<T> MPerGroupCollisionThickness;
+	TArray<T> MPerGroupCoefficientOfFriction;
 	int32 MNumIterations;
 	T MCollisionThickness;
 	T MSelfCollisionThickness;

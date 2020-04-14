@@ -287,6 +287,13 @@ class SyncProject : BuildCommand
 			{
 				Log.TraceVerbose("Building Editor for {0}", ProjectArgForEditor);
 
+				// Invalidate the location of the Target.cs files incase they were synced
+				if (ProjectFile != null)
+				{
+					string TargetSourceDir = CommandUtils.CombinePaths(Path.GetDirectoryName(ProjectFile.FullName), "Source");
+					RulesCompiler.InvalidateRulesFileCache(TargetSourceDir);
+				}
+
 				BuildEditor BuildCmd = new BuildEditor();
 				BuildCmd.Clean = ParseParam("clean");
 				BuildCmd.ProjectName = ProjectArgForEditor;

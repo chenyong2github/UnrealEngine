@@ -926,7 +926,7 @@ namespace UnrealGameSync
 				}
 			}
 
-			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncExcludedCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncIncludedCategories, WorkspaceSettings.SyncExcludedCategories);
+			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategories);
 
 			ConfigSection PerforceSection = PerforceMonitor.LatestProjectConfigFile.FindSection("Perforce");
 
@@ -977,10 +977,6 @@ namespace UnrealGameSync
 			if (Settings.bAutoResolveConflicts)
 			{
 				Context.Options |= WorkspaceUpdateOptions.AutoResolveChanges;
-			}
-			if (Settings.bUseIncrementalBuilds)
-			{
-				Context.Options |= WorkspaceUpdateOptions.UseIncrementalBuilds;
 			}
 			if (WorkspaceSettings.bSyncAllProjects ?? Settings.bSyncAllProjects)
 			{
@@ -1761,7 +1757,8 @@ namespace UnrealGameSync
 			if (RequireNotificationForChange != -1)
 			{
 				// Format the platform list
-				StringBuilder PlatformList = new StringBuilder(NotifyBuilds[0].BuildType);
+				StringBuilder PlatformList = new StringBuilder();
+				PlatformList.AppendFormat("{0}: {1}", StreamName, NotifyBuilds[0].BuildType);
 				for (int Idx = 1; Idx < NotifyBuilds.Count - 1; Idx++)
 				{
 					PlatformList.AppendFormat(", {0}", NotifyBuilds[Idx].BuildType);
@@ -2854,11 +2851,6 @@ namespace UnrealGameSync
 						Owner.ShowAndActivate();
 
 						WorkspaceUpdateOptions Options = WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.RunAfterSync;
-						if (Settings.bUseIncrementalBuilds)
-						{
-							Options |= WorkspaceUpdateOptions.UseIncrementalBuilds;
-						}
-
 						WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, Options, null, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, null, GetWorkspaceVariables(Workspace.CurrentChangeNumber));
 						StartWorkspaceUpdate(Context, null);
 					}
@@ -3803,7 +3795,7 @@ namespace UnrealGameSync
 						BuildListContextMenu_Sync.Font = new Font(SystemFonts.MenuFont, bIsCurrentChange ? FontStyle.Regular : FontStyle.Bold);
 						BuildListContextMenu_SyncContentOnly.Visible = !bIsBusy && ShouldSyncPrecompiledEditor;
 						BuildListContextMenu_SyncOnlyThisChange.Visible = !bIsBusy && !bIsCurrentChange && ContextMenuChange.Number > Workspace.CurrentChangeNumber && Workspace.CurrentChangeNumber != -1;
-						BuildListContextMenu_Build.Visible = !bIsBusy && bIsCurrentChange && !ShouldSyncPrecompiledEditor && Settings.bUseIncrementalBuilds;
+						BuildListContextMenu_Build.Visible = !bIsBusy && bIsCurrentChange && !ShouldSyncPrecompiledEditor;
 						BuildListContextMenu_Rebuild.Visible = !bIsBusy && bIsCurrentChange && !ShouldSyncPrecompiledEditor;
 						BuildListContextMenu_GenerateProjectFiles.Visible = !bIsBusy && bIsCurrentChange;
 						BuildListContextMenu_LaunchEditor.Visible = !bIsBusy && ContextMenuChange.Number == Workspace.CurrentChangeNumber;
@@ -3874,6 +3866,9 @@ namespace UnrealGameSync
 
 						BuildListContextMenu_CustomTool_End.Visible = (CustomToolEnd > CustomToolStart);
 
+						string SwarmURL;
+						BuildListContextMenu_ViewInSwarm.Visible = TryGetProjectSetting(ProjectConfigFile, "SwarmURL", out SwarmURL);
+							
 						BuildListContextMenu.Show(BuildList, Args.Location);
 					}
 				}
@@ -4089,8 +4084,6 @@ namespace UnrealGameSync
 
 			OptionsContextMenu_EditorBuildConfiguration.Enabled = !ShouldSyncPrecompiledEditor;
 			UpdateCheckedBuildConfig();
-			OptionsContextMenu_UseIncrementalBuilds.Enabled = !ShouldSyncPrecompiledEditor;
-			OptionsContextMenu_UseIncrementalBuilds.Checked = Settings.bUseIncrementalBuilds;
 			OptionsContextMenu_CustomizeBuildSteps.Enabled = (Workspace != null);
 			OptionsContextMenu_EditorArguments.Checked = Settings.EditorArguments.Any(x => x.Item2);
 			OptionsContextMenu_ScheduledSync.Checked = Settings.bScheduleEnabled;
@@ -4231,12 +4224,12 @@ namespace UnrealGameSync
 
 		private void BuildListContextMenu_Build_Click(object sender, EventArgs e)
 		{
-			StartWorkspaceUpdate(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.SyncArchives | WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.UseIncrementalBuilds);
+			StartWorkspaceUpdate(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.SyncArchives | WorkspaceUpdateOptions.Build);
 		}
 
 		private void BuildListContextMenu_Rebuild_Click(object sender, EventArgs e)
 		{
-			StartWorkspaceUpdate(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.SyncArchives | WorkspaceUpdateOptions.Build);
+			StartWorkspaceUpdate(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.SyncArchives | WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.Clean);
 		}
 
 		private void BuildListContextMenu_GenerateProjectFiles_Click(object sender, EventArgs e)
@@ -4251,9 +4244,22 @@ namespace UnrealGameSync
 
 		private void BuildListContextMenu_MoreInfo_Click(object sender, EventArgs e)
 		{
-			if (!Utility.SpawnHiddenProcess("p4vc.exe", String.Format("-p\"{0}\" -c{1} change {2}", Workspace.Perforce.ServerAndPort ?? "perforce:1666", Workspace.ClientName, ContextMenuChange.Number)))
+			if (!Utility.SpawnHiddenProcess("p4vc.exe", String.Format("-p\"{0}\" -u\"{1}\" -c{2} change {3}", Workspace.Perforce.ServerAndPort ?? "perforce:1666", Workspace.Perforce.UserName, Workspace.ClientName, ContextMenuChange.Number)))
 			{
 				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
+			}
+		}
+
+		private void BuildListContextMenu_ViewInSwarm_Click(object sender, EventArgs e)
+		{
+			string SwarmURL;
+			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "SwarmURL", out SwarmURL))
+			{
+				Process.Start(String.Format("{0}/changes/{1}", SwarmURL, ContextMenuChange.Number));
+			}
+			else
+			{
+				MessageBox.Show("Swarm URL is not configured.");
 			}
 		}
 
@@ -4543,13 +4549,6 @@ namespace UnrealGameSync
 			OptionsContextMenu_BuildConfig_Development.Enabled = (!ShouldSyncPrecompiledEditor || EditorBuildConfig == BuildConfig.Development);
 		}
 
-		private void OptionsContextMenu_UseIncrementalBuilds_Click(object sender, EventArgs e)
-		{
-			OptionsContextMenu_UseIncrementalBuilds.Checked ^= true;
-			Settings.bUseIncrementalBuilds = OptionsContextMenu_UseIncrementalBuilds.Checked;
-			Settings.Save();
-		}
-
 		private void OptionsContextMenu_ScheduleSync_Click(object sender, EventArgs e)
 		{
 			Owner.SetupScheduledSync();
@@ -4706,7 +4705,7 @@ namespace UnrealGameSync
 				ExtraSafeToDeleteExtensions = "";
 			}
 
-			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncExcludedCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncIncludedCategories, WorkspaceSettings.SyncExcludedCategories);
+			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategories);
 			List<string> SyncPaths = Workspace.GetSyncPaths(WorkspaceSettings.bSyncAllProjects ?? Settings.bSyncAllProjects, CombinedSyncFilter);
 
 			CleanWorkspaceWindow.DoClean(ParentForm, Workspace.Perforce, BranchDirectoryName, Workspace.ClientRootPath, SyncPaths, ExtraSafeToDeleteFolders.Split('\n'), ExtraSafeToDeleteExtensions.Split('\n'), Log);
@@ -4784,7 +4783,7 @@ namespace UnrealGameSync
 			Variables.Add("UE4EditorCmdExe", GetEditorExePath(EditorBuildConfig).Replace(".exe", "-Cmd.exe"));
 			Variables.Add("UE4EditorConfig", EditorBuildConfig.ToString());
 			Variables.Add("UE4EditorDebugArg", (EditorBuildConfig == BuildConfig.Debug || EditorBuildConfig == BuildConfig.DebugGame) ? " -debug" : "");
-			Variables.Add("UseIncrementalBuilds", Settings.bUseIncrementalBuilds ? "1" : "0");
+			Variables.Add("UseIncrementalBuilds", "1");
 			if (!String.IsNullOrEmpty(SdkInstallerDir))
 			{
 				Variables.Add("SdkInstallerDir", SdkInstallerDir);
@@ -4970,15 +4969,14 @@ namespace UnrealGameSync
 
 		private void OptionsContextMenu_SyncFilter_Click(object sender, EventArgs e)
 		{
-			SyncFilter Filter = new SyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncExcludedCategories, Settings.bSyncAllProjects, Settings.bIncludeAllProjectsInSolution, WorkspaceSettings.SyncView, WorkspaceSettings.SyncIncludedCategories, WorkspaceSettings.SyncExcludedCategories, WorkspaceSettings.bSyncAllProjects, WorkspaceSettings.bIncludeAllProjectsInSolution);
+			SyncFilter Filter = new SyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, Settings.bSyncAllProjects, Settings.bIncludeAllProjectsInSolution, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategories, WorkspaceSettings.bSyncAllProjects, WorkspaceSettings.bIncludeAllProjectsInSolution);
 			if (Filter.ShowDialog() == DialogResult.OK)
 			{
-				Settings.SyncExcludedCategories = Filter.GlobalExcludedCategories;
+				Settings.SyncCategories = Filter.GlobalSyncCategories;
 				Settings.SyncView = Filter.GlobalView;
 				Settings.bSyncAllProjects = Filter.bGlobalSyncAllProjects;
 				Settings.bIncludeAllProjectsInSolution = Filter.bGlobalIncludeAllProjectsInSolution;
-				WorkspaceSettings.SyncIncludedCategories = Filter.WorkspaceIncludedCategories;
-				WorkspaceSettings.SyncExcludedCategories = Filter.WorkspaceExcludedCategories;
+				WorkspaceSettings.SyncCategories = Filter.WorkspaceSyncCategories;
 				WorkspaceSettings.SyncView = Filter.WorkspaceView;
 				WorkspaceSettings.bSyncAllProjects = Filter.bWorkspaceSyncAllProjects;
 				WorkspaceSettings.bIncludeAllProjectsInSolution = Filter.bWorkspaceIncludeAllProjectsInSolution;

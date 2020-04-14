@@ -393,6 +393,7 @@ private:
 		SetRequiredTextureResolution(false);
 		SetMotionBlur(InitMode != ESFIM_Editor && InitMode != ESFIM_VREditing);
 		SetBones(false);
+		SetServerDrawDebug(false);
 		SetScreenPercentage(InitMode != ESFIM_Editor && InitMode != ESFIM_VREditing);
 		SetVREditing(InitMode == ESFIM_VREditing);
 		SetOcclusionMeshes(false);

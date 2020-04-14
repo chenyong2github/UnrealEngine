@@ -792,5 +792,8 @@ private:
 	/** Stores the previous frame's value of bEditorCameraCut in order to reset it back to false on the next frame */
 	bool					bWasEditorCameraCut;
 
-	bool bApplyCameraSpeedScaleByDistance;
+	bool					bApplyCameraSpeedScaleByDistance;
+
+	/** Handle to a timer event raised in ::ReceivedFocus*/
+	FTimerHandle			FocusTimerHandle;
 };

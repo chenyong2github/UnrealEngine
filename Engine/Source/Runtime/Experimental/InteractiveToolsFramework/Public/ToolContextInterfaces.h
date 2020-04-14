@@ -17,7 +17,9 @@ class UInteractiveToolManager;
 class UInteractiveGizmoManager;
 struct FMeshDescription;
 
-
+#if WITH_EDITOR
+class HHitProxy;
+#endif
 
 /**
  * FToolBuilderState is a bucket of state information that a ToolBuilder might need
@@ -202,6 +204,13 @@ public:
 	 * @return Instance of material to use for this purpose
 	 */
 	virtual UMaterialInterface* GetStandardMaterial(EStandardToolContextMaterials MaterialType) const = 0;
+
+#if WITH_EDITOR
+	/**
+	* When selecting, sometimes we need a hit proxy rather than a physics trace or other raycast.                                                                   
+	*/
+	virtual HHitProxy* GetHitProxy(int32 X, int32 Y) const = 0;
+#endif
 };
 
 

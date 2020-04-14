@@ -1239,14 +1239,19 @@ void FControlRigEditor::OnActiveTabChanged( TSharedPtr<SDockTab> PreviouslyActiv
 void FControlRigEditor::OnAnimInitialized()
 {
 	UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
-	UControlRigLayerInstance* AnimInstance = Cast<UControlRigLayerInstance>(EditorSkelComp->GetAnimInstance());
-	if (AnimInstance && ControlRig)
+	if (EditorSkelComp)
 	{
-		// update control rig data to anim instance since animation system has been reinitialized
-		FInputBlendPose Filter;
-		AnimInstance->ResetControlRigTracks();
-		AnimInstance->AddControlRigTrack(0, ControlRig);
-		AnimInstance->UpdateControlRigTrack(0, 1.0f, FControlRigIOSettings::MakeEnabled(), bExecutionControlRig);
+		EditorSkelComp->bRequiredBonesUpToDateDuringTick = 0;
+
+		UControlRigLayerInstance* AnimInstance = Cast<UControlRigLayerInstance>(EditorSkelComp->GetAnimInstance());
+		if (AnimInstance && ControlRig)
+		{
+			// update control rig data to anim instance since animation system has been reinitialized
+			FInputBlendPose Filter;
+			AnimInstance->ResetControlRigTracks();
+			AnimInstance->AddControlRigTrack(0, ControlRig);
+			AnimInstance->UpdateControlRigTrack(0, 1.0f, FControlRigIOSettings::MakeEnabled(), bExecutionControlRig);
+		}
 	}
 }
 

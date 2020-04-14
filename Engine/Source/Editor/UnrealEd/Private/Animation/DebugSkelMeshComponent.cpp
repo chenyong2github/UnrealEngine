@@ -742,8 +742,8 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts()
 				if(BaseAsset)
 				{
 					UClothingAssetCommon* ConcreteAsset = Cast<UClothingAssetCommon>(BaseAsset);
-					UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[Section.ClothingData.AssetLodIndex];
-					const FPointWeightMap& MaxDistances = LodData->ClothPhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::MaxDistance);
+					const FClothLODDataCommon& LodData = ConcreteAsset->LodData[Section.ClothingData.AssetLodIndex];
+					const FPointWeightMap& MaxDistances = LodData.PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::MaxDistance);
 
 					for(FMeshToMeshVertData& VertData : Section.ClothMappingData)
 					{
@@ -795,7 +795,10 @@ void UDebugSkelMeshComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 	bCachedMaterialParameterIndicesAreDirty = true;
 	
 	// Force retargeting data to be re-cached to take into account skeleton edits.
-	bRequiredBonesUpToDate = false;
+	if (bRequiredBonesUpToDateDuringTick)
+	{
+		bRequiredBonesUpToDate = false;
+	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -821,7 +824,7 @@ void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 		{
 			UClothingAssetCommon* ConcreteAsset = Cast<UClothingAssetCommon>(*Asset);
 
-			if(ConcreteAsset->ClothLodData.IsValidIndex(SelectedClothingLodForPainting))
+			if(ConcreteAsset->LodData.IsValidIndex(SelectedClothingLodForPainting))
 			{
 				SkinnedSelectedClothingPositions.Reset();
 				SkinnedSelectedClothingNormals.Reset();
@@ -830,9 +833,9 @@ void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 				// Pass LOD0 to collect all bones
 				GetCurrentRefToLocalMatrices(RefToLocals, 0);
 
-				UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[SelectedClothingLodForPainting];
+				const FClothLODDataCommon& LodData = ConcreteAsset->LodData[SelectedClothingLodForPainting];
 
-				ClothingMeshUtils::SkinPhysicsMesh(ConcreteAsset->UsedBoneIndices, LodData->ClothPhysicalMeshData, FTransform::Identity, RefToLocals.GetData(), RefToLocals.Num(), SkinnedSelectedClothingPositions, SkinnedSelectedClothingNormals);
+				ClothingMeshUtils::SkinPhysicsMesh(ConcreteAsset->UsedBoneIndices, LodData.PhysicalMeshData, FTransform::Identity, RefToLocals.GetData(), RefToLocals.Num(), SkinnedSelectedClothingPositions, SkinnedSelectedClothingNormals);
 				RebuildCachedClothBounds();
 			}
 		}
@@ -1035,15 +1038,15 @@ FDebugSkelMeshDynamicData::FDebugSkelMeshDynamicData(UDebugSkelMeshComponent* In
 
 					if(UClothingAssetCommon* ConcreteAsset = Cast<UClothingAssetCommon>(BaseAsset))
 					{
-						if(ConcreteAsset->ClothLodData.IsValidIndex(InComponent->SelectedClothingLodForPainting))
+						if(ConcreteAsset->LodData.IsValidIndex(InComponent->SelectedClothingLodForPainting))
 						{
-							UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[InComponent->SelectedClothingLodForPainting];
+							const FClothLODDataCommon& LodData = ConcreteAsset->LodData[InComponent->SelectedClothingLodForPainting];
 
-							ClothingSimIndices = LodData->ClothPhysicalMeshData.Indices;
+							ClothingSimIndices = LodData.PhysicalMeshData.Indices;
 
-							if(LodData->ParameterMasks.IsValidIndex(InComponent->SelectedClothingLodMaskForPainting))
+							if(LodData.PointWeightMaps.IsValidIndex(InComponent->SelectedClothingLodMaskForPainting))
 							{
-								FPointWeightMap& Mask = LodData->ParameterMasks[InComponent->SelectedClothingLodMaskForPainting];
+								const FPointWeightMap& Mask = LodData.PointWeightMaps[InComponent->SelectedClothingLodMaskForPainting];
 
 								ClothingVisiblePropertyValues = Mask.Values;
 							}

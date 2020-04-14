@@ -9,11 +9,6 @@
 #include "WindowsMixedRealitySpatialInputTypes.h"
 #include "WindowsMixedRealityAvailability.h"
 
-#if WITH_INPUT_SIMULATION
-#include "Engine/Engine.h"
-#include "WindowsMixedRealityInputSimulationEngineSubsystem.h"
-#endif
-
 #define LOCTEXT_NAMESPACE "WindowsMixedRealitySpatialInput"
 #define MotionControllerDeviceTypeName "WindowsMixedRealitySpatialInput"
 
@@ -805,12 +800,6 @@ namespace WindowsMixedReality
 	ETrackingStatus FWindowsMixedRealitySpatialInput::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const
 	{
 #if WITH_WINDOWS_MIXED_REALITY
-#if WITH_INPUT_SIMULATION
-		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
-		{
-			return InputSim->GetControllerTrackingStatus(DeviceHand);
-		}
-#endif
 		HMDHand hand = (HMDHand)((int)DeviceHand);
 		HMDTrackingStatus trackingStatus = FWindowsMixedRealityStatics::GetControllerTrackingStatus(hand);
 

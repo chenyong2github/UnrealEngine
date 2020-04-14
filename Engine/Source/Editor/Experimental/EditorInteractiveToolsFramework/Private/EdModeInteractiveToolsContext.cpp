@@ -29,6 +29,7 @@
 
 //#define ENABLE_DEBUG_PRINTING
 
+class HHitProxy;
 
 
 static float SnapToIncrement(float fValue, float fIncrement, float offset = 0)
@@ -299,6 +300,8 @@ public:
 		check(false);
 		return nullptr;
 	}
+
+	virtual HHitProxy* GetHitProxy(int32 X, int32 Y) const { return nullptr;  }
 
 };
 

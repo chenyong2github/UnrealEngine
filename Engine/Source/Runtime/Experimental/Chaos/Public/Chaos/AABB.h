@@ -607,6 +607,4 @@ namespace Chaos
 			return SamplePoints;
 		}
 	};
-
-	using FAABB3 = TAABB<FReal, 3>;
 }

@@ -129,6 +129,7 @@ public:
 
 	/** AActor overrides */
 	virtual void BeginDestroy() override;
+	virtual void Destroyed() override;
 
 	void CleanupWidgetReferences();
 

@@ -470,7 +470,6 @@ AActor* FVisualLoggerEditorInterface::GetHelperActor(UWorld* InWorld) const
 
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnInfo.Name = *FString::Printf(TEXT("VisualLoggerRenderingActor"));
 
 	// The helper actor is created on demand and only once per world so we can allow it to spawn during construction script.
 	SpawnInfo.bAllowDuringConstructionScript = true;

@@ -2329,9 +2329,9 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 						}
 
 						// LOD group MaxResolution clamp : see UTextureLODSettings::CalculateLODBias(), included in CachedCombinedLODBias
-						const int32 MipCountBeforeMaxRes = StreamingRenderAsset.MipCount - Texture2D->NumCinematicMipLevels -
+						const int32 MipCountBeforeMaxRes = StreamingRenderAsset.MipCount - RenderAsset->NumCinematicMipLevels -
 							(StreamingRenderAsset.LODGroup == TEXTUREGROUP_UI ? GUITextureLODBias : 0) - 
-							(FPlatformProperties::RequiresCookedData() ? 0 : (LODGroupInfo.LODBias + Texture2D->LODBias));
+							(FPlatformProperties::RequiresCookedData() ? 0 : (LODGroupInfo.LODBias + (Texture2D ? Texture2D->LODBias : 0)));
 						const int32 MaxResBias = MipCountBeforeMaxRes - (LODGroupInfo.MaxLODMipCount + 1);
 						if (MaxResBias > 0)
 						{
@@ -2340,7 +2340,7 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 						}
 
 						// Asset LODBias : see UTextureLODSettings::CalculateLODBias(), included in CachedCombinedLODBias
-						if (Texture2D->LODBias)
+						if (Texture2D && Texture2D->LODBias)
 						{
 							if (FPlatformProperties::RequiresCookedData())
 							{
@@ -2354,10 +2354,10 @@ bool FRenderAssetStreamingManager::HandleInvestigateRenderAssetCommand(const TCH
 						}
 
 						// Asset cinematic mips : see UTextureLODSettings::CalculateLODBias() and FStreamingRenderAsset::UpdateDynamicData(), included in CachedCombinedLODBias
-						if (Texture2D->NumCinematicMipLevels && !(StreamingRenderAsset.bForceFullyLoad && Texture2D->bUseCinematicMipLevels))
+						if (RenderAsset->NumCinematicMipLevels && !(StreamingRenderAsset.bForceFullyLoad && RenderAsset->bUseCinematicMipLevels))
 						{
-							BiasDesc += FString::Printf(TEXT(" [Asset.Cine:%d]"), Texture2D->NumCinematicMipLevels);
-							CumuBias += Texture2D->NumCinematicMipLevels;
+							BiasDesc += FString::Printf(TEXT(" [Asset.Cine:%d]"), RenderAsset->NumCinematicMipLevels);
+							CumuBias += RenderAsset->NumCinematicMipLevels;
 						}
 					}
 

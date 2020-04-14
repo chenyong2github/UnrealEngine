@@ -392,7 +392,7 @@ int32 FNetProfilerProvider::FindPacketIndexFromPacketSequence(uint32 ConnectionI
 		}
 	}
 
-	return -1;	
+	return -1;
 }
 
 uint32 FNetProfilerProvider::GetPacketCount(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode) const
@@ -416,6 +416,7 @@ void FNetProfilerProvider::EnumeratePackets(uint32 ConnectionIndex, ENetProfiler
 
 	const uint32 PacketCount = Packets.Num();
 
+	// [PacketIndexIntervalStart, PacketIndexIntervalEnd] is an inclusive interval.
 	if (PacketCount == 0 || PacketIndexIntervalStart > PacketIndexIntervalEnd)
 	{
 		return;
@@ -438,6 +439,7 @@ void FNetProfilerProvider::EnumeratePacketContentEventsByIndex(uint32 Connection
 
 	const uint32 EventCount = ContentEvents.Num();
 
+	// [StartEventIndex, EndEventIndex] is an inclusive interval.
 	if (EventCount == 0 || StartEventIndex > EndEventIndex)
 	{
 		return;
@@ -468,9 +470,12 @@ void FNetProfilerProvider::EnumeratePacketContentEventsByPosition(uint32 Connect
 
 	const auto& ContentEvents = ConnectionData.ContentEvents;
 
+	// The input [StartPos, EndPos) is an exclusive bit range.
+	// Also, the [StartPos, EndPos) for ContentEvents[EventIt] is an exclusive bit range.
+
 	uint32 EventIt = StartEventIndex;
 	// Skip all Events outside of the scope
-	while (EventIt <= EndEventIndex &&	ContentEvents[EventIt].EndPos < StartPos)
+	while (EventIt <= EndEventIndex && ContentEvents[EventIt].EndPos <= StartPos)
 	{
 		++EventIt;
 	}
@@ -509,6 +514,7 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 		return nullptr;
 	}
 
+	// [PacketIndexIntervalStart, PacketIndexIntervalEnd] is an inclusive interval.
 	if (!ensure(PacketIndexIntervalStart <= PacketIndexIntervalEnd))
 	{
 		return nullptr;
@@ -522,10 +528,6 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 		return nullptr;
 	}
 
-	// Aggregate stats for events in selection
-	TMap<uint32, FNetProfilerAggregatedStats> AggregatedStats;
-	AggregatedStats.Reserve(EventTypes.Num());
-
 	struct FStackEntry
 	{
 		uint32 EventTypeIndex = 0U;
@@ -534,46 +536,62 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 		uint32 ExclusiveAccumulator = 0U;
 	};
 
-	TArray<FStackEntry> Stack;
-	Stack.SetNum(256);
-
-	auto GetStatsFunction = [&AggregatedStats, &Stack, this](const FNetProfilerContentEvent& ContentEvent)
+	struct FStatsHelper
 	{
-		FNetProfilerAggregatedStats* StatsEntry = AggregatedStats.Find(ContentEvent.EventTypeIndex);
+		TMap<uint32, FNetProfilerAggregatedStats> AggregatedStats;
+		uint64 StackSize;
+		TArray<FStackEntry> Stack;
+	};
+
+	FStatsHelper Helper;
+	Helper.AggregatedStats.Reserve(EventTypes.Num());
+	Helper.StackSize = 0; // stack is empty
+	Helper.Stack.SetNum(256);
+
+	auto GetStatsFunction = [&Helper, this](const FNetProfilerContentEvent& ContentEvent)
+	{
+		FNetProfilerAggregatedStats* StatsEntry = Helper.AggregatedStats.Find(ContentEvent.EventTypeIndex);
 		if (!StatsEntry)
 		{
-			StatsEntry = &AggregatedStats.Add(ContentEvent.EventTypeIndex);
+			StatsEntry = &Helper.AggregatedStats.Add(ContentEvent.EventTypeIndex);
 			StatsEntry->EventTypeIndex = ContentEvent.EventTypeIndex;
 		}
 
-		// Fill in basics
-		uint32 InclusiveSize = ContentEvent.EndPos - ContentEvent.StartPos;
-
+		// Fill in basics.
+		const uint32 InclusiveSize = ContentEvent.EndPos - ContentEvent.StartPos;
 		++StatsEntry->InstanceCount;
 		StatsEntry->TotalInclusive += InclusiveSize;
 		StatsEntry->MaxInclusive = FMath::Max(InclusiveSize, StatsEntry->MaxInclusive);
 
-		// We track what we have visited to be able to update exclusive bits for our parent
-		// We accumulate during the first pass and finalize the values during the second
-		Stack[ContentEvent.Level].EventTypeIndex = ContentEvent.EventTypeIndex;
-		Stack[ContentEvent.Level].StartPos = ContentEvent.StartPos;
-		Stack[ContentEvent.Level].EndPos = ContentEvent.EndPos;
-		Stack[ContentEvent.Level].ExclusiveAccumulator = 0U;
+		// Pops events from the stack. Keeps only the parent hierarchy of the current event.
+		while (Helper.StackSize > ContentEvent.Level)
+		{
+			FStackEntry& StackEntry = Helper.Stack[--Helper.StackSize]; // pop
+
+			// Finalize exclusive for each poped event (all its children were already processed).
+			FNetProfilerAggregatedStats& Stats = Helper.AggregatedStats.FindChecked(StackEntry.EventTypeIndex);
+			const uint32 ExclusiveSize = (StackEntry.EndPos - StackEntry.StartPos) - StackEntry.ExclusiveAccumulator;
+			Stats.TotalExclusive += ExclusiveSize;
+			Stats.MaxExclusive = FMath::Max(Stats.MaxExclusive, ExclusiveSize);
+		}
+
+		// Pushes the new event on the stack.
+		ensure(ContentEvent.Level == Helper.StackSize);
+		Helper.StackSize = ContentEvent.Level + 1; // push
+		FStackEntry& CurrentEventLevelStackEntry = Helper.Stack[ContentEvent.Level];
+
+		// We track what we have visited to be able to update exclusive bits for our parent.
+		// We accumulate during the first pass and finalize the values during the second.
+		CurrentEventLevelStackEntry.EventTypeIndex = ContentEvent.EventTypeIndex;
+		CurrentEventLevelStackEntry.StartPos = ContentEvent.StartPos;
+		CurrentEventLevelStackEntry.EndPos = ContentEvent.EndPos;
+		CurrentEventLevelStackEntry.ExclusiveAccumulator = 0U;
 
 		if (ContentEvent.Level > 0U)
 		{
-			FStackEntry& ParentStackEntry = Stack[ContentEvent.Level - 1U];
-
+			// Update parent event with the contribution from current event.
+			FStackEntry& ParentStackEntry = Helper.Stack[ContentEvent.Level - 1U];
 			ParentStackEntry.ExclusiveAccumulator += InclusiveSize;
-
-			if (ContentEvent.EndPos == ParentStackEntry.EndPos)
-			{
-				// Finalize exclusive
-				FNetProfilerAggregatedStats& ParentStateEntry = AggregatedStats.FindChecked(ContentEvent.EventTypeIndex);
-				uint32 ExclusiveTime = (ParentStackEntry.EndPos - ParentStackEntry.StartPos) - ParentStackEntry.ExclusiveAccumulator;
-				ParentStateEntry.TotalExclusive += ExclusiveTime;
-				ParentStateEntry.MaxExclusive = FMath::Max(ParentStateEntry.MaxExclusive, ExclusiveTime);
-			}
 		}
 	};
 
@@ -581,6 +599,18 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 	if (PacketIndexIntervalStart == PacketIndexIntervalEnd)
 	{
 		EnumeratePacketContentEventsByPosition(ConnectionIndex, Mode, PacketIndexIntervalStart, StartPosition, EndPosition, GetStatsFunction);
+
+		// Pops the remaining events from the stack.
+		while (Helper.StackSize > 0)
+		{
+			FStackEntry& StackEntry = Helper.Stack[--Helper.StackSize]; // pop
+
+			// Finalize exclusive for each poped event (all its children were already processed).
+			FNetProfilerAggregatedStats& Stats = Helper.AggregatedStats.FindChecked(StackEntry.EventTypeIndex);
+			const uint32 ExclusiveSize = (StackEntry.EndPos - StackEntry.StartPos) - StackEntry.ExclusiveAccumulator;
+			Stats.TotalExclusive += ExclusiveSize;
+			Stats.MaxExclusive = FMath::Max(Stats.MaxExclusive, ExclusiveSize);
+		}
 	}
 	else
 	{
@@ -593,10 +623,24 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 			const FNetProfilerPacket& Packet = Packets[PacketIt];
 			if (Packet.EventCount > 0U)
 			{
+				ensure(Helper.StackSize == 0); // stack should be empty (before each packet)
+
 				const uint32 StartEventIndex = Packet.StartEventIndex;
 				for (uint32 It = 0U; It < Packet.EventCount; ++It)
 				{
 					GetStatsFunction(ContentEvents[StartEventIndex + It]);
+				}
+
+				// Pops the remaining events from the stack, for each packet.
+				while (Helper.StackSize > 0)
+				{
+					FStackEntry& StackEntry = Helper.Stack[--Helper.StackSize]; // pop
+
+					// Finalize exclusive for each poped event (all its children were already processed).
+					FNetProfilerAggregatedStats& Stats = Helper.AggregatedStats.FindChecked(StackEntry.EventTypeIndex);
+					const uint32 ExclusiveSize = (StackEntry.EndPos - StackEntry.StartPos) - StackEntry.ExclusiveAccumulator;
+					Stats.TotalExclusive += ExclusiveSize;
+					Stats.MaxExclusive = FMath::Max(Stats.MaxExclusive, ExclusiveSize);
 				}
 			}
 		}
@@ -604,7 +648,7 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 
 	// Calculate averages and populate table
 	TTable<FNetProfilerAggregatedStats>* Table = new TTable<FNetProfilerAggregatedStats>(AggregatedStatsTableLayout);
-	for (const auto& KV : AggregatedStats)
+	for (const auto& KV : Helper.AggregatedStats)
 	{
 		FNetProfilerAggregatedStats& Row = Table->AddRow();
 		Row = KV.Value;

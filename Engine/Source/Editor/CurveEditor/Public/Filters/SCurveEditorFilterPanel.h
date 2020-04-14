@@ -26,7 +26,7 @@ public:
 
 public:
 	/** Call this to request opening a window containing this panel. */
-	static void OpenDialog(const TSharedRef<FTabManager>& TabManager, TSharedRef<FCurveEditor> InHostCurveEditor, TSubclassOf<UCurveEditorFilterBase> DefaultFilterClass);
+	static void OpenDialog(TSharedPtr<SWindow> RootWindow, TSharedRef<FCurveEditor> InHostCurveEditor, TSubclassOf<UCurveEditorFilterBase> DefaultFilterClass);
 	
 	/** Closes the dialog if there is one open. */
 	static void CloseDialog();

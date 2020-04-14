@@ -4,7 +4,6 @@
 
 #include "VirtualTextureDataBuilder.h"
 #include "Modules/ModuleManager.h"
-#include "VT/VirtualTexture.h"
 #include "Modules/ModuleManager.h"
 #include "CrunchCompression.h"
 #include "Async/TaskGraphInterfaces.h"
@@ -704,7 +703,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		GeneratedData.TilePayload.Empty();
 		GeneratedData.CodecPayload.Empty();
 		GeneratedData.Codec = EVirtualTextureCodec::Max;
-		UE_LOG(LogVirtualTexturingModule, Fatal, TEXT("Failed build tile"));
+		UE_LOG(LogVirtualTexturing, Fatal, TEXT("Failed build tile"));
 	}
 }
 

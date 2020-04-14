@@ -17,6 +17,11 @@
 #include "IPropertyUtilities.h"
 #include "Misc/NotifyHook.h"
 #include "IDetailChildrenBuilder.h"
+#include "NiagaraComponent.h"
+#include "NiagaraScript.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraSystem.h"
+#include "NiagaraNodeInput.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceDetailsBase"
 #define ErrorsCategoryName  TEXT("Errors")
@@ -100,7 +105,7 @@ private:
 
 	FReply OnFixNowClicked()
 	{
-		FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraDataInterfaceDetails", "FixDataIntefraceTransaction", "Fix asset for data interface"));
+		FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraDataInterfaceDetails", "FixDataInterfaceTransaction", "Fix asset for data interface"));
 		OnFixTriggered.ExecuteIfBound();
 		Error.TryFixError();
 		DataInterface->PostEditChange();
@@ -112,6 +117,101 @@ private:
 	IDetailLayoutBuilder* DetailBuilder;
 	UNiagaraDataInterface* DataInterface;
 	FSimpleDelegate OnFixTriggered;
+};
+
+class SNiagaraDataInterfaceFeedback : public SCompoundWidget
+{
+public:
+	DECLARE_DELEGATE(FOnFixTriggered);
+
+public:
+	SLATE_BEGIN_ARGS(SNiagaraDataInterfaceFeedback) {}
+		SLATE_EVENT(FOnFixTriggered, OnFixTriggered)
+	SLATE_END_ARGS();
+
+	void Construct(const FArguments& InArgs, UNiagaraDataInterface* InDataInterface, FNiagaraDataInterfaceFeedback InFeedback, bool bInWarning)
+	{
+		OnFixTriggered = InArgs._OnFixTriggered;
+
+		bWarning = bInWarning;
+		Feedback = InFeedback;
+		DataInterface = InDataInterface;
+
+		TSharedRef<SHorizontalBox> FeedbackBox = SNew(SHorizontalBox);
+
+		FeedbackBox->AddSlot()
+			.AutoWidth()
+			[
+				SNew(SHorizontalBox)
+				.ToolTipText(GetFeedbackTextTooltip())
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Image(FEditorStyle::GetBrush(bWarning ? "Icons.Warning" : "Icons.Info"))
+			]
+		+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Clipping(EWidgetClipping::ClipToBounds)
+			.Text(GetFeedbackSummary())
+			]
+			];
+		if (Feedback.GetFeedbackFixable())
+		{
+			FeedbackBox->AddSlot()
+				.VAlign(VAlign_Top)
+				.Padding(5, 0, 0, 0)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.OnClicked(this, &SNiagaraDataInterfaceFeedback::OnFixNowClicked)
+				.ToolTipText(NSLOCTEXT("NiagaraDataInterfaceFeedback", "FixButtonLabelToolTip", "Fix the data linked to this interface."))
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("NiagaraDataInterfaceFeedback", "FixButtonLabel", "Fix Now"))
+				]
+				];
+		}
+		ChildSlot
+			[
+				FeedbackBox
+			];
+	}
+
+private:
+	FText GetFeedbackSummary() const
+	{
+		return Feedback.GetFeedbackSummaryText();
+	}
+
+	FText GetFeedbackTextTooltip() const
+	{
+		return Feedback.GetFeedbackText();
+	}
+
+	FReply OnFixNowClicked()
+	{
+		FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraDataInterfaceDetails", "FixDataInterfaceTransaction", "Fix asset for data interface"));
+		OnFixTriggered.ExecuteIfBound();
+		Feedback.TryFixFeedback();
+		DataInterface->PostEditChange();
+		return FReply::Handled();
+	}
+
+private:
+	FNiagaraDataInterfaceFeedback Feedback;
+	IDetailLayoutBuilder* DetailBuilder;
+	UNiagaraDataInterface* DataInterface;
+	FSimpleDelegate OnFixTriggered;
+	bool bWarning;
 };
 
 class FNiagaraDataInterfaceCustomNodeBuilder : public IDetailCustomNodeBuilder
@@ -155,20 +255,52 @@ public:
 
 	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override
 	{
-		for (FNiagaraDataInterfaceError Error : DataInterface->GetErrors())
+		TArray<FNiagaraDataInterfaceError> Errors;
+		TArray<FNiagaraDataInterfaceFeedback> Warnings;
+		TArray<FNiagaraDataInterfaceFeedback> Infos;
+		UNiagaraDataInterface::GetFeedback(DataInterface.Get(), Errors, Warnings, Infos);
+
+		for (FNiagaraDataInterfaceError Error : Errors)
 		{
 			FDetailWidgetRow& Row = ChildrenBuilder.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceDetails", "DataError", "Data Error"));
 			Row.WholeRowContent()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
 				.AutoWidth()
 				[
 					SNew(SNiagaraDataInterfaceError, DataInterface.Get(), Error)
 					.OnFixTriggered(this, &FNiagaraDataInterfaceCustomNodeBuilder::OnErrorFixTriggered)
-			
 				]
-			];
+				];
+		}
+		for (FNiagaraDataInterfaceFeedback Warning : Warnings)
+		{
+			FDetailWidgetRow& Row = ChildrenBuilder.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceDetails", "DataWarning", "Data Warning"));
+			Row.WholeRowContent()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SNiagaraDataInterfaceFeedback, DataInterface.Get(), Warning, true)
+					.OnFixTriggered(this, &FNiagaraDataInterfaceCustomNodeBuilder::OnErrorFixTriggered)
+				]
+				];
+		}
+		for (FNiagaraDataInterfaceFeedback Info : Infos)
+		{
+			FDetailWidgetRow& Row = ChildrenBuilder.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceDetails", "DataInfo", "Data Info"));
+			Row.WholeRowContent()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SNiagaraDataInterfaceFeedback, DataInterface.Get(), Info, false)
+					.OnFixTriggered(this, &FNiagaraDataInterfaceCustomNodeBuilder::OnErrorFixTriggered)
+				]
+				];
 		}
 	}
 private:
@@ -187,7 +319,6 @@ private:
 		}
 	}
 
-
 private:
 	TWeakObjectPtr<UNiagaraDataInterface> DataInterface;
 	IDetailLayoutBuilder* DetailBuilder;
@@ -203,16 +334,16 @@ void FNiagaraDataInterfaceDetailsBase::CustomizeDetails(IDetailLayoutBuilder& De
 	check(SelectedObjects.Num() == 1);
 	DataInterface = Cast<UNiagaraDataInterface>(SelectedObjects[0].Get());
 	check(DataInterface.IsValid());
-	DataInterface->OnChanged().AddSP(this, &FNiagaraDataInterfaceDetailsBase::OnDataChanged);
-	IDetailCategoryBuilder& ErrorsBuilderRef = DetailBuilder.EditCategory(ErrorsCategoryName, LOCTEXT("Errors", "Errors"), ECategoryPriority::Important);
+	DataInterface->OnErrorsRefreshed().AddSP(this, &FNiagaraDataInterfaceDetailsBase::OnErrorsRefreshed);
+	IDetailCategoryBuilder& ErrorsBuilderRef = DetailBuilder.EditCategory(ErrorsCategoryName, LOCTEXT("ErrorsAndWarnings", "Errors And Warnings"), ECategoryPriority::Important);
 	ErrorsCategoryBuilder = &ErrorsBuilderRef;
 	CustomBuilder = MakeShared<FNiagaraDataInterfaceCustomNodeBuilder>(&DetailBuilder);
 	CustomBuilder->Initialize(*DataInterface);
 	ErrorsCategoryBuilder->AddCustomBuilder(CustomBuilder.ToSharedRef());
-	OnDataChanged();
+	OnErrorsRefreshed();
 }
 
-void FNiagaraDataInterfaceDetailsBase::OnDataChanged() // need to only refresh errors, and all will be good
+void FNiagaraDataInterfaceDetailsBase::OnErrorsRefreshed() // need to only refresh errors, and all will be good
 {
 	TSharedPtr<IPropertyUtilities> PropertyUtilities = PropertyUtilitiesWeak.Pin();
 	bool bStillValid =
@@ -224,15 +355,13 @@ void FNiagaraDataInterfaceDetailsBase::OnDataChanged() // need to only refresh e
 
 	if (bStillValid)
 	{
-		int CurrentErrorCount = DataInterface->GetErrors().Num();
-		if (CurrentErrorCount == 0)
-		{
-			ErrorsCategoryBuilder->SetCategoryVisibility(false);
-		}
-		else
-		{
-			ErrorsCategoryBuilder->SetCategoryVisibility(true);
-		}
+		TArray<FNiagaraDataInterfaceError> Errors;
+		TArray<FNiagaraDataInterfaceFeedback> Warnings;
+		TArray<FNiagaraDataInterfaceFeedback> Info;
+		UNiagaraDataInterface::GetFeedback(DataInterface.Get(), Errors, Warnings, Info);
+
+		int CurrentErrorCount = Errors.Num() + Warnings.Num() + Info.Num();
+		ErrorsCategoryBuilder->SetCategoryVisibility(CurrentErrorCount > 0);
 	}
 }
 

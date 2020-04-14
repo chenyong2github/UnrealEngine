@@ -93,7 +93,7 @@ void NSDeallocateObjectInterposer(id Obj)
  */
 void AppleLLM::Initialise()
 {
-	int32 TagCount = sizeof(ELLMTagApple) / sizeof(FLLMTagInfoApple);
+	int32 TagCount = sizeof(ELLMTagNamesApple) / sizeof(FLLMTagInfoApple);
 
 	for (int32 Index = 0; Index < TagCount; ++Index)
 	{

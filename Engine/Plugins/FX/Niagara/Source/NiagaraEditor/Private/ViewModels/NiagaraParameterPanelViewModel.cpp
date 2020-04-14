@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "NiagaraScriptVariable.h"
 #include "NiagaraGraph.h"
 #include "NiagaraActions.h"
@@ -27,207 +27,38 @@
 #include "ScopedTransaction.h"
 #include "NiagaraSystemEditorData.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraTypes.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanelViewModel"
 
-FText NiagaraParameterPanelSectionID::OnGetSectionTitle(const NiagaraParameterPanelSectionID::Type InSection)
+const TArray<TArray<ENiagaraParameterPanelCategory>> FNiagaraScriptToolkitParameterPanelViewModel::DefaultCategoryPaths = {
+	{ENiagaraParameterPanelCategory::Input}
+	, {ENiagaraParameterPanelCategory::Attributes, ENiagaraParameterPanelCategory::User}
+	, {ENiagaraParameterPanelCategory::Attributes, ENiagaraParameterPanelCategory::Engine}
+	, {ENiagaraParameterPanelCategory::Attributes, ENiagaraParameterPanelCategory::Owner}
+	, {ENiagaraParameterPanelCategory::Attributes, ENiagaraParameterPanelCategory::System}
+	, {ENiagaraParameterPanelCategory::Attributes, ENiagaraParameterPanelCategory::Emitter}
+	, {ENiagaraParameterPanelCategory::Attributes, ENiagaraParameterPanelCategory::Particles}
+	, {ENiagaraParameterPanelCategory::Output, ENiagaraParameterPanelCategory::System}
+	, {ENiagaraParameterPanelCategory::Output, ENiagaraParameterPanelCategory::Emitter}
+	, {ENiagaraParameterPanelCategory::Output, ENiagaraParameterPanelCategory::Particles}
+	, {ENiagaraParameterPanelCategory::Output, ENiagaraParameterPanelCategory::ScriptTransient}
+	, {ENiagaraParameterPanelCategory::Local}
+};
+
+const TArray<TArray<ENiagaraParameterPanelCategory>> FNiagaraSystemToolkitParameterPanelViewModel::DefaultCategoryPaths = {
+	{ENiagaraParameterPanelCategory::User}
+	, {ENiagaraParameterPanelCategory::Engine}
+	, {ENiagaraParameterPanelCategory::Owner}
+	, {ENiagaraParameterPanelCategory::System}
+	, {ENiagaraParameterPanelCategory::Emitter}
+	, {ENiagaraParameterPanelCategory::Particles}
+};
+
+TSharedRef<class SWidget> INiagaraParameterPanelViewModel::GetScriptParameterVisualWidget(const FNiagaraScriptVariableAndViewInfo& ScriptVarAndViewInfo) const
 {
-	/* Setup an appropriate name for the section for this node */
-	FText SectionTitle;
-	switch (InSection)
-	{
-	case NiagaraParameterPanelSectionID::ENGINE:
-		SectionTitle = LOCTEXT("EngineParamSection", "Engine");
-		break;
-	case NiagaraParameterPanelSectionID::USER:
-		SectionTitle = LOCTEXT("UserParamSection", "User");
-		break;
-	case NiagaraParameterPanelSectionID::SYSTEM:
-		SectionTitle = LOCTEXT("SystemParamSection", "System");
-		break;
-	case NiagaraParameterPanelSectionID::EMITTER:
-		SectionTitle = LOCTEXT("EmitterParamSection", "Emitter");
-		break;
-	case NiagaraParameterPanelSectionID::OWNER:
-		SectionTitle = LOCTEXT("OwnerParamSection", "Owner");
-		break;
-	case NiagaraParameterPanelSectionID::PARTICLES:
-		SectionTitle = LOCTEXT("ParticlesParamSection", "Particles");
-		break;
-	case NiagaraParameterPanelSectionID::INPUTS:
-		SectionTitle = LOCTEXT("InputsParamSection", "Inputs");
-		break;
-	case NiagaraParameterPanelSectionID::REFERENCES:
-		SectionTitle = LOCTEXT("ReferencesParamSection", "References");
-		break;
-	case NiagaraParameterPanelSectionID::OUTPUTS:
-		SectionTitle = LOCTEXT("OutputsParamSection", "Outputs");
-		break;
-	case NiagaraParameterPanelSectionID::LOCALS:
-		SectionTitle = LOCTEXT("LocalsParamSection", "Locals");
-		break;
-	case NiagaraParameterPanelSectionID::INITIALVALUES:
-		SectionTitle = LOCTEXT("InitialValuesParamSection", "Initial Values");
-		break;
-	case NiagaraParameterPanelSectionID::CUSTOM:
-		SectionTitle = LOCTEXT("CustomParamSection", "Custom");
-		break;
-// 	case NiagaraParameterPanelSectionID::PARAMETERCOLLECTION: //@TODO implement parameter collection handling
-// 		SectionTitle = NSLOCTEXT("GraphActionNode", "ParameterCollection", "Parameter Collection");
-// 		break;
-	case NiagaraParameterPanelSectionID::NONE:
-	default:
-		SectionTitle = FText::GetEmpty();
-		break;
-	}
-
-	return SectionTitle;
-}
-
-const NiagaraParameterPanelSectionID::Type NiagaraParameterPanelSectionID::GetSectionForScope(ENiagaraParameterScope InScope)
-{
-	switch (InScope) {
-	case ENiagaraParameterScope::Engine:
-		return NiagaraParameterPanelSectionID::ENGINE;
-	case ENiagaraParameterScope::Owner:
-		return NiagaraParameterPanelSectionID::OWNER;
-	case ENiagaraParameterScope::User:
-		return NiagaraParameterPanelSectionID::USER;
-	case ENiagaraParameterScope::System:
-		return NiagaraParameterPanelSectionID::SYSTEM;
-	case ENiagaraParameterScope::Emitter:
-		return NiagaraParameterPanelSectionID::EMITTER;
-	case ENiagaraParameterScope::Particles:
-		return NiagaraParameterPanelSectionID::PARTICLES;
-	case ENiagaraParameterScope::Custom:
-		return NiagaraParameterPanelSectionID::CUSTOM;
-	case ENiagaraParameterScope::ScriptPersistent:
-	case ENiagaraParameterScope::ScriptTransient:
-		// This is a potential situation if a script alias param has not had its scope cached by compiling.
-		ensureMsgf(false, TEXT("Tried to get section ID for script transient or persistent scope parameter!"));
-		return NiagaraParameterPanelSectionID::NONE;
-	default:
-		ensureMsgf(false, TEXT("Failed to find matching section ID for script parameter scope!"));
-	};
-	return NiagaraParameterPanelSectionID::NONE;
-}
-
-const NiagaraParameterPanelSectionID::Type NiagaraParameterPanelSectionID::GetSectionForParameterMetaData(const FNiagaraVariableMetaData& MetaData)
-{
-	if (MetaData.GetIsStaticSwitch())
-	{
-		return NiagaraParameterPanelSectionID::INPUTS;
-	}
-
-	ENiagaraParameterScope MetaDataScope;
-	FNiagaraEditorUtilities::GetVariableMetaDataScope(MetaData, MetaDataScope);
-	ENiagaraScriptParameterUsage MetaDataUsage = MetaData.GetUsage();
-
-	if (MetaDataUsage == ENiagaraScriptParameterUsage::Local)
-	{
-		return NiagaraParameterPanelSectionID::LOCALS;
-	}
-	else if (MetaDataUsage == ENiagaraScriptParameterUsage::InitialValueInput)
-	{
-		return NiagaraParameterPanelSectionID::INITIALVALUES;
-	}
-	else if (MetaDataUsage == ENiagaraScriptParameterUsage::Input)
-	{
-		if (MetaDataScope == ENiagaraParameterScope::Input)
-		{
-			return NiagaraParameterPanelSectionID::INPUTS;
-		}
-		else
-		{
-			return NiagaraParameterPanelSectionID::REFERENCES;
-		}
-	}
-	else if (MetaDataUsage == ENiagaraScriptParameterUsage::Output)
-	{
-		return NiagaraParameterPanelSectionID::OUTPUTS;
-	}
-	else if (MetaDataUsage == ENiagaraScriptParameterUsage::InputOutput)
-	{
-		ensureMsgf(false, TEXT("Encountered an InputOutput parameter usage when getting section ID for parameter panel!"));
-		return NiagaraParameterPanelSectionID::REFERENCES;
-	}
-	else
-	{
-		ensureMsgf(false, TEXT("Failed to find matching section ID for script parameter usage!"));
-	}
-	return NiagaraParameterPanelSectionID::LOCALS;
-}
-
-ENiagaraParameterScope NiagaraParameterPanelSectionID::GetScopeForNewParametersInSection(NiagaraParameterPanelSectionID::Type InSection)
-{
-	switch (InSection) {
-	case NiagaraParameterPanelSectionID::ENGINE:
-		return ENiagaraParameterScope::Engine;
-	case NiagaraParameterPanelSectionID::OWNER:
-		return ENiagaraParameterScope::Owner;
-	case NiagaraParameterPanelSectionID::USER:
-		return ENiagaraParameterScope::User;
-	case NiagaraParameterPanelSectionID::SYSTEM:
-		return ENiagaraParameterScope::System;
-	case NiagaraParameterPanelSectionID::EMITTER:
-		return ENiagaraParameterScope::Emitter;
-	case NiagaraParameterPanelSectionID::PARTICLES:
-		return ENiagaraParameterScope::Particles;
-	case NiagaraParameterPanelSectionID::LOCALS:
-		return ENiagaraParameterScope::Local;
-	case NiagaraParameterPanelSectionID::INITIALVALUES:
-		return ENiagaraParameterScope::Particles;
-	case NiagaraParameterPanelSectionID::INPUTS:
-		return ENiagaraParameterScope::Input;
-	case NiagaraParameterPanelSectionID::OUTPUTS:
-		return ENiagaraParameterScope::Output;
-
-	// Default to Particles scope if coming from section IDs that are not directly associated with scope.
-	case NiagaraParameterPanelSectionID::REFERENCES:
-		return ENiagaraParameterScope::Particles;
-
-	case NiagaraParameterPanelSectionID::NONE:
-		ensureMsgf(false, TEXT("Encountered invalid parameter panel section ID NONE when getting scope from section!"));
-		break;
-	};
-	ensureMsgf(false, TEXT("Did not encounter a known section ID when getting scope from section!"));
-	return ENiagaraParameterScope::Particles;
-}
-
-ENiagaraScriptParameterUsage NiagaraParameterPanelSectionID::GetUsageForNewParametersInSection(NiagaraParameterPanelSectionID::Type InSection)
-{
-	switch (InSection) {
-	case NiagaraParameterPanelSectionID::INPUTS:
-	case NiagaraParameterPanelSectionID::REFERENCES:
-		return ENiagaraScriptParameterUsage::Input;
-	case NiagaraParameterPanelSectionID::OUTPUTS:
-		return ENiagaraScriptParameterUsage::Output;
-	case NiagaraParameterPanelSectionID::LOCALS:
-		return ENiagaraScriptParameterUsage::Local;
-	case NiagaraParameterPanelSectionID::INITIALVALUES:
-		return ENiagaraScriptParameterUsage::InitialValueInput;
-
-	// By convention, default new parameters created in system editor to output usage.
-	case NiagaraParameterPanelSectionID::ENGINE:
-	case NiagaraParameterPanelSectionID::USER:
-	case NiagaraParameterPanelSectionID::SYSTEM:
-	case NiagaraParameterPanelSectionID::EMITTER:
-	case NiagaraParameterPanelSectionID::PARTICLES:
-		return ENiagaraScriptParameterUsage::Output;
-
-	case NiagaraParameterPanelSectionID::NONE:
-		ensureMsgf(false, TEXT("Encountered invalid parameter panel section ID NONE when getting usage from section!"));
-		break;
-	};
-	ensureMsgf(false, TEXT("Did not encounter a known section ID when getting usage from section!"));
-	return ENiagaraScriptParameterUsage::Output;
-}
-
-TSharedRef<SWidget> INiagaraParameterPanelViewModel::GetScriptParameterVisualWidget(FCreateWidgetForActionData* const InCreateData) const
-{
-	TSharedPtr<FNiagaraScriptVarAndViewInfoAction> ScriptVarAndViewInfoAction = StaticCastSharedPtr<FNiagaraScriptVarAndViewInfoAction>(InCreateData->Action);
-	const FNiagaraScriptVariableAndViewInfo& ScriptVarAndViewInfo = ScriptVarAndViewInfoAction.Get()->ScriptVariableAndViewInfo;
-	TSharedPtr<FNiagaraParameterPanelEntryParameterNameViewModel> ParameterNameViewModel = MakeShared<FNiagaraParameterPanelEntryParameterNameViewModel>(InCreateData, ScriptVarAndViewInfo);
+	TSharedPtr<FNiagaraParameterPanelEntryParameterNameViewModel> ParameterNameViewModel = MakeShared<FNiagaraParameterPanelEntryParameterNameViewModel>(ScriptVarAndViewInfo);
 	ParameterNameViewModel->GetOnParameterRenamedDelegate().BindSP(this, &INiagaraParameterPanelViewModel::RenameParameter);
 	ParameterNameViewModel->GetOnScopeSelectionChangedDelegate().BindSP(this, &INiagaraParameterPanelViewModel::ChangeParameterScope);
 	ParameterNameViewModel->GetOnVerifyParameterRenamedDelegate().BindSP(this, &INiagaraParameterPanelViewModel::GetCanRenameParameterAndToolTip);
@@ -275,38 +106,6 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Refresh() const
 	OnParameterPanelViewModelRefreshed.ExecuteIfBound();
 }
 
-void FNiagaraSystemToolkitParameterPanelViewModel::CollectStaticSections(TArray<int32>& StaticSectionIDs) const
-{
-	// Generic Emitter/System view, categorize by scope
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::USER);
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::ENGINE);
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::OWNER);
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::SYSTEM);
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::EMITTER);
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::PARTICLES);
-}
-
-NiagaraParameterPanelSectionID::Type FNiagaraSystemToolkitParameterPanelViewModel::GetSectionForVarAndViewInfo(const FNiagaraScriptVariableAndViewInfo& VarAndViewInfo) const
-{
-	// Generic Emitter/System view, categorize by scope
-
-	ENiagaraParameterScope ParameterScope = ENiagaraParameterScope::None;
-	FNiagaraEditorUtilities::GetVariableMetaDataScope(VarAndViewInfo.MetaData, ParameterScope);
-	if (VarAndViewInfo.MetaData.GetUsage() == ENiagaraScriptParameterUsage::Input && ParameterScope != ENiagaraParameterScope::Input)
-	{
-		return NiagaraParameterPanelSectionID::GetSectionForScope(ParameterScope);
-	}
-	else
-	{
-		//return NiagaraParameterPanelSectionID::GetSectionForScope(VarAndViewInfo.ScriptVariableMetaData.LastPrecompileScope); //@todo(ng) cache the known scope in the niagarasystem
-		FNiagaraVariableMetaData OutMetaData;
-		FNiagaraEditorUtilities::GetParameterMetaDataFromName(VarAndViewInfo.ScriptVariable.GetName(), OutMetaData);
-		ENiagaraParameterScope OutMetaDataScope;
-		FNiagaraEditorUtilities::GetVariableMetaDataScope(OutMetaData, OutMetaDataScope);
-		return NiagaraParameterPanelSectionID::GetSectionForScope(OutMetaDataScope);
-	}
-}
-
 const UNiagaraScriptVariable* FNiagaraSystemToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable& VariableToAdd, const FNiagaraVariableMetaData& InVariableMetaDataToAssign)
 {
 	FScopedTransaction AddParameter(LOCTEXT("AddParameter", "Add Parameter"));
@@ -322,17 +121,18 @@ const UNiagaraScriptVariable* FNiagaraSystemToolkitParameterPanelViewModel::AddP
 	FNiagaraEditorUtilities::GetVariableMetaDataScope(InVariableMetaDataToAssign, NewScope);
 	if (NewScope == ENiagaraParameterScope::User)
 	{
-		SystemViewModel->GetSystem().Modify();
-		UNiagaraSystem* System = &SystemViewModel->GetSystem();
-		UNiagaraSystemEditorData* SystemEditorData = CastChecked<UNiagaraSystemEditorData>(System->GetEditorData(), ECastCheckedType::NullChecked);
+		UNiagaraSystem& System = SystemViewModel->GetSystem();
+		System.Modify();
+		UNiagaraSystemEditorData* SystemEditorData = CastChecked<UNiagaraSystemEditorData>(System.GetEditorData(), ECastCheckedType::NullChecked);
 		SystemEditorData->Modify();
-		bool bSuccess = FNiagaraEditorUtilities::AddParameter(VariableToAdd, System->GetExposedParameters(), *System, SystemEditorData->GetStackEditorData());
+		bool bSuccess = FNiagaraEditorUtilities::AddParameter(VariableToAdd, System.GetExposedParameters(), System, &SystemEditorData->GetStackEditorData());
+		Refresh();
 	}
 	else if (NewScope == ENiagaraParameterScope::System)
 	{
 		UNiagaraGraph* Graph = SystemViewModel->GetSystemScriptViewModel()->GetGraphViewModel()->GetGraph();
 		Graph->Modify();
-		const UNiagaraScriptVariable* NewScriptVar = Graph->AddParameter(VariableToAdd, AddParameterOptions); //@todo(ng) verify
+		const UNiagaraScriptVariable* NewScriptVar = Graph->AddParameter(VariableToAdd, AddParameterOptions);
 		Refresh();
 		return NewScriptVar;
 	}
@@ -365,7 +165,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::DeleteParameter(const FNiagar
 	ENiagaraParameterScope TargetVariableScope = ENiagaraParameterScope::None;
 	FNiagaraEditorUtilities::GetVariableMetaDataScope(TargetVariableMetaData, TargetVariableScope);
 
-	if (TargetVariableMetaData.IsInputUsage() && TargetVariableScope == ENiagaraParameterScope::User) //@todo(ng) verify
+	if (TargetVariableMetaData.IsInputUsage() && TargetVariableScope == ENiagaraParameterScope::User)
 	{
 		SystemViewModel->GetSystem().Modify();
 		SystemViewModel->GetSystem().GetExposedParameters().RemoveParameter(TargetVariableToRemove);
@@ -411,14 +211,32 @@ void FNiagaraSystemToolkitParameterPanelViewModel::RenameParameter(const FNiagar
 		NewVariableName = FName(*NewVariableNameText.ToString());
 	}
 
-	for (const TWeakObjectPtr<UNiagaraGraph>& Graph : GetEditableEmitterScriptGraphs())
+	ENiagaraParameterScope NewScope;
+	FNiagaraEditorUtilities::GetVariableMetaDataScope(TargetVariableMetaData, NewScope);
+	if (NewScope == ENiagaraParameterScope::User)
 	{
-		if (ensureMsgf(Graph.IsValid(), TEXT("Editable Emitter Script Graph was stale when renaming parameter!")))
+		UNiagaraSystem& System = SystemViewModel->GetSystem();
+		System.Modify();
+		System.GetExposedParameters().RenameParameter(TargetVariableToRename, NewVariableName);
+	}
+	else if (NewScope == ENiagaraParameterScope::System)
+	{
+		UNiagaraGraph* Graph = SystemViewModel->GetSystemScriptViewModel()->GetGraphViewModel()->GetGraph();
+		Graph->Modify();
+		Graph->RenameParameter(TargetVariableToRename, NewVariableName);
+	}
+	else
+	{
+		for (TWeakObjectPtr<UNiagaraGraph> Graph : GetEditableEmitterScriptGraphs())
 		{
-			Graph->Modify();
-			Graph->RenameParameter(TargetVariableToRename, NewVariableName, false, TargetVariableMetaData.GetScopeName()); //@todo(ng) handle renaming system params
+			if (ensureMsgf(Graph.IsValid(), TEXT("Editable Emitter Script Graph was stale when adding parameter!")))
+			{
+				Graph->Modify();
+				Graph->RenameParameter(TargetVariableToRename, NewVariableName);
+			}
 		}
 	}
+
 	Refresh();
 }
 
@@ -452,22 +270,72 @@ bool FNiagaraSystemToolkitParameterPanelViewModel::GetCanRenameParameterAndToolT
 
 FReply FNiagaraSystemToolkitParameterPanelViewModel::HandleActionDragged(const TSharedPtr<FEdGraphSchemaAction>& InAction, const FPointerEvent& MouseEvent) const
 {
-	const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nScope: {2}\nUsage: {3}"); //@todo(ng) move to static define
+	const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nScope: {2}\nUsage: {3}");
 	const FNiagaraScriptVarAndViewInfoAction* ScriptVarAction = static_cast<FNiagaraScriptVarAndViewInfoAction*>(InAction.Get());
 	const FNiagaraScriptVariableAndViewInfo& ScriptVarAndViewInfo = ScriptVarAction->ScriptVariableAndViewInfo;
-	NiagaraParameterPanelSectionID::Type Section = NiagaraParameterPanelSectionID::GetSectionForParameterMetaData(ScriptVarAndViewInfo.MetaData);
+	//NiagaraParameterPanelSectionID::Type Section = NiagaraParameterPanelSectionID::GetSectionForParameterMetaData(ScriptVarAndViewInfo.MetaData);
 	const FNiagaraVariable& Var = ScriptVarAndViewInfo.ScriptVariable;
 	const FText Name = FText::FromName(Var.GetName());
 	const FText ScopeText = FText::FromName(ScriptVarAndViewInfo.MetaData.GetScopeName());
 	const FText UsageText = StaticEnum<ENiagaraScriptParameterUsage>()->GetDisplayNameTextByValue((int64)ScriptVarAndViewInfo.MetaData.GetUsage());
 	const FText Tooltip = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), ScopeText, UsageText);
 
-	TSharedPtr<FNiagaraParameterAction> ParameterAction = MakeShared<FNiagaraParameterAction>(Var, FText::GetEmpty(), Name, Tooltip, 0, FText(), Section);
+	TSharedPtr<FNiagaraParameterAction> ParameterAction = MakeShared<FNiagaraParameterAction>(Var, FText::GetEmpty(), Name, Tooltip, 0, FText(), 0);
 	TSharedRef<FNiagaraParameterDragOperation> DragOperation = MakeShared<FNiagaraParameterDragOperation>(ParameterAction);
 	DragOperation->CurrentHoverText = InAction->GetMenuDescription();
 	DragOperation->SetupDefaults();
 	DragOperation->Construct();
 	return FReply::Handled().BeginDragDrop(DragOperation);
+}
+
+const TArray<TArray<ENiagaraParameterPanelCategory>>& FNiagaraSystemToolkitParameterPanelViewModel::GetDefaultCategoryPaths() const
+{
+	return FNiagaraSystemToolkitParameterPanelViewModel::DefaultCategoryPaths;
+}
+
+TArray<ENiagaraParameterPanelCategory> FNiagaraSystemToolkitParameterPanelViewModel::GetCategoriesForParameter(const FNiagaraScriptVariableAndViewInfo& ScriptVar) const
+{
+	TArray<ENiagaraParameterPanelCategory> Categories;
+	
+	if (ScriptVar.MetaData.GetIsStaticSwitch())
+	{
+		Categories.Add(ENiagaraParameterPanelCategory::StaticSwitch);
+		return Categories;
+	}
+
+	const FNiagaraParameterScopeInfo* ScopeInfo = FNiagaraEditorModule::FindParameterScopeInfo(ScriptVar.MetaData.GetScopeName());
+	if (ScopeInfo != nullptr)
+	{
+		const ENiagaraParameterScope ParameterScope = ScopeInfo->GetScope();
+		switch (ParameterScope) {
+		case ENiagaraParameterScope::User:
+			Categories.Add(ENiagaraParameterPanelCategory::User);
+			return Categories;
+		case ENiagaraParameterScope::Engine:
+			Categories.Add(ENiagaraParameterPanelCategory::Engine);
+			return Categories;
+		case ENiagaraParameterScope::Owner:
+			Categories.Add(ENiagaraParameterPanelCategory::Owner);
+			return Categories;
+		case ENiagaraParameterScope::System:
+			Categories.Add(ENiagaraParameterPanelCategory::System);
+			return Categories;
+		case ENiagaraParameterScope::Emitter:
+			Categories.Add(ENiagaraParameterPanelCategory::Emitter);
+			return Categories;
+		case ENiagaraParameterScope::Particles:
+			Categories.Add(ENiagaraParameterPanelCategory::Particles);
+			return Categories;
+		case ENiagaraParameterScope::ScriptTransient:
+			Categories.Add(ENiagaraParameterPanelCategory::ScriptTransient);
+			return Categories;
+		case ENiagaraParameterScope::Custom:
+			return Categories;
+		default:
+			ensureMsgf(false, TEXT("Unexpected parameter scope encountered when getting category for parameter panel entry!"));
+		}
+	}
+	return Categories;
 }
 
 TArray<TWeakObjectPtr<UNiagaraGraph>> FNiagaraSystemToolkitParameterPanelViewModel::GetEditableGraphs() const
@@ -579,7 +447,7 @@ TArray<TWeakObjectPtr<UNiagaraGraph>> FNiagaraSystemToolkitParameterPanelViewMod
 /// Script Toolkit Parameter Panel View Model								///
 ///////////////////////////////////////////////////////////////////////////////
 
-FNiagaraScriptToolkitParameterPanelViewModel::FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraStandaloneScriptViewModel> InScriptViewModel)
+FNiagaraScriptToolkitParameterPanelViewModel::FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraScriptViewModel> InScriptViewModel)
 {
 	ScriptViewModel = InScriptViewModel;
 	VariableObjectSelection = ScriptViewModel->GetVariableSelection();
@@ -616,20 +484,6 @@ void FNiagaraScriptToolkitParameterPanelViewModel::HandleGraphSubObjectSelection
 	OnParameterPanelViewModelExternalSelectionChanged.Broadcast(Obj);
 }
 
-void FNiagaraScriptToolkitParameterPanelViewModel::CollectStaticSections(TArray<int32>& StaticSectionIDs) const
-{
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::INPUTS);
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::REFERENCES);
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::OUTPUTS);
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::LOCALS);
-	StaticSectionIDs.Add(NiagaraParameterPanelSectionID::INITIALVALUES);
-}
-
-NiagaraParameterPanelSectionID::Type FNiagaraScriptToolkitParameterPanelViewModel::GetSectionForVarAndViewInfo(const FNiagaraScriptVariableAndViewInfo& VarAndViewInfo) const
-{
-	return NiagaraParameterPanelSectionID::GetSectionForParameterMetaData(VarAndViewInfo.MetaData);
-}
-
 const UNiagaraScriptVariable* FNiagaraScriptToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable& VariableToAdd, const FNiagaraVariableMetaData& InVariableMetaDataToAssign)
 {
 	ENiagaraScriptParameterUsage InVariableUsage = InVariableMetaDataToAssign.GetUsage();
@@ -648,7 +502,9 @@ const UNiagaraScriptVariable* FNiagaraScriptToolkitParameterPanelViewModel::AddP
 
 		UNiagaraGraph* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph();
 		Graph->Modify();
-		return Graph->AddParameter(VariableToAdd, AddParameterOptions);
+		const UNiagaraScriptVariable* NewScriptVariable = Graph->AddParameter(VariableToAdd, AddParameterOptions);
+		Refresh();
+		return NewScriptVariable;
 	}
 	return nullptr;
 }
@@ -833,6 +689,98 @@ FReply FNiagaraScriptToolkitParameterPanelViewModel::HandleActionDragged(const T
 	DragOperation->SetAltDrag(MouseEvent.IsAltDown());
 	DragOperation->SetCtrlDrag(MouseEvent.IsLeftControlDown() || MouseEvent.IsRightControlDown());
 	return FReply::Handled().BeginDragDrop(DragOperation);
+}
+
+const TArray<TArray<ENiagaraParameterPanelCategory>>& FNiagaraScriptToolkitParameterPanelViewModel::GetDefaultCategoryPaths() const
+{
+	return FNiagaraScriptToolkitParameterPanelViewModel::DefaultCategoryPaths;
+}
+
+TArray<ENiagaraParameterPanelCategory> FNiagaraScriptToolkitParameterPanelViewModel::GetCategoriesForParameter(const FNiagaraScriptVariableAndViewInfo& ScriptVar) const
+{
+	TArray<ENiagaraParameterPanelCategory> Categories;
+
+	if (ScriptVar.MetaData.GetIsStaticSwitch())
+	{
+		Categories.Add(ENiagaraParameterPanelCategory::Input);
+		Categories.Add(ENiagaraParameterPanelCategory::StaticSwitch);
+		return Categories;
+	}
+
+	const ENiagaraScriptParameterUsage& Usage = ScriptVar.MetaData.GetUsage();
+	if (Usage == ENiagaraScriptParameterUsage::Input || Usage == ENiagaraScriptParameterUsage::Output)
+	{
+		const FNiagaraParameterScopeInfo* ScopeInfo = FNiagaraEditorModule::FindParameterScopeInfo(ScriptVar.MetaData.GetScopeName());
+		if (ScopeInfo != nullptr)
+		{
+			if (Usage == ENiagaraScriptParameterUsage::Input)
+			{
+				if (ScopeInfo->GetNamespaceString() == PARAM_MAP_MODULE_STR)
+				{
+					Categories.Add(ENiagaraParameterPanelCategory::Input);
+					return Categories;
+				}
+				Categories.Add(ENiagaraParameterPanelCategory::Attributes);
+			}
+			else
+			{
+				Categories.Add(ENiagaraParameterPanelCategory::Output);
+			}
+			
+			const ENiagaraParameterScope& ParameterScope = ScopeInfo->GetScope();
+			switch (ParameterScope) {
+			case ENiagaraParameterScope::User:
+				Categories.Add(ENiagaraParameterPanelCategory::User);
+				return Categories;
+			case ENiagaraParameterScope::Engine:
+				Categories.Add(ENiagaraParameterPanelCategory::Engine);
+				return Categories;
+			case ENiagaraParameterScope::Owner:
+				Categories.Add(ENiagaraParameterPanelCategory::Owner);
+				return Categories;
+			case ENiagaraParameterScope::System:
+				Categories.Add(ENiagaraParameterPanelCategory::System);
+				return Categories;
+			case ENiagaraParameterScope::Emitter:
+				Categories.Add(ENiagaraParameterPanelCategory::Emitter);
+				return Categories;
+			case ENiagaraParameterScope::Particles:
+				Categories.Add(ENiagaraParameterPanelCategory::Particles);
+				return Categories;
+			case ENiagaraParameterScope::ScriptTransient:
+				Categories.Add(ENiagaraParameterPanelCategory::ScriptTransient);
+				return Categories;
+			case ENiagaraParameterScope::Output:
+				Categories.Add(ENiagaraParameterPanelCategory::Output);
+				return Categories;
+			default:
+				ensureMsgf(false, TEXT("Unexpected ENiagaraParameterScope encountered when getting categories for parameter panel entry!"));
+				return Categories;
+			}
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Unregistered ScopeName encountered when getting categories for parameter panel entry! Name: %s"), *ScriptVar.MetaData.GetScopeName().ToString());
+			return Categories;
+		}
+	}
+	else if (Usage == ENiagaraScriptParameterUsage::Local)
+	{
+		Categories.Add(ENiagaraParameterPanelCategory::Local);
+		return Categories;
+	}
+	else if (Usage == ENiagaraScriptParameterUsage::InputOutput)
+	{
+		ensureMsgf(false, TEXT("Encountered InputOutput usage entry when getting categories for parameter panel entry! InputOuput usage should be split to separate Input and Output usage entries!"));
+		return Categories;
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("Illegal ENiagaraScriptParameterUsage encountered when getting categories for parameter panel entry!"));
+		return Categories;
+	}
+
+	return Categories;
 }
 
 TSharedRef<SWidget> FNiagaraScriptToolkitParameterPanelViewModel::GetScriptParameterVisualWidget(const UEdGraphPin* Pin) const

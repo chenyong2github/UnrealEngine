@@ -1026,11 +1026,11 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				const FSceneView& ActiveSceneView = *SceneViews[ActiveSceneIndex];
 
 				FSlateMaterialResource* MaterialShaderResource = (FSlateMaterialResource*)ShaderResource;
-				if (MaterialShaderResource->GetMaterialObject() != nullptr)
+				if (FMaterialRenderProxy* MaterialRenderProxy = MaterialShaderResource->GetRenderProxy())
 				{
 					MaterialShaderResource->CheckForStaleResources();
 
-					FMaterialRenderProxy* MaterialRenderProxy = MaterialShaderResource->GetRenderProxy();
+					//FMaterialRenderProxy* MaterialRenderProxy = MaterialShaderResource->GetRenderProxy();
 
 					const FMaterial* Material = MaterialRenderProxy->GetMaterial(ActiveSceneView.GetFeatureLevel());
 

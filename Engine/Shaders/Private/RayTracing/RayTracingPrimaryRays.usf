@@ -11,11 +11,11 @@
 #define USE_SOURCE_TEXTURE_ARRAY	1
 
 #define LTCMatTexture				RaytracingLightsDataPacked.LTCMatTexture
-#define LTCMatSampler				RaytracingLightsDataPacked.LTCMatSampler
+#define LTCMatSampler				GlobalBilinearClampedSampler
 #define LTCAmpTexture				RaytracingLightsDataPacked.LTCAmpTexture
-#define LTCAmpSampler				RaytracingLightsDataPacked.LTCAmpSampler
-#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF			
-#define PreIntegratedGFSampler		ReflectionStruct.PreIntegratedGFSampler	
+#define LTCAmpSampler				GlobalBilinearClampedSampler
+#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF
+#define PreIntegratedGFSampler		GlobalBilinearClampedSampler
 
 #include "../DeferredShadingCommon.ush"
 #include "../DeferredLightingCommon.ush"
@@ -281,13 +281,22 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 
 			float ReflectionRefractionEventThroughput;
 			bool bIsEntering = Payload.IsFrontFace();
-			float N1 = bIsEntering ? 1.0 : Ior;
-			float N2 = bIsEntering ? Ior : 1.0;
-			float Eta = N1 / N2;
 
 			float3 N = Payload.WorldNormal;
 			float3 V = -Ray.Direction;
-			float NoV = saturate(dot(N, V));
+			float NoV = dot(N, V);
+
+			// Hack to allow one-sided materials to be modeled as dielectrics
+			if (NoV < 0.0)
+			{
+				NoV = -NoV;
+				N = -N;
+				bIsEntering = true;
+			}
+
+			float N1 = bIsEntering ? 1.0 : Ior;
+			float N2 = bIsEntering ? Ior : 1.0;
+			float Eta = N1 / N2;
 			float NoT = CalcNoT(NoV, N1, N2);
 			float Fr = FresnelDielectric(Eta, NoV, NoT);
 

@@ -72,6 +72,10 @@ public:
 	static jmethodID AndroidThunkJava_SetSustainedPerformanceMode;
 	static jmethodID AndroidThunkJava_PushSensorEvents;
 
+	// Screen capture/recording permission
+	static jmethodID AndroidThunkJava_IsScreenCaptureDisabled;
+	static jmethodID AndroidThunkJava_DisableScreenCapture;
+
 	static jmethodID AndroidThunkCpp_VirtualInputIgnoreClick;
 	static jmethodID AndroidThunkCpp_IsVirtuaKeyboardShown;
 	static jmethodID AndroidThunkCpp_IsWebViewShown;

@@ -17,15 +17,42 @@ class FName;
 namespace Chaos
 {
 
-struct FParticlePositionRotation
+class FParticlePositionRotation
 {
-	FVec3 X;
-	FRotation3 R;
-
+public:
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << X << R;
+		Ar << MX << MR;
 	}
+
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
+	{
+		MX = Other.X();
+		MR = Other.R();
+	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return MX == Other.X() && MR == Other.R();
+	}
+
+	bool operator==(const FParticlePositionRotation& Other) const
+	{
+		return IsEqual(Other);
+	}
+
+	const FVec3& X() const { return MX; }
+	void SetX(const FVec3& InX){ MX = InX; }
+
+	const FRotation3& R() const { return MR; }
+	void SetR(const FRotation3& InR){ MR = InR; }
+	
+private:
+	FVec3 MX;
+	FRotation3 MR;
+
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticlePositionRotation& Data)
@@ -34,15 +61,41 @@ inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticlePositionRotation& Da
 	return Ar;
 }
 
-struct FParticleVelocities
+class FParticleVelocities
 {
+public:
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << V << W;
+		Ar << MV << MW;
 	}
 
-	FVec3 V;
-	FVec3 W;
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
+	{
+		MV = Other.V();
+		MW = Other.W();
+	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return MV == Other.V() && MW == Other.W();
+	}
+
+	bool operator==(const FParticleVelocities& Other) const
+	{
+		return IsEqual(Other);
+	}
+
+	const FVec3& V() const { return MV; }
+	void SetV(const FVec3& V) { MV = V; }
+
+	const FVec3& W() const { return MW; }
+	void SetW(const FVec3& W){ MW = W; }
+
+private:
+	FVec3 MV;
+	FVec3 MW;
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleVelocities& Data)
@@ -51,20 +104,58 @@ inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleVelocities& Data)
 	return Ar;
 }
 
-struct FParticleDynamics
+class FParticleDynamics
 {
-	FVec3 F;
-	FVec3 Torque;
-	FVec3 LinearImpulse;
-	FVec3 AngularImpulse;
-
+public:
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << F;
-		Ar << Torque;
-		Ar << LinearImpulse;
-		Ar << AngularImpulse;	
+		Ar << MF;
+		Ar << MTorque;
+		Ar << MLinearImpulse;
+		Ar << MAngularImpulse;	
 	}
+
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
+	{
+		MF = Other.F();
+		MTorque = Other.Torque();
+		MLinearImpulse = Other.LinearImpulse();
+		MAngularImpulse = Other.AngularImpulse();
+	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return F() == Other.F()
+			&& Torque() == Other.Torque()
+			&& LinearImpulse() == Other.LinearImpulse()
+			&& AngularImpulse() == Other.AngularImpulse();
+	}
+
+	bool operator==(const FParticleDynamics& Other) const
+	{
+		return IsEqual(Other);
+	}
+
+	const FVec3& F() const { return MF; }
+	void SetF(const FVec3& F){ MF = F; }
+
+	const FVec3& Torque() const { return MTorque; }
+	void SetTorque(const FVec3& Torque){ MTorque = Torque; }
+
+	const FVec3& LinearImpulse() const { return MLinearImpulse; }
+	void SetLinearImpulse(const FVec3& LinearImpulse){ MLinearImpulse = LinearImpulse; }
+
+	const FVec3& AngularImpulse() const { return MAngularImpulse; }
+	void SetAngularImpulse(const FVec3& AngularImpulse){ MAngularImpulse = AngularImpulse; }
+
+private:
+	FVec3 MF;
+	FVec3 MTorque;
+	FVec3 MLinearImpulse;
+	FVec3 MAngularImpulse;
+
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar, FParticleDynamics& Data)
@@ -73,24 +164,73 @@ inline FChaosArchive& operator<<(FChaosArchive& Ar, FParticleDynamics& Data)
 	return Ar;
 }
 
-struct FParticleMassProps
+class FParticleMassProps
 {
-	FVec3 CenterOfMass;
-	FRotation3 RotationOfMass;
-	FMatrix33 I;
-	FMatrix33 InvI;
-	FReal M;
-	FReal InvM;
-
+public:
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << CenterOfMass;
-		Ar << RotationOfMass;
-		Ar << I;
-		Ar << InvI;
-		Ar << M;
-		Ar << InvM;
+		Ar << MCenterOfMass;
+		Ar << MRotationOfMass;
+		Ar << MI;
+		Ar << MInvI;
+		Ar << MM;
+		Ar << MInvM;
 	}
+
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
+	{
+		MCenterOfMass = Other.CenterOfMass();
+		MRotationOfMass = Other.RotationOfMass();
+		MI = Other.I();
+		MInvI = Other.InvI();
+		MM = Other.M();
+		MInvM = Other.InvM();
+	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return CenterOfMass() == Other.CenterOfMass()
+			&& RotationOfMass() == Other.RotationOfMass()
+			&& I() == Other.I()
+			&& InvI() == Other.InvI()
+			&& M() == Other.M()
+			&& InvM() == Other.InvM();
+	}
+
+	bool operator==(const FParticleMassProps& Other) const
+	{
+		return IsEqual(Other);
+	}
+
+	const FVec3& CenterOfMass() const { return MCenterOfMass; }
+	void SetCenterOfMass(const FVec3& InCenterOfMass){ MCenterOfMass = InCenterOfMass; }
+
+	const FRotation3& RotationOfMass() const { return MRotationOfMass; }
+	void SetRotationOfMass(const FRotation3& InRotationOfMass){ MRotationOfMass = InRotationOfMass; }
+
+	const FMatrix33& I() const { return MI; }
+	void SetI(const FMatrix33& InI){ MI = InI; }
+
+	const FMatrix33& InvI() const { return MInvI; }
+	void SetInvI(const FMatrix33& InInvI){ MInvI = InInvI; }
+
+	FReal M() const { return MM; }
+	void SetM(FReal InM){ MM = InM; }
+
+	FReal InvM() const { return MInvM; }
+	void SetInvM(FReal InInvM){ MInvM = InInvM; }
+
+private:
+	FVec3 MCenterOfMass;
+	FRotation3 MRotationOfMass;
+	FMatrix33 MI;
+	FMatrix33 MInvI;
+	FReal MM;
+	FReal MInvM;
+
+
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleMassProps& Data)
@@ -99,57 +239,143 @@ inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleMassProps& Data)
 	return Ar;
 }
 
-struct FParticleMisc
+class FParticleDynamicMisc
 {
-	int32 CollisionGroup;
-	EObjectStateType ObjectState;
-	FSpatialAccelerationIdx SpatialIdx;
-
-	uint8 bDisabled : 1;
-	uint8 bGravityEnabled : 1;
-
+public:
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << CollisionGroup;
-		Ar << ObjectState;
-		bool Disabled = bDisabled;
-		Ar << Disabled;
-		bDisabled = Disabled;
-
-		bool GravityEnabled = bGravityEnabled;
-		Ar << GravityEnabled;
-		bGravityEnabled = GravityEnabled;
+		Ar << MLinearEtherDrag;
+		Ar << MAngularEtherDrag;
+		Ar << MObjectState;
+		Ar << MGravityEnabled;
 	}
+
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
+	{
+		SetLinearEtherDrag(Other.LinearEtherDrag());
+		SetAngularEtherDrag(Other.AngularEtherDrag());
+		SetObjectState(Other.ObjectState());
+		SetGravityEnabled(Other.GravityEnabled());
+		SetCollisionGroup(Other.CollisionGroup());
+	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return ObjectState() == Other.ObjectState()
+			&& LinearEtherDrag() == Other.LinearEtherDrag()
+			&& AngularEtherDrag() == Other.AngularEtherDrag()
+			&& GravityEnabled() == Other.GravityEnabled()
+			&& CollisionGroup() == Other.CollisionGroup();
+	}
+
+	bool operator==(const FParticleDynamicMisc& Other) const
+	{
+		return IsEqual(Other);
+	}
+
+	FReal LinearEtherDrag() const { return MLinearEtherDrag; }
+	void SetLinearEtherDrag(FReal InLinearEtherDrag) { MLinearEtherDrag = InLinearEtherDrag; }
+
+	FReal AngularEtherDrag() const { return MAngularEtherDrag; }
+	void SetAngularEtherDrag(FReal InAngularEtherDrag) { MAngularEtherDrag = InAngularEtherDrag; }
+
+	EObjectStateType ObjectState() const { return MObjectState; }
+	void SetObjectState(EObjectStateType InState){ MObjectState = InState; }
+
+	bool GravityEnabled() const { return MGravityEnabled; }
+	void SetGravityEnabled(bool InGravity){ MGravityEnabled = InGravity; }
+
+	int32 CollisionGroup() const { return MCollisionGroup; }
+	void SetCollisionGroup(int32 InGroup){ MCollisionGroup = InGroup; }
+
+
+private:
+	FReal MLinearEtherDrag;
+	FReal MAngularEtherDrag;
+	int32 MCollisionGroup;
+
+	EObjectStateType MObjectState;
+	bool MGravityEnabled;
 };
 
-inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleMisc& Data)
+inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleDynamicMisc& Data)
 {
 	Data.Serialize(Ar);
 	return Ar;
 }
 
-struct FParticleNonFrequentData
+class FParticleNonFrequentData
 {
+public:
 	FParticleNonFrequentData()
-		: UserData(nullptr)
+	: MUserData(nullptr)
 	{
 
 	}
-
-	TSharedPtr<FImplicitObject,ESPMode::ThreadSafe> Geometry;
-	void* UserData;
-	FUniqueIdx UniqueIdx;
-	FReal LinearEtherDrag;
-	FReal AngularEtherDrag;
-
-#if CHAOS_CHECKED
-	FName DebugName;
-#endif
 
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << Geometry;
+		Ar << MGeometry;
 	}
+
+	template <typename TOther>
+	void CopyFrom(const TOther& Other)
+	{
+		SetGeometry(Other.SharedGeometryLowLevel());
+		SetUserData(Other.UserData());
+		SetUniqueIdx(Other.UniqueIdx());
+		SetSpatialIdx(Other.SpatialIdx());
+#if CHAOS_CHECKED
+		SetDebugName(Other.DebugName());
+#endif
+	}
+
+	template <typename TOther>
+	bool IsEqual(const TOther& Other) const
+	{
+		return Geometry() == Other.SharedGeometryLowLevel()
+			&& UserData() == Other.UserData()
+			&& UniqueIdx() == Other.UniqueIdx()
+			&& SpatialIdx() == Other.SpatialIdx()
+#if CHAOS_CHECKED
+			&& DebugName() == Other.DebugName()
+#endif
+			;
+	}
+
+	bool operator==(const FParticleNonFrequentData& Other) const
+	{
+		return IsEqual(Other);
+	}
+
+	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& Geometry() const { return MGeometry;}
+	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MGeometry;}
+	void SetGeometry(const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& InGeometry) { MGeometry = InGeometry;}
+
+	void* UserData() const { return MUserData; }
+	void SetUserData(void* InData){ MUserData = InData;}
+
+	const FUniqueIdx& UniqueIdx() const { return MUniqueIdx; }
+	void SetUniqueIdx(FUniqueIdx InIdx){ MUniqueIdx = InIdx; }
+
+	FSpatialAccelerationIdx SpatialIdx() const { return MSpatialIdx; }
+	void SetSpatialIdx(FSpatialAccelerationIdx InIdx){ MSpatialIdx = InIdx; }
+
+#if CHAOS_CHECKED
+	FName DebugName() const { return MDebugName; }
+	void SetDebugName(FName InName) { MDebugName = InName; }
+#endif
+private:
+	TSharedPtr<FImplicitObject,ESPMode::ThreadSafe> MGeometry;
+	void* MUserData;
+	FUniqueIdx MUniqueIdx;
+	FSpatialAccelerationIdx MSpatialIdx;
+
+#if CHAOS_CHECKED
+	FName MDebugName;
+#endif
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleNonFrequentData& Data)
@@ -164,13 +390,15 @@ struct FCollisionData
 	FCollisionFilterData SimData;
 	void* UserData;
 	EChaosCollisionTraceFlag CollisionTraceType;
-	uint8 bDisable : 1;
+	uint8 bSimCollision : 1;
+	uint8 bQueryCollision : 1;
 	uint8 bSimulate : 1;
 
 	FCollisionData()
 	: UserData(nullptr)
 	, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
-	, bDisable(false)
+	, bSimCollision(true)
+	, bQueryCollision(true)
 	, bSimulate(true)
 	{
 	}
@@ -183,11 +411,20 @@ struct FCollisionData
 		Ar << QueryData;
 		Ar << SimData;
 
-		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeCollisionDisable)
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeSimAndQueryCollisionEnabled)
 		{
-			bool Disable = bDisable;
+			int8 EnableSim = bSimCollision;
+			int8 EnableQuery = bQueryCollision;
+			Ar << EnableSim;
+			Ar << EnableQuery;
+			bSimCollision = EnableSim;
+			bQueryCollision = EnableQuery;
+		}
+		else if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeCollisionDisable)
+		{
+			bool Disable = !bSimCollision;
 			Ar << Disable;
-			bDisable = Disable;
+			bSimCollision = !Disable;
 		}
 
 		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializePerShapeDataSimulateFlag)

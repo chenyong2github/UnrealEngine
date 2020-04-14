@@ -6,6 +6,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraParameterStore.h"
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
+#include "Delegates/IDelegateInstance.h"
 #include "NiagaraStackSystemSettingsGroup.generated.h"
 
 class FNiagaraScriptViewModel;
@@ -45,11 +46,13 @@ public:
 
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	virtual void FinalizeInternal() override;
 
 private:
-	void ParameterDeleted();
+	void ParameterStoreChanged();
 
 private:
 	TWeakObjectPtr<UObject> Owner;
 	FNiagaraParameterStore* ParameterStore;
+	FDelegateHandle ParameterStoreChangedHandle;
 };

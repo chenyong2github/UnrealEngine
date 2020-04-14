@@ -55,6 +55,14 @@ DEFINE_STAT(STAT_MetalTextureCount);
 DEFINE_STAT(STAT_MetalHeapCount);
 DEFINE_STAT(STAT_MetalFenceCount);
 
+DEFINE_STAT(STAT_MetalUniformMemoryInFlight);
+DEFINE_STAT(STAT_MetalUniformAllocatedMemory);
+DEFINE_STAT(STAT_MetalUniformBytesPerFrame);
+
+DEFINE_STAT(STAT_MetalFrameAllocatorMemoryInFlight);
+DEFINE_STAT(STAT_MetalFrameAllocatorAllocatedMemory);
+DEFINE_STAT(STAT_MetalFrameAllocatorBytesPerFrame);
+
 int64 volatile GMetalTexturePageOnTime = 0;
 int64 volatile GMetalGPUWorkTime = 0;
 int64 volatile GMetalGPUIdleTime = 0;

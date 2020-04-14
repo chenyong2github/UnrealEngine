@@ -22,11 +22,12 @@
 #define LOCTEXT_NAMESPACE "PhysicsAsset"
 
 FSolverIterations::FSolverIterations()
-	: SolverIterations(3)
+	: FixedTimeStep(0)
+	, SolverIterations(3)
 	, JointIterations(2)
 	, CollisionIterations(2)
-	, SolverPushOutIterations(0)
-	, JointPushOutIterations(0)
+	, SolverPushOutIterations(1)
+	, JointPushOutIterations(1)
 	, CollisionPushOutIterations(0)
 {
 }
@@ -250,6 +251,24 @@ bool UPhysicsAsset::IsCollisionEnabled(int32 BodyIndexA, int32 BodyIndexB) const
 	}
 
 	return true;
+}
+
+void UPhysicsAsset::SetPrimitiveCollision(int32 BodyIndex, int32 PrimitiveIndex, ECollisionEnabled::Type CollisionEnabled)
+{
+#if WITH_CHAOS
+	check(SkeletalBodySetups.IsValidIndex(BodyIndex));
+	FKAggregateGeom* AggGeom = &SkeletalBodySetups[BodyIndex]->AggGeom;
+	ensure(PrimitiveIndex < AggGeom->GetElementCount());
+	AggGeom->GetElement(PrimitiveIndex)->SetCollisionEnabled(CollisionEnabled);
+#endif
+}
+
+ECollisionEnabled::Type UPhysicsAsset::GetPrimitiveCollision(int32 BodyIndex, int32 PrimitiveIndex) const
+{
+	check(SkeletalBodySetups.IsValidIndex(BodyIndex));
+	FKAggregateGeom* AggGeom = &SkeletalBodySetups[BodyIndex]->AggGeom;
+	ensure(PrimitiveIndex < AggGeom->GetElementCount());
+	return AggGeom->GetElement(PrimitiveIndex)->GetCollisionEnabled();
 }
 
 FBox UPhysicsAsset::CalcAABB(const USkinnedMeshComponent* MeshComp, const FTransform& LocalToWorld) const

@@ -205,6 +205,7 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 
 		// lots of cases where we cannot collapse, but we should just let
 		// mesh sort that out, right?
+		SaveEdgeBeforeModify(edgeID);
 		COUNT_COLLAPSES++;
 		FDynamicMesh3::FEdgeCollapseInfo collapseInfo;
 		EMeshResult result = Mesh->CollapseEdge(iKeep, iCollapse, collapse_t, collapseInfo);
@@ -266,6 +267,7 @@ abort_collapse:
 
 		if (bTryFlip) 
 		{
+			SaveEdgeBeforeModify(edgeID);
 			FDynamicMesh3::FEdgeFlipInfo flipInfo;
 			COUNT_FLIPS++;
 			EMeshResult result = Mesh->FlipEdge(edgeID, flipInfo);
@@ -290,6 +292,7 @@ abort_collapse:
 	bool bTriedSplit = false;
 	if (bEnableSplits && constraint.CanSplit() && edge_len_sqr > MaxEdgeLength*MaxEdgeLength) 
 	{
+		SaveEdgeBeforeModify(edgeID);
 		FDynamicMesh3::FEdgeSplitInfo SplitInfo;
 		COUNT_SPLITS++;
 		EMeshResult result = Mesh->SplitEdge(edgeID, SplitInfo);

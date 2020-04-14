@@ -28,13 +28,13 @@ bool UVolumeTextureFactory::ConfigureProperties()
 UObject* UVolumeTextureFactory::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
 {
 	UVolumeTexture* NewVolumeTexture = NewObject<UVolumeTexture>(InParent, Name, Flags);
+	NewVolumeTexture->MipGenSettings = TMGS_FromTextureGroup;
+	NewVolumeTexture->NeverStream = true;
+	NewVolumeTexture->CompressionNone = false;
 
 	if (InitialTexture)
 	{
 		NewVolumeTexture->SRGB = InitialTexture->SRGB;
-		NewVolumeTexture->MipGenSettings = TMGS_FromTextureGroup;
-		NewVolumeTexture->NeverStream = true;
-		NewVolumeTexture->CompressionNone = false;
 
 		const FTextureSource& Source = InitialTexture->Source;
 		const int32 NumPixels = Source.GetSizeX() * Source.GetSizeY();
@@ -58,6 +58,13 @@ UObject* UVolumeTextureFactory::FactoryCreateNew(UClass* Class,UObject* InParent
 			}
 
 		}
+	}
+	else
+	{
+		// Initialize the texture with a single texel of data
+		const uint8 Texel[] = { 0, 0, 0, 255 };
+		NewVolumeTexture->Source.Init(1, 1, 1, 1, TSF_BGRA8, Texel);
+		NewVolumeTexture->UpdateResource();
 	}
 
 	return NewVolumeTexture;

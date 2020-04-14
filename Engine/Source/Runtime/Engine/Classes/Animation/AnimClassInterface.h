@@ -65,16 +65,13 @@ struct FAnimBlueprintFunction
 	TArray<int32> InputPoseNodeIndices;
 
 	/** The property of the output node, patched up during link */
-	UPROPERTY(transient)
-	TFieldPath<FStructProperty> OutputPoseNodeProperty;
+	FStructProperty* OutputPoseNodeProperty;
 
 	/** The properties of the input nodes, patched up during link */
-	UPROPERTY(transient)
-	TArray< TFieldPath<FStructProperty> > InputPoseNodeProperties;
+	TArray< FStructProperty* > InputPoseNodeProperties;
 
 	/** The input properties themselves */
-	UPROPERTY(transient)
-	TArray< TFieldPath<FProperty> > InputProperties;
+	TArray< FProperty* > InputProperties;
 
 	/** Whether this function is actually implemented by this class - it could just be a stub */
 	UPROPERTY(transient)
@@ -147,17 +144,17 @@ class ENGINE_API IAnimClassInterface
 public:
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const = 0;
 	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const = 0;
-	virtual const TArray<FStructPropertyPath>& GetAnimNodeProperties() const = 0;
+	virtual const TArray<FStructProperty*>& GetAnimNodeProperties() const = 0;
 	UE_DEPRECATED(4.24, "Function has been renamed, please use GetLinkedAnimGraphNodeProperties")
-	virtual const TArray<FStructPropertyPath>& GetSubInstanceNodeProperties() const { return GetLinkedAnimGraphNodeProperties(); }
-	virtual const TArray<FStructPropertyPath>& GetLinkedAnimGraphNodeProperties() const = 0;
+	virtual const TArray<FStructProperty*>& GetSubInstanceNodeProperties() const { return GetLinkedAnimGraphNodeProperties(); }
+	virtual const TArray<FStructProperty*>& GetLinkedAnimGraphNodeProperties() const = 0;
 	UE_DEPRECATED(4.24, "Function has been renamed, please use GetLinkedLayerNodeProperties")
-	virtual const TArray<FStructPropertyPath>& GetLayerNodeProperties() const { return GetLinkedAnimLayerNodeProperties(); }
-	virtual const TArray<FStructPropertyPath>& GetLinkedAnimLayerNodeProperties() const = 0;
-	virtual const TArray<FStructPropertyPath>& GetPreUpdateNodeProperties() const = 0;
-	virtual const TArray<FStructPropertyPath>& GetDynamicResetNodeProperties() const = 0;
-	virtual const TArray<FStructPropertyPath>& GetStateMachineNodeProperties() const = 0;
-	virtual const TArray<FStructPropertyPath>& GetInitializationNodeProperties() const = 0;
+	virtual const TArray<FStructProperty*>& GetLayerNodeProperties() const { return GetLinkedAnimLayerNodeProperties(); }
+	virtual const TArray<FStructProperty*>& GetLinkedAnimLayerNodeProperties() const = 0;
+	virtual const TArray<FStructProperty*>& GetPreUpdateNodeProperties() const = 0;
+	virtual const TArray<FStructProperty*>& GetDynamicResetNodeProperties() const = 0;
+	virtual const TArray<FStructProperty*>& GetStateMachineNodeProperties() const = 0;
+	virtual const TArray<FStructProperty*>& GetInitializationNodeProperties() const = 0;
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const = 0;
 	virtual const TArray<FName>& GetSyncGroupNames() const = 0;
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const = 0;

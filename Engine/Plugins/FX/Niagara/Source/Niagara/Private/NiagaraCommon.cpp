@@ -139,7 +139,14 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 	{
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
+
 		bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+
+		if (bDestroyOnAdd)
+		{
+			Comp->DeactivateImmediate();
+		}
+
 		if (bIsActive || bOnlyActive == false)
 		{
 			AddInternal(Comp, bReInit);
@@ -156,6 +163,12 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit
 		if (Comp->GetAsset() == System)
 		{
 			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bDestroyOnAdd)
+			{
+				Comp->DeactivateImmediate();
+			}
+
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
@@ -175,6 +188,12 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReIn
 		if (SystemInst && SystemInst->UsesEmitter(Emitter))
 		{
 			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bDestroyOnAdd)
+			{
+				Comp->DeactivateImmediate();
+			}
+
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
@@ -193,6 +212,12 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraScript* Script, bool bReInit
 		if (System && System->UsesScript(Script))
 		{
 			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bDestroyOnAdd)
+			{
+				Comp->DeactivateImmediate();
+			}
+
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
@@ -227,6 +252,12 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 		if (SystemInst && SystemInst->UsesCollection(Collection))
 		{
 			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bDestroyOnAdd)
+			{
+				Comp->DeactivateImmediate();
+			}
+
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
@@ -238,11 +269,6 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 
 void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReInit)
 {
-	if (bDestroyOnAdd)
-	{
-		Comp->DeactivateImmediate();
-	}
-
 	if (bReInit)
 	{
 		ComponentsToReInit.AddUnique(Comp);
@@ -259,12 +285,12 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 
 bool FNiagaraUtilities::AllowGPUParticles(EShaderPlatform ShaderPlatform)
 {
-	return SupportsGPUParticles(ShaderPlatform) && GNiagaraAllowGPUParticles && GNiagaraAllowComputeShaders;
+	return SupportsGPUParticles(ShaderPlatform) && GNiagaraAllowGPUParticles && GNiagaraAllowComputeShaders && GRHISupportsDrawIndirect;
 }
 
 bool FNiagaraUtilities::AllowComputeShaders(EShaderPlatform ShaderPlatform)
 {
-	return RHISupportsComputeShaders(ShaderPlatform) && GNiagaraAllowComputeShaders;
+	return RHISupportsComputeShaders(ShaderPlatform) && GNiagaraAllowComputeShaders && GRHISupportsDrawIndirect;
 }
 
 FName NIAGARA_API FNiagaraUtilities::GetUniqueName(FName CandidateName, const TSet<FName>& ExistingNames)

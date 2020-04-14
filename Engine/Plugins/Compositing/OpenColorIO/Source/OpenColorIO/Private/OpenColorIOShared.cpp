@@ -169,11 +169,10 @@ void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
 			if (bValid)
 			{
 				TRefCountPtr<FOpenColorIOShaderMap> LoadedShaderMap = new FOpenColorIOShaderMap();
-				LoadedShaderMap->Serialize(Ar);
+				bool bSuccessfullyLoaded = LoadedShaderMap->Serialize(Ar);
 
-				// Toss the loaded shader data if this is a server only instance
-				//@todo - don't cook it in the first place
-				if (FApp::CanEverRender())
+				// Toss the loaded shader data if this is a server only instance (@todo - don't cook it in the first place) or if it's for a different RHI than the current one
+				if (bSuccessfullyLoaded && FApp::CanEverRender())
 				{
 					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
 				}

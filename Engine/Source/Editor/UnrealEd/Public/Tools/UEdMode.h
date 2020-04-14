@@ -260,7 +260,8 @@ private:
 	virtual void TerminateActiveToolsOnPIEStart();
 
 	// default behavior is to accept active tool
-	virtual void TerminateActiveToolsOnSaveWorld();
+	virtual void TerminateActiveToolsOnOnMapChanged(uint32 MapChangeFlags);
+
 
 	FRay GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY);
 	
@@ -313,10 +314,15 @@ public:
 		UpdateOnPaletteChange();
 	};
 
+	FName GetCurrentPaletteName() const
+	{
+		return CurrentPaletteName;
+	}
+
 protected:
 	virtual void CreateToolkit();
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {};
-	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) { bCheckIfDefaultToolNeeded = true; };
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {};
 	virtual void ActivateDefaultTool() {};
 	virtual void UpdateOnPaletteChange() {};
 
@@ -334,8 +340,8 @@ protected:
 
 	// called when PIE is about to start, shuts down active tools
 	FDelegateHandle BeginPIEDelegateHandle;
-	// called before a Save starts. This currently shuts down active tools.
-	FDelegateHandle PreSaveWorldDelegateHandle;
+	// called before a map changes. This currently shuts down active tools.
+	FDelegateHandle MapChangeDelegateHandle;
 
 	UPROPERTY()
 	TSoftClassPtr<UObject> SettingsClass;
@@ -348,6 +354,5 @@ protected:
 	FOnModeToolNotification OnToolWarningMessage;
 
 	FName CurrentPaletteName;
-	bool bCheckIfDefaultToolNeeded;
 };
 

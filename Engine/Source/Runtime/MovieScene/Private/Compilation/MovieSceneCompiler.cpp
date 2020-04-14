@@ -688,6 +688,13 @@ void FMovieSceneCompiler::GatherCompileDataForTrack(FMovieSceneEvaluationTrack& 
 		return Track.HasChildTemplate(EvalData.ImplIndex) && Track.GetChildTemplate(EvalData.ImplIndex).RequiresInitialization();
 	};
 
+	// When doing a full compile, ensure that we always compile all segments for tracks. This guarantees that we generate the same
+	// segments for tracks regardless of whether they are being compiled as a constrained sub sequence or not.
+	if (Params.RootCompileRange == TRange<FFrameNumber>::All())
+	{
+		Track.GetSegmentsInRange(TRange<FFrameNumber>::All());
+	}
+
 	FMovieSceneSequenceTransform SequenceToRootTransform  = Params.RootToSequenceTransform.InverseFromWarp(Params.SequenceLoopCounter);
 	FMovieSceneSequenceID        CurrentSequenceID        = Params.RootPath.Remap(MovieSceneSequenceID::Root);
 	TRange<FFrameNumber>         CompileClampIntersection = TRange<FFrameNumber>::Intersection(Params.LocalCompileRange, Params.LocalClampRange);

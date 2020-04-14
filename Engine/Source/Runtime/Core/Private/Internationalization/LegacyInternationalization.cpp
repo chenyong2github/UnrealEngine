@@ -46,7 +46,11 @@ bool FLegacyInternationalization::IsCultureAllowed(const FString& Name)
 	return true;
 }
 
-void FLegacyInternationalization::HandleLanguageChanged(const FString& Name)
+void FLegacyInternationalization::RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames)
+{
+}
+
+void FLegacyInternationalization::HandleLanguageChanged(const FCultureRef InNewLanguage)
 {
 }
 

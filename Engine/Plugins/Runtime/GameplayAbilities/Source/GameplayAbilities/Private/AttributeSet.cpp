@@ -15,6 +15,7 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemTestAttributeSet.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 #if WITH_EDITOR
 #include "EditorReimportHandler.h"
@@ -86,6 +87,8 @@ void FGameplayAttribute::SetNumericValueChecked(float& NewValue, class UAttribut
 		OldValue = *static_cast<float*>(ValuePtr);
 		Dest->PreAttributeChange(*this, NewValue);
 		NumericProperty->SetFloatingPointPropertyValue(ValuePtr, NewValue);
+
+		MARK_PROPERTY_DIRTY(Dest, NumericProperty);
 	}
 	else if (IsGameplayAttributeDataProperty(Attribute.Get()))
 	{
@@ -96,6 +99,8 @@ void FGameplayAttribute::SetNumericValueChecked(float& NewValue, class UAttribut
 		OldValue = DataPtr->GetCurrentValue();
 		Dest->PreAttributeChange(*this, NewValue);
 		DataPtr->SetCurrentValue(NewValue);
+
+		MARK_PROPERTY_DIRTY(Dest, StructProperty);
 	}
 	else
 	{
@@ -160,12 +165,40 @@ float FGameplayAttribute::GetNumericValueChecked(const UAttributeSet* Src) const
 	return 0.f;
 }
 
+const FGameplayAttributeData* FGameplayAttribute::GetGameplayAttributeData(const UAttributeSet* Src) const
+{
+	if (Src && IsGameplayAttributeDataProperty(Attribute.Get()))
+	{
+		FStructProperty* StructProperty = CastField<FStructProperty>(Attribute.Get());
+		check(StructProperty);
+		MARK_PROPERTY_DIRTY(Src, StructProperty);
+		return StructProperty->ContainerPtrToValuePtr<FGameplayAttributeData>(Src);
+	}
+
+	return nullptr;
+}
+
+const FGameplayAttributeData* FGameplayAttribute::GetGameplayAttributeDataChecked(const UAttributeSet* Src) const
+{
+	if (Src && IsGameplayAttributeDataProperty(Attribute.Get()))
+	{
+		FStructProperty* StructProperty = CastField<FStructProperty>(Attribute.Get());
+		check(StructProperty);
+		MARK_PROPERTY_DIRTY(Src, StructProperty);
+		return StructProperty->ContainerPtrToValuePtr<FGameplayAttributeData>(Src);
+	}
+
+	check(false);
+	return nullptr;
+}
+
 FGameplayAttributeData* FGameplayAttribute::GetGameplayAttributeData(UAttributeSet* Src) const
 {
 	if (Src && IsGameplayAttributeDataProperty(Attribute.Get()))
 	{
 		FStructProperty* StructProperty = CastField<FStructProperty>(Attribute.Get());
 		check(StructProperty);
+		MARK_PROPERTY_DIRTY(Src, StructProperty);
 		return StructProperty->ContainerPtrToValuePtr<FGameplayAttributeData>(Src);
 	}
 
@@ -178,6 +211,7 @@ FGameplayAttributeData* FGameplayAttribute::GetGameplayAttributeDataChecked(UAtt
 	{
 		FStructProperty* StructProperty = CastField<FStructProperty>(Attribute.Get());
 		check(StructProperty);
+		MARK_PROPERTY_DIRTY(Src, StructProperty);
 		return StructProperty->ContainerPtrToValuePtr<FGameplayAttributeData>(Src);
 	}
 
@@ -719,7 +753,7 @@ void FAttributeSetInitterDiscreteLevels::InitAttributeSetDefaults(UAbilitySystem
 	}
 
 	const FAttributeSetDefaults& SetDefaults = Collection->LevelData[Level - 1];
-	for (const UAttributeSet* Set : AbilitySystemComponent->SpawnedAttributes)
+	for (const UAttributeSet* Set : AbilitySystemComponent->GetSpawnedAttributes())
 	{
 		if (!Set)
 		{
@@ -770,7 +804,7 @@ void FAttributeSetInitterDiscreteLevels::ApplyAttributeDefault(UAbilitySystemCom
 	}
 
 	const FAttributeSetDefaults& SetDefaults = Collection->LevelData[Level - 1];
-	for (const UAttributeSet* Set : AbilitySystemComponent->SpawnedAttributes)
+	for (const UAttributeSet* Set : AbilitySystemComponent->GetSpawnedAttributes())
 	{
 		if (!Set)
 		{

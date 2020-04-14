@@ -5,13 +5,13 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "PhysicsEngine/ShapeElem.h"
-#include "Chaos/Convex.h"
 
 #if WITH_CHAOS
 #include "Chaos/Serializable.h"
 #endif
 
 #include "ConvexElem.generated.h"
+
 
 struct FDynamicMeshVertex;
 struct FKBoxElem;
@@ -25,8 +25,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 
-	template <typename T, int d>
-	class TConvex;
+	class FConvex;
 }
 
 /** One convex hull, used for simplified collision. */

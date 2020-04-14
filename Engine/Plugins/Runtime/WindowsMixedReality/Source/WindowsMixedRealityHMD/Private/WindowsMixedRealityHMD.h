@@ -121,10 +121,10 @@ namespace WindowsMixedReality
 		virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 		virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 		virtual class IStereoLayers* GetStereoLayers() override;
-		
-		virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override 
-		{ 
-			return (bStereoRequested) ? 3 : 1; 
+
+		virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override
+		{
+			return (bStereoRequested) ? 3 : 1;
 		}
 
 		virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const override
@@ -207,6 +207,8 @@ namespace WindowsMixedReality
 		bool bRequestRestart = false;
 		bool bRequestShutdown = false;
 
+		bool bIsMobileMultiViewEnabled = false;
+
 		float ScreenScalePercentage = 1.0f;
 		float CachedWorldToMetersScale = 100.0f;
 
@@ -216,7 +218,6 @@ namespace WindowsMixedReality
 		ID3D11Texture2D* stereoDepthTexture = nullptr;
 		// For third camera
 		ID3D11Texture2D* monoDepthTexture = nullptr;
-		const float farPlaneDistance = 650.0f;
 
 		bool bNeedReallocateDepthTexture = false;
 		FTexture2DRHIRef CurrentBackBuffer;
@@ -318,6 +319,7 @@ namespace WindowsMixedReality
 		FDelegateHandle ResumeHandle;
 
 		void AppServicePause();
+		void AppServiceResume();
 
 		void StartSpeechRecognition();
 		void StopSpeechRecognition();
@@ -387,4 +389,3 @@ namespace WindowsMixedReality
 		void CreateSpectatorScreenController();
 	};
 }
-

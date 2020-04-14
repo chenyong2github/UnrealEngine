@@ -11,9 +11,12 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/SWindow.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Framework/Docking/TabManager.h"
 #include "EditorStyleSet.h"
 #include "Misc/Attribute.h"
 #include "Algo/Sort.h"
@@ -981,10 +984,10 @@ FSlateIcon SCurveEditorPanel::GetCurveExtrapolationPostIcon() const
 void SCurveEditorPanel::ShowCurveFilterUI(TSubclassOf<UCurveEditorFilterBase> FilterClass)
 {
 	TSharedPtr<FTabManager> TabManager = WeakTabManager.Pin();
-	if (TabManager)
-	{
-		SCurveEditorFilterPanel::OpenDialog(TabManager.ToSharedRef(), CurveEditor.ToSharedRef(), FilterClass);
-	}
+	TSharedPtr<SDockTab> OwnerTab = TabManager.IsValid() ? TabManager->GetOwnerTab() : TSharedPtr<SDockTab>();
+	TSharedPtr<SWindow> RootWindow = OwnerTab.IsValid() ? OwnerTab->GetParentWindow() : TSharedPtr<SWindow>();
+
+	SCurveEditorFilterPanel::OpenDialog(RootWindow, CurveEditor.ToSharedRef(), FilterClass);
 }
 
 const FGeometry& SCurveEditorPanel::GetScrollPanelGeometry() const

@@ -626,6 +626,13 @@ void FNiagaraParameterStore::RenameParameter(const FNiagaraVariableBase& Param, 
 	check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
 #endif
 
+	if (Param.GetName() == NewName)
+	{
+		// Early out here to prevent crashes later on due to delta size mismatches when the newly named
+		// parameter isn't added.
+		return;
+	}
+
 	int32 Idx = IndexOf(Param);
 	if(Idx != INDEX_NONE)
 	{
@@ -637,28 +644,34 @@ void FNiagaraParameterStore::RenameParameter(const FNiagaraVariableBase& Param, 
 
 		int32 NumBytesBefore = ParameterData.Num();
 		int32 NewIdx = INDEX_NONE;
-		AddParameter(NewParam, bInitInterfaces, bTriggerRebind, &NewIdx);
-		int32 NumBytesAfter = ParameterData.Num();
-		int32 DeltaBytes = NumBytesAfter - NumBytesBefore;
-		int32 SizeInBytes = Param.GetSizeInBytes();
-
-		check(DeltaBytes == SizeInBytes);
-
-		if (Param.IsDataInterface())
+		if (AddParameter(NewParam, bInitInterfaces, bTriggerRebind, &NewIdx))
 		{
-			SetDataInterface(GetDataInterface(Idx), NewIdx);
-		}
-		else if (Param.IsUObject())
-		{
-			SetUObject(GetUObject(Idx), NewIdx);
+			int32 NumBytesAfter = ParameterData.Num();
+			int32 DeltaBytes = NumBytesAfter - NumBytesBefore;
+			int32 SizeInBytes = Param.GetSizeInBytes();
+
+			check(DeltaBytes == SizeInBytes);
+
+			if (Param.IsDataInterface())
+			{
+				SetDataInterface(GetDataInterface(Idx), NewIdx);
+			}
+			else if (Param.IsUObject())
+			{
+				SetUObject(GetUObject(Idx), NewIdx);
+			}
+			else
+			{
+				SetParameterData(GetParameterData_Internal(Idx), NewIdx, Param.GetSizeInBytes());
+			}
+			RemoveParameter(Param);
+
+			OnLayoutChange();
 		}
 		else
 		{
-			SetParameterData(GetParameterData_Internal(Idx), NewIdx, Param.GetSizeInBytes());
+			UE_LOG(LogNiagara, Warning, TEXT("Ignored attempt to rename a parameter overtop of an existing parameter!  Old name: %s, New name: %s"), *Param.GetName().ToString(), *NewName.ToString());
 		}
-		RemoveParameter(Param);
-
-		OnLayoutChange();
 	}
 }
 
@@ -946,7 +959,7 @@ void FNiagaraParameterStore::OnLayoutChange()
 #endif
 }
 
-const FNiagaraVariableBase* FNiagaraParameterStore::FindVariable(UNiagaraDataInterface* Interface)const
+const FNiagaraVariableBase* FNiagaraParameterStore::FindVariable(const UNiagaraDataInterface* Interface) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreFindVar);
 	int32 Idx = DataInterfaces.IndexOfByKey(Interface);

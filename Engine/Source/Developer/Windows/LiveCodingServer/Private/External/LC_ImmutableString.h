@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "LC_Platform.h"
 #include "LC_Memory.h"
 #include <string>
 

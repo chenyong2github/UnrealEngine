@@ -6,7 +6,7 @@
 
 
 FSoundEffectBase::FSoundEffectBase()
-	: bChanged(false)
+	: bChanged(true)
 	, bIsRunning(false)
 	, bIsActive(false)
 {}
@@ -51,7 +51,7 @@ bool FSoundEffectBase::IsPreset(USoundEffectPreset* InPreset) const
 	return Preset == InPreset;
 }
 
-void FSoundEffectBase::EffectCommand(TFunction<void()> Command)
+void FSoundEffectBase::EffectCommand(TUniqueFunction<void()> Command)
 {
 	CommandQueue.Enqueue(MoveTemp(Command));
 }
@@ -59,7 +59,7 @@ void FSoundEffectBase::EffectCommand(TFunction<void()> Command)
 void FSoundEffectBase::PumpPendingMessages()
 {
 	// Pumps the command queue
-	TFunction<void()> Command;
+	TUniqueFunction<void()> Command;
 	while (CommandQueue.Dequeue(Command))
 	{
 		Command();

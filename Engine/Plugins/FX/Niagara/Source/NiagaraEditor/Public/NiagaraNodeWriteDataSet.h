@@ -36,6 +36,7 @@ public:
 
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
+	virtual bool SynchronizeWithStruct() override;
 protected:
 	void AddConditionPin(int32 PinIndex = -1);
 };

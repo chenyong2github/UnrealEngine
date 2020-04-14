@@ -40,6 +40,10 @@ public:
 	virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase) override;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
+	// The class of the child actor when the instance data cache was stored
+	UPROPERTY()
+	TSubclassOf<AActor> ChildActorClass;
+
 	// The name of the spawned child actor so it (attempts to) remain constant across construction script reruns
 	UPROPERTY()
 	FName ChildActorName;
@@ -133,7 +137,7 @@ public:
 	//~ End ActorComponent Interface.
 
 	/** Apply the component instance data to the child actor component */
-	void ApplyComponentInstanceData(struct FChildActorComponentInstanceData* ComponentInstanceData, const ECacheApplyPhase CacheApplyPhase);
+	void ApplyComponentInstanceData(FChildActorComponentInstanceData* ComponentInstanceData, const ECacheApplyPhase CacheApplyPhase);
 
 	/** Create the child actor */
 	virtual void CreateChildActor();

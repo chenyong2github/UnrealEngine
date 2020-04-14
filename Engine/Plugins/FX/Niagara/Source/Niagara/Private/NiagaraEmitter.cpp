@@ -297,6 +297,27 @@ void UNiagaraEmitter::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
 }
 
+void UNiagaraEmitter::EnsureScriptsPostLoaded()
+{
+	TArray<UNiagaraScript*> AllScripts;
+	GetScripts(AllScripts, false);
+
+	// Post load scripts for use below.
+	for (UNiagaraScript* Script : AllScripts)
+	{
+		Script->ConditionalPostLoad();
+	}
+
+	// Additionally we want to make sure that the GPUComputeScript, if it exists, is also post loaded immediately even if we're not using it.
+	// Currently an unused GPUComputeScript will cause the cached data to be invalidated and rebuilt because it will never get
+	// a valid CompilerVersionID assigned to it (since it's not being compiled because it's not being used).  The side effect of this is that
+	// the invalidation occurs in a non-deterministic location (based on PostLoad order) and can mess up with the cooking process
+	if (GPUComputeScript)
+	{
+		GPUComputeScript->ConditionalPostLoad();
+	}
+}
+
 void UNiagaraEmitter::PostLoad()
 {
 	Super::PostLoad();
@@ -328,44 +349,44 @@ void UNiagaraEmitter::PostLoad()
 	{
 		int32 MinDetailLevel = bUseMaxDetailLevel_DEPRECATED ? MinDetailLevel_DEPRECATED : 0;
 		int32 MaxDetailLevel = bUseMaxDetailLevel_DEPRECATED ? MaxDetailLevel_DEPRECATED : 4;
-		int32 NewEQMask = 0;
-		//Currently all detail levels were direct mappings to effects quality so just transfer them over to the new mask in PlatformSet.
-		for (int32 EQ = MinDetailLevel; EQ <= MaxDetailLevel; ++EQ)
+		int32 NewQLMask = 0;
+		//Currently all detail levels were direct mappings to quality level so just transfer them over to the new mask in PlatformSet.
+		for (int32 QL = MinDetailLevel; QL <= MaxDetailLevel; ++QL)
 		{
-			NewEQMask |= (1 << EQ);
+			NewQLMask |= (1 << QL);
 		}
 
-		Platforms = FNiagaraPlatformSet(NewEQMask);
+		Platforms = FNiagaraPlatformSet(NewQLMask);
 
 		//Transfer spawn rate scaling overrides
 		if (bOverrideGlobalSpawnCountScale_DEPRECATED)
 		{
 			FNiagaraEmitterScalabilityOverride& LowOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
-			LowOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(0));
+			LowOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(0));
 			LowOverride.bOverrideSpawnCountScale = true;
 			LowOverride.bScaleSpawnCount = true;
 			LowOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Low;
 
 			FNiagaraEmitterScalabilityOverride& MediumOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
-			MediumOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(1));
+			MediumOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(1));
 			MediumOverride.bOverrideSpawnCountScale = true;
 			MediumOverride.bScaleSpawnCount = true;
 			MediumOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Medium;
 
 			FNiagaraEmitterScalabilityOverride& HighOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
-			HighOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(2));
+			HighOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(2));
 			HighOverride.bOverrideSpawnCountScale = true;
 			HighOverride.bScaleSpawnCount = true;
 			HighOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.High;
 
 			FNiagaraEmitterScalabilityOverride& EpicOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
-			EpicOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(3));
+			EpicOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(3));
 			EpicOverride.bOverrideSpawnCountScale = true;
 			EpicOverride.bScaleSpawnCount = true;
 			EpicOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Epic;
 
 			FNiagaraEmitterScalabilityOverride& CineOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
-			CineOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(4));
+			CineOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(4));
 			CineOverride.bOverrideSpawnCountScale = true;
 			CineOverride.bScaleSpawnCount = true;
 			CineOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Cine;
@@ -436,14 +457,7 @@ void UNiagaraEmitter::PostLoad()
 	}
 #endif
 
-	TArray<UNiagaraScript*> AllScripts;
-	GetScripts(AllScripts, false);
-
-	// Post load scripts for use below.
-	for (UNiagaraScript* Script : AllScripts)
-	{
-		Script->ConditionalPostLoad();
-	}
+	EnsureScriptsPostLoaded();
 
 #if WITH_EDITORONLY_DATA
 	if (!GetOutermost()->bIsCookedForEditor)
@@ -493,6 +507,9 @@ void UNiagaraEmitter::PostLoad()
 		}
 		else
 		{
+			TArray<UNiagaraScript*> AllScripts;
+			GetScripts(AllScripts, false);
+
 			for (UNiagaraScript* Script : AllScripts)
 			{
 				if (Script->AreScriptAndSourceSynchronized() == false)
@@ -1535,9 +1552,25 @@ TStatId UNiagaraEmitter::GetStatID(bool bGameThread, bool bConcurrent)const
 	return TStatId();
 }
 
+void UNiagaraEmitter::ClearRuntimeAllocationEstimate(uint64 ReportHandle)
+{
+	FScopeLock Lock(&EstimationCriticalSection);
+	if (ReportHandle == INDEX_NONE)
+	{
+		RuntimeEstimation.AllocationEstimate = 0;
+		RuntimeEstimation.RuntimeAllocations.Empty();
+		RuntimeEstimation.IsEstimationDirty = true;
+	}
+	else
+	{
+		RuntimeEstimation.RuntimeAllocations.Remove(ReportHandle);
+		RuntimeEstimation.IsEstimationDirty = true;
+	}
+}
+
 int32 UNiagaraEmitter::AddRuntimeAllocation(uint64 ReporterHandle, int32 AllocationCount)
 {
-	FScopeLock lock(&EstimationCriticalSection);
+	FScopeLock Lock(&EstimationCriticalSection);
 	int32* Estimate = RuntimeEstimation.RuntimeAllocations.Find(ReporterHandle);
 	if (!Estimate || *Estimate < AllocationCount)
 	{
@@ -1566,6 +1599,7 @@ int32 UNiagaraEmitter::GetMaxParticleCountEstimate()
 	{
 		FScopeLock lock(&EstimationCriticalSection);
 		int32 EstimationCount = RuntimeEstimation.RuntimeAllocations.Num();
+		RuntimeEstimation.AllocationEstimate = 0;
 		if (EstimationCount > 0)
 		{
 			RuntimeEstimation.RuntimeAllocations.ValueSort(TGreater<int32>());
@@ -1651,7 +1685,7 @@ void UNiagaraEmitter::ResolveScalabilitySettings()
 	}
 }
 
-void UNiagaraEmitter::OnEffectsQualityChanged()
+void UNiagaraEmitter::OnQualityLevelChanged()
 {
 	ResolveScalabilitySettings();
 }

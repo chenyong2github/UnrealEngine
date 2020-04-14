@@ -65,6 +65,25 @@ namespace FNavMeshRenderingHelpers
 		return true;
 	}
 
+	bool PointInView(const FVector& Position, const FSceneView* View)
+	{
+		if (FVector::DistSquaredXY(Position, View->ViewMatrices.GetViewOrigin()) > ARecastNavMesh::GetDrawDistanceSq())
+		{
+			return false;
+		}
+
+		for (int32 PlaneIdx = 0; PlaneIdx < View->ViewFrustum.Planes.Num(); ++PlaneIdx)
+		{
+			const FPlane& CurPlane = View->ViewFrustum.Planes[PlaneIdx];
+			if (CurPlane.PlaneDot(Position) > 0.f)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	bool LineInCorrectDistance(const FVector& Start, const FVector& End, const FSceneView* View, float CorrectDistance = -1)
 	{
 		const float MaxDistanceSq = (CorrectDistance > 0) ? FMath::Square(CorrectDistance) : ARecastNavMesh::GetDrawDistanceSq();
@@ -248,6 +267,8 @@ void FNavMeshSceneProxyData::Reset()
 	NavMeshEdgeLines.Reset();
 	NavLinkLines.Reset();
 	ClusterLinkLines.Reset();
+	AuxLines.Reset();
+	AuxPoints.Reset();
 	AuxBoxes.Reset();
 	DebugLabels.Reset();
 	OctreeBounds.Reset();
@@ -293,7 +314,7 @@ void FNavMeshSceneProxyData::Serialize(FArchive& Ar)
 		Ar << MeshBuilder.ClusterColor;
 	}
 
-	TArray<FDebugRenderSceneProxy::FDebugLine>* LineArraysToSerialize[] = { &ThickLineItems, &TileEdgeLines, &NavMeshEdgeLines, &NavLinkLines, &ClusterLinkLines };
+	TArray<FDebugRenderSceneProxy::FDebugLine>* LineArraysToSerialize[] = { &ThickLineItems, &TileEdgeLines, &NavMeshEdgeLines, &NavLinkLines, &ClusterLinkLines, &AuxLines };
 	for (int32 ArrIdx = 0; ArrIdx < UE_ARRAY_COUNT(LineArraysToSerialize); ArrIdx++)
 	{
 		int32 NumItems = LineArraysToSerialize[ArrIdx]->Num();
@@ -310,6 +331,31 @@ void FNavMeshSceneProxyData::Serialize(FArchive& Ar)
 			Ar << (*LineArraysToSerialize[ArrIdx])[Idx].Start;
 			Ar << (*LineArraysToSerialize[ArrIdx])[Idx].End;
 			Ar << (*LineArraysToSerialize[ArrIdx])[Idx].Color;
+		}
+	}
+
+	int32 NumPoints = AuxPoints.Num();
+	Ar << NumPoints;
+	if (Ar.IsLoading())
+	{
+		FDebugPoint TmpPoint(FVector::ZeroVector, FColor::Black, 0.0f);
+		AuxPoints.Reserve(NumPoints);
+		for (int32 Idx = 0; Idx < NumPoints; Idx++)
+		{
+			Ar << TmpPoint.Position;
+			Ar << TmpPoint.Color;
+			Ar << TmpPoint.Size;
+
+			AuxPoints.Add(TmpPoint);
+		}
+	}
+	else
+	{
+		for (int32 Idx = 0; Idx < NumPoints; Idx++)
+		{
+			Ar << AuxPoints[Idx].Position;
+			Ar << AuxPoints[Idx].Color;
+			Ar << AuxPoints[Idx].Size;
 		}
 	}
 
@@ -382,6 +428,8 @@ uint32 FNavMeshSceneProxyData::GetAllocatedSize() const
 		NavMeshEdgeLines.GetAllocatedSize() +
 		NavLinkLines.GetAllocatedSize() +
 		ClusterLinkLines.GetAllocatedSize() +
+		AuxLines.GetAllocatedSize() +
+		AuxPoints.GetAllocatedSize() +
 		AuxBoxes.GetAllocatedSize() +
 		DebugLabels.GetAllocatedSize() +
 		OctreeBounds.GetAllocatedSize();
@@ -860,34 +908,108 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 	}
 }
 
+
 #if RECAST_INTERNAL_DEBUG_DATA
+
+namespace FNavMeshRenderingHelpers
+{
+	struct FUniqueColor
+	{
+		FUniqueColor() : Color(0), Count(0) {}
+		FUniqueColor(const uint32 InColor, const uint32 InCount) : Color(InColor), Count(InCount) {}
+		uint32 Color;
+		uint32 Count;
+		bool operator==(const FUniqueColor& Other) const
+		{
+			return Color == Other.Color;
+
+		}
+	};
+	FORCEINLINE uint32 GetTypeHash(const FUniqueColor& UniqueColor)
+	{
+		return UniqueColor.Color;
+	}
+}
+
 void FNavMeshSceneProxyData::AddMeshForInternalData(const FRecastInternalDebugData& InInternalData)
 {
-	// Only supports triangles for now
-	for (const FRecastInternalDebugData::Command& cmd : InInternalData.Commands)
+	if (InInternalData.TriangleIndices.Num() > 0)
 	{
-		if (cmd.Prim != DU_DRAW_TRIS)
+		const TArray<uint32>& Indices = InInternalData.TriangleIndices;
+		const TArray<FVector>& Vertices = InInternalData.TriangleVertices;
+		const TArray<uint32>& Colors = InInternalData.TriangleColors;
+
+		if (ensure(Vertices.Num() == Colors.Num()))
 		{
-			UE_LOG(LogNavigation, Warning, TEXT("Debug data display command not supported yet."));
-			return;
+			// Split the mesh into different colored pieces (because we cannot use vertex colors).
+			TSet<FNavMeshRenderingHelpers::FUniqueColor> UniqueColors;
+			uint32 PrevColor = Colors[Indices[0]];
+			FSetElementId ColorIdx = UniqueColors.Add(FNavMeshRenderingHelpers::FUniqueColor(PrevColor, 1));
+			for (int32 i = 3; i < Indices.Num(); i += 3)
+			{
+				const uint32 Color = Colors[Indices[i]];	// Use the first color as representative of the triangle color.
+				if (Color != PrevColor)
+				{
+					ColorIdx = UniqueColors.Add(FNavMeshRenderingHelpers::FUniqueColor(PrevColor, 1));
+					PrevColor = Color;
+				}
+				else
+				{
+					UniqueColors[ColorIdx].Count++;
+				}
+			}
+
+			// Add triangles
+			for (FNavMeshRenderingHelpers::FUniqueColor CurrentColor : UniqueColors)
+			{
+				const uint32 VertexCount = CurrentColor.Count * 3;
+				FDebugMeshData& MeshData = MeshBuilders.AddDefaulted_GetRef();
+
+				MeshData.Indices.Reserve(VertexCount);
+				MeshData.Vertices.Reserve(VertexCount);
+				for (int32 i = 0; i < Indices.Num(); i += 3)
+				{
+					const uint32 Color = Colors[Indices[i]];
+					if (Color == CurrentColor.Color)
+					{
+						const int32 VertexBase = MeshData.Vertices.Num();
+						FNavMeshRenderingHelpers::AddVertex(MeshData, Vertices[Indices[i]] + NavMeshDrawOffset, FColor(Color));
+						FNavMeshRenderingHelpers::AddVertex(MeshData, Vertices[Indices[i + 1]] + NavMeshDrawOffset, FColor(Color));
+						FNavMeshRenderingHelpers::AddVertex(MeshData, Vertices[Indices[i + 2]] + NavMeshDrawOffset, FColor(Color));
+						MeshData.Indices.Add(VertexBase);
+						MeshData.Indices.Add(VertexBase + 1);
+						MeshData.Indices.Add(VertexBase + 2);
+					}
+				}
+				MeshData.ClusterColor = FColor(CurrentColor.Color);
+			}
 		}
 	}
 
-	// Add triangles
-	const TArray<FVector>& Verts = InInternalData.Vertices;
-	const TArray<uint32>&  VertsColors = InInternalData.VertexColors;
-	const TArray<uint32>&  Indices = InInternalData.Indices;
-	if (ensure(Verts.Num() == VertsColors.Num()) && ensure(Indices.Num() % 3 == 0))
+	if (InInternalData.LineVertices.Num() > 0)
 	{
-		MeshBuilders.AddDefaulted();
-		FDebugMeshData& MeshData = MeshBuilders.Last();
-		MeshData.Vertices.Reserve(Verts.Num());
-		for (int32 VertIdx = 0; VertIdx < Verts.Num(); ++VertIdx)
+		const TArray<FVector>& Vertices = InInternalData.LineVertices;
+		const TArray<uint32>& Colors = InInternalData.LineColors;
+		if (ensure(Vertices.Num() == Colors.Num()))
 		{
-			FNavMeshRenderingHelpers::AddVertex(MeshData, Verts[VertIdx], FColor(VertsColors[VertIdx]));
+			for (int32 i = 0; i < Vertices.Num(); i += 2)
+			{
+				AuxLines.Emplace(Vertices[i] + NavMeshDrawOffset, Vertices[i + 1] + NavMeshDrawOffset, FColor(Colors[i]), 0.0f);
+			}
 		}
-		MeshData.Indices = Indices;
-		MeshData.ClusterColor = FColor(60, 200, 200, 100); //find the proper material to use the vert colors instead
+	}
+
+	if (InInternalData.PointVertices.Num() > 0)
+	{
+		const TArray<FVector>& Vertices = InInternalData.PointVertices;
+		const TArray<uint32>& Colors = InInternalData.PointColors;
+		if (ensure(Vertices.Num() == Colors.Num()))
+		{
+			for (int32 i = 0; i < Vertices.Num(); i++)
+			{
+				AuxPoints.Emplace(Vertices[i] + NavMeshDrawOffset, FColor(Colors[i]), 5.0f);
+			}
+		}
 	}
 }
 #endif //RECAST_INTERNAL_DEBUG_DATA
@@ -1155,6 +1277,28 @@ void FNavMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 					{
 						PDI->DrawLine(Line.Start, Line.End, Line.Color, SDPG_Foreground, DefaultEdges_LineThickness, 0, true);
 					}
+				}
+			}
+
+			Num = ProxyData.AuxLines.Num();
+			PDI->AddReserveLines(SDPG_World, Num, false, false);
+			PDI->AddReserveLines(SDPG_Foreground, Num, false, true);
+			for (int32 Index = 0; Index < Num; ++Index)
+			{
+				const auto& Line = ProxyData.AuxLines[Index];
+				if (FNavMeshRenderingHelpers::LineInView(Line.Start, Line.End, View))
+				{
+					PDI->DrawLine(Line.Start, Line.End, Line.Color, SDPG_World, Line.Thickness, 0, true);
+				}
+			}
+
+			Num = ProxyData.AuxPoints.Num();
+			for (int32 Index = 0; Index < Num; ++Index)
+			{
+				const auto& Point = ProxyData.AuxPoints[Index];
+				if (FNavMeshRenderingHelpers::PointInView(Point.Position, View))
+				{
+					PDI->DrawPoint(Point.Position, Point.Color, Point.Size, SDPG_World);
 				}
 			}
 

@@ -9,6 +9,8 @@ D3D12Util.h: D3D RHI utility implementation.
 #include "RendererInterface.h"
 #include "CoreGlobals.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Windows/WindowsPlatformCrashContext.h"
+#include "HAL/ExceptionHandling.h"
 
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
@@ -128,6 +130,19 @@ static FString GetD3D12ErrorString(HRESULT ErrorCode, ID3D12Device* Device)
 	return ErrorCodeText;
 }
 
+/** Build string name of command queue type */
+static const TCHAR* GetD3DCommandQueueTypeName(ED3D12CommandQueueType QueueType)
+{
+	switch (QueueType)
+	{
+	case ED3D12CommandQueueType::Default:	 return TEXT("3D");
+	case ED3D12CommandQueueType::Async:		 return TEXT("Compute");
+	case ED3D12CommandQueueType::Copy:		 return TEXT("Copy");
+	}
+
+	return nullptr;
+}
+
 #undef D3DERR
 
 namespace D3D12RHI
@@ -204,9 +219,72 @@ static FString GetD3D12TextureFlagString(uint32 TextureFlags)
 	return TextureFormatText;
 }
 
+/** Log the GPU progress of the given CommandListManager to the Error log if breadcrumb data is available */
+static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12CommandListManager& CommandListManager)
+{
+	uint32* BreadCrumbData = (uint32*)CommandListManager.GetBreadCrumbResourceAddress();
+	if (BreadCrumbData == nullptr)
+	{
+		return false;
+	}
+
+	uint32 EventCount = BreadCrumbData[0];
+	bool bBeginEvent = BreadCrumbData[1] > 0;
+	check(EventCount >= 0 && EventCount < (MAX_GPU_BREADCRUMB_DEPTH - 2));
+
+	FString gpu_progress = FString::Printf(TEXT("[GPUBreadCrumb]\t%s Queue %d - %s"), GetD3DCommandQueueTypeName(CommandListManager.GetQueueType()), 
+		CommandListManager.GetGPUIndex(), EventCount == 0 ? TEXT("No Data") : (bBeginEvent ? TEXT("Begin: ") : TEXT("End: ")));
+	for (uint32 EventIndex = 0; EventIndex < EventCount; ++EventIndex)
+	{
+		if (EventIndex > 0)
+		{
+			gpu_progress.Append(TEXT(" - "));
+		}
+
+		// get the crc and try and translate back into a string
+		uint32 event_crc = BreadCrumbData[EventIndex + 2];
+		const FString* event_name = GPUProfiler.FindEventString(event_crc);
+		if (event_name)
+		{
+			gpu_progress.Append(*event_name);
+		}
+		else
+		{
+			gpu_progress.Append(TEXT("Unknown Event"));
+		}
+	}
+
+	UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *gpu_progress);
+
+	return true;
+}
+
+/** Log the GPU progress of the given Device to the Error log if breadcrumb data is available */
+static void LogBreadcrumbData(ID3D12Device* Device)
+{
+	UE_LOG(LogD3D12RHI, Error, TEXT("[GPUBreadCrumb] Last tracked GPU operations:"));
+
+	bool bValidData = true;
+
+	// Check all the devices
+	FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+	D3D12RHI->ForEachDevice(Device, [&](FD3D12Device* Device)
+		{
+			bValidData = bValidData && LogBreadcrumbData(Device->GetParentAdapter()->GetGPUProfiler(), Device->GetCommandListManager());
+			bValidData = bValidData && LogBreadcrumbData(Device->GetParentAdapter()->GetGPUProfiler(), Device->GetAsyncCommandListManager());
+			bValidData = bValidData && LogBreadcrumbData(Device->GetParentAdapter()->GetGPUProfiler(), Device->GetCopyCommandListManager());
+		});
+
+	if (!bValidData)
+	{
+		UE_LOG(LogD3D12RHI, Error, TEXT("No Valid GPU Breadcrumb data found. Use -gpucrashdebugging to collect GPU progress when debugging GPU crashes."));
+	}
+}
 
 #if PLATFORM_WINDOWS
 
+
+/** Log the DRED data to Error log if available */
 static void LogDREDData(ID3D12Device* Device)
 {
 	// Should match all values from D3D12_AUTO_BREADCRUMB_OP
@@ -355,70 +433,27 @@ static void LogDREDData(ID3D12Device* Device)
 				}
 			}
 		}
-
-		GLog->Flush();
 	}
 }
 
 #endif  // PLATFORM_WINDOWS
 
 extern CORE_API bool GIsGPUCrashed;
-static void TerminateOnDeviceRemoved(HRESULT D3DResult, ID3D12Device* Device)
-{
-	static FCriticalSection cs;
-	FScopeLock scope_lock(&cs);
-
-	// already handled the gpu crash?
-	if (GIsGPUCrashed)
-		return;
-
-	if (GDynamicRHI)
-	{
-		GDynamicRHI->CheckGpuHeartbeat();
-	}
-
-	if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
-	{
-		GIsCriticalError = true;
-		GIsGPUCrashed = true;
-
-#if PLATFORM_WINDOWS
-		if (Device)
-		{
-			LogDREDData(Device);
-		}
-#endif  // PLATFORM_WINDOWS
-
-		if (!FApp::IsUnattended())
-		{
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("DeviceRemoved", "Video driver crashed and was reset!  Make sure your video drivers are up to date.  Exiting...").ToString(), TEXT("Error"));
-		}
-		else
-		{
-			UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *LOCTEXT("DeviceRemoved", "Video driver crashed and was reset!  Make sure your video drivers are up to date.  Exiting...").ToString());
-		}
-		FPlatformMisc::RequestExit(true);
-	}
-}
-
 
 static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 {
-	if (D3DResult == E_OUTOFMEMORY)
+	if (bCreatingTextures)
 	{
-		if (bCreatingTextures)
-		{
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("OutOfVideoMemoryTextures", "Out of video memory trying to allocate a texture! Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
-		}
-		else
-		{
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *NSLOCTEXT("D3D12RHI", "OutOfMemory", "Out of video memory trying to allocate a rendering resource. Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
-		}
-#if STATS
-		GetRendererModule().DebugLogOnCrash();
-#endif
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("OutOfVideoMemoryTextures", "Out of video memory trying to allocate a texture! Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
 	}
+	else
+	{
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *NSLOCTEXT("D3D12RHI", "OutOfMemory", "Out of video memory trying to allocate a rendering resource. Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
+	}
+#if STATS
+	GetRendererModule().DebugLogOnCrash();
+#endif
+	FPlatformMisc::RequestExit(true);
 }
 
 #ifndef MAKE_D3DHRESULT
@@ -428,6 +463,104 @@ static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 
 namespace D3D12RHI
 {
+	void TerminateOnGPUCrash(ID3D12Device* InDevice, const void* InGPUCrashDump, const size_t InGPUCrashDumpSize)
+	{		
+		// Lock the cs, and never unlock - don't want another thread processing the same GPU crash
+		// This call will force a request exit
+		static FCriticalSection cs;
+		cs.Lock();
+
+		// Mark critical and gpu crash
+		GIsCriticalError = true;
+		GIsGPUCrashed = true;
+
+		// Check GPU heartbeat - will trace Aftermath state
+		if (GDynamicRHI)
+		{
+			GDynamicRHI->CheckGpuHeartbeat();
+		}
+
+		// Log RHI independent breadcrumbing data
+		LogBreadcrumbData(InDevice);
+
+		FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+#if PLATFORM_WINDOWS
+		// If no device provided then try and log the DRED status of each device
+		D3D12RHI->ForEachDevice(InDevice, [&](FD3D12Device* IterationDevice)
+			{
+				if (InDevice == nullptr || InDevice == IterationDevice->GetDevice())
+				{
+					LogDREDData(IterationDevice->GetDevice());
+				}
+			});
+#endif  // PLATFORM_WINDOWS
+		
+		// Build the error message
+		FTextBuilder ErrorMessage;
+		ErrorMessage.AppendLine(LOCTEXT("GPU Crashed", "GPU Crashed or D3D Device Removed.\n"));
+		if (!D3D12RHI->GetAdapter().IsDebugDevice())
+		{
+			ErrorMessage.AppendLine(LOCTEXT("D3D Debug Device", "Use -d3ddebug to enable the D3D debug device."));
+		}
+		if (D3D12RHI->GetAdapter().GetGPUCrashDebuggingMode() != ED3D12GPUCrashDebugginMode::Disabled)
+		{
+			ErrorMessage.AppendLine(LOCTEXT("GPU Crash Debugging enabled", "Check log for GPU state information."));
+		}
+		else
+		{
+			ErrorMessage.AppendLine(LOCTEXT("GPU Crash Debugging disabled", "Use -gpucrashdebugging to track current GPU state."));
+		}
+
+		// And info on gpu crash dump as well
+		if (InGPUCrashDump)
+		{
+			ErrorMessage.AppendLine(LOCTEXT("GPU CrashDump", "\nA GPU mini dump will be saved in the Crashes folder."));
+		}
+		
+		// Make sure the log is flushed!
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
+
+		// Show message box or trace information
+		if (!FApp::IsUnattended())
+		{
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMessage.ToText().ToString(), TEXT("Error"));
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *ErrorMessage.ToText().ToString());
+		}
+
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+		// If we have crash dump data then dump to disc
+		if (InGPUCrashDump != nullptr)
+		{
+			// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
+			const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+
+			// Just use raw windows file routines for the GPU minidump (TODO: refactor to our own functions?)
+			HANDLE FileHandle = CreateFileW(*GPUMiniDumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (FileHandle != INVALID_HANDLE_VALUE)
+			{
+				WriteFile(FileHandle, InGPUCrashDump, InGPUCrashDumpSize, nullptr, nullptr);
+			}
+			CloseHandle(FileHandle);
+
+			// Report the GPU crash which will raise the exception (only interesting if we have a GPU dump)
+			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
+		}
+		else
+#endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+		{
+			// Make sure the log is flushed!
+			GLog->PanicFlushThreadedLogs();
+			GLog->Flush();
+		}
+
+		// Force shutdown, we can't do anything useful anymore.
+		FPlatformMisc::RequestExit(true);
+	}
+
 	void VerifyD3D12Result(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D12Device* Device, FString Message)
 	{
 		check(FAILED(D3DResult));
@@ -435,10 +568,21 @@ namespace D3D12RHI
 		const FString& ErrorString = GetD3D12ErrorString(D3DResult, Device);
 		UE_LOG(LogD3D12RHI, Error, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
 
-		TerminateOnDeviceRemoved(D3DResult, Device);
-		TerminateOnOutOfMemory(D3DResult, false);
+		// Terminate with device removed but we don't have any GPU crash dump information
+		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
+		{	 
+			TerminateOnGPUCrash(Device, nullptr, 0);
+		}
+		else if (D3DResult == E_OUTOFMEMORY)
+		{
+			TerminateOnOutOfMemory(D3DResult, false);
+		}
 
 		UE_LOG(LogD3D12RHI, Fatal, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
+
+		// Make sure the log is flushed!
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
 	}
 
 	void VerifyD3D12CreateTextureResult(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, const D3D12_RESOURCE_DESC& TextureDesc, ID3D12Device* Device)
@@ -462,12 +606,15 @@ namespace D3D12RHI
 			TextureDesc.MipLevels,
 			*GetD3D12TextureFlagString(TextureDesc.Flags));
 
-		TerminateOnDeviceRemoved(D3DResult, Device);
-		TerminateOnOutOfMemory(D3DResult, true);
-
-		// this is to track down a rarely happening crash
-		if (D3DResult == E_OUTOFMEMORY)
+		// Terminate with device removed but we don't have any GPU crash dump information
+		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
 		{
+			TerminateOnGPUCrash(Device, nullptr, 0);
+		}
+		else if (D3DResult == E_OUTOFMEMORY)
+		{
+			TerminateOnOutOfMemory(D3DResult, true);
+
 #if STATS
 			GetRendererModule().DebugLogOnCrash();
 #endif // STATS
@@ -486,6 +633,10 @@ namespace D3D12RHI
 			TextureDesc.Format,
 			TextureDesc.MipLevels,
 			*GetD3D12TextureFlagString(TextureDesc.Flags));
+
+		// Make sure the log is flushed!
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
 	}
 
 	void VerifyComRefCount(IUnknown* Object, int32 ExpectedRefs, const TCHAR* Code, const TCHAR* Filename, int32 Line)

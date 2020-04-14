@@ -103,6 +103,7 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 		{
 			if (MeshIn->HasAttributes())
 			{
+				check(MeshIn->TriangleCount() == MeshOut.Triangles().Num())
 				for (int UVLayerIndex = 0, NumLayers = MeshIn->Attributes()->NumUVLayers(); UVLayerIndex < NumLayers; UVLayerIndex++)
 				{
 					DynamicMeshToMeshDescriptionConversionHelper::SetAttributesFromOverlay(MeshIn, MeshOut, InstanceAttrib, MeshIn->Attributes()->GetUVLayer(UVLayerIndex), UVLayerIndex);
@@ -110,6 +111,7 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 			}
 			else
 			{
+				check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
 				for (int VertID : MeshIn->VertexIndicesItr())
 				{
 					FVector2D UV = (FVector2D)MeshIn->GetVertexUV(VertID);

@@ -138,6 +138,7 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "SequencerCustomizationManager.h"
+#include "SSequencerGroupManager.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -444,6 +445,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		.SelectionRange( this, &FSequencer::GetSelectionRange )
 		.VerticalFrames(this, &FSequencer::GetVerticalFrames)
 		.MarkedFrames(this, &FSequencer::GetMarkedFrames)
+		.GlobalMarkedFrames(this, &FSequencer::GetGlobalMarkedFrames)
 		.OnSetMarkedFrame(this, &FSequencer::SetMarkedFrame)
 		.OnAddMarkedFrame(this, &FSequencer::AddMarkedFrame)
 		.OnDeleteMarkedFrame(this, &FSequencer::DeleteMarkedFrame)
@@ -530,6 +532,8 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	}
 
 	UpdateSequencerCustomizations();
+
+	AddNodeGroupsCollectionChangedDelegate();
 
 	OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs[0]);
 }
@@ -798,6 +802,11 @@ void FSequencer::Tick(float InDeltaTime)
 		}
 		PrePossessionViewTargets.Reset();
 	}
+
+	if (!bGlobalMarkedFramesCached)
+	{
+		UpdateGlobalMarkedFramesCache();
+	}
 }
 
 
@@ -852,6 +861,8 @@ UMovieSceneSubSection* FSequencer::FindSubSection(FMovieSceneSequenceID Sequence
 
 void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 {
+	RemoveNodeGroupsCollectionChangedDelegate();
+
 	RootSequence = &NewSequence;
 	RestorePreAnimatedState();
 
@@ -887,12 +898,16 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 
 	UpdateSequencerCustomizations();
 
+	AddNodeGroupsCollectionChangedDelegate();
+
 	OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs.Top());
 }
 
 
 void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 {
+	RemoveNodeGroupsCollectionChangedDelegate();
+
 	FMovieSceneRootOverridePath Path;
 	Path.Set(ActiveTemplateIDs.Last(), RootTemplateInstance.GetHierarchy());
 
@@ -943,7 +958,10 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 
 	OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs.Top());
 
+	AddNodeGroupsCollectionChangedDelegate();
+
 	bNeedsEvaluate = true;
+	bGlobalMarkedFramesCached = false;
 }
 
 
@@ -1040,10 +1058,20 @@ void FSequencer::GetKeysFromSelection(TUniquePtr<FSequencerKeyCollection>& KeyCo
 		SelectedNodes.Add(&Node.Get());
 	}
 
+	int64 TotalMaxSeconds = static_cast<int64>(TNumericLimits<int32>::Max() / GetFocusedTickResolution().AsDecimal());
+
 	FFrameNumber ThresholdFrames = (DuplicateThresholdSeconds * GetFocusedTickResolution()).FloorToFrame();
+	if (ThresholdFrames.Value < -TotalMaxSeconds)
+	{
+		ThresholdFrames.Value = TotalMaxSeconds;
+	}
+	else if (ThresholdFrames.Value > TotalMaxSeconds)
+	{
+		ThresholdFrames.Value = TotalMaxSeconds;
+	}
+
 	KeyCollection->Update(FSequencerKeyCollectionSignature::FromNodesRecursive(SelectedNodes, ThresholdFrames));
 }
-
 
 void FSequencer::GetAllKeys(TUniquePtr<FSequencerKeyCollection>& KeyCollection, float DuplicateThresholdSeconds)
 {
@@ -1067,6 +1095,8 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 {
 	if( ActiveTemplateIDs.Num() > 1 )
 	{
+		RemoveNodeGroupsCollectionChangedDelegate();
+
 		// Pop until we find the movie scene to focus
 		while( SequenceID != ActiveTemplateIDs.Last() )
 		{
@@ -1102,9 +1132,12 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 
 		UpdateSequencerCustomizations();
 
+		AddNodeGroupsCollectionChangedDelegate();
+
 		OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs.Top());
 
 		bNeedsEvaluate = true;
+		bGlobalMarkedFramesCached = false;
 	}
 }
 
@@ -1903,6 +1936,7 @@ void FSequencer::BakeTransform()
 
 	FocusedMovieScene->Modify();
 
+	TArray<FGuid> Guids;
 	for (const TSharedRef<FSequencerDisplayNode>& Node : Selection.GetSelectedOutlinerNodes())
 	{
 		if (Node->GetType() != ESequencerNode::Object)
@@ -1910,10 +1944,15 @@ void FSequencer::BakeTransform()
 			continue;
 		}
 
-		FFrameTime ResetTime = PlayPosition.GetCurrentPosition();
 		auto ObjectBindingNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
-
 		FGuid Guid = ObjectBindingNode->GetObjectBinding();
+
+		Guids.Add(Guid);
+	}
+
+	FFrameTime ResetTime = PlayPosition.GetCurrentPosition();
+	for (FGuid Guid : Guids)
+	{
 		for (auto RuntimeObject : FindBoundObjects(Guid, ActiveTemplateIDs.Top()) )
 		{
 			AActor* Actor = Cast<AActor>(RuntimeObject.Get());
@@ -1972,6 +2011,8 @@ void FSequencer::BakeTransform()
 
 					if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Parent))
 					{
+						SkeletalMeshComponent->TickAnimation(0.f, false);
+
 						SkeletalMeshComponent->RefreshBoneTransforms();
 						SkeletalMeshComponent->RefreshSlaveComponents();
 						SkeletalMeshComponent->UpdateComponentToWorld();
@@ -2233,6 +2274,7 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 		}
 	}
 
+	bGlobalMarkedFramesCached = false;
 	bNeedsEvaluate = true;
 	State.ClearObjectCaches(*this);
 
@@ -5798,6 +5840,147 @@ void FSequencer::OnSelectedOutlinerNodesChanged()
 	OnSelectionChangedSectionsDelegate.Broadcast(SelectedSections);
 }
 
+void FSequencer::AddNodeGroupsCollectionChangedDelegate()
+{
+	UMovieSceneSequence* MovieSceneSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = MovieSceneSequence ? MovieSceneSequence->GetMovieScene() : nullptr;
+	if (ensure(MovieScene))
+	{
+		if (!MovieScene->GetNodeGroups().OnNodeGroupCollectionChanged().IsBoundToObject(this))
+		{
+			MovieScene->GetNodeGroups().OnNodeGroupCollectionChanged().AddSP(this, &FSequencer::OnNodeGroupsCollectionChanged);
+		}
+	}
+}
+
+void FSequencer::RemoveNodeGroupsCollectionChangedDelegate()
+{
+	UMovieSceneSequence* MovieSceneSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = MovieSceneSequence ? MovieSceneSequence->GetMovieScene() : nullptr;
+	if (ensure(MovieScene))
+	{
+		MovieScene->GetNodeGroups().OnNodeGroupCollectionChanged().RemoveAll(this);
+	}
+}
+
+void FSequencer::OnNodeGroupsCollectionChanged()
+{
+	TSharedPtr<SSequencerGroupManager> NodeGroupManager = SequencerWidget->GetNodeGroupsManager();
+	if (NodeGroupManager)
+	{
+		NodeGroupManager->RefreshNodeGroups();
+	}
+
+	NodeTree->NodeGroupsCollectionChanged();
+}
+
+void FSequencer::AddSelectedNodesToNewNodeGroup()
+{
+	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+
+	if (MovieScene->IsReadOnly())
+	{
+		return;
+	}
+
+	const TSet<TSharedRef<FSequencerDisplayNode> >& SelectedNodes = GetSelection().GetSelectedOutlinerNodes();
+	if (SelectedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	TSet<FString> NodesToAdd;
+	for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
+	{
+		const FSequencerDisplayNode* BaseNode = Node->GetBaseNode();
+		ESequencerNode::Type NodeType = BaseNode->GetType();
+
+		if (NodeType == ESequencerNode::Track || NodeType == ESequencerNode::Object || NodeType == ESequencerNode::Folder)
+		{
+			FString NodePath = BaseNode->GetPathName();
+			NodesToAdd.Add(NodePath);
+		}
+	}
+
+	if (NodesToAdd.Num() == 0)
+	{
+		return;
+	}
+
+	TArray<FName> ExistingGroupNames;
+	for (const UMovieSceneNodeGroup* NodeGroup : MovieScene->GetNodeGroups())
+	{
+		ExistingGroupNames.Add(NodeGroup->GetName());
+	}
+
+	UMovieSceneNodeGroup* NewNodeGroup = NewObject<UMovieSceneNodeGroup>(&MovieScene->GetNodeGroups());
+	NewNodeGroup->SetName(FSequencerUtilities::GetUniqueName(FName("Group"), ExistingGroupNames));
+
+	for (const FString& NodeToAdd : NodesToAdd)
+	{
+		NewNodeGroup->AddNode(NodeToAdd);
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("CreateNewGroupTransaction", "Create New Group"));
+
+	MovieScene->Modify();
+
+	MovieScene->GetNodeGroups().AddNodeGroup(NewNodeGroup);
+
+	SequencerWidget->OpenNodeGroupsManager();
+	SequencerWidget->GetNodeGroupsManager()->RequestRenameNodeGroup(NewNodeGroup);
+}
+
+void FSequencer::AddSelectedNodesToExistingNodeGroup(UMovieSceneNodeGroup* NodeGroup)
+{
+	AddNodesToExistingNodeGroup(GetSelection().GetSelectedOutlinerNodes().Array(), NodeGroup);
+}
+
+void FSequencer::AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerDisplayNode>>& InNodes, UMovieSceneNodeGroup* InNodeGroup)
+{
+	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+
+	if (MovieScene->IsReadOnly())
+	{
+		return;
+	}
+
+	if (!MovieScene->GetNodeGroups().Contains(InNodeGroup))
+	{
+		return;
+	}
+
+	TSet<FString> NodesToAdd;
+	for (const TSharedRef<const FSequencerDisplayNode> Node : InNodes)
+	{
+		const FSequencerDisplayNode* BaseNode = Node->GetBaseNode();
+		ESequencerNode::Type NodeType = BaseNode->GetType();
+
+		if (NodeType == ESequencerNode::Track || NodeType == ESequencerNode::Object || NodeType == ESequencerNode::Folder)
+		{
+			FString NodePath = BaseNode->GetPathName();
+			NodesToAdd.Add(NodePath);
+		}
+	}
+
+	if (NodesToAdd.Num() == 0)
+	{
+		return;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("AddNodesToGroupTransaction", "Add Nodes to Group"));
+
+	MovieScene->Modify();
+
+	for (const FString& NodeToAdd : NodesToAdd)
+	{
+		if (!InNodeGroup->ContainsNode(NodeToAdd))
+		{
+			InNodeGroup->AddNode(NodeToAdd);
+		}
+	}
+
+}
 
 void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 {
@@ -6119,6 +6302,67 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 	}
 }
 
+void FSequencer::SelectNodesByPath(const TSet<FString>& NodePaths)
+{
+	if (bUpdatingExternalSelection)
+	{
+		return;
+	}
+
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	if (!Sequence->GetMovieScene())
+	{
+		return;
+	}
+
+	// If all nodes are already selected, do nothing. This ensures that when an undo event happens, 
+	// nodes are not cleared and reselected, which can cause issues with the curve editor auto-fitting 
+	// based on selection.
+	bool bAllAlreadySelected = true;
+	const TSet<TSharedRef<FSequencerDisplayNode>>& CurrentSelection = GetSelection().GetSelectedOutlinerNodes();
+
+	TSet<TSharedRef<FSequencerDisplayNode>> NodesToSelect;
+	for (TSharedRef<FSequencerDisplayNode> DisplayNode : NodeTree->GetAllNodes())
+	{
+		if (NodePaths.Contains(DisplayNode->GetPathName()))
+		{
+			NodesToSelect.Add(DisplayNode);
+			if (bAllAlreadySelected && !CurrentSelection.Contains(DisplayNode))
+			{
+				bAllAlreadySelected = false;
+			}
+		}
+	}
+
+	if (!bAllAlreadySelected || (NodesToSelect.Num() != CurrentSelection.Num()))
+	{
+		Selection.SuspendBroadcast();
+		Selection.EmptySelectedOutlinerNodes();
+		for (TSharedRef<FSequencerDisplayNode> NodeToSelect : NodesToSelect)
+		{
+			Selection.AddToSelection(NodeToSelect);
+		}
+
+		TSharedPtr<SSequencerTreeView> TreeView = SequencerWidget->GetTreeView();
+		const TSet<TSharedRef<FSequencerDisplayNode>>& OutlinerSelection = GetSelection().GetSelectedOutlinerNodes();
+		for (auto& Node : OutlinerSelection)
+		{
+			auto Parent = Node->GetParent();
+			while (Parent.IsValid())
+			{
+				TreeView->SetItemExpansion(Parent->AsShared(), true);
+				Parent = Parent->GetParent();
+			}
+
+			TreeView->RequestScrollIntoView(Node);
+			break;
+		}
+
+		Selection.ResumeBroadcast();
+		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+	}
+}
+
 bool FSequencer::IsBindingVisible(const FMovieSceneBinding& InBinding)
 {
 	if (Settings->GetShowSelectedNodesOnly() && OnGetIsBindingVisible().IsBound())
@@ -6137,6 +6381,77 @@ bool FSequencer::IsTrackVisible(const UMovieSceneTrack* InTrack)
 	}
 
 	return true;
+}
+
+void FSequencer::OnNodePathChanged(const FString& OldPath, const FString& NewPath)
+{
+	if (!OldPath.Equals(NewPath))
+	{
+		UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+
+		if (!MovieScene->IsReadOnly())
+		{
+			MovieScene->Modify();
+
+			MovieScene->GetNodeGroups().UpdateNodePath(OldPath, NewPath);
+
+			// If the node is in the solo list, replace it with it's new path
+			if (MovieScene->GetSoloNodes().Remove(OldPath))
+			{
+				MovieScene->GetSoloNodes().Add(NewPath);
+			}
+
+			// If the node is in the mute list, replace it with it's new path
+			if (MovieScene->GetMuteNodes().Remove(OldPath))
+			{
+				MovieScene->GetMuteNodes().Add(NewPath);
+			}
+
+			// Find any solo/muted nodes with a path that is a child of the renamed node, and rename their paths as well
+			FString PathPrefix = OldPath + '.';
+
+			TArray<FString> PathsToRename;
+			for (const FString& NodePath : MovieScene->GetSoloNodes())
+			{
+				if (NodePath.StartsWith(PathPrefix))
+				{
+					PathsToRename.Add(NodePath);
+				}
+			}
+
+			for (const FString& NodePath : PathsToRename)
+			{
+				FString NewNodePath = NodePath;
+				if (NewNodePath.RemoveFromStart(PathPrefix))
+				{
+					NewNodePath = NewPath + '.' + NewNodePath;
+					MovieScene->GetSoloNodes().Remove(NodePath);
+					MovieScene->GetSoloNodes().Add(NewNodePath);
+				}
+			}
+
+			PathsToRename.Empty();
+			for (const FString& NodePath : MovieScene->GetMuteNodes())
+			{
+				if (NodePath.StartsWith(PathPrefix))
+				{
+					PathsToRename.Add(NodePath);
+				}
+			}
+
+			for (const FString& NodePath : PathsToRename)
+			{
+				FString NewNodePath = NodePath;
+				if (NewNodePath.RemoveFromStart(PathPrefix))
+				{
+					NewNodePath = NewPath + '.' + NewNodePath;
+					MovieScene->GetMuteNodes().Remove(NodePath);
+					MovieScene->GetMuteNodes().Add(NewNodePath);
+				}
+			}
+
+		}
+	}
 }
 
 void FSequencer::OnSelectedNodesOnlyChanged()
@@ -8887,6 +9202,23 @@ TArray<FMovieSceneSpawnable*> FSequencer::ConvertToSpawnableInternal(FGuid Posse
 			SpawnRegister->HandleConvertPossessableToSpawnable(FoundObject, *this, TransformData);
 			SpawnRegister->SetupDefaultsForSpawnable(nullptr, Spawnable->GetGuid(), TransformData, AsShared(), Settings);
 
+			TMap<FGuid, FGuid> OldGuidToNewGuidMap;
+			OldGuidToNewGuidMap.Add(PossessableGuid, Spawnable->GetGuid());
+			
+			// Fixup any section bindings
+			TArray<UMovieScene*> MovieScenesToUpdate;
+			MovieSceneHelpers::GetDescendantMovieScenes(GetRootMovieSceneSequence(), MovieScenesToUpdate);
+			for (UMovieScene* MovieSceneToUpdate : MovieScenesToUpdate)
+			{
+				for (UMovieSceneSection* Section : MovieSceneToUpdate->GetAllSections())
+				{
+					if (Section)
+					{
+						Section->OnBindingsUpdated(OldGuidToNewGuidMap);
+					}
+				}
+			}
+
 			ForceEvaluate();
 
 			NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
@@ -9088,6 +9420,23 @@ FMovieScenePossessable* FSequencer::ConvertToPossessableInternal(FGuid Spawnable
 
 		static const FName SequencerActorTag(TEXT("SequencerActor"));
 		PossessedActor->Tags.Remove(SequencerActorTag);
+
+		TMap<FGuid, FGuid> OldGuidToNewGuidMap;
+		OldGuidToNewGuidMap.Add(OldSpawnableGuid, NewPossessableGuid);
+		
+		// Fixup any section bindings
+		TArray<UMovieScene*> MovieScenesToUpdate;
+		MovieSceneHelpers::GetDescendantMovieScenes(GetRootMovieSceneSequence(), MovieScenesToUpdate);
+		for (UMovieScene* MovieSceneToUpdate : MovieScenesToUpdate)
+		{
+			for (UMovieSceneSection* Section : MovieSceneToUpdate->GetAllSections())
+			{
+				if (Section)
+				{
+					Section->OnBindingsUpdated(OldGuidToNewGuidMap);
+				}
+			}
+		}
 
 		GEditor->SelectActor(PossessedActor, false, true);
 
@@ -9796,6 +10145,117 @@ TArray<FMovieSceneMarkedFrame> FSequencer::GetMarkedFrames() const
 	return TArray<FMovieSceneMarkedFrame>();
 }
 
+void FindGlobalMarkedFrames(TArray<FMovieSceneMarkedFrame>& GlobalMarkedFrames, const UMovieScene* MovieScene, const FFrameNumber FrameOffset, const UMovieScene* FocusedMovieScene)
+{
+	if (MovieScene == nullptr)
+	{
+		return;
+	}
+
+	if (MovieScene != FocusedMovieScene && MovieScene->GetGloballyShowMarkedFrames())
+	{
+		TArray<FMovieSceneMarkedFrame> MarkedFrames = MovieScene->GetMarkedFrames();
+		for (FMovieSceneMarkedFrame MarkedFrame : MarkedFrames)
+		{
+			MarkedFrame.FrameNumber += FrameOffset;
+			GlobalMarkedFrames.Add(MarkedFrame);
+		}
+	}
+
+	const TArray<UMovieSceneTrack*>& Tracks = MovieScene->GetMasterTracks();
+	for (const UMovieSceneTrack* Track : Tracks)
+	{
+		if (Track->SupportsType(UMovieSceneSubSection::StaticClass()))
+		{
+			for (const UMovieSceneSection* Section : Track->GetAllSections())
+			{
+				const UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section);
+				if (SubSection != nullptr)
+				{
+					const UMovieSceneSequence* SubSequence = SubSection->GetSequence();
+					if (SubSequence != nullptr)
+					{
+						const UMovieScene* SubSequenceScene = SubSequence->GetMovieScene();
+						if (SubSequenceScene != nullptr)
+						{
+							FindGlobalMarkedFrames(GlobalMarkedFrames, SubSequenceScene, SubSection->GetInclusiveStartFrame() + FrameOffset, FocusedMovieScene);
+						}
+					}
+				}
+			}
+		}
+		else if(Track->SupportsType(UMovieSceneCinematicShotSection::StaticClass()))
+		{
+			for (const UMovieSceneSection* Section : Track->GetAllSections())
+			{
+				const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(Section);
+				if (ShotSection != nullptr)
+				{
+					const UMovieSceneSequence* SubSequence = ShotSection->GetSequence();
+					if (SubSequence != nullptr)
+					{
+						const UMovieScene* SubSequenceScene = SubSequence->GetMovieScene();
+						if (SubSequenceScene != nullptr)
+						{
+							FindGlobalMarkedFrames(GlobalMarkedFrames, SubSequenceScene, ShotSection->GetInclusiveStartFrame() + FrameOffset, FocusedMovieScene);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+TArray<FMovieSceneMarkedFrame> FSequencer::GetGlobalMarkedFrames() const
+{
+	return GlobalMarkedFramesCache;
+}
+
+void FSequencer::UpdateGlobalMarkedFramesCache()
+{
+	GlobalMarkedFramesCache.Empty();
+
+	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* FocusedMovieScene = nullptr;
+	if (FocusedMovieSequence != nullptr)
+	{
+		FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+	}
+
+	UMovieSceneSequence* RootMovieSequence = GetRootMovieSceneSequence();
+	if (RootMovieSequence != nullptr)
+	{
+		UMovieScene* RootMovieScene = RootMovieSequence->GetMovieScene();
+		if (RootMovieScene != nullptr)
+		{
+
+			TRange<FFrameTime> Range(0,0);
+			Range = RootToLocalTransform.TransformRangeUnwarped(Range);
+			FFrameNumber FocusedMovieSceneFrameOffset = Range.GetLowerBoundValue().FrameNumber;
+
+			FindGlobalMarkedFrames(GlobalMarkedFramesCache, RootMovieScene, FocusedMovieSceneFrameOffset, FocusedMovieScene);
+		}
+	}
+	
+	bGlobalMarkedFramesCached = true;
+}
+
+void FSequencer::ClearGlobalMarkedFrames()
+{
+	bGlobalMarkedFramesCached = false;
+
+	for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : RootTemplateInstance.GetHierarchy().AllSubSequenceData())
+	{
+		if (UMovieSceneSequence* Sequence = Pair.Value.GetSequence())
+		{
+			if (UMovieScene* MovieScene = Sequence->GetMovieScene())
+			{
+				MovieScene->SetGloballyShowMarkedFrames(false);
+			}
+		}
+	}
+}
+
 void FSequencer::ToggleMarkAtPlayPosition()
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
@@ -10341,9 +10801,17 @@ void FSequencer::FixActorReferences()
 	}
 
 	// Fixup any section bindings
-	for (UMovieSceneSection* Section : FocusedMovieScene->GetAllSections())
+	TArray<UMovieScene*> MovieScenesToUpdate;
+	MovieSceneHelpers::GetDescendantMovieScenes(GetRootMovieSceneSequence(), MovieScenesToUpdate);
+	for (UMovieScene* MovieSceneToUpdate : MovieScenesToUpdate)
 	{
-		Section->OnBindingsUpdated(OldGuidToNewGuidMap);
+		for (UMovieSceneSection* Section : MovieSceneToUpdate->GetAllSections())
+		{
+			if (Section)
+			{
+				Section->OnBindingsUpdated(OldGuidToNewGuidMap);
+			}
+		}
 	}
 }
 
@@ -11513,6 +11981,34 @@ void FSequencer::BuildObjectBindingEditButtons(TSharedPtr<SHorizontalBox> EditBo
 	for (int32 i = 0; i < TrackEditors.Num(); ++i)
 	{
 		TrackEditors[i]->BuildObjectBindingEditButtons(EditBox, ObjectBinding, ObjectClass);
+	}
+}
+
+void FSequencer::BuildAddSelectedToNodeGroupMenu(FMenuBuilder& MenuBuilder)
+{
+	UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = FocusedMovieSceneSequence ? FocusedMovieSceneSequence->GetMovieScene() : nullptr;
+	if (MovieScene)
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("NewNodeGroup", "New Group"),
+			LOCTEXT("AddNodesToNewNodeGroupTooltip", "Creates a new group and adds the selected nodes"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FSequencer::AddSelectedNodesToNewNodeGroup)));
+
+		if (MovieScene->GetNodeGroups().Num() > 0)
+		{
+			MenuBuilder.AddMenuSeparator();
+
+			for (UMovieSceneNodeGroup* NodeGroup : MovieScene->GetNodeGroups())
+			{
+				MenuBuilder.AddMenuEntry(
+					FText::FromName(NodeGroup->GetName()),
+					LOCTEXT("AddNodesToNodeGroupFormatTooltip", "Adds the selected nodes to this existing group"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateSP(this, &FSequencer::AddSelectedNodesToExistingNodeGroup, NodeGroup)));
+			}
+		}
 	}
 }
 

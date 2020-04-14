@@ -263,6 +263,15 @@ public:
 	/** @return The set of marked frames */
 	TArray<FMovieSceneMarkedFrame> GetMarkedFrames() const;
 
+	TArray<FMovieSceneMarkedFrame> GetGlobalMarkedFrames() const;
+	void InvalidateGlobalMarkedFramesCache() { bGlobalMarkedFramesCached = false; }
+	void UpdateGlobalMarkedFramesCache();
+
+	/** 
+	  * Disables all global marked frames from all sub-sequences
+	  */
+	void ClearGlobalMarkedFrames();
+
 protected:
 
 	/** Set/Clear a Mark at the current time */
@@ -413,6 +422,13 @@ public:
 	 */
 	void BuildObjectBindingEditButtons(TSharedPtr<SHorizontalBox> EditBox, const FGuid& ObjectBinding, const UClass* ObjectClass);
 
+	/**
+	 * Builds up the menu of node groups to add selected nodes to
+	 *
+	 * @param MenuBuilder The menu builder to add things to.
+	 */
+	void BuildAddSelectedToNodeGroupMenu(FMenuBuilder& MenuBuilder);
+
 	/** Called when an actor is dropped into Sequencer */
 	void OnActorsDropped( const TArray<TWeakObjectPtr<AActor> >& Actors );
 
@@ -545,11 +561,17 @@ public:
 	/** Updates the sequencer selection to match the current external selection. */
 	void SynchronizeSequencerSelectionWithExternalSelection();
 		
+	/** Updates the sequencer selection to match the list of node paths. */
+	void SelectNodesByPath(const TSet<FString>& NodePaths);
+
 	/** Whether the binding is visible in the tree view */
 	bool IsBindingVisible(const FMovieSceneBinding& InBinding);
 
 	/** Whether the track is visible in the tree view */
 	bool IsTrackVisible(const UMovieSceneTrack* InTrack);
+
+	/** Call when the path to a display node changes, to update anything tracking the node via path */
+	void OnNodePathChanged(const FString& OldPath, const FString& NewPath);
 
 	void OnSelectedNodesOnlyChanged();
 
@@ -966,6 +988,18 @@ protected:
 
 	void OnSelectedOutlinerNodesChanged();
 
+	void AddNodeGroupsCollectionChangedDelegate();
+	void RemoveNodeGroupsCollectionChangedDelegate();
+
+	void OnNodeGroupsCollectionChanged();
+
+public:
+	void AddSelectedNodesToNewNodeGroup();
+	void AddSelectedNodesToExistingNodeGroup(UMovieSceneNodeGroup* NodeGroup);
+	void AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerDisplayNode>>& Nodes, UMovieSceneNodeGroup* NodeGroup);
+
+private:
+
 	/** Updates a viewport client from camera cut data */
 	void UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewportClient& InViewportClient, UObject* InCameraObject, const EMovieSceneCameraCutParams& CameraCutParams);
 
@@ -1287,6 +1321,9 @@ private:
 	bool bNeedsEvaluate;
 
 	FAcquiredResources AcquiredResources;
+
+	bool bGlobalMarkedFramesCached;
+	TArray<FMovieSceneMarkedFrame> GlobalMarkedFramesCache;
 
 	/** The range of the currently displayed sub sequence in relation to its parent section, in the resolution of the current sub sequence */
 	TRange<FFrameNumber> SubSequenceRange;

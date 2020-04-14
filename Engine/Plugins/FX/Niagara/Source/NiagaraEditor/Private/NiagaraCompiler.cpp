@@ -72,6 +72,15 @@ static FAutoConsoleVariableRef CVarForceNiagaraVMBinaryDump(
 	ECVF_Default
 );
 
+static int32 GNiagaraEnablePrecompilerNamespaceFixup = 0;
+static FAutoConsoleVariableRef CVarNiagaraEnablePrecompilerNamespaceFixup(
+	TEXT("fx.NiagaraEnablePrecompilerNamespaceFixup"),
+	GNiagaraEnablePrecompilerNamespaceFixup,
+	TEXT("Enable a precompiler stage to discover parameter name matches and convert matched parameter hlsl name tokens to appropriate namespaces. \n"),
+	ECVF_Default
+);
+
+
 static FCriticalSection TranslationCritSec;
 
 void DumpHLSLText(const FString& SourceCode, const FString& DebugName)
@@ -602,9 +611,9 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 
 		// Now deep copy the system graphs, skipping traversal into any emitter references.
 		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(System->GetSystemSpawnScript()->GetSource());
-		BasePtr->DeepCopyGraphs(Source, ENiagaraScriptUsage::SystemSpawnScript, FCompileConstantResolver());
-		BasePtr->AddRapidIterationParameters(System->GetSystemSpawnScript()->RapidIterationParameters, FCompileConstantResolver());
-		BasePtr->AddRapidIterationParameters(System->GetSystemUpdateScript()->RapidIterationParameters, FCompileConstantResolver());
+		BasePtr->DeepCopyGraphs(Source, ENiagaraScriptUsage::SystemSpawnScript, EmptyResolver);
+		BasePtr->AddRapidIterationParameters(System->GetSystemSpawnScript()->RapidIterationParameters, EmptyResolver);
+		BasePtr->AddRapidIterationParameters(System->GetSystemUpdateScript()->RapidIterationParameters, EmptyResolver);
 		BasePtr->FinishPrecompile(Source, EncounterableVars, ENiagaraScriptUsage::SystemSpawnScript, EmptyResolver, nullptr);
 
 		// Add the User and System variables that we did encounter to the list that emitters might also encounter.
@@ -638,87 +647,91 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			}
 		}
 
-		// Build parameter map histories just for System scripts in order to separate out System scope parameters from Emitter scope for the history handles.
-		TArray<FNiagaraParameterMapHistory> SystemOnlyHistories;
-		FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
-		Builder.ConstantResolver = EmptyResolver;
-		Builder.bShouldBuildSubHistories = false;
-		FString TranslationName = TEXT("Emitter");
-		Builder.AddGraphToCallingGraphContextStack(BasePtr->GetPrecomputedNodeGraph());
-		Builder.BeginTranslation(TranslationName);
-
-		TArray<UNiagaraNodeOutput*> SystemOutputNodes;
-		BasePtr->NodeGraphDeepCopy->FindOutputNodes(SystemOutputNodes);
-		for (UNiagaraNodeOutput* FoundOutputNode : SystemOutputNodes)
+		// Namespace fixup stage: Name match parameters across scripts and promote their namespaces to the Dataset if matched. 
+		if (GNiagaraEnablePrecompilerNamespaceFixup > 0)
 		{
-			Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
-			Builder.BuildParameterMaps(FoundOutputNode, true);
-			
-			for (FNiagaraParameterMapHistory& History : Builder.Histories)
+			// Build parameter map histories just for System scripts in order to separate out System scope parameters from Emitter scope for the history handles.
+			TArray<FNiagaraParameterMapHistory> SystemOnlyHistories;
+			FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
+			Builder.ConstantResolver = EmptyResolver;
+			Builder.bShouldBuildSubHistories = false;
+			FString TranslationName = TEXT("Emitter");
+			Builder.AddGraphToCallingGraphContextStack(BasePtr->GetPrecomputedNodeGraph());
+			Builder.BeginTranslation(TranslationName);
+
+			TArray<UNiagaraNodeOutput*> SystemOutputNodes;
+			BasePtr->NodeGraphDeepCopy->FindOutputNodes(SystemOutputNodes);
+			for (UNiagaraNodeOutput* FoundOutputNode : SystemOutputNodes)
 			{
-				// FinishPrecompile() has not been called on this history so set the OriginatingScriptUsage.
-				History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
-				SystemOnlyHistories.Add(History);
-			}
-			Builder.Histories.Empty();
-		}
+				Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
+				Builder.BuildParameterMaps(FoundOutputNode, true);
 
-		// Build history handles for System scripts.
-		TArray<FNiagaraParameterMapHistory>& SystemScriptHistories = BasePtr->GetPrecomputedHistories();
-		TArray<FNiagaraParameterMapHistoryHandle> SystemScriptHistoryHandles;
-		for (int i = 0; i < SystemScriptHistories.Num(); ++i)
-		{
-			SystemScriptHistoryHandles.Add(FNiagaraParameterMapHistoryHandle(SystemScriptHistories[i], SystemOnlyHistories[i], BasePtr->RequiredRendererVariables));
-		}
-
-		// Build history handles for Emitter and Particle scripts.
-		TArray<FNiagaraParameterMapHistoryHandle> EmitterAndParticleScriptHistoryHandles;
-		for (TSharedPtr<FNiagaraCompileRequestData, ESPMode::ThreadSafe> EmitterRequest : BasePtr->EmitterData)
-		{
-			FName EmitterUniqueName = FName(*EmitterRequest->GetUniqueEmitterName());
-			TArray<FNiagaraParameterMapHistory>& EmitterScriptHistories = EmitterRequest->GetPrecomputedHistories();
-			for (int i = 0; i < EmitterScriptHistories.Num(); ++i)
-			{
-				if (FNiagaraStackGraphUtilities::GetScopeForScriptUsage(EmitterScriptHistories[i].OriginatingScriptUsage) == ENiagaraParameterScope::Particles)
+				for (FNiagaraParameterMapHistory& History : Builder.Histories)
 				{
-					EmitterAndParticleScriptHistoryHandles.Add(FNiagaraParameterMapHistoryHandle(EmitterScriptHistories[i], EmitterRequest->RequiredRendererVariables, EmitterUniqueName));
+					// FinishPrecompile() has not been called on this history so set the OriginatingScriptUsage.
+					History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
+					SystemOnlyHistories.Add(History);
 				}
-				else
-				{
-					FNiagaraParameterMapHistory* SameUsageSystemHistory = SystemScriptHistories.FindByPredicate([&EmitterScriptHistories, &i](const FNiagaraParameterMapHistory& SystemScriptHistory){
-						ENiagaraScriptUsage EmitterOriginatingScriptUsage = EmitterScriptHistories[i].OriginatingScriptUsage;
-						if (EmitterOriginatingScriptUsage == ENiagaraScriptUsage::EmitterSpawnScript)
-						{
-							return SystemScriptHistory.OriginatingScriptUsage == ENiagaraScriptUsage::SystemSpawnScript;
-						}
-						else if (EmitterOriginatingScriptUsage == ENiagaraScriptUsage::EmitterUpdateScript)
-						{
-							return SystemScriptHistory.OriginatingScriptUsage == ENiagaraScriptUsage::SystemUpdateScript;
-						}
-						else
-						{
-							checkf(false, TEXT("Encountered unexpected script usage for history!"));
-						}
-						return false;
-					});
+				Builder.Histories.Empty();
+			}
 
-					if (SameUsageSystemHistory == nullptr)
+			// Build history handles for System scripts.
+			TArray<FNiagaraParameterMapHistory>& SystemScriptHistories = BasePtr->GetPrecomputedHistories();
+			TArray<FNiagaraParameterMapHistoryHandle> SystemScriptHistoryHandles;
+			for (int i = 0; i < SystemScriptHistories.Num(); ++i)
+			{
+				SystemScriptHistoryHandles.Add(FNiagaraParameterMapHistoryHandle(SystemScriptHistories[i], SystemOnlyHistories[i], BasePtr->RequiredRendererVariables));
+			}
+
+			// Build history handles for Emitter and Particle scripts.
+			TArray<FNiagaraParameterMapHistoryHandle> EmitterAndParticleScriptHistoryHandles;
+			for (TSharedPtr<FNiagaraCompileRequestData, ESPMode::ThreadSafe> EmitterRequest : BasePtr->EmitterData)
+			{
+				FName EmitterUniqueName = FName(*EmitterRequest->GetUniqueEmitterName());
+				TArray<FNiagaraParameterMapHistory>& EmitterScriptHistories = EmitterRequest->GetPrecomputedHistories();
+				for (int i = 0; i < EmitterScriptHistories.Num(); ++i)
+				{
+					if (FNiagaraStackGraphUtilities::GetScopeForScriptUsage(EmitterScriptHistories[i].OriginatingScriptUsage) == ENiagaraParameterScope::Particles)
 					{
-						UE_LOG(LogNiagaraEditor, Error, TEXT("Precompile failed for system: %s.  Failed to generate valid parameter history for emitter: %s."),
-							*System->GetPathName(), *EmitterRequest->EmitterUniqueName);
-						return TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>();
+						EmitterAndParticleScriptHistoryHandles.Add(FNiagaraParameterMapHistoryHandle(EmitterScriptHistories[i], EmitterRequest->RequiredRendererVariables, EmitterUniqueName));
 					}
+					else
+					{
+						FNiagaraParameterMapHistory* SameUsageSystemHistory = SystemScriptHistories.FindByPredicate([&EmitterScriptHistories, &i](const FNiagaraParameterMapHistory& SystemScriptHistory) {
+							ENiagaraScriptUsage EmitterOriginatingScriptUsage = EmitterScriptHistories[i].OriginatingScriptUsage;
+							if (EmitterOriginatingScriptUsage == ENiagaraScriptUsage::EmitterSpawnScript)
+							{
+								return SystemScriptHistory.OriginatingScriptUsage == ENiagaraScriptUsage::SystemSpawnScript;
+							}
+							else if (EmitterOriginatingScriptUsage == ENiagaraScriptUsage::EmitterUpdateScript)
+							{
+								return SystemScriptHistory.OriginatingScriptUsage == ENiagaraScriptUsage::SystemUpdateScript;
+							}
+							else
+							{
+								checkf(false, TEXT("Encountered unexpected script usage for history!"));
+							}
+							return false;
+							});
 
-					EmitterAndParticleScriptHistoryHandles.Add(FNiagaraParameterMapHistoryHandle(*SameUsageSystemHistory, EmitterScriptHistories[i], EmitterRequest->RequiredRendererVariables, EmitterUniqueName));
+						if (SameUsageSystemHistory == nullptr)
+						{
+							UE_LOG(LogNiagaraEditor, Error, TEXT("Precompile failed for system: %s.  Failed to generate valid parameter history for emitter: %s."),
+								*System->GetPathName(), *EmitterRequest->EmitterUniqueName);
+							return TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>();
+						}
+
+						EmitterAndParticleScriptHistoryHandles.Add(FNiagaraParameterMapHistoryHandle(*SameUsageSystemHistory, EmitterScriptHistories[i], EmitterRequest->RequiredRendererVariables, EmitterUniqueName));
+					}
 				}
 			}
-		}
 
-		// Fixup namespaces of parameters that will be used in the histories for translation.
-		TArray<FNiagaraParameterMapHistoryHandle> AllHistoryHandles;
-		AllHistoryHandles.Append(SystemScriptHistoryHandles);
-		AllHistoryHandles.Append(EmitterAndParticleScriptHistoryHandles);
-		FNiagaraParameterMapHistoryWithMetaDataBuilder::FixupHistoryVariableNamespaces(AllHistoryHandles, System->bCullDatasetParameters);
+			// Fixup namespaces of parameters that will be used in the histories for translation.
+			TArray<FNiagaraParameterMapHistoryHandle> AllHistoryHandles;
+			AllHistoryHandles.Append(SystemScriptHistoryHandles);
+			AllHistoryHandles.Append(EmitterAndParticleScriptHistoryHandles);
+			FNiagaraParameterMapHistoryWithMetaDataBuilder::FixupHistoryVariableNamespaces(AllHistoryHandles, 0);
+		}
 	}
 
 	UE_LOG(LogNiagaraEditor, Verbose, TEXT("'%s' Precompile took %f sec."), *InObj->GetOutermost()->GetName(),
@@ -817,6 +830,11 @@ TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::GetCompilationResult(
 	
 	Results.Data->ErrorMsg = OutGraphLevelErrorMessages;
 	Results.Data->LastCompileStatus = (FNiagaraCompileResults::CompileResultsToSummary(&Results));
+	if (Results.Data->LastCompileStatus != ENiagaraScriptCompileStatus::NCS_Error)
+	{
+		// When there are no errors the compile events get emptied, so add them back here.
+		Results.Data->LastCompileEvents.Append(Results.CompileEvents);
+	}
 	return CompileResult->Data;
 }
 
@@ -1135,6 +1153,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		Results.Data->InternalParameters.Empty();
 		for (int32 i = 0; i < CompilationOutput.InternalConstantOffsets.Num(); ++i)
 		{
+			const FName ConstantName(TEXT("InternalConstant"), i);
 			EVectorVMBaseTypes Type = CompilationOutput.InternalConstantTypes[i];
 			int32 Offset = CompilationOutput.InternalConstantOffsets[i];
 			switch (Type)
@@ -1142,19 +1161,19 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			case EVectorVMBaseTypes::Float:
 			{
 				float Val = *(float*)(CompilationOutput.InternalConstantData.GetData() + Offset);
-				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *LexToString(Val)))->SetValue(Val);
+				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), ConstantName))->SetValue(Val);
 			}
 			break;
 			case EVectorVMBaseTypes::Int:
 			{
 				int32 Val = *(int32*)(CompilationOutput.InternalConstantData.GetData() + Offset);
-				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), *LexToString(Val)))->SetValue(Val);
+				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), ConstantName))->SetValue(Val);
 			}
 			break;
 			case EVectorVMBaseTypes::Bool:
 			{
 				int32 Val = *(int32*)(CompilationOutput.InternalConstantData.GetData() + Offset);
-				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), Val == 0 ? TEXT("FALSE") : TEXT("TRUE")))->SetValue(Val);
+				Results.Data->InternalParameters.SetOrAdd(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), ConstantName))->SetValue(Val);
 			}
 			break;
 			}
@@ -1214,6 +1233,12 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		}
 	}
 	DumpDebugInfo(CompileResults, false);
+
+	//Seems like Results is a bit of a cobbled together mess at this point.
+	//Ideally we can tidy this up in future.
+	//Doing this as a minimal risk free fix for not having errors passed through into the compile results.
+	Results.NumErrors = CompileResults.NumErrors;
+	Results.CompileEvents = CompileResults.CompileEvents;
 
 	CompilationJob.Reset();
 	return Results;

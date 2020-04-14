@@ -60,7 +60,7 @@ namespace WindowsMixedReality
 #else // WINDOWS_MIXED_REALITY_DEBUG_DLL
 			FString DLLName(TEXT("MixedRealityInterop.dll"));
 #endif // WINDOWS_MIXED_REALITY_DEBUG_DLL
-			FString MRInteropLibraryPath = EngineDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
+			FString MRInteropLibraryPath = EngineDir / "Binaries/ThirdParty/Windows/x64" / DLLName;
 
 #if PLATFORM_64BITS
 			// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically
@@ -68,6 +68,9 @@ namespace WindowsMixedReality
 			FPlatformProcess::PushDllDirectory(*HoloLensLibraryDir);
 			FPlatformProcess::GetDllHandle(_TEXT("PerceptionDevice.dll"));
 			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Holographic.AppRemoting.dll"));
+			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.MixedReality.QR.dll"));
+			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.MixedReality.SceneUnderstanding.dll"));
+			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Azure.SpatialAnchors.dll"));
 			FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
 
 			FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries" / BinariesSubDir / "HolographicStreamerDesktop.dll"));

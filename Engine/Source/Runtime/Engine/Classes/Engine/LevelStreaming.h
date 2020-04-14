@@ -417,6 +417,9 @@ public:
 	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "true"))
 	ALevelScriptActor* GetLevelScriptActor();
 
+	/** Returns false if the level package associated to that streaming level is invalid. */
+	bool IsValidStreamingLevel() const;
+
 #if WITH_EDITOR
 	/** Get the folder path for this level for use in the world browser. Only available in editor builds */
 	const FName& GetFolderPath() const;

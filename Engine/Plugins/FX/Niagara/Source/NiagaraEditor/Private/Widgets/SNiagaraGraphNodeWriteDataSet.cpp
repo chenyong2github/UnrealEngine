@@ -7,12 +7,9 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Images/SImage.h"
-#include "ScopedTransaction.h"
-#include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
-#include "ISinglePropertyView.h"
 #include "NiagaraNodeWriteDataSet.h"
-#include "Modules/ModuleManager.h"
 #include "GraphEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraGraphNodeWriteDataSet"
@@ -28,11 +25,6 @@ void SNiagaraGraphNodeWriteDataSet::Construct(const FArguments& InArgs, UEdGraph
 
 TSharedRef<SWidget> SNiagaraGraphNodeWriteDataSet::CreateNodeContentArea()
 {
-	FSinglePropertyParams InitParams;
-	InitParams.NamePlacement = EPropertyNamePlacement::Hidden;
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	TSharedPtr<ISinglePropertyView> SinglePropView = PropertyEditorModule.CreateSingleProperty(GraphNode, GET_MEMBER_NAME_CHECKED(UNiagaraNodeWriteDataSet, EventName), InitParams);
-
 	TSharedRef<SWidget> ContentAreaWidget = SGraphNode::CreateNodeContentArea();
 	TSharedPtr<SVerticalBox> VertContainer = SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
@@ -52,7 +44,22 @@ TSharedRef<SWidget> SNiagaraGraphNodeWriteDataSet::CreateNodeContentArea()
 			.HAlign(HAlign_Center)
 			.AutoWidth()
 			[
-				SinglePropView.ToSharedRef()
+				SNew(SEditableTextBox)
+				.OnTextCommitted_Lambda([this](const FText& NewText, ETextCommit::Type CommitType)
+				{
+					if (UNiagaraNodeWriteDataSet* WriteDataSetNode = Cast<UNiagaraNodeWriteDataSet>(GraphNode))
+					{
+						WriteDataSetNode->EventName = FName(*NewText.ToString());
+					}
+				})
+				.Text_Lambda([this]()
+				{
+					if (UNiagaraNodeWriteDataSet* WriteDataSetNode = Cast<UNiagaraNodeWriteDataSet>(GraphNode))
+					{
+						return FText::FromName(WriteDataSetNode->EventName);
+					}
+					return FText();
+				})
 			]
 		]
 		+ SVerticalBox::Slot()

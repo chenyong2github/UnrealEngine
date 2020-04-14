@@ -549,13 +549,10 @@ void FReductionBaseSkeletalMeshBulkData::CacheGeometryInfo(const FSkeletalMeshLO
 	for (int32 SectionIndex = 0; SectionIndex < SourceLODModel.Sections.Num(); ++SectionIndex)
 	{
 		const FSkelMeshSection& Section = SourceLODModel.Sections[SectionIndex];
-
-		if (!Section.bDisabled)
-		{
-			//Make sure the count fit in a uint32
-			CacheLODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
-			CacheLODTriNumber += Section.NumTriangles;
-		}
+		//We count disabled section, since the render buffer contain the disabled section data. This is crucial for memory budget
+		//Make sure the count fit in a uint32
+		CacheLODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
+		CacheLODTriNumber += Section.NumTriangles;
 	}
 }
 

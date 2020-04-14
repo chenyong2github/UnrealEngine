@@ -6,7 +6,6 @@
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Logging/LogMacros.h"
-#include "Misc/StringBuilder.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/TypeCompatibleBytes.h"
@@ -28,7 +27,10 @@ class FIoStoreEnvironment;
 class FIoRequestImpl;
 class FIoBatchImpl;
 class FIoDispatcherImpl;
+class FIoStoreWriterContextImpl;
 class FIoStoreWriterImpl;
+class IMappedFileHandle;
+class IMappedFileRegion;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
 
@@ -401,12 +403,24 @@ public:
 
 	inline void			SetSize(uint64 InSize)	{ return CorePtr->SetSize(InSize); }
 
-	inline bool			IsAvailable() const;
 	inline bool			IsMemoryOwned() const	{ return CorePtr->IsMemoryOwned(); }
 
 	inline void			EnsureOwned() const		{ if (!CorePtr->IsMemoryOwned()) { MakeOwned(); } }
 
 	CORE_API void		MakeOwned() const;
+	
+	/**
+	 * Relinquishes control of the internal buffer to the caller and removes it from the FIoBuffer.
+	 * This allows the caller to assume ownership of the internal data and prevent it from being deleted along with 
+	 * the FIoBuffer.
+	 *
+	 * NOTE: It is only valid to call this if the FIoBuffer currently owns the internal memory allocation, as the 
+	 * point of the call is to take ownership of it. If the FIoBuffer is only wrapping the allocation then it will
+	 * return a failed FIoStatus instead.
+	 *
+	 * @return A status wrapper around the memory pointer. Even if the status is valid the pointer might still be null.
+	 */
+	UE_NODISCARD CORE_API TIoStatusOr<uint8*> Release();
 
 private:
 	/** Core buffer object. For internal use only, used by FIoBuffer
@@ -436,6 +450,8 @@ private:
 		void	SetSize(uint64 InSize);
 
 		void	MakeOwned();
+
+		TIoStatusOr<uint8*> ReleaseMemory();
 
 		inline void SetIsOwned(bool InOwnsMemory)
 		{
@@ -474,7 +490,7 @@ private:
 			return uint32(NumRefs);
 		}
 
-		bool			IsMemoryOwned() const	{ return Flags & OwnsMemory; }
+		bool IsMemoryOwned() const	{ return Flags & OwnsMemory; }
 
 	private:
 		CORE_API void				CheckRefCount() const;
@@ -502,6 +518,11 @@ private:
 		};
 
 		void EnsureDataIsResident() {}
+
+		void ClearFlags()
+		{
+			Flags = 0;
+		}
 	};
 
 	// Reference-counted "core"
@@ -580,6 +601,7 @@ enum class EIoChunkType : uint8
 	ExportBundleData,
 	BulkData,
 	OptionalBulkData,
+	MemoryMappedBulkData,
 	LoaderGlobalMeta,
 	LoaderInitialLoadMeta,
 	LoaderGlobalNames,
@@ -687,6 +709,27 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
+class FIoBatchReadOptions
+{
+public:
+	FIoBatchReadOptions() = default;
+
+	void SetTargetVa(void* InTargetVa)
+	{
+		TargetVa = InTargetVa;
+	}
+
+	void* GetTargetVa() const
+	{
+		return TargetVa;
+	}
+
+private:
+	void* TargetVa = nullptr;
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 /**
   */
 class FIoRequest
@@ -715,6 +758,8 @@ private:
 	friend class FIoBatch;
 };
 
+using FIoReadCallback = TFunction<void(TIoStatusOr<FIoBuffer>)>;
+
 /** I/O batch
 
 	This is a primitive used to group I/O requests for synchronization
@@ -727,18 +772,49 @@ class FIoBatch
 	FIoBatch(FIoDispatcherImpl* InDispatcher, FIoBatchImpl* InImpl);
 
 public:
+	FIoBatch() = default;
+
+	CORE_API bool IsValid() const;
+
 	CORE_API FIoRequest Read(const FIoChunkId& Chunk, FIoReadOptions Options);
 
 	CORE_API void ForEachRequest(TFunction<bool(FIoRequest&)>&& Callback);
 
+	/**
+	 * Initiates the loading of the batch as individual requests.
+	 */
 	CORE_API void Issue();
+
+	/**
+	 * Initiates the loading of the batch to a single contiguous output buffer. The requests will be in the
+	 * same order that they were added to the FIoBatch.
+	 * NOTE: It is not valid to call this on a batch containing requests that have been given a TargetVa to 
+	 * read into as the requests are supposed to read into the batch's output buffer, doing so will cause the
+	 * method to return an error 'InvalidParameter'.
+	 *
+	 * @param Options A set of options allowing customization on how the load will work.
+	 * @param Callback An optional callback that will be triggered once the batch has finished loading. 
+	 * The batch's output buffer will be provided as the parameter of the callback.
+	 *
+	 * @return This methods had the capacity to fail so the return value should be checked.
+	 */
+	UE_NODISCARD CORE_API FIoStatus IssueWithCallback(FIoBatchReadOptions Options, FIoReadCallback&& Callback);
+	
 	CORE_API void Wait();
 	CORE_API void Cancel();
 
 private:
 	FIoDispatcherImpl*	Dispatcher		= nullptr;
 	FIoBatchImpl*		Impl			= nullptr;
-	FEvent*				CompletionEvent = nullptr;
+};
+
+/**
+ * Mapped region.
+ */
+struct FIoMappedRegion
+{
+	IMappedFileHandle* MappedFileHandle = nullptr;
+	IMappedFileRegion* MappedFileRegion = nullptr;
 };
 
 /** I/O dispatcher
@@ -752,9 +828,11 @@ public:
 	CORE_API FIoStatus				Mount(const FIoStoreEnvironment& Environment);
 
 	CORE_API FIoBatch				NewBatch();
-	CORE_API void					FreeBatch(FIoBatch Batch);
+	CORE_API void					FreeBatch(FIoBatch& Batch);
 
-	CORE_API void					ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback);
+
+	CORE_API void					ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, FIoReadCallback&& Callback);
+	CORE_API TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
 
 	// Polling methods
 	CORE_API bool					DoesChunkExist(const FIoChunkId& ChunkId) const;
@@ -797,6 +875,46 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
+struct FIoStoreWriterSettings
+{
+	FName CompressionMethod = NAME_None;
+	int64 CompressionBlockSize = 0;
+	int64 CompressionBlockAlignment = 0;
+	bool bEnableCsvOutput = false;
+};
+
+struct FIoStoreWriterResult
+{
+	FString ContainerName;
+	int64 TocSize = 0;
+	int64 TocEntryCount = 0;
+	int64 PaddingSize = 0;
+	int64 UncompressedContainerSize = 0;
+	int64 CompressedContainerSize = 0;
+	FName CompressionMethod = NAME_None;
+};
+
+struct FIoWriteOptions
+{
+	const TCHAR* DebugName = nullptr;
+	int64 Alignment = 0;
+	bool bForceUncompressed = false;
+};
+
+class FIoStoreWriterContext
+{
+public:
+	CORE_API FIoStoreWriterContext();
+	CORE_API ~FIoStoreWriterContext();
+
+	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreWriterSettings& InWriterSettings);
+
+private:
+	friend class FIoStoreWriter;
+	
+	FIoStoreWriterContextImpl* Impl;
+};
+
 class FIoStoreWriter
 {
 public:
@@ -806,9 +924,9 @@ public:
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
-	CORE_API FIoStatus	Initialize();
-	CORE_API FIoStatus	EnableCsvOutput();
-	CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, const TCHAR* Name);
+	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, bool bIsContainerCompressed);
+	UE_NODISCARD CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions);
+	UE_NODISCARD CORE_API FIoStatus	AppendPadding(uint64 Count);
 
 	/**
 	 * Creates an addressable range in an already mapped Chunk.
@@ -818,8 +936,8 @@ public:
 	 * @param Length The length of the range in bytes
 	 * @param ChunkIdPartialRange The FIoChunkId that will map to the range
 	 */
-	CORE_API FIoStatus	MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange);
-	CORE_API FIoStatus	FlushMetadata();
+	UE_NODISCARD CORE_API FIoStatus MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange);
+	UE_NODISCARD CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
 
 private:
 	FIoStoreWriterImpl*		Impl;

@@ -819,19 +819,17 @@ private:
 					case GCRT_AddFieldPathReferencedObject:
 					{
 						FFieldPath*	FieldPathPtr = (FFieldPath*)(StackEntryData + ReferenceInfo.Offset);
-						FField*& Field = FieldPathPtr->GetResolvedFieldInternal();
-						int32& FieldOwnerIndex = FieldPathPtr->GetResolvedFieldOwnerInternal();
+						FUObjectItem* FieldOwnerItem = FieldPathPtr->GetResolvedOwnerItemInternal();
 						TokenReturnCount = ReferenceInfo.ReturnCount;
-						if (FieldOwnerIndex >= 0)
+						if (FieldOwnerItem)
 						{
-							UObject* OwnerObject = static_cast<UObject*>(GUObjectArray.IndexToObjectUnsafeForGC(FieldOwnerIndex)->Object);
+							UObject* OwnerObject = static_cast<UObject*>(FieldOwnerItem->Object);
 							UObject* PreviousOwner = OwnerObject;
 							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, OwnerObject, ReferenceTokenStreamIndex, true);
 							// Handle reference elimination (PendingKill owner)
 							if (PreviousOwner && !OwnerObject)
 							{
-								Field = nullptr;
-								FieldOwnerIndex = -1;
+								FieldPathPtr->ClearCachedFieldInternal();
 							}
 						}
 					}
@@ -843,18 +841,16 @@ private:
 						TokenReturnCount = ReferenceInfo.ReturnCount;
 						for (int32 FieldIndex = 0, FieldNum = FieldArray.Num(); FieldIndex < FieldNum; ++FieldIndex)
 						{
-							FField*& Field = FieldArray[FieldIndex].GetResolvedFieldInternal();
-							int32& FieldOwnerIndex = FieldArray[FieldIndex].GetResolvedFieldOwnerInternal();
-							if (FieldOwnerIndex >= 0)
+							FUObjectItem* FieldOwnerItem = FieldArray[FieldIndex].GetResolvedOwnerItemInternal();
+							if (FieldOwnerItem)
 							{
-								UObject* OwnerObject = static_cast<UObject*>(GUObjectArray.IndexToObjectUnsafeForGC(FieldOwnerIndex)->Object);
+								UObject* OwnerObject = static_cast<UObject*>(FieldOwnerItem->Object);
 								UObject* PreviousOwner = OwnerObject;
 								ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, OwnerObject, ReferenceTokenStreamIndex, true);
 								// Handle reference elimination (PendingKill owner)
 								if (PreviousOwner && !OwnerObject)
 								{
-									Field = nullptr;
-									FieldOwnerIndex = -1;
+									FieldArray[FieldIndex].ClearCachedFieldInternal();
 								}
 							}
 						}

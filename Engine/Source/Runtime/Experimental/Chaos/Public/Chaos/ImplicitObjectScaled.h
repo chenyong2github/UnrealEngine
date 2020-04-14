@@ -36,7 +36,7 @@ public:
 		: FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsInstanced)
 		, MObject(MoveTemp(Object))
 	{
-		ensure(IsInstanced(MObject->GetType(true)) == false);	//cannot have an instance of an instance
+		ensure(IsInstanced(MObject->GetType()) == false);	//cannot have an instance of an instance
 		this->bIsConvex = MObject->IsConvex();
 		this->bDoCollide = MObject->GetDoCollide();
 	}
@@ -45,7 +45,7 @@ public:
 		: FImplicitObject(EImplicitObject::HasBoundingBox,Object->GetType() | ImplicitObjectType::IsInstanced)
 		,MObject(Object)
 	{
-		ensure(IsInstanced(MObject->GetType(true)) == false);	//cannot have an instance of an instance
+		ensure(IsInstanced(MObject->GetType()) == false);	//cannot have an instance of an instance
 		this->bIsConvex = MObject->IsConvex();
 		this->bDoCollide = MObject->GetDoCollide();
 	}
@@ -176,9 +176,9 @@ public:
 		, MSharedPtrForRefCount(nullptr)
 		, MInternalThickness(Thickness)
 	{
-		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
-		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
-		switch (MObject->GetType(true))
+		ensureMsgf((IsScaled(MObject->GetType()) == false), TEXT("Scaled objects should not contain each other."));
+		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
+		switch (MObject->GetType())
 		{
 		case ImplicitObjectType::Transformed:
 		case ImplicitObjectType::Union:
@@ -197,9 +197,9 @@ public:
 		, MSharedPtrForRefCount(Object)
 		, MInternalThickness(Thickness)
 	{
-		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
-		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
-		switch (MObject->GetType(true))
+		ensureMsgf((IsScaled(MObject->GetType()) == false), TEXT("Scaled objects should not contain each other."));
+		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
+		switch (MObject->GetType())
 		{
 		case ImplicitObjectType::Transformed:
 		case ImplicitObjectType::Union:
@@ -235,8 +235,8 @@ public:
 		, MInternalThickness(Other.MInternalThickness)
 	    , MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
 	{
-		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
-		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
+		ensureMsgf((IsScaled(MObject->GetType()) == false), TEXT("Scaled objects should not contain each other."));
+		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Other.MObject->IsConvex();
 		this->bDoCollide = Other.MObject->GetDoCollide();
 	}
@@ -343,7 +343,7 @@ public:
 				if (NewTime < Length && NewTime != 0) // Normal/Position output may be uninitialized with TOI 0.
 				{
 					OutPosition = MScale * UnscaledPosition;
-					OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
+					OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal(TNumericLimits<T>::Min());
 					OutTime = NewTime;
 					return true;
 				}
@@ -447,7 +447,7 @@ public:
 		// Compute final normal
 		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, HintFaceIndex, LocalOriginalNormal);
 		TVector<T, d> Normal = LocalNormal * MInvScale;
-		if (CHAOS_ENSURE(Normal.SafeNormalize()) == 0)
+		if (CHAOS_ENSURE(Normal.SafeNormalize(TNumericLimits<T>::Min())) == 0)
 		{
 			Normal = TVector<T,3>(0,0,1);
 		}
@@ -528,10 +528,10 @@ public:
 	const TVector<T, d>& GetInvScale() const { return MInvScale; }
 	void SetScale(const TVector<T, d>& Scale)
 	{
-		constexpr T MinMagnitude = 1e-4;
+		constexpr T MinMagnitude = 1e-6;
 		for (int Axis = 0; Axis < d; ++Axis)
 		{
-			if (FMath::Abs(Scale[Axis]) < MinMagnitude)
+			if (!CHAOS_ENSURE(FMath::Abs(Scale[Axis]) >= MinMagnitude))
 			{
 				MScale[Axis] = MinMagnitude;
 			}

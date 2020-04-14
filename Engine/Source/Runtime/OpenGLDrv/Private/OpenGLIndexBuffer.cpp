@@ -10,6 +10,11 @@
 
 FIndexBufferRHIRef FOpenGLDynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FOpenGLIndexBuffer();
+	}
+
 	const void *Data = NULL;
 
 	// If a resource array was provided for the resource, create the resource pre-populated
@@ -50,4 +55,21 @@ void FOpenGLDynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate&
 	FOpenGLIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	IndexBuffer->Unlock();
 	RHITHREAD_GLCOMMAND_EPILOGUE();
+}
+
+void FOpenGLDynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer)
+{
+	VERIFY_GL_SCOPE();
+	check(DestIndexBuffer);
+	FOpenGLIndexBuffer* Dest = ResourceCast(DestIndexBuffer);
+	if (!SrcIndexBuffer)
+	{
+		TRefCountPtr<FOpenGLIndexBuffer> Src = new FOpenGLIndexBuffer();
+		Dest->Swap(*Src);
+	}
+	else
+	{
+		FOpenGLIndexBuffer* Src = ResourceCast(SrcIndexBuffer);
+		Dest->Swap(*Src);
+	}
 }

@@ -262,11 +262,11 @@ static void AddHairStrandMeshProjectionPass(
 	// The current shader code HairStrandsMeshProjection.usf encode the section ID onto the highest 4bits of a 32bits uint. 
 	// This limits the number of section to 16. See EncodeTriangleIndex & DecodeTriangleIndex functions in 
 	// HairStarndsMeshProjectionCommon.ush for mode details.
-	// This means that the mesh needs to have less than 285M triangles (since triangle ID is stored onto 28bits).
+	// This means that the mesh needs to have less than 67M triangles (since triangle ID is stored onto 26bits).
 	//
 	// This could be increase if necessary.
-	check(MeshSectionData.SectionIndex < 16);
-	check(MeshSectionData.NumPrimitives < ((1<<28)-1))
+	check(MeshSectionData.SectionIndex < 64);
+	check(MeshSectionData.NumPrimitives < ((1<<26)-1))
 
 	// For projecting hair onto a skeletal mesh, 1 thread is spawn for each hair which iterates over all triangles.
 	// To avoid TDR, we split projection into multiple passes when the mesh is too large.

@@ -328,11 +328,6 @@ static int FMemory_GCreateMalloc_ThreadUnsafe()
 	// Setup malloc crash as soon as possible.
 	FPlatformMallocCrash::Get( GMalloc );
 
-	if ( ! FPlatformProcess::SupportsMultithreading() )
-	{
-		return 0;
-	}
-
 #if PLATFORM_USES_FIXED_GMalloc_CLASS
 #if USE_MALLOC_PROFILER || MALLOC_VERIFY || MALLOC_LEAKDETECTION || UE_USE_MALLOC_FILL_BYTES
 #error "Turn off PLATFORM_USES_FIXED_GMalloc_CLASS in order to use special allocator proxies"

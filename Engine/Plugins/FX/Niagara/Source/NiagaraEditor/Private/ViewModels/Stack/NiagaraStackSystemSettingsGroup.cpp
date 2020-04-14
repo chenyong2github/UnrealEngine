@@ -16,6 +16,8 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackSystemPropertiesItem.h"
 #include "NiagaraConstants.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "NiagaraSystem.h"
 
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackParameterStoreGroup"
@@ -86,7 +88,7 @@ public:
 	{
 		TSharedRef<FParameterStoreGroupAddAction> ParameterAddAction = StaticCastSharedRef<FParameterStoreGroupAddAction>(AddAction);
 		FNiagaraVariable NewParameterVariable = ParameterAddAction->GetNewParameterVariable();
-		bool bSuccess = FNiagaraEditorUtilities::AddParameter(NewParameterVariable, ParameterStore, ParameterStoreOwner, StackEditorData);
+		bool bSuccess = FNiagaraEditorUtilities::AddParameter(NewParameterVariable, ParameterStore, ParameterStoreOwner, &StackEditorData);
 		if (bSuccess)
 		{
 			OnItemAdded.ExecuteIfBound(NewParameterVariable);
@@ -157,6 +159,8 @@ void UNiagaraStackParameterStoreItem::Initialize(
 
 	Owner = InOwner;
 	ParameterStore = InParameterStore;
+	ParameterStoreChangedHandle = ParameterStore->AddOnChangedHandler(
+		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraStackParameterStoreItem::ParameterStoreChanged));
 }
 
 FText UNiagaraStackParameterStoreItem::GetDisplayName() const
@@ -189,7 +193,6 @@ void UNiagaraStackParameterStoreItem::RefreshChildrenInternal(const TArray<UNiag
 			{
 				ValueObjectEntry = NewObject<UNiagaraStackParameterStoreEntry>(this);
 				ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), Owner.Get(), ParameterStore, Var.GetName().ToString(), Var.GetType(), GetStackEditorDataKey());
-				ValueObjectEntry->OnParameterDeleted().AddUObject(this, &UNiagaraStackParameterStoreItem::ParameterDeleted);
 			}
 
 			NewChildren.Add(ValueObjectEntry);
@@ -198,9 +201,23 @@ void UNiagaraStackParameterStoreItem::RefreshChildrenInternal(const TArray<UNiag
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
-void UNiagaraStackParameterStoreItem::ParameterDeleted()
+void UNiagaraStackParameterStoreItem::FinalizeInternal()
 {
-	RefreshChildren();
+	if (Owner.IsValid() && ParameterStore != nullptr)
+	{
+		ParameterStore->RemoveOnChangedHandler(ParameterStoreChangedHandle);
+		Owner.Reset();
+		ParameterStore = nullptr;
+	}
+	Super::FinalizeInternal();
+}
+
+void UNiagaraStackParameterStoreItem::ParameterStoreChanged()
+{
+	if (IsFinalized() == false && Owner.IsValid())
+	{
+		RefreshChildren();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

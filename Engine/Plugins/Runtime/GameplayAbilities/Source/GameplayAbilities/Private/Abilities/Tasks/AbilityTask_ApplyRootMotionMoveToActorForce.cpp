@@ -351,7 +351,7 @@ void UAbilityTask_ApplyRootMotionMoveToActorForce::OnDestroy(bool AbilityIsEndin
 
 		if (bSetNewMovementMode)
 		{
-			MovementComponent->SetMovementMode(NewMovementMode);
+			MovementComponent->SetMovementMode(PreviousMovementMode);
 		}
 	}
 

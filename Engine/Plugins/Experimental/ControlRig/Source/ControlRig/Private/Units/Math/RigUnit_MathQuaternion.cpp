@@ -147,3 +147,7 @@ FRigUnit_MathQuaternionSwingTwist_Execute()
 	FVector NormalizedAxis = TwistAxis.GetSafeNormal();
 	Input.ToSwingTwist(NormalizedAxis, Swing, Twist);
 }
+
+FRigUnit_MathQuaternionRotationOrder_Execute()
+{
+}

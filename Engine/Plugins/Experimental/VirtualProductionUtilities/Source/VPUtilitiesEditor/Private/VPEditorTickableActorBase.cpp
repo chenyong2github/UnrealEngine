@@ -3,8 +3,4 @@
 #include "VPEditorTickableActorBase.h"
 
 
- void AVPEditorTickableActorBase::LockLocation(bool bSetLockLocation) 
- {
-	 bLockLocation = bSetLockLocation;
- }
  

@@ -11,6 +11,7 @@
 #include "SoundSubmixSend.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "DSP/SpectrumAnalyzer.h"
 
 #include "SoundSubmix.generated.h"
 
@@ -33,6 +34,114 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmixRecordedFileDone, const USo
 * Called when a new submix envelope value is generated on the given audio device id (different for multiple PIE). Array is an envelope value for each channel.
 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmixEnvelope, const TArray<float>&, Envelope);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmixSpectralAnalysis, const TArray<float>&, Magnitudes);
+
+
+UENUM(BlueprintType)
+enum class EFFTSize : uint8
+{
+	// 512
+	DefaultSize,
+
+	// 64
+	Min,
+
+	// 256
+	Small,
+
+	// 512
+	Medium,
+
+	// 1024
+	Large,
+
+	// 2048
+	VeryLarge, 
+
+	// 4096
+	Max
+};
+
+UENUM()
+enum class EFFTPeakInterpolationMethod : uint8
+{
+	NearestNeighbor,
+	Linear,
+	Quadratic,
+	ConstantQ,
+};
+
+UENUM()
+enum class EFFTWindowType : uint8
+{
+	// No window is applied. Technically a boxcar window.
+	None,
+
+	// Mainlobe width of -3 dB and sidelove attenuation of ~-40 dB. Good for COLA.
+	Hamming,
+
+	// Mainlobe width of -3 dB and sidelobe attenuation of ~-30dB. Good for COLA.
+	Hann,
+
+	// Mainlobe width of -3 dB and sidelobe attenuation of ~-60db. Tricky for COLA.
+	Blackman
+};
+
+UENUM(BlueprintType)
+enum class EAudioSpectrumType : uint8
+{
+	// Spectrum frequency values are equal to magnitude of frequency.
+	MagnitudeSpectrum,
+
+	// Spectrum frequency values are equal to magnitude squared.
+	PowerSpectrum,
+
+	// Returns decibels (0.0 dB is 1.0)
+	Decibel,
+};
+
+struct FSoundSpectrumAnalyzerSettings
+{
+	// FFTSize used in spectrum analyzer.
+	EFFTSize FFTSize;
+
+	// Type of window to apply to audio.
+	EFFTWindowType WindowType;
+
+	// Metric used when analyzing spectrum. 
+	EAudioSpectrumType SpectrumType;
+
+	// Interpolation method used when getting frequencies.
+	EFFTPeakInterpolationMethod  InterpolationMethod;
+
+	// Hopsize between audio windows as a ratio of the FFTSize.
+	float HopSize;
+};
+
+struct FSoundSpectrumAnalyzerDelegateSettings
+{
+	// Settings for individual bands.
+	TArray<FSoundSubmixSpectralAnalysisBandSettings> BandSettings; 
+
+	// Number of times a second the delegate is triggered. 
+	float UpdateRate; 
+
+	// The decibel level considered silence.
+	float DecibelNoiseFloor; 
+
+	// If true, returned values are scaled between 0 and 1.
+	bool bDoNormalize; 
+
+	// If true, the band values are tracked to always have values between 0 and 1. 
+	bool bDoAutoRange; 
+
+	// The time in seconds for the range to expand to a new observed range.
+	float AutoRangeAttackTime; 
+
+	// The time in seconds for the range to shrink to a new observed range.
+	float AutoRangeReleaseTime;
+};
 
 
 #if WITH_EDITOR
@@ -138,7 +247,7 @@ enum class EGainParamMode : uint8
 /**
  * Sound Submix class meant for applying an effect to the downmixed sum of multiple audio sources.
  */
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta=(DisplayName="Effect Submix"))
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType)
 class ENGINE_API USoundSubmix : public USoundSubmixWithParentBase
 {
 	GENERATED_UCLASS_BODY()
@@ -222,13 +331,55 @@ public:
 
 	void StopEnvelopeFollowing(FAudioDevice* InDevice);
 
+	/**
+	 *	Adds an envelope follower delegate to the submix when envelope following is enabled on this submix.
+	 *	@param	OnSubmixEnvelopeBP	Event to fire when new envelope data is available.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|EnvelopeFollowing", meta = (WorldContext = "WorldContextObject"))
 	void AddEnvelopeFollowerDelegate(const UObject* WorldContextObject, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP);
+
+	/**
+	 *	Adds a spectral analysis delegate to receive notifications when this submix has spectrum analysis enabled.
+	 *	@param	InBandsettings					The frequency bands to analyze and their envelope-following settings.
+	 *  @param  OnSubmixSpectralAnalysisBP		Event to fire when new spectral data is available.
+	 *	@param	UpdateRate						How often to retrieve the data from the spectral analyzer and broadcast the event. Max is 30 times per second.
+	 *	@param  InterpMethod                    Method to used for band peak calculation.
+	 *	@param  SpectrumType                    Metric to use when returning spectrum values.
+	 *	@param  DecibelNoiseFloor               Decibel Noise Floor to consider as silence silence when using a Decibel Spectrum Type.
+	 *	@param  bDoNormalize                    If true, output band values will be normalized between zero and one.
+	 *	@param  bDoAutoRange                    If true, output band values will have their ranges automatically adjusted to the minimum and maximum values in the audio. Output band values will be normalized between zero and one.
+	 *	@param  AutoRangeAttackTime             The time (in seconds) it takes for the range to expand to 90% of a larger range.
+	 *	@param  AutoRangeReleaseTime            The time (in seconds) it takes for the range to shrink to 90% of a smaller range.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Spectrum", meta = (WorldContext = "WorldContextObject"))
+	void AddSpectralAnalysisDelegate(const UObject* WorldContextObject, const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP, float UpdateRate, float DecibelNoiseFloor=-40.f, bool bDoNormalize = true, bool bDoAutoRange = false, float AutoRangeAttackTime = 0.1f, float AutoRangeReleaseTime = 60.f);
+
+	/**
+	 *	Remove a spectral analysis delegate.
+	 *  @param  OnSubmixSpectralAnalysisBP		The event delegate to remove.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Spectrum", meta = (WorldContext = "WorldContextObject"))
+	void RemoveSpectralAnalysisDelegate(const UObject* WorldContextObject, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
+
+	/** Start spectrum analysis of the audio output. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Analysis", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
+	void StartSpectralAnalysis(const UObject* WorldContextObject, EFFTSize FFTSize = EFFTSize::DefaultSize, EFFTPeakInterpolationMethod InterpolationMethod = EFFTPeakInterpolationMethod::Linear, EFFTWindowType WindowType = EFFTWindowType::Hann, float HopSize = 0, EAudioSpectrumType SpectrumType = EAudioSpectrumType::MagnitudeSpectrum);
+
+	void StartSpectralAnalysis(FAudioDevice* InDevice, EFFTSize FFTSize = EFFTSize::DefaultSize, EFFTPeakInterpolationMethod InterpolationMethod = EFFTPeakInterpolationMethod::Linear, EFFTWindowType WindowType = EFFTWindowType::Hann, float HopSize = 0, EAudioSpectrumType SpectrumType = EAudioSpectrumType::MagnitudeSpectrum);
+
+	/** Start spectrum analysis of the audio output. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Analysis", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = 1))
+	void StopSpectralAnalysis(const UObject* WorldContextObject);
+
+	void StopSpectralAnalysis(FAudioDevice* InDevice);
 
 	/** Sets the output volume of the submix. This dynamic volume scales with the OutputVolume property of this submix. */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	void SetSubmixOutputVolume(const UObject* WorldContextObject, float InOutputVolume);
 
+	static FSoundSpectrumAnalyzerSettings GetSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, EAudioSpectrumType SpectrumType);
+
+	static FSoundSpectrumAnalyzerDelegateSettings GetSpectrumAnalysisDelegateSettings(const TArray<FSoundSubmixSpectralAnalysisBandSettings>& InBandSettings, float UpdateRate, float DecibelNoiseFloor, bool bDoNormalize, bool bDoAutoRange, float AutoRangeAttackTime, float AutoRangeReleaseTime);
 protected:
 
 	virtual void PostLoad() override;
@@ -244,7 +395,7 @@ protected:
 /**
  * Sound Submix class meant for use with soundfield formats, such as Ambisonics.
  */
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Soundfield Submix"))
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Sound Submix Soundfield"))
 class ENGINE_API USoundfieldSubmix : public USoundSubmixWithParentBase
 {
 	GENERATED_UCLASS_BODY()
@@ -291,7 +442,7 @@ protected:
 /**
  * Sound Submix class meant for sending audio to an external endpoint, such as controller haptics or an additional audio device.
  */
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Audio Endpoint Submix"))
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Sound Submix Endpoint"))
 class ENGINE_API UEndpointSubmix : public USoundSubmixBase
 {
 	GENERATED_UCLASS_BODY()
@@ -318,7 +469,7 @@ public:
 /**
  * Sound Submix class meant for sending soundfield-encoded audio to an external endpoint, such as a hardware binaural renderer that supports ambisonics.
  */
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Soundfield Endpoint Submix"))
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, Meta = (DisplayName = "Sound Submix Soundfield Endpoint"))
 class ENGINE_API USoundfieldEndpointSubmix : public USoundSubmixBase
 {
 	GENERATED_UCLASS_BODY()

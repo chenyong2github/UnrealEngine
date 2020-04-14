@@ -1360,6 +1360,23 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 	UE_LOG(LogHAL, Log, TEXT("   *** WaitAndFork awaiting signal %d to create child processes... ***"), WAIT_AND_FORK_QUEUE_SIGNAL);
 	GLog->Flush();
 
+	struct FMemoryStatsHolder
+	{
+		float AvailablePhysical;
+		float PeakUsedPhysical;
+		float PeakUsedVirtual;
+
+		constexpr float ByteToMiB(uint64 InBytes) { return InBytes / (1024.f * 1024.f); }
+
+		FMemoryStatsHolder(const FPlatformMemoryStats& PlatformStats)
+			: AvailablePhysical(ByteToMiB(PlatformStats.AvailablePhysical))
+			, PeakUsedPhysical(ByteToMiB(PlatformStats.PeakUsedPhysical))
+			, PeakUsedVirtual(ByteToMiB(PlatformStats.PeakUsedVirtual))
+		{ }
+	};
+
+	FMemoryStatsHolder PreviousMasterMemStats(FPlatformMemory::GetStats());
+
 	EWaitAndForkResult RetVal = EWaitAndForkResult::Parent;
 	struct FPidAndSignal
 	{
@@ -1378,6 +1395,14 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 		{
 			// Sleep for a short while to avoid spamming new processes to the OS all at once
 			FPlatformProcess::Sleep(WAIT_AND_FORK_CHILD_SPAWN_DELAY);
+
+			FMemoryStatsHolder CurrentMasterMemStats(FPlatformMemory::GetStats());
+			UE_LOG(LogHAL, Log, TEXT("MemoryStats PreFork: AvailablePhysical: %.02fMiB (%+.02fMiB), PeakPhysical: %.02fMiB, PeakVirtual: %.02fMiB"),
+				CurrentMasterMemStats.AvailablePhysical, (CurrentMasterMemStats.AvailablePhysical - PreviousMasterMemStats.AvailablePhysical),
+				CurrentMasterMemStats.PeakUsedPhysical,
+				CurrentMasterMemStats.PeakUsedVirtual				
+			);
+			PreviousMasterMemStats = CurrentMasterMemStats;
 			
 			// Make sure there are no pending messages in the log.
 			GLog->Flush();

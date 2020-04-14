@@ -384,6 +384,8 @@ class UNiagaraGraph : public UEdGraph
 
 	static FName MakeUniqueParameterNameAcrossGraphs(const FName& InName, TArray<TWeakObjectPtr<UNiagaraGraph>>& InGraphs);
 
+	static FName StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool bIsGet, bool bIsSet);
+
 protected:
 	void RebuildNumericCache();
 	bool bNeedNumericCacheRebuilt;
@@ -392,10 +394,6 @@ protected:
 	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, const TArray<UNiagaraNode*>& InTraversal) const;
 
 private:
-
-	/** The const is a lie! Public implementation AddParameter interacts with mutable members only. Private implementation is provided to handle adding parameters in RefreshParameterReferences(). */
-	void MutableAddParameter(FNiagaraVariable& Parameter, const FAddParameterOptions Options) const;
-
 	virtual void NotifyGraphChanged(const FEdGraphEditAction& InAction) override;
 
 	/** Find parameters in the graph. */
@@ -426,7 +424,10 @@ private:
 
 	/** Compares the values on the default pins with the metadata and syncs the two if necessary */
 	void ValidateDefaultPins();
-	
+
+	void StandardizeParameterNames();
+
+private:
 	/** The current change identifier for this graph overall. Used to sync status with UNiagaraScripts.*/
 	UPROPERTY()
 	FGuid ChangeId;

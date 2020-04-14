@@ -1,12 +1,90 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/Culture.h"
+#include "Containers/ArrayView.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/App.h"
 
 #if UE_ENABLE_ICU
 #include "Internationalization/ICUCulture.h"
 #else
 #include "Internationalization/LegacyCulture.h"
 #endif
+
+void ApplyCultureDisplayNameSubstitutes(TArrayView<const FString> InPrioritizedCultureNames, FString& InOutDisplayName)
+{
+	struct FDisplayNameSubstitute
+	{
+		FString Culture;
+		FString OldString;
+		FString NewString;
+	};
+
+	static TArray<FDisplayNameSubstitute> CultureDisplayNameSubstitutes;
+
+	// Conditionally load the required config data
+	{
+		static bool bHasInitializedCultureDisplayNameSubstitutes = false;
+		if (!bHasInitializedCultureDisplayNameSubstitutes && GConfig && GConfig->IsReadyForUse())
+		{
+			bHasInitializedCultureDisplayNameSubstitutes = true;
+
+			TArray<FString> CultureDisplayNameSubstitutesStrArray;
+			{
+				const bool ShouldLoadEditor = GIsEditor;
+				const bool ShouldLoadGame = FApp::IsGame();
+
+				GConfig->GetArray(TEXT("Internationalization"), TEXT("CultureDisplayNameSubstitutes"), CultureDisplayNameSubstitutesStrArray, GEngineIni);
+
+				if (ShouldLoadEditor)
+				{
+					TArray<FString> EditorArray;
+					GConfig->GetArray(TEXT("Internationalization"), TEXT("CultureDisplayNameSubstitutes"), EditorArray, GEditorIni);
+					CultureDisplayNameSubstitutesStrArray.Append(MoveTemp(EditorArray));
+				}
+
+				if (ShouldLoadGame)
+				{
+					TArray<FString> GameArray;
+					GConfig->GetArray(TEXT("Internationalization"), TEXT("CultureDisplayNameSubstitutes"), GameArray, GGameIni);
+					CultureDisplayNameSubstitutesStrArray.Append(MoveTemp(GameArray));
+				}
+			}
+
+			// Each substitute should be a semi-colon separated set of data: [Culture;]Old;New
+			CultureDisplayNameSubstitutes.Reserve(CultureDisplayNameSubstitutesStrArray.Num());
+			for (const FString& CultureDisplayNameSubstituteStr : CultureDisplayNameSubstitutesStrArray)
+			{
+				TArray<FString> DisplayFragments;
+				CultureDisplayNameSubstituteStr.ParseIntoArray(DisplayFragments, TEXT(";"));
+
+				if (DisplayFragments.Num() == 2)
+				{
+					CultureDisplayNameSubstitutes.Add(FDisplayNameSubstitute{ FString(), MoveTemp(DisplayFragments[0]), MoveTemp(DisplayFragments[1]) });
+				}
+				else if (DisplayFragments.Num() == 3)
+				{
+					CultureDisplayNameSubstitutes.Add(FDisplayNameSubstitute{ MoveTemp(DisplayFragments[0]), MoveTemp(DisplayFragments[1]), MoveTemp(DisplayFragments[2]) });
+				}
+			}
+
+			// Sort by culture name length, so that more specific cultures get first refusal at a replacement
+			CultureDisplayNameSubstitutes.StableSort([](const FDisplayNameSubstitute& InOne, const FDisplayNameSubstitute& InTwo)
+			{
+				return InOne.Culture.Len() > InTwo.Culture.Len();
+			});
+		}
+	}
+
+	for (const FDisplayNameSubstitute& CultureDisplayNameSubstitute : CultureDisplayNameSubstitutes)
+	{
+		const bool bValidForCulture = CultureDisplayNameSubstitute.Culture.IsEmpty() || InPrioritizedCultureNames.Contains(CultureDisplayNameSubstitute.Culture);
+		if (bValidForCulture)
+		{
+			InOutDisplayName.ReplaceInline(*CultureDisplayNameSubstitute.OldString, *CultureDisplayNameSubstitute.NewString, ESearchCase::CaseSensitive);
+		}
+	}
+}
 
 FCultureRef FCulture::Create(TUniquePtr<FCultureImplementation>&& InImplementation)
 {
@@ -16,20 +94,16 @@ FCultureRef FCulture::Create(TUniquePtr<FCultureImplementation>&& InImplementati
 
 FCulture::FCulture(TUniquePtr<FCultureImplementation>&& InImplementation)
 	: Implementation(MoveTemp(InImplementation))
-	, CachedDisplayName(Implementation->GetDisplayName())
-	, CachedEnglishName(Implementation->GetEnglishName())
 	, CachedName(Implementation->GetName())
-	, CachedNativeName(Implementation->GetNativeName())
 	, CachedUnrealLegacyThreeLetterISOLanguageName(Implementation->GetUnrealLegacyThreeLetterISOLanguageName())
 	, CachedThreeLetterISOLanguageName(Implementation->GetThreeLetterISOLanguageName())
 	, CachedTwoLetterISOLanguageName(Implementation->GetTwoLetterISOLanguageName())
-	, CachedNativeLanguage(Implementation->GetNativeLanguage())
 	, CachedRegion(Implementation->GetRegion())
-	, CachedNativeRegion(Implementation->GetNativeRegion())
 	, CachedScript(Implementation->GetScript())
 	, CachedVariant(Implementation->GetVariant())
 	, CachedIsRightToLeft(Implementation->IsRightToLeft())
-{ 
+{
+	RefreshCultureDisplayNames(TArray<FString>()); // The display name for the current language will be updated by a post-construct call to RefreshCultureDisplayNames with the correct language data
 }
 
 FCulture::~FCulture()
@@ -239,8 +313,30 @@ const TArray<ETextPluralForm>& FCulture::GetValidPluralForms(const ETextPluralTy
 	return Implementation->GetValidPluralForms(PluralType);
 }
 
-void FCulture::HandleCultureChanged()
+void FCulture::RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames, const bool bFullRefresh)
 {
-	// Re-cache the DisplayName, as this may change when the active culture is changed
 	CachedDisplayName = Implementation->GetDisplayName();
+	ApplyCultureDisplayNameSubstitutes(InPrioritizedDisplayCultureNames, CachedDisplayName);
+
+	if (bFullRefresh)
+	{
+		{
+			static const FString EnglishCultureName = TEXT("en");
+			CachedEnglishName = Implementation->GetEnglishName();
+			ApplyCultureDisplayNameSubstitutes(MakeArrayView(&EnglishCultureName, 1), CachedEnglishName);
+		}
+
+		{
+			const TArray<FString> PrioritizedNativeCultureNames = GetPrioritizedParentCultureNames();
+
+			CachedNativeName = Implementation->GetNativeName();
+			ApplyCultureDisplayNameSubstitutes(PrioritizedNativeCultureNames, CachedNativeName);
+
+			CachedNativeLanguage = Implementation->GetNativeLanguage();
+			ApplyCultureDisplayNameSubstitutes(PrioritizedNativeCultureNames, CachedNativeLanguage);
+
+			CachedNativeRegion = Implementation->GetNativeRegion();
+			ApplyCultureDisplayNameSubstitutes(PrioritizedNativeCultureNames, CachedNativeRegion);
+		}
+	}
 }

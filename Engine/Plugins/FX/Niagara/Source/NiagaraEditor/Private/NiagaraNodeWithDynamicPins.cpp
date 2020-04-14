@@ -11,7 +11,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
-#include "SNiagaraParameterMapView.h"
+#include "Widgets/SNiagaraParameterMapView.h"
 #include "Framework/Application/SlateApplication.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraScriptVariable.h"
@@ -310,10 +310,6 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 
 		Graph->Modify();
 		Graph->AddParameter(Parameter, AddParameterOptions);
-
-		// Add the Parameter Reference 
-		FNiagaraGraphParameterReference NewParameterReference = FNiagaraGraphParameterReference(Pin->PersistentGuid, this);
-		Graph->AddParameterReference(Parameter, NewParameterReference);
 	}
 	else
 	{
@@ -336,9 +332,7 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 		Graph->AddParameter(Parameter, AddParameterOptions);
 
 		Modify();
-		UEdGraphPin* Pin = RequestNewTypedPin(NewPinDirection, Parameter.GetType(), Parameter.GetName());
-		FNiagaraGraphParameterReference NewParameterReference = FNiagaraGraphParameterReference(Pin->PersistentGuid, this);
-		Graph->AddParameterReference(Parameter, NewParameterReference);
+		RequestNewTypedPin(NewPinDirection, Parameter.GetType(), Parameter.GetName());
 	}
 	else
 	{
@@ -358,13 +352,23 @@ void UNiagaraNodeWithDynamicPins::RemoveDynamicPin(UEdGraphPin* Pin)
 		{
 			const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 			FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(Pin, false);
-			UNiagaraScriptVariable** PinAssociatedScriptVariable = Graph->GetAllMetaData().Find(PinVariable);
-			if (PinAssociatedScriptVariable != nullptr)
+			if (PinVariable.IsValid())
 			{
-				bool bShouldRemoveScriptVariable = !Graph->UpdateUsageForScriptVariable(*PinAssociatedScriptVariable);
-				if (bShouldRemoveScriptVariable)
+				const FNiagaraGraphParameterReferenceCollection* ReferenceCollection = Graph->GetParameterReferenceMap().Find(PinVariable);
+				if (ReferenceCollection != nullptr && ReferenceCollection->WasCreated())
 				{
-					Graph->RemoveParameter((*PinAssociatedScriptVariable)->Variable);
+					// Don't remove parameters from the graph which were created by the user.
+					return;
+				}
+
+				UNiagaraScriptVariable** PinAssociatedScriptVariable = Graph->GetAllMetaData().Find(PinVariable);
+				if (PinAssociatedScriptVariable != nullptr)
+				{
+					bool bShouldRemoveScriptVariable = !Graph->UpdateUsageForScriptVariable(*PinAssociatedScriptVariable);
+					if (bShouldRemoveScriptVariable)
+					{
+						Graph->RemoveParameter((*PinAssociatedScriptVariable)->Variable);
+					}
 				}
 			}
 		}

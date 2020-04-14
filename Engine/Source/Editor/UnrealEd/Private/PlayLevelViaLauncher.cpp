@@ -17,6 +17,9 @@
 #include "PlayLevel.h"
 #include "Async/Async.h"
 #include "Logging/MessageLog.h"
+#include "TargetReceipt.h"
+#include "DesktopPlatformModule.h"
+#include "PlatformInfo.h"
 
 #define LOCTEXT_NAMESPACE "PlayLevel"
 
@@ -47,6 +50,57 @@ static void HandleOutputReceived(const FString& InMessage)
 	{
 		UE_LOG(LogPlayLevel, Log, TEXT("%s"), *InMessage);
 	}
+}
+
+UNREALED_API bool HasPromotedTarget(const TCHAR* BaseDir, const TCHAR* TargetName, const TCHAR* Platform, EBuildConfiguration Configuration, const TCHAR* Architecture)
+{
+	// Get the path to the receipt, and check it exists
+	FString ReceiptPath = FTargetReceipt::GetDefaultPath(BaseDir, TargetName, Platform, Configuration, Architecture);
+	if (!FPaths::FileExists(*ReceiptPath))
+	{
+		UE_LOG(LogPlayLevel, Log, TEXT("Unable to use promoted target - %s does not exist."), *ReceiptPath);
+		return false;
+	}
+
+	// Read the receipt for this target
+	FTargetReceipt Receipt;
+	if (!Receipt.Read(ReceiptPath))
+	{
+		UE_LOG(LogPlayLevel, Log, TEXT("Unable to use promoted target - cannot read %s"), *ReceiptPath);
+		return false;
+	}
+
+	// Check the receipt is for a promoted build
+	if (!Receipt.Version.IsPromotedBuild)
+	{
+		UE_LOG(LogPlayLevel, Log, TEXT("Unable to use promoted target - receipt %s is not for a promoted target"), *ReceiptPath);
+		return false;
+	}
+
+	// Make sure it matches the current build info
+	FEngineVersion ReceiptVersion = Receipt.Version.GetEngineVersion();
+	FEngineVersion CurrentVersion = FEngineVersion::Current();
+	if (!ReceiptVersion.ExactMatch(CurrentVersion))
+	{
+		UE_LOG(LogPlayLevel, Log, TEXT("Unable to use promoted target - receipt version (%s) is not exact match with current engine version (%s)"), *ReceiptVersion.ToString(), *CurrentVersion.ToString());
+		return false;
+	}
+
+	return true;
+}
+
+bool TryGetDefaultTargetName(const FString& ProjectFile, EBuildTargetType TargetType, FString& OutTargetName)
+{
+	const TArray<FTargetInfo>& Targets = FDesktopPlatformModule::Get()->GetTargetsForProject(ProjectFile);
+	for (const FTargetInfo& Target : Targets)
+	{
+		if (Target.Type == TargetType)
+		{
+			OutTargetName = Target.Name;
+			return true;
+		}
+	}
+	return false;
 }
 
 void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InRequestParams)
@@ -164,16 +218,45 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	}
 	else if (EditorPlaySettings->BuildGameBeforeLaunch == EPlayOnBuildMode::PlayOnBuild_Default)
 	{
-		LauncherSessionInfo->bPlayUsingLauncherBuild = LauncherSessionInfo->bPlayUsingLauncherHasCode || !FApp::GetEngineIsPromotedBuild();
-		if (!LauncherSessionInfo->bPlayUsingLauncherBuild)
+		// If this isn't a promoted build, we always have to build
+		bool bBuildTarget = true;
+		if (FApp::GetEngineIsPromotedBuild())
 		{
-			FText Reason;
-			if (LaunchPlatform->RequiresTempTarget(LauncherSessionInfo->bPlayUsingLauncherHasCode, BuildConfiguration, false, Reason))
+			// Figure out which target we're building
+			FString ReceiptDir;
+			FString TargetName;
+			if (TryGetDefaultTargetName(FPaths::GetProjectFilePath(), EBuildTargetType::Game, TargetName))
 			{
-				UE_LOG(LogPlayLevel, Log, TEXT("Project requires temp target (%s)"), *Reason.ToString());
-				LauncherSessionInfo->bPlayUsingLauncherBuild = true;
+				ReceiptDir = FPaths::GetPath(FPaths::GetProjectFilePath());
+			}
+			else
+			{
+				TargetName = TEXT("UE4Game");
+
+				FText Reason;
+				if (LaunchPlatform->RequiresTempTarget(LauncherSessionInfo->bPlayUsingLauncherHasCode, BuildConfiguration, false, Reason))
+				{
+					UE_LOG(LogPlayLevel, Log, TEXT("Project requires temp target (%s)"), *Reason.ToString());
+					ReceiptDir = FPaths::GetPath(FPaths::GetProjectFilePath());
+				}
+				else
+				{
+					UE_LOG(LogPlayLevel, Log, TEXT("Project does not require temp target"));
+					ReceiptDir = FPaths::EngineDir();
+				}
+			}
+
+			// Get the target platform
+			const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(LaunchPlatformName);
+			FString PlatformName = TargetPlatform->GetPlatformInfo().UBTTargetId.ToString();
+
+			// Check if the existing target is valid
+			if (HasPromotedTarget(*ReceiptDir, *TargetName, *PlatformName, BuildConfiguration, nullptr))
+			{
+				bBuildTarget = false;
 			}
 		}
+		LauncherSessionInfo->bPlayUsingLauncherBuild = bBuildTarget;
 	}
 	else if (EditorPlaySettings->BuildGameBeforeLaunch == EPlayOnBuildMode::PlayOnBuild_IfEditorBuiltLocally)
 	{

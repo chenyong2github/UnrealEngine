@@ -12,14 +12,12 @@
 
 namespace Chaos
 {
-
-	template<typename T>
-	class THeightfieldRaycastVisitor
+	class FHeightfieldRaycastVisitor
 	{
 	public:
 
-		THeightfieldRaycastVisitor(const typename THeightField<T>::FDataType* InData, const TVector<T, 3>& InStart, const TVector<T, 3>& InDir, const T InThickness)
-			: OutTime(TNumericLimits<T>::Max())
+		FHeightfieldRaycastVisitor(const typename FHeightField::FDataType* InData, const FVec3& InStart, const FVec3& InDir, const FReal InThickness)
+			: OutTime(TNumericLimits<FReal>::Max())
 			, OutFaceIndex(INDEX_NONE)
 			, GeomData(InData)
 			, Start(InStart)
@@ -34,24 +32,24 @@ namespace Chaos
 		};
 
 		template<ERaycastType SQType>
-		bool Visit(int32 Payload, T& CurrentLength)
+		bool Visit(int32 Payload, FReal& CurrentLength)
 		{
 			const int32 SubX = Payload % (GeomData->NumCols - 1);
 			const int32 SubY = Payload / (GeomData->NumCols - 1);
 
 			const int32 FullIndex = Payload + SubY;
 
-			const T Radius = Thickness + SMALL_NUMBER;
-			const T Radius2 = Radius * Radius;
+			const FReal Radius = Thickness + SMALL_NUMBER;
+			const FReal Radius2 = Radius * Radius;
 			bool bIntersection = false;
 
-			auto TestTriangle = [&](int32 FaceIndex, const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C) -> bool
+			auto TestTriangle = [&](int32 FaceIndex, const FVec3& A, const FVec3& B, const FVec3& C) -> bool
 			{
-				const TVector<T, 3> AB = B - A;
-				const TVector<T, 3> AC = C - A;
+				const FVec3 AB = B - A;
+				const FVec3 AC = C - A;
 
-				TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(AB, AC);
-				const T Len2 = Normal.SafeNormalize();
+				FVec3 Normal = FVec3::CrossProduct(AB, AC);
+				const FReal Len2 = Normal.SafeNormalize();
 
 				if(!ensure(Len2 > SMALL_NUMBER))
 				{
@@ -59,11 +57,11 @@ namespace Chaos
 					return true;
 				}
 
-				const TPlane<T, 3> TrianglePlane(A, Normal);
+				const TPlane<FReal, 3> TrianglePlane(A, Normal);
 
-				TVector<T, 3> ResultPosition(0);
-				TVector<T, 3> ResultNormal(0);
-				T Time = TNumericLimits<T>::Max();
+				FVec3 ResultPosition(0);
+				FVec3 ResultNormal(0);
+				FReal Time = TNumericLimits<FReal>::Max();
 				int32 DummyFaceIndex = INDEX_NONE;
 
 				if(TrianglePlane.Raycast(Start, Dir, CurrentLength, Thickness, Time, ResultPosition, ResultNormal, DummyFaceIndex))
@@ -71,8 +69,8 @@ namespace Chaos
 					if(Time == 0)
 					{
 						// Initial overlap
-						const TVector<T, 3> ClosestPtOnTri = FindClosestPointOnTriangle(TrianglePlane, A, B, C, Start);
-						const T DistToTriangle2 = (Start - ClosestPtOnTri).SizeSquared();
+						const FVec3 ClosestPtOnTri = FindClosestPointOnTriangle(TrianglePlane, A, B, C, Start);
+						const FReal DistToTriangle2 = (Start - ClosestPtOnTri).SizeSquared();
 						if(DistToTriangle2 <= Radius2)
 						{
 							OutTime = 0;
@@ -84,8 +82,8 @@ namespace Chaos
 					}
 					else
 					{
-						const TVector<T, 3> ClosestPtOnTri = FindClosestPointOnTriangle(ResultPosition, A, B, C, ResultPosition);
-						const T DistToTriangle2 = (ResultPosition - ClosestPtOnTri).SizeSquared();
+						const FVec3 ClosestPtOnTri = FindClosestPointOnTriangle(ResultPosition, A, B, C, ResultPosition);
+						const FReal DistToTriangle2 = (ResultPosition - ClosestPtOnTri).SizeSquared();
 						bIntersection = DistToTriangle2 <= SMALL_NUMBER;
 					}
 				}
@@ -93,22 +91,22 @@ namespace Chaos
 				if(SQType == ERaycastType::Sweep && !bIntersection)
 				{
 					//sphere is not immediately touching the triangle, but it could start intersecting the perimeter as it sweeps by
-					TVector<T, 3> BorderPositions[3];
-					TVector<T, 3> BorderNormals[3];
-					T BorderTimes[3];
+					FVec3 BorderPositions[3];
+					FVec3 BorderNormals[3];
+					FReal BorderTimes[3];
 					bool bBorderIntersections[3];
 
-					const TCapsule<T> ABCapsule(A, B, Thickness);
+					const TCapsule<FReal> ABCapsule(A, B, Thickness);
 					bBorderIntersections[0] = ABCapsule.Raycast(Start, Dir, CurrentLength, 0, BorderTimes[0], BorderPositions[0], BorderNormals[0], DummyFaceIndex);
 
-					const TCapsule<T> BCCapsule(B, C, Thickness);
+					const TCapsule<FReal> BCCapsule(B, C, Thickness);
 					bBorderIntersections[1] = BCCapsule.Raycast(Start, Dir, CurrentLength, 0, BorderTimes[1], BorderPositions[1], BorderNormals[1], DummyFaceIndex);
 
-					const TCapsule<T> ACCapsule(A, C, Thickness);
+					const TCapsule<FReal> ACCapsule(A, C, Thickness);
 					bBorderIntersections[2] = ACCapsule.Raycast(Start, Dir, CurrentLength, 0, BorderTimes[2], BorderPositions[2], BorderNormals[2], DummyFaceIndex);
 
 					int32 MinBorderIdx = INDEX_NONE;
-					T MinBorderTime = 0;
+					FReal MinBorderTime = 0;
 
 					for(int32 BorderIdx = 0; BorderIdx < 3; ++BorderIdx)
 					{
@@ -131,8 +129,8 @@ namespace Chaos
 						if(Time == 0)
 						{
 							//we were initially overlapping with triangle plane so no normal was given. Compute it now
-							TVector<T, 3> TmpNormal;
-							const T SignedDistance = TrianglePlane.PhiWithNormal(Start, TmpNormal);
+							FVec3 TmpNormal;
+							const FReal SignedDistance = TrianglePlane.PhiWithNormal(Start, TmpNormal);
 							ResultNormal = SignedDistance >= 0 ? TmpNormal : -TmpNormal;
 						}
 
@@ -166,7 +164,7 @@ namespace Chaos
 				return true;
 			};
 
-			TVector<T, 3> Points[4];
+			FVec3 Points[4];
 			GeomData->GetPointsScaled(FullIndex, Points);
 
 			// Test both triangles that are in this cell, as we could hit both in any order
@@ -176,37 +174,37 @@ namespace Chaos
 			return OutTime > 0;
 		}
 
-		bool VisitRaycast(int32 Payload, T& CurLength)
+		bool VisitRaycast(int32 Payload, FReal& CurLength)
 		{
 			return Visit<ERaycastType::Raycast>(Payload, CurLength);
 		}
 
-		bool VisitSweep(int32 Payload, T& CurLength)
+		bool VisitSweep(int32 Payload, FReal& CurLength)
 		{
 			return Visit<ERaycastType::Sweep>(Payload, CurLength);
 		}
 
-		T OutTime;
-		TVector<T, 3> OutPosition;
-		TVector<T, 3> OutNormal;
+		FReal OutTime;
+		FVec3 OutPosition;
+		FVec3 OutNormal;
 		int32 OutFaceIndex;
 
 	private:
 
-		const typename THeightField<T>::FDataType* GeomData;
+		const typename FHeightField::FDataType* GeomData;
 
-		TVector<T, 3> Start;
-		TVector<T, 3> Dir;
-		T Thickness;
+		FVec3 Start;
+		FVec3 Dir;
+		FReal Thickness;
 	};
 
-	template<typename GeomQueryType, typename T>
+	template<typename GeomQueryType>
 	class THeightfieldSweepVisitor
 	{
 	public:
 
-		THeightfieldSweepVisitor(const typename THeightField<T>::FDataType* InData, const GeomQueryType& InQueryGeom, const TRigidTransform<T, 3>& InStartTM, const TVector<T, 3>& InDir, const T InThickness, bool InComputeMTD)
-			: OutTime(TNumericLimits<T>::Max())
+		THeightfieldSweepVisitor(const typename FHeightField::FDataType* InData, const GeomQueryType& InQueryGeom, const FRigidTransform3& InStartTM, const FVec3& InDir, const FReal InThickness, bool InComputeMTD)
+			: OutTime(TNumericLimits<FReal>::Max())
 			, OutFaceIndex(INDEX_NONE)
 			, HfData(InData)
 			, StartTM(InStartTM)
@@ -216,14 +214,14 @@ namespace Chaos
 			, bComputeMTD(InComputeMTD)
 		{}
 
-		bool VisitSweep(int32 Payload, T& CurrentLength)
+		bool VisitSweep(int32 Payload, FReal& CurrentLength)
 		{
 			const int32 SubX = Payload % (HfData->NumCols - 1);
 			const int32 SubY = Payload / (HfData->NumCols - 1);
 
 			const int32 FullIndex = Payload + SubY;
 
-			auto TestTriangle = [&](int32 FaceIndex, const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C) -> bool
+			auto TestTriangle = [&](int32 FaceIndex, const FVec3& A, const FVec3& B, const FVec3& C) -> bool
 			{
 				if(OutTime == 0)
 				{
@@ -232,13 +230,13 @@ namespace Chaos
 
 				//Convert into local space of A to get better precision
 
-				TTriangle<T> Triangle(TVec3<T>(0), B-A, C-A);
+				TTriangle<FReal> Triangle(TVec3<FReal>(0), B-A, C-A);
 
-				T Time;
-				TVector<T, 3> LocalHitPosition;
-				TVector<T, 3> HitNormal;
-				const TRigidTransform<T,3> LocalStartTM(StartTM.GetTranslation() - A,StartTM.GetRotation());
-				if(GJKRaycast2<T>(Triangle, OtherGeom, LocalStartTM, Dir, CurrentLength, Time, LocalHitPosition, HitNormal, Thickness, bComputeMTD))
+				FReal Time;
+				FVec3 LocalHitPosition;
+				FVec3 HitNormal;
+				const FRigidTransform3 LocalStartTM(StartTM.GetTranslation() - A,StartTM.GetRotation());
+				if(GJKRaycast2<FReal>(Triangle, OtherGeom, LocalStartTM, Dir, CurrentLength, Time, LocalHitPosition, HitNormal, Thickness, bComputeMTD))
 				{
 					if(Time < OutTime)
 					{
@@ -263,10 +261,10 @@ namespace Chaos
 								// we adopt the triangle normal but this leaves us with an incorrect MTD from the GJK call
 								// above. #TODO possibly re-do GJK with a plane, or some geom vs.plane special case to solve
 								// both triangles as planes 
-								const TVector<T, 3> AB = B - A;
-								const TVector<T, 3> AC = C - A;
+								const FVec3 AB = B - A;
+								const FVec3 AC = C - A;
 
-								TVector<T, 3> TriNormal = TVector<T, 3>::CrossProduct(AB, AC);
+								FVec3 TriNormal = FVec3::CrossProduct(AB, AC);
 								TriNormal.SafeNormalize();
 
 								OutNormal = TriNormal;
@@ -282,7 +280,7 @@ namespace Chaos
 				return true;
 			};
 
-			TVector<T, 3> Points[4];
+			FVec3 Points[4];
 			HfData->GetPointsScaled(FullIndex, Points);
 
 			bool bContinue = TestTriangle(Payload * 2, Points[0], Points[1], Points[3]);
@@ -294,26 +292,26 @@ namespace Chaos
 			return OutTime > 0;
 		}
 
-		T OutTime;
-		TVector<T, 3> OutPosition;
-		TVector<T, 3> OutNormal;
+		FReal OutTime;
+		FVec3 OutPosition;
+		FVec3 OutNormal;
 		int32 OutFaceIndex;
 
 	private:
 
-		const typename THeightField<T>::FDataType* HfData;
-		const TRigidTransform<T, 3> StartTM;
+		const typename FHeightField::FDataType* HfData;
+		const FRigidTransform3 StartTM;
 		const GeomQueryType& OtherGeom;
-		const TVector<T, 3>& Dir;
-		const T Thickness;
+		const FVec3& Dir;
+		const FReal Thickness;
 		bool bComputeMTD;
 
 	};
 
-	template<typename HeightfieldT, typename BufferType>
-	void BuildGeomData(TArrayView<BufferType> BufferView, TArrayView<uint8> MaterialIndexView, int32 NumRows, int32 NumCols, const TVector<HeightfieldT, 3>& InScale, TUniqueFunction<HeightfieldT(const BufferType)> ToRealFunc, typename THeightField<HeightfieldT>::FDataType& OutData, TAABB<HeightfieldT, 3>& OutBounds)
+	template<typename BufferType>
+	void BuildGeomData(TArrayView<BufferType> BufferView, TArrayView<uint8> MaterialIndexView, int32 NumRows, int32 NumCols, const FVec3& InScale, TUniqueFunction<FReal(const BufferType)> ToRealFunc, typename FHeightField::FDataType& OutData, FAABB3& OutBounds)
 	{
-		using FDataType = typename THeightField<HeightfieldT>::FDataType;
+		using FDataType = typename FHeightField::FDataType;
 
 		using RealType = typename FDataType::RealType;
 
@@ -356,10 +354,10 @@ namespace Chaos
 
 			int32 X = HeightIndex % (NumCols);
 			int32 Y = HeightIndex / (NumCols);
-			TVector<HeightfieldT, 3> Position(RealType(X), RealType(Y), OutData.MinValue + OutData.Heights[HeightIndex] * OutData.HeightPerUnit);
+			FVec3 Position(RealType(X), RealType(Y), OutData.MinValue + OutData.Heights[HeightIndex] * OutData.HeightPerUnit);
 			if(HeightIndex == 0)
 			{
-				OutBounds = TAABB<HeightfieldT, 3>(Position * InScale, Position * InScale);
+				OutBounds = FAABB3(Position * InScale, Position * InScale);
 			}
 			else
 			{
@@ -384,14 +382,14 @@ namespace Chaos
 		}
 	}
 
-	template<typename HeightfieldT, typename BufferType>
-	void EditGeomData(TArrayView<BufferType> BufferView, int32 InBeginRow, int32 InBeginCol, int32 NumRows, int32 NumCols, TUniqueFunction<HeightfieldT(const BufferType)> ToRealFunc, typename THeightField<HeightfieldT>::FDataType& OutData, TAABB<HeightfieldT, 3>& OutBounds)
+	template<typename BufferType>
+	void EditGeomData(TArrayView<BufferType> BufferView, int32 InBeginRow, int32 InBeginCol, int32 NumRows, int32 NumCols, TUniqueFunction<FReal(const BufferType)> ToRealFunc, typename FHeightField::FDataType& OutData, FAABB3& OutBounds)
 	{
-		using FDataType = typename THeightField<HeightfieldT>::FDataType;
+		using FDataType = typename FHeightField::FDataType;
 		using RealType = typename FDataType::RealType;
 
-		RealType MinValue = TNumericLimits<HeightfieldT>::Max();
-		RealType MaxValue = TNumericLimits<HeightfieldT>::Min();
+		RealType MinValue = TNumericLimits<FReal>::Max();
+		RealType MaxValue = TNumericLimits<FReal>::Min();
 
 		for(BufferType& Value : BufferView)
 		{
@@ -434,10 +432,10 @@ namespace Chaos
 
 					int32 X = HeightIndex % (OutData.NumCols);
 					int32 Y = HeightIndex / (OutData.NumCols);
-					TVector<HeightfieldT, 3> Position(RealType(X), RealType(Y), NewMin + OutData.Heights[HeightIndex] * NewHeightPerUnit);
+					FVec3 Position(RealType(X), RealType(Y), NewMin + OutData.Heights[HeightIndex] * NewHeightPerUnit);
 					if(HeightIndex == 0)
 					{
-						OutBounds = TAABB<HeightfieldT, 3>(Position, Position);
+						OutBounds = FAABB3(Position, Position);
 					}
 					else
 					{
@@ -468,31 +466,28 @@ namespace Chaos
 		}
 	}
 
-	template <typename T>
-	THeightField<T>::THeightField(TArray<T>&& Height, TArray<uint8>&& InMaterialIndices, int32 NumRows, int32 NumCols, const TVector<T, 3>& InScale)
+	FHeightField::FHeightField(TArray<FReal>&& Height, TArray<uint8>&& InMaterialIndices, int32 NumRows, int32 NumCols, const FVec3& InScale)
 		: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField)
 	{
-		BuildGeomData<T, T>(MakeArrayView(Height), MakeArrayView(InMaterialIndices), NumRows, NumCols, TVector<T, 3>(1), [](const T InVal) {return InVal; }, GeomData, LocalBounds);
+		BuildGeomData<float>(MakeArrayView(Height), MakeArrayView(InMaterialIndices), NumRows, NumCols, FVec3(1), [](const FReal InVal) {return InVal; }, GeomData, LocalBounds);
 		CalcBounds();
 		SetScale(InScale);
 	}
 
-	template<typename T>
-	Chaos::THeightField<T>::THeightField(TArrayView<const uint16> InHeights, TArrayView<uint8> InMaterialIndices, int32 InNumRows, int32 InNumCols, const TVector<T, 3>& InScale)
+	Chaos::FHeightField::FHeightField(TArrayView<const uint16> InHeights, TArrayView<uint8> InMaterialIndices, int32 InNumRows, int32 InNumCols, const FVec3& InScale)
 		: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField)
 	{
-		TUniqueFunction<T(const uint16)> ConversionFunc = [](const T InVal) -> float
+		TUniqueFunction<FReal(const uint16)> ConversionFunc = [](const FReal InVal) -> float
 		{
 			return (float)((int32)InVal - 32768);
 		};
 
-		BuildGeomData<T, const uint16>(InHeights, InMaterialIndices, InNumRows, InNumCols, TVector<T, 3>(1), MoveTemp(ConversionFunc), GeomData, LocalBounds);
+		BuildGeomData<const uint16>(InHeights, InMaterialIndices, InNumRows, InNumCols, FVec3(1), MoveTemp(ConversionFunc), GeomData, LocalBounds);
 		CalcBounds();
 		SetScale(InScale);
 	}
 
-	template<typename T>
-	void Chaos::THeightField<T>::EditHeights(TArrayView<const uint16> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols)
+	void Chaos::FHeightField::EditHeights(TArrayView<const uint16> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols)
 	{
 		const int32 NumExpectedValues = InNumRows * InNumCols;
 		const int32 EndRow = InBeginRow + InNumRows - 1;
@@ -500,20 +495,19 @@ namespace Chaos
 
 		if(ensure(InHeights.Num() == NumExpectedValues && InBeginRow >= 0 && InBeginCol >= 0 && EndRow < GeomData.NumRows && EndCol < GeomData.NumCols))
 		{
-			TUniqueFunction<T(const uint16)> ConversionFunc = [](const T InVal) -> float
+			TUniqueFunction<FReal(const uint16)> ConversionFunc = [](const FReal InVal) -> float
 			{
 				return (float)((int32)InVal - 32768);
 			};
 
-			EditGeomData<T, const uint16>(InHeights, InBeginRow, InBeginCol, InNumRows, InNumCols, MoveTemp(ConversionFunc), GeomData, LocalBounds);
+			EditGeomData<const uint16>(InHeights, InBeginRow, InBeginCol, InNumRows, InNumCols, MoveTemp(ConversionFunc), GeomData, LocalBounds);
 
 			// Slow and dumb. TODO: Actually fix CellHeights inside EditGeomData.
 			CalcBounds();
 		}
 	}
 
-	template<typename T>
-	void Chaos::THeightField<T>::EditHeights(TArrayView<T> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols)
+	void Chaos::FHeightField::EditHeights(TArrayView<FReal> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols)
 	{
 		const int32 NumExpectedValues = InNumRows * InNumCols;
 		const int32 EndRow = InBeginRow + InNumRows - 1;
@@ -521,25 +515,24 @@ namespace Chaos
 
 		if(ensure(InHeights.Num() == NumExpectedValues && InBeginRow >= 0 && InBeginCol >= 0 && EndRow < GeomData.NumRows && EndCol < GeomData.NumCols))
 		{
-			TUniqueFunction<T(T)> ConversionFunc = [](const T InVal) -> float
+			TUniqueFunction<FReal(FReal)> ConversionFunc = [](const FReal InVal) -> float
 			{
 				return InVal;
 			};
 
-			EditGeomData<T, T>(InHeights, InBeginRow, InBeginCol, InNumRows, InNumCols, MoveTemp(ConversionFunc), GeomData, LocalBounds);
+			EditGeomData<FReal>(InHeights, InBeginRow, InBeginCol, InNumRows, InNumCols, MoveTemp(ConversionFunc), GeomData, LocalBounds);
 
 			// Slow and dumb. TODO: Actually fix CellHeights inside EditGeomData.
 			CalcBounds();
 		}
 	}
 
-	template<typename T>
-	bool Chaos::THeightField<T>::GetCellBounds2D(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<T, 2>& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::GetCellBounds2D(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<FReal, 2>& InInflate /*= {0}*/) const
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
-			OutBounds.Min = TVector<T, 2>(InCoord[0], InCoord[1]);
-			OutBounds.Max = TVector<T, 2>(InCoord[0] + 1, InCoord[1] + 1);
+			OutBounds.Min = TVector<FReal, 2>(InCoord[0], InCoord[1]);
+			OutBounds.Max = TVector<FReal, 2>(InCoord[0] + 1, InCoord[1] + 1);
 			OutBounds.Min -= InInflate;
 			OutBounds.Max += InInflate;
 
@@ -549,26 +542,23 @@ namespace Chaos
 		return false;
 	}
 
-	template<typename T>
-	T Chaos::THeightField<T>::GetHeight(int32 InIndex) const
+	FReal Chaos::FHeightField::GetHeight(int32 InIndex) const
 	{
 		if (CHAOS_ENSURE(InIndex >= 0 && InIndex < GeomData.Heights.Num()))
 		{
 			return GeomData.GetPoint(InIndex).Z;
 		}
 
-		return TNumericLimits<T>::Max();
+		return TNumericLimits<FReal>::Max();
 	}
 
-	template<typename T>
-	T Chaos::THeightField<T>::GetHeight(int32 InX, int32 InY) const
+	FReal Chaos::FHeightField::GetHeight(int32 InX, int32 InY) const
 	{
 		const int32 Index = InY * GeomData.NumCols + InX;
 		return GetHeight(Index);
 	}
 
-	template<typename T>
-	uint8 Chaos::THeightField<T>::GetMaterialIndex(int32 InIndex) const
+	uint8 Chaos::FHeightField::GetMaterialIndex(int32 InIndex) const
 	{
 		if(CHAOS_ENSURE(InIndex >= 0 && InIndex < GeomData.MaterialIndices.Num()))
 		{
@@ -578,36 +568,32 @@ namespace Chaos
 		return TNumericLimits<uint8>::Max();
 	}
 
-	template<typename T>
-	uint8 Chaos::THeightField<T>::GetMaterialIndex(int32 InX, int32 InY) const
+	uint8 Chaos::FHeightField::GetMaterialIndex(int32 InX, int32 InY) const
 	{
 		const int32 Index = InY * GeomData.NumCols + InX;
 		return GetMaterialIndex(Index);
 	}
 
-	template<typename T>
-	bool Chaos::THeightField<T>::IsHole(int32 InIndex) const
+	bool Chaos::FHeightField::IsHole(int32 InIndex) const
 	{
 		return GetMaterialIndex(InIndex) == TNumericLimits<uint8>::Max();
 	}
 
-	template<typename T>
-	bool Chaos::THeightField<T>::IsHole(int32 InCellX, int32 InCellY) const
+	bool Chaos::FHeightField::IsHole(int32 InCellX, int32 InCellY) const
 	{
 		// Convert to single cell index
 		const int32 Index = InCellY * (GeomData.NumCols - 1) + InCellX;
 		return IsHole(Index);
 	}
 
-	template<typename T>
-	T Chaos::THeightField<T>::GetHeightAt(const TVector<T, 2>& InGridLocationLocal) const
+	FReal Chaos::FHeightField::GetHeightAt(const TVector<FReal, 2>& InGridLocationLocal) const
 	{
 		if(CHAOS_ENSURE(InGridLocationLocal == FlatGrid.Clamp(InGridLocationLocal)))
 		{
 			TVector<int32, 2> CellCoord = FlatGrid.Cell(InGridLocationLocal);
 
 			const int32 SingleIndex = CellCoord[1] * (GeomData.NumCols) + CellCoord[0];
-			TVector<T, 3> Pts[4];
+			FVec3 Pts[4];
 			GeomData.GetPoints(SingleIndex, Pts);
 
 			float FractionX = FMath::Frac(InGridLocationLocal[0]);
@@ -657,17 +643,16 @@ namespace Chaos
 		return 0.0f;
 	}
 
-	template<typename T>
-	bool Chaos::THeightField<T>::GetCellBounds3D(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::GetCellBounds3D(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
 			//todo: just compute max height, avoid extra work since this is called from tight loop
-			TVec3<T> Min,Max;
+			TVec3<FReal> Min,Max;
 			CalcCellBounds3D(InCoord,Min,Max);
 
-			OutMin = TVec3<T>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
+			OutMin = TVec3<FReal>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
+			OutMax = TVec3<FReal>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin - InInflate;
 			OutMax = OutMax + InInflate;
 
@@ -677,16 +662,15 @@ namespace Chaos
 		return false;
 	}
 
-	template<typename T>
-	bool Chaos::THeightField<T>::GetCellBounds2DScaled(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<T, 2>& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::GetCellBounds2DScaled(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<FReal, 2>& InInflate /*= {0}*/) const
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
-			OutBounds.Min = TVector<T, 2>(InCoord[0], InCoord[1]);
-			OutBounds.Max = TVector<T, 2>(InCoord[0] + 1, InCoord[1] + 1);
+			OutBounds.Min = TVector<FReal, 2>(InCoord[0], InCoord[1]);
+			OutBounds.Max = TVector<FReal, 2>(InCoord[0] + 1, InCoord[1] + 1);
 			OutBounds.Min -= InInflate;
 			OutBounds.Max += InInflate;
-			const TVector<float, 2> Scale2D = TVector<T, 2>(GeomData.Scale[0], GeomData.Scale[1]);
+			const TVector<float, 2> Scale2D = TVector<FReal, 2>(GeomData.Scale[0], GeomData.Scale[1]);
 			OutBounds.Min *= Scale2D;
 			OutBounds.Max *= Scale2D;
 			return true;
@@ -695,17 +679,16 @@ namespace Chaos
 		return false;
 	}
 
-	template<typename T>
-	bool Chaos::THeightField<T>::GetCellBounds3DScaled(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::GetCellBounds3DScaled(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
 			//todo: just compute max height, avoid extra work since this is called from tight loop
-			TVec3<T> Min,Max;
+			TVec3<FReal> Min,Max;
 			CalcCellBounds3D(InCoord,Min,Max);
 
-			OutMin = TVec3<T>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
+			OutMin = TVec3<FReal>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
+			OutMax = TVec3<FReal>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin * GeomData.Scale - InInflate;
 			OutMax = OutMax * GeomData.Scale + InInflate;
 			return true;
@@ -714,22 +697,21 @@ namespace Chaos
 		return false;
 	}
 
-	template<typename T>
-	bool Chaos::THeightField<T>::CalcCellBounds3D(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::CalcCellBounds3D(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
 	{
 		if(FlatGrid.IsValid(InCoord))
 		{
 			int32 Index = InCoord[1] * (GeomData.NumCols) + InCoord[0];
-			static TVector<T, 3> Points[4];
+			static FVec3 Points[4];
 			GeomData.GetPoints(Index, Points);
 
 			OutMin = OutMax = Points[0];
 
 			for(int32 PointIndex = 1; PointIndex < 4; ++PointIndex)
 			{
-				const TVector<T, 3>& Point = Points[PointIndex];
-				OutMin = TVector<T, 3>(FGenericPlatformMath::Min(OutMin[0], Point[0]), FGenericPlatformMath::Min(OutMin[1], Point[1]), FGenericPlatformMath::Min(OutMin[2], Point[2]));
-				OutMax = TVector<T, 3>(FGenericPlatformMath::Max(OutMax[0], Point[0]), FGenericPlatformMath::Max(OutMax[1], Point[1]), FGenericPlatformMath::Max(OutMax[2], Point[2]));
+				const FVec3& Point = Points[PointIndex];
+				OutMin = FVec3(FGenericPlatformMath::Min(OutMin[0], Point[0]), FGenericPlatformMath::Min(OutMin[1], Point[1]), FGenericPlatformMath::Min(OutMin[2], Point[2]));
+				OutMax = FVec3(FGenericPlatformMath::Max(OutMax[0], Point[0]), FGenericPlatformMath::Max(OutMax[1], Point[1]), FGenericPlatformMath::Max(OutMax[2], Point[2]));
 			}
 
 			OutMin -= InInflate;
@@ -742,8 +724,7 @@ namespace Chaos
 	}
 
 
-	template <typename T>
-	bool THeightField<T>::GridCast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, THeightfieldRaycastVisitor<T>& Visitor) const
+	bool FHeightField::GridCast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, FHeightfieldRaycastVisitor& Visitor) const
 	{
 		//Is this check needed?
 		if(Length < 1e-4)
@@ -751,42 +732,42 @@ namespace Chaos
 			return false;
 		}
 
-		T CurrentLength = Length;
-		TVector<T, 2> ClippedFlatRayStart;
-		TVector<T, 2> ClippedFlatRayEnd;
+		FReal CurrentLength = Length;
+		TVector<FReal, 2> ClippedFlatRayStart;
+		TVector<FReal, 2> ClippedFlatRayEnd;
 
 		// Data for fast box cast
-		TVector<T, 3> Min, Max, HitPoint;
+		FVec3 Min, Max, HitPoint;
 		bool bParallel[3];
-		TVector<T, 3> InvDir;
+		FVec3 InvDir;
 
-		T InvCurrentLength = 1 / CurrentLength;
+		FReal InvCurrentLength = 1 / CurrentLength;
 		for(int Axis = 0; Axis < 3; ++Axis)
 		{
 			bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
 			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 		}
 
-		T TOI;
+		FReal TOI;
 		const FBounds2D FlatBounds = GetFlatBounds();
-		TAABB<T,3> Bounds(
-			TVec3<T>(FlatBounds.Min[0],FlatBounds.Min[1],GeomData.GetMinHeight() * GeomData.Scale[2]),
-			TVec3<T>(FlatBounds.Max[0],FlatBounds.Max[1],GeomData.GetMaxHeight() * GeomData.Scale[2])
+		TAABB<FReal, 3> Bounds(
+			TVec3<FReal>(FlatBounds.Min[0],FlatBounds.Min[1],GeomData.GetMinHeight() * GeomData.Scale[2]),
+			TVec3<FReal>(FlatBounds.Max[0],FlatBounds.Max[1],GeomData.GetMaxHeight() * GeomData.Scale[2])
 			);
-		TVector<T,3> NextStart;
+		FVec3 NextStart;
 
 		if(Bounds.RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvCurrentLength, TOI, NextStart))
 		{
-			const TVector<T,2> Scale2D(GeomData.Scale[0],GeomData.Scale[1]);
+			const TVector<FReal, 2> Scale2D(GeomData.Scale[0],GeomData.Scale[1]);
 			TVector<int32,2> CellIdx = FlatGrid.Cell(TVector<int32,2>(NextStart[0] / Scale2D[0], NextStart[1] / Scale2D[1]));
 
 			// Boundaries might push us one cell over
 			CellIdx = FlatGrid.ClampIndex(CellIdx);
-			const T ZDx = Bounds.Extents()[2];
-			const T ZMidPoint = Bounds.Min()[2] + ZDx * 0.5;
-			const TVector<T,3> ScaledDx(FlatGrid.Dx()[0] * Scale2D[0],FlatGrid.Dx()[1] * Scale2D[1],ZDx);
-			const TVector<T,2> ScaledDx2D(ScaledDx[0],ScaledDx[1]);
-			const TVector<T,2> ScaledMin = FlatGrid.MinCorner() * Scale2D;
+			const FReal ZDx = Bounds.Extents()[2];
+			const FReal ZMidPoint = Bounds.Min()[2] + ZDx * 0.5;
+			const FVec3 ScaledDx(FlatGrid.Dx()[0] * Scale2D[0],FlatGrid.Dx()[1] * Scale2D[1],ZDx);
+			const TVector<FReal, 2> ScaledDx2D(ScaledDx[0],ScaledDx[1]);
+			const TVector<FReal, 2> ScaledMin = FlatGrid.MinCorner() * Scale2D;
 
 			//START
 			do
@@ -795,7 +776,7 @@ namespace Chaos
 				{
 					// Check cell bounds
 					//todo: can do it without raycast
-					if(TAABB<T,3>(Min,Max).RaycastFast(StartPoint,Dir,InvDir,bParallel,CurrentLength,InvCurrentLength,TOI,HitPoint))
+					if(TAABB<FReal, 3>(Min,Max).RaycastFast(StartPoint,Dir,InvDir,bParallel,CurrentLength,InvCurrentLength,TOI,HitPoint))
 					{
 						// Visit the selected cell
 						bool bContinue = Visitor.VisitRaycast(CellIdx[1] * (GeomData.NumCols - 1) + CellIdx[0],CurrentLength);
@@ -810,19 +791,19 @@ namespace Chaos
 				//find next cell
 
 				//We want to know which plane we used to cross into next cell
-				const TVector<T,2> ScaledCellCenter2D = ScaledMin + TVector<T,2>(CellIdx[0] + 0.5,CellIdx[1] + 0.5) * ScaledDx2D;
-				const TVector<T,3> ScaledCellCenter(ScaledCellCenter2D[0], ScaledCellCenter2D[1], ZMidPoint);
+				const TVector<FReal, 2> ScaledCellCenter2D = ScaledMin + TVector<FReal, 2>(CellIdx[0] + 0.5,CellIdx[1] + 0.5) * ScaledDx2D;
+				const FVec3 ScaledCellCenter(ScaledCellCenter2D[0], ScaledCellCenter2D[1], ZMidPoint);
 
-				T Times[3];
-				T BestTime = CurrentLength;
+				FReal Times[3];
+				FReal BestTime = CurrentLength;
 				bool bTerminate = true;
 				for(int Axis = 0; Axis < 3; ++Axis)
 				{
 					if(!bParallel[Axis])
 					{
-						const T CrossPoint = Dir[Axis] > 0 ? ScaledCellCenter[Axis] + ScaledDx[Axis] / 2 : ScaledCellCenter[Axis] - ScaledDx[Axis] / 2;
-						const T Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
-						const T Time = Distance * InvDir[Axis];
+						const FReal CrossPoint = Dir[Axis] > 0 ? ScaledCellCenter[Axis] + ScaledDx[Axis] / 2 : ScaledCellCenter[Axis] - ScaledDx[Axis] / 2;
+						const FReal Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
+						const FReal Time = Distance * InvDir[Axis];
 						Times[Axis] = Time;
 						if(Time < BestTime)
 						{
@@ -831,7 +812,7 @@ namespace Chaos
 						}
 					} else
 					{
-						Times[Axis] = TNumericLimits<T>::Max();
+						Times[Axis] = TNumericLimits<FReal>::Max();
 					}
 				}
 
@@ -903,25 +884,24 @@ namespace Chaos
 		int32 DataSize;
 	};
 
-	template<typename T>
 	template<typename SQVisitor>
-	bool THeightField<T>::GridSweep(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const TVector<T, 2> InHalfExtents, SQVisitor& Visitor) const
+	bool FHeightField::GridSweep(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const TVector<FReal, 2> InHalfExtents, SQVisitor& Visitor) const
 	{
-		T CurrentLength = Length;
+		FReal CurrentLength = Length;
 
 		FBounds2D InflatedBounds = GetFlatBounds();
 		InflatedBounds.Min -= InHalfExtents;
 		InflatedBounds.Max += InHalfExtents;
 
-		TVector<T, 3> HalfExtents3D(InHalfExtents[0], InHalfExtents[1], InHalfExtents[1]);
+		FVec3 HalfExtents3D(InHalfExtents[0], InHalfExtents[1], InHalfExtents[1]);
 
-		const TVector<T, 3> EndPoint = StartPoint + Dir * Length;
-		const TVector<T, 2> Start2D(StartPoint[0], StartPoint[1]);
-		const TVector<T, 2> End2D(EndPoint[0], EndPoint[1]);
-		const TVector<T, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
+		const FVec3 EndPoint = StartPoint + Dir * Length;
+		const TVector<FReal, 2> Start2D(StartPoint[0], StartPoint[1]);
+		const TVector<FReal, 2> End2D(EndPoint[0], EndPoint[1]);
+		const TVector<FReal, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
 
-		TVector<T, 2> ClippedStart;
-		TVector<T, 2> ClippedEnd;
+		TVector<FReal, 2> ClippedStart;
+		TVector<FReal, 2> ClippedEnd;
 
 		if(InflatedBounds.ClipLine(StartPoint, StartPoint + Dir * Length, ClippedStart, ClippedEnd))
 		{
@@ -945,7 +925,7 @@ namespace Chaos
 			struct FQueueEntry
 			{
 				TVector<int32, 2> Index;
-				T ToI;
+				FReal ToI;
 			};
 
 			// Tracking data for cells to query (similar to bounding volume approach)
@@ -955,12 +935,12 @@ namespace Chaos
 			Seen.Add(StartCell);
 
 			// Data for fast box cast
-			TVector<T, 3> Min, Max, HitPoint;
+			FVec3 Min, Max, HitPoint;
 			float ToI;
 			bool bParallel[3];
-			TVector<T, 3> InvDir;
+			FVec3 InvDir;
 
-			T InvCurrentLength = 1 / CurrentLength;
+			FReal InvCurrentLength = 1 / CurrentLength;
 			for(int Axis = 0; Axis < 3; ++Axis)
 			{
 				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
@@ -1004,7 +984,7 @@ namespace Chaos
 						FBounds2D CellBounds;
 						if(GetCellBounds3DScaled(NeighCoord, Min, Max, HalfExtents3D) && !Seen.Contains(NeighCoord))
 						{
-							if(TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+							if(TAABB<FReal, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
 							{
 								Seen.Add(NeighCoord);
 								Queue.Add({NeighCoord, ToI});
@@ -1046,7 +1026,7 @@ namespace Chaos
 					// Check the current cell, if we hit its 3D bound we can move on to narrow phase
 					const TVector<int32, 2> Coord = CellCoord.Index;
 					if(GetCellBounds3DScaled(Coord, Min, Max, HalfExtents3D) &&
-						TAABB<T, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+						TAABB<FReal, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
 					{
 						bool bContinue = Visitor.VisitSweep(CellCoord.Index[1] * (GeomData.NumCols - 1) + CellCoord.Index[0], CurrentLength);
 
@@ -1069,7 +1049,7 @@ namespace Chaos
 						{
 							ExpandAxis = 0;
 						}
-						T ExpandSize = HalfExtents3D[ExpandAxis];
+						FReal ExpandSize = HalfExtents3D[ExpandAxis];
 						int32 Steps = FMath::RoundFromZero(ExpandSize / GeomData.Scale[ExpandAxis]);
 
 						Expand(Coord, ThickenDir, Steps);
@@ -1106,16 +1086,15 @@ namespace Chaos
 		return false;
 	}
 
-	template <typename T>
-	bool THeightField<T>::Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex) const
+	bool FHeightField::Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
 	{
 		OutFaceIndex = INDEX_NONE;
 
-		THeightfieldRaycastVisitor<T> Visitor(&GeomData, StartPoint, Dir, Thickness);
+		FHeightfieldRaycastVisitor Visitor(&GeomData, StartPoint, Dir, Thickness);
 
 		if(Thickness > 0)
 		{
-			GridSweep(StartPoint, Dir, Length, TVector<T, 2>(Thickness), Visitor);
+			GridSweep(StartPoint, Dir, Length, TVector<FReal, 2>(Thickness), Visitor);
 		}
 		else
 		{
@@ -1134,13 +1113,12 @@ namespace Chaos
 		return false;
 	}
 
-	template<typename T>
-	bool Chaos::THeightField<T>::GetGridIntersections(FBounds2D InFlatBounds, TArray<TVector<int32, 2>>& OutInterssctions) const
+	bool Chaos::FHeightField::GetGridIntersections(FBounds2D InFlatBounds, TArray<TVector<int32, 2>>& OutInterssctions) const
 	{
 		OutInterssctions.Reset();
 
 		const FBounds2D FlatBounds = GetFlatBounds();
-		const TVector<T, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
+		const TVector<FReal, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
 
 		InFlatBounds.Min = FlatBounds.Clamp(InFlatBounds.Min);
 		InFlatBounds.Max = FlatBounds.Clamp(InFlatBounds.Max);
@@ -1164,33 +1142,31 @@ namespace Chaos
 		return OutInterssctions.Num() > 0;
 	}
 
-	template<typename T>
-	typename Chaos::THeightField<T>::FBounds2D Chaos::THeightField<T>::GetFlatBounds() const
+	typename Chaos::FHeightField::FBounds2D Chaos::FHeightField::GetFlatBounds() const
 	{
 		FBounds2D Result;
-		Result.Min = TVector<T, 2>(CachedBounds.Min()[0], CachedBounds.Min()[1]);
-		Result.Max = TVector<T, 2>(CachedBounds.Max()[0], CachedBounds.Max()[1]);
+		Result.Min = TVector<FReal, 2>(CachedBounds.Min()[0], CachedBounds.Min()[1]);
+		Result.Max = TVector<FReal, 2>(CachedBounds.Max()[0], CachedBounds.Max()[1]);
 		return Result;
 	}
 
-	template <typename T>
-	bool THeightField<T>::Overlap(const TVector<T, 3>& Point, const T Thickness) const
+	bool FHeightField::Overlap(const FVec3& Point, const FReal Thickness) const
 	{
-		auto OverlapTriangle = [&](const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C) -> bool
+		auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C) -> bool
 		{
-			const TVector<T, 3> AB = B - A;
-			const TVector<T, 3> AC = C - A;
-			TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(AB, AC);
-			const T NormalLength = Normal.SafeNormalize();
+			const FVec3 AB = B - A;
+			const FVec3 AC = C - A;
+			FVec3 Normal = FVec3::CrossProduct(AB, AC);
+			const FReal NormalLength = Normal.SafeNormalize();
 
 			if(!ensure(NormalLength > KINDA_SMALL_NUMBER))
 			{
 				return false;
 			}
 
-			const TPlane<T, 3> TriPlane{A, Normal};
-			const TVector<T, 3> ClosestPointOnTri = FindClosestPointOnTriangle(TriPlane, A, B, C, Point);
-			const T Distance2 = (ClosestPointOnTri - Point).SizeSquared();
+			const TPlane<FReal, 3> TriPlane{A, Normal};
+			const FVec3 ClosestPointOnTri = FindClosestPointOnTriangle(TriPlane, A, B, C, Point);
+			const FReal Distance2 = (ClosestPointOnTri - Point).SizeSquared();
 
 			if(Distance2 <= Thickness * Thickness)	//This really only has a hope in working if thickness is > 0
 			{
@@ -1200,15 +1176,15 @@ namespace Chaos
 			return false;
 		};
 
-		TAABB<T, 3> QueryBounds(Point, Point);
+		TAABB<FReal, 3> QueryBounds(Point, Point);
 		QueryBounds.Thicken(Thickness);
 
 		FBounds2D FlatQueryBounds;
-		FlatQueryBounds.Min = TVector<T, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
-		FlatQueryBounds.Max = TVector<T, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+		FlatQueryBounds.Min = TVector<FReal, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+		FlatQueryBounds.Max = TVector<FReal, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
 
 		TArray<TVector<int32, 2>> Intersections;
-		TVector<T, 3> Points[4];
+		FVec3 Points[4];
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
@@ -1232,26 +1208,25 @@ namespace Chaos
 	}
 
 
-	template <typename T>
 	template <typename GeomType>
-	bool THeightField<T>::GJKContactPointImp(const GeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness,
-		TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	bool FHeightField::GJKContactPointImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness,
+		FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
-		auto OverlapTriangle = [&](const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C,
-			TVector<T, 3>& LocalContactLocation, TVector<T, 3>& LocalContactNormal, T& LocalContactPhi) -> bool
+		auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C,
+			FVec3& LocalContactLocation, FVec3& LocalContactNormal, FReal& LocalContactPhi) -> bool
 		{
-			const TVector<T, 3> AB = B - A;
-			const TVector<T, 3> AC = C - A;
+			const FVec3 AB = B - A;
+			const FVec3 AC = C - A;
 
-			const TVector<T, 3> Offset = TVector<T, 3>::CrossProduct(AB, AC);
+			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
 
-			TTriangle<T> TriangleConvex(A, B, C);
+			TTriangle<FReal> TriangleConvex(A, B, C);
 
-			T Penetration;
-			TVec3<T> ClosestA, ClosestB, Normal;
-			if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, (T)0))
+			FReal Penetration;
+			TVec3<FReal> ClosestA, ClosestB, Normal;
+			if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, (FReal)0))
 			{
-				TVec3<T> TestVector = QueryTM.InverseTransformVector(Normal);
+				TVec3<FReal> TestVector = QueryTM.InverseTransformVector(Normal);
 
 				LocalContactLocation = ClosestB;
 				LocalContactNormal = Normal; 
@@ -1263,21 +1238,21 @@ namespace Chaos
 		};
 
 		bool bResult = false;
-		TAABB<T, 3> QueryBounds = QueryGeom.BoundingBox();
+		TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
 		QueryBounds.Thicken(Thickness);
 		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 
 		FBounds2D FlatQueryBounds;
-		FlatQueryBounds.Min = TVector<T, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
-		FlatQueryBounds.Max = TVector<T, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+		FlatQueryBounds.Min = TVector<FReal, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+		FlatQueryBounds.Max = TVector<FReal, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
 
 		TArray<TVector<int32, 2>> Intersections;
-		TVector<T, 3> Points[4];
+		FVec3 Points[4];
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
-		T LocalContactPhi = FLT_MAX;
-		TVector<T, 3> LocalContactLocation, LocalContactNormal;
+		FReal LocalContactPhi = FLT_MAX;
+		FVec3 LocalContactLocation, LocalContactNormal;
 		for (const TVector<int32, 2>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * GeomData.NumCols + Cell[0];
@@ -1318,81 +1293,72 @@ namespace Chaos
 		return false;
 	}
 
-	template <typename T>
-	bool THeightField<T>::GJKContactPoint(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	bool FHeightField::GJKContactPoint(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
 	}
 
-	template <typename T>
-	bool THeightField<T>::GJKContactPoint(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	bool FHeightField::GJKContactPoint(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
 	}
 
-	template <typename T>
-	bool THeightField<T>::GJKContactPoint(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	bool FHeightField::GJKContactPoint(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
 	}
 
-	template <typename T>
-	bool THeightField<T>::GJKContactPoint(const FConvex& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	bool FHeightField::GJKContactPoint(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
 	}
 
-	template <typename T>
-	bool THeightField<T>::GJKContactPoint(const TImplicitObjectScaled < TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	bool FHeightField::GJKContactPoint(const TImplicitObjectScaled < TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
 	}
 
-	template <typename T>
-	bool THeightField<T>::GJKContactPoint(const TImplicitObjectScaled < TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	bool FHeightField::GJKContactPoint(const TImplicitObjectScaled < TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
 	}
 
-	template <typename T>
-	bool THeightField<T>::GJKContactPoint(const TImplicitObjectScaled < TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	bool FHeightField::GJKContactPoint(const TImplicitObjectScaled < TCapsule<FReal>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
 	}
 
-	template <typename T>
-	bool THeightField<T>::GJKContactPoint(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	bool FHeightField::GJKContactPoint(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
 	}
 
 
-	template <typename T>
 	template <typename QueryGeomType>
-	bool THeightField<T>::OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	bool FHeightField::OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
 		if (OutMTD)
 		{
-			OutMTD->Normal = TVec3<T>(0);
-			OutMTD->Penetration = TNumericLimits<T>::Lowest();
+			OutMTD->Normal = TVec3<FReal>(0);
+			OutMTD->Penetration = TNumericLimits<FReal>::Lowest();
 		}
 
-		auto OverlapTriangle = [&](const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C, FMTDInfo* InnerMTD) -> bool
+		auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C, FMTDInfo* InnerMTD) -> bool
 		{
-			const TVector<T, 3> AB = B - A;
-			const TVector<T, 3> AC = C - A;
+			const FVec3 AB = B - A;
+			const FVec3 AC = C - A;
 
 			//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
 			//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
-			const TVector<T, 3> Offset = TVector<T, 3>::CrossProduct(AB, AC);
+			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
 
-			TTriangle<T> TriangleConvex(A, B, C);
+			TTriangle<FReal> TriangleConvex(A, B, C);
 			if (InnerMTD)
 			{
-				TVec3<T> TriangleNormal(0);
-				T Penetration = 0;
-				TVec3<T> ClosestA(0);
-				TVec3<T> ClosestB(0);
+				TVec3<FReal> TriangleNormal(0);
+				FReal Penetration = 0;
+				TVec3<FReal> ClosestA(0);
+				TVec3<FReal> ClosestB(0);
 				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, Thickness))
 				{
 					// Use Deepest MTD.
@@ -1413,16 +1379,16 @@ namespace Chaos
 		};
 
 		bool bResult = false;
-		TAABB<T, 3> QueryBounds = QueryGeom.BoundingBox();
+		TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
 		QueryBounds.Thicken(Thickness);
 		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 
 		FBounds2D FlatQueryBounds;
-		FlatQueryBounds.Min = TVector<T, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
-		FlatQueryBounds.Max = TVector<T, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+		FlatQueryBounds.Min = TVector<FReal, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+		FlatQueryBounds.Max = TVector<FReal, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
 
 		TArray<TVector<int32, 2>> Intersections;
-		TVector<T, 3> Points[4];
+		FVec3 Points[4];
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
@@ -1454,65 +1420,56 @@ namespace Chaos
 		return bOverlaps;
 	}
 
-	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	bool FHeightField::OverlapGeom(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	bool FHeightField::OverlapGeom(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	bool FHeightField::OverlapGeom(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::OverlapGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	bool FHeightField::OverlapGeom(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	bool FHeightField::OverlapGeom(const TImplicitObjectScaled<TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	bool FHeightField::OverlapGeom(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	bool FHeightField::OverlapGeom(const TImplicitObjectScaled<TCapsule<FReal>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, FMTDInfo* OutMTD) const
+	bool FHeightField::OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
 		return OverlapGeomImp(QueryGeom, QueryTM, Thickness, OutMTD);
 	}
 
-	template <typename T>
 	template <typename QueryGeomType>
-	bool THeightField<T>::SweepGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool FHeightField::SweepGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, bool bComputeMTD) const
 	{
 		bool bHit = false;
-		THeightfieldSweepVisitor<QueryGeomType, T> SQVisitor(&GeomData, QueryGeom, StartTM, Dir, Thickness, bComputeMTD);
-		const TAABB<T, 3> QueryBounds = QueryGeom.BoundingBox();
-		const TVector<T, 3> StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
+		THeightfieldSweepVisitor<QueryGeomType> SQVisitor(&GeomData, QueryGeom, StartTM, Dir, Thickness, bComputeMTD);
+		const TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
+		const FVec3 StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 
-		const TVector<T, 3> Inflation3D = QueryBounds.Extents() * 0.5 + TVector<T, 3>(Thickness);
-		GridSweep(StartPoint, Dir, Length, TVector<T, 2>(Inflation3D[0], Inflation3D[1]), SQVisitor);
+		const FVec3 Inflation3D = QueryBounds.Extents() * 0.5 + FVec3(Thickness);
+		GridSweep(StartPoint, Dir, Length, TVector<FReal, 2>(Inflation3D[0], Inflation3D[1]), SQVisitor);
 
 		if(SQVisitor.OutTime <= Length)
 		{
@@ -1526,85 +1483,76 @@ namespace Chaos
 		return bHit;
 	}
 
-	template <typename T>
-	bool THeightField<T>::SweepGeom(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool FHeightField::SweepGeom(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::SweepGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool FHeightField::SweepGeom(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::SweepGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool FHeightField::SweepGeom(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::SweepGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool FHeightField::SweepGeom(const FConvex& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::SweepGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool FHeightField::SweepGeom(const TImplicitObjectScaled<TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::SweepGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool FHeightField::SweepGeom(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::SweepGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool FHeightField::SweepGeom(const TImplicitObjectScaled<TCapsule<FReal>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
 
-	template <typename T>
-	bool THeightField<T>::SweepGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const
+	bool FHeightField::SweepGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
 
-	template <typename T>
-	int32 THeightField<T>::FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDist) const
+	int32 FHeightField::FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
 	{
-		const T SearchDist2 = SearchDist * SearchDist;
+		const FReal SearchDist2 = SearchDist * SearchDist;
 
-		TAABB<T, 3> QueryBounds(Position - TVector<T, 3>(SearchDist), Position + TVector<T, 3>(SearchDist));
+		TAABB<FReal, 3> QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
 		const FBounds2D FlatBounds(QueryBounds);
 		TArray<TVector<int32, 2>> PotentialIntersections;
 		GetGridIntersections(FlatBounds, PotentialIntersections);
 
-		T MostOpposingDot = TNumericLimits<T>::Max();
+		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
 		int32 MostOpposingFace = HintFaceIndex;
 
-		auto CheckTriangle = [&](int32 FaceIndex, const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C)
+		auto CheckTriangle = [&](int32 FaceIndex, const FVec3& A, const FVec3& B, const FVec3& C)
 		{
-			const TVector<T, 3> AB = B - A;
-			const TVector<T, 3> AC = C - A;
-			TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(AB, AC);
-			const T NormalLength = Normal.SafeNormalize();
+			const FVec3 AB = B - A;
+			const FVec3 AC = C - A;
+			FVec3 Normal = FVec3::CrossProduct(AB, AC);
+			const FReal NormalLength = Normal.SafeNormalize();
 			if(!ensure(NormalLength > KINDA_SMALL_NUMBER))
 			{
 				//hitting degenerate triangle - should be fixed before we get to this stage
 				return;
 			}
 
-			const TPlane<T, 3> TriPlane{A, Normal};
-			const TVector<T, 3> ClosestPointOnTri = FindClosestPointOnTriangle(TriPlane, A, B, C, Position);
-			const T Distance2 = (ClosestPointOnTri - Position).SizeSquared();
+			const TPlane<FReal, 3> TriPlane{A, Normal};
+			const FVec3 ClosestPointOnTri = FindClosestPointOnTriangle(TriPlane, A, B, C, Position);
+			const FReal Distance2 = (ClosestPointOnTri - Position).SizeSquared();
 			if(Distance2 < SearchDist2)
 			{
-				const T Dot = TVector<T, 3>::DotProduct(Normal, UnitDir);
+				const FReal Dot = FVec3::DotProduct(Normal, UnitDir);
 				if(Dot < MostOpposingDot)
 				{
 					MostOpposingDot = Dot;
@@ -1622,7 +1570,7 @@ namespace Chaos
 
 			const int32 FullIndex = CellIndex + SubY;
 
-			TVector<T, 3> Points[4];
+			FVec3 Points[4];
 
 			GeomData.GetPointsScaled(FullIndex, Points);
 
@@ -1633,8 +1581,7 @@ namespace Chaos
 		return MostOpposingFace;
 	}
 
-	template <typename T>
-	TVector<T, 3> THeightField<T>::FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const
+	FVec3 FHeightField::FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
 	{
 		if(ensure(FaceIndex != INDEX_NONE))
 		{
@@ -1643,13 +1590,13 @@ namespace Chaos
 			int32 CellIndex = FaceIndex / 2;
 			int32 CellY = CellIndex / (GeomData.NumCols - 1);
 
-			TVector<T, 3> Points[4];
+			FVec3 Points[4];
 
 			GeomData.GetPointsScaled(CellIndex + CellY, Points);
 
-			TVector<T, 3> A;
-			TVector<T, 3> B;
-			TVector<T, 3> C;
+			FVec3 A;
+			FVec3 B;
+			FVec3 C;
 
 			if(bSecondFace)
 			{
@@ -1664,19 +1611,18 @@ namespace Chaos
 				C = Points[3];
 			}
 
-			const TVector<T, 3> AB = B - A;
-			const TVector<T, 3> AC = C - A;
-			TVector<T, 3> Normal = TVector<T, 3>::CrossProduct(AB, AC);
-			const T Length = Normal.SafeNormalize();
+			const FVec3 AB = B - A;
+			const FVec3 AC = C - A;
+			FVec3 Normal = FVec3::CrossProduct(AB, AC);
+			const FReal Length = Normal.SafeNormalize();
 			ensure(Length);
 			return Normal;
 		}
 
-		return TVector<T, 3>(0, 0, 1);
+		return FVec3(0, 0, 1);
 	}
 
-	template<typename T>
-	void THeightField<T>::CalcBounds()
+	void FHeightField::CalcBounds()
 	{
 		// Flatten out the Z axis
 		FlattenedBounds = GetFlatBounds();
@@ -1688,20 +1634,16 @@ namespace Chaos
 		const int32 NumY = GeomData.NumRows - 1;
 	}
 
-	template<typename T>
-	void THeightField<T>::BuildQueryData()
+	void FHeightField::BuildQueryData()
 	{
 		// NumCols and NumRows are the actual heights, there are n-1 cells between those heights
 		TVector<int32, 2> Cells(GeomData.NumCols - 1, GeomData.NumRows - 1);
 		
-		TVector<T, 2> MinCorner(0, 0);
-		TVector<T, 2> MaxCorner(GeomData.NumCols - 1, GeomData.NumRows - 1);
+		TVector<FReal, 2> MinCorner(0, 0);
+		TVector<FReal, 2> MaxCorner(GeomData.NumCols - 1, GeomData.NumRows - 1);
 		//MaxCorner *= {GeomData.Scale[0], GeomData.Scale[1]};
 
-		FlatGrid = TUniformGrid<T, 2>(MinCorner, MaxCorner, Cells);
+		FlatGrid = TUniformGrid<FReal, 2>(MinCorner, MaxCorner, Cells);
 	}
 
 }
-
-template class Chaos::THeightField<float>;
-

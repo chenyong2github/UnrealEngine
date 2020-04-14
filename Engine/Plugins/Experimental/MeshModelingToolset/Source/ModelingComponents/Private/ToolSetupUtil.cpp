@@ -30,14 +30,15 @@ UMaterialInterface* ToolSetupUtil::GetDefaultWorkingMaterial(UInteractiveToolMan
 }
 
 
-UMaterialInterface* ToolSetupUtil::GetDefaultBrushVolumeMaterial(UInteractiveToolManager* ToolManager)
+UMaterialInstanceDynamic* ToolSetupUtil::GetDefaultBrushVolumeMaterial(UInteractiveToolManager* ToolManager)
 {
-	UMaterialInterface* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/BrushIndicatorMaterial"));
-	if (Material == nullptr && ToolManager != nullptr)
+	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/BrushIndicatorMaterial"));
+	if (Material != nullptr)
 	{
-		return ToolManager->GetContextQueriesAPI()->GetStandardMaterial(EStandardToolContextMaterials::VertexColorMaterial);
+		UMaterialInstanceDynamic* MatInstance = UMaterialInstanceDynamic::Create(Material, ToolManager);
+		return MatInstance;
 	}
-	return Material;
+	return nullptr;
 }
 
 

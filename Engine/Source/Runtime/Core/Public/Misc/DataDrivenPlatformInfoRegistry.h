@@ -31,7 +31,7 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 		// MemoryFreezing information, matches FPlatformTypeLayoutParameters - defaults are clang, noneditor
 		uint32 Freezing_MaxFieldAlignment = 0xffffffff;
 		bool Freezing_b32Bit = false;
-		bool Freezing_bForce64BitMemoryImagePointers = true;
+		bool Freezing_bForce64BitMemoryImagePointers = false;
 		bool Freezing_bAlignBases = false;
 		bool Freezing_bWithRayTracing = false;
 

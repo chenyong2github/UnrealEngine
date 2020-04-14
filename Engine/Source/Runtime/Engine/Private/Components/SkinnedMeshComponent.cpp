@@ -3920,6 +3920,47 @@ float FAnimUpdateRateParameters::GetRootMotionInterp() const
 	}
 	return 1.f;
 }
+
+/** Simple, CPU evaluation of a vertex's skinned position helper function */
+void GetTypedSkinnedTangentBasis(
+	const USkinnedMeshComponent* SkinnedComp,
+	const FSkelMeshRenderSection& Section,
+	const FStaticMeshVertexBuffers& StaticVertexBuffers,
+	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer,
+	const int32 VertIndex,
+	const TArray<FMatrix> & RefToLocals,
+	FVector& OutTangentX,
+	FVector& OutTangentZ
+)
+{
+	OutTangentX = FVector::ZeroVector;
+	OutTangentZ = FVector::ZeroVector;
+
+	const USkinnedMeshComponent* const MasterPoseComponentInst = SkinnedComp->MasterPoseComponent.Get();
+	const USkinnedMeshComponent* BaseComponent = MasterPoseComponentInst ? MasterPoseComponentInst : SkinnedComp;
+
+	// Do soft skinning for this vertex.
+	const int32 BufferVertIndex = Section.GetVertexBufferIndex() + VertIndex;
+	const int32 MaxBoneInfluences = SkinWeightVertexBuffer.GetMaxBoneInfluences();
+
+	const FVector VertexTangentX = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentX(BufferVertIndex);
+	const FVector VertexTangentZ = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(BufferVertIndex);
+
+#if !PLATFORM_LITTLE_ENDIAN
+	// uint8[] elements in LOD.VertexBufferGPUSkin have been swapped for VET_UBYTE4 vertex stream use
+	for (int32 InfluenceIndex = MAX_INFLUENCES - 1; InfluenceIndex >= MAX_INFLUENCES - MaxBoneInfluences; InfluenceIndex--)
+#else
+	for (int32 InfluenceIndex = 0; InfluenceIndex < MaxBoneInfluences; InfluenceIndex++)
+#endif
+	{
+		const int32 MeshBoneIndex = Section.BoneMap[SkinWeightVertexBuffer.GetBoneIndex(BufferVertIndex, InfluenceIndex)];
+		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;
+		const FMatrix& RefToLocal = RefToLocals[MeshBoneIndex];
+		OutTangentX += RefToLocal.TransformVector(VertexTangentX) * Weight;
+		OutTangentZ += RefToLocal.TransformVector(VertexTangentZ) * Weight;
+	}
+}
+
 /** Simple, CPU evaluation of a vertex's skinned position helper function */
 template <bool bCachedMatrices>
 FVector GetTypedSkinnedVertexPosition(

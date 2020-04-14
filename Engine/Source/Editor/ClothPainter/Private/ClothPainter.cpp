@@ -564,8 +564,8 @@ void FClothPainter::OnAssetSelectionChanged(UClothingAssetCommon* InNewSelectedA
 	{
 		// Validate the incoming parameters, to make sure we only set a selection if we're going
 		// to get a valid paintable surface
-		if(InNewSelectedAsset->ClothLodData.IsValidIndex(InAssetLod) &&
-			 InNewSelectedAsset->ClothLodData[InAssetLod]->ParameterMasks.IsValidIndex(InMaskIndex))
+		if(InNewSelectedAsset->LodData.IsValidIndex(InAssetLod) &&
+			 InNewSelectedAsset->LodData[InAssetLod].PointWeightMaps.IsValidIndex(InMaskIndex))
 		{
 			const FGuid NewGuid = InNewSelectedAsset->GetAssetGuid();
 			SkeletalMeshComponent->SetMeshSectionVisibilityForCloth(SkeletalMeshComponent->SelectedClothingGuidForPainting, true);

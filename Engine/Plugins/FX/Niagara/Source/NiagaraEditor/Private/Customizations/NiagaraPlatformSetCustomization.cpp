@@ -20,6 +20,7 @@
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "NiagaraSettings.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraPlatformSetCustomization"
 
@@ -96,11 +97,11 @@ void FNiagaraPlatformSetCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 	HeaderRow
 		.WholeRowContent()
 		[ 	
-			SAssignNew(EffectsQualityWidgetBox, SWrapBox)
+			SAssignNew(QualityLevelWidgetBox, SWrapBox)
 			.UseAllottedWidth(true)
 		];
 
-	GenerateEffectsQualitySelectionWidgets();
+	GenerateQualityLevelSelectionWidgets();
 }
 
 void FNiagaraPlatformSetCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
@@ -117,33 +118,37 @@ FText FNiagaraPlatformSetCustomization::GetTooltipText() const
 	return LOCTEXT("Platforms", "Platforms");
 }
 
-void FNiagaraPlatformSetCustomization::GenerateEffectsQualitySelectionWidgets()
+void FNiagaraPlatformSetCustomization::GenerateQualityLevelSelectionWidgets()
 {
-	EffectsQualityWidgetBox->ClearChildren();
+	QualityLevelWidgetBox->ClearChildren();
+
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	check(Settings);
+
+	int32 NumQualityLevels = Settings->QualityLevels.Num();
 	
-	Scalability::FQualityLevels Counts = Scalability::GetQualityLevelCounts();
-	EffectsQualityMenuAnchors.SetNum(Counts.EffectsQuality);
-	EffectsQualityMenuContents.SetNum(Counts.EffectsQuality);
+	QualityLevelMenuAnchors.SetNum(NumQualityLevels);
+	QualityLevelMenuContents.SetNum(NumQualityLevels);
 
-	for (int32 EffectsQuality = 0; EffectsQuality < Counts.EffectsQuality; ++EffectsQuality)
+	for (int32 QualityLevel = 0; QualityLevel < NumQualityLevels; ++QualityLevel)
 	{
-		bool First = EffectsQuality == 0;
-		bool Last = EffectsQuality == (Counts.EffectsQuality - 1);
+		bool First = QualityLevel == 0;
+		bool Last = QualityLevel == (NumQualityLevels - 1);
 
-		if (!EffectsQualityMenuAnchors[EffectsQuality].IsValid())
+		if (!QualityLevelMenuAnchors[QualityLevel].IsValid())
 		{
-			EffectsQualityMenuAnchors[EffectsQuality] = SNew(SMenuAnchor)
+			QualityLevelMenuAnchors[QualityLevel] = SNew(SMenuAnchor)
 				.ToolTipText(LOCTEXT("AddPlatformOverride", "Add an override for a specific platform."))
-				.OnGetMenuContent(this, &FNiagaraPlatformSetCustomization::GenerateDeviceProfileTreeWidget, EffectsQuality)
+				.OnGetMenuContent(this, &FNiagaraPlatformSetCustomization::GenerateDeviceProfileTreeWidget, QualityLevel)
 				[
 					SNew(SButton)
-					.Visibility_Lambda([this, EffectsQuality]()
+					.Visibility_Lambda([this, QualityLevel]()
 					{
-						return EffectsQualityWidgetBox->GetChildren()->GetChildAt(EffectsQuality)->IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
+						return QualityLevelWidgetBox->GetChildren()->GetChildAt(QualityLevel)->IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
 					})
 					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 					.ForegroundColor(FSlateColor::UseForeground())
-					.OnClicked(this, &FNiagaraPlatformSetCustomization::ToggleMenuOpenForEffectsQuality, EffectsQuality)
+					.OnClicked(this, &FNiagaraPlatformSetCustomization::ToggleMenuOpenForQualityLevel, QualityLevel)
 					[
 						SNew(SBox)
 						.WidthOverride(8)
@@ -157,7 +162,7 @@ void FNiagaraPlatformSetCustomization::GenerateEffectsQualitySelectionWidgets()
 				];
 		}
 
-		EffectsQualityWidgetBox->AddSlot()
+		QualityLevelWidgetBox->AddSlot()
 			.Padding(0, 0, 1, 0)
 			[
 				SNew(SBox)
@@ -171,8 +176,8 @@ void FNiagaraPlatformSetCustomization::GenerateEffectsQualitySelectionWidgets()
 						SNew(SCheckBox)
 						.Style(FNiagaraEditorStyle::Get(), First ? "NiagaraEditor.PlatformSet.StartButton" : 
 							(Last ? "NiagaraEditor.PlatformSet.EndButton" : "NiagaraEditor.PlatformSet.MiddleButton"))
-						.IsChecked(this, &FNiagaraPlatformSetCustomization::IsEQChecked, EffectsQuality)
-						.OnCheckStateChanged(this, &FNiagaraPlatformSetCustomization::EQCheckStateChanged, EffectsQuality)
+						.IsChecked(this, &FNiagaraPlatformSetCustomization::IsQLChecked, QualityLevel)
+						.OnCheckStateChanged(this, &FNiagaraPlatformSetCustomization::QLCheckStateChanged, QualityLevel)
 						[
 							SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()
@@ -181,8 +186,8 @@ void FNiagaraPlatformSetCustomization::GenerateEffectsQualitySelectionWidgets()
 							[
 								SNew(STextBlock)
 								.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.PlatformSet.ButtonText")
-								.Text(FNiagaraPlatformSet::GetEffectsQualityText(EffectsQuality))
-								.ColorAndOpacity(this, &FNiagaraPlatformSetCustomization::GetEffectsQualityButtonTextColor, EffectsQuality)
+								.Text(FNiagaraPlatformSet::GetQualityLevelText(QualityLevel))
+								.ColorAndOpacity(this, &FNiagaraPlatformSetCustomization::GetQualityLevelButtonTextColor, QualityLevel)
 								.ShadowOffset(FVector2D(1, 1))
 							]
 							// error icon
@@ -197,8 +202,8 @@ void FNiagaraPlatformSetCustomization::GenerateEffectsQualitySelectionWidgets()
 								.HeightOverride(12)
 								[
 									SNew(SImage)
-									.ToolTipText(this, &FNiagaraPlatformSetCustomization::GetEffectsQualityErrorToolTip, EffectsQuality)
-									.Visibility(this, &FNiagaraPlatformSetCustomization::GetEffectsQualityErrorVisibility, EffectsQuality)
+									.ToolTipText(this, &FNiagaraPlatformSetCustomization::GetQualityLevelErrorToolTip, QualityLevel)
+									.Visibility(this, &FNiagaraPlatformSetCustomization::GetQualityLevelErrorVisibility, QualityLevel)
 									.Image(FEditorStyle::GetBrush("Icons.Error"))
 								]
 							]
@@ -209,14 +214,14 @@ void FNiagaraPlatformSetCustomization::GenerateEffectsQualitySelectionWidgets()
 							.VAlign(VAlign_Center)
 							.Padding(0,0,2,0)
 							[
-								EffectsQualityMenuAnchors[EffectsQuality].ToSharedRef()
+								QualityLevelMenuAnchors[QualityLevel].ToSharedRef()
 							]
 						]
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
-						GenerateAdditionalDevicesWidgetForEQ(EffectsQuality)
+						GenerateAdditionalDevicesWidgetForQL(QualityLevel)
 					]
 				]
 			];
@@ -313,7 +318,7 @@ void FNiagaraPlatformSetCustomization::InvalidateSiblingConflicts() const
 	}
 }
 
-EVisibility FNiagaraPlatformSetCustomization::GetEffectsQualityErrorVisibility(int32 EffectsQuality) const
+EVisibility FNiagaraPlatformSetCustomization::GetQualityLevelErrorVisibility(int32 QualityLevel) const
 {
 	// not part of an array
 	if (PlatformSetArrayIndex == INDEX_NONE)
@@ -326,12 +331,12 @@ EVisibility FNiagaraPlatformSetCustomization::GetEffectsQualityErrorVisibility(i
 		if (ConflictInfo.SetAIndex == PlatformSetArrayIndex || 
 			ConflictInfo.SetBIndex == PlatformSetArrayIndex)
 		{
-			// this conflict applies to this platform set, check if it applies to this effects quality button
-			const int32 EQMask = FNiagaraPlatformSet::CreateEQMask(EffectsQuality);
+			// this conflict applies to this platform set, check if it applies to this quality leve button
+			const int32 QLMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
 
 			for (const FNiagaraPlatformSetConflictEntry& Conflict : ConflictInfo.Conflicts)
 			{
-				if ((EQMask & Conflict.EffectsQualityMask) != 0)
+				if ((QLMask & Conflict.QualityLevelMask) != 0)
 				{
 					return EVisibility::Visible;
 				}
@@ -342,7 +347,7 @@ EVisibility FNiagaraPlatformSetCustomization::GetEffectsQualityErrorVisibility(i
 	return EVisibility::Collapsed;
 }
 
-FText FNiagaraPlatformSetCustomization::GetEffectsQualityErrorToolTip(int32 EffectsQuality) const
+FText FNiagaraPlatformSetCustomization::GetQualityLevelErrorToolTip(int32 QualityLevel) const
 {
 	if (PlatformSetArrayIndex == INDEX_NONE)
 	{
@@ -365,13 +370,13 @@ FText FNiagaraPlatformSetCustomization::GetEffectsQualityErrorToolTip(int32 Effe
 
 		if (OtherIndex != INDEX_NONE)
 		{
-			const int32 EQMask = FNiagaraPlatformSet::CreateEQMask(EffectsQuality);
+			const int32 QLMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
 
 			for (const FNiagaraPlatformSetConflictEntry& Conflict : ConflictInfo.Conflicts)
 			{
-				if ((EQMask & Conflict.EffectsQualityMask) != 0)
+				if ((QLMask & Conflict.QualityLevelMask) != 0)
 				{
-					FText FormatString = LOCTEXT("EffectsQualityConflictToolTip", "This effect quality conflicts with the set at index {Index} in this array."); 
+					FText FormatString = LOCTEXT("QualityLevelConflictToolTip", "This effect quality conflicts with the set at index {Index} in this array."); 
 
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("Index"), OtherIndex);
@@ -385,14 +390,14 @@ FText FNiagaraPlatformSetCustomization::GetEffectsQualityErrorToolTip(int32 Effe
 	return FText::GetEmpty();
 }
 
-FSlateColor FNiagaraPlatformSetCustomization::GetEffectsQualityButtonTextColor(int32 EffectsQuality) const
+FSlateColor FNiagaraPlatformSetCustomization::GetQualityLevelButtonTextColor(int32 QualityLevel) const
 {
-	return TargetPlatformSet->IsEffectQualityEnabled(EffectsQuality) ? 
+	return TargetPlatformSet->IsEffectQualityEnabled(QualityLevel) ? 
 		FSlateColor(FLinearColor(0.95f, 0.95f, 0.95f)) :
 		FSlateColor::UseForeground();
 }
 
-TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateAdditionalDevicesWidgetForEQ(int32 EffectsQuality)
+TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateAdditionalDevicesWidgetForQL(int32 QualityLevel)
 {
 	TSharedRef<SVerticalBox> Container = SNew(SVerticalBox);
 
@@ -451,8 +456,8 @@ TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateAdditionalDevicesW
 				.HeightOverride(12)
 				[
 					SNew(SImage)
-					.ToolTipText(this, &FNiagaraPlatformSetCustomization::GetDeviceProfileErrorToolTip, Profile, EffectsQuality)
-					.Visibility(this, &FNiagaraPlatformSetCustomization::GetDeviceProfileErrorVisibility, Profile, EffectsQuality)
+					.ToolTipText(this, &FNiagaraPlatformSetCustomization::GetDeviceProfileErrorToolTip, Profile, QualityLevel)
+					.Visibility(this, &FNiagaraPlatformSetCustomization::GetDeviceProfileErrorVisibility, Profile, QualityLevel)
 					.Image(FEditorStyle::GetBrush("Icons.Error"))
 				]
 			];
@@ -466,7 +471,7 @@ TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateAdditionalDevicesW
 				SNew(SButton)
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
-				.OnClicked(this, &FNiagaraPlatformSetCustomization::RemoveDeviceProfile, Profile, EffectsQuality)
+				.OnClicked(this, &FNiagaraPlatformSetCustomization::RemoveDeviceProfile, Profile, QualityLevel)
 				.ToolTipText(LOCTEXT("RemoveDevice", "Remove this device override."))
 				[
 					SNew(SBox)
@@ -483,7 +488,7 @@ TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateAdditionalDevicesW
 
 	TArray<UDeviceProfile*> EnabledProfiles;
 	TArray<UDeviceProfile*> DisabledProfiles;
-	TargetPlatformSet->GetOverridenDeviceProfiles(EffectsQuality, EnabledProfiles, DisabledProfiles);
+	TargetPlatformSet->GetOverridenDeviceProfiles(QualityLevel, EnabledProfiles, DisabledProfiles);
 
 	for (UDeviceProfile* Profile : EnabledProfiles)
 	{
@@ -498,10 +503,10 @@ TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateAdditionalDevicesW
 	return Container;
 }
 
-FReply FNiagaraPlatformSetCustomization::RemoveDeviceProfile(UDeviceProfile* Profile, int32 EffectsQuality)
+FReply FNiagaraPlatformSetCustomization::RemoveDeviceProfile(UDeviceProfile* Profile, int32 QualityLevel)
 {
 	PropertyHandle->NotifyPreChange();
-	TargetPlatformSet->SetDeviceProfileState(Profile, EffectsQuality, ENiagaraPlatformSelectionState::Default);
+	TargetPlatformSet->SetDeviceProfileState(Profile, QualityLevel, ENiagaraPlatformSelectionState::Default);
 	PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 
 	InvalidateSiblingConflicts();
@@ -509,7 +514,7 @@ FReply FNiagaraPlatformSetCustomization::RemoveDeviceProfile(UDeviceProfile* Pro
 	return FReply::Handled();
 }
 
-EVisibility FNiagaraPlatformSetCustomization::GetDeviceProfileErrorVisibility(UDeviceProfile* Profile, int32 EffectsQuality) const
+EVisibility FNiagaraPlatformSetCustomization::GetDeviceProfileErrorVisibility(UDeviceProfile* Profile, int32 QualityLevel) const
 {
 	// not part of an array
 	if (PlatformSetArrayIndex == INDEX_NONE)
@@ -522,11 +527,11 @@ EVisibility FNiagaraPlatformSetCustomization::GetDeviceProfileErrorVisibility(UD
 		if (ConflictInfo.SetAIndex == PlatformSetArrayIndex || 
 			ConflictInfo.SetBIndex == PlatformSetArrayIndex)
 		{
-			const int32 EQMask = FNiagaraPlatformSet::CreateEQMask(EffectsQuality);
+			const int32 QLMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
 
 			for (const FNiagaraPlatformSetConflictEntry& Entry : ConflictInfo.Conflicts)
 			{
-				if ((Entry.EffectsQualityMask & EQMask) != 0 &&
+				if ((Entry.QualityLevelMask & QLMask) != 0 &&
 					Entry.ProfileName == Profile->GetFName())
 				{
 					return EVisibility::Visible;
@@ -538,7 +543,7 @@ EVisibility FNiagaraPlatformSetCustomization::GetDeviceProfileErrorVisibility(UD
 	return EVisibility::Collapsed;
 }
 
-FText FNiagaraPlatformSetCustomization::GetDeviceProfileErrorToolTip(UDeviceProfile* Profile, int32 EffectsQuality) const
+FText FNiagaraPlatformSetCustomization::GetDeviceProfileErrorToolTip(UDeviceProfile* Profile, int32 QualityLevel) const
 {
 	for (const FNiagaraPlatformSetConflictInfo& ConflictInfo : CachedConflicts)
 	{
@@ -556,11 +561,11 @@ FText FNiagaraPlatformSetCustomization::GetDeviceProfileErrorToolTip(UDeviceProf
 
 		if (OtherIndex != INDEX_NONE)
 		{
-			const int32 EQMask = FNiagaraPlatformSet::CreateEQMask(EffectsQuality);
+			const int32 QLMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
 
 			for (const FNiagaraPlatformSetConflictEntry& Entry : ConflictInfo.Conflicts)
 			{
-				if ((Entry.EffectsQualityMask & EQMask) != 0 &&
+				if ((Entry.QualityLevelMask & QLMask) != 0 &&
 					Entry.ProfileName == Profile->GetFName())
 				{
 					FText FormatString = LOCTEXT("PlatformOverrideConflictToolTip", "This platform override conflicts with the set at index {Index} in this array."); 
@@ -577,28 +582,28 @@ FText FNiagaraPlatformSetCustomization::GetDeviceProfileErrorToolTip(UDeviceProf
 	return FText::GetEmpty();
 }
 
-FReply FNiagaraPlatformSetCustomization::ToggleMenuOpenForEffectsQuality(int32 EffectsQuality)
+FReply FNiagaraPlatformSetCustomization::ToggleMenuOpenForQualityLevel(int32 QualityLevel)
 {
-	check(EffectsQualityMenuAnchors.IsValidIndex(EffectsQuality));
+	check(QualityLevelMenuAnchors.IsValidIndex(QualityLevel));
 	
-	TSharedPtr<SMenuAnchor> MenuAnchor = EffectsQualityMenuAnchors[EffectsQuality];
+	TSharedPtr<SMenuAnchor> MenuAnchor = QualityLevelMenuAnchors[QualityLevel];
 	MenuAnchor->SetIsOpen(!MenuAnchor->IsOpen());
 
 	return FReply::Handled();
 }
 
 // Is or does a viewmodel contain any children active at the given quality?
-bool FNiagaraPlatformSetCustomization::IsTreeActiveForEQ(const TSharedPtr<FNiagaraDeviceProfileViewModel>& Tree, int32 EffectsQualityMask) const
+bool FNiagaraPlatformSetCustomization::IsTreeActiveForQL(const TSharedPtr<FNiagaraDeviceProfileViewModel>& Tree, int32 QualityLevelMask) const
 {
 	int32 Mask = TargetPlatformSet->GetEffectQualityMaskForDeviceProfile(Tree->Profile);
-	if ((Mask & EffectsQualityMask) != 0)
+	if ((Mask & QualityLevelMask) != 0)
 	{
 		return true;
 	}
 
 	for (const TSharedPtr<FNiagaraDeviceProfileViewModel>& Child : Tree->Children)
 	{
-		if (IsTreeActiveForEQ(Child, EffectsQualityMask))
+		if (IsTreeActiveForQL(Child, QualityLevelMask))
 		{
 			return true;
 		}
@@ -607,16 +612,16 @@ bool FNiagaraPlatformSetCustomization::IsTreeActiveForEQ(const TSharedPtr<FNiaga
 	return false;
 }
 
-void FNiagaraPlatformSetCustomization::FilterTreeForEQ(const TSharedPtr<FNiagaraDeviceProfileViewModel>& SourceTree, TSharedPtr<FNiagaraDeviceProfileViewModel>& FilteredTree, int32 EffectsQualityMask)
+void FNiagaraPlatformSetCustomization::FilterTreeForQL(const TSharedPtr<FNiagaraDeviceProfileViewModel>& SourceTree, TSharedPtr<FNiagaraDeviceProfileViewModel>& FilteredTree, int32 QualityLevelMask)
 {
 	for (const TSharedPtr<FNiagaraDeviceProfileViewModel>& SourceChild : SourceTree->Children)
 	{
-		if (IsTreeActiveForEQ(SourceChild, EffectsQualityMask))
+		if (IsTreeActiveForQL(SourceChild, QualityLevelMask))
 		{
 			TSharedPtr<FNiagaraDeviceProfileViewModel>& FilteredChild = FilteredTree->Children.Add_GetRef(MakeShared<FNiagaraDeviceProfileViewModel>());
 			FilteredChild->Profile = SourceChild->Profile;
 
-			FilterTreeForEQ(SourceChild, FilteredChild, EffectsQualityMask);
+			FilterTreeForQL(SourceChild, FilteredChild, QualityLevelMask);
 		}
 	}
 }
@@ -672,65 +677,68 @@ void FNiagaraPlatformSetCustomization::CreateDeviceProfileTree()
 		FullDeviceProfileTree.Add(CurrRoot);
 	}
 
-	Scalability::FQualityLevels Counts = Scalability::GetQualityLevelCounts();
-	FilteredDeviceProfileTrees.SetNum(Counts.EffectsQuality);
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	check(Settings);
+
+	int32 NumQualityLevels = Settings->QualityLevels.Num();
+	FilteredDeviceProfileTrees.SetNum(NumQualityLevels);
 	
 	for (TSharedPtr<FNiagaraDeviceProfileViewModel>& FullDeviceRoot : FullDeviceProfileTree)
 	{
-		for (int32 EffectsQuality = 0; EffectsQuality < Counts.EffectsQuality; ++EffectsQuality)
+		for (int32 QualityLevel = 0; QualityLevel < NumQualityLevels; ++QualityLevel)
 		{
-			int32 EffectsQualityMask = FNiagaraPlatformSet::CreateEQMask(EffectsQuality);
+			int32 QualityLevelMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
 
-			if (IsTreeActiveForEQ(FullDeviceRoot, EffectsQualityMask))
+			if (IsTreeActiveForQL(FullDeviceRoot, QualityLevelMask))
 			{
-				TArray<TSharedPtr<FNiagaraDeviceProfileViewModel>>& FilteredRoots = FilteredDeviceProfileTrees[EffectsQuality];
+				TArray<TSharedPtr<FNiagaraDeviceProfileViewModel>>& FilteredRoots = FilteredDeviceProfileTrees[QualityLevel];
 
 				TSharedPtr<FNiagaraDeviceProfileViewModel>& FilteredRoot = FilteredRoots.Add_GetRef(MakeShared<FNiagaraDeviceProfileViewModel>());
 				FilteredRoot->Profile = FullDeviceRoot->Profile;
 
-				FilterTreeForEQ(FullDeviceRoot, FilteredRoot, EffectsQualityMask);
+				FilterTreeForQL(FullDeviceRoot, FilteredRoot, QualityLevelMask);
 			}
 		}
 	}
 }
 
-TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateDeviceProfileTreeWidget(int32 EffectsQuality)
+TSharedRef<SWidget> FNiagaraPlatformSetCustomization::GenerateDeviceProfileTreeWidget(int32 QualityLevel)
 {
 	if (FullDeviceProfileTree.Num() == 0)
 	{
 		CreateDeviceProfileTree();	
 	}
 
-	if (EffectsQualityMenuContents[EffectsQuality].IsValid())
+	if (QualityLevelMenuContents[QualityLevel].IsValid())
 	{
-		return EffectsQualityMenuContents[EffectsQuality].ToSharedRef();
+		return QualityLevelMenuContents[QualityLevel].ToSharedRef();
 	}
 
 	TArray<TSharedPtr<FNiagaraDeviceProfileViewModel>>* TreeToUse = &FullDeviceProfileTree;
-	if (EffectsQuality != INDEX_NONE)
+	if (QualityLevel != INDEX_NONE)
 	{
-		check(EffectsQuality < FilteredDeviceProfileTrees.Num());
-		TreeToUse = &FilteredDeviceProfileTrees[EffectsQuality];
+		check(QualityLevel < FilteredDeviceProfileTrees.Num());
+		TreeToUse = &FilteredDeviceProfileTrees[QualityLevel];
 	}
 
-	return SAssignNew(EffectsQualityMenuContents[EffectsQuality], SBorder)
+	return SAssignNew(QualityLevelMenuContents[QualityLevel], SBorder)
 		.BorderImage(FEditorStyle::Get().GetBrush("Menu.Background"))
 		[
 			SAssignNew(DeviceProfileTreeWidget, STreeView<TSharedPtr<FNiagaraDeviceProfileViewModel>>)
 			.TreeItemsSource(TreeToUse)
-			.OnGenerateRow(this, &FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileTreeRow, EffectsQuality)
-			.OnGetChildren(this, &FNiagaraPlatformSetCustomization::OnGetDeviceProfileTreeChildren, EffectsQuality)
+			.OnGenerateRow(this, &FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileTreeRow, QualityLevel)
+			.OnGetChildren(this, &FNiagaraPlatformSetCustomization::OnGetDeviceProfileTreeChildren, QualityLevel)
 			.SelectionMode(ESelectionMode::None)
 		];
 }
 
-TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileTreeRow(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, const TSharedRef<STableViewBase>& OwnerTable, int32 EffectsQuality)
+TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileTreeRow(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, const TSharedRef<STableViewBase>& OwnerTable, int32 QualityLevel)
 {
 	TSharedPtr<SHorizontalBox> RowContainer;
 	SAssignNew(RowContainer, SHorizontalBox);
 
 	int32 ProfileMask = TargetPlatformSet->GetEffectQualityMaskForDeviceProfile(InItem->Profile);
-	FText NameTooltip = FText::Format(LOCTEXT("ProfileEQTooltipFmt", "Effects Quality: {0}"), FNiagaraPlatformSet::GetEffectsQualityMaskText(ProfileMask));
+	FText NameTooltip = FText::Format(LOCTEXT("ProfileQLTooltipFmt", "Effects Quality: {0}"), FNiagaraPlatformSet::GetQualityLevelMaskText(ProfileMask));
 	
 	//Top level profile. Look for a platform icon.
 	if (InItem->Profile->Parent == nullptr)
@@ -760,7 +768,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 
 	FName TextStyleName("NormalText");
 	FSlateColor TextColor(FSlateColor::UseForeground());
-	ENiagaraPlatformSelectionState CurrentState = TargetPlatformSet->GetDeviceProfileState(InItem->Profile, EffectsQuality);
+	ENiagaraPlatformSelectionState CurrentState = TargetPlatformSet->GetDeviceProfileState(InItem->Profile, QualityLevel);
 	
 	if (CurrentState == ENiagaraPlatformSelectionState::Enabled)
 	{
@@ -774,8 +782,8 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 	}
 
 
-	int32 EffectsQualityMask = FNiagaraPlatformSet::CreateEQMask(EffectsQuality);
-	if ((ProfileMask & EffectsQualityMask) == 0)
+	int32 QualityLevelMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
+	if ((ProfileMask & QualityLevelMask) == 0)
 	{
 		TextColor = FSlateColor::UseSubduedForeground();
 	}
@@ -787,8 +795,8 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 		[
 			SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.OnClicked(this, &FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked, InItem, EffectsQuality, false)
-			.IsEnabled(this, &FNiagaraPlatformSetCustomization::GetProfileMenuItemEnabled, InItem, EffectsQuality)
+			.OnClicked(this, &FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked, InItem, QualityLevel, false)
+			.IsEnabled(this, &FNiagaraPlatformSetCustomization::GetProfileMenuItemEnabled, InItem, QualityLevel)
 			.ForegroundColor(TextColor)
 			.ToolTipText(NameTooltip)
 			[
@@ -808,9 +816,9 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Fill)
-			.Visibility(this, &FNiagaraPlatformSetCustomization::GetProfileMenuButtonVisibility, InItem, EffectsQuality)
-			.OnClicked(this, &FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked, InItem, EffectsQuality, true)
-			.ToolTipText(this, &FNiagaraPlatformSetCustomization::GetProfileMenuButtonToolTip, InItem, EffectsQuality)
+			.Visibility(this, &FNiagaraPlatformSetCustomization::GetProfileMenuButtonVisibility, InItem, QualityLevel)
+			.OnClicked(this, &FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked, InItem, QualityLevel, true)
+			.ToolTipText(this, &FNiagaraPlatformSetCustomization::GetProfileMenuButtonToolTip, InItem, QualityLevel)
 			[
 				SNew(SBox)
 				.WidthOverride(8)
@@ -819,7 +827,7 @@ TSharedRef<ITableRow> FNiagaraPlatformSetCustomization::OnGenerateDeviceProfileT
 				.HAlign(HAlign_Center)
 				[
 					SNew(SImage)
-					.Image(this, &FNiagaraPlatformSetCustomization::GetProfileMenuButtonImage, InItem, EffectsQuality)
+					.Image(this, &FNiagaraPlatformSetCustomization::GetProfileMenuButtonImage, InItem, QualityLevel)
 				]
 			]
 		];
@@ -839,19 +847,19 @@ enum class EProfileButtonMode
 	Remove
 };
 
-static EProfileButtonMode GetProfileMenuButtonMode(FNiagaraPlatformSet* PlatformSet, TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality)
+static EProfileButtonMode GetProfileMenuButtonMode(FNiagaraPlatformSet* PlatformSet, TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel)
 {
 	int32 Mask = PlatformSet->GetEffectQualityMaskForDeviceProfile(Item->Profile);
-	int32 EQMask = FNiagaraPlatformSet::CreateEQMask(EffectsQuality);
+	int32 QLMask = FNiagaraPlatformSet::CreateQualityLevelMask(QualityLevel);
 
-	if ((Mask & EQMask) == 0)
+	if ((Mask & QLMask) == 0)
 	{
 		return EProfileButtonMode::None;
 	}
 
-	ENiagaraPlatformSelectionState CurrentState = PlatformSet->GetDeviceProfileState(Item->Profile, EffectsQuality);
+	ENiagaraPlatformSelectionState CurrentState = PlatformSet->GetDeviceProfileState(Item->Profile, QualityLevel);
 
-	bool bQualityEnabled = PlatformSet->IsEffectQualityEnabled(EffectsQuality);
+	bool bQualityEnabled = PlatformSet->IsEffectQualityEnabled(QualityLevel);
 	bool bIsDefault = CurrentState == ENiagaraPlatformSelectionState::Default;
 
 	if (bIsDefault && bQualityEnabled)
@@ -868,9 +876,9 @@ static EProfileButtonMode GetProfileMenuButtonMode(FNiagaraPlatformSet* Platform
 }
 
 
-FText FNiagaraPlatformSetCustomization::GetProfileMenuButtonToolTip(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality) const
+FText FNiagaraPlatformSetCustomization::GetProfileMenuButtonToolTip(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel) const
 {
-	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, EffectsQuality);
+	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, QualityLevel);
 	switch(Mode)
 	{
 		case EProfileButtonMode::Include:
@@ -884,9 +892,9 @@ FText FNiagaraPlatformSetCustomization::GetProfileMenuButtonToolTip(TSharedPtr<F
 	return FText::GetEmpty();
 }
 
-EVisibility FNiagaraPlatformSetCustomization::GetProfileMenuButtonVisibility(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality) const
+EVisibility FNiagaraPlatformSetCustomization::GetProfileMenuButtonVisibility(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel) const
 {
-	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, EffectsQuality);
+	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, QualityLevel);
 	if (Mode == EProfileButtonMode::None)
 	{
 		return EVisibility::Collapsed;
@@ -895,9 +903,9 @@ EVisibility FNiagaraPlatformSetCustomization::GetProfileMenuButtonVisibility(TSh
 	return EVisibility::Visible;
 }
 
-bool FNiagaraPlatformSetCustomization::GetProfileMenuItemEnabled(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality) const
+bool FNiagaraPlatformSetCustomization::GetProfileMenuItemEnabled(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel) const
 {
-	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, EffectsQuality);
+	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, QualityLevel);
 	if (Mode == EProfileButtonMode::None)
 	{
 		return false;
@@ -906,9 +914,9 @@ bool FNiagaraPlatformSetCustomization::GetProfileMenuItemEnabled(TSharedPtr<FNia
 	return true;
 }
 
-const FSlateBrush* FNiagaraPlatformSetCustomization::GetProfileMenuButtonImage(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality) const
+const FSlateBrush* FNiagaraPlatformSetCustomization::GetProfileMenuButtonImage(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel) const
 {
-	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, EffectsQuality);
+	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, QualityLevel);
 	switch(Mode)
 	{
 		case EProfileButtonMode::Include:
@@ -922,11 +930,11 @@ const FSlateBrush* FNiagaraPlatformSetCustomization::GetProfileMenuButtonImage(T
 	return FEditorStyle::GetBrush("NoBrush");
 }
 
-FReply FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality, bool bReopenMenu)
+FReply FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel, bool bReopenMenu)
 {
 	ENiagaraPlatformSelectionState TargetState;
 
-	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, EffectsQuality);
+	EProfileButtonMode Mode = GetProfileMenuButtonMode(TargetPlatformSet, Item, QualityLevel);
 	switch(Mode)
 	{
 		case EProfileButtonMode::Include:
@@ -943,14 +951,14 @@ FReply FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked(TSharedPtr<F
 	}
 
 	PropertyHandle->NotifyPreChange();
-	TargetPlatformSet->SetDeviceProfileState(Item->Profile, EffectsQuality, TargetState);
+	TargetPlatformSet->SetDeviceProfileState(Item->Profile, QualityLevel, TargetState);
 	PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 
 	InvalidateSiblingConflicts();
 
 	if (!bReopenMenu)
 	{
-		EffectsQualityMenuAnchors[EffectsQuality]->SetIsOpen(false);
+		QualityLevelMenuAnchors[QualityLevel]->SetIsOpen(false);
 	}
 
 	DeviceProfileTreeWidget->RequestTreeRefresh();
@@ -958,27 +966,27 @@ FReply FNiagaraPlatformSetCustomization::OnProfileMenuButtonClicked(TSharedPtr<F
 	return FReply::Handled();
 }
 
-void FNiagaraPlatformSetCustomization::OnGetDeviceProfileTreeChildren(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, TArray< TSharedPtr<FNiagaraDeviceProfileViewModel> >& OutChildren, int32 EffectsQuality)
+void FNiagaraPlatformSetCustomization::OnGetDeviceProfileTreeChildren(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, TArray< TSharedPtr<FNiagaraDeviceProfileViewModel> >& OutChildren, int32 QualityLevel)
 {
-	if (TargetPlatformSet->GetDeviceProfileState(InItem->Profile, EffectsQuality) == ENiagaraPlatformSelectionState::Default)
+	if (TargetPlatformSet->GetDeviceProfileState(InItem->Profile, QualityLevel) == ENiagaraPlatformSelectionState::Default)
 	{
 		OutChildren = InItem->Children;
 	}
 }
 
-ECheckBoxState FNiagaraPlatformSetCustomization::IsEQChecked(int32 EffectsQuality)const
+ECheckBoxState FNiagaraPlatformSetCustomization::IsQLChecked(int32 QualityLevel)const
 {
 	if (TargetPlatformSet)
 	{
-		return TargetPlatformSet->IsEffectQualityEnabled(EffectsQuality) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return TargetPlatformSet->IsEffectQualityEnabled(QualityLevel) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 	return ECheckBoxState::Undetermined;
 }
 
-void FNiagaraPlatformSetCustomization::EQCheckStateChanged(ECheckBoxState CheckState, int32 EffectsQuality)
+void FNiagaraPlatformSetCustomization::QLCheckStateChanged(ECheckBoxState CheckState, int32 QualityLevel)
 {
 	PropertyHandle->NotifyPreChange();
-	TargetPlatformSet->SetEnabledForEffectQuality(EffectsQuality, CheckState == ECheckBoxState::Checked);
+	TargetPlatformSet->SetEnabledForEffectQuality(QualityLevel, CheckState == ECheckBoxState::Checked);
 	PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 
 	InvalidateSiblingConflicts();
@@ -986,7 +994,7 @@ void FNiagaraPlatformSetCustomization::EQCheckStateChanged(ECheckBoxState CheckS
 
 void FNiagaraPlatformSetCustomization::OnPropertyValueChanged()
 {
-	GenerateEffectsQualitySelectionWidgets();
+	GenerateQualityLevelSelectionWidgets();
 	UpdateCachedConflicts();
 }
 

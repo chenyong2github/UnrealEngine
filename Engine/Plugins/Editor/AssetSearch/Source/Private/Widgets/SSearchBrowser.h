@@ -44,6 +44,8 @@ public:
 
 private:
 
+	TSharedRef<SWidget> GetViewMenuWidget();
+
 	FText GetSearchBackgroundText() const;
 	FText GetStatusText() const;
 	FText GetAdvancedStatus() const;

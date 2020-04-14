@@ -39,8 +39,10 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D11RHI, Log, All);
 #if NV_AFTERMATH
 #define GFSDK_Aftermath_WITH_DX11 1
 #include "GFSDK_Aftermath.h"
+#include "GFSDK_Aftermath_GpuCrashdump.h"
 #undef GFSDK_Aftermath_WITH_DX11
 extern bool GDX11NVAfterMathEnabled;
+extern bool GDX11NVAfterMathMarkers;
 #endif
 
 #if INTEL_METRICSDISCOVERY
@@ -378,6 +380,11 @@ public:
 	virtual void PostInit() override;
 	virtual void Shutdown() override;
 	virtual const TCHAR* GetName() override { return TEXT("D3D11"); }
+	
+#if PLATFORM_HOLOLENS
+	virtual void RHISuspendRendering() override;
+	virtual void RHIResumeRendering() override;
+#endif
 
 	// HDR display output
 	virtual void EnableHDR();

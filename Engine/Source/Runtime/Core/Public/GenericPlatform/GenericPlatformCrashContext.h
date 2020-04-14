@@ -9,6 +9,23 @@
 
 struct FProgramCounterSymbolInfo;
 
+/** Defines special exit codes used to diagnose abnormal terminations. The code values are arbitrary, but easily recongnizable in decimal. They are meant to be
+    used with the out-of-process monitoring/analytics in order to figure out unexpected cases. */
+enum ECrashExitCodes : int32
+{
+	/** Used by out-of-process monitor in analytics report, the application is still running, but out-of-process monitor was requested to exit before the application exit code could be read. */
+	MonitoredApplicationStillRunning = 777001,
+
+	/** Used by out-of-process monitor in analytics report, the application is not running anymore, but the out-of-process monitor could not read the Editor exit code (either is is not supported by the OS or is not available). */
+	MonitoredApplicationExitCodeNotAvailable = 777002,
+
+	/** Used by the application when the crash reporter crashed itself while reporting a crash.*/
+	CrashReporterCrashed = 777003,
+
+	/** Used by the application when the crash handler crashed itself (crash in the __except() clause for example).*/
+	CrashHandlerCrashed = 777004,
+};
+
 /** 
  * Symbol information associated with a program counter. 
  * FString version.
@@ -275,13 +292,21 @@ public:
 	 */
 	static bool IsOutOfProcessCrashReporter()
 	{
-		return bIsOutOfProcess;
+		return OutOfProcessCrashReporterPid != 0;
+	}
+
+	/**
+	 * @return a non-zero value if crash reporter process is used to monitor the session or zero for in-process reporting.
+	 */
+	static uint32 GetOutOfProcessCrashReporterProcessId()
+	{
+		return OutOfProcessCrashReporterPid;
 	}
 
 	/** Set whether or not the out-of-process crash reporter is running. */
-	static void SetIsOutOfProcessCrashReporter(bool bInValue)
+	static void SetOutOfProcessCrashReporterPid(uint32 ProcessId)
 	{
-		bIsOutOfProcess = bInValue;
+		OutOfProcessCrashReporterPid = ProcessId;
 	}
 
 	/** Default constructor. Optionally pass a process handle if building a crash context for a process other then current. */
@@ -402,6 +427,9 @@ public:
 	/** Allows platform implementations to copy files to report directory. */
 	virtual void CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context);
 
+	/** Cleanup platform specific files - called on startup, implemented per platform */
+	static void CleanupPlatformSpecificFiles();
+
 	/**
 	 * @return whether this crash is a non-crash event
 	 */
@@ -480,8 +508,8 @@ private:
 	/**	Whether the Initialize() has been called */
 	static bool bIsInitialized;
 
-	/** Whether or not crash reporting is being handled out-of-process. */
-	static bool bIsOutOfProcess;
+	/** The ID of the external process reporting crashes if the platform supports it and was configured to use it, zero otherwise (0 is a reserved system process ID, invalid for the out of process reporter). */
+	static uint32 OutOfProcessCrashReporterPid;
 
 	/**	Static counter records how many crash contexts have been constructed */
 	static int32 StaticCrashContextIndex;

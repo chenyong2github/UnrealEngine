@@ -42,7 +42,7 @@ class CopySharedCookedBuild : BuildCommand
 			}
 			else
 			{
-				var Branch = new BranchInfo(new List<UnrealTargetPlatform> { UnrealBuildTool.BuildHostPlatform.Current.Platform });
+				var Branch = new BranchInfo();
 				var GameProj = Branch.FindGame(OriginalProjectName);
 				if (GameProj != null)
 				{

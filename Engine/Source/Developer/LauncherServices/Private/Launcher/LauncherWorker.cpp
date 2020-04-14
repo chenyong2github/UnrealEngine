@@ -764,17 +764,6 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 				if (Profile->IsDeployingIncrementally())
 				{
 					UATCommand += " -iterativedeploy";
-					// @todo Lumin hack maybe? Can we always skip the automation script compiling here when going for fast-as-possible?
-					// we will always compile the automation scripts once, then we stop due to time waste
-					static bool bHasCompiledOnce = false;
-					if (bHasCompiledOnce)
-					{
-						UATCommand += " -nocompile";
-					}
-					else
-					{
-						bHasCompiledOnce = true;
-					}
 				}
 			}
 		case ELauncherProfileDeploymentModes::FileServer:

@@ -10,8 +10,9 @@ public class OnlineSubsystem : ModuleRules
 		
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"Json"
-            }
+				"Json",
+				"SignalProcessing"
+			}
 		);
 
 		PublicIncludePaths.Add(ModuleDirectory);
@@ -19,6 +20,7 @@ public class OnlineSubsystem : ModuleRules
         PublicDefinitions.Add("ONLINESUBSYSTEM_PACKAGE=1");
 		PublicDefinitions.Add("DEBUG_LAN_BEACON=0");
 
+		// OnlineSubsystem cannot depend on Engine!
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
 				"Core", 
@@ -26,7 +28,7 @@ public class OnlineSubsystem : ModuleRules
 				"ImageCore",
 				"Sockets",
 				"JsonUtilities",
-				"AudioMixer",
+				"AudioMixerCore",
 			}
 		);
 	}

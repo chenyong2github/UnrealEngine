@@ -618,6 +618,49 @@ private:
 		FString NamespaceString;
 };
 
+UENUM()
+enum class ENiagaraParameterPanelCategory : uint32
+{
+	/** Parameter that is an input argument into this graph.*/
+	Input UMETA(DisplayName = "Module Inputs"),
+
+	Attributes UMETA(DisplayName = "Input Attributes"),
+
+	/** Parameter is output to the owning stack stage from this script, but is only meaningful if bound elsewhere in the stage.*/
+	Output UMETA(DisplayName = "Output Attributes"),
+
+	/** Parameter is initialized at the start of this script and is only used within the context of this script. It is invisible to the parent stage stack.*/
+	Local UMETA(DisplayName = "Local"),
+
+	/** Parameter that is exposed to the owning component for editing and are read-only when used in the graph*/
+	User UMETA(DisplayName = "User"),
+
+	/** Parameter provided by the engine. These are explicitly defined by the engine codebase and read-only. */
+	Engine UMETA(DisplayName = "Engine (Generic)", Hidden),
+
+	/** Parameter provided by the engine focused on the owning component. These are explicitly defined by the engine codebase and read-only.*/
+	Owner UMETA(DisplayName = "Engine (Owner)", Hidden),
+
+	/** Parameter is an attribute of the owning system payload. It is persistent across frames and initialized in the System Spawn stage of the stack.*/
+	System  UMETA(DisplayName = "System"),
+
+	/** Parameter is an attribute of the owning emitter payload. It is persistent across frames and initialized in the Emitter Spawn stage of the stack.*/
+	Emitter   UMETA(DisplayName = "Emitter"),
+
+	/** Parameter is an attribute of the owning particle payload. It is persistent across frames and initialized in the Particle Spawn stage of the stack.*/
+	Particles  UMETA(DisplayName = "Particles"),
+
+	/** Parameter is initialized at the start of this stage and can be shared amongst other modules within this stack stage, but is not persistent across runs or from stack stage to stack stage.*/
+	ScriptTransient UMETA(DisplayName = "Stage (Transient)"),
+
+	StaticSwitch UMETA(DisplayName = "Static Switch"),
+
+	// insert new categories before
+	None UMETA(Hidden),
+
+	Num UMETA(Hidden)
+};
+
 USTRUCT()
 struct NIAGARA_API FNiagaraVariableMetaData
 {
@@ -727,14 +770,14 @@ private:
 	bool bOutputIsPersistent;
 
 	/** Namespace-less name for associated FNiagaraVariable. Edited directly by user and then used to generate full Name of associated FNiagaraVariable. */
-	UPROPERTY(VisibleAnywhere, Category = "Variable", DisplayName = "Property Name", meta = (SkipForCompileHash = "true"))
+	UPROPERTY(DisplayName = "Property Name", meta = (SkipForCompileHash = "true"))
 	FName CachedNamespacelessVariableName;
 
 	/** Track if the associated parameter was created in the Emitter/System editor. Used to determine whether the associated parameter can be deleted from the Emitter/System editor. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	bool bCreatedInSystemEditor;
 
-	UPROPERTY(EditAnywhere, Category = "Custom Name", meta = (ToolTip = "Enable using a legacy custom name string.", SkipForCompileHash = "true"))
+	UPROPERTY(meta = (ToolTip = "Enable using a legacy custom name string.", SkipForCompileHash = "true"))
 	bool bUseLegacyNameString;
 
 public:
@@ -927,11 +970,11 @@ public:
 	This can be a UClass, UStruct or UEnum.  Pointing to something like the struct for an FVector, etc.
 	In occasional situations this may be a UClass when we're dealing with DataInterface etc.
 	*/
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Type)
 	UObject* ClassStructOrEnum;
 
 	// See enumeration FUnderlyingType for possible values
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Type)
 	uint16 UnderlyingType;
 
 	bool Serialize(FArchive& Ar);
@@ -996,6 +1039,7 @@ public:
 	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
+	static UEnum* GetParameterPanelCategoryEnum() { return ParameterPanelCategoryEnum; }
 
 	static UEnum* GetParameterScopeEnum() { return ParameterScopeEnum; }
 
@@ -1066,6 +1110,7 @@ private:
 	static UEnum* ExecutionStateSourceEnum;
 
 	static UEnum* ParameterScopeEnum;
+	static UEnum* ParameterPanelCategoryEnum;
 
 	static UScriptStruct* ParameterMapStruct;
 	static UScriptStruct* IDStruct;
@@ -1266,6 +1311,11 @@ protected:
 	FNiagaraTypeDefinition TypeDef;
 };
 
+FORCEINLINE uint32 GetTypeHash(const FNiagaraVariableBase& Var)
+{
+	return HashCombine(GetTypeHash(Var.GetType()), GetTypeHash(Var.GetName()));
+}
+
 USTRUCT()
 struct FNiagaraVariable : public FNiagaraVariableBase
 {
@@ -1447,11 +1497,6 @@ private:
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	TArray<uint8> VarData;
 };
-
-FORCEINLINE uint32 GetTypeHash(const FNiagaraVariableBase& Var)
-{
-	return HashCombine(GetTypeHash(Var.GetType()), GetTypeHash(Var.GetName()));
-}
 
 template<>
 inline bool FNiagaraVariable::GetValue<bool>() const

@@ -99,6 +99,9 @@ FActiveSound::FActiveSound()
 	, DebugColor(FColor::Black)
 #endif // ENABLE_AUDIO_DEBUG
 {
+	static uint32 TotalPlayOrder = 0;
+	PlayOrder = TotalPlayOrder++;
+
 	if (!ActiveSoundTraceDelegate.IsBound())
 	{
 		ActiveSoundTraceDelegate.BindStatic(&OcclusionTraceDone);
@@ -1458,6 +1461,44 @@ float FActiveSound::GetAttenuationFrequency(const FSoundAttenuationSettings* Set
 	return FMath::Clamp<float>(OutputFrequency, MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
 }
 
+bool FActiveSound::GetAlwaysPlay() const
+{
+	if (bAlwaysPlay)
+	{
+		return true;
+	}
+
+	for (const TPair<UPTRINT, FWaveInstance*>& Pair : WaveInstances)
+	{
+		if (Pair.Value && Pair.Value->SoundClass)
+		{
+			const FSoundClassProperties* SoundClassProperties = AudioDevice->GetSoundClassCurrentProperties(Pair.Value->SoundClass);
+			check(SoundClassProperties);
+			if (SoundClassProperties->bAlwaysPlay)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+float FActiveSound::GetHighestPriority(bool bIgnoreAlwaysPlay) const
+{ 
+	if (!bIgnoreAlwaysPlay)
+	{
+		if (GetAlwaysPlay())
+		{
+			static constexpr float AlwaysPlayPriority = TNumericLimits<float>::Max();
+			return AlwaysPlayPriority;
+		}
+	}
+
+	const float HighestPriority = FocusData.PriorityHighest * FocusData.PriorityScale;
+	return FMath::Clamp(HighestPriority, 0.0f, 100.0f);
+}
+
 void FActiveSound::UpdateFocusData(float DeltaTime, const FAttenuationListenerData& ListenerData, FAttenuationFocusData* OutFocusData)
 {
 	FAttenuationFocusData* FocusDataToUpdate = OutFocusData ? OutFocusData : &FocusData;
@@ -1566,21 +1607,20 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		}
 		else
 		{
-			const float Denom = FMath::Max(Settings->PriorityAttenuationDistanceMax - Settings->PriorityAttenuationDistanceMin, 1.0f);
+			const float Denom = FMath::Max(Settings->PriorityAttenuationDistanceMax - Settings->PriorityAttenuationDistanceMin, SMALL_NUMBER);
 			const float Alpha = FMath::Clamp((ListenerData.ListenerToSoundDistance - Settings->PriorityAttenuationDistanceMin) / Denom, 0.0f, 1.0f);
 
 			if (Settings->PriorityAttenuationMethod == EPriorityAttenuationMethod::Linear)
 			{
-				PriorityScale = FMath::Clamp(FMath::Lerp(Settings->PriorityAttenuationMin, Settings->PriorityAttenuationMax, Alpha), 0.0f, 1.0f);
+				PriorityScale = FMath::Max(FMath::Lerp(Settings->PriorityAttenuationMin, Settings->PriorityAttenuationMax, Alpha), 0.0f);
 			}
 			else
 			{
-				PriorityScale = FMath::Clamp(Settings->CustomPriorityAttenuationCurve.GetRichCurveConst()->Eval(Alpha), 0.0f, 1.0f);
+				PriorityScale = FMath::Max(Settings->CustomPriorityAttenuationCurve.GetRichCurveConst()->Eval(Alpha), 0.0f);
 			}
 		}
 
 		ParseParams.Priority *= FMath::Max(PriorityScale, 0.0f);
-		ParseParams.Priority = FMath::Clamp(ParseParams.Priority, 0.0f, 100.0f);
 	}
 
 	if (Settings->bSpatialize || Settings->bEnableListenerFocus)

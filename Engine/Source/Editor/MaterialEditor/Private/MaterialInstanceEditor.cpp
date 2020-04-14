@@ -450,7 +450,10 @@ void FMaterialInstanceEditor::InitMaterialInstanceEditor( const EToolkitMode::Ty
 
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
-	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, MaterialInstanceEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectToEdit );
+	TArray<UObject*> ObjectsToEdit;
+	ObjectsToEdit.Add(ObjectToEdit);
+	ObjectsToEdit.Add(MaterialEditorInstance);
+	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, MaterialInstanceEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit );
 
 	AddMenuExtender(MaterialEditorModule->GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
@@ -1018,6 +1021,22 @@ FName FMaterialInstanceEditor::GetToolkitFName() const
 FText FMaterialInstanceEditor::GetBaseToolkitName() const
 {
 	return LOCTEXT("AppLabel", "Material Instance Editor");
+}
+
+FText FMaterialInstanceEditor::GetToolkitName() const
+{
+	const UObject* EditingObject = GetEditingObjects()[0];
+	check(EditingObject);
+
+	return GetLabelForObject(EditingObject);
+}
+
+FText FMaterialInstanceEditor::GetToolkitToolTipText() const
+{
+	const UObject* EditingObject = GetEditingObjects()[0];
+
+	// Overridden to accommodate editing of multiple objects (original and preview materials)
+	return FAssetEditorToolkit::GetToolTipTextForObject(EditingObject);
 }
 
 FString FMaterialInstanceEditor::GetWorldCentricTabPrefix() const

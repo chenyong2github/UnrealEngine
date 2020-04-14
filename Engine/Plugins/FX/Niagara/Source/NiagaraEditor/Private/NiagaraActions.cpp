@@ -10,7 +10,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Layout/WidgetPath.h"
 #include "ScopedTransaction.h"
-#include "NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraActions"
 
@@ -28,6 +28,16 @@ FNiagaraMenuAction::FNiagaraMenuAction(FText InNodeCategory, FText InMenuDesc, F
 	, CanPerformAction(InCanPerformAction)
 {}
 
+TOptional<FNiagaraParameterHandle> FNiagaraMenuAction::GetParameterHandle() const
+{
+	return ParameterHandle;
+}
+
+void FNiagaraMenuAction::SetParamterHandle(const FNiagaraParameterHandle& InParameterHandle)
+{
+	ParameterHandle = InParameterHandle;
+}
+
 /************************************************************************/
 /* FNiagaraParameterAction												*/
 /************************************************************************/
@@ -37,6 +47,7 @@ FNiagaraParameterAction::FNiagaraParameterAction(const FNiagaraVariable& InParam
 	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords), InSectionID)
 	, Parameter(InParameter)
 	, ReferenceCollection(InReferenceCollection)
+	, bNamespaceModifierRenamePending(false)
 {
 }
 
@@ -44,6 +55,7 @@ FNiagaraParameterAction::FNiagaraParameterAction(const FNiagaraVariable& InParam
 	FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID)
 	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords), InSectionID)
 	, Parameter(InParameter)
+	, bNamespaceModifierRenamePending(false)
 {
 }
 

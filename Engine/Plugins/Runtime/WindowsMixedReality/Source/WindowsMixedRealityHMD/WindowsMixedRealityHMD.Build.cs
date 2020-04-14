@@ -121,33 +121,46 @@ namespace UnrealBuildTool.Rules
 				else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 				{
 					PrivateIncludePaths.Add("../../../../Source/Runtime/Windows/D3D11RHI/Private/HoloLens");
-                    PrivateDependencyModuleNames.Add("HoloLensAR");
 				}
 
 				PCHUsage = PCHUsageMode.NoSharedPCHs;
 				PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";
+
+                if (Target.Platform == UnrealTargetPlatform.Win64)
+                {
+					RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.Azure.SpatialAnchors.dll"));
+                    RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.Azure.SpatialAnchors.winmd"));
+                    PublicDelayLoadDLLs.Add("Microsoft.Azure.SpatialAnchors.dll");
+                    RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.QR.dll"));
+                    PublicDelayLoadDLLs.Add("Microsoft.MixedReality.QR.dll");
+                    RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.SceneUnderstanding.dll"));
+                    PublicDelayLoadDLLs.Add("Microsoft.MixedReality.SceneUnderstanding.dll");
+                    PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
+					foreach(var Dll in Directory.EnumerateFiles(Path.Combine(Target.UEThirdPartyBinariesDirectory, "Windows/x64"), "*_app.dll"))
+                    {
+                        RuntimeDependencies.Add(Dll);
+                    }
+                }
+                else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+                {
+					RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.Azure.SpatialAnchors.dll"));
+                    RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.Azure.SpatialAnchors.winmd"));
+                    PublicDelayLoadDLLs.Add("Microsoft.Azure.SpatialAnchors.dll");
+                    PublicDelayLoadDLLs.Add("Microsoft.MixedReality.QR.dll");
+                    RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.QR.dll"));
+
+                    string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");
+                    if (File.Exists(SceneUnderstandingPath))
+                    {
+                        RuntimeDependencies.Add(SceneUnderstandingPath);
+                        PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
+                    }
+                    else
+                    {
+                        PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
+                    }
+				}
 			}
-
-            if (Target.Platform == UnrealTargetPlatform.Win64 || (Target.Platform == UnrealTargetPlatform.HoloLens && Target.WindowsPlatform.Architecture == WindowsArchitecture.x64))
-            {
-                RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.QR.dll"));
-
-            }
-            else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-            {
-				PublicDelayLoadDLLs.Add("Microsoft.MixedReality.QR.dll");
-                RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "Microsoft.MixedReality.QR.dll"));
-
-				string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");
-				if (File.Exists(SceneUnderstandingPath))
-				{
-					PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
-				}
-				else
-				{
-					PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
-				}
-            }
 			
 			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.bBuildEditor == true)
 			{

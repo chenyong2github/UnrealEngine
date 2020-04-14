@@ -6,6 +6,7 @@
 #include "DMXEditor.h"
 #include "Library/DMXEntityFader.h"
 #include "DMXEditorLog.h"
+#include "DMXProtocolCommon.h"
 
 #include "Widgets/Common/SSpinBoxVertical.h"
 #include "Widgets/OutputFader/SDMXOutputFaderList.h"
@@ -22,6 +23,9 @@ void SDMXFader::Construct(const FArguments& InArgs)
 {
 	WeakDMXEditor = InArgs._DMXEditor;
 	CurrentFaderValue = 0;
+
+	OnValueChanged = InArgs._OnValueChanged;
+	OnSendStateChanged = InArgs._OnSendStateChanged;
 
 	ChildSlot
 		.Padding(0.f)
@@ -100,6 +104,7 @@ void SDMXFader::Construct(const FArguments& InArgs)
 								[
 									SAssignNew(SendDMXCheckBox, SCheckBox)
 									.IsChecked(ECheckBoxState::Checked)
+									.OnCheckStateChanged(this, &SDMXFader::HandleSendDMXCheckChanged)
 								]
 							]
 							+ SVerticalBox::Slot()
@@ -244,6 +249,11 @@ FReply SDMXFader::HandleRemoveFaderClicked()
 	return FReply::Handled();
 }
 
+void SDMXFader::HandleSendDMXCheckChanged(ECheckBoxState NewState)
+{
+
+}
+
 FReply SDMXFader::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
@@ -275,13 +285,12 @@ void SDMXFader::SetFaderLabel(const FString& InLabel)
 	CustomFaderLabel->SetText(FText::FromString(InLabel));
 }
 
-void SDMXFader::AddChannelWidget(const FString& InUniverse, const FString& InChannel, uint16 InUniverseNumber, uint32 InChannelNumber, const IDMXProtocolPtr& InDMXProtocol)
+void SDMXFader::AddChannelWidget(const FString& InUniverse, const FString& InChannel, uint16 InUniverseNumber, uint32 InChannelNumber)
 {
 	TSharedPtr<SDMXFaderChannel> NewChannel = SNew(SDMXFaderChannel)
 		.DMXEditor(WeakDMXEditor)
 		.UniverseNumber(InUniverseNumber)
-		.ChannelNumber(InChannelNumber)
-		.DMXProtocol(InDMXProtocol);
+		.ChannelNumber(InChannelNumber);
 
 	FaderChannels.Add(NewChannel);
 
@@ -325,6 +334,11 @@ void SDMXFader::SelectThisFader()
 	}
 }
 
+bool SDMXFader::ShouldSendDMX() const
+{
+	return SendDMXCheckBox->IsChecked();
+}
+
 const FSlateBrush* SDMXFader::GetBorderImage() const
 {
 	if (IsHovered())
@@ -341,29 +355,18 @@ void SDMXFader::HandleFaderChanged(uint8 NewValue)
 {
 	CurrentFaderValue = NewValue;
 
-	if (SendDMXCheckBox.IsValid() && SendDMXCheckBox->IsChecked())
+	if (WeakFaderEntity.IsValid() && CachedProtocol.IsValid()
+		&& SendDMXCheckBox.IsValid() && SendDMXCheckBox->IsChecked()
+		&& OnValueChanged.IsBound())
 	{
-		for (const TSharedPtr<SDMXFaderChannel>& Channel : FaderChannels)
-		{
-			if (WeakFaderEntity.Get())
-			{
-				IDMXProtocolPtr DMXProtocol = WeakFaderEntity->DeviceProtocol;
-				if (DMXProtocol.IsValid())
-				{
-					IDMXFragmentMap DMXFragmentMap;
-					DMXFragmentMap.Add(Channel->GetChannelNumber(), CurrentFaderValue);
-					DMXProtocol->SendDMXFragment(Channel->GetUniverseNumber(), DMXFragmentMap);
-				}
-			}
-		}
+		OnValueChanged.Execute(SharedThis(this));
 	}
 }
-
 FText SDMXFader::GetProtocolText() const
 {
 	if (WeakFaderEntity.IsValid())
 	{
-		return FText::FromName(WeakFaderEntity->DeviceProtocol);
+		return FText::FromName(CachedProtocol);
 	}
 
 	return FText::GetEmpty();

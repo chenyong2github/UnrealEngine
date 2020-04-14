@@ -268,11 +268,11 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 
 	/** Multiplication (A * B) */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer * integer", CompactNodeTitle = "*", Keywords = "* multiply", CommutativeAssociativeBinaryOperator = "true"), Category="Math|Integer")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "int * int", CompactNodeTitle = "*", Keywords = "* multiply", CommutativeAssociativeBinaryOperator = "true"), Category="Math|Integer")
 	static int32 Multiply_IntInt(int32 A, int32 B);
 
 	/** Division (A / B) */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer / integer", CompactNodeTitle = "/", Keywords = "/ divide division"), Category="Math|Integer")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "int / int", CompactNodeTitle = "/", Keywords = "/ divide division"), Category="Math|Integer")
 	static int32 Divide_IntInt(int32 A, int32 B = 1);
 
 	/** Modulo (A % B) */
@@ -280,11 +280,11 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static int32 Percent_IntInt(int32 A, int32 B = 1);
 
 	/** Addition (A + B) */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer + integer", CompactNodeTitle = "+", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category="Math|Integer")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "int + int", CompactNodeTitle = "+", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category="Math|Integer")
 	static int32 Add_IntInt(int32 A, int32 B = 1);
 
 	/** Subtraction (A - B) */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer - integer", CompactNodeTitle = "-", Keywords = "- subtract minus"), Category="Math|Integer")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "int - int", CompactNodeTitle = "-", Keywords = "- subtract minus"), Category="Math|Integer")
 	static int32 Subtract_IntInt(int32 A, int32 B = 1);
 
 	/** Returns true if A is less than B (A < B) */
@@ -1300,7 +1300,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static FVector Add_VectorFloat(FVector A, float B);
 	
 	/** Adds an integer to each component of a vector */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector + int", CompactNodeTitle = "+", ScriptMethod = "AddInt", Keywords = "+ add plus"), Category="Math|Vector")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector + integer", CompactNodeTitle = "+", ScriptMethod = "AddInt", Keywords = "+ add plus"), Category="Math|Vector")
 	static FVector Add_VectorInt(FVector A, int32 B);
 
 	/** Vector subtraction */
@@ -1312,7 +1312,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static FVector Subtract_VectorFloat(FVector A, float B);
 
 	/** Subtracts an integer from each component of a vector */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector - int", CompactNodeTitle = "-", ScriptMethod = "SubtractInt", Keywords = "- subtract minus"), Category="Math|Vector")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector - integer", CompactNodeTitle = "-", ScriptMethod = "SubtractInt", Keywords = "- subtract minus"), Category="Math|Vector")
 	static FVector Subtract_VectorInt(FVector A, int32 B);
 
 	/** Element-wise Vector multiplication (Result = {A.x*B.x, A.y*B.y, A.z*B.z}) */
@@ -1324,7 +1324,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static FVector Multiply_VectorFloat(FVector A, float B);
 	
 	/** Scales Vector A by B */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector * int", CompactNodeTitle = "*", ScriptMethod = "MultiplyInt", Keywords = "* multiply"), Category="Math|Vector")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector * integer", CompactNodeTitle = "*", ScriptMethod = "MultiplyInt", Keywords = "* multiply"), Category="Math|Vector")
 	static FVector Multiply_VectorInt(FVector A, int32 B);
 
 	/** Element-wise Vector division (Result = {A.x/B.x, A.y/B.y, A.z/B.z}) */
@@ -1336,7 +1336,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static FVector Divide_VectorFloat(FVector A, float B = 1.f);
 
 	/** Vector divide by an integer */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector / int", CompactNodeTitle = "/", ScriptMethod = "DivideInt", Keywords = "/ divide division"), Category="Math|Vector")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector / integer", CompactNodeTitle = "/", ScriptMethod = "DivideInt", Keywords = "/ divide division"), Category="Math|Vector")
 	static FVector Divide_VectorInt(FVector A, int32 B = 1);
 
 	/** Negate a vector. */

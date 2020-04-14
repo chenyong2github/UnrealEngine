@@ -770,8 +770,8 @@ public:
 	/** Create FName from non-null string with known length  */
 	FName(int32 Len, const WIDECHAR* Name, EFindName FindType=FNAME_Add);
 	FName(int32 Len, const ANSICHAR* Name, EFindName FindType=FNAME_Add);
-	FName(const FStringView& Name, EFindName FindType=FNAME_Add);
-	FName(const FAnsiStringView& Name, EFindName FindType=FNAME_Add);
+	explicit FName(const FStringView& Name, EFindName FindType=FNAME_Add);
+	explicit FName(const FAnsiStringView& Name, EFindName FindType=FNAME_Add);
 
 	/**
 	 * Create an FName. If FindType is FNAME_Find, and the string part of the name 

@@ -53,6 +53,19 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	, LockedAxis(0.0f, 0.0f, 1.0f)
 	, LockedAxisSpace(ENiagaraMeshLockedAxisSpace::Simulation)
 {
+	AttributeBindings.Reserve(12);
+	AttributeBindings.Add(&PositionBinding);
+	AttributeBindings.Add(&ColorBinding);
+	AttributeBindings.Add(&VelocityBinding);
+	AttributeBindings.Add(&MeshOrientationBinding);
+	AttributeBindings.Add(&ScaleBinding);
+	AttributeBindings.Add(&DynamicMaterialBinding);
+	AttributeBindings.Add(&DynamicMaterial1Binding);
+	AttributeBindings.Add(&DynamicMaterial2Binding);
+	AttributeBindings.Add(&DynamicMaterial3Binding);
+	AttributeBindings.Add(&MaterialRandomBinding);
+	AttributeBindings.Add(&CustomSortingBinding);
+	AttributeBindings.Add(&NormalizedAgeBinding);
 }
 
 FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
@@ -254,55 +267,6 @@ void UNiagaraMeshRendererProperties::FixMaterial(UMaterial* Material)
 	Material->bUsedWithNiagaraMeshParticles = true;
 	Material->ForceRecompileForRendering();
 }
-
-const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetBoundAttributes()
-{
-	CurrentAttributeBindings.Reset();
-
-	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&ColorBinding);
-	AttributeBindings.Add(&VelocityBinding);
-	AttributeBindings.Add(&MeshOrientationBinding);
-	AttributeBindings.Add(&ScaleBinding);
-	AttributeBindings.Add(&DynamicMaterialBinding);
-	AttributeBindings.Add(&DynamicMaterial1Binding);
-	AttributeBindings.Add(&DynamicMaterial2Binding);
-	AttributeBindings.Add(&DynamicMaterial3Binding);
-	AttributeBindings.Add(&MaterialRandomBinding);
-	AttributeBindings.Add(&CustomSortingBinding);
-	AttributeBindings.Add(&NormalizedAgeBinding);
-
-	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
-	{
-		if (AttributeBinding->BoundVariable.IsValid())
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->BoundVariable);
-		}
-		else if (AttributeBinding->DataSetVariable.IsValid())
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->DataSetVariable);
-		}
-		else
-		{
-			CurrentAttributeBindings.Add(AttributeBinding->DefaultValueIfNonExistent);
-		}
-	}
-
-	return CurrentAttributeBindings;
-}
-
-const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetRequiredAttributes()
-{
-	static TArray<FNiagaraVariable> Attrs;
-
-	if (Attrs.Num() == 0)
-	{
-	}
-
-	return Attrs;
-}
-
 
 const TArray<FNiagaraVariable>& UNiagaraMeshRendererProperties::GetOptionalAttributes()
 {

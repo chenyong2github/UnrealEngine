@@ -108,41 +108,21 @@ inline FMatrix operator*(const FMatrix &A, const uniform FMatrix &B)
 inline void MatrixRemoveScaling(uniform FMatrix &M)
 {
 	// For each row, find magnitude, and if its non-zero re-scale so its unit length.
-	varying float S0, S1, S2, SquareSum = 0.0f;
-	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&M.M[0]);
-	*((uniform FVector *uniform)&S1) = *((uniform FVector *uniform)&M.M[4]);
-	*((uniform FVector *uniform)&S2) = *((uniform FVector *uniform)&M.M[8]);
-
-#if EXPLICIT_VECTOR == 1
-	// Using explicit vector aligns to 16 bytes. Save the 4th components when pulling from Matrix type
-	const uniform float SavedS0 = extract(S0, 3);
-	S0 = insert(S0, 3, 0.0f);
-	const uniform float SavedS1 = extract(S1, 3);
-	S1 = insert(S1, 3, 0.0f);
-	const uniform float SavedS2 = extract(S2, 3);
-	S2 = insert(S2, 3, 0.0f);
-#endif
-
-	const uniform FVector VSquareSum = SetVector(reduce_add(S0 * S0), reduce_add(S1 * S1), reduce_add(S2 * S2));
-	*((uniform FVector *uniform)&SquareSum) = *((uniform FVector *uniform)&VSquareSum);
-
-	const varying float Scale = select( SquareSum - SMALL_NUMBER >= 0.f, InvSqrt(SquareSum), 1.0f );
-	const uniform FVector VScale = *((uniform FVector *uniform)&Scale);
-
-	S0 = S0 * VScale.V[0];
-	S1 = S1 * VScale.V[1];
-	S2 = S2 * VScale.V[2];
-
-#if EXPLICIT_VECTOR == 1
-	// Reintroduce 4th components here
-	S0 = insert(S0, 3, SavedS0);
-	S1 = insert(S1, 3, SavedS1);
-	S2 = insert(S2, 3, SavedS2);
-#endif
-
-	*((uniform FVector *uniform)&M.M[0]) = *((uniform FVector *uniform)&S0);
-	*((uniform FVector *uniform)&M.M[4]) = *((uniform FVector *uniform)&S1);
-	*((uniform FVector *uniform)&M.M[8]) = *((uniform FVector *uniform)&S2);
+	const uniform float SquareSum0 = (M.M[0] * M.M[0]) + (M.M[1] * M.M[1]) + (M.M[2] * M.M[2]);
+	const uniform float SquareSum1 = (M.M[4] * M.M[4]) + (M.M[5] * M.M[5]) + (M.M[6] * M.M[6]);
+	const uniform float SquareSum2 = (M.M[8] * M.M[8]) + (M.M[9] * M.M[9]) + (M.M[10] * M.M[10]);
+	const uniform float Scale0 = select( SquareSum0 - SMALL_NUMBER >= 0.f, InvSqrt(SquareSum0), 1.0f );
+	const uniform float Scale1 = select( SquareSum1 - SMALL_NUMBER >= 0.f, InvSqrt(SquareSum1), 1.0f );
+	const uniform float Scale2 = select( SquareSum2 - SMALL_NUMBER >= 0.f, InvSqrt(SquareSum2), 1.0f );
+	M.M[0] *= Scale0;
+	M.M[1] *= Scale0;
+	M.M[2] *= Scale0;
+	M.M[4] *= Scale1;
+	M.M[5] *= Scale1;
+	M.M[6] *= Scale1;
+	M.M[8] *= Scale2;
+	M.M[9] *= Scale2;
+	M.M[10] *= Scale2;
 }
 
 inline uniform FVector MatrixGetOrigin(const uniform FMatrix &M)
@@ -183,7 +163,7 @@ inline uniform bool IsAnyMatrixScaledAxesNearlyZero(const uniform FMatrix &M, co
 	uniform FVector X, Y, Z;
 	MatrixGetScaledAxes(M, X, Y, Z);
 
-	if(VectorIsAnyNearlyZero(X, Tolerance) || VectorIsAnyNearlyZero(Y, Tolerance) || VectorIsAnyNearlyZero(Z, Tolerance))
+	if(VectorIsAllNearlyZero(X, Tolerance) || VectorIsAllNearlyZero(Y, Tolerance) || VectorIsAllNearlyZero(Z, Tolerance))
 	{
 		return true;
 	}

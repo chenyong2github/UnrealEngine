@@ -3,9 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/StringView.h"
 #include "HAL/ThreadSafeCounter.h"
-#include "UObject/Class.h"
 #include "HAL/ThreadSingleton.h"
+#include "UObject/Class.h"
 
 /**
  * A struct that contains a string reference to an object, either a top level asset or a subobject.

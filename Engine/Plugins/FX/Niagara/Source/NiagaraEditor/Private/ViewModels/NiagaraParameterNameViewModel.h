@@ -40,7 +40,7 @@ public:
 	DECLARE_DELEGATE_ThreeParams(FOnParameterRenamed, const FNiagaraVariable&, const FNiagaraVariableMetaData&, const FText&)
 	DECLARE_DELEGATE_RetVal_FourParams(bool, FOnVerifyParameterRenamed, const FNiagaraVariable&, const FNiagaraVariableMetaData&, TOptional<const FText> , FText&)
 
-	FNiagaraParameterPanelEntryParameterNameViewModel(FCreateWidgetForActionData* const InCreateData, const FNiagaraScriptVariableAndViewInfo& InScriptVarAndViewInfo);
+	FNiagaraParameterPanelEntryParameterNameViewModel(const FNiagaraScriptVariableAndViewInfo& InScriptVarAndViewInfo);
 
 	/** Begin INiagaraParameterNameViewModel Interface */
 	virtual TSharedRef<SWidget> CreateScopeSlotWidget() const override;
@@ -65,7 +65,7 @@ private:
 	FOnParameterRenamed OnParameterRenamedDelegate;
 	FOnVerifyParameterRenamed OnVerifyParameterRenamedDelegate;
 
-	FCreateWidgetForActionData* const CreateData;
+	//FCreateWidgetForActionData* const CreateData;
 	const FNiagaraScriptVariableAndViewInfo CachedScriptVarAndViewInfo;
 
 	TAttribute<bool> bIsReadOnly; //@todo(ng) debug

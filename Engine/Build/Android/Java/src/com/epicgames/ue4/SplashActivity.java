@@ -21,6 +21,7 @@ import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
 import android.net.Uri;
+import android.graphics.drawable.BitmapDrawable;
 
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -94,6 +95,14 @@ public class SplashActivity extends Activity
 											| View.SYSTEM_UI_FLAG_FULLSCREEN
 											| View.SYSTEM_UI_FLAG_IMMERSIVE);  // NOT sticky (will be set later in MainActivity)
 			}
+		}
+
+		// Centering background image by default
+		View decorView = getWindow().getDecorView();
+		BitmapDrawable SplashBitmap = (BitmapDrawable)decorView.getBackground();
+		if (SplashBitmap != null)
+		{
+			SplashBitmap.setGravity(android.view.Gravity.CENTER);
 		}
 		
 		// allow certain models for now to use full area around cutout

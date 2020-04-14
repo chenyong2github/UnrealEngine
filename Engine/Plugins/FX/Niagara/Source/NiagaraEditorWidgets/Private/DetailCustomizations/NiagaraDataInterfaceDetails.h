@@ -21,7 +21,7 @@ public:
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
 private:
-	void OnDataChanged();
+	void OnErrorsRefreshed();
 
 private:
 	TWeakObjectPtr<UNiagaraDataInterface> DataInterface;

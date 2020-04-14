@@ -6,6 +6,9 @@
 #include "NiagaraGraph.h"
 #include "NiagaraNode.h"
 #include "NiagaraNodeInput.h"
+#include "NiagaraEditorStyle.h"
+#include "NiagaraNodeParameterMapBase.h"
+#include "NiagaraNodeReroute.h"
 
 #include "GraphEditor.h"
 #include "EditorStyleSet.h"
@@ -28,6 +31,7 @@
 #include "GraphEditorActions.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "EditorFontGlyphs.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptGraph"
 
@@ -68,6 +72,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 		.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
 		.HAlign(HAlign_Fill)
 		[
+			// Error Indicator and Title
 			SNew(SOverlay)
 			+SOverlay::Slot()
 			[
@@ -91,54 +96,54 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 					.Justification(ETextJustify::Center)
 				]
 			]
+			// Search Box
 			+SOverlay::Slot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.AutoWidth()
-				.MaxWidth(400.0f) // Limit max search box width to avoid extending over titlebar
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.ScriptGraph.SearchBorderColor"))
+				.Visibility(this, &SNiagaraScriptGraph::GetGraphSearchBoxVisibility)
+				.Padding(5)
 				[
-					SAssignNew(SearchBox, SSearchBox)
-					.HintText(LOCTEXT("GraphSearchBoxHint", "Search Nodes and Pins in Graph"))
-					.SearchResultData(this, &SNiagaraScriptGraph::GetSearchResultData)
-					.OnTextChanged(this, &SNiagaraScriptGraph::OnSearchTextChanged)
-					.OnTextCommitted(this, &SNiagaraScriptGraph::OnSearchBoxTextCommitted)
-					.DelayChangeNotificationsWhileTyping(true)
-					.OnSearch(this, &SNiagaraScriptGraph::OnSearchBoxSearch)
-					.Visibility(this, &SNiagaraScriptGraph::GetGraphSearchBoxVisibility)
-					.OnKeyDownHandler(this, &SNiagaraScriptGraph::HandleGraphSearchBoxKeyDown)
-				]
-				+SHorizontalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.AutoWidth()
-				[
-					SNew(SBorder)
-					.HAlign(HAlign_Center)
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Fill)
 					.VAlign(VAlign_Fill)
-					.BorderImage(&Style.TextBoxStyle.BackgroundImageHovered)
-					.BorderBackgroundColor(Style.TextBoxStyle.BackgroundColor)
-					.ForegroundColor(Style.TextBoxStyle.ForegroundColor)
-					.Padding(0)
+					.AutoWidth()
+					[
+						SNew(SBox)
+						.WidthOverride(200)
+						[
+							SAssignNew(SearchBox, SSearchBox)
+							.HintText(LOCTEXT("GraphSearchBoxHint", "Search Nodes and Pins in Graph"))
+							.SearchResultData(this, &SNiagaraScriptGraph::GetSearchResultData)
+							.OnTextChanged(this, &SNiagaraScriptGraph::OnSearchTextChanged)
+							.OnTextCommitted(this, &SNiagaraScriptGraph::OnSearchBoxTextCommitted)
+							.DelayChangeNotificationsWhileTyping(true)
+							.OnSearch(this, &SNiagaraScriptGraph::OnSearchBoxSearch)
+							.OnKeyDownHandler(this, &SNiagaraScriptGraph::HandleGraphSearchBoxKeyDown)
+						]
+					]
+					+SHorizontalBox::Slot()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 					[
 						SNew(SButton)
-						.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-						.ContentPadding(0)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
+						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 						.IsFocusable(false)
+						.ForegroundColor(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
 						.ToolTipText(LOCTEXT("CloseGraphSearchBox", "Close Graph search box"))
-						.Visibility(this, &SNiagaraScriptGraph::GetGraphSearchBoxVisibility)
 						.OnClicked(this, &SNiagaraScriptGraph::CloseGraphSearchBoxPressed)
+						.ContentPadding(3)
 						.Content()
 						[
- 							SNew(SImage)
- 							.Image(FEditorStyle::GetBrush("Symbols.X"))
-							.ColorAndOpacity(FSlateColor::UseForeground())
+							SNew(STextBlock)
+							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+							.Text(FEditorFontGlyphs::Times)
 						]
 					]
 				]
@@ -203,7 +208,8 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 		.Appearance(AppearanceInfo)
 		.TitleBar(TitleBarWidget)
 		.GraphToEdit(ViewModel->GetGraph())
-		.GraphEvents(Events);
+		.GraphEvents(Events)
+		.ShowGraphStateOverlay(false);
 
 	// Set a niagara node factory.
 	CreatedGraphEditor->SetNodeFactory(MakeShareable(new FNiagaraNodeFactory()));
@@ -476,30 +482,83 @@ void SNiagaraScriptGraph::FocusGraphElement(const INiagaraScriptGraphFocusInfo* 
 	checkf(false, TEXT("Requested focus for a graph element without specifying a Node or Pin to focus!"));
 }
 
+bool NodeMatchesSearch(UNiagaraNode* Node, const FString& SearchTextString)
+{
+	if (Node->IsA<UNiagaraNodeReroute>())
+	{
+		// Ignore reroute nodes.
+		return false;
+	}
+
+	if (Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString().Contains(SearchTextString))
+	{
+		return true;
+	}
+	
+	if (Node->IsA<UNiagaraNodeParameterMapBase>())
+	{
+		UNiagaraNodeParameterMapBase* ParameterMapNode = CastChecked<UNiagaraNodeParameterMapBase>(Node);
+		for (UEdGraphPin* Pin : ParameterMapNode->Pins)
+		{
+			if (ParameterMapNode->IsAddPin(Pin))
+			{
+				if (Pin->GetDisplayName().ToString().Contains(SearchTextString))
+				{
+					return true;
+				}
+			}
+			else
+			{
+				if (FNiagaraParameterUtilities::DoesParameterNameMatchSearchText(Pin->PinName, SearchTextString))
+				{
+					return true;
+				}
+			}
+		}
+	}
+	else
+	{
+		if (Node->Pins.ContainsByPredicate([&SearchTextString](UEdGraphPin* Pin) { return Pin->GetDisplayName().ToString().Contains(SearchTextString); }))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void SNiagaraScriptGraph::OnSearchTextChanged(const FText& SearchText)
 {
 	if (!CurrentSearchText.EqualTo(SearchText))
 	{
 		CurrentSearchResults.Empty();
 		CurrentSearchText = SearchText;
-		TArray<UNiagaraNode*> Nodes;
-		ViewModel->GetGraph()->GetNodesOfClass<UNiagaraNode>(Nodes);
-		for (UNiagaraNode* Node : Nodes)
+
+		TArray<UNiagaraNode*> AllNodes;
+		ViewModel->GetGraph()->GetNodesOfClass<UNiagaraNode>(AllNodes);
+
+		TArray<UNiagaraNodeOutput*> OutputNodes;
+		ViewModel->GetGraph()->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
+
+		TArray<UNiagaraNode*> TraversedNodes;
+		for (UNiagaraNodeOutput* OutputNode : OutputNodes)
 		{
-			if (Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString().Contains(SearchText.ToString()))
-			{	
-				CurrentSearchResults.Add(MakeShared<FNiagaraScriptGraphNodeToFocusInfo>(Node->NodeGuid));
-			}
-			
-			if (Node->IsA<UNiagaraNodeOutput>() == false) 
+			TArray<UNiagaraNode*> OutputNodeTraversal;
+			UNiagaraGraph::BuildTraversal(OutputNodeTraversal, OutputNode, false);
+			TraversedNodes.Append(OutputNodeTraversal);
+		}
+
+		AllNodes.RemoveAll([&TraversedNodes](UNiagaraNode* Node) { return TraversedNodes.Contains(Node); });
+
+		TArray<UNiagaraNode*> OrderedSearchNodes;
+		OrderedSearchNodes.Append(TraversedNodes);
+		OrderedSearchNodes.Append(AllNodes);
+
+		FString SearchTextString = SearchText.ToString();
+		for (UNiagaraNode* SearchNode : OrderedSearchNodes)
+		{
+			if(NodeMatchesSearch(SearchNode, SearchTextString))
 			{
-				for (UEdGraphPin* Pin : Node->GetAllPins())
-				{
-					if (Pin->GetDisplayName().ToString().Contains(SearchText.ToString()))
-					{
-						CurrentSearchResults.Add(MakeShared<FNiagaraScriptGraphPinToFocusInfo>(Pin->PersistentGuid));
-					}
-				}
+				CurrentSearchResults.Add(MakeShared<FNiagaraScriptGraphNodeToFocusInfo>(SearchNode->NodeGuid));
 			}
 		}
 
@@ -513,9 +572,16 @@ void SNiagaraScriptGraph::OnSearchTextChanged(const FText& SearchText)
 
 void SNiagaraScriptGraph::OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
 {
-	if (SearchBox->HasKeyboardFocus())
+	if (CommitInfo == ETextCommit::OnEnter)
 	{
-		OnSearchBoxSearch(SSearchBox::Next);
+		if (CurrentSearchText.CompareTo(NewText) == 0)
+		{
+			OnSearchBoxSearch(SSearchBox::Next);
+		}
+		else
+		{
+			OnSearchTextChanged(NewText);
+		}
 	}
 }
 

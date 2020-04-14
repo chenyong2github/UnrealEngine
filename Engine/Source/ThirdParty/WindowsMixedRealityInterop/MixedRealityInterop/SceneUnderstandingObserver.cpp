@@ -5,32 +5,25 @@
 
 #include "SceneUnderstandingObserver.h"
 #include "FastConversion.h"
-#include "CxDataFromBuffer.h"
 
 #include <streambuf>
 #include <robuffer.h>
 
 #include <WindowsNumerics.h>
-#include <windows.foundation.numerics.h>
-#include <ppltasks.h>
-#include <pplawait.h>
+#include <winrt/windows.foundation.numerics.h>
+#include <winrt/windows.foundation.collections.h>
+#include <winrt/windows.Perception.Spatial.Preview.h>
 
 #include <set>
 #include <string>
 #include <sstream>
+#include <mutex>
 
 
-using namespace Microsoft::WRL;
-using namespace Platform;
-using namespace Windows::Foundation;
-using namespace Windows::Foundation::Collections;
-using namespace Windows::Foundation::Numerics;
-using namespace Windows::UI::Input::Spatial;
-using namespace Windows::Graphics::DirectX;
-using namespace Windows::Graphics::DirectX::Direct3D11;
-
-using namespace std::placeholders;
-using namespace concurrency;
+using namespace winrt;
+using namespace winrt::Windows::Foundation;
+using namespace winrt::Windows::Foundation::Collections;
+using namespace winrt::Windows::Foundation::Numerics;
 
 #if WITH_SCENE_UNDERSTANDING
 	#pragma message("SceneUnderstanding API is being compiled in")
@@ -38,20 +31,12 @@ using namespace concurrency;
 	#pragma message("SceneUnderstanding API is being compiled out")
 #endif
 
-struct GUIDComparer
-{
-	bool operator()(const Guid& Left, const Guid& Right) const
-	{
-		return memcmp(&Left, &Right, sizeof(Right)) < 0;
-	}
-};
-
 /** Controls access to our references */
 static std::mutex RefsLock;
 /** The last known set of mesh guids. Used to handle removals */
-std::set<Guid, GUIDComparer> LastMeshGuidSet;
+std::set<guid> LastMeshGuidSet;
 /** The last known set of plane guids. Used to handle removals */
-std::set<Guid, GUIDComparer> LastPlaneGuidSet;
+std::set<guid> LastPlaneGuidSet;
 
 SceneUnderstandingObserver* SceneUnderstandingObserver::ObserverInstance = nullptr;
 
@@ -175,15 +160,15 @@ void SceneUnderstandingObserver::StartSceneUnderstandingObserver(
 	// If it's supported, request access
 	if (SceneObserver::IsSupported())
 	{
-		auto RequestTask = concurrency::create_task(SceneObserver::RequestAccessAsync());
-		RequestTask.then([this](SceneObserverAccessStatus AccessStatus)
+		SceneObserver::RequestAccessAsync().Completed([=](auto&& asyncInfo, auto&&  asyncStatus)
 		{
-			if (AccessStatus == SceneObserverAccessStatus::Allowed)
+			if (asyncInfo.GetResults() == SceneObserverAccessStatus::Allowed)
 			{
 				{
 					std::lock_guard<std::mutex> lock(RefsLock);
 					bIsRunning = true;
 				}
+				InitSettings();
 				RequestAsyncUpdate();
 			}
 			else
@@ -205,27 +190,38 @@ void SceneUnderstandingObserver::StopSceneUnderstandingObserver()
 
 #if WITH_SCENE_UNDERSTANDING
 	bIsRunning = false;
+	OriginCoordinateSystem = nullptr;
 #endif
 }
 
 void SceneUnderstandingObserver::RequestAsyncUpdate()
 {
 #if WITH_SCENE_UNDERSTANDING
-	Scene^ LastScene = nullptr;
+	Scene LastScene = nullptr;
 	{
 		std::lock_guard<std::mutex> lock(RefsLock);
 		LastScene = ObservedScene;
 	}
 
-	auto RequestTask = concurrency::create_task(SceneObserver::ComputeAsync(Settings, VolumeSize, LastScene));
-	RequestTask.then([this](Scene^ NewScene)
+	auto Handler = [this](Scene NewScene)
 	{
 		{
 			std::lock_guard<std::mutex> lock(RefsLock);
 			ObservedScene = NewScene;
+			OriginCoordinateSystem = Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(ObservedScene.OriginSpatialGraphNodeId());
 		}
 		OnSceneUnderstandingUpdateComplete();
-	});
+	};
+
+	if (ObservedScene == nullptr)
+	{
+		SceneObserver::ComputeAsync(Settings, VolumeSize).Completed([=](auto&& asyncInfo, auto&&  asyncStatus) { Handler(asyncInfo.GetResults()); });
+	}
+	else
+	{
+		SceneObserver::ComputeAsync(Settings, VolumeSize, ObservedScene).Completed([=](auto&& asyncInfo, auto&&  asyncStatus) { Handler(asyncInfo.GetResults()); });
+	}
+
 #endif
 }
 
@@ -247,58 +243,58 @@ void SceneUnderstandingObserver::OnSceneUnderstandingUpdateComplete()
 		OnStartUpdates();
 
 		// Tracks current vs last known for removal notifications
-		std::set<Guid, GUIDComparer> CurrentPlaneGuidSet;
-		std::set<Guid, GUIDComparer> CurrentMeshGuidSet;
+		std::set<guid> CurrentPlaneGuidSet;
+		std::set<guid> CurrentMeshGuidSet;
 
-		IVectorView<SceneObject^>^ SceneObjects = ObservedScene->SceneObjects;
-		const unsigned int SceneObjectCount = SceneObjects != nullptr ? SceneObjects->Size : 0;
+		auto SceneObjects = ObservedScene.SceneObjects();
+		const unsigned int SceneObjectCount = SceneObjects != nullptr ? SceneObjects.Size() : 0;
 		for (unsigned int ObjectIndex = 0; ObjectIndex < SceneObjectCount; ObjectIndex++)
 		{
-			SceneObject^ SCObject = SceneObjects->GetAt(ObjectIndex);
+			SceneObject SCObject = SceneObjects.GetAt(ObjectIndex);
+			auto localTransform = SCObject.GetLocationAsMatrix();
 
 			// Process each quad this scene object has
-			IVectorView<SceneQuad^>^ QuadObjects = SCObject->Quads;
-			const unsigned int QuadCount = QuadObjects != nullptr ? QuadObjects->Size : 0;
+			auto QuadObjects = SCObject.Quads();
+			const unsigned int QuadCount = QuadObjects != nullptr ? QuadObjects.Size() : 0;
 			for (unsigned int QuadIndex = 0; QuadIndex < QuadCount; QuadIndex++)
 			{
-				SceneQuad^ QuadObject = QuadObjects->GetAt(QuadIndex);
+				SceneQuad QuadObject = QuadObjects.GetAt(QuadIndex);
+				CurrentPlaneGuidSet.insert(QuadObject.Id());
 				PlaneUpdate CurrentPlane;
-				CurrentPlane.Id = QuadObject->Id;
-				CurrentPlaneGuidSet.insert(CurrentPlane.Id);
+				CurrentPlane.Id = QuadObject.Id();
 
-				CurrentPlane.Width = QuadObject->Extents.x * 100.f;
-				CurrentPlane.Height = QuadObject->Extents.y * 100.f;
-				CurrentPlane.Orientation = (int32)QuadObject->Alignment;
-				CurrentPlane.ObjectLabel = (int32)SCObject->Kind;
+				CurrentPlane.Width = QuadObject.Extents().x * 100.f;
+				CurrentPlane.Height = QuadObject.Extents().y * 100.f;
+				CurrentPlane.Orientation = (int32_t)QuadObject.Alignment();
+				CurrentPlane.ObjectLabel = (int32_t)SCObject.Kind();
 
-				Windows::Perception::Spatial::SpatialCoordinateSystem^ QuadCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentPlane.Id);
-				CopyTransform(CurrentPlane, QuadCoordSystem);
+				CopyTransform(CurrentPlane, localTransform);
 			}
 
 			// Process each mesh this scene object has
-			IVectorView<SceneMesh^>^ MeshObjects = SCObject->Meshes;
-			const unsigned int MeshCount = MeshObjects != nullptr ? MeshObjects->Size : 0;
+			auto MeshObjects = SCObject.Meshes();
+			const unsigned int MeshCount = MeshObjects != nullptr ? MeshObjects.Size() : 0;
 			for (unsigned int MeshIndex = 0; MeshIndex < MeshCount; MeshIndex++)
 			{
-				SceneMesh^ MeshObject = MeshObjects->GetAt(MeshIndex);
+				SceneMesh MeshObject = MeshObjects.GetAt(MeshIndex);
+				CurrentMeshGuidSet.insert(MeshObject.Id());
 				MeshUpdate CurrentMesh;
-				CurrentMesh.Id = MeshObject->Id;
+				CurrentMesh.Id = MeshObject.Id();
 
-				Windows::Perception::Spatial::SpatialCoordinateSystem^ MeshCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentMesh.Id);
-				CopyTransform(CurrentMesh, MeshCoordSystem);
+				CopyTransform(CurrentMesh, localTransform);
 
-				const unsigned int TriangleIndexCount = MeshObject->TriangleIndexCount;
-				const unsigned int VertexCount = MeshObject->VertexCount;
+				const unsigned int TriangleIndexCount = MeshObject.TriangleIndexCount();
+				const unsigned int VertexCount = MeshObject.VertexCount();
 				if (TriangleIndexCount > 0 && VertexCount > 0)
 				{
 					CurrentMesh.NumVertices = VertexCount;
 					CurrentMesh.NumIndices = TriangleIndexCount;
 					OnAllocateMeshBuffers(&CurrentMesh);
 
-					Array<unsigned int>^ Indices = ref new Array<unsigned int>(TriangleIndexCount);
-					MeshObject->GetTriangleIndices(Indices);
-					Array<float>^ VertexComponents = ref new Array<float>(VertexCount * 3);
-					MeshObject->GetVertexPositions(VertexComponents);
+					std::vector<unsigned int> Indices(TriangleIndexCount);
+					MeshObject.GetTriangleIndices(Indices);
+					std::vector<float3> VertexComponents(VertexCount);
+					MeshObject.GetVertexPositions(VertexComponents);
 
 					CopyMeshData(CurrentMesh, VertexComponents, Indices);
 				}
@@ -306,10 +302,9 @@ void SceneUnderstandingObserver::OnSceneUnderstandingUpdateComplete()
 		}
 
 		// Remove any planes that were seen last time, but not this time
-		std::set<Guid>::iterator PlaneIt = LastPlaneGuidSet.begin();
-		while (PlaneIt != LastPlaneGuidSet.end())
+		for (const auto PlaneKey : LastPlaneGuidSet)
 		{
-			Guid Id = *PlaneIt;
+			guid Id = PlaneKey;
 			// If this one is not in the new set, then it was removed
 			if (CurrentPlaneGuidSet.find(Id) == CurrentPlaneGuidSet.end())
 			{
@@ -320,10 +315,9 @@ void SceneUnderstandingObserver::OnSceneUnderstandingUpdateComplete()
 		}
 		LastPlaneGuidSet = CurrentPlaneGuidSet;
 
-		std::set<Guid>::iterator MeshIt = LastMeshGuidSet.begin();
-		while (MeshIt != LastMeshGuidSet.end())
+		for (const auto MeshKey : LastMeshGuidSet)
 		{
-			Guid Id = *MeshIt;
+			guid Id = MeshKey;
 			// If this one is not in the new set, then it was removed
 			if (CurrentMeshGuidSet.find(Id) == CurrentMeshGuidSet.end())
 			{
@@ -339,16 +333,16 @@ void SceneUnderstandingObserver::OnSceneUnderstandingUpdateComplete()
 	RequestAsyncUpdate();
 }
 
-void SceneUnderstandingObserver::CopyMeshData(MeshUpdate& DestMesh, Array<float>^ Vertices, Array<unsigned int>^ Indices)
+void SceneUnderstandingObserver::CopyMeshData(MeshUpdate& DestMesh, const std::vector<float3>& Vertices, const std::vector<unsigned int>& Indices)
 {
 	int Floats = DestMesh.NumVertices;
 	float* DestVertices = (float*)DestMesh.Vertices;
 
-	for (int Index = 0; Index < Floats; Index += 3)
+	for (int Index = 0; Index < Floats; Index++)
 	{
-		float X = Vertices->get(Index + 0);
-		float Y = Vertices->get(Index + 1);
-		float Z = Vertices->get(Index + 2);
+		float X = Vertices[Index].x;
+		float Y = Vertices[Index].y;
+		float Z = Vertices[Index].z;
 		// Use DX math on the theory this is faster
 		XMFLOAT4 Source(X, Y, Z, 0.f);
 		XMFLOAT3 Dest = ToUE4Translation(Source);
@@ -363,21 +357,26 @@ void SceneUnderstandingObserver::CopyMeshData(MeshUpdate& DestMesh, Array<float>
 	// Reverse triangle order
 	for (int Index = 0; Index < DestMesh.NumIndices; Index += 3)
 	{
-		DestIndices[0] = Indices->get(Index + 2);
-		DestIndices[1] = Indices->get(Index + 1);
-		DestIndices[2] = Indices->get(Index + 0);
+		DestIndices[0] = Indices[Index + 2];
+		DestIndices[1] = Indices[Index + 1];
+		DestIndices[2] = Indices[Index + 0];
 		DestIndices += 3;
 	}
 }
 #endif
 
-void SceneUnderstandingObserver::CopyTransform(TransformUpdate& Transform, Windows::Perception::Spatial::SpatialCoordinateSystem^ CoordSystem)
+void SceneUnderstandingObserver::CopyTransform(TransformUpdate& Transform, float4x4 offset)
 {
 	XMMATRIX ConvertTransform = XMMatrixIdentity();
-	auto MeshTransform = CoordSystem->TryGetTransformTo(LastCoordinateSystem);
+	XMMATRIX localOffset = DirectX::XMLoadFloat4x4(&offset);
+
+	if (TrackingSpaceCoordinateSystem)
+	{
+		auto MeshTransform = OriginCoordinateSystem.TryGetTransformTo(TrackingSpaceCoordinateSystem);
 	if (MeshTransform != nullptr)
 	{
-		ConvertTransform = XMLoadFloat4x4(&MeshTransform->Value);
+			ConvertTransform = XMLoadFloat4x4(&MeshTransform.Value());
+		}
 	}
 
 	XMVECTOR TransformScale;

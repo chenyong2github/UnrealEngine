@@ -220,7 +220,7 @@ namespace TimedDataCalibration
 			check(ChannelItem);
 
 			TArray<FTimedDataChannelSampleTime> AllSamplesTimes = ChannelItem->GetDataTimes();
-			const double AverageSecondsBetweenSample = CalculateAverageInDeltaTimeBetweenSample(ETimedDataInputEvaluationType::Timecode, AllSamplesTimes);
+			const double AverageSecondsBetweenSample = CalculateAverageInDeltaTimeBetweenSample(EvaluationType, AllSamplesTimes);
 
 			double STDExtraTime = 0.0;
 			if (NumberOfSTD != 0)
@@ -673,11 +673,9 @@ FTimedDataMonitorTimeCorrectionResult FTimedDataMonitorCalibration::ApplyTimeCor
 		return Result;
 	}
 
+	//Don't touch inputs with evaluation type set to none. Just consider it a success
 	if (EvaluationType == ETimedDataInputEvaluationType::None)
 	{
-		// Set the evaluation offset of everyone to 0
-		TimedDataMonitorSubsystem->SetInputEvaluationOffsetInSeconds(InputIdentifier, 0.0);
-
 		Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Succeeded;
 		return Result;
 	}

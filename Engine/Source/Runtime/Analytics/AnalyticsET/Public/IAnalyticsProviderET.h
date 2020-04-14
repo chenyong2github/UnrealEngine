@@ -49,6 +49,13 @@ public:
 	* @param AttributesJson	array of key/value attribute pairs
 	*/
 	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes) = 0;
+	/**
+	* Overload for StartSession that allows you to pass your own session id
+	*
+	* @param SessionID	The session id
+	* @param AttributesJson	array of key/value attribute pairs
+	*/
+	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) = 0;
 
 	/**
 	* Optimization for RecordEvent that avoids the array copy using rvalue references.

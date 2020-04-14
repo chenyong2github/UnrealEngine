@@ -269,7 +269,7 @@ void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results
 		{
 			FDynamicMeshToMeshDescription Converter;
 			
-			if (BasicProperties->WillTopologyChange())
+			if (BasicProperties->WillTopologyChange() || !FDynamicMeshToMeshDescription::HaveMatchingElementCounts(Results[ComponentIdx].Mesh.Get(), CommitParams.MeshDescription, false, true))
 			{
 				// full conversion if normal topology changed or faces were inverted
 				Converter.Convert(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription);

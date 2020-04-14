@@ -403,6 +403,16 @@ void FTestSessionInterface::OnFindSessionsComplete(bool bWasSuccessful)
 	}
 }
 
+void FTestSessionInterface::OnFindSessionByIdComplete(int32 LocalUserNum, bool bWasSuccessful, const FOnlineSessionSearchResult& SearchResult)
+{
+	UE_LOG_ONLINE_SESSION(Verbose, TEXT("OnFindSessionByIdComplete bSuccess: %d"), bWasSuccessful);
+
+	DumpSession(&SearchResult.Session);
+
+	SearchSettings = MakeShared<TestOnlineSearchSettings>(false, false);
+	SearchSettings->SearchResults.Emplace(SearchResult);
+}
+
 void FTestSessionInterface::OnCancelFindSessionsComplete(bool bWasSuccessful)
 {
 	UE_LOG_ONLINE_SESSION(Verbose, TEXT("OnCancelFindSessionsComplete bSuccess: %d"), bWasSuccessful);
@@ -473,16 +483,34 @@ bool FTestSessionInterface::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevic
 			}
 			bWasHandled = true;
 		}
+		else if (FParse::Command(&Cmd, TEXT("FINDBYID")))
+		{
+			FString SessionIdStr;
+			if (FParse::Token(Cmd, SessionIdStr, true))
+			{
+				TSharedPtr<const FUniqueNetId> SessionId = SessionInt->CreateSessionIdFromString(SessionIdStr);
+				if (SessionId.IsValid())
+				{
+					FOnSingleSessionResultCompleteDelegate CompletionDelegate;
+					CompletionDelegate.BindRaw(this, &FTestSessionInterface::OnFindSessionByIdComplete);
+					TSharedPtr<const FUniqueNetId> LocalUserId = Identity->GetUniquePlayerId(LocalUserNum);
+					check(LocalUserId.IsValid());
+					SessionInt->FindSessionById(*LocalUserId, *SessionId, *LocalUserId, CompletionDelegate);
+				}
+			}
+			bWasHandled = true;
+		}
 		else if (FParse::Command(&Cmd, TEXT("JOIN")))
 		{
+			int32 SearchIdx = 0;
 			TCHAR SearchIdxStr[256];
 			if (FParse::Token(Cmd, SearchIdxStr, UE_ARRAY_COUNT(SearchIdxStr), true))
 			{
-				int32 SearchIdx = FCString::Atoi(SearchIdxStr);
-				if (SearchIdx >= 0 && SearchIdx < SearchSettings->SearchResults.Num())
-				{
-					JoinSession(LocalUserNum, SessionName, SearchSettings->SearchResults[SearchIdx]);
-				}
+				SearchIdx = FCString::Atoi(SearchIdxStr);
+			}
+			if (SearchSettings->SearchResults.IsValidIndex(SearchIdx))
+			{
+				JoinSession(LocalUserNum, SessionName, SearchSettings->SearchResults[SearchIdx]);
 			}
 			bWasHandled = true;
 		}

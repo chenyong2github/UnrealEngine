@@ -2,29 +2,33 @@
 
 #include "VirtualTextureFeedback.h"
 
-#include "ClearQuad.h"
-#include "VisualizeTexture.h"
-
 #if PLATFORM_WINDOWS
-// Temporary use of Querys until RHI has a good fence on D3D11
+// Use Query objects until RHI has a good fence on D3D11
 #define USE_RHI_FENCES 0
 #else
 #define USE_RHI_FENCES 1
 #endif
 
 #if USE_RHI_FENCES
-class FFeedbackFences
+
+/** Container for GPU fences. */
+class FFeedbackGPUFencePool
 {
 public:
-	FGPUFenceRHIRef Fences[FVirtualTextureFeedback::TargetCapacity];
+	TArray<FGPUFenceRHIRef> Fences;
 
-	void Init(FRHICommandListImmediate& RHICmdList)
+	FFeedbackGPUFencePool(int32 NumFences)
+	{
+		Fences.AddDefaulted(NumFences);
+	}
+
+	void InitRHI()
 	{
 	}
 
-	void ReleaseAll()
+	void ReleaseRHI()
 	{
-		for (int i = 0; i < FVirtualTextureFeedback::TargetCapacity; ++i)
+		for (int i = 0; i < Fences.Num(); ++i)
 		{
 			Fences[i].SafeRelease();
 		}
@@ -59,31 +63,40 @@ public:
 		Fences[Index].SafeRelease();
 	}
 };
-#else
-class FFeedbackFences
+
+#else // USE_RHI_FENCES
+
+/** Container for GPU fences. Implemented as GPU Queries. */
+class FFeedbackGPUFencePool
 {
 public:
 	FRenderQueryPoolRHIRef FenceQueryPool;
 	FGPUFenceRHIRef DummyFence;
-	FRHIPooledRenderQuery Fences[FVirtualTextureFeedback::TargetCapacity];
+	TArray<FRHIPooledRenderQuery> Fences;
+	bool bDummyFenceWritten = false;
 
-	void Init(FRHICommandListImmediate& RHICmdList)
+	FFeedbackGPUFencePool(int32 InSize)
+	{
+		Fences.AddDefaulted(InSize);
+	}
+
+	void InitRHI()
 	{
 		if (!FenceQueryPool.IsValid())
 		{
-			FenceQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, FVirtualTextureFeedback::TargetCapacity);
+			FenceQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, Fences.Num());
 		}
 
 		if (!DummyFence.IsValid())
 		{
-			DummyFence = RHICmdList.CreateGPUFence(FName());
-			RHICmdList.WriteGPUFence(DummyFence);
+			DummyFence = RHICreateGPUFence(FName());
+			bDummyFenceWritten = false;
 		}
 	}
 
-	void ReleaseAll()
+	void ReleaseRHI()
 	{
-		for (int i = 0; i < FVirtualTextureFeedback::TargetCapacity; ++i)
+		for (int i = 0; i < Fences.Num(); ++i)
 		{
 			if (Fences[i].IsValid())
 			{
@@ -92,6 +105,7 @@ public:
 		}
 
 		DummyFence.SafeRelease();
+		bDummyFenceWritten = false;
 
 		FenceQueryPool.SafeRelease();
 	}
@@ -101,6 +115,14 @@ public:
 		if (!Fences[Index].IsValid())
 		{
 			Fences[Index] = FenceQueryPool->AllocateQuery();
+		}
+
+		if (!bDummyFenceWritten && DummyFence.IsValid())
+		{
+			// Write dummy fence one time on first Allocate
+			// After that we want it to always Poll() true
+			RHICmdList.WriteGPUFence(DummyFence);
+			bDummyFenceWritten = true;
 		}
 	}
 	
@@ -125,141 +147,249 @@ public:
 		Fences[Index].ReleaseQuery();
 	}
 };
-#endif
 
-#include "RHIGPUReadback.h"
+#endif // USE_RHI_FENCES
 
-TGlobalResource<FVirtualTextureFeedbackDummyResource> GVirtualTextureFeedbackDummyResource;
+void FVirtualTextureFeedback::FBufferDesc::Init(int32 InBufferSize)
+{
+	BufferSize = FIntPoint(InBufferSize, 1);
+	NumRects = 0;
+	TotalReadSize = InBufferSize;
+}
+
+void FVirtualTextureFeedback::FBufferDesc::Init2D(FIntPoint InBufferSize)
+{
+	BufferSize = InBufferSize;
+	NumRects = 0;
+	TotalReadSize = BufferSize.X * BufferSize.Y;
+}
+
+void FVirtualTextureFeedback::FBufferDesc::Init2D(FIntPoint InUnscaledBufferSize, TArrayView<FIntRect> const& InUnscaledViewRects, int32 InBufferScale)
+{
+	const int32 BufferScale = FMath::Max(InBufferScale, 1);
+
+	BufferSize = FIntPoint::DivideAndRoundUp(InUnscaledBufferSize, BufferScale);
+	NumRects = 0;
+	TotalReadSize = BufferSize.X * BufferSize.Y;
+
+	if (InUnscaledViewRects.Num() > 0 && InUnscaledViewRects[0].Size() != InUnscaledBufferSize)
+	{
+		NumRects = FMath::Min((int32)MaxRectPerTransfer, InUnscaledViewRects.Num());
+		TotalReadSize = 0;
+
+		for (int32 RectIndex = 0; RectIndex < NumRects; ++RectIndex)
+		{
+			FIntRect const& Rect = InUnscaledViewRects[RectIndex];
+			Rects[RectIndex].Min = FIntPoint::DivideAndRoundDown(Rect.Min, BufferScale);
+			Rects[RectIndex].Max = FIntPoint::DivideAndRoundUp(Rect.Max, BufferScale);
+			TotalReadSize += Rects[RectIndex].Area();
+		}
+	}
+}
 
 FVirtualTextureFeedback::FVirtualTextureFeedback()
-	: Size(0, 0)
-	, NumBytes(0)
-	, GPUWriteIndex(0)
-	, CPUReadIndex(0)
-	, PendingTargetCount(0)
+	: NumPending(0)
+	, WriteIndex(0)
+	, ReadIndex(0)
 {
-	FeedBackFences = new FFeedbackFences;
+	Fences = new FFeedbackGPUFencePool(MaxTransfers);
 }
 
 FVirtualTextureFeedback::~FVirtualTextureFeedback()
 {
-	delete FeedBackFences;
+	delete Fences;
 }
 
-void FVirtualTextureFeedback::ReleaseResources()
+void FVirtualTextureFeedback::InitRHI()
 {
-	FeedbackBufferUAV.SafeRelease();
-	FeedbackBuffer.SafeRelease();
-	
-	for (int i = 0; i < TargetCapacity; ++i)
+	for (int32 Index = 0; Index < MaxTransfers; ++Index)
 	{
-		FeedbackCPU[i].ReadbackBuffer.SafeRelease();
+		FeedbackItems[Index].StagingBuffer = RHICreateStagingBuffer();
 	}
 
-	FeedBackFences->ReleaseAll();
-
-	CPUReadIndex = 0u;
-	GPUWriteIndex = 0u;
-	PendingTargetCount = 0u;
+	Fences->InitRHI();
 }
 
-void FVirtualTextureFeedback::CreateResourceGPU( FRHICommandListImmediate& RHICmdList, FIntPoint InSize)
+void FVirtualTextureFeedback::ReleaseRHI()
 {
-	if (Size != InSize || !FeedbackBuffer.IsValid())
+	for (int32 Index = 0; Index < MaxTransfers; ++Index)
 	{
-		Size = InSize;
-		NumBytes = Size.X * Size.Y * sizeof(uint32);
-
-		FRHIResourceCreateInfo CreateInfo(TEXT("VTFeedbackGPU"));
-		FeedbackBuffer = RHICreateVertexBuffer(NumBytes, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy, CreateInfo);
-		FeedbackBufferUAV = RHICreateUnorderedAccessView(FeedbackBuffer, /*Format=*/ PF_R32_UINT);
+		FeedbackItems[Index].StagingBuffer.SafeRelease();
 	}
-	
-	FeedBackFences->Init(RHICmdList);
+
+	Fences->ReleaseRHI();
 }
 
-void FVirtualTextureFeedback::TransferGPUToCPU( FRHICommandListImmediate& RHICmdList, TArrayView<FIntRect> const& ViewRects)
+void FVirtualTextureFeedback::TransferGPUToCPU(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& Buffer, FBufferDesc const& Desc)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_VirtualTextureFeedback_TransferGPUToCPU);
 
-	RHICmdList.TransitionResource( EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, FeedbackBufferUAV );
-
-	if (PendingTargetCount >= TargetCapacity)
+	if (NumPending >= MaxTransfers)
 	{
-		// If we have too many pending transfers, start throwing away the oldest
-		// We will need to allocate a new fence, since the previous fence will still be set on the old CopyToResolveTarget command (which we will now ignore/discard)
-		FeedBackFences->Release(CPUReadIndex);
-		--PendingTargetCount;
-		CPUReadIndex = (CPUReadIndex + 1) % TargetCapacity;
+		// If we have too many pending transfers, start throwing away the oldest in the ring buffer.
+		// We will need to allocate a new fence, since the previous fence will still be set on the old CopyToResolveTarget command (which we will now ignore/discard).
+		Fences->Release(ReadIndex);
+		NumPending --;
+		ReadIndex = (ReadIndex + 1) % MaxTransfers;
 	}
 
-	FFeedBackItem& FeedbackEntryCPU = FeedbackCPU[GPUWriteIndex];
-
-	FeedbackEntryCPU.NumRects = FMath::Min((int32)MaxRectPerTarget, ViewRects.Num());
-	for (int32 RectIndex = 0; RectIndex < FeedbackEntryCPU.NumRects; ++RectIndex)
-	{
-		FIntRect const& Rect = ViewRects[RectIndex];
-		//todo[vt]: Value of 16 has to match r.vt.FeedbackFactor
-		FeedbackEntryCPU.Rects[RectIndex].Min = FIntPoint(Rect.Min.X / 16, Rect.Min.Y / 16);
-		FeedbackEntryCPU.Rects[RectIndex].Max = FIntPoint((Rect.Max.X + 15) / 16, (Rect.Max.Y + 15) / 16);
-	}
-	
-	FeedBackFences->Allocate(RHICmdList, GPUWriteIndex);
+	FFeedbackItem& FeedbackItem = FeedbackItems[WriteIndex];
+	FeedbackItem.Desc = Desc;
 
 	// We only need to transfer 1 copy of the data, so restrict mask to the first active GPU.
-	FeedbackEntryCPU.GPUMask = FRHIGPUMask::FromIndex(RHICmdList.GetGPUMask().GetFirstIndex());
-	SCOPED_GPU_MASK(RHICmdList, FeedbackEntryCPU.GPUMask);
+	FeedbackItem.GPUMask = FRHIGPUMask::FromIndex(RHICmdList.GetGPUMask().GetFirstIndex());
+	SCOPED_GPU_MASK(RHICmdList, FeedbackItem.GPUMask);
 
-	FeedbackEntryCPU.ReadbackBuffer = RHICreateStagingBuffer();
-	RHICmdList.CopyToStagingBuffer(FeedbackBuffer, FeedbackEntryCPU.ReadbackBuffer, 0, NumBytes);
+	RHICmdList.CopyToStagingBuffer(Buffer, FeedbackItem.StagingBuffer, 0, Desc.BufferSize.X * Desc.BufferSize.Y * sizeof(uint32));
 
-	FeedBackFences->Write(RHICmdList, GPUWriteIndex);
+	Fences->Allocate(RHICmdList, WriteIndex);
+	Fences->Write(RHICmdList, WriteIndex);
 
-	GPUWriteIndex = (GPUWriteIndex + 1) % TargetCapacity;
-	++PendingTargetCount;
+	// Increment the ring buffer write position.
+	WriteIndex = (WriteIndex + 1) % MaxTransfers;
+	++NumPending;
 }
 
 bool FVirtualTextureFeedback::CanMap(FRHICommandListImmediate& RHICmdList)
 {
-	const FFeedBackItem& FeedbackEntryCPU = FeedbackCPU[CPUReadIndex];
-	return 
-		PendingTargetCount > 0u && 
-		FeedbackEntryCPU.ReadbackBuffer->IsValid() && 
-		FeedBackFences->Poll(RHICmdList, CPUReadIndex);
+	return NumPending > 0u && Fences->Poll(RHICmdList, ReadIndex);
 }
 
-bool FVirtualTextureFeedback::Map(FRHICommandListImmediate& RHICmdList, MapResult& OutResult)
+FVirtualTextureFeedback::FMapResult FVirtualTextureFeedback::Map(FRHICommandListImmediate& RHICmdList, int32 MaxTransfersToMap)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_VirtualTextureFeedback_Map);
-		
-	FFeedBackItem& FeedbackEntryCPU = FeedbackCPU[CPUReadIndex];
-		
-	if (PendingTargetCount > 0u &&
-		FeedbackEntryCPU.ReadbackBuffer->IsValid() &&
-		FeedBackFences->Poll(RHICmdList, CPUReadIndex))
+
+	FVirtualTextureFeedback::FMapResult MapResult;
+
+	// Calculate number and size of available results.
+	int32 NumResults = 0;
+	int32 NumRects = 0;
+	int32 TotalReadSize = 0;
+	for (int32 ResultIndex = 0; ResultIndex < MaxTransfersToMap && ResultIndex < NumPending; ++ResultIndex)
 	{
-		SCOPED_GPU_MASK(RHICmdList, FeedbackEntryCPU.GPUMask);
-	
-		OutResult.NumRects = FeedbackEntryCPU.NumRects;
-		for (int32 i = 0; i < FeedbackEntryCPU.NumRects; ++i)
+		const int32 FeedbackIndex = (ReadIndex + ResultIndex) % MaxTransfers;
+		FBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
+
+		if (!Fences->Poll(RHICmdList, FeedbackIndex))
 		{
-			OutResult.Rects[i] = FeedbackEntryCPU.Rects[i];
+			break;
 		}
-		OutResult.Pitch = Size.X;
-		
-		void* MappedMem = (uint32*)RHICmdList.LockStagingBuffer(FeedbackEntryCPU.ReadbackBuffer, FeedBackFences->GetMapFence(CPUReadIndex), 0, NumBytes);
 
-		OutResult.Buffer.SetNumUninitialized(NumBytes / sizeof(uint32));
-		FMemory::Memcpy(OutResult.Buffer.GetData(), MappedMem, NumBytes);
-
-		RHICmdList.UnlockStagingBuffer(FeedbackEntryCPU.ReadbackBuffer);
-		FeedbackEntryCPU.ReadbackBuffer.SafeRelease();
-		
-		check(PendingTargetCount > 0u);
-		--PendingTargetCount;
-		CPUReadIndex = (CPUReadIndex + 1) % TargetCapacity;
-		return true;
+		NumResults ++;
+		NumRects += FeedbackItemDesc.NumRects;
+		TotalReadSize += FeedbackItemDesc.TotalReadSize;
 	}
 
-	return false;
+	// Fetch the valid results.
+	if (NumResults > 0)
+	{
+		// Get a FMapResources object to store anything that will need cleaning up on Unmap()
+		MapResult.MapHandle = FreeMapResources.Num() ? FreeMapResources.Pop() : MapResources.AddDefaulted();
+
+		if (NumResults == 1 && NumRects == 0)
+		{
+			// If only one target with no rectangles then fast path is to return the locked buffer.
+			const int32 FeedbackIndex = ReadIndex;
+			FBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
+			FRHIGPUMask GPUMask = FeedbackItems[FeedbackIndex].GPUMask;
+			FStagingBufferRHIRef StagingBuffer = FeedbackItems[FeedbackIndex].StagingBuffer;
+			
+			SCOPED_GPU_MASK(RHICmdList, GPUMask);
+			const int32 BufferSize = FeedbackItemDesc.BufferSize.X * FeedbackItemDesc.BufferSize.Y;
+			MapResult.Data = (uint32*)RHICmdList.LockStagingBuffer(StagingBuffer, Fences->GetMapFence(FeedbackIndex), 0, BufferSize * sizeof(uint32));
+			MapResult.Size = BufferSize;
+
+			// Store index so that we can unlock staging buffer when we call Unmap().
+			MapResources[MapResult.MapHandle].FeedbackItemToUnlockIndex = FeedbackIndex;
+		}
+		else
+		{
+			// Concatenate the results to a single buffer (stored in the MapResources) and return that.
+			MapResources[MapResult.MapHandle].ResultData.SetNumUninitialized(TotalReadSize, false);
+			MapResult.Data = MapResources[MapResult.MapHandle].ResultData.GetData();
+			MapResult.Size = 0;
+
+			for (int32 ResultIndex = 0; ResultIndex < NumResults; ++ResultIndex)
+			{
+				const int32 FeedbackIndex = (ReadIndex + ResultIndex) % MaxTransfers;
+				FBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
+				FRHIGPUMask GPUMask = FeedbackItems[FeedbackIndex].GPUMask;
+				FStagingBufferRHIRef StagingBuffer = FeedbackItems[FeedbackIndex].StagingBuffer;
+
+				SCOPED_GPU_MASK(RHICmdList, GPUMask);
+				const int32 BufferSize = FeedbackItemDesc.BufferSize.X * FeedbackItemDesc.BufferSize.Y;
+				uint32 const* Data = (uint32*)RHICmdList.LockStagingBuffer(StagingBuffer, Fences->GetMapFence(FeedbackIndex), 0, BufferSize * sizeof(uint32));
+
+				if (FeedbackItemDesc.NumRects == 0)
+				{
+					// Copy full buffer
+					FMemory::Memcpy(MapResult.Data + MapResult.Size, Data, BufferSize * sizeof(uint32));
+					MapResult.Size += BufferSize;
+				}
+				else
+				{
+					// Copy individual rectangles from the buffer
+					const int32 BufferWidth = FeedbackItemDesc.BufferSize.X;
+					for (int32 RectIndex = 0; RectIndex < FeedbackItemDesc.NumRects; ++RectIndex)
+					{
+						const FIntRect Rect = FeedbackItemDesc.Rects[RectIndex];
+						const int32 RectWidth = Rect.Width();
+						const int32 RectHeight = Rect.Height();
+
+						uint32 const* Src = Data + Rect.Min.Y * BufferWidth + Rect.Min.X;
+						uint32* Dst = MapResult.Data + MapResult.Size;
+
+						for (int32 y = 0; y < RectHeight; ++y)
+						{
+							FMemory::Memcpy(Dst, Src, RectWidth * sizeof(uint32));
+
+							Src += BufferWidth;
+							Dst += RectWidth;
+						}
+
+						MapResult.Size += RectWidth * RectHeight;
+					}
+				}
+
+				RHICmdList.UnlockStagingBuffer(StagingBuffer);
+			}
+		}
+
+		check(MapResult.Size == TotalReadSize)
+	
+		// Increment the ring buffer read position.
+		NumPending -= NumResults;
+		ReadIndex = (ReadIndex + NumResults) % MaxTransfers;
+	}
+
+	return MapResult;
 }
+
+FVirtualTextureFeedback::FMapResult FVirtualTextureFeedback::Map(FRHICommandListImmediate& RHICmdList)
+{
+	return Map(RHICmdList, MaxTransfers);
+}
+
+void FVirtualTextureFeedback::Unmap(FRHICommandListImmediate& RHICmdList, int32 MapHandle)
+{
+	if (MapHandle >= 0)
+	{
+		FMapResources& Resources = MapResources[MapHandle];
+
+		// Do any required buffer Unlock.
+		if (Resources.FeedbackItemToUnlockIndex >= 0)
+		{
+			SCOPED_GPU_MASK(RHICmdList, FeedbackItems[Resources.FeedbackItemToUnlockIndex].GPUMask);
+			RHICmdList.UnlockStagingBuffer(FeedbackItems[Resources.FeedbackItemToUnlockIndex].StagingBuffer);
+			Resources.FeedbackItemToUnlockIndex = -1;
+		}
+
+		// Reset any allocated data buffer.
+		Resources.ResultData.Reset();
+
+		// Return to free list.
+		FreeMapResources.Add(MapHandle);
+	}
+}
+
+TGlobalResource< FVirtualTextureFeedback > GVirtualTextureFeedback;

@@ -90,6 +90,8 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	OnGetSequencerAddMenuContent = InOptions.OnGetSequencerAddMenuContent;
 	SystemMessageLogGuidKey = InOptions.MessageLogGuid;	
 	
+	SystemChangedDelegateHandle = System->OnSystemPostEditChange().AddSP(this, &FNiagaraSystemViewModel::SystemChanged);
+
 	SelectionViewModel = NewObject<UNiagaraSystemSelectionViewModel>(GetTransientPackage());
 	SelectionViewModel->Initialize(this->AsShared());
 	SelectionViewModel->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemViewModel::SystemSelectionChanged);
@@ -113,7 +115,6 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	SetupSequencer();
 	RefreshAll();
 	AddSystemEventHandlers();
-	SendLastCompileMessageJobs();
 }
 
 void FNiagaraSystemViewModel::DumpToText(FString& ExportText)
@@ -144,6 +145,11 @@ void FNiagaraSystemViewModel::Cleanup()
 	CurveOwner.EmptyCurves();
 
 	GEditor->UnregisterForUndo(this);
+
+	if (System)
+	{
+		System->OnSystemPostEditChange().Remove(SystemChangedDelegateHandle);
+	}
 
 	// Make sure that we clear out all of our event handlers
 	UnregisterViewModelWithMap(RegisteredHandle);
@@ -810,10 +816,10 @@ void FNiagaraSystemViewModel::TickCompileStatus()
 				}
 				else
 				{
-					ENiagaraScriptCompileStatus LastScirptCompileStatus = ScriptToCheck->GetLastCompileStatus();
-					if (LastScirptCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown ||
-						LastScirptCompileStatus == ENiagaraScriptCompileStatus::NCS_Dirty ||
-						LastScirptCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated)
+					ENiagaraScriptCompileStatus LastScriptCompileStatus = ScriptToCheck->GetLastCompileStatus();
+					if (LastScriptCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown ||
+						LastScriptCompileStatus == ENiagaraScriptCompileStatus::NCS_Dirty ||
+						LastScriptCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated)
 					{
 						// If the script doesn't have a vaild last compile status assume that it's dirty and by extension
 						// so is the system and we can ignore the other statuses.
@@ -824,7 +830,7 @@ void FNiagaraSystemViewModel::TickCompileStatus()
 					else
 					{
 						// Otherwise save it for processing once all scripts are done.
-						ScriptCompileStatuses.Add(LastScirptCompileStatus);
+						ScriptCompileStatuses.Add(LastScriptCompileStatus);
 					}
 				}
 			}
@@ -877,6 +883,7 @@ void FNiagaraSystemViewModel::SetupPreviewComponentAndInstance()
 		PreviewComponent = NewObject<UNiagaraComponent>(GetTransientPackage(), NAME_None, RF_Transient);
 		PreviewComponent->CastShadow = 1;
 		PreviewComponent->bCastDynamicShadow = 1;
+		PreviewComponent->SetAllowScalability(false);
 		PreviewComponent->SetAsset(System);
 		PreviewComponent->SetForceSolo(true);
 		PreviewComponent->SetAgeUpdateMode(ENiagaraAgeUpdateMode::DesiredAge);
@@ -897,7 +904,11 @@ void FNiagaraSystemViewModel::RefreshAll()
 	RefreshEmitterHandleViewModels();
 	RefreshSequencerTracks();
 	ResetCurveData();
+	InvalidateCachedCompileStatus();
+	SendLastCompileMessageJobs();
 	ScriptScratchPadViewModel->RefreshScriptViewModels();
+	SystemStackViewModel->GetRootEntry()->RefreshChildren();
+	SelectionViewModel->Refresh();
 }
 
 void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
@@ -1039,12 +1050,6 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 		}
 	}
 	GetSystem().SetIsolateEnabled(bAnyEmitterIsolated);
-
-	if (SelectionViewModel != nullptr)
-	{
-		SelectionViewModel->Refresh();
-	}
-
 	OnEmitterHandleViewModelsChangedDelegate.Broadcast();
 }
 
@@ -1956,6 +1961,7 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 		}
 	}
 	PreviewComponent->MarkRenderTransformDirty();
+	ResetSystem(ETimeResetMode::KeepCurrentTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
 }
 
 void FNiagaraSystemViewModel::AddSystemEventHandlers()
@@ -2054,6 +2060,12 @@ void FNiagaraSystemViewModel::BuildStackModuleData(UNiagaraScript* Script, FGuid
 		}
 	}
 
+}
+
+void FNiagaraSystemViewModel::SystemChanged(UNiagaraSystem* ChangedSystem)
+{
+	check(System == ChangedSystem);
+	RefreshAll();
 }
 
 void FNiagaraSystemViewModel::StackViewModelStructureChanged()

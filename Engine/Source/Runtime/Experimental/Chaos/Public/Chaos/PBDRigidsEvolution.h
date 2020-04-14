@@ -17,7 +17,8 @@
 
 extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
 extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
-
+extern int32 ChaosNumPushOutIterationsOverride;
+extern int32 ChaosNumContactIterationsOverride;
 
 // Declaring so it can be friended for tests.
 namespace ChaosTest { void TestPendingSpatialDataHandlePointerConflict(); } 
@@ -311,9 +312,9 @@ class FPBDRigidsEvolutionBase
 
 	CHAOS_API void EnableParticle(TGeometryParticleHandle<FReal, 3>* Particle, const TGeometryParticleHandle<FReal, 3>* ParentParticle)
 	{
-		DirtyParticle(*Particle);
 		Particles.EnableParticle(Particle);
 		ConstraintGraph.EnableParticle(Particle, ParentParticle);
+		DirtyParticle(*Particle);
 	}
 
 	CHAOS_API void DisableParticle(TGeometryParticleHandle<FReal, 3>* Particle)
@@ -339,6 +340,34 @@ class FPBDRigidsEvolutionBase
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& Particle)
 	{
+		const TPBDRigidParticleHandleImp<FReal, 3, bPersistent>* AsRigid = Particle.CastToRigidParticle();
+		if(AsRigid && AsRigid->Disabled())
+		{
+			TPBDRigidClusteredParticleHandleImp<FReal, 3, bPersistent>* AsClustered = Particle.CastToClustered();
+
+			if(AsClustered)
+			{
+				// For clustered particles, they may appear disabled but they're being driven by an internal (solver-owned) cluster parent.
+				// If this is the case we let the spatial data update with those particles, otherwise skip.
+				// #BGTODO consider converting MDisabled into a bitfield for multiple disable types (Disabled, DisabledDriven, etc.)
+				if(TPBDRigidParticleHandle<float, 3>* ClusterParentBase = AsClustered->ClusterIds().Id)
+				{
+					if(Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ClusterParent = ClusterParentBase->CastToClustered())
+					{
+						if(!ClusterParent->InternalCluster())
+						{
+							return;
+						}
+					}
+				}
+			}
+			else
+			{
+				// Disabled particles take no immediate part in sim or query so shouldn't be added to the acceleration
+				return;
+			}
+		}
+
 		//TODO: distinguish between new particles and dirty particles
 		const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
 		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
@@ -460,19 +489,35 @@ class FPBDRigidsEvolutionBase
 		}
 	}
 
-	void PrepareConstraints(const FReal Dt)
+	void PrepareTick()
 	{
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->PrepareConstraints(Dt);
+			ConstraintRule->PrepareTick();
 		}
 	}
 
-	void UnprepareConstraints(const FReal Dt)
+	void UnprepareTick()
 	{
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->UnprepareConstraints(Dt);
+			ConstraintRule->UnprepareTick();
+		}
+	}
+
+	void PrepareIteration(const FReal Dt)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->PrepareIteration(Dt);
+		}
+	}
+
+	void UnprepareIteration(const FReal Dt)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->UnprepareIteration(Dt);
 		}
 	}
 
@@ -488,13 +533,14 @@ class FPBDRigidsEvolutionBase
 	{
 		UpdateAccelerationStructures(Island);
 
+		int32 LocalNumIterations = ChaosNumContactIterationsOverride >= 0 ? ChaosNumContactIterationsOverride : NumIterations;
 		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
-		for (int i = 0; i < NumIterations; ++i)
+		for (int i = 0; i < LocalNumIterations; ++i)
 		{
 			bool bNeedsAnotherIteration = false;
 			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, Island, i, NumIterations);
+				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, Island, i, LocalNumIterations);
 			}
 
 			if (ChaosRigidsEvolutionApplyAllowEarlyOutCVar && !bNeedsAnotherIteration)
@@ -665,13 +711,14 @@ protected:
 
 	void ApplyPushOut(const FReal Dt, int32 Island)
 	{
+		int32 LocalNumPushOutIterations = ChaosNumPushOutIterationsOverride >= 0 ? ChaosNumPushOutIterationsOverride : NumPushOutIterations;
 		bool bNeedsAnotherIteration = true;
-		for (int32 It = 0; It < NumPushOutIterations; ++It)
+		for (int32 It = 0; It < LocalNumPushOutIterations; ++It)
 		{
 			bNeedsAnotherIteration = false;
 			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, Island, It, NumPushOutIterations);
+				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, Island, It, LocalNumPushOutIterations);
 			}
 
 			if (ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar && !bNeedsAnotherIteration)

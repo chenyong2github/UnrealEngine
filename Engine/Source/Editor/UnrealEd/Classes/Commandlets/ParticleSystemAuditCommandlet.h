@@ -32,6 +32,8 @@ class UParticleSystemAuditCommandlet : public UCommandlet
 	TSet<FString> ParticleSystemsWithFarLODDistance;
 	/** All particle systems w/ bone location sources that do not match between LODs */
 	TSet<FString> ParticleSystemsWithBoneLocationMismatches;
+	/** All particle systems with warmup time on them */
+	TSet<FString> ParticleSystemsWithWarmupTime;
 
 	/** If a particle system has a spawn rate or burst count greater than this value, it will be reported */
 	UPROPERTY(config)

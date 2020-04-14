@@ -1169,39 +1169,38 @@ public:
 
 		NodeGroupPosition = DragDropEvent.GetScreenSpacePosition() + DragOffset;
 
-		FVector2D SelectionBeginPosition = NodeGroupPosition + SelectedNodes[0]->GetNotifyPositionOffset();
-		
 		FTrackClampInfo* SelectionPositionClampInfo = &GetTrackClampInfo(DragDropEvent.GetScreenSpacePosition());
 		if((SelectionPositionClampInfo->NotifyTrack->GetTrackIndex() + TrackSpan) >= ClampInfos.Num())
 		{
 			// Our selection has moved off the bottom of the notify panel, adjust the clamping information to keep it on the panel
 			SelectionPositionClampInfo = &ClampInfos[ClampInfos.Num() - TrackSpan - 1];
 		}
-
+		
 		const FGeometry& TrackGeom = SelectionPositionClampInfo->NotifyTrack->GetCachedGeometry();
 		const FTrackScaleInfo& TrackScaleInfo = SelectionPositionClampInfo->NotifyTrack->GetCachedScaleInfo();
-		
-		float TrackMin = TrackGeom.LocalToAbsolute(FVector2D(TrackScaleInfo.InputToLocalX(0.0f), 0.0f)).X;
-		float TrackMax = TrackGeom.LocalToAbsolute(FVector2D(TrackScaleInfo.InputToLocalX(Sequence->GetPlayLength()), 0.0f)).X;
-		float TrackWidth = TrackMax - TrackMin;
+
+		FVector2D SelectionBeginPosition = TrackGeom.LocalToAbsolute(TrackGeom.AbsoluteToLocal(NodeGroupPosition) + SelectedNodes[0]->GetNotifyPositionOffset());
+	
+		float LocalTrackMin = TrackScaleInfo.InputToLocalX(0.0f);
+		float LocalTrackMax = TrackScaleInfo.InputToLocalX(Sequence->GetPlayLength());
+		float LocalTrackWidth = LocalTrackMax - LocalTrackMin;
 
 		// Tracks the movement amount to apply to the selection due to a snap.
-		float SnapMovement= 0.0f;
+		float SnapMovement = 0.0f;
 		// Clamp the selection into the track
-		float SelectionBeginPositionX = TrackGeom.GetAbsolutePosition().X + TrackGeom.AbsoluteToLocal(SelectionBeginPosition).X;
-		const float SelectionLocalLength = TrackScaleInfo.PixelsPerInput * SelectionTimeLength;
-		const float ClampedEnd = FMath::Clamp(SelectionBeginPositionX + NodeGroupSize.X, TrackMin, TrackMax);
-		const float ClampedBegin = FMath::Clamp(SelectionBeginPositionX, TrackMin, TrackMax);
-		if(ClampedBegin > SelectionBeginPositionX)
+		float SelectionBeginLocalPositionX = TrackGeom.AbsoluteToLocal(SelectionBeginPosition).X;
+		const float ClampedEnd = FMath::Clamp(SelectionBeginLocalPositionX + NodeGroupSize.X, LocalTrackMin, LocalTrackMax);
+		const float ClampedBegin = FMath::Clamp(SelectionBeginLocalPositionX, LocalTrackMin, LocalTrackMax);
+		if(ClampedBegin > SelectionBeginLocalPositionX)
 		{
-			SelectionBeginPositionX = ClampedBegin;
+			SelectionBeginLocalPositionX = ClampedBegin;
 		}
-		else if(ClampedEnd < SelectionBeginPositionX + SelectionLocalLength)
+		else if(ClampedEnd < SelectionBeginLocalPositionX + NodeGroupSize.X)
 		{
-			SelectionBeginPositionX = ClampedEnd - SelectionLocalLength;
+			SelectionBeginLocalPositionX = ClampedEnd - NodeGroupSize.X;
 		}
 
-		SelectionBeginPosition.X = TrackGeom.LocalToAbsolute(FVector2D(SelectionBeginPositionX - TrackGeom.GetAbsolutePosition().X, 0.0f)).X;
+		SelectionBeginPosition.X = TrackGeom.LocalToAbsolute(FVector2D(SelectionBeginLocalPositionX, 0.0f)).X;
 
 		// Handle node snaps
 		bool bSnapped = false;
@@ -1301,22 +1300,22 @@ public:
 
 		CurrentDragXPosition = TrackGeom.AbsoluteToLocal(FVector2D(SelectionBeginPosition.X,0.0f)).X;
 
-		CursorDecoratorWindow->MoveWindowTo(SelectionBeginPosition - SelectedNodes[0]->GetNotifyPositionOffset());
+		CursorDecoratorWindow->MoveWindowTo(TrackGeom.LocalToAbsolute(TrackGeom.AbsoluteToLocal(SelectionBeginPosition) - SelectedNodes[0]->GetNotifyPositionOffset()));
 		NodeGroupPosition = SelectionBeginPosition;
 
 		//scroll view
-		float MouseXPos = TrackGeom.GetAbsolutePosition().X + TrackGeom.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition()).X;
-		float ViewportMin = TrackGeom.GetAbsolutePosition().X;
-		float ViewportMax = TrackGeom.GetAbsolutePosition().X + TrackGeom.GetAbsoluteSize().X;
-		if(MouseXPos < ViewportMin && ViewportMin > TrackMin - 10.0f)
+		float LocalMouseXPos = TrackGeom.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition()).X;
+		float LocalViewportMin = 0.0f;
+		float LocalViewportMax = TrackGeom.GetLocalSize().X;
+		if(LocalMouseXPos < LocalViewportMin && LocalViewportMin > LocalTrackMin - 10.0f)
 		{
-			float ScreenDelta = FMath::Max(MouseXPos - ViewportMin, -10.0f);
-			RequestTrackPan.Execute(ScreenDelta, FVector2D(TrackWidth, 1.f));
+			float ScreenDelta = FMath::Max(LocalMouseXPos - LocalViewportMin, -10.0f);
+			RequestTrackPan.Execute(ScreenDelta, FVector2D(LocalTrackWidth, 1.f));
 		}
-		else if(MouseXPos > ViewportMax && ViewportMax < TrackMax + 10.0f)
+		else if(LocalMouseXPos > LocalViewportMax && LocalViewportMax < LocalTrackMax + 10.0f)
 		{
-			float ScreenDelta =  FMath::Max(MouseXPos - ViewportMax, 10.0f);
-			RequestTrackPan.Execute(ScreenDelta, FVector2D(TrackWidth, 1.f));
+			float ScreenDelta =  FMath::Max(LocalMouseXPos - LocalViewportMax, 10.0f);
+			RequestTrackPan.Execute(ScreenDelta, FVector2D(LocalTrackWidth, 1.f));
 		}
 	}
 
@@ -1337,11 +1336,11 @@ public:
 		if(!bOutSnapped)
 		{
 			// Didn't snap to a bar, snap to the track bounds
-			float SnapDistBegin = FMath::Abs(-WidgetSpaceNotifyPosition);
+			float SnapDistBegin = FMath::Abs(WidgetSpaceStartPosition - WidgetSpaceNotifyPosition);
 			float SnapDistEnd = FMath::Abs(WidgetSpaceEndPosition - WidgetSpaceNotifyPosition);
 			if(SnapDistBegin < CurrentMinSnapDest)
 			{
-				SnapPosition = 0.0f;
+				SnapPosition = WidgetSpaceStartPosition;
 				bOutSnapped = true;
 			}
 			else if(SnapDistEnd < CurrentMinSnapDest)
@@ -2214,6 +2213,7 @@ void SAnimNotifyTrack::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 			SAssignNew( TrackArea, SBorder )
+			.Visibility(EVisibility::SelfHitTestInvisible)
 			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
 			.Padding( FMargin(0.f, 0.f) )
 	];
@@ -3909,6 +3909,7 @@ void SAnimNotifyPanel::Construct(const FArguments& InArgs, const TSharedRef<FAni
 	this->ChildSlot
 	[
 		SAssignNew(PanelArea, SBorder)
+		.Visibility(EVisibility::SelfHitTestInvisible)
 		.AddMetaData<FTagMetaData>(TEXT("AnimNotify.Notify"))
 		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 		.Padding(0.0f)
@@ -4711,8 +4712,8 @@ FReply SAnimNotifyPanel::OnMouseMove(const FGeometry& MyGeometry, const FPointer
 		{
 			Marquee.Rect.UpdateEndPoint(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
 			RefreshMarqueeSelectedNodes(MyGeometry);
+			return FReply::Handled();
 		}
-		return FReply::Handled();
 	}
 
 	return BaseReply;

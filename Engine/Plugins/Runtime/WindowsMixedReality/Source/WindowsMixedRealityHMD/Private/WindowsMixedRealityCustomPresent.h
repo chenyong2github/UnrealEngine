@@ -19,21 +19,18 @@ namespace WindowsMixedReality
 	public:
 		FWindowsMixedRealityCustomPresent(
 #if WITH_WINDOWS_MIXED_REALITY
-			MixedRealityInterop* _hmd, 
+			MixedRealityInterop* _hmd,
 #endif
-			ID3D11Device* device)
+			ID3D11Device* device,
+			bool bMultiView)
 			: FRHICustomPresent()
 #if WITH_WINDOWS_MIXED_REALITY
 			, hmd(_hmd)
 #endif
+			, bIsMultiViewEnabled(bMultiView)
 		{
 			// Get the D3D11 context.
 			device->GetImmediateContext(&D3D11Context);
-
-#if PLATFORM_HOLOLENS
-			static const auto CVarMobileMultiViewDirect = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView.Direct"));
-			bIsMobileMultiViewDirectEnabled = (CVarMobileMultiViewDirect && CVarMobileMultiViewDirect->GetValueOnAnyThread() != 0);
-#endif
 		}
 
 		// Inherited via FRHICustomPresent
@@ -52,13 +49,13 @@ namespace WindowsMixedReality
 				return false;
 			}
 
-			if (!bIsMobileMultiViewDirectEnabled)
+			if (!bIsMultiViewEnabled)
 			{
 				hmd->CopyResources(D3D11Context, ViewportTexture);
 			}
 
 			InOutSyncInterval = 0;
-			
+
 			return hmd->Present();
 #else
 			return false;
@@ -96,6 +93,6 @@ namespace WindowsMixedReality
 
 		ID3D11DeviceContext* D3D11Context = nullptr;
 		ID3D11Texture2D* ViewportTexture = nullptr;
-		bool bIsMobileMultiViewDirectEnabled = false;
+		bool bIsMultiViewEnabled = false;
 	};
 }

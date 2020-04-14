@@ -133,15 +133,19 @@ void MainVS(
 	GetMaterialCustomizedUVs(VertexParameters, CustomizedUVs);
 	GetCustomInterpolators(VertexParameters, CustomizedUVs);
 	
-	UNROLL
-	for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS; CoordinateIndex++)
 	{
-		SetUV(Output, CoordinateIndex, InPosition.xy);
+		UNROLL
+		for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS; CoordinateIndex++)
+		{
+			SetUV(Output, CoordinateIndex, InPosition.xy);
+		}
 	}
-	UNROLL
-	for (int CoordinateIndex = NUM_MATERIAL_TEXCOORDS; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
 	{
-		SetUV(Output, CoordinateIndex, CustomizedUVs[CoordinateIndex]);
+		UNROLL
+		for (int CoordinateIndex = NUM_MATERIAL_TEXCOORDS; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
+		{
+			SetUV(Output, CoordinateIndex, CustomizedUVs[CoordinateIndex]);
+		}
 	}
 #endif
 }
@@ -172,15 +176,19 @@ void MainPS(
 	float2 ViewportUV = (SvPosition.xy - PostProcessOutput_ViewportMin.xy) * PostProcessOutput_ViewportSizeInverse.xy;
 
 #if NUM_TEX_COORD_INTERPOLATORS
-	UNROLL
-	for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS; CoordinateIndex++)
 	{
-		Parameters.TexCoords[CoordinateIndex] = ViewportUV;
+		UNROLL
+		for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS; CoordinateIndex++)
+		{
+			Parameters.TexCoords[CoordinateIndex] = ViewportUV;
+		}
 	}
-	UNROLL
-	for (int CoordinateIndex = NUM_MATERIAL_TEXCOORDS; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
 	{
-		Parameters.TexCoords[CoordinateIndex] = GetUV(Input, CoordinateIndex);
+		UNROLL
+		for (int CoordinateIndex = NUM_MATERIAL_TEXCOORDS; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
+		{
+			Parameters.TexCoords[CoordinateIndex] = GetUV(Input, CoordinateIndex);
+		}
 	}
 #endif
 

@@ -9,7 +9,6 @@
 #include "Factories/ReimportSoundFactory.h"
 #include "SoundCueGraph/SoundCueGraphNode.h"
 #include "SoundCueGraphNodeFactory.h"
-#include "Factories/ReimportSoundSurroundFactory.h"
 #include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
 #include "SoundClassEditor.h"
@@ -92,9 +91,6 @@ public:
 
 		// Create reimport handler for sound node waves
 		UReimportSoundFactory::StaticClass();
-
-		// Create reimport handler for surround sound waves
-		UReimportSoundSurroundFactory::StaticClass();
 
 		SetupIcons();
 #if WITH_SNDFILE_IO

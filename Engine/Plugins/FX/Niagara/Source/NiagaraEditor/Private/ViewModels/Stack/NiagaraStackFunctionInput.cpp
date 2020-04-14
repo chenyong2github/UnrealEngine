@@ -461,7 +461,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 					if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr &&
 						InputValues.DynamicNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
 					{
-						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageAndRecommendationLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason: {Message}. Suggested replacement: {Recommendation}");
+						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageAndRecommendationLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason:\n{Message}.\nSuggested replacement: {Recommendation}");
 					}
 					else if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr)
 					{
@@ -469,7 +469,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 					}
 					else if (InputValues.DynamicNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
 					{
-						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason: {Message}");
+						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason:\n{Message}");
 					}
 
 					FText LongMessage = FText::Format(FormatString, Args);
@@ -494,7 +494,15 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 						NewIssues[AddIdx].InsertFix(0,
 							FStackIssueFix(
 							LOCTEXT("SelectNewDynamicInputScriptFixUseRecommended", "Use recommended replacement"),
-							FStackIssueFixDelegate::CreateLambda([this]() { ReassignDynamicInputScript(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation); })));
+							FStackIssueFixDelegate::CreateLambda([this]() 
+								{ 
+									if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetUsage() != ENiagaraScriptUsage::DynamicInput)
+									{
+										FNiagaraEditorUtilities::WarnWithToastAndLog(LOCTEXT("FailedDynamicInputDeprecationReplacement", "Failed to replace dynamic input as recommended replacement script is not a dynamic input!"));
+										return;
+									}
+									ReassignDynamicInputScript(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation); 
+								})));
 					}
 				}
 
@@ -1603,30 +1611,32 @@ void UNiagaraStackFunctionInput::GetNamespacesForNewParameters(TArray<FName>& Ou
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningFunctionCallNode);
 	bool bIsEditingSystem = GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
 
-	if (OutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript || OutputNode->GetUsage() == ENiagaraScriptUsage::ParticleUpdateScript)
+	switch (OutputNode->GetUsage())
+	{
+	case ENiagaraScriptUsage::ParticleSpawnScript:
+	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+	case ENiagaraScriptUsage::ParticleUpdateScript:
+	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
 	{
 		OutNamespacesForNewParameters.Add(FNiagaraConstants::ParticleAttributeNamespace);
 		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
-		if (bIsEditingSystem)
-		{
-			OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
-			OutNamespacesForNewParameters.Add(FNiagaraConstants::UserNamespace);
-		}
+		break;
 	}
-	else if (OutputNode->GetUsage() == ENiagaraScriptUsage::EmitterSpawnScript || OutputNode->GetUsage() == ENiagaraScriptUsage::EmitterUpdateScript)
+	case ENiagaraScriptUsage::EmitterSpawnScript:
+	case ENiagaraScriptUsage::EmitterUpdateScript:
 	{
 		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
-		if (bIsEditingSystem)
-		{
-			OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
-			OutNamespacesForNewParameters.Add(FNiagaraConstants::UserNamespace);
-		}
+		break;
 	}
-	else if ((OutputNode->GetUsage() == ENiagaraScriptUsage::SystemSpawnScript || OutputNode->GetUsage() == ENiagaraScriptUsage::SystemUpdateScript) && bIsEditingSystem)
+	}
+
+	if (bIsEditingSystem)
 	{
-		OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
 		OutNamespacesForNewParameters.Add(FNiagaraConstants::UserNamespace);
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
 	}
+	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
 }
 
 UNiagaraStackFunctionInput::FOnValueChanged& UNiagaraStackFunctionInput::OnValueChanged()

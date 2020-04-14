@@ -21,6 +21,7 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Components/SplineMeshComponent.h"
+
 #include "ChaosCheck.h"
 #include "Chaos/Convex.h"
 

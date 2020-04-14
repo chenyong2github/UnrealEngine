@@ -68,6 +68,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
 		TArrayCollection::AddArray(&MInvM);
+		TArrayCollection::AddArray(&MCenterOfMass);
+		TArrayCollection::AddArray(&MRotationOfMass);
 		TArrayCollection::AddArray(&MLinearEtherDrag);
 		TArrayCollection::AddArray(&MAngularEtherDrag);
 		TArrayCollection::AddArray(&MCollisionParticles);
@@ -79,7 +81,19 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
 	CHAOS_API TRigidParticles(TRigidParticles<T, d>&& Other)
-	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other)), MF(MoveTemp(Other.MF)), MT(MoveTemp(Other.MT)), MLinearImpulse(MoveTemp(Other.MLinearImpulse)), MAngularImpulse(MoveTemp(Other.MAngularImpulse)), MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI)), MM(MoveTemp(Other.MM)), MInvM(MoveTemp(Other.MInvM)), MCollisionParticles(MoveTemp(Other.MCollisionParticles)), MCollisionGroup(MoveTemp(Other.MCollisionGroup)), MObjectState(MoveTemp(Other.MObjectState))
+	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other))
+		, MF(MoveTemp(Other.MF))
+		, MT(MoveTemp(Other.MT))
+		, MLinearImpulse(MoveTemp(Other.MLinearImpulse))
+		, MAngularImpulse(MoveTemp(Other.MAngularImpulse))
+		, MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI))
+		, MM(MoveTemp(Other.MM))
+		, MInvM(MoveTemp(Other.MInvM))
+		, MCenterOfMass(MoveTemp(Other.MCenterOfMass))
+		, MRotationOfMass(MoveTemp(Other.MRotationOfMass))
+		, MCollisionParticles(MoveTemp(Other.MCollisionParticles))
+		, MCollisionGroup(MoveTemp(Other.MCollisionGroup))
+		, MObjectState(MoveTemp(Other.MObjectState))
 	{
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
@@ -89,6 +103,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
 		TArrayCollection::AddArray(&MInvM);
+		TArrayCollection::AddArray(&MCenterOfMass);
+		TArrayCollection::AddArray(&MRotationOfMass);
 		TArrayCollection::AddArray(&MLinearEtherDrag);
 		TArrayCollection::AddArray(&MAngularEtherDrag);
 		TArrayCollection::AddArray(&MCollisionParticles);
@@ -125,6 +141,12 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 
 	FORCEINLINE const T InvM(const int32 Index) const { return MInvM[Index]; }
 	FORCEINLINE T& InvM(const int32 Index) { return MInvM[Index]; }
+
+	FORCEINLINE const TVector<T,d>& CenterOfMass(const int32 Index) const { return MCenterOfMass[Index]; }
+	FORCEINLINE TVector<T,d>& CenterOfMass(const int32 Index) { return MCenterOfMass[Index]; }
+
+	FORCEINLINE const TRotation<T,d>& RotationOfMass(const int32 Index) const { return MRotationOfMass[Index]; }
+	FORCEINLINE TRotation<T,d>& RotationOfMass(const int32 Index) { return MRotationOfMass[Index]; }
 
 	FORCEINLINE const T& LinearEtherDrag(const int32 index) const { return MLinearEtherDrag[index]; }
 	FORCEINLINE T& LinearEtherDrag(const int32 index) { return MLinearEtherDrag[index]; }
@@ -188,12 +210,23 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FORCEINLINE FString ToString(int32 index) const
 	{
 		FString BaseString = TKinematicGeometryParticles<T, d>::ToString(index);
-		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MLinearImpulse:%s, MAngularImpulse:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"), *BaseString, *F(index).ToString(), *Torque(index).ToString(), *LinearImpulse(index).ToString(), *AngularImpulse(index).ToString(), *I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), CollisionParticlesSize(index), CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
+		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MLinearImpulse:%s, MAngularImpulse:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCenterOfMass:%s, MRotationOfMass:%s, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"),
+			*BaseString, *F(index).ToString(), *Torque(index).ToString(), *LinearImpulse(index).ToString(), *AngularImpulse(index).ToString(),
+			*I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), *CenterOfMass(index).ToString(), *RotationOfMass(index).ToString(), CollisionParticlesSize(index),
+			CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
 	}
 
 	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
 	{
 		TKinematicGeometryParticles<T,d>::Serialize(Ar);
+		
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::KinematicCentersOfMass)
+		{
+			Ar << MCenterOfMass;
+			Ar << MRotationOfMass;
+		}
+
 		Ar << MF << MT << MLinearImpulse << MAngularImpulse << MI << MInvI << MM << MInvM;
 
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
@@ -214,6 +247,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<PMatrix<T, d, d>> MInvI;
 	TArrayCollectionArray<T> MM;
 	TArrayCollectionArray<T> MInvM;
+	TArrayCollectionArray<TVector<T,d>> MCenterOfMass;
+	TArrayCollectionArray<TRotation<T,d>> MRotationOfMass;
 	TArrayCollectionArray<T> MLinearEtherDrag;
 	TArrayCollectionArray<T> MAngularEtherDrag;
 	TArrayCollectionArray<TUniquePtr<TBVHParticles<T, d>>> MCollisionParticles;

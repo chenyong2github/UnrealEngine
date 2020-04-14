@@ -38,6 +38,7 @@ struct FTileCacheAllocator;
 struct FTileGenerationContext;
 class dtNavMesh;
 class FNavRegenTimeSliceManager;
+class UNavigationSystemV1;
 
 #define MAX_VERTS_PER_POLY	6
 
@@ -239,7 +240,7 @@ enum class ERasterizeGeomTimeSlicedState : uint8
 enum class EDoWorkTimeSlicedState : uint8
 {
 	Invalid,
-	DoAsyncGeometryGathering,
+	GatherGeometryFromSources,
 	GenerateTile,
 };
 
@@ -328,10 +329,16 @@ protected:
 
 	void Setup(const FRecastNavMeshGenerator& ParentGenerator, const TArray<FBox>& DirtyAreas);
 	
+	/** Gather geometry */
 	void GatherGeometry(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
+	/** Gather geometry sources to be processed later by the GatherGeometryFromSources */
 	void PrepareGeometrySources(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
-	/** Returns true if there is any NavigationRelevantData */
-	bool DoAsyncGeometryGathering();
+	/** Gather geometry from the prefetched sources */
+	void GatherGeometryFromSources();
+	/** Gather geometry from the prefetched sources time sliced version */
+	ETimeSliceWorkResult GatherGeometryFromSourcesTimeSliced();
+	/** Gather geometry from a specified Navigation Data */
+	void GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, UNavigationSystemV1& NavSys, const FNavDataConfig& OwnerNavDataConfig, bool bGeometryChanged);
 
 	/** Start functions used by GenerateCompressedLayersTimeSliced / GenerateCompressedLayers */
 	bool CreateHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
@@ -378,7 +385,7 @@ protected:
 
 	void AppendModifier(const FCompositeNavModifier& Modifier, const FNavDataPerInstanceTransformDelegate& InTransformsDelegate);
 	/** Appends specified geometry to tile's geometry */
-	void ValidateAndAppendGeometry(TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> ElementData, const FCompositeNavModifier& InModifier);
+	void ValidateAndAppendGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, const FCompositeNavModifier& InModifier);
 	void AppendGeometry(const TNavStatArray<uint8>& RawCollisionCache, const FCompositeNavModifier& InModifier, const FNavDataPerInstanceTransformDelegate& InTransformsDelegate);
 	void AppendVoxels(rcSpanCache* SpanData, int32 NumSpans);
 	
@@ -456,7 +463,7 @@ protected:
 	TWeakPtr<FNavDataGenerator, ESPMode::ThreadSafe> ParentGeneratorWeakPtr;
 
 	TNavStatArray<TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> > NavigationRelevantData;
-	TSharedPtr<FNavigationOctree, ESPMode::ThreadSafe> NavOctree; 
+	TWeakObjectPtr<UNavigationSystemV1> NavSystem; 
 	FNavDataConfig NavDataConfig;
 
 #if RECAST_INTERNAL_DEBUG_DATA
@@ -652,6 +659,7 @@ public:
 	int32 GetDirtyTilesCount(const FBox& AreaBounds) const;
 
 	bool GatherGeometryOnGameThread() const;
+	bool IsTimeSliceRegenActive() const;
 
 	FBox GrowBoundingBox(const FBox& BBox, bool bIncludeAgentHeight) const;
 	

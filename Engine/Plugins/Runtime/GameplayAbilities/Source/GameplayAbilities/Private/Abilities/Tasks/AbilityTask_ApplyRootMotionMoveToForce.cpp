@@ -169,7 +169,7 @@ void UAbilityTask_ApplyRootMotionMoveToForce::OnDestroy(bool AbilityIsEnding)
 
 		if (bSetNewMovementMode)
 		{
-			MovementComponent->SetMovementMode(NewMovementMode);
+			MovementComponent->SetMovementMode(PreviousMovementMode);
 		}
 	}
 

@@ -462,7 +462,8 @@ public:
 		FPlatformProcess::SetupRenderThread();
 
 #if PLATFORM_WINDOWS
-		if ( !FPlatformMisc::IsDebuggerPresent() || GAlwaysReportCrash )
+		bool bNoExceptionHandler = FParse::Param(FCommandLine::Get(), TEXT("noexceptionhandler"));
+		if ( !bNoExceptionHandler && (!FPlatformMisc::IsDebuggerPresent() || GAlwaysReportCrash))
 		{
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 			__try
@@ -1310,10 +1311,12 @@ FPendingCleanupObjects::~FPendingCleanupObjects()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPendingCleanupObjects_Destruct);
 
+	StartRenderCommandFenceBundler();
 	for (int32 ObjectIndex = 0; ObjectIndex < CleanupArray.Num(); ObjectIndex++)
 	{
 		delete CleanupArray[ObjectIndex];
 	}
+	StopRenderCommandFenceBundler();
 }
 
 void BeginCleanup(FDeferredCleanupInterface* CleanupObject)
@@ -1339,10 +1342,12 @@ FPendingCleanupObjects::~FPendingCleanupObjects()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPendingCleanupObjects_Destruct);
 
+	StartRenderCommandFenceBundler();
 	for (int32 ObjectIndex = 0; ObjectIndex < CleanupArray.Num(); ObjectIndex++)
 	{
 		delete CleanupArray[ObjectIndex];
 	}
+	StopRenderCommandFenceBundler();
 }
 
 void BeginCleanup(FDeferredCleanupInterface* CleanupObject)

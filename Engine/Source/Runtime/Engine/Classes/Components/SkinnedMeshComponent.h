@@ -457,7 +457,7 @@ public:
 	 *  You can change this default value in the INI file 
 	 * Mostly related with performance
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Config, Category=Optimization)
+	UPROPERTY(Interp, EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Config, Category=Optimization)
 	EVisibilityBasedAnimTickOption VisibilityBasedAnimTickOption;
 
 #if WITH_EDITOR
@@ -1565,6 +1565,17 @@ public:
 	}
 };
 
+/** Simple, CPU evaluation of a vertex's skinned tangent basis */
+void GetTypedSkinnedTangentBasis(
+	const USkinnedMeshComponent* SkinnedComp,
+	const FSkelMeshRenderSection& Section,
+	const FStaticMeshVertexBuffers& StaticVertexBuffers,
+	const FSkinWeightVertexBuffer& SkinWeightVertexBuffer,
+	const int32 VertIndex,
+	const TArray<FMatrix> & RefToLocals,
+	FVector& OutTangentX,
+	FVector& OutTangentZ
+);
 
 /** Simple, CPU evaluation of a vertex's skinned position helper function */
 template <bool bCachedMatrices>

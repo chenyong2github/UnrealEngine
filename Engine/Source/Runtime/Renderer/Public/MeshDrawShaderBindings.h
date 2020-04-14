@@ -36,6 +36,16 @@ public:
 		return ParameterMapInfo == Rhs.ParameterMapInfo;
 	}
 
+	inline uint32 GetLooseDataSizeBytes() const
+	{
+		uint32 DataSize = 0;
+		for (int32 LooseBufferIndex = 0; LooseBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseBufferIndex++)
+		{
+			DataSize += ParameterMapInfo.LooseParameterBuffers[LooseBufferIndex].Size;
+		}
+		return DataSize;
+	}
+
 	inline uint32 GetDataSizeBytes() const
 	{
 		uint32 DataSize = sizeof(void*) * 
@@ -46,10 +56,7 @@ public:
 		// Allocate a bit for each SRV tracking whether it is a FRHITexture* or FRHIShaderResourceView*
 		DataSize += FMath::DivideAndRoundUp(ParameterMapInfo.SRVs.Num(), 8);
 
-		for (int32 LooseBufferIndex = 0; LooseBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseBufferIndex++)
-		{
-			DataSize += ParameterMapInfo.LooseParameterBuffers[LooseBufferIndex].Size;
-		}
+		DataSize += GetLooseDataSizeBytes();
 
 		// Align to pointer size so subsequent packed shader bindings will have their pointers aligned
 		return Align(DataSize, sizeof(void*));
@@ -197,6 +204,8 @@ public:
 							ensureMsgf(sizeof(ParameterType) == Parameter.GetNumBytes(), TEXT("Attempted to set fewer bytes than the shader required.  Setting %u bytes on loose parameter at BaseIndex %u, Size %u.  This can cause GPU hangs, depending on usage."), sizeof(ParameterType), Parameter.GetBaseIndex(), Parameter.GetNumBytes());
 							const int32 NumBytesToSet = FMath::Min<int32>(sizeof(ParameterType), Parameter.GetNumBytes());
 							FMemory::Memcpy(LooseDataOffset, &Value, NumBytesToSet);
+							const int32 NumBytesToClear = FMath::Min<int32>(0, Parameter.GetNumBytes() - NumBytesToSet);
+							FMemory::Memset(LooseDataOffset + NumBytesToSet, 0x00, NumBytesToClear);
 							bFoundParameter = true;
 							break;
 						}

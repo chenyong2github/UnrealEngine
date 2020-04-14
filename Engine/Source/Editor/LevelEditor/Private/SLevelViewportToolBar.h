@@ -33,6 +33,9 @@ public:
 	/** @return Level editor viewport client. */ 
 	FLevelEditorViewportClient* GetLevelViewportClient();
 
+	/** Fills view menu */
+	void FillViewMenu(UToolMenu* InMenu);
+
 private:
 	/**
 	 * Returns the label for the "Camera" tool bar menu, which changes depending on the viewport type
@@ -268,8 +271,6 @@ private:
 
 	/** Gets the extender for the view menu */
 	TSharedPtr<FExtender> GetViewMenuExtender();
-
-	void CreateViewMenuExtensions(FMenuBuilder& MenuBuilder);
 
 	/** Called when the user disables realtime override from the toolbar */
 	void OnDisableRealtimeOverride();

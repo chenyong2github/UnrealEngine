@@ -9,6 +9,7 @@
 #include "IDetailGroup.h"
 #include "NiagaraComponent.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "SNiagaraNamePropertySelector.h"
 
  #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceSkeletalMeshDetails"
 
@@ -68,15 +69,16 @@ void FNiagaraDataInterfaceSkeletalMeshDetails::CustomizeDetails(IDetailLayoutBui
 		 TArray<TSharedRef<IPropertyHandle>> SkelProperties;
 		 SkelCategory->GetDefaultProperties(SkelProperties, true, true);
 
-		 TSharedPtr<IPropertyHandle> BonesProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, SpecificBones));
-		 TSharedPtr<IPropertyHandle> SocketsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, SpecificSockets));
+		 TSharedPtr<IPropertyHandle> BonesProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, FilteredBones));
+		 TSharedPtr<IPropertyHandle> SocketsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, FilteredSockets));
+		 TSharedPtr<IPropertyHandle> ExcludeBoneProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, ExcludeBoneName));
 
 		 for (TSharedPtr<IPropertyHandle> Property : SkelProperties)
 		 {
 			 FProperty* PropertyPtr = Property->GetProperty();
 			 TArray<TSharedPtr<FName>> PossibleNames;
 
-			if (PropertyPtr == BonesProperty->GetProperty())
+			 if (PropertyPtr == BonesProperty->GetProperty())
 			 {
 				GenerateBonesArray(PossibleNames);
 				BonesBuilder = TSharedPtr<FNiagaraDetailSourcedArrayBuilder>(new FNiagaraDetailSourcedArrayBuilder(Property.ToSharedRef(), PossibleNames));
@@ -88,13 +90,30 @@ void FNiagaraDataInterfaceSkeletalMeshDetails::CustomizeDetails(IDetailLayoutBui
 				 SocketsBuilder = TSharedPtr<FNiagaraDetailSourcedArrayBuilder>(new FNiagaraDetailSourcedArrayBuilder(Property.ToSharedRef(), PossibleNames));
 				 SkelCategory->AddCustomBuilder(SocketsBuilder.ToSharedRef());
 			 }
+			 else if (PropertyPtr == ExcludeBoneProperty->GetProperty())
+			 {
+				 GenerateBonesArray(PossibleNames);
+				 ExcludeBoneWidget = SNew(SNiagaraNamePropertySelector, Property.ToSharedRef(), PossibleNames);
+
+				 IDetailPropertyRow& ExcludeBoneRow = SkelCategory->AddProperty(Property);
+				 ExcludeBoneRow.CustomWidget(false)
+					.NameContent()
+					[
+						Property->CreatePropertyNameWidget()
+					]
+					.ValueContent()
+					.MaxDesiredWidth(TOptional<float>())
+					[
+						ExcludeBoneWidget.ToSharedRef()
+					];
+			 }
 			 else
 			 {
 				 SkelCategory->AddProperty(Property);
 			 }			 
 		 }
 	 }
- }
+}
 
  TSharedRef<IDetailCustomization> FNiagaraDataInterfaceSkeletalMeshDetails::MakeInstance()
  {
@@ -140,6 +159,13 @@ void FNiagaraDataInterfaceSkeletalMeshDetails::CustomizeDetails(IDetailLayoutBui
 		TArray<TSharedPtr<FName>> PossibleNames;
 		GenerateSocketsArray(PossibleNames);
 		SocketsBuilder->SetSourceArray(PossibleNames);
+	}
+
+	if (ExcludeBoneWidget)
+	{
+		TArray<TSharedPtr<FName>> PossibleNames;
+		GenerateBonesArray(PossibleNames);
+		ExcludeBoneWidget->SetSourceArray(PossibleNames);
 	}
  }
 

@@ -12,6 +12,8 @@
 #define USE_PARTICLE_TIME (NEEDS_PARTICLE_TIME)
 #define USE_PARTICLE_RANDOM (NEEDS_PARTICLE_RANDOM)
 #define USE_PARTICLE_TRANSFORM (NEEDS_PARTICLE_TRANSFORM)
+#define USE_PARTICLE_LOCAL_TO_WORLD (NEEDS_PARTICLE_LOCAL_TO_WORLD)
+#define USE_PARTICLE_WORLD_TO_LOCAL (NEEDS_PARTICLE_WORLD_TO_LOCAL)
 
 float3 TransformPosition(float3 InPosition)
 {
@@ -134,8 +136,12 @@ struct FVertexFactoryInterpolantsVSToPS
 	nointerpolation float ParticleRandom : PARTICLE_RANDOM;
 #endif
 
-#if USE_PARTICLE_TRANSFORM
-	nointerpolation float4 LocalToWorld[4] : PARTICLE_TRANSFORM;
+#if USE_PARTICLE_LOCAL_TO_WORLD
+	nointerpolation float3x4 ParticleToWorld : PARTICLE_LOCAL_TO_WORLD;
+#endif
+
+#if USE_PARTICLE_WORLD_TO_LOCAL
+	nointerpolation float3x4 WorldToParticle : PARTICLE_WORLD_TO_LOCAL;
 #endif
 
 #if INSTANCED_STEREO
@@ -175,7 +181,7 @@ struct FVertexFactoryIntermediates
 #endif
 
 	/** The position of the particle, XYZ: direction. */
-	float4 ParticlePosition;
+	float3 ParticlePosition;
 
 	/** The velocity of the particle, XYZ: direction, W: speed. */
 	float4 ParticleVelocity;
@@ -193,13 +199,20 @@ struct FVertexFactoryIntermediates
 	float ParticleRandom;
 #endif
 
-	float4x4 LocalToWorld;
-	float4x4 PrevLocalToWorld;
+	float4x4 ParticleToWorld;
+	float4x4 PrevParticleToWorld;
+
+	float4x4 WorldToParticle;
 };
 
 float4x4 GetParticleTransform(FVertexFactoryIntermediates Inters)
 {
-	return Inters.LocalToWorld;
+	return Inters.ParticleToWorld;
+}
+
+float4x4 GetParticleInvTransform(FVertexFactoryIntermediates Inters)
+{
+	return Inters.WorldToParticle;
 }
 
 float4x4 GetParticlePrevTransform(FVertexFactoryIntermediates Inters)
@@ -217,7 +230,7 @@ float4x4 GetParticlePrevTransform(FVertexFactoryIntermediates Inters)
 	//Transform is transposed on CPU and position is packed into W. Transpose again to get the correct transform back.
 	return transpose(PrevTransform4x4);
 #else
-	return Inters.PrevLocalToWorld;
+	return Inters.PrevParticleToWorld;
 #endif
 }
 
@@ -308,11 +321,20 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.Particle.Random = 0.0f;
 #endif
 
-#if USE_PARTICLE_TRANSFORM
-	Result.Particle.LocalToWorld[0] = float4(Interpolants.LocalToWorld[0].x, Interpolants.LocalToWorld[1].x, Interpolants.LocalToWorld[2].x, Interpolants.LocalToWorld[3].x);
-	Result.Particle.LocalToWorld[1] = float4(Interpolants.LocalToWorld[0].y, Interpolants.LocalToWorld[1].y, Interpolants.LocalToWorld[2].y, Interpolants.LocalToWorld[3].y);
-	Result.Particle.LocalToWorld[2] = float4(Interpolants.LocalToWorld[0].z, Interpolants.LocalToWorld[1].z, Interpolants.LocalToWorld[2].z, Interpolants.LocalToWorld[3].z);
-	Result.Particle.LocalToWorld[3] = float4(Interpolants.LocalToWorld[0].w, Interpolants.LocalToWorld[1].w, Interpolants.LocalToWorld[2].w, Interpolants.LocalToWorld[3].w);
+#if USE_PARTICLE_LOCAL_TO_WORLD
+	Result.Particle.ParticleToWorld = transpose(float4x4(
+		Interpolants.ParticleToWorld[0],
+		Interpolants.ParticleToWorld[1],
+		Interpolants.ParticleToWorld[2],
+		float4(0.0f, 0.0f, 0.0f, 1.0f)));
+#endif
+
+#if USE_PARTICLE_WORLD_TO_LOCAL
+	Result.Particle.WorldToParticle = transpose(float4x4(
+		Interpolants.WorldToParticle[0],
+		Interpolants.WorldToParticle[1],
+		Interpolants.WorldToParticle[2],
+		float4(0.0f, 0.0f, 0.0f, 1.0f)));
 #endif
 
 	Result.Particle.MotionBlurFade = 1.0f;
@@ -375,12 +397,8 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	float4x4 Transform = GetParticleTransform(Intermediates);
 	Result.InstanceLocalToWorld = Transform;
 
-#if NEEDS_PARTICLE_TRANSFORM
-	Result.Particle.LocalToWorld[0] = float4(Transform[0].x, Transform[1].x, Transform[2].x, Transform[3].x);
-	Result.Particle.LocalToWorld[1] = float4(Transform[0].y, Transform[1].y, Transform[2].y, Transform[3].y);
-	Result.Particle.LocalToWorld[2] = float4(Transform[0].z, Transform[1].z, Transform[2].z, Transform[3].z);
-	Result.Particle.LocalToWorld[3] = float4(Transform[0].w, Transform[1].w, Transform[2].w, Transform[3].w);
-#endif
+	Result.Particle.ParticleToWorld = Transform;
+	Result.Particle.WorldToParticle = GetParticleInvTransform(Intermediates);
 
 	Result.TangentToWorld = mul(TangentToLocal, (float3x3)Transform );
 
@@ -426,7 +444,48 @@ float3x3 QuatTo3x3(float4 Q)
 	return Mat;
 }
 
-float3x3 GetFacingMatrix(in FVertexFactoryIntermediates Intermediates)
+float4x4 ComposeTransformMatrix(float3 S, float3x3 R, float3 T)
+{
+	float3x3 ScaleMat = float3x3(
+		S.x, 0.0f, 0.0f,
+		0.0f, S.y, 0.0f,
+		0.0f, 0.0f, S.z);
+
+	float3x3 ScaleRot = mul(ScaleMat, R);
+
+	return float4x4(
+		ScaleRot[0], 0.0f,
+		ScaleRot[1], 0.0f,
+		ScaleRot[2], 0.0f,
+		T, 1.0f);
+}
+
+float4x4 ComposeInvTransformMatrix(float3 S, float3x3 R, float3 T)
+{
+	float3x3 InvScaleMat = float3x3(
+		1.0f / S.x, 0.0f, 0.0f,
+		0.0f, 1.0f / S.y, 0.0f,
+		0.0f, 0.0f, 1.0f / S.z);
+
+	float3x3 InvRotScale = mul(transpose(R), InvScaleMat);
+
+	float4x4 InvRotScale44 = float4x4(
+		InvRotScale[0], 0.0f,
+		InvRotScale[1], 0.0f,
+		InvRotScale[2], 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
+
+	float4x4 InvTransMat = float4x4(
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		-T, 1.0f);
+
+	return mul(InvTransMat, InvRotScale44);
+}
+
+float3x3 GetFacingMatrix(in float3 ParticlePosition, in float4 ParticleVelocity)
 {
 	float3 WorldX = float3(1, 0, 0);
 	float3 WorldZ = float3(0, 0, 1);
@@ -438,13 +497,13 @@ float3x3 GetFacingMatrix(in FVertexFactoryIntermediates Intermediates)
 	{
 		case MESH_FACING_VELOCITY:
 		{
-			FacingDir = Intermediates.ParticleVelocity.w > 0.0f ? Intermediates.ParticleVelocity.xyz : WorldZ;
+			FacingDir = ParticleVelocity.w > 0.0f ? ParticleVelocity.xyz : WorldZ;
 			break;
 		}
 
 		case MESH_FACING_CAMERA_POSITION:
 		{
-			float3 WorldPosition = TransformPosition(Intermediates.ParticlePosition.xyz);
+			float3 WorldPosition = TransformPosition(ParticlePosition);
 			float3 CameraVector = ResolvedView.WorldCameraOrigin - WorldPosition;
 			FacingDir = normalize(CameraVector);
 			break;
@@ -519,7 +578,7 @@ float3x3 GetFacingMatrix(in FVertexFactoryIntermediates Intermediates)
 	return float3x3(XAxis, YAxis, ZAxis);
 }
 
-float3 CalculateCameraOffset(FVertexFactoryIntermediates Intermediates, uint InstanceId)
+float3 CalculateCameraOffset(float3 WorldPosition, uint InstanceId)
 {
 	if (NiagaraMeshVF.CameraOffsetDataOffset == -1)
 	{
@@ -527,7 +586,6 @@ float3 CalculateCameraOffset(FVertexFactoryIntermediates Intermediates, uint Ins
 	}
 
 	float Offset = GetFloat(NiagaraMeshVF.CameraOffsetDataOffset, InstanceId);
-	float3 WorldPosition = TransformPosition(Intermediates.ParticlePosition.xyz);
 	float3 CameraVector = ResolvedView.WorldCameraOrigin - WorldPosition;
 	float3 CameraDir = normalize(CameraVector);
 	if (NiagaraMeshVF.bLocalSpace)
@@ -536,6 +594,58 @@ float3 CalculateCameraOffset(FVertexFactoryIntermediates Intermediates, uint Ins
 	}
 
 	return CameraDir * Offset;
+}
+
+void CalculateTransforms(int InstanceId, in FVertexFactoryIntermediates Intermediates, out float4x4 LocalToWorld, out float4x4 WorldToLocal)
+{
+	////////////////////////////////////////////////////////////////////////////////
+	// Translation
+	float3 WorldParticlePosition = float3(0.0f, 0.0f, 0.0f);
+	if (NiagaraMeshVF.PositionDataOffset == -1)
+	{
+		WorldParticlePosition = NiagaraMeshVF.DefaultPos.xyz;
+	}
+	else
+	{
+		WorldParticlePosition = GetVec3(NiagaraMeshVF.PositionDataOffset, InstanceId);
+	}
+
+	// Apply CameraOffset
+	WorldParticlePosition += CalculateCameraOffset(WorldParticlePosition, InstanceId);
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Rotation
+	float3x3 RotationMat = {
+		1, 0, 0,
+		0, 1, 0,
+		0, 0, 1
+	};
+
+	if(NiagaraMeshVF.TransformDataOffset != -1)
+	{
+		float4 Quat = GetVec4(NiagaraMeshVF.TransformDataOffset, InstanceId);
+		RotationMat = QuatTo3x3(normalize(Quat));
+	}
+
+	if (NiagaraMeshVF.FacingMode != MESH_FACING_DEFAULT)
+	{
+		// Factor in facing rotation
+		float3x3 FacingMat = GetFacingMatrix(WorldParticlePosition, Intermediates.ParticleVelocity);
+		RotationMat = mul(RotationMat, FacingMat);
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Scale
+	float3 Scale = (float3)1.0f;
+	if(NiagaraMeshVF.ScaleDataOffset != -1)
+	{
+		Scale = GetVec3(NiagaraMeshVF.ScaleDataOffset, InstanceId);		
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////
+	// Compose Transforms
+	LocalToWorld = ComposeTransformMatrix(Scale, RotationMat, WorldParticlePosition);
+	WorldToLocal = ComposeInvTransformMatrix(Scale, RotationMat, WorldParticlePosition);
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
@@ -549,15 +659,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		Input.InstanceId = SortedIndices[SortedIndicesOffset + Input.InstanceId];
 	}
 #endif
-
-	if (NiagaraMeshVF.PositionDataOffset == -1)
-	{
-		Intermediates.ParticlePosition = NiagaraMeshVF.DefaultPos;
-	}
-	else
-	{
-		Intermediates.ParticlePosition = float4(GetVec3(NiagaraMeshVF.PositionDataOffset, Input.InstanceId), 1);
-	}
 
 	if (NiagaraMeshVF.ColorDataOffset == -1)
 	{
@@ -645,71 +746,39 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// Swizzle vertex color.
 	Intermediates.VertexColor = Input.VertexColor FCOLOR_COMPONENT_SWIZZLE;
 
-	// Retrieve rotation
-	float3x3 RotationMat = {
-		1, 0, 0,
-		0, 1, 0,
-		0, 0, 1
-	};
-	if(NiagaraMeshVF.TransformDataOffset != -1)
-	{
-		float4 Quat = GetVec4(NiagaraMeshVF.TransformDataOffset, Input.InstanceId);
-		RotationMat = QuatTo3x3(normalize(Quat));
-	}
-	
-	// Retrieve Scale
-	float3 Scale = (float3)1.0f;
-	if(NiagaraMeshVF.ScaleDataOffset != -1)
-	{
-		Scale = GetVec3(NiagaraMeshVF.ScaleDataOffset, Input.InstanceId);		
-	}
-	
-	float3x3 ScaleMat = {
-		Scale.x,	0,			0,
-		0,			Scale.y,	0,
-		0,			0,			Scale.z
-	};
-	
-	float3x3 ScaleRotMat = mul(ScaleMat, RotationMat);
-	if (NiagaraMeshVF.FacingMode != MESH_FACING_DEFAULT)
-	{
-		// Factor in facing rotation
-		float3x3 FacingMat = GetFacingMatrix(Intermediates);
-		ScaleRotMat = mul(ScaleRotMat, FacingMat);
-	}
+	float4x4 ParticleToWorld;
+	float4x4 WorldToParticle;
 
-	// Apply CameraOffset
-	Intermediates.ParticlePosition.xyz += CalculateCameraOffset(Intermediates, Input.InstanceId);
-
-	// Determine final "simulation space" matrix
-	Intermediates.LocalToWorld = float4x4(
-		float4(ScaleRotMat[0], 0),
-		float4(ScaleRotMat[1], 0),
-		float4(ScaleRotMat[2], 0),
-		Intermediates.ParticlePosition
-	);
+	CalculateTransforms(Input.InstanceId, Intermediates, ParticleToWorld, WorldToParticle);
 
 	//-TODO: If / when we store previous transform data use them here (providing they are in local space, if not handle below)
 	//if (MeshParticleVF.PrevTransformAvailable > 0)
 	//{
-    //   //-TODO:
+	//   //-TODO:
 	//}
-    //else
-    {
+	//else
+	{
 		// NOTE: Velocity is in simulation space, so calculate prev transform here, before handling local space
-        Intermediates.PrevLocalToWorld = Intermediates.LocalToWorld;
-        Intermediates.PrevLocalToWorld[3].xyz -= ParticleVelocity * NiagaraMeshVF.DeltaSeconds;
-    }
+		Intermediates.PrevParticleToWorld = ParticleToWorld;
+		Intermediates.PrevParticleToWorld[3].xyz -= ParticleVelocity * NiagaraMeshVF.DeltaSeconds;
+	}
 
 	//Handle local space. TODO: Optimize behind define.
 	//Apply local space to local to world, also pretranspose here to avoid it in the vs&ps
 
 	if (NiagaraMeshVF.bLocalSpace)
 	{
-		Intermediates.PrevLocalToWorld = mul(Intermediates.PrevLocalToWorld, Primitive.PreviousLocalToWorld);
-		Intermediates.LocalToWorld = mul(Intermediates.LocalToWorld, Primitive.LocalToWorld);
-		Intermediates.ParticlePosition = Intermediates.LocalToWorld[3];
+		Intermediates.PrevParticleToWorld = mul(Intermediates.PrevParticleToWorld, Primitive.PreviousLocalToWorld);
+		Intermediates.ParticleToWorld = mul(ParticleToWorld, Primitive.LocalToWorld);
+		Intermediates.WorldToParticle = mul(Primitive.WorldToLocal, WorldToParticle);
 	}
+	else
+	{
+		Intermediates.ParticleToWorld = ParticleToWorld;
+		Intermediates.WorldToParticle = WorldToParticle;
+	}
+
+	Intermediates.ParticlePosition = Intermediates.ParticleToWorld[3];
 
 	// Translated world position.	
 	Intermediates.ParticleTranslatedWorldPosition = Intermediates.ParticlePosition.xyz + ResolvedView.PreViewTranslation.xyz;
@@ -790,7 +859,7 @@ float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVerte
 
 float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return Intermediates.LocalToWorld[2].xyz;
+	return Intermediates.ParticleToWorld[2].xyz;
 }
 
 float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)
@@ -894,11 +963,12 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.ParticleRandom = Intermediates.ParticleRandom;
 #endif
 
-#if USE_PARTICLE_TRANSFORM
-	Interpolants.LocalToWorld[0] = Intermediates.LocalToWorld[0];
-	Interpolants.LocalToWorld[1] = Intermediates.LocalToWorld[1];
-	Interpolants.LocalToWorld[2] = Intermediates.LocalToWorld[2];
-	Interpolants.LocalToWorld[3] = Intermediates.LocalToWorld[3];
+#if USE_PARTICLE_LOCAL_TO_WORLD
+	Interpolants.ParticleToWorld = (float3x4) transpose(Intermediates.ParticleToWorld);
+#endif
+
+#if USE_PARTICLE_WORLD_TO_LOCAL
+	Interpolants.WorldToParticle = (float3x4) transpose(Intermediates.WorldToParticle);
 #endif
 
 #if INSTANCED_STEREO

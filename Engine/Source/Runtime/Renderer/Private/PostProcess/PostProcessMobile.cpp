@@ -2164,8 +2164,129 @@ FPooledRenderTargetDesc FRCPassPostProcessDofBlurES2::ComputeOutputDesc(EPassOut
 }
 
 
+class FPostProcessIntegrateDofPS_ES2 : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FPostProcessIntegrateDofPS_ES2, Global);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return !IsConsolePlatform(Parameters.Platform);
+	}
+
+	FPostProcessIntegrateDofPS_ES2() {}
+
+public:
+	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
+
+	FPostProcessIntegrateDofPS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		PostprocessParameter.Bind(Initializer.ParameterMap);
+	}
+
+	void SetPS(const FRenderingCompositePassContext& Context)
+	{
+		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
+		const FPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
+
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
+		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+	}
+};
+
+IMPLEMENT_SHADER_TYPE(, FPostProcessIntegrateDofPS_ES2, TEXT("/Engine/Private/PostProcessMobile.usf"), TEXT("IntegrateDOFPS_ES2"), SF_Pixel);
 
 
+class FPostProcessIntegrateDofVS_ES2 : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FPostProcessIntegrateDofVS_ES2, Global);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return !IsConsolePlatform(Parameters.Platform);
+	}
+
+	FPostProcessIntegrateDofVS_ES2() {}
+
+public:
+	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
+
+	FPostProcessIntegrateDofVS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		PostprocessParameter.Bind(Initializer.ParameterMap);
+	}
+
+	void SetVS(const FRenderingCompositePassContext& Context)
+	{
+		FRHIVertexShader* ShaderRHI = Context.RHICmdList.GetBoundVertexShader();
+
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
+		PostprocessParameter.SetVS(ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+	}
+};
+
+IMPLEMENT_SHADER_TYPE(, FPostProcessIntegrateDofVS_ES2, TEXT("/Engine/Private/PostProcessMobile.usf"), TEXT("IntegrateDOFVS_ES2"), SF_Vertex);
+
+void FRCPassIntegrateDofES2::Process(FRenderingCompositePassContext& Context)
+{
+	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessIntegrateDof);
+
+	FIntRect DstRect;
+	DstRect.Min.X = 0;
+	DstRect.Min.Y = 0;
+	DstRect.Max.X = PrePostSourceViewportSize.X;
+	DstRect.Max.Y = PrePostSourceViewportSize.Y;
+
+	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+
+	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::EClear;
+	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
+	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("IntegrateDof"));
+	{
+
+		Context.SetViewportAndCallRHI(0, 0, 0.0f, PrePostSourceViewportSize.X, PrePostSourceViewportSize.Y, 1.0f);
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+		TShaderMapRef<FPostProcessIntegrateDofVS_ES2> VertexShader(Context.GetShaderMap());
+		TShaderMapRef<FPostProcessIntegrateDofPS_ES2> PixelShader(Context.GetShaderMap());
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
+
+		VertexShader->SetVS(Context);
+		PixelShader->SetPS(Context);
+
+		DrawRectangle(
+			Context.RHICmdList,
+			0, 0,
+			PrePostSourceViewportSize.X, PrePostSourceViewportSize.Y,
+			0, 0,
+			PrePostSourceViewportSize.X, PrePostSourceViewportSize.Y,
+			PrePostSourceViewportSize,
+			PrePostSourceViewportSize,
+			VertexShader,
+			EDRF_UseTriangleOptimization);
+	}
+	Context.RHICmdList.EndRenderPass();
+	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+}
+
+FPooledRenderTargetDesc FRCPassIntegrateDofES2::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+{
+	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
+	Ret.DebugName = TEXT("IntegrateDof");
+	return Ret;
+}
 
 
 //
@@ -2523,7 +2644,8 @@ void FRCPassPostProcessAaES2::Process(FRenderingCompositePassContext& Context)
 
 	ERenderTargetActions LoadStoreAction = ERenderTargetActions::Load_Store;
 	//#todo-rv-vr
-	if (!IStereoRendering::IsASecondaryView(Context.View))
+	if ((!IStereoRendering::IsASecondaryView(Context.View) && IStereoRendering::IsStereoEyeView(Context.View)) ||
+		Context.View.Family->Views.Num() == 1)
 	{
 		// Full clear to avoid restore
 		LoadStoreAction = ERenderTargetActions::Clear_Store;
@@ -2614,7 +2736,7 @@ public:
 	FClearUAVUIntCS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
-		Bindings.BindForLegacyShaderParameters(this, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
+		Bindings.BindForLegacyShaderParameters(this, Initializer.PermutationId, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -2708,7 +2830,7 @@ public:
 	FPostProcessAverageLuminanceCS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
-		Bindings.BindForLegacyShaderParameters(this, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
+		Bindings.BindForLegacyShaderParameters(this, Initializer.PermutationId, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
 	}
 
 
@@ -2830,7 +2952,7 @@ public:
 	FBasicEyeAdaptationCS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
-		Bindings.BindForLegacyShaderParameters(this, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
+		Bindings.BindForLegacyShaderParameters(this, Initializer.PermutationId, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
 	}
 
 public:
@@ -2995,7 +3117,7 @@ public:
 	FPostProcessHistogramCS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
-		Bindings.BindForLegacyShaderParameters(this, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
+		Bindings.BindForLegacyShaderParameters(this, Initializer.PermutationId, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
 	}
 
 	template <typename TRHICmdList>
@@ -3134,7 +3256,7 @@ public:
 	FHistogramEyeAdaptationCS_ES2(const CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
-		Bindings.BindForLegacyShaderParameters(this, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
+		Bindings.BindForLegacyShaderParameters(this, Initializer.PermutationId, Initializer.ParameterMap, *FParameters::FTypeInfo::GetStructMetadata());
 	}
 
 	void Set(const FRenderingCompositePassContext& Context, const TShaderRef<FHistogramEyeAdaptationCS_ES2>& Shader, FRHIShaderResourceView* LastEyeAdaptation, FRHIShaderResourceView* HistogramBuffer, FRHIUnorderedAccessView* TextureUnorderedAccessViewRHI = nullptr)

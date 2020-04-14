@@ -29,6 +29,8 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
 				}
 				);
+
+			PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
 		}
 	}
 }

@@ -516,6 +516,7 @@ public:
 	virtual void Convert(class UNiagaraNodeConvert* Convert, TArray <int32>& Inputs, TArray<int32>& Outputs);
 	virtual void If(class UNiagaraNodeIf* IfNode, TArray<FNiagaraVariable>& Vars, int32 Condition, TArray<int32>& PathA, TArray<int32>& PathB, TArray<int32>& Outputs);
 
+	void Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 	virtual void Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 	virtual void Warning(FText WarningText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 
@@ -530,16 +531,17 @@ public:
 		return CompilationTarget;
 	}
 
-	static bool IsBuiltInHlslType(FNiagaraTypeDefinition Type);
-	static FString GetStructHlslTypeName(FNiagaraTypeDefinition Type);
+	static bool IsBuiltInHlslType(const FNiagaraTypeDefinition& Type);
+	static FString GetStructHlslTypeName(const FNiagaraTypeDefinition& Type);
 	static FString GetPropertyHlslTypeName(const FProperty* Property);
-	static FString BuildHLSLStructDecl(FNiagaraTypeDefinition Type, FText& OutErrorMessage);
-	static FString GetHlslDefaultForType(FNiagaraTypeDefinition Type);
-	static bool IsHlslBuiltinVector(FNiagaraTypeDefinition Type);
+	static FString BuildHLSLStructDecl(const FNiagaraTypeDefinition& Type, FText& OutErrorMessage);
+	static FString GetHlslDefaultForType(const FNiagaraTypeDefinition& Type);
+	static bool IsHlslBuiltinVector(const FNiagaraTypeDefinition& Type);
 	static TArray<FName> ConditionPropertyPath(const FNiagaraTypeDefinition& Type, const TArray<FName>& InPath);
 
 
 	static FString GetSanitizedSymbolName(FString SymbolName, bool bCollapseNamespaces=false);
+	static FString GetSanitizedDIFunctionName(const FString& FunctionName);
 	static FString GetSanitizedFunctionNameSuffix(FString Name);
 
 	/** Replaces all non-ascii characters with a "ASCXXX" string, where XXX is their int value */
@@ -578,6 +580,7 @@ private:
 	FString ComputeMatrixColumnAccess(const FString& Name);
 	FString ComputeMatrixRowAccess(const FString& Name);
 
+	bool ParseDIFunctionSpecifiers(UNiagaraNodeCustomHlsl* CustomHLSLNode, FNiagaraFunctionSignature& Sig, TArray<FString>& Tokens, int32& TokenIdx);
 	void HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl,
 		FNiagaraFunctionSignature& OutSignature, TArray<int32>& Inputs);
 	

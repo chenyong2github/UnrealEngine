@@ -40,7 +40,6 @@ static FAutoConsoleVariableRef CVarLogCompileIdGeneration(
 
 float INiagaraModule::EngineGlobalSpawnCountScale = 1.0f;
 float INiagaraModule::EngineGlobalSystemCountScale = 1.0f;
-int32 INiagaraModule::EngineEffectsQuality = INDEX_NONE;
 
 int32 GEnableVerboseNiagaraChangeIdLogging = 0;
 static FAutoConsoleVariableRef CVarEnableVerboseNiagaraChangeIdLogging(
@@ -149,11 +148,6 @@ void INiagaraModule::StartupModule()
 	FNiagaraViewDataMgr::Init();
 
 	FNiagaraWorldManager::OnStartup();
-
-	//Force update on module load.
-	EngineEffectsQuality = Scalability::DefaultQualityLevel;
-	static const auto CVarEQ = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("sg.EffectsQuality"));
-	OnEffectsQualityChanged(CVarEQ->GetValueOnGameThread(), true);
 
 #if WITH_EDITOR	
 	// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
@@ -395,26 +389,6 @@ void INiagaraModule::UnregisterPrecompiler(FDelegateHandle DelegateHandle)
 
 #endif
 
-void INiagaraModule::OnEffectsQualityChanged(int32 NewEffectsQuality, bool bForce)
-{
-	if (FNiagaraPlatformSet::CanChangeScalabilityAtRuntime() || bForce)
-	{
-		if (NewEffectsQuality != EngineEffectsQuality)
-		{
-			EngineEffectsQuality = NewEffectsQuality;
-
-			FNiagaraPlatformSet::InvalidateCachedData();
-
-			for (TObjectIterator<UNiagaraSystem> It; It; ++It)
-			{
-				UNiagaraSystem* System = *It;
-				check(System);
-				System->OnEffectsQualityChanged();
-			}
-		}
-	}
-}
-
 //////////////////////////////////////////////////////////////////////////
 
 UScriptStruct* FNiagaraTypeDefinition::ParameterMapStruct;
@@ -444,6 +418,7 @@ UEnum* FNiagaraTypeDefinition::ExecutionStateSourceEnum;
 UEnum* FNiagaraTypeDefinition::ScriptUsageEnum;
 
 UEnum* FNiagaraTypeDefinition::ParameterScopeEnum;
+UEnum* FNiagaraTypeDefinition::ParameterPanelCategoryEnum;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::ParameterMapDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::IDDef;
@@ -579,6 +554,7 @@ void FNiagaraTypeDefinition::Init()
 	ScriptUsageEnum = StaticEnum<ENiagaraScriptUsage>();
 
 	ParameterScopeEnum = StaticEnum<ENiagaraParameterScope>();
+	ParameterPanelCategoryEnum = StaticEnum<ENiagaraParameterPanelCategory>();
 	
 #if WITH_EDITOR
 	RecreateUserDefinedTypeRegistry();
@@ -977,15 +953,6 @@ void INiagaraModule::ProcessShaderCompilationQueue()
 	checkf(OnProcessQueue.IsBound(), TEXT("Can not process shader queue.  Delegate was never set."));
 	return OnProcessQueue.Execute();
 }
-
-
-void CVarSinkFunc()
-{
-	static const auto CVarEQ = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("sg.EffectsQuality"));
-	INiagaraModule::OnEffectsQualityChanged(CVarEQ->GetValueOnGameThread(), false);
-}
-
-static FAutoConsoleVariableSink CVarSink(FConsoleCommandDelegate::CreateStatic(&CVarSinkFunc));
 
 #if WITH_EDITOR
 const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()

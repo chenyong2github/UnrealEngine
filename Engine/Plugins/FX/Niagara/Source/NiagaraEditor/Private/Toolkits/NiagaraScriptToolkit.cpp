@@ -14,8 +14,8 @@
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
 #include "SNiagaraParameterCollection.h"
 #include "UObject/Package.h"
-#include "SNiagaraParameterMapView.h"
-#include "SNiagaraParameterPanel.h"
+#include "Widgets/SNiagaraParameterMapView.h"
+#include "Widgets/SNiagaraParameterPanel.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSystem.h"
 #include "BusyCursor.h"
@@ -48,7 +48,7 @@
 #include "NiagaraMessageManager.h"
 #include "NiagaraStandaloneScriptViewModel.h"
 #include "NiagaraMessageLogViewModel.h"
-#include "NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptToolkit"
 
@@ -101,12 +101,10 @@ void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("ParametersTab", "Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 
-	if (FNiagaraEditorCommonCVar::GNiagaraEnableParameterPanel2 > 0)
-	{
-		InTabManager->RegisterTabSpawner(ParametersTabId2, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters2))
-			.SetDisplayName(LOCTEXT("ParametersTab2", "Parameters2"))
-			.SetGroup(WorkspaceMenuCategoryRef);
-	}
+	InTabManager->RegisterTabSpawner(ParametersTabId2, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabScriptParameters2))
+		.SetDisplayName(LOCTEXT("ParametersTab2", "Parameters2"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetAutoGenerateMenuEntry(GbShowNiagaraDeveloperWindows != 0);
 		
 	InTabManager->RegisterTabSpawner(StatsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabStats))
 		.SetDisplayName(LOCTEXT("StatsTab", "Stats"))
@@ -160,8 +158,12 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 
 	ScriptViewModel = MakeShareable(new FNiagaraStandaloneScriptViewModel(DisplayName, ENiagaraParameterEditMode::EditAll, NiagaraMessageLogViewModel, MessageLogGuidKey));
 	ScriptViewModel->Initialize(EditedNiagaraScript, OriginalNiagaraScript);
-	ParameterPanelViewModel = MakeShareable(new FNiagaraScriptToolkitParameterPanelViewModel(ScriptViewModel));
-	ParameterPanelViewModel->InitBindings();
+
+	if (GbShowNiagaraDeveloperWindows)
+	{
+		ParameterPanelViewModel = MakeShareable(new FNiagaraScriptToolkitParameterPanelViewModel(ScriptViewModel));
+		ParameterPanelViewModel->InitBindings();
+	}
 
 	OnEditedScriptGraphChangedHandle = ScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
 		FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptToolkit::OnEditedScriptGraphChanged));
@@ -179,7 +181,7 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	StatsListing = MessageLogModule.CreateLogListing("MaterialEditorStats", LogOptions);
 	Stats = MessageLogModule.CreateLogListingWidget(StatsListing.ToSharedRef());
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_Layout_v9")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_Layout_v11")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -341,9 +343,14 @@ void FNiagaraScriptToolkit::OnEditedScriptPropertyFinishedChanging(const FProper
 void FNiagaraScriptToolkit::OnVMScriptCompiled(UNiagaraScript* InScript)
 {
 	UpdateModuleStats();
-	ParameterPanelViewModel->Refresh();
+	if (ParameterPanelViewModel.IsValid())
+	{
+		ParameterPanelViewModel->Refresh();
+	}
 	if (SelectedDetailsWidget.IsValid())
+	{
 		SelectedDetailsWidget->SelectedObjectsChanged();
+	}
 }
 
 TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptDetails(const FSpawnTabArgs& Args)

@@ -153,6 +153,8 @@ private:
 	int32 MaxVertexIndex;
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FLidarPointCloudSceneProxy : public ILidarPointCloudSceneProxy, public FPrimitiveSceneProxy
 {
 public:
@@ -369,6 +371,8 @@ private:
 
 	FLidarPointCloudCollisionRendering* CollisionRendering;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FPrimitiveSceneProxy* ULidarPointCloudComponent::CreateSceneProxy()
 {

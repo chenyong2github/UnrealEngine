@@ -11,13 +11,14 @@
 #include "NameTableArchive.h"
 #include "PackageReader.h"
 #include "AssetRegistry.h"
+#include "Async/ParallelFor.h"
 
 namespace AssetDataGathererConstants
 {
 	static const int32 CacheSerializationVersion = 13;
 	static const int32 MaxFilesToDiscoverBeforeFlush = 2500;
 	static const int32 MaxFilesToGatherBeforeFlush = 250;
-	static const int32 MaxFilesToProcessBeforeCacheWrite = 50000;
+	static const int32 MinSecondsToElapseBeforeCacheWrite = 60;
 }
 
 namespace
@@ -469,6 +470,7 @@ bool FAssetDataGatherer::Init()
 
 uint32 FAssetDataGatherer::Run()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FAssetDataGatherer::Run)
 	int32 CacheSerializationVersion = AssetDataGathererConstants::CacheSerializationVersion;
 	
 	if ( bLoadAndSaveCache )
@@ -494,20 +496,19 @@ uint32 FAssetDataGatherer::Run()
 	TArray<FString> LocalCookedPackageNamesWithoutAssetDataResults;
 
 	const double InitialScanStartTime = FPlatformTime::Seconds();
+	double LastCacheWriteTime = InitialScanStartTime;
 	int32 NumCachedFiles = 0;
 	int32 NumUncachedFiles = 0;
 
-	int32 NumFilesProcessedSinceLastCacheSave = 0;
 	auto WriteAssetCacheFile = [&]()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WriteAssetCacheFile)
 		FNameTableArchiveWriter CachedAssetDataWriter(CacheSerializationVersion, CacheFilename);
 
 		FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion;
 		FAssetRegistryVersion::SerializeVersion(CachedAssetDataWriter, Version);
 
 		SerializeCache(CachedAssetDataWriter);
-
-		NumFilesProcessedSinceLastCacheSave = 0;
 	};
 
 	while ( true )
@@ -559,6 +560,24 @@ uint32 FAssetDataGatherer::Run()
 
 		if (LocalFilesToSearch.Num() > 0)
 		{
+			struct FReadContext
+			{
+				FName PackageName;
+				const FDiscoveredPackageFile& AssetFileData;
+				TArray<FAssetData*> AssetDataFromFile;
+				FPackageDependencyData DependencyData;
+				TArray<FString> CookedPackageNamesWithoutAssetData;
+				bool bCanAttemptAssetRetry = false;
+				bool bResult = false;
+
+				FReadContext(FName InPackageName, const FDiscoveredPackageFile& InAssetFileData)
+					: PackageName(InPackageName)
+					, AssetFileData(InAssetFileData)
+				{
+				}
+			};
+
+			TArray<FReadContext> ReadContexts;
 			for (const FDiscoveredPackageFile& AssetFileData : LocalFilesToSearch)
 			{
 				if (StopTaskCounter.GetValue() != 0)
@@ -614,56 +633,74 @@ uint32 FAssetDataGatherer::Run()
 
 				if (!bLoadedFromCache)
 				{
-					TArray<FAssetData*> AssetDataFromFile;
-					FPackageDependencyData DependencyData;
-					TArray<FString> CookedPackageNamesWithoutAssetData;
-					bool bCanAttemptAssetRetry = false;
-					if (ReadAssetFile(AssetFileData.PackageFilename, AssetDataFromFile, DependencyData, CookedPackageNamesWithoutAssetData, bCanAttemptAssetRetry))
-					{
-						++NumUncachedFiles;
+					ReadContexts.Emplace(PackageName, AssetFileData);
+				}
+			}
 
-						LocalAssetResults.Append(AssetDataFromFile);
+			ParallelFor(ReadContexts.Num(),
+				[this, &ReadContexts](int32 Index)
+				{
+					FReadContext& ReadContext = ReadContexts[Index];
+					ReadContext.bResult = ReadAssetFile(ReadContext.AssetFileData.PackageFilename, ReadContext.AssetDataFromFile, ReadContext.DependencyData, ReadContext.CookedPackageNamesWithoutAssetData, ReadContext.bCanAttemptAssetRetry);
+				},
+				EParallelForFlags::Unbalanced | EParallelForFlags::BackgroundPriority
+			);
+
+			for (FReadContext& ReadContext : ReadContexts)
+			{
+				if (ReadContext.bResult)
+				{
+					++NumUncachedFiles;
+
+					LocalCookedPackageNamesWithoutAssetDataResults.Append(MoveTemp(ReadContext.CookedPackageNamesWithoutAssetData));
+
+					// Don't store info on cooked packages
+					bool bCachePackage = bLoadAndSaveCache && LocalCookedPackageNamesWithoutAssetDataResults.Num() == 0;
+					if (bCachePackage)
+					{
+						for (const FAssetData* AssetData : ReadContext.AssetDataFromFile)
+						{
+							if (!!(AssetData->PackageFlags & PKG_FilterEditorOnly))
+							{
+								bCachePackage = false;
+								break;
+							}
+						}
+					}
+
+					if (bCachePackage)
+					{
+						// Update the cache
+						FDiskCachedAssetData* NewData = new FDiskCachedAssetData(ReadContext.AssetFileData.PackageTimestamp);
+						NewData->AssetDataList.Reserve(ReadContext.AssetDataFromFile.Num());
+						for (const FAssetData* BackgroundAssetData : ReadContext.AssetDataFromFile)
+						{
+							NewData->AssetDataList.Add(*BackgroundAssetData);
+						}
+
+						// MoveTemp only used if we don't need DependencyData anymore
 						if (bGatherDependsData)
 						{
-							LocalDependencyResults.Add(DependencyData);
+							NewData->DependencyData = ReadContext.DependencyData;
 						}
-						LocalCookedPackageNamesWithoutAssetDataResults.Append(CookedPackageNamesWithoutAssetData);
-
-						// Don't store info on cooked packages
-						bool bCachePackage = bLoadAndSaveCache && LocalCookedPackageNamesWithoutAssetDataResults.Num() == 0;
-						if (bCachePackage)
+						else
 						{
-							for (const auto& AssetData : AssetDataFromFile)
-							{
-								if (!!(AssetData->PackageFlags & PKG_FilterEditorOnly))
-								{
-									bCachePackage = false;
-									break;
-								}
-							}
+							NewData->DependencyData = MoveTemp(ReadContext.DependencyData);
 						}
 
-						if (bCachePackage)
-						{
-							++NumFilesProcessedSinceLastCacheSave;
-
-							// Update the cache
-							FDiskCachedAssetData* NewData = new FDiskCachedAssetData(AssetFileData.PackageTimestamp);
-							NewData->AssetDataList.Reserve(AssetDataFromFile.Num());
-							for (const FAssetData* BackgroundAssetData : AssetDataFromFile)
-							{
-								NewData->AssetDataList.Add(*BackgroundAssetData);
-							}
-							NewData->DependencyData = DependencyData;
-
-							NewCachedAssetData.Add(NewData);
-							NewCachedAssetDataMap.Add(PackageName, NewData);
-						}
+						NewCachedAssetData.Add(NewData);
+						NewCachedAssetDataMap.Add(ReadContext.PackageName, NewData);
 					}
-					else if (bCanAttemptAssetRetry)
+
+					LocalAssetResults.Append(MoveTemp(ReadContext.AssetDataFromFile));
+					if (bGatherDependsData)
 					{
-						LocalFilesToRetry.Add(AssetFileData);
+						LocalDependencyResults.Add(MoveTemp(ReadContext.DependencyData));
 					}
+				}
+				else if (ReadContext.bCanAttemptAssetRetry)
+				{
+					LocalFilesToRetry.Add(ReadContext.AssetFileData);
 				}
 			}
 
@@ -673,10 +710,11 @@ uint32 FAssetDataGatherer::Run()
 
 			if (bLoadAndSaveCache)
 			{
-				// Save off the cache files if we're processed enough data since the last save
-				if (NumFilesProcessedSinceLastCacheSave >= AssetDataGathererConstants::MaxFilesToProcessBeforeCacheWrite)
+				// Only write intermediate state cache file if we have spent a good amount of time working on it
+				if (FPlatformTime::Seconds() - LastCacheWriteTime >= AssetDataGathererConstants::MinSecondsToElapseBeforeCacheWrite)
 				{
 					WriteAssetCacheFile();
+					LastCacheWriteTime = FPlatformTime::Seconds();
 				}
 			}
 		}
@@ -856,6 +894,7 @@ void FAssetDataGatherer::SortPathsByPriority(const int32 MaxNumToSort)
 
 bool FAssetDataGatherer::ReadAssetFile(const FString& AssetFilename, TArray<FAssetData*>& AssetDataList, FPackageDependencyData& DependencyData, TArray<FString>& CookedPackageNamesWithoutAssetData, bool& OutCanRetry) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FAssetDataGatherer::ReadAssetFile)
 	OutCanRetry = false;
 
 	FPackageReader PackageReader;

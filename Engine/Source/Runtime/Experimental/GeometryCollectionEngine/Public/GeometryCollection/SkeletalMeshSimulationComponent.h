@@ -2,16 +2,21 @@
 #pragma once
 
 #include "Components/MeshComponent.h"
-#include "Chaos/ChaosSolverActor.h"
-#include "GameFramework/Actor.h"
-#include "Physics/Experimental/PhysScene_Chaos.h"
-#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
-#include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "Chaos/ChaosNotifyHandlerInterface.h"
+#include "GameFramework/Actor.h"
+#include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 
 #include "SkeletalMeshSimulationComponent.generated.h"
 
 class FSkeletalMeshSimulationComponentPhysicsProxy;
+
+namespace Chaos
+{
+class FChaosPhysicsMaterial;
+}
+
+class AChaosSolverActor;
+class UChaosPhysicalMaterial;
 
 /**
 *	USkeletalMeshSimulationComponent
@@ -20,6 +25,8 @@ UCLASS(ClassGroup = Physics, Experimental, meta = (BlueprintSpawnableComponent))
 class GEOMETRYCOLLECTIONENGINE_API USkeletalMeshSimulationComponent : public UActorComponent, public IChaosNotifyHandlerInterface
 {
 	GENERATED_UCLASS_BODY()
+	USkeletalMeshSimulationComponent(FVTableHelper& Helper);
+	virtual ~USkeletalMeshSimulationComponent();
 
 public:
 	//

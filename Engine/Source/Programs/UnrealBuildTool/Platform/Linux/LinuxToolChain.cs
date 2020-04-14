@@ -846,22 +846,30 @@ namespace UnrealBuildTool
 				: string.Format("{0}={1}", myKey, myValue);
 		}
 
-		static string GetCompileArguments_CPP(CppCompileEnvironment CompilerEnvironment)
+		static string GetCompilerStandardVersion_CPP(CppCompileEnvironment CompileEnvironment)
+		{
+			if (CompileEnvironment.CppStandard == CppStandardVersion.Cpp14 || CompileEnvironment.CppStandard == CppStandardVersion.Default)
+			{
+				return " -std=c++14";
+			}
+			else if (CompileEnvironment.CppStandard == CppStandardVersion.Cpp17)
+			{
+				return " -std=c++17";
+			}
+			else if (CompileEnvironment.CppStandard == CppStandardVersion.Latest)
+			{
+				return " -std=c++17";
+			}
+
+			throw new BuildException(
+			string.Format("Unknown C++ standard type set: {0}", CompileEnvironment.CppStandard));
+		}
+
+		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x c++";
-			if (CompilerEnvironment.CppStandard == CppStandardVersion.Cpp14 || CompilerEnvironment.CppStandard == CppStandardVersion.Default)
-			{
-				Result += " -std=c++14";
-			}
-			else if (CompilerEnvironment.CppStandard == CppStandardVersion.Cpp17)
-			{
-				Result += " -std=c++17";
-			}
-			else if (CompilerEnvironment.CppStandard == CppStandardVersion.Latest)
-			{
-				Result += " -std=c++17";
-			}
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
 		}
 
@@ -872,13 +880,13 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		static string GetCompileArguments_MM()
+		static string GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x objective-c++";
 			Result += " -fobjc-abi-version=2";
 			Result += " -fobjc-legacy-dispatch";
-			Result += " -std=c++14";
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
 		}
 
@@ -901,21 +909,21 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		static string GetCompileArguments_M()
+		static string GetCompileArguments_M(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x objective-c";
 			Result += " -fobjc-abi-version=2";
 			Result += " -fobjc-legacy-dispatch";
-			Result += " -std=c++14";
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
 		}
 
-		static string GetCompileArguments_PCH()
+		static string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x c++-header";
-			Result += " -std=c++14";
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
 		}
 
@@ -1284,7 +1292,7 @@ namespace UnrealBuildTool
 			{
 				PrintBuildDetails(CompileEnvironment);
 
-				string LinuxDependenciesPath = Path.Combine(UnrealBuildTool.EngineSourceThirdPartyDirectory.FullName, "Linux", PlatformSDK.HaveLinuxDependenciesFile());
+				string LinuxDependenciesPath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Source/ThirdParty/Linux", PlatformSDK.HaveLinuxDependenciesFile());
 				if (!File.Exists(LinuxDependenciesPath))
 				{
 					throw new BuildException("Please make sure that Engine/Source/ThirdParty/Linux is complete (re - run Setup script if using a github build)");
@@ -1351,7 +1359,7 @@ namespace UnrealBuildTool
 				// Add C or C++ specific compiler arguments.
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 				{
-					FileArguments += GetCompileArguments_PCH();
+					FileArguments += GetCompileArguments_PCH(CompileEnvironment);
 				}
 				else if (Extension == ".C")
 				{
@@ -1361,13 +1369,13 @@ namespace UnrealBuildTool
 				else if (Extension == ".MM")
 				{
 					// Compile the file as Objective-C++ code.
-					FileArguments += GetCompileArguments_MM();
+					FileArguments += GetCompileArguments_MM(CompileEnvironment);
 					FileArguments += GetRTTIFlag(CompileEnvironment);
 				}
 				else if (Extension == ".M")
 				{
 					// Compile the file as Objective-C code.
-					FileArguments += GetCompileArguments_M();
+					FileArguments += GetCompileArguments_M(CompileEnvironment);
 				}
 				else
 				{
@@ -1676,8 +1684,10 @@ namespace UnrealBuildTool
 
 			// Start with the configured LibraryPaths and also add paths to any libraries that
 			// we depend on (libraries that we've build ourselves).
-			List<DirectoryReference> AllLibraryPaths = LinkEnvironment.LibraryPaths;
-			foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
+			List<DirectoryReference> AllLibraryPaths = LinkEnvironment.SystemLibraryPaths;
+
+			IEnumerable<string> AdditionalLibraries = Enumerable.Concat(LinkEnvironment.SystemLibraries, LinkEnvironment.Libraries.Select(x => x.FullName));
+			foreach (string AdditionalLibrary in AdditionalLibraries)
 			{
 				string PathToLib = Path.GetDirectoryName(AdditionalLibrary);
 				if (!String.IsNullOrEmpty(PathToLib))
@@ -1786,7 +1796,7 @@ namespace UnrealBuildTool
 			// add libraries in a library group
 			ResponseLines.Add(string.Format(" --start-group"));
 
-			foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
+			foreach (string AdditionalLibrary in AdditionalLibraries)
 			{
 				if (String.IsNullOrEmpty(Path.GetDirectoryName(AdditionalLibrary)))
 				{

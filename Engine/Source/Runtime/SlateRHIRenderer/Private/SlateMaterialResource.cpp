@@ -5,40 +5,71 @@
 #include "Styling/SlateBrush.h"
 
 
-FSlateMaterialResource::FSlateMaterialResource(const UMaterialInterface& InMaterial, const FVector2D& InImageSize, FSlateShaderResource* InTextureMask )
-	: MaterialObject( &InMaterial )
+FSlateMaterialResource::FSlateMaterialResource(const UMaterialInterface& InMaterialResource, const FVector2D& InImageSize, FSlateShaderResource* InTextureMask )
+	: MaterialObject( &InMaterialResource)
 	, SlateProxy( new FSlateShaderResourceProxy )
 	, TextureMaskResource( InTextureMask )
 	, Width(FMath::RoundToInt(InImageSize.X))
 	, Height(FMath::RoundToInt(InImageSize.Y))
 {
+	MaterialProxy = InMaterialResource.GetRenderProxy();
+
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
+	MaterialObjectWeakPtr = MaterialObject;
+	UpdateMaterialName();
+
+	ensureMsgf(!InMaterialResource.IsPendingKill(), TEXT("Material %s IsPendingKill"), *DebugName.ToString());
+
+	ensureMsgf(MaterialProxy, TEXT("Material %s Render Proxy Is Missing"), *DebugName.ToString());
+	if (MaterialProxy)
+	{
+		ensureMsgf(!MaterialProxy->IsDeleted(), TEXT("Material %s Render Proxy Is Deleted"), *DebugName.ToString());
+		ensureMsgf(!MaterialProxy->IsMarkedForGarbageCollection(), TEXT("Material %s Render Proxy Is Marked For GC"), *DebugName.ToString());
+	}
+#endif
+
 	SlateProxy->ActualSize = InImageSize.IntPoint();
 	SlateProxy->Resource = this;
 
-#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
-	MaterialObjectWeakPtr = MaterialObject; 
-	UpdateMaterialName();
-#endif
+	if (MaterialProxy && (MaterialProxy->IsDeleted() || MaterialProxy->IsMarkedForGarbageCollection()))
+	{
+		MaterialProxy = nullptr;
+	}
 }
 
 FSlateMaterialResource::~FSlateMaterialResource()
 {
-	if(SlateProxy)
+	if (SlateProxy)
 	{
 		delete SlateProxy;
 	}
 }
 
-void FSlateMaterialResource::UpdateMaterial(const UMaterialInterface& InMaterialResource, const FVector2D& InImageSize, FSlateShaderResource* InTextureMask )
+void FSlateMaterialResource::UpdateMaterial(const UMaterialInterface& InMaterialResource, const FVector2D& InImageSize, FSlateShaderResource* InTextureMask)
 {
 	MaterialObject = &InMaterialResource;
+	MaterialProxy = InMaterialResource.GetRenderProxy();
 
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
 	MaterialObjectWeakPtr = MaterialObject;
 	UpdateMaterialName();
+
+	ensureMsgf(!InMaterialResource.IsPendingKill(), TEXT("Material %s IsPendingKill"), *DebugName.ToString());
+
+	ensureMsgf(MaterialProxy, TEXT("Material %s Render Proxy Is Missing"), *DebugName.ToString());
+	if (MaterialProxy)
+	{
+		ensureMsgf(!MaterialProxy->IsDeleted(), TEXT("Material %s Render Proxy Is Deleted"), *DebugName.ToString());
+		ensureMsgf(!MaterialProxy->IsMarkedForGarbageCollection(), TEXT("Material %s Render Proxy Is Marked For GC"), *DebugName.ToString());
+	}
 #endif
 
-	if( !SlateProxy )
+	if (MaterialProxy && (MaterialProxy->IsDeleted() || MaterialProxy->IsMarkedForGarbageCollection()))
+	{
+		MaterialProxy = nullptr;
+	}
+
+	if (!SlateProxy)
 	{
 		SlateProxy = new FSlateShaderResourceProxy;
 	}

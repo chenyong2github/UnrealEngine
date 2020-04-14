@@ -94,7 +94,7 @@ bool UsdToUnreal::ConvertGeomCamera( const pxr::UsdStageRefPtr& Stage, const pxr
 
 	if ( FMath::IsNearlyZero( CameraComponent.FocusSettings.ManualFocusDistance ) )
 	{
-		CameraComponent.FocusSettings.FocusMethod = ECameraFocusMethod::None;
+		CameraComponent.FocusSettings.FocusMethod = ECameraFocusMethod::DoNotOverride;
 	}
 
 	CameraComponent.CurrentAperture = UsdUtils::GetUsdValue< float >( GeomCamera.GetFStopAttr(), EvalTime );

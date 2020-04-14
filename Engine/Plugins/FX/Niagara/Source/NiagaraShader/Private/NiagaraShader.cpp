@@ -60,6 +60,7 @@ namespace NiagaraShaderCookStats
 //
 // Globals
 //
+NIAGARASHADER_API FCriticalSection GIdToNiagaraShaderMapCS;
 TMap<FNiagaraShaderMapId, FNiagaraShaderMap*> FNiagaraShaderMap::GIdToNiagaraShaderMap[SP_NumPlatforms];
 TArray<FNiagaraShaderMap*> FNiagaraShaderMap::AllNiagaraShaderMaps;
 
@@ -517,7 +518,9 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 */
 FNiagaraShaderMap* FNiagaraShaderMap::FindId(const FNiagaraShaderMapId& ShaderMapId, EShaderPlatform InPlatform)
 {
-	return GIdToNiagaraShaderMap[InPlatform].FindRef(ShaderMapId);
+	FNiagaraShaderMap* Result = GIdToNiagaraShaderMap[InPlatform].FindRef(ShaderMapId);
+	check(Result == nullptr || !Result->bDeletedThroughDeferredCleanup);
+	return Result;
 }
 
 /** Flushes the given shader types from any loaded FNiagaraShaderMap's. */
@@ -537,6 +540,8 @@ void FNiagaraShaderMap::FlushShaderTypes(TArray<const FShaderType*>& ShaderTypes
 #if 0
 void FNiagaraShaderMap::FixupShaderTypes(EShaderPlatform Platform, const TMap<FShaderType*, FString>& ShaderTypeNames)
 {
+	FScopeLock ScopeLock(&GIdToNiagaraShaderMapCS);
+
 	TArray<FNiagaraShaderMapId> Keys;
 	FNiagaraShaderMap::GIdToNiagaraShaderMap[Platform].GenerateKeyArray(Keys);
 
@@ -791,7 +796,7 @@ FShader* FNiagaraShaderMap::ProcessCompilationResultsForSingleJob(TSharedRef<FSh
 	// UE-67395 - we had a case where we polluted the DDC with a shader containing no bytecode.
 	check(Shader && Shader->GetCodeSize() > 0);
 	check(!GetContent()->HasShader(NiagaraShaderType, /* PermutationId = */ 0));
-	return GetMutableContent()->FindOrAddShader(Shader);
+	return GetMutableContent()->FindOrAddShader(NiagaraShaderType->GetHashedName(), 0, Shader);
 }
 
 bool FNiagaraShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutJobIndex, float& TimeBudget)
@@ -957,31 +962,42 @@ void FNiagaraShaderMap::Register(EShaderPlatform InShaderPlatform)
 		INC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
 	}
 
-	GIdToNiagaraShaderMap[GetShaderPlatform()].Add(GetContent()->ShaderMapId,this);
-	bRegistered = true;
+	{
+		FScopeLock ScopeLock(&GIdToNiagaraShaderMapCS);
+		GIdToNiagaraShaderMap[GetShaderPlatform()].Add(GetContent()->ShaderMapId, this);
+		bRegistered = true;
+	}
 }
 
 void FNiagaraShaderMap::AddRef()
 {
+	FScopeLock ScopeLock(&GIdToNiagaraShaderMapCS);
 	check(!bDeletedThroughDeferredCleanup);
 	++NumRefs;
 }
 
 void FNiagaraShaderMap::Release()
 {
-	check(NumRefs > 0);
-	if(--NumRefs == 0)
 	{
-		if (bRegistered)
+		FScopeLock ScopeLock(&GIdToNiagaraShaderMapCS);
+
+		check(NumRefs > 0);
+		if (--NumRefs == 0)
 		{
-			DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
+			if (bRegistered)
+			{
+				DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
 
-			GIdToNiagaraShaderMap[GetShaderPlatform()].Remove(GetContent()->ShaderMapId);
-			bRegistered = false;
+				GIdToNiagaraShaderMap[GetShaderPlatform()].Remove(GetContent()->ShaderMapId);
+				bRegistered = false;
+			}
+
+			check(!bDeletedThroughDeferredCleanup);
+			bDeletedThroughDeferredCleanup = true;
 		}
-
-		check(!bDeletedThroughDeferredCleanup);
-		bDeletedThroughDeferredCleanup = true;
+	}
+	if (bDeletedThroughDeferredCleanup)
+	{
 		BeginCleanup(this);
 	}
 }
@@ -1021,16 +1037,17 @@ void FNiagaraShaderMap::FlushShadersByShaderType(const FShaderType* ShaderType)
 
 
 
-void FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
+bool FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
 {
 	// Note: This is saved to the DDC, not into packages (except when cooked)
 	// Backwards compatibility therefore will not work based on the version of Ar
 	// Instead, just bump NIAGARASHADERMAP_DERIVEDDATA_VER
-	Super::Serialize(Ar, bInlineShaderResources, bLoadedByCookedMaterial);
+	return Super::Serialize(Ar, bInlineShaderResources, bLoadedByCookedMaterial);
 }
 
-void FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
+bool FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
 {
+	bool bRemoved = false;
 	//All access to NiagaraShaderMapsBeingCompiled must be done on the game thread!
 	check(IsInGameThread());
 	for (TMap<TRefCountPtr<FNiagaraShaderMap>, TArray<FNiagaraShaderScript*> >::TIterator It(NiagaraShaderMapsBeingCompiled); It; ++It)
@@ -1041,6 +1058,7 @@ void FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
 		{
 			Script->RemoveOutstandingCompileId(It.Key()->CompilingId);
 			Script->NotifyCompilationFinished();
+			bRemoved = true;
 		}
 #if DEBUG_INFINITESHADERCOMPILE
 		if ( Result )
@@ -1049,6 +1067,8 @@ void FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
 		}
 #endif
 	}
+
+	return bRemoved;
 }
 
 

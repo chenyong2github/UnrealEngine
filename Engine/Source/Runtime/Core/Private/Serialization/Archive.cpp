@@ -133,6 +133,8 @@ FArchiveState& FArchiveState::operator=(const FArchiveState& ArchiveToCopy)
 
 FArchiveState::~FArchiveState()
 {
+	checkf(NextProxy == nullptr, TEXT("Archive destroyed before its proxies"));
+
 	delete CustomVersionContainer;
 
 	delete SerializedPropertyChain;
@@ -250,6 +252,58 @@ void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& Archiv
 #endif // USE_STABLE_LOCALIZATION_KEYS
 }
 
+
+void FArchiveState::LinkProxy(FArchiveState& Inner, FArchiveState& Proxy)
+{
+	Proxy.NextProxy = Inner.NextProxy;
+	Inner.NextProxy = &Proxy;
+}
+
+void FArchiveState::UnlinkProxy(FArchiveState& Inner, FArchiveState& Proxy)
+{
+	FArchiveState* Prev = &Inner;
+	while (Prev->NextProxy != &Proxy)
+	{
+		Prev = Prev->NextProxy;
+		checkf(Prev, TEXT("Proxy link not found - likely  lifetime violation"));
+	}
+
+	Prev->NextProxy = Proxy.NextProxy;
+	Proxy.NextProxy = nullptr;
+}
+
+template<typename T>
+FORCEINLINE void FArchiveState::ForEachState(T Func)
+{
+	FArchiveState& RootState = GetInnermostState();
+	Func(RootState);
+
+	for (FArchiveState* Proxy = RootState.NextProxy; Proxy; Proxy = Proxy->NextProxy)
+	{
+		Func(*Proxy);
+	}
+}
+
+void FArchiveState::SetArchiveState(const FArchiveState& InState)
+{
+	ForEachState([&InState](FArchiveState& State) { State = InState; });
+}
+
+void FArchiveState::SetError()
+{
+	ForEachState([](FArchiveState& State) { State.ArIsError = true; });
+}
+
+void FArchiveState::SetCriticalError()
+{
+	ForEachState([](FArchiveState& State) { State.ArIsError = State.ArIsCriticalError = true; });
+}
+
+void FArchiveState::ClearError()
+{
+	ForEachState([](FArchiveState& State) { State.ArIsError = false; });
+}
+
 /**
  * Returns the name of the Archive.  Useful for getting the name of the package a struct or object
  * is in when a loading error occurs.
@@ -259,22 +313,6 @@ void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& Archiv
 FString FArchiveState::GetArchiveName() const
 {
 	return TEXT("FArchive");
-}
-
-void FArchiveState::SetError()
-{
-	ArIsError = true;
-}
-
-void FArchiveState::ClearError()
-{
-	ArIsError = false;
-}
-
-void FArchiveState::SetCriticalError()
-{
-	SetError();
-	ArIsCriticalError = true;
 }
 
 void FArchiveState::GetSerializedPropertyChain(TArray<class FProperty*>& OutProperties) const
@@ -1222,9 +1260,6 @@ void FArchiveState::SetIsPersistent(bool bInIsPersistent)
 	ArIsPersistent = bInIsPersistent;
 }
 
-void FArchive::SetArchiveState(const FArchiveState& InState)
-{
-	ImplicitConv<FArchiveState&>(*this) = InState;
-}
+static_assert(sizeof(FArchive) == sizeof(FArchiveState), "New FArchive members should be added to FArchiveState instead");
 
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

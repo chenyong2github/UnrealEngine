@@ -137,3 +137,10 @@ UGameplayTagsDeveloperSettings::UGameplayTagsDeveloperSettings(const FObjectInit
 {
 	
 }
+
+static const FName NAME_Advanced("Advanced");
+
+FName UGameplayTagsDeveloperSettings::GetCategoryName() const
+{
+	return NAME_Advanced;
+}

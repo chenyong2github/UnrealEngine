@@ -23,6 +23,7 @@ public:
 	virtual void Init(IEngineLoop* InEngineLoop) override;
 	virtual void PreExit() override;
 	virtual void StartPlayInEditorSession(FRequestPlaySessionParams& InRequestParams) override;
+	virtual bool LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error) override;
 	virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
 
 private:

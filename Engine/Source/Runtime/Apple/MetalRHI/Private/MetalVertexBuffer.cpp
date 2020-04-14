@@ -95,8 +95,8 @@ void FMetalVertexBuffer::Swap(FMetalVertexBuffer& Other)
 void FMetalRHIBuffer::Swap(FMetalRHIBuffer& Other)
 {
 	::Swap(*this, Other);
-	Other.Buffer.SetOwner(&Other);
-	Buffer.SetOwner(this);
+	Other.Buffer.SetOwner(&Other, true);
+	Buffer.SetOwner(this, true);
 }
 
 static bool CanUsePrivateMemory()
@@ -236,7 +236,7 @@ void FMetalRHIBuffer::Unalias()
 	}
 }
 
-void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode, bool bIsUniformBuffer)
+void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode)
 {
 	if (!Buffer)
 	{
@@ -245,7 +245,7 @@ void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode, bool bIsU
 		Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
 		METAL_FATAL_ASSERT(Buffer, TEXT("Failed to create buffer of size %u and storage mode %u"), InSize, (uint32)Mode);
 
-        Buffer.SetOwner(this);
+        Buffer.SetOwner(this, false);
 
         METAL_INC_DWORD_STAT_BY(Type, MemAlloc, InSize);
         
@@ -260,8 +260,6 @@ void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode, bool bIsU
 				check(Pair.Value);
 			}
 		}
-
-		bIsUniformBufferBacking = bIsUniformBuffer;
 	}
 }
 
@@ -271,7 +269,7 @@ void FMetalRHIBuffer::AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, ERes
 	{
 		FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), InSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
         CPUBuffer = GetMetalDeviceContext().CreatePooledBuffer(ArgsCPU);
-		CPUBuffer.SetOwner(this);
+		CPUBuffer.SetOwner(this, false);
         check(CPUBuffer && CPUBuffer.GetPtr());
         METAL_INC_DWORD_STAT_BY(Type, MemAlloc, InSize);
         METAL_FATAL_ASSERT(CPUBuffer, TEXT("Failed to create buffer of size %u and storage mode %u"), InSize, (uint32)mtlpp::StorageMode::Shared);
@@ -335,6 +333,26 @@ FMetalTexture FMetalRHIBuffer::AllocLinearTexture(EPixelFormat InFormat, const F
 
 				Width = Dimension;
 				Height = NumElements / Dimension;
+
+				// If we're just trying to fit as many elements as we can into
+				// the available buffer space, we can trim some padding at the
+				// end of the buffer in order to create widest possible linear
+				// texture that will fit.
+				if ((UINT_MAX == LinearTextureDesc.NumElements) && (Height > GMaxTextureDimensions))
+				{
+					Width = GMaxTextureDimensions;
+					Height = 1;
+
+					while ((Width * Height) < NumElements)
+					{
+						Height <<= 1;
+					}
+
+					while ((Width * Height) > NumElements)
+					{
+						Height -= 1;
+					}
+				}
 
 				checkf(Width <= GMaxTextureDimensions, TEXT("Calculated width %u is greater than maximum permitted %d when converting buffer of size %llu with element stride %u to a 2D texture with %u elements."), Width, (int32)GMaxTextureDimensions, Buffer.GetLength(), BytesPerElement, NumElements);
 				checkf(Height <= GMaxTextureDimensions, TEXT("Calculated height %u is greater than maximum permitted %d when converting buffer of size %llu with element stride %u to a 2D texture with %u elements."), Height, (int32)GMaxTextureDimensions, Buffer.GetLength(), BytesPerElement, NumElements);
@@ -439,22 +457,7 @@ ns::AutoReleased<FMetalTexture> FMetalRHIBuffer::GetLinearTexture(EPixelFormat I
 	return Texture;
 }
 
-bool FMetalRHIBuffer::CanUseBufferAsBackingForAsyncCopy() const
-{
-	return (!bIsUniformBufferBacking ||
-			UniformBufferFrameIndex != GetMetalDeviceContext().GetDeviceFrameIndex() ||
-			UniformBufferPreviousOffset != Buffer.GetOffset());
-}
-
-void FMetalRHIBuffer::ConditionalSetUniformBufferFrameIndex()
-{
-	if (bIsUniformBufferBacking)
-	{
-		UniformBufferFrameIndex = GetMetalDeviceContext().GetDeviceFrameIndex();
-	}
-}
-
-void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uint32 Offset, uint32 InSize, bool bIsUniformBuffer /*= false*/)
+void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uint32 Offset, uint32 InSize)
 {
 	check(LockSize == 0 && LockOffset == 0);
 	
@@ -499,16 +502,14 @@ void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uin
 	// When we can't we have to reallocate the backing store
 	if (LockMode != RLM_ReadOnly &&
 		Mode == mtlpp::StorageMode::Private &&
-		Buffer &&
-		(!GetMetalDeviceContext().CanAsyncCopyToBuffer(Buffer) ||
-		 !CanUseBufferAsBackingForAsyncCopy()))
+		Buffer)
 	{
 		METAL_INC_DWORD_STAT_BY(Type, MemFreed, Len);
 		SafeReleaseMetalBuffer(Buffer);
 		Buffer = nil;
 	}
 	
-    Alloc(Len, LockMode, bIsUniformBuffer);
+    Alloc(Len, LockMode);
 	AllocTransferBuffer(bIsOnRHIThread, Len, LockMode);
 	
 	FMetalBuffer& theBufferToUse = CPUBuffer ? CPUBuffer : Buffer;
@@ -558,8 +559,6 @@ void FMetalRHIBuffer::Unlock()
 		{
 			// Synchronise the buffer with the GPU
 			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(CPUBuffer, 0, Buffer, 0, FMath::Min(CPUBuffer.GetLength(), Buffer.GetLength()));
-			
-			ConditionalSetUniformBufferPreviousOffset();
 			
 			if (CPUBuffer)
             {

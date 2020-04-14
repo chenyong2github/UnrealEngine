@@ -21,21 +21,19 @@ namespace Chaos
 	namespace Collisions
 	{
 
-		template<typename T, int d>
-		TRigidTransform<T, d> GetTransform(const TGeometryParticleHandle<T, d>* Particle)
+		FRigidTransform3 GetTransform(const TGeometryParticleHandle<FReal, 3>* Particle)
 		{
-			TGenericParticleHandle<T, d> Generic = const_cast<TGeometryParticleHandle<T, d>*>(Particle);
-			return TRigidTransform<T, d>(Generic->P(), Generic->Q());
+			TGenericParticleHandle<FReal, 3> Generic = const_cast<TGeometryParticleHandle<FReal, 3>*>(Particle);
+			return FRigidTransform3(Generic->P(), Generic->Q());
 		}
 
 		// @todo(ccaulfield): This is duplicated in JointConstraints - move to a utility file
-		template<typename T>
-		PMatrix<T, 3, 3> ComputeFactorMatrix3(const TVector<T, 3>& V, const PMatrix<T, 3, 3>& M, const T& Im)
+		FMatrix33 ComputeFactorMatrix3(const FVec3& V, const FMatrix33& M, const FReal Im)
 		{
 			// Rigid objects rotational contribution to the impulse.
 			// Vx*M*VxT+Im
 			ensure(Im > FLT_MIN);
-				return PMatrix<T, 3, 3>(
+				return FMatrix33(
 					-V[2] * (-V[2] * M.M[1][1] + V[1] * M.M[2][1]) + V[1] * (-V[2] * M.M[2][1] + V[1] * M.M[2][2]) + Im,
 					V[2] * (-V[2] * M.M[1][0] + V[1] * M.M[2][0]) - V[0] * (-V[2] * M.M[2][1] + V[1] * M.M[2][2]),
 					-V[1] * (-V[2] * M.M[1][0] + V[1] * M.M[2][0]) + V[0] * (-V[2] * M.M[1][1] + V[1] * M.M[2][1]),
@@ -44,48 +42,46 @@ namespace Chaos
 					-V[1] * (-V[1] * M.M[0][0] + V[0] * M.M[1][0]) + V[0] * (-V[1] * M.M[1][0] + V[0] * M.M[1][1]) + Im);
 		}
 
-		template<typename T, int d>
-		TVector<T, d> GetEnergyClampedImpulse(const TPBDRigidParticleHandle<T, d>* PBDRigid0, const TPBDRigidParticleHandle<T, d>* PBDRigid1, const TVector<T, d>& Impulse, const TVector<T, d>& VectorToPoint1, const TVector<T, d>& VectorToPoint2, const TVector<T, d>& Velocity1, const TVector<T, d>& Velocity2)
+		FVec3 GetEnergyClampedImpulse(const TPBDRigidParticleHandle<FReal, 3>* PBDRigid0, const TPBDRigidParticleHandle<FReal, 3>* PBDRigid1, const FVec3& Impulse, const FVec3& VectorToPoint1, const FVec3& VectorToPoint2, const FVec3& Velocity1, const FVec3& Velocity2)
 		{
 			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
-			TVector<T, d> Jr0, Jr1, IInvJr0, IInvJr1;
-			T ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
-			T ImpulseSize = Impulse.SizeSquared();
-			TVector<T, d> KinematicVelocity = !bIsRigidDynamic0 ? Velocity1 : !bIsRigidDynamic1 ? Velocity2 : TVector<T, d>(0);
+			FVec3 Jr0, Jr1, IInvJr0, IInvJr1;
+			FReal ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
+			FReal ImpulseSize = Impulse.SizeSquared();
+			FVec3 KinematicVelocity = !bIsRigidDynamic0 ? Velocity1 : !bIsRigidDynamic1 ? Velocity2 : FVec3(0);
 			if (bIsRigidDynamic0)
 			{
-				Jr0 = TVector<T, d>::CrossProduct(VectorToPoint1, Impulse);
+				Jr0 = FVec3::CrossProduct(VectorToPoint1, Impulse);
 				IInvJr0 = PBDRigid0->Q().RotateVector(PBDRigid0->InvI() * PBDRigid0->Q().UnrotateVector(Jr0));
-				ImpulseRatioNumerator0 = TVector<T, d>::DotProduct(Impulse, PBDRigid0->V() - KinematicVelocity) + TVector<T, d>::DotProduct(IInvJr0, PBDRigid0->W());
-				ImpulseRatioDenom0 = ImpulseSize / PBDRigid0->M() + TVector<T, d>::DotProduct(Jr0, IInvJr0);
+				ImpulseRatioNumerator0 = FVec3::DotProduct(Impulse, PBDRigid0->V() - KinematicVelocity) + FVec3::DotProduct(IInvJr0, PBDRigid0->W());
+				ImpulseRatioDenom0 = ImpulseSize / PBDRigid0->M() + FVec3::DotProduct(Jr0, IInvJr0);
 			}
 			if (bIsRigidDynamic1)
 			{
-				Jr1 = TVector<T, d>::CrossProduct(VectorToPoint2, Impulse);
+				Jr1 = FVec3::CrossProduct(VectorToPoint2, Impulse);
 				IInvJr1 = PBDRigid1->Q().RotateVector(PBDRigid1->InvI() * PBDRigid1->Q().UnrotateVector(Jr1));
-				ImpulseRatioNumerator1 = TVector<T, d>::DotProduct(Impulse, PBDRigid1->V() - KinematicVelocity) + TVector<T, d>::DotProduct(IInvJr1, PBDRigid1->W());
-				ImpulseRatioDenom1 = ImpulseSize / PBDRigid1->M() + TVector<T, d>::DotProduct(Jr1, IInvJr1);
+				ImpulseRatioNumerator1 = FVec3::DotProduct(Impulse, PBDRigid1->V() - KinematicVelocity) + FVec3::DotProduct(IInvJr1, PBDRigid1->W());
+				ImpulseRatioDenom1 = ImpulseSize / PBDRigid1->M() + FVec3::DotProduct(Jr1, IInvJr1);
 			}
-			T Numerator = -2 * (ImpulseRatioNumerator0 - ImpulseRatioNumerator1);
+			FReal Numerator = -2 * (ImpulseRatioNumerator0 - ImpulseRatioNumerator1);
 			if (Numerator < 0)
 			{
-				return TVector<T, d>(0);
+				return FVec3(0);
 			}
 			check(Numerator >= 0);
-			T Denominator = ImpulseRatioDenom0 + ImpulseRatioDenom1;
+			FReal Denominator = ImpulseRatioDenom0 + ImpulseRatioDenom1;
 			return Numerator < Denominator ? (Impulse * Numerator / Denominator) : Impulse;
 		}
 
-		template <typename T, int d>
-		bool SampleObjectHelper(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint)
+		bool SampleObjectHelper(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FRigidTransform3& SampleToObjectTransform, const FVec3& SampleParticle, FReal Thickness, FRigidBodyPointContactConstraint& Constraint)
 		{
-			TVector<T, d> LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
-			TVector<T, d> LocalNormal;
-			T LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
+			FVec3 LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
+			FVec3 LocalNormal;
+			FReal LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 
-			TCollisionContact<T, d> & Contact = Constraint.Manifold;
+			FCollisionContact & Contact = Constraint.Manifold;
 			if (LocalPhi < Contact.Phi)
 			{
 				Contact.Phi = LocalPhi;
@@ -96,14 +92,13 @@ namespace Chaos
 			return false;
 		}
 
-		template <typename T, int d>
-		bool SampleObjectNoNormal(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint)
+		bool SampleObjectNoNormal(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FRigidTransform3& SampleToObjectTransform, const FVec3& SampleParticle, FReal Thickness, FRigidBodyPointContactConstraint& Constraint)
 		{
-			TVector<T, d> LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
-			TVector<T, d> LocalNormal;
-			T LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
+			FVec3 LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
+			FVec3 LocalNormal;
+			FReal LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 
-			TCollisionContact<T, d> & Contact = Constraint.Manifold;
+			FCollisionContact & Contact = Constraint.Manifold;
 			if (LocalPhi < Contact.Phi)
 			{
 				Contact.Phi = LocalPhi;
@@ -112,15 +107,14 @@ namespace Chaos
 			return false;
 		}
 
-		template <typename T, int d>
-		bool SampleObjectNormalAverageHelper(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, T& TotalThickness, TRigidBodyPointContactConstraint<float, 3>& Constraint)
+		bool SampleObjectNormalAverageHelper(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FRigidTransform3& SampleToObjectTransform, const FVec3& SampleParticle, FReal Thickness, FReal& TotalThickness, FRigidBodyPointContactConstraint& Constraint)
 		{
-			TVector<T, d> LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
-			TVector<T, d> LocalNormal;
-			T LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
-			T LocalThickness = LocalPhi - Thickness;
+			FVec3 LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
+			FVec3 LocalNormal;
+			FReal LocalPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
+			FReal LocalThickness = LocalPhi - Thickness;
 
-			TCollisionContact<T, d> & Contact = Constraint.Manifold;
+			FCollisionContact & Contact = Constraint.Manifold;
 			if (LocalThickness < -KINDA_SMALL_NUMBER)
 			{
 				Contact.Location += LocalPoint * LocalThickness;
@@ -146,13 +140,13 @@ namespace Chaos
 
 #if INTEL_ISPC
 		template<ECollisionUpdateType UpdateType>
-		void SampleObject(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint)
+		void SampleObject(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, FRigidBodyPointContactConstraint& Constraint)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SampleObject);
-			TRigidBodyPointContactConstraint<float, 3> AvgConstraint = Constraint;
+			FRigidBodyPointContactConstraint AvgConstraint = Constraint;
 
-			TCollisionContact<float, 3> & Contact = Constraint.Manifold;
-			TCollisionContact<float, 3> & AvgContact = AvgConstraint.Manifold;
+			FCollisionContact& Contact = Constraint.Manifold;
+			FCollisionContact& AvgContact = AvgConstraint.Manifold;
 
 			AvgConstraint.Particle[0] = Constraint.Particle[0];
 			AvgConstraint.Particle[1] = Constraint.Particle[1];
@@ -179,7 +173,7 @@ namespace Chaos
 				{
 					SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetSignedDistance);
 
-					if (Object.GetType(true) == ImplicitObjectType::LevelSet && PotentialParticles.Num() > 0)
+					if (Object.GetType() == ImplicitObjectType::LevelSet && PotentialParticles.Num() > 0)
 					{
 						//QUICK_SCOPE_CYCLE_COUNTER(STAT_LevelSet);
 						const TLevelSet<float, 3>* LevelSet = Object.GetObject<TLevelSet<float, 3>>();
@@ -223,7 +217,7 @@ namespace Chaos
 							}
 						}
 					}
-					else if (Object.GetType(true) == ImplicitObjectType::Box && PotentialParticles.Num() > 0)
+					else if (Object.GetType() == ImplicitObjectType::Box && PotentialParticles.Num() > 0)
 					{
 						//QUICK_SCOPE_CYCLE_COUNTER(STAT_Box);
 						const TBox<float, 3>* Box = Object.GetObject<Chaos::TBox<float, 3>>();
@@ -288,7 +282,7 @@ namespace Chaos
 			else
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetAll);
-				if (Object.GetType(true) == ImplicitObjectType::LevelSet && NumParticles > 0)
+				if (Object.GetType() == ImplicitObjectType::LevelSet && NumParticles > 0)
 				{
 					const TLevelSet<float, 3>* LevelSet = Object.GetObject<Chaos::TLevelSet<float, 3>>();
 					const TUniformGrid<float, 3>& Grid = LevelSet->GetGrid();
@@ -329,7 +323,7 @@ namespace Chaos
 						}
 					}
 				}
-				else if (Object.GetType(true) == ImplicitObjectType::Plane && NumParticles > 0)
+				else if (Object.GetType() == ImplicitObjectType::Plane && NumParticles > 0)
 				{
 					const TPlane<float, 3>* Plane = Object.GetObject<Chaos::TPlane<float, 3>>();
 
@@ -363,7 +357,41 @@ namespace Chaos
 						}
 					}
 				}
-				else if (Object.GetType(true) == ImplicitObjectType::Box && NumParticles > 0)
+				else if (Object.GetType() == ImplicitObjectType::Sphere && NumParticles > 0)
+				{
+					const TSphere<float, 3>* Sphere = Object.GetObject<Chaos::TSphere<float, 3>>();
+
+					if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)
+					{
+						ispc::SampleSphereNormalAverageAll(
+							Sphere->GetRadius(),
+							(ispc::FVector&)Sphere->GetCenter(),
+							(ispc::FTransform&)SampleToObjectTM,
+							(ispc::FVector*) & SampleParticles.XArray()[0],
+							Thickness,
+							TotalThickness,
+							(ispc::FVector&)AvgContact.Location,
+							NumParticles);
+					}
+					else
+					{
+						ispc::SampleSphereNoNormalAll(
+							Sphere->GetRadius(),
+							(ispc::FVector&)Sphere->GetCenter(),
+							(ispc::FTransform&)SampleToObjectTM,
+							(ispc::FVector*) & SampleParticles.XArray()[0],
+							DeepestParticle,
+							AvgContact.Phi,
+							NumParticles);
+
+						if (UpdateType == ECollisionUpdateType::Any)
+						{
+							Contact.Phi = AvgContact.Phi;
+							return;
+						}
+					}
+				}
+				else if (Object.GetType() == ImplicitObjectType::Box && NumParticles > 0)
 				{
 					const TBox<float, 3>* Box = Object.GetObject<Chaos::TBox<float, 3>>();
 
@@ -452,14 +480,14 @@ namespace Chaos
 			}
 		}
 #else		
-		template <ECollisionUpdateType UpdateType, typename T, int d>
-		void SampleObject(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TBVHParticles<T, d>& SampleParticles, const TRigidTransform<T, d>& SampleParticlesTransform, T Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint)
+		template <ECollisionUpdateType UpdateType>
+		void SampleObject(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const TBVHParticles<FReal, 3>& SampleParticles, const FRigidTransform3& SampleParticlesTransform, FReal Thickness, FRigidBodyPointContactConstraint& Constraint)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SampleObject);
-			TRigidBodyPointContactConstraint<float, 3> AvgConstraint = Constraint;
+			FRigidBodyPointContactConstraint AvgConstraint = Constraint;
 
-			TCollisionContact<float, 3> & Contact = Constraint.Manifold;
-			TCollisionContact<float, 3> & AvgContact = AvgConstraint.Manifold;
+			FCollisionContact & Contact = Constraint.Manifold;
+			FCollisionContact & AvgContact = AvgConstraint.Manifold;
 
 			AvgConstraint.Particle[0] = Constraint.Particle[0];
 			AvgConstraint.Particle[1] = Constraint.Particle[1];
@@ -471,11 +499,11 @@ namespace Chaos
 			int32 DeepestParticle = -1;
 			const int32 NumParticles = SampleParticles.Size();
 
-			const TRigidTransform<T, d> & SampleToObjectTM = SampleParticlesTransform.GetRelativeTransform(ObjectTransform);
+			const FRigidTransform3 & SampleToObjectTM = SampleParticlesTransform.GetRelativeTransform(ObjectTransform);
 			if (NumParticles > SampleMinParticlesForAcceleration && Object.HasBoundingBox())
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetPartial);
-				TAABB<T, d> ImplicitBox = Object.BoundingBox().TransformedAABB(ObjectTransform.GetRelativeTransform(SampleParticlesTransform));
+				FAABB3 ImplicitBox = Object.BoundingBox().TransformedAABB(ObjectTransform.GetRelativeTransform(SampleParticlesTransform));
 				ImplicitBox.Thicken(Thickness);
 				TArray<int32> PotentialParticles;
 				{
@@ -533,9 +561,9 @@ namespace Chaos
 			{
 				if (TotalThickness < -KINDA_SMALL_NUMBER)
 				{
-					TVector<T, d> LocalPoint = AvgContact.Location / TotalThickness;
-					TVector<T, d> LocalNormal;
-					const T NewPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
+					FVec3 LocalPoint = AvgContact.Location / TotalThickness;
+					FVec3 LocalNormal;
+					const FReal NewPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 					if (NewPhi < Contact.Phi)
 					{
 						Contact.Phi = NewPhi;
@@ -551,8 +579,8 @@ namespace Chaos
 			else if (AvgContact.Phi < Contact.Phi)
 			{
 				check(DeepestParticle >= 0);
-				TVector<T, d> LocalPoint = SampleToObjectTM.TransformPositionNoScale(SampleParticles.X(DeepestParticle));
-				TVector<T, d> LocalNormal;
+				FVec3 LocalPoint = SampleToObjectTM.TransformPositionNoScale(SampleParticles.X(DeepestParticle));
+				FVec3 LocalNormal;
 				Contact.Phi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 				Contact.Location = ObjectTransform.TransformPositionNoScale(LocalPoint);
 				Contact.Normal = ObjectTransform.TransformVectorNoScale(LocalNormal);
@@ -563,18 +591,17 @@ namespace Chaos
 
 
 		DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::FindRelevantShapes"), STAT_FindRelevantShapes, STATGROUP_ChaosWide);
-		template <typename T, int d>
-		TArray<Pair<const FImplicitObject*, TRigidTransform<T, d>>> FindRelevantShapes(const FImplicitObject* ParticleObj, const TRigidTransform<T, d>& ParticlesTM, const FImplicitObject& LevelsetObj, const TRigidTransform<T, d>& LevelsetTM, const T Thickness)
+		TArray<Pair<const FImplicitObject*, FRigidTransform3>> FindRelevantShapes(const FImplicitObject* ParticleObj, const FRigidTransform3& ParticlesTM, const FImplicitObject& LevelsetObj, const FRigidTransform3& LevelsetTM, const FReal Thickness)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_FindRelevantShapes);
-			TArray<Pair<const FImplicitObject*, TRigidTransform<T, d>>> RelevantShapes;
+			TArray<Pair<const FImplicitObject*, FRigidTransform3>> RelevantShapes;
 			//find all levelset inner objects
 			if (ParticleObj)
 			{
 				if (ParticleObj->HasBoundingBox())
 				{
-					const TRigidTransform<T, d> ParticlesToLevelsetTM = ParticlesTM.GetRelativeTransform(LevelsetTM);
-					TAABB<T, d> ParticleBoundsInLevelset = ParticleObj->BoundingBox().TransformedAABB(ParticlesToLevelsetTM);
+					const FRigidTransform3 ParticlesToLevelsetTM = ParticlesTM.GetRelativeTransform(LevelsetTM);
+					FAABB3 ParticleBoundsInLevelset = ParticleObj->BoundingBox().TransformedAABB(ParticlesToLevelsetTM);
 					ParticleBoundsInLevelset.Thicken(Thickness);
 					{
 						LevelsetObj.FindAllIntersectingObjects(RelevantShapes, ParticleBoundsInLevelset);
@@ -582,32 +609,20 @@ namespace Chaos
 				}
 				else
 				{
-					LevelsetObj.AccumulateAllImplicitObjects(RelevantShapes, TRigidTransform<T, d>::Identity);
+					LevelsetObj.AccumulateAllImplicitObjects(RelevantShapes, FRigidTransform3::Identity);
 				}
 			}
 			else
 			{
 				//todo:compute bounds
-				LevelsetObj.AccumulateAllImplicitObjects(RelevantShapes, TRigidTransform<T, d>::Identity);
+				LevelsetObj.AccumulateAllImplicitObjects(RelevantShapes, FRigidTransform3::Identity);
 			}
 
 			return RelevantShapes;
 		}
 
-		template TRigidTransform<float, 3> GetTransform(const TGeometryParticleHandle<float, 3>* Particle);
-		template PMatrix<float, 3, 3> ComputeFactorMatrix3(const TVector<float, 3>& V, const PMatrix<float, 3, 3>& M, const float& Im);
-		template TVector<float, 3> GetEnergyClampedImpulse(const TPBDRigidParticleHandle<float, 3>* PBDRigid0, const TPBDRigidParticleHandle<float, 3>* PBDRigid1, const TVector<float, 3>& Impulse, const TVector<float, 3>& VectorToPoint1, const TVector<float, 3>& VectorToPoint2, const TVector<float, 3>& Velocity1, const TVector<float, 3>& Velocity2);
-		template bool SampleObjectHelper<float, 3>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TRigidTransform<float, 3>& SampleToObjectTransform, const TVector<float, 3>& SampleParticle, float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-		template bool SampleObjectNoNormal(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TRigidTransform<float, 3>& SampleToObjectTransform, const TVector<float, 3>& SampleParticle, float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-		template bool SampleObjectNormalAverageHelper(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TRigidTransform<float, 3>& SampleToObjectTransform, const TVector<float, 3>& SampleParticle, float Thickness, float& TotalThickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-#if INTEL_ISPC
-		template void SampleObject<ECollisionUpdateType::Any>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-		template void SampleObject<ECollisionUpdateType::Deepest>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-#else
-		template void SampleObject<ECollisionUpdateType::Any, float, 3>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-		template void SampleObject<ECollisionUpdateType::Deepest, float, 3>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
-#endif
-		template TArray<Pair<const FImplicitObject*, TRigidTransform<float, 3>>> FindRelevantShapes<float, 3>(const FImplicitObject* ParticleObj, const TRigidTransform<float, 3>& ParticlesTM, const FImplicitObject& LevelsetObj, const TRigidTransform<float, 3>& LevelsetTM, const float Thickness);
+		template void SampleObject<ECollisionUpdateType::Any>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, FRigidBodyPointContactConstraint& Constraint);
+		template void SampleObject<ECollisionUpdateType::Deepest>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, FRigidBodyPointContactConstraint& Constraint);
 
 	} // Collisions
 

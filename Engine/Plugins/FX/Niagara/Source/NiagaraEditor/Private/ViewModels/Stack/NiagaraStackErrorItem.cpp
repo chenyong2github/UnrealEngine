@@ -25,6 +25,11 @@ FText UNiagaraStackErrorItem::GetDisplayName() const
 	return StackIssue.GetShortDescription();
 }
 
+EStackIssueSeverity UNiagaraStackErrorItem::GetIssueSeverity() const
+{
+	return StackIssue.GetSeverity();
+}
+
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackErrorItem::GetStackRowStyle() const
 {
 	return EStackRowStyle::StackIssue;
@@ -123,6 +128,11 @@ FText UNiagaraStackErrorItemLongDescription::GetDisplayName() const
 	return StackIssue.GetLongDescription();
 }
 
+EStackIssueSeverity UNiagaraStackErrorItemLongDescription::GetIssueSeverity() const
+{
+	return StackIssue.GetSeverity();
+}
+
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackErrorItemLongDescription::GetStackRowStyle() const
 {
 	return EStackRowStyle::StackIssue;
@@ -148,6 +158,11 @@ FReply UNiagaraStackErrorItemFix::OnTryFixError()
 FText UNiagaraStackErrorItemFix::GetDisplayName() const
 {
 	return IssueFix.GetDescription();
+}
+
+EStackIssueSeverity UNiagaraStackErrorItemFix::GetIssueSeverity() const
+{
+	return StackIssue.GetSeverity();
 }
 
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackErrorItemFix::GetStackRowStyle() const

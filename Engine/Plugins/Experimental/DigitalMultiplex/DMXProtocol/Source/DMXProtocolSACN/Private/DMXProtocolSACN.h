@@ -18,6 +18,8 @@ class FDMXProtocolUniverseSACN;
 template<class TUniverse>
 class FDMXProtocolUniverseManager;
 
+using FDMXProtocolUniverseSACNPtr = TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>;
+
 class DMXPROTOCOLSACN_API FDMXProtocolSACN
 	: public IDMXProtocol
 	, public IDMXNetworkInterface
@@ -76,6 +78,9 @@ public:
 private:
 	EDMXSendResult SendDMXInternal(uint16 UniverseID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const;
 
+	/** Called each tick in LaunchEngineLoop */
+	void OnEndFrame();
+
 private:
 	FName ProtocolName;
 
@@ -98,4 +103,7 @@ private:
 	FOnNetworkInterfaceChangedDelegate NetworkInterfaceChangedDelegate;
 
 	const TCHAR* NetworkErrorMessagePrefix;
+
+	/** Called at the end of a frame, Allow to tick universes */
+	FDelegateHandle OnEndFrameHandle;
 };

@@ -106,6 +106,11 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "UObject/MetaData.h"
 
+#if WITH_CHAOS
+#include "ChaosCheck.h"
+#include "Chaos/Convex.h"
+#endif
+
 namespace UnFbx
 {
 

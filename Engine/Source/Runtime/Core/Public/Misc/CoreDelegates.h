@@ -267,6 +267,9 @@ public:
 	// Called at the beginning of a frame
 	static FSimpleMulticastDelegate OnBeginFrame;
 
+	// Called at the moment of sampling the input (currently on the gamethread)
+	static FSimpleMulticastDelegate OnSamplingInput;
+
 	// Called at the end of a frame
 	static FSimpleMulticastDelegate OnEndFrame;
 

@@ -26,6 +26,7 @@
 
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracing/RayTracingDeferredMaterials.h"
+#include "RayTracing/RayTracingReflections.h"
 #include "RendererPrivate.h"
 #include "GlobalShader.h"
 #include "DeferredShadingRenderer.h"
@@ -62,6 +63,7 @@ class FGenerateReflectionRaysCS : public FGlobalShader
 	SHADER_PARAMETER(FIntPoint, RayTracingResolution)
 	SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
 	SHADER_PARAMETER(float, ReflectionMaxNormalBias)
+	SHADER_PARAMETER(float, ReflectionMaxRoughness)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FSortedReflectionRay>, RayBuffer)
@@ -111,6 +113,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, RayTracingResolution)
 		SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
 		SHADER_PARAMETER(float, ReflectionMaxNormalBias)
+		SHADER_PARAMETER(float, ReflectionMaxRoughness)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FSortedReflectionRay>, RayBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRayIntersectionBookmark>, BookmarkBuffer)
@@ -146,6 +149,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1); // Always using 1D dispatches
+		OutEnvironment.SetDefine(TEXT("ENABLE_TWO_SIDED_GEOMETRY"), 1); // Always using double-sided ray tracing for shadow rays
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredReflectionsRGS, "/Engine/Private/RayTracing/RayTracingDeferredReflections.usf", "RayTracingDeferredReflectionsRGS", SF_RayGen);
@@ -177,6 +181,7 @@ static void AddGenerateReflectionRaysPass(
 	PassParameters->RayTracingResolution    = CommonParameters.RayTracingResolution;
 	PassParameters->TileAlignedResolution   = CommonParameters.TileAlignedResolution;
 	PassParameters->ReflectionMaxNormalBias = CommonParameters.ReflectionMaxNormalBias;
+	PassParameters->ReflectionMaxRoughness  = CommonParameters.ReflectionMaxRoughness;
 	PassParameters->ViewUniformBuffer       = CommonParameters.ViewUniformBuffer;
 	PassParameters->SceneTextures           = CommonParameters.SceneTextures;
 	PassParameters->RayBuffer               = GraphBuilder.CreateUAV(RayBuffer);
@@ -200,6 +205,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	const FRayTracingReflectionOptions& Options,
 	IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs)
 {
 	FRDGTextureDesc OutputDesc = FPooledRenderTargetDesc::Create2DDesc(
@@ -208,9 +214,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 		TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV,
 		false);
 
-	OutDenoiserInputs->Color          = GraphBuilder.CreateTexture(OutputDesc, TEXT("RTDReflections"));
+	OutDenoiserInputs->Color          = GraphBuilder.CreateTexture(OutputDesc, TEXT("RayTracingReflections"));
 	OutputDesc.Format                 = PF_R16F;
-	OutDenoiserInputs->RayHitDistance = GraphBuilder.CreateTexture(OutputDesc, TEXT("RTDReflectionsHitDistance"));
+	OutDenoiserInputs->RayHitDistance = GraphBuilder.CreateTexture(OutputDesc, TEXT("RayTracingReflectionsHitDistance"));
 
 	const FIntPoint RayTracingResolution = View.ViewRect.Size();
 
@@ -220,6 +226,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	FRayTracingDeferredReflectionsRGS::FParameters CommonParameters;
 	CommonParameters.RayTracingResolution    = RayTracingResolution;
 	CommonParameters.TileAlignedResolution   = TileAlignedResolution;
+	CommonParameters.ReflectionMaxRoughness  = Options.MaxRoughness;
 	CommonParameters.TLAS                    = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	CommonParameters.SceneTextures           = SceneTextures;
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
@@ -315,6 +322,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	const FRayTracingReflectionOptions& Options,
 	IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs)
 {
 	checkNoEntry();

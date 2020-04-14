@@ -17,6 +17,7 @@
 #include "Engine/GameEngine.h"
 #include "Engine/Public/SceneUtils.h"
 #include "OculusHMDPrivate.h"
+#include "OculusHMDModule.h"
 
 
 namespace OculusHMD
@@ -38,7 +39,7 @@ FOvrpLayer::~FOvrpLayer()
 	{
 		ExecuteOnRHIThread_DoNotWait([this]()
 		{
-			ovrp_DestroyLayer(OvrpLayerId);
+			FOculusHMDModule::GetPluginWrapper().DestroyLayer(OvrpLayerId);
 		});
 	}
 }
@@ -414,7 +415,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 		}
 
 		// Calculate layer desc
-		ovrp_CalculateLayerDesc(
+		FOculusHMDModule::GetPluginWrapper().CalculateLayerDesc(
 			Shape,
 			!Desc.LeftTexture.IsValid() ? ovrpLayout_Mono : ovrpLayout_Stereo,
 			ovrpSizei { (int) SizeX, (int) SizeY },
@@ -461,10 +462,10 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 
 		ExecuteOnRHIThread([&]()
 		{
-			// UNDONE Do this in RenderThread once OVRPlugin allows ovrp_SetupLayer to be called asynchronously
+			// UNDONE Do this in RenderThread once OVRPlugin allows FOculusHMDModule::GetPluginWrapper().SetupLayer to be called asynchronously
 			int32 TextureCount;
-			if (OVRP_SUCCESS(ovrp_SetupLayer(CustomPresent->GetOvrpDevice(), OvrpLayerDesc.Base, (int*) &OvrpLayerId)) &&
-				OVRP_SUCCESS(ovrp_GetLayerTextureStageCount(OvrpLayerId, &TextureCount)))
+			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().SetupLayer(CustomPresent->GetOvrpDevice(), OvrpLayerDesc.Base, (int*) &OvrpLayerId)) &&
+				OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetLayerTextureStageCount(OvrpLayerId, &TextureCount)))
 			{
 				// Left
 				{
@@ -481,7 +482,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 					for (int32 TextureIndex = 0; TextureIndex < TextureCount; TextureIndex++)
 					{
 						ovrpTextureHandle* DepthTexHdlPtr = bHasDepth ? &DepthTextures[TextureIndex] : nullptr;
-						if (!OVRP_SUCCESS(ovrp_GetLayerTexture2(OvrpLayerId, TextureIndex, ovrpEye_Left, &ColorTextures[TextureIndex], DepthTexHdlPtr)))
+						if (!OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetLayerTexture2(OvrpLayerId, TextureIndex, ovrpEye_Left, &ColorTextures[TextureIndex], DepthTexHdlPtr)))
 						{
 							UE_LOG(LogHMD, Error, TEXT("Failed to create Oculus layer texture. NOTE: This causes a leak of %d other texture(s), which will go unused."), TextureIndex);
 							// skip setting bLayerCreated and allocating any other textures
@@ -491,7 +492,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 						{
 							// Call fails on unsupported platforms and returns null textures for no foveation texture
 							// Since this texture is not required for rendering, don't return on failure
-							if (!OVRP_SUCCESS(ovrp_GetLayerTextureFoveation(OvrpLayerId, TextureIndex, ovrpEye_Left, &FoveationTextures[TextureIndex], &FoveationTextureSize)) || 
+							if (!OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetLayerTextureFoveation(OvrpLayerId, TextureIndex, ovrpEye_Left, &FoveationTextures[TextureIndex], &FoveationTextureSize)) || 
 								FoveationTextures[TextureIndex] == (unsigned long long)nullptr)
 							{
 								bValidFoveationTextures = false;
@@ -512,7 +513,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 					for (int32 TextureIndex = 0; TextureIndex < TextureCount; TextureIndex++)
 					{
 						ovrpTextureHandle* DepthTexHdlPtr = bHasDepth ? &RightDepthTextures[TextureIndex] : nullptr;
-						if (!OVRP_SUCCESS(ovrp_GetLayerTexture2(OvrpLayerId, TextureIndex, ovrpEye_Right, &RightColorTextures[TextureIndex], DepthTexHdlPtr)))
+						if (!OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetLayerTexture2(OvrpLayerId, TextureIndex, ovrpEye_Right, &RightColorTextures[TextureIndex], DepthTexHdlPtr)))
 						{
 							UE_LOG(LogHMD, Error, TEXT("Failed to create Oculus layer texture. NOTE: This causes a leak of %d other texture(s), which will go unused."), TextureCount + TextureIndex);
 							// skip setting bLayerCreated and allocating any other textures

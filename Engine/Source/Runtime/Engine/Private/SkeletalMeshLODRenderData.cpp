@@ -751,11 +751,10 @@ bool FSkeletalMeshLODRenderData::IsLODCookedOut(const ITargetPlatform* TargetPla
 	}
 	check(TargetPlatform);
 
-	const bool bSupportLODStreaming = SkeletalMesh->bSupportLODStreaming.GetValueForPlatformIdentifiers(
-		TargetPlatform->GetPlatformInfo().PlatformGroupName,
-		TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
+	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
 	
-	return !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !bSupportLODStreaming;
+	return !bMeshStreamingEnabled || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !SkeletalMesh->GetSupportsLODStreaming(TargetPlatform);
 #else
 	return false;
 #endif
@@ -771,11 +770,10 @@ bool FSkeletalMeshLODRenderData::IsLODInlined(const ITargetPlatform* TargetPlatf
 	}
 	check(TargetPlatform);
 
-	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
-	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
-	const bool bSupportLODStreaming = SkeletalMesh->bSupportLODStreaming.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
-
-	if (!TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !bSupportLODStreaming)
+	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
+	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
+	
+	if (!bMeshStreamingEnabled || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !SkeletalMesh->GetSupportsLODStreaming(TargetPlatform))
 	{
 		return true;
 	}
@@ -785,7 +783,7 @@ bool FSkeletalMeshLODRenderData::IsLODInlined(const ITargetPlatform* TargetPlatf
 		return false;
 	}
 
-	const int32 MaxNumStreamedLODs = SkeletalMesh->MaxNumStreamedLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+	const int32 MaxNumStreamedLODs = SkeletalMesh->GetMaxNumStreamedLODs(TargetPlatform);
 	const int32 NumLODs = SkeletalMesh->GetLODNum();
 	const int32 NumStreamedLODs = FMath::Min(MaxNumStreamedLODs, NumLODs - 1);
 	const int32 InlinedLODStartIdx = NumStreamedLODs;
@@ -799,9 +797,7 @@ int32 FSkeletalMeshLODRenderData::GetNumOptionalLODsAllowed(const ITargetPlatfor
 {
 #if WITH_EDITOR
 	check(TargetPlatform && SkeletalMesh);
-	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
-	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
-	return  SkeletalMesh->MaxNumOptionalLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+	return SkeletalMesh->GetMaxNumOptionalLODs(TargetPlatform);
 #else
 	return 0;
 #endif

@@ -292,7 +292,7 @@ void FCreateAndJoinDisasterRecoverySessionTask::Start()
 			{
 				OnErrorFn(DisasterRecoveryTasksUtil::GetSystemErrorMessage(Response));
 				bDone = true;
-				UE_LOG(LogDisasterRecovery, Verbose, TEXT("...Creating/Restoring session '%s' -> Failed"), *SessionName);
+				UE_LOG(LogDisasterRecovery, Warning, TEXT("Failed to create or restore session %s. Disaster recovery will not be enabled for this session."), *SessionName);
 			}
 		}
 	});
@@ -425,9 +425,9 @@ bool FFindRecoverableDisasterRecoverySessionTask::Tick()
 	{
 		int32 ReadCount;
 		FText ErrorMsg;
-		bool bEndOfStream = ActivityStream->Read(Activities, ReadCount, ErrorMsg); // Read the next batch of activities.
+		bool bEndOfStreamOrError = ActivityStream->Read(Activities, ReadCount, ErrorMsg); // Read activities (if any)
 
-		if (ReadCount > 0)
+		if (ReadCount > 0) // On error, ReadCount is 0.
 		{
 			for (const TSharedPtr<FConcertClientSessionActivity>& Activity : Activities)
 			{
@@ -435,16 +435,23 @@ bool FFindRecoverableDisasterRecoverySessionTask::Tick()
 				{
 					OnCandidateSearchResultFn(CurrentCandidate); // Found a candidate with recoverable activities, transit to the 'exit' state.
 					UE_LOG(LogDisasterRecovery, Verbose, TEXT("...Looking up a recoverable session -> Found recoverable session '%s' among the candidates"), *CurrentCandidate->SessionName);
-					return true; // Done­.
+					return true; // Found a recoverable candidate.
 				}
 			}
 			Activities.Reset(); // Don't need to keep the activities.
 		}
 
-		if (bEndOfStream)
+		if (bEndOfStreamOrError)
 		{
-			// No activities to recover, transit to the 'pick a candidate' state.
-			UE_LOG(LogDisasterRecovery, Verbose, TEXT("Eliminated candidate session %s. No recoverable activities available."), *CurrentCandidate->SessionName);
+			if (ErrorMsg.IsEmpty()) // No error.
+			{
+				UE_LOG(LogDisasterRecovery, Verbose, TEXT("Eliminated candidate session %s. No recoverable activities available."), *CurrentCandidate->SessionName);
+			}
+			else
+			{
+				UE_LOG(LogDisasterRecovery, Warning, TEXT("Eliminated candidate session %s. Reason: %s"), *CurrentCandidate->SessionName, *ErrorMsg.ToString());
+			}
+
 			Candidates.Pop();
 			ActivityStream.Reset();
 			CurrentCandidate.Reset();

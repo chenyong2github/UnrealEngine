@@ -1,4 +1,4 @@
-/* (c) Copyright 2013-2018 Mercer Road Corp. All rights reserved.
+/* (c) Copyright 2013-2020 Mercer Road Corp. All rights reserved.
  * Mercer Road Corp. hereby grants you ("User"), under its copyright rights, the right to distribute,
  * reproduce and/or prepare derivative works of this software source (or binary) code ("Software")
  * solely to the extent expressly authorized in writing by Mercer Road Corp.  If you do not have a written
@@ -23,13 +23,12 @@
  */
 
 #pragma once
-#define SDK_VERSION "4.10.0000.32397"
-#define SDK_BRANCH "HEAD"
+#define SDK_VERSION "4.11.2.32641.fdc6567f"
+#define SDK_BRANCH "4.11.0"
 
 #define VERSION_MAJOR 4
-#define VERSION_MINOR 10
-/* so VERSION_MICRO (.e.g. 0008) is not interpreted as octal */
-#define VERSION_MICRO (10000 - 10000)
-#define VERSION_BUILD 32397
-
-#define VERSION_HASH "548cf936"
+#define VERSION_MINOR 11
+#define VERSION_MICRO 2
+#define VERSION_DESCR ""
+#define VERSION_BUILD 32641
+#define VERSION_HASH "fdc6567f"

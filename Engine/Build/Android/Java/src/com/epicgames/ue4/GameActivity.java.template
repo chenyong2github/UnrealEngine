@@ -203,6 +203,7 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputConnectionWrapper;
 import android.util.AttributeSet;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.content.BroadcastReceiver;
@@ -349,6 +350,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	// remember screensaver state to restore
 	private boolean bKeepScreenOn = false;
 	
+	// number of times screen capturing has been disabled
+	private int NumTimesScreenCaptureDisabled = 0;
+
 	// Virtual keyboard
 	AlertDialog virtualKeyboardAlert;
 	EditText virtualKeyboardInputBox;
@@ -2269,6 +2273,15 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 														| View.SYSTEM_UI_FLAG_IMMERSIVE);  // NOT sticky.. will be set to sticky later! 
 						}
 					}
+					
+					// Centering background image by default
+					View decorView = mSplashDialog.getWindow().getDecorView();
+					BitmapDrawable SplashBitmap = (BitmapDrawable)decorView.getBackground();
+					if (SplashBitmap != null)
+					{
+						SplashBitmap.setGravity(android.view.Gravity.CENTER);
+					}
+					
 					mSplashDialog.show();
 				}
 				catch (Exception e) {
@@ -3311,6 +3324,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		// restore screensaver state
 		AndroidThunkJava_KeepScreenOn(bKeepScreenOn);
 		
+		// restore screep capture state
+		SetDisableScreenCaptureInternal(AndroidThunkJava_IsScreenCaptureDisabled());
+
 		if (bForceGameEndWithError || bForceGameEndWithWarning)
 		{
 			final boolean bWarning = bForceGameEndWithWarning;
@@ -3729,6 +3745,50 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 					_activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 				}
 			});
+		}
+	}
+
+	public boolean AndroidThunkJava_IsScreenCaptureDisabled()
+	{
+		return NumTimesScreenCaptureDisabled != 0;
+	}
+
+	private void SetDisableScreenCaptureInternal(boolean bDisable)
+	{
+		if (bDisable)
+		{
+			_activity.runOnUiThread(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					Log.debug("==============> [JAVA] AndroidThunkJava_DisableScreenCapture(true) - Disabled screen captures");
+					_activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+				}
+			});
+		}
+		else
+		{
+			_activity.runOnUiThread(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					Log.debug("==============> [JAVA] AndroidThunkJava_DisableScreenCapture(false) - Enabled screen captures");
+					_activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+				}
+			});
+		}
+	}
+
+	public void AndroidThunkJava_DisableScreenCapture(boolean bDisable)
+	{
+		boolean bWasDisabled = AndroidThunkJava_IsScreenCaptureDisabled();
+		NumTimesScreenCaptureDisabled += bDisable ? 1 : -1;
+		// Change in state?
+		if (AndroidThunkJava_IsScreenCaptureDisabled() != bWasDisabled)
+		{
+			SetDisableScreenCaptureInternal(!bWasDisabled);
 		}
 	}
 
@@ -5985,7 +6045,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return true;
 	}
 
-	public void AndroidThunkJava_RestartApplication(String RestartExtra) 
+	private void RestartApplication(String RestartExtra)
 	{
 		Context context = getApplicationContext();
 	
@@ -5999,8 +6059,34 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		context.startActivity(intent);
 
 		// kill the current application instance. Undefined behaviour after this!
-//$${gameActivityOnRestartApplicationAdditions}$$
 		Runtime.getRuntime().exit(0); 
+	}
+
+	public void AndroidThunkJava_RestartApplication(final String RestartExtra) 
+	{
+	    Runnable restartRunnableUIThread = new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				RestartApplication(RestartExtra);
+			}
+		};
+		Log.debug("app restart : " + RestartExtra);
+//$${gameActivityOnRestartApplicationAdditions}$$
+		runOnUiThread(restartRunnableUIThread);
+
+		// wait for exit.
+		while(true)
+		{
+			try 
+			{
+				Thread.sleep(Long.MAX_VALUE); 
+			}
+			catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	public void AndroidThunkJava_ClipboardCopy(String text) 
@@ -6162,9 +6248,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	static
 	{
-		System.loadLibrary("c++_shared");
-//$${soLoadLibrary}$$
 		System.loadLibrary("UE4");
+//$${soLoadLibrary}$$
+		System.loadLibrary("c++_shared");
 	}
 
 	public native void nativeHandleSensorEvents(float[] tilt, float[] rotation_rate, float[] gravity, float[] acceleration);

@@ -5,6 +5,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
+#include "Misc/Fork.h"
 #include "HttpModule.h"
 #include "Http.h"
 
@@ -67,8 +68,6 @@ bool FHttpThread::Init()
 	return true;
 }
 
-// @todo samz - needed due to InnerLoopEnd,InnerLoopBegin 
-PRAGMA_DISABLE_OPTIMIZATION
 uint32 FHttpThread::Run()
 {
 	// Arrays declared outside of loop to re-use memory
@@ -77,12 +76,12 @@ uint32 FHttpThread::Run()
 	TArray<IHttpThreadedRequest*> RequestsToComplete;
 	while (!ExitRequest.GetValue())
 	{
-		double OuterLoopBegin = FPlatformTime::Seconds();
+		const double OuterLoopBegin = FPlatformTime::Seconds();
 		double OuterLoopEnd = 0.0;
 		bool bKeepProcessing = true;
 		while (bKeepProcessing)
 		{
-			double InnerLoopBegin = FPlatformTime::Seconds();
+			const double InnerLoopBegin = FPlatformTime::Seconds();
 			
 			Process(RequestsToCancel, RequestsToStart, RequestsToComplete);
 			
@@ -91,7 +90,7 @@ uint32 FHttpThread::Run()
 				bKeepProcessing = false;
 			}
 
-			double InnerLoopEnd = FPlatformTime::Seconds();
+			const double InnerLoopEnd = FPlatformTime::Seconds();
 			if (bKeepProcessing)
 			{
 				double InnerLoopTime = InnerLoopEnd - InnerLoopBegin;
@@ -109,7 +108,6 @@ uint32 FHttpThread::Run()
 	}
 	return 0;
 }
-PRAGMA_ENABLE_OPTIMIZATION
 
 
 void FHttpThread::Tick()

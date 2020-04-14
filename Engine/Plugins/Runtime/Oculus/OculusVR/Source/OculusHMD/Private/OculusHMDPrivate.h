@@ -26,23 +26,7 @@
 //-------------------------------------------------------------------------------------------------
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
-#if PLATFORM_SUPPORTS_PRAGMA_PACK
-#pragma pack (push,8)
-#endif
-
-#if PLATFORM_WINDOWS
-#include "Windows/AllowWindowsPlatformTypes.h"
-#endif
-
-#include "OVR_Plugin.h"
-
-#if PLATFORM_WINDOWS
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
-
-#if PLATFORM_SUPPORTS_PRAGMA_PACK
-#pragma pack (pop)
-#endif
+#include "OculusPluginWrapper.h"
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 
 //-------------------------------------------------------------------------------------------------

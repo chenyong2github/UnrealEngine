@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Android/AndroidPlatformFramePacer.h"
-#include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"

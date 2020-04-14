@@ -200,6 +200,16 @@ void AVREditorFloatingUI::TickManually(float DeltaTime)
 	}
 }
 
+void AVREditorFloatingUI::Destroyed()
+{
+	if (!IsPendingKill())
+	{
+		CleanupWidgetReferences();
+	}
+
+	Super::Destroyed();
+}
+
 void AVREditorFloatingUI::CleanupWidgetReferences()
 {
 	if (WidgetComponent != nullptr)
@@ -208,6 +218,11 @@ void AVREditorFloatingUI::CleanupWidgetReferences()
 		WidgetComponent->SetSlateWidget(nullptr);
 		WidgetComponent->SetWidget(nullptr);
 		WidgetComponent = nullptr;
+	}
+
+	if (SlateWidget.IsValid())
+	{
+		SlateWidget.Reset();
 	}
 
 	// @todo vreditor unreal: UMG has a bug that prevents you from re-using the user widget for a new widget component

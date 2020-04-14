@@ -2,22 +2,14 @@
 
 #include "ClothLODData.h"
 #include "ClothPhysicalMeshData.h"
-
-UClothLODDataCommon::UClothLODDataCommon(const FObjectInitializer& Init)
-	: Super(Init)
-	, PhysicalMeshData_DEPRECATED(nullptr)
-{
-}
-
-UClothLODDataCommon::~UClothLODDataCommon()
-{}
+#include "ClothingAssetCustomVersion.h"
 
 #if WITH_EDITORONLY_DATA
-void UClothLODDataCommon::GetParameterMasksForTarget(
+void FClothLODDataCommon::GetParameterMasksForTarget(
 	const uint8 InTarget, 
 	TArray<FPointWeightMap*>& OutMasks)
 {
-	for(FPointWeightMap& Mask : ParameterMasks)
+	for(FPointWeightMap& Mask : PointWeightMaps)
 	{
 		if(Mask.CurrentTarget == InTarget)
 		{
@@ -27,47 +19,63 @@ void UClothLODDataCommon::GetParameterMasksForTarget(
 }
 #endif // WITH_EDITORONLY_DATA
 
-void UClothLODDataCommon::Serialize(FArchive& Ar)
+bool FClothLODDataCommon::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FClothingAssetCustomVersion::GUID);
 
-	// Ryan - do we need to do this tagged property business still?
-
-	// Serialize normal tagged data
-	//UScriptStruct* Struct = UClothLODDataNv::StaticStruct();
-	//UClass* Class = UClothLODDataNv::StaticClass();
-	/*if (!Ar.IsCountingMemory())
+	// Serialize normal tagged property data
+	if (!Ar.IsCountingMemory())
 	{
-		//Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
-		Class->SerializeTaggedProperties(Ar, (uint8*)this, Class, nullptr);
-	}*/
+		UScriptStruct* const Struct = FClothLODDataCommon::StaticStruct();
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
+	}
 
 	// Serialize the mesh to mesh data (not a USTRUCT)
 	Ar << TransitionUpSkinData
 	   << TransitionDownSkinData;
-}
 
-void UClothLODDataCommon::PostLoad()
-{
-	Super::PostLoad();
-
-	if (PhysicalMeshData_DEPRECATED)
+	const int32 ClothingCustomVersion = Ar.CustomVer(FClothingAssetCustomVersion::GUID);
+	if (ClothingCustomVersion < FClothingAssetCustomVersion::MovePropertiesToCommonBaseClasses)
 	{
-		PhysicalMeshData_DEPRECATED->ConditionalPostLoad();  // Makes sure the UObject has finished loading
-		ClothPhysicalMeshData.MigrateFrom(PhysicalMeshData_DEPRECATED);
-		PhysicalMeshData_DEPRECATED = nullptr;
+		// Migrate maps
+		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::MaxDistance).Values = MoveTemp(PhysicalMeshData.MaxDistances_DEPRECATED);
+		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::BackstopDistance).Values = MoveTemp(PhysicalMeshData.BackstopDistances_DEPRECATED);
+		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::BackstopRadius).Values = MoveTemp(PhysicalMeshData.BackstopRadiuses_DEPRECATED);
+		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::AnimDriveMultiplier).Values = MoveTemp(PhysicalMeshData.AnimDriveMultipliers_DEPRECATED);
+
+#if WITH_EDITORONLY_DATA
+		// Migrate editor maps
+		PointWeightMaps.SetNum(ParameterMasks_DEPRECATED.Num());
+		for (int32 i = 0; i < PointWeightMaps.Num(); ++i)
+		{
+			ParameterMasks_DEPRECATED[i].MigrateTo(PointWeightMaps[i]);
+		}
+		ParameterMasks_DEPRECATED.Empty();
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_CHAOS
+		// Rebuild surface points so that the legacy Apex convex collision data can also be used with Chaos
+		for (auto& Convex : CollisionData.Convexes)
+		{
+			if (!Convex.SurfacePoints.Num())
+			{
+				Convex.RebuildSurfacePoints();
+			}
+		}
+#endif // #if WITH_CHAOS
 	}
+	return true;
 }
 
 #if WITH_EDITOR
-void UClothLODDataCommon::PushWeightsToMesh()
+void FClothLODDataCommon::PushWeightsToMesh()
 {
-	ClothPhysicalMeshData.ClearWeightMaps();
-	for (const FPointWeightMap& Weights : ParameterMasks)
+	PhysicalMeshData.ClearWeightMaps();
+	for (const FPointWeightMap& Weights : PointWeightMaps)
 	{
 		if (Weights.bEnabled)
 		{
-			FPointWeightMap& TargetWeightMap = ClothPhysicalMeshData.FindOrAddWeightMap(Weights.CurrentTarget);
+			FPointWeightMap& TargetWeightMap = PhysicalMeshData.FindOrAddWeightMap(Weights.CurrentTarget);
 			TargetWeightMap.Values = Weights.Values;
 		}
 	}

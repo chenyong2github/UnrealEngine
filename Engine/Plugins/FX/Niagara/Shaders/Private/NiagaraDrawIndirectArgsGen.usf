@@ -29,32 +29,45 @@ void MainCS(uint TaskIndex : SV_DispatchThreadID)
 		RWDrawIndirectArgs[ArgOffset + 3] = 0; // BaseVertexLocation
 		RWDrawIndirectArgs[ArgOffset + 4] = 0; // StartInstanceLocation
 	}
-/*
-Explanation of why we are using two ifs here instead of if/else: 
-Mali requires texture indexes to be warp invariant, which means that the if / if code translates to
-	if id.x < uniform :
-	[to 5 stores]
-	[branch to end]
-	if <the other condition>
-	do 1 image store
-	<end>
-and the if / else translates to
-	if uniform > ID.x: goto 4 image stores
-	if <other condition> :
-	setup registers
-	goto <last store>
-	<4 images stores branch target>
-	do 4 stores
-	setup registers
-	<last store target>
-	do 1 store
-Notice how it completely ignores the fact that there are two different texture buffers, which leads the compiler to do an "optimization" and separate the last store.This means that the else condition does indeed evaluate correctly, but we are writing in the wrong texture!
-Note: This is imagestore specific and not compute specific and is a known issue for Arm. This is fixed in driver version R21
-*/
+	
+	#if SUPPORTS_TEXTURE_RW == 1
+		/*
+		Explanation of why we are using two ifs here instead of if/else: 
+		Mali requires texture indexes to be warp invariant, which means that the if / if code translates to
+			if id.x < uniform :
+			[to 5 stores]
+			[branch to end]
+			if <the other condition>
+			do 1 image store
+			<end>
+		and the if / else translates to
+			if uniform > ID.x: goto 4 image stores
+			if <other condition> :
+			setup registers
+			goto <last store>
+			<4 images stores branch target>
+			do 4 stores
+			setup registers
+			<last store target>
+			do 1 store
+		Notice how it completely ignores the fact that there are two different texture buffers, which leads the compiler to do an "optimization" and separate the last store.This means that the else condition does indeed evaluate correctly, but we are writing in the wrong texture!
+		Note: This is imagestore specific and not compute specific and is a known issue for Arm. This is fixed in driver version R21
+		*/
+	
+		if (TaskIndex < TaskCount.z && TaskIndex >= TaskCount.x)
+		{
+			const uint InfoOffset = TaskCount.x * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE + (TaskIndex - TaskCount.x);
+			RWInstanceCounts[TaskInfos[InfoOffset + 0]] = 0;
+		}
+	#endif
+}
 
-	if (TaskIndex < TaskCount.z && TaskIndex >= TaskCount.x)
+[numthreads(THREAD_COUNT,1,1)]
+void ResetCountsCS(uint TaskIndex : SV_DispatchThreadID)
+{
+	if (TaskIndex < TaskCount.y)
 	{
-		const uint InfoOffset = TaskCount.x * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE + (TaskIndex - TaskCount.x);
+		const uint InfoOffset = TaskCount.x * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE + (TaskIndex);
 		RWInstanceCounts[TaskInfos[InfoOffset + 0]] = 0;
 	}
 }

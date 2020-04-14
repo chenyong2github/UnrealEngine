@@ -86,11 +86,29 @@ struct CORE_API FCrc
 		// make sure table is initialized
 		check(CRCTable_DEPRECATED[1] != 0);
 
-		int32 Length = TCString<CharType>::Strlen( Data );
 		uint32 CRC = 0xFFFFFFFF;
-		for( int32 i=0; i<Length; i++ )
+		while (*Data)
 		{
-			CharType C = Data[i];
+			CharType C = *Data++;
+			int32 CL = (C&255);
+			CRC = (CRC << 8) ^ CRCTable_DEPRECATED[(CRC >> 24) ^ CL];
+			int32 CH = (C>>8)&255;
+			CRC = (CRC << 8) ^ CRCTable_DEPRECATED[(CRC >> 24) ^ CH];
+		}
+		return ~CRC;
+	}
+
+	/** String CRC. */
+	template <typename CharType>
+	static inline uint32 StrCrc_DEPRECATED(const int32 DataLen, const CharType* Data)
+	{
+		// make sure table is initialized
+		check(CRCTable_DEPRECATED[1] != 0);
+
+		uint32 CRC = 0xFFFFFFFF;
+		for (int32 i = 0; i < DataLen; i++)
+		{
+			CharType C = *Data++;
 			int32 CL = (C&255);
 			CRC = (CRC << 8) ^ CRCTable_DEPRECATED[(CRC >> 24) ^ CL];
 			int32 CH = (C>>8)&255;
@@ -101,6 +119,7 @@ struct CORE_API FCrc
 
 	/** Case insensitive string hash function. */
 	template <typename CharType> static inline uint32 Strihash_DEPRECATED( const CharType* Data );
+	template <typename CharType> static inline uint32 Strihash_DEPRECATED( const int32 DataLen, const CharType* Data );
 
 	/** generates CRC hash of the memory area */
 	static uint32 MemCrc_DEPRECATED( const void* Data, int32 Length, uint32 CRC=0 );
@@ -123,6 +142,22 @@ inline uint32 FCrc::Strihash_DEPRECATED(const ANSICHAR* Data)
 }
 
 template <>
+inline uint32 FCrc::Strihash_DEPRECATED(const int32 DataLen, const ANSICHAR* Data)
+{
+	// make sure table is initialized
+	check(CRCTable_DEPRECATED[1] != 0);
+
+	uint32 Hash=0;
+	for (int32 Idx = 0; Idx < DataLen; ++Idx)
+	{
+		ANSICHAR Ch = TChar<ANSICHAR>::ToUpper(*Data++);
+		uint8 B  = Ch;
+		Hash = ((Hash >> 8) & 0x00FFFFFF) ^ CRCTable_DEPRECATED[(Hash ^ B) & 0x000000FF];
+	}
+	return Hash;
+}
+
+template <>
 inline uint32 FCrc::Strihash_DEPRECATED(const WIDECHAR* Data)
 {
 	// make sure table is initialized
@@ -130,6 +165,24 @@ inline uint32 FCrc::Strihash_DEPRECATED(const WIDECHAR* Data)
 
 	uint32 Hash=0;
 	while( *Data )
+	{
+		WIDECHAR Ch = TChar<WIDECHAR>::ToUpper(*Data++);
+		uint16  B  = Ch;
+		Hash     = ((Hash >> 8) & 0x00FFFFFF) ^ CRCTable_DEPRECATED[(Hash ^ B) & 0x000000FF];
+		B        = Ch>>8;
+		Hash     = ((Hash >> 8) & 0x00FFFFFF) ^ CRCTable_DEPRECATED[(Hash ^ B) & 0x000000FF];
+	}
+	return Hash;
+}
+
+template <>
+inline uint32 FCrc::Strihash_DEPRECATED(const int32 DataLen, const WIDECHAR* Data)
+{
+	// make sure table is initialized
+	check(CRCTable_DEPRECATED[1] != 0);
+
+	uint32 Hash=0;
+	for (int32 Idx = 0; Idx < DataLen; ++Idx)
 	{
 		WIDECHAR Ch = TChar<WIDECHAR>::ToUpper(*Data++);
 		uint16  B  = Ch;

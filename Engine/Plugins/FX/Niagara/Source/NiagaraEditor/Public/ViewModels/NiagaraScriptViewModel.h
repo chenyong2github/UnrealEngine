@@ -49,7 +49,7 @@ public:
 	NIAGARAEDITOR_API TSharedRef<FNiagaraScriptGraphViewModel> GetGraphViewModel();
 
 	/** Gets the currently selected script variables. */
-	TSharedRef<FNiagaraObjectSelection> GetVariableSelection();
+	NIAGARAEDITOR_API TSharedRef<FNiagaraObjectSelection> GetVariableSelection();
 
 	/** Updates the script with the latest compile status. */
 	void UpdateCompileStatus(ENiagaraScriptCompileStatus InAggregateCompileStatus, const FString& InAggregateCompileErrors,

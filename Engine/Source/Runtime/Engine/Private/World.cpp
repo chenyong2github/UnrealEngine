@@ -81,7 +81,7 @@
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/DemoNetDriver.h"
 #include "Modules/ModuleManager.h"
-#include "VT/VirtualTexture.h" 
+#include "VT/LightmapVirtualTexture.h" 
 #include "Interfaces/Interface_PostProcessVolume.h"
 
 #include "Materials/MaterialParameterCollectionInstance.h"
@@ -962,6 +962,7 @@ void UWorld::PostLoad()
 #endif
 #if WITH_EDITOR
 	RepairWorldSettings();
+	RepairStreamingLevels();
 #endif
 #if INCLUDE_CHAOS
 	//RepairChaosActors();
@@ -1276,6 +1277,22 @@ void UWorld::RepairChaosActors()
 }
 #endif
 
+void UWorld::RepairStreamingLevels()
+{
+	for (int32 Index = 0; Index < StreamingLevels.Num(); )
+	{
+		ULevelStreaming* StreamingLevel = StreamingLevels[Index];
+		if (StreamingLevel && !StreamingLevel->IsValidStreamingLevel())
+		{
+			StreamingLevels.RemoveAtSwap(Index);
+		}
+		else
+		{
+			++Index;
+		}
+	}
+}
+
 void UWorld::RepairWorldSettings()
 {
 	AWorldSettings* ExistingWorldSettings = PersistentLevel->GetWorldSettings(false);
@@ -1402,15 +1419,21 @@ void UWorld::InitWorld(const InitializationValues IVS)
 
 	Levels.Empty(1);
 	Levels.Add( PersistentLevel );
+	if (FLevelCollection* Collection = PersistentLevel->GetCachedLevelCollection())
+	{
+		Collection->RemoveLevel(PersistentLevel);
+	}
 	PersistentLevel->OwningWorld = this;
 	PersistentLevel->bIsVisible = true;
 
 #if WITH_EDITOR
 	RepairWorldSettings();
+	RepairStreamingLevels();
 #endif
 #if INCLUDE_CHAOS
 	//RepairChaosActors();
 #endif
+
 
 	// initialize DefaultPhysicsVolume for the world
 	// Spawned on demand by this function.
@@ -4353,6 +4376,11 @@ UGameViewportClient* UWorld::GetGameViewport() const
 FConstControllerIterator UWorld::GetControllerIterator() const
 {
 	return ControllerList.CreateConstIterator();
+}
+
+int32 UWorld::GetNumControllers() const
+{
+	return ControllerList.Num();
 }
 
 FConstPlayerControllerIterator UWorld::GetPlayerControllerIterator() const

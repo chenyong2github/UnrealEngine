@@ -381,6 +381,9 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=StructTests, meta=(AllowedClasses="Material,Texture"))
 	FSoftObjectPath MaterialOrTextureAssetReference;
 
+	UPROPERTY(EditAnywhere, Category=StructTests)
+	FSoftObjectPath DisabledByCanEditChange;
+
 	UPROPERTY(EditAnywhere, Category=StructTests, meta=(InlineEditConditionToggle))
 	bool bEditCondition;
 
@@ -635,4 +638,27 @@ class UPropertyEditorTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category = "Inline Edit Conditions", meta = (EditCondition = "bSharedEditCondition"))
 	float UsesSharedEditCondition2;
+
+	bool CanEditChange(const FProperty* InProperty) const;
+};
+
+UCLASS(EditInlineNew, Blueprintable)
+class UBlueprintPropertyTestObject : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category="Hidden")
+	int32 ShouldBeHidden;
+
+	UPROPERTY(EditAnywhere, Category="Visible")
+	int32 ShouldBeVisible;
+};
+
+UCLASS(Blueprintable)
+class UBlueprintPropertyContainerTestObject : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(Instanced, EditAnywhere, Category="Default", meta=(ShowOnlyInnerProperties))
+	TArray<UBlueprintPropertyTestObject*> Array;
 };

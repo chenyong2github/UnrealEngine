@@ -130,7 +130,11 @@ bool UDisplayClusterGameEngine::InitializeInternals()
 	if (DisplayClusterHelpers::config::GetLocalClusterNode(LocalClusterNode))
 	{
 		UE_LOG(LogDisplayClusterEngine, Log, TEXT("Configuring sound enabled: %s"), *FDisplayClusterTypesConverter::template ToString(LocalClusterNode.SoundEnabled));
-		bUseSound = LocalClusterNode.SoundEnabled;
+		if (!LocalClusterNode.SoundEnabled)
+		{
+			AudioDeviceManager = nullptr;
+			//FAudioDeviceManager::Shutdown();
+		}
 	}
 
 	check(ClusterMgr);

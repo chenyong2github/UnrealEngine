@@ -54,7 +54,7 @@ bool FInternationalization::SetCurrentCulture(const FString& InCultureName)
 			CurrentLocale = NewCulture;
 			CurrentAssetGroupCultures.Reset();
 	
-			Implementation->HandleLanguageChanged(InCultureName);
+			Implementation->HandleLanguageChanged(CurrentLanguage.ToSharedRef());
 	
 			BroadcastCultureChanged();
 		}
@@ -73,7 +73,7 @@ bool FInternationalization::SetCurrentLanguage(const FString& InCultureName)
 		{
 			CurrentLanguage = NewCulture;
 
-			Implementation->HandleLanguageChanged(InCultureName);
+			Implementation->HandleLanguageChanged(CurrentLanguage.ToSharedRef());
 
 			BroadcastCultureChanged();
 		}
@@ -110,7 +110,7 @@ bool FInternationalization::SetCurrentLanguageAndLocale(const FString& InCulture
 			CurrentLanguage = NewCulture;
 			CurrentLocale = NewCulture;
 
-			Implementation->HandleLanguageChanged(InCultureName);
+			Implementation->HandleLanguageChanged(CurrentLanguage.ToSharedRef());
 
 			BroadcastCultureChanged();
 		}
@@ -205,7 +205,7 @@ void FInternationalization::RestoreCultureState(const FCultureStateSnapshot& InS
 
 				CurrentLanguage = NewCulture;
 
-				Implementation->HandleLanguageChanged(InSnapshot.Language);
+				Implementation->HandleLanguageChanged(CurrentLanguage.ToSharedRef());
 			}
 		}
 	}
@@ -417,6 +417,11 @@ bool FInternationalization::IsCultureRemapped(const FString& Name, FString* OutM
 bool FInternationalization::IsCultureAllowed(const FString& Name)
 {
 	return Implementation->IsCultureAllowed(Name);
+}
+
+void FInternationalization::RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames)
+{
+	Implementation->RefreshCultureDisplayNames(InPrioritizedDisplayCultureNames);
 }
 
 void FInternationalization::GetCultureNames(TArray<FString>& CultureNames) const

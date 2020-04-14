@@ -17,13 +17,4 @@ public:
 private:
 	void RegisterSettings();
 	void UnregisterSettings();
-	void PerformTestPipelineRender(const TArray<FString>& Args);
-	void OnTestPipelineExecutorFinished(UMoviePipelineExecutorBase* InExecutor, bool bSuccess);
-
-private:
-	TArray<UMoviePipelineMasterConfig*> GenerateTestPipelineConfigs();
-private:
-	class UMoviePipeline* ActiveMoviePipeline;
-	class UMoviePipelineMasterConfig* PipelineConfig;
-	UMoviePipelineExecutorBase* Executor;
 };

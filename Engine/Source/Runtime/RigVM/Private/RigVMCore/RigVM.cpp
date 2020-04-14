@@ -353,7 +353,7 @@ void URigVM::CacheMemoryPointersIfRequired(FRigVMMemoryContainerPtrArray InMemor
 					void* Ptr = CachedMemory[Arg.GetContainerIndex()]->GetData(Arg.GetRegisterIndex(), Arg.GetRegisterOffset());
 					CachedMemoryPointers.Add(Ptr);
 
-					FRigVMRegister Register = (*CachedMemory[Arg.GetContainerIndex()])[Arg];
+					const FRigVMRegister& Register = CachedMemory[Arg.GetContainerIndex()]->GetRegister(Arg);
 					if (Register.IsArray())
 					{
 						void* NumBytesAsPtr = reinterpret_cast<void*>(Register.ElementCount);

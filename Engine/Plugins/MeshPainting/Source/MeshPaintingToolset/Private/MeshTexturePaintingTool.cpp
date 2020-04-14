@@ -17,6 +17,7 @@
 #include "CanvasItem.h"
 #include "ScopedTransaction.h"
 #include "BaseGizmos/BrushStampIndicator.h"
+#include "MeshPaintAdapterFactory.h"
 
 #define LOCTEXT_NAMESPACE "MeshTextureBrush"
 
@@ -29,7 +30,19 @@
 bool UMeshTexturePaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, UMeshPaintingToolset::HasPaintableMesh);
-	return ActorComponent != nullptr;
+	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(SceneState.ToolManager);
+	TArray<FPaintableTexture> PaintableTextures;
+	if (ActorComponent && MeshToolManager)
+	{
+		UMeshComponent* MeshComponent = Cast<UMeshComponent>(ActorComponent);
+		if (MeshComponent)
+		{
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
+			UTexturePaintToolset::RetrieveTexturesForComponent(MeshComponent, MeshAdapter.Get(), PaintableTextures);
+		}
+	}
+
+	return PaintableTextures.Num() > 0;
 }
 
 UInteractiveTool* UMeshTexturePaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -111,6 +124,26 @@ void UMeshTexturePaintingTool::Setup()
 void UMeshTexturePaintingTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	FinishPainting();
+	// If the user has pending changes and the editor is not exiting, we want to do the commit for all the modified textures.
+	if ((GetNumberOfPendingPaintChanges() > 0) && !IsEngineExitRequested())
+	{
+		CommitAllPaintedTextures();
+	}
+	else
+	{
+		ClearAllTextureOverrides();
+	}
+
+	PaintTargetData.Empty();
+
+	// Remove any existing texture targets
+	TexturePaintTargetList.Empty();
+	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
+	if (MeshToolManager)
+	{
+		MeshToolManager->Refresh();
+	}
+
 	BrushProperties->SaveProperties(this);
 	Super::Shutdown(ShutdownType);
 }
@@ -203,25 +236,27 @@ double UMeshTexturePaintingTool::EstimateMaximumTargetDimension()
 	FBoxSphereBounds Bounds = FBoxSphereBounds(0.0);
 	if (MeshToolManager)
 	{
-		// Preferentially use paintable components
-		for (UMeshComponent* PaintableComponent : MeshToolManager->GetPaintableMeshComponents())
+		bool bFirstItem = true;
+
+		FBoxSphereBounds Extents;
+		for (UMeshComponent* SelectedComponent : MeshToolManager->GetSelectedMeshComponents())
 		{
-			bFoundComponentToUse = true;
-			Bounds = Bounds + PaintableComponent->Bounds;
-		}
-		// Otherwise use selected components
-		if (!bFoundComponentToUse)
-		{
-			for (UMeshComponent* SelectedComponent : MeshToolManager->GetSelectedMeshComponents())
+			if (bFirstItem)
 			{
-				bFoundComponentToUse = true;
-				Bounds = Bounds + SelectedComponent->Bounds;
+				Extents = SelectedComponent->Bounds;
 			}
+			else
+			{
+				Extents = Extents + SelectedComponent->Bounds;
+			}
+
+			bFirstItem = false;
 		}
 
+		return Extents.BoxExtent.GetAbsMax();
 	}
 
-	return bFoundComponentToUse ? Bounds.GetBox().GetExtent().GetAbsMax() : Super::EstimateMaximumTargetDimension();
+	return Super::EstimateMaximumTargetDimension();
 }
 
 double UMeshTexturePaintingTool::CalculateTargetEdgeLength(int TargetTriCount)
@@ -526,8 +561,9 @@ bool UMeshTexturePaintingTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 	bool bUsed = false;
 	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
 	{
-		bUsed = MeshToolManager->FindHitResult(Ray, OutHit);
+		MeshToolManager->FindHitResult(Ray, OutHit);
 		LastBestHitResult = OutHit;
+		bUsed = OutHit.bBlockingHit;
 	}
 	return bUsed;
 }

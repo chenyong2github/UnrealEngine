@@ -180,9 +180,9 @@ void UVirtualCameraCineCameraComponent::SetFocusMethod(const EVirtualCameraFocus
 
 	switch (NewFocusMethod)
 	{
-	case EVirtualCameraFocusMethod::None:
+	case EVirtualCameraFocusMethod::DoNotOverride:
 		bAutoFocusEnabled = false;
-		FocusSettings.FocusMethod = ECameraFocusMethod::None;
+		FocusSettings.FocusMethod = ECameraFocusMethod::DoNotOverride;
 		break;
 	case EVirtualCameraFocusMethod::Auto:
 		bAutoFocusEnabled = true;
@@ -195,6 +195,10 @@ void UVirtualCameraCineCameraComponent::SetFocusMethod(const EVirtualCameraFocus
 	case EVirtualCameraFocusMethod::Tracking:
 		bAutoFocusEnabled = false;
 		FocusSettings.FocusMethod = ECameraFocusMethod::Tracking;
+		break;
+	case EVirtualCameraFocusMethod::Disable:
+		bAutoFocusEnabled = false;
+		FocusSettings.FocusMethod = ECameraFocusMethod::Disable;
 		break;
 	default:  // Should never be reached, but just in case new focus methods are added
 		UE_LOG(LogActor, Warning, TEXT("Specified focus method is not currently supported in Virtual Camera!"))
@@ -229,7 +233,7 @@ void UVirtualCameraCineCameraComponent::SetFocusChangeSmoothness(const float New
 
 void UVirtualCameraCineCameraComponent::SetFocusVisualization(bool bShowFocusVisualization)
 {
-	if (FocusSettings.FocusMethod == ECameraFocusMethod::None)
+	if (FocusSettings.FocusMethod == ECameraFocusMethod::Disable)
 	{
 		UE_LOG(LogActor, Warning, TEXT("Camera focus mode is currently set to none, cannot display focus plane!"))
 		return;
@@ -240,7 +244,7 @@ void UVirtualCameraCineCameraComponent::SetFocusVisualization(bool bShowFocusVis
 
 bool UVirtualCameraCineCameraComponent::IsFocusVisualizationActivated() const
 {
-	return FocusSettings.FocusMethod != ECameraFocusMethod::None && FocusSettings.bDrawDebugFocusPlane;
+	return FocusSettings.FocusMethod != ECameraFocusMethod::Disable && FocusSettings.bDrawDebugFocusPlane;
 }
 
 int32 UVirtualCameraCineCameraComponent::FindClosestPresetIndex(const TArray<float>& ArrayToSearch, const float SearchValue) const

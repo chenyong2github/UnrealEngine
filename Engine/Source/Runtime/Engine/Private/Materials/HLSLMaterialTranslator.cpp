@@ -93,7 +93,8 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	bUsesSkyAtmosphere(false)
 ,	bUsesVertexColor(false)
 ,	bUsesParticleColor(false)
-,	bUsesParticleTransform(false)
+,	bUsesParticleLocalToWorld(false)
+,	bUsesParticleWorldToLocal(false)
 ,	bUsesVertexPosition(false)
 ,	bUsesTransformVector(false)
 ,	bCompilingPreviousFrame(false)
@@ -890,9 +891,9 @@ bool FHLSLMaterialTranslator::Translate()
 
 		if (MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
 		{
-			if (BlendMode != BLEND_Opaque)
+			if (BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked)
 			{
-				Errorf(TEXT("SingleLayerWater materials must be opaque."));
+				Errorf(TEXT("SingleLayerWater materials must be opaque or masked."));
 			}
 			if (!MaterialShadingModels.HasOnlyShadingModel(MSM_SingleLayerWater))
 			{
@@ -1215,7 +1216,8 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	OutEnvironment.SetDefine(TEXT("MATERIAL_SKY_ATMOSPHERE"), bUsesSkyAtmosphere);
 	OutEnvironment.SetDefine(TEXT("INTERPOLATE_VERTEX_COLOR"), bUsesVertexColor);
 	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_COLOR"), bUsesParticleColor); 
-	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_TRANSFORM"), bUsesParticleTransform);
+	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_LOCAL_TO_WORLD"), bUsesParticleLocalToWorld);
+	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_WORLD_TO_LOCAL"), bUsesParticleWorldToLocal);
 	OutEnvironment.SetDefine(TEXT("USES_TRANSFORM_VECTOR"), bUsesTransformVector);
 	OutEnvironment.SetDefine(TEXT("WANT_PIXEL_DEPTH_OFFSET"), bUsesPixelDepthOffset);
 	if (IsMetalPlatform(InPlatform))
@@ -4558,14 +4560,14 @@ int32 FHLSLMaterialTranslator::TextureProperty(int32 TextureIndex, EMaterialExpo
 {
 	EMaterialValueType TextureType = GetParameterType(TextureIndex);
 
-	if(TextureType != MCT_Texture2D && TextureType != MCT_TextureVirtual)
+	if(TextureType != MCT_Texture2D && TextureType != MCT_TextureVirtual && TextureType != MCT_VolumeTexture)
 	{
-		return Errorf(TEXT("Texture size only available for Texture2D, not %s"),DescribeType(TextureType));
+		return Errorf(TEXT("Texture size only available for Texture2D, TextureVirtual, and VolumeTexture, not %s"),DescribeType(TextureType));
 	}
 		
 	auto TextureExpression = (FMaterialUniformExpressionTexture*) (*CurrentScopeChunks)[TextureIndex].UniformExpression.GetReference();
 
-	return AddUniformExpression(new FMaterialUniformExpressionTextureProperty(TextureExpression, Property), MCT_Float2, TEXT(""));
+	return AddUniformExpression(new FMaterialUniformExpressionTextureProperty(TextureExpression, Property), (TextureType == MCT_VolumeTexture ? MCT_Float3 : MCT_Float2), TEXT(""));
 }
 
 int32 FHLSLMaterialTranslator::TextureDecalMipmapLevel(int32 TextureSizeInput)
@@ -5921,8 +5923,11 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 			}
 			else if (DestCoordBasis == MCB_MeshParticle)
 			{
-				CodeStr = TEXT("mul(<A>, <MATRIX>(Parameters.Particle.LocalToWorld))");
-				bUsesParticleTransform = true;
+				CodeStr = TEXT("mul(<A>, <MATRIX>(Parameters.Particle.WorldToParticle))");
+				if (ShaderFrequency == SF_Pixel)
+				{
+					bUsesParticleWorldToLocal = true;
+				}
 			}
 
 			// else use MCB_TranslatedWorld as intermediary basis
@@ -5953,13 +5958,13 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 		{
 			if (DestCoordBasis == MCB_World)
 			{
-				CodeStr = TEXT("mul(<MATRIX>(Parameters.Particle.LocalToWorld), <A>)");
-				bUsesParticleTransform = true;
+				CodeStr = TEXT("mul(<A>, <MATRIX>(Parameters.Particle.ParticleToWorld))");
+				if (ShaderFrequency == SF_Pixel)
+				{
+					bUsesParticleLocalToWorld = true;
+				}
 			}
-			else
-			{
-				return Errorf(TEXT("Can transform only to world space from particle space"));
-			}
+			// use World as an intermediary base
 			break;
 		}
 		default:
@@ -6565,6 +6570,49 @@ int32 FHLSLMaterialTranslator::SkyAtmosphereDistantLightScatteredLuminance()
 {
 	bUsesSkyAtmosphere = true;
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth)
+{
+	if (ShaderFrequency == SF_Vertex && FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	{
+		// mobile currently does not support this, we need to read a separate copy of the depth, we must disable framebuffer fetch and force scene texture reads.
+		return Errorf(TEXT("Cannot read scene depth from the vertex shader with feature level ES3.1 or below."));
+	}
+
+	if (!Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
+	{
+		return Errorf(TEXT("Can only read scene depth below water when material Shading Model is Single Layer Water."));
+	}
+	
+	if (Material->GetMaterialDomain() != MD_Surface)
+	{
+		return Errorf(TEXT("Can only read scene depth below water when material Domain is set to Surface."));
+	}
+
+	if (IsTranslucentBlendMode(Material->GetBlendMode()))
+	{
+		return Errorf(TEXT("Can only read scene depth below water when material Blend Mode isn't translucent."));
+	}
+
+	if (Offset == INDEX_NONE && bUseOffset)
+	{
+		return INDEX_NONE;
+	}
+
+	AddEstimatedTextureSample();
+
+	const FString UserDepthCode(TEXT("MaterialExpressionSceneDepthWithoutWater(%s, %s)"));
+	const FString FallbackString(FString::SanitizeFloat(FallbackDepth));
+	const int32 TexCoordCode = GetScreenAlignedUV(Offset, ViewportUV, bUseOffset);
+
+	// add the code string
+	return AddCodeChunk(
+		MCT_Float,
+		*UserDepthCode,
+		*GetParameterCode(TexCoordCode),
+		*FallbackString
+	);
 }
 
 int32 FHLSLMaterialTranslator::CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type)

@@ -30,6 +30,7 @@ void FAnimNode_ControlRig::OnInitializeAnimInstance(const FAnimInstanceProxy* In
 	if (ControlRigClass)
 	{
 		ControlRig = NewObject<UControlRig>(InAnimInstance->GetOwningComponent(), ControlRigClass);
+		ControlRig->Initialize(true);
 		ControlRig->RequestInit();
 	}
 

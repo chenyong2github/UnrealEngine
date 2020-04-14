@@ -166,6 +166,13 @@ namespace Gauntlet
 		/// <returns></returns>
 		public virtual void SetContext(ITestContext InContext)
 		{
-		}	
+		}
+
+		/// <summary>
+		/// Output all defined commandline information for this test to the gauntlet window and exit test early.
+		/// </summary>
+		public virtual void DisplayCommandlineHelp()
+		{ 
+		}
 	}
 }

@@ -216,15 +216,20 @@ void FMenuBuilder::EndSection()
 
 void FMenuBuilder::AddMenuSeparator(FName InExtensionHook)
 {
+	AddSeparator(InExtensionHook);
+}
+
+void FMenuBuilder::AddSeparator(FName InExtensionHook /*= NAME_None*/)
+{
 	ApplySectionBeginning();
 
 	ApplyHook(InExtensionHook, EExtensionHook::Before);
 
 	// Never add a menu separate as the first item, even if we were asked to
-	if( MultiBox->GetBlocks().Num() > 0 || FMultiBoxSettings::DisplayMultiboxHooks.Get() )
+	if (MultiBox->GetBlocks().Num() > 0 || FMultiBoxSettings::DisplayMultiboxHooks.Get())
 	{
-		TSharedRef< FMenuSeparatorBlock > NewMenuSeparatorBlock( new FMenuSeparatorBlock(InExtensionHook, /* bInIsPartOfHeading=*/ false) );
-		MultiBox->AddMultiBlock( NewMenuSeparatorBlock );
+		TSharedRef< FMenuSeparatorBlock > NewMenuSeparatorBlock(new FMenuSeparatorBlock(InExtensionHook, /* bInIsPartOfHeading=*/ false));
+		MultiBox->AddMultiBlock(NewMenuSeparatorBlock);
 	}
 
 	ApplyHook(InExtensionHook, EExtensionHook::After);

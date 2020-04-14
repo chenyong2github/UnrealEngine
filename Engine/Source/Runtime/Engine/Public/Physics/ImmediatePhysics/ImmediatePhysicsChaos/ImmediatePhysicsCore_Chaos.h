@@ -11,15 +11,21 @@
 namespace Chaos
 {
 	class FImplicitObject;
+	class FNarrowPhase;
+	class FParticlePairBroadPhase;
+	class FParticlePairCollisionDetector;
 	class FPBDJointConstraintHandle;
 	class FPBDJointConstraints;
 	class FPBDRigidsEvolutionGBF;
+	class FPerShapeData;
+	template<class T> class TArrayCollectionArray;
 	template<typename T, int D> struct TKinematicGeometryParticleParameters;
 	template<typename T, int D> class TKinematicTarget;
-	template<typename P> class TPBDConstraintIslandRule;
+	template<typename T> class TPBDConstraintIslandRule;
 	template<typename T, int D> struct TPBDRigidParticleParameters;
 	template<typename T, int D> class TPBDRigidsSOAs;
-	class FPerShapeData;
+	template<typename T> class TSimpleConstraintRule;
+
 }
 
 namespace ImmediatePhysics_Chaos

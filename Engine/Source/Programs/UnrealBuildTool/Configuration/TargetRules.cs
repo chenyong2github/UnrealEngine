@@ -269,6 +269,16 @@ namespace UnrealBuildTool
 		public UnrealTargetConfiguration UndecoratedConfiguration = UnrealTargetConfiguration.Development;
 
 		/// <summary>
+		/// Whether this target supports hot reload
+		/// </summary>
+		public bool bAllowHotReload
+		{
+			get { return bAllowHotReloadOverride ?? (Type == TargetType.Editor && LinkType == TargetLinkType.Modular); }
+			set { bAllowHotReloadOverride = value; }
+		}
+		private bool? bAllowHotReloadOverride;
+
+		/// <summary>
 		/// Build all the plugins that we can find, even if they're not enabled. This is particularly useful for content-only projects,
 		/// where you're building the UE4Editor target but running it with a game that enables a plugin.
 		/// </summary>
@@ -361,7 +371,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoCompileChaos", Value = "false")]
 		[CommandLine("-CompileChaos", Value = "true")]
-		public bool bCompileChaos = false;
+		public bool bCompileChaos = true;
 
 		/// <summary>
 		/// Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
@@ -369,7 +379,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoUseChaos", Value = "false")]
 		[CommandLine("-UseChaos", Value = "true")]
-		public bool bUseChaos = false;
+		public bool bUseChaos = true;
 
 		/// <summary>
 		/// Whether to compile in checked chaos features for debugging
@@ -1875,6 +1885,11 @@ namespace UnrealBuildTool
 		public UnrealTargetConfiguration UndecoratedConfiguration
 		{
 			get { return Inner.UndecoratedConfiguration; }
+		}
+
+		public bool bAllowHotReload
+		{
+			get { return Inner.bAllowHotReload; }
 		}
 
 		[Obsolete("bBuildAllPlugins has been deprecated. Use bPrecompile to build all modules which are not part of the target.")]

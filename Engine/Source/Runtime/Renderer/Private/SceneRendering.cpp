@@ -150,24 +150,10 @@ static TAutoConsoleVariable<int32> CVarInstancedStereo(
 	TEXT("0 to disable instanced stereo (default), 1 to enable."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarMultiView(
-	TEXT("vr.MultiView"),
-	0,
-	TEXT("0 to disable multi-view instanced stereo, 1 to enable.\n")
-	TEXT("Currently only supported by the PS4 & Metal RHIs."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarMobileMultiView(
 	TEXT("vr.MobileMultiView"),
 	0,
 	TEXT("0 to disable mobile multi-view, 1 to enable.\n"),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarMobileMultiViewDirect(
-	TEXT("vr.MobileMultiView.Direct"),
-	0,
-	TEXT("0 to disable mobile multi-view direct, 1 to enable.\n")
-	TEXT("When enabled the scene color render target array is provided by the hmd plugin so we can skip the blit.\n"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarRoundRobinOcclusion(
@@ -1625,7 +1611,7 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
 
-	ViewUniformShaderParameters.VirtualTextureFeedbackStride = SceneContext.VirtualTextureFeedback.GetFeedbackStride();
+	ViewUniformShaderParameters.VirtualTextureFeedbackStride = SceneContext.GetVirtualTextureFeedbackBufferSize().X;
 	ViewUniformShaderParameters.RuntimeVirtualTextureMipLevel = FVector4(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTexturePackHeight = FVector2D(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTextureDebugParams = FVector4(ForceInitToZero);

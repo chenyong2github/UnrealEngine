@@ -282,7 +282,7 @@ bool FStaticParameterSet::Equivalent(const FStaticParameterSet& ReferenceSet) co
 		Temp1.SortForEquivalent();
 		Temp2.SortForEquivalent();
 		bool bResult = (Temp1 == Temp2);
-		check(!bResult || (*this) == ReferenceSet); // if this never fires, then we really didn't need to sort did we?
+		ensure(!bResult || (*this) == ReferenceSet); // if this never fires, then we really didn't need to sort did we?
 		return bResult;
 	}
 	return false;
@@ -1259,35 +1259,13 @@ void FMaterialShaderMap::FinalizeContent()
 	FMaterialShaderMapContent* LocalContent = GetMutableContent();
 
 	FSHA1 Hasher;
-	for (const FShader* Shader : LocalContent->GetShaders())
-	{
-		const FHashedName& TypeName = Shader->GetTypeName();
-		const int32 PermutationId = Shader->GetPermutationId();
-		Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
-		Hasher.Update((uint8*)&PermutationId, sizeof(PermutationId));
-	}
-
-	for (const FShaderPipeline* Pipeline : LocalContent->GetShaderPipelines())
-	{
-		const FHashedName& TypeName = Pipeline->TypeName;
-		Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
-	}
+	LocalContent->Finalize();
+	LocalContent->UpdateHash(Hasher);
 
 	for (FMeshMaterialShaderMap* MeshShaderMap : LocalContent->OrderedMeshShaderMaps)
 	{
-		for (const FShader* Shader : MeshShaderMap->GetShaders())
-		{
-			const FHashedName& TypeName = Shader->GetTypeName();
-			const int32 PermutationId = Shader->GetPermutationId();
-			Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
-			Hasher.Update((uint8*)&PermutationId, sizeof(PermutationId));
-		}
-
-		for (const FShaderPipeline* Pipeline : MeshShaderMap->GetShaderPipelines())
-		{
-			const FHashedName& TypeName = Pipeline->TypeName;
-			Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
-		}
+		MeshShaderMap->Finalize();
+		MeshShaderMap->UpdateHash(Hasher);
 	}
 
 	Hasher.Final();
@@ -1613,7 +1591,7 @@ FShader* FMaterialShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompil
 		if (!ShaderPipeline)
 		{
 			check(!MeshShaderMap->HasShader(MeshMaterialShaderType, CurrentJob.PermutationId));
-			Shader = MeshShaderMap->FindOrAddShader(Shader);
+			Shader = MeshShaderMap->FindOrAddShader(MeshMaterialShaderType->GetHashedName(), CurrentJob.PermutationId, Shader);
 		}
 	}
 	else
@@ -1626,7 +1604,7 @@ FShader* FMaterialShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompil
 		if (!ShaderPipeline)
 		{
 			check(!GetContent()->HasShader(MaterialShaderType, CurrentJob.PermutationId));
-			Shader = GetMutableContent()->FindOrAddShader(Shader);
+			Shader = GetMutableContent()->FindOrAddShader(MaterialShaderType->GetHashedName(), CurrentJob.PermutationId, Shader);
 		}
 	}
 
@@ -1673,33 +1651,31 @@ bool FMaterialShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShad
 			const FShaderPipelineCompileJob& CurrentJob = *PipelineJob;
 			check(CurrentJob.Id == CompilingId);
 
-			TArray<FShader*> ShaderStages;
 			FVertexFactoryType* VertexFactoryType = CurrentJob.StageJobs[0]->GetSingleShaderJob()->VFType;
+			FShaderPipeline* ShaderPipeline = new FShaderPipeline(CurrentJob.ShaderPipeline);
 			for (int32 Index = 0; Index < CurrentJob.StageJobs.Num(); ++Index)
 			{
 				SingleJob = CurrentJob.StageJobs[Index]->GetSingleShaderJob();
 				FShader* Shader = ProcessCompilationResultsForSingleJob(SingleJob, PipelineJob->ShaderPipeline, MaterialShaderMapHash, ResourceBuilder);
-				ShaderStages.Add(Shader);
+				ShaderPipeline->AddShader(Shader, SingleJob->PermutationId);
 				check(VertexFactoryType == CurrentJob.StageJobs[Index]->GetSingleShaderJob()->VFType);
 			}
+			ShaderPipeline->Validate(CurrentJob.ShaderPipeline);
 
-			FShaderPipeline* ShaderPipeline = new FShaderPipeline(PipelineJob->ShaderPipeline, ShaderStages);
-			if (ShaderPipeline)
+			if (VertexFactoryType)
 			{
-				if (VertexFactoryType)
-				{
-					check(VertexFactoryType->IsUsedWithMaterials());
-					FMeshMaterialShaderMap* MeshShaderMap = GetMeshShaderMap(VertexFactoryType);
-					check(MeshShaderMap);
-					check(!MeshShaderMap->HasShaderPipeline(ShaderPipeline->TypeName));
-					MeshShaderMap->FindOrAddShaderPipeline(ShaderPipeline);
-				}
-				else
-				{
-					check(!GetContent()->HasShaderPipeline(ShaderPipeline->TypeName));
-					GetMutableContent()->FindOrAddShaderPipeline(ShaderPipeline);
-				}
+				check(VertexFactoryType->IsUsedWithMaterials());
+				FMeshMaterialShaderMap* MeshShaderMap = GetMeshShaderMap(VertexFactoryType);
+				check(MeshShaderMap);
+				check(!MeshShaderMap->HasShaderPipeline(ShaderPipeline->TypeName));
+				MeshShaderMap->FindOrAddShaderPipeline(ShaderPipeline);
 			}
+			else
+			{
+				check(!GetContent()->HasShaderPipeline(ShaderPipeline->TypeName));
+				GetMutableContent()->FindOrAddShaderPipeline(ShaderPipeline);
+			}
+
 		}
 
 		InOutJobIndex++;
@@ -1728,17 +1704,18 @@ bool FMaterialShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShad
 							if (ShaderPipelineType->IsMeshMaterialTypePipeline() && !MeshShaderMap->HasShaderPipeline(ShaderPipelineType))
 							{
 								auto& StageTypes = ShaderPipelineType->GetStages();
-								TArray<FShader*> ShaderStages;
+	
+								FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType);
 								for (int32 Index = 0; Index < StageTypes.Num(); ++Index)
 								{
 									FMeshMaterialShaderType* ShaderType = ((FMeshMaterialShaderType*)(StageTypes[Index]))->GetMeshMaterialShaderType();
 									FShader* Shader = MeshShaderMap->GetShader(ShaderType, kUniqueShaderPermutationId);
-									check(Shader);
-									ShaderStages.Add(Shader);
+#if DO_CHECK
+									UE_CLOG(Shader == nullptr, LogShaders, Fatal, TEXT("Failed to get ShaderType %s Permutation %d from MeshMaterial ShaderPipeline %s"), ShaderType->GetName(), kUniqueShaderPermutationId, ShaderPipelineType->GetName());
+#endif	// DO_CHECK
+									ShaderPipeline->AddShader(Shader, kUniqueShaderPermutationId);
 								}
-
-								checkf(StageTypes.Num() == ShaderStages.Num(), TEXT("Internal Error adding MeshMaterial ShaderPipeline %s"), ShaderPipelineType->GetName());
-								FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType, ShaderStages);
+								ShaderPipeline->Validate(ShaderPipelineType);
 								MeshShaderMap->FindOrAddShaderPipeline(ShaderPipeline);
 							}
 						}
@@ -1755,17 +1732,16 @@ bool FMaterialShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShad
 					if (ShaderPipelineType->IsMaterialTypePipeline() && !GetContent()->HasShaderPipeline(ShaderPipelineType))
 					{
 						auto& StageTypes = ShaderPipelineType->GetStages();
-						TArray<FShader*> ShaderStages;
+
+						FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType);
 						for (int32 Index = 0; Index < StageTypes.Num(); ++Index)
 						{
 							FMaterialShaderType* ShaderType = ((FMaterialShaderType*)(StageTypes[Index]))->GetMaterialShaderType();
 							FShader* Shader = GetContent()->GetShader(ShaderType, kUniqueShaderPermutationId);
 							check(Shader);
-							ShaderStages.Add(Shader);
+							ShaderPipeline->AddShader(Shader, kUniqueShaderPermutationId);
 						}
-
-						checkf(StageTypes.Num() == ShaderStages.Num(), TEXT("Internal Error adding Material ShaderPipeline %s"), ShaderPipelineType->GetName());
-						FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType, ShaderStages);
+						ShaderPipeline->Validate(ShaderPipelineType);
 						GetMutableContent()->FindOrAddShaderPipeline(ShaderPipeline);
 					}
 				}

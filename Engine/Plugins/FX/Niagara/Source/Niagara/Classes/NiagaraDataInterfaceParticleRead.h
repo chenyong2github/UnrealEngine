@@ -38,20 +38,33 @@ public:
 	void GetNumSpawnedParticles(FVectorVMContext& Context);
 	void GetSpawnedIDAtIndex(FVectorVMContext& Context);
 	void GetNumParticles(FVectorVMContext& Context);
+	void GetParticleIndex(FVectorVMContext& Context);
+	void ReadInt(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadBool(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadFloat(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadVector2(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadVector3(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadVector4(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadInt(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadBool(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadColor(FVectorVMContext& Context, FName AttributeToRead);
 	void ReadQuat(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadID(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadIntByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadBoolByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadFloatByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadVector2ByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadVector3ByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadVector4ByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadColorByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadQuatByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void ReadIDByIndex(FVectorVMContext& Context, FName AttributeToRead);
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 private:
-	template<typename T, typename AccessorType>
-	T RetrieveValueWithCheck(FNiagaraEmitterInstance* EmitterInstance, const FName& Attr, const FNiagaraID& ParticleID, bool& bValid);
+	template<typename Type, typename AccessorType>
+	Type RetrieveValueWithCheck(FNiagaraEmitterInstance* EmitterInstance, const FName& Attr, const FNiagaraID& ParticleID, bool& bValid);
 
+	template<typename Type, typename AccessorType>
+	Type RetrieveValueByIndexWithCheck(FNiagaraEmitterInstance* EmitterInstance, const FName& Attr, int32 ParticleIndex, bool& bValid);
 };

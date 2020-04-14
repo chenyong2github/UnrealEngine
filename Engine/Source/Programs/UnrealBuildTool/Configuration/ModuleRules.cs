@@ -484,6 +484,11 @@ namespace UnrealBuildTool
 		internal Dictionary<Type, DirectoryReference> DirectoriesForModuleSubClasses;
 
 		/// <summary>
+		/// Additional directories that contribute to this module but are not based on a subclass (NotForLicensees, etc)
+		/// </summary>
+		private List<DirectoryReference> AdditionalModuleDirectories = new List<DirectoryReference>();
+
+		/// <summary>
 		/// Plugin containing this module
 		/// </summary>
 		internal PluginInfo Plugin;
@@ -751,6 +756,11 @@ namespace UnrealBuildTool
 		/// List of folders which are whitelisted to be referenced when compiling this binary, without propagating restricted folder names
 		/// </summary>
 		public List<string> WhitelistRestrictedFolders = new List<string>();
+
+		/// <summary>
+		/// Set of aliased restricted folder references
+		/// </summary>
+		public Dictionary<string, string> AliasRestrictedFolders = new Dictionary<string, string>();
 
 		/// <summary>
 		/// Enforce "include what you use" rules when PCHUsage is set to ExplicitOrSharedPCH; warns when monolithic headers (Engine.h, UnrealEd.h, etc...) 
@@ -1312,7 +1322,7 @@ namespace UnrealBuildTool
 					case ModuleRules.PrecompileTargetsType.None:
 						return false;
 					case ModuleRules.PrecompileTargetsType.Default:
-						return (Target.Type == TargetType.Editor || !UnrealBuildTool.GetAllEngineDirectories("Source/Developer").Any(Dir => RulesFile.IsUnderDirectory(Dir)) || Plugin != null);
+						return (Target.Type == TargetType.Editor || !UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, "Source/Developer").Any(Dir => RulesFile.IsUnderDirectory(Dir)) || Plugin != null);
 					case ModuleRules.PrecompileTargetsType.Game:
 						return (Target.Type == TargetType.Client || Target.Type == TargetType.Server || Target.Type == TargetType.Game);
 					case ModuleRules.PrecompileTargetsType.Editor:
@@ -1345,12 +1355,36 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns the directories for all subclasses of this module
+		/// Returns the directories for all subclasses of this module, as well as any additional directories specified by the rules
 		/// </summary>
 		/// <returns>List of directories, or null if none were added</returns>
-		public DirectoryReference[] GetModuleDirectoriesForAllSubClasses()
+		public DirectoryReference[] GetAllModuleDirectories()
 		{
-			return DirectoriesForModuleSubClasses == null ? null : DirectoriesForModuleSubClasses.Values.ToArray();
+			List<DirectoryReference> AllDirectories = new List<DirectoryReference> { Directory };
+			AllDirectories.AddRange(AdditionalModuleDirectories);
+
+			if (DirectoriesForModuleSubClasses != null)
+			{
+				AllDirectories.AddRange(DirectoriesForModuleSubClasses.Values);
+			}
+
+			return AllDirectories.ToArray();
+		}
+
+		/// <summary>
+		/// Adds an additional module directory, if it exists (useful for NotForLicensees/NoRedist)
+		/// </summary>
+		/// <param name="Directory"></param>
+		/// <returns>true if the directory exists</returns>
+		protected bool ConditionalAddModuleDirectory(DirectoryReference Directory)
+		{
+			if (DirectoryReference.Exists(Directory))
+			{
+				AdditionalModuleDirectories.Add(Directory);
+				return true;
+			}
+
+			return false;
 		}
 	}
 }

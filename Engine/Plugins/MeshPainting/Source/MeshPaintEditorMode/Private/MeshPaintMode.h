@@ -46,6 +46,11 @@ public:
 	static FName MeshPaintMode_Color;
 	static FName MeshPaintMode_Texture;
 	static FName MeshPaintMode_Weights;
+	static FString VertexSelectToolName;
+	static FString TextureSelectToolName;
+	static FString ColorPaintToolName;
+	static FString WeightPaintToolName;
+	static FString TexturePaintToolName;
 
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const override;
 	/** Returns the instance of ComponentClass found in the current Editor selection */
@@ -65,7 +70,6 @@ protected:
 	// UEdMode interface
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
-	virtual bool InputAxis(FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime) override;
 	virtual void ActorSelectionChangeNotify() override;
 	virtual void ActivateDefaultTool() override;
 	virtual void UpdateOnPaletteChange() override;
@@ -92,6 +96,7 @@ protected:
 	void UpdateCachedVertexDataSize();
 	void CycleMeshLODs(int32 Direction);
 	void CycleTextures(int32 Direction);
+	bool CanCycleTextures() const;
 	void CommitAllPaintedTextures();
 	int32 GetNumberOfPendingPaintChanges();
 

@@ -885,6 +885,8 @@ void FSequencerObjectBindingNode::SetDisplayName(const FText& NewDisplayName)
 		{
 			MovieScene->SetObjectDisplayName(ObjectBinding, NewDisplayName);
 		}
+
+		SetNodeName(FName(*NewDisplayName.ToString()));
 	}
 }
 

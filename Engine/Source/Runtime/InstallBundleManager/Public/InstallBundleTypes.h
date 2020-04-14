@@ -11,7 +11,8 @@ enum class EInstallBundleSourceType : int
 	BuildPatchServices,
 	PlayGo,
 	IntelligentDelivery,
-	Count
+	GameCustom,
+	Count,
 };
 ENUM_RANGE_BY_COUNT(EInstallBundleSourceType, EInstallBundleSourceType::Count);
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleSourceType Type);
@@ -165,6 +166,21 @@ enum class EInstallBundleManagerPatchCheckResult : uint32
 	PatchCheckFailure,
 	Count,
 };
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleManagerPatchCheckResult EnumVal);
+
+/**
+ * Enum used to describe download priority. Higher priorities will be downloaded first.
+ * Note: Should always be kept in High -> Low priority order if adding more Priorities!
+ */
+enum class EInstallBundlePriority : uint8
+{
+	High,
+	Normal,
+	Low,
+	Count
+};
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundlePriority Priority);
+INSTALLBUNDLEMANAGER_API bool LexTryParseString(EInstallBundlePriority& OutMode, const TCHAR* InBuffer);
 
 struct FInstallBundleSourceInitInfo
 {
@@ -174,7 +190,31 @@ struct FInstallBundleSourceInitInfo
 
 struct FInstallBundleSourceAsyncInitInfo : public FInstallBundleSourceInitInfo
 {
-	TMap<FName, bool> BundleUpToDate;
+	// Reserved for future use
+};
+
+struct FInstallBundleSourceBundleInfo
+{
+	FName BundleName;
+	FString BundleNameString;
+	EInstallBundlePriority Priority = EInstallBundlePriority::Low;
+	bool bIsStartup = false; // Only one startup bundle allowed.  All sources must agree on this.
+	bool bDoPatchCheck = false; // This bundle should do a patch check and fail if it doesn't pass
+	bool bBundleUpToDate = false; // Whether this bundle is up to date
+};
+
+struct FInstallBundleSourceBundleInfoQueryResultInfo
+{
+	TMap<FName, FInstallBundleSourceBundleInfo> SourceBundleInfoMap;
+};
+
+enum class EInstallBundleSourceUpdateBundleInfoResult : uint32
+{
+	OK,
+	AlreadyMounted,
+	AlreadyRequested,
+	IllegalStartupBundle,
+	Count,
 };
 
 struct FInstallBundleSourceRequestResultInfo

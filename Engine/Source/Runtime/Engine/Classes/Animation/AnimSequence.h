@@ -684,6 +684,17 @@ public:
 	 * Return true if it contains transform curves
 	 */
 	bool DoesContainTransformCurves() const;
+
+	/**
+	 * Returns whether this animation has baked transform curves (i.e. has the raw data been modified)
+	 */
+	bool HasBakedTransformCurves() const;
+
+	/**
+	 * Restore the pre baked transform curve raw data
+	 */
+	void RestoreSourceData();
+
 	/**
 	* Return true if compressed data is out of date / missing and so animation needs to use raw data
 	*/

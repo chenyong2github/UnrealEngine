@@ -7,6 +7,8 @@
 #include "MeshSelect.generated.h"
 
 class IMeshPaintComponentAdapter;
+class AActor;
+class UMeshComponent;
 
 /**
  * Builder for UVertexAdapterClickTool
@@ -62,8 +64,11 @@ public:
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
-	
 	virtual bool IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter)
+	{
+		return true;
+	}
+	virtual bool AllowsMultiselect()
 	{
 		return true;
 	}
@@ -73,6 +78,12 @@ protected:
 	static const int AdditiveSelectionModifier = 1;
 	bool bAddToSelectionSet;
 
+	UPROPERTY(Transient)
+	TArray<UMeshComponent*> CachedClickedComponents;
+	UPROPERTY(Transient)
+	TArray<AActor*> CachedClickedActors;
+private:
+	bool FindClickedComponentsAndCacheAdapters(const FInputDeviceRay& ClickPos, class UMeshToolManager* MeshToolManager);
 };
 
 UCLASS()
@@ -98,5 +109,9 @@ public:
 
 	// USingleClickTool overrides
 	virtual bool IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) override;
+	virtual bool AllowsMultiselect()
+	{
+		return false;
+	}
 
 };

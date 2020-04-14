@@ -357,10 +357,10 @@ namespace UnrealBuildTool
 			//CompileEnvironment.SystemIncludePaths.Add(DirectoryReference.Combine(NdkDir, "sources/cxx-stl/llvm-libc++/include"));
 
 			// the toolchain will actually filter these out
-			LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(NdkDir, "sources/cxx-stl/llvm-libc++/libs/armeabi-v7a"));
-			LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(NdkDir, "sources/cxx-stl/llvm-libc++/libs/arm64-v8a"));
-			LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(NdkDir, "sources/cxx-stl/llvm-libc++/libs/x86"));
-			LinkEnvironment.LibraryPaths.Add(DirectoryReference.Combine(NdkDir, "sources/cxx-stl/llvm-libc++/libs/x86_64"));
+			LinkEnvironment.SystemLibraryPaths.Add(DirectoryReference.Combine(NdkDir, "sources/cxx-stl/llvm-libc++/libs/armeabi-v7a"));
+			LinkEnvironment.SystemLibraryPaths.Add(DirectoryReference.Combine(NdkDir, "sources/cxx-stl/llvm-libc++/libs/arm64-v8a"));
+			LinkEnvironment.SystemLibraryPaths.Add(DirectoryReference.Combine(NdkDir, "sources/cxx-stl/llvm-libc++/libs/x86"));
+			LinkEnvironment.SystemLibraryPaths.Add(DirectoryReference.Combine(NdkDir, "sources/cxx-stl/llvm-libc++/libs/x86_64"));
 
 			CompileEnvironment.SystemIncludePaths.Add(DirectoryReference.Combine(NdkDir, "sources/android/native_app_glue"));
 			CompileEnvironment.SystemIncludePaths.Add(DirectoryReference.Combine(NdkDir, "sources/android/cpufeatures"));
@@ -375,11 +375,11 @@ namespace UnrealBuildTool
 
 			if (!UseTegraGraphicsDebugger(Target))
 			{
-				LinkEnvironment.AdditionalLibraries.Add("GLESv2");
-				LinkEnvironment.AdditionalLibraries.Add("EGL");
+				LinkEnvironment.SystemLibraries.Add("GLESv2");
+				LinkEnvironment.SystemLibraries.Add("EGL");
 			}
-			LinkEnvironment.AdditionalLibraries.Add("android");
-			LinkEnvironment.AdditionalLibraries.Add("OpenSLES");
+			LinkEnvironment.SystemLibraries.Add("android");
+			LinkEnvironment.SystemLibraries.Add("OpenSLES");
 		}
 
 		public override void SetUpEnvironment(ReadOnlyTargetRules Target, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment)
@@ -401,14 +401,13 @@ namespace UnrealBuildTool
 
 			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment);
 
-			LinkEnvironment.AdditionalLibraries.Add("libc++_shared");
-			LinkEnvironment.AdditionalLibraries.Add("gcc");
-			LinkEnvironment.AdditionalLibraries.Add("z");
-			LinkEnvironment.AdditionalLibraries.Add("c");
-			LinkEnvironment.AdditionalLibraries.Add("m");
-			LinkEnvironment.AdditionalLibraries.Add("log");
-			LinkEnvironment.AdditionalLibraries.Add("dl");
-			LinkEnvironment.AdditionalLibraries.Add("atomic");
+			// deliberately not linking stl or stdc++ here (c++_shared is default)
+			LinkEnvironment.SystemLibraries.Add("c");
+			LinkEnvironment.SystemLibraries.Add("dl");
+			LinkEnvironment.SystemLibraries.Add("log");
+			LinkEnvironment.SystemLibraries.Add("m");
+			LinkEnvironment.SystemLibraries.Add("z");
+			LinkEnvironment.SystemLibraries.Add("atomic");
 		}
 
 		private bool UseTegraGraphicsDebugger(ReadOnlyTargetRules Target)

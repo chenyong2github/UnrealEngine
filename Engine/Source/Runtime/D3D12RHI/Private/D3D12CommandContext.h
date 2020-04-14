@@ -123,6 +123,9 @@ public:
 	FD3D12CommandListHandle CommandListHandle;
 	FD3D12CommandAllocator* CommandAllocator;
 	FD3D12CommandAllocatorManager CommandAllocatorManager;
+	
+	// Current GPU event stack
+	TArray<uint32> GPUEventStack;
 
 	FD3D12StateCache StateCache;
 
@@ -423,6 +426,8 @@ protected:
 	{  
 		return InGPUIndex == GetGPUIndex() ? this : nullptr; 
 	}
+	
+	void WriteGPUEventStackToBreadCrumbData(bool bBeginEvent);
 
 private:
 	void RHIClearMRT(bool bClearColor, int32 NumClearColors, const FLinearColor* ColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);

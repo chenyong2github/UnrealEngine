@@ -159,7 +159,7 @@ public:
 	 */
 	bool IsSeparator() const
 	{
-		return (Type == EMultiBlockType::MenuSeparator) || (Type == EMultiBlockType::ToolBarSeparator);
+		return Type == EMultiBlockType::Separator;
 	}
 
 	/**

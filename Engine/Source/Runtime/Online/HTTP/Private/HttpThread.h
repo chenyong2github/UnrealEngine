@@ -55,7 +55,8 @@ public:
 	void GetCompletedRequests(TArray<IHttpThreadedRequest*>& OutCompletedRequests);
 
 	//~ Begin FSingleThreadRunnable Interface
-	virtual void Tick() override;
+	// Cannot be overriden to ensure identical behavior with the threaded tick
+	virtual void Tick() override final;
 	//~ End FSingleThreadRunnable Interface
 
 protected:
@@ -81,7 +82,7 @@ protected:
 
 	//~ Begin FRunnable Interface
 	virtual bool Init() override;
-	virtual uint32 Run() override;
+	virtual uint32 Run() override final;
 	virtual void Stop() override;
 	virtual void Exit() override;
 	//~ End FRunnable Interface

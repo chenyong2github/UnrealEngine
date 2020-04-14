@@ -22,6 +22,15 @@
 
 #endif // #if USE_USD_SDK
 
+bool UStaticMeshExporterUsd::IsUsdAvailable()
+{
+#if USE_USD_SDK
+	return true;
+#else
+	return false;
+#endif
+}
+
 UStaticMeshExporterUsd::UStaticMeshExporterUsd()
 {
 #if USE_USD_SDK

@@ -8,6 +8,7 @@
 #include "GraphEditorDragDropAction.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "NiagaraEditorCommon.h"
+#include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "NiagaraActions.generated.h"
 
 USTRUCT()
@@ -38,7 +39,11 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
 
 	bool IsExperimental = false;
 
+	TOptional<FNiagaraParameterHandle> GetParameterHandle() const;
+	void SetParamterHandle(const FNiagaraParameterHandle& InParameterHandle);
+
 private:
+	TOptional<FNiagaraParameterHandle> ParameterHandle;
 	FOnExecuteStackAction Action;
 	FCanExecuteStackAction CanPerformAction;
 };
@@ -55,7 +60,11 @@ struct NIAGARAEDITOR_API FNiagaraScriptVarAndViewInfoAction : public FEdGraphSch
 
 struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 {
-	FNiagaraParameterAction() {}
+	FNiagaraParameterAction()
+		: bNamespaceModifierRenamePending(false)
+	{
+	}
+
 	FNiagaraParameterAction(const FNiagaraVariable& InParameter,
 		const TArray<FNiagaraGraphParameterReferenceCollection>& InReferenceCollection,
 		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, int32 InSectionID = 0);
@@ -67,6 +76,8 @@ struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 	FNiagaraVariable Parameter;
 
 	TArray<FNiagaraGraphParameterReferenceCollection> ReferenceCollection;
+
+	bool bNamespaceModifierRenamePending;
 };
 
 struct NIAGARAEDITOR_API FNiagaraScriptParameterAction : public FEdGraphSchemaAction

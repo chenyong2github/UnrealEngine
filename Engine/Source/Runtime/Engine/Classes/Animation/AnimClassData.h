@@ -9,9 +9,28 @@
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimStateMachineTypes.h"
 #include "Animation/AnimClassInterface.h"
+#include "Algo/Transform.h"
 #include "AnimClassData.generated.h"
 
 class USkeleton;
+
+/** Serialized anim BP function data */
+USTRUCT()
+struct FAnimBlueprintFunctionData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TFieldPath<FStructProperty> OutputPoseNodeProperty;
+
+	/** The properties of the input nodes, patched up during link */
+	UPROPERTY()
+	TArray<TFieldPath<FStructProperty>> InputPoseNodeProperties;
+
+	/** The input properties themselves */
+	UPROPERTY()
+	TArray<TFieldPath<FProperty>> InputProperties;
+};
 
 UCLASS()
 class ENGINE_API UAnimClassData : public UObject, public IAnimClassInterface
@@ -38,33 +57,44 @@ public:
 	UPROPERTY()
 	TArray<FAnimBlueprintFunction> AnimBlueprintFunctions;
 
+	// Serialized function data, used to patch up transient data in AnimBlueprintFunctions
+	UPROPERTY()
+	TArray<FAnimBlueprintFunctionData> AnimBlueprintFunctionData;
+
 	// The array of anim nodes
 	UPROPERTY()
 	TArray< TFieldPath<FStructProperty> > AnimNodeProperties;
+	TArray< FStructProperty* > ResolvedAnimNodeProperties;
 
 	// The array of linked anim graph nodes
 	UPROPERTY()
 	TArray< TFieldPath<FStructProperty> > LinkedAnimGraphNodeProperties;
+	TArray< FStructProperty* > ResolvedLinkedAnimGraphNodeProperties;
 
 	// The array of linked anim layer nodes
 	UPROPERTY()
 	TArray< TFieldPath<FStructProperty> > LinkedAnimLayerNodeProperties;
+	TArray< FStructProperty* > ResolvedLinkedAnimLayerNodeProperties;
 
 	// Array of nodes that need a PreUpdate() call
 	UPROPERTY()
 	TArray< TFieldPath<FStructProperty> > PreUpdateNodeProperties;
+	TArray< FStructProperty* > ResolvedPreUpdateNodeProperties;
 
 	// Array of nodes that need a DynamicReset() call
 	UPROPERTY()
 	TArray< TFieldPath<FStructProperty> > DynamicResetNodeProperties;
+	TArray< FStructProperty* > ResolvedDynamicResetNodeProperties;
 
 	// Array of state machine nodes
 	UPROPERTY()
 	TArray< TFieldPath<FStructProperty> > StateMachineNodeProperties;
+	TArray< FStructProperty* > ResolvedStateMachineNodeProperties;
 
 	// Array of nodes that need an OnInitializeAnimInstance call
 	UPROPERTY()
 	TArray< TFieldPath<FStructProperty> > InitializationNodeProperties;
+	TArray< FStructProperty* > ResolvedInitializationNodeProperties;
 
 	// Indices for any Asset Player found within a specific (named) Anim Layer Graph, or implemented Anim Interface Graph
 	UPROPERTY()
@@ -89,18 +119,21 @@ public:
 	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const override { return AnimNotifies; }
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return OrderedSavedPoseIndicesMap; }
-	virtual const TArray<FStructPropertyPath>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetLinkedAnimGraphNodeProperties() const override { return LinkedAnimGraphNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetLinkedAnimLayerNodeProperties() const override { return LinkedAnimLayerNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetPreUpdateNodeProperties() const override { return PreUpdateNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetDynamicResetNodeProperties() const override { return DynamicResetNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetStateMachineNodeProperties() const override { return StateMachineNodeProperties; }
-	virtual const TArray<FStructPropertyPath>& GetInitializationNodeProperties() const override { return InitializationNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetAnimNodeProperties() const override { return ResolvedAnimNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetLinkedAnimGraphNodeProperties() const override { return ResolvedLinkedAnimGraphNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetLinkedAnimLayerNodeProperties() const override { return ResolvedLinkedAnimLayerNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetPreUpdateNodeProperties() const override { return ResolvedPreUpdateNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetDynamicResetNodeProperties() const override { return ResolvedDynamicResetNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetStateMachineNodeProperties() const override { return ResolvedStateMachineNodeProperties; }
+	virtual const TArray<FStructProperty*>& GetInitializationNodeProperties() const override { return ResolvedInitializationNodeProperties; }
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return SyncGroupNames; }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const { return GraphNameAssetPlayers; }
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const { return GraphBlendOptions; }
+
+	// Resolve TFieldPaths to FStructPropertys
+	void ResolvePropertyPaths();
 
 #if WITH_EDITOR
 	void CopyFrom(IAnimClassInterface* AnimClass)
@@ -110,14 +143,38 @@ public:
 		TargetSkeleton = AnimClass->GetTargetSkeleton();
 		AnimNotifies = AnimClass->GetAnimNotifies();
 		AnimBlueprintFunctions = AnimClass->GetAnimBlueprintFunctions();
+		AnimBlueprintFunctionData.Empty(AnimBlueprintFunctions.Num());
+
+		for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimBlueprintFunctions)
+		{
+			FAnimBlueprintFunctionData& NewAnimBlueprintFunctionData = AnimBlueprintFunctionData.AddDefaulted_GetRef();
+			NewAnimBlueprintFunctionData.OutputPoseNodeProperty = AnimBlueprintFunction.OutputPoseNodeProperty;
+			Algo::Transform(AnimBlueprintFunction.InputProperties, NewAnimBlueprintFunctionData.InputProperties, [](FProperty* InProperty){ return TFieldPath<FProperty>(InProperty); });
+			Algo::Transform(AnimBlueprintFunction.InputPoseNodeProperties, NewAnimBlueprintFunctionData.InputPoseNodeProperties, [](FStructProperty* InProperty){ return TFieldPath<FStructProperty>(InProperty); });
+		}
+
 		OrderedSavedPoseIndicesMap = AnimClass->GetOrderedSavedPoseNodeIndicesMap();
-		AnimNodeProperties = AnimClass->GetAnimNodeProperties();
-		LinkedAnimGraphNodeProperties = AnimClass->GetLinkedAnimGraphNodeProperties();
-		LinkedAnimLayerNodeProperties = AnimClass->GetLinkedAnimLayerNodeProperties();
-		PreUpdateNodeProperties = AnimClass->GetPreUpdateNodeProperties();
-		DynamicResetNodeProperties = AnimClass->GetDynamicResetNodeProperties();
-		StateMachineNodeProperties = AnimClass->GetStateMachineNodeProperties();
-		InitializationNodeProperties = AnimClass->GetInitializationNodeProperties();
+
+		auto MakePropertyPath = [](FStructProperty* InProperty)
+		{ 
+			return TFieldPath<FStructProperty>(InProperty); 
+		};
+
+		Algo::Transform(AnimClass->GetAnimNodeProperties(), AnimNodeProperties, MakePropertyPath);
+		ResolvedAnimNodeProperties = AnimClass->GetAnimNodeProperties();
+		Algo::Transform(AnimClass->GetLinkedAnimGraphNodeProperties(), LinkedAnimGraphNodeProperties, MakePropertyPath);
+		ResolvedLinkedAnimGraphNodeProperties = AnimClass->GetLinkedAnimGraphNodeProperties();
+		Algo::Transform(AnimClass->GetLinkedAnimLayerNodeProperties(), LinkedAnimLayerNodeProperties, MakePropertyPath);
+		ResolvedLinkedAnimLayerNodeProperties = AnimClass->GetLinkedAnimLayerNodeProperties();
+		Algo::Transform(AnimClass->GetPreUpdateNodeProperties(), PreUpdateNodeProperties, MakePropertyPath);
+		ResolvedPreUpdateNodeProperties = AnimClass->GetPreUpdateNodeProperties();
+		Algo::Transform(AnimClass->GetDynamicResetNodeProperties(), DynamicResetNodeProperties, MakePropertyPath);
+		ResolvedDynamicResetNodeProperties = AnimClass->GetDynamicResetNodeProperties();
+		Algo::Transform(AnimClass->GetStateMachineNodeProperties(), StateMachineNodeProperties, MakePropertyPath);
+		ResolvedStateMachineNodeProperties = AnimClass->GetStateMachineNodeProperties();
+		Algo::Transform(AnimClass->GetInitializationNodeProperties(), InitializationNodeProperties, MakePropertyPath);
+		ResolvedInitializationNodeProperties = AnimClass->GetInitializationNodeProperties();
+
 		SyncGroupNames = AnimClass->GetSyncGroupNames();
 		EvaluateGraphExposedInputs = AnimClass->GetExposedValueHandlers();
 		GraphNameAssetPlayers = AnimClass->GetGraphAssetPlayerInformation();

@@ -21,6 +21,8 @@ class CORE_API FRunnableThread
 	friend class FThreadSingletonInitializer;
 	friend class FTlsAutoCleanup;
 	friend class FThreadManager;
+	friend class FForkableThread;
+	friend class FForkProcessHelper;
 
 	/** Index of TLS slot for FRunnableThread pointer. */
 	static uint32 RunnableTlsSlot;
@@ -157,8 +159,43 @@ protected:
 	/** ID set during thread creation. */
 	uint32 ThreadID;
 
+protected:
+
+	/** List of unique thread types we can create */
+	enum class ThreadType
+	{
+		// Regular thread that executes the runnable object in it's own context
+		Real,
+		// Fake threads are created for a single threaded environment and are always executed from the main tick
+		Fake,
+		// Forkable threads will behave like fake threads for the master process, but will become real threads on forked processes
+		Forkable,
+	};
+
 private:
+
+	/** Called to setup a newly created RunnableThread */
+	static void SetupCreatedThread(FRunnableThread*& NewThread, class FRunnable* InRunnable, const TCHAR* ThreadName, uint32 InStackSize, EThreadPriority InThreadPri, uint64 InThreadAffinityMask, EThreadCreateFlags InCreateFlags);
 
 	/** Used by the thread manager to tick threads in single-threaded mode */
 	virtual void Tick() {}
+
+	/** Returns the type of thread this is */
+	virtual FRunnableThread::ThreadType GetThreadType() const
+	{
+		return ThreadType::Real;
+	}
+
+	/**
+	 * Called on the forked process when the forkable thread can create a real thread
+	 */
+	virtual void OnPostFork()
+	{
+		checkf(false, TEXT("Only forkable threads should receive OnPostFork."));
+	}
+
+	/**
+	 * Called after the internal thread is created so it can register debug information
+	 */
+	void PostCreate(EThreadPriority ThreadPriority);
 };

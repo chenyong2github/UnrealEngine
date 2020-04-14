@@ -13,7 +13,7 @@ namespace Gauntlet.SelfTest
 	{
 		public override void OnTick()
 		{
-			string ImagePath = Path.Combine(Environment.CurrentDirectory, @"Engine\Source\Programs\AutomationTool\NotForLicensees\Gauntlet\SelfTest\TestData\GifTest");
+			string ImagePath = Path.Combine(Environment.CurrentDirectory, @"Engine\Restricted\NotForLicensees\Source\Programs\AutomationTool\Gauntlet\SelfTest\TestData\GifTest");
 
 			string OutPath = Path.Combine(Path.GetTempPath(), "Test.gif");
 

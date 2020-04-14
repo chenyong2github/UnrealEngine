@@ -64,7 +64,8 @@ public:
 		PREPARE_STATEMENT(Statement_AddAssetProperty);
 		PREPARE_STATEMENT(Statement_DeleteEntriesForAsset);
 
-		PREPARE_STATEMENT(Statement_SearchAssetsFTS);
+		PREPARE_STATEMENT(Statement_SearchAssets);
+		PREPARE_STATEMENT(Statement_SearchAssetPropertiesFTS);
 
 #undef PREPARE_STATEMENT
 
@@ -170,11 +171,14 @@ public:
 	private: FAddAssetPropertiesFromJson Statement_AddAssetProperty;
 	public: bool AddSearchRecord(const FAssetData& InAssetData, const FString& IndexedJson, const FString& IndexedJsonHash)
 	{
-		if (Statement_AddAssetToAssetTable.BindAndExecute(InAssetData.AssetName.ToString(), InAssetData.AssetClass.ToString(), InAssetData.ObjectPath.ToString(), IndexedJsonHash))
+		FString AssetObjectPath = InAssetData.ObjectPath.ToString();
+		if (Statement_AddAssetToAssetTable.BindAndExecute(InAssetData.AssetName.ToString(), InAssetData.AssetClass.ToString(), AssetObjectPath, IndexedJsonHash))
 		{
 			int64 AssetId = Database.GetLastInsertRowId();
 
-			BeginTransaction();
+			int32 EntriesAdded = 0;
+
+			ensure(BeginTransaction());
 
 			TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(IndexedJson);
 
@@ -258,7 +262,11 @@ public:
 
 									if (!Statement_AddAssetProperty.BindAndExecute(AssetId, object_name, object_path, object_native_class, property_name, property_field, property_class, value_text, value_hidden))
 									{
-										//Log error?
+										UE_LOG(LogAssetSearch, Error, TEXT("Failed to add entry for asset '%s': %s"), *AssetObjectPath, *Database.GetLastError());
+									}
+									else
+									{
+										EntriesAdded++;
 									}
 								}
 							}
@@ -269,7 +277,16 @@ public:
 				}
 			}
 
-			CommitTransaction();
+			if (!CommitTransaction())
+			{
+				UE_LOG(LogAssetSearch, Error, TEXT("Failed commit entries for asset '%s': %s"), *AssetObjectPath, *Database.GetLastError());
+				EntriesAdded = 0;
+			}
+
+			if (EntriesAdded > 0)
+			{
+				//UE_LOG(LogAssetSearch, Log, TEXT("Adding '%s': %s"), *AssetObjectPath, *Database.GetLastError());
+			}
 
 			return true;
 		}
@@ -292,7 +309,36 @@ public:
 		return false;
 	}
 
-	SQLITE_PREPARED_STATEMENT(FSearchAssetsFTS,
+	SQLITE_PREPARED_STATEMENT(FSearchAssets,
+		" SELECT "
+		"     asset_name, "
+		"     asset_class, "
+		"     asset_path "
+		" FROM table_assets "
+		" WHERE asset_name LIKE ?1 "
+		";",
+		SQLITE_PREPARED_STATEMENT_COLUMNS(FString, FString, FString),
+		SQLITE_PREPARED_STATEMENT_BINDINGS(FString)
+	);
+	FSearchAssets Statement_SearchAssets;
+	bool SearchAssets(const FSearchQuery& Query, TFunctionRef<ESQLitePreparedStatementExecuteRowResult(FSearchRecord&&)> InCallback)
+	{
+		const FString Q = TEXT("%") + Query.Query + TEXT("%");
+
+		return Statement_SearchAssets.BindAndExecute(Q, [&InCallback](const FSearchAssets& InStatement)
+		{
+			FSearchRecord Result;
+			if (InStatement.GetColumnValues(Result.AssetName, Result.AssetClass, Result.AssetPath))
+			{
+				Result.Score = -30;
+
+				return InCallback(MoveTemp(Result));
+			}
+			return ESQLitePreparedStatementExecuteRowResult::Error;
+		}) != INDEX_NONE;
+	}
+
+	SQLITE_PREPARED_STATEMENT(FSearchAssetPropertiesFTS,
 		" SELECT "
 		"     asset_name, "
 		"     asset_class, "
@@ -308,17 +354,16 @@ public:
 		"     rank as score "
 		" FROM table_asset_properties_fts "
 		" WHERE table_asset_properties_fts MATCH ?1 "
-		//" ORDER BY rank "
 		";",
 		SQLITE_PREPARED_STATEMENT_COLUMNS(FString, FString, FString, FString, FString, FString, FString, FString, FString, FString, FString, float),
 		SQLITE_PREPARED_STATEMENT_BINDINGS(FString)
 	);
-	FSearchAssetsFTS Statement_SearchAssetsFTS;
-	bool SearchAssets(const FSearchQuery& Query, TFunctionRef<ESQLitePreparedStatementExecuteRowResult(FSearchRecord&&)> InCallback)
+	FSearchAssetPropertiesFTS Statement_SearchAssetPropertiesFTS;
+	bool SearchAssetProperties(const FSearchQuery& Query, TFunctionRef<ESQLitePreparedStatementExecuteRowResult(FSearchRecord&&)> InCallback)
 	{
 		const FString Q = Query.ConvertToDatabaseQuery();
 
-		return Statement_SearchAssetsFTS.BindAndExecute(Q, [&InCallback](const FSearchAssetsFTS& InStatement)
+		return Statement_SearchAssetPropertiesFTS.BindAndExecute(Q, [&InCallback](const FSearchAssetPropertiesFTS& InStatement)
 		{
 			FSearchRecord Result;
 			if (InStatement.GetColumnValues(
@@ -492,7 +537,7 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 		return false;
 	}
 
-	if (!ensure(Database->Execute(TEXT("CREATE VIRTUAL TABLE IF NOT EXISTS table_asset_properties_fts USING FTS5(asset_name, asset_class UNINDEXED, asset_path UNINDEXED, object_name UNINDEXED, object_path UNINDEXED, object_native_class UNINDEXED, property_name UNINDEXED, property_field UNINDEXED, property_class UNINDEXED, value_text, value_hidden, assetid UNINDEXED, content=view_asset_properties, content_rowid=rowid);"))))
+	if (!ensure(Database->Execute(TEXT("CREATE VIRTUAL TABLE IF NOT EXISTS table_asset_properties_fts USING FTS5(asset_name UNINDEXED, asset_class UNINDEXED, asset_path UNINDEXED, object_name UNINDEXED, object_path UNINDEXED, object_native_class UNINDEXED, property_name UNINDEXED, property_field UNINDEXED, property_class UNINDEXED, value_text, value_hidden, assetid UNINDEXED, content=view_asset_properties, content_rowid=rowid);"))))
 	{
 		LogLastError();
 		Close();
@@ -525,9 +570,10 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 	}
 
 	if (!ensure(Database->Execute(
-		TEXT(" CREATE TRIGGER table_asset_properties_insert AFTER INSERT ON table_asset_properties BEGIN")
-		TEXT("     INSERT INTO table_asset_properties_fts(rowid, object_name, object_path, object_native_class, property_name, property_field, property_class, value_text, value_hidden, assetid) VALUES (new.rowid, new.object_name, new.object_path, new.object_native_class, new.property_name, new.property_field, new.property_class, new.value_text, new.value_hidden, new.assetid);")
-		TEXT(" END;")
+		TEXT("CREATE TRIGGER table_asset_properties_insert AFTER INSERT ON table_asset_properties BEGIN")
+		TEXT("	INSERT INTO table_asset_properties_fts(rowid, value_text, value_hidden) ")
+		TEXT("		VALUES (new.rowid, new.value_text, new.value_hidden);")
+		TEXT("END;")
 		)))
 	{
 		LogLastError();
@@ -544,9 +590,10 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 	}
 
 	if (!ensure(Database->Execute(
-		TEXT(" CREATE TRIGGER table_asset_properties_delete AFTER DELETE ON table_asset_properties BEGIN")
-		TEXT("     INSERT INTO table_asset_properties_fts(table_asset_properties_fts, rowid, object_name, object_path, object_native_class, property_name, property_field, property_class, value_text, value_hidden, assetid) VALUES('delete', old.rowid, old.object_name, old.object_path, old.object_native_class, old.property_name, old.property_field, old.property_class, old.value_text, old.value_hidden, old.assetid);")
-		TEXT(" END;")
+		TEXT("CREATE TRIGGER table_asset_properties_delete AFTER DELETE ON table_asset_properties BEGIN")
+		TEXT("	INSERT INTO table_asset_properties_fts(table_asset_properties_fts, rowid, value_text, value_hidden) ")
+		TEXT("		VALUES('delete', old.rowid, old.value_text, old.value_hidden);")
+		TEXT("END;")
 	)))
 	{
 		LogLastError();
@@ -564,10 +611,12 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 	}
 
 	if (!ensure(Database->Execute(
-		TEXT(" CREATE TRIGGER table_asset_properties_update AFTER UPDATE ON table_asset_properties BEGIN")
-		TEXT("     INSERT INTO table_asset_properties_fts(table_asset_properties_fts, rowid, object_name, object_path, object_native_class, property_name, property_field, property_class, value_text, value_hidden, assetid) VALUES('delete', old.rowid, old.object_name, old.object_path, old.object_native_class, old.property_name, old.property_field, old.property_class, old.value_text, old.value_hidden, old.assetid);")
-		TEXT("     INSERT INTO table_asset_properties_fts(rowid, object_name, object_path, object_native_class, property_name, property_field, property_class, value_text, value_hidden, assetid) VALUES (new.rowid, new.object_name, new.object_path, new.object_native_class, new.property_name, new.property_field, new.property_class, new.value_text, new.value_hidden, new.assetid);")
-		TEXT(" END;")
+		TEXT("CREATE TRIGGER table_asset_properties_update AFTER UPDATE ON table_asset_properties BEGIN")
+		TEXT("	INSERT INTO table_asset_properties_fts(table_asset_properties_fts, rowid, value_text, value_hidden) ")
+		TEXT("		VALUES('delete', old.rowid, old.value_text, old.value_hidden);")
+		TEXT("	INSERT INTO table_asset_properties_fts(rowid, value_text, value_hidden) ")
+		TEXT("		VALUES (new.rowid, new.value_text, new.value_hidden);")
+		TEXT("END;")
 	)))
 	{
 		LogLastError();
@@ -682,7 +731,16 @@ void FAssetSearchDatabase::AddOrUpdateAsset(const FAssetData& InAssetData, const
 
 bool FAssetSearchDatabase::EnumerateSearchResults(const FSearchQuery& Query, TFunctionRef<bool(FSearchRecord&&)> InCallback)
 {
-	bool bSuccess = Statements->SearchAssets(Query, [&InCallback](FSearchRecord&& InResult)
+	bool bSuccess = false;
+
+	bSuccess |= Statements->SearchAssets(Query, [&InCallback](FSearchRecord&& InResult)
+	{
+		return InCallback(MoveTemp(InResult))
+			? ESQLitePreparedStatementExecuteRowResult::Continue
+			: ESQLitePreparedStatementExecuteRowResult::Stop;
+	});
+
+	bSuccess |= Statements->SearchAssetProperties(Query, [&InCallback](FSearchRecord&& InResult)
 	{
 		return InCallback(MoveTemp(InResult))
 			? ESQLitePreparedStatementExecuteRowResult::Continue

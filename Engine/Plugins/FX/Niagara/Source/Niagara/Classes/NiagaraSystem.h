@@ -183,6 +183,7 @@ class NIAGARA_API UNiagaraSystem : public UFXSystemAsset
 public:
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemCompiled, UNiagaraSystem*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemPostEditChange, UNiagaraSystem*);
 #endif
 	//TestChange
 
@@ -275,7 +276,7 @@ public:
 	void RemoveSystemParametersForEmitter(const FNiagaraEmitterHandle& EmitterHandle);
 
 	/** Request that any dirty scripts referenced by this system be compiled.*/
-	bool RequestCompile(bool bForce);
+	bool RequestCompile(bool bForce, FNiagaraSystemUpdateContext* OptionalUpdateContext = nullptr);
 
 	/** If we have a pending compile request, is it done with yet? */
 	bool PollForCompilationComplete();
@@ -288,6 +289,9 @@ public:
 
 	/** Delegate called when the system's dependencies have all been compiled.*/
 	FOnSystemCompiled& OnSystemCompiled();
+
+	/** Delegate called on PostEditChange.*/
+	FOnSystemPostEditChange& OnSystemPostEditChange();
 
 	/** Gets editor specific data stored with this system. */
 	UNiagaraEditorDataBase* GetEditorData();
@@ -316,6 +320,9 @@ public:
 	UPROPERTY()
 	TArray<UNiagaraScript*> ScratchPadScripts;
 
+	UPROPERTY(transient)
+	FNiagaraParameterStore EditorOnlyAddedParameters;
+
 	bool GetIsolateEnabled() const;
 	void SetIsolateEnabled(bool bIsolate);
 	
@@ -342,14 +349,10 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
 	uint32 bBakeOutRapidIteration : 1;
 
-	/** Toggles whether or not emitters within this system will try and compress their particle attributes. 
-	    In some cases, this precision change can lead to perceivable differences, but memory costs and or performance (especially true for GPU emitters) can improve. */
+	/** Toggles whether or not emitters within this system will try and compress their particle attributes.
+	In some cases, this precision change can lead to perceivable differences, but memory costs and or performance (especially true for GPU emitters) can improve. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
 	uint32 bCompressAttributes : 1;
-
-	/** Experimental feature to depromote parameters in the dataset that are not accessed during the precompile process. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
-	uint32 bCullDatasetParameters : 1;
 
 #endif
 
@@ -378,10 +381,16 @@ public:
 
 	FORCEINLINE int32* GetCycleCounter(bool bGameThread, bool bConcurrent);
 
+#if WITH_EDITOR
+	void SetEffectType(UNiagaraEffectType* EffectType);
+
+	FORCEINLINE bool GetOverrideScalabilitySettings()const { return bOverrideScalabilitySettings; }
+	FORCEINLINE void SetOverrideScalabilitySettings(bool bOverride) { bOverrideScalabilitySettings = bOverride; }
+#endif
 	UNiagaraEffectType* GetEffectType()const;
 	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings() { return CurrentScalabilitySettings; }
 	
-	void OnEffectsQualityChanged();
+	void OnQualityLevelChanged();
 
 	/** Whether or not fixed bounds are enabled. */
 	UPROPERTY(EditAnywhere, Category = "System", meta = (InlineEditConditionToggle))
@@ -478,6 +487,9 @@ protected:
 
 	/** A multicast delegate which is called whenever the script has been compiled (successfully or not). */
 	FOnSystemCompiled OnSystemCompiledDelegate;
+
+	/** A multicast delegate which is called whenever this system's properties are changed. */
+	FOnSystemPostEditChange OnSystemPostEditChangeDelegate;
 #endif
 
 	/** The fixed bounding box value. bFixedBounds is the condition whether the fixed bounds can be edited. */

@@ -77,7 +77,11 @@
 #endif
 
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
-#include "/Engine/Private/SkyAtmosphereCommon.ush"
+	#include "/Engine/Private/SkyAtmosphereCommon.ush"
+#endif
+
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	#include "/Engine/Private/SingleLayerWaterCommon.ush"
 #endif
 
 #include "/Engine/Private/PaniniProjection.ush"
@@ -153,8 +157,11 @@ struct FMaterialParticleParameters
 	half4 DynamicParameter3;
 #endif
 
-	/** mesh particle orientation */
-	float4x4 LocalToWorld;
+	/** mesh particle transform */
+	float4x4 ParticleToWorld;
+
+	/** Inverse mesh particle transform */
+	float4x4 WorldToParticle;
 
 #if USE_PARTICLE_SUBUVS
 	/** SubUV texture coordinates*/
@@ -1234,6 +1241,22 @@ float3 MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(FMaterialPi
 	return Texture2DSampleLevel(View.DistantSkyLightLutTexture, View.DistantSkyLightLutTextureSampler, float2(0.5f, 0.5f), 0.0f).rgb;
 #else
 	return float3(0.0f, 0.0f, 0.0f);
+#endif
+}
+
+/** 
+	Get the scene depth from the scene below the single layer water surface. This is only valid in the single layer water rendering pass.
+	Returns the chosen fallback depth if the material doesn't support reading back the correct depth.
+*/
+float MaterialExpressionSceneDepthWithoutWater(float2 ViewportUV, float FallbackDepth)
+{
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !SCENE_TEXTURES_DISABLED && (!SIMPLE_SINGLE_LAYER_WATER || SINGLE_LAYER_WATER_SIMPLE_FORWARD)
+
+	const float2 ClampedViewportUV = clamp(ViewportUV, OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.xy, OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.zw);
+
+	return OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+#else
+	return FallbackDepth;
 #endif
 }
 

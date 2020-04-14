@@ -46,7 +46,6 @@
 #include "Factories/BlueprintFactory.h"
 #include "Factories/FbxFactory.h"
 #include "Factories/SoundFactory.h"
-#include "Factories/SoundSurroundFactory.h"
 #include "Factories/TextureFactory.h"
 #include "Factories/FbxImportUI.h"
 #include "Settings/LevelEditorMiscSettings.h"
@@ -1289,7 +1288,7 @@ namespace BuildPromotionTestHelper
 			{
 				const FString BaseFileName = FPaths::GetPath(SurroundFilePath) / FPaths::GetBaseFilename(SurroundFilePath).LeftChop(3);
 
-				USoundSurroundFactory* FactoryInst = NewObject<USoundSurroundFactory>();
+				USoundFactory* FactoryInst = NewObject<USoundFactory>();
 				FAutomationEditorCommonUtils::ApplyCustomFactorySettings(FactoryInst, AutomationTestSettings->BuildPromotionTest.ImportWorkflow.SurroundSound.FactorySettings);
 
 				const FString SurroundChannels[] = { TEXT("_fl"), TEXT("_fr"), TEXT("_fc"), TEXT("_lf"), TEXT("_sl"), TEXT("_sr"), TEXT("_bl"), TEXT("_br") };

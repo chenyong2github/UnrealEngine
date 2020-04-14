@@ -222,6 +222,24 @@ public:
 	FQuat Rotation;
 };
 
+
+UCLASS()
+class MESHMODELINGTOOLS_API USculptMaxBrushProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	virtual void SaveRestoreProperties(UInteractiveTool* Tool, bool bSaving) override;
+
+	/** Specify maximum displacement height (relative to brush size) */
+	UPROPERTY(EditAnywhere, Category = SculptMaxBrush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float MaxHeight = 0.5;
+
+	/** Use maximum height from last brush stroke, regardless of brush size. Note that spatial brush falloff still applies.  */
+	UPROPERTY(EditAnywhere, Category = SculptMaxBrush)
+	bool bFreezeCurrentHeight = false;
+};
+
+
 UCLASS()
 class MESHMODELINGTOOLS_API UBrushRemeshProperties : public URemeshProperties
 {
@@ -273,6 +291,8 @@ public:
 	virtual void OnBeginDrag(const FRay& Ray) override;
 	virtual void OnUpdateDrag(const FRay& Ray) override;
 	virtual void OnEndDrag(const FRay& Ray) override;
+
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 
 	virtual void SetEnableRemeshing(bool bEnable) { bEnableRemeshing = bEnable; }
@@ -292,6 +312,10 @@ public:
 
 	UPROPERTY()
 	UPlaneBrushProperties* PlaneBrushProperties;
+
+	UPROPERTY()
+	USculptMaxBrushProperties* SculptMaxBrushProperties;
+	
 
 	/** Properties that control dynamic remeshing */
 	UPROPERTY()
@@ -326,6 +350,9 @@ private:
 
 	UPROPERTY()
 	UBrushStampIndicator* BrushIndicator;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* BrushIndicatorMaterial;
 
 	UPROPERTY()
 	UPreviewMesh* BrushIndicatorMesh;
@@ -412,8 +439,8 @@ private:
 
 	bool UpdateBrushPosition(const FRay& WorldRay);
 	bool UpdateBrushPositionOnActivePlane(const FRay& WorldRay);
-	bool UpdateBrushPositionOnTargetMesh(const FRay& WorldRay);
-	bool UpdateBrushPositionOnSculptMesh(const FRay& WorldRay);
+	bool UpdateBrushPositionOnTargetMesh(const FRay& WorldRay, bool bFallbackToViewPlane);
+	bool UpdateBrushPositionOnSculptMesh(const FRay& WorldRay, bool bFallbackToViewPlane);
 	void AlignBrushToView();
 
 	void ApplySmoothBrush(const FRay& WorldRay);
@@ -426,6 +453,8 @@ private:
 	void ApplyFixedPlaneBrush(const FRay& WorldRay);
 	void ApplyFlattenBrush(const FRay& WorldRay);
 	void ApplyResampleBrush(const FRay& WorldRay);
+
+	double SculptMaxFixedHeight = -1.0;
 
 	double CalculateBrushFalloff(double Distance);
 	TArray<FVector3d> ROIPositionBuffer;

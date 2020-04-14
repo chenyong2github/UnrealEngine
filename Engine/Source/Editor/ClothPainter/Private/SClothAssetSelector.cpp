@@ -39,10 +39,10 @@ FPointWeightMap* FClothingMaskListItem::GetMask()
 	{
 		if(Asset->IsValidLod(LodIndex))
 		{
-			UClothLODDataCommon* LodData = Asset->ClothLodData[LodIndex];
-			if(LodData->ParameterMasks.IsValidIndex(MaskIndex))
+			FClothLODDataCommon& LodData = Asset->LodData[LodIndex];
+			if(LodData.PointWeightMaps.IsValidIndex(MaskIndex))
 			{
-				return &LodData->ParameterMasks[MaskIndex];
+				return &LodData.PointWeightMaps[MaskIndex];
 			}
 		}
 	}
@@ -52,13 +52,13 @@ FPointWeightMap* FClothingMaskListItem::GetMask()
 
 FClothPhysicalMeshData* FClothingMaskListItem::GetMeshData()
 {
-	UClothingAssetCommon * Asset = ClothingAsset.Get();
-	return Asset && Asset->IsValidLod(LodIndex) ? &Asset->ClothLodData[LodIndex]->ClothPhysicalMeshData : nullptr;
+	UClothingAssetCommon* Asset = ClothingAsset.Get();
+	return Asset && Asset->IsValidLod(LodIndex) ? &Asset->LodData[LodIndex].PhysicalMeshData : nullptr;
 }
 
 USkeletalMesh* FClothingMaskListItem::GetOwningMesh()
 {
-	UClothingAssetCommon * Asset = ClothingAsset.Get();
+	UClothingAssetCommon* Asset = ClothingAsset.Get();
 	return Asset ? Cast<USkeletalMesh>(Asset->GetOuter()) : nullptr;
 }
 
@@ -308,26 +308,26 @@ private:
 
 			for(int32 CurrIndex = 0; CurrIndex < NumLods - 1; ++CurrIndex)
 			{
-				UClothLODDataCommon* SourceLod = Asset->ClothLodData[CurrIndex];
-				UClothLODDataCommon* DestLod = Asset->ClothLodData[CurrIndex + 1];
+				FClothLODDataCommon& SourceLod = Asset->LodData[CurrIndex];
+				FClothLODDataCommon& DestLod = Asset->LodData[CurrIndex + 1];
 
-				DestLod->ParameterMasks.Reset();
+				DestLod.PointWeightMaps.Reset();
 
-				for(FPointWeightMap& SourceMask : SourceLod->ParameterMasks)
+				for(FPointWeightMap& SourceMask : SourceLod.PointWeightMaps)
 				{
-					DestLod->ParameterMasks.AddDefaulted();
-					FPointWeightMap& DestMask = DestLod->ParameterMasks.Last();
+					DestLod.PointWeightMaps.AddDefaulted();
+					FPointWeightMap& DestMask = DestLod.PointWeightMaps.Last();
 
 					DestMask.Name = SourceMask.Name;
 					DestMask.bEnabled = SourceMask.bEnabled;
 					DestMask.CurrentTarget = SourceMask.CurrentTarget;
 
 					ClothingMeshUtils::FVertexParameterMapper ParameterMapper(
-						DestLod->ClothPhysicalMeshData.Vertices,
-						DestLod->ClothPhysicalMeshData.Normals,
-						SourceLod->ClothPhysicalMeshData.Vertices,
-						SourceLod->ClothPhysicalMeshData.Normals,
-						SourceLod->ClothPhysicalMeshData.Indices
+						DestLod.PhysicalMeshData.Vertices,
+						DestLod.PhysicalMeshData.Normals,
+						SourceLod.PhysicalMeshData.Vertices,
+						SourceLod.PhysicalMeshData.Normals,
+						SourceLod.PhysicalMeshData.Indices
 					);
 
 					ParameterMapper.Map(SourceMask.Values, DestMask.Values);
@@ -501,16 +501,15 @@ private:
 		);
 	}
 
-	UClothLODDataCommon* GetCurrentLod() const
+	FClothLODDataCommon* GetCurrentLod() const
 	{
 		if(Item.IsValid())
 		{
 			if(UClothingAssetCommon* Asset = Item->ClothingAsset.Get())
 			{
-				if(Asset->ClothLodData.IsValidIndex(Item->LodIndex))
+				if(Asset->LodData.IsValidIndex(Item->LodIndex))
 				{
-					UClothLODDataCommon* LodData = Asset->ClothLodData[Item->LodIndex];
-					return LodData;
+					return &Asset->LodData[Item->LodIndex];
 				}
 			}
 		}
@@ -527,11 +526,11 @@ private:
 			FScopedTransaction CurrTransaction(LOCTEXT("DeleteMask_Transaction", "Delete clothing parameter mask."));
 			Item->ClothingAsset->Modify();
 
-		if(UClothLODDataCommon* LodData = GetCurrentLod())
+		if(FClothLODDataCommon* LodData = GetCurrentLod())
 		{
-			if(LodData->ParameterMasks.IsValidIndex(Item->MaskIndex))
+			if(LodData->PointWeightMaps.IsValidIndex(Item->MaskIndex))
 			{
-				LodData->ParameterMasks.RemoveAt(Item->MaskIndex);
+				LodData->PointWeightMaps.RemoveAt(Item->MaskIndex);
 
 				// We've removed a mask, so it will need to be applied to the clothing data
 				if(Item.IsValid())
@@ -655,12 +654,12 @@ private:
 						// Disable all other masks that affect this target
 						if(UClothingAssetCommon* Asset = InItem->ClothingAsset.Get())
 						{
-							if(Asset->ClothLodData.IsValidIndex(InItem->LodIndex))
+							if(Asset->LodData.IsValidIndex(InItem->LodIndex))
 							{
-								UClothLODDataCommon* LodData = Asset->ClothLodData[InItem->LodIndex];
+								FClothLODDataCommon& LodData = Asset->LodData[InItem->LodIndex];
 
 								TArray<FPointWeightMap*> AllTargetMasks;
-								LodData->GetParameterMasksForTarget(Mask->CurrentTarget, AllTargetMasks);
+								LodData.GetParameterMasksForTarget(Mask->CurrentTarget, AllTargetMasks);
 
 								for(FPointWeightMap* TargetMask : AllTargetMasks)
 								{
@@ -1139,14 +1138,14 @@ FReply SClothAssetSelector::AddNewMask()
 {
 	if(UClothingAssetCommon* Asset = SelectedAsset.Get())
 	{
-		if(Asset->ClothLodData.IsValidIndex(SelectedLod))
+		if(Asset->LodData.IsValidIndex(SelectedLod))
 		{
-			UClothLODDataCommon* LodData = Asset->ClothLodData[SelectedLod];
-			const int32 NumRequiredValues = LodData->ClothPhysicalMeshData.Vertices.Num();
+			FClothLODDataCommon& LodData = Asset->LodData[SelectedLod];
+			const int32 NumRequiredValues = LodData.PhysicalMeshData.Vertices.Num();
 
-			LodData->ParameterMasks.AddDefaulted();
+			LodData.PointWeightMaps.AddDefaulted();
 
-			FPointWeightMap& NewMask = LodData->ParameterMasks.Last();
+			FPointWeightMap& NewMask = LodData.PointWeightMaps.Last();
 
 			NewMask.Name = TEXT("New Mask");
 			NewMask.CurrentTarget = (uint8)EWeightMapTargetCommon::None;
@@ -1245,8 +1244,8 @@ void SClothAssetSelector::RefreshMaskList()
 	UClothingAssetCommon* Asset = SelectedAsset.Get();
 	if(Asset && Asset->IsValidLod(SelectedLod))
 	{
-		UClothLODDataCommon* LodData = Asset->ClothLodData[SelectedLod];
-		const int32 NumMasks = LodData->ParameterMasks.Num();
+		const FClothLODDataCommon& LodData = Asset->LodData[SelectedLod];
+		const int32 NumMasks = LodData.PointWeightMaps.Num();
 
 		for(int32 Index = 0; Index < NumMasks; ++Index)
 		{
@@ -1295,11 +1294,11 @@ void SClothAssetSelector::OnClothingLodSelected(int32 InNewLod)
 		SetSelectedLod(InNewLod);
 
 		int32 NewMaskSelection = INDEX_NONE;
-		if(SelectedAsset->ClothLodData.IsValidIndex(SelectedLod))
+		if(SelectedAsset->LodData.IsValidIndex(SelectedLod))
 		{
-			UClothLODDataCommon* LodData = SelectedAsset->ClothLodData[SelectedLod];
+			const FClothLODDataCommon& LodData = SelectedAsset->LodData[SelectedLod];
 
-			if(LodData->ParameterMasks.Num() > 0)
+			if(LodData.PointWeightMaps.Num() > 0)
 			{
 				NewMaskSelection = 0;
 			}
@@ -1321,8 +1320,8 @@ void SClothAssetSelector::SetSelectedAsset(TWeakObjectPtr<UClothingAssetCommon> 
 		{
 			SetSelectedLod(0);
 
-			UClothLODDataCommon* LodData = NewAsset->ClothLodData[SelectedLod];
-			if(LodData->ParameterMasks.Num() > 0)
+			const FClothLODDataCommon& LodData = NewAsset->LodData[SelectedLod];
+			if(LodData.PointWeightMaps.Num() > 0)
 			{
 				SetSelectedMask(0);
 			}

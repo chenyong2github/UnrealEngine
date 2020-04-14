@@ -14,7 +14,73 @@ using System.Security.Cryptography;
 
 namespace Gauntlet
 {
+	public class GauntletParamDescription
+	{
+		/// <summary>
+		/// The param name that is passed in on the commandline
+		/// In -PARAMNAME or -PARAMNAME=val format
+		/// </summary>
+		public string ParamName;
 
+		/// <summary>
+		/// Is this required for the test to run?
+		/// </summary>
+		public bool Required;
+
+		/// <summary>		
+		/// Very brief desc of what to pass in -
+		/// Will show up in -param=<InputFormat> format.
+		/// Ex - a value of "Map To Use" would show up as -param=<Map To use>
+		/// Leave blank for a param that is just a flag.
+		/// </summary>
+		public string InputFormat;
+
+		/// <summary>
+		/// Helpful description for what this Parameter or flag represents and what can be passed in.
+		/// </summary>
+		public string ParamDesc;
+
+		/// <summary>
+		/// If you would like to provide a sample input for this field, do so here. Will show up as (ex: SampleInput) at the end of the param description
+		/// </summary>
+		public string SampleInput;
+
+		/// <summary>
+		///  If this param has a default value, put it here. Will show ups as (default: DefaultValue)
+		/// </summary>
+		public string DefaultValue;
+
+		/// <summary>
+		/// Whether this is a Test-specific param or a generic gauntlet param.
+		/// </summary>
+		public bool TestSpecificParam;
+
+		public GauntletParamDescription()
+		{
+			TestSpecificParam = true;
+		}
+
+		public override string ToString()
+		{
+			string ParamFormat = ParamName;
+			if (!string.IsNullOrEmpty(InputFormat))
+			{
+				ParamFormat += "=" + InputFormat;
+			}
+			string DefaultFormat = "";
+			if (!string.IsNullOrEmpty(DefaultValue))
+			{
+				DefaultFormat = string.Format("(default: {0}) ", DefaultValue);
+			}
+			string SampleFormat = "";
+			if (!string.IsNullOrEmpty(SampleInput))
+			{
+				SampleFormat = string.Format(" (ex: {0})", SampleInput);
+			}
+			ParamFormat = string.Format("{0}:\t\t{1}{2}{3}{4}", ParamFormat, Required ? "*Required* " : "", DefaultFormat, ParamDesc, SampleInput);
+			return ParamFormat;
+		}
+	}
 	public abstract class UnrealTestNode<TConfigClass> : BaseTest, IDisposable
 		where TConfigClass : UnrealTestConfiguration, new()
 	{
@@ -108,7 +174,6 @@ namespace Gauntlet
 		/// </summary>
 		/// 
 		protected Version TestVersion;
-		
 
 		/// <summary>
 		/// Path to the directory that logs and other artifacts are copied to after the test run.
@@ -139,6 +204,21 @@ namespace Gauntlet
 		// artifact paths that have been used in this run
 		static protected HashSet<string> ReservedArtifcactPaths = new HashSet<string>();
 
+		/// <summary>
+		/// Help doc-style list of parameters supported by this test. List can be divided into test-specific and general arguments.
+		/// </summary>
+		public List<GauntletParamDescription> SupportedParameters = new List<GauntletParamDescription>();
+
+		/// <summary>
+		/// Optional list of provided commandlines to be displayed to users who want to look at test help docs.
+		/// Key should be the commandline to use, value should be the description for that commandline.
+		/// </summary>
+		protected List<KeyValuePair<string, string>> SampleCommandlines = new List<KeyValuePair<string, string>>();
+
+		public void AddSampleCommandline(string Commandline, string Description)
+		{
+			SampleCommandlines.Add(new KeyValuePair<string, string>(Commandline, Description));
+		}
 		public UnrealTestNode(UnrealTestContext InContext)
 		{
 			Context = InContext;
@@ -151,6 +231,7 @@ namespace Gauntlet
 			NumPasses = 0;
 			TestVersion = new Version("1.0.0");
 			ArtifactPath = string.Empty;
+			PopulateCommandlineInfo();
 		}
 
 		 ~UnrealTestNode()
@@ -366,9 +447,9 @@ namespace Gauntlet
 
 					UnrealSessionRole SessionRole = new UnrealSessionRole(RoleContext.Type, SessionPlatform, RoleContext.Configuration, TestRole.CommandLine);
 
-					SessionRole.RoleModifier = TestRole.RoleType;
+					SessionRole.CommandLineParams = TestRole.CommandLineParams;
+ 					SessionRole.RoleModifier = TestRole.RoleType;
 					SessionRole.Constraint = UseContextConstraint ? Context.Constraint : new UnrealTargetConstraint(SessionPlatform);
-					
 					Log.Verbose("Created SessionRole {0} from RoleContext {1} (RoleType={2})", SessionRole, RoleContext, TypesToRoles.Key);
 
 					// TODO - this can all / mostly go into UnrealTestConfiguration.ApplyToConfig
@@ -381,18 +462,17 @@ namespace Gauntlet
 					else
 					{
 						// start with anything from our context
-						SessionRole.CommandLine = RoleContext.ExtraArgs;
+						SessionRole.CommandLine += RoleContext.ExtraArgs;
 
 						// did the test ask for anything?
 						if (string.IsNullOrEmpty(TestRole.CommandLine) == false)
 						{
-							SessionRole.CommandLine += " " + TestRole.CommandLine;
+							SessionRole.CommandLine += TestRole.CommandLine;
 						}
 
 						// add controllers
-						SessionRole.CommandLine += TestRole.Controllers.Count > 0 ?
-							string.Format(" -gauntlet=\"{0}\"", string.Join(",", TestRole.Controllers)) 
-							: " -gauntlet";
+						SessionRole.CommandLineParams.Add("gauntlet", 
+							TestRole.Controllers.Count > 0 ? string.Join(",", TestRole.Controllers) : null);				
 
 						if (PassThroughArgs.Count() > 0)
 						{
@@ -525,6 +605,51 @@ namespace Gauntlet
 			}
 			
 			return TestInstance != null;
+		}
+
+		public virtual void PopulateCommandlineInfo()
+		{
+			SupportedParameters.Add(new GauntletParamDescription()
+			{
+				ParamName = "nomcp",
+				TestSpecificParam = false,
+				ParamDesc = "Run test without an mcp backend",
+				DefaultValue = "false"
+			});
+			SupportedParameters.Add(new GauntletParamDescription()
+			{
+				ParamName = "ResX",
+				InputFormat = "1280",
+				Required = false,
+				TestSpecificParam = false,
+				ParamDesc = "Horizontal resolution for the game client.",
+				DefaultValue = "1280"
+			});
+			SupportedParameters.Add(new GauntletParamDescription()
+			{
+				ParamName = "ResY",
+				InputFormat = "720",
+				Required = false,
+				TestSpecificParam = false,
+				ParamDesc = "Vertical resolution for the game client.",
+				DefaultValue = "720"
+			});
+			SupportedParameters.Add(new GauntletParamDescription()
+			{
+				ParamName = "FailOnEnsure",
+				Required = false,
+				TestSpecificParam = false,
+				ParamDesc = "Consider the test a fail if we encounter ensures."
+			});
+			SupportedParameters.Add(new GauntletParamDescription()
+			{
+				ParamName = "MaxDuration",
+				InputFormat = "600",
+				Required = false,
+				TestSpecificParam = false,
+				ParamDesc = "Time in seconds for test to run before it is timed out",
+				DefaultValue = "Test-defined"
+			});
 		}
 
 		/// <summary>
@@ -724,13 +849,62 @@ namespace Gauntlet
 		/// Whether creating the test report failed
 		/// </summary>
 		public bool CreateReportFailed { get; protected set; }
-		 
+
+		/// <summary>
+		/// Display all of the defined commandline information for this test.
+		/// Will display generic gauntlet params as well if -help=full is passed in.
+		/// </summary>
+		public override void DisplayCommandlineHelp()
+		{
+			Log.Info(string.Format("--- Available Commandline Parameters for {0} ---", Name));
+			Log.Info("--------------------");
+			Log.Info("TEST-SPECIFIC PARAMS");
+			Log.Info("--------------------");
+			foreach (GauntletParamDescription ParamDesc in SupportedParameters)
+			{
+				if (ParamDesc.TestSpecificParam)
+				{
+					Log.Info(ParamDesc.ToString());
+				}
+			}
+			if (Context.TestParams.ParseParam("listallargs"))
+			{
+				Log.Info("\n--------------");
+				Log.Info("GENERIC PARAMS");
+				Log.Info("--------------");
+				foreach (GauntletParamDescription ParamDesc in SupportedParameters)
+				{
+					if (!ParamDesc.TestSpecificParam)
+					{
+						Log.Info(ParamDesc.ToString());
+					}
+				}
+			}
+			else
+			{
+				Log.Info("\nIf you need information on base Gauntlet arguments, use -listallargs\n\n");
+			}
+			if (SampleCommandlines.Count > 0)
+			{
+				Log.Info("\n-------------------");
+				Log.Info("SAMPLE COMMANDLINES");
+				Log.Info("-------------------");
+				foreach (KeyValuePair<string, string> SampleCommandline in SampleCommandlines)
+				{
+					Log.Info(SampleCommandline.Key);
+					Log.Info("");
+					Log.Info(SampleCommandline.Value);
+					Log.Info("-------------------");
+				}
+			}
+
+		}
 
 		/// <summary>
 		/// Optional function that is called on test completion and gives an opportunity to create a report
 		/// </summary>
 		/// <param name="Result"></param>
-		/// <param name="Contex"></param>
+		/// <param name="Context"></param>
 		/// <param name="Build"></param>
 		public virtual void CreateReport(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
 		{

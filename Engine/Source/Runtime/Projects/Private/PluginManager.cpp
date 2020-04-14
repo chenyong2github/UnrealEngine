@@ -20,6 +20,7 @@
 #include "ProjectManager.h"
 #include "PluginManifest.h"
 #include "HAL/PlatformTime.h"
+#include "Async/ParallelFor.h"
 #if READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
 #include "IDesktopPlatform.h"
 #include "DesktopPlatformModule.h"
@@ -222,7 +223,7 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename)
 	{
 		// Determine the plugin type
 		EPluginType PluginType = EPluginType::External;
-		if (PluginFilename.StartsWith(FPaths::EngineDir()) || PluginFilename.StartsWith(FPaths::EnginePlatformExtensionsDir()))
+		if (PluginFilename.StartsWith(FPaths::EngineDir()))
 		{
 			PluginType = EPluginType::Engine;
 		}
@@ -293,29 +294,18 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 	if (ManifestFileNames.Num() == 0)
 	{
 		// Find "built-in" plugins.  That is, plugins situated right within the Engine directory.
-		ReadPluginsInDirectory(FPaths::EnginePluginsDir(), EPluginType::Engine, Plugins, ChildPlugins);
-		for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+		for (const FString& EnginePluginDir : FPaths::GetExtensionDirs(FPaths::EngineDir(), TEXT("Plugins")))
 		{
-			for (auto const& AdditionalFolder : Platform.Value.AdditionalRestrictedFolders)
-			{
-				ReadPluginsInDirectory(FPaths::EnginePlatformExtensionsDir() / AdditionalFolder / TEXT("Plugins"), EPluginType::Engine, Plugins, ChildPlugins);
-			}
-			ReadPluginsInDirectory(FPaths::EnginePlatformExtensionsDir() / Platform.Key / TEXT("Plugins"), EPluginType::Engine, Plugins, ChildPlugins);
+			ReadPluginsInDirectory(EnginePluginDir, EPluginType::Engine, Plugins, ChildPlugins);
 		}
 
 		// Find plugins in the game project directory (<MyGameProject>/Plugins). If there are any engine plugins matching the name of a game plugin,
 		// assume that the game plugin version is preferred.
 		if (Project != nullptr)
 		{
-			FString Root = FPaths::GetPath(FPaths::GetProjectFilePath());
-			ReadPluginsInDirectory(Root / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
-			for (auto const& Platform : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+			for (const FString& ProjectPluginDir : FPaths::GetExtensionDirs(FPaths::GetPath(FPaths::GetProjectFilePath()), TEXT("Plugins")))
 			{
-				for (auto const& AdditionalFolder : Platform.Value.AdditionalRestrictedFolders)
-				{
-					ReadPluginsInDirectory(Root / TEXT("Platforms") / AdditionalFolder / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
-				}
-				ReadPluginsInDirectory(Root / TEXT("Platforms") / Platform.Key / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
+				ReadPluginsInDirectory(ProjectPluginDir, EPluginType::Project, Plugins, ChildPlugins);
 			}
 		}
 	}
@@ -410,28 +400,14 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 				{
 					if (ParentModule.Name == ChildModule.Name && ParentModule.Type == ChildModule.Type)
 					{
+						// we only need to whitelist the platform if the parent had a whitelist (otherwise, we could mistakenly remove all other platforms)
 						if (ParentModule.WhitelistPlatforms.Num() > 0)
 						{
-							if (ChildModule.WhitelistPlatforms.Num() > 0)
-							{
-								ParentModule.WhitelistPlatforms.Append(ChildModule.WhitelistPlatforms);
-							}
-							else
-							{
-								ParentModule.WhitelistPlatforms.Add(FPlatformProperties::PlatformName());
-							}
+							ParentModule.WhitelistPlatforms.Append(ChildModule.WhitelistPlatforms);
 						}
-						if (ParentModule.BlacklistPlatforms.Num() > 0)
-						{
-							if (ChildModule.BlacklistPlatforms.Num() > 0)
-							{
-								ParentModule.BlacklistPlatforms.Append(ChildModule.BlacklistPlatforms);
-							}
-							else
-							{
-								ParentModule.BlacklistPlatforms.Add(FPlatformProperties::PlatformName());
-							}
-						}
+
+						// if we want to blacklist a platform, add it even if the parent didn't have a blacklist. this won't cause problems with other platforms
+						ParentModule.BlacklistPlatforms.Append(ChildModule.BlacklistPlatforms);
 					}
 				}
 			}
@@ -461,19 +437,40 @@ void FPluginManager::ReadPluginsInDirectory(const FString& PluginsDirectory, con
 		TArray<FString> FileNames;
 		FindPluginsInDirectory(PluginsDirectory, FileNames);
 
-		for(const FString& FileName: FileNames)
+		struct FLoadContext
 		{
 			FPluginDescriptor Descriptor;
 			FText FailureReason;
-			if ( Descriptor.Load(FileName, FailureReason) )
+			bool bResult = false;
+		};
+
+		TArray<FLoadContext> Contexts;
+		Contexts.SetNum(FileNames.Num());
+
+		ParallelFor(
+			FileNames.Num(),
+			[&Contexts, &FileNames](int32 Index)
 			{
-				CreatePluginObject(FileName, Descriptor, Type, Plugins, ChildPlugins);
+				FLoadContext& Context = Contexts[Index];
+				Context.bResult = Context.Descriptor.Load(FileNames[Index], Context.FailureReason);
+			},
+			EParallelForFlags::Unbalanced
+		);
+
+		for (int32 Index = 0, Num = FileNames.Num(); Index < Num; ++Index)
+		{
+			const FString& FileName = FileNames[Index];
+			FLoadContext& Context = Contexts[Index];
+			
+			if (Context.bResult)
+			{
+				CreatePluginObject(FileName, Context.Descriptor, Type, Plugins, ChildPlugins);
 			}
 			else
 			{
 				// NOTE: Even though loading of this plugin failed, we'll keep processing other plugins
 				FString FullPath = FPaths::ConvertRelativePathToFull(FileName);
-				FText FailureMessage = FText::Format(LOCTEXT("FailureFormat", "{0} ({1})"), FailureReason, FText::FromString(FullPath));
+				FText FailureMessage = FText::Format(LOCTEXT("FailureFormat", "{0} ({1})"), Context.FailureReason, FText::FromString(FullPath));
 				FText DialogTitle = LOCTEXT("PluginFailureTitle", "Failed to load Plugin");
 				UE_LOG(LogPluginManager, Error, TEXT("%s"), *FailureMessage.ToString());
 				FMessageDialog::Open(EAppMsgType::Ok, FailureMessage, &DialogTitle);
@@ -502,10 +499,10 @@ void FPluginManager::FindPluginManifestsInDirectory(const FString& PluginManifes
 		{
 			if (!bIsDirectory)
 			{
-				FString FileName(FileNameOrDirectory);
-				if (FileName.EndsWith(".upluginmanifest"))
+				FStringView FileName(FileNameOrDirectory);
+				if (FileName.EndsWith(TEXT(".upluginmanifest")))
 				{
-					ManifestFileNames.Add(FileName);
+					ManifestFileNames.Emplace(FileName);
 				}
 			}
 			return true;
@@ -637,6 +634,15 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					else if (FPaths::IsUnderDirectory(Target.Path, FPaths::EngineDir()))
 					{
 						EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+					}
+					else
+					{
+						// Unknown path, possibly built on another machine. Try project first with this target name, then engine
+						EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+						if (!FPaths::FileExists(EditorTargetFileName))
+						{
+							EditorTargetFileName = FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+						}
 					}
 					break;
 				}

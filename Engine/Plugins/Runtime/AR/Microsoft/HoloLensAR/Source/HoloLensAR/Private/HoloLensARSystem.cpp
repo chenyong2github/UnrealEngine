@@ -341,7 +341,19 @@ FARSessionStatus FHoloLensARSystem::OnGetARSessionStatus() const
 
 void FHoloLensARSystem::OnSetAlignmentTransform(const FTransform& InAlignmentTransform)
 {
+	const FTransform& NewAlignmentTransform = InAlignmentTransform;
 
+	TArray<UARTrackedGeometry*> AllTrackedGeometries = OnGetAllTrackedGeometries();
+	for (UARTrackedGeometry* TrackedGeometry : AllTrackedGeometries)
+	{
+		TrackedGeometry->UpdateAlignmentTransform(NewAlignmentTransform);
+	}
+
+	TArray<UARPin*> AllARPins = OnGetAllPins();
+	for (UARPin* SomePin : AllARPins)
+	{
+		SomePin->UpdateAlignmentTransform(NewAlignmentTransform);
+	}
 }
 
 TArray<FARTraceResult> FHoloLensARSystem::OnLineTraceTrackedObjects(const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels)
@@ -984,6 +996,7 @@ void FHoloLensARSystem::QRCodeAdded_GameThread(FQRCodeData* InCode)
 	if (InCode != nullptr)
 	{
 		UARTrackedQRCode* NewQRCode = NewObject<UARTrackedQRCode>();
+		NewQRCode->UniqueId = InCode->Id;
 		TrackedGeometries.Add(InCode->Id, NewQRCode);
 
 		NewQRCode->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),

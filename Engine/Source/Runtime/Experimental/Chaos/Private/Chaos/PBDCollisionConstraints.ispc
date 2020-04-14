@@ -1,5 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define EXPLICIT_VECTOR4 1
+
+#include "Chaos/Matrix33.isph"
+#include "Math/Quat.isph"
 #include "Math/Vector.isph"
 
 #define SMALL_NUMBER		(1.e-8f)
@@ -89,7 +93,7 @@ inline static float SquaredSum(const FVector &Vec)
 	return SquareSum;
 }
 
-inline static float NormalSize(const FVector &Normal)
+inline static float VectorSize(const FVector &Normal)
 {
 	return rcp(rsqrt(SquaredSum(Normal)));
 }
@@ -143,7 +147,7 @@ inline static float BoxPhi(const uniform FVector &BoxMin, const uniform FVector 
 				Normal.V[i] = 0;
 			}
 		}
-		Phi = NormalSize(Normal);
+		Phi = VectorSize(Normal);
 	}
 
 	return Phi;
@@ -658,4 +662,305 @@ export uniform bool SamplePlaneNoNormalAll(const uniform FVector &ObjectNormal,
 	}
 
 	return bPhiFound;
+}
+
+export void SampleSphereNormalAverageAll(const uniform float &ObjectRadius,
+									const uniform FVector &ObjectMX,
+									const uniform FTransform &SampleToObjectTransform, 
+									const uniform FVector SampleParticles[],
+									const uniform float Thickness, 
+									uniform float &TotalThickness, 
+									uniform FVector &ConstraintLocation,
+									const uniform unsigned int NumParticles)
+{
+	FVector ConstraintLocationSum = SetVector(0.0f, 0.0f, 0.0f);
+	float ThicknessSum = 0.0f;
+
+	foreach(i = 0 ... NumParticles)
+	{
+		#pragma ignore warning(perf)
+		FVector Particle = SampleParticles[i];
+
+		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+		float LocalPhi = ObjectRadius - VectorSize(LocalPoint - ObjectMX);
+
+		float LocalThickness = LocalPhi - Thickness;
+		if(LocalThickness < -KINDA_SMALL_NUMBER)
+		{
+			ConstraintLocationSum = ConstraintLocationSum + (LocalPoint * LocalThickness);
+			ThicknessSum += LocalThickness;
+		}
+	}
+
+	ConstraintLocation = ConstraintLocation + SetVector(reduce_add(ConstraintLocationSum.V[0]), reduce_add(ConstraintLocationSum.V[1]), reduce_add(ConstraintLocationSum.V[2]));
+	TotalThickness = TotalThickness + reduce_add(ThicknessSum);
+}
+
+export uniform bool SampleSphereNoNormalAll(const uniform float &ObjectRadius,
+										const uniform FVector &ObjectMX,
+										const uniform FTransform &SampleToObjectTransform, 
+										const uniform FVector SampleParticles[],
+										uniform int &DeepestParticle,
+										uniform float &Phi,
+										const uniform unsigned int NumParticles)
+{
+	uniform bool bPhiFound = false;
+
+	foreach(i = 0 ... NumParticles)
+	{
+		if(!bPhiFound)
+		{
+			#pragma ignore warning(perf)
+			FVector Particle = SampleParticles[i];
+
+			FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
+			float LocalPhi = ObjectRadius - VectorSize(LocalPoint - ObjectMX);
+
+			if(LocalPhi < Phi)
+			{
+				foreach_active(j)
+				{
+					unmasked
+					{
+						if(!bPhiFound)
+						{
+							Phi = extract(LocalPhi, j);
+							DeepestParticle = extract(i, j);
+							bPhiFound = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return bPhiFound;
+}
+
+
+//
+//
+///////////////////////////////////////////////////////////////////////////////
+//
+//
+
+struct FCollisionContact
+{
+	bool bDisabled;
+	FVector Normal;
+	FVector Location;
+	float Phi;
+
+	float Friction;
+	float AngularFriction;
+	float Restitution;
+	float InvInertiaScale0;
+	float InvInertiaScale1;
+	int ShapesType;
+	int* Implicit[2];
+};
+
+export uniform int32 SizeofFCollisionContact()
+{
+	return sizeof(uniform FCollisionContact);
+}
+
+// @todo(ccaulfield): move to ispc libs
+inline uniform FMatrix33 Multiply(const uniform FMatrix33& L, const uniform float R)
+{
+	uniform FMatrix33 M;
+	for (uniform int Index = 0; Index < 12; ++Index)
+	{
+		M.M[Index] = L.M[Index] * R;
+	}
+	M.M[12] = 0.0f;
+	M.M[13] = 0.0f;
+	M.M[14] = 0.0f;
+	M.M[15] = 1.0f;
+	return M;
+}
+
+
+// Get the CoM position given the Actor position
+static inline uniform FVector GetCoMWorldPosition(
+	const uniform FVector& PActorWorld,
+	const uniform FVector4& QActorWorld,
+	const uniform FVector& PCoMLocal)
+{
+	return PActorWorld + VectorQuaternionRotateVector(QActorWorld, PCoMLocal);
+}
+
+// Get the CoM rotation given the Actor rotation
+static inline uniform FVector4 GetCoMWorldRotation(
+	const uniform FVector4& QActorWorld,
+	const uniform FVector4& QCoMLocal)
+{
+	return VectorQuaternionMultiply2(QActorWorld, QCoMLocal);
+}
+
+// Set the Actor position and rotation given the CoM position and rotation
+static inline uniform FVector SetCoMWorldTransform(
+	uniform FVector& PActorWorld,
+	uniform FVector4& QActorWorld,
+	const uniform FVector& PCoMWorld,
+	const uniform FVector4& QCoMWorld,
+	const uniform FVector& PCoMLocal,
+	const uniform FVector4& QCoMLocal)
+{
+	uniform FVector4 QCoMLocalInverse = QuatInverse(QCoMLocal);
+	QActorWorld = VectorQuaternionMultiply2(QCoMWorld, QCoMLocalInverse);
+	PActorWorld = PCoMWorld - VectorQuaternionRotateVector(QActorWorld, PCoMLocal);
+}
+
+// @todo(ccaulfield): dedupe
+static inline uniform FMatrix33 ComputeWorldSpaceInertia(const uniform FVector4 &Q, const uniform FVector &I)
+{
+	const uniform FMatrix33 QM = MakeQuatRotationTranslationMatrix(Q);
+	const uniform FMatrix33 L = SetMatrix33(I.V[0], I.V[1], I.V[2]);
+	return MultiplyAB(QM, MultiplyABt(L, QM));
+}
+
+// @todo(ccaulfield): dedupe
+static inline uniform FMatrix33 ComputeJointFactorMatrix(const uniform FVector& V, const uniform FMatrix33& M, const uniform float Im)
+{
+	// Rigid objects rotational contribution to the impulse.
+	// Vx*M*VxT+Im
+	const uniform FVector V221 = SetVector(-V.V[2], V.V[2], -V.V[1]);
+	const uniform FVector V222 = SetVector(-V.V[2], -V.V[2], -V.V[2]);
+	const uniform FVector M544 = SetVector(M.M[5], M.M[4], M.M[4]);
+	const uniform FVector V111 = SetVector(V.V[1], V.V[1], V.V[1]);
+	const uniform FVector M988 = SetVector(M.M[9], M.M[8], M.M[8]);
+	const uniform FVector V100 = SetVector(V.V[1], -V.V[0], V.V[0]);
+	const uniform FVector M995 = SetVector(M.M[9], M.M[9], M.M[5]);
+	const uniform FVector M10109 = SetVector(M.M[10], M.M[10], M.M[9]);
+	const uniform FVector IM = SetVector(Im, 0, 0);
+
+	const uniform FVector R1 = (V221 * (V222 * M544 + V111 * M988)) + (V100 * (V222 * M995 + V111 * M10109)) + IM;
+
+	const uniform FVector V211 = SetVector(V.V[2], -V.V[1], -V.V[1]);
+	const uniform FVector V221_2 = SetVector(V.V[2], V.V[2], -V.V[1]);
+	const uniform FVector M000 = SetVector(M.M[0], M.M[0], M.M[0]);
+	const uniform FVector V000 = SetVector(-V.V[0], -V.V[0], V.V[0]);
+	const uniform FVector M884 = SetVector(M.M[8], M.M[8], M.M[4]);
+	const uniform FVector V000_2 = SetVector(-V.V[0], V.V[0], V.V[0]);
+	const uniform FVector M844 = SetVector(M.M[8], M.M[4], M.M[4]);
+	const uniform FVector M1095 = SetVector(M.M[10], M.M[9], M.M[5]);
+	const uniform FVector IM_2 = SetVector(Im, 0, Im);
+
+	const uniform FVector R2 = (V211 * (V221_2 * M000 + V000 * M884)) + (V000_2 * (V221_2 * M844 + V000 * M1095)) + IM_2;
+
+	return SetMatrix33(R1.V[0], R1.V[1], R1.V[2], R2.V[0], R2.V[1], R2.V[2]);
+}
+
+// Apply the contact force. Update the actors' positions and rotations.
+export void ApplyContact2(
+	const uniform FCollisionContact* uniform Contact,
+	uniform FVector& PActor0,
+	uniform FVector4& QActor0,
+	uniform FVector& PActor1,
+	uniform FVector4& QActor1,
+	const uniform float InvM0,
+	const uniform FVector& InvILocal0,
+	const uniform FVector& PCoMLocal0,
+	const uniform FVector4& QCoMLocal0,
+	const uniform float InvM1,
+	const uniform FVector& InvILocal1,
+	const uniform FVector& PCoMLocal1,
+	const uniform FVector4& QCoMLocal1)
+{
+	uniform FVector P0 = GetCoMWorldPosition(PActor0, QActor0, PCoMLocal0);
+	uniform FVector P1 = GetCoMWorldPosition(PActor1, QActor1, PCoMLocal1);
+	uniform FVector4 Q0 = GetCoMWorldRotation(QActor0, QCoMLocal0);
+	uniform FVector4 Q1 = GetCoMWorldRotation(QActor1, QCoMLocal1);
+	uniform FVector VectorToPoint0 = Contact->Location - P0;
+	uniform FVector VectorToPoint1 = Contact->Location - P1;
+	
+	uniform FMatrix33 ContactInvI = Matrix33Zero;
+	uniform FMatrix33 InvI0 = Matrix33Zero;
+	uniform FMatrix33 InvI1 = Matrix33Zero;
+	if (InvM0 > 0.0f)
+	{
+		InvI0 = Multiply(ComputeWorldSpaceInertia(Q0, InvILocal0), Contact->InvInertiaScale0);
+		ContactInvI = AddAB(ContactInvI, ComputeJointFactorMatrix(VectorToPoint0, InvI0, InvM0));
+	}
+	if (InvM1 > 0.0f)
+	{
+		InvI1 = Multiply(ComputeWorldSpaceInertia(Q1, InvILocal1), Contact->InvInertiaScale1);
+		ContactInvI = AddAB(ContactInvI, ComputeJointFactorMatrix(VectorToPoint1, InvI1, InvM1));
+	}
+	
+	// Calculate the normal correction
+	// @todo(chaos): support restitution in this mode (requires a small-impact cutoff threshold)
+	uniform float Restitution = 0.0f;//Contact->Restitution;
+	uniform FVector NormalError = Contact->Phi * Contact->Normal;
+	uniform float NormalImpulseDenominator = VectorDot(Contact->Normal, Multiply(ContactInvI, Contact->Normal));
+	uniform FVector NormalImpulseNumerator = -(1.0f + Restitution) * NormalError;
+	uniform FVector NormalCorrection = NormalImpulseNumerator / NormalImpulseDenominator;
+	
+	// Calculate the lateral correction
+	uniform FVector LateralCorrection = ZeroVector;
+	//if (Contact->Friction > 0)
+	//{
+	//	// Get contact velocity
+	//	uniform FVector X0 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle0);
+	//	uniform FVector X1 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle1);
+	//	FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0);
+	//	FRotation3 R1 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle1);
+	//	uniform FVector V0 = FVec3::CalculateVelocity(X0, P0, IterationParameters.Dt);
+	//	uniform FVector W0 = FRotation3::CalculateAngularVelocity(R0, Q0, IterationParameters.Dt);
+	//	uniform FVector V1 = FVec3::CalculateVelocity(X1, P1, IterationParameters.Dt);
+	//	uniform FVector W1 = FRotation3::CalculateAngularVelocity(R1, Q1, IterationParameters.Dt);
+	//	uniform FVector CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
+	//	uniform FVector CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
+	//	uniform FVector CV = CV0 - CV1;
+	//
+	//	// Calculate lateral correction, clamped to the friction cone. Kinda.
+	//	uniform float CVNormalMag = FVec3::DotProduct(CV, Contact->Normal);
+	//	if (CVNormalMag < 0.0f)
+	//	{
+	//		uniform FVector CVLateral = CV - CVNormalMag * Contact->Normal;
+	//		uniform float CVLateralMag = CVLateral.Size();
+	//		if (CVLateralMag > KINDA_SMALL_NUMBER)
+	//		{
+	//			uniform FVector DirLateral = CVLateral / CVLateralMag;
+	//			uniform FVector LateralImpulseNumerator = -CVLateral * IterationParameters.Dt;
+	//			uniform float LateralImpulseDenominator = FVec3::DotProduct(DirLateral, ContactInvI * DirLateral);
+	//			LateralCorrection = LateralImpulseNumerator / LateralImpulseDenominator;
+	//			uniform float LateralImpulseMag = LateralCorrection.Size();
+	//			uniform float NormalImpulseMag = NormalCorrection.Size();
+	//			if (LateralImpulseMag > Contact->Friction * NormalImpulseMag)
+	//			{
+	//				LateralCorrection *= Contact->Friction * NormalImpulseMag / LateralImpulseMag;
+	//			}
+	//		}
+	//	}
+	//}
+
+	// Net Correction
+	uniform FVector DX = NormalCorrection + LateralCorrection;
+				
+	if (InvM0 > 0.0f)
+	{
+		uniform FVector DP0 = InvM0 * DX;
+		uniform FVector DR0 = Multiply(InvI0, VectorCross(VectorToPoint0, DX));
+		uniform FVector4 DQ0 = VectorQuaternionMultiply2(SetVector4(DR0, 0.0f), Q0) * 0.5f;
+	
+		P0 = P0 + DP0;
+		Q0 = VectorNormalizeQuaternion(Q0 + DQ0);
+		
+		SetCoMWorldTransform(PActor0, QActor0, P0, Q0, PCoMLocal0, QCoMLocal0);
+	}
+
+	if (InvM1 > 0.0f)
+	{
+		uniform FVector DXNeg = VectorNegate(DX);
+		uniform FVector DP1 = InvM1 * DXNeg;
+		uniform FVector DR1 = Multiply(InvI1, VectorCross(VectorToPoint1, DXNeg));
+		uniform FVector4 DQ1 = VectorQuaternionMultiply2(SetVector4(DR1, 0.0f), Q1) * 0.5f;
+		
+		P1 = P1 + DP1;
+		Q1 = VectorNormalizeQuaternion(Q1 + DQ1);
+		
+		SetCoMWorldTransform(PActor1, QActor1, P1, Q1, PCoMLocal1, QCoMLocal1);
+	}
 }

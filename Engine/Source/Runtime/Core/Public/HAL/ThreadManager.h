@@ -72,4 +72,11 @@ public:
 	 * @return Thread manager object.
 	 */
 	static FThreadManager& Get();
+
+private:
+
+	friend class FForkProcessHelper;
+
+	/** Returns a list of registered forkable threads  */
+	TArray<FRunnableThread*> GetForkableThreads();
 };

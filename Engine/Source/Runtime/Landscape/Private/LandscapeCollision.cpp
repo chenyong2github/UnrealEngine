@@ -54,6 +54,7 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Vector.h"
 #include "Chaos/Core.h"
+#include "Chaos/HeightField.h"
 #endif
 
 using namespace PhysicsInterfaceTypes;
@@ -983,8 +984,8 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 		}
 	}
 
-	TUniquePtr<Chaos::THeightField<float>> Heightfield = nullptr;
-	TUniquePtr<Chaos::THeightField<float>> HeightfieldSimple = nullptr;
+	TUniquePtr<Chaos::FHeightField> Heightfield = nullptr;
+	TUniquePtr<Chaos::FHeightField> HeightfieldSimple = nullptr;
 
 	FMemoryWriter Writer(OutData);
 	Chaos::FChaosArchive Ar(Writer);
@@ -993,13 +994,13 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 	Ar << bSerializeGenerateSimpleCollision;
 
 	TArrayView<const uint16> ComplexHeightView(Heights, NumSamples);
-	Heightfield = MakeUnique<Chaos::THeightField<float>>(ComplexHeightView, MakeArrayView(MaterialIndices), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
+	Heightfield = MakeUnique<Chaos::FHeightField>(ComplexHeightView, MakeArrayView(MaterialIndices), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
 	Ar << Heightfield;
 	if(bGenerateSimpleCollision)
 	{
 		// #BGTODO Materials for simple geometry, currently just passing in the default
 		TArrayView<const uint16> SimpleHeightView(Heights + NumSamples, NumSimpleSamples);
-		HeightfieldSimple = MakeUnique<Chaos::THeightField<float>>(SimpleHeightView, MakeArrayView(MaterialIndices.GetData(), 1), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
+		HeightfieldSimple = MakeUnique<Chaos::FHeightField>(SimpleHeightView, MakeArrayView(MaterialIndices.GetData(), 1), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
 		Ar << HeightfieldSimple;
 	}
 
@@ -2033,15 +2034,16 @@ void ULandscapeHeightfieldCollisionComponent::PrepareGeometryExportSync()
 		{
 			HeightfieldRowsCount = HeightfieldRef->RBHeightfield->getNbRows();
 			HeightfieldColumnsCount = HeightfieldRef->RBHeightfield->getNbColumns();
+			const int32 SamplesCount = HeightfieldRowsCount * HeightfieldColumnsCount;
 				
-			if (CachedHeightFieldSamples.Heights.Num() != HeightfieldRowsCount * HeightfieldRowsCount)
+			if (CachedHeightFieldSamples.Heights.Num() != SamplesCount)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportPxHeightField_saveCells);
 
-				CachedHeightFieldSamples.Heights.SetNumUninitialized(HeightfieldRowsCount * HeightfieldRowsCount);
+				CachedHeightFieldSamples.Heights.SetNumUninitialized(SamplesCount);
 
 				TArray<PxHeightFieldSample> HFSamples;
-				HFSamples.SetNumUninitialized(HeightfieldRowsCount * HeightfieldRowsCount);
+				HFSamples.SetNumUninitialized(SamplesCount);
 				HeightfieldRef->RBHeightfield->saveCells(HFSamples.GetData(), HFSamples.Num()*HFSamples.GetTypeSize());
 
 				for (int32 SampleIndex = 0; SampleIndex < HFSamples.Num(); ++SampleIndex)
@@ -2062,17 +2064,23 @@ void ULandscapeHeightfieldCollisionComponent::PrepareGeometryExportSync()
 		{
 			HeightfieldRowsCount = HeightfieldRef->Heightfield->GetNumRows();
 			HeightfieldColumnsCount = HeightfieldRef->Heightfield->GetNumCols();
+			const int32 HeightsCount = HeightfieldRowsCount * HeightfieldColumnsCount;
 
-			if(CachedHeightFieldSamples.Heights.Num() != HeightfieldRowsCount * HeightfieldRowsCount)
+			if(CachedHeightFieldSamples.Heights.Num() != HeightsCount)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportChaosHeightField_saveCells);
 
-				CachedHeightFieldSamples.Heights.SetNumUninitialized(HeightfieldRowsCount * HeightfieldRowsCount);
-				
-				for(int32 SampleIndex = 0; SampleIndex < CachedHeightFieldSamples.Heights.Num(); ++SampleIndex)
+				CachedHeightFieldSamples.Heights.SetNumUninitialized(HeightsCount);
+				for(int32 Index = 0; Index < HeightsCount; ++Index)
 				{
-					CachedHeightFieldSamples.Heights[SampleIndex] = HeightfieldRef->Heightfield->GetHeight(SampleIndex);
-					CachedHeightFieldSamples.Holes.Add(HeightfieldRef->Heightfield->IsHole(SampleIndex));
+					CachedHeightFieldSamples.Heights[Index] = HeightfieldRef->Heightfield->GetHeight(Index);
+				}
+
+				const int32 HolesCount = (HeightfieldRowsCount-1) * (HeightfieldColumnsCount-1);
+				CachedHeightFieldSamples.Holes.SetNumUninitialized(HolesCount);
+				for(int32 Index = 0; Index < HolesCount; ++Index)
+				{
+					CachedHeightFieldSamples.Holes[Index] = HeightfieldRef->Heightfield->IsHole(Index);
 				}
 			}
 		}
@@ -2603,6 +2611,14 @@ ULandscapeHeightfieldCollisionComponent::ULandscapeHeightfieldCollisionComponent
 	// landscape collision components should be deterministically created and therefor are addressable over the network
 	SetNetAddressable();
 }
+
+ULandscapeHeightfieldCollisionComponent::ULandscapeHeightfieldCollisionComponent(FVTableHelper& Helper)
+	: Super(Helper)
+{
+
+}
+
+ULandscapeHeightfieldCollisionComponent::~ULandscapeHeightfieldCollisionComponent() = default;
 
 ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent() const
 {

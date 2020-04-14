@@ -1667,8 +1667,8 @@ void SNetStatsView::UpdateStats(uint32 InGameInstanceIndex, uint32 InConnectionI
 
 void SNetStatsView::UpdateStatsInternal()
 {
-	if (StatsPacketStartIndex >= StatsPacketEndIndex ||
-		StatsStartPosition >= StatsEndPosition)
+	if (StatsPacketStartIndex >= StatsPacketEndIndex || // no packet selected?
+		(StatsPacketEndIndex - StatsPacketStartIndex == 1 && StatsStartPosition >= StatsEndPosition)) // single packet, but invalid bit range?
 	{
 		// keep previous aggregated stats
 		return;
@@ -1686,6 +1686,7 @@ void SNetStatsView::UpdateStatsInternal()
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+			// CreateAggregation requires [PacketStartIndex, PacketEndIndex] as inclusive interval and [StartPos, EndPos) as exclusive interval.
 			AggregationResultTable.Reset(NetProfilerProvider.CreateAggregation(ConnectionIndex, ConnectionMode, StatsPacketStartIndex, StatsPacketEndIndex - 1, StatsStartPosition, StatsEndPosition));
 		}
 

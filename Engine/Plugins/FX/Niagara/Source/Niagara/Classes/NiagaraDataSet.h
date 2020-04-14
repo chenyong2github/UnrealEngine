@@ -39,6 +39,7 @@ struct FNiagaraVariableLayoutInfo
 class FNiagaraDataSet;
 class FNiagaraShader;
 class FNiagaraGPUInstanceCountManager;
+class NiagaraEmitterInstanceBatcher;
 struct FNiagaraComputeExecutionContext;
 
 //Base class for objects in Niagara that are owned by one object but are then passed for reading to other objects, potentially on other threads.
@@ -178,8 +179,8 @@ public:
 	FORCEINLINE TArray<int32>& GetIDTable() { return IDToIndexTable; }
 	FORCEINLINE const TArray<int32>& GetIDTable() const { return IDToIndexTable; }
 
-	void SetShaderParams(class FNiagaraShader *Shader, FRHICommandList &CommandList, bool bInput);
-	void UnsetShaderParams(class FNiagaraShader *Shader, FRHICommandList &CommandList);
+	void SetShaderParams(class FNiagaraShader* Shader, FRHICommandList& CommandList, bool bInput);
+	void UnsetShaderParams(class FNiagaraShader* Shader, FRHICommandList& CommandList);
 
 	void ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
 
@@ -215,8 +216,8 @@ private:
 	// GPU Data
 	/** The buffer offset where the instance count is accumulated. */
 	uint32 GPUInstanceCountBufferOffset;
-	/** The num of allocated chunks, each being of size ALLOC_CHUNKSIZE */
-	uint32 NumChunksAllocatedForGPU;
+	/** The num of allocated instances, which is aligned to ALLOC_CHUNKSIZE and usually larger than the needed number to amortize allocation cost. */
+	uint32 NumInstancesAllocatedForGPU;
 	/** GPU Buffer containing floating point values for GPU simulations. */
 	FRWBuffer GPUBufferFloat;
 	/** GPU Buffer containing integer values for GPU simulations. */
@@ -383,6 +384,9 @@ public:
 
 	void AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
 
+	void SetMaxInstanceCount(uint32 InInstanceCount) { MaxInstanceCount = InInstanceCount; }
+	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
+
 private:
 
 	void Reset();
@@ -441,6 +445,8 @@ private:
 	Additional buffers may be in here if they are currently being used by the render thread.
 	*/
 	TArray<FNiagaraDataBuffer*, TInlineAllocator<2>> Data;
+
+	uint32 MaxInstanceCount;
 
 	bool bInitialized;
 };
@@ -2004,6 +2010,8 @@ struct FNiagaraDataConversions
 	struct FNiagaraInt {};
 
 	struct FNiagaraBool {};
+
+	struct FNiagaraConvertID {};
 };
 
 template<>
@@ -2061,6 +2069,13 @@ struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraBool> : public F
 	}
 };
 
+template<>
+struct FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraConvertID> : public FNiagaraDataSetAccessor<FNiagaraID>
+{
+	FNiagaraDataSetAccessor<FNiagaraDataConversions::FNiagaraConvertID>(FNiagaraDataSet& InDataSet, const FName& InName) : FNiagaraDataSetAccessor<FNiagaraID>(InDataSet, FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), InName))
+	{
+	}
+};
 
 /**
 Iterator that will pull or push data between a NiagaraDataBuffer and some FNiagaraVariables it contains.
@@ -2142,7 +2157,7 @@ public:
 		}
 	}
 
-	void ReadbackData(class NiagaraEmitterInstanceBatcher* Batcher, FNiagaraDataSet* InDataSet);
+	void ReadbackData(NiagaraEmitterInstanceBatcher* Batcher, FNiagaraDataSet* InDataSet);
 	uint32 GetNumInstances() const { check(DataSet != nullptr); return NumInstances; }
 
 private:

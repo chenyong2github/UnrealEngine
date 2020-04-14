@@ -17,7 +17,7 @@ class USoundControlBusMix;
 
 namespace AudioModulation
 {
-	class FAudioModulationImpl;
+	class FAudioModulationSystem;
 } // namespace AudioModulation
 
 
@@ -35,7 +35,7 @@ public:
 	/**
 	 * Returns modulation implementation associated with the provided world
 	 */
-	static AudioModulation::FAudioModulationImpl* GetModulationImpl(UWorld* World);
+	static AudioModulation::FAudioModulationSystem* GetModulationSystem(UWorld* World);
 
 	/** Activates a bus. Does nothing if an instance of the provided bus is already active
 	 * @param Bus - Bus to activate
@@ -253,6 +253,16 @@ public:
 		float								Value,
 		float								AttackTime	= -1.0f,
 		float								ReleaseTime = -1.0f);
+
+	/** Commits updates from a UObject definition of a bus mix to active instance in audio thread
+	 * (ignored if mix has not been activated).
+	 * @param Mix - Mix to update
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Update Control Bus Mix", meta = (
+		WorldContext = "WorldContextObject",
+		Keywords = "update set control bus mix modulation modulator")
+	)
+	static void UpdateMixFromObject(const UObject* WorldContextObject, USoundControlBusMix* Mix);
 
 	/** Commits updates from a UObject definition of a modulator (e.g. Bus, Bus Mix, LFO) to active instance in audio thread
 	 * (ignored if modulator type has not been activated).

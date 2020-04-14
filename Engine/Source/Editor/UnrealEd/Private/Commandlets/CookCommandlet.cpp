@@ -1073,7 +1073,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 		}
 	} while (bTestCook);
 
-	if (!bIterativeCooking)
+	if (!bIterativeCooking && StartupOptions.DLCName.IsEmpty())
 	{
 		VerifyEDLCookInfo();
 	}

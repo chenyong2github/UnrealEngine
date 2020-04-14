@@ -15,14 +15,6 @@ namespace UnrealBuildTool.Rules
 					"AudioMixerCore"
 				}
 			);
-
-            PrivateDependencyModuleNames.AddRange(
-                new string[]
-                {
-					// This is needed for SoundfieldStatics::GetDefaultPositionMap.
-                    //"AudioMixer"
-                }
-            );
-        }
+		}
 	}
 }

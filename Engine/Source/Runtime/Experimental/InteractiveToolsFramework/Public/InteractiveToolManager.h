@@ -75,6 +75,13 @@ protected:
 
 public:
 
+
+	/**
+	 * @return true if ToolManager is currently active, ie between Initialize() and Shutdown() 
+	 */
+	bool IsActive() const { return bIsActive; }
+
+
 	//
 	// Tool registration and Current Tool state
 	//
@@ -136,6 +143,12 @@ public:
 	 */
 	virtual UInteractiveToolBuilder* GetActiveToolBuilder(EToolSide Side);
 
+	/**
+	 * Get name of registered ToolBuilder that created active tool for given side, or empty string if no tool is active
+	 * @param Side which Side is being requested
+	 * @return name of tool, or empty string if no tool is active
+	 */
+	virtual FString GetActiveToolName(EToolSide Side);
 
 	/**
 	 * Check if an active Tool on the given Side can be Accepted in its current state
@@ -249,6 +262,9 @@ protected:
 
 	/** Pointer to current InputRouter (Context owns this) */
 	UInputRouter* InputRouter;
+
+	/** This flag is set to true on Initialize() and false on Shutdown(). */
+	bool bIsActive = false;
 
 	/** Current set of named ToolBuilders */
 	UPROPERTY()

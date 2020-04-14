@@ -500,3 +500,30 @@ void FNavigationDataHandler::ProcessPendingOctreeUpdates()
 	}
 	OctreeController.PendingOctreeUpdates.Empty(32);
 }
+
+void FNavigationDataHandler::DemandLazyDataGathering(FNavigationRelevantData& ElementData)
+{
+	// Do the lazy gathering on the element
+	OctreeController.NavOctree->DemandLazyDataGathering(ElementData);
+
+    // Check if any child asked for some lazy gathering
+	if (ElementData.IsPendingChildLazyModifiersGathering())
+	{
+		TArray<FWeakObjectPtr> ChildNodes;
+		OctreeController.OctreeChildNodesMap.MultiFind(ElementData.GetOwner(), ChildNodes);
+
+		for (FWeakObjectPtr& ChildNode : ChildNodes)
+		{
+			if (ChildNode.IsValid())
+			{
+				UObject* ChildNodeOb = ChildNode.Get();
+				INavRelevantInterface* ChildNavInterface = ChildNodeOb ? Cast<INavRelevantInterface>(ChildNodeOb) : nullptr;
+				if (ChildNavInterface)
+				{
+					OctreeController.NavOctree->DemandChildLazyDataGathering(ElementData, *ChildNavInterface);
+				}
+			}
+		}
+		ElementData.bPendingChildLazyModifiersGathering = false;
+	}
+}

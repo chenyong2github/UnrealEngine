@@ -7,34 +7,32 @@
 #include "FastConversion.h"
 
 #include <WindowsNumerics.h>
-#include <windows.foundation.numerics.h>
-#include <ppltasks.h>
-#include <pplawait.h>
+#include <winrt/windows.foundation.h>
+#include <winrt/windows.foundation.numerics.h>
+#include <winrt/windows.foundation.collections.h>
+#include <winrt/windows.Perception.Spatial.Preview.h>
 
 #include <map>
 #include <string>
 #include <sstream>
+#include <mutex>
 
-//using namespace concurrency;
-using namespace Microsoft::WRL;
-using namespace Platform;
-using namespace Windows::Foundation;
-using namespace Windows::Foundation::Collections;
-using namespace Windows::Foundation::Numerics;
-using namespace Windows::UI::Input::Spatial;
-using namespace std::placeholders;
+using namespace winrt;
+using namespace winrt::Windows::Foundation;
+using namespace winrt::Windows::Foundation::Collections;
+using namespace winrt::Windows::Foundation::Numerics;
 
 using namespace DirectX;
 
 /** Controls access to our references */
 std::mutex QRCodeRefsLock;
 
-Windows::Foundation::EventRegistrationToken OnAddedEventToken;
-Windows::Foundation::EventRegistrationToken OnUpdatedEventToken;
-Windows::Foundation::EventRegistrationToken OnRemovedEventToken;
+event_token OnAddedEventToken;
+event_token OnUpdatedEventToken;
+event_token OnRemovedEventToken;
 
 static double QPCSecondsPerTick = 0.0f;
-static Windows::Perception::Spatial::SpatialCoordinateSystem^ LastCoordinateSystem = nullptr;
+static SpatialCoordinateSystem LastCoordinateSystem = nullptr;
 
 QRCodeUpdateObserver* QRCodeUpdateObserver::ObserverInstance = nullptr;
 
@@ -93,33 +91,33 @@ void QRCodeUpdateObserver::Log(std::wstringstream& stream)
 	}
 }
 
-static void CopyQRCodeDataManually(QRCodeData* code, Guid InId, int32 InVersion, float InPhysicalSize, long long InQPCTicks, uint32 InDataSize, String^ InData)
+static void CopyQRCodeDataManually(QRCodeData* code, guid InId, int32_t InVersion, float InPhysicalSize, long long InQPCTicks, std::wstring_view InData)
 {
 	code->Id = InId;
 	code->Version = InVersion;
 	code->SizeInMeters = InPhysicalSize;
 	code->LastSeenTimestamp = (float)(QPCSecondsPerTick * (double)InQPCTicks);
-	code->DataSize = InDataSize;
+	code->DataSize = (unsigned int)InData.size();
 	code->Data = nullptr;
 	if (code->DataSize > 0)
 	{
 		code->Data = new wchar_t[code->DataSize + 1];
 		if (code->Data != nullptr)
 		{
-			memcpy(code->Data, InData->Data(), code->DataSize * sizeof(wchar_t));
+			memcpy(code->Data, InData.data(), code->DataSize * sizeof(wchar_t));
 			code->Data[code->DataSize] = 0;
 		}
 	}
 
 	if (LastCoordinateSystem != nullptr)
 	{
-		Windows::Perception::Spatial::SpatialCoordinateSystem^ qrCoordinateSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(InId);
+		SpatialCoordinateSystem qrCoordinateSystem = Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(InId);
 		if (qrCoordinateSystem != nullptr)
 		{
-			auto CodeTransform = qrCoordinateSystem->TryGetTransformTo(LastCoordinateSystem);
+			auto CodeTransform = qrCoordinateSystem.TryGetTransformTo(LastCoordinateSystem);
 			if (CodeTransform != nullptr)
 			{
-				XMMATRIX ConvertTransform = XMLoadFloat4x4(&CodeTransform->Value);
+				XMMATRIX ConvertTransform = XMLoadFloat4x4(&CodeTransform.Value());
 
 				DirectX::XMVECTOR r;
 				DirectX::XMVECTOR t;
@@ -143,14 +141,14 @@ static void CopyQRCodeDataManually(QRCodeData* code, Guid InId, int32 InVersion,
 #pragma warning(disable:4691)
 
 // Why are all of these *EventArgs different even though they seem to have the same data?
-void QRCodeUpdateObserver::OnAdded(QRCodeWatcher ^sender, QRCodeAddedEventArgs^ args)
+void QRCodeUpdateObserver::OnAdded(QRCodeWatcher sender, QRCodeAddedEventArgs args)
 {
-	if ((args != nullptr) && (args->Code != nullptr))
+	if ((args != nullptr) && (args.Code() != nullptr))
 	{
 		QRCodeData* code = new QRCodeData;
 		if (code != nullptr)
 		{
-			CopyQRCodeDataManually(code, args->Code->SpatialGraphNodeId, (int)args->Code->Version, args->Code->PhysicalSideLength, args->Code->LastDetectedTime.UniversalTime, args->Code->Data->Length(), args->Code->Data);
+			CopyQRCodeDataManually(code, args.Code().SpatialGraphNodeId(), (int)args.Code().Version(), args.Code().PhysicalSideLength(), args.Code().LastDetectedTime().time_since_epoch().count(), args.Code().Data());
 			ObserverInstance->OnAddedQRCode(code);
 			if (code->Data != nullptr)
 			{
@@ -161,14 +159,14 @@ void QRCodeUpdateObserver::OnAdded(QRCodeWatcher ^sender, QRCodeAddedEventArgs^ 
 	}
 }
 
-void QRCodeUpdateObserver::OnUpdated(QRCodeWatcher ^sender, QRCodeUpdatedEventArgs^ args)
+void QRCodeUpdateObserver::OnUpdated(QRCodeWatcher sender, QRCodeUpdatedEventArgs args)
 {
-	if ((args != nullptr) && (args->Code != nullptr))
+	if ((args != nullptr) && (args.Code() != nullptr))
 	{
 		QRCodeData* code = new QRCodeData;
 		if (code != nullptr)
 		{
-			CopyQRCodeDataManually(code, args->Code->SpatialGraphNodeId, (int)args->Code->Version, args->Code->PhysicalSideLength, args->Code->LastDetectedTime.UniversalTime, args->Code->Data->Length(), args->Code->Data);
+			CopyQRCodeDataManually(code, args.Code().SpatialGraphNodeId(), (int)args.Code().Version(), args.Code().PhysicalSideLength(), args.Code().LastDetectedTime().time_since_epoch().count(), args.Code().Data());
 			ObserverInstance->OnUpdatedQRCode(code);
 			if (code->Data != nullptr)
 			{
@@ -179,14 +177,14 @@ void QRCodeUpdateObserver::OnUpdated(QRCodeWatcher ^sender, QRCodeUpdatedEventAr
 	}
 }
 
-void QRCodeUpdateObserver::OnRemoved(QRCodeWatcher ^sender, QRCodeRemovedEventArgs^ args)
+void QRCodeUpdateObserver::OnRemoved(QRCodeWatcher sender, QRCodeRemovedEventArgs args)
 {
-	if ((args != nullptr) && (args->Code != nullptr))
+	if ((args != nullptr) && (args.Code() != nullptr))
 	{
 		QRCodeData* code = new QRCodeData;
 		if (code != nullptr)
 		{
-			CopyQRCodeDataManually(code, args->Code->SpatialGraphNodeId, (int)args->Code->Version, args->Code->PhysicalSideLength, args->Code->LastDetectedTime.UniversalTime, args->Code->Data->Length(), args->Code->Data);
+			CopyQRCodeDataManually(code, args.Code().SpatialGraphNodeId(), (int)args.Code().Version(), args.Code().PhysicalSideLength(), args.Code().LastDetectedTime().time_since_epoch().count(), args.Code().Data());
 			ObserverInstance->OnRemovedQRCode(code);
 			if (code->Data != nullptr)
 			{
@@ -226,22 +224,23 @@ void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(QRCod
 	{
 		if (QRCodeWatcher::IsSupported())
 		{
-			auto RequestTask = concurrency::create_task(QRCodeWatcher::RequestAccessAsync());
-			RequestTask.then([this](QRCodeWatcherAccessStatus AccessStatus)
+			QRCodeWatcher::RequestAccessAsync().Completed([=](auto&& asyncInfo, auto&&  asyncStatus) 
 			{
-				if (AccessStatus == QRCodeWatcherAccessStatus::Allowed)
+				if (asyncInfo.GetResults() == QRCodeWatcherAccessStatus::Allowed)
 				{
-					QRTrackerInstance = ref new QRCodeWatcher();
-					OnAddedEventToken = QRTrackerInstance->Added += ref new TypedEventHandler<QRCodeWatcher^, QRCodeAddedEventArgs^>(&OnAdded);
-					OnUpdatedEventToken = QRTrackerInstance->Updated += ref new TypedEventHandler<QRCodeWatcher^, QRCodeUpdatedEventArgs^>(&OnUpdated);
-					OnRemovedEventToken = QRTrackerInstance->Removed += ref new TypedEventHandler<QRCodeWatcher^, QRCodeRemovedEventArgs^>(&OnRemoved);
+					QRTrackerInstance = QRCodeWatcher();
+					OnAddedEventToken = QRTrackerInstance.Added([=](auto&& sender, auto&& args) { OnAdded(sender, args); });
+					OnUpdatedEventToken = QRTrackerInstance.Updated([=](auto&& sender, auto&& args) { OnUpdated(sender, args); });
+					OnRemovedEventToken = QRTrackerInstance.Removed([=](auto&& sender, auto&& args) { OnRemoved(sender, args); });
 
 					// Start the tracker
-					QRTrackerInstance->Start();
+					QRTrackerInstance.Start();
 					Log(L"Interop: StartQRCodeObserver() success!");
 				}
-
-				Log(L"Interop: StartQRCodeObserver() Access Denied!");
+				else
+				{
+					Log(L"Interop: StartQRCodeObserver() Access Denied!");
+				}
 			});
 		}
 	}
@@ -253,7 +252,7 @@ void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(QRCod
 
 #pragma warning(default:4691)
 
-void QRCodeUpdateObserver::UpdateCoordinateSystem(Windows::Perception::Spatial::SpatialCoordinateSystem^ InCoordinateSystem)
+void QRCodeUpdateObserver::UpdateCoordinateSystem(SpatialCoordinateSystem InCoordinateSystem)
 {
 	if (InCoordinateSystem == nullptr)
 	{
@@ -268,12 +267,12 @@ void QRCodeUpdateObserver::StopQRCodeObserver()
 	std::lock_guard<std::mutex> lock(QRCodeRefsLock);
 	if (QRTrackerInstance != nullptr)
 	{
-		QRTrackerInstance->Added -= OnAddedEventToken;
-		QRTrackerInstance->Updated -= OnUpdatedEventToken;
-		QRTrackerInstance->Removed -= OnRemovedEventToken;
+		QRTrackerInstance.Added(OnAddedEventToken);
+		QRTrackerInstance.Updated(OnUpdatedEventToken);
+		QRTrackerInstance.Removed(OnRemovedEventToken);
 
 		// Stop the tracker
-		QRTrackerInstance->Stop();
+		QRTrackerInstance.Stop();
 		QRTrackerInstance = nullptr;
 
 		Log(L"Interop: StopQRCodeObserver() success!");

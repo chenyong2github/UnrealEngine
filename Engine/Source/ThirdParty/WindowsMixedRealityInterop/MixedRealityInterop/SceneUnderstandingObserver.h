@@ -2,15 +2,17 @@
 
 #pragma once
 
-#include <Windows.Perception.Spatial.h>
-#include <Windows.Perception.Spatial.Surfaces.h>
+#include <winrt/Windows.Perception.Spatial.h>
+#include <winrt/Windows.Perception.Spatial.Surfaces.h>
+#include <winrt/Windows.Foundation.h>
 
-using namespace Windows::Perception::Spatial;
-using namespace Windows::Perception::Spatial::Surfaces;
+using namespace winrt::Windows::Perception::Spatial;
+using namespace winrt::Windows::Perception::Spatial::Surfaces;
 using namespace Platform;
 
 #if WITH_SCENE_UNDERSTANDING
-	using namespace Microsoft::MixedReality::SceneUnderstanding;
+	#include <winrt/Microsoft.MixedReality.SceneUnderstanding.h>
+	using namespace winrt::Microsoft::MixedReality::SceneUnderstanding;
 #endif
 
 /**
@@ -46,6 +48,10 @@ public:
 	void OnSceneUnderstandingUpdateComplete();
 #endif
 
+	void SetTrackingCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem cs)
+	{
+		TrackingSpaceCoordinateSystem = cs;
+	}
 private:
 	SceneUnderstandingObserver();
 	~SceneUnderstandingObserver();
@@ -74,22 +80,23 @@ private:
 	/** Whether scene understanding should generate scene meshes or not */
 	bool bWantsSceneMeshes = false;
 
-	Windows::Perception::Spatial::SpatialCoordinateSystem^ LastCoordinateSystem = nullptr;
+	winrt::Windows::Perception::Spatial::SpatialCoordinateSystem TrackingSpaceCoordinateSystem = nullptr;
+	winrt::Windows::Perception::Spatial::SpatialCoordinateSystem OriginCoordinateSystem = nullptr;
 
 	/** Copies the transform information to the update object in UE4 coordinate space */
-	void CopyTransform(TransformUpdate& Transform, Windows::Perception::Spatial::SpatialCoordinateSystem^ CoordSystem);
+	void CopyTransform(TransformUpdate& Transform, winrt::Windows::Foundation::Numerics::float4x4 offset);
 
 #if WITH_SCENE_UNDERSTANDING
 	/** Sets our query settings */
 	void InitSettings();
 	
 	/** Copies the mesh data to the UE4 array data */
-	void CopyMeshData(MeshUpdate& DestMesh, Array<float>^ Vertices, Array<unsigned int>^ Indices);
+	void CopyMeshData(MeshUpdate& DestMesh, const std::vector<winrt::Windows::Foundation::Numerics::float3>& Vertices, const std::vector<unsigned int>& Indices);
 
 	/** The scene understanding query settings that we'll use to observe the scene */
 	SceneQuerySettings Settings;
 	/** The last scene the observer returned to us */
-	Scene^ ObservedScene = nullptr;
+	Scene ObservedScene = nullptr;
 #endif
 	/** Whether we are running and requesting updates */
 	bool bIsRunning = false;

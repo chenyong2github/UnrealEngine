@@ -415,17 +415,17 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 		return;
 	}
 
-	UNiagaraDataInterfaceTexture* TexureDI = Cast<UNiagaraDataInterfaceTexture>(OverrideParameters.GetDataInterface(Index));
-	if (!TexureDI)
+	UNiagaraDataInterfaceTexture* TextureDI = Cast<UNiagaraDataInterfaceTexture>(OverrideParameters.GetDataInterface(Index));
+	if (!TextureDI)
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Texture Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
 		return;
 	}
 
 #if WITH_EDITOR
-	NiagaraSystem->SetParameterValueOverriddenLocally(Variable, true, false);
+	NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
 #endif
-	TexureDI->SetTexture(Texture);
+	TextureDI->SetTexture(Texture);
 }
 
 void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UVolumeTexture* Texture)
@@ -453,17 +453,17 @@ void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraS
 		return;
 	}
 
-	UNiagaraDataInterfaceVolumeTexture* TexureDI = Cast<UNiagaraDataInterfaceVolumeTexture>(OverrideParameters.GetDataInterface(Index));
-	if (!TexureDI)
+	UNiagaraDataInterfaceVolumeTexture* TextureDI = Cast<UNiagaraDataInterfaceVolumeTexture>(OverrideParameters.GetDataInterface(Index));
+	if (!TextureDI)
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Volume Texture Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
 		return;
 	}
 
 #if WITH_EDITOR
-	NiagaraSystem->SetParameterValueOverriddenLocally(Variable, true, false);
+	NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
 #endif
-	TexureDI->SetTexture(Texture);
+	TextureDI->SetTexture(Texture);
 }
 
 UNiagaraParameterCollectionInstance* UNiagaraFunctionLibrary::GetNiagaraParameterCollection(UObject* WorldContextObject, UNiagaraParameterCollection* Collection)

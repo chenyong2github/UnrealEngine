@@ -156,11 +156,6 @@ void UMoviePipeline::SetupRenderingPipelineForShot(FMoviePipelineShotInfo& Shot)
 		NumOutputPasses++;
 	}
 
-	if (OutputSettings->bHidePreview)
-	{
-		GetWorld()->GetGameViewport()->bDisableWorldRendering = true;
-	}
-
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Engine Passes and %d Output Passes."), ActiveRenderPasses.Num(), NumOutputPasses);
 }
 
@@ -231,7 +226,10 @@ void UMoviePipeline::RenderFrame()
 
 	int32 NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
 	int32 NumTemporalSamples = AntiAliasingSettings->TemporalSampleCount;
-	ensure(TileCount.X > 0 && TileCount .Y> 0 && NumSpatialSamples > 0);
+	if (!ensureAlways(TileCount.X > 0 && TileCount.Y > 0 && NumSpatialSamples > 0 && NumTemporalSamples > 0))
+	{
+		return;
+	}
 
 	FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
 	FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;

@@ -26,8 +26,8 @@ bool FConcertActivityStream::Read(TArray<TSharedPtr<FConcertClientSessionActivit
 	if (!OutErrorMsg.IsEmpty())
 	{
 		OutReadCount = 0;
-		LastErrorMsg = FText();
-		return false; // Not done yet. This allow the caller to deal with the error and decide to continue or not. He will most likely abort, but lets him decide.
+		bAllActivitiesFetched = true;
+		return true; // Done? When an error occurs, the stream is in a unknown state, consider the streaming done.
 	}
 
 	if (!bAllActivitiesFetched)

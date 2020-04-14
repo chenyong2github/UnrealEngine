@@ -178,8 +178,8 @@ FPaperRenderSceneProxy::FPaperRenderSceneProxy(const UPrimitiveComponent* InComp
 {
 	SetWireframeColor(FLinearColor::White);
 
-	bDrawTwoSided = CVarDrawSpritesAsTwoSided.GetValueOnGameThread() != 0;
-	bSpritesUseVertexBufferPath = CVarDrawSpritesUsingPrebuiltVertexBuffers.GetValueOnGameThread() != 0;
+	bDrawTwoSided = CVarDrawSpritesAsTwoSided.GetValueOnAnyThread() != 0;
+	bSpritesUseVertexBufferPath = CVarDrawSpritesUsingPrebuiltVertexBuffers.GetValueOnAnyThread() != 0;
 }
 
 SIZE_T FPaperRenderSceneProxy::GetTypeHash() const

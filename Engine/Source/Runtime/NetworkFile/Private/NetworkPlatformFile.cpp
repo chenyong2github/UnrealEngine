@@ -15,6 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "DerivedDataCacheInterface.h"
 #include "Misc/PackageName.h"
+#include "SocketSubsystem.h"
 
 #if ENABLE_HTTP_FOR_NETWORK_FILE
 #include "HTTPTransport.h"
@@ -221,7 +222,7 @@ void FNetworkPlatformFile::InitializeAfterSetActive()
 			InnerPlatformFile->DeleteFile(*TestSyncFile);
 			if (InnerPlatformFile->FileExists(*TestSyncFile))
 			{
-				UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Could not delete file sync test file %s."), *TestSyncFile);
+				UE_LOG(LogNetworkPlatformFile, Error, TEXT("Could not delete file sync test file %s."), *TestSyncFile);
 			}
 
 			EnsureFileIsLocal(TestSyncFile);
@@ -815,6 +816,15 @@ void FNetworkPlatformFile::FillGetFileList(FNetworkFileArchive& Payload)
 
 	FString VersionInfo = GetVersionInfo();
 	Payload << VersionInfo;
+
+	bool bBindAllDummy;
+	TSharedRef<FInternetAddr> HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, bBindAllDummy);
+	FString HostAddress = HostAddr->ToString(false);
+	Payload << HostAddress;
+
+	TMap<FString,FString> CustomPlatformData;
+	FPlatformMisc::GetNetworkFileCustomData(CustomPlatformData);
+	Payload << CustomPlatformData;
 }
 
 void FNetworkPlatformFile::ProcessServerInitialResponse(FArrayReader& InResponse, int32& OutServerPackageVersion, int32& OutServerPackageLicenseeVersion)
@@ -955,58 +965,63 @@ public:
 		*FileArchive << FileSize;
 		if (ServerTimeStamp != FDateTime::MinValue())  // if the file didn't actually exist on the server, don't create a zero byte file
 		{
-			FString TempFilename = Filename + TEXT(".tmp");
-			InnerPlatformFile.CreateDirectoryTree(*FPaths::GetPath(Filename));
+			// -1 filesize means that we already copied it via TargetPlatform
+			if (FileSize != MAX_uint64)
 			{
-				TUniquePtr<IFileHandle> FileHandle;
-				FileHandle.Reset(InnerPlatformFile.OpenWrite(*TempFilename));
-
-				if (!FileHandle)
+				FString TempFilename = Filename + TEXT(".tmp");
+				InnerPlatformFile.CreateDirectoryTree(*FPaths::GetPath(Filename));
 				{
-					UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Could not open file for writing '%s'."), *TempFilename);
-				}
+					TUniquePtr<IFileHandle> FileHandle;
+					FileHandle.Reset(InnerPlatformFile.OpenWrite(*TempFilename));
 
-				// now write the file from bytes pulled from the archive
-				// read/write a chunk at a time
-				uint64 RemainingData = FileSize;
-				while (RemainingData)
-				{
-					// read next chunk from archive
-					uint32 LocalSize = FPlatformMath::Min<uint32>(UE_ARRAY_COUNT(Buffer), RemainingData);
-					FileArchive->Serialize(Buffer, LocalSize);
-					// write it out
-					if (!FileHandle->Write(Buffer, LocalSize))
+					if (!FileHandle)
 					{
-						UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Could not write '%s'."), *TempFilename);
+						UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Could not open file for writing '%s'."), *TempFilename);
 					}
 
-					// decrement how much is left
-					RemainingData -= LocalSize;
+					// now write the file from bytes pulled from the archive
+					// read/write a chunk at a time
+					uint64 RemainingData = FileSize;
+					while (RemainingData)
+					{
+						// read next chunk from archive
+						uint32 LocalSize = FPlatformMath::Min<uint32>(UE_ARRAY_COUNT(Buffer), RemainingData);
+						FileArchive->Serialize(Buffer, LocalSize);
+						// write it out
+						if (!FileHandle->Write(Buffer, LocalSize))
+						{
+							UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Could not write '%s'."), *TempFilename);
+						}
+
+						// decrement how much is left
+						RemainingData -= LocalSize;
+					}
+
+					// delete async write archives
+					if (Event)
+					{
+						delete FileArchive;
+					}
+
+					if (InnerPlatformFile.FileSize(*TempFilename) != FileSize)
+					{
+						UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Did not write '%s'."), *TempFilename);
+					}
 				}
 
-				// delete async write archives
-				if (Event)
-				{
-					delete FileArchive;
-				}
+				// rename from temp filename to real filename
+				InnerPlatformFile.MoveFile(*Filename, *TempFilename);
 
-				if (InnerPlatformFile.FileSize(*TempFilename) != FileSize)
-				{
-					UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Did not write '%s'."), *TempFilename);
-				}
+				// now set the server's timestamp on the local file (so we can make valid comparisons)
+				InnerPlatformFile.SetTimeStamp(*Filename, ServerTimeStamp);
+
+			    FDateTime CheckTime = InnerPlatformFile.GetTimeStamp(*Filename);
+			    if (CheckTime < ServerTimeStamp)
+			    {
+				    UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Could Not Set Timestamp '%s'  %s < %s."), *Filename, *CheckTime.ToString(), *ServerTimeStamp.ToString());
+			    }
 			}
 
-			// rename from temp filename to real filename
-			InnerPlatformFile.MoveFile(*Filename, *TempFilename);
-
-			// now set the server's timestamp on the local file (so we can make valid comparisons)
-			InnerPlatformFile.SetTimeStamp(*Filename, ServerTimeStamp);
-
-			FDateTime CheckTime = InnerPlatformFile.GetTimeStamp(*Filename);
-			if (CheckTime < ServerTimeStamp)
-			{
-				UE_LOG(LogNetworkPlatformFile, Fatal, TEXT("Could Not Set Timestamp '%s'  %s < %s."), *Filename, *CheckTime.ToString(), *ServerTimeStamp.ToString());
-			}
 		}
 		if (Event)
 		{

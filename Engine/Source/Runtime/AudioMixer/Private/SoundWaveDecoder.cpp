@@ -238,7 +238,7 @@ namespace Audio
 			return;
 		}
 
-		const int32 NextSampleIndex = (SourceInfo.CurrentFrameIndex + 1)  * SourceInfo.NumSourceChannels;
+		const int32 NextSampleIndex = (SourceInfo.CurrentFrameIndex + 1) * SourceInfo.NumSourceChannels;
 
 		if (bReadCurrentFrame)
 		{

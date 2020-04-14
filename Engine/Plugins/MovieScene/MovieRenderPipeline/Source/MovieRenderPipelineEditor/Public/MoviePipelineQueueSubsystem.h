@@ -58,6 +58,7 @@ public:
 private:
 	/** Called when the executor is finished so that we can release it and stop reporting IsRendering() == true. */
 	void OnExecutorFinished(UMoviePipelineExecutorBase* InPipelineExecutor, bool bSuccess);
+	void OnSequencerContextBinding(bool& bAllowBinding);
 
 private:
 	UPROPERTY(Transient)

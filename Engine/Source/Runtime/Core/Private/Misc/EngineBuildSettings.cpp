@@ -6,7 +6,7 @@
 
 bool FEngineBuildSettings::IsInternalBuild()
 {
-	static bool bIsInternalBuild = FPaths::FileExists( FPaths::EngineDir() / TEXT("Build/NotForLicensees/EpicInternal.txt") );
+	static bool bIsInternalBuild = FPaths::FileExists( FPaths::EngineDir() / TEXT("Restricted/NotForLicensees/Build/EpicInternal.txt") );
 	return bIsInternalBuild;
 }
 

@@ -11,12 +11,13 @@
 #include "PhysicsPublic.h"
 #include "PhysInterface_Chaos.h"
 #include "Physics/PhysicsInterfaceUtils.h"
-#include "Chaos/Transform.h"
-#include "Chaos/ArrayCollectionArray.h"
+
+//Chaos includes. Todo: move to chaos core so we can include for all of engine
 #include "Chaos/Declares.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "Framework/Threading.h"
-#include "Chaos/PBDCollisionConstraints.h"
+#include "Chaos/Core.h"
+#include "Chaos/CollisionResolutionTypes.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
@@ -62,6 +63,10 @@ namespace Chaos
 	class ISpatialAccelerationCollection;
 
 	class IDispatcher;
+
+	template <typename T>
+	class TArrayCollectionArray;
+
 }
 
 /**
@@ -417,7 +422,7 @@ public:
 	ENGINE_API bool ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 	ENGINE_API bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 
-	ENGINE_API static Chaos::TCollisionModifierCallback<float, 3> CollisionModifierCallback;
+	ENGINE_API static Chaos::FCollisionModifierCallback CollisionModifierCallback;
 
 #if XGE_FIXED
 	template<typename PayloadType>
@@ -507,7 +512,7 @@ private:
 
 	float MDeltaTime;
 	//Body Instances
-	Chaos::TArrayCollectionArray<FBodyInstance*> BodyInstances;
+	TUniquePtr<Chaos::TArrayCollectionArray<FBodyInstance*>> BodyInstances;
 	// Temp Interface
 	UWorld* MOwningWorld;
 	TArray<FCollisionNotifyInfo> MNotifies;

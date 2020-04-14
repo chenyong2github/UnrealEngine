@@ -239,6 +239,9 @@ struct FVectorVMCodeOptimizerContext
 	{
 		BaseContext.PrepareForExec(0, 0, nullptr, nullptr, nullptr, nullptr, TArrayView<FDataSetMeta>(), 0, false);
 		BaseContext.PrepareForChunk(ByteCode, 0, 0);
+
+		// write out a jump table offset that we'll fill in when the table is encoded (EncodeJumpTable())
+		Write<uint32>(0);
 	}
 	FVectorVMCodeOptimizerContext(const FVectorVMCodeOptimizerContext&) = delete;
 	FVectorVMCodeOptimizerContext(const FVectorVMCodeOptimizerContext&&) = delete;
@@ -256,6 +259,13 @@ struct FVectorVMCodeOptimizerContext
 	void Write(const T& v)
 	{
 		reinterpret_cast<T&>(OptimizedCode[OptimizedCode.AddUninitialized(sizeof(T))]) = v;
+	}
+
+	void WriteExecFunction(const FVectorVMExecFunction& Function)
+	{
+		const int32 JumpTableIndex = JumpTable.AddUnique(Function);
+		check(JumpTableIndex <= TNumericLimits<uint8>::Max());
+		Write<uint8>(JumpTableIndex);
 	}
 
 	struct FOptimizerCodeState
@@ -279,8 +289,44 @@ struct FVectorVMCodeOptimizerContext
 		OptimizedCode.SetNum(State.OptimizedCodeLength, false /* allowShrink */);
 	}
 
+	// Jump table is encoded at the end of the optimized code, with the first int32 in the byte code
+	// stream being the start offset
+
+	static const FVectorVMExecFunction* DecodeJumpTable(const uint8*& OptimizedByteCode)
+	{
+		const uint32 JumpTableOffset = *reinterpret_cast<const uint32*>(OptimizedByteCode);
+		const FVectorVMExecFunction* JumpTable = reinterpret_cast<const FVectorVMExecFunction*>(OptimizedByteCode + JumpTableOffset);
+
+		OptimizedByteCode += sizeof(uint32);
+
+		return JumpTable;
+	}
+
+	void EncodeJumpTable()
+	{
+		const int32 JumpTableCount = JumpTable.Num();
+		check(JumpTableCount > 0);
+		check(JumpTableCount <= TNumericLimits<uint8>::Max());
+
+		if (JumpTableCount <= 0 || JumpTableCount > TNumericLimits<uint8>::Max())
+		{
+			// if the jump table is too big, then clear out the OptimizedCode and we'll just have to run the unoptimized path
+			OptimizedCode.Reset();
+			return;
+		}
+
+		// write the offset to the jump table into the reserved slot
+		const uint32 JumpTableOffset = OptimizedCode.Num();
+		*reinterpret_cast<uint32*>(OptimizedCode.GetData()) = JumpTableOffset;
+
+		const int32 JumpTableSize = JumpTableCount * sizeof(FVectorVMExecFunction);
+		OptimizedCode.AddUninitialized(JumpTableSize);
+		FMemory::Memcpy(OptimizedCode.GetData() + JumpTableOffset, JumpTable.GetData(), JumpTableSize);
+	}
+
 	FVectorVMContext&		BaseContext;
 	TArray<uint8>&			OptimizedCode;
+	TArray<FVectorVMExecFunction, TInlineAllocator<256>> JumpTable;
 	const TArrayView<uint8>	ExternalFunctionRegisterCounts;
 	const int32				StartInstance = 0;
 };
@@ -532,7 +578,7 @@ struct TUnaryKernelHandler
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Arg0Handler::Optimize(Context);
 		DstHandler::Optimize(Context);
 	}
@@ -555,7 +601,7 @@ struct TBinaryKernelHandler
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Arg0Handler::Optimize(Context);
 		Arg1Handler::Optimize(Context);
 		DstHandler::Optimize(Context);
@@ -581,7 +627,7 @@ struct TTrinaryKernelHandler
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Arg0Handler::Optimize(Context);
 		Arg1Handler::Optimize(Context);
 		Arg2Handler::Optimize(Context);
@@ -1074,7 +1120,7 @@ struct FVectorKernelExecutionIndex
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		FRegisterHandler<VectorRegisterInt>::Optimize(Context);
 	}
 
@@ -1099,7 +1145,7 @@ struct FVectorKernelEnterStatScope
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
 #if STATS
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		FConstantHandler<int32>::Optimize(Context);
 #else
 		// just skip the op if we don't have stats enabled
@@ -1125,7 +1171,7 @@ struct FVectorKernelExitStatScope
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
 #if STATS
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 #endif
 	}
 		
@@ -1416,7 +1462,7 @@ struct FScalarKernelAcquireID
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Context.Write(Context.DecodeU16());		// DataSetIndex
 		Context.Write(Context.DecodeU16());		// IDIndexReg
 		Context.Write(Context.DecodeU16());		// IDTagReg
@@ -1473,7 +1519,7 @@ struct FScalarKernelUpdateID
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Context.Write(Context.DecodeU16());		// DataSetIndex
 		Context.Write(Context.DecodeU16());		// InstanceIDRegisterIndex
 		Context.Write(Context.DecodeU16());		// InstanceIndexRegisterIndex
@@ -1532,7 +1578,7 @@ struct FVectorKernelReadInput
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Context.Write(Context.DecodeU16());	// DataSetIndex
 		Context.Write(Context.DecodeU16());	// InputRegisterIdx
 		Context.Write(Context.DecodeU16());	// DestRegisterIdx
@@ -1566,7 +1612,7 @@ struct FVectorKernelReadInput<FFloat16, 2>
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Context.Write(Context.DecodeU16());	// DataSetIndex
 		Context.Write(Context.DecodeU16());	// InputRegisterIdx
 		Context.Write(Context.DecodeU16());	// DestRegisterIdx
@@ -1611,7 +1657,7 @@ struct FVectorKernelReadInputNoAdvance
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Context.Write(Context.DecodeU16());	// DataSetIndex
 		Context.Write(Context.DecodeU16());	// InputRegisterIdx
 		Context.Write(Context.DecodeU16());	// DestRegisterIdx
@@ -1643,7 +1689,7 @@ struct FVectorKernelReadInputNoAdvance<FFloat16, 2>
 {
 	static void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Context.Write(Context.DecodeU16());	// DataSetIndex
 		Context.Write(Context.DecodeU16());	// InputRegisterIdx
 		Context.Write(Context.DecodeU16());	// DestRegisterIdx
@@ -1700,8 +1746,8 @@ struct FScalarKernelWriteOutputIndexed
 		const uint32 SrcOpTypes = Context.BaseContext.DecodeSrcOperandTypes();
 		switch (SrcOpTypes)
 		{
-			case SRCOP_RRR: Context.Write<FVectorVMExecFunction>(DoKernel<FRegisterHandler<SourceType>>); break;
-			case SRCOP_RRC:	Context.Write<FVectorVMExecFunction>(DoKernel<FConstantHandler<SourceType>>); break;
+			case SRCOP_RRR: Context.WriteExecFunction(DoKernel<FRegisterHandler<SourceType>>); break;
+			case SRCOP_RRC:	Context.WriteExecFunction(DoKernel<FConstantHandler<SourceType>>); break;
 			default: check(0); break;
 		};
 
@@ -1759,8 +1805,8 @@ struct FScalarKernelWriteOutputIndexed<float, FFloat16, 2>
 		const uint32 SrcOpTypes = Context.BaseContext.DecodeSrcOperandTypes();
 		switch (SrcOpTypes)
 		{
-		case SRCOP_RRR: Context.Write<FVectorVMExecFunction>(DoKernel<FRegisterHandler<float>>); break;
-		case SRCOP_RRC:	Context.Write<FVectorVMExecFunction>(DoKernel<FConstantHandler<float>>); break;
+		case SRCOP_RRR: Context.WriteExecFunction(DoKernel<FRegisterHandler<float>>); break;
+		case SRCOP_RRC:	Context.WriteExecFunction(DoKernel<FConstantHandler<float>>); break;
 		default: check(0); break;
 		};
 
@@ -1885,8 +1931,8 @@ struct FScalarKernelAcquireCounterIndex
 		const uint32 SrcOpType = Context.BaseContext.DecodeSrcOperandTypes();
 		switch (SrcOpType)
 		{
-			case SRCOP_RRR: Context.Write<FVectorVMExecFunction>(FScalarKernelAcquireCounterIndex::ExecOptimized<SRCOP_RRR>); break;
-			case SRCOP_RRC: Context.Write<FVectorVMExecFunction>(FScalarKernelAcquireCounterIndex::ExecOptimized<SRCOP_RRC>); break;
+			case SRCOP_RRR: Context.WriteExecFunction(FScalarKernelAcquireCounterIndex::ExecOptimized<SRCOP_RRR>); break;
+			case SRCOP_RRC: Context.WriteExecFunction(FScalarKernelAcquireCounterIndex::ExecOptimized<SRCOP_RRC>); break;
 			default: check(0); break;
 		}
 
@@ -1938,7 +1984,7 @@ struct FKernelExternalFunctionCall
 	{
 		const uint32 ExternalFuncIdx = Context.DecodeU8();
 
-		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.WriteExecFunction(Exec);
 		Context.Write<uint8>(ExternalFuncIdx);
 
 		const int32 NumRegisters = Context.ExternalFunctionRegisterCounts[ExternalFuncIdx];
@@ -2427,6 +2473,8 @@ void VectorVM::Exec(
 	const bool bParallel = NumBatches > 1;
 	const bool bUseOptimizedByteCode = (OptimizedByteCode != nullptr) && GbUseOptimizedVMByteCode;
 
+	const FVectorVMExecFunction* OptimizedJumpTable = bUseOptimizedByteCode ? FVectorVMCodeOptimizerContext::DecodeJumpTable(OptimizedByteCode) : nullptr;
+
 	auto ExecChunkBatch = [&](int32 BatchIdx)
 	{
 		//SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
@@ -2455,7 +2503,7 @@ void VectorVM::Exec(
 
 				while (true)
 				{
-					FVectorVMExecFunction ExecFunction = reinterpret_cast<FVectorVMExecFunction>(Context.DecodePtr());
+					FVectorVMExecFunction ExecFunction = OptimizedJumpTable[Context.DecodeU8()];
 					if (ExecFunction == nullptr)
 					{
 						break;
@@ -2651,7 +2699,7 @@ void ConditionalAddOutputWrapper(FVectorVMCodeOptimizerContext& Context, bool& O
 {
 	if (!OuterAdded)
 	{
-		Context.Write<FVectorVMExecFunction>(ExecBatchedOutput);
+		Context.WriteExecFunction(ExecBatchedOutput);
 		OuterAdded = true;
 	}
 }
@@ -2698,7 +2746,7 @@ EVectorVMOp BatchedOutputOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerCont
 
 	if (OuterAdded)
 	{
-		Context.Write<FVectorVMExecFunction>(nullptr);
+		Context.WriteExecFunction(nullptr);
 	}
 	return Op;
 }
@@ -2821,8 +2869,8 @@ struct FBatchedWriteIndexedOutput
 
 		switch (SrcOpType)
 		{
-		case SRCOP_RRR: Context.Write<FVectorVMExecFunction>(IndexExecOptimized<SRCOP_RRR>); break;
-		case SRCOP_RRC: Context.Write<FVectorVMExecFunction>(IndexExecOptimized<SRCOP_RRC>); break;
+		case SRCOP_RRR: Context.WriteExecFunction(IndexExecOptimized<SRCOP_RRR>); break;
+		case SRCOP_RRC: Context.WriteExecFunction(IndexExecOptimized<SRCOP_RRC>); break;
 		default: check(0); break;
 		}
 
@@ -3194,9 +3242,9 @@ struct FBatchedWriteIndexedOutput
 			{
 				switch (BatchEntry.Key.Op)
 				{
-				case EVectorVMOp::outputdata_float: Context.Write<FVectorVMExecFunction>(CopyConstantToOutput<float, float, 0>); break;
-				case EVectorVMOp::outputdata_int32: Context.Write<FVectorVMExecFunction>(CopyConstantToOutput<int32, int32, 1>); break;
-				case EVectorVMOp::outputdata_half: Context.Write<FVectorVMExecFunction>(CopyConstantToOutput<float, FFloat16, 2>); break;
+				case EVectorVMOp::outputdata_float: Context.WriteExecFunction(CopyConstantToOutput<float, float, 0>); break;
+				case EVectorVMOp::outputdata_int32: Context.WriteExecFunction(CopyConstantToOutput<int32, int32, 1>); break;
+				case EVectorVMOp::outputdata_half: Context.WriteExecFunction(CopyConstantToOutput<float, FFloat16, 2>); break;
 				default: check(0);
 				}
 			}
@@ -3204,9 +3252,9 @@ struct FBatchedWriteIndexedOutput
 			{
 				switch (BatchEntry.Key.Op)
 				{
-				case EVectorVMOp::outputdata_float: Context.Write<FVectorVMExecFunction>(CopyRegisterToOutput<float, float, 0>); break;
-				case EVectorVMOp::outputdata_int32: Context.Write<FVectorVMExecFunction>(CopyRegisterToOutput<int32, int32, 1>); break;
-				case EVectorVMOp::outputdata_half: Context.Write<FVectorVMExecFunction>(CopyRegisterToOutput<float, FFloat16, 2>); break;
+				case EVectorVMOp::outputdata_float: Context.WriteExecFunction(CopyRegisterToOutput<float, float, 0>); break;
+				case EVectorVMOp::outputdata_int32: Context.WriteExecFunction(CopyRegisterToOutput<int32, int32, 1>); break;
+				case EVectorVMOp::outputdata_half: Context.WriteExecFunction(CopyRegisterToOutput<float, FFloat16, 2>); break;
 				default: check(0);
 				}
 			}
@@ -3215,9 +3263,9 @@ struct FBatchedWriteIndexedOutput
 				check(BatchEntry.Key.SrcOpType == SRCOP_RRR);
 				switch (BatchEntry.Key.Op)
 				{
-				case EVectorVMOp::outputdata_float: Context.Write<FVectorVMExecFunction>(ShuffleRegisterToOutput<int32, int32, 0>); break;
-				case EVectorVMOp::outputdata_int32: Context.Write<FVectorVMExecFunction>(ShuffleRegisterToOutput<int32, int32, 1>); break;
-				case EVectorVMOp::outputdata_half: Context.Write<FVectorVMExecFunction>(ShuffleRegisterToOutput<float, FFloat16, 2>); break;
+				case EVectorVMOp::outputdata_float: Context.WriteExecFunction(ShuffleRegisterToOutput<int32, int32, 0>); break;
+				case EVectorVMOp::outputdata_int32: Context.WriteExecFunction(ShuffleRegisterToOutput<int32, int32, 1>); break;
+				case EVectorVMOp::outputdata_half: Context.WriteExecFunction(ShuffleRegisterToOutput<float, FFloat16, 2>); break;
 				default: check(0);
 				}
 			}
@@ -3355,7 +3403,7 @@ void ConditionalAddInputWrapper(FVectorVMCodeOptimizerContext& Context, bool& Ou
 {
 	if (!OuterAdded)
 	{
-		Context.Write<FVectorVMExecFunction>(ExecBatchedInput);
+		Context.WriteExecFunction(ExecBatchedInput);
 		OuterAdded = true;
 	}
 }
@@ -3402,7 +3450,7 @@ EVectorVMOp BatchedInputOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerConte
 
 	if (OuterAdded)
 	{
-		Context.Write<FVectorVMExecFunction>(nullptr);
+		Context.WriteExecFunction(nullptr);
 	}
 	return Op;
 }
@@ -3575,7 +3623,9 @@ void VectorVM::OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedC
 				return;//BAIL
 		}
 	} while (Op != EVectorVMOp::done);
-	Context.Write<FVectorVMExecFunction>(nullptr);
+	Context.WriteExecFunction(nullptr);
+
+	Context.EncodeJumpTable();
 #endif //PLATFORM_SUPPORTS_UNALIGNED_LOADS && PLATFORM_LITTLE_ENDIAN
 }
 

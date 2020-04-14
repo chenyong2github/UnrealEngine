@@ -487,8 +487,13 @@ void FDocumentTracker::OnTabForegrounded(TSharedPtr<SDockTab> ForegroundedTab, T
 	}
 
 	TSharedPtr<FGenericTabHistory> CurrentTabHistory = GetCurrentTabHistory();
+	TSharedPtr<FGenericTabHistory> NewTabHistory;
+	if (NewTabInfo.IsValid())
+	{
+		NewTabHistory = NewTabInfo->GetCurrentHistory();
+	}
 
-	if ( ForegroundFactory.IsValid() && NewTabInfo.IsValid() && NewTabInfo->GetCurrentHistory() != CurrentTabHistory )
+	if ( ForegroundFactory.IsValid() && NewTabHistory.IsValid() && NewTabHistory->IsHistoryValid() && NewTabHistory != CurrentTabHistory )
 	{
 		// If a tab was manually foregrounded, need to add tab history
 		NewTabInfo->AddTabHistory(ForegroundFactory->CreateTabHistoryNode(NewTabInfo->GetPayload()), true);
@@ -567,8 +572,14 @@ TSharedPtr<SDockTab> FDocumentTracker::OpenDocument(TSharedPtr<FTabPayload> InPa
 		TSharedPtr<FTabInfo> LastEditedTabInfo = GetLastEditedTabInfo();
 		if(LastEditedTabInfo.IsValid() && LastEditedTabInfo->PayloadMatches(InPayload))
 		{
-			LastEditedTabInfo->AddTabHistory(Factory->CreateTabHistoryNode(InPayload), true);
-			return LastEditedTabInfo->GetTab().Pin();
+			TSharedPtr<SDockTab> Tab = LastEditedTabInfo->GetTab().Pin();
+			if (Tab.IsValid())
+			{
+				LastEditedTabInfo->AddTabHistory(Factory->CreateTabHistoryNode(InPayload), true);
+				// Ensure that the tab appears if the tab isn't currently in the foreground.
+				Tab->ActivateInParent(ETabActivationCause::SetDirectly);
+			}
+			return Tab;
 		}
 		else
 		{

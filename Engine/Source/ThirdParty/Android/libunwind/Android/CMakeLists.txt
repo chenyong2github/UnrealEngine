@@ -160,7 +160,7 @@ set(libunwind_arm64_source
     ${SOURCE_ROOT}/src/elf64.c
 )
 
-set(libunwind_x64_source
+set(libunwind_x86_source
     ${SOURCE_ROOT}/src/x86/is_fpreg.c
     ${SOURCE_ROOT}/src/x86/regname.c
     ${SOURCE_ROOT}/src/x86/Gcreate_addr_space.c

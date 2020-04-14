@@ -1724,9 +1724,10 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 
 		// We may need to do additional simplification if the user specified a hard number limit for verts and
 		// the internal chunking during conversion split some verts.
-		if (bUseMaxVertexCriterion && OutSkeletalMeshLODModel.NumVertices > OriginalMaxNumVertsSetting && OutSkeletalMeshLODModel.NumVertices > 6)
+		if ((bUseMaxVertexCriterion || bUseVertexPercentCriterion) && OutSkeletalMeshLODModel.NumVertices > OriginalMaxNumVertsSetting && OutSkeletalMeshLODModel.NumVertices > 6)
 		{
-			const bool bTerminatedOnVertCount = (Settings.TerminationCriterion == SMTC_AbsNumOfVerts) ||
+			const bool bTerminatedOnVertCount = ((Settings.TerminationCriterion == SMTC_NumOfVerts || Settings.TerminationCriterion == SMTC_TriangleOrVert) && (OutSkeletalMeshLODModel.NumVertices > OriginalMaxNumVertsSetting)) ||
+												(Settings.TerminationCriterion == SMTC_AbsNumOfVerts) ||
 				                                (Settings.TerminationCriterion == SMTC_AbsTriangleOrVert && !((uint32)SkinnedSkeletalMesh.NumIndices() / (uint32)3 <= Settings.MaxNumOfTriangles));
 			  
 			if (bTerminatedOnVertCount)
@@ -1889,6 +1890,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	};
 
 	FString BackupLodModelBuildStringID = TEXT("");
+	FString BackupRawSkeletalMeshBulkDataID = TEXT("");
 
 	// Unbind any existing clothing assets before we reimport the geometry
 	TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
@@ -1898,6 +1900,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		FLODUtilities::UnbindClothingAndBackup(&SkeletalMesh, ClothingBindings, LODIndex);
 		//We have to put back the exact UserSectionsData to not invalidate the DDC key
 		BackupLodModelBuildStringID = SkeletalMeshResource.LODModels[LODIndex].BuildStringID;
+		BackupRawSkeletalMeshBulkDataID = SkeletalMeshResource.LODModels[LODIndex].RawSkeletalMeshBulkDataID;
 	}
 
 	bool bReducingSourceModel = false;
@@ -2092,6 +2095,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 				ImportedModelLOD.SyncronizeUserSectionsDataArray();
 				//If its an existing LOD put back the buildStringID
 				ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
+				ImportedModelLOD.RawSkeletalMeshBulkDataID = BackupRawSkeletalMeshBulkDataID;
 			}
 		}
 	}

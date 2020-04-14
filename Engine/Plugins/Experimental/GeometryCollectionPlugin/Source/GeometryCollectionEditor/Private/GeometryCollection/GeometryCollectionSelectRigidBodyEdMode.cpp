@@ -12,6 +12,7 @@
 #include "EditorViewportClient.h"
 #include "EngineUtils.h"
 #include "PropertyHandle.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionSelectRigidBodyEdMode, Log, All);
 

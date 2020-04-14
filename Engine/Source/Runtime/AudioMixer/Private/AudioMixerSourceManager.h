@@ -9,6 +9,7 @@
 #include "AudioMixerBuffer.h"
 #include "AudioMixerSubmix.h"
 #include "AudioMixerBus.h"
+#include "AudioMixerDevice.h"
 #include "DSP/InterpolatedOnePole.h"
 #include "DSP/Filter.h"
 #include "DSP/InterpolatedOnePole.h"
@@ -41,8 +42,6 @@ namespace Audio
 		bool bRealTimeBuffer = false;
 	};
 
-	typedef TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmixPtr;
-	typedef TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmixWeakPtr;
 
 	class ISourceListener
 	{
@@ -371,12 +370,9 @@ namespace Audio
 			Audio::AlignedFloatBuffer ReverbPluginOutputBuffer;
 			Audio::AlignedFloatBuffer* PostEffectBuffers;
 
-			// Data needed for outputting to submixes for the default channel configuration for the output device.
+			// Data needed for outputting to submixes for each channel configuration.
 			FSubmixChannelData DeviceSubmixInfo;
-
-			// Whether this source's output is being sent to a device submix (i.e. a USoundSubmix).
-			bool bIsSourceBeingSentToDeviceSubmix;
-
+			
 			TMap<FSoundfieldEncodingKey, FSubmixSoundfieldData> EncodedSoundfieldDownmixes;
 			TArray<Audio::FChannelPositionInfo> InputChannelPositions;
 
@@ -392,7 +388,6 @@ namespace Audio
 				: SourceRotation(FQuat::Identity)
 				, PostEffectBuffers(nullptr)
 				, DeviceSubmixInfo(FSubmixChannelData(SourceNumChannels, NumDeviceOutputChannels, InNumFrames))
-				, bIsSourceBeingSentToDeviceSubmix(false)
 				, NumInputChannels(SourceNumChannels)
 				, NumFrames(InNumFrames)
 				, NumDeviceChannels(NumDeviceOutputChannels)
@@ -408,7 +403,6 @@ namespace Audio
 
 			void ResetData(const uint32 InNumInputChannels, int32 InNumDeviceChannels)
 			{
-				bIsSourceBeingSentToDeviceSubmix = false;
 				NumDeviceChannels = InNumDeviceChannels;
 				NumInputChannels = InNumInputChannels;
 				PostEffectBuffers = nullptr;
@@ -417,8 +411,6 @@ namespace Audio
 				EncodedSoundfieldDownmixes.Reset();
 				AmbisonicsDecoder.Reset();
 				bIsInitialDownmix = true;
-
-				PositionalData.Rotation = FQuat::Identity;
 			}
 		};
 

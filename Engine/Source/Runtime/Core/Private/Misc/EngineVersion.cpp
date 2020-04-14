@@ -100,6 +100,11 @@ void FEngineVersion::Empty()
 	Set(0, 0, 0, 0, FString());
 }
 
+bool FEngineVersion::ExactMatch(const FEngineVersion& Other) const
+{
+	return Major == Other.Major && Minor == Other.Minor && Patch == Other.Patch && Changelist == Other.Changelist && Branch == Other.Branch;
+}
+
 bool FEngineVersion::IsCompatibleWith(const FEngineVersionBase &Other) const
 {
 	// If this or the other is not a promoted build, always assume compatibility. 

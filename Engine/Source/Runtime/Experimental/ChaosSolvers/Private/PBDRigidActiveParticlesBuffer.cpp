@@ -44,9 +44,15 @@ namespace Chaos
 				{
 					ActiveGameThreadParticles.Add(Handle);
 				}
-				else if(IPhysicsProxyBase** Proxy = Solver->MParticleToProxy.Find(ActiveParticle.Handle()))
+				else if (const TSet<IPhysicsProxyBase*> * Proxies = Solver->GetProxies(ActiveParticle.Handle()))
 				{
-					PhysicsParticleProxies.Add(*Proxy);
+					for (IPhysicsProxyBase* Proxy : *Proxies)
+					{
+						if (Proxy != nullptr)
+						{
+							PhysicsParticleProxies.Add(Proxy);
+						}
+					}
 				}
 			}
 		}

@@ -32,18 +32,25 @@ float3 Reciprocal(float3 x){ return 1.0f/x; }
 float2 Reciprocal(float2 x){ return 1.0f/x;}
 float Reciprocal(float x){ return 1.0f/x; }
 
-// Annoyingly, all(bool) doesn't exist, so we'll make a NiagaraAll() function which
-// works with both scalars and vectors.
+// Annoyingly, all(bool) and any(bool) don't exist, so we'll make Niagara versions which
+// work with both scalars and vectors.
 bool NiagaraAll(bool b) { return b; }
+bool NiagaraAny(bool b) { return b; }
 #if GPU_SIMULATION
 bool NiagaraAll(bool2 b) { return all(b); }
 bool NiagaraAll(bool3 b) { return all(b); }
 bool NiagaraAll(bool4 b) { return all(b); }
+bool NiagaraAny(bool2 b) { return any(b); }
+bool NiagaraAny(bool3 b) { return any(b); }
+bool NiagaraAny(bool4 b) { return any(b); }
 #else
-// No all() opcode in our VM, emulate it.
+// No all() and any() opcodes in our VM, emulate them.
 bool NiagaraAll(bool2 b) { return b.x && b.y; }
 bool NiagaraAll(bool3 b) { return b.x && b.y && b.z; }
 bool NiagaraAll(bool4 b) { return b.x && b.y && b.z && b.w; }
+bool NiagaraAny(bool2 b) { return b.x || b.y; }
+bool NiagaraAny(bool3 b) { return b.x || b.y || b.z; }
+bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 #endif
 
 /* -----------------------------------------------------------------
@@ -58,7 +65,7 @@ bool NiagaraAll(bool4 b) { return b.x && b.y && b.z && b.w; }
 	static uint GEmitterTickCounter;
 	static uint GSimStart;
 	static uint GRandomSeedOffset = 0;
-	static bool GStageUsesAlive = false;
+	static bool GStageWritesAlive = false;
 	
 	const static uint GSpawnPhase = 0;
 	const static uint GUpdatePhase = 1;

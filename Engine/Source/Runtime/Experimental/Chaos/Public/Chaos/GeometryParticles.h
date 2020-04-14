@@ -149,11 +149,26 @@ namespace Chaos
 			});
 		}
 
-		bool GetDisable() const { return CollisionData.Read().bDisable; }
+		bool GetQueryEnabled() const { return CollisionData.Read().bQueryCollision; }
+		void SetQueryEnabled(const bool bEnable)
+		{
+			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bEnable](FCollisionData& Data){ Data.bQueryCollision = bEnable; });
+		}
+
+		bool GetSimEnabled() const { return CollisionData.Read().bSimCollision; }
+		void SetSimEnabled(const bool bEnable)
+		{
+			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bEnable](FCollisionData& Data){ Data.bSimCollision = bEnable; });
+		}
+
+		/*
+		// TODO: Deprecate GetDisable() and SetDisable()!
+		bool GetDisable() const { return !CollisionData.Read().bSimCollision; }
 		void SetDisable(const bool bDisable)
 		{
-			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bDisable](FCollisionData& Data){ Data.bDisable = bDisable; });
+			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bDisable](FCollisionData& Data){ Data.bSimCollision = !bDisable; });
 		}
+		*/
 
 		bool GetSimulate() const { return CollisionData.Read().bSimulate; }
 		void SetSimulate(const bool bSimulate)
@@ -198,6 +213,11 @@ namespace Chaos
 					}
 				}
 			}
+		}
+
+		int32 GetShapeIndex() const
+		{
+			return ShapeIdx;
 		}
 
 	private:

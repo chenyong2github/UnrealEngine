@@ -40,24 +40,24 @@ private:
 
 	void CreateDeviceProfileTree();
 
-	TSharedRef<SWidget> GenerateDeviceProfileTreeWidget(int32 EffectsQuality);
-	TSharedRef<ITableRow> OnGenerateDeviceProfileTreeRow(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, const TSharedRef<STableViewBase>& OwnerTable, int32 EffectsQuality);
-	void OnGetDeviceProfileTreeChildren(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, TArray< TSharedPtr<FNiagaraDeviceProfileViewModel> >& OutChildren, int32 EffectsQuality);
-	FReply RemoveDeviceProfile(UDeviceProfile* Profile, int32 EffectsQuality);
-	TSharedRef<SWidget> GetEffectsQualityMenuContents(int32 EffectsQuality) const;
+	TSharedRef<SWidget> GenerateDeviceProfileTreeWidget(int32 QualityLevel);
+	TSharedRef<ITableRow> OnGenerateDeviceProfileTreeRow(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, const TSharedRef<STableViewBase>& OwnerTable, int32 QualityLevel);
+	void OnGetDeviceProfileTreeChildren(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, TArray< TSharedPtr<FNiagaraDeviceProfileViewModel> >& OutChildren, int32 QualityLevel);
+	FReply RemoveDeviceProfile(UDeviceProfile* Profile, int32 QualityLevel);
+	TSharedRef<SWidget> GetQualityLevelMenuContents(int32 QualityLevel) const;
 
-	EVisibility GetDeviceProfileErrorVisibility(UDeviceProfile* Profile, int32 EffectsQuality) const;
-	FText GetDeviceProfileErrorToolTip(UDeviceProfile* Profile, int32 EffectsQuality) const;
+	EVisibility GetDeviceProfileErrorVisibility(UDeviceProfile* Profile, int32 QualityLevel) const;
+	FText GetDeviceProfileErrorToolTip(UDeviceProfile* Profile, int32 QualityLevel) const;
 
-	FSlateColor GetEffectsQualityButtonTextColor(int32 EffectsQuality) const;
-	EVisibility GetEffectsQualityErrorVisibility(int32 EffectsQuality) const;
-	FText GetEffectsQualityErrorToolTip(int32 EffectsQuality) const;
+	FSlateColor GetQualityLevelButtonTextColor(int32 QualityLevel) const;
+	EVisibility GetQualityLevelErrorVisibility(int32 QualityLevel) const;
+	FText GetQualityLevelErrorToolTip(int32 QualityLevel) const;
 
-	const FSlateBrush* GetProfileMenuButtonImage(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality) const;
-	EVisibility GetProfileMenuButtonVisibility(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality) const;
-	bool GetProfileMenuItemEnabled(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality) const;
-	FText GetProfileMenuButtonToolTip(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 EffectsQuality) const;
-	FReply OnProfileMenuButtonClicked(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, int32 EffectsQuality, bool bReopenMenu);
+	const FSlateBrush* GetProfileMenuButtonImage(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel) const;
+	EVisibility GetProfileMenuButtonVisibility(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel) const;
+	bool GetProfileMenuItemEnabled(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel) const;
+	FText GetProfileMenuButtonToolTip(TSharedPtr<FNiagaraDeviceProfileViewModel> Item, int32 QualityLevel) const;
+	FReply OnProfileMenuButtonClicked(TSharedPtr<FNiagaraDeviceProfileViewModel> InItem, int32 QualityLevel, bool bReopenMenu);
 
 	TSharedRef<SWidget> GetCurrentDeviceProfileSelectionWidget(TSharedPtr<FNiagaraDeviceProfileViewModel> ProfileView);
 	TSharedRef<SWidget> OnGenerateDeviceProfileSelectionWidget(TSharedPtr<ENiagaraPlatformSelectionState> InItem);
@@ -65,16 +65,16 @@ private:
 	FText GetCurrentText() const;
 	FText GetTooltipText() const;
 
-	void GenerateEffectsQualitySelectionWidgets();
-	TSharedRef<SWidget> GenerateAdditionalDevicesWidgetForEQ(int32 EffectsQuality);
+	void GenerateQualityLevelSelectionWidgets();
+	TSharedRef<SWidget> GenerateAdditionalDevicesWidgetForQL(int32 QualityLevel);
 
-	bool IsTreeActiveForEQ(const TSharedPtr<FNiagaraDeviceProfileViewModel>& Tree, int32 EffectsQualityMask) const;
-	void FilterTreeForEQ(const TSharedPtr<FNiagaraDeviceProfileViewModel>& SourceTree, TSharedPtr<FNiagaraDeviceProfileViewModel>& FilteredTree, int32 EffectsQualityMask);
+	bool IsTreeActiveForQL(const TSharedPtr<FNiagaraDeviceProfileViewModel>& Tree, int32 QualityLevelMask) const;
+	void FilterTreeForQL(const TSharedPtr<FNiagaraDeviceProfileViewModel>& SourceTree, TSharedPtr<FNiagaraDeviceProfileViewModel>& FilteredTree, int32 QualityLevelMask);
 
-	ECheckBoxState IsEQChecked(int32 EffectsQuality) const;
-	void EQCheckStateChanged(ECheckBoxState CheckState, int32 EffectsQuality);
+	ECheckBoxState IsQLChecked(int32 QualityLevel) const;
+	void QLCheckStateChanged(ECheckBoxState CheckState, int32 QualityLevel);
 
-	FReply ToggleMenuOpenForEffectsQuality(int32 EffectsQuality);
+	FReply ToggleMenuOpenForQualityLevel(int32 QualityLevel);
 
 	void UpdateCachedConflicts();
 	void InvalidateSiblingConflicts() const;
@@ -85,9 +85,9 @@ private:
 	TSharedPtr<IPropertyHandleArray> PlatformSetArray;
 	int32 PlatformSetArrayIndex;
 
-	TArray<TSharedPtr<SMenuAnchor>> EffectsQualityMenuAnchors;
-	TArray<TSharedPtr<SWidget>> EffectsQualityMenuContents;
-	TSharedPtr<SWrapBox> EffectsQualityWidgetBox;
+	TArray<TSharedPtr<SMenuAnchor>> QualityLevelMenuAnchors;
+	TArray<TSharedPtr<SWidget>> QualityLevelMenuContents;
+	TSharedPtr<SWrapBox> QualityLevelWidgetBox;
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 	struct FNiagaraPlatformSet* TargetPlatformSet;

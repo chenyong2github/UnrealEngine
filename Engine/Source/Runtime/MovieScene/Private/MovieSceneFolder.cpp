@@ -214,10 +214,10 @@ void UMovieSceneFolder::PostLoad()
 			int32 NumFolderInstances = Algo::Count(AllFolders, ChildFolders[ChildFolderIndex]);
 			if (NumFolderInstances > 1)
 			{
+				UE_LOG(LogMovieScene, Warning, TEXT("Folder (%s) in Sequence (%s) contained a reference to an Folder (%s) that exists in multiple places in the sequence, removing."), *GetFolderName().ToString(), *OwningScene->GetPathName(), *ChildFolders[ChildFolderIndex]->GetFolderName().ToString());
+
 				ChildFolders.RemoveAt(ChildFolderIndex);
 				ChildFolderIndex--;
-
-				UE_LOG(LogMovieScene, Warning, TEXT("Folder (%s) in Sequence (%s) contained a reference to an Folder (%s) that exists in multiple places in the sequence, removing."), *GetFolderName().ToString(), *OwningScene->GetPathName(), *ChildFolders[ChildFolderIndex]->GetFolderName().ToString());
 			}
 		}
 	}

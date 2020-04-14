@@ -85,6 +85,7 @@
 #include "SequencerLog.h"
 #include "MovieSceneCopyableBinding.h"
 #include "SObjectBindingTagManager.h"
+#include "SSequencerGroupManager.h"
 #include "MovieSceneCopyableTrack.h"
 #include "IPropertyRowGenerator.h"
 #include "Fonts/FontMeasure.h"
@@ -394,6 +395,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.SubSequenceRange = InArgs._SubSequenceRange;
 		TimeSliderArgs.VerticalFrames = InArgs._VerticalFrames;
 		TimeSliderArgs.MarkedFrames = InArgs._MarkedFrames;
+		TimeSliderArgs.GlobalMarkedFrames = InArgs._GlobalMarkedFrames;
 		TimeSliderArgs.OnSetMarkedFrame = InArgs._OnSetMarkedFrame;
 		TimeSliderArgs.OnAddMarkedFrame = InArgs._OnAddMarkedFrame;
 		TimeSliderArgs.OnDeleteMarkedFrame = InArgs._OnDeleteMarkedFrame;
@@ -1088,6 +1090,11 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 		FSequencerCommands::Get().OpenTaggedBindingManager,
 		FExecuteAction::CreateSP(this, &SSequencer::OpenTaggedBindingManager)
 	);
+
+	SequencerCommandBindings->MapAction(
+		FSequencerCommands::Get().OpenNodeGroupsManager,
+		FExecuteAction::CreateSP(this, &SSequencer::OpenNodeGroupsManager)
+	);
 }
 
 void SSequencer::ShowTickResolutionOverlay()
@@ -1213,6 +1220,11 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 			}
 			CurveEditor->ResumeBroadcast();
 		}
+	}
+
+	if (NodeGroupManager.IsValid())
+	{
+		NodeGroupManager->SelectItemsSelectedInSequencer();
 	}
 }
 
@@ -1584,6 +1596,22 @@ TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 	}
 	MenuBuilder.EndSection();
 
+	UMovieSceneSequence* FocusedMovieSequence = Sequencer->GetFocusedMovieSceneSequence();
+	UMovieScene* FocusedMovieScene = nullptr;
+	if (IsValid(FocusedMovieSequence))
+	{
+		FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+		if (IsValid(FocusedMovieScene))
+		{
+			if (FocusedMovieScene->GetNodeGroups().Num() > 0)
+			{
+				MenuBuilder.BeginSection("NodeGroupFilters");
+				MenuBuilder.AddSubMenu(LOCTEXT("NodeGroupFilters", "Group Filters"), LOCTEXT("NodeGroupFiltersToolTip", "Enables using this group as a filter for all items"), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillNodeGroupsFilterMenu), false);
+				MenuBuilder.EndSection();
+			}
+		}
+	}
+
 	UObject* PlaybackContext = Sequencer->GetPlaybackContext();
 	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
 
@@ -1617,6 +1645,76 @@ TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SSequencer::FillNodeGroupsFilterMenu(FMenuBuilder& InMenuBarBuilder)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	UMovieSceneSequence* FocusedMovieSequence = Sequencer->GetFocusedMovieSceneSequence();
+	UMovieScene* FocusedMovieScene = nullptr;
+
+	if (IsValid(FocusedMovieSequence))
+	{
+		FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+		if (IsValid(FocusedMovieScene))
+		{
+			InMenuBarBuilder.BeginSection("SequencerTracksResetFilters");
+			InMenuBarBuilder.AddMenuEntry(
+				LOCTEXT("FilterListResetNodeGroupFilters", "Reset Group Filters"),
+				LOCTEXT("FilterListResetNodeGroupFiltersToolTip", "Disables all group filters"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnResetNodeGroupFilters))
+			);
+			InMenuBarBuilder.EndSection();
+
+			bool bIsReadOnly = GetIsSequenceReadOnly();
+
+			InMenuBarBuilder.BeginSection("NodeGroupFilters");
+			for (UMovieSceneNodeGroup* NodeGroup : FocusedMovieScene->GetNodeGroups())
+			{
+				InMenuBarBuilder.AddMenuEntry(
+					FText::FromName(NodeGroup->GetName()),
+					FText::FromName(NodeGroup->GetName()),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SSequencer::OnNodeGroupFilterClicked, NodeGroup),
+						FCanExecuteAction::CreateLambda([bIsReadOnly]() { return !bIsReadOnly; }),
+						FIsActionChecked::CreateLambda([NodeGroup]() { return NodeGroup->GetEnableFilter(); })),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+
+			}
+			InMenuBarBuilder.EndSection();
+		}
+	}
+}
+
+void SSequencer::OnResetNodeGroupFilters()
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	UMovieSceneSequence* FocusedMovieSequence = Sequencer->GetFocusedMovieSceneSequence();
+	UMovieScene* FocusedMovieScene = nullptr;
+	if (IsValid(FocusedMovieSequence))
+	{
+		FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+		if (IsValid(FocusedMovieScene))
+		{
+			for (UMovieSceneNodeGroup* NodeGroup : FocusedMovieScene->GetNodeGroups())
+			{
+				NodeGroup->SetEnableFilter(false);
+			}
+		}
+	}
+}
+
+void SSequencer::OnNodeGroupFilterClicked(UMovieSceneNodeGroup* NodeGroup)
+{
+	if (NodeGroup)
+	{
+		NodeGroup->SetEnableFilter(!NodeGroup->GetEnableFilter());
+	}
+	
 }
 
 void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
@@ -1807,6 +1905,7 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 		}
 
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().OpenTaggedBindingManager);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().OpenNodeGroupsManager);
 
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().RestoreAnimatedState);
 
@@ -1904,6 +2003,47 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 	}
 	MenuBuilder.EndSection();
 
+	MenuBuilder.BeginSection("MarkedFrames", LOCTEXT("MarkedFramesHeader", "Marked Frames"));
+	{
+		UMovieSceneSequence* FocusedMovieSequence = Sequencer->GetFocusedMovieSceneSequence();
+		UMovieScene* FocusedMovieScene = nullptr;
+		if (FocusedMovieSequence != nullptr)
+		{
+			FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+		}
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleShowMarkedFrameGlobal", "Show Marked Frames Globally"),
+			LOCTEXT("ToggleShowMarkedFrameGlobalTooltip", "Makes marked frames in this sub-sequence visible in parent/sibling sequences for the current editor session"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([FocusedMovieScene, this]() {
+					if (FocusedMovieScene != nullptr)
+					{
+						FocusedMovieScene->ToggleGloballyShowMarkedFrames();
+						SequencerPtr.Pin()->InvalidateGlobalMarkedFramesCache();
+					}
+				}),
+				FCanExecuteAction::CreateLambda([FocusedMovieScene]() { return FocusedMovieScene != nullptr; }),
+				FIsActionChecked::CreateLambda([FocusedMovieScene]() {
+					if (FocusedMovieScene != nullptr)
+					{
+						return FocusedMovieScene->GetGloballyShowMarkedFrames();
+					}
+					return false;
+				})),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ClearMarkedFramesGlobal", "Clear Global Marked Frames"),
+			LOCTEXT("ClearMarkedFramesGlobalTooltip", "Set all marked frames in all sub-sequences to not be globally displayed."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([this]() { SequencerPtr.Pin()->ClearGlobalMarkedFrames(); }))
+		);
+	}
+	MenuBuilder.EndSection();
+
 	return MenuBuilder.MakeWidget();
 }
 
@@ -1935,6 +2075,36 @@ void SSequencer::OpenTaggedBindingManager()
 	}
 
 	WeakExposedBindingsWindow = ExposedBindingsWindow;
+}
+
+void SSequencer::OpenNodeGroupsManager()
+{
+	if (TSharedPtr<SWindow> Window = WeakNodeGroupWindow.Pin())
+	{
+		Window->DrawAttention(FWindowDrawAttentionParameters());
+		return;
+	}
+
+	TSharedRef<SWindow> NodeGroupManagerWindow = SNew(SWindow)
+		.Title(FText::Format(LOCTEXT("NodeGroup_Title", "Groups in {0}"), FText::FromName(SequencerPtr.Pin()->GetRootMovieSceneSequence()->GetFName())))
+		.SupportsMaximize(false)
+		.ClientSize(FVector2D(600.f, 500.f))
+		.Content()
+		[
+			SAssignNew(NodeGroupManager, SSequencerGroupManager, SequencerPtr)
+		];
+
+	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+	if (ParentWindow)
+	{
+		FSlateApplication::Get().AddWindowAsNativeChild(NodeGroupManagerWindow, ParentWindow.ToSharedRef());
+	}
+	else
+	{
+		FSlateApplication::Get().AddWindow(NodeGroupManagerWindow);
+	}
+
+	WeakNodeGroupWindow = NodeGroupManagerWindow;
 }
 
 void SSequencer::FillPlaybackSpeedMenu(FMenuBuilder& InMenuBarBuilder)
@@ -2405,6 +2575,12 @@ SSequencer::~SSequencer()
 	{
 		Window->DestroyWindowImmediately();
 	}
+
+	if (TSharedPtr<SWindow> Window = WeakNodeGroupWindow.Pin())
+	{
+		Window->DestroyWindowImmediately();
+		NodeGroupManager.Reset();
+	}
 }
 
 
@@ -2542,6 +2718,11 @@ void SSequencer::UpdateLayoutTree()
 
 		// Continue broadcasting selection changes
 		Sequencer->GetSelection().ResumeBroadcast();
+		
+		if (NodeGroupManager.IsValid())
+		{
+			NodeGroupManager->RefreshNodeGroups();
+		}
 	}
 }
 

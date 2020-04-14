@@ -10,6 +10,7 @@
 #include "Vehicles/TireType.h"
 #include "PhysicsEngine/PhysicsSettingsEnums.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "PhysicsInterfaceDeclaresCore.h"
 #include "PhysicalMaterial.generated.h"
 
 struct FPropertyChangedEvent;
@@ -20,6 +21,7 @@ namespace physx
 	class PxMaterial;
 }
 #endif
+
 
 /** DEPRECATED Pairs desired tire friction scale with tire type */
 USTRUCT()
@@ -50,6 +52,8 @@ class ENGINE_API UPhysicalMaterial : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+	virtual ~UPhysicalMaterial();
+	UPhysicalMaterial(FVTableHelper& Helper);
 	//
 	// Surface properties.
 	//
@@ -129,7 +133,7 @@ class ENGINE_API UPhysicalMaterial : public UObject
 
 public:
 
-	FPhysicsMaterialHandle MaterialHandle;
+	TUniquePtr<FPhysicsMaterialHandle> MaterialHandle;
 
 	FChaosUserData UserData;
 

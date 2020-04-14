@@ -66,9 +66,10 @@ public:
 	 * from the list and return false.
 	 *
 	 * @param	ItemIndex		Index of the item to query
+	 * @param	OutPackageName	Long package name after following redirector
 	 * @return					true if the item exists, false if it doesn't
 	 */
-	bool VerifyMRUFile(int32 ItemIndex);
+	bool VerifyMRUFile(int32 ItemIndex, FString& OutPackageName);
 
 	/**
 	 * Accessor.

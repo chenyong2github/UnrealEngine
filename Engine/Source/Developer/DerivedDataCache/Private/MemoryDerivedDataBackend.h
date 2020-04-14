@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
-#include "DerivedDataBackendInterface.h"
+#include "FileBackedDerivedDataBackend.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "Misc/ScopeLock.h"
@@ -14,14 +14,20 @@ class Error;
 /** 
  * A simple thread safe, memory based backend. This is used for Async puts and the boot cache.
 **/
-class FMemoryDerivedDataBackend : public FDerivedDataBackendInterface
+class FMemoryDerivedDataBackend : public FFileBackedDerivedDataBackend
 {
 public:
-	explicit FMemoryDerivedDataBackend(int64 InMaxCacheSize = -1);
+	explicit FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize = -1);
 	~FMemoryDerivedDataBackend();
+
+	/** Return a name for this interface */
+	virtual FString GetName() const override { return Name; }
 
 	/** return true if this cache is writable **/
 	virtual bool IsWritable() override;
+
+	/** Returns a class of speed for this interface **/
+	virtual ESpeedClass GetSpeedClass() override;
 
 	/**
 	 * Synchronous test for the existence of a cache item
@@ -68,9 +74,22 @@ public:
 	/**
 	 * Disable cache and ignore all subsequent requests
 	 */
-	void Disable();
+	void Disable() override;
 
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
+
+	virtual bool TryToPrefetch(const TCHAR* CacheKey) override;
+
+	/**
+	 *  Determines if we would cache the provided data
+	 */
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
+
+	/**
+	 * Apply debug options
+	 */
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
+	
 
 private:
 	/** Name of the cache file loaded (if any). */
@@ -92,6 +111,9 @@ private:
 	{
 		return (Key.Len() + 1) * sizeof(TCHAR) + sizeof(Val.Age) + Val.Data.Num();
 	}
+
+	/** Name of this cache (used for debugging) */
+	FString Name;
 
 	/** Set of files that are being written to disk asynchronously. */
 	TMap<FString, FCacheValue*> CacheItems;
@@ -119,5 +141,18 @@ private:
 									  + sizeof(int64)	// Size
 									  + sizeof(uint32), // CRC
 	};
+
+protected:
+
+	/* Debug helpers */
+	bool DidSimulateMiss(const TCHAR* InKey);
+	bool ShouldSimulateMiss(const TCHAR* InKey);
+
+	/** Debug Options */
+	FBackendDebugOptions DebugOptions;
+
+	/** Keys we ignored due to miss rate settings */
+	FCriticalSection MissedKeysCS;
+	TSet<FName> DebugMissedKeys;
 };
 

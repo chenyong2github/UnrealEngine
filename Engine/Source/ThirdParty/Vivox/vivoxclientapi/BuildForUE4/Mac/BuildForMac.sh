@@ -12,7 +12,7 @@ fi
 mkdir -pv "${BUILD_DIR}"
 
 cd "${BUILD_DIR}"
-../../../../../../Extras/ThirdPartyNotUE/CMake/bin/cmake -G "Xcode" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_OSX_DEPLOYMENT_TARGET="10.9" "${SCRIPT_DIR}/.."
+../../../../../../Extras/ThirdPartyNotUE/CMake/bin/cmake -G "Xcode" -DVIVOXSDK_PATH=../../vivox-sdk/Include -DCMAKE_OSX_DEPLOYMENT_TARGET="10.9" -DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1 -DVALIDATE_AUDIO_DEVICE_SELECTION=1 "${SCRIPT_DIR}/.."
 
 function build()
 {

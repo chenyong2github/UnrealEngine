@@ -67,7 +67,33 @@ private:
 
 	virtual ~FArchiveState() = 0;
 
+protected:
+	static void LinkProxy(FArchiveState& Inner, FArchiveState& Proxy);
+	static void UnlinkProxy(FArchiveState& Inner, FArchiveState& Proxy);
+
 public:
+	virtual FArchiveState& GetInnermostState()
+	{
+		return *this;
+	}
+
+	void SetArchiveState(const FArchiveState& InState);
+
+	/**
+	 * Sets ArIsError to true. Also sets error in the proxy archiver if one is wrapping this.
+	 */
+	void SetError();
+
+	/**
+	 * Sets ArIsError to false, this does not clear any CriticalErrors
+	 */
+	void ClearError();
+
+	/**
+	 * Sets the archiver IsCriticalError and IsError to true. Also sets CriticalError in the proxy archiver if one is wrapping this.
+	 */
+	void SetCriticalError();
+
 	virtual void CountBytes(SIZE_T InNum, SIZE_T InMax) { }
 
 	/**
@@ -105,26 +131,10 @@ public:
 		return ((Pos != INDEX_NONE) && (Pos >= TotalSize()));
 	}
 
-	virtual bool GetError()
+	FORCEINLINE bool GetError() const
 	{
 		return ArIsError;
 	}
-
-	/**
-	 * Sets ArIsError to true. Also sets error in the proxy archiver if one is wrapping this.
-	 */
-	void SetError();
-
-	/**
-	 * Sets ArIsError to false, this does not clear any CriticalErrors
-	 */
-	void ClearError();
-
-	/**
-	 * Sets the archiver IsCriticalError and IsError to true. Also sets CriticalError in the proxy archiver if one is wrapping this.
-	 */
-	void SetCriticalError();
-
 
 	FORCEINLINE bool IsByteSwapping()
 	{
@@ -858,6 +868,11 @@ protected:
 	 */
 	mutable bool bCustomVersionsAreReset;
 
+private:
+	/** Linked list to all proxies */
+	FArchiveState* NextProxy = nullptr;
+
+	template<typename T> void ForEachState(T Func);
 };
 
 /**
@@ -956,6 +971,10 @@ public:
 	FArchive(const FArchive&) = default;
 	FArchive& operator=(const FArchive& ArchiveToCopy) = default;
 	~FArchive() = default;
+
+protected:
+	using FArchiveState::LinkProxy;
+	using FArchiveState::UnlinkProxy;
 
 public:
 
@@ -1428,6 +1447,21 @@ public:
 
 	virtual void Preload(UObject* Object) { }
 
+	FArchiveState& GetArchiveState()
+	{
+		return ImplicitConv<FArchiveState&>(*this);
+	}
+
+	const FArchiveState& GetArchiveState() const
+	{
+		return ImplicitConv<const FArchiveState&>(*this);
+	}
+
+	using FArchiveState::SetArchiveState;
+	using FArchiveState::SetError;
+	using FArchiveState::ClearError;
+	using FArchiveState::SetCriticalError;
+	using FArchiveState::GetInnermostState;
 	using FArchiveState::CountBytes;
 	using FArchiveState::GetArchiveName;
 	using FArchiveState::GetLinker;
@@ -1515,9 +1549,6 @@ public:
 	}
 
 	using FArchiveState::GetError;
-	using FArchiveState::SetError;
-	using FArchiveState::ClearError;
-	using FArchiveState::SetCriticalError;
 
 	/**
 	 * Serializes and compresses/ uncompresses data. This is a shared helper function for compression
@@ -1761,13 +1792,6 @@ public:
 	}
 #endif
 
-	const FArchiveState& GetArchiveState() const
-	{
-		return ImplicitConv<const FArchiveState&>(*this);
-	}
-
-	virtual void SetArchiveState(const FArchiveState& InState);
-
 private:
 	// Used internally only to control the amount of generated code/type under control.
 	template<typename T>
@@ -1950,7 +1974,7 @@ private:
 	using FArchiveState::bCustomVersionsAreReset;
 };
 
-static_assert(sizeof(FArchive) == sizeof(FArchiveState), "New FArchive members should be added to FArchiveState instead");
+
 
 
 /**

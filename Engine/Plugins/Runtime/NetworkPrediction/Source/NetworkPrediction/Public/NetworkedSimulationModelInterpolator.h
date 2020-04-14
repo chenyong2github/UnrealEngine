@@ -55,13 +55,15 @@ struct TInterpolatorParameters
 template<typename Model>
 struct TNetSimInterpolator
 {
-	using TBufferTypes = typename TNetSimModelTraits<Model>::InternalBufferTypes;
+	using TBufferTypes = typename Model::BufferTypes;
 	using TTickSettings = typename Model::TickSettings;
 	using TSyncState = typename TBufferTypes::TSyncState;
 	using TAuxState = typename TBufferTypes::TAuxState;
 
 	using FSimTime = FNetworkSimTime;
 	using FRealTime = FNetworkSimTime::FRealTime;
+
+	using TFrameState = TSimulationFrameState<Model>;
 
 	struct FStatePair
 	{
@@ -72,7 +74,7 @@ struct TNetSimInterpolator
 	bool bEnableVisualLog = true;
 
 	template<typename TSystemDriver>
-	FRealTime PostSimTick(TSystemDriver* Driver, const TNetworkSimBufferContainer<Model>& Buffers, const FSimulationTickState& TickInfo, const FNetSimTickParameters& TickParameters)
+	FRealTime PostSimTick(TSystemDriver* Driver, const TNetworkedSimulationState<Model>& State, const FNetSimTickParameters& TickParameters)
 	{
 		const bool bDoVLog = NetworkInterpolationDebugCVars::VLog() && bEnableVisualLog;
 		const float DeltaSeconds = TickParameters.LocalDeltaTimeSeconds;
@@ -80,31 +82,36 @@ struct TNetSimInterpolator
 		const AActor* LogOwner = Driver->GetVLogOwner();
 
 		// Interpolation disabled or we don't have 2 elements yet
-		if (NetworkInterpolationDebugCVars::Disable() > 0 || TickInfo.SimulationTimeBuffer.Num() <= 1)
+		if (NetworkInterpolationDebugCVars::Disable() > 0 || State.GetPendingTickFrame() <= 1)
 		{
 			// We are still responsible for calling FinalizeFrame though
-			if (const TSyncState* HeadState = Buffers.Sync.HeadElement())
+			const int32 HeadFrame = State.GetPendingTickFrame();
+			if (HeadFrame >= 0)
 			{
-				const TAuxState* AuxState = Buffers.Aux.HeadElement();
-				check(AuxState);
-
-				Driver->FinalizeFrame(*HeadState, *AuxState);
+				const TFrameState* FrameState = State.ReadFrame(HeadFrame);
+				const TAuxState* AuxState = State.ReadAux(HeadFrame);
+				check(FrameState && AuxState);
+				Driver->FinalizeFrame(FrameState->SyncState, *AuxState);
 			}
-			
-			return TickInfo.GetTotalProcessedSimulationTime().ToRealTimeSeconds();
+
+			return State.GetTotalProcessedSimulationTime().ToRealTimeSeconds();
 		}
 
-		auto& SimulationTimeBuffer = TickInfo.SimulationTimeBuffer;
+		const TFrameState* HeadFrameState = State.ReadFrame(State.GetPendingTickFrame());
+		const TFrameState* TailFrameState = State.ReadFrame(State.GetConfirmedFrame());
+
+		FRealTime HeadRealTimeSeconds = HeadFrameState->TotalSimTime.ToRealTimeSeconds();
+		FRealTime TailRealTimeSeconds = TailFrameState->TotalSimTime.ToRealTimeSeconds();
 
 		// Starting off: start at the tail end
 		if (InterpolationTime <= 0.f)
 		{
-			InterpolationTime = SimulationTimeBuffer.TailElement()->ToRealTimeSeconds();
-			InterpolationFrame = SimulationTimeBuffer.TailFrame();
+			InterpolationTime = TailFrameState->TotalSimTime.ToRealTimeSeconds();
+			InterpolationFrame = State.GetConfirmedFrame();
 
 			auto& FromState = GetFromInterpolationState();
-			FromState.Sync = *Buffers.Sync[InterpolationFrame];
-			FromState.Aux = *Buffers.Aux[InterpolationFrame];
+			FromState.Sync = State.ReadFrame(InterpolationFrame)->SyncState;
+			FromState.Aux = *State.ReadAux(InterpolationFrame);
 		}
 
 		EVisualLoggingContext LoggingContext = EVisualLoggingContext::InterpolationLatest;
@@ -113,18 +120,18 @@ struct TNetSimInterpolator
 		// Wait if we were too far ahead
 		if (WaitUntilTime > 0.f)
 		{
-			if (WaitUntilTime <= SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds())
+			if (WaitUntilTime <= HeadRealTimeSeconds)
 			{
 				// done waiting, we can continue
 				WaitUntilTime = 0.f;
-				UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Done Waiting! Head: %s"), *LexToString(SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds()));
+				UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Done Waiting! Head: %s"), *LexToString(HeadRealTimeSeconds));
 			}
 			else
 			{
 				if (bDoVLog)
 				{
 					// Still waiting, return
-					UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Still Waiting! %s < %s"), *LexToString(WaitUntilTime), *LexToString(SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds()));
+					UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Still Waiting! %s < %s"), *LexToString(WaitUntilTime), *LexToString(HeadRealTimeSeconds));
 
 					const FName LocalInterpolationTimeName("Local Interpolation Time");
 					FVector2D LocalTimeVsInterpolationTime(LogOwner->GetWorld()->GetTimeSeconds(), (int32)(InterpolationTime * 1000.f));
@@ -138,18 +145,18 @@ struct TNetSimInterpolator
 			FRealTime Step = DeltaSeconds;
 
 			// Snap if way far behind
-			FRealTime SnapThreshold = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::SnapThreshold();
+			FRealTime SnapThreshold = HeadRealTimeSeconds - NetworkInterpolationDebugCVars::SnapThreshold();
 			if (NewInterpolationTime < SnapThreshold)
 			{
-				NewInterpolationTime = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::SnapGoal();
+				NewInterpolationTime = HeadRealTimeSeconds - NetworkInterpolationDebugCVars::SnapGoal();
 				UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Snapping to %s"), *LexToString(NewInterpolationTime));
 			}
 			
 			// Speed up if we are too far behind
-			FRealTime CatchUpThreshold = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::CatchUpThreshold();
+			FRealTime CatchUpThreshold = HeadRealTimeSeconds - NetworkInterpolationDebugCVars::CatchUpThreshold();
 			if (CatchUpUntilTime <= 0.f && NewInterpolationTime < CatchUpThreshold)
 			{
-				CatchUpUntilTime = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::CatchUpGoal();
+				CatchUpUntilTime = HeadRealTimeSeconds - NetworkInterpolationDebugCVars::CatchUpGoal();
 			}
 
 			if (CatchUpUntilTime > 0.f)
@@ -170,11 +177,11 @@ struct TNetSimInterpolator
 			NewInterpolationTime += Step;
 
 			// Did this put us too far ahead, and now we need to start waiting?
-			if (NewInterpolationTime > SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds())
+			if (NewInterpolationTime > HeadRealTimeSeconds)
 			{
-				UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Too far ahead! Starting to wait! Head: %s"), *LexToString(SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds()));
-				WaitUntilTime = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() + NetworkInterpolationDebugCVars::WaitSlack();
-				NewInterpolationTime = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds();
+				UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Too far ahead! Starting to wait! Head: %s"), *LexToString(HeadRealTimeSeconds));
+				WaitUntilTime = HeadRealTimeSeconds + NetworkInterpolationDebugCVars::WaitSlack();
+				NewInterpolationTime = HeadRealTimeSeconds;
 			}
 		}
 
@@ -183,15 +190,15 @@ struct TNetSimInterpolator
 		const TAuxState* ToAuxState = nullptr;
 		FRealTime ToTime = 0.f;
 
-		for (auto It = SimulationTimeBuffer.CreateConstIterator(); It; ++It)
+		for (int32 Frame = State.GetConfirmedFrame(); Frame <= State.GetPendingTickFrame(); ++Frame)
 		{
-			FSimTime ElementSimTime = *It.Element();
-			if (NewInterpolationTime <= ElementSimTime.ToRealTimeSeconds())
+			FRealTime FrameRealTime = State.ReadFrame(Frame)->TotalSimTime.ToRealTimeSeconds();
+			if (NewInterpolationTime <= FrameRealTime)
 			{
-				InterpolationFrame = It.Frame();
-				ToTime = ElementSimTime.ToRealTimeSeconds();
-				ToState = Buffers.Sync[It.Frame()];
-				ToAuxState = Buffers.Aux[It.Frame()];
+				InterpolationFrame = Frame;
+				ToTime = FrameRealTime;
+				ToState = &State.ReadFrame(Frame)->SyncState;
+				ToAuxState = State.ReadAux(Frame);
 				break;
 			}
 		}
@@ -220,49 +227,51 @@ struct TNetSimInterpolator
 				// Graph Interpolation Time vs Buffer Head/Tail times
 				const FName ServerSimulationGraphName("ServerSimulationTimeGraph");
 				const FName ServerSimTimeName("Server Simulation Time");
-				FVector2D LocalTimeVsServerSimTime(LogOwner->GetWorld()->GetTimeSeconds(), (int32)TickInfo.SimulationTimeBuffer.HeadElement()->ToRealTimeMS());
+				FVector2D LocalTimeVsServerSimTime(LogOwner->GetWorld()->GetTimeSeconds(), (int32)HeadFrameState->TotalSimTime.ToRealTimeMS());
 				UE_VLOG_HISTOGRAM(LogOwner, LogNetInterpolation, Log, ServerSimulationGraphName, ServerSimTimeName, LocalTimeVsServerSimTime);
 
 				const FName BufferTailSimTimeName("Buffer Tail Simulation Time");
-				FVector2D LocalTimeVsBufferTailSim(LogOwner->GetWorld()->GetTimeSeconds(), (int32)TickInfo.SimulationTimeBuffer.TailElement()->ToRealTimeMS());
+				FVector2D LocalTimeVsBufferTailSim(LogOwner->GetWorld()->GetTimeSeconds(), (int32)TailFrameState->TotalSimTime.ToRealTimeMS());
 				UE_VLOG_HISTOGRAM(LogOwner, LogNetInterpolation, Log, ServerSimulationGraphName, BufferTailSimTimeName, LocalTimeVsBufferTailSim);
 
 				const FName LocalInterpolationTimeName("Local Interpolation Time");
 				FVector2D LocalTimeVsInterpolationTime(LogOwner->GetWorld()->GetTimeSeconds(), (int32)(NewInterpolationTime * 1000.f));
 				UE_VLOG_HISTOGRAM(LogOwner, LogNetInterpolation, Log, ServerSimulationGraphName, LocalInterpolationTimeName, LocalTimeVsInterpolationTime);
 					
-				FVector2D LocalTimeVsCatchUpThreshold(LogOwner->GetWorld()->GetTimeSeconds(), (SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::CatchUpThreshold()) * 1000.f);
+				FVector2D LocalTimeVsCatchUpThreshold(LogOwner->GetWorld()->GetTimeSeconds(), (HeadRealTimeSeconds - NetworkInterpolationDebugCVars::CatchUpThreshold()) * 1000.f);
 				UE_VLOG_HISTOGRAM(LogOwner, LogNetInterpolation, Log, ServerSimulationGraphName, "Catch Up Threshold", LocalTimeVsCatchUpThreshold);
 
-				FVector2D LocalTimeVsCatchUpGoal(LogOwner->GetWorld()->GetTimeSeconds(), (SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::CatchUpGoal()) * 1000.f);
+				FVector2D LocalTimeVsCatchUpGoal(LogOwner->GetWorld()->GetTimeSeconds(), (TailRealTimeSeconds - NetworkInterpolationDebugCVars::CatchUpGoal()) * 1000.f);
 				UE_VLOG_HISTOGRAM(LogOwner, LogNetInterpolation, Log, ServerSimulationGraphName, "Catch Up Goal", LocalTimeVsCatchUpGoal);
 
 				// VLog the actual motion states
-				const TSyncState* DebugTail = Buffers.Sync.TailElement();
-				const TSyncState* DebugHead = Buffers.Sync.HeadElement();
+				const TSyncState* DebugTail = &TailFrameState->SyncState;
+				const TSyncState* DebugHead = &HeadFrameState->SyncState;
 
 				auto VLogHelper = [&](int32 Frame, EVisualLoggingContext Context, const FString& DebugStr)
 				{
 					FVisualLoggingParameters VLogParams(Context, Frame, EVisualLoggingLifetime::Transient, DebugStr);
-					Driver->InvokeVisualLog(Buffers.Input[Frame], Buffers.Sync[Frame], Buffers.Aux[Frame], VLogParams);
+					const TFrameState* FrameState = State.ReadFrame(Frame);
+
+					Driver->InvokeVisualLog(&FrameState->InputCmd, &FrameState->SyncState, State.ReadAux(Frame), VLogParams);
 				};
 
-				VLogHelper(Buffers.Sync.TailFrame(), EVisualLoggingContext::InterpolationBufferTail, LexToString(TickInfo.SimulationTimeBuffer.HeadElement()->ToRealTimeMS()));
-				VLogHelper(Buffers.Sync.HeadFrame(), EVisualLoggingContext::InterpolationBufferHead, LexToString(TickInfo.SimulationTimeBuffer.TailElement()->ToRealTimeMS()));
+				VLogHelper(State.GetConfirmedFrame(), EVisualLoggingContext::InterpolationBufferTail, LexToString(TailFrameState->TotalSimTime.ToRealTimeMS()));
+				VLogHelper(State.GetPendingTickFrame(), EVisualLoggingContext::InterpolationBufferHead, LexToString(HeadFrameState->TotalSimTime.ToRealTimeMS()));
 
 				{
 					FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationFrom, InterpolationFrame-1, EVisualLoggingLifetime::Transient, LexToString(FromRealTime));
-					Driver->InvokeVisualLog(Buffers.Input[InterpolationFrame-1], &FromState.Sync, &FromState.Aux, VLogParams);
+					Driver->InvokeVisualLog(&State.ReadFrame(InterpolationFrame-1)->InputCmd, &FromState.Sync, &FromState.Aux, VLogParams);
 				}
 
 				{
 					FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationTo, InterpolationFrame, EVisualLoggingLifetime::Transient, LexToString(ToRealTime));
-					Driver->InvokeVisualLog(Buffers.Input[InterpolationFrame], ToState, ToAuxState, VLogParams);
+					Driver->InvokeVisualLog(&State.ReadFrame(InterpolationFrame)->InputCmd, ToState, ToAuxState, VLogParams);
 				}
 
 				{
 					FVisualLoggingParameters VLogParams(LoggingContext, InterpolationFrame, EVisualLoggingLifetime::Transient, LexToString(NewInterpolationTime));
-					Driver->InvokeVisualLog(Buffers.Input[InterpolationFrame], &OutputState.Sync, &OutputState.Aux, VLogParams);
+					Driver->InvokeVisualLog(&State.ReadFrame(InterpolationFrame)->InputCmd, &OutputState.Sync, &OutputState.Aux, VLogParams);
 				}
 			}
 				

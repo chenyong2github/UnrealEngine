@@ -45,7 +45,7 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 	bool bImpactPointEqualsLocation = 0, bImpactNormalEqualsNormal = 0;
 
 	// Often times the indexes are invalid, use that as an optimization
-	bool bInvalidItem = 0, bInvalidFaceIndex = 0, bNoPenetrationDepth = 0;
+	bool bInvalidItem = 0, bInvalidFaceIndex = 0, bNoPenetrationDepth = 0, bInvalidElementIndex = 0;
 
 	if (Ar.IsSaving())
 	{
@@ -54,11 +54,12 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 		bInvalidItem = (Item == INDEX_NONE);
 		bInvalidFaceIndex = (FaceIndex == INDEX_NONE);
 		bNoPenetrationDepth = (PenetrationDepth == 0.0f);
+		bInvalidElementIndex = (ElementIndex == INDEX_NONE);
 	}
 
 	// pack bitfield with flags
-	uint8 Flags = (bBlockingHit << 0) | (bStartPenetrating << 1) | (bImpactPointEqualsLocation << 2) | (bImpactNormalEqualsNormal << 3) | (bInvalidItem << 4) | (bInvalidFaceIndex << 5) | (bNoPenetrationDepth << 6);
-	Ar.SerializeBits(&Flags, 7); 
+	uint8 Flags = (bBlockingHit << 0) | (bStartPenetrating << 1) | (bImpactPointEqualsLocation << 2) | (bImpactNormalEqualsNormal << 3) | (bInvalidItem << 4) | (bInvalidFaceIndex << 5) | (bNoPenetrationDepth << 6) | (bInvalidElementIndex << 7);
+	Ar.SerializeBits(&Flags, 8); 
 	bBlockingHit = (Flags & (1 << 0)) ? 1 : 0;
 	bStartPenetrating = (Flags & (1 << 1)) ? 1 : 0;
 	bImpactPointEqualsLocation = (Flags & (1 << 2)) ? 1 : 0;
@@ -66,6 +67,9 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 	bInvalidItem = (Flags & (1 << 4)) ? 1 : 0;
 	bInvalidFaceIndex = (Flags & (1 << 5)) ? 1 : 0;
 	bNoPenetrationDepth = (Flags & (1 << 6)) ? 1 : 0;
+	bInvalidElementIndex = (Flags & (1 << 7)) ? 1 : 0;
+	// NOTE: Every bit in Flags is being used. If any more bits are added,
+	// Flags will need to be upgraded to a uint16.
 
 	Ar << Time;
 
@@ -138,6 +142,14 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 		FaceIndex = INDEX_NONE;
 	}
 	
+	if (!bInvalidElementIndex)
+	{
+		Ar << ElementIndex;
+	}
+	else if (Ar.IsLoading())
+	{
+		ElementIndex = INDEX_NONE;
+	}
 
 	return true;
 }
@@ -172,7 +184,7 @@ FCollisionQueryParams::FCollisionQueryParams(FName InTraceTag, const TStatId& In
 	IgnoreMask = 0;
 	bIgnoreBlocks = false;
 	bIgnoreTouches = false;
-
+	bSkipNarrowPhase = false;
 	AddIgnoredActor(InIgnoreActor);
 	if (InIgnoreActor != NULL)
 	{

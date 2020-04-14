@@ -27,8 +27,14 @@ public:
 
 	void Close();
 
+	/** Return a name for this interface */
+	virtual FString GetName() const override { return Filename; }
+
 	/** return true if this cache is writable **/
 	virtual bool IsWritable() override;
+
+	/** Returns a class of speed for this interface **/
+	virtual ESpeedClass GetSpeedClass() override;
 
 	virtual bool BackfillLowerCacheLevels() override;
 
@@ -86,6 +92,12 @@ public:
 
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
 
+	virtual bool TryToPrefetch(const TCHAR* CacheKey) override { return false; }
+
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override { return true; }
+
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override { return false; }
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 
@@ -128,6 +140,12 @@ public:
 
 	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
+
+	/** Returns a class of speed for this interface **/
+	virtual ESpeedClass GetSpeedClass() override
+	{
+		return ESpeedClass::Fast;
+	}
 
 private:
 	static const EName CompressionFormat = NAME_Zlib;

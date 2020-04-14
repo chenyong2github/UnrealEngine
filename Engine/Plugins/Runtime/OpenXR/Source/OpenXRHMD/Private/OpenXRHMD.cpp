@@ -395,9 +395,9 @@ bool FOpenXRHMDPlugin::PreInit()
 	}
 
 	// Switch to constant once out of preview and there is a header available.
-	if (AvailableExtensions.Contains("XR_MSFT_hand_interaction_preview"))
+	if (AvailableExtensions.Contains("XR_MSFT_hand_interaction"))
 	{
-		EnabledExtensions.Add("XR_MSFT_hand_interaction_preview");
+		EnabledExtensions.Add("XR_MSFT_hand_interaction");
 	}
 
 	// Enable layers, if specified by CVar.
@@ -405,7 +405,7 @@ bool FOpenXRHMDPlugin::PreInit()
 	//   1. Download and build the OpenXR SDK from https://github.com/KhronosGroup/OpenXR-SDK-Source (follow instructions at https://github.com/KhronosGroup/OpenXR-SDK-Source/blob/master/BUILDING.md)
 	//	 2. Add a registry key under HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\OpenXR\1\ApiLayers\Explicit, containing the path to the manifest file
 	//      (e.g. C:\OpenXR-SDK-Source-master\build\win64\src\api_layers\XrApiLayer_core_validation.json) <-- this file is downloaded as part of the SDK source, above
-	//   3. Copy the DLL from the build target at, for example, C:\OpenXR-SDK-Source-master\build\win64\src\api_layers\XrApiLayer_core_validation.dll to 
+	//   3. Copy the DLL from the build target at, for example, C:\OpenXR-SDK-Source-master\build\win64\src\api_layers\XrApiLayer_core_validation.dll to
 	//      somewhere in your system path (e.g. c:\windows\system32); the OpenXR loader currently doesn't use the path the json file is in (this is a bug)
 
 	const bool bEnableOpenXRValidationLayer = CVarEnableOpenXRValidationLayer.GetValueOnAnyThread() != 0;
@@ -710,12 +710,8 @@ void FOpenXRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y
 	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
 
 	const XrViewConfigurationView& Config = Configs[ViewIndex];
-
-	static const auto CVarMobileMultiViewDirect = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView.Direct"));
-	const bool bIsMobileMultiViewDirectEnabled = (CVarMobileMultiViewDirect && CVarMobileMultiViewDirect->GetValueOnAnyThread() != 0);
-
 	FIntPoint ViewRectMin(EForceInit::ForceInitToZero);
-	if (!bIsMobileMultiViewDirectEnabled)
+	if (!bIsMobileMultiViewEnabled)
 	{
 		for (uint32 i = 0; i < ViewIndex; ++i)
 		{
@@ -897,9 +893,15 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 
 #if PLATFORM_HOLOLENS
 	bDepthExtensionSupported = bHiddenAreaMaskSupported = false;
+
+	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
+	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
+	const bool bMobileHDR = (CVarMobileHDR && CVarMobileHDR->GetValueOnAnyThread() != 0);
+	bIsMobileMultiViewEnabled = (GRHISupportsArrayIndexFromAnyShader && !bMobileHDR) && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
 #else
 	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
+	bIsMobileMultiViewEnabled = false;
 #endif
 
 	{
@@ -1054,7 +1056,7 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 
 	if (Type == XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR)
 	{
-		// For the hidden-area mesh, bias z to the near plane so we occlude everything, and re-bias vertices to the -0.5 to 0.5 range in x and y. 
+		// For the hidden-area mesh, bias z to the near plane so we occlude everything, and re-bias vertices to the -0.5 to 0.5 range in x and y.
 		for (uint32 VertexIndex = 0; VertexIndex < VisibilityMask.vertexCountOutput; ++VertexIndex)
 		{
 			FFilterVertex& Vertex = Vertices[VertexIndex];
@@ -1069,7 +1071,7 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 	}
 	else if (Type == XR_VISIBILITY_MASK_TYPE_VISIBLE_TRIANGLE_MESH_KHR)
 	{
-		// For the visible-area mesh, this will be consumed by the post-process pipeline, so set up coordinates in the space they expect 
+		// For the visible-area mesh, this will be consumed by the post-process pipeline, so set up coordinates in the space they expect
 		// (x and y range from 0-1, y reversed, z at the far plane).
 		for (uint32 VertexIndex = 0; VertexIndex < VisibilityMask.vertexCountOutput; ++VertexIndex)
 		{
@@ -1187,7 +1189,7 @@ bool FOpenXRHMD::OnStereoTeardown()
 		XrResult Result = xrRequestExitSession(Session);
 		if (Result == XR_ERROR_SESSION_NOT_RUNNING)
 		{
-			// Session was never running - most likely PIE without putting the headset on. 
+			// Session was never running - most likely PIE without putting the headset on.
 			CloseSession();
 		}
 		else
@@ -1263,7 +1265,7 @@ bool FOpenXRHMD::IsFocused() const
 
 bool FOpenXRHMD::StartSession()
 {
-	// If the session is already running, or is not yet ready, 
+	// If the session is already running, or is not yet ready,
 	if (!bIsReady || bIsRunning)
 	{
 		if (!bIsRunning)
@@ -1302,12 +1304,9 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	// We need to ensure we can sample from the texture in CopyTexture
 	Flags |= TexCreate_ShaderResource;
 
-	static const auto CVarMobileMultiViewDirect = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView.Direct"));
-	const bool bIsMobileMultiViewDirectEnabled = (CVarMobileMultiViewDirect && CVarMobileMultiViewDirect->GetValueOnAnyThread() != 0);
-
 	if (Swapchain == nullptr || Format != LastRequestedSwapchainFormat || Swapchain->GetTexture2D()->GetSizeX() != SizeX || Swapchain->GetTexture2D()->GetSizeY() != SizeY)
 	{
-		Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, bIsMobileMultiViewDirectEnabled ? 2 : 1, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMips, NumSamples, Flags, TargetableTextureFlags);
 		if (!Swapchain)
 		{
 			return false;
@@ -1330,9 +1329,6 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 	{
 		return false;
 	}
-
-	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
-	const bool bIsMobileMultiViewEnabled = (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
 
 	if (DepthSwapchain == nullptr || Format != LastRequestedDepthSwapchainFormat || DepthSwapchain->GetTexture2D()->GetSizeX() != SizeX || DepthSwapchain->GetTexture2D()->GetSizeY() != SizeY)
 	{
@@ -1393,11 +1389,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	FIntPoint ViewRectMin(EForceInit::ForceInitToZero);
 	float NearZ = GNearClippingPlane / GetWorldToMetersScale();
 
-	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
-	static const auto CVarMobileMultiViewDirect = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView.Direct"));
-	const bool bIsMobileMultiViewEnabled = (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
-	const bool bIsMobileMultiViewDirectEnabled = (CVarMobileMultiViewDirect && CVarMobileMultiViewDirect->GetValueOnAnyThread() != 0);
-
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const XrView& View = Views[ViewIndex];
@@ -1416,7 +1407,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		Projection.fov = View.fov;
 		Projection.pose = ToXrPose(ViewTransform * BaseTransform, GetWorldToMetersScale());
 		Projection.subImage.swapchain = static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle();
-		Projection.subImage.imageArrayIndex = bIsMobileMultiViewDirectEnabled ? ViewIndex : 0;
+		Projection.subImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
 		Projection.subImage.imageRect = {
 			{ ViewRect.Min.X, ViewRect.Min.Y },
 			{ ViewRect.Width(), ViewRect.Height() }
@@ -1437,7 +1428,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			Projection.next = &DepthLayer;
 		}
 
-		ViewRectMin.X += bIsMobileMultiViewDirectEnabled ? 0 : Config.recommendedImageRectWidth;
+		ViewRectMin.X += bIsMobileMultiViewEnabled ? 0 : Config.recommendedImageRectWidth;
 	}
 
 	// Give the RHI thread its own copy of the frame state and tracking space
@@ -1626,13 +1617,10 @@ FXRRenderBridge* FOpenXRHMD::GetActiveRenderBridge_GameThread(bool /* bUseSepara
 
 FIntPoint FOpenXRHMD::GetIdealRenderTargetSize() const
 {
-	static const auto CVarMobileMultiViewDirect = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView.Direct"));
-	const bool bIsMobileMultiViewDirectEnabled = (CVarMobileMultiViewDirect && CVarMobileMultiViewDirect->GetValueOnAnyThread() != 0);
-
 	FIntPoint Size(EForceInit::ForceInitToZero);
 	for (XrViewConfigurationView Config : Configs)
 	{
-		Size.X = bIsMobileMultiViewDirectEnabled ? FMath::Max(Size.X, (int)Config.recommendedImageRectWidth)
+		Size.X = bIsMobileMultiViewEnabled ? FMath::Max(Size.X, (int)Config.recommendedImageRectWidth)
 			: Size.X + (int)Config.recommendedImageRectWidth;
 		Size.Y = FMath::Max(Size.Y, (int)Config.recommendedImageRectHeight);
 

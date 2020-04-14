@@ -15,6 +15,9 @@ public:
 	/**  Defines where DMX data is sent to. */
 	UPROPERTY(EditAnywhere, Category = "DMX") // Hidden. For now it has just a single value. More values will be added in the future.
 	EDMXCommunicationTypes CommunicationMode;
+	
+	UPROPERTY(EditAnywhere, Category = "DMX")
+	FString UnicastIP;
 
 	/**  First Universe ID on this Controller's range. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Universe Properties", meta = (DisplayName = "Universe Start", DisplayPriority = 1, ClampMin = 1))
@@ -55,7 +58,9 @@ public:
 
 public:
 	UDMXEntityController()
-		: UniverseLocalNum(1)
+		: UnicastIP(TEXT("0.0.0.0"))
+		, UniverseLocalStart(1)
+		, UniverseLocalNum(1)
 	{}
 
 	/** Returns the currently assigned protocol for this controller */

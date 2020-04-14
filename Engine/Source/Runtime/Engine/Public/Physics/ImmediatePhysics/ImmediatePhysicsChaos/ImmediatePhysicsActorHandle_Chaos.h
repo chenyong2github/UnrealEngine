@@ -4,6 +4,7 @@
 
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsCore_Chaos.h"
 
+
 #include "Engine/EngineTypes.h"
 
 namespace ImmediatePhysics_Chaos
@@ -126,13 +127,22 @@ namespace ImmediatePhysics_Chaos
 		friend struct FSimulation;
 		friend struct FJointHandle;
 
-		FActorHandle(Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles, EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform);
+		FActorHandle(
+			Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles,
+			Chaos::TArrayCollectionArray<Chaos::FVec3>& InParticlePrevXs,
+			Chaos::TArrayCollectionArray<Chaos::FRotation3>& InParticlePrevRs,
+			EActorType ActorType,
+			FBodyInstance* BodyInstance,
+			const FTransform& Transform);
+
 
 		Chaos::TGenericParticleHandle<FReal, Dimensions> Handle() const;
 
 		FName Name;
 		Chaos::TPBDRigidsSOAs<FReal, 3>& Particles;
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
+		Chaos::TArrayCollectionArray<Chaos::FVec3>& ParticlePrevXs;
+		Chaos::TArrayCollectionArray<Chaos::FRotation3>& ParticlePrevRs;
 		TUniquePtr<Chaos::FImplicitObject> Geometry;
 		TArray<TUniquePtr<Chaos::FPerShapeData>> Shapes;
 		int32 Level;

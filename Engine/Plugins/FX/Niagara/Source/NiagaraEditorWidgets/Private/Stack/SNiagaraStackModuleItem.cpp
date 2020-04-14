@@ -32,6 +32,7 @@
 #include "EditorFontGlyphs.h"
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 #include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
+#include "NiagaraEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackModuleItem"
 
@@ -54,7 +55,7 @@ FReply SNiagaraStackModuleItem::OnMouseButtonDoubleClick(const FGeometry& InMyGe
 	const UNiagaraNodeFunctionCall& ModuleFunctionCall = ModuleItem->GetModuleNode();
 	if (ModuleFunctionCall.FunctionScript != nullptr)
 	{
-		if (ModuleFunctionCall.FunctionScript->IsAsset())
+		if (ModuleFunctionCall.FunctionScript->IsAsset() || GbShowNiagaraDeveloperWindows > 0)
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UNiagaraScript*>(ModuleFunctionCall.FunctionScript));
 			return FReply::Handled();
@@ -93,7 +94,7 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 			SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
 			.OnClicked(this, &SNiagaraStackModuleItem::ScratchButtonPressed)
-			.ToolTipText(LOCTEXT("OpenInScratchToolTip", "Open this dynamic input in the scratch pad."))
+			.ToolTipText(LOCTEXT("OpenInScratchToolTip", "Open this module in the scratch pad."))
 			.ContentPadding(FMargin(1.0f, 0.0f))
 			.Content()
 			[

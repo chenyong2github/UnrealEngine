@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define RAY_TRACING_DEFERRED_REFLECTIONS_SHADER_VERSION 0x672EBB8E  // Change to force shader compilation of this shader
+
 // EDeferredMaterialMode
 #define DEFERRED_MATERIAL_MODE_NONE   0
 #define DEFERRED_MATERIAL_MODE_GATHER 1
@@ -16,11 +18,11 @@
 #define USE_SOURCE_TEXTURE_ARRAY	1
 
 #define LTCMatTexture				RaytracingLightsDataPacked.LTCMatTexture
-#define LTCMatSampler				RaytracingLightsDataPacked.LTCMatSampler
+#define LTCMatSampler				GlobalBilinearClampedSampler
 #define LTCAmpTexture				RaytracingLightsDataPacked.LTCAmpTexture
-#define LTCAmpSampler				RaytracingLightsDataPacked.LTCAmpSampler
-#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF			
-#define PreIntegratedGFSampler		ReflectionStruct.PreIntegratedGFSampler	
+#define LTCAmpSampler				GlobalBilinearClampedSampler
+#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF
+#define PreIntegratedGFSampler		GlobalBilinearClampedSampler
 
 #include "../DeferredShadingCommon.ush"
 #include "../DeferredLightingCommon.ush"
@@ -41,6 +43,7 @@
 uint2 RayTracingResolution;
 uint2 TileAlignedResolution;
 float ReflectionMaxNormalBias;
+float ReflectionMaxRoughness;
 
 RWStructuredBuffer<FSortedReflectionRay>        RayBuffer;
 RWStructuredBuffer<FDeferredMaterialPayload>    MaterialBuffer;
@@ -75,13 +78,19 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 		FRayIntersectionBookmark Bookmark = (FRayIntersectionBookmark)0;
 
-		TraceDeferredMaterialGatherRay(TLAS,
-			RAY_FLAG_FORCE_OPAQUE, // Masked and transparent materials are currently not supported
-			RAY_TRACING_MASK_OPAQUE,
-			Ray,
-			Bookmark,
-			DeferredMaterialPayload
-		);
+		FGBufferData GBuffer = GetGBufferDataFromSceneTexturesLoad(PixelPos);
+		float RoughnessFade = GetRoughnessFade(GBuffer.Roughness, ReflectionMaxRoughness);
+		bool bIsValidPixel = RoughnessFade > 0;
+		if (bIsValidPixel)
+		{
+			TraceDeferredMaterialGatherRay(TLAS,
+				RAY_FLAG_FORCE_OPAQUE, // Masked and transparent materials are currently not supported
+				RAY_TRACING_MASK_OPAQUE,
+				Ray,
+				Bookmark,
+				DeferredMaterialPayload
+			);
+		}
 
 		BookmarkBuffer[DispatchThreadId] = Bookmark;
 	}
@@ -97,7 +106,15 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 
 	const FSortedReflectionRay SortedRay = RayBuffer[SortedRayIndex];
 	const uint2 PixelPos = UnpackPixelCoordinates(SortedRay.PixelCoordinates);
-	if (all(PixelPos < RayTracingResolution) && DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
+	if (any(PixelPos >= RayTracingResolution))
+	{
+		return;
+	}
+
+	float4 ResultColor    = (float4)0;
+	float  ResultDistance = DENOISER_MISS_HIT_DISTANCE;
+
+	if (DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
 	{
 		RayDesc Ray;
 		Ray.TMin      = 0;
@@ -108,6 +125,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		FRayIntersectionBookmark Bookmark = BookmarkBuffer[DeferredMaterialPayload.PixelCoordinates];
 
 		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+		PackedPayload.SetEnableSkyLightContribution();
 
 		TraceDeferredMaterialShadingRay(
 			TLAS,
@@ -117,13 +135,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 			Bookmark,
 			PackedPayload);
 
-		float4 ResultColor = (float4)0;
-		float ResultDistance = -1;
-
 		if (PackedPayload.IsHit())
 		{
-			ResultDistance = PackedPayload.HitT;
-
 			bool bShouldDoDirectLighting               = true;
 			bool bShouldDoEmissiveAndIndirectLighting  = true;
 			bool bTopLayerRayTraceSkyLightContribution = false;
@@ -155,11 +168,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 
 			ResultColor.rgb *= View.PreExposure;
 			ResultColor.a = 1;
-		}
 
-		ColorOutput[PixelPos] 			= ResultColor;
-		RayHitDistanceOutput[PixelPos] 	= ResultDistance;
+			ResultDistance = PackedPayload.HitT;
+		}
 	}
+
+	ColorOutput[PixelPos] 			= ResultColor;
+	RayHitDistanceOutput[PixelPos] 	= ResultDistance;
 
 #endif // DIM_DEFERRED_MATERIAL_MODE
 }

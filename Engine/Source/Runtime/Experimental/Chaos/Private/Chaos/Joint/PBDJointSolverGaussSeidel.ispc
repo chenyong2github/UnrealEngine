@@ -222,6 +222,18 @@ static inline void ApplyVelocityDelta(
 	M->Ws[1] = M->Ws[1] + Stiffness * DW1;
 }
 
+
+static inline void ApplyVelocityDelta(
+	uniform FJointSolverGaussSeidel * uniform M,
+	const uniform int Index,
+	const uniform float Stiffness,
+	const uniform FVector& DV,
+	const uniform FVector& DW)
+{
+	M->Vs[Index] = M->Vs[Index] + Stiffness * DV;
+	M->Ws[Index] = M->Ws[Index] + Stiffness * DW;
+}
+
 export void ApplyPositionConstraintSoft(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform float Dt,
@@ -392,46 +404,57 @@ export void ApplyPointPositionConstraintDD(
 	ApplyRotationDelta(M, LinearStiffness, DR0, DR1);
 }
 
-export void ApplyPositionProjection(
+export void ApplyPointPositionProjection(
 	uniform FJointSolverGaussSeidel * uniform M,
 	const uniform FVector &CX,
-	const uniform float CXLen,
-	const uniform float ParentMassScale,
-	const uniform float Stiffness)
+	const uniform float LinearProjection)
 {
-	const uniform FVector CXDir = CX / CXLen;
-	const uniform FVector V0 = M->Vs[0] + VectorCross(M->Ws[0], M->Xs[0] - M->Ps[0]);
-	const uniform FVector V1 = M->Vs[1] + VectorCross(M->Ws[1], M->Xs[1] - M->Ps[1]);
-	const uniform FVector CV = VectorDot(V1 - V0, CXDir) * CXDir;
-
-	const uniform float IM0 = ParentMassScale * M->InvMs[0];
-	const uniform float IM1 = M->InvMs[1];
-	const uniform FVector IIL0 = ParentMassScale * M->InvILs[0];
-	const uniform FVector& IIL1 = M->InvILs[1];
-	uniform FMatrix33 J0 = Matrix33Zero;
-	if(IM0 > 0)
+	// Apply a position correction with the parent body set to infinite mass
 	{
-		J0 = ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], M->InvIs[0], IM0);
+		const uniform FMatrix33 J = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]);
+		const uniform FMatrix33 IJ = MatrixInverse(J);
+		const uniform FVector DX = VectorNegate(Multiply(IJ, CX));
+		const uniform FVector DP1 = M->InvMs[1] * DX;
+		const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], DX));
+		ApplyDelta(M, 1, LinearProjection, DP1, DR1);
 	}
-	const uniform FMatrix33 J1 = ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], IM1);
-	const uniform FMatrix33 IJ = MatrixInverse(AddAB(J0, J1));
 
-	const uniform FVector DX = Multiply(IJ, CX);
-	const uniform FVector DV = Multiply(IJ, CV);
+	// Apply a velocity correction to set the relative velocity at the joint to zero
+	// NOTE: No parent mass scale here - velocity correction is shared between bodies normally
+	// (if we don't do this, velocity tends to accumulate down chains leading to whip-like behaviour)
+	{
+		// Calculate joint-space mass
+		uniform FMatrix33 J = SetMatrix33(0, 0, 0);
+		if (M->InvMs[0] > 0)
+		{
+			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[0] - M->Ps[0], M->InvIs[0], M->InvMs[0]));
+		}
+		if (M->InvMs[1] > 0)
+		{
+			J = AddAB(J, ComputeJointFactorMatrix(M->Xs[1] - M->Ps[1], M->InvIs[1], M->InvMs[1]));
+		}
+		const uniform FMatrix33 IJ = MatrixInverse(J);
 
-	const uniform FVector DP0 = IM0 * DX;
-	const uniform FVector DP1 = -IM1 * DX;
-	const uniform FVector DR0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DX));
-	const uniform FVector DR1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DX)));
+		// Velocity correction
+		const uniform FVector V0 = M->Vs[0] + VectorCross(M->Ws[0], M->Xs[0] - M->Ps[0]);
+		const uniform FVector V1 = M->Vs[1] + VectorCross(M->Ws[1], M->Xs[1] - M->Ps[1]);
+		const uniform FVector CV = V1 - V0;
+		const uniform FVector DV = Multiply(IJ, CV);
 
-	const uniform FVector DV0 = IM0 * DV;
-	const uniform FVector DV1 = -IM1 * DV;
-	const uniform FVector DW0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DV));
-	const uniform FVector DW1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DV)));
+		if (M->InvMs[0] > 0)
+		{
+			const uniform FVector DV0 = M->InvMs[0] * DV;
+			const uniform FVector DW0 = Multiply(M->InvIs[0], VectorCross(M->Xs[0] - M->Ps[0], DV));
+			ApplyVelocityDelta(M, 0, LinearProjection, DV0, DW0);
+		}
+		if (M->InvMs[1] > 0)
+		{
+			const uniform FVector DV1 = M->InvMs[1] * VectorNegate(DV);
+			const uniform FVector DW1 = Multiply(M->InvIs[1], VectorCross(M->Xs[1] - M->Ps[1], VectorNegate(DV)));
+			ApplyVelocityDelta(M, 1, LinearProjection, DV1, DW1);
+		}
+	}
 
-	ApplyPositionDelta(M, Stiffness, DP0, DP1);
-	ApplyRotationDelta(M, Stiffness, DR0, DR1);
-	ApplyVelocityDelta(M, Stiffness, DV0, DW0, DV1, DW1);
 }
 
 //
@@ -537,6 +560,147 @@ static inline void BatchUpdateDerivedStateImpl(uniform FJointSolverJointState Jo
 export void BatchUpdateDerivedState(uniform FJointSolverJointState Joints[], uniform int JointIndexBegin, uniform int JointIndexEnd)
 {
 	BatchUpdateDerivedStateImpl(Joints, JointIndexBegin, JointIndexEnd);
+}
+
+static inline void BatchApplyPositionConstraint1(
+	const uniform float Dt,
+	uniform FJointSolverJointState& JointState,
+	uniform FJointSolverConstraintRowData& RowData,
+	uniform FJointSolverConstraintRowState& RowState)
+{
+	uniform float II = 0.0f;
+	uniform FVector AngularAxis0 = ZeroVector;
+	uniform FVector AngularAxis1 = ZeroVector;
+
+	if (JointState.InvMs[0] > 0.0f)
+	{
+		AngularAxis0 = VectorCross(JointState.Xs[0] - JointState.Ps[0], RowState.Axis);
+		const uniform FVector IA0 = Multiply(JointState.InvIs[0], AngularAxis0);
+		const uniform float II0 = VectorDot(AngularAxis0, IA0);
+		II += JointState.InvMs[0] + II0;
+	}
+	if (JointState.InvMs[1] > 0.0f)
+	{
+		AngularAxis1 = VectorCross(JointState.Xs[1] - JointState.Ps[1], RowState.Axis);
+		const uniform FVector IA1 = Multiply(JointState.InvIs[1], AngularAxis1);
+		const uniform float II1 = VectorDot(AngularAxis1, IA1);
+		II += JointState.InvMs[1] + II1;
+	}
+
+	if (RowData.bIsSoft)
+	{
+		uniform float VelDt = 0;
+		if (RowData.Damping > KINDA_SMALL_NUMBER)
+		{
+			const uniform FVector V0 = CalculateVelocity(JointState.PrevXs[0], JointState.Xs[0], 1.0f);
+			const uniform FVector V1 = CalculateVelocity(JointState.PrevXs[1], JointState.Xs[1], 1.0f);
+			VelDt = VectorDot(V0 - V1, RowState.Axis);
+		}
+
+		const uniform float SpringMassScale = (RowData.bIsAccelerationMode) ? 1.0f / (JointState.InvMs[0] + JointState.InvMs[1]) : 1.0f;
+		const uniform float S = SpringMassScale * RowData.Stiffness * Dt * Dt;
+		const uniform float D = SpringMassScale * RowData.Damping * Dt;
+		const uniform float Multiplier = 1.0f / ((S + D) * II + 1.0f);
+		const uniform float DLambda = Multiplier * (S * RowState.Error - D * VelDt - RowState.Lambda);
+
+		RowState.DPs[0] = (JointState.InvMs[0] * DLambda) * RowState.Axis;
+		RowState.DPs[1] = (-JointState.InvMs[1] * DLambda) * RowState.Axis;
+		RowState.DRs[0] = DLambda * Multiply(JointState.InvIs[0], AngularAxis0);
+		RowState.DRs[1] = -DLambda * Multiply(JointState.InvIs[1], AngularAxis1);
+		RowState.Lambda += DLambda;
+	}
+	else
+	{
+		const uniform FVector DX = RowState.Axis * (RowData.Stiffness * RowState.Error / II);
+
+		// Apply constraint correction
+		RowState.DPs[0] = JointState.InvMs[0] * DX;
+		RowState.DPs[1] = JointState.InvMs[1] * VectorNegate(DX);
+		RowState.DRs[0] = Multiply(JointState.InvIs[0], VectorCross(JointState.Xs[0] - JointState.Ps[0], DX));
+		RowState.DRs[1] = Multiply(JointState.InvIs[1], VectorCross(JointState.Xs[1] - JointState.Ps[1], VectorNegate(DX)));
+	}
+}
+
+static inline void BatchApplyDelta(
+	uniform FJointSolverJointState* uniform JointStates, 
+	uniform int JointIndex)
+{
+	if (JointStates[JointIndex].InvMs[0] > 0.0f)
+	{
+		const uniform FVector4 Qs0 = JointStates[JointIndex].Qs[0];
+		const uniform FVector4 DR0 = SetVector4(JointStates[JointIndex].DRs[0], 0);
+		const uniform FVector4 DQ0 = VectorQuaternionMultiply2(DR0, Qs0) * 0.5f;
+		const uniform FVector4 Q0 = VectorNormalizeQuaternion(Qs0 + DQ0);
+		JointStates[JointIndex].Ps[0] = JointStates[JointIndex].Ps[0] + JointStates[JointIndex].DPs[0];
+		JointStates[JointIndex].Qs[0] = Q0;
+	}
+
+	if (JointStates[JointIndex].InvMs[1] > 0.0f)
+	{
+		const uniform FVector4 Qs1 = JointStates[JointIndex].Qs[1];
+		const uniform FVector4 DR1 = SetVector4(JointStates[JointIndex].DRs[1], 0);
+		const uniform FVector4 DQ1 = VectorQuaternionMultiply2(DR1, Qs1) * 0.5f;
+		const uniform FVector4 Q1 = VectorNormalizeQuaternion(Qs1 + DQ1);
+		JointStates[JointIndex].Ps[1] = JointStates[JointIndex].Ps[1] + JointStates[JointIndex].DPs[1];
+		JointStates[JointIndex].Qs[1] = Q1;
+	}
+
+	JointStates[JointIndex].Qs[1] = VectorQuaternionEnforceShortestArcWith(JointStates[JointIndex].Qs[1], JointStates[JointIndex].Qs[0]);
+}
+
+export uniform int BatchApplyPositionConstraints(
+	uniform float Dt, 
+	uniform FJointSolverJointState* uniform JointStates, 
+	uniform FJointSolverConstraintRowData* uniform RowDatas, 
+	uniform FJointSolverConstraintRowState* uniform RowStates, 
+	uniform int JointIndexBegin, 
+	uniform int JointIndexEnd, 
+	uniform int RowIndexBegin, 
+	uniform int RowIndexEnd)
+{
+	uniform int32 NumActiveConstraints = 0;
+
+	// Calculate the delta position and rotation to fix the constraint errors
+	// NOTE: Rows are in Joint order, so we can loop over them directly rather than looping over joints and then their rows.
+	for (uniform int32 RowIndex = RowIndexBegin; RowIndex < RowIndexEnd; /* no op */)
+	{
+		const uniform int32 RowJointIndex = RowDatas[RowIndex].JointIndex;
+		//if (RowDatas[RowIndex].NumRows == 3)
+		//{
+		//	uniform FVector Error = FVec3(RowStates[RowIndex].Error, RowStates[RowIndex + 1].Error, RowStates[RowIndex + 2].Error);
+		//	if (Error.Size() > JointStates[RowJointIndex].PositionTolerance)
+		//	{
+		//		ApplyPositionConstraint3(Dt, JointStates[RowJointIndex], RowDatas[RowIndex], RowStates[RowIndex], RowStates[RowIndex + 1], RowStates[RowIndex + 2]);
+		//		JointStates[RowJointIndex].DPs[0] = JointStates[RowJointIndex].DPs[0] + RowStates[RowIndex].DPs[0];
+		//		JointStates[RowJointIndex].DPs[1] = JointStates[RowJointIndex].DPs[1] + RowStates[RowIndex].DPs[1];
+		//		JointStates[RowJointIndex].DRs[0] = JointStates[RowJointIndex].DRs[0] + RowStates[RowIndex].DRs[0];
+		//		JointStates[RowJointIndex].DRs[1] = JointStates[RowJointIndex].DRs[1] + RowStates[RowIndex].DRs[1];
+		//		NumActiveConstraints += 3;
+		//	}
+		//	RowIndex += 3;
+		//}
+		//else if (RowDatas[RowIndex].NumRows == 1)
+		{
+			if (abs(RowStates[RowIndex].Error) > JointStates[RowJointIndex].PositionTolerance)
+			{
+				BatchApplyPositionConstraint1(Dt, JointStates[RowJointIndex], RowDatas[RowIndex], RowStates[RowIndex]);
+				JointStates[RowJointIndex].DPs[0] = JointStates[RowJointIndex].DPs[0] + RowStates[RowIndex].DPs[0];
+				JointStates[RowJointIndex].DPs[1] = JointStates[RowJointIndex].DPs[1] + RowStates[RowIndex].DPs[1];
+				JointStates[RowJointIndex].DRs[0] = JointStates[RowJointIndex].DRs[0] + RowStates[RowIndex].DRs[0];
+				JointStates[RowJointIndex].DRs[1] = JointStates[RowJointIndex].DRs[1] + RowStates[RowIndex].DRs[1];
+				++NumActiveConstraints;
+			}
+			++RowIndex;
+		}
+	}
+
+	// Accumulate and apply the deltas for each joint
+	for (uniform int32 JointIndex = JointIndexBegin; JointIndex < JointIndexEnd; ++JointIndex)
+	{
+		BatchApplyDelta(JointStates, JointIndex);
+	}
+
+	return NumActiveConstraints;
 }
 
 static inline void BatchApplyRotationConstraint(

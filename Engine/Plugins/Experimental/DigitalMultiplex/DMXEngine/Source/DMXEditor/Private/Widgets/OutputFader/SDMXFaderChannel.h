@@ -9,7 +9,6 @@
 
 class STextBlock;
 class FDMXEditor;
-class IDMXProtocol;
 
 #define LOCTEXT_NAMESPACE "SDMXFaderChannel"
 
@@ -27,7 +26,6 @@ public:
 	SLATE_ARGUMENT(FText, InText)
 	SLATE_ARGUMENT(uint16, UniverseNumber)
 	SLATE_ARGUMENT(uint32, ChannelNumber)
-	SLATE_ARGUMENT(IDMXProtocolPtrWeak, DMXProtocol)
 
 	SLATE_END_ARGS()
 
@@ -42,8 +40,6 @@ public:
 
 	uint32 GetChannelNumber() const { return ChannelNumber; }
 
-	const IDMXProtocolPtr GetProtocol() const { return WeakDMXProtocol.Pin(); }
-
 private:
 	/** Pointer back to the DMXEditor tool that owns us */
 	TWeakPtr<FDMXEditor> WeakDMXEditor;
@@ -55,8 +51,6 @@ private:
 	uint16 UniverseNumber;
 
 	uint32 ChannelNumber;
-
-	IDMXProtocolPtrWeak WeakDMXProtocol;
 };
 
 #undef LOCTEXT_NAMESPACE

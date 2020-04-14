@@ -92,6 +92,21 @@ const FName FNiagaraParameterHandle::GetNamespace() const
 	return Namespace;
 }
 
+const TArray<FName> FNiagaraParameterHandle::GetHandleParts() const
+{
+	if (HandlePartsCache.Num() == 0)
+	{
+		FString HandleString = ParameterHandleName.ToString();
+		TArray<FString> HandlePartStrings;
+		HandleString.ParseIntoArray(HandlePartStrings, TEXT("."));
+		for (const FString& HandlePartString : HandlePartStrings)
+		{
+			HandlePartsCache.Add(*HandlePartString);
+		}
+	}
+	return HandlePartsCache;
+}
+
 bool FNiagaraParameterHandle::IsUserHandle() const
 {
 	return Namespace == FNiagaraConstants::UserNamespace;
@@ -122,6 +137,16 @@ bool FNiagaraParameterHandle::IsModuleHandle() const
 	return Namespace == FNiagaraConstants::ModuleNamespace;
 }
 
+bool FNiagaraParameterHandle::IsOutputHandle() const
+{
+	return Namespace == FNiagaraConstants::OutputNamespace;
+}
+
+bool FNiagaraParameterHandle::IsLocalHandle() const
+{
+	return Namespace == FNiagaraConstants::LocalNamespace;
+}
+
 bool FNiagaraParameterHandle::IsParameterCollectionHandle() const
 {
 	return Namespace == FNiagaraConstants::ParameterCollectionNamespace;
@@ -138,12 +163,11 @@ bool FNiagaraParameterHandle::IsReadOnlyHandle() const
 
 bool FNiagaraParameterHandle::IsTransientHandle() const
 {
-	return
-		Namespace != FNiagaraConstants::UserNamespace &&
-		Namespace != FNiagaraConstants::EngineNamespace &&
-		Namespace != FNiagaraConstants::SystemNamespace &&
-		Namespace != FNiagaraConstants::EmitterNamespace &&
-		Namespace != FNiagaraConstants::ParticleAttributeNamespace &&
-		Namespace != FNiagaraConstants::ModuleNamespace &&
-		Namespace != FNiagaraConstants::ParameterCollectionNamespace;
+	return Namespace == FNiagaraConstants::TransientNamespace;
 }
+
+bool FNiagaraParameterHandle::IsDataInstanceHandle() const
+{
+	return Namespace == FNiagaraConstants::DataInstanceNamespace;
+}
+

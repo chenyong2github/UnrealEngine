@@ -87,6 +87,7 @@ private:
 
 	bool RecursiveGetScriptNamesAndAssetPathsFromContextStack(
 		  TArray<FGuid>& InContextStackNodeGuids
+		, FGuid NodeGuid
 		, const UNiagaraGraph* InGraphToSearch
 		, TArray<FNiagaraScriptNameAndAssetPath>& OutContextScriptNamesAndAssetPaths
 		, TOptional<const FString>& OutEmitterName

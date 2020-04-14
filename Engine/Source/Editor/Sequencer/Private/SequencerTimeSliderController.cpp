@@ -300,7 +300,8 @@ void FSequencerTimeSliderController::DrawTicks( FSlateWindowElementList& OutDraw
 int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, FSlateWindowElementList& OutDrawElements, int32 LayerId, const ESlateDrawEffect& DrawEffects, bool bDrawLabels ) const
 {
 	const TArray<FMovieSceneMarkedFrame> & MarkedFrames = TimeSliderArgs.MarkedFrames.Get();
-	if (MarkedFrames.Num() < 1)
+	const TArray<FMovieSceneMarkedFrame> & GlobalMarkedFrames = TimeSliderArgs.GlobalMarkedFrames.Get();
+	if (MarkedFrames.Num() < 1 && GlobalMarkedFrames.Num() < 1)
 	{
 		return LayerId;
 	}
@@ -310,50 +311,57 @@ int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& Allotte
 
 	FQualifiedFrameTime ScrubPosition = FQualifiedFrameTime(TimeSliderArgs.ScrubPosition.Get(), GetTickResolution());
 	FScrubberMetrics    ScrubMetrics = GetScrubPixelMetrics(ScrubPosition, RangeToScreen);
+	auto DrawFrameMarkers = ([=](const TArray<FMovieSceneMarkedFrame> & InMarkedFrames, FSlateWindowElementList& DrawElements, bool bFade) {
 
-	for (const FMovieSceneMarkedFrame& MarkedFrame : MarkedFrames)
-	{
-		double Seconds = MarkedFrame.FrameNumber / GetTickResolution();
-
-		const float  LinePos = RangeToScreen.InputToLocalX( Seconds );
-		TArray<FVector2D> LinePoints;
-		LinePoints.AddUninitialized(2);
-		LinePoints[0] = FVector2D( LinePos, 0.0f );
-		LinePoints[1] = FVector2D( LinePos, FMath::FloorToFloat( AllottedGeometry.Size.Y ) );
-
-		FSlateDrawElement::MakeLines(
-			OutDrawElements,
-			LayerId+1,
-			AllottedGeometry.ToPaintGeometry(),
-			LinePoints,
-			DrawEffects,
-			MarkedFrame.Color,
-			false
-		);
-
-		FString LabelString = MarkedFrame.Label;
-		if (bDrawLabels && !LabelString.IsEmpty())
+		for (const FMovieSceneMarkedFrame& MarkedFrame : InMarkedFrames)
 		{
-			// Draw the label next to the marked frame line
-			FVector2D TextSize = FontMeasureService->Measure(LabelString, SmallLayoutFont);
+			double Seconds = MarkedFrame.FrameNumber / GetTickResolution();
 
-			// Flip the text position if getting near the end of the view range
-			static const float TextOffsetPx = 2.f;
-			bool  bDrawLeft = (AllottedGeometry.Size.X - LinePos) < (TextSize.X + 14.f) - TextOffsetPx;
-			float TextPosition = bDrawLeft ? LinePos - TextSize.X - TextOffsetPx : LinePos + TextOffsetPx;
+			FLinearColor DrawColor = bFade ? MarkedFrame.Color.Desaturate(0.25f) : MarkedFrame.Color;
+			const float  LinePos = RangeToScreen.InputToLocalX(Seconds);
+			TArray<FVector2D> LinePoints;
+			LinePoints.AddUninitialized(2);
+			LinePoints[0] = FVector2D(LinePos, 0.0f);
+			LinePoints[1] = FVector2D(LinePos, FMath::FloorToFloat(AllottedGeometry.Size.Y));
 
-			FSlateDrawElement::MakeText(
-				OutDrawElements,
+			FSlateDrawElement::MakeLines(
+				DrawElements,
 				LayerId + 1,
-				AllottedGeometry.ToPaintGeometry(FVector2D(TextPosition, 0.f), TextSize),
-				LabelString,
-				SmallLayoutFont,
+				AllottedGeometry.ToPaintGeometry(),
+				LinePoints,
 				DrawEffects,
-				MarkedFrame.Color
+				DrawColor,
+				false
 			);
-		}
-	}
 
+			FString LabelString = MarkedFrame.Label;
+			if (bDrawLabels && !LabelString.IsEmpty())
+			{
+				// Draw the label next to the marked frame line
+				FVector2D TextSize = FontMeasureService->Measure(LabelString, SmallLayoutFont);
+
+				// Flip the text position if getting near the end of the view range
+				static const float TextOffsetPx = 2.f;
+				bool  bDrawLeft = (AllottedGeometry.Size.X - LinePos) < (TextSize.X + 14.f) - TextOffsetPx;
+				float TextPosition = bDrawLeft ? LinePos - TextSize.X - TextOffsetPx : LinePos + TextOffsetPx;
+
+				FSlateDrawElement::MakeText(
+					DrawElements,
+					LayerId + 1,
+					AllottedGeometry.ToPaintGeometry(FVector2D(TextPosition, 0.f), TextSize),
+					LabelString,
+					SmallLayoutFont,
+					DrawEffects,
+					DrawColor
+				);
+			}
+		}
+
+	});
+	
+	DrawFrameMarkers(GlobalMarkedFrames, OutDrawElements, true);
+	DrawFrameMarkers(MarkedFrames, OutDrawElements, false);
+	
 	return LayerId + 1;
 }
 

@@ -30,6 +30,10 @@
 	#define FEATURE_GATHER4 0
 #endif
 
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	#define SIMPLE_SINGLE_LAYER_WATER 1
+#endif
+
 #include "SHCommon.ush"
 #include "MobileBasePassCommon.ush"
 #include "/Engine/Generated/Material.ush"
@@ -42,8 +46,7 @@
 #include "PlanarReflectionShared.ush"
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-#define SIMPLE_SINGLE_LAYER_WATER 1
-#include "SingleLayerWaterCommon.ush"
+	#include "SingleLayerWaterShading.ush"
 #endif
 
 // Add fading CSM plane:
@@ -115,6 +118,10 @@ float4 GetSphereCaptureVector(float3 ReflectionVector, float3 WorldPosition, flo
 	float4 ProjectedCaptureVector;
 	ProjectedCaptureVector.w = 0;
 	ProjectedCaptureVector.xyz = ReflectionVector;
+
+	// Use ReflectionVector if we are defaulting to SkySphere
+	if (CapturePositionAndRadius.w < 0)
+		return ProjectedCaptureVector;
 
 	float3 RayDirection = ReflectionVector;
 	float ProjectionSphereRadius = CapturePositionAndRadius.w * 1.2f;
@@ -188,6 +195,8 @@ float4 GetBoxCaptureVector(float3 ReflectionVector, float3 WorldPosition, float4
 half3 BlendReflectionCapture(FMaterialPixelParameters MaterialParameters, TextureCube ReflectionCube, SamplerState ReflectionSampler, half MipLevel, int ReflectionIndex, inout half BlendFactor)
 {
 	half4 ProjectedCaptureVector;
+	half3 SpecularIBL = half3(0.0f, 0.0f, 0.0f);
+
 #if ALLOW_CUBE_REFLECTIONS
 	if (CaptureBoxScalesArray[ReflectionIndex].w > 0)
 	{
@@ -201,11 +210,24 @@ half3 BlendReflectionCapture(FMaterialPixelParameters MaterialParameters, Textur
 
 	// Fetch from cubemap and convert to linear HDR
 	half4 Reflection = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector.xyz, MipLevel);
-	half3 SpecularIBL = RGBMDecode(Reflection, 16.0f);
+	
+	if (ReflectionPositionsAndRadii[ReflectionIndex].w > 0)
+	{
+		SpecularIBL = RGBMDecode(Reflection, 16.0f);
 
-	SpecularIBL = SpecularIBL * SpecularIBL * (ProjectedCaptureVector.w * BlendFactor);
+		SpecularIBL = SpecularIBL * SpecularIBL * (ProjectedCaptureVector.w * BlendFactor);
 
-	BlendFactor = BlendFactor * (1.0 - ProjectedCaptureVector.w);
+		BlendFactor = BlendFactor * (1.0 - ProjectedCaptureVector.w);
+	}
+	else
+	{
+		SpecularIBL = Reflection.rgb;
+
+		SpecularIBL *= ResolvedView.SkyLightColor.rgb;
+
+		// If we default to SkyLight it means there are no ReflectionComponents left in the scene, so set BlendFactor to 0
+		BlendFactor = 0.0f;
+	}
 	return SpecularIBL;
 }
 
@@ -265,10 +287,6 @@ float4 GetPlanarReflection(float3 WorldPosition, float3 WorldNormal, float Rough
 	PlanarReflection.rgb *= PlanarReflection.rgb;
 #endif
 
-	// the capture has applied exposure scale so need to cancel that.
-#if !MATERIALBLENDING_MODULATE
-	PlanarReflection.rgb *= USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1;
-#endif
 	return PlanarReflection;
 }
 

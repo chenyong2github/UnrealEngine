@@ -5,11 +5,13 @@
 #if !UE_BUILD_SHIPPING
 #include "CoreMinimal.h"
 #include "AudioModulationLogging.h"
+#include "AudioModulationSystem.h"
 #include "AudioThread.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
-#include "IAudioExtensionPlugin.h"
+#include "IAudioModulation.h"
 #include "Misc/CoreDelegates.h"
+#include "SoundControlBusProxy.h"
 #include "SoundModulationPatch.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulationValue.h"
@@ -314,7 +316,7 @@ namespace AudioModulation
 			FControlBusMixDebugInfo DebugInfo;
 			DebugInfo.Name = Proxy->GetName();
 			DebugInfo.RefCount = Proxy->GetRefCount();
-			for (const TPair< FBusId, FModulatorBusMixChannelProxy>& Channel : Proxy->Channels)
+			for (const TPair<FBusId, FModulatorBusMixChannelProxy>& Channel : Proxy->Channels)
 			{
 				FControlBusMixChannelDebugInfo ChannelDebugInfo;
 				ChannelDebugInfo.CurrentValue = Channel.Value.Value.GetCurrentValue();

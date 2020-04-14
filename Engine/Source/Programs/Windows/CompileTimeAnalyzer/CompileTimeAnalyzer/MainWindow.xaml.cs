@@ -24,6 +24,16 @@ namespace Timing_Data_Investigator
 
 		private void MainWindow_Loaded(object sender, RoutedEventArgs e)
 		{
+			string[] CmdArgs = Environment.GetCommandLineArgs();
+			if(CmdArgs.Length > 1)
+			{
+				if(CmdArgs[1].EndsWith(".timing.bin"))
+				{
+					LoadTimingFile(CmdArgs[1]);
+					return;
+				}
+			}
+
 			ShowOpenFileDialog();
 		}
 

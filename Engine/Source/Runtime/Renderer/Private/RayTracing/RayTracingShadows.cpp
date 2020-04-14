@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DeferredShadingRenderer.h"
+#include "SceneRenderTargets.h"
 
 #if RHI_RAYTRACING
 
 #include "ClearQuad.h"
 #include "PathTracingUniformBuffers.h"
 #include "SceneRendering.h"
-#include "SceneRenderTargets.h"
 #include "RenderGraphBuilder.h"
 #include "RenderTargetPool.h"
 #include "RHIResources.h"
@@ -310,3 +310,17 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	unimplemented();
 }
 #endif
+
+void FDeferredShadingSceneRenderer::RenderDitheredLODFadingOutMask(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+{
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	SceneContext.BeginRenderingPrePass(RHICmdList, false);
+
+	RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+	View.ParallelMeshDrawCommandPasses[EMeshPass::DitheredLODFadingOutMaskPass].DispatchDraw(nullptr, RHICmdList);
+
+	SceneContext.FinishRenderingPrePass(RHICmdList);
+}

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Camera/CameraTypes.h"
 #include "Components/SceneComponent.h"
 #include "UObject/ObjectMacros.h"
 #include "CameraShakeSourceComponent.generated.h"
@@ -77,7 +78,7 @@ public:
 
 	/** Starts a new camera shake originating from this source, and apply it on all player controllers */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
-	void PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake);
+	void PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake, float Scale=1.f, enum ECameraAnimPlaySpace::Type PlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** Stops a camera shake originating from this source */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)

@@ -234,12 +234,13 @@ public:
 
 	/** 
 	 * Creates a new blueprint instance and replaces the provided actor list with the new actor
-	 * @param Blueprint			The blueprint class to create an actor instance from
-	 * @param SelectedActors	The list of currently selected actors in the editor
-	 * @param Location			The location of the newly created actor
-	 * @param Rotator			The rotation of the newly created actor
+	 * @param Blueprint             The blueprint class to create an actor instance from
+	 * @param SelectedActors        The list of currently selected actors in the editor
+	 * @param Location              The location of the newly created actor
+	 * @param Rotator               The rotation of the newly created actor
+	 * @param AttachParent          The actor the newly created instance should be attached to if any
 	 */
-	static AActor* CreateBlueprintInstanceFromSelection(class UBlueprint* Blueprint, const TArray<AActor*>& SelectedActors, const FVector& Location, const FRotator& Rotator);
+	static AActor* CreateBlueprintInstanceFromSelection(class UBlueprint* Blueprint, const TArray<AActor*>& SelectedActors, const FVector& Location, const FRotator& Rotator, AActor* AttachParent = nullptr);
 
 	/** 
 	 * Create a new Blueprint from the supplied base class. Pops up window to let user select location and name.

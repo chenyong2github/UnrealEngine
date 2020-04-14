@@ -23,6 +23,7 @@
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
+#include "NiagaraNodeReroute.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorModule.h"
@@ -108,11 +109,6 @@ FDelegateHandle UNiagaraGraph::AddOnGraphNeedsRecompileHandler(const FOnGraphCha
 void UNiagaraGraph::RemoveOnGraphNeedsRecompileHandler(FDelegateHandle Handle)
 {
 	OnGraphNeedsRecompile.Remove(Handle);
-}
-
-void UNiagaraGraph::MutableAddParameter(FNiagaraVariable& Parameter, const FAddParameterOptions Options) const
-{
-	const_cast<UNiagaraGraph*>(this)->AddParameter(Parameter, Options);
 }
 
 void UNiagaraGraph::NotifyGraphChanged(const FEdGraphEditAction& InAction)
@@ -384,6 +380,11 @@ void UNiagaraGraph::PostLoad()
 		NotifyGraphNeedsRecompile();
 	}
 
+	if (NiagaraVer < FNiagaraCustomVersion::StandardizeParameterNames)
+	{
+		StandardizeParameterNames();
+	}
+
 	InvalidateCachedParameterData();
 }
 
@@ -488,6 +489,326 @@ void UNiagaraGraph::ValidateDefaultPins()
 				ScriptVariable->Variable = DefaultData;
 			}
 		}
+	}
+}
+
+FName UNiagaraGraph::StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool bIsGet, bool bIsSet)
+{
+	bool bIsScriptUsage = 
+		Usage == ENiagaraScriptUsage::Module || 
+		Usage == ENiagaraScriptUsage::DynamicInput || 
+		Usage == ENiagaraScriptUsage::Function;
+
+	TArray<FString> NamePartStrings;
+	TArray<FName> NameParts;
+	Name.ToString().ParseIntoArray(NamePartStrings, TEXT("."));
+
+	for (const FString& NamePartString : NamePartStrings)
+	{
+		NameParts.Add(*NamePartString);
+	}
+	if (NameParts.Num() == 0)
+	{
+		NameParts.Add(NAME_None);
+	}
+
+	FName Namespace;
+	if (NameParts[0] == FNiagaraConstants::EngineNamespace ||
+		NameParts[0] == FNiagaraConstants::ParameterCollectionNamespace ||
+		NameParts[0] == FNiagaraConstants::UserNamespace ||
+		NameParts[0] == FNiagaraConstants::ArrayNamespace ||
+		NameParts[0] == FNiagaraConstants::DataInstanceNamespace)
+	{
+		// Don't modify engine, parameter collections, or user parameters since they're defined externally and won't have fixed up
+		// names.  Also ignore the array and DataInstance namespaces because they're special.
+		return Name;
+	}
+	else if (NameParts[0] == FNiagaraConstants::LocalNamespace)
+	{
+		// Local can only be used in the context of a single module so force it to have a secondary module namespace.
+		static const FName LocalNamespace = *(FNiagaraConstants::LocalNamespace.ToString() + TEXT(".") + FNiagaraConstants::ModuleNamespace.ToString());
+		Namespace = LocalNamespace;
+		NameParts.RemoveAt(0);
+	}
+	else if (NameParts[0] == FNiagaraConstants::OutputNamespace)
+	{
+		static const FName OutputScriptNamespace = *(FNiagaraConstants::OutputNamespace.ToString() + TEXT(".") + FNiagaraConstants::ModuleNamespace.ToString());
+		static const FName OutputUnknownNamespace = *(FNiagaraConstants::OutputNamespace.ToString() + TEXT(".") + FName(NAME_None).ToString());
+		if (bIsScriptUsage)
+		{
+			if (bIsSet || NameParts.Num() <= 2)
+			{
+				// In a script outputs must always be written to the module namespace, and if the previous output didn't specify module
+				// or a sub-namespace assume it was reading from the module namespace.
+				Namespace = OutputScriptNamespace;
+				NameParts.RemoveAt(0);
+			}
+			else
+			{
+				// When reading they can be from the module namespace, or a more specific namespace from a different module, we also need
+				// to handle the case where they are reading from the output of a nested module, so allow an additional namespace too.
+				if (NameParts.Num() > 3)
+				{
+					Namespace = *(NameParts[0].ToString() + TEXT(".") + NameParts[1].ToString() + TEXT(".") + NameParts[2].ToString());
+					NameParts.RemoveAt(0, 3);
+				}
+				else
+				{
+					Namespace = *(NameParts[0].ToString() + TEXT(".") + NameParts[1].ToString());
+					NameParts.RemoveAt(0, 2);
+				}
+			}
+		}
+		else
+		{
+			// The only valid usage for output parameters in system and emitter graphs is reading them from an aliased parameter of the form
+			// Output.ModuleName.ValueName.  If there are not enough name parts put in 'none' for the module name.
+			if (NameParts.Num() > 2)
+			{
+				Namespace = *(NameParts[0].ToString() + TEXT(".") + NameParts[1].ToString());
+				NameParts.RemoveAt(0, 2);
+			}
+			else
+			{
+				Namespace = OutputUnknownNamespace;
+				NameParts.RemoveAt(0);
+			}
+		}
+	}
+	else if (
+		NameParts[0] == FNiagaraConstants::ModuleNamespace ||
+		NameParts[0] == FNiagaraConstants::SystemNamespace ||
+		NameParts[0] == FNiagaraConstants::EmitterNamespace ||
+		NameParts[0] == FNiagaraConstants::ParticleAttributeNamespace)
+	{
+		if (NameParts.Num() == 2)
+		{
+			// Standard module input or dataset attribute.
+			Namespace = NameParts[0];
+			NameParts.RemoveAt(0);
+		}
+		else
+		{
+			// If there are more than 2 name parts, allow the first 2 for a namespace and sub-namespace.
+			// Sub-namespaces are used for module specific dataset attributes, or for configuring
+			// inputs for nested modules.
+			Namespace = *(NameParts[0].ToString() + TEXT(".") + NameParts[1].ToString());
+			NameParts.RemoveAt(0, 2);
+		}
+	}
+	else if (NameParts[0] == FNiagaraConstants::TransientNamespace)
+	{
+		// Transient names have a single namespace.
+		Namespace = FNiagaraConstants::TransientNamespace;
+		NameParts.RemoveAt(0);
+	}
+	else
+	{
+		// Namespace was unknown.
+		if (bIsScriptUsage && NameParts.Contains(FNiagaraConstants::ModuleNamespace))
+		{
+			// If we're in a script check for a misplaced module namespace and if it has one, force it to be a 
+			// module output to help with fixing up usages.
+			static const FName OutputScriptNamespace = *(FNiagaraConstants::OutputNamespace.ToString() + TEXT(".") + FNiagaraConstants::ModuleNamespace.ToString());
+			Namespace = OutputScriptNamespace;
+		}
+		else if(bIsScriptUsage || bIsGet)
+		{
+			// If it's in a get node or it's in a script, force it into the transient namespace.
+			Namespace = FNiagaraConstants::TransientNamespace;
+		}
+		else
+		{
+			// Otherwise it's a set node in a system or emitter script so it must be used to configure a module input.  For this situation
+			// we have 2 cases, regular modules and set variables nodes.
+			if (NameParts[0].ToString().StartsWith(TRANSLATOR_SET_VARIABLES_STR))
+			{
+				// For a set variables node we need to strip the module name and then fully standardize the remainder of the
+				// name using the settings for a map set in a module.  We do this because the format of the input parameter will be
+				// Module.NamespaceName.ValueName and the NamespaceName.ValueName portion will have been standardized as part of the
+				// UNiagaraNodeAssignment post load.
+				Namespace = NameParts[0];
+				NameParts.RemoveAt(0);
+
+				FString AssignmentTargetString = NameParts[0].ToString();
+				for (int32 i = 1; i < NameParts.Num(); i++)
+				{
+					AssignmentTargetString += TEXT(".") + NameParts[i].ToString();
+				}
+				FName StandardizedAssignmentTargetName = StandardizeName(*AssignmentTargetString, ENiagaraScriptUsage::Module, false, true);
+
+				NameParts.Empty();
+				NameParts.Add(StandardizedAssignmentTargetName);
+			}
+			else
+			{
+				// For standard inputs we need to replace the module name with the module namespace and then standardize it, and then
+				// remove the module namespace and use that as the name, and the module name as the namespace.
+				Namespace = NameParts[0];
+				NameParts.RemoveAt(0);
+
+				FString ModuleInputString = FNiagaraConstants::ModuleNamespace.ToString();
+				for (int32 i = 0; i < NameParts.Num(); i++)
+				{
+					ModuleInputString += TEXT(".") + NameParts[i].ToString();
+				}
+				FName StandardizedModuleInput = StandardizeName(*ModuleInputString, ENiagaraScriptUsage::Module, true, false);
+				FString StandardizedModuleInputString = StandardizedModuleInput.ToString();
+				StandardizedModuleInputString.RemoveFromStart(FNiagaraConstants::ModuleNamespace.ToString() + TEXT("."));
+
+				NameParts.Empty();
+				NameParts.Add(*StandardizedModuleInputString);
+			}
+		}
+	}
+
+	checkf(Namespace != NAME_None, TEXT("No namespace picked."));
+
+	NameParts.Remove(FNiagaraConstants::ModuleNamespace);
+	if (NameParts.Num() == 0)
+	{
+		NameParts.Add(NAME_None);
+	}
+
+	// Form the name by concatenating the remaining parts of the name.
+	FString ParameterName;
+	if (NameParts.Num() == 1)
+	{
+		ParameterName = NameParts[0].ToString();
+	}
+	else
+	{
+		TArray<FString> RemainingNamePartStrings;
+		for (FName NamePart : NameParts)
+		{
+			RemainingNamePartStrings.Add(NamePart.ToString());
+		}
+		ParameterName = FString::Join(RemainingNamePartStrings, TEXT(""));
+	}
+
+	// Last, combine it with the namespace(s) chosen above.
+	return *FString::Printf(TEXT("%s.%s"), *Namespace.ToString(), *ParameterName);
+}
+
+void UNiagaraGraph::StandardizeParameterNames()
+{
+	TMap<FName, FName> OldNameToStandardizedNameMap;
+	bool bAnyNamesModified = false;
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+	
+	TArray<UNiagaraNodeOutput*> OutputNodes;
+	GetNodesOfClass(OutputNodes);
+
+	auto HandleParameterMapNode = [&bAnyNamesModified](const UEdGraphSchema_Niagara* NiagaraSchema, UNiagaraNodeParameterMapBase* Node, EEdGraphPinDirection PinDirection, ENiagaraScriptUsage Usage, bool bIsGet, bool bIsSet, TMap<FName, FName>& OldNameToStandardizedNameMap)
+	{
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin->Direction == PinDirection)
+			{
+				FNiagaraTypeDefinition PinType = NiagaraSchema->PinToTypeDefinition(Pin);
+				if (PinType.IsValid() && PinType != FNiagaraTypeDefinition::GetParameterMapDef())
+				{
+					FName* NewNamePtr = OldNameToStandardizedNameMap.Find(Pin->PinName);
+					FName NewName;
+					if (NewNamePtr != nullptr)
+					{
+						NewName = *NewNamePtr;
+					}
+					else
+					{
+						NewName = StandardizeName(Pin->PinName, Usage, bIsGet, bIsSet);
+						OldNameToStandardizedNameMap.Add(Pin->PinName, NewName);
+					}
+
+					if (Pin->PinName != NewName)
+					{
+						bAnyNamesModified = true;
+					}
+					Pin->PinName = NewName;
+					Pin->PinFriendlyName = FText::FromName(NewName);
+				}
+			}
+		}
+	};
+
+	TSet<UNiagaraNode*> AllTraversedNodes;
+	for (UNiagaraNodeOutput* OutputNode : OutputNodes)
+	{
+		TArray<UNiagaraNode*> TraversedNodes;
+		BuildTraversal(TraversedNodes, OutputNode, false);
+		AllTraversedNodes.Append(TraversedNodes);
+
+		for (UNiagaraNode* TraversedNode : TraversedNodes)
+		{
+			TraversedNode->ConditionalPostLoad();
+			if (TraversedNode->IsA<UNiagaraNodeParameterMapGet>())
+			{
+				HandleParameterMapNode(NiagaraSchema, CastChecked<UNiagaraNodeParameterMapBase>(TraversedNode), EGPD_Output, OutputNode->GetUsage(), true, false, OldNameToStandardizedNameMap);
+			}
+			else if (TraversedNode->IsA<UNiagaraNodeParameterMapSet>())
+			{
+				HandleParameterMapNode(NiagaraSchema, CastChecked<UNiagaraNodeParameterMapBase>(TraversedNode), EGPD_Input, OutputNode->GetUsage(), false, true, OldNameToStandardizedNameMap);
+			}
+		}
+	}
+
+	for (UEdGraphNode* Node : Nodes)
+	{
+		UNiagaraNodeParameterMapBase* ParameterMapNode = Cast<UNiagaraNodeParameterMapBase>(Node);
+		if (ParameterMapNode != nullptr && AllTraversedNodes.Contains(ParameterMapNode) == false)
+		{
+			if (ParameterMapNode->IsA<UNiagaraNodeParameterMapGet>())
+			{
+				HandleParameterMapNode(NiagaraSchema, ParameterMapNode, EGPD_Output, ENiagaraScriptUsage::Module, true, false, OldNameToStandardizedNameMap);
+			}
+			else if (ParameterMapNode->IsA<UNiagaraNodeParameterMapSet>())
+			{
+				HandleParameterMapNode(NiagaraSchema, ParameterMapNode, EGPD_Input, ENiagaraScriptUsage::Module, false, true, OldNameToStandardizedNameMap);
+			}
+		}
+	}
+
+	// Since we'll be modifying the keys, make a copy of the map and then clear the original so it cal be 
+	// repopulated.
+	TMap<FNiagaraVariable, UNiagaraScriptVariable*> OldVariableToScriptVariable = VariableToScriptVariable;
+	VariableToScriptVariable.Empty();
+	for (TPair<FNiagaraVariable, UNiagaraScriptVariable*> VariableScriptVariablePair : OldVariableToScriptVariable)
+	{
+		FNiagaraVariable Variable = VariableScriptVariablePair.Key;
+		UNiagaraScriptVariable* ScriptVariable = VariableScriptVariablePair.Value;
+		ScriptVariable->PostLoad();
+		
+		if (ScriptVariable->Metadata.GetIsStaticSwitch() == false)
+		{
+			// We ignore static switches here because they're not in the parameter and so they don't need
+			// their parameter names to be fixed up.
+			FName* NewNamePtr = OldNameToStandardizedNameMap.Find(Variable.GetName());
+			FName NewName;
+			if (NewNamePtr != nullptr)
+			{
+				NewName = *NewNamePtr;
+			}
+			else
+			{
+				FName OldName = Variable.GetName();
+				NewName = StandardizeName(OldName, ENiagaraScriptUsage::Module, false, false);
+				OldNameToStandardizedNameMap.Add(OldName, NewName);
+			}
+
+			if (Variable.GetName() != NewName)
+			{
+				bAnyNamesModified = true;
+			}
+			Variable.SetName(NewName);
+			ScriptVariable->Variable.SetName(NewName);
+		}
+
+		VariableToScriptVariable.Add(Variable, ScriptVariable);
+	}
+
+	if (bAnyNamesModified)
+	{
+		MarkGraphRequiresSynchronization(TEXT("Standardized parameter names"));
 	}
 }
 
@@ -2287,6 +2608,11 @@ void UNiagaraGraph::RefreshParameterReferences() const
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetNiagaraSchema();
 	for (UEdGraphNode* Node : Nodes)
 	{
+		if (Node->IsA<UNiagaraNodeReroute>())
+		{
+			continue;
+		}
+
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
 		if (SwitchNode && !SwitchNode->IsSetByCompiler())
 		{
@@ -2367,31 +2693,6 @@ void UNiagaraGraph::RefreshParameterReferences() const
 	for (auto Variable : UnreferencedScriptVariables)
 	{
 		VariableToScriptVariable.Remove(Variable);
-	}
-	
-	{
-		// Add the array indices to the parameters
-		// When a particle attribute is created we need access the corresponding RegisterIdx if we want to 
-		// query this attribute at a different location inside the InputData buffer. This index must be 
-		// available as well inside the UI if we want to pass it to nodes. It is why we are adding them automatically 
-		// to the ParameterToReferencesMap.
-		TArray<FString> RegisterNames;
-		for (auto& ParameterEntry : ParameterToReferencesMap)
-		{
-			const FNiagaraVariable& NiagaraVariable = ParameterEntry.Key;
-			if (FNiagaraParameterMapHistory::IsAttribute(NiagaraVariable))
-			{
-				const FString VariableName = FHlslNiagaraTranslator::GetSanitizedSymbolName(NiagaraVariable.GetName().ToString());
-				RegisterNames.Add(VariableName.Replace(PARAM_MAP_ATTRIBUTE_STR, PARAM_MAP_INDICES_STR));
-			}
-		}
-		for (const FString& RegisterName : RegisterNames)
-		{
-			FAddParameterOptions AddParameterOptions = FAddParameterOptions();
-			AddParameterOptions.bRefreshMetaDataScopeAndUsage = true;
-			FNiagaraVariable Parameter = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), *RegisterName);
-			MutableAddParameter(Parameter, AddParameterOptions);
-		}
 	}
 
 	bParameterReferenceRefreshPending = false;

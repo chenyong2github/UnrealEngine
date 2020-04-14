@@ -342,6 +342,11 @@ public:
 	}
 
 	/**
+	 * Set the name of the node (for identification purposes)
+	 */
+	void SetNodeName(const FName& InName);
+
+	/**
 	 * @return The number of child nodes belonging to this node
 	 */
 	uint32 GetNumChildren() const

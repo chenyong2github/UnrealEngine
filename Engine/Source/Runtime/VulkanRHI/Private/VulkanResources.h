@@ -724,13 +724,19 @@ inline FVulkanTextureBase* GetVulkanTextureFromRHITexture(FRHITexture* Texture)
 	{
 		return NULL;
 	}
-	else if (FRHITexture2D* Tex2D = Texture->GetTexture2D())
+	if(FRHITextureReference* TexRef = Texture->GetTextureReference())
+	{
+		Texture = TexRef->GetReferencedTexture();
+		if (!Texture)
+		{
+			return NULL;
+		}
+	}
+
+
+	if (FRHITexture2D* Tex2D = Texture->GetTexture2D())
 	{
 		return static_cast<FVulkanTexture2D*>(Tex2D);
-	}
-	else if (FRHITextureReference* TexRef = Texture->GetTextureReference())
-	{
-		return static_cast<FVulkanTextureReference*>(TexRef);
 	}
 	else if (FRHITexture2DArray* Tex2DArray = Texture->GetTexture2DArray())
 	{

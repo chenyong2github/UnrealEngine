@@ -72,45 +72,6 @@ namespace
 
 }
 
-void FMovieRenderPipelineEditorModule::PerformTestPipelineRender(const TArray<FString>& Args)
-{
-	if (Args.Num() == 0)
-	{
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("No arguments specified. Specify the path to a sequence asset to render."));
-		return;
-	}
-
-	FSoftObjectPath SequencePath = FSoftObjectPath(FPackageName::ExportTextPathToObjectPath(Args[0]));
-
-	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
-	TSubclassOf<UMoviePipelineExecutorBase> ExecutorClass = ProjectSettings->DefaultLocalExecutor;
-
-	check(false);
-	// Create an instance of the Executor and add it to the root so it never dies.
-	// Executor = NewObject<UMoviePipelineExecutorBase>(GetTransientPackage(), ExecutorClass);
-	// Executor->AddToRoot();
-	// Executor->OnExecutorFinished().AddRaw(this, &FMovieRenderPipelineEditorModule::OnTestPipelineExecutorFinished);
-	// 
-	// TArray<UMoviePipelineMasterConfig*> Pipelines = GenerateTestPipelineConfigs();
-	// 
-	// TArray<FMoviePipelineExecutorJobPrev> Jobs;
-	// for(UMoviePipelineMasterConfig* Pipeline : Pipelines)
-	// {
-	// 	Jobs.Add(FMoviePipelineExecutorJobPrev(SequencePath, Pipeline));
-	// }
-	// 
-	// Executor->Execute(Jobs);
-}
-
-void FMovieRenderPipelineEditorModule::OnTestPipelineExecutorFinished(UMoviePipelineExecutorBase* InExecutor, bool bSuccess)
-{
-	if (Executor)
-	{
-		Executor->RemoveFromRoot();
-		Executor = nullptr;
-	}
-}
-
 void FMovieRenderPipelineEditorModule::RegisterSettings()
 {
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
@@ -119,13 +80,6 @@ void FMovieRenderPipelineEditorModule::RegisterSettings()
 		LOCTEXT("ProjectSettings_Label", "Movie Render Pipeline"),
 		LOCTEXT("ProjectSettings_Description", "Configure project-wide defaults for the movie render pipeline."),
 		GetMutableDefault<UMovieRenderPipelineProjectSettings>()
-	);
-
-	IConsoleManager::Get().RegisterConsoleCommand(
-		TEXT("MovieRenderPipeline.TestRenderSequence"),
-		TEXT("Renders the specified sequence asset using the default executor and a pre-made configuration."),
-		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FMovieRenderPipelineEditorModule::PerformTestPipelineRender),
-		ECVF_Default
 	);
 }
 

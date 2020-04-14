@@ -789,7 +789,7 @@ struct FNetPrivatePushIdHelper
 {
 	static void SetNetPushID(UObject* InObject, const UE4PushModelPrivate::FNetPushObjectId ObjectId)
 	{
-		const UE4PushModelPrivate::FNetPushObjectId CurrentId = FObjectNetPushIdHelper::GetNetPushIdDynamic(InObject);
+		const UE4PushModelPrivate::FNetPushObjectId CurrentId = InObject->GetNetPushIdDynamic();
 		if (CurrentId != ObjectId)
 		{
 			check(CurrentId == INDEX_NONE);
@@ -797,7 +797,7 @@ struct FNetPrivatePushIdHelper
 		}
 	}
 
-	static void MarkPropertyDirty(UObject* InObject, const int32 RepIndex)
+	static void MarkPropertyDirty(const UObject* const InObject, const int32 RepIndex)
 	{
 		MARK_PROPERTY_DIRTY_UNSAFE(InObject, RepIndex);
 	}
@@ -954,7 +954,13 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 	const uint64 StaticTotalMemory = LocalAr.GetMax();
 
 	FCountBytesHelper CountBytesHelper(LocalAr, Buffer.GetData(), StaticTotalMemory, RepLayout->Parents, RepLayout->Cmds);
-	CountBytesHelper.CountBytes();
+
+	// Buffers can be empty for ReceivingRepStates that are being tracked on servers.
+	// TODO: Do we actually need to allocate receiving rep states on servers at all?
+	if (Buffer.Num() > 0)
+	{
+		CountBytesHelper.CountBytes();
+	}
 
 	const uint64 StaticOnRepMemory = StaticTotalMemory - CountBytesHelper.NonRepStaticMemory;
 
@@ -3758,7 +3764,7 @@ void FRepLayout::GatherGuidReferences(
 	}
 }
 
-bool FRepLayout::MoveMappedObjectToUnmapped_r(FGuidReferencesMap* GuidReferencesMap, const FNetworkGUID& GUID) const
+bool FRepLayout::MoveMappedObjectToUnmapped_r(FGuidReferencesMap* GuidReferencesMap, const FNetworkGUID& GUID, const UObject* const OwningObject) const
 {
 	bool bFoundGUID = false;
 
@@ -3770,7 +3776,7 @@ bool FRepLayout::MoveMappedObjectToUnmapped_r(FGuidReferencesMap* GuidReferences
 		{
 			check(Cmds[GuidReferences.CmdIndex].Type == ERepLayoutCmdType::DynamicArray);
 
-			if (MoveMappedObjectToUnmapped_r(GuidReferences.Array, GUID))
+			if (MoveMappedObjectToUnmapped_r(GuidReferences.Array, GUID, OwningObject))
 			{
 				bFoundGUID = true;
 			}
@@ -3782,6 +3788,13 @@ bool FRepLayout::MoveMappedObjectToUnmapped_r(FGuidReferencesMap* GuidReferences
 			GuidReferences.MappedDynamicGUIDs.Remove(GUID);
 			GuidReferences.UnmappedGUIDs.Add(GUID);
 			bFoundGUID = true;
+
+#if WITH_PUSH_MODEL
+			if (OwningObject)
+			{
+				FNetPrivatePushIdHelper::MarkPropertyDirty(OwningObject, GuidReferences.ParentIndex);
+			}
+#endif
 		}
 	}
 
@@ -3797,7 +3810,7 @@ bool FRepLayout::MoveMappedObjectToUnmapped(
 
 	if (!IsEmpty())
 	{
-		bFound = MoveMappedObjectToUnmapped_r(&RepState->GuidReferencesMap, GUID);
+		bFound = MoveMappedObjectToUnmapped_r(&RepState->GuidReferencesMap, GUID, Params.Object);
 
 		// Custom Delta Properties
 		if (LifetimeCustomPropertyState && Params.Object)
@@ -3924,6 +3937,10 @@ void FRepLayout::UpdateUnmappedObjects_r(
 				// Remove from unmapped guids list
 				UnmappedIt.RemoveCurrent();
 				bMappedSomeGUIDs = true;
+
+#if WITH_PUSH_MODEL
+				FNetPrivatePushIdHelper::MarkPropertyDirty(OriginalObject, GuidReferences.ParentIndex);
+#endif
 			}
 		}
 
@@ -7336,7 +7353,7 @@ bool FRepLayout::MoveMappedObjectToUnmappedForFastArray(FFastArrayDeltaSerialize
 	bool bFound = false;
 	for (auto& GuidReferencesPair : ArraySerializer.GuidReferencesMap_StructDelta)
 	{
-		bFound |= MoveMappedObjectToUnmapped_r(&GuidReferencesPair.Value, MoveToUnmapped);
+		bFound |= MoveMappedObjectToUnmapped_r(&GuidReferencesPair.Value, MoveToUnmapped, Params.DeltaSerializeInfo.Object);
 	}
 	return bFound;
 }

@@ -65,9 +65,10 @@ float InvPerObjectShadowFadeLength;
 	float4 LightPositionOrDirection;
 	float ShadowReceiverBias;
 
-#if USE_FADE_PLANE
+#if USE_FADE_PLANE || SUBPIXEL_SHADOW
 	float FadePlaneOffset;
 	float InvFadePlaneLength;
+	uint bCascadeUseFadePlane;
 #endif
 
 #if USE_PCSS
@@ -107,12 +108,17 @@ void Main(
 	out float4 OutColor : SV_Target0
 	)
 {
+	#if USE_FADE_PLANE
+	const bool bUseFadePlane = true;
+	#endif
+
 	const FPQMPContext PQMPContext = PQMPInit(SVPos.xy);
 	float2 ScreenUV = float2(SVPos.xy * View.BufferSizeAndInvSize.zw);
 	float SceneW = CalcSceneDepth(ScreenUV);
 
 	bool bIsSubsurfaceCompatible = true;
 #if SUBPIXEL_SHADOW
+	const bool bUseFadePlane = bCascadeUseFadePlane > 0;
 	const uint3 PixelCoord = uint3(floor(SVPos.xy), 0);
 	const FCategorizationData CategorizationData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
 	if (CategorizationData.PixelCoverage > 0)
@@ -128,7 +134,7 @@ void Main(
 	if (CategorizationData.ClosestDepth > ShadowNearAndFarDepth.x || CategorizationData.ClosestDepth < ShadowNearAndFarDepth.y) // Inverse-Z
 	{
 		discard;
-	}
+	};
 #endif
 
 	float4 ScreenPosition = float4(((ScreenUV.xy - View.ScreenPositionScaleBias.wz ) / View.ScreenPositionScaleBias.xy) * SceneW, SceneW, 1);
@@ -242,9 +248,12 @@ void Main(
 	}
 	#endif // !USE_PCSS
 		
-	#if USE_FADE_PLANE
+	#if USE_FADE_PLANE || SUBPIXEL_SHADOW
+	if (bUseFadePlane)
+	{
 		// Create a blend factor which is one before and at the fade plane, and lerps to zero at the far plane.
 		BlendFactor = 1.0f - saturate((SceneW - FadePlaneOffset) * InvFadePlaneLength);
+	}
 	#endif
 
 	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && !FORWARD_SHADING && !APPLY_TRANSLUCENCY_SHADOWS
@@ -326,9 +335,12 @@ void Main(
 	OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
 #endif
 
-	#if USE_FADE_PLANE
-		// When the fade plane is in use for CSMs, we output the fade value in the alpha channel for blending.
+	#if USE_FADE_PLANE || SUBPIXEL_SHADOW
+	// When the fade plane is in use for CSMs, we output the fade value in the alpha channel for blending.
+	if (bUseFadePlane)
+	{
 		OutColor.a = BlendFactor;
+	}
 	#endif
 
 #if MODULATED_SHADOWS

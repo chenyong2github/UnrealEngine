@@ -240,8 +240,8 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 
 			InputCollection->SetShouldShowInStack(GetStackEditorData().GetShowOutputs() || GetStackEditorData().GetShowLinkedInputs());
 
-			NewChildren.Add(LinkedInputCollection);
 			NewChildren.Add(InputCollection);
+			NewChildren.Add(LinkedInputCollection);
 			NewChildren.Add(OutputCollection);
 		
 		}
@@ -251,6 +251,21 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 			InputCollection->SetShouldShowInStack(false);
 
 			NewChildren.Add(InputCollection);
+
+			UNiagaraNodeAssignment* AssignmentNode = CastChecked<UNiagaraNodeAssignment>(FunctionCallNode);
+			if (AssignmentNode->GetAssignmentTargets().Num() == 0)
+			{
+				FText EmptyAssignmentNodeMessageText = LOCTEXT("EmptyAssignmentNodeMessage", "No variables\n\nTo add a variable use the add button in the header, or drag a parameter from the parameters tab to the header.");
+				UNiagaraStackItemTextContent* EmptyAssignmentNodeMessage = FindCurrentChildOfTypeByPredicate<UNiagaraStackItemTextContent>(NewChildren,
+					[&](UNiagaraStackItemTextContent* CurrentStackItemTextContent) { return CurrentStackItemTextContent->GetDisplayName().IdenticalTo(EmptyAssignmentNodeMessageText); });
+
+				if (EmptyAssignmentNodeMessage == nullptr)
+				{
+					EmptyAssignmentNodeMessage = NewObject<UNiagaraStackItemTextContent>(this);
+					EmptyAssignmentNodeMessage->Initialize(CreateDefaultChildRequiredData(), EmptyAssignmentNodeMessageText, false, GetStackEditorDataKey());
+				}
+				NewChildren.Add(EmptyAssignmentNodeMessage);
+			}
 		}
 	}
 
@@ -326,7 +341,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					if (FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr &&
 						FunctionCallNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
 					{
-						FormatString = LOCTEXT("ModuleScriptDeprecationMessageAndRecommendationLong", "The script asset for the assigned module {ScriptName} has been deprecated. Reason: {Message}. Suggested replacement: {Recommendation}");
+						FormatString = LOCTEXT("ModuleScriptDeprecationMessageAndRecommendationLong", "The script asset for the assigned module {ScriptName} has been deprecated. Reason:\n{Message}.\nSuggested replacement: {Recommendation}");
 					}
 					else if (FunctionCallNode->FunctionScript->DeprecationRecommendation != nullptr)
 					{
@@ -334,7 +349,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					}
 					else if (FunctionCallNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
 					{
-						FormatString = LOCTEXT("ModuleScriptDeprecationMessageLong", "The script asset for the assigned module {ScriptName} has been deprecated. Reason: {Message}");
+						FormatString = LOCTEXT("ModuleScriptDeprecationMessageLong", "The script asset for the assigned module {ScriptName} has been deprecated. Reason:\n{Message}");
 					}
 
 					FText LongMessage = FText::Format(FormatString, Args);
@@ -392,7 +407,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("Module"), FText::FromString(FunctionCallNode->GetFunctionName()));
 					Args.Add(TEXT("Message"), FunctionCallNode->FunctionScript->ExperimentalMessage);
-					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimentalReason", "The script asset for this module is marked as experimental, reason: {Message}."), Args);
+					ErrorMessage = FText::Format(LOCTEXT("ModuleScriptExperimentalReason", "The script asset for this module is marked as experimental, reason:\n{Message}."), Args);
 				}
 
 				NewIssues.Add(FStackIssue(
@@ -408,7 +423,13 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			GetSystemViewModel()->GetMessageLogGuid(), FObjectKey(FunctionCallNode));
 		for (TSharedRef<const INiagaraMessage> Message : Messages)
 		{
-			NewIssues.Add(FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey()));
+			// Sometimes compile errors with the same info are generated, so guard against duplicates here.
+			FStackIssue Issue = FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey());
+			if (NewIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
+				{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
+			{
+				NewIssues.Add(Issue);
+			}
 		}
 
 		if (FunctionCallNode->FunctionScript == nullptr && FunctionCallNode->GetClass() == UNiagaraNodeFunctionCall::StaticClass())
@@ -1001,15 +1022,16 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		RefreshChildren();
 
 		FunctionCallNode->SuggestName(FString());
-
 		const FString NewName = FunctionCallNode->GetFunctionName();
-		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
-		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
-		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
-		FunctionCallNode->RefreshFromExternalChanges();
-		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
-		RefreshChildren();
-		
+		if (NewName != OldName)
+		{
+			UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+			UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+			FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
+			FunctionCallNode->RefreshFromExternalChanges();
+			FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
+			RefreshChildren();
+		}
 		
 		if (ModuleScript->ConversionUtility != nullptr && OldClipboardContent != nullptr)
 		{

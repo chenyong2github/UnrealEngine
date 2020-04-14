@@ -291,7 +291,7 @@ SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
 	FCrashReportClientStyle::Initialize();
 
 	// Create the main implementation object
-	TSharedRef<FCrashReportClient> CrashReportClient = MakeShareable(new FCrashReportClient(ErrorReport));
+	TSharedRef<FCrashReportClient> CrashReportClient = MakeShared<FCrashReportClient>(ErrorReport);
 
 	// open up the app window	
 	TSharedRef<SCrashReportClient> ClientControl = SNew(SCrashReportClient, CrashReportClient);
@@ -738,23 +738,14 @@ static void HandleAbnormalShutdown(FSharedCrashContext& CrashContext, uint64 Pro
 	}
 }
 
-static bool WasAbnormalShutdown(const FEditorSessionSummarySender& SessionSummarySender)
+static bool WasAbnormalShutdown(const FEditorAnalyticsSession& AnalyticSession)
 {
-	FEditorAnalyticsSession AnalyticsSession;
-	if (SessionSummarySender.FindCurrentSession(AnalyticsSession))
-	{
-		// check if this was an abnormal shutdown (aka. none of the known shutdown types, and not debugged)
-		if (AnalyticsSession.bCrashed == false &&
-			AnalyticsSession.bGPUCrashed == false &&
-			AnalyticsSession.bWasShutdown == false &&
-			AnalyticsSession.bIsTerminating == false &&
-			AnalyticsSession.bWasEverDebugger == false)
-		{
-			return true;
-		}
-	}
-
-	return false;
+	// Check if this was an abnormal shutdown (aka. none of the known shutdown types, and not debugged)
+	return AnalyticSession.bCrashed == false &&
+		AnalyticSession.bGPUCrashed == false &&
+		AnalyticSession.bWasShutdown == false &&
+		AnalyticSession.bIsTerminating == false &&
+		AnalyticSession.bWasEverDebugger == false;
 }
 
 #endif
@@ -926,73 +917,100 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 #if CRASH_REPORT_WITH_MTBF // Expected to be 1 when compiling CrashReportClientEditor.
 		{
+			UE_LOG(CrashReportClientLog, Log, TEXT("Starting Editor MTBF reporting"));
+
 			// The loop above can exit before the Editor (monitored process) exits (because of IsEngineExitRequested()) if the user clicks 'Close Without Sending' very quickly, but for MTBF,
 			// it is desirable to have the Editor process return code. Give some extra time to the Editor to exit. If it doesn't exit within x seconds the next CRC instance will sent the
 			// current analytic report delayed, not ideal, but supported.
-			FDateTime WaitEndTime = FDateTime::UtcNow() + FTimespan(0, 0, 120);
+			FDateTime WaitEndTime = FDateTime::UtcNow() + FTimespan::FromMinutes(3);
 			while (ProcessStatus.Get<0>() && FDateTime::UtcNow() <= WaitEndTime)
 			{
-				FPlatformProcess::Sleep(0.5f); // In seconds
+				FPlatformProcess::Sleep(0.1f); // In seconds
 				ProcessStatus = GetProcessStatus(MonitoredProcess);
 			}
 
-			// Editor shutdown state from different point of view.
-			bool bAbnormalShutdownFromEditorPov = false;
-			bool bNormalShutdownFromOsPov = false; // Can only be true if the Editor process exit code is known and equal to zero.
+			// Check the status of the Editor process after waiting n seconds.
+			TOptional<int32> MonitoredProcessExitCode = ProcessStatus.Get<1>();
+			bool bMonitoredProcessExited = !ProcessStatus.Get<0>();
+			bool bMonitoredSessionLoaded = false;
 
+			// Try to persist an exit code in session summary (even if the Editor is still running)
+			FEditorAnalyticsSession MonitoredSession;
+			FTimespan Timeout = FTimespan::FromMinutes(2);
+			if (FEditorAnalyticsSession::Lock(Timeout))
 			{
-				// Send the editor summary event(s) first, maximizing chance of sucessfull transmission (less opportunities for bugs to prevent it).
-				FCrashReportAnalytics::Initialize();
-				if (FCrashReportAnalytics::IsAvailable())
+				if (FEditorAnalyticsSession::FindSession(MonitorPid, MonitoredSession))
 				{
-					// NOTE: The Editor doesn't create summary events if analytics are disabled (not permitted to send). It may still send pending events
-					//       accmulated while 'Send Data' was true, but will not send any newer.
-					FEditorSessionSummarySender EditorSessionSummarySender(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"), MonitorPid);
+					bMonitoredSessionLoaded = true; // Were able to acquire lock and load the session.
 
-					// Query the Editor process state again, the Editor may still run.
-					ProcessStatus = GetProcessStatus(MonitoredProcess);
-					if (!ProcessStatus.Get<0>()) // Process is 'not running' anymore?
+					if (MonitoredProcessExitCode.IsSet())
 					{
-						TOptional<int32> ExitCodeOpt = ProcessStatus.Get<1>();
-						if (ExitCodeOpt.IsSet()) // Exit code is known?
-						{
-							EditorSessionSummarySender.SetCurrentSessionExitCode(MonitorPid, ExitCodeOpt.GetValue()); // The Editor exit code from the OS point of view.
-							bNormalShutdownFromOsPov = ExitCodeOpt.GetValue() == 0;
-						}
-						else
-						{
-							EditorSessionSummarySender.SetCurrentSessionExitCode(MonitorPid, 112233001); // Special exit code, arbitrary but easy to read in decimal, to mark the process exit code as 'unknown'.
-						}
+						// Persist the real Editor exit code.
+						MonitoredSession.SaveExitCode(MonitoredProcessExitCode.GetValue());
+					}
+					else if (!bMonitoredProcessExited)
+					{
+						// Persist a custom exit code - Editor is still running, but CRC was requested to exit. (ex. The user clicked the 'Close Without Sending' but the Editor is not exited yet)
+						MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationStillRunning);
 					}
 					else
 					{
-						EditorSessionSummarySender.SetCurrentSessionExitCode(MonitorPid, 112233002); // Special exit code, arbitrary, but easy to read in decimal, to mark the process exit code as 'still running'.
+						// Persist the custom exit code - Editor is not running anymore, but CRC could not read it.
+						MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable);
 					}
-
-					// Check what the Editor knows about the exit. Was the proper handlers called and the flag(s) set in the summary event?
-					bAbnormalShutdownFromEditorPov = WasAbnormalShutdown(EditorSessionSummarySender);
-
-					// Send summary session event(s).
-					EditorSessionSummarySender.Shutdown();
 				}
-				FCrashReportAnalytics::Shutdown();
+				else
+				{
+					UE_LOG(CrashReportClientLog, Warning, TEXT("Failed to set Editor exit code. The session could not be found."));
+				}
+				FEditorAnalyticsSession::Unlock();
+			}
+			else
+			{
+				UE_LOG(CrashReportClientLog, Warning, TEXT("Failed to acquire lock to set exit code in Editor summary"));
 			}
 
-			// If the Editor hasn't called all its crash/exit handlers properly (session summary flags are not set) and the Editor exit code isn't known or different than zero.
-			if (bAbnormalShutdownFromEditorPov && !bNormalShutdownFromOsPov)
+			if (bMonitoredProcessExited)
 			{
-				// Load our temporary crash context file.
+				// Load the temporary crash context file.
 				FSharedCrashContext TempCrashContext;
 				FMemory::Memzero(TempCrashContext);
-				if (LoadTempCrashContextFromFile(TempCrashContext, MonitorPid) && TempCrashContext.UserSettings.bSendUsageData && TempCrashContext.UserSettings.bSendUnattendedBugReports)
+				if (LoadTempCrashContextFromFile(TempCrashContext, MonitorPid) && TempCrashContext.UserSettings.bSendUsageData)
 				{
-					// Send a spoofed crash report in the case that we detect an abnormal shutdown has occurred
-					HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr);
+					FCrashReportAnalytics::Initialize();
+					if (FCrashReportAnalytics::IsAvailable())
+					{
+						// Send this session summary event (and the orphan ones if any).
+						FEditorSessionSummarySender EditorSessionSummarySender(FCrashReportAnalytics::GetProvider(), TEXT("CrashReportClient"), MonitorPid);
+						EditorSessionSummarySender.Shutdown();
+
+						// If the Editor thinks the session ended up abnormally, generate a crash report (to get the Editor logs and figure out why this happened).
+						if (bMonitoredSessionLoaded && TempCrashContext.UserSettings.bSendUnattendedBugReports)
+						{
+							// Check what the Editor knows about the exit. Was the proper handlers called and the flag(s) set in the summary event?
+							if (WasAbnormalShutdown(MonitoredSession))
+							{
+								// Send a spoofed crash report in the case that we detect an abnormal shutdown has occurred
+								HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr);
+							}
+						}
+					}
+					FCrashReportAnalytics::Shutdown();
+				}
+				else
+				{
+					UE_LOG(CrashReportClientLog, Warning, TEXT("Failed to send Editor session summary event. Could not read the temporary file."));
 				}
 			}
+			else
+			{
+				UE_LOG(CrashReportClientLog, Warning, TEXT("Failed to send Editor session summary event. The Editor was still running."));
+			}
+
+			UE_LOG(CrashReportClientLog, Display, TEXT("Finished Editor MTBF reporting"));
 		}
 #endif
-		// clean up the context file
+		// Clean up the context file
 		DeleteTempCrashContextFile(MonitorPid);
 
 		FPlatformProcess::CloseProc(MonitoredProcess);

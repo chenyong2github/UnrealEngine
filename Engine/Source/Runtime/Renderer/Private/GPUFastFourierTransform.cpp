@@ -1182,8 +1182,9 @@ namespace
 		// Get pointer to the shader
 		TShaderRef<FCopyWindowCS> ComputeShader = GetCopyWindowCS(ShaderMap);
 
-		// #todo-renderpasses remove once everything is converted
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		// Bind output
@@ -1243,8 +1244,9 @@ namespace
 		// Get pointer to the shader
 		TShaderRef<FComplexMultiplyImagesCS> ComputeShader = GetComplexMultiplyImagesCS(ShaderMap);
 
-		// #todo-renderpasses remove once everything is converted
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		// Bind output
@@ -1312,8 +1314,9 @@ namespace
 		// Get pointer to the shader
 		TShaderRef<FPackTwoForOneFFTPassCS> ComputeShader = GetPackTwoForOneFFTPassCS(ShaderMap, TransformLength);
 
-		// #todo-renderpasses remove once everything is converted
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		// Bind output
@@ -1363,8 +1366,9 @@ namespace
 		TShaderRef<FComplexFFTPassCS> ComputeShader = GetComplexFFTPassCS(ShaderMap, TransformLength);
 
 
-		// #todo-renderpasses remove once everything is converted
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		// Bind output
@@ -1415,9 +1419,9 @@ namespace
 		// Get a base pointer to the shader
 		TShaderRef<FReorderFFTPassCS> ComputeShader = GetReorderFFTPassCS(ShaderMap);
 
-
-		// #todo-renderpasses remove once everything is converted
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		// Bind output
@@ -1478,9 +1482,9 @@ namespace
 		// Get a base pointer to the shader
 		TShaderRef<FGroupShardSubFFTPassCS> ComputeShader = GetGroupSharedSubFFTPassCS(ShaderMap, TransformLength);
 
-
-		// #todo-renderpasses remove once everything is converted
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		// Bind output
@@ -1526,9 +1530,9 @@ namespace
 		// Get a base pointer to the shader
 		TShaderRef<FGSComplexTransformBaseCS> ComputeShader = GetComplexFFTCS(ShaderMap, TransformLength);
 
-
-		// #todo-renderpasses remove once everything is converted
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		// Bind output
@@ -1578,9 +1582,9 @@ namespace
 		// Get a base pointer to the shader
 		TShaderRef<FGSComplexTransformBaseCS> ComputeShader = GetTwoForOneFFTCS(ShaderMap, TransformLength);
 
-		// DJH - do we need this SetRenderTarget?
-		// #todo-renderpasses remove once everything is converted
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 
@@ -1636,9 +1640,9 @@ namespace
 		// Get a base pointer to the shader
 		TShaderRef<FGSConvolutionWithTextureKernelBaseCS> ComputeShader = GetConvolutionWithTextureKernelCS(ShaderMap, SignalLength);
 
-
-		// #todo-renderpasses remove once everything is converted
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnbindRenderTargets(RHICmdList);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 		
 		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);

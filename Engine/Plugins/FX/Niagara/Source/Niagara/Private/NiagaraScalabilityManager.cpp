@@ -180,7 +180,6 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 		FNiagaraScalabilityState& CompState = State[i];
 #if DEBUG_SCALABILITY_STATE
 		CompState.bCulledByInstanceCount = false;
-		CompState.bCulledByMaxOwnerLOD = false;
 		CompState.bCulledBySignificance = false;
 		CompState.bCulledByVisibility = false;
 #endif
@@ -274,14 +273,12 @@ void FNiagaraScalabilityManager::Dump()
 			, NumCulledBySignificance(0)
 			, NumCulledByInstanceCount(0)
 			, NumCulledByVisibility(0)
-			, NumCulledByMaxOwnerLOD(0)
 		{}
 
 		int32 NumCulled;
 		int32 NumCulledBySignificance;
 		int32 NumCulledByInstanceCount;
 		int32 NumCulledByVisibility;
-		int32 NumCulledByMaxOwnerLOD;
 	}Summary;
 
 	for (int32 i = 0; i < ManagedComponents.Num(); ++i)
@@ -310,11 +307,6 @@ void FNiagaraScalabilityManager::Dump()
 			CulledStr += TEXT("-Visibility-");
 			++Summary.NumCulledByVisibility;
 		}
-		if (CompState.bCulledByMaxOwnerLOD)
-		{
-			CulledStr += TEXT("-Owner LOD-");
-			++Summary.NumCulledByMaxOwnerLOD;
-		}
 
 		DetailString += FString::Printf(TEXT("| %s | Sig: %2.4f | %0xP | %s | %s |\n"), *CulledStr, CompState.Significance, Comp, *Comp->GetAsset()->GetPathName(), *Comp->GetPathName());
 	}
@@ -328,7 +320,6 @@ void FNiagaraScalabilityManager::Dump()
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled: %d |"), Summary.NumCulled);
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Significance: %d |"), Summary.NumCulledBySignificance);
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Instance Count: %d |"), Summary.NumCulledByInstanceCount);
-	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Max Owner LOD: %d |"), Summary.NumCulledByMaxOwnerLOD);
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Visibility: %d |"), Summary.NumCulledByVisibility);
 	UE_LOG(LogNiagara, Display, TEXT("| Avg Frame GT: %d |"), EffectType->GetAverageFrameTime_GT());
 	UE_LOG(LogNiagara, Display, TEXT("| Avg Frame GT + CNC: %d |"), EffectType->GetAverageFrameTime_GT_CNC());

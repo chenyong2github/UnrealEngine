@@ -84,10 +84,7 @@ public:
 #if USE_EVENT_POOLING
 	~FEventPool()
 	{
-		while (FEvent* Event = Pool.Pop())
-		{
-			delete Event;
-		}
+		EmptyPool();
 	}
 #endif
 
@@ -136,6 +133,16 @@ public:
 		Pool.Push(Result);
 #else
 		delete Result;
+#endif
+	}
+
+	void EmptyPool()
+	{
+#if USE_EVENT_POOLING
+		while (FEvent* Event = Pool.Pop())
+		{
+			delete Event;
+		}
 #endif
 	}
 

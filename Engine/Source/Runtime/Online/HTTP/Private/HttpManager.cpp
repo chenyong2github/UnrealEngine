@@ -7,6 +7,7 @@
 #include "Misc/ScopeLock.h"
 #include "Http.h"
 #include "Misc/Guid.h"
+#include "Misc/Fork.h"
 
 #include "HttpThread.h"
 #include "Misc/ConfigCacheIni.h"

@@ -564,7 +564,9 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	}
 
 	const bool bWireframe = false;
-	const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation(MaterialInterface, VertexFactory->GetType(), FeatureLevel);
+
+	// Disable adjacency information when the selection outline is enabled, since tessellation won't be used.
+	const bool bRequiresAdjacencyInformation = !bUseSelectionOutline && RequiresAdjacencyInformation(MaterialInterface, VertexFactory->GetType(), FeatureLevel);
 
 	// Two sided material use bIsFrontFace which is wrong with Reversed Indices. AdjacencyInformation use another index buffer.
 	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && (LOD.bHasReversedIndices != 0) && !bRequiresAdjacencyInformation && !Material->IsTwoSided();
@@ -1635,6 +1637,11 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 #if RHI_RAYTRACING
 void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances )
 {
+	if (DynamicRayTracingGeometries.Num() <= 0)
+	{
+		return;
+	}
+
 	uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
 	const uint32 LODIndex = GetLOD(Context.ReferenceView);
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];

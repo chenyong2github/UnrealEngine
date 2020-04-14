@@ -3115,6 +3115,11 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 	DisableBelowMinLodStrippingRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
 	DetailLayout.HideProperty(DisableBelowMinLodStrippingPropertyHandle);
 
+	TSharedPtr<IPropertyHandle> bOverrideLODStreamingSettingsHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, bOverrideLODStreamingSettings), USkeletalMesh::StaticClass());
+	IDetailPropertyRow& bOverrideLODStreamingSettingsRow = LODSettingsCategory.AddProperty(bOverrideLODStreamingSettingsHandle);
+	bOverrideLODStreamingSettingsRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
+	DetailLayout.HideProperty(bOverrideLODStreamingSettingsHandle);
+
 	TSharedPtr<IPropertyHandle> bSupportLODStreamingPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, bSupportLODStreaming), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& bSupportLODStreamingRow = LODSettingsCategory.AddProperty(bSupportLODStreamingPropertyHandle);
 	bSupportLODStreamingRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
@@ -5525,9 +5530,9 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 
 		if (UClothingAssetCommon* Asset = Cast<UClothingAssetCommon>(ClothingAsset))
 		{
-			const UClothLODDataCommon* const LodData = Asset->ClothLodData[LODIndex];
-			const FClothPhysicalMeshData& PhysMeshData = LodData->ClothPhysicalMeshData;
-			const FClothCollisionData& CollisionData = LodData->CollisionData;
+			const FClothLODDataCommon& LodData = Asset->LodData[LODIndex];
+			const FClothPhysicalMeshData& PhysMeshData = LodData.PhysicalMeshData;
+			const FClothCollisionData& CollisionData = LodData.CollisionData;
 
 			Grid->AddSlot(0, RowNumber)
 				.HAlign(HAlign_Center)

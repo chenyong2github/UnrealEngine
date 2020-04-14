@@ -14,5 +14,6 @@ public class PhysicsSQ: ModuleRules
 		);
 
 		SetupModulePhysicsSupport(Target);
+		PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
 	}
 }

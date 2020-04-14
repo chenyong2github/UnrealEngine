@@ -359,7 +359,7 @@ const FString& FSandboxPlatformFile::GetAbsoluteGameDirectory()
 {
 	if (AbsoluteGameDirectory.IsEmpty())
 	{
-		AbsoluteGameDirectory = FPaths::GetProjectFilePath();
+		AbsoluteGameDirectory = FPaths::ProjectDir();
 		UE_CLOG(AbsoluteGameDirectory.IsEmpty(), SandboxFile, Fatal, TEXT("SandboxFileWrapper tried to access project path before it was set."));
 		AbsoluteGameDirectory = FPaths::ConvertRelativePathToFull(AbsoluteGameDirectory);
 		// Strip .uproject filename

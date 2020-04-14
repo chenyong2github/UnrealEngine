@@ -21,5 +21,6 @@ public class ChaosCloth : ModuleRules
 		);
 
         SetupModulePhysicsSupport(Target);
-    }
+		PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
+	}
 }

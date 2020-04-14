@@ -1295,10 +1295,26 @@ private:
 		if (EngineConfig)
 		{
 			TArray<FString> Settings;
-			FString& Setting = Settings.Emplace_GetRef();
+			FString Setting;
 
 			// Unicast endpoint setting
 			EngineConfig->GetString(TEXT("/Script/UdpMessaging.UdpMessagingSettings"), TEXT("UnicastEndpoint"), Setting);
+
+			// if the unicast endpoint port is bound, add 1 to the port for server 
+			if (Setting.ParseIntoArray(Settings, TEXT(":"), false) == 2)
+			{
+				const UConcertClientConfig* ClientConfig = GetDefault<UConcertClientConfig>();
+				if (ClientConfig && ClientConfig->ClientSettings.ServerPort != 0)
+				{
+					Setting = FString::Printf(TEXT("%s:%d"), *Settings[0], ClientConfig->ClientSettings.ServerPort);
+				}
+				else if (Settings[1] != TEXT("0"))
+				{
+					int32 Port = FCString::Atoi(*Settings[1]);
+					Port += 1;
+					Setting = FString::Printf(TEXT("%s:%d"), *Settings[0], Port);
+				}
+			}
 			CmdLine = TEXT("-UDPMESSAGING_TRANSPORT_UNICAST=") + Setting;
 
 			// Multicast endpoint setting

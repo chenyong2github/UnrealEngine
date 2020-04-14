@@ -209,12 +209,29 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 				// Index unindexed items
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.VAlign(VAlign_Top)
+				.VAlign(VAlign_Center)
 				[
 					SNew(SHyperlink)
 					.Text(this, &SSearchBrowser::GetUnindexedAssetsText)
 					.Visibility_Lambda([] { return GetDefault<USearchUserSettings>()->bShowMissingAssets ? EVisibility::Visible : EVisibility::Collapsed; })
 					.OnNavigate(this, &SSearchBrowser::HandleForceIndexOfAssetsMissingIndex)
+				]
+
+				// View Options Button
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew( SComboButton )
+					.ContentPadding(0)
+					.ForegroundColor( FSlateColor::UseForeground() )
+					.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+					.OnGetMenuContent(this, &SSearchBrowser::GetViewMenuWidget)
+					.ButtonContent()
+					[
+						SNew(SImage)
+						.Image( FEditorStyle::GetBrush("GenericViewButton") )
+					]
 				]
 			]
 		]
@@ -242,11 +259,35 @@ void SSearchBrowser::Tick(const FGeometry& AllottedGeometry, const double InCurr
 	}
 }
 
+TSharedRef<SWidget> SSearchBrowser::GetViewMenuWidget()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	MenuBuilder.BeginSection("Results", LOCTEXT("ShowHeading", "Show"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleAutoExpandAssets", "Auto Expand Assets"),
+			LOCTEXT("ToggleAutoExpandAssetsToolTip", "When enabled, we automatically expand the assets in the results."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([] { GetMutableDefault<USearchUserSettings>()->bAutoExpandAssets = !GetDefault<USearchUserSettings>()->bAutoExpandAssets; }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([] { return GetDefault<USearchUserSettings>()->bAutoExpandAssets; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
 FText SSearchBrowser::GetSearchBackgroundText() const
 {
 	if (FilterString.Len() > 0 && !IsSearching() && SearchResults.Num() == 0)
 	{
-		return LOCTEXT("SearchAllTheThings", "¯\\_(ツ)_/¯");
+		return LOCTEXT("FoundNoResults", "¯\\_(ツ)_/¯");
 	}
 	else if (FilterString.Len() == 0)
 	{
@@ -260,9 +301,9 @@ FText SSearchBrowser::GetSearchBackgroundText() const
 
 FText SSearchBrowser::GetStatusText() const
 {
-	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
-	FSearchStats SearchStats = SearchModule.GetStats();
-	int32 UpdatingCount = SearchStats.Scanning + SearchStats.Processing + SearchStats.Updating;
+	const IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
+	const FSearchStats SearchStats = SearchModule.GetStats();
+	const int32 UpdatingCount = SearchStats.Scanning + SearchStats.Processing + SearchStats.Updating;
 
 	if (UpdatingCount > 0)
 	{
@@ -339,8 +380,10 @@ void SSearchBrowser::RefreshList()
 
 		SearchesActive++;
 
+		const bool bAutoExpandAssets = GetDefault<USearchUserSettings>()->bAutoExpandAssets;
+
 		IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
-		SearchModule.Search(Query, [this](TArray<FSearchRecord>&& InResults) {
+		SearchModule.Search(Query, [this, bAutoExpandAssets](TArray<FSearchRecord>&& InResults) {
 			check(IsInGameThread());
 
 			SearchResults.Reset();
@@ -355,7 +398,10 @@ void SSearchBrowser::RefreshList()
 			{
 				SearchResults.Add(Entry.Value);
 
-				SearchTreeView->SetItemExpansion(Entry.Value, true);
+				if (bAutoExpandAssets)
+				{
+					SearchTreeView->SetItemExpansion(Entry.Value, true);
+				}
 			}
 
 			SearchResults.Sort([](const TSharedPtr<FSearchNode>& A, const TSharedPtr<FSearchNode>& B) {

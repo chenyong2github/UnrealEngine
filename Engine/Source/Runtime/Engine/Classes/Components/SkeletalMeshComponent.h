@@ -451,8 +451,6 @@ public:
 	UPROPERTY(transient)
 	uint8 bHasValidBodies:1;
 
-	/** Indicates that this SkeletalMeshComponent has deferred kinematic bone updates until next physics sim.  */
-	uint8 bDeferredKinematicUpdate:1;
 
 	/** Enables blending in of physics bodies whether Simulate or not*/
 	UPROPERTY(transient)
@@ -476,6 +474,13 @@ public:
 	/** Disable cloth simulation and play original animation without simulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Clothing)
 	uint8 bDisableClothSimulation:1;
+
+	/** Indicates that this SkeletalMeshComponent has deferred kinematic bone updates until next physics sim if not INDEX_NONE. */
+	int32 DeferredKinematicUpdateIndex;
+#if PHYSICS_INTERFACE_PHYSX
+	/** Indicates that this SkeletalMeshComponent has deferred kinematic bone updates until next physics sim.  */
+	uint8 bDeferredKinematicUpdate:1;
+#endif
 
 private:
 	/** Disable rigid body animation nodes and play original animation without simulation */
@@ -1687,6 +1692,9 @@ public:
 	static FVector GetSkinnedVertexPosition(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer);
 	static FVector GetSkinnedVertexPosition(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals);
 	static void ComputeSkinnedPositions(USkeletalMeshComponent* Component, TArray<FVector> & OutPositions, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer);
+
+	static void GetSkinnedTangentBasis(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix>& CachedRefToLocals, FVector& OutTangentX, FVector& OutTangentZ);
+	static void ComputeSkinnedTangentBasis(USkeletalMeshComponent* Component, TArray<FVector>& OutTangenXZ, TArray<FMatrix>& CachedRefToLocals, const FSkeletalMeshLODRenderData& Model, FSkinWeightVertexBuffer& SkinWeightBuffer);
 
 	void SetSkeletalMeshWithoutResettingAnimation(class USkeletalMesh* NewMesh);
 

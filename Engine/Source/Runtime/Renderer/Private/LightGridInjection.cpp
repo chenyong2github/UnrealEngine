@@ -745,10 +745,11 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 
 
 
-void FDeferredShadingSceneRenderer::RenderForwardShadingShadowProjections(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMask)
+void FDeferredShadingSceneRenderer::RenderForwardShadingShadowProjections(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMask, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMaskSubPixel, const FHairStrandsDatas* InHairDatas)
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
+	const bool bIsHairEnable = InHairDatas != nullptr;
 	bool bScreenShadowMaskNeeded = false;
 
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
@@ -765,15 +766,29 @@ void FDeferredShadingSceneRenderer::RenderForwardShadingShadowProjections(FRHICo
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderForwardShadingShadowProjections);
 		FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
 		SceneRenderTargets.AllocateScreenShadowMask(RHICmdList, ForwardScreenSpaceShadowMask);
+		if (bIsHairEnable)
+		{
+			SceneRenderTargets.AllocateScreenShadowMask(RHICmdList, ForwardScreenSpaceShadowMaskSubPixel);
+		}
 
 		SCOPED_DRAW_EVENT(RHICmdList, ShadowProjectionOnOpaque);
 		SCOPED_GPU_STAT(RHICmdList, ShadowProjection);
 
 		// All shadows render with min blending
-		FRHIRenderPassInfo RPInfo(ForwardScreenSpaceShadowMask->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-		TransitionRenderPassTargets(RHICmdList, RPInfo);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderForwardShadingShadowProjectionsClear"));
-		RHICmdList.EndRenderPass();
+		{
+			FRHIRenderPassInfo RPInfo(ForwardScreenSpaceShadowMask->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
+			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderForwardShadingShadowProjectionsClear"));
+			RHICmdList.EndRenderPass();
+		}
+
+		if (bIsHairEnable)
+		{
+			FRHIRenderPassInfo RPInfo(ForwardScreenSpaceShadowMaskSubPixel->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
+			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderForwardShadingShadowSubPixelProjectionsClear"));
+			RHICmdList.EndRenderPass();
+		}
 
 		// Note: all calls here will set up renderpasses internally.
 		// #todo-renderpasses might be worth refactoring all this and splitting into lists of draws for each renderpass
@@ -792,7 +807,12 @@ void FDeferredShadingSceneRenderer::RenderForwardShadingShadowProjections(FRHICo
 
 				if (VisibleLightInfo.ShadowsToProject.Num() > 0)
 				{
-					FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneInfo, ForwardScreenSpaceShadowMask, nullptr, true, false, nullptr);
+					FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneInfo, ForwardScreenSpaceShadowMask, ForwardScreenSpaceShadowMaskSubPixel, true, false, bIsHairEnable ? &InHairDatas->HairVisibilityViews : nullptr);
+
+					if (InHairDatas)
+					{
+						RenderHairStrandsShadowMask(RHICmdList, Views, LightSceneInfo, ForwardScreenSpaceShadowMask, InHairDatas);
+					}
 				}
 
 				RenderCapsuleDirectShadows(RHICmdList, *LightSceneInfo, ForwardScreenSpaceShadowMask, VisibleLightInfo.CapsuleShadowsToProject, true);
@@ -802,8 +822,12 @@ void FDeferredShadingSceneRenderer::RenderForwardShadingShadowProjections(FRHICo
 					RenderLightFunction(RHICmdList, LightSceneInfo, ForwardScreenSpaceShadowMask, true, true);
 				}
 			}
+			RHICmdList.CopyToResolveTarget(ForwardScreenSpaceShadowMask->GetRenderTargetItem().TargetableTexture, ForwardScreenSpaceShadowMask->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(FResolveRect()));
+			if (bIsHairEnable)
+			{
+				RHICmdList.CopyToResolveTarget(ForwardScreenSpaceShadowMaskSubPixel->GetRenderTargetItem().TargetableTexture, ForwardScreenSpaceShadowMaskSubPixel->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(FResolveRect()));
+			}
 		}
-		RHICmdList.CopyToResolveTarget(ForwardScreenSpaceShadowMask->GetRenderTargetItem().TargetableTexture, ForwardScreenSpaceShadowMask->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(FResolveRect()));
 	}
 }
 

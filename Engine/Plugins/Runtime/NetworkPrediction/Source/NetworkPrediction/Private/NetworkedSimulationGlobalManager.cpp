@@ -2,6 +2,7 @@
 
 #include "NetworkedSimulationGlobalManager.h"
 #include "Engine/World.h"
+#include "Trace/NetworkPredictionTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(NetworkSimulationGlobalManager, Log, All);
 
@@ -15,6 +16,7 @@ void UNetworkSimulationGlobalManager::Initialize(FSubsystemCollectionBase& Colle
 	UWorld* World = GetWorld();
 	check(World);
 
+	PreTickDispatchHandle = FWorldDelegates::OnWorldTickStart.AddUObject(this, &UNetworkSimulationGlobalManager::OnWorldPreTick);
 	PostTickDispatchHandle = World->OnPostTickDispatch().AddUObject(this, &UNetworkSimulationGlobalManager::ReconcileSimulationsPostNetworkUpdate);
 	PreWorldActorTickHandle = FWorldDelegates::OnWorldPreActorTick.AddUObject(this, &UNetworkSimulationGlobalManager::BeginNewSimulationFrame);
 }
@@ -25,8 +27,19 @@ void UNetworkSimulationGlobalManager::Deinitialize()
 	{
 		World->OnPostTickDispatch().Remove(PostTickDispatchHandle);
 	}
-
+	
+	FWorldDelegates::OnWorldTickStart.Remove(PreTickDispatchHandle);
 	FWorldDelegates::OnWorldPreActorTick.Remove(PreWorldActorTickHandle);
+}
+
+void UNetworkSimulationGlobalManager::OnWorldPreTick(UWorld* InWorld, ELevelTick InLevelTick, float InDeltaSeconds)
+{
+	if (InWorld != GetWorld() || !InWorld->HasBegunPlay())
+	{
+		return;
+	}
+
+	UE_NP_TRACE_WORLD_FRAME_START(InDeltaSeconds);
 }
 
 void UNetworkSimulationGlobalManager::ReconcileSimulationsPostNetworkUpdate()

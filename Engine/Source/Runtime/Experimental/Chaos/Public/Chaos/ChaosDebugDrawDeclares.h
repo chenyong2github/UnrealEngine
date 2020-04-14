@@ -14,11 +14,9 @@ namespace Chaos
 {
 	class FConstraintHandle;
 
-	template<typename T, int d>
-	class TPBDCollisionConstraints;
+	class FPBDCollisionConstraints;
 
-	template<typename T, int d>
-	class TPBDCollisionConstraintHandle;
+	class FPBDCollisionConstraintHandle;
 
 	class FPBDJointConstraintHandle;
 

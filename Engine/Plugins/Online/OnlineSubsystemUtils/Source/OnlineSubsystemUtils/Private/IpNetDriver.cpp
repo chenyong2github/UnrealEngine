@@ -655,7 +655,7 @@ private:
 		Connection->HandleSocketRecvError(Driver, ErrorString);
 	}
 
-	static void PushSocketsToConnection(UIpConnection* Connection, TArray<FSocket*>& Sockets)
+	static void PushSocketsToConnection(UIpConnection* Connection, TArray<TSharedPtr<FSocket>>& Sockets)
 	{
 		UE_LOG(LogNet, Verbose, TEXT("Pushed %d sockets to net connection %s"), Sockets.Num(), *Connection->GetName());
 		Connection->BindSockets = Sockets;
@@ -731,10 +731,11 @@ ISocketSubsystem* UIpNetDriver::GetSocketSubsystem()
 
 FSocket * UIpNetDriver::CreateSocket()
 {
-	return CreateSocketForProtocol( ( LocalAddr.IsValid() ? LocalAddr->GetProtocolType() : NAME_None) );
+	// This is a deprecated function with unsafe socket lifetime management. The Release call is intentional and for backwards compatiblity only.
+	return CreateSocketForProtocol((LocalAddr.IsValid() ? LocalAddr->GetProtocolType() : NAME_None)).Release();
 }
 
-FSocket* UIpNetDriver::CreateSocketForProtocol(const FName& ProtocolType)
+FUniqueSocket UIpNetDriver::CreateSocketForProtocol(const FName& ProtocolType)
 {
 	// Create UDP socket and enable broadcasting.
 	ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
@@ -745,7 +746,7 @@ FSocket* UIpNetDriver::CreateSocketForProtocol(const FName& ProtocolType)
 		return NULL;
 	}
 
-	return SocketSubsystem->CreateSocket(NAME_DGram, TEXT("Unreal"), ProtocolType);
+	return SocketSubsystem->CreateUniqueSocket(NAME_DGram, TEXT("Unreal"), ProtocolType);
 }
 
 int UIpNetDriver::GetClientPort()
@@ -753,9 +754,8 @@ int UIpNetDriver::GetClientPort()
 	return 0;
 }
 
-FSocket* UIpNetDriver::CreateAndBindSocket(TSharedRef<FInternetAddr> BindAddr, int32 Port, bool bReuseAddressAndPort, int32 DesiredRecvSize, int32 DesiredSendSize, FString& Error)
+FUniqueSocket UIpNetDriver::CreateAndBindSocket(TSharedRef<FInternetAddr> BindAddr, int32 Port, bool bReuseAddressAndPort, int32 DesiredRecvSize, int32 DesiredSendSize, FString& Error)
 {
-	FSocket* NewSocket = nullptr;
 	ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
 	if (SocketSubsystem == nullptr)
 	{
@@ -764,9 +764,9 @@ FSocket* UIpNetDriver::CreateAndBindSocket(TSharedRef<FInternetAddr> BindAddr, i
 	}
 
 	// Create the socket that we will use to communicate with
-	NewSocket = CreateSocketForProtocol(BindAddr->GetProtocolType());
+	FUniqueSocket NewSocket = CreateSocketForProtocol(BindAddr->GetProtocolType());
 
-	if (NewSocket == nullptr)
+	if (!NewSocket.IsValid())
 	{
 		Error = FString::Printf(TEXT("%s: socket failed (%i)"), SocketSubsystem->GetSocketAPIName(), (int32)SocketSubsystem->GetLastErrorCode());
 		return nullptr;
@@ -777,7 +777,7 @@ FSocket* UIpNetDriver::CreateAndBindSocket(TSharedRef<FInternetAddr> BindAddr, i
 	{
 		if (Error.IsEmpty() == false)
 		{
-			SocketSubsystem->DestroySocket(NewSocket);
+			NewSocket.Reset();
 		}
 	};
 
@@ -808,7 +808,7 @@ FSocket* UIpNetDriver::CreateAndBindSocket(TSharedRef<FInternetAddr> BindAddr, i
 	BindAddr->SetPort(Port);
 
 	int32 AttemptPort = BindAddr->GetPort();
-	int32 BoundPort = SocketSubsystem->BindNextPort(NewSocket, *BindAddr, MaxPortCountToTry + 1, 1);
+	int32 BoundPort = SocketSubsystem->BindNextPort(NewSocket.Get(), *BindAddr, MaxPortCountToTry + 1, 1);
 	if (BoundPort == 0)
 	{
 		Error = FString::Printf(TEXT("%s: binding to port %i failed (%i)"), SocketSubsystem->GetSocketAPIName(), AttemptPort,
@@ -827,10 +827,18 @@ FSocket* UIpNetDriver::CreateAndBindSocket(TSharedRef<FInternetAddr> BindAddr, i
 
 void UIpNetDriver::SetSocketAndLocalAddress(FSocket* NewSocket)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Socket = NewSocket;
+	SetSocketAndLocalAddress(TSharedPtr<FSocket>(NewSocket, FSocketDeleter(GetSocketSubsystem())));
+}
 
-	if (NewSocket != nullptr)
+void UIpNetDriver::SetSocketAndLocalAddress(const TSharedPtr<FSocket>& SharedSocket)
+{
+	SocketPrivate = SharedSocket;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Socket = SocketPrivate.Get();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	if (SocketPrivate.IsValid())
 	{
 		// Allocate any LocalAddrs if they haven't been allocated yet.
 		if (!LocalAddr.IsValid())
@@ -838,9 +846,28 @@ void UIpNetDriver::SetSocketAndLocalAddress(FSocket* NewSocket)
 			LocalAddr = GetSocketSubsystem()->CreateInternetAddr();
 		}
 
-		Socket->GetAddress(*LocalAddr);
+		SocketPrivate->GetAddress(*LocalAddr);
 	}
+}
+
+void UIpNetDriver::ClearSockets()
+{
+	// For backwards compatability with the public Socket member. Destroy it manually if it won't be destroyed by the reset below.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if(!ensureMsgf(Socket == SocketPrivate.Get(), TEXT("UIpNetDriver::ClearSockets: Socket and SocketPrivate point to different sockets! %s"), *GetDescription()))
+	{
+		ISocketSubsystem* const SocketSubsystem = GetSocketSubsystem();
+
+		if (SocketSubsystem)
+		{
+			SocketSubsystem->DestroySocket(Socket);
+		}
+	}
+	Socket = nullptr;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	SocketPrivate.Reset();
+	BoundSockets.Reset();
 }
 
 bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const FURL& URL, bool bReuseAddressAndPort, FString& Error )
@@ -876,11 +903,11 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 	// Create sockets for every bind address
 	for (TSharedRef<FInternetAddr>& BindAddr : BindAddresses)
 	{
-		FSocket* NewSocket = CreateAndBindSocket(BindAddr, BindPort, bReuseAddressAndPort, DesiredRecvSize, DesiredSendSize, Error);
-		if (NewSocket != nullptr)
+		FUniqueSocket NewSocket = CreateAndBindSocket(BindAddr, BindPort, bReuseAddressAndPort, DesiredRecvSize, DesiredSendSize, Error);
+		if (NewSocket.IsValid())
 		{
 			UE_LOG(LogNet, Log, TEXT("Created socket for bind address: %s on port %d"), *BindAddr->ToString(false), BindPort);
-			BoundSockets.Add(NewSocket);
+			BoundSockets.Emplace(NewSocket.Release(), FSocketDeleter(NewSocket.GetDeleter()));
 		}
 		else
 		{
@@ -901,11 +928,7 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 		UE_LOG(LogNet, Warning, TEXT("Encountered an error while creating sockets for the bind addresses. %s"), *Error);
 		
 		// Make sure to destroy all sockets that we don't end up using.
-		for (auto& SubSocket : BoundSockets)
-		{
-			SocketSubsystem->DestroySocket(SubSocket);
-		}
-		BoundSockets.Empty();
+		BoundSockets.Reset();
 
 		return false;
 	}
@@ -945,7 +968,7 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 			if (bRetrieveTimestamps)
 			{
 				// Properly set this flag for every socket for each bind address.
-				for (auto& SubSocket : BoundSockets)
+				for (TSharedPtr<FSocket>& SubSocket : BoundSockets)
 				{
 					SubSocket->SetRetrieveTimestamp(true);
 				}
@@ -1065,17 +1088,10 @@ bool UIpNetDriver::InitConnect( FNetworkNotify* InNotify, const FURL& ConnectURL
 		// Clean up any potential multiple sockets we have created when resolution was disabled.
 		// InitBase could have created multiple sockets and if so, we'll want to clean them up.
 		UE_LOG(LogNet, Verbose, TEXT("Cleaning up additional sockets created as address resolution is disabled."));
-		for (FSocket*& CurSocket : BoundSockets)
+		BoundSockets.RemoveAll([InSocket = GetSocket()](const TSharedPtr<FSocket>& CurSocket)
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			if (CurSocket != Socket)
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			{
-				SocketSubsystem->DestroySocket(CurSocket);
-				CurSocket = nullptr;
-			}
-		}
-		BoundSockets.Remove(nullptr);
+			return CurSocket.Get() != InSocket;
+		});
 	}
 	
 	UE_LOG(LogNet, Log, TEXT("Game client on port %i, rate %i"), DestinationPort, ServerConnection->CurrentNetSpeed );
@@ -1644,18 +1660,12 @@ void UIpNetDriver::LowLevelDestroy()
 			UE_LOG(LogExit, Log, TEXT("closesocket error (%i)"), (int32)SocketSubsystem->GetLastErrorCode() );
 		}
 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (FIpConnectionHelper::IsAddressResolutionEnabledForConnection(IpServerConnection))
 		{
 			FIpConnectionHelper::CleanUpConnectionSockets(IpServerConnection);
 		}
-		else
-		{
-			// Free the memory the OS allocated for this socket
-			SocketSubsystem->DestroySocket(Socket);
-		}
-		Socket = nullptr;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		ClearSockets();
 
 		UE_LOG(LogExit, Log, TEXT("%s shut down"),*GetDescription() );
 	}

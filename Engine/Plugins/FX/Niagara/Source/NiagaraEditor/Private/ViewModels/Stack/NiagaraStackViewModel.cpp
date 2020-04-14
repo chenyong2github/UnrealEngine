@@ -90,8 +90,6 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 
 	if (SystemViewModelPinned.IsValid())
 	{
-		GEditor->RegisterForUndo(this);
-
 		if (EmitterViewModel.IsValid())
 		{
 			EmitterViewModel->OnScriptCompiled().AddUObject(this, &UNiagaraStackViewModel::OnEmitterCompiled);
@@ -131,7 +129,6 @@ void UNiagaraStackViewModel::InitializeWithRootEntry(UNiagaraStackEntry* InRootE
 
 	bExternalRootEntry = true;
 
-	GEditor->RegisterForUndo(this);
 	StructureChangedDelegate.Broadcast();
 }
 
@@ -164,8 +161,6 @@ void UNiagaraStackViewModel::Reset()
 	}
 
 	TopLevelViewModels.Empty();
-	
-	GEditor->UnregisterForUndo(this);
 
 	CurrentIssueCycleIndex = -1;
 	CurrentFocusedSearchMatchIndex = -1;
@@ -649,12 +644,6 @@ void UNiagaraStackViewModel::SetLastScrollPosition(double InLastScrollPosition)
 void UNiagaraStackViewModel::NotifyStructureChanged()
 {
 	EntryStructureChanged();
-}
-
-void UNiagaraStackViewModel::PostUndo(bool bSuccess)
-{
-	RootEntry->RefreshChildren();
-	OnSearchTextChanged(CurrentSearchText);
 }
 
 void UNiagaraStackViewModel::EntryStructureChanged()

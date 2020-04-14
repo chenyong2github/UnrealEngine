@@ -27,6 +27,7 @@ class FExponentialHeightFogSceneInfo;
 class FRaytracingLightDataPacked;
 struct FSingleLayerWaterPassData;
 struct FHeightFogRenderingParameters;
+struct FRayTracingReflectionOptions;
 
 class FLightShaftsOutput
 {
@@ -228,6 +229,7 @@ private:
 
 	/** Renders sky lighting and reflections that can be done in a deferred pass. */
 	void RenderDeferredReflectionsAndSkyLighting(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT, struct FHairStrandsDatas* HairDatas);
+	void RenderDeferredReflectionsAndSkyLightingHair(FRHICommandListImmediate& RHICmdList, struct FHairStrandsDatas* HairDatas);
 
 	/** Computes DFAO, modulates it to scene color (which is assumed to contain diffuse indirect lighting), and stores the output bent normal for use occluding specular. */
 	void RenderDFAOAsIndirectShadowing(
@@ -382,7 +384,7 @@ private:
 	bool RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, const struct FHairStrandsDatas* HairDatas, bool& bInjectedTranslucentVolume);
 
 	/** Render shadow projections when forward rendering. */
-	void RenderForwardShadingShadowProjections(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMask);
+	void RenderForwardShadingShadowProjections(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMask, TRefCountPtr<IPooledRenderTarget>& ForwardScreenSpaceShadowMaskSubPixel, const struct FHairStrandsDatas* InHairDatas);
 
 	/**
 	  * Used by RenderLights to render a light function to the attenuation buffer.
@@ -413,6 +415,7 @@ private:
 	  * @return true if anything got rendered
 	  */
 	void RenderLight(FRHICommandList& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, const struct FHairStrandsVisibilityViews* InHairVisibilityViews, bool bRenderOverlap, bool bIssueDrawEvent);
+	void RenderLightsForHair(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsDatas* HairDatas, TRefCountPtr<IPooledRenderTarget>& InScreenShadowMaskSubPixelTexture);
 
 	/** Specialized version of RenderLight for hair (run lighting evaluation on at sub-pixel rate, without depth bound) */
 	void RenderLightForHair(FRHICommandList& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, struct FHairStrandsTransmittanceMaskData* InTransmittanceMaskData, const struct FHairStrandsVisibilityViews* InHairVisibilityViews);
@@ -520,15 +523,17 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextureParameters& SceneTextures,
 		const FViewInfo& View,
-		int32 SamplePerPixel,
-		float ResolutionFraction,
+		const FRayTracingReflectionOptions& Options,
 		IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs);
 
 	void RenderRayTracingDeferredReflections(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextureParameters& SceneTextures,
 		const FViewInfo& View,
+		const FRayTracingReflectionOptions& Options,
 		IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs);
+
+	void RenderDitheredLODFadingOutMask(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
 	void RenderRayTracingShadows(
 		FRDGBuilder& GraphBuilder,
@@ -641,6 +646,7 @@ private:
 	// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. Register each effect at startup and just loop over them automatically
 	static void PrepareRayTracingReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingDeferredReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
+	static void PrepareSingleLayerWaterRayTracingReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingShadows(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingAmbientOcclusion(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingSkyLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);

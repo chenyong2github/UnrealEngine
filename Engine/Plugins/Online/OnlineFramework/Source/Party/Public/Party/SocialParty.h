@@ -327,6 +327,7 @@ private:	// Handlers
 	void HandlePartyPromotionLockoutChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool bArePromotionsLocked);
 
 	void HandleMemberInitialized(UPartyMember* Member);
+	void HandleMemberPlatformUniqueIdChanged(const FUniqueNetIdRepl& NewPlatformUniqueId, UPartyMember* Member);
 	void HandleMemberSessionIdChanged(const FSessionId& NewSessionId, UPartyMember* Member);
 
 	void HandleBeaconHostConnectionFailed();

@@ -281,7 +281,7 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 	uint32 ShaderSlot) const
 {
 	check(ShaderLayouts.Num() == 1);
-	check(SegmentIndex < 0xFF);
+	checkf(SegmentIndex < 0xFF, TEXT("Ray Tracing does not support meshes with more than 256 sections."));
 
 	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());
 
@@ -1067,11 +1067,7 @@ uint32 FMeshDrawShaderBindings::GetDynamicInstancingHash() const
 		if (SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers.Num())
 		{
 			const uint8* LooseBindings = SingleShaderBindings.GetLooseDataStart();
-			uint32 Length = 0;
-			for (const FShaderLooseParameterBufferInfo& ParamInfo : SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers)
-			{
-				Length = FMath::Max<uint32>(Length, ParamInfo.BaseIndex + ParamInfo.Size);
-			}
+			uint32 Length = SingleShaderBindings.GetLooseDataSizeBytes();
 			HashKey.LooseParametersHash = uint32(CityHash64((const char*)LooseBindings, Length));
 		}
 

@@ -15,6 +15,7 @@
 #include "Engine/ActorChannel.h"
 #include "GameplayEffectCustomApplicationRequirement.h"
 #include "TimerManager.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 DEFINE_LOG_CATEGORY(LogAbilitySystemComponent);
 
@@ -92,7 +93,7 @@ const UAttributeSet* UAbilitySystemComponent::GetOrCreateAttributeSubobject(TSub
 		if (!MyAttributes)
 		{
 			UAttributeSet* Attributes = NewObject<UAttributeSet>(OwningActor, AttributeClass);
-			SpawnedAttributes.AddUnique(Attributes);
+			GetSpawnedAttributes_Mutable().AddUnique(Attributes);
 			MyAttributes = Attributes;
 			bIsNetDirty = true;
 		}
@@ -110,7 +111,7 @@ const UAttributeSet* UAbilitySystemComponent::GetAttributeSubobjectChecked(const
 
 const UAttributeSet* UAbilitySystemComponent::GetAttributeSubobject(const TSubclassOf<UAttributeSet> AttributeClass) const
 {
-	for (const UAttributeSet* Set : SpawnedAttributes)
+	for (const UAttributeSet* Set : GetSpawnedAttributes())
 	{
 		if (Set && Set->IsA(AttributeClass))
 		{
@@ -127,7 +128,7 @@ bool UAbilitySystemComponent::HasAttributeSetForAttribute(FGameplayAttribute Att
 
 void UAbilitySystemComponent::GetAllAttributes(OUT TArray<FGameplayAttribute>& Attributes)
 {
-	for (UAttributeSet* Set : SpawnedAttributes)
+	for (const UAttributeSet* Set : GetSpawnedAttributes())
 	{
 		if (!Set)
 		{
@@ -171,7 +172,12 @@ void UAbilitySystemComponent::OnRegister()
 	ActiveGameplayCues.SetOwner(this);	
 	MinimalReplicationGameplayCues.bMinimalReplication = true;
 	MinimalReplicationGameplayCues.SetOwner(this);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// This field is not replicated (MinimalReplicationTags has a custom serializer),
+	// so we don't need to mark it dirty.
 	MinimalReplicationTags.Owner = this;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Allocate an AbilityActorInfo. Note: this goes through a global function and is a SharedPtr so projects can make their own AbilityActorInfo */
 	if(!AbilityActorInfo.IsValid())
@@ -750,13 +756,13 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 			// Log results of applied GE spec
 			if (UE_LOG_ACTIVE(VLogAbilitySystem, Log))
 			{
-				ABILITY_VLOG(OwnerActor, Log, TEXT("Applied %s"), *OurCopyOfSpec->Def->GetFName().ToString());
+				ABILITY_VLOG(GetOwnerActor(), Log, TEXT("Applied %s"), *OurCopyOfSpec->Def->GetFName().ToString());
 
 				for (const FGameplayModifierInfo& Modifier : Spec.Def->Modifiers)
 				{
 					float Magnitude = 0.f;
 					Modifier.ModifierMagnitude.AttemptCalculateMagnitude(Spec, Magnitude);
-					ABILITY_VLOG(OwnerActor, Log, TEXT("         %s: %s %f"), *Modifier.Attribute.GetName(), *EGameplayModOpToString(Modifier.ModifierOp), Magnitude);
+					ABILITY_VLOG(GetOwnerActor(), Log, TEXT("         %s: %s %f"), *Modifier.Attribute.GetName(), *EGameplayModOpToString(Modifier.ModifierOp), Magnitude);
 				}
 			}
 		}
@@ -911,13 +917,13 @@ void UAbilitySystemComponent::ExecuteGameplayEffect(FGameplayEffectSpec &Spec, F
 
 	if (UE_LOG_ACTIVE(VLogAbilitySystem, Log))
 	{
-		ABILITY_VLOG(OwnerActor, Log, TEXT("Executed %s"), *Spec.Def->GetFName().ToString());
+		ABILITY_VLOG(GetOwnerActor(), Log, TEXT("Executed %s"), *Spec.Def->GetFName().ToString());
 		
 		for (FGameplayModifierInfo Modifier : Spec.Def->Modifiers)
 		{
 			float Magnitude = 0.f;
 			Modifier.ModifierMagnitude.AttemptCalculateMagnitude(Spec, Magnitude);
-			ABILITY_VLOG(OwnerActor, Log, TEXT("         %s: %s %f"), *Modifier.Attribute.GetName(), *EGameplayModOpToString(Modifier.ModifierOp), Magnitude);
+			ABILITY_VLOG(GetOwnerActor(), Log, TEXT("         %s: %s %f"), *Modifier.Attribute.GetName(), *EGameplayModOpToString(Modifier.ModifierOp), Magnitude);
 		}
 	}
 	bIsNetDirty = true;
@@ -1071,8 +1077,8 @@ void UAbilitySystemComponent::OnImmunityBlockGameplayEffect(const FGameplayEffec
 
 void UAbilitySystemComponent::InitDefaultGameplayCueParameters(FGameplayCueParameters& Parameters)
 {
-	Parameters.Instigator = OwnerActor;
-	Parameters.EffectCauser = AvatarActor;
+	Parameters.Instigator = GetOwnerActor();
+	Parameters.EffectCauser = GetAvatarActor_Direct();
 }
 
 bool UAbilitySystemComponent::IsReadyForGameplayCues()
@@ -1486,25 +1492,34 @@ int32 UAbilitySystemComponent::RemoveActiveEffects(const FGameplayEffectQuery& Q
 
 void UAbilitySystemComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
 {	
-	DOREPLIFETIME(UAbilitySystemComponent, SpawnedAttributes);
-	DOREPLIFETIME(UAbilitySystemComponent, ActiveGameplayEffects);
-	DOREPLIFETIME(UAbilitySystemComponent, ActiveGameplayCues);
-	
-	DOREPLIFETIME_CONDITION(UAbilitySystemComponent, ActivatableAbilities, COND_ReplayOrOwner);
-	DOREPLIFETIME_CONDITION(UAbilitySystemComponent, BlockedAbilityBindings, COND_OwnerOnly);
+	// Fast Arrays don't use push model, but there's no harm in marking them with it.
+	// The flag will just be ignored.
 
-	DOREPLIFETIME(UAbilitySystemComponent, OwnerActor);
-	DOREPLIFETIME(UAbilitySystemComponent, AvatarActor);
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
 
-	DOREPLIFETIME_CONDITION(UAbilitySystemComponent, ReplicatedPredictionKeyMap, COND_OwnerOnly);
-	DOREPLIFETIME(UAbilitySystemComponent, RepAnimMontageInfo);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, SpawnedAttributes, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, ActiveGameplayEffects, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, ActiveGameplayCues, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, RepAnimMontageInfo, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, OwnerActor, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, AvatarActor, Params);
+
+	Params.Condition = COND_ReplayOrOwner;
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, ActivatableAbilities, Params);
+
+	Params.Condition = COND_ReplayOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, ClientDebugStrings, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, ServerDebugStrings, Params);
 	
-	DOREPLIFETIME_CONDITION(UAbilitySystemComponent, MinimalReplicationGameplayCues, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(UAbilitySystemComponent, MinimalReplicationTags, COND_SkipOwner);
+	Params.Condition = COND_OwnerOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, BlockedAbilityBindings, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, ReplicatedPredictionKeyMap, Params);
 	
-	DOREPLIFETIME_CONDITION(UAbilitySystemComponent, ClientDebugStrings, COND_ReplayOnly);
-	DOREPLIFETIME_CONDITION(UAbilitySystemComponent, ServerDebugStrings, COND_ReplayOnly);
-	
+	Params.Condition = COND_SkipOwner;
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, MinimalReplicationGameplayCues, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, MinimalReplicationTags, Params);
+
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
@@ -1520,9 +1535,9 @@ void UAbilitySystemComponent::ForceReplication()
 
 void UAbilitySystemComponent::ForceAvatarReplication()
 {
-	if (AvatarActor)
+	if (AActor* LocalAvatarActor = GetAvatarActor_Direct())
 	{
-		AvatarActor->ForceNetUpdate();
+		LocalAvatarActor->ForceNetUpdate();
 	}
 }
 
@@ -1530,7 +1545,7 @@ bool UAbilitySystemComponent::ReplicateSubobjects(class UActorChannel *Channel, 
 {
 	bool WroteSomething = Super::ReplicateSubobjects(Channel, Bunch, RepFlags);
 
-	for (const UAttributeSet* Set : SpawnedAttributes)
+	for (const UAttributeSet* Set : GetSpawnedAttributes())
 	{
 		if (Set && !Set->IsPendingKill())
 		{
@@ -1551,7 +1566,7 @@ bool UAbilitySystemComponent::ReplicateSubobjects(class UActorChannel *Channel, 
 
 void UAbilitySystemComponent::GetSubobjectsWithStableNamesForNetworking(TArray<UObject*>& Objs)
 {
-	for (const UAttributeSet* Set : SpawnedAttributes)
+	for (const UAttributeSet* Set : GetSpawnedAttributes())
 	{
 		if (Set && Set->IsNameStableForNetworking())
 		{
@@ -1593,7 +1608,7 @@ IAbilitySystemReplicationProxyInterface* UAbilitySystemComponent::GetReplication
 	if (ReplicationProxyEnabled)
 	{
 		// Note the expectation is that when the avatar actor is null (e.g during a respawn) that we do return null and calling code handles this (by probably not replicating whatever it was going to)
-		return Cast<IAbilitySystemReplicationProxyInterface>(AvatarActor);
+		return Cast<IAbilitySystemReplicationProxyInterface>(GetAvatarActor_Direct());
 	}
 
 	return Cast<IAbilitySystemReplicationProxyInterface>(this);
@@ -1720,18 +1735,22 @@ void UAbilitySystemComponent::DebugCyclicAggregatorBroadcasts(FAggregator* Aggre
 
 void UAbilitySystemComponent::OnRep_ClientDebugString()
 {
+	const TArray<FString>& LocalClientStrings = GetClientDebugStrings();
+
 	ABILITY_LOG(Display, TEXT(" "));
-	ABILITY_LOG(Display, TEXT("Received Client AbilitySystem Debug information: (%d lines)"), ClientDebugStrings.Num());
-	for (FString& Str : ClientDebugStrings)
+	ABILITY_LOG(Display, TEXT("Received Client AbilitySystem Debug information: (%d lines)"), LocalClientStrings.Num());
+	for (const FString& Str : LocalClientStrings)
 	{
 		ABILITY_LOG(Display, TEXT("%s"), *Str);
 	}
 }
 void UAbilitySystemComponent::OnRep_ServerDebugString()
 {
+	const TArray<FString>& LocalServerStrings = GetClientDebugStrings();
+
 	ABILITY_LOG(Display, TEXT(" "));
-	ABILITY_LOG(Display, TEXT("Server AbilitySystem Debug information: (%d lines)"), ClientDebugStrings.Num());
-	for (FString& Str : ServerDebugStrings)
+	ABILITY_LOG(Display, TEXT("Server AbilitySystem Debug information: (%d lines)"), LocalServerStrings.Num());
+	for (const FString& Str : LocalServerStrings)
 	{
 		ABILITY_LOG(Display, TEXT("%s"), *Str);
 	}
@@ -1796,7 +1815,7 @@ void UAbilitySystemComponent::ServerPrintDebug_RequestWithStrings_Implementation
 		ABILITY_LOG(Display, TEXT("%s"), *Str);
 	}
 
-	ClientDebugStrings = Strings;
+	SetClientDebugStrings(TArray<FString>(Strings));
 	ServerPrintDebug_Request_Implementation();
 }
 
@@ -1818,7 +1837,7 @@ void UAbilitySystemComponent::ServerPrintDebug_Request_Implementation()
 
 	Debug_Internal(DebugInfo);
 
-	ServerDebugStrings = DebugInfo.Strings;
+	SetServerDebugStrings(MoveTemp(DebugInfo.Strings));
 
 	ClientPrintDebug_Response(DebugInfo.Strings, DebugInfo.GameFlags);
 }
@@ -2173,11 +2192,14 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 		{
 			DebugTitle += TEXT("GAMEPLAYEFFECTS ");
 		}
+		AActor* LocalAvatarActor = GetAvatarActor_Direct();
+		AActor* LocalOwnerActor = GetOwnerActor();
+
 		// Avatar info
-		if (AvatarActor)
+		if (LocalAvatarActor)
 		{
-			const ENetRole AvatarRole = AvatarActor->GetLocalRole();
-			DebugTitle += FString::Printf(TEXT("for avatar %s "), *AvatarActor->GetName());
+			const ENetRole AvatarRole = LocalAvatarActor->GetLocalRole();
+			DebugTitle += FString::Printf(TEXT("for avatar %s "), *LocalAvatarActor->GetName());
 			if (AvatarRole == ROLE_AutonomousProxy)
 			{
 				DebugTitle += TEXT("(local player) ");
@@ -2192,10 +2214,10 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 			}
 		}
 		// Owner info
-		if (OwnerActor && OwnerActor != AvatarActor)
+		if (LocalOwnerActor && LocalOwnerActor != LocalAvatarActor)
 		{
-			const ENetRole OwnerRole = OwnerActor->GetLocalRole();
-			DebugTitle += FString::Printf(TEXT("for owner %s "), *OwnerActor->GetName());
+			const ENetRole OwnerRole = LocalOwnerActor->GetLocalRole();
+			DebugTitle += FString::Printf(TEXT("for owner %s "), *LocalOwnerActor->GetName());
 			if (OwnerRole == ROLE_AutonomousProxy)
 			{
 				DebugTitle += TEXT("(autonomous) ");
@@ -2389,7 +2411,7 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 
 				if (ActiveGE.Spec.Def->StackingType == EGameplayEffectStackingType::AggregateBySource)
 				{
-					StackString = FString::Printf(TEXT("(Stacks: %d. From: %s) "), ActiveGE.Spec.StackCount, *GetNameSafe(ActiveGE.Spec.GetContext().GetInstigatorAbilitySystemComponent()->AvatarActor));
+					StackString = FString::Printf(TEXT("(Stacks: %d. From: %s) "), ActiveGE.Spec.StackCount, *GetNameSafe(ActiveGE.Spec.GetContext().GetInstigatorAbilitySystemComponent()->GetAvatarActor_Direct()));
 				}
 				else
 				{
@@ -2461,7 +2483,7 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 		{
 			Info.Canvas->SetDrawColor(FColor::White);
 		}
-		for (UAttributeSet* Set : SpawnedAttributes)
+		for (UAttributeSet* Set : GetSpawnedAttributes())
 		{
 			if (!Set)
 			{
@@ -2500,13 +2522,14 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 			FString StatusText;
 			FColor AbilityTextColor = FColor(128, 128, 128);
 			FGameplayTagContainer FailureTags;
+			const TArray<uint8>& LocalBlockedAbilityBindings = GetBlockedAbilityBindings();
 
 			if (AbilitySpec.IsActive())
 			{
 				StatusText = FString::Printf(TEXT(" (Active %d)"), AbilitySpec.ActiveCount);
 				AbilityTextColor = FColor::Yellow;
 			}
-			else if (BlockedAbilityBindings.IsValidIndex(AbilitySpec.InputID) && BlockedAbilityBindings[AbilitySpec.InputID])
+			else if (LocalBlockedAbilityBindings.IsValidIndex(AbilitySpec.InputID) && LocalBlockedAbilityBindings[AbilitySpec.InputID])
 			{
 				StatusText = TEXT(" (InputBlocked)");
 				AbilityTextColor = FColor::Red;
@@ -2613,5 +2636,127 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 	}
 	Info.YL = MaxCharHeight;
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UAbilitySystemComponent::SetOwnerActor(AActor* NewOwnerActor)
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, OwnerActor, this);
+	OwnerActor = NewOwnerActor;
+}
+
+AActor* UAbilitySystemComponent::GetOwnerActor() const
+{
+	return OwnerActor;
+}
+
+void UAbilitySystemComponent::SetAvatarActor_Direct(AActor* NewAvatarActor)
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, AvatarActor, this);
+	AvatarActor = NewAvatarActor;
+}
+
+AActor* UAbilitySystemComponent::GetAvatarActor_Direct() const
+{
+	return AvatarActor;
+}
+
+void UAbilitySystemComponent::SetSpawnedAttributes(const TArray<UAttributeSet*>& NewSpawnedAttributes)
+{
+	GetSpawnedAttributes_Mutable() = NewSpawnedAttributes;
+}
+
+TArray<UAttributeSet*>& UAbilitySystemComponent::GetSpawnedAttributes_Mutable()
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, SpawnedAttributes, this);
+	return SpawnedAttributes;
+}
+
+const TArray<UAttributeSet*>& UAbilitySystemComponent::GetSpawnedAttributes() const
+{
+	return SpawnedAttributes;
+}
+
+void UAbilitySystemComponent::SetClientDebugStrings(TArray<FString>&& NewClientDebugStrings)
+{
+	GetClientDebugStrings_Mutable() = NewClientDebugStrings;
+}
+
+TArray<FString>& UAbilitySystemComponent::GetClientDebugStrings_Mutable()
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, ClientDebugStrings, this);
+	return ClientDebugStrings;
+}
+
+const TArray<FString>& UAbilitySystemComponent::GetClientDebugStrings() const
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, ClientDebugStrings, this);
+	return ClientDebugStrings;
+}
+
+void UAbilitySystemComponent::SetServerDebugStrings(TArray<FString>&& NewServerDebugStrings)
+{
+	GetServerDebugStrings_Mutable() = NewServerDebugStrings;
+}
+
+TArray<FString>& UAbilitySystemComponent::GetServerDebugStrings_Mutable()
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, ServerDebugStrings, this);
+	return ServerDebugStrings;
+}
+
+const TArray<FString>& UAbilitySystemComponent::GetServerDebugStrings() const
+{
+	return ServerDebugStrings;
+}
+
+void UAbilitySystemComponent::SetRepAnimMontageInfo(const FGameplayAbilityRepAnimMontage& NewRepAnimMontageInfo)
+{
+	GetRepAnimMontageInfo_Mutable() = NewRepAnimMontageInfo;
+}
+
+FGameplayAbilityRepAnimMontage& UAbilitySystemComponent::GetRepAnimMontageInfo_Mutable()
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, RepAnimMontageInfo, this);
+	return RepAnimMontageInfo;
+}
+
+const FGameplayAbilityRepAnimMontage& UAbilitySystemComponent::GetRepAnimMontageInfo() const
+{
+	return RepAnimMontageInfo;
+}
+
+void UAbilitySystemComponent::SetBlockedAbilityBindings(const TArray<uint8>& NewBlockedAbilityBindings)
+{
+	GetBlockedAbilityBindings_Mutable() = NewBlockedAbilityBindings;
+}
+
+TArray<uint8>& UAbilitySystemComponent::GetBlockedAbilityBindings_Mutable()
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, BlockedAbilityBindings, this);
+	return BlockedAbilityBindings;
+}
+
+const TArray<uint8>& UAbilitySystemComponent::GetBlockedAbilityBindings() const
+{
+	return BlockedAbilityBindings;
+}
+
+void UAbilitySystemComponent::SetMinimalReplicationTags(const FMinimalReplicationTagCountMap& NewMinimalReplicationTags)
+{
+	GetMinimalReplicationTags_Mutable() = NewMinimalReplicationTags;
+}
+
+FMinimalReplicationTagCountMap& UAbilitySystemComponent::GetMinimalReplicationTags_Mutable()
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, MinimalReplicationTags, this);
+	return MinimalReplicationTags;
+}
+
+const FMinimalReplicationTagCountMap& UAbilitySystemComponent::GetMinimalReplicationTags() const
+{
+	return MinimalReplicationTags;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

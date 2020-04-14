@@ -29,6 +29,11 @@ public:
 
 	FORCEINLINE int32 GetIndentLevel() const { return IndentLevel; }
 
+	bool CanWriteObjectStart() const
+	{
+		return CanWriteObjectWithoutIdentifier();
+	}
+
 	void WriteObjectStart()
 	{
 		check(CanWriteObjectWithoutIdentifier());

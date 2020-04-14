@@ -27,7 +27,7 @@ struct FNiagaraDataInterfaceProxyOscilloscope : public FNiagaraDataInterfaceProx
 	 * @param Channel channel index.
 	 * @return Amplitude at this position.
 	 */
-	float SampleAudio(float NormalizedPositionInBuffer, int32 Channel);
+	float SampleAudio(float NormalizedPositionInBuffer, int32 Channel, int32 NumFramesInBuffer, int32 NumChannelsInBuffer);
 
 	/**
 	 * @return the number of channels in the buffer.
@@ -47,8 +47,8 @@ struct FNiagaraDataInterfaceProxyOscilloscope : public FNiagaraDataInterfaceProx
 	void PostAudioToGPU();
 	FReadBuffer& ComputeAndPostSRV();
 
-	// This function pops audio and downsamples it to our specified resolution.
-	void DownsampleAudioToBuffer();
+	// This function pops audio and downsamples it to our specified resolution. Returns the number of frames of audio in the downsampled buffer.
+	int32 DownsampleAudioToBuffer();
 
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
@@ -76,8 +76,11 @@ private:
 
 	// Handle for the SRV used by the generated HLSL.
 	FReadBuffer GPUDownsampledBuffer;
-	int32 NumChannelsInDownsampledBuffer;
+	FThreadSafeCounter NumChannelsInDownsampledBuffer;
 	
+	// Buffer read by VectorVM worker threads. This vector is guaranteed to not be mutated during the VectorVM tasks.
+	Audio::AlignedFloatBuffer VectorVMReadBuffer;
+
 	FDelegateHandle DeviceCreatedHandle;
 	FDelegateHandle DeviceDestroyedHandle;
 
@@ -111,20 +114,17 @@ public:
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 
-	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { 
-		if (Target == ENiagaraSimTarget::GPUComputeSim)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override
+	{
+		return true;
 	}
+
 	virtual bool RequiresDistanceFieldData() const override { return false; }
 
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+
+	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -133,6 +133,7 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 	virtual void PostLoad() override;
+	
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;

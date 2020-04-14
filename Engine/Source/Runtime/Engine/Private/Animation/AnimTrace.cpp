@@ -607,9 +607,9 @@ void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uin
 	IAnimClassInterface* AnimBlueprintClass = InContext.GetAnimClass();
 	if(AnimBlueprintClass)
 	{
-		const TArray<FStructPropertyPath>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
 		check(AnimNodeProperties.IsValidIndex(InNodeId));
-		FStructProperty* LinkedProperty = AnimNodeProperties[InNodeId].Get();
+		FStructProperty* LinkedProperty = AnimNodeProperties[InNodeId];
 		check(LinkedProperty->Struct);
 
 #if WITH_EDITOR

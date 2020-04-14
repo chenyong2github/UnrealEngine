@@ -8,6 +8,7 @@
 #include "Async/Future.h"
 #include "Async/AsyncFileHandle.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "BulkDataCommon.h"
 #include "BulkData2.h"
 
 #if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0 //Runtime
@@ -25,76 +26,6 @@
 	#define STREAMINGTOKEN_PARAM(param) 
 #endif
 
-/**
- * Flags serialized with the bulk data.
- */
-enum EBulkDataFlags
-{
-	/** Empty flag set.																*/
-	BULKDATA_None								= 0,
-	/** If set, payload is stored at the end of the file and not inline				*/
-	BULKDATA_PayloadAtEndOfFile					= 1<<0,
-	/** If set, payload should be [un]compressed using ZLIB during serialization.	*/
-	BULKDATA_SerializeCompressedZLIB			= 1<<1,
-	/** Force usage of SerializeElement over bulk serialization.					*/
-	BULKDATA_ForceSingleElementSerialization	= 1<<2,
-	/** Bulk data is only used once at runtime in the game.							*/
-	BULKDATA_SingleUse							= 1<<3,
-	/** Bulk data won't be used and doesn't need to be loaded						*/
-	BULKDATA_Unused								= 1<<5,
-	/** Forces the payload to be saved inline, regardless of its size				*/
-	BULKDATA_ForceInlinePayload					= 1<<6,
-	/** Flag to check if either compression mode is specified						*/
-	BULKDATA_SerializeCompressed				= (BULKDATA_SerializeCompressedZLIB),
-	/** Forces the payload to be always streamed, regardless of its size */
-	BULKDATA_ForceStreamPayload					= 1 << 7,
-	/** If set, payload is stored in a .upack file alongside the uasset				*/
-	BULKDATA_PayloadInSeperateFile				= 1 << 8,
-	/** DEPRECATED: If set, payload is compressed using platform specific bit window	*/
-	BULKDATA_SerializeCompressedBitWindow		= 1 << 9,
-	/** There is a new default to inline unless you opt out */
-	BULKDATA_Force_NOT_InlinePayload			= 1 << 10,
-	/** This payload is optional and may not be on device */
-	BULKDATA_OptionalPayload					= 1 << 11,
-	/** This payload will be memory mapped, this requires alignment, no compression etc. */
-	BULKDATA_MemoryMappedPayload				= 1 << 12,
-	/** Bulk data size is 64 bits long */
-	BULKDATA_Size64Bit							= 1 << 13,
-	/** Duplicate non-optional payload in optional bulk data. */
-	BULKDATA_DuplicateNonOptionalPayload		= 1 << 14,
-	/** Indicates that an old ID is present in the data, at some point when the DDCs are flushed we can remove this. */
-	BULKDATA_BadDataVersion						= 1 << 15,
-	
-	/* Runtime flags go below! */
-	
-	/** Assigned at runtime to indicate that the BulkData should be using the IoDispatcher when loading, not filepaths. */
-	BULKDATA_UsesIoDispatcher					= 1 << 16,
-	/** Assigned at runtime to indicate that the BulkData allocation is a memory mapped region of a file and not raw data */
-	BULKDATA_DataIsMemoryMapped					= 1 << 17,
-};
-
-/**
- * Enumeration for bulk data lock status.
- */
-enum EBulkDataLockStatus
-{
-	/** Unlocked array													*/
-	LOCKSTATUS_Unlocked							= 0,
-	/** Locked read-only												*/
-	LOCKSTATUS_ReadOnlyLock						= 1,
-	/** Locked read-write-realloc										*/
-	LOCKSTATUS_ReadWriteLock					= 2,
-};
-
-/**
- * Enumeration for bulk data lock behavior
- */
-enum EBulkDataLockFlags
-{
-	LOCK_READ_ONLY								= 1,
-	LOCK_READ_WRITE								= 2,
-};
-
 class IMappedFileHandle;
 class IMappedFileRegion;
 
@@ -107,8 +38,7 @@ class IMappedFileRegion;
  */
 struct COREUOBJECT_API FOwnedBulkDataPtr
 {
-
-	FOwnedBulkDataPtr(void* InAllocatedData)
+	explicit FOwnedBulkDataPtr(void* InAllocatedData)
 		: AllocatedData(InAllocatedData)
 		, MappedHandle(nullptr)
 		, MappedRegion(nullptr)
@@ -160,6 +90,8 @@ class FBulkDataIORequest : public IBulkDataIORequest
 {
 public:
 	FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle);
+	FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle, IAsyncReadRequest* InReadRequest, int64 BytesToRead);
+
 	virtual ~FBulkDataIORequest();
 
 	bool MakeReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory);
@@ -636,6 +568,16 @@ public:
 	 * Forces the bulk data to be resident in memory and detaches the archive.
 	 */
 	void ForceBulkDataResident();
+
+	/** 
+	* Initiates a new asynchronous operation to load the dulkdata from disk assuming that it is not already
+	* loaded.
+	* Note that a new asynchronous loading operation will not be created if one is already in progress.
+	*
+	* @return True if an asynchronous loading operation is in progress by the time that the method returns
+	* and false if the data is already loaded or cannot be loaded from disk.
+	*/
+	bool StartAsyncLoading();
 	
 	/**
 	 * Sets whether we should store the data compressed on disk.
@@ -839,7 +781,7 @@ private:
 	-----------------------------------------------------------------------------*/
 
 	/** Serialized flags for bulk data																					*/
-	uint32					BulkDataFlags;
+	EBulkDataFlags			BulkDataFlags;
 	/** Alignment of bulk data																							*/
 	uint16					BulkDataAlignment;
 	/** Current lock status																								*/

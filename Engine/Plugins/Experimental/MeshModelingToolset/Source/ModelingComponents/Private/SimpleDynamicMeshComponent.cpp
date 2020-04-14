@@ -85,9 +85,9 @@ void USimpleDynamicMeshComponent::InitializeNewMesh()
 
 void USimpleDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
 {
-	if (bHaveModifiedTopology == false && Mesh.Get()->VertexCount() == MeshDescription->Vertices().Num())
+	FDynamicMeshToMeshDescription Converter(ConversionOptions);
+	if (bHaveModifiedTopology == false && Converter.HaveMatchingElementCounts(Mesh.Get(), MeshDescription))
 	{
-		FDynamicMeshToMeshDescription Converter(ConversionOptions);
 		if (ConversionOptions.bUpdatePositions)
 		{
 			Converter.Update(Mesh.Get(), *MeshDescription, ConversionOptions.bUpdateNormals, ConversionOptions.bUpdateUVs);
@@ -99,7 +99,6 @@ void USimpleDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool b
 	}
 	else
 	{
-		FDynamicMeshToMeshDescription Converter(ConversionOptions);
 		Converter.Convert(Mesh.Get(), *MeshDescription);
 
 		//UE_LOG(LogTemp, Warning, TEXT("MeshDescription has %d instances"), MeshDescription->VertexInstances().Num());

@@ -49,7 +49,7 @@ void FCustomPresent::ReleaseResources_RHIThread()
 
 	if (MirrorTextureRHI.IsValid())
 	{
-		ovrp_DestroyMirrorTexture2();
+		FOculusHMDModule::GetPluginWrapper().DestroyMirrorTexture2();
 		MirrorTextureRHI = nullptr;
 	}
 }
@@ -135,7 +135,7 @@ void FCustomPresent::UpdateMirrorTexture_RenderThread()
 	const ESpectatorScreenMode MirrorWindowMode = OculusHMD->GetSpectatorScreenMode_RenderThread();
 	const FVector2D MirrorWindowSize = OculusHMD->GetFrame_RenderThread()->WindowSize;
 
-	if (ovrp_GetInitialized())
+	if (FOculusHMDModule::GetPluginWrapper().GetInitialized())
 	{
 		// Need to destroy mirror texture?
 		if (MirrorTextureRHI.IsValid() && (MirrorWindowMode != ESpectatorScreenMode::Distorted ||
@@ -143,7 +143,7 @@ void FCustomPresent::UpdateMirrorTexture_RenderThread()
 		{
 			ExecuteOnRHIThread([]()
 			{
-				ovrp_DestroyMirrorTexture2();
+				FOculusHMDModule::GetPluginWrapper().DestroyMirrorTexture2();
 			});
 
 			MirrorTextureRHI = nullptr;
@@ -160,7 +160,7 @@ void FCustomPresent::UpdateMirrorTexture_RenderThread()
 
 			ExecuteOnRHIThread([&]()
 			{
-				ovrp_SetupMirrorTexture2(GetOvrpDevice(), Height, Width, GetDefaultOvrpTextureFormat(), &TextureHandle);
+				FOculusHMDModule::GetPluginWrapper().SetupMirrorTexture2(GetOvrpDevice(), Height, Width, GetDefaultOvrpTextureFormat(), &TextureHandle);
 			});
 
 			UE_LOG(LogHMD, Log, TEXT("Allocated a new mirror texture (size %d x %d)"), Width, Height);
@@ -182,7 +182,7 @@ void FCustomPresent::FinishRendering_RHIThread()
 	if (OculusHMD->GetFrame_RHIThread()->ShowFlags.Rendering)
 	{
 		ovrpAppLatencyTimings AppLatencyTimings;
-		if(OVRP_SUCCESS(ovrp_GetAppLatencyTimings2(&AppLatencyTimings)))
+		if(OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetAppLatencyTimings2(&AppLatencyTimings)))
 		{
 			SET_FLOAT_STAT(STAT_LatencyRender, AppLatencyTimings.LatencyRender * 1000.0f);
 			SET_FLOAT_STAT(STAT_LatencyTimewarp, AppLatencyTimings.LatencyTimewarp * 1000.0f);
@@ -197,7 +197,7 @@ void FCustomPresent::FinishRendering_RHIThread()
 
 #if PLATFORM_ANDROID
 	float GPUFrameTime = 0.0f;
-	if (OVRP_SUCCESS(ovrp_GetGPUFrameTime(&GPUFrameTime)))
+	if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetGPUFrameTime(&GPUFrameTime)))
 	{
 		SubmitGPUFrameTime(GPUFrameTime);
 	}
@@ -274,7 +274,7 @@ bool FCustomPresent::IsSRGB(ovrpTextureFormat InFormat)
 int FCustomPresent::GetSystemRecommendedMSAALevel() const
 {
 	int SystemRecommendedMSAALevel = 1;
-	ovrp_GetSystemRecommendedMSAALevel2(&SystemRecommendedMSAALevel);
+	FOculusHMDModule::GetPluginWrapper().GetSystemRecommendedMSAALevel2(&SystemRecommendedMSAALevel);
 	return SystemRecommendedMSAALevel;
 }
 
@@ -438,7 +438,7 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 					PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI, MipIndex);
 				}
 
-				RHICmdList.SetViewport(DstRect.Min.X, DstRect.Min.Y, 0.0f, MipViewportWidth, MipViewportHeight, 1.0f);
+				RHICmdList.SetViewport(DstRect.Min.X, DstRect.Min.Y, 0.0f, DstRect.Min.X + MipViewportWidth, DstRect.Min.Y + MipViewportHeight, 1.0f);
 
 				RendererModule->DrawRectangle(
 					RHICmdList,

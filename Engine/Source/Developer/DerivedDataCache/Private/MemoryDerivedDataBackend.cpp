@@ -3,8 +3,9 @@
 #include "MemoryDerivedDataBackend.h"
 #include "Templates/UniquePtr.h"
 
-FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(int64 InMaxCacheSize)
-	: MaxCacheSize(InMaxCacheSize)
+FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize)
+	: Name(InName)
+	, MaxCacheSize(InMaxCacheSize)
 	, bDisabled( false )
 	, CurrentCacheSize( SerializationSpecificDataSize )
 	, bMaxSizeExceeded(false)
@@ -22,15 +23,26 @@ bool FMemoryDerivedDataBackend::IsWritable()
 	return !bDisabled;
 }
 
+FDerivedDataBackendInterface::ESpeedClass FMemoryDerivedDataBackend::GetSpeedClass()
+{
+	return ESpeedClass::Local;
+}
+
 bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
-	FScopeLock ScopeLock(&SynchronizationObject);
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
+
 	if (bDisabled)
 	{
 		return false;
 	}
 
+	FScopeLock ScopeLock(&SynchronizationObject);
 	bool Result = CacheItems.Contains(FString(CacheKey));
 	if (Result)
 	{
@@ -42,9 +54,16 @@ bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
-	FScopeLock ScopeLock(&SynchronizationObject);
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
+	
 	if (!bDisabled)
 	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+
 		FCacheValue* Item = CacheItems.FindRef(FString(CacheKey));
 		if (Item)
 		{
@@ -59,13 +78,35 @@ bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint
 	return false;
 }
 
+bool FMemoryDerivedDataBackend::TryToPrefetch(const TCHAR* CacheKey)
+{
+	return false;
+}
+
+bool FMemoryDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+{
+	if (bDisabled || bMaxSizeExceeded)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePut());
 	FScopeLock ScopeLock(&SynchronizationObject);
-	
-	if (bDisabled || bMaxSizeExceeded)
+
+	if (DidSimulateMiss(CacheKey))
 	{
+		return;
+	}
+	
+	// Should never hit this as higher level code should be checking..
+	if (!WouldCache(CacheKey, InData))
+	{
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("WouldCache was not called prior to attempted Put!"));
 		return;
 	}
 	
@@ -282,4 +323,39 @@ void FMemoryDerivedDataBackend::Disable()
 void FMemoryDerivedDataBackend::GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath)
 {
 	COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s.%s"), *GraphPath, TEXT("MemoryBackend"), *CacheFilename), UsageStats));
+}
+
+bool FMemoryDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+{
+	DebugOptions = InOptions;
+	return true;
+}
+
+bool FMemoryDerivedDataBackend::DidSimulateMiss(const TCHAR* InKey)
+{
+	if (DebugOptions.RandomMissRate == 0 || DebugOptions.SimulateMissTypes.Num() == 0)
+	{
+		return false;
+	}
+	FScopeLock Lock(&MissedKeysCS);
+	return DebugMissedKeys.Contains(FName(InKey));
+}
+
+bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
+{
+	// once missed, always missed
+	if (DidSimulateMiss(InKey))
+	{
+		return true;
+	}
+
+	if (DebugOptions.ShouldSimulateMiss(InKey))
+	{
+		FScopeLock Lock(&MissedKeysCS);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
+		DebugMissedKeys.Add(FName(InKey));
+		return true;
+	}
+
+	return false;
 }

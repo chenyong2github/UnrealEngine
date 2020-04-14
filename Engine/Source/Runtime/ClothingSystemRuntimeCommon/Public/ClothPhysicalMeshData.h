@@ -20,11 +20,11 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothPhysicalMeshData
 	/** Construct an empty cloth physical mesh with default common targets. */
 	FClothPhysicalMeshData();
 
-	/** Migrate away the deprecated properties. */
-	void MigrateTo(FClothPhysicalMeshData& ClothPhysicalMeshData) const;
+	/** Migrate from same, used to migrate LOD data from the UClothLODDataCommon_Legacy. */
+	void MigrateFrom(FClothPhysicalMeshData& ClothPhysicalMeshData);
 
-	/** Migrate from the nv legacy physical mesh data class. */
-	void MigrateFrom(const UClothPhysicalMeshDataBase_Legacy* ClothPhysicalMeshDataBase);
+	/** Migrate from the legacy physical mesh data class, used to migrate LOD data from the UClothLODDataCommon_Legacy. */
+	void MigrateFrom(UClothPhysicalMeshDataBase_Legacy* ClothPhysicalMeshDataBase);
 
 	/** Reset the default common targets for this cloth physical mesh. */
 	void Reset(const int32 InNumVerts, const int32 InNumIndices);

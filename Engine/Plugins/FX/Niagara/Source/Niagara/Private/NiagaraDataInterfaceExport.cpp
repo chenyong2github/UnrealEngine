@@ -165,6 +165,8 @@ void UNiagaraDataInterfaceExport::GetVMExternalFunction(const FVMExternalFunctio
 
 void UNiagaraDataInterfaceExport::StoreData(FVectorVMContext& Context)
 {
+	VectorVM::FUserPtrHandler<ExportInterface_InstanceData> InstData(Context);
+
 	VectorVM::FExternalFuncInputHandler<FNiagaraBool> StoreDataParam(Context);
 
 	VectorVM::FExternalFuncInputHandler<float> PositionParamX(Context);
@@ -176,8 +178,6 @@ void UNiagaraDataInterfaceExport::StoreData(FVectorVMContext& Context)
 	VectorVM::FExternalFuncInputHandler<float> VelocityParamX(Context);
 	VectorVM::FExternalFuncInputHandler<float> VelocityParamY(Context);
 	VectorVM::FExternalFuncInputHandler<float> VelocityParamZ(Context);
-
-	VectorVM::FUserPtrHandler<ExportInterface_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutSample(Context);
 

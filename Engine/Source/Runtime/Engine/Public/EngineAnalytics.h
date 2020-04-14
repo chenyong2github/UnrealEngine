@@ -38,9 +38,6 @@ public:
 	/** Called to shut down the singleton */
 	static ENGINE_API void Shutdown(bool bIsEngineShutdown = false);
 
-	/** General report event function. */
-	static ENGINE_API void ReportEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes);
-
 	static ENGINE_API void Tick(float DeltaTime);
 
 	static ENGINE_API void LowDriveSpaceDetected();

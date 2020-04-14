@@ -170,6 +170,8 @@ private:
 
 	void OnContentPathDismounted(const FString& InAssetPath, const FString& InFilesystemPath);
 
+	static bool IsDeveloperModeEnabled();
+
 	void OnAssetRenamed(const FAssetData& Data, const FString& OldName);
 
 	void OnAssetRemoved(const FAssetData& Data);

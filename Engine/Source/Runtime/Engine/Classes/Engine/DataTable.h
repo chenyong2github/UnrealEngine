@@ -386,8 +386,20 @@ protected:
 	 */
 	void OnPostDataImported(OUT TArray<FString>& OutCollectedImportProblems);
 
-
 	UScriptStruct& GetEmptyUsingStruct() const;
+
+	/** Used to trigger the data table changed delegate. This allows us to trigger the delegate only once from more complex changes */
+	struct FScopedDataTableChange
+	{
+		FScopedDataTableChange(UDataTable* InTable);
+		~FScopedDataTableChange();
+
+	private:
+		UDataTable* Table;
+
+		static TMap<UDataTable*, int32> ScopeCount;
+		static FCriticalSection CriticalSection;
+	};
 };
 
 

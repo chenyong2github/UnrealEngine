@@ -4,6 +4,7 @@
 
 #include "MetalRHIPrivate.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Apple/AppleLLM.h"
 
 @interface FMetalDeallocHandler : FApplePlatformObject<NSObject>
 {
@@ -20,7 +21,7 @@
 
 enum class ELLMTagMetal : LLM_TAG_TYPE
 {
-	Buffers = (LLM_TAG_TYPE)ELLMTag::PlatformTagStart,
+	Buffers = (LLM_TAG_TYPE)ELLMTagApple::AppleMetalTagsStart,
 	Textures,
 	Heaps,
 	RenderTargets,
@@ -28,7 +29,7 @@ enum class ELLMTagMetal : LLM_TAG_TYPE
 	Count
 };
 
-static_assert((int32)ELLMTagMetal::Count <= (int32)ELLMTag::PlatformTagEnd, "too many ELLMTagMetal tags");
+static_assert((int32)ELLMTagMetal::Count <= (int32)ELLMTagApple::AppleMetalTagsEnd, "too many ELLMTagMetal tags. Need to increase LLM_TAG_APPLE_NUM_METAL_TAGS_RESERVED");
 
 namespace MetalLLM
 {

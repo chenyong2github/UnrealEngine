@@ -137,6 +137,22 @@ struct FAssertInfo
 	}
 };
 
+const TCHAR* const FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName = TEXT("UE4AftermathD3D12.nv-gpudmp");
+
+/**
+* Implement platform specific static cleanup function
+*/
+void FGenericCrashContext::CleanupPlatformSpecificFiles()
+{
+	// Manually delete any potential leftover gpu dumps because the crash reporter will upload any leftover crash data from last session
+	const FString CrashVideoPath = FPaths::ProjectLogDir() + TEXT("CrashVideo.avi");
+	IFileManager::Get().Delete(*CrashVideoPath);
+
+	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+	IFileManager::Get().Delete(*GPUMiniDumpPath);
+}
+
+
 void FWindowsPlatformCrashContext::GetProcModuleHandles(const FProcHandle& ProcessHandle, FModuleHandleArray& OutHandles)
 {
 	// Get all the module handles for the current process. Each module handle is its base address.
@@ -306,6 +322,15 @@ void FWindowsPlatformCrashContext::CopyPlatformSpecificFiles(const TCHAR* Output
 		const FString CrashVideoDstAbsolute = FPaths::Combine(OutputDirectory, *CrashVideoFilename);
 		static_cast<void>(IFileManager::Get().Copy(*CrashVideoDstAbsolute, *CrashVideoPath));	// best effort, so don't care about result: couldn't copy -> tough, no video
 	}
+
+	// If present, include the gpu crash minidump
+	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+	if (IFileManager::Get().FileExists(*GPUMiniDumpPath))
+	{
+		FString GPUMiniDumpFilename = FPaths::GetCleanFilename(GPUMiniDumpPath);
+		const FString GPUMiniDumpDstAbsolute = FPaths::Combine(OutputDirectory, *GPUMiniDumpFilename);
+		static_cast<void>(IFileManager::Get().Copy(*GPUMiniDumpDstAbsolute, *GPUMiniDumpPath));	// best effort, so don't care about result: couldn't copy -> tough, no video
+	}
 }
 
 void FWindowsPlatformCrashContext::CaptureAllThreadContexts()
@@ -390,7 +415,7 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 /**
  * Launches crash reporter client and creates the pipes for communication.
  */
-FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe)
+FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uint32* CrashReportClientProcessId)
 {
 	TCHAR CrashReporterClientPath[CR_CLIENT_MAX_PATH_LEN] = { 0 };
 	TCHAR CrashReporterClientArgs[CR_CLIENT_MAX_ARGS_LEN] = { 0 };
@@ -461,7 +486,7 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe)
 			CrashReporterClientPath,
 			CrashReporterClientArgs,
 			true, false, false,
-			nullptr, 0,
+			CrashReportClientProcessId, 0,
 			nullptr,
 			nullptr,
 			nullptr
@@ -943,6 +968,8 @@ private:
 	void* CrashMonitorWritePipe;
 	/** Pipe for reading from the monitor process. */
 	void* CrashMonitorReadPipe;
+	/** The crash report client process ID. */
+	uint32 CrashMonitorPid;
 	/** Memory allocated for crash context. */
 	FSharedCrashContext SharedContext;
 	
@@ -957,26 +984,40 @@ private:
 	/** Main loop that waits for a crash to trigger the report generation */
 	FORCENOINLINE uint32 Run()
 	{
-		// Removed vectored exception handler, we are now guaranteed to
-		// be able to catch unhandled exception in the main try/catch block.
-#if _WIN32_WINNT >= 0x0500
-		if (!FPlatformMisc::IsDebuggerPresent())
-		{
-			RemoveVectoredExceptionHandler(VectoredExceptionHandle);
-		}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__try
 #endif
-		while (StopTaskCounter.GetValue() == 0)
 		{
-			if (WaitForSingleObject(CrashEvent, 500) == WAIT_OBJECT_0)
+			// Removed vectored exception handler, we are now guaranteed to
+			// be able to catch unhandled exception in the main try/catch block.
+#if _WIN32_WINNT >= 0x0500
+			if (!FPlatformMisc::IsDebuggerPresent())
 			{
-				ResetEvent(CrashHandledEvent);
-				HandleCrashInternal();
-				ResetEvent(CrashEvent);
-				// Let the thread that crashed know we're done.				
-				SetEvent(CrashHandledEvent);
-				break;
+				RemoveVectoredExceptionHandler(VectoredExceptionHandle);
+			}
+#endif
+			while (StopTaskCounter.GetValue() == 0)
+			{
+				if (WaitForSingleObject(CrashEvent, 500) == WAIT_OBJECT_0)
+				{
+					ResetEvent(CrashHandledEvent);
+					HandleCrashInternal();
+
+					ResetEvent(CrashEvent);
+					// Let the thread that crashed know we're done.
+					SetEvent(CrashHandledEvent);
+
+					break;
+				}
 			}
 		}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__except(EXCEPTION_EXECUTE_HANDLER)
+		{
+			// The crash reporting thread crashed itself. Exit with a code that the out-of-process monitor will be able to pick up and report into analytics.
+			::exit(ECrashExitCodes::CrashReporterCrashed);
+		}
+#endif
 		return 0;
 	}
 
@@ -999,6 +1040,7 @@ public:
 		, VectoredExceptionHandle(INVALID_HANDLE_VALUE)
 		, CrashMonitorWritePipe(nullptr)
 		, CrashMonitorReadPipe(nullptr)
+		, CrashMonitorPid(0)
 	{
 		// Synchronization objects
 		CrashEvent = CreateEvent(nullptr, true, 0, nullptr);
@@ -1016,7 +1058,7 @@ public:
 #if USE_CRASH_REPORTER_MONITOR
 		if (!FPlatformProperties::IsServerOnly())
 		{
-			CrashClientHandle = LaunchCrashReportClient(&CrashMonitorWritePipe, &CrashMonitorReadPipe);
+			CrashClientHandle = LaunchCrashReportClient(&CrashMonitorWritePipe, &CrashMonitorReadPipe, &CrashMonitorPid);
 			FMemory::Memzero(SharedContext);
 		}
 #endif
@@ -1028,7 +1070,10 @@ public:
 			SetThreadPriority(Thread, THREAD_PRIORITY_BELOW_NORMAL);
 		}
 
-		FGenericCrashContext::SetIsOutOfProcessCrashReporter(CrashClientHandle.IsValid());
+		if (CrashClientHandle.IsValid())
+		{
+			FGenericCrashContext::SetOutOfProcessCrashReporterPid(CrashMonitorPid);
+		}
 	}
 
 	FORCENOINLINE ~FCrashReportingThread()
@@ -1312,12 +1357,24 @@ LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
  * Fallback for catching exceptions which aren't caught elsewhere. This allows catching exceptions on threads created outside the engine.
  * Note that Windows does not call this handler if a debugger is attached, separately to our internal logic around crash handling.
  */
-LONG WINAPI UnhandledException(EXCEPTION_POINTERS *ExceptionInfo)
+LONG WINAPI UnhandledException(EXCEPTION_POINTERS* ExceptionInfo)
 {
-	ReportCrash(ExceptionInfo);
-	GIsCriticalError = true;
-	FPlatformMisc::RequestExit(true);
-	return EXCEPTION_CONTINUE_SEARCH;
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__try
+#endif
+	{
+		ReportCrash(ExceptionInfo);
+		GIsCriticalError = true;
+		FPlatformMisc::RequestExit(true);
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__except(EXCEPTION_EXECUTE_HANDLER)
+	{
+		// The crash handler crashed itself, exit with a code that the out-of-process monitor will be able to pick up and report into analytics.
+		::exit(ECrashExitCodes::CrashHandlerCrashed);
+	}
+#endif
 }
 
 // #CrashReport: 2015-05-28 This should be named EngineCrashHandler
@@ -1397,11 +1454,22 @@ FORCENOINLINE void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesT
 {
 	/** This is the last place to gather memory stats before exception. */
 	FGenericCrashContext::SetMemoryStats(FPlatformMemory::GetStats());
+	
+	// GPUCrash can be called when the guarded entry is not set
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__try
+	{
+		FAssertInfo Info(ErrorMessage, NumStackFramesToIgnore + 2); // +2 for this function and RaiseException()
 
-	FAssertInfo Info(ErrorMessage, NumStackFramesToIgnore + 2); // +2 for this function and RaiseException()
+		ULONG_PTR Arguments[] = { (ULONG_PTR)&Info };
+		::RaiseException(GPUCrashExceptionCode, 0, UE_ARRAY_COUNT(Arguments), Arguments);
+	}
+	__except (ReportCrash(GetExceptionInformation()))
+	{
+		FPlatformMisc::RequestExit(false);
+	}
+#endif
 
-	ULONG_PTR Arguments[] = { (ULONG_PTR)&Info };
-	::RaiseException(GPUCrashExceptionCode, 0, UE_ARRAY_COUNT(Arguments), Arguments);
 }
 
 void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumStackFrames, uint32 HungThreadId)

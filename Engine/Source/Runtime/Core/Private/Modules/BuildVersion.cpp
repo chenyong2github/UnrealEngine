@@ -18,6 +18,31 @@ FBuildVersion::FBuildVersion()
 {
 }
 
+int FBuildVersion::GetEffectiveCompatibleChangelist() const
+{
+	return (Changelist != 0 && CompatibleChangelist != 0) ? CompatibleChangelist : Changelist;
+}
+
+FEngineVersion FBuildVersion::GetEngineVersion() const
+{
+	int EncodedChangelist = Changelist;
+	if (IsLicenseeVersion)
+	{
+		EncodedChangelist = FEngineVersion::EncodeLicenseeChangelist(EncodedChangelist);
+	}
+	return FEngineVersion((uint16)MajorVersion, (uint16)MinorVersion, (uint16)PatchVersion, EncodedChangelist, BranchName);
+}
+
+FEngineVersion FBuildVersion::GetCompatibleEngineVersion() const
+{
+	int EncodedChangelist = GetEffectiveCompatibleChangelist();
+	if (IsLicenseeVersion)
+	{
+		EncodedChangelist = FEngineVersion::EncodeLicenseeChangelist(EncodedChangelist);
+	}
+	return FEngineVersion((uint16)MajorVersion, (uint16)MinorVersion, (uint16)PatchVersion, EncodedChangelist, BranchName);
+}
+
 FString FBuildVersion::GetDefaultFileName()
 {
 	return FPaths::EngineDir() / TEXT("Build/Build.version");

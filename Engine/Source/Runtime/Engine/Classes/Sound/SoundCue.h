@@ -92,11 +92,11 @@ class ENGINE_API USoundCue : public USoundBase
 	USoundNode* FirstNode;
 
 	/* Volume multiplier for the Sound Cue */
-	UPROPERTY(EditAnywhere, Category=Sound, AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Sound, AssetRegistrySearchable)
 	float VolumeMultiplier;
 
 	/* Pitch multiplier for the Sound Cue */
-	UPROPERTY(EditAnywhere, Category=Sound, AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Sound, AssetRegistrySearchable)
 	float PitchMultiplier;
 
 	/* Attenuation settings to use if Override Attenuation is set to true */

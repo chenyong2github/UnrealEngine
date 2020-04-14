@@ -213,9 +213,13 @@ public:
 	UPROPERTY()
 	UClothConfigBase* ChaosClothSimConfig_DEPRECATED;
 
+	// Deprecated. Use LodData instead
+	UPROPERTY()
+	TArray<UClothLODDataCommon_Legacy*> ClothLodData_DEPRECATED;
+
 	// The actual asset data, listed by LOD.
 	UPROPERTY()
-	TArray<UClothLODDataCommon*> ClothLodData;
+	TArray<FClothLODDataCommon> LodData;
 
 	// Tracks which clothing LOD each skel mesh LOD corresponds to (LodMap[SkelLod]=ClothingLod).
 	UPROPERTY()
@@ -244,13 +248,6 @@ public:
 	UPROPERTY()
 	FClothConfig_Legacy ClothConfig_DEPRECATED;
 
-	/** 
-	 * Deprecated property for transitioning \c FClothLODData struct to the 
-	 * \c UClothLODDataCommon class, in a new property called \c ClothLodData.
-	 */
-	UPROPERTY()
-	TArray<FClothLODData_Legacy> LodData_DEPRECATED;
-
 private:
 
 	// Add or replace a new cloth config of the specified type.
@@ -267,8 +264,9 @@ private:
 	void AddClothConfigs();
 
 	// Propagate the shared simulation configs between assets.
+	// Also migrate all deprecated shared parameters which have been moved to the per cloth configs if required.
 	// Called after a cloth asset is created or loaded.
-	void PropagateSharedConfigs();
+	void PropagateSharedConfigs(bool bMigrateSharedConfigToConfig=false);
 
 #if WITH_EDITOR
 	// Helper functions used in PostPropertyChangeCb

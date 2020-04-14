@@ -6,7 +6,7 @@
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackParameterStoreEntryName"
 
@@ -15,6 +15,7 @@ void SNiagaraStackParameterStoreEntryName::Construct(const FArguments& InArgs, U
 	StackEntry = InStackEntry;
 	StackEntryItem = InStackEntry;
 	StackViewModel = InStackViewModel;
+	IsSelected = InArgs._IsSelected;
 
 	ChildSlot
 	[
@@ -23,14 +24,14 @@ void SNiagaraStackParameterStoreEntryName::Construct(const FArguments& InArgs, U
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
 		[
-			SAssignNew(NameTextBlock, SInlineEditableTextBlock)
-			.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterInlineEditableText")
-			.Text_UObject(StackEntry, &UNiagaraStackEntry::GetDisplayName)
-			.IsReadOnly(this, &SNiagaraStackParameterStoreEntryName::GetIsNameReadOnly)
+			SAssignNew(NameTextBlock, SNiagaraParameterNameTextBlock)
+			.EditableTextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterInlineEditableText")
+			.ParameterText_UObject(StackEntry, &UNiagaraStackEntry::GetDisplayName)
+			.IsReadOnly(StackEntry->SupportsRename() == false)
 			.IsSelected(this, &SNiagaraStackParameterStoreEntryName::GetIsNameWidgetSelected)
 			.OnTextCommitted(this, &SNiagaraStackParameterStoreEntryName::OnNameTextCommitted)
 			.OnVerifyTextChanged(this, &SNiagaraStackParameterStoreEntryName::VerifyNameTextChanged)
-			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			//.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 		]
 	];
 }
@@ -46,14 +47,9 @@ void SNiagaraStackParameterStoreEntryName::Tick(const FGeometry& AllottedGeometr
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
-bool SNiagaraStackParameterStoreEntryName::GetIsNameReadOnly() const
-{
-	return StackEntry->SupportsRename() == false;
-}
-
 bool SNiagaraStackParameterStoreEntryName::GetIsNameWidgetSelected() const
 {
-	return true;
+	return IsSelected.Get();
 }
 
 bool SNiagaraStackParameterStoreEntryName::VerifyNameTextChanged(const FText& NewText, FText& OutErrorMessage)

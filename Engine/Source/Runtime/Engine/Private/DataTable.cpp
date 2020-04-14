@@ -31,40 +31,32 @@ namespace
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
-	/** Used to trigger the trigger the data table changed delegate. This allows us to trigger the delegate once from more complex changes */
-	struct FScopedDataTableChange
-	{
-		FScopedDataTableChange(UDataTable* InTable)
-			: Table(InTable)
-		{
-			FScopeLock Lock(&CriticalSection);
-			int32& Count = ScopeCount.FindOrAdd(Table);
-			++Count;
-		}
-		~FScopedDataTableChange()
-		{
-			FScopeLock Lock(&CriticalSection);
-			int32& Count = ScopeCount.FindChecked(Table);
-			--Count;
-			if (Count == 0)
-			{
-				Table->HandleDataTableChanged();
-				ScopeCount.Remove(Table);
-			}
-		}
-
-	private:
-		UDataTable* Table;
-
-		static TMap<UDataTable*, int32> ScopeCount;
-		static FCriticalSection CriticalSection;
-	};
-
-	TMap< UDataTable*, int32> FScopedDataTableChange::ScopeCount;
-	FCriticalSection FScopedDataTableChange::CriticalSection;
-
-#define DATATABLE_CHANGE_SCOPE()	FScopedDataTableChange ActiveScope(this);
 }
+
+UDataTable::FScopedDataTableChange::FScopedDataTableChange(UDataTable* InTable)
+	: Table(InTable)
+{
+	FScopeLock Lock(&CriticalSection);
+	int32& Count = ScopeCount.FindOrAdd(Table);
+	++Count;
+}
+
+UDataTable::FScopedDataTableChange::~FScopedDataTableChange()
+{
+	FScopeLock Lock(&CriticalSection);
+	int32& Count = ScopeCount.FindChecked(Table);
+	--Count;
+	if (Count == 0)
+	{
+		Table->HandleDataTableChanged();
+		ScopeCount.Remove(Table);
+	}
+}
+
+TMap<UDataTable*, int32> UDataTable::FScopedDataTableChange::ScopeCount;
+FCriticalSection UDataTable::FScopedDataTableChange::CriticalSection;
+
+#define DATATABLE_CHANGE_SCOPE()	UDataTable::FScopedDataTableChange ActiveScope(this);
 
 UDataTable::UDataTable(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

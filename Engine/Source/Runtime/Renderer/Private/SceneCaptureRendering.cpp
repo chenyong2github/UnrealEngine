@@ -447,8 +447,9 @@ static void UpdateSceneCaptureContent_RenderThread(
 			checkNoEntry();
 			break;
 	}
-	// Unbind everything in case FX has to read.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UnbindRenderTargets(RHICmdList);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Type ProjectionType, float FOV, float InOrthoWidth, float InNearClippingPlane, FMatrix& ProjectionMatrix)

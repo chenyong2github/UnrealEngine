@@ -265,6 +265,20 @@ void FD3D11DynamicRHI::RHIPushEvent(const TCHAR* Name, FColor Color)
 	GPUProfilingData.PushEvent(Name, Color);
 }
 
+#if PLATFORM_HOLOLENS
+void FD3D11DynamicRHI::RHISuspendRendering()
+{
+	TRefCountPtr<IDXGIDevice3> dxgiDevice;
+	if (Direct3DDevice->QueryInterface(IID_PPV_ARGS(dxgiDevice.GetInitReference())))
+	{
+		dxgiDevice->Trim();
+	}
+}
+void FD3D11DynamicRHI::RHIResumeRendering()
+{
+}
+#endif
+
 void FD3D11DynamicRHI::RHIPopEvent()
 { 
 	GPUProfilingData.PopEvent(); 

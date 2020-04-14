@@ -332,6 +332,11 @@ struct FSimulationData
 
 	struct FTick;
 
+	struct FSystemFault
+	{
+		const TCHAR* Str; // Traced Fmt string of fault
+	};
+
 	struct FNetSerializeRecv
 	{
 		// Traced Data:
@@ -344,6 +349,7 @@ struct FSimulationData
 		bool bOrphan = true; // Hasn't been attached to FTick::StartNetRecv
 
 		FSimulationData::FTick* NextTick = nullptr;
+		TArray<FSystemFault> SystemFaults; // System faults encountered during recv
 	};
 
 	// Data for a single simulation tick
@@ -368,19 +374,19 @@ struct FSimulationData
 	};
 
 	// End of (Engine) Frame state of the simulation
-	// FIXME: it would be much nicer if we had a single global emission of GFrameNumber and EngineFrameDeltaTime
 	// It may be better to eventually just trace the events that change this simulation specific state (NetSerialize, Tick, etc)
 	struct FEngineFrame
 	{
 		uint64 EngineFrame;
-		double EngineFrameDeltaTime;
-		double EngineCurrentTime;
+		float EngineFrameDeltaTime;
 
-		FSimTime	TotalProcessedSimTimeMS;
-		FSimTime	TotalAllowedSimTimeMS;
-		
-		int32		LastSentKeyframe;
-		int32		LastReceivedKeyframe;
+		int32 BufferSize;
+		int32 PendingTickFrame;
+		int32 LatestInputFrame;
+		FSimTime TotalSimTime;
+		FSimTime AllowedSimTime;
+
+		TArray<FSystemFault> SystemFaults;	// System faults encountered during this tick
 	};
 
 	// Data that changes rarely over time about the simulation
@@ -403,8 +409,6 @@ struct FSimulationData
 		FString DebugName;
 	};
 
-	// -----------------------------------------------------------
-
 	struct FUserState
 	{
 		uint64 EngineFrame;	// EngineFrame this was written
@@ -412,6 +416,7 @@ struct FSimulationData
 		FUserState* Prev = nullptr; // Previously written user state at this SimFrame number. Prev->EngineFrame < this->EngineFrame.
 		const TCHAR* UserStr = nullptr; // stable pointer to traced string representation of user state
 		ENP_UserStateSource Source = ENP_UserStateSource::Unknown; // Analyzed source of this user state
+		const TCHAR* OOBStr = nullptr; // if OOB mod, this is the user traced string (telling us who did it)
 	};
 
 	struct FUserStateStore
@@ -583,6 +588,9 @@ struct FSimulationData
 
 		ENP_UserStateSource PendingUserStateSource = ENP_UserStateSource::Unknown;
 		TArray<FUserState*> PendingCommitUserStates; // NetRecv'd state that hasn't been commited
+		TArray<FSystemFault> PendingSystemFaults;
+		const TCHAR* PendingOOBSyncStr = nullptr;
+		const TCHAR* PendingOOBAuxStr = nullptr;
 
 	} Analysis;
 };

@@ -179,6 +179,8 @@ bool FICUInternationalization::Initialize()
 	I18N->CurrentLanguage = I18N->DefaultLanguage;
 	I18N->CurrentLocale = I18N->DefaultLocale;
 
+	HandleLanguageChanged(I18N->CurrentLanguage.ToSharedRef());
+
 #if ENABLE_LOC_TESTING
 	I18N->AddCustomCulture(MakeShared<FLeetCulture>(I18N->InvariantCulture.ToSharedRef()));
 #endif
@@ -549,16 +551,28 @@ bool FICUInternationalization::IsCultureAllowed(const FString& Name)
 	return (EnabledCultures.Num() == 0 || EnabledCultures.Contains(Name)) && !DisabledCultures.Contains(Name);
 }
 
-void FICUInternationalization::HandleLanguageChanged(const FString& Name)
+void FICUInternationalization::RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames)
+{
+	// Update the cached display names in any existing cultures
+	FScopeLock Lock(&CachedCulturesCS);
+	for (const auto& CachedCulturePair : CachedCultures)
+	{
+		CachedCulturePair.Value->RefreshCultureDisplayNames(InPrioritizedDisplayCultureNames);
+	}
+}
+
+void FICUInternationalization::HandleLanguageChanged(const FCultureRef InNewLanguage)
 {
 	UErrorCode ICUStatus = U_ZERO_ERROR;
-	uloc_setDefault(StringCast<char>(*Name).Get(), &ICUStatus);
+	uloc_setDefault(StringCast<char>(*InNewLanguage->GetName()).Get(), &ICUStatus);
+
+	CachedPrioritizedDisplayCultureNames = InNewLanguage->GetPrioritizedParentCultureNames();
 
 	// Update the cached display names in any existing cultures
 	FScopeLock Lock(&CachedCulturesCS);
 	for (const auto& CachedCulturePair : CachedCultures)
 	{
-		CachedCulturePair.Value->HandleCultureChanged();
+		CachedCulturePair.Value->RefreshCultureDisplayNames(CachedPrioritizedDisplayCultureNames, /*bFullRefresh*/false);
 	}
 }
 
@@ -731,8 +745,13 @@ FCulturePtr FICUInternationalization::FindOrMakeCanonizedCulture(const FString& 
 
 	if (NewCulture.IsValid())
 	{
-		FScopeLock Lock(&CachedCulturesCS);
-		CachedCultures.Add(Name, NewCulture.ToSharedRef());
+		// Ensure the display name is up-to-date
+		NewCulture->RefreshCultureDisplayNames(CachedPrioritizedDisplayCultureNames, /*bFullRefresh*/false);
+
+		{
+			FScopeLock Lock(&CachedCulturesCS);
+			CachedCultures.Add(Name, NewCulture.ToSharedRef());
+		}
 	}
 
 	return NewCulture;

@@ -2113,7 +2113,7 @@ void SConcertSessionBrowser::Construct(const FArguments& InArgs, IConcertClientP
 		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
 		.ButtonIcon(FConcertFrontendStyle::Get()->GetBrush("Concert.NewServer.Small"))
 		.ButtonText(LOCTEXT("LaunchLocalServer", "Launch a Server"))
-		.ButtonToolTip(LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running"))
+		.ButtonToolTip(LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running.\nThe editor UDP messaging settings will be passed to the launching server.\nThe server will use the server port found in Multi-User client settings if non 0 or use the editor udp messaging port number + 1, if non 0."))
 		.OnButtonClicked(this, &SConcertSessionBrowser::OnLaunchServerButtonClicked);
 
 	// Controls the text displayed in the 'No sessions' panel.
@@ -2534,7 +2534,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 		.AutoWidth()
 		.Padding(0, 0, PaddingBetweenButtons, 0)
 		[
-			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.NewServer"), LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running"),
+			ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.NewServer"), LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running.\nThe editor UDP messaging settings will be passed to the launching server.\nThe server will use the server port found in Multi-User client settings if non 0 or use the editor udp messaging port number + 1, if non 0."),
 				TAttribute<bool>(this, &SConcertSessionBrowser::IsLaunchServerButtonEnabled),
 				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnLaunchServerButtonClicked),
 				TAttribute<EVisibility>::Create([this]() { return IsLaunchServerButtonEnabled() ? EVisibility::Visible : EVisibility::Collapsed; }))

@@ -882,6 +882,8 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 	{
 		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
+			int32_t PlatformMaxNumReflectionCaptures = FMath::Min(FMath::FloorToInt(GMaxTextureArrayLayers / 6.0f), GMaxNumReflectionCaptures);
+
 			for (int32 CaptureIndex = 0; CaptureIndex < NewCaptures.Num(); CaptureIndex++)
 			{
 				bool bAlreadyExists = false;
@@ -896,9 +898,9 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 						bAlreadyExists = true;
 					}
 				}
-
+				
 				// Add the capture to the allocated list
-				if (!bAlreadyExists && ReflectionSceneData.AllocatedReflectionCapturesGameThread.Num() < GMaxNumReflectionCaptures)
+				if (!bAlreadyExists && ReflectionSceneData.AllocatedReflectionCapturesGameThread.Num() < PlatformMaxNumReflectionCaptures)
 				{
 					ReflectionSceneData.AllocatedReflectionCapturesGameThread.Add(NewCaptures[CaptureIndex]);
 				}
@@ -917,7 +919,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 				DesiredMaxCubemaps = FMath::Pow(MaxCubemapsRoundUpBase, FMath::TruncToInt(Exponent) + 1);
 			}
 
-			DesiredMaxCubemaps = FMath::Min(DesiredMaxCubemaps, GMaxNumReflectionCaptures);
+			DesiredMaxCubemaps = FMath::Min(DesiredMaxCubemaps, PlatformMaxNumReflectionCaptures);
 
 			const int32 ReflectionCaptureSize = UReflectionCaptureComponent::GetReflectionCaptureSize();
 			bool bNeedsUpdateAllCaptures = DesiredMaxCubemaps != ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread || ReflectionCaptureSize != ReflectionSceneData.CubemapArray.GetCubemapSize();

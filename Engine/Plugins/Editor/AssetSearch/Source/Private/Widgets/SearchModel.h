@@ -123,22 +123,25 @@ public:
 			return;
 		}
 
-		TSharedPtr<FAssetObjectNode> ExistingObject = Objects.FindRef(InResult.object_path);
-		if (!ExistingObject.IsValid())
+		if (!InResult.object_path.IsEmpty())
 		{
-			ExistingObject = MakeShared<FAssetObjectNode>(InResult);
-			Objects.Add(InResult.object_path, ExistingObject);
-		}
-		else
-		{
-			ExistingObject->Append(InResult);
+			TSharedPtr<FAssetObjectNode> ExistingObject = Objects.FindRef(InResult.object_path);
+			if (!ExistingObject.IsValid())
+			{
+				ExistingObject = MakeShared<FAssetObjectNode>(InResult);
+				Objects.Add(InResult.object_path, ExistingObject);
+			}
+			else
+			{
+				ExistingObject->Append(InResult);
+			}
+			
+			SortedObjectArray.Reset();
+			Objects.GenerateValueArray(SortedObjectArray);
 		}
 
 		TotalScore += InResult.Score;
 		MaxScore = FMath::Min(MaxScore, InResult.Score);
-
-		SortedObjectArray.Reset();
-		Objects.GenerateValueArray(SortedObjectArray);
 	}
 
 	virtual ESearchNodeType GetType() const override { return ESearchNodeType::Asset; }

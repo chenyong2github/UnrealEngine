@@ -547,7 +547,7 @@ void SWorldHierarchyImpl::FillFoldersSubmenu(FMenuBuilder& MenuBuilder)
 		LOCTEXT("CreateNewFolder", "Create New Folder"),
 		LOCTEXT("CreateNewFolder_Tooltip", "Move the selection to a new folder"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "WorldBrowser.NewFolderIcon"),
-		FExecuteAction::CreateSP(this, &SWorldHierarchyImpl::CreateFolder, RootItem, RootPath)
+		FExecuteAction::CreateSP(this, &SWorldHierarchyImpl::CreateFolder, RootItem, RootPath, /*bMoveSelected*/ true)
 	);
 
 	AddMoveToFolderOutliner(MenuBuilder, SelectedItems, RootItem.ToSharedRef());
@@ -1398,7 +1398,7 @@ EVisibility SWorldHierarchyImpl::GetEmptyLabelVisibility() const
 	return ( !bFoldersOnlyMode || RootTreeItems.Num() > 0 ) ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
-void SWorldHierarchyImpl::CreateFolder(TSharedPtr<FLevelModel> InModel, FName ParentPath /* = NAME_None */)
+void SWorldHierarchyImpl::CreateFolder(TSharedPtr<FLevelModel> InModel, FName ParentPath /* = NAME_None */, const bool bMoveSelected)
 {
 	if (FLevelFolders::IsAvailable())
 	{
@@ -1445,7 +1445,15 @@ void SWorldHierarchyImpl::CreateFolder(TSharedPtr<FLevelModel> InModel, FName Pa
 
 		NewFolderName = LevelFolders.GetDefaultFolderName(PersistentLevelModel.ToSharedRef(), NewFolderName);
 
-		MoveItemsTo(PersistentLevelModel, NewFolderName);
+		if (bMoveSelected)
+		{
+			MoveItemsTo(PersistentLevelModel, NewFolderName);
+		}
+		else if (FLevelFolders::IsAvailable())
+		{
+			LevelFolders.CreateFolder(PersistentLevelModel.ToSharedRef(), NewFolderName);
+			NewItemActions.Add(NewFolderName, WorldHierarchy::ENewItemAction::Select | WorldHierarchy::ENewItemAction::Rename);
+		}
 	}
 }
 

@@ -28,12 +28,8 @@ public class WindowsMixedRealityInterop : ModuleRules
             {
                 PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "MixedRealityInterop.lib"));
             }
-            PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "Microsoft.Holographic.AppRemoting.lib"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "HolographicStreamerDesktop.lib"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "Microsoft.Perception.Simulation.lib"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "PerceptionSimulationManager.lib"));
 
-            PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
+            PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
         }
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {

@@ -118,6 +118,8 @@ struct GAMEPLAYABILITIES_API FGameplayAttribute
 	float GetNumericValueChecked(const UAttributeSet* Src) const;
 
 	/** Returns the AttributeData, will fail if this is a float attribute */
+	const FGameplayAttributeData* GetGameplayAttributeData(const UAttributeSet* Src) const;
+	const FGameplayAttributeData* GetGameplayAttributeDataChecked(const UAttributeSet* Src) const;
 	FGameplayAttributeData* GetGameplayAttributeData(UAttributeSet* Src) const;
 	FGameplayAttributeData* GetGameplayAttributeDataChecked(UAttributeSet* Src) const;
 	

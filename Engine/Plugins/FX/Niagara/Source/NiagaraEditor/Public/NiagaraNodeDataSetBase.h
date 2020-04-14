@@ -48,7 +48,7 @@ protected:
 	bool InitializeFromStructInternal(const UStruct* PayloadStruct);
 
 	bool IsSynchronizedWithStruct(bool bIgnoreConditionVar, FString* Issues, bool bLogIssues = true);
-	bool SynchronizeWithStruct();
+	virtual bool SynchronizeWithStruct();
 	bool GetSupportedNiagaraTypeDef(const FProperty* Property, FNiagaraTypeDefinition& TypeDef);
 
 	static const FName ConditionVarName;

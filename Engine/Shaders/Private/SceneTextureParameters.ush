@@ -10,6 +10,7 @@ uint bIsSceneLightingChannelsValid;
 
 // Matches FSceneTextureParameters
 Texture2D SceneDepthBuffer;
+Texture2D<uint2> SceneStencilBuffer;
 Texture2D SceneVelocityBuffer;
 Texture2D SceneGBufferA;
 Texture2D SceneGBufferB;

@@ -80,14 +80,14 @@ void UCameraShakeSourceComponent::Play()
 	}
 }
 
-void UCameraShakeSourceComponent::PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake)
+void UCameraShakeSourceComponent::PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake, float Scale, enum ECameraAnimPlaySpace::Type PlaySpace, FRotator UserPlaySpaceRot)
 {
 	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
 		APlayerController* PlayerController = Iterator->Get();
 		if (PlayerController != nullptr && PlayerController->PlayerCameraManager != nullptr)
 		{
-			PlayerController->PlayerCameraManager->PlayCameraShakeFromSource(InCameraShake, this);
+			PlayerController->PlayerCameraManager->PlayCameraShakeFromSource(InCameraShake, this, Scale, PlaySpace, UserPlaySpaceRot);
 		}
 	}
 }

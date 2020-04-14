@@ -175,6 +175,8 @@ struct FNiagaraScriptVariableAndViewInfo
 		, bIsSelectionRelevant(Other.bIsSelectionRelevant)
 	{};
 
+	bool operator== (const FNiagaraScriptVariableAndViewInfo& Other) const;
+
 	FNiagaraVariable ScriptVariable;
 	FNiagaraVariableMetaData MetaData;
 
@@ -183,43 +185,4 @@ struct FNiagaraScriptVariableAndViewInfo
 
 	// Whether this entry is related to the current selection state, e.g. if a module is selected in the Stack, mark this entry if ScriptVariable is a member of that module.
 	bool bIsSelectionRelevant;
-};
-
-/* Legacy style Namespace::Type Enum for Parameter Panel section management. */
-namespace NiagaraParameterPanelSectionID
-{
-	enum Type
-	{
-		NONE = 0,
-
-		// Group A, for contextual information when editing scripts
-		INPUTS,
-		REFERENCES,
-		OUTPUTS,
-		LOCALS,
-		INITIALVALUES,
-
-		// Group B, for contextual information when editing systems
-		ENGINE,
-		OWNER,
-		USER,
-		SYSTEM,
-		EMITTER,
-		PARTICLES,
-		CUSTOM,
-	};
-
-	FText OnGetSectionTitle(const NiagaraParameterPanelSectionID::Type InSection);
-	static const NiagaraParameterPanelSectionID::Type GetSectionForScope(ENiagaraParameterScope InScope);
-	static const NiagaraParameterPanelSectionID::Type GetSectionForParameterMetaData(const FNiagaraVariableMetaData& MetaData);
-	ENiagaraParameterScope GetScopeForNewParametersInSection(NiagaraParameterPanelSectionID::Type InSection);
-	ENiagaraScriptParameterUsage GetUsageForNewParametersInSection(NiagaraParameterPanelSectionID::Type InSection);
-
-}
-
-class FNiagaraEditorCommonCVar
-{
-public:
-	static int32 GNiagaraEnableParameterPanel2;
-	static FAutoConsoleVariableRef CVarEnableParameterPanel2;
 };

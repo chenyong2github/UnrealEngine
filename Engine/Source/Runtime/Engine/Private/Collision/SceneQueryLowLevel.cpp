@@ -12,10 +12,12 @@
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
 #include "PhysicsCore.h"
 
-#include "PhysTestSerializer.h"
 
 #include "SQAccelerator.h"
+
 #include "SQVerifier.h"
+#include "PhysTestSerializer.h"
+
 #include "PBDRigidsSolver.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 

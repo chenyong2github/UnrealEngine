@@ -23,7 +23,9 @@ public:
 	bool IsCultureRemapped(const FString& Name, FString* OutMappedCulture);
 	bool IsCultureAllowed(const FString& Name);
 
-	void HandleLanguageChanged(const FString& Name);
+	void RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames);
+
+	void HandleLanguageChanged(const FCultureRef InNewLanguage);
 	void GetCultureNames(TArray<FString>& CultureNames) const;
 	TArray<FString> GetPrioritizedCultureNames(const FString& Name);
 	FCulturePtr GetCulture(const FString& Name);

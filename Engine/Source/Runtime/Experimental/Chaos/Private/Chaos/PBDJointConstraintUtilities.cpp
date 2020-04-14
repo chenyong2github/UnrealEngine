@@ -8,6 +8,91 @@
 
 namespace Chaos
 {
+	FReal GetSwingAngleY(const FRotation3& RSwing)
+	{
+		return 4.0f * FMath::Atan2(RSwing.Y, 1.0f + RSwing.W);
+	}
+
+	FReal GetSwingAngleZ(const FRotation3& RSwing)
+	{
+		return 4.0f * FMath::Atan2(RSwing.Z, 1.0f + RSwing.W);
+	}
+
+	// Iterative find near point on ellipse. Point InP, Radii R.
+	// https://www.geometrictools.com/Documentation/DistancePointEllipseEllipsoid.pdf
+	FVec2 NearPointOnEllipse(const FVec2& P, const FVec2& R, const int MaxIts = 20, const FReal Tolerance = 1.e-4f)
+	{
+		// Map point into first quadrant
+		FVec2 PAbs = P.GetAbs();
+
+		// Check for point on minor axis
+		const FReal Epsilon = 1.e-6f;
+		if (R.X >= R.Y)
+		{
+			if (PAbs.Y < Epsilon)
+			{
+				return FVec2((P.X > 0.0f) ? R.X : -R.X, 0.0f);
+			}
+		}
+		else
+		{
+			if (PAbs.X < Epsilon)
+			{
+				return FVec2(0.0f, (P.Y > 0.0f)? R.Y : -R.Y);
+			}
+		}
+
+		// Iterate to find nearest point
+		FVec2 R2 = R * R;
+		FVec2 RP = R * PAbs;
+		FReal T = FMath::Max(RP.X - R2.X, RP.Y - R2.Y);
+		FVec2 D;
+		for (int32 It = 0; It < MaxIts; ++It)
+		{
+			D = FVec2(1.0f / (T + R2.X), 1 / (T + R2.Y));
+			FVec2 RPD = RP * D;
+
+			FVec2 FV = RPD * RPD;
+			FReal F = FV.X + FV.Y - 1.0f;
+
+			if (F < Tolerance)
+			{
+				return (R2 * P) * D;
+			}
+
+			FReal DF = -2.0f * FVec2::DotProduct(FV, D);
+			T = T - F / DF;
+		}
+
+		// Too many iterations - return current value clamped
+		FVec2 S = (R2 * P) * D;
+		FVec2 SN = S / R;	
+		return S / SN.Size();
+	}
+
+	bool GetEllipticalAxisError(const FVec3& SwingAxisRot, const FVec3& EllipseNormal, const FVec3& TwistAxis, FVec3& AxisLocal, FReal& Error)
+	{
+		const FReal R2 = SwingAxisRot.SizeSquared();
+		const FReal A = 1.0f - R2;
+		const FReal B = 1.0f / (1.0f + R2);
+		const FReal B2 = B * B;
+		const FReal V1 = 2.0f * A * B2;
+		const FVec3 V2 = FVec3(A, 2.0f * SwingAxisRot.Z, -2.0f * SwingAxisRot.Y);
+		const FReal RD = FVec3::DotProduct(SwingAxisRot, EllipseNormal);
+		const FReal DV1 = -4.0f * RD * (3.0f - R2) * B2 * B;
+		const FVec3 DV2 = FVec3(-2.0f * RD, 2.0f * EllipseNormal.Z, -2.0f * EllipseNormal.Y);
+		
+		const FVec3 Line = V1 * V2 - FVec3(1, 0, 0);
+		FVec3 Normal = V1 * DV2 + DV1 * V2;
+		if (Utilities::NormalizeSafe(Normal))
+		{
+			AxisLocal = FVec3::CrossProduct(Line, Normal);
+			Error = -FVec3::DotProduct(FVec3::CrossProduct(Line, AxisLocal), TwistAxis);
+			return true;
+		}
+		return false;
+	}
+
 	void FPBDJointUtilities::GetSphericalAxisDelta(
 		const FVec3& X0,
 		const FVec3& X1,
@@ -82,8 +167,9 @@ namespace Chaos
 		FRotation3 R01Twist, R01Swing;
 		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
 		TwistAngle = R01Twist.GetAngle();
-		Swing1Angle = 4.0f * FMath::Atan2(R01Swing.Z, 1.0f + R01Swing.W);
-		Swing2Angle = 4.0f * FMath::Atan2(R01Swing.Y, 1.0f + R01Swing.W);
+		// @todo(ccaulfield): makes assumptions about Swing1 and Swing2 axes - fix this
+		Swing1Angle = GetSwingAngleZ(R01Swing);
+		Swing2Angle = GetSwingAngleY(R01Swing);
 	}
 
 	FReal FPBDJointUtilities::GetTwistAngle(const FRotation3& InTwist)
@@ -135,6 +221,70 @@ namespace Chaos
 		}
 	}
 
+	void FPBDJointUtilities::GetCircularConeAxisErrorLocal(
+		const FRotation3& R0,
+		const FRotation3& R1,
+		const FReal SwingLimit,
+		FVec3& AxisLocal,
+		FReal& Error)
+	{
+		FRotation3 R01Twist, R01Swing;
+		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
+
+		FReal Angle = 0.0f;
+		R01Swing.ToAxisAndAngleSafe(AxisLocal, Angle, FJointConstants::Swing1Axis(), 1.e-6f);
+
+		Error = 0.0f;
+		if (Angle > SwingLimit)
+		{
+			Error = Angle - SwingLimit;
+		}
+		else if (Angle < -SwingLimit)
+		{
+			Error = Angle + SwingLimit;
+		}
+	}
+
+	void FPBDJointUtilities::GetEllipticalConeAxisErrorLocal(
+		const FRotation3& R0,
+		const FRotation3& R1,
+		const FReal SwingLimitY,
+		const FReal SwingLimitZ,
+		FVec3& AxisLocal,
+		FReal& Error)
+	{
+		if (FMath::IsNearlyEqual(SwingLimitY, SwingLimitZ, 1.e-3f))
+		{ 
+			GetCircularConeAxisErrorLocal(R0, R1, SwingLimitY, AxisLocal, Error);
+			return;
+		}
+
+		AxisLocal = FJointConstants::Swing1Axis();
+		Error = 0.0f;
+
+		FRotation3 R01Twist, R01Swing;
+		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
+
+		const FVec2 SwingAngles = FVec2(GetSwingAngleY(R01Swing), GetSwingAngleZ(R01Swing));
+		const FVec2 SwingLimits = FVec2(SwingLimitY, SwingLimitZ);
+
+		// Transform onto a circle to see if we are within the ellipse
+		const FVec2 CircleMappedAngles = SwingAngles / SwingLimits;
+		if (CircleMappedAngles.SizeSquared() > 1.0f)
+		{
+			// Map the swing to a position on the elliptical limits
+			const FVec2 ClampedSwingAngles = NearPointOnEllipse(SwingAngles, SwingLimits);
+
+			// Get the ellipse normal
+			const FVec2 ClampedNormal = ClampedSwingAngles / (SwingLimits * SwingLimits);
+
+			// Calculate the axis and error
+			const FVec3 TwistAxis = R01Swing.GetAxisX();
+			const FVec3 SwingRotAxis = FVec3(0.0f, FMath::Tan(ClampedSwingAngles.X / 4.0f), FMath::Tan(ClampedSwingAngles.Y / 4.0f));
+			const FVec3 EllipseNormal = FVec3(0.0f, ClampedNormal.X, ClampedNormal.Y);
+			GetEllipticalAxisError(SwingRotAxis, EllipseNormal, TwistAxis, AxisLocal, Error);
+		}
+	}
 
 	void FPBDJointUtilities::GetLockedSwingAxisAngle(
 		const FRotation3& R0,

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "NetworkedSimulationModelTick.h"
+#include "Misc/EnumClassFlags.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	BufferTypes: template helpers for addressing the different buffer types of the system.
@@ -11,8 +12,7 @@ enum class ENetworkSimBufferTypeId : uint8
 {
 	Input,
 	Sync,
-	Aux,
-	Debug
+	Aux
 };
 
 inline FString LexToString(ENetworkSimBufferTypeId A)
@@ -22,7 +22,6 @@ inline FString LexToString(ENetworkSimBufferTypeId A)
 		case ENetworkSimBufferTypeId::Input: return TEXT("Input");
 		case ENetworkSimBufferTypeId::Sync: return TEXT("Sync");
 		case ENetworkSimBufferTypeId::Aux: return TEXT("Aux");
-		case ENetworkSimBufferTypeId::Debug: return TEXT("Debug");
 	};
 	return TEXT("Unknown");
 }
@@ -52,12 +51,6 @@ struct TSelectTypeHelper<TBufferTypes, ENetworkSimBufferTypeId::Aux>
 	using type = typename TBufferTypes::TAuxState;
 };
 
-template<typename TBufferTypes>
-struct TSelectTypeHelper<TBufferTypes, ENetworkSimBufferTypeId::Debug>
-{
-	using type = typename TBufferTypes::TDebugState;
-};
-
 template<typename T>
 struct HasNetSerialize
 {
@@ -77,80 +70,87 @@ struct HasLog
 };
 
 // A collection of the system's buffer types. This allows us to collapse the 4 types into a single type to use a template argument elsewhere.
-template<typename InInputCmd, typename InSyncState, typename InAuxState, typename InDebugState = FNetSimProcessedFrameDebugInfo>
+template<typename InInputCmd, typename InSyncState, typename InAuxState>
 struct TNetworkSimBufferTypes
 {
 	// Quick access to types when you know what you want
 	using TInputCmd = InInputCmd;
 	using TSyncState = InSyncState;
 	using TAuxState = InAuxState;
-	using TDebugState = InDebugState;
 
 	// Template access via ENetworkSimBufferTypeId when "which buffer" is parameterized
 	template<ENetworkSimBufferTypeId Id>
 	struct select_type
 	{
-		using type = typename TSelectTypeHelper< TNetworkSimBufferTypes<TInputCmd, TSyncState, TAuxState, TDebugState>, Id >::type;
+		using type = typename TSelectTypeHelper< TNetworkSimBufferTypes<TInputCmd, TSyncState, TAuxState>, Id >::type;
 	};
 
 	// Must implement NetSerialize and Log functions. This purposefully does not pass on inherited methods
 	static_assert(HasNetSerialize<InInputCmd>::Has == true, "InputCmd Must implement NetSerialize");
 	static_assert(HasNetSerialize<InSyncState>::Has == true, "SyncState Must implement NetSerialize");
 	static_assert(HasNetSerialize<InAuxState>::Has == true, "AuxState Must implement NetSerialize");
-	static_assert(HasNetSerialize<InDebugState>::Has == true, "DebugState Must implement NetSerialize");
 
 	static_assert(HasLog<InInputCmd>::Has == true, "InputCmd Must implement Log");
 	static_assert(HasLog<InSyncState>::Has == true, "SyncState Must implement Log");
 	static_assert(HasLog<InAuxState>::Has == true, "AuxState Must implement Log");
-	static_assert(HasLog<InDebugState>::Has == true, "DebugState Must implement Log");
 };
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-//	FrameCmd - in variable tick simulations we store the timestep of each frame with the input. TFrameCmd wraps the user struct to do this.
-// ----------------------------------------------------------------------------------------------------------------------------------------------
+// ------------------------------------------------
 
-// Wraps an input command (BaseType) in a NetworkSimulation time. 
-template<typename BaseCmdType, typename TickSettings, bool IsFixedTick=(TickSettings::FixedStepMS!=0)>
-struct TFrameCmd : public BaseCmdType
+// Wraps FrameDelta time. In fixed tick mode, this is specialized to be empty and return the known-at-compile-time step
+template<typename TickSettings, bool IsFixedTick=(TickSettings::FixedStepMS!=0)>
+struct TFrameDeltaTimeWrapper
 {
-	FNetworkSimTime GetFrameDeltaTime() const { return FrameDeltaTime; }
-	void SetFrameDeltaTime(const FNetworkSimTime& InTime) { FrameDeltaTime = InTime; }
-	void NetSerialize(const FNetSerializeParams& P)
-	{
-		FrameDeltaTime.NetSerialize(P.Ar);
-		BaseCmdType::NetSerialize(P); 
-	}
-
-	void Log(FStandardLoggingParameters& P) const { BaseCmdType::Log(P); }
+	FNetworkSimTime Get() const { return FrameDeltaTime; }
+	void Set(const FNetworkSimTime& InTime) { FrameDeltaTime = InTime; }
+	void NetSerialize(const FNetSerializeParams& P)	{ FrameDeltaTime.NetSerialize(P.Ar); }
 
 private:
 	FNetworkSimTime FrameDeltaTime;
 };
 
-// Fixed tick specialization
-template<typename BaseCmdType, typename TickSettings>
-struct TFrameCmd<BaseCmdType, TickSettings, true> : public BaseCmdType
+template<typename TickSettings>
+struct TFrameDeltaTimeWrapper<TickSettings, true>
 {
-	FNetworkSimTime GetFrameDeltaTime() const { return FNetworkSimTime::FromMSec(TickSettings::GetFixedStepMS()); }
-	void SetFrameDeltaTime(const FNetworkSimTime& InTime) { }
-	void NetSerialize(const FNetSerializeParams& P) { BaseCmdType::NetSerialize(P); }
-	void Log(FStandardLoggingParameters& P) const { BaseCmdType::Log(P); }
+	FNetworkSimTime Get() const { return FNetworkSimTime::FromMSec(TickSettings::GetFixedStepMS()); }
+	void Set(const FNetworkSimTime& InTime) { }
+	void NetSerialize(const FNetSerializeParams& P) { }
 };
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// "Internal" Buffers: Helper to turn user supplied buffer types into the "real" buffer types: the InputCmd struct is wrapped in TFrameCmd
-//		-Outside/User code will always use the user supplied buffer types in callbacks/APIs etc
-//		-Internal code to the TNetworkedSimulationModel will use the internal buffer types
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-template<typename TUserBufferTypes, typename TTickSettings>
-struct TInternalBufferTypes : TNetworkSimBufferTypes< 
-	
-	// InputCmds are wrapped in TFrameCmd, which will store an explicit sim delta time if we are not a fixed tick sim
-	TFrameCmd< typename TUserBufferTypes::TInputCmd , TTickSettings>,
+// The actual per-frame data the system keeps track of
+//template<typename TUserBufferTypes, typename TTickSettings>
 
-	typename TUserBufferTypes::TSyncState,	// SyncState passes through
-	typename TUserBufferTypes::TAuxState,	// Auxstate passes through
-	typename TUserBufferTypes::TDebugState	// Debugstate passes through
->
+enum class ESimulationFrameStateFlags : uint8
 {
+	InputWritten	= 1 << 0,	// Input has been written
 };
+
+ENUM_CLASS_FLAGS(ESimulationFrameStateFlags)
+
+// This is what we actually store in contiguous memory, per frame.
+template<typename Model>
+struct TSimulationFrameStateBase
+{
+	using BufferTypes = typename Model::BufferTypes;
+	using TickSettings = typename Model::TickSettings;
+
+	using TInputCmd	= typename BufferTypes::TInputCmd;
+	using TSyncState = typename BufferTypes::TSyncState;
+
+	uint8 Flags = 0;
+	FNetworkSimTime	TotalSimTime;
+	TFrameDeltaTimeWrapper<TickSettings> FrameDeltaTime;
+
+	TInputCmd	InputCmd;
+	TSyncState	SyncState;
+
+	bool HasFlag(const ESimulationFrameStateFlags& F) const { return (Flags & (uint8)F) > 0; }
+	void SetFlag(const ESimulationFrameStateFlags& F) { Flags |= (uint8)F; }
+	void ClearFlags() { Flags = 0; };
+	void ResetFlagsTo(const ESimulationFrameStateFlags& F) { Flags = (uint8)F; }
+};
+
+// Outward facing struct. This allows user simulations to extend the internal FrameState struct if needed.
+// Use case would be custom RepController logic that needed to do additional per-frame state tracking.
+template<typename Model>
+struct TSimulationFrameState : TSimulationFrameStateBase<Model> { };

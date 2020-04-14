@@ -163,18 +163,28 @@ public partial class Project : CommandUtils
 		return CmdLine.ToString();
 	}
 
-	static private string GetIoStoreCommand(Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, FileReference PakOrderFileLocation, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, string EncryptionKeyGuid, FileReference SecondaryPakOrderFileLocation=null)
+	static private string GetIoStoreCommandArguments(
+		Dictionary<string, string> UnrealPakResponseFile,
+		StagedFileReference ContainerRelativePath,
+		FileReference PakOrderFileLocation,
+		string PlatformOptions,
+		bool Compressed,
+		EncryptionAndSigning.CryptoSettings CryptoSettings,
+		string EncryptionKeyGuid,
+		FileReference SecondaryPakOrderFileLocation=null)
 	{
 		StringBuilder CmdLine = new StringBuilder();
-		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(OutputLocation.FullName, null)));
+		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(ContainerRelativePath.Name));
 
 		// Force encryption of ALL files if we're using specific encryption key. This should be made an option per encryption key in the settings, but for our initial
 		// implementation we will just assume that we require maximum security for this data.
 		bool bForceEncryption = !string.IsNullOrEmpty(EncryptionKeyGuid);
-		string PakName = Path.GetFileNameWithoutExtension(OutputLocation.FullName);
-		string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakListIoStore_" + PakName + ".txt");
+		string ContainerName = Path.GetFileNameWithoutExtension(ContainerRelativePath.Name);
+		string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakListIoStore_" + ContainerName + ".txt");
 		WritePakResponseFile(UnrealPakResponseFileName, UnrealPakResponseFile, Compressed, CryptoSettings, bForceEncryption);
 		CmdLine.AppendFormat(" -ResponseFile={0}", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakResponseFileName));
+
+		CmdLine.Append(PlatformOptions);
 
 		return CmdLine.ToString();
 	}
@@ -434,17 +444,18 @@ public partial class Project : CommandUtils
 	}
 
 	/// <summary>
-	/// Figures out which content plugins are enabled for a content-only plugins. These will not be in the default target manifest, since it was compiled elsewhere.
+	/// Figures out which plugins are enabled for a content-only plugins. This may include content-only plugins and editor plugins, which will not be in the default 
+	/// target manifest, since it was compiled elsewhere.
 	/// </summary>
 	/// <param name="ProjectFile">The project being built</param>
 	/// <param name="Targets">List of targets being staged</param>
 	/// <returns>List of plugin files that should be staged</returns>
-	private static List<FileReference> GetContentPluginsForContentProject(FileReference ProjectFile, List<TargetReceipt> Targets)
+	private static List<FileReference> GetPluginsForContentProject(FileReference ProjectFile, List<TargetReceipt> Targets)
 	{
 		ProjectDescriptor Project = ProjectDescriptor.FromFile(ProjectFile);
-		List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, ProjectFile.Directory, null);
+		List<PluginInfo> AvailablePlugins = UnrealBuildTool.Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, ProjectFile.Directory, null);
 
-		HashSet<FileReference> ContentPlugins = new HashSet<FileReference>();
+		HashSet<FileReference> Plugins = new HashSet<FileReference>();
 		foreach (TargetReceipt Target in Targets)
 		{
 			// Find all the specifically enabled plugins for this target
@@ -454,7 +465,7 @@ public partial class Project : CommandUtils
 				foreach (PluginReferenceDescriptor Reference in Project.Plugins)
 				{
 					bool bEnabled = false;
-					if (!Reference.IsEnabledForPlatform(Target.Platform) || !Reference.IsEnabledForTargetConfiguration(Target.Configuration) || !Reference.IsEnabledForTarget(Target.TargetType))
+					if (Reference.IsEnabledForPlatform(Target.Platform) && Reference.IsEnabledForTargetConfiguration(Target.Configuration) && Reference.IsEnabledForTarget(Target.TargetType))
 					{
 						bEnabled = true;
 					}
@@ -471,18 +482,28 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			// Add the enabled content-only plugins
+			// Add the enabled plugins
 			foreach (PluginInfo AvailablePlugin in AvailablePlugins)
 			{
-				if (AvailablePlugin.Descriptor.SupportsTargetPlatform(Target.Platform) && AvailablePlugin.Descriptor.bCanContainContent && EnabledPlugins[AvailablePlugin.Name])
+				if (AvailablePlugin.Descriptor.SupportsTargetPlatform(Target.Platform) && EnabledPlugins[AvailablePlugin.Name])
 				{
-					ContentPlugins.Add(AvailablePlugin.File);
+					Plugins.Add(AvailablePlugin.File);
 				}
 			}
 
-			ContentPlugins.ExceptWith(Target.RuntimeDependencies.Select(x => x.Path));
+			// Exclude all the plugins that would have been considered for the base target (editor only plugins that are enabled by default)
+			foreach (PluginInfo AvailablePlugin in AvailablePlugins)
+			{
+				if (AvailablePlugin.LoadedFrom == PluginLoadedFrom.Engine && !AvailablePlugin.Descriptor.bInstalled && AvailablePlugin.IsEnabledByDefault(!Project.DisableEnginePluginsByDefault))
+				{
+					Plugins.Remove(AvailablePlugin.File);
+				}
+			}
+
+			// Exclude all the existing plugin descriptors
+			Plugins.ExceptWith(Target.RuntimeDependencies.Select(x => x.Path));
 		}
-		return ContentPlugins.ToList();
+		return Plugins.ToList();
 	}
 
 	public static void CreateStagingManifest(ProjectParams Params, DeploymentContext SC)
@@ -639,7 +660,7 @@ public partial class Project : CommandUtils
 				// Stage any content-only plugins for content-only projects. We don't have a custom executable for these.
 				if (!Params.IsCodeBasedProject)
 				{
-					List<FileReference> PluginFiles = GetContentPluginsForContentProject(Params.RawProjectPath, SC.StageTargets.ConvertAll(x => x.Receipt));
+					List<FileReference> PluginFiles = GetPluginsForContentProject(Params.RawProjectPath, SC.StageTargets.ConvertAll(x => x.Receipt));
 					SC.StageFiles(StagedFileType.UFS, PluginFiles);
 				}
 			}
@@ -2079,6 +2100,50 @@ public partial class Project : CommandUtils
 			}
 		}
 
+		string BulkOption = "";
+		{
+			ConfigHierarchy PlatformEngineConfig;
+			if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
+			{
+				bool bMasterEnable = false;
+				PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
+				if (bMasterEnable)
+				{
+					int Value = 0;
+					PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
+					if (Value > 0)
+					{
+						BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
+					}
+				}
+			}
+		}
+
+		string PatchOptions = String.Empty;
+		if (bShouldGeneratePatch)
+		{
+			string PatchSeekOptMode = String.Empty;
+			string PatchSeekOptMaxGapSize = String.Empty;
+			string PatchSeekOptMaxInflationPercent = String.Empty;
+			string PatchSeekOptMaxAdjacentOrderDiff = String.Empty;
+			if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMode", out PatchSeekOptMode))
+			{
+				PatchOptions += String.Format(" -PatchSeekOptMode={0}", PatchSeekOptMode);
+			}
+			if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxGapSize", out PatchSeekOptMaxGapSize))
+			{
+				PatchOptions += String.Format(" -PatchSeekOptMaxGapSize={0}", PatchSeekOptMaxGapSize);
+			}
+			if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxInflationPercent", out PatchSeekOptMaxInflationPercent))
+			{
+				PatchOptions += String.Format(" -PatchSeekOptMaxInflationPercent={0}", PatchSeekOptMaxInflationPercent);
+			}
+			if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxAdjacentOrderDiff", out PatchSeekOptMaxAdjacentOrderDiff))
+			{
+				PatchOptions += String.Format(" -PatchSeekOptMaxAdjacentOrderDiff={0}", PatchSeekOptMaxAdjacentOrderDiff);
+			}
+		}
+
 		List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
 		foreach (CreatePakParams PakParams in PakParamsList)
 		{
@@ -2221,46 +2286,10 @@ public partial class Project : CommandUtils
 						SecondaryOrderFile = PakOrderFileLocations[1];
 					}
 
-					string BulkOption = "";
-                    ConfigHierarchy PlatformEngineConfig = null;
-                    if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
-                    {
-                        bool bMasterEnable = false;
-						PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
-                        if (bMasterEnable)
-                        {
-                            int Value = 0;
-							PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
-                            if (Value > 0)
-                            {
-                                BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
-                            }
-                        }
-                    }
-
-					string AdditionalArgs = String.Empty;
-					if (bShouldGeneratePatch && !ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
+					string AdditionalArgs = PatchOptions;
+					if (bShouldGeneratePatch && ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
 					{
-						string PatchSeekOptMode = String.Empty;
-						string PatchSeekOptMaxGapSize = String.Empty;
-						string PatchSeekOptMaxInflationPercent = String.Empty;
-						string PatchSeekOptMaxAdjacentOrderDiff = String.Empty;
-						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMode", out PatchSeekOptMode))
-						{
-							AdditionalArgs += String.Format(" -PatchSeekOptMode={0}", PatchSeekOptMode);
-						}
-						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxGapSize", out PatchSeekOptMaxGapSize))
-						{
-							AdditionalArgs += String.Format(" -PatchSeekOptMaxGapSize={0}", PatchSeekOptMaxGapSize);
-						}
-						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxInflationPercent", out PatchSeekOptMaxInflationPercent))
-						{
-							AdditionalArgs += String.Format(" -PatchSeekOptMaxInflationPercent={0}", PatchSeekOptMaxInflationPercent);
-						}
-						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxAdjacentOrderDiff", out PatchSeekOptMaxAdjacentOrderDiff))
-						{
-							AdditionalArgs += String.Format(" -PatchSeekOptMaxAdjacentOrderDiff={0}", PatchSeekOptMaxAdjacentOrderDiff);
-						}
+						AdditionalArgs = " -SkipPatch";
 					}
 
 					bool bPakFallbackOrderForNonUassetFiles = false;
@@ -2270,7 +2299,8 @@ public partial class Project : CommandUtils
 						AdditionalArgs += " -fallbackOrderForNonUassetFiles";
 					}
 
-					if (PlatformEngineConfig != null)
+					ConfigHierarchy PlatformEngineConfig;
+                    if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))					
 					{
 						// if the runtime will want to reduce memory usage, we have to disable the pak index freezing
 						bool bUnloadPakEntries = false;
@@ -2286,7 +2316,7 @@ public partial class Project : CommandUtils
 					// pass the targetplatform so the index may be able to be frozen
 					AdditionalArgs += " -platform=" + ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
 
-					Dictionary<string, string> UnrealPakResponseFile;
+					Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
 					if (ShouldCreateIoStoreContainerFiles(Params, SC))
 					{
 						UnrealPakResponseFile = new Dictionary<string, string>();
@@ -2305,13 +2335,47 @@ public partial class Project : CommandUtils
 								UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
 							}
 						}
-						IoStoreCommands.Add(GetIoStoreCommand(IoStoreResponseFile, OutputLocation, PrimaryOrderFile, PakParams.bCompressed, CryptoSettings, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
+
+						string ContainerName = PakParams.PakName + "-" + SC.FinalCookPlatform;
+						StagedFileReference ContainerRelativeLocation;
+						if (Params.HasDLCName)
+						{
+							ContainerRelativeLocation = StagedFileReference.Combine(Params.DLCFile.Directory.MakeRelativeTo(SC.ProjectRoot), "Content", "Paks", SC.FinalCookPlatform, Params.DLCFile.GetFileNameWithoutExtension() + ContainerName);
+						}
+						else
+						{
+							ContainerRelativeLocation = StagedFileReference.Combine("Content", "Paks", ContainerName);
+						}
+						if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
+						{
+							ContainerRelativeLocation = ContainerRelativeLocation.ToLowerInvariant();
+						}
+						ContainerRelativeLocation = SC.StageTargetPlatform.Remap(ContainerRelativeLocation);
+
+						IoStoreCommands.Add(GetIoStoreCommandArguments(
+							IoStoreResponseFile,
+							ContainerRelativeLocation,
+							PrimaryOrderFile,
+							AdditionalArgs,
+							PakParams.bCompressed,
+							CryptoSettings,
+							PakParams.EncryptionKeyGuid,
+							SecondaryOrderFile));
 					}
-					else
-					{
-						UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
-					}
-					Commands.Add(GetUnrealPakArguments(Params.RawProjectPath, UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
+
+					Commands.Add(GetUnrealPakArguments(
+						Params.RawProjectPath,
+						UnrealPakResponseFile,
+						OutputLocation,
+						PrimaryOrderFile,
+						SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions,
+						PakParams.bCompressed,
+						CryptoSettings,
+						CryptoKeysCacheFilename,
+						PatchSourceContentPath,
+						PakParams.EncryptionKeyGuid,
+						SecondaryOrderFile));
+
 					LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 				}
 			}
@@ -2336,7 +2400,7 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			FileReference PackageOpenOrderFileLocation = null;
+			FileReference GameOpenOrderFileLocation = null;
 			FileReference CookerOpenOrderFileLocation = null;
 			// search CookPlaform (e.g. IOSClient and then regular platform (e.g. IOS).
 			string[] OrderLocations = new string[] { SC.FinalCookPlatform, SC.StageTargetPlatform.GetTargetPlatformDescriptor().Type.ToString() };
@@ -2344,10 +2408,10 @@ public partial class Project : CommandUtils
 			foreach (string OrderLocation in OrderLocations.Reverse())
 			{
 				DirectoryReference IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
-				FileReference FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "PackageOpenOrder.log");
+				FileReference FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "GameOpenOrder.log");
 				if (FileExists_NoExceptions(FileLocation.FullName))
 				{
-					PackageOpenOrderFileLocation = FileLocation;
+					GameOpenOrderFileLocation = FileLocation;
 				}
 				FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "CookerOpenOrder.log");
 				if (FileExists_NoExceptions(FileLocation.FullName))
@@ -2355,7 +2419,15 @@ public partial class Project : CommandUtils
 					CookerOpenOrderFileLocation = FileLocation;
 				}
 			}
-			RunIoStore(Params, SC, IoStoreCommandsFileName, PackageOpenOrderFileLocation, CookerOpenOrderFileLocation);
+
+			string AdditionalArgs = " " 
+				+ SC.StageTargetPlatform.GetPlatformIoStoreCommandLine(Params, SC)
+				+ BulkOption
+				+ CompressionFormats
+				+ " " + AdditionalCompressionOptionsOnCommandLine
+				+ " " + Params.AdditionalPakOptions;
+
+			RunIoStore(Params, SC, IoStoreCommandsFileName, GameOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
 		}
 
 		// Do any additional processing on the command output
@@ -2499,18 +2571,33 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference PackageOrderFileLocation, FileReference CookerOpenOrderFileLocation)
+	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference GameOpenOrderFileLocation, FileReference CookerOpenOrderFileLocation, string AdditionalArgs)
 	{
-		FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name);
+		DirectoryReference OutputLocation = SC.StageTargetPlatform.GetProjectRootForStage(SC.RuntimeRootDir, SC.RelativeProjectRootForStage);
+
 		string CommandletParams = String.Format("-OutputDirectory={0} -CookedDirectory={1} -Commands={2}", MakePathSafeToUseWithCommandLine(OutputLocation.FullName), MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()), MakePathSafeToUseWithCommandLine(CommandsFileName));
-		if (PackageOrderFileLocation != null)
+		if (GameOpenOrderFileLocation != null)
 		{
-			CommandletParams += String.Format(" -PackageOrder={0}", MakePathSafeToUseWithCommandLine(PackageOrderFileLocation.FullName));
+			CommandletParams += String.Format(" -GameOrder={0}", MakePathSafeToUseWithCommandLine(GameOpenOrderFileLocation.FullName));
 		}
 		if (CookerOpenOrderFileLocation != null)
 		{
 			CommandletParams += String.Format(" -CookerOrder={0}", MakePathSafeToUseWithCommandLine(CookerOpenOrderFileLocation.FullName));
 		}
+		if (!string.IsNullOrWhiteSpace(AdditionalArgs))
+		{
+			CommandletParams += AdditionalArgs;
+		}
+
+		if (Params.HasCreateReleaseVersion)
+		{
+			CommandletParams += String.Format(" -CreateReleaseVersionDirectory={0}", MakePathSafeToUseWithCommandLine(Params.GetCreateReleaseVersionPath(SC, Params.Client)));
+		}
+		if (Params.HasBasedOnReleaseVersion)
+		{
+			CommandletParams += String.Format(" -BasedOnReleaseVersionDirectory={0}", MakePathSafeToUseWithCommandLine(Params.GetBasedOnReleaseVersionPath(SC, Params.Client)));
+		}
+
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
 		RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
 	}

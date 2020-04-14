@@ -2,7 +2,7 @@
 
 #include "MeshRefinerBase.h"
 #include "DynamicMeshAttributeSet.h"
-
+#include "DynamicMeshChangeTracker.h"
 
 
 
@@ -229,6 +229,44 @@ bool FMeshRefinerBase::CanCollapseVertex(int eid, int a, int b, int& collapse_to
 
 
 
+
+
+
+void FMeshRefinerBase::SetMeshChangeTracker(FDynamicMeshChangeTracker* Tracker)
+{
+	ActiveChangeTracker = Tracker;
+}
+
+
+void FMeshRefinerBase::SaveTriangleBeforeModify(int32 TriangleID)
+{
+	if (ActiveChangeTracker)
+	{
+		ActiveChangeTracker->SaveTriangle(TriangleID, true);
+	}
+}
+
+void FMeshRefinerBase::SaveVertexTrianglesBeforeModify(int32 VertexID)
+{
+	if (ActiveChangeTracker)
+	{
+		for (int32 TriangleID : Mesh->VtxTrianglesItr(VertexID))
+		{
+			ActiveChangeTracker->SaveTriangle(TriangleID, true );
+		}
+	}
+}
+
+
+void FMeshRefinerBase::SaveEdgeBeforeModify(int32 EdgeID)
+{
+	if (ActiveChangeTracker)
+	{
+		FIndex2i EdgeVerts = Mesh->GetEdgeV(EdgeID);
+		SaveVertexTrianglesBeforeModify(EdgeVerts.A);
+		SaveVertexTrianglesBeforeModify(EdgeVerts.B);
+	}
+}
 
 
 

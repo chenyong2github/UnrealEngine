@@ -1,23 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraTypeCustomizations.h"
+#include "CoreMinimal.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
+#include "NiagaraConstants.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraParameterMapHistory.h"
+#include "NiagaraPlatformSet.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
 #include "NiagaraSystem.h"
 #include "NiagaraTypes.h"
+#include "PlatformInfo.h"
 #include "PropertyHandle.h"
 #include "SGraphActionMenu.h"
+#include "Scalability.h"
 #include "ScopedTransaction.h"
+#include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -27,6 +34,7 @@
 #include "NiagaraSimulationStageBase.h"
 #include "Widgets/Text/STextBlock.h"
 #include "NiagaraDataInterfaceRW.h"
+#include "NiagaraSettings.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraVariableAttributeBindingCustomization"
 
@@ -909,5 +917,6 @@ void FNiagaraScriptVariableBindingCustomization::CustomizeHeader(TSharedRef<IPro
 			];
 	}
 }
+
 
 #undef LOCTEXT_NAMESPACE

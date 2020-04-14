@@ -37,7 +37,7 @@ namespace AutomationTool.Benchmark
 			// if they want a hot DDC then do the test one time with no timing
 			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
 			{
-				RunEditorAndWaitForMapLoad();
+				RunEditorAndWaitForMapLoad(true);
 			}
 
 			base.PerformPrequisites();
@@ -80,7 +80,7 @@ namespace AutomationTool.Benchmark
 			return System.Text.RegularExpressions.Regex.Replace(name, invalidRegStr, "_");
 		}
 
-		protected bool RunEditorAndWaitForMapLoad()
+		protected bool RunEditorAndWaitForMapLoad(bool bIsWarming)
 		{
 			string ProjectArg = ProjectFile != null ? ProjectFile.ToString() : "";
 			string EditorPath = HostPlatform.Current.GetUE4ExePath("UE4Editor.exe");
@@ -90,6 +90,16 @@ namespace AutomationTool.Benchmark
 			if (TaskOptions.HasFlag(DDCTaskOptions.NoSharedDDC))
 			{
 				Arguments += (" -ddc=noshared");
+			}
+
+			if (!bIsWarming && TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
+			{
+				Arguments += (" -noshaderddc");
+			}
+
+			if (TaskOptions.HasFlag(DDCTaskOptions.NoXGE))
+			{
+				Arguments += (" -noxgeshadercompile");
 			}
 
 			var RunOptions = CommandUtils.ERunOptions.AllowSpew | CommandUtils.ERunOptions.NoWaitForExit;
@@ -126,7 +136,7 @@ namespace AutomationTool.Benchmark
 
 		protected override bool PerformTask()
 		{
-			return RunEditorAndWaitForMapLoad();
+			return RunEditorAndWaitForMapLoad(false);
 		}
 	}
 }

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
 	public class IOSApsalar : ModuleRules
@@ -47,16 +49,13 @@ namespace UnrealBuildTool.Rules
 					"z"
 				});
 
-            bool bHasApsalarSDK =
-                (System.IO.Directory.Exists(System.IO.Path.Combine(Target.UEThirdPartySourceDirectory, "Apsalar")) &&
-                  System.IO.Directory.Exists(System.IO.Path.Combine(Target.UEThirdPartySourceDirectory, "Apsalar", "IOS"))) ||
-                (System.IO.Directory.Exists(System.IO.Path.Combine(Target.UEThirdPartySourceDirectory, "NotForLicensees")) &&
-                  System.IO.Directory.Exists(System.IO.Path.Combine(Target.UEThirdPartySourceDirectory, "NotForLicensees", "Apsalar")) &&
-                  System.IO.Directory.Exists(System.IO.Path.Combine(Target.UEThirdPartySourceDirectory, "NotForLicensees", "Apsalar", "IOS")));
+			string SDKPath = Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Source/ThirdParty/Apsalar/IOS");
+
+			bool bHasApsalarSDK = Directory.Exists(SDKPath);
             if (bHasApsalarSDK)
             {
-                PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "NotForLicensees/Apsalar/IOS/");
-                PublicAdditionalLibraries.Add(Target.UEThirdPartySourceDirectory + "NotForLicensees/Apsalar/IOS/libApsalar.a");
+                PublicIncludePaths.Add(SDKPath);
+                PublicAdditionalLibraries.Add(Path.Combine(SDKPath, "libApsalar.a"));
 
                 PublicDefinitions.Add("WITH_APSALAR=1");
             }

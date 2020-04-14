@@ -460,7 +460,7 @@ void FNewAssetOrClassContextMenu::CreateNewAssetMenus(UToolMenu* Menu, FName Sec
 		return;
 	}
 
-	Section.AddMenuSeparator(NAME_None);
+	Section.AddSeparator(NAME_None);
 
 	TArray<TSharedPtr<FCategorySubMenuItem>> SortedMenus;
 	SubMenuData->Children.GenerateValueArray(SortedMenus);

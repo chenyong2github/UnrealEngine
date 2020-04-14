@@ -52,6 +52,8 @@ UMovieScene::UMovieScene(const FObjectInitializer& ObjectInitializer)
 	bForceFixedFrameIntervalPlayback_DEPRECATED = false;
 	FixedFrameInterval_DEPRECATED = 0.0f;
 
+	NodeGroupCollection = CreateEditorOnlyDefaultSubobject<UMovieSceneNodeGroupCollection>("NodeGroupCollection");
+
 	InTime_DEPRECATED    =  FLT_MAX;
 	OutTime_DEPRECATED   = -FLT_MAX;
 	StartTime_DEPRECATED =  FLT_MAX;
@@ -532,6 +534,133 @@ void FMovieSceneSectionGroup::Clean()
 	Sections.RemoveAll([](TWeakObjectPtr<UMovieSceneSection>& Section) { return !(Section.IsValid()); });
 }
 
+void UMovieSceneNodeGroup::AddNode(const FString& Path)
+{
+	Nodes.AddUnique(Path);
+	OnNodeGroupChangedEvent.Broadcast();
+}
+
+void UMovieSceneNodeGroup::RemoveNode(const FString& Path)
+{
+	Nodes.Remove(Path);
+	OnNodeGroupChangedEvent.Broadcast();
+}
+
+bool UMovieSceneNodeGroup::ContainsNode(const FString& Path) const
+{
+	return Nodes.Contains(Path);
+}
+
+void UMovieSceneNodeGroup::UpdateNodePath(const FString& OldPath, const FString& NewPath)
+{
+	if (!OldPath.Equals(NewPath))
+	{
+		// If the node is in this group, replace it with it's new path
+		if (Nodes.Remove(OldPath))
+		{
+			Nodes.Add(NewPath);
+		}
+
+		// Find any nodes with a path that is a child of the changed node, and rename their paths as well
+		FString PathPrefix = OldPath + '.';
+
+		TArray<FString> PathsToRename;
+		for (const FString& NodePath : Nodes)
+		{
+			if (NodePath.StartsWith(PathPrefix))
+			{
+				PathsToRename.Add(NodePath);
+			}
+		}
+
+		for (const FString& NodePath : PathsToRename)
+		{
+			FString NewNodePath = NodePath;
+			if (NewNodePath.RemoveFromStart(PathPrefix))
+			{
+				NewNodePath = NewPath + '.' + NewNodePath;
+				Nodes.Remove(NodePath);
+				Nodes.Add(NewNodePath);
+			}
+		}
+
+	}
+}
+
+void UMovieSceneNodeGroup::SetName(const FName& InName)
+{
+	Name = InName;
+	OnNodeGroupChangedEvent.Broadcast();
+}
+
+void UMovieSceneNodeGroup::SetEnableFilter(bool bInEnableFilter)
+{
+	if (bEnableFilter != bInEnableFilter)
+	{
+		bEnableFilter = bInEnableFilter;
+		OnNodeGroupChangedEvent.Broadcast();
+	}
+}
+
+void UMovieSceneNodeGroupCollection::PostLoad()
+{
+	bAnyActiveFilter = false;
+	for (UMovieSceneNodeGroup* NodeGroup : NodeGroups)
+	{
+		NodeGroup->OnNodeGroupChanged().AddUObject(this, &UMovieSceneNodeGroupCollection::OnNodeGroupChanged);
+		
+		if (NodeGroup->GetEnableFilter())
+		{
+			bAnyActiveFilter = true;
+		}
+	}
+	
+	Super::PostLoad();
+}
+
+void UMovieSceneNodeGroupCollection::AddNodeGroup(UMovieSceneNodeGroup* NodeGroup)
+{
+	if (!NodeGroups.Contains(NodeGroup))
+	{
+		NodeGroups.Add(NodeGroup);
+		NodeGroup->OnNodeGroupChanged().AddUObject(this, &UMovieSceneNodeGroupCollection::OnNodeGroupChanged);
+		
+		OnNodeGroupCollectionChangedEvent.Broadcast();
+	}
+}
+
+void UMovieSceneNodeGroupCollection::RemoveNodeGroup(UMovieSceneNodeGroup* NodeGroup)
+{
+	NodeGroup->OnNodeGroupChanged().RemoveAll(this);
+
+	if (NodeGroups.RemoveSingle(NodeGroup))
+	{
+		OnNodeGroupCollectionChangedEvent.Broadcast();
+	}
+}
+
+void UMovieSceneNodeGroupCollection::UpdateNodePath(const FString& OldPath, const FString& NewPath)
+{
+	for (UMovieSceneNodeGroup* NodeGroup : NodeGroups)
+	{
+		NodeGroup->UpdateNodePath(OldPath, NewPath);
+	}
+}
+
+void UMovieSceneNodeGroupCollection::OnNodeGroupChanged()
+{
+	bAnyActiveFilter = false;
+	for (const UMovieSceneNodeGroup* NodeGroup : NodeGroups)
+	{
+		if (NodeGroup->GetEnableFilter())
+		{
+			bAnyActiveFilter = true;
+			break;
+		}
+	}
+
+	OnNodeGroupCollectionChangedEvent.Broadcast();
+}
 
 bool UMovieScene::IsSectionInGroup(const UMovieSceneSection& InSection) const
 {

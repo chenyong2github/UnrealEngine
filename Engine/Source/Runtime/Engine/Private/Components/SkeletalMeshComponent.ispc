@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #define EXPLICIT_VECTOR4 1
-#define EXPLICIT_VECTOR 1
 #define EXPLICIT_MATRIX 1
 
 #include "Math/Vector.isph"

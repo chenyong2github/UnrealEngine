@@ -7,7 +7,7 @@
 #include "NiagaraActions.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNode.h"
-#include "NiagaraParameterPanelViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
 #include "CoreMinimal.h"
@@ -20,9 +20,9 @@
 /// Parameter Panel Entry Parameter Name ViewModel							///
 ///////////////////////////////////////////////////////////////////////////////
 
-FNiagaraParameterPanelEntryParameterNameViewModel::FNiagaraParameterPanelEntryParameterNameViewModel(FCreateWidgetForActionData* const InCreateData, const FNiagaraScriptVariableAndViewInfo& InScriptVarAndViewInfo)
-	: CreateData(InCreateData)
-	, CachedScriptVarAndViewInfo(InScriptVarAndViewInfo)
+FNiagaraParameterPanelEntryParameterNameViewModel::FNiagaraParameterPanelEntryParameterNameViewModel(/*FCreateWidgetForActionData* const InCreateData,*/ const FNiagaraScriptVariableAndViewInfo& InScriptVarAndViewInfo)
+	/*: CreateData(InCreateData)*/
+	: CachedScriptVarAndViewInfo(InScriptVarAndViewInfo)
 {};
 
 TSharedRef<SWidget> FNiagaraParameterPanelEntryParameterNameViewModel::CreateScopeSlotWidget() const
@@ -71,13 +71,13 @@ TSharedRef<SInlineEditableTextBlock> FNiagaraParameterPanelEntryParameterNameVie
 	SAssignNew(DisplayWidget, SInlineEditableTextBlock)
 		.Text(this, &FNiagaraParameterPanelEntryParameterNameViewModel::GetParameterNameText)
 		.Font(NameFont)
-		.HighlightText(CreateData->HighlightText)
+		/*.HighlightText(CreateData->HighlightText)*/
 		.OnTextCommitted(this, &FNiagaraParameterPanelEntryParameterNameViewModel::OnParameterRenamed)
 		.OnVerifyTextChanged(this, &FNiagaraParameterPanelEntryParameterNameViewModel::VerifyParameterNameChanged)
-		.IsSelected(CreateData->IsRowSelectedDelegate)
+		/*.IsSelected(CreateData->IsRowSelectedDelegate)*/
 		.IsReadOnly(bIsReadOnly);
 
-	CreateData->OnRenameRequest->BindSP(static_cast<SInlineEditableTextBlock*>(DisplayWidget.Get()), &SInlineEditableTextBlock::EnterEditingMode);
+	/*CreateData->OnRenameRequest->BindSP(static_cast<SInlineEditableTextBlock*>(DisplayWidget.Get()), &SInlineEditableTextBlock::EnterEditingMode);*/
 
 	return DisplayWidget.ToSharedRef();
 }

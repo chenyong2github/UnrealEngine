@@ -28,7 +28,6 @@ namespace UnrealBuildTool
 			set { bForDistribution = value; }
 		}
 		bool bForDistribution = false;
-		public static string LaunchStoryboardPath;
 
 		protected class VersionUtilities
 		{
@@ -43,7 +42,7 @@ namespace UnrealBuildTool
 				set;
 			}
 
-			public static bool bLaunchscreenStoryboard = false;
+			public static bool bCustomLaunchscreenStoryboard = false;			
 
 			static string RunningVersionFilename
 			{
@@ -200,7 +199,6 @@ namespace UnrealBuildTool
 		{
 			// generate the Info.plist for future use
 			string BuildDirectory = ProjectDirectory + "/Build/IOS";
-			bool bSkipDefaultPNGs = false;
 			string IntermediateDirectory = (bIsUE4Game ? InEngineDir : ProjectDirectory) + "/Intermediate/IOS";
 			string PListFile = IntermediateDirectory + "/" + GameName + "-Info.plist";
 			ProjectName = !String.IsNullOrEmpty(ProjectName) ? ProjectName : GameName;
@@ -210,17 +208,8 @@ namespace UnrealBuildTool
 			// read the old file
 			string OldPListData = File.Exists(PListFile) ? File.ReadAllText(PListFile) : "";
 
-			// determine if there is a Lanchscreen Storyboard THEN a launch.xib
-			LaunchStoryboardPath = InEngineDir + "/Build/IOS/Resources/Interface";
-			string LaunchXib = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.xib";
-			if (Directory.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboardc"))
-			{
-				LaunchStoryboardPath = BuildDirectory + "/Resources/Interface";
-			}
-			else if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.xib"))
-			{
-				LaunchXib = BuildDirectory + "/Resources/Interface/LaunchScreen.xib";
-			}
+			string LaunchStoryboard = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboard";
+			if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard"))			{				LaunchStoryboard = BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard";			}
 
 			// get the settings from the ini file
 			// plist replacements
@@ -402,7 +391,7 @@ namespace UnrealBuildTool
 			string ExtraData = "";
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "AdditionalPlistData", out ExtraData);
 
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bLaunchscreenStoryboard", out VersionUtilities.bLaunchscreenStoryboard);
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bCustomLaunchscreenStoryboard", out VersionUtilities.bCustomLaunchscreenStoryboard);
 
 			// generate the plist file
 			StringBuilder Text = new StringBuilder();
@@ -580,86 +569,20 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t</dict>");
 				Text.AppendLine("\t</dict>");
 			}
-			if (Directory.Exists(LaunchStoryboardPath + "/LaunchScreen.storyboardc") || File.Exists(LaunchXib) && VersionUtilities.bLaunchscreenStoryboard)
+
+			Text.AppendLine("\t<key>UILaunchStoryboardName</key>");
+			Text.AppendLine("\t<string>LaunchScreen</string>");
+
+			// Custom Launchscreen storyboard only compatible on Mac for now.
+			if ((BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac) && File.Exists(LaunchStoryboard) && VersionUtilities.bCustomLaunchscreenStoryboard)
 			{
-				Text.AppendLine("\t<key>UILaunchStoryboardName</key>");
-				Text.AppendLine("\t<string>LaunchScreen</string>");
-				bSkipDefaultPNGs = true;
+				string outputStoryboard = LaunchStoryboard + "c";
+				string argsStoryboard = "--compile " + outputStoryboard + " " + LaunchStoryboard;
+				string stdOutLaunchScreen = Utils.RunLocalProcessAndReturnStdOut("ibtool", argsStoryboard);
+
+				Log.TraceInformation("LaunchScreen Storyboard compilation results : " + stdOutLaunchScreen);
 			}
-			else
-			{
-				// this is a temp way to inject the iphone 6 images without needing to upgrade everyone's plist
-				// eventually we want to generate this based on what the user has set in the project settings
-				string[] IPhoneConfigs =
-				{
-					"Default-IPhone6-Landscape.png", "Landscape", "{375, 667}", "8.0",
-					"Default-IPhone6.png", "Portrait", "{375, 667}",  "8.0",
-					"Default-IPhone6Plus-Landscape.png", "Landscape", "{414, 736}",  "8.0",
-					"Default-IPhone6Plus-Portrait.png", "Portrait", "{414, 736}",  "8.0",
-					"Default.png", "Portrait", "{320, 480}", "7.0",
-					"Default-568h.png", "Portrait", "{320, 568}", "7.0",
-					"Default-IPhoneXS-Landscape.png", "Landscape", "{375, 812}",  "11.0",
-					"Default-IPhoneXS-Portrait.png", "Portrait", "{375, 812}",  "11.0",
-					"Default-IPhoneXSMax-Landscape.png", "Landscape", "{414, 896}",  "12.0",
-					"Default-IPhoneXSMax-Portrait.png", "Portrait", "{414, 896}",  "12.0",
-					"Default-IPhoneXR-Landscape.png", "Landscape", "{276, 597}",  "12.0",
-					"Default-IPhoneXR-Portrait.png", "Portrait", "{276, 597}",  "12.0",
-				};
 
-				Text.AppendLine("\t<key>UILaunchImages~iphone</key>");
-				Text.AppendLine("\t<array>");
-				for (int ConfigIndex = 0; ConfigIndex < IPhoneConfigs.Length; ConfigIndex += 4)
-				{
-					{
-						Text.AppendLine("\t\t<dict>");
-						Text.AppendLine("\t\t\t<key>UILaunchImageMinimumOSVersion</key>");
-						Text.AppendLine(string.Format("\t\t\t<string>{0}</string>", IPhoneConfigs[ConfigIndex + 3]));
-						Text.AppendLine("\t\t\t<key>UILaunchImageName</key>");
-						Text.AppendLine(string.Format("\t\t\t<string>{0}</string>", IPhoneConfigs[ConfigIndex + 0]));
-						Text.AppendLine("\t\t\t<key>UILaunchImageOrientation</key>");
-						Text.AppendLine(string.Format("\t\t\t<string>{0}</string>", IPhoneConfigs[ConfigIndex + 1]));
-						Text.AppendLine("\t\t\t<key>UILaunchImageSize</key>");
-						Text.AppendLine(string.Format("\t\t\t<string>{0}</string>", IPhoneConfigs[ConfigIndex + 2]));
-						Text.AppendLine("\t\t</dict>");
-					}
-				}
-
-				// close it out
-				Text.AppendLine("\t</array>");
-
-				// this is a temp way to inject the iPad Pro without needing to upgrade everyone's plist
-				// eventually we want to generate this based on what the user has set in the project settings
-				string[] IPadConfigs =
-				{
-					"Default-Landscape.png", "Landscape", "{768, 1024}", "7.0",
-					"Default-Portrait.png", "Portrait", "{768, 1024}",  "7.0",
-					"Default-Landscape-1112.png", "Landscape", "{834, 1112}",  "9.0",
-					"Default-Portrait-1112.png", "Portrait", "{834, 1112}",  "9.0",
-					"Default-Landscape-1194.png", "Landscape", "{834, 1194}",  "9.0",
-					"Default-Portrait-1194.png", "Portrait", "{834, 1194}",  "9.0",
-					"Default-Landscape-1336.png", "Landscape", "{1024, 1366}",  "9.0",
-					"Default-Portrait-1336.png", "Portrait", "{1024, 1366}",  "9.0",
-				};
-
-				Text.AppendLine("\t<key>UILaunchImages~ipad</key>");
-				Text.AppendLine("\t<array>");
-				for (int ConfigIndex = 0; ConfigIndex < IPadConfigs.Length; ConfigIndex += 4)
-				{
-					{
-						Text.AppendLine("\t\t<dict>");
-						Text.AppendLine("\t\t\t<key>UILaunchImageMinimumOSVersion</key>");
-						Text.AppendLine(string.Format("\t\t\t<string>{0}</string>", IPadConfigs[ConfigIndex + 3]));
-						Text.AppendLine("\t\t\t<key>UILaunchImageName</key>");
-						Text.AppendLine(string.Format("\t\t\t<string>{0}</string>", IPadConfigs[ConfigIndex + 0]));
-						Text.AppendLine("\t\t\t<key>UILaunchImageOrientation</key>");
-						Text.AppendLine(string.Format("\t\t\t<string>{0}</string>", IPadConfigs[ConfigIndex + 1]));
-						Text.AppendLine("\t\t\t<key>UILaunchImageSize</key>");
-						Text.AppendLine(string.Format("\t\t\t<string>{0}</string>", IPadConfigs[ConfigIndex + 2]));
-						Text.AppendLine("\t\t</dict>");
-					}
-				}
-				Text.AppendLine("\t</array>");
-			}
 			Text.AppendLine("\t<key>CFBundleSupportedPlatforms</key>");
 			Text.AppendLine("\t<array>");
 			Text.AppendLine("\t\t<string>iPhoneOS</string>");
@@ -794,7 +717,7 @@ namespace UnrealBuildTool
 				File.WriteAllText(AppDirectory + "/Info.plist", Text.ToString());
 			}
 
-			return bSkipDefaultPNGs;
+			return true;
 		}
 
         static bool SupportsIconCatalog(VersionNumber SdkVersion)
@@ -876,58 +799,51 @@ namespace UnrealBuildTool
 		{
 			CopyFiles(InEngineDir + "/Build/IOS/Cloud", AppDirectory, "*.*", true);
 		}
+
 		protected virtual void CopyGraphicsResources(bool bSkipDefaultPNGs, bool bSkipIcons, string InEngineDir, string AppDirectory, string BuildDirectory, string IntermediateDir, bool bSupportsPortrait, bool bSupportsLandscape)
 		{
 			// copy engine assets in (IOS and TVOS shared in IOS)
 			if (bSkipDefaultPNGs)
 			{
-				if (VersionUtilities.bLaunchscreenStoryboard)
+				if (VersionUtilities.bCustomLaunchscreenStoryboard)
 				{
-					if(!Directory.Exists(AppDirectory + "/LaunchScreen.storyboardc"))
+					if (Directory.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboardc"))
 					{
-						Directory.CreateDirectory(AppDirectory + "/LaunchScreen.storyboardc");
+						CopyFolder(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
+						CopyFiles(BuildDirectory + "/Resources/Interface/Assets", AppDirectory, "*", true);
 					}
-					
-					CopyFolder(LaunchStoryboardPath + "/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
+					else
+					{
+						CopyFolder(InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
+						CopyFiles(InEngineDir + "/Build/IOS/Resources/Interface/Assets", AppDirectory, "*", true);
+					}
+				}
+				else
+				{
+					if (File.Exists(BuildDirectory + "/Resources/Graphics/LaunchScreenIOS.png"))
+					{
+						CopyFolder(InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
+						CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "LaunchScreenIOS.png", true);
+					}
+					else
+					{
+						CopyFolder(InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboardc", AppDirectory + "/LaunchScreen.storyboardc", true);
+						CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "LaunchScreenIOS.png", true);
+					}
+
 				}
 				// we still want default icons
 				if (!bSkipIcons)
 				{
 					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Icon*.png", true);
 				}
-			}
-			else
-			{
-				if (!bSkipIcons)
+				else
 				{
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Icon*.png", true);
+					if (!bSkipIcons)
+					{
+						CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Icon*.png", true);
+					}
 				}
-				if (bSupportsPortrait)
-				{
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhone6.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhone6Plus-Portrait.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-Portrait@2x.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-Portrait-1112@2x.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-Portrait-1194@2x.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-Portrait-1336@2x.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhoneXS-Portrait.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhoneXSMax-Portrait.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhoneXR-Portrait.png", true);
-				}
-				if (bSupportsLandscape)
-				{
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhone6-Landscape.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhone6Plus-Landscape.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-Landscape@2x.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-Landscape-1112@2x.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-Landscape-1194@2x.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-Landscape-1336@2x.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhoneXS-Landscape.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhoneXSMax-Landscape.png", true);
-					CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-IPhoneXR-Landscape.png", true);
-				}
-				CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default@2x.png", true);
-				CopyFiles(InEngineDir + "/Build/IOS/Resources/Graphics", AppDirectory, "Default-568h@2x.png", true);
 			}
 			// merge game assets on top
 			// @todo tvos: Do we want to copy IOS and TVOS both in? (Engine/IOS -> Game/IOS -> Game/TVOS)?
@@ -937,37 +853,9 @@ namespace UnrealBuildTool
 				{
 					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Icon*.png", true);
 				}
-				if (bSupportsPortrait && !VersionUtilities.bLaunchscreenStoryboard)
-				{
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhone6.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhone6Plus-Portrait.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-Portrait@2x.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-Portrait-1112@2x.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-Portrait-1194@2x.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-Portrait-1336@2x.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXS-Portrait.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXSMax-Portrait.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXR-Portrait.png", true);
-				}
-				if (bSupportsLandscape && !VersionUtilities.bLaunchscreenStoryboard)
-				{
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhone6-Landscape.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhone6Plus-Landscape.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-Landscape@2x.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-Landscape-1112@2x.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-Landscape-1194@2x.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-Landscape-1336@2x.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXS-Landscape.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXSMax-Landscape.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-IPhoneXR-Landscape.png", true);
-				}
-				if (!VersionUtilities.bLaunchscreenStoryboard)
-				{
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default@2x.png", true);
-					CopyFiles(BuildDirectory + "/Resources/Graphics", AppDirectory, "Default-568h@2x.png", true);
-				}
 			}
 		}
+		
 		protected virtual void CopyLocalizationsResources(string InEngineDir, string AppDirectory, string BuildDirectory, string IntermediateDir)
 		{
 			string LocalizationsPath = BuildDirectory + "/Resources/Localizations";
@@ -1013,6 +901,7 @@ namespace UnrealBuildTool
 			string AppDirectory = PayloadDirectory + "/" + GameName + ".app";
 			string CookedContentDirectory = AppDirectory + "/cookeddata";
 			string BuildDirectory = InProjectDirectory + "/Build/" + SubDir;
+			string BuildDirectory_NFL = InProjectDirectory + "/Restricted/NotForLicensees/Build/" + SubDir;
 			string IntermediateDirectory = (bIsUE4Game ? InEngineDir : InProjectDirectory) + "/Intermediate/" + SubDir;
 
 			Directory.CreateDirectory(BinaryPath);
@@ -1044,31 +933,33 @@ namespace UnrealBuildTool
 			FileInfo DestFileInfo;
 			// always look for provisions in the IOS dir, even for TVOS
 			string ProvisionWithPrefix = InEngineDir + "/Build/IOS/UE4Game.mobileprovision";
-			if (File.Exists(BuildDirectory + "/" + InProjectName + ".mobileprovision"))
+
+			string ProjectProvision = InProjectName + ".mobileprovision";
+			if (File.Exists(Path.Combine(BuildDirectory, ProjectProvision)))
 			{
-				ProvisionWithPrefix = BuildDirectory + "/" + InProjectName + ".mobileprovision";
+				ProvisionWithPrefix = Path.Combine(BuildDirectory, ProjectProvision);
 			}
 			else
 			{
-				if (File.Exists(BuildDirectory + "/NotForLicensees/" + InProjectName + ".mobileprovision"))
+				if (File.Exists(Path.Combine(BuildDirectory_NFL, ProjectProvision)))
 				{
-					ProvisionWithPrefix = BuildDirectory + "/NotForLicensees/" + InProjectName + ".mobileprovision";
+					ProvisionWithPrefix = Path.Combine(BuildDirectory_NFL, BuildDirectory, ProjectProvision);
 				}
 				else if (!File.Exists(ProvisionWithPrefix))
 				{
-					ProvisionWithPrefix = InEngineDir + "/Build/" + SubDir + "/NotForLicensees/UE4Game.mobileprovision";
+					ProvisionWithPrefix = Path.Combine(InEngineDir, "Restricted/NotForLicensees/Build", SubDir, "UE4Game.mobileprovision");
 				}
 			}
 			if (File.Exists(ProvisionWithPrefix))
 			{
 				Directory.CreateDirectory(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/");
-				if (File.Exists(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + InProjectName + ".mobileprovision"))
+				if (File.Exists(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + ProjectProvision))
 				{
-					DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + InProjectName + ".mobileprovision");
+					DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + ProjectProvision);
 					DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
 				}
-				File.Copy(ProvisionWithPrefix, Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + InProjectName + ".mobileprovision", true);
-				DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + InProjectName + ".mobileprovision");
+				File.Copy(ProvisionWithPrefix, Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + ProjectProvision, true);
+				DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + ProjectProvision);
 				DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
 			}
 			if (!File.Exists(ProvisionWithPrefix) || Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
@@ -1120,19 +1011,20 @@ namespace UnrealBuildTool
 
 			// install the distribution provision
 			ProvisionWithPrefix = InEngineDir + "/Build/IOS/UE4Game_Distro.mobileprovision";
-			if (File.Exists(BuildDirectory + "/" + InProjectName + "_Distro.mobileprovision"))
+			string ProjectDistroProvision = InProjectName + "_Distro.mobileprovision";
+			if (File.Exists(Path.Combine(BuildDirectory, ProjectDistroProvision )))
 			{
-				ProvisionWithPrefix = BuildDirectory + "/" + InProjectName + "_Distro.mobileprovision";
+				ProvisionWithPrefix = Path.Combine(BuildDirectory, ProjectDistroProvision);
 			}
 			else
 			{
-				if (File.Exists(BuildDirectory + "/NotForLicensees/" + InProjectName + "_Distro.mobileprovision"))
+				if (File.Exists(Path.Combine(BuildDirectory_NFL, ProjectDistroProvision)))
 				{
-					ProvisionWithPrefix = BuildDirectory + "/NotForLicensees/" + InProjectName + "_Distro.mobileprovision";
+					ProvisionWithPrefix = Path.Combine(BuildDirectory_NFL, ProjectDistroProvision);
 				}
 				else if (!File.Exists(ProvisionWithPrefix))
 				{
-					ProvisionWithPrefix = InEngineDir + "/Build/IOS/NotForLicensees/UE4Game_Distro.mobileprovision";
+					ProvisionWithPrefix = Path.Combine(InEngineDir, "Restricted/NotForLicensees/Build", SubDir, "UE4Game_Distro.mobileprovision");
 				}
 			}
 			if (File.Exists(ProvisionWithPrefix))
@@ -1150,7 +1042,7 @@ namespace UnrealBuildTool
 			bool bSupportsPortrait = true;
 			bool bSupportsLandscape = false;
 			bool bSkipIcons = false;
-			bool bSkipDefaultPNGs = GeneratePList(ProjectFile, Config, InProjectDirectory, bIsUE4Game, GameExeName, false, InProjectName, InEngineDir, AppDirectory, UPLScripts, SdkVersion, BundleID, bBuildAsFramework, out bSupportsPortrait, out bSupportsLandscape, out bSkipIcons);
+			GeneratePList(ProjectFile, Config, InProjectDirectory, bIsUE4Game, GameExeName, false, InProjectName, InEngineDir, AppDirectory, UPLScripts, SdkVersion, BundleID, bBuildAsFramework, out bSupportsPortrait, out bSupportsLandscape, out bSkipIcons);
 
 			// ensure the destination is writable
 			if (File.Exists(AppDirectory + "/" + GameName))
@@ -1164,7 +1056,7 @@ namespace UnrealBuildTool
 
 			if (!bCreateStubIPA)
 			{
-				CopyGraphicsResources(bSkipDefaultPNGs, bSkipIcons, InEngineDir, AppDirectory, BuildDirectory, IntermediateDirectory, bSupportsPortrait, bSupportsLandscape);
+				CopyGraphicsResources(true, bSkipIcons, InEngineDir, AppDirectory, BuildDirectory, IntermediateDirectory, bSupportsPortrait, bSupportsLandscape);
 				CopyLocalizationsResources(InEngineDir, AppDirectory, BuildDirectory, IntermediateDirectory);
 
 				CopyCloudResources(InProjectDirectory, AppDirectory);

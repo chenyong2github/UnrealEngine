@@ -16,37 +16,39 @@ namespace UnrealGameSync
 	{
 		Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToCategory;
 		public string[] GlobalView;
-		public Guid[] GlobalExcludedCategories;
+		public Dictionary<Guid, bool> GlobalSyncCategories;
 		public bool bGlobalSyncAllProjects;
 		public bool bGlobalIncludeAllProjectsInSolution;
 		public string[] WorkspaceView;
-		public Guid[] WorkspaceIncludedCategories;
-		public Guid[] WorkspaceExcludedCategories;
+		public Dictionary<Guid, bool> WorkspaceSyncCategories;
 		public bool? bWorkspaceSyncAllProjects;
 		public bool? bWorkspaceIncludeAllProjectsInSolution;
 
-		public SyncFilter(Dictionary<Guid, WorkspaceSyncCategory> InUniqueIdToCategory, string[] InGlobalView, Guid[] InGlobalExcludedCategories, bool bInGlobalProjectOnly, bool bInGlobalIncludeAllProjectsInSolution, string[] InWorkspaceView, Guid[] InWorkspaceIncludedCategories, Guid[] InWorkspaceExcludedCategories, bool? bInWorkspaceProjectOnly, bool? bInWorkspaceIncludeAllProjectsInSolution)
+		public SyncFilter(Dictionary<Guid, WorkspaceSyncCategory> InUniqueIdToCategory, string[] InGlobalView, Dictionary<Guid, bool> InGlobalSyncCategories, bool bInGlobalProjectOnly, bool bInGlobalIncludeAllProjectsInSolution, string[] InWorkspaceView, Dictionary<Guid, bool> InWorkspaceSyncCategories, bool? bInWorkspaceProjectOnly, bool? bInWorkspaceIncludeAllProjectsInSolution)
 		{
 			InitializeComponent();
 
 			UniqueIdToCategory = InUniqueIdToCategory;
-			GlobalExcludedCategories = InGlobalExcludedCategories;
+			GlobalSyncCategories = InGlobalSyncCategories;
 			GlobalView = InGlobalView;
 			bGlobalSyncAllProjects = bInGlobalProjectOnly;
 			bGlobalIncludeAllProjectsInSolution = bInGlobalIncludeAllProjectsInSolution;
-			WorkspaceIncludedCategories = InWorkspaceIncludedCategories;
-			WorkspaceExcludedCategories = InWorkspaceExcludedCategories;
+			WorkspaceSyncCategories = InWorkspaceSyncCategories;
 			WorkspaceView = InWorkspaceView;
 			bWorkspaceSyncAllProjects = bInWorkspaceProjectOnly;
 			bWorkspaceIncludeAllProjectsInSolution = bInWorkspaceIncludeAllProjectsInSolution;
 
+			Dictionary<Guid, bool> SyncCategories = WorkspaceSyncCategory.GetDefault(UniqueIdToCategory.Values);
+
+			WorkspaceSyncCategory.ApplyDelta(SyncCategories, InGlobalSyncCategories);
 			GlobalControl.SetView(GlobalView);
-			SetExcludedCategories(GlobalControl.CategoriesCheckList, UniqueIdToCategory, GlobalExcludedCategories);
+			SetExcludedCategories(GlobalControl.CategoriesCheckList, UniqueIdToCategory, SyncCategories);
 			GlobalControl.SyncAllProjects.Checked = bGlobalSyncAllProjects;
 			GlobalControl.IncludeAllProjectsInSolution.Checked = bGlobalIncludeAllProjectsInSolution;
 
+			WorkspaceSyncCategory.ApplyDelta(SyncCategories, InWorkspaceSyncCategories);
 			WorkspaceControl.SetView(WorkspaceView);
-			SetExcludedCategories(WorkspaceControl.CategoriesCheckList, UniqueIdToCategory, UserSettings.GetEffectiveExcludedCategories(GlobalExcludedCategories, WorkspaceIncludedCategories, WorkspaceExcludedCategories));
+			SetExcludedCategories(WorkspaceControl.CategoriesCheckList, UniqueIdToCategory, SyncCategories);
 			WorkspaceControl.SyncAllProjects.Checked = bWorkspaceSyncAllProjects ?? bGlobalSyncAllProjects;
 			WorkspaceControl.IncludeAllProjectsInSolution.Checked = bWorkspaceIncludeAllProjectsInSolution ?? bGlobalIncludeAllProjectsInSolution;
 
@@ -70,13 +72,13 @@ namespace UnrealGameSync
 			WorkspaceControl.IncludeAllProjectsInSolution.Checked = GlobalControl.IncludeAllProjectsInSolution.Checked;
 		}
 
-		private static void SetExcludedCategories(CheckedListBox ListBox, Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToFilter, Guid[] ExcludedCategories)
+		private static void SetExcludedCategories(CheckedListBox ListBox, Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToFilter, Dictionary<Guid, bool> CategoryIdToSetting)
 		{
 			ListBox.Items.Clear();
 			foreach(WorkspaceSyncCategory Filter in UniqueIdToFilter.Values)
 			{
 				CheckState State = CheckState.Checked;
-				if(ExcludedCategories.Contains(Filter.UniqueId))
+				if(!CategoryIdToSetting[Filter.UniqueId])
 				{
 					State = CheckState.Unchecked;
 				}
@@ -84,31 +86,26 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void GetExcludedCategories(out Guid[] NewGlobalExcludedCategories, out Guid[] NewWorkspaceIncludedCategories, out Guid[] NewWorkspaceExcludedCategories)
+		private void GetExcludedCategories(out Dictionary<Guid, bool> NewGlobalSyncCategories, out Dictionary<Guid, bool> NewWorkspaceSyncCategories)
 		{
-			NewGlobalExcludedCategories = GetExcludedCategories(GlobalControl.CategoriesCheckList);
+			Dictionary<Guid, bool> DefaultSyncCategories = WorkspaceSyncCategory.GetDefault(UniqueIdToCategory.Values);
 
-			Guid[] AllWorkspaceExcludedCategories = GetExcludedCategories(WorkspaceControl.CategoriesCheckList);
-			NewWorkspaceIncludedCategories = NewGlobalExcludedCategories.Except(AllWorkspaceExcludedCategories).ToArray();
-			NewWorkspaceExcludedCategories = AllWorkspaceExcludedCategories.Except(NewGlobalExcludedCategories).ToArray();
+			Dictionary<Guid, bool> GlobalSyncCategories = GetCategorySettings(GlobalControl.CategoriesCheckList);
+			NewGlobalSyncCategories = WorkspaceSyncCategory.GetDelta(DefaultSyncCategories, GlobalSyncCategories);
+
+			Dictionary<Guid, bool> WorkspaceSyncCategories = GetCategorySettings(WorkspaceControl.CategoriesCheckList);
+			NewWorkspaceSyncCategories = WorkspaceSyncCategory.GetDelta(GlobalSyncCategories, WorkspaceSyncCategories);
 		}
 
-		private static Guid[] GetExcludedCategories(CheckedListBox ListBox)
+		private static Dictionary<Guid, bool> GetCategorySettings(CheckedListBox ListBox)
 		{
-			HashSet<Guid> ExcludedCategories = new HashSet<Guid>();
+			Dictionary<Guid, bool> Result = new Dictionary<Guid, bool>();
 			for(int Idx = 0; Idx < ListBox.Items.Count; Idx++)
 			{
 				Guid UniqueId = ((WorkspaceSyncCategory)ListBox.Items[Idx]).UniqueId;
-				if(ListBox.GetItemCheckState(Idx) == CheckState.Unchecked)
-				{
-					ExcludedCategories.Add(UniqueId);
-				}
-				else
-				{
-					ExcludedCategories.Remove(UniqueId);
-				}
+				Result[UniqueId] = ListBox.GetItemCheckState(Idx) == CheckState.Checked;
 			}
-			return ExcludedCategories.ToArray();
+			return Result;
 		}
 
 		private static string[] GetView(TextBox FilterText)
@@ -142,7 +139,7 @@ namespace UnrealGameSync
 			bWorkspaceSyncAllProjects = (WorkspaceControl.SyncAllProjects.Checked == bGlobalSyncAllProjects)? (bool?)null : WorkspaceControl.SyncAllProjects.Checked;
 			bWorkspaceIncludeAllProjectsInSolution = (WorkspaceControl.IncludeAllProjectsInSolution.Checked == bGlobalIncludeAllProjectsInSolution)? (bool?)null : WorkspaceControl.IncludeAllProjectsInSolution.Checked;
 
-			GetExcludedCategories(out GlobalExcludedCategories, out WorkspaceIncludedCategories, out WorkspaceExcludedCategories);
+			GetExcludedCategories(out GlobalSyncCategories, out WorkspaceSyncCategories);
 
 			DialogResult = DialogResult.OK;
 		}
@@ -154,12 +151,11 @@ namespace UnrealGameSync
 
 		private void ShowCombinedView_Click(object sender, EventArgs e)
 		{
-			Guid[] NewGlobalExcludedCategories;
-			Guid[] NewWorkspaceIncludedCategories;
-			Guid[] NewWorkspaceExcludedCategories;
-			GetExcludedCategories(out NewGlobalExcludedCategories, out NewWorkspaceIncludedCategories, out NewWorkspaceExcludedCategories);
+			Dictionary<Guid, bool> NewGlobalSyncCategories;
+			Dictionary<Guid, bool> NewWorkspaceSyncCategories;
+			GetExcludedCategories(out NewGlobalSyncCategories, out NewWorkspaceSyncCategories);
 
-			string[] Filter = UserSettings.GetCombinedSyncFilter(UniqueIdToCategory, GlobalControl.GetView(), NewGlobalExcludedCategories, WorkspaceControl.GetView(), NewWorkspaceIncludedCategories, NewWorkspaceExcludedCategories);
+			string[] Filter = UserSettings.GetCombinedSyncFilter(UniqueIdToCategory, GlobalControl.GetView(), NewGlobalSyncCategories, WorkspaceControl.GetView(), NewWorkspaceSyncCategories);
 			if(Filter.Length == 0)
 			{
 				Filter = new string[]{ "All files will be synced." };

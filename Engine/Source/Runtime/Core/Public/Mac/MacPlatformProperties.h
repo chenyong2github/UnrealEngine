@@ -132,6 +132,11 @@ struct FMacPlatformProperties
 	{
 		return !IsServerOnly();
 	}
+
+	static FORCEINLINE bool SupportsVirtualTextureStreaming()
+	{
+		return true;
+	}
 };
 
 #ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE

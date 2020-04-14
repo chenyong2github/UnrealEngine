@@ -1511,11 +1511,6 @@ public:
 	UPROPERTY(globalconfig)
 	uint32 bEnableVisualLogRecordingOnStart;
 
-protected:
-
-	/** Whether the engine should be playing sounds.  If false at initialization time the AudioDevice will not be created */
-	uint32 bUseSound:1;
-
 private:
 	
 	/** Semaphore to control screen saver inhibitor thread access. */
@@ -1952,7 +1947,7 @@ public:
 
 	/** Called at shutdown, just before the exit purge.	 */
 	virtual void PreExit();
-	virtual void ShutdownAudioDeviceManager();
+	virtual void ReleaseAudioDeviceManager();
 	
 	void ShutdownHMD();
 

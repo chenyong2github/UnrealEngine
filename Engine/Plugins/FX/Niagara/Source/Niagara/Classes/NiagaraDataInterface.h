@@ -122,36 +122,85 @@ public:
 		, ErrorSummaryText(InErrorSummaryText)
 		, Fix(InFix)
 
-	{};
+	{}
+
 	FNiagaraDataInterfaceError()
-	{};
+	{}
+
 	/** Returns true if the error can be fixed automatically. */
 	bool GetErrorFixable() const
 	{
 		return Fix.IsBound();
-	};
+	}
 
 	/** Applies the fix if a delegate is bound for it.*/
 	bool TryFixError()
 	{
 		return Fix.IsBound() ? Fix.Execute() : false;
-	};
+	}
 
 	/** Full error description text */
 	FText GetErrorText() const
 	{
 		return ErrorText;
-	};
+	}
 
 	/** Shortened error description text*/
 	FText GetErrorSummaryText() const
 	{
 		return ErrorSummaryText;
-	};
+	}
 
 private:
 	FText ErrorText;
 	FText ErrorSummaryText;
+	FNiagaraDataInterfaceFix Fix;
+};
+
+// Helper class for GUI feedback handling
+DECLARE_DELEGATE_RetVal(bool, FNiagaraDataInterfaceFix);
+class FNiagaraDataInterfaceFeedback
+{
+public:
+	FNiagaraDataInterfaceFeedback(FText InFeedbackText,
+		FText InFeedbackSummaryText,
+		FNiagaraDataInterfaceFix InFix)
+		: FeedbackText(InFeedbackText)
+		, FeedbackSummaryText(InFeedbackSummaryText)
+		, Fix(InFix)
+
+	{}
+
+	FNiagaraDataInterfaceFeedback()
+	{}
+
+	/** Returns true if the feedback can be fixed automatically. */
+	bool GetFeedbackFixable() const
+	{
+		return Fix.IsBound();
+	}
+
+	/** Applies the fix if a delegate is bound for it.*/
+	bool TryFixFeedback()
+	{
+		return Fix.IsBound() ? Fix.Execute() : false;
+	}
+
+	/** Full feedback description text */
+	FText GetFeedbackText() const
+	{
+		return FeedbackText;
+	}
+
+	/** Shortened feedback description text*/
+	FText GetFeedbackSummaryText() const
+	{
+		return FeedbackSummaryText;
+	}
+
+private:
+	FText FeedbackText;
+	FText FeedbackSummaryText;
 	FNiagaraDataInterfaceFix Fix;
 };
 #endif
@@ -195,13 +244,15 @@ UCLASS(abstract, EditInlineNew)
 class NIAGARA_API UNiagaraDataInterface : public UNiagaraDataInterfaceBase
 {
 	GENERATED_UCLASS_BODY()
-		 
-public: 
 
+public:
 	virtual ~UNiagaraDataInterface();
 
 	// UObject Interface
 	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	// UObject Interface END
 
 	/** Initializes the per instance data for this interface. Returns false if there was some error and the simulation should be disabled. */
@@ -291,14 +342,40 @@ public:
 		return false;
 	}
 
+#if WITH_EDITORONLY_DATA
+	/**
+	Allows data interfaces the opportunity to rename / change the function signature and perform an upgrade.
+	Return true if the signature was modified and we need to refresh the pins / name, etc.
+	*/
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+	{
+		return false;
+	}
+#endif
+
 	virtual void PostExecute() {}
 
 #if WITH_EDITOR	
 	/** Refreshes and returns the errors detected with the corresponding data, if any.*/
 	virtual TArray<FNiagaraDataInterfaceError> GetErrors() { return TArray<FNiagaraDataInterfaceError>(); }
+	
+	/**
+		Query the data interface to give feedback to the end user. 
+		Note that the default implementation, just calls GetErrors on the DataInterface, but derived classes can do much more.
+		Also, InAsset or InComponent may be null values, as the UI for DataInterfaces is displayed in a variety of locations. 
+		In these cases, only provide information that is relevant to that context.
+	*/
+	virtual void GetFeedback(UNiagaraSystem* InAsset, UNiagaraComponent* InComponent, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo);
+
+	static void GetFeedback(UNiagaraDataInterface* DataInterface, TArray<FNiagaraDataInterfaceError>& Errors, TArray<FNiagaraDataInterfaceFeedback>& Warnings,
+		TArray<FNiagaraDataInterfaceFeedback>& Info);
 
 	/** Validates a function being compiled and allows interface classes to post custom compile errors when their API changes. */
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors);
+
+	void RefreshErrors();
+
+	FSimpleMulticastDelegate& OnErrorsRefreshed();
 #endif
 
 	FNiagaraDataInterfaceProxy* GetProxy()
@@ -326,6 +403,11 @@ protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const;
 
 	TUniquePtr<FNiagaraDataInterfaceProxy> Proxy;
+
+private:
+#if WITH_EDITOR
+	FSimpleMulticastDelegate OnErrorsRefreshedDelegate;
+#endif
 };
 
 /** Helper class for decoding NDI parameters into a usable struct type. */
@@ -499,6 +581,16 @@ struct FNDIRandomHelper
 		// NOTE: Inclusive! So [0, x] instead of [0, x)
 		int32 Range = Max - Min;
 		return Min + (int(Rand(InstanceIndex) * (Range + 1)));
+	}
+
+	FORCEINLINE_DEBUGGABLE FVector RandomBarycentricCoord(int32 InstanceIndex)
+	{
+		//TODO: This is gonna be slooooow. Move to an LUT possibly or find faster method.
+		//Can probably handle lower quality randoms / uniformity for a decent speed win.
+		FVector2D r = Rand2(InstanceIndex);
+		float sqrt0 = FMath::Sqrt(r.X);
+		float sqrt1 = FMath::Sqrt(r.Y);
+		return FVector(1.0f - sqrt0, sqrt0 * (1.0 - r.Y), r.Y * sqrt0);
 	}
 
 	FVectorVMContext& Context;

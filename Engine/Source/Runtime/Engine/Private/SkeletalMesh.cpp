@@ -69,6 +69,7 @@
 
 #include "IMeshReductionManagerModule.h"
 #include "SkeletalMeshReductionSettings.h"
+#include "Engine/RendererSettings.h"
 
 #endif // #if WITH_EDITOR
 
@@ -494,12 +495,9 @@ bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 				{
 					const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
 
-					if (!Section.bDisabled)
-					{
-						//Make sure the count fit in a uint32
-						LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
-						LODTriNumber += Section.NumTriangles;
-					}
+					//Make sure the count fit in a uint32
+					LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
+					LODTriNumber += Section.NumTriangles;
 				}
 			}
 			else if (GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex)
@@ -779,7 +777,7 @@ void USkeletalMesh::InitResources()
 
 					if (!bImportDataInSync || !bRenderDataInSync)
 					{
-						UE_ASSET_LOG(LogSkeletalMesh, Fatal, this, TEXT("Data out of sync in lod %d. bImportDataInSync=%d, bRenderDataInSync=%d"), LODIndex, bImportDataInSync, bRenderDataInSync);
+						UE_ASSET_LOG(LogSkeletalMesh, Error, this, TEXT("Data out of sync in lod %d. bImportDataInSync=%d, bRenderDataInSync=%d. This happen when DDC cache has corrupted data (Key has change during the skeletalmesh build)"), LODIndex, bImportDataInSync, bRenderDataInSync);
 					}
 				}
 			}
@@ -1168,7 +1166,7 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 
 void USkeletalMesh::LinkStreaming()
 {
-	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled() && IsStreamingRenderAsset(this))
+	if (!IsTemplate() && IStreamingManager::Get().IsMeshStreamingEnabled() && IsStreamingRenderAsset(this))
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingRenderAsset(this);
 	}
@@ -1180,7 +1178,7 @@ void USkeletalMesh::LinkStreaming()
 
 void USkeletalMesh::UnlinkStreaming()
 {
-	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled())
+	if (!IsTemplate() && StreamingIndex != INDEX_NONE)
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
 	}
@@ -1361,6 +1359,10 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			SamplingInfo.BuildRegions(this);
 		}
 		else if (PropertyChangedEvent.MemberProperty->GetFName() == FName(TEXT("LODInfo")))
+		{
+			SamplingInfo.BuildWholeMesh(this);
+		}
+		else if (PropertyChangedEvent.MemberProperty->GetFName() == FName(TEXT("bSupportUniformlyDistributedSampling")))
 		{
 			SamplingInfo.BuildWholeMesh(this);
 		}
@@ -2317,6 +2319,79 @@ void USkeletalMesh::CreateUserSectionsDataForLegacyAssets()
 	}
 }
 
+void USkeletalMesh::PostLoadValidateUserSectionData()
+{
+	for (int32 LodIndex = 0; LodIndex < GetLODNum(); LodIndex++)
+	{
+		const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LodIndex);
+		if (!LODInfoPtr || !LODInfoPtr->bHasBeenSimplified)
+		{
+			//We validate only generated LOD from a base LOD
+			continue;
+		}
+
+		FSkeletalMeshLODModel& ThisLODModel = ImportedModel->LODModels[LodIndex];
+		const int32 SectionNum = ThisLODModel.Sections.Num();
+		//See if more then one section use the same UserSectionData
+		bool bLODHaveSectionIssue = false;
+		TBitArray<> AvailableUserSectionData;
+		AvailableUserSectionData.Init(true, ThisLODModel.UserSectionsData.Num());
+		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+		{
+			FSkelMeshSection& Section = ThisLODModel.Sections[SectionIndex];
+			if (Section.ChunkedParentSectionIndex != INDEX_NONE)
+			{
+				continue;
+			}
+			if(!AvailableUserSectionData.IsValidIndex(Section.OriginalDataSectionIndex) || !AvailableUserSectionData[Section.OriginalDataSectionIndex])
+			{
+				bLODHaveSectionIssue = true;
+				break;
+			}
+			AvailableUserSectionData[Section.OriginalDataSectionIndex] = false;
+		}
+		if(!bLODHaveSectionIssue)
+		{
+			//Everything is good nothing to fix
+			continue;
+		}
+
+		//Force the source UserSectionData, then restore the UserSectionData value each section was using
+		//We use the source section user data entry in case we do not have any override
+		const FSkeletalMeshLODModel& BaseLODModel = ImportedModel->LODModels[LODInfoPtr->ReductionSettings.BaseLOD];
+		TMap<int32, FSkelMeshSourceSectionUserData> NewUserSectionsData;
+
+		int32 CurrentOriginalSectionIndex = 0;
+		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+		{
+			FSkelMeshSection& Section = ThisLODModel.Sections[SectionIndex];
+			if (Section.ChunkedParentSectionIndex != INDEX_NONE)
+			{
+				//We do not restore user section data for chunked section, the parent has already fix it
+				Section.OriginalDataSectionIndex = CurrentOriginalSectionIndex;
+				continue;
+			}
+
+			FSkelMeshSourceSectionUserData& SectionUserData = NewUserSectionsData.FindOrAdd(CurrentOriginalSectionIndex);
+			if(const FSkelMeshSourceSectionUserData* BackupSectionUserData = ThisLODModel.UserSectionsData.Find(Section.OriginalDataSectionIndex))
+			{
+				SectionUserData = *BackupSectionUserData;
+			}
+			else if(const FSkelMeshSourceSectionUserData* BaseSectionUserData = BaseLODModel.UserSectionsData.Find(CurrentOriginalSectionIndex))
+			{
+				SectionUserData = *BaseSectionUserData;
+			}
+
+			Section.OriginalDataSectionIndex = CurrentOriginalSectionIndex;
+			//Parent (non chunked) section must increment the index
+			CurrentOriginalSectionIndex++;
+		}
+		ThisLODModel.UserSectionsData = NewUserSectionsData;
+
+		UE_ASSET_LOG(LogSkeletalMesh, Display, this, TEXT("Fix some section data of this asset for lod %d. Verify all sections of this mesh are ok and save the asset to fix this issue."), LodIndex);
+	}
+}
+
 #endif // WITH_EDITOR
 
 void USkeletalMesh::PostLoad()
@@ -2324,14 +2399,16 @@ void USkeletalMesh::PostLoad()
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	Super::PostLoad();
 
-	// Consolidate the shared cloth configs once all cloth assets are loaded
+	// Make sure the cloth assets have finished loading
+	// TODO: Remove all UObject PostLoad dependencies.
+	//       Even with these ConditionalPostLoad calls, the UObject PostLoads' order of execution cannot be guaranted.
+	//       E.g. in some instance it has been found that the SkeletalMesh EndLoad can trigger a ConditionalPostLoad
+	//       on the cloth assets even before reaching this point.
+	//       In these occurences, the cloth asset's RF_NeedsPostLoad flag is already cleared despite its PostLoad still
+	//       being un-executed, making the following block code ineffective.
 	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)
 	{
-		MeshClothingAsset->ConditionalPostLoad();  // Make sure the cloth asset has finished loading
-	}
-	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)  // PostUpdateAllAssets will also iterate through all clothing assets so this cannot be merged with the loop above
-	{
-		MeshClothingAsset->PostUpdateAllAssets();
+		MeshClothingAsset->ConditionalPostLoad();
 	}
 
 #if WITH_EDITOR
@@ -2469,6 +2546,8 @@ void USkeletalMesh::PostLoad()
 		{
 			CreateUserSectionsDataForLegacyAssets();
 		}
+
+		PostLoadValidateUserSectionData();
 
 		if (GetResourceForRendering() == nullptr)
 		{
@@ -4017,6 +4096,53 @@ void USkeletalMesh::ResetLODInfo()
 {
 	LODInfo.Reset();
 }
+
+#if WITH_EDITOR
+bool USkeletalMesh::GetSupportsLODStreaming(const ITargetPlatform* TargetPlatform) const
+{
+	check(TargetPlatform);
+	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
+	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
+	if (bOverrideLODStreamingSettings)
+	{
+		return bSupportLODStreaming.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+	}
+	else
+	{
+		return GetDefault<URendererSettings>()->bStreamSkeletalMeshLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+	}
+}
+
+int32 USkeletalMesh::GetMaxNumStreamedLODs(const ITargetPlatform* TargetPlatform) const
+{
+	check(TargetPlatform);
+	if (bOverrideLODStreamingSettings)
+	{
+		return MaxNumStreamedLODs.GetValueForPlatformIdentifiers(
+			TargetPlatform->GetPlatformInfo().PlatformGroupName,
+			TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+	}
+	else
+	{
+		return MAX_MESH_LOD_COUNT;
+	}
+}
+
+int32 USkeletalMesh::GetMaxNumOptionalLODs(const ITargetPlatform* TargetPlatform) const
+{
+	check(TargetPlatform);
+	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
+	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
+	if (bOverrideLODStreamingSettings)
+	{
+		return MaxNumOptionalLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName) <= 0 ? 0 : MAX_MESH_LOD_COUNT;
+	}
+	else
+	{
+		return GetDefault<URendererSettings>()->bDiscardSkeletalMeshOptionalLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName) ? 0 : MAX_MESH_LOD_COUNT;
+	}
+}
+#endif
 
 void USkeletalMesh::SetLODSettings(USkeletalMeshLODSettings* InLODSettings)
 {
@@ -5615,6 +5741,44 @@ FVector GetSkeletalMeshRefVertLocation(const USkeletalMesh* Mesh, const FSkeleta
 	LODData.GetSectionFromVertexIndex(VertIndex, SectionIndex, VertIndexInChunk);
 	const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIndex];
 	return GetRefVertexLocationTyped(Mesh, Section, LODData.StaticVertexBuffers.PositionVertexBuffer, SkinWeightVertexBuffer, VertIndexInChunk);
+}
+
+//GetRefTangentBasisTyped
+void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSection& Section, const FStaticMeshVertexBuffer& StaticVertexBuffer, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector& OutTangentX, FVector& OutTangentZ)
+{
+	OutTangentX = FVector::ZeroVector;
+	OutTangentZ = FVector::ZeroVector;
+
+	// Do soft skinning for this vertex.
+	const int32 BufferVertIndex = Section.GetVertexBufferIndex() + VertIndex;
+	const int32 MaxBoneInfluences = SkinWeightVertexBuffer.GetMaxBoneInfluences();
+
+	const FVector VertexTangentX = StaticVertexBuffer.VertexTangentX(BufferVertIndex);
+	const FVector VertexTangentZ = StaticVertexBuffer.VertexTangentZ(BufferVertIndex);
+
+#if !PLATFORM_LITTLE_ENDIAN
+	// uint8[] elements in LOD.VertexBufferGPUSkin have been swapped for VET_UBYTE4 vertex stream use
+	for (int32 InfluenceIndex = MAX_INFLUENCES - 1; InfluenceIndex >= MAX_INFLUENCES - MaxBoneInfluences; InfluenceIndex--)
+#else
+	for (int32 InfluenceIndex = 0; InfluenceIndex < MaxBoneInfluences; InfluenceIndex++)
+#endif
+	{
+		const int32 MeshBoneIndex = Section.BoneMap[SkinWeightVertexBuffer.GetBoneIndex(BufferVertIndex, InfluenceIndex)];
+		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;
+		const FMatrix BoneTransformMatrix = FMatrix::Identity;//Mesh->GetComposedRefPoseMatrix(MeshBoneIndex);
+		//const FMatrix RefToLocal = Mesh->RefBasesInvMatrix[MeshBoneIndex] * BoneTransformMatrix;
+		OutTangentX += BoneTransformMatrix.TransformVector(VertexTangentX) * Weight;
+		OutTangentZ += BoneTransformMatrix.TransformVector(VertexTangentZ) * Weight;
+	}
+}
+
+void GetSkeletalMeshRefTangentBasis(const USkeletalMesh* Mesh, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightVertexBuffer, const int32 VertIndex, FVector& OutTangentX, FVector& OutTangentZ)
+{
+	int32 SectionIndex;
+	int32 VertIndexInChunk;
+	LODData.GetSectionFromVertexIndex(VertIndex, SectionIndex, VertIndexInChunk);
+	const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIndex];
+	GetRefTangentBasisTyped(Mesh, Section, LODData.StaticVertexBuffers.StaticMeshVertexBuffer, SkinWeightVertexBuffer, VertIndexInChunk, OutTangentX, OutTangentZ);
 }
 
 #undef LOCTEXT_NAMESPACE

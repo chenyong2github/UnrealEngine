@@ -53,12 +53,13 @@ struct FNiagaraSystemScalabilitySettings
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraPlatformSet Platforms;
 
+	/** Controls whether distance culling is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullByDistance : 1;
+	/** Controls whether instance count culling is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullMaxInstanceCount : 1;
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bCullByMaxOwnerLOD : 1;
+	/** Controls whether visibility culling is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullByMaxTimeWithoutRender : 1;
 
@@ -69,11 +70,7 @@ struct FNiagaraSystemScalabilitySettings
 	/** Effects of this type will fail to spawn when total active instance count exceeds this number. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullMaxInstanceCount"))
 	float MaxInstances;
-
-	/** The effect is culled beyond this LOD level. Useful for FX that are linked to a specific actor with an LOD level driven be some other system. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByMaxOwnerLOD"))
-	int32 MaxOwnerLOD;
-
+	
 	//TODO:
 	/** The effect is culled when it's bounds take up less that this fraction of the total screen area. Only usable with fixed bounds. */
 	//float ScreenFraction;
@@ -104,13 +101,13 @@ struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySetti
 
 	FNiagaraSystemScalabilityOverride();
 
-	//TODO: Detail customization that effectively allows these values to be edit conditions for their respective properties inside FNiagaraScalabilitySettings.
+	/** Controls whether we override the distance culling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideDistanceSettings : 1;
+	/** Controls whether we override the instance count culling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideInstanceCountSettings : 1;
-	UPROPERTY(EditAnywhere, Category = "Override")
-	uint32 bOverrideOwnerLODSettings : 1;
+	/** Controls whether we override the visibility culling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideTimeSinceRendererSettings : 1;
 };
@@ -135,10 +132,11 @@ struct FNiagaraEmitterScalabilitySettings
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraPlatformSet Platforms;
 
+	/** Enable spawn count scaling */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bScaleSpawnCount : 1;
 
-	/** Effects of this type are culled beyond this distance. */
+	/** Scale factor applied to spawn counts for this emitter. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bScaleSpawnCount"))
 	float SpawnCountScale;
 
@@ -163,7 +161,7 @@ struct FNiagaraEmitterScalabilityOverride : public FNiagaraEmitterScalabilitySet
 
 	FNiagaraEmitterScalabilityOverride();
 
-	//TODO: Detail customization that effectively allows these values to be edit conditions for their respective properties inside FNiagaraScalabilitySettings.
+	//Controls whether spawn count scale should be overridden.
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideSpawnCountScale : 1;
 };

@@ -28,7 +28,6 @@ FLiveLinkMessageBusSource::FLiveLinkMessageBusSource(const FText& InSourceType, 
 
 void FLiveLinkMessageBusSource::InitializeSettings(ULiveLinkSourceSettings* Settings)
 {
-	Settings->Mode = GetDefault<ULiveLinkSettings>()->DefaultMessageBusSourceMode;
 }
 
 void FLiveLinkMessageBusSource::ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid)
@@ -205,7 +204,7 @@ void FLiveLinkMessageBusSource::InternalHandleMessage(const TSharedRef<IMessageC
 		FLiveLinkFrameDataStruct DataStruct(MessageTypeInfo);
 		const FLiveLinkBaseFrameData* Message = reinterpret_cast<const FLiveLinkBaseFrameData*>(Context->GetMessage());
 		DataStruct.InitializeWith(MessageTypeInfo, Message);
-		DataStruct.GetBaseData()->WorldTime = FLiveLinkWorldTime(Message->WorldTime.GetOffsettedTime(), MachineTimeOffset);
+		DataStruct.GetBaseData()->WorldTime = Message->WorldTime.GetOffsettedTime();
 		Client->PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(DataStruct));
 	}
 }

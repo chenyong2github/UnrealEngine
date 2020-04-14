@@ -1443,7 +1443,11 @@ bool UncompressCopyFile(FArchive& Dest, FArchive& Source, const FPakEntry& Entry
 
 		if (Entry.IsEncrypted())
 		{
-			const FNamedAESKey* Key = InKeyChain.MasterEncryptionKey;
+			const FNamedAESKey* Key = InKeyChain.EncryptionKeys.Find(PakFile.GetInfo().EncryptionKeyGuid);
+			if (Key == nullptr)
+			{
+				Key = InKeyChain.MasterEncryptionKey;
+			}
 			check(Key);
 			FAES::DecryptData(PersistentBuffer, SizeToRead, Key->Key);
 		}
@@ -3569,6 +3573,29 @@ void CreateDiffRelativePathMap(TArray<FString>& FileNames, const FString& RootPa
 	}
 }
 
+bool DumpPakInfo(const FString& InPakFilename, const FKeyChain& InKeyChain)
+{
+	FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), *InPakFilename, false);
+
+	if (!PakFile.IsValid())
+	{
+		return false;
+	}
+
+
+	const FPakInfo& Info = PakFile.GetInfo();
+
+	UE_LOG(LogPakFile, Display, TEXT("Pak File: %s"), *InPakFilename);
+	UE_LOG(LogPakFile, Display, TEXT("    Version: %d"), Info.Version);
+	UE_LOG(LogPakFile, Display, TEXT("    IndexOffset: %d"), Info.IndexOffset);
+	UE_LOG(LogPakFile, Display, TEXT("    IndexSize: %d"), Info.IndexSize);
+	UE_LOG(LogPakFile, Display, TEXT("    IndexHash: %s"), *Info.IndexHash.ToString());
+	UE_LOG(LogPakFile, Display, TEXT("    bEncryptedIndex: %d"), Info.bEncryptedIndex);
+	UE_LOG(LogPakFile, Display, TEXT("    EncryptionKeyGuid: %s"), *Info.EncryptionKeyGuid.ToString());
+
+	return true;
+}
+
 bool DiffFilesInPaks(const FString& InPakFilename1, const FString& InPakFilename2, const bool bLogUniques1, const bool bLogUniques2, const FKeyChain& InKeyChain)
 {
 	int32 NumUniquePAK1 = 0;
@@ -4752,6 +4779,19 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		return ListFilesInPak(*PakFilename, SizeFilter, !bExcludeDeleted, *CSVFilename, bExtractToMountPoint, KeyChain);
 	}
 
+	if (FParse::Param(CmdLine, TEXT("Info")))
+	{
+		if (NonOptionArguments.Num() != 1)
+		{
+			UE_LOG(LogPakFile, Error, TEXT("Incorrect arguments. Expected: -Info <PakFile>"));
+			return false;
+		}
+
+		FString PakFilename = GetPakPath(*NonOptionArguments[0], false);
+
+		return DumpPakInfo(PakFilename, KeyChain);
+	}
+
 	if (FParse::Param(CmdLine, TEXT("Diff")))
 	{
 		if(NonOptionArguments.Num() != 2)
@@ -5147,6 +5187,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 	UE_LOG(LogPakFile, Error, TEXT("No pak file name specified. Usage:"));
 	UE_LOG(LogPakFile, Error, TEXT("  UnrealPak <PakFilename> -Test"));
 	UE_LOG(LogPakFile, Error, TEXT("  UnrealPak <PakFilename> -Verify"));
+	UE_LOG(LogPakFile, Error, TEXT("  UnrealPak <PakFilename> -Info"));
 	UE_LOG(LogPakFile, Error, TEXT("  UnrealPak <PakFilename> -List [-ExcludeDeleted]"));
 	UE_LOG(LogPakFile, Error, TEXT("  UnrealPak <PakFilename> <GameUProjectName> <GameFolderName> -ExportDependencies=<OutputFileBase> -NoAssetRegistryCache -ForceDependsGathering"));
 	UE_LOG(LogPakFile, Error, TEXT("  UnrealPak <PakFilename> -Extract <ExtractDir> [-Filter=<filename>]"));

@@ -28,6 +28,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "NiagaraEffectType"))
 	FSoftObjectPath DefaultEffectType;
 
+	/** The quality levels Niagara uses. */
+	UPROPERTY(config, EditAnywhere, Category = Scalability)
+	TArray<FText> QualityLevels;
+
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
 #if WITH_EDITOR

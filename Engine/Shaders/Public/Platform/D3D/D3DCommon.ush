@@ -9,3 +9,17 @@ precise float2 MakePrecise(precise float2 v) { return v; }
 precise float3 MakePrecise(precise float3 v) { return v; }
 precise float4 MakePrecise(precise float4 v) { return v; }
 #define INVARIANT(X) X
+
+#if PLATFORM_SUPPORTS_STATIC_SAMPLERS
+
+// Static sampler table must match D3D12RootSignature.cpp
+SamplerState D3DStaticPointWrappedSampler       : register(s1000);
+SamplerState D3DStaticPointClampedSampler       : register(s1001);
+SamplerState D3DStaticBilinearWrappedSampler    : register(s1002);
+SamplerState D3DStaticBilinearClampedSampler    : register(s1003);
+SamplerState D3DStaticTrilinearWrappedSampler   : register(s1004);
+SamplerState D3DStaticTrilinearClampedSampler   : register(s1005);
+
+#define GetGlobalSampler(Filter, WrapMode) D3DStatic##Filter##WrapMode##Sampler
+
+#endif // PLATFORM_SUPPORTS_STATIC_SAMPLERS

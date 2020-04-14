@@ -356,7 +356,7 @@ public:
 	}
 
 	/** Returns the associated FNiagaraVariable for the passed data interface if it exists in the store. Null if not.*/
-	const FNiagaraVariableBase* FindVariable(UNiagaraDataInterface* Interface)const;
+	const FNiagaraVariableBase* FindVariable(const UNiagaraDataInterface* Interface) const;
 
 	virtual const int32* FindParameterOffset(const FNiagaraVariableBase& Parameter, bool IgnoreType = false) const;
 

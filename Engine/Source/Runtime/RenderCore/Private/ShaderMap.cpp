@@ -250,7 +250,12 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 			Resource = FShaderCodeLibrary::LoadResource(ResourceHash, &Ar);
 			if (!Resource)
 			{
-				UE_LOG(LogShaders, Error, TEXT("Missing shader resource for hash '%s' in the shader library"), *ResourceHash.ToString());
+				// do not warn when running -nullrhi (the resource cannot be created as the shader library will not be uninitialized),
+				// also do not warn for shader platforms other than current (if the game targets more than one RHI)
+				if (FApp::CanEverRender() && GetShaderPlatform() == GMaxRHIShaderPlatform)
+				{
+					UE_LOG(LogShaders, Error, TEXT("Missing shader resource for hash '%s' for shader platform %d in the shader library"), *ResourceHash.ToString(), GetShaderPlatform());
+				}
 				bContentValid = false;
 			}
 		}
@@ -304,36 +309,66 @@ void FShaderMapBase::DestroyContent()
 	}
 }
 
+static uint16 MakeShaderHash(const FHashedName& TypeName, int32 PermutationId)
+{
+	return (uint16)CityHash128to64({ TypeName.GetHash(), (uint64)PermutationId });
+}
+
 FShader* FShaderMapContent::GetShader(const FHashedName& TypeName, int32 PermutationId) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapContent::GetShader);
-	const int32 Index = Algo::BinarySearchBy(Shaders, FShaderMapKey(TypeName, PermutationId), FProjectShaderToKey());
-	return (Index != INDEX_NONE) ? Shaders[Index].Get() : nullptr;
-}
+	const uint16 Hash = MakeShaderHash(TypeName, PermutationId);
+	const FHashedName* RESTRICT LocalShaderTypes = ShaderTypes.GetData();
+	const int32* RESTRICT LocalShaderPermutations = ShaderPermutations.GetData();
+	const uint32* RESTRICT LocalNextHashIndices = ShaderHash.GetNextIndices();
+	const uint32 NumShaders = Shaders.Num();
 
-void FShaderMapContent::AddShader(FShader* Shader)
-{
-	check(!Shader->IsFrozen());
-	checkSlow(!HasShader(Shader->GetTypeName(), Shader->GetPermutationId()));
-	const int32 Index = Algo::LowerBoundBy(Shaders, FShaderMapKey(*Shader), FProjectShaderToKey());
-	Shaders.Insert(Shader, Index);
-}
-
-FShader* FShaderMapContent::FindOrAddShader(FShader* Shader)
-{
-	check(!Shader->IsFrozen());
-	const int32 Index = Algo::LowerBoundBy(Shaders, FShaderMapKey(*Shader), FProjectShaderToKey());
-	if (Index < Shaders.Num())
+	for (uint32 Index = ShaderHash.First(Hash); ShaderHash.IsValid(Index); Index = LocalNextHashIndices[Index])
 	{
-		FShader* PrevShader = Shaders[Index];
-		if (PrevShader->GetTypeName() == Shader->GetTypeName() && PrevShader->GetPermutationId() == Shader->GetPermutationId())
+		checkSlow(Index < NumShaders);
+		if (LocalShaderTypes[Index] == TypeName && LocalShaderPermutations[Index] == PermutationId)
 		{
-			DeleteObjectFromLayout(Shader);
-			return PrevShader;
+			return Shaders[Index].GetChecked();
 		}
 	}
 
-	Shaders.Insert(Shader, Index);
+	return nullptr;
+}
+
+void FShaderMapContent::AddShader(const FHashedName& TypeName, int32 PermutationId, FShader* Shader)
+{
+	check(!Shader->IsFrozen());
+	checkSlow(!HasShader(TypeName, PermutationId));
+
+	const uint16 Hash = MakeShaderHash(TypeName, PermutationId);
+	const int32 Index = Shaders.Add(Shader);
+	ShaderTypes.Add(TypeName);
+	ShaderPermutations.Add(PermutationId);
+	check(ShaderTypes.Num() == Shaders.Num());
+	check(ShaderPermutations.Num() == Shaders.Num());
+	ShaderHash.Add(Hash, Index);
+}
+
+FShader* FShaderMapContent::FindOrAddShader(const FHashedName& TypeName, int32 PermutationId, FShader* Shader)
+{
+	check(!Shader->IsFrozen());
+
+	const uint16 Hash = MakeShaderHash(TypeName, PermutationId);
+	for (uint32 Index = ShaderHash.First(Hash); ShaderHash.IsValid(Index); Index = ShaderHash.Next(Index))
+	{
+		if (ShaderTypes[Index] == TypeName && ShaderPermutations[Index] == PermutationId)
+		{
+			DeleteObjectFromLayout(Shader);
+			return Shaders[Index].GetChecked();
+		}
+	}
+
+	const int32 Index = Shaders.Add(Shader);
+	ShaderHash.Add(Hash, Index);
+	ShaderTypes.Add(TypeName);
+	ShaderPermutations.Add(PermutationId);
+	check(ShaderTypes.Num() == Shaders.Num());
+	check(ShaderPermutations.Num() == Shaders.Num());
 	return Shader;
 }
 
@@ -365,12 +400,37 @@ FShaderPipeline* FShaderMapContent::FindOrAddShaderPipeline(FShaderPipeline* Pip
  * Removes the shader of the given type from the shader map
  * @param Type Shader type to remove the entry for
  */
-void FShaderMapContent::RemoveShaderTypePermutaion(const FShaderType* Type, int32 PermutationId)
+void FShaderMapContent::RemoveShaderTypePermutaion(const FHashedName& TypeName, int32 PermutationId)
 {
-	const int32 Index = Algo::BinarySearchBy(Shaders, FShaderMapKey(Type->GetHashedName(), PermutationId), FProjectShaderToKey());
-	if (Index != INDEX_NONE)
+	const uint16 Hash = MakeShaderHash(TypeName, PermutationId);
+
+	for (uint32 Index = ShaderHash.First(Hash); ShaderHash.IsValid(Index); Index = ShaderHash.Next(Index))
 	{
-		Shaders.RemoveAt(Index, 1, false);
+		FShader* Shader = Shaders[Index].GetChecked();
+		if (ShaderTypes[Index] == TypeName && ShaderPermutations[Index] == PermutationId)
+		{
+			DeleteObjectFromLayout(Shader);
+
+			// Replace the shader we're removing with the last shader in the list
+			Shaders.RemoveAtSwap(Index, 1, false);
+			ShaderTypes.RemoveAtSwap(Index, 1, false);
+			ShaderPermutations.RemoveAtSwap(Index, 1, false);
+			check(ShaderTypes.Num() == Shaders.Num());
+			check(ShaderPermutations.Num() == Shaders.Num());
+			ShaderHash.Remove(Hash, Index);
+
+			// SwapIndex is the old index of the shader at the end of the list, that's now been moved to replace the current shader
+			const int32 SwapIndex = Shaders.Num();
+			if (Index != SwapIndex)
+			{
+				// We need to update the hash table to reflect shader previously at SwapIndex being moved to Index
+				// Here we construct the hash from values at Index, since type/permutation have already been moved
+				const uint16 SwapHash = MakeShaderHash(ShaderTypes[Index], ShaderPermutations[Index]);
+				ShaderHash.Remove(SwapHash, SwapIndex);
+				ShaderHash.Add(SwapHash, Index);
+			}
+			break;
+		}
 	}
 }
 
@@ -387,14 +447,15 @@ void FShaderMapContent::RemoveShaderPipelineType(const FShaderPipelineType* Shad
 
 void FShaderMapContent::GetShaderList(const FShaderMapBase& InShaderMap, const FSHAHash& InMaterialShaderMapHash, TMap<FShaderId, TShaderRef<FShader>>& OutShaders) const
 {
-	for (FShader* Shader : Shaders)
+	for (int32 ShaderIndex = 0; ShaderIndex < Shaders.Num(); ++ShaderIndex)
 	{
+		FShader* Shader = Shaders[ShaderIndex].GetChecked();
 		const FShaderId ShaderId(
 			Shader->GetType(InShaderMap.GetPointerTable()),
 			InMaterialShaderMapHash,
 			FHashedName(),
 			Shader->GetVertexFactoryType(InShaderMap.GetPointerTable()),
-			Shader->GetPermutationId(),
+			ShaderPermutations[ShaderIndex],
 			GetShaderPlatform());
 
 		OutShaders.Add(ShaderId, TShaderRef<FShader>(Shader, InShaderMap));
@@ -402,33 +463,37 @@ void FShaderMapContent::GetShaderList(const FShaderMapBase& InShaderMap, const F
 
 	for (const FShaderPipeline* ShaderPipeline : ShaderPipelines)
 	{
-		for (const TShaderRef<FShader>& Shader : ShaderPipeline->GetShaders(InShaderMap))
+		for (uint32 Frequency = 0u; Frequency < SF_NumGraphicsFrequencies; ++Frequency)
 		{
-			const FShaderId ShaderId(
-				Shader.GetType(),
-				InMaterialShaderMapHash,
-				ShaderPipeline->TypeName,
-				Shader.GetVertexFactoryType(),
-				Shader->GetPermutationId(),
-				GetShaderPlatform());
-
-			OutShaders.Add(ShaderId, Shader);
+			FShader* Shader = ShaderPipeline->Shaders[Frequency].Get();
+			if (Shader)
+			{
+				const FShaderId ShaderId(
+					Shader->GetType(InShaderMap.GetPointerTable()),
+					InMaterialShaderMapHash,
+					ShaderPipeline->TypeName,
+					Shader->GetVertexFactoryType(InShaderMap.GetPointerTable()),
+					ShaderPipeline->PermutationIds[Frequency],
+					GetShaderPlatform());
+				OutShaders.Add(ShaderId, TShaderRef<FShader>(Shader, InShaderMap));
+			}
 		}
 	}
 }
 
 void FShaderMapContent::GetShaderList(const FShaderMapBase& InShaderMap, TMap<FHashedName, TShaderRef<FShader>>& OutShaders) const
 {
-	for (FShader* Shader : Shaders)
+	for (int32 ShaderIndex = 0; ShaderIndex < Shaders.Num(); ++ShaderIndex)
 	{
-		OutShaders.Add(Shader->GetTypeName(), TShaderRef<FShader>(Shader, InShaderMap));
+		FShader* Shader = Shaders[ShaderIndex].GetChecked();
+		OutShaders.Add(ShaderTypes[ShaderIndex], TShaderRef<FShader>(Shader, InShaderMap));
 	}
 
 	for (const FShaderPipeline* ShaderPipeline : ShaderPipelines)
 	{
 		for (const TShaderRef<FShader>& Shader : ShaderPipeline->GetShaders(InShaderMap))
 		{
-			OutShaders.Add(Shader->GetTypeName(), Shader);
+			OutShaders.Add(Shader.GetType()->GetHashedName(), Shader);
 		}
 	}
 }
@@ -510,9 +575,10 @@ void FShaderMapContent::GetOutdatedTypes(const FShaderMapBase& InShaderMap, TArr
 
 void FShaderMapContent::SaveShaderStableKeys(const FShaderMapBase& InShaderMap, EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& SaveKeyVal)
 {
-	for (FShader* Shader : Shaders)
+	for (int32 ShaderIndex = 0; ShaderIndex < Shaders.Num(); ++ShaderIndex)
 	{
-		Shader->SaveShaderStableKeys(InShaderMap.GetPointerTable(), TargetShaderPlatform, SaveKeyVal);
+		const int32 PermutationId = ShaderPermutations[ShaderIndex];
+		Shaders[ShaderIndex]->SaveShaderStableKeys(InShaderMap.GetPointerTable(), TargetShaderPlatform, PermutationId, SaveKeyVal);
 	}
 
 	for (const FShaderPipeline* Pipeline : ShaderPipelines)
@@ -573,6 +639,75 @@ uint32 FShaderMapContent::GetMaxNumInstructionsForShader(const FShaderMapBase& I
 	return MaxNumInstructions;
 }
 
+struct FSortedShaderEntry
+{
+	FHashedName TypeName;
+	int32 PermutationId;
+	int32 Index;
+
+	friend bool operator<(const FSortedShaderEntry& Lhs, const FSortedShaderEntry& Rhs)
+	{
+		if (Lhs.TypeName != Rhs.TypeName)
+		{
+			return Lhs.TypeName < Rhs.TypeName;
+		}
+		return Lhs.PermutationId < Rhs.PermutationId;
+	}
+};
+
+void FShaderMapContent::Finalize()
+{
+	// Sort the shaders by type/permutation, so they are consistently ordered
+	TArray<FSortedShaderEntry> SortedEntries;
+	SortedEntries.Empty(Shaders.Num());
+	for (int32 ShaderIndex = 0; ShaderIndex < Shaders.Num(); ++ShaderIndex)
+	{
+		FSortedShaderEntry& Entry = SortedEntries.AddDefaulted_GetRef();
+		Entry.TypeName = ShaderTypes[ShaderIndex];
+		Entry.PermutationId = ShaderPermutations[ShaderIndex];
+		Entry.Index = ShaderIndex;
+	}
+	SortedEntries.Sort();
+
+	// Choose a good hash size based on the number of shaders we have
+	const uint32 HashSize = FMath::RoundUpToPowerOfTwo(FMath::Max((Shaders.Num() * 3) / 2, 1));
+	FMemoryImageHashTable NewShaderHash(HashSize, Shaders.Num());
+	TMemoryImageArray<TMemoryImagePtr<FShader>> NewShaders;
+	NewShaders.Empty(Shaders.Num());
+	ShaderTypes.Empty(Shaders.Num());
+	ShaderPermutations.Empty(Shaders.Num());
+
+	for (int32 SortedIndex = 0; SortedIndex < SortedEntries.Num(); ++SortedIndex)
+	{
+		const FSortedShaderEntry& SortedEntry = SortedEntries[SortedIndex];
+		const uint16 Key = MakeShaderHash(SortedEntry.TypeName, SortedEntry.PermutationId);
+		NewShaders.Add(Shaders[SortedEntry.Index]);
+		ShaderTypes.Add(SortedEntry.TypeName);
+		ShaderPermutations.Add(SortedEntry.PermutationId);
+		NewShaderHash.Add(Key, SortedIndex);
+	}
+
+	Shaders = MoveTemp(NewShaders);
+	ShaderHash = MoveTemp(NewShaderHash);
+}
+
+void FShaderMapContent::UpdateHash(FSHA1& Hasher) const
+{
+	for (int32 ShaderIndex = 0; ShaderIndex < Shaders.Num(); ++ShaderIndex)
+	{
+		const FHashedName& TypeName = ShaderTypes[ShaderIndex];
+		const int32 PermutationId = ShaderPermutations[ShaderIndex];
+		Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
+		Hasher.Update((uint8*)&PermutationId, sizeof(PermutationId));
+	}
+
+	for (const FShaderPipeline* Pipeline : GetShaderPipelines())
+	{
+		const FHashedName& TypeName = Pipeline->TypeName;
+		Hasher.Update((uint8*)&TypeName, sizeof(TypeName));
+	}
+}
+
 void FShaderMapContent::Empty()
 {
 	EmptyShaderPipelines();
@@ -581,6 +716,9 @@ void FShaderMapContent::Empty()
 		Shaders[i].SafeDelete();
 	}
 	Shaders.Empty();
+	ShaderTypes.Empty();
+	ShaderPermutations.Empty();
+	ShaderHash.Clear();
 }
 
 void FShaderMapContent::EmptyShaderPipelines()

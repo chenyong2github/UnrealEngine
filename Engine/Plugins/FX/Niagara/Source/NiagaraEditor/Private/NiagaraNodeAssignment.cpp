@@ -21,6 +21,9 @@
 #include "ScopedTransaction.h"
 #include "ViewModels/Stack/INiagaraStackItemGroupAddUtilities.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SNiagaraParameterName.h"
+#include "NiagaraCustomVersion.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeAssigment"
 
@@ -208,6 +211,18 @@ void UNiagaraNodeAssignment::PostLoad()
 		}
 	}
 
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (NiagaraVer < FNiagaraCustomVersion::StandardizeParameterNames)
+	{
+		for (FNiagaraVariable& AssignmentTarget : AssignmentTargets)
+		{
+			FName CurrentName = AssignmentTarget.GetName();
+			FName NewName = UNiagaraGraph::StandardizeName(CurrentName, ENiagaraScriptUsage::Module, false, true);
+			AssignmentTarget.SetName(NewName);
+		}
+		RefreshFromExternalChanges();
+	}
+
 	RefreshTitle();
 }
 
@@ -255,12 +270,16 @@ void UNiagaraNodeAssignment::BuildAddParameterMenu(FMenuBuilder& MenuBuilder, EN
 		bool bCanExecute = AssignmentTargets.Contains(AvailableParameter) == false; 
 
 		MenuBuilder.AddMenuEntry(
-			NameText,
-			TooltipDesc,
-			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, AvailableParameter, VarDefaultValue),
-				FCanExecuteAction::CreateLambda([bCanExecute] { return bCanExecute; })));
+				FCanExecuteAction::CreateLambda([bCanExecute] { return bCanExecute; })),
+			SNew(SBox)
+			.Padding(FMargin(5, 1, 5, 1))
+			[
+				SNew(SNiagaraParameterName)
+				.ParameterName(AvailableParameter.GetName())
+				.IsReadOnly(true)
+			]);
 	}
 
 }
@@ -586,12 +605,14 @@ int32 UNiagaraNodeAssignment::CalculateScriptUsageBitmask()
 		}
 		if (UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleSpawnScript) ||
 			UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleUpdateScript) ||
-			UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleEventScript))
+			UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleEventScript) ||
+			UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), ENiagaraScriptUsage::ParticleSimulationStageScript))
 		{
 			UsageBitmask =
 				UsageToBitmask(ENiagaraScriptUsage::ParticleSpawnScript) |
 				UsageToBitmask(ENiagaraScriptUsage::ParticleUpdateScript) |
-				UsageToBitmask(ENiagaraScriptUsage::ParticleEventScript);
+				UsageToBitmask(ENiagaraScriptUsage::ParticleEventScript) |
+				UsageToBitmask(ENiagaraScriptUsage::ParticleSimulationStageScript);
 		}
 	}
 	return UsageBitmask;

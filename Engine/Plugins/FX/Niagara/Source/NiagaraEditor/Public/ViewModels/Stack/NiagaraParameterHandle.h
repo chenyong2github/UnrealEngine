@@ -41,6 +41,8 @@ public:
 
 	const FName GetNamespace() const;
 
+	const TArray<FName> GetHandleParts() const;
+
 	bool IsUserHandle() const;
 
 	bool IsEngineHandle() const;
@@ -53,14 +55,21 @@ public:
 
 	bool IsModuleHandle() const;
 
+	bool IsOutputHandle() const;
+
+	bool IsLocalHandle() const;
+
 	bool IsParameterCollectionHandle() const;
 
 	bool IsReadOnlyHandle() const;
 
 	bool IsTransientHandle() const;
 
+	bool IsDataInstanceHandle() const;
+
 private:
 	FName ParameterHandleName;
 	FName Name;
 	FName Namespace;
+	mutable TArray<FName> HandlePartsCache;
 };

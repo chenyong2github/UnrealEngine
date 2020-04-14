@@ -1002,12 +1002,13 @@ public:
 	 * Tell client to fade camera
 	 * @Param bEnableFading - true if we should apply FadeColor/FadeAmount to the screen
 	 * @Param FadeColor - Color to fade to
-	 * @Param FadeAlpha - Amount of fading to apply
+	 * @Param FadeAlpha - Contains the start fade (X) and end fade (Y) values to apply. A start fade of less than 0 will use the screen's current fade value
 	 * @Param FadeTime - length of time for fade to occur over
 	 * @Param bFadeAudio - true to apply fading of audio alongside the video
+	 * @param bHoldWhenFinished - True for fade to hold at the ToAlpha until fade is disabled
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientSetCameraFade(bool bEnableFading, FColor FadeColor = FColor(ForceInit), FVector2D FadeAlpha = FVector2D(ForceInit), float FadeTime = 0, bool bFadeAudio = false);
+	void ClientSetCameraFade(bool bEnableFading, FColor FadeColor = FColor(ForceInit), FVector2D FadeAlpha = FVector2D(-1.0f, 0.0f), float FadeTime = 0, bool bFadeAudio = false, bool bHoldWhenFinished = false);
 
 	/**
 	 * Replicated function to set camera style on client

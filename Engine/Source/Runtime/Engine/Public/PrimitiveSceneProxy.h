@@ -723,6 +723,7 @@ public:
    	 * @param InVisiblePrimitiveLODMask - Calculated LODMask for visibile primitive in static relevancy
    	 * @param InMeshScreenSizeSquared - Computed mesh batch screen size, passed to prevent recalculation
 	 */
+	UE_DEPRECATED(4.25, "The entire ViewCustomData is deprecated. You need to reimplement your feature in other ways, like IPersistentViewUniformBufferExtension (use landscape as an example).")
 	ENGINE_API virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const struct FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) { return nullptr; }
 
 	/** Tell us if this proxy is drawn in game.*/
@@ -739,9 +740,11 @@ public:
   	 * @param InForcedLODLevel - Engine Forced LOD value
    	 * @param OutScreenSizeSquared - Computed screen size from the function
 	 */
+	UE_DEPRECATED(4.25, "We no longer support custom LOD rules.")
 	ENGINE_API virtual struct FLODMask GetCustomLOD(const FSceneView& InView, float InViewLODScale, int32 InForcedLODLevel, float& OutScreenSizeSquared) const;
 
 	/** Tell us if we should rely on the default shadow LOD computing rules or not for generating whole scene shadow.*/
+	UE_DEPRECATED(4.25, "We no longer support custom LOD rules.")
 	ENGINE_API virtual bool IsUsingCustomWholeSceneShadowLODRules() const { return false; }
 	
 	/** 
@@ -755,6 +758,7 @@ public:
    	 * @param InShadowCascadeId - Shadow cascade Id
    	 * @param InHasSelfShadow - Indicate if we have self shadow, as it can impact which LODMask we choose
 	 */
+	UE_DEPRECATED(4.25, "We no longer support custom shadow LOD rules.")
 	ENGINE_API virtual struct FLODMask GetCustomWholeSceneShadowLOD(const FSceneView& InView, float InViewLODScale, int32 InForcedLODLevel, const struct FLODMask& InVisibilePrimitiveLODMask, float InShadowMapTextureResolution, float InShadowMapCascadeSize, int8 InShadowCascadeId, bool InHasSelfShadow) const;
 
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const { return 0; }

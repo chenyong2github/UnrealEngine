@@ -65,7 +65,7 @@ void SolveAlignRodMaterial(in bool EnableConstraint, in int StrandsSize, in floa
 			in float MaterialCompliance, in float MaterialWeight, in float3 MaterialMultiplier, out float3 OutMaterialMultiplier)
 {
 	OutMaterialMultiplier = MaterialMultiplier;
-	if(EnableConstraint)
+	if(DeltaTime != 0.0 && EnableConstraint)
 	{
 		const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 		if( LocalIndex > 1)
@@ -87,7 +87,7 @@ void SolveAlignRodMaterial(in bool EnableConstraint, in int StrandsSize, in floa
 	}
 } 
 
-void ProjectAlignRodMaterial(in bool EnableConstraint, in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float DeltaTime, out float3 OutNodePosition)
+void ProjectAlignRodMaterial(in bool EnableConstraint, in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float DeltaTime, out float4 OutNodeOrientation)
 {
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 	if(DeltaTime != 0.0 && EnableConstraint)
@@ -111,7 +111,7 @@ void ProjectAlignRodMaterial(in bool EnableConstraint, in int StrandsSize, in fl
 		}
 	}
 	GroupMemoryBarrier();
-	OutNodePosition = SharedNodePosition[GGroupThreadId.x];
+	OutNodeOrientation = SharedNodeOrientation[GGroupThreadId.x];
 }
 
 /* -----------------------------------------------------------------
@@ -175,7 +175,7 @@ void SolveStretchRodMaterial(in bool EnableConstraint, in int StrandsSize, in fl
 			in float MaterialCompliance, in float MaterialWeight, in float3 MaterialMultiplier, out float3 OutMaterialMultiplier)
 {
 	OutMaterialMultiplier = MaterialMultiplier;
-	if(EnableConstraint)
+	if(DeltaTime != 0.0 && EnableConstraint)
 	{
 		const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 		if( LocalIndex > 1)
@@ -295,7 +295,8 @@ void SolveBendRodMaterial(in bool EnableConstraint, in int StrandsSize, in float
 {
 	OutMaterialMultiplier = MaterialMultiplier;
 
-	if(EnableConstraint)
+	UpdateMaterialFrame(StrandsSize);
+	if(DeltaTime != 0.0 && EnableConstraint)
 	{
 		const int LocalIndex = (GGroupThreadId.x % StrandsSize);
 		if( LocalIndex > 0)
@@ -317,9 +318,11 @@ void SolveBendRodMaterial(in bool EnableConstraint, in int StrandsSize, in float
 	}
 } 
 
-void ProjectBendRodMaterial(in bool EnableConstraint, in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float4 RestDarboux, in float DeltaTime, out float3 OutNodePosition)
+void ProjectBendRodMaterial(in bool EnableConstraint, in int StrandsSize, in float YoungModulus, in float RodThickness, in float RestLength, in float4 RestDarboux, in float DeltaTime, out float4 OutNodeOrientation)
 {
 	const int LocalIndex = (GGroupThreadId.x % StrandsSize);
+
+	UpdateMaterialFrame(StrandsSize);
 	if(DeltaTime != 0.0 && EnableConstraint)
 	{
 		float MaterialCompliance = 0.0;
@@ -341,7 +344,7 @@ void ProjectBendRodMaterial(in bool EnableConstraint, in int StrandsSize, in flo
 		}
 	}
 	GroupMemoryBarrier();
-	OutNodePosition = SharedNodePosition[GGroupThreadId.x];
+	OutNodeOrientation = SharedNodeOrientation[GGroupThreadId.x];
 }
 
 /* -----------------------------------------------------------------

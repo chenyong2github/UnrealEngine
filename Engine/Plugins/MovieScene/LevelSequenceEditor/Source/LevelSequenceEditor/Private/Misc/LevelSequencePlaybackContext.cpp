@@ -17,6 +17,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "MovieSceneCaptureDialogModule.h"
+#include "LevelSequenceEditorModule.h"
 #include "EditorStyleSet.h"
 #include "Engine/Engine.h"
 #include "Editor.h"
@@ -191,6 +192,15 @@ UWorld* FLevelSequencePlaybackContext::ComputePlaybackContext()
 	const ULevelSequenceEditorSettings* Settings            = GetDefault<ULevelSequenceEditorSettings>();
 	IMovieSceneCaptureDialogModule*     CaptureDialogModule = FModuleManager::GetModulePtr<IMovieSceneCaptureDialogModule>("MovieSceneCaptureDialog");
 
+	// Some plugins may not want us to automatically attempt to bind to the world where it doesn't make sense,
+	// such as movie rendering.
+	bool bAllowPlaybackContextBinding = true;
+	ILevelSequenceEditorModule* LevelSequenceEditorModule = FModuleManager::GetModulePtr<ILevelSequenceEditorModule>("LevelSequenceEditor");
+	if (LevelSequenceEditorModule)
+	{
+		LevelSequenceEditorModule->OnComputePlaybackContext().Broadcast(bAllowPlaybackContextBinding);
+	}
+
 	UWorld* RecordingWorld = CaptureDialogModule ? CaptureDialogModule->GetCurrentlyRecordingWorld() : nullptr;
 
 	// Only allow PIE and Simulate worlds if the settings allow them
@@ -205,7 +215,7 @@ UWorld* FLevelSequencePlaybackContext::ComputePlaybackContext()
 		if (Context.WorldType == EWorldType::PIE)
 		{
 			UWorld* ThisWorld = Context.World();
-			if (bIsPIEValid && RecordingWorld != ThisWorld)
+			if (bIsPIEValid && bAllowPlaybackContextBinding && RecordingWorld != ThisWorld)
 			{
 				return ThisWorld;
 			}

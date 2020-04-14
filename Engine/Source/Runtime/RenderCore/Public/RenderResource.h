@@ -411,6 +411,11 @@ public:
 	{
 		return 0;
 	}
+	/** Returns the depth of the texture in pixels. */
+	virtual uint32 GetSizeZ() const
+	{
+		return 0;
+	}
 
 	// FRenderResource interface.
 	virtual void ReleaseRHI() override

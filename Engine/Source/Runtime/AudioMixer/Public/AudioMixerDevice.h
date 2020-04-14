@@ -126,10 +126,13 @@ namespace Audio
 		virtual void AddEnvelopeFollowerDelegate(USoundSubmix* InSubmix, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP) override;
 
 		// Submix Spectrum Analysis
-		virtual void StartSpectrumAnalysis(USoundSubmix* InSubmix, const Audio::FSpectrumAnalyzerSettings& InSettings) override;
+
+		virtual void StartSpectrumAnalysis(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerSettings& InSettings) override;
 		virtual void StopSpectrumAnalysis(USoundSubmix* InSubmix) override;
-		virtual void GetMagnitudesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes);
-		virtual void GetPhasesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutPhases);
+		virtual void GetMagnitudesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes) override;
+		virtual void GetPhasesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutPhases) override;
+		virtual void AddSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP) override;
+		virtual void RemoveSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP) override;
 
 		// Submix buffer listener callbacks
 		virtual void RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix = nullptr) override;
@@ -223,6 +226,8 @@ namespace Audio
 		double GetAudioThreadTime() const { return AudioThreadTimingData.AudioThreadTime; }
 		double GetAudioRenderThreadTime() const { return AudioThreadTimingData.AudioRenderThreadTime; }
 		double GetAudioClockDelta() const { return AudioClockDelta; }
+
+		EMonoChannelUpmixMethod GetMonoChannelUpmixMethod() const { return MonoChannelUpmixMethod; }
 
 		TArray<Audio::FChannelPositionInfo>* GetDefaultPositionMap(int32 NumChannels);
 
@@ -338,7 +343,7 @@ namespace Audio
 		FCriticalSection EndpointSubmixesMutationLock;
 
 		/** Which submixes have been told to envelope follow with this audio device. */
-		TArray<USoundSubmix*> EnvelopeFollowingSubmixes;
+		TArray<USoundSubmix*> DelegateBoundSubmixes;
 
 		/** Queue of mixer source voices. */
 		TQueue<FMixerSourceVoice*> SourceVoices;

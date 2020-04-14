@@ -75,8 +75,7 @@ int32 FRigVMCompilerWorkData::DecRefRegister(int32 InRegister, int32 InDecrement
 	if (int32* RefCountPtr = RegisterRefCount.Find(InRegister))
 	{
 		int32& RefCount = *RefCountPtr;
-		RefCount -= InDecrement;
-		ensure(RefCount >= 0);
+		RefCount = FMath::Max<int32>(0, RefCount - InDecrement);
 		return RefCount;
 	}
 	return 0;
@@ -126,18 +125,14 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVM* OutVM, const FRigVMUs
 	WorkData.NumInstructions = 0;
 
 	// define all parameters independent from sorted nodes
-	for (URigVMNode* Node : InGraph->GetNodes())
+	for (const FRigVMExprAST* Expr : AST->Expressions)
 	{
-		if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
+		if (Expr->IsA(FRigVMExprAST::EType::Var))
 		{
-			const FRigVMExprAST* ParameterExpr = AST->GetExprForSubject(ParameterNode);
-			check(ParameterExpr);
-
-			for (const FRigVMExprAST* ChildExpr : *ParameterExpr)
+			const FRigVMVarExprAST* VarExpr = Expr->To<FRigVMVarExprAST>();
 			{
-				if (ChildExpr->IsA(FRigVMExprAST::EType::Var))
+				if(Cast<URigVMParameterNode>(VarExpr->GetPin()->GetNode()))
 				{
-					const FRigVMVarExprAST* VarExpr = ChildExpr->To<FRigVMVarExprAST>();
 					if (VarExpr->GetPin()->GetName() == TEXT("Value"))
 					{
 						FindOrAddRegister(VarExpr, WorkData, false /* watchvalue */);
@@ -145,6 +140,12 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVM* OutVM, const FRigVMUs
 				}
 			}
 		}
+	}
+
+	WorkData.ExprComplete.Reset();
+	for (FRigVMExprAST* RootExpr : *AST)
+	{
+		TraverseExpression(RootExpr, WorkData);
 	}
 
 	// If a parameter node has no corresponding AST node, because it's not on the execution path,
@@ -169,12 +170,6 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVM* OutVM, const FRigVMUs
 				}
 			}
 		}
-	}
-
-	WorkData.ExprComplete.Reset();
-	for (FRigVMExprAST* RootExpr : *AST)
-	{
-		TraverseExpression(RootExpr, WorkData);
 	}
 
 	WorkData.bSetupMemory = false;
@@ -1030,7 +1025,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			FName Name = ParameterNode->GetParameterName();
 			ERigVMParameterType ParameterType = ParameterNode->IsInput() ? ERigVMParameterType::Input : ERigVMParameterType::Output;
 			FRigVMParameter Parameter(ParameterType, Name, Operand.GetRegisterIndex(), Pin->GetCPPType(), ScriptStruct);
-			WorkData.VM->ParametersNameMap.Add(Parameter.Name, WorkData.VM->Parameters.Add(Parameter));
+			WorkData.VM->ParametersNameMap.FindOrAdd(Parameter.Name) = WorkData.VM->Parameters.Add(Parameter);
 		}
 	}
 	ensure(Operand.IsValid());

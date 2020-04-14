@@ -941,6 +941,7 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 
 	int32 PreviousIndex = CurrentActorIndexForUpdateComponents;
 	// Find next valid actor to process components registration
+
 	while (CurrentActorIndexForUpdateComponents < Actors.Num())
 	{
 		AActor* Actor = Actors[CurrentActorIndexForUpdateComponents];
@@ -1022,6 +1023,7 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 		check(OwningWorld->IsGameWorld());
 	}
 
+	if (FBodyInstance::UseDeferredPhysicsBodyCreation())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DeferredUpdateBodies);
 		// Init Bodies

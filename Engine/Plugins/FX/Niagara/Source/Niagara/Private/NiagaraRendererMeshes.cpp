@@ -588,8 +588,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 	FRayTracingInstance RayTracingInstance;
 	RayTracingInstance.Geometry = &Geometry;
 
-	int32 SectionCount = SimTarget == ENiagaraSimTarget::GPUComputeSim ? 1 : LODModel.Sections.Num();
-	for (int32 SectionIndex = 0; SectionIndex < SectionCount; SectionIndex++)
+	for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 	{
 		const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
 		FMaterialRenderProxy* MaterialProxy = DynamicDataMesh->Materials[SectionIndex];
@@ -752,7 +751,8 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		InstanceGPUTransformsBuffer.Initialize(3*4*sizeof(float), CPUInstancesCount, BUF_Static);
 		RayTracingInstance.InstanceGPUTransformsSRV = InstanceGPUTransformsBuffer.SRV;
 
-		FNiagaraDrawIndirectArgsGenCS::FPermutationDomain PermutationVector;
+		FNiagaraGPURayTracingTransformsCS::FPermutationDomain PermutationVector;
+
 		TShaderMapRef<FNiagaraGPURayTracingTransformsCS> GPURayTracingTransformsCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 		RHICmdList.SetComputeShader(GPURayTracingTransformsCS.GetComputeShader());
 
@@ -784,6 +784,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, InstanceGPUTransformsBuffer.UAV);
 	}
 
+	RayTracingInstance.BuildInstanceMaskAndFlags();
 	OutRayTracingInstances.Add(RayTracingInstance);
 }
 #endif

@@ -1694,7 +1694,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 		}
 	}
 
-	void print_image_op( ir_dereference_image *deref, ir_rvalue *src)
+	void print_image_op( ir_dereference_image *deref, ir_rvalue *src, const char* Mask = nullptr)
 	{
 		const char* swizzle[] =
 		{
@@ -1725,6 +1725,10 @@ class ir_gen_glsl_visitor : public ir_visitor
 				ralloc_asprintf_append(buffer, "[");
 				deref->image_index->accept(this);
 				ralloc_asprintf_append(buffer, "]");
+				if (Mask)
+				{
+					ralloc_asprintf_append(buffer, Mask);
+				}
 				if (src)
 				{
 					ralloc_asprintf_append(buffer, " = ");
@@ -1840,31 +1844,30 @@ class ir_gen_glsl_visitor : public ir_visitor
 			ralloc_asprintf_append(buffer, ") { ");
 		}
 
+		char mask[6] = "";
+		unsigned j = 1;
+		if (assign->lhs->type->is_scalar() == false ||
+			assign->write_mask != 0x1)
+		{
+			for (unsigned i = 0; i < 4; i++)
+			{
+				if ((assign->write_mask & (1 << i)) != 0)
+				{
+					mask[j] = "xyzw"[i];
+					j++;
+				}
+			}
+		}
+		mask[j] = '\0';
+
+		mask[0] = (j == 1) ? '\0' : '.';
+
 		if (assign->lhs->as_dereference_image() != NULL)
 		{
-			/** EHart - should the write mask be checked here? */
-			print_image_op( assign->lhs->as_dereference_image(), assign->rhs);
+			print_image_op( assign->lhs->as_dereference_image(), assign->rhs, mask);
 		}
 		else
 		{
-			char mask[6];
-			unsigned j = 1;
-			if (assign->lhs->type->is_scalar() == false ||
-				assign->write_mask != 0x1)
-			{
-				for (unsigned i = 0; i < 4; i++)
-				{
-					if ((assign->write_mask & (1 << i)) != 0)
-					{
-						mask[j] = "xyzw"[i];
-						j++;
-					}
-				}
-			}
-			mask[j] = '\0';
-
-			mask[0] = (j == 1) ? '\0' : '.';
-
 			// decide if we need to cast to float
 			const bool need_float_conv = (assign->lhs->type->is_float()
 				&& ((assign->rhs->as_constant() != nullptr)
@@ -3344,7 +3347,7 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 				ralloc_asprintf_append(buffer, "	vec4 FramebufferFetchES2();\n");
 				ralloc_asprintf_append(buffer, "#elif defined( GL_ARM_shader_framebuffer_fetch)\n");
 				ralloc_asprintf_append(buffer, "	#define %sout\n", ES31FrameBufferFetchStorageQualifier);
-				ralloc_asprintf_append(buffer, "	highp vec4 gl_LastFragColorARM;\n");
+				//ralloc_asprintf_append(buffer, "	highp vec4 gl_LastFragColorARM;\n"); // Does not work on S7 MALI
 				ralloc_asprintf_append(buffer, "	vec4 FramebufferFetchES2() { return gl_LastFragColorARM; }\n");
 				ralloc_asprintf_append(buffer, "#else\n");
 				ralloc_asprintf_append(buffer, "	#define %sout\n", ES31FrameBufferFetchStorageQualifier);
@@ -3361,7 +3364,7 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 				ralloc_asprintf_append(buffer, "	#endif\n");
 				ralloc_asprintf_append(buffer, "#else\n");
 				ralloc_asprintf_append(buffer, "	#ifdef GL_ARM_shader_framebuffer_fetch\n");
-				ralloc_asprintf_append(buffer, "		highp vec4 gl_LastFragColorARM;\n");
+				//ralloc_asprintf_append(buffer, "		highp vec4 gl_LastFragColorARM;\n"); Does not work on S7 MALI
 				ralloc_asprintf_append(buffer, "		vec4 FramebufferFetchES2() { return gl_LastFragColorARM; }\n");
 				ralloc_asprintf_append(buffer, "	#else\n");
 				ralloc_asprintf_append(buffer, "		vec4 FramebufferFetchES2() { return vec4(65000.0, 65000.0, 65000.0, 65000.0); }\n");

@@ -132,7 +132,7 @@ public:
 
 	~FGlobalShaderMapSection() { ReleaseResourceBuilder(); }
 
-	void Serialize(FArchive& Ar);
+	bool Serialize(FArchive& Ar);
 
 	FShaderMapResourceBuilder& GetResourceBuilder()
 	{
@@ -204,7 +204,7 @@ public:
 
 	void Empty();
 
-	FShader* FindOrAddShader(const FShaderType* ShaderType, FShader* Shader);
+	FShader* FindOrAddShader(const FShaderType* ShaderType, int32 PermutationId, FShader* Shader);
 	FShaderPipeline* FindOrAddShaderPipeline(const FShaderPipelineType* ShaderPipelineType, FShaderPipeline* ShaderPipeline);
 
 	void RemoveShaderTypePermutaion(const FShaderType* Type, int32 PermutationId);

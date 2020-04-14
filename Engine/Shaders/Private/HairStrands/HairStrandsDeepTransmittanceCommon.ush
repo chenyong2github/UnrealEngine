@@ -278,11 +278,7 @@ FHairTransmittanceMask ComputeTransmittance(
 	Texture3D<float4>	HairLUTTexture,
 	SamplerState		LinearSampler)
 {
-	const bool bIsHairPixel = GBuffer.ShadingModelID == SHADINGMODELID_HAIR;
-
 	FHairTransmittanceMask Out = InitHairTransmittanceMask();
-
-	if (bIsHairPixel)
 	{
 		const bool bIsDirectionalLight = Settings.LightPosition.w == 0;
 

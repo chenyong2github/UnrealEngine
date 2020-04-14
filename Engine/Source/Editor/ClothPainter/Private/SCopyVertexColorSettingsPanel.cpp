@@ -112,15 +112,15 @@ FReply SCopyVertexColorSettingsPanel::OnCopyClicked()
 	UClothingAssetCommon* Asset = SelectedAssetPtr.Get();
 	if (Asset && SelectedMask)
 	{
-		UClothLODDataCommon* ClothLODData = Asset->ClothLodData[SelectedLOD];
+		const FClothLODDataCommon& ClothLODData = Asset->LodData[SelectedLOD];
 
-		check(ClothLODData->ClothPhysicalMeshData.Vertices.Num() == ClothLODData->ClothPhysicalMeshData.VertexColors.Num());
-		int32 NumVerts = ClothLODData->ClothPhysicalMeshData.Vertices.Num();
+		check(ClothLODData.PhysicalMeshData.Vertices.Num() == ClothLODData.PhysicalMeshData.VertexColors.Num());
+		int32 NumVerts = ClothLODData.PhysicalMeshData.Vertices.Num();
 		check(SelectedMask->Values.Num() == NumVerts);
 
 		for (int32 VertIdx = 0; VertIdx < NumVerts; VertIdx++)
 		{
-			const FColor VertColor = ClothLODData->ClothPhysicalMeshData.VertexColors[VertIdx];
+			const FColor VertColor = ClothLODData.PhysicalMeshData.VertexColors[VertIdx];
 			SelectedMask->Values[VertIdx] = GetColorChannelAsFloat(VertColor, CopyParams.ColorChannel, CopyParams.ScalingFactor);
 		}
 	}

@@ -89,7 +89,7 @@ TAutoConsoleVariable<float> CVarGamma(
 
 TAutoConsoleVariable<int32> CVarMobileTonemapperFilm(
 	TEXT("r.Mobile.TonemapperFilm"),
-	0,
+	1,
 	TEXT("Whether mobile platforms should use new film tone mapper"),
 	ECVF_RenderThreadSafe);
 

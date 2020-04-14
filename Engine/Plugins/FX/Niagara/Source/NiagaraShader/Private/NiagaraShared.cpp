@@ -49,7 +49,7 @@ void FNiagaraShaderScript::SetupShaderCompilationEnvironment(
 
 NIAGARASHADER_API bool FNiagaraShaderScript::ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType) const
 {
-	check(ShaderType->GetNiagaraShaderType() )
+	check(ShaderType->GetNiagaraShaderType() != nullptr);
 	return true;
 }
 
@@ -79,10 +79,14 @@ NIAGARASHADER_API void FNiagaraShaderScript::CancelCompilation()
 {
 #if WITH_EDITOR
 	check(IsInGameThread());
-	FNiagaraShaderMap::RemovePendingScript(this);
+	bool bWasPending = FNiagaraShaderMap::RemovePendingScript(this);
 	FNiagaraCompilationQueue::Get()->RemovePending(this);
 
-	UE_LOG(LogShaders, Log, TEXT("CancelCompilation %p."), this);
+	// don't spam the log if no cancelling actually happened : 
+	if (bWasPending)
+	{
+		UE_LOG(LogShaders, Log, TEXT("CancelCompilation %p."), this);
+	}
 	OutstandingCompileShaderMapIds.Empty();
 #endif
 }
@@ -264,11 +268,11 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 			if (bValid)
 			{
 				TRefCountPtr<FNiagaraShaderMap> LoadedShaderMap = new FNiagaraShaderMap();
-				LoadedShaderMap->Serialize(Ar, true, true);
+				bool bLoaded = LoadedShaderMap->Serialize(Ar, true, true);
 
 				// Toss the loaded shader data if this is a server only instance
 				//@todo - don't cook it in the first place
-				if (FApp::CanEverRender())
+				if (FApp::CanEverRender() && bLoaded)
 				{
 					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
 				}
@@ -281,7 +285,7 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 	}
 }
 
-void FNiagaraShaderScript::SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersionID,  const TArray<FString>& InAdditionalDefines,
+void FNiagaraShaderScript::SetScript(UNiagaraScript* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersionID,  const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, FString InFriendlyName)
 {
@@ -295,17 +299,19 @@ void FNiagaraShaderScript::SetScript(UNiagaraScript *InScript, ERHIFeatureLevel:
 	ReferencedCompileHashes = InReferencedCompileHashes;
 	FriendlyName = InFriendlyName;
 	SetFeatureLevel(InFeatureLevel);
+	ShaderPlatform = InShaderPlatform;
 }
 
 #if WITH_EDITOR
-bool FNiagaraShaderScript::MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, const FNiagaraVMExecutableDataId& ScriptId) const
+bool FNiagaraShaderScript::MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FNiagaraVMExecutableDataId& ScriptId) const
 {
 	return CompilerVersionId == ScriptId.CompilerVersionID
 		&& AdditionalDefines == ScriptId.AdditionalDefines
 		&& bUsesRapidIterationParams == ScriptId.bUsesRapidIterationParams
 		&& BaseCompileHash == ScriptId.BaseScriptCompileHash
 		&& ReferencedCompileHashes == ScriptId.ReferencedCompileHashes
-		&& FeatureLevel == InFeatureLevel;
+		&& FeatureLevel == InFeatureLevel
+		&& ShaderPlatform == InShaderPlatform;
 }
 #endif
 
@@ -331,30 +337,35 @@ NIAGARASHADER_API  bool FNiagaraShaderScript::IsCompilationFinished() const
 */
 #if WITH_EDITOR
 
-bool FNiagaraShaderScript::CacheShaders(EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous)
+bool FNiagaraShaderScript::CacheShaders(bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous)
 {
 	FNiagaraShaderMapId NoStaticParametersId;
-	GetShaderMapId(Platform, NoStaticParametersId);
-	return CacheShaders(NoStaticParametersId, Platform, bApplyCompletedShaderMapForRendering, bForceRecompile, bSynchronous);
+	GetShaderMapId(ShaderPlatform, NoStaticParametersId);
+	return CacheShaders(NoStaticParametersId, bApplyCompletedShaderMapForRendering, bForceRecompile, bSynchronous);
 }
 
 /**
 * Caches the shaders for this script
 */
-bool FNiagaraShaderScript::CacheShaders(const FNiagaraShaderMapId& ShaderMapId, EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous)
+bool FNiagaraShaderScript::CacheShaders(const FNiagaraShaderMapId& ShaderMapId, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous)
 {
 	bool bSucceeded = false;
 
 	check(IsInGameThread());
 
 	{
-		// Find the script's cached shader map.
-		GameThreadShaderMap = FNiagaraShaderMap::FindId(ShaderMapId, Platform);
+		GameThreadShaderMap = nullptr;
+		{
+			NIAGARASHADER_API extern FCriticalSection GIdToNiagaraShaderMapCS;
+			FScopeLock ScopeLock(&GIdToNiagaraShaderMapCS);
+			// Find the script's cached shader map.
+			GameThreadShaderMap = FNiagaraShaderMap::FindId(ShaderMapId, ShaderPlatform);
+		}
 
 		// Attempt to load from the derived data cache if we are uncooked
 		if (!bForceRecompile && !GameThreadShaderMap && !FPlatformProperties::RequiresCookedData())
 		{
-			FNiagaraShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, GameThreadShaderMap);
+			FNiagaraShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, ShaderPlatform, GameThreadShaderMap);
 			if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
 			{
 				UE_LOG(LogTemp, Verbose, TEXT("Loaded shader %s for Niagara script %s from DDC"), *GameThreadShaderMap->GetFriendlyName(), *GetFriendlyName());
@@ -398,7 +409,7 @@ bool FNiagaraShaderScript::CacheShaders(const FNiagaraShaderMapId& ShaderMapId, 
 
 			// If there's no cached shader map for this script compile a new one.
 			// This is just kicking off the compile, GameThreadShaderMap will not be complete yet
-			bSucceeded = BeginCompileShaderMap(ShaderMapId, Platform, GameThreadShaderMap, bApplyCompletedShaderMapForRendering, bSynchronous);
+			bSucceeded = BeginCompileShaderMap(ShaderMapId, GameThreadShaderMap, bApplyCompletedShaderMapForRendering, bSynchronous);
 
 			if (!bSucceeded)
 			{
@@ -501,7 +512,6 @@ void FNiagaraShaderScript::GetShaderMapIDsWithUnfinishedCompilation(TArray<int32
 */
 bool FNiagaraShaderScript::BeginCompileShaderMap(
 	const FNiagaraShaderMapId& ShaderMapId,
-	EShaderPlatform Platform,
 	TRefCountPtr<FNiagaraShaderMap>& OutShaderMap,
 	bool bApplyCompletedShaderMapForRendering,
 	bool bSynchronous)
@@ -520,7 +530,7 @@ bool FNiagaraShaderScript::BeginCompileShaderMap(
 	OutstandingCompileShaderMapIds.AddUnique(NewShaderMap->GetCompilingId());		
 	UE_LOG(LogShaders, Log, TEXT("BeginCompileShaderMap AddUnique %p %d"), this, NewShaderMap->GetCompilingId());
 
-	FNiagaraCompilationQueue::Get()->Queue(this, NewShaderMap, ShaderMapId, Platform, bApplyCompletedShaderMapForRendering);
+	FNiagaraCompilationQueue::Get()->Queue(this, NewShaderMap, ShaderMapId, ShaderPlatform, bApplyCompletedShaderMapForRendering);
 	if (bSynchronous)
 	{
 		INiagaraShaderModule NiagaraShaderModule = FModuleManager::GetModuleChecked<INiagaraShaderModule>(TEXT("NiagaraShader"));

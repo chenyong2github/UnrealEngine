@@ -218,14 +218,9 @@ public:
 	*/
 	~FAudioDeviceManager();
 
-	/**
-	* Initialize the audio device manager.
-	* Return true if successfully initialized.
-	**/
-	bool Initialize();
-
 	/** Returns the handle to the main audio device. */
 	FAudioDeviceHandle GetMainAudioDeviceHandle() const { return MainAudioDeviceHandle; }
+	FAudioDevice* GetMainAudioDeviceRaw() const { return MainAudioDeviceHandle.GetAudioDevice(); }
 	Audio::FDeviceId GetMainAudioDeviceID() const { return MainAudioDeviceHandle.GetDeviceID(); }
 
 	/** Returns true if we're currently using the audio mixer. */
@@ -264,7 +259,13 @@ public:
 	*/
 	FAudioDevice* GetAudioDeviceRaw(Audio::FDeviceId DeviceID);
 
+	/**
+	* Initialize the audio device manager.
+	* Return true if successfully initialized.
+	**/
+	static bool Initialize();
 	static FAudioDeviceManager* Get();
+	static void Shutdown();
 
 	/**
 	* Returns a ptr to the active audio device. If there is no active
@@ -397,6 +398,7 @@ private:
 	TUniquePtr<FAudioDebugger> AudioDebugger;
 #endif // ENABLE_AUDIO_DEBUG
 
+	bool InitializeManager();
 
 	/** Creates a handle given the index and a generation value. */
 	uint32 GetNewDeviceID();
@@ -530,4 +532,6 @@ private:
 	FAudioCommandFence SyncFence;
 
 	friend class FAudioDeviceHandle;
+
+	static FAudioDeviceManager* Singleton;
 };

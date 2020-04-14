@@ -114,11 +114,7 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 
 			if (!DisplayClusterModule->StartSession(RootActor->GetEditorConfigPath(), RootActor->GetEditorNodeId()))
 			{
-				UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("Couldn't start DisplayCluster session"));
-
-				// Couldn't start a new session
-				RequestEndPlayMap();
-				return;
+				UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("An error occurred during DisplayCluster session start"));
 			}
 		}
 	}
@@ -138,6 +134,31 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 			}
 		}
 	}
+}
+
+bool UDisplayClusterEditorEngine::LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error)
+{
+	 
+	if (bIsNDisplayPIE)
+	{
+		// Finish previous scene
+		DisplayClusterModule->EndScene();
+
+		// Perform map loading
+		if (!Super::LoadMap(WorldContext, URL, Pending, Error))
+		{
+			return false;
+		}
+
+		// Start new scene
+		DisplayClusterModule->StartScene(WorldContext.World());
+	}
+	else
+	{
+		return Super::LoadMap(WorldContext, URL, Pending, Error);
+	}
+
+	return true;
 }
 
 void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)

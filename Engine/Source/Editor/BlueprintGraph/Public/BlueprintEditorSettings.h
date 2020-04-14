@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Engine/Blueprint.h"
+#include "Engine/DeveloperSettings.h"
 #include "BlueprintEditorSettings.generated.h"
 
 UENUM()
@@ -150,6 +151,11 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = DeveloperTools, meta = (DisplayName = "Display Unique Names for Blueprint Nodes"))
 	bool bBlueprintNodeUniqueNames;
 
+public:
+	// The list of namespaces to always expose in any Blueprint (local per-user)
+	UPROPERTY(EditAnywhere, config, Category = Experimental)
+	TArray<FString> NamespacesToAlwaysInclude;
+
 // Perf Settings
 public:
 	/** If enabled, additional details will be displayed in the Compiler Results tab after compiling a blueprint. */
@@ -168,4 +174,15 @@ protected:
 	//~ Begin UObject Interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
+};
+
+UCLASS(config=Editor, defaultconfig)
+class BLUEPRINTGRAPH_API UBlueprintProjectSettings : public UDeveloperSettings
+{
+public:
+	GENERATED_BODY()
+
+	// The list of namespaces to always expose in any Blueprint (for all users of the game/project)
+	UPROPERTY(EditAnywhere, config, Category=Experimental)
+	TArray<FString> NamespacesToAlwaysInclude;
 };

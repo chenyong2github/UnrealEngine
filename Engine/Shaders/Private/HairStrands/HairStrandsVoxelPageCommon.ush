@@ -11,7 +11,6 @@
 #define VOXEL_TRAVERSAL_SPARSE_LINEAR 2
 #define VOXEL_TRAVERSAL_SPARSE_MIPMAP 3
 #define VOXEL_TRAVERSAL_LINEAR_MIPMAP 4
-#define VOXEL_TRAVERSAL_LEGACY 5
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 uint3 PositionToCoord(float3 P, float3 InMinAABB, float3 InMaxAABB, uint3 InResolution)

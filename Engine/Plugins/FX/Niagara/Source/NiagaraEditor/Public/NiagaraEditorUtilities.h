@@ -33,6 +33,7 @@ class FMenuBuilder;
 class FNiagaraEmitterViewModel;
 class FNiagaraEmitterHandleViewModel;
 enum class ECheckBoxState : uint8;
+struct FNiagaraNamespaceMetadata;
 
 namespace FNiagaraEditorUtilities
 {
@@ -227,7 +228,7 @@ namespace FNiagaraEditorUtilities
 	 * @param StackEditorData The editor data used to mark the newly added FNiagaraVariable in the Stack for renaming.
 	 * @returns Bool for whether adding the parameter succeeded.
 	 */
-	bool AddParameter(FNiagaraVariable& NewParameterVariable, FNiagaraParameterStore& TargetParameterStore, UObject& ParameterStoreOwner, UNiagaraStackEditorData& StackEditorData);
+	bool AddParameter(FNiagaraVariable& NewParameterVariable, FNiagaraParameterStore& TargetParameterStore, UObject& ParameterStoreOwner, UNiagaraStackEditorData* StackEditorData);
 
 	NIAGARAEDITOR_API bool AddEmitterContextMenuActions(FMenuBuilder& MenuBuilder, const TSharedPtr<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel);
 
@@ -243,7 +244,7 @@ namespace FNiagaraEditorUtilities
 	void CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
 
 	NIAGARAEDITOR_API void WarnWithToastAndLog(FText WarningMessage);
-	NIAGARAEDITOR_API void InfoWithToastAndLog(FText WarningMessage);
+	NIAGARAEDITOR_API void InfoWithToastAndLog(FText WarningMessage, float ToastDuration = 5.0f);
 
 	void GetScriptRunAndExecutionIndexFromUsage(const ENiagaraScriptUsage& InUsage, int32& OutRunIndex, int32&OutExecutionIndex);
 
@@ -291,4 +292,22 @@ namespace FNiagaraEditorUtilities
 	FString GetNamespacelessVariableNameString(const FName& InVarName);
 
 	void GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes);
+
+	FText FormatParameterNameForTextDisplay(FName ParameterName);
+
+	// Compare two FNiagaraVariable names for the sort priority relative to the first argument VarNameA. Sorting is ordered by namespace and then alphabetized. 
+	bool GetVariableSortPriority(const FName& VarNameA, const FName& VarNameB);
+
+	// Compare two FNiagaraNamespaceMetadata for the sort priority relative to the first argument A, where a lower number represents a higher priority.
+	int32 GetNamespaceMetaDataSortPriority(const FNiagaraNamespaceMetadata& A, const FNiagaraNamespaceMetadata& B);
+
+	// Get the sort priority of a registered namespace FName, where a lower number represents a higher priority.
+	int32 GetNamespaceSortPriority(const FName& Namespace);
+
+	const FNiagaraNamespaceMetadata GetNamespaceMetaDataForVariableName(const FName& VarName);
+};
+
+namespace FNiagaraParameterUtilities
+{
+	bool DoesParameterNameMatchSearchText(FName ParameterName, const FString& SearchTextString);
 };

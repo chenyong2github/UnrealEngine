@@ -22,9 +22,9 @@
 bool FStudioAnalytics::bInitialized = false;
 volatile double FStudioAnalytics::TimeEstimation = 0;
 FThread FStudioAnalytics::TimerThread;
-TSharedPtr<IAnalyticsProvider> FStudioAnalytics::Analytics;
+TSharedPtr<IAnalyticsProviderET> FStudioAnalytics::Analytics;
 
-void FStudioAnalytics::SetProvider(TSharedRef<IAnalyticsProvider> InAnalytics)
+void FStudioAnalytics::SetProvider(TSharedRef<IAnalyticsProviderET> InAnalytics)
 {
 	checkf(!Analytics.IsValid(), TEXT("FStudioAnalytics::SetProvider called more than once."));
 
@@ -40,7 +40,7 @@ void FStudioAnalytics::SetProvider(TSharedRef<IAnalyticsProvider> InAnalytics)
 	}
 }
 
-IAnalyticsProvider& FStudioAnalytics::GetProvider()
+IAnalyticsProviderET& FStudioAnalytics::GetProvider()
 {
 	checkf(IsAvailable(), TEXT("FStudioAnalytics::GetProvider called outside of Initialize/Shutdown."));
 
@@ -95,16 +95,32 @@ double FStudioAnalytics::GetAnalyticSeconds()
 	return bInitialized ? TimeEstimation : FPlatformTime::Seconds();
 }
 
-void FStudioAnalytics::ReportEvent(const FString& EventName)
+void FStudioAnalytics::RecordEvent(const FString& EventName)
 {
-	ReportEvent(EventName, TArray<FAnalyticsEventAttribute>());
+	RecordEvent(EventName, TArray<FAnalyticsEventAttribute>());
 }
 
-void FStudioAnalytics::ReportEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
+void FStudioAnalytics::RecordEvent(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
 {
 	if (FStudioAnalytics::IsAvailable())
 	{
 		FStudioAnalytics::GetProvider().RecordEvent(EventName, Attributes);
+	}
+}
+
+void FStudioAnalytics::RecordEvent(const FString& EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
+{
+	if (FStudioAnalytics::IsAvailable())
+	{
+		FStudioAnalytics::GetProvider().RecordEvent(EventName, MoveTemp(Attributes));
+	}
+}
+
+void FStudioAnalytics::RecordEventJson(const FString& EventName, TArray<FAnalyticsEventAttribute>&& AttributesJson)
+{
+	if (FStudioAnalytics::IsAvailable())
+	{
+		FStudioAnalytics::GetProvider().RecordEventJson(EventName, MoveTemp(AttributesJson));
 	}
 }
 

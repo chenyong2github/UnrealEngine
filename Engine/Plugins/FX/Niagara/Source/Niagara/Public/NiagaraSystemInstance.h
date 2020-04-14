@@ -146,8 +146,6 @@ public:
 
 //	float GetSystemTimeSinceRendered() const { return SystemTimeSinceRenderedParam.GetValue(); }
 
-	//float GetOwnerLODDistance() const { return OwnerLODDistanceParam.GetValue(); }
-
 	//int32 GetNumParticles(int32 EmitterIndex) const { return ParameterNumParticleBindings[EmitterIndex].GetValue(); }
 	//float GetSpawnCountScale(int32 EmitterIndex) const { return ParameterSpawnCountScaleBindings[EmitterIndex].GetValue(); }
 
@@ -278,6 +276,11 @@ public:
 	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
 
 	const FString& GetCrashReporterTag()const;
+
+#if WITH_EDITOR
+	void RaiseNeedsUIResync();
+#endif
+
 private:
 
 	void DestroyDataInterfaceInstanceData();
@@ -307,6 +310,9 @@ private:
 
 	/** Queries all the data interfaces in the array for emitter dependencies. */
 	void FindDataInterfaceDependencies(const TArray<UNiagaraDataInterface*>& DataInterfaces, TArray<FNiagaraEmitterInstance*>& Dependencies);
+
+	/** Looks at all the event handlers in the emitter to determine which other emitters it depends on. */
+	void FindEventDependencies(FNiagaraEmitterInstance& EmitterInst, TArray<FNiagaraEmitterInstance*>& Dependencies);
 
 	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
 	void ComputeEmittersExecutionOrder();
@@ -428,7 +434,13 @@ private:
 	/** Tag we feed into crash reporter for this instance. */
 	mutable FString CrashReporterTag;
 
+	/** The feature level of for this component instance. */
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
+
 public:
+
+	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
+
 	// Transient data that is accumulated during tick.
 	uint32 TotalGPUParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;

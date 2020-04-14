@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "NiagaraCommon.h"
-#include "PrimitiveViewRelevance.h"
-#include "PrimitiveSceneProxy.h"
-#include "Particles/ParticleSystemComponent.h"
-#include "NiagaraUserRedirectionParameterStore.h"
-#include "NiagaraSystemInstance.h"
 #include "NiagaraComponentPool.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraUserRedirectionParameterStore.h"
+#include "NiagaraVariant.h"
+#include "PrimitiveSceneProxy.h"
+#include "PrimitiveViewRelevance.h"
 #include "Particles/ParticlePerfStats.h"
+#include "Particles/ParticleSystemComponent.h"
 
 #include "NiagaraComponent.generated.h"
 
@@ -68,16 +69,18 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "Niagara Tick Behavior"))
 	ENiagaraTickBehavior TickBehavior = ENiagaraTickBehavior::UsePrereqs;
 
-	/** Initial values for parameter overrides. 
-	TODO: This should be a minimal set of explicitly override parameters similar to how parameter collection instances override their collections store. 
-	Should expose anything in the "User" namespace.
-	*/
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	UPROPERTY()
 	FNiagaraUserRedirectionParameterStore OverrideParameters;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TMap<FName, bool> EditorOverridesValue;
+	TMap<FName, bool> EditorOverridesValue_DEPRECATED;
+
+	UPROPERTY(EditAnywhere, Category="Niagara")
+	TMap<FNiagaraVariableBase, FNiagaraVariant> TemplateParameterOverrides;
+
+	UPROPERTY(EditAnywhere, Category="Niagara")
+	TMap<FNiagaraVariableBase, FNiagaraVariant> InstanceParameterOverrides;
 
 	FOnSystemInstanceChanged OnSystemInstanceChangedDelegate;
 
@@ -184,6 +187,7 @@ public:
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual const UObject* AdditionalStatObject() const override;
+	virtual bool IsReadyForOwnerToAutoDestroy() const override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	//~ End UActorComponent Interface.
 
@@ -393,18 +397,32 @@ public:
 	void SetPaused(bool bInPaused);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	bool IsPaused()const;
+	bool IsPaused() const;
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	UNiagaraDataInterface * GetDataInterface(const FString &Name);
+	UNiagaraDataInterface* GetDataInterface(const FString &Name);
 
 	//~ Begin UObject Interface.
-	virtual void PostLoad();
+	virtual void PostLoad() override;
+
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	void OverrideUObjectParameter(const FNiagaraVariable& InVar, UObject* InObj);
 
+	/** 
+	  * Find the value of an overridden parameter. 
+	  * Returns null if the parameter isn't overridden by this component.
+	  */
+	FNiagaraVariant FindParameterOverride(const FNiagaraVariableBase& InKey) const;
+
+	bool HasParameterOverride(const FNiagaraVariableBase& InKey) const;
+	void SetParameterOverride(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);
+
+	/** Remove an override for a given parameter if one exists. */
+	void RemoveParameterOverride(const FNiagaraVariableBase& InKey);
+
+	void UpgradeDeprecatedParameterOverrides();
+	void EnsureOverrideParametersConsistent() const;
 #endif
 	//~ End UObject Interface
 
@@ -422,8 +440,11 @@ public:
 
 #if WITH_EDITOR
 	void PostLoadNormalizeOverrideNames();
-	bool IsParameterValueOverriddenLocally(const FName& InParamName);
-	void SetParameterValueOverriddenLocally(const FNiagaraVariable& InParam, bool bInOverridden, bool bRequiresSystemInstanceReset);
+	UE_DEPRECATED(4.25, "This function is replaced by HasParameterOverride().")
+	bool IsParameterValueOverriddenLocally(const FName& InParamName) { return false; }
+
+	UE_DEPRECATED(4.25, "This function is replaced by SetParameterOverride().")
+	void SetParameterValueOverriddenLocally(const FNiagaraVariable& InParam, bool bInOverridden, bool bRequiresSystemInstanceReset) {}
 	
 	FOnSystemInstanceChanged& OnSystemInstanceChanged() { return OnSystemInstanceChangedDelegate; }
 
@@ -450,6 +471,13 @@ private:
 	void SynchronizeWithSourceSystem();
 
 	void AssetExposedParametersChanged();
+
+	void CopyParametersFromAsset();
+	
+#if WITH_EDITOR
+	void SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);
+	void ApplyOverridesToParameterStore();
+#endif
 
 public:
 	/**
@@ -512,11 +540,6 @@ public:
 	uint32 bWaitForCompilationOnActivate : 1;
 #endif
 
-	virtual void SetOwnerLOD(int32 InOwnerLOD);
-
-	UFUNCTION(BlueprintCallable, Category = Scalability, meta = (Keywords = "LOD scalability"))
-	FORCEINLINE int32 GetOwnerLOD()const { return OwnerLOD; }
-
 	/** Set whether this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
 	UFUNCTION(BlueprintCallable, Category = Scalability, meta = (Keywords = "LOD scalability"))
 	void SetAllowScalability(bool bAllow);
@@ -553,13 +576,6 @@ private:
 	FDelegateHandle AssetExposedParametersChangedHandle;
 
 	int32 ScalabilityManagerHandle;
-
-	/**
-	LOD level of our owning actor / component if it's been provided. 
-	Can be useful for scalability calculations for actor based FX on actors who have some other system determining their LOD level.
-	Would be nice if we just had a virtual on the actor Actor->GetLODLevel() for example that would return 0 by default and the correct level for any actors implementing a LOD level.
-	*/
-	int32 OwnerLOD;
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
@@ -571,14 +587,10 @@ FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f;
 #endif
 
 
-
-
-
-
 /**
 * Scene proxy for drawing niagara particle simulations.
 */
-class FNiagaraSceneProxy final : public FPrimitiveSceneProxy
+class NIAGARA_API FNiagaraSceneProxy : public FPrimitiveSceneProxy
 {
 public:
 	SIZE_T GetTypeHash() const override;
@@ -609,6 +621,8 @@ public:
 
 	FRHIUniformBuffer* GetUniformBufferNoVelocity() const;
 
+	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
+
 private:
 	void ReleaseRenderThreadResources();
 
@@ -619,8 +633,6 @@ private:
 	virtual void OnTransformChanged() override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
 	/*
 	virtual bool CanBeOccluded() const override

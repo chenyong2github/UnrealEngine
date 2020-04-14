@@ -458,7 +458,7 @@ void PositionOnlyMain(
 #endif // #if ONEPASS_POINTLIGHT_SHADOW
 
 #if INTERPOLATE_POSITION
-	OutParameters.PixelPosition = WorldPos;
+	OutParameters.PixelPosition = WorldPos.xyz;
 #endif
 }
 

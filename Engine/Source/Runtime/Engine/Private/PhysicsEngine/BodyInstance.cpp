@@ -28,6 +28,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
+
 #include "ChaosCheck.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
@@ -38,6 +39,7 @@
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/MassProperties.h"
 #include "Chaos/Utilities.h"
+#include "Physics/Experimental/ChaosInterfaceUtils.h"
 
 #if WITH_CHAOS
 #include "Chaos/ParticleHandle.h"
@@ -80,6 +82,8 @@ DECLARE_CYCLE_STAT(TEXT("CreatePhysicsActor"), STAT_CreatePhysicsActor, STATGROU
 DECLARE_CYCLE_STAT(TEXT("BodyInstance SetCollisionProfileName"), STAT_BodyInst_SetCollisionProfileName, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Phys SetBodyTransform"), STAT_SetBodyTransform, STATGROUP_Physics);
 
+static int32 GUseDeferredPhysicsBodyCreation = 0;
+
 // @HACK Guard to better encapsulate game related hacks introduced into UpdatePhysicsFilterData()
 TAutoConsoleVariable<int32> CVarEnableDynamicPerBodyFilterHacks(
 	TEXT("p.EnableDynamicPerBodyFilterHacks"), 
@@ -88,12 +92,20 @@ TAutoConsoleVariable<int32> CVarEnableDynamicPerBodyFilterHacks(
 	ECVF_ReadOnly
 );
 
-TAutoConsoleVariable<int32> CVarEnableDeferredPhysicsCreation(
+FAutoConsoleVariableRef CVarEnableDeferredPhysicsCreation(
 	TEXT("p.EnableDeferredPhysicsCreation"), 
-	0, 
+	GUseDeferredPhysicsBodyCreation,
 	TEXT("Enables/Disables deferred physics creation."),
 	ECVF_Default
 );
+
+bool FBodyInstance::UseDeferredPhysicsBodyCreation()
+{
+	// @todo: this could be improved by tracking all oustanding delayed creations, and return true if there are any at all. 
+	// or maybe keep a list of instances that have them, so we don't loop over all actors, etc
+	return GUseDeferredPhysicsBodyCreation != 0;
+}
+
 
 using namespace PhysicsInterfaceTypes;
 
@@ -897,7 +909,7 @@ void FBodyInstance::UpdatePhysicsFilterData()
 
 #if WITH_CHAOS
 				// If this shape shouldn't collide in the sim we disable it here until we have more support.
-				Shape.Shape->SetDisable(!CollisionEnabledHasPhysics(GetCollisionEnabled()));
+				Shape.Shape->SetSimEnabled(CollisionEnabledHasPhysics(GetCollisionEnabled()));
 #endif
 
 				// Apply new collision settings to this shape
@@ -1178,25 +1190,6 @@ bool FInitBodiesHelperBase::CreateShapesAndActors()
 	return true;
 }
 
-#if WITH_CHAOS
-	Chaos::EChaosCollisionTraceFlag ConvertCollisionTraceFlag(ECollisionTraceFlag Flag)
-	{
-		if (Flag == ECollisionTraceFlag::CTF_UseDefault)
-			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseDefault;
-		if (Flag == ECollisionTraceFlag::CTF_UseSimpleAndComplex)
-			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseSimpleAndComplex;
-		if (Flag == ECollisionTraceFlag::CTF_UseSimpleAsComplex)
-			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseSimpleAsComplex;
-		if (Flag == ECollisionTraceFlag::CTF_UseComplexAsSimple)
-			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseComplexAsSimple;
-		if (Flag == ECollisionTraceFlag::CTF_MAX)
-			return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_MAX;
-		ensure(false);
-		return Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseDefault;
-	}
-#endif
-
-
 void FInitBodiesHelperBase::InitBodies()
 {
 #if WITH_CHAOS
@@ -1246,14 +1239,14 @@ void FInitBodiesHelperBase::InitBodies()
 							{
 								for(int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 								{
-									ActorHandle->SetShapeCollisionDisable(ShapeIndex, true);
+									ActorHandle->SetShapeSimCollisionEnabled(ShapeIndex, false);
 								}
 							}
 							if (BI->BodySetup.IsValid())
 							{
 								for (int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 								{
-									ActorHandle->SetShapeCollisionTraceType(ShapeIndex, ConvertCollisionTraceFlag(BI->BodySetup->CollisionTraceFlag)) ;
+									ActorHandle->SetShapeCollisionTraceType(ShapeIndex, ChaosInterface::ConvertCollisionTraceFlag(BI->BodySetup->CollisionTraceFlag)) ;
 								}
 							}
 
@@ -1353,7 +1346,7 @@ void FBodyInstance::InitBody(class UBodySetup* Setup, const FTransform& Transfor
 	bool bIsStatic = SpawnParams.bStaticPhysics;
 	if(bIsStatic)
 	{
-		if (CVarEnableDeferredPhysicsCreation.GetValueOnGameThread())
+		if (GUseDeferredPhysicsBodyCreation)
 		{
 			InitBodiesDeferredListStatic.Add(FInitBodiesHelperWithData<true>(MoveTemp(Bodies), MoveTemp(Transforms), Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate));
 		}
@@ -1365,7 +1358,7 @@ void FBodyInstance::InitBody(class UBodySetup* Setup, const FTransform& Transfor
 	}
 	else
 	{
-		if (CVarEnableDeferredPhysicsCreation.GetValueOnGameThread())
+		if (GUseDeferredPhysicsBodyCreation)
 		{
 			InitBodiesDeferredListDynamic.Add(FInitBodiesHelperWithData<false>(MoveTemp(Bodies), MoveTemp(Transforms), Setup, PrimComp, InRBScene, SpawnParams, SpawnParams.Aggregate));
 		}
@@ -1767,7 +1760,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 		for (FPhysicsShapeHandle& ShapeHandle : Shapes)
 		{
 			const Chaos::FImplicitObject& ImplicitObject = ShapeHandle.GetGeometry();
-			EImplicitObjectType ImplicitType = ImplicitObject.GetType(true);
+			EImplicitObjectType ImplicitType = ImplicitObject.GetType();
 			EImplicitObjectType GeomType = GetInnerType(ImplicitType);
 
 			const FTransform& RelativeTM = GetRelativeBodyTransform(ShapeHandle);
@@ -1779,7 +1772,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 
 				// Get GeomType that is transformed
 				const TImplicitObjectTransformed<FReal, 3>& ImplicitObjectTransformed = static_cast<const TImplicitObjectTransformed<FReal, 3>&>(ImplicitObject);
-				GeomType = ImplicitObjectTransformed.GetTransformedObject()->GetType(true);
+				GeomType = ImplicitObjectTransformed.GetTransformedObject()->GetType();
 				CHAOS_ENSURE(!IsInstanced(GeomType));
 			}
 
@@ -3153,15 +3146,19 @@ void FBodyInstance::UpdateMassProperties()
 
 				// #PHYS2 Refactor out PxMassProperties (Our own impl?)
 #if WITH_CHAOS
-				const Chaos::TRotation<float, 3> Rotation = Chaos::TransformToLocalSpace(TotalMassProperties.InertiaTensor);
-				const FVector MassSpaceInertiaTensor(TotalMassProperties.InertiaTensor.M[0][0], TotalMassProperties.InertiaTensor.M[1][1], TotalMassProperties.InertiaTensor.M[2][2]);
+				// Only set mass properties if inertia tensor is valid. TODO Remove this once we track down cause of empty tensors.
+				const float InertiaTensorTrace = (TotalMassProperties.InertiaTensor.M[0][0] + TotalMassProperties.InertiaTensor.M[1][1] + TotalMassProperties.InertiaTensor.M[2][2]) / 3;
+				if (CHAOS_ENSURE(InertiaTensorTrace > SMALL_NUMBER))
+				{
+					const Chaos::TRotation<float, 3> Rotation = Chaos::TransformToLocalSpace(TotalMassProperties.InertiaTensor);
+					const FVector MassSpaceInertiaTensor(TotalMassProperties.InertiaTensor.M[0][0], TotalMassProperties.InertiaTensor.M[1][1], TotalMassProperties.InertiaTensor.M[2][2]);
+					FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, MassSpaceInertiaTensor);
 
-				FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, MassSpaceInertiaTensor);
+					FPhysicsInterface::SetMass_AssumesLocked(Actor, TotalMassProperties.Mass);
 
-				FPhysicsInterface::SetMass_AssumesLocked(Actor, TotalMassProperties.Mass);
-
-				FTransform Com(Rotation, TotalMassProperties.CenterOfMass);
-				FPhysicsInterface::SetComLocalPose_AssumesLocked(Actor, Com);
+					FTransform Com(Rotation, TotalMassProperties.CenterOfMass);
+					FPhysicsInterface::SetComLocalPose_AssumesLocked(Actor, Com);
+				}
 #else
 				PxQuat MassOrientation;
 				const FVector MassSpaceInertiaTensor = P2UVector(PxMassProperties::getMassSpaceInertia(TotalMassProperties.inertiaTensor, MassOrientation));

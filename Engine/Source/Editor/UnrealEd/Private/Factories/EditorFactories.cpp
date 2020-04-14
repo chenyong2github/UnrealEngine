@@ -108,7 +108,6 @@
 #include "Factories/SoundCueFactoryNew.h"
 #include "Factories/ReimportSoundFactory.h"
 #include "Factories/SoundMixFactory.h"
-#include "Factories/ReimportSoundSurroundFactory.h"
 #include "Factories/StructureFactory.h"
 #include "Factories/StringTableFactory.h"
 #include "Factories/SubsurfaceProfileFactory.h"
@@ -218,8 +217,8 @@
 
 #include "Animation/DebugSkelMeshComponent.h"
 
-#include "VT/RuntimeVirtualTexture.h"
-#include "VT/RuntimeVirtualTextureStreamingProxy.h"
+#include "VT/VirtualTexture.h"
+#include "VT/VirtualTextureBuilder.h"
 
 #if PLATFORM_WINDOWS
 	// Needed for DDS support.
@@ -4127,7 +4126,7 @@ bool UTextureFactory::DoesSupportClass(UClass* Class)
 	return Class == UTexture2D::StaticClass() || Class == UTextureCube::StaticClass();
 }
 
-static int32 ParseUDIMName(const FString& Name, const FString& UdimRegexPattern, FString& OutRootName)
+static int32 ParseUDIMName(const FString& Name, const FString& UdimRegexPattern, FString& OutPrefixName, FString& OutPostfixName)
 {
 	FRegexPattern RegexPattern( UdimRegexPattern );
 	FRegexMatcher RegexMatcher( RegexPattern, Name );
@@ -4148,11 +4147,11 @@ static int32 ParseUDIMName(const FString& Name, const FString& UdimRegexPattern,
 		{
 			LexFromString( UdimValue, *Name.Mid( StartOfCaptureGroup2, EndOfCaptureGroup2 - StartOfCaptureGroup2 ) );
 
-			OutRootName = Name.Mid( StartOfCaptureGroup1, EndOfCaptureGroup1 - StartOfCaptureGroup1 );
+			OutPrefixName = Name.Mid( StartOfCaptureGroup1, EndOfCaptureGroup1 - StartOfCaptureGroup1 );
 
 			if ( StartOfCaptureGroup3 != INDEX_NONE && EndOfCaptureGroup3 != INDEX_NONE )
 			{
-				OutRootName.Append( Name.Mid( StartOfCaptureGroup3, EndOfCaptureGroup3 - StartOfCaptureGroup3 ) );
+				OutPostfixName = Name.Mid( StartOfCaptureGroup3, EndOfCaptureGroup3 - StartOfCaptureGroup3 );
 			}
 		}
 	}
@@ -4182,15 +4181,19 @@ UObject* UTextureFactory::FactoryCreateBinary
 	TMap<int32, FString> UDIMIndexToFile;
 	{
 		const FString FilenameNoExtension = FPaths::GetBaseFilename(CurrentFilename);
-		FString BaseUDIMName;
-		const int32 BaseUDIMIndex = ParseUDIMName(FilenameNoExtension, UdimRegexPattern, BaseUDIMName);
+
+		FString PreUDIMName;
+		FString PostUDIMName;
+		const int32 BaseUDIMIndex = ParseUDIMName(FilenameNoExtension, UdimRegexPattern, PreUDIMName, PostUDIMName);
+
+		const FString BaseUDIMName = PreUDIMName + PostUDIMName;
 		if (BaseUDIMIndex != INDEX_NONE)
 		{
 			UDIMIndexToFile.Add(BaseUDIMIndex, CurrentFilename);
 
 			// Filter for other potential UDIM pages, with the same base name and file extension
 			const FString Path = FPaths::GetPath(CurrentFilename);
-			const FString UDIMFilter = (Path / BaseUDIMName) + TEXT("*") + FPaths::GetExtension(CurrentFilename, true);
+			const FString UDIMFilter = (Path / PreUDIMName) + TEXT("*") + PostUDIMName + FPaths::GetExtension(CurrentFilename, true);
 
 			TArray<FString> UDIMFiles;
 			IFileManager::Get().FindFiles(UDIMFiles, *UDIMFilter, true, false);
@@ -4199,8 +4202,8 @@ UObject* UTextureFactory::FactoryCreateBinary
 			{
 				if (!CurrentFilename.EndsWith(UDIMFile) && FactoryCanImport(UDIMFile))
 				{
-					FString UDIMName;
-					const int32 UDIMIndex = ParseUDIMName(FPaths::GetBaseFilename(UDIMFile), UdimRegexPattern, UDIMName);
+					const int32 UDIMIndex = ParseUDIMName(FPaths::GetBaseFilename(UDIMFile), UdimRegexPattern, PreUDIMName, PostUDIMName);
+					const FString UDIMName = PreUDIMName + PostUDIMName;
 					if (!UDIMIndexToFile.Contains(UDIMIndex) && UDIMName == BaseUDIMName)
 					{
 						UDIMIndexToFile.Add(UDIMIndex, Path / UDIMFile);
@@ -4213,36 +4216,41 @@ UObject* UTextureFactory::FactoryCreateBinary
 				// Exclude UDIM number from the name of the UE4 texture asset we create
 				TextureName = *BaseUDIMName;
 
-				// Need to rename the package to match the new texture name, since package was already created
-				// Package name will be the same as the object name, except will contain additional path information,
-				// so we take the existing package name, then extract the UDIM index in order to preserve the path
-				FString PackageName;
-				InParent->GetName(PackageName);
-
-				FString PackageUDIMName;
-				const int32 PackageUDIMIndex = ParseUDIMName(PackageName, UdimRegexPattern, PackageUDIMName);
-				if (PackageUDIMIndex == -1)
+				// Don't try to rename the package if its the transient package
+				if ( InParent != GetTransientPackage() )
 				{
-					// If we're re-importing UDIM texture, the package will already be correctly named after the UDIM base name
-					// In this case we'll fail to parse the UDIM name, but the package should already have the proper name
-					check(PackageName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
-				}
-				else
-				{
-					check(PackageUDIMIndex == BaseUDIMIndex);
-					check(PackageUDIMName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
+					// Need to rename the package to match the new texture name, since package was already created
+					// Package name will be the same as the object name, except will contain additional path information,
+					// so we take the existing package name, then extract the UDIM index in order to preserve the path
+					FString PackageName;
+					InParent->GetName(PackageName);
 
-					// In normal case, higher level code would have already checked for duplicate package name
-					// But since we're changing package name here, check to see if package with the new name already exists...
-					// If it does, code later in this method will prompt user to overwrite the existing asset
-					UPackage* ExistingPackage = FindPackage(InParent->GetOuter(), *PackageUDIMName);
-					if (ExistingPackage)
+					const int32 PackageUDIMIndex = ParseUDIMName(PackageName, UdimRegexPattern, PreUDIMName, PostUDIMName);
+					const FString PackageUDIMName = PreUDIMName + PostUDIMName;
+
+					if (PackageUDIMIndex == -1)
 					{
-						InParent = ExistingPackage;
+						// If we're re-importing UDIM texture, the package will already be correctly named after the UDIM base name
+						// In this case we'll fail to parse the UDIM name, but the package should already have the proper name
+						check(PackageName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
 					}
 					else
 					{
-						verify(InParent->Rename(*PackageUDIMName, nullptr, REN_DontCreateRedirectors));
+						check(PackageUDIMIndex == BaseUDIMIndex);
+						check(PackageUDIMName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
+
+						// In normal case, higher level code would have already checked for duplicate package name
+						// But since we're changing package name here, check to see if package with the new name already exists...
+						// If it does, code later in this method will prompt user to overwrite the existing asset
+						UPackage* ExistingPackage = FindPackage(InParent->GetOuter(), *PackageUDIMName);
+						if (ExistingPackage)
+						{
+							InParent = ExistingPackage;
+						}
+						else
+						{
+							verify(InParent->Rename(*PackageUDIMName, nullptr, REN_DontCreateRedirectors));
+						}
 					}
 				}
 			}
@@ -4889,10 +4897,10 @@ UTextureExporterBMP::UTextureExporterBMP(const FObjectInitializer& ObjectInitial
 
 UTexture2D* UTextureExporterBMP::GetExportTexture(UObject* Object) const
 {
-	URuntimeVirtualTexture* RuntimeVirtualTexture = Cast<URuntimeVirtualTexture>(Object);
-	if (RuntimeVirtualTexture != nullptr && RuntimeVirtualTexture->GetStreamingTexture() != nullptr)
+	UVirtualTextureBuilder* VirtualTextureBuilder = Cast<UVirtualTextureBuilder>(Object);
+	if (VirtualTextureBuilder != nullptr)
 	{
-		return RuntimeVirtualTexture->GetStreamingTexture();
+		return VirtualTextureBuilder->Texture;
 	}
 	return Cast<UTexture2D>(Object);
 }
@@ -4949,7 +4957,7 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 	int32 SizeX = Texture->Source.GetSizeX();
 	int32 SizeY = Texture->Source.GetSizeY();
 	TArray64<uint8> RawData;
-	Texture->Source.GetMipData(RawData, LayerIndex, 0);
+	Texture->Source.GetMipData(RawData, 0, LayerIndex, 0);
 
 	FBitmapFileHeader bmf;
 	FBitmapInfoHeader bmhdr;
@@ -5011,14 +5019,13 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 	return true;
 }
 
-URuntimeVirtualTextureExporterBMP::URuntimeVirtualTextureExporterBMP(const FObjectInitializer& ObjectInitializer)
+UVirtualTextureBuilderExporterBMP::UVirtualTextureBuilderExporterBMP(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = URuntimeVirtualTexture::StaticClass();
+	SupportedClass = UVirtualTextureBuilder::StaticClass();
 	PreferredFormatIndex = 0;
 	FormatExtension.Add(TEXT("BMP"));
 	FormatDescription.Add(TEXT("Windows Bitmap"));
-
 }
 
 /*------------------------------------------------------------------------------

@@ -1423,6 +1423,8 @@ UMeshToolManager::UMeshToolManager()
 
 void UMeshToolManager::Shutdown()
 {
+	UInteractiveToolManager::Shutdown();
+
 	ComponentToAdapterMap.Empty();
 	SelectedMeshComponents.Empty();
 }

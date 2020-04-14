@@ -96,7 +96,7 @@ void UOculusFunctionLibrary::GetRawSensorData(FVector& AngularAcceleration, FVec
 	if (OculusHMD != nullptr && OculusHMD->IsHMDActive())
 	{
 		ovrpPoseStatef state;
-		if (OVRP_SUCCESS(ovrp_GetNodePoseState3(ovrpStep_Render, OVRP_CURRENT_FRAMEINDEX, OculusHMD::ToOvrpNode(DeviceType), &state)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetNodePoseState3(ovrpStep_Render, OVRP_CURRENT_FRAMEINDEX, OculusHMD::ToOvrpNode(DeviceType), &state)))
 		{
 			AngularAcceleration = OculusHMD::ToFVector(state.AngularAcceleration);
 			LinearAcceleration = OculusHMD::ToFVector(state.Acceleration);
@@ -115,7 +115,7 @@ bool UOculusFunctionLibrary::IsDeviceTracked(ETrackedDeviceType DeviceType)
 	if (OculusHMD != nullptr && OculusHMD->IsHMDActive())
 	{
 		ovrpBool Present;
-		if (OVRP_SUCCESS(ovrp_GetNodePresent2(OculusHMD::ToOvrpNode(DeviceType), &Present)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetNodePresent2(OculusHMD::ToOvrpNode(DeviceType), &Present)))
 		{
 			return Present != ovrpBool_False;
 		}
@@ -146,7 +146,7 @@ void UOculusFunctionLibrary::SetReorientHMDOnControllerRecenter(bool recenterMod
 	if (OculusHMD != nullptr && OculusHMD->IsHMDActive())
 	{
 		ovrpBool ovrpBoolRecenter = recenterMode ? ovrpBool_True : ovrpBool_False;
-		ovrp_SetReorientHMDOnControllerRecenter(ovrpBoolRecenter);
+		FOculusHMDModule::GetPluginWrapper().SetReorientHMDOnControllerRecenter(ovrpBoolRecenter);
 	}
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
@@ -322,7 +322,7 @@ bool UOculusFunctionLibrary::HasInputFocus()
 	if (OculusHMD != nullptr && OculusHMD->IsHMDActive())
 	{
 		ovrpBool HasFocus;
-		if (OVRP_SUCCESS(ovrp_GetAppHasInputFocus(&HasFocus)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetAppHasInputFocus(&HasFocus)))
 		{
 			return HasFocus != ovrpBool_False;
 		}
@@ -338,7 +338,7 @@ bool UOculusFunctionLibrary::HasSystemOverlayPresent()
 	if (OculusHMD != nullptr && OculusHMD->IsHMDActive())
 	{
 		ovrpBool HasFocus;
-		if (OVRP_SUCCESS(ovrp_GetAppHasInputFocus(&HasFocus)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetAppHasInputFocus(&HasFocus)))
 		{
 			return HasFocus == ovrpBool_False;
 		}
@@ -357,10 +357,10 @@ void UOculusFunctionLibrary::GetGPUUtilization(bool& IsGPUAvailable, float& GPUU
 	if (OculusHMD != nullptr)
 	{
 		ovrpBool GPUAvailable;
-		if (OVRP_SUCCESS(ovrp_GetGPUUtilSupported(&GPUAvailable)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetGPUUtilSupported(&GPUAvailable)))
 		{
 			IsGPUAvailable = (GPUAvailable != ovrpBool_False);
-			ovrp_GetGPUUtilLevel(&GPUUtilization);
+			FOculusHMDModule::GetPluginWrapper().GetGPUUtilLevel(&GPUUtilization);
 		}
 	}
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
@@ -373,7 +373,7 @@ float UOculusFunctionLibrary::GetGPUFrameTime()
 	const OculusHMD::FOculusHMD* const OculusHMD = GetOculusHMD();
 	if (OculusHMD != nullptr)
 	{
-		if (OVRP_SUCCESS(ovrp_GetGPUFrameTime(&frameTime)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetGPUFrameTime(&frameTime)))
 		{
 			return frameTime;
 		}
@@ -400,7 +400,7 @@ EFixedFoveatedRenderingLevel UOculusFunctionLibrary::GetFixedFoveatedRenderingLe
 	if (OculusHMD != nullptr)
 	{
 		ovrpTiledMultiResLevel Lvl;
-		if (OVRP_SUCCESS(ovrp_GetTiledMultiResLevel(&Lvl)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetTiledMultiResLevel(&Lvl)))
 		{
 			return (EFixedFoveatedRenderingLevel)Lvl;
 		}
@@ -416,7 +416,7 @@ FString UOculusFunctionLibrary::GetDeviceName()
 	if (OculusHMD != nullptr)
 	{
 		const char* NameString;
-		if (OVRP_SUCCESS(ovrp_GetSystemProductName2(&NameString)) && NameString)
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetSystemProductName2(&NameString)) && NameString)
 		{
 			return FString(NameString);
 		}
@@ -432,11 +432,11 @@ TArray<float> UOculusFunctionLibrary::GetAvailableDisplayFrequencies()
 	if (OculusHMD != nullptr)
 	{
 		int NumberOfFrequencies;
-		if (OVRP_SUCCESS(ovrp_GetSystemDisplayAvailableFrequencies(NULL, &NumberOfFrequencies)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetSystemDisplayAvailableFrequencies(NULL, &NumberOfFrequencies)))
 		{
 			TArray<float> freqArray;
 			freqArray.SetNum(NumberOfFrequencies);
-			ovrp_GetSystemDisplayAvailableFrequencies(freqArray.GetData(), &NumberOfFrequencies);
+			FOculusHMDModule::GetPluginWrapper().GetSystemDisplayAvailableFrequencies(freqArray.GetData(), &NumberOfFrequencies);
 			return freqArray;
 		}
 	}
@@ -451,7 +451,7 @@ float UOculusFunctionLibrary::GetCurrentDisplayFrequency()
 	if (OculusHMD != nullptr)
 	{
 		float Frequency;
-		if (OVRP_SUCCESS(ovrp_GetSystemDisplayFrequency2(&Frequency)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetSystemDisplayFrequency2(&Frequency)))
 		{
 			return Frequency;
 		}
@@ -466,7 +466,7 @@ void UOculusFunctionLibrary::SetDisplayFrequency(float RequestedFrequency)
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
 	if (OculusHMD != nullptr)
 	{
-		ovrp_SetSystemDisplayFrequency(RequestedFrequency);
+		FOculusHMDModule::GetPluginWrapper().SetSystemDisplayFrequency(RequestedFrequency);
 	}
 #endif
 }
@@ -477,7 +477,7 @@ void UOculusFunctionLibrary::EnablePositionTracking(bool bPositionTracking)
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
 	if (OculusHMD != nullptr)
 	{
-		ovrp_SetTrackingPositionEnabled2(bPositionTracking);
+		FOculusHMDModule::GetPluginWrapper().SetTrackingPositionEnabled2(bPositionTracking);
 	}
 #endif
 }
@@ -489,7 +489,7 @@ void UOculusFunctionLibrary::EnableOrientationTracking(bool bOrientationTracking
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
 	if (OculusHMD != nullptr)
 	{
-		ovrp_SetTrackingOrientationEnabled2(bOrientationTracking);
+		FOculusHMDModule::GetPluginWrapper().SetTrackingOrientationEnabled2(bOrientationTracking);
 	}
 #endif
 }
@@ -540,7 +540,7 @@ bool UOculusFunctionLibrary::IsGuardianConfigured()
 	if (OculusHMD != nullptr)
 	{
 		ovrpBool boundaryConfigured;
-		return OVRP_SUCCESS(ovrp_GetBoundaryConfigured2(&boundaryConfigured)) && boundaryConfigured;
+		return OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetBoundaryConfigured2(&boundaryConfigured)) && boundaryConfigured;
 	}
 #endif
 	return false;
@@ -553,7 +553,7 @@ bool UOculusFunctionLibrary::IsGuardianDisplayed()
 	if (OculusHMD != nullptr)
 	{
 		ovrpBool boundaryVisible;
-		return OVRP_SUCCESS(ovrp_GetBoundaryVisible2(&boundaryVisible)) && boundaryVisible;
+		return OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetBoundaryVisible2(&boundaryVisible)) && boundaryVisible;
 	}
 #endif
 	return false;
@@ -569,13 +569,13 @@ TArray<FVector> UOculusFunctionLibrary::GetGuardianPoints(EBoundaryType Boundary
 		ovrpBoundaryType obt = ToOvrpBoundaryType(BoundaryType);
 		int NumPoints = 0;
 
-		if (OVRP_SUCCESS(ovrp_GetBoundaryGeometry3(obt, NULL, &NumPoints)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetBoundaryGeometry3(obt, NULL, &NumPoints)))
 		{
 			//allocate points
 			const int BufferSize = NumPoints;
 			ovrpVector3f* BoundaryPoints = new ovrpVector3f[BufferSize];
 
-			if (OVRP_SUCCESS(ovrp_GetBoundaryGeometry3(obt, BoundaryPoints, &NumPoints)))
+			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetBoundaryGeometry3(obt, BoundaryPoints, &NumPoints)))
 			{
 				NumPoints = FMath::Min(BufferSize, NumPoints);
 				check(NumPoints <= BufferSize); // For static analyzer
@@ -612,7 +612,7 @@ FVector UOculusFunctionLibrary::GetGuardianDimensions(EBoundaryType BoundaryType
 		ovrpBoundaryType obt = ToOvrpBoundaryType(BoundaryType);
 		ovrpVector3f Dimensions;
 
-		if (OVRP_FAILURE(ovrp_GetBoundaryDimensions2(obt, &Dimensions)))
+		if (OVRP_FAILURE(FOculusHMDModule::GetPluginWrapper().GetBoundaryDimensions2(obt, &Dimensions)))
 			return FVector::ZeroVector;
 
 		Dimensions.z *= -1.0;
@@ -631,7 +631,7 @@ FTransform UOculusFunctionLibrary::GetPlayAreaTransform()
 		int NumPoints = 4;
 		ovrpVector3f BoundaryPoints[4];
 
-		if (OVRP_SUCCESS(ovrp_GetBoundaryGeometry3(ovrpBoundary_PlayArea, BoundaryPoints, &NumPoints)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetBoundaryGeometry3(ovrpBoundary_PlayArea, BoundaryPoints, &NumPoints)))
 		{	
 			FVector ConvertedPoints[4];
 
@@ -669,7 +669,7 @@ FGuardianTestResult UOculusFunctionLibrary::GetPointGuardianIntersection(const F
 		ovrpBoundaryType OvrpBoundaryType = ToOvrpBoundaryType(BoundaryType);
 		ovrpBoundaryTestResult InteractionResult;
 
-		if (OVRP_SUCCESS(ovrp_TestBoundaryPoint2(OvrpPoint, OvrpBoundaryType, &InteractionResult)))
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().TestBoundaryPoint2(OvrpPoint, OvrpBoundaryType, &InteractionResult)))
 		{
 			InteractionInfo.IsTriggering = (InteractionResult.IsTriggering != 0);
 			InteractionInfo.ClosestDistance = OculusHMD->ConvertFloat_M2U(InteractionResult.ClosestDistance);
@@ -696,7 +696,7 @@ FGuardianTestResult UOculusFunctionLibrary::GetNodeGuardianIntersection(ETracked
 		ovrpBoundaryType OvrpBoundaryType = ToOvrpBoundaryType(BoundaryType);
 		ovrpBoundaryTestResult TestResult;
 
-		if (OVRP_SUCCESS(ovrp_TestBoundaryNode2(OvrpNode, ovrpBoundary_PlayArea, &TestResult)) && TestResult.IsTriggering)
+		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().TestBoundaryNode2(OvrpNode, ovrpBoundary_PlayArea, &TestResult)) && TestResult.IsTriggering)
 		{
 			InteractionInfo.IsTriggering = true;
 			InteractionInfo.DeviceType = OculusHMD::ToETrackedDeviceType(OvrpNode);
@@ -716,7 +716,7 @@ void UOculusFunctionLibrary::SetGuardianVisibility(bool GuardianVisible)
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
 	if (OculusHMD != nullptr)
 	{
-		ovrp_SetBoundaryVisible2(GuardianVisible);
+		FOculusHMDModule::GetPluginWrapper().SetBoundaryVisible2(GuardianVisible);
 	}
 #endif
 }

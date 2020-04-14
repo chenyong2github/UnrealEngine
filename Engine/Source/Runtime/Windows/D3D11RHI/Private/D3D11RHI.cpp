@@ -593,7 +593,7 @@ FD3DGPUProfiler::FD3DGPUProfiler(class FD3D11DynamicRHI* InD3DRHI) :
 void FD3DGPUProfiler::PushEvent(const TCHAR* Name, FColor Color)
 {
 #if NV_AFTERMATH
-	if(GDX11NVAfterMathEnabled && bTrackingGPUCrashData)
+	if(GDX11NVAfterMathEnabled && bTrackingGPUCrashData && GDX11NVAfterMathMarkers)
 	{
 		uint32 CRC = 0;
 		if (GPUCrashDataDepth < 0 || PushPopStack.Num() < GPUCrashDataDepth)
@@ -633,7 +633,7 @@ void FD3DGPUProfiler::PushEvent(const TCHAR* Name, FColor Color)
 void FD3DGPUProfiler::PopEvent()
 {
 #if NV_AFTERMATH
-	if (GDX11NVAfterMathEnabled && bTrackingGPUCrashData)
+	if (GDX11NVAfterMathEnabled && bTrackingGPUCrashData && GDX11NVAfterMathMarkers)
 	{
 		PushPopStack.Pop(false);
 	}

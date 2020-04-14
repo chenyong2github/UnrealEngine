@@ -683,6 +683,8 @@ void USoundWave::BeginGetCompressedData(FName Format, const FPlatformAudioCookOv
 	{
 		if (GetDerivedDataCache())
 		{
+			COOK_STAT(auto Timer = SoundWaveCookStats::UsageStats.TimeSyncWork());
+			COOK_STAT(Timer.TrackCyclesOnly());
 			FDerivedAudioDataCompressor* DeriveAudioData = new FDerivedAudioDataCompressor(this, Format, PlatformSpecificFormat, CompressionOverrides);
 			uint32 GetHandle = GetDerivedDataCacheRef().GetAsynchronous(DeriveAudioData);
 			AsyncLoadingDataFormats.Add(PlatformSpecificFormat, GetHandle);
@@ -716,9 +718,15 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 			bool bDataWasBuilt = false;
 			bool bGetSuccessful = false;
 
-			COOK_STAT(auto Timer = SoundWaveCookStats::UsageStats.TimeSyncWork());
 #if WITH_EDITOR
 			uint32* AsyncHandle = AsyncLoadingDataFormats.Find(PlatformSpecificFormat);
+#else
+			uint32* AsyncHandle = nullptr;
+#endif
+
+			COOK_STAT(auto Timer = AsyncHandle ? SoundWaveCookStats::UsageStats.TimeAsyncWait() : SoundWaveCookStats::UsageStats.TimeSyncWork());
+
+#if WITH_EDITOR
 			if (AsyncHandle)
 			{
 				GetDerivedDataCacheRef().WaitAsynchronousCompletion(*AsyncHandle);
@@ -816,8 +824,9 @@ void USoundWave::PostLoad()
 
 		if (ShouldUseStreamCaching() && ActualLoadingBehavior != GetLoadingBehavior(false))
 		{
-			if (ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
+			if (!DisableRetainingCVar && ActualLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
 			{
+				UE_LOG(LogAudio, Display, TEXT("Sound Wave '%s' will have to load its compressed audio data async."), *GetName());
 				RetainCompressedAudio(false);
 			}
 			else
@@ -830,6 +839,12 @@ void USoundWave::PostLoad()
 					IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult) {});
 				}
 			}
+		}
+
+		// If DisableRetainingCVar was set after this USoundWave was loaded by the ALT, release its compressed audio here.
+		if (DisableRetainingCVar)
+		{
+			ReleaseCompressedAudio();
 		}
 
 		// In case any code accesses bStreaming directly, we fix up bStreaming based on the current platform's cook overrides.
@@ -930,7 +945,7 @@ void USoundWave::EnsureZerothChunkIsLoaded()
 	check(RunningPlatformData && RunningPlatformData->Chunks.Num() > 0);
 	FStreamedAudioChunk& ZerothChunk = RunningPlatformData->Chunks[0];
 	// Some sanity checks to ensure that the bulk size set up
-	check(ZerothChunk.BulkData.GetBulkDataSize() == ZerothChunk.DataSize);
+	UE_CLOG(ZerothChunk.BulkData.GetBulkDataSize() != ZerothChunk.DataSize, LogAudio, Warning, TEXT("Bulk data serialized out had a mismatched size with the DataSize field. Soundwave: %s Bulk Data Reported Size: %d Bulk Data Actual Size: %ld"), *GetFullName(), ZerothChunk.DataSize, ZerothChunk.BulkData.GetBulkDataSize());
 
 	ZerothChunkData = ZerothChunk.BulkData.GetCopyAsBuffer(ZerothChunk.AudioDataSize, true);
 #endif // WITH_EDITOR
@@ -941,6 +956,10 @@ uint32 USoundWave::GetNumChunks() const
 	if (RunningPlatformData)
 	{
 		return RunningPlatformData->Chunks.Num();
+	}
+	else if (IsTemplate() || IsRunningDedicatedServer())
+	{
+		return 0;
 	}
 	else
 	{
@@ -1854,7 +1873,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	}
 	else
 	{
-		WaveInstance->Priority = ParseParams.Priority;
+		WaveInstance->Priority = FMath::Clamp(ParseParams.Priority, 0.0f, 100.0f);
 	}
 
 	WaveInstance->Location = ParseParams.Transform.GetTranslation();
@@ -2533,6 +2552,22 @@ void USoundWave::ReleaseCompressedAudio()
 bool USoundWave::IsRetainingAudio()
 {
 	return FirstChunk.IsValid();
+}
+
+void USoundWave::SetCacheLookupIDForChunk(uint32 InChunkIndex, uint64 InCacheLookupID)
+{
+	check(FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching());
+	check(RunningPlatformData && InChunkIndex < ((uint32)RunningPlatformData->Chunks.Num()));
+
+	RunningPlatformData->Chunks[InChunkIndex].CacheLookupID = InCacheLookupID;
+}
+
+uint64 USoundWave::GetCacheLookupIDForChunk(uint32 InChunkIndex)
+{
+	check(FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching());
+	check(RunningPlatformData && (InChunkIndex < (uint32)RunningPlatformData->Chunks.Num()));
+
+	return RunningPlatformData->Chunks[InChunkIndex].CacheLookupID;
 }
 
 void USoundWave::CacheInheritedLoadingBehavior()

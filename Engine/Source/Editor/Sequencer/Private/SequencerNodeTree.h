@@ -82,6 +82,8 @@ public:
 	 */
 	void FilterNodes( const FString& InFilter );
 
+	/** Called when the active MovieScene's node group colletion has been modifed */
+	void NodeGroupsCollectionChanged();
 
 	/**
 	 * Unpins any pinned nodes in this tree
@@ -210,7 +212,7 @@ public:
 
 private:
 
-	/** Returns whether this NodeTree should only display seleected nodes */
+	/** Returns whether this NodeTree should only display selected nodes */
 	bool ShowSelectedNodesOnly() const;
 
 	/** Population algorithm utilities */
@@ -325,7 +327,8 @@ private:
 	TSharedPtr<FSequencerTrackFilter_LevelFilter> TrackFilterLevelFilter;
 
 	bool bFilterUpdateRequested;
-	
+	bool bFilteringOnNodeGroups;
+
 	/** Cached value of whether we have any nodes that should be treated as soloing */
 	bool bHasSoloNodes;
 };

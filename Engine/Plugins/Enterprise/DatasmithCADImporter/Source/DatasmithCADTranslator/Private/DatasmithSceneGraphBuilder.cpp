@@ -103,8 +103,92 @@ bool FDatasmithSceneGraphBuilder::Build()
 	}
 
 	ActorData Data(TEXT(""));
-	TSharedPtr< IDatasmithActorElement > RootActor = BuildComponent(SceneGraph->ComponentSet[*Index], Data);
+	CADLibrary::FArchiveComponent& Component = SceneGraph->ComponentSet[*Index];
+	TSharedPtr< IDatasmithActorElement > RootActor = BuildComponent(Component, Data);
 	DatasmithScene->AddActor(RootActor);
+
+	// Set ProductName, ProductVersion in DatasmithScene for Analytics purpose
+	// application_name is something like "Catia V5"
+	DatasmithScene->SetVendor(TEXT("CoreTechnologie"));
+
+	if (FString* ProductVersion = Component.MetaData.Find(TEXT("KernelIOVersion")))
+	{
+		DatasmithScene->SetProductVersion(**ProductVersion);
+	}
+
+	FString* ProductName = Component.MetaData.Find(TEXT("Input_Format_and_Emitter"));
+	if(ProductName)
+	{
+		ProductName->TrimStartAndEndInline();
+		if (!ProductName->IsEmpty())
+		{
+			DatasmithScene->SetProductName(**ProductName);
+		}
+		else
+		{
+			ProductName = nullptr;
+		}
+	}
+
+	if(!ProductName)
+	{
+		if (rootFileDescription.Extension == TEXT("jt"))
+		{
+			DatasmithScene->SetProductName(TEXT("Jt"));
+		}
+		else if (rootFileDescription.Extension == TEXT("sldprt") || rootFileDescription.Extension == TEXT("sldasm"))
+		{
+			DatasmithScene->SetProductName(TEXT("SolidWorks"));
+		}
+		else if (rootFileDescription.Extension == TEXT("catpart") || rootFileDescription.Extension == TEXT("catproduct") || rootFileDescription.Extension == TEXT("cgr"))
+		{
+			DatasmithScene->SetProductName(TEXT("CATIA V5"));
+		}
+		else if (rootFileDescription.Extension == TEXT("3dxml") || rootFileDescription.Extension == TEXT("3drep"))
+		{
+			DatasmithScene->SetProductName(TEXT("3D XML"));
+		}
+		else if (rootFileDescription.Extension == TEXT("iam") || rootFileDescription.Extension == TEXT("ipt"))
+		{
+			DatasmithScene->SetProductName(TEXT("Inventor"));
+		}
+		else if (rootFileDescription.Extension == TEXT("prt") || rootFileDescription.Extension == TEXT("asm"))
+		{
+			DatasmithScene->SetProductName(TEXT("NX"));
+		}
+		else if (rootFileDescription.Extension == TEXT("stp") || rootFileDescription.Extension == TEXT("step"))
+		{
+			DatasmithScene->SetProductName(TEXT("STEP"));
+		}
+		else if (rootFileDescription.Extension == TEXT("igs") || rootFileDescription.Extension == TEXT("iges"))
+		{
+			DatasmithScene->SetProductName(TEXT("IGES"));
+		}
+		else if (rootFileDescription.Extension == TEXT("x_t") || rootFileDescription.Extension == TEXT("x_b"))
+		{
+			DatasmithScene->SetProductName(TEXT("Parasolid"));
+		}
+		else if (rootFileDescription.Extension == TEXT("dwg"))
+		{
+			DatasmithScene->SetProductName(TEXT("AutoCAD"));
+		}
+		else if (rootFileDescription.Extension == TEXT("dgn"))
+		{
+			DatasmithScene->SetProductName(TEXT("Micro Station"));
+		}
+		else if (rootFileDescription.Extension == TEXT("sat"))
+		{
+			DatasmithScene->SetProductName(TEXT("3D ACIS"));
+		}
+		else if (rootFileDescription.Extension.StartsWith(TEXT("asm")) || rootFileDescription.Extension.StartsWith(TEXT("creo")) || rootFileDescription.Extension.StartsWith(TEXT("prt")) || rootFileDescription.Extension.StartsWith(TEXT("neu")))
+		{
+			DatasmithScene->SetProductName(TEXT("Creo"));
+		}
+		else
+		{
+			DatasmithScene->SetProductName(TEXT("Unknown"));
+		}
+	}
 
 	return true;
 }
@@ -273,59 +357,64 @@ void FDatasmithSceneGraphBuilder::GetNodeUUIDAndName(
 	FString& OutName
 )
 {
-	FString* IName = InInstanceNodeMetaDataMap.Find(TEXT("CTName"));
-	FString* IOriginalName = InInstanceNodeMetaDataMap.Find(TEXT("Name"));
-	FString* IUUID = InInstanceNodeMetaDataMap.Find(TEXT("UUID"));
+	FString* InstanceKernelIOName = InInstanceNodeMetaDataMap.Find(TEXT("CTName"));
+	FString* InstanceCADName = InInstanceNodeMetaDataMap.Find(TEXT("Name"));
+	FString* InstanceUUID = InInstanceNodeMetaDataMap.Find(TEXT("UUID"));
 
-	FString* RName = InReferenceNodeMetaDataMap.Find(TEXT("CTName"));
-	FString* ROriginalName = InReferenceNodeMetaDataMap.Find(TEXT("Name"));
-	FString* RUUID = InReferenceNodeMetaDataMap.Find(TEXT("UUID"));
+	FString* ReferenceKernelIOName = InReferenceNodeMetaDataMap.Find(TEXT("CTName"));
+	FString* ReferenceCADName = InReferenceNodeMetaDataMap.Find(TEXT("Name"));
+	FString* ReferenceUUID = InReferenceNodeMetaDataMap.Find(TEXT("UUID"));
 
-	FString ReferenceName;
-
-	// Reference Name
-	if (ROriginalName)
+	// Outname Name
+	// IName and RName are KernelIO build Name. Original names (CAD system name) are preferred
+	if (InstanceCADName && !InstanceCADName->IsEmpty())
 	{
-		ReferenceName = *ROriginalName;
+		OutName = *InstanceCADName;
 	}
-	else if (RName)
+	else if (ReferenceCADName && !ReferenceCADName->IsEmpty())
 	{
-		ReferenceName = *RName;
+		OutName = *ReferenceCADName;
+	}
+	else if (InstanceKernelIOName && !InstanceKernelIOName->IsEmpty())
+	{
+		OutName = *InstanceKernelIOName;
+	}
+	else if (ReferenceKernelIOName && !ReferenceKernelIOName->IsEmpty())
+	{
+		OutName = *ReferenceKernelIOName;
 	}
 	else
 	{
-		ReferenceName = "NoName";
+		OutName = "NoName";
 	}
-
-	OutName = IOriginalName ? *IOriginalName : IName ? *IName : ReferenceName;
 	CleanName(OutName);
 
 	CADUUID UEUUID = HashCombine(GetTypeHash(InParentUEUUID), GetTypeHash(InComponentIndex));
 
-	if (IUUID)
+	if (InstanceUUID)
 	{
-		UEUUID = HashCombine(UEUUID, GetTypeHash(*IUUID));
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*InstanceUUID));
 	}
-	if (IOriginalName)
+	if (InstanceCADName)
 	{
-		UEUUID = HashCombine(UEUUID, GetTypeHash(*IOriginalName));
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*InstanceCADName));
 	}
-	if (IName)
+	if (InstanceKernelIOName)
 	{
-		UEUUID = HashCombine(UEUUID, GetTypeHash(*IName));
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*InstanceKernelIOName));
 	}
 
-	if (RUUID)
+	if (ReferenceUUID)
 	{
-		UEUUID = HashCombine(UEUUID, GetTypeHash(*RUUID));
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*ReferenceUUID));
 	}
-	if (ROriginalName)
+	if (ReferenceCADName)
 	{
-		UEUUID = HashCombine(UEUUID, GetTypeHash(*ROriginalName));
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*ReferenceCADName));
 	}
-	if (RName)
+	if (ReferenceKernelIOName)
 	{
-		UEUUID = HashCombine(UEUUID, GetTypeHash(*RName));
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*ReferenceKernelIOName));
 	}
 
 	OutUEUUID = FString::Printf(TEXT("0x%08x"), UEUUID);
@@ -529,13 +618,13 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 		UnwantedAttributes.Add(TEXT("OriginalUnitsMass"));
 		UnwantedAttributes.Add(TEXT("OriginalUnitsLength"));
 		UnwantedAttributes.Add(TEXT("OriginalUnitsDuration"));
-		UnwantedAttributes.Add(TEXT("OriginalId"));
 		UnwantedAttributes.Add(TEXT("OriginalIdStr"));
 		UnwantedAttributes.Add(TEXT("ShowAttribute"));
 		UnwantedAttributes.Add(TEXT("Identification"));
 		UnwantedAttributes.Add(TEXT("MaterialId"));
 		UnwantedAttributes.Add(TEXT("ColorUEId"));
 		UnwantedAttributes.Add(TEXT("ColorId"));
+		UnwantedAttributes.Add(TEXT("KernelIOVersion"));
 		return UnwantedAttributes;
 	};
 
@@ -547,6 +636,11 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 	for (auto& Attribute : ReferenceNodeAttributeSetMap)
 	{
 		if (UnwantedAttributes.Contains(Attribute.Key))
+		{
+			continue;
+		}
+
+		if (Attribute.Value.IsEmpty())
 		{
 			continue;
 		}
@@ -592,6 +686,11 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 	for (const auto& Attribute : InstanceNodeAttributeSetMap)
 	{
 		if (UnwantedAttributes.Contains(*Attribute.Key))
+		{
+			continue;
+		}
+
+		if (Attribute.Value.IsEmpty())
 		{
 			continue;
 		}

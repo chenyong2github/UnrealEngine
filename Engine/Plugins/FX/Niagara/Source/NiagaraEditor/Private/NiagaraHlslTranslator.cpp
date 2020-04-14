@@ -138,7 +138,7 @@ void FNiagaraShaderQueueTickable::ProcessQueue()
 
 			FString ShaderCode = CompilableScript->GetVMExecutableData().LastHlslTranslationGPU;
 			// When not running in the editor, the shaders are created in-sync in the postload.
-			const bool bSynchronousCompile = !GIsEditor;
+			const bool bSynchronousCompile = !GIsEditor || GIsAutomationTesting;
 
 			// Compile the shaders for the script.
 			NewShaderMap->Compile(ShaderScript, Item.ShaderMapId, CompilerEnvironment, NewCompilationOutput, Item.Platform, bSynchronousCompile, Item.bApply);
@@ -262,11 +262,16 @@ bool FHlslNiagaraTranslator::ValidateTypePins(UNiagaraNode* NodeToValidate)
 				Error(LOCTEXT("InvalidPinTypeError", "Node pin has an undefined type."), NodeToValidate, Pin);
 				bPinsAreValid = false;
 			}
+			else if (Type == FNiagaraTypeDefinition::GetGenericNumericDef())
+			{
+				Error(LOCTEXT("NumericPinError", "A numeric pin was not resolved to a known type.  Numeric pins must be connected or must be converted to an explicitly typed pin in order to compile."), NodeToValidate, Pin);
+				bPinsAreValid = false;
+			}
 		}
 
 		if (Pin->bOrphanedPin)
 		{
-			Error(LOCTEXT("OrphanedPinError", "Node pin is no longer valid.  This pin must be disconnected or reset to default so it can be removed."), NodeToValidate, Pin);
+			Warning(LOCTEXT("OrphanedPinError", "Node pin is no longer valid.  This pin must be disconnected or reset to default so it can be removed."), NodeToValidate, Pin);
 		}
 	}
 	return bPinsAreValid;
@@ -1321,12 +1326,16 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			}
 		}
 
+		// NiagaraID is a fundamental type which can be used in custom HLSL without declaring any pins of that type in any nodes.
+		// Make sure it's always defined in the generated HLSL.
+		StructsToDefine.AddUnique(FNiagaraTypeDefinition::GetIDDef());
+
 		// Generate the Parameter Map HLSL definitions. We don't add to the final HLSL output here. We just build up the strings and tables
 		// that are needed later.
 		TArray<FNiagaraVariable> PrimaryDataSetOutputEntries;
 		FString ParameterMapDefinitionStr = BuildParameterMapHlslDefinitions(PrimaryDataSetOutputEntries);
 
-		for (FNiagaraTypeDefinition Type : StructsToDefine)
+		for (const FNiagaraTypeDefinition& Type : StructsToDefine)
 		{
 			FText ErrorMessage;
 			HlslOutput += BuildHLSLStructDecl(Type, ErrorMessage);
@@ -2169,6 +2178,12 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
+			// No need to load particle data for stages with an iteration source, since those do not run one thread per particle.
+			if (TranslationStages[i].IterationSource != NAME_None)
+			{
+				continue;
+			}
+
 			if (TranslationStages.Num() > 2)
 			{
 				if (StartIdx == i)
@@ -2219,12 +2234,21 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 							{
 								FString RegisterName = VarName;
 								const FString AttribStr = PARAM_MAP_ATTRIBUTE_STR;
+
+								//-TODO: If a simulation stage ends in the name "Particles." (i.e. ResolveParticles) a single search can fail so we must loop to find the correct namespace
+								//       Ideally we replace this with some more robust namespace functionality.
 								int32 ParticlesIdx = RegisterName.Find(AttribStr);
-								if (ParticlesIdx != -1 && (ParticlesIdx == 0 || (ParticlesIdx > 0 && RegisterName[ParticlesIdx - 1] == '.')))
+								while (ParticlesIdx != INDEX_NONE)
 								{
-									RegisterName.RemoveAt(ParticlesIdx, AttribStr.Len());
-									RegisterName.InsertAt(ParticlesIdx, PARAM_MAP_INDICES_STR);
+									if ( (ParticlesIdx == 0 || (ParticlesIdx > 0 && RegisterName[ParticlesIdx - 1] == '.')) )
+									{
+										RegisterName.RemoveAt(ParticlesIdx, AttribStr.Len());
+										RegisterName.InsertAt(ParticlesIdx, PARAM_MAP_INDICES_STR);
+										break;
+									}
+									ParticlesIdx = RegisterName.Find(AttribStr, ESearchCase::IgnoreCase, ESearchDir::FromStart, ParticlesIdx + AttribStr.Len());
 								}
+
 								const int32 RegisterValue = Var.GetType().IsFloatPrimitive() ? FloatCounter : IntCounter;
 								HlslOutput += RegisterName + FString::Printf(TEXT(" = %d;\n"), RegisterValue);
 							}
@@ -2309,6 +2333,12 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
+			// No need to store particle data for stages with an iteration source, since those do not run one thread per particle.
+			if (TranslationStages[i].IterationSource != NAME_None)
+			{
+				continue;
+			}
+
 			if (TranslationStages.Num() > 2)
 			{
 				if (StartIdx == i)
@@ -2324,14 +2354,20 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					"	{\n"), TranslationStages[i].SimulationStageIndexMin, TranslationStages[i].SimulationStageIndexMax);
 			}
 
-			if (TranslationStages[i].bUsesAlive)
+			if (TranslationStages[i].bWritesAlive || (i == 1 && TranslationStages[0].bWritesAlive))
 			{
-				HlslOutput += TEXT("\t\tGStageUsesAlive = true;\n");
+				// This stage kills particles, so we must skip the dead ones when writing out the data.
+				// It's also possible that this is the update phase, and it doesn't kill particles, but the spawn phase does. It would be nice
+				// if we could only do this for newly spawned particles, but unfortunately that would mean placing thread sync operations
+				// under dynamic flow control, which is not allowed. Therefore, we must always use the more expensive path when the spawn phase
+				// can kill particles.
+				HlslOutput += TEXT("\t\tGStageWritesAlive = true;\n");
 				HlslOutput += TEXT("\t\tconst bool bValid = Context.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance.Alive;\n");
 				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, true, bValid);\n");
 			}
 			else
 			{
+				// The stage doesn't kill particles, we can take the simpler path which doesn't need to manage the particle count.
 				HlslOutput += TEXT("\t\tconst bool bValid = GCurrentPhase != -1;\n");
 				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, false, bValid);\n");
 			}
@@ -2536,7 +2572,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		HlslOutput += TEXT(
 			"	// If a stage doesn't kill particles, StoreUpdateVariables() never calls AcquireIndex(), so the\n"
 			"   // count isn't updated. In that case we must manually copy the original count here.\n"
-			"	if (!GStageUsesAlive && WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
+			"	if (!GStageWritesAlive && WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
 			"	{ \n"
 			"		RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + SpawnedInstances; \n"
 			"	} \n"
@@ -3026,6 +3062,32 @@ FString FHlslNiagaraTranslator::GetSanitizedSymbolName(FString SymbolName, bool 
 		Ret.ReplaceInline(TEXT("."), TEXT("_"));
 	}
 	return Ret;
+}
+
+FString FHlslNiagaraTranslator::GetSanitizedDIFunctionName(const FString& FunctionName)
+{
+	bool bWordStart = true;
+	FString Sanitized;
+	for (int i = 0; i < FunctionName.Len(); ++i)
+	{
+		TCHAR c = FunctionName[i];
+
+		if (c == ' ')
+		{
+			bWordStart = true;
+		}
+		else
+		{
+			if (bWordStart)
+			{
+				c = FChar::ToUpper(c);
+				bWordStart = false;
+			}
+			Sanitized.AppendChar(c);
+		}
+	}
+
+	return Sanitized;
 }
 
 FString FHlslNiagaraTranslator::GetSanitizedFunctionNameSuffix(FString Name)
@@ -4166,7 +4228,7 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 		if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetSimulationTargetEnum(), TEXT("Emitter.SimulationTarget")))
 		{
 			FNiagaraInt32 EnumValue;
-			EnumValue.Value = (uint8) CompilationTarget;
+			EnumValue.Value = CompilationTarget == ENiagaraSimTarget::GPUComputeSim || CompileOptions.AdditionalDefines.Contains(TEXT("GPUComputeSim")) ? 1 : 0;
 			OutVar.SetValue(EnumValue);
 			return true;
 		}
@@ -4551,62 +4613,7 @@ void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNod
 			FNiagaraVariable Var = Schema->PinToNiagaraVariable(OutputPins[i], bNeedsValue);
 
 			UNiagaraScriptVariable* Variable = GetNode->GetNiagaraGraph()->GetScriptVariable(Var);
-
-			// Handle parameter map overrides for bindings as a special case, 
-			// effectively copying the bound value to the variable in question prior to invoking a function call.
-			// Especially relevant for module parameters that are also bindings
-			bool bFoundBinding = false;
-			if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding)
-			{
-				FNiagaraScriptVariableBinding Bind = Variable->DefaultBinding;
-				if (Bind.IsValid())
-				{
-					int LastSetChunkIdx = INDEX_NONE;
-
-					// Check whether we've encountered this variable before, i.e. in BuildMissingDefaults in a spawn script. In this case we'll skip
-					for (auto& UniqueVar : UniqueVarToChunk)
-					{
-						if (UniqueVar.Key.IsEquivalent(FNiagaraVariable(Var.GetType(), Var.GetName())))
-						{
-							LastSetChunkIdx = UniqueVar.Value;
-							break;
-						}
-					}
-					
-					if (LastSetChunkIdx == INDEX_NONE)
-					{
-						// If we haven't encountered this variable before, 
-						// search through the param history for a variable matching the bindings and add a source chunk to it
-						Var = ActiveHistoryForFunctionCalls.ResolveAliases(Var);
-						for (auto HistoryVariable : ParamMapHistories[ParamMapHistoryIdx].Variables)
-						{
-							if (HistoryVariable.IsEquivalent(FNiagaraVariable(Var.GetType(), Bind.GetName())))
-							{
-								FString SanitizedName = GetParameterMapInstanceName(ActiveStageIdx) + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString());
-								LastSetChunkIdx = AddSourceChunk(SanitizedName, Var.GetType());
-								break;
-							}
-						}
-						if (LastSetChunkIdx != INDEX_NONE && Var.GetType().GetClass() == nullptr)
-						{
-							int32 VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
-							if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
-							{
-								// Record that we wrote to it
-								ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
-								ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
-								Outputs[i] = LastSetChunkIdx;
-								bFoundBinding = true;
-							}
-						}
-					}
-				}
-			}
-
-			if (!bFoundBinding)
-			{
-				HandleParameterRead(ParamMapHistoryIdx, Var, GetNode->GetDefaultPin(OutputPins[i]), GetNode, Outputs[i], nullptr);
-			}
+			HandleParameterRead(ParamMapHistoryIdx, Var, GetNode->GetDefaultPin(OutputPins[i]), GetNode, Outputs[i], Variable);
 		}
 	}
 }
@@ -4631,7 +4638,14 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 	FString Namespace = FNiagaraParameterMapHistory::GetNamespace(Var);
 	if (!ParamMapHistories[ParamMapHistoryIdx].IsValidNamespaceForReading(CompileOptions.TargetUsage, CompileOptions.TargetUsageBitmask, Namespace))
 	{
-		Error(FText::Format(LOCTEXT("InvalidReadingNamespace", "Variable {0} is in a namespace that isn't valid for reading"), FText::FromName(Var.GetName())), ErrorNode, nullptr);
+		if (UNiagaraScript::IsStandaloneScript(CompileOptions.TargetUsage) && Namespace.StartsWith(PARAM_MAP_ATTRIBUTE_STR))
+		{
+			Error(FText::Format(LOCTEXT("InvalidReadingNamespaceStandalone", "Variable {0} is in a namespace that isn't valid for reading. Enable at least one of the 'particle' options in the target usage bitmask of your script to access the 'Particles.' namespace."), FText::FromName(Var.GetName())), ErrorNode, nullptr);
+		}
+		else
+		{
+			Error(FText::Format(LOCTEXT("InvalidReadingNamespace", "Variable {0} is in a namespace that isn't valid for reading"), FText::FromName(Var.GetName())), ErrorNode, nullptr);
+		}
 		return;
 	}
 
@@ -4830,42 +4844,19 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 			{
 				FNiagaraScriptVariableBinding Bind = Variable->DefaultBinding;
 
-				// Check whether we've encountered the binding before, if so return its chunk
-				bool bFoundVariable = false;
-				for (auto& UniqueVar : UniqueVars)
-				{
-					if (Bind.GetName() == UniqueVar.GetName())
-					{
-						bFoundVariable = true;
-						break;
-					}
-				}
+				int32 Out = INDEX_NONE;
+				FNiagaraVariable BindVar = FNiagaraVariable(InVar.GetType(), Bind.GetName());
+				HandleParameterRead(ActiveStageIdx, BindVar, nullptr, ErrorNode, Out, nullptr);
 
-				if (bFoundVariable)
+				if (Out != INDEX_NONE)
 				{
-					for (auto& UniqueVar : UniqueVarToChunk)
-					{
-						if (UniqueVar.Key.IsEquivalent(FNiagaraVariable(Variable->Variable.GetType(), Bind.GetName())))
-						{
-							LastSetChunkIdx = UniqueVar.Value;
-							break;
-						}
-					}
+					LastSetChunkIdx = Out;
 				}
 				else
 				{
-					// We haven't encountered the binding before, try to check whether it's a known variable or not.
-					int Out = GetParameter(FNiagaraVariable(InVar.GetType(), Bind.GetName()));
-					if (Out != INDEX_NONE)
-					{
-						LastSetChunkIdx = Out;
-					} 
-					else 
-					{
-						Error(FText::Format(LOCTEXT("CannotFindBinding", "The module input {0} is bound to {1}, but {1} is not yet defined. Make sure {1} is defined prior to this module call."),
-							FText::FromName(Var.GetName()),
-							FText::FromName(Bind.GetName())), ErrorNode, nullptr);
-					}
+					Error(FText::Format(LOCTEXT("CannotFindBinding", "The module input {0} is bound to {1}, but {1} is not yet defined. Make sure {1} is defined prior to this module call."),
+						FText::FromName(Var.GetName()),
+						FText::FromName(Bind.GetName())), ErrorNode, nullptr);
 				}
 			}
 			else if (InputPin != nullptr) // Default was found, trace back its inputs.
@@ -5471,6 +5462,117 @@ void FHlslNiagaraTranslator::FinalResolveNamespacedTokens(const FString& Paramet
 	}
 }
 
+static bool IsWhitespaceToken(const FString& Token)
+{
+	return
+		Token.Len() == 0 ||
+		Token[0] == TCHAR('\r') || Token[0] == TCHAR('\n') || Token[0] == TCHAR('\t') || Token[0] == TCHAR(' ') || 
+		(Token.Len() >= 2 && Token[0] == TCHAR('/') && (Token[1] == TCHAR('/') || Token[1] == TCHAR('*')))
+		;
+}
+
+bool FHlslNiagaraTranslator::ParseDIFunctionSpecifiers(UNiagaraNodeCustomHlsl* CustomHLSLNode, FNiagaraFunctionSignature& Sig, TArray<FString>& Tokens, int32& TokenIdx)
+{
+	const int32 NumTokens = Tokens.Num();
+
+	// Skip whitespace between the function name and the arguments or specifiers.
+	while (TokenIdx < NumTokens && IsWhitespaceToken(Tokens[TokenIdx]))
+	{
+		++TokenIdx;
+	}
+
+	// If we don't have a specifier list start token, we don't need to do anything.
+	if (TokenIdx == NumTokens || Tokens[TokenIdx] != TEXT("<"))
+	{
+		return true;
+	}
+
+	enum class EParserState
+	{
+		ExpectName,
+		ExpectEquals,
+		ExpectValue,
+		ExpectCommaOrEnd
+	};
+
+	EParserState ParserState = EParserState::ExpectName;
+	FString SpecifierName;
+
+	// All the tokens inside the specifier list, including the angle brackets, will be replaced with empty strings,
+	// because they're not valid HLSL. We just want to extract Key=Value pairs into the signature's specifier list.
+	while (TokenIdx < NumTokens)
+	{
+		FString Token = Tokens[TokenIdx];
+		Tokens[TokenIdx] = TEXT("");
+		++TokenIdx;
+
+		if (IsWhitespaceToken(Token))
+		{
+			continue;
+		}
+
+		if (Token[0] == TCHAR('<'))
+		{
+			// Nothing.
+		}
+		else if (Token[0] == TCHAR('>'))
+		{
+			if (ParserState != EParserState::ExpectCommaOrEnd)
+			{
+				Error(LOCTEXT("DataInterfaceFunctionCallUnexpectedEnd", "Unexpected end of specifier list."), CustomHLSLNode, nullptr);
+				return false;
+			}
+			break;
+		}
+		else if (Token[0] == TCHAR('='))
+		{
+			if (ParserState == EParserState::ExpectEquals)
+			{
+				ParserState = EParserState::ExpectValue;
+			}
+			else
+			{
+				Error(LOCTEXT("DataInterfaceFunctionCallExpectEquals", "Invalid token in specifier list, expecting '='."), CustomHLSLNode, nullptr);
+				return false;
+			}
+		}
+		else if (Token[0] == TCHAR(','))
+		{
+			if (ParserState == EParserState::ExpectCommaOrEnd)
+			{
+				ParserState = EParserState::ExpectName;
+			}
+			else
+			{
+				Error(LOCTEXT("DataInterfaceFunctionCallExpectComma", "Invalid token in specifier list, expecting ','."), CustomHLSLNode, nullptr);
+				return false;
+			}
+		}
+		else
+		{
+			if (ParserState == EParserState::ExpectName)
+			{
+				SpecifierName = Token;
+				ParserState = EParserState::ExpectEquals;
+			}
+			else if (ParserState == EParserState::ExpectValue)
+			{
+				int32 Start = 0, ValueLen = Token.Len();
+				// Remove the quotation marks if they are used.
+				if (Token.Len() >= 2 && Token[0] == TCHAR('"') && Token[ValueLen - 1] == TCHAR('"'))
+				{
+					Start = 1;
+					ValueLen -= 2;
+				}
+				Sig.FunctionSpecifiers.Add(FName(SpecifierName), FName(Token.Mid(Start, ValueLen)));
+				ParserState = EParserState::ExpectCommaOrEnd;
+			}
+		}
+	}
+
+	return true;
+}
+
 void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl,
 	FNiagaraFunctionSignature& OutSignature, TArray<int32>& Inputs)
 {
@@ -5536,30 +5638,77 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 			// actual custom hlsl source. If they do, then add them to the function table that we need to map.
 			FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[OwnerIdx];
 			TArray<FNiagaraFunctionSignature> Funcs;
-			TArray<FNiagaraFunctionSignature> AddedFuncs;
 			CDO->GetFunctions(Funcs);
 			for (int32 FuncIdx = 0; FuncIdx < Funcs.Num(); FuncIdx++)
 			{
-				FNiagaraFunctionSignature Sig = Funcs[FuncIdx];
-				FString ReplaceSrc = Input.GetName().ToString() + TEXT(".") + Sig.GetName();
-				FString ReplaceDest = GetSanitizedSymbolName(Sig.GetName() + TEXT("_") + (Info.Name.ToString().Replace(TEXT("."), TEXT(""))));
-				uint32 NumFound = CustomFunctionHlsl->ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, false);
-				if (NumFound != 0)
+				FString DIMethodInvocation = Input.GetName().ToString() + TEXT(".") + GetSanitizedDIFunctionName(Funcs[FuncIdx].GetName());
+
+				for (int32 TokenIndex = 0; TokenIndex < Tokens.Num();)
 				{
-					AddedFuncs.Add(Sig);
-
-					if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
+					if (Tokens[TokenIndex].Compare(DIMethodInvocation, ESearchCase::CaseSensitive) == 0)
 					{
-						//This interface requires per instance data via a user ptr so place the index to it at the end of the inputs.
-						//Skip this for now... Inputs.Add(AddSourceChunk(LexToString(Info.UserPtrIdx), FNiagaraTypeDefinition::GetIntDef(), false));
-						Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")));
-					}
-					//Override the owner id of the signature with the actual caller.
-					Sig.OwnerName = Info.Name;
-					Info.RegisteredFunctions.Add(Sig);
-					Functions.FindOrAdd(Sig);
+						// We can't replace the method-style call with the actual function name yet, because function specifiers
+						// are part of the name, and we haven't determined them yet. Just store a pointer to the token for now.
+						FString& FunctionNameToken = Tokens[TokenIndex];
+						++TokenIndex;
 
-					HandleDataInterfaceCall(Info, Sig);
+						FNiagaraFunctionSignature Sig = Funcs[FuncIdx];
+
+						// Override the owner id of the signature with the actual caller.
+						Sig.OwnerName = Info.Name;
+
+						// Function specifiers can be given inside angle brackets, using this syntax:
+						//
+						//		DI.Function<Specifier1=Value1, Specifier2="Value 2">(Arguments);
+						//
+						// We need to extract the specifiers and replace any tokens inside the angle brackets with empty strings,
+						// to arrive back at valid HLSL.
+						if (!ParseDIFunctionSpecifiers(CustomFunctionHlsl, Sig, Tokens, TokenIndex))
+						{
+							return;
+						}
+
+						// Now we can build the function name and replace the method call token with the final function name.
+						FunctionNameToken = GetFunctionSignatureSymbol(Sig);
+
+						if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
+						{
+							//This interface requires per instance data via a user ptr so place the index as the first input.
+							Sig.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")), 0);
+
+							// Look for the opening parenthesis.
+							while (TokenIndex < Tokens.Num() && Tokens[TokenIndex] != TEXT("("))
+							{
+								++TokenIndex;
+							}
+
+							if (TokenIndex < Tokens.Num())
+							{
+								// Skip the parenthesis.
+								++TokenIndex;
+
+								// Insert the instance index as the first argument. We don't need to do range checking because even if
+								// the tokens end after the parenthesis, we'll be inserting at the end of the array.
+								Tokens.Insert(LexToString(Info.UserPtrIdx), TokenIndex++);
+
+								if (Sig.Inputs.Num() > 1 || Sig.Outputs.Num() > 0)
+								{
+									// If there are other arguments, insert a comma and a space. These are separators, so they need to be different tokens.
+									Tokens.Insert(TEXT(","), TokenIndex++);
+									Tokens.Insert(TEXT(" "), TokenIndex++);
+								}
+							}
+						}
+
+						Info.RegisteredFunctions.Add(Sig);
+						Functions.FindOrAdd(Sig);
+
+						HandleDataInterfaceCall(Info, Sig);
+					}
+					else
+					{
+						++TokenIndex;
+					}
 				}
 			}
 			SigInputs.Add(Input);
@@ -6073,9 +6222,9 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 
 				if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
 				{
-					//This interface requires per instance data via a user ptr so place the index to it at the end of the inputs.
-					Inputs.Add(AddSourceChunk(LexToString(Info.UserPtrIdx), FNiagaraTypeDefinition::GetIntDef(), false));
-					OutSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")));
+					//This interface requires per instance data via a user ptr so place the index as the first input.
+					Inputs.Insert(AddSourceChunk(LexToString(Info.UserPtrIdx), FNiagaraTypeDefinition::GetIntDef(), false), 0);
+					OutSignature.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")), 0);
 				}
 			}
 
@@ -6750,9 +6899,8 @@ int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 	return Ret;
 }
 
-void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
+void FHlslNiagaraTranslator::Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
 {
-
 	const UNiagaraNode* CurContextNode = ActiveHistoryForFunctionCalls.GetCallingContext();
 	const UNiagaraNode* TargetNode = InNode ? InNode : CurContextNode;
 
@@ -6783,34 +6931,27 @@ void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* InNode, 
 		NodePinSuffix = TEXT(" - ");
 	}
 
-	FString ErrorString = FString::Printf(TEXT("%s%s%s%s"), *ErrorText.ToString(), *NodePinPrefix, *NodePinStr, *NodePinSuffix);
-	TranslateResults.CompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Error, ErrorString, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids()));
-	TranslateResults.NumErrors++;
+	FString MessageString = FString::Printf(TEXT("%s%s%s%s"), *MessageText.ToString(), *NodePinPrefix, *NodePinStr, *NodePinSuffix);
+	TranslateResults.CompileEvents.Add(FNiagaraCompileEvent(Severity, MessageString, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids()));
+
+	if (Severity == FNiagaraCompileEventSeverity::Error)
+	{
+		TranslateResults.NumErrors++;
+	}
+	else if (Severity == FNiagaraCompileEventSeverity::Warning)
+	{
+		TranslateResults.NumWarnings++;
+	}
+}
+
+void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
+{
+	Message(FNiagaraCompileEventSeverity::Error, ErrorText, InNode, Pin);
 }
 
 void FHlslNiagaraTranslator::Warning(FText WarningText, const UNiagaraNode* InNode, const UEdGraphPin* Pin)
 {
-
-	const UNiagaraNode* CurContextNode = ActiveHistoryForFunctionCalls.GetCallingContext();
-	const UNiagaraNode* TargetNode = InNode ? InNode : CurContextNode;
-
-	FString NodePinStr = TEXT("");
-	FString NodePinPrefix = TEXT(" - ");
-	FString NodePinSuffix = TEXT("");
-	if (TargetNode && TargetNode->GetName().Len() > 0)
-	{
-		NodePinStr += TEXT("Node: ") + TargetNode->GetName();
-		NodePinSuffix = TEXT(" - ");
-	}
-	if (Pin && Pin->PinFriendlyName.ToString().Len() > 0)
-	{
-		NodePinStr += TEXT(" Pin: ") + Pin->PinFriendlyName.ToString();
-		NodePinSuffix = TEXT(" - ");
-	}
-
-	FString WarnString = FString::Printf(TEXT("%s%s%s%s"), *WarningText.ToString(), *NodePinPrefix, *NodePinStr, *NodePinSuffix);
-	TranslateResults.CompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Warning, WarnString, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids()));
-	TranslateResults.NumWarnings++;
+	Message(FNiagaraCompileEventSeverity::Warning, WarningText, InNode, Pin);
 }
 
 bool FHlslNiagaraTranslator::GetFunctionParameter(const FNiagaraVariable& Parameter, int32& OutParam)const
@@ -6887,7 +7028,7 @@ FGuid FHlslNiagaraTranslator::GetTargetUsageId() const
 }
 //////////////////////////////////////////////////////////////////////////
 
-FString FHlslNiagaraTranslator::GetHlslDefaultForType(FNiagaraTypeDefinition Type)
+FString FHlslNiagaraTranslator::GetHlslDefaultForType(const FNiagaraTypeDefinition& Type)
 {
 	if (Type == FNiagaraTypeDefinition::GetFloatDef())
 	{
@@ -6895,23 +7036,23 @@ FString FHlslNiagaraTranslator::GetHlslDefaultForType(FNiagaraTypeDefinition Typ
 	}
 	else if (Type == FNiagaraTypeDefinition::GetVec2Def())
 	{
-		return "float2(0.0,0.0)";
+		return "float2(0.0, 0.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetVec3Def())
 	{
-		return "float3(0.0,0.0,0.0)";
+		return "float3(0.0, 0.0, 0.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetVec4Def())
 	{
-		return "float4(0.0,0.0,0.0,0.0)";
+		return "float4(0.0, 0.0, 0.0, 0.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetQuatDef())
 	{
-		return "float4(0.0,0.0,0.0,1.0)";
+		return "float4(0.0, 0.0, 0.0, 1.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetColorDef())
 	{
-		return "float4(1.0,1.0,1.0,1.0)";
+		return "float4(1.0, 1.0, 1.0, 1.0)";
 	}
 	else if (Type == FNiagaraTypeDefinition::GetIntDef())
 	{
@@ -6927,7 +7068,7 @@ FString FHlslNiagaraTranslator::GetHlslDefaultForType(FNiagaraTypeDefinition Typ
 	}
 }
 
-bool FHlslNiagaraTranslator::IsBuiltInHlslType(FNiagaraTypeDefinition Type)
+bool FHlslNiagaraTranslator::IsBuiltInHlslType(const FNiagaraTypeDefinition& Type)
 {
 	return
 		Type == FNiagaraTypeDefinition::GetFloatDef() ||
@@ -6942,7 +7083,7 @@ bool FHlslNiagaraTranslator::IsBuiltInHlslType(FNiagaraTypeDefinition Type)
 		Type == FNiagaraTypeDefinition::GetBoolDef();
 }
 
-FString FHlslNiagaraTranslator::GetStructHlslTypeName(FNiagaraTypeDefinition Type)
+FString FHlslNiagaraTranslator::GetStructHlslTypeName(const FNiagaraTypeDefinition& Type)
 {
 	if (Type.IsValid() == false)
 	{
@@ -7023,7 +7164,7 @@ FString FHlslNiagaraTranslator::GetPropertyHlslTypeName(const FProperty* Propert
 	}
 }
 
-FString FHlslNiagaraTranslator::BuildHLSLStructDecl(FNiagaraTypeDefinition Type, FText& OutErrorMessage)
+FString FHlslNiagaraTranslator::BuildHLSLStructDecl(const FNiagaraTypeDefinition& Type, FText& OutErrorMessage)
 {
 	if (!IsBuiltInHlslType(Type))
 	{
@@ -7049,7 +7190,7 @@ FString FHlslNiagaraTranslator::BuildHLSLStructDecl(FNiagaraTypeDefinition Type,
 	return TEXT("");
 }
 
-bool FHlslNiagaraTranslator::IsHlslBuiltinVector(FNiagaraTypeDefinition Type)
+bool FHlslNiagaraTranslator::IsHlslBuiltinVector(const FNiagaraTypeDefinition& Type)
 {
 	if ((Type == FNiagaraTypeDefinition::GetVec2Def()) ||
 		(Type == FNiagaraTypeDefinition::GetVec3Def()) ||

@@ -36,6 +36,16 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="AWSSDK.Core, Version=3.3.0.0, Culture=neutral, PublicKeyToken=885c28607f98e604, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\Binaries\ThirdParty\AWSSDK\AWSSDK.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="AWSSDK.S3, Version=3.3.0.0, Culture=neutral, PublicKeyToken=885c28607f98e604, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\Binaries\ThirdParty\AWSSDK\AWSSDK.S3.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Ionic.Zip.Reduced">
       <HintPath>..\..\..\..\Binaries\DotNET\Ionic.Zip.Reduced.dll</HintPath>
       <Private>False</Private>
@@ -68,8 +78,10 @@
     <Compile Include="BenchmarkBuild\BenchmarkRunEditorTask.cs" />
     <Compile Include="BenchmarkBuild\BenchmarkSingleCompileTask.cs" />
     <Compile Include="BenchmarkBuild\BenchmarkTaskBase.cs" />
+    <Compile Include="CheckPerforceCase.cs" />
     <Compile Include="FinalizeInstalledBuild.cs" />
     <Compile Include="BuildHlslcc.Automation.cs" />
+    <Compile Include="FixPerforceCase.cs" />
     <Compile Include="ParseMsvcTimingInfo.cs" />
     <Compile Include="StashTarget.cs" />
     <Compile Include="BlameKeyword.Automation.cs" />
@@ -128,6 +140,7 @@
     <Compile Include="TestSnippet.Automation.cs" />
     <Compile Include="UE4BuildUtils.cs" />
     <Compile Include="UpdateLocalVersion.Automation.cs" />
+    <Compile Include="UploadDDCToAWS.cs" />
     <Compile Include="ZipUtils.Automation.cs" />
     <Compile Include="SyncProject.Automation.cs" />
     <Compile Include="BuildTarget.Automation.cs" />

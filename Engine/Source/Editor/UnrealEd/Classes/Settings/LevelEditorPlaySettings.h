@@ -85,8 +85,8 @@ enum EPlayModeType
 UENUM()
 enum EPlayNetMode
 {
-	/** A non-networked game will be started. This can be used in combination with bLaunchSeparateServer to test menu -> server flow in your game. */
-	PIE_Standalone UMETA(DisplayName="Play Offline"),
+	/** A standalone game will be started. This will not create a dedicated server, nor automatically connect to one. A server can be launched by enabling bLaunchSeparateServer if you need to test offline -> server connection flow for your game. */
+	PIE_Standalone UMETA(DisplayName="Play Standalone"),
 	/** The editor will act as both a Server and a Client. Additional instances may be opened beyond that depending on the number of clients. */
 	PIE_ListenServer UMETA(DisplayName="Play As Listen Server"),
 	/** The editor will act as a Client. A server will be started for you behind the scenes to connect to. */
@@ -365,7 +365,27 @@ private:
 	UPROPERTY(config)
 	FString AdditionalLaunchOptions;
 
+	/** Controls the default value of the show flag ServerDrawDebug */
+	UPROPERTY(config, EditAnywhere, Category = MultiplayerOptions)
+	bool bShowServerDebugDrawingByDefault;
+
+	/** How strongly debug drawing originating from the server will be biased towards the tint color */
+	UPROPERTY(config, EditAnywhere, Category=MultiplayerOptions, meta=(ClampMin=0, ClampMax=1, UIMin=0, UIMax=1))
+	float ServerDebugDrawingColorTintStrength;
+
+	/** Debug drawing originating from the server will be biased towards this color */
+	UPROPERTY(config, EditAnywhere, Category=MultiplayerOptions)
+	FLinearColor ServerDebugDrawingColorTint;
+
+private:
+	void PushDebugDrawingSettings();
+
 public:
+	bool ShowServerDebugDrawingByDefault() const
+	{
+		return bShowServerDebugDrawingByDefault;
+	}
+
 	/** Additional options that will be passed to the server as arguments, for example -debug. Only works with separate process servers. */
 	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server")
 	FString AdditionalServerLaunchParameters;

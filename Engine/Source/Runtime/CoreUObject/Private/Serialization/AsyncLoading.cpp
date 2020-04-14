@@ -148,30 +148,6 @@ static FAutoConsoleVariableRef CFlushStreamingOnExit(
 	ECVF_Default
 );
 
-static int32 GWarnIfTimeLimitExceeded = 0;
-static FAutoConsoleVariableRef CVarWarnIfTimeLimitExceeded(
-	TEXT("s.WarnIfTimeLimitExceeded"),
-	GWarnIfTimeLimitExceeded,
-	TEXT("Enables log warning if time limit for time-sliced package streaming has been exceeded."),
-	ECVF_Default
-	);
-
-static float GTimeLimitExceededMultiplier = 1.5f;
-static FAutoConsoleVariableRef CVarTimeLimitExceededMultiplier(
-	TEXT("s.TimeLimitExceededMultiplier"),
-	GTimeLimitExceededMultiplier,
-	TEXT("Multiplier for time limit exceeded warning time threshold."),
-	ECVF_Default
-	);
-
-static float GTimeLimitExceededMinTime = 0.005f;
-static FAutoConsoleVariableRef CVarTimeLimitExceededMinTime(
-	TEXT("s.TimeLimitExceededMinTime"),
-	GTimeLimitExceededMinTime,
-	TEXT("Minimum time the time limit exceeded warning will be triggered by."),
-	ECVF_Default
-	);
-
 static int32 GEventDrivenLoaderEnabledInCookedBuilds = 0;
 static FAutoConsoleVariableRef CVarEventDrivenLoaderEnabled(
 	TEXT("s.EventDrivenLoaderEnabled"),
@@ -193,7 +169,6 @@ static FAutoConsoleVariableRef CVar_MaxPrecacheRequestsInFlight(
 	GMaxPrecacheRequestsInFlight,
 	TEXT("Controls the maximum amount of precache requests to have in flight.")
 );
-
 
 int32 GMaxIncomingRequestsToStall = 100;
 static FAutoConsoleVariableRef CVar_MaxIncomingRequestsToStall(
@@ -269,28 +244,6 @@ static void NotifyAsyncLoadingStateHasMaybeChanged()
 uint32 FAsyncLoadingThread::AsyncLoadingThreadID = 0;
 FThreadSafeCounter FAsyncLoadingThread::AsyncLoadingTickCounter;
 int32 FAsyncLoadingThread::CurrentAsyncLoadingTickThreadIndex = INDEX_NONE;
-
-static void IsTimeLimitExceededPrint(double InTickStartTime, double CurrentTime, double LastTestTime, float InTimeLimit, const TCHAR* InLastTypeOfWorkPerformed = nullptr, UObject* InLastObjectWorkWasPerformedOn = nullptr)
-{
-	static double LastPrintStartTime = -1.0;
-	// Log single operations that take longer than time limit (but only in cooked builds)
-	if (LastPrintStartTime != InTickStartTime &&
-		(CurrentTime - InTickStartTime) > GTimeLimitExceededMinTime &&
-		(CurrentTime - InTickStartTime) > (GTimeLimitExceededMultiplier * InTimeLimit))
-	{
-		float EstimatedTimeForThisStep = (CurrentTime - InTickStartTime) * 1000;
-		if (LastTestTime > InTickStartTime)
-		{
-			EstimatedTimeForThisStep = (CurrentTime - LastTestTime) * 1000;
-		}
-		LastPrintStartTime = InTickStartTime;
-		UE_LOG(LogStreaming, Warning, TEXT("IsTimeLimitExceeded: %s %s Load Time %5.2fms   Last Step Time %5.2fms"),
-			InLastTypeOfWorkPerformed ? InLastTypeOfWorkPerformed : TEXT("unknown"),
-			InLastObjectWorkWasPerformedOn ? *InLastObjectWorkWasPerformedOn->GetFullName() : TEXT("nullptr"),
-			(CurrentTime - InTickStartTime) * 1000,
-			EstimatedTimeForThisStep);
-	}
-}
 
 static FORCEINLINE bool IsTimeLimitExceeded(double InTickStartTime, bool bUseTimeLimit, float InTimeLimit, const TCHAR* InLastTypeOfWorkPerformed = nullptr, UObject* InLastObjectWorkWasPerformedOn = nullptr)
 {
@@ -2032,7 +1985,12 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 				if (GIsInitialLoad && !ImportLinker && ImportPackage->HasAnyPackageFlags(PKG_CompiledIn) && !bDynamicImport)
 				{
 					// OuterMostNonPackageIndex is used here because if it is a CDO or subobject, etc, we wait for the outermost thing that is not a package
-					bFireIfNoArcsAdded = !EDLBootNotificationManager.AddWaitingPackage(this, OuterMostImport.ObjectName, Linker->Imp(OuterMostNonPackageIndex).ObjectName, FPackageIndex::FromImport(LocalImportIndex));
+					bFireIfNoArcsAdded = !EDLBootNotificationManager.AddWaitingPackage(
+						this,
+						OuterMostImport.ObjectName,
+						Linker->Imp(OuterMostNonPackageIndex).ObjectName,
+						FPackageIndex::FromImport(LocalImportIndex),
+						/*bIgnoreMissingPackage*/ false);
 				}
 #endif
 				if (bFireIfNoArcsAdded && // if bFireIfNoArcsAdded is false, then we know we are waiting for compiled in thing, so don't bother to look for the import now

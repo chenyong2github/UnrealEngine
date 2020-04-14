@@ -5,7 +5,6 @@
 
 #include "../Common.ush"
 #include "../CommonViewUniformBuffer.ush"
-#include "../SceneTextureParameters.ush"
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
@@ -28,7 +27,7 @@ StructuredBuffer<FDeepShadowTransform> DeepShadow_WorldToLightTransformBuffer;
 uint				DeepShadow_bIsGPUDriven;
 
 float4x4			DeepShadow_CPUWorldToLightTransform;
-uint				DeepShadow_IsWholeSceneLight;
+uint				bIsWholeSceneLight;
 int2				DeepShadow_SlotResolution;
 int2				DeepShadow_SlotOffset;
 uint				DeepShadow_SlotIndex;
@@ -45,6 +44,7 @@ Texture2D<float4>	RayMarchMaskTexture;
 Texture2D<float>	DeepShadow_FrontDepthTexture;
 Texture2D<float4>	DeepShadow_DomTexture;
 
+Texture2D<float>	SceneDepthTexture;
 Texture2D<uint4>	CategorizationTexture;
 RWTexture2D<float4>	OutputColor;
 
@@ -345,11 +345,11 @@ void MainPS(
 {
 	const float2 UV = Input.UV;
 	const uint2 PixelCoord = floor(Input.Position.xy);
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
+	const float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(PixelCoord, 0)));
 	const FCategorizationData Categorization = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord, 0)));
 	const bool bIsHairPixel = Categorization.PixelCoverage >= 1;
 
-	const float3 WorldPosition		= TotWorldPosition(UV, GBuffer.Depth);
+	const float3 WorldPosition		= TotWorldPosition(UV, SceneDepth);
 	const float3 LightSpacePosition = ToLightPosition(WorldPosition);
 
 	// PCF or simple point sampler
@@ -393,7 +393,7 @@ void MainPS(
 
 	// Depending of if the light is direction (i.e., WholeSceneLight) or a local light (Point/Spot/Rect), 
 	// we change the output layout
-    OutColor = DeepShadow_IsWholeSceneLight ? float4(Visibility, 1, 1, 1) : float4(1, 1, Visibility, 1);
+    OutColor = bIsWholeSceneLight ? float4(Visibility, 1, 1, 1) : float4(1, 1, Visibility, 1);
 }
 
 #endif
@@ -406,11 +406,12 @@ void MainPS(
 {
 	const float2 UV = Input.UV;
 	const uint2 PixelCoord = floor(Input.Position.xy);
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
+	const float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(PixelCoord, 0)));
+
 	const FCategorizationData Categorization = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord, 0)));
 	const bool bIsHairPixel = Categorization.PixelCoverage >= 1;
 
-	float3 WorldPosition = TotWorldPosition(UV, GBuffer.Depth);
+	float3 WorldPosition = TotWorldPosition(UV, SceneDepth);
 
 	// PCF or simple point sampler
 	float Visibility = 1;
@@ -456,6 +457,7 @@ void MainPS(
 		TraversalSettings.bDebugEnabled = bDebugEnabled;
 		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
 		TraversalSettings.Random = Random;
+		TraversalSettings.PixelRadius = SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
 		
 		if (RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r > 0.0f &&  Categorization.PixelCoverage < CoverageThreshold)
 		{
@@ -479,7 +481,7 @@ void MainPS(
 
 	// Depending of if the light is direction (i.e., WholeSceneLight) or a local light (Point/Spot/Rect), 
 	// we change the output layout
-	OutColor = DeepShadow_IsWholeSceneLight ? float4(Visibility, 1, 1, 1) : float4(1, 1, Visibility, 1);
+	OutColor = bIsWholeSceneLight ? float4(Visibility, 1, 1, 1) : float4(1, 1, Visibility, 1);
 }
 
 #endif

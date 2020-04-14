@@ -280,16 +280,11 @@ namespace Chaos
 		 * Modify the producer side of the event buffer
 		 */
 		template<typename PayloadType>
-		void ClearEvents(TFunction<void(PayloadType & EventData)> InFunction)
+		void ClearEvents(const FEventID& EventID, TFunction<void(PayloadType & EventData)> InFunction)
 		{
 			ContainerLock.ReadLock();
-			for (FEventContainerPtr EventContainer : EventContainers)
-			{
-				if (EventContainer)
-				{
-					((TEventContainer<PayloadType>*)(EventContainer))->DestroyStaleEvents(InFunction);
-				}
-			}
+
+			((TEventContainer<PayloadType>*)(EventContainers[EventID]))->DestroyStaleEvents(InFunction);
 			ContainerLock.ReadUnlock();
 		}
 

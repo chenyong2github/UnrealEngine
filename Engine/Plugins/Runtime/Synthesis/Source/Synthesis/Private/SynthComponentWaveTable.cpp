@@ -130,7 +130,7 @@ void USynthSamplePlayer::LoadSoundWaveInternal()
 			}
 		};
 
-		SoundWaveLoader.LoadSoundWave(SoundWave, MoveTemp(OnLoaded));
+		SoundWaveLoader.LoadSoundWave(SoundWave, MoveTemp(OnLoaded), true);
 	}
 }
 

@@ -17,6 +17,8 @@
 // FOculusHMDModule
 //-------------------------------------------------------------------------------------------------
 
+OculusPluginWrapper FOculusHMDModule::PluginWrapper;
+
 FOculusHMDModule::FOculusHMDModule()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
@@ -37,6 +39,11 @@ void FOculusHMDModule::StartupModule()
 void FOculusHMDModule::ShutdownModule()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
+	if (PluginWrapper.Initialized)
+	{
+		DestroyOculusPluginWrapper(&PluginWrapper);
+	}
+
 	if (OVRPluginHandle)
 	{
 		FPlatformProcess::FreeDllHandle(OVRPluginHandle);
@@ -84,7 +91,6 @@ bool FOculusHMDModule::PreInit()
 		// Init module if app can render and Oculus service is running
 		if (FApp::CanEverRender() && OculusHMD::IsOculusServiceRunning())
 		{
-#if PLATFORM_WINDOWS
 			// Load OVRPlugin
 			OVRPluginHandle = GetOVRPluginHandle();
 
@@ -93,7 +99,14 @@ bool FOculusHMDModule::PreInit()
 				UE_LOG(LogHMD, Log, TEXT("Failed loading OVRPlugin %s"), TEXT(OVRP_VERSION_STR));
 				return false;
 			}
-#endif
+
+			bool pluginWrapperInited = InitializeOculusPluginWrapper(&PluginWrapper);
+			if (!pluginWrapperInited)
+			{
+				UE_LOG(LogHMD, Log, TEXT("Failed InitializeOculusPluginWrapper"));
+				return false;
+			}
+
 			// Initialize OVRPlugin
 #if PLATFORM_ANDROID
 			void* activity = (void*) FAndroidApplication::GetGameActivityThis();
@@ -101,7 +114,7 @@ bool FOculusHMDModule::PreInit()
 			void* activity = nullptr;
 #endif
 
-			if (OVRP_FAILURE(ovrp_PreInitialize3(activity)))
+			if (OVRP_FAILURE(PluginWrapper.PreInitialize3(activity)))
 			{
 				UE_LOG(LogHMD, Log, TEXT("Failed initializing OVRPlugin %s"), TEXT(OVRP_VERSION_STR));
 				return false;
@@ -109,7 +122,7 @@ bool FOculusHMDModule::PreInit()
 
 #if PLATFORM_WINDOWS
 			const LUID* displayAdapterId;
-			if (OVRP_SUCCESS(ovrp_GetDisplayAdapterId2((const void**) &displayAdapterId)) && displayAdapterId)
+			if (OVRP_SUCCESS(PluginWrapper.GetDisplayAdapterId2((const void**) &displayAdapterId)) && displayAdapterId)
 			{
 				SetGraphicsAdapterLuid(*(const uint64*) displayAdapterId);
 			}
@@ -119,7 +132,7 @@ bool FOculusHMDModule::PreInit()
 			}
 
 			const WCHAR* audioInDeviceId;
-			if (OVRP_SUCCESS(ovrp_GetAudioInDeviceId2((const void**) &audioInDeviceId)) && audioInDeviceId)
+			if (OVRP_SUCCESS(PluginWrapper.GetAudioInDeviceId2((const void**) &audioInDeviceId)) && audioInDeviceId)
 			{
 				GConfig->SetString(TEXT("Oculus.Settings"), TEXT("AudioInputDevice"), audioInDeviceId, GEngineIni);
 			}
@@ -129,7 +142,7 @@ bool FOculusHMDModule::PreInit()
 			}
 
 			const WCHAR* audioOutDeviceId;
-			if (OVRP_SUCCESS(ovrp_GetAudioOutDeviceId2((const void**) &audioOutDeviceId)) && audioOutDeviceId)
+			if (OVRP_SUCCESS(PluginWrapper.GetAudioOutDeviceId2((const void**) &audioOutDeviceId)) && audioOutDeviceId)
 			{
 				GConfig->SetString(TEXT("Oculus.Settings"), TEXT("AudioOutputDevice"), audioOutDeviceId, GEngineIni);
 			}
@@ -264,6 +277,8 @@ void* FOculusHMDModule::GetOVRPluginHandle()
 	FPlatformProcess::PushDllDirectory(*BinariesPath);
 	OVRPluginHandle = FPlatformProcess::GetDllHandle(*(BinariesPath / "OVRPlugin.dll"));
 	FPlatformProcess::PopDllDirectory(*BinariesPath);
+#elif PLATFORM_ANDROID
+	OVRPluginHandle = FPlatformProcess::GetDllHandle(TEXT("libOVRPlugin.so"));
 #endif
 
 	return OVRPluginHandle;

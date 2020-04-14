@@ -4,11 +4,10 @@
 
 #include "CoreMinimal.h"
 
-#include "DMXProtocolTypes.h"
+#include "DMXProtocolCommon.h"
 #include "Interfaces/IDMXProtocolTransport.h"
 
 #include "Containers/Queue.h"
-#include "HAL/CriticalSection.h"
 
 class FSocket;
 class ISocketSubsystem;
@@ -50,8 +49,6 @@ private:
 	/** Holds the last sent message number. */
 	int32 LastSentPackage;
 
-	mutable FCriticalSection CriticalSection;
-
 	FThreadSafeCounter StopTaskCounter;
 
 	/** Holds the thread object. */
@@ -66,59 +63,6 @@ private:
 	FSocket* BroadcastSocket;
 
 	FDMXProtocolSACN* Protocol;
-};
 
-
-class FDMXProtocolReceiverSACN
-	: public IDMXProtocolReceiver
-{
-public:
-	FDMXProtocolReceiverSACN(FSocket& InSocket, const FTimespan& InWaitTime);
-	virtual ~FDMXProtocolReceiverSACN();
-
-public:
-	//~ Begin FRunnable implementation
-	virtual bool Init() override;
-	virtual uint32 Run() override;
-	virtual void Stop() override;
-	virtual void Exit() override;
-	//~ End FRunnable implementation
-
-	//~ Begin FSingleThreadRunnable implementation
-	virtual void Tick() override;
-	virtual class FSingleThreadRunnable* GetSingleThreadInterface() override;
-	//~ End FSingleThreadRunnable implementation
-
-	//~ Begin IDMXProtocolReceiver implementation
-	virtual FOnDMXDataReceived& OnDataReceived() override;
-	virtual FRunnableThread* GetThread() const override;
-	//~ End IDMXProtocolReceiver implementation
-
-protected:
-	void Update(const FTimespan& SocketWaitTime);
-
-private:
-
-	/** The network socket. */
-	FSocket* Socket;
-
-	/** Pointer to the socket sub-system. */
 	ISocketSubsystem* SocketSubsystem;
-
-	/** Flag indicating that the thread is stopping. */
-	bool Stopping;
-
-	/** The thread object. */
-	FRunnableThread* Thread;
-
-	/** The receiver thread's name. */
-	FString ThreadName;
-
-	/** The amount of time to wait for inbound packets. */
-	FTimespan WaitTime;
-
-private:
-
-	/** Holds the data received delegate. */
-	FOnDMXDataReceived DMXDataReceiveDelegate;
 };

@@ -99,7 +99,7 @@ class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceOutput_EXR 
 	GENERATED_BODY()
 public:
 #if WITH_EDITOR
-	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ImgSequenceEXRSettingDisplayName", ".exr Sequence [32bit]"); }
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ImgSequenceEXRSettingDisplayName", ".exr Sequence [16bit]"); }
 #endif
 public:
 	UMoviePipelineImageSequenceOutput_EXR()

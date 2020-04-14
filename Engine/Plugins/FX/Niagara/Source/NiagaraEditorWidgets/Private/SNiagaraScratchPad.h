@@ -20,13 +20,25 @@ class SNiagaraScratchPad : public SCompoundWidget
 	void Construct(const FArguments& InArgs, UNiagaraScratchPadViewModel* InViewModel);
 
 private:
+	void ObjectSelectionChanged();
+
 	TSharedRef<SWidget> ConstructScriptSelector();
+
+	TSharedRef<SWidget> ConstructParameterPanel();
 
 	TSharedRef<SWidget> ConstructScriptEditor();
 
 	TSharedRef<SWidget> ConstructSelectionEditor();
 
+	EVisibility GetObjectSelectionSubHeaderTextVisibility() const;
+
+	FText GetObjectSelectionSubHeaderText() const;
+
+	EVisibility GetObjectSelectionNoSelectionTextVisibility() const;
+
 private:
+	FText ObjectSelectionSubHeaderText;
+
 	TWeakObjectPtr<UNiagaraScratchPadViewModel> ViewModel;
 
 	TSharedPtr<FNiagaraScratchPadCommandContext> CommandContext;

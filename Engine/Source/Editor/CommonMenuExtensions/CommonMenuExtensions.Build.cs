@@ -33,7 +33,8 @@ public class CommonMenuExtensions : ModuleRules
 				"EngineSettings",
 				"HierarchicalLODOutliner",
 				"HierarchicalLODUtilities",
-				"MaterialShaderQualitySettings"
+				"MaterialShaderQualitySettings",
+				"ToolMenus",
 			}
 		);
 

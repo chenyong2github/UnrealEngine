@@ -417,7 +417,7 @@ void FMicrosoftSpatialSoundModule::StartupModule()
 #else // WINDOWS_MIXED_REALITY_DEBUG_DLL
 	FString DLLName(TEXT("MixedRealityInterop.dll"));
 #endif // WINDOWS_MIXED_REALITY_DEBUG_DLL
-	FString MRInteropLibraryPath = EngineDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
+	FString MRInteropLibraryPath = EngineDir / "Binaries/ThirdParty/Windows/x64" / DLLName;
 
 #if PLATFORM_64BITS
 	// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically

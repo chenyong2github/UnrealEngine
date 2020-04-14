@@ -2,6 +2,10 @@
 
 #include "EditorAnalyticsSession.h"
 #include "Modules/ModuleManager.h"
+#include "Internationalization/Regex.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/FileManager.h"
+#include "Misc/Paths.h"
 
 IMPLEMENT_MODULE(FEditorAnalyticsSessionModule, EditorAnalyticsSession);
 
@@ -35,6 +39,8 @@ namespace EditorAnalyticsDefs
 	static const FString ProjectVersionStoreKey(TEXT("ProjectVersion"));
 	static const FString EngineVersionStoreKey(TEXT("EngineVersion"));
 	static const FString PlatformProcessIDStoreKey(TEXT("PlatformProcessID"));
+	static const FString MonitorProcessIDStoreKey(TEXT("MonitorProcessID"));
+	static const FString ExitCodeStoreKey(TEXT("ExitCode"));
 
 	// timestamps
 	static const FString StartupTimestampStoreKey(TEXT("StartupTimestamp"));
@@ -118,6 +124,105 @@ namespace EditorAnalyticsUtils
 		return EditorAnalyticsDefs::SessionSummarySection + TEXT("/") + SessionID;
 	}
 
+	static FString GetSessionEventLogDir()
+	{
+		return FString::Printf(TEXT("%sAnalytics"), FPlatformProcess::ApplicationSettingsDir());
+	}
+
+	static void LogSessionEvent(FEditorAnalyticsSession& Session, FEditorAnalyticsSession::EEventType InEventType, const FDateTime& InTimestamp)
+	{
+		// The logger uses the robustness of the file system to log events. It creates a file (a directory) for each event and encodes the event payload in the file name.
+		// This doesn't require any fancy synchronization or complicated concurrent file IO implementation. Since the number of events is low (0 to 5 per session), that's
+		// a straight forward working solution. The files are deleted when the session is deleted. Also avoid memory allocation, this can be called when the heap is corrupted.
+		TCHAR TimestampStr[256];
+		FCString::Sprintf(TimestampStr, TFormatSpecifier<decltype(InTimestamp.ToUnixTimestamp())>::GetFormatSpecifier(), InTimestamp.ToUnixTimestamp());
+
+		TCHAR Pathname[512];
+		FCString::Sprintf(Pathname, TEXT("%s/%s_%d_%d_%d_%d_%s"), 
+			*EditorAnalyticsUtils::GetSessionEventLogDir(),
+			*Session.SessionId,
+			static_cast<int>(InEventType),
+			FPlatformAtomics::AtomicRead(&Session.Idle1Min),
+			FPlatformAtomics::AtomicRead(&Session.Idle5Min),
+			FPlatformAtomics::AtomicRead(&Session.Idle30Min),
+			TimestampStr);
+
+		IFileManager::Get().MakeDirectory(Pathname, /*Tree*/true);
+	}
+
+	/** Analyze the events logged with LogEvent() and update the session fields to reflect the last state of the session. */
+	static void UpdateSessionFromLogAnalysis(FEditorAnalyticsSession& Session)
+	{
+		// Read and aggregate the log events. The event data is encoded in the directory names created by the logger
+		FRegexPattern Pattern(TEXT(R"((^[a-fA-F0-9-]+)_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+))")); // Need help with regex? Try https://regex101.com/
+		IFileManager::Get().IterateDirectoryRecursively(*EditorAnalyticsUtils::GetSessionEventLogDir(), [&Session, &Pattern](const TCHAR* Pathname, bool bIsDir)
+		{
+			if (bIsDir)
+			{
+				FRegexMatcher Matcher(Pattern, FPaths::GetCleanFilename(Pathname));
+				if (Matcher.FindNext() && Matcher.GetCaptureGroup(1) == Session.SessionId)
+				{
+					FEditorAnalyticsSession::EEventType EventType = static_cast<FEditorAnalyticsSession::EEventType>(FCString::Atoi(*Matcher.GetCaptureGroup(2))); // Event
+					switch (EventType)
+					{
+						case FEditorAnalyticsSession::EEventType::Crashed:     Session.bCrashed = true;       break;
+						case FEditorAnalyticsSession::EEventType::GpuCrashed : Session.bGPUCrashed = true;    break;
+						case FEditorAnalyticsSession::EEventType::Terminated:  Session.bIsTerminating = true; break;
+						default: break;
+					}
+
+					int32 ParsedIdle = FCString::Atoi(*Matcher.GetCaptureGroup(3)); // Idle1Min.
+					if (ParsedIdle > Session.Idle1Min)
+					{
+						Session.Idle1Min = ParsedIdle; // No concurrency expected when reloading (no need for atomic compare exchange)
+					}
+
+					ParsedIdle = FCString::Atoi(*Matcher.GetCaptureGroup(4)); // Idle5Min.
+					if (ParsedIdle > Session.Idle5Min)
+					{
+						Session.Idle5Min = ParsedIdle;
+					}
+
+					ParsedIdle = FCString::Atoi(*Matcher.GetCaptureGroup(5)); // Idle30Min.
+					if (ParsedIdle > Session.Idle30Min)
+					{
+						Session.Idle30Min = ParsedIdle;
+					}
+
+					FDateTime ParsedTimestamp = FDateTime::FromUnixTimestamp(FCString::Atoi64(*Matcher.GetCaptureGroup(6))); // Unix timestamp (UTC)
+					if (ParsedTimestamp > Session.Timestamp)
+					{
+						Session.Timestamp = ParsedTimestamp;
+					}
+				}
+			}
+			return true;
+		});
+	}
+
+	static void DeleteLogEvents(const FEditorAnalyticsSession& Session)
+	{
+		// Gather the list of files
+		TArray<FString> SessionEventPaths;
+		IFileManager::Get().IterateDirectoryRecursively(*EditorAnalyticsUtils::GetSessionEventLogDir(), [&Session, &SessionEventPaths](const TCHAR* Pathname, bool bIsDir)
+		{
+			if (bIsDir)
+			{
+				if (FPaths::GetCleanFilename(Pathname).StartsWith(Session.SessionId))
+				{
+					SessionEventPaths.Emplace(Pathname);
+				}
+			}
+			return true; // Continue
+		});
+
+		// Delete the session files.
+		for (const FString& EventPathname : SessionEventPaths)
+		{
+			IFileManager::Get().DeleteDirectory(*EventPathname, /*RequiredExist*/false, /*Tree*/false);
+		}
+	}
+
 // Utility macros to make it easier to check that all fields are being written to.
 #define GET_STORED_STRING(FieldName) FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs:: FieldName ## StoreKey, Session.FieldName)
 #define GET_STORED_INT(FieldName) \
@@ -126,7 +231,6 @@ namespace EditorAnalyticsUtils
 		FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs:: FieldName ## StoreKey, FieldName ## Temp); \
 		Session.FieldName = FCString::Atoi(*FieldName ## Temp); \
 	}
-	
 
 	static void LoadInternal(FEditorAnalyticsSession& Session, const FString& InSessionId)
 	{
@@ -143,8 +247,16 @@ namespace EditorAnalyticsUtils
 		GET_STORED_STRING(ProjectDescription);
 		GET_STORED_STRING(ProjectVersion);
 		GET_STORED_STRING(EngineVersion);
-
 		GET_STORED_INT(PlatformProcessID);
+		GET_STORED_INT(MonitorProcessID);
+
+		{
+			FString ExitCodeString;
+			if (FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ExitCodeStoreKey, ExitCodeString))
+			{
+				Session.ExitCode.Emplace(FCString::Atoi(*ExitCodeString));
+			}
+		}
 
 		// scope is just to isolate the temporary value
 		{
@@ -159,7 +271,6 @@ namespace EditorAnalyticsUtils
 			Session.Timestamp = EditorAnalyticsUtils::StringToTimestamp(TimestampString);
 		}
 
-		GET_STORED_INT(SessionDuration);
 		GET_STORED_INT(Idle1Min);
 		GET_STORED_INT(Idle5Min);
 		GET_STORED_INT(Idle30Min);
@@ -215,6 +326,9 @@ namespace EditorAnalyticsUtils
 		Session.bIsInPIE = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
 		Session.bIsInVRMode = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
 		Session.bIsInEnterprise = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
+
+		// Analyze the logged events and update corresponding fields in the session.
+		UpdateSessionFromLogAnalysis(Session);
 	}
 
 #undef GET_STORED_INT
@@ -242,9 +356,10 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 
 	ProjectName = EditorAnalyticsDefs::UnknownProjectValueString;
 	PlatformProcessID = 0;
+	MonitorProcessID = 0;
 	StartupTimestamp = FDateTime::MinValue();
 	Timestamp = FDateTime::MinValue();
-	SessionDuration = 0;
+	IdleSeconds = 0;
 	Idle1Min = 0;
 	Idle5Min = 0;
 	Idle30Min = 0;
@@ -324,6 +439,7 @@ bool FEditorAnalyticsSession::Save()
 		TMap<FString, FString> KeyValues = {
 			{EditorAnalyticsDefs::EngineVersionStoreKey,       EngineVersion},
 			{EditorAnalyticsDefs::PlatformProcessIDStoreKey,   FString::FromInt(PlatformProcessID)},
+			{EditorAnalyticsDefs::MonitorProcessIDStoreKey,    FString::FromInt(MonitorProcessID)},
 			{EditorAnalyticsDefs::DesktopGPUAdapterStoreKey,   DesktopGPUAdapter},
 			{EditorAnalyticsDefs::RenderingGPUAdapterStoreKey, RenderingGPUAdapter},
 			{EditorAnalyticsDefs::GPUVendorIDStoreKey,         FString::FromInt(GPUVendorID)},
@@ -359,49 +475,27 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::ProjectDescriptionStoreKey,  ProjectDescription},
 			{EditorAnalyticsDefs::ProjectVersionStoreKey,  ProjectVersion},
 			{EditorAnalyticsDefs::TimestampStoreKey,       EditorAnalyticsUtils::TimestampToString(Timestamp)},
-			{EditorAnalyticsDefs::SessionDurationStoreKey, FString::FromInt(SessionDuration)},
 			{EditorAnalyticsDefs::Idle1MinStoreKey,  FString::FromInt(Idle1Min)},
 			{EditorAnalyticsDefs::Idle5MinStoreKey,  FString::FromInt(Idle5Min)},
 			{EditorAnalyticsDefs::Idle30MinStoreKey, FString::FromInt(Idle30Min)},
 			{EditorAnalyticsDefs::CurrentUserActivityStoreKey, CurrentUserActivity},
 			{EditorAnalyticsDefs::AverageFPSStoreKey,     FString::SanitizeFloat(AverageFPS)},
-			{EditorAnalyticsDefs::IsCrashStoreKey,        EditorAnalyticsUtils::BoolToStoredString(bCrashed)},
-			{EditorAnalyticsDefs::IsGPUCrashStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bGPUCrashed)},
 			{EditorAnalyticsDefs::IsDebuggerStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bIsDebugger)},
 			{EditorAnalyticsDefs::WasDebuggerStoreKey,    EditorAnalyticsUtils::BoolToStoredString(bWasEverDebugger)},
 			{EditorAnalyticsDefs::IsVanillaStoreKey,      EditorAnalyticsUtils::BoolToStoredString(bIsVanilla)},
-			{EditorAnalyticsDefs::IsTerminatingKey,       EditorAnalyticsUtils::BoolToStoredString(bIsTerminating)},
 			{EditorAnalyticsDefs::WasShutdownStoreKey,    EditorAnalyticsUtils::BoolToStoredString(bWasShutdown)},
 			{EditorAnalyticsDefs::IsInPIEStoreKey,        EditorAnalyticsUtils::BoolToStoredString(bIsInPIE)    },
 			{EditorAnalyticsDefs::IsInEnterpriseStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInEnterprise)},
 			{EditorAnalyticsDefs::IsInVRModeStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bIsInVRMode)},
 		};
 
+		if (ExitCode.IsSet())
+		{
+			KeyValues.Emplace(EditorAnalyticsDefs::ExitCodeStoreKey, FString::FromInt(ExitCode.GetValue()));
+		}
+
 		FPlatformMisc::SetStoredValues(EditorAnalyticsDefs::StoreId, StorageLocation, KeyValues);
 	}
-
-	return true;
-}
-
-bool FEditorAnalyticsSession::SaveForCrash()
-{
-	if (!ensure(IsLocked()))
-	{
-		return false;
-	}
-
-	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
-
-	TMap<FString, FString> KeyValues = {
-		{EditorAnalyticsDefs::IsCrashStoreKey,         EditorAnalyticsUtils::BoolToStoredString(bCrashed)},
-		{EditorAnalyticsDefs::IsGPUCrashStoreKey,      EditorAnalyticsUtils::BoolToStoredString(bGPUCrashed)},
-		{EditorAnalyticsDefs::IsTerminatingKey,        EditorAnalyticsUtils::BoolToStoredString(bIsTerminating)},
-		{EditorAnalyticsDefs::WasShutdownStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bWasShutdown)},
-		{EditorAnalyticsDefs::TimestampStoreKey,       EditorAnalyticsUtils::TimestampToString(Timestamp)},
-		{EditorAnalyticsDefs::SessionDurationStoreKey, FString::FromInt(SessionDuration)},
-	};
-
-	FPlatformMisc::SetStoredValues(EditorAnalyticsDefs::StoreId, StorageLocation, KeyValues);
 
 	return true;
 }
@@ -438,6 +532,8 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ProjectVersionStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::EngineVersionStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::PlatformProcessIDStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorProcessIDStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ExitCodeStoreKey);
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::StartupTimestampStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TimestampStoreKey);
@@ -478,6 +574,9 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
+
+	// Delete the log files.
+	EditorAnalyticsUtils::DeleteLogEvents(*this);
 
 	return true;
 }
@@ -535,4 +634,47 @@ bool FEditorAnalyticsSession::SaveStoredSessionIDs(const TArray<FString>& InSess
 
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, EditorAnalyticsDefs::SessionSummarySection, EditorAnalyticsDefs::SessionListStoreKey, SessionListString);
 	return true;
+}
+
+void FEditorAnalyticsSession::LogEvent(EEventType InEventType, const FDateTime& InTimestamp)
+{
+	EditorAnalyticsUtils::LogSessionEvent(*this, InEventType, InTimestamp);
+}
+
+bool FEditorAnalyticsSession::FindSession(const uint32 InSessionProcessId, FEditorAnalyticsSession& OutSession)
+{
+	if (!ensure(IsLocked()))
+	{
+		return false;
+	}
+
+	TArray<FString> SessionIDs = EditorAnalyticsUtils::GetSessionList();
+
+	// Retrieve all the sessions in the list from storage
+	for (const FString& Id : SessionIDs)
+	{
+		FEditorAnalyticsSession Session;
+		EditorAnalyticsUtils::LoadInternal(Session, Id);
+		if (Session.PlatformProcessID == InSessionProcessId)
+		{
+			OutSession = MoveTemp(Session);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FEditorAnalyticsSession::SaveExitCode(int32 InExitCode)
+{
+	if (!ensure(IsLocked()))
+	{
+		return;
+	}
+
+	ExitCode.Emplace(InExitCode);
+	FString ExitCodeStr = FString::Printf(TFormatSpecifier<decltype(InExitCode)>::GetFormatSpecifier(), InExitCode);
+
+	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
+	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::ExitCodeStoreKey, ExitCodeStr);
 }

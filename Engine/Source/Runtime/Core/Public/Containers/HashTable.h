@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Serialization/MemoryLayout.h"
+#include "Serialization/MemoryImageWriter.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/UnrealMemory.h"
 #include "Math/UnrealMathUtility.h"
@@ -362,3 +365,250 @@ inline void FHashTable::Remove( uint16 Key, uint32 Index )
 		}
 	}
 }
+
+template<typename InAllocator>
+class THashTable
+{
+public:
+	using Allocator = InAllocator;
+
+	using ElementAllocatorType = typename TChooseClass<
+		Allocator::NeedsElementType,
+		typename Allocator::template ForElementType<uint32>,
+		typename Allocator::ForAnyElementType
+	>::Result;
+
+	explicit THashTable(uint32 InHashSize = 1024, uint32 InIndexSize = 0);
+	THashTable(const THashTable& Other) = delete;
+	THashTable(THashTable&& Other) { MoveAssign(MoveTemp(Other)); }
+	~THashTable();
+
+	THashTable& operator=(const THashTable& Other) = delete;
+	THashTable& operator=(THashTable&& Other) { return MoveAssign(MoveTemp(Other)); }
+
+	THashTable&		MoveAssign(THashTable&& Other);
+	void			Clear();
+	void			Resize(uint32 NewIndexSize);
+
+	const uint32*	GetNextIndices() const { return (uint32*)NextIndex.GetAllocation(); }
+
+	// Functions used to search
+	uint32			First(uint16 Key) const;
+	uint32			Next(uint32 Index) const;
+	bool			IsValid(uint32 Index) const;
+	bool			Contains(uint16 Key) const;
+
+	void			Add(uint16 Key, uint32 Index);
+	void			Remove(uint16 Key, uint32 Index);
+
+private:
+	FORCEINLINE uint32 HashAt(uint32 Index) const { return ((uint32*)Hash.GetAllocation())[Index]; }
+	FORCEINLINE uint32 NextIndexAt(uint32 Index) const { return ((uint32*)NextIndex.GetAllocation())[Index]; }
+	FORCEINLINE uint32& HashAt(uint32 Index) { return ((uint32*)Hash.GetAllocation())[Index]; }
+	FORCEINLINE uint32& NextIndexAt(uint32 Index) { return ((uint32*)NextIndex.GetAllocation())[Index]; }
+
+	ElementAllocatorType	Hash;
+	ElementAllocatorType	NextIndex;
+	uint32					HashMask;
+	uint32					IndexSize;
+
+	template<bool bFreezeMemoryImage, typename Dummy = void>
+	struct TSupportsFreezeMemoryImageHelper
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const THashTable&)
+		{
+			check(false);
+		}
+
+		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const THashTable&, void* Dst) { new(Dst) THashTable(); }
+	};
+
+	template<typename Dummy>
+	struct TSupportsFreezeMemoryImageHelper<true, Dummy>
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const THashTable& Object)
+		{
+			Object.Hash.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<uint32>(), Object.HashMask + 1u);
+			Object.NextIndex.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<uint32>(), Object.IndexSize);
+			Writer.WriteBytes(Object.HashMask);
+			Writer.WriteBytes(Object.IndexSize);
+		}
+		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const THashTable& Object, void* Dst)
+		{
+			THashTable* DstTable = new(Dst) THashTable(Object.HashMask + 1u, Object.IndexSize);
+			FMemory::Memcpy(DstTable->Hash.GetAllocation(), Object.Hash.GetAllocation(), (Object.HashMask + 1u) * 4);
+			FMemory::Memcpy(DstTable->NextIndex.GetAllocation(), Object.NextIndex.GetAllocation(), Object.IndexSize * 4);
+		}
+	};
+
+public:
+	void WriteMemoryImage(FMemoryImageWriter& Writer) const
+	{
+		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage;
+		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
+	}
+
+	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
+	{
+		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage;
+		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::CopyUnfrozen(Context, *this, Dst);
+	}
+};
+
+template<typename InAllocator>
+FORCEINLINE THashTable<InAllocator>::THashTable(uint32 InHashSize, uint32 InIndexSize)
+	: HashMask(InHashSize - 1u)
+	, IndexSize(InIndexSize)
+{
+	check(InHashSize > 0u && InHashSize <= 0x10000);
+	check(FMath::IsPowerOfTwo(InHashSize));
+
+	Hash.ResizeAllocation(0, InHashSize, sizeof(uint32));
+	FMemory::Memset(Hash.GetAllocation(), 0xff, InHashSize * 4);
+
+	if (IndexSize)
+	{
+		NextIndex.ResizeAllocation(0, IndexSize, sizeof(uint32));
+	}
+}
+
+template<typename InAllocator>
+FORCEINLINE THashTable<InAllocator>::~THashTable()
+{
+}
+
+template<typename InAllocator>
+THashTable<InAllocator>& THashTable<InAllocator>::MoveAssign(THashTable&& Other)
+{
+	Hash.MoveToEmpty(Other.Hash);
+	NextIndex.MoveToEmpty(Other.NextIndex);
+	HashMask = Other.HashMask;
+	IndexSize = Other.IndexSize;
+	Other.HashMask = 0u;
+	Other.IndexSize = 0u;
+	return *this;
+}
+
+template<typename InAllocator>
+FORCEINLINE void THashTable<InAllocator>::Clear()
+{
+	if (IndexSize)
+	{
+		FMemory::Memset(Hash.GetAllocation(), 0xff, (HashMask + 1u) * 4);
+	}
+}
+
+// First in hash chain
+template<typename InAllocator>
+FORCEINLINE uint32 THashTable<InAllocator>::First(uint16 Key) const
+{
+	Key &= HashMask;
+	return HashAt(Key);
+}
+
+// Next in hash chain
+template<typename InAllocator>
+FORCEINLINE uint32 THashTable<InAllocator>::Next(uint32 Index) const
+{
+	checkSlow(Index < IndexSize);
+	const uint32 Next = NextIndexAt(Index);
+	checkSlow(Next != Index); // check for corrupt tables
+	return Next;
+}
+
+template<typename InAllocator>
+FORCEINLINE bool THashTable<InAllocator>::IsValid(uint32 Index) const
+{
+	return Index != ~0u;
+}
+
+template<typename InAllocator>
+FORCEINLINE bool THashTable<InAllocator>::Contains(uint16 Key) const
+{
+	return First(Key) != ~0u;
+}
+
+template<typename InAllocator>
+FORCEINLINE void THashTable<InAllocator>::Add(uint16 Key, uint32 Index)
+{
+	if (Index >= IndexSize)
+	{
+		Resize(FMath::Max<uint32>(32u, FMath::RoundUpToPowerOfTwo(Index + 1)));
+	}
+
+	Key &= HashMask;
+	NextIndexAt(Index) = HashAt(Key);
+	HashAt(Key) = Index;
+}
+
+template<typename InAllocator>
+inline void THashTable<InAllocator>::Remove(uint16 Key, uint32 Index)
+{
+	if (Index >= IndexSize)
+	{
+		return;
+	}
+
+	Key &= HashMask;
+	if (HashAt(Key) == Index)
+	{
+		// Head of chain
+		HashAt(Key) = NextIndexAt(Index);
+	}
+	else
+	{
+		for (uint32 i = HashAt(Key); IsValid(i); i = NextIndexAt(i))
+		{
+			if (NextIndexAt(i) == Index)
+			{
+				// Next = Next->Next
+				NextIndexAt(i) = NextIndexAt(Index);
+				break;
+			}
+		}
+	}
+}
+
+template<typename InAllocator>
+void THashTable<InAllocator>::Resize(uint32 NewIndexSize)
+{
+	if (NewIndexSize != IndexSize)
+	{
+		NextIndex.ResizeAllocation(IndexSize, NewIndexSize, sizeof(uint32));
+		IndexSize = NewIndexSize;
+	}
+}
+
+namespace Freeze
+{
+	template<typename InAllocator>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const THashTable<InAllocator>& Object, const FTypeLayoutDesc&)
+	{
+		Object.WriteMemoryImage(Writer);
+	}
+
+	template<typename InAllocator>
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const THashTable<InAllocator>& Object, void* OutDst)
+	{
+		Object.CopyUnfrozen(Context, OutDst);
+	}
+
+	template<typename InAllocator>
+	uint32 IntrinsicAppendHash(const THashTable<InAllocator>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		// sizeof(TArray) changes depending on target platform 32bit vs 64bit
+		// For now, calculate the size manually
+		static_assert(sizeof(THashTable<InAllocator>) == sizeof(FMemoryImageUPtrInt) * 2 + sizeof(uint32) * 2, "Unexpected THashTable size");
+		const uint32 SizeFromFields = LayoutParams.GetMemoryImagePointerSize() * 2u + sizeof(uint32) * 2u;
+		return AppendHashForNameAndSize(TypeDesc.Name, SizeFromFields, Hasher);
+	}
+
+	template<typename InAllocator>
+	uint32 IntrinsicGetTargetAlignment(const THashTable<InAllocator>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams)
+	{
+		// Assume alignment of array is drive by pointer
+		return FMath::Min(LayoutParams.GetMemoryImagePointerSize(), LayoutParams.MaxFieldAlignment);
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template <typename InAllocator>, THashTable<InAllocator>);

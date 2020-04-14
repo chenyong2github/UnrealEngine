@@ -535,7 +535,9 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 	}
 	ScreenGridResources->AcquireTransientResource();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UnbindRenderTargets(RHICmdList);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (bUseGlobalDistanceField)
 	{

@@ -16,9 +16,9 @@
 #define REPLICATED_BASE_CLASS(ClassName) \
 private: \
 int32 NetPushId_Internal = INDEX_NONE; \
-virtual void SetNetPushIdDynamic(const int32 InNetPushId) override { NetPushId_Internal = InNetPushId; } \
-virtual int32 GetNetPushIdDynamic() const override { return GetNetPushId(); } \
+virtual void SetNetPushIdDynamic(const int32 InNetPushId) override final { NetPushId_Internal = InNetPushId; } \
 public: \
+virtual int32 GetNetPushIdDynamic() const override final { return GetNetPushId(); } \
 int32 GetNetPushId() const { return NetPushId_Internal; }
 
 #else

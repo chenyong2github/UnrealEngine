@@ -420,79 +420,83 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 		NumStoppingSources = 0;
 	}
 
-	// Cache any plugin settings objects we have loaded
-	UpdateAudioPluginSettingsObjectCache();
-
-	//Get the requested spatialization plugin and set it up.
-	IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin();
-	if (SpatializationPluginFactory != nullptr)
 	{
-		SpatializationPluginInterface = SpatializationPluginFactory->CreateNewSpatializationPlugin(this);
-		if (!IsAudioMixerEnabled())
+		LLM_SCOPE(ELLMTag::AudioMixerPlugins);
+
+		// Cache any plugin settings objects we have loaded
+		UpdateAudioPluginSettingsObjectCache();
+
+		//Get the requested spatialization plugin and set it up.
+		IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin();
+		if (SpatializationPluginFactory != nullptr)
 		{
+			SpatializationPluginInterface = SpatializationPluginFactory->CreateNewSpatializationPlugin(this);
+			if (!IsAudioMixerEnabled())
+			{
+				//Set up initialization parameters for system level effect plugins:
+				FAudioPluginInitializationParams PluginInitializationParams;
+				PluginInitializationParams.SampleRate = SampleRate;
+				PluginInitializationParams.NumSources = GetMaxSources();
+				PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
+				PluginInitializationParams.AudioDevicePtr = this;
+
+				SpatializationPluginInterface->Initialize(PluginInitializationParams);
+			}
+
+			bSpatializationInterfaceEnabled = true;
+			bSpatializationIsExternalSend = SpatializationPluginFactory->IsExternalSend();
+			MaxChannelsSupportedBySpatializationPlugin = SpatializationPluginFactory->GetMaxSupportedChannels();
+			UE_LOG(LogAudio, Log, TEXT("Using Audio Spatialization Plugin: %s is external send: %d"), *(SpatializationPluginFactory->GetDisplayName()), bSpatializationIsExternalSend);
+		}
+		else
+		{
+			UE_LOG(LogAudio, Log, TEXT("Using built-in audio spatialization."));
+		}
+
+		//Get the requested reverb plugin and set it up:
+		IAudioReverbFactory* ReverbPluginFactory = AudioPluginUtilities::GetDesiredReverbPlugin();
+		if (ReverbPluginFactory != nullptr)
+		{
+			ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
+			bReverbInterfaceEnabled = true;
+			bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
+			UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
+		}
+		else
+		{
+			UE_LOG(LogAudio, Log, TEXT("Using built-in audio reverb."));
+		}
+
+		//Get the requested occlusion plugin and set it up.
+		IAudioOcclusionFactory* OcclusionPluginFactory = AudioPluginUtilities::GetDesiredOcclusionPlugin();
+		if (OcclusionPluginFactory != nullptr)
+		{
+			OcclusionInterface = OcclusionPluginFactory->CreateNewOcclusionPlugin(this);
+			bOcclusionInterfaceEnabled = true;
+			bOcclusionIsExternalSend = OcclusionPluginFactory->IsExternalSend();
+			UE_LOG(LogAudio, Display, TEXT("Audio Occlusion Plugin: %s"), *(OcclusionPluginFactory->GetDisplayName()));
+		}
+		else
+		{
+			UE_LOG(LogAudio, Display, TEXT("Using built-in audio occlusion."));
+		}
+
+		//Get the requested modulation plugin and set it up.
+		if (IAudioModulationFactory* ModulationPluginFactory = AudioPluginUtilities::GetDesiredModulationPlugin())
+		{
+			ModulationInterface = ModulationPluginFactory->CreateNewModulationPlugin(this);
+
 			//Set up initialization parameters for system level effect plugins:
 			FAudioPluginInitializationParams PluginInitializationParams;
 			PluginInitializationParams.SampleRate = SampleRate;
 			PluginInitializationParams.NumSources = GetMaxSources();
 			PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
 			PluginInitializationParams.AudioDevicePtr = this;
+			ModulationInterface->Initialize(PluginInitializationParams);
 
-			SpatializationPluginInterface->Initialize(PluginInitializationParams);
+			bModulationInterfaceEnabled = true;
+			UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName().ToString()));
 		}
-
-		bSpatializationInterfaceEnabled = true;
-		bSpatializationIsExternalSend = SpatializationPluginFactory->IsExternalSend();
-		MaxChannelsSupportedBySpatializationPlugin = SpatializationPluginFactory->GetMaxSupportedChannels();
-		UE_LOG(LogAudio, Log, TEXT("Using Audio Spatialization Plugin: %s is external send: %d"), *(SpatializationPluginFactory->GetDisplayName()), bSpatializationIsExternalSend);
-	}
-	else
-	{
-		UE_LOG(LogAudio, Log, TEXT("Using built-in audio spatialization."));
-	}
-
-	//Get the requested reverb plugin and set it up:
-	IAudioReverbFactory* ReverbPluginFactory = AudioPluginUtilities::GetDesiredReverbPlugin();
-	if (ReverbPluginFactory != nullptr)
-	{
-		ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
-		bReverbInterfaceEnabled = true;
-		bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
-		UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
-	}
-	else
-	{
-		UE_LOG(LogAudio, Log, TEXT("Using built-in audio reverb."));
-	}
-
-	//Get the requested occlusion plugin and set it up.
-	IAudioOcclusionFactory* OcclusionPluginFactory = AudioPluginUtilities::GetDesiredOcclusionPlugin();
-	if (OcclusionPluginFactory != nullptr)
-	{
-		OcclusionInterface = OcclusionPluginFactory->CreateNewOcclusionPlugin(this);
-		bOcclusionInterfaceEnabled = true;
-		bOcclusionIsExternalSend = OcclusionPluginFactory->IsExternalSend();
-		UE_LOG(LogAudio, Display, TEXT("Audio Occlusion Plugin: %s"), *(OcclusionPluginFactory->GetDisplayName()));
-	}
-	else
-	{
-		UE_LOG(LogAudio, Display, TEXT("Using built-in audio occlusion."));
-	}
-
-	//Get the requested modulation plugin and set it up.
-	if (IAudioModulationFactory* ModulationPluginFactory = AudioPluginUtilities::GetDesiredModulationPlugin())
-	{
-		ModulationInterface = ModulationPluginFactory->CreateNewModulationPlugin(this);
-
-		//Set up initialization parameters for system level effect plugins:
-		FAudioPluginInitializationParams PluginInitializationParams;
-		PluginInitializationParams.SampleRate = SampleRate;
-		PluginInitializationParams.NumSources = GetMaxSources();
-		PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
-		PluginInitializationParams.AudioDevicePtr = this;
-		ModulationInterface->Initialize(PluginInitializationParams);
-
-		bModulationInterfaceEnabled = true;
-		UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName().ToString()));
 	}
 
 	// allow the platform to startup
@@ -689,6 +693,8 @@ void FAudioDevice::Teardown()
 
 	Sources.Reset();
 	FreeSources.Reset();
+
+	LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 
 	if (SpatializationPluginInterface.IsValid())
 	{
@@ -2277,12 +2283,13 @@ void FAudioDevice::RecursiveApplyAdjuster(const FSoundClassAdjuster& InAdjuster,
 	}
 }
 
-void FAudioDevice::CullSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound *>& ActiveSoundsCopy)
+void FAudioDevice::UpdateConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound *>& ActiveSoundsCopy)
 {
 	// Now stop any sounds that are active that are in concurrency resolution groups that resolve by stopping quietest
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioEvaluateConcurrency);
 		ConcurrencyManager.UpdateSoundsToCull();
+		ConcurrencyManager.UpdateVolumeScaleGenerations();
 	}
 
 	for (int32 i = ActiveSoundsCopy.Num() - 1; i >= 0; --i)
@@ -2316,6 +2323,17 @@ void FAudioDevice::CullSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveIns
 		if (WaveInstances[i]->ShouldStopDueToMaxConcurrency())
 		{
 			WaveInstances.RemoveAtSwap(i, 1, false);
+		}
+	}
+
+	// Must be completed after removing wave instances as it avoids an issue
+	// where quiet loops can wrongfully scale concurrency ducking improperly if they continue
+	// to attempt to be evaluated while being periodically realized to check volumes from virtualized.
+	for (int32 i = 0; i < ActiveSoundsCopy.Num(); ++i)
+	{
+		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
+		{
+			ActiveSound->UpdateConcurrencyVolumeScalars(GetGameDeltaTime());
 		}
 	}
 }
@@ -3711,18 +3729,7 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 
 	if (GetType != ESortedActiveWaveGetType::QueryOnly)
 	{
-		CullSoundsDueToMaxConcurrency(WaveInstances, ActiveSoundsCopy);
-	}
-
-	// Must be completed after StopQuietSoundsDueToMaxConcurrency as it avoids an issue
-	// where quiet loops can wrongfully scale concurrency ducking improperly if they continue
-	// to attempt to be evaluated while being periodically realized to check volumes from virtualized.
-	for (int32 i = 0; i < ActiveSoundsCopy.Num(); ++i)
-	{
-		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
-		{
-			ActiveSound->UpdateConcurrencyVolumeScalars(GetGameDeltaTime());
-		}
+		UpdateConcurrency(WaveInstances, ActiveSoundsCopy);
 	}
 
 	int32 FirstActiveIndex = 0;
@@ -4668,7 +4675,7 @@ void FAudioDevice::AddEnvelopeFollowerDelegate(USoundSubmix* InSubmix, const FOn
 	UE_LOG(LogAudio, Error, TEXT("Envelope following submixes only works with the audio mixer. Please run using -audiomixer or set INI file to use submix recording."));
 }
 
-void FAudioDevice::StartSpectrumAnalysis(USoundSubmix* InSubmix, const Audio::FSpectrumAnalyzerSettings& InSettings)
+void FAudioDevice::StartSpectrumAnalysis(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerSettings& InSettings)
 {
 	UE_LOG(LogAudio, Error, TEXT("Spectrum analysis of submixes only works with the audio mixer. Please run using -audiomixer or set INI file to use submix recording."));
 }
@@ -4684,6 +4691,16 @@ void FAudioDevice::GetMagnitudesForFrequencies(USoundSubmix* InSubmix, const TAr
 }
 
 void FAudioDevice::GetPhasesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutPhases)
+{
+	UE_LOG(LogAudio, Error, TEXT("Spectrum analysis of submixes only works with the audio mixer. Please run using -audiomixer or set INI file to use submix recording."));
+}
+
+void FAudioDevice::AddSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP)
+{
+	UE_LOG(LogAudio, Error, TEXT("Spectrum analysis of submixes only works with the audio mixer. Please run using -audiomixer or set INI file to use submix recording."));
+}
+
+void FAudioDevice::RemoveSpectralAnalysisDelegate(USoundSubmix* InSubmix, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP)
 {
 	UE_LOG(LogAudio, Error, TEXT("Spectrum analysis of submixes only works with the audio mixer. Please run using -audiomixer or set INI file to use submix recording."));
 }
@@ -5008,19 +5025,13 @@ bool FAudioDevice::LocationIsAudible(const FVector& Location, int32 ListenerInde
 
 float FAudioDevice::GetDistanceToNearestListener(const FVector& Location) const
 {
-	const bool bInAudioThread = IsInAudioThread();
-	const bool bInGameThread = IsInGameThread();
-
-	check(bInAudioThread || bInGameThread);
-
-	float DistSquared;
-	const bool bAllowAttenuationOverrides = true;
-	if (FindClosestListenerIndex(Location, DistSquared, bAllowAttenuationOverrides) == INDEX_NONE)
+	float DistSquared = 0.0f;
+	if (GetDistanceSquaredToNearestListener(Location, DistSquared))
 	{
-		return WORLD_MAX;
+		return FMath::Sqrt(DistSquared);
 	}
 
-	return FMath::Sqrt(DistSquared);
+	return WORLD_MAX;
 }
 
 float FAudioDevice::GetSquaredDistanceToListener(const FVector& Location, const FTransform& ListenerTransform) const
@@ -5048,6 +5059,26 @@ bool FAudioDevice::GetDistanceSquaredToListener(const FVector& Location, int32 L
 	}
 
 	OutSqDistance = (ListenerTranslation - Location).SizeSquared();
+	return true;
+}
+
+bool FAudioDevice::GetDistanceSquaredToNearestListener(const FVector& Location, float& OutSqDistance) const
+{
+	OutSqDistance = TNumericLimits<float>::Max();
+	const bool bInAudioThread = IsInAudioThread();
+	const bool bInGameThread = IsInGameThread();
+
+	check(bInAudioThread || bInGameThread);
+
+	float DistSquared;
+	const bool bAllowAttenuationOverrides = true;
+	if (FindClosestListenerIndex(Location, DistSquared, bAllowAttenuationOverrides) == INDEX_NONE)
+	{
+		OutSqDistance = WORLD_MAX;
+		return false;
+	}
+
+	OutSqDistance = DistSquared;
 	return true;
 }
 
@@ -6338,7 +6369,7 @@ bool FAudioDevice::CanUseVRAudioDevice()
 	if (GIsEditor)
 	{
 		UEditorEngine* EdEngine = Cast<UEditorEngine>(GEngine);
-		return EdEngine->IsVRPreviewActive();
+		return EdEngine ? EdEngine->IsVRPreviewActive() : false;
 	}
 	else
 #endif

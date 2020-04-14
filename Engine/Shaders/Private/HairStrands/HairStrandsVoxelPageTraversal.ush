@@ -76,147 +76,6 @@ float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Non-Sparse voxel traversal routines
-#if VOXEL_TRAVERSAL_TYPE ==  VOXEL_TRAVERSAL_LEGACY
-FHairTraversalResult ComputeHairCountVoxel(
-	float3 WorldPosition0,
-	float3 WorldPosition1,
-	float3 InVoxelAABBMin,
-	float3 InVoxelAABBMax,
-	float InVoxelResolution,
-	Texture3D<uint> InDensityTexture,
-	float DensityScale,
-	float CountThreshold,
-	float DistanceThreshold)
-{
-	FHairTraversalResult Out = InitHairTraversalResult();
-
-	const float3 VolumeBoundSize = InVoxelAABBMax - InVoxelAABBMin;
-	const float3 VolumeBoundSizeInv = 1.0f / (InVoxelAABBMax - InVoxelAABBMin);
-	const float VoxelWorldSize = VolumeBoundSize.x / InVoxelResolution;				// Only using voxel size along x for now...
-
-	const float2 HitT = LineBoxIntersect(WorldPosition0, WorldPosition1, InVoxelAABBMin, InVoxelAABBMax);
-	if (HitT.x < HitT.y)
-	{
-		// Count the number of fibers which are within a cylinder defined by the voxel size, 
-		// and the distance between the origin and the extent of the volume
-		// This assumes that the voxel volume is cubic (i.e. equal dimensions on all sides)
-		float3 O = lerp(WorldPosition0, WorldPosition1, HitT.xxx);
-		float3 E = lerp(WorldPosition0, WorldPosition1, HitT.yyy);
-		const float OELength = min(length(E - O), DistanceThreshold);
-
-		// Step according to voxel size
-		const float StepCount = float(min(ceil(OELength / VoxelWorldSize), 256u));	// TO TRY: sample with fixed count budget and jitter temporally
-		const float3 D = normalize(WorldPosition1 - WorldPosition0) * VoxelWorldSize;
-
-		for (float StepIt = 0.0f; StepIt < StepCount; ++StepIt)
-		{
-			const float3 HitP = O + StepIt * D;
-			const float3 UVW = (HitP - InVoxelAABBMin) * VolumeBoundSizeInv;
-			const int3 VolumeCoord = clamp(int3(UVW * InVoxelResolution), int3(0, 0, 0), int3(InVoxelResolution.xxx - 1));
-			const FHairTraversalResult StepResult = GetHairVoxelDensity(VolumeCoord, InDensityTexture, 0, DensityScale);
-			Acc(Out, StepResult);
-
-			if (ShouldStopTraversal(Out, CountThreshold))
-			{
-				Out.HitT = StepIt * VoxelWorldSize;
-				return Out;
-			}
-		}
-	}
-
-	return Out;
-}
-
-FHairTraversalResult ComputeHairCountVoxelCone(
-	float3 WorldPosition0,
-	float3 WorldPosition1,
-	float3 InVoxelAABBMin,
-	float3 InVoxelAABBMax,
-	float InVoxelResolution,
-	Texture3D<uint> InDensityTexture,
-	float InVoxelDensityScale,
-	float CountThreshold,
-	float DistanceThreshold,
-	float TanConeAngle)
-{
-	FHairTraversalResult Out = InitHairTraversalResult();
-
-	// Reverse-Z
-	const float ConservativeAABBDiagonal = (InVoxelAABBMax.x - InVoxelAABBMin.x) * 3;
-	const float3 O = WorldPosition0;
-	const float3 E = WorldPosition1;
-	const float3 D = E - O;
-	const float3 NormD = normalize(D);
-
-	// The rest of the code assumes O is within the AABB
-	const bool bIsInAABB = IsInVoxelBounds(O, InVoxelAABBMin, InVoxelAABBMax);
-	if (!bIsInAABB)
-		return Out;
-
-	const float2 HitT = LineBoxIntersect(O, E, InVoxelAABBMin, InVoxelAABBMax);
-	if (HitT.x < HitT.y)
-	{
-		const float VolumeSize = (InVoxelAABBMax.x - InVoxelAABBMin.x);
-		const float VoxelSize = VolumeSize / InVoxelResolution;
-
-		// Count the number of fibers which are within a cylinder defined by the voxel size, 
-		// and the distance between the origin and the extent of the volume
-		// This assumes that the voxel volume is cubic (i.e. equal dimensions on all sides)
-		const float DistanceThreshold2 = DistanceThreshold * DistanceThreshold;
-		const float Distance = min(DistanceThreshold, length(HitT.y * D));
-		const uint MaxStepCount = min(ceil(Distance / VoxelSize), 256u);
-		float T = 0;
-		float MipLevel = 0;
-		float MipDensityScale = 1;
-		for (uint StepIt = 0; StepIt < MaxStepCount; ++StepIt)
-		{
-			float3 StepOffset = 0;
-
-			const float3 RaymarchOffset = T * NormD;
-			const float3 HitP = O + RaymarchOffset + StepOffset;
-			const float3 UVW = (HitP - InVoxelAABBMin) / (InVoxelAABBMax - InVoxelAABBMin);
-
-			const float Distance2 = dot(RaymarchOffset, RaymarchOffset);
-			if (Distance2 > DistanceThreshold2)
-				return Out;
-
-			if (!IsInVoxelBounds(UVW, 0, 1))
-				return Out;
-
-			const uint MipVoxelResolution = uint(InVoxelResolution) >> uint(MipLevel);
-			const int3 VolumeCoord = clamp(int3(UVW * MipVoxelResolution), int3(0, 0, 0), int3(MipVoxelResolution.xxx - 1));
-			const FHairTraversalResult StepResult = GetHairVoxelDensity(VolumeCoord, InDensityTexture, MipLevel, InVoxelDensityScale * MipDensityScale);
-			Acc(Out, StepResult);
-
-			if (ShouldStopTraversal(Out, CountThreshold))
-			{
-				Out.HitT = T;
-				return Out;
-			}
-
-			const float VoxelRadius = T * TanConeAngle;
-			const float NumVoxel = VolumeSize / max(2 * VoxelRadius, VoxelSize);
-
-			const float ResolutionBias = InVoxelResolution / NumVoxel;
-			float MipBias = log2(max(0.5f, ResolutionBias));
-			MipBias = floor(MipBias);
-			MipLevel = MipBias;
-
-			const float MipVoxelSize = VoxelSize * (MipLevel + 1);
-			{
-				MipDensityScale = VoxelSize * rcp(MipVoxelSize);
-				MipDensityScale = MipDensityScale * MipDensityScale * MipDensityScale;
-			}
-			T += MipVoxelSize;
-		}
-	}
-
-	return Out;
-}
-#endif
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FHairTraversalSettings
 {
@@ -226,8 +85,10 @@ struct FHairTraversalSettings
 	float	SteppingScale;		// Rate at which the raymarching step increase
 	float3	Random;
 	float	TanConeAngle;
+	float	PixelRadius;
 	bool	bUseOpaqueVisibility;
 	bool	bDebugEnabled;
+	bool	bIsPrimaryRay;
 };
 
 float GetHairTraversalMaxT()
@@ -244,8 +105,10 @@ FHairTraversalSettings InitHairTraversalSettings()
 	Out.SteppingScale = 1;
 	Out.Random = 0.5f;
 	Out.TanConeAngle = 0;
+	Out.PixelRadius = 0;
 	Out.bUseOpaqueVisibility = true;
 	Out.bDebugEnabled = false;
+	Out.bIsPrimaryRay = false;
 	return Out;
 }
 
@@ -264,9 +127,6 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 {
 	Error: VOXEL TRAVERSAL TYPE is undefined
 }
-#endif
-#if VOXEL_TRAVERSAL_TYPE == VOXEL_TRAVERSAL_LEGACY
-; // This function is never used. When VOXEL_TRAVERSAL_LEGACY is defined, the old traversal (with plain voxel) is used instead
 #endif
 #if VOXEL_TRAVERSAL_TYPE == VOXEL_TRAVERSAL_LINEAR || VOXEL_TRAVERSAL_TYPE == VOXEL_TRAVERSAL_LINEAR_MIPMAP
 {
@@ -301,6 +161,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 		const float DeltaWorld = OELength / float(MaxStep);
 		float StepScale = 1.0f;
 		float3 PreviousP = O;
+		float ClosestHitT = -1;
 
 		const float3 RandomStepJitter = InSettings.Random.xyz * 2 - 1; // [-1..1]
 		for (float StepIt = 0.0f; StepIt < MaxStep; StepIt += StepScale)
@@ -346,6 +207,11 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 				const FHairTraversalResult StepResult = GetHairVirtualVoxelDensity(VoxelPageCoord, InPageTexture, uint(MipLevel), InSettings.DensityScale * HairCountScale);
 				Acc(Out, StepResult);
 
+				if (InSettings.bIsPrimaryRay && StepResult.HairCount > 0)
+				{
+					ClosestHitT = 1;
+				}
+
 				#if VOXEL_TRAVERSAL_DEBUG
 				if (InSettings.bDebugEnabled)
 				{
@@ -367,7 +233,14 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 				}
 			}
 			#if VOXEL_TRAVERSAL_TYPE == VOXEL_TRAVERSAL_LINEAR_MIPMAP
-			StepScale = min(InCommonDesc.PageResolution, StepScale * InSettings.SteppingScale);
+			if (InSettings.bIsPrimaryRay && ClosestHitT < 0)
+			{
+				// Start the mipmap traversal only when we have reach the first hit (primaryview)
+			}
+			else
+			{
+				StepScale = min(InCommonDesc.PageResolution, StepScale * InSettings.SteppingScale);
+			}
 			#endif
 			PreviousP = HitP;
 		}

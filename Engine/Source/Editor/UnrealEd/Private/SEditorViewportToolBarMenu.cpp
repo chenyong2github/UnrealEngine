@@ -148,3 +148,7 @@ EVisibility SEditorViewportToolbarMenu::GetLabelIconVisibility() const
 	return LabelIconBrush.Get() != NULL ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+TWeakPtr<class SViewportToolBar> SEditorViewportToolbarMenu::GetParentToolBar() const
+{
+	return ParentToolBar;
+}

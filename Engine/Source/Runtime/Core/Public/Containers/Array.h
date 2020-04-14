@@ -1141,6 +1141,11 @@ public:
 
 		if (SerializeNum == 0)
 		{
+			// if we are loading, then we have to reset the size to 0, in case it isn't currently 0
+			if (Ar.IsLoading())
+			{
+				A.Empty();
+			}
 			return Ar;
 		}
 
@@ -2268,8 +2273,9 @@ public:
 	 * @see Remove, RemoveSingle, RemoveSingleSwap, RemoveSwap
 	 */
 	template <class PREDICATE_CLASS>
-	void RemoveAllSwap(const PREDICATE_CLASS& Predicate, bool bAllowShrinking = true)
+	SizeType RemoveAllSwap(const PREDICATE_CLASS& Predicate, bool bAllowShrinking = true)
 	{
+		const SizeType OriginalNum = ArrayNum;
 		for (SizeType ItemIndex = 0; ItemIndex < Num();)
 		{
 			if (Predicate((*this)[ItemIndex]))
@@ -2281,6 +2287,7 @@ public:
 				++ItemIndex;
 			}
 		}
+		return OriginalNum - ArrayNum;
 	}
 
 	/**

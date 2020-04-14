@@ -7,6 +7,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/RunnableThread.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/ScopeLock.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -15,7 +16,14 @@ TRACE_DECLARE_INT_COUNTER(IoDispatcherSequentialReads, TEXT("IoDispatcher/Sequen
 TRACE_DECLARE_INT_COUNTER(IoDispatcherForwardSeeks, TEXT("IoDispatcher/ForwardSeeks"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherBackwardSeeks, TEXT("IoDispatcher/BackwardSeeks"));
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalSeekDistance, TEXT("IoDispatcher/TotalSeekDistance"));
-TRACE_DECLARE_INT_COUNTER(IoDispatcherPendingBlocksCount, TEXT("IoDispatcher/PendingBlocksCount"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherCacheHits, TEXT("IoDispatcher/CacheHits"));
+
+int32 GIoDispatcherCacheSizeMB = 0;
+static FAutoConsoleVariableRef CVar_IoDispatcherCacheSizeMB(
+	TEXT("s.IoDispatcherCacheSizeMB"),
+	GIoDispatcherCacheSizeMB,
+	TEXT("IoDispatcher cache memory size (in megabytes).")
+);
 
 FGenericIoDispatcherEventQueue::FGenericIoDispatcherEventQueue()
 	: Event(FPlatformProcess::GetSynchEventFromPool())
@@ -37,17 +45,46 @@ void FGenericIoDispatcherEventQueue::Wait()
 	Event->Wait();
 }
 
-FGenericFileIoStoreImpl::FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue)
+FGenericFileIoStoreImpl::FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue, uint64 InReadBufferSize)
 	: EventQueue(InEventQueue)
-	, PendingBlockEvent(FPlatformProcess::GetSynchEventFromPool())
+	, ReadBufferSize(InReadBufferSize)
 {
-	Thread = FRunnableThread::Create(this, TEXT("IoService"), 0, TPri_AboveNormal);
+	uint64 CacheMemorySize = GIoDispatcherCacheSizeMB > 0 ? uint64(GIoDispatcherCacheSizeMB) << 20 : 0;
+	uint64 CacheBlockCount = CacheMemorySize / InReadBufferSize;
+	if (CacheBlockCount)
+	{
+		CacheMemorySize = CacheBlockCount * InReadBufferSize;
+		CacheMemory = reinterpret_cast<uint8*>(FMemory::Malloc(CacheMemorySize));
+		FCachedBlock* Prev = &CacheLruHead;
+		for (uint64 CacheBlockIndex = 0; CacheBlockIndex < CacheBlockCount; ++CacheBlockIndex)
+		{
+			FCachedBlock* CachedBlock = new FCachedBlock();
+			CachedBlock->Key = uint64(-1);
+			CachedBlock->Buffer = CacheMemory + CacheBlockIndex * InReadBufferSize;
+			Prev->LruNext = CachedBlock;
+			CachedBlock->LruPrev = Prev;
+			Prev = CachedBlock;
+		}
+		Prev->LruNext = &CacheLruTail;
+		CacheLruTail.LruPrev = Prev;
+	}
+	else
+	{
+		CacheLruHead.LruNext = &CacheLruTail;
+		CacheLruTail.LruPrev = &CacheLruHead;
+	}
 }
 
 FGenericFileIoStoreImpl::~FGenericFileIoStoreImpl()
 {
-	delete Thread;
-	FPlatformProcess::ReturnSynchEventToPool(PendingBlockEvent);
+	FCachedBlock* CachedBlock = CacheLruHead.LruNext;
+	while (CachedBlock != &CacheLruTail)
+	{
+		FCachedBlock* Next = CachedBlock->LruNext;
+		delete CachedBlock;
+		CachedBlock = Next;
+	}
+	FMemory::Free(CacheMemory);
 }
 
 bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize)
@@ -63,150 +100,90 @@ bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint
 	return true;
 }
 
-void FGenericFileIoStoreImpl::BeginReadsForRequest(FFileIoStoreResolvedRequest& ResolvedRequest)
+void FGenericFileIoStoreImpl::ReadBlockFromFile(uint8* Target, uint64 InFileHandle, FFileIoStoreRawBlock* Block)
 {
-	if (!ResolvedRequest.Request->IoBuffer.DataSize())
+	FCachedBlock* CachedBlock = nullptr;
+	bool bIsCacheableBlock = CacheMemory != nullptr && !Block->DirectToRequest && Block->Size == ReadBufferSize;
+	if (bIsCacheableBlock)
 	{
-		ResolvedRequest.Request->IoBuffer = FIoBuffer(ResolvedRequest.ResolvedSize);
+		CachedBlock = CachedBlocks.FindRef(Block->Key.Hash);
 	}
-}
 
-void FGenericFileIoStoreImpl::ReadBlockFromFile(FFileIoStoreReadBlock* Block)
-{
+	if (CachedBlock)
 	{
-		FScopeLock Lock(&PendingBlocksCritical);
-		if (!PendingBlocksHead)
+		FMemory::Memcpy(Target, CachedBlock->Buffer, ReadBufferSize);
+		CachedBlock->LruPrev->LruNext = CachedBlock->LruNext;
+		CachedBlock->LruNext->LruPrev = CachedBlock->LruPrev;
+		
+		CachedBlock->LruPrev = &CacheLruHead;
+		CachedBlock->LruNext = CacheLruHead.LruNext;
+		
+		CachedBlock->LruPrev->LruNext = CachedBlock;
+		CachedBlock->LruNext->LruPrev = CachedBlock;
+
+		TRACE_COUNTER_INCREMENT(IoDispatcherCacheHits);
+	}
+	else
+	{
+		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(InFileHandle));
+		if (FileHandle->Tell() != Block->Offset)
 		{
-			PendingBlocksHead = PendingBlocksTail = Block;
-		}
-		else
-		{
-			PendingBlocksTail->Next = Block;
-			PendingBlocksTail = Block;
-		}
-		Block->Next = nullptr;
-		TRACE_COUNTER_INCREMENT(IoDispatcherPendingBlocksCount);
-	}
-	PendingBlockEvent->Trigger();
-}
-
-void FGenericFileIoStoreImpl::EndReadsForRequest()
-{
-
-}
-
-FFileIoStoreReadBlock* FGenericFileIoStoreImpl::GetNextCompletedBlock()
-{
-	FScopeLock _(&CompletedBlocksCritical);
-	FFileIoStoreReadBlock* CompletedBlock = CompletedBlocksHead;
-	if (!CompletedBlocksHead)
-	{
-		return nullptr;
-	}
-	CompletedBlocksHead = CompletedBlocksHead->Next;
-	if (!CompletedBlocksHead)
-	{
-		CompletedBlocksTail = nullptr;
-	}
-	return CompletedBlock;
-}
-
-bool FGenericFileIoStoreImpl::Init()
-{
-	return true;
-}
-
-void FGenericFileIoStoreImpl::Stop()
-{
-	bStopRequested = true;
-	PendingBlockEvent->Trigger();
-}
-
-uint32 FGenericFileIoStoreImpl::Run()
-{
-	FFileIoStoreReadBlock* ScheduledBlocksHead = nullptr;
-	FFileIoStoreReadBlock* ScheduledBlocksTail = nullptr;
-
-	while (!bStopRequested)
-	{
-		while (!bStopRequested)
-		{
+			if (uint64(FileHandle->Tell()) > Block->Offset)
 			{
-				FScopeLock PendingBlocksLock(&PendingBlocksCritical);
-				if (PendingBlocksHead)
-				{
-					if (!ScheduledBlocksTail)
-					{
-						ScheduledBlocksHead = PendingBlocksHead;
-						ScheduledBlocksTail = PendingBlocksTail;
-					}
-					else
-					{
-						ScheduledBlocksTail->Next = PendingBlocksHead;
-						ScheduledBlocksTail = PendingBlocksTail;
-					}
-					PendingBlocksHead = PendingBlocksTail = nullptr;
-				}
-			}
-
-			if (!ScheduledBlocksHead)
-			{
-				break;
-			}
-
-			FFileIoStoreReadBlock* BlockToRead = ScheduledBlocksHead;
-			ScheduledBlocksHead = ScheduledBlocksHead->Next;
-			if (!ScheduledBlocksHead)
-			{
-				ScheduledBlocksTail = nullptr;
-			}
-			
-			if (!BlockToRead->Buffer.DataSize())
-			{
-				BlockToRead->Buffer = FIoBuffer(BlockToRead->Size);
-			}
-
-			/*FString ScopeNameString;
-			ScopeNameString.Appendf(TEXT("ReadBlockFromFile: %lld (%lld)"), BlockToRead->Key.BlockIndex, BlockToRead->Size);
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*ScopeNameString);
-			*/
-			TRACE_CPUPROFILER_EVENT_SCOPE(ReadBlockFromFile);
-			IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(BlockToRead->Key.FileHandle));
-			if (FileHandle->Tell() != BlockToRead->Offset)
-			{
-				if (uint64(FileHandle->Tell()) > BlockToRead->Offset)
-				{
-					TRACE_COUNTER_INCREMENT(IoDispatcherBackwardSeeks);
-				}
-				else
-				{
-					TRACE_COUNTER_INCREMENT(IoDispatcherForwardSeeks);
-				}
-				TRACE_COUNTER_ADD(IoDispatcherTotalSeekDistance, FMath::Abs(FileHandle->Tell() - int64(BlockToRead->Offset)));
-				FileHandle->Seek(BlockToRead->Offset);
+				TRACE_COUNTER_INCREMENT(IoDispatcherBackwardSeeks);
 			}
 			else
 			{
-				TRACE_COUNTER_INCREMENT(IoDispatcherSequentialReads);
+				TRACE_COUNTER_INCREMENT(IoDispatcherForwardSeeks);
 			}
-			FileHandle->Read(BlockToRead->Buffer.Data(), BlockToRead->Size);
-			TRACE_COUNTER_DECREMENT(IoDispatcherPendingBlocksCount);
-			{
-				FScopeLock _(&CompletedBlocksCritical);
-				if (!CompletedBlocksHead)
-				{
-					CompletedBlocksHead = CompletedBlocksTail = BlockToRead;
-				}
-				else
-				{
-					CompletedBlocksTail->Next = BlockToRead;
-					CompletedBlocksTail = BlockToRead;
-				}
-				BlockToRead->Next = nullptr;
-			}
-			EventQueue.Notify();
+			TRACE_COUNTER_ADD(IoDispatcherTotalSeekDistance, FMath::Abs(FileHandle->Tell() - int64(Block->Offset)));
+			FileHandle->Seek(Block->Offset);
 		}
-		PendingBlockEvent->Wait();
+		else
+		{
+			TRACE_COUNTER_INCREMENT(IoDispatcherSequentialReads);
+		}
+		FileHandle->Read(Target, Block->Size);
+
+		if (bIsCacheableBlock)
+		{
+			FCachedBlock* BlockToReplace = CacheLruTail.LruPrev;
+			CachedBlocks.Remove(BlockToReplace->Key);
+			BlockToReplace->Key = Block->Key.Hash;
+			CachedBlocks.Add(BlockToReplace->Key, BlockToReplace);
+			
+			BlockToReplace->LruPrev->LruNext = BlockToReplace->LruNext;
+			BlockToReplace->LruNext->LruPrev = BlockToReplace->LruPrev;
+
+			BlockToReplace->LruPrev = &CacheLruHead;
+			BlockToReplace->LruNext = CacheLruHead.LruNext;
+
+			BlockToReplace->LruPrev->LruNext = BlockToReplace;
+			BlockToReplace->LruNext->LruPrev = BlockToReplace;
+			
+			FMemory::Memcpy(BlockToReplace->Buffer, Target, ReadBufferSize);
+		}
 	}
-	return 0;
+	{
+		FScopeLock _(&CompletedBlocksCritical);
+		if (!CompletedBlocksHead)
+		{
+			CompletedBlocksHead = CompletedBlocksTail = Block;
+		}
+		else
+		{
+			CompletedBlocksTail->Next = Block;
+			CompletedBlocksTail = Block;
+		}
+		Block->Next = nullptr;
+	}
+	EventQueue.Notify();
+}
+
+FFileIoStoreRawBlock* FGenericFileIoStoreImpl::GetCompletedBlocks()
+{
+	FScopeLock _(&CompletedBlocksCritical);
+	FFileIoStoreRawBlock* Result = CompletedBlocksHead;
+	CompletedBlocksHead = CompletedBlocksTail = nullptr;
+	return Result;
 }

@@ -30,8 +30,10 @@ private:
 
 protected:
 	virtual TSharedRef<SWidget> GenerateViewMenuContent() const;
-	TWeakPtr<SEditorViewport> Viewport;
+	virtual void RegisterMenus() const;
 
-private:
+	TWeakPtr<SEditorViewport> Viewport;
 	TSharedPtr<class FExtender> MenuExtenders;
+
+	static const FName BaseMenuName;
 };

@@ -214,13 +214,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static void ExitVRMode();
 
-	/** Whether editor grid snapping is enabled */
+	/** Whether location grid snapping is enabled */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
-	static bool IsGridSnappingEnabled();
+	static bool IsLocationGridSnappingEnabled();
 
-	/** Toggle editor grid snapping */
+	/** Toggle location grid snapping */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
-	static void ToggleGridSnapping();
+	static void ToggleLocationGridSnapping();
+
+	/** Whether rotation grid snapping is enabled */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+		static bool IsRotationGridSnappingEnabled();
+
+	/** Toggle rotation grid snapping */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+		static void ToggleRotationGridSnapping();
 
 private:
 

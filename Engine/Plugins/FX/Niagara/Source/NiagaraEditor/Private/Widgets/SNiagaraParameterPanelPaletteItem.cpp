@@ -7,15 +7,15 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapPalleteItem"
 
-void SNiagaraParameterPanelPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetForActionData* const InCreateData, TSharedRef<SWidget> ParameterNameViewWidget)
+void SNiagaraParameterPanelPaletteItem::Construct(const FArguments& InArgs/*, FCreateWidgetForActionData* const InCreateData*/, TSharedRef<SWidget> ParameterNameViewWidget)
 {
-	check(InCreateData->Action.IsValid());
-	TSharedPtr<FNiagaraScriptVarAndViewInfoAction> Action = StaticCastSharedPtr<FNiagaraScriptVarAndViewInfoAction>(InCreateData->Action);
-	ActionPtr = InCreateData->Action;
+// 	check(InCreateData->Action.IsValid());
+// 	TSharedPtr<FNiagaraScriptVarAndViewInfoAction> Action = StaticCastSharedPtr<FNiagaraScriptVarAndViewInfoAction>(InCreateData->Action);
+// 	ActionPtr = InCreateData->Action;
 
 	FTutorialMetaData TagMeta("PaletteItem");
 
-	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Action->GetScriptVarType());
+	const FLinearColor TypeColor = FLinearColor(1, 1, 1, 0);/* UEdGraphSchema_Niagara::GetTypeColor(Action->GetScriptVarType());*/
 	FSlateBrush const* IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
 	FSlateBrush const* SecondaryBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
 	FSlateColor        IconColor = FSlateColor(TypeColor);
@@ -35,7 +35,7 @@ void SNiagaraParameterPanelPaletteItem::Construct(const FArguments& InArgs, FCre
 	[
 		SNew(SHorizontalBox)
 		.AddMetaData<FTutorialMetaData>(TagMeta)
-		.ToolTipText(Action->GetTooltipDescription())
+		//.ToolTipText(Action->GetTooltipDescription())
 		// icon slot
 		+SHorizontalBox::Slot()
 		.AutoWidth()

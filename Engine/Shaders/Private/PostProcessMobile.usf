@@ -774,6 +774,53 @@ void DofBlurPS_ES2(
 }
 
 
+// Integrate DOF
+
+void IntegrateDOFVS_ES2(
+	in float4 InPosition : ATTRIBUTE0,
+	in float2 InTexCoord : ATTRIBUTE1,
+	out float4 OutTexCoords : TEXCOORD0,
+	out float2 OutFineDofGrain : TEXCOORD1,
+	out float4 OutPosition : SV_POSITION
+)
+{
+	DrawRectangle(InPosition, InTexCoord, OutPosition, OutTexCoords.xy);
+
+	// Fine adjustment is inside the possible non-full viewport in the full resolution texture.
+	OutFineDofGrain.xy = OutTexCoords.xy + PostprocessInput0Size.zw * float2(-0.5, 0.5);
+	// Want grain and a second UV based on the knowledge that the source texture has a full viewport.
+	float2 FullViewUV = OutPosition.xy * float2(0.5, -0.5) + 0.5;
+	// For DOF attempt to undo sampling bias for the first transition region.
+	// This is better for the fine transition, breaks down for the larger bokeh.
+	// This is the best compromise for mobile using 4 bilinear taps only.
+	OutTexCoords.zw = FullViewUV.xy + PostprocessInput1Size.zw * float2(0.25, -0.5);
+}
+
+void IntegrateDOFPS_ES2(
+	in float4 TexCoords : TEXCOORD0,
+	in float2 FineDofGrain : TEXCOORD1,
+	out half4 OutColor : SV_Target0
+)
+{
+	half4 SceneColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, TexCoords.xy);
+
+	half4 DofFine = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, FineDofGrain.xy);
+	half4 Dof = Texture2DSample(PostprocessInput1, PostprocessInput1Sampler, TexCoords.zw);
+	half DofCoc = Texture2DSample(PostprocessInput2, PostprocessInput2Sampler, TexCoords.xy).r;
+	// Convert alpha back into circle of confusion.
+	SceneColor.a = max(Dof.a, abs(DofCoc * 2.0 - 1.0));
+	// Convert circle of confusion into blend factors.		
+	half2 ScaleBias = CocBlendScaleBias(); // Constant.
+	half DofAmount = saturate(SceneColor.a * ScaleBias.x + ScaleBias.y);
+	half2 ScaleBias2 = CocBlendScaleBiasFine(); // Constant.
+	half DofAmountFine = saturate(SceneColor.a * ScaleBias2.x + ScaleBias2.y);
+	// Blend in fine DOF.
+	OutColor.rgb = lerp(SceneColor.rgb, DofFine.rgb, DofAmountFine);
+	// Blend in coarse DOF.
+	OutColor.rgb = lerp(OutColor.rgb, Dof.rgb, DofAmount);
+	OutColor.a = DofCoc;
+}
+
 //
 // First sun shaft blur and move sun intensity from alpha to single channel output.
 //

@@ -66,6 +66,13 @@ struct FD3D12AdapterDesc
 	uint32 NumDeviceNodes;
 };
 
+enum class ED3D12GPUCrashDebugginMode
+{
+	Disabled,
+	Minimal,
+	Full
+};
+
 // Represents a set of linked D3D12 device nodes (LDA i.e 1 or more identical GPUs). In most cases there will be only 1 node, however if the system supports
 // SLI/Crossfire and the app enables it an Adapter will have 2 or more nodes. This class will own anything that can be shared
 // across LDA including: System Pool Memory,.Pipeline State Objects, Root Signatures etc.
@@ -93,6 +100,8 @@ public:
 #endif // D3D12_RHI_RAYTRACING
 	FORCEINLINE void SetDeviceRemoved(bool value) { bDeviceRemoved = value; }
 	FORCEINLINE const bool IsDeviceRemoved() const { return bDeviceRemoved; }
+	FORCEINLINE const bool IsDebugDevice() const { return bDebugDevice; }
+	FORCEINLINE const ED3D12GPUCrashDebugginMode GetGPUCrashDebuggingMode() const { return GPUCrashDebuggingMode; }
 	FORCEINLINE FD3D12DynamicRHI* GetOwningRHI() { return OwningRHI; }
 	FORCEINLINE const D3D12_RESOURCE_HEAP_TIER GetResourceHeapTier() const { return ResourceHeapTier; }
 	FORCEINLINE const D3D12_RESOURCE_BINDING_TIER GetResourceBindingTier() const { return ResourceBindingTier; }
@@ -308,6 +317,8 @@ protected:
 	TRefCountPtr<ID3D12Device1> RootDevice1;
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	TRefCountPtr<ID3D12Device2> RootDevice2;
+
+	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
 #endif
 #if D3D12_RHI_RAYTRACING
 	TRefCountPtr<ID3D12Device5> RootRayTracingDevice;
@@ -316,6 +327,12 @@ protected:
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;
 	bool bDepthBoundsTestSupported;
+
+	/** Running with debug device */
+	bool bDebugDevice;
+
+	/** GPU Crash debugging mode */
+	ED3D12GPUCrashDebugginMode GPUCrashDebuggingMode;
 
 	/** True if the device being used has been removed. */
 	bool bDeviceRemoved;

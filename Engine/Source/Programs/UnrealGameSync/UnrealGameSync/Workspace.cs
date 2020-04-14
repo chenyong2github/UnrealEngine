@@ -24,7 +24,7 @@ namespace UnrealGameSync
 		GenerateProjectFiles = 0x08,
 		SyncArchives = 0x10,
 		Build = 0x20,
-		UseIncrementalBuilds = 0x40,
+		Clean = 0x40,
 		ScheduledBuild = 0x80,
 		RunAfterSync = 0x100,
 		OpenSolutionAfterSync = 0x200,
@@ -92,6 +92,33 @@ namespace UnrealGameSync
 			this.bEnable = true;
 			this.Name = Name;
 			this.Paths = Paths;
+		}
+
+		public static Dictionary<Guid, bool> GetDefault(IEnumerable<WorkspaceSyncCategory> Categories)
+		{
+			return Categories.ToDictionary(x => x.UniqueId, x => x.bEnable);
+		}
+
+		public static Dictionary<Guid, bool> GetDelta(Dictionary<Guid, bool> Source, Dictionary<Guid, bool> Target)
+		{
+			Dictionary<Guid, bool> Changes = new Dictionary<Guid, bool>();
+			foreach (KeyValuePair<Guid, bool> Pair in Target)
+			{
+				bool bValue;
+				if (!Source.TryGetValue(Pair.Key, out bValue) || bValue != Pair.Value)
+				{
+					Changes[Pair.Key] = Pair.Value;
+				}
+			}
+			return Changes;
+		}
+
+		public static void ApplyDelta(Dictionary<Guid, bool> Categories, Dictionary<Guid, bool> Delta)
+		{
+			foreach(KeyValuePair<Guid, bool> Pair in Delta)
+			{
+				Categories[Pair.Key] = Pair.Value;
+			}
 		}
 
 		public override string ToString()
@@ -386,7 +413,7 @@ namespace UnrealGameSync
 			int NumFilesSynced = 0;
 			if(Context.Options.HasFlag(WorkspaceUpdateOptions.Sync) || Context.Options.HasFlag(WorkspaceUpdateOptions.SyncSingleChange))
 			{
-				using(TelemetryStopwatch Stopwatch = new TelemetryStopwatch("Sync", TelemetryProjectPath))
+				using(TelemetryStopwatch SyncTelemetryStopwatch = new TelemetryStopwatch("Workspace_Sync", TelemetryProjectPath))
 				{
 					Log.WriteLine("Syncing to {0}...", PendingChangeNumber);
 
@@ -434,100 +461,103 @@ namespace UnrealGameSync
 					// If the hash differs, enumerate everything in the workspace to find what needs to be removed
 					if (NextSyncFilterHash != CurrentSyncFilterHash)
 					{
-						Log.WriteLine("Filter has changed ({0} -> {1}); finding files in workspace that need to be removed.", (String.IsNullOrEmpty(CurrentSyncFilterHash))? "None" : CurrentSyncFilterHash, NextSyncFilterHash);
-
-						// Find all the files that are in this workspace
-						List<PerforceFileRecord> HaveFiles = Context.HaveFiles;
-						if(HaveFiles == null)
+						using (TelemetryStopwatch FilterStopwatch = new TelemetryStopwatch("Workspace_Sync_FilterChanged", TelemetryProjectPath))
 						{
-							HaveFiles = new List<PerforceFileRecord>();
-							using(RecordCounter HaveCounter = new RecordCounter(Progress, "Sync filter changed; checking workspace..."))
+							Log.WriteLine("Filter has changed ({0} -> {1}); finding files in workspace that need to be removed.", (String.IsNullOrEmpty(CurrentSyncFilterHash)) ? "None" : CurrentSyncFilterHash, NextSyncFilterHash);
+
+							// Find all the files that are in this workspace
+							List<PerforceFileRecord> HaveFiles = Context.HaveFiles;
+							if (HaveFiles == null)
 							{
-								if(!Perforce.Have("//...", Record => { HaveFiles.Add(Record); HaveCounter.Increment(); }, Log))
+								HaveFiles = new List<PerforceFileRecord>();
+								using (RecordCounter HaveCounter = new RecordCounter(Progress, "Sync filter changed; checking workspace..."))
 								{
-									StatusMessage = "Unable to query files.";
-									return WorkspaceUpdateResult.FailedToSync;
+									if (!Perforce.Have("//...", Record => { HaveFiles.Add(Record); HaveCounter.Increment(); }, Log))
+									{
+										StatusMessage = "Unable to query files.";
+										return WorkspaceUpdateResult.FailedToSync;
+									}
+								}
+								Context.HaveFiles = HaveFiles;
+							}
+
+							// Build a filter for the current sync paths
+							FileFilter SyncPathsFilter = new FileFilter(FileFilterType.Exclude);
+							foreach (string RelativeSyncPath in RelativeSyncPaths)
+							{
+								SyncPathsFilter.Include(RelativeSyncPath);
+							}
+
+							// Remove all the files that are not included by the filter
+							List<string> RemoveDepotPaths = new List<string>();
+							foreach (PerforceFileRecord HaveFile in HaveFiles)
+							{
+								try
+								{
+									string FullPath = Path.GetFullPath(HaveFile.Path);
+									if (MatchFilter(FullPath, SyncPathsFilter) && !MatchFilter(FullPath, UserFilter))
+									{
+										Log.WriteLine("  {0}", HaveFile.DepotPath);
+										RemoveDepotPaths.Add(HaveFile.DepotPath);
+									}
+								}
+								catch (PathTooLongException)
+								{
+									// We don't actually care about this when looking for files to remove. Perforce may think that it's synced the path, and silently failed. Just ignore it.
 								}
 							}
-							Context.HaveFiles = HaveFiles;
-						}
 
-						// Build a filter for the current sync paths
-						FileFilter SyncPathsFilter = new FileFilter(FileFilterType.Exclude);
-						foreach(string RelativeSyncPath in RelativeSyncPaths)
-						{
-							SyncPathsFilter.Include(RelativeSyncPath);
-						}
-
-						// Remove all the files that are not included by the filter
-						List<string> RemoveDepotPaths = new List<string>();
-						foreach(PerforceFileRecord HaveFile in HaveFiles)
-						{
-							try
+							// Check if there are any paths outside the regular sync paths
+							if (RemoveDepotPaths.Count > 0)
 							{
-								string FullPath = Path.GetFullPath(HaveFile.Path);
-								if(MatchFilter(FullPath, SyncPathsFilter) && !MatchFilter(FullPath, UserFilter))
+								bool bDeleteListMatches = true;
+
+								Dictionary<string, bool> NewDeleteFiles = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+								foreach (string RemoveDepotPath in RemoveDepotPaths)
 								{
-									Log.WriteLine("  {0}", HaveFile.DepotPath);
-									RemoveDepotPaths.Add(HaveFile.DepotPath);
+									bool bDelete;
+									if (!Context.DeleteFiles.TryGetValue(RemoveDepotPath, out bDelete))
+									{
+										bDeleteListMatches = false;
+										bDelete = true;
+									}
+									NewDeleteFiles[RemoveDepotPath] = bDelete;
+								}
+								Context.DeleteFiles = NewDeleteFiles;
+
+								if (!bDeleteListMatches)
+								{
+									StatusMessage = String.Format("Cancelled after finding {0} files excluded by filter", NewDeleteFiles.Count);
+									return WorkspaceUpdateResult.FilesToDelete;
+								}
+
+								RemoveDepotPaths.RemoveAll(x => !Context.DeleteFiles[x]);
+							}
+
+							// Actually delete any files that we don't want
+							if (RemoveDepotPaths.Count > 0)
+							{
+								// Clear the current sync filter hash. If the sync is canceled, we'll be in an indeterminate state, and we should always clean next time round.
+								CurrentSyncFilterHash = "INVALID";
+
+								// Find all the depot paths that will be synced
+								HashSet<string> RemainingDepotPathsToRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+								RemainingDepotPathsToRemove.UnionWith(RemoveDepotPaths);
+
+								// Build the list of revisions to sync
+								List<string> RevisionsToRemove = new List<string>();
+								RevisionsToRemove.AddRange(RemoveDepotPaths.Select(x => String.Format("{0}#0", x)));
+
+								WorkspaceUpdateResult RemoveResult = SyncFileRevisions("Removing files...", Context, RevisionsToRemove, RemainingDepotPathsToRemove, out StatusMessage);
+								if (RemoveResult != WorkspaceUpdateResult.Success)
+								{
+									return RemoveResult;
 								}
 							}
-							catch(PathTooLongException)
-							{
-								// We don't actually care about this when looking for files to remove. Perforce may think that it's synced the path, and silently failed. Just ignore it.
-							}
+
+							// Update the sync filter hash. We've removed any files we need to at this point.
+							CurrentSyncFilterHash = NextSyncFilterHash;
 						}
-
-						// Check if there are any paths outside the regular sync paths
-						if(RemoveDepotPaths.Count > 0)
-						{
-							bool bDeleteListMatches = true;
-
-							Dictionary<string, bool> NewDeleteFiles = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-							foreach(string RemoveDepotPath in RemoveDepotPaths)
-							{
-								bool bDelete;
-								if(!Context.DeleteFiles.TryGetValue(RemoveDepotPath, out bDelete))
-								{
-									bDeleteListMatches = false;
-									bDelete = true;
-								}
-								NewDeleteFiles[RemoveDepotPath] = bDelete;
-							}
-							Context.DeleteFiles = NewDeleteFiles;
-
-							if(!bDeleteListMatches)
-							{
-								StatusMessage = String.Format("Cancelled after finding {0} files excluded by filter", NewDeleteFiles.Count);
-								return WorkspaceUpdateResult.FilesToDelete;
-							}
-
-							RemoveDepotPaths.RemoveAll(x => !Context.DeleteFiles[x]);
-						}
-
-						// Actually delete any files that we don't want
-						if(RemoveDepotPaths.Count > 0)
-						{
-							// Clear the current sync filter hash. If the sync is canceled, we'll be in an indeterminate state, and we should always clean next time round.
-							CurrentSyncFilterHash = "INVALID";
-
-							// Find all the depot paths that will be synced
-							HashSet<string> RemainingDepotPathsToRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-							RemainingDepotPathsToRemove.UnionWith(RemoveDepotPaths);
-
-							// Build the list of revisions to sync
-							List<string> RevisionsToRemove = new List<string>();
-							RevisionsToRemove.AddRange(RemoveDepotPaths.Select(x => String.Format("{0}#0", x)));
-
-							WorkspaceUpdateResult RemoveResult = SyncFileRevisions("Removing files...", Context, RevisionsToRemove, RemainingDepotPathsToRemove, out StatusMessage);
-							if(RemoveResult != WorkspaceUpdateResult.Success)
-							{
-								return RemoveResult;
-							}
-						}
-
-						// Update the sync filter hash. We've removed any files we need to at this point.
-						CurrentSyncFilterHash = NextSyncFilterHash;
 					}
 
 					// Create a filter for all the files we don't want
@@ -635,10 +665,19 @@ namespace UnrealGameSync
 					HashSet<string> RemainingDepotPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 					RemainingDepotPaths.UnionWith(SyncDepotPaths);
 
-					WorkspaceUpdateResult SyncResult = SyncFileRevisions("Syncing files...", Context, BatchBuilder.Batches, RemainingDepotPaths, out StatusMessage);
-					if(SyncResult != WorkspaceUpdateResult.Success)
+					using (TelemetryStopwatch TransferStopwatch = new TelemetryStopwatch("Workspace_Sync_TransferFiles", TelemetryProjectPath))
 					{
-						return SyncResult;
+						TransferStopwatch.AddData(new { MachineName = Environment.MachineName, DomainName = Environment.UserDomainName, ServerAndPort = Perforce.ServerAndPort, UserName = Perforce.UserName, IncludedFiles = SyncTree.TotalIncludedFiles, ExcludedFiles = SyncTree.TotalExcludedFiles, Size = SyncTree.TotalSize, NumThreads = Context.PerforceSyncOptions.NumThreads });
+
+						WorkspaceUpdateResult SyncResult = SyncFileRevisions("Syncing files...", Context, BatchBuilder.Batches, RemainingDepotPaths, out StatusMessage);
+						if (SyncResult != WorkspaceUpdateResult.Success)
+						{
+							TransferStopwatch.AddData(new { SyncResult = SyncResult.ToString(), CompletedFilesFiles = SyncDepotPaths.Count - RemainingDepotPaths.Count });
+							return SyncResult;
+						}
+
+						TransferStopwatch.Stop("Ok");
+						TransferStopwatch.AddData(new { TransferRate = SyncTree.TotalSize / Math.Max(TransferStopwatch.Elapsed.TotalSeconds, 0.0001f) });
 					}
 
 					int VersionChangeNumber = -1;
@@ -843,7 +882,7 @@ namespace UnrealGameSync
 					}
 
 					// Update the timing info
-					Times.Add(new Tuple<string,TimeSpan>("Sync", Stopwatch.Stop("Success")));
+					Times.Add(new Tuple<string,TimeSpan>("Sync", SyncTelemetryStopwatch.Stop("Success")));
 
 					// Save the number of files synced
 					NumFilesSynced = SyncDepotPaths.Count;
@@ -854,7 +893,7 @@ namespace UnrealGameSync
 			// Extract an archive from the depot path
 			if(Context.Options.HasFlag(WorkspaceUpdateOptions.SyncArchives))
 			{
-				using(TelemetryStopwatch Stopwatch = new TelemetryStopwatch("Archives", TelemetryProjectPath))
+				using(TelemetryStopwatch Stopwatch = new TelemetryStopwatch("Workspace_SyncArchives", TelemetryProjectPath))
 				{
 					// Create the directory for extracted archive manifests
 					string ManifestDirectoryName;
@@ -927,7 +966,7 @@ namespace UnrealGameSync
 			// Generate project files in the workspace
 			if(Context.Options.HasFlag(WorkspaceUpdateOptions.GenerateProjectFiles))
 			{
-				using(TelemetryStopwatch Stopwatch = new TelemetryStopwatch("Prj gen", TelemetryProjectPath))
+				using(TelemetryStopwatch Stopwatch = new TelemetryStopwatch("Workspace_GenerateProjectFiles", TelemetryProjectPath))
 				{
 					Progress.Set("Generating project files...", 0.0f);
 
@@ -1001,8 +1040,7 @@ namespace UnrealGameSync
 				}
 
 				// Execute them all
-				string TelemetryEventName = (Context.UserBuildStepObjects.Count > 0)? "CustomBuild" : Context.Options.HasFlag(WorkspaceUpdateOptions.UseIncrementalBuilds) ? "Compile" : "FullCompile";
-				using(TelemetryStopwatch Stopwatch = new TelemetryStopwatch(TelemetryEventName, TelemetryProjectPath))
+				using(TelemetryStopwatch Stopwatch = new TelemetryStopwatch("Workspace_Build", TelemetryProjectPath))
 				{
 					Progress.Set("Starting build...", 0.0f);
 
@@ -1030,10 +1068,12 @@ namespace UnrealGameSync
 							switch(Step.Type)
 							{
 								case BuildStepType.Compile:
-									using(TelemetryStopwatch StepStopwatch = new TelemetryStopwatch("Compile:" + Step.Target, TelemetryProjectPath))
+									using(TelemetryStopwatch StepStopwatch = new TelemetryStopwatch("Workspace_Execute_Compile", TelemetryProjectPath))
 									{
+										StepStopwatch.AddData(new { Target = Step.Target });
+
 										string CommandLine = String.Format("{0} {1} {2} {3} -NoHotReloadFromIDE", Step.Target, Step.Platform, Step.Configuration, Utility.ExpandVariables(Step.Arguments ?? "", Context.Variables));
-										if(!Context.Options.HasFlag(WorkspaceUpdateOptions.UseIncrementalBuilds) || bForceClean)
+										if(Context.Options.HasFlag(WorkspaceUpdateOptions.Clean) || bForceClean)
 										{
 											Log.WriteLine("ubt> Running {0} {1} -clean", UnrealBuildToolPath, CommandLine);
 											Utility.ExecuteProcess(UnrealBuildToolPath, null, CommandLine + " -clean", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));
@@ -1053,8 +1093,10 @@ namespace UnrealGameSync
 									}
 									break;
 								case BuildStepType.Cook:
-									using(TelemetryStopwatch StepStopwatch = new TelemetryStopwatch("Cook/Launch: " + Path.GetFileNameWithoutExtension(Step.FileName), TelemetryProjectPath))
+									using(TelemetryStopwatch StepStopwatch = new TelemetryStopwatch("Workspace_Execute_Cook", TelemetryProjectPath))
 									{
+										StepStopwatch.AddData(new { Project = Path.GetFileNameWithoutExtension(Step.FileName) });
+
 										string LocalRunUAT = Path.Combine(LocalRootPath, "Engine", "Build", "BatchFiles", "RunUAT.bat");
 										string Arguments = String.Format("/C \"\"{0}\" -profile=\"{1}\"\"", LocalRunUAT, Path.Combine(LocalRootPath, Step.FileName));
 										Log.WriteLine("uat> Running {0} {1}", LocalRunUAT, Arguments);
@@ -1071,8 +1113,10 @@ namespace UnrealGameSync
 									}
 									break;
 								case BuildStepType.Other:
-									using(TelemetryStopwatch StepStopwatch = new TelemetryStopwatch("Custom: " + Path.GetFileNameWithoutExtension(Step.FileName), TelemetryProjectPath))
+									using(TelemetryStopwatch StepStopwatch = new TelemetryStopwatch("Workspace_Execute_Custom", TelemetryProjectPath))
 									{
+										StepStopwatch.AddData(new { FileName = Path.GetFileNameWithoutExtension(Step.FileName) });
+
 										string ToolFileName = Path.Combine(LocalRootPath, Utility.ExpandVariables(Step.FileName, Context.Variables));
 										string ToolWorkingDir = String.IsNullOrWhiteSpace(Step.WorkingDir) ? Path.GetDirectoryName(ToolFileName) : Utility.ExpandVariables(Step.WorkingDir, Context.Variables);
 										string ToolArguments = Utility.ExpandVariables(Step.Arguments ?? "", Context.Variables);

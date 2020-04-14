@@ -57,6 +57,7 @@ static const uint32 REGISTRATION_QUEUE_SIZE = 16;	// and we'll not reallocate
 
 DECLARE_CYCLE_STAT(TEXT("Nav Tick: mark dirty"), STAT_Navigation_TickMarkDirty, STATGROUP_Navigation);
 DECLARE_CYCLE_STAT(TEXT("Nav Tick: async build"), STAT_Navigation_TickAsyncBuild, STATGROUP_Navigation);
+DECLARE_CYCLE_STAT(TEXT("Nav Tick: dispatch async pathfinding results"), STAT_Navigation_DispatchAsyncPathfindingResults, STATGROUP_Navigation);
 DECLARE_CYCLE_STAT(TEXT("Nav Tick: async pathfinding"), STAT_Navigation_TickAsyncPathfinding, STATGROUP_Navigation);
 DECLARE_CYCLE_STAT(TEXT("Debug NavOctree Time"), STAT_DebugNavOctree, STATGROUP_Navigation);
 
@@ -375,6 +376,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 	, bSkipAgentHeightCheckWhenPickingNavData(false)
 	, DirtyAreaWarningSizeThreshold(-1.0f)
 	, OperationMode(FNavigationSystemRunMode::InvalidMode)
+	, bAbortAsyncQueriesRequested(false)
 	, NavBuildingLockFlags(0)
 	, InitialNavBuildingLockFlags(0)
 	, bInitialSetupHasBeenPerformed(false)
@@ -527,6 +529,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 		AsyncPathFindingQueries.Reserve( INITIAL_ASYNC_QUERIES_SIZE );
 		NavDataRegistrationQueue.Reserve( REGISTRATION_QUEUE_SIZE );
 	
+		FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &UNavigationSystemV1::OnWorldPostActorTick);
 		FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UNavigationSystemV1::OnLevelAddedToWorld);
 		FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UNavigationSystemV1::OnLevelRemovedFromWorld);
 #if !UE_BUILD_SHIPPING
@@ -1220,12 +1223,23 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 	CSV_CUSTOM_STAT(NavTasks, NumRemainingTasks, GetNumRemainingBuildTasks(), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(NavTasks, NumRunningTasks, GetNumRunningBuildTasks(), ECsvCustomStatOp::Set);
 
+	// In multithreaded configuration we can process async pathfinding queries
+	// in dedicated task while dispatching completed queries results on the main thread.
+	// The created task can start and append new result right away so we transfer
+	// completed queries before to keep the list safe.
+	TArray<FAsyncPathFindingQuery> AsyncPathFindingCompletedQueriesToDispatch;
+	Swap(AsyncPathFindingCompletedQueriesToDispatch, AsyncPathFindingCompletedQueries);
+
+	// Trigger the async pathfinding queries (new ones and those that may have been postponed from last frame)
 	if (AsyncPathFindingQueries.Num() > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Navigation_TickAsyncPathfinding);
 		TriggerAsyncQueries(AsyncPathFindingQueries);
 		AsyncPathFindingQueries.Reset();
 	}
+
+	// Dispatch async pathfinding queries results from last frame
+	DispatchAsyncQueriesResults(AsyncPathFindingCompletedQueriesToDispatch);
 
 	if (CrowdManager.IsValid())
 	{
@@ -1416,16 +1430,33 @@ void UNavigationSystemV1::TriggerAsyncQueries(TArray<FAsyncPathFindingQuery>& Pa
 		STAT_FSimpleDelegateGraphTask_NavigationSystemBatchedAsyncQueries,
 		STATGROUP_TaskGraphTasks);
 
-	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+	AsyncPathFindingTask = FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 		FSimpleDelegateGraphTask::FDelegate::CreateUObject(this, &UNavigationSystemV1::PerformAsyncQueries, PathFindingQueries),
 		GET_STATID(STAT_FSimpleDelegateGraphTask_NavigationSystemBatchedAsyncQueries), nullptr, CPrio_TriggerAsyncQueries.Get());
 }
 
-static void AsyncQueryDone(FAsyncPathFindingQuery Query)
+void UNavigationSystemV1::PostponeAsyncQueries()
 {
-	CSV_SCOPED_TIMING_STAT(NavigationSystem, AsyncNavQueryFinished);
+	if (AsyncPathFindingTask.GetReference() && !AsyncPathFindingTask->IsComplete())
+	{
+		bAbortAsyncQueriesRequested = true;
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(AsyncPathFindingTask, ENamedThreads::GameThread);
+		bAbortAsyncQueriesRequested = false;
+	}
+}
 
-	Query.OnDoneDelegate.ExecuteIfBound(Query.QueryID, Query.Result.Result, Query.Result.Path);
+void UNavigationSystemV1::DispatchAsyncQueriesResults(const TArray<FAsyncPathFindingQuery>& PathFindingQueries) const
+{
+	if (PathFindingQueries.Num() > 0)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Navigation_DispatchAsyncPathfindingResults);
+		CSV_SCOPED_TIMING_STAT(NavigationSystem, AsyncNavQueryFinished);
+
+		for (const FAsyncPathFindingQuery& Query : PathFindingQueries)
+		{
+			Query.OnDoneDelegate.ExecuteIfBound(Query.QueryID, Query.Result.Result, Query.Result.Path);
+		}
+	}
 }
 
 void UNavigationSystemV1::PerformAsyncQueries(TArray<FAsyncPathFindingQuery> PathFindingQueries)
@@ -1437,7 +1468,8 @@ void UNavigationSystemV1::PerformAsyncQueries(TArray<FAsyncPathFindingQuery> Pat
 	{
 		return;
 	}
-	
+
+	int32 NumProcessed = 0;
 	for (FAsyncPathFindingQuery& Query : PathFindingQueries)
 	{
 		// @todo this is not necessarily the safest way to use UObjects outside of main thread. 
@@ -1460,17 +1492,28 @@ void UNavigationSystemV1::PerformAsyncQueries(TArray<FAsyncPathFindingQuery> Pat
 		{
 			Query.Result = ENavigationQueryResult::Error;
 		}
+		++NumProcessed;
 
-		// @todo make it return more informative results (bResult == false)
-		// trigger calling delegate on main thread - otherwise it may depend too much on stuff being thread safe
-		DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.Async nav query finished"),
-			STAT_FSimpleDelegateGraphTask_AsyncNavQueryFinished,
-			STATGROUP_TaskGraphTasks);
-
-		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-			FSimpleDelegateGraphTask::FDelegate::CreateStatic(AsyncQueryDone, Query),
-			GET_STATID(STAT_FSimpleDelegateGraphTask_AsyncNavQueryFinished), NULL, ENamedThreads::GameThread);
+		// Check for abort request from the main tread
+		if (bAbortAsyncQueriesRequested)
+		{
+			break;
+		}
 	}
+
+	const int32 NumQueries = PathFindingQueries.Num();
+	const int32 NumPostponed = NumQueries - NumProcessed;
+
+	// Queue remaining queries for next frame
+	if (bAbortAsyncQueriesRequested)
+	{
+		AsyncPathFindingQueries.Append(PathFindingQueries.GetData() + NumProcessed, NumPostponed);
+	}
+	
+	// Append to list of completed queries to dispatch results in main thread
+	AsyncPathFindingCompletedQueries.Append(PathFindingQueries.GetData(), NumProcessed);
+
+	UE_LOG(LogNavigation, Log, TEXT("Async pathfinding queries: %d completed, %d postponed to next frame"), NumProcessed, NumPostponed);
 }
 
 bool UNavigationSystemV1::GetRandomPoint(FNavLocation& ResultLocation, ANavigationData* NavData, FSharedConstNavQueryFilter QueryFilter)
@@ -2159,12 +2202,12 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 		}
 		else
 		{
-		// check if this kind of agent has already its navigation implemented
-		TWeakObjectPtr<ANavigationData>* NavDataForAgent = AgentToNavDataMap.Find(NavConfig);
-		ANavigationData* NavDataInstanceForAgent = NavDataForAgent ? NavDataForAgent->Get() : nullptr;
+			// check if this kind of agent has already its navigation implemented
+			TWeakObjectPtr<ANavigationData>* NavDataForAgent = AgentToNavDataMap.Find(NavConfig);
+			ANavigationData* NavDataInstanceForAgent = NavDataForAgent ? NavDataForAgent->Get() : nullptr;
 
-		if (NavDataInstanceForAgent == nullptr)
-		{
+			if (NavDataInstanceForAgent == nullptr)
+			{
 				// ok, so this navigation agent doesn't have its navmesh registered yet, but do we want to support it?
 				bool bAgentSupported = false;
 
@@ -2192,18 +2235,18 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 				}
 				Result = bAgentSupported == true ? RegistrationSuccessful : RegistrationFailed_AgentNotValid;
 			}
-		else if (NavDataInstanceForAgent == NavData)
-		{
-			ensure(NavDataSet.Find(NavData) != INDEX_NONE);
-			// let's treat double registration of the same nav data with the same agent as a success
-			Result = RegistrationSuccessful;
+			else if (NavDataInstanceForAgent == NavData)
+			{
+				ensure(NavDataSet.Find(NavData) != INDEX_NONE);
+				// let's treat double registration of the same nav data with the same agent as a success
+				Result = RegistrationSuccessful;
+			}
+			else
+			{
+				// otherwise specified agent type already has its navmesh implemented, fail redundant instance
+				Result = RegistrationFailed_AgentAlreadySupported;
+			}
 		}
-		else
-		{
-			// otherwise specified agent type already has its navmesh implemented, fail redundant instance
-			Result = RegistrationFailed_AgentAlreadySupported;
-		}
-	}
 	}
 	else
 	{
@@ -2658,6 +2701,11 @@ void UNavigationSystemV1::UnregisterNavOctreeElement(UObject* ElementOwner, INav
 void UNavigationSystemV1::RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags)
 {
 	FNavigationDataHandler(DefaultOctreeController, DefaultDirtyAreasController).RemoveNavOctreeElementId(ElementId, UpdateFlags);
+}
+
+void UNavigationSystemV1::DemandLazyDataGathering(FNavigationRelevantData& ElementData)
+{
+	FNavigationDataHandler(DefaultOctreeController, DefaultDirtyAreasController).DemandLazyDataGathering(ElementData);
 }
 
 const FNavigationRelevantData* UNavigationSystemV1::GetDataForObject(const UObject& Object) const
@@ -3318,78 +3366,116 @@ void UNavigationSystemV1::SpawnMissingNavigationData()
 	}
 	
 	// Bit array might be a bit of an overkill here, but this function will be called very rarely
-	TBitArray<> AlreadyInstantiated(false, AllSupportedAgentsCount);
+	TBitArray<> AlreadyInstantiated;
 	uint8 NumberFound = 0;
-	UWorld* NavWorld = GetWorld();
 
 	// 1. check whether any of required navigation data has already been instantiated
-	for (TActorIterator<ANavigationData> It(NavWorld); It && NumberFound < AllSupportedAgentsCount; ++It)
-	{
-		ANavigationData* Nav = (*It);
-		if (Nav != nullptr 
-			&& Nav->IsPendingKill() == false
-			// mz@todo the 'is level in' condition is temporary
-			&& (Nav->GetTypedOuter<UWorld>() == NavWorld || NavWorld->GetLevels().Contains(Nav->GetLevel())))
-		{
-			// find out which one it is
-			for (int32 AgentIndex = 0; AgentIndex < AllSupportedAgentsCount; ++AgentIndex)
-			{
-				if (AlreadyInstantiated[AgentIndex] == false
-					&& Nav->GetClass() == SupportedAgents[AgentIndex].GetNavDataClass<ANavigationData>()
-					&& Nav->DoesSupportAgent(SupportedAgents[AgentIndex]) == true)
-				{
-					AlreadyInstantiated[AgentIndex] = true;
-					++NumberFound;
-					break;
-				}
-			}				
-		}
-	}
+	NumberFound = FillInstantiatedDataMask(AlreadyInstantiated);
 
 	// 2. for any not already instantiated navigation data call creator functions
 	if (NumberFound < ValidSupportedAgentsCount)
 	{
+		SpawnMissingNavigationDataInLevel(AlreadyInstantiated);
+	}
+
+	if (MainNavData == nullptr || MainNavData->IsPendingKillPending())
+	{
+		MainNavData = GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
+	}
+}
+
+uint8 UNavigationSystemV1::FillInstantiatedDataMask(TBitArray<>& OutInstantiatedMask, ULevel* InLevel /*= nullptr*/)
+{
+	int32 AllSupportedAgentsCount = SupportedAgents.Num();
+	OutInstantiatedMask.Init(false, AllSupportedAgentsCount);
+	uint8 NumberFound = 0;
+
+	auto SetMatchingAgentIndexFunc = [&](ANavigationData* Nav) {
 		for (int32 AgentIndex = 0; AgentIndex < AllSupportedAgentsCount; ++AgentIndex)
 		{
-			const FNavDataConfig& NavConfig = SupportedAgents[AgentIndex];
-			if (AlreadyInstantiated[AgentIndex] == false 
-				&& SupportedAgentsMask.Contains(AgentIndex)
-				&& NavConfig.GetNavDataClass<ANavigationData>() != nullptr)
+			if (OutInstantiatedMask[AgentIndex] == false
+				&& Nav->GetClass() == SupportedAgents[AgentIndex].GetNavDataClass<ANavigationData>()
+				&& Nav->DoesSupportAgent(SupportedAgents[AgentIndex]) == true)
 			{
-				bool bHandled = false;
+				OutInstantiatedMask[AgentIndex] = true;
+				++NumberFound;
+				break;
+			}
+		}
+	};
 
-				const ANavigationData* NavDataCDO = NavConfig.GetNavDataClass<ANavigationData>()->GetDefaultObject<ANavigationData>();
-				if (NavDataCDO == nullptr || !NavDataCDO->CanSpawnOnRebuild())
+	if (InLevel != nullptr)
+	{
+		for (AActor* Actor: InLevel->Actors)
+		{
+			if (ANavigationData* NavData = Cast<ANavigationData>(Actor))
+			{
+				SetMatchingAgentIndexFunc(NavData);
+				if (NumberFound >= AllSupportedAgentsCount)
 				{
-					continue;
-				}
-
-				if (NavWorld->WorldType != EWorldType::Editor && NavDataCDO->GetRuntimeGenerationMode() == ERuntimeGenerationType::Static)
-				{
-					// if we're not in the editor, and specified navigation class is configured 
-					// to be static, then we don't want to create an instance					
-					UE_LOG(LogNavigation, Log, TEXT("Not spawning navigation data for %s since indivated NavigationData type is not configured for dynamic generation")
-						, *NavConfig.Name.ToString());
-					continue;
-				}
-
-				ANavigationData* Instance = CreateNavigationDataInstanceInLevel(NavConfig, nullptr);
-				if (Instance)
-				{
-					RequestRegistrationDeferred(*Instance);
-				}
-				else
-				{
-					UE_LOG(LogNavigation, Warning, TEXT("Was not able to create navigation data for SupportedAgent[%d]: %s"), AgentIndex, *NavConfig.Name.ToString());
+					break;
 				}
 			}
 		}
-	}
-	
-	if (MainNavData == nullptr || MainNavData->IsPendingKillPending())
+	} 
+	else
 	{
-		// update 
-		MainNavData = GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
+		UWorld* NavWorld = GetWorld();	
+		for (TActorIterator<ANavigationData> It(NavWorld); It && NumberFound < AllSupportedAgentsCount; ++It)
+		{
+			ANavigationData* Nav = (*It);
+			if (IsValid(Nav)
+				// mz@todo the 'is level in' condition is temporary
+				&& (Nav->GetTypedOuter<UWorld>() == NavWorld || NavWorld->GetLevels().Contains(Nav->GetLevel())))
+			{
+				// find out which one it is
+				SetMatchingAgentIndexFunc(Nav);
+			}
+		}
+	}
+
+	return NumberFound;
+}
+
+void UNavigationSystemV1::SpawnMissingNavigationDataInLevel(const TBitArray<>& InInstantiatedMask, ULevel* InLevel/*=nullptr*/)
+{
+	UWorld* NavWorld = GetWorld();
+
+	ensure(SupportedAgents.Num() == InInstantiatedMask.Num());
+	int32 AllSupportedAgentsCount = InInstantiatedMask.Num();
+
+	for (int32 AgentIndex = 0; AgentIndex < AllSupportedAgentsCount; ++AgentIndex)
+	{
+		const FNavDataConfig& NavConfig = SupportedAgents[AgentIndex];
+		if (InInstantiatedMask[AgentIndex] == false
+			&& SupportedAgentsMask.Contains(AgentIndex)
+			&& NavConfig.GetNavDataClass<ANavigationData>() != nullptr)
+		{
+			const ANavigationData* NavDataCDO = NavConfig.GetNavDataClass<ANavigationData>()->GetDefaultObject<ANavigationData>();
+			if (NavDataCDO == nullptr || !NavDataCDO->CanSpawnOnRebuild())
+			{
+				continue;
+			}
+
+			if (NavWorld->WorldType != EWorldType::Editor && NavDataCDO->GetRuntimeGenerationMode() == ERuntimeGenerationType::Static)
+			{
+				// if we're not in the editor, and specified navigation class is configured 
+				// to be static, then we don't want to create an instance					
+				UE_LOG(LogNavigation, Log, TEXT("Not spawning navigation data for %s since indicated NavigationData type is not configured for dynamic generation")
+					, *NavConfig.Name.ToString());
+				continue;
+			}
+
+			ANavigationData* Instance = CreateNavigationDataInstanceInLevel(NavConfig, InLevel);
+			if (Instance)
+			{
+				RequestRegistrationDeferred(*Instance);
+			}
+			else
+			{
+				UE_LOG(LogNavigation, Warning, TEXT("Was not able to create navigation data for SupportedAgent[%d]: %s"), AgentIndex, *NavConfig.Name.ToString());
+			}
+		}
 	}
 }
 

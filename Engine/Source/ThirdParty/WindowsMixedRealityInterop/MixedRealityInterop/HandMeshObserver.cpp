@@ -122,7 +122,7 @@ namespace WindowsMixedReality
 #if PLATFORM_HOLOLENS
 		short* indices = (short*)DestMesh.Indices;
 #else
-		uint32* indices = (uint32*)DestMesh.Indices;
+		uint32_t* indices = (uint32_t*)DestMesh.Indices;
 #endif
 		memcpy(DestMesh.Indices, m_indices.data(), m_indices.size() * sizeof(m_indices[0]));
 	}

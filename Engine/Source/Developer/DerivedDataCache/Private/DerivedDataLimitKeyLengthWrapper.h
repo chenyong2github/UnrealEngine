@@ -27,10 +27,22 @@ public:
 		check(InnerBackend);
 	}
 
+	/** Return a name for this interface */
+	virtual FString GetName() const override 
+	{ 
+		return FString::Printf(TEXT("LimitKeyLengthWrapper (%s)"), *InnerBackend->GetName());
+	}
+
 	/** return true if this cache is writable **/
 	virtual bool IsWritable() override
 	{
 		return InnerBackend->IsWritable();
+	}
+
+	/** Returns a class of speed for this interface **/
+	virtual ESpeedClass GetSpeedClass() override
+	{
+		return InnerBackend->GetSpeedClass();
 	}
 
 	/**
@@ -51,6 +63,39 @@ public:
 		}
 		return Result;
 	}
+
+	/**
+	 * Attempts to make sure the cached data will be available as optimally as possible. This is left up to the implementation to do
+	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
+	 * @return				true if any steps were performed to optimize future retrieval
+	 */
+	virtual bool TryToPrefetch(const TCHAR* CacheKey) override
+	{
+		COOK_STAT(auto Timer = UsageStats.TimePrefetch());
+		FString NewKey;
+		ShortenKey(CacheKey, NewKey);
+		bool Result = InnerBackend->TryToPrefetch(*NewKey);
+		if (Result)
+		{
+			COOK_STAT(Timer.AddHit(0));
+		}
+
+		return Result;
+	}
+
+	/*
+		Determines if we have any interest in caching this data
+	*/
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override
+	{
+		return InnerBackend->WouldCache(CacheKey, InData);
+	}
+
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override 
+	{ 
+		return InnerBackend->ApplyDebugOptions(InOptions);
+	}
+
 	/**
 	 * Synchronous retrieve of a cache item
 	 *
@@ -101,7 +146,7 @@ public:
 					OutData.RemoveAt(OutData.Num() - KeyLen, KeyLen);
 					if (Compare == 0)
 					{
-						UE_LOG(LogDerivedDataCache, Verbose, TEXT("FDerivedDataLimitKeyLengthWrapper: cache hit, key match is ok %s"), CacheKey);
+						UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("FDerivedDataLimitKeyLengthWrapper: cache hit, key match is ok %s"), CacheKey);
 					}
 					else
 					{

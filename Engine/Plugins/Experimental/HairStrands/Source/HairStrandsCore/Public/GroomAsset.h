@@ -484,6 +484,10 @@ struct HAIRSTRANDSCORE_API FHairCollisionConstraint
 	UPROPERTY(EditAnywhere, Category = "CollisionConstraint", meta = (ToolTip = "Viscosity parameter between 0 and 1 that will be used for self collision"))
 	float StrandsViscosity;
 
+	/** Dimension of the grid used to compute the viscosity force */
+	UPROPERTY(EditAnywhere, Category = "CollisionConstraint", meta = (ToolTip = "Dimension of the grid used to compute the viscosity force"))
+	FIntVector GridDimension;
+
 	/** Radius that will be used for the collision detection against the physics asset */
 	UPROPERTY(EditAnywhere, Category = "CollisionConstraint", meta = (ToolTip = "Radius that will be used for the collision detection against the physics asset"))
 	float CollisionRadius;

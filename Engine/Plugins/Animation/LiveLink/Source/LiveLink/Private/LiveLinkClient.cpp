@@ -4,6 +4,7 @@
 
 #include "Async/Async.h"
 #include "CoreGlobals.h"
+#include "Engine/Engine.h"
 #include "HAL/PlatformTime.h"
 #include "IMediaModule.h"
 #include "LiveLinkAnimationVirtualSubject.h"
@@ -318,7 +319,20 @@ bool FLiveLinkClient::CreateSource(const FLiveLinkSourcePreset& InSourcePreset)
 	}
 
 	Data.Source = Source;
-	Setting = Data.Setting = DuplicateObject<ULiveLinkSourceSettings>(InSourcePreset.Settings, GetTransientPackage());
+
+	//In case a source has changed its source settings class, instead of duplicating, create the right one and copy previous properties
+	UClass* SourceSettingsClass = Source->GetSettingsClass().Get();
+	if (SourceSettingsClass && SourceSettingsClass != InSourcePreset.Settings->GetClass())
+	{
+		FLiveLinkLog::Info(TEXT("Creating Source '%s' from Preset: Settings class '%s' is not what is expected ('%s'). Updating to new class."), *InSourcePreset.SourceType.ToString(), *InSourcePreset.Settings->GetClass()->GetName(), *SourceSettingsClass->GetName());
+		Setting = NewObject<ULiveLinkSourceSettings>(GetTransientPackage(), SourceSettingsClass);
+		UEngine::CopyPropertiesForUnrelatedObjects(InSourcePreset.Settings, Setting);
+		Data.Setting = Setting;
+	}
+	else
+	{
+		Setting = Data.Setting = DuplicateObject<ULiveLinkSourceSettings>(InSourcePreset.Settings, GetTransientPackage());
+	}
 
 	Collection->AddSource(MoveTemp(Data));
 	Source->ReceiveClient(this, InSourcePreset.Guid);
@@ -608,6 +622,7 @@ void FLiveLinkClient::PushSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& 
 		}
 		else
 		{
+
 			{
 				FScopeLock BroadcastLock(&SubjectFrameReceivedHandleseCriticalSection);
 				if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(InSubjectKey))
@@ -615,6 +630,7 @@ void FLiveLinkClient::PushSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& 
 					Handles->OnFrameDataReceived.Broadcast(SubjectFrame.FrameData);
 				}
 			}
+			
 			SubjectFrameToPush.Add(MoveTemp(SubjectFrame));
 		}
 	}
@@ -632,7 +648,7 @@ void FLiveLinkClient::PushSubjectFrameData_Internal(FPendingSubjectFrame&& Subje
 
 	check(Collection);
 
-	const FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(SubjectFrameData.SubjectKey.Source);
+	FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(SubjectFrameData.SubjectKey.Source);
 	if (SourceItem == nullptr || SourceItem->bPendingKill)
 	{
 		return;
@@ -681,11 +697,29 @@ void FLiveLinkClient::PushSubjectFrameData_Internal(FPendingSubjectFrame&& Subje
 		return;
 	}
 
+	//Stamp arrival time of each packet to track clock difference when it is effectively added to the stash. 
+	//Doing it in the Add_AnyThread would mean that we stamp it up to 1 frame time behind, causing the offset to always be 1 frame behind
+	//and requiring 2.5 frames or so to have a valid smooth offset
+	if (SubjectFrameData.FrameData.GetBaseData())
+	{
+		SubjectFrameData.FrameData.GetBaseData()->ArrivalTime.WorldTime = FPlatformTime::Seconds();
+		const TOptional<FQualifiedFrameTime>& CurrentTime = FApp::GetCurrentFrameTime();
+		if (CurrentTime.IsSet())
+		{
+			SubjectFrameData.FrameData.GetBaseData()->ArrivalTime.SceneTime = *CurrentTime;
+		}
+	}
+	
+	//Let source data know about this new frame to get latest clock offset
+	SourceItem->TimedData->ProcessNewFrameTimingInfo(*SubjectFrameData.FrameData.GetBaseData());
+
 	if (const FSubjectFramesAddedHandles* Handles = SubjectFrameAddedHandles.Find(SubjectFrameData.SubjectKey.SubjectName))
 	{
 		Handles->OnFrameDataAdded.Broadcast(SubjectItem->Key, Role, SubjectFrameData.FrameData);
 	}
 
+
+	//Finally, add the new frame to the subject. After this point, the frame data is unusable, it has been moved!
 	LinkSubject->AddFrameData(MoveTemp(SubjectFrameData.FrameData));
 }
 

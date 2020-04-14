@@ -4,9 +4,10 @@
 
 #include "ILiveLinkSubject.h"
 
-#include "LiveLinkClient.h"
+#include "Containers/Queue.h"
 #include "ILiveLinkSource.h"
 #include "ITimedDataInput.h"
+#include "LiveLinkClient.h"
 #include "LiveLinkFrameInterpolationProcessor.h"
 #include "LiveLinkFramePreProcessor.h"
 #include "LiveLinkFrameTranslator.h"
@@ -117,12 +118,12 @@ private:
 	// Reorder frame with the same timecode and create subframes
 	void AdjustSubFrame_SceneTime(int32 FrameIndex);
 
-	// Populate OutFrame with a frame based off of the supplied time and our own offsets
+	// Populate OutFrame with a frame based off of the supplied time (pre offsetted)
 	bool GetFrameAtWorldTime(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
 	bool GetFrameAtWorldTime_Closest(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
 	bool GetFrameAtWorldTime_Interpolated(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
 
-	// Populate OutFrame with a frame based off of the supplied scene time.
+	// Populate OutFrame with a frame based off of the supplied scene time (pre offsetted).
 	bool GetFrameAtSceneTime(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
 	bool GetFrameAtSceneTime_Closest(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
 	bool GetFrameAtSceneTime_Interpolated(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
@@ -140,6 +141,9 @@ private:
 	void IncreaseBufferUnderFlowStat();
 	void IncreaseBufferOverFlowStat();
 	void UpdateEvaluationData(const FTimedDataInputEvaluationData& EvaluationData);
+
+	//Remove frames from our buffer - based on receiving order
+	void RemoveFrames(int32 Count);
 
 protected:
 	// The role the subject was build with
@@ -177,6 +181,12 @@ private:
 	// Frames added to the subject
 	TArray<FLiveLinkFrameDataStruct> FrameData;
 
+	// Contains identifier of each frame in the order they were received
+	TQueue<FLiveLinkFrameIdentifier> ReceivedOrderedFrames;
+
+	// Next identifier to assign to next received frame
+	FLiveLinkFrameIdentifier NextIdentifier = 0;
+
 	// Current frame snapshot of the evaluation
 	FLiveLinkSubjectFrameData FrameSnapshot;
 
@@ -197,7 +207,7 @@ private:
 
 	// Some stats compiled by the subject.
 	FSubjectEvaluationStatistics EvaluationStatistics;
-	
+
 	/** 
 	 * Evaluation can be done on any thread so we need to protect statistic logging 
 	 * Some stats requires more than atomic sized vars so a critical section is used to protect when necessary

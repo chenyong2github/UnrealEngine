@@ -183,6 +183,7 @@ public:
 
 	virtual bool StartSession(const TArray<FAnalyticsEventAttribute>& Attributes) override;
 	virtual bool StartSession(TArray<FAnalyticsEventAttribute>&& Attributes) override;
+	virtual bool StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes) override;
 	virtual void EndSession() override;
 	virtual void FlushEvents() override;
 
@@ -450,7 +451,18 @@ bool FAnalyticsProviderET::StartSession(const TArray<FAnalyticsEventAttribute>& 
 	return StartSession(TArray<FAnalyticsEventAttribute>(Attributes));
 }
 
+/**
+ * Start capturing stats for upload with provided SessionID
+ * Uses the unique ApiKey associated with your app
+ */
 bool FAnalyticsProviderET::StartSession(TArray<FAnalyticsEventAttribute>&& Attributes)
+{
+	FGuid SessionGUID;
+	FPlatformMisc::CreateGuid(SessionGUID);
+	return StartSession(SessionGUID.ToString(EGuidFormats::DigitsWithHyphensInBraces), MoveTemp(Attributes));;
+}
+
+bool FAnalyticsProviderET::StartSession(FString InSessionID, TArray<FAnalyticsEventAttribute>&& Attributes)
 {
 	UE_LOG(LogAnalytics, Log, TEXT("[%s] AnalyticsET::StartSession"), *Config.APIKeyET);
 
@@ -459,11 +471,7 @@ bool FAnalyticsProviderET::StartSession(TArray<FAnalyticsEventAttribute>&& Attri
 	{
 		EndSession();
 	}
-
-	FGuid SessionGUID;
-	FPlatformMisc::CreateGuid(SessionGUID);
-	SessionID = SessionGUID.ToString(EGuidFormats::DigitsWithHyphensInBraces);
-
+	SessionID = MoveTemp(InSessionID);
 	// always ensure we send a few specific attributes on session start.
 	TArray<FAnalyticsEventAttribute> AppendedAttributes(MoveTemp(Attributes));
 	// we should always know what platform is hosting this session.
@@ -542,55 +550,36 @@ void FAnalyticsProviderET::FlushEvents()
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FlushEventsJson);
 				TSharedRef< TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR> > > JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR> >::Create(&Payload);
-				JsonWriter->WriteObjectStart();
-				JsonWriter->WriteArrayStart(TEXT("Events"));
-				for (FAnalyticsEventEntry& Entry : CachedEvents)
+				if (JsonWriter->CanWriteObjectStart())
 				{
-					if (Entry.bIsDefaultAttributes)
+					JsonWriter->WriteObjectStart();
+					JsonWriter->WriteArrayStart(TEXT("Events"));
+					for (FAnalyticsEventEntry& Entry : CachedEvents)
 					{
-						// This is the default attributes, so update the array.
-						if (FlushedEvents.IsValid())
+						if (Entry.bIsDefaultAttributes)
 						{
-							CurrentDefaultAttributes = Entry.Attributes; // need to copy
-							FlushedEvents->Emplace(MoveTemp(Entry));
+							// This is the default attributes, so update the array.
+							if (FlushedEvents.IsValid())
+							{
+								CurrentDefaultAttributes = Entry.Attributes; // need to copy
+								FlushedEvents->Emplace(MoveTemp(Entry));
+							}
+							else
+							{
+								CurrentDefaultAttributes = MoveTemp(Entry.Attributes);
+							}
 						}
 						else
 						{
-							CurrentDefaultAttributes = MoveTemp(Entry.Attributes);
-						}
-					}
-					else
-					{
-						++EventCount;
+							++EventCount;
 
-						// event entry
-						JsonWriter->WriteObjectStart();
-						JsonWriter->WriteValue(TEXT("EventName"), Entry.EventName);
-						FString DateOffset = (CurrentTime - Entry.TimeStamp).ToString();
-						JsonWriter->WriteValue(TEXT("DateOffset"), DateOffset);
-						// default attributes for this event
-						for (const FAnalyticsEventAttribute& Attr : CurrentDefaultAttributes)
-						{
-							switch (Attr.AttrType)
-							{
-							case FAnalyticsEventAttribute::AttrTypeEnum::String:
-								JsonWriter->WriteValue(Attr.AttrName, Attr.AttrValueString);
-								break;
-							case FAnalyticsEventAttribute::AttrTypeEnum::Number:
-								JsonWriter->WriteValue(Attr.AttrName, Attr.ToString());
-								break;
-							case FAnalyticsEventAttribute::AttrTypeEnum::Boolean:
-								JsonWriter->WriteValue(Attr.AttrName, Attr.ToString());
-								break;
-							case FAnalyticsEventAttribute::AttrTypeEnum::JsonFragment:
-								JsonWriter->WriteRawJSONValue(Attr.AttrName, Attr.AttrValueString);
-								break;
-							}
-						}
-						// optional attributes for this event
-						if (!Entry.bIsJsonEvent)
-						{
-							for (const FAnalyticsEventAttribute& Attr : Entry.Attributes)
+							// event entry
+							JsonWriter->WriteObjectStart();
+							JsonWriter->WriteValue(TEXT("EventName"), Entry.EventName);
+							FString DateOffset = (CurrentTime - Entry.TimeStamp).ToString();
+							JsonWriter->WriteValue(TEXT("DateOffset"), DateOffset);
+							// default attributes for this event
+							for (const FAnalyticsEventAttribute& Attr : CurrentDefaultAttributes)
 							{
 								switch (Attr.AttrType)
 								{
@@ -608,26 +597,49 @@ void FAnalyticsProviderET::FlushEvents()
 									break;
 								}
 							}
-						}
-						else
-						{
-							for (const FAnalyticsEventAttribute& Attr : Entry.Attributes)
+							// optional attributes for this event
+							if (!Entry.bIsJsonEvent)
 							{
-								JsonWriter->WriteRawJSONValue(Attr.AttrName, Attr.AttrValueString);
+								for (const FAnalyticsEventAttribute& Attr : Entry.Attributes)
+								{
+									switch (Attr.AttrType)
+									{
+									case FAnalyticsEventAttribute::AttrTypeEnum::String:
+										JsonWriter->WriteValue(Attr.AttrName, Attr.AttrValueString);
+										break;
+									case FAnalyticsEventAttribute::AttrTypeEnum::Number:
+										JsonWriter->WriteValue(Attr.AttrName, Attr.ToString());
+										break;
+									case FAnalyticsEventAttribute::AttrTypeEnum::Boolean:
+										JsonWriter->WriteValue(Attr.AttrName, Attr.ToString());
+										break;
+									case FAnalyticsEventAttribute::AttrTypeEnum::JsonFragment:
+										JsonWriter->WriteRawJSONValue(Attr.AttrName, Attr.AttrValueString);
+										break;
+									}
+								}
+							}
+							else
+							{
+								for (const FAnalyticsEventAttribute& Attr : Entry.Attributes)
+								{
+									JsonWriter->WriteRawJSONValue(Attr.AttrName, Attr.AttrValueString);
+								}
+							}
+							JsonWriter->WriteObjectEnd();
+
+							// move the entry into the flushed
+							if (FlushedEvents.IsValid())
+							{
+								FlushedEvents->Emplace(MoveTemp(Entry));
 							}
 						}
-						JsonWriter->WriteObjectEnd();
-
-						// move the entry into the flushed
-						if (FlushedEvents.IsValid())
-						{
-							FlushedEvents->Emplace(MoveTemp(Entry));
-						}
 					}
-				}
 
-				JsonWriter->WriteArrayEnd();
-				JsonWriter->WriteObjectEnd();
+					JsonWriter->WriteArrayEnd();
+					JsonWriter->WriteObjectEnd();
+				} // CanWriteObjectStart
+
 				JsonWriter->Close();
 			}
 

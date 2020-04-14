@@ -503,9 +503,15 @@ namespace Audio
 			return false;
 		}
 
+		void CopyParams(T& OutParamsCopy) const
+		{
+			FScopeLock Lock(&CritSect);
+			OutParamsCopy = CurrentParams;
+		}
+
 		bool bChanged;
 		T CurrentParams;
-		FCriticalSection CritSect;
+		mutable FCriticalSection CritSect;
 	};
 
 	/**

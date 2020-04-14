@@ -573,8 +573,11 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	{
 		FNiagaraSharedObject::FlushDeletionList();
 
-#if PLATFORM_DESKTOP
-		bAppHasFocus = FPlatformApplicationMisc::IsThisApplicationForeground();
+#if WITH_EDITOR //PLATFORM_DESKTOP
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_Niagara_IsThisApplicationForeground);
+			bAppHasFocus = FPlatformApplicationMisc::IsThisApplicationForeground();
+		}
 #else
 		bAppHasFocus = true;
 #endif
@@ -803,7 +806,6 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	bool bOldCulled = OutState.bCulled;
 	OutState.bCulled = false;
 	SignificanceCull(EffectType, ScalabilitySettings, Significance, OutState);
-	OwnerLODCull(EffectType, ScalabilitySettings, Component, OutState);
 	
 	//Can't cull dynamic bounds by visibility
 
@@ -863,20 +865,11 @@ void FNiagaraWorldManager::SignificanceCull(UNiagaraEffectType* EffectType, cons
 void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
 {
 	float TimeSinceRendered = Component->GetSafeTimeSinceRendered(World->TimeSeconds);
-	bool bCull = ScalabilitySettings.bCullByMaxTimeWithoutRender && TimeSinceRendered > ScalabilitySettings.MaxTimeWithoutRender;
+	bool bCull = Component->GetLastRenderTime() >= 0.0f && ScalabilitySettings.bCullByMaxTimeWithoutRender && TimeSinceRendered > ScalabilitySettings.MaxTimeWithoutRender;
 
 	OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
 	OutState.bCulledByVisibility = bCull;
-#endif
-}
-
-void FNiagaraWorldManager::OwnerLODCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
-{
-	bool bCull = ScalabilitySettings.bCullByMaxOwnerLOD && Component->GetOwnerLOD() > ScalabilitySettings.MaxOwnerLOD;
-	OutState.bCulled |= bCull;
-#if DEBUG_SCALABILITY_STATE
-	OutState.bCulledByMaxOwnerLOD = bCull;
 #endif
 }
 

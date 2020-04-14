@@ -12,7 +12,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Framework/Application/SlateApplication.h"
-#include "SNiagaraParameterPanel.h"
+#include "Widgets/SNiagaraParameterPanel.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraConstants.h"
@@ -79,7 +79,7 @@ TSharedRef<SWidget> SNiagaraGraphPinAdd::OnGetAddButtonMenuContent()
 			TSharedRef<SNiagaraAddParameterMenu2> MenuWidget = SNew(SNiagaraAddParameterMenu2, Graphs)
 				.NewParameterScope(ENiagaraParameterScope::Local)
 				.NewParameterNamespace(Cast<UNiagaraNodeParameterMapBase>(OwningNode)->GetNewPinDefaultNamespace().ToString())
-				.ShowKnownConstantParametersFilter(NiagaraParameterPanelSectionID::Type::REFERENCES)
+				.ShowKnownConstantParametersFilter(ENiagaraParameterPanelCategory::Attributes)
 				.OnAddParameter_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::AddParameter, (const UEdGraphPin*)GetPinObj())
 				.OnCollectCustomActions_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::CollectAddPinActions, GetPinObj())
 				.OnAllowMakeType_UObject(OwningNode, &UNiagaraNodeWithDynamicPins::AllowNiagaraTypeForAddPin)

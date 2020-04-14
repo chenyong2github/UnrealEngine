@@ -39,6 +39,7 @@ namespace EMeshPass
 		MobileBasePassCSM,  /** Mobile base pass with CSM shading enabled */
 		MobileInverseOpacity,  /** Mobile specific scene capture, Non-cached */
 		VirtualTexture,
+		DitheredLODFadingOutMaskPass, /** A mini depth pass used to mark pixels with dithered LOD fading out. Currently only used by ray tracing shadows. */
 
 #if WITH_EDITOR
 		HitProxy,

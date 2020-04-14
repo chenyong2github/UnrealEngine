@@ -62,7 +62,8 @@ public:
 	double GetMetricUnit() const { return 0.01; }
 
 	EProcessResult ProcessFile(const CADLibrary::FFileDescription& InCTFileDescription);
-	void GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& OutBodyMesh, uint32 ParentMaterialHash);
+
+	void GetBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 ParentMaterialHash, bool bNeedRepair);
 
 	TSet<FFileDescription>& GetExternalRefSet()
 	{
@@ -95,7 +96,7 @@ private:
 	bool ReadInstance(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
 	bool ReadComponent(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
 	bool ReadUnloadedComponent(CT_OBJECT_ID NodeId);
-	bool ReadBody(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
+	bool ReadBody(CT_OBJECT_ID NodeId, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash, bool bNeedRepair);
 
 	bool FindFile(FFileDescription& FileDescription);
 
@@ -133,7 +134,6 @@ protected:
 	bool bNeedSaveCTFile = false;
 
 	const FImportParameters& ImportParameters;
-	bool bFixTopoRequired;
 };
 
 #endif // CAD_INTERFACE

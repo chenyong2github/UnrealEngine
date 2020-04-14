@@ -33,6 +33,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/Runnable.h"
 #include "DesktopPlatformModule.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define S3DDC_BACKEND_WAIT_INTERVAL 0.01f
 #define S3DDC_HTTP_REQUEST_TIMEOUT_SECONDS 30L
@@ -282,7 +283,10 @@ public:
 		}
 		if (CurlResult != CURLE_OK)
 		{
-			Log->Logf(ELogVerbosity::Error, TEXT("Error while connecting to %s: %s"), ANSI_TO_TCHAR(Url), ANSI_TO_TCHAR(curl_easy_strerror(CurlResult)));
+			if (CurlResult != CURLE_ABORTED_BY_CALLBACK)
+			{
+				Log->Logf(ELogVerbosity::Error, TEXT("Error while connecting to %s: %d (%s)"), ANSI_TO_TCHAR(Url), CurlResult, ANSI_TO_TCHAR(curl_easy_strerror(CurlResult)));
+			}
 			return 500;
 		}
 
@@ -651,7 +655,10 @@ struct FS3DerivedDataBackend::FBundleDownload : IRequestCallback
 		long ResponseCode = RequestPool.Download(*BundleUrl, this, CompressedData, Context);
 		if(!IsSuccessfulHttpResponse(ResponseCode))
 		{
-			Context->Logf(ELogVerbosity::Warning, TEXT("Unable to download bundle %s (%d)"), *BundleUrl, ResponseCode);
+			if (!Context->ReceivedUserCancel())
+			{
+				Context->Logf(ELogVerbosity::Warning, TEXT("Unable to download bundle %s (%d)"), *BundleUrl, ResponseCode);
+			}
 			return;
 		}
 
@@ -689,26 +696,50 @@ struct FS3DerivedDataBackend::FBundleDownload : IRequestCallback
 // FS3DerivedDataBackend
 //----------------------------------------------------------------------------------------------------------
 
-FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InAccessKey, const TCHAR* InSecretKey)
+FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath, const TCHAR* InAccessKey, const TCHAR* InSecretKey)
 	: RootManifestPath(InRootManifestPath)
 	, BaseUrl(InBaseUrl)
 	, Region(InRegion)
 	, CanaryObjectKey(InCanaryObjectKey)
-	, CacheDir(FPaths::ProjectSavedDir() / TEXT("S3DDC"))
+	, CacheDir(InCachePath)
 	, RequestPool(new FRequestPool(TCHAR_TO_ANSI(InRegion), TCHAR_TO_ANSI(InAccessKey), TCHAR_TO_ANSI(InSecretKey)))
 	, bEnabled(false)
 {
+
 	// Test whether we can reach the canary URL
 	bool bCanaryValid = true;
-	if (CanaryObjectKey.Len() > 0)
+	if (GIsBuildMachine)
+	{
+		UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling on build machine"));
+		bCanaryValid = false;
+	}
+	else if (CanaryObjectKey.Len() > 0)
 	{
 		TArray<uint8> Data;
-		bCanaryValid = IsSuccessfulHttpResponse(RequestPool->Download(*(BaseUrl / CanaryObjectKey), nullptr, Data, GLog));
+
+		FStringOutputDevice DummyOutputDevice;
+		if (!IsSuccessfulHttpResponse(RequestPool->Download(*(BaseUrl / CanaryObjectKey), nullptr, Data, &DummyOutputDevice)))
+		{
+			UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Unable to download canary file. Disabling."));
+			bCanaryValid = false;
+		}
+	}
+
+
+
+	// Allow the user to override it from the editor
+	bool bSetting;
+	if (GConfig->GetBool(TEXT("/Script/UnrealEd.EditorSettings"), TEXT("bEnableS3DDC"), bSetting, GEditorSettingsIni) && !bSetting)
+	{
+		UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling due to config setting"));
+		bCanaryValid = false;
 	}
 
 	// Try to read the bundles
 	if (bCanaryValid)
 	{
+		UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s S3 backend at %s"), *Region, *BaseUrl);
+
 		FFeedbackContext* Context = FDesktopPlatformModule::Get()->GetNativeFeedbackContext();
 		Context->BeginSlowTask(NSLOCTEXT("S3DerivedDataBackend", "DownloadingDDCBundles", "Downloading DDC bundles..."), true, true);
 
@@ -787,6 +818,12 @@ bool FS3DerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	const FBundle* Bundle;
 	const FBundleEntry* BundleEntry;
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
+
 	if (!FindBundleEntry(CacheKey, Bundle, BundleEntry))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("S3DerivedDataBackend: Cache miss on %s (probably)"), CacheKey);
@@ -800,6 +837,11 @@ bool FS3DerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& 
 	TRACE_CPUPROFILER_EVENT_SCOPE(S3DDC_Get);
 	TRACE_COUNTER_ADD(S3DDC_Get, int64(1));
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
 
 	const FBundle* Bundle;
 	const FBundleEntry* BundleEntry;
@@ -833,6 +875,26 @@ void FS3DerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransi
 void FS3DerivedDataBackend::GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath)
 {
 	COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s @ %s"), *GraphPath, TEXT("S3"), *BaseUrl), UsageStats));
+}
+
+FString FS3DerivedDataBackend::GetName() const
+{
+	return BaseUrl;
+}
+
+FDerivedDataBackendInterface::ESpeedClass FS3DerivedDataBackend::GetSpeedClass()
+{
+	return ESpeedClass::Local;
+}
+
+bool FS3DerivedDataBackend::TryToPrefetch(const TCHAR* CacheKey)
+{
+	return false;
+}
+
+bool FS3DerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+{
+	return false;
 }
 
 bool FS3DerivedDataBackend::DownloadManifest(FFeedbackContext* Context)
@@ -1025,6 +1087,41 @@ bool FS3DerivedDataBackend::FindBundleEntry(const TCHAR* CacheKey, const FBundle
 			OutBundleEntry = Entry;
 			return true;
 		}
+	}
+
+	return false;
+}
+
+bool FS3DerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+{
+	DebugOptions = InOptions;
+	return true;
+}
+
+bool FS3DerivedDataBackend::DidSimulateMiss(const TCHAR* InKey)
+{
+	if (DebugOptions.RandomMissRate == 0 || DebugOptions.SimulateMissTypes.Num() == 0)
+	{
+		return false;
+	}
+	FScopeLock Lock(&MissedKeysCS);
+	return DebugMissedKeys.Contains(FName(InKey));
+}
+
+bool FS3DerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
+{
+	// once missed, always missed
+	if (DidSimulateMiss(InKey))
+	{
+		return true;
+	}
+
+	if (DebugOptions.ShouldSimulateMiss(InKey))
+	{
+		FScopeLock Lock(&MissedKeysCS);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
+		DebugMissedKeys.Add(FName(InKey));
+		return true;
 	}
 
 	return false;

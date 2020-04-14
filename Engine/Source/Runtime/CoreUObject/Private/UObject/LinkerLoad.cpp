@@ -17,6 +17,7 @@
 #include "Misc/PackageName.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Misc/SecureHash.h"
+#include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/DebuggingDefines.h"
 #include "Logging/TokenizedMessage.h"
 #include "UObject/LinkerPlaceholderBase.h"
@@ -39,6 +40,7 @@
 #include "Serialization/LoadTimeTracePrivate.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
+#include "Misc/StringBuilder.h"
 
 class FTexture2DResourceMem;
 
