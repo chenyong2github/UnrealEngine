@@ -401,7 +401,7 @@ int FNiagaraRendererRibbons::GetDynamicDataSize()const
 }
 
 void CalculateUVScaleAndOffsets(
-	const FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>& SortKeyData, const TArray<int32>& RibbonIndices,
+	const FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>& SortKeyData, const TArray<int32>& RibbonIndices,
 	bool bSortKeyIsAge, int32 StartIndex, int32 EndIndex, int32 NumSegments,
 	float InUTilingDistance, float InUScale, float InUOffset, ENiagaraRibbonAgeOffsetMode InAgeOffsetMode,
 	float& OutUScale, float& OutUOffset)
@@ -467,48 +467,48 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	const UNiagaraRibbonRendererProperties* Properties = CastChecked<const UNiagaraRibbonRendererProperties>(InProperties);
 
 	bool bSortKeyIsAge = false;
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> SortKeyData;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> SortKeyData;
 	if (Data.HasVariable(Properties->RibbonLinkOrderBinding.DataSetVariable.GetName()))
 	{
-		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(Data, Properties->RibbonLinkOrderBinding.DataSetVariable.GetName());
+		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->RibbonLinkOrderBinding.DataSetVariable.GetName());
 	}
 	else
 	{
-		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(Data, Properties->NormalizedAgeBinding.DataSetVariable.GetName());
+		SortKeyData = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->NormalizedAgeBinding.DataSetVariable.GetName());
 		bSortKeyIsAge = true;
 	}
 
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> PosData(Data, Properties->PositionBinding.DataSetVariable.GetName());
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> SizeData(Data, Properties->RibbonWidthBinding.DataSetVariable.GetName());
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> TwistData;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> PosData(Data, Properties->PositionBinding.DataSetVariable.GetName());
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> SizeData(Data, Properties->RibbonWidthBinding.DataSetVariable.GetName());
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> TwistData;
 	if (Data.HasVariable(Properties->RibbonTwistBinding.DataSetVariable.GetName()))
 	{
-		TwistData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(Data, Properties->RibbonTwistBinding.DataSetVariable.GetName());
+		TwistData = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(Data, Properties->RibbonTwistBinding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> FacingData;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> FacingData;
 	if (Data.HasVariable(Properties->RibbonFacingBinding.DataSetVariable.GetName()))
 	{
-		FacingData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>(Data, Properties->RibbonFacingBinding.DataSetVariable.GetName());
+		FacingData = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>(Data, Properties->RibbonFacingBinding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> MaterialParamData;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParamData;
 	if (Data.HasVariable(Properties->DynamicMaterialBinding.DataSetVariable.GetName()))
 	{
-		MaterialParamData = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>(Data, Properties->DynamicMaterialBinding.DataSetVariable.GetName());
+		MaterialParamData = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterialBinding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> MaterialParam1Data;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParam1Data;
 	if (Data.HasVariable(Properties->DynamicMaterial1Binding.DataSetVariable.GetName()))
 	{
-		MaterialParam1Data = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>(Data, Properties->DynamicMaterial1Binding.DataSetVariable.GetName());
+		MaterialParam1Data = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterial1Binding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> MaterialParam2Data;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParam2Data;
 	if (Data.HasVariable(Properties->DynamicMaterial2Binding.DataSetVariable.GetName()))
 	{
-		MaterialParam2Data = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>(Data, Properties->DynamicMaterial2Binding.DataSetVariable.GetName());
+		MaterialParam2Data = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterial2Binding.DataSetVariable.GetName());
 	}
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4> MaterialParam3Data;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>> MaterialParam3Data;
 	if (Data.HasVariable(Properties->DynamicMaterial3Binding.DataSetVariable.GetName()))
 	{
-		MaterialParam3Data = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf4OrFloat4>(Data, Properties->DynamicMaterial3Binding.DataSetVariable.GetName());
+		MaterialParam3Data = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector4>>(Data, Properties->DynamicMaterial3Binding.DataSetVariable.GetName());
 	}
 
 	FNiagaraDataSetAccessor<int32> RibbonIdData;
