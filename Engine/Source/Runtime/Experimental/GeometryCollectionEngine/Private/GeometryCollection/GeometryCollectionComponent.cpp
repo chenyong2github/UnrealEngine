@@ -439,13 +439,17 @@ void UGeometryCollectionComponent::RegisterForEvents()
 		if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
 		{
 			EventDispatcher->RegisterForCollisionEvents(this, this);
+#if INCLUDE_CHAOS
 			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateCollisionData(true);
+#endif
 		}
 
 		if (bNotifyBreaks)
 		{
 			EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
+#if INCLUDE_CHAOS
 			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateBreakingData(true);
+#endif
 		}
 	}
 }
