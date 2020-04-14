@@ -5,6 +5,10 @@
 		{
 			"Language": "en",
 			"Text": "Starter Content"
+		},
+		{
+			"Language": "zh-Hans",
+			"Text": "初学者内容包"
 		}
 	],
 	"Description":
@@ -12,6 +16,11 @@
 		{
 			"Language": "en",
 			"Text": "A collection of miscellaneous assets to include in your unreal project.\nSeveral static mesh props such as a table, a chair, a door, lamp etc.\nA number of textures, bricks, clay, wood and so forth.\nBasic mesh shapes a sphere, tube, torus etc.\nSample audio - an explosion, sparks, birds etc.\nParticles such as fire, dust and explosion.\nSome walls, floors and windows.\nSome sample blueprints."
+
+		},
+		{
+			"Language": "zh-Hans",
+			"Text": "为你的虚幻项目添加一系列资产。\n其中包含：静态网格体道具（如桌子、椅子、门、台灯等）\n一系列纹理（如砖块、陶土、木材等）\n基础网格体形状（如球体、管道和环形等）\n示例音频（如爆炸、火花、鸟鸣等）\n粒子效果（如火焰、尘土和爆炸等）\n墙壁、底板和窗户。\n示例蓝图。"
 
 		},
 		{
