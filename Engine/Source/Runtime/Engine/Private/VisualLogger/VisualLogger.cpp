@@ -182,7 +182,9 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, float Tim
 	{
 		// It's first and only one usage of LogOwner as regular object to get names. We assume once that LogOwner is correct here and only here.
 		CurrentEntry = &CurrentEntryPerObject.Add(LogOwner);
-		ObjectToNameMap.Add(LogOwner, LogOwner->GetFName());
+		//ObjectToNameMap.Add(LogOwner, LogOwner->GetFName());
+		//ObjectToNameMap.Add(LogOwner, FName(*FString::Printf(TEXT("%s [%s]"), *LogOwner->GetName(), *GetNameSafe(LogOwner->GetOuter()))));
+		ObjectToNameMap.Add(LogOwner, FName(*FString::Printf(TEXT("%s [%d]"), *LogOwner->GetName(), LogOwner->GetUniqueID())));
 		ObjectToClassNameMap.Add(LogOwner, *(LogOwner->GetClass()->GetName()));
 		ObjectToPointerMap.Add(LogOwner, LogOwner);
 		ObjectToWorldMap.Add(LogOwner, World);
@@ -200,6 +202,12 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, float Tim
 	{
 		CurrentEntry->Reset();
 		CurrentEntry->TimeStamp = TimeStamp;
+
+		const AActor* ObjectAsActor = Cast<AActor>(LogOwner);
+		if (ObjectAsActor)
+		{
+			CurrentEntry->Location = ObjectAsActor->GetActorLocation();
+		}
 
 		auto& RedirectionMap = GetRedirectionMap(LogOwner);
 		if (RedirectionMap.Contains(LogOwner))
@@ -226,11 +234,6 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, float Tim
 		}
 		else
 		{
-			const AActor* ObjectAsActor = Cast<AActor>(LogOwner);
-			if (ObjectAsActor)
-			{
-				CurrentEntry->Location = ObjectAsActor->GetActorLocation();
-			}
 			const IVisualLoggerDebugSnapshotInterface* DebugSnapshotInterface = Cast<const IVisualLoggerDebugSnapshotInterface>(LogOwner);
 			if (DebugSnapshotInterface)
 			{
@@ -370,7 +373,7 @@ void FVisualLogger::Shutdown()
 	SetIsRecording(false);
 	SetIsRecordingToFile(false);
 
-	if (UseBinaryFileDevice)
+	if (bUseBinaryFileDevice)
 	{
 		RemoveDevice(&FVisualLoggerBinaryFileDevice::Get());
 	}
