@@ -1558,9 +1558,9 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 			{
 				if (!bMerged)
 				{
-					FName ParamName = NewName;
-					FNiagaraEditorUtilities::DecomposeVariableNamespace(NewName, ParamName);
-					FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(LOCTEXT("RenamedVarInGraphForAll", "\"{0}\" has been fully renamed as it was only used on this node."), FText::FromName(ParamName)));
+					FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(
+						LOCTEXT("RenamedVarInGraphForAll", "\"{0}\" has been fully renamed as it was only used on this node."), 
+						FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(NewName)));
 				}
 				return true;
 			}
@@ -1630,21 +1630,19 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 	else
 	{
 		bMerged = true;
-		FName NewParamName = NewName;
-		FNiagaraEditorUtilities::DecomposeVariableNamespace(NewName, NewParamName);
-		FName OldParamName = Parameter.GetName();
-		FNiagaraEditorUtilities::DecomposeVariableNamespace(Parameter.GetName(), OldParamName);
-		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(LOCTEXT("MergedVar", "\"{0}\" has been merged with parameter \"{1}\".\nAll of \"{1}\"'s meta-data will be used, overwriting \"{0}\"'s meta-data."), FText::FromName(OldParamName), FText::FromName(NewParamName)));
+		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(
+			LOCTEXT("MergedVar", "\"{0}\" has been merged with parameter \"{1}\".\nAll of \"{1}\"'s meta-data will be used, overwriting \"{0}\"'s meta-data."),
+			FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(Parameter.GetName()),
+			FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(NewName)));
 	}
 	RefreshParameterReferences();
 
 	if (!bMerged)
 	{
-		FName NewParamName = NewName;
-		FNiagaraEditorUtilities::DecomposeVariableNamespace(NewName, NewParamName);
-		FName OldParamName = Parameter.GetName();
-		FNiagaraEditorUtilities::DecomposeVariableNamespace(Parameter.GetName(), OldParamName);
-		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(LOCTEXT("RenamedVarInGraphForNode", "\"{0}\" has been duplicated as \"{1}\" as it is used in multiple locations.\nPlease edit the Parameters Panel version to change in all locations."), FText::FromName(OldParamName), FText::FromName(NewParamName)));
+		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(
+			LOCTEXT("RenamedVarInGraphForNode", "\"{0}\" has been duplicated as \"{1}\" as it is used in multiple locations.\nPlease edit the Parameters Panel version to change in all locations."),
+			FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(Parameter.GetName()), 
+			FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(NewName)));
 	}
 
 	return false;
@@ -1740,7 +1738,10 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 		FNiagaraEditorUtilities::DecomposeVariableNamespace(NewName, NewParamName);
 		FName OldParamName = Parameter.GetName();
 		FNiagaraEditorUtilities::DecomposeVariableNamespace(Parameter.GetName(), OldParamName);
-		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(LOCTEXT("MergedVar", "\"{0}\" has been merged with parameter \"{1}\".\nAll of \"{1}\"'s meta-data will be used, overwriting \"{0}\"'s meta-data."), FText::FromName(OldParamName), FText::FromName(NewParamName)));
+		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(
+			LOCTEXT("MergedVar", "\"{0}\" has been merged with parameter \"{1}\".\nAll of \"{1}\"'s meta-data will be used, overwriting \"{0}\"'s meta-data."),
+			FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(Parameter.GetName()),
+			FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(NewName)));
 	}
 
 	// Fixup reference collection and pin names
