@@ -361,9 +361,16 @@ namespace UnrealBuildTool
 			return GenerateTVOSPList(ProjectDirectory, bIsUE4Game, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, null, BundleID);
 		}
 
-        protected override void CopyGraphicsResources(bool bSkipDefaultPNGs, bool bSkipIcons, string InEngineDir, string AppDirectory, string BuildDirectory, string IntermediateDir, bool bSupportsPortrait, bool bSupportsLandscape)
-        {
-            // do nothing on TVOS
-        }
-    }
+		protected virtual void CopyIconResources(string InEngineDir, string AppDirectory, string BuildDirectory)
+		{
+			// do nothing on TVOS
+		}
+
+		protected virtual void CopyLaunchScreenResources(string InEngineDir, string AppDirectory, string BuildDirectory)
+		{
+			// do nothing on TVOS
+		}
+
+
+	}
 }
