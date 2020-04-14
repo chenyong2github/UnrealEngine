@@ -583,6 +583,11 @@ void FPhysInterface_Chaos::SetCcdEnabled_AssumesLocked(const FPhysicsActorHandle
     //check(bIsCcdEnabled == false);
 }
 
+void FPhysInterface_Chaos::SetIgnoreAnalyticCollisions_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bIgnoreAnalyticCollisions)
+{
+	InActorReference->SetIgnoreAnalyticCollisions(bIgnoreAnalyticCollisions);
+}
+
 FTransform FPhysInterface_Chaos::GetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
 	return Chaos::TRigidTransform<float, 3>(InActorReference->X(), InActorReference->R());
