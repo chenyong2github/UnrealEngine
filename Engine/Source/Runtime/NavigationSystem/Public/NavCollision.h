@@ -58,8 +58,10 @@ class NAVIGATIONSYSTEM_API UNavCollision : public UNavCollisionBase
 	UPROPERTY(EditAnywhere, Category=Navigation)
 	TArray<FNavCollisionBox> BoxCollision;
 
-	/** navigation area type (empty = default obstacle) */
-	UPROPERTY(EditAnywhere, Category=Navigation)
+	/** navigation area type that will be use when this static mesh is used as 
+	 *	a navigation obstacle. See bIsDynamicObstacle.
+	 *	Empty AreaClass means the default obstacle class will be used */
+	UPROPERTY(EditAnywhere, Category = Navigation, meta = (EditCondition = "bIsDynamicObstacle"))
 	TSubclassOf<class UNavArea> AreaClass;
 
 	/** If set, convex collisions will be exported offline for faster runtime navmesh building (increases memory usage) */
