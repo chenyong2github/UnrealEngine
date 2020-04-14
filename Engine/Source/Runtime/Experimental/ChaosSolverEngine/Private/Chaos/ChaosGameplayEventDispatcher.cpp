@@ -218,7 +218,7 @@ void UChaosGameplayEventDispatcher::RegisterChaosEvents()
 		{
 			Chaos::FEventManager* EventManager = Solver->GetEventManager();
 			EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosGameplayEventDispatcher::HandleCollisionEvents);
-			//EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosGameplayEventDispatcher::HandleBreakingEvents);
+			EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosGameplayEventDispatcher::HandleBreakingEvents);
 			EventManager->RegisterHandler<Chaos::FSleepingEventData>(Chaos::EEventType::Sleeping, this, &UChaosGameplayEventDispatcher::HandleSleepingEvents);
 		}
 	}
@@ -237,7 +237,7 @@ void UChaosGameplayEventDispatcher::UnregisterChaosEvents()
 			{
 				Chaos::FEventManager* EventManager = Solver->GetEventManager();
 				EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
-				//EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
+				EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
 				EventManager->UnregisterHandler(Chaos::EEventType::Sleeping, this);
 			}
 		}
@@ -249,7 +249,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 {
 	SCOPE_CYCLE_COUNTER(STAT_DispatchCollisionEvents);
 
-	FPhysScene_Chaos const* const Scene = GetPhysicsScene().Get();
+	FPhysScene_Chaos& Scene = GetWorld()->GetPhysicsScene()->GetScene();
 
 	PendingChaosCollisionNotifies.Reset();
 	ContactPairToPendingNotifyMap.Reset();
@@ -269,7 +269,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 				const FChaosHandlerSet& HandlerSet = It.Value();
 
 				UPrimitiveComponent* const Comp0 = Cast<UPrimitiveComponent>(It.Key());
-				IPhysicsProxyBase* const PhysicsProxy0 = Scene->GetOwnedPhysicsProxy(Comp0);
+				IPhysicsProxyBase* const PhysicsProxy0 = Scene.GetOwnedPhysicsProxy(Comp0);
 				TArray<int32> const* const CollisionIndices = PhysicsProxyToCollisionIndicesMap.Find(PhysicsProxy0);
 				if (CollisionIndices)
 				{
@@ -281,7 +281,6 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 						Chaos::TCollisionData<float, 3> const& CollisionDataItem = CollisionData[CollisionIdx];
 						IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.ParticleProxy : CollisionDataItem.LevelsetProxy;
 
-						if (HandlerSet.bLegacyComponentNotify)
 						{
 							bool bNewEntry = false;
 							FCollisionNotifyInfo& NotifyInfo = GetPendingCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);
@@ -294,7 +293,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 
 							if (bNewEntry)
 							{
-								UPrimitiveComponent* const Comp1 = Scene->GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
+								UPrimitiveComponent* const Comp1 = Scene.GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
 
 								// fill in legacy contact data
 								NotifyInfo.bCallEvent0 = true;
@@ -322,7 +321,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 
 							if (bNewEntry)
 							{
-								UPrimitiveComponent* const Comp1 = Scene->GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
+								UPrimitiveComponent* const Comp1 = Scene.GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
 
 								// fill in Chaos contact data
 								ChaosNotifyInfo.CollisionInfo.Component = Comp0;
