@@ -195,4 +195,16 @@ namespace FNiagaraStackGraphUtilities
 	void GatherRenamedStackFunctionInputAndOutputVariableNames(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldFunctionName, const FString& NewFunctionName, TMap<FName, FName>& OutOldToNewNameMap);
 
 	UNiagaraStackEntry::FStackIssue MessageManagerMessageToStackIssue(TSharedRef<const INiagaraMessage> InMessage, FString InStackEditorDataKey);
+
+	enum class EStackEditContext
+	{
+		System,
+		Emitter
+	};
+
+	/** Gets the valid namespaces which new parameters for this usage can be read from. */
+	void GetNamespacesForNewReadParameters(EStackEditContext EditContext, ENiagaraScriptUsage Usage, TArray<FName>& OutNamespacesForNewParameters);
+
+	/** Gets the valid namespaces which new parameters for this usage can write to. */
+	void GetNamespacesForNewWriteParameters(EStackEditContext EditContext, ENiagaraScriptUsage Usage, TArray<FName>& OutNamespacesForNewParameters);
 }

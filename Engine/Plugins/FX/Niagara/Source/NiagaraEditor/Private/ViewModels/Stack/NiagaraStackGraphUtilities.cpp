@@ -2614,4 +2614,65 @@ UNiagaraStackEntry::FStackIssue FNiagaraStackGraphUtilities::MessageManagerMessa
 		FixLinks);
 }
 
+void FNiagaraStackGraphUtilities::GetNamespacesForNewReadParameters(EStackEditContext EditContext, ENiagaraScriptUsage Usage, TArray<FName>& OutNamespacesForNewParameters)
+{
+	switch (Usage)
+	{
+	case ENiagaraScriptUsage::ParticleSpawnScript:
+	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+	case ENiagaraScriptUsage::ParticleUpdateScript:
+	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
+	{
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::ParticleAttributeNamespace);
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
+		break;
+	}
+	case ENiagaraScriptUsage::EmitterSpawnScript:
+	case ENiagaraScriptUsage::EmitterUpdateScript:
+	{
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
+		break;
+	}
+	}
+
+	if (EditContext == EStackEditContext::System)
+	{
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::UserNamespace);
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
+	}
+	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
+}
+
+void FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(EStackEditContext EditContext, ENiagaraScriptUsage Usage, TArray<FName>& OutNamespacesForNewParameters)
+{
+	switch (Usage)
+	{
+	case ENiagaraScriptUsage::ParticleSpawnScript:
+	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+	case ENiagaraScriptUsage::ParticleUpdateScript:
+	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
+	{
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::ParticleAttributeNamespace);
+		break;
+	}
+	case ENiagaraScriptUsage::EmitterSpawnScript:
+	case ENiagaraScriptUsage::EmitterUpdateScript:
+	{
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
+		break;
+	}
+	case ENiagaraScriptUsage::SystemSpawnScript:
+	case ENiagaraScriptUsage::SystemUpdateScript:
+		if (EditContext == EStackEditContext::System)
+		{
+			OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
+		}
+		break;
+	}
+
+	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
+}
+
 #undef LOCTEXT_NAMESPACE

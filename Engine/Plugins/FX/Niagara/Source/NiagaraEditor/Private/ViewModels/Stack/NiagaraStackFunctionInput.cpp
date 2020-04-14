@@ -1611,32 +1611,9 @@ void UNiagaraStackFunctionInput::GetNamespacesForNewReadParameters(TArray<FName>
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningFunctionCallNode);
 	bool bIsEditingSystem = GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
 
-	switch (OutputNode->GetUsage())
-	{
-	case ENiagaraScriptUsage::ParticleSpawnScript:
-	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
-	case ENiagaraScriptUsage::ParticleUpdateScript:
-	case ENiagaraScriptUsage::ParticleEventScript:
-	case ENiagaraScriptUsage::ParticleSimulationStageScript:
-	{
-		OutNamespacesForNewParameters.Add(FNiagaraConstants::ParticleAttributeNamespace);
-		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
-		break;
-	}
-	case ENiagaraScriptUsage::EmitterSpawnScript:
-	case ENiagaraScriptUsage::EmitterUpdateScript:
-	{
-		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
-		break;
-	}
-	}
-
-	if (bIsEditingSystem)
-	{
-		OutNamespacesForNewParameters.Add(FNiagaraConstants::UserNamespace);
-		OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
-	}
-	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
+	FNiagaraStackGraphUtilities::GetNamespacesForNewReadParameters(
+		bIsEditingSystem ? FNiagaraStackGraphUtilities::EStackEditContext::System : FNiagaraStackGraphUtilities::EStackEditContext::Emitter,
+		OutputNode->GetUsage(), OutNamespacesForNewParameters);
 }
 
 void UNiagaraStackFunctionInput::GetNamespacesForNewWriteParameters(TArray<FName>& OutNamespacesForNewParameters) const
@@ -1644,33 +1621,9 @@ void UNiagaraStackFunctionInput::GetNamespacesForNewWriteParameters(TArray<FName
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningFunctionCallNode);
 	bool bIsEditingSystem = GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
 
-	switch (OutputNode->GetUsage())
-	{
-	case ENiagaraScriptUsage::ParticleSpawnScript:
-	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
-	case ENiagaraScriptUsage::ParticleUpdateScript:
-	case ENiagaraScriptUsage::ParticleEventScript:
-	case ENiagaraScriptUsage::ParticleSimulationStageScript:
-	{
-		OutNamespacesForNewParameters.Add(FNiagaraConstants::ParticleAttributeNamespace);
-		break;
-	}
-	case ENiagaraScriptUsage::EmitterSpawnScript:
-	case ENiagaraScriptUsage::EmitterUpdateScript:
-	{
-		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
-		break;
-	}
-	case ENiagaraScriptUsage::SystemSpawnScript:
-	case ENiagaraScriptUsage::SystemUpdateScript:
-		if (bIsEditingSystem)
-		{
-			OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
-		}
-		break;
-	}
-
-	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
+	FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(
+		bIsEditingSystem ? FNiagaraStackGraphUtilities::EStackEditContext::System : FNiagaraStackGraphUtilities::EStackEditContext::Emitter,
+		OutputNode->GetUsage(), OutNamespacesForNewParameters);
 }
 
 UNiagaraStackFunctionInput::FOnValueChanged& UNiagaraStackFunctionInput::OnValueChanged()
