@@ -260,15 +260,14 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 		}
 	#else
 		UNROLL
-		for(int CoordinateIndex = 0;CoordinateIndex <  NUM_TEX_COORD_INTERPOLATORS;CoordinateIndex += 2)
+		for (int CoordinateIndex = 0; CoordinateIndex * 2 + 1 < NUM_TEX_COORD_INTERPOLATORS; ++CoordinateIndex)
 		{
-			Result.TexCoords[CoordinateIndex] = Interpolants.TexCoords[CoordinateIndex/2].xy;
-
-			if(CoordinateIndex + 1 <  NUM_TEX_COORD_INTERPOLATORS)
-			{
-				Result.TexCoords[CoordinateIndex + 1] = Interpolants.TexCoords[CoordinateIndex/2].wz;
-			}
+			Result.TexCoords[CoordinateIndex * 2] = Interpolants.TexCoords[CoordinateIndex].xy;
+			Result.TexCoords[CoordinateIndex * 2 + 1] = Interpolants.TexCoords[CoordinateIndex].wz;
 		}
+		#if NUM_TEX_COORD_INTERPOLATORS & 1
+			Result.TexCoords[NUM_TEX_COORD_INTERPOLATORS - 1] = Interpolants.TexCoords[NUM_TEX_COORD_INTERPOLATORS / 2].xy;
+		#endif // #if NUM_TEX_COORD_INTERPOLATORS & 1
 	#endif
 #endif
 
@@ -907,14 +906,14 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 		GetCustomInterpolators(VertexParameters, CustomizedUVs);
 
 		UNROLL
-		for(int CoordinateIndex = 0;CoordinateIndex <  NUM_TEX_COORD_INTERPOLATORS;CoordinateIndex += 2)
+		for (int CoordinateIndex = 0; CoordinateIndex * 2 + 1 < NUM_TEX_COORD_INTERPOLATORS; ++CoordinateIndex)
 		{
-				Interpolants.TexCoords[CoordinateIndex / 2].xy = CustomizedUVs[CoordinateIndex];
-			if(CoordinateIndex + 1 <  NUM_TEX_COORD_INTERPOLATORS)
-			{
-					Interpolants.TexCoords[CoordinateIndex / 2].wz = CustomizedUVs[CoordinateIndex + 1];
-			}
+			Interpolants.TexCoords[CoordinateIndex].xy = CustomizedUVs[CoordinateIndex * 2];
+			Interpolants.TexCoords[CoordinateIndex].wz = CustomizedUVs[CoordinateIndex * 2 + 1];
 		}
+		#if NUM_TEX_COORD_INTERPOLATORS & 1
+			Interpolants.TexCoords[NUM_TEX_COORD_INTERPOLATORS / 2].xy = CustomizedUVs[NUM_TEX_COORD_INTERPOLATORS - 1];
+		#endif // #if NUM_TEX_COORD_INTERPOLATORS & 1
 	#endif
 #endif
 
@@ -1013,17 +1012,17 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 	FMaterialTessellationParameters GetMaterialTessellationParameters(FVertexFactoryInterpolantsVSToDS Interpolants, float3 CameraLocalWorldPosition)
 	{
 		FMaterialTessellationParameters	Result;
-	#if  NUM_TEX_COORD_INTERPOLATORS
-		UNROLL
-		for(int CoordinateIndex = 0;CoordinateIndex <  NUM_TEX_COORD_INTERPOLATORS;CoordinateIndex += 2)
-		{
-			Result.TexCoords[CoordinateIndex] = Interpolants.InterpolantsVSToPS.TexCoords[CoordinateIndex/2].xy;
-			if(CoordinateIndex + 1 <  NUM_TEX_COORD_INTERPOLATORS)
+		#if NUM_TEX_COORD_INTERPOLATORS
+			UNROLL
+			for (int CoordinateIndex = 0; CoordinateIndex * 2 + 1 < NUM_TEX_COORD_INTERPOLATORS; ++CoordinateIndex)
 			{
-				Result.TexCoords[CoordinateIndex + 1] = Interpolants.InterpolantsVSToPS.TexCoords[CoordinateIndex/2].wz;
+				Result.TexCoords[CoordinateIndex * 2] = Interpolants.InterpolantsVSToPS.TexCoords[CoordinateIndex].xy;
+				Result.TexCoords[CoordinateIndex * 2 + 1] = Interpolants.InterpolantsVSToPS.TexCoords[CoordinateIndex].wz;
 			}
-		}
-	#endif
+			#if NUM_TEX_COORD_INTERPOLATORS & 1
+				Result.TexCoords[NUM_TEX_COORD_INTERPOLATORS - 1] = Interpolants.InterpolantsVSToPS.TexCoords[NUM_TEX_COORD_INTERPOLATORS / 2].xy;
+			#endif // #if NUM_TEX_COORD_INTERPOLATORS & 1
+		#endif
 
 		Result.VertexColor = float4(1,1,1,1);
 
