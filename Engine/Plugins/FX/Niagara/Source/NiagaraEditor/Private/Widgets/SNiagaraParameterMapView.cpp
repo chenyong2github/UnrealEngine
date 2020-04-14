@@ -784,52 +784,19 @@ TSharedPtr<SWidget> SNiagaraParameterMapView::OnContextMenuOpening()
 			TAttribute<FText> RenameToolTip;
 			RenameToolTip.Bind(this, &SNiagaraParameterMapView::GetRenameOnActionNodeToolTip);
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, LOCTEXT("Rename", "Rename"), RenameToolTip);
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("ChangeNamespace", "Namespace"),
+				LOCTEXT("ChangeNamespaceToolTip", "Select a new namespace for the selected parameter."),
+				FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceSubMenu));
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("ChangeNamespaceModifier", "Namespace Modifier"),
+				LOCTEXT("ChangeNamespaceModifierToolTip", "Edit the namespace modifier for the selected parameter."),
+				FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceModifierSubMenu));
 		}
 		MenuBuilder.EndSection();
 
-		TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
-		GraphActionMenu->GetSelectedActions(SelectedActions);
-
-		if (SelectedActions.Num() == 1)
-		{
-			TSharedPtr<FNiagaraParameterAction> SelectedNiagaraAction = StaticCastSharedPtr<FNiagaraParameterAction>(SelectedActions[0]);
-			if (SelectedNiagaraAction.IsValid())
-			{
-				MenuBuilder.BeginSection("NamespaceModifier", LOCTEXT("NamespaceModifierMenuSection", "Namespace Modifiers"));
-				{
-					TAttribute<FText> AddToolTip;
-					AddToolTip.Bind(this, &SNiagaraParameterMapView::GetAddNamespaceModifierToolTip);
-					MenuBuilder.AddMenuEntry(
-						LOCTEXT("AddNamespaceModifier", "Add"),
-						AddToolTip,
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnAddNamespaceModifier),
-							FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanAddNamespaceModifier)));
-
-					TAttribute<FText> RemoveToolTip;
-					RemoveToolTip.Bind(this, &SNiagaraParameterMapView::GetRemoveNamespaceModifierToolTip);
-					MenuBuilder.AddMenuEntry(
-						LOCTEXT("RemoveNamespaceModifier", "Remove"),
-						RemoveToolTip,
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnRemoveNamespaceModifier),
-							FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanRemoveNamespaceModifier)));
-
-					TAttribute<FText> EditToolTip;
-					EditToolTip.Bind(this, &SNiagaraParameterMapView::GetEditNamespaceModifierToolTip);
-					MenuBuilder.AddMenuEntry(
-						LOCTEXT("EditNamespaceModifier", "Edit"),
-						EditToolTip,
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnEditNamespaceModifier),
-							FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanEditNamespaceModifier)));
-				}
-				MenuBuilder.EndSection();
-			}
-		}
 		return MenuBuilder.MakeWidget();
 	}
 
@@ -1250,6 +1217,76 @@ bool SNiagaraParameterMapView::GetSingleParameterActionForSelection(
 		return false;
 	}
 	return true;
+}
+
+void SNiagaraParameterMapView::GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder)
+{
+	TSharedPtr<FNiagaraParameterAction> ParameterAction;
+	FText Unused;
+	if (GetSingleParameterActionForSelection(ParameterAction, Unused))
+	{
+		TArray<FNiagaraParameterUtilities::FChangeNamespaceMenuData> MenuData;
+		FNiagaraParameterUtilities::GetChangeNamespaceMenuData(ParameterAction->Parameter.GetName(),
+			IsScriptToolkit() ? FNiagaraParameterUtilities::EParameterContext::Script : FNiagaraParameterUtilities::EParameterContext::System, MenuData);
+		for (const FNiagaraParameterUtilities::FChangeNamespaceMenuData& MenuDataItem : MenuData)
+		{
+			bool bCanChange = MenuDataItem.bCanChange;
+			FUIAction Action = FUIAction(
+				FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnChangeNamespace, MenuDataItem.Metadata),
+				FCanExecuteAction::CreateLambda([bCanChange]() { return bCanChange; }));
+
+			TSharedRef<SWidget> MenuItemWidget = FNiagaraParameterUtilities::CreateNamespaceMenuItemWidget(MenuDataItem.NamespaceParameterName, MenuDataItem.CanChangeToolTip);
+			MenuBuilder.AddMenuEntry(Action, MenuItemWidget, NAME_None, MenuDataItem.CanChangeToolTip);
+		}
+	}
+}
+
+void SNiagaraParameterMapView::OnChangeNamespace(FNiagaraNamespaceMetadata Metadata)
+{
+	TSharedPtr<FNiagaraParameterAction> ParameterAction;
+	FText Unused;
+	if (GetSingleParameterActionForSelection(ParameterAction, Unused))
+	{
+		FName NewName = FNiagaraParameterUtilities::ChangeNamespace(ParameterAction->Parameter.GetName(), Metadata);
+		if (NewName != NAME_None)
+		{
+			FScopedTransaction Transaction(LOCTEXT("ChangeNamespaceTransaction", "Change namespace"));
+			RenameParameter(ParameterAction->Parameter, NewName);
+		}
+	}
+}
+
+void SNiagaraParameterMapView::GetChangeNamespaceModifierSubMenu(FMenuBuilder& MenuBuilder)
+{
+	TAttribute<FText> AddToolTip;
+	AddToolTip.Bind(this, &SNiagaraParameterMapView::GetAddNamespaceModifierToolTip);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("AddNamespaceModifier", "Add"),
+		AddToolTip,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnAddNamespaceModifier),
+			FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanAddNamespaceModifier)));
+
+	TAttribute<FText> RemoveToolTip;
+	RemoveToolTip.Bind(this, &SNiagaraParameterMapView::GetRemoveNamespaceModifierToolTip);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("RemoveNamespaceModifier", "Remove"),
+		RemoveToolTip,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnRemoveNamespaceModifier),
+			FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanRemoveNamespaceModifier)));
+
+	TAttribute<FText> EditToolTip;
+	EditToolTip.Bind(this, &SNiagaraParameterMapView::GetEditNamespaceModifierToolTip);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("EditNamespaceModifier", "Edit"),
+		EditToolTip,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnEditNamespaceModifier),
+			FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanEditNamespaceModifier)));
 }
 
 FText SNiagaraParameterMapView::GetAddNamespaceModifierToolTip() const

@@ -321,52 +321,17 @@ void UNiagaraNodeParameterMapBase::GetChangeNamespaceSubMenuForPin(UToolMenu* Me
 {
 	FToolMenuSection& Section = Menu->AddSection("Section");
 
-	TArray<FNiagaraNamespaceMetadata> NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetAllNamespaceMetadata();
-	NamespaceMetadata.Sort([](const FNiagaraNamespaceMetadata& MetadataA, const FNiagaraNamespaceMetadata& MetadataB)
-		{ return MetadataA.SortId < MetadataB.SortId; });
-
-	for (const FNiagaraNamespaceMetadata& Metadata : NamespaceMetadata)
+	TArray<FNiagaraParameterUtilities::FChangeNamespaceMenuData> MenuData;
+	FNiagaraParameterUtilities::GetChangeNamespaceMenuData(InPin->PinName, FNiagaraParameterUtilities::EParameterContext::Script, MenuData);
+	for(const FNiagaraParameterUtilities::FChangeNamespaceMenuData& MenuDataItem : MenuData)
 	{
-		if (Metadata.IsValid() == false || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace) || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript))
-		{
-			continue;
-		}
-
-		FText CanChangeMessage;
-		bool bCanChange = FNiagaraParameterUtilities::TestCanChangeNamespaceWithMessage(InPin->PinName, Metadata, CanChangeMessage);
-
-		FText ToolTip;
-		if (bCanChange)
-		{
-			ToolTip = FText::Format(LOCTEXT("ChangeNamespaceToolTipFormat", "{0}\n\nDescription:\n{1}"), CanChangeMessage, Metadata.Description);
-		}
-		else
-		{
-			ToolTip = CanChangeMessage;
-		}
-
-		FString NamespaceNameString = Metadata.Namespaces[0].ToString();
-		for (int32 i = 1; i < Metadata.Namespaces.Num(); i++)
-		{
-			NamespaceNameString += TEXT(".") + Metadata.Namespaces[i].ToString();
-		}
-
+		bool bCanChange = MenuDataItem.bCanChange;
 		FUIAction Action = FUIAction(
-			FExecuteAction::CreateUObject(this, &UNiagaraNodeParameterMapBase::ChangeNamespaceForPin, InPin, Metadata),
+			FExecuteAction::CreateUObject(this, &UNiagaraNodeParameterMapBase::ChangeNamespaceForPin, InPin, MenuDataItem.Metadata),
 			FCanExecuteAction::CreateLambda([bCanChange]() { return bCanChange; }));
 
-		TSharedRef<SWidget> NamespaceWidget =
-			SNew(SBox)
-			.Padding(FMargin(7, 2, 7, 2))
-			[
-				SNew(SNiagaraParameterName)
-				.ParameterName(*NamespaceNameString)
-				.IsReadOnly(true)
-				.SingleNameDisplayMode(SNiagaraParameterName::ESingleNameDisplayMode::Namespace)
-				.ToolTipText(ToolTip)
-			];
-
-		Section.AddEntry(FToolMenuEntry::InitMenuEntry(NAME_None, Action, NamespaceWidget));
+		TSharedRef<SWidget> MenuItemWidget = FNiagaraParameterUtilities::CreateNamespaceMenuItemWidget(MenuDataItem.NamespaceParameterName, MenuDataItem.CanChangeToolTip);
+		Section.AddEntry(FToolMenuEntry::InitMenuEntry(NAME_None, Action, MenuItemWidget));
 	}
 }
 
