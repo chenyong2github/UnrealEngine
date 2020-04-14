@@ -108,7 +108,7 @@ namespace Chaos
 
 			if(FRewindData* RewindData = MSolver->GetRewindData())
 			{
-				RewindData->AdvanceFrame();
+				RewindData->AdvanceFrame(MDeltaTime);
 			}
 
 			{

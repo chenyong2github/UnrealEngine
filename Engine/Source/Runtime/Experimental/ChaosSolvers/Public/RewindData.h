@@ -677,6 +677,12 @@ public:
 
 	int32 Capacity() const { return Managers.Capacity(); }
 
+	FReal GetDeltaTimeForFrame(int32 Frame) const
+	{
+		ensure(Managers[Frame].FrameCreatedFor == Frame);
+		return Managers[Frame].DeltaTime;
+	}
+
 	bool RewindToFrame(int32 Frame)
 	{
 		ensure(IsInGameThread());
@@ -799,9 +805,11 @@ public:
 		return EFutureQueryResult::Untracked;
 	}
 
-	void AdvanceFrame()
+	void AdvanceFrame(FReal DeltaTime)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(RewindDataAdvance);
+		Managers[CurFrame].DeltaTime = DeltaTime;
+
 		++CurFrame;
 		LatestFrame = FMath::Max(LatestFrame,CurFrame);
 		FramesSaved = FMath::Min(FramesSaved+1,static_cast<int32>(Managers.Capacity()));
@@ -1063,6 +1071,7 @@ private:
 		//A manager can have data for two frames at once, the important part is just knowing which frame it was created on so we know whether the physics data can rely on it
 		//Consider the case where nothing is dirty from GT and then an object moves from the simulation, in that case it needs a manager to record the data into
 		int32 FrameCreatedFor;
+		FReal DeltaTime;
 	};
 
 	struct FDirtyParticleInfo
