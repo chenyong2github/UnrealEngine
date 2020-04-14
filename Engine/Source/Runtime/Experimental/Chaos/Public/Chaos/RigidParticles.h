@@ -78,6 +78,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
+		TArrayCollection::AddArray(&MGravityEnabled);
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
 	CHAOS_API TRigidParticles(TRigidParticles<T, d>&& Other)
@@ -94,6 +95,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		, MCollisionParticles(MoveTemp(Other.MCollisionParticles))
 		, MCollisionGroup(MoveTemp(Other.MCollisionGroup))
 		, MObjectState(MoveTemp(Other.MObjectState))
+		, MGravityEnabled(MoveTemp(Other.MGravityEnabled))
 	{
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
@@ -113,6 +115,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
+		TArrayCollection::AddArray(&MGravityEnabled);
 	}
 
 	CHAOS_API virtual ~TRigidParticles()
@@ -176,6 +179,9 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FORCEINLINE const bool ToBeRemovedOnFracture(const int32 Index) const { return MToBeRemovedOnFracture[Index]; }
 	FORCEINLINE bool& ToBeRemovedOnFracture(const int32 Index) { return MToBeRemovedOnFracture[Index]; }
 
+	FORCEINLINE const bool& GravityEnabled(const int32 Index) const { return MGravityEnabled[Index]; }
+	FORCEINLINE bool& GravityEnabled(const int32 Index) { return MGravityEnabled[Index]; }
+
 	FORCEINLINE TArray<TSleepData<T, d>>& GetSleepData() { return MSleepData; }
 	FORCEINLINE	void AddSleepData(TGeometryParticleHandle<T, d>* Particle, bool Sleeping)
 	{ 
@@ -236,6 +242,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		}
 
 		Ar << MCollisionParticles << MCollisionGroup << MIsland << MDisabled << MObjectState;
+		//todo: add gravity enabled when we decide how we want to handle serialization
 	}
 
   private:
@@ -257,6 +264,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<bool> MDisabled;
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
+	TArrayCollectionArray<bool> MGravityEnabled;
 
 	TArray<TSleepData<T, d>> MSleepData;
 	FRWLock SleepDataLock;

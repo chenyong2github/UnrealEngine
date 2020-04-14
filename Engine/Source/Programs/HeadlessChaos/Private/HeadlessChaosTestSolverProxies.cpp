@@ -38,7 +38,7 @@ namespace ChaosTest {
 		TUniquePtr<Chaos::TPBDRigidParticle<float, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
 		Particle->SetGeometry(Sphere);
 		Particle->SetX(TVector<float, 3>(0, 0, 0));
-
+		Particle->SetGravityEnabled(false);
 		Solver->RegisterObject(Particle.Get());
 
 		Particle->SetV(TVector<float, 3>(0, 0, 10));
