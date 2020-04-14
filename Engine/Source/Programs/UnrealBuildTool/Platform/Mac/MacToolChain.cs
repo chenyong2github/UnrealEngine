@@ -1308,6 +1308,21 @@ namespace UnrealBuildTool
 			}
 		}
 
+		private List<FileItem> DebugInfoFiles = new List<FileItem>();
+
+		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
+		{
+			// Re-add any .dSYM files that may have been stripped out.
+			List<string> OutputFiles = Makefile.OutputItems.Select(Item => Path.ChangeExtension(Item.FullName, ".dSYM")).Distinct().ToList();
+			foreach (FileItem DebugItem in DebugInfoFiles)
+			{
+				if(OutputFiles.Any(Item => string.Equals(Item, DebugItem.FullName, StringComparison.InvariantCultureIgnoreCase)))
+				{
+					Makefile.OutputItems.Add(DebugItem);
+				}
+			}
+		}
+
 		public override ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
 		{
 			ICollection<FileItem> OutputFiles = base.PostBuild(Executable, BinaryLinkEnvironment, Graph);
@@ -1331,7 +1346,7 @@ namespace UnrealBuildTool
 				// We want dsyms to be created after all dylib dependencies are fixed. If FixDylibDependencies action was not created yet, save the info for later.
 				if (FixDylibOutputFile != null)
 				{
-					OutputFiles.Add(GenerateDebugInfo(Executable, BinaryLinkEnvironment, Graph));
+					DebugInfoFiles.Add(GenerateDebugInfo(Executable, BinaryLinkEnvironment, Graph));
 				}
 				else
 				{
@@ -1356,7 +1371,7 @@ namespace UnrealBuildTool
 			// Add dsyms that we couldn't add before FixDylibDependencies action was created
 			foreach (FileItem Exe in ExecutablesThatNeedDsyms)
 			{
-				OutputFiles.Add(GenerateDebugInfo(Exe, BinaryLinkEnvironment, Graph));
+				DebugInfoFiles.Add(GenerateDebugInfo(Exe, BinaryLinkEnvironment, Graph));
 			}
 			ExecutablesThatNeedDsyms.Clear();
 
