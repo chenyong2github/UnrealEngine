@@ -18,10 +18,10 @@ namespace ChaosTest {
 
     using namespace Chaos;
 
-	void TickSolverHelper(FChaosSolversModule* Module, FPhysicsSolver* Solver)
+	void TickSolverHelper(FChaosSolversModule* Module, FPhysicsSolver* Solver, FReal Dt = 1.0)
 	{
 		Solver->PushPhysicsState(Module->GetDispatcher());
-		FPhysicsSolverAdvanceTask AdvanceTask(Solver,1.0f);
+		FPhysicsSolverAdvanceTask AdvanceTask(Solver,Dt);
 		AdvanceTask.DoTask(ENamedThreads::GameThread,FGraphEventRef());
 		Solver->BufferPhysicsResults();
 		Solver->FlipBuffers();
@@ -771,6 +771,52 @@ namespace ChaosTest {
 			{
 				EXPECT_EQ(Particle->X()[2],FutureState.X()[2]);
 			}
+		}
+
+		// Throw out the proxy
+		Solver->UnregisterObject(Particle.Get());
+
+		Module->DestroySolver(Solver);
+	}
+
+	GTEST_TEST(RewindTest,DeltaTimeRecord)
+	{
+		auto Sphere = TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>(new TSphere<float,3>(TVector<float,3>(0),10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
+
+		// Make a solver
+		FPhysicsSolver* Solver = Module->CreateSolver(nullptr,ESolverFlags::Standalone);
+		Solver->SetEnabled(true);
+
+		Solver->EnableRewindCapture(7);
+
+		// Make particles
+		auto Particle = TPBDRigidParticle<float,3>::CreateParticle();
+
+		Particle->SetGeometry(Sphere);
+		Solver->RegisterObject(Particle.Get());
+		Particle->SetGravityEnabled(true);
+
+		const int LastStep = 11;
+		TArray<FReal> DTs;
+		FReal Dt = 1;
+		for(int Step = 0; Step <= LastStep; ++Step)
+		{
+			DTs.Add(Dt);
+			TickSolverHelper(Module,Solver, Dt);
+			Dt += 0.1;
+		}
+		
+		const int RewindStep = 5;
+
+		FRewindData* RewindData = Solver->GetRewindData();
+		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+
+		for(int Step = RewindStep; Step <= LastStep; ++Step)
+		{
+			EXPECT_EQ(DTs[Step],RewindData->GetDeltaTimeForFrame(Step));
 		}
 
 		// Throw out the proxy
