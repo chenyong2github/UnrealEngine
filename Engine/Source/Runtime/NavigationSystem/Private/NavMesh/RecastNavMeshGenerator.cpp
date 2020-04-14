@@ -4749,7 +4749,7 @@ void FRecastNavMeshGenerator::CalcNavMeshProperties(int32& MaxTiles, int32& MaxP
 
 	if (MaxRequestedTiles < 0 || MaxRequestedTiles > MaxTilesFromMask)
 	{
-		UE_LOG(LogNavigation, Error, TEXT("Navmesh bounds are too large! Limiting requested tiles count (%d) to: (%d)"), MaxRequestedTiles, MaxTilesFromMask);
+		UE_LOG(LogNavigation, Error, TEXT("Navmesh bounds are too large! Limiting requested tiles count (%d) to: (%d) for %s"), MaxRequestedTiles, MaxTilesFromMask, *GetFullNameSafe(DestNavMesh));
 		MaxRequestedTiles = MaxTilesFromMask;
 	}
 
