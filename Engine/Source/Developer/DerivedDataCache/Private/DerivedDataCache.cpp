@@ -284,6 +284,8 @@ public:
 		FDerivedDataBackend::Get(); // we need to make sure this starts before we all us to start
 
 		GVerifyDDC = FParse::Param(FCommandLine::Get(), TEXT("VerifyDDC"));
+
+		UE_CLOG(GVerifyDDC, LogDerivedDataCache, Display, TEXT("Items retrieved from the DDC will be verified (-VerifyDDC)"));
 	}
 
 	/** Destructor, flushes all sync tasks **/
