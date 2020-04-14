@@ -2022,7 +2022,7 @@ public:
 		MMiscData.Modify(true,MDirtyFlags,Proxy,[InDisabled](auto& Data){ Data.bDisabled = InDisabled;});
 	}*/
 
-	bool IsGravityEnabled() const { return MMiscData.Read().GravityEnabled(); }
+	bool GravityEnabled() const { return MMiscData.Read().GravityEnabled(); }
 	void SetGravityEnabled(const bool InGravityEnabled)
 	{
 		MMiscData.Modify(true,MDirtyFlags,Proxy,[InGravityEnabled](auto& Data){ Data.SetGravityEnabled (InGravityEnabled);});
@@ -2275,7 +2275,7 @@ public:
 		, MObjectState(InParticle.ObjectState())
 		//, MDisabled(InParticle.Disabled())
 		, MToBeRemovedOnFracture(InParticle.ToBeRemovedOnFracture())
-		, MGravityEnabled(InParticle.IsGravityEnabled())
+		, MGravityEnabled(InParticle.GravityEnabled())
 		, MInitialized(InParticle.IsInitialized())
 	{
 		Type = EParticleType::Rigid;
@@ -2345,7 +2345,7 @@ public:
 			MObjectState = InParticle.ObjectState();
 			//MDisabled = InParticle.Disabled();
 			MToBeRemovedOnFracture = InParticle.ToBeRemovedOnFracture();
-			MGravityEnabled = InParticle.IsGravityEnabled();
+			MGravityEnabled = InParticle.GravityEnabled();
 			MInitialized = InParticle.IsInitialized();
 			Type = EParticleType::Rigid;
 		}
