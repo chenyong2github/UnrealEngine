@@ -160,6 +160,8 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 
 	// By default use the destructible object channel unless the user specifies otherwise
 	BodyInstance.SetObjectType(ECC_Destructible);
+
+	EventDispatcher = ObjectInitializer.CreateDefaultSubobject<UChaosGameplayEventDispatcher>(this, TEXT("GameplayEventDispatcher"));
 }
 
 Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
@@ -434,57 +436,41 @@ void UGeometryCollectionComponent::RegisterForEvents()
 {
 	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions)
 	{
-		if (AChaosSolverActor* const SolverActor = GetPhysicsSolverActor())
+		if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
 		{
-			if (UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor->GetGameplayEventDispatcher())
-			{
-				if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
-				{
-					EventDispatcher->RegisterForCollisionEvents(this, this);
-				}
+			EventDispatcher->RegisterForCollisionEvents(this, this);
+			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateCollisionData(true);
+		}
 
-				if (bNotifyBreaks)
-				{
-					EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
-				}
-			}
+		if (bNotifyBreaks)
+		{
+			EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
+			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateBreakingData(true);
 		}
 	}
 }
 
 void UGeometryCollectionComponent::UpdateRBCollisionEventRegistration()
 {
-	if (AChaosSolverActor* const SolverActor = GetPhysicsSolverActor())
+	if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
 	{
-		if (UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor->GetGameplayEventDispatcher())
-		{
-			if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
-			{
-				EventDispatcher->RegisterForCollisionEvents(this, this);
-			}
-			else
-			{
-				EventDispatcher->UnRegisterForCollisionEvents(this, this);
-			}
-		}
+		EventDispatcher->RegisterForCollisionEvents(this, this);
+	}
+	else
+	{
+		EventDispatcher->UnRegisterForCollisionEvents(this, this);
 	}
 }
 
 void UGeometryCollectionComponent::UpdateBreakEventRegistration()
 {
-	if (AChaosSolverActor* const SolverActor = GetPhysicsSolverActor())
+	if (bNotifyBreaks)
 	{
-		if (UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor->GetGameplayEventDispatcher())
-		{
-			if (bNotifyBreaks)
-			{
-				EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
-			}
-			else
-			{
-				EventDispatcher->UnRegisterForBreakEvents(this);
-			}
-		}
+		EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
+	}
+	else
+	{
+		EventDispatcher->UnRegisterForBreakEvents(this);
 	}
 }
 

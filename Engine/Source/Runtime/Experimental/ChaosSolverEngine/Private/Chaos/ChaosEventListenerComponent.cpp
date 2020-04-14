@@ -16,19 +16,3 @@ void UChaosEventListenerComponent::TickComponent(float DeltaTime, enum ELevelTic
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
-const AChaosSolverActor* UChaosEventListenerComponent::GetSolverActor() const
-{
-	return GetTypedOuter<AChaosSolverActor>();
-}
-
-const Chaos::FPhysicsSolver* UChaosEventListenerComponent::GetSolver() const
-{
-	const AChaosSolverActor* A = GetSolverActor();
-	return A ? A->GetSolver() : nullptr;
-}
-
-const TSharedPtr<FPhysScene_Chaos> UChaosEventListenerComponent::GetPhysicsScene() const
-{
-	const AChaosSolverActor* A = GetSolverActor();
-	return A ? A->GetPhysicsScene() : nullptr;
-}

@@ -634,6 +634,8 @@ private:
 	TArray<bool> TransformsAreEqual;	
 	int32 TransformsAreEqualIndex;
 
+	UChaosGameplayEventDispatcher* EventDispatcher;
+
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	bool bIsTransformSelectionModeEnabled;
 #endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
