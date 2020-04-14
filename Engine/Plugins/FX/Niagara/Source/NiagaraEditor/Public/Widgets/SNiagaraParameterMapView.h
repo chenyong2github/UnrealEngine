@@ -189,6 +189,8 @@ private:
 	/** Sets bNeedsRefresh to true. Causing the list to be refreshed next tick. */
 	void RefreshActions();
 
+	void HandleGraphSubObjectSelectionChanged(const UObject* NewSelection);
+
 	/** Graph Action Menu for displaying all our variables and functions */
 	TSharedPtr<SGraphActionMenu> GraphActionMenu;
 
@@ -210,6 +212,7 @@ private:
 	/** The handle to the graph changed delegate. */
 	TArray<FDelegateHandle> OnGraphChangedHandles;
 	TArray<FDelegateHandle> OnRecompileHandles;
+	FDelegateHandle OnSubObjectSelectionChangedHandle;
 
 	EToolkitType ToolkitType;
 	TSharedPtr<FUICommandList> ToolkitCommands;
