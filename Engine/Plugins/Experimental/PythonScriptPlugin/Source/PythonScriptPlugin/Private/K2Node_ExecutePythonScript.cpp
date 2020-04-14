@@ -244,6 +244,7 @@ void UK2Node_ExecutePythonScript::ExpandNode(FKismetCompilerContext& CompilerCon
 	{
 		// Create a "Make Array" node to compile the list of arguments into an array for the Format function being called
 		UK2Node_MakeArray* MakeArrayNode = CompilerContext.SpawnIntermediateNode<UK2Node_MakeArray>(this, SourceGraph);
+		MakeArrayNode->NumInputs = ArgNames.Num();
 		MakeArrayNode->AllocateDefaultPins();
 
 		// Connect the output of the "Make Array" pin to the destination input pin
@@ -266,12 +267,6 @@ void UK2Node_ExecutePythonScript::ExpandNode(FKismetCompilerContext& CompilerCon
 			// Set the literal value to the Pythonized argument name
 			UEdGraphPin* MakeLiteralIntValuePin = MakeLiteralStringNode->FindPinChecked(TEXT("Value"), EGPD_Input);
 			MakeLiteralIntValuePin->DefaultValue = ExecutePythonScriptUtil::PythonizePinName(ArgName);
-
-			// The "Make Array" node already has one pin available, so don't create one for ArgIdx == 0
-			if (ArgIndex > 0)
-			{
-				MakeArrayNode->AddInputPin();
-			}
 
 			// Find the input pin on the "Make Array" node by index and link it to the literal string
 			UEdGraphPin* ArrayIn = MakeArrayNode->FindPinChecked(FString::Printf(TEXT("[%d]"), ArgIndex++));
