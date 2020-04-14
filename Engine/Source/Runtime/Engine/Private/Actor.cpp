@@ -304,7 +304,7 @@ void AActor::ResetOwnedComponents()
 
 			if (Component->GetIsReplicated())
 			{
-				ReplicatedComponents.AddUnique(Component);
+				ReplicatedComponents.Add(Component);
 			}
 		}
 	}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
@@ -2716,7 +2716,7 @@ void AActor::RemoveOwnedComponent(UActorComponent* Component)
 
 	if (OwnedComponents.Remove(Component) > 0)
 	{
-		ReplicatedComponents.Remove(Component);
+		ReplicatedComponents.RemoveSingleSwap(Component);
 		if (Component->IsCreatedByConstructionScript())
 		{
 			BlueprintCreatedComponents.RemoveSingleSwap(Component);
@@ -2737,14 +2737,13 @@ bool AActor::OwnsComponent(UActorComponent* Component) const
 
 void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 {
-	checkf(Component->GetOwner() == this, TEXT("UE-9568: Component %s being updated for Actor %s"), *Component->GetPathName(), *GetPathName() );
 	if (Component->GetIsReplicated())
 	{
 		ReplicatedComponents.AddUnique(Component);
 	}
 	else
 	{
-		ReplicatedComponents.Remove(Component);
+		ReplicatedComponents.RemoveSingleSwap(Component);
 	}
 }
 
