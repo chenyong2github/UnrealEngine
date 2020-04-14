@@ -1965,23 +1965,23 @@ DEFINE_FUNCTION(UPythonGeneratedClass::CallPythonFunction)
 		}
 	}
 
-	// Find the Python object to call the function on
-	FPyObjectPtr PySelf;
-	bool bSelfError = false;
-	if (!Func->HasAnyFunctionFlags(FUNC_Static))
-	{
-		FPyScopedGIL GIL;
-		PySelf = FPyObjectPtr::StealReference((PyObject*)FPyWrapperObjectFactory::Get().CreateInstance(P_THIS_OBJECT));
-		if (!PySelf)
-		{
-			UE_LOG(LogPython, Error, TEXT("Failed to create a Python wrapper for '%s'"), *P_THIS_OBJECT->GetName());
-			bSelfError = true;
-		}
-	}
-
 	// Execute Python code within this block
 	{
 		FPyScopedGIL GIL;
+
+		// Find the Python object to call the function on
+		FPyObjectPtr PySelf;
+		bool bSelfError = false;
+		if (!Func->HasAnyFunctionFlags(FUNC_Static))
+		{
+			PySelf = FPyObjectPtr::StealReference((PyObject*)FPyWrapperObjectFactory::Get().CreateInstance(P_THIS_OBJECT));
+			if (!PySelf)
+			{
+				UE_LOG(LogPython, Error, TEXT("Failed to create a Python wrapper for '%s'"), *P_THIS_OBJECT->GetName());
+				bSelfError = true;
+			}
+		}
+	
 		if (!PyGenUtil::InvokePythonCallableFromUnrealFunctionThunk(PySelf, FuncDef ? FuncDef->PyFunction.GetPtr() : nullptr, Func, Context, Stack, RESULT_PARAM) || bSelfError)
 		{
 			PyUtil::ReThrowPythonError();
