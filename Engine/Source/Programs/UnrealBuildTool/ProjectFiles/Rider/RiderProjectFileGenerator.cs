@@ -98,31 +98,42 @@ namespace UnrealBuildTool
 		{
 			using (ProgressWriter Progress = new ProgressWriter("Writing project files...", true))
 			{
-				List<ProjectFile> projectsToGenerate = new List<ProjectFile>(GeneratedProjectFiles);
+				List<ProjectFile> ProjectsToGenerate = new List<ProjectFile>(GeneratedProjectFiles);
 				if (ProjectNames.Any())
 				{
-					projectsToGenerate = projectsToGenerate.Where(it =>
+					ProjectsToGenerate = ProjectsToGenerate.Where(it =>
 						ProjectNames.Contains(it.ProjectFilePath.GetFileNameWithoutAnyExtensions())).ToList();
 				}
 
-				int TotalProjectFileCount = projectsToGenerate.Count;
+				int TotalProjectFileCount = ProjectsToGenerate.Count;
 
-				HashSet<UnrealTargetPlatform> platformsToGenerate = new HashSet<UnrealTargetPlatform>(SupportedPlatforms);
+				HashSet<UnrealTargetPlatform> PlatformsToGenerate = new HashSet<UnrealTargetPlatform>(SupportedPlatforms);
 				if (Platforms.Any())
 				{
-					platformsToGenerate.IntersectWith(Platforms);
+					PlatformsToGenerate.IntersectWith(Platforms);
 				}
 
-				HashSet<UnrealTargetConfiguration> configurationsToGenerate = new HashSet<UnrealTargetConfiguration>(SupportedConfigurations);
+				List<UnrealTargetPlatform> FilteredPlatforms = PlatformsToGenerate.Where(it =>
+				{
+					if (UEBuildPlatform.IsPlatformAvailable(it))
+						return true;
+					Log.TraceWarning(
+						"Platform {0} is not a valid platform to build. Check that the SDK is installed properly",
+						it);
+					Log.TraceWarning("Platform will be ignored in project file generation");
+					return false;
+				}).ToList();
+
+				HashSet<UnrealTargetConfiguration> ConfigurationsToGenerate = new HashSet<UnrealTargetConfiguration>(SupportedConfigurations);
 				if (TargetConfigurations.Any())
 				{
-					configurationsToGenerate.IntersectWith(TargetConfigurations);
+					ConfigurationsToGenerate.IntersectWith(TargetConfigurations);
 				}
 
-				for (int ProjectFileIndex = 0; ProjectFileIndex < projectsToGenerate.Count; ++ProjectFileIndex)
+				for (int ProjectFileIndex = 0; ProjectFileIndex < ProjectsToGenerate.Count; ++ProjectFileIndex)
 				{
-					ProjectFile CurProject = projectsToGenerate[ProjectFileIndex];
-					if (!CurProject.WriteProjectFile(platformsToGenerate.ToList(), configurationsToGenerate.ToList(),
+					ProjectFile CurProject = ProjectsToGenerate[ProjectFileIndex];
+					if (!CurProject.WriteProjectFile(FilteredPlatforms, ConfigurationsToGenerate.ToList(),
 						PlatformProjectGenerators))
 					{
 						return false;
