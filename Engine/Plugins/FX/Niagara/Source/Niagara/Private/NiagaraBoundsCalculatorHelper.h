@@ -24,38 +24,38 @@ public:
 
 		if (DataSet.HasVariable(PositionName))
 		{
-			PositionAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>(DataSet, PositionName);
+			PositionAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>(DataSet, PositionName);
 		}
 		else
 		{
-			PositionAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>();
+			PositionAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>();
 		}
 
 		if (bUsedWithSprites && DataSet.HasVariable(SpriteSizeName))
 		{
-			SpriteSizeAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2>(DataSet, SpriteSizeName);
+			SpriteSizeAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector2D>>(DataSet, SpriteSizeName);
 		}
 		else
 		{
-			SpriteSizeAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2>();
+			SpriteSizeAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector2D>>();
 		}
 
 		if (bUsedWithMeshes && DataSet.HasVariable(ScaleName))
 		{
-			ScaleAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>(DataSet, ScaleName);
+			ScaleAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>(DataSet, ScaleName);
 		}
 		else
 		{
-			ScaleAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3>();
+			ScaleAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>();
 		}
 
 		if (bUsedWithRibbons && DataSet.HasVariable(RibbonWidthName))
 		{
-			RibbonWidthAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>(DataSet, RibbonWidthName);
+			RibbonWidthAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(DataSet, RibbonWidthName);
 		}
 		else
 		{
-			RibbonWidthAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat>();
+			RibbonWidthAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>();
 		}
 	}
 
@@ -137,9 +137,9 @@ public:
 		return FBox(PositionMin, PositionMax).ExpandBy(MaxSize);
 	}
 
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> PositionAccessor;
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf2OrFloat2> SpriteSizeAccessor;
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalf3OrFloat3> ScaleAccessor;
-	FNiagaraDataSetAccessor<FNiagaraDataConversions::FHalfOrFloat> RibbonWidthAccessor;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> PositionAccessor;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector2D>> SpriteSizeAccessor;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> ScaleAccessor;
+	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> RibbonWidthAccessor;
 	const FVector MeshExtents = FVector::OneVector;
 };
