@@ -118,9 +118,8 @@ void AFunctionalAITest::OnTimeout()
 		const FVector TransformedOrigin = GetTransform().TransformPosition(NavMeshDebugOrigin);
 		const FBox DebugBounds = FBox::BuildAABB(TransformedOrigin, NavMeshDebugExtent);
 
-		for (FNavigationOctree::TConstElementBoxIterator<FNavigationOctree::DefaultStackAllocator> It(*NavigationOctree, DebugBounds); It.HasPendingElements(); It.Advance())
+		NavigationOctree->IterateElementsWithBoundsTest(DebugBounds, [&AreaFilter, &Navmesh](const FNavigationOctreeElement& Element)
 		{
-			const FNavigationOctreeElement& Element = It.GetCurrentElement();
 			if (Element.IsMatchingFilter(AreaFilter))
 			{
 				const FCompositeNavModifier NavModifier = Element.GetModifierForAgent(&Navmesh->GetConfig());
@@ -135,7 +134,7 @@ void AFunctionalAITest::OnTimeout()
 
 				UE_LOG(LogFunctionalTest, Log, TEXT("> modifier, owner:%s areas:%s"), *GetNameSafe(Element.GetOwner()), *DebugAreaNames);
 			}
-		}
+		});
 	}
 
 	Super::OnTimeout();
