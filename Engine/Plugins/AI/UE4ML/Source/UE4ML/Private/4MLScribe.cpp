@@ -1,0 +1,86 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "4MLScribe.h"
+#include "4MLManager.h"
+#include "4MLLibrarian.h"
+
+#define FSTRING_TO_STD(a) (std::string(TCHAR_TO_UTF8(*a)))
+
+namespace F4MLScribe
+{
+	std::vector<std::string> ToStringVector(const TArray<FString>& Array)
+	{
+		std::vector<std::string> Ret;
+		Ret.reserve(Array.Num());
+		for (auto String : Array)
+		{
+			Ret.push_back(FSTRING_TO_STD(String));
+		}
+		return Ret;
+	}
+
+	std::vector<std::string> ToStringVector(const TArray<FName>& Array)
+	{
+		std::vector<std::string> Ret;
+		Ret.reserve(Array.Num());
+		for (auto Name : Array)
+		{
+			Ret.push_back(FSTRING_TO_STD(Name.ToString()));
+		}
+		return Ret;
+	}
+
+	std::vector<std::string> ListFunctions()
+	{
+		std::vector<std::string> Ret;
+		for (auto It = U4MLManager::Get().GetAvailableClientFunctionsIterator(); It; ++It)
+		{
+			Ret.push_back(FSTRING_TO_STD(It->Key.ToString()));
+		}
+		for (auto It = U4MLManager::Get().GetAvailableServerFunctionsIterator(); It; ++It)
+		{
+			Ret.push_back(FSTRING_TO_STD(It->Key.ToString()));
+		}
+		return Ret;
+	}
+
+	std::map<std::string, uint32> ListSensorTypes()
+	{
+		std::map<std::string, uint32> Ret;
+
+		const F4MLLibrarian& Librarian = U4MLManager::Get().GetLibrarian();
+		for (auto It = Librarian.GetSensorsIterator(); It; ++It)
+		{
+			Ret[FSTRING_TO_STD(It->Value->GetName())] = It->Key;
+		}
+
+		return Ret;
+	}
+
+	std::map<std::string, uint32> ListActuatorTypes() 
+	{
+		std::map<std::string, uint32> Ret;
+
+		const F4MLLibrarian& Librarian = U4MLManager::Get().GetLibrarian();
+		for (auto It = Librarian.GetActuatorsIterator(); It; ++It)
+		{
+			Ret[FSTRING_TO_STD(It->Value->GetName())] = It->Key;
+		}
+
+		return Ret;
+	}
+
+	std::string GetDescription(std::string const& ElementName)
+	{
+		const F4MLLibrarian& Librarian = U4MLManager::Get().GetLibrarian();
+		FString AsFString(ElementName.c_str());
+		FString Description = TEXT("Not Found");
+
+		if (Librarian.GetFunctionDescription(AsFString, Description))
+		{
+			return FSTRING_TO_STD(Description);
+		}
+
+		return FSTRING_TO_STD(Description);
+	}
+}
