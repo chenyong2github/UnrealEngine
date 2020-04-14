@@ -441,7 +441,7 @@ public:
 	void EnsureBlueprintIsUpToDate(UBlueprint* BlueprintObj);
 
 	// Should be called when initializing any editor built off this foundation
-	void CommonInitialization(const TArray<UBlueprint*>& InitBlueprints);
+	void CommonInitialization(const TArray<UBlueprint*>& InitBlueprints, bool bShouldOpenInDefaultsMode);
 
 	// Should be called when initializing an editor that has a blueprint, after layout (tab spawning) is done
 	void PostLayoutBlueprintEditorInitialization();
