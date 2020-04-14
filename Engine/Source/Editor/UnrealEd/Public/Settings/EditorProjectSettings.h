@@ -158,7 +158,7 @@ public:
 };
 
 
-UCLASS(config=Editor, meta=(DisplayName="Blueprints"), defaultconfig)
+UCLASS(config=Editor, meta=(DisplayName="Blueprint Project Settings"), defaultconfig)
 class UNREALED_API UBlueprintEditorProjectSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
@@ -191,5 +191,9 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category= Blueprints, DisplayName = "Compiler Messages Disabled Entirely")
 	TArray<FName> DisabledCompilerMessages;
+
+	// The list of namespaces to always expose in any Blueprint (for all users of the game/project)
+	UPROPERTY(EditAnywhere, config, Category=Experimental)
+	TArray<FString> NamespacesToAlwaysInclude;
 };
 

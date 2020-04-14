@@ -139,6 +139,7 @@
 #include "AnimationTransitionGraph.h"
 #include "BlueprintEditorModes.h"
 #include "BlueprintEditorSettings.h"
+#include "Settings/EditorProjectSettings.h"
 #include "K2Node_SwitchString.h"
 #include "AnimGraphNode_StateMachineBase.h"
 #include "AnimationStateMachineGraph.h"
@@ -1737,7 +1738,7 @@ struct FBlueprintNamespaceHelper
 	FBlueprintNamespaceHelper()
 	{
 		AddNamespaces(GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude);
-		AddNamespaces(GetDefault<UBlueprintProjectSettings>()->NamespacesToAlwaysInclude);
+		AddNamespaces(GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude);
 	}
 
 	
