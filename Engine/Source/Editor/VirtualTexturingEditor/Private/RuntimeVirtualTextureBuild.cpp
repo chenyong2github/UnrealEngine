@@ -121,13 +121,12 @@ namespace RuntimeVirtualTexture
 			return false;
 		}
 
-		URuntimeVirtualTexture* RuntimeVirtualTexture = InComponent->GetVirtualTexture();
-		if (RuntimeVirtualTexture == nullptr)
+		if (InComponent->GetVirtualTexture() == nullptr || InComponent->GetStreamingTexture() == nullptr)
 		{
 			return false;
 		}
 
-		if (RuntimeVirtualTexture->GetStreamLowMips() <= 0)
+		if (InComponent->GetStreamLowMips() <= 0)
 		{
 			return false;
 		}
@@ -156,7 +155,7 @@ namespace RuntimeVirtualTexture
 		const int32 TextureSizeX = VTDesc.WidthInBlocks * VTDesc.BlockWidthInTiles * TileSize;
 		const int32 TextureSizeY = VTDesc.HeightInBlocks * VTDesc.BlockHeightInTiles * TileSize;
 		const int32 MaxLevel = (int32)FMath::CeilLogTwo(FMath::Max(VTDesc.BlockWidthInTiles, VTDesc.BlockHeightInTiles));
-		const int32 RenderLevel = FMath::Max(MaxLevel - RuntimeVirtualTexture->GetStreamLowMips() + 1, 0);
+		const int32 RenderLevel = FMath::Max(MaxLevel - InComponent->GetStreamLowMips() + 1, 0);
 		const int32 ImageSizeX = FMath::Max(TileSize, TextureSizeX >> RenderLevel);
 		const int32 ImageSizeY = FMath::Max(TileSize, TextureSizeY >> RenderLevel);
 		const int32 NumTilesX = ImageSizeX / TileSize;
@@ -276,7 +275,8 @@ namespace RuntimeVirtualTexture
 			}
 		}
 
-		ReleaseResourceAndFlush(&RenderTileResources);
+		BeginReleaseResource(&RenderTileResources);
+		FlushRenderingCommands();
 
 		if (Task.ShouldCancel())
 		{
@@ -285,9 +285,8 @@ namespace RuntimeVirtualTexture
 
 		// Place final pixel data into the runtime virtual texture
 		Task.EnterProgressFrame(TaskWorkBuildBulkData);
-		RuntimeVirtualTexture->Modify();
-		RuntimeVirtualTexture->InitializeStreamingTexture(ImageSizeX, ImageSizeY, (uint8*)FinalPixels.GetData());
-		RuntimeVirtualTexture->PostEditChange();
+
+		InComponent->InitializeStreamingTexture(ImageSizeX, ImageSizeY, (uint8*)FinalPixels.GetData());
 
 		return true;
 	}
