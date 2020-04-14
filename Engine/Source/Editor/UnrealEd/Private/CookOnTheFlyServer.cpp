@@ -7352,6 +7352,7 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 	{
 		PlatformNames += Target->PlatformName() + TEXT(" ");
 	}
+	PlatformNames.TrimEndInline();
 	UE_LOG(LogCook, Display, TEXT("Sandbox cleanup took %5.3f seconds for platforms %s"), CleanSandboxTime, *PlatformNames);
 #endif
 }
