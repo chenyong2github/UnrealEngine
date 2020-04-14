@@ -1,0 +1,69 @@
+# Copyright Epic Games, Inc. All Rights Reserved.
+
+import socket
+import json
+import msgpackrpc
+import argparse
+from collections import OrderedDict
+
+LOCALHOST = '127.0.0.1'
+DEFAULT_PORT = 15151 
+
+def dict_from_json(data):
+    if type(data) == bytes:
+        data = data.decode('utf8')
+    if type(data) == str:
+        # using OrderedDict to retain items order 
+        data = json.loads(data, object_pairs_hook=OrderedDict)
+        if type(data) == OrderedDict:
+            for key in data:
+                data[key] = dict_from_json(data[key])
+    return data
+
+
+def connect(server_address=LOCALHOST, server_port=DEFAULT_PORT):
+    return msgpackrpc.Client(msgpackrpc.Address(server_address, server_port))
+
+
+def is_port_available(server, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex((server, port)) != 0
+
+
+def random_action(env):
+    return env.action_space.sample()
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    def __init__(self, **kwargs):
+        super().__init__(kwargs)
+        self.add_argument('--nothreads', type=int, default=0)
+        self.add_argument('--norendering', type=int, default=0)
+        self.add_argument('--nosound', type=int, default=0)
+        self.add_argument('--resx', type=int, default=800)
+        self.add_argument('--resy', type=int, default=600)
+        self.add_argument('--exec', type=str, default=None)
+
+    def parse_args(self, **kwargs):
+        args = super().parse_args(**kwargs)
+
+        if args.exec is not None:
+            from ue4ml.runner import set_executable
+            set_executable(args.exec)
+
+        return args
+
+
+def draw_img(img, colormap=lambda x: x):
+    import matplotlib.pyplot as plt
+    from matplotlib.pyplot import show, imshow, colorbar
+    import numpy as np
+    plt.figure()
+    plt.axis('off')
+    if np.min(img) < 0:
+        img = img * 0.5 + 0.5
+    imshow(colormap(np.asarray(img)))
+    imshow(img)
+    colorbar()
+    show()
+    
