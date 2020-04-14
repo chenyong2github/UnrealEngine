@@ -37,18 +37,20 @@ void HZBTestPS(float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
 	// Screen rect from bounds
 	float3 RectMin = float3( 1, 1, 1 );
 	float3 RectMax = float3( -1, -1, -1 );
-	UNROLL for( int i = 0; i < 8; i++ )
 	{
-		float3 PointSrc;
-		PointSrc.x = Bounds[ (i >> 0) & 1 ].x;
-		PointSrc.y = Bounds[ (i >> 1) & 1 ].y;
-		PointSrc.z = Bounds[ (i >> 2) & 1 ].z;
+		UNROLL for( int i = 0; i < 8; i++ )
+		{
+			float3 PointSrc;
+			PointSrc.x = Bounds[ (i >> 0) & 1 ].x;
+			PointSrc.y = Bounds[ (i >> 1) & 1 ].y;
+			PointSrc.z = Bounds[ (i >> 2) & 1 ].z;
 
-		float4 PointClip = mul( float4( PointSrc, 1 ), View.TranslatedWorldToClip );
-		float3 PointScreen = PointClip.xyz / PointClip.w;
+			float4 PointClip = mul( float4( PointSrc, 1 ), View.TranslatedWorldToClip );
+			float3 PointScreen = PointClip.xyz / PointClip.w;
 
-		RectMin = min( RectMin, PointScreen );
-		RectMax = max( RectMax, PointScreen );
+			RectMin = min( RectMin, PointScreen );
+			RectMax = max( RectMax, PointScreen );
+		}
 	}
 
 #if 0
@@ -194,15 +196,17 @@ void HZBTestPS(float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
 	float2 Bias = HZBUvFactor.xy * Rect.xy;
 
 	float4 MinDepth = 1;
-	UNROLL for( int i = 0; i < 4; i++ )
 	{
-		// TODO could vectorize this
-		float4 Depth;
-		Depth.x = HZBTexture.SampleLevel( HZBSampler, float2( i, 0 ) * Scale + Bias, Level ).r;
-		Depth.y = HZBTexture.SampleLevel( HZBSampler, float2( i, 1 ) * Scale + Bias, Level ).r;
-		Depth.z = HZBTexture.SampleLevel( HZBSampler, float2( i, 2 ) * Scale + Bias, Level ).r;
-		Depth.w = HZBTexture.SampleLevel( HZBSampler, float2( i, 3 ) * Scale + Bias, Level ).r;
-		MinDepth = min( MinDepth, Depth );
+		UNROLL for( int i = 0; i < 4; i++ )
+		{
+			// TODO could vectorize this
+			float4 Depth;
+			Depth.x = HZBTexture.SampleLevel( HZBSampler, float2( i, 0 ) * Scale + Bias, Level ).r;
+			Depth.y = HZBTexture.SampleLevel( HZBSampler, float2( i, 1 ) * Scale + Bias, Level ).r;
+			Depth.z = HZBTexture.SampleLevel( HZBSampler, float2( i, 2 ) * Scale + Bias, Level ).r;
+			Depth.w = HZBTexture.SampleLevel( HZBSampler, float2( i, 3 ) * Scale + Bias, Level ).r;
+			MinDepth = min( MinDepth, Depth );
+		}
 	}
 	MinDepth.x = min( min(MinDepth.x, MinDepth.y), min(MinDepth.z, MinDepth.w) );
 
