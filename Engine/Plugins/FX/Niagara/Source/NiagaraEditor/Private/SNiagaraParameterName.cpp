@@ -16,6 +16,7 @@ void SNiagaraParameterName::Construct(const FArguments& InArgs)
 	ReadOnlyTextStyle = InArgs._ReadOnlyTextStyle;
 	ParameterName = InArgs._ParameterName;
 	bIsReadOnly = InArgs._IsReadOnly;
+	SingleNameDisplayMode = InArgs._SingleNameDisplayMode;
 	HighlightText = InArgs._HighlightText;
 	OnVerifyNameChangeDelegate = InArgs._OnVerifyNameChange;
 	OnNameChangedDelegate = InArgs._OnNameChanged;
@@ -85,78 +86,81 @@ void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName)
 
 	TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
 
-	// Add the namespace widget.
-	FNiagaraNamespaceMetadata DefaultNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({ NAME_None });
-	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(NameParts);
-	TSharedPtr<SWidget> NamespaceWidget;
-	if (NamespaceMetadata.IsValid())
+	if (NameParts.Num() > 1 || SingleNameDisplayMode == ESingleNameDisplayMode::Namespace)
 	{
-		NameParts.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
-		NamespaceWidget = CreateNamespaceWidget(
-			NamespaceMetadata.DisplayName.ToUpper(), NamespaceMetadata.Description,
-			NamespaceMetadata.BackgroundColor, NamespaceMetadata.ForegroundStyle);
-	}
-	else
-	{
-		FText NamespaceDisplayName = FText::FromString(FName::NameToDisplayString(NameParts[0].ToString(), false).ToUpper());
-		NameParts.RemoveAt(0);
-		NamespaceWidget = CreateNamespaceWidget(
-			NamespaceDisplayName, DefaultNamespaceMetadata.Description,
-			DefaultNamespaceMetadata.BackgroundColor, DefaultNamespaceMetadata.ForegroundStyle);
-	}
-
-	ContentBox->AddSlot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(0.0f, 0.0f, 5.0f, 0.0f)
-		[
-			NamespaceWidget.ToSharedRef()
-		];
-
-	// Next the namespace modifier widget if there is a namespace modifier.
-	if (NameParts.Num() > 1)
-	{
-		DisplayedNamespaceModifier = NameParts[0];
-		FNiagaraNamespaceMetadata DisplayedNamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(DisplayedNamespaceModifier);
-		if (DisplayedNamespaceModifierMetadata.IsValid() == false)
+		// Add the namespace widget.
+		FNiagaraNamespaceMetadata DefaultNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({ NAME_None });
+		FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(NameParts);
+		TSharedPtr<SWidget> NamespaceWidget;
+		if (NamespaceMetadata.IsValid())
 		{
-			DisplayedNamespaceModifierMetadata = DefaultNamespaceMetadata;
+			NameParts.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
+			NamespaceWidget = CreateNamespaceWidget(
+				NamespaceMetadata.DisplayName.ToUpper(), NamespaceMetadata.Description,
+				NamespaceMetadata.BackgroundColor, NamespaceMetadata.ForegroundStyle);
+		}
+		else
+		{
+			FText NamespaceDisplayName = FText::FromString(FName::NameToDisplayString(NameParts[0].ToString(), false).ToUpper());
+			NameParts.RemoveAt(0);
+			NamespaceWidget = CreateNamespaceWidget(
+				NamespaceDisplayName, DefaultNamespaceMetadata.Description,
+				DefaultNamespaceMetadata.BackgroundColor, DefaultNamespaceMetadata.ForegroundStyle);
 		}
 
-		NameParts.RemoveAt(0);
-		NamespaceModifierBorder = CreateNamespaceWidget(
-			FText::FromString(FName::NameToDisplayString(DisplayedNamespaceModifier.ToString(), false).ToUpper()), DisplayedNamespaceModifierMetadata.Description,
-			DisplayedNamespaceModifierMetadata.BackgroundColor, DisplayedNamespaceModifierMetadata.ForegroundStyle);
-
 		ContentBox->AddSlot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(0.0f, 0.0f, 5.0f, 0.0f)
 			[
-				NamespaceModifierBorder.ToSharedRef()
+				NamespaceWidget.ToSharedRef()
 			];
-	}
-	else
-	{
-		DisplayedNamespaceModifier = NAME_None;
-		NamespaceModifierBorder.Reset();
-	}
 
-	// If there are extra namespaces found, add them to the UI without metadata.
-	while (NameParts.Num() > 1)
-	{
-		FName ExtraNamespace = NameParts[0];
-		NameParts.RemoveAt(0);
+		// Next the namespace modifier widget if there is a namespace modifier.
+		if (NameParts.Num() > 1)
+		{
+			DisplayedNamespaceModifier = NameParts[0];
+			FNiagaraNamespaceMetadata DisplayedNamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(DisplayedNamespaceModifier);
+			if (DisplayedNamespaceModifierMetadata.IsValid() == false)
+			{
+				DisplayedNamespaceModifierMetadata = DefaultNamespaceMetadata;
+			}
 
-		ContentBox->AddSlot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(0.0f, 0.0f, 5.0f, 0.0f)
-			[
-				CreateNamespaceWidget(
-					FText::FromString(FName::NameToDisplayString(ExtraNamespace.ToString(), false).ToUpper()), DefaultNamespaceMetadata.Description,
-					DefaultNamespaceMetadata.BackgroundColor, DefaultNamespaceMetadata.ForegroundStyle)
-			];
+			NameParts.RemoveAt(0);
+			NamespaceModifierBorder = CreateNamespaceWidget(
+				FText::FromString(FName::NameToDisplayString(DisplayedNamespaceModifier.ToString(), false).ToUpper()), DisplayedNamespaceModifierMetadata.Description,
+				DisplayedNamespaceModifierMetadata.BackgroundColor, DisplayedNamespaceModifierMetadata.ForegroundStyle);
+
+			ContentBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+				[
+					NamespaceModifierBorder.ToSharedRef()
+				];
+		}
+		else
+		{
+			DisplayedNamespaceModifier = NAME_None;
+			NamespaceModifierBorder.Reset();
+		}
+
+		// If there are extra namespaces found, add them to the UI without metadata.
+		while (NameParts.Num() > 1)
+		{
+			FName ExtraNamespace = NameParts[0];
+			NameParts.RemoveAt(0);
+
+			ContentBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+				[
+					CreateNamespaceWidget(
+						FText::FromString(FName::NameToDisplayString(ExtraNamespace.ToString(), false).ToUpper()), DefaultNamespaceMetadata.Description,
+						DefaultNamespaceMetadata.BackgroundColor, DefaultNamespaceMetadata.ForegroundStyle)
+				];
+		}
 	}
 
 	TSharedPtr<SWidget> NameWidget;

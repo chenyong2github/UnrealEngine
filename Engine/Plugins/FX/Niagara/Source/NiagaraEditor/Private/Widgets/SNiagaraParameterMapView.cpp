@@ -442,7 +442,7 @@ void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable, bool b
 			TArray<FName> Namespaces;
 			NiagaraParameterMapSectionID::OnGetSectionNamespaces(SectionID, Namespaces);
 			FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(Namespaces);
-			if (NamespaceMetadata.IsValid() && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditing) == false)
+			if (NamespaceMetadata.IsValid() && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName) == false)
 			{
 				GraphActionMenu->OnRequestRenameOnActionNode();
 			}
@@ -1172,7 +1172,7 @@ FText SNiagaraParameterMapView::GetRenameOnActionNodeToolTip() const
 	if (GetSingleParameterActionForSelection(ParameterAction, ErrorMessage) &&
 		FNiagaraParameterUtilities::GetNamespaceEditData(ParameterAction->GetParameter().GetName(), ParameterHandle, NamespaceMetadata, ErrorMessage))
 	{
-		if (NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditing))
+		if (NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName))
 		{	
 			return LOCTEXT("RenamingNotSupported", "The namespace for this parameter doesn't support renaming.");
 		}
@@ -1203,7 +1203,7 @@ bool SNiagaraParameterMapView::CanRequestRenameOnActionNode() const
 	if (GetSingleParameterActionForSelection(ParameterAction, Unused) &&
 		FNiagaraParameterUtilities::GetNamespaceEditData(ParameterAction->GetParameter().GetName(), ParameterHandle, NamespaceMetadata, Unused))
 	{
-		bool bPreventRenameing = NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditing);
+		bool bPreventRenameing = NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName);
 		return bPreventRenameing == false;
 	}
 	else 
