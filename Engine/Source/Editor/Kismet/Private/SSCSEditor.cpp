@@ -79,6 +79,8 @@
 #include "Dialogs/Dialogs.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include "Logging/MessageLog.h"
+
 #define LOCTEXT_NAMESPACE "SSCSEditor"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSCSEditor, Log, All);
