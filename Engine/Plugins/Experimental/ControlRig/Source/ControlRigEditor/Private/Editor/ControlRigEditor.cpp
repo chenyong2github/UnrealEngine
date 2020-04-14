@@ -195,7 +195,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 	InControlRigBlueprint->InitializeModelIfRequired();
 
-	CommonInitialization(ControlRigBlueprints);
+	CommonInitialization(ControlRigBlueprints, false);
 
 	for (UBlueprint* Blueprint : ControlRigBlueprints)
 	{
