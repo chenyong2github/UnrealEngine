@@ -20,27 +20,27 @@ public:
 
 	/** Default constructor. */
 	FOctreeElementId()
-		:	Node(NULL)
+		:	NodeIndex(INDEX_NONE)
 		,	ElementIndex(INDEX_NONE)
 	{}
 
 	/** @return a boolean value representing whether the id is NULL. */
 	bool IsValidId() const
 	{
-		return Node != NULL;
+		return NodeIndex != INDEX_NONE;
 	}
 
 private:
 
 	/** The node the element is in. */
-	const void* Node;
+	uint32 NodeIndex;
 
 	/** The index of the element in the node's element array. */
 	int32 ElementIndex;
 
 	/** Initialization constructor. */
-	FOctreeElementId(const void* InNode,int32 InElementIndex)
-		:	Node(InNode)
+	FOctreeElementId(uint32 InNodeIndex, int32 InElementIndex)
+		:	NodeIndex(InNodeIndex)
 		,	ElementIndex(InElementIndex)
 	{}
 

@@ -144,6 +144,7 @@ public:
 	FOctreeChildNodeRef(int32 InIndex = 0)
 	:	Index(InIndex)
 	{
+		checkSlow(Index < 8);
 		// some compilers do not allow multiple members of a union to be specified in the constructor init list
 		bNULL = false;
 	}
@@ -279,60 +280,47 @@ public:
 		ChildCenterOffset = Bounds.Extent.X - LooseChildExtent;
 	}
 
-	/** the float table {-1.0f,1.0f} **/
-	static CORE_API const float NegativeOneOneTable[2];
+	inline VectorRegister GetChildOffsetVec(int i) const
+	{
+		union { VectorRegister v; VectorRegisterInt i; } Mask;
+		Mask.v = MakeVectorRegister(1u, 2u, 4u, 8u);
+		VectorRegisterInt X = VectorIntLoad1(&i);
+		VectorRegisterInt A = VectorIntAnd(X, Mask.i);
+		Mask.i = VectorIntCompareEQ(Mask.i, A);
+		return VectorSelect(Mask.v, VectorSetFloat1(ChildCenterOffset), VectorSetFloat1(-ChildCenterOffset));
+	}
 
 	/** Child node initialization constructor. */
-	FORCEINLINE FOctreeNodeContext GetChildContext(FOctreeChildNodeRef ChildRef) const
+	inline FOctreeNodeContext GetChildContext(FOctreeChildNodeRef ChildRef) const
 	{
-		return FOctreeNodeContext(FBoxCenterAndExtent(
-			FVector(
-			Bounds.Center.X + ChildCenterOffset * NegativeOneOneTable[ChildRef.X],
-			Bounds.Center.Y + ChildCenterOffset * NegativeOneOneTable[ChildRef.Y],
-			Bounds.Center.Z + ChildCenterOffset * NegativeOneOneTable[ChildRef.Z]
-			),
-			FVector(
-			ChildExtent,
-			ChildExtent,
-			ChildExtent
-			)
-			));
+		FBoxCenterAndExtent LocalBounds;
+		VectorRegister ZeroW = MakeVectorRegister(1.0f, 1.0f, 1.0f, 0.0f);
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorAdd(VectorLoadAligned(&Bounds.Center), GetChildOffsetVec(ChildRef.Index))), &LocalBounds.Center);
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorSetFloat1(ChildExtent)), &LocalBounds.Extent);
+		return FOctreeNodeContext(LocalBounds);
 	}
 
 	/** Construct a child context given the child ref. Optimized to remove all LHS. */
-	FORCEINLINE void GetChildContext(FOctreeChildNodeRef ChildRef, FOctreeNodeContext * RESTRICT ChildContext) const
+	inline void GetChildContext(FOctreeChildNodeRef ChildRef, FOctreeNodeContext* ChildContext) const
 	{
-		const FOctreeNodeContext* RESTRICT ParentContext = this;
-		ChildContext->Bounds.Center.X = ParentContext->Bounds.Center.X + ParentContext->ChildCenterOffset * NegativeOneOneTable[ChildRef.X];
-		ChildContext->Bounds.Center.Y = ParentContext->Bounds.Center.Y + ParentContext->ChildCenterOffset * NegativeOneOneTable[ChildRef.Y];
-		ChildContext->Bounds.Center.Z = ParentContext->Bounds.Center.Z + ParentContext->ChildCenterOffset * NegativeOneOneTable[ChildRef.Z];
-		ChildContext->Bounds.Center.W = 0.0f;
-		ChildContext->Bounds.Extent.X = ParentContext->ChildExtent;
-		ChildContext->Bounds.Extent.Y = ParentContext->ChildExtent;
-		ChildContext->Bounds.Extent.Z = ParentContext->ChildExtent;
-		ChildContext->Bounds.Extent.W = 0.0f;
+		VectorRegister ZeroW = MakeVectorRegister(1.0f, 1.0f, 1.0f, 0.0f);
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorAdd(VectorLoadAligned(&Bounds.Center), GetChildOffsetVec(ChildRef.Index))), &ChildContext->Bounds.Center);
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorSetFloat1(ChildExtent)), &ChildContext->Bounds.Extent);
 
-		const float TightChildExtent = ParentContext->ChildExtent * 0.5f;
+		const float TightChildExtent = ChildExtent * 0.5f;
 		const float LooseChildExtent = TightChildExtent * (1.0f + 1.0f / (float)LoosenessDenominator);
 		ChildContext->ChildExtent = LooseChildExtent;
-		ChildContext->ChildCenterOffset = ParentContext->ChildExtent - LooseChildExtent;
+		ChildContext->ChildCenterOffset = ChildExtent - LooseChildExtent;
 	}
 	
 	/** Child node initialization constructor. */
-	FORCEINLINE FOctreeNodeContext GetChildContext(FOctreeChildNodeRef ChildRef, uint32 InInCullBits, uint32 InOutCullBits) const
+	inline FOctreeNodeContext GetChildContext(FOctreeChildNodeRef ChildRef, uint32 InInCullBits, uint32 InOutCullBits) const
 	{
-		return FOctreeNodeContext(FBoxCenterAndExtent(
-			FVector(
-			Bounds.Center.X + ChildCenterOffset * NegativeOneOneTable[ChildRef.X],
-			Bounds.Center.Y + ChildCenterOffset * NegativeOneOneTable[ChildRef.Y],
-			Bounds.Center.Z + ChildCenterOffset * NegativeOneOneTable[ChildRef.Z]
-			),
-			FVector(
-			ChildExtent,
-			ChildExtent,
-			ChildExtent
-			)
-			),InInCullBits,InOutCullBits);
+		FBoxCenterAndExtent LocalBounds;
+		VectorRegister ZeroW = MakeVectorRegister(1.0f, 1.0f, 1.0f, 0.0f);
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorAdd(VectorLoadAligned(&Bounds.Center), GetChildOffsetVec(ChildRef.Index))), &LocalBounds.Center);
+		VectorStoreAligned(VectorMultiply(ZeroW, VectorSetFloat1(ChildExtent)), &LocalBounds.Extent);
+		return FOctreeNodeContext(LocalBounds, InInCullBits, InOutCullBits);
 	}
 	/**
 	 * Determines which of the octree node's children intersect with a bounding box.
@@ -350,367 +338,557 @@ public:
 	FOctreeChildNodeRef GetContainingChild(const FBoxCenterAndExtent& BoundingBox) const;
 };
 
+CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogGenericOctree, Log, All);
+
 /** An octree. */
 template<typename ElementType,typename OctreeSemantics>
 class TOctree
 {
+	using ElementArrayType = TArray<ElementType, typename OctreeSemantics::ElementAllocator>;
 public:
+	using FNodeIndex = uint32;
 
-	typedef TArray<ElementType, typename OctreeSemantics::ElementAllocator> ElementArrayType;
-	typedef typename ElementArrayType::TConstIterator ElementConstIt;
-
-	/** A node in the octree. */
-	class FNode
+private:
+	struct FNode
 	{
-	public:
+		FNodeIndex ChildNodes = INDEX_NONE;
+		uint32 InclusiveNumElements = 0;
 
-		friend class TOctree;
-
-		/** Initialization constructor. */
-		explicit FNode(const FNode* InParent)
-		:	Parent(InParent)
-		,	InclusiveNumElements(0)
-		,	bIsLeaf(true)
+		bool IsLeaf() const
 		{
-			FOREACH_OCTREE_CHILD_NODE(ChildRef)
-			{
-				Children[ChildRef.Index] = NULL;
-			}
+			return ChildNodes == INDEX_NONE;
 		}
-
-		/** Destructor. */
-		~FNode()
-		{
-			FOREACH_OCTREE_CHILD_NODE(ChildRef)
-			{
-				delete Children[ChildRef.Index];
-			}
-		}
-
-		// Accessors.
-		FORCEINLINE ElementConstIt GetElementIt() const { return ElementConstIt(Elements); }
-		FORCEINLINE bool IsLeaf() const { return bIsLeaf; }
-		FORCEINLINE bool HasChild(FOctreeChildNodeRef ChildRef) const
-		{
-			return Children[ChildRef.Index] != NULL && Children[ChildRef.Index]->InclusiveNumElements > 0;
-		}
-		FORCEINLINE FNode* GetChild(FOctreeChildNodeRef ChildRef) const
-		{
-			return Children[ChildRef.Index];
-		}
-		FORCEINLINE int32 GetElementCount() const
-		{
-			return Elements.Num();
-		}
-		FORCEINLINE int32 GetInclusiveElementCount() const
-		{
-			return InclusiveNumElements;
-		}
-		FORCEINLINE const ElementArrayType& GetElements() const
-		{
-			return Elements;
-		}
-		void ShrinkElements()
-		{
-			Elements.Shrink();
-			FOREACH_OCTREE_CHILD_NODE(ChildRef)
-			{
-				if (Children[ChildRef.Index])
-				{
-					Children[ChildRef.Index]->ShrinkElements();
-				}
-			}
-		}
-
-		void ApplyOffset(const FVector& InOffset)
-		{
-			for (auto& Element : Elements)
-			{
-				OctreeSemantics::ApplyOffset(Element, InOffset);
-			}
-			
-			FOREACH_OCTREE_CHILD_NODE(ChildRef)
-			{
-				if (Children[ChildRef.Index])
-				{
-					Children[ChildRef.Index]->ApplyOffset(InOffset);
-				}
-			}
-		}
-		
-	private:
-
-		/** The elements in this node. */
-		mutable ElementArrayType Elements;
-
-		/** The parent of this node. */
-		const FNode* Parent;
-
-		/** The children of the node. */
-		mutable FNode* Children[8];
-
-		/** The number of elements contained by the node and its child nodes. */
-		mutable uint32 InclusiveNumElements : 31;
-
-		/** true if the meshes should be added directly to the node, rather than subdividing when possible. */
-		mutable uint32 bIsLeaf : 1;
 	};
 
+	FOctreeNodeContext RootNodeContext;
+	TArray<FNode> TreeNodes;
+	TArray<FNodeIndex> ParentLinks;
+	TArray<ElementArrayType> TreeElements;
 
-
-	/** A reference to an octree node, its context, and a read lock. */
-	class FNodeReference
+	class FFreeList
 	{
+		struct FSpan
+		{
+			FNodeIndex Start;
+			FNodeIndex End;
+		};
+
+		TArray<FSpan> FreeList;
+
 	public:
-
-		const FNode* Node;
-		FOctreeNodeContext Context;
-
-		/** Default constructor. */
-		FNodeReference():
-			Node(NULL),
-			Context()
-		{}
-
-		/** Initialization constructor. */
-		FNodeReference(const FNode* InNode,const FOctreeNodeContext& InContext):
-			Node(InNode),
-			Context(InContext)
-		{}
-	};	
-
-	/** The default iterator allocator gives the stack enough inline space to contain a path and its siblings from root to leaf. */
-	typedef TInlineAllocator<7 * (14 - 1) + 8> DefaultStackAllocator;
-
-	/** An octree node iterator. */
-	template<typename StackAllocator = DefaultStackAllocator>
-	class TConstIterator
-	{
-	public:
-
-		/** Pushes a child of the current node onto the stack of nodes to visit. */
-		void PushChild(FOctreeChildNodeRef ChildRef)
+		FFreeList()
 		{
-			FNodeReference* NewNode = new (NodeStack) FNodeReference;
-			NewNode->Node = CurrentNode.Node->GetChild(ChildRef);
-			CurrentNode.Context.GetChildContext(ChildRef, &NewNode->Context);
-		}
-		/** Pushes a child of the current node onto the stack of nodes to visit. */
-		void PushChild(FOctreeChildNodeRef ChildRef,uint32 FullyInsideView,uint32 FullyOutsideView )
-		{
-			FNodeReference* NewNode = new (NodeStack) FNodeReference;
-			NewNode->Node = CurrentNode.Node->GetChild(ChildRef);
-			CurrentNode.Context.GetChildContext(ChildRef, &NewNode->Context);
-			NewNode->Context.InCullBits = FullyInsideView;
-			NewNode->Context.OutCullBits = FullyOutsideView;
-		}
-		/** Pushes a child of the current node onto the stack of nodes to visit. */
-		void PushChild(FOctreeChildNodeRef ChildRef,const FOctreeNodeContext& Context )
-		{
-			new (NodeStack) FNodeReference(CurrentNode.Node->GetChild(ChildRef),Context);
+			Reset();
 		}
 
-
-		/** Iterates to the next node. */
-		void Advance()
+		void Push(FNodeIndex NodeIndex)
 		{
-			if(NodeStack.Num())
+			//find the index that points to our right side node
+			int Index = 1; //exclude the dummy
+			int Size = FreeList.Num() - 1;
+
+			//start with binary search for larger lists
+			while (Size > 32)
 			{
-				CurrentNode = NodeStack[NodeStack.Num() - 1];
-				NodeStack.RemoveAt(NodeStack.Num() - 1);
+				const int LeftoverSize = Size % 2;
+				Size = Size / 2;
+
+				const int CheckIndex = Index + Size;
+				const int IndexIfLess = CheckIndex + LeftoverSize;
+
+				Index = FreeList[CheckIndex].Start > NodeIndex ? IndexIfLess : Index;
+			}
+
+			//small size array optimization
+			int ArrayEnd = Index + Size;
+			while (Index < ArrayEnd)
+			{
+				if (FreeList[Index].Start < NodeIndex)
+				{
+					break;
+				}
+				Index++;
+			}
+
+			//can we merge with the right node
+			if (Index < FreeList.Num() && FreeList[Index].End + 1 == NodeIndex)
+			{
+				FreeList[Index].End = NodeIndex;
+
+				//are we filling the gap between the left and right node
+				if (FreeList[Index - 1].Start - 1 == NodeIndex)
+				{
+					FreeList[Index - 1].Start = FreeList[Index].Start;
+					FreeList.RemoveAt(Index);
+				}
+				return;
+			}
+
+			//can we merge with the left node
+			if (FreeList[Index - 1].Start - 1 == NodeIndex)
+			{
+				FreeList[Index - 1].Start = NodeIndex;
+				return;
+			}
+
+			//we are node that could not be merged
+			FreeList.Insert(FSpan{ NodeIndex , NodeIndex }, Index);
+		}
+
+		FNodeIndex Pop()
+		{
+			FSpan& Span = FreeList.Last();
+			FNodeIndex Index = Span.Start;
+			checkSlow(Index != INDEX_NONE);
+			if (Span.Start == Span.End)
+			{
+				FreeList.Pop();
+				return Index;
 			}
 			else
 			{
-				CurrentNode = FNodeReference();
+				Span.Start++;
+				return Index;
 			}
 		}
 
-		/** Checks if there are any nodes left to iterate over. */
-		bool HasPendingNodes() const
+		void Reset()
 		{
-			return CurrentNode.Node != NULL;
+			FreeList.Reset(1);
+			//push a dummy
+			FreeList.Push(FSpan{ INDEX_NONE, INDEX_NONE });
 		}
 
-		/** Starts iterating at the root of an octree. */
-		TConstIterator(const TOctree& Tree)
-		:	CurrentNode(FNodeReference(&Tree.RootNode,Tree.RootNodeContext))
-		{}
-
-		/** Starts iterating at a particular node of an octree. */
-		TConstIterator(const FNode& Node,const FOctreeNodeContext& Context):
-			CurrentNode(FNodeReference(&Node,Context))
-		{}
-
-		// Accessors.
-		const FNode& GetCurrentNode() const
+		int Num() const
 		{
-			return *CurrentNode.Node;
+			//includes one dummy
+			return FreeList.Num() - 1;
 		}
-		const FOctreeNodeContext& GetCurrentContext() const
-		{
-			return CurrentNode.Context;
-		}
-
-	private:
-
-		/** The node that is currently being visited. */
-		FNodeReference CurrentNode;
-	
-		/** The nodes which are pending iteration. */
-		TArray<FNodeReference,StackAllocator> NodeStack;
 	};
 
-	/** Iterates over the elements in the octree that intersect a bounding box. */
-	template<typename StackAllocator = DefaultStackAllocator>
-	class TConstElementBoxIterator
+	TArray<FNodeIndex> FreeList;
+	/** The extent of a leaf at the maximum allowed depth of the tree. */
+	float MinLeafExtent;
+
+	FNodeIndex AllocateEightNodes()
 	{
-	public:
-
-		/** Iterates to the next element. */
-		void Advance()
+		FNodeIndex Index = INDEX_NONE;
+		if (FreeList.Num())
 		{
-			++ElementIt;
-			AdvanceToNextIntersectingElement();
+			Index = (FreeList.Pop() * 8) + 1;
 		}
-
-		/** Checks if there are any elements left to iterate over. */
-		bool HasPendingElements() const
+		else
 		{
-			return NodeIt.HasPendingNodes();
+			Index = TreeNodes.AddDefaulted(8);
+			ParentLinks.AddDefaulted();
+			FNodeIndex ElementIndex = TreeElements.AddDefaulted(8);
+			checkSlow(Index == ElementIndex);
 		}
+		return Index;
+	}
 
-		/** Initialization constructor. */
-		TConstElementBoxIterator(const TOctree& Tree,const FBoxCenterAndExtent& InBoundingBox)
-		:	IteratorBounds(InBoundingBox)
-		,	NodeIt(Tree)
-		,	ElementIt(Tree.RootNode.GetElementIt())
+	void FreeEightNodes(FNodeIndex Index)
+	{
+		checkSlow(Index != INDEX_NONE && Index != 0);
+		for (int i = 0; i < 8; i++)
 		{
-			ProcessChildren();
-			AdvanceToNextIntersectingElement();
+			TreeNodes[Index + i] = FNode();
+			checkSlow(TreeElements[Index + i].Num() == 0);
 		}
+		ParentLinks[(Index - 1) / 8] = INDEX_NONE;
+		//TODO shrink the TreeNodes as well as the TreeElements and ParentLinks to reduce high watermark memory footprint.
+		FreeList.Push((Index - 1) / 8);
+	}
 
-		// Accessors.
-		const ElementType& GetCurrentElement() const
+	void AddElementInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const FBoxCenterAndExtent& ElementBounds, typename TCallTraits<ElementType>::ConstReference Element, ElementArrayType& TempElementStorage)
+	{
+		checkSlow(CurrentNodeIndex != INDEX_NONE);
+		TreeNodes[CurrentNodeIndex].InclusiveNumElements++;
+		if (TreeNodes[CurrentNodeIndex].IsLeaf())
 		{
-			return *ElementIt;
-		}
-
-	private:
-
-		/** The bounding box to check for intersection with. */
-		FBoxCenterAndExtent IteratorBounds;
-
-		/** The octree node iterator. */
-		TConstIterator<StackAllocator> NodeIt;
-
-		/** The element iterator for the current node. */
-		ElementConstIt ElementIt;
-
-		/** Processes the children of the current node. */
-		void ProcessChildren()
-		{
-			// Add the child nodes that intersect the bounding box to the node iterator's stack.
-			const FNode& CurrentNode = NodeIt.GetCurrentNode();
-			const FOctreeNodeContext& Context = NodeIt.GetCurrentContext();
-			const FOctreeChildNodeSubset IntersectingChildSubset = Context.GetIntersectingChildren(IteratorBounds);
-			FOREACH_OCTREE_CHILD_NODE(ChildRef)
+			if (TreeElements[CurrentNodeIndex].Num() + 1 > OctreeSemantics::MaxElementsPerLeaf && NodeContext.Bounds.Extent.X > MinLeafExtent)
 			{
-				if(IntersectingChildSubset.Contains(ChildRef) && CurrentNode.HasChild(ChildRef))
+				TempElementStorage = MoveTemp(TreeElements[CurrentNodeIndex]);
+
+				FNodeIndex ChildStartIndex = AllocateEightNodes();
+				ParentLinks[(ChildStartIndex - 1) / 8] = CurrentNodeIndex;
+				TreeNodes[CurrentNodeIndex].ChildNodes = ChildStartIndex;
+				TreeNodes[CurrentNodeIndex].InclusiveNumElements = 0;
+
+				for (typename TCallTraits<ElementType>::ConstReference ChildElement : TempElementStorage)
 				{
-					NodeIt.PushChild(ChildRef);
+					const FBoxCenterAndExtent ChildElementBounds(OctreeSemantics::GetBoundingBox(ChildElement));
+					AddElementInternal(CurrentNodeIndex, NodeContext, ChildElementBounds, ChildElement, TempElementStorage);
 				}
+
+				TempElementStorage.Reset();
+				AddElementInternal(CurrentNodeIndex, NodeContext, ElementBounds, Element, TempElementStorage);
+				return;
+			}
+			else
+			{
+				int ElementIndex = TreeElements[CurrentNodeIndex].Emplace(Element);
+
+				SetElementId(Element, FOctreeElementId(CurrentNodeIndex, ElementIndex));	
+				return;
+			}
+		}
+		else
+		{
+			const FOctreeChildNodeRef ChildRef = NodeContext.GetContainingChild(ElementBounds);
+			if (ChildRef.IsNULL())
+			{
+				int ElementIndex = TreeElements[CurrentNodeIndex].Emplace(Element);
+				SetElementId(Element, FOctreeElementId(CurrentNodeIndex, ElementIndex));
+				return;
+			}
+			else
+			{
+				FNodeIndex ChildNodeIndex = TreeNodes[CurrentNodeIndex].ChildNodes + ChildRef.Index;
+				FOctreeNodeContext ChildNodeContext = NodeContext.GetChildContext(ChildRef);
+				AddElementInternal(ChildNodeIndex, ChildNodeContext, ElementBounds, Element, TempElementStorage);
+				return;
 			}
 		}
 
-		/** Advances the iterator to the next intersecting primitive, starting at a primitive in the current node. */
-		void AdvanceToNextIntersectingElement()
+		UE_LOG(LogGenericOctree, Fatal,
+			TEXT("Failed to find an octree node for an element with bounds (%f,%f,%f) +/- (%f,%f,%f)!"),
+			ElementBounds.Center.X,
+			ElementBounds.Center.Y,
+			ElementBounds.Center.Z,
+			ElementBounds.Extent.X,
+			ElementBounds.Extent.Y,
+			ElementBounds.Extent.Z
+		);
+	}
+
+	void CollapseNodesInternal(FNodeIndex CurrentNodeIndex, ElementArrayType& CollapsedNodeElements)
+	{
+		CollapsedNodeElements.Append(MoveTemp(TreeElements[CurrentNodeIndex]));	
+		TreeElements[CurrentNodeIndex].Reset();
+
+		if (!TreeNodes[CurrentNodeIndex].IsLeaf())
 		{
-			check(NodeIt.HasPendingNodes()); // please don't call this after iteration has ended
-
-			while (1)
+			FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
+			for (int i = 0; i < 8; i++)
 			{
-				ElementConstIt LocalElementIt(ElementIt);
-				if (LocalElementIt)
+				CollapseNodesInternal(ChildStartIndex + i, CollapsedNodeElements);
+			}
+			FreeEightNodes(ChildStartIndex);
+		}
+	}
+
+	template<typename PredicateFunc, typename IterateFunc>
+	void IterateNodesWithPredicateInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const PredicateFunc& Predicate, const IterateFunc& Func) const
+	{
+		if (TreeNodes[CurrentNodeIndex].InclusiveNumElements > 0)
+		{
+			if (Predicate(NodeContext.Bounds))
+			{
+				Func(CurrentNodeIndex);
+
+				if (!TreeNodes[CurrentNodeIndex].IsLeaf())
 				{
-					FPlatformMisc::Prefetch( &(*LocalElementIt) );
-					FPlatformMisc::Prefetch( &(*LocalElementIt), PLATFORM_CACHE_LINE_SIZE );
-
-					// this is redundantly pull out of the while loop to prevent LHS on the iterator
-					// Check if the current element intersects the bounding box.
-					if(Intersect(OctreeSemantics::GetBoundingBox(*LocalElementIt),IteratorBounds))
+					FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
+					for (int i = 0; i < 8; i++)
 					{
-						// If it intersects, break out of the advancement loop.
-						Move(ElementIt, LocalElementIt);
-						return;
-					}
-
-					// Check if we've advanced past the elements in the current node.
-					while(++LocalElementIt)
-					{
-						FPlatformMisc::Prefetch( &(*LocalElementIt), PLATFORM_CACHE_LINE_SIZE );
-
-						// Check if the current element intersects the bounding box.
-						if(Intersect(OctreeSemantics::GetBoundingBox(*LocalElementIt),IteratorBounds))
-
-						{
-							// If it intersects, break out of the advancement loop.
-							Move(ElementIt, LocalElementIt);
-							return;
-						}
+						IterateNodesWithPredicateInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), Predicate, Func);
 					}
 				}
-				// Advance to the next node.
-				NodeIt.Advance();
-				if(!NodeIt.HasPendingNodes())
-				{
-					Move(ElementIt, LocalElementIt);
-					return;
-				}
-				ProcessChildren();
-				// The element iterator can't be assigned to, but it can be replaced by Move.
-				Move(ElementIt,NodeIt.GetCurrentNode().GetElementIt());
 			}
 		}
-	};
+	}
+
+	template<typename IterateFunc>
+	void IterateElementsWithBoundsTestInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const FBoxCenterAndExtent& BoxBounds, const IterateFunc& Func) const
+	{
+		if (TreeNodes[CurrentNodeIndex].InclusiveNumElements > 0)
+		{
+			for (typename TCallTraits<ElementType>::ConstReference Element : TreeElements[CurrentNodeIndex])
+			{
+				if (Intersect(OctreeSemantics::GetBoundingBox(Element), BoxBounds))
+				{
+					Func(Element);
+				}
+			}
+
+			if (!TreeNodes[CurrentNodeIndex].IsLeaf())
+			{
+				const FOctreeChildNodeSubset IntersectingChildSubset = NodeContext.GetIntersectingChildren(BoxBounds);
+				FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
+				for (int i = 0; i < 8; i++)
+				{
+					if(IntersectingChildSubset.Contains(FOctreeChildNodeRef(i)))
+					{
+						IterateElementsWithBoundsTestInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), BoxBounds, Func);
+					}
+				}
+			}
+		}
+	}
+
+	template<typename IterateFunc>
+	void FindFirstElementWithBoundsTestInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const FBoxCenterAndExtent& BoxBounds, const IterateFunc& Func, bool& ContinueTraversal) const
+	{
+		if (ContinueTraversal && TreeNodes[CurrentNodeIndex].InclusiveNumElements > 0)
+		{
+			for (int Index = 0; ContinueTraversal && Index < TreeElements[CurrentNodeIndex].Num(); Index++)
+			{
+				typename TCallTraits<ElementType>::ConstReference Element = TreeElements[CurrentNodeIndex][Index];
+				if (Intersect(OctreeSemantics::GetBoundingBox(Element), BoxBounds))
+				{
+					ContinueTraversal &= Func(Element);
+				}
+			}
+
+			if (ContinueTraversal && !TreeNodes[CurrentNodeIndex].IsLeaf())
+			{
+				const FOctreeChildNodeSubset IntersectingChildSubset = NodeContext.GetIntersectingChildren(BoxBounds);
+				FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
+				for (int i = 0; i < 8; i++)
+				{
+					if (IntersectingChildSubset.Contains(FOctreeChildNodeRef(i)))
+					{
+						FindFirstElementWithBoundsTestInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), BoxBounds, Func, ContinueTraversal);
+					}
+				}
+			}
+		}
+	}
+public:
+
+	/**
+	 * this function will call the passed in function for all elements in the Octree in node by node in no specified order.
+	 * @param Func - Function to call with each Element.
+	 */
+	template<typename IterateAllElementsFunc>
+	inline void IterateAllElements(const IterateAllElementsFunc& Func) const
+	{
+		for (const ElementArrayType& Elements : TreeElements)
+		{
+			for (typename TCallTraits<ElementType>::ConstReference Element : Elements)
+			{
+				Func(Element);
+			}
+		}
+	}
+
+	/**
+	 * this function will traverse the Octree starting from the root in depth first order and the predicate can be used to implement custom culling for each node.
+	 * @param Predicate - a Function when given the bounds of the currently traversed node that returns true if traversal should continue or false to skip that branch.
+	 * @param Func - Function that will receive the node ID which can be stored and later used to get the elements using GetElementsForNode for all nodes that passed the predicate.
+	 */
+	template<typename PredicateFunc, typename IterateFunc>
+	inline void IterateNodesWithPredicate(const PredicateFunc& Predicate, const IterateFunc& Func) const
+	{
+		IterateNodesWithPredicateInternal(0, RootNodeContext, Predicate, Func);
+	}
+
+	/**
+	 * this function will traverse the Octree starting from the root in depth first order and the predicate can be used to implement custom culling for each node.
+	 * @param Predicate - a Function when given the bounds of the currently traversed node that returns true if traversal should continue or false to skip that branch.
+	 * @param Func - Function to call with each Element for nodes that passed the predicate.
+	 */
+	template<typename PredicateFunc, typename IterateFunc>
+	inline void IterateElementsWithPredicate(const PredicateFunc& Predicate, const IterateFunc& Func) const
+	{
+		IterateNodesWithPredicateInternal(0, RootNodeContext, Predicate, [&Func, this](FNodeIndex NodeIndex)
+		{
+			for (typename TCallTraits<ElementType>::ConstReference Element : TreeElements[NodeIndex])
+			{
+				Func(Element);
+			}
+		});
+	}
+
+	/**
+	 * this function will traverse the Octree using a fast box-box interssection this should be the preferred way of traversing the tree.
+	 * @param BoxBounds - the bounds to test if a node is traversed or skipped.
+	 * @param Func - Function to call with each Element for nodes that passed bounds test.
+	 */
+	template<typename IterateBoundsFunc>
+	inline void IterateElementsWithBoundsTest(const FBoxCenterAndExtent& BoxBounds, const IterateBoundsFunc& Func) const
+	{
+		IterateElementsWithBoundsTestInternal(0, RootNodeContext, BoxBounds, Func);
+	}
+
+	/**
+	 * this function will traverse the Octree using a fast box-box intersection and aborts traversal as soon as the Element function returns false.
+	 * @param BoxBounds - the bounds to test if a node is traversed or skipped.
+	 * @param Func - Function to call with each Element for nodes that passed bounds test.
+	 */
+	template<typename IterateBoundsFunc>
+	inline void FindFirstElementWithBoundsTest(const FBoxCenterAndExtent& BoxBounds, const IterateBoundsFunc& Func) const
+	{
+		bool ContinueTraversal = true;
+		FindFirstElementWithBoundsTestInternal(0, RootNodeContext, BoxBounds, Func, ContinueTraversal);
+	}
 
 	/**
 	 * Adds an element to the octree.
 	 * @param Element - The element to add.
-	 * @return An identifier for the element in the octree.
 	 */
-	void AddElement(typename TTypeTraits<ElementType>::ConstInitType Element);
+	inline void AddElement(typename TCallTraits<ElementType>::ConstReference Element)
+	{
+		ElementArrayType TempElementStorage;
+		const FBoxCenterAndExtent ElementBounds(OctreeSemantics::GetBoundingBox(Element));
+		AddElementInternal(0, RootNodeContext, ElementBounds, Element, TempElementStorage);
+	}
 
 	/**
 	 * Removes an element from the octree.
 	 * @param ElementId - The element to remove from the octree.
 	 */
-	void RemoveElement(FOctreeElementId ElementId);
+	inline void RemoveElement(FOctreeElementId ElementId)
+	{
+		checkSlow(ElementId.IsValidId());
 
+		// Remove the element from the node's element list.
+		TreeElements[ElementId.NodeIndex].RemoveAtSwap(ElementId.ElementIndex);
+
+		if (ElementId.ElementIndex < TreeElements[ElementId.NodeIndex].Num())
+		{
+			// Update the external element id for the element that was swapped into the vacated element index.
+			SetElementId(TreeElements[ElementId.NodeIndex][ElementId.ElementIndex], ElementId);
+		}
+
+		FNodeIndex CollapseNodeIndex = INDEX_NONE;
+		{
+			// Update the inclusive element counts for the nodes between the element and the root node,
+			// and find the largest node that is small enough to collapse.
+			FNodeIndex NodeIndex = ElementId.NodeIndex;
+			while (true)
+			{
+				TreeNodes[NodeIndex].InclusiveNumElements--;
+				if (TreeNodes[NodeIndex].InclusiveNumElements < OctreeSemantics::MinInclusiveElementsPerNode)
+				{
+					CollapseNodeIndex = NodeIndex;
+				}
+
+				if (NodeIndex == 0)
+				{
+					break;
+				}
+
+				NodeIndex = ParentLinks[(NodeIndex - 1) / 8];			
+			}
+		}
+
+		// Collapse the largest node that was pushed below the threshold for collapse by the removal.
+		if (CollapseNodeIndex != INDEX_NONE && !TreeNodes[CollapseNodeIndex].IsLeaf())
+		{
+			if (TreeElements[CollapseNodeIndex].Num() < (int32)TreeNodes[CollapseNodeIndex].InclusiveNumElements)
+			{
+				ElementArrayType TempElementStorage;
+				TempElementStorage.Reserve(TreeNodes[CollapseNodeIndex].InclusiveNumElements);
+				// Gather the elements contained in this node and its children.
+				CollapseNodesInternal(CollapseNodeIndex, TempElementStorage);
+				TreeElements[CollapseNodeIndex] = MoveTemp(TempElementStorage);
+
+				for (int ElementIndex = 0; ElementIndex < TreeElements[CollapseNodeIndex].Num(); ElementIndex++)
+				{
+					// Update the external element id for the element that's being collapsed.
+					SetElementId(TreeElements[CollapseNodeIndex][ElementIndex], FOctreeElementId(CollapseNodeIndex, ElementIndex));
+				}
+
+				// Mark the node as a leaf.
+				TreeNodes[CollapseNodeIndex].ChildNodes = INDEX_NONE;
+			}
+		}
+	}
+
+	/**
+	 * this function resets the octree to empty.
+	 */
 	void Destroy()
 	{
-		RootNode.~FNode();
-		new (&RootNode) FNode(NULL);
-
-		// this looks a bit @hacky, but FNode's destructor doesn't 
-		// update TotalSizeBytes so better to set it to 0 than
-		// not do nothing with it (would contain obviously false value)
-		SetOctreeMemoryUsage(this, 0);
+		TreeNodes.Reset(1);
+		TreeElements.Reset(1);
+		FreeList.Reset();
+		ParentLinks.Reset();
+		TreeNodes.AddDefaulted();
+		TreeElements.AddDefaulted();
 	}
 
 	/** Accesses an octree element by ID. */
-	ElementType& GetElementById(FOctreeElementId ElementId);
+	ElementType& GetElementById(FOctreeElementId ElementId)
+	{
+		return TreeElements[ElementId.NodeIndex][ElementId.ElementIndex];
+	}
 
 	/** Accesses an octree element by ID. */
-	const ElementType& GetElementById(FOctreeElementId ElementId) const;
+	const ElementType& GetElementById(FOctreeElementId ElementId) const
+	{
+		return TreeElements[ElementId.NodeIndex][ElementId.ElementIndex];
+	}
 
-	/** Checks if given ElementId represents a valid Octree element */
-	bool IsValidElementId(FOctreeElementId ElementId) const;
+	/**
+	 * check if a FOctreeElementId is valid.
+	 * @param ElementId - The ElementId to check.
+	 */
+	bool IsValidElementId(FOctreeElementId ElementId) const
+	{
+		return ElementId.IsValidId() && ElementId.ElementIndex < TreeElements[ElementId.NodeIndex].Num();
+	};
+
+	/**
+	 * return all elements for a given node.
+	 * @param NodeIndex - The the index of the node can be obtained using IterateNodesWithPredicate.
+	 */
+	TArrayView<const ElementType> GetElementsForNode(FNodeIndex NodeIndex) const
+	{
+		return TreeElements[NodeIndex];
+	}
 
 	/** Writes stats for the octree to the log. */
-	void DumpStats() const;
+	void DumpStats() const
+	{
+		int32 NumNodes = 0;
+		int32 NumLeaves = 0;
+		int32 NumElements = 0;
+		int32 MaxElementsPerNode = 0;
+		TArray<int32> NodeElementDistribution;
+
+		IterateNodesWithPredicateInternal(0, RootNodeContext, [](const FBoxCenterAndExtent&) { return true; }, [&, this](FNodeIndex NodeIndex)
+		{
+			const int32 CurrentNodeElementCount = GetElementsForNode(NodeIndex).Num();
+
+			NumNodes++;
+			if (TreeNodes[NodeIndex].IsLeaf())
+			{
+				NumLeaves++;
+			}
+
+			NumElements += CurrentNodeElementCount;
+			MaxElementsPerNode = FMath::Max(MaxElementsPerNode, CurrentNodeElementCount);
+
+			if (CurrentNodeElementCount >= NodeElementDistribution.Num())
+			{
+				NodeElementDistribution.AddZeroed(CurrentNodeElementCount - NodeElementDistribution.Num() + 1);
+			}
+			NodeElementDistribution[CurrentNodeElementCount]++;
+		});
+
+		UE_LOG(LogGenericOctree, Log, TEXT("Octree overview:"));
+		UE_LOG(LogGenericOctree, Log, TEXT("\t%i nodes"), NumNodes);
+		UE_LOG(LogGenericOctree, Log, TEXT("\t%i leaves"), NumLeaves);
+		UE_LOG(LogGenericOctree, Log, TEXT("\t%i elements"), NumElements);
+		UE_LOG(LogGenericOctree, Log, TEXT("\t%i >= elements per node"), MaxElementsPerNode);
+		UE_LOG(LogGenericOctree, Log, TEXT("Octree node element distribution:"));
+		for (int32 i = 0; i < NodeElementDistribution.Num(); i++)
+		{
+			if (NodeElementDistribution[i] > 0)
+			{
+				UE_LOG(LogGenericOctree, Log, TEXT("\tElements: %3i, Nodes: %3i"), i, NodeElementDistribution[i]);
+			}
+		}
+	}
 
 	SIZE_T GetSizeBytes() const
 	{
+		SIZE_T TotalSizeBytes = TreeNodes.GetAllocatedSize();
+		TotalSizeBytes += TreeElements.GetAllocatedSize();
+		TotalSizeBytes += TreeNodes[0].InclusiveNumElements * sizeof(ElementType);
 		return TotalSizeBytes;
 	}
 
@@ -727,7 +905,10 @@ public:
 
 	void ShrinkElements()
 	{
-		RootNode.ShrinkElements();
+		for (ElementArrayType& Elements : TreeElements)
+		{
+			Elements.Shrink();
+		}
 	}
 
 	/** 
@@ -736,38 +917,46 @@ public:
 	 * bGlobalOctree - hint that this octree is used as a boundless global volume, 
 	 *  so only content will be shifted but not origin of the octree
 	 */
-	void ApplyOffset(const FVector& InOffset, bool bGlobalOctree = false);
+	void ApplyOffset(const FVector& InOffset, bool bGlobalOctree = false)
+	{
+		ElementArrayType TempElementStorage;
+		TempElementStorage.Reserve(TreeNodes[0].InclusiveNumElements);
+
+		//collect all elements
+		CollapseNodesInternal(0, TempElementStorage);
+		checkSlow(TreeNodes[0].IsLeaf());
+		Destroy();
+
+		if (!bGlobalOctree)
+		{
+			RootNodeContext.Bounds.Center += FVector4(InOffset, 0.0f);
+		}
+
+		// Add all elements from a saved nodes to a new empty octree
+		for (const ElementType& Element : TempElementStorage)
+		{
+			AddElement(Element);
+		}
+	}
 
 	/** Initialization constructor. */
-	TOctree(const FVector& InOrigin,float InExtent);
+	TOctree(const FVector& InOrigin,float InExtent)
+		: RootNodeContext(FBoxCenterAndExtent(InOrigin, FVector(InExtent, InExtent, InExtent)), 0, 0)
+		, MinLeafExtent(InExtent* FMath::Pow((1.0f + 1.0f / (float)FOctreeNodeContext::LoosenessDenominator) / 2.0f, OctreeSemantics::MaxNodeDepth))
+	{
+		TreeNodes.AddDefaulted();
+		TreeElements.AddDefaulted();
+	}
 
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	TOctree();
+	TOctree() 
+	{
+		TreeNodes.AddDefaulted();
+		TreeElements.AddDefaulted();
+	}
 
 private:
 
-	/** The octree's root node. */
-	FNode RootNode;
-
-	/** The octree's root node's context. */
-	FOctreeNodeContext RootNodeContext;
-
-	/** The extent of a leaf at the maximum allowed depth of the tree. */
-	float MinLeafExtent;
-
-	/** this function basically set TotalSizeBytes, but gives opportunity to 
-	 *	include this Octree in memory stats */
-	template<typename TElement,typename TSemantics>
-	friend void SetOctreeMemoryUsage(class TOctree<TElement,TSemantics>* Octree, int32 NewSize);
-
-	SIZE_T TotalSizeBytes;
-
-	/** Adds an element to a node or its children. */
-	void AddElementToNode(
-		typename TTypeTraits<ElementType>::ConstInitType Element,
-		const FNode& InNode,
-		const FOctreeNodeContext& InContext
-		);
 
 	// Concept definition for the new octree semantics, which adds a new TOctree parameter
 	struct COctreeSemanticsV2
@@ -798,4 +987,3 @@ protected:
 };
 
 #include "GenericOctree.inl"
-

@@ -126,6 +126,34 @@ public:
 		StoreNavGeometry,
 	};
 
+	/**
+ * Adds an element to the octree.
+ * @param Element - The element to add.
+ */
+	inline void AddElement(const FNavigationOctreeElement& Element)
+	{
+		DEC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
+		DEC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
+		TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>::AddElement(Element);
+		OctreeSizeBytes = GetSizeBytes();
+		INC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
+		INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
+	}
+
+	/**
+	 * Removes an element from the octree.
+	 * @param ElementId - The element to remove from the octree.
+	 */
+	inline void RemoveElement(FOctreeElementId ElementId)
+	{
+		DEC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
+		DEC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
+		TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>::RemoveElement(ElementId);
+		OctreeSizeBytes = GetSizeBytes();
+		INC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
+		INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
+	}
+
 	FNavigationOctree(const FVector& Origin, float Radius);
 	virtual ~FNavigationOctree();
 
@@ -172,18 +200,6 @@ protected:
 	ENavDataGatheringMode DefaultGeometryGatheringMode;
 	uint32 bGatherGeometry : 1;
 	uint32 NodesMemory;
+private:
+	SIZE_T OctreeSizeBytes = 0;
 };
-
-template<>
-FORCEINLINE_DEBUGGABLE void SetOctreeMemoryUsage(TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>* Octree, int32 NewSize)
-{
-	{
-		DEC_DWORD_STAT_BY( STAT_NavigationMemory, Octree->TotalSizeBytes );
-		DEC_DWORD_STAT_BY(STAT_Navigation_CollisionTreeMemory, Octree->TotalSizeBytes);
-	}
-	Octree->TotalSizeBytes = NewSize;
-	{
-		INC_DWORD_STAT_BY( STAT_NavigationMemory, NewSize );
-		INC_DWORD_STAT_BY(STAT_Navigation_CollisionTreeMemory, NewSize);
-	}
-}
