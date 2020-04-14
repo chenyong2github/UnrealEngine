@@ -34,8 +34,9 @@ enum class ENiagaraNamespaceMetadataOptions
 	HideInSystem,
 	AdvancedInScript,
 	AdvancedInSystem,
-	PreventEditing,
-	CanChangeNamespaceModifier,
+	PreventEditingNamespace,
+	PreventEditingNamespaceModifier,
+	PreventEditingName,
 	PreventCreatingInSystemEditor
 };
 
