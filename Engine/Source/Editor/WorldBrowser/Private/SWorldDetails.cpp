@@ -70,7 +70,6 @@ void SWorldDetails::OnBrowseWorld(UWorld* InWorld)
 		Args.bShowActorLabel = false;
 	
 		DetailsView = PropertyModule.CreateDetailView(Args);
-		WorldDetailsView = PropertyModule.CreateDetailView(Args);
 		ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -162,18 +161,6 @@ void SWorldDetails::OnBrowseWorld(UWorld* InWorld)
 					DetailsView.ToSharedRef()
 				]
 			]
-
-			// World details
-			+SVerticalBox::Slot()
-			.FillHeight(1.f)
-			.Padding(0,4,0,0)
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-				[
-					WorldDetailsView.ToSharedRef()
-				]
-			]
 		];
 
 		WorldModel->RegisterDetailsCustomization(PropertyModule, DetailsView);
@@ -205,13 +192,10 @@ void SWorldDetails::OnSelectionChanged()
 	{
 		// Clear ComboBox selection in case we have multiple selection
 		SubLevelsComboBox->ClearSelection();
-		WorldDetailsView->SetObject(nullptr);
 	}
 	else
 	{
 		SubLevelsComboBox->SetSelectedItem(SelectedLevels[0]);
-		ULevel* LevelObject = SelectedLevels[0]->GetLevelObject();
-		WorldDetailsView->SetObject(Cast<UObject>(LevelObject ? LevelObject->GetLevelPartition() : nullptr));
 	}
 
 	bUpdatingSelection = false;
