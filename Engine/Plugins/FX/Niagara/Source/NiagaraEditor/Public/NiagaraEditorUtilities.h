@@ -8,6 +8,7 @@
 #include "Misc/Attribute.h"
 #include "AssetData.h"
 #include "NiagaraGraph.h"
+#include "NiagaraEditorSettings.h"
 
 class UNiagaraNodeInput;
 class UNiagaraNodeOutput;
@@ -324,19 +325,37 @@ namespace FNiagaraParameterUtilities
 		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
 		FText& OutErrorMessage);
 
-	bool TestCanChangeNamespaceWithMessage(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata, FText& OutMessage);
+	enum class EParameterContext
+	{
+		Script,
+		System
+	};
 
-	FName ChangeNamespace(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata);
+	struct FChangeNamespaceMenuData
+	{
+		bool bCanChange;
+		FText CanChangeToolTip;
+		FName NamespaceParameterName;
+		FNiagaraNamespaceMetadata Metadata;
+	};
 
-	bool TestCanAddNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+	NIAGARAEDITOR_API void GetChangeNamespaceMenuData(FName InParameterName, EParameterContext InParameterContext, TArray<FChangeNamespaceMenuData>& OutChangeNamespaceMenuData);
 
-	FName AddNamespaceModifier(FName InParameterName);
+	NIAGARAEDITOR_API TSharedRef<SWidget> CreateNamespaceMenuItemWidget(FName Namespace, FText ToolTip);
 
-	bool TestCanRemoveNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+	NIAGARAEDITOR_API bool TestCanChangeNamespaceWithMessage(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata, FText& OutMessage);
 
-	FName RemoveNamespaceModifier(FName InParameterName);
+	NIAGARAEDITOR_API FName ChangeNamespace(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata);
 
-	bool TestCanEditNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+	NIAGARAEDITOR_API bool TestCanAddNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
 
-	bool TestCanRenameWithMessage(FName ParameterName, FText& OutMessage);
+	NIAGARAEDITOR_API FName AddNamespaceModifier(FName InParameterName);
+
+	NIAGARAEDITOR_API bool TestCanRemoveNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+
+	NIAGARAEDITOR_API FName RemoveNamespaceModifier(FName InParameterName);
+
+	NIAGARAEDITOR_API bool TestCanEditNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+
+	NIAGARAEDITOR_API bool TestCanRenameWithMessage(FName ParameterName, FText& OutMessage);
 };

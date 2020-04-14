@@ -1606,7 +1606,7 @@ void UNiagaraStackFunctionInput::DeleteInput()
 	}
 }
 
-void UNiagaraStackFunctionInput::GetNamespacesForNewParameters(TArray<FName>& OutNamespacesForNewParameters) const
+void UNiagaraStackFunctionInput::GetNamespacesForNewReadParameters(TArray<FName>& OutNamespacesForNewParameters) const
 {
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningFunctionCallNode);
 	bool bIsEditingSystem = GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
@@ -1636,6 +1636,40 @@ void UNiagaraStackFunctionInput::GetNamespacesForNewParameters(TArray<FName>& Ou
 		OutNamespacesForNewParameters.Add(FNiagaraConstants::UserNamespace);
 		OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
 	}
+	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
+}
+
+void UNiagaraStackFunctionInput::GetNamespacesForNewWriteParameters(TArray<FName>& OutNamespacesForNewParameters) const
+{
+	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningFunctionCallNode);
+	bool bIsEditingSystem = GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
+
+	switch (OutputNode->GetUsage())
+	{
+	case ENiagaraScriptUsage::ParticleSpawnScript:
+	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+	case ENiagaraScriptUsage::ParticleUpdateScript:
+	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
+	{
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::ParticleAttributeNamespace);
+		break;
+	}
+	case ENiagaraScriptUsage::EmitterSpawnScript:
+	case ENiagaraScriptUsage::EmitterUpdateScript:
+	{
+		OutNamespacesForNewParameters.Add(FNiagaraConstants::EmitterNamespace);
+		break;
+	}
+	case ENiagaraScriptUsage::SystemSpawnScript:
+	case ENiagaraScriptUsage::SystemUpdateScript:
+		if (bIsEditingSystem)
+		{
+			OutNamespacesForNewParameters.Add(FNiagaraConstants::SystemNamespace);
+		}
+		break;
+	}
+
 	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
 }
 

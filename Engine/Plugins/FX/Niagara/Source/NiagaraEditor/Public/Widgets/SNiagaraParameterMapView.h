@@ -14,6 +14,7 @@
 #include "NiagaraGraph.h"
 #include "NiagaraActions.h"
 #include "EditorStyleSet.h"
+#include "NiagaraEditorSettings.h"
 
 class SGraphActionMenu;
 class SEditableTextBox;
@@ -153,6 +154,11 @@ private:
 	bool GetSingleParameterActionForSelection(
 		TSharedPtr<FNiagaraParameterAction>& OutParameterAction,
 		FText& OutErrorMessage) const;
+
+	void GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder);
+	void OnChangeNamespace(FNiagaraNamespaceMetadata Metadata);
+
+	void GetChangeNamespaceModifierSubMenu(FMenuBuilder& MenuBuilder);
 
 	FText GetAddNamespaceModifierToolTip() const;
 	bool CanAddNamespaceModifier() const;

@@ -58,6 +58,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraEditorSettings.h"
+#include "Widgets/SNiagaraParameterName.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -2622,6 +2623,59 @@ bool FNiagaraParameterUtilities::GetNamespaceModifierEditData(
 	}
 }
 
+void FNiagaraParameterUtilities::GetChangeNamespaceMenuData(FName InParameterName, EParameterContext InParameterContext, TArray<FChangeNamespaceMenuData>& OutChangeNamespaceMenuData)
+{
+	TArray<FNiagaraNamespaceMetadata> NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetAllNamespaceMetadata();
+	NamespaceMetadata.Sort([](const FNiagaraNamespaceMetadata& MetadataA, const FNiagaraNamespaceMetadata& MetadataB)
+		{ return MetadataA.SortId < MetadataB.SortId; });
+
+	for (const FNiagaraNamespaceMetadata& Metadata : NamespaceMetadata)
+	{
+		if (Metadata.IsValid() == false || Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace) ||
+			(InParameterContext == EParameterContext::Script && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript)) ||
+			(InParameterContext == EParameterContext::System && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInSystem)))
+		{
+			continue;
+		}
+
+		FChangeNamespaceMenuData& MenuData = OutChangeNamespaceMenuData.AddDefaulted_GetRef();
+		MenuData.Metadata = Metadata;
+
+		FText CanChangeMessage;
+		MenuData.bCanChange = FNiagaraParameterUtilities::TestCanChangeNamespaceWithMessage(InParameterName, Metadata, CanChangeMessage);
+
+		if (MenuData.bCanChange)
+		{
+			MenuData.CanChangeToolTip = FText::Format(LOCTEXT("ChangeNamespaceToolTipFormat", "{0}\n\nDescription:\n{1}"), CanChangeMessage, Metadata.Description);
+		}
+		else
+		{
+			MenuData.CanChangeToolTip = CanChangeMessage;
+		}
+
+		FString NamespaceNameString = Metadata.Namespaces[0].ToString();
+		for (int32 i = 1; i < Metadata.Namespaces.Num(); i++)
+		{
+			NamespaceNameString += TEXT(".") + Metadata.Namespaces[i].ToString();
+		}
+
+		MenuData.NamespaceParameterName = *NamespaceNameString;
+	}
+}
+
+TSharedRef<SWidget> FNiagaraParameterUtilities::CreateNamespaceMenuItemWidget(FName Namespace, FText ToolTipText)
+{
+	return SNew(SBox)
+		.Padding(FMargin(7, 2, 7, 2))
+		[
+			SNew(SNiagaraParameterName)
+			.ParameterName(Namespace)
+			.IsReadOnly(true)
+			.SingleNameDisplayMode(SNiagaraParameterName::ESingleNameDisplayMode::Namespace)
+			.ToolTipText(ToolTipText)
+		];
+}
+
 bool FNiagaraParameterUtilities::TestCanChangeNamespaceWithMessage(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata, FText& OutMessage)
 {
 	if (NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace))
@@ -2659,6 +2713,13 @@ FName FNiagaraParameterUtilities::ChangeNamespace(FName ParameterName, const FNi
 	{
 		TArray<FName> NameParts = ParameterHandle.GetHandleParts();
 		NameParts.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
+		bool bHasNamespaceModifier = NameParts.Num() > 1;
+		bool bNewNamespaceCanHaveNamespaceModifier =
+			NewNamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier) == false;
+		if (bHasNamespaceModifier && bNewNamespaceCanHaveNamespaceModifier == false)
+		{
+			NameParts.RemoveAt(0);
+		}
 		NameParts.Insert(NewNamespaceMetadata.Namespaces, 0);
 		return NamePartsToName(NameParts);
 	}
