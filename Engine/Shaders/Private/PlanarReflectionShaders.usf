@@ -86,16 +86,20 @@ void PrefilterPlanarReflectionPS(
 		float AccumulatedWeight = 0;
 
 		// Two texels at a time with bilinear
-		LOOP
-		for (float y = 0; y < KernelRadiusY; y += 2)
 		{
-			VerticalSample(BufferUV, y, KernelRadiusY, CenterDistanceToPlane, CenterReflectionDistance, false, AccumulatedColor, AccumulatedWeight);
+			LOOP
+			for (float y = 0; y < KernelRadiusY; y += 2)
+			{
+				VerticalSample(BufferUV, y, KernelRadiusY, CenterDistanceToPlane, CenterReflectionDistance, false, AccumulatedColor, AccumulatedWeight);
+			}
 		}
 
-		LOOP
-		for (float y = -2; y > -KernelRadiusY; y -= 2)
 		{
-			VerticalSample(BufferUV, y, KernelRadiusY, CenterDistanceToPlane, CenterReflectionDistance, true, AccumulatedColor, AccumulatedWeight);
+			LOOP
+			for (float y = -2; y > -KernelRadiusY; y -= 2)
+			{
+				VerticalSample(BufferUV, y, KernelRadiusY, CenterDistanceToPlane, CenterReflectionDistance, true, AccumulatedColor, AccumulatedWeight);
+			}
 		}
 
 		AccumulatedColor = AccumulatedColor / max(AccumulatedWeight, .0001f);

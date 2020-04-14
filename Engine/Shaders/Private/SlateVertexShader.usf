@@ -65,7 +65,7 @@ VertexToPixelInterpolants Main(
 
 	{
 		UNROLL
-		for( int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++ )
+		for( uint CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++ )
 		{
 			VertexParameters.TexCoords[CoordinateIndex] = UVArrays[CoordinateIndex];
 		}
@@ -76,17 +76,19 @@ VertexToPixelInterpolants Main(
 		float2 CustomizedUVs[NUM_SLATE_TEXCOORDS];
 		GetMaterialCustomizedUVs(VertexParameters, CustomizedUVs);
 
-		UNROLL
-		for( uint CoordinateIndex = 0; CoordinateIndex < NUM_SLATE_TEXCOORDS; CoordinateIndex++ )
 		{
-			FLATTEN
-			if (Mod(CoordinateIndex, 2))
+			UNROLL
+			for( uint CoordinateIndex = 0; CoordinateIndex < NUM_SLATE_TEXCOORDS; CoordinateIndex++ )
 			{
-				VOut.TextureCoordinates[CoordinateIndex / 2].zw = CustomizedUVs[CoordinateIndex];
-			}
-			else
-			{
-				VOut.TextureCoordinates[CoordinateIndex / 2].xy = CustomizedUVs[CoordinateIndex];
+				FLATTEN
+				if (Mod(CoordinateIndex, 2))
+				{
+					VOut.TextureCoordinates[CoordinateIndex / 2].zw = CustomizedUVs[CoordinateIndex];
+				}
+				else
+				{
+					VOut.TextureCoordinates[CoordinateIndex / 2].xy = CustomizedUVs[CoordinateIndex];
+				}
 			}
 		}
 		

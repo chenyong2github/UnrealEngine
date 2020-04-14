@@ -114,8 +114,8 @@ void CopyDataLocalToDst(in Complex LocalBuffer[2][RADIX], bool bIsHorizontal, ui
 
 void CopyDataSrcWindowToLocal(inout Complex LocalBuffer[2][RADIX], bool bIsHorizontal, in uint ScanIdx, uint Loc, uint Stride, uint4 Window)
 {
-	for (uint i = 0; i < RADIX; ++i) LocalBuffer[0][ i ] = float2(0.f, 0.f);
-	for (uint i = 0; i < RADIX; ++i) LocalBuffer[1][ i ] = float2(0.f, 0.f);
+	{ for (uint i = 0; i < RADIX; ++i) LocalBuffer[0][ i ] = float2(0.f, 0.f); }
+	{ for (uint i = 0; i < RADIX; ++i) LocalBuffer[1][ i ] = float2(0.f, 0.f); }
 	
 	if (bIsHorizontal) 
 	{
@@ -158,8 +158,8 @@ void CopyDataSrcWindowToLocal(inout Complex LocalBuffer[2][RADIX], bool bIsHoriz
 
 void CopyDataSrcWindowToLocal(inout Complex LocalBuffer[2][RADIX], bool bIsHorizontal, uint ScanIdx, uint Loc, uint Stride, uint2 WindowMin, uint2 WindowMax )
 {
-	for (uint i = 0; i < RADIX; ++i) LocalBuffer[0][ i ] = float2(0.f, 0.f);
-	for (uint i = 0; i < RADIX; ++i) LocalBuffer[1][ i ] = float2(0.f, 0.f);
+	{ for (uint i = 0; i < RADIX; ++i) LocalBuffer[0][ i ] = float2(0.f, 0.f); }
+	{ for (uint i = 0; i < RADIX; ++i) LocalBuffer[1][ i ] = float2(0.f, 0.f); }
 
 	if (bIsHorizontal) 
 	{

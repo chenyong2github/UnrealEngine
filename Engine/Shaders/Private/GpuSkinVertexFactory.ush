@@ -39,11 +39,13 @@ uint PerBoneMotionBlur;
 
 #if GPUSKIN_APEX_CLOTH
 /** Vertex buffer from which to read simulated positions of clothing. */
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 Buffer<float2> ClothSimulVertsPositionsNormals;
 Buffer<float2> PreviousClothSimulVertsPositionsNormals;
 /** Transform to apply when positions/normals are loaded */
 float4x4 ClothLocalToWorld;
 float4x4 PreviousClothLocalToWorld;
+#endif // #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 /** blend weight between simulated positions and original key-framed animation */
 float ClothBlendWeight;
 #endif// #if GPUSKIN_APEX_CLOTH
@@ -301,7 +303,6 @@ float3 GetClothSimulNormal(int Index, bool bPrevious)
 	}
 	
 #endif //FEATURE_LEVEL >= FEATURE_LEVEL_SM4
-
 }
 
 float3 ClothingPosition(FClothVertex Input, bool bPrevious)

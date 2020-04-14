@@ -62,11 +62,11 @@ void CopyResidentBricksCS(
 	uint3 NewBrickPos = ComputeBrickLayoutPosition(StartPosInNewVolume + BrickID.x, uint3(256, 256, 256));
 	uint3 NewPos = NewBrickPos * PaddedSize + CellPos;
 	
-	OutAmbientVector[NewPos] = AmbientVector[OldPos];	
+	OutAmbientVector[NewPos] = AmbientVector[OldPos].xyz;
 	#if HAS_SKY_BENT_NORMAL
 		OutSkyBentNormal[NewPos] = SkyBentNormal[OldPos];
 	#endif
-	OutDirectionalLightShadowing[NewPos] = DirectionalLightShadowing[OldPos];
+	OutDirectionalLightShadowing[NewPos] = DirectionalLightShadowing[OldPos].x;
 }
 
 [numthreads(5, 5, 5)]
