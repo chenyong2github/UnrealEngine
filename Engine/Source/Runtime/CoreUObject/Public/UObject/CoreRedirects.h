@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
+#include "HAL/CriticalSection.h"
 
 class IPakFile;
 
@@ -306,4 +307,10 @@ private:
 
 	/** Map from name of thing being mapped to full list. List must be filtered further */
 	static TMap<ECoreRedirectFlags, FRedirectNameMap> RedirectTypeMap;
+
+	/**
+	 * Lock to protect multithreaded access to *KnownMissing functions, which can be called from the async loading threads. 
+	 * TODO: The KnownMissing functions use RedirectTypeMap, which is unguarded; there is race condition vulnerability if asyncloading thread is active before all categories are added to RedirectTypeMap.
+	 */
+	static FRWLock KnownMissingLock;
 };
