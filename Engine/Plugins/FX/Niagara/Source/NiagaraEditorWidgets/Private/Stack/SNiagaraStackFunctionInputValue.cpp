@@ -592,7 +592,7 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 			const FText Tooltip = FText::Format(MapInputFormat, FText::FromName(AvailableHandle.GetParameterHandleString()));
 			TSharedPtr<FNiagaraMenuAction> LinkAction(new FNiagaraMenuAction(Category, DisplayName, Tooltip, 0, FText(),
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::ParameterHandleSelected, AvailableHandle)));
-			LinkAction->SetParamterHandle(AvailableHandle);
+			LinkAction->SetParamterVariable(FNiagaraVariable(FunctionInput->GetInputType(), AvailableHandle.GetParameterHandleString()));
 			OutAllActions.AddAction(LinkAction, RootCategoryName);
 		}
 	}

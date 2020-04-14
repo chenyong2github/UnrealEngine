@@ -27,6 +27,7 @@ struct FSlateBrush;
 class UNiagaraSystem;
 struct FNiagaraNamespaceMetadata;
 class IToolTip;
+class UNiagaraEditorSettings;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NiagaraParameterMapSectionID
@@ -55,7 +56,7 @@ namespace NiagaraParameterMapSectionID
 	};
 
 	static FText OnGetSectionTitle(const NiagaraParameterMapSectionID::Type InSection);
-	static void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
+	void OnGetSectionNamespaces(const NiagaraParameterMapSectionID::Type InSection, TArray<FName>& OutSectionNamespaces);
 	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
 	static bool GetSectionIsAdvancedForScript(const NiagaraParameterMapSectionID::Type InSection);
 	static bool GetSectionIsAdvancedForSystem(const NiagaraParameterMapSectionID::Type InSection);
@@ -96,6 +97,7 @@ public:
 	static bool IsStaticSwitchParameter(const FNiagaraVariable& Variable, const TArray<TWeakObjectPtr<UNiagaraGraph>>& Graphs);
 
 private:
+	void NiagaraEditorSettingsChanged(const FString& PropertyName, const UNiagaraEditorSettings* NiagaraEditorSettings);
 	
 	TSharedRef<SWidget> GetViewOptionsMenu();
 	static const FSlateBrush* GetViewOptionsBorderBrush();
@@ -148,16 +150,8 @@ private:
 	bool CanRequestRenameOnActionNode() const;
 	void OnPostRenameActionNode(const FText& InText, FNiagaraParameterAction& InAction);
 
-	bool GetNamespaceEditDataForSelection(
+	bool GetSingleParameterActionForSelection(
 		TSharedPtr<FNiagaraParameterAction>& OutParameterAction,
-		FNiagaraParameterHandle& OutParameterHandle,
-		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
-		FText& OutErrorMessage) const;
-
-	bool GetNamespaceModifierEditDataForSelection(
-		TSharedPtr<FNiagaraParameterAction>& OutParameterAction,
-		FNiagaraParameterHandle& OutParameterHandle,
-		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
 		FText& OutErrorMessage) const;
 
 	FText GetAddNamespaceModifierToolTip() const;
@@ -213,6 +207,8 @@ private:
 
 	EToolkitType ToolkitType;
 	TSharedPtr<FUICommandList> ToolkitCommands;
+
+	TArray<int32> HiddenSectionIDs;
 
 	bool bNeedsRefresh;
 	bool bIsAddingParameter;

@@ -189,7 +189,7 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 	Super::GetNodeContextMenuActions(Menu, Context);
 	if (Context->Pin != nullptr)
 	{
-		FToolMenuSection& Section = Menu->AddSection("EdGraphSchema_NiagaraPinActions", LOCTEXT("EditPinMenuHeader", "Edit Pin"));
+		FToolMenuSection& Section = Menu->AddSection("EditPin", LOCTEXT("EditPinMenuHeader", "Edit Pin"));
 		if (CanRenamePinFromContextMenu(Context->Pin))
 		{
 			UEdGraphPin* Pin = const_cast<UEdGraphPin*>(Context->Pin);
@@ -205,6 +205,16 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 				];
 			Section.AddEntry(FToolMenuEntry::InitWidget("RenameWidget", RenameWidget, LOCTEXT("NameMenuItem", "Name")));
 		}
+		else if (CanRenamePin(Context->Pin))
+		{
+			Section.AddMenuEntry(
+				NAME_None,
+				LOCTEXT("RenameDynamicPin", "Rename pin"),
+				LOCTEXT("RenameDynamicPinToolTip", "Rename this pin."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateUObject(const_cast<UNiagaraNodeWithDynamicPins*>(this), &UNiagaraNodeWithDynamicPins::RenameDynamicPinFromMenu, const_cast<UEdGraphPin*>(Context->Pin))));
+		}
+
 		if (CanRemovePin(Context->Pin))
 		{
 			Section.AddMenuEntry(
@@ -394,7 +404,10 @@ void UNiagaraNodeWithDynamicPins::PinNameTextCommitted(const FText& Text, ETextC
 	}
 }
 
-
+void UNiagaraNodeWithDynamicPins::RenameDynamicPinFromMenu(UEdGraphPin* Pin)
+{
+	SetIsPinRenamePending(Pin, true);
+}
 
 void UNiagaraNodeWithDynamicPins::RemoveDynamicPinFromMenu(UEdGraphPin* Pin)
 {

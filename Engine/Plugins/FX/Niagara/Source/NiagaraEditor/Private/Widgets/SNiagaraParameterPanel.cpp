@@ -613,7 +613,7 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu2::AddParameterSelected, ActionInfo.NewVariable)));
 
 			Action->IsExperimental = ActionInfo.bIsExperimental;
-			Action->SetParamterHandle(FNiagaraParameterHandle(ActionInfo.NewVariable.GetName()));
+			Action->SetParamterVariable(ActionInfo.NewVariable);
 
 			TempOutAllActions.Add(Action);
 		}
@@ -638,7 +638,7 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 				TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
 					Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
 					FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu2::AddParameterSelected, Variable)));
-				Action->SetParamterHandle(FNiagaraParameterHandle(Variable.GetName()));
+				Action->SetParamterVariable(Variable);
 
 				TempOutAllActions.Add(Action);
 			}
@@ -684,7 +684,7 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 					TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
 						CategoryText, DisplayName, Tooltip, 0, FText::GetEmpty(),
 						FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu2::AddParameterSelected, Var)));
-					Action->SetParamterHandle(FNiagaraParameterHandle(Var.GetName()));
+					Action->SetParamterVariable(Var);
 
 					TempOutAllActions.Add(Action);
 				}
@@ -705,7 +705,7 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 					TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
 						CategoryText, DisplayName, Tooltip, 0, FText::GetEmpty(),
 						FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu2::AddParameterSelected, Var)));
-					Action->SetParamterHandle(FNiagaraParameterHandle(Var.GetName()));
+					Action->SetParamterVariable(Var);
 
 					TempOutAllActions.Add(Action);
 
@@ -715,15 +715,15 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 		}
 	}
 	auto SortOutAllActionsPred = [](const TSharedPtr<FNiagaraMenuAction>& A, const TSharedPtr<FNiagaraMenuAction>& B)->bool {
-		if (A->GetParameterHandle().IsSet() == false)
+		if (A->GetParameterVariable().IsSet() == false)
 		{
 			return false;
 		}
-		else if (B->GetParameterHandle().IsSet() == false)
+		else if (B->GetParameterVariable().IsSet() == false)
 		{
 			return true;
 		}
-		return FNiagaraEditorUtilities::GetVariableSortPriority(A->GetParameterHandle()->GetParameterHandleString(), B->GetParameterHandle()->GetParameterHandleString());
+		return FNiagaraEditorUtilities::GetVariableSortPriority(A->GetParameterVariable()->GetName(), B->GetParameterVariable()->GetName());
 	};
 	TempOutAllActions.Sort(SortOutAllActionsPred);
 	for (const TSharedPtr<FNiagaraMenuAction>& Action : TempOutAllActions)
