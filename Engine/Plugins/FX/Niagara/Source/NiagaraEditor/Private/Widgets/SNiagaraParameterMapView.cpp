@@ -1010,6 +1010,10 @@ void SNiagaraParameterMapView::AddGraph(UNiagaraGraph* Graph)
 			FOnGraphChanged::FDelegate::CreateRaw(this, &SNiagaraParameterMapView::OnGraphChanged));
 		FDelegateHandle OnRecompileHandle = Graph->AddOnGraphNeedsRecompileHandler(
 			FOnGraphChanged::FDelegate::CreateRaw(this, &SNiagaraParameterMapView::OnGraphChanged));
+		if (ToolkitType == EToolkitType::SCRIPT)
+		{
+			OnSubObjectSelectionChangedHandle = Graph->OnSubObjectSelectionChanged().AddSP(this, &SNiagaraParameterMapView::HandleGraphSubObjectSelectionChanged);
+		}
 
 		OnGraphChangedHandles.Add(OnGraphChangedHandle);
 		OnRecompileHandles.Add(OnRecompileHandle);
@@ -1540,6 +1544,15 @@ bool SNiagaraParameterMapView::HandleActionMatchesName(FEdGraphSchemaAction* InA
 void SNiagaraParameterMapView::RefreshActions()
 {
 	bNeedsRefresh = true;
+}
+
+void SNiagaraParameterMapView::HandleGraphSubObjectSelectionChanged(const UObject* NewSelection)
+{
+	if (NewSelection->IsA<UNiagaraScriptVariable>())
+	{
+		GraphActionMenu->SelectItemByName(static_cast<const UNiagaraScriptVariable*>(NewSelection)->Variable.GetName());
+	}
+	SelectedVariableObjects->SetSelectedObject(const_cast<UObject*>(NewSelection));
 }
 
 bool SNiagaraParameterMapView::IsStaticSwitchParameter(const FNiagaraVariable& Variable, const TArray<TWeakObjectPtr<UNiagaraGraph>>& Graphs)
