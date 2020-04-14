@@ -99,7 +99,6 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, TParti
 			if(auto NewData = ParticleData.FindDynamicMisc(Manager,DataIdx))
 			{
 				Solver->GetEvolution()->SetParticleObjectState(RigidHandle,NewData->ObjectState());
-				Solver->GetEvolution()->GetGravityForces().SetEnabled(*RigidHandle,NewData->GravityEnabled());
 
 				RigidHandle->SetDynamicMisc(*NewData);
 			}

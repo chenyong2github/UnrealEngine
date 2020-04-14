@@ -34,26 +34,9 @@ namespace Chaos
 
 		void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
 		{
-			if (!OptOut.Contains(Particle.Handle()))
+			if(Particle.GravityEnabled())
 			{
 				Particle.F() += MAcceleration * Particle.M();
-			}
-		}
-
-		bool GetEnabled(const TGeometryParticleHandleImp<T, d, true>& Handle)
-		{
-			return !OptOut.Contains(&Handle);
-		}
-
-		void SetEnabled(const TGeometryParticleHandleImp<T, d, true>& Handle, bool bEnabled)
-		{
-			if (bEnabled)
-			{
-				OptOut.Remove(&Handle);
-			}
-			else
-			{
-				OptOut.Add(&Handle);
 			}
 		}
 
@@ -65,6 +48,5 @@ namespace Chaos
 
 	private:
 		TVector<T, d> MAcceleration;
-		TSet< const TGeometryParticleHandleImp<T, d, true>* > OptOut;
 	};
 }
