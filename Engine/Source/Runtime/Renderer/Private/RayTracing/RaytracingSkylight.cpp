@@ -28,6 +28,7 @@ static int32 GRayTracingSkyLight = -1;
 #include "Raytracing/RaytracingOptions.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
+#include "HairStrands/HairStrandsRendering.h"
 
 static FAutoConsoleVariableRef CVarRayTracingSkyLight(
 	TEXT("r.RayTracing.SkyLight"),
@@ -88,6 +89,13 @@ static TAutoConsoleVariable<int32> CVarRayTracingSkyLightDecoupleSampleGeneratio
 	TEXT("r.RayTracing.SkyLight.DecoupleSampleGeneration"),
 	1,
 	TEXT("Decouples sample generation from ray traversal (default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarRayTracingSkyLightEnableHairVoxel(
+	TEXT("r.RayTracing.SkyLight.HairVoxel"),
+	0,
+	TEXT("Include hair voxel representation to estimate sky occlusion"),
 	ECVF_RenderThreadSafe
 );
 
@@ -310,8 +318,9 @@ class FRayTracingSkyLightRGS : public FGlobalShader
 	class FEnableTwoSidedGeometryDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
 	class FEnableMaterialsDim : SHADER_PERMUTATION_BOOL("ENABLE_MATERIALS");
 	class FDecoupleSampleGeneration : SHADER_PERMUTATION_BOOL("DECOUPLE_SAMPLE_GENERATION");
+	class FHairLighting : SHADER_PERMUTATION_INT("USE_HAIR_LIGHTING", 2);
 
-	using FPermutationDomain = TShaderPermutationDomain<FEnableTwoSidedGeometryDim, FEnableMaterialsDim, FDecoupleSampleGeneration>;
+	using FPermutationDomain = TShaderPermutationDomain<FEnableTwoSidedGeometryDim, FEnableMaterialsDim, FDecoupleSampleGeneration, FHairLighting>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -325,6 +334,7 @@ class FRayTracingSkyLightRGS : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
+		SHADER_PARAMETER_STRUCT_REF(FVirtualVoxelParameters, VirtualVoxel)
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightQuasiRandomData, SkyLightQuasiRandomData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightVisibilityRaysData, SkyLightVisibilityRaysData)
@@ -433,7 +443,8 @@ DECLARE_GPU_STAT_NAMED(RayTracingSkyLight, TEXT("Ray Tracing SkyLight"));
 void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	FRHICommandListImmediate& RHICmdList,
 	TRefCountPtr<IPooledRenderTarget>& SkyLightRT,
-	TRefCountPtr<IPooledRenderTarget>& HitDistanceRT
+	TRefCountPtr<IPooledRenderTarget>& HitDistanceRT,
+	const FHairStrandsDatas* HairDatas
 )
 {
 	SCOPED_DRAW_EVENT(RHICmdList, RayTracingSkyLight);
@@ -507,6 +518,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 		SubsurfaceProfileRT = GSystemTextures.BlackDummy;
 	}
 
+	int32 ViewIndex = 0;
 	for (FViewInfo& View : Views)
 	{
 		FSceneViewState* SceneViewState = (FSceneViewState*)View.State;
@@ -533,10 +545,20 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 		PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
+		const bool bUseHairLighting = 
+			HairDatas && ViewIndex < HairDatas->MacroGroupsPerViews.Views.Num() && 
+			HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid() && 
+			CVarRayTracingSkyLightEnableHairVoxel.GetValueOnRenderThread() > 0;
+		if (bUseHairLighting)
+		{
+			PassParameters->VirtualVoxel = HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.UniformBuffer;
+		}
+
 		FRayTracingSkyLightRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRayTracingSkyLightRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingSkyLightEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
 		PermutationVector.Set<FRayTracingSkyLightRGS::FEnableMaterialsDim>(CVarRayTracingSkyLightEnableMaterials.GetValueOnRenderThread() != 0);
 		PermutationVector.Set<FRayTracingSkyLightRGS::FDecoupleSampleGeneration>(CVarRayTracingSkyLightDecoupleSampleGeneration.GetValueOnRenderThread() != 0);
+		PermutationVector.Set<FRayTracingSkyLightRGS::FHairLighting>(bUseHairLighting ? 1 : 0);
 		TShaderMapRef<FRayTracingSkyLightRGS> RayGenerationShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 		ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
@@ -617,6 +639,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 				SceneViewState->SkyLightVisibilityRaysDimensions = FIntVector(1);
 			}
 		}
+
+		++ViewIndex;
 	}
 
 	GraphBuilder.QueueTextureExtraction(SkyLightTexture, &SkyLightRT);

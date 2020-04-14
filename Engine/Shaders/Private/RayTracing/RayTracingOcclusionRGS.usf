@@ -40,92 +40,25 @@ int4 LightScissor;
 int2 PixelOffset;
 
 #if USE_HAIR_LIGHTING
-#define VOXEL_TRAVERSAL_DEBUG 0
-#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
-//#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR
-
-#include "../HairStrands/HairStrandsVoxelPageCommon.ush"
-#include "../HairStrands/HairStrandsVoxelPageTraversal.ush"
-
+#include "../HairStrands/HairStrandsRaytracing.ush"
 uint				bUseHairVoxel;
 Texture2D<uint4>	HairCategorizationTexture;
 Texture2D<uint>		HairLightChannelMaskTexture;
 
-float TraverseHair(uint2 PixelCoord, float DeviceZ, inout RandomSequence RandSequence, float3 RayOrigin, float3 RayDirection, float InMinT)
+void NeedTraceHair(
+	in uint2 PixelCoord,
+	inout bool bTraceHairRay,
+	inout float HairDeviceZ)
 {
-	float HitT = InMinT;
-
-
-	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
-	const float PixelRadius = VirtualVoxel.HairCoveragePixelRadiusAtDepth1 * SceneDepth;
-
-	// Depth bias
-	// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
-#if 0
-	const float3 VoxelRandom = 0.5f;
-	const float  RayRandom   = 1;
-#else
-	uint DummyVariable;
-	const float3 VoxelRandom = RandomSequence_GenerateSample3D(RandSequence, DummyVariable);
-	const float RayRandom = RandomSequence_GenerateSample1D(RandSequence, DummyVariable);
-#endif
+	const FCategorizationData Categorization = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
+	bTraceHairRay = false;
+	HairDeviceZ = 0;
+	if (Categorization.PixelCoverage > 0)
 	{
-		const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (RayRandom * RayDirection + VoxelRandom);
-		RayOrigin += DepthBias;
+		const uint HairLightChannel = HairLightChannelMaskTexture.Load(uint3(PixelCoord, 0));
+		HairDeviceZ = Categorization.ClosestDepth;
+		bTraceHairRay = (HairLightChannel & LightingChannelMask) != 0;
 	}
-
-	#if VOXEL_TRAVERSAL_DEBUG
-	const bool bDebugEnabled = PixelCoord.x == GetCursorPos().x && PixelCoord.y == GetCursorPos().y;
-	#else
-	const bool bDebugEnabled = false;
-	#endif
-
-	FHairTraversalResult Result = InitHairTraversalResult();
-
-	const float DistanceThreshold = 1000.0f; 
-	const float CoverageThreshold = 0.995f; // When Coverage is high, we do not trace shadow on opaque since hair/fur is covering the background.
-
-	FVirtualVoxelCommonDesc CommonDesc;
-	CommonDesc.PageCountResolution = VirtualVoxel.PageCountResolution;
-	CommonDesc.VoxelWorldSize = VirtualVoxel.VoxelWorldSize;
-	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
-	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
-
-	const float3 P0 = RayOrigin;
-	const float3 P1 = RayOrigin + RayDirection * (HitT>=0 ? min(HitT, DistanceThreshold) : DistanceThreshold);
-
-	for (uint MacroGroupId = 0; MacroGroupId < VirtualVoxel.NodeDescCount; ++MacroGroupId)
-	{
-		const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
-		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
-
-		FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
-		TraversalSettings.DensityScale = VirtualVoxel.DensityScale;
-		TraversalSettings.CountThreshold = 1;
-		TraversalSettings.DistanceThreshold = DistanceThreshold;
-		TraversalSettings.bDebugEnabled = bDebugEnabled;
-		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
-		TraversalSettings.Random = VoxelRandom;
-		TraversalSettings.bUseOpaqueVisibility = false;
-		TraversalSettings.PixelRadius = PixelRadius;
-
-		Result = ComputeHairCountVirtualVoxel(
-			P0,
-			P1,
-			CommonDesc,
-			NodeDesc,
-			VirtualVoxel.PageIndexBuffer,
-			VirtualVoxel.PageTexture,
-			TraversalSettings);
-
-		if (Result.HitT >= 0)
-		{
-			const float WorldHitT = DistanceThreshold * Result.HitT;
-			HitT = HitT >= 0 ? min(HitT, WorldHitT) : WorldHitT;
-		}
-	}
-
-	return HitT;
 }
 #endif
 
@@ -462,7 +395,7 @@ FOcclusionResult ComputeOcclusion(
 		#if USE_HAIR_LIGHTING
 		if (ShadingModelID != SHADINGMODELID_HAIR && bUseHairVoxel)
 		{
-			MinimalPayload.HitT = TraverseHair(PixelCoord, DeviceZ, RandSequence, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
+			MinimalPayload.HitT = TraverseHair(PixelCoord, RandSequence, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
 		}
 		#endif
 
@@ -560,15 +493,9 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 		}
 
 	#if USE_HAIR_LIGHTING
-		const FCategorizationData Categorization = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
 		bool bTraceHairRay = false;
 		float HairDeviceZ = 0;
-		if (Categorization.PixelCoverage > 0)
-		{
-			const uint HairLightChannel = HairLightChannelMaskTexture.Load(uint3(PixelCoord, 0));
-			HairDeviceZ	= Categorization.ClosestDepth;
-			bTraceHairRay = (HairLightChannel & LightingChannelMask) != 0;
-		}
+		NeedTraceHair(PixelCoord, bTraceHairRay, HairDeviceZ);
 	#endif
 
 		Occlusion = ComputeOcclusion(
