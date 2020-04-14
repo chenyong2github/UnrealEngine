@@ -1399,10 +1399,6 @@ void FSlateApplication::TickTime()
 	if (GetDeltaTime() > MaxQuantumBeforeClamp)
 	{
 		LastTickTime = CurrentTime - MaxQuantumBeforeClamp;
-			// we call this again to improve the responsiveness of accessibility navigation and announcements 
-			GetAccessibleMessageHandler()->ProcessAccessibleTasks();
-		}
-#endif
 	}
 }
 
