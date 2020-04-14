@@ -60,20 +60,6 @@ ANavSystemConfigOverride::ANavSystemConfigOverride(const FObjectInitializer& Obj
 	bNetLoadOnClient = false;
 }
 
-void ANavSystemConfigOverride::PostLoad()
-{
-	Super::PostLoad();
-	
-#if WITH_EDITOR
-	// ApplyConfig in PostLoad only for Editor worlds; applied in BeginPlay for Game worlds.
-	UWorld* World = GetWorld();
-	if ((World != nullptr) && (World->IsGameWorld() == false))
-	{
-		ApplyConfig();
-	}
-#endif // WITH_EDITOR
-}
-
 void ANavSystemConfigOverride::BeginPlay()
 {
 	Super::BeginPlay();
@@ -158,6 +144,72 @@ void ANavSystemConfigOverride::OverrideNavSystem()
 }
 
 #if WITH_EDITOR
+void ANavSystemConfigOverride::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+	// ApplyConfig in PostRegisterAllComponents only for Editor worlds; applied in BeginPlay for Game worlds.
+	UWorld* World = GetWorld();
+	if (World == nullptr || World->IsGameWorld())
+	{
+		return;
+	}
+
+	// While refreshing streaming levels, components are unregistered then registered again
+	// and we don't want to modify the configuration and recreate the NavigationSystem.
+	if (World->IsRefreshingStreamingLevels())
+	{
+		return;
+	}
+
+	// Config override should not be applied during cooking.
+	if (GIsCookerLoadingPackage)
+	{
+		return;
+	}
+
+	ApplyConfig();
+}
+
+void ANavSystemConfigOverride::PostUnregisterAllComponents()
+{
+	Super::PostUnregisterAllComponents();
+
+	if (NavigationSystemConfig == nullptr)
+	{
+		return;
+	}
+
+	// ApplyConfig was performed in PostRegisterAllComponents for Editor worlds so nothing to unregister for Game worlds.
+	UWorld* World = GetWorld();
+	if (World == nullptr || World->IsGameWorld())
+	{
+		return;
+	}
+
+	// While refreshing streaming levels, components are unregistered then registered again
+	// and we don't want to modify the configuration and recreate the NavigationSystem.
+	if (World->IsRefreshingStreamingLevels())
+	{
+		return;
+	}
+
+	// Config override should not be applied during cooking.
+	if (GIsCookerLoadingPackage)
+	{
+		return;
+	}
+
+	// If our override was used to create the navigation system, we remove the dependency
+	// and recreate the navigation system (if needed after removing the override)
+	AWorldSettings* WorldSetting = World->GetWorldSettings();
+	if (WorldSetting && WorldSetting->GetNavigationSystemConfigOverride() == NavigationSystemConfig)
+	{
+		WorldSetting->SetNavigationSystemConfigOverride(nullptr);
+		FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode, nullptr, /*bInitializeForWorld=*/true, /*bOverridePreviousNavSys=*/true);
+	}
+}
+
 void ANavSystemConfigOverride::InitializeForWorld(UNavigationSystemBase* NewNavSys, UWorld* World, const FNavigationSystemRunMode RunMode)
 {
 	if (NewNavSys && World)
