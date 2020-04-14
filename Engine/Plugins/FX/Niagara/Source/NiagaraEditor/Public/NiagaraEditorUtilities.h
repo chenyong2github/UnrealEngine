@@ -34,6 +34,7 @@ class FNiagaraEmitterViewModel;
 class FNiagaraEmitterHandleViewModel;
 enum class ECheckBoxState : uint8;
 struct FNiagaraNamespaceMetadata;
+class FNiagaraParameterHandle;
 
 namespace FNiagaraEditorUtilities
 {
@@ -293,8 +294,6 @@ namespace FNiagaraEditorUtilities
 
 	void GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes);
 
-	FText FormatParameterNameForTextDisplay(FName ParameterName);
-
 	// Compare two FNiagaraVariable names for the sort priority relative to the first argument VarNameA. Sorting is ordered by namespace and then alphabetized. 
 	bool GetVariableSortPriority(const FName& VarNameA, const FName& VarNameB);
 
@@ -310,4 +309,34 @@ namespace FNiagaraEditorUtilities
 namespace FNiagaraParameterUtilities
 {
 	bool DoesParameterNameMatchSearchText(FName ParameterName, const FString& SearchTextString);
+
+	FText FormatParameterNameForTextDisplay(FName ParameterName);
+
+	bool GetNamespaceEditData(
+		FName InParameterName,
+		FNiagaraParameterHandle& OutParameterHandle,
+		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
+		FText& OutErrorMessage);
+
+	bool GetNamespaceModifierEditData(
+		FName InParameterName,
+		FNiagaraParameterHandle& OutParameterHandle,
+		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
+		FText& OutErrorMessage);
+
+	bool TestCanChangeNamespaceWithMessage(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata, FText& OutMessage);
+
+	FName ChangeNamespace(FName ParameterName, const FNiagaraNamespaceMetadata& NewNamespaceMetadata);
+
+	bool TestCanAddNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+
+	FName AddNamespaceModifier(FName InParameterName);
+
+	bool TestCanRemoveNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+
+	FName RemoveNamespaceModifier(FName InParameterName);
+
+	bool TestCanEditNamespaceModifierWithMessage(FName ParameterName, FText& OutMessage);
+
+	bool TestCanRenameWithMessage(FName ParameterName, FText& OutMessage);
 };

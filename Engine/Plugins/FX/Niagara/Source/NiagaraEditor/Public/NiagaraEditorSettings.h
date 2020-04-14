@@ -30,9 +30,11 @@ struct FNiagaraNewAssetDialogConfig
 UENUM()
 enum class ENiagaraNamespaceMetadataOptions
 {
+	HideInScript,
+	HideInSystem,
 	AdvancedInScript,
 	AdvancedInSystem,
-	PreventRenaming,
+	PreventEditing,
 	CanChangeNamespaceModifier,
 	PreventCreatingInSystemEditor
 };
@@ -65,6 +67,9 @@ struct FNiagaraNamespaceMetadata
 	FName ForegroundStyle;
 
 	UPROPERTY()
+	int32 SortId;
+
+	UPROPERTY()
 	TArray<ENiagaraNamespaceMetadataOptions> Options;
 
 	FNiagaraNamespaceMetadata& SetDisplayName(FText InDisplayName)
@@ -94,6 +99,12 @@ struct FNiagaraNamespaceMetadata
 	FNiagaraNamespaceMetadata& SetForegroundStyle(FName InForegroundStyle)
 	{
 		ForegroundStyle = InForegroundStyle;
+		return *this;
+	}
+
+	FNiagaraNamespaceMetadata& SetSortId(int32 InSortId)
+	{
+		SortId = InSortId;
 		return *this;
 	}
 
@@ -177,6 +188,7 @@ public:
 	void SetNewAssetDialogConfig(FName InDialogConfigKey, const FNiagaraNewAssetDialogConfig& InNewAssetDialogConfig);
 
 	FNiagaraNamespaceMetadata GetMetaDataForNamespaces(TArray<FName> Namespaces) const;
+	const TArray<FNiagaraNamespaceMetadata>& GetAllNamespaceMetadata() const;
 	FNiagaraNamespaceMetadata GetMetaDataForNamespaceModifier(FName NamespaceModifier) const;
 	
 	// Begin UDeveloperSettings Interface
@@ -197,7 +209,7 @@ private:
 	void SetupNamespaceMetadata();
 
 protected:
-	static FOnNiagaraEditorSettingsChanged SettingsChangedDelegate;
+	FOnNiagaraEditorSettingsChanged SettingsChangedDelegate;
 
 private:
 	/** Whether or not auto-compile is enabled in the editors. */

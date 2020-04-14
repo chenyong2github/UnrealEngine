@@ -3,6 +3,7 @@
 #include "Widgets/SNiagaraParameterName.h"
 #include "NiagaraEditorSettings.h"
 #include "NiagaraEditorStyle.h"
+#include "NiagaraNodeParameterMapBase.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
@@ -20,6 +21,7 @@ void SNiagaraParameterName::Construct(const FArguments& InArgs)
 	OnNameChangedDelegate = InArgs._OnNameChanged;
 	OnDoubleClickedDelegate = InArgs._OnDoubleClicked;
 	IsSelected = InArgs._IsSelected;
+	DecoratorHAlign = InArgs._DecoratorHAlign;
 	Decorator = InArgs._Decorator.Widget;
 
 	UpdateContent(ParameterName.Get());
@@ -65,78 +67,74 @@ TSharedRef<SBorder> SNiagaraParameterName::CreateNamespaceWidget(FText Namespace
 void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName)
 {
 	DisplayedParameterName = InDisplayedParameterName;
-	
-	FString DisplayedParameterNameString = DisplayedParameterName.ToString();
-	TArray<FString> NameParts;
-	DisplayedParameterNameString.ParseIntoArray(NameParts, TEXT("."));
 
-	if (NameParts.Num() == 0)
+	FString DisplayedParameterNameString = DisplayedParameterName.ToString();
+	TArray<FString> NamePartStrings;
+	DisplayedParameterNameString.ParseIntoArray(NamePartStrings, TEXT("."));
+
+	if (NamePartStrings.Num() == 0)
 	{
 		return;
 	}
 
-	TArray<FName> Namespaces;
-	for (int32 i = 0; i < NameParts.Num() - 1; i++)
+	TArray<FName> NameParts;
+	for (int32 i = 0; i < NamePartStrings.Num(); i++)
 	{
-		Namespaces.Add(*NameParts[i]);
+		NameParts.Add(*NamePartStrings[i]);
 	}
 
 	TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
 
+	// Add the namespace widget.
 	FNiagaraNamespaceMetadata DefaultNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({ NAME_None });
-
-	if (Namespaces.Num() > 0)
+	FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(NameParts);
+	TSharedPtr<SWidget> NamespaceWidget;
+	if (NamespaceMetadata.IsValid())
 	{
-		// Add the namespace widget.
-		FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(Namespaces);
-		TSharedPtr<SWidget> NamespaceWidget;
-		if (NamespaceMetadata.IsValid())
-		{
-			Namespaces.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
-			NamespaceWidget = CreateNamespaceWidget(
-				NamespaceMetadata.DisplayName.ToUpper(), NamespaceMetadata.Description,
-				NamespaceMetadata.BackgroundColor, NamespaceMetadata.ForegroundStyle);
-		}
-		else
-		{
-			FText NamespaceDisplayName = FText::FromString(FName::NameToDisplayString(Namespaces[0].ToString(), false).ToUpper());
-			Namespaces.RemoveAt(0);
-			NamespaceWidget = CreateNamespaceWidget(
-				NamespaceDisplayName, DefaultNamespaceMetadata.Description,
-				DefaultNamespaceMetadata.BackgroundColor, DefaultNamespaceMetadata.ForegroundStyle);
-		}
+		NameParts.RemoveAt(0, NamespaceMetadata.Namespaces.Num());
+		NamespaceWidget = CreateNamespaceWidget(
+			NamespaceMetadata.DisplayName.ToUpper(), NamespaceMetadata.Description,
+			NamespaceMetadata.BackgroundColor, NamespaceMetadata.ForegroundStyle);
+	}
+	else
+	{
+		FText NamespaceDisplayName = FText::FromString(FName::NameToDisplayString(NameParts[0].ToString(), false).ToUpper());
+		NameParts.RemoveAt(0);
+		NamespaceWidget = CreateNamespaceWidget(
+			NamespaceDisplayName, DefaultNamespaceMetadata.Description,
+			DefaultNamespaceMetadata.BackgroundColor, DefaultNamespaceMetadata.ForegroundStyle);
+	}
 
-		ContentBox->AddSlot()
+	ContentBox->AddSlot()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		.Padding(0.0f, 0.0f, 5.0f, 0.0f)
 		[
 			NamespaceWidget.ToSharedRef()
 		];
-	}
 
-	// Next the namespace modifier widget is there is a namespace modifier.
-	if (Namespaces.Num() > 0)
+	// Next the namespace modifier widget if there is a namespace modifier.
+	if (NameParts.Num() > 1)
 	{
-		DisplayedNamespaceModifier = Namespaces[0];
+		DisplayedNamespaceModifier = NameParts[0];
 		FNiagaraNamespaceMetadata DisplayedNamespaceModifierMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaceModifier(DisplayedNamespaceModifier);
 		if (DisplayedNamespaceModifierMetadata.IsValid() == false)
 		{
 			DisplayedNamespaceModifierMetadata = DefaultNamespaceMetadata;
 		}
 
-		Namespaces.RemoveAt(0);
+		NameParts.RemoveAt(0);
 		NamespaceModifierBorder = CreateNamespaceWidget(
 			FText::FromString(FName::NameToDisplayString(DisplayedNamespaceModifier.ToString(), false).ToUpper()), DisplayedNamespaceModifierMetadata.Description,
 			DisplayedNamespaceModifierMetadata.BackgroundColor, DisplayedNamespaceModifierMetadata.ForegroundStyle);
 
 		ContentBox->AddSlot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(0.0f, 0.0f, 5.0f, 0.0f)
-		[
-			NamespaceModifierBorder.ToSharedRef()
-		];
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+			[
+				NamespaceModifierBorder.ToSharedRef()
+			];
 	}
 	else
 	{
@@ -145,50 +143,59 @@ void SNiagaraParameterName::UpdateContent(FName InDisplayedParameterName)
 	}
 
 	// If there are extra namespaces found, add them to the UI without metadata.
-	for (FName Namespace : Namespaces)
+	while (NameParts.Num() > 1)
+	{
+		FName ExtraNamespace = NameParts[0];
+		NameParts.RemoveAt(0);
+
+		ContentBox->AddSlot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+			[
+				CreateNamespaceWidget(
+					FText::FromString(FName::NameToDisplayString(ExtraNamespace.ToString(), false).ToUpper()), DefaultNamespaceMetadata.Description,
+					DefaultNamespaceMetadata.BackgroundColor, DefaultNamespaceMetadata.ForegroundStyle)
+			];
+	}
+
+	TSharedPtr<SWidget> NameWidget;
+	if (NameParts.Num() > 0)
+	{
+		if (bIsReadOnly)
+		{
+			NameWidget = SNew(STextBlock)
+				.TextStyle(ReadOnlyTextStyle)
+				.Text(FText::FromName(NameParts[0]))
+				.HighlightText(HighlightText);
+		}
+		else
+		{
+			NameWidget = SAssignNew(EditableTextBlock, SInlineEditableTextBlock)
+				.Style(EditableTextStyle)
+				.Text(FText::FromName(NameParts[0]))
+				.IsSelected(IsSelected)
+				.OnVerifyTextChanged(this, &SNiagaraParameterName::VerifyNameTextChange)
+				.OnTextCommitted(this, &SNiagaraParameterName::NameTextCommitted)
+				.HighlightText(HighlightText);
+		}
+	}
+
+	if (NameWidget.IsValid())
 	{
 		ContentBox->AddSlot()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
-		.Padding(0.0f, 0.0f, 5.0f, 0.0f)
 		[
-			CreateNamespaceWidget(
-				FText::FromString(FName::NameToDisplayString(Namespace.ToString(), false).ToUpper()), DefaultNamespaceMetadata.Description,
-				DefaultNamespaceMetadata.BackgroundColor, DefaultNamespaceMetadata.ForegroundStyle)
+			NameWidget.ToSharedRef()
 		];
 	}
-
-	TSharedPtr<SWidget> NameWidget;
-	if (bIsReadOnly)
-	{
-		NameWidget = SNew(STextBlock)
-			.TextStyle(ReadOnlyTextStyle)
-			.Text(FText::FromString(NameParts.Last()))
-			.HighlightText(HighlightText);
-	}
-	else
-	{
-		NameWidget = SAssignNew(EditableTextBlock, SInlineEditableTextBlock)
-		.Style(EditableTextStyle)
-		.Text(FText::FromString(NameParts.Last()))
-		.IsSelected(IsSelected)
-		.OnVerifyTextChanged(this, &SNiagaraParameterName::VerifyNameTextChange)
-		.OnTextCommitted(this, &SNiagaraParameterName::NameTextCommitted)
-		.HighlightText(HighlightText);
-	}
-
-	ContentBox->AddSlot()
-	.VAlign(VAlign_Center)
-	.AutoWidth()
-	[
-		NameWidget.ToSharedRef()
-	];
 
 	if (Decorator.IsValid())
 	{
 		ContentBox->AddSlot()
 		.VAlign(VAlign_Center)
-		.AutoWidth()
+		.HAlign(DecoratorHAlign)
 		.Padding(3.0f, 0.0f, 0.0f, 0.0f)
 		[
 			Decorator.ToSharedRef()
@@ -380,4 +387,37 @@ void SNiagaraParameterNameTextBlock::EnterEditingMode()
 void SNiagaraParameterNameTextBlock::EnterNamespaceModifierEditingMode()
 {
 	ParameterName->EnterNamespaceModifierEditingMode();
+}
+
+void SNiagaraParameterNamePinLabel::Construct(const FArguments& InArgs, UEdGraphPin* InTargetPin)
+{
+	TargetPin = InTargetPin;
+
+	SNiagaraParameterNameTextBlock::Construct(SNiagaraParameterNameTextBlock::FArguments()
+		.EditableTextStyle(InArgs._EditableTextStyle)
+		.ParameterText(InArgs._ParameterText)
+		.IsReadOnly(InArgs._IsReadOnly)
+		.HighlightText(InArgs._HighlightText)
+		.OnVerifyTextChanged(InArgs._OnVerifyTextChanged)
+		.OnTextCommitted(InArgs._OnTextCommitted)
+		.IsSelected(InArgs._IsSelected)
+		.Decorator()
+		[
+			InArgs._Decorator.Widget
+		]);
+}
+
+void SNiagaraParameterNamePinLabel::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SNiagaraParameterNameTextBlock::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	UNiagaraNodeParameterMapBase* ParameterMapNode = Cast<UNiagaraNodeParameterMapBase>(TargetPin->GetOwningNode());
+	if (ParameterMapNode != nullptr)
+	{
+		if (ParameterMapNode->GetIsPinEditNamespaceModifierPending(TargetPin))
+		{
+			ParameterMapNode->SetIsPinEditNamespaceModifierPending(TargetPin, false);
+			EnterNamespaceModifierEditingMode();
+		}
+	}
 }

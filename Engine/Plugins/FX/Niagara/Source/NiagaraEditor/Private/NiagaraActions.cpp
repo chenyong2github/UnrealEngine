@@ -28,14 +28,14 @@ FNiagaraMenuAction::FNiagaraMenuAction(FText InNodeCategory, FText InMenuDesc, F
 	, CanPerformAction(InCanPerformAction)
 {}
 
-TOptional<FNiagaraParameterHandle> FNiagaraMenuAction::GetParameterHandle() const
+TOptional<FNiagaraVariable> FNiagaraMenuAction::GetParameterVariable() const
 {
-	return ParameterHandle;
+	return ParameterVariable;
 }
 
-void FNiagaraMenuAction::SetParamterHandle(const FNiagaraParameterHandle& InParameterHandle)
+void FNiagaraMenuAction::SetParamterVariable(const FNiagaraVariable& InParameterVariable)
 {
-	ParameterHandle = InParameterHandle;
+	ParameterVariable = InParameterVariable;
 }
 
 /************************************************************************/

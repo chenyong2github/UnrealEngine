@@ -8,6 +8,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SNiagaraParameterName.h"
+#include "NiagaraEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraGraphActionWidget"
 
@@ -19,12 +20,23 @@ void SNiagaraGraphActionWidget::Construct(const FArguments& InArgs, const FCreat
 	TSharedPtr<FNiagaraMenuAction> NiagaraAction = StaticCastSharedPtr<FNiagaraMenuAction>(InCreateData->Action);
 
 	TSharedPtr<SWidget> NameWidget;
-	if (NiagaraAction->GetParameterHandle().IsSet())
+	if (NiagaraAction->GetParameterVariable().IsSet())
 	{
 		NameWidget = SNew(SNiagaraParameterName)
-			.ParameterName(NiagaraAction->GetParameterHandle()->GetParameterHandleString())
+			.ParameterName(NiagaraAction->GetParameterVariable()->GetName())
 			.IsReadOnly(true)
-			.HighlightText(InArgs._HighlightText);
+			.HighlightText(InArgs._HighlightText)
+			.DecoratorHAlign(HAlign_Right)
+			.Decorator()
+			[
+				SNew(SBox)
+				.Padding(FMargin(7.0f, 0.0f, 0.0f, 0.0f))
+				[
+					SNew(STextBlock)
+					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterName.TypeText")
+					.Text(NiagaraAction->GetParameterVariable()->GetType().GetNameText())
+				]
+			];
 	}
 	else
 	{

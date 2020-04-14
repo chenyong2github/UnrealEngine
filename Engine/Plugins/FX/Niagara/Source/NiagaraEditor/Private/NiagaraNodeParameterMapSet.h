@@ -37,7 +37,7 @@ public:
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual bool IncludeParentNodeContextMenu() const { return true; }
 	virtual void PostLoad() override;
-	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_OUTPUT_MODULE_STR; }
+	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_LOCAL_MODULE_STR; }
 
 protected:
 	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin); 

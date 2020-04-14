@@ -100,6 +100,12 @@ public:
 	/** Notify the rename was cancelled.*/
 	virtual bool CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) { return false; }
 
+	/** Returns whether or not the supplied pin has a rename pending. */
+	bool GetIsPinRenamePending(const UEdGraphPin* Pin);
+
+	/** Sets whether or not the supplied pin has a rename pending. */
+	void SetIsPinRenamePending(const UEdGraphPin* Pin, bool bInIsRenamePending);
+
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const;
 	
 	/** Go through all the external dependencies of this node in isolation and add them to the reference id list.*/
@@ -169,4 +175,6 @@ protected:
 	FGuid ChangeId;
 
 	FOnNodeVisualsChanged VisualsChangedDelegate;
+
+	TArray<FGuid> PinsGuidsWithRenamePending;
 };
