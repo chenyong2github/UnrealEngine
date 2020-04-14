@@ -1597,6 +1597,20 @@ void FNiagaraStackGraphUtilities::GetAvailableParametersForScript(UNiagaraNodeOu
 				OutAvailableParameters.AddUnique(Entry.Key);
 			}
 		}
+
+		UNiagaraSystem* System = ScriptOutputNode.GetTypedOuter<UNiagaraSystem>();
+		if (System != nullptr)
+		{
+			TArray<FNiagaraVariable> EditorOnlyParameters;
+			System->EditorOnlyAddedParameters.GetParameters(EditorOnlyParameters);
+			for (FNiagaraVariable& EditorOnlyParameter : EditorOnlyParameters)
+			{
+				if (EditorOnlyParameter.IsInNameSpace(UsageNamespace.GetValue().ToString()))
+				{
+					OutAvailableParameters.AddUnique(EditorOnlyParameter);
+				}
+			}
+		}
 	}
 }
 

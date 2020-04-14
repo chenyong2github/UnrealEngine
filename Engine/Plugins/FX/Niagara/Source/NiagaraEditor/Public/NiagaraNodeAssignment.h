@@ -35,8 +35,8 @@ public:
 	const TArray<FString>& GetAssignmentDefaults() const { return AssignmentDefaultValues; }
 
 	void MergeUp();
-	void BuildAddParameterMenu(class FMenuBuilder& MenuBuilder, ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode);
-	void BuildCreateParameterMenu(class FMenuBuilder& MenuBuilder, ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode);
+	void CollectAddExistingActions(ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode, TArray<TSharedPtr<FNiagaraMenuAction>>& OutAddExistingActions);
+	void CollectCreateNewActions(ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode, TArray<TSharedPtr<FNiagaraMenuAction>>& OutCreateNewActions);
 
 	//~ Begin EdGraphNode Interface
 	virtual void PostLoad() override;
