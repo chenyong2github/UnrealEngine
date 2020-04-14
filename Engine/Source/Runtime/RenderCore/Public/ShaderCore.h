@@ -17,7 +17,7 @@
 class Error;
 
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
-const int32 ShaderCompileWorkerInputVersion = 12;
+const int32 ShaderCompileWorkerInputVersion = 13;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
 const int32 ShaderCompileWorkerOutputVersion = 5;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
@@ -596,6 +596,7 @@ struct FShaderCompilerInput
 	FString DumpDebugInfoPath;
 	// materialname or "Global" "for debugging and better error messages
 	FString DebugGroupName;
+	FString DebugExtension;
 
 	// Description of the configuration used when compiling. 
 	FString DebugDescription;
@@ -744,6 +745,7 @@ struct FShaderCompilerInput
 		Ar << Input.UsedOutputs;
 		Ar << Input.DumpDebugInfoRootPath;
 		Ar << Input.DumpDebugInfoPath;
+		Ar << Input.DebugExtension;
 		Ar << Input.DebugGroupName;
 		Ar << Input.DebugDescription;
 		Ar << Input.Environment;

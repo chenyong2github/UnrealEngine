@@ -957,24 +957,12 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / TEXT("VM");
 	FString UsageIdStr = !InOptions.TargetUsageId.IsValid() ? TEXT("") : (TEXT("_") + InOptions.TargetUsageId.ToString());
 	Input.DebugGroupName = InCompileRequest->SourceName / InCompileRequest->EmitterUniqueName / InCompileRequest->ENiagaraScriptUsageEnum->GetNameStringByValue((int64)InOptions.TargetUsage) + UsageIdStr;
-	Input.DumpDebugInfoPath = Input.DumpDebugInfoRootPath / Input.DebugGroupName;
+	Input.DebugExtension.Empty();
+	Input.DumpDebugInfoPath.Empty();
 
-	if (GShaderCompilingManager->GetDumpShaderDebugInfo())
+	if (GShaderCompilingManager->GetDumpShaderDebugInfo() == FShaderCompilingManager::EDumpShaderDebugInfo::Always)
 	{
-		// Sanitize the name to be used as a path
-		// List mostly comes from set of characters not allowed by windows in a path.  Just try to rename a file and type one of these for the list.
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("<"), TEXT("("));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT(">"), TEXT(")"));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("::"), TEXT("=="));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("|"), TEXT("_"));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("*"), TEXT("-"));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("?"), TEXT("!"));
-		Input.DumpDebugInfoPath.ReplaceInline(TEXT("\""), TEXT("\'"));
-
-		if (!IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath))
-		{
-			verifyf(IFileManager::Get().MakeDirectory(*Input.DumpDebugInfoPath, true), TEXT("Failed to create directory for shader debug info '%s'"), *Input.DumpDebugInfoPath);
-		}
+		Input.DumpDebugInfoPath = GShaderCompilingManager->CreateShaderDebugInfoPath(Input);
 	}
 	CompileResults.DumpDebugInfoPath = Input.DumpDebugInfoPath;
 
@@ -994,7 +982,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 			CompileResults.bComputeSucceeded = true;
 		}
 		CompileResults.Data->LastHlslTranslationGPU = TranslatedHLSL;
-		DumpDebugInfo(CompileResults, true);
+		DumpDebugInfo(CompileResults, Input, true);
 		CompilationJob->CompileResults = CompileResults;
 		return JobID;
 	}
@@ -1047,28 +1035,53 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 
 	return JobID;
 }
-			//TODO: Map Lines of HLSL to their source Nodes and flag those nodes with errors associated with their lines.
-void FHlslNiagaraCompiler::DumpDebugInfo(FNiagaraCompileResults& CompileResult, bool bGPUScript)
+
+//TODO: Map Lines of HLSL to their source Nodes and flag those nodes with errors associated with their lines.
+void FHlslNiagaraCompiler::DumpDebugInfo(const FNiagaraCompileResults& CompileResult, const FShaderCompilerInput& Input, bool bGPUScript)
 {
-	if (GShaderCompilingManager->GetDumpShaderDebugInfo() && CompileResults.Data.IsValid())
+	if (CompileResults.Data.IsValid())
 	{
-		FString ExportText = CompileResults.Data->LastHlslTranslation;
-		FString ExportTextAsm = CompileResults.Data->LastAssemblyTranslation;
-		if (bGPUScript)
+		// Support dumping debug info only on failure or warnings
+		FString DumpDebugInfoPath = CompileResult.DumpDebugInfoPath;
+		if (DumpDebugInfoPath.IsEmpty())
 		{
-			ExportText = CompileResults.Data->LastHlslTranslationGPU;
-			ExportTextAsm = "";
-		}
-		FString ExportTextParams;
-		for (const FNiagaraVariable& Var : CompileResults.Data->Parameters.Parameters)
-		{
-			ExportTextParams += Var.ToString();
-			ExportTextParams += "\n";
+			const FShaderCompilingManager::EDumpShaderDebugInfo DumpShaderDebugInfo = GShaderCompilingManager->GetDumpShaderDebugInfo();
+			bool bDumpDebugInfo = false;
+			if (DumpShaderDebugInfo == FShaderCompilingManager::EDumpShaderDebugInfo::OnError)
+			{
+				bDumpDebugInfo = !CompileResult.bVMSucceeded;
+			}
+			else if (DumpShaderDebugInfo == FShaderCompilingManager::EDumpShaderDebugInfo::OnErrorOrWarning)
+			{
+				bDumpDebugInfo = !CompileResult.bVMSucceeded || (CompileResult.NumErrors + CompileResult.NumWarnings) > 0;
+			}
+
+			if (bDumpDebugInfo)
+			{
+				DumpDebugInfoPath = GShaderCompilingManager->CreateShaderDebugInfoPath(Input);
+			}
 		}
 
-		FNiagaraEditorUtilities::WriteTextFileToDisk(CompileResult.DumpDebugInfoPath, TEXT("NiagaraEmitterInstance.ush"), ExportText, true);
-		FNiagaraEditorUtilities::WriteTextFileToDisk(CompileResult.DumpDebugInfoPath, TEXT("NiagaraEmitterInstance.asm"), ExportTextAsm, true);
-		FNiagaraEditorUtilities::WriteTextFileToDisk(CompileResult.DumpDebugInfoPath, TEXT("NiagaraEmitterInstance.params"), ExportTextParams, true);
+		if (!DumpDebugInfoPath.IsEmpty())
+		{
+			FString ExportText = CompileResults.Data->LastHlslTranslation;
+			FString ExportTextAsm = CompileResults.Data->LastAssemblyTranslation;
+			if (bGPUScript)
+			{
+				ExportText = CompileResults.Data->LastHlslTranslationGPU;
+				ExportTextAsm = "";
+			}
+			FString ExportTextParams;
+			for (const FNiagaraVariable& Var : CompileResults.Data->Parameters.Parameters)
+			{
+				ExportTextParams += Var.ToString();
+				ExportTextParams += "\n";
+			}
+
+			FNiagaraEditorUtilities::WriteTextFileToDisk(DumpDebugInfoPath, TEXT("NiagaraEmitterInstance.ush"), ExportText, true);
+			FNiagaraEditorUtilities::WriteTextFileToDisk(DumpDebugInfoPath, TEXT("NiagaraEmitterInstance.asm"), ExportTextAsm, true);
+			FNiagaraEditorUtilities::WriteTextFileToDisk(DumpDebugInfoPath, TEXT("NiagaraEmitterInstance.params"), ExportTextParams, true);
+		}
 	}
 }
 
@@ -1232,7 +1245,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			}
 		}
 	}
-	DumpDebugInfo(CompileResults, false);
+	DumpDebugInfo(CompileResults, CompilationJob->ShaderCompileJob->Input, false);
 
 	//Seems like Results is a bit of a cobbled together mess at this point.
 	//Ideally we can tidy this up in future.
