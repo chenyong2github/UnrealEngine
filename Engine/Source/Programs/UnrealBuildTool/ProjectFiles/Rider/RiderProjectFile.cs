@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Tools.DotNETCommon;
 
@@ -39,9 +40,9 @@ namespace UnrealBuildTool
 			PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			string ProjectName = ProjectFilePath.GetFileNameWithoutAnyExtensions();
-			DirectoryReference projectRootFolder = DirectoryReference.Combine(RootPath, ".Rider");
-			List<Tuple<FileReference, UEBuildTarget>> fileToTarget = new List<Tuple<FileReference, UEBuildTarget>>();
-			foreach (UnrealTargetPlatform Platform in InPlatforms.Where(it => it != UnrealTargetPlatform.Win32))
+			DirectoryReference ProjectRootFolder = DirectoryReference.Combine(RootPath, ".Rider");
+			List<Tuple<FileReference, UEBuildTarget>> FileToTarget = new List<Tuple<FileReference, UEBuildTarget>>();
+			foreach (UnrealTargetPlatform Platform in InPlatforms)
 			{
 				foreach (UnrealTargetConfiguration Configuration in InConfigurations)
 				{
@@ -61,32 +62,32 @@ namespace UnrealBuildTool
 							continue;
 						}
 						
-						DirectoryReference ConfigurationFolder = DirectoryReference.Combine(projectRootFolder, Platform.ToString(), Configuration.ToString());
+						DirectoryReference ConfigurationFolder = DirectoryReference.Combine(ProjectRootFolder, Platform.ToString(), Configuration.ToString());
 
 						DirectoryReference TargetFolder =
 							DirectoryReference.Combine(ConfigurationFolder, ProjectTarget.TargetRules.Type.ToString());
 
 						string DefaultArchitecture = UEBuildPlatform
-							.GetBuildPlatform(BuildHostPlatform.Current.Platform)
+							.GetBuildPlatform(Platform)
 							.GetDefaultArchitecture(ProjectTarget.UnrealProjectFilePath);
 						TargetDescriptor TargetDesc = new TargetDescriptor(ProjectTarget.UnrealProjectFilePath, ProjectTarget.Name,
-							BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development,
-							DefaultArchitecture, Arguments);
+							Platform, Configuration, DefaultArchitecture, Arguments);
 						try
 						{
 							UEBuildTarget BuildTarget = UEBuildTarget.Create(TargetDesc, false, false);
 						
 							FileReference OutputFile = FileReference.Combine(TargetFolder, $"{ProjectName}.json");
-							fileToTarget.Add(Tuple.Create(OutputFile, BuildTarget));
+							FileToTarget.Add(Tuple.Create(OutputFile, BuildTarget));
 						}
 						catch(Exception Ex)
 						{
-							Log.TraceWarning("Exception while generating include data for {0}: {1}", TargetDesc.Name, Ex.ToString());
+							Log.TraceWarning("Exception while generating include data for Target:{0}, Platform: {1}, Configuration: {2}", TargetDesc.Name, Platform.ToString(), Configuration.ToString());
+							Log.TraceWarning(Ex.ToString());
 						}
 					}
 				}
 			}
-			foreach (Tuple<FileReference,UEBuildTarget> tuple in fileToTarget)
+			foreach (Tuple<FileReference,UEBuildTarget> tuple in FileToTarget)
 			{
 				SerializeTarget(tuple.Item1, tuple.Item2);
 			}
@@ -134,17 +135,25 @@ namespace UnrealBuildTool
 				}
 				Writer.WriteArrayEnd();
 			}
-
-			HashSet<string> moduleNames = new HashSet<string>();
+			
+			CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles();
+			HashSet<string> ModuleNames = new HashSet<string>();
 			Writer.WriteObjectStart("Modules");
 			foreach (UEBuildBinary Binary in Target.Binaries)
 			{
+				CppCompileEnvironment BinaryCompileEnvironment = Binary.CreateBinaryCompileEnvironment(GlobalCompileEnvironment);
 				foreach (UEBuildModule Module in Binary.Modules)
 				{
-					if(moduleNames.Add(Module.Name))
+					if(ModuleNames.Add(Module.Name))
 					{
 						Writer.WriteObjectStart(Module.Name);
 						ExportModule(Module, Binary.OutputDir, Target.GetExecutableDir(), Writer);
+						UEBuildModuleCPP ModuleCpp = Module as UEBuildModuleCPP;
+						if (ModuleCpp != null)
+						{
+							CppCompileEnvironment ModuleCompileEnvironment = ModuleCpp.CreateCompileEnvironmentForIntellisense(Target.Rules, BinaryCompileEnvironment);
+							ExportModuleCpp(ModuleCpp, ModuleCompileEnvironment, Writer);
+						}
 						Writer.WriteObjectEnd();
 					}
 				}
@@ -154,6 +163,40 @@ namespace UnrealBuildTool
 			ExportPluginsFromTarget(Target, Writer);
 			
 			Writer.WriteObjectEnd();
+		}
+
+		private static void ExportModuleCpp(UEBuildModuleCPP ModuleCPP, CppCompileEnvironment ModuleCompileEnvironment, JsonWriter Writer)
+		{
+			Writer.WriteValue("GeneratedCodeDirectory", ModuleCPP.GeneratedCodeDirectory != null ? ModuleCPP.GeneratedCodeDirectory.FullName : string.Empty);
+			
+			if (ModuleCompileEnvironment.PrecompiledHeaderIncludeFilename != null)
+			{
+				string CorrectFilePathPch;
+				if(ExtractWrappedIncludeFile(ModuleCompileEnvironment.PrecompiledHeaderIncludeFilename, out CorrectFilePathPch))
+					Writer.WriteValue("SharedPCHFilePath", CorrectFilePathPch);
+			}
+		}
+
+		private static bool ExtractWrappedIncludeFile(FileSystemReference FileRef, out string CorrectFilePathPch)
+		{
+			CorrectFilePathPch = "";
+			try
+			{
+				using (StreamReader Reader = new StreamReader(FileRef.FullName))
+				{
+					string Line = Reader.ReadLine();
+					if (Line != null)
+					{
+						CorrectFilePathPch = Line.Substring("// PCH for ".Length).Trim();
+						return true;
+					}
+				}
+			}
+			finally
+			{
+				Log.TraceVerbose("Couldn't extract path to PCH from {0}", FileRef);
+			}
+			return false;
 		}
 
 		/// <summary>
@@ -169,12 +212,6 @@ namespace UnrealBuildTool
 			Writer.WriteValue("Directory", Module.ModuleDirectory.FullName);
 			Writer.WriteValue("Rules", Module.RulesFile.FullName);
 			Writer.WriteValue("PCHUsage", Module.Rules.PCHUsage.ToString());
-
-			UEBuildModuleCPP ModuleCPP = Module as UEBuildModuleCPP;
-			if (ModuleCPP != null)
-			{
-				Writer.WriteValue("GeneratedCodeDirectory", ModuleCPP.GeneratedCodeDirectory != null ? ModuleCPP.GeneratedCodeDirectory.FullName : string.Empty);
-			}
 
 			if (Module.Rules.PrivatePCHHeaderFile != null)
 			{
@@ -199,12 +236,11 @@ namespace UnrealBuildTool
 			
 			ExportJsonStringArray(Writer, "PrivateIncludePaths", Module.PrivateIncludePaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PublicLibraryPaths", Module.PublicSystemLibraryPaths.Select(x => x.FullName));
-			ExportJsonStringArray(Writer, "PublicAdditionalLibraries", Module.PublicAdditionalLibraries);
+			ExportJsonStringArray(Writer, "PublicAdditionalLibraries", Module.PublicSystemLibraries.Concat(Module.PublicAdditionalLibraries));
 			ExportJsonStringArray(Writer, "PublicFrameworks", Module.PublicFrameworks);
 			ExportJsonStringArray(Writer, "PublicWeakFrameworks", Module.PublicWeakFrameworks);
 			ExportJsonStringArray(Writer, "PublicDelayLoadDLLs", Module.PublicDelayLoadDLLs);
 			ExportJsonStringArray(Writer, "PublicDefinitions", Module.PublicDefinitions);
-			
 			ExportJsonStringArray(Writer, "PrivateDefinitions", Module.Rules.PrivateDefinitions);
 			ExportJsonStringArray(Writer, "ProjectDefinitions", /* TODO: Add method ShouldAddProjectDefinitions */ !Module.Rules.bTreatAsEngineModule ? Module.Rules.Target.ProjectDefinitions : new string[0]);
 			ExportJsonStringArray(Writer, "ApiDefinitions", Module.GetEmptyApiMacros());

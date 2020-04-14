@@ -104,7 +104,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Set of all system libraries
 		/// </summary>
-		protected readonly HashSet<string> PublicSystemLibraries;
+		public readonly HashSet<string> PublicSystemLibraries;
 
 		/// <summary>
 		/// Set of additional frameworks
