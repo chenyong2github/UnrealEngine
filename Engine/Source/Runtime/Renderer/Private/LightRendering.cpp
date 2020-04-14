@@ -395,6 +395,8 @@ class FDeferredLightPS : public FGlobalShader
 		HairVisibilityNodeOffsetAndCount.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeOffsetAndCount"));
 		HairVisibilityNodeCoords.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeCoords"));
 		HairVisibilityNodeData.Bind(Initializer.ParameterMap, TEXT("HairVisibilityNodeData"));
+
+		DummyRectLightTextureForCapsuleCompilerWarning.Bind(Initializer.ParameterMap, TEXT("DummyRectLightTextureForCapsuleCompilerWarning"));
 	}
 
 	FDeferredLightPS()
@@ -633,7 +635,18 @@ private:
 				HairDualScatteringRoughnessOverride,
 				DualScatteringRoughness);
 		}
-		
+
+		if (DummyRectLightTextureForCapsuleCompilerWarning.IsBound())
+		{
+			SetTextureParameter(
+				RHICmdList,
+				ShaderRHI,
+				DummyRectLightTextureForCapsuleCompilerWarning,
+				LTCMatSampler,
+				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
+				GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture
+			);
+		}
 	}
 
 	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
@@ -663,6 +676,8 @@ private:
 	LAYOUT_FIELD(FShaderParameter, HairComponents);
 	LAYOUT_FIELD(FShaderParameter, HairShadowMaskValid);
 	LAYOUT_FIELD(FShaderParameter, HairDualScatteringRoughnessOverride);
+
+	LAYOUT_FIELD(FShaderResourceParameter, DummyRectLightTextureForCapsuleCompilerWarning);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FDeferredLightPS, "/Engine/Private/DeferredLightPixelShaders.usf", "DeferredLightPixelMain", SF_Pixel);
