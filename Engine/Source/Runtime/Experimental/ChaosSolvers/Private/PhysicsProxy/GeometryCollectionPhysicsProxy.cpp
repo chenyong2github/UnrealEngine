@@ -969,7 +969,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			{
 				if (Chaos::TPBDRigidParticleHandle<float, 3>* Handle = SolverParticleHandles[HandleIdx])
 				{
-					GravityForces.SetEnabled(*Handle, false);
+					Handle->SetGravityEnabled(false);
 				}
 			}
 		}
