@@ -2028,6 +2028,30 @@ void UNiagaraDataInterfaceParticleRead::ProvidePerInstanceDataForRenderThread(vo
 	}
 }
 
+#if WITH_EDITOR	
+void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info)
+{
+	UNiagaraEmitter* FoundSourceEmitter = nullptr;
+	for (const FNiagaraEmitterHandle& EmitterHandle : Asset->GetEmitterHandles())
+	{
+		UNiagaraEmitter* EmitterInstance = EmitterHandle.GetInstance();
+		if (EmitterInstance && EmitterInstance->GetUniqueEmitterName() == EmitterName)
+		{
+			FoundSourceEmitter = EmitterInstance;
+			break;
+		}
+	}
+
+	if (!FoundSourceEmitter)
+	{
+		FNiagaraDataInterfaceError SourceEmitterNotFoundError(LOCTEXT("SourceEmitterNotFoundError", "Source emitter not found."),
+			LOCTEXT("SourceEmitterNotFoundErrorSummary", "Source emitter not found"),
+			FNiagaraDataInterfaceFix());
+		OutErrors.Add(SourceEmitterNotFoundError);
+	}
+}
+#endif
+
 void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, TArray<FNiagaraEmitterInstance*>& Dependencies) const
 {
 	FNDIParticleRead_InstanceData* PIData = static_cast<FNDIParticleRead_InstanceData*>(PerInstanceData);
