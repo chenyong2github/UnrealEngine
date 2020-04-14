@@ -172,6 +172,8 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("1MinIdle"), Session.Idle1Min);
 	AnalyticsAttributes.Emplace(TEXT("5MinIdle"), Session.Idle5Min);
 	AnalyticsAttributes.Emplace(TEXT("30MinIdle"), Session.Idle30Min);
+	AnalyticsAttributes.Emplace(TEXT("TotalUserInactivitySecs"), Session.TotalUserInactivitySeconds);
+	AnalyticsAttributes.Emplace(TEXT("TotalEditorInactivitySecs"), Session.TotalEditorInactivitySeconds);
 	AnalyticsAttributes.Emplace(TEXT("CurrentUserActivity"), Session.CurrentUserActivity);
 	AnalyticsAttributes.Emplace(TEXT("AverageFPS"), Session.AverageFPS);
 	AnalyticsAttributes.Emplace(TEXT("Plugins"), PluginsString);
@@ -205,6 +207,12 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	if (Session.ExitCode.IsSet())
 	{
 		AnalyticsAttributes.Emplace(TEXT("ExitCode"), Session.ExitCode.GetValue());
+	}
+
+	// Add the monitor exception code in case the out-of-process monitor (CrashReportClientEditor) crashed itself, caught the exception and was able to store it in the session before dying.
+	if (Session.MonitorExceptCode.IsSet())
+	{
+		AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), Session.MonitorExceptCode.GetValue());
 	}
 
 	// Was this summary produced by another process than itself or the out-of-process monitor for that run?
