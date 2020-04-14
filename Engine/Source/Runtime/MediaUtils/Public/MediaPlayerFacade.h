@@ -817,6 +817,10 @@ private:
 	/** Flag indicating that we have an active audio setup */
 	bool bHaveActiveAudio;
 
+	/** Flag indicating the current availability of media samples. **/
+	int32 VideoSampleAvailability;
+	int32 AudioSampleAvailability;
+
 	/** An event delegate that is invoked when a media event occurred. */
 	FOnMediaEvent MediaEvent;
 
