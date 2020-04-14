@@ -35,6 +35,7 @@ params.rendering(args.norendering == 0)
 params.single_thread(args.nothreads == 1)
 params.sound(args.nosound == 0)
 params.resolution(args.resx, args.resy)
+
 # call params.add_option or params.add_param to supply additional parameters
 
 # instead of above we suggest using the following:
@@ -45,7 +46,7 @@ params.resolution(args.resx, args.resy)
 
 # create environment wrapper. If params != None then UE4 instance will get launched. When launching an instance then 
 # env_class._project_name controls which project gets launched 
-env = env_cls(ue4params=params)
+env = env_cls(ue4params=params, server_port=args.port)
 
 # standard gym loop
 env.reset()

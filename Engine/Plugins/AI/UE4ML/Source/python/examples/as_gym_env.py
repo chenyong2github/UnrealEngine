@@ -14,7 +14,7 @@ if __name__ == '__main__':
     parser.add_argument('--iter', type=int, default=3, help='number of games to play')
     args = parser.parse_args()
 
-    env = gym.make(args.env)
+    env = gym.make(args.env, server_port=args.port)
     
     for i in range(args.iter): 
         env.reset()
