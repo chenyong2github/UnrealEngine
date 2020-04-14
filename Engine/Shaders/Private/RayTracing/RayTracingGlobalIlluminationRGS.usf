@@ -89,9 +89,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
 	float3 WorldNormal = GBufferData.WorldNormal;
 	uint ShadingModelID = GBufferData.ShadingModelID;
-	if (ShadingModelID == SHADINGMODELID_UNLIT
-		|| ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE
-		)
+	if (ShadingModelID == SHADINGMODELID_UNLIT)
 	{
 		return;
 	}
