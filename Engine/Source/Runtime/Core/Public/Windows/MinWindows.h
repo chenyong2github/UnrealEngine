@@ -66,3 +66,5 @@ struct IUnknown;
 
 // Finally now we can include windows.h
 #include <Windows.h>
+
+#undef GetFreeSpace
