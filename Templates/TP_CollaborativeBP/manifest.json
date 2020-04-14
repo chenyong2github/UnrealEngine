@@ -1,4 +1,4 @@
-{
+﻿{
 	"Version": 1,
 	"Name":
 	[
@@ -12,6 +12,12 @@
 		{
 			"Language": "en",
 			"Text": "This project template provides navigation and interaction for various platforms (Desktop, VR). Use as a starting point for collaborative Industrial or Architectural projects."
+
+		},
+		{
+
+			"Language": "ja",
+			"Text": "このプロジェクト テンプレートでは、さまざまなプラットフォーム (Desktop、VR) のためのナビゲーションとインタラクションが提供されています。共同作業による産業プロジェクトまたは建築プロジェクトのための出発点として利用できます。"
 		}
 	],
 	"AssetTypes": [],
