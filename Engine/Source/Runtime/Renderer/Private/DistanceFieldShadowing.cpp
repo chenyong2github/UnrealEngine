@@ -463,9 +463,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("DISTANCEFIELD_PRIMITIVE_TYPE"), (int32)PrimitiveType);
 		OutEnvironment.SetDefine(TEXT("HAS_PREVIOUS_OUTPUT"), (int32)bHasPrevOutput);
 		OutEnvironment.SetDefine(TEXT("PLATFORM_SUPPORTS_TYPED_UAV_LOAD"), (int32)RHISupports4ComponentUAVReadWrite(Parameters.Platform));
-
-		// temporary workaround for DXC
-		OutEnvironment.CompilerFlags.AddUnique(CFLAG_SkipOptimizationsDXC);
 	}
 
 	/** Default constructor. */
