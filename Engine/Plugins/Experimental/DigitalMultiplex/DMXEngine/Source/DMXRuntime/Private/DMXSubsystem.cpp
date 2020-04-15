@@ -205,7 +205,7 @@ void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 Univer
 			TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> ProtocolUniverse = Protocol->GetUniverseById(UniverseIndex);
 			if (ProtocolUniverse.IsValid())
 			{
-				TSharedPtr<FDMXBuffer> Buffer = ProtocolUniverse.Get()->GetInputDMXBuffer();
+				FDMXBufferPtr Buffer = ProtocolUniverse.Get()->GetInputDMXBuffer();
 				if (Buffer.IsValid())
 				{
 					Buffer->AccessDMXData([&DMXBuffer](TArray<uint8>& InData)
@@ -322,7 +322,7 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, cons
 		return false;
 	}
 
-	TSharedPtr<FDMXBuffer> InputDMXBuffer = Universe->GetInputDMXBuffer();
+	FDMXBufferPtr InputDMXBuffer = Universe->GetInputDMXBuffer();
 	if (!InputDMXBuffer.IsValid())
 	{
 		UE_LOG(DMXSubsystemLog, Warning, TEXT("InputDMXBuffer Not Valid"));

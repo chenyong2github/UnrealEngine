@@ -42,7 +42,7 @@ bool FDMXPrtotocolArtNetBasicFlowTest::RunTest(const FString& Parameters)
 
 	// Wait before recieve DMX
 	FPlatformProcess::Sleep(0.2f);
-	TSharedPtr<FDMXBuffer> InputDMXBuffer = UniverseArtNet->GetInputDMXBuffer();
+	FDMXBufferPtr InputDMXBuffer = UniverseArtNet->GetInputDMXBuffer();
 
 	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[0], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[0] - 1));
 	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[1], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[1] - 1));
@@ -141,7 +141,7 @@ bool FDMXPrtotocolArtNetConsoleCommandsTest::RunTest(const FString& Parameters)
 
 	FPlatformProcess::Sleep(0.2f);
 
-	TSharedPtr<FDMXBuffer> InputDMXBuffer = Universe->GetInputDMXBuffer();
+	FDMXBufferPtr InputDMXBuffer = Universe->GetInputDMXBuffer();
 	TestEqual(TEXT("Incoming buffer should be same"), Values[0][1], InputDMXBuffer->GetDMXDataAddress(Values[0][0] - 1));
 	TestEqual(TEXT("Incoming buffer should be same"), Values[1][1], InputDMXBuffer->GetDMXDataAddress(Values[1][0] - 1));
 	TestEqual(TEXT("Incoming buffer should be same"), Values[2][1], InputDMXBuffer->GetDMXDataAddress(Values[2][0] - 1));

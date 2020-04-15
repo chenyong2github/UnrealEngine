@@ -97,7 +97,7 @@ public:
 	bool TransmitRDM(uint32 InUniverseID, const TArray<uint8>& Data);
 
 private:
-	EDMXSendResult SendDMXInternal(uint16 InUniverseID, uint8 InPort, const TSharedPtr<FDMXBuffer>& DMXBuffer) const;
+	EDMXSendResult SendDMXInternal(uint16 InUniverseID, uint8 InPort, const FDMXBufferPtr& DMXBuffer) const;
 
 	//~ Only the factory makes instances
 	FDMXProtocolArtNet() = delete;
