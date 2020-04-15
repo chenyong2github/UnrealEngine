@@ -68,7 +68,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 			Result = float4(Payload.Specular, Payload.Specular, Payload.Specular, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_ROUGHNESS:
-			Result = float4(Payload.Roughness, Payload.Roughness, Payload.Roughness, 1.0f);
+			Result = float4(pow(Payload.Roughness, 2.2f).xxx, 1.0f); // NOTE: pow 2.2 is used for consistency with BufferVisualization/Roughness shader
 			break;
 		case RAY_TRACING_DEBUG_VIZ_IOR:
 			Result = float4(Payload.Ior, Payload.Ior, Payload.Ior, 1.0f);
