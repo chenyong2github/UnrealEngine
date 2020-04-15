@@ -22,27 +22,8 @@ static FAutoConsoleVariableRef CVarNumTranscodeRequests(
 	TEXT("Number of transcode request that can be in flight. default 32\n"),
 	ECVF_Default);
 
-/** 
- * FVirtualTextureChunkStreamingManager is a treated as a singleton referenced by multiple FUploadingVirtualTexture objects.
- * Use RefCount to ensure it is unregistered and destroyed on shutdown.
- */
-struct FVirtualTextureChunkStreamingManagerSingleton
-{
-	FVirtualTextureChunkStreamingManager* Ptr = nullptr;
-	int32 RefCount = 0;
-
-	~FVirtualTextureChunkStreamingManagerSingleton()
-	{
-		check(Ptr == nullptr);
-		check(RefCount == 0);
-	}
-
-} GVirtualTextureChunkStreamingManager;
-
-
 FVirtualTextureChunkStreamingManager::FVirtualTextureChunkStreamingManager()
 {
-	IStreamingManager::Get().AddStreamingManager(this);
 #if WITH_EDITOR
 	GetVirtualTextureChunkDDCCache()->Initialize();
 #endif
@@ -55,43 +36,27 @@ FVirtualTextureChunkStreamingManager::~FVirtualTextureChunkStreamingManager()
 #if WITH_EDITOR
 	GetVirtualTextureChunkDDCCache()->ShutDown();
 #endif
-	IStreamingManager::Get().RemoveStreamingManager(this);
-}
-
-FVirtualTextureChunkStreamingManager* FVirtualTextureChunkStreamingManager::AddRef()
-{
-	if (GVirtualTextureChunkStreamingManager.RefCount++ == 0)
-	{
-		GVirtualTextureChunkStreamingManager.Ptr = new FVirtualTextureChunkStreamingManager();
-	}
-	return GVirtualTextureChunkStreamingManager.Ptr;
-}
-
-void FVirtualTextureChunkStreamingManager::DecRef()
-{
-	check(GVirtualTextureChunkStreamingManager.RefCount > 0);
-	if (--GVirtualTextureChunkStreamingManager.RefCount == 0)
-	{
-		delete GVirtualTextureChunkStreamingManager.Ptr;
-		GVirtualTextureChunkStreamingManager.Ptr = nullptr;
-	}
 }
 
 void FVirtualTextureChunkStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProcessEverything /*= false*/)
 {
-	FVirtualTextureChunkStreamingManager* StreamingManager = this;
-
-	ENQUEUE_RENDER_COMMAND(UpdateVirtualTextureStreaming)(
-		[StreamingManager](FRHICommandListImmediate& RHICmdList)
+	// It's OK to execute update if virtual texturing is disabled but we early out anyway to avoid an unnecessary render thread task.
+	if (UseVirtualTexturing(GMaxRHIFeatureLevel))
 	{
-#if WITH_EDITOR
-		GetVirtualTextureChunkDDCCache()->UpdateRequests();
-#endif // WITH_EDITOR
-		StreamingManager->TranscodeCache.RetireOldTasks(StreamingManager->UploadCache);
-		StreamingManager->UploadCache.UpdateFreeList();
+		FVirtualTextureChunkStreamingManager* StreamingManager = this;
 
-		FVirtualTextureCodec::RetireOldCodecs();
-	});
+		ENQUEUE_RENDER_COMMAND(UpdateVirtualTextureStreaming)(
+			[StreamingManager](FRHICommandListImmediate& RHICmdList)
+			{
+#if WITH_EDITOR
+				GetVirtualTextureChunkDDCCache()->UpdateRequests();
+#endif // WITH_EDITOR
+				StreamingManager->TranscodeCache.RetireOldTasks(StreamingManager->UploadCache);
+				StreamingManager->UploadCache.UpdateFreeList();
+
+				FVirtualTextureCodec::RetireOldCodecs();
+			});
+	}
 }
 
 int32 FVirtualTextureChunkStreamingManager::BlockTillAllRequestsFinished(float TimeLimit /*= 0.0f*/, bool bLogResults /*= false*/)
@@ -102,7 +67,6 @@ int32 FVirtualTextureChunkStreamingManager::BlockTillAllRequestsFinished(float T
 
 void FVirtualTextureChunkStreamingManager::CancelForcedResources()
 {
-
 }
 
 FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadingVirtualTexture* VTexture, const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress, EVTRequestPagePriority Priority)

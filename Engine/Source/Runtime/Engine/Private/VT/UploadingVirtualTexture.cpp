@@ -64,14 +64,14 @@ FUploadingVirtualTexture::FUploadingVirtualTexture(FVirtualTextureBuiltData* InD
 	HandlePerChunk.AddDefaulted(InData->Chunks.Num());
 	CodecPerChunk.AddDefaulted(InData->Chunks.Num());
 	InvalidChunks.Init(false, InData->Chunks.Num());
-	StreamingManager = FVirtualTextureChunkStreamingManager::AddRef();
+
+	StreamingManager = &IStreamingManager::Get().GetVirtualTextureStreamingManager();
 
 	INC_MEMORY_STAT_BY(STAT_TotalHeaderSize, InData->GetMemoryFootprint());
 	INC_MEMORY_STAT_BY(STAT_TileHeaderSize, InData->GetTileMemoryFootprint());
 	INC_DWORD_STAT_BY(STAT_TotalDiskSize, InData->GetDiskMemoryFootprint() / 1024);
 	INC_DWORD_STAT_BY(STAT_NumTileHeaders, InData->GetNumTileHeaders());
 }
-
 
 FUploadingVirtualTexture::~FUploadingVirtualTexture()
 {
@@ -83,7 +83,6 @@ FUploadingVirtualTexture::~FUploadingVirtualTexture()
 
 	// Complete all open transcode requests before deleting IFileCacheHandle objects
 	StreamingManager->WaitTasksFinished();
-	FVirtualTextureChunkStreamingManager::DecRef();
 
 	for (TUniquePtr<FVirtualTextureCodec>& Codec : CodecPerChunk)
 	{
