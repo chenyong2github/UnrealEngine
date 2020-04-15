@@ -21,12 +21,17 @@ namespace ChaosTest {
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
+		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
+		PhysicsMaterial->SleepCounterThreshold = 2;
+
 		TUniquePtr<FImplicitObject> Box(new TSphere<FReal, 3>(FVec3(0, 0, 0), 50));
 		Static->SetGeometry(MakeSerializable(Box));
 		Dynamic->SetGeometry(MakeSerializable(Box));
 
+		Evolution.SetPhysicsMaterial(Dynamic, MakeSerializable(PhysicsMaterial));
+
 		Static->X() = FVec3(10, 10, 10);
-		Dynamic->X() = FVec3(10, 10, 300);
+		Dynamic->X() = FVec3(10, 10, 150);
 		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
 		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
 
