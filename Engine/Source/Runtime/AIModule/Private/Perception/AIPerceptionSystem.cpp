@@ -32,8 +32,8 @@ FAISenseID UAISenseConfig::GetSenseID() const
 UAIPerceptionSystem::UAIPerceptionSystem(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PerceptionAgingRate(0.3f)
-	, bSomeListenersNeedUpdateDueToStimuliAging(false)
 	, bHandlePawnNotification(false)
+	, NextStimuliAgingTick(0.f)
 	, CurrentTime(0.f)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -176,6 +176,13 @@ void UAIPerceptionSystem::Tick(float DeltaSeconds)
 			PerformSourceRegistration();
 		}
 
+		bool bSomeListenersNeedUpdateDueToStimuliAging = false;
+		if (NextStimuliAgingTick <= CurrentTime)
+		{
+			bSomeListenersNeedUpdateDueToStimuliAging = AgeStimuli(PerceptionAgingRate + (CurrentTime - NextStimuliAgingTick));
+			NextStimuliAgingTick = CurrentTime + PerceptionAgingRate;
+		}
+
 		bool bNeedsUpdate = false;
 		for (UAISense* const SenseInstance : Senses)
 		{
@@ -221,16 +228,14 @@ void UAIPerceptionSystem::Tick(float DeltaSeconds)
 					ListenerIt->Value.ProcessStimuli();
 				}
 			}
-
-			bSomeListenersNeedUpdateDueToStimuliAging = false;
 		}
 	}
 }
 
-void UAIPerceptionSystem::AgeStimuli()
+bool UAIPerceptionSystem::AgeStimuli(const float Amount)
 {
-	// age all stimuli in all listeners by PerceptionAgingRate
-	const float ConstPerceptionAgingRate = PerceptionAgingRate;
+	ensure(Amount >= 0.f);
+	bool bTagged = false;
 
 	for (AIPerception::FListenerMap::TIterator ListenerIt(ListenerContainer); ListenerIt; ++ListenerIt)
 	{
@@ -238,13 +243,14 @@ void UAIPerceptionSystem::AgeStimuli()
 		if (Listener.Listener.IsValid())
 		{
 			// AgeStimuli will return true if this listener requires an update after stimuli aging
-			if (Listener.Listener->AgeStimuli(ConstPerceptionAgingRate))
+			if (Listener.Listener->AgeStimuli(Amount))
 			{
 				Listener.MarkForStimulusProcessing();
-				bSomeListenersNeedUpdateDueToStimuliAging = true;
+				bTagged = true;
 			}
 		}
 	}
+	return bTagged;
 }
 
 UAIPerceptionSystem* UAIPerceptionSystem::GetCurrent(UObject* WorldContextObject)
@@ -572,10 +578,7 @@ void UAIPerceptionSystem::StartPlay()
 	}
 
 	UWorld* World = GetWorld();
-	if (World)
-	{
-		World->GetTimerManager().SetTimer(AgeStimuliTimerHandle, this, &UAIPerceptionSystem::AgeStimuli, PerceptionAgingRate, /*inbLoop=*/true);
-	}
+	NextStimuliAgingTick = World ? World->GetTimeSeconds() : 0.f;
 }
 
 void UAIPerceptionSystem::RegisterAllPawnsAsSourcesForSense(FAISenseID SenseID)
@@ -667,4 +670,12 @@ void UAIPerceptionSystem::ReportPerceptionEvent(UObject* WorldContextObject, UAI
 	{
 		PerceptionSys->ReportEvent(PerceptionEvent);
 	}
+}
+
+//----------------------------------------------------------------------//
+// Deprecated
+//----------------------------------------------------------------------//
+void UAIPerceptionSystem::AgeStimuli()
+{
+	AgeStimuli(PerceptionAgingRate);
 }
