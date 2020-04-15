@@ -706,16 +706,18 @@ enum class ERepLayoutCmdType : uint8
 /** Various flags that describe how a Top Level Property should be handled. */
 enum class ERepParentFlags : uint32
 {
-	None				= 0,
-	IsLifetime			= (1 << 0),	//! This property is valid for the lifetime of the object (almost always set).
-	IsConditional		= (1 << 1),	//! This property has a secondary condition to check
-	IsConfig			= (1 << 2),	//! This property is defaulted from a config file
-	IsCustomDelta		= (1 << 3),	//! This property uses custom delta compression. Mutually exclusive with IsNetSerialize.
-	IsNetSerialize		= (1 << 4), //! This property uses a custom net serializer. Mutually exclusive with IsCustomDelta.
-	IsStructProperty	= (1 << 5),	//! This property is a FStructProperty.
-	IsZeroConstructible	= (1 << 6),	//! This property is ZeroConstructible.
-	IsFastArray			= (1 << 7),	//! This property is a FastArraySerializer. This can't be a ERepLayoutCmdType, because
-									//! these Custom Delta structs will have their inner properties tracked.
+	None						= 0,
+	IsLifetime					= (1 << 0),	//! This property is valid for the lifetime of the object (almost always set).
+	IsConditional				= (1 << 1),	//! This property has a secondary condition to check
+	IsConfig					= (1 << 2),	//! This property is defaulted from a config file
+	IsCustomDelta				= (1 << 3),	//! This property uses custom delta compression. Mutually exclusive with IsNetSerialize.
+	IsNetSerialize				= (1 << 4), //! This property uses a custom net serializer. Mutually exclusive with IsCustomDelta.
+	IsStructProperty			= (1 << 5),	//! This property is a FStructProperty.
+	IsZeroConstructible			= (1 << 6),	//! This property is ZeroConstructible.
+	IsFastArray					= (1 << 7),	//! This property is a FastArraySerializer. This can't be a ERepLayoutCmdType, because
+											//! these Custom Delta structs will have their inner properties tracked.
+	HasObjectProperties			= (1 << 8), //! This property is tracking UObjects (may be through nested properties).
+	HasNetSerializeProperties	= (1 << 9), //! This property contains Net Serialize properties (may be through nested properties).
 };
 
 ENUM_CLASS_FLAGS(ERepParentFlags)
@@ -1007,10 +1009,11 @@ ENUM_CLASS_FLAGS(ECreateRepLayoutFlags);
 
 enum class ERepLayoutFlags : uint8
 {
-	None				= 0,
-	IsActor 			= 1 << 0,	//! This RepLayout is for AActor or a subclass of AActor.
-	PartialPushSupport	= 1 << 1,	//! This RepLayout has some properties that use Push Model and some that don't.
-	FullPushSupport		= 1 << 2,	//! All properties in this RepLayout use Push Model.
+	None								= 0,
+	IsActor 							= (1 << 0),	//! This RepLayout is for AActor or a subclass of AActor.
+	PartialPushSupport					= (1 << 1),	//! This RepLayout has some properties that use Push Model and some that don't.
+	FullPushSupport						= (1 << 2),	//! All properties in this RepLayout use Push Model.
+	HasObjectOrNetSerializeProperties	= (1 << 3),	//! Will be set for any RepLayout that contains Object or Net Serialize property commands.
 };
 ENUM_CLASS_FLAGS(ERepLayoutFlags);
 
