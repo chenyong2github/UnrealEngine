@@ -666,7 +666,7 @@ bool SActorDetails::IsPropertyEditingEnabled() const
 	bool bIsEditable = true;
 	for (const FSCSEditorTreeNodePtrType& Node : SCSEditor->GetSelectedNodes())
 	{
-		bIsEditable = Node->CanEditDefaults() || Node->GetNodeType() == FSCSEditorTreeNode::ENodeType::RootActorNode;
+		bIsEditable = Node->CanEdit();
 		if (!bIsEditable)
 		{
 			break;
@@ -715,7 +715,7 @@ EVisibility SActorDetails::GetUCSComponentWarningVisibility() const
 	// Check to see if any selected components are inherited from blueprint
 	for (const FSCSEditorTreeNodePtrType& Node : SCSEditor->GetSelectedNodes())
 	{
-		if (!Node->IsNative())
+		if (Node->IsBlueprintComponent())
 		{
 			UActorComponent* Component = Node->GetComponentTemplate();
 			bIsUneditableBlueprintComponent = Component ? Component->CreationMethod == EComponentCreationMethod::UserConstructionScript : false;
@@ -760,7 +760,7 @@ EVisibility SActorDetails::GetInheritedBlueprintComponentWarningVisibility() con
 	// Check to see if any selected components are inherited from blueprint
 	for (const FSCSEditorTreeNodePtrType& Node : SCSEditor->GetSelectedNodes())
 	{
-		if (!Node->IsNative())
+		if (Node->IsBlueprintComponent())
 		{
 			if (UActorComponent* Component = Node->GetComponentTemplate())
 			{
@@ -771,7 +771,7 @@ EVisibility SActorDetails::GetInheritedBlueprintComponentWarningVisibility() con
 				}
 			}
 		}
-		else if (!Node->CanEditDefaults() && NotEditableSetByBlueprint(Node->GetComponentTemplate()))
+		else if (!Node->CanEdit() && NotEditableSetByBlueprint(Node->GetComponentTemplate()))
 		{
 			bIsUneditableBlueprintComponent = true;
 			break;
@@ -787,7 +787,7 @@ EVisibility SActorDetails::GetNativeComponentWarningVisibility() const
 	for (const FSCSEditorTreeNodePtrType& Node : SCSEditor->GetSelectedNodes())
 	{
 		// Check to see if the component is native and not editable
-		if (Node->IsNative() && !Node->CanEditDefaults() && !NotEditableSetByBlueprint(Node->GetComponentTemplate()))
+		if (Node->IsNativeComponent() && !Node->CanEdit() && !NotEditableSetByBlueprint(Node->GetComponentTemplate()))
 		{
 			bIsUneditableNative = true;
 			break;

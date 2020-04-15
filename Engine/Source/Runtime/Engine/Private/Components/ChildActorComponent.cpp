@@ -14,6 +14,10 @@ UChildActorComponent::UChildActorComponent(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	bAllowReregistration = false;
+
+#if WITH_EDITORONLY_DATA
+	EditorTreeViewVisualizationMode = EChildActorComponentTreeViewVisualizationMode::UseDefault;
+#endif
 }
 
 void UChildActorComponent::OnRegister()
@@ -724,3 +728,12 @@ void UChildActorComponent::BeginPlay()
 		ChildActor->DispatchBeginPlay(bFromLevelStreaming);
 	}
 }
+
+#if WITH_EDITOR
+void UChildActorComponent::SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode InMode)
+{
+	Modify();
+
+	EditorTreeViewVisualizationMode = InMode;
+}
+#endif

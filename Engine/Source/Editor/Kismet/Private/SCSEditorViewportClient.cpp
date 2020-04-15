@@ -607,9 +607,9 @@ FWidget::EWidgetMode FSCSEditorViewportClient::GetWidgetMode() const
 						FSCSEditorTreeNodePtrType CurrentNodePtr = SelectedNodes[CurrentNodeIndex];
 						if ((CurrentNodePtr.IsValid() &&
 							((!RootNodes.Contains(CurrentNodePtr) && !CurrentNodePtr->IsRootComponent()) ||
-							(Cast<UInstancedStaticMeshComponent>(CurrentNodePtr->GetComponentTemplate()) && // show widget if we are editing individual instances even if it is the root component
+							(CurrentNodePtr->GetObject<UInstancedStaticMeshComponent>() && // show widget if we are editing individual instances even if it is the root component
 								CastChecked<UInstancedStaticMeshComponent>(CurrentNodePtr->FindComponentInstanceInActor(GetPreviewActor()))->SelectedInstances.Contains(true))) &&
-							CurrentNodePtr->CanEditDefaults() &&
+							CurrentNodePtr->CanEdit() &&
 							CurrentNodePtr->FindComponentInstanceInActor(PreviewActor)))
 						{
 							// a non-NULL, non-root item is selected, draw the widget

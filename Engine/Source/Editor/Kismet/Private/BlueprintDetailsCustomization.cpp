@@ -26,6 +26,7 @@
 #include "Components/ChildActorComponent.h"
 #include "Components/TimelineComponent.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#include "Kismet2/ChildActorComponentEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_Event.h"
@@ -5985,7 +5986,7 @@ bool FBlueprintComponentDetails::OnVariableCategoryChangeEnabled() const
 {
 	check(CachedNodePtr.IsValid());
 	
-	return !CachedNodePtr->IsInherited();
+	return !CachedNodePtr->IsInheritedComponent();
 }
 
 FText FBlueprintComponentDetails::OnGetVariableCategoryText() const
@@ -6191,7 +6192,7 @@ bool FBlueprintComponentDetails::CanChangeSocket() const
 
 	if (CachedNodePtr->GetSCSNode() != NULL)
 	{
-		return !CachedNodePtr->IsInherited();
+		return !CachedNodePtr->IsInheritedComponent();
 	}
 	return true;
 }
@@ -6485,7 +6486,7 @@ void FChildActorComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 			{
 				if (UChildActorComponent* CAC = Cast<UChildActorComponent>(ObjectBeingCustomized.Get()))
 				{
-					if (CAC->ChildActorTemplate == nullptr)
+					if (CAC->ChildActorTemplate == nullptr || FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(CAC))
 					{
 						return EVisibility::Hidden;
 					}
