@@ -49,6 +49,9 @@ namespace Chaos
 
 	float CollisionRestitutionOverride = -1.0f;
 	FAutoConsoleVariableRef CVarCollisionRestitutionOverride(TEXT("p.CollisionRestitution"), CollisionRestitutionOverride, TEXT("Collision restitution for all contacts if >= 0"));
+	
+	float CollisionAngularFrictionOverride = -1.0f;
+	FAutoConsoleVariableRef CVarCollisionAngularFrictionOverride(TEXT("p.CollisionAngularFriction"), CollisionAngularFrictionOverride, TEXT("Collision angular friction for all contacts if >= 0"));
 
 	CHAOS_API int32 EnableCollisions = 1;
 	FAutoConsoleVariableRef CVarEnableCollisions(TEXT("p.EnableCollisions"), EnableCollisions, TEXT("Enable/Disable collisions on the Chaos solver."));
@@ -205,6 +208,10 @@ namespace Chaos
 		if (CollisionRestitutionOverride >= 0)
 		{
 			Contact.Restitution = CollisionRestitutionOverride;
+		}
+		if (CollisionAngularFrictionOverride >= 0)
+		{
+			Contact.AngularFriction = CollisionAngularFrictionOverride;
 		}
 	}
 
