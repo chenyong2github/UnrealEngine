@@ -2031,6 +2031,11 @@ void UNiagaraDataInterfaceParticleRead::ProvidePerInstanceDataForRenderThread(vo
 #if WITH_EDITOR	
 void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info)
 {
+	if (!Asset)
+	{
+		return;
+	}
+
 	UNiagaraEmitter* FoundSourceEmitter = nullptr;
 	for (const FNiagaraEmitterHandle& EmitterHandle : Asset->GetEmitterHandles())
 	{
