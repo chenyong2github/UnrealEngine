@@ -44,6 +44,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
 	class UGroomBindingAsset* BindingAsset;
 
+	UPROPERTY()
+	UMaterialInterface* HairDebugMaterial;
+
+	UPROPERTY()
+	UMaterialInterface* HairDefaultMaterial;
+
 	/** Boolean to check when the simulation should be reset */
 	bool bResetSimulation;
 
