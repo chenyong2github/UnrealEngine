@@ -97,7 +97,7 @@ uint32 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	return Settings.PackedValue;
 }
 
-bool URuntimeVirtualTextureComponent::StreamingTextureIsValid() const
+bool URuntimeVirtualTextureComponent::IsStreamingTextureValid() const
 {
 	return VirtualTexture != nullptr && StreamingTexture != nullptr && StreamingTexture->Texture != nullptr && StreamingTexture->BuildHash == CalculateStreamingTextureSettingsHash();
 }
@@ -110,7 +110,7 @@ bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
 		return false;
 	}
 #endif
-	return StreamLowMips > 0 && StreamingTextureIsValid();
+	return StreamLowMips > 0 && IsStreamingTextureValid();
 }
 
 #if WITH_EDITOR
@@ -119,9 +119,6 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 {
 	if (VirtualTexture != nullptr && StreamingTexture != nullptr)
 	{
-		VirtualTexture->Modify();
-		StreamingTexture->Modify();
-
 		// Release current runtime virtual texture producer.
 		// It may reference data inside the old StreamingTexture which could be garbage collected any time from now.
 		VirtualTexture->Release();
@@ -156,6 +153,7 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 		BuildDesc.InSizeY = InSizeY;
 		BuildDesc.InData = InData;
 
+		StreamingTexture->Modify();
 		StreamingTexture->BuildTexture(BuildDesc);
 
 		// Trigger refresh of the runtime virtual texture producer.
@@ -165,7 +163,7 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 
 void URuntimeVirtualTextureComponent::SetRotation()
 {
-	if (BoundsSourceActor != nullptr)
+	if (BoundsSourceActor.IsValid())
 	{
 		// Copy the source actor rotation and notify the parent actor
 		SetWorldRotation(BoundsSourceActor->GetTransform().GetRotation());
@@ -175,7 +173,7 @@ void URuntimeVirtualTextureComponent::SetRotation()
 
 void URuntimeVirtualTextureComponent::SetTransformToBounds()
 {
-	if (BoundsSourceActor != nullptr)
+	if (BoundsSourceActor.IsValid())
 	{
 		// Calculate the bounds in our local rotation space translated to the BoundsSourceActor center
 		const FQuat TargetRotation = GetComponentToWorld().GetRotation();
