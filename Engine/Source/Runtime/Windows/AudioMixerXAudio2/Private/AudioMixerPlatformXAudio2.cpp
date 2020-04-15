@@ -1200,12 +1200,6 @@ namespace Audio
 			XAUDIO2_RETURN_ON_FAIL(XAudio2System->CreateSourceVoice(&OutputAudioStreamSourceVoice, &Format, XAUDIO2_VOICE_NOPITCH, 2.0f, &OutputVoiceCallback));
 
 			const int32 NewNumSamples = OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels;
-
-			// Clear the output buffers with zero's and submit one
-			for (int32 Index = 0; Index < OutputBuffers.Num(); ++Index)
-			{
-				OutputBuffers[Index].Reset(NewNumSamples);
-			}
 		}
 		else
 		{	
@@ -1222,11 +1216,11 @@ namespace Audio
 	{
 		if (OutputAudioStreamSourceVoice)
 		{
-			CurrentBufferReadIndex = 0;
-			CurrentBufferWriteIndex = 1;
+			int32 NumSamplesPopped = 0;
+			TArrayView<const uint8> PoppedAudio = OutputBuffer.PopBufferData(NumSamplesPopped);
+			SubmitBuffer(PoppedAudio.GetData());
 
-			SubmitBuffer(OutputBuffers[CurrentBufferReadIndex].GetBufferData());
-			check(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels == OutputBuffers[CurrentBufferReadIndex].GetBuffer().Num());
+			check(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels == OutputBuffer.GetNumSamples());
 
 			AudioRenderEvent->Trigger();
 

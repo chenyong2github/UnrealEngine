@@ -12,6 +12,7 @@
 #include "AudioMixerNullDevice.h"
 #include "DSP/ParamInterpolator.h"
 #include "DSP/BufferVectorOperations.h"
+#include "DSP/Dsp.h"
 #include "Modules/ModuleInterface.h"
 
 // defines used for AudioMixer.h
@@ -291,53 +292,45 @@ namespace Audio
 	{
 	public:
 		FOutputBuffer()
-			: IsReadyEvent(nullptr)
-			, AudioMixer(nullptr)
+			: AudioMixer(nullptr)
 			, DataFormat(EAudioMixerStreamDataFormat::Unknown)
 		{}
 
-		~FOutputBuffer();
+		~FOutputBuffer() = default;
  
 		/** Initialize the buffer with the given samples and output format. */
-		void Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const EAudioMixerStreamDataFormat::Type InDataFormat);
+		void Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const int32 InNumBuffers, const EAudioMixerStreamDataFormat::Type InDataFormat);
 
-		/** Gets the next mixed buffer from the audio mixer. */
-		void MixNextBuffer();
+		/** Gets the next mixed buffer from the audio mixer. Returns false if our buffer is already full. */
+		bool MixNextBuffer();
 
-		/** Returns the float buffer. */
-		AlignedFloatBuffer& GetBuffer() { return Buffer; }
-
-
-		/** Gets the buffer data ptrs. */
-		const uint8* GetBufferData() const;
-		uint8* GetBufferData();
-
-		/** Event to signal that the buffer is ready */
-		FEvent* IsReadyEvent;
+		/** Gets the buffer data ptrs. Returns a TArrayView for the full buffer size requested, but in the case of an underrun, OutBytesPopped will be less that the size of the returned TArrayView. */
+		TArrayView<const uint8> PopBufferData(int32& OutBytesPopped) const;
 
 		/** Gets the number of frames of the buffer. */
-		int32 GetNumFrames() const;
+		int32 GetNumSamples() const;
 
 		/** Returns the format of the buffer. */
 		EAudioMixerStreamDataFormat::Type GetFormat() const { return DataFormat; }
-		
-		/** Returns if ready. */
-		bool IsReady() const { return bIsReady; }
-
-		/** Resets the buffer ready state. */
-		void ResetReadyState();
-
-		/** Resets the internal buffers to the new sample count. Used when device is changed. */
-		void Reset(const int32 InNewNumSamples);
 
 
 	private:
 		IAudioMixer* AudioMixer;
-		AlignedFloatBuffer Buffer;
+
+		// Circular buffer used to buffer audio between the audio render thread and the platform interface thread.
+		mutable Audio::TCircularAudioBuffer<uint8> CircularBuffer;
+		
+		// Buffer that we render audio to from the IAudioMixer instance associated with this output buffer.
+		Audio::AlignedFloatBuffer RenderBuffer;
+
+		// Buffer read by the platform interface thread.
+		mutable Audio::AlignedByteBuffer PopBuffer;
+
+		// For non-float situations, this buffer is used to convert RenderBuffer before pushing it to CircularBuffer.
 		AlignedByteBuffer FormattedBuffer;
  		EAudioMixerStreamDataFormat::Type DataFormat;
- 		FThreadSafeBool bIsReady;
 
+		static size_t GetSizeForDataFormat(EAudioMixerStreamDataFormat::Type InDataFormat);
 		int32 CallCounterMixNextBuffer{ 0 };
 	};
 
@@ -535,10 +528,10 @@ namespace Audio
 		void StopGeneratingAudio();
 
 		/** Performs buffer fades for shutdown/startup of audio mixer. */
-		void ApplyMasterAttenuation();
+		void ApplyMasterAttenuation(TArrayView<const uint8>& InOutPoppedAudio);
 
 		template<typename BufferType>
-		void ApplyAttenuationInternal(BufferType* BufferDataPtr, const int32 NumFrames);
+		void ApplyAttenuationInternal(TArrayView<BufferType>& InOutBuffer);
 
 		/** When called, spins up a thread to start consuming output when no audio device is available. */
 		void StartRunningNullDevice();
@@ -553,10 +546,7 @@ namespace Audio
 		FAudioMixerOpenStreamParams OpenStreamParams;
 
 		/** List of generated output buffers. */
-		TArray<FOutputBuffer> OutputBuffers;
-
-		/** Special empty buffer for buffer underruns. */
-		FOutputBuffer UnderrunBuffer;
+		Audio::FOutputBuffer OutputBuffer;
 
 		/** Whether or not we warned of buffer underrun. */
 		bool bWarnedBufferUnderrun;
@@ -576,12 +566,6 @@ namespace Audio
 		/** Event allows you to block until fadeout is complete. */
 		FEvent* AudioFadeEvent;
 
-		/** The buffer which is currently submitted to the output device (and is being read from). */
-		TAtomic<int32> CurrentBufferReadIndex;
-
-		/** The buffer which is currently being rendered to (or about to be rendered to). */
-		TAtomic<int32> CurrentBufferWriteIndex;
-
 		/** The number of mixer buffers to queue on the output source voice. */
 		int32 NumOutputBuffers;
 
@@ -596,9 +580,6 @@ namespace Audio
 
 		/** String containing the last generated error. */
 		FString LastError;
-
-		/** Struct used to store render time analysis data. */
-		FAudioRenderTimeAnalysis RenderTimeAnalysis;
 
 		int32 CallCounterApplyAttenuationInternal{ 0 };
 		int32 CallCounterReadNextBuffer{ 0 };
