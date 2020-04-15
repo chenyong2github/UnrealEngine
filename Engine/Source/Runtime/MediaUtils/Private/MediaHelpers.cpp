@@ -25,11 +25,6 @@ namespace MediaUtils
 		case EMediaEvent::TracksChanged: return TEXT("TracksChanged");
 
 		case EMediaEvent::Internal_PurgeVideoSamplesHint: return TEXT("Internal: PurgeVideoSamplesHint");
-		case EMediaEvent::Internal_VideoSamplesAvailable: return TEXT("Internal: VideoSamplesAvailable");
-		case EMediaEvent::Internal_VideoSamplesUnavailable: return TEXT("Internal: VideoSamplesUnavailable");
-		case EMediaEvent::Internal_AudioSamplesAvailable: return TEXT("Internal: AudioSamplesAvailable");
-		case EMediaEvent::Internal_AudioSamplesUnavailable: return TEXT("Internal: AudioSamplesUnavailable");
-
 
 		// no default case; all cases must be implemented!
 		}
