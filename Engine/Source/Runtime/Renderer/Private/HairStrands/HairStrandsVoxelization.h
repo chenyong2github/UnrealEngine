@@ -100,4 +100,5 @@ struct FHairStrandsOcclusionResources
 	FRDGTextureRef CategorizationTexture = nullptr;
 	FRDGTextureRef LightChannelMaskTexture = nullptr;
 	const FVirtualVoxelResources* VoxelResources = nullptr;
+	bool bUseHairVoxel = false;
 };
