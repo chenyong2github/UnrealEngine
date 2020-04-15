@@ -655,6 +655,50 @@ private:
 			}
 		}
 	}
+
+	template<typename IterateFunc>
+	void FindNearbyElementsInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const FBoxCenterAndExtent& BoxBounds, const IterateFunc& Func) const
+	{
+		if (TreeNodes[CurrentNodeIndex].InclusiveNumElements > 0)
+		{
+			for (int Index = 0; Index < TreeElements[CurrentNodeIndex].Num(); Index++)
+			{
+				typename TCallTraits<ElementType>::ConstReference Element = TreeElements[CurrentNodeIndex][Index];
+				if (Intersect(OctreeSemantics::GetBoundingBox(Element), BoxBounds))
+				{
+					Func(Element);
+				}
+			}
+
+			if (!TreeNodes[CurrentNodeIndex].IsLeaf())
+			{
+				const FOctreeChildNodeSubset IntersectingChildSubset = NodeContext.GetIntersectingChildren(BoxBounds);
+				FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
+				
+				bool FoundMatchingNode = false;
+				for (int i = 0; i < 8; i++)
+				{
+					if (TreeNodes[ChildStartIndex + i].InclusiveNumElements > 0 && IntersectingChildSubset.Contains(FOctreeChildNodeRef(i)))
+					{
+						FoundMatchingNode = true;
+						FindNearbyElementsInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), BoxBounds, Func);
+					}
+				}
+
+				//look in the near node vicinity for a match
+				if (!FoundMatchingNode)
+				{
+					for (int i = 0; i < 8; i++)
+					{
+						if (!IntersectingChildSubset.Contains(FOctreeChildNodeRef(i)))
+						{
+							FindNearbyElementsInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), BoxBounds, Func);
+						}
+					}
+				}
+			}
+		}
+	}
 public:
 
 	/**
@@ -723,6 +767,18 @@ public:
 		bool ContinueTraversal = true;
 		FindFirstElementWithBoundsTestInternal(0, RootNodeContext, BoxBounds, Func, ContinueTraversal);
 	}
+
+	/**
+	* this function will traverse the Octree using a fast (and relaxed) box-box intersection but will also try and search in the neighborhood nodes if the intersected node is empty.
+	* @param BoxBounds - the bounds to test if a node is traversed or skipped.
+	* @param Func - Function to call with each Element for nodes that passed bounds test.
+	*/
+	template<typename IterateBoundsFunc>
+	inline void FindNearbyElements(const FBoxCenterAndExtent& BoxBounds, const IterateBoundsFunc& Func) const
+	{
+		FindNearbyElementsInternal(0, RootNodeContext, BoxBounds, Func);
+	}
+
 
 	/**
 	 * Adds an element to the octree.
