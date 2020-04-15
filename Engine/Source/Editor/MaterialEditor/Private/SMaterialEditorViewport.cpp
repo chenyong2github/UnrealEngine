@@ -46,8 +46,6 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void Draw(FViewport* Viewport,FCanvas* Canvas) override;
 	virtual bool ShouldOrbitCamera() const override;
-	
-	void SetShowGrid(bool bShowGrid);
 
 	/**
 	* Focuses the viewport to the center of the bounding box/sphere ensuring that the entire bounds are in view
@@ -183,11 +181,6 @@ FLinearColor FMaterialEditorViewportClient::GetBackgroundColor() const
 	}
 }
 
-void FMaterialEditorViewportClient::SetShowGrid(bool bShowGrid)
-{
-	DrawHelper.bDrawGrid = bShowGrid;
-}
-
 void FMaterialEditorViewportClient::FocusViewportOnBounds(const FBoxSphereBounds Bounds, bool bInstant /*= false*/)
 {
 	const FVector Position = Bounds.Origin;
@@ -249,7 +242,6 @@ void SMaterialEditor3DPreviewViewport::Construct(const FArguments& InArgs)
 			AdvancedPreviewScene->GetWorld()->ChangeFeatureLevel(NewFeatureLevel);
 		});
 
-	bShowGrid = false;
 
 	PreviewPrimType = TPT_None;
 
@@ -645,14 +637,13 @@ bool SMaterialEditor3DPreviewViewport::IsPreviewMeshFromSelectionChecked() const
 
 void SMaterialEditor3DPreviewViewport::TogglePreviewGrid()
 {
-	bShowGrid = !bShowGrid;
-	EditorViewportClient->SetShowGrid(bShowGrid);
+	EditorViewportClient->SetShowGrid();
 	RefreshViewport();
 }
 
 bool SMaterialEditor3DPreviewViewport::IsTogglePreviewGridChecked() const
 {
-	return bShowGrid;
+	return EditorViewportClient->IsSetShowGridChecked();
 }
 
 void SMaterialEditor3DPreviewViewport::TogglePreviewBackground()
