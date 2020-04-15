@@ -45,12 +45,6 @@ enum class EMediaEvent
 
 	/** Player requests purge of outdated video samples from queues. */
 	Internal_PurgeVideoSamplesHint = Internal_Start,
-
-	/** Player notifies about availability or unavailablity of media samples. **/
-	Internal_VideoSamplesAvailable,
-	Internal_VideoSamplesUnavailable,
-	Internal_AudioSamplesAvailable,
-	Internal_AudioSamplesUnavailable
 };
 
 
