@@ -1017,7 +1017,7 @@ struct ExistingStaticMeshData
 	UStaticMesh::FOnMeshChanged	ExistingOnMeshChanged;
 	UStaticMesh* ExistingComplexCollisionMesh = nullptr;
 
-	TMap<FName, FString>* ExistingUMetaDataTagValues;
+	TMap<FName, FString> ExistingUMetaDataTagValues;
 };
 
 bool IsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)
@@ -1049,7 +1049,11 @@ ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, Un
 		ExistingMeshDataPtr = new ExistingStaticMeshData();
 
 		//Save the package UMetaData
-		ExistingMeshDataPtr->ExistingUMetaDataTagValues = UMetaData::GetMapForObject(ExistingMesh);
+		TMap<FName, FString>* ExistingUMetaDataTagValues = UMetaData::GetMapForObject(ExistingMesh);
+		if(ExistingUMetaDataTagValues && ExistingUMetaDataTagValues->Num() > 0)
+		{
+			ExistingMeshDataPtr->ExistingUMetaDataTagValues = *ExistingUMetaDataTagValues;
+		}
 
 		ExistingMeshDataPtr->ImportVersion = ExistingMesh->ImportVersion;
 		ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = IsUsingMaterialSlotNameWorkflow(ExistingMesh->AssetImportData);
@@ -1422,11 +1426,11 @@ void RestoreExistingMeshData(ExistingStaticMeshData* ExistingMeshDataPtr, UStati
 	}
 
 	//Restore the package metadata
-	if (ExistingMeshDataPtr->ExistingUMetaDataTagValues)
+	if (ExistingMeshDataPtr->ExistingUMetaDataTagValues.Num() > 0)
 	{
 		UMetaData* PackageMetaData = NewMesh->GetOutermost()->GetMetaData();
 		checkSlow(PackageMetaData);
-		PackageMetaData->SetObjectValues(NewMesh, *ExistingMeshDataPtr->ExistingUMetaDataTagValues);
+		PackageMetaData->SetObjectValues(NewMesh, ExistingMeshDataPtr->ExistingUMetaDataTagValues);
 	}
 
 	//Create a remap material Index use to find the matching section later
