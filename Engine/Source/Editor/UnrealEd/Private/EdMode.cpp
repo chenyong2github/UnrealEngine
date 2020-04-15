@@ -788,8 +788,9 @@ void FEdMode::DrawHUD(FEditorViewportClient* ViewportClient,FViewport* Viewport,
 		{
 			FEditorScriptExecutionGuard ScriptGuard;
 
-			const int32 HalfX = 0.5f * Viewport->GetSizeXY().X;
-			const int32 HalfY = 0.5f * Viewport->GetSizeXY().Y;
+			FIntPoint SizeXYWithDPIScale = Viewport->GetSizeXY() / Canvas->GetDPIScale();
+			const int32 HalfX = 0.5f * SizeXYWithDPIScale.X;
+			const int32 HalfY = 0.5f * SizeXYWithDPIScale.Y;
 
 			UClass* Class = BestSelectedItem->GetClass();		
 			TArray<FPropertyWidgetInfo> WidgetInfos;
