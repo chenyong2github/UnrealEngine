@@ -790,7 +790,7 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 					{
 						MessageLog.Warning(
 							*FText::Format(
-								LOCTEXT("ExposeToSpawnButPrivateWarningFmt", "Variable {0} is marked as 'Expose on Spawn' but not marked as 'Editable'; please make it 'Editable'"),
+								LOCTEXT("ExposeToSpawnButPrivateWarningFmt", "Variable {0} is marked as 'Expose on Spawn' but not marked as 'Instance Editable'; please make it 'Instance Editable'"),
 								FText::FromString(NewProperty->GetName())
 							).ToString()
 						);
