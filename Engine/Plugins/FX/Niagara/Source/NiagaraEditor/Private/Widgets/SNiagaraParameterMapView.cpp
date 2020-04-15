@@ -507,6 +507,8 @@ TSharedRef<SWidget> SNiagaraParameterMapView::OnCreateWidgetForAction(struct FCr
 
 void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
+	LastCollectedParameters.Empty();
+
 	if (Graphs.Num() == 0)
 	{
 		return;
@@ -543,6 +545,7 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 		const FText Tooltip = FText::Format(TooltipFormat, FText::FromName(Parameter.GetName()), Parameter.GetType().GetNameText());
 		TSharedPtr<FNiagaraParameterAction> ParameterAction(new FNiagaraParameterAction(Parameter, ParameterEntry.Value, FText::GetEmpty(), Name, Tooltip, 0, FText(), Section));
 		OutAllActions.AddAction(ParameterAction);
+		LastCollectedParameters.Add(Parameter);
 	}
 }
 
@@ -1223,6 +1226,12 @@ bool SNiagaraParameterMapView::GetSingleParameterActionForSelection(
 	return true;
 }
 
+bool SNiagaraParameterMapView::ParameterExistsByName(FName ParameterName) const
+{
+	auto MatchVariableByName = [ParameterName](const FNiagaraVariable& Variable) { return Variable.GetName() == ParameterName; };
+	return LastCollectedParameters.ContainsByPredicate(MatchVariableByName);
+}
+
 void SNiagaraParameterMapView::GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder)
 {
 	TSharedPtr<FNiagaraParameterAction> ParameterAction;
@@ -1235,12 +1244,24 @@ void SNiagaraParameterMapView::GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuild
 		for (const FNiagaraParameterUtilities::FChangeNamespaceMenuData& MenuDataItem : MenuData)
 		{
 			bool bCanChange = MenuDataItem.bCanChange;
+			FText CanChangeToolTip = MenuDataItem.CanChangeToolTip;
+			if (bCanChange)
+			{
+				// Check for an existing duplicate by name.
+				FName NewName = FNiagaraParameterUtilities::ChangeNamespace(ParameterAction->Parameter.GetName(), MenuDataItem.Metadata);
+				if (ParameterExistsByName(NewName))
+				{
+					bCanChange = false;
+					CanChangeToolTip = LOCTEXT("CantMoveAlreadyExits", "Can not move to this namespace because a parameter with this name already exists.");
+				}
+			}
+
 			FUIAction Action = FUIAction(
 				FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnChangeNamespace, MenuDataItem.Metadata),
 				FCanExecuteAction::CreateLambda([bCanChange]() { return bCanChange; }));
 
-			TSharedRef<SWidget> MenuItemWidget = FNiagaraParameterUtilities::CreateNamespaceMenuItemWidget(MenuDataItem.NamespaceParameterName, MenuDataItem.CanChangeToolTip);
-			MenuBuilder.AddMenuEntry(Action, MenuItemWidget, NAME_None, MenuDataItem.CanChangeToolTip);
+			TSharedRef<SWidget> MenuItemWidget = FNiagaraParameterUtilities::CreateNamespaceMenuItemWidget(MenuDataItem.NamespaceParameterName, CanChangeToolTip);
+			MenuBuilder.AddMenuEntry(Action, MenuItemWidget, NAME_None, CanChangeToolTip);
 		}
 	}
 }
