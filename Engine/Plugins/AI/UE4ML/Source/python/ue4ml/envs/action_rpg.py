@@ -5,9 +5,10 @@ from ..utils import dict_from_json
 
 
 class ActionRPG(UnrealEnv):
-
+    
+    PROJECT_NAME = 'ActionRPG'
+    
     def __init__(self, ue4params=None, **kwargs):
-        self._project_name = 'ActionRPG'
         self.health_sensor_index = None
         self._last_obs = None
 
@@ -28,14 +29,13 @@ class ActionRPG(UnrealEnv):
         return self._last_obs
     
     def reset(self, wait_action=None, skip_time=1):
+        # custom skip before resetting to give the game's BP control flow time to 'rest'
         self.skip(5)    
         ret = super().reset(wait_action, skip_time)
-        #while self.game_over:
-        #    ret = super().reset(wait_action, skip_time)
-        #    self.skip(5)
-        # this delay is required due to how ActionRPG gets reset
-        #self.skip(90)
         return ret
+
+    def get_reward(self): 
+        return self._steps_performed
 
     @staticmethod
     def default_agent_config():
@@ -43,5 +43,6 @@ class ActionRPG(UnrealEnv):
         agent_config.add_sensor('AIPerception',
                                 {'mode': 'rotator', 'count': 3, 'sort': 'distance', 'peripheral_angle': 180})
         agent_config.add_sensor('Attribute', {'attributes': 'health, mana'})
+        agent_config.add_actuator('InputKey', {'ignore_keys': 'esc, backspace', 'ignore_actions': 'pause, inventory'})
         agent_config.avatarClassName = 'bp_playercharacter_c'
         return agent_config
