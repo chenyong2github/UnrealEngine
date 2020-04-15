@@ -10,6 +10,8 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
+class FLightSceneInfo;
+
 struct FHairStrandsTransmittanceMaskData
 {
 	TRefCountPtr<FPooledRDGBuffer>	TransmittanceMask;
