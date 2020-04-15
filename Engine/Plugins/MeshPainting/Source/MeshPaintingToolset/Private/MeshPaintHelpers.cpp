@@ -1330,7 +1330,7 @@ void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter
 						FVector CurNormal = VertexTangentZ.ToFVector();
 
 						// Iterate through the octree attempting to find the vertices closest to the current new point
-						VertPosOctree.IterateElementsWithBoundsTest(FBoxCenterAndExtent(CurPosition, FVector::ZeroVector), [&PointsToConsider](const FPaintedMeshVertex& Vertex)
+						VertPosOctree.FindNearbyElements(FBoxCenterAndExtent(CurPosition, FVector::ZeroVector), [&PointsToConsider](const FPaintedMeshVertex& Vertex)
 						{
 							// Add all of the elements in the current node to the list of points to consider for closest point calculations
 							PointsToConsider.Add(Vertex);
