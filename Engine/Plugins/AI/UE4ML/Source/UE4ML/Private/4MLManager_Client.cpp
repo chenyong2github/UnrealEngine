@@ -77,9 +77,9 @@ void U4MLManager::AddCommonFunctions()
 		else
 		{
 			U4MLSession& Session = GetSession();
-			for (int Index = 0; Index < AgentIDs.size(); ++Index)
+			for (const F4ML::FAgentID& AgentID : AgentIDs)
 			{
-				U4MLAgent* Agent = Session.GetAgent(AgentIDs[Index]);
+				U4MLAgent* Agent = Session.GetAgent(AgentID);
 				Results.push_back(Agent == nullptr || Agent->IsDone());
 			}
 		}
@@ -155,7 +155,7 @@ void U4MLManager::ConfigureAsClient()
 			rpc::this_handler().respond_error("No active session");
 		}
 
-		for (int Index = 0; Index < AgentIDs.size(); ++Index)
+		for (int Index = 0; Index < int(AgentIDs.size()); ++Index)
 		{
 			U4MLAgent* Agent = GetSession().GetAgent(AgentIDs[Index]);
 			if (Agent)
@@ -194,14 +194,13 @@ void U4MLManager::ConfigureAsClient()
 			if (HasSession())
 			{
 				Values.resize(AgentIDs.size());
-				for (int Index = 0; Index < AgentIDs.size(); ++Index)
+				for (int Index = 0; Index < int(AgentIDs.size()); ++Index)
 				{
 					U4MLAgent* Agent = GetSession().GetAgent(AgentIDs[Index]);
 					if (Agent)
 					{
 						TArray<uint8> Buffer;
 						F4MLMemoryWriter Writer(Buffer);
-						//Observations.TimeStamp = GetSession().GetTimestamp();
 						Agent->GetObservations(Writer);
 
 						const float* DataPtr = (float*)Buffer.GetData();
@@ -239,9 +238,9 @@ void U4MLManager::ConfigureAsClient()
 			rpc::this_handler().respond_error("No active session");
 		}
 		std::vector<float> Rewards;
-		for (int Index = 0; Index < AgentIDs.size(); ++Index)
+		for (const F4ML::FAgentID& AgentID : AgentIDs)
 		{
-			U4MLAgent* Agent = GetSession().GetAgent(AgentIDs[Index]);
+			U4MLAgent* Agent = GetSession().GetAgent(AgentID);
 			Rewards.push_back(Agent ? Agent->GetReward() : 0.f);
 		}
 
