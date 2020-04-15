@@ -117,7 +117,7 @@ void FLightSceneInfo::AddToScene()
 			// Find primitives that the light affects in the primitive octree.
 			FMemMark MemStackMark(FMemStack::Get());
 
-			Scene->PrimitiveOctree.IterateElementsWithBoundsTest(GetBoundingBox(), [&LightSceneInfoCompact, this](const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact)
+			Scene->PrimitiveOctree.FindElementsWithBoundsTest(GetBoundingBox(), [&LightSceneInfoCompact, this](const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact)
 			{
 				CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfoCompact);
 			});

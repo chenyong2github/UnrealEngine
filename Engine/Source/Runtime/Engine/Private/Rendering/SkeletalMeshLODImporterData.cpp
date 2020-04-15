@@ -939,7 +939,7 @@ void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector& SearchPosition, 
 	{
 		// Iterate through the octree attempting to find the vertices closest to the current new point
 		// The first shot is an intersection with a 1 CM cube box around the search position, this ensure we dont fall in the wrong neighbourg
-		WedgePosOctree->IterateElementsWithBoundsTest(FBoxCenterAndExtent(SearchPosition, Extend), [&OutNearestWedges, &MinSquaredDistance, &SearchPosition](const FWedgeInfo& WedgeInfo)
+		WedgePosOctree->FindElementsWithBoundsTest(FBoxCenterAndExtent(SearchPosition, Extend), [&OutNearestWedges, &MinSquaredDistance, &SearchPosition](const FWedgeInfo& WedgeInfo)
 		{
 			// Add all of the elements in the current node to the list of points to consider for closest point calculations
 			float VectorDelta = FVector::DistSquared(SearchPosition, WedgeInfo.Position);

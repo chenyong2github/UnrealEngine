@@ -579,7 +579,7 @@ private:
 	}
 
 	template<typename PredicateFunc, typename IterateFunc>
-	void IterateNodesWithPredicateInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const PredicateFunc& Predicate, const IterateFunc& Func) const
+	void FindNodesWithPredicateInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const PredicateFunc& Predicate, const IterateFunc& Func) const
 	{
 		if (TreeNodes[CurrentNodeIndex].InclusiveNumElements > 0)
 		{
@@ -592,7 +592,7 @@ private:
 					FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
 					for (int i = 0; i < 8; i++)
 					{
-						IterateNodesWithPredicateInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), Predicate, Func);
+						FindNodesWithPredicateInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), Predicate, Func);
 					}
 				}
 			}
@@ -600,7 +600,7 @@ private:
 	}
 
 	template<typename IterateFunc>
-	void IterateElementsWithBoundsTestInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const FBoxCenterAndExtent& BoxBounds, const IterateFunc& Func) const
+	void FindElementsWithBoundsTestInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const FBoxCenterAndExtent& BoxBounds, const IterateFunc& Func) const
 	{
 		if (TreeNodes[CurrentNodeIndex].InclusiveNumElements > 0)
 		{
@@ -620,7 +620,7 @@ private:
 				{
 					if(IntersectingChildSubset.Contains(FOctreeChildNodeRef(i)))
 					{
-						IterateElementsWithBoundsTestInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), BoxBounds, Func);
+						FindElementsWithBoundsTestInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), BoxBounds, Func);
 					}
 				}
 			}
@@ -698,7 +698,7 @@ public:
 	 * @param Func - Function to call with each Element.
 	 */
 	template<typename IterateAllElementsFunc>
-	inline void IterateAllElements(const IterateAllElementsFunc& Func) const
+	inline void FindAllElements(const IterateAllElementsFunc& Func) const
 	{
 		for (const ElementArrayType& Elements : TreeElements)
 		{
@@ -715,9 +715,9 @@ public:
 	 * @param Func - Function that will receive the node ID which can be stored and later used to get the elements using GetElementsForNode for all nodes that passed the predicate.
 	 */
 	template<typename PredicateFunc, typename IterateFunc>
-	inline void IterateNodesWithPredicate(const PredicateFunc& Predicate, const IterateFunc& Func) const
+	inline void FindNodesWithPredicate(const PredicateFunc& Predicate, const IterateFunc& Func) const
 	{
-		IterateNodesWithPredicateInternal(0, RootNodeContext, Predicate, Func);
+		FindNodesWithPredicateInternal(0, RootNodeContext, Predicate, Func);
 	}
 
 	/**
@@ -726,9 +726,9 @@ public:
 	 * @param Func - Function to call with each Element for nodes that passed the predicate.
 	 */
 	template<typename PredicateFunc, typename IterateFunc>
-	inline void IterateElementsWithPredicate(const PredicateFunc& Predicate, const IterateFunc& Func) const
+	inline void FindElementsWithPredicate(const PredicateFunc& Predicate, const IterateFunc& Func) const
 	{
-		IterateNodesWithPredicateInternal(0, RootNodeContext, Predicate, [&Func, this](FNodeIndex NodeIndex)
+		FindNodesWithPredicateInternal(0, RootNodeContext, Predicate, [&Func, this](FNodeIndex NodeIndex)
 		{
 			for (typename TCallTraits<ElementType>::ConstReference Element : TreeElements[NodeIndex])
 			{
@@ -743,9 +743,9 @@ public:
 	 * @param Func - Function to call with each Element for nodes that passed bounds test.
 	 */
 	template<typename IterateBoundsFunc>
-	inline void IterateElementsWithBoundsTest(const FBoxCenterAndExtent& BoxBounds, const IterateBoundsFunc& Func) const
+	inline void FindElementsWithBoundsTest(const FBoxCenterAndExtent& BoxBounds, const IterateBoundsFunc& Func) const
 	{
-		IterateElementsWithBoundsTestInternal(0, RootNodeContext, BoxBounds, Func);
+		FindElementsWithBoundsTestInternal(0, RootNodeContext, BoxBounds, Func);
 	}
 
 	/**
@@ -881,7 +881,7 @@ public:
 
 	/**
 	 * return all elements for a given node.
-	 * @param NodeIndex - The the index of the node can be obtained using IterateNodesWithPredicate.
+	 * @param NodeIndex - The the index of the node can be obtained using FindNodesWithPredicate.
 	 */
 	TArrayView<const ElementType> GetElementsForNode(FNodeIndex NodeIndex) const
 	{
@@ -897,7 +897,7 @@ public:
 		int32 MaxElementsPerNode = 0;
 		TArray<int32> NodeElementDistribution;
 
-		IterateNodesWithPredicateInternal(0, RootNodeContext, [](const FBoxCenterAndExtent&) { return true; }, [&, this](FNodeIndex NodeIndex)
+		FindNodesWithPredicateInternal(0, RootNodeContext, [](const FBoxCenterAndExtent&) { return true; }, [&, this](FNodeIndex NodeIndex)
 		{
 			const int32 CurrentNodeElementCount = GetElementsForNode(NodeIndex).Num();
 
