@@ -173,12 +173,54 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 #if WITH_EDITOR
 			EditorRefreshGameplayTagTree();
 #else
+			for (const FString& IniFilePath : FilesInDirectory)
+			{
+				TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
+				GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
+				const FString IniDirectory = FPaths::GetPath(IniFilePath);
+				for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
+				{
+					const FString RestrictedFileName = FString::Printf(TEXT("%s/%s"), *IniDirectory, *Config.RestrictedConfigName);
+					AddRestrictedGameplayTagSource(RestrictedFileName);
+				}
+			}
+
 			AddTagsFromAdditionalLooseIniFiles(FilesInDirectory);
 
 			ConstructNetIndex();
 
 			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 #endif
+		}
+	}
+}
+
+void UGameplayTagsManager::AddRestrictedGameplayTagSource(const FString& FileName)
+{
+	FName TagSource = FName(*FPaths::GetCleanFilename(FileName));
+	if (TagSource == NAME_None)
+	{
+		return;
+	}
+	RestrictedGameplayTagSourceNames.Add(TagSource);
+	FGameplayTagSource* FoundSource = FindOrAddTagSource(TagSource, EGameplayTagSourceType::RestrictedTagList);
+
+	// Make sure we have regular tag sources to match the restricted tag sources but don't try to read any tags from them yet.
+	FindOrAddTagSource(TagSource, EGameplayTagSourceType::TagList);
+
+	if (FoundSource && FoundSource->SourceRestrictedTagList)
+	{
+		FoundSource->SourceRestrictedTagList->LoadConfig(URestrictedGameplayTagsList::StaticClass(), *FileName);
+
+#if WITH_EDITOR
+		if (GIsEditor || IsRunningCommandlet()) // Sort tags for UI Purposes but don't sort in -game scenario since this would break compat with noneditor cooked builds
+		{
+			FoundSource->SourceRestrictedTagList->SortTags();
+		}
+#endif
+		for (const FRestrictedGameplayTagTableRow& TableRow : FoundSource->SourceRestrictedTagList->RestrictedGameplayTagList)
+		{
+			AddTagTableRow(TableRow, TagSource, true);
 		}
 	}
 }
@@ -259,32 +301,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 
 			for (const FString& FileName : RestrictedGameplayTagFiles)
 			{
-				FName TagSource = FName(*FPaths::GetCleanFilename(FileName));
-				if (TagSource == NAME_None)
-				{
-					continue;
-				}
-				RestrictedGameplayTagSourceNames.Add(TagSource);
-				FGameplayTagSource* FoundSource = FindOrAddTagSource(TagSource, EGameplayTagSourceType::RestrictedTagList);
-
-				// Make sure we have regular tag sources to match the restricted tag sources but don't try to read any tags from them yet.
-				FindOrAddTagSource(TagSource, EGameplayTagSourceType::TagList);
-
-				if (FoundSource && FoundSource->SourceRestrictedTagList)
-				{
-					FoundSource->SourceRestrictedTagList->LoadConfig(URestrictedGameplayTagsList::StaticClass(), *FileName);
-
-#if WITH_EDITOR
-					if (GIsEditor || IsRunningCommandlet()) // Sort tags for UI Purposes but don't sort in -game scenario since this would break compat with noneditor cooked builds
-					{
-						FoundSource->SourceRestrictedTagList->SortTags();
-					}
-#endif
-					for (const FRestrictedGameplayTagTableRow& TableRow : FoundSource->SourceRestrictedTagList->RestrictedGameplayTagList)
-					{
-						AddTagTableRow(TableRow, TagSource, true);
-					}
-				}
+				AddRestrictedGameplayTagSource(FileName);
 			}
 		}
 
