@@ -9,7 +9,7 @@ An optional but a very important part of the UE4ML plugin is the accompanying py
 
 The following diagram presents an overview of UE4ML's architecture.![img](https://lh4.googleusercontent.com/XLJdhbeFCKODMhDP1M2tYFO3vND7LDtdcsiqaaHFgH08Izo9mDUx8YVNsPNo_aIdp2DISDN1hMhRkeK1VFRpJfxmsbOg_C9uGfxm_-5AWn-Mcqy_hMOQBuIgArJtVk2iSguV6MWB)
 
-Please note that the plugin is still in very early development. All feedback is highly encouraged. InstallationC++The plugin’s source code can be found in Engine/Plugins/AI/UE4ML. I also strongly suggest getting the latest Samples/Games/ActionRP, as well as the last possible PlatformerGame version (ideally from Dev-Framework), as I've made some minor modifications to those samples making them cooperate better with the plugin. By default the plugin is not enabled for those games. To enable it add the following section to game’s *.uproject, right after the “Modules” section:
+Please note that the plugin is still in very early development. All feedback is highly encouraged. InstallationC++The plugin’s source code can be found in Engine/Plugins/AI/UE4ML. I also strongly suggest getting the latest `Samples/Games/ActionRPG`, as well as the last possible (recently removed) `PlatformerGame` version, as I've made some minor modifications to those samples making them cooperate better with the plugin. By default the plugin is not enabled for those games. To enable it add the following section to game’s *.uproject, right after the “Modules” section:
 
 ```
 "Plugins": [		
