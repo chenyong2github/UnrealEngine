@@ -570,7 +570,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 		}
 
 		// Iterate through the octree attempting to find the vertices closest to the current new point
-		VertPosOctree.FindNearbyElements(FBoxCenterAndExtent(CurPosition, FVector::ZeroVector), [&PointsToConsider](const FPaintedVertex& Vertex)
+		VertPosOctree.FindNearbyElements(CurPosition, [&PointsToConsider](const FPaintedVertex& Vertex)
 		{
 			PointsToConsider.Add(Vertex);
 		});
