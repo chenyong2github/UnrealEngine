@@ -519,12 +519,12 @@ namespace Audio
 	 * Designed to be thread safe for SPSC; However, if Push() and Pop() are both trying to access an overlapping area of the buffer,
 	 * One of the calls will be truncated. Thus, it is advised that you use a high enough capacity that the producer and consumer are never in contention.
 	 */
-	template <typename SampleType>
+	template <typename SampleType, size_t Alignment = 16>
 	class TCircularAudioBuffer
 	{
 	private:
 
-		TArray<SampleType> InternalBuffer;
+		TArray<SampleType, TAlignedHeapAllocator<Alignment>> InternalBuffer;
 		uint32 Capacity;
 		FThreadSafeCounter ReadCounter;
 		FThreadSafeCounter WriteCounter;
