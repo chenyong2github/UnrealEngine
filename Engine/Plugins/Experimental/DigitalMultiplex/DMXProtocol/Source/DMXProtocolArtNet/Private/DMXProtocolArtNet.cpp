@@ -303,7 +303,7 @@ bool FDMXProtocolArtNet::Tick(float DeltaTime)
 	return true;
 }
 
-EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 PortID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const
+EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 PortID, const FDMXBufferPtr& DMXBuffer) const
 {
 	// Init Packager
 	FDMXProtocolPackager Packager;

@@ -38,8 +38,8 @@ FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(IDMXProtocolPtr InDMXProtocol
 	UniverseID = Settings->GetNumberField(TEXT("UniverseID"));
 
 	// Allocate new buffers
-	OutputDMXBuffer = MakeShared<FDMXBuffer>();
-	InputDMXBuffer = MakeShared<FDMXBuffer>();
+	OutputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
+	InputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
 
 	// Set default IP address
 	InterfaceIPAddress = GetDefault<UDMXProtocolSettings>()->InterfaceIPAddress;
@@ -66,12 +66,12 @@ IDMXProtocolPtr FDMXProtocolUniverseSACN::GetProtocol() const
 	return WeakDMXProtocol.Pin();
 }
 
-TSharedPtr<FDMXBuffer> FDMXProtocolUniverseSACN::GetOutputDMXBuffer() const
+FDMXBufferPtr FDMXProtocolUniverseSACN::GetOutputDMXBuffer() const
 {
 	return OutputDMXBuffer;
 }
 
-TSharedPtr<FDMXBuffer> FDMXProtocolUniverseSACN::GetInputDMXBuffer() const
+FDMXBufferPtr FDMXProtocolUniverseSACN::GetInputDMXBuffer() const
 {
 	TimeWithoutInputBufferRequestStart = FPlatformTime::Seconds();
 	TimeWithoutInputBufferRequestEnd = TimeWithoutInputBufferRequestStart + TimeWithoutInputBufferRequest;
