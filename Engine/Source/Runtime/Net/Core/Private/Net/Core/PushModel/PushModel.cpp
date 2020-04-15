@@ -11,7 +11,9 @@
 #include "Types/PushModelPerObjectState.h"
 #include "Types/PushModelPerNetDriverState.h"
 #include "UObject/UObjectGlobals.h"
+#include "Stats/Stats2.h"
 
+DECLARE_CYCLE_STAT(TEXT("PushModel PostGarbageCollect"), STAT_PushModel_PostGarbageCollect, STATGROUP_Net);
 
 namespace UE4PushModelPrivate
 {
@@ -237,6 +239,8 @@ namespace UE4PushModelPrivate
 
 		void PostGarbageCollect()
 		{
+			SCOPE_CYCLE_COUNTER(STAT_PushModel_PostGarbageCollect);
+
 			// We can't compact PerObjectStates because we need ObjectIDs to be stable.
 			// But we can shrink it.
 
@@ -262,6 +266,10 @@ namespace UE4PushModelPrivate
 				{
 					ObjectIdToInternalId.Remove(It->GetObjectId());
 					It.RemoveCurrent();
+				}
+				else
+				{
+					It->SetRecentlyCollectedGarbage();
 				}
 			}
 
