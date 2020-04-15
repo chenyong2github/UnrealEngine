@@ -22,6 +22,7 @@
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Components/ChildActorComponent.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#include "Kismet2/ChildActorComponentEditorUtils.h"
 #include "Engine/Selection.h"
 #include "UnrealEdGlobals.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -84,6 +85,8 @@ static const FName SCS_ColumnName_ComponentClass( "ComponentClass" );
 static const FName SCS_ColumnName_Asset( "Asset" );
 static const FName SCS_ColumnName_Mobility( "Mobility" );
 
+static const FName SCS_ContextMenuName( "Kismet.SCSEditorContextMenu" );
+
 //////////////////////////////////////////////////////////////////////////
 // SSCSEditorDragDropTree
 void SSCSEditorDragDropTree::Construct( const FArguments& InArgs )
@@ -126,7 +129,7 @@ FReply SSCSEditorDragDropTree::OnDragOver( const FGeometry& MyGeometry, const FD
 			{
 				if (Operation->IsOfType<FAssetDragDropOp>())
 				{
-					const auto& AssetDragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
+					const TSharedPtr<FAssetDragDropOp> AssetDragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
 
 					for (const FAssetData& AssetData : AssetDragDropOp->GetAssets())
 					{
@@ -328,7 +331,13 @@ void FSCSRowDragDropOp::HoverTargetChanged()
 
 	if (!bHoverHandled)
 	{
-		if (FProperty* VariableProperty = GetVariableProperty())
+		if (FChildActorComponentEditorUtils::ContainsChildActorSubtreeNode(SourceNodes))
+		{
+			// @todo - Add support for drag/drop of child actor template components to create variable get nodes in a local Blueprint event/function graph
+			FText Message = LOCTEXT("ChildActorDragDropAddVariableNode_Unsupported", "This operation is not currently supported for one or more of the selected components.");
+			SetSimpleFeedbackMessage(ErrorSymbol, IconTint, Message);
+		}
+		else if (FProperty* VariableProperty = GetVariableProperty())
 		{
 			const FSlateBrush* PrimarySymbol;
 			const FSlateBrush* SecondarySymbol;
@@ -400,8 +409,7 @@ FReply FSCSRowDragDropOp::DroppedOnPanel(const TSharedRef< class SWidget >& Pane
 // FSCSEditorTreeNode
 
 FSCSEditorTreeNode::FSCSEditorTreeNode(FSCSEditorTreeNode::ENodeType InNodeType)
-	: ComponentTemplatePtr(nullptr)
-	, NodeType(InNodeType)
+	: NodeType(InNodeType)
 	, FilterFlags((uint8)EFilteredState::Unknown)
 {
 }
@@ -440,51 +448,9 @@ class USCS_Node* FSCSEditorTreeNode::GetSCSNode() const
 	return nullptr;
 }
 
-UActorComponent* FSCSEditorTreeNode::GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) const
-{
-	return nullptr;
-}
-
-UBlueprint* FSCSEditorTreeNode::GetBlueprint() const
-{
-	USCS_Node* SCS_Node = GetSCSNode();
-	UActorComponent* ComponentTemplate = GetComponentTemplate();
-
-	if(SCS_Node)
-	{
-		USimpleConstructionScript* SCS = SCS_Node->GetSCS();
-		if(SCS)
-		{
-			return SCS->GetBlueprint();
-		}
-	}
-	else if(ComponentTemplate)
-	{
-		AActor* CDO = ComponentTemplate->GetOwner();
-		if(CDO)
-		{
-			check(CDO->GetClass());
-
-			return Cast<UBlueprint>(CDO->GetClass()->ClassGeneratedBy);
-		}
-	}
-
-	return NULL;
-}
-
 FSCSEditorTreeNode::ENodeType FSCSEditorTreeNode::GetNodeType() const
 {
 	return NodeType;
-}
-
-UActorComponent* FSCSEditorTreeNode::GetComponentTemplate(bool bEvenIfPendingKill) const
-{
-	return ComponentTemplatePtr.Get(bEvenIfPendingKill);
-}
-
-void FSCSEditorTreeNode::SetComponentTemplate(UActorComponent* Component)
-{
-	ComponentTemplatePtr = Component;
 }
 
 bool FSCSEditorTreeNode::IsAttachedTo(FSCSEditorTreeNodePtrType InNodePtr) const
@@ -629,14 +595,20 @@ FSCSEditorTreeNodePtrType FSCSEditorTreeNode::FindClosestParent(TArray<FSCSEdito
 
 void FSCSEditorTreeNode::AddChild(FSCSEditorTreeNodePtrType InChildNodePtr)
 {
-	USCS_Node* SCS_Node = GetSCSNode();
-	UActorComponent* ComponentTemplate = GetComponentTemplate();
-
 	// Ensure the node is not already parented elsewhere
 	if(InChildNodePtr->GetParent().IsValid())
 	{
 		InChildNodePtr->GetParent()->RemoveChild(InChildNodePtr);
 	}
+
+	// If this is an actor node, start a new subtree
+	if (IsActorNode())
+	{
+		ActorRootNodePtr = StaticCastSharedRef<FSCSEditorTreeNodeActorBase>(AsShared());
+	}
+
+	// Link the child node to the actor root node for this subtree
+	InChildNodePtr->ActorRootNodePtr = ActorRootNodePtr;
 
 	// Add the given node as a child and link its parent
 	Children.AddUnique(InChildNodePtr);
@@ -652,67 +624,73 @@ void FSCSEditorTreeNode::AddChild(FSCSEditorTreeNodePtrType InChildNodePtr)
 		}
 	}
 
-	// Add a child node to the SCS tree node if not already present
-	USCS_Node* SCS_ChildNode = InChildNodePtr->GetSCSNode();
-	if(SCS_ChildNode != NULL)
+	if (InChildNodePtr->IsComponentNode())
 	{
-		// Get the SCS instance that owns the child node
-		USimpleConstructionScript* SCS = SCS_ChildNode->GetSCS();
-		if(SCS != NULL)
+		USCS_Node* SCS_Node = GetSCSNode();
+		const UActorComponent* ComponentTemplate = GetObject<UActorComponent>();
+
+		// Add a child node to the SCS tree node if not already present
+		USCS_Node* SCS_ChildNode = InChildNodePtr->GetSCSNode();
+		if (SCS_ChildNode != NULL)
 		{
-			// If the parent is also a valid SCS node
-			if(SCS_Node != NULL)
+			// Get the SCS instance that owns the child node
+			USimpleConstructionScript* SCS = SCS_ChildNode->GetSCS();
+			if (SCS != NULL)
 			{
-				// If the parent and child are both owned by the same SCS instance
-				if(SCS_Node->GetSCS() == SCS)
+				// If the parent is also a valid SCS node
+				if (SCS_Node != NULL)
 				{
-					// Add the child into the parent's list of children
-					if(!SCS_Node->GetChildNodes().Contains(SCS_ChildNode))
+					// If the parent and child are both owned by the same SCS instance
+					if (SCS_Node->GetSCS() == SCS)
 					{
-						SCS_Node->AddChildNode(SCS_ChildNode);
+						// Add the child into the parent's list of children
+						if (!SCS_Node->GetChildNodes().Contains(SCS_ChildNode))
+						{
+							SCS_Node->AddChildNode(SCS_ChildNode);
+						}
 					}
+					else
+					{
+						// Adds the child to the SCS root set if not already present
+						SCS->AddNode(SCS_ChildNode);
+
+						// Set parameters to parent this node to the "inherited" SCS node
+						SCS_ChildNode->SetParent(SCS_Node);
+					}
+				}
+				else if (ComponentTemplate != NULL)
+				{
+					// Adds the child to the SCS root set if not already present
+					SCS->AddNode(SCS_ChildNode);
+
+					// Set parameters to parent this node to the native component template
+					SCS_ChildNode->SetParent(Cast<const USceneComponent>(ComponentTemplate));
 				}
 				else
 				{
 					// Adds the child to the SCS root set if not already present
 					SCS->AddNode(SCS_ChildNode);
-
-					// Set parameters to parent this node to the "inherited" SCS node
-					SCS_ChildNode->SetParent(SCS_Node);
 				}
 			}
-			else if(ComponentTemplate != NULL)
-			{
-				// Adds the child to the SCS root set if not already present
-				SCS->AddNode(SCS_ChildNode);
-
-				// Set parameters to parent this node to the native component template
-				SCS_ChildNode->SetParent(Cast<USceneComponent>(ComponentTemplate));
-			}
-			else
-			{
-				// Adds the child to the SCS root set if not already present
-				SCS->AddNode(SCS_ChildNode);
-			}
 		}
-	}
-	else if (IsInstanced())
-	{
-		USceneComponent* ChildInstance = Cast<USceneComponent>(InChildNodePtr->GetComponentTemplate());
-		if (ensure(ChildInstance != nullptr))
+		else if (IsInstancedComponent())
 		{
-			USceneComponent* ParentInstance = Cast<USceneComponent>(GetComponentTemplate());
-			if (ensure(ParentInstance != nullptr))
+			USceneComponent* ChildInstance = Cast<USceneComponent>(InChildNodePtr->GetComponentTemplate());
+			if (ensure(ChildInstance != nullptr))
 			{
-				// Handle attachment at the instance level
-				if (ChildInstance->GetAttachParent() != ParentInstance)
+				USceneComponent* ParentInstance = Cast<USceneComponent>(GetComponentTemplate());
+				if (ensure(ParentInstance != nullptr))
 				{
-					AActor* Owner = ParentInstance->GetOwner();
-					if (Owner->GetRootComponent() == ChildInstance)
+					// Handle attachment at the instance level
+					if (ChildInstance->GetAttachParent() != ParentInstance)
 					{
-						Owner->SetRootComponent(ParentInstance);
+						AActor* Owner = ParentInstance->GetOwner();
+						if (Owner->GetRootComponent() == ChildInstance)
+						{
+							Owner->SetRootComponent(ParentInstance);
+						}
+						ChildInstance->AttachToComponent(ParentInstance, FAttachmentTransformRules::KeepWorldTransform);
 					}
-					ChildInstance->AttachToComponent(ParentInstance, FAttachmentTransformRules::KeepWorldTransform);
 				}
 			}
 		}
@@ -754,7 +732,7 @@ FSCSEditorTreeNodePtrType FSCSEditorTreeNode::AddChildFromComponent(UActorCompon
 }
 
 // Tries to find a SCS node that was likely responsible for creating the specified instance component.  Note: This is not always possible to do!
-USCS_Node* FSCSEditorTreeNode::FindSCSNodeForInstance(UActorComponent* InstanceComponent, UClass* ClassToSearch)
+USCS_Node* FSCSEditorTreeNode::FindSCSNodeForInstance(const UActorComponent* InstanceComponent, UClass* ClassToSearch)
 { 
 	if ((ClassToSearch != nullptr) && InstanceComponent->IsCreatedByConstructionScript())
 	{
@@ -924,6 +902,16 @@ void FSCSEditorTreeNode::OnCompleteRename(const FText& InNewName)
 	OngoingCreateTransaction.Reset();
 }
 
+UObject* FSCSEditorTreeNode::GetOrCreateEditableObjectForBlueprint(UBlueprint* InBlueprint) const
+{
+	if (CanEdit())
+	{
+		return WeakObjectPtr.Get();
+	}
+
+	return nullptr;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FSCSEditorTreeNodeComponentBase
 
@@ -934,7 +922,7 @@ FName FSCSEditorTreeNodeComponentBase::GetVariableName() const
 	USCS_Node* SCS_Node = GetSCSNode();
 	UActorComponent* ComponentTemplate = GetComponentTemplate();
 
-	if (IsInstanced() && (SCS_Node == nullptr) && (ComponentTemplate != nullptr))
+	if (IsInstancedComponent() && (SCS_Node == nullptr) && (ComponentTemplate != nullptr))
 	{
 		if (ComponentTemplate->GetOwner())
 		{
@@ -980,7 +968,7 @@ FString FSCSEditorTreeNodeComponentBase::GetDisplayString() const
 	else
 	{
 		FString UnnamedString = LOCTEXT("UnnamedToolTip", "Unnamed").ToString();
-		FString NativeString = IsNative() ? LOCTEXT("NativeToolTip", "Native ").ToString() : TEXT("");
+		FString NativeString = IsNativeComponent() ? LOCTEXT("NativeToolTip", "Native ").ToString() : TEXT("");
 
 		if (ComponentTemplate != NULL)
 		{
@@ -993,6 +981,52 @@ FString FSCSEditorTreeNodeComponentBase::GetDisplayString() const
 	}
 }
 
+bool FSCSEditorTreeNodeComponentBase::CanReparent() const
+{
+	FSCSEditorActorNodePtrType ActorTreeRootNode = GetActorRootNode();
+	if (FChildActorComponentEditorUtils::IsChildActorSubtreeNode(AsShared()))
+	{
+		// Cannot reparent nodes within a child actor node subtree.
+		return false;
+	}
+
+	return !IsInheritedComponent() && !IsDefaultSceneRoot() && IsSceneComponent();
+}
+
+UBlueprint* FSCSEditorTreeNodeComponentBase::GetBlueprint() const
+{
+	if (const USCS_Node* SCS_Node = GetSCSNode())
+	{
+		if (const USimpleConstructionScript* SCS = SCS_Node->GetSCS())
+		{
+			return SCS->GetBlueprint();
+		}
+	}
+	else if (const UActorComponent* ActorComponent = GetObject<UActorComponent>())
+	{
+		if (const AActor* Actor = ActorComponent->GetOwner())
+		{
+			return UBlueprint::GetBlueprintFromClass(Actor->GetClass());
+		}
+	}
+	
+	return nullptr;
+}
+
+FSCSEditorChildActorNodePtrType FSCSEditorTreeNodeComponentBase::GetChildActorNode()
+{
+	if (!ChildActorNodePtr.IsValid() || ChildActorNodePtr->GetChildActorComponent() != GetObject<UActorComponent>())
+	{
+		if (const UChildActorComponent* ChildActorComponent = GetObject<UChildActorComponent>())
+		{
+			AActor* ChildActor = IsInstanced() ? ChildActorComponent->GetChildActor() : ChildActorComponent->GetChildActorTemplate();
+			ChildActorNodePtr = MakeShareable(new FSCSEditorTreeNodeChildActor(this->AsShared(), ChildActor));
+		}
+	}
+
+	return ChildActorNodePtr;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FSCSEditorTreeNodeInstancedInheritedComponent
 
@@ -1002,10 +1036,10 @@ FSCSEditorTreeNodeInstancedInheritedComponent::FSCSEditorTreeNodeInstancedInheri
 
 	InstancedComponentOwnerPtr = Owner;
 
-	SetComponentTemplate(ComponentInstance);
+	SetObject(ComponentInstance);
 }
 
-bool FSCSEditorTreeNodeInstancedInheritedComponent::IsNative() const
+bool FSCSEditorTreeNodeInstancedInheritedComponent::IsNativeComponent() const
 {
 	if (UActorComponent* Template = GetComponentTemplate())
 	{
@@ -1032,7 +1066,7 @@ bool FSCSEditorTreeNodeInstancedInheritedComponent::IsRootComponent() const
 	return false;
 }
 
-bool FSCSEditorTreeNodeInstancedInheritedComponent::IsInheritedSCS() const
+bool FSCSEditorTreeNodeInstancedInheritedComponent::IsInheritedSCSNode() const
 {
 	return false;
 }
@@ -1042,7 +1076,7 @@ bool FSCSEditorTreeNodeInstancedInheritedComponent::IsDefaultSceneRoot() const
 	return false;
 }
 
-bool FSCSEditorTreeNodeInstancedInheritedComponent::CanEditDefaults() const
+bool FSCSEditorTreeNodeInstancedInheritedComponent::CanEdit() const
 {
 	UActorComponent* Template = GetComponentTemplate();
 	return (Template ? Template->IsEditableWhenInherited() : false);
@@ -1059,16 +1093,6 @@ FText FSCSEditorTreeNodeInstancedInheritedComponent::GetDisplayName() const
 	return FText::GetEmpty();
 }
 
-UActorComponent* FSCSEditorTreeNodeInstancedInheritedComponent::GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) const
-{
-	if (CanEditDefaults())
-	{
-		return GetComponentTemplate();
-	}
-
-	return nullptr;
-}
-
 //////////////////////////////////////////////////////////////////////////
 // FSCSEditorTreeNodeInstanceAddedComponent
 
@@ -1077,7 +1101,7 @@ FSCSEditorTreeNodeInstanceAddedComponent::FSCSEditorTreeNodeInstanceAddedCompone
 	check(InComponentTemplate);
 	InstancedComponentName = InComponentTemplate->GetFName();
 	InstancedComponentOwnerPtr = Owner;
-	SetComponentTemplate(InComponentTemplate);
+	SetObject(InComponentTemplate);
 }
 
 bool FSCSEditorTreeNodeInstanceAddedComponent::IsRootComponent() const
@@ -1116,11 +1140,6 @@ FString FSCSEditorTreeNodeInstanceAddedComponent::GetDisplayString() const
 FText FSCSEditorTreeNodeInstanceAddedComponent::GetDisplayName() const
 {
 	return FText::FromName(InstancedComponentName);
-}
-
-UActorComponent* FSCSEditorTreeNodeInstanceAddedComponent::GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) const
-{
-	return GetComponentTemplate();
 }
 
 void FSCSEditorTreeNodeInstanceAddedComponent::RemoveMeAsChild()
@@ -1174,7 +1193,7 @@ FSCSEditorTreeNodeComponent::FSCSEditorTreeNodeComponent(USCS_Node* InSCSNode, b
 	: bIsInheritedSCS(bInIsInheritedSCS)
 	, SCSNodePtr(InSCSNode)
 {
-	SetComponentTemplate(( InSCSNode != nullptr ) ? InSCSNode->ComponentTemplate : nullptr);
+	SetObject(( InSCSNode != nullptr ) ? InSCSNode->ComponentTemplate : nullptr);
 }
 
 FSCSEditorTreeNodeComponent::FSCSEditorTreeNodeComponent(UActorComponent* InComponentTemplate)
@@ -1183,7 +1202,7 @@ FSCSEditorTreeNodeComponent::FSCSEditorTreeNodeComponent(UActorComponent* InComp
 {
 	check(InComponentTemplate != nullptr);
 
-	SetComponentTemplate(InComponentTemplate);
+	SetObject(InComponentTemplate);
 	AActor* Owner = InComponentTemplate->GetOwner();
 	if (Owner != nullptr)
 	{
@@ -1191,7 +1210,7 @@ FSCSEditorTreeNodeComponent::FSCSEditorTreeNodeComponent(UActorComponent* InComp
 	}
 }
 
-bool FSCSEditorTreeNodeComponent::IsNative() const
+bool FSCSEditorTreeNodeComponent::IsNativeComponent() const
 {
 	return GetSCSNode() == NULL && GetComponentTemplate() != NULL;
 }
@@ -1224,7 +1243,7 @@ bool FSCSEditorTreeNodeComponent::IsRootComponent() const
 	return bIsRoot;
 }
 
-bool FSCSEditorTreeNodeComponent::IsInheritedSCS() const
+bool FSCSEditorTreeNodeComponent::IsInheritedSCSNode() const
 {
 	return bIsInheritedSCS;
 }
@@ -1243,11 +1262,11 @@ bool FSCSEditorTreeNodeComponent::IsDefaultSceneRoot() const
 	return false;
 }
 
-bool FSCSEditorTreeNodeComponent::CanEditDefaults() const
+bool FSCSEditorTreeNodeComponent::CanEdit() const
 {
 	bool bCanEdit = false;
 
-	if (!IsNative())
+	if (!IsNativeComponent())
 	{
 		USCS_Node* SCS_Node = GetSCSNode();
 		bCanEdit = (SCS_Node != nullptr);
@@ -1275,26 +1294,14 @@ class USCS_Node* FSCSEditorTreeNodeComponent::GetSCSNode() const
 	return SCSNodePtr.Get();
 }
 
-UActorComponent* FSCSEditorTreeNodeComponent::GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) const
+UObject* FSCSEditorTreeNodeComponent::GetOrCreateEditableObjectForBlueprint(UBlueprint* InBlueprint) const
 {
-	if (CanEditDefaults())
+	if (CanEdit() && !IsNativeComponent() && IsInheritedSCSNode())
 	{
-		if (!IsNative() && IsInheritedSCS())
-		{
-			if (ActualEditedBlueprint != nullptr)
-			{
-				return INTERNAL_GetOverridenComponentTemplate(ActualEditedBlueprint, true);
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
-
-		return GetComponentTemplate();
+		return INTERNAL_GetOverridenComponentTemplate(InBlueprint);
 	}
 
-	return nullptr;
+	return FSCSEditorTreeNode::GetOrCreateEditableObjectForBlueprint(InBlueprint);
 }
 
 UActorComponent* FSCSEditorTreeNode::FindComponentInstanceInActor(const AActor* InActor) const
@@ -1359,19 +1366,20 @@ void FSCSEditorTreeNodeComponent::RemoveMeAsChild()
 	}
 }
 
-UActorComponent* FSCSEditorTreeNodeComponent::INTERNAL_GetOverridenComponentTemplate(UBlueprint* Blueprint, bool bCreateIfNecessary) const
+UActorComponent* FSCSEditorTreeNodeComponent::INTERNAL_GetOverridenComponentTemplate(UBlueprint* Blueprint) const
 {
-	UActorComponent* OverriddenComponent = NULL;
+	UActorComponent* OverriddenComponent = nullptr;
 
 	FComponentKey Key(GetSCSNode());
 
-	const bool BlueprintCanOverrideComponentFromKey = Key.IsValid()
+	const bool bBlueprintCanOverrideComponentFromKey = Key.IsValid()
 		&& Blueprint
 		&& Blueprint->ParentClass
 		&& Blueprint->ParentClass->IsChildOf(Key.GetComponentOwner());
 
-	if (BlueprintCanOverrideComponentFromKey)
+	if (bBlueprintCanOverrideComponentFromKey)
 	{
+		const bool bCreateIfNecessary = true;
 		UInheritableComponentHandler* InheritableComponentHandler = Blueprint->GetInheritableComponentHandler(bCreateIfNecessary);
 		if (InheritableComponentHandler)
 		{
@@ -1386,13 +1394,14 @@ UActorComponent* FSCSEditorTreeNodeComponent::INTERNAL_GetOverridenComponentTemp
 }
 
 //////////////////////////////////////////////////////////////////////////
-// FSCSEditorTreeNodeRootActor
-FSCSEditorTreeNodePtrType FSCSEditorTreeNodeRootActor::GetSceneRootNode() const
+// FSCSEditorTreeNodeActorBase
+
+FSCSEditorTreeNodePtrType FSCSEditorTreeNodeActorBase::GetSceneRootNode() const
 {
 	return SceneRootNodePtr;
 }
 
-void FSCSEditorTreeNodeRootActor::SetSceneRootNode(FSCSEditorTreeNodePtrType NewSceneRootNode)
+void FSCSEditorTreeNodeActorBase::SetSceneRootNode(FSCSEditorTreeNodePtrType NewSceneRootNode)
 {
 	if (SceneRootNodePtr.IsValid())
 	{
@@ -1407,84 +1416,178 @@ void FSCSEditorTreeNodeRootActor::SetSceneRootNode(FSCSEditorTreeNodePtrType New
 	}
 }
 
-const TArray<FSCSEditorTreeNodePtrType>& FSCSEditorTreeNodeRootActor::GetComponentNodes() const
+const TArray<FSCSEditorTreeNodePtrType>& FSCSEditorTreeNodeActorBase::GetComponentNodes() const
 {
 	return ComponentNodes;
 }
 
-void FSCSEditorTreeNodeRootActor::AddChild(FSCSEditorTreeNodePtrType InChildNodePtr)
+FName FSCSEditorTreeNodeActorBase::GetNodeID() const
 {
-	if (InChildNodePtr->GetNodeType() == FSCSEditorTreeNode::ComponentNode)
-	{
-		ComponentNodes.Add(InChildNodePtr);
-		USceneComponent* SceneComponent = Cast<USceneComponent>(InChildNodePtr->GetComponentTemplate());
-		if (!SceneRootNodePtr.IsValid() && SceneComponent != nullptr)
-		{
-			SetSceneRootNode(InChildNodePtr);
-		}
-
-		// Make sure separators are shown
-		if (SceneComponent != nullptr && !SceneComponentSeparatorNodePtr.IsValid())
-		{
-			SceneComponentSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
-			Super::AddChild(SceneComponentSeparatorNodePtr);
-		}
-		else if (SceneComponent == nullptr && !NonSceneComponentSeparatorNodePtr.IsValid())
-		{
-			NonSceneComponentSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
-			Super::AddChild(NonSceneComponentSeparatorNodePtr);
-		}
-	}
-	
-	Super::AddChild(InChildNodePtr);
-}
-
-void FSCSEditorTreeNodeRootActor::RemoveChild(FSCSEditorTreeNodePtrType InChildNodePtr)
-{
-	Super::RemoveChild(InChildNodePtr);
-
-	int32 indexOfFirstSceneComponent = ComponentNodes.IndexOfByPredicate([](const FSCSEditorTreeNodePtrType& NodePtr)
-	{
-		return NodePtr->GetNodeType() == FSCSEditorTreeNode::ComponentNode && Cast<USceneComponent>(NodePtr->GetComponentTemplate());
-	});
-
-	if (indexOfFirstSceneComponent == -1 && SceneComponentSeparatorNodePtr.IsValid())
-	{
-		Super::RemoveChild(SceneComponentSeparatorNodePtr);
-		SceneComponentSeparatorNodePtr = nullptr;
-	}
-	
-	int32 indexOffFirstNonSceneComponent = ComponentNodes.IndexOfByPredicate([](const FSCSEditorTreeNodePtrType& NodePtr)
-	{
-		return NodePtr->GetNodeType() == FSCSEditorTreeNode::ComponentNode && !Cast<USceneComponent>(NodePtr->GetComponentTemplate());
-	});
-
-	if (indexOffFirstNonSceneComponent == -1 && NonSceneComponentSeparatorNodePtr.IsValid())
-	{
-		Super::RemoveChild(NonSceneComponentSeparatorNodePtr);
-		NonSceneComponentSeparatorNodePtr = nullptr;
-	}
-}
-
-FName FSCSEditorTreeNodeRootActor::GetNodeID() const
-{
-	if (Actor)
+	if (const AActor* Actor = GetObject<AActor>())
 	{
 		return Actor->GetFName();
 	}
 	return NAME_None;
 }
 
+bool FSCSEditorTreeNodeActorBase::IsInstanced() const
+{
+	if (const AActor* Actor = GetObject<AActor>())
+	{
+		return !Actor->IsTemplate();
+	}
+
+	return false;
+}
+
+void FSCSEditorTreeNodeActorBase::AddChild(FSCSEditorTreeNodePtrType InChildNodePtr)
+{
+	if (InChildNodePtr.IsValid() && InChildNodePtr->IsComponentNode())
+	{
+		ComponentNodes.Add(InChildNodePtr);
+		if (!SceneRootNodePtr.IsValid() && InChildNodePtr->IsSceneComponent())
+		{
+			SetSceneRootNode(InChildNodePtr);
+		}
+	}
+
+	Super::AddChild(InChildNodePtr);
+}
+
+void FSCSEditorTreeNodeActorBase::RemoveChild(FSCSEditorTreeNodePtrType InChildNodePtr)
+{
+	if (InChildNodePtr.IsValid() && InChildNodePtr->IsComponentNode())
+	{
+		ComponentNodes.Remove(InChildNodePtr);
+		if (InChildNodePtr == SceneRootNodePtr)
+		{
+			SceneRootNodePtr.Reset();
+		}
+	}
+
+	Super::RemoveChild(InChildNodePtr);
+}
+
+UBlueprint* FSCSEditorTreeNodeActorBase::GetBlueprint() const
+{
+	if (const AActor* Actor = GetObject<AActor>())
+	{
+		return UBlueprint::GetBlueprintFromClass(Actor->GetClass());
+	}
+
+	return nullptr;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FSCSEditorTreeNodeRootActor
+
 void FSCSEditorTreeNodeRootActor::OnCompleteRename(const FText& InNewName)
 {
-	if (Actor && Actor->IsActorLabelEditable() && !InNewName.ToString().Equals(Actor->GetActorLabel(), ESearchCase::CaseSensitive))
+	if (AActor* Actor = GetMutableObject<AActor>())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SCSEditorRenameActorTransaction", "Rename Actor"));
-		FActorLabelUtilities::RenameExistingActor(Actor, InNewName.ToString());
+		if (Actor->IsActorLabelEditable() && !InNewName.ToString().Equals(Actor->GetActorLabel(), ESearchCase::CaseSensitive))
+		{
+			const FScopedTransaction Transaction(LOCTEXT("SCSEditorRenameActorTransaction", "Rename Actor"));
+			FActorLabelUtilities::RenameExistingActor(Actor, InNewName.ToString());
+		}
 	}
 
 	// Not expected to reach here with an ongoing create transaction, but if it does, end it.
 	OngoingCreateTransaction.Reset();
+}
+
+void FSCSEditorTreeNodeRootActor::AddChild(FSCSEditorTreeNodePtrType InChildNodePtr)
+{
+	if (InChildNodePtr.IsValid() && InChildNodePtr->IsComponentNode())
+	{
+		const bool bIsSceneComponentNode = InChildNodePtr->IsSceneComponent();
+
+		// Make sure separators are shown
+		if (bIsSceneComponentNode && !SceneComponentSeparatorNodePtr.IsValid())
+		{
+			SceneComponentSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
+			FSCSEditorTreeNodeActorBase::AddChild(SceneComponentSeparatorNodePtr);
+		}
+		else if (!bIsSceneComponentNode && !NonSceneComponentSeparatorNodePtr.IsValid())
+		{
+			NonSceneComponentSeparatorNodePtr = MakeShareable(new FSCSEditorTreeNodeSeparator());
+			FSCSEditorTreeNodeActorBase::AddChild(NonSceneComponentSeparatorNodePtr);
+		}
+	}
+
+	FSCSEditorTreeNodeActorBase::AddChild(InChildNodePtr);
+}
+
+void FSCSEditorTreeNodeRootActor::RemoveChild(FSCSEditorTreeNodePtrType InChildNodePtr)
+{
+	const TArray<FSCSEditorTreeNodePtrType>& ComponentNodePtrs = GetComponentNodes();
+	const int32 IndexOfFirstSceneComponent = ComponentNodePtrs.IndexOfByPredicate([](const FSCSEditorTreeNodePtrType& NodePtr)
+	{
+		return NodePtr->IsSceneComponent();
+	});
+
+	if (IndexOfFirstSceneComponent == -1 && SceneComponentSeparatorNodePtr.IsValid())
+	{
+		FSCSEditorTreeNodeActorBase::RemoveChild(SceneComponentSeparatorNodePtr);
+		SceneComponentSeparatorNodePtr.Reset();
+	}
+
+	const int32 IndexOfFirstNonSceneComponent = ComponentNodePtrs.IndexOfByPredicate([](const FSCSEditorTreeNodePtrType& NodePtr)
+	{
+		return !NodePtr->IsSceneComponent();
+	});
+
+	if (IndexOfFirstNonSceneComponent == -1 && NonSceneComponentSeparatorNodePtr.IsValid())
+	{
+		FSCSEditorTreeNodeActorBase::RemoveChild(NonSceneComponentSeparatorNodePtr);
+		NonSceneComponentSeparatorNodePtr.Reset();
+	}
+
+	FSCSEditorTreeNodeActorBase::RemoveChild(InChildNodePtr);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FSCSEditorTreeNodeChildActor
+
+bool FSCSEditorTreeNodeChildActor::IsFlaggedForFiltration() const
+{
+	// Not filtered out if any children are flagged as such
+	for (const FSCSEditorTreeNodePtrType& Child : GetChildren())
+	{
+		if (!Child->IsFlaggedForFiltration())
+		{
+			return false;
+		}
+	}
+
+	if (OwnerNode.IsValid())
+	{
+		// Mirror the owning node's filtered state
+		return OwnerNode->IsFlaggedForFiltration();
+	}
+
+	return false;
+}
+
+bool FSCSEditorTreeNodeChildActor::ShouldShowInTreeView() const
+{
+	if (UChildActorComponent* ChildActorComponent = GetChildActorComponent())
+	{
+		const bool bHasValidActorContext = GetObject<AActor>() != nullptr;
+		return bHasValidActorContext && FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(ChildActorComponent);
+	}
+
+	return false;
+}
+
+UChildActorComponent* FSCSEditorTreeNodeChildActor::GetChildActorComponent() const
+{
+	if (OwnerNode.IsValid())
+	{
+		return Cast<UChildActorComponent>(OwnerNode->GetComponentTemplate());
+	}
+
+	return nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1499,7 +1602,7 @@ void SSCS_RowWidget::Construct( const FArguments& InArgs, TSharedPtr<SSCSEditor>
 
 	bool bIsSeparator = InNodePtr->GetNodeType() == FSCSEditorTreeNode::SeparatorNode;
 	
-	auto Args = FSuperRowType::FArguments()
+	FSuperRowType::FArguments Args = FSuperRowType::FArguments()
 		.Style(bIsSeparator ?
 			&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow") :
 			&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow")) //@todo create editor style for the SCS tree
@@ -1533,23 +1636,15 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SSCS_RowWidget::GenerateWidgetForColumn( const FName& ColumnName )
 {
 	FSCSEditorTreeNodePtrType NodePtr = GetNode();
-	
 	if(ColumnName == SCS_ColumnName_ComponentClass)
 	{
-		// Setup a default icon brush.
-		const FSlateBrush* ComponentIcon = FEditorStyle::GetBrush("SCS.NativeComponent");
-		if(NodePtr->GetComponentTemplate() != NULL)
-		{
-			ComponentIcon = FSlateIconFinder::FindIconBrushForClass( NodePtr->GetComponentTemplate()->GetClass(), TEXT("SCS.Component") );
-		}
-
 		InlineWidget =
 			SNew(SInlineEditableTextBlock)
 				.Text(this, &SSCS_RowWidget::GetNameLabel)
 				.OnVerifyTextChanged( this, &SSCS_RowWidget::OnNameTextVerifyChanged )
 				.OnTextCommitted( this, &SSCS_RowWidget::OnNameTextCommit )
 				.IsSelected( this, &SSCS_RowWidget::IsSelectedExclusively )
-				.IsReadOnly(!NodePtr->CanRename() || (SCSEditor.IsValid() && !SCSEditor.Pin()->IsEditingAllowed()));
+				.IsReadOnly(!NodePtr->CanRename() || (SCSEditor.IsValid() && !SCSEditor.Pin()->IsEditingAllowed()) || FChildActorComponentEditorUtils::IsChildActorSubtreeNode(NodePtr));
 
 		NodePtr->SetRenameRequestedDelegate(FSCSEditorTreeNode::FOnRenameRequested::CreateSP(InlineWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode));
 		
@@ -1568,7 +1663,7 @@ TSharedRef<SWidget> SSCS_RowWidget::GenerateWidgetForColumn( const FName& Column
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(ComponentIcon)
+						.Image(GetIconBrush())
 						.ColorAndOpacity(this, &SSCS_RowWidget::GetColorTintForIcon)
 					]
 				+SHorizontalBox::Slot()
@@ -1667,7 +1762,7 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 	// 
 	if (FSCSEditorTreeNode* TreeNode = GetNode().Get())
 	{
-		if (TreeNode->GetNodeType() == FSCSEditorTreeNode::ComponentNode)
+		if (TreeNode->IsComponentNode())
 		{
 			// Add the tooltip
 			if (UActorComponent* Template = TreeNode->GetComponentTemplate())
@@ -1689,7 +1784,7 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 
 			// Add introduction point
 			AddToToolTipInfoBox(InfoBox, LOCTEXT("TooltipAddType", "Source"), SNullWidget::NullWidget, TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SSCS_RowWidget::GetComponentAddSourceToolTipText)), false);
-			if (TreeNode->IsInherited())
+			if (TreeNode->IsInheritedComponent())
 			{
 				AddToToolTipInfoBox(InfoBox, LOCTEXT("TooltipIntroducedIn", "Introduced in"), SNullWidget::NullWidget, TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SSCS_RowWidget::GetIntroducedInToolTipText)), false);
 			}
@@ -1817,9 +1912,9 @@ FText SSCS_RowWidget::GetComponentAddSourceToolTipText() const
 	
 	if (FSCSEditorTreeNode* TreeNode = TreeNodePtr.Get())
 	{
-		if (TreeNode->IsInherited())
+		if (TreeNode->IsInheritedComponent())
 		{
-			if (TreeNode->IsNative())
+			if (TreeNode->IsNativeComponent())
 			{
 				NodeType = LOCTEXT("InheritedNativeComponent", "Inherited (C++)");
 			}
@@ -1830,7 +1925,7 @@ FText SSCS_RowWidget::GetComponentAddSourceToolTipText() const
 		}
 		else
 		{
-			if (TreeNode->IsInstanced())
+			if (TreeNode->IsInstancedComponent())
 			{
 				NodeType = LOCTEXT("ThisInstanceAddedComponent", "This actor instance");
 			}
@@ -1850,14 +1945,14 @@ FText SSCS_RowWidget::GetIntroducedInToolTipText() const
 
 	if (FSCSEditorTreeNode* TreeNode = TreeNodePtr.Get())
 	{
-		if (TreeNode->IsInherited())
+		if (TreeNode->IsInheritedComponent())
 		{
 			if (UActorComponent* ComponentTemplate = TreeNode->GetComponentTemplate())
 			{
 				UClass* BestClass = nullptr;
 				AActor* OwningActor = ComponentTemplate->GetOwner();
 
-				if (TreeNode->IsNative() && (OwningActor != nullptr))
+				if (TreeNode->IsNativeComponent() && (OwningActor != nullptr))
 				{
 					for (UClass* TestClass = OwningActor->GetClass(); TestClass != AActor::StaticClass(); TestClass = TestClass->GetSuperClass())
 					{
@@ -1871,7 +1966,7 @@ FText SSCS_RowWidget::GetIntroducedInToolTipText() const
 						}
 					}
 				}
-				else if (!TreeNode->IsNative())
+				else if (!TreeNode->IsNativeComponent())
 				{
 					USCS_Node* SCSNode = TreeNode->GetSCSNode();
 
@@ -1907,11 +2002,11 @@ FText SSCS_RowWidget::GetIntroducedInToolTipText() const
 						IntroducedInTooltip = LOCTEXT("IntroducedInNativeError", "Unknown native source (via C++ code)");
 					}
 				}
-				else if (TreeNode->IsInstanced() && ComponentTemplate->CreationMethod == EComponentCreationMethod::Native && !ComponentTemplate->HasAnyFlags(RF_DefaultSubObject))
+				else if (TreeNode->IsInstancedComponent() && ComponentTemplate->CreationMethod == EComponentCreationMethod::Native && !ComponentTemplate->HasAnyFlags(RF_DefaultSubObject))
 				{
 					IntroducedInTooltip = FText::Format(LOCTEXT("IntroducedInCPPErrorFmt", "{0} (via C++ code)"), FBlueprintEditorUtils::GetFriendlyClassDisplayName(BestClass));
 				}
-				else if (TreeNode->IsInstanced() && ComponentTemplate->CreationMethod == EComponentCreationMethod::UserConstructionScript)
+				else if (TreeNode->IsInstancedComponent() && ComponentTemplate->CreationMethod == EComponentCreationMethod::UserConstructionScript)
 				{
 					IntroducedInTooltip = FText::Format(LOCTEXT("IntroducedInUCSErrorFmt", "{0} (via an Add Component call)"), FBlueprintEditorUtils::GetFriendlyClassDisplayName(BestClass));
 				}
@@ -1925,7 +2020,7 @@ FText SSCS_RowWidget::GetIntroducedInToolTipText() const
 				IntroducedInTooltip = LOCTEXT("IntroducedInNoTemplateError", "[no component template found]");
 			}
 		}
-		else if (TreeNode->IsInstanced())
+		else if (TreeNode->IsInstancedComponent())
 		{
 			IntroducedInTooltip = LOCTEXT("IntroducedInThisActorInstanceTooltip", "this actor instance");
 		}
@@ -1983,6 +2078,21 @@ EVisibility SSCS_RowWidget::GetAssetVisibility() const
 	}
 }
 
+const FSlateBrush* SSCS_RowWidget::GetIconBrush() const
+{
+	const FSlateBrush* ComponentIcon = FEditorStyle::GetBrush("SCS.NativeComponent");
+	FSCSEditorTreeNodePtrType NodePtr = GetNode();
+	if (NodePtr.IsValid())
+	{
+		if (UActorComponent* ComponentTemplate = NodePtr->GetComponentTemplate())
+		{
+			ComponentIcon = FSlateIconFinder::FindIconBrushForClass(ComponentTemplate->GetClass(), TEXT("SCS.Component"));
+		}
+	}
+
+	return ComponentIcon;
+}
+
 FSlateColor SSCS_RowWidget::GetColorTintForIcon() const
 {
 	return GetColorTintForIcon(GetNode());
@@ -1995,13 +2105,13 @@ FSlateColor SSCS_RowWidget::GetColorTintForIcon(FSCSEditorTreeNodePtrType InNode
 	const FLinearColor InheritedNativeComponentColor(0.7f, 0.9f, 0.7f);
 	const FLinearColor IntroducedHereColor(FLinearColor::White);
 	
-	if (InNode->IsInherited())
+	if (InNode->IsInheritedComponent())
 	{
-		if (InNode->IsNative())
+		if (InNode->IsNativeComponent())
 		{
 			return InheritedNativeComponentColor;
 		}
-		else if (InNode->IsInstanced())
+		else if (InNode->IsInstancedComponent())
 		{
 			return InstancedInheritedBlueprintComponentColor;
 		}
@@ -2081,7 +2191,7 @@ FReply SSCS_RowWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoi
 
 FReply SSCS_RowWidget::HandleOnDragDetected( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	auto SCSEditorPtr = SCSEditor.Pin();
+	TSharedPtr<SSCSEditor> SCSEditorPtr = SCSEditor.Pin();
 	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton)
 		&& SCSEditorPtr.IsValid()
 		&& SCSEditorPtr->IsEditingAllowed()) //can only drag when editing
@@ -2093,7 +2203,7 @@ FReply SSCS_RowWidget::HandleOnDragDetected( const FGeometry& MyGeometry, const 
 		}
 
 		TSharedPtr<FSCSEditorTreeNode> FirstNode = SelectedNodePtrs[0];
-		if (FirstNode->GetNodeType() == FSCSEditorTreeNode::ComponentNode)
+		if (FirstNode->IsComponentNode())
 		{
 			// Do not use the Blueprint from FirstNode, it may still be referencing the parent.
 			UBlueprint* Blueprint = GetBlueprint();
@@ -2128,18 +2238,22 @@ void SSCS_RowWidget::HandleOnDragEnter( const FDragDropEvent& DragDropEvent )
 		FText Message;
 		FSlateColor IconColor = FLinearColor::White;
 		
-		for (const auto& SelectedNodePtr : DragRowOp->SourceNodes)
+		for (const FSCSEditorTreeNodePtrType& SelectedNodePtr : DragRowOp->SourceNodes)
 		{
 			if (!SelectedNodePtr->CanReparent())
 			{
 				// We set the tooltip text here because it won't change across entry/leave events
 				if (DragRowOp->SourceNodes.Num() == 1)
 				{
-					if (!SelectedNodePtr->IsSceneComponent())
+					if (FChildActorComponentEditorUtils::IsChildActorSubtreeNode(SelectedNodePtr))
+					{
+						Message = LOCTEXT("DropActionToolTip_Error_CannotReparent_ChildActorSubTreeNodes", "The selected component is part of a child actor template and cannot be reordered here.");
+					}
+					else if (!SelectedNodePtr->IsSceneComponent())
 					{
 						Message = LOCTEXT("DropActionToolTip_Error_CannotReparent_NotSceneComponent", "The selected component is not a scene component and cannot be attached to other components.");
 					}
-					else if (SelectedNodePtr->IsInherited())
+					else if (SelectedNodePtr->IsInheritedComponent())
 					{
 						Message = LOCTEXT("DropActionToolTip_Error_CannotReparent_Inherited", "The selected component is inherited and cannot be reordered here.");
 					}
@@ -2162,10 +2276,15 @@ void SSCS_RowWidget::HandleOnDragEnter( const FDragDropEvent& DragDropEvent )
 			check(SceneRootNodePtr.IsValid());
 
 			FSCSEditorTreeNodePtrType NodePtr = GetNode();
-			if ((NodePtr->GetNodeType() == FSCSEditorTreeNode::SeparatorNode) || (NodePtr->GetNodeType() == FSCSEditorTreeNode::RootActorNode))
+			if (!NodePtr->IsComponentNode())
 			{
 				// Don't show a feedback message if over a node that makes no sense, such as a separator or the instance node
 				Message = LOCTEXT("DropActionToolTip_FriendlyError_DragToAComponent", "Drag to another component in order to attach to that component or become the root component.\nDrag to a Blueprint graph in order to drop a reference.");
+			}
+			else if (FChildActorComponentEditorUtils::IsChildActorSubtreeNode(NodePtr))
+			{
+				// Can't drag onto components within a child actor node's subtree
+				Message = LOCTEXT("DropActionToolTip_Error_ChildActorSubTree", "Cannot attach to this component as it is part of a child actor template.");
 			}
 
 			// Validate each selected node being dragged against the node that belongs to this row. Exit the loop if we have a valid tooltip OR a valid pending drop action once all nodes in the selection have been validated.
@@ -2209,7 +2328,7 @@ void SSCS_RowWidget::HandleOnDragEnter( const FDragDropEvent& DragDropEvent )
 				{
 					if (HoveredTemplate == nullptr)
 					{
-						// Can't attach non-USceneComponent types
+						// Can't attach to non-USceneComponent types
 						Message = LOCTEXT("DropActionToolTip_Error_NotAttachable_NotSceneComponent", "Cannot attach to this component as it is not a scene component.");
 					}
 					else
@@ -2226,7 +2345,7 @@ void SSCS_RowWidget::HandleOnDragEnter( const FDragDropEvent& DragDropEvent )
 						&& DraggedTemplate->Mobility >= HoveredTemplate->Mobility
 						&& (!HoveredTemplate->IsEditorOnly() || DraggedTemplate->IsEditorOnly());
 
-					if (!NodePtr->CanReparent() && (!NodePtr->IsDefaultSceneRoot() || NodePtr->IsInherited()))
+					if (!NodePtr->CanReparent() && (!NodePtr->IsDefaultSceneRoot() || NodePtr->IsInheritedComponent()))
 					{
 						// Cannot make the dropped node the new root if we cannot reparent the current root
 						Message = LOCTEXT("DropActionToolTip_Error_CannotReparentRootNode", "The root component in this Blueprint is inherited and cannot be replaced.");
@@ -2347,12 +2466,12 @@ void SSCS_RowWidget::HandleOnDragEnter( const FDragDropEvent& DragDropEvent )
 					// Can't attach Static components to mobile ones
 					Message = LOCTEXT("DropActionToolTip_Error_CannotAttachStationary", "Cannot attach Stationary components to movable ones.");
 				}
-				else if ((NodePtr->IsInstanced() && HoveredTemplate->CreationMethod == EComponentCreationMethod::Native && !HoveredTemplate->HasAnyFlags(RF_DefaultSubObject)))
+				else if ((NodePtr->IsInstancedComponent() && HoveredTemplate->CreationMethod == EComponentCreationMethod::Native && !HoveredTemplate->HasAnyFlags(RF_DefaultSubObject)))
 				{
 					// Can't attach to post-construction C++-added components as they exist outside of the CDO and are not known at SCS execution time
 					Message = LOCTEXT("DropActionToolTip_Error_CannotAttachCPPAdded", "Cannot attach to components added in post-construction C++ code.");
 				}
-				else if (NodePtr->IsInstanced() && HoveredTemplate->CreationMethod == EComponentCreationMethod::UserConstructionScript)
+				else if (NodePtr->IsInstancedComponent() && HoveredTemplate->CreationMethod == EComponentCreationMethod::UserConstructionScript)
 				{
 					// Can't attach to UCS-added components as they exist outside of the CDO and are not known at SCS execution time
 					Message = LOCTEXT("DropActionToolTip_Error_CannotAttachUCSAdded", "Cannot attach to components added in the Construction Script.");
@@ -2549,7 +2668,7 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 		AActor* PreviewActor = SCSEditorPtr->PreviewActor.Get();
 		check(PreviewActor);
 
-		for(const auto& DroppedNodePtr : DroppedNodePtrs)
+		for(const FSCSEditorTreeNodePtrType& DroppedNodePtr : DroppedNodePtrs)
 		{
 			// Clone the component if it's being dropped into a different SCS
 			if(DroppedNodePtr->GetBlueprint() != Blueprint)
@@ -2678,7 +2797,7 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 	}
 	else    // EComponentEditorMode::ActorInstance
 	{
-		for(const auto& DroppedNodePtr : DroppedNodePtrs)
+		for(const FSCSEditorTreeNodePtrType& DroppedNodePtr : DroppedNodePtrs)
 		{
 			// Check for a valid parent node
 			FSCSEditorTreeNodePtrType ParentNodePtr = DroppedNodePtr->GetParent();
@@ -3049,7 +3168,7 @@ FText SSCS_RowWidget::GetNameLabel() const
 	if( InlineWidget.IsValid() && !InlineWidget->IsInEditMode() )
 	{
 		FSCSEditorTreeNodePtrType NodePtr = GetNode();
-		if(NodePtr->IsInherited())
+		if(NodePtr->IsInheritedComponent())
 		{
 			return FText::Format(LOCTEXT("NativeComponentFormatString","{0} (Inherited)"), FText::FromString(GetNode()->GetDisplayString()));
 		}
@@ -3065,7 +3184,7 @@ FText SSCS_RowWidget::GetTooltipText() const
 
 	if (NodePtr->IsDefaultSceneRoot())
 	{
-		if (NodePtr->IsInherited())
+		if (NodePtr->IsInheritedComponent())
 		{
 			return LOCTEXT("InheritedDefaultSceneRootToolTip", "This is the default scene root component. It cannot be copied, renamed or deleted.\nIt has been inherited from the parent class, so its properties cannot be edited here.\nNew scene components will automatically be attached to it.");
 		}
@@ -3094,7 +3213,7 @@ FString SSCS_RowWidget::GetDocumentationLink() const
 	check(SCSEditor.IsValid());
 
 	FSCSEditorTreeNodePtrType NodePtr = GetNode();
-	if ((NodePtr == SCSEditor.Pin()->GetSceneRootNode()) || NodePtr->IsInherited())
+	if ((NodePtr == SCSEditor.Pin()->GetSceneRootNode()) || NodePtr->IsInheritedComponent())
 	{
 		return TEXT("Shared/Editors/BlueprintEditor/ComponentsMode");
 	}
@@ -3111,11 +3230,11 @@ FString SSCS_RowWidget::GetDocumentationExcerptName() const
 	{
 		return TEXT("RootComponent");
 	}
-	else if (NodePtr->IsNative())
+	else if (NodePtr->IsNativeComponent())
 	{
 		return TEXT("NativeComponents");
 	}
-	else if (NodePtr->IsInherited())
+	else if (NodePtr->IsInheritedComponent())
 	{
 		return TEXT("InheritedComponents");
 	}
@@ -3237,6 +3356,11 @@ void SSCS_RowWidget::OnNameTextCommit(const FText& InNewName, ETextCommit::Type 
 //////////////////////////////////////////////////////////////////////////
 // SSCS_RowWidget_ActorRoot
 
+FSCSEditorActorNodePtrType SSCS_RowWidget_ActorRoot::GetActorNode() const
+{
+	return StaticCastSharedPtr<FSCSEditorTreeNodeActorBase>(GetNode());
+}
+
 TSharedRef<SWidget> SSCS_RowWidget_ActorRoot::GenerateWidgetForColumn(const FName& ColumnName)
 {
 	FSCSEditorTreeNodePtrType NodePtr = GetNode();
@@ -3251,7 +3375,7 @@ TSharedRef<SWidget> SSCS_RowWidget_ActorRoot::GenerateWidgetForColumn(const FNam
 		.OnVerifyTextChanged(this, &SSCS_RowWidget_ActorRoot::OnVerifyActorLabelChanged)
 		.OnTextCommitted(this, &SSCS_RowWidget_ActorRoot::OnNameTextCommit)
 		.IsSelected(this, &SSCS_RowWidget_ActorRoot::IsSelectedExclusively)
-		.IsReadOnly(!NodePtr->CanRename() || (SCSEditor.IsValid() && !SCSEditor.Pin()->IsEditingAllowed()));
+		.IsReadOnly(!NodePtr->CanRename() || (SCSEditor.IsValid() && !SCSEditor.Pin()->IsEditingAllowed()) || FChildActorComponentEditorUtils::IsChildActorNode(NodePtr));
 
 	NodePtr->SetRenameRequestedDelegate(FSCSEditorTreeNode::FOnRenameRequested::CreateSP(InlineEditableWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode));
 
@@ -3261,10 +3385,18 @@ TSharedRef<SWidget> SSCS_RowWidget_ActorRoot::GenerateWidgetForColumn(const FNam
 	+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
+		[
+			SNew(SExpanderArrow, SharedThis(this))
+			.Visibility(NodePtr->GetNodeType() == FSCSEditorTreeNode::ENodeType::RootActorNode ? EVisibility::Collapsed : EVisibility::Visible)
+		]
+
+	+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
 		.Padding(FMargin(0.f, 0.f, 6.f, 0.f))
 		[
 			SNew(SImage)
-			.Image(this, &SSCS_RowWidget_ActorRoot::GetActorIcon)
+			.Image(GetIconBrush())
 		]
 
 	+ SHorizontalBox::Slot()
@@ -3350,32 +3482,39 @@ bool SSCS_RowWidget_ActorRoot::OnVerifyActorLabelChanged(const FText& InLabel, F
 	return FActorEditorUtils::ValidateActorName(InLabel, OutErrorMessage);
 }
 
-const FSlateBrush* SSCS_RowWidget_ActorRoot::GetActorIcon() const
+const FSlateBrush* SSCS_RowWidget_ActorRoot::GetIconBrush() const
 {
-	if (SCSEditor.IsValid())
+	FSCSEditorActorNodePtrType NodePtr = GetActorNode();
+	if (NodePtr.IsValid())
 	{
-		TSharedPtr<SSCSEditor> SCSEditorPtr = SCSEditor.Pin();
-		if (SCSEditorPtr->ActorContext.IsSet())
+		if (const AActor* Actor = NodePtr->GetObject<AActor>())
 		{
-			return FClassIconFinder::FindIconForActor(SCSEditorPtr->GetActorContext());
+			return FClassIconFinder::FindIconForActor(Actor);
 		}
 	}
+
 	return nullptr;
 }
 
 FText SSCS_RowWidget_ActorRoot::GetActorDisplayText() const
 {
-	if (SCSEditor.IsValid())
+	FSCSEditorActorNodePtrType NodePtr = GetActorNode();
+	if (NodePtr.IsValid())
 	{
-		TSharedPtr<SSCSEditor> SCSEditorPtr = SCSEditor.Pin();
-		if (SCSEditorPtr->ActorContext.IsSet())
+		if (FChildActorComponentEditorUtils::IsChildActorNode(NodePtr))
 		{
-			AActor* DefaultActor = SCSEditorPtr->ActorContext.Get();
-			if( DefaultActor )
+			if (const AActor* ChildActor = NodePtr->GetObject<AActor>())
+			{
+				return ChildActor->GetClass()->GetDisplayNameText();
+			}
+		}
+		else
+		{
+			if (const AActor* DefaultActor = NodePtr->GetObject<AActor>())
 			{
 				FString Name;
 				UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(DefaultActor->GetClass());
-				if(Blueprint != nullptr && SCSEditorPtr->GetEditorMode() != EComponentEditorMode::ActorInstance)
+				if (Blueprint != nullptr && !NodePtr->IsInstanced())
 				{
 					Blueprint->GetName(Name);
 				}
@@ -3387,23 +3526,31 @@ FText SSCS_RowWidget_ActorRoot::GetActorDisplayText() const
 			}
 		}
 	}
+
 	return FText::GetEmpty();
 }
 
 FText SSCS_RowWidget_ActorRoot::GetActorContextText() const
 {
-	if (SCSEditor.IsValid())
+	FSCSEditorActorNodePtrType NodePtr = GetActorNode();
+	if (NodePtr.IsValid())
 	{
-		TSharedPtr<SSCSEditor> SCSEditorPtr = SCSEditor.Pin();
-		if (AActor* DefaultActor = SCSEditorPtr->GetActorContext())
+		if (FChildActorComponentEditorUtils::IsChildActorNode(NodePtr))
 		{
-			if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(DefaultActor->GetClass()))
+			return LOCTEXT("ActorContext_ChildActor", " (Child Actor)");
+		}
+		else
+		{
+			if (const AActor* DefaultActor = NodePtr->GetObject<AActor>())
 			{
-				return LOCTEXT("ActorContext_self", " (self)");
-			}
-			else
-			{
-				return LOCTEXT("ActorContext_Instance", " (Instance)");
+				if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(DefaultActor->GetClass()))
+				{
+					return LOCTEXT("ActorContext_self", " (self)");
+				}
+				else
+				{
+					return LOCTEXT("ActorContext_Instance", " (Instance)");
+				}
 			}
 		}
 	}
@@ -3412,45 +3559,42 @@ FText SSCS_RowWidget_ActorRoot::GetActorContextText() const
 
 FText SSCS_RowWidget_ActorRoot::GetActorClassNameText() const
 {
-	FText Text;
-	if (SCSEditor.IsValid())
+	FSCSEditorActorNodePtrType NodePtr = GetActorNode();
+	if (NodePtr.IsValid())
 	{
-		TSharedPtr<SSCSEditor> SCSEditorPtr = SCSEditor.Pin();
-		if (AActor* DefaultActor = SCSEditorPtr->GetActorContext())
+		if (const AActor* DefaultActor = NodePtr->GetObject<AActor>())
 		{
-			Text = FText::FromString(DefaultActor->GetClass()->GetName());
+			return FText::FromString(DefaultActor->GetClass()->GetName());
 		}
 	}
 
-	return Text;
+	return FText::GetEmpty();
 }
 
 FText SSCS_RowWidget_ActorRoot::GetActorSuperClassNameText() const
 {
-	FText Text;
-	if (SCSEditor.IsValid())
+	FSCSEditorActorNodePtrType NodePtr = GetActorNode();
+	if (NodePtr.IsValid())
 	{
-		TSharedPtr<SSCSEditor> SCSEditorPtr = SCSEditor.Pin();
-		if (AActor* DefaultActor = SCSEditorPtr->GetActorContext())
+		if (const AActor* DefaultActor = NodePtr->GetObject<AActor>())
 		{
-			Text = FText::FromString(DefaultActor->GetClass()->GetSuperClass()->GetName());
+			return FText::FromString(DefaultActor->GetClass()->GetSuperClass()->GetName());
 		}
 	}
 
-	return Text;
+	return FText::GetEmpty();
 }
 
 FText SSCS_RowWidget_ActorRoot::GetActorMobilityText() const
 {
-	FText Text;
-	if (SCSEditor.IsValid())
+	FSCSEditorActorNodePtrType NodePtr = GetActorNode();
+	if (NodePtr.IsValid())
 	{
-		TSharedPtr<SSCSEditor> SCSEditorPtr = SCSEditor.Pin();
-		if (AActor* DefaultActor = SCSEditorPtr->GetActorContext())
+		if (const AActor* DefaultActor = NodePtr->GetObject<AActor>())
 		{
 			USceneComponent* RootComponent = DefaultActor->GetRootComponent();
 
-			FSCSEditorTreeNodePtrType SceneRootNodePtr = SCSEditorPtr->GetSceneRootNode();
+			FSCSEditorTreeNodePtrType SceneRootNodePtr = NodePtr->GetSceneRootNode();
 			if ((RootComponent == nullptr) && SceneRootNodePtr.IsValid())
 			{
 				RootComponent = Cast<USceneComponent>(SceneRootNodePtr->GetComponentTemplate());
@@ -3460,25 +3604,25 @@ FText SSCS_RowWidget_ActorRoot::GetActorMobilityText() const
 			{
 				if (RootComponent->Mobility == EComponentMobility::Static)
 				{
-					Text = LOCTEXT("ComponentMobility_Static", "Static");
+					return LOCTEXT("ComponentMobility_Static", "Static");
 				}
 				else if (RootComponent->Mobility == EComponentMobility::Stationary)
 				{
-					Text = LOCTEXT("ComponentMobility_Stationary", "Stationary");
+					return LOCTEXT("ComponentMobility_Stationary", "Stationary");
 				}
 				else if (RootComponent->Mobility == EComponentMobility::Movable)
 				{
-					Text = LOCTEXT("ComponentMobility_Movable", "Movable");
+					return LOCTEXT("ComponentMobility_Movable", "Movable");
 				}
 			}
 			else
 			{
-				Text = LOCTEXT("ComponentMobility_NoRoot", "No root component, unknown mobility");
+				return LOCTEXT("ComponentMobility_NoRoot", "No root component, unknown mobility");
 			}
 		}
 	}
 
-	return Text;
+	return FText::GetEmpty();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3834,9 +3978,14 @@ void SSCSEditor::OnLevelComponentRequestRename(const UActorComponent* InComponen
 
 void SSCSEditor::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
-	if (GetActorNode().IsValid())
+	ReplaceComponentReferencesInTree(GetActorNode(), OldToNewInstanceMap);
+}
+
+void SSCSEditor::ReplaceComponentReferencesInTree(FSCSEditorActorNodePtrType InActorNode, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+{
+	if (InActorNode.IsValid())
 	{
-		ReplaceComponentReferencesInTree(GetActorNode()->GetComponentNodes(), OldToNewInstanceMap);
+		ReplaceComponentReferencesInTree(InActorNode->GetComponentNodes(), OldToNewInstanceMap);
 	}
 }
 
@@ -3846,18 +3995,15 @@ void SSCSEditor::ReplaceComponentReferencesInTree(const TArray<FSCSEditorTreeNod
 	{
 		if (Node.IsValid())
 		{
-			// We need to get the actual pointer to the old component which will be marked for pending kill, as these are the references which need updating
+			// We need to get the actual pointer to the old object which will be marked for pending kill, as these are the references which need updating
 			const bool bEvenIfPendingKill = true;
-			UActorComponent* ComponentTemplate = Node->GetComponentTemplate(bEvenIfPendingKill);
-			if (ComponentTemplate)
+			const UObject* OldObject = Node->GetObject<UObject>(bEvenIfPendingKill);
+			if (OldObject)
 			{
-				UObject* const* NewComponentTemplatePtr = OldToNewInstanceMap.Find(ComponentTemplate);
-				if (NewComponentTemplatePtr)
+				UObject* const* NewObject = OldToNewInstanceMap.Find(OldObject);
+				if (NewObject)
 				{
-					if (UActorComponent* NewComponentTemplate = Cast<UActorComponent>(*NewComponentTemplatePtr))
-					{
-						Node->SetComponentTemplate(NewComponentTemplate);
-					}
+					Node->SetObject(*NewObject);
 				}
 			}
 
@@ -3870,10 +4016,10 @@ UBlueprint* SSCSEditor::GetBlueprint() const
 {
 	if (AActor* Actor = GetActorContext())
 	{
-		UClass* ActorClass = Actor->GetClass();
+		const UClass* ActorClass = Actor->GetClass();
 		check(ActorClass != nullptr);
 
-		return Cast<UBlueprint>(ActorClass->ClassGeneratedBy);
+		return UBlueprint::GetBlueprintFromClass(ActorClass);
 	}
 
 	return nullptr;
@@ -3898,7 +4044,7 @@ TSharedRef<ITableRow> SSCSEditor::MakeTableRowWidget( FSCSEditorTreeNodePtrType 
 	}
 
 	// Create the node of the appropriate type
-	if (InNodePtr->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
+	if (InNodePtr->IsActorNode())
 	{
 		return SNew(SSCS_RowWidget_ActorRoot, SharedThis(this), InNodePtr, OwnerTable);
 	}
@@ -3917,7 +4063,7 @@ void SSCSEditor::GetSelectedItemsForContextMenu(TArray<FComponentEventConstructi
 	for ( auto NodeIter = SelectedTreeItems.CreateConstIterator(); NodeIter; ++NodeIter )
 	{
 		FComponentEventConstructionData NewItem;
-		auto TreeNode = *NodeIter;
+		const FSCSEditorTreeNodePtrType& TreeNode = *NodeIter;
 		NewItem.VariableName = TreeNode->GetVariableName();
 		NewItem.Component = TreeNode->GetComponentTemplate();
 		OutSelectedItems.Add(NewItem);
@@ -3934,15 +4080,23 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 
 		if (SelectedItems.Num() > 0)
 		{
-			if (SelectedItems.Num() == 1 && SelectedItems[0]->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
+			if (SelectedItems.Num() == 1 && SelectedItems[0]->IsActorNode())
 			{
-				bOnlyShowPasteOption = true;
+				if (FChildActorComponentEditorUtils::IsChildActorNode(SelectedItems[0]))
+				{
+					// Include specific context menu options for a single child actor node selection
+					FChildActorComponentEditorUtils::FillChildActorContextMenuOptions(Menu, SelectedItems[0]);
+				}
+				else
+				{
+					bOnlyShowPasteOption = true;
+				}
 			}
 			else
 			{
 				for (FSCSEditorTreeNodePtrType SelectedNode : SelectedItems)
 				{
-					if (SelectedNode->GetNodeType() != FSCSEditorTreeNode::ComponentNode)
+					if (!SelectedNode->IsComponentNode())
 					{
 						bOnlyShowPasteOption = true;
 						break;
@@ -3950,6 +4104,8 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 				}
 				if (!bOnlyShowPasteOption)
 				{
+					bool bIsChildActorSubtreeNodeSelected = false;
+
 					TArray<UActorComponent*> SelectedComponents;
 					TArray<FSCSEditorTreeNodePtrType> SelectedNodes = GetSelectedNodes();
 					for (int32 i = 0; i < SelectedNodes.Num(); ++i)
@@ -3964,9 +4120,16 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 						{
 							SelectedComponents.Add(ComponentTemplate);
 						}
+
+						// Determine if any selected node belongs to a child actor template
+						if (!bIsChildActorSubtreeNodeSelected)
+						{
+							bIsChildActorSubtreeNodeSelected = FChildActorComponentEditorUtils::IsChildActorSubtreeNode(SelectedNodePtr);
+						}
 					}
 
-					if (EditorMode == EComponentEditorMode::BlueprintSCS)
+					// Don't include these commands if any component was found above to belong to a child actor template (not supported at this time)
+					if (EditorMode == EComponentEditorMode::BlueprintSCS && !bIsChildActorSubtreeNodeSelected)
 					{
 						FToolMenuSection& BlueprintSCSSection = Menu->AddSection("BlueprintSCS");
 						if (SelectedItems.Num() == 1)
@@ -3976,34 +4139,43 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 
 						// Collect the classes of all selected objects
 						TArray<UClass*> SelectionClasses;
-						for( auto NodeIter = SelectedNodes.CreateConstIterator(); NodeIter; ++NodeIter )
+						for (auto NodeIter = SelectedNodes.CreateConstIterator(); NodeIter; ++NodeIter)
 						{
-							auto TreeNode = *NodeIter;
-							if( UActorComponent* ComponentTemplate = TreeNode->GetComponentTemplate() )
+							const FSCSEditorTreeNodePtrType& TreeNode = *NodeIter;
+							if (UActorComponent* ComponentTemplate = TreeNode->GetComponentTemplate())
 							{
 								SelectionClasses.Add(ComponentTemplate->GetClass());
 							}
 						}
 
-						if ( SelectionClasses.Num() )
+						if (SelectionClasses.Num())
 						{
 							// Find the common base class of all selected classes
-							UClass* SelectedClass = UClass::FindCommonBase( SelectionClasses );
+							UClass* SelectedClass = UClass::FindCommonBase(SelectionClasses);
 							// Build an event submenu if we can generate events
-							if( FBlueprintEditorUtils::CanClassGenerateEvents( SelectedClass ))
+							if (FBlueprintEditorUtils::CanClassGenerateEvents(SelectedClass))
 							{
 								BlueprintSCSSection.AddSubMenu(
 									"AddEventSubMenu",
-									LOCTEXT("AddEventSubMenu", "Add Event"), 
-									LOCTEXT("ActtionsSubMenu_ToolTip", "Add Event"), 
-									FNewMenuDelegate::CreateStatic( &SSCSEditor::BuildMenuEventsSection,
-									GetBlueprint(), SelectedClass, FCanExecuteAction::CreateSP(this, &SSCSEditor::IsEditingAllowed),
-									FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu)));
+									LOCTEXT("AddEventSubMenu", "Add Event"),
+									LOCTEXT("ActtionsSubMenu_ToolTip", "Add Event"),
+									FNewMenuDelegate::CreateStatic(&SSCSEditor::BuildMenuEventsSection,
+										GetBlueprint(), SelectedClass, FCanExecuteAction::CreateSP(this, &SSCSEditor::IsEditingAllowed),
+										FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu)));
 							}
 						}
-					}					
+					}
 
 					FComponentEditorUtils::FillComponentContextMenuOptions(Menu, SelectedComponents);
+
+					// For a single selected child actor component, we may choose to include additional context menu options
+					if (SelectedComponents.Num() == 1)
+					{
+						if (UChildActorComponent* SelectedChildActorComponent = Cast<UChildActorComponent>(SelectedComponents[0]))
+						{
+							FChildActorComponentEditorUtils::FillComponentContextMenuOptions(Menu, SelectedChildActorComponent);
+						}
+					}
 				}
 			}
 		}
@@ -4014,9 +4186,9 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 
 		if (bOnlyShowPasteOption)
 		{
-			FToolMenuSection& Section = Menu->AddSection("PasteComponent", LOCTEXT("EditComponentHeading", "Edit") );
+			FToolMenuSection& Section = Menu->AddSection("PasteComponent", LOCTEXT("EditComponentHeading", "Edit"));
 			{
-				Section.AddMenuEntry( FGenericCommands::Get().Paste );
+				Section.AddMenuEntry(FGenericCommands::Get().Paste);
 			}
 		}
 	}
@@ -4025,9 +4197,9 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 void SSCSEditor::RegisterContextMenu()
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
-	if (!ToolMenus->IsMenuRegistered("Kismet.SCSEditorContextMenu"))
+	if (!ToolMenus->IsMenuRegistered(SCS_ContextMenuName))
 	{
-		UToolMenu* Menu = ToolMenus->RegisterMenu("Kismet.SCSEditorContextMenu");
+		UToolMenu* Menu = ToolMenus->RegisterMenu(SCS_ContextMenuName);
 		Menu->AddDynamicSection("SCSEditorDynamic", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{
 			USSCSEditorMenuContext* ContextObject = InMenu->FindContext<USSCSEditorMenuContext>();
@@ -4049,7 +4221,7 @@ TSharedPtr< SWidget > SSCSEditor::CreateContextMenu()
 		USSCSEditorMenuContext* ContextObject = NewObject<USSCSEditorMenuContext>();
 		ContextObject->SCSEditor = SharedThis(this);
 		FToolMenuContext ToolMenuContext(CommandList, TSharedPtr<FExtender>(), ContextObject);
-		return UToolMenus::Get()->GenerateWidget("Kismet.SCSEditorContextMenu", ToolMenuContext);
+		return UToolMenus::Get()->GenerateWidget(SCS_ContextMenuName, ToolMenuContext);
 	}
 	return TSharedPtr<SWidget>();
 }
@@ -4194,7 +4366,8 @@ bool SSCSEditor::CanDuplicateComponent() const
 		return false;
 	}
 
-	return CanCopyNodes();
+	// @todo - Allow duplication of components that belong to a child actor template? For now, we don't support this.
+	return CanCopyNodes() && !FChildActorComponentEditorUtils::ContainsChildActorSubtreeNode(SCSTreeWidget->GetSelectedItems());
 }
 
 void SSCSEditor::OnDuplicateComponent()
@@ -4508,9 +4681,9 @@ static FSCSEditorTreeNode* FindRecursive( FSCSEditorTreeNode* Node, FName Name )
 	}
 	else
 	{
-		for (const auto& Child : Node->GetChildren())
+		for (const FSCSEditorTreeNodePtrType& Child : Node->GetChildren())
 		{
-			if (auto Result = FindRecursive(Child.Get(), Name))
+			if (FSCSEditorTreeNode* Result = FindRecursive(Child.Get(), Name))
 			{
 				return Result;
 			}
@@ -4522,9 +4695,9 @@ static FSCSEditorTreeNode* FindRecursive( FSCSEditorTreeNode* Node, FName Name )
 
 void SSCSEditor::HighlightTreeNode(FName TreeNodeName, const class FPropertyPath& Property)
 {
-	for( const auto& Node : GetRootNodes() )
+	for( const FSCSEditorTreeNodePtrType& Node : GetRootNodes() )
 	{
-		if( auto FoundNode = FindRecursive( Node.Get(), TreeNodeName ) )
+		if( FSCSEditorTreeNode* FoundNode = FindRecursive( Node.Get(), TreeNodeName ) )
 		{
 			SelectNode(FoundNode->AsShared(), false);
 
@@ -4544,7 +4717,7 @@ void SSCSEditor::HighlightTreeNode(FName TreeNodeName, const class FPropertyPath
 void SSCSEditor::HighlightTreeNode(const USCS_Node* Node, FName Property)
 {
 	check(Node);
-	auto TreeNode = FindTreeNode( Node );
+	FSCSEditorTreeNodePtrType TreeNode = FindTreeNode( Node );
 	check( TreeNode.IsValid() );
 	SelectNode( TreeNode, false );
 	if( Property != FName() )
@@ -4561,6 +4734,167 @@ void SSCSEditor::HighlightTreeNode(const USCS_Node* Node, FName Property)
 		// Invoke the delegate to highlight the property
 		OnHighlightPropertyInDetailsView.ExecuteIfBound( Path );
 	}
+}
+
+void SSCSEditor::BuildSubTreeForActorNode(FSCSEditorActorNodePtrType InActorNode)
+{
+	if (!InActorNode.IsValid())
+	{
+		return;
+	}
+
+	// Get the actor instance that we're editing
+	const AActor* Actor = InActorNode->GetObject<AActor>();
+	if (!Actor)
+	{
+		return;
+	}
+
+	// Build the tree data source according to what mode we're in
+	if (!InActorNode->IsInstanced())
+	{
+		TInlineComponentArray<UActorComponent*> Components;
+		Actor->GetComponents(Components);
+
+		// Add the native root component
+		USceneComponent* RootComponent = Actor->GetRootComponent();
+		if (RootComponent != nullptr)
+		{
+			Components.Remove(RootComponent);
+			AddTreeNodeFromComponent(RootComponent, FindOrCreateParentForExistingComponent(RootComponent, InActorNode));
+		}
+
+		// Add the rest of the native base class SceneComponent hierarchy
+		for (UActorComponent* Component : Components)
+		{
+			AddTreeNodeFromComponent(Component, FindOrCreateParentForExistingComponent(Component, InActorNode));
+		}
+
+		// If it's a Blueprint-generated class, also get the inheritance stack
+		TArray<UBlueprint*> ParentBPStack;
+		UBlueprint::GetBlueprintHierarchyFromClass(Actor->GetClass(), ParentBPStack);
+
+		// Add the full SCS tree node hierarchy (including SCS nodes inherited from parent blueprints)
+		for (int32 StackIndex = ParentBPStack.Num() - 1; StackIndex >= 0; --StackIndex)
+		{
+			if (ParentBPStack[StackIndex]->SimpleConstructionScript != nullptr)
+			{
+				const TArray<USCS_Node*>& SCS_RootNodes = ParentBPStack[StackIndex]->SimpleConstructionScript->GetRootNodes();
+				for (int32 NodeIndex = 0; NodeIndex < SCS_RootNodes.Num(); ++NodeIndex)
+				{
+					USCS_Node* SCS_Node = SCS_RootNodes[NodeIndex];
+					check(SCS_Node != nullptr);
+
+					FSCSEditorTreeNodePtrType NewNodePtr;
+					if (SCS_Node->ParentComponentOrVariableName != NAME_None)
+					{
+						USceneComponent* ParentComponent = SCS_Node->GetParentComponentTemplate(ParentBPStack[0]);
+						if (ParentComponent != nullptr)
+						{
+							FSCSEditorTreeNodePtrType ParentNodePtr = FindTreeNode(ParentComponent, InActorNode);
+							if (ParentNodePtr.IsValid())
+							{
+								NewNodePtr = AddTreeNode(SCS_Node, ParentNodePtr, StackIndex > 0);
+							}
+						}
+					}
+					else
+					{
+						NewNodePtr = AddTreeNode(SCS_Node, InActorNode, StackIndex > 0);
+					}
+
+					// Only necessary to do the following for inherited nodes (StackIndex > 0).
+					if (NewNodePtr.IsValid() && StackIndex > 0)
+					{
+						// This call creates ICH override templates for the current Blueprint. Without this, the parent node
+						// search above can fail when attempting to match an inherited node in the tree via component template.
+						NewNodePtr->GetOrCreateEditableComponentTemplate(ParentBPStack[0]);
+						for (FSCSEditorTreeNodePtrType ChildNodePtr : NewNodePtr->GetChildren())
+						{
+							if (ensure(ChildNodePtr.IsValid()))
+							{
+								ChildNodePtr->GetOrCreateEditableComponentTemplate(ParentBPStack[0]);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	else    // InActorNode->IsInstanced()
+	{
+		// Get the full set of instanced components
+		TSet<UActorComponent*> ComponentsToAdd(Actor->GetComponents());
+
+		const bool bHideConstructionScriptComponentsInDetailsView = GetDefault<UBlueprintEditorSettings>()->bHideConstructionScriptComponentsInDetailsView;
+		auto ShouldAddInstancedActorComponent = [bHideConstructionScriptComponentsInDetailsView](UActorComponent* ActorComp, USceneComponent* ParentSceneComp)
+		{
+			// Exclude nested DSOs attached to BP-constructed instances, which are not mutable.
+			return (ActorComp != nullptr
+				&& (!ActorComp->IsVisualizationComponent())
+				&& (ActorComp->CreationMethod != EComponentCreationMethod::UserConstructionScript || !bHideConstructionScriptComponentsInDetailsView)
+				&& (ParentSceneComp == nullptr || !ParentSceneComp->IsCreatedByConstructionScript() || !ActorComp->HasAnyFlags(RF_DefaultSubObject)))
+				&& (ActorComp->CreationMethod != EComponentCreationMethod::Native || FComponentEditorUtils::GetPropertyForEditableNativeComponent(ActorComp));
+		};
+
+		for (TSet<UActorComponent*>::TIterator It(ComponentsToAdd.CreateIterator()); It; ++It)
+		{
+			UActorComponent* ActorComp = *It;
+			USceneComponent* SceneComp = Cast<USceneComponent>(ActorComp);
+			USceneComponent* ParentSceneComp = SceneComp != nullptr ? SceneComp->GetAttachParent() : nullptr;
+			if (!ShouldAddInstancedActorComponent(ActorComp, ParentSceneComp))
+			{
+				It.RemoveCurrent();
+			}
+		}
+
+		TFunction<void(USceneComponent*, FSCSEditorTreeNodePtrType)> AddInstancedTreeNodesRecursive = [&](USceneComponent* Component, FSCSEditorTreeNodePtrType TreeNode)
+		{
+			if (Component != nullptr)
+			{
+				TArray<USceneComponent*> Components = Component->GetAttachChildren();
+				for (USceneComponent* ChildComponent : Components)
+				{
+					if (ComponentsToAdd.Contains(ChildComponent)
+						&& ChildComponent->GetOwner() == Component->GetOwner())
+					{
+						ComponentsToAdd.Remove(ChildComponent);
+
+						FSCSEditorTreeNodePtrType NewParentNode = AddTreeNodeFromComponent(ChildComponent, TreeNode);
+						AddInstancedTreeNodesRecursive(ChildComponent, NewParentNode);
+					}
+				}
+			}
+		};
+
+		// Add the root component first (it may not be the first one)
+		USceneComponent* RootComponent = Actor->GetRootComponent();
+		if (RootComponent != nullptr)
+		{
+			ComponentsToAdd.Remove(RootComponent);
+
+			// Recursively add any instanced children that are already attached through the root, and keep track of added
+			// instances. This will be a faster path than the loop below, because we create new parent tree nodes as we go.
+			FSCSEditorTreeNodePtrType NewParentNode = AddTreeNodeFromComponent(RootComponent, FindOrCreateParentForExistingComponent(RootComponent, InActorNode));
+			AddInstancedTreeNodesRecursive(RootComponent, NewParentNode);
+		}
+
+		// Sort components by type (always put scene components first in the tree)
+		ComponentsToAdd.Sort([](const UActorComponent& A, const UActorComponent& /* B */)
+		{
+			return A.IsA<USceneComponent>();
+		});
+
+		// Now add any remaining instanced owned components not already added above. This will first add any
+		// unattached scene components followed by any instanced non-scene components owned by the Actor instance.
+		for (UActorComponent* ActorComp : ComponentsToAdd)
+		{
+			AddTreeNodeFromComponent(ActorComp, FindOrCreateParentForExistingComponent(ActorComp, InActorNode));
+		}
+	}
+
+	// Always expand actor nodes to reveal children
+	SCSTreeWidget->SetItemExpansion(InActorNode, true);
 }
 
 void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
@@ -4589,185 +4923,24 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 		}
 		RootNodes.Empty();
 
-		TSharedPtr<FSCSEditorTreeNode> ActorTreeNode = MakeShareable(new FSCSEditorTreeNodeRootActor(GetActorContext(),EditorMode == EComponentEditorMode::ActorInstance));
-		RefreshFilteredState(ActorTreeNode, false);
-		SCSTreeWidget->SetItemExpansion(ActorTreeNode, true);
-		RootNodes.Add(ActorTreeNode);
+		TSharedPtr<FSCSEditorTreeNodeRootActor> RootActorNode = MakeShareable(new FSCSEditorTreeNodeRootActor(GetActorContext(), EditorMode == EComponentEditorMode::ActorInstance));
+		RefreshFilteredState(RootActorNode, false);
+		SCSTreeWidget->SetItemExpansion(RootActorNode, true);
+		RootNodes.Add(RootActorNode);
 
-		// Build the tree data source according to what mode we're in
-		if (EditorMode == EComponentEditorMode::BlueprintSCS)
+		BuildSubTreeForActorNode(RootActorNode);
+
+		AActor* PreviewActorInstance = PreviewActor.Get();
+		if (PreviewActorInstance != nullptr && !GetDefault<UBlueprintEditorSettings>()->bHideConstructionScriptComponentsInDetailsView)
 		{
-			// Get the class default object
-			AActor* CDO = nullptr;
-			TArray<UBlueprint*> ParentBPStack;
+			TInlineComponentArray<UActorComponent*> Components;
+			PreviewActorInstance->GetComponents(Components);
 
-			if(AActor* Actor = GetActorContext())
+			for (UActorComponent* Component : Components)
 			{
-				UClass* ActorClass = Actor->GetClass();
-				if(ActorClass != nullptr)
+				if (Component->CreationMethod == EComponentCreationMethod::UserConstructionScript)
 				{
-					CDO = ActorClass->GetDefaultObject<AActor>();
-
-					// If it's a Blueprint-generated class, also get the inheritance stack
-					UBlueprint::GetBlueprintHierarchyFromClass(ActorClass, ParentBPStack);
-				}
-			}
-
-			if(CDO != nullptr)
-			{
-				
-				TInlineComponentArray<UActorComponent*> Components;
-				CDO->GetComponents(Components);
-
-				// Add the native root component
-				USceneComponent* RootComponent = CDO->GetRootComponent();
-				if(RootComponent != nullptr)
-				{
-					Components.Remove(RootComponent);
-					AddTreeNodeFromComponent(RootComponent, FindOrCreateParentForExistingComponent(RootComponent, GetActorNode()));
-				}
-				
-				for (UActorComponent* Component : Components)
-				{
-					// Add the rest of the native base class SceneComponent hierarchy
-					AddTreeNodeFromComponent(Component, FindOrCreateParentForExistingComponent(Component, GetActorNode()));
-				}
-			}
-
-			// Add the full SCS tree node hierarchy (including SCS nodes inherited from parent blueprints)
-			for(int32 StackIndex = ParentBPStack.Num() - 1; StackIndex >= 0; --StackIndex)
-			{
-				if(ParentBPStack[StackIndex]->SimpleConstructionScript != nullptr)
-				{
-					const TArray<USCS_Node*>& SCS_RootNodes = ParentBPStack[StackIndex]->SimpleConstructionScript->GetRootNodes();
-					for(int32 NodeIndex = 0; NodeIndex < SCS_RootNodes.Num(); ++NodeIndex)
-					{
-						USCS_Node* SCS_Node = SCS_RootNodes[NodeIndex];
-						check(SCS_Node != nullptr);
-
-						FSCSEditorTreeNodePtrType NewNodePtr;
-						if(SCS_Node->ParentComponentOrVariableName != NAME_None)
-						{
-							USceneComponent* ParentComponent = SCS_Node->GetParentComponentTemplate(ParentBPStack[0]);
-							if(ParentComponent != nullptr)
-							{
-								FSCSEditorTreeNodePtrType ParentNodePtr = FindTreeNode(ParentComponent);
-								if(ParentNodePtr.IsValid())
-								{
-									NewNodePtr = AddTreeNode(SCS_Node, ParentNodePtr, StackIndex > 0);
-								}
-							}
-						}
-						else
-						{
-							NewNodePtr = AddTreeNode(SCS_Node, ActorTreeNode, StackIndex > 0);
-						}
-
-						// Only necessary to do the following for inherited nodes (StackIndex > 0).
-						if (NewNodePtr.IsValid() && StackIndex > 0)
-						{
-							// This call creates ICH override templates for the current Blueprint. Without this, the parent node
-							// search above can fail when attempting to match an inherited node in the tree via component template.
-							NewNodePtr->GetOrCreateEditableComponentTemplate(ParentBPStack[0]);
-							for (FSCSEditorTreeNodePtrType ChildNodePtr : NewNodePtr->GetChildren())
-							{
-								if (ensure(ChildNodePtr.IsValid()))
-								{
-									ChildNodePtr->GetOrCreateEditableComponentTemplate(ParentBPStack[0]);
-								}
-							}
-						}
-					}
-				}
-			}
-
-			AActor* PreviewActorInstance = PreviewActor.Get();
-			if(PreviewActorInstance != nullptr && !GetDefault<UBlueprintEditorSettings>()->bHideConstructionScriptComponentsInDetailsView)
-			{
-				TInlineComponentArray<UActorComponent*> Components;
-				PreviewActorInstance->GetComponents(Components);
-
-				for (UActorComponent* Component : Components)
-				{
-					if(Component->CreationMethod == EComponentCreationMethod::UserConstructionScript)
-					{
-						AddTreeNodeFromComponent(Component, FindOrCreateParentForExistingComponent(Component, GetActorNode()));
-					}
-				}
-			}
-		}
-		else    // EComponentEditorMode::ActorInstance
-		{
-			// Get the actor instance that we're editing
-			if (AActor* ActorInstance = GetActorContext())
-			{
-				// Get the full set of instanced components
-				TSet<UActorComponent*> ComponentsToAdd(ActorInstance->GetComponents());
-
-				const bool bHideConstructionScriptComponentsInDetailsView = GetDefault<UBlueprintEditorSettings>()->bHideConstructionScriptComponentsInDetailsView;
-				auto ShouldAddInstancedActorComponent = [bHideConstructionScriptComponentsInDetailsView](UActorComponent* ActorComp, USceneComponent* ParentSceneComp)
-				{
-					// Exclude nested DSOs attached to BP-constructed instances, which are not mutable.
-					return (ActorComp != nullptr
-						&& (!ActorComp->IsVisualizationComponent())
-						&& (ActorComp->CreationMethod != EComponentCreationMethod::UserConstructionScript || !bHideConstructionScriptComponentsInDetailsView)
-						&& (ParentSceneComp == nullptr || !ParentSceneComp->IsCreatedByConstructionScript() || !ActorComp->HasAnyFlags(RF_DefaultSubObject)))
-						&& (ActorComp->CreationMethod != EComponentCreationMethod::Native || FComponentEditorUtils::GetPropertyForEditableNativeComponent(ActorComp));
-				};
-
-				for (auto It(ComponentsToAdd.CreateIterator()); It; ++It)
-				{
-					UActorComponent* ActorComp = *It;
-					USceneComponent* SceneComp = Cast<USceneComponent>(ActorComp);
-					USceneComponent* ParentSceneComp = SceneComp != nullptr ? SceneComp->GetAttachParent() : nullptr;
-					if (!ShouldAddInstancedActorComponent(ActorComp, ParentSceneComp))
-					{
-						It.RemoveCurrent();
-					}
-				}
-
-				TFunction<void(USceneComponent*,FSCSEditorTreeNodePtrType)> AddInstancedTreeNodesRecursive = [&](USceneComponent* Component, FSCSEditorTreeNodePtrType TreeNode)
-				{
-					if (Component != nullptr)
-					{
-						TArray<USceneComponent*> Components = Component->GetAttachChildren();
-						for (USceneComponent* ChildComponent : Components)
-						{
-							if (ComponentsToAdd.Contains(ChildComponent)
-								&& ChildComponent->GetOwner() == Component->GetOwner())
-							{
-								ComponentsToAdd.Remove(ChildComponent);
-
-								FSCSEditorTreeNodePtrType NewParentNode = AddTreeNodeFromComponent(ChildComponent, TreeNode);
-								AddInstancedTreeNodesRecursive(ChildComponent, NewParentNode);
-							}
-						}
-					}
-				};
-
-				// Add the root component first (it may not be the first one)
-				USceneComponent* RootComponent = ActorInstance->GetRootComponent();
-				if(RootComponent != nullptr)
-				{
-					ComponentsToAdd.Remove(RootComponent);
-
-					// Recursively add any instanced children that are already attached through the root, and keep track of added
-					// instances. This will be a faster path than the loop below, because we create new parent tree nodes as we go.
-					FSCSEditorTreeNodePtrType NewParentNode = AddTreeNodeFromComponent(RootComponent, FindOrCreateParentForExistingComponent(RootComponent, GetActorNode()));
-					AddInstancedTreeNodesRecursive(RootComponent, NewParentNode);
-				}
-
-				// Sort components by type (always put scene components first in the tree)
-				ComponentsToAdd.Sort([](const UActorComponent& A, const UActorComponent& /* B */)
-				{
-					return A.IsA<USceneComponent>();
-				});
-
-				// Now add any remaining instanced owned components not already added above. This will first add any
-				// unattached scene components followed by any instanced non-scene components owned by the Actor instance.
-				for (UActorComponent* ActorComp : ComponentsToAdd)
-				{
-					AddTreeNodeFromComponent(ActorComp, FindOrCreateParentForExistingComponent(ActorComp, GetActorNode()));
+					AddTreeNodeFromComponent(Component, FindOrCreateParentForExistingComponent(Component, RootActorNode));
 				}
 			}
 		}
@@ -4791,7 +4964,7 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 			{
 				if (SelectedTreeNodes[i]->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
 				{
-					SCSTreeWidget->SetItemSelection(ActorTreeNode, true);
+					SCSTreeWidget->SetItemSelection(RootActorNode, true);
 				}
 				else
 				{
@@ -4943,10 +5116,15 @@ void SSCSEditor::DumpTree()
 
 				case FSCSEditorTreeNode::ENodeType::ComponentNode:
 					NodeLabel = Node->GetDisplayString();
-					if (Node->IsInherited())
+					if (Node->IsInheritedComponent())
 					{
 						NodeLabel += TEXT(" (Inherited)");
 					}
+					break;
+
+				case FSCSEditorTreeNode::ENodeType::ChildActorNode:
+					NodeLabel = Node->GetDisplayString();
+					NodeLabel += TEXT(" [CHILD ACTOR]");
 					break;
 				}
 
@@ -5363,22 +5541,22 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindOrCreateParentForExistingComponent(UAc
 	if (SceneComponent == nullptr)
 	{
 		check(ActorRootNode.IsValid());
-		check(ActorRootNode->GetNodeType() == FSCSEditorTreeNode::RootActorNode);
+		check(ActorRootNode->IsActorNode());
 		return ActorRootNode;
 	}
 
 	FSCSEditorTreeNodePtrType ParentNodePtr;
 	if (SceneComponent->GetAttachParent() != nullptr
-		&& (EditorMode != EComponentEditorMode::ActorInstance || SceneComponent->GetAttachParent()->GetOwner() == GetActorContext()))
+		&& (EditorMode != EComponentEditorMode::ActorInstance || SceneComponent->GetAttachParent()->GetOwner() == ActorRootNode->GetObject<AActor>()))
 	{
 		// Attempt to find the parent node in the current tree
-		ParentNodePtr = FindTreeNode(SceneComponent->GetAttachParent());
+		ParentNodePtr = FindTreeNode(SceneComponent->GetAttachParent(), ActorRootNode);
 		if (!ParentNodePtr.IsValid())
-{
+		{
 			// If the actual attach parent wasn't found, attempt to find its archetype.
 			// This handles the BP editor case where we might add UCS component nodes taken
 			// from the preview actor instance, which are not themselves template objects.
-			ParentNodePtr = FindTreeNode(Cast<USceneComponent>(SceneComponent->GetAttachParent()->GetArchetype()));
+			ParentNodePtr = FindTreeNode(Cast<USceneComponent>(SceneComponent->GetAttachParent()->GetArchetype()), ActorRootNode);
 			if (!ParentNodePtr.IsValid())
 			{
 				// Recursively add the parent node to the tree if it does not exist yet
@@ -5411,13 +5589,19 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewComponent(UActorComponent*
 		TargetParentNode = SelectedTreeNodes[0];
 	}
 
+	// If the current selection belongs to a child actor template, move the target to its outer component node.
+	while (TargetParentNode.IsValid() && FChildActorComponentEditorUtils::IsChildActorSubtreeNode(TargetParentNode))
+	{
+		TargetParentNode = FChildActorComponentEditorUtils::GetOuterChildActorComponentNode(TargetParentNode);
+	}
+
 	if (USceneComponent* NewSceneComponent = Cast<USceneComponent>(NewComponent))
 	{
 		if (TargetParentNode.IsValid())
 		{
-			if (TargetParentNode->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
+			if (TargetParentNode->IsActorNode())
 			{
-				FSCSEditorActorNodePtrType TargetActorNode = StaticCastSharedPtr<FSCSEditorTreeNodeRootActor>(TargetParentNode);
+				FSCSEditorActorNodePtrType TargetActorNode = StaticCastSharedPtr<FSCSEditorTreeNodeActorBase>(TargetParentNode);
 				if (TargetActorNode.IsValid())
 				{
 					FSCSEditorTreeNodePtrType TargetSceneRootNode = TargetActorNode->GetSceneRootNode();
@@ -5432,7 +5616,7 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewComponent(UActorComponent*
 					}
 				}
 			}
-			else if(TargetParentNode->GetNodeType() == FSCSEditorTreeNode::ComponentNode)
+			else if(TargetParentNode->IsComponentNode())
 			{
 				USceneComponent* CastTargetToSceneComponent = Cast<USceneComponent>(TargetParentNode->GetComponentTemplate());
 				if (CastTargetToSceneComponent == nullptr || !NewSceneComponent->CanAttachAsChild(CastTargetToSceneComponent, NAME_None))
@@ -5450,7 +5634,7 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewComponent(UActorComponent*
 	{
 		if (TargetParentNode.IsValid())
 		{
-			while (TargetParentNode->GetNodeType() != FSCSEditorTreeNode::RootActorNode)
+			while (!TargetParentNode->IsActorNode())
 			{
 				TargetParentNode = TargetParentNode->GetParent();
 			}
@@ -5460,7 +5644,7 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewComponent(UActorComponent*
 			TargetParentNode = GetActorNode();
 		}
 
-		check(TargetParentNode.IsValid() && TargetParentNode->GetNodeType() == FSCSEditorTreeNode::RootActorNode);
+		check(TargetParentNode.IsValid() && TargetParentNode->IsActorNode());
 	}
 
 	return TargetParentNode;
@@ -5815,7 +5999,19 @@ bool SSCSEditor::CanDeleteNodes() const
 	TArray<FSCSEditorTreeNodePtrType> SelectedNodes = SCSTreeWidget->GetSelectedItems();
 	for (int32 i = 0; i < SelectedNodes.Num(); ++i)
 	{
-		if (!SelectedNodes[i]->CanDelete()) {return false;}
+		if (!SelectedNodes[i]->CanDelete())
+		{
+			return false;
+		}
+		else
+		{
+			// Don't allow nodes that belong to a child actor template to be deleted
+			const bool bIsChildActorSubtreeNode = FChildActorComponentEditorUtils::IsChildActorSubtreeNode(SelectedNodes[i]);
+			if (bIsChildActorSubtreeNode)
+			{
+				return false;
+			}
+		}
 	}
 	return SelectedNodes.Num() > 0;
 }
@@ -6120,6 +6316,9 @@ FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNode(USCS_Node* InSCSNode, FSCSEdit
 	// Expand parent nodes by default
 	SCSTreeWidget->SetItemExpansion(InParentNodePtr, true);
 
+	// Add this node's child actor node, if present
+	AddTreeNodeFromChildActor(NewNodePtr);
+
 	// Recursively add the given SCS node's child nodes
 	for (USCS_Node* ChildNode : InSCSNode->GetChildNodes())
 	{
@@ -6142,9 +6341,32 @@ FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNodeFromComponent(UActorComponent* 
 		RefreshFilteredState(NewNodePtr, false);
 	}
 
+	AddTreeNodeFromChildActor(NewNodePtr);
+
 	SCSTreeWidget->SetItemExpansion(NewNodePtr, true);
 
 	return NewNodePtr;
+}
+
+FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNodeFromChildActor(FSCSEditorTreeNodePtrType InNodePtr)
+{
+	if (!InNodePtr.IsValid())
+	{
+		return nullptr;
+	}
+
+	FSCSEditorChildActorNodePtrType ChildActorNodePtr = InNodePtr->GetChildActorNode();
+	if (ChildActorNodePtr.IsValid() && ChildActorNodePtr->ShouldShowInTreeView() && ChildActorNodePtr->GetParent() != InNodePtr)
+	{
+		InNodePtr->AddChild(ChildActorNodePtr);
+		RefreshFilteredState(ChildActorNodePtr, false);
+		BuildSubTreeForActorNode(ChildActorNodePtr);
+
+		// Expand the given parent to reveal the child actor node
+		SCSTreeWidget->SetItemExpansion(InNodePtr, true);
+	}
+
+	return ChildActorNodePtr;
 }
 
 FSCSEditorTreeNodePtrType SSCSEditor::FindTreeNode(const USCS_Node* InSCSNode, FSCSEditorTreeNodePtrType InStartNodePtr) const
@@ -6325,7 +6547,14 @@ void SSCSEditor::OnPostTick(float)
 
 bool SSCSEditor::CanRenameComponent() const
 {
-	return IsEditingAllowed() && SCSTreeWidget->GetSelectedItems().Num() == 1 && SCSTreeWidget->GetSelectedItems()[0]->CanRename();
+	if (!IsEditingAllowed())
+	{
+		return false;
+	}
+
+	// In addition to certain node types, don't allow nodes within a child actor template's hierarchy to be renamed
+	TArray<FSCSEditorTreeNodePtrType> SelectedItems = SCSTreeWidget->GetSelectedItems();
+	return SelectedItems.Num() == 1 && SelectedItems[0]->CanRename() && !FChildActorComponentEditorUtils::IsChildActorSubtreeNode(SelectedItems[0]);
 }
 
 void SSCSEditor::DepthFirstTraversal(const FSCSEditorTreeNodePtrType& InNodePtr, TSet<FSCSEditorTreeNodePtrType>& OutVisitedNodes, const TFunctionRef<void(const FSCSEditorTreeNodePtrType&)> InFunction) const
@@ -6497,7 +6726,7 @@ struct FRestoreSelectedInstanceComponent
 
 		check(GEditor);
 		TArray<UActorComponent*> ComponentsToSaveAndDelesect;
-		for (auto Iter = GEditor->GetSelectedComponentIterator(); Iter; ++Iter)
+		for (FSelectionIterator Iter = GEditor->GetSelectedComponentIterator(); Iter; ++Iter)
 		{
 			UActorComponent* Component = CastChecked<UActorComponent>(*Iter, ECastCheckedType::NullAllowed);
 			if (Component && InActor->GetInstanceComponents().Contains(Component))
@@ -6815,9 +7044,11 @@ bool SSCSEditor::RefreshFilteredState(FSCSEditorTreeNodePtrType TreeNode, bool b
 					bIsFilteredOut = true;
 				}
 			}
+
 			// if we're not recursing, then assume this is for a new node and we need to update the parent
 			// otherwise, assume the parent was hit as part of the recursion
-			TreeNodeIn->UpdateCachedFilterState(!bIsFilteredOut, /*bUpdateParent =*/!bRecursiveIn);
+			bool bUpdateParent = !bRecursiveIn;
+			TreeNodeIn->UpdateCachedFilterState(!bIsFilteredOut, bUpdateParent);
 		}
 	};
 
