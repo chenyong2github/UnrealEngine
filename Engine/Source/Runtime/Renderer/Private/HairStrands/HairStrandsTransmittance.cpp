@@ -606,12 +606,12 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 static void RenderHairStrandsShadowMask(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
-	IPooledRenderTarget* ScreenShadowMaskTexture,
 	const FHairStrandsVisibilityData& InVisibilityData,
-	const FHairStrandsMacroGroupDatas& InMacroGroupDatas)
+	const FHairStrandsMacroGroupDatas& InMacroGroupDatas,
+	FRDGTextureRef OutShadowMask)
 {
 	if (InMacroGroupDatas.Datas.Num() == 0)
 		return;
@@ -620,15 +620,13 @@ static void RenderHairStrandsShadowMask(
 		return;
 
 	DECLARE_GPU_STAT(HairStrandsOpaqueMask);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsOpaqueMask);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsOpaqueMask);
+	SCOPED_DRAW_EVENT(GraphBuilder.RHICmdList, HairStrandsOpaqueMask);
+	SCOPED_GPU_STAT(GraphBuilder.RHICmdList, HairStrandsOpaqueMask);
 
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(RHICmdList);
-	FRDGBuilder GraphBuilder(RHICmdList);
+	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
 	FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDephtTexture"));
 	FRDGTextureRef Categorization = RegisterExternalTextureWithFallback(GraphBuilder, InVisibilityData.CategorizationTexture, GSystemTextures.BlackDummy);
-	FRDGTextureRef OutShadowMask = GraphBuilder.RegisterExternalTexture(ScreenShadowMaskTexture, TEXT("ScreenShadowMaskTexture"));
 
 	bool bHasDeepShadow = false;
 	if (!IsHairStrandsForVoxelTransmittanceAndShadowEnable())
@@ -704,20 +702,20 @@ static void RenderHairStrandsShadowMask(
 				OutShadowMask);
 		}
 	}
-
-	TRefCountPtr<IPooledRenderTarget> LocalOutput = GSystemTextures.BlackDummy;
-	GraphBuilder.QueueTextureExtraction(OutShadowMask, &LocalOutput);
-
-	GraphBuilder.Execute();
 }
 
 void RenderHairStrandsShadowMask(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const TArray<FViewInfo>& Views,
 	const FLightSceneInfo* LightSceneInfo,
-	IPooledRenderTarget* ScreenShadowMaskTexture,
-	const FHairStrandsDatas* HairDatas)
+	const FHairStrandsDatas* HairDatas,
+	FRDGTextureRef OutShadowMask)
 {
+	if (Views.Num() == 0 || HairDatas == nullptr || OutShadowMask == nullptr)
+	{
+		return;
+	}
+
 	const FHairStrandsVisibilityViews& HairVisibilityViews = HairDatas->HairVisibilityViews;
 	const FHairStrandsMacroGroupViews& MacroGroupViews = HairDatas->MacroGroupsPerViews;
 
@@ -727,7 +725,27 @@ void RenderHairStrandsShadowMask(
 		{
 			const FHairStrandsVisibilityData& HairVisibilityData = HairVisibilityViews.HairDatas[ViewIndex];
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = MacroGroupViews.Views[ViewIndex];
-			RenderHairStrandsShadowMask(RHICmdList, Views[ViewIndex], LightSceneInfo, ScreenShadowMaskTexture, HairVisibilityData, MacroGroupDatas);
+			RenderHairStrandsShadowMask(GraphBuilder, Views[ViewIndex], LightSceneInfo, HairVisibilityData, MacroGroupDatas, OutShadowMask);
 		}
 	}
+}
+
+void RenderHairStrandsShadowMask(
+	FRHICommandListImmediate& RHICmdList,
+	const TArray<FViewInfo>& Views,
+	const FLightSceneInfo* LightSceneInfo,
+	const FHairStrandsDatas* HairDatas,
+	IPooledRenderTarget* ScreenShadowMaskTexture)
+{
+	if (Views.Num() == 0 || HairDatas == nullptr || ScreenShadowMaskTexture == nullptr)
+	{
+		return;
+	}
+
+	FRDGBuilder GraphBuilder(RHICmdList);
+
+	FRDGTextureRef OutShadowMask = GraphBuilder.RegisterExternalTexture(ScreenShadowMaskTexture, TEXT("ScreenShadowMaskTexture"));
+	RenderHairStrandsShadowMask(GraphBuilder, Views, LightSceneInfo, HairDatas, OutShadowMask);
+
+	GraphBuilder.Execute();
 }

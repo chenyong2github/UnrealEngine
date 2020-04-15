@@ -1767,7 +1767,7 @@ bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmed
 	// Inject deep shadow mask
 	if (HairDatas)
 	{
-		RenderHairStrandsShadowMask(RHICmdList, Views, LightSceneInfo, ScreenShadowMaskTexture, HairDatas);
+		RenderHairStrandsShadowMask(RHICmdList, Views, LightSceneInfo, HairDatas, ScreenShadowMaskTexture);
 	}
 
 	return true;
