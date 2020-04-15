@@ -16,10 +16,51 @@ U4MLActuator_InputKey::U4MLActuator_InputKey(const FObjectInitializer& ObjectIni
 
 void U4MLActuator_InputKey::Configure(const TMap<FName, FString>& Params) 
 {
+	const FName NAME_IgnoreKeys = TEXT("ignore_keys");
+	const FName NAME_IgnoreActions = TEXT("ignore_actions");
+
 	Super::Configure(Params);
+
+	TArray<FName> IgnoreKeys;
+	TArray<FName> IgnoreActions;
+
+	for (auto KeyValue : Params)
+	{
+		if (KeyValue.Key == NAME_IgnoreKeys)
+		{
+			TArray<FString> Tokens;
+			// contains a list of keys to not press
+			KeyValue.Value.ParseIntoArrayWS(Tokens, TEXT(","));
+			IgnoreKeys.Reserve(Tokens.Num());
+			for (const FString& Token : Tokens)
+			{
+				IgnoreKeys.Add(FName(Token));
+			}
+		}
+		else if (KeyValue.Key == NAME_IgnoreActions)
+		{
+			TArray<FString> Tokens;
+			// contains a list of keys to not press
+			KeyValue.Value.ParseIntoArrayWS(Tokens, TEXT(","));
+			IgnoreActions.Reserve(Tokens.Num());
+			for (const FString& Token : Tokens)
+			{
+				IgnoreActions.Add(FName(Token));
+			}
+		}
+	}
 
 	TMap<FKey, int32> TmpKeyMap;
 	F4MLInputHelper::CreateInputMap(RegisteredKeys, TmpKeyMap);
+
+	RegisteredKeys.RemoveAllSwap([&IgnoreKeys](const TTuple<FKey, FName>& Element) -> bool
+		{
+			return IgnoreKeys.Find(Element.Key.GetFName()) != INDEX_NONE;
+		});
+	RegisteredKeys.RemoveAllSwap([&IgnoreActions](const TTuple<FKey, FName>& Element) -> bool
+		{
+			return IgnoreActions.Find(Element.Value) != INDEX_NONE;
+		});
 
 	PressedKeys.Init(false, RegisteredKeys.Num());
 
@@ -45,8 +86,8 @@ TSharedPtr<F4ML::FSpace> U4MLActuator_InputKey::ConstructSpaceDef() const
 
 void U4MLActuator_InputKey::Act(const float DeltaTime)
 {
-	APlayerController* PC = Cast<APlayerController>(GetAgent().GetAvatar());
-	if (!ensure(PC))
+	APlayerController* PC = Cast<APlayerController>(GetControllerAvatar());
+	if (PC)
 	{
 		return;
 	}
