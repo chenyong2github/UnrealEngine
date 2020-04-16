@@ -582,7 +582,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		Options.enableDebugInfo = false;
 		Options.enable16bitTypes = false;
 		Options.disableOptimizations = false;
-		Options.enableFMAPass = (VersionEnum == 2 || VersionEnum == 3);
+		Options.enableFMAPass = (VersionEnum == 2 || VersionEnum == 3 || bForceInvariance);
 		
         ShaderConductor::Compiler::SourceDesc SourceDesc;
 		
