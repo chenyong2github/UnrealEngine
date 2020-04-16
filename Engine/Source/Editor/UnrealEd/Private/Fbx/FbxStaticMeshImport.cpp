@@ -91,7 +91,7 @@ struct FRestoreReimportData
 
 		if(ensure(FbxImporter))
 		{
-			FbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("ImportStaticMeshAsSingle", "Fail to reimport mesh {0}. Restoring the original mesh"), FText::FromString(OriginalPackageName))), FFbxErrors::Generic_ImportingNewObjectFailed);
+			FbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("RestoreMesh_FailReimportMesh_RestoreMessage", "Fail to reimport mesh {0}. Restoring the original mesh"), FText::FromString(OriginalPackageName))), FFbxErrors::Generic_ImportingNewObjectFailed);
 		}
 
 		UPackage* Package = nullptr;
