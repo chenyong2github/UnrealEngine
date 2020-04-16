@@ -21,12 +21,18 @@ struct F4MLLibrarian
 	void RegisterActuatorClass(const TSubclassOf<U4MLActuator>& Class);
 	void RegisterAgentClass(const TSubclassOf<U4MLAgent>& Class);
 
-	TMap<uint32, TSubclassOf<U4MLSensor> >::TConstIterator GetSensorsIterator() const { return KnownSensorClasses.CreateConstIterator(); }
-	TMap<uint32, TSubclassOf<U4MLActuator> >::TConstIterator GetActuatorsIterator() const { return KnownActuatorClasses.CreateConstIterator(); }
-	TArray<TSubclassOf<U4MLAgent> >::TConstIterator GetAgentsIterator() const { return KnownAgentClasses.CreateConstIterator(); }
+	TMap<uint32, TSubclassOf<U4MLSensor> >::TConstIterator GetSensorsClassIterator() const { return KnownSensorClasses.CreateConstIterator(); }
+	TMap<uint32, TSubclassOf<U4MLActuator> >::TConstIterator GetActuatorsClassIterator() const { return KnownActuatorClasses.CreateConstIterator(); }
+	TArray<TSubclassOf<U4MLAgent> >::TConstIterator GetAgentsClassIterator() const { return KnownAgentClasses.CreateConstIterator(); }
 
 	bool GetFunctionDescription(const FName& FunctionName, FString& OutDescription) const;
 	inline bool GetFunctionDescription(const FString& FunctionName, FString& OutDescription) const;
+
+	TSubclassOf<U4MLAgent> FindAgentClass(const FName ClassName) const;
+	TSubclassOf<U4MLSensor> FindSensorClass(const FName ClassName) const;
+	TSubclassOf<U4MLActuator> FindActuatorClass(const FName ClassName) const;
+
+	static const F4MLLibrarian& Get();
 
 protected:
 	UPROPERTY()

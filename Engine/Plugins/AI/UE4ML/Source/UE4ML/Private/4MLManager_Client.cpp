@@ -338,7 +338,7 @@ void U4MLManager::ConfigureAsClient()
 	}));
 	
 	AddClientFunctionBind(UE4_RPC_BIND("get_sensor_description", [](std::string const& ClassName) {
-		UClass* ResultClass = FindObject<UClass>(ANY_PACKAGE, ANSI_TO_TCHAR(ClassName.c_str()));
+		UClass* ResultClass = U4MLManager::Get().GetLibrarian().FindSensorClass(FName(ClassName.c_str()));
 		if (ResultClass)
 		{
 			U4MLAgentElement* CDO = ResultClass->GetDefaultObject<U4MLAgentElement>();

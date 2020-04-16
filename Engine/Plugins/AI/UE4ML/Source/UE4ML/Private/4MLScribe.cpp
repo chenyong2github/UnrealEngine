@@ -49,7 +49,7 @@ namespace F4MLScribe
 		std::map<std::string, uint32> Ret;
 
 		const F4MLLibrarian& Librarian = U4MLManager::Get().GetLibrarian();
-		for (auto It = Librarian.GetSensorsIterator(); It; ++It)
+		for (auto It = Librarian.GetSensorsClassIterator(); It; ++It)
 		{
 			Ret[FSTRING_TO_STD(It->Value->GetName())] = It->Key;
 		}
@@ -62,7 +62,7 @@ namespace F4MLScribe
 		std::map<std::string, uint32> Ret;
 
 		const F4MLLibrarian& Librarian = U4MLManager::Get().GetLibrarian();
-		for (auto It = Librarian.GetActuatorsIterator(); It; ++It)
+		for (auto It = Librarian.GetActuatorsClassIterator(); It; ++It)
 		{
 			Ret[FSTRING_TO_STD(It->Value->GetName())] = It->Key;
 		}

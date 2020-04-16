@@ -332,16 +332,7 @@ F4ML::FAgentID U4MLSession::AddAgent(const F4MLAgentConfig& InConfig)
 {
 	FScopeLock Lock(&AgentOpCS);
 
-	UClass* AgentClass = U4MLAgent::StaticClass();
-	if (InConfig.AgentClassName != NAME_None)
-	{
-		AgentClass = FindObject<UClass>(ANY_PACKAGE, *InConfig.AgentClassName.ToString());
-		if (AgentClass == nullptr)
-		{
-			AgentClass = FindObject<UClass>(ANY_PACKAGE, *FString::Printf(TEXT("4MLAgent_%s"), *InConfig.AgentClassName.ToString()));
-		}
-	}
-
+	UClass* AgentClass = F4MLLibrarian::Get().FindAgentClass(InConfig.AgentClassName);
 	U4MLAgent* NewAgent = F4ML::NewObject<U4MLAgent>(this, AgentClass);
 	NewAgent->SetAgentID(Agents.Add(NewAgent));
 

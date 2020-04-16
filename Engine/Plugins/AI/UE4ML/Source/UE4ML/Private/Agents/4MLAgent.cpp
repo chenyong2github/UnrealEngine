@@ -4,6 +4,7 @@
 #include "Sensors/4MLSensor.h"
 #include "4MLSession.h"
 #include "4MLSpace.h"
+#include "4MLLibrarian.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "Actuators/4MLActuator_InputKey.h"
 #include "UObject/UObjectGlobals.h"
@@ -189,12 +190,7 @@ void U4MLAgent::Configure(const F4MLAgentConfig& NewConfig)
 
 	for (F4MLBasicConfig& Config : AgentConfig.Actuators)
 	{
-		UClass* ResultClass = FindObject<UClass>(ANY_PACKAGE, *Config.Key.ToString());
-		if (ResultClass == nullptr)
-		{
-			ResultClass = FindObject<UClass>(ANY_PACKAGE, *FString::Printf(TEXT("4MLActuator_%s"), *Config.Key.ToString()));
-		}
-
+		UClass* ResultClass = F4MLLibrarian::Get().FindActuatorClass(Config.Key);
 		if (ResultClass)
 		{
 			U4MLActuator* NewActuator = F4ML::NewObject<U4MLActuator>(this, ResultClass);
@@ -208,12 +204,7 @@ void U4MLAgent::Configure(const F4MLAgentConfig& NewConfig)
 
 	for (F4MLBasicConfig& Config : AgentConfig.Sensors)
 	{
-		UClass* ResultClass = FindObject<UClass>(ANY_PACKAGE, *Config.Key.ToString());
-		if (ResultClass == nullptr)
-		{
-			ResultClass = FindObject<UClass>(ANY_PACKAGE, *FString::Printf(TEXT("4MLSensor_%s"), *Config.Key.ToString()));
-		}
-
+		UClass* ResultClass = F4MLLibrarian::Get().FindSensorClass(Config.Key);
 		if (ResultClass)
 		{
 			U4MLSensor* NewSensor = F4ML::NewObject<U4MLSensor>(this, ResultClass);

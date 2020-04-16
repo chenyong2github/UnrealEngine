@@ -33,6 +33,11 @@ namespace FLibrarianHelper
 	}
 }
 
+const F4MLLibrarian& F4MLLibrarian::Get()
+{
+	return U4MLManager::Get().GetLibrarian();
+}
+
 void F4MLLibrarian::GatherClasses()
 {
 	{
@@ -72,8 +77,10 @@ void F4MLLibrarian::RegisterSensorClass(const TSubclassOf<U4MLSensor>& Class)
 
 	U4MLSensor* CDO = Class->GetDefaultObject<U4MLSensor>();
 	check(CDO);
-	ensure(KnownSensorClasses.Find(CDO->GetElementID()) == nullptr);
-	KnownSensorClasses.Add(CDO->GetElementID(), Class);
+	if (KnownSensorClasses.Find(CDO->GetElementID()) == nullptr)
+	{
+		KnownSensorClasses.Add(CDO->GetElementID(), Class);
+	}
 }
 
 void F4MLLibrarian::RegisterActuatorClass(const TSubclassOf<U4MLActuator>& Class)
@@ -85,8 +92,10 @@ void F4MLLibrarian::RegisterActuatorClass(const TSubclassOf<U4MLActuator>& Class
 
 	U4MLActuator* CDO = Class->GetDefaultObject<U4MLActuator>();
 	check(CDO);
-	ensure(KnownActuatorClasses.Find(CDO->GetElementID()) == nullptr);
-	KnownActuatorClasses.Add(CDO->GetElementID(), Class);
+	if (KnownActuatorClasses.Find(CDO->GetElementID()) == nullptr)
+	{
+		KnownActuatorClasses.Add(CDO->GetElementID(), Class);
+	}
 }
 
 void F4MLLibrarian::RegisterAgentClass(const TSubclassOf<U4MLAgent>& Class)
@@ -111,3 +120,95 @@ bool F4MLLibrarian::GetFunctionDescription(const FName& FunctionName, FString& O
 	return false;
 }
 
+TSubclassOf<U4MLAgent> F4MLLibrarian::FindAgentClass(const FName ClassName) const
+{
+	UClass* AgentClass = nullptr;
+	if (ClassName != NAME_None)
+	{
+		for (auto It = GetAgentsClassIterator(); It; ++It)
+		{
+			if (It->Get() && It->Get()->GetFName() == ClassName)
+			{
+				AgentClass = *It;
+				break;
+			}
+		}
+
+		if (AgentClass == nullptr)
+		{
+			const FName DecoratedName(FString::Printf(TEXT("4MLAgent_%s"), *ClassName.ToString()));
+			for (auto It = GetAgentsClassIterator(); It; ++It)
+			{
+				if (It->Get() && It->Get()->GetFName() == DecoratedName)
+				{
+					AgentClass = *It;
+					break;
+				}
+			}
+		}
+	}
+
+	return (AgentClass != nullptr) ? AgentClass : U4MLAgent::StaticClass();
+}
+
+TSubclassOf<U4MLSensor> F4MLLibrarian::FindSensorClass(const FName ClassName) const
+{
+	UClass* ResultClass = nullptr;
+	if (ClassName != NAME_None)
+	{
+		for (auto It = GetSensorsClassIterator(); It; ++It)
+		{
+			if (It->Value.Get() && It->Value.Get()->GetFName() == ClassName)
+			{
+				ResultClass = It->Value.Get();
+				break;
+			}
+		}
+
+		if (ResultClass == nullptr)
+		{
+			const FName DecoratedName(FString::Printf(TEXT("4MLSensor_%s"), *ClassName.ToString()));
+			for (auto It = GetSensorsClassIterator(); It; ++It)
+			{
+				if (It->Value.Get() && It->Value.Get()->GetFName() == DecoratedName)
+				{
+					ResultClass = It->Value.Get();
+					break;
+				}
+			}
+		}
+	}
+
+	return ResultClass;
+}
+
+TSubclassOf<U4MLActuator> F4MLLibrarian::FindActuatorClass(const FName ClassName) const
+{
+	UClass* ResultClass = nullptr;
+	if (ClassName != NAME_None)
+	{
+		for (auto It = GetActuatorsClassIterator(); It; ++It)
+		{
+			if (It->Value.Get() && It->Value.Get()->GetFName() == ClassName)
+			{
+				ResultClass = It->Value.Get();
+				break;
+			}
+		}
+
+		if (ResultClass == nullptr)
+		{
+			const FName DecoratedName(FString::Printf(TEXT("4MLActuator_%s"), *ClassName.ToString()));
+			for (auto It = GetActuatorsClassIterator(); It; ++It)
+			{
+				if (It->Value.Get() && It->Value.Get()->GetFName() == DecoratedName)
+				{
+					ResultClass = It->Value.Get();
+					break;
+				}
+			}
+		}
+	}
+
+	return ResultClass;
+}
