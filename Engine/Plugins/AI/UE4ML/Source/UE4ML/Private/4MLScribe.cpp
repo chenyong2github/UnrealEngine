@@ -70,14 +70,16 @@ namespace F4MLScribe
 	std::string GetDescription(std::string const& ElementName)
 	{
 		const F4MLLibrarian& Librarian = U4MLManager::Get().GetLibrarian();
-		FString AsFString(ElementName.c_str());
-		FString Description = TEXT("Not Found");
+		const FName AsFName = FName(FString(ElementName.c_str()));
+		FString Description;
 
-		if (Librarian.GetFunctionDescription(AsFString, Description))
+		if (Librarian.GetFunctionDescription(AsFName, Description)
+			|| Librarian.GetSensorDescription(AsFName, Description)
+			|| Librarian.GetActuatorDescription(AsFName, Description))
 		{
 			return FSTRING_TO_STD(Description);
 		}
 
-		return FSTRING_TO_STD(Description);
+		return std::string("Not Found");
 	}
 }

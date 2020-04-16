@@ -31,6 +31,9 @@ struct F4MLLibrarian
 	inline bool GetFunctionDescription(const FString& FunctionName, FString& OutDescription) const;
 	TMap<FName, FString>::TConstIterator GetFunctionDescriptionsIterator() const { return RPCFunctionDescriptions.CreateConstIterator(); }
 
+	bool GetSensorDescription(const FName SensorName, FString& OutDescription) const;
+	bool GetActuatorDescription(const FName ActuatorName, FString& OutDescription) const;
+
 	TSubclassOf<U4MLAgent> FindAgentClass(const FName ClassName) const;
 	TSubclassOf<U4MLSensor> FindSensorClass(const FName ClassName) const;
 	TSubclassOf<U4MLActuator> FindActuatorClass(const FName ClassName) const;

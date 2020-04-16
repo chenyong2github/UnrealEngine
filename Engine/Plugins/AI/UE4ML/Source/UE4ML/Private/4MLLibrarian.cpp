@@ -118,6 +118,36 @@ bool F4MLLibrarian::GetFunctionDescription(const FName FunctionName, FString& Ou
 	return FoundDesc != nullptr;
 }
 
+bool F4MLLibrarian::GetSensorDescription(const FName SensorName, FString& OutDescription) const
+{
+	UClass* ResultClass = FindSensorClass(SensorName);
+	if (ResultClass)
+	{
+		U4MLAgentElement* CDO = ResultClass->GetDefaultObject<U4MLAgentElement>();
+		if (CDO)
+		{
+			OutDescription = CDO->GetDescription();
+			return true;
+		}
+	}
+	return false;
+}
+
+bool F4MLLibrarian::GetActuatorDescription(const FName ActuatorName, FString& OutDescription) const
+{
+	UClass* ResultClass = FindActuatorClass(ActuatorName);
+	if (ResultClass)
+	{
+		U4MLAgentElement* CDO = ResultClass->GetDefaultObject<U4MLAgentElement>();
+		if (CDO)
+		{
+			OutDescription = CDO->GetDescription();
+			return true;
+		}
+	}
+	return false;
+}
+
 TSubclassOf<U4MLAgent> F4MLLibrarian::FindAgentClass(const FName ClassName) const
 {
 	UClass* AgentClass = nullptr;
