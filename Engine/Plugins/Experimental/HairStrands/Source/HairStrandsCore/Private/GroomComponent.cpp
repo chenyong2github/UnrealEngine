@@ -901,15 +901,18 @@ void UGroomComponent::UpdateSimulatedGroups()
 
 		FHairStrandsInterpolationInput* LocalInterpolationInput = InterpolationInput;
 		UGroomAsset* LocalGroomAsset = GroomAsset;
+		UGroomBindingAsset* LocalBindingAsset = BindingAsset;
 		ENQUEUE_RENDER_COMMAND(FHairStrandsTick_UEnableSimulatedGroups)(
-			[LocalInterpolationInput, LocalGroomAsset, Id, WorldType](FRHICommandListImmediate& RHICmdList)
+			[LocalInterpolationInput, LocalGroomAsset, LocalBindingAsset, Id, WorldType](FRHICommandListImmediate& RHICmdList)
 		{
 			int32 GroupIt = 0;
 			for (FHairStrandsInterpolationInput::FHairGroup& HairGroup : LocalInterpolationInput->HairGroups)
 			{
 				const bool bIsSimulationEnable = (LocalGroomAsset && GroupIt < LocalGroomAsset->HairGroupsPhysics.Num()) ? 
 					LocalGroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation : false;
+				const bool bHasGlobalInterpolation = (LocalBindingAsset && LocalGroomAsset->EnableGlobalInterpolation);
 				HairGroup.bIsSimulationEnable = bIsSimulationEnable;
+				HairGroup.bHasGlobalInterpolation = bHasGlobalInterpolation;
 				UpdateHairStrandsDebugInfo(Id, WorldType, GroupIt, bIsSimulationEnable);
 				++GroupIt;
 			}
@@ -1065,11 +1068,14 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		const bool bIsSimulationEnable = (GroomAsset && GroupIt < GroomAsset->HairGroupsPhysics.Num()) ?
 			GroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation : false;
 
+		const bool bHasGlobalInterpolation = (BindingAsset && GroomAsset->EnableGlobalInterpolation);
+
 		// For skinned groom, these value will be updated during TickComponent() call
 		// Deformed sim & render are expressed within the referential (unlike rest pose)
 		InterpolationInputGroup.OutHairPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.OutHairPreviousPositionOffset = RenderRestHairPositionOffset;
 		InterpolationInputGroup.bIsSimulationEnable = bIsSimulationEnable;
+		InterpolationInputGroup.bHasGlobalInterpolation = bHasGlobalInterpolation;
 		DebugHairGroup.bHasSimulation = InterpolationInputGroup.bIsSimulationEnable;
 
 		GroupIt++;

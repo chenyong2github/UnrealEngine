@@ -41,6 +41,7 @@ struct FHairStrandsInterpolationInput
 		FReadBuffer*ClusterIndexRadiusScaleInfoBuffer = nullptr;
 
 		bool bIsSimulationEnable = false;
+		bool bHasGlobalInterpolation = false;
 		
 		FHairGroupDesc GroupDesc;
 
