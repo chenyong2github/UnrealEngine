@@ -1157,9 +1157,6 @@ private:
 	/** Returns the appropriate check box state representing whether or not the selected nodes are enabled */
 	ECheckBoxState GetEnabledCheckBoxStateForSelectedNodes();
 
-	/** Configuration class used to store editor settings across sessions. */
-	UBlueprintEditorOptions* EditorOptions;
-
 	/**
 	 * Load editor settings from disk (docking state, window pos/size, option state, etc).
 	 */

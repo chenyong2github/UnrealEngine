@@ -159,7 +159,6 @@
 #include "NativeCodeGenerationTool.h"
 
 // Focusing related nodes feature
-#include "Preferences/BlueprintEditorOptions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -1527,8 +1526,7 @@ void FBlueprintEditor::OnChangeBreadCrumbGraph(UEdGraph* InGraph)
 }
 
 FBlueprintEditor::FBlueprintEditor()
-	: EditorOptions(nullptr)
-	, bSaveIntermediateBuildProducts(false)
+	: bSaveIntermediateBuildProducts(false)
 	, bPendingDeferredClose(false)
 	, bRequestedSavingOpenDocumentState(false)
 	, bBlueprintModifiedOnOpen (false)
@@ -1930,8 +1928,6 @@ void FBlueprintEditor::InitBlueprintEditor(
 
 	// TRUE if a single Blueprint is being opened and is marked as newly created
 	bool bNewlyCreated = InBlueprints.Num() == 1 && InBlueprints[0]->bIsNewlyCreated;
-
-	EditorOptions = nullptr;
 
 	// Load editor settings from disk.
 	LoadEditorSettings();
@@ -3909,8 +3905,6 @@ void FBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 			Collector.AddReferencedObject(Obj);
 		}
 	}
-
-	Collector.AddReferencedObject(EditorOptions);
 
 	UserDefinedStructures.Remove(TWeakObjectPtr<UUserDefinedStruct>()); // Remove NULLs
 	for (const TWeakObjectPtr<UUserDefinedStruct>& ObjectPtr : UserDefinedStructures)
@@ -7456,9 +7450,9 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 
 void FBlueprintEditor::LoadEditorSettings()
 {
-	EditorOptions = NewObject<UBlueprintEditorOptions>();
+	UBlueprintEditorSettings* LocalSettings = GetMutableDefault<UBlueprintEditorSettings>();
 
-	if (EditorOptions->bHideUnrelatedNodes)
+	if (LocalSettings->bHideUnrelatedNodes)
 	{
 		ToggleHideUnrelatedNodes();
 	}
@@ -7466,11 +7460,10 @@ void FBlueprintEditor::LoadEditorSettings()
 
 void FBlueprintEditor::SaveEditorSettings()
 {
-	if ( EditorOptions )
-	{
-		EditorOptions->bHideUnrelatedNodes     = bHideUnrelatedNodes;
-		EditorOptions->SaveConfig();
-	}
+	UBlueprintEditorSettings* LocalSettings = GetMutableDefault<UBlueprintEditorSettings>();
+	
+	LocalSettings->bHideUnrelatedNodes     = bHideUnrelatedNodes;
+	LocalSettings->SaveConfig();
 }
 
 void FBlueprintEditor::OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState)
