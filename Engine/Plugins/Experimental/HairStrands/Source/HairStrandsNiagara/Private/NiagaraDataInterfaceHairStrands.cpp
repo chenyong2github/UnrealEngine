@@ -153,7 +153,6 @@ static const FName ComputeAirDragForceName(TEXT("ComputeAirDragForce"));
 
 static const FName NeedSimulationResetName(TEXT("NeedSimulationReset"));
 static const FName HasGlobalInterpolationName(TEXT("HasGlobalInterpolation"));
-static const FName HasKinematicsTargetName(TEXT("HasKinematicsTarget"));
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -367,7 +366,7 @@ void FCopyBoundingBoxCS::UnbindBuffers(FRHICommandList& RHICmdList)
 }
 
 static void AddCopyBoundingBoxPass(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	FRHIUnorderedAccessView* BoundingBoxBufferA,
 	FRHIUnorderedAccessView* OutBoundingBoxBufferB)
 {
@@ -396,12 +395,7 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIHairStrandsBuffer* Hair
 
 	if (BoundingBoxBufferAUAV != nullptr && BoundingBoxBufferASRV != nullptr && BoundingBoxBufferBUAV != nullptr)
 	{
-		ENQUEUE_RENDER_COMMAND(FNDIHairStrandsCopyBoundingBox)(
-			[BoundingBoxBufferAUAV, BoundingBoxBufferBUAV, BoundingBoxBufferASRV, HairStrandsBuffer]
-		(FRHICommandListImmediate& RHICmdListImm)
-		{
-			AddCopyBoundingBoxPass(RHICmdListImm, HairStrandsBuffer->BoundingBoxBufferA.UAV, HairStrandsBuffer->BoundingBoxBufferB.UAV);
-		});
+		AddCopyBoundingBoxPass(RHICmdList, HairStrandsBuffer->BoundingBoxBufferA.UAV, HairStrandsBuffer->BoundingBoxBufferB.UAV);
 	}
 }
 
@@ -512,6 +506,9 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 		WorldTransform = Interface->IsComponentValid() ? Interface->SourceComponent->GetComponentToWorld() :
 			SystemInstance ? SystemInstance->GetComponent()->GetComponentToWorld() : FTransform::Identity;
 
+		GlobalInterpolation = (Interface->IsComponentValid() && Interface->SourceComponent->BindingAsset && Interface->SourceComponent->GroomAsset) ?
+			Interface->SourceComponent->GroomAsset->EnableGlobalInterpolation : false;
+
 		if (StrandsDatas != nullptr && GroomAsset != nullptr && GroupIndex >= 0 && GroupIndex < GroomAsset->HairGroupsPhysics.Num() &&
 			GroomAsset->HairGroupsPhysics[GroupIndex].SolverSettings.EnableSimulation)
 		{
@@ -520,7 +517,6 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 
 			SubSteps = HairPhysics.SolverSettings.SubSteps;
 			IterationCount = HairPhysics.SolverSettings.IterationCount;
-			KinematicsTarget = HairPhysics.SolverSettings.KinematicsTarget;
 
 			GravityVector = HairPhysics.ExternalForces.GravityVector;
 			AirDrag = HairPhysics.ExternalForces.AirDrag;
@@ -758,10 +754,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 
 			int32 bNeedSimReset = (ProxyData->TickCount <= MaxDelay ? 1 : 0);
 
-			static const auto GlobalInterpolationCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HairStrands.Interpolation.Global"));
-			const int32 GlobalInterpolation = (GlobalInterpolationCVar != nullptr) ? GlobalInterpolationCVar->GetInt() : 0;
-
-			if ((InterpolationModeValue == 1) && (GlobalInterpolation == 1))
+			if ((InterpolationModeValue == 1) && ProxyData->GlobalInterpolation)
 			{
 				InterpolationModeValue = 2;
 			}
@@ -2094,21 +2087,10 @@ void UNiagaraDataInterfaceHairStrands::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Global lInterpolation")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Global Interpolation")));
 
 		OutFunctions.Add(Sig);
 	}
-	{
-		FNiagaraFunctionSignature Sig;
-		Sig.Name = HasKinematicsTargetName;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Kinematics Target")));
-
-		OutFunctions.Add(Sig);
-	}
-
 }
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetNumStrands);
@@ -2205,7 +2187,6 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ComputeMaterialF
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ComputeAirDragForce);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, NeedSimulationReset);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, HasGlobalInterpolation);
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, HasKinematicsTarget);
 
 void UNiagaraDataInterfaceHairStrands::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
@@ -2593,11 +2574,6 @@ void UNiagaraDataInterfaceHairStrands::GetVMExternalFunction(const FVMExternalFu
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, HasGlobalInterpolation)::Bind(this, OutFunc);
-	}
-	else if (BindingInfo.Name == HasKinematicsTargetName)
-	{
-		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, HasKinematicsTarget)::Bind(this, OutFunc);
 	}
 }
 
@@ -3215,18 +3191,7 @@ void UNiagaraDataInterfaceHairStrands::HasGlobalInterpolation(FVectorVMContext& 
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{
-		*OutGlobalInterpolation.GetDestAndAdvance() = false;
-	}
-}
-
-void UNiagaraDataInterfaceHairStrands::HasKinematicsTarget(FVectorVMContext& Context)
-{
-	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
-	VectorVM::FExternalFuncRegisterHandler<int32> OutKinematicsTarget(Context);
-
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
-	{
-		*OutKinematicsTarget.GetDestAndAdvance() = InstData->KinematicsTarget;
+		*OutGlobalInterpolation.GetDestAndAdvance() = InstData->GlobalInterpolation;
 	}
 }
 
