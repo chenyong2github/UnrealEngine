@@ -37,6 +37,7 @@ public class Engine : ModuleRules
 				"AutomationWorker",
 				"MovieSceneCapture",
 				"DesktopPlatform",
+				"ShaderCompilerCommon"
 			}
 		);
 
