@@ -490,7 +490,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 
 	// Prevent division by 0 in case there are no renderers.
 	uint32 MaxGPUBufferComponents = 1;
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim)
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim && GbEnableMinimalGPUBuffers)
 	{
 		// CPU emitters only upload the data needed by the renderers to the GPU. Compute the maximum number of components per particle
 		// among all the enabled renderers, since this will decide how many particles we can upload.
