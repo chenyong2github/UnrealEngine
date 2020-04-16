@@ -87,7 +87,7 @@ TSharedPtr<F4ML::FSpace> U4MLActuator_InputKey::ConstructSpaceDef() const
 void U4MLActuator_InputKey::Act(const float DeltaTime)
 {
 	APlayerController* PC = Cast<APlayerController>(GetControllerAvatar());
-	if (PC)
+	if (PC == nullptr)
 	{
 		return;
 	}
