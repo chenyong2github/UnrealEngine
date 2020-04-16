@@ -7,6 +7,7 @@
 #include "Containers/Map.h"
 #include "Containers/Array.h"
 
+#define DDPI_HAS_EXTENDED_PLATFORMINFO_DATA WITH_EDITOR && !IS_MONOLITHIC
 
 struct CORE_API FDataDrivenPlatformInfoRegistry
 {
@@ -37,12 +38,25 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 
 		// NOTE: add more settings here (and read them in in the LoadDDPIIniSettings() function in the .cpp)
 
+
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+		// list of TP names (WindowsNoEditor, etc)
+		TArray<FString> AllTargetPlatformNames;
+		// list of UBT platform names (Win32, Win64, etc)
+		TArray<FString> AllUBTPlatformNames;
+#endif
 	};
 
 	/**
 	* Get the global set of data driven platform information
 	*/
 	static const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& GetAllPlatformInfos();
+
+	/**
+	 * Gets a set of platform names based on GetAllPlatformInfos, their AdditionalRestrictedFolders, and possibly filtered based on what editor has support compiled for
+	 * This is not necessarily the same as IniParents, although there is overlap - IniParents come from chaining DDPIs, so those will be in GetAllPlatformInfos already to be checked 
+	 */
+	static const TArray<FString>& GetValidPlatformDirectoryNames();
 
 	/**
 	 * Get the data driven platform info for a given platform. If the platform doesn't have any on disk,
@@ -65,5 +79,23 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	 * Load the given ini file, and 
 	 */
 	static bool LoadDataDrivenIniFile(int32 Index, FConfigFile& IniFile, FString& PlatformName);
+
+
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+	/**
+	 * Checks for the existence of compiled modules for a given (usually another, target, platform)
+	 * Since there are different types of platform names, it is necessary pass in the type of name
+	 */
+	enum class EPlatformNameType
+	{
+		// for instance Win64
+		UBT,
+		// for instance Windows
+		Ini,
+		// for instance WindowsNoEditor
+		TargetPlatform,
+	};
+	static bool HasCompiledSupportForPlatform(const FString& PlatformName, EPlatformNameType PlatformNameType);
+#endif
 };
 
