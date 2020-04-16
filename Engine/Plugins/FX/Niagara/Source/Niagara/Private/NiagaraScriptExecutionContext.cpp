@@ -382,12 +382,29 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	NumInstancesWithSimStages = 0;
 
 	TotalDispatches = 0;
-	uint8* GlobalParamData = ParamDataBufferPtr;
-	ParamDataBufferPtr += 2 * sizeof(FNiagaraGlobalParameters);
-	uint8* SystemParamData = ParamDataBufferPtr;
-	ParamDataBufferPtr += 2 * sizeof(FNiagaraSystemParameters);
-	uint8* OwnerParamData = ParamDataBufferPtr;
-	ParamDataBufferPtr += 2 * sizeof(FNiagaraOwnerParameters);
+
+	// we want to include interpolation parameters (current and previous frame) if any of the emitters in the system
+	// require it
+	const bool IncludeInterpolationParameters = InSystemInstance->GPUParamIncludeInterpolation;
+	const int32 InterpFactor = IncludeInterpolationParameters ? 2 : 1;
+
+	GlobalParamData = ParamDataBufferPtr;
+	SystemParamData = GlobalParamData + InterpFactor * sizeof(FNiagaraGlobalParameters);
+	OwnerParamData = SystemParamData + InterpFactor * sizeof(FNiagaraSystemParameters);
+
+	// actually copy all of the data over, for the system data we only need to do it once (rather than per-emitter)
+	FMemory::Memcpy(GlobalParamData, &InSystemInstance->GetGlobalParameters(), sizeof(FNiagaraGlobalParameters));
+	FMemory::Memcpy(SystemParamData, &InSystemInstance->GetSystemParameters(), sizeof(FNiagaraSystemParameters));
+	FMemory::Memcpy(OwnerParamData, &InSystemInstance->GetOwnerParameters(), sizeof(FNiagaraOwnerParameters));
+
+	if (IncludeInterpolationParameters)
+	{
+		FMemory::Memcpy(GlobalParamData + sizeof(FNiagaraGlobalParameters), &InSystemInstance->GetGlobalParameters(true), sizeof(FNiagaraGlobalParameters));
+		FMemory::Memcpy(SystemParamData + sizeof(FNiagaraSystemParameters), &InSystemInstance->GetSystemParameters(true), sizeof(FNiagaraSystemParameters));
+		FMemory::Memcpy(OwnerParamData + sizeof(FNiagaraOwnerParameters), &InSystemInstance->GetOwnerParameters(true), sizeof(FNiagaraOwnerParameters));
+	}
+
+	ParamDataBufferPtr = OwnerParamData + InterpFactor * sizeof(FNiagaraOwnerParameters);
 
 	// Now we will generate instance data for every GPU simulation we want to run on the render thread.
 	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
@@ -413,10 +430,21 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 			int32 ParmSize = GPUContext->CombinedParamStore.GetPaddedParameterSizeInBytes();
 
-			InstanceData->GlobalParamData = GlobalParamData;
-			InstanceData->SystemParamData = SystemParamData;
-			InstanceData->OwnerParamData = OwnerParamData;
 			InstanceData->EmitterParamData = ParamDataBufferPtr;
+			ParamDataBufferPtr += InterpFactor * sizeof(FNiagaraEmitterParameters);
+
+			InstanceData->ExternalParamData = ParamDataBufferPtr;
+			ParamDataBufferPtr += ParmSize;
+
+			// actually copy all of the data over
+			FMemory::Memcpy(InstanceData->EmitterParamData, &InSystemInstance->GetEmitterParameters(EmitterIdx), sizeof(FNiagaraEmitterParameters));
+			if (IncludeInterpolationParameters)
+			{
+				FMemory::Memcpy(InstanceData->EmitterParamData + sizeof(FNiagaraEmitterParameters), &InSystemInstance->GetEmitterParameters(EmitterIdx, true), sizeof(FNiagaraEmitterParameters));
+			}
+
+			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, ParmSize);
+
 			UNiagaraEmitter* EmitterRaw = Emitter->GetCachedEmitter();
 			if (EmitterRaw)
 			{
@@ -432,21 +460,6 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			{
 				NumInstancesWithSimStages++;
 			}
-			ParamDataBufferPtr += 2 * sizeof(FNiagaraEmitterParameters);
-			InstanceData->ExternalParamData = ParamDataBufferPtr;
-			ParamDataBufferPtr += ParmSize;
-
-			// actually copy all of the data over
-			FMemory::Memcpy(InstanceData->GlobalParamData, &InSystemInstance->GetGlobalParameters(), sizeof(FNiagaraGlobalParameters));
-			FMemory::Memcpy(InstanceData->GlobalParamData + sizeof(FNiagaraGlobalParameters), &InSystemInstance->GetGlobalParameters(true), sizeof(FNiagaraGlobalParameters));
-			FMemory::Memcpy(InstanceData->SystemParamData, &InSystemInstance->GetSystemParameters(), sizeof(FNiagaraSystemParameters));
-			FMemory::Memcpy(InstanceData->SystemParamData + sizeof(FNiagaraSystemParameters), &InSystemInstance->GetSystemParameters(true), sizeof(FNiagaraSystemParameters));
-			FMemory::Memcpy(InstanceData->OwnerParamData, &InSystemInstance->GetOwnerParameters(), sizeof(FNiagaraOwnerParameters));
-			FMemory::Memcpy(InstanceData->OwnerParamData + sizeof(FNiagaraOwnerParameters), &InSystemInstance->GetOwnerParameters(true), sizeof(FNiagaraOwnerParameters));
-			FMemory::Memcpy(InstanceData->EmitterParamData, &InSystemInstance->GetEmitterParameters(EmitterIdx), sizeof(FNiagaraEmitterParameters));
-			FMemory::Memcpy(InstanceData->EmitterParamData + sizeof(FNiagaraEmitterParameters), &InSystemInstance->GetEmitterParameters(EmitterIdx, true), sizeof(FNiagaraEmitterParameters));
-
-			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, ParmSize);
 
 			check(GPUContext->MaxUpdateIterations > 0);
 			InstanceData->SimStageData.AddZeroed(GPUContext->MaxUpdateIterations);
@@ -486,31 +499,67 @@ void FNiagaraGPUSystemTick::Destroy()
 	}
 }
 
+FUniformBufferRHIRef FNiagaraGPUSystemTick::GetUniformBuffer(EUniformBufferType Type, const FNiagaraComputeInstanceData* Instance, bool Current) const
+{
+	const int32 InterpOffset = Current
+		? 0
+		: (UBT_NumSystemTypes + Count * UBT_NumInstanceTypes);
+
+	if (Instance)
+	{
+		check(Type >= UBT_FirstInstanceType);
+		check(Type < UBT_NumTypes);
+
+		const int32 InstanceTypeIndex = Type - UBT_FirstInstanceType;
+
+		const int32 InstanceIndex = (Instance - GetInstanceData());
+		return UniformBuffers[InterpOffset + UBT_NumSystemTypes + Count * InstanceTypeIndex + InstanceIndex];
+	}
+
+	check(Type >= UBT_FirstSystemType);
+	check(Type < UBT_FirstInstanceType);
+
+	return UniformBuffers[InterpOffset + Type];
+}
+
+const uint8* FNiagaraGPUSystemTick::GetUniformBufferSource(EUniformBufferType Type, const FNiagaraComputeInstanceData* Instance, bool Current) const
+{
+	check(Type >= UBT_FirstSystemType);
+	check(Type < UBT_NumTypes);
+
+	switch (Type)
+	{
+		case UBT_Global:
+			return GlobalParamData + (Current ? 0 : sizeof(FNiagaraGlobalParameters));
+		case UBT_System:
+			return SystemParamData + (Current ? 0 : sizeof(FNiagaraSystemParameters));
+		case UBT_Owner:
+			return OwnerParamData + (Current ? 0 : sizeof(FNiagaraOwnerParameters));
+		case UBT_Emitter:
+		{
+			check(Instance);
+			return Instance->EmitterParamData + (Current ? 0 : sizeof(FNiagaraEmitterParameters));
+		}
+		case UBT_External:
+		{
+			check(Instance);
+			return Instance->ExternalParamData + (Current ? 0 : Instance->Context->ExternalCBufferLayout.ConstantBufferSize);
+		}
+	}
+
+	return nullptr;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	: MainDataSet(nullptr)
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
-	, GlobalCBufferLayout(TEXT("Niagara GPU Global CBuffer"))
-	, SystemCBufferLayout(TEXT("Niagara GPU System CBuffer"))
-	, OwnerCBufferLayout(TEXT("Niagara GPU Owner CBuffer"))
-	, EmitterCBufferLayout(TEXT("Niagara GPU Emitter CBuffer"))
 	, ExternalCBufferLayout(TEXT("Niagara GPU External CBuffer"))
 	, DataToRender(nullptr)
 
 {
-	GlobalCBufferLayout.ConstantBufferSize = sizeof(FNiagaraGlobalParameters);
-	GlobalCBufferLayout.ComputeHash();
-
-	SystemCBufferLayout.ConstantBufferSize = sizeof(FNiagaraSystemParameters);
-	SystemCBufferLayout.ComputeHash();
-
-	OwnerCBufferLayout.ConstantBufferSize = sizeof(FNiagaraOwnerParameters);
-	OwnerCBufferLayout.ComputeHash();
-
-	EmitterCBufferLayout.ConstantBufferSize = sizeof(FNiagaraEmitterParameters);
-	EmitterCBufferLayout.ComputeHash();
 }
 
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()

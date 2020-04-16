@@ -258,10 +258,6 @@ public:
 	class FNiagaraShaderScript*  GPUScript_RT;
 
 	// persistent layouts used to create the constant buffers for the compute sim shader
-	FRHIUniformBufferLayout GlobalCBufferLayout;
-	FRHIUniformBufferLayout SystemCBufferLayout;
-	FRHIUniformBufferLayout OwnerCBufferLayout;
-	FRHIUniformBufferLayout EmitterCBufferLayout;
 	FRHIUniformBufferLayout ExternalCBufferLayout;
 
 	//Dynamic state updated either from GT via RT commands or from the RT side sim code itself.
@@ -340,9 +336,6 @@ struct FNiagaraSimStageData
 struct FNiagaraComputeInstanceData
 {
 	FNiagaraGpuSpawnInfo SpawnInfo;
-	uint8* GlobalParamData = nullptr;
-	uint8* SystemParamData = nullptr;
-	uint8* OwnerParamData = nullptr;
 	uint8* EmitterParamData = nullptr;
 	uint8* ExternalParamData = nullptr;
 	FNiagaraComputeExecutionContext* Context = nullptr;
@@ -376,27 +369,49 @@ struct FNiagaraComputeInstanceData
 class FNiagaraGPUSystemTick
 {
 public:
-	FNiagaraGPUSystemTick()
-		: Count(0)
-		, DIInstanceData(nullptr)
-		, InstanceData_ParamData_Packed(nullptr)
-	{}
-
 	void Init(FNiagaraSystemInstance* InSystemInstance);
 	void Destroy();
 
 	FORCEINLINE bool IsValid()const{ return InstanceData_ParamData_Packed != nullptr; }
 	FORCEINLINE FNiagaraComputeInstanceData* GetInstanceData()const{ return reinterpret_cast<FNiagaraComputeInstanceData*>(InstanceData_ParamData_Packed); }
 
-	uint32 Count;
-	uint32 TotalDispatches;
-	FNiagaraSystemInstanceID SystemInstanceID;
-	FNiagaraDataInterfaceInstanceData* DIInstanceData;
-	uint8* InstanceData_ParamData_Packed;
+	enum EUniformBufferType
+	{
+		UBT_FirstSystemType = 0,
+		UBT_Global = UBT_FirstSystemType,
+		UBT_System,
+		UBT_Owner,
+		UBT_NumSystemTypes,
+
+		UBT_FirstInstanceType = UBT_NumSystemTypes,
+		UBT_Emitter = UBT_FirstInstanceType,
+		UBT_External,
+
+		UBT_NumTypes,
+
+		UBT_NumInstanceTypes = UBT_NumTypes - UBT_NumSystemTypes,
+	};
+
+	FUniformBufferRHIRef GetUniformBuffer(EUniformBufferType Type, const FNiagaraComputeInstanceData* InstanceData, bool Previous) const;
+	const uint8* GetUniformBufferSource(EUniformBufferType Type, const FNiagaraComputeInstanceData* InstanceData, bool Previous) const;
+
+public:
+	// Transient data used by the RT
+	TArray<FUniformBufferRHIRef> UniformBuffers;
+
+	// data assigned by GT
+	FNiagaraSystemInstanceID SystemInstanceID = 0LL;
+	FNiagaraDataInterfaceInstanceData* DIInstanceData = nullptr;
+	uint8* InstanceData_ParamData_Packed = nullptr;
+	uint8* GlobalParamData = nullptr;
+	uint8* SystemParamData = nullptr;
+	uint8* OwnerParamData = nullptr;
+	uint32 Count = 0;
+	uint32 TotalDispatches = 0;
+	uint32 NumInstancesWithSimStages = 0;
 	bool bRequiresDistanceFieldData = false;
 	bool bRequiresDepthBuffer = false;
 	bool bRequiresEarlyViewData = false;
 	bool bNeedsReset = false;
 	bool bIsFinalTick = false;
-	uint32 NumInstancesWithSimStages = 0;
 };
