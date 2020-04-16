@@ -1622,6 +1622,8 @@ void USoundWave::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPla
 
 void USoundWave::WillNeverCacheCookedPlatformDataAgain()
 {
+	FinishCachePlatformData();
+
 	// this is called after we have finished caching the platform data but before we have saved the data
 	// so need to keep the cached platform data around
 	Super::WillNeverCacheCookedPlatformDataAgain();
