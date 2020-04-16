@@ -103,6 +103,7 @@ private:
 	void HandleJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type JoinSessionResult);
 	void HandleDestroySessionComplete(FName SessionName, bool bWasSuccessful);
 	bool HandleRetryEstablishingSession(float);
+	void HandleSessionFailure(const FUniqueNetId& LocalUserId, ESessionFailure::Type FailureType);
 
 	bool HandleQueuedSessionUpdate(float);
 
@@ -115,8 +116,6 @@ private:
 
 	/** Last session id we attempted to find to prevent repeated failures to find the same session */
 	TOptional<FSessionId> LastAttemptedFindSessionId;
-
-	bool bIsSessionMissing = false;
 
 	/** Do we have a console session update queued? */
 	bool bHasQueuedSessionUpdate = false;

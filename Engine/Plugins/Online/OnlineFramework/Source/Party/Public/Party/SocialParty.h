@@ -205,6 +205,7 @@ PARTY_SCOPE:
 	bool IsCurrentlyLeaving() const;
 
 	void SetIsMissingPlatformSession(bool bInIsMissingPlatformSession);
+	bool IsMissingPlatformSession() { return bIsMissingPlatformSession; }
 
 	FPartyRepData& GetMutableRepData() { return *PartyDataReplicator; }
 
