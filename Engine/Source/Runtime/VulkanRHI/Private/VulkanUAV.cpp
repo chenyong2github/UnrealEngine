@@ -79,8 +79,10 @@ void FVulkanShaderResourceView::UpdateView()
 		{
 			VkBuffer SourceVolatileBufferHandle = SourceBuffer->GetHandle();
 
-			//Inherit Size from volatile buffer, as it might change
-			Size = SourceBuffer->GetVolatileLockSize();
+			// If the volatile buffer shrinks, make sure our size doesn't exceed the new limit.
+			uint32 AvailableSize = SourceBuffer->GetVolatileLockSize();
+			AvailableSize = Offset < AvailableSize ? AvailableSize - Offset : 0;
+			Size = FMath::Min(Size, AvailableSize);
 
 			// We might end up with the same BufferView, so do not recreate in that case
 			if (!BufferViews[0] 
