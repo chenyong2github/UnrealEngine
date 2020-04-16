@@ -371,7 +371,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static int64 Multiply_Int64Int64(int64 A, int64 B);
 
 	/** Division (A / B) */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer64 / integer64", CompactNodeTitle = "/", Keywords = "/ divide division"), Category="Math|Integer")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer64 / integer64", CompactNodeTitle = "/", Keywords = "/ divide division"), Category="Math|Integer64")
 	static int64 Divide_Int64Int64(int64 A, int64 B = 1);
 	
 	/** Addition (A + B) */
