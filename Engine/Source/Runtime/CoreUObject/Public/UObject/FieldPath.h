@@ -248,7 +248,7 @@ public:
 
 	FString ToString() const;
 
-	friend FArchive& operator<<(FArchive& Ar, FFieldPath& InOutPropertyPath);
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FFieldPath& InOutPropertyPath);
 
 	/** Hash function. */
 	FORCEINLINE friend uint32 GetTypeHash(const FFieldPath& InPropertyPath)
