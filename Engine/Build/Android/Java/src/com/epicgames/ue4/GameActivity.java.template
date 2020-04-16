@@ -203,6 +203,7 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputConnectionWrapper;
 import android.util.AttributeSet;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
@@ -2275,10 +2276,10 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 					}
 					
 					// Centering background image by default
-					View decorView = mSplashDialog.getWindow().getDecorView();
-					BitmapDrawable SplashBitmap = (BitmapDrawable)decorView.getBackground();
-					if (SplashBitmap != null)
+					Drawable BackgroundDrawable = mSplashDialog.getWindow().getDecorView().getBackground();
+					if (BackgroundDrawable != null && BackgroundDrawable instanceof BitmapDrawable)
 					{
+						BitmapDrawable SplashBitmap = (BitmapDrawable)BackgroundDrawable;
 						SplashBitmap.setGravity(android.view.Gravity.CENTER);
 					}
 					
