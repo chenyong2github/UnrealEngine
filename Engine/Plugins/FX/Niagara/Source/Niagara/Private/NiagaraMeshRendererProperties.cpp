@@ -66,8 +66,6 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	AttributeBindings.Add(&MaterialRandomBinding);
 	AttributeBindings.Add(&CustomSortingBinding);
 	AttributeBindings.Add(&NormalizedAgeBinding);
-	AttributeBindings.Add(&CameraOffsetBinding);
-	AttributeBindings.Add(&RendererVisibilityTagBinding);
 }
 
 FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
