@@ -9,6 +9,8 @@
 IMPLEMENT_MODULE(FDefaultModuleImpl, ShaderCompilerCommon);
 
 
+ESCWErrorCode GSCWErrorCode = ESCWErrorCode::NotSet;
+
 int16 GetNumUniformBuffersUsed(const FShaderCompilerResourceTable& InSRT)
 {
 	auto CountLambda = [&](const TArray<uint32>& In)
