@@ -619,6 +619,10 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 			{
 				DeviceType = IOS_IPhone11ProMax;
 			}
+			else if (Minor == 8)
+			{
+				DeviceType = IOS_IPhoneSE2;
+			}
 		}
 		else if (Major >= 13)
 		{

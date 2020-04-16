@@ -282,6 +282,7 @@ EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensit
 	case FPlatformMisc::IOS_IPhone8:
     case FPlatformMisc::IOS_IPhoneXR:
 	case FPlatformMisc::IOS_IPhone11:
+	case FPlatformMisc::IOS_IPhoneSE2:
 		ScreenDensity = 326;
 		Accuracy = EScreenPhysicalAccuracy::Truth;
 		break;
