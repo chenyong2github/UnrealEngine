@@ -135,12 +135,13 @@ namespace UnrealBuildTool
 		/// <param name="InOnlyGameProject"></param>
 		/// <param name="IsForDistribution">True for distribution builds</param>
 		/// <param name="BundleID">Override option for bundle identifier</param>
-		public XcodeProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject, bool IsForDistribution, string BundleID)
+		public XcodeProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject, bool IsForDistribution, string BundleID, string InAppName)
 			: base(InitFilePath)
 		{
 			//OnlyGameProject = InOnlyGameProject;
 			bForDistribution = IsForDistribution;
 			BundleIdentifier = BundleID;
+			AppName = InAppName;
 		}
 
 		public override string ToString()
@@ -157,6 +158,11 @@ namespace UnrealBuildTool
 		/// Override for bundle identifier
 		/// </summary>
 		string BundleIdentifier = "";
+
+		/// <summary>
+		/// Override AppName
+		/// </summary>
+		string AppName = "";
 
 		/// <summary>
 		/// Gets Xcode file category based on its extension
@@ -1232,6 +1238,7 @@ namespace UnrealBuildTool
 						DirectoryReference ProjectPath = GameDir;
 						DirectoryReference EngineDir = DirectoryReference.Combine(new DirectoryReference(UE4Dir), "Engine");
 						string GameName = Config.BuildTarget;
+						bool bIsClient = false;
 						if (ProjectPath == null)
 						{
 							ProjectPath = EngineDir;
@@ -1240,6 +1247,7 @@ namespace UnrealBuildTool
 						{
 							ProjectPath = EngineDir;
 							GameName = "UE4Game";
+							bIsClient = (AppName == "UE4Client");
 						}
 
 						if (bCreateMacInfoPlist)
@@ -1265,12 +1273,12 @@ namespace UnrealBuildTool
 							TargetReceipt.TryRead(ReceiptFilename, out Receipt);
 							VersionNumber SdkVersion = UEDeployIOS.GetSdkVersion(Receipt);
 							bool bBuildAsFramework = UEDeployIOS.GetCompileAsDll(Receipt);
-							UEDeployIOS.GenerateIOSPList(ProjectFile, Config.BuildConfig, ProjectPath.FullName, bIsUE4Game, GameName, false, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/IOS/Payload", SdkVersion, null, BundleIdentifier, bBuildAsFramework, out bSupportPortrait, out bSupportLandscape, out bSkipIcons);
+							UEDeployIOS.GenerateIOSPList(ProjectFile, Config.BuildConfig, ProjectPath.FullName, bIsUE4Game, GameName, bIsClient, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/IOS/Payload", SdkVersion, null, BundleIdentifier, bBuildAsFramework, out bSupportPortrait, out bSupportLandscape, out bSkipIcons);
 						}
 						if (bCreateTVOSInfoPlist)
 						{
 							Directory.CreateDirectory(Path.GetDirectoryName(TVOSInfoPlistPath));
-							UEDeployTVOS.GenerateTVOSPList(ProjectPath.FullName, bIsUE4Game, GameName, false, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/TVOS/Payload", null, BundleIdentifier);
+							UEDeployTVOS.GenerateTVOSPList(ProjectPath.FullName, bIsUE4Game, GameName, bIsClient, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/TVOS/Payload", null, BundleIdentifier);
 						}
 					}
 				}

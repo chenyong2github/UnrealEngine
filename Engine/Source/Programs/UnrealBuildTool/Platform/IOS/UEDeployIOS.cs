@@ -209,7 +209,10 @@ namespace UnrealBuildTool
 			string OldPListData = File.Exists(PListFile) ? File.ReadAllText(PListFile) : "";
 
 			string LaunchStoryboard = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboard";
-			if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard"))			{				LaunchStoryboard = BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard";			}
+			if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard"))
+			{
+				LaunchStoryboard = BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard";
+			}
 
 			// get the settings from the ini file
 			// plist replacements
@@ -424,11 +427,9 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<key>CFBundleDisplayName</key>");
 			Text.AppendLine(string.Format("\t<string>{0}</string>", EncodeBundleName(BundleDisplayName, ProjectName)));
 			Text.AppendLine("\t<key>CFBundleExecutable</key>");
-			string BundleExecutable = bIsUE4Game ? "UE4Game" : GameName;
-			if (bIsClient)
-			{
-				BundleExecutable += "Client";
-			}
+			string BundleExecutable = bIsUE4Game ?
+				(bIsClient ? "UE4Client" : "UE4Game") :
+				(bIsClient ? GameName + "Client" : GameName);
 			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleExecutable));
 			Text.AppendLine("\t<key>CFBundleIdentifier</key>");
 			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleIdentifier.Replace("[PROJECT_NAME]", ProjectName).Replace("_", "")));
