@@ -5146,7 +5146,7 @@ static int32 InitFromProperty_r(
 
 				FInitFromPropertyStackParams NewStackParams{
 					/*Property=*/NetProperties[i],
-					/*Offset=*/StackParams.Offset + GetOffsetForProperty<BuildType>(*StructProp),
+					/*Offset=*/StackParams.Offset + GetOffsetForProperty<BuildType>(*StructProp) + ArrayElementOffset,
 					/*RelativeHandle=*/StackParams.RelativeHandle,
 					/*ParentChecksum=*/StructChecksum,
 					/*StaticArrayIndex=*/j
