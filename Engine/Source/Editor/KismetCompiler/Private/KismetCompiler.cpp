@@ -2547,11 +2547,6 @@ void FKismetCompilerContext::FinishCompilingClass(UClass* Class)
 		UBlueprintGeneratedClass* BPGClass = Cast<UBlueprintGeneratedClass>(Class);
 		check(BPGClass);
 
-		BPGClass->ComponentTemplates.Empty();
-		BPGClass->Timelines.Empty();
-		BPGClass->SimpleConstructionScript = NULL;
-		BPGClass->InheritableComponentHandler = NULL;
-
 		BPGClass->ComponentTemplates = Blueprint->ComponentTemplates;
 		BPGClass->Timelines = Blueprint->Timelines;
 		BPGClass->SimpleConstructionScript = Blueprint->SimpleConstructionScript;
