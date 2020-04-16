@@ -2313,11 +2313,6 @@ public:
 		DynamicVertexBuffer = InDynamicVertexBuffer;
 		DynamicReadBuffer = InDynamicReadBuffer;
 	}
-
-	~FRayTracingMeshResourceCollector()
-	{
-		FMeshElementCollector::~FMeshElementCollector();
-	}
 };
 
 struct FRayTracingDynamicGeometryUpdateParams
