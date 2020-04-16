@@ -205,6 +205,9 @@ struct CHAOS_API ISpatialAccelerationCollectionFactory
 	//Create an empty acceleration collection with the desired buckets. Chaos enqueues acceleration structure operations per bucket
 	virtual TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>> CreateEmptyCollection() = 0;
 
+	// Determines if bucket implements time slicing.
+	virtual bool IsBucketTimeSliced(uint16 BucketIdx) const = 0;
+
 	//Chaos creates new acceleration structures per bucket. Factory can change underlying type at runtime as well as number of buckets to AB test
 	virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<FSpatialAccelerationCache>& Particles, uint16 BucketIdx, bool ForceFullBuild) = 0;
 
