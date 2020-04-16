@@ -20,20 +20,19 @@
 #include "RPCWrapper/Server.h"
 
 
-void U4MLManager::ConfigureAsServer()
+void U4MLManager::ConfigureAsServer(FRPCServer& Server)
 {
 	UE_LOG(LogUE4ML, Log, TEXT("\tconfiguring as server"));
 
-	AddCommonFunctions();
+	AddCommonFunctions(Server);
 
 #if WITH_RPCLIB
-
-	AddClientFunctionBind(UE4_RPC_BIND("enable_manual_world_tick", [this](bool bEnable) {
+	Server.bind("enable_manual_world_tick", [this](bool bEnable) {
 		SetManualWorldTickEnabled(bEnable);
-	})
-		, TEXT("(), Controlls whether the world is running real time or it\'s being ticked manually with calls to \'step\' or \'request_world_tick\' functions. Default is \'real time\'."));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("enable_manual_world_tick"), TEXT("(), Controlls whether the world is running real time or it\'s being ticked manually with calls to \'step\' or \'request_world_tick\' functions. Default is \'real time\'."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("request_world_tick", [this](int32 TickCount, bool bWaitForWorldTick) {
+	Server.bind("request_world_tick", [this](int32 TickCount, bool bWaitForWorldTick) {
 		if (bTickWorldManually == false)
 		{
 			return;
@@ -44,14 +43,16 @@ void U4MLManager::ConfigureAsServer()
 			FPlatformProcess::Sleep(0.f);
 		}
 		return;
-	})
-		, TEXT("(bool bWaitForWorldTick), Requests a single world tick. This has meaning only if \'enable_manual_world_tick(true)\' has been called prior to this function. If bWaitForWorldTick is true then the call will not return until the world has been ticked"));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("request_world_tick"), TEXT("(int TickCount, bool bWaitForWorldTick), Requests a TickCount world ticks. This has meaning only if \'enable_manual_world_tick(true)\' has been called prior to this function. If bWaitForWorldTick is true then the call will not return until the world has been ticked required number of times"));
 
+	Server.bind("close_session", [this]() { U4MLManager::Get().SetSession(nullptr); });
+	Librarian.AddRPCFunctionDescription(TEXT("close_session"), TEXT("(), shuts down the current session (along with all the agents)."));
 #endif // WITH_RPCLIB
 
 	if (Session)
 	{
 		Session->ConfigureAsServer();
 	}
-	OnAddServerFunctions.Broadcast();
+	OnAddServerFunctions.Broadcast(Server);
 }

@@ -38,8 +38,7 @@ class UE4ML_API U4MLManager : public UObject, public FTickableGameObject, public
 	GENERATED_BODY()
 public:
 	using FRPCFunctionBind = TFunction<void(FRPCServer&/*RPCServer*/)>;
-	typedef TMap<FName, TTuple<FRPCFunctionBind, FString> > FRPCFunctionMap;
-	DECLARE_MULTICAST_DELEGATE(FOnGenericRPCServerDelegate);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGenericRPCServerDelegate, FRPCServer& /*Server*/);
 	DECLARE_MULTICAST_DELEGATE(FOnGenericEvent);
 	
 	U4MLManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
@@ -77,11 +76,11 @@ public:
 	virtual void StopServer();
 	virtual bool IsRunning() const;
 
-	virtual void ConfigureAsServer();
+	virtual void ConfigureAsServer(FRPCServer& Server);
 	/** "Client" in this context means UE4 game client, not RPC client */
-	virtual void ConfigureAsClient();
+	virtual void ConfigureAsClient(FRPCServer& Server);
 	/** Essentially calls both the server and client versions */
-	virtual void ConfigureAsStandalone();
+	virtual void ConfigureAsStandalone(FRPCServer& Server);
 
 	/** if given World doesn't have an AI system this call results in creating one */
 	virtual void EnsureAISystemPresence(UWorld& World);
@@ -106,12 +105,6 @@ public:
 	FOnGenericRPCServerDelegate& GetOnAddClientFunctions() { return OnAddClientFunctions; }
 	FOnGenericRPCServerDelegate& GetOnAddServerFunctions() { return OnAddServerFunctions; }
 
-	FRPCFunctionMap::TConstIterator GetAvailableClientFunctionsIterator() const { return AvailableClientFunctions.CreateConstIterator(); }
-	FRPCFunctionMap::TConstIterator GetAvailableServerFunctionsIterator() const { return AvailableServerFunctions.CreateConstIterator(); }
-
-	void AddClientFunctionBind(FName FunctionName, FRPCFunctionBind&& FunctionBind, const FString& Description = TEXT(""));
-	void AddServerFunctionBind(FName FunctionName, FRPCFunctionBind&& FunctionBind, const FString& Description = TEXT("")); 
-	
 	FORCEINLINE static U4MLManager& Get();
 	FORCEINLINE static bool IsReady();
 
@@ -123,21 +116,10 @@ public:
 
 protected:
 
-	void AddCommonFunctions();
-
-	/** adds functions accumulated in AvailableClientFunctions and AvailableServerFunctions
-	 *	to the RPC server instance*/
-	void CommitFunctions(FRPCServer& RPCServer);
-
-	friend F4MLLibrarian;
-	const FRPCFunctionMap& GetAvailableClientFunctions() const { return AvailableClientFunctions; }
-	const FRPCFunctionMap& GetAvailableServerFunctions() const { return AvailableServerFunctions; }
+	void AddCommonFunctions(FRPCServer& Server);
 
 protected:	
 	friend struct F4MLConsoleCommands::FHelper;
-
-	FRPCFunctionMap AvailableClientFunctions;
-	FRPCFunctionMap AvailableServerFunctions;
 
 	UPROPERTY()
 	U4MLSession* Session;

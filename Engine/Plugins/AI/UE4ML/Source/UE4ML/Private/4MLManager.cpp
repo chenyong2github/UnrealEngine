@@ -190,25 +190,24 @@ void U4MLManager::StartServer(uint16 Port, EUE4MLServerMode InMode, uint16 Serve
 	switch (NewMode)
 	{
 	case EUE4MLServerMode::Client:
-		ConfigureAsClient();
+		ConfigureAsClient(*RPCServerInstance);
 		break;
 	case EUE4MLServerMode::Server:
-		ConfigureAsServer();
+		ConfigureAsServer(*RPCServerInstance);
 		break;
 	default:
-		ConfigureAsClient();
-		ConfigureAsServer();
+		ConfigureAsClient(*RPCServerInstance);
+		ConfigureAsServer(*RPCServerInstance);
 		break;
 	}
-	CommitFunctions(*RPCServerInstance);
 	CurrentServerThreads = ServerThreads;
 	RPCServerInstance->async_run(ServerThreads);
 }
 
-void U4MLManager::ConfigureAsStandalone()
+void U4MLManager::ConfigureAsStandalone(FRPCServer& Server)
 {
-	ConfigureAsServer();
-	ConfigureAsClient();
+	ConfigureAsServer(Server);
+	ConfigureAsClient(Server);
 }
 
 void U4MLManager::EnsureAISystemPresence(UWorld& World)
@@ -480,28 +479,6 @@ bool U4MLManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& A
 	}
 
 	return false;
-}
-
-void U4MLManager::AddClientFunctionBind(FName FunctionName, FRPCFunctionBind&& FunctionBind, const FString& Description)
-{
-	AvailableClientFunctions.Add(FunctionName, TTuple<FRPCFunctionBind, FString>(FunctionBind, Description)); 
-}
-
-void U4MLManager::AddServerFunctionBind(FName FunctionName, FRPCFunctionBind&& FunctionBind, const FString& Description)
-{
-	AvailableServerFunctions.Add(FunctionName, TTuple<FRPCFunctionBind, FString>(FunctionBind, Description));
-}
-
-void U4MLManager::CommitFunctions(FRPCServer& RPCServer)
-{
-	for (auto FunctionBind : AvailableClientFunctions)
-	{
-		FunctionBind.Value.Get<0>()(RPCServer);
-	}
-	for (auto FunctionBind : AvailableServerFunctions)
-	{
-		FunctionBind.Value.Get<0>()(RPCServer);
-	}
 }
 
 namespace F4MLConsoleCommands

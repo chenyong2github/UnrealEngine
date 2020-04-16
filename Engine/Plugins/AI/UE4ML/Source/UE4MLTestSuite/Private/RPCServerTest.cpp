@@ -56,21 +56,21 @@ struct FRPCTest_BasicBinds : public FRPCTestBase
 	// wait for any of the functions to get called checking CallCount
 	// virtual bool Update() override
 
-	virtual void SetUpClientBinds() override
+	virtual void SetUpClientBinds(FRPCServer& Server) override
 	{
-		U4MLManager::Get().AddClientFunctionBind(UE4_RPC_BIND("client_foo", [this]()
+		Server.bind("client_foo", [this]()
 		{
 			bClientFooCalled = true; 
 			++CallCount;
-		}));
+		});
 	}
-	virtual void SetUpServerBinds() override
+	virtual void SetUpServerBinds(FRPCServer& Server) override
 	{
-		U4MLManager::Get().AddServerFunctionBind(UE4_RPC_BIND("server_foo", [this]()
+		Server.bind("server_foo", [this]()
 		{ 
 			bServerFooCalled = true; 
 			++CallCount;
-		}));
+		});
 	}
 	virtual void TearDown() override
 	{

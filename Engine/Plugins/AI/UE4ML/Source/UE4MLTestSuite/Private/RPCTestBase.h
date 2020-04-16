@@ -28,18 +28,18 @@ struct FRPCTestBase : public FAITestBase
 
 	FRPCTestBase()
 	{
-		BindClientHandle = U4MLManager::Get().GetOnAddClientFunctions().AddLambda([this]()
+		BindClientHandle = U4MLManager::Get().GetOnAddClientFunctions().AddLambda([this](FRPCServer& Server)
 		{
-			SetUpClientBinds();
+			SetUpClientBinds(Server);
 		});
-		BindServerHandle = U4MLManager::Get().GetOnAddServerFunctions().AddLambda([this]()
+		BindServerHandle = U4MLManager::Get().GetOnAddServerFunctions().AddLambda([this](FRPCServer& Server)
 		{
-			SetUpServerBinds();
+			SetUpServerBinds(Server);
 		});
 	}
 
-	virtual void SetUpClientBinds() {}
-	virtual void SetUpServerBinds() {}
+	virtual void SetUpClientBinds(FRPCServer& Server) {}
+	virtual void SetUpServerBinds(FRPCServer& Server) {}
 	
 	virtual void TearDown() override;
 };

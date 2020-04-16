@@ -33,11 +33,8 @@ namespace F4MLScribe
 	std::vector<std::string> ListFunctions()
 	{
 		std::vector<std::string> Ret;
-		for (auto It = U4MLManager::Get().GetAvailableClientFunctionsIterator(); It; ++It)
-		{
-			Ret.push_back(FSTRING_TO_STD(It->Key.ToString()));
-		}
-		for (auto It = U4MLManager::Get().GetAvailableServerFunctionsIterator(); It; ++It)
+		const F4MLLibrarian& Librarian = F4MLLibrarian::Get();
+		for (TMap<FName, FString>::TConstIterator It = Librarian.GetFunctionDescriptionsIterator(); It; ++It)
 		{
 			Ret.push_back(FSTRING_TO_STD(It->Key.ToString()));
 		}

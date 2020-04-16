@@ -25,7 +25,7 @@
 } \
 
 
-void U4MLManager::AddCommonFunctions()
+void U4MLManager::AddCommonFunctions(FRPCServer& Server)
 {
 	if (bCommonFunctionsAdded)
 	{
@@ -33,44 +33,45 @@ void U4MLManager::AddCommonFunctions()
 	}
 
 #if WITH_RPCLIB
+	Server.bind("list_functions", &F4MLScribe::ListFunctions);
+	Librarian.AddRPCFunctionDescription(TEXT("list_functions"), TEXT("(), Lists all functions available through RPC"));
 
-	AddClientFunctionBind(UE4_RPC_BIND("list_functions", &F4MLScribe::ListFunctions)
-		, TEXT("(), Lists all functions available through RPC"));
-
-	AddClientFunctionBind(UE4_RPC_BIND("get_description", [](std::string const& ElementName) {
+	Server.bind("get_description", [](std::string const& ElementName) {
 		return F4MLScribe::GetDescription(ElementName);
-	})
-		, TEXT("(string ElementName), Describes given element"));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("get_description"), TEXT("(string ElementName), Describes given element"));
 
-	AddClientFunctionBind(UE4_RPC_BIND("list_sensor_types", &F4MLScribe::ListSensorTypes)
-		, TEXT("(), Lists all sensor types available to agents. Note that some of sensors might not make sense in a given environment (like reading keyboard in an mouse-only game)."));
+	Server.bind("list_sensor_types", &F4MLScribe::ListSensorTypes);
+	Librarian.AddRPCFunctionDescription(TEXT("list_sensor_types"), TEXT("(), Lists all sensor types available to agents. Note that some of sensors might not make sense in a given environment (like reading keyboard in an mouse-only game)."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("list_actuator_types", &F4MLScribe::ListActuatorTypes)
-		, TEXT("(), Lists all actuator types available to agents. Note that some of actuators might not make sense in a given environment (like faking keyboard actions in an mouse-only game)."));
+	Server.bind("list_actuator_types", &F4MLScribe::ListActuatorTypes);
+	Librarian.AddRPCFunctionDescription(TEXT("list_actuator_types"), TEXT("(), Lists all actuator types available to agents. Note that some of actuators might not make sense in a given environment (like faking keyboard actions in an mouse-only game)."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("ping", []() {
-		return true;
-	})
-		, TEXT("(), Checks if the RPC server is still alive and responding."));
+	Server.bind("ping", []() { return true; });
+	Librarian.AddRPCFunctionDescription(TEXT("ping"), TEXT("(), Checks if the RPC server is still alive and responding."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("get_name", []() {
+	Server.bind("get_name", []() {
 		return std::string(TCHAR_TO_UTF8(GInternalProjectName));
-	})
-		, TEXT("(), Fetches a readable identifier of the environment the external client is connected to.")); 
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("get_name"), TEXT("(), Fetches a human-readable identifier of the environment the external client is connected to."));
 
-	AddClientFunctionBind(TEXT("is_finished"), [this](FRPCServer& Serv) { Serv.bind("is_finished", [this](F4ML::FAgentID AgentID) 
-	{
+	Server.bind("is_finished", [this](F4ML::FAgentID AgentID) {
 		return HasSession() == false || GetSession().IsDone() || GetSession().GetAgent(AgentID) == nullptr 
 			|| GetSession().GetAgent(AgentID)->IsDone();
-	});}
-		, TEXT("(), Checks if the game/simulation/episode is done."));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("is_finished"), TEXT("(agent_id), Checks if the game/simulation/episode is done for given agent_id."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("batch_is_finished", [this](std::vector<F4ML::FAgentID> AgentIDs) {
+	Server.bind("exit", []() {
+		FPlatformMisc::RequestExit(/*bForce=*/false);
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("exit"), TEXT("(), Closes the UE4 instance."));
+	
+	Server.bind("batch_is_finished", [this](std::vector<F4ML::FAgentID> AgentIDs) {
 		std::vector<bool> Results;
 		if (HasSession() == false || GetSession().IsDone())
 		{
 			for (int Index = 0; Index < AgentIDs.size(); ++Index)
-			{ 
+			{
 				Results.push_back(true);
 			}
 		}
@@ -84,72 +85,49 @@ void U4MLManager::AddCommonFunctions()
 			}
 		}
 		return Results;
-	})
-		, TEXT("(), Multi-agent version of is_finished"));
-
-	AddClientFunctionBind(UE4_RPC_BIND("exit", []() {
-		FPlatformMisc::RequestExit(/*bForce=*/false);
-	})
-		, TEXT("(), Closes the UE4 instance."));
-
-	AddClientFunctionBind(UE4_RPC_BIND("close_session", [this]() {
-		U4MLManager::Get().SetSession(nullptr);
-	})
-		, TEXT("(), Checks if the game/simulation/episode is done."));
-
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("batch_is_finished"), TEXT("(), Multi-agent version of is_finished"));
 #endif // WITH_RPCLIB
 
 	bCommonFunctionsAdded = true;
 }
 
-void U4MLManager::ConfigureAsClient()
+void U4MLManager::ConfigureAsClient(FRPCServer& Server)
 {
 	UE_LOG(LogUE4ML, Log, TEXT("\tconfiguring as client"));
 
-	AddCommonFunctions();
+	AddCommonFunctions(Server);
 
 #if WITH_RPCLIB
-	AddClientFunctionBind(UE4_RPC_BIND("add_agent", [this]() {
+	Server.bind("add_agent", [this]() {
 		return CallOnGameThread<F4ML::FAgentID>([this]()
 		{
 			return GetSession().AddAgent();
 		});
-	})
-		, TEXT("Adds a default agent for current environment. Returns added agent's ID if successful, uint(-1) if failed."));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("add_agent"), TEXT("Adds a default agent for current environment. Returns added agent's ID if successful, uint(-1) if failed."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("get_agent_config", [this](F4ML::FAgentID AgentID) {
+	Server.bind("get_agent_config", [this](F4ML::FAgentID AgentID) {
 		CHECK_AGENTID(AgentID);
 		const F4MLAgentConfig& Config = GetSession().GetAgent(AgentID)->GetConfig();
 		return FSTRING_TO_STD(F4ML::StructToJsonString(Config));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("get_agent_config"), TEXT("(uint AgentID), Retrieves given agent's config in JSON formatted string"));
 
-	})
-		, TEXT("(uint AgentID), Retrieved given agent's config in JSON formatted string"));
-
-	AddClientFunctionBind(UE4_RPC_BIND("actions", [this](std::vector<float> ValueStream) {
-		FString All;
-		for (auto A : ValueStream)
-		{
-			All += FString::Printf(TEXT("%.2f, "), A);
-		}
-		UE_LOG(LogUE4ML, Log, TEXT("%s"), *All);
-	})
-		, TEXT(""));
-
-	AddClientFunctionBind(UE4_RPC_BIND("act", [this](F4ML::FAgentID AgentID, std::vector<float> ValueStream) {
+	Server.bind("act", [this](F4ML::FAgentID AgentID, std::vector<float> ValueStream) {
 		CHECK_AGENTID(AgentID);
 		U4MLAgent* Agent = GetSession().GetAgent(AgentID);
 		check(Agent);
-		//Agent->Act(std::vector<float> ValueStream);
 
 		const uint8* DataPtr = (const uint8*)ValueStream.data();
 		TArray<uint8> Buffer;
 		Buffer.Append(DataPtr, ValueStream.size() * sizeof(float));
 		F4MLMemoryReader Reader(Buffer);
 		Agent->DigestActions(Reader);
-	})
-		, TEXT("Distributes the given values array amongst all the actuators, based on actions_space."));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("act"), TEXT("(uint agent_id, list actions), Distributes the given values array amongst all the actuators, based on actions_space."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("batch_act", [this](std::vector<F4ML::FAgentID> AgentIDs, std::vector<std::vector<float>> ValueStreams) {
+	Server.bind("batch_act", [this](std::vector<F4ML::FAgentID> AgentIDs, std::vector<std::vector<float>> ValueStreams) {
 		if (HasSession() == false)
 		{
 			rpc::this_handler().respond_error("No active session");
@@ -167,10 +145,10 @@ void U4MLManager::ConfigureAsClient()
 				Agent->DigestActions(Reader);
 			}
 		}
-	})
-		, TEXT("A multi-agent version of \'act\' function"));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT(""), TEXT("A multi-agent version of \'act\' function"));
 
-	AddClientFunctionBind(UE4_RPC_BIND("get_observations", [this](F4ML::FAgentID AgentID) {
+	Server.bind("get_observations", [this](F4ML::FAgentID AgentID) {
 		std::vector<float> Values;
 		if (HasSession() && GetSession().GetAgent(AgentID))
 		{
@@ -183,56 +161,44 @@ void U4MLManager::ConfigureAsClient()
 			Values.assign(DataPtr, DataPtr + Buffer.Num() / sizeof(float));
 		}
 		return Values;
-	}));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("get_observations"), TEXT("(uint agent_id), fetches all the information gathered by given agent's sensors. Result matches observations_space"));
 
-	//AddClientFunctionBind(UE4_RPC_BIND("batch_get_observations", [this](std::vector<F4ML::FAgentID> AgentIDs) {
-	AddClientFunctionBind(TEXT("batch_get_observations"), [this](FRPCServer& Serv) 
-	{ 
-		Serv.bind("batch_get_observations", [this](std::vector<F4ML::FAgentID> AgentIDs) 
+	Server.bind("batch_get_observations", [this](std::vector<F4ML::FAgentID> AgentIDs) {
+		std::vector<std::vector<float>> Values;
+		if (HasSession())
 		{
-			std::vector<std::vector<float>> Values;
-			if (HasSession())
+			Values.resize(AgentIDs.size());
+			for (int Index = 0; Index < int(AgentIDs.size()); ++Index)
 			{
-				Values.resize(AgentIDs.size());
-				for (int Index = 0; Index < int(AgentIDs.size()); ++Index)
+				U4MLAgent* Agent = GetSession().GetAgent(AgentIDs[Index]);
+				if (Agent)
 				{
-					U4MLAgent* Agent = GetSession().GetAgent(AgentIDs[Index]);
-					if (Agent)
-					{
-						TArray<uint8> Buffer;
-						F4MLMemoryWriter Writer(Buffer);
-						Agent->GetObservations(Writer);
+					TArray<uint8> Buffer;
+					F4MLMemoryWriter Writer(Buffer);
+					Agent->GetObservations(Writer);
 
-						const float* DataPtr = (float*)Buffer.GetData();
-						Values[Index].assign(DataPtr, DataPtr + Buffer.Num() / sizeof(float));
-					}
+					const float* DataPtr = (float*)Buffer.GetData();
+					Values[Index].assign(DataPtr, DataPtr + Buffer.Num() / sizeof(float));
 				}
 			}
-			return Values;
-		});
+		}
+		return Values;
 	});
+	Librarian.AddRPCFunctionDescription(TEXT("batch_get_observations"), TEXT("Multi-agent version of 'get_observations'"));
 
-	AddClientFunctionBind(UE4_RPC_BIND("get", [this]() {
-		std::vector<std::vector<uint8>> Out;
-
-		Out.push_back({ 0,1,2,3,4 });
-
-		return Out;
-	})
-		, TEXT("."));
-
-	AddClientFunctionBind(UE4_RPC_BIND("get_recent_agent", [this]() {
+	Server.bind("get_recent_agent", [this]() {
 		return HasSession() ? F4ML::FAgentID(GetSession().GetAgentsCount() - 1) : F4ML::InvalidAgentID;
-	})
-		, TEXT("(), Fetch ID of the last created agent."));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("get_recent_agent"), TEXT("(), Fetches ID of the most recently created agent."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("get_reward", [this](F4ML::FAgentID AgentID) {
+	Server.bind("get_reward", [this](F4ML::FAgentID AgentID) {
 		CHECK_AGENTID(AgentID);
 		return GetSession().GetAgent(AgentID)->GetReward();
-	})
-		, TEXT("(), Fetch current reward for given Agent."));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("get_reward"), TEXT("(uint agent_id), Fetch current reward for given Agent."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("batch_get_rewards", [this](std::vector<F4ML::FAgentID> AgentIDs) {
+	Server.bind("batch_get_rewards", [this](std::vector<F4ML::FAgentID> AgentIDs) {
 		if (HasSession() == false)
 		{
 			rpc::this_handler().respond_error("No active session");
@@ -245,11 +211,10 @@ void U4MLManager::ConfigureAsClient()
 		}
 
 		return Rewards;
-	})
-		, TEXT("(), Fetch current reward for given Agent."));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("batch_get_rewards"), TEXT("(), Multi-agent version of 'get_rewards'."));
 
-	
-	AddClientFunctionBind(UE4_RPC_BIND("desc_action_space", [this](F4ML::FAgentID AgentID) {
+	Server.bind("desc_action_space", [this](F4ML::FAgentID AgentID) {
 		return CallOnGameThread<std::string>([this, AgentID]()
 		{
 			CHECK_AGENTID(AgentID);
@@ -257,12 +222,13 @@ void U4MLManager::ConfigureAsClient()
 			GetSession().GetAgent(AgentID)->GetActionSpaceDescription(SpaceDesc);
 			return FSTRING_TO_STD(SpaceDesc.ToJson());
 		});
-	}));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("desc_action_space"), TEXT("(uint agent_id), Fetches actions space desction for given agent"));
 
 	// we're sending this call to game thread since if it's called right after 
 	// "configure_agent" then this call will fetch pre-config state due to agent 
 	// configuration being performed on the game thread
-	AddClientFunctionBind(UE4_RPC_BIND("desc_observation_space", [this](F4ML::FAgentID AgentID) {
+	Server.bind("desc_observation_space", [this](F4ML::FAgentID AgentID) {
 		return CallOnGameThread<std::string>([this, AgentID]()
 		{
 			CHECK_AGENTID(AgentID);
@@ -270,30 +236,26 @@ void U4MLManager::ConfigureAsClient()
 			GetSession().GetAgent(AgentID)->GetObservationSpaceDescription(SpaceDesc);
 			return FSTRING_TO_STD(SpaceDesc.ToJson());
 		});
-	})); 
-	
-	// would be nicer
-	AddClientFunctionBind(UE4_RPC_BIND("reset", []() {
+	}); 
+	Librarian.AddRPCFunctionDescription(TEXT("desc_observation_space"), TEXT("(uint agent_id), Fetches observations space desction for given agent"));
+		
+	Server.bind("reset", []() {
 		CallOnGameThread<void>([]()
 		{
 			U4MLManager::Get().ResetWorld();
 		});
-	})
-		, TEXT("(), Lets the 4ML manager know that the environments should be reset. The details of how this call is handles heavily depends on the environment itself."));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("reset"), TEXT("(), Lets the 4ML manager know that the environments should be reset. The details of how this call is handles heavily depends on the environment itself."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("disconnect", [this](F4ML::FAgentID AgentID) {
+	Server.bind("disconnect", [this](F4ML::FAgentID AgentID) {
 		CHECK_AGENTID(AgentID);
 		GetSession().RemoveAgent(AgentID);
-	})
-		, TEXT("(), Lets the 4ML session know that given agent will not continue and is to be removed from the session."));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT(""), TEXT("(uint agent_id), Lets the 4ML session know that given agent will not continue and is to be removed from the session."));
 
-	//----------------------------------------------------------------------//
-	// For review  
-	//----------------------------------------------------------------------//
-
-	// this also means we're done messing up with the agent (configuring and all) 
+	// calling this means we're done messing up with the agent (configuring and all) 
 	// and we're ready to roll
-	AddClientFunctionBind(UE4_RPC_BIND("configure_agent", [this](F4ML::FAgentID AgentID, std::string const& JsonConfigString) {
+	Server.bind("configure_agent", [this](F4ML::FAgentID AgentID, std::string const& JsonConfigString) {
 
 		if (HasSession() == false)
 		{
@@ -313,10 +275,11 @@ void U4MLManager::ConfigureAsClient()
 		{
 			GetSession().GetAgent(AgentID)->Configure(Config);
 		});
-	}));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("configure_agent"), TEXT("(uint agent_id, string json_config), Configures given agent based on json_config. Will throw an exception if given agent doesn't exist."));
 
 	// combines 'add' and 'configure' agent
-	AddClientFunctionBind(UE4_RPC_BIND("create_agent", [this](std::string const& JsonConfigString) {
+	Server.bind("create_agent", [this](std::string const& JsonConfigString) {
 		F4MLAgentConfig Config;
 		F4ML::JsonStringToStruct(FString(JsonConfigString.c_str()), Config);
 
@@ -324,42 +287,26 @@ void U4MLManager::ConfigureAsClient()
 		{
 			return GetSession().AddAgent(Config);
 		});
-	}));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("create_agent"), TEXT("(), Creates a new agent and returns its agent_id."));
 
-	AddClientFunctionBind(UE4_RPC_BIND("is_agent_ready", [this](F4ML::FAgentID AgentID) {
+	Server.bind("is_agent_ready", [this](F4ML::FAgentID AgentID) {
 		return HasSession() && GetSession().IsAgentReady(AgentID);
-	}));
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("is_agent_ready"), TEXT("(uint agent_id), Returns 'true' if given agent is ready to play, including having an avatar"));
 
-	AddClientFunctionBind(UE4_RPC_BIND("is_ready", [this]() {
+	Server.bind("is_ready", [this]() {
 		return CallOnGameThread<bool>([this]()
 		{
 			return HasSession() && GetSession().IsReady();
 		});
-	}));
-	
-	AddClientFunctionBind(UE4_RPC_BIND("get_sensor_description", [](std::string const& ClassName) {
-		UClass* ResultClass = U4MLManager::Get().GetLibrarian().FindSensorClass(FName(ClassName.c_str()));
-		if (ResultClass)
-		{
-			U4MLAgentElement* CDO = ResultClass->GetDefaultObject<U4MLAgentElement>();
-			if (CDO)
-			{
-				return FSTRING_TO_STD(CDO->GetDescription());
-			}
-		}
-		rpc::this_handler().respond_error(std::make_tuple("Unable to find class", ClassName));
-		return std::string("Unable to find class");
-	}));
-
-	//----------------------------------------------------------------------//
-	// review end 
-	//----------------------------------------------------------------------//
-
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("is_ready"), TEXT("(), return whether the session is ready to go, i.e. whether the simulation has loaded and started."));
 #endif // WITH_RPCLIB
 
 	if (Session)
 	{
 		Session->ConfigureAsClient();
 	}
-	OnAddClientFunctions.Broadcast();
+	OnAddClientFunctions.Broadcast(Server);
 }

@@ -21,12 +21,15 @@ struct F4MLLibrarian
 	void RegisterActuatorClass(const TSubclassOf<U4MLActuator>& Class);
 	void RegisterAgentClass(const TSubclassOf<U4MLAgent>& Class);
 
+	void AddRPCFunctionDescription(const FName FunctionName, FString&& Description);
+
 	TMap<uint32, TSubclassOf<U4MLSensor> >::TConstIterator GetSensorsClassIterator() const { return KnownSensorClasses.CreateConstIterator(); }
 	TMap<uint32, TSubclassOf<U4MLActuator> >::TConstIterator GetActuatorsClassIterator() const { return KnownActuatorClasses.CreateConstIterator(); }
 	TArray<TSubclassOf<U4MLAgent> >::TConstIterator GetAgentsClassIterator() const { return KnownAgentClasses.CreateConstIterator(); }
 
-	bool GetFunctionDescription(const FName& FunctionName, FString& OutDescription) const;
+	bool GetFunctionDescription(const FName FunctionName, FString& OutDescription) const;
 	inline bool GetFunctionDescription(const FString& FunctionName, FString& OutDescription) const;
+	TMap<FName, FString>::TConstIterator GetFunctionDescriptionsIterator() const { return RPCFunctionDescriptions.CreateConstIterator(); }
 
 	TSubclassOf<U4MLAgent> FindAgentClass(const FName ClassName) const;
 	TSubclassOf<U4MLSensor> FindSensorClass(const FName ClassName) const;
@@ -43,6 +46,8 @@ protected:
 
 	UPROPERTY()
 	TArray<TSubclassOf<U4MLAgent> > KnownAgentClasses;
+
+	TMap<FName, FString> RPCFunctionDescriptions;
 };
 
 //----------------------------------------------------------------------//

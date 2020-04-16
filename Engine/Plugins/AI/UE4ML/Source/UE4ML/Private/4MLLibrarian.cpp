@@ -103,21 +103,19 @@ void F4MLLibrarian::RegisterAgentClass(const TSubclassOf<U4MLAgent>& Class)
 	KnownAgentClasses.AddUnique(Class);
 }
 
-bool F4MLLibrarian::GetFunctionDescription(const FName& FunctionName, FString& OutDescription) const
+void F4MLLibrarian::AddRPCFunctionDescription(const FName FunctionName, FString&& Description)
 {
-	auto* ClientFuncData = U4MLManager::Get().GetAvailableClientFunctions().Find(FunctionName);
-	if (ClientFuncData)
+	RPCFunctionDescriptions.FindOrAdd(FunctionName) = Description;
+}
+
+bool F4MLLibrarian::GetFunctionDescription(const FName FunctionName, FString& OutDescription) const
+{
+	const FString* FoundDesc = RPCFunctionDescriptions.Find(FunctionName);
+	if (FoundDesc)
 	{
-		OutDescription = ClientFuncData->Get<1>();
-		return true;
+		OutDescription = *FoundDesc;
 	}
-	auto* ServerFuncData = U4MLManager::Get().GetAvailableServerFunctions().Find(FunctionName);
-	if (ServerFuncData)
-	{
-		OutDescription = ServerFuncData->Get<1>();
-		return true; 
-	}
-	return false;
+	return FoundDesc != nullptr;
 }
 
 TSubclassOf<U4MLAgent> F4MLLibrarian::FindAgentClass(const FName ClassName) const
