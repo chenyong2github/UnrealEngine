@@ -155,6 +155,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
         IOS_IPadMini5,
 		IOS_IPodTouch7,
 		IOS_IPad7,
+		IOS_IPhoneSE2,
 		IOS_Unknown,
 	};
 
@@ -209,6 +210,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
             TEXT("IPadMini5"),
 			TEXT("IPodTouch7"),
 			TEXT("IPad7"),
+			TEXT("IPhoneSE2"),
 			TEXT("Unknown"),
 		};
 		static_assert((sizeof(IOSDeviceNames) / sizeof(IOSDeviceNames[0])) == ((int32)IOS_Unknown + 1), "Mismatched IOSDeviceNames and EIOSDevice.");
