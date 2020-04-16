@@ -430,7 +430,7 @@ class ENGINE_API UBlueprint : public UBlueprintCore
 	 * deleting the parent blueprint. Exported as Alphabetical in GetAssetRegistryTags
 	 */
 	UPROPERTY()
-	TSubclassOf<class UObject> ParentClass;
+	TSubclassOf<UObject> ParentClass;
 
 	/** The type of this blueprint */
 	UPROPERTY(AssetRegistrySearchable)
@@ -675,7 +675,10 @@ public:
 
 protected:
 	/** Current object being debugged for this blueprint */
-	TWeakObjectPtr< class UObject > CurrentObjectBeingDebugged;
+	TWeakObjectPtr< UObject > CurrentObjectBeingDebugged;
+
+	/** Raw path of object to be debugged, this might have been spawned inside a specific PIE level so is not stored as an object path type */
+	FString ObjectPathToDebug;
 
 	/** Current world being debugged for this blueprint */
 	TWeakObjectPtr< class UWorld > CurrentWorldBeingDebugged;
@@ -790,6 +793,9 @@ public:
 	/** Sets the current object being debugged */
 	virtual void SetObjectBeingDebugged(UObject* NewObject);
 
+	/** Clears the current object being debugged because it is gone, but do not reset the saved information */
+	virtual void UnregisterObjectBeingDebugged();
+
 	virtual void SetWorldBeingDebugged(UWorld* NewWorld);
 
 	virtual void GetReparentingRules(TSet< const UClass* >& AllowedChildrenOfClasses, TSet< const UClass* >& DisallowedChildrenOfClasses) const;
@@ -819,6 +825,12 @@ public:
 	{
 		const bool bEvenIfPendingKill = EnumHasAnyFlags(InFlags, EGetObjectOrWorldBeingDebuggedFlags::IgnorePendingKill);
 		return CurrentObjectBeingDebugged.Get(bEvenIfPendingKill);
+	}
+
+	/** @return path to object that should be debugged next, may be inside a nonexistent world */
+	const FString& GetObjectPathToDebug() const
+	{
+		return ObjectPathToDebug;
 	}
 
 	/** @return the current world being debugged, which can be nullptr */

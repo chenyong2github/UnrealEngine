@@ -29,14 +29,14 @@ void SBlueprintEditorSelectedDebugObjectWidget::Construct(const FArguments& InAr
 	BlueprintEditor = InBlueprintEditor;
 
 	GenerateDebugWorldNames(false);
-	GenerateDebugObjectNames(false);
+	GenerateDebugObjectInstances(false);
 
-	LastObjectObserved = DebugObjects[0];
+	LastObjectObserved = nullptr;
 
 	DebugWorldsComboBox = SNew(STextComboBox)
 		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
 		.ToolTip(IDocumentation::Get()->CreateToolTip(
-		LOCTEXT("BlueprintDebugWorldTooltip", "Select a world to debug"),
+		LOCTEXT("BlueprintDebugWorldTooltip", "Select a world to debug, will filter what to debug if no specific object selected"),
 		nullptr,
 		TEXT("Shared/Editors/BlueprintEditor/BlueprintDebugger"),
 		TEXT("DebugWorld")))
@@ -46,16 +46,16 @@ void SBlueprintEditorSelectedDebugObjectWidget::Construct(const FArguments& InAr
 		.OnComboBoxOpening(this, &SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugWorldNames, true)
 		.OnSelectionChanged(this, &SBlueprintEditorSelectedDebugObjectWidget::DebugWorldSelectionChanged);
 
-	DebugObjectsComboBox = SNew(SComboBox<TSharedPtr<FString>>)
+	DebugObjectsComboBox = SNew(SComboBox<TSharedPtr<FBlueprintDebugObjectInstance>>)
 		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
 		.ToolTip(IDocumentation::Get()->CreateToolTip(
-		LOCTEXT("BlueprintDebugObjectTooltip", "Select an object to debug"),
+		LOCTEXT("BlueprintDebugObjectTooltip", "Select an object to debug, if set to none will debug any object"),
 		nullptr,
 		TEXT("Shared/Editors/BlueprintEditor/BlueprintDebugger"),
 		TEXT("DebugObject")))
-		.OptionsSource(&DebugObjectNames)
-		.InitiallySelectedItem(GetDebugObjectName())
-		.OnComboBoxOpening(this, &SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectNames, true)
+		.OptionsSource(&DebugObjects)
+		.InitiallySelectedItem(GetDebugObjectInstance())
+		.OnComboBoxOpening(this, &SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectInstances, true)
 		.OnSelectionChanged(this, &SBlueprintEditorSelectedDebugObjectWidget::DebugObjectSelectionChanged)
 		.OnGenerateWidget(this, &SBlueprintEditorSelectedDebugObjectWidget::CreateDebugObjectItemWidget)
 		.AddMetaData<FTagMetaData>(TEXT("SelectDebugObjectCobmo"))
@@ -84,27 +84,8 @@ void SBlueprintEditorSelectedDebugObjectWidget::Tick( const FGeometry& AllottedG
 				// this ensures that if the last object we had selected was 
 				// regenerated (spawning a new object), then we select that  
 				// again, even if it is technically a different object
-				GenerateDebugObjectNames(/*bRestoreSelection =*/true);
+				GenerateDebugObjectInstances(/*bRestoreSelection =*/true);
 
-				TSharedPtr<FString> NewSelection = DebugObjectsComboBox->GetSelectedItem();
-				// just in case that object we want to select is actually in 
-				// there (and wasn't caught by bRestoreSelection), then let's 
-				// favor that over whatever was picked
-				for (int32 Index = 0; Index < DebugObjects.Num(); ++Index)
-				{
-					if (DebugObjects[Index] == Object)
-					{
-						NewSelection = DebugObjectNames[Index];
-						break;
-					}
-				}
-
-				if (!NewSelection.IsValid())
-				{
-					NewSelection = DebugObjectNames[0];
-				}
-
-				DebugObjectsComboBox->SetSelectedItem(NewSelection);
 				LastObjectObserved = Object;
 			}
 		}
@@ -113,10 +94,10 @@ void SBlueprintEditorSelectedDebugObjectWidget::Tick( const FGeometry& AllottedG
 			LastObjectObserved = nullptr;
 
 			// If the object name is a name (rather than the 'No debug selected' string then regenerate the names (which will reset the combo box) as the object is invalid.
-			TSharedPtr<FString> CurrentString = DebugObjectsComboBox->GetSelectedItem();
-			if (*CurrentString != GetNoDebugString())
+			TSharedPtr<FBlueprintDebugObjectInstance> CurrentSelection = DebugObjectsComboBox->GetSelectedItem();
+			if (CurrentSelection.IsValid() && CurrentSelection->IsEditorObject())
 			{
-				GenerateDebugObjectNames(false);
+				GenerateDebugObjectInstances(false);
 			}
 		}
 	}
@@ -207,12 +188,12 @@ void SBlueprintEditorSelectedDebugObjectWidget::OnRefresh()
 	if (GetBlueprintObj())
 	{
 		GenerateDebugWorldNames(false);
-		GenerateDebugObjectNames(false);
+		GenerateDebugObjectInstances(false);
 
 		if (DebugObjectsComboBox.IsValid())
 		{
-			DebugObjectsComboBox->SetSelectedItem(GetDebugWorldName());
-			DebugObjectsComboBox->SetSelectedItem(GetDebugObjectName());
+			DebugWorldsComboBox->SetSelectedItem(GetDebugWorldName());
+			DebugObjectsComboBox->SetSelectedItem(GetDebugObjectInstance());
 		}
 	}
 }
@@ -317,13 +298,14 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugWorldNames(bool bRe
 	}
 }
 
-void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectNames(bool bRestoreSelection)
+void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectInstances(bool bRestoreSelection)
 {
+	// Cache the current selection as we may need to restore it
+	TSharedPtr<FBlueprintDebugObjectInstance> LastSelection = GetDebugObjectInstance();
+
 	// Empty the lists of actors and regenerate them
 	DebugObjects.Empty();
-	DebugObjectNames.Empty();
-	DebugObjects.Add(nullptr);
-	DebugObjectNames.Add(MakeShareable(new FString(GetNoDebugString())));
+	DebugObjects.Add(MakeShareable(new FBlueprintDebugObjectInstance(nullptr, GetNoDebugString())));
 
 	// Grab custom objects that should always be visible, regardless of the world
 	TArray<FCustomDebugObject> CustomDebugObjects;
@@ -331,14 +313,7 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectNames(bool bR
 
 	for (const FCustomDebugObject& Entry : CustomDebugObjects)
 	{
-		if (Entry.NameOverride.IsEmpty())
-		{
-			AddDebugObject(Entry.Object);
-		}
-		else
-		{
-			AddDebugObjectWithName(Entry.Object, Entry.NameOverride);
-		}
+		AddDebugObject(Entry.Object, Entry.NameOverride);
 	}
 
 	// Check for a specific debug world. If DebugWorld=nullptr we take that as "any PIE world"
@@ -490,23 +465,29 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectNames(bool bR
 
 	if (DebugObjectsComboBox.IsValid())
 	{
-		// Attempt to restore the old selection
 		if (bRestoreSelection)
 		{
-			TSharedPtr<FString> CurrentDebugObject = GetDebugObjectName();
-			if (CurrentDebugObject.IsValid())
+			TSharedPtr<FBlueprintDebugObjectInstance> NewSelection = GetDebugObjectInstance();
+			if (NewSelection.IsValid() && !NewSelection->IsEmptyObject())
 			{
-				DebugObjectsComboBox->SetSelectedItem(CurrentDebugObject);
+				// If our new selection matches the actual debug object, set it
+				DebugObjectsComboBox->SetSelectedItem(NewSelection);
+			}
+			else if (LastSelection.IsValid() && !LastSelection->IsEditorObject() && !LastSelection->IsEmptyObject())
+			{
+				// Re-add the desired runtime object if needed, even though it is currently null
+				DebugObjects.Add(LastSelection);
+				DebugObjectsComboBox->SetSelectedItem(LastSelection);
 			}
 		}
 
-		// Finally ensure we have a valid selection
-		TSharedPtr<FString> CurrentSelection = DebugObjectsComboBox->GetSelectedItem();
-		if (DebugObjectNames.Find(CurrentSelection) == INDEX_NONE)
+		// Finally ensure we have a valid selection, this will set to all objects as a backup
+		TSharedPtr<FBlueprintDebugObjectInstance> CurrentSelection = DebugObjectsComboBox->GetSelectedItem();
+		if (DebugObjects.Find(CurrentSelection) == INDEX_NONE)
 		{
-			if (DebugObjectNames.Num() > 0)
+			if (DebugObjects.Num() > 0)
 			{
-				DebugObjectsComboBox->SetSelectedItem(DebugObjectNames[0]);
+				DebugObjectsComboBox->SetSelectedItem(DebugObjects[0]);
 			}
 			else
 			{
@@ -518,22 +499,27 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectNames(bool bR
 	}
 }
 
-TSharedPtr<FString> SBlueprintEditorSelectedDebugObjectWidget::GetDebugObjectName() const
+TSharedPtr<FBlueprintDebugObjectInstance> SBlueprintEditorSelectedDebugObjectWidget::GetDebugObjectInstance() const
 {
 	check(GetBlueprintObj());
-	check(DebugObjects.Num() == DebugObjectNames.Num());
-	if (UObject* DebugObj = GetBlueprintObj()->GetObjectBeingDebugged())
+	const FString& PathToDebug = GetBlueprintObj()->GetObjectPathToDebug();
+	if (!PathToDebug.IsEmpty())
 	{
 		for (int32 ObjectIndex = 0; ObjectIndex < DebugObjects.Num(); ++ObjectIndex)
 		{
-			if (DebugObjects[ObjectIndex].IsValid() && (DebugObjects[ObjectIndex].Get() == DebugObj))
+			if (DebugObjects[ObjectIndex].IsValid() && PathToDebug.Equals(DebugObjects[ObjectIndex]->ObjectPath))
 			{
-				return DebugObjectNames[ObjectIndex];
+				return DebugObjects[ObjectIndex];
 			}
 		}
 	}
 
-	return DebugObjectNames[0];
+	if (DebugObjects.Num() > 0)
+	{
+		return DebugObjects[0];
+	}
+	
+	return nullptr;
 }
 
 TSharedPtr<FString> SBlueprintEditorSelectedDebugObjectWidget::GetDebugWorldName() const
@@ -554,7 +540,13 @@ TSharedPtr<FString> SBlueprintEditorSelectedDebugObjectWidget::GetDebugWorldName
 		}
 	}
 
-	return DebugWorldNames[0];
+
+	if (DebugWorldNames.Num() > 0)
+	{
+		return DebugWorldNames[0];
+	}
+
+	return nullptr;
 }
 
 void SBlueprintEditorSelectedDebugObjectWidget::DebugWorldSelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
@@ -571,29 +563,21 @@ void SBlueprintEditorSelectedDebugObjectWidget::DebugWorldSelectionChanged(TShar
 				GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
 				LastObjectObserved.Reset();
 
-				GenerateDebugObjectNames(false);
+				GenerateDebugObjectInstances(false);
 				break;
 			}
 		}
 	}
 }
 
-void SBlueprintEditorSelectedDebugObjectWidget::DebugObjectSelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
+void SBlueprintEditorSelectedDebugObjectWidget::DebugObjectSelectionChanged(TSharedPtr<FBlueprintDebugObjectInstance> NewSelection, ESelectInfo::Type SelectInfo)
 {
-	if (NewSelection != GetDebugObjectName())
+	if (NewSelection != GetDebugObjectInstance() && NewSelection.IsValid())
 	{
-		check(DebugObjects.Num() == DebugObjectNames.Num());
-		for (int32 ObjectIndex = 0; ObjectIndex < DebugObjectNames.Num(); ++ObjectIndex)
-		{
-			if (DebugObjectNames[ObjectIndex] == NewSelection)
-			{
-				UObject* DebugObj = DebugObjects[ObjectIndex].Get();
-				GetBlueprintObj()->SetObjectBeingDebugged(DebugObj);
-
-				LastObjectObserved = DebugObj;
-				break;
-			}
-		}
+		UObject* DebugObj = NewSelection->ObjectPtr.Get();
+		GetBlueprintObj()->SetObjectBeingDebugged(DebugObj);
+		
+		LastObjectObserved = DebugObj;
 	}
 }
 
@@ -645,7 +629,7 @@ EVisibility SBlueprintEditorSelectedDebugObjectWidget::IsDebugWorldComboVisible(
 	return EVisibility::Collapsed;
 }
 
-FString SBlueprintEditorSelectedDebugObjectWidget::MakeDebugObjectLabel(UObject* TestObject, bool bAddContextIfSelectedInEditor) const
+FString SBlueprintEditorSelectedDebugObjectWidget::MakeDebugObjectLabel(UObject* TestObject, bool bAddContextIfSelectedInEditor, bool bAddSpawnedContext) const
 {
 	FString CustomLabelFromEditor = BlueprintEditor.Pin()->GetCustomDebugObjectLabel(TestObject);
 	if (!CustomLabelFromEditor.IsEmpty())
@@ -653,7 +637,7 @@ FString SBlueprintEditorSelectedDebugObjectWidget::MakeDebugObjectLabel(UObject*
 		return CustomLabelFromEditor;
 	}
 
-	auto GetActorLabelStringLambda = [](AActor* InActor, bool bIncludeNetModeSuffix, bool bIncludeSelectedSuffix)
+	auto GetActorLabelStringLambda = [](AActor* InActor, bool bIncludeNetModeSuffix, bool bIncludeSelectedSuffix, bool bIncludeSpawnedContext)
 	{
 		FString Label = InActor->GetActorLabel();
 
@@ -683,11 +667,21 @@ FString SBlueprintEditorSelectedDebugObjectWidget::MakeDebugObjectLabel(UObject*
 			}
 		}
 
+		if (bIncludeSpawnedContext)
+		{
+			if (!Context.IsEmpty())
+			{
+				Context += TEXT(", ");
+			}
+
+			Context += NSLOCTEXT("BlueprintEditor", "DebugObjectSpawned", "spawned").ToString();
+		}
+
 		if (bIncludeSelectedSuffix && InActor->IsSelected())
 		{
 			if (!Context.IsEmpty())
 			{
-				Context += TEXT(" - ");
+				Context += TEXT(", ");
 			}
 
 			Context += NSLOCTEXT("BlueprintEditor", "DebugObjectSelected", "selected").ToString();
@@ -707,16 +701,15 @@ FString SBlueprintEditorSelectedDebugObjectWidget::MakeDebugObjectLabel(UObject*
 	FString Label;
 	if (AActor* Actor = Cast<AActor>(TestObject))
 	{
-		Label = GetActorLabelStringLambda(Actor, bIncludeNetModeSuffix, bAddContextIfSelectedInEditor);
+		Label = GetActorLabelStringLambda(Actor, bIncludeNetModeSuffix, bAddContextIfSelectedInEditor, bAddSpawnedContext);
 	}
 	else
 	{
 		if (AActor* ParentActor = TestObject->GetTypedOuter<AActor>())
 		{
-			// This gives the most precision, but is pretty long for the combo box
-			//const FString RelativePath = TestObject->GetPathName(/*StopOuter=*/ ParentActor);
+			// We don't need the full path because it's in the tooltip
 			const FString RelativePath = TestObject->GetName();
-			Label = FString::Printf(TEXT("%s in %s"), *RelativePath, *GetActorLabelStringLambda(ParentActor, bIncludeNetModeSuffix, bAddContextIfSelectedInEditor));
+			Label = FString::Printf(TEXT("%s in %s"), *RelativePath, *GetActorLabelStringLambda(ParentActor, bIncludeNetModeSuffix, bAddContextIfSelectedInEditor, bAddSpawnedContext));
 		}
 		else
 		{
@@ -727,49 +720,85 @@ FString SBlueprintEditorSelectedDebugObjectWidget::MakeDebugObjectLabel(UObject*
 	return Label;
 }
 
-void SBlueprintEditorSelectedDebugObjectWidget::AddDebugObject(UObject* TestObject)
+void SBlueprintEditorSelectedDebugObjectWidget::FillDebugObjectInstance(TSharedPtr<FBlueprintDebugObjectInstance> Instance)
 {
-	FString Label = MakeDebugObjectLabel(TestObject, true);
-	AddDebugObjectWithName(TestObject, Label);
+	check(Instance.IsValid());
+	FBlueprintDebugObjectInstance& Ref = *Instance.Get();
+
+	if (Ref.ObjectPtr.IsValid())
+	{
+		Ref.ObjectPath = Ref.ObjectPtr->GetPathName();
+
+		// Compute non-PIE path
+		FString OriginalPath = UWorld::RemovePIEPrefix(Ref.ObjectPath);
+
+		// Look for original object
+		UObject* OriginalObject = FindObjectSafe<UObject>(nullptr, *OriginalPath);
+
+		if (OriginalObject)
+		{
+			Ref.EditorObjectPath = OriginalPath;
+		}
+		else
+		{
+			// No editor path, was dynamically spawned
+			Ref.EditorObjectPath = FString();
+		}
+	}
+	else
+	{
+		Ref.ObjectPath = Ref.EditorObjectPath = FString();
+	}
 }
 
-void SBlueprintEditorSelectedDebugObjectWidget::AddDebugObjectWithName(UObject* TestObject, const FString& TestObjectName)
+void SBlueprintEditorSelectedDebugObjectWidget::AddDebugObject(UObject* TestObject, const FString& TestObjectName)
 {
-	DebugObjects.Add(TestObject);
-	DebugObjectNames.Add(MakeShareable(new FString(TestObjectName)));
+	TSharedPtr<FBlueprintDebugObjectInstance> NewInstance = MakeShareable(new FBlueprintDebugObjectInstance(TestObject, TestObjectName));
+	FillDebugObjectInstance(NewInstance);
+
+	if (TestObjectName.IsEmpty())
+	{
+		NewInstance->ObjectLabel = MakeDebugObjectLabel(TestObject, true, NewInstance->IsSpawnedObject());
+	}
+	
+	DebugObjects.Add(NewInstance);
 }
 
-TSharedRef<SWidget> SBlueprintEditorSelectedDebugObjectWidget::CreateDebugObjectItemWidget(TSharedPtr<FString> InItem)
+TSharedRef<SWidget> SBlueprintEditorSelectedDebugObjectWidget::CreateDebugObjectItemWidget(TSharedPtr<FBlueprintDebugObjectInstance> InItem)
 {
 	FString ItemString;
+	FString ItemTooltip;
 
 	if (InItem.IsValid())
 	{
-		ItemString = *InItem;
+		ItemString = InItem->ObjectLabel;
+		ItemTooltip = InItem->ObjectPath;
 	}
 
 	return SNew(STextBlock)
-		.Text(FText::FromString(*ItemString));
+		.Text(FText::FromString(*ItemString))
+		.ToolTipText(FText::FromString(*ItemTooltip));
 }
 
 FText SBlueprintEditorSelectedDebugObjectWidget::GetSelectedDebugObjectTextLabel() const
 {
 	FString Label;
 
-	UBlueprint* Blueprint = GetBlueprintObj();
-	if (Blueprint != nullptr)
+	TSharedPtr<FBlueprintDebugObjectInstance> DebugInstance = GetDebugObjectInstance();
+	if (DebugInstance.IsValid())
 	{
-		UObject* DebugObj = Blueprint->GetObjectBeingDebugged();
-		if (DebugObj != nullptr)
+		Label = DebugInstance->ObjectLabel;
+
+		UBlueprint* Blueprint = GetBlueprintObj();
+		if (Blueprint != nullptr)
 		{
-			// Exclude the editor selection suffix for the combo button's label.
-			Label = MakeDebugObjectLabel(DebugObj, false);
+			UObject* DebugObj = Blueprint->GetObjectBeingDebugged();
+			if (DebugObj != nullptr)
+			{
+				// Exclude the editor selection suffix for the combo button's label.
+				Label = MakeDebugObjectLabel(DebugObj, false, DebugInstance->IsSpawnedObject());
+			}
 		}
-	}
-		
-	if (Label.IsEmpty())
-	{
-		Label = *GetDebugObjectName();
 	}
 
 	return FText::FromString(Label);

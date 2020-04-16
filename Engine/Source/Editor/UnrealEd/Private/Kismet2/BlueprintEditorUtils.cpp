@@ -8341,7 +8341,7 @@ void FBlueprintEditorUtils::FindAndSetDebuggableBlueprintInstances()
 		UBlueprint* Blueprint = Cast<UBlueprint>( EditedAssets[i] );
 		if( Blueprint != nullptr )
 		{
-			if( Blueprint->GetObjectBeingDebugged() == nullptr )
+			if (Blueprint->GetObjectPathToDebug().IsEmpty())
 			{
 				BlueprintsNeedingInstancesToDebug.FindOrAdd( Blueprint );
 			}			
@@ -8351,11 +8351,7 @@ void FBlueprintEditorUtils::FindAndSetDebuggableBlueprintInstances()
 	// If we have blueprints with no debug objects selected try to find a suitable on to debug
 	if( BlueprintsNeedingInstancesToDebug.Num() != 0 )
 	{	
-		// Priority is in the following order.
-		// 1. Selected objects with the exact same type as the blueprint being debugged
-		// 2. UnSelected objects with the exact same type as the blueprint being debugged
-		// 3. Selected objects based on the type of blueprint being debugged
-		// 4. UnSelected objects based on the type of blueprint being debugged
+		// This will only assign currently selected objects of the right type, otherwise leave on default behavior to break on any
 		USelection* Selected = GEditor->GetSelectedActors();
 		const bool bDisAllowDerivedTypes = false;
 		TArray< UBlueprint* > BlueprintsToRefresh;
@@ -8363,10 +8359,7 @@ void FBlueprintEditorUtils::FindAndSetDebuggableBlueprintInstances()
 		{	
 			UBlueprint* EachBlueprint = ObjIt.Key();
 			bool bFoundItemToDebug = false;
-			AActor* SimilarInstanceSelected = nullptr;
-			AActor* SimilarInstanceUnselected = nullptr;
 
-			// First check selected objects.
 			if( Selected->Num() != 0 )
 			{
 				for (int32 iSelected = 0; iSelected < Selected->Num() ; iSelected++)
@@ -8381,14 +8374,6 @@ void FBlueprintEditorUtils::FindAndSetDebuggableBlueprintInstances()
 							bFoundItemToDebug = true;
 							BlueprintsToRefresh.Add( EachBlueprint );
 							break;
-						}
-						else if( SimilarInstanceSelected == nullptr)
-						{
-							// If we haven't found a similar selected instance already check for one now
-							if( IsObjectADebugCandidate(ObjectAsActor, EachBlueprint, false/*bInDisallowDerivedBlueprints*/ ) == true )
-							{
-								SimilarInstanceSelected = ObjectAsActor;
-							}
 						}
 					}
 				}
