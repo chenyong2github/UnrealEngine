@@ -27,7 +27,7 @@ DECLARE_CYCLE_STAT(TEXT("ReceiveRPC"), STAT_NetReceiveRPC, STATGROUP_Game);
 static TAutoConsoleVariable<int32> CVarMaxRPCPerNetUpdate(
 	TEXT("net.MaxRPCPerNetUpdate"),
 	2,
-	TEXT("Maximum number of RPCs allowed per net update, additional ones will be delayed until the next update"),
+	TEXT("Maximum number of unreliable multicast RPC calls allowed per net update, additional ones will be dropped"),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarDelayUnmappedRPCs(

@@ -49,7 +49,7 @@ static FAutoConsoleVariableRef CVarDoReplicationContextString(TEXT("net.ContextD
 
 int32 GNetSharedSerializedData = 1;
 static FAutoConsoleVariableRef CVarNetShareSerializedData(TEXT("net.ShareSerializedData"), GNetSharedSerializedData,
-	TEXT("If true, enable shared serialziation system for use by ReplicationGraph nodes"));
+	TEXT("If true, enable shared serialization system used by replication to reduce CPU usage when multiple clients need the same data"));
 
 int32 GNetVerifyShareSerializedData = 0;
 static FAutoConsoleVariableRef CVarNetVerifyShareSerializedData(TEXT("net.VerifyShareSerializedData"), GNetVerifyShareSerializedData,
