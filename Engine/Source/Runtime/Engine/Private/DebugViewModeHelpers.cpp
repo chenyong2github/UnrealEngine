@@ -40,6 +40,7 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 	case DVSM_None:
 		return false;
 	case DVSM_ShaderComplexity:
+	case DVSM_LODColoration:
 		return IsPCPlatform(Platform);
 	case DVSM_ShaderComplexityContainedQuadOverhead:
 	case DVSM_ShaderComplexityBleedingQuadOverhead:
