@@ -924,12 +924,9 @@ const TCHAR* FWindowsPlatformProcess::BaseDir()
 			GetModuleFileName(hCurrentModule, Result, UE_ARRAY_COUNT(Result));
 			FString TempResult(Result);
 			TempResult = TempResult.Replace(TEXT("\\"), TEXT("/"));
+
 			FCString::Strcpy(Result, *TempResult);
 			int32 StringLength = FCString::Strlen(Result);
-			int32 NumSubDirectories = 0;
-#ifdef ENGINE_BASE_DIR_ADJUST
-			NumSubDirectories = ENGINE_BASE_DIR_ADJUST;
-#endif
 			if (StringLength > 0)
 			{
 				--StringLength;
@@ -937,16 +934,16 @@ const TCHAR* FWindowsPlatformProcess::BaseDir()
 				{
 					if (Result[StringLength - 1] == TEXT('/') || Result[StringLength - 1] == TEXT('\\'))
 					{
-						if(--NumSubDirectories < 0) //-V547
-						{
-							break;
-						}
+						break;
 					}
 				}
 			}
 			Result[StringLength] = 0;
 
 			FString CollapseResult(Result);
+#ifdef UE_RELATIVE_BASE_DIR
+			CollapseResult /= UE_RELATIVE_BASE_DIR;
+#endif
 			FPaths::CollapseRelativeDirectories(CollapseResult);
 			FCString::Strcpy(Result, *CollapseResult);
 		}

@@ -3540,9 +3540,15 @@ namespace UnrealBuildTool
 			// By default, shadow source files for this target in the root OutputDirectory
 			GlobalLinkEnvironment.LocalShadowDirectory = GlobalLinkEnvironment.OutputDirectory;
 
-			if(!String.IsNullOrEmpty(Rules.ExeBinariesSubFolder))
+			DirectoryReference OutputDir = Binaries[0].OutputDir;
+			if (OutputDir.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 			{
-				GlobalCompileEnvironment.Definitions.Add(String.Format("ENGINE_BASE_DIR_ADJUST={0}", Rules.ExeBinariesSubFolder.Replace('\\', '/').Trim('/').Count(x => x == '/') + 1));
+				DirectoryReference BaseDir = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", Platform.ToString());
+				if (BaseDir != OutputDir)
+				{
+					string RelativeBaseDir = BaseDir.MakeRelativeTo(OutputDir).Replace(Path.DirectorySeparatorChar, '/');
+					GlobalCompileEnvironment.Definitions.Add(String.Format("UE_RELATIVE_BASE_DIR=\"{0}\"", RelativeBaseDir));
+				}
 			}
 
 			if (Rules.bForceCompileDevelopmentAutomationTests)
