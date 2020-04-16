@@ -48,6 +48,8 @@ private:
 	uint32 bOverrideMaterials : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
 	uint32 bLockedAxisEnable : 1;
+	uint32 bEnableCulling : 1;
+	uint32 bEnableFrustumCulling : 1;
 
 	uint32 bSubImageBlend : 1;
 	FVector2D SubImageSize;
@@ -55,6 +57,10 @@ private:
 	FVector LockedAxis;
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 
+	FSphere LocalCullingSphere;
+	FVector2D DistanceCullRange;
+	int32 RendererVisTagOffset;
+	int32 RendererVisibility;
 	uint32 MaterialParamValidMask;
 
 	int32 MeshMinimumLOD = 0;
