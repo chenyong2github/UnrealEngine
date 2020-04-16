@@ -2770,7 +2770,7 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 	FSceneView* View = CalcSceneView( &ViewFamily );
 
 	// Compute the click location.
-	if ( InputState.IsAnyMouseButtonDown() )
+	if ( InputState.IsMouseButtonEvent() && InputState.IsAnyMouseButtonDown() )
 	{
 		const FViewportCursorLocation Cursor(View, this, HitX, HitY);
 		const FActorPositionTraceResult TraceResult = FActorPositioning::TraceWorldForPositionWithDefault(Cursor, *View);
