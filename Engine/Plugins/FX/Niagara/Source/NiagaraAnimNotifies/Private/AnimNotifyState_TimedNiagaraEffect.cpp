@@ -58,7 +58,7 @@ void UAnimNotifyState_TimedNiagaraEffect::NotifyEnd(USkeletalMeshComponent * Mes
 			bTemplateMatch |= PreviousTemplates.Contains(FXSystemComponent->GetFXSystemAsset());
 #endif
 
-			if (bSocketMatch && bTemplateMatch && FXSystemComponent->IsActive())
+			if (bSocketMatch && bTemplateMatch)
 			{
 				// Either destroy the component or deactivate it to have it's active FXSystems finish.
 				// The component will auto destroy once all FXSystem are gone.
