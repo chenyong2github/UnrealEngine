@@ -318,7 +318,7 @@ namespace HLODOutliner
 			.Padding(FMargin(0.0f, 2.0f))
 			[
 				SNew(SWrapBox)
-				.UseAllottedWidth(true)
+				.UseAllottedSize(true)
 
 				+ SWrapBox::Slot()
 				.Padding(FMargin(2.0f))

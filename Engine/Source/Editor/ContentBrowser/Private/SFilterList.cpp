@@ -559,7 +559,7 @@ void SFilterList::Construct( const FArguments& InArgs )
 	}
 
 	FilterBox = SNew(SWrapBox)
-		.UseAllottedWidth(true);
+		.UseAllottedSize(true);
 
 	ChildSlot
 	[

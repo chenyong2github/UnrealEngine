@@ -1009,7 +1009,7 @@ TSharedRef<SWidget> SWorldComposition::ConstructContentWidget()
 		.AutoHeight()
 		[
 			SAssignNew(LayersListWrapBox, SWrapBox)
-			.UseAllottedWidth(true)
+			.UseAllottedSize(true)
 		]
 				
 		+SVerticalBox::Slot()

@@ -487,7 +487,7 @@ TSharedRef<SWidget> STargetSetDropDown::MakeComboButtonItemWidget(TSharedPtr<FTa
 	{
 		const TSharedRef<SWrapBox> WrapBox =
 			SNew( SWrapBox )
-			.PreferredWidth( this, &STargetSetDropDown::GetPreferredWidthForWrapping );
+			.PreferredSize( this, &STargetSetDropDown::GetPreferredWidthForWrapping );
 
 		for(int32 i = 0; i < TargetSet->Num(); ++i)
 		{

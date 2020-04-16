@@ -327,7 +327,7 @@ void SPinnedCommandList::Construct( const FArguments& InArgs, const FName& InCon
 	ChildSlot
 	[
 		SAssignNew(CommandBox, SWrapBox)
-		.UseAllottedWidth(true)
+		.UseAllottedSize(true)
 		.InnerSlotPadding(FVector2D(0.0f, 0.0f))
 	];
 }

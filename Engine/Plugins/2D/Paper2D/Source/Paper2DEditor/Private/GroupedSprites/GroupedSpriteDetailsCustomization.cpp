@@ -41,7 +41,7 @@ void FGroupedSpriteComponentDetailsCustomization::CustomizeDetails(IDetailLayout
 	DetailBuilder.GetObjectsBeingCustomized(/*out*/ ObjectsBeingCustomized);
 
 
-	TSharedRef<SWrapBox> ButtonBox = SNew(SWrapBox).UseAllottedWidth(true);
+	TSharedRef<SWrapBox> ButtonBox = SNew(SWrapBox).UseAllottedSize(true);
 
 	const float MinButtonSize = 100.0f;
 	const FMargin ButtonPadding(0.0f, 2.0f, 2.0f, 0.0f);
