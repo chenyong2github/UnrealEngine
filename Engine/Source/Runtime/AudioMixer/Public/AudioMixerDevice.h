@@ -316,9 +316,6 @@ namespace Audio
 		/** The time delta for each callback block. */
 		double AudioClockDelta;
 
-		/** The audio clock from device initialization, updated at block rate. */
-		double AudioClock;
-
 		/** What the previous master volume was. */
 		float PreviousMasterVolume;
 
